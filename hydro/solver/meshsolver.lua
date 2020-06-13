@@ -22,6 +22,9 @@ local time, getTime = table.unpack(require 'hydro.util.time')
 local real = require 'hydro.real'
 local vector = require 'hydro.util.vector'
 
+local half = require 'hydro.half'
+local toreal, fromreal = half.toreal, half.fromreal
+
 matrix_ffi.real = 'float'	-- default matrix_ffi type
 
 
@@ -60,6 +63,13 @@ function MeshSolver:initL1(args)
 
 	MeshSolver.super.initL1(self, args)
 
+	-- alright, by this point 'gridSize' has become synonymous with global_size() ...
+	-- I'm going to have to determine a vec4 globalSize for my kernels once they exceed the max 1D size
+	-- (just like I'm already doing with the Tex2D size)
+	self.solverStruct.vars:append{
+		{name='gridSize', type='int4'},
+		{name='stepsize', type='int4'},
+	}
 
 	local meshType = assert(args.mesh.type, "expected mesh type")
 	local meshFactoryClass = require('hydro.mesh.'..meshType)
@@ -110,6 +120,34 @@ end
 
 	-- no longer is dim * numCells the number of interfaces -- it is now dependent on the mesh
 	-- maybe I should rename this to numFaces?
+end
+
+function MeshSolver:createSolverBuf()
+	MeshSolver.super.createSolverBuf(self)
+
+	-- TODO most of this matches with gridsolver
+
+	self.solverPtr.gridSize.x = assert(self.numCells)
+	self.solverPtr.gridSize.y = 1
+	self.solverPtr.gridSize.z = 1
+	self.solverPtr.gridSize.w = 1
+	self.solverPtr.stepsize.x = 1
+	self.solverPtr.stepsize.y = self.solverPtr.gridSize.x
+	self.solverPtr.stepsize.z = self.solverPtr.gridSize.x * self.solverPtr.gridSize.y
+	self.solverPtr.stepsize.w = self.solverPtr.gridSize.x * self.solverPtr.gridSize.y * self.solverPtr.gridSize.z
+
+	-- while we're here, write all gui vars to the solver_t
+	for _,var in ipairs(self.eqn.guiVars) do
+		if not var.compileTime then
+			if var.ctype == 'real' then
+				self.solverPtr[var.name] = toreal(var.value)
+			else
+				self.solverPtr[var.name] = var.value
+			end
+		end
+	end
+
+	self:refreshSolverBuf()
 end
 
 function MeshSolver:initDraw()
@@ -449,15 +487,23 @@ function MeshSolver:createCodePrefix()
 	}
 
 	lines:insert[[
+
+#define INDEX(a,b,c)	((a) + solver->gridSize.x * ((b) + solver->gridSize.y * (c)))
+#define INDEXV(i)		indexForInt4ForSize(i, solver->gridSize.x, solver->gridSize.y, solver->gridSize.z)
+
 #define OOB(lhs,rhs) (index >= get_global_size(0))
+
 #define SETBOUNDS(lhs,rhs)	\
 	int index = get_global_id(0); \
 	int4 i = (int4)(index,0,0,0);	\
 	if (OOB(0,0)) return;
+
 #define SETBOUNDS_NOGHOST()	\
 	int index = get_global_id(0); \
 	int4 i = (int4)(index,0,0,0);
-#define cell_x(i) real3_zero
+
+#define cell_x(i) cells[INDEXV(i)].pos
+
 ]]
 
 	self.codePrefix = lines:concat'\n'

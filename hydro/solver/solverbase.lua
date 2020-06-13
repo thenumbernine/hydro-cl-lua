@@ -934,6 +934,9 @@ void <?=name?>(
 	int* vectorField,
 	displayValue_t* value,
 	int4 i
+<? if require 'hydro.solver.meshsolver'.is(solver) then ?>
+	,const global cell_t* cells
+<? end ?>
 ) {
 	switch (component) {
 <? 
@@ -1325,7 +1328,10 @@ end ?><?= var.extraArgs and #var.extraArgs > 0
 	INIT_DISPLAYFUNC()
 <?=addTab(var.code)
 ?>	int vectorField = <?=solver:isVarTypeAVectorField(var.type) and '1' or '0'?>;
-	<?=solver:getPickComponentNameForGroup(var)?>(solver, (const global real*)buf, component, &vectorField, &value, i);
+	<?=solver:getPickComponentNameForGroup(var)?>(solver, (const global real*)buf, component, &vectorField, &value, i<?
+if require 'hydro.solver.meshsolver'.is(solver) then 
+	?>, cells<? 
+end ?>);
 	END_DISPLAYFUNC_<?=texVsBuf:upper()?>()
 }
 ]]
