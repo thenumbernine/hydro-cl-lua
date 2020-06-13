@@ -46,8 +46,13 @@ function MeshSolver:initL1(args)
 	self.flux = args.flux or 'roe'
 
 	-- hll-specific args:
+	-- TODO make these 'fluxArgs' in config,
+	-- and have them pass to a hydro/flux object that associates with the flux calculation.
 	if self.flux == 'hll' then
 		self.calcWaveMethod = args.calcWaveMethod or 'Davis direct bounded'
+	elseif self.flux == 'euler-hllc' then
+		self.calcWaveMethod = args.calcWaveMethod or 'Davis direct bounded'
+		self.hllcMethod = args.hllcMethod or 2
 	end
 
 	MeshSolver.super.initL1(self, args)

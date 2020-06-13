@@ -56,7 +56,6 @@
 
 <? if not require 'hydro.solver.meshsolver'.is(solver) then ?>
 
-
 kernel void calcFlux(
 	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* fluxBuf,
@@ -87,10 +86,8 @@ kernel void calcFlux(
 		normalInfo_t n = normalInfo_forSide<?=side?>(x);
 
 		global <?=eqn.cons_t?>* flux = fluxBuf + indexInt;
-		*flux = calcFluxFromInterface(solver, pUL, pUR, xInt, n);
-
+		*flux = calcFluxForInterface(solver, pUL, pUR, xInt, n);
 	}<? end ?>
 }
-
 
 <? end -- mesh vs grid solver ?>
