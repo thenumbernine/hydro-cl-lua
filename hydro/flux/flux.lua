@@ -6,8 +6,8 @@ local clnumber = require 'cl.obj.number'
 
 local Flux = class()
 
-function Flux:init(solver)
-	self.solver = solver
+function Flux:init(args)
+	self.solver = assert(args.solver)
 end
 
 function Flux:getSolverCode()

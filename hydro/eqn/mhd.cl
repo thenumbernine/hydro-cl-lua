@@ -51,11 +51,11 @@ ideal-mhd, divergence-free, conservative-based eigensystem
 //called from calcDT
 range_t calcCellMinMaxEigenvalues(
 	constant <?=solver.solver_t?>* solver,
-	const global <?=eqn.cons_t?>* U,
+	<?=eqn.cons_t?> U,
 	real3 x,
 	normalInfo_t n
 ) {
-	<?=eqn.cons_t?> U_ = cons_rotateFrom(*U, n);
+	<?=eqn.cons_t?> U_ = cons_rotateFrom(U, n);
 	<?=eqn.prim_t?> W = primFromCons(solver, U_, x);
 	
 #if 0

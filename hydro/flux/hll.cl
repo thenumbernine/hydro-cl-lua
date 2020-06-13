@@ -15,11 +15,11 @@
 	real lambdaIntMin = <?=eqn:eigenMinWaveCode('n', 'eigInt', 'xInt')?>;
 	real lambdaIntMax = <?=eqn:eigenMaxWaveCode('n', 'eigInt', 'xInt')?>;
 
-<? if solver.calcWaveMethod == 'Davis direct' then ?>
+<? if solver.flux.hllCalcWaveMethod == 'Davis direct' then ?>
 	real sL = lambdaIntMin;
 	real sR = lambdaIntMax;
 <? end ?>
-<? if solver.calcWaveMethod == 'Davis direct bounded' then ?>
+<? if solver.flux.hllCalcWaveMethod == 'Davis direct bounded' then ?>
 	real lambdaLMin;
 	{
 		<?=eqn:consWaveCodePrefix('n', 'pUL', 'xInt')?>
@@ -62,6 +62,8 @@ kernel void calcFlux(
 	const global <?=solver.getULRArg?>,
 	realparam dt	//not used by HLL, just making this match Roe / other FV solvers
 ) {
+	typedef <?=eqn.cons_t?> cons_t;
+
 	SETBOUNDS(numGhost,numGhost-1);
 	
 	real3 xR = cell_x(i);
@@ -85,7 +87,7 @@ kernel void calcFlux(
 
 		normalInfo_t n = normalInfo_forSide<?=side?>(x);
 
-		global <?=eqn.cons_t?>* flux = fluxBuf + indexInt;
+		global cons_t* flux = fluxBuf + indexInt;
 		*flux = calcFluxForInterface(solver, pUL, pUR, xInt, n);
 	}<? end ?>
 }

@@ -377,7 +377,7 @@ end
 
 function MHD:consWaveCodePrefix(n, U, x)
 	return template([[
-	range_t lambda = calcCellMinMaxEigenvalues(solver, &<?=U?>, <?=x?>, <?=n?>); 
+	range_t lambda = calcCellMinMaxEigenvalues(solver, <?=U?>, <?=x?>, <?=n?>); 
 ]], {
 		n = n,
 		U = '('..U..')',

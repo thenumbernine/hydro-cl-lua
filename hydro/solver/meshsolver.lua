@@ -43,15 +43,18 @@ function MeshSolver:initL1(args)
 	self.drawCellScale = 1
 
 	-- TODO make this a param of gridsolver as well
-	self.flux = args.flux or 'roe'
+	local fluxName = assert(args.flux, "expected flux")
+	local fluxClass = require('hydro.flux.'..fluxName)
+	local fluxArgs = table(args.fluxArgs, {solver=self})
+	self.flux = fluxClass(fluxArgs)
 
 	-- hll-specific args:
 	-- TODO make these 'fluxArgs' in config,
 	-- and have them pass to a hydro/flux object that associates with the flux calculation.
-	if self.flux == 'hll' then
-		self.calcWaveMethod = args.calcWaveMethod or 'Davis direct bounded'
-	elseif self.flux == 'euler-hllc' then
-		self.calcWaveMethod = args.calcWaveMethod or 'Davis direct bounded'
+	if self.flux.name == 'hll' then
+		self.hllCalcWaveMethod = args.hllCalcWaveMethod or 'Davis direct bounded'
+	elseif self.flux.name == 'euler-hllc' then
+		self.hllCalcWaveMethod = args.hllCalcWaveMethod or 'Davis direct bounded'
 		self.hllcMethod = args.hllcMethod or 2
 	end
 
@@ -344,13 +347,7 @@ function MeshSolver:getSolverCode()
 	return table{
 		MeshSolver.super.getSolverCode(self),
 
-		-- TODO flux scheme HERE
-		-- this is the 'calcFluxKernel' code part of all the fvsolver subclasses
-		-- so maybe make that its own module that plugs into both fvsolver and this
-		template(file['hydro/flux/'..self.flux..'.cl'], {
-			solver = self,
-			eqn = self.eqn,
-		}),
+		self.flux:getSolverCode(),
 
 		-- boundary code, since meshsolver doesn't use gridsolver's boundary: 
 		template([[

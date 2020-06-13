@@ -25,7 +25,8 @@ function FiniteVolumeSolver:initL1(args)
 
 	local fluxName = assert(args.flux, "expected flux")
 	local fluxClass = require('hydro.flux.'..fluxName)
-	self.flux = fluxClass(self)
+	local fluxArgs = table(args.fluxArgs, {solver=self})
+	self.flux = fluxClass(fluxArgs)
 end
 
 function FiniteVolumeSolver:createBuffers()

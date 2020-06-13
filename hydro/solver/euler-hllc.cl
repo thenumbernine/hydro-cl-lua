@@ -31,11 +31,11 @@ end
 		lambdaIntMax = <?=eqn:eigenMaxWaveCode('n', 'eigInt', 'xInt')?>;
 	}
 	
-<? if solver.calcWaveMethod == 'Davis direct' then ?>
+<? if solver.flux.hllCalcWaveMethod == 'Davis direct' then ?>
 	real sL = lambdaIntMin;
 	real sR = lambdaIntMax;
 <? end ?>
-<? if solver.calcWaveMethod == 'Davis direct bounded' then ?>
+<? if solver.flux.hllCalcWaveMethod == 'Davis direct bounded' then ?>
 	real lambdaLMin;
 	{
 		<?=eqn:consWaveCodePrefix('n', 'UL', 'xInt')?>
