@@ -25,6 +25,13 @@ function EulerBurgers:init(...)
 	self.name = nil	-- don't append the eqn name to this
 end
 
+-- override this -- don't expect a flux argument
+function EulerBurgers:createFlux(fluxName, fluxArgs)
+	self.flux = {
+		getSolverCode = function() return '' end,
+	}
+end
+
 function EulerBurgers:createEqn()
 	EulerBurgers.super.createEqn(self)
 	self.eqn.getCalcDTCode = function() end	-- override calcDT 

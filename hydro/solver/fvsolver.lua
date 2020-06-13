@@ -21,11 +21,14 @@ local sym = common.sym
 local FiniteVolumeSolver = class(GridSolver)
 
 function FiniteVolumeSolver:initL1(args)
-	FiniteVolumeSolver.super.initL1(self, args)
+	FiniteVolumeSolver.super.initL1(self, args)	
+	self:createFlux(args.flux, args.fluxArgs)
+end
 
-	local fluxName = assert(args.flux, "expected flux")
+function FiniteVolumeSolver:createFlux(fluxName, fluxArgs)
+	assert(fluxName, "expected flux")
 	local fluxClass = require('hydro.flux.'..fluxName)
-	local fluxArgs = table(args.fluxArgs, {solver=self})
+	fluxArgs = table(fluxArgs, {solver=self})
 	self.flux = fluxClass(fluxArgs)
 end
 
