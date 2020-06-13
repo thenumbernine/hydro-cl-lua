@@ -639,8 +639,14 @@ kernel void addSource(
 	global <?=eqn.cons_t?>* derivBuf,
 	const global <?=eqn.cons_t?>* UBuf
 ) {
+<? if require 'hydro.solver.meshsolver'.is(solver) then ?>
+	int index = get_global_id(0);
+	if (index >= get_global_size(0)) return;
+<? else	-- not meshsolver ?>
 	SETBOUNDS_NOGHOST();
 	real3 x = cell_x(i);
+<? end ?>
+	
 	global <?=eqn.cons_t?>* deriv = derivBuf + index;
 	const global <?=eqn.cons_t?>* U = UBuf + index;
 
@@ -655,56 +661,66 @@ kernel void addSource(
 <? end ?>
 #endif
 
+<? if eqn.use2009MignoneEqn3 then ?>
+	deriv->psi -= Ch * U->psi;
+<? end ?>
+
+<? 
+if eqn.use2002DednerEqn24 
+or eqn.use2002DednerEqn38 
+then 
+?>
 	real divB = 0.<? 
-for i,xi in ipairs(xNames:sub(1,solver.dim)) do
-?> + (U[solver->stepsize.<?=xi?>].B.<?=xi?> - U[-solver->stepsize.<?=xi?>].B.<?=xi?>) / (2. * solver->grid_dx.<?=xi?>) <?
-end ?>;
+	for i,xi in ipairs(xNames:sub(1,solver.dim)) do
+	?> + (U[solver->stepsize.<?=xi?>].B.<?=xi?> - U[-solver->stepsize.<?=xi?>].B.<?=xi?>) / (2. * solver->grid_dx.<?=xi?>) <?
+	end ?>;
 
 	real3 grad_psi = (real3){
-<? for i,xi in ipairs(xNames:sub(1,solver.dim)) do
+<? 	for i,xi in ipairs(xNames:sub(1,solver.dim)) do
 ?>		.<?=xi?> = (U[solver->stepsize.<?=xi?>].psi - U[-solver->stepsize.<?=xi?>].psi) / (2. * solver->grid_dx.<?=xi?>),
-<? end 
-for i=solver.dim+1,3 do
+<? 	end 
+	for i=solver.dim+1,3 do
 ?>		.<?=xNames[i]?> = 0.,
-<? end
+<? 	end
 ?>	};
 
-#if 0	//2009 Mignone eqn 3
-	deriv->psi -= Ch * U->psi;
-#endif
-#if 1	//2002 Dedner eqn 24 -- EGLM
-<? for i,xi in ipairs(xNames) do
+<? 	if eqn.use2002DednerEqn24 then ?>
+<? 		for i,xi in ipairs(xNames) do
 ?>	deriv->m.<?=xi?> -= divB * U->B.<?=xi?>;
-<? end
+<? 		end
 ?>	deriv->ETotal -= real3_dot(U->B, grad_psi);
 //	deriv->psi -= Ch * Ch / (Cp * Cp) * U->psi;
-#endif
-#if 0	//2002 Dedner eqn 38
+<? 	end ?>
+<? 	if eqn.use2002DednerEqn38 then ?>
 <? 
-for i,xi in ipairs(xNames) do
+	for i,xi in ipairs(xNames) do
 ?>	deriv->m.<?=xi?> -= divB * U->B.<?=xi?>;
-<? 
-end
-for i,xi in ipairs(xNames) do
+<? 	end
+	for i,xi in ipairs(xNames) do
 ?>	deriv->B.<?=xi?> -= divB * U->m.<?=xi?> / U->rho;
-<?
-end
+<?	end
 ?>	deriv->ETotal -= real3_dot(U->B, grad_psi) + real3_dot(U->m, U->B) * (divB / U->rho);
 	
 	//update this in the second step:
 	//psi[n+1] = psi[n] * exp(-dt * ch * ch / (cp * cp))
 	//deriv->psi -= Ch * Ch / (Cp * Cp) * U->psi;
 	deriv->psi -= real3_dot(U->m, grad_psi) / U->rho;
-#endif
+<? 	end 
+end ?>
 }
 
 kernel void constrainU(
 	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* UBuf
 ) {
-	SETBOUNDS(0,0);
+<? if require 'hydro.solver.meshsolver'.is(solver) then ?>
+	int index = get_global_id(0);
+	if (index >= get_global_size(0)) return;
+<? else	-- not meshsolver ?>
+	SETBOUNDS_NOGHOST();
 	real3 x = cell_x(i);
-	
+<? end ?>
+
 	global <?=eqn.cons_t?>* U = UBuf + index;
 	<?=eqn.prim_t?> W = primFromCons(solver, *U, x);
 

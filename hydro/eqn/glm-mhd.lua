@@ -42,6 +42,11 @@ MHD.useConstrainU = true
 -- TODO this is broken
 MHD.useFixedCh = true -- true = use a gui var, false = calculate by max(|v_i|+Cf)
 
+
+MHD.use2009MignoneEqn3 = false	-- 2003 Mignone eqn 3
+MHD.use2002DednerEqn24 = true	-- 2002 Dedner eqn 24, EGLM
+MHD.use2002DednerEqn38 = true	-- 2002 Dedner eqn 38
+
 -- hmm, we want init.euler and init.mhd here ...
 MHD.initStates = require 'hydro.init.euler'
 
@@ -51,9 +56,13 @@ function MHD:init(args)
 	local UpdatePsi = require 'hydro.op.glm-mhd-update-psi'
 	self.solver.ops:insert(UpdatePsi{solver=self.solver})
 	
-	local SelfGrav = require 'hydro.op.selfgrav'
-	self.gravOp = SelfGrav{solver=self.solver}
-	self.solver.ops:insert(self.gravOp)
+	if require 'hydro.solver.meshsolver'.is(self.solver) then
+		print("not using ops (selfgrav, nodiv, etc) with mesh solvers yet")
+	else
+		local SelfGrav = require 'hydro.op.selfgrav'
+		self.gravOp = SelfGrav{solver=self.solver}
+		self.solver.ops:insert(self.gravOp)
+	end
 end
 
 --[[
@@ -201,9 +210,20 @@ MHD.initStateCode = [[
 kernel void initState(
 	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* UBuf
+<? if require 'hydro.solver.meshsolver'.is(solver) then ?>
+	,global cell_t* cells
+<? end ?>
 ) {
+<? if require 'hydro.solver.meshsolver'.is(solver) then ?>
+	int index = get_global_id(0);
+	if (index >= get_global_size(0)) return;
+	const global cell_t* cell = cells + index;
+	real3 x = cell->pos;
+<? else	-- not meshsolver ?>
 	SETBOUNDS(0,0);
 	real3 x = cell_x(i);
+<? end ?>
+	
 	real3 mids = real3_real_mul(real3_add(solver->mins, solver->maxs), .5);
 	bool lhs = true
 <?
@@ -242,16 +262,18 @@ kernel void initDerivs(
 	SETBOUNDS(numGhost,numGhost);
 	real3 x = cell_x(i);
 	global <?=eqn.cons_t?>* U = UBuf + index;
-
-	U->psi = .5 * (0.
-<? 
-for j=0,solver.dim-1 do 
+<? if require 'hydro.solver.meshsolver'.is(solver) then
+?>	U->psi = 0.;
+<? else
+?>	U->psi = .5 * (0.
+<? 	for j=0,solver.dim-1 do 
 ?>		+ (U[solver->stepsize.s<?=j?>].B.s<?=j?> 
 			- U[-solver->stepsize.s<?=j?>].B.s<?=j?>
 		) / solver->grid_dx.s<?=j?>
-<? 
-end 
+<? 	end 
 ?>	);
+<? end
+?>
 }
 ]]
 

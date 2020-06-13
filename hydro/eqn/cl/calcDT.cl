@@ -63,7 +63,7 @@ kernel void calcDT(
 	for (int i = 0; i < cell->faceCount; ++i) {
 		const global face_t* face = faces + cellFaceIndexes[i + cell->faceOffset];
 		real dx = face->area;
-		if (dx > 1e-7 && f->cells.x != -1 && f->cells.y != -1) {
+		if (dx > 1e-7 && face->cells.x != -1 && face->cells.y != -1) {
 			normalInfo_t n = normalInfo_forFace(face);
 			//all sides? or only the most prominent side?
 			//which should we pick eigenvalues from?

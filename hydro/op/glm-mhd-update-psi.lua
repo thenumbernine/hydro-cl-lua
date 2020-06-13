@@ -19,9 +19,20 @@ kernel void updatePsi(
 	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* UBuf,
 	real dt
+<? if require 'hydro.solver.meshsolver'.is(solver) then ?>
+	,global cell_t* cells
+<? end ?>
 ) {
+<? if require 'hydro.solver.meshsolver'.is(solver) then ?>
+	int index = get_global_id(0);
+	if (index >= get_global_size(0)) return;
+	const global cell_t* cell = cells + index;
+	real3 x = cell->pos;
+<? else	-- not meshsolver ?>
 	SETBOUNDS(0,0);
 	real3 x = cell_x(i);
+<? end ?>
+
 	global <?=eqn.cons_t?>* U = UBuf + index;
 	
 	//TODO don't need the whole eigen here, just the Ch	
@@ -45,6 +56,9 @@ end
 function GLM_MHD_UpdatePsi:refreshSolverProgram()
 	local solver = self.solver
 	self.updatePsiKernelObj = solver.solverProgramObj:kernel('updatePsi', solver.solverBuf, solver.UBuf)
+	if require 'hydro.solver.meshsolver'.is(solver) then
+		self.updatePsiKernelObj.obj:setArg(3, solver.cellsBuf)
+	end
 end
 
 function GLM_MHD_UpdatePsi:step(dt)

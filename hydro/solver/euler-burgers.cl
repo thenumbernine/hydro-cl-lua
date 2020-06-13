@@ -1,6 +1,5 @@
-//I could save on more calculations by calculting the step after the interface velocity
-// but the interface velocity is performed doing the calcDeriv, which ultimately depends on dt
-//So I could save one pass by flaggin whether the int vel is up-to-date or not.
+<? if require 'hydro.solver.gridsolver'.is(solver) then ?>
+
 kernel void calcDT(
 	constant <?=solver.solver_t?>* solver,
 	global real* dtBuf,
@@ -16,13 +15,48 @@ kernel void calcDT(
 	const global <?=eqn.cons_t?>* U = UBuf + index;
 	<?=eqn.prim_t?> W = primFromCons(solver, *U, x);
 	real Cs = calc_Cs(solver, &W);
-	
+
 	real dt = INFINITY;
 <? for side=0,solver.dim-1 do 
 ?>	dt = min(dt, (real)solver->grid_dx.s<?=side?> / (Cs + fabs(W.v.s<?=side?>)));
 <? end
 ?>	dtBuf[index] = dt;
 }
+
+<? else -- mesh solver ?>
+
+kernel void calcDT(
+	constant <?=solver.solver_t?>* solver,
+	global real* dtBuf,					//[numCells]
+	const global <?=eqn.cons_t?>* UBuf,	//[numCells]
+	const global cell_t* cells,			//[numCells]
+	const global face_t* faces,			//[numFaces]
+	const global int* cellFaceIndexes	//[numCellFaceIndexes]
+) {
+	int cellIndex = get_global_id(0);
+	if (cellIndex >= get_global_size(0)) return;
+	
+	const global cell_t* cell = cells + cellIndex;
+	real3 x = cell->pos;
+	
+	const global <?=eqn.cons_t?>* U = UBuf + cellIndex;
+	<?=eqn.prim_t?> W = primFromCons(solver, *U, x);
+	real Cs = calc_Cs(solver, &W);
+
+	real dt = INFINITY;
+	for (int i = 0; i < cell->faceCount; ++i) {
+		const global face_t* face = faces + cellFaceIndexes[i + cell->faceOffset];
+		normalInfo_t n = normalInfo_forFace(face);
+		real v_n = normalInfo_vecDotN1(n, W.v);
+		real dx = face->area;
+		dt = (real)min(dt, dx / (Cs + fabs(v_n)));
+	}
+	dtBuf[cellIndex] = dt;
+}
+
+<? end -- mesh solver ?>
+
+
 
 kernel void calcIntVel(
 	constant <?=solver.solver_t?>* solver,

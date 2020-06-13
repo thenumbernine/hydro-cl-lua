@@ -47,18 +47,22 @@ MHD.initStates = require 'hydro.init.euler'
 
 function MHD:init(args)
 	MHD.super.init(self, args)
+	
+	if require 'hydro.solver.meshsolver'.is(self.solver) then
+		print("not using ops (selfgrav, nodiv, etc) with mesh solvers yet")
+	else
+		if self.solver.dim > 1 then
+			local NoDiv = require 'hydro.op.nodiv'()
+			self.solver.ops:insert(NoDiv{
+				solver = self.solver,
+				potentialField = 'psi',
+			})
+		end
 
-	if self.solver.dim > 1 then
-		local NoDiv = require 'hydro.op.nodiv'()
-		self.solver.ops:insert(NoDiv{
-			solver = self.solver,
-			potentialField = 'psi',
-		})
+		local SelfGrav = require 'hydro.op.selfgrav'
+		self.gravOp = SelfGrav{solver=self.solver}
+		self.solver.ops:insert(self.gravOp)
 	end
-
-	local SelfGrav = require 'hydro.op.selfgrav'
-	self.gravOp = SelfGrav{solver=self.solver}
-	self.solver.ops:insert(self.gravOp)
 end
 
 --[[
@@ -200,9 +204,19 @@ MHD.initStateCode = [[
 kernel void initState(
 	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* UBuf
+<? if require 'hydro.solver.meshsolver'.is(solver) then ?>
+	,global cell_t* cells
+<? end ?>
 ) {
+<? if require 'hydro.solver.meshsolver'.is(solver) then ?>
+	int index = get_global_id(0);
+	if (index >= get_global_size(0)) return;
+	const global cell_t* cell = cells + index;
+	real3 x = cell->pos;
+<? else	-- not meshsolver ?>
 	SETBOUNDS(0,0);
 	real3 x = cell_x(i);
+<? end ?>
 	real3 mids = real3_real_mul(real3_add(solver->mins, solver->maxs), .5);
 	bool lhs = true
 <?
