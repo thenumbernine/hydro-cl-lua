@@ -305,6 +305,7 @@ kernel void initState(
 	real3 v = real3_zero;
 	real P = 0;
 	//ignored:
+	real3 D = real3_zero;
 	real3 B = real3_zero;
 
 	<?=code?>

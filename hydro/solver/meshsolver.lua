@@ -347,7 +347,7 @@ function MeshSolver:getSolverCode()
 		-- TODO flux scheme HERE
 		-- this is the 'calcFluxKernel' code part of all the fvsolver subclasses
 		-- so maybe make that its own module that plugs into both fvsolver and this
-		template(file['hydro/solver/'..self.flux..'.cl'], {
+		template(file['hydro/flux/'..self.flux..'.cl'], {
 			solver = self,
 			eqn = self.eqn,
 		}),

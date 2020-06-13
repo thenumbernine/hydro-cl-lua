@@ -16,6 +16,10 @@
 	real3 xIntR
 <? end
 ?>) {
+	typedef <?=eqn.cons_t?> cons_t;
+	typedef <?=eqn.eigen_t?> eigen_t;
+	typedef <?=eqn.waves_t?> waves_t;
+	
 	eigen_t eig = eigen_forInterface(solver, pUL, pUR, xInt, n);
 
 	<?=eqn:eigenWaveCodePrefix('n', 'eig', 'xInt'):gsub('\n', '\n\t\t')?>

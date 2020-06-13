@@ -219,6 +219,8 @@ end
 	real P = 0;
 	real3 B = real3_zero;
 	real ePot = 0;
+	//ignored:
+	real3 D = real3_zero;
 
 	<?=code?>
 	

@@ -1,31 +1,22 @@
-local ffi = require 'ffi'
 local class = require 'ext.class'
 local table = require 'ext.table'
-local file = require 'ext.file'
-local template = require 'template'
 local FiniteVolumeSolver = require 'hydro.solver.fvsolver'
 
 
 local Roe = class(FiniteVolumeSolver)
 Roe.name = 'Roe'
 
-function Roe:createBuffers()
-	Roe.super.createBuffers(self)
+function Roe:initL1(args)
+	Roe.super.initL1(self, args)
 
-	-- to get sizeof
-	ffi.cdef(self.eqn:getEigenTypeCode())
+	local RoeFlux = require 'hydro.flux.roe'
+	self.flux = RoeFlux(self)
 end
 
 function Roe:getSolverCode()
 	return table{
 		Roe.super.getSolverCode(self),
-	
-		-- before this went above hydro/solver/plm.cl, now it's going after it ...
-		template(file['hydro/solver/roe.cl'], {
-			solver = self,
-			eqn = self.eqn,
-			clnumber = require 'cl.obj.number',
-		}),
+		self.flux:getSolverCode(),
 	}:concat'\n'
 end
 

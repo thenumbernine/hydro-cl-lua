@@ -20,6 +20,14 @@ local sym = common.sym
 
 local FiniteVolumeSolver = class(GridSolver)
 
+function FiniteVolumeSolver:initL1(args)
+	FiniteVolumeSolver.super.initL1(self, args)
+
+	local fluxName = assert(args.flux, "expected flux")
+	local fluxClass = require('hydro.flux.'..fluxName)
+	self.flux = fluxClass(self)
+end
+
 function FiniteVolumeSolver:createBuffers()
 	FiniteVolumeSolver.super.createBuffers(self)
 	self:clalloc('fluxBuf', self.eqn.cons_t, self.numCells * self.dim)
@@ -38,7 +46,10 @@ end
 function FiniteVolumeSolver:getSolverCode()
 	return table{
 		FiniteVolumeSolver.super.getSolverCode(self),
+		
 		template(file['hydro/solver/calcDerivFV.cl'], {solver=self}),
+	
+		self.flux:getSolverCode(),
 	}:concat'\n'
 end
 
