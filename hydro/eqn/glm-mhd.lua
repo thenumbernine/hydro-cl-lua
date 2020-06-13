@@ -234,15 +234,8 @@ kernel void initState(
 	,const global cell_t* cells
 <? end ?>
 ) {
-<? if require 'hydro.solver.meshsolver'.is(solver) then ?>
-	int index = get_global_id(0);
-	if (index >= get_global_size(0)) return;
-	const global cell_t* cell = cells + index;
-	real3 x = cell->pos;
-<? else	-- not meshsolver ?>
 	SETBOUNDS(0,0);
 	real3 x = cell_x(i);
-<? end ?>
 	
 	global <?=eqn.cons_t?>* U = UBuf + index;
 	
@@ -280,6 +273,9 @@ end
 kernel void initDerivs(
 	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* UBuf
+<? if require 'hydro.solver.meshsolver'.is(solver) then ?>
+	,const global cell_t* cells
+<? end ?>
 ) {
 	SETBOUNDS(numGhost,numGhost);
 	real3 x = cell_x(i);

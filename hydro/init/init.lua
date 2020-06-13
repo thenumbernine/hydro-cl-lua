@@ -74,6 +74,9 @@ end
 	-- (don't the Einstein solvers also use initDerivs?)
 	if require 'hydro.eqn.glm-mhd'.is(solver.eqn) then
 		solver.initDerivsKernelObj = solver.initStateProgramObj:kernel('initDerivs', solver.solverBuf, solver.UBuf)
+		if require 'hydro.solver.meshsolver'.is(solver) then
+			solver.initDerivsKernelObj.obj:setArg(2, solver.cellsBuf)
+		end
 	end
 end
 

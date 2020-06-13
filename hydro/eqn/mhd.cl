@@ -586,6 +586,9 @@ kernel void addSource(
 	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* derivBuf,
 	const global <?=eqn.cons_t?>* UBuf
+<? if require 'hydro.solver.meshsolver'.is(solver) then ?>
+	,const global cell_t* cells
+<? end ?>
 ) {
 	SETBOUNDS_NOGHOST();
 	real3 x = cell_x(i);
@@ -607,6 +610,9 @@ kernel void addSource(
 kernel void constrainU(
 	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* UBuf
+<? if require 'hydro.solver.meshsolver'.is(solver) then ?>
+	,const global cell_t* cells
+<? end ?>
 ) {
 	SETBOUNDS(0,0);
 	real3 x = cell_x(i);

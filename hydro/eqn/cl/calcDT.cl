@@ -52,12 +52,12 @@ kernel void calcDT(
 	const global face_t* faces,			//[numFaces]
 	const global int* cellFaceIndexes	//[numCellFaceIndexes]
 ) {
-	int cellIndex = get_global_id(0);
-	if (cellIndex >= get_global_size(0)) return;
-	
-	const global <?=eqn.cons_t?>* U = UBuf + cellIndex;
-	const global cell_t* cell = cells + cellIndex;
+	SETBOUNDS(0,0);
+	// same as x = cell_x(i) but using cells+index is less operations
+	const global cell_t* cell = cells + index;
 	real3 x = cell->pos;
+	
+	const global <?=eqn.cons_t?>* U = UBuf + index;
 
 	real dt = INFINITY;
 	for (int i = 0; i < cell->faceCount; ++i) {
@@ -76,7 +76,7 @@ kernel void calcDT(
 			dt = (real)min(dt, dx / absLambdaMax);
 		}
 	}
-	dtBuf[cellIndex] = dt;
+	dtBuf[index] = dt;
 }
 
 <? end -- mesh vs grid solver ?>
