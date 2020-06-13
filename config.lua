@@ -616,7 +616,7 @@ self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='euler', wenoMe
 --		and works fine with backwards Euler 
 -- when run alongside HD Roe solver, curves don't match (different heat capacity ratios?)
 --		but that could be because of issues with simultaneous solvers.
-self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='mhd'})))
+--self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='mhd'})))
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='mhd'})))
 
 -- explodes with Orszag-Tang
@@ -625,7 +625,7 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn
 
 --self.solvers:insert(require 'hydro.solver.fdsolver'(table(args, {eqn='mhd'})))
 -- eqn.useFixedCh == false is failing
---self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='glm-mhd'})))
+self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='glm-mhd'})))
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='glm-mhd'})))
 --self.solvers:insert(require 'hydro.solver.fdsolver'(table(args, {eqn='glm-mhd'})))
 --self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='glm-mhd', wenoMethod='1996 Jiang Shu', order=5})))

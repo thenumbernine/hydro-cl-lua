@@ -2387,9 +2387,11 @@ function SolverBase:updateGUIParams()
 	end
 	
 	for i,op in ipairs(self.ops) do
-		ig.igPushIDInt(i)
-		op:updateGUI()
-		ig.igPopID()
+		if op.updateGUI then
+			ig.igPushIDInt(i)
+			op:updateGUI()
+			ig.igPopID()
+		end
 	end
 
 	if tooltip.comboTable('flux limiter', self, 'fluxLimiter', self.app.limiterNames) then

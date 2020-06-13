@@ -105,7 +105,18 @@ real calc_hTotal(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W, real 
 //notice, this is speed of sound, to match the name convention of hydro/eqn/euler
 //but Cs in eigen_t is the slow speed
 //most the MHD papers use 'a' for the speed of sound
-real calc_Cs(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W) { return sqrt(solver->heatCapacityRatio * W.P / W.rho); }
+real calc_Cs(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W) { 
+	return sqrt(solver->heatCapacityRatio * W.P / W.rho); 
+}
+
+//CA = B/sqrt(mu0 rho)
+//B has units kg/(C*s)
+//mu0 has units kg*m/C^2
+//rho has units kg/m^3
+//CA has units m/s
+real3 calc_CA(constant <?=solver.solver_t?>* solver, <?=eqn.cons_t?> U) {
+	return real3_real_mul(U.B, 1./sqrt(U.rho * solver->mu0 / unit_kg_m_per_C2));
+}
 
 ]], {
 		solver = self.solver,
@@ -302,38 +313,80 @@ MHD.predefinedDisplayVars = {
 }
 
 function MHD:getDisplayVars()
-	return MHD.super.getDisplayVars(self):append{
+	local vars = MHD.super.getDisplayVars(self)
+	vars:append{
 		{name='v', code='value.vreal3 = W.v;', type='real3', units='m/s'},
-		self:createDivDisplayVar{field='B', units='kg/(C*m*s)'},
 		{name='P', code='value.vreal = W.P;', units='kg/(m*s^2)'},
-		--{name='PMag', code='value.vreal = calc_PMag(solver, W, x);'},
-		--{name='PTotal', code='value.vreal = W.P + calc_PMag(solver, W, x);'},
-		--{name='eInt', code='value.vreal = calc_eInt(solver, W);'},
-		{name='EInt', code='value.vreal = calc_EInt(solver, W);'},
-		--{name='eKin', code='value.vreal = calc_eKin(W, x);'},
-		{name='EKin', code='value.vreal = calc_EKin(W, x);'},
-		--{name='eHydro', code='value.vreal = calc_eHydro(solver, W, x);'},
-		{name='EHydro', code='value.vreal = calc_EHydro(solver, W, x);'},
-		{name='EM energy', code='value.vreal = calc_EM_energy(solver, W, x);'},
-		--{name='eTotal', code='value.vreal = U->ETotal / W.rho;'},
+		{name='PMag', code='value.vreal = calc_PMag(solver, W, x);', units='kg/(m*s^2)'},
+		{name='PTotal', code='value.vreal = W.P + calc_PMag(solver, W, x);', units='kg/(m*s^2)'},
+		{name='eInt', code='value.vreal = calc_eInt(solver, W);', units='m^2/s^2'},
+		{name='EInt', code='value.vreal = calc_EInt(solver, W);', units='kg/(m*s^2)'},
+		{name='eKin', code='value.vreal = calc_eKin(W, x);', units='m^2/s^2'},
+		{name='EKin', code='value.vreal = calc_EKin(W, x);', units='kg/(m*s^2)'},
+		{name='eHydro', code='value.vreal = calc_eHydro(solver, W, x);', units='m^2/s^2'},
+		{name='EHydro', code='value.vreal = calc_EHydro(solver, W, x);', units='kg/(m*s^2)'},
+		{name='EM energy', code='value.vreal = calc_EM_energy(solver, W, x);', units='kg/(m*s^2)'},
+		{name='eTotal', code='value.vreal = U->ETotal / W.rho;', units='m^2/s^2'},
 		{name='S', code='value.vreal = W.P / pow(W.rho, (real)solver->heatCapacityRatio);'},
-		{name='H', code='value.vreal = calc_H(solver, W.P);'},
-		--{name='h', code='value.vreal = calc_H(solver, W.P) / W.rho;'},
-		--{name='HTotal', code='value.vreal = calc_HTotal(solver, W, U->ETotal, x);'},
-		--{name='hTotal', code='value.vreal = calc_hTotal(solver, W, U->ETotal, x);'},
-		--{name='Cs', code='value.vreal = calc_Cs(solver, W); },
+		{name='H', code='value.vreal = calc_H(solver, W.P);', units='kg/(m*s^2)'},
+		{name='h', code='value.vreal = calc_H(solver, W.P) / W.rho;', units='m^2/s^2'},
+		{name='HTotal', code='value.vreal = calc_HTotal(solver, W, U->ETotal, x);', units='kg/(m*s^2)'},
+		{name='hTotal', code='value.vreal = calc_hTotal(solver, W, U->ETotal, x);', units='m^2/s^2'},
+		{name='speed of sound', code='value.vreal = calc_Cs(solver, W);', units='m/s'},
+		{name='alfven velocity', code='value.vreal3 = calc_CA(solver, *U);', type='real3', units='m/s'},
+		{name='Mach number', code='value.vreal = coordLen(W.v, x) / calc_Cs(solver, W);'},
+		{name='temperature', code=template([[
+<? local clnumber = require 'cl.obj.number' ?>
+<? local materials = require 'hydro.materials' ?>
+#define C_v				<?=('%.50f'):format(materials.Air.C_v)?>
+	value.vreal = calc_eInt(solver, W) / C_v;
+]]), units='K'},
 		{name='primitive reconstruction error', code=template([[
-		//prim have just been reconstructed from cons
-		//so reconstruct cons from prims again and calculate the difference
-		<?=eqn.cons_t?> U2 = consFromPrim(solver, W, x);
-		value.vreal = 0;
-		for (int j = 0; j < numIntStates; ++j) {
-			value.vreal += fabs(U->ptr[j] - U2.ptr[j]);
-		}
+	//prim have just been reconstructed from cons
+	//so reconstruct cons from prims again and calculate the difference
+	<?=eqn.cons_t?> U2 = consFromPrim(solver, W, x);
+	value.vreal = 0;
+	for (int j = 0; j < numIntStates; ++j) {
+		value.vreal += fabs(U->ptr[j] - U2.ptr[j]);
+	}
 ]], {
 	eqn = self,
 })},
 	}
+	
+	if self.gravOp then
+		vars:insert{
+			name='gravity', 
+			code=template([[
+	if (!OOB(1,1)) {
+		value.vreal3 = calcGravityAccel<?=eqn.gravOp.name?>(solver, U);
+	}
+]], {eqn=self}), 
+			type='real3', 
+			units='m/s^2',
+		}
+	end
+
+	vars:insert(self:createDivDisplayVar{
+		field = 'v', 
+		getField = function(U, j)
+			return U..'->m.s'..j..' / '..U..'->rho'
+		end,
+		units = '1/s',
+	} or nil)
+
+	vars:insert(self:createCurlDisplayVar{
+		field = 'v',
+		getField = function(U, j)
+			return U..'->m.s'..j..' / '..U..'->rho'
+		end,
+		units = '1/s',
+	} or nil)
+
+	vars:insert(self:createDivDisplayVar{field='B', units='kg/(C*m*s)'} or nil)
+	vars:insert(self:createCurlDisplayVar{field='B', units='kg/(C*m*s)'} or nil)
+
+	return vars
 end
 
 

@@ -81,25 +81,82 @@ MHD.guiVars = {
 
 function MHD:getCommonFuncCode()
 	return template([[
-real calc_eKin(<?=eqn.prim_t?> W, real3 x) { return .5 * coordLenSq(W.v, x); }
-real calc_EKin(<?=eqn.prim_t?> W, real3 x) { return W.rho * calc_eKin(W, x); }
-real calc_EInt(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W) { return W.P / (solver->heatCapacityRatio - 1.); }
-real calc_eInt(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W) { return calc_EInt(solver, W) / W.rho; }
-real calc_EM_energy(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W, real3 x) { return .5 * coordLenSq(W.B, x) / (solver->mu0 / unit_kg_m_per_C2); }
-real calc_PMag(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W, real3 x) { return .5 * coordLenSq(W.B, x) / (solver->mu0 / unit_kg_m_per_C2); }
-real calc_EHydro(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W, real3 x) { return calc_EKin(W, x) + calc_EInt(solver, W); }
-real calc_eHydro(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W, real3 x) { return calc_EHydro(solver, W, x) / W.rho; }
-real calc_ETotal(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W, real3 x) { return calc_EKin(W, x) + calc_EInt(solver, W) + calc_EM_energy(solver, W, x); }
-real calc_eTotal(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W, real3 x) { return calc_ETotal(solver, W, x) / W.rho; }
-real calc_H(constant <?=solver.solver_t?>* solver, real P) { return P * (solver->heatCapacityRatio / (solver->heatCapacityRatio - 1.)); }
-real calc_h(constant <?=solver.solver_t?>* solver, real rho, real P) { return calc_H(solver, P) / rho; }
-real calc_HTotal(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W, real ETotal, real3 x) { return W.P + calc_PMag(solver, W, x) + ETotal; }
-real calc_hTotal(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W, real ETotal, real3 x) { return calc_HTotal(solver, W, ETotal, x) / W.rho; }
+real calc_eKin(<?=eqn.prim_t?> W, real3 x) { 
+	return .5 * coordLenSq(W.v, x);
+}
+
+real calc_EKin(<?=eqn.prim_t?> W, real3 x) { 
+	return W.rho * calc_eKin(W, x); 
+}
+
+real calc_EInt(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W) { 
+	return W.P / (solver->heatCapacityRatio - 1.); 
+}
+
+real calc_eInt(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W) { 
+	return calc_EInt(solver, W) / W.rho; 
+}
+
+//units: 
+//B has units kg/(C*s)
+//mu0 has units kg*m/C^2
+//PMag = 1/2 B^2 / mu0 has units kg/(m*s^2)
+real calc_EM_energy(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W, real3 x) { 
+	return .5 * coordLenSq(W.B, x) / (solver->mu0 / unit_kg_m_per_C2); 
+}
+
+//same as calc_EM_energy
+real calc_PMag(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W, real3 x) { 
+	return .5 * coordLenSq(W.B, x) / (solver->mu0 / unit_kg_m_per_C2); 
+}
+
+real calc_EHydro(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W, real3 x) { 
+	return calc_EKin(W, x) + calc_EInt(solver, W); 
+}
+
+real calc_eHydro(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W, real3 x) { 
+	return calc_EHydro(solver, W, x) / W.rho; 
+}
+
+real calc_ETotal(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W, real3 x) { 
+	return calc_EKin(W, x) + calc_EInt(solver, W) + calc_EM_energy(solver, W, x); 
+}
+
+real calc_eTotal(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W, real3 x) { 
+	return calc_ETotal(solver, W, x) / W.rho; 
+}
+
+real calc_H(constant <?=solver.solver_t?>* solver, real P) { 
+	return P * (solver->heatCapacityRatio / (solver->heatCapacityRatio - 1.)); 
+}
+
+real calc_h(constant <?=solver.solver_t?>* solver, real rho, real P) { 
+	return calc_H(solver, P) / rho; 
+}
+
+real calc_HTotal(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W, real ETotal, real3 x) { 
+	return W.P + calc_PMag(solver, W, x) + ETotal; 
+}
+
+real calc_hTotal(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W, real ETotal, real3 x) { 
+	return calc_HTotal(solver, W, ETotal, x) / W.rho; 
+}
 
 //notice, this is speed of sound, to match the name convention of hydro/eqn/euler
 //but Cs in eigen_t is the slow speed
 //most the MHD papers use 'a' for the speed of sound
-real calc_Cs(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W) { return sqrt(solver->heatCapacityRatio * W.P / W.rho); }
+real calc_Cs(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W) { 
+	return sqrt(solver->heatCapacityRatio * W.P / W.rho);
+}
+
+//CA = B/sqrt(mu0 rho)
+//B has units kg/(C*s)
+//mu0 has units kg*m/C^2
+//rho has units kg/m^3
+//CA has units m/s
+real3 calc_CA(constant <?=solver.solver_t?>* solver, <?=eqn.cons_t?> U) {
+	return real3_real_mul(U.B, 1./sqrt(U.rho * solver->mu0 / unit_kg_m_per_C2));
+}
 
 ]], {
 		solver = self.solver,
@@ -279,26 +336,24 @@ function MHD:getDisplayVars()
 	vars:append{
 		{name='v', code='value.vreal3 = W.v;', type='real3', units='m/s'},
 		{name='P', code='value.vreal = W.P;', units='kg/(m*s^2)'},
-		{name='PMag', code='value.vreal = calc_PMag(solver, W, x);'},
-		{name='PTotal', code='value.vreal = W.P + calc_PMag(solver, W, x);'},
-		{name='eInt', code='value.vreal = calc_eInt(solver, W);'},
-		{name='EInt', code='value.vreal = calc_EInt(solver, W);'},
-		{name='eKin', code='value.vreal = calc_eKin(W, x);'},
-		{name='EKin', code='value.vreal = calc_EKin(W, x);'},
-		{name='eHydro', code='value.vreal = calc_eHydro(solver, W, x);'},
-		{name='EHydro', code='value.vreal = calc_EHydro(solver, W, x);'},
-		{name='EM energy', code='value.vreal = calc_EM_energy(solver, W, x);'},
-		{name='eTotal', code='value.vreal = U->ETotal / W.rho;'},
+		{name='PMag', code='value.vreal = calc_PMag(solver, W, x);', units='kg/(m*s^2)'},
+		{name='PTotal', code='value.vreal = W.P + calc_PMag(solver, W, x);', units='kg/(m*s^2)'},
+		{name='eInt', code='value.vreal = calc_eInt(solver, W);', units='m^2/s^2'},
+		{name='EInt', code='value.vreal = calc_EInt(solver, W);', units='kg/(m*s^2)'},
+		{name='eKin', code='value.vreal = calc_eKin(W, x);', units='m^2/s^2'},
+		{name='EKin', code='value.vreal = calc_EKin(W, x);', units='kg/(m*s^2)'},
+		{name='eHydro', code='value.vreal = calc_eHydro(solver, W, x);', units='m^2/s^2'},
+		{name='EHydro', code='value.vreal = calc_EHydro(solver, W, x);', units='kg/(m*s^2)'},
+		{name='EM energy', code='value.vreal = calc_EM_energy(solver, W, x);', units='kg/(m*s^2)'},
+		{name='eTotal', code='value.vreal = U->ETotal / W.rho;', units='m^2/s^2'},
 		{name='S', code='value.vreal = W.P / pow(W.rho, (real)solver->heatCapacityRatio);'},
-		{name='H', code='value.vreal = calc_H(solver, W.P);'},
-		{name='h', code='value.vreal = calc_H(solver, W.P) / W.rho;'},
-		{name='HTotal', code='value.vreal = calc_HTotal(solver, W, U->ETotal, x);'},
-		{name='hTotal', code='value.vreal = calc_hTotal(solver, W, U->ETotal, x);'},
-		-- TODO alfven speed as well?
-		{name='speed of sound', code='value.vreal = calc_Cs(solver, W);'},
-		-- TODO magnetic influence on Mach number?
+		{name='H', code='value.vreal = calc_H(solver, W.P);', units='kg/(m*s^2)'},
+		{name='h', code='value.vreal = calc_H(solver, W.P) / W.rho;', units='m^2/s^2'},
+		{name='HTotal', code='value.vreal = calc_HTotal(solver, W, U->ETotal, x);', units='kg/(m*s^2)'},
+		{name='hTotal', code='value.vreal = calc_hTotal(solver, W, U->ETotal, x);', units='m^2/s^2'},
+		{name='speed of sound', code='value.vreal = calc_Cs(solver, W);', units='m/s'},
+		{name='alfven velocity', code='value.vreal3 = calc_CA(solver, *U);', type='real3', units='m/s'},
 		{name='Mach number', code='value.vreal = coordLen(W.v, x) / calc_Cs(solver, W);'},
-		-- TODO magnetic influence on temperature?
 		{name='temperature', code=template([[
 <? local clnumber = require 'cl.obj.number' ?>
 <? local materials = require 'hydro.materials' ?>
@@ -306,13 +361,13 @@ function MHD:getDisplayVars()
 	value.vreal = calc_eInt(solver, W) / C_v;
 ]]), units='K'},
 		{name='primitive reconstruction error', code=template([[
-		//prim have just been reconstructed from cons
-		//so reconstruct cons from prims again and calculate the difference
-		<?=eqn.cons_t?> U2 = consFromPrim(solver, W, x);
-		value.vreal = 0;
-		for (int j = 0; j < numIntStates; ++j) {
-			value.vreal += fabs(U->ptr[j] - U2.ptr[j]);
-		}
+	//prim have just been reconstructed from cons
+	//so reconstruct cons from prims again and calculate the difference
+	<?=eqn.cons_t?> U2 = consFromPrim(solver, W, x);
+	value.vreal = 0;
+	for (int j = 0; j < numIntStates; ++j) {
+		value.vreal += fabs(U->ptr[j] - U2.ptr[j]);
+	}
 ]], {
 	eqn = self,
 })},
