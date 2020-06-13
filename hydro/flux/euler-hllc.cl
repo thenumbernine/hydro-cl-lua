@@ -71,17 +71,16 @@ end
 	real3 vnL = normalInfo_vecDotNs(n, WL.v);
 	real3 vnR = normalInfo_vecDotNs(n, WR.v);
 
-<? if solver.hllcMethod then ?>	
+<? assert(solver.flux.hllcMethod) ?>	
 	real sStar = (WR.rho * vnR.x * (sR - vnR.x) - WL.rho * vnL.x * (sL - vnL.x) + WL.P - WR.P) 
 				/ (WR.rho * (sR - vnR.x) - WL.rho * (sL - vnL.x));
-<? end ?>
 
 	<?=eqn.cons_t?> flux;
 	if (0 <= sL) {
 		<?=eqn.cons_t?> FL = fluxFromCons(solver, UL, xInt, n);
 		flux = FL;
 	
-<? if solver.hllcMethod == 0 then ?>
+<? if solver.flux.hllcMethod == 0 then ?>
 	
 	} else if (sL <= 0. && 0. <= sStar) {
 		<?=eqn.cons_t?> FL = fluxFromCons(solver, UL, xInt, n);
@@ -119,8 +118,8 @@ end
 			flux.ptr[i] = FR.ptr[i] + sR * (URStar.ptr[i] - UR.ptr[i]);
 		}
 
-<? elseif solver.hllcMethod == 1 then ?>
-		
+<? elseif solver.flux.hllcMethod == 1 then ?>
+
 	} else if (sL <= 0. && 0. <= sStar) {
 		<?=eqn.cons_t?> FL = fluxFromCons(solver, UL, xInt, n);
 		flux.rho = (sStar * (sL * UL.rho - FL.rho)) / (sL - sStar);
@@ -148,7 +147,7 @@ end
 
 		flux.ETotal = (sStar * (sR * UR.ETotal - FR.ETotal) + sR * (WR.P + WR.rho * (sR - vnR.x) * (sStar - vnR.x)) * sStar) / (sR - sStar);
 
-<? elseif solver.hllcMethod == 2 then ?>
+<? elseif solver.flux.hllcMethod == 2 then ?>
 
 	} else if (sL <= 0. && 0. <= sStar) {
 		<?=eqn.cons_t?> FL = fluxFromCons(solver, UL, xInt, n);
@@ -168,7 +167,7 @@ end
 			sStar * (sL * ULmn.z - FLmn.z) / (sL - sStar)
 		));
 
-		flux.nETotal = (sStar * (sL * UL.ETotal - FL.ETotal) + sL * PLR * sStar) / (sL - sStar);
+		flux.ETotal = (sStar * (sL * UL.ETotal - FL.ETotal) + sL * PLR * sStar) / (sL - sStar);
 	} else if (sStar <= 0. && 0. <= sR) {
 		<?=eqn.cons_t?> FR = fluxFromCons(solver, UR, xInt, n);
 		real PLR = .5 * (WL.P + WR.P + WL.rho * (sL - vnL.x) * (sStar - vnL.x) + WR.rho * (sR - vnR.x) * (sStar - vnR.x));
@@ -184,7 +183,7 @@ end
 		
 		flux.ETotal = (sStar * (sR * UR.ETotal - FR.ETotal) + sR * PLR * sStar) / (sR - sStar);
 
-<? end	--solver.hllcMethod ?>
+<? end	--solver.flux.hllcMethod ?>
 	
 	} else if (sR <= 0) {
 		<?=eqn.cons_t?> FR = fluxFromCons(solver, UR, xInt, n);

@@ -1,12 +1,10 @@
 local class = require 'ext.class'
-local HLL = require 'hydro.solver.hll'
-
+local HLL = require 'hydro.flux.hll'
 
 local EulerHLLC = class(HLL)
 
-EulerHLLC.solverCodeFile = 'hydro/solver/euler-hllc.cl'
-EulerHLLC.name = 'EulerHLLC'
-EulerHLLC.eqnName = 'euler'
+EulerHLLC.name = 'euler-hllc'
+EulerHLLC.solverCodeFile = 'hydro/flux/euler-hllc.cl'
 
 --[[
 args:
