@@ -86,17 +86,7 @@ function Draw2DHeatmap:showDisplayVar(app, solver, var, varName, ar, xmin, xmax,
 
 --	gl.glDisable(gl.GL_DEPTH_TEST)
 
-	-- TODO only draw the first
-	local gradientValueMin = valueMin
-	local gradientValueMax = valueMax
-	local showName = varName
-	if var.showInUnits and var.units then
-		local unitScale = solver:convertToSIUnitsCode(var.units).func()
-		gradientValueMin = gradientValueMin * unitScale
-		gradientValueMax = gradientValueMax * unitScale
-		showName = showName..' ('..var.units..')'
-	end
-	app:drawGradientLegend(ar, showName, gradientValueMin, gradientValueMax)
+	app:drawGradientLegend(solver, var, varName, ar, valueMin, valueMax)
 
 --	gl.glEnable(gl.GL_DEPTH_TEST)
 end

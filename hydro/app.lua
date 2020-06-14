@@ -1179,7 +1179,16 @@ end
 	end
 end
 
-function HydroCLApp:drawGradientLegend(ar, varName, valueMin, valueMax)
+-- helper function for all draw classes:
+function HydroCLApp:drawGradientLegend(solver, var, varName, ar, valueMin, valueMax)
+	-- TODO only draw the first
+	if var.showInUnits and var.units then
+		local unitScale = solver:convertToSIUnitsCode(var.units).func()
+		valueMin = valueMin * unitScale
+		valueMax = valueMax * unitScale
+		varName = varName..' ('..var.units..')'
+	end
+
 	self.orthoView:projection(ar)
 	self.orthoView:modelview()
 	local xmin, xmax, ymin, ymax = self.orthoView:getOrthoBounds(ar)

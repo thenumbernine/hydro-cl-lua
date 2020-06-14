@@ -154,9 +154,10 @@ function DrawVectorField:showDisplayVar(app, solver, var, varName, ar, xmin, xma
 	gl.glUniformMatrix4fv(vectorArrowShader.uniforms.modelViewProjectionMatrix.loc, 1, 0, app.view.modelViewProjectionMatrix.ptr)
 	gl.glUniform1i(vectorArrowShader.uniforms.displayDim.loc, app.displayDim)
 	gl.glUniform1i(vectorArrowShader.uniforms.useLog.loc, var.useLog)
+	gl.glUniform2f(vectorArrowShader.uniforms.displayFixed.loc, app.displayFixedY, app.displayFixedZ)
+	
 	gl.glUniform1f(vectorArrowShader.uniforms.valueMin.loc, valueMin)
 	gl.glUniform1f(vectorArrowShader.uniforms.valueMax.loc, valueMax)
-	gl.glUniform2f(vectorArrowShader.uniforms.displayFixed.loc, app.displayFixedY, app.displayFixedZ)
 
 	local tex = solver:getTex(var)
 	tex:bind(0)
@@ -187,6 +188,11 @@ function DrawVectorField:showDisplayVar(app, solver, var, varName, ar, xmin, xma
 	gl.glDrawArrays(gl.GL_LINES, 0, arrowCount * #arrow)
 	solver.vectorArrowVAO:unbind()
 --]]
+--[[ glVertexArray (not fully implemented - just speed testing) doesn't go noticably faster  than glDrawArrays
+	solver.vectorArrowVAO:bind()
+	gl.glDrawArraysInstancedARB(gl.GL_LINES, 0, #arrow, arrowCount)
+	solver.vectorArrowVAO:unbind()
+--]]
 
 	app.gradientTex:unbind(1)
 	tex:unbind(0)
@@ -196,16 +202,7 @@ function DrawVectorField:showDisplayVar(app, solver, var, varName, ar, xmin, xma
 
 	
 	-- TODO only draw the first
-	local gradientValueMin = valueMin
-	local gradientValueMax = valueMax
-	local showName = varName
-	if var.showInUnits and var.units then
-		local unitScale = solver:convertToSIUnitsCode(var.units).func()
-		gradientValueMin = gradientValueMin * unitScale
-		gradientValueMax = gradientValueMax * unitScale
-		showName = showName..' ('..var.units..')'
-	end
-	app:drawGradientLegend(ar, showName, gradientValueMin, gradientValueMax)
+	app:drawGradientLegend(solver, var, varName, ar, valueMin, valueMax)
 end
 
 function DrawVectorField:display(app, solvers, varName, ar, ...)

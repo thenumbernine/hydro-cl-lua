@@ -638,16 +638,7 @@ local function showDisplayVar(app, solver, var, varName, ar)
 --	gl.glDisable(gl.GL_DEPTH_TEST)
 --	gl.glDisable(gl.GL_CULL_FACE)
 
-	local gradientValueMin = valueMin
-	local gradientValueMax = valueMax
-	local showName = varName
-	if var.showInUnits and var.units then
-		local unitScale = solver:convertToSIUnitsCode(var.units).func()
-		gradientValueMin = gradientValueMin * unitScale
-		gradientValueMax = gradientValueMax * unitScale
-		showName = showName..' ('..var.units..')'
-	end
-	app:drawGradientLegend(ar, showName, gradientValueMin, gradientValueMax)
+	app:drawGradientLegend(solver, var, varName, ar, valueMin, valueMax)
 end
 
 function MeshSolver:display(varName, ar)
