@@ -104,8 +104,8 @@ function Draw2DGraph:showDisplayVar(app, solver, var)
 end
 
 function Draw2DGraph:display(app, solvers, varName, ar, graph_xmin, graph_xmax, graph_ymin, graph_ymax)
-	app.view:projection(ar)
-	app.view:modelview()
+	app.view:setup(ar)
+	
 	gl.glColor3f(1,1,1)
 	gl.glEnable(gl.GL_DEPTH_TEST)
 

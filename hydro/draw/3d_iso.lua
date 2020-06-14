@@ -318,8 +318,7 @@ function Draw3DIso:showDisplayVar(app, solver, var)
 end
 
 function Draw3DIso:display(app, solvers, varName, ar, xmin, xmax, ymin, ymax, useLog)
-	app.view:projection(ar)
-	app.view:modelview()
+	app.view:setup(ar)
 
 	-- draw wireframe
 	for _,solver in ipairs(solvers) do

@@ -1,6 +1,14 @@
-local gl = require 'ffi.OpenGL'
-local glreport = require 'gl.report'
+local ffi = require 'ffi'
 local class = require 'ext.class'
+local vec2f = require 'vec-ffi.vec2f'
+local vec3f = require 'vec-ffi.vec3f'
+local gl = require 'gl'
+local glreport = require 'gl.report'
+local GLVertexArray = require 'gl.vertexarray'
+local GLArrayBuffer = require 'gl.arraybuffer'
+local GLAttribute = require 'gl.attribute'
+local vector = require 'hydro.util.vector'
+
 
 local arrow = {
 	{-.5, 0.},
@@ -18,7 +26,7 @@ local DrawVectorField = class()
 DrawVectorField.scale = 1
 DrawVectorField.step = cmdline.vectorFieldStep or 4
 
-function DrawVectorField:showDisplayVar(app, solver, var, xmin, xmax, ymin, ymax, useLog)
+function DrawVectorField:showDisplayVar(app, solver, var, varName, ar, xmin, xmax, ymin, ymax, useLog)
 	
 	local valueMin, valueMax
 	if var.heatMapFixedRange then
@@ -35,99 +43,183 @@ function DrawVectorField:showDisplayVar(app, solver, var, xmin, xmax, ymin, ymax
 		var.heatMapValueMin = valueMin
 		var.heatMapValueMax = valueMax
 	end
-		
+	
 	solver:calcDisplayVarToTex(var)
-	
-	solver.vectorArrowShader:use()
-	gl.glUniform1i(solver.vectorArrowShader.uniforms.displayDim.loc, app.displayDim)
-	gl.glUniform1i(solver.vectorArrowShader.uniforms.useLog.loc, var.useLog)
-	-- [[ this gives the l1 bounds of the vector field
-	gl.glUniform1f(solver.vectorArrowShader.uniforms.valueMin.loc, valueMin)
-	gl.glUniform1f(solver.vectorArrowShader.uniforms.valueMax.loc, valueMax)
-	--]]
-	--[[ it'd be nice instead to get the norm bounds ... 
-	-- but looking at the reduce calculations, the easiest way to do that is
-	-- to associate each vector display shader with a norm display shader
-	-- and then just reduce that
-	gl.glUniform1f(solver.vectorArrowShader.uniforms.valueMin.loc, 0)
-	gl.glUniform1f(solver.vectorArrowShader.uniforms.valueMax.loc, math.max(math.abs(valueMin), math.abs(valueMax)))
-	--]]
-	solver:getTex(var):bind(0)
-	app.gradientTex:bind(1)
-	
-	gl.glUniform3f(solver.vectorArrowShader.uniforms.solverMins.loc, solver.mins:unpack())
-	gl.glUniform3f(solver.vectorArrowShader.uniforms.solverMaxs.loc, solver.maxs:unpack())
-	-- how to determine scale?
-	--local scale = self.scale * (valueMax - valueMin)
-	--local scale = self.scale / (valueMax - valueMin)
-	local scale = self.scale 
-		* self.step 
-		* math.min(
-			(solver.maxs.x - solver.mins.x) / tonumber(solver.texSize.x),
-			(solver.maxs.y - solver.mins.y) / tonumber(solver.texSize.y),
-			(solver.maxs.z - solver.mins.z) / tonumber(solver.texSize.z))
-	gl.glUniform1f(solver.vectorArrowShader.uniforms.scale.loc, scale) 
 
+	
 	local step = self.step
-
-	-- glCallOrDraw goes just slightly faster.  24 vs 23 fps.
+	local arrowCount
+	local icount, jcount, kcount
 	if require 'hydro.solver.meshsolver'.is(solver) then
-		gl.glBegin(gl.GL_LINES)
-		-- TODO Lua coroutine cell iterator, abstracted between grids and meshes?
-		-- how fast/slow are coroutines compared to number for-loops anyways?
-		for ci=0,solver.numCells-1 do
-			local c = solver.mesh.cells.v[ci]
-			local tx = (ci + .5) / tonumber(solver.numCells)
-			gl.glMultiTexCoord3f(gl.GL_TEXTURE0, tx, .5, .5)
-			gl.glMultiTexCoord3f(gl.GL_TEXTURE1, c.pos:unpack())
-			for _,q in ipairs(arrow) do
-				gl.glVertex2f(q[1], q[2])
-			end
-		end
-		gl.glEnd()
+		arrowCount = solver.numCells
 	else
-		gl.glBegin(gl.GL_LINES)
-		for k=0,tonumber(solver.sizeWithoutBorder.z-1),step do
-			for j=0,tonumber(solver.sizeWithoutBorder.y-1),step do
-				for i=0,tonumber(solver.sizeWithoutBorder.x-1),step do
-					local tx = (i + .5 + solver.numGhost) / tonumber(solver.texSize.x)
-					local ty = (j + .5 + (solver.dim > 1 and solver.numGhost or app.displayFixedY * tonumber(solver.texSize.z))) / tonumber(solver.texSize.y)
-					local tz = (k + .5 + (solver.dim > 2 and solver.numGhost or app.displayFixedZ * tonumber(solver.texSize.z))) / tonumber(solver.texSize.z)
-					gl.glMultiTexCoord3f(gl.GL_TEXTURE0, tx, ty, tz)	
-					local x = (i + .5) / tonumber(solver.sizeWithoutBorder.x)
-					local y = (j + .5) / tonumber(solver.sizeWithoutBorder.y)
-					local z = (k + .5) / tonumber(solver.sizeWithoutBorder.z)
-					gl.glMultiTexCoord3f(gl.GL_TEXTURE1, x, y, z)
-					for _,q in ipairs(arrow) do
-						gl.glVertex2f(q[1], q[2])
+		icount = math.floor(tonumber(solver.sizeWithoutBorder.x) / step)
+		jcount = math.floor(tonumber(solver.sizeWithoutBorder.y) / step)
+		kcount = math.floor(tonumber(solver.sizeWithoutBorder.z) / step)
+		arrowCount = icount * jcount * kcount
+	end
+
+	local vectorArrowShader = solver.vectorArrowShader
+
+	if not solver.vectorArrowGLVtxArrayBuffer
+	or solver.vectorArrowGLBufSize ~= arrowCount
+	then
+		solver.vectorArrowGLBufSize = arrowCount
+		
+		local glvtxs = vector'vec2f_t'
+		glvtxs:setcapacity(arrowCount * #arrow)
+		local glcenters = vector'vec3f_t'
+		glcenters:setcapacity(arrowCount * #arrow)
+		local gltcs = vector'vec3f_t'
+		gltcs:setcapacity(arrowCount * #arrow)
+
+		-- glCallOrDraw goes just slightly faster.  24 vs 23 fps.
+		if require 'hydro.solver.meshsolver'.is(solver) then
+			-- TODO Lua coroutine cell iterator, abstracted between grids and meshes?
+			-- how fast/slow are coroutines compared to number for-loops anyways?
+			for ci=0,solver.numCells-1 do
+				local c = solver.mesh.cells.v[ci]
+				for _,q in ipairs(arrow) do
+					glcenters:push_back(vec3f(c.pos:unpack()))
+					gltcs:push_back(vec3f((ci + .5) / tonumber(solver.numCells), .5, .5))
+					glvtxs:push_back(vec2f(q[1], q[2]))
+				end
+			end
+		else
+			for kbase=0,kcount-1 do
+				local k = kbase * step
+				for jbase=0,jcount-1 do
+					local j = jbase * step
+					for ibase=0,icount-1 do
+						local i = ibase * step
+						for _,q in ipairs(arrow) do
+							local x = vec3f(
+								(i + .5) / tonumber(solver.sizeWithoutBorder.x) * (solver.maxs.x - solver.mins.x) + solver.mins.x,
+								(j + .5) / tonumber(solver.sizeWithoutBorder.y) * (solver.maxs.y - solver.mins.y) + solver.mins.y,
+								(k + .5) / tonumber(solver.sizeWithoutBorder.z) * (solver.maxs.z - solver.mins.z) + solver.mins.z)
+							glcenters:push_back(x)
+							gltcs:push_back(vec3f(
+								(i + .5 + solver.numGhost) / tonumber(solver.texSize.x),
+								solver.dim > 1 and (j + .5 + solver.numGhost) / tonumber(solver.texSize.y) or .5,
+								solver.dim > 2 and (k + .5 + solver.numGhost) / tonumber(solver.texSize.z) or .5
+							))
+							glvtxs:push_back(vec2f(q[1], q[2]))
+						end
 					end
 				end
 			end
 		end
-		gl.glEnd()
+
+		solver.vectorArrowGLVtxArrayBuffer = GLArrayBuffer{
+			data = glvtxs.v,
+			size = #glvtxs * ffi.sizeof(glvtxs.type)
+		}
+
+		solver.vectorArrowGLCentersArrayBuffer = GLArrayBuffer{
+			data = glcenters.v,
+			size = #glcenters * ffi.sizeof(glcenters.type)
+		}
+		
+		solver.vectorArrowGLTCsArrayBuffer = GLArrayBuffer{
+			data = gltcs.v,
+			size = #gltcs * ffi.sizeof(gltcs.type)
+		}
+	
+		solver.vectorArrowVAO = GLVertexArray{
+			GLAttribute{
+				size = 2,
+				type = gl.GL_FLOAT,
+				buffer = solver.vectorArrowGLVtxArrayBuffer,
+				loc = vectorArrowShader.attrs.vtx.loc,
+			},
+			GLAttribute{
+				size = 3,
+				type = gl.GL_FLOAT,
+				buffer = solver.vectorArrowGLCentersArrayBuffer,
+				loc = vectorArrowShader.attrs.center.loc,
+			},
+			GLAttribute{
+				size = 3,
+				type = gl.GL_FLOAT,
+				buffer = solver.vectorArrowGLTCsArrayBuffer,
+				loc = vectorArrowShader.attrs.tc.loc,
+			},
+		}
 	end
 
+	gl.glEnable(gl.GL_BLEND)
+
+	vectorArrowShader:use()
+	
+	gl.glUniformMatrix4fv(vectorArrowShader.uniforms.modelViewProjectionMatrix.loc, 1, 0, app.view.modelViewProjectionMatrix.ptr)
+	gl.glUniform1i(vectorArrowShader.uniforms.displayDim.loc, app.displayDim)
+	gl.glUniform1i(vectorArrowShader.uniforms.useLog.loc, var.useLog)
+	gl.glUniform1f(vectorArrowShader.uniforms.valueMin.loc, valueMin)
+	gl.glUniform1f(vectorArrowShader.uniforms.valueMax.loc, valueMax)
+	gl.glUniform2f(vectorArrowShader.uniforms.displayFixed.loc, app.displayFixedY, app.displayFixedZ)
+
+	local tex = solver:getTex(var)
+	tex:bind(0)
+	app.gradientTex:bind(1)
+	
+	-- how to determine scale?
+	--local scale = self.scale * (valueMax - valueMin)
+	--local scale = self.scale / (valueMax - valueMin)
+	local scale = self.scale
+		* step
+		* math.min(
+			(solver.maxs.x - solver.mins.x) / tonumber(solver.texSize.x),
+			(solver.maxs.y - solver.mins.y) / tonumber(solver.texSize.y),
+			(solver.maxs.z - solver.mins.z) / tonumber(solver.texSize.z))
+	gl.glUniform1f(vectorArrowShader.uniforms.scale.loc, scale) 
+
+--[[ glVertexAttrib prim calls
+	gl.glBegin(gl.GL_LINES)
+	for i=0,arrowCount * #arrow-1 do
+		gl.glVertexAttrib3f(vectorArrowShader.attrs.tc.loc, solver.vectorArrowGLTCsArrayBuffer.data[i]:unpack())
+		gl.glVertexAttrib3f(vectorArrowShader.attrs.center.loc, solver.vectorArrowGLCentersArrayBuffer.data[i]:unpack())
+		gl.glVertexAttrib2f(vectorArrowShader.attrs.vtx.loc, solver.vectorArrowGLVtxArrayBuffer.data[i]:unpack())
+	end
+	gl.glEnd()
+--]]
+-- [[ glVertexArray
+	solver.vectorArrowVAO:bind()
+	gl.glDrawArrays(gl.GL_LINES, 0, arrowCount * #arrow)
+	solver.vectorArrowVAO:unbind()
+--]]
+
 	app.gradientTex:unbind(1)
-	solver:getTex(var):unbind(0)
-	solver.vectorArrowShader:useNone()
+	tex:unbind(0)
+	vectorArrowShader:useNone()
+
+	gl.glDisable(gl.GL_BLEND)
+
+	
+	-- TODO only draw the first
+	local gradientValueMin = valueMin
+	local gradientValueMax = valueMax
+	local showName = varName
+	if var.showInUnits and var.units then
+		local unitScale = solver:convertToSIUnitsCode(var.units).func()
+		gradientValueMin = gradientValueMin * unitScale
+		gradientValueMax = gradientValueMax * unitScale
+		showName = showName..' ('..var.units..')'
+	end
+	app:drawGradientLegend(ar, showName, gradientValueMin, gradientValueMax)
 end
 
 function DrawVectorField:display(app, solvers, varName, ar, ...)
-	app.view:projection(ar)
-	app.view:modelview()
+	app.view:setup(ar)
 
-	gl.glDisable(gl.GL_BLEND)
-	gl.glEnable(gl.GL_DEPTH_TEST)
 	gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE)
 	
 	for _,solver in ipairs(solvers) do
 		local var = solver.displayVarForName[varName]
 		if var and var.enabled then
-			self:showDisplayVar(app, solver, var, ...)
+			self:showDisplayVar(app, solver, var, varName, ar, ...)
 		end
 	end
 
-	gl.glDisable(gl.GL_DEPTH_TEST)
 end
 
 return function(HydroCLApp)

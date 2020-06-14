@@ -545,7 +545,7 @@ void main() {
 			local name, func = next(method)
 			local enabled = index == 2	-- LIC
 			-- cmdline arrows overrides the default from LIC to arrows
-			if cmdline.arrows and index == 1 then enabled = index == 1 end
+			if cmdline.arrows then enabled = index == 1 end
 			return enabled, name
 		end)
 

@@ -12,7 +12,6 @@ local template = require 'template'
 local vec3sz = require 'vec-ffi.vec3sz'
 local vec3f = require 'vec-ffi.vec3f'
 local vec3d = require 'vec-ffi.vec3d'
-local matrix_ffi = require 'matrix.ffi'
 local ig = require 'ffi.imgui'
 local gl = require 'gl'
 local glreport = require 'gl.report'
@@ -24,8 +23,6 @@ local vector = require 'hydro.util.vector'
 
 local half = require 'hydro.half'
 local toreal, fromreal = half.toreal, half.fromreal
-
-matrix_ffi.real = 'float'	-- default matrix_ffi type
 
 
 local MeshSolver = class(SolverBase)
@@ -175,10 +172,7 @@ function MeshSolver:initDraw()
 
 
 	-- TODO move this to hydro/view and set it once for all shaders
-	self.modelViewMatrix = matrix_ffi.zeros(4,4)
-	self.projectionMatrix = matrix_ffi.zeros(4,4)
-	self.modelViewProjectionMatrix = matrix_ffi.zeros(4,4)
-
+	
 	-- make a GPU version of the mesh
 	-- TODO triangulate ... then include a mapping from triangle to source cell,
 	-- and then just copy from display buf to a texture,
@@ -628,10 +622,7 @@ local function showDisplayVar(app, solver, var, varName, ar)
 	gl.glUniform1f(heatMap2DShader.uniforms.drawCellScale.loc, solver.drawCellScale)
 
 	-- this is only in MeshSolver...
-	gl.glGetFloatv(gl.GL_MODELVIEW_MATRIX, solver.modelViewMatrix.ptr)
-	gl.glGetFloatv(gl.GL_PROJECTION_MATRIX, solver.projectionMatrix.ptr)
-	solver.modelViewProjectionMatrix:mul(solver.projectionMatrix, solver.modelViewMatrix)
-	gl.glUniformMatrix4fv(heatMap2DShader.uniforms.modelViewProjectionMatrix.loc, 1, 0, solver.modelViewProjectionMatrix.ptr)
+	gl.glUniformMatrix4fv(heatMap2DShader.uniforms.modelViewProjectionMatrix.loc, 1, 0, app.view.modelViewProjectionMatrix.ptr)
 	
 	gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
 	gl.glEnable(gl.GL_BLEND)
@@ -664,8 +655,7 @@ function MeshSolver:display(varName, ar)
 	if app.targetSystem == 'console' then return end	
 	
 	local view = app.view
-	view:projection(ar)
-	view:modelview()
+	view:setup(ar)
 
 	local var = self.displayVarForName[varName]
 	if not var then return end

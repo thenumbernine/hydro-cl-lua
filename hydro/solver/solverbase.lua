@@ -29,6 +29,11 @@ local half = require 'hydro.half'
 local toreal, fromreal = half.toreal, half.fromreal
 
 
+-- whether to cache the opencl binaries
+local useCache = cmdline.useCache
+if useCache == nil then useCache = true end
+
+
 local function addTab(s)
 	s = tostring(s)
 	if s:sub(1,1) ~= '\t' then s = '\t' .. s end

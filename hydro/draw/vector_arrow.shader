@@ -1,21 +1,25 @@
+#version 460
+
 <?
 local clnumber = require 'cl.obj.number'
 local coord = solver.coord
 local app = solver.app
 ?>
-varying vec4 color;
-
-<? -- coordMapInv isn't used by volumetric.shader, but in coord/sphere-log-radial.lua it does have important predefined functions (sinh, etc) which are needed by coordMap ?>
-<?=coord:getCoordMapInvGLSLCode()?>
 
 <? if vertexShader then ?>
+
+varying vec4 color;
+
 <?=coord:getCoordMapGLSLCode()?>
 
-uniform vec3 solverMins, solverMaxs;
+uniform mat4 modelViewProjectionMatrix;
 
-<? if not vectorField2 then ?>
+attribute vec2 vtx;
+attribute vec3 center;
+attribute vec3 tc;
+
+
 uniform float scale;
-<? end ?>
 
 <? if solver.dim < 3 then ?>
 uniform sampler2D tex;
@@ -24,41 +28,21 @@ uniform sampler3D tex;
 <? end ?>
 
 uniform int displayDim;
+uniform vec2 displayFixed;	//xy holds the fixed yz for when displayDim < dim
 
 <?=solver:getGradientGLSLCode()?>
 
-<? if vectorField2 then ?>
-uniform sampler2D offsetTex;
-<? end ?>
-
 void main() {
-	
-	//manifold coords
-	vec3 pt = gl_MultiTexCoord1.xyz;
-	
-<? 
-local clnumber = require 'cl.obj.number'
-if vectorField2 then 
-	local dx = 1 / tonumber(solver.gridSize.x)
-	local dy = 1 / tonumber(solver.gridSize.y) 
-?>
-	vec4 offsetField = texture2D(offsetTex, gl_MultiTexCoord1.xy);
-	vec2 delta = vec2(<?=clnumber(dx)?>, <?=clnumber(dy)?>);
-	pt.xy += (offsetField.xy - vec2(.5, .5)) * delta;
-<? 
-end -- vectorField2
-?>
-
-	pt *= (solverMaxs - solverMins);
-	pt += solverMins;
-
+	vec3 realtc = tc;
+	if (displayDim <= 1) realtc.y = displayFixed.x;
+	if (displayDim <= 2) realtc.z = displayFixed.y;
 <? if solver.dim < 3 then ?>
-	vec3 dir = texture2D(tex, gl_MultiTexCoord0.xy).rgb;
+	vec3 dir = texture2D(tex, realtc.xy).rgb;
 <? else ?>
-	vec3 dir = texture3D(tex, gl_MultiTexCoord0.xyz).rgb;
+	vec3 dir = texture3D(tex, realtc.xyz).rgb;
 <? end ?>
 
-	dir = cartesianFromCoord(dir, pt);	
+	dir = cartesianFromCoord(dir, center);	
 	float value = length(dir);
 	dir /= value;
 
@@ -91,20 +75,14 @@ end -- vectorField2
 	
 	value = getGradientFrac(value);
 //TODO make this a flag, whether to normalize vectors or not? 
-<? if vectorField2 then ?>
-	float valuescale = offsetField.w;
-<? else ?>
 	float valuescale = scale;// * clamp(value, 0., 1.);
-<? end ?>
 	value = getGradientTexCoord(value);
 	color = texture1D(gradientTex, value);
 
-	vec2 offset = gl_Vertex.xy;
-
 	//cartesian coords
-	vec3 v = coordMap(pt) + valuescale * (offset.x * dir + offset.y * tv);
+	vec3 v = coordMap(center) + valuescale * (vtx.x * dir + vtx.y * tv);
 	
-	gl_Position = gl_ProjectionMatrix * gl_ModelViewMatrix * vec4(v, 1.);
+	gl_Position = modelViewProjectionMatrix * vec4(v, 1.);
 }
 
 <?
@@ -112,8 +90,12 @@ end
 if fragmentShader then
 ?>
 
+varying vec4 color;
+
+out vec4 fragColor;
+
 void main() {
-	gl_FragColor = color;
+	fragColor = color;
 }
 
 <? end ?>

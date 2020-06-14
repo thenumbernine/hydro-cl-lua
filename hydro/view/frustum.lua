@@ -2,6 +2,9 @@ local class = require 'ext.class'
 local gl = require 'gl'
 local vec3d = require 'vec-ffi.vec3d'
 local quatd = require 'vec-ffi.quatd'
+local matrix_ffi = require 'matrix.ffi'
+
+matrix_ffi.real = 'float'	-- default matrix_ffi type
 
 local FrustumView = class()
 
@@ -9,6 +12,10 @@ function FrustumView:init()
 	self.dist = 3
 	self.pos = vec3d()
 	self.angle = quatd(0,0,0,1)
+
+	self.modelViewMatrix = matrix_ffi.zeros(4,4)
+	self.projectionMatrix = matrix_ffi.zeros(4,4)
+	self.modelViewProjectionMatrix = matrix_ffi.zeros(4,4)
 end
 
 FrustumView.zFar = 1000
@@ -32,6 +39,15 @@ function FrustumView:modelview()
 	local angleAxis = self.angle:toAngleAxis()
 	gl.glRotatef(angleAxis.w, angleAxis.x, angleAxis.y, angleAxis.z)
 	gl.glTranslatef(-self.pos.x, -self.pos.y, -self.pos.z)
+end
+
+function FrustumView:setup(ar)
+	self:projection(ar)
+	self:modelview()
+
+	gl.glGetFloatv(gl.GL_MODELVIEW_MATRIX, self.modelViewMatrix.ptr)
+	gl.glGetFloatv(gl.GL_PROJECTION_MATRIX, self.projectionMatrix.ptr)
+	self.modelViewProjectionMatrix:mul(self.projectionMatrix, self.modelViewMatrix)
 end
 
 function FrustumView:mousePan(dx, dy, screenWidth, screenHeight)

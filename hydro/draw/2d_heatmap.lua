@@ -102,8 +102,8 @@ function Draw2DHeatmap:showDisplayVar(app, solver, var, varName, ar, xmin, xmax,
 end
 
 function Draw2DHeatmap:display(app, solvers, varName, ar, graph_xmin, graph_xmax, graph_ymin, graph_ymax)
-	app.view:projection(ar)
-	app.view:modelview()
+	app.view:setup(ar)
+	
 	if app.view.getOrthoBounds then
 		xmin, xmax, ymin, ymax = app.view:getOrthoBounds(ar)
 	else

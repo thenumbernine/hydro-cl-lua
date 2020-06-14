@@ -1,7 +1,8 @@
+#version 460
+
 <? 
 local clnumber = require 'cl.obj.number'
 if vertexShader then ?>
-#version 460
 
 uniform float drawCellScale;
 uniform mat4 modelViewProjectionMatrix;
@@ -20,7 +21,6 @@ void main() {
 
 <? end
 if fragmentShader then ?>
-#version 460
 
 <?=solver:getGradientGLSLCode()?>
 

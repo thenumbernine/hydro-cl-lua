@@ -31,10 +31,6 @@ local from6to3x3 = common.from6to3x3
 local sym = common.sym
 
 
--- whether to cache the opencl binaries
-local useCache = cmdline.useCache
-if useCache == nil then useCache = true end
-
 local function unpack(x)
 	if x.unpack then return x:unpack() end
 	return table.unpack(x)

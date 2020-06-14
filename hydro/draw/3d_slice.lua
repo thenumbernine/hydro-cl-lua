@@ -32,8 +32,7 @@ if not require 'hydro.solver.meshsolver'.is(solver) then
 		local var = solver.displayVarForName[varName]
 		if var and var.enabled then
 			
-			app.view:projection(ar)
-			app.view:modelview()
+			app.view:setup(ar)
 
 if useClipPlanes then
 	for i,clipInfo in ipairs(clipInfos) do

@@ -35,8 +35,7 @@ Draw3DRay.alpha = .15
 Draw3DRay.alphaGamma = 2
 
 function Draw3DRay:showDisplayVar(app, solver, var, ar)
-	app.view:projection(ar)
-	app.view:modelview()
+	app.view:setup(ar)
 	
 	local valueMin, valueMax
 	if var.heatMapFixedRange then

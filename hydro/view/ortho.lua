@@ -1,12 +1,19 @@
 local class = require 'ext.class'
 local gl = require 'gl'
 local vec2d = require 'vec-ffi.vec2d'
+local matrix_ffi = require 'matrix.ffi'
+
+matrix_ffi.real = 'float'	-- default matrix_ffi type
 
 local OrthoView = class()
 
 function OrthoView:init()
 	self.zoom = vec2d(.5,.5)
 	self.pos = vec2d()
+
+	self.modelViewMatrix = matrix_ffi.zeros(4,4)
+	self.projectionMatrix = matrix_ffi.zeros(4,4)
+	self.modelViewProjectionMatrix = matrix_ffi.zeros(4,4)
 end
 
 -- returns xmin, xmax, ymin, ymax, zmin, zmax
@@ -28,6 +35,15 @@ end
 function OrthoView:modelview()
 	gl.glMatrixMode(gl.GL_MODELVIEW)
 	gl.glLoadIdentity()
+end
+
+function OrthoView:setup(ar)
+	self:projection(ar)
+	self:modelview()
+
+	gl.glGetFloatv(gl.GL_MODELVIEW_MATRIX, self.modelViewMatrix.ptr)
+	gl.glGetFloatv(gl.GL_PROJECTION_MATRIX, self.projectionMatrix.ptr)
+	self.modelViewProjectionMatrix:mul(self.projectionMatrix, self.modelViewMatrix)
 end
 
 function OrthoView:mousePan(dx, dy, screenWidth, screenHeight)
