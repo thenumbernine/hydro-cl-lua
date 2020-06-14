@@ -714,7 +714,7 @@ kernel void constrainU(
 	,const global cell_t* cells
 <? end ?>
 ) {
-	SETBOUNDS_NOGHOST();
+	SETBOUNDS(0,0);
 	real3 x = cell_x(i);
 
 	global <?=eqn.cons_t?>* U = UBuf + index;

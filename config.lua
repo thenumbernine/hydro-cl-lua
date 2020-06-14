@@ -800,10 +800,10 @@ self.solvers:insert(require 'hydro.solver.wave-fd'(table(args, {integrator='back
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {eqn='euler', mesh={type='sphere3d', size={cmdline.meshsize or 16, cmdline.meshsize or 16, cmdline.meshsize or 16}}})))
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {eqn='euler', mesh={type='torus3d', size={cmdline.meshsize or 16, cmdline.meshsize or 16, cmdline.meshsize or 16}}})))
 
-self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='hll', eqn='euler', mesh={type='polar2d', size={cmdline.meshsize or 64, cmdline.meshsize or 64}}})))
+--self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='hll', eqn='euler', mesh={type='polar2d', size={cmdline.meshsize or 64, cmdline.meshsize or 64}}})))
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='euler-hllc', eqn='euler', mesh={type='polar2d', size={cmdline.meshsize or 64, cmdline.meshsize or 64}}})))
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='mhd', mesh={type='polar2d', size={cmdline.meshsize or 64, cmdline.meshsize or 64}}})))
---self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='glm-mhd', mesh={type='polar2d', size={cmdline.meshsize or 64, cmdline.meshsize or 64}}})))
+self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='glm-mhd', mesh={type='polar2d', size={cmdline.meshsize or 64, cmdline.meshsize or 64}}})))
 
 
 -- NEXT BIG TODO

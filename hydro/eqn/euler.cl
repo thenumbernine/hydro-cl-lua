@@ -291,7 +291,7 @@ kernel void addSource(
 	,const global cell_t* cells
 <? end ?>
 ) {
-	SETBOUNDS(0,0);
+	SETBOUNDS_NOGHOST();
 	real3 x = cell_x(i);
 
 	global cons_t* deriv = derivBuf + index;
