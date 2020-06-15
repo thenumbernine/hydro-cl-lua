@@ -27,7 +27,7 @@ DrawVectorField.scale = 1
 DrawVectorField.step = cmdline.vectorFieldStep or 4
 
 function DrawVectorField:showDisplayVar(app, solver, var, varName, ar, xmin, xmax, ymin, ymax, useLog)
-	
+
 	local valueMin, valueMax
 	if var.heatMapFixedRange then
 		valueMin = var.heatMapValueMin
@@ -53,9 +53,9 @@ function DrawVectorField:showDisplayVar(app, solver, var, varName, ar, xmin, xma
 	if require 'hydro.solver.meshsolver'.is(solver) then
 		arrowCount = solver.numCells
 	else
-		icount = math.floor(tonumber(solver.sizeWithoutBorder.x) / step)
-		jcount = math.floor(tonumber(solver.sizeWithoutBorder.y) / step)
-		kcount = math.floor(tonumber(solver.sizeWithoutBorder.z) / step)
+		icount = math.max(1, math.floor(tonumber(solver.sizeWithoutBorder.x) / step))
+		jcount = math.max(1, math.floor(tonumber(solver.sizeWithoutBorder.y) / step))
+		kcount = math.max(1, math.floor(tonumber(solver.sizeWithoutBorder.z) / step))
 		arrowCount = icount * jcount * kcount
 	end
 
@@ -124,7 +124,8 @@ function DrawVectorField:showDisplayVar(app, solver, var, varName, ar, xmin, xma
 			data = gltcs.v,
 			size = #gltcs * ffi.sizeof(gltcs.type)
 		}
-	
+		
+		vectorArrowShader:use()
 		solver.vectorArrowVAO = GLVertexArray{
 			GLAttribute{
 				size = 2,
@@ -145,6 +146,7 @@ function DrawVectorField:showDisplayVar(app, solver, var, varName, ar, xmin, xma
 				loc = vectorArrowShader.attrs.tc.loc,
 			},
 		}
+		vectorArrowShader:useNone()
 	end
 
 	gl.glEnable(gl.GL_BLEND)
@@ -185,12 +187,16 @@ function DrawVectorField:showDisplayVar(app, solver, var, varName, ar, xmin, xma
 --]]
 -- [[ glVertexArray
 	solver.vectorArrowVAO:bind()
+	solver.vectorArrowVAO:enableAttrs()
 	gl.glDrawArrays(gl.GL_LINES, 0, arrowCount * #arrow)
+	solver.vectorArrowVAO:disableAttrs()
 	solver.vectorArrowVAO:unbind()
 --]]
---[[ glVertexArray (not fully implemented - just speed testing) doesn't go noticably faster  than glDrawArrays
+--[[ glVertexArray with glDrawArraysInstanced (not fully implemented - just speed testing) doesn't go noticably faster  than glDrawArrays
 	solver.vectorArrowVAO:bind()
+	solver.vectorArrowVAO:enableAttrs()
 	gl.glDrawArraysInstancedARB(gl.GL_LINES, 0, #arrow, arrowCount)
+	solver.vectorArrowVAO:disableAttrs()
 	solver.vectorArrowVAO:unbind()
 --]]
 
