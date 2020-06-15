@@ -125,28 +125,14 @@ function DrawVectorField:showDisplayVar(app, solver, var, varName, ar, xmin, xma
 			size = #gltcs * ffi.sizeof(gltcs.type)
 		}
 		
-		vectorArrowShader:use()
 		solver.vectorArrowVAO = GLVertexArray{
-			GLAttribute{
-				size = 2,
-				type = gl.GL_FLOAT,
-				buffer = solver.vectorArrowGLVtxArrayBuffer,
-				loc = vectorArrowShader.attrs.vtx.loc,
-			},
-			GLAttribute{
-				size = 3,
-				type = gl.GL_FLOAT,
-				buffer = solver.vectorArrowGLCentersArrayBuffer,
-				loc = vectorArrowShader.attrs.center.loc,
-			},
-			GLAttribute{
-				size = 3,
-				type = gl.GL_FLOAT,
-				buffer = solver.vectorArrowGLTCsArrayBuffer,
-				loc = vectorArrowShader.attrs.tc.loc,
+			program = vectorArrowShader,
+			attrs = {
+				vtx = solver.vectorArrowGLVtxArrayBuffer,
+				center = solver.vectorArrowGLCentersArrayBuffer,
+				tc = solver.vectorArrowGLTCsArrayBuffer,
 			},
 		}
-		vectorArrowShader:useNone()
 	end
 
 	gl.glEnable(gl.GL_BLEND)
@@ -186,11 +172,9 @@ function DrawVectorField:showDisplayVar(app, solver, var, varName, ar, xmin, xma
 	gl.glEnd()
 --]]
 -- [[ glVertexArray
-	solver.vectorArrowVAO:bind()
-	solver.vectorArrowVAO:enableAttrs()
+	solver.vectorArrowVAO:use()
 	gl.glDrawArrays(gl.GL_LINES, 0, arrowCount * #arrow)
-	solver.vectorArrowVAO:disableAttrs()
-	solver.vectorArrowVAO:unbind()
+	solver.vectorArrowVAO:useNone()
 --]]
 --[[ glVertexArray with glDrawArraysInstanced (not fully implemented - just speed testing) doesn't go noticably faster  than glDrawArrays
 	solver.vectorArrowVAO:bind()

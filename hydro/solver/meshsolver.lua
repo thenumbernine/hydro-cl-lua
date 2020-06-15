@@ -224,6 +224,11 @@ function MeshSolver:initDraw()
 
 	local GLArrayBuffer = require 'gl.arraybuffer'
 	
+	self.glvtxArrayBuffer = GLArrayBuffer{
+		data = glvtxs.v,
+		size = #glvtxs * ffi.sizeof(glvtxs.type), 
+	}
+
 	local heatMapCode = assert(file['hydro/draw/mesh_heatmap.shader'])
 	self.heatMap2DShader = self.GLProgram{
 		vertexCode = template(heatMapCode, {
@@ -242,10 +247,7 @@ function MeshSolver:initDraw()
 			drawCellScale = 1,
 		},
 		attrs = {
-			vtx = GLArrayBuffer{
-				data = glvtxs.v,
-				size = #glvtxs * ffi.sizeof(glvtxs.type), 
-			},
+			vtx = self.glvtxArrayBuffer,
 			vtxcenter = GLArrayBuffer{
 				data = glvtxcenters.v,
 				size = #glvtxcenters * ffi.sizeof(glvtxcenters.type), 
@@ -583,13 +585,16 @@ local function drawSolverWithVar(app, solver, var, heatMap2DShader)
 	gl.glEnd()
 --]]
 --[[ 130 fps: glBindBuffer / glVertexAttribPointer / glEnableVertexAttribArray
+error("I once again need to straighten out the ctor/usage of GLProgram vs its attribute objects vs GLAttribute vs GLVertexArray
 	solver.heatMap2DShader:setAttrs(solver.heatMapShaderAttrs)
+	GLVertexArray:enableAttrs(solver.heatMapShaderAttrs)
 	gl.glDrawArrays(gl.GL_TRIANGLES, 0, solver.numGlVtxs * 3)
+	GLVertexArray:disableAttrs(solver.heatMapShaderAttrs)
 --]]
 -- [[ 150fps: glVertexArray
-	solver.heatMap2DShader.vao:bind()
+	solver.heatMap2DShader.vao:use()
 	gl.glDrawArrays(gl.GL_TRIANGLES, 0, solver.numGlVtxs * 3)
-	solver.heatMap2DShader.vao:unbind()
+	solver.heatMap2DShader.vao:useNone()
 --]]
 	tex:unbind(0)
 end
@@ -659,11 +664,13 @@ function MeshSolver:display(varName, ar)
 		local mesh = self.mesh
 		gl.glPointSize(3)
 		gl.glColor3f(1,1,1)
-		gl.glBegin(gl.GL_POINTS)
-		for _,v in ipairs(mesh.vtxs) do
-			gl.glVertex3d(v:unpack())
-		end
-		gl.glEnd()
+		
+		self.glvtxArrayBuffer:bind()
+		gl.glVertexPointer(3, gl.GL_FLOAT, 0, nil)
+		self.glvtxArrayBuffer:unbind()
+		gl.glEnableClientState(gl.GL_VERTEX_ARRAY)
+		gl.glDrawArrays(gl.GL_POINTS, 0, self.numGlVtxs * 3)
+		gl.glDisableClientState(gl.GL_VERTEX_ARRAY)
 		gl.glPointSize(1)
 	end
 
