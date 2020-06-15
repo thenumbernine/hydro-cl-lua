@@ -388,9 +388,13 @@ end
 
 function GridSolver:refreshSolverBufMinsMaxs()
 	GridSolver.super.refreshSolverBufMinsMaxs(self)
+	-- while here, refersh the 'mindx' param
+	self.mindx = math.huge
 	-- always set this to the full range, even outside the used dimension, in case some dimensional value is supposed to be a non-zero constant, esp for cell volume calculations
 	for j=1,3 do
-		self.solverPtr.grid_dx.s[j-1] = toreal( (self.maxs.s[j-1] - self.mins.s[j-1]) / tonumber(self.sizeWithoutBorder.s[j-1]) )
+		local dx = (self.maxs.s[j-1] - self.mins.s[j-1]) / tonumber(self.sizeWithoutBorder.s[j-1])
+		self.mindx = math.min(self.mindx, dx)
+		self.solverPtr.grid_dx.s[j-1] = toreal(dx)
 		self.solverPtr.initCondMins.s[j-1] = toreal( self.initCondMins.s[j-1] )
 		self.solverPtr.initCondMaxs.s[j-1] = toreal( self.initCondMaxs.s[j-1] )
 	end

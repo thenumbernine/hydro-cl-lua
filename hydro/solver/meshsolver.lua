@@ -107,6 +107,12 @@ end
 		end
 	end
 
+	-- save the smallest dx as well - used for vector arrow display
+	self.mindx = math.huge
+	for _,f in ipairs(self.mesh.faces) do
+		self.mindx = math.min(self.mindx, f.cellDist)
+	end
+
 	-- TODO put these in solver_t
 	self.numCells = assert(self.mesh.numCells, "did your MeshFactory remember to call :calcAux()?")
 	self.numFaces = assert(self.mesh.numFaces, "did your MeshFactory remember to call :calcAux()?")
@@ -163,7 +169,7 @@ function MeshSolver:initDraw()
 		}),
 		uniforms = {
 			valueMin = 0,
-			valueMax = 0,
+			valueMax = 1,
 			tex = 0,
 			gradientTex = 1,
 			scale = 1,

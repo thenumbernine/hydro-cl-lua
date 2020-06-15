@@ -46,11 +46,12 @@ function DrawVectorField:showDisplayVar(app, solver, var, varName, ar, xmin, xma
 	
 	solver:calcDisplayVarToTex(var)
 
+	local isMeshSolver = require 'hydro.solver.meshsolver'.is(solver)
 	
 	local step = self.step
 	local arrowCount
 	local icount, jcount, kcount
-	if require 'hydro.solver.meshsolver'.is(solver) then
+	if isMeshSolver then
 		arrowCount = solver.numCells
 	else
 		icount = math.max(1, math.floor(tonumber(solver.sizeWithoutBorder.x) / step))
@@ -74,7 +75,7 @@ function DrawVectorField:showDisplayVar(app, solver, var, varName, ar, xmin, xma
 		gltcs:setcapacity(arrowCount * #arrow)
 
 		-- glCallOrDraw goes just slightly faster.  24 vs 23 fps.
-		if require 'hydro.solver.meshsolver'.is(solver) then
+		if isMeshSolver then
 			-- TODO Lua coroutine cell iterator, abstracted between grids and meshes?
 			-- how fast/slow are coroutines compared to number for-loops anyways?
 			for ci=0,solver.numCells-1 do
@@ -154,12 +155,7 @@ function DrawVectorField:showDisplayVar(app, solver, var, varName, ar, xmin, xma
 	-- how to determine scale?
 	--local scale = self.scale * (valueMax - valueMin)
 	--local scale = self.scale / (valueMax - valueMin)
-	local scale = self.scale
-		* step
-		* math.min(
-			(solver.maxs.x - solver.mins.x) / tonumber(solver.texSize.x),
-			(solver.maxs.y - solver.mins.y) / tonumber(solver.texSize.y),
-			(solver.maxs.z - solver.mins.z) / tonumber(solver.texSize.z))
+	local scale = self.scale * step * solver.mindx
 	gl.glUniform1f(vectorArrowShader.uniforms.scale.loc, scale) 
 
 --[[ glVertexAttrib prim calls
@@ -177,11 +173,9 @@ function DrawVectorField:showDisplayVar(app, solver, var, varName, ar, xmin, xma
 	solver.vectorArrowVAO:useNone()
 --]]
 --[[ glVertexArray with glDrawArraysInstanced (not fully implemented - just speed testing) doesn't go noticably faster  than glDrawArrays
-	solver.vectorArrowVAO:bind()
-	solver.vectorArrowVAO:enableAttrs()
+	solver.vectorArrowVAO:use()
 	gl.glDrawArraysInstancedARB(gl.GL_LINES, 0, #arrow, arrowCount)
-	solver.vectorArrowVAO:disableAttrs()
-	solver.vectorArrowVAO:unbind()
+	solver.vectorArrowVAO:useNone()
 --]]
 
 	app.gradientTex:unbind(1)
