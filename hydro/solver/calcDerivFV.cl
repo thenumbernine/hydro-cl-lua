@@ -77,29 +77,31 @@ then ?>
 ?>;
 <? end ?>
 
+		if (volume > 1e-5) {
+			real invVolume = 1. / volume;
+			areaR *= invVolume;
+			areaL *= invVolume;
 <? -- TODO get rid of this, it's only used by the maxwell and glm-maxwell eqns
 if eqn.postComputeFluxCode then ?>
-		cons_t flux = {.ptr={0}};
-		for (int j = 0; j < numIntStates; ++j) {
-			flux.ptr[j] = (
-				fluxR->ptr[j] * areaR
-				- fluxL->ptr[j] * areaL
-			) / volume;
-		}
+			cons_t flux = {.ptr={0}};
+			for (int j = 0; j < numIntStates; ++j) {
+				flux.ptr[j] = 
+					fluxR->ptr[j] * areaR
+					- fluxL->ptr[j] * areaL;
+			}
 <?=eqn.postComputeFluxCode?>
-		for (int j = 0; j < numIntStates; ++j) {
-			deriv->ptr[j] -= flux.ptr[j];
-		}
+			for (int j = 0; j < numIntStates; ++j) {
+				deriv->ptr[j] -= flux.ptr[j];
+			}
 
 <? else -- not postComputeFluxCode ?>
-		for (int j = 0; j < numIntStates; ++j) {
-			deriv->ptr[j] -= (
-				fluxR->ptr[j] * areaR
-				- fluxL->ptr[j] * areaL
-			) / volume;
-		}
+			for (int j = 0; j < numIntStates; ++j) {
+				deriv->ptr[j] -= 
+					fluxR->ptr[j] * areaR
+					- fluxL->ptr[j] * areaL;
+			}
 <? end -- postComputeFluxCode ?>	
-
+		}
 	}<? end ?>
 }
 

@@ -60,6 +60,7 @@ function Draw2DHeatmap:showDisplayVar(app, solver, var, varName, ar, xmin, xmax,
 	heatMap2DShader:use()
 	app.gradientTex:bind(1)
 
+	gl.glUniformMatrix4fv(heatMap2DShader.uniforms.modelViewProjectionMatrix.loc, 1, 0, app.view.modelViewProjectionMatrix.ptr)
 	gl.glUniform1i(heatMap2DShader.uniforms.useCoordMap.loc, app.display_useCoordMap)
 	gl.glUniform1i(heatMap2DShader.uniforms.useLog.loc, var.useLog)
 	gl.glUniform1f(heatMap2DShader.uniforms.valueMin.loc, valueMin)

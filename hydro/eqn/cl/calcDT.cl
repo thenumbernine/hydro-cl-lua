@@ -62,7 +62,7 @@ kernel void calcDT(
 	real dt = INFINITY;
 	for (int i = 0; i < cell->faceCount; ++i) {
 		const global face_t* face = faces + cellFaceIndexes[i + cell->faceOffset];
-		real dx = face->area;
+		real dx = face->area;	//face->cellDist?
 		if (dx > 1e-7 && face->cells.x != -1 && face->cells.y != -1) {
 			normalInfo_t n = normalInfo_forFace(face);
 			//all sides? or only the most prominent side?

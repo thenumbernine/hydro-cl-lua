@@ -329,7 +329,7 @@ local function addMaxwellOscillatingBoundary(args)
 	end
 	
 	-- this args is only for the UBuf boundary program -- not calle for the Poisson boundary program
-	local oldGetBondaryProgramArgs = solver.getBoundaryProgramArgs
+	local oldGetBoundaryProgramArgs = solver.getBoundaryProgramArgs
 	function solver:getBoundaryProgramArgs()
 		-- i'm completely overriding this
 		-- so I can completely override boundaryMethods for the solver boundary kernel
@@ -339,7 +339,7 @@ local function addMaxwellOscillatingBoundary(args)
 		--local oldxmin = select(2, next(solver.boundaryOptions[boundaryMethods.xmin]))
 		self.boundaryMethods[side] = BoundaryOscillating()
 		
-		local args = oldGetBondaryProgramArgs(self)
+		local args = oldGetBoundaryProgramArgs(self)
 		
 		-- same as super 
 		-- except with extraAgs
@@ -1033,6 +1033,79 @@ end) then
 	v.y = xc.x * solver->init_v / r;
 	D.x = -xc.y * solver->init_D / r;
 	D.y = xc.x * solver->init_D / r;
+]]
+		end,
+	},
+	
+	{
+		name = 'cyclone',
+		guiVars = {
+			{name = 'init_rho', value = 1},
+			{name = 'init_P', value = 1},
+			{name = 'inlet_v', value = .1},
+		},
+		initState = function(self, solver)
+			
+			local ProblemBoundary = class(solver.Boundary)
+			
+			ProblemBoundary.name = 'cyclone problem boundary'
+		
+			function ProblemBoundary:getCode(args)
+				local dst
+				if args.minmax == 'min' then
+					dst = args.index'j'
+				elseif args.minmax == 'max' then
+					local gridSizeSide = 'solver->gridSize.'..xNames[args.side]
+					dst = args.index(gridSizeSide..'-numGhost+j')
+				end
+				local lines = table()
+				if args.fields then
+					for _,field in ipairs(args.fields) do
+						lines:insert('buf['..dst..'].'..field..' = '..field.type..'_zero;')
+					end
+				else
+					lines:insert(template([[
+	real3 x = cell_x(i);
+	real3 xc = coordMap(x);
+	bool inlet = false;
+	if (xc.x > 0) {
+		real dy = xc.y - .5;
+		real dz = z - .5;
+		real dyz2 = dy*dy + dz*dy;
+		inlet = dyz2 < .1;
+	}
+	<?=eqn.cons_t?> W = {.ptr={0}}
+	W.rho = solver->init_rho;
+	W.v = real3_zero;
+	W.P = solver->init_P;
+	W.ePot = 0;
+	if (inlet) {
+		W.v = real3(-solver->inlet_v, 0., 0.);
+	}
+	buf[<?=dst?>] = primFromCons(W);
+]], 				{
+						dst = dst,
+						eqn = solver.eqn,
+					}))
+				end
+				return lines:concat'\n'		
+			end
+
+			local oldGetBoundaryProgramArgs = solver.getBoundaryProgramArgs
+			function solver:getBoundaryProgramArgs()
+				for _,xi in ipairs(xNames) do
+					for _,minmax in ipairs{'min', 'max'} do
+						self.boundaryMethods[xi..minmax] = ProblemBoundary()
+					end
+				end
+				local args = oldGetBoundaryProgramArgs(self)
+				args = table(args)
+				return args
+			end
+
+			return [[
+	rho = solver->init_rho;
+	P = solver->init_P;
 ]]
 		end,
 	},
@@ -2216,6 +2289,29 @@ kernel void addExtraSource(
 	rho = 1.;
 	P = 1. + .1 * x.y + .1 * cos(M_PI * x.x) * cos(M_PI * .5 * x.y);
 	B.x = .1;
+]]
+		end,
+	},
+
+	{
+		name = 'spiral with flipped B field',
+		guiVars = {
+			{name = 'init_rho', value = 1},
+			{name = 'init_P', value = 1},
+			{name = 'init_v', value = .5},
+			{name = 'init_B', value = 1},
+		},
+		initState = function(self, solver)
+			return [[
+	real3 xc = coordMap(x);
+	real r = real3_len(xc);
+	P = solver->init_P;
+	rho = solver->init_rho;
+	v.x = -xc.y * solver->init_v / r;
+	v.y = xc.x * solver->init_v / r;
+	real s = sign(r - .5);
+	B.x = -xc.y * s * solver->init_B / r;
+	B.y = xc.x * s * solver->init_B / r;
 ]]
 		end,
 	},

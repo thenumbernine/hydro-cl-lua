@@ -51,7 +51,7 @@ local args = {
 	-- this is functional without usePLM, but doing so falls back on the cell-centered buffer, which with the current useCTU code will update the same cell twice from different threads
 	--useCTU = true,
 	
-	-- [[ Cartesian
+	--[[ Cartesian
 	coord = 'cartesian',
 	coordArgs = {vectorComponent='holonomic'},		-- use the coordinate derivatives to represent our vector components (though they may not be normalized)
 	--coordArgs = {vectorComponent='anholonomic'},		-- use orthonormal basis to represent our vector components
@@ -104,24 +104,27 @@ local args = {
 		zmax = cmdline.boundary or 'freeflow',
 	},
 	--]]
-	--[[ cylinder
+	-- [[ cylinder
 	coord = 'cylinder',
-	coordArgs = {vectorComponent='holonomic'},		-- use the coordinate derivatives to represent our vector components (though they may not be normalized)
+	--coordArgs = {vectorComponent='holonomic'},		-- use the coordinate derivatives to represent our vector components (though they may not be normalized)
 	--coordArgs = {vectorComponent='anholonomic'},		-- use orthonormal basis to represent our vector components
-	--coordArgs = {vectorComponent='cartesian'},		-- use cartesian vector components 
-	mins = cmdline.mins or {.1, 0, -1},
+	coordArgs = {vectorComponent='cartesian'},		-- use cartesian vector components 
+	mins = cmdline.mins or {.02, 0, -1},
 	maxs = cmdline.maxs or {1, 2*math.pi, 1},
 	gridSize = ({
-		{128, 1, 1}, -- 1D
-		{64, 128, 1},	 -- 2D
-		{32, 32, 32}, -- 3D
+		{128, 1, 1},	-- 1D
+		{16, 16, 1},	-- 2D
+		{32, 32, 32},	-- 3D
 	})[dim],
 	boundary = type(cmdline.boundary) == 'table' and cmdline.boundary or {
 		-- r
 		-- notice, this boundary is designed with cylindrical components in mind, so it will fail with vectorComponent==cartesian 
-		--xmin=cmdline.boundary or 'cylinderRMin',	-- use this when rmin=0
-		xmin=cmdline.boundary or 'mirror',	--{name='mirror', args={restitution=0}},
-		xmax=cmdline.boundary or 'mirror',	--{name='mirror', args={restitution=0}},
+--		xmin=cmdline.boundary or 'cylinderRMin',	-- use this when rmin=0
+xmin=cmdline.boundary or 'freeflow',		
+		--xmin=cmdline.boundary or 'mirror',
+		--xmin=cmdline.boundary or {name='mirror', args={restitution=0}},
+		--xmax=cmdline.boundary or 'mirror',
+		xmax=cmdline.boundary or {name='mirror', args={restitution=0}},
 		
 		-- theta
 		ymin=cmdline.boundary or 'periodic',
@@ -198,6 +201,7 @@ local args = {
 	initState = 'spiral',
 	--initState = 'rarefaction wave',
 	--initState = 'Bessel',
+	--initState = 'cyclone',
 	
 	--initState = 'Sod',
 	--initState = 'Sod with physical units',
@@ -233,6 +237,7 @@ local args = {
 	--initState = 'magnetic fluid',
 	--initState = '2017 Degris et al',
 	--initState = 'that one mhd simulation from youtube',
+	--initState = 'spiral with flipped B field',
 	
 	-- 2002 Dedner
 	--initState = '2002 Dedner peak Bx',
@@ -513,7 +518,7 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn
 -- compressible Euler equations
 
 
---self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
+self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
 
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct bounded'})))	-- this is the default hllCalcWaveMethod
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct'})))
@@ -803,7 +808,7 @@ self.solvers:insert(require 'hydro.solver.wave-fd'(table(args, {integrator='back
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='hll', eqn='euler', mesh={type='polar2d', size={cmdline.meshsize or 64, cmdline.meshsize or 64}}})))
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='euler-hllc', eqn='euler', mesh={type='polar2d', size={cmdline.meshsize or 64, cmdline.meshsize or 64}}})))
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='mhd', mesh={type='polar2d', size={cmdline.meshsize or 64, cmdline.meshsize or 64}}})))
-self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='glm-mhd', mesh={type='polar2d', size={cmdline.meshsize or 64, cmdline.meshsize or 64}}})))
+--self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='glm-mhd', mesh={type='polar2d', size={cmdline.meshsize or 64, cmdline.meshsize or 64}}})))
 
 
 -- NEXT BIG TODO

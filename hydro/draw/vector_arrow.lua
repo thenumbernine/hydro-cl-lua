@@ -141,12 +141,16 @@ function DrawVectorField:showDisplayVar(app, solver, var, varName, ar, xmin, xma
 	vectorArrowShader:use()
 	
 	gl.glUniformMatrix4fv(vectorArrowShader.uniforms.modelViewProjectionMatrix.loc, 1, 0, app.view.modelViewProjectionMatrix.ptr)
-	gl.glUniform1i(vectorArrowShader.uniforms.displayDim.loc, app.displayDim)
+	gl.glUniform1i(vectorArrowShader.uniforms.useCoordMap.loc, app.display_useCoordMap)
 	gl.glUniform1i(vectorArrowShader.uniforms.useLog.loc, var.useLog)
-	gl.glUniform2f(vectorArrowShader.uniforms.displayFixed.loc, app.displayFixedY, app.displayFixedZ)
-	
 	gl.glUniform1f(vectorArrowShader.uniforms.valueMin.loc, valueMin)
 	gl.glUniform1f(vectorArrowShader.uniforms.valueMax.loc, valueMax)
+	
+	gl.glUniform1i(vectorArrowShader.uniforms.displayDim.loc, app.displayDim)
+	gl.glUniform2f(vectorArrowShader.uniforms.displayFixed.loc, app.displayFixedY, app.displayFixedZ)
+	
+	gl.glUniform3f(vectorArrowShader.uniforms.solverMins.loc, solver.mins:unpack())
+	gl.glUniform3f(vectorArrowShader.uniforms.solverMaxs.loc, solver.maxs:unpack())
 
 	local tex = solver:getTex(var)
 	tex:bind(0)

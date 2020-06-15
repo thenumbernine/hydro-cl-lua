@@ -30,6 +30,9 @@ uniform sampler3D tex;
 uniform int displayDim;
 uniform vec2 displayFixed;	//xy holds the fixed yz for when displayDim < dim
 
+uniform bool useCoordMap;
+uniform vec3 solverMins, solverMaxs;
+
 <?=solver:getGradientGLSLCode()?>
 
 void main() {
@@ -80,7 +83,13 @@ void main() {
 	color = texture1D(gradientTex, value);
 
 	//cartesian coords
-	vec3 v = coordMap(center) + valuescale * (vtx.x * dir + vtx.y * tv);
+	vec3 centerpos = center;
+	if (useCoordMap) {
+		centerpos = coordMap(centerpos);
+	} else {
+		centerpos = (centerpos - solverMins) / (solverMaxs - solverMins) * vec3(2., 2., 1.) - vec3(1., 1., 0.);
+	}
+	vec3 v = centerpos + valuescale * (vtx.x * dir + vtx.y * tv);
 	
 	gl_Position = modelViewProjectionMatrix * vec4(v, 1.);
 }

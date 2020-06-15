@@ -1,3 +1,5 @@
+#version 460
+
 <?
 local clnumber = require 'cl.obj.number'
 local coord = solver.coord
@@ -9,10 +11,13 @@ varying vec3 viewCoord;
 
 <? if vertexShader then ?>
 
+attribute vec4 vertex;
+uniform mat4 modelViewProjectionMatrix;
+
 void main() {
-	viewCoord = gl_Vertex.xyz;
+	viewCoord = vertex.xyz;
 	// disregard 'z' for rendering
-	gl_Position = gl_ModelViewProjectionMatrix * gl_Vertex;
+	gl_Position = modelViewProjectionMatrix * vertex;
 }
 
 <? end
@@ -33,6 +38,8 @@ uniform vec2 texCoordMax;
 ?>
 
 uniform vec2 solverMins, solverMaxs;
+
+out vec4 fragColor;
 
 void main() {
 	//start in 2D coords, bounded by the screen space
@@ -76,7 +83,7 @@ if (abs(gridCoord.x - solverMins.x) < epsilon ||
 ?>	float value = texture2D(tex, texCoord.xy).r;
 <? end
 ?>	
-	gl_FragColor = getGradientColor(value);
+	fragColor = getGradientColor(value);
 }
 
 <? end ?>
