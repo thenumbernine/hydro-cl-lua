@@ -3,6 +3,8 @@
 -- run a suite
 -- run this from the test working dir, i.e. hydro/tests/<wherever>/
 -- run this as ../suite.lua 
+-- TODO instead, maybe run this in the local dir, with the test dir name as the param?  nah, because each test shows/does dif things
+--  how about TODO instead, put this in a subdir called "common" or "util" or something?
 
 local ffi = require 'ffi'
 require 'ffi.c.stdlib'		-- free
@@ -40,7 +42,12 @@ for _,config in ipairs(configs) do
 
 	function HydroApp:setup(args)
 		print('running config: '..config.name)
-		local solver = config.build(self)
+		
+		local solverClassName = config.solverClassName
+		local solverClass = require(solverClassName)
+		local args = table(config.solverArgs)
+		args.app = self
+		local solver = solverClass(args)
 		
 		local oldUpdate = solver.update
 		function solver:update(...)
