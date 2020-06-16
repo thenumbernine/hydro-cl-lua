@@ -109,7 +109,7 @@ local args = {
 	--coordArgs = {vectorComponent='holonomic'},		-- use the coordinate derivatives to represent our vector components (though they may not be normalized)
 	--coordArgs = {vectorComponent='anholonomic'},		-- use orthonormal basis to represent our vector components
 	coordArgs = {vectorComponent='cartesian'},		-- use cartesian vector components 
-	mins = cmdline.mins or {.02, 0, -1},
+	mins = cmdline.mins or {.1, 0, -1},
 	maxs = cmdline.maxs or {1, 2*math.pi, 1},
 	gridSize = ({
 		{128, 1, 1},	-- 1D
@@ -119,8 +119,8 @@ local args = {
 	boundary = type(cmdline.boundary) == 'table' and cmdline.boundary or {
 		-- r
 		-- notice, this boundary is designed with cylindrical components in mind, so it will fail with vectorComponent==cartesian 
---		xmin=cmdline.boundary or 'cylinderRMin',	-- use this when rmin=0
-xmin=cmdline.boundary or 'freeflow',		
+		--xmin=cmdline.boundary or 'cylinderRMin',	-- use this when rmin=0
+		xmin=cmdline.boundary or 'freeflow',		
 		--xmin=cmdline.boundary or 'mirror',
 		--xmin=cmdline.boundary or {name='mirror', args={restitution=0}},
 		--xmax=cmdline.boundary or 'mirror',

@@ -85,7 +85,7 @@ kernel void calcFlux(
 		cons_t pUL = cons_parallelPropagate<?=side?>(*UL, xL, .5 * dx);
 		cons_t pUR = cons_parallelPropagate<?=side?>(*UR, xR, -.5 * dx);
 
-		normalInfo_t n = normalInfo_forSide<?=side?>(x);
+		normalInfo_t n = normalInfo_forSide<?=side?>(xInt);
 
 		global cons_t* flux = fluxBuf + indexInt;
 		*flux = calcFluxForInterface(solver, pUL, pUR, xInt, n);
