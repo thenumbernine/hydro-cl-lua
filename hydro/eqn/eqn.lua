@@ -4,7 +4,7 @@ local table = require 'ext.table'
 local range = require 'ext.range'
 local file = require 'ext.file'
 local template = require 'template'
-local makestruct = require 'hydro.eqn..makestruct'
+local Struct = require 'hydro.struct.struct'
 
 local common = require 'hydro.common'
 local xNames = common.xNames
@@ -88,7 +88,6 @@ function Equation:getParityVars(...)
 	return vars
 end
 
-local Struct = require 'hydro.struct.struct'
 
 --[[
 args:
@@ -146,9 +145,9 @@ function Equation:init(args)
 	
 	local numReals
 	if self.consStruct.vars then
-		numReals = makestruct.countScalars(self.consStruct.vars)
+		numReals = self.consStruct:countScalars()
 		if self.primStruct then
-			local numPrimReals = makestruct.countScalars(self.primStruct.vars)
+			local numPrimReals = self.primStruct:countScalars()
 			assert(numPrimReals <= numReals, "hmm, this is awkward")
 		end
 	end
@@ -488,7 +487,7 @@ end
 -- does anyone even use this anymore?  nobody should...
 function Equation:getEigenTypeCode()
 	if self.eigenVars then
-		return makestruct.makeStruct(self.eigen_t, self.eigenVars)
+		return Struct.makeStruct(self.eigen_t, self.eigenVars)
 	
 	-- use the default matrix structures	
 	-- whose code is in hydro/eqn/cl/eigen.cl (included below)

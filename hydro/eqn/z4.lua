@@ -9,7 +9,7 @@ local file = require 'ext.file'
 local template = require 'template'
 local symmath = require 'symmath'
 local EinsteinEqn = require 'hydro.eqn.einstein'
-local makeStruct = require 'hydro.eqn.makestruct'
+local Struct = require 'hydro.struct.struct'
 
 local common = require 'hydro.common'
 local xNames = common.xNames
@@ -137,7 +137,7 @@ function Z4_2004Bona:init(args)
 
 	if not self.noZeroRowsInFlux then
 		-- skip alpha and gamma
-		self.numWaves = makeStruct.countScalars(fluxVars)
+		self.numWaves = Struct.countScalars{vars=fluxVars}
 		assert(self.numWaves == 30)
 	else
 		-- skip alpha, gamma_ij, a_q, d_qij, V_i for q != the direction of flux
@@ -145,7 +145,7 @@ function Z4_2004Bona:init(args)
 	end
 
 	-- only count int vars after the shifts have been added
-	self.numIntStates = makeStruct.countScalars(self.consVars)
+	self.numIntStates = Struct.countScalars{vars=self.consVars}
 
 	-- now add in the source terms (if you want them)
 	if self.useStressEnergyTerms then

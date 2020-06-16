@@ -16,7 +16,7 @@ local tooltip = require 'hydro.tooltip'
 local roundup = require 'hydro.util.roundup'
 local time, getTime = table.unpack(require 'hydro.util.time')
 local SolverBase = require 'hydro.solver.solverbase'
-local makestruct = require 'hydro.eqn.makestruct'
+local Struct = require 'hydro.struct.struct'
 
 local half = require 'hydro.half'
 local toreal, fromreal = half.toreal, half.fromreal
@@ -418,7 +418,7 @@ function GridSolver:createBuffers()
 
 	if self.usePLM then
 		-- to get sizeof
-		makestruct.safeFFICDef(self:getConsLRTypeCode())
+		Struct.safeFFICDef(self:getConsLRTypeCode())
 		
 		-- TODO self.eqn.consLR_t..'_dim' and remove * self.dim ?
 		self:clalloc('ULRBuf', self.eqn.consLR_t, self.numCells * self.dim)

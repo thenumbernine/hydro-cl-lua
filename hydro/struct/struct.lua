@@ -1,12 +1,9 @@
+local ffi = require 'ffi'
 local class = require 'ext.class'
 local table = require 'ext.table'
 local CLBuffer = require 'cl.obj.buffer'
-local makestruct = require 'hydro.eqn.makestruct'
-local ffi = require 'ffi'
 
 --[[
-TODO combine this makestruct
-
 We have a few different variable sets used for structs, gui, display, etc
 Here's the kinds of things different ones hold:
 *) name
@@ -39,6 +36,53 @@ function Struct:init(args)
 	self.dontUnion = args.dontUnion
 end
 
+-- static
+function Struct.makeStruct(name, vars, scalar, dontUnion)
+	scalar = scalar or 'real'
+	local numScalars = require 'hydro.struct.struct'.countScalars({vars=vars}, scalar)
+
+	local lines = table()
+	local tab
+	if dontUnion then
+		lines:insert'typedef struct {'
+		tab = '\t'
+	else
+		lines:insert'typedef union {'
+		lines:insert('	'..scalar..' ptr['..numScalars..'];')
+		lines:insert('	struct {')
+		tab = '\t\t'
+	end	
+	for _,var in ipairs(vars) do
+		
+		lines:insert(
+			tab
+			..var.type
+			
+			-- fixing 'half' and 'double' alignment in solver_t
+			-- dontUnion is only used by solver_t
+			-- and solver_t is the only one with this C/CL alignment problem
+			..(dontUnion and ' __attribute__ ((packed))' or '')
+			
+			..' '..var.name..';')
+	end
+	if not dontUnion then
+		lines:insert('	};')
+	end
+	lines:insert('} '..name..';')
+	return lines:concat'\n'
+end
+
+-- static
+function Struct.safeFFICDef(code)
+	xpcall(function()
+		ffi.cdef(code)
+	end, function(msg)
+		print(require 'template.showcode'(code))
+		io.stderr:write(msg..'\n'..debug.traceback())
+		os.exit(1)
+	end)
+end
+
 function Struct:makeType()
 	assert(not self.typename, "don't call makeType() twice")
 	if self.solver then
@@ -46,7 +90,7 @@ function Struct:makeType()
 	else
 		self.typename = self.name
 	end
-	makestruct.safeFFICDef(self:getTypeCode())
+	Struct.safeFFICDef(self:getTypeCode())
 
 	-- make the metatype here
 	local struct = self
@@ -112,13 +156,23 @@ function Struct:getTypeCode()
 	if not self.typename then
 		self:makeType()
 	end
-	local code = makestruct.makeStruct(self.typename, self.vars, nil, self.dontUnion)
+	local code = Struct.makeStruct(self.typename, self.vars, nil, self.dontUnion)
 	if self.typecode then
 		assert(code == self.typecode)
 	else
 		self.typecode = code
 	end
 	return code
+end
+
+function Struct:countScalars(scalar)
+	scalar = scalar or 'real'
+	local structSize = 0
+	for _,var in ipairs(self.vars) do
+		structSize = structSize + ffi.sizeof(var.type)
+	end
+	local numScalars = structSize / ffi.sizeof(scalar)
+	return numScalars
 end
 
 return Struct

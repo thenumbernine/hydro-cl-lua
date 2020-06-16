@@ -12,7 +12,7 @@ local table = require 'ext.table'
 local template = require 'template'
 local symmath = require 'symmath'
 local EinsteinEqn = require 'hydro.eqn.einstein'
-local makestruct = require 'hydro.eqn.makestruct'
+local Struct = require 'hydro.struct.struct'
 local common = require 'hydro.common'
 
 local makePartials = require 'hydro.eqn.makepartial'
@@ -74,7 +74,7 @@ function Z4cFiniteDifferenceEquation:init(args)
 		-- aux variable
 		{name='gammaBar_uu', type='sym3'},	--6
 	}
-	self.numIntStates = makestruct.countScalars(intVars)
+	self.numIntStates = Struct.countScalars{vars=intVars}
 
 	-- call construction / build structures	
 	Z4cFiniteDifferenceEquation.super.init(self, args)

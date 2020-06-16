@@ -4,7 +4,7 @@ local range = require 'ext.range'
 local file = require 'ext.file'
 local template = require 'template'
 local constants = require 'hydro.constants'
-local makestruct = require 'hydro.eqn.makestruct'
+local Struct = require 'hydro.struct.struct'
 local Equation = require 'hydro.eqn.eqn'
 
 local MHD = class(Equation)
@@ -445,7 +445,7 @@ MHD.eigenVars = table(MHD.roeVars):append{
 
 function MHD:getEigenTypeCode()
 	return table{
-		makestruct.makeStruct('Roe_t', self.roeVars),
+		Struct.makeStruct('Roe_t', self.roeVars),
 		MHD.super.getEigenTypeCode(self),
 	}:concat'\n'
 end

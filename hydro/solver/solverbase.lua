@@ -13,7 +13,6 @@ local CLBuffer = require 'cl.obj.buffer'
 local template = require 'template'
 local vec3d = require 'vec-ffi.vec3d'
 local tooltip = require 'hydro.tooltip'
-local makestruct = require 'hydro.eqn.makestruct'
 local roundup = require 'hydro.util.roundup'
 local time, getTime = table.unpack(require 'hydro.util.time')
 local Struct = require 'hydro.struct.struct'
@@ -2175,7 +2174,7 @@ function SolverBase:checkFinite(buf)
 			-- TODO associate each type with the array of fields creating the struct, then reverse lookup on arbitrary types to find the field
 			if buf == self.UBufObj then
 				local vars = self.eqn.consStruct.vars
-				local numScalars = makestruct.countScalars(vars)
+				local numScalars = self.eqn.consStruct:countScalars()
 				local offset = (i % numScalars)
 				local cellIndex = (i - offset) / numScalars
 				local cellpos = vec3sz()

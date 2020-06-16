@@ -8,7 +8,7 @@ local file = require 'ext.file'
 local template = require 'template'
 local symmath = require 'symmath'
 local EinsteinEqn = require 'hydro.eqn.einstein'
-local makeStruct = require 'hydro.eqn.makestruct'
+local Struct = require 'hydro.struct.struct'
 
 local common = require 'hydro.common'
 local xNames = common.xNames
@@ -34,10 +34,10 @@ Z4_2008Yano.consVars = table{
 	{name='gamma_ll', type='sym3'},
 }:append(fluxVars)
 
-Z4_2008Yano.numWaves = makeStruct.countScalars(fluxVars)
+Z4_2008Yano.numWaves = Struct.countScalars{vars=fluxVars}
 assert(Z4_2008Yano.numWaves == 31)
 	
-Z4_2008Yano.numIntStates = makeStruct.countScalars(Z4_2008Yano.consVars)
+Z4_2008Yano.numIntStates = Struct.countScalars{vars=Z4_2008Yano.consVars}
 
 Z4_2008Yano.consVars:append{
 	--constraints:              
