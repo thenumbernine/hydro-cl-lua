@@ -1,57 +1,33 @@
-#!/usr/bin/env luajit
--- plot the var-ranges.txt created by running the app.lua with 'output variable ranges' set
-
+#!/usr/bin/env lua
 require 'ext'
-local fn = assert((...))
-local matrix = require 'matrix'
-local _ = range
-local ls = file[fn]:trim():split'\n'
+local gnuplot = require 'gnuplot'
+for f in io.dir'.' do
+	local ident = f:match'^results%-(.*)%.txt$'
+	if ident then
+		gnuplot{
+			terminal = 'png size 2400,1400',
+			output = 'results-'..ident..'.png',
+			style = 'data lines',
+			xlabel = 'time',
+			ylabel = 'velocity',
+			xrange = {0,10},
+			yrange = {0, .55},	-- |v| starts at .5 and decreases
+			key = 'left Left reverse',
+			{datafile='results-'..ident..'.txt', using='1:2', title='v min'},
+			{datafile='results-'..ident..'.txt', using='1:3', title='v avg'},
+			{datafile='results-'..ident..'.txt', using='1:4', title='v max'},
+		}
 
-local cols = ls:remove(1):split'\t'
-
-local m = matrix(ls:map(function(l)
- 	return l:split'\t':map(function(w)
-		return w == 'inf' and math.huge 
-		or (w == '-inf' and -math.huge 
-		or assert(tonumber(w), "failed to convert to number "..tostring(w))) 
-	end) 
-end)):transpose()
-
---[[ using gnuplot
-
-cols = range((#cols-1)/2):map(function(i)
-	local name = cols[2*i-1]
-	if i > 1 then
-		name = assert(name:match('(.*)_max')):gsub('_', ' ')
+		gnuplot{
+			terminal = 'png size 2400,1400',
+			output = 'diff'..ident..'.png',
+			style = 'data lines',
+			xlabel = 'time',
+			ylabel = 'velocity',
+			xrange = {0,10},
+			key = 'left Left reverse',
+			{datafile='results-'..ident..'.txt', using='1:($2-$3)', title='v min-avg'},
+			{datafile='results-'..ident..'.txt', using='1:($4-$3)', title='v max-avg'},
+		}
 	end
-	return name
-end)
-
-require 'gnuplot'(table({
-	output = 'gnuplot.png', 
-	--style = 'data lines', 
-	--style = 'fill transparent solid 0.2 noborder', 
-	style = 'fill transparent pattern 4 bo', 
-	data = m(_,_(1,3000)), 
-		
-}, cols:sub(2):map(function(title, i)
-	return {
-		using = table{1,2*i,2*i+1}:concat':',
-		title = title,
-		with = 'filledcurves',
-	}
-end)))
-
---]]
--- [[ using interactive plot
-
-m = m(_, _(1, 3199))
-
-local t = m[1]
-require 'plot2d'(cols:sub(2):map(function(title,i)
-	local s = matrix{t, m[i+1]}
-	s.enabled = true
-	return s, title
-end))
-
---]]
+end

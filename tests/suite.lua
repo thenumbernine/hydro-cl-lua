@@ -1,5 +1,9 @@
 #!/usr/bin/env luajit
 
+-- run a suite
+-- run this from the test working dir, i.e. hydro/tests/<wherever>/
+-- run this as ../suite.lua 
+
 local ffi = require 'ffi'
 require 'ffi.c.stdlib'		-- free
 local unistd = require 'ffi.c.unistd'
@@ -85,4 +89,4 @@ unistd.chdir(rundir)
 
 print('configs done -- plotting...')
 --os.execute('gnuplot plot.gnuplot')
-dofile'plot.lua'
+dofile'../plot.lua'
