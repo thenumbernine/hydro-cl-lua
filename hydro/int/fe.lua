@@ -42,7 +42,7 @@ function ForwardEuler:integrate(dt, callback)
 
 -- [[ I moved this from hydro/solver/gridsolver to integrator
 -- this way I can do it after every substep in the RK integrator
-if solver.checkNaNs then assert(solver:checkFinite(derivBufObj)) end
+if solver.checkNaNs then assert(solver:checkFinite(self.derivBufObj)) end
 	solver:boundary()
 if solver.checkNaNs then assert(solver:checkFinite(solver.UBufObj)) end
 	solver:constrainU()

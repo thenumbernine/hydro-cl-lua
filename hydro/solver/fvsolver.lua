@@ -5,6 +5,7 @@ and that uses calcDerivFromFlux to update it
 local class = require 'ext.class'
 local table = require 'ext.table'
 local range = require 'ext.range'
+local math = require 'ext.math'
 local file = require 'ext.file'
 local template = require 'template'
 local real = require 'hydro.real'
