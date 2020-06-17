@@ -15,14 +15,10 @@ var.solver = solver
 	
 	solver:calcDisplayVarToTex(var)
 	
-	gl.glUniform2f(vectorLICShader.uniforms.solverMins.loc, solver.mins.x, solver.mins.y)
-	gl.glUniform2f(vectorLICShader.uniforms.solverMaxs.loc, solver.maxs.x, solver.maxs.y)
-
+	gl.glUniform3f(vectorLICShader.uniforms.solverMins.loc, solver.mins:unpack())
+	gl.glUniform3f(vectorLICShader.uniforms.solverMaxs.loc, solver.maxs:unpack())
 	local tex = solver:getTex(var)
 	local size = var.getBuffer().sizevec or solver.texSize
-	gl.glUniform2f(vectorLICShader.uniforms.texCoordMax.loc, 
-		tonumber(size.x) / tex.width,
-		tonumber(size.y) / tex.height)
 	tex:bind(0)
 	self.noiseTex:bind(2)
 	if app.displayBilinearTextures then

@@ -220,6 +220,8 @@ assert(args.anholonomic == nil, "coord.anholonomic is deprecated.  instead you s
 		-- if you are going to use a cartesian normal of the cell as your boundary then the embedded should be the basis
 		-- in fact, what is 'e' used for?
 		-- e is copied to eHol (only for 'holonomic'), which is used for gHol, which is used for the volume element of the grid (which cartesian will use)
+-- TODO but technically, if our manifold coordinate system is non-cartesian, 
+--  then our anholonomic transform should be the inverse of the chart
 		self.coords = self.embedded
 	end
 	local coords = self.coords
@@ -1124,7 +1126,7 @@ real3 coord_cartesianFromCoord(real3 u, real3 pt) {
 	return lines:concat'\n'
 end
 
-function CoordinateSystem:getCoordMapGLSLCode()
+local function makeGLSL(code)
 	return table{
 		'#define inline',
 		'#define real float',
@@ -1135,18 +1137,29 @@ function CoordinateSystem:getCoordMapGLSLCode()
 		'#define real3_sub(a,b) ((a)-(b))',
 		'#define real3_real_mul(a,b) ((a)*(b))',
 		'#define real3_dot dot',
+		'',
 		'real real3_lenSq(real3 a) { return dot(a,a); }',
-		(self:getCoordMapCode():gsub('static inline ', '')),
+		'',
+		(code:gsub('static inline ', '')),
 	}:concat'\n'
 end
 
--- until I get inverses on trig functions working better, I'll have this manually specified
+function CoordinateSystem:getCoordMapGLSLCode()
+	return makeGLSL(self:getCoordMapCode())
+end
+
+-- until I get inverses on systems of equations working, I'll have this manually specified
 function CoordinateSystem:getCoordMapInvGLSLCode()
 	return [[
 vec3 coordMapInv(vec3 x) { return x; }
 ]]
 end
 
+function CoordinateSystem:getGeodesicGLSLCode()
+	local lines = table()
+	lines:insert(getCode_real3_real3_real3_to_real3('coord_conn_apply23', self.connApply23Codes))
+	return makeGLSL(lines:concat'\n')
+end
 
 --[[
 TODO put this somewhere above where display functions can use it
