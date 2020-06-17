@@ -11,7 +11,6 @@ local WaveFDEqn = class(Equation)
 WaveFDEqn.name = 'wave-fd'
 
 WaveFDEqn.hasCalcDTCode = true			-- don't use default
-WaveFDEqn.hasEigenCode = true			-- don't use default
 WaveFDEqn.hasFluxFromConsCode = true	-- don't use default
 WaveFDEqn.useSourceTerm = true
 

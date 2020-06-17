@@ -19,14 +19,6 @@ kernel void calcDT(
 
 	real dt = INFINITY;
 	<? for side=0,solver.dim-1 do ?>{
-		normalInfo_t n = normalInfo_forSide<?=side?>(x);
-		//use cell-centered eigenvalues
-		<?=eqn:consWaveCodePrefix('n', '*U', 'x')?>
-		real lambdaMin = <?=eqn:consMinWaveCode('n', '*U', 'x')?>;
-		real lambdaMax = <?=eqn:consMaxWaveCode('n', '*U', 'x')?>;
-		real absLambdaMax = max(fabs(lambdaMin), fabs(lambdaMax));
-		absLambdaMax = max((real)1e-9, absLambdaMax);
-
 <? 
 if solver.coord.vectorComponent == 'cartesian' 
 and not require 'hydro.coord.cartesian'.is(solver.coord)
@@ -36,8 +28,16 @@ then
 ?>		real dx = solver->grid_dx.s<?=side?>;
 <? end 
 ?>
-
-		dt = (real)min(dt, dx / absLambdaMax);
+		if (dx > 1e-7) {
+			normalInfo_t n = normalInfo_forSide<?=side?>(x);
+			//use cell-centered eigenvalues
+			<?=eqn:consWaveCodePrefix('n', '*U', 'x')?>
+			real lambdaMin = <?=eqn:consMinWaveCode('n', '*U', 'x')?>;
+			real lambdaMax = <?=eqn:consMaxWaveCode('n', '*U', 'x')?>;
+			real absLambdaMax = max(fabs(lambdaMin), fabs(lambdaMax));
+			absLambdaMax = max((real)1e-9, absLambdaMax);
+			dt = (real)min(dt, dx / absLambdaMax);
+		}
 	}<? end ?>
 	dtBuf[index] = dt;
 }

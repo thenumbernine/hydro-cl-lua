@@ -30,7 +30,6 @@ ADM_BonaMasso_1D_2008Alcubierre.reflectVars = {
 	},
 }
 
-ADM_BonaMasso_1D_2008Alcubierre.hasEigenCode = true
 --ADM_BonaMasso_1D_2008Alcubierre.hasFluxFromConsCode = true
 ADM_BonaMasso_1D_2008Alcubierre.useSourceTerm = true
 ADM_BonaMasso_1D_2008Alcubierre.roeUseFluxFromCons = true

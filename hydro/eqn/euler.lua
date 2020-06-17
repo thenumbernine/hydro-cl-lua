@@ -18,7 +18,6 @@ Euler.numWaves = 5
 Euler.numIntStates = 5	-- don't bother integrate ePot
 
 Euler.hasCalcDTCode = true
-Euler.hasEigenCode = true
 Euler.hasFluxFromConsCode = true
 Euler.roeUseFluxFromCons = true
 

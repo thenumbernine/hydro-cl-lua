@@ -74,7 +74,10 @@ void main() {
 		for (int iter = 0; iter < integralMaxIter; ++iter) {
 			vec3 dPos_ds = normalize(getTex(pos).xyz);
 			if (iter > 0 && dot(dPos_ds, last_dPos_ds) < 0.) break;
+			
+			// TODO geodesic equation here
 			pos += dPos_ds * <?=ds * dir?>;
+			
 			float f = float(iter + 1) / float(integralMaxIter+1);
 			float weight = smoothstep(1., 0., f);
 			licMag += texture2D(noiseTex, pos.xy).r * weight;

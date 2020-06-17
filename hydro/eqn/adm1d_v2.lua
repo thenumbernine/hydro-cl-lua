@@ -103,7 +103,6 @@ ADM_BonaMasso_1D_1997Alcubierre.reflectVars = {
 	},
 }
 
-ADM_BonaMasso_1D_1997Alcubierre.hasEigenCode = true
 ADM_BonaMasso_1D_1997Alcubierre.hasFluxFromConsCode = true
 ADM_BonaMasso_1D_1997Alcubierre.useSourceTerm = true
 

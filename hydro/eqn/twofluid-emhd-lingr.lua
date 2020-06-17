@@ -86,7 +86,6 @@ TwoFluidEMHDDeDonderGaugeLinearizedGR.primVars = table{
 	{name='psi_g', type='real', units='1/s'},
 }
 
-TwoFluidEMHDDeDonderGaugeLinearizedGR.hasEigenCode = true
 TwoFluidEMHDDeDonderGaugeLinearizedGR.hasFluxFromConsCode = true
 TwoFluidEMHDDeDonderGaugeLinearizedGR.roeUseFluxFromCons = true
 TwoFluidEMHDDeDonderGaugeLinearizedGR.useSourceTerm = true

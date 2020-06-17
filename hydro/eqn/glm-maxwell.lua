@@ -36,7 +36,6 @@ GLM_Maxwell.reflectVars = {
 	},
 }
 
-GLM_Maxwell.hasEigenCode = true
 GLM_Maxwell.hasFluxFromConsCode = true
 GLM_Maxwell.useSourceTerm = true
 GLM_Maxwell.roeUseFluxFromCons = true

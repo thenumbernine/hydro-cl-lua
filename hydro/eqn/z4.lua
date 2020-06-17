@@ -20,7 +20,6 @@ local sym = common.sym
 local Z4_2004Bona = class(EinsteinEqn)
 Z4_2004Bona.name = 'Z4_2004Bona'
 Z4_2004Bona.hasCalcDTCode = true
-Z4_2004Bona.hasEigenCode = true
 Z4_2004Bona.useSourceTerm = true
 
 --[[

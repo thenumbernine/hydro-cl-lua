@@ -30,7 +30,6 @@ BSSNOKFiniteDifferenceEquation.initStates = table():append(
 )
 
 BSSNOKFiniteDifferenceEquation.name = 'BSSNOK finite difference' 
-BSSNOKFiniteDifferenceEquation.hasEigenCode = true
 BSSNOKFiniteDifferenceEquation.hasCalcDTCode = true
 BSSNOKFiniteDifferenceEquation.hasFluxFromConsCode = true
 BSSNOKFiniteDifferenceEquation.useConstrainU = true

@@ -24,7 +24,6 @@ GRHD.reflectVars = {
 	},
 }
 
-GRHD.hasEigenCode = true 
 GRHD.hasCalcDTCode = true
 GRHD.useConstrainU = true
 

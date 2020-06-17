@@ -109,8 +109,8 @@ local args = {
 	--coordArgs = {vectorComponent='holonomic'},		-- use the coordinate derivatives to represent our vector components (though they may not be normalized)
 	--coordArgs = {vectorComponent='anholonomic'},		-- use orthonormal basis to represent our vector components
 	coordArgs = {vectorComponent='cartesian'},		-- use cartesian vector components 
-	mins = cmdline.mins or {0, 0, -1},
-	maxs = cmdline.maxs or {1, 2*math.pi, 1},		-- TODO bake the 2*pi into the coordinate chart
+	mins = cmdline.mins or {0, 0, -1},				-- TODO using a mesh/polar2d with rmin=0 works fine, but using grid/cylinder with rmin=0 explodes.  WHAT'S THE DIFFERENCE?
+	maxs = cmdline.maxs or {1, 2*math.pi, 1},		-- TODO bake the 2*pi into the coordinate chart so this matches grid/cylinder.  Technically θ→2πθ means it isn't the standard θ variable.  I did this for UI convenience with CFDMesh.
 	gridSize = ({
 		{128, 1, 1},	-- 1D
 		{64, 64, 1},	-- 2D
@@ -119,15 +119,15 @@ local args = {
 	boundary = type(cmdline.boundary) == 'table' and cmdline.boundary or {
 		-- r
 		-- notice, this boundary is designed with cylindrical components in mind, so it will fail with vectorComponent==cartesian 
-		--xmin=cmdline.boundary or 'cylinderRMin',	-- use this when rmin=0
 		xmin=cmdline.boundary or 'freeflow',		
+		--xmin=cmdline.boundary or 'cylinderRMin',	-- use this when rmin=0
 		--xmin=cmdline.boundary or 'mirror',
 		--xmin=cmdline.boundary or {name='mirror', args={restitution=0}},
+		xmax=cmdline.boundary or 'freeflow',
 		--xmax=cmdline.boundary or 'mirror',
 		--xmax=cmdline.boundary or {name='mirror', args={restitution=0}},
-		xmax=cmdline.boundary or 'freeflow',
 		
-		-- theta
+		-- θ
 		ymin=cmdline.boundary or 'periodic',
 		ymax=cmdline.boundary or 'periodic',
 		
@@ -521,7 +521,7 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn
 -- compressible Euler equations
 
 
-self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
+--self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
 
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct bounded'})))	-- this is the default hllCalcWaveMethod
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct'})))
@@ -633,7 +633,7 @@ self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='euler', wenoMe
 
 --self.solvers:insert(require 'hydro.solver.fdsolver'(table(args, {eqn='mhd'})))
 -- eqn.useFixedCh == false is failing
---self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='glm-mhd'})))
+self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='glm-mhd'})))
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='glm-mhd'})))
 --self.solvers:insert(require 'hydro.solver.fdsolver'(table(args, {eqn='glm-mhd'})))
 --self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='glm-mhd', wenoMethod='1996 Jiang Shu', order=5})))
@@ -796,17 +796,17 @@ self.solvers:insert(require 'hydro.solver.wave-fd'(table(args, {integrator='back
 -- hydro-cl GridSolver without fluxLimiter runs 256x256 at 155 fps
 -- hydro-cl MeshSolver runs 50x50 at 2500 fps
 -- hydro-cl MeshSolver runs 256x256 at 70 fps (building the mesh took 4.5 minutes =P)
---self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {eqn='euler', mesh={type='quad2d', size={64, 64}}})))
---self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {eqn='euler', mesh={type='quad2d', triangulate=true, size={64, 64}}})))
---self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {eqn='euler', mesh={type='p2dfmt', meshfile='n0012_113-33.p2dfmt'}})))
---self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {eqn='euler', mesh={type='quad2dcbrt', size={64, 64}}})))
---self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {eqn='euler', mesh={type='quad2dcubed', size={64, 64}}})))
---self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {eqn='euler', mesh={type='cylinder2d', size={64, 64}}})))
+--self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='euler', mesh={type='quad2d', size={64, 64}}})))
+--self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='euler', mesh={type='quad2d', triangulate=true, size={64, 64}}})))
+--self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='euler', mesh={type='p2dfmt', meshfile='n0012_113-33.p2dfmt'}})))
+--self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='euler', mesh={type='quad2dcbrt', size={64, 64}}})))
+--self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='euler', mesh={type='quad2dcubed', size={64, 64}}})))
+--self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='euler', mesh={type='cylinder2d', size={64, 64}}})))
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='euler', mesh={type='polar2d', size={64, 64}, mins={0,0}}})))
---self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {eqn='euler', mesh={type='cube3d', size={16, 16, 16}}})))
---self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {eqn='euler', mesh={type='cylinder3d', size={16, 16, 16}}})))
---self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {eqn='euler', mesh={type='sphere3d', size={16, 16, 16}}})))
---self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {eqn='euler', mesh={type='torus3d', size={16, 16, 16}}})))
+--self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='euler', mesh={type='cube3d', size={16, 16, 16}}})))
+--self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='euler', mesh={type='cylinder3d', size={16, 16, 16}}})))
+--self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='euler', mesh={type='sphere3d', size={16, 16, 16}}})))
+--self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='euler', mesh={type='torus3d', size={16, 16, 16}}})))
 
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='hll', eqn='euler', mesh={type='polar2d', size={64, 64}}})))
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='euler-hllc', eqn='euler', mesh={type='polar2d', size={64, 64}}})))

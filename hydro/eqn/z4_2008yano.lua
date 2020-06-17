@@ -46,7 +46,6 @@ Z4_2008Yano.consVars:append{
 }
 
 Z4_2008Yano.hasCalcDTCode = true
-Z4_2008Yano.hasEigenCode = true
 Z4_2008Yano.useSourceTerm = true
 
 function Z4_2008Yano:createInitState()

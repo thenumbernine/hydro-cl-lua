@@ -94,7 +94,6 @@ TwoFluidEMHD.primVars = table{
 -- not sure it's working right ...
 --TwoFluidEMHD.hasCalcDTCode = true
 
-TwoFluidEMHD.hasEigenCode = true
 TwoFluidEMHD.hasFluxFromConsCode = true
 TwoFluidEMHD.roeUseFluxFromCons = true
 TwoFluidEMHD.useSourceTerm = true

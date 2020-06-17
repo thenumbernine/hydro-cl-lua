@@ -1,13 +1,13 @@
 --[[
 exact volume: 
-int(theta=theta1,theta2 int(r=r1,r2 r dr) dtheta)
-= 1/2 (theta2-theta1) (r2^2 - r1^2)
+int(θ=θ1,θ2 int(r=r1,r2 r dr) dθ)
+= 1/2 (θ2-θ1) (r2^2 - r1^2)
 
 volume element: 
-r dr dtheta
-= r (r2 - r1) (theta2 - theta1)
-= (r2+r1)/2 (r2 - r1) (theta2 - theta1)
-= 1/2 (r2^2 - r1^2) (theta2 - theta1)
+r dr dθ
+= r (r2 - r1) (θ2 - θ1)
+= (r2+r1)/2 (r2 - r1) (θ2 - θ1)
+= 1/2 (r2^2 - r1^2) (θ2 - θ1)
 
 same thing, good thing
 --]]

@@ -21,10 +21,6 @@ local Equation = class()
 -- TODO get rid of this altogether
 Equation.weightFluxByGridVolume = true
 
--- Whether the eqn has its own eigen_*** code.
--- Otherwise hydro/eqn/cl/eigen.cl is used, which depends on the default eigen_t structures.
-Equation.hasEigenCode = nil
-
 --[[
 This flag determines whether the evR . lambda . evL is factored outside the other flux limiter computations.
 
@@ -96,8 +92,9 @@ args:
 	make sure self.consStruct and self.primStruct is defined beforehand
 --]]
 function Equation:init(args)
-	self.solver = assert(args.solver)
-	local app = args.solver.app
+	local solver = assert(args.solver)
+	self.solver = solver
+	local app = solver.app
 
 	
 	-- build consStruct and primStruct from self.consVars and .primVars (then erase them -- don't use them anymore)
@@ -105,7 +102,7 @@ function Equation:init(args)
 	if not self.consStruct then
 		assert(self.consVars)
 		self.consStruct = Struct{
-			solver = self.solver,
+			solver = solver,
 			name = 'cons_t',
 			vars = self.consVars,
 		}
@@ -120,7 +117,7 @@ function Equation:init(args)
 
 	if not self.primStruct and self.primVars then
 		self.primStruct = Struct{
-			solver = self.solver,
+			solver = solver,
 			name = 'prim_t',
 			vars = self.primVars,
 		}
@@ -138,9 +135,22 @@ function Equation:init(args)
 		self.prim_t = app:uniqueName'prim_t'
 	end
 
+	if not self.eigenVars then
+		self.eigenStruct = Struct{
+			solver = solver, 
+			name = 'eigen_t', 
+			dontUnion = true,
+			vars = {
+				{name='unused', type='char'},
+			},
+		}
+	else
+		self.eigenStruct = Struct{solver=solver, name='eigen_t', vars=self.eigenVars}
+	end
+	self.eigenStruct:makeType()
+	self.eigen_t = assert(self.eigenStruct.typename)
 
 	self.consLR_t = app:uniqueName'consLR_t'
-	self.eigen_t = app:uniqueName'eigen_t'
 	self.waves_t = app:uniqueName'waves_t'
 	
 	local numReals
@@ -484,59 +494,15 @@ function Equation:createCurlDisplayVar(args)
 	end
 end
 
--- does anyone even use this anymore?  nobody should...
+-- TODO verify that this is needed
 function Equation:getEigenTypeCode()
-	if self.eigenVars then
-		return Struct.makeStruct(self.eigen_t, self.eigenVars)
-	
-	-- use the default matrix structures	
-	-- whose code is in hydro/eqn/cl/eigen.cl (included below)
-	else
-error("this is deprecated")
-		return template([[
-typedef struct {
-	real evL[<?=numIntStates * numWaves?>];
-	real evR[<?=numIntStates * numWaves?>];
-	real A[<?=numIntStates * numIntStates?>];
-} <?=eqn.eigen_t?>;
-]], 	{
-			numIntStates = self.numIntStates,
-			numWaves = self.numWaves,
-			solver = self.solver,
-			eqn = self,
-		})
-	end
-end
-
-function Equation:getEigenCode()
-	if self.hasEigenCode then return end
-	return template(file['hydro/eqn/cl/eigen.cl'], {
-		solver = self.solver,
-		eqn = self,
-	})
+	return self.eigenStruct.typecode
 end
 
 function Equation:getEigenDisplayVars()
 	-- use the automatic codegen for display vars
-	if self.eigenVars then
-		return self:getDisplayVarsForStructVars(self.eigenVars, '(&eig)')
-
-	-- use the autogen left & right eigenvector matrices
-	else
-		return range(self.numIntStates * self.numWaves):map(function(i)
-			local row = (i-1)%self.numWaves
-			local col = (i-1-row)/self.numWaves
-			return {name='evL_'..row..'_'..col, code='value.vreal = eig.evL['..i..'];'}
-		end):append(range(self.numIntStates * self.numWaves):map(function(i)
-			local row = (i-1)%self.numIntStates
-			local col = (i-1-row)/self.numIntStates
-			return {name='evR_'..row..'_'..col, code='value.vreal = eig.evR['..i..'];'}
-		end)):append(range(self.numIntStates * self.numIntStates):map(function(i)
-			local row = (i-1)%self.numIntStates
-			local col = (i-1-row)/self.numIntStates
-			return {name='A_'..row..'_'..col, code='value.vreal = eig.A['..i..'];'}
-		end))
-	end
+	if not self.eigenVars then return end
+	return self:getDisplayVarsForStructVars(self.eigenVars, '(&eig)')
 end
 
 function Equation:eigenWaveCodePrefix(n, eig, x)

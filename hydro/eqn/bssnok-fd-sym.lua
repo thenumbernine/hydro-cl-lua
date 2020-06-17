@@ -23,7 +23,6 @@ local makePartials = require 'hydro.eqn.makepartial'
 
 local BSSNOKFiniteDifferenceEquation = class(BSSNOKFiniteDifferenceEquationBase)
 BSSNOKFiniteDifferenceEquation.name = 'BSSNOK finite difference' 
-BSSNOKFiniteDifferenceEquation.hasEigenCode = true
 BSSNOKFiniteDifferenceEquation.hasCalcDTCode = true
 BSSNOKFiniteDifferenceEquation.hasFluxFromConsCode = true
 BSSNOKFiniteDifferenceEquation.useConstrainU = true

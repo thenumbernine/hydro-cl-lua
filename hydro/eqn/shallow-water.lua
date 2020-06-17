@@ -9,7 +9,6 @@ local xNames = require 'hydro.common'.xNames
 local ShallowWater = class(Equation)
 ShallowWater.name = 'ShallowWater'
 
-ShallowWater.hasEigenCode = true
 ShallowWater.hasFluxFromConsCode = true
 ShallowWater.roeUseFluxFromCons = true
 

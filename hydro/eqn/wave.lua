@@ -15,7 +15,6 @@ Wave.name = 'wave'
 
 Wave.useSourceTerm = true
 
-Wave.hasEigenCode = true
 Wave.hasFluxFromConsCode = true
 Wave.roeUseFluxFromCons = true
 

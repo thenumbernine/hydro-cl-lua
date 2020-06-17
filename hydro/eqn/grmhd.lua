@@ -20,7 +20,6 @@ GRMHD.name = 'GRMHD'
 GRMHD.numStates = 9
 GRMHD.numWaves = 8
 
-GRMHD.hasEigenCode = true 
 GRMHD.hasCalcDTCode = true
 --GRMHD.hasFluxFromConsCode = true
 GRMHD.useConstrainU = true

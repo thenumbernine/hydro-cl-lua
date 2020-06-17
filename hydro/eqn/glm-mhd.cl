@@ -168,13 +168,13 @@ range_t calcCellMinMaxEigenvalues(
 }
 
 //assumes UL and UR are already rotated so the 'x' direction is our flux direction
-Roe_t calcRoeValues(
+<?=eqn.roe_t?> calcRoeValues(
 	constant <?=solver.solver_t?>* solver,
 	<?=eqn.cons_t?> UL, 
 	<?=eqn.cons_t?> UR,
 	real3 x
 ) {
-	Roe_t W;
+	<?=eqn.roe_t?> W;
 	
 	// should I use Bx, or BxL/R, for calculating the PMag at the L and R states?
 	<?=eqn.prim_t?> WL = primFromCons(solver, UL, x);
@@ -213,7 +213,7 @@ Roe_t calcRoeValues(
 //assumes the vector values are x-axis aligned with the interface normal
 <?=eqn.eigen_t?> eigen_forRoeAvgs(
 	constant <?=solver.solver_t?>* solver,
-	Roe_t roe,
+	<?=eqn.roe_t?> roe,
 	real3 x
 ) {
 	<?=eqn.eigen_t?> eig;
@@ -327,7 +327,7 @@ Roe_t calcRoeValues(
 	//swap the sides with x here, so all the fluxes are in the 'x' direction
 	<?=eqn.cons_t?> UL_ = cons_rotateFrom(UL, n);
 	<?=eqn.cons_t?> UR_ = cons_rotateFrom(UR, n);
-	Roe_t roe = calcRoeValues(solver, UL_, UR_, x);
+	<?=eqn.roe_t?> roe = calcRoeValues(solver, UL_, UR_, x);
 	return eigen_forRoeAvgs(solver, roe, x);
 }
 
@@ -623,7 +623,7 @@ Roe_t calcRoeValues(
 	<?=eqn.prim_t?> W = primFromCons(solver, U, x);
 	real PMag = .5 * coordLenSq(W.B, x);
 	real hTotal = (U.ETotal + W.P + PMag) / W.rho;
-	Roe_t roe = (Roe_t){
+	<?=eqn.roe_t?> roe = {
 		.rho = W.rho,
 		.v = W.v,
 		.hTotal = hTotal,

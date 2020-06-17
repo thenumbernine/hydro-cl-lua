@@ -542,6 +542,10 @@ function MeshSolver:calcDeriv(derivBufObj, dt)
 	self.calcDerivFromFluxKernelObj()
 end
 
+function MeshSolver:setBoundaryMethods()
+	print'TODO MeshSolver:setBoundaryMethods'
+end
+
 function MeshSolver:boundary()
 end
 

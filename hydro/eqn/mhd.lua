@@ -34,7 +34,6 @@ MHD.consVars = table{
 	{name='ePot', type='real', units='m^2/s^2'},
 }
 
-MHD.hasEigenCode = true
 MHD.hasFluxFromConsCode = true
 MHD.roeUseFluxFromCons = true
 
@@ -45,23 +44,68 @@ MHD.useConstrainU = true
 -- hmm, we want init.euler and init.mhd here ...
 MHD.initStates = require 'hydro.init.euler'
 
+
+-- these are calculated based on cell-centered (or extrapolated) conserved vars
+-- they are used to calculate the eigensystem at a cell center or edge 
+MHD.roeVars = table{
+	{name='rho', type='real'},
+	{name='v', type='real3'},
+	{name='hTotal', type='real'},
+	{name='B', type='real3'},
+	{name='X', type='real'},
+	{name='Y', type='real'},
+}
+
+-- here's the variables that an eigensystem uses to compute a left, right, or flux transform 
+MHD.eigenVars = table(MHD.roeVars):append{
+
+	{name='hHydro', type='real'},
+	{name='aTildeSq', type='real'},
+
+	{name='Cs', type='real'},
+	{name='CAx', type='real'},
+	{name='Cf', type='real'},
+
+	{name='BStarPerpLen', type='real'},
+	{name='betaY', type='real'},
+	{name='betaZ', type='real'},
+	{name='betaStarY', type='real'},
+	{name='betaStarZ', type='real'},
+	{name='betaStarSq', type='real'},
+
+	{name='alphaF', type='real'},
+	{name='alphaS', type='real'},
+
+	{name='sqrtRho', type='real'},
+	{name='sbx', type='real'},
+	{name='Qf', type='real'},
+	{name='Qs', type='real'},
+	{name='Af', type='real'},
+	{name='As', type='real'},
+}
+
 function MHD:init(args)
 	MHD.super.init(self, args)
-	
-	if require 'hydro.solver.meshsolver'.is(self.solver) then
+	local solver = self.solver
+
+	self.roeStruct = Struct{solver=solver, name='roe_t', vars=self.roeVars}
+	self.roeStruct:makeType()
+	self.roe_t = self.roeStruct.typename
+
+	if require 'hydro.solver.meshsolver'.is(solver) then
 		print("not using ops (selfgrav, nodiv, etc) with mesh solvers yet")
 	else
-		if self.solver.dim > 1 then
+		if solver.dim > 1 then
 			local NoDiv = require 'hydro.op.nodiv'()
-			self.solver.ops:insert(NoDiv{
-				solver = self.solver,
+			solver.ops:insert(NoDiv{
+				solver = solver,
 				potentialField = 'psi',
 			})
 		end
 
 		local SelfGrav = require 'hydro.op.selfgrav'
-		self.gravOp = SelfGrav{solver=self.solver}
-		self.solver.ops:insert(self.gravOp)
+		self.gravOp = SelfGrav{solver=solver}
+		solver.ops:insert(self.gravOp)
 	end
 end
 
@@ -402,50 +446,9 @@ function MHD:getDisplayVars()
 end
 
 
--- these are calculated based on cell-centered (or extrapolated) conserved vars
--- they are used to calculate the eigensystem at a cell center or edge 
-MHD.roeVars = table{
-	{name='rho', type='real'},
-	{name='v', type='real3'},
-	{name='hTotal', type='real'},
-	{name='B', type='real3'},
-	{name='X', type='real'},
-	{name='Y', type='real'},
-}
-
-
--- here's the variables that an eigensystem uses to compute a left, right, or flux transform 
-MHD.eigenVars = table(MHD.roeVars):append{
-
-	{name='hHydro', type='real'},
-	{name='aTildeSq', type='real'},
-
-	{name='Cs', type='real'},
-	{name='CAx', type='real'},
-	{name='Cf', type='real'},
-
-	{name='BStarPerpLen', type='real'},
-	{name='betaY', type='real'},
-	{name='betaZ', type='real'},
-	{name='betaStarY', type='real'},
-	{name='betaStarZ', type='real'},
-	{name='betaStarSq', type='real'},
-
-	{name='alphaF', type='real'},
-	{name='alphaS', type='real'},
-
-	{name='sqrtRho', type='real'},
-	{name='sbx', type='real'},
-	{name='Qf', type='real'},
-	{name='Qs', type='real'},
-	{name='Af', type='real'},
-	{name='As', type='real'},
-}
-
-
 function MHD:getEigenTypeCode()
 	return table{
-		Struct.makeStruct('Roe_t', self.roeVars),
+		self.roeStruct.typecode,
 		MHD.super.getEigenTypeCode(self),
 	}:concat'\n'
 end

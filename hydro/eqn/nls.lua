@@ -14,7 +14,6 @@ NLSEqn.name = 'nls'
 NLSEqn.hasCalcDTCode = true
 
 -- this tells eqn to not provide its own eigen code
-NLSEqn.hasEigenCode = true
 NLSEqn.hasFluxFromConsCode = true
 NLSEqn.useSourceTerm = true
 

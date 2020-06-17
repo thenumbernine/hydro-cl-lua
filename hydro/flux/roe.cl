@@ -19,7 +19,32 @@
 	typedef <?=eqn.cons_t?> cons_t;
 	typedef <?=eqn.eigen_t?> eigen_t;
 	typedef <?=eqn.waves_t?> waves_t;
-	
+
+<? if false then 	-- can't use this because cell_area needs side, but this function is independent of axis-aligned sides
+?>
+<? if solver.coord.vectorComponent == 'cartesian' 
+	or solver.coord.vectorComponent == 'anholonomic'
+then ?>
+	real area = cell_area<?=side?>(xInt);
+<? else ?>
+	real area = 1.<?
+	for i=0,solver.dim-1 do
+		if i ~= side then
+			?> * solver->grid_dx.s<?=i?><?
+		end
+	end
+?>;
+<? end ?>
+	if (area <= 1e-7) {
+		cons_t flux;
+		for (int j = 0; j < numStates; ++j) {
+			flux.ptr[j] = 0;
+		}
+		return;
+	}
+<? end ?>
+
+
 	eigen_t eig = eigen_forInterface(solver, pUL, pUR, xInt, n);
 
 	<?=eqn:eigenWaveCodePrefix('n', 'eig', 'xInt'):gsub('\n', '\n\t\t')?>
@@ -59,14 +84,14 @@
 		const int j = <?=j?>;
 		real lambda = <?=eqn:eigenWaveCode('n', 'eig', 'xInt', j)?>;
 
-<? if not eqn.roeUseFluxFromCons then 
+<? if not eqn.roeUseFluxFromCons then
 ?>		fluxEig.ptr[j] *= lambda;
-<? else 
+<? else
 ?>		fluxEig.ptr[j] = 0.;
-<? end 
+<? end
 ?>		real sgnLambda = lambda >= 0 ? 1 : -1;
 	
-<? if solver.fluxLimiter > 1 then 
+<? if solver.fluxLimiter > 1 then
 ?>		real rEig;
 		if (deltaUEig.ptr[j] == 0) {
 			rEig = 0;
@@ -78,7 +103,7 @@
 			}
 		}
 		real phi = fluxLimiter(rEig);
-<? end 
+<? end
 ?>
 		fluxEig.ptr[j] -= .5 * lambda * deltaUEig.ptr[j] * (sgnLambda
 <? if solver.fluxLimiter > 1 then 

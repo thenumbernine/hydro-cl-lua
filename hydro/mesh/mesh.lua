@@ -10,11 +10,11 @@ local vector = require 'hydro.util.vector'
 -- one of these is bound to be real3, right?
 local vec3f = require 'vec-ffi.vec3f'
 local vec3d = require 'vec-ffi.vec3d'
-local struct = require 'hydro.struct.struct'
+local Struct = require 'hydro.struct.struct'
 local time, getTime = table.unpack(require 'hydro.util.time')
 
 
-local face_t = struct{
+local face_t = Struct{
 	name = 'face_t',
 	dontUnion = true,
 	vars = {
@@ -30,7 +30,7 @@ local face_t = struct{
 	},
 }
 
-local cell_t = struct{
+local cell_t = Struct{
 	name = 'cell_t',
 	dontUnion = true,
 	vars = {

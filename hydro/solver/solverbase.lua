@@ -832,7 +832,6 @@ function SolverBase:getSolverCode()
 		'typedef struct { real min, max; } range_t;',
 		
 		-- TODO move to Roe, or FiniteVolumeSolver as a parent of Roe and HLL?
-		self.eqn:getEigenCode() or '',
 		self.eqn:getSolverCode() or '',
 		self.eqn:getCalcDTCode() or '',
 		self.eqn:getFluxFromConsCode() or '',

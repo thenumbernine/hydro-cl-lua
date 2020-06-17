@@ -45,7 +45,6 @@ local xNames = common.xNames
 local Maxwell = class(Equation)
 Maxwell.name = 'Maxwell'
 
-Maxwell.hasEigenCode = true
 Maxwell.hasFluxFromConsCode = true
 Maxwell.roeUseFluxFromCons = true
 Maxwell.useSourceTerm = true

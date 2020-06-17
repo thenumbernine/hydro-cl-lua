@@ -18,7 +18,6 @@ NavierStokesWilcox.numStates = 8	-- ePot is the last param -- specific potential
 NavierStokesWilcox.numWaves = 7	-- v-a, v,v,v,v,v, v+a
 NavierStokesWilcox.numIntStates = 7
 
-NavierStokesWilcox.hasEigenCode = true
 NavierStokesWilcox.hasFluxFromConsCode = true
 NavierStokesWilcox.roeUseFluxFromCons = true
 NavierStokesWilcox.useSourceTerm = true

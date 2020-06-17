@@ -37,7 +37,6 @@ GRMaxwell.consVars = {
 	{name='mu', type=GRMaxwell.susc_t},
 }
 
-GRMaxwell.hasEigenCode = true
 GRMaxwell.hasFluxFromConsCode = true
 GRMaxwell.useSourceTerm = true
 GRMaxwell.roeUseFluxFromCons = true

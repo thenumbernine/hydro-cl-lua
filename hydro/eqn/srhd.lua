@@ -27,7 +27,6 @@ SRHD.numWaves = 5
 SRHD.numIntStates = 5
 
 SRHD.hasCalcDTCode = true
-SRHD.hasEigenCode = true 
 
 SRHD.useSource = true		-- for connections
 SRHD.useConstrainU = true

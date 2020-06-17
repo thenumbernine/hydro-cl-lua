@@ -36,10 +36,21 @@ function Struct:init(args)
 	self.dontUnion = args.dontUnion
 end
 
+-- TODO make this static
+function Struct:countScalars(scalar)
+	scalar = scalar or 'real'
+	local structSize = 0
+	for _,var in ipairs(self.vars) do
+		structSize = structSize + ffi.sizeof(var.type)
+	end
+	local numScalars = structSize / ffi.sizeof(scalar)
+	return numScalars
+end
+
 -- static
 function Struct.makeStruct(name, vars, scalar, dontUnion)
 	scalar = scalar or 'real'
-	local numScalars = require 'hydro.struct.struct'.countScalars({vars=vars}, scalar)
+	local numScalars = Struct.countScalars({vars=vars}, scalar)
 
 	local lines = table()
 	local tab
@@ -48,7 +59,7 @@ function Struct.makeStruct(name, vars, scalar, dontUnion)
 		tab = '\t'
 	else
 		lines:insert'typedef union {'
-		lines:insert('	'..scalar..' ptr['..numScalars..'];')
+		lines:insert('	'..scalar..' ptr['..math.max(1, math.floor(numScalars))..'];')
 		lines:insert('	struct {')
 		tab = '\t\t'
 	end	
@@ -147,7 +158,13 @@ function Struct:makeType()
 		local ctype = field.type
 		return ffi.sizeof(ctype)
 	end):sum()
-	assert(ffi.sizeof(self.typename) == sizeOfFields, "struct "..self.typename.." isn't packed!")
+	if ffi.sizeof(self.typename) ~= sizeOfFields then
+		print("ffi.sizeof("..self.typename..") = "..ffi.sizeof(self.typename))
+		for _,field in ipairs(struct.vars) do
+			print("ffi.sizeof("..field.type..' '..self.typename..'.'..field.name..') = '..ffi.sizeof(field.type))
+		end
+		error("struct "..self.typename.." isn't packed!")
+	end
 	
 	self.metatype = metatype
 end
@@ -163,16 +180,6 @@ function Struct:getTypeCode()
 		self.typecode = code
 	end
 	return code
-end
-
-function Struct:countScalars(scalar)
-	scalar = scalar or 'real'
-	local structSize = 0
-	for _,var in ipairs(self.vars) do
-		structSize = structSize + ffi.sizeof(var.type)
-	end
-	local numScalars = structSize / ffi.sizeof(scalar)
-	return numScalars
 end
 
 return Struct

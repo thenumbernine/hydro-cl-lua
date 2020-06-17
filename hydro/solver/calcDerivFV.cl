@@ -79,8 +79,8 @@ then ?>
 
 		if (volume > 1e-7) {
 			real invVolume = 1. / volume;
-			if (areaL < 1e-7) areaL = 0.;
-			if (areaR < 1e-7) areaR = 0.;
+			if (areaL <= 1e-7) areaL = 0.;
+			if (areaR <= 1e-7) areaR = 0.;
 			areaL *= invVolume;
 			areaR *= invVolume;
 <? -- TODO get rid of this, it's only used by the maxwell and glm-maxwell eqns
