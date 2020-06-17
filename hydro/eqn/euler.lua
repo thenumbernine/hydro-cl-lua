@@ -405,16 +405,26 @@ kernel void calcDT(
 
 	real dt = INFINITY;
 	<? for side=0,solver.dim-1 do ?>{
-		//use cell-centered eigenvalues
-		real v_n = normalInfo_vecDotN1(normalInfo_forSide<?=side?>(x), W.v);
-		real lambdaMin = v_n - Cs;
-		real lambdaMax = v_n + Cs;
-		real absLambdaMax = max(fabs(lambdaMin), fabs(lambdaMax));
-		absLambdaMax = max((real)1e-9, absLambdaMax);
-		//TODO this should be based on coord + vectorComponent 
-		//non-cartesian coord + cartesian component uses |u(x+dx)-u(x)|
-		real dx = solver->grid_dx.s<?=side?>;
-		dt = (real)min(dt, dx / absLambdaMax);
+<? 
+if solver.coord.vectorComponent == 'cartesian' 
+and not require 'hydro.coord.cartesian'.is(solver.coord)
+then 
+?>		real dx = cell_dx<?=side?>(x); 
+<? else 
+?>		real dx = solver->grid_dx.s<?=side?>;
+<? end 
+?>
+		if (dx > 1e-7) {
+			//use cell-centered eigenvalues
+			real v_n = normalInfo_vecDotN1(normalInfo_forSide<?=side?>(x), W.v);
+			real lambdaMin = v_n - Cs;
+			real lambdaMax = v_n + Cs;
+			real absLambdaMax = max(fabs(lambdaMin), fabs(lambdaMax));
+			absLambdaMax = max((real)1e-9, absLambdaMax);
+			//TODO this should be based on coord + vectorComponent 
+			//non-cartesian coord + cartesian component uses |u(x+dx)-u(x)|
+			dt = (real)min(dt, dx / absLambdaMax);
+		}
 	}<? end ?>
 	dtBuf[index] = dt;
 }
