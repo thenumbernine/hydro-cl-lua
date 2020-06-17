@@ -48,42 +48,6 @@ function Struct:countScalars(scalar)
 end
 
 -- static
-function Struct.makeStruct(name, vars, scalar, dontUnion)
-	scalar = scalar or 'real'
-	local numScalars = Struct.countScalars({vars=vars}, scalar)
-
-	local lines = table()
-	local tab
-	if dontUnion then
-		lines:insert'typedef struct {'
-		tab = '\t'
-	else
-		lines:insert'typedef union {'
-		lines:insert('	'..scalar..' ptr['..math.max(1, math.floor(numScalars))..'];')
-		lines:insert('	struct {')
-		tab = '\t\t'
-	end	
-	for _,var in ipairs(vars) do
-		
-		lines:insert(
-			tab
-			..var.type
-			
-			-- fixing 'half' and 'double' alignment in solver_t
-			-- dontUnion is only used by solver_t
-			-- and solver_t is the only one with this C/CL alignment problem
-			..(dontUnion and ' __attribute__ ((packed))' or '')
-			
-			..' '..var.name..';')
-	end
-	if not dontUnion then
-		lines:insert('	};')
-	end
-	lines:insert('} '..name..';')
-	return lines:concat'\n'
-end
-
--- static
 function Struct.safeFFICDef(code)
 	xpcall(function()
 		ffi.cdef(code)
@@ -173,7 +137,41 @@ function Struct:getTypeCode()
 	if not self.typename then
 		self:makeType()
 	end
-	local code = Struct.makeStruct(self.typename, self.vars, nil, self.dontUnion)
+	
+	local lines = table()
+	do
+		local scalar = 'real'
+
+		local tab
+		if self.dontUnion then
+			lines:insert'typedef struct {'
+			tab = '\t'
+		else
+			lines:insert'typedef union {'
+			local numScalars = self:countScalars(scalar)
+			lines:insert('	'..scalar..' ptr['..math.max(1, math.floor(numScalars))..'];')
+			lines:insert('	struct {')
+			tab = '\t\t'
+		end	
+		for _,var in ipairs(self.vars) do
+			lines:insert(
+				tab
+				..var.type
+				
+				-- fixing 'half' and 'double' alignment in solver_t
+				-- dontUnion is only used by solver_t
+				-- and solver_t is the only one with this C/CL alignment problem
+				..(self.dontUnion and ' __attribute__ ((packed))' or '')
+				
+				..' '..var.name..';')
+		end
+		if not self.dontUnion then
+			lines:insert('	};')
+		end
+		lines:insert('} '..self.typename..';')
+	end
+	local code = lines:concat'\n'
+
 	if self.typecode then
 		assert(code == self.typecode)
 	else
