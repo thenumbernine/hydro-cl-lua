@@ -37,59 +37,61 @@ HydroApp.allnames = {}
 
 local configs = dofile(rundir..'/config.lua')	-- could use 'require' but there is another in the newly added package.path
 for _,config in ipairs(configs) do
-	-- another TODO for hydro.app ... reuse names for matching ctypes
-	local data = table()
-
-	function HydroApp:setup(args)
-		print('running config: '..config.name)
+	local resultFile = rundir..'/results-'..config.name..'.txt'
+	if not io.fileexists(resultFile) then
 		
-		local solverClassName = config.solverClassName
-		local solverClass = require(solverClassName)
-		local args = table(config.solverArgs)
-		args.app = self
-		local solver = solverClass(args)
-		
-		local oldUpdate = solver.update
-		function solver:update(...)
-			oldUpdate(self, ...)
+		-- another TODO for hydro.app ... reuse names for matching ctypes
+		local data = table()
 
-			local row = table()
-			row:insert(self.t)
+		function HydroApp:setup(args)
+			print('running config: '..config.name)
 			
-			if config.trackVars then
-				for _,varName in ipairs(config.trackVars) do
-					local var = assert(self.displayVarForName[varName])
-					local component = self.displayComponentFlatList[var.component]
-					local vectorField = self:isVarTypeAVectorField(component.type)
-					local valueMin, valueMax, valueAvg = self:calcDisplayVarRangeAndAvg(var, vectorField and component.magn or nil)
-					row:insert(valueMin)
-					row:insert(valueAvg)
-					row:insert(valueMax)
+			local solverClassName = config.solverClassName
+			local solverClass = require(solverClassName)
+			local args = table(config.solverArgs)
+			args.app = self
+			local solver = solverClass(args)
+			
+			local oldUpdate = solver.update
+			function solver:update(...)
+				oldUpdate(self, ...)
+
+				local row = table()
+				row:insert(self.t)
+				
+				if config.trackVars then
+					for _,varName in ipairs(config.trackVars) do
+						local var = assert(self.displayVarForName[varName])
+						local component = self.displayComponentFlatList[var.component]
+						local vectorField = self:isVarTypeAVectorField(component.type)
+						local valueMin, valueMax, valueAvg = self:calcDisplayVarRangeAndAvg(var, vectorField and component.magn or nil)
+						row:append{valueMin, valueAvg, valueMax}
+					end
 				end
+				
+				data:insert(row)
 			end
-			
-			data:insert(row)
+
+			self.solvers:insert(solver)
 		end
 
-		self.solvers:insert(solver)
+		function HydroApp:requestExit()
+			file[resultFile] = 
+				'#t\t'..table.mapi(config.trackVars, function(varName)
+					return varName..' min\t'
+						..varName..' avg\t'
+						..varName..' max'
+				end):concat'\t'..'\n'
+				..data:mapi(function(l) 
+					return table.concat(l, '\t') 
+				end):concat'\n'
+				..'\n'
+
+			HydroApp.super.requestExit(self)
+		end
+
+		HydroApp():run()
 	end
-
-	function HydroApp:requestExit()
-		file[rundir..'/results-'..config.name..'.txt'] = 
-			'#t\t'..table.mapi(config.trackVars, function(varName)
-				return varName..' min\t'
-					..varName..' avg\t'
-					..varName..' max'
-			end):concat'\t'..'\n'
-			..data:mapi(function(l) 
-				return table.concat(l, '\t') 
-			end):concat'\n'
-			..'\n'
-
-		HydroApp.super.requestExit(self)
-	end
-
-	HydroApp():run()
 end
 
 unistd.chdir(rundir)

@@ -51,7 +51,7 @@ local args = {
 	-- this is functional without usePLM, but doing so falls back on the cell-centered buffer, which with the current useCTU code will update the same cell twice from different threads
 	--useCTU = true,
 	
-	--[[ Cartesian
+	-- [[ Cartesian
 	coord = 'cartesian',
 	coordArgs = {vectorComponent='holonomic'},		-- use the coordinate derivatives to represent our vector components (though they may not be normalized)
 	--coordArgs = {vectorComponent='anholonomic'},		-- use orthonormal basis to represent our vector components
@@ -104,13 +104,13 @@ local args = {
 		zmax = cmdline.boundary or 'freeflow',
 	},
 	--]]
-	-- [[ cylinder
+	--[[ cylinder
 	coord = 'cylinder',
 	--coordArgs = {vectorComponent='holonomic'},		-- use the coordinate derivatives to represent our vector components (though they may not be normalized)
 	--coordArgs = {vectorComponent='anholonomic'},		-- use orthonormal basis to represent our vector components
-	coordArgs = {vectorComponent='cartesian'},		-- use cartesian vector components 
-	mins = cmdline.mins or {0, 0, -1},				-- TODO using a mesh/polar2d with rmin=0 works fine, but using grid/cylinder with rmin=0 explodes.  WHAT'S THE DIFFERENCE?
-	maxs = cmdline.maxs or {1, 2*math.pi, 1},		-- TODO bake the 2*pi into the coordinate chart so this matches grid/cylinder.  Technically θ→2πθ means it isn't the standard θ variable.  I did this for UI convenience with CFDMesh.
+	coordArgs = {vectorComponent='cartesian'},			-- use cartesian vector components 
+	mins = cmdline.mins or {0, 0, -1},
+	maxs = cmdline.maxs or {1, 2*math.pi, 1},			-- TODO bake the 2π into the coordinate chart so this matches grid/cylinder.  Technically θ→2πθ means it isn't the standard θ variable.  I did this for UI convenience with CFDMesh.
 	gridSize = ({
 		{128, 1, 1},	-- 1D
 		{64, 64, 1},	-- 2D
@@ -504,7 +504,10 @@ args.eqnArgs = args.eqnArgs or {}
 args.eqnArgs.alpha = '1' 
 -- v = 10 (-y,x) / r^2
 --args.eqnArgs.beta = {'-10.*y/r^2', '10.*x/r^2'}
-args.eqnArgs.beta = {'-1', '0', '0'}
+-- v = 10 (-y,x) / r
+--args.eqnArgs.beta = {'-10.*y/r', '10.*x/r'}
+-- TODO ... whose coordinates is this in?
+--args.eqnArgs.beta = {'-1', '0', '0'}
 -- K = -v^i_,i / alpha = 0
 -- and it assume gamma_ij == the grid metric gamma_ij
 self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='wave'})))
@@ -521,7 +524,7 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn
 -- compressible Euler equations
 
 
-self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
+--self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
 
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct bounded'})))	-- this is the default hllCalcWaveMethod
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct'})))
@@ -813,6 +816,13 @@ self.solvers:insert(require 'hydro.solver.wave-fd'(table(args, {integrator='back
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='mhd', mesh={type='polar2d', size={64, 64}}})))
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='glm-mhd', mesh={type='polar2d', size={64, 64}}})))
 
+-- eqn=wave is crashing...
+--self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='wave', mesh={type='polar2d', size={128, 128}}})))
+
+-- rmin=0 without capmin is working
+self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='mhd', mesh={type='polar2d', size={64, 64}, mins={0,0,0}}})))
+-- rmin=0 with capmin is crashing
+--self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='mhd', mesh={type='polar2d', size={64, 64}, mins={0,0,0}, capmin={1,0,0}}})))
 
 -- NEXT BIG TODO
 -- * make flux an option in gridsolver as well

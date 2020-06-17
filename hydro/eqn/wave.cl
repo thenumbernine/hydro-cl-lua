@@ -243,6 +243,9 @@ kernel void addSource(
 	constant solver_t* solver,
 	global cons_t* derivBuf,
 	const global cons_t* UBuf
+<? if require 'hydro.solver.meshsolver'.is(solver) then ?>
+	,const global cell_t* cells
+<? end ?>
 ) {
 #if 0
 	SETBOUNDS_NOGHOST();

@@ -619,6 +619,29 @@ self.det_g = det_g_expr
 
 	local sqrt_det_gExpr = symmath.sqrt(det_g_expr)()
 	compileTensorField('sqrt_det_gCode', sqrt_det_gExpr)
+
+
+--[[
+TODO
+	store cell information so it doesn't have to be computed over and over again
+	also make this structure flexible per-subclass
+TODO i see this possibly subdividing into coord vs cell
+	gridsolvers use this for cells, meshsolvers use their own cell_t
+	but both gridsolvers and mesh solvers have distinct vector coordinate systems
+TODO use some wrapper functions for computations like 'pos'
+TODO don't include any fields for cartesian - and don't allocate any buffers.
+--]]
+--[[	
+	local Struct = require 'hydro.struct.struct'
+	self.cellStruct = Struct{
+		name = 'cell_t',
+		vars = {
+			{name='pos', type='real3'},
+		},
+	}
+	self.cellStruct:makeType()
+	self.cell_t = self.cellStruct.typename
+--]]
 end
 
 function CoordinateSystem:compile(expr)

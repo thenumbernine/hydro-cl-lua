@@ -289,9 +289,9 @@ function MeshSolver:createBuffers()
 		if self.numCells <= maxTex2DSize.x then
 			self.texSize = vec3sz(self.numCells, 1, 1)
 		else
-			local sx = math.min(math.ceil(math.sqrt(self.numCells)), maxTexSize2D.x)
+			local sx = math.min(math.ceil(math.sqrt(self.numCells)), tonumber(maxTex2DSize.x))
 			local sy = math.ceil(self.numCells / tonumber(self.texSize.x))
-			if sx <= maxTex2DSize.x and sy <= maxTe2DSize.y then
+			if sx <= maxTex2DSize.x and sy <= maxTex2DSize.y then
 				self.texSize = vec3sz(sx, sy, 1)
 			else
 				local sz = math.min(math.ceil(math.cbrt(self.numCells)), maxTexSize3D.z)
@@ -359,17 +359,16 @@ function MeshSolver:getSizePropsForWorkGroupSize(maxWorkGroupSize)
 	}
 end
 
-function MeshSolver:resetState()
-	MeshSolver.super.resetState(self)
---self:printBuf(self.UBufObj)
-end
-
 function MeshSolver:refreshSolverProgram()
 	MeshSolver.super.refreshSolverProgram(self)
 
 	-- solverbase:
-	self.addSourceKernelObj.obj:setArg(3, self.cellsBuf)
-	self.constrainUKernelObj.obj:setArg(2, self.cellsBuf)
+	if self.eqn.useSourceTerm then
+		self.addSourceKernelObj.obj:setArg(3, self.cellsBuf)
+	end
+	if self.eqn.useConstrainU then
+		self.constrainUKernelObj.obj:setArg(2, self.cellsBuf)
+	end
 
 	-- fvsolver:
 	self.calcFluxKernelObj = self.solverProgramObj:kernel{name='calcFlux', domain=self.faceDomain}
