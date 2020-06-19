@@ -21,8 +21,12 @@ function Quad2DMeshFactory:init(args)
 	self.triangulate = args.triangulate
 end
 
-function Quad2DMeshFactory:coordChart(x,y,z)
+function Quad2DMeshFactory:coordChart(x, y, z)
 	return x, y, z
+end
+
+function Quad2DMeshFactory:testMakeCell(i, j) 
+	return true
 end
 
 function Quad2DMeshFactory:addPoly(mesh, ...)
@@ -88,11 +92,13 @@ assert(solver.dim == 2)	-- or maybe manually set it to 2?
 		local niy = (iy + 1) % ny
 		for ix=0,imaxx-1 do
 			local nix = (ix + 1) % nx
-			self:addPoly(mesh, 
-				ix + nx * iy,
-				nix + nx * iy,
-				nix + nx * niy,
-				ix + nx * niy)
+			if self:testMakeCell(ix,iy) then
+				self:addPoly(mesh, 
+					ix + nx * iy,
+					nix + nx * iy,
+					nix + nx * niy,
+					ix + nx * niy)
+			end
 		end
 	end
 

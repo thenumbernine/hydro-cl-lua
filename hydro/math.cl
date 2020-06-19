@@ -1052,6 +1052,51 @@ real BESSJ0(real X) {
 }
 
 
+real Sign(real X, real Y) {
+  if (Y<0.0) return (-fabs(X));
+  else return (fabs(X));
+}
+
+// Reference: From Numath Library By Tuan Dang Trong in Fortran 77.
+// C++ Release 1.0 By J-P Moreau, Paris.
+// (www.jpmoreau.fr)
+real BESSJ1(real X) {
+	/**********************************************************************
+	This subroutine calculates the First Kind Bessel Function of
+	order 1, for any real number X. The polynomial approximation by
+	series of Chebyshev polynomials is used for 0<X<8 and 0<8/X<1.
+	REFERENCES:
+	M.ABRAMOWITZ,I.A.STEGUN, HANDBOOK OF MATHEMATICAL FUNCTIONS, 1965.
+	C.W.CLENSHAW, NATIONAL PHYSICAL LABORATORY MATHEMATICAL TABLES,
+	VOL.5, 1962.
+	***********************************************************************/
+	const real
+		P1=1.0, P2=0.183105E-2, P3=-0.3516396496E-4, P4=0.2457520174E-5,
+		P5=-0.240337019E-6,  P6=0.636619772,
+		Q1= 0.04687499995, Q2=-0.2002690873E-3, Q3=0.8449199096E-5,
+		Q4=-0.88228987E-6, Q5= 0.105787412E-6,
+		R1= 72362614232.0, R2=-7895059235.0, R3=242396853.1,
+		R4=-2972611.439,   R5=15704.48260,  R6=-30.16036606,
+		S1=144725228442.0, S2=2300535178.0, S3=18583304.74,
+		S4=99447.43394,    S5=376.9991397,  S6=1.0;
+
+	real AX = fabs(X);
+	if (AX < 8.0) {
+		real Y = X*X;
+		real FR = R1+Y*(R2+Y*(R3+Y*(R4+Y*(R5+Y*R6))));
+		real FS = S1+Y*(S2+Y*(S3+Y*(S4+Y*(S5+Y*S6))));
+		return X*(FR/FS);
+	} else {
+		real Z = 8.0/AX;
+		real Y = Z*Z;
+		real XX = AX-2.35619491;
+		real FP = P1+Y*(P2+Y*(P3+Y*(P4+Y*P5)));
+		real FQ = Q1+Y*(Q2+Y*(Q3+Y*(Q4+Y*Q5)));
+		return sqrt(P6/AX)*(cos(XX)*FP-Z*sin(XX)*FQ)*Sign(S6,X);
+	}
+}
+
+
 //TODO include metric weight
 //TODO I'm using this for n^u and n_u
 void getPerpendicularBasis(real3 n, real3* n2, real3* n3) {

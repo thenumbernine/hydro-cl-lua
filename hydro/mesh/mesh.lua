@@ -389,6 +389,27 @@ function Mesh:addFace(ci, ...)
 	return fi
 end
 
+
+--[[
+  6----7
+ /|   /|
+4----5 |
+| |  | |  z
+| 2--|-3  ^ y
+|/   |/   |/
+0----1    *-> x
+--]]
+--identity cube sides
+local identityCubeSides = {
+	{0,4,6,2},	--x-
+	{1,3,7,5},	--x+
+	{0,1,5,4},	--y-
+	{2,6,7,3},	--y+
+	{0,2,3,1},	--z-
+	{4,5,7,6},	--z+
+}
+
+
 Mesh.times = {}
 
 -- vis is a vector'int' of 0-based vertex indexes
@@ -434,33 +455,15 @@ local startTime = getTime()
 Mesh.times['calcing cell aux'] = (Mesh.times['calcing cell aux'] or 0) + getTime() - startTime
 	
 	elseif self.solver.dim == 3 then
+local startTime = getTime()	
 		--face is a 2-form
 		assert(n == 8)	--only adding cubes at the moment
---[[
-  6----7
- /|   /|
-4----5 |
-| |  | |  z
-| 2--|-3  ^ y
-|/   |/   |/
-0----1    *-> x
---]]
-		--identity cube sides
-		local identityCubeSides = {
-			{0,4,6,2},	--x-
-			{1,3,7,5},	--x+
-			{0,1,5,4},	--y-
-			{2,6,7,3},	--y+
-			{0,2,3,1},	--z-
-			{4,5,7,6},	--z+
-		}
-
+		
 		--vector of per-face vector-of-vertexes
 		--to pass to the polyhedron functions
 		local cubeVtxs = table()
 
 		for _,side in ipairs(identityCubeSides) do
-			
 			local thisFaceVtxIndexes = table.mapi(side, function(side_i)
 				return vis.v[side_i]
 			end)
@@ -484,13 +487,16 @@ Mesh.times['calcing cell aux'] = (Mesh.times['calcing cell aux'] or 0) + getTime
 				end
 			end
 		end
+Mesh.times['adding vtxs'] = (Mesh.times['adding vtxs'] or 0) + getTime() - startTime
 
+local startTime = getTime()	
 		if #self.cellFaceIndexes - lastFaceSize < 4 then	--not enough sides to even form a tetrahedron
 			c.volume = 0
 		else
 			c.volume = polyhedronVolume(cubeVtxs)
 			c.pos = polyhedronCOM(c.volume, cubeVtxs)
 		end
+Mesh.times['calcing cell aux'] = (Mesh.times['calcing cell aux'] or 0) + getTime() - startTime
 	else
 		error("I don't know what dim mesh you are using.  perhaps the MeshFactory you used forgot to define its .dim?")
 	end

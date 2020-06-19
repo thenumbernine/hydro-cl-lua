@@ -453,12 +453,26 @@ local initStates = table{
 	},
 
 	{
-		-- boundary waves seem to mess with this, otherwise it looks like a wave equation solution
+		-- boundary waves seem to mess with this, 
+		-- otherwise it looks like a wave equation solution
 		name = 'Bessel',
 		initState = function(self, solver)
 			return [[
 	real r = coordMapR(x);
-	rho = BESSJ0(r);
+	real3 xc = coordMap(x);
+	real3 n = real3_real_mul(xc, 1. / r);
+	
+	//for wave equation I'm mapping rho to Phi_,t = Pi
+	rho = 0;
+
+	//for wave equation I'm mapping v_i to Phi_,i = Psi_i
+	//and I'm doing it in Cartesian coordinates for some reason
+	// but I want the Bessel function to vary in radial coordinates
+	// so ... I have to initialize this to d/dr J0(r)
+	// and then rotate it to point along e_r
+	// so, using -J1(r) = d/dr J0(r) according to Wiki (which says surpriringly little about Bessel function derivatives)
+	real vr = -BESSJ1(r);
+	v = real3_real_mul(n, vr);
 ]]
 		end,
 	},

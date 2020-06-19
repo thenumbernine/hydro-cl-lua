@@ -40,6 +40,8 @@ so how should meshfiles use init states?
 function MeshSolver:initL1(args)
 	self.showVertexes = false
 	self.showFaces = false
+	self.showNormals = false
+	self.showValues = true
 	self.drawCellScale = 1
 
 	-- TODO make this a param of gridsolver as well
@@ -234,6 +236,14 @@ function MeshSolver:initDraw()
 		data = glvtxs.v,
 		size = #glvtxs * ffi.sizeof(glvtxs.type), 
 	}
+	self.glvtxcenterArrayBuffer = GLArrayBuffer{
+		data = glvtxcenters.v,
+		size = #glvtxcenters * ffi.sizeof(glvtxcenters.type), 
+	} 
+	self.glcellindexArrayBuffer = GLArrayBuffer{
+		data = glcellindex.v,
+		size = #glcellindex * ffi.sizeof(glcellindex.type),
+	}
 
 	local heatMapCode = assert(file['hydro/draw/mesh_heatmap.shader'])
 	self.heatMap2DShader = self.GLProgram{
@@ -254,15 +264,38 @@ function MeshSolver:initDraw()
 		},
 		attrs = {
 			vtx = self.glvtxArrayBuffer,
-			vtxcenter = GLArrayBuffer{
-				data = glvtxcenters.v,
-				size = #glvtxcenters * ffi.sizeof(glvtxcenters.type), 
-			},
-			cellindex = GLArrayBuffer{
-				data = glcellindex.v,
-				size = #glcellindex * ffi.sizeof(glcellindex.type),
-			},
+			vtxcenter = self.glvtxcenterArrayBuffer,
+			cellindex = self.glcellindexArrayBuffer,
 		},
+	}
+
+	self.drawPointsShader = self.GLProgram{
+		vertexCode = [[
+#version 460
+
+uniform float drawCellScale;
+uniform mat4 modelViewProjectionMatrix;
+
+attribute vec3 vtx;
+attribute vec3 vtxcenter;
+
+void main() {
+	vec3 v = (vtx - vtxcenter) * drawCellScale + vtxcenter;
+	gl_Position = modelViewProjectionMatrix * vec4(v, 1.);
+}
+]],
+		fragmentCode = [[
+#version 460
+
+out vec4 fragColor;
+void main() {
+	fragColor = vec4(1., 1., 1., 1.);
+}
+]],
+		attrs = {
+			vtx = self.glvtxArrayBuffer,
+			vtxcenter = self.glvtxcenterArrayBuffer,
+		}
 	}
 end
 
@@ -566,6 +599,10 @@ function MeshSolver:updateGUIParams()
 	tooltip.checkboxTable('show vertexes', self, 'showVertexes')
 	ig.igSameLine()
 	tooltip.checkboxTable('show faces', self, 'showFaces')
+	ig.igSameLine()
+	tooltip.checkboxTable('show normals', self, 'showNormals')
+	ig.igSameLine()
+	tooltip.checkboxTable('show cell values', self, 'showValues')
 	
 	tooltip.numberTable('cell scale', self, 'drawCellScale')
 end
@@ -619,38 +656,44 @@ local function showDisplayVar(app, solver, var, varName, ar)
 		var.heatMapValueMax = valueMax
 	end
 
---	gl.glEnable(gl.GL_DEPTH_TEST)
---	gl.glEnable(gl.GL_CULL_FACE)
+	-- TODO move the var.heatmap at the top and the drawgradient at the bottom outside of the function
+	-- and then move this if-condition outside as well
+	-- and things will match up wit other draw routines still
+	if solver.showValues then
 
-	local heatMap2DShader = solver:getHeatMap2DShader()
-	heatMap2DShader:use()
-	
-	local gradientTex = app.gradientTex
-	gradientTex:bind(1)
+		gl.glEnable(gl.GL_DEPTH_TEST)
+	--	gl.glEnable(gl.GL_CULL_FACE)
 
-	-- useCoordMap is missing from MeshSolver
-	gl.glUniform1i(heatMap2DShader.uniforms.useLog.loc, 0)
-	gl.glUniform1f(heatMap2DShader.uniforms.valueMin.loc, valueMin)
-	gl.glUniform1f(heatMap2DShader.uniforms.valueMax.loc, valueMax)
-	-- drawCellScale isn't present in GridSolver
-	gl.glUniform1f(heatMap2DShader.uniforms.drawCellScale.loc, solver.drawCellScale)
+		local heatMap2DShader = solver:getHeatMap2DShader()
+		heatMap2DShader:use()
+		
+		local gradientTex = app.gradientTex
+		gradientTex:bind(1)
 
-	-- this is only in MeshSolver...
-	gl.glUniformMatrix4fv(heatMap2DShader.uniforms.modelViewProjectionMatrix.loc, 1, 0, app.view.modelViewProjectionMatrix.ptr)
-	
-	gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
-	gl.glEnable(gl.GL_BLEND)
+		-- useCoordMap is missing from MeshSolver
+		gl.glUniform1i(heatMap2DShader.uniforms.useLog.loc, 0)
+		gl.glUniform1f(heatMap2DShader.uniforms.valueMin.loc, valueMin)
+		gl.glUniform1f(heatMap2DShader.uniforms.valueMax.loc, valueMax)
+		-- drawCellScale isn't present in GridSolver
+		gl.glUniform1f(heatMap2DShader.uniforms.drawCellScale.loc, solver.drawCellScale)
 
-	drawSolverWithVar(app, solver, var, heatMap2DShader)
+		-- this is only in MeshSolver...
+		gl.glUniformMatrix4fv(heatMap2DShader.uniforms.modelViewProjectionMatrix.loc, 1, 0, app.view.modelViewProjectionMatrix.ptr)
+		
+		gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
+		gl.glEnable(gl.GL_BLEND)
 
-	gl.glDisable(gl.GL_BLEND)
+		drawSolverWithVar(app, solver, var, heatMap2DShader)
 
-	gradientTex:unbind(1)
-	gl.glActiveTexture(gl.GL_TEXTURE0)
-	heatMap2DShader:useNone()
+		gl.glDisable(gl.GL_BLEND)
 
---	gl.glDisable(gl.GL_DEPTH_TEST)
---	gl.glDisable(gl.GL_CULL_FACE)
+		gradientTex:unbind(1)
+		gl.glActiveTexture(gl.GL_TEXTURE0)
+		heatMap2DShader:useNone()
+
+		gl.glDisable(gl.GL_DEPTH_TEST)
+	--	gl.glDisable(gl.GL_CULL_FACE)
+	end
 
 	app:drawGradientLegend(solver, var, varName, ar, valueMin, valueMax)
 end
@@ -668,23 +711,68 @@ function MeshSolver:display(varName, ar)
 	-- if it's a vector field then let app handle it.
 	local component = self.displayComponentFlatList[var.component]
 	if self:isVarTypeAVectorField(component.type) then return end
+	
+	gl.glEnable(gl.GL_DEPTH_TEST)
 
 	if self.showVertexes then
 		local mesh = self.mesh
 		gl.glPointSize(3)
-		gl.glColor3f(1,1,1)
+		gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_POINT)
 		
-		self.glvtxArrayBuffer:bind()
-		gl.glVertexPointer(3, gl.GL_FLOAT, 0, nil)
-		self.glvtxArrayBuffer:unbind()
-		gl.glEnableClientState(gl.GL_VERTEX_ARRAY)
-		gl.glDrawArrays(gl.GL_POINTS, 0, self.numGlVtxs * 3)
-		gl.glDisableClientState(gl.GL_VERTEX_ARRAY)
+		self.drawPointsShader:use()
+		gl.glUniformMatrix4fv(self.drawPointsShader.uniforms.modelViewProjectionMatrix.loc, 1, 0, app.view.modelViewProjectionMatrix.ptr)
+		gl.glUniform1f(self.drawPointsShader.uniforms.drawCellScale.loc, self.drawCellScale)
+		
+		self.drawPointsShader.vao:use()
+		gl.glDrawArrays(gl.GL_TRIANGLES, 0, self.numGlVtxs * 3)
+		self.drawPointsShader.vao:useNone()
+		
+		self.drawPointsShader:useNone()
+
+		gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_FILL)
 		gl.glPointSize(1)
 	end
 
 	if self.showFaces then
 		local mesh = self.mesh
+		
+-- I can technically use the shader above
+-- but it will include the internal edges of tesselated polygons 
+-- fixes? 1) make a separate arraybuffers for lines, 2) add an attribute for an internal edge flag
+--[[
+		gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_LINE)
+		
+		self.drawPointsShader:use()
+		gl.glUniformMatrix4fv(self.drawPointsShader.uniforms.modelViewProjectionMatrix.loc, 1, 0, app.view.modelViewProjectionMatrix.ptr)
+		gl.glUniform1f(self.drawPointsShader.uniforms.drawCellScale.loc, self.drawCellScale)
+		
+		self.drawPointsShader.vao:use()
+		gl.glDrawArrays(gl.GL_TRIANGLES, 0, self.numGlVtxs * 3)
+		self.drawPointsShader.vao:useNone()
+		
+		self.drawPointsShader:useNone()
+
+		gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_FILL)
+--]]
+-- [[ something between using the drawPointsShader and the GL 1.1 calls
+		self.drawPointsShader:use()
+		gl.glUniformMatrix4fv(self.drawPointsShader.uniforms.modelViewProjectionMatrix.loc, 1, 0, app.view.modelViewProjectionMatrix.ptr)
+		gl.glUniform1f(self.drawPointsShader.uniforms.drawCellScale.loc, self.drawCellScale)
+		for ci,c in ipairs(mesh.cells) do
+			for fi=0,c.faceCount-1 do
+				local f = mesh.faces.v[mesh.cellFaceIndexes.v[fi + c.faceOffset]]
+				gl.glBegin(gl.GL_LINE_LOOP)
+				for vi=0,f.vtxCount-1 do
+					local v = mesh.vtxs.v[mesh.faceVtxIndexes.v[vi + f.vtxOffset]]
+					gl.glVertexAttrib3f(self.drawPointsShader.attrs.vtxcenter.loc, c.pos:unpack())
+					gl.glVertexAttrib3f(self.drawPointsShader.attrs.vtx.loc, v:unpack())
+				end
+				gl.glEnd()
+			end
+		end
+		self.drawPointsShader:useNone()
+--]]
+--[=[
 		for fi,f in ipairs(mesh.faces) do
 			gl.glBegin(gl.GL_LINE_LOOP)
 			for vi=0,f.vtxCount-1 do
@@ -693,7 +781,35 @@ function MeshSolver:display(varName, ar)
 			end
 			gl.glEnd()
 		end
+--]=]
 	end
+
+	if self.showNormals then
+		local mesh = self.mesh
+		gl.glBegin(gl.GL_LINES)
+		for ci,c in ipairs(mesh.cells) do
+			for fi=0,c.faceCount-1 do
+				local f = mesh.faces.v[mesh.cellFaceIndexes.v[fi + c.faceOffset]]
+				local pos = (f.pos - c.pos) * self.drawCellScale + c.pos
+				local dx = .5 * math.sqrt(f.area) * self.drawCellScale
+
+				gl.glColor3f(1,0,0)
+				gl.glVertex3d(pos:unpack())
+				gl.glVertex3d((pos + f.normal * dx):unpack())
+				
+				gl.glColor3f(0,1,0)
+				gl.glVertex3d(pos:unpack())
+				gl.glVertex3d((pos + f.normal2 * dx):unpack())
+				
+				gl.glColor3f(0,0,1)
+				gl.glVertex3d(pos:unpack())
+				gl.glVertex3d((pos + f.normal3 * dx):unpack())
+			end
+		end
+		gl.glEnd()
+	end
+	
+	gl.glDisable(gl.GL_DEPTH_TEST)
 
 	-- from here on it's showDisplayVar
 	showDisplayVar(app, self, var, varName, ar)
