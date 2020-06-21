@@ -50,6 +50,8 @@ assert(solver.dim == 2)	-- or maybe manually set it to 2?
 
 	local nx = tonumber(self.size.x) + 1
 	local ny = tonumber(self.size.y) + 1
+	if self.wrap.x ~= 0 or self.capmin.x ~= 0 then nx = nx - 1 end
+	if self.wrap.y ~= 0 or self.capmin.y ~= 0 then ny = ny - 1 end
 	
 	local stepx = 1
 	local stepy = nx
@@ -61,8 +63,8 @@ assert(solver.dim == 2)	-- or maybe manually set it to 2?
 
 	local vtxmaxX = tonumber(self.size.x)
 	local vtxmaxY = tonumber(self.size.y)
-	if self.wrap.x ~= 0 or self.capmin.x ~= 0 then vtxmaxX = vtxmaxX + 1 end
-	if self.wrap.y ~= 0 or self.capmin.y ~= 0 then vtxmaxY = vtxmaxY + 1 end
+	if self.capmin.x ~= 0 then vtxmaxX = vtxmaxX + 1 end
+	if self.capmin.y ~= 0 then vtxmaxY = vtxmaxY + 1 end
 
 	local iofsx = self.capmin.x ~= 0 and 1 or 0
 	local iofsy = self.capmin.y ~= 0 and 1 or 0

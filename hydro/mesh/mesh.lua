@@ -14,6 +14,13 @@ local Struct = require 'hydro.struct.struct'
 local time, getTime = table.unpack(require 'hydro.util.time')
 
 
+-- map a parameter pack using the function in the first argument
+local function mappack(f, ...)
+	if select('#', ...) == 0 then return end
+	return f(...), mappack(f, select(2, ...))
+end
+
+
 local face_t = Struct{
 	name = 'face_t',
 	dontUnion = true,
@@ -280,8 +287,7 @@ local function polyhedronCOM(volume, faces)
 end
 
 
--- vs is a Lua table
--- vs values are 0-based indexes
+-- ... values are 0-based vertex indexes
 -- returns a 0-based index
 function Mesh:addFaceForVtxs(...)
 	local n = select('#', ...)
@@ -343,29 +349,43 @@ function Mesh:addFaceForVtxs(...)
 	end
 	f.vtxCount = #self.faceVtxIndexes - f.vtxOffset
 
-	--TODO calc these for n=3
 	if self.solver.dim == 2 then
 		local a = self.vtxs.v[select(1, ...)]
 		local b = self.vtxs.v[select(2, ...)]
-		f.pos = (a + b) * .5
-		local delta = a - b
-		local deltaLen = math.sqrt(delta.x*delta.x + delta.y*delta.y)
+		f.pos.x = (a.x + b.x) * .5
+		f.pos.y = (a.y + b.y) * .5
+		f.pos.z = (a.z + b.z) * .5
+		local deltaX = a.x - b.x
+		local deltaY = a.y - b.y
+		local deltaZ = a.z - b.z
+		local deltaLen = math.sqrt(deltaX*deltaX + deltaY*deltaY + deltaZ*deltaZ)
 		f.area = deltaLen
-		f.normal = self.real3(delta.y / deltaLen, -delta.x / deltaLen, 0)
+		--TODO calculate normal correctly for n=3
+		-- however now we would have to consider extrinsic curvature
+		f.normal = self.real3(deltaY / deltaLen, -deltaX / deltaLen, 0)
 	elseif self.solver.dim == 3 then
-		local polyVtxs = table()	--vector('real3', n)
-		for i=1,n do
-			polyVtxs[i] = self.vtxs.v[select(i, ...)]
-		end
 		for i=0,n-1 do
 			local i2 = (i+1)%n
 			local i3 = (i2+1)%n
-			f.normal = f.normal + (polyVtxs[1+i2] - polyVtxs[1+i]):cross(polyVtxs[1+i3] - polyVtxs[1+i2])
+			-- LuaJIT runs the entire mesh generation 5x FASTER arbitrarily  .... trying to figure out when / why 
+			f.normal = f.normal + (
+				self.vtxs.v[select(1+i2, ...)]
+				- self.vtxs.v[select(1+i, ...)]
+			):cross(
+				self.vtxs.v[select(1+i3, ...)]
+				- self.vtxs.v[select(1+i2, ...)]
+			)
 		end
 		f.normal = f.normal:normalize()
-		f.area = polygon3DVolume(f.normal, table.unpack(polyVtxs))
+		f.area = polygon3DVolume(f.normal,
+			mappack(function(vi)
+				return self.vtxs.v[vi]
+			end, ...))
 		f.pos.x, f.pos.y, f.pos.z = 0, 0, 0
-		polygon3DCOM(f.pos, f.normal, f.area, table.unpack(polyVtxs))
+		polygon3DCOM(f.pos, f.normal, f.area, 
+			mappack(function(vi)
+				return self.vtxs.v[vi]
+			end, ...))
 	else
 		error'here'
 	end
@@ -373,8 +393,7 @@ function Mesh:addFaceForVtxs(...)
 	return fi
 end
 
--- vs is a Lua table
--- vs values are 0-based indexes
+-- ... values are 0-based vertex indexes
 function Mesh:addFace(ci, ...)
 	local fi = self:addFaceForVtxs(...)
 --	if fi ~= -1 then return fi end
@@ -408,7 +427,6 @@ local identityCubeSides = {
 	{0,2,3,1},	--z-
 	{4,5,7,6},	--z+
 }
-
 
 Mesh.times = {}
 
@@ -464,11 +482,11 @@ local startTime = getTime()
 		local cubeVtxs = table()
 
 		for _,side in ipairs(identityCubeSides) do
-			local thisFaceVtxIndexes = table.mapi(side, function(side_i)
-				return vis.v[side_i]
-			end)
-			
-			local fi = self:addFace(ci, table.unpack(thisFaceVtxIndexes))
+			local fi = self:addFace(ci, 
+				mappack(function(side_i)
+					return vis.v[side_i]
+				end, table.unpack(side))
+			)
 			
 			do -- if fi ~= -1 then
 				local f = self.faces.v[fi]
@@ -480,7 +498,8 @@ local startTime = getTime()
 					self.cellFaceIndexes:push_back(fi)
 
 					cubeVtxs:insert(
-						table.mapi(thisFaceVtxIndexes, function(i)
+						table.mapi(side, function(side_i)
+							local i = vis.v[side_i]
 							return self.vtxs.v[i]
 						end)
 					)

@@ -10,10 +10,10 @@ Cylinder3DMeshFactory.name = 'cylinder3d'
 
 function Cylinder3DMeshFactory:init(args) 
 	args = table(args)
-	args.mins = vec3d(args.mins or {.5, .5, 0})
-	args.maxs = vec3d(args.maxs or {1, 1, 1})
+	args.mins = vec3d(args.mins or {.1, 0, -.5})
+	args.maxs = vec3d(args.maxs or {1, 1, .5})
 	args.wrap = vec3i(args.wrap or {0, 1, 0})
-	args.capmin = vec3i(args.capmin or {1, 0, 0})
+	args.capmin = vec3i(args.capmin or {0, 0, 0})
 	Cylinder3DMeshFactory.super.init(self, args)
 end
 

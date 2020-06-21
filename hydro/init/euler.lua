@@ -1040,13 +1040,13 @@ end) then
 		initState = function(self, solver)
 			return [[
 	real3 xc = coordMap(x);
-	real r = coordMapR(x);
+	real r2 = sqrt(xc.x * xc.x + xc.y * xc.y);
 	P = solver->init_P;
 	rho = solver->init_rho;
-	v.x = -xc.y * solver->init_v / r;
-	v.y = xc.x * solver->init_v / r;
-	D.x = -xc.y * solver->init_D / r;
-	D.y = xc.x * solver->init_D / r;
+	v.x = -xc.y * solver->init_v / r2;
+	v.y = xc.x * solver->init_v / r2;
+	D.x = -xc.y * solver->init_D / r2;
+	D.y = xc.x * solver->init_D / r2;
 ]]
 		end,
 	},
