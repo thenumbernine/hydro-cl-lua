@@ -12,8 +12,9 @@ Torus3DMeshFactory.R = 2
 
 function Torus3DMeshFactory:init(args) 
 	args = table(args)
-	args.mins = vec3d(args.mins or {0, 0, 0})
-	args.maxs = vec3d(args.mins or {1, 1, 1})
+-- TODO handle rmin=0	
+	args.mins = vec3d(args.mins or {.1, 0, 0})
+	args.maxs = vec3d(args.maxs or {1, 1, 1})
 	args.wrap = vec3i(args.wrap or {0, 1, 1})
 	args.capmin = vec3i(args.capmin or {0, 0, 0})
 	Torus3DMeshFactory.super.init(self, args)

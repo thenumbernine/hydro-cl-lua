@@ -10,10 +10,13 @@ Sphere3DMeshFactory.name = 'sphere3d'
 
 function Sphere3DMeshFactory:init(args) 
 	args = table(args)
-	args.mins = vec3d(args.mins or {.5, .5, 0})
-	args.maxs = vec3d(args.mins or {1, 1, 1})
+-- TODO rmin=0 fails without any sort of caps	
+	args.mins = vec3d(args.mins or {.1, 0, 0})
+	args.maxs = vec3d(args.maxs or {1, 1, 1})
 	args.wrap = vec3i(args.wrap or {0, 0, 1})
-	args.capmin = vec3i(args.capmin or {1, 0, 0})
+--TODO cap for 3D not working yet, and we can't do thetaMin=0 without capMin
+--	args.capmin = vec3i(args.capmin or {1, 1, 0})
+--	args.capmax = vec3i(args.capmin or {0, 1, 0})
 	Sphere3DMeshFactory.super.init(self, args)
 end
 

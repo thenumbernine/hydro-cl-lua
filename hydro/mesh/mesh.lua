@@ -3,6 +3,7 @@ parent class of meshes used by hydro/solver/meshsolver
 --]]
 local ffi = require 'ffi'
 local class = require 'ext.class'
+local math = require 'ext.math'
 local table = require 'ext.table'
 local range = require 'ext.range'
 local vec2i = require 'vec-ffi.vec2i'
@@ -65,18 +66,10 @@ ffi.cdef(meshTypeCode)
 
 local function new_face_t()
 	local face = face_t.metatype()
-	face.pos.x = 0
-	face.pos.y = 0
-	face.pos.z = 0
-	face.normal.x = 0
-	face.normal.y = 0
-	face.normal.z = 0
-	face.normal2.x = 0
-	face.normal2.y = 0
-	face.normal2.z = 0
-	face.normal3.x = 0
-	face.normal3.y = 0
-	face.normal3.z = 0
+	face.pos:set(0,0,0)
+	face.normal:set(0,0,0)
+	face.normal2:set(0,0,0)
+	face.normal3:set(0,0,0)
 	face.area = 0
 	face.cellDist = 0
 	face.cells.x = -1
@@ -88,9 +81,7 @@ end
 
 local function new_cell_t()
 	local cell = cell_t.metatype()
-	cell.pos.x = 0
-	cell.pos.y = 0
-	cell.pos.z = 0
+	cell.pos:set(0,0,0)
 	cell.faceOffset = 0
 	cell.faceCount = 0
 	cell.vtxOffset = 0
@@ -147,7 +138,7 @@ local function polygon3DVolume(normal, ...)
 end
 
 local function polygon3DCOM(com, normal, area, ...)
-	com.x, com.y, com.z = 0, 0, 0
+	com:set(0,0,0)
 	local n = select('#', ...)
 	if area == 0 then
 		if n == 0 then
@@ -381,7 +372,8 @@ function Mesh:addFaceForVtxs(...)
 			mappack(function(vi)
 				return self.vtxs.v[vi]
 			end, ...))
-		f.pos.x, f.pos.y, f.pos.z = 0, 0, 0
+		if not math.isfinite(f.area) then f.area = 0 end
+		f.pos:set(0,0,0)
 		polygon3DCOM(f.pos, f.normal, f.area, 
 			mappack(function(vi)
 				return self.vtxs.v[vi]
@@ -468,7 +460,7 @@ Mesh.times['adding vtxs'] = (Mesh.times['adding vtxs'] or 0) + getTime() - start
 
 local startTime = getTime()	
 		c.volume = polygonVolume(table.unpack(polyVtxs))
-		c.pos.x, c.pos.y, c.pos.z = 0, 0, 0
+		c.pos:set(0,0,0)
 		polygonCOM(c.pos, c.volume, table.unpack(polyVtxs))
 Mesh.times['calcing cell aux'] = (Mesh.times['calcing cell aux'] or 0) + getTime() - startTime
 	
@@ -533,6 +525,9 @@ function Mesh:calcAux()
 			local dx = cella.pos.x - cellb.pos.x
 			local dy = cella.pos.y - cellb.pos.y
 			local dz = cella.pos.z - cellb.pos.z
+			if f.area <= 1e-7 then
+				f.normal = vec3d(dx,dy,dz):normalize()
+			end
 			local nDotDelta = f.normal.x * dx + f.normal.y * dy + f.normal.z * dz
 			if nDotDelta < 0 then
 				a, b = b, a
@@ -558,6 +553,9 @@ function Mesh:calcAux()
 			local dx = cella.pos.x - f.pos.x
 			local dy = cella.pos.y - f.pos.y
 			local dz = cella.pos.z - f.pos.z
+			if f.area <= 1e-7 then
+				f.normal = vec3d(dx,dy,dz):normalize()
+			end
 			f.cellDist = math.sqrt(dx*dx + dy*dy + dz*dz) * 2
 		else
 			error"looks like you created a face that isn't touching any cells..."

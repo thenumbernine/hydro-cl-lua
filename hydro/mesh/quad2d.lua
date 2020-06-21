@@ -58,7 +58,6 @@ assert(solver.dim == 2)	-- or maybe manually set it to 2?
 	
 	local vtxsize = nx * ny
 	if self.capmin.x ~= 0 then vtxsize = vtxsize + 1 end
-	
 	mesh.vtxs:resize(vtxsize)
 
 	local vtxmaxX = tonumber(self.size.x)
@@ -74,13 +73,13 @@ assert(solver.dim == 2)	-- or maybe manually set it to 2?
 			local x = (ix + iofsx) / vtxmaxX * (self.maxs.x - self.mins.x) + self.mins.x
 			local y = (iy + iofsy) / vtxmaxY * (self.maxs.y - self.mins.y) + self.mins.y
 			local z = 0
-			mesh.vtxs.v[ix * stepx + iy * stepy] = mesh.real3(self:coordChart(x,y,z))
+			mesh.vtxs.v[ix * stepx + iy * stepy] = vec3d(self:coordChart(x,y,z))
 		end
 	end
 	
 	local capindex = nx * ny
 	if self.capmin.x ~= 0 then
-		local sum = mesh.real3()
+		local sum = vec3d()
 		for j=0,ny-1 do
 			sum = sum + mesh.vtxs.v[0 + nx * j]
 		end

@@ -32,23 +32,24 @@ function Cube3DMeshFactory:createMesh(solver)
 	local nx = tonumber(self.size.x) + 1
 	local ny = tonumber(self.size.y) + 1
 	local nz = tonumber(self.size.z) + 1
-	local stepx = 1
-	local stepy = nx
-	local stepz = nx * ny
+	if self.wrap.x ~= 0 or self.capmin.x ~= 0 then nx = nx - 1 end
+	if self.wrap.y ~= 0 or self.capmin.y ~= 0 then ny = ny - 1 end
+	if self.wrap.z ~= 0 or self.capmin.z ~= 0 then nz = nz - 1 end
 	
 	local vtxsize = nx * ny * nz
+	if self.capmin.x ~= 0 then vtxsize = vtxsize + 1 end
 	mesh.vtxs:resize(vtxsize)
 
 	local vtxmaxX = tonumber(self.size.x)
 	local vtxmaxY = tonumber(self.size.y)
 	local vtxmaxZ = tonumber(self.size.z)
-	if self.wrap.x ~= 0 --[[or self.capmin.x ~= 0]] then vtxmaxX = vtxmaxX + 1 end
-	if self.wrap.y ~= 0 --[[or self.capmin.y ~= 0]] then vtxmaxY = vtxmaxY + 1 end
-	if self.wrap.z ~= 0 --[[or self.capmin.z ~= 0]] then vtxmaxZ = vtxmaxZ + 1 end
+	if self.capmin.x ~= 0 then vtxmaxX = vtxmaxX + 1 end
+	if self.capmin.y ~= 0 then vtxmaxY = vtxmaxY + 1 end
+	if self.capmin.z ~= 0 then vtxmaxZ = vtxmaxZ + 1 end
 
-	local iofsx = --[[self.capmin.x ~= 0 and 1 or]] 0
-	local iofsy = --[[self.capmin.y ~= 0 and 1 or]] 0
-	local iofsz = --[[self.capmin.z ~= 0 and 1 or]] 0
+	local iofsx = self.capmin.x ~= 0 and 1 or 0
+	local iofsy = self.capmin.y ~= 0 and 1 or 0
+	local iofsz = self.capmin.z ~= 0 and 1 or 0
 
 	for iz=0,nz-1 do
 		for iy=0,ny-1 do
@@ -56,11 +57,23 @@ function Cube3DMeshFactory:createMesh(solver)
 				local x = (ix + iofsx) / vtxmaxX * (self.maxs.x - self.mins.x) + self.mins.x
 				local y = (iy + iofsy) / vtxmaxY * (self.maxs.y - self.mins.y) + self.mins.y
 				local z = (iz + iofsz) / vtxmaxZ * (self.maxs.z - self.mins.z) + self.mins.z
-				mesh.vtxs.v[ix * stepx + iy * stepy + iz * stepz] = mesh.real3(self:coordChart(x,y,z))
+				mesh.vtxs.v[ix + nx * (iy +  ny * iz)] = vec3d(self:coordChart(x,y,z))
 			end
 		end
 	end
-	
+
+	local capindex = nx * ny * nz
+	if self.capmin.x ~= 0 then
+		local sum = vec3d()
+		for j=0,ny-1 do
+			for k=0,nz-1 do
+				sum = sum + mesh.vtxs.v[0 + nx * (j + ny * k)]
+			end
+		end
+		mesh.vtxs.v[capindex] = sum / ny
+	end
+
+
 	local imaxx = self.wrap.x ~= 0 and nx or nx - 1
 	local imaxy = self.wrap.y ~= 0 and ny or ny - 1
 	local imaxz = self.wrap.z ~= 0 and nz or nz - 1
@@ -86,6 +99,20 @@ function Cube3DMeshFactory:createMesh(solver)
 			end
 		end
 	end
+
+-- [[ TODO this, but it will take some non-cubes, and I don't think 'addCell' can handle that yet
+	if self.capmin.x ~= 0 then
+		for j=0,imaxy-1 do
+			local jn = (j + 1) % ny
+			for k=0,imaxz-1 do
+				local kn = (k + 1) % nz
+				self:addCell(mesh, 
+					error('here')
+				)
+			end
+		end
+	end
+--]]
 
 	mesh:calcAux()
 	return mesh

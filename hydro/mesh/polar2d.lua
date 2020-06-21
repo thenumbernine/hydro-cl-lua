@@ -10,7 +10,7 @@ Polar2DMeshFactory.name = 'polar2d'
 
 function Polar2DMeshFactory:init(args)
 	args = table(args)
-	args.mins = vec3d(args.mins or {.1, 0, -1})
+	args.mins = vec3d(args.mins or {0, 0, -1})
 	args.maxs = vec3d(args.maxs or {1, 1, 1})
 	args.wrap = vec3i(args.wrap or {0, 1, 0})
 	args.capmin = vec3i(args.capmin or {0, 0, 0})

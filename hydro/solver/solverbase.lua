@@ -78,9 +78,11 @@ args:
 	integratorArgs = integrator args
 --]]
 function SolverBase:init(args)
-	self:initL1(args)
-	self:preInit(args)
-	self:postInit()
+	time('SolverBase:init()', function()
+		self:initL1(args)
+		self:preInit(args)
+		self:postInit()
+	end)
 end
 
 function SolverBase:initL1(args)
@@ -272,28 +274,30 @@ const global <?=eqn.cons_t?>* UR<?=suffix?> = <?=bufName?> + <?=indexR?>;
 end
 
 function SolverBase:postInit()
-	self:createDisplayVars()	-- depends on self.eqn
-	
-	self:refreshGridSize()		-- depends on createDisplayVars
-	-- refreshGridSize calls refreshCodePrefix 
-	-- ... calls refreshEqnInitState
-	-- ... calls refreshSolverProgram 
-	-- ... which needs display vars
-	-- TODO get rid of this 'refresh' stuff.  
-	-- it was designed for callbacks when changing grid resolution, integrator, etc while the simulation was live.
-	-- doing this now is unreasonable, considering how solver_t is tightly wound with initState, eqn, and the scheme
+	time('SolverBase:postInit()', function()
+		self:createDisplayVars()	-- depends on self.eqn
+		
+		self:refreshGridSize()		-- depends on createDisplayVars
+		-- refreshGridSize calls refreshCodePrefix 
+		-- ... calls refreshEqnInitState
+		-- ... calls refreshSolverProgram 
+		-- ... which needs display vars
+		-- TODO get rid of this 'refresh' stuff.  
+		-- it was designed for callbacks when changing grid resolution, integrator, etc while the simulation was live.
+		-- doing this now is unreasonable, considering how solver_t is tightly wound with initState, eqn, and the scheme
 
-	for _,var in ipairs(self.eqn.guiVars) do
-		if not var.compileTime then
-			if var.ctype == 'real' then
-				self.solverPtr[var.name] = toreal(var.value)
-			else
-				self.solverPtr[var.name] = var.value
+		for _,var in ipairs(self.eqn.guiVars) do
+			if not var.compileTime then
+				if var.ctype == 'real' then
+					self.solverPtr[var.name] = toreal(var.value)
+				else
+					self.solverPtr[var.name] = var.value
+				end
 			end
 		end
-	end
 
-	self:refreshSolverBuf()
+		self:refreshSolverBuf()
+	end)
 end
 
 function SolverBase:createSolverBuf()
@@ -314,19 +318,21 @@ function SolverBase:refreshSolverBuf()
 end
 
 function SolverBase:refreshGridSize()
-	self:createSolverBuf()
-	
-	-- depends on eqn & gridSize
-	self.buffers = table()
-	self:createBuffers()
-	self:finalizeCLAllocs()
+	time('SolverBase:refreshGridSize()', function()
+		self:createSolverBuf()
+		
+		-- depends on eqn & gridSize
+		self.buffers = table()
+		self:createBuffers()
+		self:finalizeCLAllocs()
 
-	-- create the code prefix, reflect changes
-	self:refreshEqnInitState()
-	
-	-- initialize things dependent on cons_t alone
-	self:refreshCommonProgram()
-	self:resetState()
+		-- create the code prefix, reflect changes
+		self:refreshEqnInitState()
+		
+		-- initialize things dependent on cons_t alone
+		self:refreshCommonProgram()
+		self:resetState()
+	end)
 end
 
 function SolverBase:refreshCommonProgram()
@@ -471,6 +477,7 @@ end
 
 function SolverBase:finalizeCLAllocs()
 	for _,info in ipairs(self.buffers) do
+print(require 'ext.tolua'(info))
 		local name = info.name
 		local ctype = info.type
 		local count = info.count
