@@ -809,7 +809,7 @@ self.solvers:insert(require 'hydro.solver.wave-fd'(table(args, {integrator='back
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='euler', mesh={type='cube3d', size={16, 16, 16}}})))
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='euler', mesh={type='cylinder3d', size={16, 16, 16}}})))
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='euler', mesh={type='sphere3d', size={16, 16, 16}}})))
-self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='euler', mesh={type='torus3d', size={16, 16, 16}}})))
+--self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='euler', mesh={type='torus3d', size={16, 16, 16}}})))
 
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='euler', eqnArgs={incompressible=true}, mesh={type='image2d', extrude=1, image='blueprints/blueprint.png'}})))
 
@@ -830,6 +830,8 @@ self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', e
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='mhd', mesh={type='polar2d', size={64, 64}}})))
 -- rmin=0 with capmin is crashing
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='mhd', mesh={type='polar2d', size={64, 64}, capmin={1,0}}})))
+
+self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='glm-mhd', mesh={type='torus3d', size={16, 16, 16}}})))
 
 -- NEXT BIG TODO
 -- * make meshsolver and gridsolver separate options

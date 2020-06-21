@@ -94,8 +94,7 @@ function MHD:init(args)
 	local solver = assert(args.solver)
 	if require 'hydro.solver.meshsolver'.is(solver) then
 		print("not divergence with mesh solvers yet")
-	else
-		-- these don't work with maxwell
+		-- these don't work with mesh solver
 		self.use2002DednerEqn24 = false
 		self.use2002DednerEqn38 = false
 	end
