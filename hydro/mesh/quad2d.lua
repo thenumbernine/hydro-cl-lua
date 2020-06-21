@@ -59,18 +59,18 @@ assert(solver.dim == 2)	-- or maybe manually set it to 2?
 	
 	mesh.vtxs:resize(vtxsize)
 
-	local coordRangeMaxX = tonumber(self.size.x)
-	local coordRangeMaxY = tonumber(self.size.y)
-	if self.wrap.x ~= 0 or self.capmin.x ~= 0 then coordRangeMaxX = coordRangeMaxX + 1 end
-	if self.wrap.y ~= 0 or self.capmin.y ~= 0 then coordRangeMaxY = coordRangeMaxY + 1 end
+	local vtxmaxX = tonumber(self.size.x)
+	local vtxmaxY = tonumber(self.size.y)
+	if self.wrap.x ~= 0 or self.capmin.x ~= 0 then vtxmaxX = vtxmaxX + 1 end
+	if self.wrap.y ~= 0 or self.capmin.y ~= 0 then vtxmaxY = vtxmaxY + 1 end
 
 	local iofsx = self.capmin.x ~= 0 and 1 or 0
 	local iofsy = self.capmin.y ~= 0 and 1 or 0
 
 	for iy=0,ny-1 do
 		for ix=0,nx-1 do
-			local x = (ix + iofsx) / coordRangeMaxX * (self.maxs.x - self.mins.x) + self.mins.x
-			local y = (iy + iofsy) / coordRangeMaxY * (self.maxs.y - self.mins.y) + self.mins.y
+			local x = (ix + iofsx) / vtxmaxX * (self.maxs.x - self.mins.x) + self.mins.x
+			local y = (iy + iofsy) / vtxmaxY * (self.maxs.y - self.mins.y) + self.mins.y
 			local z = 0
 			mesh.vtxs.v[ix * stepx + iy * stepy] = mesh.real3(self:coordChart(x,y,z))
 		end

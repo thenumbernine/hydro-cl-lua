@@ -39,12 +39,12 @@ function Cube3DMeshFactory:createMesh(solver)
 	local vtxsize = nx * ny * nz
 	mesh.vtxs:resize(vtxsize)
 
-	local coordRangeMaxX = tonumber(self.size.x)
-	local coordRangeMaxY = tonumber(self.size.y)
-	local coordRangeMaxZ = tonumber(self.size.z)
-	if self.wrap.x == 0 --[[or self.capmin.x ~= 0]] then coordRangeMaxX = coordRangeMaxX - 1 end
-	if self.wrap.y == 0 --[[or self.capmin.y ~= 0]] then coordRangeMaxY = coordRangeMaxY - 1 end
-	if self.wrap.z == 0 --[[or self.capmin.z ~= 0]] then coordRangeMaxZ = coordRangeMaxZ - 1 end
+	local vtxmaxX = tonumber(self.size.x)
+	local vtxmaxY = tonumber(self.size.y)
+	local vtxmaxZ = tonumber(self.size.z)
+	if self.wrap.x ~= 0 --[[or self.capmin.x ~= 0]] then vtxmaxX = vtxmaxX + 1 end
+	if self.wrap.y ~= 0 --[[or self.capmin.y ~= 0]] then vtxmaxY = vtxmaxY + 1 end
+	if self.wrap.z ~= 0 --[[or self.capmin.z ~= 0]] then vtxmaxZ = vtxmaxZ + 1 end
 
 	local iofsx = --[[self.capmin.x ~= 0 and 1 or]] 0
 	local iofsy = --[[self.capmin.y ~= 0 and 1 or]] 0
@@ -53,9 +53,9 @@ function Cube3DMeshFactory:createMesh(solver)
 	for iz=0,nz-1 do
 		for iy=0,ny-1 do
 			for ix=0,nx-1 do
-				local x = (ix + iofsx) / coordRangeMaxX * (self.maxs.x - self.mins.x) + self.mins.x
-				local y = (iy + iofsy) / coordRangeMaxY * (self.maxs.y - self.mins.y) + self.mins.y
-				local z = (iz + iofsz) / coordRangeMaxZ * (self.maxs.z - self.mins.z) + self.mins.z
+				local x = (ix + iofsx) / vtxmaxX * (self.maxs.x - self.mins.x) + self.mins.x
+				local y = (iy + iofsy) / vtxmaxY * (self.maxs.y - self.mins.y) + self.mins.y
+				local z = (iz + iofsz) / vtxmaxZ * (self.maxs.z - self.mins.z) + self.mins.z
 				mesh.vtxs.v[ix * stepx + iy * stepy + iz * stepz] = mesh.real3(self:coordChart(x,y,z))
 			end
 		end

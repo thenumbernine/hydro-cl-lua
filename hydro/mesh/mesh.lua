@@ -304,29 +304,29 @@ function Mesh:addFaceForVtxs(...)
 	elseif self.solver.dim == 3 then
 		for fi=0,#self.faces-1 do
 			local f = self.faces.v[fi]
-			
-			for j=0,n-1 do
-				--check in one direction
-				local matches = true
-				for i=0,n-1 do
-					if self.faceVtxIndexes.v[f.vtxOffset+i] ~= select(1+(j+i)%n, ...) then
-						matches = false;
-						break
+			if f.vtxCount == n then
+				for j=0,n-1 do
+					--check in one direction
+					local matches = true
+					for i=0,n-1 do
+						if self.faceVtxIndexes.v[f.vtxOffset+i] ~= select(1+(j+i)%n, ...) then
+							matches = false;
+							break
+						end
 					end
-				end
-				if matches then return fi end
-			
-				--check in the other direction
-				matches = true
-				for i=0,n-1 do
-					if self.faceVtxIndexes.v[f.vtxOffset+i] ~= select(1+(j+n-i)%n, ...) then
-						matches = false
-						break
+					if matches then return fi end
+				
+					--check in the other direction
+					matches = true
+					for i=0,n-1 do
+						if self.faceVtxIndexes.v[f.vtxOffset+i] ~= select(1+(j+n-i)%n, ...) then
+							matches = false
+							break
+						end
 					end
+					if matches then return fi end
 				end
-				if matches then return fi end
 			end
-		
 		end
 	end
 

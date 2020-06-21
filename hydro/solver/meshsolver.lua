@@ -50,21 +50,13 @@ function MeshSolver:initL1(args)
 	local fluxArgs = table(args.fluxArgs, {solver=self})
 	self.flux = fluxClass(fluxArgs)
 
-	-- hll-specific args:
-	-- TODO make these 'fluxArgs' in config,
-	-- and have them pass to a hydro/flux object that associates with the flux calculation.
-	if self.flux.name == 'hll' then
-		self.hllCalcWaveMethod = args.hllCalcWaveMethod or 'Davis direct bounded'
-	elseif self.flux.name == 'euler-hllc' then
-		self.hllCalcWaveMethod = args.hllCalcWaveMethod or 'Davis direct bounded'
-		self.hllcMethod = args.hllcMethod or 2
-	end
-
 	MeshSolver.super.initL1(self, args)
 
 	-- alright, by this point 'gridSize' has become synonymous with global_size() ...
 	-- I'm going to have to determine a vec4 globalSize for my kernels once they exceed the max 1D size
 	-- (just like I'm already doing with the Tex2D size)
+	-- TODO same with mins and maxs, since initState uses them
+	-- move them from mesh to this
 	self.solverStruct.vars:append{
 		{name='gridSize', type='int4'},
 		{name='stepsize', type='int4'},
@@ -429,28 +421,25 @@ function MeshSolver:getSolverCode()
 		-- boundary code, since meshsolver doesn't use gridsolver's boundary: 
 		template([[
 void getEdgeStates(
-	const global face_t* e,
 	<?=eqn.cons_t?>* UL,
 	<?=eqn.cons_t?>* UR,
+	const global face_t* e,
 	const global <?=eqn.cons_t?>* UBuf		//[numCells]
-	//const global cell_t* cells			//[numCells]
 ) {
-	//const real resitution = 0.;
+	//const real resitution = -1;
 	int iL = e->cells.s0;
 	int iR = e->cells.s1;
-	//cell_t* cL = iL == -1 ? NULL : cells + e->cells.s0;
-	//cell_t* cR = iR == -1 ? NULL : cells + e->cells.s1;
 	if (iL != -1 && iR != -1) {
 		*UL = UBuf[iL];
 		*UR = UBuf[iR];
 	} else if (iL != -1) {
 		*UL = UBuf[iL];
 		//TODO  
-		*UR = *UL;//eqn.reflect(cL->U, e->normal, restitution);
+		*UR = *UL;//eqn.reflect(*UL, e->normal, restitution);
 	} else if (iR != -1) {
 		*UR = UBuf[iR];
 		//TODO  
-		*UL = *UR;//eqn.reflect(cR->U, e->normal, restitution);
+		*UL = *UR;//eqn.reflect(*UR, e->normal, restitution);
 	} else {	// both iL and iR are null ...
 		//error
 		for (int i = 0; i < numStates; ++i) {
@@ -490,7 +479,7 @@ kernel void calcFlux(
 	normalInfo_t n = normalInfo_forFace(face);
 	
 	cons_t UL, UR;	
-	getEdgeStates(face, &UL, &UR, UBuf);
+	getEdgeStates(&UL, &UR, face, UBuf);
 
 	//TODO option to rotate to align fluxes?
 	// then you'd have to build a new normalInfo_t based on the aligned (x-axis) normal.

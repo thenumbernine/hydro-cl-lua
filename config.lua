@@ -201,12 +201,12 @@ local args = {
 	--initState = 'gaussian',
 	--initState = 'advect wave',
 	--initState = 'sphere',
-	--initState = 'spiral',
+	initState = 'spiral',
 	--initState = 'rarefaction wave',
 	--initState = 'Bessel',
 	--initState = 'cyclone',
 	
-	initState = 'Sod',
+	--initState = 'Sod',
 	--initState = 'Sod with physical units',
 	--initStateArgs = {dim=cmdline.displayDim},
 	
@@ -809,7 +809,7 @@ self.solvers:insert(require 'hydro.solver.wave-fd'(table(args, {integrator='back
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='euler', mesh={type='polar2d', size={64, 64}, mins={0,0}}})))
 
 -- TODO FIXME
-self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='euler', mesh={type='cube3d', size={4, 4, 4}}})))
+self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='euler', mesh={type='cube3d', size={8, 8, 8}}})))
 
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='euler', mesh={type='cylinder3d', size={16, 16, 16}}})))
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='euler', mesh={type='sphere3d', size={16, 16, 16}}})))
