@@ -18,7 +18,33 @@ local configs = table{
 			-- mesh-specific params:
 			mesh = {
 				type = 'polar2d',
+				mins = {.1, 0},
 				size = {64, 64},
+				capmin = {0, 0},
+			},
+		},
+	},
+--]]
+--[[ same as above but with capmin set, so vertexes are combined
+	{
+		name = 'mesh-capmin',
+		solverClassName = 'hydro.solver.meshsolver',
+		solverArgs = {
+			integrator = 'forward Euler',
+			cfl = .25,
+			flux = 'roe',
+			eqn = 'euler',
+			initState = 'spiral',
+			-- no / donor cell flux limiter
+			-- cartesian / holonomic vector components
+			-- legacy to gridsolvers.  mesh doesn't need this:
+			dim = 2,
+			-- mesh-specific params:
+			mesh = {
+				type = 'polar2d',
+				mins = {.1, 0},
+				size = {64, 64},
+				capmin = {1, 0},
 			},
 		},
 	},

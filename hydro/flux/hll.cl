@@ -70,16 +70,42 @@ kernel void calcFlux(
 	int indexR = index;
 	
 	<? for side=0,solver.dim-1 do ?>{
-		const int side = <?=side?>;	
+		const int side = <?=side?>;
+
+		real dx = solver->grid_dx.s<?=side?>;
 		
 		int indexL = index - solver->stepsize.s<?=side?>;
 		real3 xL = xR;
-		xL.s<?=side?> -= solver->grid_dx.s<?=side?>;
+		xL.s<?=side?> -= dx;
 		
 		real3 xInt = xR;
-		xInt.s<?=side?> -= .5 * solver->grid_dx.s<?=side?>;
+		xInt.s<?=side?> -= .5 * dx;
+		
 		int indexInt = side + dim * index;
-	
+		global cons_t* flux = fluxBuf + indexInt;
+
+
+<? if solver.coord.vectorComponent == 'cartesian' 
+	or solver.coord.vectorComponent == 'anholonomic'
+then ?>
+		real area = cell_area<?=side?>(xInt);
+<? else ?>
+		real area = 1.<?
+	for i=0,solver.dim-1 do
+		if i ~= side then
+			?> * solver->grid_dx.s<?=i?><?
+		end
+	end
+?>;
+<? end ?>
+		if (area <= 1e-7) {
+			for (int j = 0; j < numStates; ++j) {
+				flux->ptr[j] = 0;
+			}
+			return;
+		}
+
+
 		<?=solver:getULRCode():gsub('\n', '\n\t\t')?>
 		
 		cons_t pUL = cons_parallelPropagate<?=side?>(*UL, xL, .5 * dx);
@@ -87,7 +113,6 @@ kernel void calcFlux(
 
 		normalInfo_t n = normalInfo_forSide<?=side?>(xInt);
 
-		global cons_t* flux = fluxBuf + indexInt;
 		*flux = calcFluxForInterface(solver, pUL, pUR, xInt, n);
 	}<? end ?>
 }

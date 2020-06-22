@@ -60,6 +60,7 @@ function MeshSolver:initL1(args)
 	self.solverStruct.vars:append{
 		{name='gridSize', type='int4'},
 		{name='stepsize', type='int4'},
+		{name='boundaryRestitution', type='real'},
 	}
 
 	local meshType = assert(args.mesh.type, "expected mesh type")
@@ -132,6 +133,8 @@ function MeshSolver:createSolverBuf()
 	self.solverPtr.stepsize.y = self.solverPtr.gridSize.x
 	self.solverPtr.stepsize.z = self.solverPtr.gridSize.x * self.solverPtr.gridSize.y
 	self.solverPtr.stepsize.w = self.solverPtr.gridSize.x * self.solverPtr.gridSize.y * self.solverPtr.gridSize.z
+	
+	self.solverPtr.boundaryRestitution = -1
 
 	-- while we're here, write all gui vars to the solver_t
 	for _,var in ipairs(self.eqn.guiVars) do
@@ -426,9 +429,9 @@ void getEdgeStates(
 	<?=eqn.cons_t?>* UL,
 	<?=eqn.cons_t?>* UR,
 	const global face_t* e,
-	const global <?=eqn.cons_t?>* UBuf		//[numCells]
+	const global <?=eqn.cons_t?>* UBuf,		//[numCells]
+	real restitution
 ) {
-	//const real resitution = -1;
 	int iL = e->cells.s0;
 	int iR = e->cells.s1;
 	if (iL != -1 && iR != -1) {
@@ -481,7 +484,7 @@ kernel void calcFlux(
 	normalInfo_t n = normalInfo_forFace(face);
 	
 	cons_t UL, UR;	
-	getEdgeStates(&UL, &UR, face, UBuf);
+	getEdgeStates(&UL, &UR, face, UBuf, solver->boundaryRestitution);
 
 	//TODO option to rotate to align fluxes?
 	// then you'd have to build a new normalInfo_t based on the aligned (x-axis) normal.

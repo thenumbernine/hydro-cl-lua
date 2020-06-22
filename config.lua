@@ -3,7 +3,7 @@ TODO one config per experiment (initial condition + config)
 and no more setting config values (boundary, etc) in the init cond file
 --]]
 
-local dim = cmdline.dim or 3
+local dim = cmdline.dim or 2
 local args = {
 	app = self, 
 	eqn = cmdline.eqn,
@@ -51,7 +51,7 @@ local args = {
 	-- this is functional without usePLM, but doing so falls back on the cell-centered buffer, which with the current useCTU code will update the same cell twice from different threads
 	--useCTU = true,
 	
-	-- [[ Cartesian
+	--[[ Cartesian
 	coord = 'cartesian',
 	coordArgs = {vectorComponent='holonomic'},		-- use the coordinate derivatives to represent our vector components (though they may not be normalized)
 	--coordArgs = {vectorComponent='anholonomic'},		-- use orthonormal basis to represent our vector components
@@ -104,23 +104,25 @@ local args = {
 		zmax = cmdline.boundary or 'freeflow',
 	},
 	--]]
-	--[[ cylinder
+	-- [[ cylinder
 	coord = 'cylinder',
+		-- TODO doesn't work
 	--coordArgs = {vectorComponent='holonomic'},		-- use the coordinate derivatives to represent our vector components (though they may not be normalized)
-	--coordArgs = {vectorComponent='anholonomic'},		-- use orthonormal basis to represent our vector components
-	coordArgs = {vectorComponent='cartesian'},			-- use cartesian vector components 
+		-- TODO doesn't work for rmin=0
+	coordArgs = {vectorComponent='anholonomic'},		-- use orthonormal basis to represent our vector components.
+	--coordArgs = {vectorComponent='cartesian'},		-- use cartesian vector components 
 	mins = cmdline.mins or {0, 0, -1},
 	maxs = cmdline.maxs or {1, 2*math.pi, 1},			-- TODO bake the 2π into the coordinate chart so this matches grid/cylinder.  Technically θ→2πθ means it isn't the standard θ variable.  I did this for UI convenience with CFDMesh.
 	gridSize = ({
 		{128, 1, 1},	-- 1D
-		{32, 32, 1},	-- 2D
+		{64, 64, 1},	-- 2D
 		{32, 32, 32},	-- 3D
 	})[dim],
 	boundary = type(cmdline.boundary) == 'table' and cmdline.boundary or {
 		-- r
 		-- notice, this boundary is designed with cylindrical components in mind, so it will fail with vectorComponent==cartesian 
-		xmin=cmdline.boundary or 'freeflow',		
-		--xmin=cmdline.boundary or 'cylinderRMin',	-- use this when rmin=0
+		--xmin=cmdline.boundary or 'freeflow',		
+		xmin=cmdline.boundary or 'cylinderRMin',	-- use this when rmin=0
 		--xmin=cmdline.boundary or 'mirror',
 		--xmin=cmdline.boundary or {name='mirror', args={restitution=0}},
 		xmax=cmdline.boundary or 'freeflow',
@@ -527,7 +529,7 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn
 
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
 
---self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct bounded'})))	-- this is the default hllCalcWaveMethod
+self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct bounded'})))	-- this is the default hllCalcWaveMethod
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct'})))
 
 --self.solvers:insert(require 'hydro.solver.fdsolver'(table(args, {eqn='euler'})))
@@ -800,7 +802,7 @@ self.solvers:insert(require 'hydro.solver.wave-fd'(table(args, {integrator='back
 -- hydro-cl GridSolver without fluxLimiter runs 256x256 at 155 fps
 -- hydro-cl MeshSolver runs 50x50 at 2500 fps
 -- hydro-cl MeshSolver runs 256x256 at 70 fps (building the mesh took 4.5 minutes =P)
---self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='euler', mesh={type='quad2d', size={8, 8}}})))
+--self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='euler', mesh={type='quad2d', size={16, 16}}})))
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='euler', mesh={type='quad2d', triangulate=true, size={64, 64}}})))
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='euler', mesh={type='p2dfmt', meshfile='n0012_113-33.p2dfmt'}})))
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='euler', mesh={type='quad2dcbrt', size={64, 64}}})))
@@ -831,14 +833,14 @@ self.solvers:insert(require 'hydro.solver.wave-fd'(table(args, {integrator='back
 -- rmin=0 with capmin is crashing
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='mhd', mesh={type='polar2d', size={64, 64}, capmin={1,0}}})))
 
-self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='glm-mhd', mesh={type='torus3d', size={16, 16, 16}}})))
+--self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='glm-mhd', mesh={type='torus3d', size={16, 16, 16}}})))
 
 -- NEXT BIG TODO
 -- * make meshsolver and gridsolver separate options
 -- * make grid coordinate chart separate of vector component coordinate chart
 -- so in the end, the user can choose: 
 -- 1) geometry: mesh (w/coordinate mapping) vs grid
---		the only dif between grid and mesh solver is that grid has easy n'th order finite difference stencils, thanks to its parameterization
+--		The only dif between grid and mesh solver is that grid has easy n'th order finite difference stencils, thanks to its parameterization
 -- 		I can unify this with mesh if I store per-cell the d/dx^i(x + j*dx^i) in the i'th face direction to the j'th step.  
 --		Then I could rewrite the current higher order PLM/WENO stuff for the MeshSolver
 -- 2) flux

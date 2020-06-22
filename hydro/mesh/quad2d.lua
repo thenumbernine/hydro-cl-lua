@@ -53,9 +53,6 @@ assert(solver.dim == 2)	-- or maybe manually set it to 2?
 	if self.wrap.x ~= 0 or self.capmin.x ~= 0 then nx = nx - 1 end
 	if self.wrap.y ~= 0 or self.capmin.y ~= 0 then ny = ny - 1 end
 	
-	local stepx = 1
-	local stepy = nx
-	
 	local vtxsize = nx * ny
 	if self.capmin.x ~= 0 then vtxsize = vtxsize + 1 end
 	mesh.vtxs:resize(vtxsize)
@@ -73,7 +70,7 @@ assert(solver.dim == 2)	-- or maybe manually set it to 2?
 			local x = (ix + iofsx) / vtxmaxX * (self.maxs.x - self.mins.x) + self.mins.x
 			local y = (iy + iofsy) / vtxmaxY * (self.maxs.y - self.mins.y) + self.mins.y
 			local z = 0
-			mesh.vtxs.v[ix * stepx + iy * stepy] = vec3d(self:coordChart(x,y,z))
+			mesh.vtxs.v[ix + nx * iy] = vec3d(self:coordChart(x,y,z))
 		end
 	end
 	

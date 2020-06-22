@@ -11,6 +11,7 @@ require 'ffi.c.stdlib'		-- free
 local unistd = require 'ffi.c.unistd'
 local class = require 'ext.class'
 local table = require 'ext.table'
+local io = require 'ext.io'
 local file = require 'ext.file'
 
 -- save the cwd and chdir to ../..

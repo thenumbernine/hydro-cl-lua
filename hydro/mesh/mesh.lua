@@ -284,6 +284,7 @@ function Mesh:addFaceForVtxs(...)
 	local n = select('#', ...)
 		
 	if self.solver.dim == 2 then
+		assert(n == 2)
 		for fi=0,#self.faces-1 do
 			local f = self.faces.v[fi]
 			
@@ -296,7 +297,6 @@ function Mesh:addFaceForVtxs(...)
 					return fi
 				end
 			end
-		
 		end
 	elseif self.solver.dim == 3 then
 		for fi=0,#self.faces-1 do
@@ -582,22 +582,6 @@ function Mesh:calcAux()
 		f.normal3:set(f.normal2:cross(f.normal):normalize())
 	end
 
-	-- now convert all our buffers to C types
-	-- hmm, this is where a std::vector would be helpful ... store the size and ptr in one structure
-	-- also, how will I pass all this to the GPU?
-	-- do we want so many different parameters?
-	-- maybe make some weird data structure where we have to skip past arrays?  
-	-- maybe have a initial structure that tells us where to skip to for each of these?
-	-- how about shared memory (CL 2.0)?  will that be compat with NVIDIA?
-	local function tableToC(t, ty)
-		local ptr = ffi.new(ty..'[?]', #t)
-		for i=1,#t do
-			ptr[i-1] = t[i]
-		end
-		return ptr, #t
-	end
-	
-	--self.numVtxs, self.vtxs = tableToC(self.vtxs, 'real3')
 	self.numVtxs = #self.vtxs
 	self.numFaces = #self.faces
 	self.numCells = assert(#self.cells)

@@ -20,31 +20,6 @@
 	typedef <?=eqn.eigen_t?> eigen_t;
 	typedef <?=eqn.waves_t?> waves_t;
 
-<? if false then 	-- can't use this because cell_area needs side, but this function is independent of axis-aligned sides
-?>
-<? if solver.coord.vectorComponent == 'cartesian' 
-	or solver.coord.vectorComponent == 'anholonomic'
-then ?>
-	real area = cell_area<?=side?>(xInt);
-<? else ?>
-	real area = 1.<?
-	for i=0,solver.dim-1 do
-		if i ~= side then
-			?> * solver->grid_dx.s<?=i?><?
-		end
-	end
-?>;
-<? end ?>
-	if (area <= 1e-7) {
-		cons_t flux;
-		for (int j = 0; j < numStates; ++j) {
-			flux.ptr[j] = 0;
-		}
-		return;
-	}
-<? end ?>
-
-
 	eigen_t eig = eigen_forInterface(solver, pUL, pUR, xInt, n);
 
 	<?=eqn:eigenWaveCodePrefix('n', 'eig', 'xInt'):gsub('\n', '\n\t\t')?>
@@ -155,7 +130,31 @@ kernel void calcFlux(
 
 		real3 xInt = xR;
 		xInt.s<?=side?> -= .5 * dx;
-		
+
+		int indexInt = side + dim * index;
+		global cons_t* flux = fluxBuf + indexInt;
+
+
+<? if solver.coord.vectorComponent == 'cartesian' 
+	or solver.coord.vectorComponent == 'anholonomic'
+then ?>
+		real area = cell_area<?=side?>(xInt);
+<? else ?>
+		real area = 1.<?
+	for i=0,solver.dim-1 do
+		if i ~= side then
+			?> * solver->grid_dx.s<?=i?><?
+		end
+	end
+?>;
+<? end ?>
+		if (area <= 1e-7) {
+			for (int j = 0; j < numStates; ++j) {
+				flux->ptr[j] = 0;
+			}
+			return;
+		}
+
 		//this is used for the flux limiter
 		//should it be using the coordinate dx or the grid dx?
 		//real dt_dx = dt / cell_dx<?=side?>(xInt);
@@ -195,8 +194,6 @@ then
 		cons_t pUR_R = cons_parallelPropagate<?=side?>(*UR_R, xIntR, -1.5 * dx);	// xIntR2?
 <? end
 ?>
-		int indexInt = side + dim * index;
-		global cons_t* flux = fluxBuf + indexInt;
 		*flux = calcFluxForInterface(
 			solver, pUL, pUR, xInt, n
 <? if solver.fluxLimiter > 1 then
