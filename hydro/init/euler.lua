@@ -1351,11 +1351,12 @@ end ?>
 	P = solver->backgroundPressure;
 	
 	//U is initialized with random(), so use its values for unique random #s
-	rho += solver->noiseAmplitude * 2. * (U->rho - .5);
-	v.x += solver->noiseAmplitude * 2. * (U->m.x - .5);
-	v.y += solver->noiseAmplitude * 2. * (U->m.y - .5);
-	v.z += solver->noiseAmplitude * 2. * (U->m.z - .5);
-	P += solver->noiseAmplitude * 2. * (U->ETotal - .5);
+<? assert(solver.eqn.numStates >= 5); ?>
+	rho += solver->noiseAmplitude * 2. * (U->ptr[0] - .5);
+	v.x += solver->noiseAmplitude * 2. * (U->ptr[1] - .5);
+	v.y += solver->noiseAmplitude * 2. * (U->ptr[2] - .5);
+	v.z += solver->noiseAmplitude * 2. * (U->ptr[3] - .5);
+	P += solver->noiseAmplitude * 2. * (U->ptr[4] - .5);
 ]],				{
 					solver = solver,
 					moveAxis = solver.eqn.guiVars.moveAxis.options[solver.eqn.guiVars.moveAxis.value],
@@ -1585,8 +1586,9 @@ end ?>;
 	rho = fabs(c.y) > 0.25 ? 1.0 : 2.0;
 	P = 2.5;
 	//U is initialized with [0,1] random values	
-	v.x = 0.02*(U->m.x - 0.5) + fabs(c.y) > 0.25 ? -.5 : .5;
-	v.y = 0.02*(U->m.y - 0.5);
+<? assert(solver.eqn.numStates >= 2); ?>
+	v.x = 0.02*(U->ptr[0] - 0.5) + fabs(c.y) > 0.25 ? -.5 : .5;
+	v.y = 0.02*(U->ptr[1] - 0.5);
 	v.z = 0.;
 ]]
 		end,
@@ -1753,7 +1755,7 @@ end ?>;
 				getRadiusCode = function(source)
 					-- TODO compute dr's component in each dx^i's, and scale our random number by that
 					-- U->rho holds noise
-					return '.2 - .005 * (U->rho - .5)'
+					return '.2 - .005 * (U->ptr[0] - .5)'
 				end,
 				sources={
 					{

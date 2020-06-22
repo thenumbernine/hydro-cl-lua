@@ -288,9 +288,15 @@ SRHD.initStateCode = [[
 kernel void initState(
 	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* UBuf
+<? if require 'hydro.solver.meshsolver'.is(solver) then ?>
+	,const global cell_t* cells
+<? end ?>
 ) {
 	SETBOUNDS(0,0);
 	real3 x = cell_x(i);
+	
+	global <?=eqn.cons_t?>* U = UBuf + index;
+	
 	real3 mids = real3_real_mul(real3_add(solver->mins, solver->maxs), .5);
 	bool lhs = x.x < mids.x
 #if dim > 1

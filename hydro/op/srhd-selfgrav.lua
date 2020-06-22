@@ -1,5 +1,7 @@
 local class = require 'ext.class'
 local template = require 'template'
+local ig = require 'ffi.imgui'
+local tooltip = require 'hydro.tooltip'
 
 -- TODO make this a ctor parameter 
 local Poisson = require(

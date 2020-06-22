@@ -53,20 +53,14 @@ works for adm1d_v1 freeflow with oscillations (fails for mirror)
 	const global <?=eqn.cons_t?>* UL = U - solver->stepsize.s<?=side?>;
 	const global <?=eqn.cons_t?>* UR = U + solver->stepsize.s<?=side?>;
 	
-	<?=eqn.cons_t?> dUL, dUR;
-	for (int j = 0; j < numIntStates; ++j) {
-		dUL.ptr[j] = U->ptr[j] - UL->ptr[j];
-		dUR.ptr[j] = UR->ptr[j] - U->ptr[j];
-	}
-	for (int j = numIntStates; j < numStates; ++j) {
-		dUL.ptr[j] = dUR.ptr[j] = 0;
-	}
-	
 	real3 xIntL = x; xIntL.s<?=side?> -= .5 * solver->grid_dx.s<?=side?>;
 	real3 xIntR = x; xIntR.s<?=side?> += .5 * solver->grid_dx.s<?=side?>;
 	
 	<?=eqn.cons_t?> UHalfL, UHalfR;
 	for (int j = 0; j < numIntStates; ++j) {
+		real dUL = U->ptr[j] - UL->ptr[j];
+		real dUR = UR->ptr[j] - U->ptr[j];
+		
 		//Hydrodynamics II slope-limiters (4.4.2) and MUSCL-Hancock (6.6)	
 		//https://en.wikipedia.org/wiki/MUSCL_scheme
 			
@@ -97,14 +91,14 @@ for sgn b >= 0:
 	minmod2(a,b) = |b| sgn r * minmod(|r|)
 */
 #if 1
-		real r = dUR.ptr[j] == 0 ? 0 : (dUL.ptr[j] / dUR.ptr[j]);
+		real r = dUR == 0 ? 0 : (dUL / dUR);
 		real phi = slopeLimiter(r);	//works good with minmod, bad with superbee
-		real sigma = phi * dUR.ptr[j];
+		real sigma = phi * dUR;
 #else	//isn't as accurate anyways
-		real sigma = minmod(minmod(fabs(dUL.ptr[j]), 
+		real sigma = minmod(minmod(fabs(dUL), 
 			fabs(dUR.ptr[j])),
-			fabs(.5 * (dUL.ptr[j] - dUR.ptr[j]))
-		) * sign(dUL.ptr[j] - dUR.ptr[j]);
+			fabs(.5 * (dUL - dUR))
+		) * sign(dUL - dUR);
 #endif
 		//q^n_i-1/2,R = q^n_i - 1/2 dx sigma	(Hydrodynamics II 6.58)
 		UHalfL.ptr[j] = U->ptr[j] - .5 * sigma;
@@ -155,15 +149,13 @@ for sgn b >= 0:
 	normalInfo_t n
 ) {
 	// extrapolate slopes in consered variable space
+	real dx = solver->grid_dx.s<?=side?>;
 
-	real3 xL = x; xL.s<?=side?> -= solver->grid_dx.s<?=side?>;
-	real3 xR = x; xR.s<?=side?> += solver->grid_dx.s<?=side?>;
+	real3 xL = x; xL.s<?=side?> -= dx;
+	real3 xR = x; xR.s<?=side?> += dx;
 
 	const global <?=eqn.cons_t?>* UL = U - solver->stepsize.s<?=side?>;
 	const global <?=eqn.cons_t?>* UR = U + solver->stepsize.s<?=side?>;
-
-	real3 xIntL = x; xIntL.s<?=side?> -= .5 * solver->grid_dx.s<?=side?>;
-	real3 xIntR = x; xIntR.s<?=side?> += .5 * solver->grid_dx.s<?=side?>;
 
 	<?=eqn.consLR_t?> ULR = {
 		.L = *U,
@@ -171,16 +163,27 @@ for sgn b >= 0:
 	};
 	// minmod
 	for (int j = 0; j < numIntStates; ++j) {
+#if 1	// taken from above / from Dullemond "Hydrodynamics II"
+		real dUR = UR->ptr[j] - U->ptr[j];
+		real dUL = U->ptr[j] - UL->ptr[j];
+		real r = dUR == 0 ? 0 : (dUL / dUR);
+		real phi = slopeLimiter(r);	//works good with minmod, bad with superbee
+		real sigma = phi * dUR;
+		ULR.L.ptr[j] -= .5 * sigma;
+		ULR.R.ptr[j] += .5 * sigma;
+#endif
+#if 0 	// Based on Mara's PLM.  Looks to be asymmetric, favoring the x+ and y+ directions. Maybe I copied it wrong.
 		real dUL = U->ptr[j] - UL->ptr[j];
 		real dUC = .5 * (UR->ptr[j] - UL->ptr[j]);
 		real dUR = UR->ptr[j] - U->ptr[j];
 		real adwl = fabs(dUL);
 		real adwr = fabs(dUR);
 		real adwc = fabs(dUC);
-		real mindw = min(min(adwl, adwr), adwc);
+		real mindw = min3(adwl, adwr, adwc);
 		real dUM = .25 * fabs(sign(dUL) + sign(dUC)) * fabs(sign(dUL) + sign(dUR)) * mindw;
 		ULR.L.ptr[j] -= .5 * dUM; 
 		ULR.R.ptr[j] += .5 * dUM; 
+#endif
 	}
 	return ULR;
 }
@@ -198,9 +201,10 @@ for sgn b >= 0:
 	normalInfo_t n
 ) {
 	// extrapolate slopes in primitive space
+	real dx = solver->grid_dx.s<?=side?>;
 
-	real3 xL = x; xL.s<?=side?> -= solver->grid_dx.s<?=side?>;
-	real3 xR = x; xR.s<?=side?> += solver->grid_dx.s<?=side?>;
+	real3 xL = x; xL.s<?=side?> -= dx;
+	real3 xR = x; xR.s<?=side?> += dx;
 
 	const global <?=eqn.cons_t?>* UL = U - solver->stepsize.s<?=side?>;
 	const global <?=eqn.cons_t?>* UR = U + solver->stepsize.s<?=side?>;
@@ -209,13 +213,20 @@ for sgn b >= 0:
 	<?=eqn.prim_t?> WL = primFromCons(solver, *UL, xL);
 	<?=eqn.prim_t?> WR = primFromCons(solver, *UR, xR);
 	
-	real3 xIntL = x; xIntL.s<?=side?> -= .5 * solver->grid_dx.s<?=side?>;
-	real3 xIntR = x; xIntR.s<?=side?> += .5 * solver->grid_dx.s<?=side?>;
-
 	// minmod
 	<?=eqn.prim_t?> nWL = W;
 	<?=eqn.prim_t?> nWR = W;
 	for (int j = 0; j < numIntStates; ++j) {
+#if 1	// taken from above / from Dullemond "Hydrodynamics II"
+		real dWR = WR.ptr[j] - W.ptr[j];
+		real dWL = W.ptr[j] - WL.ptr[j];
+		real r = dWR == 0 ? 0 : (dWL / dWR);
+		real phi = slopeLimiter(r);
+		real sigma = phi * dWR;
+		nWL.ptr[j] -= .5 * sigma;
+		nWR.ptr[j] += .5 * sigma;
+#endif
+#if 0	// Based on Mara's PLM.  Looks to be asymmetric, favoring the x+ and y+ directions. Maybe I copied it wrong.
 		real dWL = W.ptr[j] - WL.ptr[j];	//TODO SOR or whatever ... scalar here x2?
 		real dWC = .5 * (WR.ptr[j] - WL.ptr[j]);
 		real dWR = WR.ptr[j] - W.ptr[j];
@@ -226,7 +237,11 @@ for sgn b >= 0:
 		real dWM = .25 * fabs(sign(dWL) + sign(dWC)) * fabs(sign(dWL) + sign(dWR)) * mindw;
 		nWL.ptr[j] -= .5 * dWM; 
 		nWR.ptr[j] += .5 * dWM; 
+#endif	
 	}
+	
+	real3 xIntL = x; xIntL.s<?=side?> -= .5 * dx;
+	real3 xIntR = x; xIntR.s<?=side?> += .5 * dx;
 
 	//converting from cons->prim and then prim->cons might lose us accuracy? 
 	return (<?=eqn.consLR_t?>){
@@ -302,6 +317,20 @@ works for adm1d_v1
 	//TODO make this based on the choice of slope limiter
 	<?=eqn.waves_t?> dUMEig;
 	for (int j = 0; j < numWaves; ++j) {
+
+// This is adapted from above to use the modular slopeLimiter
+#if 0
+		real r = dUREig.ptr[j] == 0 ? 0 : (dULEig.ptr[j] / dUREig.ptr[j]);
+		real phi = slopeLimiter(r);
+		real sigma = phi * dUREig.ptr[j];
+		dUMEig.ptr[j] = sigma;
+
+#endif
+
+//This one is symmetric, unlike the above center-slope-based methods.
+// It also takes into account the center slope, unlike the slopeLimiter() options.
+// However it is fixed to minmod and does not use the modular slopeLimiter() option.
+#if 1	
 		//dUMEig.ptr[j] = minmod(minmod(2. * dULEig.ptr[j], 2. * dUREig.ptr[j]), dUCEig.ptr[j]);
 		dUMEig.ptr[j] = dULEig.ptr[j] * dUREig.ptr[j] < 0 ? 0 : (
 			(dUCEig.ptr[j] >= 0. ? 1. : -1.)
@@ -309,7 +338,8 @@ works for adm1d_v1
 				fabs(dULEig.ptr[j]),
 				fabs(dUREig.ptr[j]),
 				fabs(dUCEig.ptr[j]))
-		);	
+		);
+#endif	
 	}
 
 	real dx = cell_dx<?=side?>(x);

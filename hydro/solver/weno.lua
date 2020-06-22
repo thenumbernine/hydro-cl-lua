@@ -47,6 +47,13 @@ function WENO:init(args)
 	WENO.super.init(self, args)
 end
 
+-- don't let the parent create a flux object or require a flux arg
+function WENO:createFlux()
+	self.flux = {
+		getSolverCode = function() return '' end,
+	}
+end
+
 -- TODO find what intermediate values to buffer for perf increase
 function WENO:createBuffers()
 	WENO.super.createBuffers(self)
