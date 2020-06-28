@@ -50,6 +50,8 @@ function MeshSolver:initL1(args)
 	local fluxArgs = table(args.fluxArgs, {solver=self})
 	self.flux = fluxClass(fluxArgs)
 
+	self.boundaryRestitution = args.restitution or -1
+
 	MeshSolver.super.initL1(self, args)
 
 	-- alright, by this point 'gridSize' has become synonymous with global_size() ...
@@ -134,7 +136,7 @@ function MeshSolver:createSolverBuf()
 	self.solverPtr.stepsize.z = self.solverPtr.gridSize.x * self.solverPtr.gridSize.y
 	self.solverPtr.stepsize.w = self.solverPtr.gridSize.x * self.solverPtr.gridSize.y * self.solverPtr.gridSize.z
 	
-	self.solverPtr.boundaryRestitution = -1
+	self.solverPtr.boundaryRestitution = self.boundaryRestitution
 
 	-- while we're here, write all gui vars to the solver_t
 	for _,var in ipairs(self.eqn.guiVars) do
@@ -425,6 +427,46 @@ function MeshSolver:getSolverCode()
 
 		-- boundary code, since meshsolver doesn't use gridsolver's boundary: 
 		template([[
+<?=eqn.cons_t?> reflectCons(
+	<?=eqn.cons_t?> U,
+	real3 n,
+	float restitution
+) {
+<?
+-- matches BoundaryMirror:getCode for vectorComponent==cartesian
+for _,var in ipairs(eqn.consStruct.vars) do
+	if var.type == 'real' 
+	or var.type == 'cplx'
+	then
+		-- do nothing
+	elseif var.type == 'real3' 
+	or var.type == 'cplx3'
+	then
+		local field = var.name
+		local scalar = var.type == 'cplx3' and 'cplx' or 'real'
+		local vec3 = var.type
+?>
+	U.<?=field?> = <?=vec3?>_sub(
+		U.<?=field?>,
+		<?=vec3?>_<?=scalar?>_mul(
+			<?=vec3?>_from_real3(n),
+			<?=scalar?>_real_mul(
+				<?=vec3?>_real3_dot(
+					U.<?=field?>,
+					n
+				), 
+				restitution + 1.
+			)
+		)
+	);
+<?
+	else
+		error("need to support reflect() for type "..var.type)
+	end
+end
+?>	return U;
+}
+
 void getEdgeStates(
 	<?=eqn.cons_t?>* UL,
 	<?=eqn.cons_t?>* UR,
@@ -440,11 +482,11 @@ void getEdgeStates(
 	} else if (iL != -1) {
 		*UL = UBuf[iL];
 		//TODO  
-		*UR = *UL;//eqn.reflect(*UL, e->normal, restitution);
+		*UR = reflectCons(*UL, e->normal, restitution);
 	} else if (iR != -1) {
 		*UR = UBuf[iR];
 		//TODO  
-		*UL = *UR;//eqn.reflect(*UR, e->normal, restitution);
+		*UL = reflectCons(*UR, e->normal, restitution);
 	} else {	// both iL and iR are null ...
 		//error
 		for (int i = 0; i < numStates; ++i) {

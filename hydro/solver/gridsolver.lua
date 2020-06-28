@@ -785,7 +785,11 @@ function BoundaryMirror:getCode(args)
 			side = args.side,
 		}))
 		for _,var in ipairs(eqn.consStruct.vars) do
-			if var.type == 'real3' 
+			if var.type == 'real' 
+			or var.type == 'cplx'
+			then
+				-- do nothing
+			elseif var.type == 'real3' 
 			or var.type == 'cplx3'
 			then
 				lines:insert(template([[
@@ -809,6 +813,8 @@ function BoundaryMirror:getCode(args)
 					field = var.name,
 					dst = dst,
 				}))
+			else
+				error("need to support reflect() for type "..var.type)
 			end
 		end
 		lines:insert[[

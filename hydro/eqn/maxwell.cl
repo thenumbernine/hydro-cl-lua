@@ -35,7 +35,7 @@ cons_t fluxFromCons(
 	}
 	F.phi = <?=zero?>;
 	F.psi = <?=zero?>;
-	F.sigma = <?=zero?>;
+	F.D = <?=vec3?>_zero;
 	F.rhoCharge = <?=zero?>;
 	F.sqrt_1_eps = <?=susc_t?>_zero;
 	F.sqrt_1_mu = <?=susc_t?>_zero;
@@ -190,14 +190,8 @@ kernel void addSource(
 	const global cons_t* U = UBuf + index;
 
 	//TODO J = J_f + J_b = J_f + J_P + J_M = J_f + dP/dt + curl M
-	deriv->D = <?=vec3?>_sub(
-		deriv->D, 
-		<?=vec3?>_<?=scalar?>_mul(
-			U->D, 
-			<?=mul?>(<?=mul?>(U->sqrt_1_eps, U->sqrt_1_eps), U->sigma)
-		)
-	);
-	
+	deriv->D = <?=vec3?>_sub(deriv->D, U->J);
+
 	//for non-time-varying susceptibilities, here's the source term:
 	//D_i,t ... = 1/sqrt(g) g_il epsBar^ljk  (1/mu)_,j B_k - J_i
 	//B_i,t ... = 1/sqrt(g) g_il epsBar^ljk (1/eps)_,j B_k

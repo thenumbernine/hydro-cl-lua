@@ -1863,7 +1863,9 @@ end ?>;
 	D.y = <?=eqn.susc_t?>_from_real(1);
 	B.y = <?=eqn.susc_t?>_from_real(-1);
 	B.z = <?=eqn.susc_t?>_from_real(lhs ? 1 : -1);
-]], solver.eqn:getTemplateEnv())
+]], 		{
+				eqn = solver.eqn,
+			})
 		end,
 	},
 
@@ -2232,13 +2234,14 @@ kernel void addExtraSource(
 			return template([[
 	D.x = <?=eqn.susc_t?>_from_real(1.);
 	
-	conductivity = <?=eqn.susc_t?>_from_real(<?=clnumber(1/resistivities.air)?>);
+	//conductivity = <?=eqn.susc_t?>_from_real(<?=clnumber(1/resistivities.air)?>);
 	
 	real r2 = x.y * x.y<? if solver.dim == 3 then ?> + x.z * x.z<? end ?>;	
 	
 	if (r2 < .1*.1) {
-		conductivity = <?=eqn.susc_t?>_from_real(<?=clnumber(1/resistivities.copper)?>);
+		//conductivity = <?=eqn.susc_t?>_from_real(<?=clnumber(1/resistivities.copper)?>);
 		permittivity = <?=eqn.susc_t?>_from_cplx(_cplx(5., .1));
+#error TODO assign rhoCharge and J
 	}
 ]], 		table({
 				solver = solver,
@@ -2261,13 +2264,25 @@ kernel void addExtraSource(
 		initState = function(self, solver)
 			return template([[
 	D.z = <?=eqn.susc_t?>_from_real( init_E0 * sin(init_m * M_PI * x.x / init_x0) * sin(init_n * M_PI * x.y / init_y0) );
-	conductivity = 0;
 ]], 		table({
 				solver = solver,
 			}, solver.eqn:getTemplateEnv()))
 		end,
 	},
 
+	{
+		guiVars = {
+			{name = 'init_rhoCharge0', value = 1},
+		},
+		name = 'Maxwell charged particle',
+		initState = function(self, solver)
+			return template([[
+	rhoCharge = (i.x == solver->gridSize.x/2 && i.y == solver->gridSize.y/2 && i.z == solver->gridSize.z/2) ? solver->init_rhoCharge0 : 0.;
+]], 		table({
+				solver = solver,
+			}, solver.eqn:getTemplateEnv()))
+		end,
+	},
 
 	{
 		name = '2017 Degris et al',

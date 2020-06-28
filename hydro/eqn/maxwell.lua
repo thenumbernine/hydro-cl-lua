@@ -79,7 +79,7 @@ function Maxwell:init(args)
 		{name='phi', type=self.scalar, units='C/m^2'},
 		{name='psi', type=self.scalar, units='kg/(C*s)'},
 		{name='rhoCharge', type=self.scalar, units='C/m^3'},
-		{name='sigma', type=self.scalar, units='(C^2*s)/(kg*m^3)'},
+		{name='J', type=self.vec3, units='C/(m^2*s)'},
 		{name='sqrt_1_eps', type=self.susc_t, units='(kg*m^3)^.5/(C*s)'},
 		{name='sqrt_1_mu', type=self.susc_t, units='C/(kg*m)^.5'},
 	}
@@ -91,7 +91,7 @@ function Maxwell:init(args)
 
 	Maxwell.super.init(self, args)
 
-	-- TODO combine this into the flux and remove this variable from calcDerivFV
+-- [=[ TODO combine this into the flux and remove this variable from calcDerivFV
 	self.postComputeFluxCode = template([[
 <? local vec3 = eqn.vec3 ?>
 		//TODO shouldn't I be transforming both the left and right fluxes by the metrics at their respective coordinates?
@@ -101,6 +101,7 @@ function Maxwell:init(args)
 		flux.D = <?=vec3?>_real_mul(eqn_coord_lower(flux.D, x), _1_sqrt_det_g);
 		flux.B = <?=vec3?>_real_mul(eqn_coord_lower(flux.B, x), _1_sqrt_det_g);
 ]], {eqn=self})
+--]=]
 
 	local NoDiv = require 'hydro.op.nodiv'{
 		poissonSolver = require 'hydro.op.poisson_jacobi',
@@ -194,7 +195,8 @@ kernel void initState(
 	<?=scalar?> conductivity = <?=scalar?>_from_real(1.);
 	<?=susc_t?> permittivity = <?=susc_t?>_from_real(1.);
 	<?=susc_t?> permeability = <?=susc_t?>_from_real(1.);
-	
+	<?=scalar?> rhoCharge = <?=zero?>;
+
 	//throw-away
 	real rho = 0;
 	real3 v = real3_zero;
@@ -207,8 +209,8 @@ kernel void initState(
 	U->B = eqn_cartesianToCoord(B, x);
 	U->phi = <?=zero?>;
 	U->psi = <?=zero?>;
-	U->sigma = conductivity;
-	U->rhoCharge = <?=zero?>;
+	U->J = <?=vec3?>_zero;
+	U->rhoCharge = rhoCharge;
 	U->sqrt_1_eps = <?=susc_t?>_sqrt(<?=susc_t?>_inv(permittivity));
 	U->sqrt_1_mu = <?=susc_t?>_sqrt(<?=susc_t?>_inv(permeability));
 }

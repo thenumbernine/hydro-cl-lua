@@ -952,7 +952,7 @@ void <?=name?>(
 <? 
 for i,component in ipairs(solver.displayComponentFlatList) do
 	if not component.onlyFor 
-	or (var and var.group.name == component.onlyFor)
+	or (var and var.group and var.group.name == component.onlyFor)
 	then
 ?>	case <?=i?>:	//<?=component.type or 'real'?> <?=component.name?>
 		{
