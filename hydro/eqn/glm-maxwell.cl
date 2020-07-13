@@ -197,10 +197,11 @@ cons_t eigen_rightTransform(
 kernel void addSource(
 	constant solver_t* solver,
 	global cons_t* derivBuf,
-	const global cons_t* UBuf
+	const global cons_t* UBuf,
+	const global <?=solver.coord.cell_t?>* cellBuf
 ) {
 	SETBOUNDS_NOGHOST();
-	real3 x = cell_x(i);
+	real3 x = cellBuf[index].pos;
 	
 	global cons_t* deriv = derivBuf + index;
 	const global cons_t* U = UBuf + index;

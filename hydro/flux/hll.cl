@@ -60,13 +60,14 @@ kernel void calcFlux(
 	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* fluxBuf,
 	const global <?=solver.getULRArg?>,
-	realparam dt	//not used by HLL, just making this match Roe / other FV solvers
+	realparam dt,	//not used by HLL, just making this match Roe / other FV solvers
+	const global <?=solver.coord.cell_t?>* cellsBuf
 ) {
 	typedef <?=eqn.cons_t?> cons_t;
 
 	SETBOUNDS(numGhost,numGhost-1);
 	
-	real3 xR = cell_x(i);
+	real3 xR = cellsBuf[index].pos;
 	int indexR = index;
 	
 	<? for side=0,solver.dim-1 do ?>{

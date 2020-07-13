@@ -104,7 +104,8 @@ cons_t eigen_fluxTransform(
 kernel void addSource(
 	constant solver_t* solver,
 	global cons_t* derivBuf,
-	const global cons_t* UBuf
+	const global cons_t* UBuf,
+	const global <?=solver.coord.cell_t?>* cellBuf
 ) {
 	SETBOUNDS_NOGHOST();
 	global cons_t* deriv = derivBuf + index;

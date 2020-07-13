@@ -207,4 +207,37 @@ end ?>
 	})
 end
 
+function SphereLogRadial:createCellStruct()
+	SphereLogRadial.super.createCellStruct(self)
+	self.cellStruct.vars:insert{name='r', type='real'}
+end
+
+function SphereLogRadial:fillGridCellBuf(cellsCPU)
+	local solver = self.solver
+	
+	local calcR = self:compile(self.vars.r)
+
+	local index = 0
+	for k=0,tonumber(solver.gridSize.z)-1 do
+		local phi = solver.dim >= 3 
+			and ((k + .5 - solver.numGhost) / (tonumber(solver.gridSize.z) - 2 * solver.numGhost) * (solver.maxs.z - solver.mins.z) + solver.mins.z)
+			or (.5 * (solver.maxs.z + solver.mins.z))
+		for j=0,tonumber(solver.gridSize.y)-1 do
+			local theta = solver.dim >= 2
+				and ((j + .5 - solver.numGhost) / (tonumber(solver.gridSize.y) - 2 * solver.numGhost) * (solver.maxs.y - solver.mins.y) + solver.mins.y)
+				or (.5 * (solver.maxs.y + solver.mins.y))
+			for i=0,tonumber(solver.gridSize.x)-1 do
+				local rho = solver.dim >= 1
+					and ((i + .5 - solver.numGhost) / (tonumber(solver.gridSize.x) - 2 * solver.numGhost) * (solver.maxs.x - solver.mins.x) + solver.mins.x)
+					or (.5 * (solver.maxs.x + solver.mins.x))
+				cellsCPU[index].pos.x = rho
+				cellsCPU[index].pos.y = theta
+				cellsCPU[index].pos.z = phi
+				cellsCPU[index].r = calcR(rho)
+				index = index + 1
+			end
+		end
+	end
+end
+
 return SphereLogRadial

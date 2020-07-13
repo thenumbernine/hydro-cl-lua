@@ -21,7 +21,8 @@ typedef <?=solver.solver_t?> solver_t;
 kernel void calcDT(
 	constant solver_t* solver,
 	global real* dtBuf,
-	const global cons_t* UBuf
+	const global cons_t* UBuf,
+	const global <?=solver.coord.cell_t?>* cellBuf
 ) {
 	SETBOUNDS(0,0);
 	if (OOB(numGhost,numGhost)) {
@@ -1094,8 +1095,9 @@ cons_t eigen_fluxTransform(
 kernel void addSource(
 	constant solver_t* solver,
 	global cons_t* derivBuf,
-	const global cons_t* UBuf)
-{
+	const global cons_t* UBuf,
+	const global <?=solver.coord.cell_t?>* cellBuf
+) {
 	SETBOUNDS_NOGHOST();
 	global cons_t* deriv = derivBuf + index;
 	const global cons_t* U = UBuf + index;
@@ -1545,7 +1547,8 @@ end ?>
 
 kernel void constrainU(
 	constant solver_t* solver,
-	global cons_t* UBuf
+	global cons_t* UBuf,
+	const global <?=solver.coord.cell_t?>* cellBuf
 ) {
 	SETBOUNDS(numGhost,numGhost);		
 	global cons_t* U = UBuf + index;

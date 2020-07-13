@@ -60,7 +60,9 @@ return table{
 	{
 		name = 'Wave-FD Gaussian',
 		mins = {.3, .3, .3}, 
-		maxs = {20.3, 20.3, 20.3},	
+		maxs = {20.3, 20.3, 20.3},-- paper uses .3 + 20	
+		--maxs = {5.3, 5.3, 5.3},	
+		-- from 2014 Oliveira et al PRD
 		-- paper says grid uses rmax=200
 		-- paper also says r = rmin + j h  "for h the resolution of the grid"
 		-- paper also says h = 1/30 ... 1/2000
@@ -86,7 +88,9 @@ return table{
 		maxs = {20.3, 20.3, 20.3},	
 		initState = function(self, solver)
 			return [[
-	q = cplx_from_real(BESSJ0(x.x));
+	//q = cplx_from_real(BESSJ0(x.x));
+	// bessel deriv
+	q = cplx_from_real(BESSJ1(x.x));
 ]]
 		end,
 	},

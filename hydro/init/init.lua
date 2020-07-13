@@ -62,10 +62,7 @@ end
 		solver.UBufObj:fromCPU(ptr)
 	end)
 
-	solver.initStateKernelObj = solver.initStateProgramObj:kernel('initState', solver.solverBuf, solver.UBuf)
-	if require 'hydro.solver.meshsolver'.is(solver) then
-		solver.initStateKernelObj.obj:setArg(2, solver.cellsBuf)
-	end
+	solver.initStateKernelObj = solver.initStateProgramObj:kernel('initState', solver.solverBuf, solver.UBuf, solver.cellsBuf)
 
 	-- here's an ugly hack ...
 	-- I need a custom init state kernel for the GLM_MHD only
@@ -73,10 +70,7 @@ end
 	-- so ...
 	-- (don't the Einstein solvers also use initDerivs?)
 	if require 'hydro.eqn.glm-mhd'.is(solver.eqn) then
-		solver.initDerivsKernelObj = solver.initStateProgramObj:kernel('initDerivs', solver.solverBuf, solver.UBuf)
-		if require 'hydro.solver.meshsolver'.is(solver) then
-			solver.initDerivsKernelObj.obj:setArg(2, solver.cellsBuf)
-		end
+		solver.initDerivsKernelObj = solver.initStateProgramObj:kernel('initDerivs', solver.solverBuf, solver.UBuf, solver.cellsBuf)
 	end
 end
 

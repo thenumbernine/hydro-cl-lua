@@ -6,14 +6,15 @@ run across each cell
 kernel void calcDT(
 	constant <?=solver.solver_t?>* solver,
 	global real* dtBuf,
-	const global <?=eqn.cons_t?>* UBuf
+	const global <?=eqn.cons_t?>* UBuf,
+	const global <?=solver.coord.cell_t?>* cellBuf
 ) {
 	SETBOUNDS(0,0);
 	if (OOB(numGhost,numGhost)) {
 		dtBuf[index] = INFINITY;
 		return;
 	}
-	real3 x = cell_x(i);
+	real3 x = cellBuf[index].pos;
 
 	const global <?=eqn.cons_t?>* U = UBuf + index;
 
@@ -53,7 +54,6 @@ kernel void calcDT(
 	const global int* cellFaceIndexes	//[numCellFaceIndexes]
 ) {
 	SETBOUNDS(0,0);
-	// same as x = cell_x(i) but using cells+index is less operations
 	const global cell_t* cell = cells + index;
 	real3 x = cell->pos;
 	

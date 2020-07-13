@@ -11,6 +11,7 @@ BSSNOKFiniteDifferenceSolver.name = 'BSSNOK_FiniteDifference'
 -- 3 = 4th order
 BSSNOKFiniteDifferenceSolver.numGhost = 3
 
+-- [=[ commenting out to try to reduce build time
 function BSSNOKFiniteDifferenceSolver:createDisplayComponents()
 	-- skip EinsteinFiniteDifferenceSolver create components
 	EinsteinFiniteDifferenceSolver.super.createDisplayComponents(self)
@@ -66,5 +67,6 @@ function BSSNOKFiniteDifferenceSolver:createDisplayComponents()
 	value->vreal = sym3_dot(value->vsym3, gammaBar_UU);]],
 	})
 end
+--]=]
 
 return BSSNOKFiniteDifferenceSolver

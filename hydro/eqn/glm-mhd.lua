@@ -272,13 +272,11 @@ MHD.initStateCode = [[
 <? local xNames = require 'hydro.common'.xNames ?>
 kernel void initState(
 	constant <?=solver.solver_t?>* solver,
-	global <?=eqn.cons_t?>* UBuf
-<? if require 'hydro.solver.meshsolver'.is(solver) then ?>
-	,const global cell_t* cells
-<? end ?>
+	global <?=eqn.cons_t?>* UBuf,
+	const global <?=solver.coord.cell_t?>* cellBuf
 ) {
 	SETBOUNDS(0,0);
-	real3 x = cell_x(i);
+	real3 x = cellBuf[index].pos;
 	
 	global <?=eqn.cons_t?>* U = UBuf + index;
 	
@@ -315,13 +313,11 @@ end
 
 kernel void initDerivs(
 	constant <?=solver.solver_t?>* solver,
-	global <?=eqn.cons_t?>* UBuf
-<? if require 'hydro.solver.meshsolver'.is(solver) then ?>
-	,const global cell_t* cells
-<? end ?>
+	global <?=eqn.cons_t?>* UBuf,
+	const global <?=solver.coord.cell_t?>* cellBuf
 ) {
 	SETBOUNDS(numGhost,numGhost);
-	real3 x = cell_x(i);
+	real3 x = cellBuf[index].pos;
 	global <?=eqn.cons_t?>* U = UBuf + index;
 <? if require 'hydro.solver.meshsolver'.is(solver) then
 ?>	U->psi = 0.;

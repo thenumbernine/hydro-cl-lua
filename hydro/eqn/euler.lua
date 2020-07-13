@@ -205,13 +205,11 @@ Euler.initStateCode = [[
 <? local xNames = require 'hydro.common'.xNames ?>
 kernel void initState(
 	constant <?=solver.solver_t?>* solver,
-	global <?=eqn.cons_t?>* UBuf
-<? if require 'hydro.solver.meshsolver'.is(solver) then ?>
-	,const global cell_t* cells
-<? end ?>
+	global <?=eqn.cons_t?>* UBuf,
+	const global <?=coord.cell_t?>* cellBuf
 ) {
 	SETBOUNDS(0,0);
-	real3 x = cell_x(i);
+	real3 x = cellBuf[index].pos;
 	
 	global <?=eqn.cons_t?>* U = UBuf + index;
 
@@ -390,14 +388,15 @@ function Euler:getCalcDTCode()
 kernel void calcDT(
 	constant <?=solver.solver_t?>* solver,
 	global real* dtBuf,
-	const global <?=eqn.cons_t?>* UBuf
+	const global <?=eqn.cons_t?>* UBuf,
+	const global <?=solver.coord.cell_t?>* cellBuf
 ) {
 	SETBOUNDS(0,0);
 	if (OOB(numGhost,numGhost)) {
 		dtBuf[index] = INFINITY;
 		return;
 	}
-	real3 x = cell_x(i);
+	real3 x = cellBuf[index].pos;
 
 	const global <?=eqn.cons_t?>* U = UBuf + index;
 	<?=eqn.prim_t?> W = primFromCons(solver, *U, x);
@@ -435,7 +434,7 @@ kernel void calcDT(
 	constant <?=solver.solver_t?>* solver,
 	global real* dtBuf,					//[numCells]
 	const global <?=eqn.cons_t?>* UBuf,	//[numCells]
-	const global cell_t* cells,			//[numCells]
+	const global cell_t* cellBuf,		//[numCells]
 	const global face_t* faces,			//[numFaces]
 	const global int* cellFaceIndexes	//[numCellFaceIndexes]
 ) {
@@ -443,7 +442,7 @@ kernel void calcDT(
 	if (cellIndex >= get_global_size(0)) return;
 	
 	const global <?=eqn.cons_t?>* U = UBuf + cellIndex;
-	const global cell_t* cell = cells + cellIndex;
+	const global cell_t* cell = cellBuf + cellIndex;
 	real3 x = cell->pos;
 
 	real dt = INFINITY;

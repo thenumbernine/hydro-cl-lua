@@ -602,10 +602,11 @@ cons_t eigen_fluxTransform(
 kernel void addSource(
 	constant solver_t* solver,
 	global cons_t* derivBuf,
-	const global cons_t* UBuf
+	const global cons_t* UBuf,
+	const global <?=solver.coord.cell_t?>* cellBuf
 ) {
 	SETBOUNDS_NOGHOST();
-	real3 x = cell_x(i);
+	real3 x = cellBuf[index].pos;
 	global cons_t* deriv = derivBuf + index;
 	const global cons_t* U = UBuf + index;
 
@@ -714,11 +715,12 @@ kernel void addSource(
 
 kernel void constrainU(
 	constant solver_t* solver,
-	global cons_t* UBuf
+	global cons_t* UBuf,
+	const global <?=solver.coord.cell_t?>* cellBuf
 ) {
 	SETBOUNDS(0,0);
 	global cons_t* U = UBuf + index;
-	real3 x = cell_x(i);
+	real3 x = cellBuf[index].pos;
 	prim_t W = primFromCons(solver, *U, x);
 
 <? for _,fluid in ipairs(fluids) do

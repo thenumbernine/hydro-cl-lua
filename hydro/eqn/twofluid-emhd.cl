@@ -541,7 +541,8 @@ cons_t eigen_fluxTransform(
 kernel void addSource(
 	constant solver_t* solver,
 	global cons_t* derivBuf,
-	const global cons_t* UBuf
+	const global cons_t* UBuf,
+	const global <?=solver.coord.cell_t?>* cellBuf
 ) {
 	SETBOUNDS_NOGHOST();
 	global cons_t* deriv = derivBuf + index;
@@ -590,7 +591,7 @@ kernel void addSource(
 	deriv->phi += eps * (U->ion_rho * solver->ionChargeMassRatio + U->elec_rho * elecChargeMassRatio) / unit_C_per_kg * solver->divPhiWavespeed / unit_m_per_s;
 
 <? if not require 'hydro.coord.cartesian'.is(solver.coord) then ?>
-	real3 x = cell_x(i);
+	real3 x = cellBuf[index].pos;
 	//connection coefficient source terms of covariant derivative w/contravariant velocity vectors in a holonomic coordinate system
 	prim_t W = primFromCons(solver, *U, x);
 	real3 conn1_u = coord_conn_trace23(x);
@@ -606,11 +607,12 @@ kernel void addSource(
 
 kernel void constrainU(
 	constant solver_t* solver,
-	global cons_t* UBuf
+	global cons_t* UBuf,
+	const global <?=solver.coord.cell_t?>* cellBuf
 ) {
 	SETBOUNDS(0,0);
 	global cons_t* U = UBuf + index;
-	real3 x = cell_x(i);
+	real3 x = cellBuf[index].pos;
 	prim_t W = primFromCons(solver, *U, x);
 
 <? for _,fluid in ipairs(fluids) do
@@ -630,7 +632,8 @@ kernel void constrainU(
 kernel void calcDT(
 	constant solver_t* solver,
 	global real* dtBuf,
-	const global cons_t* UBuf
+	const global cons_t* UBuf,
+	const global <?=solver.coord.cell_t?>* cellBuf
 ) {
 	SETBOUNDS(0,0);
 	if (OOB(numGhost,numGhost)) {
@@ -638,7 +641,7 @@ kernel void calcDT(
 		return;
 	}
 	
-	real3 x = cell_x(i);
+	real3 x = cellBuf[index].pos;
 	const global cons_t* U = UBuf + index;
 	
 	real eps = solver->sqrt_eps * solver->sqrt_eps / unit_C2_s2_per_kg_m3;

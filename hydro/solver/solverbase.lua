@@ -137,6 +137,7 @@ function SolverBase:initL1(args)
 			if args.name then
 				local path = 'cache-cl/'..solver.app:uniqueName(assert(args.name))
 				if useCache then args.cacheFile = path end
+				file[path..'-attempt'] = args.code	-- write before attempt to compile.  I don't want to write .cl before so that .cl and .bin are always related.
 			end
 			Program.super.init(self, args)
 		
@@ -217,6 +218,8 @@ function SolverBase:preInit(args)
 	else
 		self.coord = require('hydro.coord.'..(args.coord or 'cartesian'))(table({solver=self}, args.coordArgs))
 	end
+	-- hmm, how about a single 'cdef' function? that would go before the 'clalloc's?
+	ffi.cdef(self.coord:getCellTypeCode())
 
 	self.checkNaNs = self.checkNaNs
 	self.useFixedDT = not not args.fixedDT
@@ -637,28 +640,6 @@ function SolverBase:refreshEqnInitState()
 	end
 
 	self:refreshSolverBuf()
-
---[[
-local ptr = ffi.cast(self.eqn.cons_t..'*', self.UBufObj:toCPU())
-local t = self.t
-for i=1,tonumber(self.gridSize.x) do
-	local x = self.solverPtr.mins.x + self.solverPtr.grid_dx.x * (i - self.numGhost - .5)
-	local rho = 1 + .32 * math.sin(2 * math.pi * (x - t))
-	local vx = 1
-	local P = 1
-	local mx = rho * vx
-	local EKin = .5 * rho * vx * vx
-	local EInt = P / (self.solverPtr.heatCapacityRatio - 1)
-	local ETotal = EKin + EInt
-	ptr[i-1].rho = rho
-	ptr[i-1].m.x = mx
-	ptr[i-1].m.y = 0
-	ptr[i-1].m.z = 0
-	ptr[i-1].ETotal = ETotal
-	ptr[i-1].ePot = 0
-end
-self.UBufObj:fromCPU(ptr)
---]]
 end
 
 function SolverBase:refreshSolverBufMinsMaxs()
@@ -866,7 +847,7 @@ function SolverBase:getDisplayCode()
 <? if not require 'hydro.solver.meshsolver'.is(solver) then 
 ?>	int4 dsti = i;\
 	int dstindex = index;\
-	real3 x = cell_x(i);\
+	real3 x = cellsBuf[index].pos;\
 <? for j=0,solver.dim-1 do 
 ?>	i.s<?=j?> = clamp(i.s<?=j?>, numGhost, solver->gridSize.s<?=j?> - numGhost - 1);\
 <? end
@@ -943,11 +924,10 @@ void <?=name?>(
 	int component,
 	int* vectorField,
 	displayValue_t* value,
-	int4 i
-<? if require 'hydro.solver.meshsolver'.is(solver) then ?>
-	,const global cell_t* cells
-<? end ?>
+	int4 i,
+	const global cell_t* cellsBuf
 ) {
+	real3 x = cellsBuf[INDEXV(i)].pos;
 	switch (component) {
 <? 
 for i,component in ipairs(solver.displayComponentFlatList) do
@@ -1153,6 +1133,9 @@ function SolverBase:createCodePrefixHeader()
 		
 		'//SolverBase.eqn:getTypeCode()',
 		self.eqn:getTypeCode(),
+
+		'//SolverBase.coord:getCellTypeCode()',
+		self.coord:getCellTypeCode(),
 		
 		'//SolverBase.solverStruct:getTypeCode()',
 		self.solverStruct:getTypeCode(),	-- true == don't make a union
@@ -1214,7 +1197,7 @@ end
 
 function SolverBase:constrainU()
 	if self.eqn.useConstrainU then
-		self.constrainUKernelObj(self.solverBuf, self.UBuf)
+		self.constrainUKernelObj(self.solverBuf, self.UBuf, self.cellsBuf)
 		if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
 		self:boundary()
 	end
@@ -1327,10 +1310,10 @@ kernel void <?=name?>(
 	constant <?=solver.solver_t?>* solver,
 	DISPLAYFUNC_OUTPUTARGS_<?=texVsBuf:upper()?>(),
 	global const <?=var.bufferType?>* buf,
-	int component<?
+	int component,
+	const global <?=solver.coord.cell_t?>* cellsBuf<? 
 if require 'hydro.solver.meshsolver'.is(solver) then ?>
-	,const global cell_t* cells			//[numCells]
-	,const global face_t* faces			//[numFaces]<?
+	,const global face_t* faces							//[numFaces]<?
 end ?><?= var.extraArgs and #var.extraArgs > 0
 		and ',\n\t'..table.concat(var.extraArgs, ',\n\t')
 		or '' ?>
@@ -1338,10 +1321,7 @@ end ?><?= var.extraArgs and #var.extraArgs > 0
 	INIT_DISPLAYFUNC()
 <?=addTab(var.code)
 ?>	int vectorField = <?=solver:isVarTypeAVectorField(var.type) and '1' or '0'?>;
-	<?=solver:getPickComponentNameForGroup(var)?>(solver, (const global real*)buf, component, &vectorField, &value, i<?
-if require 'hydro.solver.meshsolver'.is(solver) then 
-	?>, cells<? 
-end ?>);
+	<?=solver:getPickComponentNameForGroup(var)?>(solver, (const global real*)buf, component, &vectorField, &value, i, cellsBuf);
 	END_DISPLAYFUNC_<?=texVsBuf:upper()?>()
 }
 ]]
@@ -1398,6 +1378,7 @@ function DisplayVar:setArgs(kernel)
 	kernel:setArg(0, self.solver.solverBuf)
 	kernel:setArg(2, buffer)
 	kernel:setArg(3, int(self.component))
+	kernel:setArg(4, self.solver.cellsBuf)
 end
 
 function DisplayVar:setToTexArgs()
@@ -1430,7 +1411,7 @@ function SolverBase:createDisplayComponents()
 	self:addDisplayComponents('real3', {
 		{name = 'default', type = 'real3', magn='mag'},
 		{name = 'mag', code = 'value->vreal3 = _real3(real3_len(value->vreal3),0,0);'},
-		{name = 'mag metric', code = 'value->vreal3 = _real3(coordLen(value->vreal3, cell_x(i)),0,0);'},
+		{name = 'mag metric', code = 'value->vreal3 = _real3(coordLen(value->vreal3, x),0,0);'},
 		{name = 'x', code = 'value->vreal3 = _real3(value->vreal3.x,0,0);'},
 		{name = 'y', code = 'value->vreal3 = _real3(value->vreal3.y,0,0);'},
 		{name = 'z', code = 'value->vreal3 = _real3(value->vreal3.z,0,0);'},
@@ -1452,9 +1433,9 @@ function SolverBase:createDisplayComponents()
 		{name = 'x mag', code = 'value->vsym3 = _sym3(real3_len(sym3_x(value->vsym3)), 0,0,0,0,0);'},
 		{name = 'y mag', code = 'value->vsym3 = _sym3(real3_len(sym3_y(value->vsym3)), 0,0,0,0,0);'},
 		{name = 'z mag', code = 'value->vsym3 = _sym3(real3_len(sym3_z(value->vsym3)), 0,0,0,0,0);'},
-		{name = 'x mag metric', code = 'value->vsym3 = _sym3(coordLen(sym3_x(value->vsym3), cell_x(i)), 0,0,0,0,0);'},
-		{name = 'y mag metric', code = 'value->vsym3 = _sym3(coordLen(sym3_y(value->vsym3), cell_x(i)), 0,0,0,0,0);'},
-		{name = 'z mag metric', code = 'value->vsym3 = _sym3(coordLen(sym3_z(value->vsym3), cell_x(i)), 0,0,0,0,0);'},
+		{name = 'x mag metric', code = 'value->vsym3 = _sym3(coordLen(sym3_x(value->vsym3), x), 0,0,0,0,0);'},
+		{name = 'y mag metric', code = 'value->vsym3 = _sym3(coordLen(sym3_y(value->vsym3), x), 0,0,0,0,0);'},
+		{name = 'z mag metric', code = 'value->vsym3 = _sym3(coordLen(sym3_z(value->vsym3), x), 0,0,0,0,0);'},
 	})
 	self:addDisplayComponents('cplx', {
 		{name = 'default', type='cplx', magn='abs'},
@@ -1465,7 +1446,7 @@ function SolverBase:createDisplayComponents()
 	})
 	self:addDisplayComponents('cplx3', {
 		{name = 'mag', code = 'value->vcplx3 = _cplx3(cplx_from_real(cplx3_len(value->vcplx3)), cplx_zero, cplx_zero);'},
-		{name = 'mag metric', code = 'value->vcplx3 = _cplx3(cplx_from_real(cplx3_weightedLenSq(value->vcplx3, coord_g_ll(cell_x(i)))), cplx_zero, cplx_zero);'},
+		{name = 'mag metric', code = 'value->vcplx3 = _cplx3(cplx_from_real(cplx3_weightedLenSq(value->vcplx3, coord_g_ll(x))), cplx_zero, cplx_zero);'},
 
 		{name = 'x', code='value->vcplx3 = _cplx3(value->vcplx3.x, cplx_zero, cplx_zero);', type='cplx', magn='x abs'},
 		{name = 'x abs', code = 'value->vcplx3 = _cplx3(cplx_from_real(cplx_abs(value->vcplx3.x)), cplx_zero, cplx_zero);'},
@@ -1488,10 +1469,10 @@ function SolverBase:createDisplayComponents()
 		
 		{name = 're', code = 'value->vreal3 = cplx3_re(value->vcplx3); *(real3*)(value+3) = real3_zero;', type = 'real3', magn='re mag'},
 		{name = 're mag', code = 'value->vcplx3 = _cplx3(cplx_from_real(real3_len(cplx3_re(value->vcplx3))), cplx_zero, cplx_zero);'},
-		{name = 're mag metric', code = 'value->vcplx3 = _cplx3(cplx_from_real(coordLen(cplx3_re(value->vcplx3), cell_x(i))), cplx_zero, cplx_zero);'},
+		{name = 're mag metric', code = 'value->vcplx3 = _cplx3(cplx_from_real(coordLen(cplx3_re(value->vcplx3), x)), cplx_zero, cplx_zero);'},
 		{name = 'im', code = 'value->vreal3 = cplx3_im(value->vcplx3); *(real3*)(value+3) = real3_zero;', type = 'real3', magn='im mag'},
 		{name = 'im mag', code = 'value->vcplx3 = _cplx3(cplx_from_real(real3_len(cplx3_im(value->vcplx3))), cplx_zero, cplx_zero);'},
-		{name = 'im mag metric', code = 'value->vcplx3 = _cplx3(cplx_from_real(coordLen(cplx3_im(value->vcplx3), cell_x(i))), cplx_zero, cplx_zero);'},
+		{name = 'im mag metric', code = 'value->vcplx3 = _cplx3(cplx_from_real(coordLen(cplx3_im(value->vcplx3), x)), cplx_zero, cplx_zero);'},
 	})
 	self:addDisplayComponents('real3x3', {
 		{name = 'xx', code = 'value->vreal3x3 = _real3x3(value->vreal3x3.x.x, 0,0,0,0,0,0,0,0);'},
@@ -1508,7 +1489,7 @@ function SolverBase:createDisplayComponents()
 		
 		{name = 'norm', code = 'value->vreal3x3 = _real3x3(sqrt(real3x3_dot(value->vreal3x3, value->vreal3x3)), 0,0,0,0,0,0,0,0);'},
 		{name = 'tr', code = 'value->vreal3x3 = _real3x3(real3x3_trace(value->vreal3x3), 0,0,0,0,0,0,0,0);'},
-		{name = 'tr metric', code = 'value->vreal3x3 = _real3x3(real3x3_sym3_dot(value->vreal3x3, coord_g_ll(cell_x(i))), 0,0,0,0,0,0,0,0);'},
+		{name = 'tr metric', code = 'value->vreal3x3 = _real3x3(real3x3_sym3_dot(value->vreal3x3, coord_g_ll(x)), 0,0,0,0,0,0,0,0);'},
 		
 		{name = 'x', code = 'value->vreal3 = value->vreal3x3.x; value->vreal3x3.y = real3_zero; value->vreal3x3.z = real3_zero;', type = 'real3', magn='x mag'},
 		{name = 'y', code = 'value->vreal3 = value->vreal3x3.y; value->vreal3x3.y = real3_zero; value->vreal3x3.z = real3_zero;', type = 'real3', magn='y mag'},
@@ -1516,9 +1497,9 @@ function SolverBase:createDisplayComponents()
 		{name = 'x mag', code = 'value->vreal3 = _real3(real3_len(value->vreal3x3.x), 0,0); value->vreal3x3.y = real3_zero; value->vreal3x3.z = real3_zero;'},
 		{name = 'y mag', code = 'value->vreal3 = _real3(real3_len(value->vreal3x3.y), 0,0); value->vreal3x3.y = real3_zero; value->vreal3x3.z = real3_zero;'},
 		{name = 'z mag', code = 'value->vreal3 = _real3(real3_len(value->vreal3x3.z), 0,0); value->vreal3x3.y = real3_zero; value->vreal3x3.z = real3_zero;'},
-		{name = 'x mag metrc', code = 'value->vreal3 = _real3(coordLen(value->vreal3x3.x, cell_x(i)), 0,0); value->vreal3x3.y = real3_zero; value->vreal3x3.z = real3_zero;'},
-		{name = 'y mag metrc', code = 'value->vreal3 = _real3(coordLen(value->vreal3x3.y, cell_x(i)), 0,0); value->vreal3x3.y = real3_zero; value->vreal3x3.z = real3_zero;'},
-		{name = 'z mag metrc', code = 'value->vreal3 = _real3(coordLen(value->vreal3x3.z, cell_x(i)), 0,0); value->vreal3x3.y = real3_zero; value->vreal3x3.z = real3_zero;'},
+		{name = 'x mag metrc', code = 'value->vreal3 = _real3(coordLen(value->vreal3x3.x, x), 0,0); value->vreal3x3.y = real3_zero; value->vreal3x3.z = real3_zero;'},
+		{name = 'y mag metrc', code = 'value->vreal3 = _real3(coordLen(value->vreal3x3.y, x), 0,0); value->vreal3x3.y = real3_zero; value->vreal3x3.z = real3_zero;'},
+		{name = 'z mag metrc', code = 'value->vreal3 = _real3(coordLen(value->vreal3x3.z, x), 0,0); value->vreal3x3.y = real3_zero; value->vreal3x3.z = real3_zero;'},
 		
 		{name = 'T x', code = 'value->vreal3 = _real3(value->vreal3x3.x.x, value->vreal3x3.y.x, value->vreal3x3.z.x); value->vreal3x3.y = real3_zero; value->vreal3x3.z = real3_zero;', type = 'real3', magn='T x mag'},
 		{name = 'T y', code = 'value->vreal3 = _real3(value->vreal3x3.x.y, value->vreal3x3.y.y, value->vreal3x3.z.y); value->vreal3x3.y = real3_zero; value->vreal3x3.z = real3_zero;', type = 'real3', magn='T y mag'},
@@ -1526,9 +1507,9 @@ function SolverBase:createDisplayComponents()
 		{name = 'T x mag', code = 'value->vreal3 = _real3(real3_len(_real3(value->vreal3x3.x.x, value->vreal3x3.y.x, value->vreal3x3.z.x)), 0,0); value->vreal3x3.y = real3_zero; value->vreal3x3.z = real3_zero;'},
 		{name = 'T y mag', code = 'value->vreal3 = _real3(real3_len(_real3(value->vreal3x3.x.y, value->vreal3x3.y.y, value->vreal3x3.z.y)), 0,0); value->vreal3x3.y = real3_zero; value->vreal3x3.z = real3_zero;'},
 		{name = 'T z mag', code = 'value->vreal3 = _real3(real3_len(_real3(value->vreal3x3.x.z, value->vreal3x3.y.z, value->vreal3x3.z.z)), 0,0); value->vreal3x3.y = real3_zero; value->vreal3x3.z = real3_zero;'},
-		{name = 'T x mag metric', code = 'value->vreal3 = _real3(coordLen(_real3(value->vreal3x3.x.x, value->vreal3x3.y.x, value->vreal3x3.z.x), cell_x(i)), 0,0); value->vreal3x3.y = real3_zero; value->vreal3x3.z = real3_zero;'},
-		{name = 'T y mag metric', code = 'value->vreal3 = _real3(coordLen(_real3(value->vreal3x3.x.y, value->vreal3x3.y.y, value->vreal3x3.z.y), cell_x(i)), 0,0); value->vreal3x3.y = real3_zero; value->vreal3x3.z = real3_zero;'},
-		{name = 'T z mag metric', code = 'value->vreal3 = _real3(coordLen(_real3(value->vreal3x3.x.z, value->vreal3x3.y.z, value->vreal3x3.z.z), cell_x(i)), 0,0); value->vreal3x3.y = real3_zero; value->vreal3x3.z = real3_zero;'},
+		{name = 'T x mag metric', code = 'value->vreal3 = _real3(coordLen(_real3(value->vreal3x3.x.x, value->vreal3x3.y.x, value->vreal3x3.z.x), x), 0,0); value->vreal3x3.y = real3_zero; value->vreal3x3.z = real3_zero;'},
+		{name = 'T y mag metric', code = 'value->vreal3 = _real3(coordLen(_real3(value->vreal3x3.x.y, value->vreal3x3.y.y, value->vreal3x3.z.y), x), 0,0); value->vreal3x3.y = real3_zero; value->vreal3x3.z = real3_zero;'},
+		{name = 'T z mag metric', code = 'value->vreal3 = _real3(coordLen(_real3(value->vreal3x3.x.z, value->vreal3x3.y.z, value->vreal3x3.z.z), x), 0,0); value->vreal3x3.y = real3_zero; value->vreal3x3.z = real3_zero;'},
 	})
 
 end
@@ -1975,6 +1956,7 @@ function SolverBase:calcDT()
 		-- TODO this without the border, but that means changing reduce *and display*
 		self.calcDTKernelObj.obj:setArg(0, self.solverBuf)
 		self.calcDTKernelObj.obj:setArg(2, self.UBuf)
+		self.calcDTKernelObj.obj:setArg(3, self.cellsBuf)
 		self.calcDTKernelObj()
 		dt = self.cfl * fromreal(self.reduceMin())
 		if not math.isfinite(dt) then
@@ -2129,7 +2111,7 @@ if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
 		if self.eqn.useSourceTerm then
 if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
 if self.checkNaNs then assert(self:checkFinite(derivBufObj)) end
-			self.addSourceKernelObj(self.solverBuf, derivBufObj.obj, self.UBuf)
+			self.addSourceKernelObj(self.solverBuf, derivBufObj.obj, self.UBuf, self.cellsBuf)
 if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
 if self.checkNaNs then assert(self:checkFinite(derivBufObj)) end
 		end

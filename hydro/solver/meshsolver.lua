@@ -553,7 +553,7 @@ function MeshSolver:createCodePrefix()
 
 	local lines = table{
 		self.codePrefix,
-		self.mesh.meshTypeCode,
+		self.mesh:getMeshTypeCode(),
 	}
 
 	lines:insert[[
@@ -625,7 +625,6 @@ MeshSolver.DisplayVar = MeshSolverDisplayVar
 
 function MeshSolverDisplayVar:setArgs(kernel)
 	MeshSolverDisplayVar.super.setArgs(self, kernel)
-	kernel:setArg(4, self.solver.cellsBuf)
 	kernel:setArg(5, self.solver.facesBuf)
 end
 

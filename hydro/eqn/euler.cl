@@ -286,13 +286,11 @@ cons_t eigen_fluxTransform(
 kernel void addSource(
 	constant solver_t* solver,
 	global cons_t* derivBuf,
-	const global cons_t* UBuf
-<? if require 'hydro.solver.meshsolver'.is(solver) then ?>
-	,const global cell_t* cells
-<? end ?>
+	const global cons_t* UBuf,
+	const global cell_t* cellsBuf
 ) {
 	SETBOUNDS_NOGHOST();
-	real3 x = cell_x(i);
+	real3 x = cellsBuf[index].pos;
 
 	global cons_t* deriv = derivBuf + index;
 	const global cons_t* U = UBuf + index;
@@ -362,13 +360,11 @@ Maybe for an initial constant vel as large as sqrt(2) this fails, but it works o
 
 kernel void constrainU(
 	constant solver_t* solver,
-	global cons_t* UBuf
-<? if require 'hydro.solver.meshsolver'.is(solver) then ?>
-	,const global cell_t* cells
-<? end ?>
+	global cons_t* UBuf,
+	const global cell_t* cellsBuf
 ) {
 	SETBOUNDS(0,0);
-	real3 x = cell_x(i);
+	real3 x = cellsBuf[index].pos;
 
 	global cons_t* U = UBuf + index;
 	prim_t W = primFromCons(solver, *U, x);

@@ -124,6 +124,7 @@ local table = require 'ext.table'
 local range = require 'ext.range'
 local template = require 'template'
 local clnumber = require 'cl.obj.number'
+local Struct = require 'hydro.struct.struct'
 
 local common = require 'hydro.common'
 local xNames = common.xNames
@@ -621,27 +622,60 @@ self.det_g = det_g_expr
 	compileTensorField('sqrt_det_gCode', sqrt_det_gExpr)
 
 
---[[
-TODO
-	store cell information so it doesn't have to be computed over and over again
-	also make this structure flexible per-subclass
-TODO i see this possibly subdividing into coord vs cell
-	gridsolvers use this for cells, meshsolvers use their own cell_t
-	but both gridsolvers and mesh solvers have distinct vector coordinate systems
-TODO use some wrapper functions for computations like 'pos'
-TODO don't include any fields for cartesian - and don't allocate any buffers.
---]]
---[[	
-	local Struct = require 'hydro.struct.struct'
-	self.cellStruct = Struct{
-		name = 'cell_t',
-		vars = {
-			{name='pos', type='real3'},
-		},
-	}
+	self:createCellStruct()
 	self.cellStruct:makeType()
 	self.cell_t = self.cellStruct.typename
+end
+
+function CoordinateSystem:createCellStruct()
+--[[
+ok here's a dilemma ...
+gridSolver has cellBuf that holds cell pos and any other aux vars used for cell calculations
+meshsolver has cellsBuf that holds cell pos and mesh info
+meshsolver needs to pass 'cellsBuf'
+
 --]]
+	self.cellStruct = Struct{
+		solver = self.solver,
+		name = 'cell_t',
+		dontUnion = rue,
+		vars = {
+			{name='pos', type='real3'},	-- x1 x2 x3 input coordinates to the chart
+		},
+	}
+	if require 'hydro.solver.meshsolver'.is(assert(self.solver)) then
+		self.cellStruct.vars:append{
+			{type='real', name='volume'},	--volume of the cell
+			{type='int', name='faceOffset'},
+			{type='int', name='faceCount'},
+			{type='int', name='vtxOffset'},
+			{type='int', name='vtxCount'},
+		}
+	end
+end
+
+function CoordinateSystem:fillGridCellBuf(cellsCPU)
+	local solver = self.solver
+	local index = 0
+	for k=0,tonumber(solver.gridSize.z)-1 do
+		local w = solver.dim >= 3 
+			and ((k + .5 - solver.numGhost) / (tonumber(solver.gridSize.z) - 2 * solver.numGhost) * (solver.maxs.z - solver.mins.z) + solver.mins.z)
+			or (.5 * (solver.maxs.z + solver.mins.z))
+		for j=0,tonumber(solver.gridSize.y)-1 do
+			local v = solver.dim >= 2
+				and ((j + .5 - solver.numGhost) / (tonumber(solver.gridSize.y) - 2 * solver.numGhost) * (solver.maxs.y - solver.mins.y) + solver.mins.y)
+				or (.5 * (solver.maxs.y + solver.mins.y))
+			for i=0,tonumber(solver.gridSize.x)-1 do
+				local u = solver.dim >= 1
+					and ((i + .5 - solver.numGhost) / (tonumber(solver.gridSize.x) - 2 * solver.numGhost) * (solver.maxs.x - solver.mins.x) + solver.mins.x)
+					or (.5 * (solver.maxs.x + solver.mins.x))
+				cellsCPU[index].pos.x = u
+				cellsCPU[index].pos.y = v
+				cellsCPU[index].pos.z = w
+				index = index + 1
+			end
+		end
+	end
 end
 
 function CoordinateSystem:compile(expr)
@@ -1182,6 +1216,19 @@ function CoordinateSystem:getGeodesicGLSLCode()
 	local lines = table()
 	lines:insert(getCode_real3_real3_real3_to_real3('coord_conn_apply23', self.connApply23Codes))
 	return makeGLSL(lines:concat'\n')
+end
+
+
+-- store all input coordinates for our cells
+-- for holonomic/anholonomic this is just the linearly interpolated
+function CoordinateSystem:getCellTypeCode()
+	return self.cellStruct.typecode
+end
+
+function CoordinateSystem:getCellCode()
+	return [[
+#define cell_x(i)	return cellBuf[INDEXV(i)].pos
+]]
 end
 
 --[[

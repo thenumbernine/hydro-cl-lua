@@ -3,7 +3,7 @@ TODO one config per experiment (initial condition + config)
 and no more setting config values (boundary, etc) in the init cond file
 --]]
 
-local dim = cmdline.dim or 2
+local dim = cmdline.dim or 1
 local args = {
 	app = self, 
 	eqn = cmdline.eqn,
@@ -27,7 +27,7 @@ local args = {
 
 	--fixedDT = .0001,
 	fixedDT = cmdline.fixedDT,
-	cfl = cmdline.cfl or .6/dim,	-- 1/dim,
+	cfl = cmdline.cfl or .3/dim,	-- 1/dim,
 	
 	--fluxLimiter = cmdline.fluxLimiter or 'superbee',
 	--fluxLimiter = 'monotized central',
@@ -80,7 +80,7 @@ local args = {
 				{16,16,16},
 			},
 			['Intel(R) OpenCL HD Graphics/Intel(R) Gen9 HD Graphics NEO'] = {
-				{128,1,1},
+				{600,1,1},
 				{128,128,1},
 				
 				-- for 11th WENO (2010 Shen Zha) once we reduce size below 6,6 it breaks
@@ -111,9 +111,9 @@ local args = {
 		-- TODO doesn't work
 	--coordArgs = {vectorComponent='holonomic'},		-- use the coordinate derivatives to represent our vector components (though they may not be normalized)
 		-- TODO doesn't work for rmin=0
-	coordArgs = {vectorComponent='anholonomic'},		-- use orthonormal basis to represent our vector components.
-	--coordArgs = {vectorComponent='cartesian'},		-- use cartesian vector components 
-	mins = cmdline.mins or {0, 0, -1},
+	--coordArgs = {vectorComponent='anholonomic'},		-- use orthonormal basis to represent our vector components.
+	coordArgs = {vectorComponent='cartesian'},		-- use cartesian vector components 
+	mins = cmdline.mins or {.1, 0, -1},
 	maxs = cmdline.maxs or {1, 2*math.pi, 1},			-- TODO bake the 2π into the coordinate chart so this matches grid/cylinder.  Technically θ→2πθ means it isn't the standard θ variable.  I did this for UI convenience with CFDMesh.
 	gridSize = ({
 		{128, 1, 1},	-- 1D
@@ -210,7 +210,7 @@ local args = {
 	--initState = 'Bessel',
 	--initState = 'cyclone',
 	
-	--initState = 'Sod',
+	initState = 'Sod',
 	--initState = 'Sod with physical units',
 	--initStateArgs = {dim=cmdline.displayDim},
 	
@@ -479,6 +479,7 @@ local args = {
 	--initState = 'Gaussian',
 	--initState = 'Ring',
 	--initState = 'Oscillatory',
+	---- piggybacking for my wave-finite-difference here: ----
 	--initState = 'Wave-FD Gaussian',
 	--initState = 'Wave-FD Bessel',
 
@@ -786,7 +787,7 @@ With hyperbolic gamma driver shift it has trouble.
 -- TODO rename to something more telling, like 'wave-ab-mode-fd'
 self.solvers:insert(require 'hydro.solver.wave-fd'(args))
 -- I think b.e. is broke
-self.solvers:insert(require 'hydro.solver.wave-fd'(table(args, {integrator='backward Euler'})))
+--self.solvers:insert(require 'hydro.solver.wave-fd'(table(args, {integrator='backward Euler'})))
 -- referencing this integrator doesn't seem to work
 --self.solvers:insert(require 'hydro.solver.wave-fd'(table(args, {integrator='Iterative Crank-Nicolson'})))
 -- TODO how about a weno-finite-difference solver?
@@ -805,7 +806,7 @@ self.solvers:insert(require 'hydro.solver.wave-fd'(table(args, {integrator='back
 -- hydro-cl GridSolver without fluxLimiter runs 256x256 at 155 fps
 -- hydro-cl MeshSolver runs 50x50 at 2500 fps
 -- hydro-cl MeshSolver runs 256x256 at 70 fps (building the mesh took 4.5 minutes =P)
---self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='euler', mesh={type='quad2d', size={16, 16}}})))
+self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='euler', mesh={type='quad2d', size={16, 16}}})))
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='euler', mesh={type='quad2d', triangulate=true, size={64, 64}}})))
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='euler', mesh={type='p2dfmt', meshfile='n0012_113-33.p2dfmt'}})))	-- TODO needs boundary conditions
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='euler', mesh={type='quad2dcbrt', size={64, 64}}})))
@@ -830,6 +831,7 @@ self.solvers:insert(require 'hydro.solver.wave-fd'(table(args, {integrator='back
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='glm-mhd', mesh={type='polar2d', size={64, 64}}})))
 
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='wave', mesh={type='polar2d', size={64, 64}}})))
+--self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='hll', eqn='wave', mesh={type='polar2d', size={64, 64}}})))
 
 -- rmin=0 without capmin is working
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='mhd', mesh={type='polar2d', size={64, 64}}})))
@@ -964,8 +966,8 @@ local args = {
 	
 	-- only for bssnok-fd-senr
 	--initState = 'SENR sphere-log-radial Minkowski',
-	--initState = 'SENR sphere-log-radial UIUC',
-	initState = 'SENR sphere-log-radial BrillLindquist',
+	initState = 'SENR sphere-log-radial UIUC',
+	--initState = 'SENR sphere-log-radial BrillLindquist',
 	--initState = 'SENR sphere-log-radial BoostedSchwarzschild',
 	--initState = 'SENR sphere-log-radial StaticTrumpet',
 }

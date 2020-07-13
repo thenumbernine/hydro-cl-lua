@@ -52,7 +52,8 @@ output is potentialField, in m^2/s^2
 kernel void solveJacobi<?=op.name?>(
 	constant <?=solver.solver_t?>* solver,
 	global real* writeBuf,
-	const global <?=op:getPotBufType()?>* UBuf<?
+	const global <?=op:getPotBufType()?>* UBuf,
+	const global <?=solver.coord.cell_t?>* cellsBuf<?
 if op.stopOnEpsilon then ?>,
 	global real* reduceBuf<? 
 end ?>
@@ -66,7 +67,7 @@ end ?>
 ?>		return;
 	}
 	
-	real3 x = cell_x(i);
+	real3 x = cellsBuf[index].pos;
 
 	const global <?=op:getPotBufType()?>* U = UBuf + index;
 

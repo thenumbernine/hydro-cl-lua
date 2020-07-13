@@ -38,6 +38,7 @@ local face_t = Struct{
 	},
 }
 
+--[=[ look in coord's cellStruct def for these fields
 local cell_t = Struct{
 	name = 'cell_t',
 	dontUnion = true,
@@ -50,18 +51,7 @@ local cell_t = Struct{
 		{type='int', name='vtxCount'},
 	},
 }
-
-
--- TODO real3 vs vec3f/vec3d ...
-local meshTypeCode = table{
-	vec2i.typeCode,
-	face_t:getTypeCode(),
-	cell_t:getTypeCode()
-}:concat'\n'
-
--- TODO what if real3 isn't defined yet?
-ffi.cdef(meshTypeCode)
-
+--]=]
 
 
 local function new_face_t()
@@ -93,13 +83,29 @@ end
 
 local Mesh = class()
 
-Mesh.meshTypeCode = meshTypeCode
+function Mesh:getMeshTypeCode()
+	-- TODO real3 vs vec3f/vec3d ...
+	local meshTypeCode = table{
+		vec2i.typeCode,
+		face_t:getTypeCode(),
+		--cell_t:getTypeCode()
+	}:concat'\n'
+
+	-- TODO what if real3 isn't defined yet?
+	ffi.cdef(meshTypeCode)
+
+	return meshTypeCode
+end
 
 function Mesh:init(solver)
 	self.solver = solver
+
+	-- cdef
+	self:getMeshTypeCode()
+
 	self.vtxs = vector'real3'
 	self.faces = vector'face_t'
-	self.cells = vector'cell_t'
+	self.cells = vector(solver.coord.cell_t)
 	self.cellFaceIndexes = vector'int'
 	self.cellVtxIndexes = vector'int'
 	self.faceVtxIndexes = vector'int'

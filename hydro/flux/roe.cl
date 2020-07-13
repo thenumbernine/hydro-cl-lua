@@ -110,14 +110,15 @@ kernel void calcFlux(
 	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* fluxBuf,
 	const global <?=solver.getULRArg?>,
-	realparam dt
+	realparam dt,
+	const global <?=solver.coord.cell_t?>* cellsBuf
 ) {
 	typedef <?=eqn.cons_t?> cons_t;
 	typedef <?=eqn.eigen_t?> eigen_t;
 	typedef <?=eqn.waves_t?> waves_t;
 	
 	SETBOUNDS(numGhost,numGhost-1);
-	real3 xR = cell_x(i);
+	real3 xR = cellsBuf[index].pos;
 	int indexR = index;
 	<? for side=0,solver.dim-1 do ?>{
 		const int side = <?=side?>;	

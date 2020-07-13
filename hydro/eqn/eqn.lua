@@ -289,7 +289,9 @@ function Equation:getCodePrefix()
 		self:getPrimConsCode() or '',
 
 		-- parallel propagate autogen code 
-		self:getParallelPropagateCode() or '',
+		-- only used for finite-volume solvers
+		-- also NOTICE there seems to be a bug where the CL compiler stalls when compiling the parallel-propagate code with bssnok-fd
+		require 'hydro.solver.fvsolver'.is(self.solver) and self:getParallelPropagateCode() or '',
 	}:concat'\n'
 end
 
@@ -326,6 +328,7 @@ function Equation:getInitStateCode()
 		eqn = self,
 		code = self.initState:initState(self.solver),
 		solver = self.solver,
+		coord = self.solver.coord,
 	})
 end
 
@@ -669,10 +672,10 @@ function Equation:getParallelPropagateCode()
 			if variance == '' then
 			elseif variance == 'u' then
 ?>	U.<?=var.name?> = coord_parallelPropagateU<?=side?>(U.<?=var.name?>, x, dx);
-<?			
+<?
 			elseif variance == 'l' then
 ?>	U.<?=var.name?> = coord_parallelPropagateL<?=side?>(U.<?=var.name?>, x, dx);
-<?			
+<?
 			else
 				error("don't know how to handle variance for "..('%q'):format(variance))
 			end

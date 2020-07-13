@@ -416,6 +416,8 @@ function GridSolver:createBuffers()
 
 	GridSolver.super.createBuffers(self)
 
+	self:clalloc('cellsBuf', self.coord.cell_t, self.numCells)
+
 	if self.usePLM then
 		-- to get sizeof
 		Struct.safeFFICDef(self:getConsLRTypeCode())
@@ -626,6 +628,20 @@ const global <?=eqn.cons_t?>* UR<?=suffix?> = <?=bufName?> + <?=indexR?>;
 	end
 end
 
+
+function GridSolver:applyInitCond()
+	
+	-- this is a bit disorganized
+	-- this fills the cellsBuf but only for gridsolvers
+	-- and does so by asking the coord obj
+	-- because coord objects can specify arbitrary fields
+	-- (such as x,y,z, r, remapped-r, etc)
+	local cellsCPU = ffi.new(self.coord.cell_t..'[?]', self.numCells)
+	self.coord:fillGridCellBuf(cellsCPU)
+	self.cellsBufObj:fromCPU(cellsCPU)
+
+	GridSolver.super.applyInitCond(self)
+end
 
 -------------------------------------------------------------------------------
 --                                 display vars                              --

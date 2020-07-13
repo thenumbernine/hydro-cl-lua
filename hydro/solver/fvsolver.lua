@@ -46,6 +46,7 @@ function FiniteVolumeSolver:refreshSolverProgram()
 	self.calcDerivFromFluxKernelObj = self.solverProgramObj:kernel{name='calcDerivFromFlux', domain=self.domainWithoutBorder}
 	self.calcDerivFromFluxKernelObj.obj:setArg(0, self.solverBuf)
 	self.calcDerivFromFluxKernelObj.obj:setArg(2, self.fluxBuf)
+	self.calcDerivFromFluxKernelObj.obj:setArg(3, self.cellsBuf)
 end
 
 function FiniteVolumeSolver:getSolverCode()
@@ -75,7 +76,7 @@ if self.checkNaNs then assert(self:checkFinite(derivBufObj)) end
 if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
 if self.checkNaNs then assert(self:checkFinite(derivBufObj)) end
 
-	self.calcFluxKernelObj(self.solverBuf, self.fluxBuf, self:getULRBuf(), dtArg)
+	self.calcFluxKernelObj(self.solverBuf, self.fluxBuf, self:getULRBuf(), dtArg, self.cellsBuf)
 
 if self.checkNaNs then assert(self:checkFinite(self.fluxBufObj)) end
 if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end

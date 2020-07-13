@@ -242,14 +242,12 @@ cons_t eigen_rightTransform(
 kernel void addSource(
 	constant solver_t* solver,
 	global cons_t* derivBuf,
-	const global cons_t* UBuf
-<? if require 'hydro.solver.meshsolver'.is(solver) then ?>
-	,const global cell_t* cells
-<? end ?>
+	const global cons_t* UBuf,
+	const global <?=solver.coord.cell_t?>* cellBuf
 ) {
 #if 0
 	SETBOUNDS_NOGHOST();
-	real3 x = cell_x(i);
+	real3 x = cellBuf[index].pos;
 	
 	global cons_t* deriv = derivBuf + index;
 	const global cons_t* U = UBuf + index;

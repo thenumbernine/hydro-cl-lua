@@ -228,7 +228,10 @@ void setFlatSpace(
 	U->H = 0;
 	U->M_u = real3_zero;
 }
-]], {eqn=self})
+]], {
+		eqn = self,
+		solver = self.solver,
+	})
 end
 
 Z4_2004Bona.initStateCode = [[
@@ -242,10 +245,11 @@ local sym = common.sym
 ?>
 kernel void initState(
 	constant <?=solver.solver_t?>* solver,
-	global <?=eqn.cons_t?>* UBuf
+	global <?=eqn.cons_t?>* UBuf,
+	const global <?=coord.cell_t?>* cellBuf
 ) {
 	SETBOUNDS(0,0);
-	real3 x = cell_x(i);
+	real3 x = cellBuf[index].pos;
 	real3 xc = coordMap(x);
 	real3 mids = real3_real_mul(real3_add(solver->mins, solver->maxs), .5);
 	
