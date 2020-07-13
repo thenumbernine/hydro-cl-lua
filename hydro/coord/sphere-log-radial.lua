@@ -214,8 +214,9 @@ end
 
 function SphereLogRadial:fillGridCellBuf(cellsCPU)
 	local solver = self.solver
-	
-	local calcR = self:compile(self.vars.r)
+
+	local symmath = require 'symmath'
+	local calcR = symmath.export.Lua:compile(self.vars.r, self.baseCoords)
 
 	local index = 0
 	for k=0,tonumber(solver.gridSize.z)-1 do

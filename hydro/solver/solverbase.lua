@@ -215,6 +215,7 @@ function SolverBase:preInit(args)
 
 	if require 'hydro.coord.coord'.is(args.coord) then
 		self.coord = args.coord	-- ptr copy expected by AMR
+		self.coord.solver = self
 	else
 		self.coord = require('hydro.coord.'..(args.coord or 'cartesian'))(table({solver=self}, args.coordArgs))
 	end
@@ -925,7 +926,7 @@ void <?=name?>(
 	int* vectorField,
 	displayValue_t* value,
 	int4 i,
-	const global cell_t* cellsBuf
+	const global <?=solver.coord.cell_t?>* cellsBuf
 ) {
 	real3 x = cellsBuf[INDEXV(i)].pos;
 	switch (component) {
@@ -1162,7 +1163,7 @@ if not SolverBase.useCLLinkLibraries then
 end	
 	lines:append{
 		'//solver.coord:getCode()',
-		self.coord:getCode(self) or '',
+		self.coord:getCode() or '',
 		
 		'//solver.eqn:getCodePrefix()',
 		self.eqn:getCodePrefix() or '',

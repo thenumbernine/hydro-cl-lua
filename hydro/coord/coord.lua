@@ -149,6 +149,7 @@ args:
 		cartesian = cartesian components even in the presence of curvilinear coordinates 
 --]]
 function CoordinateSystem:init(args)
+	self.solver = assert(args.solver)
 	self.replvars = self.replvars or table()
 
 	local symmath = require 'symmath'
@@ -899,10 +900,9 @@ but then we have these cell_x[_for_grid]<?=side?> functions which take an input 
 should I add these _for_coord _for_grid suffixes to specify what manfiold system the input parameter is? 
 
 --]]
-function CoordinateSystem:getCode(solver)
+function CoordinateSystem:getCode()
 	if self.code then return self.code end
 	
-	self.solver = solver
 	-- 3 since all our base types are in 'real3', 'sym3', etc
 	-- what about removing this restriction?
 	local dim = 3

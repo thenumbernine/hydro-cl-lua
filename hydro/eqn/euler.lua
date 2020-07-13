@@ -434,7 +434,7 @@ kernel void calcDT(
 	constant <?=solver.solver_t?>* solver,
 	global real* dtBuf,					//[numCells]
 	const global <?=eqn.cons_t?>* UBuf,	//[numCells]
-	const global cell_t* cellBuf,		//[numCells]
+	const global <?=solver.coord.cell_t?>* cellBuf,		//[numCells]
 	const global face_t* faces,			//[numFaces]
 	const global int* cellFaceIndexes	//[numCellFaceIndexes]
 ) {
@@ -442,7 +442,7 @@ kernel void calcDT(
 	if (cellIndex >= get_global_size(0)) return;
 	
 	const global <?=eqn.cons_t?>* U = UBuf + cellIndex;
-	const global cell_t* cell = cellBuf + cellIndex;
+	const global <?=solver.coord.cell_t?>* cell = cellBuf + cellIndex;
 	real3 x = cell->pos;
 
 	real dt = INFINITY;
