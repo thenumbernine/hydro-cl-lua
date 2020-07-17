@@ -287,10 +287,10 @@ kernel void addSource(
 	constant solver_t* solver,
 	global cons_t* derivBuf,
 	const global cons_t* UBuf,
-	const global <?=solver.coord.cell_t?>* cellsBuf
+	const global <?=solver.coord.cell_t?>* cellBuf
 ) {
 	SETBOUNDS_NOGHOST();
-	real3 x = cellsBuf[index].pos;
+	real3 x = cellBuf[index].pos;
 
 	global cons_t* deriv = derivBuf + index;
 	const global cons_t* U = UBuf + index;
@@ -361,10 +361,10 @@ Maybe for an initial constant vel as large as sqrt(2) this fails, but it works o
 kernel void constrainU(
 	constant solver_t* solver,
 	global cons_t* UBuf,
-	const global <?=solver.coord.cell_t?>* cellsBuf
+	const global <?=solver.coord.cell_t?>* cellBuf
 ) {
 	SETBOUNDS(0,0);
-	real3 x = cellsBuf[index].pos;
+	real3 x = cellBuf[index].pos;
 
 	global cons_t* U = UBuf + index;
 	prim_t W = primFromCons(solver, *U, x);

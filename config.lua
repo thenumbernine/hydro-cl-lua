@@ -871,6 +871,7 @@ local args = {
 	
 	eqn = 'bssnok-fd-num', 
 	--eqn = 'bssnok-fd-sym', 
+	--eqn = 'bssnok-fd-senr', 
 	
 	eqnArgs = {
 		--useShift = 'none',
@@ -971,14 +972,17 @@ local args = {
 	--initState = 'SENR sphere-log-radial BoostedSchwarzschild',
 	--initState = 'SENR sphere-log-radial StaticTrumpet',
 }
---self.solvers:insert(require 'hydro.solver.bssnok-fd-pirk'(table(args, {eqn = 'bssnok-fd-num'})))
+--self.solvers:insert(require 'hydro.solver.bssnok-fd-pirk'(table(args, {eqn = 'bssnok-fd-num'})))	-- requires extra PIRK kernels to be defined in the eqn file
 --self.solvers:insert(require 'hydro.solver.bssnok-fd'(table(args, {eqn = 'bssnok-fd-num'})))
 --self.solvers:insert(require 'hydro.solver.bssnok-fd'(table(args, {eqn = 'bssnok-fd-sym'})))
---self.solvers:insert(require 'hydro.solver.bssnok-fd-senr'(args))
+--self.solvers:insert(require 'hydro.solver.bssnok-fd'(table(args, {eqn = 'bssnok-fd-senr'})))
 if cmdline.bssnok_fd_num then
 	self.solvers:insert(require 'hydro.solver.bssnok-fd'(table(args, {eqn = 'bssnok-fd-num'})))
 end
+if cmdline.bssnok_fd_sym then
+	self.solvers:insert(require 'hydro.solver.bssnok-fd'(table(args, {eqn = 'bssnok-fd-sym'})))
+end
 if cmdline.bssnok_fd_senr then
-	self.solvers:insert(require 'hydro.solver.bssnok-fd-senr'(args))
+	self.solvers:insert(require 'hydro.solver.bssnok-fd'(table(args, {eqn = 'bssnok-fd-senr'})))
 end
 --]=]

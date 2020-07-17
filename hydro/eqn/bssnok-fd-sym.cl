@@ -376,10 +376,11 @@ const int4 getUpwind(real3 v) {
 kernel void calcDeriv(
 	constant solver_t* solver,
 	global cons_t* derivBuf,
-	const global cons_t* UBuf
+	const global cons_t* UBuf,
+	const global <?=solver.coord.cell_t?>* cellBuf
 ) {
 	SETBOUNDS(numGhost,numGhost);
-	real3 x = cell_x(i);
+	real3 x = cellBuf[index].pos;
 	global cons_t* deriv = derivBuf + index;
 	const global cons_t* U = UBuf + index;
 	int4 updir = getUpwind(U->beta_U);
@@ -490,11 +491,12 @@ kernel void calcDeriv(
 
 kernel void constrainU(
 	constant solver_t* solver,
-	global cons_t* UBuf
+	global cons_t* UBuf,
+	const global <?=solver.coord.cell_t?>* cellBuf
 ) {
 <? if useConstrainU then ?>	
 	SETBOUNDS(numGhost,numGhost);
-	real3 x = cell_x(i);
+	real3 x = cellBuf[index].pos;
 	global cons_t* U = UBuf + index;
 
 <?=assignRepls(cos_xs)?>
@@ -572,7 +574,8 @@ then
 kernel void addSource(
 	constant solver_t* solver,
 	global cons_t* derivBuf,
-	const global cons_t* UBuf
+	const global cons_t* UBuf,
+	const global <?=solver.coord.cell_t?>* cellBuf
 ) {
 <? if useAddSource then ?>
 	SETBOUNDS_NOGHOST();
@@ -600,14 +603,15 @@ end
 kernel void calcDT(
 	constant <?=solver.solver_t?>* solver,
 	global real* dtBuf,
-	const global <?=eqn.cons_t?>* UBuf
+	const global <?=eqn.cons_t?>* UBuf,
+	const global <?=solver.coord.cell_t?>* cellBuf
 ) {
 	SETBOUNDS(0,0);
 	if (OOB(numGhost,numGhost)) {
 		dtBuf[index] = INFINITY;
 		return;
 	}
-	real3 x = cell_x(i);
+	real3 x = cellBuf[index].pos;
 	const global <?=eqn.cons_t?>* U = UBuf + index;
 
 <? if eqn.cflMethod == '2008 Alcubierre' then

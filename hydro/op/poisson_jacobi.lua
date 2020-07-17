@@ -53,7 +53,7 @@ kernel void solveJacobi<?=op.name?>(
 	constant <?=solver.solver_t?>* solver,
 	global real* writeBuf,
 	const global <?=op:getPotBufType()?>* UBuf,
-	const global <?=solver.coord.cell_t?>* cellsBuf<?
+	const global <?=solver.coord.cell_t?>* cellBuf<?
 if op.stopOnEpsilon then ?>,
 	global real* reduceBuf<? 
 end ?>
@@ -67,7 +67,7 @@ end ?>
 ?>		return;
 	}
 	
-	real3 x = cellsBuf[index].pos;
+	real3 x = cellBuf[index].pos;
 
 	const global <?=op:getPotBufType()?>* U = UBuf + index;
 

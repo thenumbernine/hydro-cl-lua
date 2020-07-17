@@ -8,6 +8,8 @@ BSSNOKFiniteDifferenceSolver.name = 'BSSNOK_FiniteDifference'
 -- split into bssnok-fd-num and bssnok-fd-sym
 --BSSNOKFiniteDifferenceSolver.eqnName = 'bssnok-fd'
 
+-- right now certain constraints like mirror are designed to work with numGhost=2
+-- use numGhost=3 for compat with SENR
 -- 3 = 4th order
 BSSNOKFiniteDifferenceSolver.numGhost = 3
 

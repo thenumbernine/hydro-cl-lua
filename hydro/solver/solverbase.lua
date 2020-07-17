@@ -848,7 +848,7 @@ function SolverBase:getDisplayCode()
 <? if not require 'hydro.solver.meshsolver'.is(solver) then 
 ?>	int4 dsti = i;\
 	int dstindex = index;\
-	real3 x = cellsBuf[index].pos;\
+	real3 x = cellBuf[index].pos;\
 <? for j=0,solver.dim-1 do 
 ?>	i.s<?=j?> = clamp(i.s<?=j?>, numGhost, solver->gridSize.s<?=j?> - numGhost - 1);\
 <? end
@@ -926,9 +926,9 @@ void <?=name?>(
 	int* vectorField,
 	displayValue_t* value,
 	int4 i,
-	const global <?=solver.coord.cell_t?>* cellsBuf
+	const global <?=solver.coord.cell_t?>* cellBuf
 ) {
-	real3 x = cellsBuf[INDEXV(i)].pos;
+	real3 x = cellBuf[INDEXV(i)].pos;
 	switch (component) {
 <? 
 for i,component in ipairs(solver.displayComponentFlatList) do
@@ -1198,7 +1198,7 @@ end
 
 function SolverBase:constrainU()
 	if self.eqn.useConstrainU then
-		self.constrainUKernelObj(self.solverBuf, self.UBuf, self.cellsBuf)
+		self.constrainUKernelObj(self.solverBuf, self.UBuf, self.cellBuf)
 		if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
 		self:boundary()
 	end
@@ -1312,7 +1312,7 @@ kernel void <?=name?>(
 	DISPLAYFUNC_OUTPUTARGS_<?=texVsBuf:upper()?>(),
 	global const <?=var.bufferType?>* buf,
 	int component,
-	const global <?=solver.coord.cell_t?>* cellsBuf<? 
+	const global <?=solver.coord.cell_t?>* cellBuf<? 
 if require 'hydro.solver.meshsolver'.is(solver) then ?>
 	,const global face_t* faces							//[numFaces]<?
 end ?><?= var.extraArgs and #var.extraArgs > 0
@@ -1322,7 +1322,7 @@ end ?><?= var.extraArgs and #var.extraArgs > 0
 	INIT_DISPLAYFUNC()
 <?=addTab(var.code)
 ?>	int vectorField = <?=solver:isVarTypeAVectorField(var.type) and '1' or '0'?>;
-	<?=solver:getPickComponentNameForGroup(var)?>(solver, (const global real*)buf, component, &vectorField, &value, i, cellsBuf);
+	<?=solver:getPickComponentNameForGroup(var)?>(solver, (const global real*)buf, component, &vectorField, &value, i, cellBuf);
 	END_DISPLAYFUNC_<?=texVsBuf:upper()?>()
 }
 ]]
@@ -1379,7 +1379,7 @@ function DisplayVar:setArgs(kernel)
 	kernel:setArg(0, self.solver.solverBuf)
 	kernel:setArg(2, buffer)
 	kernel:setArg(3, int(self.component))
-	kernel:setArg(4, self.solver.cellsBuf)
+	kernel:setArg(4, self.solver.cellBuf)
 end
 
 function DisplayVar:setToTexArgs()
@@ -1746,6 +1746,7 @@ function SolverBase:finalizeDisplayVars()
 					dupvar.name = dupvar.name..' '..component.name
 				end
 				self.displayVars:insert(dupvar)
+				dupvar.varIndex = #self.displayVars
 				newGroupVars:insert(dupvar)
 			end
 		end
@@ -1957,7 +1958,7 @@ function SolverBase:calcDT()
 		-- TODO this without the border, but that means changing reduce *and display*
 		self.calcDTKernelObj.obj:setArg(0, self.solverBuf)
 		self.calcDTKernelObj.obj:setArg(2, self.UBuf)
-		self.calcDTKernelObj.obj:setArg(3, self.cellsBuf)
+		self.calcDTKernelObj.obj:setArg(3, self.cellBuf)
 		self.calcDTKernelObj()
 		dt = self.cfl * fromreal(self.reduceMin())
 		if not math.isfinite(dt) then
@@ -2112,7 +2113,7 @@ if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
 		if self.eqn.useSourceTerm then
 if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
 if self.checkNaNs then assert(self:checkFinite(derivBufObj)) end
-			self.addSourceKernelObj(self.solverBuf, derivBufObj.obj, self.UBuf, self.cellsBuf)
+			self.addSourceKernelObj(self.solverBuf, derivBufObj.obj, self.UBuf, self.cellBuf)
 if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
 if self.checkNaNs then assert(self:checkFinite(derivBufObj)) end
 		end

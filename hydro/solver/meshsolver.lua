@@ -341,7 +341,7 @@ function MeshSolver:createBuffers()
 	MeshSolver.super.createBuffers(self)
 
 	self:clalloc('vtxBuf', 'real3', self.numVtxs)
-	self:clalloc('cellsBuf', 'cell_t', self.numCells)
+	self:clalloc('cellBuf', 'cell_t', self.numCells)
 	self:clalloc('facesBuf', 'face_t', self.numFaces)
 	self:clalloc('cellFaceIndexesBuf', 'int', self.numCellFaceIndexes)
 	
@@ -353,7 +353,7 @@ function MeshSolver:finalizeCLAllocs()
 	MeshSolver.super.finalizeCLAllocs(self)
 
 	self.vtxBufObj:fromCPU(self.mesh.vtxs.v)
-	self.cellsBufObj:fromCPU(self.mesh.cells.v)
+	self.cellBufObj:fromCPU(self.mesh.cells.v)
 	self.facesBufObj:fromCPU(self.mesh.faces.v)
 	self.cellFaceIndexesBufObj:fromCPU(self.mesh.cellFaceIndexes.v)
 	self.cmds:finish()
@@ -396,10 +396,10 @@ function MeshSolver:refreshSolverProgram()
 
 	-- solverbase:
 	if self.eqn.useSourceTerm then
-		self.addSourceKernelObj.obj:setArg(3, self.cellsBuf)
+		self.addSourceKernelObj.obj:setArg(3, self.cellBuf)
 	end
 	if self.eqn.useConstrainU then
-		self.constrainUKernelObj.obj:setArg(2, self.cellsBuf)
+		self.constrainUKernelObj.obj:setArg(2, self.cellBuf)
 	end
 
 	-- fvsolver:
@@ -407,14 +407,14 @@ function MeshSolver:refreshSolverProgram()
 	self.calcFluxKernelObj.obj:setArg(0, self.solverBuf)
 	self.calcFluxKernelObj.obj:setArg(1, self.fluxBuf)
 	self.calcFluxKernelObj.obj:setArg(2, self.UBuf)
-	self.calcFluxKernelObj.obj:setArg(4, self.cellsBuf)
+	self.calcFluxKernelObj.obj:setArg(4, self.cellBuf)
 	self.calcFluxKernelObj.obj:setArg(5, self.facesBuf)
 	self.calcFluxKernelObj.obj:setArg(6, self.cellFaceIndexesBuf)
 
 	self.calcDerivFromFluxKernelObj = self.solverProgramObj:kernel'calcDerivFromFlux'
 	self.calcDerivFromFluxKernelObj.obj:setArg(0, self.solverBuf)
 	self.calcDerivFromFluxKernelObj.obj:setArg(2, self.fluxBuf)
-	self.calcDerivFromFluxKernelObj.obj:setArg(3, self.cellsBuf)
+	self.calcDerivFromFluxKernelObj.obj:setArg(3, self.cellBuf)
 	self.calcDerivFromFluxKernelObj.obj:setArg(4, self.facesBuf)
 	self.calcDerivFromFluxKernelObj.obj:setArg(5, self.cellFaceIndexesBuf)
 end
@@ -583,14 +583,14 @@ function MeshSolver:refreshCalcDTKernel()
 	MeshSolver.super.refreshCalcDTKernel(self)
 	-- TODO combine these, and offset one into the other?
 	-- because I'm going to need more than just these...
-	self.calcDTKernelObj.obj:setArg(3, self.cellsBuf)
+	self.calcDTKernelObj.obj:setArg(3, self.cellBuf)
 	self.calcDTKernelObj.obj:setArg(4, self.facesBuf)
 	self.calcDTKernelObj.obj:setArg(5, self.cellFaceIndexesBuf)
 end
 
 function MeshSolver:calcDT()
 	if not self.useFixedDT then
-		self.calcDTKernelObj.obj:setArg(3, self.cellsBuf)
+		self.calcDTKernelObj.obj:setArg(3, self.cellBuf)
 		self.calcDTKernelObj.obj:setArg(4, self.facesBuf)
 		self.calcDTKernelObj.obj:setArg(5, self.cellFaceIndexesBuf)
 	end

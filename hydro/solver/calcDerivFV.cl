@@ -10,13 +10,13 @@ kernel void calcDerivFromFlux(
 	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* derivBuf,
 	const global <?=eqn.cons_t?>* fluxBuf,
-	const global <?=solver.coord.cell_t?>* cellsBuf
+	const global <?=solver.coord.cell_t?>* cellBuf
 ) {
 	typedef <?=eqn.cons_t?> cons_t;
 	
 	SETBOUNDS_NOGHOST();
 	global cons_t* deriv = derivBuf + index;
-	real3 x = cellsBuf[index].pos;
+	real3 x = cellBuf[index].pos;
 
 /*<?--[[
 volume vs area ...

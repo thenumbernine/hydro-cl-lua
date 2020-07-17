@@ -50,7 +50,7 @@ function GLM_MHD_UpdatePsi:refreshSolverProgram()
 	local solver = self.solver
 	self.updatePsiKernelObj = solver.solverProgramObj:kernel('updatePsi', solver.solverBuf, solver.UBuf)
 	if require 'hydro.solver.meshsolver'.is(solver) then
-		self.updatePsiKernelObj.obj:setArg(3, solver.cellsBuf)
+		self.updatePsiKernelObj.obj:setArg(3, solver.cellBuf)
 	end
 end
 

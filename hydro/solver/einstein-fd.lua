@@ -24,6 +24,7 @@ function EinsteinFiniteDifferenceSolver:refreshSolverProgram()
 	self.calcDerivKernelObj = self.solverProgramObj:kernel'calcDeriv'
 	self.calcDerivKernelObj.obj:setArg(0, self.solverBuf)
 	self.calcDerivKernelObj.obj:setArg(2, self.UBuf)
+	self.calcDerivKernelObj.obj.setArg(3, self.cellBuf)
 end
 
 function EinsteinFiniteDifferenceSolver:calcDeriv(derivBufObj, dt)

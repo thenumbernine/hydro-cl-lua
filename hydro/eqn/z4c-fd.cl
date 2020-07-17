@@ -56,10 +56,11 @@ sym3 tracefree(sym3 A_ll, sym3 gamma_ll, sym3 gamma_uu) {
 
 kernel void constrainU(
 	constant <?=solver.solver_t?>* solver,
-	global <?=eqn.cons_t?>* UBuf
+	global <?=eqn.cons_t?>* UBuf,
+	const global <?=solver.coord.cell_t?>* cellBuf
 ) {
 	SETBOUNDS(numGhost,numGhost);
-	real3 x = cell_x(i);
+	real3 x = cellBuf[index].pos;
 	global <?=eqn.cons_t?>* U = UBuf + index;
 
 <? 
@@ -115,10 +116,11 @@ end
 kernel void calcDeriv(
 	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* derivBuf,
-	const global <?=eqn.cons_t?>* UBuf
+	const global <?=eqn.cons_t?>* UBuf,
+	const global <?=solver.coord.cell_t?>* cellBuf
 ) {
 	SETBOUNDS(numGhost,numGhost);
-	real3 x = cell_x(i);
+	real3 x = cellBuf[index].pos;
 	global <?=eqn.cons_t?>* deriv = derivBuf + index;
 
 	const global <?=eqn.cons_t?>* U = UBuf + index;
@@ -654,7 +656,8 @@ end ?>
 kernel void addSource(
 	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* derivBuf,
-	global <?=eqn.cons_t?>* UBuf
+	global <?=eqn.cons_t?>* UBuf,
+	const global <?=solver.coord.cell_t?>* cellBuf
 ) {
 <? if false then ?>
 	SETBOUNDS_NOGHOST();
@@ -680,14 +683,15 @@ end
 kernel void calcDT(
 	constant <?=solver.solver_t?>* solver,
 	global real* dtBuf,
-	const global <?=eqn.cons_t?>* UBuf
+	const global <?=eqn.cons_t?>* UBuf,
+	const global <?=solver.coord.cell_t?>* cellBuf
 ) {
 	SETBOUNDS(0,0);
 	if (OOB(numGhost,numGhost)) {
 		dtBuf[index] = INFINITY;
 		return;
 	}
-	real3 x = cell_x(i);
+	real3 x = cellBuf[index].pos;
 	const global <?=eqn.cons_t?>* U = UBuf + index;
 
 	sym3 gamma_uu = calc_gamma_uu(U, x);

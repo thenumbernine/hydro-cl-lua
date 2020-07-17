@@ -123,7 +123,7 @@ function BSSNOKFiniteDifferencePIRKSolver:step(dt)
 -- step 1: evolve epsilon_IJ, alpha, W, beta^I
 
 	-- derivL1_n = PIRK_L1 (epsilon_IJ, W, alpha, beta^I) based on UBuf of fields epsilon_IJ, W, alpha, beta^I
-	self.calcDeriv_PIRK_L1_EpsilonWAlphaBeta_KernelObj(self.solverBuf, self.derivL1_n, self.UBuf)
+	self.calcDeriv_PIRK_L1_EpsilonWAlphaBeta_KernelObj(self.solverBuf, self.derivL1_n, self.UBuf, self.cellBuf)
 
 	-- U1 = UBuf + dt * derivL1_n fields epsilon_IJ, W, alpha, beta^I
 	self.PIRK_Eq1_EpsilonWAlphaBeta_KernelObj(self.solverBuf, self.U1, self.UBuf, self.derivL1_n, real(dt))
@@ -139,9 +139,9 @@ function BSSNOKFiniteDifferencePIRKSolver:step(dt)
 	-- derivL2_n = PIRK L2 part2 (LambdaBar^I) based on UBuf 
 	-- derivL2_1 = PIRK L2 part2 (LambdaBar^I) based on UTemp
 	-- derivL3_n = PIRK L3 part2 (LambdaBar^I) based on UBuf
-	self.calcDeriv_PIRK_L2_LambdaBar_KernelObj(self.solverBuf, self.derivL2_n, self.UBuf)
-	self.calcDeriv_PIRK_L2_LambdaBar_KernelObj(self.solverBuf, self.derivL2_1, self.UTemp)
-	self.calcDeriv_PIRK_L3_LambdaBar_KernelObj(self.solverBuf, self.derivL3_n, self.UBuf)
+	self.calcDeriv_PIRK_L2_LambdaBar_KernelObj(self.solverBuf, self.derivL2_n, self.UBuf, self.cellBuf)
+	self.calcDeriv_PIRK_L2_LambdaBar_KernelObj(self.solverBuf, self.derivL2_1, self.UTemp, self.cellBuf)
+	self.calcDeriv_PIRK_L3_LambdaBar_KernelObj(self.solverBuf, self.derivL3_n, self.UBuf, self.cellBuf)
 
 	-- U1 = UBuf + dt * (.5 * (derivL2_n + derivL2_1) + derivL3_n)
 	self.PIRK_Eq2_LambdaBar_KernelObj(self.solverBuf, self.U1, self.UBuf, self.derivL2_n, self.derivL2_1, self.derivL3_n, real(dt))
@@ -154,9 +154,9 @@ function BSSNOKFiniteDifferencePIRKSolver:step(dt)
 	-- derivL2_n = PIRK L2 part1 (ABar_IJ, K) based on UBuf
 	-- derivL2_1 = PIRK L2 part1 (ABar_IJ, K) based on U1
 	-- derivL3_n = PIRK L3 part1 (ABar_IJ, K) based on UBuf
-	self.calcDeriv_PIRK_L2_ABarK_KernelObj(self.solverBuf, self.derivL2_n, self.UBuf)
-	self.calcDeriv_PIRK_L2_ABarK_KernelObj(self.solverBuf, self.derivL2_1, self.U1)
-	self.calcDeriv_PIRK_L3_ABarK_KernelObj(self.solverBuf, self.derivL3_n, self.UBuf)
+	self.calcDeriv_PIRK_L2_ABarK_KernelObj(self.solverBuf, self.derivL2_n, self.UBuf, self.cellBuf)
+	self.calcDeriv_PIRK_L2_ABarK_KernelObj(self.solverBuf, self.derivL2_1, self.U1, self.cellBuf)
+	self.calcDeriv_PIRK_L3_ABarK_KernelObj(self.solverBuf, self.derivL3_n, self.UBuf, self.cellBuf)
 
 	-- U1 = UBuf + dt * (.5 * (derivL2_n + derivL2_1) + derivL3_n)
 	self.PIRK_Eq2_ABarK_KernelObj(self.solverBuf, self.U1, self.UBuf, self.derivL2_n, self.derivL2_1, self.derivL3_n, real(dt))
@@ -169,9 +169,9 @@ function BSSNOKFiniteDifferencePIRKSolver:step(dt)
 	-- derivL2_n = PIRK L2 part2 (LambdaBar^I) based on UBuf 
 	-- derivL2_1 = PIRK L2 part2 (LambdaBar^I) based on U1
 	-- derivL3_n = PIRK L3 part2 (LambdaBar^I) based on UBuf
-	self.calcDeriv_PIRK_L2_LambdaBar_KernelObj(self.solverBuf, self.derivL2_n, self.UBuf)
-	self.calcDeriv_PIRK_L2_LambdaBar_KernelObj(self.solverBuf, self.derivL2_1, self.U1)
-	self.calcDeriv_PIRK_L3_LambdaBar_KernelObj(self.solverBuf, self.derivL3_n, self.UBuf)
+	self.calcDeriv_PIRK_L2_LambdaBar_KernelObj(self.solverBuf, self.derivL2_n, self.UBuf, self.cellBuf)
+	self.calcDeriv_PIRK_L2_LambdaBar_KernelObj(self.solverBuf, self.derivL2_1, self.U1, self.cellBuf)
+	self.calcDeriv_PIRK_L3_LambdaBar_KernelObj(self.solverBuf, self.derivL3_n, self.UBuf, self.cellBuf)
 	
 	-- U1 = UBuf + dt * (.5 * (derivL2_n + derivL2_1) + derivL3_n)
 	self.PIRK_Eq2_LambdaBar_KernelObj(self.solverBuf, self.U1, self.UBuf, self.derivL2_n, self.derivL2_1, self.derivL3_n, real(dt))
@@ -184,9 +184,9 @@ function BSSNOKFiniteDifferencePIRKSolver:step(dt)
 	-- derivL2_n = PIRK L2 part3 (B^I) based on UBuf 
 	-- derivL2_1 = PIRK L2 part3 (B^I) based on U1
 	-- derivL3_n = PIRK L3 part3 (B^I) based on UBuf
-	self.calcDeriv_PIRK_L2_B_KernelObj(self.solverBuf, self.derivL2_n, self.UBuf)
-	self.calcDeriv_PIRK_L2_B_KernelObj(self.solverBuf, self.derivL2_1, self.U1)
-	self.calcDeriv_PIRK_L3_B_KernelObj(self.solverBuf, self.derivL3_n, self.UBuf)
+	self.calcDeriv_PIRK_L2_B_KernelObj(self.solverBuf, self.derivL2_n, self.UBuf, self.cellBuf)
+	self.calcDeriv_PIRK_L2_B_KernelObj(self.solverBuf, self.derivL2_1, self.U1, self.cellBuf)
+	self.calcDeriv_PIRK_L3_B_KernelObj(self.solverBuf, self.derivL3_n, self.UBuf, self.cellBuf)
 	
 	-- U1 = UBuf + dt * (.5 * (derivL2_n + derivL2_1) + derivL3_n)
 	self.PIRK_Eq2_B_KernelObj(self.solverBuf, self.U1, self.UBuf, self.derivL2_n, self.derivL2_1, self.derivL3_n, real(dt))
@@ -197,7 +197,7 @@ function BSSNOKFiniteDifferencePIRKSolver:step(dt)
 -- step 6: epsilon_IJ, W, alpha, beta^I
 
 	-- derivL1_1 = PIRK L1 (epsilon_IJ, W, alpha, beta^I) of U1
-	self.calcDeriv_PIRK_L1_EpsilonWAlphaBeta_KernelObj(self.solverBuf, self.derivL1_1, self.U1)
+	self.calcDeriv_PIRK_L1_EpsilonWAlphaBeta_KernelObj(self.solverBuf, self.derivL1_1, self.U1, self.cellBuf)
 	
 	-- UNext = .5 * (UBuf + U1 + dt * derivL1_1)
 	self.PIRK_Eq3_EpsilonWAlphaBeta_KernelObj(self.solverBuf, self.UNext, self.UBuf, self.U1, self.derivL1_1, real(dt))
@@ -214,10 +214,10 @@ function BSSNOKFiniteDifferencePIRKSolver:step(dt)
 	-- derivL2_next = PIRK L2 part2 (LambdaBar^I) based on UTemp
 	-- derivL3_n = PIRK L3 part2 (LambdaBar^I) based on UBuf
 	-- derivL3_1 = PIRK L3 part2 (LambdaBar^I) based on UTemp
-	self.calcDeriv_PIRK_L2_LambdaBar_KernelObj(self.solverBuf, self.derivL2_n, self.UBuf)
-	self.calcDeriv_PIRK_L2_LambdaBar_KernelObj(self.solverBuf, self.derivL2_next, self.UTemp)
-	self.calcDeriv_PIRK_L3_LambdaBar_KernelObj(self.solverBuf, self.derivL3_n, self.UBuf)
-	self.calcDeriv_PIRK_L3_LambdaBar_KernelObj(self.solverBuf, self.derivL3_1, self.UTemp)
+	self.calcDeriv_PIRK_L2_LambdaBar_KernelObj(self.solverBuf, self.derivL2_n, self.UBuf, self.cellBuf)
+	self.calcDeriv_PIRK_L2_LambdaBar_KernelObj(self.solverBuf, self.derivL2_next, self.UTemp, self.cellBuf)
+	self.calcDeriv_PIRK_L3_LambdaBar_KernelObj(self.solverBuf, self.derivL3_n, self.UBuf, self.cellBuf)
+	self.calcDeriv_PIRK_L3_LambdaBar_KernelObj(self.solverBuf, self.derivL3_1, self.UTemp, self.cellBuf)
 	
 	-- UNext = UBuf + 0.5 * dt * (derivL2_n + derivL2_next + derivL3_n + derivL3_1)
 	self.PIRK_Eq4_LambdaBar_KernelObj(self.solverBuf, self.UNext, self.UBuf, self.derivL2_n, self.derivL2_next, self.derivL3_n, self.derivL3_1, real(dt))
@@ -231,10 +231,10 @@ function BSSNOKFiniteDifferencePIRKSolver:step(dt)
 	-- derivL2_next = PIRK L2 part1 of UBuf (ABar_IJ, K) of UNext
 	-- derivL3_n = PIRK L3 part1 of UBuf (ABar_IJ, K) of UBuf
 	-- derivL3_1 = PIRK L3 part1 of UBuf (ABar_IJ, K) of U1
-	self.calcDeriv_PIRK_L2_ABarK_KernelObj(self.solverBuf, self.derivL2_n, self.UBuf)
-	self.calcDeriv_PIRK_L2_ABarK_KernelObj(self.solverBuf, self.derivL2_next, self.UNext)
-	self.calcDeriv_PIRK_L3_ABarK_KernelObj(self.solverBuf, self.derivL3_n, self.UBuf)
-	self.calcDeriv_PIRK_L3_ABarK_KernelObj(self.solverBuf, self.derivL3_1, self.U1)
+	self.calcDeriv_PIRK_L2_ABarK_KernelObj(self.solverBuf, self.derivL2_n, self.UBuf, self.cellBuf)
+	self.calcDeriv_PIRK_L2_ABarK_KernelObj(self.solverBuf, self.derivL2_next, self.UNext, self.cellBuf)
+	self.calcDeriv_PIRK_L3_ABarK_KernelObj(self.solverBuf, self.derivL3_n, self.UBuf, self.cellBuf)
+	self.calcDeriv_PIRK_L3_ABarK_KernelObj(self.solverBuf, self.derivL3_1, self.U1, self.cellBuf)
 	
 	-- UNext = UBuf + 0.5 * dt * (derivL2_n + derivL2_next + derivL3_n + derivL3_1)
 	self.PIRK_Eq4_ABarK_KernelObj(self.solverBuf, self.UNext, self.UBuf, self.derivL2_n, self.derivL2_next, self.derivL3_n, self.derivL3_1, real(dt))
@@ -251,10 +251,10 @@ function BSSNOKFiniteDifferencePIRKSolver:step(dt)
 	-- derivL2_next = PIRK L2 part2 (LambdaBar^I) based on UNext
 	-- derivL3_n = PIRK L3 part2 (LambdaBar^I) based on UBuf
 	-- derivL3_1 = PIRK L3 part2 (LambdaBar^I) based on UTemp
-	self.calcDeriv_PIRK_L2_LambdaBar_KernelObj(self.solverBuf, self.derivL2_n, self.UBuf)
-	self.calcDeriv_PIRK_L2_LambdaBar_KernelObj(self.solverBuf, self.derivL2_next, self.UNext)
-	self.calcDeriv_PIRK_L3_LambdaBar_KernelObj(self.solverBuf, self.derivL3_n, self.UBuf)
-	self.calcDeriv_PIRK_L3_LambdaBar_KernelObj(self.solverBuf, self.derivL3_1, self.UTemp)	-- self.U1)
+	self.calcDeriv_PIRK_L2_LambdaBar_KernelObj(self.solverBuf, self.derivL2_n, self.UBuf, self.cellBuf)
+	self.calcDeriv_PIRK_L2_LambdaBar_KernelObj(self.solverBuf, self.derivL2_next, self.UNext, self.cellBuf)
+	self.calcDeriv_PIRK_L3_LambdaBar_KernelObj(self.solverBuf, self.derivL3_n, self.UBuf, self.cellBuf)
+	self.calcDeriv_PIRK_L3_LambdaBar_KernelObj(self.solverBuf, self.derivL3_1, self.UTemp--[[self.U1--]], self.cellBuf
 	
 	-- UNext = UBuf + 0.5 * dt * (derivL2_n + derivL2_next + derivL3_n + derivL3_1)
 	self.PIRK_Eq4_LambdaBar_KernelObj(self.solverBuf, self.UNext, self.UBuf, self.derivL2_n, self.derivL2_next, self.derivL3_n, self.derivL3_1, real(dt))
@@ -268,10 +268,10 @@ function BSSNOKFiniteDifferencePIRKSolver:step(dt)
 	-- derivL2_next = PIRK L2 part3 (B^I) based on UNext
 	-- derivL3_n = PIRK L3 part3 (B^I) based on UBuf
 	-- derivL3_1 = PIRK L3 part3 (B^I) based on U1
-	self.calcDeriv_PIRK_L2_B_KernelObj(self.solverBuf, self.derivL2_n, self.UBuf)
-	self.calcDeriv_PIRK_L2_B_KernelObj(self.solverBuf, self.derivL2_next, self.UNext)
-	self.calcDeriv_PIRK_L3_B_KernelObj(self.solverBuf, self.derivL3_n, self.UBuf)
-	self.calcDeriv_PIRK_L3_B_KernelObj(self.solverBuf, self.derivL3_1, self.U1)
+	self.calcDeriv_PIRK_L2_B_KernelObj(self.solverBuf, self.derivL2_n, self.UBuf, self.cellBuf)
+	self.calcDeriv_PIRK_L2_B_KernelObj(self.solverBuf, self.derivL2_next, self.UNext, self.cellBuf)
+	self.calcDeriv_PIRK_L3_B_KernelObj(self.solverBuf, self.derivL3_n, self.UBuf, self.cellBuf)
+	self.calcDeriv_PIRK_L3_B_KernelObj(self.solverBuf, self.derivL3_1, self.U1, self.cellBuf)
 	
 	-- UNext = UBuf + 0.5 * dt * (derivL2_n + derivL2_next + derivL3_n + derivL3_1)
 	self.PIRK_Eq4_B_KernelObj(self.solverBuf, self.UNext, self.UBuf, self.derivL2_n, self.derivL2_next, self.derivL3_n, self.derivL3_1, real(dt))

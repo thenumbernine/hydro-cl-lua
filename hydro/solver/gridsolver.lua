@@ -416,7 +416,7 @@ function GridSolver:createBuffers()
 
 	GridSolver.super.createBuffers(self)
 
-	self:clalloc('cellsBuf', self.coord.cell_t, self.numCells)
+	self:clalloc('cellBuf', self.coord.cell_t, self.numCells)
 
 	if self.usePLM then
 		-- to get sizeof
@@ -632,13 +632,13 @@ end
 function GridSolver:applyInitCond()
 	
 	-- this is a bit disorganized
-	-- this fills the cellsBuf but only for gridsolvers
+	-- this fills the cellBuf but only for gridsolvers
 	-- and does so by asking the coord obj
 	-- because coord objects can specify arbitrary fields
 	-- (such as x,y,z, r, remapped-r, etc)
 	local cellsCPU = ffi.new(self.coord.cell_t..'[?]', self.numCells)
 	self.coord:fillGridCellBuf(cellsCPU)
-	self.cellsBufObj:fromCPU(cellsCPU)
+	self.cellBufObj:fromCPU(cellsCPU)
 
 	GridSolver.super.applyInitCond(self)
 end

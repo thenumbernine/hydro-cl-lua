@@ -967,8 +967,10 @@ end
 else	-- getCommonCode -- this block is for the scheme 
 ?>
 
+//this is for convenience, but is bad for any kind of composite solver
 typedef <?=eqn.cons_t?> cons_t;
 typedef <?=solver.solver_t?> solver_t;
+typedef <?=solver.coord.cell_t?> cell_t;
 
 /*
 TF(K_ij) = K_ij - 1/3 gamma_ij gamma^kl K_kl
@@ -1859,11 +1861,12 @@ static void calcDeriv_Pi(
 kernel void calcDeriv(
 	constant solver_t* solver,
 	global cons_t* derivBuf,
-	const global cons_t* UBuf
+	const global cons_t* UBuf,
+	const global cell_t* cellBuf
 ) {
 <? if useCalcDeriv then ?>
 	SETBOUNDS(numGhost,numGhost);
-	real3 x = cell_x(i);
+	real3 x = cellBuf[index].pos;
 	global cons_t* deriv = derivBuf + index;
 	const global cons_t* U = UBuf + index;
 	int4 updir = getUpwind(U->beta_U);
@@ -2218,11 +2221,12 @@ kernel void calcDeriv(
 
 kernel void constrainU(
 	constant solver_t* solver,
-	global cons_t* UBuf
+	global cons_t* UBuf,
+	const global cell_t* cellBuf
 ) {
 <? if useConstrainU then ?>	
 	SETBOUNDS(numGhost,numGhost);
-	real3 x = cell_x(i);
+	real3 x = cellBuf[index].pos;
 	global cons_t* U = UBuf + index;
 	
 	sym3 gammaBar_LL = sym3_add(sym3_ident, U->epsilon_LL);
@@ -2507,11 +2511,12 @@ for ij,xij in ipairs(symNames) do
 kernel void addSource(
 	constant solver_t* solver,
 	global cons_t* derivBuf,
-	const global cons_t* UBuf
+	const global cons_t* UBuf,
+	const global cell_t* cellBuf
 ) {
 <? if useAddSource then ?>
 	SETBOUNDS_NOGHOST();
-	real3 x = cell_x(i);
+	real3 x = cellBuf[index].pos;
 	const real r = coordMapR(x);
 	
 	const global cons_t* U = UBuf + index;
@@ -2605,14 +2610,15 @@ end
 kernel void calcDT(
 	constant <?=solver.solver_t?>* solver,
 	global real* dtBuf,
-	const global <?=eqn.cons_t?>* UBuf
+	const global cons_t* UBuf,
+	const global cell_t* cellBuf
 ) {
 	SETBOUNDS(0,0);
 	if (OOB(numGhost,numGhost)) {
 		dtBuf[index] = INFINITY;
 		return;
 	}
-	real3 x = cell_x(i);
+	real3 x = cellBuf[index].pos;
 	const global <?=eqn.cons_t?>* U = UBuf + index;
 
 <? if eqn.cflMethod == '2008 Alcubierre' then
@@ -2679,10 +2685,11 @@ kernel void copyLambdaBar(
 kernel void calcDeriv_PIRK_L1_EpsilonWAlphaBeta(
 	constant solver_t* solver,
 	global cons_t* derivBuf,
-	const global cons_t* UBuf
+	const global cons_t* UBuf,
+	const global cell_t* cellBuf
 ) {
 	SETBOUNDS(numGhost,numGhost);
-	real3 x = cell_x(i);
+	real3 x = cellBuf[index].pos;
 	global cons_t* deriv = derivBuf + index;
 	const global cons_t* U = UBuf + index;
 	int4 updir = getUpwind(U->beta_U);
@@ -2811,10 +2818,11 @@ kernel void calcDeriv_PIRK_L1_EpsilonWAlphaBeta(
 kernel void calcDeriv_PIRK_L2_ABarK(
 	constant solver_t* solver,
 	global cons_t* derivBuf,
-	const global cons_t* UBuf
+	const global cons_t* UBuf,
+	const global cell_t* cellBuf
 ) {
 	SETBOUNDS(numGhost,numGhost);
-	real3 x = cell_x(i);
+	real3 x = cellBuf[index].pos;
 	global cons_t* deriv = derivBuf + index;
 	const global cons_t* U = UBuf + index;
 
@@ -2896,10 +2904,11 @@ kernel void calcDeriv_PIRK_L2_ABarK(
 kernel void calcDeriv_PIRK_L3_ABarK(
 	constant solver_t* solver,
 	global cons_t* derivBuf,
-	const global cons_t* UBuf
+	const global cons_t* UBuf,
+	const global cell_t* cellBuf
 ) {
 	SETBOUNDS(numGhost,numGhost);
-	real3 x = cell_x(i);
+	real3 x = cellBuf[index].pos;
 	global cons_t* deriv = derivBuf + index;
 	const global cons_t* U = UBuf + index;
 	
@@ -2955,10 +2964,11 @@ kernel void calcDeriv_PIRK_L3_ABarK(
 kernel void calcDeriv_PIRK_L2_LambdaBar(
 	constant solver_t* solver,
 	global cons_t* derivBuf,
-	const global cons_t* UBuf
+	const global cons_t* UBuf,
+	const global cell_t* cellBuf
 ) {
 	SETBOUNDS(numGhost,numGhost);
-	real3 x = cell_x(i);
+	real3 x = cellBuf[index].pos;
 	global cons_t* deriv = derivBuf + index;
 	const global cons_t* U = UBuf + index;
 
@@ -3039,10 +3049,11 @@ kernel void calcDeriv_PIRK_L2_LambdaBar(
 kernel void calcDeriv_PIRK_L3_LambdaBar(
 	constant solver_t* solver,
 	global cons_t* derivBuf,
-	const global cons_t* UBuf
+	const global cons_t* UBuf,
+	const global cell_t* cellBuf
 ) {
 	SETBOUNDS(numGhost,numGhost);
-	real3 x = cell_x(i);
+	real3 x = cellBuf[index].pos;
 	global cons_t* deriv = derivBuf + index;
 	const global cons_t* U = UBuf + index;
 	int4 updir = getUpwind(U->beta_U);
@@ -3089,10 +3100,11 @@ kernel void calcDeriv_PIRK_L3_LambdaBar(
 kernel void calcDeriv_PIRK_L2_B(
 	constant solver_t* solver,
 	global cons_t* derivBuf,
-	const global cons_t* UBuf
+	const global cons_t* UBuf,
+	const global cell_t* cellBuf
 ) {
 	SETBOUNDS(numGhost,numGhost);
-	real3 x = cell_x(i);
+	real3 x = cellBuf[index].pos;
 	global cons_t* deriv = derivBuf + index;
 	const global cons_t* U = UBuf + index;
 	int4 updir = getUpwind(U->beta_U);
@@ -3197,10 +3209,11 @@ kernel void calcDeriv_PIRK_L2_B(
 kernel void calcDeriv_PIRK_L3_B(
 	constant solver_t* solver,
 	global cons_t* derivBuf,
-	const global cons_t* UBuf
+	const global cons_t* UBuf,
+	const global cell_t* cellBuf
 ) {
 	SETBOUNDS(numGhost,numGhost);
-	real3 x = cell_x(i);
+	real3 x = cellBuf[index].pos;
 	global cons_t* deriv = derivBuf + index;
 	const global cons_t* U = UBuf + index;
 

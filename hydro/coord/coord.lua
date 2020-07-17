@@ -632,8 +632,8 @@ function CoordinateSystem:createCellStruct()
 --[[
 ok here's a dilemma ...
 gridSolver has cellBuf that holds cell pos and any other aux vars used for cell calculations
-meshsolver has cellsBuf that holds cell pos and mesh info
-meshsolver needs to pass 'cellsBuf'
+meshsolver has cellBuf that holds cell pos and mesh info
+meshsolver needs to pass 'cellBuf'
 
 --]]
 	self.cellStruct = Struct{
