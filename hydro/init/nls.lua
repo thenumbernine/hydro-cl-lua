@@ -10,7 +10,7 @@ return table{
 		guiVars = {
 			{name='nls_A', value=10},
 		},
-		initState = function(self, solver)
+		getInitCondCode = function(self, solver)
 			-- TODO custom boundary.  rhs is set to zero.  lhs is U[-2] = U[2], U[-1] = U[1], and U[0] is not modified
 			solver:setBoundaryMethods'freeflow'
 			return [[
@@ -25,7 +25,7 @@ return table{
 		guiVars = {
 			{name='nls_A', value=8},
 		},
-		initState = function(self, solver)
+		getInitCondCode = function(self, solver)
 			solver:setBoundaryMethods'freeflow'
 			return [[
 	q = cplx_from_real(solver->nls_A * r * r * exp(-r * r));
@@ -40,7 +40,7 @@ return table{
 			{name='nls_A', value=4},
 			{name='nls_alpha', value=10},
 		},
-		initState = function(self, solver)
+		getInitCondCode = function(self, solver)
 			solver:setBoundaryMethods'freeflow'
 			return [[
 	real magn = solver->nls_A * exp(-r * r);
@@ -72,7 +72,7 @@ return table{
 			{name='init_r0', value=2},
 			{name='init_sigma', value=.25},
 		},
-		initState = function(self, solver)
+		getInitCondCode = function(self, solver)
 			return [[
 	real rmin = solver->mins.x;
 	real drmin = r - rmin;
@@ -86,7 +86,7 @@ return table{
 		name = 'Wave-FD Bessel',
 		mins = {.3, .3, .3}, 
 		maxs = {20.3, 20.3, 20.3},	
-		initState = function(self, solver)
+		getInitCondCode = function(self, solver)
 			return [[
 	//q = cplx_from_real(BESSJ0(x.x));
 	// bessel deriv

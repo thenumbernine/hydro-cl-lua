@@ -284,7 +284,7 @@ real calc_h(real rho, real P, real eInt) {
 	})
 end
 
-SRHD.initStateCode = [[
+SRHD.initCondCode = [[
 kernel void initState(
 	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* UBuf,

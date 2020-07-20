@@ -300,7 +300,7 @@ function MHD:getPrimConsCode()
 	})
 end
 
-MHD.initStateCode = [[
+MHD.initCondCode = [[
 <? local xNames = require 'hydro.common'.xNames ?>
 kernel void initState(
 	constant <?=solver.solver_t?>* solver,
@@ -344,13 +344,13 @@ end
 }
 ]]
 
-function MHD:getInitStateCode()
+function MHD:getInitCondCode()
 
 	-- where do I put this to make it the default value for MHD solvers,
 	-- but not override a value set by the init state?
 	self.guiVars.coulomb.value = math.sqrt(self.guiVars.kilogram.value * self.guiVars.meter.value / self.guiVars.mu0.value)
 
-	return MHD.super.getInitStateCode(self)
+	return MHD.super.getInitCondCode(self)
 end
 
 MHD.solverCodeFile = 'hydro/eqn/mhd.cl'

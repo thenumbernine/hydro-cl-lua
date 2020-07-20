@@ -162,7 +162,7 @@ cplx3 eqn_coord_lower(cplx3 v, real3 x) {
 ]], self:getTemplateEnv())
 end
 
-Maxwell.initStateCode = [[
+Maxwell.initCondCode = [[
 
 <? 
 local cons_t = eqn.cons_t

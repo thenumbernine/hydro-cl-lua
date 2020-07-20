@@ -204,7 +204,7 @@ static inline <?=eqn.cons_t?> consFromPrim(<?=eqn.prim_t?> W, real3 x) {
 	})
 end
 
-NavierStokesWilcox.initStateCode = [[
+NavierStokesWilcox.initCondCode = [[
 <?
 local common = require 'hydro.common'
 local xNames = common.xNames

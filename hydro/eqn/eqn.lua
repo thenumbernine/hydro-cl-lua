@@ -327,11 +327,11 @@ end
 -- this only goes to hydro/init/init.lua
 -- and this is influenced by the initCond object
 -- changing initCond should only change this and not the solver program
-function Equation:getInitStateCode()
-	assert(self.initStateCode, "expected solver.eqn.initStateCode")
-	return template(self.initStateCode, {
+function Equation:getInitCondCode()
+	assert(self.initCondCode, "expected solver.eqn.initCondCode")
+	return template(self.initCondCode, {
 		eqn = self,
-		code = self.initState:initState(self.solver),
+		code = self.initState:getInitCondCode(self.solver),
 		solver = self.solver,
 		coord = self.solver.coord,
 	})

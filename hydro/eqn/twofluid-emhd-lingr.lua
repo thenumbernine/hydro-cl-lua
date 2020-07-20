@@ -379,7 +379,7 @@ end
 -- overridden because it adds some extra parameters to the template args
 -- should I either make a function for the template arg params
 -- or maybe I shouldn't have super-class'd the initState code to begin with ...
-function TwoFluidEMHDDeDonderGaugeLinearizedGR:getInitStateCode()
+function TwoFluidEMHDDeDonderGaugeLinearizedGR:getInitCondCode()
 	return template([[
 <? 
 local cons_t = eqn.cons_t

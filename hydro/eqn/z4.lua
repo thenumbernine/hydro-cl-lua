@@ -234,7 +234,7 @@ void setFlatSpace(
 	})
 end
 
-Z4_2004Bona.initStateCode = [[
+Z4_2004Bona.initCondCode = [[
 <? 
 local common = require 'hydro.common'
 local xNames = common.xNames 

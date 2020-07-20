@@ -170,7 +170,7 @@ sym3 calc_gamma_ll(global const <?=eqn.cons_t?>* U, real3 x) {
 	})
 end
 
-function Z4cFiniteDifferenceEquation:getInitStateCode()
+function Z4cFiniteDifferenceEquation:getInitCondCode()
 	return template([[
 kernel void initState(
 	constant <?=solver.solver_t?>* solver,

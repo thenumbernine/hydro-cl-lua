@@ -13,7 +13,7 @@ TODO turn this into an initCond_t structure.  maybe call it 'initVars' ?
 overrideGuiVars = any of the equation's gui vars that the initial conditions wants to override
 TODO call this one 'solverVars' ? since they are overriding the solver_t vars...
 
-initState = function(self, solver) returns the OpenCL code for the initial conditions
+getInitCondCode = function(self, solver) returns the OpenCL code for the initial conditions
 --]]
 
 local InitCond = class()
@@ -96,7 +96,9 @@ function InitCond:refreshInitStateProgram(solver)
 			end):concat'\n',
 
 			self.header and self:header(solver) or '',
-			solver.eqn:getInitStateCode(),
+			
+			-- this in turn calls self:getInitCondCode() but with proper template args applied
+			solver.eqn:getInitCondCode(),
 		}:concat'\n'
 	end)
 
@@ -147,8 +149,8 @@ end
 	end
 end
 
-function InitCond:initState(solver)
-	return '//no code from InitCond:initState() was provided'
+function InitCond:getInitCondCode(solver)
+	return '//no code from InitCond:getInitCondCode() was provided'
 end
 
 -- called when the solver resets

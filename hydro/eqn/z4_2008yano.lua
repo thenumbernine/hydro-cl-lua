@@ -76,7 +76,7 @@ void setFlatSpace(
 	})
 end
 
-Z4_2008Yano.initStateCode = [[
+Z4_2008Yano.initCondCode = [[
 <? 
 local common = require 'hydro.common'
 local xNames = common.xNames 

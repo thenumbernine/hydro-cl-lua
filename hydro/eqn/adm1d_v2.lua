@@ -137,7 +137,7 @@ void setFlatSpace(
 	})
 end
 
-ADM_BonaMasso_1D_1997Alcubierre.initStateCode = [[
+ADM_BonaMasso_1D_1997Alcubierre.initCondCode = [[
 kernel void initState(
 	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* UBuf,

@@ -97,7 +97,7 @@ function ShallowWater:getPrimConsCode()
 	})
 end
 
-ShallowWater.initStateCode = [[
+ShallowWater.initCondCode = [[
 <? local xNames = require 'hydro.common'.xNames ?>
 kernel void initState(
 	constant <?=solver.solver_t?>* solver,

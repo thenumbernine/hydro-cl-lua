@@ -176,7 +176,7 @@ end
 
 function GRMHD:getPrimConsCode() end
 
-GRMHD.initStateCode = [[
+GRMHD.initCondCode = [[
 kernel void initState(
 	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* consBuf,

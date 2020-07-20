@@ -49,7 +49,7 @@ WaveFDEqn.predefinedDisplayVars = {
 
 WaveFDEqn.initStates = require 'hydro.init.nls'
 
-WaveFDEqn.initStateCode = [[
+WaveFDEqn.initCondCode = [[
 kernel void initState(
 	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* UBuf

@@ -4,7 +4,7 @@ local InitCond = require 'hydro.init.init'
 return table{
 	{
 		name = 'Brio-Wu',
-		initState = function(self, solver)
+		getInitCondCode = function(self, solver)
 			if solver.eqn.guiVars.heatCapacityRatio then	
 				solver.eqn.guiVars.heatCapacityRatio.value = 2
 			end
@@ -27,7 +27,7 @@ return table{
 		name = 'GEM challenge',
 		mins = {-4*math.pi, -2*math.pi, -1},
 		maxs = {4*math.pi, 2*math.pi, 1},
-		initState = function(self, solver)
+		getInitCondCode = function(self, solver)
 			solver:setBoundaryMethods{
 				xmin = 'periodic',
 				xmax = 'periodic',

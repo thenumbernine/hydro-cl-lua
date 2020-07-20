@@ -201,7 +201,7 @@ function Euler:getPrimConsCode()
 	})
 end
 
-Euler.initStateCode = [[
+Euler.initCondCode = [[
 <? local xNames = require 'hydro.common'.xNames ?>
 kernel void initState(
 	constant <?=solver.solver_t?>* solver,

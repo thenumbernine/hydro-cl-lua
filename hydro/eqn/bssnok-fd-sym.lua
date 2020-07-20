@@ -1648,7 +1648,7 @@ end
 Should initState provide a metric in cartesian, or in the background metric?
 I'll say Cartesian for now, and then transform them using the rescaling.
 --]]
-function BSSNOKFiniteDifferenceEquation:getInitStateCode()
+function BSSNOKFiniteDifferenceEquation:getInitCondCode()
 	-- do this first to initialize the expression fields
 	local env = self:getEnv()
 	local initState = self.initState

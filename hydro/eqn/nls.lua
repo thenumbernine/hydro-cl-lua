@@ -71,7 +71,7 @@ NLSEqn.predefinedDisplayVars = {
 
 NLSEqn.initStates = require 'hydro.init.nls'
 
-NLSEqn.initStateCode = [[
+NLSEqn.initCondCode = [[
 kernel void initState(
 	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* UBuf

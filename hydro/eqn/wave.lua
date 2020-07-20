@@ -85,7 +85,7 @@ function Wave:createInitState()
 	}
 end
 
-Wave.initStateCode = [[
+Wave.initCondCode = [[
 <?
 local common = require 'hydro.common'
 local xNames = common.xNames

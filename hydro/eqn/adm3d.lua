@@ -268,7 +268,7 @@ void setFlatSpace(
 	})
 end
 
-ADM_BonaMasso_3D.initStateCode = [[
+ADM_BonaMasso_3D.initCondCode = [[
 <? 
 local common = require 'hydro.common'
 local xNames = common.xNames 

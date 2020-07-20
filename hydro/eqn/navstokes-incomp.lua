@@ -34,7 +34,7 @@ typedef <?=eqn.prim_t?> <?=eqn.cons_t?>;
 	})
 end
 
-NavierStokesDivFree.initStateCode = [[
+NavierStokesDivFree.initCondCode = [[
 kernel void initState(
 	global <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* UBuf

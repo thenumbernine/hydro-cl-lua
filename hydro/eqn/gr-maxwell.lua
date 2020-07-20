@@ -59,7 +59,7 @@ static inline <?=eqn.cons_t?> consFromPrim(<?=eqn.prim_t?> W, real3 x) { return 
 	})
 end
 
-GRMaxwell.initStateCode = [[
+GRMaxwell.initCondCode = [[
 kernel void initState(
 	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* UBuf

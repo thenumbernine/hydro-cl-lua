@@ -245,14 +245,14 @@ return table{
 				{name = 'init_sigma', value = sigma},
 			}
 		end,
-		initState = function(self, solver)
+		getInitCondCode = function(self, solver)
 			-- this has to make use of the coordinate metric
 			-- solver.coord.g
 			
 			return template([[
-	real3 center = coordMap(_real3(<?=clnumber(initState.center[1])
-								?>, <?=clnumber(initState.center[2])
-								?>, <?=clnumber(initState.center[3])?>));
+	real3 center = coordMap(_real3(<?=clnumber(initCond.center[1])
+								?>, <?=clnumber(initCond.center[2])
+								?>, <?=clnumber(initCond.center[3])?>));
 	real3 d = real3_sub(xc, center);
 	real s = real3_lenSq(d);
 
@@ -295,7 +295,7 @@ return table{
 	K_ll = _sym3(K_ll.xx, 0,0,0,0,0);
 #endif
 ]],			{
-				initState = self,
+				initCond = self,
 				clnumber = require 'cl.obj.number',
 			})
 		end,
@@ -307,7 +307,7 @@ return table{
 			{name = 'init_A', value = .1},
 			{name = 'init_L', value = 1},
 		},
-		initState = function(self, solver)
+		getInitCondCode = function(self, solver)
 			return [[
 	real h = 1. - solver->init_A * sin((2. * M_PI / solver->init_L) * x.x);
 	alpha = sqrt(h);
@@ -362,7 +362,7 @@ return table{
 			{name = 'r0', value = 5},
 			{name = 'sigma', value = 1},
 		},
-		initState = function(self, solver)
+		getInitCondCode = function(self, solver)
 			assert(solver.eqn.useScalarField, "you need to enable 'useScalarField' in the eqn ctor args")
 			
 			local symmath = require 'symmath'
@@ -434,7 +434,7 @@ return table{
 				{name = 'init_speed', value = args and args.speed or .1},
 			}
 		end,
-		initState = function(self, solver)
+		getInitCondCode = function(self, solver)
 			return [[
 	real x_s = 0;	//speed * t
 	real v_s = solver->init_speed;
@@ -484,7 +484,7 @@ return table{
 				{name = 'init_z', value = args and args.z or 0},
 			}
 		end,
-		initState = function(self, solver)
+		getInitCondCode = function(self, solver)
 			return template([[
 	const real R = solver->init_R;
 	real3 center = _real3(
@@ -563,7 +563,7 @@ return table{
 			end
 			--]]
 		end,
-		initState = function(self, solver)
+		getInitCondCode = function(self, solver)
 			--solver:setBoundaryMethods'fixed'
 			solver:setBoundaryMethods'linear'
 
@@ -752,7 +752,7 @@ return table{
 		init = function(self, solver)
 			EinsteinInitCond.init(self, solver, args)
 		end,
-		initState = function(self, solver)
+		getInitCondCode = function(self, solver)
 			return [[
 	{
 		const real vz = .1;
@@ -874,7 +874,7 @@ return table{
 				},
 			}
 		end,
-		initState = function(self, solver)
+		getInitCondCode = function(self, solver)
 			return template([[
 <? local clnumber = require 'cl.obj.number' ?>	
 	real psi = 1.;
@@ -897,7 +897,7 @@ return table{
 	{	-- another based on SENR
 		-- TODO make a way to provide BSSN variables rather than ADM variables
 		-- this way I don't have to worry about scaling and unscaling of the coordinate basis vectors
-		initState = function(self, solver)
+		getInitCondCode = function(self, solver)
 			return [[
 	real bScale = 1.;
 	real bScale2 = bScale * bScale;
@@ -932,7 +932,7 @@ return table{
 			{name = 'init_bodyMass', value = .001},
 			{name = 'init_bodyRadius', value = .1},
 		},
-		initState = function(self, solver)
+		getInitCondCode = function(self, solver)
 			local bodies = table{
 				{
 					pos = {0,0,0},
@@ -1040,7 +1040,7 @@ return table{
 			local m = self.guiVars.m.value
 		
 			-- TODO refreshCodePrefix ... except this is called by that ...
-			-- hmm, account for initState's defining the bounds
+			-- hmm, account for initCond's defining the bounds
 			solver.mins = vec3d(0,0,0) 
 			solver.maxs = vec3d(8,8,8) 
 			
@@ -1159,7 +1159,7 @@ TODO I now have a Bessel function routine in hydro/math.cl
 			}
 --			self.guiVars.f.value = self.guiVars.f.options:find'1'	-- set f=1
 		end,
-		initState = function(self, solver)
+		getInitCondCode = function(self, solver)
 			return [[
 	const real t = 0.;
 	real theta = 2. * M_PI / init_d * (xc.x - t);
@@ -1192,7 +1192,7 @@ TODO I now have a Bessel function routine in hydro/math.cl
 				{name='init_d', value=1},
 			}
 		end,
-		initState = function(self, solver)
+		getInitCondCode = function(self, solver)
 			return [[
 	const real t = 0.;
 	real theta = 2. * M_PI / init_d * (xc.x - t);
