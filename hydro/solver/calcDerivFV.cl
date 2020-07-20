@@ -117,14 +117,14 @@ kernel void calcDerivFromFlux(
 	global <?=eqn.cons_t?>* derivBuf,
 	const global <?=eqn.cons_t?>* fluxBuf,
 //mesh-specific parameters:	
-	const global cell_t* cells,			//[numCells]
+	const global <?=solver.coord.cell_t?>* cells,			//[numCells]
 	const global face_t* faces,			//[numFaces]
 	const global int* cellFaceIndexes	//[numCellFaceIndexes]
 ) {
 	int cellIndex = get_global_id(0);
 	if (cellIndex >= get_global_size(0)) return;
 	
-	const global cell_t* cell = cells + cellIndex;
+	const global <?=solver.coord.cell_t?>* cell = cells + cellIndex;
 	
 	global <?=eqn.cons_t?>* deriv = derivBuf + cellIndex;
 	

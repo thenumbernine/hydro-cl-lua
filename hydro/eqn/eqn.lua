@@ -179,7 +179,7 @@ function Equation:init(args)
 	-- (put static states at the end of your cons_t structures)
 	if not self.numIntStates then self.numIntStates = self.numStates end
 	
-	self.initStateNames = table.map(self.initStates, function(info) return info.name end)
+	self.initCondNames = table.map(self.initConds, function(info) return info.name end)
 
 	
 	self.reflectVars = self.reflectVars or {}
@@ -257,15 +257,15 @@ function Equation:createInitState()
 	end
 	
 	-- first create the init state
-	assert(self.initStates, "expected Eqn.initStates")
-	self.initState = self.initStates[self.solver.initStateIndex](self.solver, self.solver.initStateArgs)
-	assert(self.initState, "couldn't find initState "..self.solver.initStateIndex)
-	self.initState:createInitStruct(self.solver)
-	self.initState:finalizeInitStruct(self.solver)
+	assert(self.initConds, "expected Eqn.initConds")
+	self.initCond = self.initConds[self.solver.initCondIndex](self.solver, self.solver.initCondArgs)
+	assert(self.initCond, "couldn't find initCond "..self.solver.initCondIndex)
+	self.initCond:createInitStruct(self.solver)
+	self.initCond:finalizeInitStruct(self.solver)
 	
 	-- should ops add vars to initCond_t or solver_t?
 	-- or should there be a new eqn_t?
-	-- I would like init cond stuff in initCond_t so changing the init cond only recompiles initState.cl
+	-- I would like init cond stuff in initCond_t so changing the init cond only recompiles initCond.cl
 	-- so let's continue to put op guiVars in solver_t
 	for _,op in ipairs(self.solver.ops) do
 		if op.guiVars then
@@ -278,8 +278,8 @@ function Equation:getCodePrefix()
 	return (self.guiVars and table.mapi(self.guiVars, function(var,i,t) 
 		return (var.compileTime and var:getCode() or nil), #t+1
 	end) or table()):append{
-		self.initState.getCodePrefix 
-			and self.initState:getCodePrefix(self.solver)
+		self.initCond.getCodePrefix 
+			and self.initCond:getCodePrefix(self.solver)
 			or '',
 		
 		-- functions that prim-cons code will use, but which use macros:
@@ -331,7 +331,7 @@ function Equation:getInitCondCode()
 	assert(self.initCondCode, "expected solver.eqn.initCondCode")
 	return template(self.initCondCode, {
 		eqn = self,
-		code = self.initState:getInitCondCode(self.solver),
+		code = self.initCond:getInitCondCode(self.solver),
 		solver = self.solver,
 		coord = self.solver.coord,
 	})

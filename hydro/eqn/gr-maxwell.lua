@@ -41,7 +41,7 @@ GRMaxwell.hasFluxFromConsCode = true
 GRMaxwell.useSourceTerm = true
 GRMaxwell.roeUseFluxFromCons = true
 
-GRMaxwell.initStates = require 'hydro.init.euler'
+GRMaxwell.initConds = require 'hydro.init.euler'
 
 function GRMaxwell:init(args)
 	GRMaxwell.super.init(self, args)

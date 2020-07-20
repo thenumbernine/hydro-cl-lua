@@ -192,10 +192,10 @@ function GridSolver:getSizePropsForWorkGroupSize(maxWorkGroupSize)
 end
 
 -- call this when a gui var changes
--- it rebuilds the code prefix, but doesn't reset the initState
+-- it rebuilds the code prefix, but doesn't reset the initCond
 function GridSolver:refreshCodePrefix()
 	GridSolver.super.refreshCodePrefix(self)	-- refresh integrator
-	-- changing initState calls this, and could change boundary programs, so I'm putting this here
+	-- changing initCond calls this, and could change boundary programs, so I'm putting this here
 	-- bad excuse, I know
 	self:refreshBoundaryProgram()
 end
@@ -541,7 +541,7 @@ end
 function GridSolver:resetState()
 	self.cmds:finish()
 		
-	-- start off by filling all buffers with zero, just in case initState forgets something ...
+	-- start off by filling all buffers with zero, just in case initCond forgets something ...
 	for _,bufferInfo in ipairs(self.buffers) do
 		self.cmds:enqueueFillBuffer{buffer=self[bufferInfo.name], size=bufferInfo.count * ffi.sizeof(bufferInfo.type)}
 	end
@@ -1448,7 +1448,7 @@ end
 
 function GridSolver:calcExactError(numStates)
 	numStates = numStates or self.eqn.numIntStates
-	local exact = assert(self.eqn.initState.exactSolution, "can't test accuracy of a configuration that has no exact solution")
+	local exact = assert(self.eqn.initCond.exactSolution, "can't test accuracy of a configuration that has no exact solution")
 	local ptr = ffi.cast(self.eqn.cons_t..'*', self.UBufObj:toCPU())
 	assert(self.dim == 1)
 	local n = self.gridSize.x

@@ -337,7 +337,7 @@ return table{
 			local var = symmath.var
 			local exp = symmath.exp
 			
-			-- TODO make a separate OpenCL initState_t structure
+			-- TODO make a separate OpenCL initCond_t structure
 			-- this is the alpha0 of the init state params -- wave amplitude -- not the init cond alpha0 used for the initial alpha value
 			local param_alpha0 = var'solver->alpha0'
 			local param_r0 = var'solver->r0'

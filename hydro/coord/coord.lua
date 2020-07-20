@@ -919,7 +919,7 @@ function CoordinateSystem:getCode()
 -- [[
 	-- area0, area1, ...
 	-- area_i = integral of u_j, j!=i of product of dx_j, j!=i
-	if require 'hydro.solver.fvsolver'.is(solver) then
+	if require 'hydro.solver.fvsolver'.is(self.solver) then
 		lines:append(range(dim):mapi(function(i)
 			local code = self.cell_area_codes[i]
 			return '#define cell_area'..(i-1)..'(pt) ('..code..')'

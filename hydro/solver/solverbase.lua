@@ -8,7 +8,7 @@ TODO break up the construction of solver and all its members into the following:
 	- create flux
 	- create integrator
 	- create eqn
-		- create initState
+		- create initCond
 2) init ffi.cdef's
 3) init solver code
 4) build programs
@@ -23,6 +23,7 @@ SolverBase:init
 			SolverBase:initMeshVars
 				self.app = ...
 				self.dim = ...
+				self.coord = ...
 				self.device = ...
 				self.cmds = ...
 				self.color = ...
@@ -35,6 +36,7 @@ SolverBase:init
 			self.initCondMins = ...
 			self.initCondMaxs = ...
 			self.gridSize = ...
+	
 	SolverBase:initCLDomainVars
 		self.maxWorkGroupSize = ...
 		SolverBase:getSizePropsForWorkGroupSize
@@ -53,13 +55,12 @@ SolverBase:init
 			SolverBase:initObjs
 				SolverBase:createEqn
 					self.eqn = ...
-				self.coord = ...
 				self.fluxLimiter = ...
 				self.eqn:createInitState
-					self.eqn.initState:createInitStruct
-						self.eqn.initState.initStruct = ...
-					self.eqn.initState:finalizeInitStruct
-						self.eqn.initState.initCond_t = ...
+					self.eqn.initCond:createInitStruct
+						self.eqn.initCond.initStruct = ...
+					self.eqn.initCond:finalizeInitStruct
+						self.eqn.initCond.initCond_t = ...
 				self.solverStruct:makeType
 				self.solver_t = ...
 			
@@ -88,7 +89,7 @@ SolverBase:init
 			self.eqn:getEigenTypeCode
 			self.eqn:getExtraTypeCode
 			self.coord:getCellTypeCode
-			self.eqn.initState.typecode
+			self.eqn.initCond.typecode
 	
 	SolverBase:postInit
 		SolverBase:createDisplayVars
@@ -117,18 +118,18 @@ SolverBase:init
 							SolverBase:createCodePrefix
 								SolverBase:createCodePrefixHeader
 									self.eqn:getTypeCode
-									self.initState.typecode
+									self.initCond.typecode
 									self.coord:getTypeCode
 									self.solverStruct:getTypeCode
 									self.eqn:getTypeCode
 									self.eqn:getEigenTypeCode
 								SolverBase:createCodePrefixSource
-									self.coord:getCode
+									self.coord:getCode					<- this depends on solver.dim
 									self.eqn:getCodePrefix
 						SolverBase:refreshIntegrator
 							self.integrator = ...
 						SolverBase:refreshInitStateProgram
-							self.eqn.initState:refreshInitStateProgram
+							self.eqn.initCond:refreshInitStateProgram
 						
 
 						FiniteVolumeSolver:refreshSolverProgram
@@ -185,6 +186,7 @@ SolverBase:init
 			GridSolver:resetState
 				SolverBase:resetState
 					GridSolver:applyInitCond
+						self.coord:fillGridCellBuf	<- this depends on solver.gridSize, solver.dim, solver.numGhost, solver.mins, solver.maxs
 						SolverBase:applyInitCond
 					self:boundary
 					self:resetOps
@@ -264,8 +266,8 @@ args:
 	eqn = name of hydro/eqn/<name>.lua to use
 	eqnArgs (optional) = args of eqn ctor
 	coord = coordinate system name to use, associated with coord/<name>.lua
-	initState = init state name
-	initStateArgs (optional) = args of init state ctor
+	initCond = init state name
+	initCondArgs (optional) = args of init state ctor
 	integrator = name of integrator in int/all.lua to use
 	integratorArgs = integrator args
 --]]
@@ -283,7 +285,18 @@ function SolverBase:initMeshVars(args)
 	assert(args, "expected named parameter table")
 	self.app = assert(args.app, "expected app")
 	self.dim = assert(args.dim, "expected dim")
-	
+
+
+	-- not sure where to put this, but it must precede MeshSolver:initMeshVars
+	-- also I'm pretty sure CoordinateSystem:init() doesn't require anything from SolverBase, only the later member functions
+	if require 'hydro.coord.coord'.is(args.coord) then
+		self.coord = args.coord	-- ptr copy expected by AMR
+		self.coord.solver = self
+	else
+		self.coord = require('hydro.coord.'..(args.coord or 'cartesian'))(table({solver=self}, args.coordArgs))
+	end
+
+
 	self.device = args.device or self.app.env.devices[1]
 	self.cmds = args.cmds or self.app.env.cmds[1]
 	
@@ -404,18 +417,11 @@ function SolverBase:initObjs(args)
 
 	self.name = self.eqn.name..' '..self.name
 
-	self.initStateIndex = table.find(self.eqn.initStateNames, args.initState) or 1
-	self.initStateArgs = args.initStateArgs
+	self.initCondIndex = table.find(self.eqn.initCondNames, args.initCond) or 1
+	self.initCondArgs = args.initCondArgs
 
 	self.integratorArgs = args.integratorArgs
 	self.integratorIndex = integratorNames:find(args.integrator) or 1
-
-	if require 'hydro.coord.coord'.is(args.coord) then
-		self.coord = args.coord	-- ptr copy expected by AMR
-		self.coord.solver = self
-	else
-		self.coord = require('hydro.coord.'..(args.coord or 'cartesian'))(table({solver=self}, args.coordArgs))
-	end
 
 	self.checkNaNs = self.checkNaNs
 	self.useFixedDT = not not args.fixedDT
@@ -444,7 +450,7 @@ function SolverBase:initObjs(args)
 	--  which is called in refreshGridSize
 	--  which is called in postInit
 	-- the createInitState also creates kernels and runs them on the solver buffers
-	-- so I probably need a separate call to eqn.initState, earlier, which constructs the object and the guiVars, but runs no kernels
+	-- so I probably need a separate call to eqn.initCond, earlier, which constructs the object and the guiVars, but runs no kernels
 	self.solverStruct:makeType()
 	self.solver_t = self.solverStruct.typename
 	self.solverPtr = ffi.new(self.solver_t)
@@ -454,7 +460,7 @@ function SolverBase:initObjs(args)
 	-- not sure where this should go, but probably somewhere parallel to solverPtr
 	-- initStruct:makeType() is already called in eqn:createInitState
 	-- TODO if initCond is supposed to be modular then this would have to be created after initCond is changed
-	self.initCond_t = self.eqn.initState.initStruct.typename
+	self.initCond_t = self.eqn.initCond.initStruct.typename
 	self.initCondPtr = ffi.new(self.initCond_t)
 end
 
@@ -526,7 +532,7 @@ function SolverBase:postInit()
 		-- ... which needs display vars
 		-- TODO get rid of this 'refresh' stuff.  
 		-- it was designed for callbacks when changing grid resolution, integrator, etc while the simulation was live.
-		-- doing this now is unreasonable, considering how solver_t is tightly wound with initState, eqn, and the scheme
+		-- doing this now is unreasonable, considering how solver_t is tightly wound with initCond, eqn, and the scheme
 
 		self:copyGuiVarsToBufs()
 	end)
@@ -575,7 +581,7 @@ function SolverBase:copyGuiVarsToBufs()
 	end
 	self:refreshSolverBuf()
 
-	for _,var in ipairs(self.eqn.initState.guiVars) do
+	for _,var in ipairs(self.eqn.initCond.guiVars) do
 		if not var.compileTime then
 			if var.ctype == 'real' then
 				self.initCondPtr[var.name] = toreal(var.value)
@@ -854,16 +860,16 @@ function SolverBase:getTex(var)
 	return self.tex
 end
 
--- call this when the solver initializes or changes the codePrefix (or changes initState)
+-- call this when the solver initializes or changes the codePrefix (or changes initCond)
 -- it will build the code prefix and refresh everything related to it
 -- TODO if you change cons_t then call resetState etc (below the refreshEqnInitState() call a few lines above) in addition to this -- or else your values will get messed up
 function SolverBase:refreshEqnInitState()
 	-- Right now within eqn:createInitState I'm adding any subclass-specific gui vars
-	-- so only after it finishes and all gui vars are created, ask the eqn.initState object if it wants to modify anything.
+	-- so only after it finishes and all gui vars are created, ask the eqn.initCond object if it wants to modify anything.
 	-- Don't do this during Solver:refreshInitStateProgram()->InitCond:getInitCondCode() or the changes won't get into the header.
-	-- Hmm... should the initState even have control over the eqn's vars?
-	if self.eqn.initState.overrideGuiVars then
-		for k,v in pairs(self.eqn.initState.overrideGuiVars) do
+	-- Hmm... should the initCond even have control over the eqn's vars?
+	if self.eqn.initCond.overrideGuiVars then
+		for k,v in pairs(self.eqn.initCond.overrideGuiVars) do
 			if self.eqn.guiVars[k] then
 				self.eqn.guiVars[k].value = v
 			end
@@ -879,15 +885,15 @@ function SolverBase:refreshEqnInitState()
 
 	-- bounds don't get set until getInitCondCode() is called, but code prefix needs them ...
 	-- TODO do a proper refresh so mins/maxs can be properly refreshed
-	local initState = self.eqn.initState
-	if initState.mins then 
-		self.mins = vec3d(unpack(initState.mins)) 
+	local initCond = self.eqn.initCond
+	if initCond.mins then 
+		self.mins = vec3d(unpack(initCond.mins)) 
 		for j=1,3 do
 			self.solverPtr.mins.s[j-1] = toreal(self.mins.s[j-1])
 		end
 	end
-	if initState.maxs then 
-		self.maxs = vec3d(unpack(initState.maxs)) 
+	if initCond.maxs then 
+		self.maxs = vec3d(unpack(initCond.maxs)) 
 		for j=1,3 do
 			self.solverPtr.maxs.s[j-1] = toreal(self.maxs.s[j-1])
 		end
@@ -1105,7 +1111,7 @@ function SolverBase:getDisplayCode()
 ?>	index = INDEXV(i);\
 <? else	-- mesh 
 ?>	int dstindex = index;\
-	real3 x = cells[index].pos;\
+	real3 x = cellBuf[index].pos;\
 <? end 		-- mesh vs grid 
 ?>	displayValue_t value = {.ptr={0}};
 
@@ -1346,7 +1352,7 @@ end
 
 
 function SolverBase:refreshInitStateProgram()
-	self.eqn.initState:refreshInitStateProgram(self)
+	self.eqn.initCond:refreshInitStateProgram(self)
 end
 
 -- TODO compile the code of CommonCode into a bin of its own
@@ -1442,7 +1448,7 @@ end
 
 -- override this by the mesh solver ... since I don't know what it will be doing
 function SolverBase:applyInitCond()
-	self.eqn.initState:resetState(self)
+	self.eqn.initCond:resetState(self)
 	if self.allowAccum then
 		self.cmds:enqueueFillBuffer{buffer=self.accumBuf, size=ffi.sizeof(self.app.real) * self.numCells * 3}
 	end
@@ -2637,7 +2643,7 @@ end
 
 function SolverBase:updateGUIEqnSpecific()
 --[[ TODO why is this crashing
-	if tooltip.comboTable('init state', self, 'initStateIndex', self.eqn.initStateNames) then
+	if tooltip.comboTable('init state', self, 'initCondIndex', self.eqn.initCondNames) then
 		-- TODO hmm ... the whole point of making a separate initCondProgram was to be able to refresh it without rebuilding all of the solver ...
 		-- TODO try again once initCond_t is separated from solver_t
 		self:refreshEqnInitState()

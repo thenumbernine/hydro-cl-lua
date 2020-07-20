@@ -23,7 +23,7 @@ local makePartials = require 'hydro.eqn.makepartial'
 
 local BSSNOKFiniteDifferenceEquation = class(BSSNOKFiniteDifferenceEquationBase)
 
-BSSNOKFiniteDifferenceEquation.initStates = table():append(
+BSSNOKFiniteDifferenceEquation.initConds = table():append(
 	require 'hydro.init.senr'
 ):append(
 	require 'hydro.init.einstein'
@@ -162,21 +162,21 @@ function BSSNOKFiniteDifferenceEquation:getCommonFuncCode()
 end
 
 --[[
-Should initState provide a metric in cartesian, or in the background metric?
+Should initCond provide a metric in cartesian, or in the background metric?
 I'll say Cartesian for now, and then transform them using the rescaling.
 --]]
 function BSSNOKFiniteDifferenceEquation:getInitCondCode()
 	-- do this first to initialize the expression fields
 	local env = self:getEnv()
-	local initState = self.initState
+	local initCond = self.initCond
 	
 	-- look for symmath expressions instead of code
 	-- also skip the initDerivs finite difference 
-	if initState.initAnalytical then
+	if initCond.initAnalytical then
 		local symmath = require 'symmath'
 		
-		local partial_gamma0_lll = initState.gamma0_ll'_ij,k'():permute'_ijk'
-		local det_gamma = symmath.Matrix.determinant(initState.gamma0_ll)
+		local partial_gamma0_lll = initCond.gamma0_ll'_ij,k'():permute'_ijk'
+		local det_gamma = symmath.Matrix.determinant(initCond.gamma0_ll)
 
 		return template([[
 kernel void applyInitCond(
@@ -195,19 +195,19 @@ kernel void applyInitCond(
 	
 	global <?=eqn.cons_t?>* U = UBuf + index;
 
-	U->alpha = <?=eqn:compile(initState.alpha0)?>;
+	U->alpha = <?=eqn:compile(initCond.alpha0)?>;
 
 	sym3 gamma_ll = (sym3){
 <? for ij,xij in ipairs(symNames) do
 	local i,j,xi,xj = from6to3x3(ij)
-?>		.<?=xij?> = <?=eqn:compile(initState.gamma0_ll[i][j])?>,
+?>		.<?=xij?> = <?=eqn:compile(initCond.gamma0_ll[i][j])?>,
 <? end
 ?>	};
 
 	sym3 K_ll = (sym3){
 <? for ij,xij in ipairs(symNames) do
 	local i,j,xi,xj = from6to3x3(ij)
-?>		.<?=xij?> = <?=eqn:compile(initState.K0_ll[i][j])?>,
+?>		.<?=xij?> = <?=eqn:compile(initCond.K0_ll[i][j])?>,
 <? end
 ?>	};
 
@@ -230,7 +230,7 @@ kernel void applyInitCond(
 
 	real3 beta_u = (real3){
 <? for i,xi in ipairs(xNames) do
-?>		.<?=xi?> = <?=eqn:compile(initState.beta0_u[i])?>,
+?>		.<?=xi?> = <?=eqn:compile(initCond.beta0_u[i])?>,
 <? end
 ?>	};
 	U->beta_U = real3_rescaleFromCoord_u(beta_u, x);
@@ -324,7 +324,7 @@ end ?>
 }
 ]], 	setmetatable({
 			compile = compile,
-			initState = initState,
+			initCond = initCond,
 			partial_gamma0_lll = partial_gamma0_lll,
 		}, {
 			__index = env,
@@ -333,7 +333,7 @@ end ?>
 
 	-- if we're using a SENR init cond then init the components directly
 	-- TODO port these from sympy into symmath 
-	if require 'hydro.init.senr'[1].super.is(initState) then
+	if require 'hydro.init.senr'[1].super.is(initCond) then
 		return template([=[
 kernel void applyInitCond(
 	constant <?=solver.solver_t?>* solver,
@@ -392,7 +392,7 @@ kernel void applyInitCond(
 <? end ?>
 }
 ]=], 	table(env, {
-			code = initState:getInitCondCode(self.solver),
+			code = initCond:getInitCondCode(self.solver),
 		}))
 	end
 
@@ -413,7 +413,7 @@ kernel void applyInitCond(
 
 	sym3 gammaHat_ll = calc_gammaHat_ll(x);
 
-	//initState will assume it is providing a metric in Cartesian
+	//initCond will assume it is providing a metric in Cartesian
 	real alpha = 1.;
 	real3 beta_u = real3_zero;
 	real3 B_u = real3_zero;
@@ -507,7 +507,7 @@ kernel void initDerivs(
 	U->LambdaBar_U = real3_add(_3sym3_sym3_dot23(Delta_ULL, gammaBar_UU), mystery_C_U);
 }
 ]=], table(env, {
-		code = initState:getInitCondCode(self.solver),
+		code = initCond:getInitCondCode(self.solver),
 	}))
 end
 

@@ -22,7 +22,7 @@ function GREMSeparateSolver:init(args)
 	local GRSolver = class(require 'hydro.solver.bssnok-fd')
 	function GRSolver:init(args)
 		GRSolver.super.init(self, table(args, {
-			--initState = 'black hole - isotropic',
+			--initCond = 'black hole - isotropic',
 			-- flat-space initial state (how come there is dynamics with this?)
 			integrator = 'backward Euler',
 		}))

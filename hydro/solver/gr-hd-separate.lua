@@ -29,7 +29,7 @@ function GRHDSeparateSolver:init(args)
 	local GRSolver = class(require 'hydro.solver.z4c-fd')
 	function GRSolver:init(args)
 		GRSolver.super.init(self, table(args, {
-			initState = einsteinargs.initState or 'Minkowski',
+			initCond = einsteinargs.initCond or 'Minkowski',
 			integrator = einsteinargs.integrator or 'backward Euler',
 		}))
 		self.name = 'GR '..self.name
@@ -50,9 +50,9 @@ function GRHDSeparateSolver:init(args)
 	end
 	function HydroSolver:init(args)
 		args = table(args, {
-			-- TODO make initStates objects that accept parameters
+			-- TODO make initConds objects that accept parameters
 			--  and make a spherical object at an arbitrary location
-			--initState = 
+			--initCond = 
 		})
 		HydroSolver.super.init(self, args)
 		self.name = 'HD '..self.name

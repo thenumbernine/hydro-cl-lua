@@ -185,167 +185,167 @@ local args = {
 
 	--useGravity = true,
 
-	-- TODO separate initStates for each class of equation
+	-- TODO separate initConds for each class of equation
 	-- this would cohese better with the combined solvers
-	-- i.e. a fluid initState, a Maxwell init-state, and a GR init-state
+	-- i.e. a fluid initCond, a Maxwell init-state, and a GR init-state
 	-- ... but that means splitting the MHD init-states across M and HD ...
-	-- how about just stacking initStates?
+	-- how about just stacking initConds?
 	-- and letting each one assign what values it wants.
-	-- still to solve -- how do we specify initStates for combined solvers with multiple sets of the same variables (ion/electron, etc)
+	-- still to solve -- how do we specify initConds for combined solvers with multiple sets of the same variables (ion/electron, etc)
 
 	-- no initial state means use the first
-	--initState = cmdline.initState,
+	--initCond = cmdline.initCond,
 	
 	-- Euler / SRHD / MHD initial states:
 	
-	--initState = 'constant',
-	--initStateArgs = {v={1e-1,1e-1}},
+	--initCond = 'constant',
+	--initCondArgs = {v={1e-1,1e-1}},
 	
-	--initState = 'linear',
-	--initState = 'gaussian',
-	--initState = 'advect wave',
-	--initState = 'sphere',
-	--initState = 'spiral',
-	--initState = 'rarefaction wave',
-	--initState = 'Bessel',
-	--initState = 'cyclone',
+	--initCond = 'linear',
+	--initCond = 'gaussian',
+	--initCond = 'advect wave',
+	--initCond = 'sphere',
+	--initCond = 'spiral',
+	--initCond = 'rarefaction wave',
+	--initCond = 'Bessel',
+	--initCond = 'cyclone',
 	
-	initState = 'Sod',
-	--initState = 'Sod with physical units',
-	--initStateArgs = {dim=cmdline.displayDim},
+	initCond = 'Sod',
+	--initCond = 'Sod with physical units',
+	--initCondArgs = {dim=cmdline.displayDim},
 	
-	--initState = 'rectangle',
-	--initState = 'Sedov',
-	--initState = 'Noh',
-	--initState = 'implosion',
-	--initState = 'Kelvin-Helmholtz',
-	--initState = 'Rayleigh-Taylor',	--FIXME ... get initial / static hydro potential working
-	--initState = 'Colella-Woodward',
-	--initState = 'double mach reflection',
-	--initState = 'square cavity',
-	--initState = 'shock bubble interaction',		-- with usePLM only works with prim or with athena
-	--initState = 'Richmyer-Meshkov',
-	--initState = 'radial gaussian',
+	--initCond = 'rectangle',
+	--initCond = 'Sedov',
+	--initCond = 'Noh',
+	--initCond = 'implosion',
+	--initCond = 'Kelvin-Helmholtz',
+	--initCond = 'Rayleigh-Taylor',	--FIXME ... get initial / static hydro potential working
+	--initCond = 'Colella-Woodward',
+	--initCond = 'double mach reflection',
+	--initCond = 'square cavity',
+	--initCond = 'shock bubble interaction',		-- with usePLM only works with prim or with athena
+	--initCond = 'Richmyer-Meshkov',
+	--initCond = 'radial gaussian',
 
 	-- 2002 Kurganov, Tadmor, "Solution of Two-Dimensional Riemann Problems for Gas Dynamics without Riemann Problem Solvers"
-	--initState = 'configuration 1',
-	--initState = 'configuration 2',
-	--initState = 'configuration 3',
-	--initState = 'configuration 4',
-	--initState = 'configuration 5',
-	--initState = 'configuration 6',
+	--initCond = 'configuration 1',
+	--initCond = 'configuration 2',
+	--initCond = 'configuration 3',
+	--initCond = 'configuration 4',
+	--initCond = 'configuration 5',
+	--initCond = 'configuration 6',
 	
 	-- states for ideal MHD or two-fluid (not two-fluid-separate)
-	--initState = 'Brio-Wu',
-	--initState = 'Orszag-Tang',
-	--initState = 'MHD rotor',
-	--initState = 'GEM challenge', eqnArgs = {useEulerInitState=false},
-	--initState = 'spinning magnetic fluid',
-	--initState = 'magnetic fluid',
-	--initState = '2017 Degris et al',
-	--initState = 'that one mhd simulation from youtube',
-	--initState = 'spiral with flipped B field',
+	--initCond = 'Brio-Wu',
+	--initCond = 'Orszag-Tang',
+	--initCond = 'MHD rotor',
+	--initCond = 'GEM challenge', eqnArgs = {useEulerInitState=false},
+	--initCond = 'spinning magnetic fluid',
+	--initCond = 'magnetic fluid',
+	--initCond = '2017 Degris et al',
+	--initCond = 'that one mhd simulation from youtube',
+	--initCond = 'spiral with flipped B field',
 	
 	-- 2002 Dedner
-	--initState = '2002 Dedner peak Bx',
-	--initState = '2002 Dedner 1D Riemann',
-	--initState = '2002 Dedner Shock Reflection',
-	--initState = '2002 Dedner 2D Riemann problem',
-	--initState = '2002 Dedner Kelvin-Helmholtz',
+	--initCond = '2002 Dedner peak Bx',
+	--initCond = '2002 Dedner 1D Riemann',
+	--initCond = '2002 Dedner Shock Reflection',
+	--initCond = '2002 Dedner 2D Riemann problem',
+	--initCond = '2002 Dedner Kelvin-Helmholtz',
 	
 	-- Mara initital conditions
-	--initState = 'Mara IsentropicPulse',
-	--initState = 'Mara Explosion',
-	--initState = 'Mara KelvinHelmholtz',
-	--initState = 'Mara SmoothKelvinHelmholtz',
-	--initState = 'Mara Shocktube1',
-	--initState = 'Mara Shocktube2',
-	--initState = 'Mara Shocktube3',
-	--initState = 'Mara Shocktube4',
-	--initState = 'Mara Shocktube5',
-	--initState = 'Mara ContactWave',
-	--initState = 'Mara RMHDShocktube1',
-	--initState = 'Mara RMHDShocktube2',
-	--initState = 'Mara RMHDShocktube3',
-	--initState = 'Mara RMHDShocktube4',
-	--initState = 'Mara RMHDContactWave',
-	--initState = 'Mara RMHDRotationalWave',
+	--initCond = 'Mara IsentropicPulse',
+	--initCond = 'Mara Explosion',
+	--initCond = 'Mara KelvinHelmholtz',
+	--initCond = 'Mara SmoothKelvinHelmholtz',
+	--initCond = 'Mara Shocktube1',
+	--initCond = 'Mara Shocktube2',
+	--initCond = 'Mara Shocktube3',
+	--initCond = 'Mara Shocktube4',
+	--initCond = 'Mara Shocktube5',
+	--initCond = 'Mara ContactWave',
+	--initCond = 'Mara RMHDShocktube1',
+	--initCond = 'Mara RMHDShocktube2',
+	--initCond = 'Mara RMHDShocktube3',
+	--initCond = 'Mara RMHDShocktube4',
+	--initCond = 'Mara RMHDContactWave',
+	--initCond = 'Mara RMHDRotationalWave',
 
 
 	-- self-gravitation tests:
-	--initState = 'self-gravitation - Earth',	-- validating units along with self-gravitation.
-	--initState = 'self-gravitation test 1',
-	--initState = 'self-gravitation test 1 spinning',
-	--initState = 'self-gravitation test 2',		--FIXME
-	--initState = 'self-gravitation test 2 orbiting',
-	--initState = 'self-gravitation test 4',
-	--initState = 'self-gravitation soup',	--FIXME
+	--initCond = 'self-gravitation - Earth',	-- validating units along with self-gravitation.
+	--initCond = 'self-gravitation test 1',
+	--initCond = 'self-gravitation test 1 spinning',
+	--initCond = 'self-gravitation test 2',		--FIXME
+	--initCond = 'self-gravitation test 2 orbiting',
+	--initCond = 'self-gravitation test 4',
+	--initCond = 'self-gravitation soup',	--FIXME
 
 
 	-- those designed for SRHD / GRHD from Marti & Muller 1998:
-	--initState = 'relativistic shock reflection',			-- FIXME.  these initial conditions are constant =P
-	--initState = 'relativistic blast wave test problem 1',
-	--initState = 'relativistic blast wave test problem 2',
-	--initState = 'relativistic blast wave interaction',		-- in 2D this only works with no limiter / lots of dissipation 
+	--initCond = 'relativistic shock reflection',			-- FIXME.  these initial conditions are constant =P
+	--initCond = 'relativistic blast wave test problem 1',
+	--initCond = 'relativistic blast wave test problem 2',
+	--initCond = 'relativistic blast wave interaction',		-- in 2D this only works with no limiter / lots of dissipation 
 
 
 
 	-- Maxwell:
-	--initState = 'Maxwell default',
-	--initState = 'Maxwell empty waves',
-	--initState = 'Maxwell scattering around cylinder',
-	--initState = 'Maxwell scattering around pyramid',
-	--initState = 'Maxwell scattering around square',
-	--initState = 'Maxwell scattering around Koch snowflake',
-	--initState = 'Maxwell wire',
-	--initState = 'Maxwell transverse waves',
-	--initState = 'Maxwell charged particle',
+	--initCond = 'Maxwell default',
+	--initCond = 'Maxwell empty waves',
+	--initCond = 'Maxwell scattering around cylinder',
+	--initCond = 'Maxwell scattering around pyramid',
+	--initCond = 'Maxwell scattering around square',
+	--initCond = 'Maxwell scattering around Koch snowflake',
+	--initCond = 'Maxwell wire',
+	--initCond = 'Maxwell transverse waves',
+	--initCond = 'Maxwell charged particle',
 
 	-- hmm, I think I need a fluid solver for this, not just a Maxwell solver ...
-	--initState = 'Maxwell Lichtenberg',	
+	--initCond = 'Maxwell Lichtenberg',	
 
 	-- Maxwell+HD
-	--initState = 'two-fluid emhd modified Brio-Wu',
-	--initState = 'two-fluid EMHD soliton ion',
-	--initState = 'two-fluid EMHD soliton electron',
-	--initState = 'two-fluid EMHD soliton maxwell',
+	--initCond = 'two-fluid emhd modified Brio-Wu',
+	--initCond = 'two-fluid EMHD soliton ion',
+	--initCond = 'two-fluid EMHD soliton electron',
+	--initCond = 'two-fluid EMHD soliton maxwell',
 
 
 	-- Einstein
-	--initState = 'Minkowski',
-	--initState = 'gaussian perturbation',
-	--initState = 'plane gauge wave',
+	--initCond = 'Minkowski',
+	--initCond = 'gaussian perturbation',
+	--initCond = 'plane gauge wave',
 
 
-	--initState = 'Alcubierre warp bubble',
+	--initCond = 'Alcubierre warp bubble',
 	
-	--initStateArgs = {R=.5, sigma=8, speed=.1},	-- sub-luminal
+	--initCondArgs = {R=.5, sigma=8, speed=.1},	-- sub-luminal
 	
-	--initStateArgs = {R=.5, sigma=8, speed=1.1},		-- super-luminal 1.1x
+	--initCondArgs = {R=.5, sigma=8, speed=1.1},		-- super-luminal 1.1x
 	-- ... works with
 	--	size=64x64 solver=adm3d int=fe plm=athena ctu
 	--  size=64x64 solver=adm3d int=fe plm=athena
 	--  size=64x64 solver=adm3d int=fe flux-limiter=superbee
 	
-	--initStateArgs = {R=.5, sigma=8, speed=2},		-- super-luminal 2x
+	--initCondArgs = {R=.5, sigma=8, speed=2},		-- super-luminal 2x
 	-- ... works with
 	--  size=64x64 solver=adm3d int=fe flux-limiter=superbee
 	
-	--initStateArgs = {R=.5, sigma=8, speed=10},		-- super-luminal 10x
+	--initCondArgs = {R=.5, sigma=8, speed=10},		-- super-luminal 10x
 	--  size=64x64 solver=roe eqn=adm3d int=fe flux-limiter=superbee ... eventually explodes
 	--  size=64x64 solver=roe eqn=bssnok int=be flux-limiter=superbee ... eventually explodes as well
 	--  size=128x128 solver=hll eqn=adm3d int=fe flux-limiter=superbee ... runs for a really long time 
 
 	
-	--initState = 'black hole - Schwarzschild',
+	--initCond = 'black hole - Schwarzschild',
 	
 	
-	--initState = 'black hole - isotropic',	-- this one has momentum and rotation and almost done with multiple sources.  TODO parameterize
+	--initCond = 'black hole - isotropic',	-- this one has momentum and rotation and almost done with multiple sources.  TODO parameterize
 	
-	--initState = 'black hole - SENR/NumPy',
+	--initCond = 'black hole - SENR/NumPy',
 
 	--[[ single black hole, stationary
-	initStateArgs = {
+	initCondArgs = {
 		bodies = {
 			{
 				R = .1,
@@ -358,7 +358,7 @@ local args = {
 	--]]
 
 	--[[ single black hole, spinning, demonstrating ergosphere formation
-	initStateArgs = {
+	initCondArgs = {
 		bodies = {
 			{
 				R = .0001,
@@ -372,7 +372,7 @@ local args = {
 	--[[ single black hole 
 	-- from 2006 Brugmann et al - "Calibration of a Moving Puncture Simulation" (though I'm not using moving puncture method)
 	-- set to 1/10th the scale 
-	initStateArgs = {
+	initCondArgs = {
 		bodies = {
 			{
 				R = .0505,
@@ -385,7 +385,7 @@ local args = {
 	--]]
 
 	--[[ single black hole, boosted
-	initStateArgs = {
+	initCondArgs = {
 		bodies = {
 			{
 				R = .05,
@@ -398,7 +398,7 @@ local args = {
 	--]]
 
 	--[[ single black hole, spinning and boosted perpendicular to axis
-	initStateArgs = {
+	initCondArgs = {
 		bodies = {
 			{
 				R = .05,
@@ -411,7 +411,7 @@ local args = {
 	--]]
 
 	--[[ single black hole, spinning and boosted along axis
-	initStateArgs = {
+	initCondArgs = {
 		bodies = {
 			{
 				R = .05,
@@ -424,7 +424,7 @@ local args = {
 	--]]
 
 	--[[ binary black hole, head-on collision 
-	initStateArgs = {
+	initCondArgs = {
 		bodies = {
 			{
 				R = .01,
@@ -443,7 +443,7 @@ local args = {
 	--]]
 
 	--[[ binary black hole from 2006 Brugmann et al, same as above
-	initStateArgs = {
+	initCondArgs = {
 		bodies = {
 			{
 				R = .0505,
@@ -462,26 +462,26 @@ local args = {
 	--]]
 
 
-	--initState = 'stellar model',
-	--initState = '1D black hole - wormhole form',
+	--initCond = 'stellar model',
+	--initCond = '1D black hole - wormhole form',
 
 	
-	--initState = 'Gowdy waves',
-	--initState = 'testbed - robust',	-- not working with fv solvers
-	--initState = 'testbed - gauge wave',	-- not working with forward-euler finite-difference solvers
-	--initState = 'testbed - gauge wave - diagonal',
-	--initState = 'testbed - linear wave',
-	--initState = 'testbed - linear wave - diagonal',
-	--initState = 'testbed - Gowdy',
+	--initCond = 'Gowdy waves',
+	--initCond = 'testbed - robust',	-- not working with fv solvers
+	--initCond = 'testbed - gauge wave',	-- not working with forward-euler finite-difference solvers
+	--initCond = 'testbed - gauge wave - diagonal',
+	--initCond = 'testbed - linear wave',
+	--initCond = 'testbed - linear wave - diagonal',
+	--initCond = 'testbed - Gowdy',
 
 
 	-- NLS
-	--initState = 'Gaussian',
-	--initState = 'Ring',
-	--initState = 'Oscillatory',
+	--initCond = 'Gaussian',
+	--initCond = 'Ring',
+	--initCond = 'Oscillatory',
 	---- piggybacking for my wave-finite-difference here: ----
-	--initState = 'Wave-FD Gaussian',
-	--initState = 'Wave-FD Bessel',
+	--initCond = 'Wave-FD Gaussian',
+	--initCond = 'Wave-FD Bessel',
 
 	-- multi-devices
 	multiSlices = {3, 1, 1},
@@ -935,42 +935,42 @@ local args = {
 	},
 	--]]
 	
-	--initState = 'Minkowski',	-- TODO sphere-log-radial 
+	--initCond = 'Minkowski',	-- TODO sphere-log-radial 
 	
 	-- TODO look up Teukolsky Phys Rev 26 745 1982 
-	--initState = 'pure gauge wave',
-	--initState = 'scalar field',
+	--initCond = 'pure gauge wave',
+	--initCond = 'scalar field',
 	
-	--initState = 'gaussian perturbation',	-- TODO restore this to the 2008 Alcubeirre and 1998 Alcubierre gauge wave examples
+	--initCond = 'gaussian perturbation',	-- TODO restore this to the 2008 Alcubeirre and 1998 Alcubierre gauge wave examples
 	
 	--[[
-	--initState = 'black hole - boosted Schwarzschild',
-	initState = 'black hole - Schwarzschild isotropic - spherical',
-	--initState = 'black hole - Brill Lindquist',
-	initStateArgs = {
+	--initCond = 'black hole - boosted Schwarzschild',
+	initCond = 'black hole - Schwarzschild isotropic - spherical',
+	--initCond = 'black hole - Brill Lindquist',
+	initCondArgs = {
 		center = {0,0,0},
 		R = .1,
 	},
 	--]]
 	
-	--initState = 'black hole - isotropic',
+	--initCond = 'black hole - isotropic',
 	
-	--initState = 'Alcubierre warp bubble',
+	--initCond = 'Alcubierre warp bubble',
 
 	--[[
-	initState = 'Alcubierre warp bubble',
-	initStateArgs = {
+	initCond = 'Alcubierre warp bubble',
+	initCondArgs = {
 		H = -1e-7,	--H = 1e-7,
 		sigma = 10,
 	},
 	--]]
 	
 	-- only for bssnok-fd-senr
-	--initState = 'SENR sphere-log-radial Minkowski',
-	initState = 'SENR sphere-log-radial UIUC',
-	--initState = 'SENR sphere-log-radial BrillLindquist',
-	--initState = 'SENR sphere-log-radial BoostedSchwarzschild',
-	--initState = 'SENR sphere-log-radial StaticTrumpet',
+	--initCond = 'SENR sphere-log-radial Minkowski',
+	initCond = 'SENR sphere-log-radial UIUC',
+	--initCond = 'SENR sphere-log-radial BrillLindquist',
+	--initCond = 'SENR sphere-log-radial BoostedSchwarzschild',
+	--initCond = 'SENR sphere-log-radial StaticTrumpet',
 }
 --self.solvers:insert(require 'hydro.solver.bssnok-fd-pirk'(table(args, {eqn = 'bssnok-fd-num'})))	-- requires extra PIRK kernels to be defined in the eqn file
 --self.solvers:insert(require 'hydro.solver.bssnok-fd'(table(args, {eqn = 'bssnok-fd-num'})))

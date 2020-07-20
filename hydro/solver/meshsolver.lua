@@ -34,7 +34,7 @@ MeshSolver.numGhost = 0
 args:
 	meshfile = name of mesh file to use
 
-NOTICE initState is tied closely to grid mins/maxs...
+NOTICE initCond is tied closely to grid mins/maxs...
 so how should meshfiles use init states?
 --]]
 function MeshSolver:initMeshVars(args)
@@ -57,7 +57,7 @@ function MeshSolver:initMeshVars(args)
 	-- alright, by this point 'gridSize' has become synonymous with global_size() ...
 	-- I'm going to have to determine a vec4 globalSize for my kernels once they exceed the max 1D size
 	-- (just like I'm already doing with the Tex2D size)
-	-- TODO same with mins and maxs, since initState uses them
+	-- TODO same with mins and maxs, since initCond uses them
 	-- move them from mesh to this
 	self.solverStruct.vars:append{
 		{name='gridSize', type='int4'},
@@ -80,6 +80,7 @@ end):keys():sort():mapi(function(i)
 	print(os.execute(cmd))
 end)
 --]]
+	-- make sure to create mesh after self.coord, since mesh modifies the coord.cell_t structure
 	time('creating mesh', function()
 		self.mesh = meshFactory:createMesh(self)
 	end)
@@ -341,7 +342,7 @@ function MeshSolver:createBuffers()
 	MeshSolver.super.createBuffers(self)
 
 	self:clalloc('vtxBuf', 'real3', self.numVtxs)
-	self:clalloc('cellBuf', 'cell_t', self.numCells)
+	self:clalloc('cellBuf', self.coord.cell_t, self.numCells)
 	self:clalloc('facesBuf', 'face_t', self.numFaces)
 	self:clalloc('cellFaceIndexesBuf', 'int', self.numCellFaceIndexes)
 	
@@ -363,7 +364,7 @@ function MeshSolver:checkStructSizes_getTypes()
 	local typeinfos = MeshSolver.super.checkStructSizes_getTypes(self)
 	typeinfos:append{
 		face_t,
-		cell_t,
+		self.coord.cell_t,
 	}
 	return typeinfos
 end
@@ -501,7 +502,7 @@ kernel void calcFlux(
 	const global <?=eqn.cons_t?>* UBuf,
 	realparam dt,
 //mesh-specific parameters:	
-	const global cell_t* cells,			//[numCells]
+	const global <?=solver.coord.cell_t?>* cells,			//[numCells]
 	const global face_t* faces,			//[numFaces]
 	const global int* cellFaceIndexes	//[numCellFaceIndexes]
 ) {

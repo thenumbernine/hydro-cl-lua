@@ -109,9 +109,9 @@ function TwoFluidEMHDDeDonderGaugeLinearizedGR:init(args)
 	self.useEulerInitState = args.useEulerInitState
 
 	if self.useEulerInitState then
-		self.initStates = require 'hydro.init.euler'
+		self.initConds = require 'hydro.init.euler'
 	else
-		self.initStates = require 'hydro.init.twofluid-emhd'
+		self.initConds = require 'hydro.init.twofluid-emhd'
 	end
 
 	TwoFluidEMHDDeDonderGaugeLinearizedGR.super.init(self, args)
@@ -378,7 +378,7 @@ end
 
 -- overridden because it adds some extra parameters to the template args
 -- should I either make a function for the template arg params
--- or maybe I shouldn't have super-class'd the initState code to begin with ...
+-- or maybe I shouldn't have super-class'd the initCond code to begin with ...
 function TwoFluidEMHDDeDonderGaugeLinearizedGR:getInitCondCode()
 	return template([[
 <? 
@@ -454,7 +454,7 @@ if eqn.useEulerInitState then
 	W.elec_v = cartesianToCoord(v, x);
 
 <?	
-else	-- expect the initState to explicitly provide the ion_ and elec_ Euler fluid variables
+else	-- expect the initCond to explicitly provide the ion_ and elec_ Euler fluid variables
 	for _,fluid in ipairs(fluids) do ?>
 	W.<?=fluid?>_rho = <?=fluid?>_rho;
 	W.<?=fluid?>_v = cartesianToCoord(<?=fluid?>_v, x);
@@ -475,7 +475,7 @@ end
 }
 ]], table({
 		solver = self.solver,
-		code = self.initState:getInitCondCode(self.solver),
+		code = self.initCond:getInitCondCode(self.solver),
 		fluids = fluids,
 	}, self:getTemplateEnv()))
 end

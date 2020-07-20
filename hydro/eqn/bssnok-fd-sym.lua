@@ -1645,17 +1645,17 @@ function BSSNOKFiniteDifferenceEquation:getCommonFuncCode()
 end
 
 --[[
-Should initState provide a metric in cartesian, or in the background metric?
+Should initCond provide a metric in cartesian, or in the background metric?
 I'll say Cartesian for now, and then transform them using the rescaling.
 --]]
 function BSSNOKFiniteDifferenceEquation:getInitCondCode()
 	-- do this first to initialize the expression fields
 	local env = self:getEnv()
-	local initState = self.initState
+	local initCond = self.initCond
 	
 	-- look for symmath expressions instead of code
 	-- also skip the initDerivs finite difference 
-	if initState.initAnalytical then
+	if initCond.initAnalytical then
 		
 		local symmath = require 'symmath'
 		local Tensor = symmath.Tensor
@@ -1664,8 +1664,8 @@ function BSSNOKFiniteDifferenceEquation:getInitCondCode()
 		local sqrt = symmath.sqrt
 
 		local eu = env.eu
-		local gamma0_ll = initState.gamma0_ll
-		local K0_ll = initState.K0_ll
+		local gamma0_ll = initCond.gamma0_ll
+		local K0_ll = initCond.K0_ll
 
 		local gammaHat_ll = Tensor.metric().metric
 		local det_gammaHat = Matrix.determinant(gammaHat_ll)
@@ -1682,8 +1682,8 @@ function BSSNOKFiniteDifferenceEquation:getInitCondCode()
 		local ABar0_ll = (exp_neg4phi * A0_ll'_ij')()
 		local ABar0_LL = (ABar0_ll'_ij' * eu'^i_I' * eu'^j_J')()
 
-		env.alpha0 = initState.alpha0
-		env.beta0_U = (initState.beta0_u'^i' * eu'^i_I')():factorDivision()
+		env.alpha0 = initCond.alpha0
+		env.beta0_U = (initCond.beta0_u'^i' * eu'^i_I')():factorDivision()
 		-- TODO what to initialize B^i to?
 		env.B0_U = Tensor('^I', 0,0,0)
 		env.W0 = W0
@@ -1739,7 +1739,7 @@ kernel void applyInitCond(
 	U->M_U = real3_zero;
 }
 ]], 	setmetatable({
-			initState = initState,
+			initCond = initCond,
 		}, {
 			__index = env,
 		}))
@@ -1767,7 +1767,7 @@ kernel void applyInitCond(
 	real3 beta_u = real3_zero;
 	real3 B_u = real3_zero;
 
-	//initState will assume it is providing a metric in Cartesian
+	//initCond will assume it is providing a metric in Cartesian
 	sym3 gamma_ll = sym3_ident;
 	
 	sym3 K_ll = sym3_zero;
@@ -1835,7 +1835,7 @@ kernel void initDerivs(
 	U->LambdaBar_U = LambdaBar0_U;
 }
 ]=], setmetatable({
-		code = initState:getInitCondCode(self.solver),
+		code = initCond:getInitCondCode(self.solver),
 	}, {
 		__index = env,
 	}))

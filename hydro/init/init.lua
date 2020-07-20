@@ -106,14 +106,14 @@ if solver.useCLLinkLibraries then
 	--local code = initCondCode
 	local code = initCondCode..'\n'..template(require 'ext.io'.readfile'hydro/math.cl')
 	time('compiling init state program', function()
-		solver.initStateUnlinkedObj = solver.Program{name='initCond', code=code}
-		solver.initStateUnlinkedObj:compile{dontLink=true}
+		solver.initCondUnlinkedObj = solver.Program{name='initCond', code=code}
+		solver.initCondUnlinkedObj:compile{dontLink=true}
 	end)
 	time('linking init state program', function()
 		solver.initCondProgramObj = solver.Program{
 			programs = {
 				solver.mathUnlinkedObj, 
-				solver.initStateUnlinkedObj,
+				solver.initCondUnlinkedObj,
 			},
 		}
 	end)

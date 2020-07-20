@@ -367,7 +367,7 @@ assert(self.t)
 	end
 end
 
-local initStates = table{
+local initConds = table{
 	{
 		name = 'constant',
 		guiVars = {
@@ -381,10 +381,10 @@ local initStates = table{
 			heatCapacityRatio = 7/5,
 		},
 		init = function(self, solver, args)
-			self.initStateArgs = args
+			self.initCondArgs = args
 		end,
 		getInitCondCode = function(self, solver)
-			local args = self.initStateArgs
+			local args = self.initCondArgs
 			if args then
 				local found
 				if args.rho then self.guiVars.rho0.value = args.rho found = true end
@@ -2384,4 +2384,4 @@ kernel void addExtraSource(
 }:map(function(cl)
 	return class(InitCond, cl)
 end)
-return initStates
+return initConds

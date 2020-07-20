@@ -46,7 +46,7 @@ local function TwoFluidEMHDBehavior(parent)
 		local IonSolver = class(parent)
 		IonSolver.eqnName = 'euler'
 		function IonSolver:init(args)
-			IonSolver.super.init(self, table(args, {initState = ionInitState}))
+			IonSolver.super.init(self, table(args, {initCond = ionInitState}))
 			self.name = 'ion '..self.name
 		end
 		self.ion = IonSolver(args)
@@ -54,7 +54,7 @@ local function TwoFluidEMHDBehavior(parent)
 		local ElectronSolver = class(parent)
 		ElectronSolver.eqnName = 'euler'
 		function ElectronSolver:init(args)
-			ElectronSolver.super.init(self, table(args, {initState = electronInitState}))
+			ElectronSolver.super.init(self, table(args, {initCond = electronInitState}))
 			self.name = 'electron '..self.name
 		end
 		self.electron = ElectronSolver(args)
@@ -62,7 +62,7 @@ local function TwoFluidEMHDBehavior(parent)
 		local MaxwellSolver = class(parent)
 		MaxwellSolver.eqnName = 'glm-maxwell'
 		function MaxwellSolver:init(args)
-			MaxwellSolver.super.init(self, table(args, {initState = emhdInitState}))
+			MaxwellSolver.super.init(self, table(args, {initCond = emhdInitState}))
 		end
 		self.maxwell = MaxwellSolver(args)
 

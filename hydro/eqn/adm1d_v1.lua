@@ -40,7 +40,7 @@ ADM_BonaMasso_1D_2008Alcubierre.guiVars = {
 	{name='D_g_convCoeff', value=10},
 }
 
--- code that goes in initState and in the solver
+-- code that goes in initCond and in the solver
 function ADM_BonaMasso_1D_2008Alcubierre:getCommonFuncCode()
 	return template([[
 void setFlatSpace(

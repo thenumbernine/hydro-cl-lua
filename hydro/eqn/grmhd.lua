@@ -28,7 +28,7 @@ GRMHD.useConstrainU = true
 -- which means overriding the code that calls this? or the calc flux code?
 --GRMHD.roeUseFluxFromCons = true
 
-GRMHD.initStates = require 'hydro.init.euler'
+GRMHD.initConds = require 'hydro.init.euler'
 
 function GRMHD:getTypeCode()
 	return template([[

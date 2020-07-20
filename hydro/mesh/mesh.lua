@@ -69,8 +69,8 @@ local function new_face_t()
 	return face
 end
 
-local function new_cell_t()
-	local cell = cell_t.metatype()
+local function new_cell_t(solver)
+	local cell = solver.coord.cellStruct.metatype()
 	cell.pos:set(0,0,0)
 	cell.faceOffset = 0
 	cell.faceCount = 0
@@ -433,7 +433,7 @@ Mesh.times = {}
 function Mesh:addCell(vis)
 local startTime = getTime()	
 	local ci = #self.cells
-	self.cells:push_back(new_cell_t())
+	self.cells:push_back(new_cell_t(self.solver))
 	local c = self.cells:back()
 Mesh.times['creating cell'] = (Mesh.times['creating cell'] or 0) + getTime() - startTime
 

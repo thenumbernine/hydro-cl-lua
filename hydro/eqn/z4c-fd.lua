@@ -266,7 +266,7 @@ kernel void initDerivs(
 	U->Delta_u = real3_sub(connBar_u, connHat_u);
 }
 ]], table(self:getTemplateEnv(), {
-		code = self.initState:getInitCondCode(self.solver),
+		code = self.initCond:getInitCondCode(self.solver),
 	}))
 end
 
