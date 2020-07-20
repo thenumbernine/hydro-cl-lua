@@ -85,8 +85,9 @@ local from3x3to6 = common.from3x3to6
 local from6to3x3 = common.from6to3x3 
 local sym = common.sym 
 ?>
-kernel void initState(
+kernel void applyInitCond(
 	constant <?=solver.solver_t?>* solver,
+	constant <?=solver.initCond_t?>* initCond,
 	global <?=eqn.cons_t?>* UBuf,
 	const global <?=coord.cell_t?>* cellBuf
 ) {

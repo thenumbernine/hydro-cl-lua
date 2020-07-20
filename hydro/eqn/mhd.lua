@@ -302,8 +302,9 @@ end
 
 MHD.initCondCode = [[
 <? local xNames = require 'hydro.common'.xNames ?>
-kernel void initState(
+kernel void applyInitCond(
 	constant <?=solver.solver_t?>* solver,
+	constant <?=solver.initCond_t?>* initCond,
 	global <?=eqn.cons_t?>* UBuf,
 	global <?=solver.coord.cell_t?>* cellBuf
 ) {

@@ -263,9 +263,9 @@ function Equation:createInitState()
 	self.initState:createInitStruct(self.solver)
 	self.initState:finalizeInitStruct(self.solver)
 	
-	-- should ops add vars to init_t or solver_t?
+	-- should ops add vars to initCond_t or solver_t?
 	-- or should there be a new eqn_t?
-	-- I would like init cond stuff in init_t so changing the init cond only recompiles initState.cl
+	-- I would like init cond stuff in initCond_t so changing the init cond only recompiles initState.cl
 	-- so let's continue to put op guiVars in solver_t
 	for _,op in ipairs(self.solver.ops) do
 		if op.guiVars then

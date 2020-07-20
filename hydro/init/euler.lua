@@ -2203,7 +2203,7 @@ kernel void addExtraSource(
 			end
 		end,
 		resetState = function(self, solver)
-			-- super calls initStateKernel ...
+			-- super calls applyInitCondKernel ...
 			InitCond.resetState(self, solver)
 			-- and here I'm going to fill the permittivity 'eps' with random noise
 			-- ... and put a source + and - current 'sigma' at two points on the image

@@ -171,8 +171,9 @@ end
 function GRHD:getPrimConsCode() end
 
 GRHD.initCondCode = [[
-kernel void initState(
+kernel void applyInitCond(
 	constant <?=solver.solver_t?>* solver,
+	constant <?=solver.initCond_t?>* initCond,
 	global <?=eqn.cons_t?>* UBuf<?=
 	solver:getADMArgs()?>
 ) {

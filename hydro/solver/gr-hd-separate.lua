@@ -98,7 +98,7 @@ function GRHDSeparateSolver:init(args)
 	end
 	function HydroSolver:refreshInitStateProgram()
 		HydroSolver.super.refreshInitStateProgram(self)
-		self.initStateKernelObj.obj:setArg(2, gr.UBuf)
+		self.applyInitCondKernelObj.obj:setArg(2, gr.UBuf)
 	end
 	function HydroSolver:refreshSolverProgram()
 		HydroSolver.super.refreshSolverProgram(self)

@@ -179,8 +179,9 @@ function BSSNOKFiniteDifferenceEquation:getInitCondCode()
 		local det_gamma = symmath.Matrix.determinant(initState.gamma0_ll)
 
 		return template([[
-kernel void initState(
+kernel void applyInitCond(
 	constant <?=solver.solver_t?>* solver,
+	constant <?=solver.initCond_t?>* initCond,
 	global <?=eqn.cons_t?>* UBuf,
 	const global <?=solver.coord.cell_t?>* cellBuf
 ) {
@@ -334,8 +335,9 @@ end ?>
 	-- TODO port these from sympy into symmath 
 	if require 'hydro.init.senr'[1].super.is(initState) then
 		return template([=[
-kernel void initState(
+kernel void applyInitCond(
 	constant <?=solver.solver_t?>* solver,
+	constant <?=solver.initCond_t?>* initCond,
 	global <?=eqn.cons_t?>* UBuf,
 	const global <?=solver.coord.cell_t?>* cellBuf
 ) {
@@ -390,13 +392,14 @@ kernel void initState(
 <? end ?>
 }
 ]=], 	table(env, {
-			code = initState:initState(self.solver),
+			code = initState:getInitCondCode(self.solver),
 		}))
 	end
 
 	return template([=[
-kernel void initState(
+kernel void applyInitCond(
 	constant <?=solver.solver_t?>* solver,
+	constant <?=solver.initCond_t?>* initCond,
 	global <?=eqn.cons_t?>* UBuf,
 	const global <?=solver.coord.cell_t?>* cellBuf
 ) {
@@ -504,7 +507,7 @@ kernel void initDerivs(
 	U->LambdaBar_U = real3_add(_3sym3_sym3_dot23(Delta_ULL, gammaBar_UU), mystery_C_U);
 }
 ]=], table(env, {
-		code = initState:initState(self.solver),
+		code = initState:getInitCondCode(self.solver),
 	}))
 end
 

@@ -93,8 +93,9 @@ local xNames = common.xNames
 local scalar = eqn.scalar
 local vec3 = eqn.vec3
 ?>
-kernel void initState(
+kernel void applyInitCond(
 	constant <?=solver.solver_t?>* solver,
+	constant <?=solver.initCond_t?>* initCond,
 	global <?=eqn.cons_t?>* UBuf,
 	const global <?=solver.coord.cell_t?>* cellBuf
 ) {

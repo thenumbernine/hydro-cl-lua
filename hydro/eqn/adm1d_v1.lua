@@ -64,8 +64,9 @@ void setFlatSpace(
 end
 
 ADM_BonaMasso_1D_2008Alcubierre.initCondCode = [[
-kernel void initState(
+kernel void applyInitCond(
 	constant <?=solver.solver_t?>* solver,
+	constant <?=solver.initCond_t?>* initCond,
 	global <?=eqn.cons_t?>* UBuf,
 	const global <?=coord.cell_t?>* cellBuf
 ) {

@@ -172,12 +172,14 @@ end
 
 function Z4cFiniteDifferenceEquation:getInitCondCode()
 	return template([[
-kernel void initState(
+kernel void applyInitCond(
 	constant <?=solver.solver_t?>* solver,
-	global <?=eqn.cons_t?>* UBuf
+	constant <?=solver.initCond_t?>* initCond,
+	global <?=eqn.cons_t?>* UBuf,
+	const global <?=coord.cell_t?>* cellBuf
 ) {
 	SETBOUNDS(numGhost,numGhost);
-	real3 x = cell_x(i);
+	real3 x = cellBuf[index].pos;
 	real3 xc = coordMap(x);
 	real3 mids = real3_real_mul(real3_add(solver->mins, solver->maxs), .5);
 	
@@ -264,7 +266,7 @@ kernel void initDerivs(
 	U->Delta_u = real3_sub(connBar_u, connHat_u);
 }
 ]], table(self:getTemplateEnv(), {
-		code = self.initState:initState(self.solver),
+		code = self.initState:getInitCondCode(self.solver),
 	}))
 end
 

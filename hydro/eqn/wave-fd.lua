@@ -50,13 +50,14 @@ WaveFDEqn.predefinedDisplayVars = {
 WaveFDEqn.initStates = require 'hydro.init.nls'
 
 WaveFDEqn.initCondCode = [[
-kernel void initState(
+kernel void applyInitCond(
 	constant <?=solver.solver_t?>* solver,
-	global <?=eqn.cons_t?>* UBuf
+	constant <?=solver.initCond_t?>* initCond,
+	global <?=eqn.cons_t?>* UBuf,
+	const global <?=coord.cell_t?>* cellBuf
 ) {
 	SETBOUNDS(0,0);
-	real3 x = cell_x(i);
-	
+	real3 x = cellBuf[index].pos;
 	real r = fabs(x.x);
 	cplx q = cplx_zero;
 	<?=code?>

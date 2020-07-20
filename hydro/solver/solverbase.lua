@@ -59,7 +59,7 @@ SolverBase:init
 					self.eqn.initState:createInitStruct
 						self.eqn.initState.initStruct = ...
 					self.eqn.initState:finalizeInitStruct
-						self.eqn.initState.init_t = ...
+						self.eqn.initState.initCond_t = ...
 				self.solverStruct:makeType
 				self.solver_t = ...
 			
@@ -860,7 +860,7 @@ end
 function SolverBase:refreshEqnInitState()
 	-- Right now within eqn:createInitState I'm adding any subclass-specific gui vars
 	-- so only after it finishes and all gui vars are created, ask the eqn.initState object if it wants to modify anything.
-	-- Don't do this during Solver:refreshInitStateProgram()->InitCond:initState() or the changes won't get into the header.
+	-- Don't do this during Solver:refreshInitStateProgram()->InitCond:getInitCondCode() or the changes won't get into the header.
 	-- Hmm... should the initState even have control over the eqn's vars?
 	if self.eqn.initState.overrideGuiVars then
 		for k,v in pairs(self.eqn.initState.overrideGuiVars) do
@@ -877,7 +877,7 @@ function SolverBase:refreshEqnInitState()
 		self:checkStructSizes()
 	end
 
-	-- bounds don't get set until initState() is called, but code prefix needs them ...
+	-- bounds don't get set until getInitCondCode() is called, but code prefix needs them ...
 	-- TODO do a proper refresh so mins/maxs can be properly refreshed
 	local initState = self.eqn.initState
 	if initState.mins then 

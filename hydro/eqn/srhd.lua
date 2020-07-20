@@ -285,8 +285,9 @@ real calc_h(real rho, real P, real eInt) {
 end
 
 SRHD.initCondCode = [[
-kernel void initState(
+kernel void applyInitCond(
 	constant <?=solver.solver_t?>* solver,
+	constant <?=solver.initCond_t?>* initCond,
 	global <?=eqn.cons_t?>* UBuf,
 	const global <?=solver.coord.cell_t?>* cellBuf
 ) {

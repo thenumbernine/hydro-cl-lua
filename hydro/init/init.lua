@@ -46,7 +46,7 @@ function InitCond:finalizeInitStruct(solver)
 		self.initStruct.vars:insert{name='tmp', type='real'}
 	end
 	self.initStruct:makeType()
-	self.init_t = self.initStruct.typename
+	self.initCond_t = self.initStruct.typename
 end
 
 -- [[ TODO this is similar to what's in Equation
@@ -137,7 +137,7 @@ end
 		solver.UBufObj:fromCPU(ptr)
 	end)
 
-	solver.initStateKernelObj = solver.initStateProgramObj:kernel('initState', solver.solverBuf, solver.initCondBuf, solver.UBuf, solver.cellBuf)
+	solver.applyInitCondKernelObj = solver.initStateProgramObj:kernel('applyInitCond', solver.solverBuf, solver.initCondBuf, solver.UBuf, solver.cellBuf)
 
 	-- here's an ugly hack ...
 	-- I need a custom init state kernel for the GLM_MHD only
@@ -155,7 +155,7 @@ end
 
 -- called when the solver resets
 function InitCond:resetState(solver)
-	solver.initStateKernelObj()
+	solver.applyInitCondKernelObj()
 
 	if cmdline.printBufs then
 		print('init UBuf:')

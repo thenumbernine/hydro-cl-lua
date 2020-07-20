@@ -1696,8 +1696,9 @@ for k in ('alpha0 W0 K0 beta0_U B0_U epsilon_LL ABar0_LL'):gmatch'%S+' do
 end
 
 		return template([[
-kernel void initState(
+kernel void applyInitCond(
 	constant <?=solver.solver_t?>* solver,
+	constant <?=solver.initCond_t?>* initCond,
 	global <?=eqn.cons_t?>* UBuf,
 	const global <?=solver.coord.cell_t?>* cellBuf
 ) {
@@ -1745,8 +1746,9 @@ kernel void initState(
 	end
 	
 	return template([=[
-kernel void initState(
+kernel void applyInitCond(
 	constant <?=solver.solver_t?>* solver,
+	constant <?=solver.initCond_t?>* initCond,
 	global <?=eqn.cons_t?>* UBuf,
 	const global <?=solver.coord.cell_t?>* cellBuf
 ) {
@@ -1833,7 +1835,7 @@ kernel void initDerivs(
 	U->LambdaBar_U = LambdaBar0_U;
 }
 ]=], setmetatable({
-		code = initState:initState(self.solver),
+		code = initState:getInitCondCode(self.solver),
 	}, {
 		__index = env,
 	}))

@@ -368,8 +368,9 @@ local fromreal = scalar..'_from_real'
 local sqrt = scalar..'_sqrt'
 ?>
 
-kernel void initState(
+kernel void applyInitCond(
 	constant <?=solver.solver_t?>* solver,
+	constant <?=solver.initCond_t?>* initCond,
 	global <?=eqn.cons_t?>* UBuf,
 	const global <?=solver.coord.cell_t?>* cellBuf
 ) {
@@ -447,7 +448,7 @@ end
 }
 ]], table({
 		solver = self.solver,
-		code = self.initState:initState(self.solver),
+		code = self.initState:getInitCondCode(self.solver),
 		fluids = fluids,
 	}, self:getTemplateEnv()))
 end

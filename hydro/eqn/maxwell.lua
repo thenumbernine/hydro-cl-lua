@@ -172,8 +172,9 @@ local vec3 = eqn.vec3
 local zero = scalar..'_zero'
 ?>
 
-kernel void initState(
+kernel void applyInitCond(
 	constant <?=solver.solver_t?>* solver,
+	constant <?=solver.initCond_t?>* initCond,
 	global <?=cons_t?>* UBuf,
 	const global <?=coord.cell_t?>* cellBuf
 ) {

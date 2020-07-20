@@ -86,7 +86,7 @@ function GREMSeparateSolver:init(args)
 	end
 	function GRMaxwellSolver:refreshInitStateProgram()
 		GRMaxwellSolver.super.refreshInitStateProgram(self)
-		self.initStateKernelObj.obj:setArg(2, gr.UBuf)
+		self.applyInitCondKernelObj.obj:setArg(2, gr.UBuf)
 	end
 	function GRMaxwellSolver:refreshSolverProgram()
 		GRMaxwellSolver.super.refreshSolverProgram(self)
