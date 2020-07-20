@@ -72,10 +72,12 @@ function InitCond:addGuiVar(args)
 	self.guiVars:insert(var)
 	self.guiVars[var.name] = var
 
-	self.initStruct.vars:insert{
-		name = var.name,
-		type = var.ctype,
-	}
+	if not args.compileTime then 
+		self.initStruct.vars:insert{
+			name = var.name,
+			type = var.ctype,
+		}
+	end
 end
 --]]
 
@@ -86,7 +88,13 @@ function InitCond:refreshInitStateProgram(solver)
 	time('generating init state code', function()
 		initCondCode = table{
 			solver.codePrefix,
+			
 			self.initStruct.typecode,
+		
+			self.guiVars:mapi(function(var,i,t) 
+				return (var.compileTime and var:getCode() or nil), #t+1
+			end):concat'\n',
+
 			self.header and self:header(solver) or '',
 			solver.eqn:getInitStateCode(),
 		}:concat'\n'

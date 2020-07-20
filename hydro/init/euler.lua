@@ -20,7 +20,7 @@ local function RiemannProblem(initCond)
 
 	local function getInitCondFieldName(i,varname)
 		local suffix = ({'L','R'})[i]
-		return 'init_'..varname:gsub('%.','')..suffix
+		return varname:gsub('%.','')..suffix
 	end
 
 	initCond.guiVars = initCond.guiVars or {}
@@ -75,10 +75,10 @@ end
 		local solverPtr = solver.solverPtr
 		local initCondPtr = solver.initCondPtr
 		-- TODO initial condition object to share these values with initialization
-		local rhoL = initCondPtr.init_rhoL
-		local rhoR = initCondPtr.init_rhoR
-		local PL = initCondPtr.init_PL
-		local PR = initCondPtr.init_PR
+		local rhoL = initCondPtr.rhoL
+		local rhoR = initCondPtr.rhoR
+		local PL = initCondPtr.PL
+		local PR = initCondPtr.PR
 		local vL = 0
 		local vR = 0
 		local gamma = solverPtr.heatCapacityRatio
@@ -423,15 +423,15 @@ local initStates = table{
 	{
 		name = 'gaussian',
 		guiVars = {
-			{name = 'init_rho0', value = 1e-3},
-			{name = 'init_rho1', value = 1},
-			{name = 'init_sigma', value = .1},
-			{name = 'init_u0', value = 0},
-			{name = 'init_v0', value = 0},
-			{name = 'init_P0', value = 1e-6},
-			{name = 'init_x0', value = -.5},
-			{name = 'init_y0', value = -.5},
-			{name = 'init_z0', value = 0},
+			{name = 'rho0', value = 1e-3},
+			{name = 'rho1', value = 1},
+			{name = 'sigma', value = .1},
+			{name = 'u0', value = 0},
+			{name = 'v0', value = 0},
+			{name = 'P0', value = 1e-6},
+			{name = 'x0', value = -.5},
+			{name = 'y0', value = -.5},
+			{name = 'z0', value = 0},
 		},
 		initState = function(self, solver)
 			return template([[
@@ -439,14 +439,14 @@ local initStates = table{
 	//real xSq = real3_lenSq(xc);
 	real xSq = real3_lenSq(real3_sub(xc, 
 		_real3(
-			initCond->init_x0,
-			initCond->init_y0, 
-			initCond->init_z0
+			initCond->x0,
+			initCond->y0, 
+			initCond->z0
 		)));
-	rho = (initCond->init_rho1 - initCond->init_rho0) * exp(-xSq / (initCond->init_sigma*initCond->init_sigma)) + initCond->init_rho0;
-	v.x = initCond->init_u0;
-	v.y = initCond->init_v0;
-	P = initCond->init_P0;
+	rho = (initCond->rho1 - initCond->rho0) * exp(-xSq / (initCond->sigma*initCond->sigma)) + initCond->rho0;
+	v.x = initCond->u0;
+	v.y = initCond->v0;
+	P = initCond->P0;
 ]],		{
 			clnumber = clnumber,
 		})
@@ -488,11 +488,11 @@ local initStates = table{
 			heatCapacityRatio = 7/5,
 		},
 		guiVars = {
-			{name = 'init_v0x', value = 1},
-			{name = 'init_v0y', value = 0},
-			{name = 'init_rho0', value = 1},
-			{name = 'init_rho1', value = 3.2e-1},
-			{name = 'init_P0', value = 1},
+			{name = 'v0x', value = 1},
+			{name = 'v0y', value = 0},
+			{name = 'rho0', value = 1},
+			{name = 'rho1', value = 3.2e-1},
+			{name = 'P0', value = 1},
 		},
 		initState = function(self, solver)
 			solver:setBoundaryMethods{
@@ -509,11 +509,11 @@ local initStates = table{
 	real xmax = solver->maxs.x;
 	real width = xmax - xmin;
 	real k0 = 2. * M_PI / width;
-	rho = initCond->init_rho0 + initCond->init_rho1 * sin(k0 * (xc.x - xmin));
-	v.x = initCond->init_v0x;
-	v.y = initCond->init_v0y;
+	rho = initCond->rho0 + initCond->rho1 * sin(k0 * (xc.x - xmin));
+	v.x = initCond->v0x;
+	v.y = initCond->v0y;
 	v.z = 0;
-	P = initCond->init_P0;
+	P = initCond->P0;
 	ePot = 0;
 ]]
 		end,
@@ -521,8 +521,9 @@ local initStates = table{
 		-- TODO TODO do this with all math everywhere, and analyze the dependency graph of variables and automatically slice out what GPU calculations should be buffered / automatically inline equations
 		exactSolution = function(solver, x, t)
 			local solverPtr = solver.solverPtr
+			local initCondPtr = solver.initCondPtr
 			local k0 = 2 * math.pi / (solverPtr.maxs.x - solverPtr.mins.x)
-			local rho = solverPtr.init_rho0 + solverPtr.init_rho1 * math.sin(k0 * (x - t))
+			local rho = initCondPtr.rho0 + initCondPtr.rho1 * math.sin(k0 * (x - t))
 			local mx = 1 * rho
 			local my = 0
 			local mz = 0
@@ -581,16 +582,16 @@ Test	ρ L		u L		    p L		 ρ R		u R		    p R
 	{	-- just like Brio-Wu, but centered instead of to one side
 		name = 'rectangle',
 		guiVars = {
-			{name = 'init_rhoL', value = 1},
-			{name = 'init_rhoR', value = .125},
-			{name = 'init_PL', value = 1},
-			{name = 'init_PR', value = .1},
-			{name = 'init_BxL', value = .75},
-			{name = 'init_BxR', value = .75},
-			{name = 'init_ByL', value = 1},
-			{name = 'init_ByR', value = -1},
-			{name = 'init_BzL', value = 0},
-			{name = 'init_BzR', value = 0},
+			{name = 'rhoL', value = 1},
+			{name = 'rhoR', value = .125},
+			{name = 'PL', value = 1},
+			{name = 'PR', value = .1},
+			{name = 'BxL', value = .75},
+			{name = 'BxR', value = .75},
+			{name = 'ByL', value = 1},
+			{name = 'ByR', value = -1},
+			{name = 'BzL', value = 0},
+			{name = 'BzR', value = 0},
 		},
 		overrideGuiVars = {
 			heatCapacityRatio = 2,
@@ -607,11 +608,11 @@ for i=1,solver.dim do
 end
 ?>;
 	
-	rho = lhs ? initCond->init_rhoL : initCond->init_rhoR;
-	P = lhs ? initCond->init_PL : initCond->init_PR;
-	B.x = lhs ? initCond->init_BxL : initCond->init_BxR;
-	B.y = lhs ? initCond->init_ByL : initCond->init_ByR;
-	B.z = lhs ? initCond->init_BzL : initCond->init_BzR;
+	rho = lhs ? initCond->rhoL : initCond->rhoR;
+	P = lhs ? initCond->PL : initCond->PR;
+	B.x = lhs ? initCond->BxL : initCond->BxR;
+	B.y = lhs ? initCond->ByL : initCond->ByR;
+	B.z = lhs ? initCond->BzL : initCond->BzR;
 ]], 	{
 			solver = solver,
 			xNames = xNames,
@@ -622,15 +623,15 @@ end
 	{
 		name = 'Sedov',
 		guiVars = {
-			{name = 'init_rho0', value = 1},
-			{name = 'init_P0', value = 1},
-			{name = 'init_P1', value = 1e+3},
+			{name = 'rho0', value = 1},
+			{name = 'P0', value = 1},
+			{name = 'P1', value = 1e+3},
 		},
 	
 		initState = function(self, solver)
 			return [[
-	rho = initCond->init_rho0;
-	P = (i.x == solver->gridSize.x/2 && i.y == solver->gridSize.y/2 && i.z == solver->gridSize.z/2) ? initCond->init_P1 : initCond->init_P0;
+	rho = initCond->rho0;
+	P = (i.x == solver->gridSize.x/2 && i.y == solver->gridSize.y/2 && i.z == solver->gridSize.z/2) ? initCond->P1 : initCond->P0;
 ]]
 		end,
 	},
@@ -1033,21 +1034,21 @@ end) then
 	{
 		name = 'spiral',
 		guiVars = {
-			{name = 'init_rho', value = 1},
-			{name = 'init_P', value = 1},
-			{name = 'init_v', value = .5},
-			{name = 'init_D', value = 1},
+			{name = 'rho', value = 1},
+			{name = 'P', value = 1},
+			{name = 'v', value = .5},
+			{name = 'D', value = 1},
 		},
 		initState = function(self, solver)
 			return [[
 	real3 xc = coordMap(x);
 	real r2 = sqrt(xc.x * xc.x + xc.y * xc.y);
-	P = initCond->init_P;
-	rho = initCond->init_rho;
-	v.x = -xc.y * initCond->init_v / r2;
-	v.y = xc.x * initCond->init_v / r2;
-	D.x = -xc.y * initCond->init_D / r2;
-	D.y = xc.x * initCond->init_D / r2;
+	P = initCond->P;
+	rho = initCond->rho;
+	v.x = -xc.y * initCond->v / r2;
+	v.y = xc.x * initCond->v / r2;
+	D.x = -xc.y * initCond->D / r2;
+	D.y = xc.x * initCond->D / r2;
 ]]
 		end,
 	},
@@ -1055,8 +1056,8 @@ end) then
 	{
 		name = 'cyclone',
 		guiVars = {
-			{name = 'init_rho', value = 1},
-			{name = 'init_P', value = 1},
+			{name = 'rho', value = 1},
+			{name = 'P', value = 1},
 			{name = 'inlet_v', value = .1},
 		},
 		initState = function(self, solver)
@@ -1090,9 +1091,9 @@ end) then
 		inlet = dyz2 < .1;
 	}
 	<?=eqn.cons_t?> W = {.ptr={0}}
-	W.rho = initCond->init_rho;
+	W.rho = initCond->rho;
 	W.v = real3_zero;
-	W.P = initCond->init_P;
+	W.P = initCond->P;
 	W.ePot = 0;
 	if (inlet) {
 		W.v = real3(-initCond->inlet_v, 0., 0.);
@@ -1119,8 +1120,8 @@ end) then
 			end
 
 			return [[
-	rho = initCond->init_rho;
-	P = initCond->init_P;
+	rho = initCond->rho;
+	P = initCond->P;
 ]]
 		end,
 	},
@@ -1296,6 +1297,8 @@ end) then
 			end
 			
 			self:addGuiVars{
+				-- these are compileTime right now
+				-- also TODO initCond gui vars don't support compileTime yet
 				{name='moveAxis', type='combo', value=moveAxis, options={'x','y','z'}, compileTime=true},
 				{name='sliceAxis', type='combo', value=sliceAxis, options={'x','y','z'}, compileTime=true},
 				{name='rhoInside', value=2.},
@@ -1351,7 +1354,7 @@ end ?>
 #if dim == 3
 	v.z = sin(theta) * noise;
 #endif
-	v.<?=moveAxis?> += inside * initCond->velInside + (1. - inside) * initCond->velOutside;
+	v.moveAxis += inside * initCond->velInside + (1. - inside) * initCond->velOutside;
 	v = cartesianFromCoord(v, x);
 	P = initCond->backgroundPressure;
 	
@@ -1364,7 +1367,6 @@ end ?>
 	P += initCond->noiseAmplitude * 2. * (U->ptr[4] - .5);
 ]],				{
 					solver = solver,
-					moveAxis = self.guiVars.moveAxis.options[self.guiVars.moveAxis.value],
 					sliceAxis = self.guiVars.sliceAxis.options[self.guiVars.sliceAxis.value],
 					xNames = xNames,
 				}
@@ -1538,9 +1540,9 @@ end ?>;
 	{
 		name = 'Mara IsentropicPulse',
 		guiVars = {
-			{name = 'init_entropy_ref', value = 0.1},
-			{name = 'init_mode', value = 2},
-			{name = 'init_rho_ref', value = 1},
+			{name = 'entropy_ref', value = 0.1},
+			{name = 'mode', value = 2},
+			{name = 'rho_ref', value = 1},
 		},
 		overrideGuiVars = {
 			heatCapacityRatio = 1.4,
@@ -1549,10 +1551,10 @@ end ?>;
 	         return [[
 	real3 c = real3_real_mul(x, .5);
 	real L = 1.0;
-	real n = initCond->init_mode;
-	real K = initCond->init_entropy_ref;
+	real n = initCond->mode;
+	real K = initCond->entropy_ref;
 	real Gamma = solver->heatCapacityRatio;
-	real rho_ref = initCond->init_rho_ref;
+	real rho_ref = initCond->rho_ref;
 	real pre_ref = K * pow(rho_ref, Gamma);
 	real cs_ref = sqrt(Gamma * pre_ref / rho_ref);
 	real f = sin(n*M_PI*c.x/L);
@@ -1568,7 +1570,7 @@ end ?>;
 	{
 		name = 'Mara Explosion',
 		guiVars = {
-			{name = 'init_Bx', value = 4},
+			{name = 'Bx', value = 4},
 		},
 		initState = function(self, solver)
 			return [[
@@ -1577,7 +1579,7 @@ end ?>;
 	bool inside = r2 < 0.01;
 	rho = inside ? 1.000 : 0.125;
 	P = inside ? 1.0 : 0.1;
-	B.x = initCond->init_Bx;
+	B.x = initCond->Bx;
 ]]
 		end,
 	},
@@ -1602,23 +1604,23 @@ end ?>;
 	{
 		name = 'Mara SmoothKelvinHelmholtz',
 		guiVars = {
-			{name = 'init_P0', value = 2.5},
-			{name = 'init_rho1', value = 1.0},
-			{name = 'init_rho2', value = 2.0},
-			{name = 'init_L', value = .025},
-			{name = 'init_U1', value = 0.5},
-			{name = 'init_U2', value = -0.5},
-			{name = 'init_w0', value = 0.01},
+			{name = 'P0', value = 2.5},
+			{name = 'rho1', value = 1.0},
+			{name = 'rho2', value = 2.0},
+			{name = 'L', value = .025},
+			{name = 'U1', value = 0.5},
+			{name = 'U2', value = -0.5},
+			{name = 'w0', value = 0.01},
 		},
 		initState = function(self, solver)
 			return [[
 	real3 c = real3_add(real3_real_mul(x, .5), _real3(.5, .5, .5));
-	const real rho1 = initCond->init_rho1;
-	const real rho2 = initCond->init_rho2;
-	const real L = initCond->init_L;
-	const real U1 = initCond->init_U1;
-	const real U2 = initCond->init_U2;
-	const real w0 = initCond->init_w0;
+	const real rho1 = initCond->rho1;
+	const real rho2 = initCond->rho2;
+	const real L = initCond->L;
+	const real U1 = initCond->U1;
+	const real U2 = initCond->U2;
+	const real w0 = initCond->w0;
 	if (c.y < 0.25) {
 		rho = rho1 - 0.5*(rho1-rho2)*exp( (c.y - 0.25)/L);
 		v.x = U1 - 0.5*( U1 - U2 )*exp( (c.y - 0.25)/L);
@@ -1633,7 +1635,7 @@ end ?>;
 		v.x = U1 - 0.5*( U1 - U2 )*exp(-(c.y - 0.75)/L);
 	}
 	v.y = w0*sin(4.*M_PI*c.x);
-	P = initCond->init_P0;
+	P = initCond->P0;
 ]]
 		end,
 	},
@@ -2260,15 +2262,15 @@ kernel void addExtraSource(
 	{
 		name = 'Maxwell transverse waves',
 		guiVars = {
-			{name = 'init_E0', value = 1, compileTime=true},
-			{name = 'init_m', value = 8, compileTime=true},
-			{name = 'init_n', value = 5, compileTime=true},
-			{name = 'init_x0', value = 2, compileTime=true},
-			{name = 'init_y0', value = 2, compileTime=true},
+			{name = 'E0', value = 1, compileTime=true},
+			{name = 'm', value = 8, compileTime=true},
+			{name = 'n', value = 5, compileTime=true},
+			{name = 'x0', value = 2, compileTime=true},
+			{name = 'y0', value = 2, compileTime=true},
 		},
 		initState = function(self, solver)
 			return template([[
-	D.z = <?=eqn.susc_t?>_from_real( init_E0 * sin(init_m * M_PI * x.x / init_x0) * sin(init_n * M_PI * x.y / init_y0) );
+	D.z = <?=eqn.susc_t?>_from_real( E0 * sin(m * M_PI * x.x / x0) * sin(n * M_PI * x.y / y0) );
 ]], 		table({
 				solver = solver,
 			}, solver.eqn:getTemplateEnv()))
@@ -2277,12 +2279,12 @@ kernel void addExtraSource(
 
 	{
 		guiVars = {
-			{name = 'init_rhoCharge0', value = 1},
+			{name = 'rhoCharge0', value = 1},
 		},
 		name = 'Maxwell charged particle',
 		initState = function(self, solver)
 			return template([[
-	rhoCharge = (i.x == solver->gridSize.x/2 && i.y == solver->gridSize.y/2 && i.z == solver->gridSize.z/2) ? initCond->init_rhoCharge0 : 0.;
+	rhoCharge = (i.x == solver->gridSize.x/2 && i.y == solver->gridSize.y/2 && i.z == solver->gridSize.z/2) ? initCond->rhoCharge0 : 0.;
 ]], 		table({
 				solver = solver,
 			}, solver.eqn:getTemplateEnv()))
@@ -2332,22 +2334,22 @@ kernel void addExtraSource(
 	{
 		name = 'spiral with flipped B field',
 		guiVars = {
-			{name = 'init_rho', value = 1},
-			{name = 'init_P', value = 1},
-			{name = 'init_v', value = .5},
-			{name = 'init_B', value = 1},
+			{name = 'rho', value = 1},
+			{name = 'P', value = 1},
+			{name = 'v', value = .5},
+			{name = 'B', value = 1},
 		},
 		initState = function(self, solver)
 			return [[
 	real3 xc = coordMap(x);
 	real r = real3_len(xc);
-	P = initCond->init_P;
-	rho = initCond->init_rho;
-	v.x = -xc.y * initCond->init_v / r;
-	v.y = xc.x * initCond->init_v / r;
+	P = initCond->P;
+	rho = initCond->rho;
+	v.x = -xc.y * initCond->v / r;
+	v.y = xc.x * initCond->v / r;
 	real s = sign(r - .5);
-	B.x = -xc.y * s * initCond->init_B / r;
-	B.y = xc.x * s * initCond->init_B / r;
+	B.x = -xc.y * s * initCond->B / r;
+	B.y = xc.x * s * initCond->B / r;
 ]]
 		end,
 	},
