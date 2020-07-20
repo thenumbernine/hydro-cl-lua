@@ -1,4 +1,196 @@
--- TODO make this hydro/solver/solver.lua, and make the old solver.lua something like structured-grid-solver
+--[[
+TODO make this hydro/solver/solver.lua, and make the old solver.lua something like structured-grid-solver
+
+TODO break up the construction of solver and all its members into the following:
+
+0) init mesh size information / vars (numCells, maxWorkGroupSize, etc)
+1) init objects
+	- create flux
+	- create integrator
+	- create eqn
+		- create initState
+2) init ffi.cdef's
+3) init solver code
+4) build programs
+5) init buffers
+6) init kernels
+
+
+here's the current init structure for fvsolver:
+SolverBase:init
+	FVSolver:initMeshVars
+		GridSolver:initMeshVars
+			SolverBase:initMeshVars
+				self.app = ...
+				self.dim = ...
+				self.device = ...
+				self.cmds = ...
+				self.color = ...
+				self.ops = ...
+				self.solverStruct = ...
+				self.solverStruct.vars:append(...)
+			self.solverStruct.vars:append(...)	
+			self.mins = ...
+			self.maxs = ...
+			self.initCondMins = ...
+			self.initCondMaxs = ...
+			self.gridSize = ...
+	SolverBase:initCLDomainVars
+		self.maxWorkGroupSize = ...
+		SolverBase:getSizePropsForWorkGroupSize
+		self.localSize1d = ...
+		self.localSize2d = ...
+		self.localSize = ...
+		self.globalSize = ...
+		self.sizeWithoutBorder = ...
+		self.volumeWithoutBorder = ...
+		self.numCells = ...
+		self.stepSize = ...
+		self.offset = ...
+	
+	FVSolver:initObjs
+		GridSolver:initObjs
+			SolverBase:initObjs
+				SolverBase:createEqn
+					self.eqn = ...
+				self.coord = ...
+				self.fluxLimiter = ...
+				self.eqn:createInitState
+					self.eqn.initState:createInitStruct
+						self.eqn.initState.initStruct = ...
+					self.eqn.initState:finalizeInitStruct
+						self.eqn.initState.init_t = ...
+				self.solverStruct:makeType
+				self.solver_t = ...
+			
+-- Here's where the solverPtr is created.
+-- It's based on solver_t's creation so maybe it should go after the initCDef?
+-- Creating the initCond_t / initCondPtr object is very parallel to this -- and both use guiVars -- so that should go around here somewhere.
+
+				self.solverPtr = ...
+				self.initCond_t = ...
+				self.initCondPtr = ...
+			GridSolver:createBoundaryOptions
+				self.boundaryOptions = ...
+				self.eqn:createBoundaryOptions
+			self.boundaryMethods = ...
+			self.usePLM = ...
+			self.slopeLimiter = ...
+			self.useCTU = ...
+		FVSolver:createFlux
+			self.flux = ...
+
+--------- here is where the ffi.cdef is called --------- 
+
+	SolverBase:initCDefs
+		SolverBase:getTypeCode()
+			self.eqn:getTypeCode
+			self.eqn:getEigenTypeCode
+			self.eqn:getExtraTypeCode
+			self.coord:getCellTypeCode
+			self.eqn.initState.typecode
+	
+	SolverBase:postInit
+		SolverBase:createDisplayVars
+			SolverBase:createDisplayComponents
+			SolverBase:finalizeDisplayComponents
+			FiniteVolume:addDisplayVars
+				SolverBase:addDisplayVars
+			SolverBase:finalizeDisplayVars
+		SolverBase:refreshGridSize
+			GridSolver:createSolverBuf
+				SolverBase:createSolverBuf
+					self.solverBuf = ...
+
+--------- here's where buffers are created ---------
+			
+			FiniteVolume:createBuffers
+				GridSolver:createBuffers
+					SolverBase:createBuffers
+			
+			SolverBase:finalizeCLAllocs
+			SolverBase:refreshEqnInitState
+				self.eqn.guiVars[k] = ...
+				GridSolver:refreshCodePrefix
+					SolverBase:refreshCodePrefix
+						GridSolver:createCodePrefix
+							SolverBase:createCodePrefix
+								SolverBase:createCodePrefixHeader
+									self.eqn:getTypeCode
+									self.initState.typecode
+									self.coord:getTypeCode
+									self.solverStruct:getTypeCode
+									self.eqn:getTypeCode
+									self.eqn:getEigenTypeCode
+								SolverBase:createCodePrefixSource
+									self.coord:getCode
+									self.eqn:getCodePrefix
+						SolverBase:refreshIntegrator
+							self.integrator = ...
+						SolverBase:refreshInitStateProgram
+							self.eqn.initState:refreshInitStateProgram
+						
+
+						FiniteVolumeSolver:refreshSolverProgram
+							SolverBase:refreshSolverProgram
+								GridSolver:refreshGetULR
+									self.getURLBufType = ...
+									self.getULRBufName = ...
+									self.getURLArg = ...
+									self.getURLCode = ...
+								SolverBase:buildMathCLUnlinked
+									self.mathUnlinkedObj = ...
+								
+--------- here's where the program code is collected ---------
+
+								FiniteVolumeSolver:getSolverCode
+									GridSolver:getSolverCode
+										SolverBase:getSolverCode
+											self.eqn:getSolverCode
+											self.eqn:getCalcDTCode
+											self.eqn:getFluxFromConsCode
+											self.ops[i]:getCode
+											SolverBase:getDisplayCode
+												self.displayVarGroups[i].vars[j].toTexKernelName = ...
+									self.flux:getSolverCode
+
+--------- here's where programs are created ---------
+
+								self.solverProgramObj = ...
+								
+--------- here's where kernels are created ---------
+
+								SolverBase:refreshCalcDTKernel
+									self.calcDTKernelObj = ...
+								self.addSourceKernelObj = ...
+								self.constrainUKernelObj = ...
+								self.calcLRKernelObj = ...
+								self.updateCTUKernelObj = ...
+								self.ops[i]:refreshSolverProgram
+								self.displayVarGroups[i].vars[j].calcDisplayVarToTexKernelObj = ...
+								self.displayVarGroups[i].vars[j].calcDisplayVarToBufferKernelObj = ...
+							self.calcFluxKernelObj = ...
+							self.calcDerivFromFluxKernelObj = ...
+					
+					GridSolver:refreshBoundaryProgram
+						self.boundaryProgramObj = ...
+						self.boundaryKernelObj = ...
+				
+				self:checkStructSizes
+				self.solverPtr[k] = ...
+				self:refreshSolverBufMinsMaxs
+				self.solverPtr[k] = ...
+				self:refreshSolverBuf
+			SolverBase:refreshCommonProgram
+			GridSolver:resetState
+				SolverBase:resetState
+					GridSolver:applyInitCond
+						SolverBase:applyInitCond
+					self:boundary
+					self:resetOps
+					self:constrainU
+
+--]]
 
 local ffi = require 'ffi'
 local ig = require 'ffi.imgui'
@@ -79,13 +271,15 @@ args:
 --]]
 function SolverBase:init(args)
 	time('SolverBase:init()', function()
-		self:initL1(args)
-		self:preInit(args)
+		self:initMeshVars(args)
+		self:initCLDomainVars(args)
+		self:initObjs(args)
+		self:initCDefs()
 		self:postInit()
 	end)
 end
 
-function SolverBase:initL1(args)
+function SolverBase:initMeshVars(args)
 	assert(args, "expected named parameter table")
 	self.app = assert(args.app, "expected app")
 	self.dim = assert(args.dim, "expected dim")
@@ -115,7 +309,7 @@ function SolverBase:initL1(args)
 	}
 
 
-	-- in GridSolver this was 'initL1' which comes first
+	-- in GridSolver this was 'initMeshVars' which comes first
 	-- in MeshSolver this was 'preInit' which comes later
 	
 	-- my kernel objs are going to need workgroup info based on domain.size-2*noGhost as well as domain.size ... 
@@ -185,7 +379,7 @@ function SolverBase:initL1(args)
 	end
 end
 
-function SolverBase:preInit(args)
+function SolverBase:initCLDomainVars(args)
 
 -- despite the name, this doesn't have anything to do with the grid size ...
 -- ... except in the GridSolver class
@@ -199,7 +393,10 @@ function SolverBase:preInit(args)
 		if self.app.verbose then print(k,v) end
 		self[k] = v
 	end
-	
+end
+
+function SolverBase:initObjs(args)
+
 	-- hmm, do some eqns create ops need to know the grid size?
 	self.eqnName = args.eqn
 	self.eqnArgs = args.eqnArgs
@@ -219,15 +416,12 @@ function SolverBase:preInit(args)
 	else
 		self.coord = require('hydro.coord.'..(args.coord or 'cartesian'))(table({solver=self}, args.coordArgs))
 	end
-	-- hmm, how about a single 'cdef' function? that would go before the 'clalloc's?
-	ffi.cdef(self.coord:getCellTypeCode())
 
 	self.checkNaNs = self.checkNaNs
 	self.useFixedDT = not not args.fixedDT
 	self.fixedDT = args.fixedDT or self.fixedDT or .001
 	self.cfl = args.cfl or .5	--/self.dim
 	self.fluxLimiter = self.app.limiterNames:find(args.fluxLimiter) or 1
-
 
 
 	-- this influences createCodePrefix (via its call of eqn:getCodePrefix)
@@ -254,6 +448,50 @@ function SolverBase:preInit(args)
 	self.solverStruct:makeType()
 	self.solver_t = self.solverStruct.typename
 	self.solverPtr = ffi.new(self.solver_t)
+	-- TODO I see room for a separation between solver_t and eqn_t
+	-- but right now both structs are tied directly to solver.cl, so there's no need to separate them at the moment.
+
+	-- not sure where this should go, but probably somewhere parallel to solverPtr
+	-- initStruct:makeType() is already called in eqn:createInitState
+	-- TODO if initCond is supposed to be modular then this would have to be created after initCond is changed
+	self.initCond_t = self.eqn.initState.initStruct.typename
+	self.initCondPtr = ffi.new(self.initCond_t)
+end
+
+-- this is code that goes in the codePrefix header (for CL use), as well as ffi.cdef (for ffi C use)
+function SolverBase:getTypeCode()
+	local lines = table()
+
+	lines:insert''
+	lines:insert'//self.eqn:getTypeCode()'
+	lines:insert(self.eqn:getTypeCode() or nil)
+
+	lines:insert''
+	lines:insert'//self.coord:getCellTypeCode'
+	lines:insert(self.coord:getCellTypeCode() or nil)
+		
+	lines:insert''
+	lines:insert'//self.solverStruct:getTypeCode'
+	lines:insert(self.solverStruct:getTypeCode())
+
+	lines:insert''
+	lines:insert'//self.eqn:getExtraTypeCode'
+	lines:insert(self.eqn:getExtraTypeCode() or nil)
+
+	if self.eqn.getEigenTypeCode then
+		lines:insert''
+		lines:insert'//self.eqn:getEigenTypeCode'
+		lines:insert(self.eqn:getEigenTypeCode() or nil)
+	end
+
+	return lines:concat'\n'
+end
+
+-- TODO if you want to define ffi ctype metatable
+-- then put them all in one spot here
+-- if they are using the Struct:makeType function then don't bother use SolverBase:getTypeCode()
+function SolverBase:initCDefs()
+	ffi.cdef(self:getTypeCode())
 end
 
 function SolverBase:refreshGetULR()
@@ -290,27 +528,27 @@ function SolverBase:postInit()
 		-- it was designed for callbacks when changing grid resolution, integrator, etc while the simulation was live.
 		-- doing this now is unreasonable, considering how solver_t is tightly wound with initState, eqn, and the scheme
 
-		for _,var in ipairs(self.eqn.guiVars) do
-			if not var.compileTime then
-				if var.ctype == 'real' then
-					self.solverPtr[var.name] = toreal(var.value)
-				else
-					self.solverPtr[var.name] = var.value
-				end
-			end
-		end
-
-		self:refreshSolverBuf()
+		self:copyGuiVarsToBufs()
 	end)
 end
 
+-- buffers that don't use clalloc ...
+-- should happen before any other buffer allocs
 function SolverBase:createSolverBuf()
-	-- doesn't use clalloc ...
-	-- should happen before any other buffer allocs
 	self.solverBuf = CLBuffer{
 		env = self.app.env,
 		name = 'solver',
 		type = self.solver_t,
+		count = 1,
+		readwrite = 'read',
+		constant = true,
+	}
+end
+function SolverBase:createInitCondBuf()
+	self.initCondBuf = CLBuffer{
+		env = self.app.env,
+		name = 'initCond',
+		type = self.initCond_t,
 		count = 1,
 		readwrite = 'read',
 		constant = true,
@@ -321,9 +559,38 @@ function SolverBase:refreshSolverBuf()
 	self.solverBuf:fromCPU(self.solverPtr)
 end
 
+function SolverBase:refreshInitCondBuf()
+	self.initCondBuf:fromCPU(self.initCondPtr)
+end
+
+function SolverBase:copyGuiVarsToBufs()
+	for _,var in ipairs(self.eqn.guiVars) do
+		if not var.compileTime then
+			if var.ctype == 'real' then
+				self.solverPtr[var.name] = toreal(var.value)
+			else
+				self.solverPtr[var.name] = var.value
+			end
+		end
+	end
+	self:refreshSolverBuf()
+
+	for _,var in ipairs(self.eqn.initState.guiVars) do
+		if not var.compileTime then
+			if var.ctype == 'real' then
+				self.initCondPtr[var.name] = toreal(var.value)
+			else
+				self.initCondPtr[var.name] = var.value
+			end
+		end
+	end
+	self:refreshInitCondBuf()
+end
+
 function SolverBase:refreshGridSize()
 	time('SolverBase:refreshGridSize()', function()
 		self:createSolverBuf()
+		self:createInitCondBuf()
 		
 		-- depends on eqn & gridSize
 		self.buffers = table()
@@ -630,17 +897,7 @@ function SolverBase:refreshEqnInitState()
 	self:refreshSolverBufMinsMaxs()
 
 	-- while we're here, write all gui vars to the solver_t
-	for _,var in ipairs(self.eqn.guiVars) do
-		if not var.compileTime then
-			if var.ctype == 'real' then
-				self.solverPtr[var.name] = toreal(var.value)
-			else
-				self.solverPtr[var.name] = var.value
-			end
-		end
-	end
-
-	self:refreshSolverBuf()
+	self:copyGuiVarsToBufs()
 end
 
 function SolverBase:refreshSolverBufMinsMaxs()
@@ -661,14 +918,7 @@ function SolverBase:createEqn()
 		self.eqnArgs or {},
 		{solver = self}
 	))
-	
-	ffi.cdef(self.eqn:getTypeCode())
-	if self.eqn.getEigenTypeCode then
-		ffi.cdef(self.eqn:getEigenTypeCode() or '')
-	end
-	ffi.cdef(self.eqn:getExtraTypeCode())
 end
-
 
 function SolverBase:refreshCodePrefix()
 	self:createCodePrefix()		-- depends on eqn, gridSize, displayVars
@@ -1131,21 +1381,7 @@ function SolverBase:createCodePrefixHeader()
 	-- which is associated with the coordinate system,
 	lines:append{
 		'//SolverBase:createCodePrefix() begin',
-		
-		'//SolverBase.eqn:getTypeCode()',
-		self.eqn:getTypeCode(),
-
-		'//SolverBase.coord:getCellTypeCode()',
-		self.coord:getCellTypeCode(),
-		
-		'//SolverBase.solverStruct:getTypeCode()',
-		self.solverStruct:getTypeCode(),	-- true == don't make a union
-		
-		'//SolverBase.eqn:getExtraTypeCode()',
-		self.eqn:getExtraTypeCode(),
-		
-		'//SolverBase.eqn:getEigenTypeCode()',
-		self.eqn:getEigenTypeCode() or '',
+		self:getTypeCode(),
 	}
 	
 	return lines:concat'\n'
@@ -2403,6 +2639,7 @@ function SolverBase:updateGUIEqnSpecific()
 --[[ TODO why is this crashing
 	if tooltip.comboTable('init state', self, 'initStateIndex', self.eqn.initStateNames) then
 		-- TODO hmm ... the whole point of making a separate initStateProgram was to be able to refresh it without rebuilding all of the solver ...
+		-- TODO try again once initCond_t is separated from solver_t
 		self:refreshEqnInitState()
 	end	
 --]]		

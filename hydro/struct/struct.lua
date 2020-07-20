@@ -41,7 +41,13 @@ function Struct:countScalars(scalar)
 	scalar = scalar or 'real'
 	local structSize = 0
 	for _,var in ipairs(self.vars) do
-		structSize = structSize + ffi.sizeof(var.type)
+		xpcall(function()
+			structSize = structSize + ffi.sizeof(var.type)
+		end, function(err)
+			io.stderr:write('for var '..require 'ext.tolua'(var)..'\n')
+			io.stderr:write(err..'\n'..debug.traceback()..'\n')
+			os.exit(1)
+		end)
 	end
 	local numScalars = structSize / ffi.sizeof(scalar)
 	return numScalars
@@ -121,12 +127,14 @@ function Struct:makeType()
 		local name = field.name
 		local ctype = field.type
 		return ffi.sizeof(ctype)
-	end):sum()
+	end):sum() or 0
 	if ffi.sizeof(self.typename) ~= sizeOfFields then
 		print("ffi.sizeof("..self.typename..") = "..ffi.sizeof(self.typename))
+		print('sizeOfFields = '..sizeOfFields)
 		for _,field in ipairs(struct.vars) do
 			print("ffi.sizeof("..field.type..' '..self.typename..'.'..field.name..') = '..ffi.sizeof(field.type))
 		end
+		print('typecode:\n'..self.typecode)
 		error("struct "..self.typename.." isn't packed!")
 	end
 	

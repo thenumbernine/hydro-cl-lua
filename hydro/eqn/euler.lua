@@ -205,6 +205,7 @@ Euler.initStateCode = [[
 <? local xNames = require 'hydro.common'.xNames ?>
 kernel void initState(
 	constant <?=solver.solver_t?>* solver,
+	constant <?=solver.initCond_t?>* initCond,
 	global <?=eqn.cons_t?>* UBuf,
 	const global <?=coord.cell_t?>* cellBuf
 ) {

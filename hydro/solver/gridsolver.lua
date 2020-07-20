@@ -47,8 +47,8 @@ args:
 	mins
 	maxs
 --]]
-function GridSolver:initL1(args)
-	GridSolver.super.initL1(self, args)
+function GridSolver:initMeshVars(args)
+	GridSolver.super.initMeshVars(self, args)
 
 	-- same as equations
 	-- but let equations/init conds add to the solver vars (as gui vars)
@@ -65,7 +65,7 @@ function GridSolver:initL1(args)
 
 	self.initCondMins = vec3d(unpack(args.initCondMins or self.mins))
 	self.initCondMaxs = vec3d(unpack(args.initCondMaxs or self.maxs))
-	
+
 	-- TODO OK this is a little ambiguous ...
 	-- gridSize is the desired grid size
 	-- self.gridSize is gonna be that, plus numGhost on either side ...
@@ -87,8 +87,8 @@ end
 args:
 	boundary = boundary info
 --]]
-function GridSolver:preInit(args)
-	GridSolver.super.preInit(self, args)
+function GridSolver:initObjs(args)
+	GridSolver.super.initObjs(self, args)
 	
 	self:createBoundaryOptions()
 

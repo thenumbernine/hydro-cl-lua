@@ -85,7 +85,7 @@ function EinsteinInitCond:getCodePrefix(solver)
 	local alphaVar = symmath.var'alpha'
 	-- TODO each eqn must be stated as a guiVar of the solver
 	-- make a parent class or something for all Einstein field eqns
-	local fGuiVar = solver.eqn.guiVars.f_eqn
+	local fGuiVar = self.guiVars.f_eqn
 	local fLuaCode = fGuiVar.options[fGuiVar.value]
 	
 	local f = assert(loadstring([[
@@ -173,7 +173,7 @@ local function initEinstein(args)
 	local alphaVar = symmath.var'alpha'
 	-- TODO each eqn must be stated as a guiVar of the solver
 	-- make a parent class or something for all Einstein field eqns
-	local fGuiVar = args.solver.eqn.guiVars.f
+	local fGuiVar = self.guiVars.f
 	local fLuaCode = fGuiVar.options[fGuiVar.value]
 	
 	local f = assert(loadstring([[
@@ -193,7 +193,7 @@ end
 
 function EinsteinInitCond:buildFCCode(solver, diff)
 	local alphaVar = symmath.var'alpha'
-	local fGuiVar = solver.eqn.guiVars.f_eqn
+	local fGuiVar = self.guiVars.f_eqn
 	local fLuaCode = fGuiVar.options[fGuiVar.value]
 	
 	local f = assert(loadstring([[
@@ -240,7 +240,7 @@ return table{
 			local sigma = args and args.sigma or .1 * size
 
 			-- TODO if only OpenCL allowed something like uniforms ...
-			solver.eqn:addGuiVars{
+			self:addGuiVars{
 				{name = 'init_H', value = H},
 				{name = 'init_sigma', value = sigma},
 			}
@@ -428,7 +428,7 @@ return table{
 		init = function(self, solver, args)
 			EinsteinInitCond.init(self, solver, args)
 			
-			solver.eqn:addGuiVars{
+			self:addGuiVars{
 				{name = 'init_R', value = args and args.R or .5},
 				{name = 'init_sigma', value = args and args.sigma or 8},
 				{name = 'init_speed', value = args and args.speed or .1},
@@ -477,7 +477,7 @@ return table{
 			
 			args = args or {}
 			-- TODO bodies
-			solver.eqn:addGuiVars{
+			self:addGuiVars{
 				{name = 'init_R', value = args and args.R or 1},
 				{name = 'init_x', value = args and args.x or 0},
 				{name = 'init_y', value = args and args.y or 0},
@@ -535,7 +535,7 @@ return table{
 			
 			args = args or {}
 			
-			local v = solver.eqn.guiVars
+			local v = self.guiVars
 			self.bodies = args.bodies or {
 				{
 					R = .0001,
@@ -864,7 +864,7 @@ return table{
 			EinsteinInitCond.init(self, solver, args)
 			
 			args = args or {}
-			local v = solver.eqn.guiVars
+			local v = self.guiVars
 			self.bodies = args.bodies or {
 				{
 					R = .0001,
@@ -936,8 +936,8 @@ return table{
 			local bodies = table{
 				{
 					pos = {0,0,0},
-					mass = solver.eqn.guiVars.bodyMass.value,
-					radius = solver.eqn.guiVars.bodyRadius.value,
+					mass = self.guiVars.bodyMass.value,
+					radius = self.guiVars.bodyRadius.value,
 				}
 			}
 			
@@ -1037,7 +1037,7 @@ return table{
 			solver.eqn:addGuiVar{name='m', value=1}
 		end,
 		getCodePrefix = function(self, solver)
-			local m = solver.eqn.guiVars.m.value
+			local m = self.guiVars.m.value
 		
 			-- TODO refreshCodePrefix ... except this is called by that ...
 			-- hmm, account for initState's defining the bounds
@@ -1139,7 +1139,7 @@ TODO I now have a Bessel function routine in hydro/math.cl
 			solver.eqn:addGuiVar{name='epsilon', value=1e-10}
 		end,
 		resetState = function(self, solver)
-			local epsilon = solver.eqn.guiVars.epsilon.value
+			local epsilon = self.guiVars.epsilon.value
 -- TODO just use the random functionality that I'm adding to init/init since so many people are using it
 -- I'm always initialize all values to random, and let separate init conds overwrite it when necessary
 			solver.eqn:fillRandom(epsilon)
@@ -1153,11 +1153,11 @@ TODO I now have a Bessel function routine in hydro/math.cl
 --			solver.mins = vec3d(-.5, -.5, -.5)
 --			solver.maxs = vec3d(-.5, -.5, -.5)
 			solver:setBoundaryMethods'periodic'
-			solver.eqn:addGuiVars{
+			self:addGuiVars{
 				{name='init_A', value=.1},	-- .1, .01
 				{name='init_d', value=1},
 			}
---			solver.eqn.guiVars.f.value = solver.eqn.guiVars.f.options:find'1'	-- set f=1
+--			self.guiVars.f.value = self.guiVars.f.options:find'1'	-- set f=1
 		end,
 		initState = function(self, solver)
 			return [[
@@ -1187,7 +1187,7 @@ TODO I now have a Bessel function routine in hydro/math.cl
 --			solver.mins = vec3d(-.5, -.5, -.5)
 --			solver.maxs = vec3d(-.5, -.5, -.5)
 			solver:setBoundaryMethods'periodic'
-			solver.eqn:addGuiVars{
+			self:addGuiVars{
 				{name='init_A', value=1e-8},
 				{name='init_d', value=1},
 			}

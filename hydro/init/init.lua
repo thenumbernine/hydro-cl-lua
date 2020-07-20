@@ -2,33 +2,101 @@ local class = require 'ext.class'
 local table = require 'ext.table'
 local template = require 'template'
 local time = table.unpack(require 'hydro.util.time')
+local Struct = require 'hydro.struct.struct'
 
 --[[
 name = name of the initial condition
+
 guiVars = any gui variables that the initial conditions wants to expose
+TODO turn this into an initCond_t structure.  maybe call it 'initVars' ?
+
 overrideGuiVars = any of the equation's gui vars that the initial conditions wants to override
+TODO call this one 'solverVars' ? since they are overriding the solver_t vars...
+
 initState = function(self, solver) returns the OpenCL code for the initial conditions
 --]]
 
 local InitCond = class()
 
+function InitCond:createInitStruct(solver)
+	self.initStruct = Struct{
+		solver = solver,
+		name = 'initCond_t',
+		dontUnion = true,
+	}
+	
+	-- then setup the gui vars
+	-- this assumes guiVars are index-keyed
+	local initGuiVars = self.guiVars
+	-- it in turn also indexes them by their name in self.guiVars
+	self.guiVars = table()
+	if initGuiVars then
+		self:addGuiVars(initGuiVars)
+	end
+end
+
+function InitCond:finalizeInitStruct(solver)
+	-- if initCond_t is empty then allocating the initCondBuf will fail
+	-- solve this by:
+	-- a) not allocating it if initCond_t is empty
+	-- b) allocating it at a minimium of size 1
+	-- c) putting a temp field in empty initCond_t structures
+	-- I'll pick c) for now
+	if #self.initStruct.vars == 0 then
+		self.initStruct.vars:insert{name='tmp', type='real'}
+	end
+	self.initStruct:makeType()
+	self.init_t = self.initStruct.typename
+end
+
+-- [[ TODO this is similar to what's in Equation
+function InitCond:addGuiVars(args)
+	for _,arg in ipairs(args) do
+		self:addGuiVar(arg)
+	end
+end
+
+function InitCond:addGuiVar(args)
+	local vartype = args.type
+	if not vartype then
+		vartype = type(args.value)
+	end
+	local cl = require('hydro.guivar.'..vartype)
+
+	-- no non-strings allowed as names, especially not numbers,
+	-- because I'm going to map names into guiVars' keys, and I don't want to overwrite any integer-indexed guiVars
+	assert(args.name and type(args.name) == 'string')
+	local var = cl(args)
+	
+	-- assumes self.guiVars[i] already points to this var
+	self.guiVars:insert(var)
+	self.guiVars[var.name] = var
+
+	self.initStruct.vars:insert{
+		name = var.name,
+		type = var.ctype,
+	}
+end
+--]]
+
 function InitCond:refreshInitStateProgram(solver)
 	solver:buildMathCLUnlinked()
 
-	local initStateCode 
+	local initCondCode 
 	time('generating init state code', function()
-		initStateCode = table{
+		initCondCode = table{
 			solver.codePrefix,
+			self.initStruct.typecode,
 			self.header and self:header(solver) or '',
 			solver.eqn:getInitStateCode(),
 		}:concat'\n'
 	end)
 
 if solver.useCLLinkLibraries then 
-	--local code = initStateCode
-	local code = initStateCode..'\n'..template(require 'ext.io'.readfile'hydro/math.cl')
+	--local code = initCondCode
+	local code = initCondCode..'\n'..template(require 'ext.io'.readfile'hydro/math.cl')
 	time('compiling init state program', function()
-		solver.initStateUnlinkedObj = solver.Program{name='initState', code=code}
+		solver.initStateUnlinkedObj = solver.Program{name='initCond', code=code}
 		solver.initStateUnlinkedObj:compile{dontLink=true}
 	end)
 	time('linking init state program', function()
@@ -42,10 +110,7 @@ if solver.useCLLinkLibraries then
 else	-- not useCLLinkLibraries
 	local file = require 'ext.file'
 	time('building init state program', function()
-		solver.initStateProgramObj = solver.Program{
-			name = 'initState',
-			code = initStateCode,
-		}
+		solver.initStateProgramObj = solver.Program{name='initCond', code=initCondCode}
 		solver.initStateProgramObj:compile()
 	end)
 end
@@ -62,7 +127,7 @@ end
 		solver.UBufObj:fromCPU(ptr)
 	end)
 
-	solver.initStateKernelObj = solver.initStateProgramObj:kernel('initState', solver.solverBuf, solver.UBuf, solver.cellBuf)
+	solver.initStateKernelObj = solver.initStateProgramObj:kernel('initState', solver.solverBuf, solver.initCondBuf, solver.UBuf, solver.cellBuf)
 
 	-- here's an ugly hack ...
 	-- I need a custom init state kernel for the GLM_MHD only

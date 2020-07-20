@@ -21,8 +21,8 @@ local sym = common.sym
 
 local FiniteVolumeSolver = class(GridSolver)
 
-function FiniteVolumeSolver:initL1(args)
-	FiniteVolumeSolver.super.initL1(self, args)	
+function FiniteVolumeSolver:initObjs(args)
+	FiniteVolumeSolver.super.initObjs(self, args)	
 	self:createFlux(args.flux, args.fluxArgs)
 end
 

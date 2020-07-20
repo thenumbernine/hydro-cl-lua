@@ -260,11 +260,13 @@ function Equation:createInitState()
 	assert(self.initStates, "expected Eqn.initStates")
 	self.initState = self.initStates[self.solver.initStateIndex](self.solver, self.solver.initStateArgs)
 	assert(self.initState, "couldn't find initState "..self.solver.initStateIndex)
-
-	-- then setup the gui vars
-	if self.initState.guiVars then
-		self:addGuiVars(self.initState.guiVars)
-	end
+	self.initState:createInitStruct(self.solver)
+	self.initState:finalizeInitStruct(self.solver)
+	
+	-- should ops add vars to init_t or solver_t?
+	-- or should there be a new eqn_t?
+	-- I would like init cond stuff in init_t so changing the init cond only recompiles initState.cl
+	-- so let's continue to put op guiVars in solver_t
 	for _,op in ipairs(self.solver.ops) do
 		if op.guiVars then
 			self:addGuiVars(op.guiVars)
@@ -322,6 +324,9 @@ function Equation:getSolverCode()
 	return template(file[self.solverCodeFile], {eqn=self, solver=self.solver})
 end
 
+-- this only goes to hydro/init/init.lua
+-- and this is influenced by the initCond object
+-- changing initCond should only change this and not the solver program
 function Equation:getInitStateCode()
 	assert(self.initStateCode, "expected solver.eqn.initStateCode")
 	return template(self.initStateCode, {

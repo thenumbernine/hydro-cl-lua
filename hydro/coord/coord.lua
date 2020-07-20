@@ -1057,6 +1057,8 @@ function CoordinateSystem:getCoordMapCode()
 	local lines = table()
 		
 	-- get back the Cartesian coordinate for some provided chart coordinates
+	-- TODO make this a macro based on cellBuf[index]
+	-- and make it custom per coord system (just like the cellBuf fields are)
 	lines:insert(getCode_real3_to_real3(
 		'coordMap',
 		range(3):mapi(function(i)

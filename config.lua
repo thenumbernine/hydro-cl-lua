@@ -210,7 +210,7 @@ local args = {
 	--initState = 'Bessel',
 	--initState = 'cyclone',
 	
-	initState = 'Sod',
+	--initState = 'Sod',
 	--initState = 'Sod with physical units',
 	--initStateArgs = {dim=cmdline.displayDim},
 	
@@ -218,7 +218,7 @@ local args = {
 	--initState = 'Sedov',
 	--initState = 'Noh',
 	--initState = 'implosion',
-	--initState = 'Kelvin-Helmholtz',
+	initState = 'Kelvin-Helmholtz',
 	--initState = 'Rayleigh-Taylor',	--FIXME ... get initial / static hydro potential working
 	--initState = 'Colella-Woodward',
 	--initState = 'double mach reflection',

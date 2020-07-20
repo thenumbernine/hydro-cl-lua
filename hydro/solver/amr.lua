@@ -20,7 +20,7 @@ local function int4(a,b,c,d)
 	return int4ptr
 end
 
-local function preInitAMR(self, args)
+local function initAMR(self, args)
 	self.amr = args.amr
 	if not self.amr then
 		-- in this case, we are the root:
@@ -125,9 +125,9 @@ return function(cl)
 		cl.super.init(self, args)
 	end
 
-	function cl:preInit(args)
-		cl.super.preInit(self, args)
-		preInitAMR(self, args)
+	function cl:initObjs(args)
+		cl.super.initObjs(self, args)
+		initAMR(self, args)
 	end
 
 	function cl:createBuffers()
@@ -440,7 +440,7 @@ print("creating depth "..tonumber(self.amr.depth).." child "..tonumber(i))
 	-- maybe a patchlevel class is a better idea
 	subcl = class(cl)
 
-	function subcl:preInit(args)
+	function subcl:initObjs(args)
 		self.parent = assert(args.parent)
 		self.maxWorkGroupSize = self.parent.maxWorkGroupSize
 		local sizeProps = self:getSizePropsForWorkGroupSize(self.maxWorkGroupSize)
@@ -450,11 +450,11 @@ print("creating depth "..tonumber(self.amr.depth).." child "..tonumber(i))
 	
 		self:createEqn()
 		
-		--subcl.super.preInit(self, args)
+		--subcl.super.initObjs(self, args)
 		self.solver_t = self.parent.solver_t
 		self.solverPtr = ffi.new(self.solver_t)
 	
-		preInitAMR(self, args)
+		initAMR(self, args)
 	end
 	
 	function subcl:createEqn()

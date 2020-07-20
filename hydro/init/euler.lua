@@ -18,7 +18,7 @@ local minmaxs = common.minmaxs
 local function RiemannProblem(initCond)
 	local WL, WR = initCond[1], initCond[2]
 
-	local function getSolverFieldName(i,varname)
+	local function getInitCondFieldName(i,varname)
 		local suffix = ({'L','R'})[i]
 		return 'init_'..varname:gsub('%.','')..suffix
 	end
@@ -27,7 +27,7 @@ local function RiemannProblem(initCond)
 	for i,WLR in ipairs(initCond) do
 		for name, value in pairs(WLR) do
 			table.insert(initCond.guiVars, {
-				name = getSolverFieldName(i,name),
+				name = getInitCondFieldName(i,name),
 				value = value,
 			})
 		end
@@ -42,7 +42,7 @@ local function RiemannProblem(initCond)
 	initCond.initState = function(self, solver)
 		local function build(i)
 			return table.map(initCond[i], function(_,name,t)
-				return '\t\t'..name..' = solver->'..getSolverFieldName(i,name)..';', #t+1
+				return '\t\t'..name..' = initCond->'..getInitCondFieldName(i,name)..';', #t+1
 			end):concat'\n'
 		end
 		return template([[
@@ -73,11 +73,12 @@ end
 	-- or at least have it calculate certain values up front before iterating across all x's
 	initCond.exactSolution = function(solver, x, t)
 		local solverPtr = solver.solverPtr
+		local initCondPtr = solver.initCondPtr
 		-- TODO initial condition object to share these values with initialization
-		local rhoL = solverPtr.init_rhoL
-		local rhoR = solverPtr.init_rhoR
-		local PL = solverPtr.init_PL
-		local PR = solverPtr.init_PR
+		local rhoL = initCondPtr.init_rhoL
+		local rhoR = initCondPtr.init_rhoR
+		local PL = initCondPtr.init_PL
+		local PR = initCondPtr.init_PR
 		local vL = 0
 		local vR = 0
 		local gamma = solverPtr.heatCapacityRatio
@@ -386,21 +387,21 @@ local initStates = table{
 			local args = self.initStateArgs
 			if args then
 				local found
-				if args.rho then solver.eqn.guiVars.rho0.value = args.rho found = true end
-				if args.P then solver.eqn.guiVars.P0.value = args.P found = true end
+				if args.rho then self.guiVars.rho0.value = args.rho found = true end
+				if args.P then self.guiVars.P0.value = args.P found = true end
 				if args.v then 
-					if args.v[1] then solver.eqn.guiVars.vx0.value = args.v[1] found = true end
-					if args.v[2] then solver.eqn.guiVars.vy0.value = args.v[2] found = true end
-					if args.v[3] then solver.eqn.guiVars.vz0.value = args.v[3] found = true end
+					if args.v[1] then self.guiVars.vx0.value = args.v[1] found = true end
+					if args.v[2] then self.guiVars.vy0.value = args.v[2] found = true end
+					if args.v[3] then self.guiVars.vz0.value = args.v[3] found = true end
 				end
 			end	
 		
 			return [[
-	rho = solver->rho0;
-	v.x = solver->vx0;
-	v.y = solver->vy0;
-	v.z = solver->vz0;
-	P = solver->P0;
+	rho = initCond->rho0;
+	v.x = initCond->vx0;
+	v.y = initCond->vy0;
+	v.z = initCond->vz0;
+	P = initCond->P0;
 ]]
 		end,
 	},
@@ -438,14 +439,14 @@ local initStates = table{
 	//real xSq = real3_lenSq(xc);
 	real xSq = real3_lenSq(real3_sub(xc, 
 		_real3(
-			solver->init_x0,
-			solver->init_y0, 
-			solver->init_z0
+			initCond->init_x0,
+			initCond->init_y0, 
+			initCond->init_z0
 		)));
-	rho = (solver->init_rho1 - solver->init_rho0) * exp(-xSq / (solver->init_sigma*solver->init_sigma)) + solver->init_rho0;
-	v.x = solver->init_u0;
-	v.y = solver->init_v0;
-	P = solver->init_P0;
+	rho = (initCond->init_rho1 - initCond->init_rho0) * exp(-xSq / (initCond->init_sigma*initCond->init_sigma)) + initCond->init_rho0;
+	v.x = initCond->init_u0;
+	v.y = initCond->init_v0;
+	P = initCond->init_P0;
 ]],		{
 			clnumber = clnumber,
 		})
@@ -508,11 +509,11 @@ local initStates = table{
 	real xmax = solver->maxs.x;
 	real width = xmax - xmin;
 	real k0 = 2. * M_PI / width;
-	rho = solver->init_rho0 + solver->init_rho1 * sin(k0 * (xc.x - xmin));
-	v.x = solver->init_v0x;
-	v.y = solver->init_v0y;
+	rho = initCond->init_rho0 + initCond->init_rho1 * sin(k0 * (xc.x - xmin));
+	v.x = initCond->init_v0x;
+	v.y = initCond->init_v0y;
 	v.z = 0;
-	P = solver->init_P0;
+	P = initCond->init_P0;
 	ePot = 0;
 ]]
 		end,
@@ -606,11 +607,11 @@ for i=1,solver.dim do
 end
 ?>;
 	
-	rho = lhs ? solver->init_rhoL : solver->init_rhoR;
-	P = lhs ? solver->init_PL : solver->init_PR;
-	B.x = lhs ? solver->init_BxL : solver->init_BxR;
-	B.y = lhs ? solver->init_ByL : solver->init_ByR;
-	B.z = lhs ? solver->init_BzL : solver->init_BzR;
+	rho = lhs ? initCond->init_rhoL : initCond->init_rhoR;
+	P = lhs ? initCond->init_PL : initCond->init_PR;
+	B.x = lhs ? initCond->init_BxL : initCond->init_BxR;
+	B.y = lhs ? initCond->init_ByL : initCond->init_ByR;
+	B.z = lhs ? initCond->init_BzL : initCond->init_BzR;
 ]], 	{
 			solver = solver,
 			xNames = xNames,
@@ -628,8 +629,8 @@ end
 	
 		initState = function(self, solver)
 			return [[
-	rho = solver->init_rho0;
-	P = (i.x == solver->gridSize.x/2 && i.y == solver->gridSize.y/2 && i.z == solver->gridSize.z/2) ? solver->init_P1 : solver->init_P0;
+	rho = initCond->init_rho0;
+	P = (i.x == solver->gridSize.x/2 && i.y == solver->gridSize.y/2 && i.z == solver->gridSize.z/2) ? initCond->init_P1 : initCond->init_P0;
 ]]
 		end,
 	},
@@ -1041,12 +1042,12 @@ end) then
 			return [[
 	real3 xc = coordMap(x);
 	real r2 = sqrt(xc.x * xc.x + xc.y * xc.y);
-	P = solver->init_P;
-	rho = solver->init_rho;
-	v.x = -xc.y * solver->init_v / r2;
-	v.y = xc.x * solver->init_v / r2;
-	D.x = -xc.y * solver->init_D / r2;
-	D.y = xc.x * solver->init_D / r2;
+	P = initCond->init_P;
+	rho = initCond->init_rho;
+	v.x = -xc.y * initCond->init_v / r2;
+	v.y = xc.x * initCond->init_v / r2;
+	D.x = -xc.y * initCond->init_D / r2;
+	D.y = xc.x * initCond->init_D / r2;
 ]]
 		end,
 	},
@@ -1089,12 +1090,12 @@ end) then
 		inlet = dyz2 < .1;
 	}
 	<?=eqn.cons_t?> W = {.ptr={0}}
-	W.rho = solver->init_rho;
+	W.rho = initCond->init_rho;
 	W.v = real3_zero;
-	W.P = solver->init_P;
+	W.P = initCond->init_P;
 	W.ePot = 0;
 	if (inlet) {
-		W.v = real3(-solver->inlet_v, 0., 0.);
+		W.v = real3(-initCond->inlet_v, 0., 0.);
 	}
 	buf[<?=dst?>] = primFromCons(W);
 ]], 				{
@@ -1118,8 +1119,8 @@ end) then
 			end
 
 			return [[
-	rho = solver->init_rho;
-	P = solver->init_P;
+	rho = initCond->init_rho;
+	P = initCond->init_P;
 ]]
 		end,
 	},
@@ -1281,7 +1282,10 @@ end) then
 	-- derived from Athena Kelvin-Helmholtz I think
 	{
 		name = 'Kelvin-Helmholtz',
-		init = function(self, solver)
+		
+		createInitStruct = function(self, solver)
+			InitCond.createInitStruct(self, solver)
+
 			local moveAxis = 1
 			local sliceAxis = 2
 			
@@ -1291,7 +1295,7 @@ end) then
 				sliceAxis = 1
 			end
 			
-			solver.eqn:addGuiVars{
+			self:addGuiVars{
 				{name='moveAxis', type='combo', value=moveAxis, options={'x','y','z'}, compileTime=true},
 				{name='sliceAxis', type='combo', value=sliceAxis, options={'x','y','z'}, compileTime=true},
 				{name='rhoInside', value=2.},
@@ -1307,6 +1311,7 @@ end) then
 				{name='velOutside', value=.5},
 			}
 		end,
+
 		initState = function(self, solver)	
 			local boundaryMethods = {}
 			for i,x in ipairs(xNames) do
@@ -1325,10 +1330,10 @@ end) then
 	real yq1 = solver->mins.<?=sliceAxis?> * .75 + solver->maxs.<?=sliceAxis?> * .25;
 	real yq2 = solver->mins.<?=sliceAxis?> * .25 + solver->maxs.<?=sliceAxis?> * .75;
 
-	real inside = (.5 + .5 * tanh((x.<?=sliceAxis?> - yq1) / solver->thickness))
-				- (.5 + .5 * tanh((x.<?=sliceAxis?> - yq2) / solver->thickness));
+	real inside = (.5 + .5 * tanh((x.<?=sliceAxis?> - yq1) / initCond->thickness))
+				- (.5 + .5 * tanh((x.<?=sliceAxis?> - yq2) / initCond->thickness));
 
-	real theta = solver->frequency * 2. * M_PI;
+	real theta = initCond->frequency * 2. * M_PI;
 <?
 for i=0,solver.dim-1 do 
 	if xNames[i+1] ~= sliceAxis then
@@ -1337,8 +1342,8 @@ for i=0,solver.dim-1 do
 	end	
 end ?>
 
-	real noise = (solver->maxs.x - solver->mins.x) * solver->amplitude;
-	rho = inside * solver->rhoInside + (1. - inside) * solver->rhoOutside;
+	real noise = (solver->maxs.x - solver->mins.x) * initCond->amplitude;
+	rho = inside * initCond->rhoInside + (1. - inside) * initCond->rhoOutside;
 	//v.x = cos(theta) * noise;
 #if dim == 2
 	v.y = sin(theta) * noise;
@@ -1346,21 +1351,21 @@ end ?>
 #if dim == 3
 	v.z = sin(theta) * noise;
 #endif
-	v.<?=moveAxis?> += inside * solver->velInside + (1. - inside) * solver->velOutside;
+	v.<?=moveAxis?> += inside * initCond->velInside + (1. - inside) * initCond->velOutside;
 	v = cartesianFromCoord(v, x);
-	P = solver->backgroundPressure;
+	P = initCond->backgroundPressure;
 	
 	//U is initialized with random(), so use its values for unique random #s
 <? assert(solver.eqn.numStates >= 5); ?>
-	rho += solver->noiseAmplitude * 2. * (U->ptr[0] - .5);
-	v.x += solver->noiseAmplitude * 2. * (U->ptr[1] - .5);
-	v.y += solver->noiseAmplitude * 2. * (U->ptr[2] - .5);
-	v.z += solver->noiseAmplitude * 2. * (U->ptr[3] - .5);
-	P += solver->noiseAmplitude * 2. * (U->ptr[4] - .5);
+	rho += initCond->noiseAmplitude * 2. * (U->ptr[0] - .5);
+	v.x += initCond->noiseAmplitude * 2. * (U->ptr[1] - .5);
+	v.y += initCond->noiseAmplitude * 2. * (U->ptr[2] - .5);
+	v.z += initCond->noiseAmplitude * 2. * (U->ptr[3] - .5);
+	P += initCond->noiseAmplitude * 2. * (U->ptr[4] - .5);
 ]],				{
 					solver = solver,
-					moveAxis = solver.eqn.guiVars.moveAxis.options[solver.eqn.guiVars.moveAxis.value],
-					sliceAxis = solver.eqn.guiVars.sliceAxis.options[solver.eqn.guiVars.sliceAxis.value],
+					moveAxis = self.guiVars.moveAxis.options[self.guiVars.moveAxis.value],
+					sliceAxis = self.guiVars.sliceAxis.options[self.guiVars.sliceAxis.value],
 					xNames = xNames,
 				}
 			)
@@ -1544,10 +1549,10 @@ end ?>;
 	         return [[
 	real3 c = real3_real_mul(x, .5);
 	real L = 1.0;
-	real n = solver->init_mode;
-	real K = solver->init_entropy_ref;
+	real n = initCond->init_mode;
+	real K = initCond->init_entropy_ref;
 	real Gamma = solver->heatCapacityRatio;
-	real rho_ref = solver->init_rho_ref;
+	real rho_ref = initCond->init_rho_ref;
 	real pre_ref = K * pow(rho_ref, Gamma);
 	real cs_ref = sqrt(Gamma * pre_ref / rho_ref);
 	real f = sin(n*M_PI*c.x/L);
@@ -1572,7 +1577,7 @@ end ?>;
 	bool inside = r2 < 0.01;
 	rho = inside ? 1.000 : 0.125;
 	P = inside ? 1.0 : 0.1;
-	B.x = solver->init_Bx;
+	B.x = initCond->init_Bx;
 ]]
 		end,
 	},
@@ -1608,12 +1613,12 @@ end ?>;
 		initState = function(self, solver)
 			return [[
 	real3 c = real3_add(real3_real_mul(x, .5), _real3(.5, .5, .5));
-	const real rho1 = solver->init_rho1;
-	const real rho2 = solver->init_rho2;
-	const real L = solver->init_L;
-	const real U1 = solver->init_U1;
-	const real U2 = solver->init_U2;
-	const real w0 = solver->init_w0;
+	const real rho1 = initCond->init_rho1;
+	const real rho2 = initCond->init_rho2;
+	const real L = initCond->init_L;
+	const real U1 = initCond->init_U1;
+	const real U2 = initCond->init_U2;
+	const real w0 = initCond->init_w0;
 	if (c.y < 0.25) {
 		rho = rho1 - 0.5*(rho1-rho2)*exp( (c.y - 0.25)/L);
 		v.x = U1 - 0.5*( U1 - U2 )*exp( (c.y - 0.25)/L);
@@ -1628,7 +1633,7 @@ end ?>;
 		v.x = U1 - 0.5*( U1 - U2 )*exp(-(c.y - 0.75)/L);
 	}
 	v.y = w0*sin(4.*M_PI*c.x);
-	P = solver->init_P0;
+	P = initCond->init_P0;
 ]]
 		end,
 	},
@@ -2277,7 +2282,7 @@ kernel void addExtraSource(
 		name = 'Maxwell charged particle',
 		initState = function(self, solver)
 			return template([[
-	rhoCharge = (i.x == solver->gridSize.x/2 && i.y == solver->gridSize.y/2 && i.z == solver->gridSize.z/2) ? solver->init_rhoCharge0 : 0.;
+	rhoCharge = (i.x == solver->gridSize.x/2 && i.y == solver->gridSize.y/2 && i.z == solver->gridSize.z/2) ? initCond->init_rhoCharge0 : 0.;
 ]], 		table({
 				solver = solver,
 			}, solver.eqn:getTemplateEnv()))
@@ -2336,13 +2341,13 @@ kernel void addExtraSource(
 			return [[
 	real3 xc = coordMap(x);
 	real r = real3_len(xc);
-	P = solver->init_P;
-	rho = solver->init_rho;
-	v.x = -xc.y * solver->init_v / r;
-	v.y = xc.x * solver->init_v / r;
+	P = initCond->init_P;
+	rho = initCond->init_rho;
+	v.x = -xc.y * initCond->init_v / r;
+	v.y = xc.x * initCond->init_v / r;
 	real s = sign(r - .5);
-	B.x = -xc.y * s * solver->init_B / r;
-	B.y = xc.x * s * solver->init_B / r;
+	B.x = -xc.y * s * initCond->init_B / r;
+	B.y = xc.x * s * initCond->init_B / r;
 ]]
 		end,
 	},

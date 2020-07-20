@@ -37,7 +37,7 @@ args:
 NOTICE initState is tied closely to grid mins/maxs...
 so how should meshfiles use init states?
 --]]
-function MeshSolver:initL1(args)
+function MeshSolver:initMeshVars(args)
 	self.showVertexes = false
 	self.showFaces = false
 	self.showNormals = false
@@ -52,7 +52,7 @@ function MeshSolver:initL1(args)
 
 	self.boundaryRestitution = args.restitution or -1
 
-	MeshSolver.super.initL1(self, args)
+	MeshSolver.super.initMeshVars(self, args)
 
 	-- alright, by this point 'gridSize' has become synonymous with global_size() ...
 	-- I'm going to have to determine a vec4 globalSize for my kernels once they exceed the max 1D size
