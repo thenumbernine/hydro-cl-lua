@@ -2638,7 +2638,7 @@ end
 function SolverBase:updateGUIEqnSpecific()
 --[[ TODO why is this crashing
 	if tooltip.comboTable('init state', self, 'initStateIndex', self.eqn.initStateNames) then
-		-- TODO hmm ... the whole point of making a separate initStateProgram was to be able to refresh it without rebuilding all of the solver ...
+		-- TODO hmm ... the whole point of making a separate initCondProgram was to be able to refresh it without rebuilding all of the solver ...
 		-- TODO try again once initCond_t is separated from solver_t
 		self:refreshEqnInitState()
 	end	

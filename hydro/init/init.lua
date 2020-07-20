@@ -110,7 +110,7 @@ if solver.useCLLinkLibraries then
 		solver.initStateUnlinkedObj:compile{dontLink=true}
 	end)
 	time('linking init state program', function()
-		solver.initStateProgramObj = solver.Program{
+		solver.initCondProgramObj = solver.Program{
 			programs = {
 				solver.mathUnlinkedObj, 
 				solver.initStateUnlinkedObj,
@@ -119,9 +119,9 @@ if solver.useCLLinkLibraries then
 	end)
 else	-- not useCLLinkLibraries
 	local file = require 'ext.file'
-	time('building init state program', function()
-		solver.initStateProgramObj = solver.Program{name='initCond', code=initCondCode}
-		solver.initStateProgramObj:compile()
+	time('building init cond program', function()
+		solver.initCondProgramObj = solver.Program{name='initCond', code=initCondCode}
+		solver.initCondProgramObj:compile()
 	end)
 end
 
@@ -137,7 +137,7 @@ end
 		solver.UBufObj:fromCPU(ptr)
 	end)
 
-	solver.applyInitCondKernelObj = solver.initStateProgramObj:kernel('applyInitCond', solver.solverBuf, solver.initCondBuf, solver.UBuf, solver.cellBuf)
+	solver.applyInitCondKernelObj = solver.initCondProgramObj:kernel('applyInitCond', solver.solverBuf, solver.initCondBuf, solver.UBuf, solver.cellBuf)
 
 	-- here's an ugly hack ...
 	-- I need a custom init state kernel for the GLM_MHD only
@@ -145,7 +145,7 @@ end
 	-- so ...
 	-- (don't the Einstein solvers also use initDerivs?)
 	if require 'hydro.eqn.glm-mhd'.is(solver.eqn) then
-		solver.initDerivsKernelObj = solver.initStateProgramObj:kernel('initDerivs', solver.solverBuf, solver.UBuf, solver.cellBuf)
+		solver.initDerivsKernelObj = solver.initCondProgramObj:kernel('initDerivs', solver.solverBuf, solver.UBuf, solver.cellBuf)
 	end
 end
 

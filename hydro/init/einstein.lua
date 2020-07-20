@@ -65,7 +65,7 @@ function EinsteinInitCond:refreshInitStateProgram(solver)
 	EinsteinInitCond.super.refreshInitStateProgram(self, solver)
 	-- analytical expressions don't need to run finite differences to initialize derivative variables
 	if not self.initAnalytical then
-		solver.initDerivsKernelObj = solver.initStateProgramObj:kernel('initDerivs', solver.solverBuf, solver.UBuf)
+		solver.initDerivsKernelObj = solver.initCondProgramObj:kernel('initDerivs', solver.solverBuf, solver.UBuf)
 	end
 end
 
