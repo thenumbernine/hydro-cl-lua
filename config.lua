@@ -106,6 +106,7 @@ local args = {
 		zmax = cmdline.boundary or 'freeflow',
 	},
 	--]]
+	-- why would cylinder coordinates with cartesian components take 3x longer to compile (60 seconds vs 20 seconds) than cartesian coordinates? 
 	--[[ cylinder
 	coord = 'cylinder',
 		-- TODO doesn't work
@@ -113,7 +114,7 @@ local args = {
 		-- TODO doesn't work for rmin=0
 	--coordArgs = {vectorComponent='anholonomic'},		-- use orthonormal basis to represent our vector components.
 	coordArgs = {vectorComponent='cartesian'},		-- use cartesian vector components 
-	mins = cmdline.mins or {.1, 0, -1},
+	mins = cmdline.mins or {0, 0, -1},
 	maxs = cmdline.maxs or {1, 2*math.pi, 1},			-- TODO bake the 2π into the coordinate chart so this matches grid/cylinder.  Technically θ→2πθ means it isn't the standard θ variable.  I did this for UI convenience with CFDMesh.
 	gridSize = ({
 		{128, 1, 1},	-- 1D
@@ -205,12 +206,12 @@ local args = {
 	--initCond = 'gaussian',
 	--initCond = 'advect wave',
 	--initCond = 'sphere',
-	--initCond = 'spiral',
+	initCond = 'spiral',
 	--initCond = 'rarefaction wave',
 	--initCond = 'Bessel',
 	--initCond = 'cyclone',
 	
-	initCond = 'Sod',
+	--initCond = 'Sod',
 	--initCond = 'Sod with physical units',
 	--initCondArgs = {dim=cmdline.displayDim},
 	
@@ -531,7 +532,7 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn
 -- compressible Euler equations
 
 
-self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
+--self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
 
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct bounded'})))	-- this is the default hllCalcWaveMethod
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct'})))
@@ -591,7 +592,7 @@ self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='euler', wenoMe
 -- f.e. and b.e. are working, but none of the r.k. integrators
 -- PLM isn't implemented yet
 -- neither is source term / poisson stuff
---self.solvers:insert(require 'hydro.solver.euler-burgers'(args))
+self.solvers:insert(require 'hydro.solver.euler-burgers'(args))
 
 
 -- special relativistic compressible hydrodynamics

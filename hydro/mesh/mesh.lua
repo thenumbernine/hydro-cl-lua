@@ -22,6 +22,7 @@ local function mappack(f, ...)
 end
 
 
+--[=[ look in coord's cellStruct def for these fields
 local face_t = Struct{
 	name = 'face_t',
 	dontUnion = true,
@@ -38,7 +39,6 @@ local face_t = Struct{
 	},
 }
 
---[=[ look in coord's cellStruct def for these fields
 local cell_t = Struct{
 	name = 'cell_t',
 	dontUnion = true,
@@ -54,16 +54,15 @@ local cell_t = Struct{
 --]=]
 
 
-local function new_face_t()
-	local face = face_t.metatype()
+local function new_face_t(solver)
+	local face = solver.coord.faceStruct.metatype()
 	face.pos:set(0,0,0)
 	face.normal:set(0,0,0)
 	face.normal2:set(0,0,0)
 	face.normal3:set(0,0,0)
 	face.area = 0
 	face.cellDist = 0
-	face.cells.x = -1
-	face.cells.y = -1
+	face.cells:set(-1, -1)
 	face.vtxOffset = 0
 	face.vtxCount = 0
 	return face
@@ -87,7 +86,7 @@ function Mesh:getMeshTypeCode()
 	-- TODO real3 vs vec3f/vec3d ...
 	local meshTypeCode = table{
 		vec2i.typeCode,
-		face_t:getTypeCode(),
+		--face_t:getTypeCode(),
 		--cell_t:getTypeCode()
 	}:concat'\n'
 
@@ -104,7 +103,7 @@ function Mesh:init(solver)
 	self:getMeshTypeCode()
 
 	self.vtxs = vector'real3'
-	self.faces = vector'face_t'
+	self.faces = vector(solver.coord.face_t)
 	self.cells = vector(solver.coord.cell_t)
 	self.cellFaceIndexes = vector'int'
 	self.cellVtxIndexes = vector'int'
@@ -335,7 +334,7 @@ function Mesh:addFaceForVtxs(...)
 
 	local fi = #self.faces
 	
-	self.faces:push_back(new_face_t())
+	self.faces:push_back(new_face_t(self.solver))
 	local f = self.faces:back()
 	
 	f.vtxOffset = #self.faceVtxIndexes

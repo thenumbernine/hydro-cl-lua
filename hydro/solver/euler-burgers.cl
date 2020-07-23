@@ -3,14 +3,15 @@
 kernel void calcDT(
 	constant <?=solver.solver_t?>* solver,
 	global real* dtBuf,
-	const global <?=eqn.cons_t?>* UBuf
+	const global <?=eqn.cons_t?>* UBuf,
+	const global <?=solver.coord.cell_t?>* cellBuf			//[numCells]
 ) {
 	SETBOUNDS(0,0);
 	if (OOB(numGhost,numGhost)) {
 		dtBuf[index] = INFINITY;
 		return;
 	}
-	real3 x = cell_x(i);
+	real3 x = cellBuf[index].pos;
 
 	const global <?=eqn.cons_t?>* U = UBuf + index;
 	<?=eqn.prim_t?> W = primFromCons(solver, *U, x);
@@ -29,14 +30,14 @@ kernel void calcDT(
 	constant <?=solver.solver_t?>* solver,
 	global real* dtBuf,					//[numCells]
 	const global <?=eqn.cons_t?>* UBuf,	//[numCells]
-	const global cell_t* cells,			//[numCells]
-	const global face_t* faces,			//[numFaces]
+	const global <?=solver.coord.cell_t?>* cellBuf,			//[numCells]
+	const global <?=solver.coord.face_t?>* faceBuf,			//[numFaces]
 	const global int* cellFaceIndexes	//[numCellFaceIndexes]
 ) {
 	int cellIndex = get_global_id(0);
 	if (cellIndex >= get_global_size(0)) return;
 	
-	const global cell_t* cell = cells + cellIndex;
+	const global cell_t* cell = cellBuf + cellIndex;
 	real3 x = cell->pos;
 	
 	const global <?=eqn.cons_t?>* U = UBuf + cellIndex;
@@ -45,7 +46,7 @@ kernel void calcDT(
 
 	real dt = INFINITY;
 	for (int i = 0; i < cell->faceCount; ++i) {
-		const global face_t* face = faces + cellFaceIndexes[i + cell->faceOffset];
+		const global face_t* face = faceBuf + cellFaceIndexes[i + cell->faceOffset];
 		normalInfo_t n = normalInfo_forFace(face);
 		real v_n = normalInfo_vecDotN1(n, W.v);
 		real dx = face->area;

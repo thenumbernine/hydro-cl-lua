@@ -105,10 +105,7 @@ function EulerBurgers:step(dt)
 		self.calcDerivFromFluxKernelObj()
 	
 		if self.eqn.useSourceTerm then
-			self.addSourceKernelObj.obj:setArg(0, self.solverBuf)
-			self.addSourceKernelObj.obj:setArg(1, derivBufObj.obj)
-			self.addSourceKernelObj.obj:setArg(2, self:getULRBuf())
-			self.addSourceKernelObj()
+			self.addSourceKernelObj(self.solverBuf, derivBufObj.obj, self:getULRBuf(), self.cellBuf)
 		end
 	end)
 

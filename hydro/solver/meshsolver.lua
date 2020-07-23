@@ -343,7 +343,7 @@ function MeshSolver:createBuffers()
 
 	self:clalloc('vtxBuf', 'real3', self.numVtxs)
 	self:clalloc('cellBuf', self.coord.cell_t, self.numCells)
-	self:clalloc('facesBuf', 'face_t', self.numFaces)
+	self:clalloc('facesBuf', self.coord.face_t, self.numFaces)
 	self:clalloc('cellFaceIndexesBuf', 'int', self.numCellFaceIndexes)
 	
 	-- specific to FiniteVolumeSolver
@@ -363,7 +363,7 @@ end
 function MeshSolver:checkStructSizes_getTypes()
 	local typeinfos = MeshSolver.super.checkStructSizes_getTypes(self)
 	typeinfos:append{
-		face_t,
+		self.coord.face_t,
 		self.coord.cell_t,
 	}
 	return typeinfos
@@ -471,7 +471,7 @@ end
 void getEdgeStates(
 	<?=eqn.cons_t?>* UL,
 	<?=eqn.cons_t?>* UR,
-	const global face_t* e,
+	const global <?=solver.coord.face_t?>* e,
 	const global <?=eqn.cons_t?>* UBuf,		//[numCells]
 	real restitution
 ) {
@@ -503,7 +503,7 @@ kernel void calcFlux(
 	realparam dt,
 //mesh-specific parameters:	
 	const global <?=solver.coord.cell_t?>* cells,			//[numCells]
-	const global face_t* faces,			//[numFaces]
+	const global <?=solver.coord.face_t?>* faces,			//[numFaces]
 	const global int* cellFaceIndexes	//[numCellFaceIndexes]
 ) {
 	typedef <?=eqn.cons_t?> cons_t;
@@ -515,7 +515,7 @@ kernel void calcFlux(
 	
 	global <?=eqn.cons_t?>* flux = fluxBuf + faceIndex;
 	
-	const global face_t* face = faces + faceIndex;
+	const global <?=solver.coord.face_t?>* face = faces + faceIndex;
 	if (face->area <= 1e-7) {
 		for (int j = 0; j < numStates; ++j) {
 			flux->ptr[j] = 0;

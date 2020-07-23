@@ -639,16 +639,46 @@ meshsolver needs to pass 'cellBuf'
 	self.cellStruct = Struct{
 		solver = self.solver,
 		name = 'cell_t',
-		dontUnion = rue,
+		dontUnion = true,
 		vars = {
 			{name='pos', type='real3'},	-- x1 x2 x3 input coordinates to the chart
 		},
 	}
+	
+	-- here's the mesh-specific stuff
 	if require 'hydro.solver.meshsolver'.is(assert(self.solver)) then
 		self.cellStruct.vars:append{
 			{type='real', name='volume'},	--volume of the cell
 			{type='int', name='faceOffset'},
 			{type='int', name='faceCount'},
+			{type='int', name='vtxOffset'},
+			{type='int', name='vtxCount'},
+		}
+	end
+
+
+	-- cartesian code takes ~20 seconds to compile
+	-- cylindrical code takes ~60 seconds.
+	-- the only main difference in the code is the # of normal computations ... and at that, directly calling cos() and sin()
+	-- I'm going to see if reducing the trig calls helps but giving gridsolvers their own faceBuf
+	self.faceStruct = Struct{
+		solver = self.solver,
+		name = 'face_t',
+		dontUnion = true,
+		vars = {
+			{type='real3', name='pos'},		--center.  realN.
+			{type='real3', name='normal'},	--normal pointing from first to second
+			{type='real3', name='normal2'},	--orthonormal basis around normal
+			{type='real3', name='normal3'},
+			{type='real', name='area'},		--edge length / surface area
+			{type='real', name='cellDist'},	--dist between cell centers along 'normal'
+		},
+	}
+
+	-- here is the mesh-specific face_t fields
+	if require 'hydro.solver.meshsolver'.is(assert(self.solver)) then
+		self.faceStruct.vars:append{
+			{type='vec2i_t', name='cells'},	--indexes of cells
 			{type='int', name='vtxOffset'},
 			{type='int', name='vtxCount'},
 		}
@@ -1084,9 +1114,11 @@ function CoordinateSystem:getCoordMapCode()
 
 	lines:insert(template([[
 
-<? if coord.vectorComponent == 'cartesian' then ?>
-
-
+<? if coord.vectorComponent == 'cartesian' 
+	or require 'hydro.coord.cartesian'.is(coord)
+then
+ 	if not require 'hydro.coord.cartesian'.is(coord) then
+?>
 //converts a vector from cartesian coordinates to grid curvilinear coordinates
 //by projecting the vector into the grid basis vectors
 //at x, which is in grid curvilinear coordinates
@@ -1123,16 +1155,19 @@ real3 coord_cartesianFromCoord(real3 u, real3 pt) {
 	return uGrid;
 }
 
+<?	else	-- cartesian.is(coord) ?>
+#define coord_cartesianFromCoord(u, pt) (u)
+#define coord_cartesianToCoord(u, pt) 	(u)
+<?	end ?>
 
 //TODO change names
 //'coord' is ambiguous
 // this is relative to teh vector component basis
-#define cartesianFromCoord(u, pt) 	u
-#define cartesianToCoord(u, pt) 	u
+#define cartesianFromCoord(u, pt) 	(u)
+#define cartesianToCoord(u, pt) 	(u)
 
 
 <? else	-- coord.vectorComponent ?>
-
 
 
 //converts a vector from cartesian coordinates to grid curvilinear coordinates
@@ -1335,6 +1370,8 @@ typedef struct {
 } normalInfo_t;		//nL = nU = normalBasisForSide (permutation of I), nLen = 1
 ]])
 
+			-- this is overwhelmingly interface-based
+			-- with two exceptions: calcDT and some displayVars
 			self.normalInfoCode = template([[
 <? for side=0,solver.dim-1 do ?>
 #define normalInfo_forSide<?=side?>(x) \
