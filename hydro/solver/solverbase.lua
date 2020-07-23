@@ -112,6 +112,9 @@ SolverBase:init
 			SolverBase:finalizeCLAllocs
 			SolverBase:refreshEqnInitState
 				self.eqn.guiVars[k] = ...
+
+--------- here is where the code header is created --------- 
+				
 				GridSolver:refreshCodePrefix
 					SolverBase:refreshCodePrefix
 						GridSolver:createCodePrefix
@@ -120,7 +123,7 @@ SolverBase:init
 									self.eqn:getTypeCode
 									self.initCond.typecode
 									self.coord:getTypeCode
-									self.solverStruct:getTypeCode
+									self.solverStruct.typecode
 									self.eqn:getTypeCode
 									self.eqn:getEigenTypeCode
 								SolverBase:createCodePrefixSource
@@ -482,8 +485,8 @@ function SolverBase:getTypeCode()
 	lines:insert(self.coord:getCellTypeCode() or nil)
 		
 	lines:insert''
-	lines:insert'//self.solverStruct:getTypeCode'
-	lines:insert(self.solverStruct:getTypeCode())
+	lines:insert'//self.solverStruct.typecode'
+	lines:insert(assert(self.solverStruct.typecode))
 
 	lines:insert''
 	lines:insert'//self.eqn:getExtraTypeCode'

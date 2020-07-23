@@ -53,7 +53,7 @@ local args = {
 	-- this is functional without usePLM, but doing so falls back on the cell-centered buffer, which with the current useCTU code will update the same cell twice from different threads
 	--useCTU = true,
 	
-	-- [[ Cartesian
+	--[[ Cartesian
 	coord = 'cartesian',
 	coordArgs = {vectorComponent='holonomic'},		-- use the coordinate derivatives to represent our vector components (though they may not be normalized)
 	--coordArgs = {vectorComponent='anholonomic'},		-- use orthonormal basis to represent our vector components
@@ -107,7 +107,7 @@ local args = {
 	},
 	--]]
 	-- why would cylinder coordinates with cartesian components take 3x longer to compile (60 seconds vs 20 seconds) than cartesian coordinates? 
-	--[[ cylinder
+	-- [[ cylinder
 	coord = 'cylinder',
 		-- TODO doesn't work
 	--coordArgs = {vectorComponent='holonomic'},		-- use the coordinate derivatives to represent our vector components (though they may not be normalized)
@@ -532,7 +532,7 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn
 -- compressible Euler equations
 
 
---self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
+self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
 
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct bounded'})))	-- this is the default hllCalcWaveMethod
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct'})))
@@ -592,7 +592,7 @@ self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='euler', wenoMe
 -- f.e. and b.e. are working, but none of the r.k. integrators
 -- PLM isn't implemented yet
 -- neither is source term / poisson stuff
-self.solvers:insert(require 'hydro.solver.euler-burgers'(args))
+--self.solvers:insert(require 'hydro.solver.euler-burgers'(args))
 
 
 -- special relativistic compressible hydrodynamics
@@ -891,6 +891,7 @@ local args = {
 	-- [[
 	--coord = 'sphere',
 	coord = 'sphere-log-radial',
+	coordArgs = {vectorComponent='anholonomic'},
 	mins = {0, 0, 0},
 	maxs = {1, math.pi, 2*math.pi},
 	gridSize = cmdline.gridSize or ({

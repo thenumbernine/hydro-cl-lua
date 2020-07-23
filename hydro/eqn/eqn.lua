@@ -310,10 +310,10 @@ end
 function Equation:getTypeCode()
 	assert(self.consStruct)
 	local lines = table{
-		self.consStruct.typecode
+		assert(self.consStruct.typecode)
 	}
 	if self.primStruct then
-		lines:insert(self.primStruct.typecode)
+		lines:insert(assert(self.primStruct.typecode))
 	else
 		lines:insert('typedef '..self.cons_t..' '..self.prim_t..';')
 	end
@@ -504,7 +504,7 @@ end
 
 -- TODO verify that this is needed
 function Equation:getEigenTypeCode()
-	return self.eigenStruct.typecode
+	return assert(self.eigenStruct.typecode)
 end
 
 function Equation:getEigenDisplayVars()

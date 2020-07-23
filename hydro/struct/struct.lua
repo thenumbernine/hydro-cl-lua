@@ -66,12 +66,37 @@ end
 
 function Struct:makeType()
 	assert(not self.typename, "don't call makeType() twice")
-	if self.solver then
-		self.typename = self.solver.app:uniqueName(self.name)
-	else
-		self.typename = self.name
+	
+	-- TODO here
+	-- generate the typecode *except* the typename
+	-- then compare it to a map from typecode => typename
+	-- if it matches any, use the old typecode, typename, and metatype
+	-- otherwise generate a new one
+
+	local app = assert(assert(self.solver).app)
+	local codeWithoutTypename = self:getTypeCodeWithoutTypeName()
+	
+	app.typeInfoForCode = app.typeInfoForCode or {}
+	local info = app.typeInfoForCode[codeWithoutTypename]
+	if info then
+		print('reusing cached type '..info.typename)
+		-- use cached version
+		self.typename = info.typename
+		self.typecode = info.typecode
+		self.metatype = info.metatype
+		return
 	end
-	Struct.safeFFICDef(self:getTypeCode())
+
+	self.typename = app:uniqueName(self.name)
+	do
+		local typecode = codeWithoutTypename .. ' ' .. self.typename .. ';'
+		if self.typecode then
+			assert(typecode == self.typecode)
+		else
+			self.typecode = typecode
+		end
+	end
+	Struct.safeFFICDef(assert(self.typecode))
 
 	-- make the metatype here
 	local struct = self
@@ -139,53 +164,51 @@ function Struct:makeType()
 	end
 	
 	self.metatype = metatype
+
+	-- store it
+	app.typeInfoForCode[codeWithoutTypename] = {
+		typename = self.typename,
+		typecode = self.typecode,
+		metatype = self.metatype,
+	}
 end
 
-function Struct:getTypeCode()
-	if not self.typename then
-		self:makeType()
-	end
-	
+-- this gets the type code *except* the typename
+-- this way I can compare it to other type codes previously generated,
+-- so I only need to generate struct codes once
+-- I can use this to reduce the number of ffi.cdef's that are called.
+function Struct:getTypeCodeWithoutTypeName()
 	local lines = table()
-	do
-		local scalar = 'real'
+	local scalar = 'real'
 
-		local tab
-		if self.dontUnion then
-			lines:insert'typedef struct {'
-			tab = '\t'
-		else
-			lines:insert'typedef union {'
-			local numScalars = self:countScalars(scalar)
-			lines:insert('	'..scalar..' ptr['..math.max(1, math.floor(numScalars))..'];')
-			lines:insert('	struct {')
-			tab = '\t\t'
-		end	
-		for _,var in ipairs(self.vars) do
-			lines:insert(
-				tab
-				..var.type
-				
-				-- fixing 'half' and 'double' alignment in solver_t
-				-- dontUnion is only used by solver_t
-				-- and solver_t is the only one with this C/CL alignment problem
-				..(self.dontUnion and ' __attribute__ ((packed))' or '')
-				
-				..' '..var.name..';')
-		end
-		if not self.dontUnion then
-			lines:insert('	};')
-		end
-		lines:insert('} '..self.typename..';')
-	end
-	local code = lines:concat'\n'
-
-	if self.typecode then
-		assert(code == self.typecode)
+	local tab
+	if self.dontUnion then
+		lines:insert'typedef struct {'
+		tab = '\t'
 	else
-		self.typecode = code
+		lines:insert'typedef union {'
+		local numScalars = self:countScalars(scalar)
+		lines:insert('	'..scalar..' ptr['..math.max(1, math.floor(numScalars))..'];')
+		lines:insert('	struct {')
+		tab = '\t\t'
+	end	
+	for _,var in ipairs(self.vars) do
+		lines:insert(
+			tab
+			..var.type
+			
+			-- fixing 'half' and 'double' alignment in solver_t
+			-- dontUnion is only used by solver_t
+			-- and solver_t is the only one with this C/CL alignment problem
+			..(self.dontUnion and ' __attribute__ ((packed))' or '')
+			
+			..' '..var.name..';')
 	end
-	return code
+	if not self.dontUnion then
+		lines:insert('	};')
+	end
+	lines:insert('}')
+	return lines:concat'\n'
 end
 
 return Struct
