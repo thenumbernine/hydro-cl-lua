@@ -377,7 +377,7 @@ local initConds = table{
 			{name='vz0', value=0},
 			{name='P0', value=1},
 		},	
-		overrideGuiVars = {
+		solverVars = {
 			heatCapacityRatio = 7/5,
 		},
 		init = function(self, solver, args)
@@ -407,7 +407,7 @@ local initConds = table{
 	},
 	{
 		name = 'linear',
-		overrideGuiVars = {
+		solverVars = {
 			heatCapacityRatio = 7/5,
 		},
 		getInitCondCode = function(self, solver)
@@ -484,7 +484,7 @@ local initConds = table{
 		name = 'advect wave',
 		mins = {0,0,0},
 		maxs = {1,1,1},
-		overrideGuiVars = {
+		solverVars = {
 			heatCapacityRatio = 7/5,
 		},
 		guiVars = {
@@ -544,7 +544,7 @@ local initConds = table{
 		{rho = 1, P = 1},
 		-- R = low pressure / density
 		{rho = .125, P = .1},
-		overrideGuiVars = {
+		solverVars = {
 			heatCapacityRatio = 5/3,
 		},
 	},
@@ -561,7 +561,7 @@ local initConds = table{
 			rho = materials.Air.seaLevelDensity,
 			P = materials.Air.seaLevelPressure,
 		},
-		overrideGuiVars = {
+		solverVars = {
 			heatCapacityRatio = assert(materials.Air.heatCapacityRatio),
 		},
 	},
@@ -593,7 +593,7 @@ Test	ρ L		u L		    p L		 ρ R		u R		    p R
 			{name = 'BzL', value = 0},
 			{name = 'BzR', value = 0},
 		},
-		overrideGuiVars = {
+		solverVars = {
 			heatCapacityRatio = 2,
 		},
 		getInitCondCode = function(self, solver)
@@ -643,7 +643,7 @@ end
 		mins = {0,0,0},
 		maxs = {1,1,1},
 --]]		
-		overrideGuiVars = {
+		solverVars = {
 			heatCapacityRatio = 5/3,
 		},
 		getInitCondCode = function(self, solver)
@@ -662,7 +662,7 @@ end
 		name = 'implosion',
 		mins = {0,0,0},
 		maxs = {.3, .3, .3},
-		overrideGuiVars = {
+		solverVars = {
 			heatCapacityRatio = 1.4,
 		},
 		getInitCondCode = function(self, solver)
@@ -687,7 +687,7 @@ end
 		{rho=1, P=1, ['B.x']=.75, ['B.y']=1, ['B.z']=0},
 		-- right
 		{rho=.125, P=.1, ['B.x']=.75, ['B.y']=-1, ['B.z']=0},
-		overrideGuiVars = {
+		solverVars = {
 			heatCapacityRatio = 2,
 		},
 	},
@@ -700,7 +700,7 @@ end
 		name = 'two-fluid emhd modified Brio-Wu',
 		{rho=1, P=5e-5, ['B.x']=.75, ['B.y']=1, ['B.z']=0},
 		{rho=.125, P=5e-6, ['B.x']=.75, ['B.y']=-1, ['B.z']=0},
-		overrideGuiVars = {
+		solverVars = {
 			heatCapacityRatio = 2,
 		},
 	},
@@ -710,7 +710,7 @@ end
 	-- https://www.csun.edu/~jb715473/examples/mhd2d.htm
 	{
 		name = 'Orszag-Tang',
-		overrideGuiVars = {
+		solverVars = {
 			heatCapacityRatio = 5/3,
 		},
 		getInitCondCode = function(self, solver)
@@ -738,7 +738,7 @@ end
 	-- 	omega = 1, P = .5, gamma = 5/3
 	{
 		name = 'MHD rotor',
-		overrideGuiVars = {
+		solverVars = {
 			heatCapacityRatio = 7/5,
 		},
 		getInitCondCode = function(self, solver)
@@ -834,7 +834,7 @@ end
 
 	{
 		name = '2002 Dedner peak Bx',
-		overrideGuiVars = {
+		solverVars = {
 			heatCapacityRatio = 5/3,
 		},
 		mins = {-.5, -1.5, -1},
@@ -858,7 +858,7 @@ end
 
 	{
 		name = '2002 Dedner 1D Riemann',
-		overrideGuiVars = {
+		solverVars = {
 			heatCapacityRatio = 7/5,
 		},
 		mins = {-.5, -.25, -1},
@@ -883,7 +883,7 @@ end
 
 	{
 		name = '2002 Dedner Shock Reflection',
-		overrideGuiVars = {
+		solverVars = {
 			heatCapacityRatio = 7/5,
 		},
 		mins = {-1, -.5, -1},
@@ -954,7 +954,7 @@ end) then
 
 	{
 		name = '2002 Dedner 2D Riemann problem',
-		overrideGuiVars = {
+		solverVars = {
 			heatCapacityRatio = 5/3,
 		},
 		getInitCondCode = function(self, solver)
@@ -1203,7 +1203,7 @@ end) then
 	--from SRHD Marti & Muller 2000
 	{
 		name = 'relativistic shock reflection',
-		overrideGuiVars = {
+		solverVars = {
 			heatCapacityRatio = 4/3,
 		},
 		getInitCondCode = function(self, solver)
@@ -1217,7 +1217,7 @@ end) then
 	},
 	{
 		name = 'relativistic blast wave test problem 1',
-		overrideGuiVars = {
+		solverVars = {
 			heatCapacityRatio = 5/3,
 		},
 		getInitCondCode = function(self, solver)
@@ -1230,7 +1230,7 @@ end) then
 	},
 	{
 		name = 'relativistic blast wave test problem 2',
-		overrideGuiVars = {
+		solverVars = {
 			heatCapacityRatio = 5/3,
 		},
 		getInitCondCode = function(self, solver)
@@ -1424,7 +1424,7 @@ end ?>;
 		name = 'double mach reflection',
 		mins = {0,0,0},
 		maxs = {4,1,1},
-		overrideGuiVars = {
+		solverVars = {
 			heatCapacityRatio = 7/5,
 		},
 		getInitCondCode = function(self, solver)
@@ -1544,7 +1544,7 @@ end ?>;
 			{name = 'mode', value = 2},
 			{name = 'rho_ref', value = 1},
 		},
-		overrideGuiVars = {
+		solverVars = {
 			heatCapacityRatio = 1.4,
 		},
 		getInitCondCode = function(self, solver)
@@ -1706,7 +1706,7 @@ end ?>;
 			-- TODO what about spherical coordinates
 			mins = {-2*coordRadius, -2*coordRadius, -2*coordRadius}, 
 			maxs = {2*coordRadius, 2*coordRadius, 2*coordRadius}, 
-			overrideGuiVars = {
+			solverVars = {
 				meter = constants.EarthRadius_in_m / coordRadius,	-- radius .5, grid = 2 M_Earth, so the sphere is M_Earth size
 				
 				-- 4/3 pi r^3 rho = m <=> rho = 3 m / (4 pi r^3)
@@ -1860,7 +1860,7 @@ end ?>;
 
 	{
 		name = 'Maxwell default',
-		overrideGuiVars = {
+		solverVars = {
 			--meter = constants.speedOfLight_in_m_per_s,
 			--speedOfLight = constants.speedOfLight_in_m_per_s,
 		},

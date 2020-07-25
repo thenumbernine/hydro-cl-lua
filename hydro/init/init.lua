@@ -8,10 +8,9 @@ local Struct = require 'hydro.struct.struct'
 name = name of the initial condition
 
 guiVars = any gui variables that the initial conditions wants to expose
-TODO turn this into an initCond_t structure.  maybe call it 'initVars' ?
+TODO call it 'initCondVars'
 
-overrideGuiVars = any of the equation's gui vars that the initial conditions wants to override
-TODO call this one 'solverVars' ? since they are overriding the solver_t vars...
+solverVars = any of the solver/equation's solver_t vars that the initial conditions wants to override
 
 getInitCondCode = function(self, solver) returns the OpenCL code for the initial conditions
 --]]

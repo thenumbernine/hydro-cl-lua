@@ -23,7 +23,11 @@ SolverBase:init
 			SolverBase:initMeshVars
 				self.app = ...
 				self.dim = ...
+			
+				-- hmm, meshsolver needs this before the numCells etc vars
+				-- but coord.sphere-log-radial needs this after .maxs is finalized, after getInitCondCode() is called
 				self.coord = ...		<- this object creation is wedged between the other mesh vars because meshsolver needs it early
+				
 				self.device = ...
 				self.cmds = ...
 				self.color = ...
@@ -61,7 +65,8 @@ SolverBase:init
 						self.eqn.initCond.initStruct = ...
 					self.eqn.initCond:finalizeInitStruct
 						self.eqn.initCond.initCond_t = ...
-				self.solverStruct:makeType
+				
+				self.solverStruct:makeType				-- now that initCond does not modify solver_t, this can be moved back -- but eqn still modifies it, so not back by far
 				self.solver_t = ...
 			
 -- Here's where the solverPtr is created.
@@ -133,6 +138,10 @@ SolverBase:init
 							self.integrator = ...
 						SolverBase:refreshInitStateProgram
 							self.eqn.initCond:refreshInitStateProgram
+								
+--------- here's the last place where the grid mins/maxs can be changed --------- 
+
+								self.eqn:getInitCondCode
 						
 
 						FiniteVolumeSolver:refreshSolverProgram
@@ -181,20 +190,26 @@ SolverBase:init
 						self.boundaryKernelObj = ...
 				
 				self:checkStructSizes
-				self.solverPtr[k] = ...
+				self.solverPtr.mins|maxs[k] = ...
 				self:refreshSolverBufMinsMaxs
-				self.solverPtr[k] = ...
-				self:refreshSolverBuf
+				SolverBase:copyGuiVarsToBufs
+					self.solverPtr[var.name] = ...
+					self:refreshSolverBuf()
+					self.initCondPtr[var.name] = ...
+					self:refreshInitCondBuf()
 			SolverBase:refreshCommonProgram
 			GridSolver:resetState
 				SolverBase:resetState
 					GridSolver:applyInitCond
 						self.coord:fillGridCellBuf	<- this depends on solver.gridSize, solver.dim, solver.numGhost, solver.mins, solver.maxs
 						SolverBase:applyInitCond
+							self.eqn.initCond:resetState
+								self.eqn.initCond.applyInitCondKernelObj()
 					self:boundary
 					self:resetOps
 					self:constrainU
-
+		SolverBase:copyGuiVarsToBufs		<- is this needed?  does anything touch the guivars between here and the copyGuiVarsToBufs() call inside refreshEqnInitState() ?
+			... same calls as above
 
 so if I wanted to cache all code against its permutation - and not rebuild anything unnecessarily ...
 
@@ -294,15 +309,9 @@ function SolverBase:initMeshVars(args)
 	self.app = assert(args.app, "expected app")
 	self.dim = assert(args.dim, "expected dim")
 
-
-	-- not sure where to put this, but it must precede MeshSolver:initMeshVars
-	-- also I'm pretty sure CoordinateSystem:init() doesn't require anything from SolverBase, only the later member functions
-	if require 'hydro.coord.coord'.is(args.coord) then
-		self.coord = args.coord	-- ptr copy expected by AMR
-		self.coord.solver = self
-	else
-		self.coord = require('hydro.coord.'..(args.coord or 'cartesian'))(table({solver=self}, args.coordArgs))
-	end
+	-- mesh solver needs coord created early
+	--  so that it can allocate cell_t's which are defined in coord
+	self:createCoord()
 
 
 	self.device = args.device or self.app.env.devices[1]
@@ -397,6 +406,17 @@ function SolverBase:initMeshVars(args)
 			GLProgram.super.init(self, ...)
 		end
 		self.GLProgram = GLProgram 
+	end
+end
+
+function SolverBase:createCoord()
+	-- not sure where to put this, but it must precede MeshSolver:initMeshVars
+	-- also I'm pretty sure CoordinateSystem:init() doesn't require anything from SolverBase, only the later member functions
+	if require 'hydro.coord.coord'.is(args.coord) then
+		self.coord = args.coord	-- ptr copy expected by AMR
+		self.coord.solver = self
+	else
+		self.coord = require('hydro.coord.'..(args.coord or 'cartesian'))(table({solver=self}, args.coordArgs))
 	end
 end
 
@@ -876,8 +896,8 @@ function SolverBase:refreshEqnInitState()
 	-- so only after it finishes and all gui vars are created, ask the eqn.initCond object if it wants to modify anything.
 	-- Don't do this during Solver:refreshInitStateProgram()->InitCond:getInitCondCode() or the changes won't get into the header.
 	-- Hmm... should the initCond even have control over the eqn's vars?
-	if self.eqn.initCond.overrideGuiVars then
-		for k,v in pairs(self.eqn.initCond.overrideGuiVars) do
+	if self.eqn.initCond.solverVars then
+		for k,v in pairs(self.eqn.initCond.solverVars) do
 			if self.eqn.guiVars[k] then
 				self.eqn.guiVars[k].value = v
 			end
