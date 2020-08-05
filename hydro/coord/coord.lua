@@ -200,7 +200,11 @@ assert(args.anholonomic == nil, "coord.anholonomic is deprecated.  instead you s
 						return x:diff(baseCoords[j])
 					end)
 					local result = Matrix:lambda({1,dim}, function(_,j) 
-						assert(not symmath.Array.is(eHolToE[i][j]))
+						if symmath.Array.is(eHolToE[i][j]) then
+							io.stderr:write('eHolToE:\n'..eHolToE..'\n')
+							io.stderr:write('eHolToE['..i..']['..j..']:\n'..eHolToE[i][j]..'\n')
+							error'invalid eHolToE'
+						end
 						return eHolToE[i][j] 
 					end) 
 						* xPartial

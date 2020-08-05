@@ -22,13 +22,18 @@ function EinsteinFiniteDifferenceSolver:refreshSolverProgram()
 	EinsteinFiniteDifferenceSolver.super.refreshSolverProgram(self)
 	
 	self.calcDerivKernelObj = self.solverProgramObj:kernel'calcDeriv'
-	self.calcDerivKernelObj.obj:setArg(0, self.solverBuf)
-	self.calcDerivKernelObj.obj:setArg(2, self.UBuf)
-	self.calcDerivKernelObj.obj.setArg(3, self.cellBuf)
+	self.calcDerivKernelObj.obj:setArg(0, assert(self.solverBuf))
+	self.calcDerivKernelObj.obj:setArg(2, assert(self.UBuf))
+	self.calcDerivKernelObj.obj.setArg(3, assert(self.cellBuf))
 end
 
 function EinsteinFiniteDifferenceSolver:calcDeriv(derivBufObj, dt)
-	self.calcDerivKernelObj.obj:setArg(1, derivBufObj.obj)
+-- why do I have to set these again?
+self.calcDerivKernelObj.obj:setArg(0, assert(self.solverBuf))
+self.calcDerivKernelObj.obj:setArg(2, assert(self.UBuf))
+self.calcDerivKernelObj.obj.setArg(3, assert(self.cellBuf))
+	
+	self.calcDerivKernelObj.obj:setArg(1, assert(derivBufObj.obj))
 	self.calcDerivKernelObj()
 end
 
@@ -39,8 +44,6 @@ function EinsteinFiniteDifferenceSolver:createDisplayComponents()
 		onlyFor = 'U',
 		name = 'norm weighted',
 		code = [[
-	int index = INDEXV(i);
-	real3 x = cell_x(i);
 	const global <?=eqn.cons_t?>* U = buf + index;
 	value->vreal = real3_weightedLen(value->vreal3, calc_gamma_ll(U, x));
 ]],
@@ -49,8 +52,6 @@ function EinsteinFiniteDifferenceSolver:createDisplayComponents()
 		onlyFor = 'U',
 		name = 'tr weighted',
 		code = [[
-	int index = INDEXV(i);
-	real3 x = cell_x(i);
 	const global <?=eqn.cons_t?>* U = buf + index;
 	value->vreal = sym3_dot(value->vsym3, calc_gamma_uu(U, x));]],
 	})

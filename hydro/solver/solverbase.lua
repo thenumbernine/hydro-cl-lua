@@ -309,9 +309,11 @@ function SolverBase:initMeshVars(args)
 	self.app = assert(args.app, "expected app")
 	self.dim = assert(args.dim, "expected dim")
 
-	-- mesh solver needs coord created early
+	-- MeshSolver needs coord created early
 	--  so that it can allocate cell_t's which are defined in coord
-	self:createCoord()
+	--  (come to think of it, GridSolver allocates cellBuf also)
+	-- so cell_t has to be finished before createBuffers.
+	self:createCoord(args)
 
 
 	self.device = args.device or self.app.env.devices[1]
@@ -409,7 +411,7 @@ function SolverBase:initMeshVars(args)
 	end
 end
 
-function SolverBase:createCoord()
+function SolverBase:createCoord(args)
 	-- not sure where to put this, but it must precede MeshSolver:initMeshVars
 	-- also I'm pretty sure CoordinateSystem:init() doesn't require anything from SolverBase, only the later member functions
 	if require 'hydro.coord.coord'.is(args.coord) then
@@ -1204,15 +1206,15 @@ function SolverBase:getDisplayCode()
 		lines:insert((template([[
 void <?=name?>(
 	constant <?=solver.solver_t?>* solver,
-	//TODO var.bufferType might not match displayCode's var.bufferType
-	global const real* buf,
+	global const <?=var.bufferType?>* buf,
 	int component,
 	int* vectorField,
 	displayValue_t* value,
 	int4 i,
+	int index,
 	const global <?=solver.coord.cell_t?>* cellBuf
 ) {
-	real3 x = cellBuf[INDEXV(i)].pos;
+	real3 x = cellBuf[index].pos;
 	switch (component) {
 <? 
 for i,component in ipairs(solver.displayComponentFlatList) do
@@ -1592,7 +1594,7 @@ end ?><?= var.extraArgs and #var.extraArgs > 0
 	INIT_DISPLAYFUNC()
 <?=addTab(var.code)
 ?>	int vectorField = <?=solver:isVarTypeAVectorField(var.type) and '1' or '0'?>;
-	<?=solver:getPickComponentNameForGroup(var)?>(solver, (const global real*)buf, component, &vectorField, &value, i, cellBuf);
+	<?=solver:getPickComponentNameForGroup(var)?>(solver, buf, component, &vectorField, &value, i, index, cellBuf);
 	END_DISPLAYFUNC_<?=texVsBuf:upper()?>()
 }
 ]]

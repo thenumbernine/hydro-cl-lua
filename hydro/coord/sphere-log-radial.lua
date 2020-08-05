@@ -28,7 +28,7 @@ function SphereLogRadial:init(args)
 	local sinh_w = .15
 self.amplitude = amplitude
 self.sinh_w = sinh_w
-	local rmax = solver.maxs.x
+--	local rmax = solver.maxs.x	-- not used (also not initialized at this point)
 	local r = symmath.var('r', {rho})
 
 	local rDef = amplitude * sinh(rho / sinh_w) / math.sinh(1 / sinh_w)

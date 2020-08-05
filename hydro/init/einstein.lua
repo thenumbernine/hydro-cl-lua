@@ -241,8 +241,8 @@ return table{
 
 			-- TODO if only OpenCL allowed something like uniforms ...
 			self:addGuiVars{
-				{name = 'init_H', value = H},
-				{name = 'init_sigma', value = sigma},
+				{name = 'H', value = H},
+				{name = 'sigma', value = sigma},
 			}
 		end,
 		getInitCondCode = function(self, solver)
@@ -256,8 +256,8 @@ return table{
 	real3 d = real3_sub(xc, center);
 	real s = real3_lenSq(d);
 
-	const real H = solver->init_H;
-	const real sigma = solver->init_sigma;
+	const real H = initCond->H;
+	const real sigma = initCond->sigma;
 	const real sigma2 = sigma * sigma;
 	const real sigma4 = sigma2 * sigma2;
 	real h = H * exp(-s / sigma2);
@@ -304,12 +304,12 @@ return table{
 	{
 		name = 'plane gauge wave',
 		guiVars = {
-			{name = 'init_A', value = .1},
-			{name = 'init_L', value = 1},
+			{name = 'A', value = .1},
+			{name = 'L', value = 1},
 		},
 		getInitCondCode = function(self, solver)
 			return [[
-	real h = 1. - solver->init_A * sin((2. * M_PI / solver->init_L) * x.x);
+	real h = 1. - initCond->A * sin((2. * M_PI / initCond->L) * x.x);
 	alpha = sqrt(h);
 	gamma_ll.xx = h;
 
@@ -339,9 +339,9 @@ return table{
 			
 			-- TODO make a separate OpenCL initCond_t structure
 			-- this is the alpha0 of the init state params -- wave amplitude -- not the init cond alpha0 used for the initial alpha value
-			local param_alpha0 = var'solver->alpha0'
-			local param_r0 = var'solver->r0'
-			local param_sigma = var'solver->sigma'
+			local param_alpha0 = var'initCond->alpha0'
+			local param_r0 = var'initCond->r0'
+			local param_sigma = var'initCond->sigma'
 	
 			-- variables used by initAnalytical
 			local r = coord.vars.r 
@@ -370,9 +370,9 @@ return table{
 			local Tensor = symmath.Tensor
 
 			local r = solver.coord.vars.r
-			local r0 = var'solver->r0'
-			local sigma = var'solver->sigma'
-			local alpha0 = var'solver->alpha0'
+			local r0 = var'initCond->r0'
+			local sigma = var'initCond->sigma'
+			local alpha0 = var'initCond->alpha0'
 			local rplus = (r + r0) / sigma
 			local rminus = (r - r0) / sigma
 			local gminus = symmath.exp(-rminus * rminus)
@@ -429,15 +429,15 @@ return table{
 			EinsteinInitCond.init(self, solver, args)
 			
 			self:addGuiVars{
-				{name = 'init_R', value = args and args.R or .5},
-				{name = 'init_sigma', value = args and args.sigma or 8},
-				{name = 'init_speed', value = args and args.speed or .1},
+				{name = 'R', value = args and args.R or .5},
+				{name = 'sigma', value = args and args.sigma or 8},
+				{name = 'speed', value = args and args.speed or .1},
 			}
 		end,
 		getInitCondCode = function(self, solver)
 			return [[
 	real x_s = 0;	//speed * t
-	real v_s = solver->init_speed;
+	real v_s = initCond->speed;
 	
 	real3 y = xc; y.x -= x_s;
 	real r_s = real3_len(y);
@@ -445,8 +445,8 @@ return table{
 #define cosh(x)		(.5 * (exp(x) + exp(-x)))
 #define dtanh(x) 	(1./(cosh(x)*cosh(x)))
 
-	real fnum = tanh(solver->init_sigma * (r_s + solver->init_R)) - tanh(solver->init_sigma * (r_s - solver->init_R));
-	real fdenom = 2 * tanh(solver->init_sigma * solver->init_R);
+	real fnum = tanh(initCond->sigma * (r_s + initCond->R)) - tanh(initCond->sigma * (r_s - initCond->R));
+	real fdenom = 2 * tanh(initCond->sigma * initCond->R);
 	real f = fnum / fdenom;
 
 	beta_u.x = -v_s * f;
@@ -454,9 +454,9 @@ return table{
 	real3 dx_r_s = real3_real_mul(y, 1. / r_s);
 
 	real3 dx_f = real3_real_mul(dx_r_s, 
-		solver->init_sigma * (
-			dtanh(solver->init_sigma * (r_s + solver->init_R)) 
-			- dtanh(solver->init_sigma * (r_s - solver->init_R))
+		initCond->sigma * (
+			dtanh(initCond->sigma * (r_s + initCond->R)) 
+			- dtanh(initCond->sigma * (r_s - initCond->R))
 		) / fdenom);
 
 	alpha = 1;
@@ -478,19 +478,19 @@ return table{
 			args = args or {}
 			-- TODO bodies
 			self:addGuiVars{
-				{name = 'init_R', value = args and args.R or 1},
-				{name = 'init_x', value = args and args.x or 0},
-				{name = 'init_y', value = args and args.y or 0},
-				{name = 'init_z', value = args and args.z or 0},
+				{name = 'R', value = args and args.R or 1},
+				{name = 'x', value = args and args.x or 0},
+				{name = 'y', value = args and args.y or 0},
+				{name = 'z', value = args and args.z or 0},
 			}
 		end,
 		getInitCondCode = function(self, solver)
 			return template([[
-	const real R = solver->init_R;
+	const real R = initCond->R;
 	real3 center = _real3(
-		solver->init_x,
-		solver->init_y,
-		solver->init_z);
+		initCond->x,
+		initCond->y,
+		initCond->z);
 	real3 xrel = real3_sub(xc, center);
 
 	real r = real3_len(xrel);
@@ -689,7 +689,7 @@ return table{
 		name = 'black hole - Schwarzschild - spherical',
 		initAnalytical = true,
 		guiVars = {
-			{name = 'init_rs', value = .1},
+			{name = 'rs', value = .1},
 		},
 		init = function(self, solver, args)
 			EinsteinInitCond.init(self, solver, args)
@@ -704,7 +704,7 @@ return table{
 			
 			local r = solver.coord.vars.r
 			local theta = solver.coord.baseCoords[2]	-- only true for sphere and sphere-log-polar
-			local rs = var'solver->init_rs'
+			local rs = var'initCond->rs'
 			
 			self.alpha0 = sqrt(1 - rs/r)
 			self.gamma0_ll = Tensor('_ij', 
@@ -719,7 +719,7 @@ return table{
 		name = 'black hole - Schwarzschild isotropic - spherical',
 		initAnalytical = true,
 		guiVars = {
-			{name = 'init_rs', value = .1},
+			{name = 'rs', value = .1},
 		},
 		init = function(self, solver, args)
 			EinsteinInitCond.init(self, solver, args)
@@ -734,7 +734,7 @@ return table{
 			
 			local r = solver.coord.vars.r
 			local theta = solver.coord.baseCoords[2]	-- only true for sphere and sphere-log-polar
-			local rs = var'solver->init_rs'
+			local rs = var'initCond->rs'
 			
 			self.alpha0 = sqrt( (1 - rs/(4*r)) / (1 + rs/(4*r)) )
 			self.gamma0_ll = (Tensor('_ij', 
@@ -929,8 +929,8 @@ return table{
 	{
 		name = 'stellar model',
 		guiVars = {
-			{name = 'init_bodyMass', value = .001},
-			{name = 'init_bodyRadius', value = .1},
+			{name = 'bodyMass', value = .001},
+			{name = 'bodyRadius', value = .1},
 		},
 		getInitCondCode = function(self, solver)
 			local bodies = table{
@@ -950,14 +950,14 @@ return table{
 	real r = real3_len(ofs);
 	real3 l = real3_real_mul(ofs, 1./r);
 	
-	real m = r / solver->init_bodyRadius; m *= m * m; m = min(m, 1.); m *= solver->init_bodyMass;
+	real m = r / initCond->bodyRadius; m *= m * m; m = min(m, 1.); m *= initCond->bodyMass;
 	real R = 2. * m;
 
 	alpha -= 2*m/r;
 	gamma_ll = sym3_add(gamma_ll, sym3_real_mul(real3_outer(l), 1./(r/R - 1.)));
 
-	if (r < solver->init_bodyRadius) {
-		rho += solver->init_bodyMass / (4./3. * M_PI * solver->init_bodyRadius * solver->init_bodyRadius * solver->init_bodyRadius);
+	if (r < initCond->bodyRadius) {
+		rho += initCond->bodyMass / (4./3. * M_PI * initCond->bodyRadius * initCond->bodyRadius * initCond->bodyRadius);
 #if 0
 		local r = math.sqrt(rSq)
 		local rho0 = body.pressure or (body.mass / (4/3 * math.pi * body.radius * body.radius * body.radius))
@@ -1154,19 +1154,19 @@ TODO I now have a Bessel function routine in hydro/math.cl
 --			solver.maxs = vec3d(-.5, -.5, -.5)
 			solver:setBoundaryMethods'periodic'
 			self:addGuiVars{
-				{name='init_A', value=.1},	-- .1, .01
-				{name='init_d', value=1},
+				{name='A', value=.1},	-- .1, .01
+				{name='d', value=1},
 			}
 --			self.guiVars.f.value = self.guiVars.f.options:find'1'	-- set f=1
 		end,
 		getInitCondCode = function(self, solver)
 			return [[
 	const real t = 0.;
-	real theta = 2. * M_PI / init_d * (xc.x - t);
-	real H = 1. + solver->init_A * sin(theta);
+	real theta = 2. * M_PI / d * (xc.x - t);
+	real H = 1. + initCond->A * sin(theta);
 	alpha = sqrt(H);
 	gamma_ll.xx = H;
-	K_ll.xx = -M_PI * solver->init_A / init_d * cos(theta) / alpha;
+	K_ll.xx = -M_PI * initCond->A / d * cos(theta) / alpha;
 ]]
 		end,
 	},
@@ -1188,18 +1188,18 @@ TODO I now have a Bessel function routine in hydro/math.cl
 --			solver.maxs = vec3d(-.5, -.5, -.5)
 			solver:setBoundaryMethods'periodic'
 			self:addGuiVars{
-				{name='init_A', value=1e-8},
-				{name='init_d', value=1},
+				{name='A', value=1e-8},
+				{name='d', value=1},
 			}
 		end,
 		getInitCondCode = function(self, solver)
 			return [[
 	const real t = 0.;
-	real theta = 2. * M_PI / init_d * (xc.x - t);
-	real b = solver->init_A * sin(theta);
+	real theta = 2. * M_PI / d * (xc.x - t);
+	real b = initCond->A * sin(theta);
 	gamma_ll.yy += b;
 	gamma_ll.zz -= b;
-	real db_dt = -2. * M_PI * solver->init_A / init_d * cos(theta);
+	real db_dt = -2. * M_PI * initCond->A / d * cos(theta);
 	K_ll.yy = .5 * db_dt;
 	K_ll.zz = -.5 * db_dt;
 ]]
