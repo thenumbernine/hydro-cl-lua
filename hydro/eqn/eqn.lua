@@ -4,7 +4,7 @@ local table = require 'ext.table'
 local range = require 'ext.range'
 local file = require 'ext.file'
 local template = require 'template'
-local Struct = require 'hydro.struct.struct'
+local Struct = require 'hydro.code.struct'
 
 local common = require 'hydro.common'
 local xNames = common.xNames

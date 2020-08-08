@@ -11,7 +11,7 @@ local vector = require 'hydro.util.vector'
 -- one of these is bound to be real3, right?
 local vec3f = require 'vec-ffi.vec3f'
 local vec3d = require 'vec-ffi.vec3d'
-local Struct = require 'hydro.struct.struct'
+local Struct = require 'hydro.code.struct'
 local time, getTime = table.unpack(require 'hydro.util.time')
 
 

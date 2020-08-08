@@ -2,7 +2,7 @@ local class = require 'ext.class'
 local table = require 'ext.table'
 local template = require 'template'
 local time = table.unpack(require 'hydro.util.time')
-local Struct = require 'hydro.struct.struct'
+local Struct = require 'hydro.code.struct'
 
 --[[
 name = name of the initial condition

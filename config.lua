@@ -53,7 +53,7 @@ local args = {
 	-- this is functional without usePLM, but doing so falls back on the cell-centered buffer, which with the current useCTU code will update the same cell twice from different threads
 	--useCTU = true,
 	
-	--[[ Cartesian
+	-- [[ Cartesian
 	coord = 'cartesian',
 	coordArgs = {vectorComponent='holonomic'},		-- use the coordinate derivatives to represent our vector components (though they may not be normalized)
 	--coordArgs = {vectorComponent='anholonomic'},		-- use orthonormal basis to represent our vector components
@@ -98,16 +98,16 @@ local args = {
 		}
 	)[dim],
 	boundary = type(cmdline.boundary) == 'table' and cmdline.boundary or {
-		xmin = cmdline.boundary or 'freeflow',
-		xmax = cmdline.boundary or 'freeflow',
-		ymin = cmdline.boundary or 'freeflow',
-		ymax = cmdline.boundary or 'freeflow',
-		zmin = cmdline.boundary or 'freeflow',
-		zmax = cmdline.boundary or 'freeflow',
+		xmin = cmdline.boundary or 'periodic',
+		xmax = cmdline.boundary or 'periodic',
+		ymin = cmdline.boundary or 'periodic',
+		ymax = cmdline.boundary or 'periodic',
+		zmin = cmdline.boundary or 'periodic',
+		zmax = cmdline.boundary or 'periodic',
 	},
 	--]]
 	-- why would cylinder coordinates with cartesian components take 3x longer to compile (60 seconds vs 20 seconds) than cartesian coordinates? 
-	-- [[ cylinder
+	--[[ cylinder
 	coord = 'cylinder',
 		-- TODO doesn't work
 	--coordArgs = {vectorComponent='holonomic'},		-- use the coordinate derivatives to represent our vector components (though they may not be normalized)
@@ -206,7 +206,7 @@ local args = {
 	--initCond = 'gaussian',
 	--initCond = 'advect wave',
 	--initCond = 'sphere',
-	initCond = 'spiral',
+	--initCond = 'spiral',
 	--initCond = 'rarefaction wave',
 	--initCond = 'Bessel',
 	--initCond = 'cyclone',
@@ -237,7 +237,7 @@ local args = {
 	--initCond = 'configuration 6',
 	
 	-- states for ideal MHD or two-fluid (not two-fluid-separate)
-	--initCond = 'Brio-Wu',
+	initCond = 'Brio-Wu',
 	--initCond = 'Orszag-Tang',
 	--initCond = 'MHD rotor',
 	--initCond = 'GEM challenge', eqnArgs = {useEulerInitState=false},
@@ -891,7 +891,8 @@ local args = {
 	-- [[
 	--coord = 'sphere',
 	coord = 'sphere-log-radial',
-	coordArgs = {vectorComponent='anholonomic'},
+	coordArgs = {vectorComponent='holonomic'},
+	--coordArgs = {vectorComponent='anholonomic'},
 	mins = {0, 0, 0},
 	maxs = {1, math.pi, 2*math.pi},
 	gridSize = cmdline.gridSize or ({

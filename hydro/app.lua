@@ -440,7 +440,7 @@ function HydroCLApp:initGL(...)
 	self.realparam = self.real == 'half' and 'float' or self.real
 
 	do
-		local code = template(file['hydro/math.types.h'], {app=self})
+		local code = template(file['hydro/code/math.types.h'], {app=self})
 		xpcall(function()
 			ffi.cdef(code)
 		end, function(err)

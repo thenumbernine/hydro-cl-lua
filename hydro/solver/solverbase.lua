@@ -233,7 +233,7 @@ local vec3d = require 'vec-ffi.vec3d'
 local tooltip = require 'hydro.tooltip'
 local roundup = require 'hydro.util.roundup'
 local time, getTime = table.unpack(require 'hydro.util.time')
-local Struct = require 'hydro.struct.struct'
+local Struct = require 'hydro.code.struct'
 
 local common = require 'hydro.common'	-- xNames, symNames
 local xNames = common.xNames
@@ -980,9 +980,9 @@ if not SolverBase.useCLLinkLibraries then return end
 		self.mathUnlinkedObj = self.Program{
 			name = 'math',
 			code = template(table{
-				file['hydro/math.types.h'],
-				file['hydro/math.h'],
-				file['hydro/math.cl'],
+				file['hydro/code/math.types.h'],
+				file['hydro/code/math.h'],
+				file['hydro/code/math.cl'],
 			}:concat'\n', {app=self.app}),
 		}
 		self.mathUnlinkedObj:compile{
@@ -1405,8 +1405,8 @@ function SolverBase:createCodePrefixHeader()
 	local lines = table()
 	
 	-- real3
-	lines:insert(template(file['hydro/math.types.h'], {app=self.app}))
-	lines:insert(template(file['hydro/math.h'], {app=self.app}))
+	lines:insert(template(file['hydro/code/math.types.h'], {app=self.app}))
+	lines:insert(template(file['hydro/code/math.h'], {app=self.app}))
 
 	if self.dim == 3 then
 		lines:insert'#pragma OPENCL EXTENSION cl_khr_3d_image_writes : enable'
@@ -1442,7 +1442,7 @@ function SolverBase:createCodePrefixSource()
 if not SolverBase.useCLLinkLibraries then 
 	lines:append{
 		'//math.cl',
-		template(file['hydro/math.cl'], {app=self.app}),
+		template(file['hydro/code/math.cl'], {app=self.app}),
 	}
 end	
 	lines:append{

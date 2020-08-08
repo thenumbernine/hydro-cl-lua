@@ -12,7 +12,7 @@ local table = require 'ext.table'
 local template = require 'template'
 local symmath = require 'symmath'
 local EinsteinEqn = require 'hydro.eqn.einstein'
-local Struct = require 'hydro.struct.struct'
+local Struct = require 'hydro.code.struct'
 local common = require 'hydro.common'
 
 local makePartials = require 'hydro.eqn.makepartial'

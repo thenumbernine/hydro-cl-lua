@@ -4,7 +4,7 @@ local range = require 'ext.range'
 local file = require 'ext.file'
 local template = require 'template'
 local constants = require 'hydro.constants'
-local Struct = require 'hydro.struct.struct'
+local Struct = require 'hydro.code.struct'
 local Equation = require 'hydro.eqn.eqn'
 
 local MHD = class(Equation)
