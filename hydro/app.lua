@@ -443,16 +443,7 @@ function HydroCLApp:initGL(...)
 	-- hmm, sorting out how to do the module system ...
 	self.modules = require 'hydro.code.moduleset'()
 	require 'hydro.code.math'(self.modules, self)
-
-	do
-		local code = self.modules:getTypeHeader'math'
-		xpcall(function()
-			ffi.cdef(code)
-		end, function(err)
-			print(require 'template.showcode'(code))
-			error(err)
-		end)
-	end
+	require 'hydro.code.safecdef'(self.modules:getTypeHeader'math')
 
 	self.solvers = table()
 

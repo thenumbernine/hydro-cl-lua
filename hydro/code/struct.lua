@@ -53,16 +53,7 @@ function Struct:countScalars(scalar)
 	return numScalars
 end
 
--- static
-function Struct.safeFFICDef(code)
-	xpcall(function()
-		ffi.cdef(code)
-	end, function(msg)
-		print(require 'template.showcode'(code))
-		io.stderr:write(msg..'\n'..debug.traceback())
-		os.exit(1)
-	end)
-end
+local safecdef = require 'hydro.code.safecdef'
 
 function Struct:makeType()
 	assert(not self.typename, "don't call makeType() twice")
@@ -96,7 +87,7 @@ function Struct:makeType()
 			self.typecode = typecode
 		end
 	end
-	Struct.safeFFICDef(assert(self.typecode))
+	safecdef(assert(self.typecode))
 
 	-- make the metatype here
 	local struct = self

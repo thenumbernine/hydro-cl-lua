@@ -507,7 +507,7 @@ end
 -- then put them all in one spot here
 -- if they are using the Struct:makeType function then don't bother use SolverBase:getTypeCode()
 function SolverBase:initCDefs()
-	ffi.cdef(self:getTypeCode())
+	require 'hydro.code.safecdef'(self:getTypeCode())
 end
 
 -- this is code that goes in the codePrefix header (for CL use), as well as ffi.cdef (for ffi C use)

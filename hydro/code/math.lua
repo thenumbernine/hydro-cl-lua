@@ -1,5 +1,17 @@
+-- This file needs to be templated, so it must be processed and manually inserted
+-- I could write out the templated hydro/code/math.h file into the cache-cl folder, and then add that to the CL compiler include folder, and include it from there ...
+
 local template = require 'template'
+
+local common = require 'hydro.common'	-- xNames, symNames
+local xNames = common.xNames
+local sym = common.sym
+local symNames = common.symNames
+local from6to3x3 = common.from6to3x3
+local from3x3to6 = common.from3x3to6
+
 return function(modules, app)
+	-- used for passing parameters into real, distinct from real in the case that real=half which can't be passed as kernel arguments
 	modules:add{
 		name = 'realparam',
 		typecode = template([[
@@ -10,35 +22,66 @@ typedef <?=app.realparam?>8 realparam8;
 ]], {app=app}),
 	}
 
-
 	modules:add{
-		name = 'math',
-		depends = {'realparam'},	
-		typecode = template([[
-<? 
-local function makevec3(name, scalar)
-	if scalar == 'real' 
-	and (	
-		app.real == 'float'
-		or app.real == 'double'
-	) then
-		-- use vec-ffi when we can 
-		assert(name == 'real3')
-		
-		local vecType
-		if app.real == 'float' then
-			vecType = require 'vec-ffi.vec3f'
-		elseif app.real == 'double' then
-			vecType = require 'vec-ffi.vec3d'
-		end
--- use the vec-ffi type code
--- granted if we ffi.cdef this, it will have already been ffi.cdef'd from the require 'vec-ffi.vec3x'
-?><?=vecType.typeCode?>
+		name = 'quat',
+		headercode = [[
+real4 quatUnitConj(real4 q);
+real4 quatMul(real4 q, real4 r);
+]],
+		code = [[
+
+////////////////////////// quat //////////////////////////
+
+//assumes q is unit
+//returns the conjugate
+real4 quatUnitConj(real4 q) {
+	return (real4)(-q.x, -q.y, -q.z, q.x);
+}
+
+real4 quatMul(real4 q, real4 r) {
+	real a = (q.w + q.x) * (r.w + r.x);
+	real b = (q.z - q.y) * (r.y - r.z);
+	real c = (q.x - q.w) * (r.y + r.z);
+	real d = (q.y + q.z) * (r.x - r.w);
+	real e = (q.x + q.z) * (r.x + r.y);
+	real f = (q.x - q.z) * (r.x - r.y);
+	real g = (q.w + q.y) * (r.w - r.z);
+	real h = (q.w - q.y) * (r.w + r.z);
+
+	return (real4)(
+		 a - .5 * ( e + f + g + h), //x
+		-c + .5 * ( e - f + g - h), //y
+		-d + .5 * ( e - f - g + h), //z
+		 b + .5 * (-e - f + g + h)); //w
+}
+
+]],
+	}
+
+	local function makevec3type(name, scalar)
+		if scalar == 'real' 
+		and (	
+			app.real == 'float'
+			or app.real == 'double'
+		) then
+			-- use vec-ffi when we can 
+			assert(name == 'real3')
+			
+			local vecType
+			if app.real == 'float' then
+				vecType = require 'vec-ffi.vec3f'
+			elseif app.real == 'double' then
+				vecType = require 'vec-ffi.vec3d'
+			end
+			-- use the vec-ffi type code
+			-- granted if we ffi.cdef this, it will have already been ffi.cdef'd from the require 'vec-ffi.vec3x'
+			return template([[
+<?=vecType.typeCode?>
 typedef <?=vecType.type?> <?=name?>;
-<?
-	else 
-		-- normal
-?>
+]], {name=name, vecType=vecType})		
+		else 
+			-- normal
+			return template([[
 typedef union {
 	<?=scalar?> s[3];
 	struct { <?=scalar?> s0, s1, s2; };
@@ -46,161 +89,12 @@ typedef union {
 } <?=app.real=='half' and '__attribute__ ((packed))' or ''
 -- __attribute__ ((packed)) seems to need to be here with real=half
 ?> <?=name?>;
-<? 
-	end
-end 
-makevec3('real3', 'real')
-?> 
+]], {name=name, scalar=scalar, app=app})
+		end
+	end 
 
-typedef union {
-	real s[6];
-	struct {
-		real xx, xy, xz, yy, yz, zz;
-	};
-	struct {
-		real s00, s01, s02, s11, s12, s22;
-	};
-} sym3;
-
-typedef union {
-	real s[18];
-	struct {
-		sym3 v0,v1,v2;	//why not s0,s1,s2?
-	};
-	struct {
-		sym3 x,y,z;
-	};
-} _3sym3;
-
-//row vectors, so a.i.j = a_ij
-<?
-local function make3x3(scalar)
-	local vec3 = scalar..'3'
-	local name = scalar..'3x3'
-?>
-typedef union {
-	<?=scalar?> s[9];
-	<?=vec3?> v[3];
-	struct {
-		<?=vec3?> v0,v1,v2;
-	};
-	struct {
-		<?=vec3?> x,y,z;
-	};
-} <?=name?>;
-<?
-end
-make3x3'real'	-- real3x3
-?>
-
-typedef union {
-	real s[27];
-	real3x3 v[3];
-	struct {
-		real3x3 v0,v1,v2;
-	};
-	struct {
-		real3x3 x,y,z;
-	};
-} real3x3x3;
-
-typedef union {
-	real s[36];
-	sym3 v[6];
-	struct {
-		sym3 v0, v1, v2, v3, v4, v5;
-	};
-	struct {
-		sym3 xx, xy, xz, yy, yz, zz;
-	};
-} sym3sym3;
-
-
-// cplx
-
-<? 
-local function makecplx(name, real) 
-?>
-typedef union {
-	<?=real?> s[2];
-	struct { <?=real?> s0, s1; };
-	struct { <?=real?> re, im; };
-} <?=name?>;
-<? 
-end 
-makecplx('cplx', 'real')
-makevec3('cplx3', 'cplx')
-make3x3'cplx'
-?>
-
-
-]], {app=app}),
-		
-		headercode = template([[
-
-
-//#include "hydro/code/math.types.h"
-
-/*
-unit conversion variables.
-my current convention is this:
-- initial conditions should provide variables to eqn pre-converted to unitless if they so desire.
-- (therefore) state variables should be considered unitless.
-- solver variables are not yet converted to unitless.  every time they are referenced, factor out the units.
-- right now I'm dividing by units to convert to unitless, and multiplying by units to convert out.  This might be the inverse of what I should be doing.  The plus side is when inputting units to the conversion, you don't have to invert so often. 'meter = 6.3716' gives you 1 distance unit = 6.3716 meters.
-*/
-
-#define unit_m					solver->meter
-#define unit_s					solver->second
-#define unit_kg					solver->kilogram
-#define unit_C					solver->coulomb
-#define unit_K					solver->kelvin
-
-#define unit_m2					(unit_m * unit_m)
-#define unit_m3					(unit_m * unit_m * unit_m)
-#define unit_s2					(unit_s * unit_s)
-#define unit_C2					(unit_C * unit_C)
-#define unit_m_per_s			(unit_m / unit_s)
-#define unit_m2_per_s2			(unit_m2 / unit_s2)
-#define unit_m3_per_kg_s2		(unit_m3 / (unit_kg * unit_s2))
-#define unit_kg_per_m3			(unit_kg / unit_m3)
-#define unit_kg_per_m2_s		(unit_kg / (unit_m2 * unit_s))
-#define unit_kg_per_m_s2		(unit_kg / (unit_m * unit_s2))
-#define unit_C_per_kg			(unit_C / unit_kg)
-#define unit_C_per_m2			(unit_C / unit_m2)
-#define unit_kg_per_C_s			(unit_kg / (unit_C * unit_s))
-#define unit_kg_m_per_C2		(unit_kg * unit_m / unit_C2)
-#define unit_C2_s_per_kg_m3		((unit_C2 * unit_s) / (unit_kg * unit_m3))
-#define unit_C2_s2_per_kg_m3	((unit_C2 * unit_s2) / (unit_kg * unit_m3))
-
-
-#define real_conj(x)		(x)
-#define real_from_real(x)	(x)
-#define real_from_cplx(x)	((x).re)
-#define real_zero			0
-#define real_neg(x)			(-(x))
-#define real_inv(x)			(1./(x))
-#define real_add(a,b)		((a) + (b))
-#define real_sub(a,b)		((a) - (b))
-#define real_mul(a,b)		((a) * (b))
-#define real_div(a,b)		((a) / (b))
-#define real_real_add(a,b)	((a) + (b))
-#define real_real_sub(a,b)	((a) - (b))
-#define real_real_mul(a,b)	((a) * (b))
-#define real_real_div(a,b)	((a) / (b))
-#define real_lenSq(x)		((x) * (x))
-#define real_abs			fabs
-
-#define real_sqrt			sqrt
-
-real4 quatUnitConj(real4 q);
-real4 quatMul(real4 q, real4 r);
-
-<?
-function makevec3(vec, scalar)
-	local add = scalar..'_add'
-	local mul = scalar..'_mul'
-?>
+	local function makevec3header(vec, scalar)
+		return template([[
 
 <? -- TODO move this to makescalar ?>
 #define <?=scalar?>_add3(a,b,c)		(<?=add?>(a, <?=add?>(b,c)))
@@ -232,219 +126,16 @@ function makevec3(vec, scalar)
 #define <?=vec?>_add3(a,b,c)	<?=vec?>_add(<?=vec?>_add(a,b),c)
 #define <?=vec?>_add4(a,b,c,d)	<?=vec?>_add(<?=vec?>_add(a,b),<?=vec?>_add(c,d))
 
-<?
-end
-makevec3('real3', 'real')
-?>
+]], 	{
+			vec = vec,
+			scalar = scalar,
+			add = scalar..'_add',
+			mul = scalar..'_mul',
+		})
+	end
 
-#define real3_from_real3(x)	x
-
-real real3_lenSq(real3 a);
-real real3_len(real3 a);
-real real3_lenSq(real3 a);
-real real3_len(real3 a);
-real3 real3_swap0(real3 v);
-real3 real3_swap1(real3 v);
-real3 real3_swap2(real3 v);
-real3 real3_rotFrom0(real3 v);
-real3 real3_rotFrom1(real3 v);
-real3 real3_rotFrom2(real3 v);
-real3 real3_rotTo0(real3 v);
-real3 real3_rotTo1(real3 v);
-real3 real3_rotTo2(real3 v);
-real3 real3_rotateFrom(real3 v, real3 n);
-real3 real3_rotateTo(real3 v, real3 n);
-
-//buggy on intel opencl ubuntu
-//#define _sym3(a,b,c,d,e,f) ((sym3){.s={a,b,c,d,e,f}})
-//fix
-#define _sym3(a,b,c,d,e,f) ((sym3){.xx=a, .xy=b, .xz=c, .yy=d, .yz=e, .zz=f})
-
-#define sym3_zero	_sym3(0,0,0,0,0,0)
-#define sym3_ident	_sym3(1,0,0,1,0,1)
-
-sym3 real3_outer(real3 a);
-real sym3_det(sym3 m);
-sym3 sym3_inv(sym3 m, real det);
-real3 sym3_real3_mul(sym3 m, real3 v);
-sym3 sym3_add(sym3 a, sym3 b);
-sym3 sym3_sub(sym3 a, sym3 b);
-sym3 sym3_real_mul(sym3 a, real s);
-real sym3_dot(sym3 a, sym3 b);
-real3 sym3_x(sym3 m);
-real3 sym3_y(sym3 m);
-real3 sym3_z(sym3 m);
-real sym3_trace(sym3 m);
-sym3 sym3_swap0(sym3 m);
-sym3 sym3_swap1(sym3 m);
-sym3 sym3_swap2(sym3 m);
-real real3_weightedDot(real3 a, real3 b, sym3 m);
-real real3_weightedLenSq(real3 a, sym3 m);
-real real3_weightedLen(real3 a, sym3 m);
-
-//specified in row-order, like you would a C array
-#define _real3x3(xx,xy,xz,yx,yy,yz,zx,zy,zz) ((real3x3){.x=_real3(xx,xy,xz), .y=_real3(yx,yy,yz), .z=_real3(zx,zy,zz)})
-
-#define real3x3_zero ((real3x3){.v={real3_zero, real3_zero, real3_zero}})
-
-real3x3 real3x3_add(real3x3 a, real3x3 b);
-real3x3 real3_real3_outer(real3 a, real3 b);
-real real3x3_dot(real3x3 a, real3x3 b);
-real real3x3_sym3_dot(real3x3 a, sym3 b);
-real3x3 sym3_sym3_mul(sym3 a, sym3 b);
-real3x3 real3x3_sym3_mul(real3x3 a, sym3 b);
-real3x3 sym3_real3x3_mul(sym3 a, real3x3 b);
-sym3 real3x3_sym3_to_sym3_mul(real3x3 a, sym3 b);
-sym3 sym3_real3x3_to_sym3_mul(sym3 a, real3x3 b);
-sym3 sym3_from_real3x3(real3x3 a);
-real3x3 real3x3_from_sym3(sym3 a);
-real3x3 real3x3_addT(real3x3 a, real3x3 b);
-real3x3 real3x3_real3x3_mul(real3x3 a, real3x3 b);
-real3 real3x3_real3_mul(real3x3 a, real3 b);
-real real3x3_trace(real3x3 m);
-real3x3 real3x3_from_real(real x);
-real real3x3_det(real3x3 m);
-real3x3 real3x3_inv(real3x3 m);
-
-//buggy
-//#define _3sym3_zero ((_3sym3){.s={0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}})
-//fixed
-#define _3sym3_zero ((_3sym3){.x=sym3_zero, .y=sym3_zero, .z=sym3_zero})
-
-_3sym3 _3sym3_add(_3sym3 a, _3sym3 b);
-_3sym3 _3sym3_sub(_3sym3 a, _3sym3 b);
-_3sym3 _3sym3_real_mul(_3sym3 a, real b);
-_3sym3 sym3_3sym3_mul(sym3 a, _3sym3 b);
-real3 _3sym3_sym3_dot23(_3sym3 a, sym3 b);
-real3 sym3_3sym3_dot12(sym3 a, _3sym3 b);
-sym3 real3_3sym3_dot1(real3 a, _3sym3 b);
-real3 _3sym3_tr12(_3sym3 a);
-real3x3 real3_3sym3_dot2(real3 a, _3sym3 b);
-
-real3x3x3 _3sym3_sym3_mul(_3sym3 a, sym3 b);
-real3 real3x3x3_sym3_dot23(real3x3x3 a, sym3 b);
-real3x3 _3sym3_real3x3x3_dot12_23(_3sym3 a, real3x3x3 b);
-sym3 _3sym3_real3x3x3_dot13_to_sym3(_3sym3 a, real3x3x3 b);
-
-sym3sym3 sym3sym3_add(sym3sym3 a, sym3sym3 b);
-
-
-//buggy
-//#define _cplx(a,b) 			((cplx){.s={a,b}})
-//fixed
-#define _cplx(a,b) 			((cplx){.re=a, .im=b})
-
-#define cplx_from_real(x)	_cplx(x,0)
-#define cplx_from_cplx(x)	(x)
-#define cplx_1				_cplx(1,0)
-#define cplx_i	 			_cplx(0,1)
-#define cplx_zero 			cplx_from_real(0)
-
-
-cplx cplx_conj(cplx a);
-cplx cplx_neg(cplx a);
-real cplx_lenSq(cplx a);
-real cplx_abs(cplx a);
-real cplx_arg(cplx a);
-real cplx_dot(cplx a, cplx b);
-cplx cplx_add(cplx a, cplx b);
-cplx cplx_sub(cplx a, cplx b);
-cplx cplx_mul(cplx a, cplx b);
-cplx cplx_real_mul(cplx a, real b);
-#define real_cplx_mul(a,b)	cplx_real_mul(b,a)
-cplx cplx_inv(cplx a);
-cplx cplx_div(cplx a, cplx b);
-cplx cplx_exp(cplx a);
-cplx cplx_log(cplx a);
-cplx cplx_pow(cplx a, cplx b);
-cplx cplx_sqrt(cplx a);
-
-<?
-makevec3('cplx3', 'cplx')
-?>
-
-#define real3_from_cplx3		cplx3_re
-
-cplx3 cplx3_from_real3(real3 re);
-cplx3 cplx3_from_real3_real3(real3 re, real3 im);
-real3 cplx3_re(cplx3 v);
-real3 cplx3_im(cplx3 v);
-real cplx3_lenSq(cplx3 v);
-real cplx3_len(cplx3 v);
-cplx3 real3_cplx_mul(real3 a, cplx b);
-cplx cplx3_real3_dot(cplx3 a, real3 b);
-#define real3_cplx3_dot(a,b) cplx3_real3_dot(b,a)
-real cplx3_re_weightedDot(cplx3 a, cplx3 b, sym3 m);
-real cplx3_weightedLenSq(cplx3 a, sym3 m);
-
-cplx3x3 cplx3x3_from_real3x3_real3x3(real3x3 re, real3x3 im);
-cplx3 cplx3x3_real3_mul(cplx3x3 a, real3 b);
-cplx3 cplx3_real3x3_mul(cplx3 a, real3x3 b);
-real3x3 cplx3x3_re(cplx3x3 v);
-real3x3 cplx3x3_im(cplx3x3 v);
-
-
-real3 normalForSide0();
-real3 normalForSide1();
-real3 normalForSide2();
-
-
-]], {app=app}),
-		
-		code = template([[
-
-
-// This file needs to be templated, so it must be processed and manually inserted
-// I could write out the templated hydro/code/math.h file into the cache-cl folder, and then add that to the CL compiler include folder, and include it from there ...
-//#include "hydro/code/math.h"
-
-<?
-local common = require 'hydro.common'	-- xNames, symNames
-local xNames = common.xNames
-local symNames = common.symNames
-local sym = common.sym
-local from6to3x3 = common.from6to3x3
-local from3x3to6 = common.from3x3to6
-?>
-
-////////////////////////// quat //////////////////////////
-
-//assumes q is unit
-//returns the conjugate
-real4 quatUnitConj(real4 q) {
-	return (real4)(-q.x, -q.y, -q.z, q.x);
-}
-
-real4 quatMul(real4 q, real4 r) {
-	real a = (q.w + q.x) * (r.w + r.x);
-	real b = (q.z - q.y) * (r.y - r.z);
-	real c = (q.x - q.w) * (r.y + r.z);
-	real d = (q.y + q.z) * (r.x - r.w);
-	real e = (q.x + q.z) * (r.x + r.y);
-	real f = (q.x - q.z) * (r.x - r.y);
-	real g = (q.w + q.y) * (r.w - r.z);
-	real h = (q.w - q.y) * (r.w + r.z);
-
-	return (real4)(
-		 a - .5 * ( e + f + g + h), //x
-		-c + .5 * ( e - f + g - h), //y
-		-d + .5 * ( e - f - g + h), //z
-		 b + .5 * (-e - f + g + h)); //w
-}
-
-////////////////////////// real3 //////////////////////////
-
-<?
-function makevec3(vec,scalar)
-	local add = scalar..'_add'
-	local sub = scalar..'_sub'
-	local mul = scalar..'_mul'
-	local real_mul = scalar..'_real_mul'
-	local neg = scalar..'_neg'
-	local conj = scalar..'_conj'
-	local add3 = scalar..'_add3'
-	local mul3 = scalar..'_mul3'
-?>
+	local function makevec3code(vec,scalar)
+		return template([[
 
 <?=vec?> <?=vec?>_<?=scalar?>_mul(<?=vec?> a, <?=scalar?> s) {
 	return _<?=vec?>(
@@ -504,24 +195,63 @@ function makevec3(vec,scalar)
 <?=vec?> <?=vec?>_unit(<?=vec?> a) {
 	return <?=vec?>_real_mul(a, 1. / <?=vec?>_len(a));
 }
+]], {
+			vec = vec,
+			scalar = scalar,
+			add = scalar..'_add',
+			sub = scalar..'_sub',
+			mul = scalar..'_mul',
+			real_mul = scalar..'_real_mul',
+			neg = scalar..'_neg',
+			conj = scalar..'_conj',
+			add3 = scalar..'_add3',
+			mul3 = scalar..'_mul3',
+		})
+	end
 
-<?
-end
-makevec3('real3', 'real')
-?>
 
-<?
-local function resultType(atype, btype)
-	if atype == 'real' and btype == 'real' then return 'real' end
-	if atype == 'cplx' and btype == 'real' then return 'cplx' end
-	if atype == 'real' and btype == 'cplx' then return 'cplx' end
-	if atype == 'cplx' and btype == 'cplx' then return 'cplx' end
-	error("no resultType for operations of "..atype.." and "..btype)
-end
+	local function make3x3type(scalar)
+		return template([[
+typedef union {
+	<?=scalar?> s[9];
+	<?=vec3?> v[3];
+	struct {
+		<?=vec3?> v0,v1,v2;
+	};
+	struct {
+		<?=vec3?> x,y,z;
+	};
+} <?=name?>;
+]], 	{
+			scalar = scalar,
+			vec3 = scalar..'3',
+			name = scalar..'3x3',
+		})
+	end
 
-local function make_dot(atype, btype)
-	local ctype = resultType(atype, btype)
-?>
+	local function makecplx(name, real) 
+		return template([[
+typedef union {
+	<?=real?> s[2];
+	struct { <?=real?> s0, s1; };
+	struct { <?=real?> re, im; };
+} <?=name?>;
+]], 	{
+			name = name,
+			real = real,
+		})
+	end 
+
+	local function resultType(atype, btype)
+		if atype == 'real' and btype == 'real' then return 'real' end
+		if atype == 'cplx' and btype == 'real' then return 'cplx' end
+		if atype == 'real' and btype == 'cplx' then return 'cplx' end
+		if atype == 'cplx' and btype == 'cplx' then return 'cplx' end
+		error("no resultType for operations of "..atype.." and "..btype)
+	end
+
+	local function make_dot(atype, btype)
+		return template([[
 <?=ctype?> <?=atype?>3_<?=btype?>3_dot(<?=atype?>3 a, <?=btype?>3 b) {
 	return <?=ctype?>_add3(
 		<?=atype?>_<?=btype?>_mul(a.x, <?=btype?>_conj(b.x)), 
@@ -529,12 +259,138 @@ local function make_dot(atype, btype)
 		<?=atype?>_<?=btype?>_mul(a.z, <?=btype?>_conj(b.z))
 	);
 }
-<?
-end
-make_dot('real', 'real')
-?>
+]],		{
+			atype = atype,
+			btype = btype,
+			ctype = resultType(atype, btype),
+		})
+	end
 
-////////////////////////// real3 //////////////////////////
+
+	local function make_3x3_3_mul(atype, btype)
+		return template([[
+//c_i = a_ij * b^j
+<?=ctype?>3 <?=atype?>3x3_<?=btype?>3_mul(<?=atype?>3x3 a, <?=btype?>3 b) {
+	return (<?=ctype?>3){
+<? for i,xi in ipairs(xNames) do
+?>		.<?=xi?> = <?=atype?>3_<?=btype?>3_dot(a.<?=xi?>, b),
+<? end
+?>	};
+}
+]], 	{
+			atype = atype,
+			btype = btype,
+			ctype = resultType(atype, btype),
+			xNames = xNames,
+		})
+	end
+
+	local function make_3_3x3_mul(atype, btype)
+		return template([[
+//c_j = a^i * b_ij = b_ji * a^i
+//so this is the same behavior as transpose(A) * b
+<?=ctype?>3 <?=atype?>3_<?=btype?>3x3_mul(<?=atype?>3 a, <?=btype?>3x3 b) {
+	return (<?=ctype?>3){
+<? for i,xi in ipairs(xNames) do
+?>		.<?=xi?> = <?=ctype?>_add3(
+			<?=atype?>_<?=btype?>_mul(a.x, b.x.<?=xi?>),
+			<?=atype?>_<?=btype?>_mul(a.y, b.y.<?=xi?>),
+			<?=atype?>_<?=btype?>_mul(a.z, b.z.<?=xi?>)),
+<? end
+?>	};
+}
+]], 	{
+			atype = atype,
+			btype = btype,
+			ctype = resultType(atype, btype),
+			xNames = xNames,
+		})
+	end
+
+	modules:add{
+		name = 'units',
+		headercode = [[
+/*
+unit conversion variables.
+my current convention is this:
+- initial conditions should provide variables to eqn pre-converted to unitless if they so desire.
+- (therefore) state variables should be considered unitless.
+- solver variables are not yet converted to unitless.  every time they are referenced, factor out the units.
+- right now I'm dividing by units to convert to unitless, and multiplying by units to convert out.  This might be the inverse of what I should be doing.  The plus side is when inputting units to the conversion, you don't have to invert so often. 'meter = 6.3716' gives you 1 distance unit = 6.3716 meters.
+*/
+
+#define unit_m					solver->meter
+#define unit_s					solver->second
+#define unit_kg					solver->kilogram
+#define unit_C					solver->coulomb
+#define unit_K					solver->kelvin
+
+#define unit_m2					(unit_m * unit_m)
+#define unit_m3					(unit_m * unit_m * unit_m)
+#define unit_s2					(unit_s * unit_s)
+#define unit_C2					(unit_C * unit_C)
+#define unit_m_per_s			(unit_m / unit_s)
+#define unit_m2_per_s2			(unit_m2 / unit_s2)
+#define unit_m3_per_kg_s2		(unit_m3 / (unit_kg * unit_s2))
+#define unit_kg_per_m3			(unit_kg / unit_m3)
+#define unit_kg_per_m2_s		(unit_kg / (unit_m2 * unit_s))
+#define unit_kg_per_m_s2		(unit_kg / (unit_m * unit_s2))
+#define unit_C_per_kg			(unit_C / unit_kg)
+#define unit_C_per_m2			(unit_C / unit_m2)
+#define unit_kg_per_C_s			(unit_kg / (unit_C * unit_s))
+#define unit_kg_m_per_C2		(unit_kg * unit_m / unit_C2)
+#define unit_C2_s_per_kg_m3		((unit_C2 * unit_s) / (unit_kg * unit_m3))
+#define unit_C2_s2_per_kg_m3	((unit_C2 * unit_s2) / (unit_kg * unit_m3))
+]],
+	}
+
+	modules:add{
+		name = 'real',
+		headercode = [[
+
+#define real_conj(x)		(x)
+#define real_from_real(x)	(x)
+#define real_zero			0
+#define real_neg(x)			(-(x))
+#define real_inv(x)			(1./(x))
+#define real_add(a,b)		((a) + (b))
+#define real_sub(a,b)		((a) - (b))
+#define real_mul(a,b)		((a) * (b))
+#define real_div(a,b)		((a) / (b))
+#define real_real_add(a,b)	((a) + (b))
+#define real_real_sub(a,b)	((a) - (b))
+#define real_real_mul(a,b)	((a) * (b))
+#define real_real_div(a,b)	((a) / (b))
+#define real_lenSq(x)		((x) * (x))
+#define real_abs			fabs
+
+#define real_sqrt			sqrt
+
+]],
+	}
+
+	modules:add{
+		name = 'real3',
+		depends = {'real'},	
+		typecode = makevec3type('real3', 'real'),
+		headercode = template([[
+
+<?=makevec3header('real3', 'real')?>
+
+#define real3_from_real3(x)	x
+
+real real3_lenSq(real3 a);
+real real3_len(real3 a);
+
+]], 	{
+			app = app,
+			makevec3header = makevec3header,
+		}),
+		
+		code = template([[
+
+<?=makevec3code('real3', 'real')?>
+<?=make_dot('real', 'real')?>
 
 real real3_lenSq(real3 a) {
 	return real3_dot(a,a);
@@ -543,6 +399,33 @@ real real3_lenSq(real3 a) {
 real real3_len(real3 a) {
 	return sqrt(real3_lenSq(a));
 }
+
+]], 	{
+			app = app,
+			makevec3code = makevec3code,
+			make_dot = make_dot,
+		}),
+	}
+
+	modules:add{
+		name = 'rotate',
+		depends = {'real3'},
+		headercode = [[
+
+real3 real3_swap0(real3 v);
+real3 real3_swap1(real3 v);
+real3 real3_swap2(real3 v);
+real3 real3_rotFrom0(real3 v);
+real3 real3_rotFrom1(real3 v);
+real3 real3_rotFrom2(real3 v);
+real3 real3_rotTo0(real3 v);
+real3 real3_rotTo1(real3 v);
+real3 real3_rotTo2(real3 v);
+real3 real3_rotateFrom(real3 v, real3 n);
+real3 real3_rotateTo(real3 v, real3 n);
+
+]],
+		code = [[
 
 //for swapping dimensions between x and 012
 real3 real3_swap0(real3 v) { return v; }
@@ -657,7 +540,53 @@ real3 real3_rotateZ(real3 v, real theta) {
 
 
 
-////////////////////////// sym3 //////////////////////////
+]],
+	}
+
+	modules:add{
+		name = 'sym3',
+		typecode = [[
+typedef union {
+	real s[6];
+	struct {
+		real xx, xy, xz, yy, yz, zz;
+	};
+	struct {
+		real s00, s01, s02, s11, s12, s22;
+	};
+} sym3;
+]],
+		headercode = [[
+
+//buggy on intel opencl ubuntu
+//#define _sym3(a,b,c,d,e,f) ((sym3){.s={a,b,c,d,e,f}})
+//fix
+#define _sym3(a,b,c,d,e,f) ((sym3){.xx=a, .xy=b, .xz=c, .yy=d, .yz=e, .zz=f})
+
+#define sym3_zero	_sym3(0,0,0,0,0,0)
+#define sym3_ident	_sym3(1,0,0,1,0,1)
+
+sym3 real3_outer(real3 a);
+real sym3_det(sym3 m);
+sym3 sym3_inv(sym3 m, real det);
+real3 sym3_real3_mul(sym3 m, real3 v);
+sym3 sym3_add(sym3 a, sym3 b);
+sym3 sym3_sub(sym3 a, sym3 b);
+sym3 sym3_real_mul(sym3 a, real s);
+real sym3_dot(sym3 a, sym3 b);
+real3 sym3_x(sym3 m);
+real3 sym3_y(sym3 m);
+real3 sym3_z(sym3 m);
+real sym3_trace(sym3 m);
+sym3 sym3_swap0(sym3 m);
+sym3 sym3_swap1(sym3 m);
+sym3 sym3_swap2(sym3 m);
+real real3_weightedDot(real3 a, real3 b, sym3 m);
+real real3_weightedLenSq(real3 a, sym3 m);
+real real3_weightedLen(real3 a, sym3 m);
+
+]],
+		code = template([[
 
 //outer with yourself
 sym3 real3_outer(real3 a) {
@@ -769,7 +698,47 @@ real real3_weightedLen(real3 a, sym3 m) {
 	return sqrt(real3_weightedLenSq(a, m));
 }
 
-////////////////////////// real3x3 //////////////////////////
+]],		{
+			xNames = xNames,
+			symNames = symNames,
+			from6to3x3 = from6to3x3,
+		}),
+	}
+
+	modules:add{
+		name = 'real3x3',
+		depends = {'sym3'},
+		typecode = '// row vectors, so a.i.j = a_ij\n'
+					..make3x3type'real',
+		headercode = [[
+
+//specified in row-order, like you would a C array
+#define _real3x3(xx,xy,xz,yx,yy,yz,zx,zy,zz) ((real3x3){.x=_real3(xx,xy,xz), .y=_real3(yx,yy,yz), .z=_real3(zx,zy,zz)})
+
+#define real3x3_zero ((real3x3){.v={real3_zero, real3_zero, real3_zero}})
+
+real3x3 real3x3_add(real3x3 a, real3x3 b);
+real3x3 real3_real3_outer(real3 a, real3 b);
+real real3x3_dot(real3x3 a, real3x3 b);
+real real3x3_sym3_dot(real3x3 a, sym3 b);
+real3x3 sym3_sym3_mul(sym3 a, sym3 b);
+real3x3 real3x3_sym3_mul(real3x3 a, sym3 b);
+real3x3 sym3_real3x3_mul(sym3 a, real3x3 b);
+sym3 real3x3_sym3_to_sym3_mul(real3x3 a, sym3 b);
+sym3 sym3_real3x3_to_sym3_mul(sym3 a, real3x3 b);
+sym3 sym3_from_real3x3(real3x3 a);
+real3x3 real3x3_from_sym3(sym3 a);
+real3x3 real3x3_addT(real3x3 a, real3x3 b);
+real3x3 real3x3_real3x3_mul(real3x3 a, real3x3 b);
+real3 real3x3_real3_mul(real3x3 a, real3 b);
+real real3x3_trace(real3x3 m);
+real3x3 real3x3_from_real(real x);
+real real3x3_det(real3x3 m);
+real3x3 real3x3_inv(real3x3 m);
+
+]],
+		code = template([[
+
 
 real3x3 real3x3_add(real3x3 a, real3x3 b) {
 	return (real3x3){
@@ -944,42 +913,12 @@ real3x3 real3x3_real3x3_mul(real3x3 a, real3x3 b) {
 ?>	};
 }
 
-<?
-local function make_3x3_3_mul(atype, btype)
-	local ctype = resultType(atype, btype)
-?>
-//c_i = a_ij * b^j
-<?=ctype?>3 <?=atype?>3x3_<?=btype?>3_mul(<?=atype?>3x3 a, <?=btype?>3 b) {
-	return (<?=ctype?>3){
-<? for i,xi in ipairs(xNames) do
-?>		.<?=xi?> = <?=atype?>3_<?=btype?>3_dot(a.<?=xi?>, b),
-<? end
-?>	};
-}
-<?
-end
-make_3x3_3_mul('real', 'real')	-- real3x3_real3_mul
+<?=
+make_3x3_3_mul('real', 'real')
+-- real3x3_real3_mul
 ?>
 
-<?
-local function make_3_3x3_mul(atype, btype)
-	local ctype = resultType(atype, btype)
-?>
-//c_j = a^i * b_ij = b_ji * a^i
-//so this is the same behavior as transpose(A) * b
-<?=ctype?>3 <?=atype?>3_<?=btype?>3x3_mul(<?=atype?>3 a, <?=btype?>3x3 b) {
-	return (<?=ctype?>3){
-<? for i,xi in ipairs(xNames) do
-?>		.<?=xi?> = <?=ctype?>_add3(
-			<?=atype?>_<?=btype?>_mul(a.x, b.x.<?=xi?>),
-			<?=atype?>_<?=btype?>_mul(a.y, b.y.<?=xi?>),
-			<?=atype?>_<?=btype?>_mul(a.z, b.z.<?=xi?>)),
-<? end
-?>	};
-}
-
-<?
-end
+<?=
 make_3_3x3_mul('real', 'real')	-- real3_real3x3_mul
 ?>
 
@@ -1026,7 +965,48 @@ for i=0,2 do
 ?>	};
 }
 
-////////////////////////// _3sym3 //////////////////////////
+]], 	{
+			xNames = xNames,
+			sym = sym,
+			symNames = symNames,
+			from6to3x3 = from6to3x3,
+			from3x3to6 = from3x3to6,
+			make_3x3_3_mul = make_3x3_3_mul,
+			make_3_3x3_mul = make_3_3x3_mul,
+		}),
+	}
+
+	modules:add{
+		name = '_3sym3',
+		depends = {'sym3', 'real3x3'},
+		typecode = [[
+typedef union {
+	real s[18];
+	struct {
+		sym3 v0,v1,v2;	//why not s0,s1,s2?
+	};
+	struct {
+		sym3 x,y,z;
+	};
+} _3sym3;
+]],
+		headercode = [[
+//buggy
+//#define _3sym3_zero ((_3sym3){.s={0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}})
+//fixed
+#define _3sym3_zero ((_3sym3){.x=sym3_zero, .y=sym3_zero, .z=sym3_zero})
+
+_3sym3 _3sym3_add(_3sym3 a, _3sym3 b);
+_3sym3 _3sym3_sub(_3sym3 a, _3sym3 b);
+_3sym3 _3sym3_real_mul(_3sym3 a, real b);
+_3sym3 sym3_3sym3_mul(sym3 a, _3sym3 b);
+real3 _3sym3_sym3_dot23(_3sym3 a, sym3 b);
+real3 sym3_3sym3_dot12(sym3 a, _3sym3 b);
+sym3 real3_3sym3_dot1(real3 a, _3sym3 b);
+real3 _3sym3_tr12(_3sym3 a);
+real3x3 real3_3sym3_dot2(real3 a, _3sym3 b);
+]],
+		code = template([[
 
 <? for name,symbol in pairs{add='+', sub='-'} do ?>
 _3sym3 _3sym3_<?=name?>(_3sym3 a, _3sym3 b) {
@@ -1134,7 +1114,40 @@ real3x3 real3_3sym3_dot2(real3 a, _3sym3 b) {
 }
 
 
-////////////////////////// real3x3x3 //////////////////////////
+
+]], 	{
+			xNames = xNames,
+			sym = sym,
+			symNames = symNames,
+		}),
+	}
+
+	modules:add{
+		name = 'real3x3x3',
+		depends = {'real3', 'sym3', 'real3x3', '_3sym3'},
+		typecode = [[
+
+typedef union {
+	real s[27];
+	real3x3 v[3];
+	struct {
+		real3x3 v0,v1,v2;
+	};
+	struct {
+		real3x3 x,y,z;
+	};
+} real3x3x3;
+
+]],
+		headercode = [[
+
+real3x3x3 _3sym3_sym3_mul(_3sym3 a, sym3 b);
+real3 real3x3x3_sym3_dot23(real3x3x3 a, sym3 b);
+real3x3 _3sym3_real3x3x3_dot12_23(_3sym3 a, real3x3x3 b);
+sym3 _3sym3_real3x3x3_dot13_to_sym3(_3sym3 a, real3x3x3 b);
+
+]],
+		template([[
 
 //c_ij^k = a_ijl b^lk
 real3x3x3 _3sym3_sym3_mul(_3sym3 a, sym3 b) {
@@ -1201,7 +1214,38 @@ sym3 _3sym3_real3x3x3_dot13_to_sym3(_3sym3 a, real3x3x3 b) {
 ?>	};
 }
 
-////////////////////////// sym3sym3 //////////////////////////
+
+]],		{
+			xNames = xNames,
+			sym = sym,
+			symNames = symNames,
+			from6to3x3 = from6to3x3,
+		}),
+	}
+
+	modules:add{
+		name = 'sym3sym3',
+		depends = {'sym3'},
+		typecode = [[
+
+typedef union {
+	real s[36];
+	sym3 v[6];
+	struct {
+		sym3 v0, v1, v2, v3, v4, v5;
+	};
+	struct {
+		sym3 xx, xy, xz, yy, yz, zz;
+	};
+} sym3sym3;
+
+]],
+		headercode = [[
+
+sym3sym3 sym3sym3_add(sym3sym3 a, sym3sym3 b);
+
+]],
+		code = template([[
 
 sym3sym3 sym3sym3_add(sym3sym3 a, sym3sym3 b) {
 	return (sym3sym3){
@@ -1211,7 +1255,51 @@ sym3sym3 sym3sym3_add(sym3sym3 a, sym3sym3 b) {
 ?>	};
 }
 
-////////////////////////// cplx //////////////////////////
+]],		{
+			symNames = symNames,
+		}),
+	}
+
+	modules:add{
+		name = 'cplx',
+		typecode = makecplx('cplx', 'real'),
+		headercode = [[
+
+#define real_from_cplx(x)	((x).re)
+
+//buggy
+//#define _cplx(a,b) 			((cplx){.s={a,b}})
+//fixed
+#define _cplx(a,b) 			((cplx){.re=a, .im=b})
+
+#define cplx_from_real(x)	_cplx(x,0)
+#define cplx_from_cplx(x)	(x)
+#define cplx_1				_cplx(1,0)
+#define cplx_i	 			_cplx(0,1)
+#define cplx_zero 			cplx_from_real(0)
+
+
+cplx cplx_conj(cplx a);
+cplx cplx_neg(cplx a);
+real cplx_lenSq(cplx a);
+real cplx_abs(cplx a);
+real cplx_arg(cplx a);
+real cplx_dot(cplx a, cplx b);
+cplx cplx_add(cplx a, cplx b);
+cplx cplx_sub(cplx a, cplx b);
+cplx cplx_mul(cplx a, cplx b);
+cplx cplx_real_mul(cplx a, real b);
+#define real_cplx_mul(a,b)	cplx_real_mul(b,a)
+cplx cplx_inv(cplx a);
+cplx cplx_div(cplx a, cplx b);
+cplx cplx_exp(cplx a);
+cplx cplx_log(cplx a);
+cplx cplx_pow(cplx a, cplx b);
+cplx cplx_sqrt(cplx a);
+
+]],
+		code = [[
+
 
 cplx cplx_conj(cplx a) { return _cplx(a.re, -a.im); }
 cplx cplx_neg(cplx a) { return _cplx(-a.re, -a.im); }
@@ -1282,10 +1370,37 @@ cplx cplx_log(cplx a) {
 cplx cplx_pow(cplx a, cplx b) { return cplx_exp(cplx_mul(b, cplx_log(a))); }
 cplx cplx_sqrt(cplx a) { return cplx_pow(a, cplx_from_real(.5)); }
 
-////////////////////////// cplx3 //////////////////////////
 
-<?
-makevec3('cplx3', 'cplx')
+
+]],
+	}
+
+	modules:add{
+		name = 'cplx3',
+		depends = {'cplx', 'sym3'},
+		typecode = makevec3type('cplx3', 'cplx'),
+		headercode = makevec3header('cplx3', 'cplx')..[[
+
+#define real3_from_cplx3		cplx3_re
+
+cplx3 cplx3_from_real3(real3 re);
+cplx3 cplx3_from_real3_real3(real3 re, real3 im);
+real3 cplx3_re(cplx3 v);
+real3 cplx3_im(cplx3 v);
+real cplx3_lenSq(cplx3 v);
+real cplx3_len(cplx3 v);
+cplx3 real3_cplx_mul(real3 a, cplx b);
+cplx cplx3_real3_dot(cplx3 a, real3 b);
+#define real3_cplx3_dot(a,b) cplx3_real3_dot(b,a)
+
+//TODO instead of sym3 as a depends, put this into a cplx+sym3 module? 
+real cplx3_re_weightedDot(cplx3 a, cplx3 b, sym3 m);
+real cplx3_weightedLenSq(cplx3 a, sym3 m);
+
+]],
+		code = template([[
+
+<?=makevec3code('cplx3', 'cplx')
 ?>
 
 cplx3 cplx3_from_real3(real3 re) {
@@ -1327,8 +1442,7 @@ cplx3 real3_cplx_mul(real3 a, cplx b) {
 		real_cplx_mul(a.z, b));
 }
 
-<?
-make_dot('cplx', 'real')	-- cplx3_real3_dot
+<?=make_dot('cplx', 'real')	-- cplx3_real3_dot
 ?>
 
 /*
@@ -1348,6 +1462,27 @@ real cplx3_weightedLenSq(cplx3 a, sym3 m) {
 		+ real3_weightedLenSq(cplx3_im(a), m);
 }
 
+
+]],		{
+			app = app,
+			xNames = xNames,
+			makevec3code = makevec3code,
+			make_dot = make_dot,
+		}),
+	}
+
+	modules:add{
+		name = 'cplx3x3',
+		depends = {'sym3', 'real3x3', 'cplx3'},
+		typecode = make3x3type'cplx'..[[
+
+cplx3x3 cplx3x3_from_real3x3_real3x3(real3x3 re, real3x3 im);
+cplx3 cplx3x3_real3_mul(cplx3x3 a, real3 b);
+cplx3 cplx3_real3x3_mul(cplx3 a, real3x3 b);
+real3x3 cplx3x3_re(cplx3x3 v);
+real3x3 cplx3x3_im(cplx3x3 v);
+]],
+		code = template([[
 ////////////////////////// cplx3x3 //////////////////////////
 
 cplx3x3 cplx3x3_from_real3x3_real3x3(real3x3 re, real3x3 im) {
@@ -1374,10 +1509,10 @@ real3x3 cplx3x3_im(cplx3x3 v) {
 ?>	};
 }
 
-<?
-make_3x3_3_mul('cplx', 'real')	-- cplx3x3_real3_mul
-make_3x3_3_mul('real', 'cplx')	-- real3x3_cplx3_mul
-make_3_3x3_mul('cplx', 'real')	-- cplx3_real3x3_mul
+<?=
+make_3x3_3_mul('cplx', 'real')		-- cplx3x3_real3_mul
+..make_3x3_3_mul('real', 'cplx')	-- real3x3_cplx3_mul
+..make_3_3x3_mul('cplx', 'real')	-- cplx3_real3x3_mul
 ?>
 
 cplx cplx3x3_sym3_dot(cplx3x3 a, sym3 b) {
@@ -1390,22 +1525,26 @@ end
 ?>	return sum;
 }
 
-////////////////////////// extra //////////////////////////
+]], 	{
+			xNames = xNames,
+			sym = sym,
+			make_3x3_3_mul = make_3x3_3_mul,
+			make_3_3x3_mul = make_3_3x3_mul,
+		}),
+	}
 
-
-#define normalForSide0 _real3(1,0,0)
-#define normalForSide1 _real3(0,1,0)
-#define normalForSide2 _real3(0,0,1)
-
-#define normalBasisForSide0 _real3x3(1,0,0, 0,1,0, 0,0,1)
-#define normalBasisForSide1 _real3x3(0,1,0, 0,0,1, 1,0,0)
-#define normalBasisForSide2 _real3x3(0,0,1, 1,0,0, 0,1,0)
-
+	modules:add{
+		name = 'sech',
+		code = [[
 real sech(real x) {
 	return 2. / (exp(x) + exp(-x));
 }
+]],
+	}
 
-
+	modules:add{
+		name = 'Bessel',
+		code = [[
 
 // Reference: From Numath Library By Tuan Dang Trong in Fortran 77.
 // C++ Release 1.0 By J-P Moreau, Paris.
@@ -1493,6 +1632,14 @@ real BESSJ1(real X) {
 }
 
 
+]],
+	}
+
+	modules:add{
+		name = 'getPerpendicularBasis',
+		depends = {'real3x3'},
+		code = [[
+
 //TODO include metric weight
 //TODO I'm using this for n^u and n_u
 void getPerpendicularBasis(real3 n, real3* n2, real3* n3) {
@@ -1525,7 +1672,47 @@ void getPerpendicularBasis3x3(real3x3* n) {
 	getPerpendicularBasis(n->x, &n->y, &n->z);
 }
 
+]],
+	}
 
-]], {app=app}),
+	modules:add{
+		name = 'math',
+		depends = {
+			'realparam',
+			'units',
+			'real',
+			'quat',
+			'real3',
+			'sym3',
+			'real3x3',
+			'_3sym3',
+			'real3x3x3',
+			'sym3sym3',
+			'cplx',
+			'cplx3',
+			'cplx3x3',
+			'rotate',
+			'sech',
+			'Bessel',
+			'getPerpendicularBasis',
+		},
+		headercode = [[
+		
+real3 normalForSide0();
+real3 normalForSide1();
+real3 normalForSide2();
+
+]],
+		code = [[
+
+#define normalForSide0 _real3(1,0,0)
+#define normalForSide1 _real3(0,1,0)
+#define normalForSide2 _real3(0,0,1)
+
+#define normalBasisForSide0 _real3x3(1,0,0, 0,1,0, 0,0,1)
+#define normalBasisForSide1 _real3x3(0,1,0, 0,0,1, 1,0,0)
+#define normalBasisForSide2 _real3x3(0,0,1, 1,0,0, 0,1,0)
+
+]],
 	}
 end

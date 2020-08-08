@@ -44,7 +44,10 @@ function ModuleSet:getCodeForField(field, name)
 	local added = table()
 	local function add(name)
 		if addedkeys[name] then return end	-- don't include twice
-		local module = assert(self.set[name])
+		local module = self.set[name]
+		if not module then
+			error("failed to find module "..name)
+		end
 		addedkeys[name] = true	
 		for _,dep in ipairs(module.depends) do
 			add(dep)
@@ -54,7 +57,8 @@ function ModuleSet:getCodeForField(field, name)
 	add(name)
 	
 	return added:mapi(function(module)
-		return '\n////////////// '..name..' '..field..' //////////////\n\n'
+		if module[field] == '' then return '' end
+		return '\n////////////// '..module.name..' '..field..' //////////////\n\n'
 			..module[field]
 	end):concat'\n'
 end

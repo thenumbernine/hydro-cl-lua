@@ -91,7 +91,7 @@ function Mesh:getMeshTypeCode()
 	}:concat'\n'
 
 	-- TODO what if real3 isn't defined yet?
-	ffi.cdef(meshTypeCode)
+	require 'hydro.code.safecdef'(meshTypeCode)
 
 	return meshTypeCode
 end
