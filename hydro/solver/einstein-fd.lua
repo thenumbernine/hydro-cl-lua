@@ -28,7 +28,11 @@ function EinsteinFiniteDifferenceSolver:refreshSolverProgram()
 end
 
 function EinsteinFiniteDifferenceSolver:calcDeriv(derivBufObj, dt)
--- why do I have to set these again?
+-- on my Intel HD 520 I have to set these arguments twice.  only in einstein-fd, not in fvsolver.  otherwise I get CL_INVALID_KERNEL_ARGS
+-- on NVIDIA GTX 1080 Ti I'm getting a CL_INVALID_KERNEL_ARGS error here even after setting it again.
+-- https://stackoverflow.com/questions/20562637/opencl-code-works-on-a-machine-but-i-am-getting-cl-invalid-kernel-args-on-anothe/20566270#20566270
+-- ... says it could be an issue with constant-allocated data being limited by CL_DEVICE_MAX_CONSTANT_BUFFER_SIZE 
+-- on linux for my Neo drivers CL_DEVICE_MAX_CONSTANT_BUFFER_SIZE is 1601060864 bytes, ~1.5 GB, which is equal to the max mem alloc size, and half of the global memory
 self.calcDerivKernelObj.obj:setArg(0, assert(self.solverBuf))
 self.calcDerivKernelObj.obj:setArg(2, assert(self.UBuf))
 self.calcDerivKernelObj.obj.setArg(3, assert(self.cellBuf))

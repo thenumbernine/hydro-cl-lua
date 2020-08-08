@@ -222,6 +222,7 @@ local ig = require 'ffi.imgui'
 local class = require 'ext.class'
 local table = require 'ext.table'
 local string = require 'ext.string'
+local io = require 'ext.io'
 local file = require 'ext.file'
 local math = require 'ext.math'
 local gl = require 'gl'
@@ -1129,6 +1130,17 @@ function SolverBase:getDisplayCode()
 	local lines = table()
 
 	lines:insert(template([[
+
+typedef union {
+	real	ptr[9];
+	real	vreal;
+	sym3	vsym3;
+	cplx	vcplx;
+	real3	vreal3;
+	cplx3	vcplx3;
+	real3x3	vreal3x3;
+} displayValue_t;
+
 #define INIT_DISPLAYFUNC()\
 	SETBOUNDS(0,0);\
 <? if not require 'hydro.solver.meshsolver'.is(solver) then 
@@ -1221,7 +1233,7 @@ for i,component in ipairs(solver.displayComponentFlatList) do
 	if not component.onlyFor 
 	or (var and var.group and var.group.name == component.onlyFor)
 	then
-?>	case <?=i?>:	//<?=component.type or 'real'?> <?=component.name?>
+?>	case <?=i?>:	//<?=component.base or 'real'?> <?=component.name?>
 		{
 			<?=component.code?>
 			*vectorField = <?= solver:isVarTypeAVectorField(component.type) and '1' or '0' ?>;
@@ -1700,9 +1712,9 @@ function SolverBase:createDisplayComponents()
 		{name = 'tr', code = 'value->vsym3 = _sym3(sym3_trace(value->vsym3), 0,0,0,0,0);'},
 		{name = 'det', code = 'value->vsym3 = _sym3(sym3_det(value->vsym3), 0,0,0,0,0);'},
 		
-		{name = 'x', code = 'value->vreal3 = _real3(value->vsym3.xx, value->vsym3.xy, value->vsym3.xz); value->vreal3x3.y = real3_zero;', type = 'real3', magn='x mag'},
-		{name = 'y', code = 'value->vreal3 = _real3(value->vsym3.xy, value->vsym3.yy, value->vsym3.yz); value->vreal3x3.y = real3_zero;', type = 'real3', magn='y mag'},
-		{name = 'z', code = 'value->vreal3 = _real3(value->vsym3.xz, value->vsym3.yz, value->vsym3.zz); value->vreal3x3.y = real3_zero;', type = 'real3', magn='z mag'},
+		{name = 'x', code = 'value->vsym3 = _sym3(value->vsym3.xx, value->vsym3.xy, value->vsym3.xz, 0,0,0);', type = 'real3', magn='x mag'},
+		{name = 'y', code = 'value->vsym3 = _sym3(value->vsym3.xy, value->vsym3.yy, value->vsym3.yz, 0,0,0);', type = 'real3', magn='y mag'},
+		{name = 'z', code = 'value->vsym3 = _sym3(value->vsym3.xz, value->vsym3.yz, value->vsym3.zz, 0,0,0);', type = 'real3', magn='z mag'},
 		{name = 'x mag', code = 'value->vsym3 = _sym3(real3_len(sym3_x(value->vsym3)), 0,0,0,0,0);'},
 		{name = 'y mag', code = 'value->vsym3 = _sym3(real3_len(sym3_y(value->vsym3)), 0,0,0,0,0);'},
 		{name = 'z mag', code = 'value->vsym3 = _sym3(real3_len(sym3_z(value->vsym3)), 0,0,0,0,0);'},
