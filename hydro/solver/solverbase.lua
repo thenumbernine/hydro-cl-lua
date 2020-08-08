@@ -300,6 +300,7 @@ function SolverBase:init(args)
 		self:initMeshVars(args)
 		self:initCLDomainVars(args)
 		self:initObjs(args)
+		self:initModules()
 		self:initCDefs()
 		self:postInit()
 	end)
@@ -495,6 +496,20 @@ function SolverBase:initObjs(args)
 	self.initCondPtr = ffi.new(self.initCond_t)
 end
 
+-- collect *all* modules from all sub-objects
+-- first the global ones from math and app, then coord, initCond, boundary, eqn, solver ...
+-- then with all of them, specify which ones to target (for .h and .cl code) and they will trim the others
+function SolverBase:initModules()
+	self.modules = require 'hydro.code.moduleset'(self.app.modules)
+end
+
+-- TODO if you want to define ffi ctype metatable
+-- then put them all in one spot here
+-- if they are using the Struct:makeType function then don't bother use SolverBase:getTypeCode()
+function SolverBase:initCDefs()
+	ffi.cdef(self:getTypeCode())
+end
+
 -- this is code that goes in the codePrefix header (for CL use), as well as ffi.cdef (for ffi C use)
 function SolverBase:getTypeCode()
 	local lines = table()
@@ -522,13 +537,6 @@ function SolverBase:getTypeCode()
 	end
 
 	return lines:concat'\n'
-end
-
--- TODO if you want to define ffi ctype metatable
--- then put them all in one spot here
--- if they are using the Struct:makeType function then don't bother use SolverBase:getTypeCode()
-function SolverBase:initCDefs()
-	ffi.cdef(self:getTypeCode())
 end
 
 function SolverBase:refreshGetULR()
@@ -979,11 +987,10 @@ if not SolverBase.useCLLinkLibraries then return end
 	time('compiling math program', function()
 		self.mathUnlinkedObj = self.Program{
 			name = 'math',
-			code = template(table{
-				file['hydro/code/math.types.h'],
-				file['hydro/code/math.h'],
-				file['hydro/code/math.cl'],
-			}:concat'\n', {app=self.app}),
+			code = table{
+				self.modules:getHeader'math',
+				self.modules:getCode'math',
+			}:concat'\n',
 		}
 		self.mathUnlinkedObj:compile{
 			dontLink = true,
@@ -1405,8 +1412,7 @@ function SolverBase:createCodePrefixHeader()
 	local lines = table()
 	
 	-- real3
-	lines:insert(template(file['hydro/code/math.types.h'], {app=self.app}))
-	lines:insert(template(file['hydro/code/math.h'], {app=self.app}))
+	lines:insert(self.modules:getHeader'math')
 
 	if self.dim == 3 then
 		lines:insert'#pragma OPENCL EXTENSION cl_khr_3d_image_writes : enable'
@@ -1435,17 +1441,15 @@ function SolverBase:createCodePrefixHeader()
 	return lines:concat'\n'
 end
 
--- TODO split 'codePrefix' into the common header and common source
-
 function SolverBase:createCodePrefixSource()
 	lines = table()
 if not SolverBase.useCLLinkLibraries then 
 	lines:append{
-		'//math.cl',
-		template(file['hydro/code/math.cl'], {app=self.app}),
+		self.modules:getCode'math',
 	}
 end	
 	lines:append{
+		-- TODO don't add this directly, but only take what pieces are required
 		'//solver.coord:getCode()',
 		self.coord:getCode() or '',
 		

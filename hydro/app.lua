@@ -439,8 +439,13 @@ function HydroCLApp:initGL(...)
 	--half cannot be a kernel param, so this is a proxy type
 	self.realparam = self.real == 'half' and 'float' or self.real
 
+
+	-- hmm, sorting out how to do the module system ...
+	self.modules = require 'hydro.code.moduleset'()
+	require 'hydro.code.math'(self.modules, self)
+
 	do
-		local code = template(file['hydro/code/math.types.h'], {app=self})
+		local code = self.modules:getTypeHeader'math'
 		xpcall(function()
 			ffi.cdef(code)
 		end, function(err)

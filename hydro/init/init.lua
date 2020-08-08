@@ -103,7 +103,11 @@ function InitCond:refreshInitStateProgram(solver)
 
 if solver.useCLLinkLibraries then 
 	--local code = initCondCode
-	local code = initCondCode..'\n'..template(require 'ext.io'.readfile'hydro/math.cl')
+	local code = table{
+		initCondCode,
+		self.modules:getHeader'math',
+		self.modules:getCode'math',
+	}:concat'\n'
 	time('compiling init state program', function()
 		solver.initCondUnlinkedObj = solver.Program{name='initCond', code=code}
 		solver.initCondUnlinkedObj:compile{dontLink=true}
