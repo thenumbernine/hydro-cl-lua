@@ -86,6 +86,11 @@ SolverBase:init
 		FVSolver:createFlux
 			self.flux = ...
 
+	SolverBase:initCodeModules
+		self.modules = ...
+		self.coord:initCodeModules
+		self.reqmdules = ...
+
 --------- here is where the ffi.cdef is called --------- 
 
 	SolverBase:initCDefs
@@ -132,7 +137,6 @@ SolverBase:init
 									self.eqn:getTypeCode
 									self.eqn:getEigenTypeCode
 								SolverBase:createCodePrefixSource
-									self.coord:getCode					<- this depends on solver.dim
 									self.eqn:getCodePrefix
 						SolverBase:refreshIntegrator
 							self.integrator = ...
@@ -300,7 +304,7 @@ function SolverBase:init(args)
 		self:initMeshVars(args)
 		self:initCLDomainVars(args)
 		self:initObjs(args)
-		self:initModules()
+		self:initCodeModules()
 		self:initCDefs()
 		self:postInit()
 	end)
@@ -497,10 +501,19 @@ function SolverBase:initObjs(args)
 end
 
 -- collect *all* modules from all sub-objects
+-- do this after objs are created and before codegen
 -- first the global ones from math and app, then coord, initCond, boundary, eqn, solver ...
 -- then with all of them, specify which ones to target (for .h and .cl code) and they will trim the others
-function SolverBase:initModules()
+function SolverBase:initCodeModules()
 	self.modules = require 'hydro.code.moduleset'(self.app.modules)
+	self.coord:initCodeModules()
+	-- what to compile?
+	self.reqmodules = table{
+		'math',
+		'coord',
+--		'conn',
+		'metric',
+	}
 end
 
 -- TODO if you want to define ffi ctype metatable
@@ -988,8 +1001,8 @@ if not SolverBase.useCLLinkLibraries then return end
 		self.mathUnlinkedObj = self.Program{
 			name = 'math',
 			code = table{
-				self.modules:getHeader'math',
-				self.modules:getCode'math',
+				self.modules:getHeader(self.reqmodules:unpack()),
+				self.modules:getCode(self.reqmodules:unpack()),
 			}:concat'\n',
 		}
 		self.mathUnlinkedObj:compile{
@@ -1133,7 +1146,18 @@ end
 
 function SolverBase:getDisplayCode()
 	--if self.app.targetSystem == 'console' then return '' end
-	
+
+--[[
+TODO better hasmodule, let eqn and solver etc request modules
+and have this search through their requests
+that might mean holding a state while adding modules
+and that would allow for a templated function to require modules from within module code,
+ although it is nice keeping the type, header and cl code separate, so why not keep the dependencies separated as well?
+--]]
+	local function hasmodule(name)
+		return table.find(self.modules.set.math.depends, name)
+	end
+
 	local lines = table()
 
 	lines:insert(template([[
@@ -1141,11 +1165,21 @@ function SolverBase:getDisplayCode()
 typedef union {
 	real	ptr[9];
 	real	vreal;
+<? if hasmodule'sym3' then ?>
 	sym3	vsym3;
+<? end ?>
+<? if hasmodule'cplx' then ?>
 	cplx	vcplx;
+<? end ?>
+<? if hasmodule'real3' then ?>
 	real3	vreal3;
+<? end ?>
+<? if hasmodule'cplx3' then ?>
 	cplx3	vcplx3;
+<? end ?>
+<? if hasmodule'real3x3' then ?>
 	real3x3	vreal3x3;
+<? end ?>
 } displayValue_t;
 
 #define INIT_DISPLAYFUNC()\
@@ -1173,6 +1207,7 @@ typedef union {
 #define DISPLAYFUNC_OUTPUTARGS_BUFFER() global real* dest
 ]], {
 		solver = self,
+		hasmodule = hasmodule,
 	}))
 
 	local accumFunc = self.displayVarAccumFunc and 'max' or nil
@@ -1240,6 +1275,7 @@ for i,component in ipairs(solver.displayComponentFlatList) do
 	if not component.onlyFor 
 	or (var and var.group and var.group.name == component.onlyFor)
 	then
+		if hasmodule(component.base) then
 ?>	case <?=i?>:	//<?=component.base or 'real'?> <?=component.name?>
 		{
 			<?=component.code?>
@@ -1247,6 +1283,7 @@ for i,component in ipairs(solver.displayComponentFlatList) do
 			break;
 		}
 <? 
+		end
 	end
 end
 ?>	}
@@ -1255,6 +1292,7 @@ end
 			name = name,
 			solver = self,
 			var = var,
+			hasmodule = hasmodule,
 		})))
 	end
 	addPickComponetForGroup{
@@ -1412,7 +1450,7 @@ function SolverBase:createCodePrefixHeader()
 	local lines = table()
 	
 	-- real3
-	lines:insert(self.modules:getHeader'math')
+	lines:insert(self.modules:getHeader(self.reqmodules:unpack()))
 
 	if self.dim == 3 then
 		lines:insert'#pragma OPENCL EXTENSION cl_khr_3d_image_writes : enable'
@@ -1445,14 +1483,10 @@ function SolverBase:createCodePrefixSource()
 	lines = table()
 if not SolverBase.useCLLinkLibraries then 
 	lines:append{
-		self.modules:getCode'math',
+		self.modules:getCode(self.reqmodules:unpack()),
 	}
 end	
 	lines:append{
-		-- TODO don't add this directly, but only take what pieces are required
-		'//solver.coord:getCode()',
-		self.coord:getCode() or '',
-		
 		'//solver.eqn:getCodePrefix()',
 		self.eqn:getCodePrefix() or '',
 	}

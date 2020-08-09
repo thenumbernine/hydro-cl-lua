@@ -39,7 +39,12 @@ cons_t fluxFromCons(
 	};
 }
 
-
+<?
+-- added by request only, so I don't have to compile the real3x3 code
+solver.modules:add{
+	name = 'calcCellMinMaxEigenvalues',
+	depends = {'real3x3'},
+	code = [[
 // used by PLM
 range_t calcCellMinMaxEigenvalues(
 	constant solver_t* solver,
@@ -58,7 +63,9 @@ range_t calcCellMinMaxEigenvalues(
 		.max = v_n + Cs_nLen,
 	};
 }
-
+]],
+}
+?>
 
 //used by the mesh version
 eigen_t eigen_forInterface(

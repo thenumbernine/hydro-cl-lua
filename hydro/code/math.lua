@@ -1676,26 +1676,7 @@ void getPerpendicularBasis3x3(real3x3* n) {
 	}
 
 	modules:add{
-		name = 'math',
-		depends = {
-			'realparam',
-			'units',
-			'real',
-			'quat',
-			'real3',
-			'sym3',
-			'real3x3',
-			'_3sym3',
-			'real3x3x3',
-			'sym3sym3',
-			'cplx',
-			'cplx3',
-			'cplx3x3',
-			'rotate',
-			'sech',
-			'Bessel',
-			'getPerpendicularBasis',
-		},
+		name = 'normalForSide',
 		headercode = [[
 		
 real3 normalForSide0();
@@ -1714,5 +1695,39 @@ real3 normalForSide2();
 #define normalBasisForSide2 _real3x3(0,0,1, 1,0,0, 0,1,0)
 
 ]],
+	}
+
+--[[
+TODO don't just use 'math', 
+put a global depends list somewhere, build on it as we add eqn and solver
+but app has its own modules which it needs typecode for first (which other solvers use ffi instances of)
+and solvers modules depend on those app modules...
+--]]	
+	modules:add{
+		name = 'math',
+		depends = {
+			'realparam',
+			'units',
+			'real',
+			'real3',
+		
+			-- used by coord, but not needed by {flux=roe, eqn=euler, coord=cartesian}
+			--'sym3',	-- used by metric+sym3
+			--'real3x3',-- used by calcCellMinMaxEigenvalues, which is used by usePLM
+			--'_3sym3',	-- used by conn
+			--'real3x3x3',
+			--'quat',
+		
+			-- not needed
+			--'sym3sym3',
+			--'cplx',
+			--'cplx3',
+			--'cplx3x3',
+			--'rotate',
+			--'sech',
+			--'Bessel',
+			--'getPerpendicularBasis',
+			--'normalForSide',
+		},
 	}
 end

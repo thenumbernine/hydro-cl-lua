@@ -934,9 +934,7 @@ but then we have these cell_x[_for_grid]<?=side?> functions which take an input 
 should I add these _for_coord _for_grid suffixes to specify what manfiold system the input parameter is? 
 
 --]]
-function CoordinateSystem:getCode()
-	if self.code then return self.code end
-	
+function CoordinateSystem:initCodeModules()
 	-- 3 since all our base types are in 'real3', 'sym3', etc
 	-- what about removing this restriction?
 	local dim = 3
@@ -978,24 +976,32 @@ function CoordinateSystem:getCode()
 	-- sqrt_det_g ... volume for holonomic basis
 	local sqrt_det_gCode = '(' .. self.sqrt_det_gCode .. ')'
 	lines:insert(getCode_real3_to_real('coord_sqrt_det_g', sqrt_det_gCode))
-	
+
 	-- coord len code: l(v) = v^i v^j g_ij
 	lines:insert(getCode_real3_real3_to_real('coordLenSq', self.uLenSqCode))
 	lines:insert[[
 static inline real coordLen(real3 r, real3 pt) {
 	return sqrt(coordLenSq(r, pt));
 }]]
-	lines:insert(getCode_real3_to_real3('coord_tr23_c', self.tr23_cCode))
-	lines:insert(getCode_real3_real3_real3_to_real('coord_conn_apply123', self.connApply123Code))
-	lines:insert(getCode_real3_real3_real3_to_real3('coord_conn_apply12', self.connApply12Codes))
-	lines:insert(getCode_real3_real3_real3_to_real3('coord_conn_apply13', self.connApply13Codes))
-	lines:insert(getCode_real3_real3_real3_to_real3('coord_conn_apply23', self.connApply23Codes))
-	lines:insert(getCode_real3_to_real3('coord_conn_trace12', self.tr12_conn_l_codes))
-	lines:insert(getCode_real3_to_real3('coord_conn_trace13', self.tr13_conn_l_codes))
-	lines:insert(getCode_real3_to_real3('coord_conn_trace23', self.tr23_conn_u_codes))
-	lines:insert(getCode_real3_to_3sym3('coord_conn_lll', self.conn_lll_codes))
-	lines:insert(getCode_real3_to_3sym3('coord_conn_ull', self.conn_ull_codes))
 
+	do
+		local lines = table()
+		lines:insert(getCode_real3_to_real3('coord_tr23_c', self.tr23_cCode))
+		lines:insert(getCode_real3_real3_real3_to_real('coord_conn_apply123', self.connApply123Code))
+		lines:insert(getCode_real3_real3_real3_to_real3('coord_conn_apply12', self.connApply12Codes))
+		lines:insert(getCode_real3_real3_real3_to_real3('coord_conn_apply13', self.connApply13Codes))
+		lines:insert(getCode_real3_real3_real3_to_real3('coord_conn_apply23', self.connApply23Codes))
+		lines:insert(getCode_real3_to_real3('coord_conn_trace12', self.tr12_conn_l_codes))
+		lines:insert(getCode_real3_to_real3('coord_conn_trace13', self.tr13_conn_l_codes))
+		lines:insert(getCode_real3_to_real3('coord_conn_trace23', self.tr23_conn_u_codes))
+		lines:insert(getCode_real3_to_3sym3('coord_conn_lll', self.conn_lll_codes))
+		lines:insert(getCode_real3_to_3sym3('coord_conn_ull', self.conn_ull_codes))
+		self.solver.modules:add{
+			name = 'conn',
+			depends = {'real3', 'sym3', '_3sym3'},
+			code = lines:concat'\n',
+		}
+	end
 
 	--[[
 	for i=0,dim-1 do
@@ -1003,10 +1009,12 @@ static inline real coordLen(real3 r, real3 pt) {
 	end
 	--]]
 
-	lines:insert(getCode_real3_real3_to_real3('coord_lower', self.lowerCodes))
-	lines:insert(getCode_real3_real3_to_real3('coord_raise', self.raiseCodes))
 
 	do
+		local lines = table()
+		lines:insert(getCode_real3_real3_to_real3('coord_lower', self.lowerCodes))
+		lines:insert(getCode_real3_real3_to_real3('coord_raise', self.raiseCodes))
+		
 		local function addSym3Components(name, codes)
 			for i=1,3 do
 				for j=i,3 do
@@ -1018,14 +1026,28 @@ static inline real coordLen(real3 r, real3 pt) {
 				end
 			end
 		end
-		
+
 		addSym3Components('coord_g_ll', self.gCode)
-		lines:insert(getCode_real3_to_sym3('coord_g_ll', self.gCode))
-		
 		addSym3Components('coord_g_uu', self.gUCode)
-		lines:insert(getCode_real3_to_sym3('coord_g_uu', self.gUCode))
-		
+		-- curvilinear grid normals use sqrt(g^ii), as it is the metric-weighted coordinate normal magnitude
 		addSym3Components('coord_sqrt_g_uu', self.sqrt_gUCode)
+	
+		self.solver.modules:add{
+			name = 'metric',
+			depends = {'real3'},
+			code = lines:concat'\n',
+		}
+	end
+
+	do
+		local lines = table()
+		lines:insert(getCode_real3_to_sym3('coord_g_ll', self.gCode))
+		lines:insert(getCode_real3_to_sym3('coord_g_uu', self.gUCode))
+		self.solver.modules:add{
+			name = 'metric+sym3',
+			depends = {'sym3'},
+			code = lines:concat'\n',
+		}
 	end
 
 	lines:insert(self:getCoordMapCode())
@@ -1082,9 +1104,10 @@ static inline real coordLen(real3 r, real3 pt) {
 	self:getNormalCodeGenerator()
 	lines:insert(self.normalTypeCode)
 	lines:insert(self.normalInfoCode)
-
-	self.code = lines:concat'\n'
-	return self.code
+	self.solver.modules:add{
+		name = 'coord',
+		code = lines:concat'\n',
+	}
 end
 
 function CoordinateSystem:getCoordMapCode()

@@ -35,7 +35,7 @@ local args = {
 	
 	-- piecewise-linear slope limiter
 	-- TODO rename this to 'calcLR' or something
-	--usePLM = 'plm-cons',
+	usePLM = 'plm-cons',
 	--usePLM = 'plm-cons-alone',
 	--usePLM = 'plm-prim-alone',
 	--usePLM = 'plm-eig',

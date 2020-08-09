@@ -420,7 +420,7 @@ function GridSolver:createBuffers()
 
 	if self.usePLM then
 		-- to get sizeof
-		Struct.safeFFICDef(self:getConsLRTypeCode())
+		require 'hydro.code.safecdef'(self:getConsLRTypeCode())
 		
 		-- TODO self.eqn.consLR_t..'_dim' and remove * self.dim ?
 		self:clalloc('ULRBuf', self.eqn.consLR_t, self.numCells * self.dim)

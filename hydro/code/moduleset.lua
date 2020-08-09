@@ -39,7 +39,7 @@ end
 
 -- during init, generating code, do this:
 
-function ModuleSet:getCodeForField(field, name)
+function ModuleSet:getCodeForField(field, ...)
 	local addedkeys = {}
 	local added = table()
 	local function add(name)
@@ -54,8 +54,10 @@ function ModuleSet:getCodeForField(field, name)
 		end
 		added:insert(module)
 	end
-	add(name)
-	
+	for i=1,select('#', ...) do
+		local name = select(i, ...)
+		add(name)
+	end
 	return added:mapi(function(module)
 		if module[field] == '' then return '' end
 		return '\n////////////// '..module.name..' '..field..' //////////////\n\n'
@@ -63,17 +65,17 @@ function ModuleSet:getCodeForField(field, name)
 	end):concat'\n'
 end
 
-function ModuleSet:getTypeHeader(name)
-	return self:getCodeForField('typecode', name)
+function ModuleSet:getTypeHeader(...)
+	return self:getCodeForField('typecode', ...)
 end
 
-function ModuleSet:getHeader(name)
-	return self:getCodeForField('typecode', name)..'\n'
-		.. self:getCodeForField('headercode', name)
+function ModuleSet:getHeader(...)
+	return self:getCodeForField('typecode', ...)..'\n'
+		.. self:getCodeForField('headercode', ...)
 end
 
-function ModuleSet:getCode(name)
-	return self:getCodeForField('code', name)
+function ModuleSet:getCode(...)
+	return self:getCodeForField('code', ...)
 end
 
 return ModuleSet
