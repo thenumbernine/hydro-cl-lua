@@ -1295,11 +1295,12 @@ lines:insert[[
 	end
 
 	local code = lines:concat'\n'
+	local boundaryProgramName = 'boundary'..(args.programNameSuffix or '')
 
 	local boundaryProgramObj
 if self.useCLLinkLibraries then 
 	time('compiling boundary program', function()
-		boundaryUnlinkedObj = self.Program{name='boundary', code=code}
+		boundaryUnlinkedObj = self.Program{name=boundaryProgramName, code=code}
 		boundaryUnlinkedObj:compile{dontLink=true}
 	end)
 	time('linking boundary program', function()
@@ -1310,9 +1311,9 @@ if self.useCLLinkLibraries then
 			},
 		}
 	end)
-else	
+else
 	time('building boundary program', function()
-		boundaryProgramObj = self.Program{name='boundary', code=code}
+		boundaryProgramObj = self.Program{name=boundaryProgramName, code=code}
 		boundaryProgramObj:compile()
 	end)
 end	
@@ -1373,6 +1374,7 @@ function GridSolver:refreshBoundaryProgram()
 				args.reflectVars[boundaryOptionName] = newvars
 			end
 		end
+		args.programNameSuffix = '_lr'
 		self.lrBoundaryProgramObj, self.lrBoundaryKernelObjs = self:createBoundaryProgramAndKernel(args)
 		for _,obj in ipairs(self.lrBoundaryKernelObjs) do
 			obj.obj:setArg(1, self:getULRBuf())

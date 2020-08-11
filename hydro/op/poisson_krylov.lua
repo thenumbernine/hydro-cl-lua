@@ -285,6 +285,7 @@ function PoissonKrylov:refreshBoundaryProgram()
 			type = self:getPotBufType(),
 			methods = solver.boundaryMethods,
 			fields = {self.potentialField},
+			programNameSuffix = '-'..self.name,	-- self.name is used to uniquely name the kernel as well as this boundary program
 		}
 	for _,obj in ipairs(self.potentialBoundaryKernelObjs) do
 		obj.obj:setArg(1, self:getPotBuf())

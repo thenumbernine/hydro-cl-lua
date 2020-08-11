@@ -103,6 +103,7 @@ function Relaxation:refreshBoundaryProgram()
 			type = self:getPotBufType(),
 			methods = solver.boundaryMethods,
 			fields = {self.potentialField},
+			programNameSuffix = '-'..self.name,
 		}
 	for _,obj in ipairs(self.potentialBoundaryKernelObjs) do
 		obj.obj:setArg(1, self:getPotBuf())

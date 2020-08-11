@@ -1,5 +1,5 @@
 -- This file needs to be templated, so it must be processed and manually inserted
--- I could write out the templated hydro/code/math.h file into the cache-cl folder, and then add that to the CL compiler include folder, and include it from there ...
+-- I could write out the templated hydro/code/math.h file into the cache-bin folder, and then add that to the CL compiler include folder, and include it from there ...
 
 local template = require 'template'
 

@@ -354,10 +354,14 @@ function SolverBase:initMeshVars(args)
 	-- ...and rather than require an extra argument, I think I'll just take advantage of a closure
 	local solver = self
 	local Program = class(require 'cl.obj.program')
-	if ffi.os == 'Windows' then
-		os.execute'mkdir cache-cl 2> nul'
-	else
-		os.execute'mkdir cache-cl 2> /dev/null'
+	
+	-- TODO put this in App?
+	for _,dir in ipairs{'cache-bin', 'cache-src'} do
+		if ffi.os == 'Windows' then
+			os.execute('mkdir '..('%q'):format(dir)..' 2> nul')
+		else
+			os.execute('mkdir '..('%q'):format(dir)..' 2> /dev/null')
+		end
 	end
 	function Program:init(args)
 		self.name = args.name
@@ -367,16 +371,19 @@ function SolverBase:initMeshVars(args)
 		-- caching binaries, which doesn't write unless the program successfully compiles
 		if not cmdline.usecachedcode then 
 			if args.name then
-				local path = 'cache-cl/'..solver.app:uniqueName(assert(args.name))
-				if useCache then args.cacheFile = path end
-				file[path..'-attempt'] = args.code	-- write before attempt to compile.  I don't want to write .cl before so that .cl and .bin are always related.
+				local path = solver.app:uniqueName(assert(args.name))
+				if useCache then
+					args.cacheFileCL = 'cache-src/'..path..'.cl'
+					args.cacheFileBin = 'cache-bin/'..path..'.bin'
+				end
 			end
 			Program.super.init(self, args)
 		
 		-- Write generated code the first time.  Subsequent times use the pre-existing code.  Useful for debugging things in the generated OpenCL.
 		else
-			local path = 'cache-cl/'..solver.app:uniqueName(assert(args.name))
-			local clfn = path..'.cl'
+			local path = 'cache-bin/'..solver.app:uniqueName(assert(args.name))
+			local clfn = 'cache-src/'..path..'.cl'
+			local binfn = 'cache-bin/'..path..'.bin'
 			if io.fileexists(clfn) then
 				local cachedCode = file[clfn]
 				assert(cachedCode:sub(1,#args.env.code) == args.env.code, "seems you have changed the cl env code")
@@ -407,7 +414,7 @@ function SolverBase:initMeshVars(args)
 			local args = ...
 			
 			-- Write generated code
-			local fn = 'cache-cl/'..solver.app:uniqueName(args.name or 'shader')
+			local fn = 'cache-bin/'..solver.app:uniqueName(args.name or 'shader')
 			file[fn..'.vert'] = args.vertexCode
 			file[fn..'.frag'] = args.fragmentCode
 

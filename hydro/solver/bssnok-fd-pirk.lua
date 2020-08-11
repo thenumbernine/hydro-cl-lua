@@ -52,13 +52,25 @@ function BSSNOKFiniteDifferencePIRKSolver:refreshBoundaryProgram()
 	BSSNOKFiniteDifferencePIRKSolver.super.refreshBoundaryProgram(self)
 	local args = self:getBoundaryProgramArgs()
 	self.PIRK_EpsilonWAlphaBeta_BoundaryProgramObj, self.PIRK_EpsilonWAlphaBeta_BoundaryKernelObjs 
-		= self:createBoundaryProgramAndKernel(table(args, {fields = {'epsilon_LL', 'W', 'alpha', 'beta_U'}}))
+		= self:createBoundaryProgramAndKernel(table(args, {
+			fields = {'epsilon_LL', 'W', 'alpha', 'beta_U'},
+			programNameSuffix = '-epsilon_LL,W,alpha,beta_U',
+		}))
 	self.PIRK_LambdaBar_BoundaryProgramObj, self.PIRK_LambdaBar_BoundaryKernelObjs 
-		= self:createBoundaryProgramAndKernel(table(args, {fields = {'LambdaBar_U'}}))
+		= self:createBoundaryProgramAndKernel(table(args, {
+			fields = {'LambdaBar_U'},
+			programNameSuffx = '-LambdaBar_U',
+		}))
 	self.PIRK_ABarK_BoundaryProgramObj, self.PIRK_ABarK_BoundaryKernelObjs = 
-		self:createBoundaryProgramAndKernel(table(args, {fields = {'ABar_LL', 'K'}}))
+		self:createBoundaryProgramAndKernel(table(args, {
+			fields = {'ABar_LL', 'K'},
+			programNameSuffix = '-ABar_LL,K',
+		}))
 	self.PIRK_B_BoundaryProgramObj, self.PIRK_B_BoundaryKernelObjs =
-		self:createBoundaryProgramAndKernel(table(args, {fields = {'B_U'}}))
+		self:createBoundaryProgramAndKernel(table(args, {
+			fields = {'B_U'},
+			programNameSuffix = '-B_U',
+		}))
 end
 
 function BSSNOKFiniteDifferencePIRKSolver:refreshSolverProgram()
