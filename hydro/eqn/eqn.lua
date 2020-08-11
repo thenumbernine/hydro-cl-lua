@@ -274,6 +274,10 @@ function Equation:createInitState()
 	end
 end
 
+-- add to self.solver.modules, or add to self.modules and have solver add later?
+function Equation:initCodeModules()
+end
+
 function Equation:getCodePrefix()
 	return (self.guiVars and table.mapi(self.guiVars, function(var,i,t) 
 		return (var.compileTime and var:getCode() or nil), #t+1

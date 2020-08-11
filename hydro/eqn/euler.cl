@@ -41,11 +41,11 @@ cons_t fluxFromCons(
 
 <?
 -- added by request only, so I don't have to compile the real3x3 code
+-- not used at the moment
 solver.modules:add{
 	name = 'calcCellMinMaxEigenvalues',
 	depends = {'real3x3'},
 	code = [[
-// used by PLM
 range_t calcCellMinMaxEigenvalues(
 	constant solver_t* solver,
 	const global cons_t* U,

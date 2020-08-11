@@ -4,13 +4,21 @@ based on Athena's version of eigenvectors of derivative of adiabatic MHD flux wr
 ideal-mhd, divergence-free, conservative-based eigensystem
 */
 
-<?=eqn.cons_t?> fluxFromCons(
-	constant <?=solver.solver_t?>* solver,
-	<?=eqn.cons_t?> U,
+typedef <?=solver.solver_t?> solver_t;
+typedef <?=eqn.cons_t?> cons_t;
+typedef <?=eqn.prim_t?> prim_t;
+typedef <?=eqn.roe_t?> roe_t;
+typedef <?=eqn.eigen_t?> eigen_t;
+typedef <?=eqn.waves_t?> waves_t;
+typedef <?=solver.coord.cell_t?> cell_t;
+
+cons_t fluxFromCons(
+	constant solver_t* solver,
+	cons_t U,
 	real3 x,
 	normalInfo_t n
 ) {
-	<?=eqn.prim_t?> W = primFromCons(solver, U, x);
+	prim_t W = primFromCons(solver, U, x);
 	real vj = normalInfo_vecDotN1(n, W.v);
 	real Bj = normalInfo_vecDotN1(n, W.B);
 	real BSq = coordLenSq(W.B, x);
@@ -19,7 +27,7 @@ ideal-mhd, divergence-free, conservative-based eigensystem
 	real PTotal = W.P + PMag;
 	real HTotal = U.ETotal + PTotal;
 	
-	<?=eqn.cons_t?> F;
+	cons_t F;
 	F.rho = normalInfo_vecDotN1(n, U.m);
 	F.m = real3_sub(real3_real_mul(U.m, vj), real3_real_mul(U.B, Bj / (solver->mu0 / unit_kg_m_per_C2)));
 	F.m.x += PTotal * normalInfo_u1x(n);
@@ -33,14 +41,14 @@ ideal-mhd, divergence-free, conservative-based eigensystem
 }
 
 //align from vector coordinates to the normal basis
-<?=eqn.cons_t?> cons_rotateFrom(<?=eqn.cons_t?> U, normalInfo_t n) {
+cons_t cons_rotateFrom(cons_t U, normalInfo_t n) {
 	U.m = normalInfo_vecDotNs(n, U.m);
 	U.B = normalInfo_vecDotNs(n, U.B);
 	return U;
 }
 
 //align from normal basis to vector coordinates
-<?=eqn.cons_t?> cons_rotateTo(<?=eqn.cons_t?> U, normalInfo_t n) {
+cons_t cons_rotateTo(cons_t U, normalInfo_t n) {
 	U.m = normalInfo_vecFromNs(n, U.m);
 	U.B = normalInfo_vecFromNs(n, U.B);
 	return U;
@@ -48,104 +56,22 @@ ideal-mhd, divergence-free, conservative-based eigensystem
 
 // TODO find out where mu_0 goes in the code below
 
-//called from calcDT
-range_t calcCellMinMaxEigenvalues(
-	constant <?=solver.solver_t?>* solver,
-	<?=eqn.cons_t?> U,
-	real3 x,
-	normalInfo_t n
-) {
-	<?=eqn.cons_t?> U_ = cons_rotateFrom(U, n);
-	<?=eqn.prim_t?> W = primFromCons(solver, U_, x);
-	
-#if 0
-	<?=eqn.prim_t?> W = primFromCons(solver, *U, x);
-	real3 v = W.v;
-	real3 B = W.B;
-	
-	real BSq = coordLenSq(B, x);
-	real invRho = 1./W.rho;
-	
-	real aSq = solver->heatCapacityRatio * W.P * invRho;
-	real B_n = normalInfo_vecDotN1(n, B);
-	real CaxSq = B_n * B_n * invRho;
-	real CaSq = BSq * invRho;
-	
-	real CStarSq = .5 * (CaSq + aSq);
-	real sqrtCfsDiscr = sqrt(max(0., CStarSq * CStarSq - aSq * CaxSq));
-	
-	real CfSq = CStarSq + sqrtCfsDiscr;
-	real CsSq = CStarSq - sqrtCfsDiscr;
-
-	real Cf = sqrt(CfSq);
-	real Cs = sqrt(max(CsSq, 0.));
-	real v_n = normalInfo_vecDotN1(n, v);
-	return (range_t){.min=v_n - Cf, .max=v_n + Cf};
-#else
-	const real gamma = solver->heatCapacityRatio;
-	const real gamma_1 = gamma - 1.;
-	const real gamma_2 = gamma - 2.;
-	
-	real rho = W.rho;
-	real3 v = W.v;
-	real3 B = W.B;
-	real hTotal = .5 * coordLenSq(W.v, x) + (W.P * gamma / gamma_1 + coordLenSq(B, x)) / W.rho;
-
-	//the rest of this matches calcEigenBasis:
-
-	real _1_rho = 1. / rho;
-	real vSq = coordLenSq(v, x);
-#warning consider g_ij	
-	real BPerpSq = B.y*B.y + B.z*B.z;
-	real BStarPerpSq = (gamma_1 - gamma_2) * BPerpSq;
-	real CAxSq = B.x*B.x*_1_rho;
-	real CASq = CAxSq + BPerpSq * _1_rho;
-	real hHydro = hTotal - CASq;
-	// hTotal = (EHydro + EMag + P)/rho
-	// hHydro = hTotal - CASq, CASq = EMag/rho
-	// hHydro = eHydro + P/rho = eKin + eInt + P/rho
-	// hHydro - eKin = eInt + P/rho = (1./(gamma-1) + 1) P/rho = gamma/(gamma-1) P/rho
-	// a^2 = (gamma-1)(hHydro - eKin) = gamma P / rho
-	real aTildeSq = max((gamma_1 * (hHydro - .5 * vSq) - gamma_2), 1e-20);
-
-	real BStarPerpSq_rho = BStarPerpSq * _1_rho;
-	real CATildeSq = CAxSq + BStarPerpSq_rho;
-	real CStarSq = .5 * (CATildeSq + aTildeSq);
-	real CA_a_TildeSqDiff = .5 * (CATildeSq - aTildeSq);
-	real sqrtDiscr = sqrt(CA_a_TildeSqDiff * CA_a_TildeSqDiff + aTildeSq * BStarPerpSq_rho);
-	
-	real CfSq = CStarSq + sqrtDiscr;
-	real Cf = sqrt(CfSq);
-
-	real CsSq = aTildeSq * CAxSq / CfSq;
-	real Cs = sqrt(CsSq);
-
-	real lambdaFastMin = v.x - Cf;
-	real lambdaFastMax = v.x + Cf;
-	
-	return (range_t){
-		.min = lambdaFastMin,
-		.max = lambdaFastMax,
-	};
-#endif
-}
-
 //assumes UL and UR are already rotated so the 'x' direction is our flux direction
-<?=eqn.roe_t?> calcRoeValues(
-	constant <?=solver.solver_t?>* solver,
-	<?=eqn.cons_t?> UL, 
-	<?=eqn.cons_t?> UR,
+roe_t calcRoeValues(
+	constant solver_t* solver,
+	cons_t UL, 
+	cons_t UR,
 	real3 x
 ) {
-	<?=eqn.roe_t?> W;
+	roe_t W;
 	
 	// should I use Bx, or BxL/R, for calculating the PMag at the L and R states?
-	<?=eqn.prim_t?> WL = primFromCons(solver, UL, x);
+	prim_t WL = primFromCons(solver, UL, x);
 	real sqrtRhoL = sqrt(UL.rho);
 	real PMagL = .5 * coordLenSq(UL.B, x);
 	real hTotalL = (UL.ETotal + WL.P + PMagL) / UL.rho;
 
-	<?=eqn.prim_t?> WR = primFromCons(solver, UR, x);
+	prim_t WR = primFromCons(solver, UR, x);
 	real sqrtRhoR = sqrt(UR.rho);
 	real PMagR = .5 * coordLenSq(UR.B, x);
 	real hTotalR = (UR.ETotal + WR.P + PMagR) / UR.rho;
@@ -174,12 +100,12 @@ range_t calcCellMinMaxEigenvalues(
 };
 
 //assumes the vector values are x-axis aligned with the interface normal
-<?=eqn.eigen_t?> eigen_forRoeAvgs(
-	constant <?=solver.solver_t?>* solver,
-	<?=eqn.roe_t?> roe,
+eigen_t eigen_forRoeAvgs(
+	constant solver_t* solver,
+	roe_t roe,
 	real3 x
 ) {
-	<?=eqn.eigen_t?> eig;
+	eigen_t eig;
 	
 	const real gamma = solver->heatCapacityRatio;
 	const real gamma_1 = gamma - 1.;
@@ -273,26 +199,26 @@ range_t calcCellMinMaxEigenvalues(
 	return eig;
 }
 
-<?=eqn.eigen_t?> eigen_forInterface(
-	constant <?=solver.solver_t?>* solver,
-	<?=eqn.cons_t?> UL,
-	<?=eqn.cons_t?> UR,
+eigen_t eigen_forInterface(
+	constant solver_t* solver,
+	cons_t UL,
+	cons_t UR,
 	real3 x,
 	normalInfo_t n
 ) {
 	//rotate UL and UR to be x-aligned?  that takes the normal ...
 
 	//swap the sides with x here, so all the fluxes are in the 'x' direction
-	<?=eqn.cons_t?> UL_ = cons_rotateFrom(UL, n);
-	<?=eqn.cons_t?> UR_ = cons_rotateFrom(UR, n);
-	<?=eqn.roe_t?> roe = calcRoeValues(solver, UL_, UR_, x);
+	cons_t UL_ = cons_rotateFrom(UL, n);
+	cons_t UR_ = cons_rotateFrom(UR, n);
+	roe_t roe = calcRoeValues(solver, UL_, UR_, x);
 	return eigen_forRoeAvgs(solver, roe, x);
 }
 
-<?=eqn.waves_t?> eigen_leftTransform(
-	constant <?=solver.solver_t?>* solver,
-	<?=eqn.eigen_t?> eig,
-	<?=eqn.cons_t?> inputU,
+waves_t eigen_leftTransform(
+	constant solver_t* solver,
+	eigen_t eig,
+	cons_t inputU,
 	real3 x,
 	normalInfo_t n
 ) {	
@@ -339,7 +265,7 @@ range_t calcCellMinMaxEigenvalues(
 	real l36 = -AHatF * QStarY - alphaS * B.y;
 	real l37 = -AHatF * QStarZ - alphaS * B.z;
 	
-	<?=eqn.waves_t?> result;
+	waves_t result;
 	result.ptr[0] = 
 		  inputU.rho * (alphaF * (vSq - eig.hHydro) + Cff * (Cf + v.x) - Qs * vqstr - aspb) 
 		+ inputU.m.x * (-alphaF * v.x - Cff)
@@ -396,10 +322,10 @@ range_t calcCellMinMaxEigenvalues(
 	return result;
 }
 
-<?=eqn.cons_t?> eigen_rightTransform(
-	constant <?=solver.solver_t?>* solver,
-	<?=eqn.eigen_t?> eig,
-	<?=eqn.waves_t?> input,
+cons_t eigen_rightTransform(
+	constant solver_t* solver,
+	eigen_t eig,
+	waves_t input,
 	real3 x,
 	normalInfo_t n
 ) {
@@ -439,7 +365,7 @@ range_t calcCellMinMaxEigenvalues(
 	real r72 = betaY * sbx * _1_sqrtRho;
 	real r73 = -Af * betaStarZ;
 
-	<?=eqn.cons_t?> resultU;
+	cons_t resultU;
 	resultU.rho =
 		  input.ptr[0] * alphaF
 		+ input.ptr[2] * alphaS
@@ -495,10 +421,10 @@ range_t calcCellMinMaxEigenvalues(
 	return cons_rotateTo(resultU, n);
 }
 
-<?=eqn.cons_t?> eigen_fluxTransform(
-	constant <?=solver.solver_t?>* solver,
-	<?=eqn.eigen_t?> eig,
-	<?=eqn.cons_t?> inputU,
+cons_t eigen_fluxTransform(
+	constant solver_t* solver,
+	eigen_t eig,
+	cons_t inputU,
 	real3 x,
 	normalInfo_t n
 ) {
@@ -519,7 +445,7 @@ range_t calcCellMinMaxEigenvalues(
 	real BDotV = real3_dot(B,v);
 
 	// dF/dU
-	<?=eqn.cons_t?> resultU;
+	cons_t resultU;
 	resultU.rho = inputU.m.x;
 	resultU.m.x =
 		  inputU.rho * (-v.x*v.x + .5*gamma_1*vSq - gamma_2*X)
@@ -562,16 +488,16 @@ range_t calcCellMinMaxEigenvalues(
 	return cons_rotateTo(resultU, n);
 }
 
-<?=eqn.eigen_t?> eigen_forCell(
-	constant <?=solver.solver_t?>* solver,
-	<?=eqn.cons_t?> U,
+eigen_t eigen_forCell(
+	constant solver_t* solver,
+	cons_t U,
 	real3 x,
 	normalInfo_t n
 ) {
-	<?=eqn.prim_t?> W = primFromCons(solver, U, x);
+	prim_t W = primFromCons(solver, U, x);
 	real PMag = .5 * coordLenSq(W.B, x);
 	real hTotal = (U.ETotal + W.P + PMag) / W.rho;
-	<?=eqn.roe_t?> roe = {
+	roe_t roe = {
 		.rho = W.rho,
 		.v = W.v,
 		.hTotal = hTotal,
@@ -583,18 +509,18 @@ range_t calcCellMinMaxEigenvalues(
 }
 
 kernel void addSource(
-	constant <?=solver.solver_t?>* solver,
-	global <?=eqn.cons_t?>* derivBuf,
-	const global <?=eqn.cons_t?>* UBuf,
-	const global <?=solver.coord.cell_t?>* cellBuf
+	constant solver_t* solver,
+	global cons_t* derivBuf,
+	const global cons_t* UBuf,
+	const global cell_t* cellBuf
 ) {
 	SETBOUNDS_NOGHOST();
 	real3 x = cellBuf[index].pos;
-	global <?=eqn.cons_t?>* deriv = derivBuf + index;
-	const global <?=eqn.cons_t?>* U = UBuf + index;
+	global cons_t* deriv = derivBuf + index;
+	const global cons_t* U = UBuf + index;
 
 <? if not require 'hydro.coord.cartesian'.is(solver.coord) then ?>
-	<?=eqn.prim_t?> W = primFromCons(solver, *U, x);
+	prim_t W = primFromCons(solver, *U, x);
 	real BSq = coordLenSq(U->B, x);
 	real PMag = .5 * BSq / (solver->mu0 / unit_kg_m_per_C2);
 	real PTotal = W.P + PMag;
@@ -606,15 +532,15 @@ kernel void addSource(
 }
 
 kernel void constrainU(
-	constant <?=solver.solver_t?>* solver,
-	global <?=eqn.cons_t?>* UBuf,
-	const global <?=solver.coord.cell_t?>* cellBuf
+	constant solver_t* solver,
+	global cons_t* UBuf,
+	const global cell_t* cellBuf
 ) {
 	SETBOUNDS(0,0);
 	real3 x = cellBuf[index].pos;
 	
-	global <?=eqn.cons_t?>* U = UBuf + index;
-	<?=eqn.prim_t?> W = primFromCons(solver, *U, x);
+	global cons_t* U = UBuf + index;
+	prim_t W = primFromCons(solver, *U, x);
 
 	W.rho = max(W.rho, 1e-7);
 	W.P = max(W.P, 1e-7);

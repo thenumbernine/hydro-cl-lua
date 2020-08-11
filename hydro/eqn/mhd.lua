@@ -208,6 +208,105 @@ real3 calc_CA(constant <?=solver.solver_t?>* solver, <?=eqn.cons_t?> U) {
 	})
 end
 
+function MHD:initCodeModules()
+	-- TODO find a better place to put this
+	
+	local solver = self.solver
+
+	-- added by request only, so I don't have to compile the real3x3 code
+	solver.modules:add{
+		name = 'calcCellMinMaxEigenvalues',
+		code = template([[
+//called from calcDT
+range_t calcCellMinMaxEigenvalues(
+	constant <?=solver.solver_t?>* solver,
+	<?=eqn.cons_t?> U,
+	real3 x,
+	normalInfo_t n
+) {
+	<?=eqn.cons_t?> U_ = cons_rotateFrom(U, n);
+	<?=eqn.prim_t?> W = primFromCons(solver, U_, x);
+	
+#if 0
+	<?=eqn.prim_t?> W = primFromCons(solver, *U, x);
+	real3 v = W.v;
+	real3 B = W.B;
+	
+	real BSq = coordLenSq(B, x);
+	real invRho = 1./W.rho;
+	
+	real aSq = solver->heatCapacityRatio * W.P * invRho;
+	real B_n = normalInfo_vecDotN1(n, B);
+	real CaxSq = B_n * B_n * invRho;
+	real CaSq = BSq * invRho;
+	
+	real CStarSq = .5 * (CaSq + aSq);
+	real sqrtCfsDiscr = sqrt(max(0., CStarSq * CStarSq - aSq * CaxSq));
+	
+	real CfSq = CStarSq + sqrtCfsDiscr;
+	real CsSq = CStarSq - sqrtCfsDiscr;
+
+	real Cf = sqrt(CfSq);
+	real Cs = sqrt(max(CsSq, 0.));
+	real v_n = normalInfo_vecDotN1(n, v);
+	return (range_t){.min=v_n - Cf, .max=v_n + Cf};
+#else
+	const real gamma = solver->heatCapacityRatio;
+	const real gamma_1 = gamma - 1.;
+	const real gamma_2 = gamma - 2.;
+	
+	real rho = W.rho;
+	real3 v = W.v;
+	real3 B = W.B;
+	real hTotal = .5 * coordLenSq(W.v, x) + (W.P * gamma / gamma_1 + coordLenSq(B, x)) / W.rho;
+
+	//the rest of this matches calcEigenBasis:
+
+	real _1_rho = 1. / rho;
+	real vSq = coordLenSq(v, x);
+#warning consider g_ij	
+	real BPerpSq = B.y*B.y + B.z*B.z;
+	real BStarPerpSq = (gamma_1 - gamma_2) * BPerpSq;
+	real CAxSq = B.x*B.x*_1_rho;
+	real CASq = CAxSq + BPerpSq * _1_rho;
+	real hHydro = hTotal - CASq;
+	// hTotal = (EHydro + EMag + P)/rho
+	// hHydro = hTotal - CASq, CASq = EMag/rho
+	// hHydro = eHydro + P/rho = eKin + eInt + P/rho
+	// hHydro - eKin = eInt + P/rho = (1./(gamma-1) + 1) P/rho = gamma/(gamma-1) P/rho
+	// a^2 = (gamma-1)(hHydro - eKin) = gamma P / rho
+	real aTildeSq = max((gamma_1 * (hHydro - .5 * vSq) - gamma_2), 1e-20);
+
+	real BStarPerpSq_rho = BStarPerpSq * _1_rho;
+	real CATildeSq = CAxSq + BStarPerpSq_rho;
+	real CStarSq = .5 * (CATildeSq + aTildeSq);
+	real CA_a_TildeSqDiff = .5 * (CATildeSq - aTildeSq);
+	real sqrtDiscr = sqrt(CA_a_TildeSqDiff * CA_a_TildeSqDiff + aTildeSq * BStarPerpSq_rho);
+	
+	real CfSq = CStarSq + sqrtDiscr;
+	real Cf = sqrt(CfSq);
+
+	real CsSq = aTildeSq * CAxSq / CfSq;
+	real Cs = sqrt(CsSq);
+
+	real lambdaFastMin = v.x - Cf;
+	real lambdaFastMax = v.x + Cf;
+	
+	return (range_t){
+		.min = lambdaFastMin,
+		.max = lambdaFastMax,
+	};
+#endif
+}
+	]], {solver=solver, eqn=self}),
+	}
+
+	-- TODO don't put this here, instead make it a depends of the calcDT/consWaveCodePrefix code below that references it.
+	solver.reqmodules:insertUnique'calcCellMinMaxEigenvalues'
+	
+	MHD.super.initCodeModules(self)
+end
+
 function MHD:getPrimConsCode()
 	return template([[
 <?=eqn.prim_t?> primFromCons(

@@ -514,6 +514,7 @@ function SolverBase:initCodeModules()
 --		'conn',
 		'metric',
 	}
+	self.eqn:initCodeModules()
 end
 
 -- TODO if you want to define ffi ctype metatable

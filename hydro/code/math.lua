@@ -1713,7 +1713,7 @@ and solvers modules depend on those app modules...
 		
 			-- used by coord, but not needed by {flux=roe, eqn=euler, coord=cartesian}
 			--'sym3',	-- used by metric+sym3
-			--'real3x3',-- used by calcCellMinMaxEigenvalues, which is used by usePLM
+			--'real3x3',-- used by calcCellMinMaxEigenvalues, which is only used by the calcDT of mhd and glm-mhd eqns
 			--'_3sym3',	-- used by conn
 			--'real3x3x3',
 			--'quat',
