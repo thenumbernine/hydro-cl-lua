@@ -2167,7 +2167,7 @@ bool testTriangle(real3 xc) {
 			end
 
 			local addExtraSourceProgramObj = solver.Program{
-				name='addExtraSource',
+				name = 'addExtraSource',
 				code = table{
 					solver.codePrefix,
 					template([[

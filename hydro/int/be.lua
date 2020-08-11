@@ -66,7 +66,7 @@ function BackwardEuler:init(solver, args)
 	}
 
 	local copyBufferWithOrWithoutGhostProgram = solver.Program{
-		env = solver.app.env,
+		name = 'int-be',
 		code = template(
 solver.codePrefix..[[
 <? local range = require 'ext.range' ?>
