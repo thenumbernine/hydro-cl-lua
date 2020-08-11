@@ -287,6 +287,8 @@ SolverBase.showFPS = cmdline.showfps or false
 SolverBase.allowAccum = true
 SolverBase.displayVarAccumFunc = false
 
+local solverUniqueIndex = 1
+
 --[[
 args:
 	app
@@ -301,6 +303,12 @@ args:
 --]]
 function SolverBase:init(args)
 	time('SolverBase:init()', function()
+	
+		-- Using this for naming in the cache folder.
+		-- I might replace it with a serialized string or a hash of that.
+		self.uniqueIndex = solverUniqueIndex
+		solverUniqueIndex = solverUniqueIndex + 1
+
 		self:initMeshVars(args)
 		self:initCLDomainVars(args)
 		self:initObjs(args)
@@ -346,6 +354,14 @@ function SolverBase:initMeshVars(args)
 	--]]
 	}
 
+	-- TODO put this in App?
+	local function mkdir(dir)
+		if ffi.os == 'Windows' then
+			return os.execute('mkdir '..('%q'):format(dir)..' 2> nul')
+		else
+			return os.execute('mkdir -p '..('%q'):format(dir)..' 2> /dev/null')
+		end
+	end
 
 	-- in GridSolver this was 'initMeshVars' which comes first
 	-- in MeshSolver this was 'preInit' which comes later
@@ -355,35 +371,30 @@ function SolverBase:initMeshVars(args)
 	local solver = self
 	local Program = class(require 'cl.obj.program')
 	
-	-- TODO put this in App?
-	for _,dir in ipairs{'cache-bin', 'cache-src'} do
-		if ffi.os == 'Windows' then
-			os.execute('mkdir '..('%q'):format(dir)..' 2> nul')
-		else
-			os.execute('mkdir '..('%q'):format(dir)..' 2> /dev/null')
-		end
-	end
 	function Program:init(args)
 		self.name = args.name
 		args.env = solver.app.env
 		args.domain = solver.domain
+			
+		local cldir = 'cache/'..solver.uniqueIndex..'/src'
+		local bindir = 'cache/'..solver.uniqueIndex..'/bin'
+		mkdir(cldir)
+		mkdir(bindir)
+		local clfn = cldir..'/'..args.name..'.cl'
+		local binfn = bindir..'/'..args.name..'.bin'
 		
 		-- caching binaries, which doesn't write unless the program successfully compiles
 		if not cmdline.usecachedcode then 
 			if args.name then
-				local path = solver.app:uniqueName(assert(args.name))
 				if useCache then
-					args.cacheFileCL = 'cache-src/'..path..'.cl'
-					args.cacheFileBin = 'cache-bin/'..path..'.bin'
+					args.cacheFileCL = clfn
+					args.cacheFileBin = binfn
 				end
 			end
 			Program.super.init(self, args)
 		
 		-- Write generated code the first time.  Subsequent times use the pre-existing code.  Useful for debugging things in the generated OpenCL.
 		else
-			local path = 'cache-bin/'..solver.app:uniqueName(assert(args.name))
-			local clfn = 'cache-src/'..path..'.cl'
-			local binfn = 'cache-bin/'..path..'.bin'
 			if io.fileexists(clfn) then
 				local cachedCode = file[clfn]
 				assert(cachedCode:sub(1,#args.env.code) == args.env.code, "seems you have changed the cl env code")
@@ -412,11 +423,13 @@ function SolverBase:initMeshVars(args)
 		local GLProgram = class(require 'gl.program')
 		function GLProgram:init(...)
 			local args = ...
-			
+		
+			local dir = 'cache/'..solver.uniqueIndex..'/src'
+			mkdir(dir)
+			local path = dir..'/'..args.name
 			-- Write generated code
-			local fn = 'cache-bin/'..solver.app:uniqueName(args.name or 'shader')
-			file[fn..'.vert'] = args.vertexCode
-			file[fn..'.frag'] = args.fragmentCode
+			file[path..'.vert'] = args.vertexCode
+			file[path..'.frag'] = args.fragmentCode
 
 			GLProgram.super.init(self, ...)
 		end
