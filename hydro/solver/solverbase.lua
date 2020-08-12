@@ -86,20 +86,18 @@ SolverBase:init
 		FVSolver:createFlux
 			self.flux = ...
 
+	-- code modules will collect the typedef info, the header info, and the code info
+	-- subsequent cl programs will collect the required ones for building
 	SolverBase:initCodeModules
 		self.modules = ...
-		self.coord:initCodeModules
 		self.reqmdules = ...
+		
+		self.coord:initCodeModules
+		self.eqn:initCodeModules
 
 --------- here is where the ffi.cdef is called --------- 
 
 	SolverBase:initCDefs
-		SolverBase:getTypeCode()
-			self.eqn:getTypeCode
-			self.eqn:getEigenTypeCode
-			self.eqn:getExtraTypeCode
-			self.coord:getCellTypeCode
-			self.eqn.initCond.typecode
 	
 	SolverBase:postInit
 		SolverBase:createDisplayVars
@@ -389,6 +387,11 @@ function SolverBase:initMeshVars(args)
 				if useCache then
 					args.cacheFileCL = clfn
 					args.cacheFileBin = binfn
+					-- if the cl file exists but the bin file does not then delete the bin file as well
+					-- otherwise cl/obj/program will complain.  this is a mess.
+					if io.fileexists(clfn) and not io.fileexists(binfn) then
+						os.remove(clfn)
+					end
 				end
 			end
 			Program.super.init(self, args)
@@ -398,7 +401,7 @@ function SolverBase:initMeshVars(args)
 			if io.fileexists(clfn) then
 				local cachedCode = file[clfn]
 				assert(cachedCode:sub(1,#args.env.code) == args.env.code, "seems you have changed the cl env code")
-				args.code = cachedCode:sub(#args.env.code+1)
+				args.code = cachedCode:sub(#args.env.code+1)	-- because the program will prepend env.code ... hmm, this could be done a better way.
 				Program.super.init(self, args)
 			else
 				Program.super.init(self, args)	-- do this so getCode() works
@@ -409,8 +412,20 @@ function SolverBase:initMeshVars(args)
 	function Program:compile(args)
 		args = args or {}
 		args.buildOptions = '-w'	-- show warnings
-		local results = Program.super.compile(self, args)
-		if self.obj then	-- did compile
+		local results	
+		xpcall(function()
+			results = Program.super.compile(self, args)
+		end, function(err)
+			-- if it didn't compile then ... why not ... write the cache cl code out anyways and delete any bin that is there
+			assert(self.cacheFileBin)
+			os.remove(self.cacheFileBin)
+			assert(self.cacheFileCL)
+			file[self.cacheFileCL] = self:getCode()
+			io.stderr:write(err..'\n'..debug.traceback())
+			os.exit(1)
+		end)
+		assert(self.obj, "there must have been an error in your error handler")	-- otherwise it would have thrown an error
+		do--if self.obj then	-- did compile
 			print((self.name and self.name..' ' or '')..'log:')
 			-- TODO log per device ...			
 			print(string.trim(self.obj:getLog(solver.device)))
@@ -418,7 +433,7 @@ function SolverBase:initMeshVars(args)
 		return results
 	end
 	self.Program = Program
-
+	
 	if self.app.targetSystem ~= 'console' then
 		local GLProgram = class(require 'gl.program')
 		function GLProgram:init(...)
@@ -526,14 +541,23 @@ end
 -- then with all of them, specify which ones to target (for .h and .cl code) and they will trim the others
 function SolverBase:initCodeModules()
 	self.modules = require 'hydro.code.moduleset'(self.app.modules)
-	self.coord:initCodeModules()
 	-- what to compile?
 	self.reqmodules = table{
 		'math',
 		'coord',
 --		'conn',
 		'metric',
+		'eqn',		-- just the header of this
+		'coord-cell',
+		'solver-struct',
 	}
+
+	self.modules:add{
+		name = 'solver-struct',
+		typecode = assert(self.solverStruct.typecode),
+	}
+
+	self.coord:initCodeModules()
 	self.eqn:initCodeModules()
 end
 
@@ -541,36 +565,9 @@ end
 -- then put them all in one spot here
 -- if they are using the Struct:makeType function then don't bother use SolverBase:getTypeCode()
 function SolverBase:initCDefs()
-	require 'hydro.code.safecdef'(self:getTypeCode())
-end
-
--- this is code that goes in the codePrefix header (for CL use), as well as ffi.cdef (for ffi C use)
-function SolverBase:getTypeCode()
-	local lines = table()
-
-	lines:insert''
-	lines:insert'//self.eqn:getTypeCode()'
-	lines:insert(self.eqn:getTypeCode() or nil)
-
-	lines:insert''
-	lines:insert'//self.coord:getCellTypeCode'
-	lines:insert(self.coord:getCellTypeCode() or nil)
-		
-	lines:insert''
-	lines:insert'//self.solverStruct.typecode'
-	lines:insert(assert(self.solverStruct.typecode))
-
-	lines:insert''
-	lines:insert'//self.eqn:getExtraTypeCode'
-	lines:insert(self.eqn:getExtraTypeCode() or nil)
-
-	if self.eqn.getEigenTypeCode then
-		lines:insert''
-		lines:insert'//self.eqn:getEigenTypeCode'
-		lines:insert(self.eqn:getEigenTypeCode() or nil)
-	end
-
-	return lines:concat'\n'
+	require 'hydro.code.safecdef'(table{
+		self.modules:getTypeHeader(self.reqmodules:unpack()),
+	}:concat'\n')
 end
 
 function SolverBase:refreshGetULR()
@@ -1470,9 +1467,6 @@ function SolverBase:createCodePrefixHeader()
 	
 	local lines = table()
 	
-	-- real3
-	lines:insert(self.modules:getHeader(self.reqmodules:unpack()))
-
 	if self.dim == 3 then
 		lines:insert'#pragma OPENCL EXTENSION cl_khr_3d_image_writes : enable'
 	end
@@ -1489,14 +1483,10 @@ function SolverBase:createCodePrefixHeader()
 		'#define numIntStates '..self.eqn.numIntStates,
 		'#define numWaves '..self.eqn.numWaves,
 	}
-
-	-- this can use the coord_raise or coord_lower code
-	-- which is associated with the coordinate system,
-	lines:append{
-		'//SolverBase:createCodePrefix() begin',
-		self:getTypeCode(),
-	}
 	
+	-- the new code module system
+	lines:insert(self.modules:getHeader(self.reqmodules:unpack()))
+
 	return lines:concat'\n'
 end
 

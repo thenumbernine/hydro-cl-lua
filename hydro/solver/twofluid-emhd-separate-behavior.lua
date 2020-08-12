@@ -110,7 +110,6 @@ local function TwoFluidEMHDBehavior(parent)
 			getEigenTypeCode = function() end,
 			getCodePrefix = function() end,
 			getTemplateEnv = function() return self.maxwell.eqn:getTemplateEnv() end,
-			getExtraTypeCode = function() return '' end,
 		}
 
 		setmetatable(self.eqn, require 'hydro.eqn.eqn')

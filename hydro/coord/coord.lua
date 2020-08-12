@@ -1108,6 +1108,16 @@ static inline real coordLen(real3 r, real3 pt) {
 		name = 'coord',
 		code = lines:concat'\n',
 	}
+
+	-- store all input coordinates for our cells
+	-- for holonomic/anholonomic this is just the linearly interpolated
+	self.solver.modules:add{
+		name = 'coord-cell',
+		typecode = self.cellStruct.typecode,
+		headercode = [[
+#define cell_x(i)	return cellBuf[INDEXV(i)].pos
+]],
+	}
 end
 
 function CoordinateSystem:getCoordMapCode()
@@ -1283,17 +1293,7 @@ function CoordinateSystem:getGeodesicGLSLCode()
 end
 
 
--- store all input coordinates for our cells
--- for holonomic/anholonomic this is just the linearly interpolated
-function CoordinateSystem:getCellTypeCode()
-	return self.cellStruct.typecode
-end
 
-function CoordinateSystem:getCellCode()
-	return [[
-#define cell_x(i)	return cellBuf[INDEXV(i)].pos
-]]
-end
 
 --[[
 TODO put this somewhere above where display functions can use it

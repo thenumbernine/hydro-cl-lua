@@ -477,7 +477,7 @@ function GridSolver:createCodePrefix()
 			:gsub('{x}', xNames[i])
 		)
 	end)):append{
-		'#define cell_x(i) _real3(cell_x0(i.x), cell_x1(i.y), cell_x2(i.z))',
+--		'#define cell_x(i) _real3(cell_x0(i.x), cell_x1(i.y), cell_x2(i.z))',
 	
 		-- bounds-check macro
 		'#define OOB(lhs,rhs) (i.x < (lhs) || i.x >= solver->gridSize.x - (rhs)'

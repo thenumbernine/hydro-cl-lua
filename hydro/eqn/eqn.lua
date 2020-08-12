@@ -276,7 +276,39 @@ end
 
 -- add to self.solver.modules, or add to self.modules and have solver add later?
 function Equation:initCodeModules()
+	self.solver.modules:add{
+		name = 'eqn',
+		typecode = self:getTypeCode(),
+	}
 end
+
+-- private, should only be called by Equation:initCodeModule
+function Equation:getTypeCode()
+	local lines = table()
+
+	assert(self.consStruct)
+	lines:insert(assert(self.consStruct.typecode))
+	
+	if self.primStruct then
+		lines:insert(assert(self.primStruct.typecode))
+	else
+		lines:insert('typedef '..self.cons_t..' '..self.prim_t..';')
+	end
+	
+	lines:insert(template([[
+typedef union { 
+	real ptr[<?=eqn.numWaves?>]; 
+} <?=eqn.waves_t?>;
+]],		{
+			eqn = self,
+		}
+	))
+
+	lines:insert(self:getEigenTypeCode())
+
+	return lines:concat'\n'
+end
+
 
 function Equation:getCodePrefix()
 	return (self.guiVars and table.mapi(self.guiVars, function(var,i,t) 
@@ -299,29 +331,6 @@ function Equation:getCodePrefix()
 		-- also NOTICE there seems to be a bug where the CL compiler stalls when compiling the parallel-propagate code with bssnok-fd
 		require 'hydro.solver.fvsolver'.is(self.solver) and self:getParallelPropagateCode() or '',
 	}:concat'\n'
-end
-
-function Equation:getExtraTypeCode()
-	return template([[
-typedef union { 
-	real ptr[<?=eqn.numWaves?>]; 
-} <?=eqn.waves_t?>;
-]],		{
-			eqn = self,
-		})
-end
-
-function Equation:getTypeCode()
-	assert(self.consStruct)
-	local lines = table{
-		assert(self.consStruct.typecode)
-	}
-	if self.primStruct then
-		lines:insert(assert(self.primStruct.typecode))
-	else
-		lines:insert('typedef '..self.cons_t..' '..self.prim_t..';')
-	end
-	return lines:concat'\n'
 end
 
 function Equation:getSolverCode()
