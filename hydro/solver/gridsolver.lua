@@ -196,8 +196,19 @@ function GridSolver:initCodeModules()
 
 	if self.usePLM then
 		self.modules:add{
+			name = 'slopeLimiter',
+			code = template([[
+real slopeLimiter(real r) {
+	<?=solver.app.limiters[solver.slopeLimiter].code?>
+}
+]],			{
+				solver = self,
+			}),
+		}
+		
+		self.modules:add{
 			name = 'consLR',
-			depends = {'eqn-cons'},
+			depends = {'eqn.cons_t'},
 			typecode = template([[
 typedef union {
 	<?=eqn.cons_t?> LR[2];
@@ -216,6 +227,8 @@ typedef struct {
 			}),
 		}
 		self.reqmodules:insert'consLR'
+		self.reqmodules:insert'slopeLimiter'
+		self.reqmodules:insert'eigen_forCell'	-- defined in eqn, used by PLM
 	end
 end
 
@@ -541,14 +554,8 @@ end
 end
 
 function GridSolver:getSolverCode()
-	local slopeLimiterCode = 'real slopeLimiter(real r) {\n'
-		.. '\t'..self.app.limiters[self.slopeLimiter].code..'\n'
-		.. '}\n'
-	
 	return table{
 		GridSolver.super.getSolverCode(self),
-			
-		slopeLimiterCode,
 		
 		self.usePLM and template(file['hydro/solver/plm.cl'], {solver=self, eqn=self.eqn}) or '',
 		self.useCTU and template(file['hydro/solver/ctu.cl'], {solver=self, eqn=self.eqn}) or '',

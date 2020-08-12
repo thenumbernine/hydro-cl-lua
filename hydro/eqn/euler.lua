@@ -103,6 +103,43 @@ function Euler:createInitState()
 	}
 end
 
+function Euler:initCodeModules()
+	self.solver.modules:add{
+		name = 'eigen_forCell',
+		depends = {'eqn.cons_t', 'eqn.prim_t', 'eqn.eigen_t'},
+		code = template([[
+// used by PLM
+<?=eqn.eigen_t?> eigen_forCell(
+	constant <?=solver.solver_t?>* solver,
+	<?=eqn.cons_t?> U,
+	real3 x,
+	normalInfo_t n
+) {
+	<?=eqn.prim_t?> W = primFromCons(solver, U, x);
+	real3 vL = coord_lower(W.v, x);
+	real vSq = real3_dot(W.v, vL);
+	real v_n = normalInfo_vecDotN1(n, W.v);
+	real eKin = .5 * vSq;
+	real hTotal = calc_hTotal(W.rho, W.P, U.ETotal);
+	real CsSq = (solver->heatCapacityRatio - 1.) * (hTotal - eKin);
+	real Cs = sqrt(CsSq);
+	return (<?=eqn.eigen_t?>){
+		.rho = W.rho,
+		.v = W.v,
+		.vSq = vSq,
+		.vL = vL,
+		.hTotal = hTotal,
+		.Cs = Cs,
+	};
+}
+]], 	{
+			eqn = self,
+			solver = self.solver,
+		}),
+	}
+	Euler.super.initCodeModules(self)
+end
+
 function Euler:getCommonFuncCode()
 	return template([[
 real calc_H(constant <?=solver.solver_t?>* solver, real P) { return P * (solver->heatCapacityRatio / (solver->heatCapacityRatio - 1.)); }

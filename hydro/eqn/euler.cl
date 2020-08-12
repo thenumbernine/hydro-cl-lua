@@ -112,33 +112,6 @@ eigen_t eigen_forInterface(
 	};
 }
 
-// used by PLM
-eigen_t eigen_forCell(
-	constant solver_t* solver,
-	cons_t U,
-	real3 x,
-	normalInfo_t n
-) {
-	prim_t W = primFromCons(solver, U, x);
-	real3 vL = coord_lower(W.v, x);
-	real vSq = real3_dot(W.v, vL);
-	real v_n = normalInfo_vecDotN1(n, W.v);
-	real eKin = .5 * vSq;
-	real hTotal = calc_hTotal(W.rho, W.P, U.ETotal);
-	real CsSq = (solver->heatCapacityRatio - 1.) * (hTotal - eKin);
-	real Cs = sqrt(CsSq);
-	return (eigen_t){
-		.rho = W.rho,
-		.v = W.v,
-		.vSq = vSq,
-		.vL = vL,
-		.hTotal = hTotal,
-		.Cs = Cs,
-	};
-}
-
-
-
 <?
 local prefix = [[
 	real3 v = eig.v;

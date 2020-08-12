@@ -279,19 +279,19 @@ function Equation:initCodeModules()
 	assert(self.consStruct)
 	
 	self.solver.modules:add{
-		name = 'eqn-cons',
+		name = 'eqn.cons_t',
 		typecode = assert(self.consStruct.typecode),
 	}
 	
 	self.solver.modules:add{
-		name = 'eqn-prim',
+		name = 'eqn.prim_t',
 		typecode = self.primStruct 
 			and assert(self.primStruct.typecode)
 			or ('typedef '..self.cons_t..' '..self.prim_t..';'),
 	}
 	
 	self.solver.modules:add{
-		name = 'eqn-waves',
+		name = 'eqn.waves_t',
 		typecode = template([[
 typedef union { 
 	real ptr[<?=eqn.numWaves?>]; 
@@ -301,13 +301,18 @@ typedef union {
 	
 	assert(self.eigenStruct)
 	self.solver.modules:add{
-		name = 'eqn-eigen',
+		name = 'eqn.eigen_t',
 		typecode = assert(self.eigenStruct.typecode),
 	}
 
 	self.solver.modules:add{
 		name = 'eqn',
-		depends = {'eqn-cons', 'eqn-prim', 'eqn-waves', 'eqn-eigen'},
+		depends = {
+			'eqn.cons_t',
+			'eqn.prim_t',
+			'eqn.waves_t',
+			'eqn.eigen_t',
+		},
 	}
 
 	assert(not self.getTypeCode, "please convert :getTypeCode() to :initCodeModules()")
