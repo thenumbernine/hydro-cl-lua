@@ -424,7 +424,7 @@ function SolverBase:initMeshVars(args)
 		function GLProgram:init(...)
 			local args = ...
 		
-			local dir = 'cache/'..solver.uniqueIndex..'/src'
+			local dir = 'cache/'..solver.uniqueIndex..'/shader'
 			mkdir(dir)
 			local path = dir..'/'..args.name
 			-- Write generated code
