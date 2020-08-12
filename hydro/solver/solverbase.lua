@@ -94,6 +94,7 @@ SolverBase:init
 		
 		self.coord:initCodeModules
 		self.eqn:initCodeModules
+		self.solverStruct.typecode
 
 --------- here is where the ffi.cdef is called --------- 
 
@@ -128,12 +129,7 @@ SolverBase:init
 						GridSolver:createCodePrefix
 							SolverBase:createCodePrefix
 								SolverBase:createCodePrefixHeader
-									self.eqn:getTypeCode
 									self.initCond.typecode
-									self.coord:getTypeCode
-									self.solverStruct.typecode
-									self.eqn:getTypeCode
-									self.eqn:getEigenTypeCode
 								SolverBase:createCodePrefixSource
 									self.eqn:getCodePrefix
 						SolverBase:refreshIntegrator
@@ -541,6 +537,7 @@ end
 -- then with all of them, specify which ones to target (for .h and .cl code) and they will trim the others
 function SolverBase:initCodeModules()
 	self.modules = require 'hydro.code.moduleset'(self.app.modules)
+	
 	-- what to compile?
 	self.reqmodules = table{
 		'math',
@@ -550,6 +547,7 @@ function SolverBase:initCodeModules()
 		'eqn',		-- just the header of this
 		'coord-cell',
 		'solver-struct',
+		'codeprefix-macros',
 	}
 
 	self.modules:add{
@@ -557,13 +555,27 @@ function SolverBase:initCodeModules()
 		typecode = assert(self.solverStruct.typecode),
 	}
 
+
+	-- header
+	self.modules:add{
+		name = 'codeprefix-macros',
+		headercode = table{
+			self.dim == 3 and '#pragma OPENCL EXTENSION cl_khr_3d_image_writes : enable' or '',
+			'#ifndef M_PI',
+			'#define M_PI '..('%.50f'):format(math.pi),
+			'#endif',
+			'#define dim '..self.dim,
+			'#define numStates '..self.eqn.numStates,
+			'#define numIntStates '..self.eqn.numIntStates,
+			'#define numWaves '..self.eqn.numWaves,
+		}:concat'\n',
+	}
+
 	self.coord:initCodeModules()
 	self.eqn:initCodeModules()
 end
 
--- TODO if you want to define ffi ctype metatable
--- then put them all in one spot here
--- if they are using the Struct:makeType function then don't bother use SolverBase:getTypeCode()
+-- TODO if you want to define ffi ctype metatable then put them all in one spot here
 function SolverBase:initCDefs()
 	require 'hydro.code.safecdef'(table{
 		self.modules:getTypeHeader(self.reqmodules:unpack()),
@@ -1463,31 +1475,7 @@ end
 -- TODO compile the code of CommonCode into a bin of its own
 --  and link against it instead of recopying and recompiling
 function SolverBase:createCodePrefixHeader()
-	-- header
-	
-	local lines = table()
-	
-	if self.dim == 3 then
-		lines:insert'#pragma OPENCL EXTENSION cl_khr_3d_image_writes : enable'
-	end
-
-	lines:append{
-		'#ifndef M_PI',
-		'#define M_PI '..('%.50f'):format(math.pi),
-		'#endif',
-	}
-
-	lines:append{
-		'#define dim '..self.dim,
-		'#define numStates '..self.eqn.numStates,
-		'#define numIntStates '..self.eqn.numIntStates,
-		'#define numWaves '..self.eqn.numWaves,
-	}
-	
-	-- the new code module system
-	lines:insert(self.modules:getHeader(self.reqmodules:unpack()))
-
-	return lines:concat'\n'
+	return self.modules:getHeader(self.reqmodules:unpack())
 end
 
 function SolverBase:createCodePrefixSource()

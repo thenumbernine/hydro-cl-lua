@@ -276,37 +276,42 @@ end
 
 -- add to self.solver.modules, or add to self.modules and have solver add later?
 function Equation:initCodeModules()
-	self.solver.modules:add{
-		name = 'eqn',
-		typecode = self:getTypeCode(),
-	}
-end
-
--- private, should only be called by Equation:initCodeModule
-function Equation:getTypeCode()
-	local lines = table()
-
 	assert(self.consStruct)
-	lines:insert(assert(self.consStruct.typecode))
 	
-	if self.primStruct then
-		lines:insert(assert(self.primStruct.typecode))
-	else
-		lines:insert('typedef '..self.cons_t..' '..self.prim_t..';')
-	end
+	self.solver.modules:add{
+		name = 'eqn-cons',
+		typecode = assert(self.consStruct.typecode),
+	}
 	
-	lines:insert(template([[
+	self.solver.modules:add{
+		name = 'eqn-prim',
+		typecode = self.primStruct 
+			and assert(self.primStruct.typecode)
+			or ('typedef '..self.cons_t..' '..self.prim_t..';'),
+	}
+	
+	self.solver.modules:add{
+		name = 'eqn-waves',
+		typecode = template([[
 typedef union { 
 	real ptr[<?=eqn.numWaves?>]; 
 } <?=eqn.waves_t?>;
-]],		{
-			eqn = self,
-		}
-	))
+]],	{eqn=self}),
+	}
+	
+	assert(self.eigenStruct)
+	self.solver.modules:add{
+		name = 'eqn-eigen',
+		typecode = assert(self.eigenStruct.typecode),
+	}
 
-	lines:insert(self:getEigenTypeCode())
+	self.solver.modules:add{
+		name = 'eqn',
+		depends = {'eqn-cons', 'eqn-prim', 'eqn-waves', 'eqn-eigen'},
+	}
 
-	return lines:concat'\n'
+	assert(not self.getTypeCode, "please convert :getTypeCode() to :initCodeModules()")
+	assert(not self.getEigenTypeCode, "please convert :getEigenTypeCode() to :initCodeModules()")
 end
 
 
@@ -513,11 +518,6 @@ function Equation:createCurlDisplayVar(args)
 			units = units,
 		}
 	end
-end
-
--- TODO verify that this is needed
-function Equation:getEigenTypeCode()
-	return assert(self.eigenStruct.typecode)
 end
 
 function Equation:getEigenDisplayVars()
