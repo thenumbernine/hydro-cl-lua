@@ -191,6 +191,34 @@ function GridSolver:getSizePropsForWorkGroupSize(maxWorkGroupSize)
 	}
 end
 
+function GridSolver:initCodeModules()
+	GridSolver.super.initCodeModules(self)
+
+	if self.usePLM then
+		self.modules:add{
+			name = 'consLR',
+			depends = {'eqn-cons'},
+			typecode = template([[
+typedef union {
+	<?=eqn.cons_t?> LR[2];
+	struct {
+		<?=eqn.cons_t?> L, R;
+	};
+} <?=eqn.consLR_t?>;
+
+//ugly hack to work around even uglier boundary code
+typedef struct {
+	<?=eqn.consLR_t?> side[<?=solver.dim?>];
+} <?=eqn.consLR_t?>_dim;
+]], 		{
+				solver = self,
+				eqn = self.eqn,
+			}),
+		}
+		self.reqmodules:insert'consLR'
+	end
+end
+
 -- call this when a gui var changes
 -- it rebuilds the code prefix, but doesn't reset the initCond
 function GridSolver:refreshCodePrefix()
@@ -328,33 +356,12 @@ function GridSolver:initDraw()
 			noiseTex = 2,
 		},
 	}
-
-
 end
 
 
 -- my best idea to work around the stupid 8-arg max kernel restriction
 -- this is almost as bad of an idea as using OpenCL was to begin with
 GridSolver.allocateOneBigStructure = false
-
-function GridSolver:getConsLRTypeCode()
-	return template([[
-typedef union {
-	<?=eqn.cons_t?> LR[2];
-	struct {
-		<?=eqn.cons_t?> L, R;
-	};
-} <?=eqn.consLR_t?>;
-
-//ugly hack to work around even uglier boundary code
-typedef struct {
-	<?=eqn.consLR_t?> side[<?=solver.dim?>];
-} <?=eqn.consLR_t?>_dim;
-]], {
-	solver = self,
-	eqn = self.eqn,
-})
-end
 
 function GridSolver:createSolverBuf()
 	GridSolver.super.createSolverBuf(self)
@@ -419,9 +426,6 @@ function GridSolver:createBuffers()
 	self:clalloc('cellBuf', self.coord.cell_t, self.numCells)
 
 	if self.usePLM then
-		-- to get sizeof
-		require 'hydro.code.safecdef'(self:getConsLRTypeCode())
-		
 		-- TODO self.eqn.consLR_t..'_dim' and remove * self.dim ?
 		self:clalloc('ULRBuf', self.eqn.consLR_t, self.numCells * self.dim)
 	end
@@ -528,25 +532,12 @@ end
 	lines:append{
 		-- not messing with this one yet
 		self.allocateOneBigStructure and '#define allocateOneBigStructure' or '',
-		
-		self:getConsLRTypeCode(),
 	}
 
 	self.codePrefix = lines:concat'\n'
 
 --print'done building solver.codePrefix'
 --print(self.codePrefix)
-end
-
-function GridSolver:resetState()
-	self.cmds:finish()
-		
-	-- start off by filling all buffers with zero, just in case initCond forgets something ...
-	for _,bufferInfo in ipairs(self.buffers) do
-		self.cmds:enqueueFillBuffer{buffer=self[bufferInfo.name], size=bufferInfo.count * ffi.sizeof(bufferInfo.type)}
-	end
-
-	GridSolver.super.resetState(self)
 end
 
 function GridSolver:getSolverCode()
@@ -564,6 +555,19 @@ function GridSolver:getSolverCode()
 	}:concat'\n'
 end
 
+function GridSolver:refreshSolverProgram()
+	GridSolver.super.refreshSolverProgram(self)
+
+	if self.usePLM then
+		self.calcLRKernelObj = self.solverProgramObj:kernel'calcLR'
+	end
+	if self.useCTU then
+		-- currently implemented in hydro/solver/roe.cl
+		-- not available for any other flux method
+		assert(self.fluxBuf)
+		self.updateCTUKernelObj = self.solverProgramObj:kernel'updateCTU'
+	end
+end
 
 function GridSolver:getULRBuf()
 	return self[self.getULRBufName]
@@ -628,6 +632,16 @@ const global <?=eqn.cons_t?>* UR<?=suffix?> = <?=bufName?> + <?=indexR?>;
 	end
 end
 
+function GridSolver:resetState()
+	self.cmds:finish()
+		
+	-- start off by filling all buffers with zero, just in case initCond forgets something ...
+	for _,bufferInfo in ipairs(self.buffers) do
+		self.cmds:enqueueFillBuffer{buffer=self[bufferInfo.name], size=bufferInfo.count * ffi.sizeof(bufferInfo.type)}
+	end
+
+	GridSolver.super.resetState(self)
+end
 
 function GridSolver:applyInitCond()
 	

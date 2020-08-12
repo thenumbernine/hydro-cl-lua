@@ -70,7 +70,7 @@ if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
 if self.checkNaNs then assert(self:checkFinite(derivBufObj)) end
 	
 	if self.usePLM then
-		self.calcLRKernelObj(self.solverBuf, self:getULRBuf(), self.UBuf, dtArg)
+		self.calcLRKernelObj(self.solverBuf, self.cellBuf, self:getULRBuf(), self.UBuf, dtArg)
 	end
 
 if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
@@ -89,7 +89,7 @@ if self.checkNaNs then assert(self:checkFinite(derivBufObj)) end
 		-- 1) calc fluxes based on a slope-limiter method (PLM, etc)
 		-- 2) at each interface, integrate each dimension's LR states by all other dimensions' fluxes with a timestep of -dt/2
 		--	( don't use the deriv buf because it already has the sum of all dimensions' flux differences)
-		self.updateCTUKernelObj(self.solverBuf, self:getULRBuf(), self.fluxBuf, dtArg)
+		self.updateCTUKernelObj(self.solverBuf, self.cellBuf, self:getULRBuf(), self.fluxBuf, dtArg)
 if self.checkNaNs then assert(self:checkFinite(derivBufObj)) end
 
 		-- now we need to calcBounds on the ULR

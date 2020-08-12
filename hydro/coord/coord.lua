@@ -1115,7 +1115,7 @@ static inline real coordLen(real3 r, real3 pt) {
 		name = 'coord-cell',
 		typecode = self.cellStruct.typecode,
 		headercode = [[
-#define cell_x(i)	return cellBuf[INDEXV(i)].pos
+#define cell_x(i)	cellBuf[INDEXV(i)].pos
 ]],
 	}
 end

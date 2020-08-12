@@ -128,8 +128,6 @@ SolverBase:init
 					SolverBase:refreshCodePrefix
 						GridSolver:createCodePrefix
 							SolverBase:createCodePrefix
-								SolverBase:createCodePrefixHeader
-									self.initCond.typecode
 								SolverBase:createCodePrefixSource
 									self.eqn:getCodePrefix
 						SolverBase:refreshIntegrator
@@ -175,7 +173,6 @@ SolverBase:init
 									self.calcDTKernelObj = ...
 								self.addSourceKernelObj = ...
 								self.constrainUKernelObj = ...
-								self.calcLRKernelObj = ...
 								self.updateCTUKernelObj = ...
 								self.ops[i]:refreshSolverProgram
 								self.displayVarGroups[i].vars[j].calcDisplayVarToTexKernelObj = ...
@@ -548,13 +545,13 @@ function SolverBase:initCodeModules()
 		'coord-cell',
 		'solver-struct',
 		'codeprefix-macros',
+		'eqn-codeprefix',
 	}
 
 	self.modules:add{
 		name = 'solver-struct',
 		typecode = assert(self.solverStruct.typecode),
 	}
-
 
 	-- header
 	self.modules:add{
@@ -573,6 +570,11 @@ function SolverBase:initCodeModules()
 
 	self.coord:initCodeModules()
 	self.eqn:initCodeModules()
+
+	self.modules:add{
+		name = 'eqn-codeprefix',
+		code = self.eqn:getCodePrefix(),
+	}
 end
 
 -- TODO if you want to define ffi ctype metatable then put them all in one spot here
@@ -1089,16 +1091,6 @@ end
 		self.constrainUKernelObj = self.solverProgramObj:kernel'constrainU'
 	end
 
-	if self.usePLM then
-		self.calcLRKernelObj = self.solverProgramObj:kernel'calcLR'
-	end
-	if self.useCTU then
-		-- currently implemented in hydro/solver/roe.cl
-		-- not available for any other flux method
-		assert(self.fluxBuf)
-		self.updateCTUKernelObj = self.solverProgramObj:kernel'updateCTU'
-	end
-
 
 	for _,op in ipairs(self.ops) do
 		op:refreshSolverProgram()
@@ -1472,12 +1464,6 @@ function SolverBase:refreshInitStateProgram()
 	self.eqn.initCond:refreshInitStateProgram(self)
 end
 
--- TODO compile the code of CommonCode into a bin of its own
---  and link against it instead of recopying and recompiling
-function SolverBase:createCodePrefixHeader()
-	return self.modules:getHeader(self.reqmodules:unpack())
-end
-
 function SolverBase:createCodePrefixSource()
 	lines = table()
 if not SolverBase.useCLLinkLibraries then 
@@ -1485,16 +1471,12 @@ if not SolverBase.useCLLinkLibraries then
 		self.modules:getCode(self.reqmodules:unpack()),
 	}
 end	
-	lines:append{
-		'//solver.eqn:getCodePrefix()',
-		self.eqn:getCodePrefix() or '',
-	}
 	return lines:concat'\n'
 end
 
 function SolverBase:createCodePrefix()
 	self.codePrefix = table{
-		self:createCodePrefixHeader(),
+		self.modules:getHeader(self.reqmodules:unpack()),
 		self:createCodePrefixSource(),
 	}:concat'\n'
 end

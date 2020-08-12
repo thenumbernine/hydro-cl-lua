@@ -4,6 +4,7 @@ update the LR states by integrating dt/2 times the interface flux
 */
 kernel void updateCTU(
 	constant <?=solver.solver_t?>* solver,
+	const global <?=solver.coord.cell_t?>* cellBuf,
 	global <?=solver.getULRArg?>,
 	const global <?=eqn.cons_t?>* fluxBuf,
 	real dt

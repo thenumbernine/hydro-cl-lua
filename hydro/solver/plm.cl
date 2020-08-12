@@ -877,6 +877,7 @@ end
 
 kernel void calcLR(
 	constant <?=solver.solver_t?>* solver,
+	const global <?=solver.coord.cell_t?>* cellBuf,
 	global <?=eqn.consLR_t?>* ULRBuf,
 	const global <?=eqn.cons_t?>* UBuf,
 	real dt
