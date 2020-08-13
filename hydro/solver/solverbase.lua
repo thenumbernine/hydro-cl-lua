@@ -607,16 +607,34 @@ function SolverBase:initCodeModules()
 	self.coord:initCodeModules()
 	self.sharedModulesEnabled = table(self.sharedModulesEnabled, {
 		coord = true,
+		['coord-cell'] = true,
 --		conn = true,
 		metric = true,
 		['coord-cell'] = true,
-	})
-
-	self.eqn:initCodeModules()	-- calls eqn.initCond:initCodeModules()
-	self.sharedModulesEnabled = table(self.sharedModulesEnabled, {
-		eqn = true,		-- just the header of this
 		['eqn-codeprefix'] = true,
 	})
+	self.solverModulesEnabled['eqn-solvercode'] = true
+
+	self.eqn:initCodeModules()	-- calls eqn.initCond:initCodeModules()
+
+-- solver modules --
+	
+	self.modules:add{
+		name = 'fluxLimiter',
+		code = template([[
+real fluxLimiter(real r) {
+	<?=solver.app.limiters[solver.fluxLimiter].code?>
+}
+]], {solver=self}),
+	}
+	self.solverModulesEnabled.fluxLimiter = tru
+
+	self.modules:add{
+		name = 'range_t',
+		-- TODO use struct so I can verify cl/ffi struct alignment
+		typecode = 'typedef struct { real min, max; } range_t;',
+	}
+	self.solverModulesEnabled.range_t = true
 
 	-- when building modules for ops, only add them to solverModulesEnabled, not sharedModulesEnabled, since init doesn't need them
 	for _,op in ipairs(self.ops) do
@@ -1148,16 +1166,6 @@ function SolverBase:getSolverCode()
 	return table{
 		codePrefix,
 	
-		template([[
-real fluxLimiter(real r) {
-	<?=solver.app.limiters[solver.fluxLimiter].code?>
-}
-]], {solver=self}),
-
-		'typedef struct { real min, max; } range_t;',
-		
-		-- TODO move to Roe, or FiniteVolumeSolver as a parent of Roe and HLL?
-		self.eqn:getSolverCode() or '',
 		self.eqn:getCalcDTCode() or '',
 		self.eqn:getFluxFromConsCode() or '',
 	

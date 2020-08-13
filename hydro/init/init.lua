@@ -97,7 +97,6 @@ function InitCond:refreshInitStateProgram(solver)
 	local initCondCode 
 
 print('initCond using modules:', solver.sharedModulesEnabled:keys():sort():concat', ')
-
 	time('generating init state code', function()
 		local codePrefix = table{
 			solver.modules:getHeader(solver.sharedModulesEnabled:keys():unpack()),

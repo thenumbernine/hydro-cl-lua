@@ -42,15 +42,18 @@ end
 function ModuleSet:getCodeForGetter(getter, ...)
 	local addedkeys = {}
 	local added = table()
-	local function add(name)
+	local function add(name, from)
 		if addedkeys[name] then return end	-- don't include twice
 		local module = self.set[name]
 		if not module then
-			error("failed to find module "..name)
+			error("failed to find module "..name
+				..(from and (" when requesting from module "..from)
+					or " when requesting from root function call")
+			)
 		end
 		addedkeys[name] = true	
 		for _,dep in ipairs(module.depends) do
-			add(dep)
+			add(dep, name)
 		end
 		added:insert(module)
 	end

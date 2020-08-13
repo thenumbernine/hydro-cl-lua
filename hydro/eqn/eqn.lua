@@ -304,7 +304,7 @@ typedef union {
 	}
 
 	self.solver.modules:add{
-		name = 'eqn',
+		name = 'eqn-types',
 		depends = {
 			'eqn.cons_t',
 			'eqn.prim_t',
@@ -329,23 +329,52 @@ typedef union {
 	-- put this here or in SolverBase?
 	self.initCond:initCodeModules(self.solver)
 
-	do
-		self.solver.modules:add{
-			name = 'eqn-codeprefix',
-			depends = {'initCond-codeprefix'},
-			code = (self.guiVars and table.mapi(self.guiVars, function(var,i,t) 
+	self.solver.modules:add{
+		name = 'eqn.common',
+		depends = {
+			'eqn-types',
+			'coord',	-- Euler's common code uses coordLenSq
+		},
+		-- functions that prim-cons code will use, but which use macros:
+		code = self.getCommonFuncCode and self:getCommonFuncCode() or nil,
+	}
+
+	self.solver.modules:add{
+		name = 'eqn.prim-cons',
+		depends = {
+			'eqn-types',
+			'eqn.common',
+			'metric',	-- Euler:getPrimConsCode() uses coord_raise/coord_lower
+		},
+		-- prim-cons goes here
+		-- it goes last so it has access to everything above it
+		-- but it must be in codeprefix so initstate has access to it
+		code = self:getPrimConsCode() or nil,
+	}
+
+	self.solver.modules:add{
+		name = 'eqn-codeprefix',
+		depends = {
+			'eqn-types',
+			'initCond-codeprefix',
+			'eqn.common',
+			'eqn.prim-cons',
+		},
+		code = self.guiVars 
+			and table.mapi(self.guiVars, function(var,i,t) 
 				return (var.compileTime and var:getCode() or nil), #t+1
-			end) or table()):append{
-				-- functions that prim-cons code will use, but which use macros:
-				self.getCommonFuncCode and self:getCommonFuncCode() or '',
-				
-				-- prim-cons goes here
-				-- it goes last so it has access to everything above it
-				-- but it must be in codeprefix so initstate has access to it
-				self:getPrimConsCode() or '',
-			}:concat'\n',
-		}
-	end
+			end):concat'\n' 
+			or nil,
+	}
+
+	self.solver.modules:add{
+		name = 'eqn-solvercode',
+		depends = {'eqn-types', 'eqn-codeprefix', 'coord'},
+	
+		-- why did I have this comment here?:
+		-- TODO move to Roe, or FiniteVolumeSolver as a parent of Roe and HLL?
+		code = self:getSolverCode(),
+	}
 end
 
 function Equation:getSolverCode()
