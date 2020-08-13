@@ -611,13 +611,17 @@ function SolverBase:initCodeModules()
 --		conn = true,
 		metric = true,
 		['coord-cell'] = true,
-		['eqn-codeprefix'] = true,
+		['eqn.codeprefix'] = true,
 	})
-	self.solverModulesEnabled['eqn-solvercode'] = true
+	
 
 	self.eqn:initCodeModules()	-- calls eqn.initCond:initCodeModules()
 
--- solver modules --
+
+	-------- solver modules --------
+	
+	self.solverModulesEnabled['eqn.solvercode'] = true
+	self.solverModulesEnabled['eqn.calcDT'] = true
 	
 	self.modules:add{
 		name = 'fluxLimiter',
@@ -1166,7 +1170,6 @@ function SolverBase:getSolverCode()
 	return table{
 		codePrefix,
 	
-		self.eqn:getCalcDTCode() or '',
 		self.eqn:getFluxFromConsCode() or '',
 	
 		self:getDisplayCode() or '',

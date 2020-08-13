@@ -304,7 +304,7 @@ typedef union {
 	}
 
 	self.solver.modules:add{
-		name = 'eqn-types',
+		name = 'eqn.types',
 		depends = {
 			'eqn.cons_t',
 			'eqn.prim_t',
@@ -332,30 +332,22 @@ typedef union {
 	self.solver.modules:add{
 		name = 'eqn.common',
 		depends = {
-			'eqn-types',
+			'eqn.types',
 			'coord',	-- Euler's common code uses coordLenSq
 		},
 		-- functions that prim-cons code will use, but which use macros:
 		code = self.getCommonFuncCode and self:getCommonFuncCode() or nil,
 	}
 
-	self.solver.modules:add{
-		name = 'eqn.prim-cons',
-		depends = {
-			'eqn-types',
-			'eqn.common',
-			'metric',	-- Euler:getPrimConsCode() uses coord_raise/coord_lower
-		},
-		-- prim-cons goes here
-		-- it goes last so it has access to everything above it
-		-- but it must be in codeprefix so initstate has access to it
-		code = self:getPrimConsCode() or nil,
-	}
+	-- init eqn.prim-cons
+	-- prim-cons should have access to all ... prefix stuff?
+	-- but initstate has access to it
+	self:initCodeModulePrimCons()
 
 	self.solver.modules:add{
-		name = 'eqn-codeprefix',
+		name = 'eqn.codeprefix',
 		depends = {
-			'eqn-types',
+			'eqn.types',
 			'initCond-codeprefix',
 			'eqn.common',
 			'eqn.prim-cons',
@@ -368,12 +360,19 @@ typedef union {
 	}
 
 	self.solver.modules:add{
-		name = 'eqn-solvercode',
-		depends = {'eqn-types', 'eqn-codeprefix', 'coord'},
+		name = 'eqn.solvercode',
+		depends = {'eqn.types', 'eqn.codeprefix', 'coord'},
 	
 		-- why did I have this comment here?:
 		-- TODO move to Roe, or FiniteVolumeSolver as a parent of Roe and HLL?
 		code = self:getSolverCode(),
+	}
+
+
+	self.solver.modules:add{
+		name = 'eqn.calcDT',
+		depends = {'eqn.types', 'eqn.codeprefix'},
+		code = self:getCalcDTCode(),
 	}
 end
 
@@ -633,11 +632,17 @@ Default code for the following:
 
 The default assumes prim_t == cons_t and this transformation is identity
 --]]
-function Equation:getPrimConsCode()
+function Equation:initCodeModulePrimCons()
 	assert(not self.primStruct, "if you're using the default prim<->cons code then you shouldn't have any primStruct")
 
-	return template([[
-
+	self.solver.modules:add{
+		name = 'eqn.prim-cons',
+		depends = {
+			'eqn.types',
+			'eqn.common',
+			'metric',	
+		},
+		code = template([[
 #define primFromCons(solver, U, x)	U
 /*
 <?=eqn.prim_t?> primFromCons(
@@ -695,10 +700,11 @@ returns output vector
 	return U; 
 }
 */
-]], {
-		eqn = self,
-		solver = self.solver,
-	})
+]], 	{
+			eqn = self,
+			solver = self.solver,
+		}),
+	}
 end
 
 local degreeForType = {

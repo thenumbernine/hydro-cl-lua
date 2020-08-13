@@ -209,6 +209,8 @@ real3 calc_CA(constant <?=solver.solver_t?>* solver, <?=eqn.cons_t?> U) {
 end
 
 function MHD:initCodeModules()
+	MHD.super.initCodeModules(self)
+	
 	-- TODO find a better place to put this
 	
 	local solver = self.solver
@@ -302,13 +304,18 @@ range_t calcCellMinMaxEigenvalues(
 	}
 
 	-- TODO don't put this here, instead make it a depends of the calcDT/consWaveCodePrefix code below that references it.
-	solver.solverProgramModules:insertUnique'calcCellMinMaxEigenvalues'
-	
-	MHD.super.initCodeModules(self)
+	solver.solverModulesEnabled.calcCellMinMaxEigenvalues = true
 end
 
-function MHD:getPrimConsCode()
-	return template([[
+function MHD:initCodeModulePrimCons()
+	self.solver.modules:add{
+		name = 'eqn.prim-cons',
+		depends = {
+			'eqn.types',
+			'eqn.common',
+			'metric',		-- coord_raise/coord_lower
+		},
+		code = template([[
 <?=eqn.prim_t?> primFromCons(
 	constant <?=solver.solver_t?>* solver,
 	<?=eqn.cons_t?> U,
@@ -393,10 +400,11 @@ function MHD:getPrimConsCode()
 		.ePot = U.ePot,
 	};
 }
-]], {
-		solver = self.solver,
-		eqn = self,
-	})
+]], 	{
+			solver = self.solver,
+			eqn = self,
+		}),
+	}
 end
 
 MHD.initCondCode = [[

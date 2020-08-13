@@ -104,6 +104,8 @@ function Euler:createInitState()
 end
 
 function Euler:initCodeModules()
+	Euler.super.initCodeModules(self)
+	
 	self.solver.modules:add{
 		name = 'eigen_forCell',
 		depends = {'eqn.cons_t', 'eqn.prim_t', 'eqn.eigen_t'},
@@ -137,42 +139,18 @@ function Euler:initCodeModules()
 			solver = self.solver,
 		}),
 	}
-	Euler.super.initCodeModules(self)
 end
 
-function Euler:getCommonFuncCode()
-	return template([[
-real calc_H(constant <?=solver.solver_t?>* solver, real P) { return P * (solver->heatCapacityRatio / (solver->heatCapacityRatio - 1.)); }
-real calc_h(constant <?=solver.solver_t?>* solver, real rho, real P) { return calc_H(solver, P) / rho; }
-real calc_HTotal(real P, real ETotal) { return P + ETotal; }
-real calc_hTotal(real rho, real P, real ETotal) { return calc_HTotal(P, ETotal) / rho; }
-real calc_eKin(<?=eqn.prim_t?> W, real3 x) { return .5 * coordLenSq(W.v, x); }
-real calc_EKin(<?=eqn.prim_t?> W, real3 x) { return W.rho * calc_eKin(W, x); }
-real calc_EInt(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W) { return W.P / (solver->heatCapacityRatio - 1.); }
-real calc_eInt(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W) { return calc_EInt(solver, W) / W.rho; }
-real calc_EKin_fromCons(<?=eqn.cons_t?> U, real3 x) { return .5 * coordLenSq(U.m, x) / U.rho; }
-real calc_ETotal(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W, real3 x) {
-	return calc_EKin(W, x) + calc_EInt(solver, W);
-}
-
-real calc_Cs(constant <?=solver.solver_t?>* solver, const <?=eqn.prim_t?>* W) {
-	return sqrt(solver->heatCapacityRatio * W->P / W->rho);
-}
-
-real calc_P(constant <?=solver.solver_t?>* solver, <?=eqn.cons_t?> U, real3 x) {
-	real EKin = calc_EKin_fromCons(U, x);
-	real EInt = U.ETotal - EKin;
-	return (solver->heatCapacityRatio - 1.) * EInt;
-}
-
-]], {
-		solver = self.solver,
-		eqn = self,
-	})
-end
-
-function Euler:getPrimConsCode()
-	return template([[
+-- override the default
+function Euler:initCodeModulePrimCons()
+	self.solver.modules:add{
+		name = 'eqn.prim-cons',
+		depends = {
+			'eqn.types',
+			'eqn.common',
+			'metric',		-- coord_raise/coord_lower
+		},
+		code = template([[
 
 <?=eqn.prim_t?> primFromCons(constant <?=solver.solver_t?>* solver, <?=eqn.cons_t?> U, real3 x) {
 	return (<?=eqn.prim_t?>){
@@ -230,7 +208,37 @@ function Euler:getPrimConsCode()
 		.ePot = U.ePot,
 	};
 }
+]], 	{
+			solver = self.solver,
+			eqn = self,
+		}),
+	}
+end
 
+function Euler:getCommonFuncCode()
+	return template([[
+real calc_H(constant <?=solver.solver_t?>* solver, real P) { return P * (solver->heatCapacityRatio / (solver->heatCapacityRatio - 1.)); }
+real calc_h(constant <?=solver.solver_t?>* solver, real rho, real P) { return calc_H(solver, P) / rho; }
+real calc_HTotal(real P, real ETotal) { return P + ETotal; }
+real calc_hTotal(real rho, real P, real ETotal) { return calc_HTotal(P, ETotal) / rho; }
+real calc_eKin(<?=eqn.prim_t?> W, real3 x) { return .5 * coordLenSq(W.v, x); }
+real calc_EKin(<?=eqn.prim_t?> W, real3 x) { return W.rho * calc_eKin(W, x); }
+real calc_EInt(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W) { return W.P / (solver->heatCapacityRatio - 1.); }
+real calc_eInt(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W) { return calc_EInt(solver, W) / W.rho; }
+real calc_EKin_fromCons(<?=eqn.cons_t?> U, real3 x) { return .5 * coordLenSq(U.m, x) / U.rho; }
+real calc_ETotal(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W, real3 x) {
+	return calc_EKin(W, x) + calc_EInt(solver, W);
+}
+
+real calc_Cs(constant <?=solver.solver_t?>* solver, const <?=eqn.prim_t?>* W) {
+	return sqrt(solver->heatCapacityRatio * W->P / W->rho);
+}
+
+real calc_P(constant <?=solver.solver_t?>* solver, <?=eqn.cons_t?> U, real3 x) {
+	real EKin = calc_EKin_fromCons(U, x);
+	real EInt = U.ETotal - EKin;
+	return (solver->heatCapacityRatio - 1.) * EInt;
+}
 
 ]], {
 		solver = self.solver,
