@@ -187,7 +187,7 @@ function PoissonJacobi:initCodeModules(solver)
 			self:getPoissonCode() or '',
 		}:concat'\n',
 	}
-	solver.sharedModulesEnabled['op.PoissonJacobi'] = true
+	solver.solverModulesEnabled['op.PoissonJacobi'] = true
 end
 
 return PoissonJacobi

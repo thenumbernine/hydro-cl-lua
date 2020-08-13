@@ -82,7 +82,8 @@ function PoissonKrylov:initSolver()
 
 	local codePrefix = table{
 		solver.modules:getHeader(solver.sharedModulesEnabled:keys():unpack()),
-		solver.modules:getCode(solver.sharedModulesEnabled:keys():unpack()),
+		-- is this needed?
+		--solver.modules:getCode(solver.sharedModulesEnabled:keys():unpack()),
 	}:concat'\n'
 
 	local mulWithoutBorderKernelObj = solver.domain:kernel{
@@ -273,7 +274,7 @@ function PoissonKrylov:initCodeModules(solver)
 		)..'\n'
 		..(self:getPoissonCode() or ''),
 	}
-	solver.sharedModulesEnabled['op.PoissonKrylov'] = true
+	solver.solverModulesEnabled['op.PoissonKrylov'] = true
 end
 
 function PoissonKrylov:refreshSolverProgram()

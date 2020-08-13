@@ -578,9 +578,9 @@ function SolverBase:initCodeModules()
 	-- solverModulesEnabled = modules for solvers
 	-- initModulesEnabled = modules for init
 	-- sharedModulesEnabled = modules for both.  previously 'codeprefix'.
-	self.sharedModulesEnabled = table{
-		math = true,
-	}
+	self.solverModulesEnabled = table()
+	self.initModulesEnabled = table()
+	self.sharedModulesEnabled = table{math=true}
 
 	self.modules:add{
 		name = 'solver.solver_t',
@@ -618,6 +618,7 @@ function SolverBase:initCodeModules()
 		['eqn-codeprefix'] = true,
 	})
 
+	-- when building modules for ops, only add them to solverModulesEnabled, not sharedModulesEnabled, since init doesn't need them
 	for _,op in ipairs(self.ops) do
 		if op.initCodeModules then
 			op:initCodeModules(self)
@@ -1138,9 +1139,10 @@ end
 
 
 function SolverBase:getSolverCode()
+	local moduleNames = table(self.sharedModulesEnabled, self.solverModulesEnabled):keys()
 	local codePrefix = table{
-		self.modules:getHeader(self.sharedModulesEnabled:keys():unpack()),
-		self.modules:getCode(self.sharedModulesEnabled:keys():unpack()),
+		self.modules:getHeader(moduleNames:unpack()),
+		self.modules:getCode(moduleNames:unpack()),
 	}:concat'\n'
 
 	return table{
