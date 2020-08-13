@@ -254,8 +254,17 @@ real calc_EM_energy(constant <?=solver.solver_t?>* solver, const global <?=eqn.c
 	})
 end
 
-function TwoFluidEMHD:getPrimConsCode()
-	return template([[
+function TwoFluidEMHD:initCodeModulePrimCons()
+	self.solver.modules:add{
+		name = 'eqn.prim-cons',
+		depends = {
+			'real3',
+			'solver.solver_t',
+			'eqn.prim_t',
+			'eqn.cons_t',
+			'eqn.common',	-- calc_*
+		},
+		code = template([[
 <?=eqn.prim_t?> primFromCons(constant <?=solver.solver_t?>* solver, <?=eqn.cons_t?> U, real3 x) {
 	<? for _,fluid in ipairs(fluids) do ?>
 	real <?=fluid?>_EKin = calc_<?=fluid?>_EKin_fromCons(U, x);
@@ -289,7 +298,24 @@ function TwoFluidEMHD:getPrimConsCode()
 		.ePot = W.ePot,
 	};
 }
+]], 	{
+			eqn = self,
+			solver = self.solver,
+			fluids = fluids,
+		}),
+	}
 
+	-- only used by PLM
+	self.solver.modules:add{
+		name = 'eqn.dU-dW',
+		depends = {
+			'real3',
+			'solver.solver_t',
+			'eqn.prim_t',
+			'eqn.cons_t',
+			'metric',	-- coord_lower
+		},
+		code = template([[
 <?=eqn.cons_t?> apply_dU_dW(
 	constant <?=solver.solver_t?>* solver,
 	<?=eqn.prim_t?> WA, 
@@ -345,11 +371,12 @@ function TwoFluidEMHD:getPrimConsCode()
 	};
 }
 
-]], {
-		solver = self.solver,
-		eqn = self,
-		fluids = fluids,
-	})
+]], 	{
+			solver = self.solver,
+			eqn = self,
+			fluids = fluids,
+		}),
+	}
 end
 
 -- overridden because it adds some extra parameters to the template args

@@ -146,12 +146,13 @@ function Euler:initCodeModulePrimCons()
 	self.solver.modules:add{
 		name = 'eqn.prim-cons',
 		depends = {
-			'eqn.types',
-			'eqn.common',
-			'metric',		-- coord_raise/coord_lower
+			'real3',
+			'solver.solver_t',
+			'eqn.prim_t',
+			'eqn.cons_t',
+			'eqn.common',	-- all the calc_* stuff
 		},
 		code = template([[
-
 <?=eqn.prim_t?> primFromCons(constant <?=solver.solver_t?>* solver, <?=eqn.cons_t?> U, real3 x) {
 	return (<?=eqn.prim_t?>){
 		.rho = U.rho,
@@ -169,6 +170,22 @@ function Euler:initCodeModulePrimCons()
 		.ePot = W.ePot,
 	};
 }
+]], 	{
+			solver = self.solver,
+			eqn = self,
+		}),
+	}
+
+	-- only used by PLM
+	self.solver.modules:add{
+		name = 'eqn.dU-dW',
+		depends = {
+			'solver.solver_t',
+			'eqn.prim_t',
+			'eqn.cons_t',
+			'metric',		-- coord_raise/coord_lower
+		},
+		code = template([[
 
 <?=eqn.cons_t?> apply_dU_dW(
 	constant <?=solver.solver_t?>* solver,

@@ -311,9 +311,11 @@ function MHD:initCodeModulePrimCons()
 	self.solver.modules:add{
 		name = 'eqn.prim-cons',
 		depends = {
-			'eqn.types',
-			'eqn.common',
-			'metric',		-- coord_raise/coord_lower
+			'real3',
+			'solver.solver_t',
+			'eqn.prim_t',
+			'eqn.cons_t',
+			'coord',		-- coordLenSq
 		},
 		code = template([[
 <?=eqn.prim_t?> primFromCons(
@@ -357,7 +359,22 @@ function MHD:initCodeModulePrimCons()
 	U.ePot = W.ePot;
 	return U;
 }
+]], 	{
+			eqn = self,
+			solver = self.solver,
+		}),
+	}
 
+	-- only used by PLM
+	self.solver.modules:add{
+		name = 'eqn.dU-dW',
+		depends = {
+			'real3',
+			'solver.solver_t',
+			'eqn.prim_t',
+			'eqn.cons_t',
+		},
+		code = template([[
 <?=eqn.cons_t?> apply_dU_dW(
 	constant <?=solver.solver_t?>* solver,
 	<?=eqn.prim_t?> WA, 

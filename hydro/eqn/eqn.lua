@@ -276,6 +276,7 @@ end
 
 -- add to self.solver.modules, or add to self.modules and have solver add later?
 function Equation:initCodeModules()
+	
 	assert(self.consStruct)
 	self.solver.modules:add{
 		name = 'eqn.cons_t',
@@ -645,9 +646,9 @@ function Equation:initCodeModulePrimCons()
 	self.solver.modules:add{
 		name = 'eqn.prim-cons',
 		depends = {
-			'eqn.types',
-			'eqn.common',
-			'metric',	
+			'solver.solver_t',
+			'eqn.prim_t',
+			'eqn.cons_t',
 		},
 		code = template([[
 #define primFromCons(solver, U, x)	U
@@ -671,7 +672,21 @@ function Equation:initCodeModulePrimCons()
 	return W; 
 }
 */
+]], 	{
+			eqn = self,
+			solver = self.solver,
+		}),
+	}
 
+	-- only used by PLM
+	self.solver.modules:add{
+		name = 'eqn.dU-dW',
+		depends = {
+			'solver.solver_t',
+			'eqn.prim_t',
+			'eqn.cons_t',
+		},
+		code = template([[
 /*
 WA = W components that make up the jacobian matrix
 W = input vector

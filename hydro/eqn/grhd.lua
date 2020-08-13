@@ -168,7 +168,8 @@ real calc_h(real rho, real P, real eInt) {
 	})
 end
 
-function GRHD:getPrimConsCode() end
+-- hmm, this is from renovating 'getPrimConsCode() end', but will it work with the module system?
+function GRHD:initCodeModulePrimCons() end
 
 GRHD.initCondCode = [[
 kernel void applyInitCond(

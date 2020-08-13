@@ -176,8 +176,16 @@ real3 calc_CA(constant <?=solver.solver_t?>* solver, <?=eqn.cons_t?> U) {
 	})
 end
 
-function MHD:getPrimConsCode()
-	return template([[
+function MHD:initCodeModulePrimCons()
+	self.solver.modules:add{
+		name = 'eqn.prim-cons',
+		depends = {
+			'solver.solver_t',
+			'eqn.prim_t',
+			'eqn.cons_t',
+			'coord',
+		},
+		code = template([[
 <?=eqn.prim_t?> primFromCons(
 	constant <?=solver.solver_t?>* solver,
 	<?=eqn.cons_t?> U,
@@ -219,7 +227,22 @@ function MHD:getPrimConsCode()
 	U.ePot = W.ePot;
 	return U;
 }
+]], 	{
+			solver = self.solver,
+			eqn = self,
+		}),
+	}
 
+	-- only used by PLM
+	self.solver.modules:add{
+		name = 'eqn.dU-dW',
+		depends = {
+			'real3',
+			'solver.solver_t',
+			'eqn.prim_t',
+			'eqn.cons_t',
+		},
+		code = template([[
 <?=eqn.cons_t?> apply_dU_dW(
 	constant <?=solver.solver_t?>* solver,
 	<?=eqn.prim_t?> WA, 
@@ -262,10 +285,11 @@ function MHD:getPrimConsCode()
 		.ePot = U.ePot,
 	};
 }
-]], {
-		solver = self.solver,
-		eqn = self,
-	})
+]], 	{
+			solver = self.solver,
+			eqn = self,
+		}),
+	}
 end
 
 MHD.initCondCode = [[

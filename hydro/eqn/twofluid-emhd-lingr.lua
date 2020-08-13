@@ -266,8 +266,16 @@ real3 calcElecGravForce(constant <?=solver.solver_t?>* solver, const global <?=e
 	})
 end
 
-function TwoFluidEMHDDeDonderGaugeLinearizedGR:getPrimConsCode()
-	return template([[
+function TwoFluidEMHDDeDonderGaugeLinearizedGR:initCodeModulePrimCons()
+	self.solver.modules:add{
+		name = 'eqn.prim-cons',
+		depends = {
+			'solver.solver_t',
+			'eqn.common',	-- calc_*
+			'eqn.prim_t',
+			'eqn.cons_t',
+		},
+		code = template([[
 <?=eqn.prim_t?> primFromCons(constant <?=solver.solver_t?>* solver, <?=eqn.cons_t?> U, real3 x) {
 	<? for _,fluid in ipairs(fluids) do ?>
 	real <?=fluid?>_EKin = calc_<?=fluid?>_EKin_fromCons(U, x);
@@ -307,7 +315,24 @@ function TwoFluidEMHDDeDonderGaugeLinearizedGR:getPrimConsCode()
 		.phi_g = W.phi_g,
 	};
 }
+]], 	{
+			solver = self.solver,
+			eqn = self,
+			fluids = fluids,
+		}),
+	}
 
+	-- only used by PLM
+	self.solver.modules:add{
+		name = 'eqn.dU-dW',
+		depends = {
+			'real3',
+			'metric',	-- coord_lower
+			'solver.solver_t',
+			'eqn.prim_t',
+			'eqn.cons_t',
+		},
+		code = template([[
 <?=eqn.cons_t?> apply_dU_dW(
 	constant <?=solver.solver_t?>* solver,
 	<?=eqn.prim_t?> WA, 
@@ -369,11 +394,12 @@ function TwoFluidEMHDDeDonderGaugeLinearizedGR:getPrimConsCode()
 	};
 }
 
-]], {
-		solver = self.solver,
-		eqn = self,
-		fluids = fluids,
-	})
+]], 	{
+			solver = self.solver,
+			eqn = self,
+			fluids = fluids,
+		}),
+	}
 end
 
 -- overridden because it adds some extra parameters to the template args

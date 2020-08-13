@@ -331,10 +331,12 @@ typedef struct {
 				'consLR_t',
 				'slopeLimiter',
 				'eigen_forCell',		-- defined in eqn, used by PLM
+				'eqn.dU-dW',	-- plm.cl uses apply_dU_dW, apply_dW_dU
 			},
 			code = template(file['hydro/solver/plm.cl'], {solver=self, eqn=self.eqn}),
 		}
-		self.sharedModulesEnabled['GridSolver.usePLM'] = true
+		
+		self.solverModulesEnabled['GridSolver.usePLM'] = true
 	end
 
 	if self.useCTU then

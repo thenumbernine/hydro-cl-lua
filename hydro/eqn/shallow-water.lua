@@ -45,9 +45,16 @@ real calc_C(constant <?=solver.solver_t?>* solver, <?=eqn.cons_t?> U) {
 	})
 end
 
-
-function ShallowWater:getPrimConsCode()
-	return template([[
+function ShallowWater:initCodeModulePrimCons()
+	self.solver.modules:add{
+		name = 'eqn.prim-cons',
+		depends = {
+			'real3',
+			'solver.solver_t',
+			'eqn.prim_t',
+			'eqn.cons_t',
+		},
+		code = template([[
 <?=eqn.prim_t?> primFromCons(constant <?=solver.solver_t?>* solver, <?=eqn.cons_t?> U, real3 x) {
 	return (<?=eqn.prim_t?>){
 		.h = U.h,
@@ -61,7 +68,22 @@ function ShallowWater:getPrimConsCode()
 		.m = real3_real_mul(W.v, W.h),
 	};
 }
+]], 	{
+			solver = self.solver,
+			eqn = self,
+		}),
+	}
 
+	-- only used by PLM
+	self.solver.modules:add{
+		name = 'eqn.dU-dW',
+		depends = {
+			'real3',
+			'solver.solver_t',
+			'eqn.prim_t',
+			'eqn.cons_t',
+		},
+		code = template([[
 <?=eqn.cons_t?> apply_dU_dW(
 	constant <?=solver.solver_t?>* solver,
 	<?=eqn.prim_t?> WA, 
@@ -90,11 +112,11 @@ function ShallowWater:getPrimConsCode()
 			real3_real_mul(WA.v, U.h / WA.h)),
 	};
 }
-
-]], {
-		solver = self.solver,
-		eqn = self,
-	})
+]], 	{
+			solver = self.solver,
+			eqn = self,
+		}),
+	}
 end
 
 ShallowWater.initCondCode = [[
