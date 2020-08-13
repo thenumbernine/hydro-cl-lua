@@ -196,9 +196,14 @@ local function TwoFluidEMHDBehavior(parent)
 		-- build self.codePrefix
 		require 'hydro.solver.gridsolver'.createCodePrefix(self)
 
+		local codePrefix = table{
+			self.modules:getHeader(self.solverModuleNames:unpack()),
+			self.modules:getCode(self.solverModuleNames:unpack()),
+		}:concat'\n'
+
 		local lines = table{
 			'// TwoFluidEMHDSeparateBehavior:replaceSourceKernels() end',
-			self.codePrefix,
+			codePrefix,
 --			self.eqn:getTypeCode(),
 
 			'#define eps0 '..clnumber(eps0),

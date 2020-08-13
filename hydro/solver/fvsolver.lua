@@ -26,6 +26,15 @@ function FiniteVolumeSolver:initObjs(args)
 	self:createFlux(args.flux, args.fluxArgs)
 end
 
+function FiniteVolumeSolver:initCodeModules()
+	FiniteVolumeSolver.super.initCodeModules(self)
+
+	-- TODO put this in fvsolver wherever it asks for the code that calls cons_parallelPropagate (I think is in calcDerivFV)
+	-- TODO don't juse use one self.solverModuleNames
+	-- use separate ones every time a program is building source code
+	self.solverModuleNames:insert'cons_parallelPropagate'
+end
+
 function FiniteVolumeSolver:createFlux(fluxName, fluxArgs)
 	assert(fluxName, "expected flux")
 	local fluxClass = require('hydro.flux.'..fluxName)

@@ -2166,10 +2166,15 @@ bool testTriangle(real3 xc) {
 				dst[j] = 0
 			end
 
+			local codePrefix = table{
+				solver.modules:getHeader(solver.solverModuleNames:unpack()),
+				solver.modules:getCode(solver.solverModuleNames:unpack()),
+			}:concat'\n'
+	
 			local addExtraSourceProgramObj = solver.Program{
 				name = 'addExtraSource',
 				code = table{
-					solver.codePrefix,
+					codePrefix,
 					template([[
 //single cell domain
 kernel void addExtraSource(

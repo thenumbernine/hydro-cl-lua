@@ -40,8 +40,14 @@ function GRHDSeparateSolver:init(args)
 	local HydroSolver = class(require 'hydro.solver.grhd-roe')
 	function HydroSolver:createCodePrefix()
 		HydroSolver.super.createCodePrefix(self)
+		
+		local codePrefix = table{
+			self.modules:getHeader(self.solverModuleNames:unpack()),
+			self.modules:getCode(self.solverModuleNames:unpack()),
+		}:concat'\n'
+
 		self.codePrefix = table{
-			self.codePrefix,
+			codePrefix,
 			gr.eqn:getTypeCode(),
 			
 			-- this is for calc_exp_neg4phi
@@ -169,9 +175,14 @@ function GRHDSeparateSolver:createCalcStressEnergyKernel()
 	-- build self.codePrefix
 	-- TODO FIXME not working
 	require 'hydro.solver.gridsolver'.createCodePrefix(self)
-	
+
+	local codePrefix = table{
+		self.modules:getHeader(self.solverModuleNames:unpack()),
+		self.modules:getCode(self.solverModuleNames:unpack()),
+	}:concat'\n'
+
 	local lines = table{
-		self.codePrefix,
+		codePrefix,
 		self.gr.eqn:getTypeCode(),
 		self.hydro.eqn:getTypeCode(),
 		template([[
@@ -263,9 +274,14 @@ function GRHDSeparateSolver:replaceSourceKernels()
 	
 	-- build self.codePrefix
 	require 'hydro.solver.gridsolver'.createCodePrefix(self)
-	
+
+	local codePrefix = table{
+		self.modules:getHeader(self.solverModuleNames:unpack()),
+		self.modules:getCode(self.solverModuleNames:unpack()),
+	}:concat'\n'
+
 	local lines = table{
-		self.codePrefix,
+		codePrefix,
 		self.gr.eqn:getTypeCode(),
 		self.hydro.eqn:getTypeCode(),
 		template([[

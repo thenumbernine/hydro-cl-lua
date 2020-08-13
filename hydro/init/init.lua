@@ -80,13 +80,23 @@ function InitCond:addGuiVar(args)
 end
 --]]
 
-function InitCond:refreshInitStateProgram(solver)
-	solver:buildMathCLUnlinked()
+function InitCond:initCodeModules(solver)
+	solver.modules:add{
+		name = 'initCond-codeprefix',
+		code = self.getCodePrefix and self:getCodePrefix(solver) or '',
+	}
+end
 
+function InitCond:refreshInitStateProgram(solver)
 	local initCondCode 
 	time('generating init state code', function()
+		local codePrefix = table{
+			solver.modules:getHeader(solver.solverModuleNames:unpack()),
+			solver.modules:getCode(solver.solverModuleNames:unpack()),
+		}:concat'\n'
+
 		initCondCode = table{
-			solver.codePrefix,
+			codePrefix,
 			
 			self.initStruct.typecode,
 		
@@ -101,32 +111,11 @@ function InitCond:refreshInitStateProgram(solver)
 		}:concat'\n'
 	end)
 
-if solver.useCLLinkLibraries then 
-	--local code = initCondCode
-	local code = table{
-		initCondCode,
-		self.modules:getHeader'math',
-		self.modules:getCode'math',
-	}:concat'\n'
-	time('compiling init state program', function()
-		solver.initCondUnlinkedObj = solver.Program{name='initCond', code=code}
-		solver.initCondUnlinkedObj:compile{dontLink=true}
-	end)
-	time('linking init state program', function()
-		solver.initCondProgramObj = solver.Program{
-			programs = {
-				solver.mathUnlinkedObj, 
-				solver.initCondUnlinkedObj,
-			},
-		}
-	end)
-else	-- not useCLLinkLibraries
 	local file = require 'ext.file'
 	time('building init cond program', function()
 		solver.initCondProgramObj = solver.Program{name='initCond', code=initCondCode}
 		solver.initCondProgramObj:compile()
 	end)
-end
 
 	-- how to give initCond access to rand()?
 	-- fill UBuf with random numbers before calling it

@@ -80,9 +80,14 @@ function PoissonKrylov:initSolver()
 		}
 	end
 
+	local codePrefix = table{
+		solver.modules:getHeader(solver.solverModuleNames:unpack()),
+		solver.modules:getCode(solver.solverModuleNames:unpack()),
+	}:concat'\n'
+
 	local mulWithoutBorderKernelObj = solver.domain:kernel{
 		name = 'Poisson_mulWithoutBorder'..self.name,
-		header = solver.codePrefix,
+		header = codePrefix,
 		argsOut = {
 			{name='y', type=solver.app.real, obj=true},
 		},
@@ -102,7 +107,7 @@ function PoissonKrylov:initSolver()
 
 	local squareKernelObj = solver.domain:kernel{
 		name = 'Poisson_square'..self.name,
-		header = solver.codePrefix,
+		header = codePrefix,
 		argsOut = {
 			{name = 'y', type=solver.app.real, obj=true},
 		},

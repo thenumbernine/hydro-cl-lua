@@ -317,30 +317,37 @@ typedef union {
 
 	assert(not self.getTypeCode, "please convert :getTypeCode() to :initCodeModules()")
 	assert(not self.getEigenTypeCode, "please convert :getEigenTypeCode() to :initCodeModules()")
-end
 
+	-- only require this if we're a fvsolver
 
-function Equation:getCodePrefix()
-	return (self.guiVars and table.mapi(self.guiVars, function(var,i,t) 
-		return (var.compileTime and var:getCode() or nil), #t+1
-	end) or table()):append{
-		self.initCond.getCodePrefix 
-			and self.initCond:getCodePrefix(self.solver)
-			or '',
-		
-		-- functions that prim-cons code will use, but which use macros:
-		self.getCommonFuncCode and self:getCommonFuncCode() or '',
-		
-		-- prim-cons goes here
-		-- it goes last so it has access to everything above it
-		-- but it must be in codeprefix so initstate has access to it
-		self:getPrimConsCode() or '',
+	-- parallel propagate autogen code 
+	-- only used for finite-volume solvers
+	-- also NOTICE there seems to be a bug where the CL compiler stalls when compiling the parallel-propagate code with bssnok-fd
+	self.solver.modules:add{
+		name = 'cons_parallelPropagate',
+		code = self:getParallelPropagateCode(),
+	}
 
-		-- parallel propagate autogen code 
-		-- only used for finite-volume solvers
-		-- also NOTICE there seems to be a bug where the CL compiler stalls when compiling the parallel-propagate code with bssnok-fd
-		require 'hydro.solver.fvsolver'.is(self.solver) and self:getParallelPropagateCode() or '',
-	}:concat'\n'
+	-- put this here or in SolverBase?
+	self.initCond:initCodeModules(self.solver)
+
+	do
+		self.solver.modules:add{
+			name = 'eqn-codeprefix',
+			depends = {'initCond-codeprefix'},
+			code = (self.guiVars and table.mapi(self.guiVars, function(var,i,t) 
+				return (var.compileTime and var:getCode() or nil), #t+1
+			end) or table()):append{
+				-- functions that prim-cons code will use, but which use macros:
+				self.getCommonFuncCode and self:getCommonFuncCode() or '',
+				
+				-- prim-cons goes here
+				-- it goes last so it has access to everything above it
+				-- but it must be in codeprefix so initstate has access to it
+				self:getPrimConsCode() or '',
+			}:concat'\n',
+		}
+	end
 end
 
 function Equation:getSolverCode()

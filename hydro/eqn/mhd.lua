@@ -302,7 +302,7 @@ range_t calcCellMinMaxEigenvalues(
 	}
 
 	-- TODO don't put this here, instead make it a depends of the calcDT/consWaveCodePrefix code below that references it.
-	solver.reqmodules:insertUnique'calcCellMinMaxEigenvalues'
+	solver.solverProgramModules:insertUnique'calcCellMinMaxEigenvalues'
 	
 	MHD.super.initCodeModules(self)
 end

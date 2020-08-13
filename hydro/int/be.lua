@@ -65,10 +65,14 @@ function BackwardEuler:init(solver, args)
 		count = solver.numCells * solver.eqn.numStates,
 	}
 
+	local codePrefix = table{
+		solver.modules:getHeader(solver.solverModuleNames:unpack()),
+		solver.modules:getCode(solver.solverModuleNames:unpack()),
+	}:concat'\n'
+	
 	local copyBufferWithOrWithoutGhostProgram = solver.Program{
 		name = 'int-be',
-		code = template(
-solver.codePrefix..[[
+		code = template(codePrefix..[[
 <? local range = require 'ext.range' ?>
 kernel void copyBufferWithoutGhostToBufferWithGhost(
 	constant <?=solver.solver_t?>* solver,

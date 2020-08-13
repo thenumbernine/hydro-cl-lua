@@ -34,8 +34,14 @@ function GREMSeparateSolver:init(args)
 	local GRMaxwellSolver = class(require 'hydro.solver.gr-maxwell-roe')
 	function GRMaxwellSolver:createCodePrefix()
 		GRMaxwellSolver.super.createCodePrefix(self)
+		
+		local codePrefix = table{
+			self.modules:getHeader(self.solverModuleNames:unpack()),
+			self.modules:getCode(self.solverModuleNames:unpack()),
+		}:concat'\n'
+
 		self.codePrefix = table{
-			self.codePrefix,
+			codePrefix,
 			gr.eqn:getTypeCode(),
 			
 			-- this is for gr's calc_exp_neg4phi, which em will need 
@@ -155,9 +161,14 @@ function GREMSeparateSolver:replaceSourceKernels()
 
 	-- build self.codePrefix
 	require 'hydro.solver.gridsolver'.createCodePrefix(self)
-	
+
+	local codePrefix = table{
+		self.modules:getHeader(self.solverModuleNames:unpack()),
+		self.modules:getCode(self.solverModuleNames:unpack()),
+	}:concat'\n'
+
 	local lines = table{
-		self.codePrefix,
+		codePrefix,
 		self.gr.eqn:getTypeCode(),
 		self.gr.eqn:getCommonFuncCode(),
 		self.em.eqn:getTypeCode(),

@@ -194,6 +194,104 @@ end
 function GridSolver:initCodeModules()
 	GridSolver.super.initCodeModules(self)
 
+	self.modules:add{
+		name = 'GridSolver-codeprefix',
+		headercode = table{
+			'#define numGhost '..self.numGhost,
+			'#define INDEX(a,b,c)	((a) + solver->gridSize.x * ((b) + solver->gridSize.y * (c)))',
+			'#define INDEXV(i)		indexForInt4ForSize(i, solver->gridSize.x, solver->gridSize.y, solver->gridSize.z)',
+--[[
+naming conventions ...
+* the grid indexes i_1..i_n that span 1 through solver->gridSize.1..solver->gridSize.n
+(between the index and the coordinate space:)
+	- grid_dx? is the change in coordinate space wrt the change in grid space
+	- cell_x(i) calculates the coordinates at index i
+* the coordinates space x_1..x_n that spans mins.s1..maxs.sn
+(between the coordinate and the embedded space:)
+	- vectors can be calculated from Cartesian by cartesianToCoord
+	- the length of the basis vectors wrt the change in indexes is given by cell_dx?(x)
+	- the Cartesian length of the holonomic basis vectors is given by coord_dx?(x).  
+		This is like cell_dx? except not scaled by grid_dx?
+		This is just the change in embedded wrt the change in coordinate, not wrt the change in grid
+	- cell_volume(x) gives the volume between indexes at the coordinate x
+	- the Cartesian length of a vector in coordinate space is given by coordLen and coordLenSq
+* the embedded Cartesian space ... idk what letters I should use for this.  
+	Some literature uses r^i or u^i vs coordinate space x^a.
+	Maybe I'll use 'xc' vs 'x', like I've already started to do in the initial conditions.
+
+functionality (and abstraction):
+	- Allow the option for precomputing certain variables of the coordinate system: the chart mapping.
+	 (Though for some operations, like the Euler equations wavespeeds, it is faster to compute them than to retrieve them from memory, so I suspect similar for the coordinate chart.)
+	- Add a macro for useful values to compute, like the x,y,z,r,theta,phi variables.
+	 (This is already started in the coords.vars table.)
+--]]
+		}
+		
+		-- mapping from index to coordinate 
+		:append(range(self.dim):map(function(i)
+			return (('#define cell_x{i}(i) (((real)(i) + .5 - (real)numGhost) * solver->grid_dx.{x} + solver->mins.{x})')
+				:gsub('{i}', i-1)
+				:gsub('{x}', xNames[i])
+			)
+		end))
+
+		-- non-dimension coordinates don't need ghosts (right)
+		:append(range(self.dim+1,3):map(function(i)
+			return (('#define cell_x{i}(i) (((real)(i) + .5) * solver->grid_dx.{x} + solver->mins.{x})')
+				:gsub('{i}', i-1)
+				:gsub('{x}', xNames[i])
+			)
+		end))
+
+		:append{
+			--'#define cell_x(i) _real3(cell_x0(i.x), cell_x1(i.y), cell_x2(i.z))',
+			-- bounds-check macro
+			'#define OOB(lhs,rhs) (i.x < (lhs) || i.x >= solver->gridSize.x - (rhs)'
+				.. (self.dim < 2 and '' or ' || i.y < (lhs) || i.y >= solver->gridSize.y - (rhs)')
+				.. (self.dim < 3 and '' or ' || i.z < (lhs) || i.z >= solver->gridSize.z - (rhs)')
+				.. ')',
+			template([[
+// define i, index, and bounds-check
+#define SETBOUNDS(lhs,rhs)	\
+	int4 i = globalInt4(); \
+	if (OOB(lhs,rhs)) return; \
+	int index = INDEXV(i);
+		
+// same as above, except for kernels that don't use the boundary
+// index operates on buffers of 'gridSize' (with border)
+// but the kernel must be invoked across sizeWithoutBorder
+<? local range = require 'ext.range'
+?>#define SETBOUNDS_NOGHOST() \
+	int4 i = globalInt4(); \
+	if (OOB(0,2*numGhost)) return; \
+	i += (int4)(<?=range(4):map(function(i) 
+		return i <= solver.dim and 'numGhost' or '0' 
+	end):concat','?>); \
+	int index = INDEXV(i);
+]], {solver=self}),
+		}
+		:concat'\n',
+	}
+	self.solverModuleNames:insert'GridSolver-codeprefix'
+
+	-- volume of a cell = volume element times grid dx's 
+	self.modules:add{
+		name = 'cell_sqrt_det_g',
+		code = template([[
+static inline real cell_sqrt_det_g(constant <?=solver.solver_t?>* solver, real3 x) {
+	return coord_sqrt_det_g(x)<?
+for i=1,solver.dim do
+?> * solver->grid_dx.<?=xNames[i]?><?
+end
+?>;
+}
+]], 	{
+			solver = self,
+			xNames = xNames,
+		}),
+	}
+	self.solverModuleNames:insert'cell_sqrt_det_g'
+
 	if self.usePLM then
 		self.modules:add{
 			name = 'slopeLimiter',
@@ -207,7 +305,7 @@ real slopeLimiter(real r) {
 		}
 		
 		self.modules:add{
-			name = 'consLR',
+			name = 'consLR_t',
 			depends = {'eqn.cons_t'},
 			typecode = template([[
 typedef union {
@@ -226,9 +324,11 @@ typedef struct {
 				eqn = self.eqn,
 			}),
 		}
-		self.reqmodules:insert'consLR'
-		self.reqmodules:insert'slopeLimiter'
-		self.reqmodules:insert'eigen_forCell'	-- defined in eqn, used by PLM
+		self.solverModuleNames:append{
+			'consLR_t',
+			'slopeLimiter',
+			'eigen_forCell',	-- defined in eqn, used by PLM
+		}
 	end
 end
 
@@ -371,15 +471,10 @@ function GridSolver:initDraw()
 	}
 end
 
-
--- my best idea to work around the stupid 8-arg max kernel restriction
--- this is almost as bad of an idea as using OpenCL was to begin with
-GridSolver.allocateOneBigStructure = false
-
 function GridSolver:createSolverBuf()
 	GridSolver.super.createSolverBuf(self)
 
-	-- do this before any call to createBuffers or createCodePrefix
+	-- do this before any call to createBuffers
 	self.solverPtr.gridSize.x = self.gridSize.x
 	self.solverPtr.gridSize.y = self.gridSize.y
 	self.solverPtr.gridSize.z = self.gridSize.z
@@ -442,115 +537,6 @@ function GridSolver:createBuffers()
 		-- TODO self.eqn.consLR_t..'_dim' and remove * self.dim ?
 		self:clalloc('ULRBuf', self.eqn.consLR_t, self.numCells * self.dim)
 	end
-end
-
-function GridSolver:createCodePrefix()
-	local lines = table()
-	
-	GridSolver.super.createCodePrefix(self)
-
-	lines:append{
-		'#define numGhost '..self.numGhost,
-	}:append{
-		'#define INDEX(a,b,c)	((a) + solver->gridSize.x * ((b) + solver->gridSize.y * (c)))',
-		'#define INDEXV(i)		indexForInt4ForSize(i, solver->gridSize.x, solver->gridSize.y, solver->gridSize.z)',
-	
-	--[[
-	naming conventions ...
-	* the grid indexes i_1..i_n that span 1 through solver->gridSize.1..solver->gridSize.n
-	(between the index and the coordinate space:)
-		- grid_dx? is the change in coordinate space wrt the change in grid space
-		- cell_x(i) calculates the coordinates at index i
-	* the coordinates space x_1..x_n that spans mins.s1..maxs.sn
-	(between the coordinate and the embedded space:)
-		- vectors can be calculated from Cartesian by cartesianToCoord
-		- the length of the basis vectors wrt the change in indexes is given by cell_dx?(x)
-		- the Cartesian length of the holonomic basis vectors is given by coord_dx?(x).  
-			This is like cell_dx? except not scaled by grid_dx?
-			This is just the change in embedded wrt the change in coordinate, not wrt the change in grid
-		- cell_volume(x) gives the volume between indexes at the coordinate x
-		- the Cartesian length of a vector in coordinate space is given by coordLen and coordLenSq
-	* the embedded Cartesian space ... idk what letters I should use for this.  
-		Some literature uses r^i or u^i vs coordinate space x^a.
-		Maybe I'll use 'xc' vs 'x', like I've already started to do in the initial conditions.
-	
-	functionality (and abstraction):
-		- Allow the option for precomputing certain variables of the coordinate system: the chart mapping.
-		 (Though for some operations, like the Euler equations wavespeeds, it is faster to compute them than to retrieve them from memory, so I suspect similar for the coordinate chart.)
-		- Add a macro for useful values to compute, like the x,y,z,r,theta,phi variables.
-		 (This is already started in the coords.vars table.)
-	--]]
-	
-	}:append(range(self.dim):map(function(i)
-	-- mapping from index to coordinate 
-		return (('#define cell_x{i}(i) (((real)(i) + .5 - (real)numGhost) * solver->grid_dx.{x} + solver->mins.{x})')
-			:gsub('{i}', i-1)
-			:gsub('{x}', xNames[i])
-		)
-	end)):append(range(self.dim+1,3):map(function(i)
-	-- non-dimension coordinates don't need ghosts (right)
-		return (('#define cell_x{i}(i) (((real)(i) + .5) * solver->grid_dx.{x} + solver->mins.{x})')
-			:gsub('{i}', i-1)
-			:gsub('{x}', xNames[i])
-		)
-	end)):append{
---		'#define cell_x(i) _real3(cell_x0(i.x), cell_x1(i.y), cell_x2(i.z))',
-	
-		-- bounds-check macro
-		'#define OOB(lhs,rhs) (i.x < (lhs) || i.x >= solver->gridSize.x - (rhs)'
-			.. (self.dim < 2 and '' or ' || i.y < (lhs) || i.y >= solver->gridSize.y - (rhs)')
-			.. (self.dim < 3 and '' or ' || i.z < (lhs) || i.z >= solver->gridSize.z - (rhs)')
-			.. ')',
-		
-		template([[
-
-// define i, index, and bounds-check
-#define SETBOUNDS(lhs,rhs)	\
-	int4 i = globalInt4(); \
-	if (OOB(lhs,rhs)) return; \
-	int index = INDEXV(i);
-		
-// same as above, except for kernels that don't use the boundary
-// index operates on buffers of 'gridSize' (with border)
-// but the kernel must be invoked across sizeWithoutBorder
-<? local range = require 'ext.range'
-?>#define SETBOUNDS_NOGHOST() \
-	int4 i = globalInt4(); \
-	if (OOB(0,2*numGhost)) return; \
-	i += (int4)(<?=range(4):map(function(i) 
-		return i <= solver.dim and 'numGhost' or '0' 
-	end):concat','?>); \
-	int index = INDEXV(i);
-]], {solver = self}),
-	}
-
-	-- above we have macros that are used in solver & eqn codePrefix
-	lines:insert(self.codePrefix)
-	-- below here we have solver_t usage
-	
-	-- volume of a cell = volume element times grid dx's 
-	lines:insert(template([[
-static inline real cell_sqrt_det_g(constant <?=solver.solver_t?>* solver, real3 x) {
-	return coord_sqrt_det_g(x)<?
-for i=1,solver.dim do
-?> * solver->grid_dx.<?=xNames[i]?><?
-end
-?>;
-}
-]], {
-	solver = self,
-	xNames = xNames,
-}))
-
-	lines:append{
-		-- not messing with this one yet
-		self.allocateOneBigStructure and '#define allocateOneBigStructure' or '',
-	}
-
-	self.codePrefix = lines:concat'\n'
-
---print'done building solver.codePrefix'
---print(self.codePrefix)
 end
 
 function GridSolver:getSolverCode()
@@ -1220,7 +1206,12 @@ function GridSolver:createBoundaryProgramAndKernel(args)
 	local field = args.field or function(a, b) return a .. '.' .. b end
 
 	local lines = table()
-	lines:insert(self.codePrefix)
+	
+	local codePrefix = table{
+		self.modules:getHeader(self.solverModuleNames:unpack()),
+		self.modules:getCode(self.solverModuleNames:unpack()),
+	}:concat'\n'
+	lines:insert(codePrefix)
 
 	local iFields = ({
 		nil,
@@ -1319,25 +1310,11 @@ lines:insert[[
 	local boundaryProgramName = 'boundary'..(args.programNameSuffix or '')
 
 	local boundaryProgramObj
-if self.useCLLinkLibraries then 
-	time('compiling boundary program', function()
-		boundaryUnlinkedObj = self.Program{name=boundaryProgramName, code=code}
-		boundaryUnlinkedObj:compile{dontLink=true}
-	end)
-	time('linking boundary program', function()
-		boundaryProgramObj = self.Program{
-			programs = {
-				self.mathUnlinkedObj, 
-				boundaryUnlinkedObj,
-			},
-		}
-	end)
-else
 	time('building boundary program', function()
 		boundaryProgramObj = self.Program{name=boundaryProgramName, code=code}
 		boundaryProgramObj:compile()
 	end)
-end	
+	
 	local boundaryKernelObjs = table()
 	for i=1,self.dim do
 		local kernelObj = boundaryProgramObj:kernel('boundary_'..xNames[i])

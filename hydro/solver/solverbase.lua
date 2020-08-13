@@ -90,7 +90,7 @@ SolverBase:init
 	-- subsequent cl programs will collect the required ones for building
 	SolverBase:initCodeModules
 		self.modules = ...
-		self.reqmdules = ...
+		self.solverModuleNames = ...
 		
 		self.coord:initCodeModules
 		self.eqn:initCodeModules
@@ -126,10 +126,6 @@ SolverBase:init
 				
 				GridSolver:refreshCodePrefix
 					SolverBase:refreshCodePrefix
-						GridSolver:createCodePrefix
-							SolverBase:createCodePrefix
-								SolverBase:createCodePrefixSource
-									self.eqn:getCodePrefix
 						SolverBase:refreshIntegrator
 							self.integrator = ...
 						SolverBase:refreshInitStateProgram
@@ -147,8 +143,6 @@ SolverBase:init
 									self.getULRBufName = ...
 									self.getURLArg = ...
 									self.getURLCode = ...
-								SolverBase:buildMathCLUnlinked
-									self.mathUnlinkedObj = ...
 								
 --------- here's where the program code is collected ---------
 
@@ -267,7 +261,52 @@ SolverBase.eqnName = nil
 
 -- whether to use separate linked binaries.  would it save on compile time?
 -- this does work, however I don't have caching for linked libraries set up yet
+-- TODO with the new code module system, I'm removing this for now
+--  not sure how I will design cl->obj->bin, whether it will be 1-1 with the modules (which are numerous) or 1-1 with the bins (which are few)
+--[[
 SolverBase.useCLLinkLibraries = false
+-- for reference on how it was being used:
+
+	if self.useCLLinkLibraries then 
+		time('compiling common program', function()
+			self.commonUnlinkedObj = self.Program{name='common', code=commonCode}
+			self.commonUnlinkedObj:compile{dontLink=true}
+		end)
+		time('linking common program', function()
+			self.commonProgramObj = self.Program{
+				programs = {
+					self.mathUnlinkedObj, 
+					self.commonUnlinkedObj,
+				},
+			}
+		end)
+	else
+		time('building common program', function()
+			self.commonProgramObj = self.Program{name='common', code=commonCode}
+			self.commonProgramObj:compile()
+		end)
+	end
+
+	...
+
+	if not SolverBase.useCLLinkLibraries then return end
+	if self.mathUnlinkedObj then return end
+	-- build math cl binary obj
+	time('compiling math program', function()
+		self.mathUnlinkedObj = self.Program{
+			name = 'math',
+			code = table{
+				self.modules:getHeader(self.solverModuleNames:unpack()),
+				self.modules:getCode(self.solverModuleNames:unpack()),
+			}:concat'\n',
+		}
+		self.mathUnlinkedObj:compile{
+			dontLink = true,
+			buildOptions = '-create-library',
+		}
+	end)
+
+--]]
 
 -- whether to check for NaNs
 SolverBase.checkNaNs = cmdline.checknans or false
@@ -494,8 +533,7 @@ function SolverBase:initObjs(args)
 	self.fluxLimiter = self.app.limiterNames:find(args.fluxLimiter) or 1
 
 
-	-- this influences createCodePrefix (via its call of eqn:getCodePrefix)
-	--  and refreshInitStateProgram()
+	-- this influences refreshInitStateProgram()
 	self.eqn:createInitState()
 
 	-- add eqn vars to solver_t
@@ -507,7 +545,7 @@ function SolverBase:initObjs(args)
 
 	self:refreshGetULR()
 
-	-- do this before any call to createBuffers or createCodePrefix
+	-- do this before any call to createBuffers
 	-- make sure it's done after createEqn (for the solver_t struct to be filled out by the eqn)
 	-- actually this has to go after self.eqn:createInitState, 
 	--  which is called in refreshEqnInitState
@@ -536,22 +574,15 @@ function SolverBase:initCodeModules()
 	self.modules = require 'hydro.code.moduleset'(self.app.modules)
 	
 	-- what to compile?
-	self.reqmodules = table{
+	self.solverModuleNames = table{
 		'math',
-		'coord',
---		'conn',
-		'metric',
-		'eqn',		-- just the header of this
-		'coord-cell',
-		'solver-struct',
-		'codeprefix-macros',
-		'eqn-codeprefix',
 	}
 
 	self.modules:add{
 		name = 'solver-struct',
 		typecode = assert(self.solverStruct.typecode),
 	}
+	self.solverModuleNames:insert'solver-struct'
 
 	-- header
 	self.modules:add{
@@ -567,20 +598,33 @@ function SolverBase:initCodeModules()
 			'#define numWaves '..self.eqn.numWaves,
 		}:concat'\n',
 	}
+	self.solverModuleNames:insert'codeprefix-macros'
 
 	self.coord:initCodeModules()
-	self.eqn:initCodeModules()
-
-	self.modules:add{
-		name = 'eqn-codeprefix',
-		code = self.eqn:getCodePrefix(),
+	self.solverModuleNames:append{
+		'coord',
+--		'conn',
+		'metric',
+		'coord-cell',
 	}
+
+	self.eqn:initCodeModules()	-- calls eqn.initCond:initCodeModules()
+	self.solverModuleNames:append{
+		'eqn',		-- just the header of this
+		'eqn-codeprefix',
+	}
+
+	for _,op in ipairs(self.ops) do
+		if op.initCodeModules then
+			op:initCodeModules(self)
+		end
+	end
 end
 
 -- TODO if you want to define ffi ctype metatable then put them all in one spot here
 function SolverBase:initCDefs()
 	require 'hydro.code.safecdef'(table{
-		self.modules:getTypeHeader(self.reqmodules:unpack()),
+		self.modules:getTypeHeader(self.solverModuleNames:unpack()),
 	}:concat'\n')
 end
 
@@ -700,8 +744,13 @@ function SolverBase:refreshCommonProgram()
 	-- code that depend on real and nothing else
 	-- TODO move to app, along with reduceBuf
 
+	local codePrefix = table{
+		self.modules:getHeader(self.solverModuleNames:unpack()),
+		self.modules:getCode(self.solverModuleNames:unpack()),
+	}:concat'\n'
+
 	local commonCode = table():append{
-		self.codePrefix,
+		codePrefix,
 	}:append{
 		template([[
 kernel void multAddInto(
@@ -755,25 +804,10 @@ end
 		})
 	}:concat'\n'
 
-if self.useCLLinkLibraries then 
-	time('compiling common program', function()
-		self.commonUnlinkedObj = self.Program{name='common', code=commonCode}
-		self.commonUnlinkedObj:compile{dontLink=true}
-	end)
-	time('linking common program', function()
-		self.commonProgramObj = self.Program{
-			programs = {
-				self.mathUnlinkedObj, 
-				self.commonUnlinkedObj,
-			},
-		}
-	end)
-else
 	time('building common program', function()
 		self.commonProgramObj = self.Program{name='common', code=commonCode}
 		self.commonProgramObj:compile()
 	end)
-end
 
 	-- used by the integrators
 	-- needs the same globalSize and localSize as the typical simulation kernels
@@ -1011,7 +1045,6 @@ function SolverBase:createEqn()
 end
 
 function SolverBase:refreshCodePrefix()
-	self:createCodePrefix()		-- depends on eqn, gridSize, displayVars
 	self:refreshIntegrator()	-- depends on eqn & gridSize ... & ffi.cdef cons_t
 	self:refreshInitStateProgram()
 	self:refreshSolverProgram()	-- depends on createDisplayVars
@@ -1025,51 +1058,15 @@ or should overriding the state be allowed?
 --]]
 end
 
-function SolverBase:buildMathCLUnlinked()
-if not SolverBase.useCLLinkLibraries then return end
-	if self.mathUnlinkedObj then return end
-	-- build math cl binary obj
-	time('compiling math program', function()
-		self.mathUnlinkedObj = self.Program{
-			name = 'math',
-			code = table{
-				self.modules:getHeader(self.reqmodules:unpack()),
-				self.modules:getCode(self.reqmodules:unpack()),
-			}:concat'\n',
-		}
-		self.mathUnlinkedObj:compile{
-			dontLink = true,
-			buildOptions = '-create-library',
-		}
-	end)
-end
-
 -- depends on buffers
 function SolverBase:refreshSolverProgram()
 	self:refreshGetULR()	
-
-	self:buildMathCLUnlinked()
 
 	local code
 	time('generating solver code', function()
 		code = self:getSolverCode()	-- depends on createDisplayVars
 	end)
 
-if SolverBase.useCLLinkLibraries then 
-	time('compiling solver program', function()
-		self.solverUnlinkedObj = self.Program{
-			name = 'solver',
-			code = code,
-		}
-		self.solverUnlinkedObj:compile{dontLink=true}
-	end)
-
-	time('linking solver program', function()
-		self.solverProgramObj = self.Program{
-			programs = {self.mathUnlinkedObj, self.solverUnlinkedObj},
-		}
-	end)
-else
 	time('building solver program', function()
 		self.solverProgramObj = self.Program{
 			name = 'solver',
@@ -1077,7 +1074,6 @@ else
 		}
 		self.solverProgramObj:compile()
 	end)
-end
 
 	self:refreshCalcDTKernel()
 
@@ -1138,15 +1134,18 @@ end
 
 
 function SolverBase:getSolverCode()
-	local fluxLimiterCode = 'real fluxLimiter(real r) {\n'
-		.. '\t' ..self.app.limiters[self.fluxLimiter].code..'\n'
-		.. '}\n'
+	local codePrefix = table{
+		self.modules:getHeader(self.solverModuleNames:unpack()),
+		self.modules:getCode(self.solverModuleNames:unpack()),
+	}:concat'\n'
 
 	return table{
-		self.codePrefix,
+		codePrefix,
 		
-		fluxLimiterCode,
-		
+		'real fluxLimiter(real r) {\n'
+		.. '\t' ..self.app.limiters[self.fluxLimiter].code..'\n'
+		.. '}\n',
+
 		'typedef struct { real min, max; } range_t;',
 		
 		-- TODO move to Roe, or FiniteVolumeSolver as a parent of Roe and HLL?
@@ -1155,6 +1154,8 @@ function SolverBase:getSolverCode()
 		self.eqn:getFluxFromConsCode() or '',
 	
 	}:append(self.ops:mapi(function(op)
+-- TODO make modules for each of these, and include them in solverModuleNames (for solver program)		
+-- this way they can require only whats necessary
 		return op:getCode() or ''
 	end)):append{
 		self:getDisplayCode(),
@@ -1463,24 +1464,6 @@ end
 function SolverBase:refreshInitStateProgram()
 	self.eqn.initCond:refreshInitStateProgram(self)
 end
-
-function SolverBase:createCodePrefixSource()
-	lines = table()
-if not SolverBase.useCLLinkLibraries then 
-	lines:append{
-		self.modules:getCode(self.reqmodules:unpack()),
-	}
-end	
-	return lines:concat'\n'
-end
-
-function SolverBase:createCodePrefix()
-	self.codePrefix = table{
-		self.modules:getHeader(self.reqmodules:unpack()),
-		self:createCodePrefixSource(),
-	}:concat'\n'
-end
-
 
 function SolverBase:refreshIntegrator()
 	self.integrator = integrators[self.integratorIndex](self, self.integratorArgs)
@@ -2906,13 +2889,17 @@ function SolverBase:checkStructSizes()
 	local _1x1_domain = self.app.env:domain{size={1}, dim=1}
 	local resultPtr = ffi.new('size_t[?]', varcount)
 	local resultBuf = self.app.env:buffer{name='result', type='size_t', count=varcount, data=resultPtr}
+	
+	local codePrefix = table{
+		self.modules:getHeader(self.solverModuleNames:unpack()),
+		self.modules:getCode(self.solverModuleNames:unpack()),
+	}:concat'\n'
 
-	--print(self.codePrefix)
 	require 'cl.obj.kernel'{
 		env = self.app.env,
 		domain = _1x1_domain,
 		argsOut = {resultBuf},
-		header = self.codePrefix,
+		header = codePrefix,
 		body = template([[
 #define offsetof __builtin_offsetof
 
