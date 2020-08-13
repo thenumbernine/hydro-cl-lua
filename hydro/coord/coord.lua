@@ -1125,6 +1125,7 @@ static inline real coordLen(real3 r, real3 pt) {
 	-- for holonomic/anholonomic this is just the linearly interpolated
 	self.solver.modules:add{
 		name = 'coord.cell_t',
+		depends = {'real3'},
 		structs = {self.cellStruct},
 		headercode = [[
 #define cell_x(i)	cellBuf[INDEXV(i)].pos

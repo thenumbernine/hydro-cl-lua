@@ -280,13 +280,11 @@ function Equation:initCodeModules()
 	assert(self.consStruct)
 	self.solver.modules:add{
 		name = 'eqn.cons_t',
-		depends = {'real'},
 		structs = {self.consStruct},
 	}
 	
 	self.solver.modules:add{
 		name = 'eqn.prim_t',
-		depends = {'real'},
 		structs = {self.primStruct},
 		typecode = not self.primStruct and ('typedef '..self.cons_t..' '..self.prim_t..';') or nil,
 	}

@@ -116,16 +116,15 @@ end
 function ModuleSet:getHeader(...)
 	return table{
 		self:getCodeForGetter(function(module) 
-			return module.typecode, 'typecode' 
-		end, ...),
-		self:getCodeForGetter(function(module) 
-			return module.structs:mapi(function(struct)
+			return table{
+				module.typecode
+			}:append(module.structs:mapi(function(struct)
 				-- this needs makeType() called first, which generates the .typecode
 				-- but it also calls the ffi.metatype (which can only be done once)
 				-- and also the ffi.cdef (which is only effective the first time it's done)
 				return struct.typecode
-			end):concat'\n', 'typecode'
-		end, ...),	
+			end)):concat'\n', 'typecode & structs' 
+		end, ...),
 		self:getCodeForGetter(function(module) 
 			return module.headercode, 'headercode' 
 		end, ...),

@@ -112,7 +112,15 @@ function Euler:initCodeModules()
 	
 	self.solver.modules:add{
 		name = 'eigen_forCell',
-		depends = {'eqn.cons_t', 'eqn.prim_t', 'eqn.eigen_t'},
+		depends = {
+			'coord.normal',	-- normalInfo_t
+			'metric',	-- coord_lower
+			'eqn.cons_t',
+			'eqn.prim_t',
+			'eqn.eigen_t',
+			'eqn.prim-cons',
+			'eqn.solvercode',	-- fluxFromCons
+		},
 		code = template([[
 // used by PLM
 <?=eqn.eigen_t?> eigen_forCell(

@@ -575,8 +575,8 @@ function SolverBase:initCodeModules()
 	-- solverModulesEnabled = modules for solvers
 	-- initModulesEnabled = modules for init
 	-- sharedModulesEnabled = modules for both.  previously 'codeprefix'.
-	self.solverModulesEnabled = table()
 	self.initModulesEnabled = table()
+	self.solverModulesEnabled = table()
 	self.sharedModulesEnabled = table{math=true}
 
 	self.modules:add{
@@ -654,8 +654,14 @@ end
 
 -- TODO if you want to define ffi ctype metatable then put them all in one spot here
 function SolverBase:initCDefs()
+	local moduleNames = table(
+		self.initModulesEnabled,
+		self.solverModulesEnabled,
+		self.sharedModulesEnabled
+	):keys()
+print("ffi.cdef'ing: "..moduleNames:concat', ')
 	require 'hydro.code.safecdef'(table{
-		self.modules:getTypeHeader(self.sharedModulesEnabled:keys():unpack()),
+		self.modules:getTypeHeader(moduleNames:unpack()),
 	}:concat'\n')
 end
 

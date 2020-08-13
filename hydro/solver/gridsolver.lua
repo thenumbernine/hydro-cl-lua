@@ -277,6 +277,9 @@ functionality (and abstraction):
 	-- volume of a cell = volume element times grid dx's 
 	self.modules:add{
 		name = 'cell_sqrt_det_g',
+		depends = {
+			'coord',		-- for now this has coord_sqrt_det_g
+		},
 		code = template([[
 static inline real cell_sqrt_det_g(constant <?=solver.solver_t?>* solver, real3 x) {
 	return coord_sqrt_det_g(x)<?
@@ -341,13 +344,13 @@ typedef struct {
 
 	if self.useCTU then
 		self.modules:add{
-			name = 'GridSolver.useCTU',
+			name = 'GridSolver.updateCTU',
 			depends = table{'cell_sqrt_det_g'}
 				-- optionally dependent on consLR_t when usePLM is enabled
 				:append{self.usePLM and 'consLR_t' or nil},
 			code = template(file['hydro/solver/ctu.cl'], {solver=self, eqn=self.eqn}),
 		}
-		self.sharedModulesEnabled['GridSolver.useCTU'] = true
+		self.sharedModulesEnabled['GridSolver.updateCTU'] = true
 	end
 end
 

@@ -20,6 +20,10 @@ local table = require 'ext.table'
 
 local Module = class()
 
+local predefinedStructTypes = {
+	int4 = true,
+}
+
 function Module:init(args)
 	self.name = assert(args.name)
 	self.depends = table(args.depends)
@@ -31,6 +35,14 @@ function Module:init(args)
 	self.headercode = args.headercode or ''
 	-- functions
 	self.code = args.code or ''
+	-- special for structs - add all its types as dependencies
+	for _,struct in ipairs(self.structs) do
+		for _,var in ipairs(struct.vars) do
+			if not predefinedStructTypes[var.type] then
+				self.depends:insertUnique(var.type)
+			end
+		end
+	end
 end
 
 return Module
