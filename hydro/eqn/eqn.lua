@@ -277,17 +277,15 @@ end
 -- add to self.solver.modules, or add to self.modules and have solver add later?
 function Equation:initCodeModules()
 	assert(self.consStruct)
-	
 	self.solver.modules:add{
 		name = 'eqn.cons_t',
-		typecode = assert(self.consStruct.typecode),
+		structs = {self.consStruct},
 	}
 	
 	self.solver.modules:add{
 		name = 'eqn.prim_t',
-		typecode = self.primStruct 
-			and assert(self.primStruct.typecode)
-			or ('typedef '..self.cons_t..' '..self.prim_t..';'),
+		structs = {self.primStruct},
+		typecode = not self.primStruct and ('typedef '..self.cons_t..' '..self.prim_t..';') or nil,
 	}
 	
 	self.solver.modules:add{
@@ -302,7 +300,7 @@ typedef union {
 	assert(self.eigenStruct)
 	self.solver.modules:add{
 		name = 'eqn.eigen_t',
-		typecode = assert(self.eigenStruct.typecode),
+		structs = {self.eigenStruct},
 	}
 
 	self.solver.modules:add{
