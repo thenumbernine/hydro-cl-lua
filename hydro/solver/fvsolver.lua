@@ -29,8 +29,8 @@ end
 function FiniteVolumeSolver:initCodeModules()
 	FiniteVolumeSolver.super.initCodeModules(self)
 
-	-- TODO put this in fvsolver wherever it asks for the code that calls cons_parallelPropagate (I think is in calcDerivFV)
-	self.solverModulesEnabled['cons_parallelPropagate'] = true
+	-- TODO make this a depends of the module wherever it asks for the code that calls cons_parallelPropagate (I think is in calcDerivFV)
+	self.solverModulesEnabled['eqn.cons_parallelPropagate'] = true
 end
 
 function FiniteVolumeSolver:createFlux(fluxName, fluxArgs)

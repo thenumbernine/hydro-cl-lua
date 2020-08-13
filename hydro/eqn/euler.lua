@@ -450,7 +450,13 @@ Euler.eigenWaveCode = Euler.consWaveCode
 function Euler:initCodeModuleCalcDT()
 	self.solver.modules:add{
 		name = 'eqn.calcDT',
-		depends = {'eqn.types', 'eqn.codeprefix'},
+		depends = {
+			'solver.solver_t',
+			'eqn.cons_t',
+			'eqn.prim_t',
+			'eqn.guiVars.compileTime',
+			'coord.normal',
+		},
 		code = template([[
 <? local solver = eqn.solver ?>
 <? if require 'hydro.solver.gridsolver'.is(solver) then ?>
@@ -542,6 +548,28 @@ kernel void calcDT(
 		}),
 	}
 end
+
+-- TODO same as super except I changed the depends
+local file = require 'ext.file'
+function Euler:initCodeModuleSolver()
+	self.solver.modules:add{
+		name = 'eqn.solvercode',
+		depends = {
+			'eqn.types',
+			'eqn.guiVars.compileTime',
+			'coord',
+			-- Euler-specific:
+			'coord.normal',
+			'metric',
+		},
+	
+		-- why did I have this comment here?:
+		-- TODO move to Roe, or FiniteVolumeSolver as a parent of Roe and HLL?
+		code = template(file[self.solverCodeFile], self:getEnv()),
+	}
+end
+
+
 
 return Euler
 

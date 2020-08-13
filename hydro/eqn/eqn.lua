@@ -280,17 +280,20 @@ function Equation:initCodeModules()
 	assert(self.consStruct)
 	self.solver.modules:add{
 		name = 'eqn.cons_t',
+		depends = {'real'},
 		structs = {self.consStruct},
 	}
 	
 	self.solver.modules:add{
 		name = 'eqn.prim_t',
+		depends = {'real'},
 		structs = {self.primStruct},
 		typecode = not self.primStruct and ('typedef '..self.cons_t..' '..self.prim_t..';') or nil,
 	}
 	
 	self.solver.modules:add{
 		name = 'eqn.waves_t',
+		depends = {'real'},
 		typecode = template([[
 typedef union { 
 	real ptr[<?=eqn.numWaves?>]; 
@@ -322,9 +325,54 @@ typedef union {
 	-- parallel propagate autogen code 
 	-- only used for finite-volume solvers
 	-- also NOTICE there seems to be a bug where the CL compiler stalls when compiling the parallel-propagate code with bssnok-fd
+	-- so hopefully the module system can help that out
+	local degreeForType = {
+		real = 0,
+		real3 = 1,
+		sym3 = 2,
+		real3x3 = 2,
+		_3sym3 = 3,
+		real3x3x3 = 3,
+	}
 	self.solver.modules:add{
-		name = 'cons_parallelPropagate',
-		code = self:getParallelPropagateCode(),
+		name = 'eqn.cons_parallelPropagate',
+		depends = {'coord.coord_parallelPropagate'},
+		code = template([[
+<? for side=0,solver.dim-1 do
+	if coord.vectorComponent == 'cartesian'
+	or require 'hydro.coord.cartesian'.is(coord) 
+	then
+?>#define cons_parallelPropagate<?=side?>(U, x, dx) (U)
+<?	else
+?><?=eqn.cons_t?> cons_parallelPropagate<?=side?>(<?=eqn.cons_t?> U, real3 x, real dx) {
+<?		for _,var in ipairs(eqn.consStruct.vars) do
+			local variance = var.variance or var.name:match'_([^_]*)$' or ''
+			local degree = degreeForType[var.type]
+			if #variance ~= degree  then
+				error("variable variance "..('%q'):format(variance).." does not match variable type "..var.type.." degree "..degree)
+			end
+--print(var.name, var.type, variance, degree)			
+			if variance == '' then
+			elseif variance == 'u' then
+?>	U.<?=var.name?> = coord_parallelPropagateU<?=side?>(U.<?=var.name?>, x, dx);
+<?
+			elseif variance == 'l' then
+?>	U.<?=var.name?> = coord_parallelPropagateL<?=side?>(U.<?=var.name?>, x, dx);
+<?
+			else
+				error("don't know how to handle variance for "..('%q'):format(variance))
+			end
+		end
+?>	return U;
+}
+<?	end
+end
+?>]], 	{
+			eqn = self,
+			solver = self.solver,
+			coord = self.solver.coord,
+			degreeForType = degreeForType,
+		}),
 	}
 
 	-- put this here or in SolverBase?
@@ -345,19 +393,19 @@ typedef union {
 	-- but initstate has access to it
 	self:initCodeModulePrimCons()
 
+	-- these are only the compile-time gui vars
+	-- the runtime ones are stored in solver_t
 	self.solver.modules:add{
-		name = 'eqn.codeprefix',
+		name = 'eqn.guiVars.compileTime',
 		depends = {
 			'eqn.types',
-			'initCond-codeprefix',
+			'initCond.codeprefix',
 			'eqn.common',
 			'eqn.prim-cons',
 		},
-		code = self.guiVars 
-			and table.mapi(self.guiVars, function(var,i,t) 
-				return (var.compileTime and var:getCode() or nil), #t+1
-			end):concat'\n' 
-			or nil,
+		headercode = table.mapi(self.guiVars or {}, function(var,i,t) 
+			return (var.compileTime and var:getCode() or nil), #t+1
+		end):concat'\n',
 	}
 
 	self:initCodeModuleSolver()
@@ -391,14 +439,9 @@ function Equation:initCodeModuleSolver()
 		name = 'eqn.solvercode',
 		depends = {
 			'eqn.types',
-			'eqn.codeprefix',
+			'eqn.guiVars.compileTime',
 			'coord',
-			-- Euler-specific:
-			'metric',
 		},
-	
-		-- why did I have this comment here?:
-		-- TODO move to Roe, or FiniteVolumeSolver as a parent of Roe and HLL?
 		code = template(file[self.solverCodeFile], self:getEnv()),
 	}
 end
@@ -633,7 +676,7 @@ function Equation:initCodeModuleCalcDT()
 	
 	self.solver.modules:add{
 		name = 'eqn.calcDT',
-		depends = {'eqn.types', 'eqn.codeprefix'},
+		depends = {'eqn.types'},
 		code = template(file['hydro/eqn/cl/calcDT.cl'], {
 			solver = self.solver, 
 			eqn = self,
@@ -739,54 +782,6 @@ returns output vector
 			solver = self.solver,
 		}),
 	}
-end
-
-local degreeForType = {
-	real = 0,
-	real3 = 1,
-	sym3 = 2,
-	real3x3 = 2,
-	_3sym3 = 3,
-	real3x3x3 = 3,
-}
-
-function Equation:getParallelPropagateCode()
-	return template([[
-<? for side=0,solver.dim-1 do
-	if coord.vectorComponent == 'cartesian'
-	or require 'hydro.coord.cartesian'.is(coord) 
-	then
-?>#define cons_parallelPropagate<?=side?>(U, x, dx) (U)
-<?	else
-?><?=eqn.cons_t?> cons_parallelPropagate<?=side?>(<?=eqn.cons_t?> U, real3 x, real dx) {
-<?		for _,var in ipairs(eqn.consStruct.vars) do
-			local variance = var.variance or var.name:match'_([^_]*)$' or ''
-			local degree = degreeForType[var.type]
-			if #variance ~= degree  then
-				error("variable variance "..('%q'):format(variance).." does not match variable type "..var.type.." degree "..degree)
-			end
---print(var.name, var.type, variance, degree)			
-			if variance == '' then
-			elseif variance == 'u' then
-?>	U.<?=var.name?> = coord_parallelPropagateU<?=side?>(U.<?=var.name?>, x, dx);
-<?
-			elseif variance == 'l' then
-?>	U.<?=var.name?> = coord_parallelPropagateL<?=side?>(U.<?=var.name?>, x, dx);
-<?
-			else
-				error("don't know how to handle variance for "..('%q'):format(variance))
-			end
-		end
-?>	return U;
-}
-<?	end
-end
-?>]], {
-		eqn = self,
-		solver = self.solver,
-		coord = self.solver.coord,
-		degreeForType = degreeForType,
-	})
 end
 
 return Equation

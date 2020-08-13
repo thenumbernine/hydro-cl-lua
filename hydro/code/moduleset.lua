@@ -42,25 +42,53 @@ end
 function ModuleSet:getCodeForGetter(getter, ...)
 	local addedkeys = {}
 	local added = table()
-	local function add(name, from)
-		if addedkeys[name] then return end	-- don't include twice
-		local module = self.set[name]
-		if not module then
-			error("failed to find module "..name
-				..(from and (" when requesting from module "..from)
-					or " when requesting from root function call")
-			)
+print('building:')	
+	local function add(name, from, indent, last)
+		local range = require 'ext.range'
+		indent = indent or ''
+		
+		local module, deps
+		if not addedkeys[name] then 
+			module = self.set[name]
+			if not module then
+				error("failed to find module "..name
+					..(from and (" when requesting from module "..from)
+						or " when requesting from root function call")
+				)
+			end
+			addedkeys[name] = true	
+			deps = module.depends:filter(function(dep)
+				return not addedkeys[dep]
+			end)
+		end	
+		local numdeps = deps and #deps or 0
+		local indentlen = #indent
+		local str = range(indentlen):mapi(function(i)
+			if i < indentlen then 
+				return '│' 
+			end	
+			return last and '┌' or '├'	-- └
+		end):concat()
+			..(numdeps > 0 and '┴' or '─')	-- ┬
+			..'─> '..name
+		-- don't include twice
+		if module then
+			assert(addedkeys[name])
+			for i=1,numdeps do
+				local dep = deps[i]
+				add(dep, name, indent..' ', i == 1)--numdeps)
+				--pm1 = pm1:sub(1, -2):gsub('.', '│')  .. (i < n and '├' or '└')
+			end
+			added:insert(module)
 		end
-		addedkeys[name] = true	
-		for _,dep in ipairs(module.depends) do
-			add(dep, name)
-		end
-		added:insert(module)
+		print(str)
 	end
-	for i=1,select('#', ...) do
+	local numModules = select('#', ...)
+	for i=1,numModules do
 		local name = select(i, ...)
-		add(name)
+		add(name, '', ' ', i == 1)--numModules)
 	end
+	print()
 	return added:mapi(function(module)
 		local code, desc = getter(module)
 		if code == '' then return '' end

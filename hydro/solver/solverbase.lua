@@ -583,11 +583,13 @@ function SolverBase:initCodeModules()
 		name = 'solver.solver_t',
 		structs = {self.solverStruct},
 	}
+	-- applyInitCond uses these and pretty much every solver kernel
 	self.sharedModulesEnabled['solver.solver_t'] = true
+	self.sharedModulesEnabled['coord.cell_t'] = true
 
 	-- header
 	self.modules:add{
-		name = 'codeprefix-macros',
+		name = 'solver.macros',
 		headercode = table{
 			self.dim == 3 and '#pragma OPENCL EXTENSION cl_khr_3d_image_writes : enable' or '',
 			'#ifndef M_PI',
@@ -599,16 +601,14 @@ function SolverBase:initCodeModules()
 			'#define numWaves '..self.eqn.numWaves,
 		}:concat'\n',
 	}
-	self.sharedModulesEnabled['codeprefix-macros'] = true
+	self.sharedModulesEnabled['solver.macros'] = true
 
 	self.coord:initCodeModules()
 	self.sharedModulesEnabled = table(self.sharedModulesEnabled, {
 		coord = true,
-		['coord-cell'] = true,
---		conn = true,
---		metric = true,
-		['coord-cell'] = true,
-		['eqn.codeprefix'] = true,
+		-- used by applyInitCond maybe, 
+		--  and the solver kernels in the eqn solver code maybe
+		['eqn.guiVars.compileTime'] = true,
 	})
 	
 
@@ -1166,14 +1166,12 @@ end
 
 function SolverBase:getSolverCode()
 	local moduleNames = table(self.sharedModulesEnabled, self.solverModulesEnabled):keys()
-	local codePrefix = table{
+print('solver modules:', moduleNames:sort():concat', ')
+	return table{
+		-- codePrefix
 		self.modules:getHeader(moduleNames:unpack()),
 		self.modules:getCode(moduleNames:unpack()),
-	}:concat'\n'
-
-	return table{
-		codePrefix,
-	
+		
 		self:getDisplayCode() or '',
 	}:concat'\n'
 end

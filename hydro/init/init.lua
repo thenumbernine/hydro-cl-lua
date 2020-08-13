@@ -87,7 +87,7 @@ function InitCond:initCodeModules(solver)
 	}
 	
 	solver.modules:add{
-		name = 'initCond-codeprefix',
+		name = 'initCond.codeprefix',
 		depends = {'initCond.initCond_t'},
 		code = self.getCodePrefix and self:getCodePrefix(solver) or '',
 	}
@@ -96,15 +96,13 @@ end
 function InitCond:refreshInitStateProgram(solver)
 	local initCondCode 
 
-print('initCond using modules:', solver.sharedModulesEnabled:keys():sort():concat', ')
+	local moduleNames = table(solver.sharedModulesEnabled, self.initModulesEnabled):keys()
+print('initCond modules:', moduleNames:sort():concat', ')
 	time('generating init state code', function()
-		local codePrefix = table{
-			solver.modules:getHeader(solver.sharedModulesEnabled:keys():unpack()),
-			solver.modules:getCode(solver.sharedModulesEnabled:keys():unpack()),
-		}:concat'\n'
-
 		initCondCode = table{
-			codePrefix,
+			-- codePrefix:
+			solver.modules:getHeader(moduleNames:unpack()),
+			solver.modules:getCode(moduleNames:unpack()),
 		
 			self.guiVars:mapi(function(var,i,t) 
 				return (var.compileTime and var:getCode() or nil), #t+1

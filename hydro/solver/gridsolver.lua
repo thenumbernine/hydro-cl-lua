@@ -195,7 +195,7 @@ function GridSolver:initCodeModules()
 	GridSolver.super.initCodeModules(self)
 
 	self.modules:add{
-		name = 'GridSolver-codeprefix',
+		name = 'GridSolver.codeprefix',
 		headercode = table{
 			'#define numGhost '..self.numGhost,
 			'#define INDEX(a,b,c)	((a) + solver->gridSize.x * ((b) + solver->gridSize.y * (c)))',
@@ -272,7 +272,7 @@ functionality (and abstraction):
 		}
 		:concat'\n',
 	}
-	self.sharedModulesEnabled['GridSolver-codeprefix'] = true
+	self.sharedModulesEnabled['GridSolver.codeprefix'] = true
 
 	-- volume of a cell = volume element times grid dx's 
 	self.modules:add{

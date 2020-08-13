@@ -1052,7 +1052,10 @@ static inline real coordLen(real3 r, real3 pt) {
 
 	lines:insert(self:getCoordMapCode())
 
+	-- parallel propagate code
 	if require 'hydro.solver.fvsolver'.is(self.solver) then
+		local lines = table()
+		
 		-- parallel-propagate a vector from point 'x' along coordinate 'k' (suffix of func name) by amount 'dx'
 		-- TODO derive this from the metric
 		-- upper parallel propagator = exp(-int_x^(x+dx) of conn_side dx)
@@ -1097,13 +1100,22 @@ static inline real coordLen(real3 r, real3 pt) {
 		else
 			error'here'
 		end
+	
+		self.solver.modules:add{
+			name = 'coord.coord_parallelPropagate',
+			code = lines:concat'\n',
+		}
 	end
 
 --print(require 'template.showcode'(lines:concat'\n'))
 
 	self:getNormalCodeGenerator()
-	lines:insert(self.normalTypeCode)
-	lines:insert(self.normalInfoCode)
+	self.solver.modules:add{
+		name = 'coord.normal',
+		typecode = self.normalTypeCode,
+		code = self.normalInfoCode,
+	}
+
 	self.solver.modules:add{
 		name = 'coord',
 		code = lines:concat'\n',
@@ -1112,7 +1124,7 @@ static inline real coordLen(real3 r, real3 pt) {
 	-- store all input coordinates for our cells
 	-- for holonomic/anholonomic this is just the linearly interpolated
 	self.solver.modules:add{
-		name = 'coord-cell',
+		name = 'coord.cell_t',
 		structs = {self.cellStruct},
 		headercode = [[
 #define cell_x(i)	cellBuf[INDEXV(i)].pos
