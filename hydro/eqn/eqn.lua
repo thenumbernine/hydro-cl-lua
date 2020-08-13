@@ -276,20 +276,21 @@ end
 
 -- add to self.solver.modules, or add to self.modules and have solver add later?
 function Equation:initCodeModules()
-	
+	local solver = self.solver
+
 	assert(self.consStruct)
-	self.solver.modules:add{
+	solver.modules:add{
 		name = 'eqn.cons_t',
 		structs = {self.consStruct},
 	}
 	
-	self.solver.modules:add{
+	solver.modules:add{
 		name = 'eqn.prim_t',
 		structs = {self.primStruct},
 		typecode = not self.primStruct and ('typedef '..self.cons_t..' '..self.prim_t..';') or nil,
 	}
 	
-	self.solver.modules:add{
+	solver.modules:add{
 		name = 'eqn.waves_t',
 		depends = {'real'},
 		typecode = template([[
@@ -300,12 +301,12 @@ typedef union {
 	}
 	
 	assert(self.eigenStruct)
-	self.solver.modules:add{
+	solver.modules:add{
 		name = 'eqn.eigen_t',
 		structs = {self.eigenStruct},
 	}
 
-	self.solver.modules:add{
+	solver.modules:add{
 		name = 'eqn.types',
 		depends = {
 			'eqn.cons_t',
@@ -324,18 +325,22 @@ typedef union {
 	-- only used for finite-volume solvers
 	-- also NOTICE there seems to be a bug where the CL compiler stalls when compiling the parallel-propagate code with bssnok-fd
 	-- so hopefully the module system can help that out
-	local degreeForType = {
-		real = 0,
-		real3 = 1,
-		sym3 = 2,
-		real3x3 = 2,
-		_3sym3 = 3,
-		real3x3x3 = 3,
-	}
-	self.solver.modules:add{
-		name = 'eqn.cons_parallelPropagate',
-		depends = {'coord.coord_parallelPropagate'},
-		code = template([[
+	--
+	-- TODO hmm, can't add the module unless it's being used
+	--  because some that don't use it (bssnok-fd) use custom suffixes on var names
+	if require 'hydro.solver.fvsolver'.is(solver) then
+		local degreeForType = {
+			real = 0,
+			real3 = 1,
+			sym3 = 2,
+			real3x3 = 2,
+			_3sym3 = 3,
+			real3x3x3 = 3,
+		}
+		solver.modules:add{
+			name = 'eqn.cons_parallelPropagate',
+			depends = {'coord.coord_parallelPropagate'},
+			code = template([[
 <? for side=0,solver.dim-1 do
 	if coord.vectorComponent == 'cartesian'
 	or require 'hydro.coord.cartesian'.is(coord) 
@@ -365,19 +370,20 @@ typedef union {
 }
 <?	end
 end
-?>]], 	{
-			eqn = self,
-			solver = self.solver,
-			coord = self.solver.coord,
-			degreeForType = degreeForType,
-		}),
-	}
+?>]], 		{
+				eqn = self,
+				solver = solver,
+				coord = solver.coord,
+				degreeForType = degreeForType,
+			}),
+		}
+	end
 
 	-- put this here or in SolverBase?
-	self.initCond:initCodeModules(self.solver)
+	self.initCond:initCodeModules(solver)
 
 	-- TODO need to fix this somehow
-	self.solver.modules:add{
+	solver.modules:add{
 		name = 'eqn.common',
 		depends = table{
 			'eqn.types',
@@ -394,7 +400,7 @@ end
 
 	-- these are only the compile-time gui vars
 	-- the runtime ones are stored in solver_t
-	self.solver.modules:add{
+	solver.modules:add{
 		name = 'eqn.guiVars.compileTime',
 		depends = {
 			'eqn.types',
@@ -411,7 +417,7 @@ end
 	self:initCodeModuleCalcDT()
 
 	if not self.hasFluxFromConsCode then
-		self.solver.modules:add{
+		solver.modules:add{
 			name = 'eqn.fluxFromCons',
 			depends = {
 				'eqn.solvercode',
@@ -426,7 +432,7 @@ end
 	return eigen_fluxTransform(solver, eigen_forCell(solver, U, x, n), U, x, n);
 }
 ]], 		{
-				solver = self.solver, 
+				solver = solver, 
 				eqn = self,
 			}),
 		}

@@ -111,7 +111,7 @@ typedef union {
 #define <?=vec?>_zero				_<?=vec?>(<?=scalar?>_zero,<?=scalar?>_zero,<?=scalar?>_zero)
 
 <?=scalar?> <?=vec?>_<?=vec?>_dot(<?=vec?> a, <?=vec?> b);
-#define <?=vec?>_<?=vec?>_dot	<?=vec?>_dot
+#define	<?=vec?>_dot <?=vec?>_<?=vec?>_dot
 <?=vec?> <?=vec?>_<?=scalar?>_mul(<?=vec?> a, <?=scalar?> s);
 <?=vec?> <?=scalar?>_<?=vec?>_mul(<?=scalar?> a, <?=vec?> b);
 <? if scalar ~= 'real' then ?>
@@ -707,7 +707,7 @@ real real3_weightedLen(real3 a, sym3 m) {
 
 	modules:add{
 		name = 'real3x3',
-		depends = {'sym3'},
+		depends = {'real3','sym3'},
 		typecode = '// row vectors, so a.i.j = a_ij\n'
 					..make3x3type'real',
 		headercode = [[
@@ -1709,10 +1709,12 @@ and solvers modules depend on those app modules...
 			'realparam',
 			'units',
 			'real',
-			'real3',
+			
+			-- right now any types that eqn cons_t fields use have to be defined here
+			'real3',	-- used by everyone
+			'sym3',		-- used by bssnok-fd 
 		
 			-- used by coord, but not needed by {flux=roe, eqn=euler, coord=cartesian}
-			--'sym3',	-- used by metric+sym3
 			--'real3x3',-- used by calcCellMinMaxEigenvalues, which is only used by the calcDT of mhd and glm-mhd eqns
 			--'_3sym3',	-- used by conn
 			--'real3x3x3',

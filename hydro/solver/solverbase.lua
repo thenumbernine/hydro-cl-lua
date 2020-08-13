@@ -416,11 +416,6 @@ function SolverBase:initMeshVars(args)
 				if useCache then
 					args.cacheFileCL = clfn
 					args.cacheFileBin = binfn
-					-- if the cl file exists but the bin file does not then delete the bin file as well
-					-- otherwise cl/obj/program will complain.  this is a mess.
-					if io.fileexists(clfn) and not io.fileexists(binfn) then
-						os.remove(clfn)
-					end
 				end
 			end
 			Program.super.init(self, args)
@@ -441,18 +436,7 @@ function SolverBase:initMeshVars(args)
 	function Program:compile(args)
 		args = args or {}
 		args.buildOptions = '-w'	-- show warnings
-		local results	
-		xpcall(function()
-			results = Program.super.compile(self, args)
-		end, function(err)
-			-- if it didn't compile then ... why not ... write the cache cl code out anyways and delete any bin that is there
-			assert(self.cacheFileBin)
-			os.remove(self.cacheFileBin)
-			assert(self.cacheFileCL)
-			file[self.cacheFileCL] = self:getCode()
-			io.stderr:write(err..'\n'..debug.traceback())
-			os.exit(1)
-		end)
+		local results = Program.super.compile(self, args)
 		assert(self.obj, "there must have been an error in your error handler")	-- otherwise it would have thrown an error
 		do--if self.obj then	-- did compile
 			print((self.name and self.name..' ' or '')..'log:')
@@ -660,9 +644,7 @@ function SolverBase:initCDefs()
 		self.sharedModulesEnabled
 	):keys()
 print("ffi.cdef'ing: "..moduleNames:concat', ')
-	require 'hydro.code.safecdef'(table{
-		self.modules:getTypeHeader(moduleNames:unpack()),
-	}:concat'\n')
+	require 'hydro.code.safecdef'(self.modules:getTypeHeader(moduleNames:unpack()))
 end
 
 function SolverBase:refreshGetULR()

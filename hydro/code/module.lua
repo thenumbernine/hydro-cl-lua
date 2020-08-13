@@ -21,6 +21,9 @@ local table = require 'ext.table'
 local Module = class()
 
 local predefinedStructTypes = {
+	char = true,
+	int = true,
+	int2 = true,
 	int4 = true,
 }
 
