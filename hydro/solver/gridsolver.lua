@@ -290,8 +290,7 @@ end
 			xNames = xNames,
 		}),
 	}
-	self.sharedModulesEnabled['cell_sqrt_det_g'] = true
-
+	
 	if self.usePLM then
 		self.modules:add{
 			name = 'slopeLimiter',
@@ -324,11 +323,29 @@ typedef struct {
 				eqn = self.eqn,
 			}),
 		}
-		self.sharedModulesEnabled = table(self.sharedModulesEnabled, {
-			consLR_t = true,
-			slopeLimiter = true,
-			eigen_forCell = true,	-- defined in eqn, used by PLM
-		})
+	
+		self.modules:add{
+			name = 'GridSolver.usePLM',
+			depends = {
+				'cell_sqrt_det_g',
+				'consLR_t',
+				'slopeLimiter',
+				'eigen_forCell',		-- defined in eqn, used by PLM
+			},
+			code = template(file['hydro/solver/plm.cl'], {solver=self, eqn=self.eqn}),
+		}
+		self.sharedModulesEnabled['GridSolver.usePLM'] = true
+	end
+
+	if self.useCTU then
+		self.modules:add{
+			name = 'GridSolver.useCTU',
+			depends = table{'cell_sqrt_det_g'}
+				-- optionally dependent on consLR_t when usePLM is enabled
+				:append{self.usePLM and 'consLR_t' or nil},
+			code = template(file['hydro/solver/ctu.cl'], {solver=self, eqn=self.eqn}),
+		}
+		self.sharedModulesEnabled['GridSolver.useCTU'] = true
 	end
 end
 
@@ -537,15 +554,6 @@ function GridSolver:createBuffers()
 		-- TODO self.eqn.consLR_t..'_dim' and remove * self.dim ?
 		self:clalloc('ULRBuf', self.eqn.consLR_t, self.numCells * self.dim)
 	end
-end
-
-function GridSolver:getSolverCode()
-	return table{
-		GridSolver.super.getSolverCode(self),
-		
-		self.usePLM and template(file['hydro/solver/plm.cl'], {solver=self, eqn=self.eqn}) or '',
-		self.useCTU and template(file['hydro/solver/ctu.cl'], {solver=self, eqn=self.eqn}) or '',
-	}:concat'\n'
 end
 
 function GridSolver:refreshSolverProgram()

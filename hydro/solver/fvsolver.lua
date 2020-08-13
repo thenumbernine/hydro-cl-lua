@@ -30,9 +30,7 @@ function FiniteVolumeSolver:initCodeModules()
 	FiniteVolumeSolver.super.initCodeModules(self)
 
 	-- TODO put this in fvsolver wherever it asks for the code that calls cons_parallelPropagate (I think is in calcDerivFV)
-	-- TODO don't juse use one self.sharedModulesEnabled
-	-- use separate ones every time a program is building source code
-	self.sharedModulesEnabled['cons_parallelPropagate'] = true
+	self.solverModulesEnabled['cons_parallelPropagate'] = true
 end
 
 function FiniteVolumeSolver:createFlux(fluxName, fluxArgs)

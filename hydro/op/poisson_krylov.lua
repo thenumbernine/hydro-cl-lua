@@ -265,6 +265,7 @@ kernel void copyVecToPotentialField<?=op.name?>(
 function PoissonKrylov:initCodeModules(solver)
 	solver.modules:add{
 		name ='op.PoissonKrylov',
+		depends = {'cell_sqrt_det_g'},
 		code = template(
 			file['hydro/op/poisson.cl']..'\n'
 			..poissonKrylovCode,
