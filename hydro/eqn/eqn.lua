@@ -361,18 +361,41 @@ typedef union {
 	}
 
 	self:initCodeModuleSolver()
+	self:initCodeModuleCalcDT()
 
-	self.solver.modules:add{
-		name = 'eqn.calcDT',
-		depends = {'eqn.types', 'eqn.codeprefix'},
-		code = self:getCalcDTCode(),
-	}
+	if not self.hasFluxFromConsCode then
+		self.solver.modules:add{
+			name = 'eqn.fluxFromCons',
+			depends = {
+				'eqn.solvercode',
+			},
+			code = template([[
+<?=eqn.cons_t?> fluxFromCons(
+	constant <?=solver.solver_t?>* solver,
+	<?=eqn.cons_t?> U,
+	real3 x,
+	normalInfo_t n
+) {
+	return eigen_fluxTransform(solver, eigen_forCell(solver, U, x, n), U, x, n);
+}
+]], 		{
+				solver = self.solver, 
+				eqn = self,
+			}),
+		}
+	end
 end
 
 function Equation:initCodeModuleSolver()
 	self.solver.modules:add{
 		name = 'eqn.solvercode',
-		depends = {'eqn.types', 'eqn.codeprefix', 'coord'},
+		depends = {
+			'eqn.types',
+			'eqn.codeprefix',
+			'coord',
+			-- Euler-specific:
+			'metric',
+		},
 	
 		-- why did I have this comment here?:
 		-- TODO move to Roe, or FiniteVolumeSolver as a parent of Roe and HLL?
@@ -604,32 +627,21 @@ end
 -- Whether the eqn has its own calcDT.  Otherwise hydro/eqn/cl/calcDT.cl is used. 
 Equation.hasCalcDTCode = nil
 
-function Equation:getCalcDTCode()
+function Equation:initCodeModuleCalcDT()
+	-- hmm can't do this anymore since even if calcDT is in cl code it won't be in the module system
 	if self.hasCalcDTCode then return end
-	return template(file['hydro/eqn/cl/calcDT.cl'], {
-		solver = self.solver, 
-		eqn = self,
-	})
+	
+	self.solver.modules:add{
+		name = 'eqn.calcDT',
+		depends = {'eqn.types', 'eqn.codeprefix'},
+		code = template(file['hydro/eqn/cl/calcDT.cl'], {
+			solver = self.solver, 
+			eqn = self,
+		}),
+	}
 end
 
 Equation.hasFluxFromConsCode = nil
-
-function Equation:getFluxFromConsCode()
-	if self.hasFluxFromConsCode then return end
-	return template([[
-<?=eqn.cons_t?> fluxFromCons(
-	constant <?=solver.solver_t?>* solver,
-	<?=eqn.cons_t?> U,
-	real3 x,
-	normalInfo_t n
-) {
-	return eigen_fluxTransform(solver, eigen_forCell(solver, U, x, n), U, x, n);
-}
-]], {
-		solver = self.solver, 
-		eqn = self,
-	})
-end
 
 --[[
 Default code for the following:

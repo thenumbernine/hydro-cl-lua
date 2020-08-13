@@ -150,9 +150,6 @@ SolverBase:init
 								FiniteVolumeSolver:getSolverCode
 									GridSolver:getSolverCode
 										SolverBase:getSolverCode
-											self.eqn:getSolverCode
-											self.eqn:getCalcDTCode
-											self.eqn:getFluxFromConsCode
 											SolverBase:getDisplayCode
 												self.displayVarGroups[i].vars[j].toTexKernelName = ...
 									self.flux:getSolverCode
@@ -609,7 +606,7 @@ function SolverBase:initCodeModules()
 		coord = true,
 		['coord-cell'] = true,
 --		conn = true,
-		metric = true,
+--		metric = true,
 		['coord-cell'] = true,
 		['eqn.codeprefix'] = true,
 	})
@@ -621,8 +618,15 @@ function SolverBase:initCodeModules()
 	-------- solver modules --------
 	
 	self.solverModulesEnabled['eqn.solvercode'] = true
-	self.solverModulesEnabled['eqn.calcDT'] = true
-	
+
+	-- TODO get rid of this flag? make everything a module
+	if not self.eqn.hasCalcDTCode then
+		self.solverModulesEnabled['eqn.calcDT'] = true
+	end
+	if not self.eqn.hasFluxFromConsCode then
+		self.solverModulesEnabled['eqn.fluxFromCons'] = true
+	end
+
 	self.modules:add{
 		name = 'fluxLimiter',
 		code = template([[
@@ -1169,8 +1173,6 @@ function SolverBase:getSolverCode()
 
 	return table{
 		codePrefix,
-	
-		self.eqn:getFluxFromConsCode() or '',
 	
 		self:getDisplayCode() or '',
 	}:concat'\n'
