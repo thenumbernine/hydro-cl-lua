@@ -359,15 +359,7 @@ typedef union {
 			or nil,
 	}
 
-	self.solver.modules:add{
-		name = 'eqn.solvercode',
-		depends = {'eqn.types', 'eqn.codeprefix', 'coord'},
-	
-		-- why did I have this comment here?:
-		-- TODO move to Roe, or FiniteVolumeSolver as a parent of Roe and HLL?
-		code = self:getSolverCode(),
-	}
-
+	self:initCodeModuleSolver()
 
 	self.solver.modules:add{
 		name = 'eqn.calcDT',
@@ -376,8 +368,23 @@ typedef union {
 	}
 end
 
-function Equation:getSolverCode()
-	return template(file[self.solverCodeFile], {eqn=self, solver=self.solver})
+function Equation:initCodeModuleSolver()
+	self.solver.modules:add{
+		name = 'eqn.solvercode',
+		depends = {'eqn.types', 'eqn.codeprefix', 'coord'},
+	
+		-- why did I have this comment here?:
+		-- TODO move to Roe, or FiniteVolumeSolver as a parent of Roe and HLL?
+		code = template(file[self.solverCodeFile], self:getEnv()),
+	}
+end
+
+-- Really really used by maxwell, glm-maxwell, and other things that vary their scalar type between real and cplx.  but it fits here just as well.
+function Equation:getEnv()
+	return {
+		eqn = self,
+		solver = self.solver,
+	}
 end
 
 -- this only goes to hydro/init/init.lua

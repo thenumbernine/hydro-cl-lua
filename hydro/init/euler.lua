@@ -317,7 +317,7 @@ local function addMaxwellOscillatingBoundary(args)
 	<?=U?>.D.<?=dir?> = <?=real_mul?>(
 		<?=mul?>(<?=epsSrc?>.sqrt_1_eps, <?=epsSrc?>.sqrt_1_eps),
 		<?=amplitude?> * sin(2. * M_PI * <?=frequency?> * t)); 
-]], 		table(solver.eqn:getTemplateEnv(), {
+]], 		table(solver.eqn:getEnv(), {
 				U = U,
 				eqn = self.eqn,
 				frequency = clnumber(frequency),
@@ -1906,7 +1906,7 @@ end ?>;
 		//2018 Balezin et al "Electromagnetic properties of the Great Pyramids..."
 		permittivity = <?=eqn.susc_t?>_from_cplx(_cplx(5., .1));
 	}
-]], solver.eqn:getTemplateEnv())
+]], solver.eqn:getEnv())
 		end,
 	},
 
@@ -1980,7 +1980,7 @@ for _,pn in ipairs(obj) do
 		//2018 Balezin et al "Electromagnetic properties of the Great Pyramids..."
 		permittivity = <?=eqn.susc_t?>_from_cplx(_cplx(5., .1));
 	}
-]], solver.eqn:getTemplateEnv())
+]], solver.eqn:getEnv())
 		end,
 	},
 
@@ -2010,7 +2010,7 @@ end	?>
 		//2018 Balezin et al "Electromagnetic properties of the Great Pyramids..."
 		permittivity = <?=eqn.susc_t?>_from_cplx(_cplx(5., .1));
 	}
-]], solver.eqn:getTemplateEnv())
+]], solver.eqn:getEnv())
 		end,
 	},
 
@@ -2148,7 +2148,7 @@ bool testTriangle(real3 xc) {
 ]], 		table({
 				clnumber = clnumber,
 				resistivities = resistivities,
-			}, solver.eqn:getTemplateEnv()))
+			}, solver.eqn:getEnv()))
 		end,
 	},
 
@@ -2259,7 +2259,7 @@ kernel void addExtraSource(
 				solver = solver,
 				clnumber = clnumber,
 				resistivities = resistivities,
-			}, solver.eqn:getTemplateEnv()))
+			}, solver.eqn:getEnv()))
 		end,
 	},
 
@@ -2278,7 +2278,7 @@ kernel void addExtraSource(
 	D.z = <?=eqn.susc_t?>_from_real( E0 * sin(m * M_PI * x.x / x0) * sin(n * M_PI * x.y / y0) );
 ]], 		table({
 				solver = solver,
-			}, solver.eqn:getTemplateEnv()))
+			}, solver.eqn:getEnv()))
 		end,
 	},
 
@@ -2292,7 +2292,7 @@ kernel void addExtraSource(
 	rhoCharge = (i.x == solver->gridSize.x/2 && i.y == solver->gridSize.y/2 && i.z == solver->gridSize.z/2) ? initCond->rhoCharge0 : 0.;
 ]], 		table({
 				solver = solver,
-			}, solver.eqn:getTemplateEnv()))
+			}, solver.eqn:getEnv()))
 		end,
 	},
 

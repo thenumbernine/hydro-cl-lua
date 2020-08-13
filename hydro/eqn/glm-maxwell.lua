@@ -151,7 +151,7 @@ cplx3 eqn_coord_lower(cplx3 v, real3 x) {
 	return <?=vec3?>_<?=susc_t?>_mul(U.B, <?=susc_t?>_mul(U.sqrt_1_mu, U.sqrt_1_mu));
 }
 
-]], self:getTemplateEnv())
+]], self:getEnv())
 end
 
 GLM_Maxwell.initCondCode = [[
@@ -209,11 +209,9 @@ kernel void applyInitCond(
 }
 ]]
 
-function GLM_Maxwell:getSolverCode()
-	return template(file['hydro/eqn/glm-maxwell.cl'], self:getTemplateEnv())
-end
+GLM_Maxwell.solverCodeFile = 'hydro/eqn/glm-maxwell.cl'
 
-function GLM_Maxwell:getTemplateEnv()
+function GLM_Maxwell:getEnv()
 	local scalar = self.scalar
 	local env = {}
 	env.eqn = self
@@ -245,7 +243,7 @@ GLM_Maxwell.predefinedDisplayVars = {
 }
 
 function GLM_Maxwell:getDisplayVars()
-	local env = self:getTemplateEnv()
+	local env = self:getEnv()
 	
 	local vars = GLM_Maxwell.super.getDisplayVars(self)
 	vars:append{ 
@@ -278,13 +276,13 @@ function GLM_Maxwell:eigenWaveCodePrefix(n, eig, x, waveIndex)
 --[=[
 	return template([[
 	<?=scalar?> v_p_abs = <?=mul?>(<?=eig?>.sqrt_1_eps, <?=eig?>.sqrt_1_mu);
-]], table(self:getTemplateEnv(), {
+]], table(self:getEnv(), {
 		eqn = self,
 		eig = '('..eig..')',
 	}))
 --]=]
 -- [=[
-	local env = self:getTemplateEnv()
+	local env = self:getEnv()
 	local code = template(
 		[[<?=mul?>(<?=eig?>.sqrt_1_eps, <?=eig?>.sqrt_1_mu)]],
 		table(env, {
@@ -324,7 +322,7 @@ end
 
 
 function GLM_Maxwell:consWaveCodePrefix(n, U, x, waveIndex) 
-	local env = self:getTemplateEnv()
+	local env = self:getEnv()
 	local code = template(
 		[[<?=mul?>(<?=U?>.sqrt_1_eps, <?=U?>.sqrt_1_mu)]],
 		table(env, {

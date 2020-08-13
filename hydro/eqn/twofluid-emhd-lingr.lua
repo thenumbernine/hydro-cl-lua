@@ -477,12 +477,12 @@ end
 		solver = self.solver,
 		code = self.initCond:getInitCondCode(self.solver),
 		fluids = fluids,
-	}, self:getTemplateEnv()))
+	}, self:getEnv()))
 end
 
 TwoFluidEMHDDeDonderGaugeLinearizedGR.solverCodeFile = 'hydro/eqn/twofluid-emhd-lingr.cl'
 
-function TwoFluidEMHDDeDonderGaugeLinearizedGR:getTemplateEnv()
+function TwoFluidEMHDDeDonderGaugeLinearizedGR:getEnv()
 	local scalar = self.scalar
 	local env = {}
 	env.eqn = self

@@ -109,11 +109,7 @@ kernel void applyInitCond(
 
 GRMaxwell.solverCodeFile = 'hydro/eqn/gr-maxwell.cl'
 
-function GRMaxwell:getSolverCode()
-	return template(self.solverCodeFile, self:getTemplateEnv())
-end
-
-function GRMaxwell:getTemplateEnv()
+function GRMaxwell:getEnv()
 	local scalar = self.scalar
 	local env = {}
 	env.eqn = self

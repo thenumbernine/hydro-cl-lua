@@ -1842,9 +1842,6 @@ kernel void initDerivs(
 end
 
 BSSNOKFiniteDifferenceEquation.solverCodeFile = 'hydro/eqn/bssnok-fd-sym.cl'
-function BSSNOKFiniteDifferenceEquation:getSolverCode()
-	return template(file[self.solverCodeFile], self:getEnv())
-end
 
 function BSSNOKFiniteDifferenceEquation:getEigenTypeCode()
 	return template([[

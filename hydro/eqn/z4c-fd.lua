@@ -89,7 +89,7 @@ function Z4cFiniteDifferenceEquation:createInitState()
 	}
 end
 
-function Z4cFiniteDifferenceEquation:getTemplateEnv()
+function Z4cFiniteDifferenceEquation:getEnv()
 	local derivOrder = 2 * self.solver.numGhost
 	return table(common, {
 		eqn = self,
@@ -265,7 +265,7 @@ kernel void initDerivs(
 	real3 connHat_u = _3sym3_sym3_dot23(connHat_ull, U->gammaBar_uu);
 	U->Delta_u = real3_sub(connBar_u, connHat_u);
 }
-]], table(self:getTemplateEnv(), {
+]], table(self:getEnv(), {
 		code = self.initCond:getInitCondCode(self.solver),
 	}))
 end
