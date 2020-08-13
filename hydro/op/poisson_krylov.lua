@@ -261,15 +261,19 @@ kernel void copyVecToPotentialField<?=op.name?>(
 }
 ]]
 
-function PoissonKrylov:getCode()
-	return template(
-		file['hydro/op/poisson.cl']..'\n'
-		..poissonKrylovCode,
-		{
-			op = self,
-		}
-	)..'\n'
-	..(self:getPoissonCode() or '')
+function PoissonKrylov:initCodeModules(solver)
+	solver.modules:add{
+		name ='op.PoissonKrylov',
+		code = template(
+			file['hydro/op/poisson.cl']..'\n'
+			..poissonKrylovCode,
+			{
+				op = self,
+			}
+		)..'\n'
+		..(self:getPoissonCode() or ''),
+	}
+	solver.solverModuleNames:insert'op.PoissonKrylov'
 end
 
 function PoissonKrylov:refreshSolverProgram()

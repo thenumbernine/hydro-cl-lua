@@ -177,12 +177,17 @@ end
 }
 ]]
 
-function PoissonJacobi:getCode()
-	return table{
-		PoissonJacobi.super.getCode(self),
-		template(poissonJacobiCode, {op = self}),
-		self:getPoissonCode() or '',
-	}:concat'\n'
+function PoissonJacobi:initCodeModules(solver)
+	PoissonJacobi.super.initCodeModules(self, solver)
+	solver.modules:add{
+		name = 'op.PoissonJacobi',
+		depends = {'cell_sqrt_det_g'},
+		code = table{
+			template(poissonJacobiCode, {op = self}),
+			self:getPoissonCode() or '',
+		}:concat'\n',
+	}
+	solver.solverModuleNames:insert'op.PoissonJacobi'
 end
 
 return PoissonJacobi

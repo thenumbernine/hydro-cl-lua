@@ -95,6 +95,7 @@ SolverBase:init
 		self.coord:initCodeModules
 		self.eqn:initCodeModules
 		self.solverStruct.typecode
+		self.ops[i]:initCodeModules
 
 --------- here is where the ffi.cdef is called --------- 
 
@@ -152,7 +153,6 @@ SolverBase:init
 											self.eqn:getSolverCode
 											self.eqn:getCalcDTCode
 											self.eqn:getFluxFromConsCode
-											self.ops[i]:getCode
 											SolverBase:getDisplayCode
 												self.displayVarGroups[i].vars[j].toTexKernelName = ...
 									self.flux:getSolverCode
@@ -1153,12 +1153,7 @@ function SolverBase:getSolverCode()
 		self.eqn:getCalcDTCode() or '',
 		self.eqn:getFluxFromConsCode() or '',
 	
-	}:append(self.ops:mapi(function(op)
--- TODO make modules for each of these, and include them in solverModuleNames (for solver program)		
--- this way they can require only whats necessary
-		return op:getCode() or ''
-	end)):append{
-		self:getDisplayCode(),
+		self:getDisplayCode() or '',
 	}:concat'\n'
 end
 

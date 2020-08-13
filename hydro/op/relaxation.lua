@@ -34,7 +34,9 @@ Relaxation.solverCodeFile = nil
 -- type of the buffer holding the potential field
 -- TODO can this be inferred? not at the moment, because SolverBase:clalloc is not accepting type info, and passing 'real' to the cl lib
 function Relaxation:getPotBufType() 
-	return self.solver.UBufObj.type
+	--return self.solver.UBufObj.type
+	-- should be the same:
+	return self.solver.eqn.cons_t
 end
 
 -- buffer holding the potential field
@@ -61,8 +63,12 @@ function Relaxation:init(args)
 	}
 end
 
-function Relaxation:getCode()
-	return template(file[self.solverCodeFile], {op = self})
+function Relaxation:initCodeModules(solver)
+	solver.modules:add{
+		name = 'op.Relaxation',
+		code = template(file[self.solverCodeFile], {op = self}),
+	}
+	solver.solverModuleNames:insert'op.Relaxation'
 end
 
 function Relaxation:refreshSolverProgram()

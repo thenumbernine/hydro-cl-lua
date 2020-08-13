@@ -14,8 +14,10 @@ function LagrangianCoordinateShift:init(args)
 	self.solver = args.solver
 end
 
-function LagrangianCoordinateShift:getCode()
-	return template([[
+function LagrangianCoordinateShift:initCodeModules(solver)
+	solver.modules:add{
+		name = 'op.LagrangianCoordinateShift',
+		code = template([[
 <?
 local solver = op.solver
 local eqn = solver.eqn
@@ -90,9 +92,11 @@ end
 <? end
 ?>
 }
-]], {
-		op = self,
-	})
+]], 	{
+			op = self,
+		}),
+	}
+	solver.solverModuleNames:insert'op.LagrangianCoordinateShift'
 end
 
 function LagrangianCoordinateShift:refreshSolverProgram()
