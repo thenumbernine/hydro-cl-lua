@@ -68,7 +68,7 @@ function Relaxation:initCodeModules(solver)
 		name = 'op.Relaxation',
 		code = template(file[self.solverCodeFile], {op = self}),
 	}
-	solver.solverModuleNames:insert'op.Relaxation'
+	solver.sharedModulesEnabled['op.Relaxation'] = true
 end
 
 function Relaxation:refreshSolverProgram()

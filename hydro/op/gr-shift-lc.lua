@@ -96,7 +96,7 @@ end
 			op = self,
 		}),
 	}
-	solver.solverModuleNames:insert'op.LagrangianCoordinateShift'
+	solver.sharedModulesEnabled['op.LagrangianCoordinateShift'] = true
 end
 
 function LagrangianCoordinateShift:refreshSolverProgram()

@@ -47,7 +47,7 @@ kernel void updatePsi(
 			op = self,
 		}),
 	}
-	solver.solverModuleNames:insert'op.GLM_MHD_UpdatePsi'
+	solver.sharedModulesEnabled['op.GLM_MHD_UpdatePsi'] = true
 end
 
 function GLM_MHD_UpdatePsi:refreshSolverProgram()

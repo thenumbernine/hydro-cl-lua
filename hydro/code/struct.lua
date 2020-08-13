@@ -2,6 +2,7 @@ local ffi = require 'ffi'
 local class = require 'ext.class'
 local table = require 'ext.table'
 local CLBuffer = require 'cl.obj.buffer'
+local safecdef = require 'hydro.code.safecdef'
 
 --[[
 We have a few different variable sets used for structs, gui, display, etc
@@ -52,8 +53,6 @@ function Struct:countScalars(scalar)
 	local numScalars = structSize / ffi.sizeof(scalar)
 	return numScalars
 end
-
-local safecdef = require 'hydro.code.safecdef'
 
 function Struct:makeType()
 	assert(not self.typename, "don't call makeType() twice")

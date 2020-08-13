@@ -39,7 +39,7 @@ end
 
 -- during init, generating code, do this:
 
-function ModuleSet:getCodeForField(field, ...)
+function ModuleSet:getCodeForGetter(getter, ...)
 	local addedkeys = {}
 	local added = table()
 	local function add(name)
@@ -59,23 +59,52 @@ function ModuleSet:getCodeForField(field, ...)
 		add(name)
 	end
 	return added:mapi(function(module)
-		if module[field] == '' then return '' end
-		return '\n////////////// '..module.name..' '..field..' //////////////\n\n'
-			..module[field]
+		local code, desc = getter(module)
+		if code == '' then return '' end
+		return '\n////////////// '..module.name..' '..desc..' //////////////\n\n'
+			..code
 	end):concat'\n'
 end
 
 function ModuleSet:getTypeHeader(...)
-	return self:getCodeForField('typecode', ...)
+	return table{
+		self:getCodeForGetter(function(module)
+			return module.typecode, 'typecode'
+		end, ...),
+		self:getCodeForGetter(function(module) 
+			return module.structs:mapi(function(struct)
+				-- this needs makeType() called first, which generates the .typecode
+				-- but it also calls the ffi.metatype (which can only be done once)
+				-- and also the ffi.cdef (which is only effective the first time it's done)
+				return struct.typecode, 'typecode'
+			end):concat'\n'
+		end, ...),
+	}:concat'\n'
 end
 
 function ModuleSet:getHeader(...)
-	return self:getCodeForField('typecode', ...)..'\n'
-		.. self:getCodeForField('headercode', ...)
+	return table{
+		self:getCodeForGetter(function(module) 
+			return module.typecode, 'typecode' 
+		end, ...),
+		self:getCodeForGetter(function(module) 
+			return module.structs:mapi(function(struct)
+				-- this needs makeType() called first, which generates the .typecode
+				-- but it also calls the ffi.metatype (which can only be done once)
+				-- and also the ffi.cdef (which is only effective the first time it's done)
+				return struct.typecode
+			end):concat'\n', 'typecode'
+		end, ...),	
+		self:getCodeForGetter(function(module) 
+			return module.headercode, 'headercode' 
+		end, ...),
+	}:concat'\n'
 end
 
 function ModuleSet:getCode(...)
-	return self:getCodeForField('code', ...)
+	return self:getCodeForGetter(function(module) 
+		return module.code, 'code' 
+	end, ...)
 end
 
 return ModuleSet

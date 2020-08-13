@@ -42,8 +42,8 @@ function GRHDSeparateSolver:init(args)
 		HydroSolver.super.createCodePrefix(self)
 		
 		local codePrefix = table{
-			self.modules:getHeader(self.solverModuleNames:unpack()),
-			self.modules:getCode(self.solverModuleNames:unpack()),
+			self.modules:getHeader(self.sharedModulesEnabled:keys():unpack()),
+			self.modules:getCode(self.sharedModulesEnabled:keys():unpack()),
 		}:concat'\n'
 
 		self.codePrefix = table{
@@ -177,8 +177,8 @@ function GRHDSeparateSolver:createCalcStressEnergyKernel()
 	require 'hydro.solver.gridsolver'.createCodePrefix(self)
 
 	local codePrefix = table{
-		self.modules:getHeader(self.solverModuleNames:unpack()),
-		self.modules:getCode(self.solverModuleNames:unpack()),
+		self.modules:getHeader(self.sharedModulesEnabled:keys():unpack()),
+		self.modules:getCode(self.sharedModulesEnabled:keys():unpack()),
 	}:concat'\n'
 
 	local lines = table{
@@ -276,8 +276,8 @@ function GRHDSeparateSolver:replaceSourceKernels()
 	require 'hydro.solver.gridsolver'.createCodePrefix(self)
 
 	local codePrefix = table{
-		self.modules:getHeader(self.solverModuleNames:unpack()),
-		self.modules:getCode(self.solverModuleNames:unpack()),
+		self.modules:getHeader(self.sharedModulesEnabled:keys():unpack()),
+		self.modules:getCode(self.sharedModulesEnabled:keys():unpack()),
 	}:concat'\n'
 
 	local lines = table{

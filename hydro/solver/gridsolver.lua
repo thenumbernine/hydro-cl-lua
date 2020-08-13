@@ -272,7 +272,7 @@ functionality (and abstraction):
 		}
 		:concat'\n',
 	}
-	self.solverModuleNames:insert'GridSolver-codeprefix'
+	self.sharedModulesEnabled['GridSolver-codeprefix'] = true
 
 	-- volume of a cell = volume element times grid dx's 
 	self.modules:add{
@@ -290,7 +290,7 @@ end
 			xNames = xNames,
 		}),
 	}
-	self.solverModuleNames:insert'cell_sqrt_det_g'
+	self.sharedModulesEnabled['cell_sqrt_det_g'] = true
 
 	if self.usePLM then
 		self.modules:add{
@@ -324,11 +324,11 @@ typedef struct {
 				eqn = self.eqn,
 			}),
 		}
-		self.solverModuleNames:append{
-			'consLR_t',
-			'slopeLimiter',
-			'eigen_forCell',	-- defined in eqn, used by PLM
-		}
+		self.sharedModulesEnabled = table(self.sharedModulesEnabled, {
+			consLR_t = true,
+			slopeLimiter = true,
+			eigen_forCell = true,	-- defined in eqn, used by PLM
+		})
 	end
 end
 
@@ -1208,8 +1208,8 @@ function GridSolver:createBoundaryProgramAndKernel(args)
 	local lines = table()
 	
 	local codePrefix = table{
-		self.modules:getHeader(self.solverModuleNames:unpack()),
-		self.modules:getCode(self.solverModuleNames:unpack()),
+		self.modules:getHeader(self.sharedModulesEnabled:keys():unpack()),
+		self.modules:getCode(self.sharedModulesEnabled:keys():unpack()),
 	}:concat'\n'
 	lines:insert(codePrefix)
 

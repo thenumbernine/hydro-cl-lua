@@ -36,8 +36,8 @@ function GREMSeparateSolver:init(args)
 		GRMaxwellSolver.super.createCodePrefix(self)
 		
 		local codePrefix = table{
-			self.modules:getHeader(self.solverModuleNames:unpack()),
-			self.modules:getCode(self.solverModuleNames:unpack()),
+			self.modules:getHeader(self.sharedModulesEnabled:keys():unpack()),
+			self.modules:getCode(self.sharedModulesEnabled:keys():unpack()),
 		}:concat'\n'
 
 		self.codePrefix = table{
@@ -163,8 +163,8 @@ function GREMSeparateSolver:replaceSourceKernels()
 	require 'hydro.solver.gridsolver'.createCodePrefix(self)
 
 	local codePrefix = table{
-		self.modules:getHeader(self.solverModuleNames:unpack()),
-		self.modules:getCode(self.solverModuleNames:unpack()),
+		self.modules:getHeader(self.sharedModulesEnabled:keys():unpack()),
+		self.modules:getCode(self.sharedModulesEnabled:keys():unpack()),
 	}:concat'\n'
 
 	local lines = table{

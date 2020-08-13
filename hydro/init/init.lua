@@ -82,23 +82,30 @@ end
 
 function InitCond:initCodeModules(solver)
 	solver.modules:add{
+		name = 'initCond.initCond_t',
+		structs = {self.initStruct},
+	}
+	
+	solver.modules:add{
 		name = 'initCond-codeprefix',
+		depends = {'initCond.initCond_t'},
 		code = self.getCodePrefix and self:getCodePrefix(solver) or '',
 	}
 end
 
 function InitCond:refreshInitStateProgram(solver)
 	local initCondCode 
+
+print('initCond using modules:', solver.sharedModulesEnabled:keys():sort():concat', ')
+
 	time('generating init state code', function()
 		local codePrefix = table{
-			solver.modules:getHeader(solver.solverModuleNames:unpack()),
-			solver.modules:getCode(solver.solverModuleNames:unpack()),
+			solver.modules:getHeader(solver.sharedModulesEnabled:keys():unpack()),
+			solver.modules:getCode(solver.sharedModulesEnabled:keys():unpack()),
 		}:concat'\n'
 
 		initCondCode = table{
 			codePrefix,
-			
-			self.initStruct.typecode,
 		
 			self.guiVars:mapi(function(var,i,t) 
 				return (var.compileTime and var:getCode() or nil), #t+1

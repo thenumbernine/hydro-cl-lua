@@ -548,13 +548,13 @@ kernel void calcFlux(
 end
 
 
--- TODO replace this with self.modules and self.solverModuleNames 
+-- TODO replace this with self.modules and self.sharedModulesEnabled
 function MeshSolver:createCodePrefix()
 	MeshSolver.super.createCodePrefix(self)
 
 	local codePrefix = table{
-		self.modules:getHeader(self.solverModuleNames:unpack()),
-		self.modules:getCode(self.solverModuleNames:unpack()),
+		self.modules:getHeader(self.sharedModulesEnabled:keys():unpack()),
+		self.modules:getCode(self.sharedModulesEnabled:keys():unpack()),
 	}:concat'\n'
 
 	local lines = table{

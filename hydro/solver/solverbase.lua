@@ -90,11 +90,11 @@ SolverBase:init
 	-- subsequent cl programs will collect the required ones for building
 	SolverBase:initCodeModules
 		self.modules = ...
-		self.solverModuleNames = ...
+		self.sharedModulesEnabled = ...
 		
 		self.coord:initCodeModules
 		self.eqn:initCodeModules
-		self.solverStruct.typecode
+		self.solverStruct
 		self.ops[i]:initCodeModules
 
 --------- here is where the ffi.cdef is called --------- 
@@ -296,8 +296,8 @@ SolverBase.useCLLinkLibraries = false
 		self.mathUnlinkedObj = self.Program{
 			name = 'math',
 			code = table{
-				self.modules:getHeader(self.solverModuleNames:unpack()),
-				self.modules:getCode(self.solverModuleNames:unpack()),
+				self.modules:getHeader(self.sharedModulesEnabled:keys():unpack()),
+				self.modules:getCode(self.sharedModulesEnabled:keys():unpack()),
 			}:concat'\n',
 		}
 		self.mathUnlinkedObj:compile{
@@ -574,15 +574,19 @@ function SolverBase:initCodeModules()
 	self.modules = require 'hydro.code.moduleset'(self.app.modules)
 	
 	-- what to compile?
-	self.solverModuleNames = table{
-		'math',
+	-- use keys of this
+	-- solverModulesEnabled = modules for solvers
+	-- initModulesEnabled = modules for init
+	-- sharedModulesEnabled = modules for both.  previously 'codeprefix'.
+	self.sharedModulesEnabled = table{
+		math = true,
 	}
 
 	self.modules:add{
-		name = 'solver-struct',
-		typecode = assert(self.solverStruct.typecode),
+		name = 'solver.solver_t',
+		structs = {self.solverStruct},
 	}
-	self.solverModuleNames:insert'solver-struct'
+	self.sharedModulesEnabled['solver.solver_t'] = true
 
 	-- header
 	self.modules:add{
@@ -598,21 +602,21 @@ function SolverBase:initCodeModules()
 			'#define numWaves '..self.eqn.numWaves,
 		}:concat'\n',
 	}
-	self.solverModuleNames:insert'codeprefix-macros'
+	self.sharedModulesEnabled['codeprefix-macros'] = true
 
 	self.coord:initCodeModules()
-	self.solverModuleNames:append{
-		'coord',
---		'conn',
-		'metric',
-		'coord-cell',
-	}
+	self.sharedModulesEnabled = table(self.sharedModulesEnabled, {
+		coord = true,
+--		conn = true,
+		metric = true,
+		['coord-cell'] = true,
+	})
 
 	self.eqn:initCodeModules()	-- calls eqn.initCond:initCodeModules()
-	self.solverModuleNames:append{
-		'eqn',		-- just the header of this
-		'eqn-codeprefix',
-	}
+	self.sharedModulesEnabled = table(self.sharedModulesEnabled, {
+		eqn = true,		-- just the header of this
+		['eqn-codeprefix'] = true,
+	})
 
 	for _,op in ipairs(self.ops) do
 		if op.initCodeModules then
@@ -624,7 +628,7 @@ end
 -- TODO if you want to define ffi ctype metatable then put them all in one spot here
 function SolverBase:initCDefs()
 	require 'hydro.code.safecdef'(table{
-		self.modules:getTypeHeader(self.solverModuleNames:unpack()),
+		self.modules:getTypeHeader(self.sharedModulesEnabled:keys():unpack()),
 	}:concat'\n')
 end
 
@@ -745,8 +749,8 @@ function SolverBase:refreshCommonProgram()
 	-- TODO move to app, along with reduceBuf
 
 	local codePrefix = table{
-		self.modules:getHeader(self.solverModuleNames:unpack()),
-		self.modules:getCode(self.solverModuleNames:unpack()),
+		self.modules:getHeader(self.sharedModulesEnabled:keys():unpack()),
+		self.modules:getCode(self.sharedModulesEnabled:keys():unpack()),
 	}:concat'\n'
 
 	local commonCode = table():append{
@@ -1135,16 +1139,18 @@ end
 
 function SolverBase:getSolverCode()
 	local codePrefix = table{
-		self.modules:getHeader(self.solverModuleNames:unpack()),
-		self.modules:getCode(self.solverModuleNames:unpack()),
+		self.modules:getHeader(self.sharedModulesEnabled:keys():unpack()),
+		self.modules:getCode(self.sharedModulesEnabled:keys():unpack()),
 	}:concat'\n'
 
 	return table{
 		codePrefix,
-		
-		'real fluxLimiter(real r) {\n'
-		.. '\t' ..self.app.limiters[self.fluxLimiter].code..'\n'
-		.. '}\n',
+	
+		template([[
+real fluxLimiter(real r) {
+	<?=solver.app.limiters[solver.fluxLimiter].code?>
+}
+]], {solver=self}),
 
 		'typedef struct { real min, max; } range_t;',
 		
@@ -2886,8 +2892,8 @@ function SolverBase:checkStructSizes()
 	local resultBuf = self.app.env:buffer{name='result', type='size_t', count=varcount, data=resultPtr}
 	
 	local codePrefix = table{
-		self.modules:getHeader(self.solverModuleNames:unpack()),
-		self.modules:getCode(self.solverModuleNames:unpack()),
+		self.modules:getHeader(self.sharedModulesEnabled:keys():unpack()),
+		self.modules:getCode(self.sharedModulesEnabled:keys():unpack()),
 	}:concat'\n'
 
 	require 'cl.obj.kernel'{

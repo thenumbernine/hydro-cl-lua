@@ -66,8 +66,8 @@ function BackwardEuler:init(solver, args)
 	}
 
 	local codePrefix = table{
-		solver.modules:getHeader(solver.solverModuleNames:unpack()),
-		solver.modules:getCode(solver.solverModuleNames:unpack()),
+		solver.modules:getHeader(solver.sharedModulesEnabled:keys():unpack()),
+		solver.modules:getCode(solver.sharedModulesEnabled:keys():unpack()),
 	}:concat'\n'
 	
 	local copyBufferWithOrWithoutGhostProgram = solver.Program{
