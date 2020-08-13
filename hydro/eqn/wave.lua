@@ -221,4 +221,8 @@ end
 
 Wave.eigenWaveCode = Wave.consWaveCode
 
+function Wave:getModuleDependsCommon() 
+	return {'real3x3'}
+end
+
 return Wave

@@ -327,7 +327,7 @@ function TwoFluidEMHDDeDonderGaugeLinearizedGR:initCodeModulePrimCons()
 		name = 'eqn.dU-dW',
 		depends = {
 			'real3',
-			'metric',	-- coord_lower
+			'coord_lower',
 			'solver.solver_t',
 			'eqn.prim_t',
 			'eqn.cons_t',

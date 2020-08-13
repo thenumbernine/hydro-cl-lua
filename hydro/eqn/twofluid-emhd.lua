@@ -313,7 +313,7 @@ function TwoFluidEMHD:initCodeModulePrimCons()
 			'solver.solver_t',
 			'eqn.prim_t',
 			'eqn.cons_t',
-			'metric',	-- coord_lower
+			'coord_lower',
 		},
 		code = template([[
 <?=eqn.cons_t?> apply_dU_dW(

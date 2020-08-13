@@ -416,6 +416,7 @@ end
 
 kernel void calcCellFlux(
 	constant <?=solver.solver_t?>* solver,
+	const global <?=solver.coord.cell_t?>* cellBuf,
 	global <?=eqn.cons_t?>* fluxCellBuf,
 	const global <?=eqn.cons_t?>* UBuf
 ) {
@@ -432,6 +433,7 @@ kernel void calcCellFlux(
 
 kernel void calcFlux(
 	constant <?=solver.solver_t?>* solver,
+	const global <?=solver.coord.cell_t?>* cellBuf,
 	global <?=eqn.cons_t?>* fluxBuf,
 	const global <?=eqn.cons_t?>* UBuf
 //	,const global <?=eqn.cons_t?>* fluxCellBuf

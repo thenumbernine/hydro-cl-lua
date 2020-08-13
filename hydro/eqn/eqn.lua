@@ -376,12 +376,13 @@ end
 	-- put this here or in SolverBase?
 	self.initCond:initCodeModules(self.solver)
 
+	-- TODO need to fix this somehow
 	self.solver.modules:add{
 		name = 'eqn.common',
-		depends = {
+		depends = table{
 			'eqn.types',
 			'coord',	-- Euler's common code uses coordLenSq
-		},
+		}:append(self:getModuleDependsCommon()),
 		-- functions that prim-cons code will use, but which use macros:
 		code = self.getCommonFuncCode and self:getCommonFuncCode() or nil,
 	}
@@ -435,14 +436,17 @@ end
 function Equation:initCodeModuleSolver()
 	self.solver.modules:add{
 		name = 'eqn.solvercode',
-		depends = {
+		depends = table{
 			'eqn.types',
 			'eqn.guiVars.compileTime',
 			'coord',
-		},
+		}:append(self:getModuleDependsSolver()),
 		code = template(file[self.solverCodeFile], self:getEnv()),
 	}
 end
+
+function Equation:getModuleDependsCommon() end
+function Equation:getModuleDependsSolver() end
 
 -- Really really used by maxwell, glm-maxwell, and other things that vary their scalar type between real and cplx.  but it fits here just as well.
 function Equation:getEnv()
@@ -674,7 +678,13 @@ function Equation:initCodeModuleCalcDT()
 	
 	self.solver.modules:add{
 		name = 'eqn.calcDT',
-		depends = {'eqn.types'},
+		depends = {
+			'eqn.types',
+			'coord.normal',
+			-- so these dependencies are going to vary based on the eigen code of each eqn 
+			'eqn.common',		-- used by eqn/wave
+			'eqn.prim-cons',	-- used by eqn/shallow-water
+		},
 		code = template(file['hydro/eqn/cl/calcDT.cl'], {
 			solver = self.solver, 
 			eqn = self,

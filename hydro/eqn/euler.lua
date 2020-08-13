@@ -114,7 +114,7 @@ function Euler:initCodeModules()
 		name = 'eigen_forCell',
 		depends = {
 			'coord.normal',	-- normalInfo_t
-			'metric',	-- coord_lower
+			'coord_lower',
 			'eqn.cons_t',
 			'eqn.prim_t',
 			'eqn.eigen_t',
@@ -195,7 +195,7 @@ function Euler:initCodeModulePrimCons()
 			'solver.solver_t',
 			'eqn.prim_t',
 			'eqn.cons_t',
-			'metric',		-- coord_raise/coord_lower
+			'coord_lower',
 		},
 		code = template([[
 
@@ -557,27 +557,12 @@ kernel void calcDT(
 	}
 end
 
--- TODO same as super except I changed the depends
-local file = require 'ext.file'
-function Euler:initCodeModuleSolver()
-	self.solver.modules:add{
-		name = 'eqn.solvercode',
-		depends = {
-			'eqn.types',
-			'eqn.guiVars.compileTime',
-			'coord',
-			-- Euler-specific:
-			'coord.normal',
-			'metric',
-		},
-	
-		-- why did I have this comment here?:
-		-- TODO move to Roe, or FiniteVolumeSolver as a parent of Roe and HLL?
-		code = template(file[self.solverCodeFile], self:getEnv()),
+function Euler:getModuleDependsSolver() 
+	return {
+		'coord.normal',
+		'coord_lower',
 	}
 end
-
-
 
 return Euler
 

@@ -1009,11 +1009,20 @@ static inline real coordLen(real3 r, real3 pt) {
 	end
 	--]]
 
+	self.solver.modules:add{
+		name = 'coord_lower',
+		depends = {'real3'},
+		code = getCode_real3_real3_to_real3('coord_lower', self.lowerCodes),
+	}
+
+	self.solver.modules:add{
+		name = 'coord_raise',
+		depends = {'real3'},
+		code = getCode_real3_real3_to_real3('coord_raise', self.raiseCodes),
+	}
 
 	do
 		local lines = table()
-		lines:insert(getCode_real3_real3_to_real3('coord_lower', self.lowerCodes))
-		lines:insert(getCode_real3_real3_to_real3('coord_raise', self.raiseCodes))
 		
 		local function addSym3Components(name, codes)
 			for i=1,3 do
@@ -1033,23 +1042,21 @@ static inline real coordLen(real3 r, real3 pt) {
 		addSym3Components('coord_sqrt_g_uu', self.sqrt_gUCode)
 	
 		self.solver.modules:add{
-			name = 'metric',
+			name = 'coord_g_ll,uu,sqrt_guu component',
 			depends = {'real3'},
 			code = lines:concat'\n',
 		}
 	end
 
-	do
-		local lines = table()
-		lines:insert(getCode_real3_to_sym3('coord_g_ll', self.gCode))
-		lines:insert(getCode_real3_to_sym3('coord_g_uu', self.gUCode))
-		self.solver.modules:add{
-			name = 'metric+sym3',
-			depends = {'sym3'},
-			code = lines:concat'\n',
-		}
-	end
-
+	self.solver.modules:add{
+		name = 'coord_g_ll/uu',
+		depends = {'sym3'},
+		code = table{
+			getCode_real3_to_sym3('coord_g_ll', self.gCode),
+			getCode_real3_to_sym3('coord_g_uu', self.gUCode),
+		}:concat'\n',
+	}
+	
 	lines:insert(self:getCoordMapCode())
 
 	-- parallel propagate code
@@ -1125,7 +1132,6 @@ static inline real coordLen(real3 r, real3 pt) {
 	-- for holonomic/anholonomic this is just the linearly interpolated
 	self.solver.modules:add{
 		name = 'coord.cell_t',
-		depends = {'real3'},
 		structs = {self.cellStruct},
 		headercode = [[
 #define cell_x(i)	cellBuf[INDEXV(i)].pos
