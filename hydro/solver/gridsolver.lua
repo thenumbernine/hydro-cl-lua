@@ -1219,10 +1219,12 @@ function GridSolver:createBoundaryProgramAndKernel(args)
 	local field = args.field or function(a, b) return a .. '.' .. b end
 
 	local lines = table()
-	
+
+	local moduleNames = self.sharedModulesEnabled:keys()
+print('boundary modules:', moduleNames:sort():concat', ')
 	local codePrefix = table{
-		self.modules:getHeader(self.sharedModulesEnabled:keys():unpack()),
-		self.modules:getCode(self.sharedModulesEnabled:keys():unpack()),
+		self.modules:getHeader(moduleNames:unpack()),
+		self.modules:getCode(moduleNames:unpack()),
 	}:concat'\n'
 	lines:insert(codePrefix)
 
@@ -1584,11 +1586,14 @@ function GridSolver:save(prefix)
 	end
 end
 
+-- TODO use modules for this?
 function GridSolver:checkStructSizes_getTypes()
 	local typeinfos = GridSolver.super.checkStructSizes_getTypes(self)
-	typeinfos:append{
-		self.eqn.consLR_t,
-	}
+	if self.sharedModulesEnabled['consLR_t'] then
+		typeinfos:append{
+			self.eqn.consLR_t,
+		}
+	end
 	return typeinfos
 end
 

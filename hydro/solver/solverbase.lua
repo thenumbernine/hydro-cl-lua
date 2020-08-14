@@ -588,12 +588,10 @@ function SolverBase:initCodeModules()
 	self.sharedModulesEnabled['solver.macros'] = true
 
 	self.coord:initCodeModules()
-	self.sharedModulesEnabled = table(self.sharedModulesEnabled, {
-		coord = true,
-		-- used by applyInitCond maybe, 
-		--  and the solver kernels in the eqn solver code maybe
-		['eqn.guiVars.compileTime'] = true,
-	})
+	self.sharedModulesEnabled.coord = true
+	-- used by applyInitCond maybe
+	--  and the solver kernels in the eqn solver code maybe
+	self.sharedModulesEnabled['eqn.guiVars.compileTime'] = true
 	
 
 	self.eqn:initCodeModules()	-- calls eqn.initCond:initCodeModules()
@@ -637,6 +635,10 @@ real fluxLimiter(real r) {
 end
 
 -- TODO if you want to define ffi ctype metatable then put them all in one spot here
+-- TODO TODO since i'm switching to the modules, 
+-- and since eqn's init's ffi calls need the ctypes of the fields defined up-front in order to use them (like counting scalars in cons_t),
+-- how about instead I call cdef() immediately upon request? 
+-- and then just get of this function completely.
 function SolverBase:initCDefs()
 	local moduleNames = table(
 		self.initModulesEnabled,
@@ -763,9 +765,11 @@ function SolverBase:refreshCommonProgram()
 	-- code that depend on real and nothing else
 	-- TODO move to app, along with reduceBuf
 
+	local moduleNames = self.sharedModulesEnabled:keys()
+print('common modules:', moduleNames:sort():concat', ')
 	local codePrefix = table{
-		self.modules:getHeader(self.sharedModulesEnabled:keys():unpack()),
-		self.modules:getCode(self.sharedModulesEnabled:keys():unpack()),
+		self.modules:getHeader(moduleNames:unpack()),
+		self.modules:getCode(moduleNames:unpack()),
 	}:concat'\n'
 
 	local commonCode = table():append{
@@ -2863,6 +2867,7 @@ function SolverBase:updateGUI()
 end
 
 -- [[ debugging -- determine sizeof
+-- TODO use modules for this?
 function SolverBase:checkStructSizes_getTypes()
 	return 	table{
 		'real',
@@ -2891,12 +2896,55 @@ function SolverBase:checkStructSizes()
 	local _1x1_domain = self.app.env:domain{size={1}, dim=1}
 	local resultPtr = ffi.new('size_t[?]', varcount)
 	local resultBuf = self.app.env:buffer{name='result', type='size_t', count=varcount, data=resultPtr}
-	
+
+	local moduleNames = self.sharedModulesEnabled:keys()
+print('shared modules:', moduleNames:sort():concat', ')
 	local codePrefix = table{
-		self.modules:getHeader(self.sharedModulesEnabled:keys():unpack()),
-		self.modules:getCode(self.sharedModulesEnabled:keys():unpack()),
+		self.modules:getHeader(moduleNames:unpack()),
+		self.modules:getCode(moduleNames:unpack()),
 	}:concat'\n'
 
+--[=[
+	local testStructProgramObj = self.Program{
+		name = 'checkStructSizes',
+		code = table{
+			codePrefix,
+			template([[
+kernel void checkStructSizes(
+	global int* resultBuf
+) {
+
+#define offsetof __builtin_offsetof
+
+<? 
+local index = 0
+for i,typeinfo in ipairs(typeinfos) do 
+	local typename
+	if type(typeinfo) == 'string' then
+?>	result[<?=index?>] = sizeof(<?=typeinfo?>);
+<? 
+		index = index + 1
+	else
+?>	result[<?=index?>] = sizeof(<?=typeinfo.typename?>);
+<? 
+		index = index + 1
+		for _,var in ipairs(typeinfo.vars) do
+?>	result[<?=index?>] = offsetof(<?=typeinfo.typename?>, <?=var.name?>);
+<? 		
+			index = index + 1
+		end
+	end
+end 
+?>
+
+}
+]], 	{
+			typeinfos = typeinfos,
+		})	
+		}:concat'\n',
+	}
+	testStructProgramObj:compile()
+--]=]
 	require 'cl.obj.kernel'{
 		env = self.app.env,
 		domain = _1x1_domain,
