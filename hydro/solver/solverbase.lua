@@ -2869,7 +2869,7 @@ end
 -- [[ debugging -- determine sizeof
 -- TODO use modules for this?
 function SolverBase:checkStructSizes_getTypes()
-	return 	table{
+	local typeinfos = table{
 		'real',
 		'real2',
 		'real3',
@@ -2880,6 +2880,25 @@ function SolverBase:checkStructSizes_getTypes()
 		self.eqn.waves_t,
 		self.solverStruct,
 	}
+-- [=[ automatically use types in the code modules
+	local moduleNames = table(
+		self.sharedModulesEnabled,
+		self.solverModulesEnabled,
+		self.initModulesEnabled
+	):keys()
+	for _,module in ipairs(self.modules:getDependentModules(moduleNames:unpack())) do
+		for _,struct in ipairs(module.structs) do
+			print(struct.typename)
+			if not typeinfos:find(struct)
+			and not typeinfos:find(struct.typename) 
+			then
+				print('adding struct from modules '..struct.typename)
+				typeinfos:insert(struct)
+			end
+		end
+	end
+--]=]
+	return typeinfos
 end
 function SolverBase:checkStructSizes()
 	local typeinfos = self:checkStructSizes_getTypes()
@@ -2897,7 +2916,11 @@ function SolverBase:checkStructSizes()
 	local resultPtr = ffi.new('size_t[?]', varcount)
 	local resultBuf = self.app.env:buffer{name='result', type='size_t', count=varcount, data=resultPtr}
 
-	local moduleNames = self.sharedModulesEnabled:keys()
+	local moduleNames = table(
+		self.sharedModulesEnabled,
+		self.solverModulesEnabled,
+		self.initModulesEnabled
+	):keys()
 print('shared modules:', moduleNames:sort():concat', ')
 	local codePrefix = table{
 		self.modules:getHeader(moduleNames:unpack()),

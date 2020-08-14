@@ -39,7 +39,7 @@ end
 
 -- during init, generating code, do this:
 
-function ModuleSet:getCodeForGetter(getter, ...)
+function ModuleSet:getDependentModules(...)
 	local addedkeys = {}
 	local added = table()
 print('building:')	
@@ -89,28 +89,36 @@ print('building:')
 		add(name, '', ' ', i == 1)--numModules)
 	end
 	print()
-	return added:mapi(function(module)
+	return added
+end
+
+function ModuleSet:getCodeForGetter(getter, ...)
+	local lines = table()
+	for _,module in ipairs(self:getDependentModules(...)) do
 		local code, desc = getter(module)
-		if code == '' then return '' end
-		return '\n////////////// '..module.name..' '..desc..' //////////////\n\n'
-			..code
-	end):concat'\n'
+		lines:insert(
+			code == ''
+			and ''
+			or (
+				'\n////////////// '..module.name..' '..desc..' //////////////\n\n'
+				..code
+			)
+		)
+	end
+	return lines:concat'\n'
 end
 
 function ModuleSet:getTypeHeader(...)
-	return table{
-		self:getCodeForGetter(function(module)
-			return module.typecode, 'typecode'
-		end, ...),
-		self:getCodeForGetter(function(module) 
-			return module.structs:mapi(function(struct)
-				-- this needs makeType() called first, which generates the .typecode
-				-- but it also calls the ffi.metatype (which can only be done once)
-				-- and also the ffi.cdef (which is only effective the first time it's done)
-				return struct.typecode, 'typecode'
-			end):concat'\n'
-		end, ...),
-	}:concat'\n'
+	return self:getCodeForGetter(function(module)
+		return table{
+			module.typecode
+		}:append(module.structs:mapi(function(struct)
+			-- this needs makeType() called first, which generates the .typecode
+			-- but it also calls the ffi.metatype (which can only be done once)
+			-- and also the ffi.cdef (which is only effective the first time it's done)
+			return struct.typecode
+		end)):concat'\n', 'typecode & structs'
+	end, ...)
 end
 
 function ModuleSet:getHeader(...)

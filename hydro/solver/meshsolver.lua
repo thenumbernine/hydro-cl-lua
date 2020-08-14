@@ -362,6 +362,7 @@ end
 
 function MeshSolver:checkStructSizes_getTypes()
 	local typeinfos = MeshSolver.super.checkStructSizes_getTypes(self)
+	-- TODO use modules' structs instead of this
 	typeinfos:append{
 		self.coord.face_t,
 		self.coord.cell_t,

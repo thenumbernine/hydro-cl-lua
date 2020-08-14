@@ -1586,15 +1586,4 @@ function GridSolver:save(prefix)
 	end
 end
 
--- TODO use modules for this?
-function GridSolver:checkStructSizes_getTypes()
-	local typeinfos = GridSolver.super.checkStructSizes_getTypes(self)
-	if self.sharedModulesEnabled['consLR_t'] then
-		typeinfos:append{
-			self.eqn.consLR_t,
-		}
-	end
-	return typeinfos
-end
-
 return GridSolver
