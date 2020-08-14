@@ -884,7 +884,10 @@ local args = {
 		cflMethod = '2017 Ruchlin et al, eqn 53',
 	},
 	dim = dim,
-	integrator = 'Runge-Kutta 4',
+	
+integrator = 'forward Euler',
+--	integrator = 'Runge-Kutta 4',
+	
 	--integrator = 'backward Euler',
 	--integratorArgs = {verbose=true},
 	cfl = .5,

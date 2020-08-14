@@ -393,11 +393,14 @@ function SolverBase:initMeshVars(args)
 	-- in GridSolver this was 'initMeshVars' which comes first
 	-- in MeshSolver this was 'preInit' which comes later
 	
+	local solver = self
+	
 	-- my kernel objs are going to need workgroup info based on domain.size-2*noGhost as well as domain.size ... 
 	-- ...and rather than require an extra argument, I think I'll just take advantage of a closure
-	local solver = self
 	local Program = class(require 'cl.obj.program')
 	
+	Program.showCodeOnError = false
+
 	function Program:init(args)
 		self.name = args.name
 		args.env = solver.app.env

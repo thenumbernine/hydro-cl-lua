@@ -2,7 +2,8 @@
 kernel void calcFluxAtCell(
 	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* fluxBuf,
-	const global <?=eqn.cons_t?>* UBuf
+	const global <?=eqn.cons_t?>* UBuf,
+	const global <?=solver.coord.cell_t?>* cellBuf
 ) {
 	SETBOUNDS(0,0);
 	real3 x = cell_x(i);
@@ -16,7 +17,8 @@ kernel void calcFluxAtCell(
 kernel void calcDerivFiniteDifference(
 	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* derivBuf,
-	const global <?=eqn.cons_t?>* fluxBuf
+	const global <?=eqn.cons_t?>* fluxBuf,
+	const global <?=solver.coord.cell_t?>* cellBuf
 ) {
 	SETBOUNDS(numGhost,numGhost);
 	

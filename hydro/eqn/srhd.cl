@@ -102,6 +102,7 @@ eigen_t eigen_forInterface(
 		.eInt = .5 * (UL.eInt + UR.eInt),
 	};
 <? -- else -- Roe-averaging, Font 2008 eqn 38 ?>
+	// weight by k = sqrt(sqrt(g) rho h)
 <? end ?>
 
 	// rotate avg.v into n

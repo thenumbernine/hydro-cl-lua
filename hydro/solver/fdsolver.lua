@@ -30,11 +30,12 @@ end
 function FiniteDifferenceSolver:refreshSolverProgram()
 	FiniteDifferenceSolver.super.refreshSolverProgram(self)
 
-	self.calcFluxAtCellKernelObj = self.solverProgramObj:kernel('calcFluxAtCell', self.solverBuf, self.fluxBuf, self.UBuf)
+	self.calcFluxAtCellKernelObj = self.solverProgramObj:kernel('calcFluxAtCell', self.solverBuf, self.fluxBuf, self.UBuf, self.cellBuf)
 
 	self.calcDerivFiniteDifferenceKernelObj = self.solverProgramObj:kernel'calcDerivFiniteDifference'
 	self.calcDerivFiniteDifferenceKernelObj.obj:setArg(0, self.solverBuf)
 	self.calcDerivFiniteDifferenceKernelObj.obj:setArg(2, self.fluxBuf)
+	self.calcDerivFiniteDifferenceKernelObj.obj:setArg(3, self.cellBuf)
 end
 
 function FiniteDifferenceSolver:calcDeriv(derivBufObj, dt)
