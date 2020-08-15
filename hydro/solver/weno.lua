@@ -62,17 +62,18 @@ function WENO:createBuffers()
 --	self:clalloc('fluxCellBuf', self.eqn.cons_t, self.numCells * self.dim)
 end
 
-function WENO:getSolverCode()
-	return table{
-		WENO.super.getSolverCode(self),
+function WENO:initCodeModules()
+	WENO.super.initCodeModules(self)
 	
-		-- before this went above hydro/solver/plm.cl, now it's going after it ...
-		template(file['hydro/solver/weno.cl'], {
+	self.modules:add{
+		name = 'WENO.calcFlux',
+		code = template(file['hydro/solver/weno.cl'], {
 			solver = self,
 			eqn = self.eqn,
 			clnumber = require 'cl.obj.number',
 		}),
-	}:concat'\n'
+	}
+	self.solverModulesEnabled['WENO.calcFlux'] = true
 end
 
 -- all these are found eqn's cl code

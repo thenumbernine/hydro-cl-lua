@@ -43,13 +43,13 @@ function FiniteVolumeSolver:initCodeModules()
 	}
 
 	self.modules:add{
-		name = 'FiniteVolumeSolver.calcDerivFV',
+		name = 'FiniteVolumeSolver.calcDerivFromFlux',
 		depends = {
 			'FiniteVolumeSolver.calcFlux',
 		},
 		code = template(file['hydro/solver/calcDerivFV.cl'], {solver=self}),
 	}
-	self.solverModulesEnabled['FiniteVolumeSolver.calcDerivFV'] = true
+	self.solverModulesEnabled['FiniteVolumeSolver.calcDerivFromFlux'] = true
 end
 
 function FiniteVolumeSolver:createFlux(fluxName, fluxArgs)
