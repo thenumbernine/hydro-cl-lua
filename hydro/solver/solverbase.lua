@@ -398,8 +398,9 @@ function SolverBase:initMeshVars(args)
 	-- my kernel objs are going to need workgroup info based on domain.size-2*noGhost as well as domain.size ... 
 	-- ...and rather than require an extra argument, I think I'll just take advantage of a closure
 	local Program = class(require 'cl.obj.program')
-	
-	Program.showCodeOnError = false
+
+	-- I'm tempted to merge the two cl oop libs...
+	require 'cl.program'.showCodeOnError = false
 
 	function Program:init(args)
 		self.name = args.name
@@ -592,7 +593,7 @@ function SolverBase:initCodeModules()
 
 	self.coord:initCodeModules()
 	self.sharedModulesEnabled.coord = true
-	-- used by applyInitCond maybe
+	-- used by applyInitCond in initCode.cl
 	--  and the solver kernels in the eqn solver code maybe
 	self.sharedModulesEnabled['eqn.guiVars.compileTime'] = true
 	
@@ -2441,6 +2442,7 @@ end
 -- check for nans
 -- expects buf to be of type cons_t, made up of numStates real variables
 function SolverBase:checkFinite(buf)
+	local vec3sz = require 'vec-ffi.vec3sz'
 	local ptrorig = buf:toCPU()
 	local ptr0size = tonumber(ffi.sizeof(buf.type))
 	local realSize = tonumber(ffi.sizeof'real')

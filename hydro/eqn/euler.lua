@@ -244,6 +244,15 @@ function Euler:initCodeModulePrimCons()
 	}
 end
 
+function Euler:getModuleDependsCommon()
+	return {
+		'eqn.cons_t',
+		'eqn.prim_t',
+		'eqn.waves_t',
+		'eqn.eigen_t',
+		'coord',
+	}
+end
 function Euler:getCommonFuncCode()
 	return template([[
 real calc_H(constant <?=solver.solver_t?>* solver, real P) { return P * (solver->heatCapacityRatio / (solver->heatCapacityRatio - 1.)); }
@@ -460,8 +469,7 @@ function Euler:initCodeModuleCalcDT()
 		name = 'eqn.calcDT',
 		depends = {
 			'solver.solver_t',
-			'eqn.cons_t',
-			'eqn.prim_t',
+			'eqn.prim-cons',
 			'eqn.guiVars.compileTime',
 			'coord.normal',
 		},

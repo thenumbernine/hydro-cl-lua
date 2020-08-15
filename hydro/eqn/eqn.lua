@@ -283,7 +283,9 @@ function Equation:initCodeModules()
 		name = 'eqn.cons_t',
 		structs = {self.consStruct},
 	}
-	
+	-- boundary, initCond, solver ... everyone needs this
+	solver.sharedModulesEnabled['eqn.cons_t'] = true
+
 	solver.modules:add{
 		name = 'eqn.prim_t',
 		structs = {self.primStruct},
@@ -304,16 +306,6 @@ typedef union {
 	solver.modules:add{
 		name = 'eqn.eigen_t',
 		structs = {self.eigenStruct},
-	}
-
-	solver.modules:add{
-		name = 'eqn.types',
-		depends = {
-			'eqn.cons_t',
-			'eqn.prim_t',
-			'eqn.waves_t',
-			'eqn.eigen_t',
-		},
 	}
 
 	assert(not self.getTypeCode, "please convert :getTypeCode() to :initCodeModules()")
@@ -339,7 +331,10 @@ typedef union {
 		}
 		solver.modules:add{
 			name = 'eqn.cons_parallelPropagate',
-			depends = {'coord.coord_parallelPropagate'},
+			depends = {
+				'eqn.cons_t',
+				'coord.coord_parallelPropagate',
+			},
 			code = template([[
 <? for side=0,solver.dim-1 do
 	if coord.vectorComponent == 'cartesian'
@@ -382,14 +377,10 @@ end
 	-- put this here or in SolverBase?
 	self.initCond:initCodeModules(solver)
 
-	-- TODO need to fix this somehow
+	-- TODO don't even use this, just subclass initModule
 	solver.modules:add{
 		name = 'eqn.common',
-		depends = table{
-			'eqn.types',
-			'coord',	-- Euler's common code uses coordLenSq
-		}:append(self:getModuleDependsCommon()),
-		-- functions that prim-cons code will use, but which use macros:
+		depends = self:getModuleDependsCommon(),
 		code = self.getCommonFuncCode and self:getCommonFuncCode() or nil,
 	}
 
@@ -402,12 +393,6 @@ end
 	-- the runtime ones are stored in solver_t
 	solver.modules:add{
 		name = 'eqn.guiVars.compileTime',
-		depends = {
-			'eqn.types',
-			'initCond.codeprefix',
-			'eqn.common',
-			'eqn.prim-cons',
-		},
 		headercode = table.mapi(self.guiVars or {}, function(var,i,t) 
 			return (var.compileTime and var:getCode() or nil), #t+1
 		end):concat'\n',
@@ -420,7 +405,10 @@ end
 		solver.modules:add{
 			name = 'eqn.fluxFromCons',
 			depends = {
-				'eqn.solvercode',
+				'eqn.solvercode',	-- eigen_fluxTransform, eigen_forCell
+				'eqn.cons_t',
+				'solver.solver_t',
+				'coord.normal',		-- normalInfo_t
 			},
 			code = template([[
 <?=eqn.cons_t?> fluxFromCons(
@@ -443,7 +431,10 @@ function Equation:initCodeModuleSolver()
 	self.solver.modules:add{
 		name = 'eqn.solvercode',
 		depends = table{
-			'eqn.types',
+			'eqn.cons_t',
+			'eqn.prim_t',
+			'eqn.waves_t',
+			'eqn.eigen_t',
 			'eqn.guiVars.compileTime',
 			'coord',
 		}:append(self:getModuleDependsSolver()),
@@ -685,7 +676,10 @@ function Equation:initCodeModuleCalcDT()
 	self.solver.modules:add{
 		name = 'eqn.calcDT',
 		depends = {
-			'eqn.types',
+			'eqn.cons_t',
+			'eqn.prim_t',
+			'eqn.waves_t',
+			'eqn.eigen_t',
 			'coord.normal',
 			-- so these dependencies are going to vary based on the eigen code of each eqn 
 			'eqn.common',		-- used by eqn/wave

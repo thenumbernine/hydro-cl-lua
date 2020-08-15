@@ -85,37 +85,51 @@ function InitCond:initCodeModules(solver)
 		name = 'initCond.initCond_t',
 		structs = {self.initStruct},
 	}
-	
+
 	solver.modules:add{
 		name = 'initCond.codeprefix',
 		depends = {'initCond.initCond_t'},
-		code = self.getCodePrefix and self:getCodePrefix(solver) or '',
+		code = self.getCodePrefix and self:getCodePrefix(solver) or nil,
 	}
+
 end
 
 function InitCond:refreshInitStateProgram(solver)
-	local initCondCode 
 
-	local moduleNames = table(solver.sharedModulesEnabled, self.initModulesEnabled):keys()
-print('initCond modules:', moduleNames:sort():concat', ')
+	solver.modules:add{
+		name = 'initCond.header',
+		depends = {'initCond.codeprefix'},
+		code = self.header and self:header(solver) or nil,
+	}
+
+	solver.modules:add{
+		name = 'initCond.applyInitCond',
+		depends = {
+			-- if an InitCond provides header, it is for code it expects to reference from within 'applyInitCond()'
+			'initCond.header',
+			-- applyInitCond has these parameters:
+			'solver.solver_t',
+			'initCond.initCond_t',
+			'eqn.cons_t',
+			-- Euler and most have these too:
+			'eqn.prim-cons',
+		},
+		-- this in turn calls self:getInitCondCode() but with proper template args applied
+		code = solver.eqn:getInitCondCode() or nil,
+	}
+	
+	solver.initModulesEnabled['initCond.applyInitCond'] = true
+
+	local initCondCode 
 	time('generating init state code', function()
+		local moduleNames = table(solver.sharedModulesEnabled, solver.initModulesEnabled):keys()
+print('initCond modules: '..moduleNames:sort():concat', ')
 		initCondCode = table{
-			-- codePrefix:
 			solver.modules:getHeader(moduleNames:unpack()),
 			solver.modules:getCode(moduleNames:unpack()),
-		
-			self.guiVars:mapi(function(var,i,t) 
-				return (var.compileTime and var:getCode() or nil), #t+1
-			end):concat'\n',
-
-			self.header and self:header(solver) or '',
-			
-			-- this in turn calls self:getInitCondCode() but with proper template args applied
-			solver.eqn:getInitCondCode(),
 		}:concat'\n'
 	end)
 
-	local file = require 'ext.file'
 	time('building init cond program', function()
 		solver.initCondProgramObj = solver.Program{name='initCond', code=initCondCode}
 		solver.initCondProgramObj:compile()
