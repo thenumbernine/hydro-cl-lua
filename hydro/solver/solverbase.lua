@@ -1249,14 +1249,14 @@ typedef union {
 
 
 	local alreadyAddedComponentForGroup = {}
-	local function addPickComponetForGroup(var)
-		local name = self:getPickComponentNameForGroup(var)
+	local function addPickComponetForGroup(group)
+		local name = self:getPickComponentNameForGroup(group)
 		if alreadyAddedComponentForGroup[name] then return end
 		alreadyAddedComponentForGroup[name] = true
 		lines:insert((template([[
 void <?=name?>(
 	constant <?=solver.solver_t?>* solver,
-	global const <?=var.bufferType?>* buf,
+	global const <?=group.bufferType?>* buf,
 	int component,
 	int* vectorField,
 	displayValue_t* value,
@@ -1269,7 +1269,7 @@ void <?=name?>(
 <? 
 for i,component in ipairs(solver.displayComponentFlatList) do
 	if not component.onlyFor 
-	or (var and var.group and var.group.name == component.onlyFor)
+	or (group.name == component.onlyFor)
 	then
 		if hasmodule(component.base) then
 ?>	case <?=i?>:	//<?=component.base or 'real'?> <?=component.name?>
@@ -1287,7 +1287,7 @@ end
 ]], 	{
 			name = name,
 			solver = self,
-			var = var,
+			group = group,
 			hasmodule = hasmodule,
 		})))
 	end
@@ -1393,12 +1393,11 @@ end ?><?=group.extraArgs and #group.extraArgs > 0
 					var.displayVarIndex = lastDisplayVarIndex
 					lastDisplayVarIndex = lastDisplayVarIndex + 1
 				end
-				if var.originalVar then
-				else
+				if not var.originalVar then
 					lines:insert('		//'..var.name)
 					lines:insert('		case '..var.displayVarIndex..': {')
 
-					addPickComponetForGroup(var)
+					addPickComponetForGroup(var.group)
 
 					-- hmm, this will change its success the next time through this test
 					-- so this is destructive, only run it once per display var?
@@ -1826,7 +1825,7 @@ function SolverBase:finalizeDisplayComponents()
 		end
 	end
 end
-function SolverBase:getPickComponentNameForGroup(var)
+function SolverBase:getPickComponentNameForGroup(group)
 	local name = 'pickComponent'
 	if var 
 	and var.group 

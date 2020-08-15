@@ -103,6 +103,8 @@ function InitCond:initCodeModules(solver)
 			'eqn.cons_t',
 			-- initCond code is specified in terms of primitives, so if the eqn has prim<->cons then it will be needed
 			'eqn.prim-cons',
+			-- likewise some need this
+			'eqn.common',
 		},
 		-- this in turn calls self:getInitCondCode() but with proper template args applied
 		code = solver.eqn:getInitCondCode() or nil,
