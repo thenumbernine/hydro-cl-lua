@@ -96,18 +96,20 @@ SolverBase:init
 		self.eqn:initCodeModules
 		self.solverStruct
 		self.ops[i]:initCodeModules
-
---------- here is where the ffi.cdef is called --------- 
-
-	SolverBase:initCDefs
 	
-	SolverBase:postInit
+	SolverBase:initCodeModuleDisplay
 		SolverBase:createDisplayVars
 			SolverBase:createDisplayComponents
 			SolverBase:finalizeDisplayComponents
 			FiniteVolume:addDisplayVars
 				SolverBase:addDisplayVars
 			SolverBase:finalizeDisplayVars
+
+--------- here is where the ffi.cdef is called --------- 
+
+	SolverBase:initCDefs
+	
+	SolverBase:postInit
 		SolverBase:refreshGridSize
 			GridSolver:createSolverBuf
 				SolverBase:createSolverBuf
@@ -340,6 +342,7 @@ function SolverBase:init(args)
 		self:initCLDomainVars(args)
 		self:initObjs(args)
 		self:initCodeModules()
+		self:initCodeModuleDisplay()
 		self:initCDefs()
 		self:postInit()
 	end)
@@ -446,6 +449,11 @@ function SolverBase:initMeshVars(args)
 			print((self.name and self.name..' ' or '')..'log:')
 			-- TODO log per device ...			
 			print(string.trim(self.obj:getLog(solver.device)))
+		end
+		-- if we are using cached code then manually write binaries
+		if cmdline.usecachedcode and useCache then
+			local binfn = 'cache/'..solver.uniqueIndex..'/bin/'..self.name..'.bin'
+			file[binfn] = require 'ext.tolua'(self.obj:getBinaries())
 		end
 		return results
 	end
@@ -638,6 +646,22 @@ real fluxLimiter(real r) {
 	end
 end
 
+-- Calling :getDisplayCode() will query other modules (esp type info) for what to produce
+--  so add this last.
+-- I can get around this if I go back to the previous functionality of only testing what dependencies are listed in the math module
+--  but this won't work well with moving any math dependencies closer to the kernel functions
+function SolverBase:initCodeModuleDisplay()
+	self:createDisplayVars()	-- depends on self.eqn
+
+	-- this depends on :createDisplayVars()
+	self.modules:add{
+		name = 'solver.displayCode',
+		-- this is going to have dependencies that vary greatly from eqn to eqn
+		code = self:getDisplayCode(),
+	}
+	self.solverModulesEnabled['solver.displayCode'] = true
+end
+
 -- TODO if you want to define ffi ctype metatable then put them all in one spot here
 -- TODO TODO since i'm switching to the modules, 
 -- and since eqn's init's ffi calls need the ctypes of the fields defined up-front in order to use them (like counting scalars in cons_t),
@@ -676,8 +700,6 @@ end
 
 function SolverBase:postInit()
 	time('SolverBase:postInit()', function()
-		self:createDisplayVars()	-- depends on self.eqn
-		
 		self:refreshGridSize()		-- depends on createDisplayVars
 		-- refreshGridSize calls refreshCodePrefix 
 		-- ... calls refreshEqnInitState
@@ -1164,11 +1186,8 @@ function SolverBase:getSolverCode()
 	local moduleNames = table(self.sharedModulesEnabled, self.solverModulesEnabled):keys()
 print('solver modules:', moduleNames:sort():concat', ')
 	return table{
-		-- codePrefix
 		self.modules:getHeader(moduleNames:unpack()),
 		self.modules:getCode(moduleNames:unpack()),
-		
-		self:getDisplayCode() or '',
 	}:concat'\n'
 end
 
@@ -1178,21 +1197,13 @@ local function shouldDeferCode(code)
 end
 
 function SolverBase:getDisplayCode()
-	--if self.app.targetSystem == 'console' then return '' end
-
---[[
-TODO better hasmodule, let eqn and solver etc request modules
-and have this search through their requests
-that might mean holding a state while adding modules
-and that would allow for a templated function to require modules from within module code,
- although it is nice keeping the type, header and cl code separate, so why not keep the dependencies separated as well?
---]]
-	local function hasmodule(name)
-		return table.find(self.modules.set.math.depends, name)
-	end
-
+	local moduleNames = table(self.sharedModulesEnabled, self.solverModulesEnabled):keys()
+	local modulesEnabled = self.modules:getDependentModules(moduleNames:unpack())
+		:mapi(function(module) return true, module.name end)
+	local function hasmodule(name) return modulesEnabled[name] end
+--local function hasmodule(name) return true end
+	
 	local lines = table()
-
 	lines:insert(template([[
 
 typedef union {

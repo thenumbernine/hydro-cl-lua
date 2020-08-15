@@ -29,8 +29,27 @@ end
 function FiniteVolumeSolver:initCodeModules()
 	FiniteVolumeSolver.super.initCodeModules(self)
 
-	-- TODO make this a depends of the module wherever it asks for the code that calls cons_parallelPropagate (I think is in calcDerivFV)
-	self.solverModulesEnabled['eqn.cons_parallelPropagate'] = true
+	self.modules:add{
+		name = 'FiniteVolumeSolver.calcFlux',
+		depends = {
+			'solver.solver_t',
+			'eqn.cons_t',
+			'eqn.waves_t',
+			'coord.normal',
+			'eqn.solvercode',
+			'eqn.cons_parallelPropagate',
+		},
+		code = self.flux:getSolverCode(),
+	}
+
+	self.modules:add{
+		name = 'FiniteVolumeSolver.calcDerivFV',
+		depends = {
+			'FiniteVolumeSolver.calcFlux',
+		},
+		code = template(file['hydro/solver/calcDerivFV.cl'], {solver=self}),
+	}
+	self.solverModulesEnabled['FiniteVolumeSolver.calcDerivFV'] = true
 end
 
 function FiniteVolumeSolver:createFlux(fluxName, fluxArgs)
@@ -55,18 +74,6 @@ function FiniteVolumeSolver:refreshSolverProgram()
 	self.calcDerivFromFluxKernelObj.obj:setArg(2, self.fluxBuf)
 	self.calcDerivFromFluxKernelObj.obj:setArg(3, self.cellBuf)
 end
-
-function FiniteVolumeSolver:getSolverCode()
-	return table{
-		FiniteVolumeSolver.super.getSolverCode(self),
-		
-		template(file['hydro/solver/calcDerivFV.cl'], {solver=self}),
-	
-		self.flux:getSolverCode(),
-	}:concat'\n'
-end
-
-
 
 -- NOTICE this adds the contents of derivBufObj and does not clear it
 function FiniteVolumeSolver:calcDeriv(derivBufObj, dt)

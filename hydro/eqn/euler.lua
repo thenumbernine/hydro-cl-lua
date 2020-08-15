@@ -567,6 +567,7 @@ end
 
 function Euler:getModuleDependsSolver() 
 	return {
+		'eqn.prim-cons',
 		'coord.normal',
 		'coord_lower',
 	}
