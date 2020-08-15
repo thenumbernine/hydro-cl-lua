@@ -34,7 +34,9 @@ end
 
 function EulerBurgers:createEqn()
 	EulerBurgers.super.createEqn(self)
-	self.eqn.getCalcDTCode = function() end	-- override calcDT 
+	-- tell eqn not to use the eqn.calcDT module
+	-- TODO this using modules somehow ...
+	self.eqn.hasCalcDTCode = true
 end
 
 function EulerBurgers:createBuffers()
@@ -44,11 +46,15 @@ function EulerBurgers:createBuffers()
 	self:clalloc('PBuf', self.app.real, self.numCells)
 end
 
-function EulerBurgers:getSolverCode()
-	return table{
-		EulerBurgers.super.getSolverCode(self),
-		template(file['hydro/solver/euler-burgers.cl'], {solver=self, eqn=self.eqn}),
-	}:concat'\n'
+function EulerBurgers:initCodeModules()
+	EulerBurgers.super.initCodeModules(self)
+
+	self.modules:add{
+		name = 'EulerBurgers.solver',
+		depends = {'eqn.prim-cons'},
+		code = template(file['hydro/solver/euler-burgers.cl'], {solver=self, eqn=self.eqn}),
+	}
+	self.solverModulesEnabled['EulerBurgers.solver'] = true
 end
 
 function EulerBurgers:refreshSolverProgram()
@@ -59,7 +65,7 @@ function EulerBurgers:refreshSolverProgram()
 	self.calcIntVelKernelObj = self.solverProgramObj:kernel'calcIntVel'
 	self.calcFluxKernelObj = self.solverProgramObj:kernel'calcFlux'
 
-	self.computePressureKernelObj = self.solverProgramObj:kernel('computePressure', self.solverBuf, self.PBuf, self.UBuf) 
+	self.computePressureKernelObj = self.solverProgramObj:kernel('computePressure', self.solverBuf, self.PBuf, self.UBuf, self.cellBuf)
 	
 	self.diffuseMomentumKernelObj = self.solverProgramObj:kernel{name='diffuseMomentum', domain=self.domainWithoutBorder}
 	self.diffuseMomentumKernelObj.obj:setArg(0, self.solverBuf)
@@ -97,9 +103,9 @@ end
 function EulerBurgers:step(dt)
 	-- calc deriv here
 	self.integrator:integrate(dt, function(derivBufObj)
-		self.calcIntVelKernelObj(self.solverBuf, self.intVelBuf, self:getULRBuf())
+		self.calcIntVelKernelObj(self.solverBuf, self.intVelBuf, self:getULRBuf(), self.cellBuf)
 
-		self.calcFluxKernelObj(self.solverBuf, self.fluxBuf, self:getULRBuf(), self.intVelBuf, real(dt))
+		self.calcFluxKernelObj(self.solverBuf, self.fluxBuf, self:getULRBuf(), self.intVelBuf, self.cellBuf, real(dt))
 	
 		self.calcDerivFromFluxKernelObj.obj:setArg(1, derivBufObj.obj)
 		self.calcDerivFromFluxKernelObj()

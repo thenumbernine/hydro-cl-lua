@@ -62,7 +62,8 @@ kernel void calcDT(
 kernel void calcIntVel(
 	constant <?=solver.solver_t?>* solver,
 	global real* intVelBuf,
-	const global <?=solver.getULRArg?>
+	const global <?=solver.getULRArg?>,
+	const global <?=solver.coord.cell_t?>* cellBuf
 ) {
 	SETBOUNDS(numGhost,numGhost-1);
 	real3 xR = cell_x(i);
@@ -93,6 +94,7 @@ kernel void calcFlux(
 	global <?=eqn.cons_t?>* fluxBuf,
 	const global <?=solver.getULRArg?>,
 	const global real* intVelBuf,
+	const global <?=solver.coord.cell_t?>* cellBuf,
 	realparam dt
 ) {
 	SETBOUNDS(numGhost,numGhost-1);
@@ -140,7 +142,8 @@ kernel void calcFlux(
 kernel void computePressure(
 	constant <?=solver.solver_t?>* solver,
 	global real* PBuf,
-	const global <?=eqn.cons_t?>* UBuf
+	const global <?=eqn.cons_t?>* UBuf,
+	const global <?=solver.coord.cell_t?>* cellBuf
 ) {
 	SETBOUNDS(numGhost-1,numGhost-2);
 	real3 x = cell_x(i);
