@@ -18,7 +18,7 @@ var.solver = solver
 	gl.glUniform3f(vectorLICShader.uniforms.solverMins.loc, solver.mins:unpack())
 	gl.glUniform3f(vectorLICShader.uniforms.solverMaxs.loc, solver.maxs:unpack())
 	local tex = solver:getTex(var)
-	local size = var.getBuffer().sizevec or solver.texSize
+	local size = var.group.getBuffer().sizevec or solver.texSize
 	tex:bind(0)
 	self.noiseTex:bind(2)
 	if app.displayBilinearTextures then

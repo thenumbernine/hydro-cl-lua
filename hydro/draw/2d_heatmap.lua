@@ -16,7 +16,7 @@ var.solver = solver
 
 	local tex = solver:getTex(var)
 	if heatMap2DShader.uniforms.texCoordMax then
-		local texSize = var.getBuffer().sizevec or solver.texSize
+		local texSize = var.group.getBuffer().sizevec or solver.texSize
 		gl.glUniform2f(heatMap2DShader.uniforms.texCoordMax.loc, 
 			tonumber(texSize.x) / tex.width,
 			tonumber(texSize.y) / tex.height)

@@ -1074,7 +1074,7 @@ end
 						and tcY >= 0 and tcY < 1
 						then
 							-- TODO this is going to include ghost cells...
-							local size = var.getBuffer().sizevec or solver.gridSize
+							local size = var.group.getBuffer().sizevec or solver.gridSize
 							local texX = math.floor(tcX * tonumber(size.x))
 							local texY = math.floor(tcY * tonumber(size.y))
 							if self.useGLSharing then

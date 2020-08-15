@@ -165,8 +165,8 @@ SolverBase:init
 								self.constrainUKernelObj = ...
 								self.updateCTUKernelObj = ...
 								self.ops[i]:refreshSolverProgram
-								self.displayVarGroups[i].vars[j].calcDisplayVarToTexKernelObj = ...
-								self.displayVarGroups[i].vars[j].calcDisplayVarToBufferKernelObj = ...
+								self.displayVarGroups[i].calcDisplayVarToTexKernelObj = ...
+								self.displayVarGroups[i].calcDisplayVarToBufferKernelObj = ...
 							self.calcFluxKernelObj = ...
 							self.calcDerivFromFluxKernelObj = ...
 					
@@ -1143,30 +1143,14 @@ function SolverBase:refreshSolverProgram()
 	
 		if self.app.useGLSharing then
 			for _,group in ipairs(self.displayVarGroups) do
-				for _,var in ipairs(group.vars) do
-					--[[
-					if var.enabled 
-					or (var.vecVar and var.vecVar.enabled)
-					then
-					--]]do
-						var.calcDisplayVarToTexKernelObj = self.solverProgramObj:kernel(var.toTexKernelName)
-						var.calcDisplayVarToTexKernelObj.obj:setArg(1, self.texCLMem)
-					end
-				end
+				group.calcDisplayVarToTexKernelObj = self.solverProgramObj:kernel(var.toTexKernelName)
+				group.calcDisplayVarToTexKernelObj.obj:setArg(1, self.texCLMem)
 			end
 		end
 
 		for _,group in ipairs(self.displayVarGroups) do
-			for _,var in ipairs(group.vars) do
-				--[[
-				if var.enabled 
-				or (var.vecVar and var.vecVar.enabled)
-				then
-				--]]do
-					var.calcDisplayVarToBufferKernelObj = self.solverProgramObj:kernel(var.toBufferKernelName)
-					var.calcDisplayVarToBufferKernelObj.obj:setArg(1, self.reduceBuf)
-				end
-			end
+			group.calcDisplayVarToBufferKernelObj = self.solverProgramObj:kernel(group.toBufferKernelName)
+			group.calcDisplayVarToBufferKernelObj.obj:setArg(1, self.reduceBuf)
 		end
 	end
 end
@@ -1186,11 +1170,6 @@ print('solver modules:', moduleNames:sort():concat', ')
 		self.modules:getHeader(moduleNames:unpack()),
 		self.modules:getCode(moduleNames:unpack()),
 	}:concat'\n'
-end
-
-local function shouldDeferCode(code)
-	do return false end
-	return #string.split(string.trim(code), '\n') > 3
 end
 
 function SolverBase:getDisplayCode()
@@ -1222,30 +1201,6 @@ typedef union {
 	real3x3	vreal3x3;
 <? end ?>
 } displayValue_t;
-
-#define INIT_DISPLAYFUNC()\
-	SETBOUNDS(0,0);\
-<? if not require 'hydro.solver.meshsolver'.is(solver) then 
-?>	int4 dsti = i;\
-	int dstindex = index;\
-	real3 x = cellBuf[index].pos;\
-<? for j=0,solver.dim-1 do 
-?>	i.s<?=j?> = clamp(i.s<?=j?>, numGhost, solver->gridSize.s<?=j?> - numGhost - 1);\
-<? end
-?>	index = INDEXV(i);\
-<? else	-- mesh 
-?>	int dstindex = index;\
-	real3 x = cellBuf[index].pos;\
-<? end 		-- mesh vs grid 
-?>	displayValue_t value = {.ptr={0}};
-
-<?-- nvidia needed 'write_only', but I don't want to write only -- I want to accumulate and do other operations 
--- TODO if I do accumulate, then I will need to ensure the buffer is initialized to zero ...
-?>
-#define DISPLAYFUNC_OUTPUTARGS_TEX() write_only <?=
-	solver.dim == 3 and 'image3d_t' or 'image2d_t'?> tex
-
-#define DISPLAYFUNC_OUTPUTARGS_BUFFER() global real* dest
 ]], {
 		solver = self,
 		hasmodule = hasmodule,
@@ -1369,110 +1324,130 @@ end
 		end
 	end
 --]=]
+	for _,group in ipairs(self.displayVarGroups) do
+		if self.app.useGLSharing then
+			group.toTexKernelName = self.app:uniqueName'calcDisplayVarToTex'
+		end
+		group.toBufferKernelName = self.app:uniqueName'calcDisplayVarToBuffer'
+	end
 
-	for _,displayVarGroup in ipairs(self.displayVarGroups) do
-		for _,var in ipairs(displayVarGroup.vars) do
-			if var.originalVar then
-				if self.app.useGLSharing then
-					var.toTexKernelName = assert(var.originalVar.toTexKernelName)
-				end
-				var.toBufferKernelName = assert(var.originalVar.toBufferKernelName)
-			else
-				lines:insert('//'..var.name)
-
-				addPickComponetForGroup(var)
-
-				if shouldDeferCode(var.code) then
-					local clFuncName = self.app:uniqueName'calcDisplayVar'
-					lines:insert(template([[
-void <?=clFuncName?>(
+	local lastDisplayVarIndex = 0
+	for _,texVsBuf in ipairs(table{'Buffer'}:append(
+		self.app.useGLSharing and {'Tex'} or nil
+	)) do
+		
+		for _,group in ipairs(self.displayVarGroups) do
+			
+			lines:insert(template([[
+//<?=group.name?>
+kernel void <?=kernelName?>(
 	constant <?=solver.solver_t?>* solver,
-	const global <?= var.bufferType ?>* buf,
-	int4 i,
-	int index, 
-	int4 dsti,
-	int dstindex,
-	real3 x,
-	displayValue_t* value<?=
-	var.extraArgs and #var.extraArgs > 0
-		and ',\n\t'..table.concat(var.extraArgs, ',\n\t')
-		or ''
-?>
+	<?=outputArg?>,
+	global const <?=group.bufferType?>* buf,
+	int displayVarIndex,
+	int component,
+	const global <?=solver.coord.cell_t?>* cellBuf<? 
+if require 'hydro.solver.meshsolver'.is(solver) then ?>
+	,const global face_t* faces							//[numFaces]<?
+end ?><?=group.extraArgs and #group.extraArgs > 0
+		and ',\n\t'..table.concat(group.extraArgs, ',\n\t')
+		or '' ?>
 ) {
-<?=addTab(var.codePrefix or '')
-?><?=addTab(var.code)
-?>}
-]], 				{
-						solver = self,
-						var = var,
-						clFuncName = clFuncName,
-						addTab = addTab,
-					}))
-				
-					var.code = template([[
-	<?=clFuncName?>(solver, buf, i, index, dsti, dstindex, x, value<?=
-		var.extraArgNames 
-		and #var.extraArgNames > 0 
-		and ', '..var.extraArgNames:concat', '
-		or ''
-	?>);
-]], 				{
-						var = var,
-						clFuncName = clFuncName,
-					})
+	SETBOUNDS(0,0);
+<? if not require 'hydro.solver.meshsolver'.is(solver) then 
+?>	int4 dsti = i;
+	int dstindex = index;
+	real3 x = cellBuf[index].pos;
+<? for j=0,solver.dim-1 do 
+?>	i.s<?=j?> = clamp(i.s<?=j?>, numGhost, solver->gridSize.s<?=j?> - numGhost - 1);
+<? end
+?>	index = INDEXV(i);
+<? else	-- mesh 
+?>	int dstindex = index;
+	real3 x = cellBuf[index].pos;
+<? end 		-- mesh vs grid 
+?>	displayValue_t value = {.ptr={0}};
+
+	<?=group.codePrefix or ''?>
+	
+	int vectorField = 0;
+	switch (displayVarIndex) {
+]], 			table({
+					solver = self,
+					group = group,
+					kernelName = ({
+						Tex = group.toTexKernelName,
+						Buffer = group.toBufferKernelName,
+					})[texVsBuf] or error'here',
+					outputArg = ({
+						-- nvidia needed 'write_only', but I don't want to write only -- I want to accumulate and do other operations 
+						-- TODO if I do accumulate, then I will need to ensure the buffer is initialized to zero ...
+						Tex = 'write_only '..(self.dim == 3 and 'image3d_t' or 'image2d_t')..' tex',
+						Buffer = 'global real* dest',
+					})[texVsBuf] or error'here',
+				}, args)
+			))
+
+			for _,var in ipairs(group.vars) do
+				if not var.displayVarIndex then
+					var.displayVarIndex = lastDisplayVarIndex
+					lastDisplayVarIndex = lastDisplayVarIndex + 1
+				end
+				if var.originalVar then
 				else
+					lines:insert('		//'..var.name)
+					lines:insert('		case '..var.displayVarIndex..': {')
+
+					addPickComponetForGroup(var)
+
 					-- hmm, this will change its success the next time through this test
 					-- so this is destructive, only run it once per display var?
 					-- or better yet TODO somewhere earlier, maybe before the 'prefix func' stuff,
 					-- prepend 'var.codePrefix' onto 'var.code'
-					var.code = template([[
-<?=addTab(var.codePrefix or '')
-?><?=addTab(var.code)
-?>]],					{
-						var = var,
-						addTab = addTab,
-					})
-				end
+					--var.code = addTab(var.code)
 
-				if self.app.useGLSharing then
-					var.toTexKernelName = self.app:uniqueName'calcDisplayVarToTex'
 					--[[
 					if var.enabled
 					or (var.vecVar and var.vecVar.enabled)
 					then
 					--]]do
-						lines:insert(
-							template(var.displayCode, {
-								solver = self,
-								var = var,
-								name = var.toTexKernelName,
-								texVsBuf = 'Tex',
-								addTab = addTab,
-							})
-						)
-					end
-				end
-
-				var.toBufferKernelName = self.app:uniqueName'calcDisplayVarToBuffer'
-				--[[
-				if var.enabled
-				or (var.vecVar and var.vecVar.enabled)
-				then
-				--]]do
-					lines:insert(
-						template(var.displayCode, {
+						local env = {
 							solver = self,
 							var = var,
-							name = var.toBufferKernelName,
-							texVsBuf = 'Buffer',
+							texVsBuf = texVsBuf,
+							name = ({
+								Tex = group.toTexKernelName,
+								Buffer = group.toBufferKernelName,
+							})[texVsBuf] or error'here',
 							addTab = addTab,
-						})
-					)
+						}
+						lines:insert(template([[
+<?=addTab(var.code)
+?>			vectorField = <?=solver:isVarTypeAVectorField(var.type) and '1' or '0'?>;
+]], env))
+					end
+					lines:insert'			break;'
+					lines:insert'		}'
+					lines:insert''
 				end
-			end
-		end
-	end
+			end	-- var
 	
+			lines:insert(template([[
+	}
+	
+	<?=solver:getPickComponentNameForGroup(group)?>(solver, buf, component, &vectorField, &value, i, index, cellBuf);
+	
+	END_DISPLAYFUNC_<?=texVsBuf:upper()?>()
+}
+]],				{
+					solver = self,
+					group = group,
+					texVsBuf = texVsBuf,
+				})
+			)
+		end	-- group
+	end	-- texVsBuf
+
 	local code = lines:concat'\n'
 	
 	return code
@@ -1587,7 +1562,30 @@ end
 local DisplayVarGroup = class()
 
 function DisplayVarGroup:init(args)
+	self.solver = assert(args.solver)
+
 	self.name = assert(args.name)
+
+	self.codePrefix = args.codePrefix
+
+	-- the type of the input buffer we're deriving display vars from
+	self.bufferType = assert(args.bufferType)
+
+	-- where to look in the solver for the buffer
+	self.bufferField = args.bufferField
+
+	-- maybe this should be in args too?
+	-- or - instead of buffer - how about all the kernel's args?
+	-- but the reason I have to store the field here is that the buffer isn't made yet
+	-- TODO? make display vars after buffers so I can store the buffer here?
+	self.getBuffer = args.getBuffer
+	if not self.getBuffer then
+		assert(self.bufferField, "expected bufferField or getBuffer")
+		self.getBuffer = function()
+			return self.solver[self.bufferField]
+		end
+	end
+
 	self.vars = table(args.vars)
 end
 
@@ -1596,8 +1594,6 @@ local DisplayVar = class()
 
 -- this is the default DisplayVar
 SolverBase.DisplayVar = DisplayVar
-
-DisplayVar.bufferType = 'real'
 
 --[[
 component is going to be one of several pathways to modify the data
@@ -1610,34 +1606,15 @@ and dstIndex should be based on the size without ghost cells
 why would I bother write to the ghost cells?
 the only reason I can think of is for good subtexel lookup when rendering
 --]]
-DisplayVar.displayCode = [[
-kernel void <?=name?>(
-	constant <?=solver.solver_t?>* solver,
-	DISPLAYFUNC_OUTPUTARGS_<?=texVsBuf:upper()?>(),
-	global const <?=var.bufferType?>* buf,
-	int component,
-	const global <?=solver.coord.cell_t?>* cellBuf<? 
-if require 'hydro.solver.meshsolver'.is(solver) then ?>
-	,const global face_t* faces							//[numFaces]<?
-end ?><?= var.extraArgs and #var.extraArgs > 0
-		and ',\n\t'..table.concat(var.extraArgs, ',\n\t')
-		or '' ?>
-) {
-	INIT_DISPLAYFUNC()
-<?=addTab(var.code)
-?>	int vectorField = <?=solver:isVarTypeAVectorField(var.type) and '1' or '0'?>;
-	<?=solver:getPickComponentNameForGroup(var)?>(solver, buf, component, &vectorField, &value, i, index, cellBuf);
-	END_DISPLAYFUNC_<?=texVsBuf:upper()?>()
-}
-]]
-
 function DisplayVar:init(args)
 	self.code = assert(args.code)
 	self.name = assert(args.name)
 	self.solver = assert(args.solver)
 	self.bufferType = args.bufferType	-- or self.bufferType
-	self.displayCode = args.displayCode 	-- or self.displayCode
-	self.codePrefix = args.codePrefix
+assert(not args.codePrefix, "move this to DisplayVarGroup")
+
+	assert(not args.displayCode, "I was pretty sure no one was overriding DisplayVar displayCode anymore")
+	--self.displayCode = args.displayCode 	-- or self.displayCode
 	
 	-- used in rescaling after calcDisplayVar, and in displaying.  toggled by a flag
 	self.units = args.units
@@ -1659,17 +1636,6 @@ function DisplayVar:init(args)
 	self.heatMapValueMin = 0
 	self.heatMapValueMax = 1
 
-	-- maybe this should be in args too?
-	-- or - instead of buffer - how about all the kernel's args?
-	-- but the reason I have to store the field here is that the buffer isn't made yet
-	-- TODO? make display vars after buffers so I can store the buffer here?
-	self.getBuffer = args.getBuffer
-	if not self.getBuffer then
-	local bufferField = args.bufferField
-		self.getBuffer = function()
-			return self.solver[bufferField]
-		end
-	end
 	self.extraArgs = args.extraArgs
 end
 
@@ -1679,19 +1645,20 @@ local function int(x)
 	return intptr
 end
 function DisplayVar:setArgs(kernel)
-	local buffer = assert(self.getBuffer(), "failed to find buffer for var "..tostring(self.name))
+	local buffer = assert(self.group.getBuffer(), "failed to find buffer for var "..tostring(self.name))
 	kernel:setArg(0, self.solver.solverBuf)
 	kernel:setArg(2, buffer)
-	kernel:setArg(3, int(self.component))
-	kernel:setArg(4, self.solver.cellBuf)
+	kernel:setArg(3, int(self.displayVarIndex))
+	kernel:setArg(4, int(self.component))
+	kernel:setArg(5, self.solver.cellBuf)
 end
 
 function DisplayVar:setToTexArgs()
-	self:setArgs(self.calcDisplayVarToTexKernelObj.obj)
+	self:setArgs(self.group.calcDisplayVarToTexKernelObj.obj)
 end
 
 function DisplayVar:setToBufferArgs()
-	self:setArgs(self.calcDisplayVarToBufferKernelObj.obj)
+	self:setArgs(self.group.calcDisplayVarToBufferKernelObj.obj)
 end
 
 
@@ -1881,17 +1848,6 @@ function SolverBase:isVarTypeAVectorField(vartype)
 	--  maybe I'll add another display for them later.
 end
 
-
-
-
-
-function SolverBase:newDisplayVarGroup(args)
-	local displayVarGroup = DisplayVarGroup(args)
-	self.displayVarGroups:insert(displayVarGroup)
-	return displayVarGroup
-end
-
-
 -- still used by gr-hd-separate to add 'extraArgs'
 function SolverBase:getUBufDisplayVarsArgs()
 	return {
@@ -1901,10 +1857,30 @@ function SolverBase:getUBufDisplayVarsArgs()
 	}
 end
 
+
+-- TODO this is the only function that calls DisplayVarGroup ctor
+function SolverBase:newDisplayVarGroup(args)
+	local displayVarGroup = DisplayVarGroup(table(args,  {solver=self}))
+	self.displayVarGroups:insert(displayVarGroup)
+	return displayVarGroup
+end
+
+
 function SolverBase:addUBufDisplayVars()
-	local group = self:newDisplayVarGroup{name='U'}
-	
+	-- TODO make this getUBufDisplayVarGroupArgs, and make the vars getter separate
 	local args = self:getUBufDisplayVarsArgs()
+	
+	local group = self:newDisplayVarGroup{
+		name = 'U',
+		bufferField = args.bufferField,
+		bufferType = args.bufferType,
+		codePrefix = args.codePrefix,
+	}
+
+	args.bufferField = nil
+	args.bufferType = nil
+	args.codePrefix =  nil
+
 	args.group = group
 	args.vars = self.eqn:getDisplayVars()
 	
@@ -1915,8 +1891,19 @@ function SolverBase:addDisplayVarGroup(args, cl)
 	cl = cl or self.DisplayVar
 
 	if not args.group then
-		args.group = self:newDisplayVarGroup{name = args.name}
+		args.group = self:newDisplayVarGroup{
+			name = args.name,
+			bufferType = args.bufferType,
+			bufferField = args.bufferField,
+			getBuffer = args.getBuffer,
+			codePrefix = args.codePrefix,
+		}
 	end
+
+	args.codePrefix = nil
+	args.bufferType = nil
+	args.bufferField = nil
+	args.getBuffer = nil
 
 	local group = args.group
 
@@ -1985,6 +1972,7 @@ function SolverBase:addDisplayVars()
 	-- TODO it also might contain vector components
 	self:addDisplayVarGroup{
 		name = 'reduce', 
+		bufferType = 'real',
 		getBuffer = function() return self.reduceBuf end,
 		vars = {{name='0', code='value.vreal = buf[index];'}},
 	}
@@ -1996,18 +1984,25 @@ function SolverBase:addDisplayVars()
 	-- also TODO - either only use the UBuf's state variables, 
 	-- or don't regen all the display var code somehow and just bind derivbuf to the ubuf functions
 	do	--if self.integrator.derivBufObj then
-		local group = self:newDisplayVarGroup{name='deriv'}
 		local args = self:getUBufDisplayVarsArgs()
-		args.getBuffer = function() 
-			local int = self.integrator
-			-- Euler's deriv buffer
-			if int.derivBufObj then return int.derivBufObj.obj end
-			-- RK4's first deriv buffer
-			if int.derivBufObjs and int.derivBufObjs[1] then return int.derivBufObjs[1].obj end
-			-- BE's deriv buffer
-			if int.krylov_dUdtObj then return int.krylov_dUdtObj.obj end
-			print"HERE"
-		end
+		local group = self:newDisplayVarGroup{
+			name = 'deriv',
+			codePrefix = args.codePrefix,
+			bufferType = args.bufferType,
+			getBuffer = function() 
+				local int = self.integrator
+				-- Euler's deriv buffer
+				if int.derivBufObj then return int.derivBufObj.obj end
+				-- RK4's first deriv buffer
+				if int.derivBufObjs and int.derivBufObjs[1] then return int.derivBufObjs[1].obj end
+				-- BE's deriv buffer
+				if int.krylov_dUdtObj then return int.krylov_dUdtObj.obj end
+				print"HERE"
+			end,
+		}
+		args.codePrefix = nil
+		args.bufferType = nil
+		args.bufferField = nil
 		args.group = group
 		args.vars = self.eqn:getDisplayVarsForStructVars(self.eqn.consStruct.vars)
 		-- why in addUBufDisplayVars() do I make a new group and assign args.group to it?
@@ -2101,7 +2096,7 @@ function SolverBase:calcDisplayVarRange(var, componentIndex)
 	local channels = 1
 	-- this size stuff is very GridSolver-based
 	local volume = self.numCells
-	local sizevec = var.getBuffer().sizevec
+	local sizevec = var.group.getBuffer().sizevec
 	if sizevec then
 		volume = tonumber(sizevec:volume())
 	end
@@ -2165,7 +2160,7 @@ function SolverBase:calcDisplayVarRangeAndAvg(var, componentIndex)
 	if not var.lastAvg then
 		-- duplicated in calcDisplayVarRange
 		local size = self.numCells
-		local sizevec = var.getBuffer().sizevec
+		local sizevec = var.group.getBuffer().sizevec
 		if sizevec then
 			size = tonumber(sizevec:volume())
 		end
@@ -2577,7 +2572,7 @@ function SolverBase:calcDisplayVarToTex(var, componentIndex)
 		self.cmds:enqueueAcquireGLObjects{objs={self.texCLMem}}
 	
 		var:setToTexArgs()
-		var.calcDisplayVarToTexKernelObj()
+		var.group.calcDisplayVarToTexKernelObj()
 		
 		self.cmds:enqueueReleaseGLObjects{objs={self.texCLMem}}
 		self.cmds:finish()
@@ -2595,7 +2590,7 @@ function SolverBase:calcDisplayVarToTex(var, componentIndex)
 		
 		self:calcDisplayVarToBuffer(var)
 
-		local sizevec = var.getBuffer().sizevec or self.texSize
+		local sizevec = var.group.getBuffer().sizevec or self.texSize
 		assert(sizevec.x <= tex.width and sizevec.y <= tex.height)
 		local volume = tonumber(sizevec:volume())
 		
@@ -2637,7 +2632,7 @@ function SolverBase:calcDisplayVarToBuffer(var, componentIndex)
 
 	-- duplicated in calcDisplayVarRange
 	local volume = self.numCells
-	local sizevec = var.getBuffer().sizevec
+	local sizevec = var.group.getBuffer().sizevec
 	if sizevec then
 		volume = tonumber(sizevec:volume())
 	end
@@ -2646,9 +2641,11 @@ function SolverBase:calcDisplayVarToBuffer(var, componentIndex)
 		self.cmds:enqueueCopyBuffer{src=self.accumBuf, dst=self.reduceBuf, size=ffi.sizeof(app.real) * volume * channels}
 	end
 	var:setToBufferArgs()
-	var.calcDisplayVarToBufferKernelObj.obj:setArg(1, self.reduceBuf)
-	var.calcDisplayVarToBufferKernelObj.obj:setArg(3, int(componentIndex))
-	var.calcDisplayVarToBufferKernelObj()
+	var.group.calcDisplayVarToBufferKernelObj.obj:setArg(1, self.reduceBuf)
+	var.group.calcDisplayVarToBufferKernelObj.obj:setArg(3, int(var.displayVarIndex))
+	var.group.calcDisplayVarToBufferKernelObj.obj:setArg(4, int(componentIndex))
+	var.group.calcDisplayVarToBufferKernelObj.obj:setArg(5, self.cellBuf)
+	var.group.calcDisplayVarToBufferKernelObj()
 	if self.displayVarAccumFunc then
 		self.cmds:enqueueCopyBuffer{src=self.reduceBuf, dst=self.accumBuf, size=ffi.sizeof(app.real) * volume * channels}
 	end
