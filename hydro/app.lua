@@ -1,16 +1,20 @@
 --[[
 predefined vars:
 	clcpu = (in run.lua, preceding this) use experimental cl-cpu CL-to-C OpenCL wrapper
-	dim =
-	cfl =
-	fixedDT =
-	gridSize =
-	fluxLimiter =
-	boundary =
-	integrator =
-	eqn =
-	mins =
-	maxs =
+	(config file cmdline override options:)
+		solver = 
+		eqn =
+		integrator =
+		fixedDT =
+		cfl =
+		fluxLimiter =
+		dim =
+		gridSize =
+		boundary =
+		initCond =
+		mins =
+		maxs =
+		multiSlices =
 	float = set to true to use 32 bit float instead of 64 
 	half = set to true to use 16 bit float instead of 64
 	cpu = set to use CPU instead of GPU
@@ -218,7 +222,7 @@ HydroCLApp.limiters = table{
 	{name='HCUS', code='return max(0., 1.5 * (r + fabs(r)) / (r + 2.));'},
 	{name='HQUICK', code='return max(0., 2. * (r + fabs(r)) / (r + 3.));'},
 	{name='Koren', code='return max(0., min(2. * r, min((1. + 2. * r) / 3., 2.)));'},
-	{name='minmod', code='return max(0., min(r, 1.));'},
+	{name='minmod', code='return max((real)0., min(r, (real)1.));'},
 	{name='Oshker', code='return max(0., min(r, 1.5));	//replace 1.5 with 1 <= beta <= 2'},
 	{name='ospre', code='return .5 * (r * r + r) / (r * r + r + 1.);'},
 	{name='smart', code='return max(0., min(2. * r, min(.25 + .75 * r, 4.)));'},

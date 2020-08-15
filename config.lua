@@ -485,7 +485,7 @@ local args = {
 	--initCond = 'Wave-FD Bessel',
 
 	-- multi-devices
-	multiSlices = {3, 1, 1},
+	multiSlices = {cmdline.multiSlices or 3, 1, 1},
 }
 
 
@@ -894,8 +894,7 @@ local args = {
 	-- [[
 	--coord = 'sphere',
 	coord = 'sphere-log-radial',
-	coordArgs = {vectorComponent='holonomic'},
-	--coordArgs = {vectorComponent='anholonomic'},
+	coordArgs = {vectorComponent='holonomic'},	-- this isn't really used since bssn is a finite-difference solver, so just pick the one that has the least complications.               
 	mins = {0, 0, 0},
 	maxs = {1, math.pi, 2*math.pi},
 	gridSize = cmdline.gridSize or ({

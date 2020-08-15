@@ -83,18 +83,26 @@ function Chopped:init(args)
 	end
 	-- now make subsolvers for each of these solvers
 	self.solvers = self.flatBlocks:mapi(function(block,i)
+		local deviceIndex = (i - 1) % #self.app.env.devices + 1
+		local cmdsIndex = (i - 1) % #self.app.env.cmds + 1
+		local device = self.app.env.devices[deviceIndex]
+		local cmds = self.app.env.cmds[cmdsIndex]
+		if self.app.verbose then
+			print('assigning subsolver '..i..' to device #'..deviceIndex..': '..device:getName()..' and cmdqueue #'..cmdsIndex..': '..tostring(cmds))
+			io.stdout:flush()
+		end
 		local subsolver = subsolverClass(table(args, {
 			mins = {block.mins:unpack()},
 			maxs = {block.maxs:unpack()},
 			gridSize = {block.size:unpack()},
-			device = self.app.env.devices[(i - 1) % #self.app.env.devices + 1],
-			cmds = self.app.env.cmds[(i - 1) % #self.app.env.cmds + 1],
+			device = device,
+			cmds = cmds,
 			-- this overrides bounds in the initial condition ... it's only really used with the 'lhs' flag of Sod etc
 			initCondMins = self.mins,
 			initCondMaxs = self.maxs,
 		}))
 		block.solver = subsolver
-		return subsolver 
+		return subsolver
 	end)
 
 	-- synchronize boundaries between devices
@@ -183,6 +191,7 @@ function Chopped:init(args)
 				end
 
 				function block:syncBorders()
+if cmdline.dontSyncBordersOnMultiGPU then return end   -- debugging multi-gpu performance
 					for side=0,solver.dim-1 do
 						local solverL = solverLs[side+1]
 						local solverR = solverRs[side+1]

@@ -38,8 +38,6 @@ if getCommonCode then
 ?>
 
 
-#define cplx_add5(a,b,c,d,e)	cplx_add(cplx_add(a,b),cplx_add3(c,d,e))
-
 #define real3_add5(a,b,c,d,e)	real3_add(real3_add(a,b),real3_add3(c,d,e))
 #define real3_add6(a,b,c,d,e,f)	real3_add(real3_add3(a,b,c),real3_add3(d,e,f))
 
