@@ -50,7 +50,9 @@ end
 -- don't let the parent create a flux object or require a flux arg
 function WENO:createFlux()
 	self.flux = {
-		getSolverCode = function() return '' end,
+		initCodeModules = function()
+			self.modules:add{name = 'Flux.calcFlux'}
+		end,
 	}
 end
 
@@ -67,6 +69,10 @@ function WENO:initCodeModules()
 	
 	self.modules:add{
 		name = 'WENO.calcFlux',
+		depends = {
+			'eqn.solvercode',	-- in Euler this has fluxFromCons
+			'coord.normal',
+		},
 		code = template(file['hydro/solver/weno.cl'], {
 			solver = self,
 			eqn = self.eqn,

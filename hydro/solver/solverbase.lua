@@ -104,6 +104,8 @@ SolverBase:init
 			FiniteVolume:addDisplayVars
 				SolverBase:addDisplayVars
 			SolverBase:finalizeDisplayVars
+		SolverBase:getDisplayCode
+			self.displayVarGroups[i].vars[j].toTexKernelName = ...
 
 --------- here is where the ffi.cdef is called --------- 
 
@@ -149,12 +151,7 @@ SolverBase:init
 								
 --------- here's where the program code is collected ---------
 
-								FiniteVolumeSolver:getSolverCode
-									GridSolver:getSolverCode
-										SolverBase:getSolverCode
-											SolverBase:getDisplayCode
-												self.displayVarGroups[i].vars[j].toTexKernelName = ...
-									self.flux:getSolverCode
+								SolverBase:getSolverCode
 
 --------- here's where programs are created ---------
 

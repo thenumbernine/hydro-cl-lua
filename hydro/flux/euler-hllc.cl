@@ -208,7 +208,8 @@ kernel void calcFlux(
 	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* fluxBuf,
 	const global <?=solver.getULRArg?>,
-	realparam dt
+	realparam dt,
+	const global <?=solver.coord.cell_t?>* cellBuf
 ) {
 	SETBOUNDS(numGhost,numGhost-1);
 	

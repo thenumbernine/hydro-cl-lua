@@ -28,7 +28,9 @@ end
 -- override this -- don't expect a flux argument
 function EulerBurgers:createFlux(fluxName, fluxArgs)
 	self.flux = {
-		getSolverCode = function() return '' end,
+		initCodeModules = function()
+			self.modules:add{name = 'Flux.calcFlux'}
+		end,
 	}
 end
 

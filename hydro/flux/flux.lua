@@ -10,14 +10,24 @@ function Flux:init(args)
 	self.solver = assert(args.solver)
 end
 
-function Flux:getSolverCode()
-	return table{
-		template(file[self.solverCodeFile], {
+function Flux:initCodeModules()
+	self.solver.modules:add{
+		name = 'Flux.calcFlux',
+		-- TODO these may vary depending on the solverCodeFile contents
+		depends = {
+			'solver.solver_t',
+			'eqn.cons_t',
+			'eqn.waves_t',
+			'coord.normal',
+			'eqn.solvercode',
+			'eqn.cons_parallelPropagate',
+		},
+		code = template(file[self.solverCodeFile], {
 			solver = self.solver,
 			eqn = self.solver.eqn,
 			clnumber = clnumber,
 		}),
-	}:concat'\n'
+	}	
 end
 
 return Flux

@@ -29,23 +29,12 @@ end
 function FiniteVolumeSolver:initCodeModules()
 	FiniteVolumeSolver.super.initCodeModules(self)
 
-	self.modules:add{
-		name = 'FiniteVolumeSolver.calcFlux',
-		depends = {
-			'solver.solver_t',
-			'eqn.cons_t',
-			'eqn.waves_t',
-			'coord.normal',
-			'eqn.solvercode',
-			'eqn.cons_parallelPropagate',
-		},
-		code = self.flux:getSolverCode(),
-	}
+	self.flux:initCodeModules()
 
 	self.modules:add{
 		name = 'FiniteVolumeSolver.calcDerivFromFlux',
 		depends = {
-			'FiniteVolumeSolver.calcFlux',
+			'Flux.calcFlux',
 		},
 		code = template(file['hydro/solver/calcDerivFV.cl'], {solver=self}),
 	}

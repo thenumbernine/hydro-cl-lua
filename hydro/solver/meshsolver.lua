@@ -422,10 +422,10 @@ function MeshSolver:refreshSolverProgram()
 end
 
 function MeshSolver:getSolverCode()
+	error'convert this to initCodeModules'
+	self.flux:intiCodeModules()
 	return table{
 		MeshSolver.super.getSolverCode(self),
-
-		self.flux:getSolverCode(),
 
 		-- boundary code, since meshsolver doesn't use gridsolver's boundary: 
 		template([[
