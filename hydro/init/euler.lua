@@ -1912,7 +1912,7 @@ end ?>;
 
 	{
 		name = 'Maxwell scattering around pyramid',
-		header = function(self, solver)
+		getCodePrefix = function(self, solver)
 			return template([[
 <? 
 local table = require 'ext.table'
@@ -2016,7 +2016,7 @@ end	?>
 
 	{
 		name = 'Maxwell scattering around Koch snowflake',
-		header = function(self, solver)
+		getCodePrefix = function(self, solver)
 			return template([[
 
 #define sqrt3 <?=clnumber(math.sqrt(3))?>

@@ -92,32 +92,25 @@ function InitCond:initCodeModules(solver)
 		code = self.getCodePrefix and self:getCodePrefix(solver) or nil,
 	}
 
-end
-
-function InitCond:refreshInitStateProgram(solver)
-
-	solver.modules:add{
-		name = 'initCond.header',
-		depends = {'initCond.codeprefix'},
-		code = self.header and self:header(solver) or nil,
-	}
-
 	solver.modules:add{
 		name = 'initCond.applyInitCond',
 		depends = {
-			-- if an InitCond provides header, it is for code it expects to reference from within 'applyInitCond()'
-			'initCond.header',
+			-- if an InitCond provides codeprefix, it is for code it expects to reference from within 'applyInitCond()'
+			'initCond.codeprefix',
 			-- applyInitCond has these parameters:
 			'solver.solver_t',
 			'initCond.initCond_t',
 			'eqn.cons_t',
-			-- Euler and most have these too:
+			-- initCond code is specified in terms of primitives, so if the eqn has prim<->cons then it will be needed
 			'eqn.prim-cons',
 		},
 		-- this in turn calls self:getInitCondCode() but with proper template args applied
 		code = solver.eqn:getInitCondCode() or nil,
 	}
-	
+end
+
+function InitCond:refreshInitStateProgram(solver)
+
 	solver.initModulesEnabled['initCond.applyInitCond'] = true
 
 	local initCondCode 
