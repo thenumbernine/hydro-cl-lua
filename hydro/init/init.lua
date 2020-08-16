@@ -94,7 +94,7 @@ function InitCond:initCodeModules(solver)
 
 	solver.modules:add{
 		name = 'initCond.applyInitCond',
-		depends = {
+		depends = table{
 			-- if an InitCond provides codeprefix, it is for code it expects to reference from within 'applyInitCond()'
 			'initCond.codeprefix',
 			-- applyInitCond has these parameters:
@@ -103,9 +103,7 @@ function InitCond:initCodeModules(solver)
 			'eqn.cons_t',
 			-- initCond code is specified in terms of primitives, so if the eqn has prim<->cons then it will be needed
 			'eqn.prim-cons',
-			-- likewise some need this
-			'eqn.common',
-		},
+		}:append(self.depends),
 		-- this in turn calls self:getInitCondCode() but with proper template args applied
 		code = solver.eqn:getInitCondCode() or nil,
 	}

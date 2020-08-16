@@ -787,12 +787,22 @@ end
 function SolverBase:refreshCommonProgram()
 	-- code that depend on real and nothing else
 	-- TODO move to app, along with reduceBuf
-
-	local moduleNames = self.sharedModulesEnabled:keys()
+		
+	--local moduleNames = self.sharedModulesEnabled:keys()
+	-- what code does common use?
+	-- in fact, what types does it use?
+	-- it only seems to use solver_t and cons_t
+	local moduleNames = table{
+		'realparam',
+		'solver.solver_t',
+		'eqn.cons_t',
+		'GridSolver.codeprefix',	-- SETBOUNDS_NOGHOST
+	}
 print('common modules:', moduleNames:sort():concat', ')
 	local codePrefix = table{
 		self.modules:getHeader(moduleNames:unpack()),
-		self.modules:getCode(moduleNames:unpack()),
+-- no function calls needed
+--		self.modules:getCode(moduleNames:unpack()),
 	}:concat'\n'
 
 	local commonCode = table():append{
@@ -1338,6 +1348,10 @@ end
 		
 		for _,group in ipairs(self.displayVarGroups) do
 			
+			-- TODO ... right now U is the only one that deviates, so, pick
+			-- I guess types make a difference ... maybe ...
+			addPickComponetForGroup(group)
+			
 			lines:insert(template([[
 //<?=group.name?>
 kernel void <?=kernelName?>(
@@ -1396,8 +1410,6 @@ end ?><?=group.extraArgs and #group.extraArgs > 0
 				if not var.originalVar then
 					lines:insert('		//'..var.name)
 					lines:insert('		case '..var.displayVarIndex..': {')
-
-					addPickComponetForGroup(var.group)
 
 					-- hmm, this will change its success the next time through this test
 					-- so this is destructive, only run it once per display var?
@@ -1827,15 +1839,15 @@ function SolverBase:finalizeDisplayComponents()
 end
 function SolverBase:getPickComponentNameForGroup(group)
 	local name = 'pickComponent'
-	if var 
-	and var.group 
+	if group
+	and group.name	-- exclude the fake group created for default components
 	and self.displayComponentFlatList:find(nil, function(component)
 		return component.onlyFor
 	end)
 	then 
 		name = name..'_'
 			-- TODO further sanitization?
-			..var.group.name:gsub(' ', '_')
+			..group.name:gsub(' ', '_')
 	end
 	return name
 end

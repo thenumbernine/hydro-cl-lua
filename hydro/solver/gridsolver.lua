@@ -194,13 +194,11 @@ end
 function GridSolver:initCodeModules()
 	GridSolver.super.initCodeModules(self)
 
+--[=[ I put this here, I'm not using it anymore now that I'm using cellBuf to store positions
 	self.modules:add{
-		name = 'GridSolver.codeprefix',
-		headercode = table{
-			'#define numGhost '..self.numGhost,
-			'#define INDEX(a,b,c)	((a) + solver->gridSize.x * ((b) + solver->gridSize.y * (c)))',
-			'#define INDEXV(i)		indexForInt4ForSize(i, solver->gridSize.x, solver->gridSize.y, solver->gridSize.z)',
---[[
+		name = 'GridSolver.cell_x#',
+		code = table()
+	--[[
 naming conventions ...
 * the grid indexes i_1..i_n that span 1 through solver->gridSize.1..solver->gridSize.n
 (between the index and the coordinate space:)
@@ -225,8 +223,6 @@ functionality (and abstraction):
 	- Add a macro for useful values to compute, like the x,y,z,r,theta,phi variables.
 	 (This is already started in the coords.vars table.)
 --]]
-		}
-		
 		-- mapping from index to coordinate 
 		:append(range(self.dim):map(function(i)
 			return (('#define cell_x{i}(i) (((real)(i) + .5 - (real)numGhost) * solver->grid_dx.{x} + solver->mins.{x})')
@@ -242,9 +238,18 @@ functionality (and abstraction):
 				:gsub('{x}', xNames[i])
 			)
 		end))
+		--:append{'#define cell_x(i) _real3(cell_x0(i.x), cell_x1(i.y), cell_x2(i.z))'}
+		:concat'\n',
+	}
+--]=]
 
-		:append{
-			--'#define cell_x(i) _real3(cell_x0(i.x), cell_x1(i.y), cell_x2(i.z))',
+	self.modules:add{
+		name = 'GridSolver.codeprefix',
+		headercode = table{
+			'#define numGhost '..self.numGhost,
+			'#define INDEX(a,b,c)	((a) + solver->gridSize.x * ((b) + solver->gridSize.y * (c)))',
+			'#define INDEXV(i)		indexForInt4ForSize(i, solver->gridSize.x, solver->gridSize.y, solver->gridSize.z)',
+			
 			-- bounds-check macro
 			'#define OOB(lhs,rhs) (i.x < (lhs) || i.x >= solver->gridSize.x - (rhs)'
 				.. (self.dim < 2 and '' or ' || i.y < (lhs) || i.y >= solver->gridSize.y - (rhs)')

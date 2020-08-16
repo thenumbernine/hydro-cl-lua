@@ -1,5 +1,10 @@
 --[[
 
+for bssnok-fd
+5495646 bytes with static inline 
+5529070 bytes without it
+dif of 30k
+
 TODO get rid of all the bloat that I added for bssn
 because I'm moving it directly into BSSN
 

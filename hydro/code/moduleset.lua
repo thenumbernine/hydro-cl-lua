@@ -96,14 +96,13 @@ function ModuleSet:getCodeForGetter(getter, ...)
 	local lines = table()
 	for _,module in ipairs(self:getDependentModules(...)) do
 		local code, desc = getter(module)
-		lines:insert(
-			code == ''
-			and ''
-			or (
-				'\n////////////// '..module.name..' '..desc..' //////////////\n\n'
-				..code
-			)
-		)
+		if code ~= '' then
+			lines:insert''
+			lines:insert('////////////// '..module.name..' '..desc..' //////////////')
+			lines:insert''
+			lines:insert(code)
+			lines:insert''
+		end
 	end
 	return lines:concat'\n'
 end
