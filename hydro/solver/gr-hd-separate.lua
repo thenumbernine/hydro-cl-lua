@@ -41,13 +41,8 @@ function GRHDSeparateSolver:init(args)
 	function HydroSolver:createCodePrefix()
 		HydroSolver.super.createCodePrefix(self)
 		
-		local codePrefix = table{
-			self.modules:getHeader(self.sharedModulesEnabled:keys():unpack()),
-			self.modules:getCode(self.sharedModulesEnabled:keys():unpack()),
-		}:concat'\n'
-
 		self.codePrefix = table{
-			codePrefix,
+			self.modules:getCodeAndHeader(self.sharedModulesEnabled:keys():unpack()),
 			gr.eqn:getTypeCode(),
 			
 			-- this is for calc_exp_neg4phi
@@ -176,13 +171,8 @@ function GRHDSeparateSolver:createCalcStressEnergyKernel()
 	-- TODO FIXME not working
 	require 'hydro.solver.gridsolver'.createCodePrefix(self)
 
-	local codePrefix = table{
-		self.modules:getHeader(self.sharedModulesEnabled:keys():unpack()),
-		self.modules:getCode(self.sharedModulesEnabled:keys():unpack()),
-	}:concat'\n'
-
 	local lines = table{
-		codePrefix,
+		self.modules:getCodeAndHeader(self.sharedModulesEnabled:keys():unpack()),
 		self.gr.eqn:getTypeCode(),
 		self.hydro.eqn:getTypeCode(),
 		template([[
@@ -272,16 +262,8 @@ function GRHDSeparateSolver:replaceSourceKernels()
 
 --[=[ instead of copying vars from nr to grhd, I've integrated the nr code directly to the grhd solver
 	
-	-- build self.codePrefix
-	require 'hydro.solver.gridsolver'.createCodePrefix(self)
-
-	local codePrefix = table{
-		self.modules:getHeader(self.sharedModulesEnabled:keys():unpack()),
-		self.modules:getCode(self.sharedModulesEnabled:keys():unpack()),
-	}:concat'\n'
-
 	local lines = table{
-		codePrefix,
+		self.modules:getCodeAndHeader(self.sharedModulesEnabled:keys():unpack()),
 		self.gr.eqn:getTypeCode(),
 		self.hydro.eqn:getTypeCode(),
 		template([[

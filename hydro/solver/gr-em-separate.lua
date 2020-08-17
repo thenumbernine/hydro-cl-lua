@@ -35,13 +35,8 @@ function GREMSeparateSolver:init(args)
 	function GRMaxwellSolver:createCodePrefix()
 		GRMaxwellSolver.super.createCodePrefix(self)
 		
-		local codePrefix = table{
-			self.modules:getHeader(self.sharedModulesEnabled:keys():unpack()),
-			self.modules:getCode(self.sharedModulesEnabled:keys():unpack()),
-		}:concat'\n'
-
 		self.codePrefix = table{
-			codePrefix,
+			self.modules:getCodeAndHeader(self.sharedModulesEnabled:keys():unpack()),
 			gr.eqn:getTypeCode(),
 			
 			-- this is for gr's calc_exp_neg4phi, which em will need 
@@ -157,18 +152,8 @@ function GREMSeparateSolver:getConsLRTypeCode() return '' end
 
 function GREMSeparateSolver:replaceSourceKernels()
 
-	-- TODO
-
-	-- build self.codePrefix
-	require 'hydro.solver.gridsolver'.createCodePrefix(self)
-
-	local codePrefix = table{
-		self.modules:getHeader(self.sharedModulesEnabled:keys():unpack()),
-		self.modules:getCode(self.sharedModulesEnabled:keys():unpack()),
-	}:concat'\n'
-
 	local lines = table{
-		codePrefix,
+		self.modules:getCodeAndHeader(self.sharedModulesEnabled:keys():unpack()),
 		self.gr.eqn:getTypeCode(),
 		self.gr.eqn:getCommonFuncCode(),
 		self.em.eqn:getTypeCode(),

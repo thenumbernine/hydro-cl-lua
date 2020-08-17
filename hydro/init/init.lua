@@ -117,10 +117,7 @@ function InitCond:refreshInitStateProgram(solver)
 	time('generating init state code', function()
 		local moduleNames = table(solver.sharedModulesEnabled, solver.initModulesEnabled):keys()
 print('initCond modules: '..moduleNames:sort():concat', ')
-		initCondCode = table{
-			solver.modules:getHeader(moduleNames:unpack()),
-			solver.modules:getCode(moduleNames:unpack()),
-		}:concat'\n'
+		initCondCode = solver.modules:getCodeAndHeader(moduleNames:unpack())
 	end)
 
 	time('building init cond program', function()

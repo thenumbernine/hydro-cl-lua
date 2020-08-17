@@ -80,11 +80,8 @@ function PoissonKrylov:initSolver()
 		}
 	end
 
-	local codePrefix = table{
-		solver.modules:getHeader(solver.sharedModulesEnabled:keys():unpack()),
-		-- is this needed?
-		--solver.modules:getCode(solver.sharedModulesEnabled:keys():unpack()),
-	}:concat'\n'
+	-- just headers are needed
+	local codePrefix = solver.modules:getHeader(solver.sharedModulesEnabled:keys():unpack()),
 
 	local mulWithoutBorderKernelObj = solver.domain:kernel{
 		name = 'Poisson_mulWithoutBorder'..self.name,

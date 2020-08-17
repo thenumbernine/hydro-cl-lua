@@ -1227,11 +1227,7 @@ function GridSolver:createBoundaryProgramAndKernel(args)
 
 	local moduleNames = self.sharedModulesEnabled:keys()
 print('boundary modules:', moduleNames:sort():concat', ')
-	local codePrefix = table{
-		self.modules:getHeader(moduleNames:unpack()),
-		self.modules:getCode(moduleNames:unpack()),
-	}:concat'\n'
-	lines:insert(codePrefix)
+	lines:insert(self.modules:getCodeAndHeader(moduleNames:unpack()))
 
 	local iFields = ({
 		nil,

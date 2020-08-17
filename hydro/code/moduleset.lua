@@ -1,5 +1,6 @@
 local class = require 'ext.class'
 local table = require 'ext.table'
+local string = require 'ext.string'
 local Module = require 'hydro.code.module'
 
 --[[
@@ -42,13 +43,13 @@ end
 function ModuleSet:getDependentModules(...)
 	local addedkeys = {}
 	local added = table()
-print('building:')	
+print('building:')
 	local function add(name, from, indent, last)
 		local range = require 'ext.range'
 		indent = indent or ''
 		
 		local module, deps
-		if not addedkeys[name] then 
+		if not addedkeys[name] then
 			module = self.set[name]
 			if not module then
 				error("failed to find module "..name
@@ -56,17 +57,17 @@ print('building:')
 						or " when requesting from root function call")
 				)
 			end
-			addedkeys[name] = true	
+			addedkeys[name] = true
 			deps = module.depends:filter(function(dep)
 				return not addedkeys[dep]
 			end)
-		end	
+		end
 		local numdeps = deps and #deps or 0
 		local indentlen = #indent
 		local str = range(indentlen):mapi(function(i)
-			if i < indentlen then 
-				return '│' 
-			end	
+			if i < indentlen then
+				return '│'
+			end
 			return last and '┌' or '├'	-- └
 		end):concat()
 			..(numdeps > 0 and '┴' or '─')	-- ┬
@@ -92,56 +93,79 @@ print('building:')
 	return added
 end
 
-function ModuleSet:getCodeForGetter(getter, ...)
-	local lines = table()
-	for _,module in ipairs(self:getDependentModules(...)) do
-		local code, desc = getter(module)
-		if code ~= '' then
-			lines:insert''
-			lines:insert('////////////// '..module.name..' '..desc..' //////////////')
-			lines:insert''
-			lines:insert(code)
-			lines:insert''
-		end
-	end
-	return lines:concat'\n'
+local function comment(code, name, desc)
+	code = string.trim(code)
+	if code == '' then return end
+	return '\n////////////// '..name..' '..desc..' //////////////\n\n'..code..'\n'
 end
 
+-- typecode + structs
 function ModuleSet:getTypeHeader(...)
-	return self:getCodeForGetter(function(module)
-		return table{
-			module.typecode
-		}:append(module.structs:mapi(function(struct)
-			-- this needs makeType() called first, which generates the .typecode
-			-- but it also calls the ffi.metatype (which can only be done once)
-			-- and also the ffi.cdef (which is only effective the first time it's done)
-			return struct.typecode
-		end)):concat'\n', 'typecode & structs'
-	end, ...)
-end
-
-function ModuleSet:getHeader(...)
-	return table{
-		self:getCodeForGetter(function(module) 
-			return table{
+	local deps = self:getDependentModules(...)
+	local lines = table()
+	-- typecode & structs
+	for _,module in ipairs(deps) do
+		lines:insert(comment(table{
 				module.typecode
 			}:append(module.structs:mapi(function(struct)
 				-- this needs makeType() called first, which generates the .typecode
 				-- but it also calls the ffi.metatype (which can only be done once)
 				-- and also the ffi.cdef (which is only effective the first time it's done)
 				return struct.typecode
-			end)):concat'\n', 'typecode & structs' 
-		end, ...),
-		self:getCodeForGetter(function(module) 
-			return module.headercode, 'headercode' 
-		end, ...),
-	}:concat'\n'
+			end)):concat'\n', module.name, 'typecode & structs'
+		) or nil)
+	end
+	return lines:concat'\n'
 end
 
-function ModuleSet:getCode(...)
-	return self:getCodeForGetter(function(module) 
-		return module.code, 'code' 
-	end, ...)
+-- typecode + structs + header
+function ModuleSet:getHeader(...)
+	local deps = self:getDependentModules(...)
+	local lines = table()
+	-- typecode & structs
+	for _,module in ipairs(deps) do
+		lines:insert(comment(table{
+				module.typecode
+			}:append(module.structs:mapi(function(struct)
+				-- this needs makeType() called first, which generates the .typecode
+				-- but it also calls the ffi.metatype (which can only be done once)
+				-- and also the ffi.cdef (which is only effective the first time it's done)
+				return struct.typecode
+			end)):concat'\n', module.name, 'typecode & structs'
+		) or nil)
+	end
+	-- headercode
+	for _,module in ipairs(deps) do
+		lines:insert(comment(module.headercode, module.name, 'headercode') or nil)
+	end
+	return lines:concat'\n'
+end
+
+-- typecode + structs + header + code
+function ModuleSet:getCodeAndHeader(...)
+	local deps = self:getDependentModules(...)
+	local lines = table()
+	-- typecode & structs
+	for _,module in ipairs(deps) do
+		lines:insert(comment(table{
+				module.typecode
+			}:append(module.structs:mapi(function(struct)
+				-- this needs makeType() called first, which generates the .typecode
+				-- but it also calls the ffi.metatype (which can only be done once)
+				-- and also the ffi.cdef (which is only effective the first time it's done)
+				return struct.typecode
+			end)):concat'\n', module.name, 'typecode & structs'
+		) or nil)
+	end
+	-- headercode
+	for _,module in ipairs(deps) do
+		lines:insert(comment(module.headercode, module.name, 'headercode') or nil)
+	end
+	-- code
+	for _,module in ipairs(deps) do
+		lines:insert(comment(module.code, module.name, 'code') or nil)
+	end
+	return lines:concat'\n'
 end
 
 return ModuleSet

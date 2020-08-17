@@ -291,10 +291,7 @@ SolverBase.useCLLinkLibraries = false
 	time('compiling math program', function()
 		self.mathUnlinkedObj = self.Program{
 			name = 'math',
-			code = table{
-				self.modules:getHeader(self.sharedModulesEnabled:keys():unpack()),
-				self.modules:getCode(self.sharedModulesEnabled:keys():unpack()),
-			}:concat'\n',
+			code = self.modules:getCodeAndHeader(self.sharedModulesEnabled:keys():unpack()),
 		}
 		self.mathUnlinkedObj:compile{
 			dontLink = true,
@@ -799,11 +796,8 @@ function SolverBase:refreshCommonProgram()
 		'GridSolver.codeprefix',	-- SETBOUNDS_NOGHOST
 	}
 print('common modules:', moduleNames:sort():concat', ')
-	local codePrefix = table{
-		self.modules:getHeader(moduleNames:unpack()),
--- no function calls needed
---		self.modules:getCode(moduleNames:unpack()),
-	}:concat'\n'
+	-- just header, no function calls needed
+	local codePrefix = self.modules:getHeader(moduleNames:unpack())
 
 	local commonCode = table():append{
 		codePrefix,
@@ -1176,10 +1170,7 @@ end
 function SolverBase:getSolverCode()
 	local moduleNames = table(self.sharedModulesEnabled, self.solverModulesEnabled):keys()
 print('solver modules:', moduleNames:sort():concat', ')
-	return table{
-		self.modules:getHeader(moduleNames:unpack()),
-		self.modules:getCode(moduleNames:unpack()),
-	}:concat'\n'
+	return self.modules:getCodeAndHeader(moduleNames:unpack())
 end
 
 function SolverBase:getDisplayCode()
@@ -2943,10 +2934,7 @@ function SolverBase:checkStructSizes()
 		self.initModulesEnabled
 	):keys()
 print('shared modules:', moduleNames:sort():concat', ')
-	local codePrefix = table{
-		self.modules:getHeader(moduleNames:unpack()),
-		self.modules:getCode(moduleNames:unpack()),
-	}:concat'\n'
+	local codePrefix = self.modules:getTypeHeader(moduleNames:unpack())
 
 --[=[
 	local testStructProgramObj = self.Program{

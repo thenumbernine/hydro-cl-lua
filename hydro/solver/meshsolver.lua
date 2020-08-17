@@ -553,13 +553,8 @@ end
 function MeshSolver:createCodePrefix()
 	MeshSolver.super.createCodePrefix(self)
 
-	local codePrefix = table{
-		self.modules:getHeader(self.sharedModulesEnabled:keys():unpack()),
-		self.modules:getCode(self.sharedModulesEnabled:keys():unpack()),
-	}:concat'\n'
-
 	local lines = table{
-		codePrefix,
+		self.modules:getCodeAndHeader(self.sharedModulesEnabled:keys():unpack()),
 		self.mesh:getMeshTypeCode(),
 	}
 

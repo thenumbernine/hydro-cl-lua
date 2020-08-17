@@ -193,17 +193,9 @@ local function TwoFluidEMHDBehavior(parent)
 		local chargeMassRatio_electron = .01
 		local eps0 = 1 / (4 * math.pi)
 
-		-- build self.codePrefix
-		require 'hydro.solver.gridsolver'.createCodePrefix(self)
-
-		local codePrefix = table{
-			self.modules:getHeader(self.sharedModulesEnabled:keys():unpack()),
-			self.modules:getCode(self.sharedModulesEnabled:keys():unpack()),
-		}:concat'\n'
-
 		local lines = table{
 			'// TwoFluidEMHDSeparateBehavior:replaceSourceKernels() end',
-			codePrefix,
+			self.modules:getCodeAndHeader(self.sharedModulesEnabled:keys():unpack()),
 --			self.eqn:getTypeCode(),
 
 			'#define eps0 '..clnumber(eps0),
