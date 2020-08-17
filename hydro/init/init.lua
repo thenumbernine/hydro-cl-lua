@@ -125,18 +125,6 @@ print('initCond modules: '..moduleNames:sort():concat', ')
 		solver.initCondProgramObj:compile()
 	end)
 
-	-- how to give initCond access to rand()?
-	-- fill UBuf with random numbers before calling it
-	time('randomizing UBuf...', function()
-		local ptr = solver.UBufObj:toCPU()
-		for i=0,solver.numCells-1 do
-			for j=0,solver.eqn.numStates-1 do
-				ptr[i].ptr[j] = math.random()
-			end
-		end
-		solver.UBufObj:fromCPU(ptr)
-	end)
-
 	solver.applyInitCondKernelObj = solver.initCondProgramObj:kernel('applyInitCond', solver.solverBuf, solver.initCondBuf, solver.UBuf, solver.cellBuf)
 
 	-- here's an ugly hack ...
@@ -155,6 +143,19 @@ end
 
 -- called when the solver resets
 function InitCond:resetState(solver)
+
+	-- how to give initCond access to rand()?
+	-- fill UBuf with random numbers before calling it
+	time('randomizing UBuf...', function()
+		local ptr = solver.UBufObj:toCPU()
+		for i=0,solver.numCells-1 do
+			for j=0,solver.eqn.numStates-1 do
+				ptr[i].ptr[j] = math.random()
+			end
+		end
+		solver.UBufObj:fromCPU(ptr)
+	end)
+
 	solver.applyInitCondKernelObj()
 
 	if cmdline.printBufs then

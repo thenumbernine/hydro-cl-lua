@@ -511,12 +511,6 @@ kernel void initDerivs(
 	}))
 end
 
-function BSSNOKFiniteDifferenceEquation:getEigenTypeCode()
-	return template([[
-typedef struct { char unused; } <?=eqn.eigen_t?>;
-]], {eqn=self})
-end
-
 BSSNOKFiniteDifferenceEquation.predefinedDisplayVars = {
 -- [=[
 	'U alpha',

@@ -406,6 +406,26 @@ local initConds = table{
 		end,
 	},
 	{
+		name = 'random',
+		getInitCondCode = function(self, solver)
+			solver.useGravity = true
+			return [[
+	rho = U->rho + 1.;
+#if dim == 2
+	v = _real3(
+		U->m.x * cos(U->m.y * 2. * M_PI),
+		U->m.x * sin(U->m.y * 2. * M_PI),
+		2. * U->m.z - 1.
+	);
+#else
+	// TODO spherical random distribution using asin and stuff
+	v = real3_sub(U->m, _real3(.5, .5, .5));
+#endif
+	P = U->ETotal + 1.;
+]]
+		end,
+	},
+	{
 		name = 'linear',
 		solverVars = {
 			heatCapacityRatio = 7/5,

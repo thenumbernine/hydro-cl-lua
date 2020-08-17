@@ -202,6 +202,7 @@ local args = {
 	--initCond = 'constant',
 	--initCondArgs = {v={1e-1,1e-1}},
 	
+	initCond = 'random',
 	--initCond = 'linear',
 	--initCond = 'gaussian',
 	--initCond = 'advect wave',
@@ -237,7 +238,7 @@ local args = {
 	--initCond = 'configuration 6',
 	
 	-- states for ideal MHD or two-fluid (not two-fluid-separate)
-	initCond = 'Brio-Wu',
+	--initCond = 'Brio-Wu',
 	--initCond = 'Orszag-Tang',
 	--initCond = 'MHD rotor',
 	--initCond = 'GEM challenge', eqnArgs = {useEulerInitState=false},
@@ -533,7 +534,7 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn
 -- compressible Euler equations
 
 
-self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
+--self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
 
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct bounded'})))	-- this is the default hllCalcWaveMethod
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct'})))
@@ -886,7 +887,6 @@ local args = {
 	dim = dim,
 	
 	integrator = 'Runge-Kutta 4',
-	
 	--integrator = 'backward Euler',
 	--integratorArgs = {verbose=true},
 	cfl = .5,
@@ -902,16 +902,16 @@ local args = {
 		{64, 16, 1},
 		
 		-- N x 2 x 2:
-		--{32, 2, 2},		-- brill-lindquist head-on merger: -- {400, 64, 2},	--{128, 2, 2},
-		--{128,32,2},
+		{32, 2, 2},		
+		--{128, 2, 2},
+		--{128, 32, 2},
 		--{400, 64, 2},
 	
 		-- 80N x 40N x 2N
 		--{160, 80, 4},
 	
-		--2017 Ruchlin, Etienne, section 3, 2 paragraphs after eqn 70:
-		-- if phi along the grid is divided into two sections then how can this simulate a black hole?
-		{400, 64, 2},
+		-- Brill-Lindquist head-on merger:2017 Ruchlin, Etienne, section 3, 2 paragraphs after eqn 70: 
+		--{400, 64, 2},
 	})[dim],
 	boundary = {
 		xmin='sphereRMin',
@@ -980,8 +980,8 @@ local args = {
 	
 	-- only for bssnok-fd-senr
 	--initCond = 'SENR sphere-log-radial Minkowski',
-	--initCond = 'SENR sphere-log-radial UIUC',
-	initCond = 'SENR sphere-log-radial BrillLindquist',
+	initCond = 'SENR sphere-log-radial UIUC',
+	--initCond = 'SENR sphere-log-radial BrillLindquist',
 	--initCond = 'SENR sphere-log-radial BoostedSchwarzschild',
 	--initCond = 'SENR sphere-log-radial StaticTrumpet',
 }
@@ -989,13 +989,13 @@ local args = {
 --self.solvers:insert(require 'hydro.solver.bssnok-fd'(table(args, {eqn = 'bssnok-fd-num'})))
 --self.solvers:insert(require 'hydro.solver.bssnok-fd'(table(args, {eqn = 'bssnok-fd-sym'})))
 --self.solvers:insert(require 'hydro.solver.bssnok-fd'(table(args, {eqn = 'bssnok-fd-senr'})))
-if cmdline.bssnok_fd_num then
+if cmdline['bssnok-fd-num'] then
 	self.solvers:insert(require 'hydro.solver.bssnok-fd'(table(args, {eqn = 'bssnok-fd-num'})))
 end
-if cmdline.bssnok_fd_sym then
+if cmdline['bssnok-fd-sym'] then
 	self.solvers:insert(require 'hydro.solver.bssnok-fd'(table(args, {eqn = 'bssnok-fd-sym'})))
 end
-if cmdline.bssnok_fd_senr then
+if cmdline['bssnok-fd-senr'] then
 	self.solvers:insert(require 'hydro.solver.bssnok-fd'(table(args, {eqn = 'bssnok-fd-senr'})))
 end
 --]=]
