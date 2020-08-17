@@ -162,10 +162,6 @@ sym3sym3 sym3sym3_rescaleToCoord_LLLL(sym3sym3 a, real3 x) {
 #endif
 
 
-//TODO 2017 Ruchlin eqn. 8, what is C^i?
-#define mystery_C_U	real3_zero
-
-
 	// gammaHat_ij and co
 
 

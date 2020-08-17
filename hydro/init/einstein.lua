@@ -239,7 +239,6 @@ return table{
 			local H = args and args.H or .01 * size
 			local sigma = args and args.sigma or .1 * size
 
-			-- TODO if only OpenCL allowed something like uniforms ...
 			self:addGuiVars{
 				{name = 'H', value = H},
 				{name = 'sigma', value = sigma},
@@ -1138,11 +1137,8 @@ TODO I now have a Bessel function routine in hydro/math.cl
 			
 			solver.eqn:addGuiVar{name='epsilon', value=1e-10}
 		end,
-		resetState = function(self, solver)
-			local epsilon = self.guiVars.epsilon.value
--- TODO just use the random functionality that I'm adding to init/init since so many people are using it
--- I'm always initialize all values to random, and let separate init conds overwrite it when necessary
-			solver.eqn:fillRandom(epsilon)
+		getInitCode = function(self, solver)
+			error"TODO override all of applyInitCond.  don't generate U from the prims (and their derivatives), but gen U's fields (incl derivs) directly."
 		end,
 	},
 	{

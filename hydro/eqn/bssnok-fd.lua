@@ -3,6 +3,7 @@ local table = require 'ext.table'
 local EinsteinEqn = require 'hydro.eqn.einstein'
 local makePartials = require 'hydro.eqn.makepartial'
 local common = require 'hydro.common'
+local template = require 'template'
 
 local BSSNOKFiniteDifferenceEquationBase = class(EinsteinEqn)
 
@@ -78,5 +79,66 @@ function BSSNOKFiniteDifferenceEquationBase:makePartialUpwind(field, fieldType, 
 	end
 	return lines:concat'\n'
 end
+
+function BSSNOKFiniteDifferenceEquationBase:initCodeModules()
+	BSSNOKFiniteDifferenceEquationBase.super.initCodeModules(self)
+	local solver = self.solver
+
+	solver.modules:add{
+		name = 'mystery_C_U',
+		code = [[
+//TODO 2017 Ruchlin eqn. 8, what is C^i?
+#define mystery_C_U	real3_zero
+]],
+	}
+
+	solver.modules:add{
+		name = 'setFlatSpace',
+		depends = {'mystery_C_U'},
+		code = template([[
+void setFlatSpace(
+	constant <?=solver.solver_t?>* solver,
+	global <?=eqn.cons_t?>* U,
+	real3 x
+) {
+	U->alpha = 1.;
+	U->beta_U = real3_zero;
+	U->epsilon_LL = sym3_zero;
+	U->W = 1;
+	U->K = 0;
+	U->ABar_LL = sym3_zero;
+
+	//LambdaBar^i = Delta^i + C^i = Delta^i_jk gammaBar^jk = (connBar^i_jk - connHat^i_jk) gammaBar^jk + C^i
+	//but when space is flat we have connBar^i_jk = connHat^i_jk and therefore Delta^i_jk = 0, Delta^i = 0, and LambdaBar^i = 0
+	U->LambdaBar_U = mystery_C_U;
+
+<? if eqn.useShift == 'HyperbolicGammaDriver' then
+?>	U->B_U = real3_zero;
+<? end
+?>
+
+	//what to do with the constraint vars and the source vars?
+	U->rho = 0;
+	U->S_u = real3_zero;
+	U->S_ll = sym3_zero;
+	U->H = 0;
+	U->M_U = real3_zero;
+}
+]], {eqn=self, solver=solver}),
+	}
+end
+
+function BSSNOKFiniteDifferenceEquationBase:getModuleDependsCommon()
+	return {
+		'setFlatSpace',
+	}
+end
+
+function BSSNOKFiniteDifferenceEquationBase:getModuleDependsApplyInitCond()
+	return {
+		'setFlatSpace',
+	}
+end
+
 
 return BSSNOKFiniteDifferenceEquationBase 

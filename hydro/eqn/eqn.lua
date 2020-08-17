@@ -444,6 +444,7 @@ end
 
 function Equation:getModuleDependsCommon() end
 function Equation:getModuleDependsSolver() end
+function Equation:getModuleDependsApplyInitCond() end	-- get'd in hydro/init/init.lua initCodeModules
 
 -- Really really used by maxwell, glm-maxwell, and other things that vary their scalar type between real and cplx.  but it fits here just as well.
 function Equation:getEnv()

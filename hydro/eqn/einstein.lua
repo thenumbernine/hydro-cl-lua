@@ -56,23 +56,4 @@ function EinsteinEquation:createBoundaryOptions()
 	self.solver:addBoundaryOption(BoundaryFixed)
 end
 
-
--- and now for fillRandom ...
--- TODO just use the random functionality that I'm adding to init/init since so many people are using it
--- I'm always initialize all values to random, and let separate init conds overwrite it when necessary
-local ffi = require 'ffi'
-local function crand() return 2 * math.random() - 1 end
-function EinsteinEquation:fillRandom(epsilon)
-	local solver = self.solver
-	local ptr = ffi.new(self.cons_t..'[?]', solver.numCells)
-	ffi.fill(ptr, 0, ffi.sizeof(ptr))
-	for i=0,solver.numCells-1 do
-		for j=0,self.numStates-1 do
-			ptr[i].ptr[j] = epsilon * crand()
-		end
-	end
-	solver.UBufObj:fromCPU(ptr)
-	return ptr
-end
-
 return EinsteinEquation

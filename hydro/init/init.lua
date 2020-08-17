@@ -103,7 +103,7 @@ function InitCond:initCodeModules(solver)
 			'eqn.cons_t',
 			-- initCond code is specified in terms of primitives, so if the eqn has prim<->cons then it will be needed
 			'eqn.prim-cons',
-		}:append(self.depends),
+		}:append(self.depends):append(solver.eqn:getModuleDependsApplyInitCond()),
 		-- this in turn calls self:getInitCondCode() but with proper template args applied
 		code = solver.eqn:getInitCondCode() or nil,
 	}
@@ -120,7 +120,7 @@ print('initCond modules: '..moduleNames:sort():concat', ')
 		initCondCode = solver.modules:getCodeAndHeader(moduleNames:unpack())
 	end)
 
-	time('building init cond program', function()
+	time('building initCond program', function()
 		solver.initCondProgramObj = solver.Program{name='initCond', code=initCondCode}
 		solver.initCondProgramObj:compile()
 	end)
