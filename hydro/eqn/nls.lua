@@ -5,8 +5,7 @@ local class = require 'ext.class'
 local table = require 'ext.table'
 local Equation = require 'hydro.eqn.eqn'
 
-local common = require 'hydro.common'
-local xNames = common.xNames
+local xNames = require 'hydro.common'.xNames
 
 local NLSEqn = class(Equation)
 NLSEqn.name = 'nls'
@@ -14,7 +13,6 @@ NLSEqn.name = 'nls'
 NLSEqn.hasCalcDTCode = true
 
 -- this tells eqn to not provide its own eigen code
-NLSEqn.hasFluxFromConsCode = true
 NLSEqn.useSourceTerm = true
 
 -- TODO just use cplx_t?

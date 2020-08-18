@@ -12,34 +12,6 @@ typedef <?=eqn.eigen_t?> eigen_t;
 typedef <?=eqn.waves_t?> waves_t;
 typedef <?=solver.coord.cell_t?> cell_t;
 
-cons_t fluxFromCons(
-	constant solver_t* solver,
-	cons_t U,
-	real3 x,
-	normalInfo_t n
-) {
-	prim_t W = primFromCons(solver, U, x);
-	real vj = normalInfo_vecDotN1(n, W.v);
-	real Bj = normalInfo_vecDotN1(n, W.B);
-	real BSq = coordLenSq(W.B, x);
-	real BDotV = real3_dot(W.B, W.v);
-	real PMag = .5 * BSq / (solver->mu0 / unit_kg_m_per_C2);
-	real PTotal = W.P + PMag;
-	real HTotal = U.ETotal + PTotal;
-	
-	cons_t F;
-	F.rho = normalInfo_vecDotN1(n, U.m);
-	F.m = real3_sub(real3_real_mul(U.m, vj), real3_real_mul(U.B, Bj / (solver->mu0 / unit_kg_m_per_C2)));
-	F.m.x += PTotal * normalInfo_u1x(n);
-	F.m.y += PTotal * normalInfo_u1y(n);
-	F.m.z += PTotal * normalInfo_u1z(n);
-	F.B = real3_sub(real3_real_mul(U.B, vj), real3_real_mul(W.v, Bj));
-	F.ETotal = HTotal * vj - BDotV * Bj / (solver->mu0 / unit_kg_m_per_C2);
-	F.psi = 0;
-	F.ePot = 0;
-	return F;
-}
-
 //align from vector coordinates to the normal basis
 cons_t cons_rotateFrom(cons_t U, normalInfo_t n) {
 	U.m = normalInfo_vecDotNs(n, U.m);

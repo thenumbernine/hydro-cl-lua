@@ -1,28 +1,8 @@
-<? local solver = eqn.solver ?>
-
 typedef <?=eqn.prim_t?> prim_t;
 typedef <?=eqn.cons_t?> cons_t;
 typedef <?=eqn.eigen_t?> eigen_t;
 typedef <?=eqn.waves_t?> waves_t;
 typedef <?=solver.solver_t?> solver_t;
-
-cons_t fluxFromCons(
-	constant solver_t* solver,
-	cons_t U,
-	real3 x,
-	normalInfo_t n
-) {
-	prim_t W = primFromCons(solver, U, x);
-	real v_n = normalInfo_vecDotN1(n, W.v);
-	real3 nU = normalInfo_u1(n);
-	return (cons_t){
-		.h = U.h * v_n,
-		.m = real3_add(
-			real3_real_mul(U.m, v_n),	//h v^i v_n
-			real3_real_mul(nU, .5 * solver->gravity * U.h * U.h)	//.5 g h^2 n^i
-		),
-	};
-}
 
 // used by PLM
 range_t calcCellMinMaxEigenvalues(

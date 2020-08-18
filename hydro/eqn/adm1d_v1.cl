@@ -3,27 +3,6 @@ typedef <?=eqn.cons_t?> cons_t;
 typedef <?=eqn.eigen_t?> eigen_t;
 typedef <?=eqn.waves_t?> waves_t;
 
-<? if false then ?>
-//the PLM version that uses this crashes
-//so maybe there's something wrong with this
-cons_t fluxFromCons(
-	constant solver_t* solver,
-	cons_t U,
-	real3 x,
-	normalInfo_t n
-) {
-	real f = calc_f(U.alpha);
-	real alpha_over_sqrt_gamma_xx = U.alpha / sqrt(U.gamma_xx);
-	return (cons_t){
-		.alpha = 0,
-		.gamma_xx = 0,
-		.a_x = U.KTilde * f * alpha_over_sqrt_gamma_xx,
-		.D_g = U.KTilde * 2. * alpha_over_sqrt_gamma_xx,
-		.KTilde = U.a_x * alpha_over_sqrt_gamma_xx,
-	};
-}
-<? end ?>
-
 eigen_t eigen_forInterface(
 	constant solver_t* solver,
 	cons_t UL,

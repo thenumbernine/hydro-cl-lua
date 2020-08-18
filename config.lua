@@ -609,7 +609,7 @@ self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='euler', wenoMe
 -- 	at 256x256 fails with F.E, RK2, RK2-non-TVD., RK3-TVD, RK4, RK4-TVD, RK4-non-TVD 
 --    but works with RK2-Heun, RK2-Ralston, RK2-TVD, RK3, RK4-3/8ths
 -- Kelvin-Helmholtz works for all borderes freeflow, float precision, 256x256, superbee flux limiter
-self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='srhd'})))
+--self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='srhd'})))
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='srhd'})))
 --self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='srhd', wenoMethod='2010 Shen Zha', order=5})))
 
@@ -792,9 +792,9 @@ With hyperbolic gamma driver shift it has trouble.
 -- nonlinear Schrodinger equation
 --self.solvers:insert(require 'hydro.solver.nls'(args))
 
---[[ wave with background metric of acoustic black hole, fourier transform mode, finite difference
+-- [[ wave with background metric of acoustic black hole, fourier transform mode, finite difference
 -- TODO rename to something more telling, like 'wave-ab-mode-fd'
-self.solvers:insert(require 'hydro.solver.wave-fd'(args))
+--self.solvers:insert(require 'hydro.solver.wave-fd'(args))
 -- I think b.e. is broke
 --self.solvers:insert(require 'hydro.solver.wave-fd'(table(args, {integrator='backward Euler'})))
 -- referencing this integrator doesn't seem to work

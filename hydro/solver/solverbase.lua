@@ -611,9 +611,6 @@ function SolverBase:initCodeModules()
 	if not self.eqn.hasCalcDTCode then
 		self.solverModulesEnabled['eqn.calcDT'] = true
 	end
-	if not self.eqn.hasFluxFromConsCode then
-		self.solverModulesEnabled['eqn.fluxFromCons'] = true
-	end
 
 	self.modules:add{
 		name = 'fluxLimiter',
@@ -795,7 +792,7 @@ function SolverBase:refreshCommonProgram()
 		'eqn.cons_t',
 		'GridSolver.codeprefix',	-- SETBOUNDS_NOGHOST
 	}
-print('common modules:', moduleNames:sort():concat', ')
+print('common modules: '..moduleNames:sort():concat', ')
 	-- just header, no function calls needed
 	local codePrefix = self.modules:getHeader(moduleNames:unpack())
 
@@ -1169,7 +1166,7 @@ end
 
 function SolverBase:getSolverCode()
 	local moduleNames = table(self.sharedModulesEnabled, self.solverModulesEnabled):keys()
-print('solver modules:', moduleNames:sort():concat', ')
+print('solver modules: '..moduleNames:sort():concat', ')
 	return self.modules:getCodeAndHeader(moduleNames:unpack())
 end
 
@@ -1588,6 +1585,8 @@ function DisplayVarGroup:init(args)
 		end
 	end
 
+	self.extraArgs = args.extraArgs
+
 	self.vars = table(args.vars)
 end
 
@@ -1871,17 +1870,19 @@ end
 function SolverBase:addUBufDisplayVars()
 	-- TODO make this getUBufDisplayVarGroupArgs, and make the vars getter separate
 	local args = self:getUBufDisplayVarsArgs()
-	
+
 	local group = self:newDisplayVarGroup{
 		name = 'U',
 		bufferField = args.bufferField,
 		bufferType = args.bufferType,
 		codePrefix = args.codePrefix,
+		extraArgs = args.extraArgs,
 	}
 
 	args.bufferField = nil
 	args.bufferType = nil
 	args.codePrefix =  nil
+	args.extraArgs = nil
 
 	args.group = group
 	args.vars = self.eqn:getDisplayVars()
@@ -1899,6 +1900,7 @@ function SolverBase:addDisplayVarGroup(args, cl)
 			bufferField = args.bufferField,
 			getBuffer = args.getBuffer,
 			codePrefix = args.codePrefix,
+			extraArgs = args.extraArgs,
 		}
 	end
 
@@ -1906,6 +1908,7 @@ function SolverBase:addDisplayVarGroup(args, cl)
 	args.bufferType = nil
 	args.bufferField = nil
 	args.getBuffer = nil
+	args.extraArgs = nil
 
 	local group = args.group
 
@@ -1987,6 +1990,7 @@ function SolverBase:addDisplayVars()
 	-- or don't regen all the display var code somehow and just bind derivbuf to the ubuf functions
 	do	--if self.integrator.derivBufObj then
 		local args = self:getUBufDisplayVarsArgs()
+		
 		local group = self:newDisplayVarGroup{
 			name = 'deriv',
 			codePrefix = args.codePrefix,
@@ -2001,10 +2005,14 @@ function SolverBase:addDisplayVars()
 				if int.krylov_dUdtObj then return int.krylov_dUdtObj.obj end
 				print"HERE"
 			end,
+			extraArgs = args.extraArgs,
 		}
+		
 		args.codePrefix = nil
 		args.bufferType = nil
 		args.bufferField = nil
+		args.extraArgs = nil
+		
 		args.group = group
 		args.vars = self.eqn:getDisplayVarsForStructVars(self.eqn.consStruct.vars)
 		-- why in addUBufDisplayVars() do I make a new group and assign args.group to it?
@@ -2933,7 +2941,7 @@ function SolverBase:checkStructSizes()
 		self.solverModulesEnabled,
 		self.initModulesEnabled
 	):keys()
-print('shared modules:', moduleNames:sort():concat', ')
+print('shared modules: '..moduleNames:sort():concat', ')
 	local codePrefix = self.modules:getTypeHeader(moduleNames:unpack())
 
 --[=[

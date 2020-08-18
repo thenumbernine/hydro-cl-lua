@@ -1,6 +1,4 @@
 local class = require 'ext.class'
-local range = require 'ext.range'
-local template = require 'template'
 local Equation = require 'hydro.eqn.eqn'
 
 local NavierStokesDivFree = class(Equation)

@@ -1,5 +1,6 @@
 #define sqrt_1_2 <?=('%.50f'):format(math.sqrt(.5))?>
 
+#error this is out of date, should be made with normalInfo_t, then moved to fluxFromCons
 <? for side=0,solver.dim-1 do ?>
 <?=eqn.cons_t?> fluxFromCons_<?=side?>(
 	constant <?=solver.solver_t?>* solver,

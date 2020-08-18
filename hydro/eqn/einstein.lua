@@ -4,7 +4,6 @@ common functions for all Einstein field equation solvers
 
 local class = require 'ext.class'
 local table = require 'ext.table'
-local template = require 'template'
 local Equation = require 'hydro.eqn.eqn'
 
 local common = require 'hydro.common'
@@ -30,6 +29,17 @@ function EinsteinEquation:createInitState()
 	}
 end
 
+function EinsteinEquation:initCodeModules()
+	EinsteinEquation.super.initCodeModules(self)
+	self:initCodeModule_setFlatSpace()
+end
+
+function EinsteinEquation:getModuleDependsSolver()
+	return {
+		'initCond.codeprefix',	-- eigen_forInterface & others uss calc_f
+	}
+end
+
 -- add an option for fixed Minkowsky boundary spacetime
 -- TODO now there is already a BoundaryFixed in hydro/solver/gridsolver, but no easy way to parameterize how to set what fixed values it is
 function EinsteinEquation:createBoundaryOptions()
@@ -42,10 +52,9 @@ function EinsteinEquation:createBoundaryOptions()
 		for _,j in ipairs{'j', gridSizeSide..'-numGhost+j'} do
 			local index = args.indexv(j)
 			local U = 'buf[INDEX('..index..')]'
-			lines:insert(template([[
+			lines:insert(self:template([[
 	setFlatSpace(solver, &<?=U?>, cell_x((int4)(<?=index?>, 0)));
 ]], 		{
-				eqn = eqn,
 				U = U,
 				index = index,
 			}))

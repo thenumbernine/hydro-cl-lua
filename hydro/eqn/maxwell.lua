@@ -35,17 +35,11 @@ B_i,t + 1/sqrt(g) g_il epsBar^ljk (1/eps)_k^l D_l,j = 1/sqrt(g) g_il epsBar^ljk 
 local ffi = require 'ffi'
 local class = require 'ext.class'
 local table = require 'ext.table'
-local range = require 'ext.range'
-local file = require 'ext.file'
-local template = require 'template'
 local Equation = require 'hydro.eqn.eqn'
-local common = require 'hydro.common'
-local xNames = common.xNames
 
 local Maxwell = class(Equation)
 Maxwell.name = 'Maxwell'
 
-Maxwell.hasFluxFromConsCode = true
 Maxwell.roeUseFluxFromCons = true
 Maxwell.useSourceTerm = true
 
@@ -92,7 +86,7 @@ function Maxwell:init(args)
 	Maxwell.super.init(self, args)
 
 -- [=[ TODO combine this into the flux and remove this variable from calcDerivFV
-	self.postComputeFluxCode = template([[
+	self.postComputeFluxCode = self:template[[
 <? local vec3 = eqn.vec3 ?>
 		//TODO shouldn't I be transforming both the left and right fluxes by the metrics at their respective coordinates?
 		//flux is computed raised via Levi-Civita upper
@@ -100,7 +94,7 @@ function Maxwell:init(args)
 		real _1_sqrt_det_g = 1. / coord_sqrt_det_g(x);
 		flux.D = <?=vec3?>_real_mul(eqn_coord_lower(flux.D, x), _1_sqrt_det_g);
 		flux.B = <?=vec3?>_real_mul(eqn_coord_lower(flux.B, x), _1_sqrt_det_g);
-]], {eqn=self})
+]]
 --]=]
 
 	local NoDiv = require 'hydro.op.nodiv'{
@@ -123,8 +117,52 @@ function Maxwell:init(args)
 	})
 end
 
-function Maxwell:getCommonFuncCode()
-	return template([[
+function Maxwell:initCodeModule_fluxFromCons()
+	self.solver.modules:add{
+		name = 'fluxFromCons',
+		depends = {
+			'solver.solver_t',
+			'coord.normal',
+			'eqn.cons_t',
+			'eqn.prim_t',
+			'eqn.common',	-- calc_E, calc_H
+		},
+		code = self:template[[
+<?=eqn.cons_t?> fluxFromCons(
+	constant <?=solver.solver_t?>* solver,
+	<?=eqn.cons_t?> U,
+	real3 x,
+	normalInfo_t n
+) {
+	<?=vec3?> E = calc_E(U);
+	<?=vec3?> H = calc_H(U);
+	<?=eqn.cons_t?> F;
+	if (n.side == 0) {
+		F.D = _<?=vec3?>(<?=zero?>, H.z, <?=neg?>(H.y));
+		F.B = _<?=vec3?>(<?=zero?>, <?=neg?>(E.z), E.y);
+	} else if (n.side == 1) {
+		F.D = _<?=vec3?>(<?=neg?>(H.z), <?=zero?>, H.x);
+		F.B = _<?=vec3?>(E.z, <?=zero?>, <?=neg?>(E.x));
+	} else if (n.side == 2) {
+		F.D = _<?=vec3?>(H.y, <?=neg?>(H.x), <?=zero?>);
+		F.B = _<?=vec3?>(<?=neg?>(E.y), E.x, <?=zero?>);
+	}
+	F.phi = <?=zero?>;
+	F.psi = <?=zero?>;
+	F.D = <?=vec3?>_zero;
+	F.rhoCharge = <?=zero?>;
+	F.sqrt_1_eps = <?=susc_t?>_zero;
+	F.sqrt_1_mu = <?=susc_t?>_zero;
+	return F;
+}
+]],
+	}
+end
+
+function Maxwell:initCodeModuleCommon()
+	self.solver.modules:add{
+		name = 'eqn.common',
+		code = self:template[[
 <? if scalar == 'real' then ?>
 
 #define eqn_coordLenSq coordLenSq
@@ -158,12 +196,11 @@ cplx3 eqn_coord_lower(cplx3 v, real3 x) {
 <?=vec3?> calc_H(<?=eqn.cons_t?> U) { 
 	return <?=vec3?>_<?=susc_t?>_mul(U.B, <?=susc_t?>_mul(U.sqrt_1_mu, U.sqrt_1_mu));
 }
-
-]], self:getEnv())
+]],
+	}
 end
 
 Maxwell.initCondCode = [[
-
 <? 
 local cons_t = eqn.cons_t
 local susc_t = eqn.susc_t
@@ -218,13 +255,23 @@ kernel void applyInitCond(
 }
 ]]
 
+function Maxwell:getModuleDependsApplyInitCond()
+	return {'eqn.common'}
+end
+
+function Maxwell:getModuleDependsSolver()
+	return {
+		'eqn.common',
+		'coord_lower',
+		'fluxFromCons',
+	}
+end
+
 Maxwell.solverCodeFile = 'hydro/eqn/maxwell.cl'
 
 function Maxwell:getEnv()
 	local scalar = self.scalar
-	local env = {}
-	env.eqn = self
-	env.solver = self.solver
+	local env = Maxwell.super.getEnv(self)
 	env.vec3 = self.vec3
 	env.susc_t = self.susc_t
 	env.scalar = scalar
@@ -253,21 +300,20 @@ Maxwell.predefinedDisplayVars = {
 
 function Maxwell:getDisplayVars()
 	local env = self:getEnv()
-	
 	local vars = Maxwell.super.getDisplayVars(self)
 	vars:append{ 
-		{name='E', code=template([[	value.v<?=vec3?> = calc_E(*U);]], env), type=env.vec3, units='(kg*m)/(C*s)'},
-		{name='H', code=template([[	value.v<?=vec3?> = calc_H(*U);]], env), type=env.vec3, units='C/(m*s)'},
-		{name='S', code=template([[	value.v<?=vec3?> = <?=vec3?>_cross(calc_E(*U), calc_H(*U));]], env), type=env.vec3, units='kg/s^3'},
+		{name='E', code=self:template[[	value.v<?=vec3?> = calc_E(*U);]], type=env.vec3, units='(kg*m)/(C*s)'},
+		{name='H', code=self:template[[	value.v<?=vec3?> = calc_H(*U);]], type=env.vec3, units='C/(m*s)'},
+		{name='S', code=self:template[[	value.v<?=vec3?> = <?=vec3?>_cross(calc_E(*U), calc_H(*U));]], type=env.vec3, units='kg/s^3'},
 		{
-			name='energy', code=template([[
+			name='energy', code=self:template[[
 	<?=susc_t?> _1_eps = <?=susc_t?>_mul(U->sqrt_1_eps, U->sqrt_1_eps);
 	<?=susc_t?> _1_mu = <?=susc_t?>_mul(U->sqrt_1_mu, U->sqrt_1_mu);
 	value.vreal = <?=real_mul?>(<?=add?>(
 		<?=scalar?>_<?=susc_t?>_mul(eqn_coordLenSq(U->D, x), _1_eps),
 		<?=scalar?>_<?=susc_t?>_mul(eqn_coordLenSq(calc_H(*U), x), _1_mu)
 	), .5);
-]], env), 
+]],
 			type = scalar,
 			units = 'kg/(m*s^2)',
 		},
@@ -283,21 +329,19 @@ end
 
 function Maxwell:eigenWaveCodePrefix(n, eig, x, waveIndex)
 --[=[
-	return template([[
+	return self:template([[
 	<?=scalar?> v_p_abs = <?=mul?>(<?=eig?>.sqrt_1_eps, <?=eig?>.sqrt_1_mu);
-]], table(self:getEnv(), {
-		eqn = self,
+]], {
 		eig = '('..eig..')',
-	}))
+	})
 --]=]
 -- [=[
 	local env = self:getEnv()
-	local code = template(
+	local code = self:template(
 		[[<?=mul?>(<?=eig?>.sqrt_1_eps, <?=eig?>.sqrt_1_mu)]],
-		table(env, {
-			eqn = self,
+		{
 			eig = '('..eig..')',
-		})
+		}
 	)
 	if self.scalar == 'cplx' then
 		code = env.abs..'('..code..')'
@@ -327,12 +371,11 @@ end
 
 function Maxwell:consWaveCodePrefix(n, U, x, waveIndex)
 	local env = self:getEnv()
-	local code = template(
+	local code = self:template(
 		[[<?=mul?>(<?=U?>.sqrt_1_eps, <?=U?>.sqrt_1_mu)]],
-		table(env, {
-			eqn = self,
+		{
 			U = '('..U..')',
-		})
+		}
 	)
 	if self.scalar == 'cplx' then
 		code = env.abs..'('..code..')'

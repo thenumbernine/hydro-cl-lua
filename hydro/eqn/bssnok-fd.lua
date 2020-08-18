@@ -2,8 +2,10 @@ local class = require 'ext.class'
 local table = require 'ext.table'
 local EinsteinEqn = require 'hydro.eqn.einstein'
 local makePartials = require 'hydro.eqn.makepartial'
+
 local common = require 'hydro.common'
-local template = require 'template'
+local xNames = common.xNames
+
 
 local BSSNOKFiniteDifferenceEquationBase = class(EinsteinEqn)
 
@@ -24,7 +26,6 @@ local derivCoeffs = {
 -- TODO higher orders plz
 -- computes the partial between U[stepSize] and U[0]
 function BSSNOKFiniteDifferenceEquationBase:makePartialUpwind(field, fieldType, nameOverride)
-	local xNames = common.xNames
 	local clnumber = require 'cl.obj.number'
 	fieldType = fieldType or self:fieldTypeForVar(field)
 
@@ -80,10 +81,8 @@ function BSSNOKFiniteDifferenceEquationBase:makePartialUpwind(field, fieldType, 
 	return lines:concat'\n'
 end
 
-function BSSNOKFiniteDifferenceEquationBase:initCodeModules()
-	BSSNOKFiniteDifferenceEquationBase.super.initCodeModules(self)
+function BSSNOKFiniteDifferenceEquationBase:initCodeModule_setFlatSpace()
 	local solver = self.solver
-
 	solver.modules:add{
 		name = 'mystery_C_U',
 		code = [[
@@ -95,7 +94,7 @@ function BSSNOKFiniteDifferenceEquationBase:initCodeModules()
 	solver.modules:add{
 		name = 'setFlatSpace',
 		depends = {'mystery_C_U'},
-		code = template([[
+		code = self:template[[
 void setFlatSpace(
 	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* U,
@@ -124,7 +123,7 @@ void setFlatSpace(
 	U->H = 0;
 	U->M_U = real3_zero;
 }
-]], {eqn=self, solver=solver}),
+]],
 	}
 end
 
@@ -132,7 +131,7 @@ function BSSNOKFiniteDifferenceEquationBase:initCodeModuleCalcDT()
 	self.solver.modules:add{
 		name = 'eqn.calcDT',
 		depends = {'eqn.common'},
-		code = template([[
+		code = self:template[[
 kernel void calcDT(
 	constant <?=solver.solver_t?>* solver,
 	global real* dtBuf,
@@ -181,11 +180,7 @@ end
 ?>	}<? end ?>
 	dtBuf[index] = dt;
 }
-]], 	{
-			eqn = self,
-			solver = self.solver,
-			sym = require 'hydro.common'.sym,
-		}),
+]],
 	}
 end
 

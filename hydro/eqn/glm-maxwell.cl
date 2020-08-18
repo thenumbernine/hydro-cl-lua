@@ -1,10 +1,3 @@
-<?
-local solver = eqn.solver
-local common = require 'hydro.common'
-local xNames = common.xNames
-local sym = common.sym
-?>
-
 typedef <?=eqn.prim_t?> prim_t;
 typedef <?=eqn.cons_t?> cons_t;
 typedef <?=eqn.eigen_t?> eigen_t;
@@ -12,37 +5,6 @@ typedef <?=eqn.waves_t?> waves_t;
 typedef <?=solver.solver_t?> solver_t;
 
 #define sqrt_1_2 <?=('%.50f'):format(math.sqrt(.5))?>
-
-cons_t fluxFromCons(
-	constant solver_t* solver,
-	cons_t U,
-	real3 x,
-	normalInfo_t n
-) {
-	<?=vec3?> E = calc_E(U);
-	<?=vec3?> H = calc_H(U);
-	
-	cons_t F;
-	if (n.side == 0) {
-		F.D = _<?=vec3?>(<?=real_mul?>(U.phi, solver->divPhiWavespeed / unit_m_per_s),  H.z, <?=neg?>(H.y));
-		F.B = _<?=vec3?>(<?=real_mul?>(U.psi, solver->divPsiWavespeed / unit_m_per_s), <?=neg?>(E.z),  E.y);
-	} else if (n.side == 1) {
-		F.D = _<?=vec3?>(<?=neg?>(H.z), <?=real_mul?>(U.phi, solver->divPhiWavespeed / unit_m_per_s),  H.x);
-		F.B = _<?=vec3?>( E.z, <?=real_mul?>(U.psi, solver->divPsiWavespeed / unit_m_per_s), <?=neg?>(E.x));
-	} else if (n.side == 2) {
-		F.D = _<?=vec3?>( H.y, <?=neg?>(H.x), <?=real_mul?>(U.phi, solver->divPhiWavespeed / unit_m_per_s));
-		F.B = _<?=vec3?>(<?=neg?>(E.y),  E.x, <?=real_mul?>(U.psi, solver->divPsiWavespeed / unit_m_per_s));
-	}
-	real D_n = normalInfo_vecDotN1(n, U.D);
-	real B_n = normalInfo_vecDotN1(n, U.B);
-	F.phi = <?=real_mul?>(D_n, solver->divPhiWavespeed / unit_m_per_s);
-	F.psi = <?=real_mul?>(B_n, solver->divPsiWavespeed / unit_m_per_s);
-	F.sigma = <?=zero?>;
-	F.rhoCharge = <?=zero?>;
-	F.sqrt_1_eps = <?=susc_t?>_zero;
-	F.sqrt_1_mu = <?=susc_t?>_zero;
-	return F;
-}
 
 eigen_t eigen_forInterface(
 	constant solver_t* solver,

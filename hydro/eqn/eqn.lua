@@ -107,13 +107,16 @@ function Equation:init(args)
 			vars = self.consVars,
 		}
 	end
+	
+	-- make sure all math types are cdef'd
+	self:cdefAllVarTypes(solver, self.consStruct.vars)
+
 	self.consStruct:makeType()	-- create consStruct.typename
 	self.cons_t = self.consStruct.typename
 	-- don't use consVars anymore ... use consStruct.vars instead
 	self.consVars = nil
 	-- if you have multiple eqns then the class needs to keep the field
 	--getmetatable(self).consVars = nil
-
 
 	if not self.primStruct and self.primVars then
 		self.primStruct = Struct{
@@ -216,6 +219,16 @@ function Equation:init(args)
 	}
 end
 
+function Equation:cdefAllVarTypes(solver, vars)
+	require 'hydro.code.safecdef'(
+		solver.app.modules:getTypeHeader(
+			table.mapi(vars, function(var,i,t)
+				return true, var.type
+			end):keys():unpack()
+		)
+	)
+end
+
 function Equation:addGuiVars(args)
 	for _,arg in ipairs(args) do
 		self:addGuiVar(arg)
@@ -238,7 +251,10 @@ function Equation:addGuiVar(args)
 	self.guiVars[var.name] = var
 end
 
--- always call super first
+-- TODO this creates and finalizes initCond.guiVars within its lifetime (via member function calls)
+-- which means Equation subclasses cannot modify initCond guiVars
+-- maybe that's alright.  i don't think I use that functionality.
+-- Equation subclasses are modifying solver_t guiVars anyways.
 function Equation:createInitState()
 	self.guiVars = table()
 
@@ -274,6 +290,16 @@ function Equation:createInitState()
 	end
 end
 
+-- shorthand
+function Equation:template(code, args)
+	if args then
+		args = table(self:getEnv(), args)
+	else
+		args = self:getEnv()
+	end
+	return template(code, args)
+end
+
 -- add to self.solver.modules, or add to self.modules and have solver add later?
 function Equation:initCodeModules()
 	local solver = self.solver
@@ -295,11 +321,11 @@ function Equation:initCodeModules()
 	solver.modules:add{
 		name = 'eqn.waves_t',
 		depends = {'real'},
-		typecode = template([[
+		typecode = self:template[[
 typedef union { 
 	real ptr[<?=eqn.numWaves?>]; 
 } <?=eqn.waves_t?>;
-]],	{eqn=self}),
+]],
 	}
 	
 	assert(self.eigenStruct)
@@ -332,7 +358,7 @@ typedef union {
 				'eqn.cons_t',
 				'coord.coord_parallelPropagate',
 			},
-			code = template([[
+			code = self:template([[
 <? for side=0,solver.dim-1 do
 	if coord.vectorComponent == 'cartesian'
 	or require 'hydro.coord.cartesian'.is(coord) 
@@ -363,23 +389,19 @@ typedef union {
 <?	end
 end
 ?>]], 		{
-				eqn = self,
-				solver = solver,
 				coord = solver.coord,
 				degreeForType = degreeForType,
 			}),
 		}
 	end
 
-	-- put this here or in SolverBase?
+	-- Put this here or in SolverBase?
+	-- This calls initCond:getCodePrefix, which adds to eqn.guiVars.
+	-- That means call this after eqn:createInitState (solverbase.lua:524 in :initObjs)
+	-- eqn:initCodeModules is called after ... hmm
 	self.initCond:initCodeModules(solver)
 
-	-- TODO don't even use this, just subclass initModule
-	solver.modules:add{
-		name = 'eqn.common',
-		depends = self:getModuleDependsCommon(),
-		code = self.getCommonFuncCode and self:getCommonFuncCode() or nil,
-	}
+	self:initCodeModuleCommon()	-- eqn.common
 
 	-- init eqn.prim-cons
 	-- prim-cons should have access to all ... prefix stuff?
@@ -398,16 +420,19 @@ end
 	self:initCodeModuleSolver()
 	self:initCodeModuleCalcDT()
 
-	if not self.hasFluxFromConsCode then
-		solver.modules:add{
-			name = 'eqn.fluxFromCons',
-			depends = {
-				'eqn.solvercode',	-- eigen_fluxTransform, eigen_forCell
-				'eqn.cons_t',
-				'solver.solver_t',
-				'coord.normal',		-- normalInfo_t
-			},
-			code = template([[
+	self:initCodeModule_fluxFromCons()
+end
+
+function Equation:initCodeModule_fluxFromCons()
+	self.solver.modules:add{
+		name = 'fluxFromCons',
+		depends = {
+			'eqn.solvercode',	-- eigen_fluxTransform, eigen_forCell
+			'eqn.cons_t',
+			'solver.solver_t',
+			'coord.normal',		-- normalInfo_t
+		},
+		code = self:template[[
 <?=eqn.cons_t?> fluxFromCons(
 	constant <?=solver.solver_t?>* solver,
 	<?=eqn.cons_t?> U,
@@ -416,15 +441,20 @@ end
 ) {
 	return eigen_fluxTransform(solver, eigen_forCell(solver, U, x, n), U, x, n);
 }
-]], 		{
-				solver = solver, 
-				eqn = self,
-			}),
-		}
-	end
+]],
+	}
 end
 
 function Equation:getModuleDependsCommon() end	-- eqn.common, used by init and solver
+
+function Equation:initCodeModuleCommon()
+	-- TODO don't even use this, just subclass initModule
+	self.solver.modules:add{
+		name = 'eqn.common',
+		depends = self:getModuleDependsCommon(),
+		code = self.getCommonFuncCode and self:getCommonFuncCode() or nil,
+	}
+end
 
 function Equation:initCodeModuleSolver()
 	self.solver.modules:add{
@@ -437,19 +467,33 @@ function Equation:initCodeModuleSolver()
 			'eqn.guiVars.compileTime',
 			'coord',
 		}:append(self:getModuleDependsSolver()),
-		code = template(file[self.solverCodeFile], self:getEnv()),
+		code = self:template(file[self.solverCodeFile]),
 	}
 end
 
 function Equation:getModuleDependsSolver() end	-- eqn.solver, used by solver
 
-function Equation:getModuleDependsApplyInitCond() end	-- get'd in hydro/init/init.lua initCodeModules
+function Equation:getModuleDependsApplyInitCond() 
+	return {
+		'solver.solver_t',
+		'eqn.cons_t',
+	}
+end	-- get'd in hydro/init/init.lua initCodeModules
 
 -- Really really used by maxwell, glm-maxwell, and other things that vary their scalar type between real and cplx.  but it fits here just as well.
 function Equation:getEnv()
 	return {
+		-- most have this
 		eqn = self,
 		solver = self.solver,
+		coord = self.solver.coord,
+	
+		-- common 
+		xNames = xNames,
+		symNames = symNames,
+		from3x3to6 = from3x3to6,
+		from6to3x3 = from6to3x3,
+		sym = sym,
 	}
 end
 
@@ -458,24 +502,19 @@ end
 -- changing initCond should only change this and not the solver program
 function Equation:getInitCondCode()
 	assert(self.initCondCode, "expected solver.eqn.initCondCode")
-	return template(self.initCondCode, {
-		eqn = self,
+	return self:template(self.initCondCode, {
 		code = self.initCond:getInitCondCode(self.solver),
-		solver = self.solver,
-		coord = self.solver.coord,
 	})
 end
 
 Equation.displayVarCodeUsesPrims = false
 function Equation:getDisplayVarCodePrefix()
-	return template([[
+	return self:template[[
 	const global <?=eqn.cons_t?>* U = buf + index;
 <? if eqn.displayVarCodeUsesPrims then 
 ?>	<?=eqn.prim_t?> W = primFromCons(solver, *U, x);
 <? end 
-?>]], {
-		eqn = self,
-	})
+?>]]
 end
 
 -- accepts a list of struct var info {name=..., [type=..., units=...]}
@@ -531,7 +570,7 @@ function Equation:createDivDisplayVar(args)
 	
 	return {
 		name = 'div '..field, 
-		code = template([[
+		code = self:template([[
 	if (OOB(1,1)) {
 		value.v<?=scalar?> = 0./0.;
 	} else {
@@ -548,8 +587,6 @@ function Equation:createDivDisplayVar(args)
 		value.v<?=scalar?> = v;
 	}
 ]], 	{
-			eqn = self,
-			solver = self.solver,
 			getField = getField or function(U, j)
 				return U..'->'..field..'.s'..j	
 			end,
@@ -576,7 +613,7 @@ function Equation:createCurlDisplayVar(args)
 		local j = (i+1)%3	-- 0-based
 		return {
 			name = 'curl '..field..' '..xNames[k+1],
-			code = template([[
+			code = self:template([[
 	if (OOB(1,1)) {
 		<?=result?> = 0./0.;
 	} else {
@@ -597,7 +634,6 @@ function Equation:createCurlDisplayVar(args)
 					- (vip_j - vim_j) / (2. * solver->grid_dx.s<?=j?>);
 	}
 ]], 	{
-			eqn = self,
 			i = i,
 			j = j,
 			result = result,
@@ -618,7 +654,7 @@ function Equation:createCurlDisplayVar(args)
 		end)
 		return {
 			name = 'curl '..field,
-			code = template([[
+			code = self:template([[
 	<? for i,vi in ipairs(v) do ?>{
 		<?=vi.code?>
 	}<? end ?>
@@ -685,14 +721,9 @@ function Equation:initCodeModuleCalcDT()
 			'eqn.common',		-- used by eqn/wave
 			'eqn.prim-cons',	-- used by eqn/shallow-water
 		},
-		code = template(file['hydro/eqn/cl/calcDT.cl'], {
-			solver = self.solver, 
-			eqn = self,
-		}),
+		code = self:template(file['hydro/eqn/cl/calcDT.cl']),
 	}
 end
-
-Equation.hasFluxFromConsCode = nil
 
 --[[
 Default code for the following:
@@ -713,7 +744,7 @@ function Equation:initCodeModulePrimCons()
 			'eqn.prim_t',
 			'eqn.cons_t',
 		},
-		code = template([[
+		code = self:template[[
 #define primFromCons(solver, U, x)	U
 /*
 <?=eqn.prim_t?> primFromCons(
@@ -735,10 +766,7 @@ function Equation:initCodeModulePrimCons()
 	return W; 
 }
 */
-]], 	{
-			eqn = self,
-			solver = self.solver,
-		}),
+]],
 	}
 
 	-- only used by PLM
@@ -749,7 +777,7 @@ function Equation:initCodeModulePrimCons()
 			'eqn.prim_t',
 			'eqn.cons_t',
 		},
-		code = template([[
+		code = self:template[[
 /*
 WA = W components that make up the jacobian matrix
 W = input vector
@@ -785,10 +813,7 @@ returns output vector
 	return U; 
 }
 */
-]], 	{
-			eqn = self,
-			solver = self.solver,
-		}),
+]],
 	}
 end
 

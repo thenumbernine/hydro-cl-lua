@@ -57,37 +57,6 @@ kernel void calcDT(
 	dtBuf[index] = dt; 
 }
 
-
-cons_t fluxFromCons(
-	constant solver_t* solver,
-	cons_t U,
-	real3 x,
-	normalInfo_t n
-) {
-	real v_n = normalInfo_vecDotN1(n, U.v);
-	real P = calc_P(solver, U.rho, U.eInt);
-
-	cons_t F = {
-		.D = U.D * v_n,
-		.S = real3_add(
-			real3_real_mul(U.S, v_n),
-			_real3(
-				normalInfo_u1x(n) * P,
-				normalInfo_u1y(n) * P,
-				normalInfo_u1z(n) * P
-			)
-		),
-		.tau = U.tau * v_n + P * v_n,
-		.rho = 0,
-		.v = real3_zero,
-		.eInt = 0,
-		.ePot = 0,
-	};
-	
-	return F;
-}
-
-
 eigen_t eigen_forInterface(
 	constant solver_t* solver,
 	cons_t UL,

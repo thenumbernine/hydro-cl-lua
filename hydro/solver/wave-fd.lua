@@ -34,7 +34,7 @@ WaveFDSolver.DisplayVar_U = class(WaveFDSolver.DisplayVar_U)
 
 function WaveFDSolver.DisplayVar_U:setArgs(kernel)
 	WaveFDSolver.DisplayVar_U.super.setArgs(self, kernel)
-	kernel:setArg(4, real(self.solver.t))
+	kernel:setArg(6, real(self.solver.t))
 end
 
 function WaveFDSolver:getUBufDisplayVarsArgs()

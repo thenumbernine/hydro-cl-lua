@@ -1,11 +1,4 @@
 <?
-local common = require 'hydro.common'
-local xNames = common.xNames
-local symNames = common.symNames
-local from3x3to6 = common.from3x3to6 
-local from6to3x3 = common.from6to3x3 
-local sym = common.sym
-
 local derivOrder = 2 * solver.numGhost
 local makePartials = require 'hydro.eqn.makepartial'
 local makePartial1 = function(...) return makePartials.makePartial1(derivOrder, solver, ...) end

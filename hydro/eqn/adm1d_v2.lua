@@ -79,8 +79,6 @@ why do I have to use a matrix that reconstructs without them?
 
 local class = require 'ext.class'
 local table = require 'ext.table'
-local file = require 'ext.file'
-local template = require 'template'
 local EinsteinEqn = require 'hydro.eqn.einstein'
 
 local ADM_BonaMasso_1D_1997Alcubierre = class(EinsteinEqn)
@@ -97,7 +95,6 @@ ADM_BonaMasso_1D_1997Alcubierre.consVars = {
 	{name='K_xx', type='real'},
 }
 
-ADM_BonaMasso_1D_1997Alcubierre.hasFluxFromConsCode = true
 ADM_BonaMasso_1D_1997Alcubierre.useSourceTerm = true
 
 function ADM_BonaMasso_1D_1997Alcubierre:createInitState()
@@ -109,8 +106,42 @@ function ADM_BonaMasso_1D_1997Alcubierre:createInitState()
 	}
 end
 
-function ADM_BonaMasso_1D_1997Alcubierre:getCommonFuncCode()
-	return template([[
+function ADM_BonaMasso_1D_1997Alcubierre:initCodeModule_fluxFromCons()
+	self.solver.modules:add{
+		name = 'fluxFromCons',
+		depends = {
+			'solver.solver_t',
+			'eqn.cons_t',
+			'coord.normal',
+		},
+		code = self:template[[
+<?=eqn.cons_t?> fluxFromCons(
+	constant <?=solver.solver_t?>* solver,
+	<?=eqn.cons_t?> U,
+	real3 x,
+	normalInfo_t n
+) {
+	real f = calc_f(U.alpha);
+	return (<?=eqn.cons_t?>){
+		.alpha = 0,
+		.gamma_xx = 0,
+		.a_x = U.alpha * U.K_xx * f / U.gamma_xx,
+		.d_xxx = U.alpha * U.K_xx,
+		.K_xx = U.alpha * U.a_x,
+	};
+}
+]],
+	}
+end
+
+function ADM_BonaMasso_1D_1997Alcubierre:initCodeModule_setFlatSpace()
+	self.solver.modules:add{
+		name = 'setFlatSpace',
+		depends = {
+			'solver.solver_t',
+			'eqn.cons_t',
+		},
+		code = self:template[[
 void setFlatSpace(
 	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* U,
@@ -124,13 +155,15 @@ void setFlatSpace(
 		.K_xx = 0,
 	};
 }
-
-]], {
-		eqn = self,
-		solver = self.solver,
-	})
+]],
+	}
 end
 
+function ADM_BonaMasso_1D_1997Alcubierre:getModuleDependsApplyInitCond()
+	return table(ADM_BonaMasso_1D_1997Alcubierre.super.getModuleDependsApplyInitCond(self), {
+		'sym3',
+	})
+end
 ADM_BonaMasso_1D_1997Alcubierre.initCondCode = [[
 kernel void applyInitCond(
 	constant <?=solver.solver_t?>* solver,
@@ -215,7 +248,7 @@ ADM_BonaMasso_1D_1997Alcubierre.eigenVars = {
 }
 
 function ADM_BonaMasso_1D_1997Alcubierre:eigenWaveCodePrefix(n, eig, x, waveIndex)
-	return template([[
+	return self:template([[
 	real eig_lambda = <?=eig?>.alpha * <?=eig?>.sqrt_f_over_gamma_xx;
 ]], {
 		eig = '('..eig..')',
@@ -235,7 +268,7 @@ function ADM_BonaMasso_1D_1997Alcubierre:eigenWaveCode(n, eig, x, waveIndex)
 end
 
 function ADM_BonaMasso_1D_1997Alcubierre:consWaveCodePrefix(n, U, x, waveIndex)
-	return template([[
+	return self:template([[
 	real f = calc_f(<?=U?>.alpha);
 	real eig_lambda = <?=U?>.alpha * sqrt(f / <?=U?>.gamma_xx);
 ]], {

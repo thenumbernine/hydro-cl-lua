@@ -6,15 +6,12 @@ The first Bona-Masso formalism.
 local class = require 'ext.class'
 local table = require 'ext.table'
 local file = require 'ext.file'
-local template = require 'template'
 local symmath = require 'symmath'
 local EinsteinEqn = require 'hydro.eqn.einstein'
 local Struct = require 'hydro.code.struct'
 
 local common = require 'hydro.common'
 local xNames = common.xNames
-local symNames = common.symNames
-local sym = common.sym
 
 
 local ADM_BonaMasso_3D = class(EinsteinEqn)
@@ -63,6 +60,7 @@ useShift
 	--]=]
 --]]
 function ADM_BonaMasso_3D:init(args)
+	local solver = assert(args.solver)
 
 	local fluxVars = table{
 		{name='a_l', type='real3'},
@@ -144,6 +142,7 @@ function ADM_BonaMasso_3D:init(args)
 	end
 
 	-- only count int vars after the shifts have been added
+	self:cdefAllVarTypes(solver, self.consVars)	-- have to call before countScalars in eqn:init
 	self.numIntStates = Struct.countScalars{vars=self.consVars}
 
 	-- now add in the source terms (if you want them)
@@ -235,8 +234,14 @@ function ADM_BonaMasso_3D:createInitState()
 	-- but that means moving the consVars construction to the :init()
 end
 
-function ADM_BonaMasso_3D:getCommonFuncCode()
-	return template([[
+function ADM_BonaMasso_3D:initCodeModule_setFlatSpace()
+	self.solver.modules:add{
+		name = 'setFlatSpace',
+		depends = {
+			'solver.solver_t',
+			'eqn.cons_t',
+		},
+		code = [[
 void setFlatSpace(
 	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* U,
@@ -261,22 +266,21 @@ void setFlatSpace(
 	U->H = 0;
 	U->M_u = real3_zero;
 }
-
-]], {
-		eqn = self,
-		solver = self.solver,
-	})
+]],
+	}
 end
 
+function ADM_BonaMasso_3D:getModuleDependsSolver()
+	return {
+		'coord_g_ll/uu',		-- coord_g_ll used by display code
+		'initCond.codeprefix',	-- calc_f
+	}
+end
+
+function ADM_BonaMasso_3D:getModuleDependsApplyInitCond()
+	return {'coord_g_ll/uu'}
+end
 ADM_BonaMasso_3D.initCondCode = [[
-<? 
-local common = require 'hydro.common'
-local xNames = common.xNames 
-local symNames = common.symNames 
-local from3x3to6 = common.from3x3to6 
-local from6to3x3 = common.from6to3x3 
-local sym = common.sym 
-?>
 kernel void applyInitCond(
 	constant <?=solver.solver_t?>* solver,
 	constant <?=solver.initCond_t?>* initCond,
@@ -416,7 +420,7 @@ momentum constraints
 	value.vreal3 = real3_real_mul(sym3_real3_mul(gamma_uu, U->a_l), -U->alpha * U->alpha);
 ]], type='real3'}
 
-	vars:insert{name='alpha vs a_i', code=template([[
+	vars:insert{name='alpha vs a_i', code=self:template[[
 	if (OOB(1,1)) {
 		value.vreal3 = real3_zero;
 	} else {
@@ -432,14 +436,11 @@ momentum constraints
 			value.vreal3.<?=xi?> = 0;
 		}<? end ?>
 	}
-]], {
-	solver = self.solver,
-	xNames = xNames,
-}), type='real3'}
+]], type='real3'}
 
 	-- d_kij = gamma_ij,k
 	for i,xi in ipairs(xNames) do
-		vars:insert{name='gamma_ij vs d_'..xi..'ij', code=template([[
+		vars:insert{name='gamma_ij vs d_'..xi..'ij', code=self:template([[
 	if (OOB(1,1)) {
 		value.vsym3 = sym3_zero;
 	} else {
@@ -464,13 +465,10 @@ momentum constraints
 ]], {
 	i = i,
 	xi = xi,
-	xNames = xNames,
-	symNames = symNames,
-	solver = self.solver,
 }), type='sym3'}
 	end
 
-	vars:insert{name='V constraint', code=template([[
+	vars:insert{name='V constraint', code=self:template[[
 	real det_gamma = sym3_det(U->gamma_ll);
 	sym3 gamma_uu = sym3_inv(U->gamma_ll, det_gamma);
 	<? for i,xi in ipairs(xNames) do ?>{
@@ -483,13 +481,13 @@ momentum constraints
 	end ?>;
 		value.vreal3.<?=xi?> = U->V_l.<?=xi?> - (d1 - d2);
 	}<? end ?>
-]], {sym=sym, xNames=xNames}), type='real3'}
+]], type='real3'}
 
 	return vars
 end
 
 function ADM_BonaMasso_3D:eigenWaveCodePrefix(n, eig, x, waveIndex)
-	return template([[
+	return self:template([[
 	real eig_lambdaLight;
 	if (n.side == 0) {
 		eig_lambdaLight = <?=eig?>.alpha * <?=eig?>.sqrt_gammaUjj.x;
@@ -549,7 +547,7 @@ function ADM_BonaMasso_3D:eigenWaveCode(n, eig, x, waveIndex)
 end
 
 function ADM_BonaMasso_3D:consWaveCodePrefix(n, U, x, waveIndex)
-	return template([[
+	return self:template([[
 	real det_gamma = sym3_det(<?=U?>.gamma_ll);
 	sym3 gamma_uu = sym3_inv(<?=U?>.gamma_ll, det_gamma);
 	real eig_lambdaLight;

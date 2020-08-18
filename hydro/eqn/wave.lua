@@ -2,20 +2,14 @@
 local ffi = require 'ffi'
 local class = require 'ext.class'
 local table = require 'ext.table'
-local range = require 'ext.range'
-local file = require 'ext.file'
-local template = require 'template'
 local Equation = require 'hydro.eqn.eqn'
 
-local common = require 'hydro.common'
-local xNames = common.xNames
 
 local Wave = class(Equation)
 Wave.name = 'wave'
 
 Wave.useSourceTerm = true
 
-Wave.hasFluxFromConsCode = true
 Wave.roeUseFluxFromCons = true
 
 Wave.initConds = require 'hydro.init.euler'	 -- use rho as our initial condition
@@ -85,11 +79,95 @@ function Wave:createInitState()
 	}
 end
 
+function Wave:getEnv()
+	return table(Wave.super.getEnv(self), {
+		scalar = self.scalar,
+		vec3 = self.vec3,
+	})
+end
+
+function Wave:initCodeModule_fluxFromCons()
+	return self.solver.modules:add{
+		name = 'fluxFromCons',
+		depends = {
+			'solver.solver_t',
+			'coord.normal',
+			'eqn.cons_t',
+			'eqn.prim_t',
+			'eqn.common',	-- metric_alpha
+		},
+		code = self:template[[
+// What's the difference between eigen_fluxTransform and fluxFromCons?
+// The difference is that the flux matrix of this is based on 'eig', which is derived from U's ... especially UL & UR in the case of the Roe solver
+// whereas that of fluxFromCons is based purely on 'U'.
+// Since hydro/eqn/wave has no eigen_t info derived from U, the two functions are identical.
+<?=eqn.cons_t?> fluxFromCons(
+	constant <?=solver.solver_t?>* solver,
+	<?=eqn.cons_t?> U,
+	real3 x,
+	normalInfo_t n
+) {
+	real alpha = metric_alpha(x);
+	real beta_n = normalInfo_vecDotN1(n, metric_beta_u(x));
+	
+	real3 nL = normalInfo_l1(n);
+	real3 nU = normalInfo_u1(n);
+	
+	<?=eqn.cons_t?> F;
+	//F^Pi = -c (Pi beta_n + alpha Psi_i n^i)
+	F.Pi = <?=scalar?>_real_mul(
+		//Pi beta_n + alpha Psi_i n^i
+		real_<?=scalar?>_add(
+		
+			//Pi beta_n:
+			<?=scalar?>_real_mul(U.Pi, beta_n), 
+			
+			//alpha Psi_i n^i:
+			<?=scalar?>_real_mul(
+				//Psi_i n^i:
+				<?=vec3?>_real3_dot(
+					U.Psi_l, 
+					nU
+				), 
+				alpha
+			)
+		), 
+		-solver->wavespeed
+	);
+	
+	//F^{Psi_j} = -c (alpha Pi n_j + Psi_j beta_n)
+	F.Psi_l = <?=vec3?>_real_mul(
+		<?=vec3?>_add(
+			//Psi_j beta_n:
+			<?=vec3?>_real_mul(
+				U.Psi_l,
+				beta_n
+			),
+			
+			//alpha Pi n_j:
+			<?=vec3?>_<?=scalar?>_mul(
+				//n:
+				<?=vec3?>_from_real3(nL),
+				
+				//alpha Pi:
+				<?=scalar?>_real_mul(
+					U.Pi, 
+					alpha
+				)
+			)
+		),
+		//-c
+		-solver->wavespeed
+	);
+	
+	return F;
+}
+]],
+	}
+end
+
 Wave.initCondCode = [[
 <?
-local common = require 'hydro.common'
-local xNames = common.xNames
-
 local scalar = eqn.scalar
 local vec3 = eqn.vec3
 ?>
@@ -132,7 +210,7 @@ end
 
 Wave.solverCodeFile = 'hydro/eqn/wave.cl'
 
-function Wave:getCommonFuncCode()
+function Wave:initCodeModuleCommon()
 	
 	local symmath = require 'symmath'
 	local Tensor = symmath.Tensor
@@ -182,18 +260,24 @@ function Wave:getCommonFuncCode()
 		self.metric.f = readarg(self.init_f)
 	end
 
-	return template(file['hydro/eqn/wave.cl'], {
-		eqn = self,
-		getCommonCode = true,
-	})
+	self.solver.modules:add{
+		name = 'eqn.common',
+		depends = {
+			'real3x3',
+		},
+		code = self:template(require 'ext.file'['hydro/eqn/wave.cl'], {getCommonCode = true}),
+	}
 end
 
-Wave.eigenVars = {
-	{name='unused', type='real'},
-}
+function Wave:getModuleDependsSolver()
+	return {
+		'eqn.common',
+		'coord_g_ll/uu',
+	}
+end
 
 function Wave:eigenWaveCodePrefix(n, eig, x)
-	return template([[
+	return self:template([[
 real wavespeed = solver->wavespeed / unit_m_per_s;
 real alpha_nLen = metric_alpha(<?=x?>) * normalInfo_len(n);
 real beta_n = normalInfo_vecDotN1(<?=n?>, metric_beta_u(<?=x?>));
@@ -220,9 +304,5 @@ function Wave:consWaveCode(n, U, x, waveIndex)
 end
 
 Wave.eigenWaveCode = Wave.consWaveCode
-
-function Wave:getModuleDependsCommon() 
-	return {'real3x3'}
-end
 
 return Wave

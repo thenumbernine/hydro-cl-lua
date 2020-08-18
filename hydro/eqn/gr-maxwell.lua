@@ -5,7 +5,6 @@ based on 2009 Alcubierre et al charged black holes
 local class = require 'ext.class'
 local table = require 'ext.table'
 local file = require 'ext.file'
-local template = require 'template'
 local clnumber = require 'cl.obj.number'
 local Equation = require 'hydro.eqn.eqn'
 
@@ -37,7 +36,6 @@ GRMaxwell.consVars = {
 	{name='mu', type=GRMaxwell.susc_t},
 }
 
-GRMaxwell.hasFluxFromConsCode = true
 GRMaxwell.useSourceTerm = true
 GRMaxwell.roeUseFluxFromCons = true
 
@@ -51,12 +49,10 @@ function GRMaxwell:init(args)
 end
 
 function GRMaxwell:getCommonFuncCode()
-	return template([[
+	return self:template[[
 static inline <?=eqn.prim_t?> primFromCons(<?=eqn.cons_t?> U, real3 x) { return U; }
 static inline <?=eqn.cons_t?> consFromPrim(<?=eqn.prim_t?> W, real3 x) { return W; }
-]], {
-		eqn = self,
-	})
+]]
 end
 
 GRMaxwell.initCondCode = [[
@@ -137,16 +133,16 @@ function GRMaxwell:getDisplayVars()
 		-- eps_ijk E^j B^k
 		{name='S_l', code='value.vreal3 = real3_real_mul(real3_cross(U->D, U->B), 1. / U->eps);', type='real3'},
 		
-		{name='energy', code=template([[
+		{name='energy', code=self:template[[
 	<?=solver:getADMVarCode()?>
 	value.vreal = .5 * (real3_weightedLenSq(U->D, gamma) + real3_lenSq(U->B, gamma) / (U->mu * U->mu));
-]], {solver=solver})},
+]]},
 
 	}
 	--[=[ div E and div B ... TODO redo this with metric (gamma) influence 
 	:append(table{'E','B'}:map(function(var,i)
 		local field = assert( ({D='D', B='B'})[var] )
-		return {name='div '..var, code=template([[
+		return {name='div '..var, code=self:template([[
 	value.vreal = .5 * (0.
 <?
 for j=0,solver.dim-1 do
@@ -160,7 +156,7 @@ if field == 'D' then
 ?> / U->eps<?
 end
 ?>;
-]], {solver=self.solver, field=field})}
+]], {field=field})}
 	end))
 	--]=]
 end

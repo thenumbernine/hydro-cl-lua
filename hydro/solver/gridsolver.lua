@@ -1226,7 +1226,7 @@ function GridSolver:createBoundaryProgramAndKernel(args)
 	local lines = table()
 
 	local moduleNames = self.sharedModulesEnabled:keys()
-print('boundary modules:', moduleNames:sort():concat', ')
+print('boundary modules: '..moduleNames:sort():concat', ')
 	lines:insert(self.modules:getCodeAndHeader(moduleNames:unpack()))
 
 	local iFields = ({

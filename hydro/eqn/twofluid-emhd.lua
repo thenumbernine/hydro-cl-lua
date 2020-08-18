@@ -19,9 +19,6 @@ I could work around this by scaling down the Maxwell eigenvalues by sqrt(det(g))
 --]]
 local class = require 'ext.class'
 local table = require 'ext.table'
-local range = require 'ext.range'
-local file = require 'ext.file'
-local template = require 'template'
 local Equation = require 'hydro.eqn.eqn'
 
 
@@ -94,7 +91,6 @@ TwoFluidEMHD.primVars = table{
 -- not sure it's working right ...
 --TwoFluidEMHD.hasCalcDTCode = true
 
-TwoFluidEMHD.hasFluxFromConsCode = true
 TwoFluidEMHD.roeUseFluxFromCons = true
 TwoFluidEMHD.useSourceTerm = true
 TwoFluidEMHD.useConstrainU = true
@@ -183,7 +179,7 @@ function TwoFluidEMHD:createInitState()
 		{name='sqrt_mu', value=math.sqrt(vacuumPermittivity), units='(kg m)^.5/C'},
 		{name='sqrt_eps', value=math.sqrt(vacuumPermeability), units='(C*s)/(kg*m^3)^.5'},
 	
-	}:append(fluids:map(function(fluid)
+	}:append(self.fluids:map(function(fluid)
 		return table{
 			{name='min_'..fluid..'_rho', value=1e-4},
 			{name='min_'..fluid..'_P', value=1e-4},
@@ -191,8 +187,63 @@ function TwoFluidEMHD:createInitState()
 	end):unpack()))
 end
 
-function TwoFluidEMHD:getCommonFuncCode()
-	return template([[
+function TwoFluidEMHD:initCodeModule_fluxFromCons()
+	self.solver.modules:add{
+		name = 'fluxFromCons',
+		code = self:template[[
+<?=eqn.cons_t?> fluxFromCons(
+	constant <?=solver.solver_t?>* solver,
+	<?=eqn.cons_t?> U,
+	real3 x,
+	normalInfo_t n
+) {
+	<?=eqn.prim_t?> W = primFromCons(solver, U, x);
+	<?=eqn.cons_t?> F;
+
+<? 
+for _,fluid in ipairs(eqn.fluids) do
+?>	real <?=fluid?>_vj = normalInfo_vecDotN1(n, W.<?=fluid?>_v);
+	real <?=fluid?>_HTotal = U.<?=fluid?>_ETotal + W.<?=fluid?>_P;
+	
+	F.<?=fluid?>_rho = normalInfo_vecDotN1(n, U.<?=fluid?>_m);
+	F.<?=fluid?>_m = real3_real_mul(U.<?=fluid?>_m, <?=fluid?>_vj);
+<? 	for i,xi in ipairs(xNames) do
+?>	F.<?=fluid?>_m.<?=xi?> += normalInfo_u1<?=xi?>(n) * W.<?=fluid?>_P;
+<? 	end
+?>	F.<?=fluid?>_ETotal = <?=fluid?>_HTotal * <?=fluid?>_vj;
+<? 
+end
+?>	F.ePot = 0.;
+	
+	real eps = solver->sqrt_eps * solver->sqrt_eps / unit_C2_s2_per_kg_m3;
+	real mu = solver->sqrt_mu * solver->sqrt_mu / unit_kg_m_per_C2;
+
+	//taken from glm-maxwell instead of the 2014 Abgrall, Kumar
+	real3 E = real3_real_mul(U.D, 1. / eps);
+	real3 H = real3_real_mul(U.B, 1. / mu);
+	if (n.side == 0) {
+		F.D = _real3(U.phi * solver->divPhiWavespeed / unit_m_per_s, H.z, -H.y);
+		F.B = _real3(U.psi * solver->divPsiWavespeed / unit_m_per_s, -E.z, E.y);
+	} else if (n.side == 1) {
+		F.D = _real3(-H.z, U.phi * solver->divPhiWavespeed / unit_m_per_s, H.x);
+		F.B = _real3(E.z, U.psi * solver->divPsiWavespeed / unit_m_per_s, -E.x);
+	} else if (n.side == 2) {
+		F.D = _real3(H.y, -H.x, U.phi * solver->divPhiWavespeed / unit_m_per_s);
+		F.B = _real3(-E.y, E.x, U.psi * solver->divPsiWavespeed / unit_m_per_s);
+	}
+	F.phi = normalInfo_vecDotN1(n, U.D) * solver->divPhiWavespeed / unit_m_per_s;
+	F.psi = normalInfo_vecDotN1(n, U.B) * solver->divPsiWavespeed / unit_m_per_s;
+
+	return F;
+}
+]],
+	}
+end
+
+function TwoFluidEMHD:initCodeModuleCommon()
+	self.solver.modules:add{
+		name = 'eqn.common',
+		code = self:template[[
 real3 calc_EField(constant <?=solver.solver_t?>* solver, <?=eqn.cons_t?> U) {
 	real eps = solver->sqrt_eps * solver->sqrt_eps / unit_C2_s2_per_kg_m3;
 	return real3_real_mul(U.D, 1. / eps);
@@ -210,7 +261,7 @@ real calc_hTotal(constant <?=solver.solver_t?>* solver, real rho, real P, real E
 
 real calc_rho_from_U(<?=eqn.cons_t?> U) {
 	real rho = 0.;
-<? for _,fluid in ipairs(fluids) do 
+<? for _,fluid in ipairs(eqn.fluids) do 
 ?>	rho += U.<?=fluid?>_rho;
 <? end 
 ?>	return rho;
@@ -218,7 +269,7 @@ real calc_rho_from_U(<?=eqn.cons_t?> U) {
 
 real calc_rho_from_W(<?=eqn.prim_t?> W) {
 	real rho = 0.;
-<? for _,fluid in ipairs(fluids) do 
+<? for _,fluid in ipairs(eqn.fluids) do 
 ?>	rho += W.<?=fluid?>_rho;
 <? end 
 ?>	return rho;
@@ -227,7 +278,7 @@ real calc_rho_from_W(<?=eqn.prim_t?> W) {
 real calc_EPot(<?=eqn.cons_t?> U) { return calc_rho_from_U(U) * U.ePot; }
 real calc_EPot_from_W(<?=eqn.prim_t?> W) { return calc_rho_from_W(W) * W.ePot; }
 
-<? for _,fluid in ipairs(fluids) do ?>
+<? for _,fluid in ipairs(eqn.fluids) do ?>
 real calc_<?=fluid?>_eKin(<?=eqn.prim_t?> W, real3 x) { return .5 * coordLenSq(W.<?=fluid?>_v, x); }
 real calc_<?=fluid?>_EKin(<?=eqn.prim_t?> W, real3 x) { return W.<?=fluid?>_rho * calc_<?=fluid?>_eKin(W, x); }
 real calc_<?=fluid?>_EInt(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W) { return W.<?=fluid?>_P / (solver->heatCapacityRatio - 1.); }
@@ -247,11 +298,8 @@ real calc_EM_energy(constant <?=solver.solver_t?>* solver, const global <?=eqn.c
 	return .5 * (coordLenSq(U->D, x) / eps + coordLenSq(U->B, x) / mu);
 }
 
-]], {
-		solver = self.solver,
-		eqn = self,
-		fluids = fluids,
-	})
+]],
+	}
 end
 
 function TwoFluidEMHD:initCodeModulePrimCons()
@@ -264,14 +312,14 @@ function TwoFluidEMHD:initCodeModulePrimCons()
 			'eqn.cons_t',
 			'eqn.common',	-- calc_*
 		},
-		code = template([[
+		code = self:template[[
 <?=eqn.prim_t?> primFromCons(constant <?=solver.solver_t?>* solver, <?=eqn.cons_t?> U, real3 x) {
-	<? for _,fluid in ipairs(fluids) do ?>
+	<? for _,fluid in ipairs(eqn.fluids) do ?>
 	real <?=fluid?>_EKin = calc_<?=fluid?>_EKin_fromCons(U, x);
 	real <?=fluid?>_EInt = U.<?=fluid?>_ETotal - <?=fluid?>_EKin;
 	<? end ?>
 	return (<?=eqn.prim_t?>){
-		<? for _,fluid in ipairs(fluids) do ?>
+		<? for _,fluid in ipairs(eqn.fluids) do ?>
 		.<?=fluid?>_rho = U.<?=fluid?>_rho,
 		.<?=fluid?>_v = real3_real_mul(U.<?=fluid?>_m, 1./U.<?=fluid?>_rho),
 		.<?=fluid?>_P = (solver->heatCapacityRatio - 1.) * <?=fluid?>_EInt,
@@ -286,7 +334,7 @@ function TwoFluidEMHD:initCodeModulePrimCons()
 
 <?=eqn.cons_t?> consFromPrim(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W, real3 x) {
 	return (<?=eqn.cons_t?>){
-<? for _,fluid in ipairs(fluids) do ?>
+<? for _,fluid in ipairs(eqn.fluids) do ?>
 		.<?=fluid?>_rho = W.<?=fluid?>_rho,
 		.<?=fluid?>_m = real3_real_mul(W.<?=fluid?>_v, W.<?=fluid?>_rho),
 		.<?=fluid?>_ETotal = calc_<?=fluid?>_ETotal(solver, W, x),
@@ -298,11 +346,7 @@ function TwoFluidEMHD:initCodeModulePrimCons()
 		.ePot = W.ePot,
 	};
 }
-]], 	{
-			eqn = self,
-			solver = self.solver,
-			fluids = fluids,
-		}),
+]],
 	}
 
 	-- only used by PLM
@@ -315,18 +359,18 @@ function TwoFluidEMHD:initCodeModulePrimCons()
 			'eqn.cons_t',
 			'coord_lower',
 		},
-		code = template([[
+		code = self:template[[
 <?=eqn.cons_t?> apply_dU_dW(
 	constant <?=solver.solver_t?>* solver,
 	<?=eqn.prim_t?> WA, 
 	<?=eqn.prim_t?> W, 
 	real3 x
 ) {
-<? for _,fluid in ipairs(fluids) do ?>
+<? for _,fluid in ipairs(eqn.fluids) do ?>
 	real3 WA_<?=fluid?>_vL = coord_lower(WA.<?=fluid?>_v, x);
 <? end ?>
 	return (<?=eqn.cons_t?>){
-<? for _,fluid in ipairs(fluids) do ?>
+<? for _,fluid in ipairs(eqn.fluids) do ?>
 		.<?=fluid?>_rho = W.<?=fluid?>_rho,
 		.<?=fluid?>_m = real3_add(
 			real3_real_mul(WA.<?=fluid?>_v, W.<?=fluid?>_rho), 
@@ -349,11 +393,11 @@ function TwoFluidEMHD:initCodeModulePrimCons()
 	<?=eqn.cons_t?> U,
 	real3 x
 ) {
-<? for _,fluid in ipairs(fluids) do ?>
+<? for _,fluid in ipairs(eqn.fluids) do ?>
 	real3 WA_<?=fluid?>_vL = coord_lower(WA.<?=fluid?>_v, x);
 <? end ?>
 	return (<?=eqn.prim_t?>){
-<? for _,fluid in ipairs(fluids) do ?>
+<? for _,fluid in ipairs(eqn.fluids) do ?>
 		.<?=fluid?>_rho = U.<?=fluid?>_rho,
 		.<?=fluid?>_v = real3_sub(
 			real3_real_mul(U.<?=fluid?>_m, 1. / WA.<?=fluid?>_rho),
@@ -370,12 +414,7 @@ function TwoFluidEMHD:initCodeModulePrimCons()
 		.ePot = U.ePot,
 	};
 }
-
-]], 	{
-			solver = self.solver,
-			eqn = self,
-			fluids = fluids,
-		}),
+]],
 	}
 end
 
@@ -383,7 +422,7 @@ end
 -- should I either make a function for the template arg params
 -- or maybe I shouldn't have super-class'd the initCond code to begin with ...
 function TwoFluidEMHD:getInitCondCode()
-	return template([[
+	return self:template([[
 <? 
 local cons_t = eqn.cons_t
 local susc_t = eqn.susc_t
@@ -421,7 +460,7 @@ if eqn.useEulerInitState then
 	real P = 0;
 <?
 else
-	 for _,fluid in ipairs(fluids) do
+	 for _,fluid in ipairs(eqn.fluids) do
 ?>	real <?=fluid?>_rho = 0;
 	real3 <?=fluid?>_v = real3_zero;
 	real <?=fluid?>_P = 0;
@@ -456,7 +495,7 @@ if eqn.useEulerInitState then
 	
 <?	
 else	-- expect the initCond to explicitly provide the ion_ and elec_ Euler fluid variables
-	for _,fluid in ipairs(fluids) do ?>
+	for _,fluid in ipairs(eqn.fluids) do ?>
 		.<?=fluid?>_rho = <?=fluid?>_rho,
 		.<?=fluid?>_v = cartesianToCoord(<?=fluid?>_v, x),
 		.<?=fluid?>_P = <?=fluid?>_P,
@@ -473,20 +512,23 @@ end
 	};
 	UBuf[index] = consFromPrim(solver, W, x);
 }
-]], table({
-		solver = self.solver,
+]], {
 		code = self.initCond:getInitCondCode(self.solver),
-		fluids = fluids,
-	}, self:getEnv()))
+	})
 end
 
 TwoFluidEMHD.solverCodeFile = 'hydro/eqn/twofluid-emhd.cl'
 
+function TwoFluidEMHD:getModuleDependsSolver()
+	return {
+		'eqn.prim-cons',
+		'coord_lower',
+	}
+end
+
 function TwoFluidEMHD:getEnv()
 	local scalar = self.scalar
-	local env = {}
-	env.eqn = self
-	env.solver = self.solver
+	local env = TwoFluidEMHD.super.getEnv(self)
 	env.vec3 = self.vec3
 	env.susc_t = self.susc_t
 	env.scalar = scalar
@@ -524,7 +566,7 @@ TwoFluidEMHD.predefinedDisplayVars = {
 function TwoFluidEMHD:getDisplayVars()
 	local vars = TwoFluidEMHD.super.getDisplayVars(self)
 
-	for _,fluid in ipairs(fluids) do
+	for _,fluid in ipairs(self.fluids) do
 	
 		vars:append{
 			{name=fluid..' v', code='value.vreal3 = W.'..fluid..'_v;', type='real3', units='m/s'},
@@ -563,27 +605,27 @@ function TwoFluidEMHD:getDisplayVars()
 	vars:append{
 		{
 			name = 'EField',
-			code = template([[	value.vreal3 = calc_EField(solver, *U);]], env),
+			code = self:template[[	value.vreal3 = calc_EField(solver, *U);]],
 			type = 'real3',
 			units = '(kg*m)/(C*s)',
 		},
 		{
 			name = 'HField',
-			code = template([[	value.vreal3 = calc_HField(solver, *U);]], env),
+			code = self:template[[	value.vreal3 = calc_HField(solver, *U);]],
 			type = 'real3',
 			units = 'C/(m*s)',
 		},
 		{
 			name = 'SField',
-			code = template([[	value.vreal3 = real3_cross(calc_EField(solver, *U), calc_HField(solver, *U));]], env), 
+			code = self:template[[	value.vreal3 = real3_cross(calc_EField(solver, *U), calc_HField(solver, *U));]], 
 			type = 'real3',
 			units = 'kg/s^3',
 		},
 		{
 			name = 'gravity',
-			code = template([[
+			code = self:template[[
 	if (!OOB(1,1)) value.vreal3 = calcGravityAccel<?=eqn.gravOp.name?>(solver, U, x);
-]], {eqn=self}), 
+]],
 			type='real3', 
 			units='m/s^2',
 		},
@@ -625,7 +667,7 @@ end
 TwoFluidEMHD.eigenVars = eigenVars
 
 function TwoFluidEMHD:eigenWaveCodePrefix(n, eig, x)
-	return template([[
+	return self:template([[
 <? for i,fluid in ipairs(fluids) do ?>
 	real <?=fluid?>_Cs_nLen = <?=eig?>.<?=fluid?>_Cs * normalInfo_len(<?=n?>);
 	real <?=fluid?>_v_n = normalInfo_vecDotN1(n, <?=eig?>.<?=fluid?>_v);
@@ -633,24 +675,24 @@ function TwoFluidEMHD:eigenWaveCodePrefix(n, eig, x)
 ]], {
 		x = x,
 		eig = '('..eig..')',
-		fluids = fluids,
+		fluids = self.fluids,
 		n = n,
 	})
 end
 
 function TwoFluidEMHD:eigenWaveCode(n, eig, x, waveIndex)
-	for i,fluid in ipairs(fluids) do
+	for i,fluid in ipairs(self.fluids) do
 		if waveIndex == 0 + 5 * (i-1) then
-			return template('<?=fluid?>_v_n - <?=fluid?>_Cs_nLen', {fluid=fluid})
+			return self:template('<?=fluid?>_v_n - <?=fluid?>_Cs_nLen', {fluid=fluid})
 		elseif waveIndex >= 1 + 5 * (i-1)
 		and waveIndex <= 3 + 5 * (i-1)
 		then
-			return template('<?=fluid?>_v_n', {fluid=fluid})
+			return self:template('<?=fluid?>_v_n', {fluid=fluid})
 		elseif waveIndex == 4 + 5 * (i-1) then
-			return template('<?=fluid?>_v_n + <?=fluid?>_Cs_nLen', {fluid=fluid})
+			return self:template('<?=fluid?>_v_n + <?=fluid?>_Cs_nLen', {fluid=fluid})
 		end
 	end
-	if not self.implicitEMIntegration and waveIndex >= 5*#fluids and waveIndex < 5*#fluids+8 then
+	if not self.implicitEMIntegration and waveIndex >= 5*#self.fluids and waveIndex < 5*#self.fluids+8 then
 		-- 2014 Abgrall, Kumar eqn 1.9 says the eigenvalues are c, while the flux contains cHat ...
 		return ({
 			'-solver->divPhiWavespeed / unit_m_per_s',
@@ -661,7 +703,7 @@ function TwoFluidEMHD:eigenWaveCode(n, eig, x, waveIndex)
 			'solver->speedOfLight / unit_m_per_s',
 			'solver->divPsiWavespeed / unit_m_per_s',
 			'solver->divPhiWavespeed / unit_m_per_s',
-		})[waveIndex - 5*#fluids + 1]
+		})[waveIndex - 5*#self.fluids + 1]
 	end
 	error('got a bad waveIndex: '..waveIndex)
 end
@@ -670,7 +712,7 @@ end
 -- 2014 Abgrall, Kumar eqn 2.25
 -- dt < sqrt( E_alpha,i / rho_alpha,i) * |lHat_r,alpha| sqrt(2) / |E_i + v_alpha,i x B_i|
 function TwoFluidEMHD:consWaveCodePrefix(n, U, x)
-	return template([[
+	return self:template([[
 	<?=eqn.prim_t?> W = primFromCons(solver, <?=U?>, <?=x?>);
 
 <? if eqn.implicitEMIntegration then 	--ignoring EM wavespeed	?>	
@@ -696,7 +738,6 @@ function TwoFluidEMHD:consWaveCodePrefix(n, U, x)
 ?>
 
 ]], {
-		eqn = self,
 		n = n,
 		U = '('..U..')',
 		x = x,

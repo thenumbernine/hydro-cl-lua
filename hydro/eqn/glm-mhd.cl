@@ -5,64 +5,6 @@ tweaked it while looking at
 2009 Mignone, Tzeferacos - A Second-Order Unsplit Godunov Scheme for Cell-Centered MHD- the CTU-GLM scheme
 */
 
-<?
-local common = require 'hydro.common'	-- xNames, symNames
-local xNames = common.xNames
-local symNames = common.symNames
-local from3x3to6 = common.from3x3to6 
-local from6to3x3 = common.from6to3x3 
-local sym = common.sym
-?>
-
-<?=eqn.eigen_t?> eigen_forCell(
-	constant <?=solver.solver_t?>* solver,
-	<?=eqn.cons_t?> U,
-	real3 x,
-	normalInfo_t n
-);
-
-<?=eqn.cons_t?> fluxFromCons(
-	constant <?=solver.solver_t?>* solver,
-	<?=eqn.cons_t?> U,
-	real3 x,
-	normalInfo_t n
-) {
-	<?=eqn.prim_t?> W = primFromCons(solver, U, x);
-	real vj = normalInfo_vecDotN1(n, W.v);
-	real Bj = normalInfo_vecDotN1(n, W.B);
-	real BSq = coordLenSq(W.B, x);
-	real BDotV = real3_dot(W.B, W.v);
-	real PMag = .5 * BSq / (solver->mu0 / unit_kg_m_per_C2);
-	real PTotal = W.P + PMag;
-	real HTotal = U.ETotal + PTotal;
-	
-<? if not eqn.useFixedCh then ?>
-	//TODO don't need the whole eigen here, just the Ch
-	real Ch = 0;
-	<? for side=0,solver.dim-1 do ?>{
-		<?=eqn.eigen_t?> eig = eigen_forCell(solver, U, x, normalInfo_fromSide<?=side?>(x));
-		Ch = max(Ch, eig.Ch);
-	}<? end ?>
-<? else ?>
-	real Ch = solver->Ch;
-<? end ?>
-
-	<?=eqn.cons_t?> F;
-	F.rho = normalInfo_vecDotN1(n, U.m);
-	F.m = real3_sub(real3_real_mul(U.m, vj), real3_real_mul(U.B, Bj / (solver->mu0 / unit_kg_m_per_C2)));
-	F.m.x += PTotal * normalInfo_l1x(n);
-	F.m.y += PTotal * normalInfo_l1y(n);
-	F.m.z += PTotal * normalInfo_l1z(n);
-	F.B = real3_sub(real3_real_mul(U.B, vj), real3_real_mul(W.v, Bj));
-	F.psi = Ch * Ch;
-	F.B.x += F.psi * normalInfo_l1x(n);
-	F.B.y += F.psi * normalInfo_l1y(n);
-	F.B.z += F.psi * normalInfo_l1z(n);
-	F.ETotal = HTotal * vj - BDotV * Bj / (solver->mu0 / unit_kg_m_per_C2);
-	F.ePot = 0;
-	return F;
-}
-
 //align from vector coordinates to the normal basis
 <?=eqn.cons_t?> cons_rotateFrom(<?=eqn.cons_t?> U, normalInfo_t n) {
 	U.m = normalInfo_vecDotNs(n, U.m);
@@ -612,26 +554,6 @@ range_t calcCellMinMaxEigenvalues(
 		+ inputU.B.z * v.x;
 	resultU.psi = inputU.psi;
 	return cons_rotateTo(resultU, n);
-}
-
-<?=eqn.eigen_t?> eigen_forCell(
-	constant <?=solver.solver_t?>* solver,
-	<?=eqn.cons_t?> U,
-	real3 x,
-	normalInfo_t n
-) {
-	<?=eqn.prim_t?> W = primFromCons(solver, U, x);
-	real PMag = .5 * coordLenSq(W.B, x);
-	real hTotal = (U.ETotal + W.P + PMag) / W.rho;
-	<?=eqn.roe_t?> roe = {
-		.rho = W.rho,
-		.v = W.v,
-		.hTotal = hTotal,
-		.B = W.B,
-		.X = 0,
-		.Y = 1,
-	};
-	return eigen_forRoeAvgs(solver, roe, x);
 }
 
 kernel void addSource(

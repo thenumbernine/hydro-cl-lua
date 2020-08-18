@@ -6,8 +6,6 @@ k-omega turbulence model of Navier Stokes method for finite volume
 
 local class = require 'ext.class'
 local table = require 'ext.table'
-local range = require 'ext.range'
-local template = require 'template'
 local materials = require 'hydro.materials'
 local Equation = require 'hydro.eqn.eqn'
 
@@ -18,7 +16,6 @@ NavierStokesWilcox.numStates = 8	-- ePot is the last param -- specific potential
 NavierStokesWilcox.numWaves = 7	-- v-a, v,v,v,v,v, v+a
 NavierStokesWilcox.numIntStates = 7
 
-NavierStokesWilcox.hasFluxFromConsCode = true
 NavierStokesWilcox.roeUseFluxFromCons = true
 NavierStokesWilcox.useSourceTerm = true
 
@@ -73,8 +70,10 @@ function NavierStokesWilcox:createInitState()
 	}
 end
 
-function NavierStokesWilcox:getCommonFuncCode()
-	return template([[
+function NavierStokesWilcox:initCodeModuleCommon()
+	self.solver.modules:add{
+		name = 'eqn.common',
+		code = self:template[[
 #define R_over_C_v (solver->gasConstant / solver->C_v)
 #define C_v_over_R (solver->C_v / solver->gasConstant)
 
@@ -103,9 +102,8 @@ real calc_ETotal(<?=eqn.prim_t?> W, real3 x) {
 real calc_Cs(const <?=eqn.prim_t?> W) {
 	return sqrt((R_over_C_v + 1.) * W.PStar / W.rhoBar);
 }
-]], {
-		eqn = self,
-	})
+]],
+	}
 end
 
 function NavierStokesWilcox:initCodeModulePrimCons()
@@ -116,7 +114,7 @@ function NavierStokesWilcox:initCodeModulePrimCons()
 			'eqn.cons_t',
 			'coord',	-- coordLenSq
 		},
-		code = template([[
+		code = self:template[[
 <?=eqn.prim_t?> primFromCons(
 	constant <?=solver.solver_t?>* solver,
 	<?=eqn.cons_t?> U,
@@ -168,10 +166,7 @@ function NavierStokesWilcox:initCodeModulePrimCons()
 		.ePot = W.ePot,
 	};
 }
-]], 	{
-			solver = self.solver,
-			eqn = self,
-		}),
+]],
 	}
 
 	-- only used by PLM
@@ -183,7 +178,7 @@ function NavierStokesWilcox:initCodeModulePrimCons()
 			'eqn.prim_t',
 			'eqn.cons_t',
 		},
-		code = template([[
+		code = self:template[[
 <?=eqn.cons_t?> apply_dU_dW(
 	constant <?=solver.solver_t?>* solver,
 	<?=eqn.prim_t?> WA, 
@@ -229,20 +224,11 @@ function NavierStokesWilcox:initCodeModulePrimCons()
 		.ePot = U.ePot,
 	};
 }
-
-
-]], 	{
-			eqn = self,
-			solver = self.solver,
-		}),
+]],
 	}
 end
 
 NavierStokesWilcox.initCondCode = [[
-<?
-local common = require 'hydro.common'
-local xNames = common.xNames
-?>
 kernel void applyInitCond(
 	constant <?=solver.solver_t?>* solver,
 	constant <?=solver.initCond_t?>* initCond,
@@ -307,7 +293,7 @@ function NavierStokesWilcox:getDisplayVars()
 		{name='Speed of Sound', code='value.vreal = calc_Cs(W);'},
 		--{name='Mach number', code='value.vreal = coordLen(W.vTilde, x) / calc_Cs(W);'},
 	}:append{self.gravOp and
-		{name='gravity', code=template([[
+		{name='gravity', code=self:template[[
 	if (OOB(1,1)) {
 		value.vreal = 0.;
 	} else {
@@ -322,7 +308,7 @@ for side=solver.dim,2 do ?>
 		value_real3->s<?=side?> = 0.;
 <? end ?>
 	}
-]], {eqn=self, solver=self.solver}), type='real3'} or nil
+]], type='real3'} or nil
 	}:append{
 		{name='temp', code='value.vreal = calc_eIntTilde(W) / solver->C_v;'},
 	}
@@ -360,7 +346,7 @@ NavierStokesWilcox.eigenVars = table{
 }
 
 function NavierStokesWilcox:eigenWaveCodePrefix(side, eig, x)
-	return template([[
+	return self:template([[
 	real Cs_sqrt_gU = <?=eig?>->Cs * coord_sqrt_g_uu<?=side..side?>(<?=x?>);
 	real v_n = <?=eig?>->vTilde.s[<?=side?>];
 ]], {

@@ -110,7 +110,7 @@ _3sym3 _3sym3_rescaleToCoord_ULL(_3sym3 a, real3 x) {
 ?>	};
 }
 
-sym3sym3 sym3sym3_rescaleFromCoord_lll(sym3sym3 a, real3 x) {
+sym3sym3 sym3sym3_rescaleFromCoord_llll(sym3sym3 a, real3 x) {
 	return (sym3sym3){
 <? for ij,xij in ipairs(symNames) do
 	local i,j = from6to3x3(ij)
@@ -154,7 +154,7 @@ sym3sym3 sym3sym3_rescaleToCoord_LLLL(sym3sym3 a, real3 x) {
 #define _3sym3_rescaleToCoord_UUU(a,x) a
 #define _3sym3_rescaleToCoord_LLL(a,x) a
 #define _3sym3_rescaleFromCoord_uuu(a,x) a
-#define sym3sym3_rescaleFromCoord_lll(a,x) a
+#define sym3sym3_rescaleFromCoord_llll(a,x) a
 #define sym3sym3_rescaleToCoord_UUUU(a,x) a
 #define sym3sym3_rescaleToCoord_LLLL(a,x) a
 #define sym3sym3_rescaleFromCoord_uuuu (a,x) a

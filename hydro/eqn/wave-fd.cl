@@ -1,10 +1,15 @@
 typedef <?=solver.solver_t?> solver_t;
 typedef <?=eqn.cons_t?> cons_t;
 
+//TODO move to math via makescalar
+#define cplx_add3(a,b,c)		(cplx_add(a, cplx_add(b,c)))
+#define cplx_add4(a,b,c,d)		(cplx_add(a, cplx_add3(b,c,d)))
+
 kernel void addSource(
 	constant solver_t* solver,
 	global cons_t* derivBuf,
-	const global cons_t* UBuf
+	const global cons_t* UBuf,
+	const global <?=solver.coord.cell_t?>* cellBuf
 ) {
 	SETBOUNDS_NOGHOST();
 	real3 x = cell_x(i);

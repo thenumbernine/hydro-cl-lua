@@ -21,8 +21,10 @@ function Flux:initCodeModules()
 			'coord.normal',
 			'eqn.solvercode',
 			'eqn.cons_parallelPropagate',
+			
 			-- specific to Roe, when solver.fluxLimiter>1
 			'fluxLimiter',
+			'fluxFromCons',
 		},
 		code = template(file[self.solverCodeFile], {
 			solver = self.solver,

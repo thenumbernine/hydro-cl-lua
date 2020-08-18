@@ -8,13 +8,13 @@ return table{
 		mins = {.1, .1, .1},
 		maxs = {4, 4, 4},
 		guiVars = {
-			{name='nls_A', value=10},
+			{name='A', value=10},
 		},
 		getInitCondCode = function(self, solver)
 			-- TODO custom boundary.  rhs is set to zero.  lhs is U[-2] = U[2], U[-1] = U[1], and U[0] is not modified
 			solver:setBoundaryMethods'freeflow'
 			return [[
-	q = cplx_from_real(solver->nls_A * exp(-r * r));
+	q = cplx_from_real(initCond->A * exp(-r * r));
 ]]
 		end,
 	},
@@ -23,12 +23,12 @@ return table{
 		mins = {.1,.1,.1},
 		maxs = {4,4,4},
 		guiVars = {
-			{name='nls_A', value=8},
+			{name='A', value=8},
 		},
 		getInitCondCode = function(self, solver)
 			solver:setBoundaryMethods'freeflow'
 			return [[
-	q = cplx_from_real(solver->nls_A * r * r * exp(-r * r));
+	q = cplx_from_real(initCond->A * r * r * exp(-r * r));
 ]]
 		end,
 	},
@@ -37,14 +37,14 @@ return table{
 		mins = {.1, .1, .1},
 		maxs = {4, 4, 4},
 		guiVars = {	
-			{name='nls_A', value=4},
-			{name='nls_alpha', value=10},
+			{name='A', value=4},
+			{name='alpha', value=10},
 		},
 		getInitCondCode = function(self, solver)
 			solver:setBoundaryMethods'freeflow'
 			return [[
-	real magn = solver->nls_A * exp(-r * r);
-	real theta = -nls_alpha * r * r;
+	real magn = initCond->A * exp(-r * r);
+	real theta = -initCond->alpha * r * r;
 	q = cplx_from_real(
 		cos(theta) * magn,
 		sin(theta) * magn

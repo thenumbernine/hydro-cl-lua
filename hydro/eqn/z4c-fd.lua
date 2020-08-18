@@ -22,7 +22,6 @@ local makePartial2 = makePartials.makePartial2
 local Z4cFiniteDifferenceEquation = class(EinsteinEqn)
 Z4cFiniteDifferenceEquation.name = 'Z4c finite difference' 
 Z4cFiniteDifferenceEquation.hasCalcDTCode = true
-Z4cFiniteDifferenceEquation.hasFluxFromConsCode = true
 Z4cFiniteDifferenceEquation.useConstrainU = true
 Z4cFiniteDifferenceEquation.useSourceTerm = true
 

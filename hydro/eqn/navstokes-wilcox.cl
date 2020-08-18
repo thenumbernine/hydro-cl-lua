@@ -1,5 +1,3 @@
-<? local solver = eqn.solver ?>
-
 <? for side=0,solver.dim-1 do ?>
 <?=eqn.cons_t?> fluxFromCons_<?=side?>(
 	constant <?=solver.solver_t?>* solver,

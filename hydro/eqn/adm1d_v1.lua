@@ -6,9 +6,6 @@ See comments in my gravitation-waves project adm1d_v1.lua file for the math.
 
 local class = require 'ext.class'
 local table = require 'ext.table'
-local file = require 'ext.file'
-local template = require 'template'
-local symmath = require 'symmath'
 local EinsteinEqn = require 'hydro.eqn.einstein'
 
 local ADM_BonaMasso_1D_2008Alcubierre = class(EinsteinEqn)
@@ -24,19 +21,52 @@ ADM_BonaMasso_1D_2008Alcubierre.consVars = {
 }
 ADM_BonaMasso_1D_2008Alcubierre.numWaves = 3	-- alpha and gamma_xx are source-term only
 
---ADM_BonaMasso_1D_2008Alcubierre.hasFluxFromConsCode = true
 ADM_BonaMasso_1D_2008Alcubierre.useSourceTerm = true
 ADM_BonaMasso_1D_2008Alcubierre.roeUseFluxFromCons = true
-
 
 ADM_BonaMasso_1D_2008Alcubierre.guiVars = {
 	{name='a_x_convCoeff', value=10},
 	{name='D_g_convCoeff', value=10},
 }
 
+-- the PLM version that uses this crashes
+-- so maybe there's something wrong with this
+--[=[
+function ADM_BonaMasso_1D_2008Alcubierre:initCodeModule_fluxFromCons()
+	self.solver.modules:add{
+		name = 'fluxFromCons',
+		depends = {
+			'solver.solver_t',
+			'eqn.cons_t',
+			'eqn.common',	-- calc_f ... or is it initCond.codeprefix?
+		},
+		code = self:template[[
+<?=eqn.cons_t?> fluxFromCons(
+	constant <?=solver.solver_t?>* solver,
+	<?=eqn.cons_t?> U,
+	real3 x,
+	normalInfo_t n
+) {
+	real f = calc_f(U.alpha);
+	real alpha_over_sqrt_gamma_xx = U.alpha / sqrt(U.gamma_xx);
+	return (<?=eqn.cons_t?>){
+		.alpha = 0,
+		.gamma_xx = 0,
+		.a_x = U.KTilde * f * alpha_over_sqrt_gamma_xx,
+		.D_g = U.KTilde * 2. * alpha_over_sqrt_gamma_xx,
+		.KTilde = U.a_x * alpha_over_sqrt_gamma_xx,
+	};
+}
+]],
+	}
+end
+--]=]
+
 -- code that goes in initCond and in the solver
-function ADM_BonaMasso_1D_2008Alcubierre:getCommonFuncCode()
-	return template([[
+function ADM_BonaMasso_1D_2008Alcubierre:initCodeModule_setFlatSpace()
+	self.solver.modules:add{
+		name = 'setFlatSpace',
+		code = self:template[[
 void setFlatSpace(
 	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* U,
@@ -51,12 +81,15 @@ void setFlatSpace(
 	};
 }
 
-]], {
-		eqn = self,
-		solver = self.solver,
-	})
+]],
+	}
 end
 
+function ADM_BonaMasso_1D_2008Alcubierre:getModuleDependsApplyInitCond()
+	return table(ADM_BonaMasso_1D_2008Alcubierre.super.getModuleDependsApplyInitCond(self), {
+		'sym3',
+	})
+end
 ADM_BonaMasso_1D_2008Alcubierre.initCondCode = [[
 kernel void applyInitCond(
 	constant <?=solver.solver_t?>* solver,
@@ -135,14 +168,14 @@ function ADM_BonaMasso_1D_2008Alcubierre:getDisplayVars()
 	}
 end
 
-ADM_BonaMasso_1D_2008Alcubierre.eigenVars = table{
+ADM_BonaMasso_1D_2008Alcubierre.eigenVars = {
 	{name='f', type='real'},
 	{name='alpha', type='real'},
 	{name='gamma_xx', type='real'},
 }
 
 function ADM_BonaMasso_1D_2008Alcubierre:eigenWaveCodePrefix(n, eig, x, waveIndex)
-	return template([[
+	return self:template([[
 	real eig_lambda = <?=eig?>.alpha * sqrt(<?=eig?>.f / <?=eig?>.gamma_xx);
 ]], {
 		eig = '('..eig..')',
@@ -162,7 +195,7 @@ function ADM_BonaMasso_1D_2008Alcubierre:eigenWaveCode(n, eig, x, waveIndex)
 end
 
 function ADM_BonaMasso_1D_2008Alcubierre:consWaveCodePrefix(n, U, x, waveIndex)
-	return template([[
+	return self:template([[
 	real f = calc_f(<?=U?>.alpha);
 	real eig_lambda = <?=U?>.alpha * sqrt(f / <?=U?>.gamma_xx);
 ]], {

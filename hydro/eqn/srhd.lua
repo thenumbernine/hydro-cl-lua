@@ -8,15 +8,8 @@ so viola, here it is.
 --]]
 local class = require 'ext.class'
 local table = require 'ext.table'
-local range = require 'ext.range'
-local file = require 'ext.file'
-local template = require 'template'
-local clnumber = require 'cl.obj.number'
 local Equation = require 'hydro.eqn.eqn'
 local Struct = require 'hydro.code.struct'
-local common = require 'hydro.common'
-
-local xNames = common.xNames
 
 local SRHD = class(Equation)
 SRHD.name = 'SRHD'
@@ -34,7 +27,6 @@ SRHD.useConstrainU = true
 
 -- TODO if we enable this we get NANs when waves hit the border.  Bug in the srhd boundary prim calculations?
 --SRHD.roeUseFluxFromCons = true
-SRHD.hasFluxFromConsCode = true
 
 SRHD.initConds = require 'hydro.init.euler'
 
@@ -116,7 +108,7 @@ function SRHD:init(args)
 				-- = (D^2 h / ρ)_,j v_i + (D^2 h / ρ) v_i,j = 0
 				-- δ^ij v_i,j = -δ^ij (D^2 h / ρ)_,j v_i / (D^2 h / ρ)
 				-- TODO make this work for non-ident metric & add connections for covariant derivatives
-				chargeCode = template([[
+				chargeCode = self:template[[
 	<? for j=0,solver.dim-1 do ?>{
 		global const <?=eqn.cons_t?>* Ujm = U - solver->stepsize.s<?=j?>;
 		global const <?=eqn.cons_t?>* Ujp = U + solver->stepsize.s<?=j?>;
@@ -128,10 +120,7 @@ function SRHD:init(args)
 			U->D * U->D / U->rho * calc_h(U->rho, calc_P(solver, U->rho, U->eInt), U->eInt)
 		);
 	}<? end ?>
-]],				{
-					eqn = self,
-					solver = self.solver,
-				}),
+]],
 			})
 		end
 	end
@@ -185,8 +174,46 @@ function SRHD:initCodeModules()
 	}
 end
 
-function SRHD:getModuleDependsCommon()
-	return {'cons_only_t,prim_only_t'}
+function SRHD:initCodeModule_fluxFromCons()
+	self.solver.modules:add{
+		name = 'fluxFromCons',
+		depends = {
+			'solver.solver_t',
+			'eqn.cons_t',
+			'coord.normal',	-- normalInfo_*
+			'eqn.common',	-- calc_P
+		},
+		code = self:template[[
+<?=eqn.cons_t?> fluxFromCons(
+	constant <?=solver.solver_t?>* solver,
+	<?=eqn.cons_t?> U,
+	real3 x,
+	normalInfo_t n
+) {
+	real v_n = normalInfo_vecDotN1(n, U.v);
+	real P = calc_P(solver, U.rho, U.eInt);
+
+	<?=eqn.cons_t?> F = {
+		.D = U.D * v_n,
+		.S = real3_add(
+			real3_real_mul(U.S, v_n),
+			_real3(
+				normalInfo_u1x(n) * P,
+				normalInfo_u1y(n) * P,
+				normalInfo_u1z(n) * P
+			)
+		),
+		.tau = U.tau * v_n + P * v_n,
+		.rho = 0,
+		.v = real3_zero,
+		.eInt = 0,
+		.ePot = 0,
+	};
+	
+	return F;
+}
+]],
+	}
 end
 
 function SRHD:getModuleDependsApplyInitCond()
@@ -203,8 +230,11 @@ function SRHD:getModuleDependsSolver()
 	}
 end
 
-function SRHD:getCommonFuncCode()
-	return template([[
+function SRHD:initCodeModuleCommon()
+	self.solver.modules:add{
+		name = 'eqn.common',
+		depends = {'cons_only_t,prim_only_t'},
+		code = self:template[[
 
 //pressure function for ideal gas
 real calc_P(constant <?=solver.solver_t?>* solver, real rho, real eInt) {
@@ -296,10 +326,8 @@ real calc_h(real rho, real P, real eInt) {
 //PLM uses prim_only_t and cons_t, esp using the 'numIntStates' reals that they start with
 //...and PLM uses consFromPrim and primFromCons
 
-]], {
-		eqn = self,
-		solver = self.solver,
-	})
+]],
+	}
 end
 
 SRHD.initCondCode = [[
@@ -352,7 +380,7 @@ function SRHD:getDisplayVars()
 		
 		{name='ePot', code='value.vreal = U->ePot;'},
 		
-		{name='primitive reconstruction error', code=template([[
+		{name='primitive reconstruction error', code=self:template[[
 	//prim have just been reconstructed from cons
 	//so reconstruct cons from prims again and calculate the difference
 	{
@@ -362,7 +390,8 @@ function SRHD:getDisplayVars()
 			value.vreal += fabs(U->ptr[j] - U2.ptr[j]);
 		}
 	}
-	]], {eqn=self})},
+]]
+		},
 		{name='W error', code=[[
 	real W1 = U->D / U->rho;
 	real W2 = 1. / sqrt(1. - coordLenSq(U->v, x));
@@ -411,7 +440,7 @@ end
 -- but then I just explicitly wrote out the calcDT, so the extra parameters just aren't used anymore.
 function SRHD:consWaveCodePrefix(n, U, x)
 	U = '('..U..')'
-	return template([[	
+	return self:template([[	
 	real eInt = <?=U?>.eInt;
 	
 	real vSq = coordLenSq(<?=U?>.v, <?=x?>);
@@ -433,7 +462,6 @@ function SRHD:consWaveCodePrefix(n, U, x)
 	// v.x because v has been rotated so x points along the normal
 	real v_n = <?=U?>.v.x;
 ]], {
-		eqn = self,
 		n = n,
 		U = U,
 		x = x,

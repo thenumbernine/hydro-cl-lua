@@ -9,10 +9,6 @@ general relativistic ideal MHD
 (TODO do a resistivie GRMHD, which incorporates E as well)
 --]]
 local class = require 'ext.class'
-local table = require 'ext.table'
-local file = require 'ext.file'
-local template = require 'template'
-local clnumber = require 'cl.obj.number'
 local Equation = require 'hydro.eqn.eqn'
 
 local GRMHD = class(Equation)
@@ -21,7 +17,6 @@ GRMHD.numStates = 9
 GRMHD.numWaves = 8
 
 GRMHD.hasCalcDTCode = true
---GRMHD.hasFluxFromConsCode = true
 GRMHD.useConstrainU = true
 
 -- GRMHD fluxFromCons will need prims passed to it as well
@@ -33,7 +28,7 @@ GRMHD.initConds = require 'hydro.init.euler'
 -- TODO upgrade this to srhd: put these all in consVars and just make separate cons_only_ and prim_only_t
 -- TODO also upgrade this to initCodeModules.  turn it into a struct, like srhd.
 function GRMHD:getTypeCode()
-	return template([[
+	return self:template[[
 typedef union {
 	real ptr[9];
 	struct {
@@ -62,9 +57,7 @@ typedef union {
 		real divBPot;
 	};
 } <?=eqn.cons_t?>;
-]], {
-	eqn = self,
-})
+]]
 end
 
 function GRMHD:createInitState()
@@ -119,8 +112,7 @@ end
 -- YOU ARE HERE in converting stuff from SRHD to GRMHD
 
 function GRMHD:getCommonFuncCode()
-	return template([[
-
+	return self:template[[
 //I'm going to fix metric coordinates at first
 //then later the transition to the evolved metric will be easier
 constant const real alpha = 1;
@@ -171,9 +163,7 @@ real calc_h(real rho, real P, real eInt) {
 	
 	return (<?=eqn.cons_t?>){.D=D, .S=S, .tau=tau};
 }
-]], {
-		eqn = self,
-	})
+]]
 end
 
 -- hmm, this is from renovating 'getPrimConsCode() end', but will it work with the module system?
@@ -224,7 +214,7 @@ GRMHD.displayVarCodeUsesPrims = true
 function GRMHD:getDisplayVars()
 	return GRMHD.super.getDisplayVars(self):append{
 		{name='W', code='value.vreal = U->D / prim.rho;'},
-		{name='primitive reconstruction error', code=template([[
+		{name='primitive reconstruction error', code=self:template[[
 			//prim have just been reconstructed from cons
 			//so reconstruct cons from prims again and calculate the difference
 			{
@@ -234,16 +224,14 @@ function GRMHD:getDisplayVars()
 					value.vreal += fabs(U->ptr[j] - U2.ptr[j]);
 				}
 			}
-	]], {eqn=self})},
+	]]},
 	}
 end
 
 function GRMHD:getPrimDisplayVarCodePrefix()
-	return template([[
+	return self:template[[
 	<?=eqn.prim_t?> prim = buf[index];
-]], {
-		eqn = self,
-	})
+]]
 end
 
 GRMHD.eigenVars = {

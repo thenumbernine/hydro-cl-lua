@@ -18,17 +18,11 @@ Not doing so means our wavespeeds are all the speed of light, and we can't contr
 local ffi = require 'ffi'
 local class = require 'ext.class'
 local table = require 'ext.table'
-local range = require 'ext.range'
-local file = require 'ext.file'
-local template = require 'template'
 local Equation = require 'hydro.eqn.eqn'
-local common = require 'hydro.common'
-local xNames = common.xNames
 
 local GLM_Maxwell = class(Equation)
 GLM_Maxwell.name = 'GLM_Maxwell'
 
-GLM_Maxwell.hasFluxFromConsCode = true
 GLM_Maxwell.useSourceTerm = true
 GLM_Maxwell.roeUseFluxFromCons = true
 
@@ -71,7 +65,7 @@ function GLM_Maxwell:init(args)
 
 	GLM_Maxwell.super.init(self, args)
 
-	self.postComputeFluxCode = template([[
+	self.postComputeFluxCode = self:template[[
 <? local vec3 = eqn.vec3 ?>
 		//TODO shouldn't I be transforming both the left and right fluxes by the metrics at their respective coordinates?
 		//flux is computed raised via Levi-Civita upper
@@ -79,7 +73,7 @@ function GLM_Maxwell:init(args)
 		real _1_sqrt_det_g = 1. / coord_sqrt_det_g(x);
 		flux.D = <?=vec3?>_real_mul(eqn_coord_lower(flux.D, x), _1_sqrt_det_g);
 		flux.B = <?=vec3?>_real_mul(eqn_coord_lower(flux.B, x), _1_sqrt_det_g);
-]], {eqn=self})
+]]
 end
 
 function GLM_Maxwell:createInitState()
@@ -107,8 +101,55 @@ function GLM_Maxwell:createInitState()
 	}
 end
 
-function GLM_Maxwell:getCommonFuncCode()
-	return template([[
+function GLM_Maxwell:initCodeModule_fluxFromCons()
+	self.solver.modules:add{
+		name = 'fluxFromCons',
+		depends = {
+			'solver.solver_t',
+			'eqn.cons_t',
+			'eqn.prim_t',
+			'coord.normal',
+			'eqn.common',
+		},
+		code = self:template[[
+<?=eqn.cons_t?> fluxFromCons(
+	constant <?=solver.solver_t?>* solver,
+	<?=eqn.cons_t?> U,
+	real3 x,
+	normalInfo_t n
+) {
+	<?=vec3?> E = calc_E(U);
+	<?=vec3?> H = calc_H(U);
+	
+	<?=eqn.cons_t?> F;
+	if (n.side == 0) {
+		F.D = _<?=vec3?>(<?=real_mul?>(U.phi, solver->divPhiWavespeed / unit_m_per_s),  H.z, <?=neg?>(H.y));
+		F.B = _<?=vec3?>(<?=real_mul?>(U.psi, solver->divPsiWavespeed / unit_m_per_s), <?=neg?>(E.z),  E.y);
+	} else if (n.side == 1) {
+		F.D = _<?=vec3?>(<?=neg?>(H.z), <?=real_mul?>(U.phi, solver->divPhiWavespeed / unit_m_per_s),  H.x);
+		F.B = _<?=vec3?>( E.z, <?=real_mul?>(U.psi, solver->divPsiWavespeed / unit_m_per_s), <?=neg?>(E.x));
+	} else if (n.side == 2) {
+		F.D = _<?=vec3?>( H.y, <?=neg?>(H.x), <?=real_mul?>(U.phi, solver->divPhiWavespeed / unit_m_per_s));
+		F.B = _<?=vec3?>(<?=neg?>(E.y),  E.x, <?=real_mul?>(U.psi, solver->divPsiWavespeed / unit_m_per_s));
+	}
+	real D_n = normalInfo_vecDotN1(n, U.D);
+	real B_n = normalInfo_vecDotN1(n, U.B);
+	F.phi = <?=real_mul?>(D_n, solver->divPhiWavespeed / unit_m_per_s);
+	F.psi = <?=real_mul?>(B_n, solver->divPsiWavespeed / unit_m_per_s);
+	F.sigma = <?=zero?>;
+	F.rhoCharge = <?=zero?>;
+	F.sqrt_1_eps = <?=susc_t?>_zero;
+	F.sqrt_1_mu = <?=susc_t?>_zero;
+	return F;
+}
+]],
+	}
+end
+
+function GLM_Maxwell:initCodeModuleCommon()
+	self.solver.modules:add{
+		name = 'eqn.common',
+		code = self:template[[
 <? if scalar == 'real' then ?>
 
 #define eqn_coordLenSq coordLenSq
@@ -142,8 +183,22 @@ cplx3 eqn_coord_lower(cplx3 v, real3 x) {
 <?=vec3?> calc_H(<?=eqn.cons_t?> U) { 
 	return <?=vec3?>_<?=susc_t?>_mul(U.B, <?=susc_t?>_mul(U.sqrt_1_mu, U.sqrt_1_mu));
 }
+]],
+	}
+end
 
-]], self:getEnv())
+function GLM_Maxwell:getModuleDependsApplyInitCond()
+	return {
+		'eqn.common',
+	}
+end
+
+function GLM_Maxwell:getModuleDependsSolver()
+	return {
+		'eqn.common',
+		'coord_lower',
+		'fluxFromCons',
+	}
 end
 
 GLM_Maxwell.initCondCode = [[
@@ -205,9 +260,7 @@ GLM_Maxwell.solverCodeFile = 'hydro/eqn/glm-maxwell.cl'
 
 function GLM_Maxwell:getEnv()
 	local scalar = self.scalar
-	local env = {}
-	env.eqn = self
-	env.solver = self.solver
+	local env = GLM_Maxwell.super.getEnv(self)
 	env.vec3 = self.vec3
 	env.susc_t = self.susc_t
 	env.scalar = scalar
@@ -239,18 +292,18 @@ function GLM_Maxwell:getDisplayVars()
 	
 	local vars = GLM_Maxwell.super.getDisplayVars(self)
 	vars:append{ 
-		{name = 'E', code = template([[	value.v<?=vec3?> = calc_E(*U);]], env), type=env.vec3, units='(kg*m)/(C*s)'},
-		{name = 'H', code = template([[	value.v<?=vec3?> = calc_H(*U);]], env), type=env.vec3, units='C/(m*s)'},
-		{name = 'S', code = template([[	value.v<?=vec3?> = <?=vec3?>_cross(calc_E(*U), calc_H(*U));]], env), type=env.vec3, units='kg/s^3'},
+		{name = 'E', code = self:template[[	value.v<?=vec3?> = calc_E(*U);]], type=env.vec3, units='(kg*m)/(C*s)'},
+		{name = 'H', code = self:template[[	value.v<?=vec3?> = calc_H(*U);]], type=env.vec3, units='C/(m*s)'},
+		{name = 'S', code = self:template[[	value.v<?=vec3?> = <?=vec3?>_cross(calc_E(*U), calc_H(*U));]], type=env.vec3, units='kg/s^3'},
 		{
-			name = 'energy', code = template([[
+			name = 'energy', code = self:template[[
 	<?=susc_t?> _1_eps = <?=susc_t?>_mul(U->sqrt_1_eps, U->sqrt_1_eps);
 	<?=susc_t?> _1_mu = <?=susc_t?>_mul(U->sqrt_1_mu, U->sqrt_1_mu);
 	value.vreal = <?=real_mul?>(<?=add?>(
 		<?=scalar?>_<?=susc_t?>_mul(eqn_coordLenSq(U->D, x), _1_eps),
 		<?=scalar?>_<?=susc_t?>_mul(eqn_coordLenSq(calc_H(*U), x), _1_mu)
 	), .5);
-]], env), 
+]],
 			type = scalar,
 			units = 'kg/(m*s^2)',
 		},
@@ -266,21 +319,19 @@ end
 
 function GLM_Maxwell:eigenWaveCodePrefix(n, eig, x, waveIndex)
 --[=[
-	return template([[
+	return self:template([[
 	<?=scalar?> v_p_abs = <?=mul?>(<?=eig?>.sqrt_1_eps, <?=eig?>.sqrt_1_mu);
-]], table(self:getEnv(), {
-		eqn = self,
+]], {
 		eig = '('..eig..')',
-	}))
+	})
 --]=]
 -- [=[
 	local env = self:getEnv()
-	local code = template(
+	local code = self:template(
 		[[<?=mul?>(<?=eig?>.sqrt_1_eps, <?=eig?>.sqrt_1_mu)]],
-		table(env, {
-			eqn = self,
+		{
 			eig = '('..eig..')',
-		})
+		}
 	)
 	if self.scalar == 'cplx' then
 		code = env.abs..'('..code..')'
@@ -315,12 +366,11 @@ end
 
 function GLM_Maxwell:consWaveCodePrefix(n, U, x, waveIndex) 
 	local env = self:getEnv()
-	local code = template(
+	local code = self:template(
 		[[<?=mul?>(<?=U?>.sqrt_1_eps, <?=U?>.sqrt_1_mu)]],
-		table(env, {
-			eqn = self,
+		{
 			U = '('..U..')',
-		})
+		}
 	)
 	if self.scalar == 'cplx' then
 		code = env.abs..'('..code..')'

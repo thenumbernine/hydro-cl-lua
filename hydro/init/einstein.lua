@@ -65,7 +65,7 @@ function EinsteinInitCond:refreshInitStateProgram(solver)
 	EinsteinInitCond.super.refreshInitStateProgram(self, solver)
 	-- analytical expressions don't need to run finite differences to initialize derivative variables
 	if not self.initAnalytical then
-		solver.initDerivsKernelObj = solver.initCondProgramObj:kernel('initDerivs', solver.solverBuf, solver.UBuf)
+		solver.initDerivsKernelObj = solver.initCondProgramObj:kernel('initDerivs', solver.solverBuf, solver.UBuf, solver.cellBuf)
 	end
 end
 
@@ -85,7 +85,7 @@ function EinsteinInitCond:getCodePrefix(solver)
 	local alphaVar = symmath.var'alpha'
 	-- TODO each eqn must be stated as a guiVar of the solver
 	-- make a parent class or something for all Einstein field eqns
-	local fGuiVar = self.guiVars.f_eqn
+	local fGuiVar = solver.eqn.guiVars.f_eqn
 	local fLuaCode = fGuiVar.options[fGuiVar.value]
 	
 	local f = assert(loadstring([[
@@ -193,7 +193,7 @@ end
 
 function EinsteinInitCond:buildFCCode(solver, diff)
 	local alphaVar = symmath.var'alpha'
-	local fGuiVar = self.guiVars.f_eqn
+	local fGuiVar = solver.eqn.guiVars.f_eqn
 	local fLuaCode = fGuiVar.options[fGuiVar.value]
 	
 	local f = assert(loadstring([[
@@ -224,8 +224,13 @@ return table{
 			sigma
 		--]]
 		init = function(self, solver, args)
+			self.initCondArgs = args
 			EinsteinInitCond.init(self, solver, args)
-			
+		end,
+		createInitStruct = function(self, solver)
+			EinsteinInitCond.createInitStruct(self, solver)
+			local args = self.initCondArgs
+
 			local size = solver.maxs.x - solver.mins.x
 			self.center = args and args.center or {0,0,0}
 			
@@ -425,8 +430,13 @@ return table{
 			speed = warp bubble speed
 		--]]
 		init = function(self, solver, args)
+			self.initCondArgs = args
 			EinsteinInitCond.init(self, solver, args)
-			
+		end,
+		createInitStruct = function(self, solver)
+			EinsteinInitCond.createInitStruct(self, solver)
+			local args = self.initCondArgs
+
 			self:addGuiVars{
 				{name = 'R', value = args and args.R or .5},
 				{name = 'sigma', value = args and args.sigma or 8},
@@ -472,9 +482,13 @@ return table{
 	{	
 		name = 'black hole - Schwarzschild',
 		init = function(self, solver, args)
+			self.initCondArgs = args
 			EinsteinInitCond.init(self, solver, args)
-			
-			args = args or {}
+		end,
+		createInitStruct = function(self, solver)
+			EinsteinInitCond.createInitStruct(self, solver)
+			args = self.initCondArgs or {}
+				
 			-- TODO bodies
 			self:addGuiVars{
 				{name = 'R', value = args and args.R or 1},
@@ -1143,8 +1157,8 @@ TODO I now have a Bessel function routine in hydro/math.cl
 	},
 	{
 		name = 'testbed - gauge wave',
-		init = function(self, solver)
-			EinsteinInitCond.init(self, solver, args)
+		createInitStruct = function(self, solver)
+			EinsteinInitCond.createInitStruct(self, solver)
 
 --			solver.mins = vec3d(-.5, -.5, -.5)
 --			solver.maxs = vec3d(-.5, -.5, -.5)
@@ -1176,8 +1190,8 @@ TODO I now have a Bessel function routine in hydro/math.cl
 	},
 	{
 		name = 'testbed - linear wave',
-		init = function(self, solver)
-			EinsteinInitCond.init(self, solver, args)
+		createInitStruct = function(self, solver)
+			EinsteinInitCond.createInitStruct(self, solver)
 
 -- TODO changing the range upon init causes something to freeze up ...
 --			solver.mins = vec3d(-.5, -.5, -.5)

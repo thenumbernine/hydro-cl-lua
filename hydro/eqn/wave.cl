@@ -1,22 +1,9 @@
-<? 
-local common = require 'hydro.common'
-local sym = common.sym
-local xNames = common.xNames
-
-local solver = eqn.solver
-local scalar = eqn.scalar
-local vec3 = eqn.vec3
-?>
-
 //TODO I have the templated types so I can mix solver code.  In such a case, these typedefs shouldn't go in the getCommonCode.
 typedef <?=eqn.prim_t?> prim_t;
 typedef <?=eqn.cons_t?> cons_t;
 typedef <?=eqn.eigen_t?> eigen_t;
 typedef <?=eqn.waves_t?> waves_t;
 typedef <?=solver.solver_t?> solver_t;
-//typedef <?=scalar?> scalar;
-//typedef <?=vec3?> vec3;
-
 
 <? if getCommonCode then ?>
 
@@ -76,76 +63,7 @@ real3x3 metric_partial_beta_ul(real3 pt) {
 ?>	};
 }
 
-
 <? else -- getCommonCode ?> 
-
-
-// What's the difference between eigen_fluxTransform and fluxFromCons?
-// The difference is that the flux matrix of this is based on 'eig', which is derived from U's ... especially UL & UR in the case of the Roe solver
-// whereas that of fluxFromCons is based purely on 'U'.
-// Since hydro/eqn/wave has no eigen_t info derived from U, the two functions are identical.
-cons_t fluxFromCons(
-	constant solver_t* solver,
-	cons_t U,
-	real3 x,
-	normalInfo_t n
-) {
-	real alpha = metric_alpha(x);
-	real beta_n = normalInfo_vecDotN1(n, metric_beta_u(x));
-	
-	real3 nL = normalInfo_l1(n);
-	real3 nU = normalInfo_u1(n);
-	
-	cons_t F;
-	//F^Pi = -c (Pi beta_n + alpha Psi_i n^i)
-	F.Pi = <?=scalar?>_real_mul(
-		//Pi beta_n + alpha Psi_i n^i
-		real_<?=scalar?>_add(
-		
-			//Pi beta_n:
-			<?=scalar?>_real_mul(U.Pi, beta_n), 
-			
-			//alpha Psi_i n^i:
-			<?=scalar?>_real_mul(
-				//Psi_i n^i:
-				<?=vec3?>_real3_dot(
-					U.Psi_l, 
-					nU
-				), 
-				alpha
-			)
-		), 
-		-solver->wavespeed
-	);
-	
-	//F^{Psi_j} = -c (alpha Pi n_j + Psi_j beta_n)
-	F.Psi_l = <?=vec3?>_real_mul(
-		<?=vec3?>_add(
-			//Psi_j beta_n:
-			<?=vec3?>_real_mul(
-				U.Psi_l,
-				beta_n
-			),
-			
-			//alpha Pi n_j:
-			<?=vec3?>_<?=scalar?>_mul(
-				//n:
-				<?=vec3?>_from_real3(nL),
-				
-				//alpha Pi:
-				<?=scalar?>_real_mul(
-					U.Pi, 
-					alpha
-				)
-			)
-		),
-		//-c
-		-solver->wavespeed
-	);
-	
-	return F;
-}
-
 
 // used by PLM
 range_t calcCellMinMaxEigenvalues(

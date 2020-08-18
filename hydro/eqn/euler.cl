@@ -4,7 +4,6 @@ But I experimented with a curved-space solver.
 To get back to the original code,
 just replace all the g_ab stuff with their constant values and simplify away.
 */
-<? local solver = eqn.solver ?>
 
 //as long as no subsequent solvers' codes are tacked onto the end of this,
 //I can safely do this:
@@ -13,31 +12,6 @@ typedef <?=eqn.cons_t?> cons_t;
 typedef <?=eqn.eigen_t?> eigen_t;
 typedef <?=eqn.waves_t?> waves_t;
 typedef <?=solver.solver_t?> solver_t;
-
-cons_t fluxFromCons(
-	constant solver_t* solver,
-	cons_t U,
-	real3 x,
-	normalInfo_t n
-) {
-	prim_t W = primFromCons(solver, U, x);
-	real v_n = normalInfo_vecDotN1(n, W.v);
-	real HTotal = U.ETotal + W.P;
-	
-	return (cons_t){
-		.rho = U.rho * v_n,
-		.m = real3_add(
-			real3_real_mul(U.m, v_n),
-			_real3(
-				normalInfo_u1x(n) * W.P,
-				normalInfo_u1y(n) * W.P,
-				normalInfo_u1z(n) * W.P
-			)
-		),
-		.ETotal = HTotal * v_n,
-		.ePot = 0,
-	};
-}
 
 <?
 -- added by request only, so I don't have to compile the real3x3 code

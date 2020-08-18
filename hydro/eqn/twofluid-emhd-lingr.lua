@@ -19,9 +19,6 @@ I could work around this by scaling down the Maxwell eigenvalues by sqrt(det(g))
 --]]
 local class = require 'ext.class'
 local table = require 'ext.table'
-local range = require 'ext.range'
-local file = require 'ext.file'
-local template = require 'template'
 local Equation = require 'hydro.eqn.eqn'
 
 
@@ -86,7 +83,6 @@ TwoFluidEMHDDeDonderGaugeLinearizedGR.primVars = table{
 	{name='psi_g', type='real', units='1/s'},
 }
 
-TwoFluidEMHDDeDonderGaugeLinearizedGR.hasFluxFromConsCode = true
 TwoFluidEMHDDeDonderGaugeLinearizedGR.roeUseFluxFromCons = true
 TwoFluidEMHDDeDonderGaugeLinearizedGR.useSourceTerm = true
 TwoFluidEMHDDeDonderGaugeLinearizedGR.useConstrainU = true
@@ -171,7 +167,7 @@ function TwoFluidEMHDDeDonderGaugeLinearizedGR:createInitState()
 		
 		{name='sqrt_G', value=math.sqrt(gravitationalConstant), units='(m^3/(kg*s^2))^.5'},
 	
-	}:append(fluids:map(function(fluid)
+	}:append(self.fluids:map(function(fluid)
 		return table{
 			{name='min_'..fluid..'_rho', value=1e-4},
 			{name='min_'..fluid..'_P', value=1e-4},
@@ -179,8 +175,70 @@ function TwoFluidEMHDDeDonderGaugeLinearizedGR:createInitState()
 	end):unpack()))
 end
 
-function TwoFluidEMHDDeDonderGaugeLinearizedGR:getCommonFuncCode()
-	return template([[
+function TwoFluidEMHDDeDonderGaugeLinearizedGR:initCodeModule_fluxFromCons()
+	self.solver.modules:add{
+		name = 'fluxFromCons',
+		code = self:template[[
+<?=eqn.cons_t?> fluxFromCons(
+	constant <?=solver.solver_t?>* solver,
+	<?=eqn.cons_t?> U,
+	real3 x,
+	normalInfo_t n
+) {
+	<?=eqn.prim_t?> W = primFromCons(solver, U, x);
+	<?=eqn.cons_t?> F;
+
+<? 
+for _,fluid in ipairs(eqn.fluids) do
+?>	real <?=fluid?>_vj = normalInfo_vecDotN1(n, W.<?=fluid?>_v);
+	real <?=fluid?>_HTotal = U.<?=fluid?>_ETotal + W.<?=fluid?>_P;
+	
+	F.<?=fluid?>_rho = normalInfo_vecDotN1(n, U.<?=fluid?>_m);
+	F.<?=fluid?>_m = real3_real_mul(U.<?=fluid?>_m, <?=fluid?>_vj);
+<? 	for i,xi in ipairs(xNames) do
+?>	F.<?=fluid?>_m.<?=xi?> += normalInfo_u1<?=xi?>(n) * W.<?=fluid?>_P;
+<? 	end
+?>	F.<?=fluid?>_ETotal = <?=fluid?>_HTotal * <?=fluid?>_vj;
+<? 
+end
+?>
+	
+	real eps = solver->sqrt_eps * solver->sqrt_eps / unit_C2_s2_per_kg_m3;
+	real mu = solver->sqrt_mu * solver->sqrt_mu / unit_kg_m_per_C2;
+	real G = solver->sqrt_G * solver->sqrt_G / unit_m3_per_kg_s2;
+	real speedOfLightSq = solver->speedOfLight * solver->speedOfLight / unit_m2_per_s2;
+	real eps_g = 1. / (4. * M_PI * G);
+	real mu_g = 1. / (eps_g * speedOfLightSq);
+
+	//taken from glm-maxwell instead of the 2014 Abgrall, Kumar
+	// then replace D = epsilon E and phi' -> epsilon phi
+	<? for _,suffix in ipairs{'', '_g'} do ?>{
+		real3 E = real3_real_mul(U.D<?=suffix?>, 1. / eps<?=suffix?>);
+		real3 H = real3_real_mul(U.B<?=suffix?>, 1. / mu<?=suffix?>);
+		if (n.side == 0) {
+			F.D<?=suffix?> = _real3(U.phi<?=suffix?> * solver->divPhiWavespeed<?=suffix?> / unit_m_per_s, H.z, -H.y);
+			F.B<?=suffix?> = _real3(U.psi<?=suffix?> * solver->divPsiWavespeed<?=suffix?> / unit_m_per_s, -E.z, E.y);
+		} else if (n.side == 1) {
+			F.D<?=suffix?> = _real3(-H.z, U.phi<?=suffix?> * solver->divPhiWavespeed<?=suffix?> / unit_m_per_s, H.x);
+			F.B<?=suffix?> = _real3(E.z, U.psi<?=suffix?> * solver->divPsiWavespeed<?=suffix?> / unit_m_per_s, -E.x);
+		} else if (n.side == 2) {
+			F.D<?=suffix?> = _real3(H.y, -H.x, U.phi<?=suffix?> * solver->divPhiWavespeed<?=suffix?> / unit_m_per_s);
+			F.B<?=suffix?> = _real3(-E.y, E.x, U.psi<?=suffix?> * solver->divPsiWavespeed<?=suffix?> / unit_m_per_s);
+		}
+		F.phi<?=suffix?> = normalInfo_vecDotN1(n, U.D<?=suffix?>) * solver->divPhiWavespeed<?=suffix?> / unit_m_per_s;
+		F.psi<?=suffix?> = normalInfo_vecDotN1(n, U.B<?=suffix?>) * solver->divPsiWavespeed<?=suffix?> / unit_m_per_s;
+	}<? end ?>
+
+	return F;
+}
+]],
+	}
+end
+
+function TwoFluidEMHDDeDonderGaugeLinearizedGR:initCodeModuleCommon()
+	self.solver.modules:add{
+		name = 'eqn.common',
+		code = self:template[[
 real3 calc_EField(constant <?=solver.solver_t?>* solver, <?=eqn.cons_t?> U) {
 	real eps = solver->sqrt_eps * solver->sqrt_eps / unit_C2_s2_per_kg_m3;
 	return real3_real_mul(U.D, 1. / eps);
@@ -202,7 +260,7 @@ real calc_h(constant <?=solver.solver_t?>* solver, real rho, real P) { return ca
 real calc_hTotal(constant <?=solver.solver_t?>* solver, real rho, real P, real ETotal) { return (P + ETotal) / rho; }
 real calc_HTotal(real P, real ETotal) { return P + ETotal; }
 
-<? for _,fluid in ipairs(fluids) do ?>
+<? for _,fluid in ipairs(eqn.fluids) do ?>
 real calc_<?=fluid?>_eKin(<?=eqn.prim_t?> W, real3 x) { return .5 * coordLenSq(W.<?=fluid?>_v, x); }
 real calc_<?=fluid?>_EKin(<?=eqn.prim_t?> W, real3 x) { return W.<?=fluid?>_rho * calc_<?=fluid?>_eKin(W, x); }
 real calc_<?=fluid?>_EInt(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W) { return W.<?=fluid?>_P / (solver->heatCapacityRatio - 1.); }
@@ -259,11 +317,8 @@ real3 calcElecGravForce(constant <?=solver.solver_t?>* solver, const global <?=e
 		U->elec_rho * U->D_g.z / eps_g + 4. * (U->elec_m.x * U->B_g.y - U->elec_m.y * U->B_g.x));
 }
 
-]], {
-		solver = self.solver,
-		eqn = self,
-		fluids = fluids,
-	})
+]],
+	}
 end
 
 function TwoFluidEMHDDeDonderGaugeLinearizedGR:initCodeModulePrimCons()
@@ -274,15 +329,16 @@ function TwoFluidEMHDDeDonderGaugeLinearizedGR:initCodeModulePrimCons()
 			'eqn.common',	-- calc_*
 			'eqn.prim_t',
 			'eqn.cons_t',
+			'eqn.common',
 		},
-		code = template([[
+		code = self:template[[
 <?=eqn.prim_t?> primFromCons(constant <?=solver.solver_t?>* solver, <?=eqn.cons_t?> U, real3 x) {
-	<? for _,fluid in ipairs(fluids) do ?>
+	<? for _,fluid in ipairs(eqn.fluids) do ?>
 	real <?=fluid?>_EKin = calc_<?=fluid?>_EKin_fromCons(U, x);
 	real <?=fluid?>_EInt = U.<?=fluid?>_ETotal - <?=fluid?>_EKin;
 	<? end ?>
 	return (<?=eqn.prim_t?>){
-		<? for _,fluid in ipairs(fluids) do ?>
+		<? for _,fluid in ipairs(eqn.fluids) do ?>
 		.<?=fluid?>_rho = U.<?=fluid?>_rho,
 		.<?=fluid?>_v = real3_real_mul(U.<?=fluid?>_m, 1./U.<?=fluid?>_rho),
 		.<?=fluid?>_P = (solver->heatCapacityRatio - 1.) * <?=fluid?>_EInt,
@@ -300,7 +356,7 @@ function TwoFluidEMHDDeDonderGaugeLinearizedGR:initCodeModulePrimCons()
 
 <?=eqn.cons_t?> consFromPrim(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W, real3 x) {
 	return (<?=eqn.cons_t?>){
-<? for _,fluid in ipairs(fluids) do ?>
+<? for _,fluid in ipairs(eqn.fluids) do ?>
 		.<?=fluid?>_rho = W.<?=fluid?>_rho,
 		.<?=fluid?>_m = real3_real_mul(W.<?=fluid?>_v, W.<?=fluid?>_rho),
 		.<?=fluid?>_ETotal = calc_<?=fluid?>_ETotal(solver, W, x),
@@ -315,11 +371,7 @@ function TwoFluidEMHDDeDonderGaugeLinearizedGR:initCodeModulePrimCons()
 		.phi_g = W.phi_g,
 	};
 }
-]], 	{
-			solver = self.solver,
-			eqn = self,
-			fluids = fluids,
-		}),
+]],
 	}
 
 	-- only used by PLM
@@ -332,18 +384,18 @@ function TwoFluidEMHDDeDonderGaugeLinearizedGR:initCodeModulePrimCons()
 			'eqn.prim_t',
 			'eqn.cons_t',
 		},
-		code = template([[
+		code = self:template[[
 <?=eqn.cons_t?> apply_dU_dW(
 	constant <?=solver.solver_t?>* solver,
 	<?=eqn.prim_t?> WA, 
 	<?=eqn.prim_t?> W, 
 	real3 x
 ) {
-<? for _,fluid in ipairs(fluids) do ?>
+<? for _,fluid in ipairs(eqn.fluids) do ?>
 	real3 WA_<?=fluid?>_vL = coord_lower(WA.<?=fluid?>_v, x);
 <? end ?>
 	return (<?=eqn.cons_t?>){
-<? for _,fluid in ipairs(fluids) do ?>
+<? for _,fluid in ipairs(eqn.fluids) do ?>
 		.<?=fluid?>_rho = W.<?=fluid?>_rho,
 		.<?=fluid?>_m = real3_add(
 			real3_real_mul(WA.<?=fluid?>_v, W.<?=fluid?>_rho), 
@@ -369,11 +421,11 @@ function TwoFluidEMHDDeDonderGaugeLinearizedGR:initCodeModulePrimCons()
 	<?=eqn.cons_t?> U,
 	real3 x
 ) {
-<? for _,fluid in ipairs(fluids) do ?>
+<? for _,fluid in ipairs(eqn.fluids) do ?>
 	real3 WA_<?=fluid?>_vL = coord_lower(WA.<?=fluid?>_v, x);
 <? end ?>
 	return (<?=eqn.prim_t?>){
-<? for _,fluid in ipairs(fluids) do ?>
+<? for _,fluid in ipairs(eqn.fluids) do ?>
 		.<?=fluid?>_rho = U.<?=fluid?>_rho,
 		.<?=fluid?>_v = real3_sub(
 			real3_real_mul(U.<?=fluid?>_m, 1. / WA.<?=fluid?>_rho),
@@ -394,11 +446,15 @@ function TwoFluidEMHDDeDonderGaugeLinearizedGR:initCodeModulePrimCons()
 	};
 }
 
-]], 	{
-			solver = self.solver,
-			eqn = self,
-			fluids = fluids,
-		}),
+]],
+	}
+end
+
+function TwoFluidEMHDDeDonderGaugeLinearizedGR:getModuleDependsSolver()
+	return {
+		'eqn.common',
+		'eqn.prim-cons',
+		'coord_lower',
 	}
 end
 
@@ -406,7 +462,7 @@ end
 -- should I either make a function for the template arg params
 -- or maybe I shouldn't have super-class'd the initCond code to begin with ...
 function TwoFluidEMHDDeDonderGaugeLinearizedGR:getInitCondCode()
-	return template([[
+	return self:template([[
 <? 
 local cons_t = eqn.cons_t
 local susc_t = eqn.susc_t
@@ -444,7 +500,7 @@ if eqn.useEulerInitState then
 	real ePot = 0;
 <?
 else
-	 for _,fluid in ipairs(fluids) do
+	 for _,fluid in ipairs(eqn.fluids) do
 ?>	real <?=fluid?>_rho = 0;
 	real3 <?=fluid?>_v = real3_zero;
 	real <?=fluid?>_P = 0;
@@ -481,7 +537,7 @@ if eqn.useEulerInitState then
 
 <?	
 else	-- expect the initCond to explicitly provide the ion_ and elec_ Euler fluid variables
-	for _,fluid in ipairs(fluids) do ?>
+	for _,fluid in ipairs(eqn.fluids) do ?>
 	W.<?=fluid?>_rho = <?=fluid?>_rho;
 	W.<?=fluid?>_v = cartesianToCoord(<?=fluid?>_v, x);
 	W.<?=fluid?>_P = <?=fluid?>_P;
@@ -499,20 +555,16 @@ end
 	W.phi_g = 0;
 	UBuf[index] = consFromPrim(solver, W, x);
 }
-]], table({
-		solver = self.solver,
+]], {
 		code = self.initCond:getInitCondCode(self.solver),
-		fluids = fluids,
-	}, self:getEnv()))
+	})
 end
 
 TwoFluidEMHDDeDonderGaugeLinearizedGR.solverCodeFile = 'hydro/eqn/twofluid-emhd-lingr.cl'
 
 function TwoFluidEMHDDeDonderGaugeLinearizedGR:getEnv()
 	local scalar = self.scalar
-	local env = {}
-	env.eqn = self
-	env.solver = self.solver
+	local env = table(TwoFluidEMHDDeDonderGaugeLinearizedGR.super.getEnv(self))
 	env.vec3 = self.vec3
 	env.susc_t = self.susc_t
 	env.scalar = scalar
@@ -550,7 +602,7 @@ TwoFluidEMHDDeDonderGaugeLinearizedGR.predefinedDisplayVars = {
 function TwoFluidEMHDDeDonderGaugeLinearizedGR:getDisplayVars()
 	local vars = TwoFluidEMHDDeDonderGaugeLinearizedGR.super.getDisplayVars(self)
 
-	for _,fluid in ipairs(fluids) do
+	for _,fluid in ipairs(self.fluids) do
 		vars:append{
 			{name=fluid..' v', code='value.vreal3 = W.'..fluid..'_v;', type='real3', units='m/s'},
 			{name=fluid..' P', code='value.vreal = W.'..fluid..'_P;', units='kg/(m*s^2)'},
@@ -655,7 +707,7 @@ end
 TwoFluidEMHDDeDonderGaugeLinearizedGR.eigenVars = eigenVars
 
 function TwoFluidEMHDDeDonderGaugeLinearizedGR:eigenWaveCodePrefix(n, eig, x)
-	return template([[
+	return self:template([[
 <? for i,fluid in ipairs(fluids) do ?>
 	real <?=fluid?>_Cs_nLen = <?=eig?>.<?=fluid?>_Cs * normalInfo_len(n);
 	real <?=fluid?>_v_n = normalInfo_vecDotN1(n, <?=eig?>.<?=fluid?>_v);
@@ -669,18 +721,18 @@ function TwoFluidEMHDDeDonderGaugeLinearizedGR:eigenWaveCodePrefix(n, eig, x)
 end
 
 function TwoFluidEMHDDeDonderGaugeLinearizedGR:eigenWaveCode(n, eig, x, waveIndex)
-	for i,fluid in ipairs(fluids) do
+	for i,fluid in ipairs(self.fluids) do
 		if waveIndex == 0 + 5 * (i-1) then
-			return template('<?=fluid?>_v_n - <?=fluid?>_Cs_nLen', {fluid=fluid})
+			return self:template('<?=fluid?>_v_n - <?=fluid?>_Cs_nLen', {fluid=fluid})
 		elseif waveIndex >= 1 + 5 * (i-1)
 		and waveIndex <= 3 + 5 * (i-1)
 		then
-			return template('<?=fluid?>_v_n', {fluid=fluid})
+			return self:template('<?=fluid?>_v_n', {fluid=fluid})
 		elseif waveIndex == 4 + 5 * (i-1) then
-			return template('<?=fluid?>_v_n + <?=fluid?>_Cs_nLen', {fluid=fluid})
+			return self:template('<?=fluid?>_v_n + <?=fluid?>_Cs_nLen', {fluid=fluid})
 		end
 	end
-	if waveIndex >= 5*#fluids and waveIndex < 5*#fluids+8 then
+	if waveIndex >= 5*#self.fluids and waveIndex < 5*#self.fluids+8 then
 		-- 2014 Abgrall, Kumar eqn 1.9 says the eigenvalues are c, while the flux contains cHat ...
 		return ({
 			'-solver->divPhiWavespeed / unit_m_per_s',
@@ -691,9 +743,9 @@ function TwoFluidEMHDDeDonderGaugeLinearizedGR:eigenWaveCode(n, eig, x, waveInde
 			'solver->speedOfLight / unit_m_per_s',
 			'solver->divPsiWavespeed / unit_m_per_s',
 			'solver->divPhiWavespeed / unit_m_per_s',
-		})[waveIndex - 5*#fluids + 1]
+		})[waveIndex - 5*#self.fluids + 1]
 	end
-	if waveIndex >= 5*#fluids+8 and waveIndex < 5*#fluids+16 then
+	if waveIndex >= 5*#self.fluids+8 and waveIndex < 5*#self.fluids+16 then
 		return ({
 			'-solver->divPhiWavespeed_g / unit_m_per_s',
 			'-solver->divPsiWavespeed_g / unit_m_per_s',
@@ -703,7 +755,7 @@ function TwoFluidEMHDDeDonderGaugeLinearizedGR:eigenWaveCode(n, eig, x, waveInde
 			'solver->speedOfLight / unit_m_per_s',
 			'solver->divPsiWavespeed_g / unit_m_per_s',
 			'solver->divPhiWavespeed_g / unit_m_per_s',
-		})[waveIndex - 5*#fluids - 8 + 1]
+		})[waveIndex - 5*#self.fluids - 8 + 1]
 	end
 	error('got a bad waveIndex: '..waveIndex)
 end
@@ -712,7 +764,7 @@ end
 -- 2014 Abgrall, Kumar eqn 2.25
 -- dt < sqrt( E_alpha,i / rho_alpha,i) * |lHat_r,alpha| sqrt(2) / |E_i + v_alpha,i x B_i|
 function TwoFluidEMHDDeDonderGaugeLinearizedGR:consWaveCodePrefix(n, U, x)
-	return template([[
+	return self:template([[
 	<?=eqn.prim_t?> W = primFromCons(solver, <?=U?>, <?=x?>);
 
 #if 1	//using the EM wavespeed
@@ -738,7 +790,6 @@ function TwoFluidEMHDDeDonderGaugeLinearizedGR:consWaveCodePrefix(n, U, x)
 ?>
 
 ]], {
-		eqn = self,
 		n = n,
 		U = '('..U..')',
 		x = x,

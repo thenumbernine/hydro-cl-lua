@@ -4,10 +4,6 @@ similar to SRHD except using a metric based on a metric of alpha, beta, gamma
 which needs to be provided externally from another solver (via gr-hd-separate-behavior)
 --]]
 local class = require 'ext.class'
-local table = require 'ext.table'
-local file = require 'ext.file'
-local template = require 'template'
-local clnumber = require 'cl.obj.number'
 local Equation = require 'hydro.eqn.eqn'
 
 local GRHD = class(Equation)
@@ -19,10 +15,7 @@ GRHD.numIntStates = 5
 GRHD.hasCalcDTCode = true
 GRHD.useConstrainU = true
 
--- GRHD fluxFromCons will need prims passed to it as well
--- which means overriding the code that calls this? or the calc flux code?
 --GRHD.roeUseFluxFromCons = true
-GRHD.hasFluxFromConsCode = true
 GRHD.useSourceTerm = true
 
 GRHD.initConds = require 'hydro.init.euler'
@@ -35,7 +28,7 @@ end
 -- TODO upgrade this to srhd: put these all in consVars and just make separate cons_only_ and prim_only_t
 -- TODO also upgrade this to initCodeModules.  turn it into a struct, like srhd.
 function GRHD:getTypeCode()
-	return template([[
+	return self:template[[
 typedef union {
 	real ptr[5];
 	struct {
@@ -61,9 +54,7 @@ typedef union {
 		<?=eqn.prim_t?> prim;
 	};
 } <?=eqn.cons_t?>;
-]], {
-	eqn = self,
-})
+]]
 end
 
 function GRHD:createInitState()
@@ -105,7 +96,7 @@ function GRHD:createInitState()
 end
 
 function GRHD:getCommonFuncCode()
-	return template([[
+	return self:template[[
 
 //pressure function for ideal gas
 real calc_P(constant <?=solver.solver_t?>* solver, real rho, real eInt) {
@@ -155,10 +146,7 @@ real calc_h(real rho, real P, real eInt) {
 
 	return (<?=eqn.cons_only_t?>){.D=D, .S=S, .tau=tau};
 }
-]], {
-		eqn = self,
-		solver = self.solver,
-	})
+]]
 end
 
 -- hmm, this is from renovating 'getPrimConsCode() end', but will it work with the module system?
@@ -208,19 +196,19 @@ function GRHD:getDisplayVars()
 	return {
 		{name='D', code='value.vreal = U->cons.D;'},
 		{name='S', code='value.vreal3 = U->cons.S;', type='real3'},
-		{name='S weighted', code=template([[
+		{name='S weighted', code=self:template[[
 	<?=solver:getADMVarCode()?>
 	value.vreal = real3_weightedLen(U->cons.S, gamma);
-]], {solver=self.solver})},
+]]},
 		{name='tau', code='value.vreal = U->cons.tau;'},
 		{name='W based on D', code='value.vreal = U->cons.D / U->prim.rho;'},
-		{name='W based on v', code=template([[
+		{name='W based on v', code=self:template[[
 	<?=solver:getADMVarCode()?>
 	real det_gamma = sym3_det(gamma);
 	sym3 gammaU = sym3_inv(gamma, det_gamma);
 	value.vreal = 1. / sqrt(1. - real3_weightedLenSq(U->prim.v, gammaU));
-]], {solver=self.solver})},
-		{name='primitive reconstruction error', code=template([[
+]]},
+		{name='primitive reconstruction error', code=self:template[[
 	//prim have just been reconstructed from cons
 	//so reconstruct cons from prims again and calculate the difference
 	<?=solver:getADMVarCode()?>
@@ -229,24 +217,24 @@ function GRHD:getDisplayVars()
 	for (int j = 0; j < numIntStates; ++j) {
 		value.vreal += fabs(U->cons.ptr[j] - U2.ptr[j]);
 	}
-]], {eqn=self, solver=self.solver})},
-		{name='W error', code=template([[
+]]},
+		{name='W error', code=self:template[[
 	real W1 = U->cons.D / U->prim.rho;
 	<?=solver:getADMVarCode()?>
 	real det_gamma = sym3_det(gamma);
 	sym3 gammaU = sym3_inv(gamma, det_gamma);
 	real W2 = 1. / sqrt(1. - real3_weightedLenSq(U->prim.v, gammaU));
 	value.vreal = fabs(W1 - W2);
-]], {solver=self.solver})},
+]]},
 
 		{name='rho', code='value.vreal = U->prim.rho;'},
 		
 		-- TODO abstract the generators of real3 variables and add weighted norms automatically
 		{name='v', code='value.vreal3 = U->prim.v;', type='real3'},
-		{name='v weighted', code=template([[
+		{name='v weighted', code=self:template[[
 	<?=solver:getADMVarCode()?>
 	value.vreal = real3_weightedLen(U->prim.v, gamma);
-]], {solver=self.solver})},
+]]},
 
 		{name='eInt', code='value.vreal = U->prim.eInt;'},
 		{name='P', code='value.vreal = calc_P(solver, U->prim.rho, U->prim.eInt);'},
@@ -280,7 +268,7 @@ GRHD.eigenVars = {
 }
 
 function GRHD:eigenWaveCode(side, eig, x, waveIndex)
-	return template(assert(({
+	return self:template(assert(({
 		'<?=eig?>.lambdaMin',
 		'<?=eig?>.vU.x * <?=eig?>.alpha - <?=eig?>.beta.s<?=side?>',
 		'<?=eig?>.vU.x * <?=eig?>.alpha - <?=eig?>.beta.s<?=side?>',

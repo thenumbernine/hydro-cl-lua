@@ -1,10 +1,16 @@
 typedef <?=solver.solver_t?> solver_t;
 typedef <?=eqn.cons_t?> cons_t;
 
+// this is defined ... in cplx3
+#define cplx_add3(a,b,c)		(cplx_add(a, cplx_add(b,c)))
+#define cplx_add4(a,b,c,d)		(cplx_add(a, cplx_add3(b,c,d)))
+#define cplx_add5(a,b,c,d,e)	(cplx_add(a, cplx_add4(b,c,d,e)))
+
 kernel void addSource(
 	constant solver_t* solver,
 	global cons_t* derivBuf,
-	const global cons_t* UBuf
+	const global cons_t* UBuf,
+	const global <?=solver.coord.cell_t?>* cellBuf
 ) {
 	SETBOUNDS_NOGHOST();
 	real3 x = cell_x(i);

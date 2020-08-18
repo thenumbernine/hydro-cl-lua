@@ -11,12 +11,8 @@ rescaled tensors are denoted _U _L etc
 
 Then I'm double checking all against (and borrowing heavily from) Zach Etienne's SENR: https://math.wvu.edu/~zetienne/SENR/
 --]]
-local file = require 'ext.file'
 local class = require 'ext.class'
 local table = require 'ext.table'
-local template = require 'template'
-local common = require 'hydro.common'
-local time, getTime = table.unpack(require 'hydro.util.time')
 local BSSNOKFiniteDifferenceEquationBase = require 'hydro.eqn.bssnok-fd'
 local Struct = require 'hydro.code.struct'
 local makePartials = require 'hydro.eqn.makepartial'
@@ -30,7 +26,6 @@ BSSNOKFiniteDifferenceEquation.initConds = table():append(
 )
 
 BSSNOKFiniteDifferenceEquation.name = 'BSSNOK finite difference' 
-BSSNOKFiniteDifferenceEquation.hasFluxFromConsCode = true
 BSSNOKFiniteDifferenceEquation.useConstrainU = true
 BSSNOKFiniteDifferenceEquation.useSourceTerm = true
 
@@ -90,6 +85,7 @@ function BSSNOKFiniteDifferenceEquation:init(args)
 		{name='H', type='real'},							-- 1
 		{name='M_U', type='real3', variance='u'},			-- 3
 	}
+	self:cdefAllVarTypes(args.solver, self.consVars)	-- have to call before countScalars in eqn:init
 	self.numIntStates = Struct.countScalars{vars=intVars}
 
 	-- call construction / build structures	
@@ -147,13 +143,6 @@ function BSSNOKFiniteDifferenceEquation:compile(expr)
 	return self.solver.coord:compile(expr)
 end
 
-function BSSNOKFiniteDifferenceEquation:getEnv()
-	return table(common, {
-		eqn = self,
-		solver = self.solver,
-	})
-end
-
 function BSSNOKFiniteDifferenceEquation:initCodeModules()
 	BSSNOKFiniteDifferenceEquation.super.initCodeModules(self)
 	local solver = self.solver
@@ -169,13 +158,20 @@ function BSSNOKFiniteDifferenceEquation:initCodeModules()
 	}
 end
 
+function BSSNOKFiniteDifferenceEquation:getModuleDependsApplyInitCond() 
+	return table(BSSNOKFiniteDifferenceEquation.super.getModuleDependsApplyInitCond(self)):append{
+		'_3sym3',		-- still used by some vars
+		'calc_gammaHat_ll/uu/det',
+		'eqn.common',	-- *_rescaleTo/FromCoord_*
+	}
+end
+
 --[[
 Should initCond provide a metric in cartesian, or in the background metric?
 I'll say Cartesian for now, and then transform them using the rescaling.
 --]]
 function BSSNOKFiniteDifferenceEquation:getInitCondCode()
 	-- do this first to initialize the expression fields
-	local env = self:getEnv()
 	local initCond = self.initCond
 	
 	-- look for symmath expressions instead of code
@@ -186,7 +182,7 @@ function BSSNOKFiniteDifferenceEquation:getInitCondCode()
 		local partial_gamma0_lll = initCond.gamma0_ll'_ij,k'():permute'_ijk'
 		local det_gamma = symmath.Matrix.determinant(initCond.gamma0_ll)
 
-		return template([[
+		return self:template([[
 kernel void applyInitCond(
 	constant <?=solver.solver_t?>* solver,
 	constant <?=solver.initCond_t?>* initCond,
@@ -330,19 +326,17 @@ end ?>
 	U->H = 0.;
 	U->M_U = real3_zero;
 }
-]], 	setmetatable({
+]], 	{
 			compile = compile,
 			initCond = initCond,
 			partial_gamma0_lll = partial_gamma0_lll,
-		}, {
-			__index = env,
-		}))
+		})
 	end
 
 	-- if we're using a SENR init cond then init the components directly
 	-- TODO port these from sympy into symmath 
 	if require 'hydro.init.senr'[1].super.is(initCond) then
-		return template([=[
+		return self:template([=[
 kernel void applyInitCond(
 	constant <?=solver.solver_t?>* solver,
 	constant <?=solver.initCond_t?>* initCond,
@@ -399,12 +393,12 @@ kernel void applyInitCond(
 	U->Pi = Pi;
 <? end ?>
 }
-]=], 	table(env, {
+]=], 	{
 			code = initCond:getInitCondCode(self.solver),
-		}))
+		})
 	end
 
-	return template([=[
+	return self:template([=[
 kernel void applyInitCond(
 	constant <?=solver.solver_t?>* solver,
 	constant <?=solver.initCond_t?>* initCond,
@@ -514,28 +508,21 @@ kernel void initDerivs(
 	
 	U->LambdaBar_U = real3_add(_3sym3_sym3_dot23(Delta_ULL, gammaBar_UU), mystery_C_U);
 }
-]=], table(env, {
+]=], {
 		code = initCond:getInitCondCode(self.solver),
-	}))
-end
-
-function BSSNOKFiniteDifferenceEquation:getModuleDependsApplyInitCond() 
-	return table(BSSNOKFiniteDifferenceEquation.super.getModuleDependsApplyInitCond(self)):append{
-		'_3sym3',
-	}
+	})
 end
 
 BSSNOKFiniteDifferenceEquation.solverCodeFile = 'hydro/eqn/bssnok-fd-num.cl'
 
 function BSSNOKFiniteDifferenceEquation:getCommonFuncCode()
-	return template(file[self.solverCodeFile], table(self:getEnv(), {getCommonCode=true}))
+	return self:template(require 'ext.file'[self.solverCodeFile], {getCommonCode=true})
 end
 
 function BSSNOKFiniteDifferenceEquation:getModuleDependsSolver() 
 	return {
 		'eqn.common',
 		'_3sym3',
-		'sym3sym3',
 		'calc_gammaHat_ll/uu/det',
 		'real3x3x3',
 		-- only for display code. (actually most this is only for display code)
@@ -699,7 +686,6 @@ BSSNOKFiniteDifferenceEquation.predefinedDisplayVars = {
 
 function BSSNOKFiniteDifferenceEquation:getDisplayVars()	
 	local vars = BSSNOKFiniteDifferenceEquation.super.getDisplayVars(self)
-	local env = self:getEnv()
 
 	vars:append{
 		{name='gamma_ll', code = [[	value.vsym3 = calc_gamma_ll(U, x);]], type='sym3'},
@@ -759,7 +745,7 @@ function BSSNOKFiniteDifferenceEquation:getDisplayVars()
 --[=[	
 		{	-- gammaBar^ij DBar_i DBar_j phi
 			name = 'tr_DBar2_phi',
-			code = template([[
+			code = self:template[[
 	
 <?=eqn:makePartial1'epsilon_LL'?>
 	_3sym3 partial_gammaBar_LLL = calc_partial_gammaBar_LLL(x, U->epsilon_LL, partial_epsilon_LLl);
@@ -804,13 +790,13 @@ end
 ?>	;
 
 	value.vreal = tr_DBar2_phi;
-]], env)
+]]
 		},
 
 
 		{
 			name = 'DBar2_phi_ll',
-			code = template([[
+			code = self:template[[
 <?=eqn:makePartial1'W'?>
 <?=eqn:makePartial2'W'?>
 	
@@ -848,33 +834,33 @@ end
 ?>	
 
 	value.vreal = sym3_dot(gammaBar_UU, DBar2_phi_LL);
-]], env),
+]],
  		},
 --]=]
 
 		{
 			name = 'partial_phi_l',
 			type = 'real3',
-			code = template([[
+			code = self:template[[
 <?=eqn:makePartial1'W'?>
 	real3 partial_phi_l = real3_real_mul(partial_W_l, -.5 / U->W);
 	value.vreal3 = partial_phi_l;
-]], env),
+]],
 		},
 
 		{
 			name = 'partial_alpha_l',
 			type = 'real3',
-			code = template([[
+			code = self:template[[
 <?=eqn:makePartial1'alpha'?>
 	value.vreal3 = partial_alpha_l;
-]], env),
+]],
 		},
 
 --[=[
 		{
 			name = 'DBar2_alpha_ll',
-			code = template([[
+			code = self:template[[
 <?=eqn:makePartial1'alpha'?>
 <?=eqn:makePartial2'alpha'?>
 <?=eqn:makePartial1'epsilon_LL'?>
@@ -895,13 +881,13 @@ end
 ?>
 
 	value.vreal = sym3_dot(gammaBar_UU, DBar2_alpha_LL);
-]], env),
+]],
 		},
 	
 		{
 			name = 'tracelessPart_LL',
 			type = 'sym3',
-			code = template([[
+			code = self:template[[
 	
 <?=eqn:makePartial1'alpha'?>
 <?=eqn:makePartial2'alpha'?>
@@ -981,7 +967,7 @@ end
 	tracelessPart_LL = tracefree(tracelessPart_LL, gammaBar_LL, gammaBar_UU);
 
 	value.vsym3 = tracelessPart_LL; 
-]], env),
+]],
 		},
 --]=]	
 	}
@@ -1010,7 +996,7 @@ using gamma = gammaHat / W^6
 --]]
 	vars:insert{
 		name = 'expansion', 
-		code = template([[
+		code = self:template[[
 <?=eqn:makePartial1'W'?>
 <?=eqn:makePartial1'alpha'?>
 <?=eqn:makePartial1'beta_U'?>
@@ -1045,7 +1031,7 @@ for i,xi in ipairs(xNames) do
 <?	end
 end
 ?>		- U->K;
-]], env)
+]],
 	}
 --]=]		
 --[=[
@@ -1078,7 +1064,7 @@ end
 		--]]
 	vars:insert{
 		name = 'gravity',
-		code = template([[
+		code = self:template[[
 <?=eqn:makePartial1'alpha'?>
 
 	real _1_alpha = 1. / U->alpha;
@@ -1180,7 +1166,7 @@ end ?>;
 <? end
 ?>
 <? end	-- eqn.useShift ?>
-]], env), 
+]],
 		type = 'real3',
 	}
 --]=]
@@ -1190,8 +1176,7 @@ end ?>;
 		vars:insert{
 			name = 'RBar_LL',
 			type = 'sym3',
-			code = template([[
-	
+			code = self:template[[
 	//partial_LambdaBar_Ul[j].i := LambdaBar^i_,j
 <?=eqn:makePartial1'LambdaBar_U'?>
 	//partial_LambdaBar_UL.I.J := e_i^I (Lambda^M e^i_M)_,j e^j_J
@@ -1239,7 +1224,7 @@ end ?>;
 		Delta_LLL);
 
 	value.vsym3 = sym3_rescaleToCoord_LL(RBar_LL, x);
-]], env),
+]],
 		}
 	end
 --]=]		
@@ -1247,7 +1232,7 @@ end ?>;
 	vars:insert{
 		name = 'RPhi_LL',
 		type = 'sym3',
-		code = template([[
+		code = self:template[[
 
 <?=eqn:makePartial1'W'?>
 <?=eqn:makePartial2'W'?>
@@ -1304,7 +1289,7 @@ end ?>;
 ?>	};
 
 	value.vsym3 = RPhi_ll;
-]], env),
+]],
 	}
 
 --[[
@@ -1330,7 +1315,7 @@ gammaBar^kl = inv(gammaBar_kl)
 	vars:insert{
 		name='trBar_partial2_gammaBar_ll',
 		type = 'sym3',
-		code = template([[
+		code = self:template[[
 	sym3 gammaBar_LL = calc_gammaBar_LL(U, x);
 	real det_gammaBarLL = calc_det_gammaBarLL(x);
 	sym3 gammaBar_UU = sym3_inv(gammaBar_LL, det_gammaBarLL);
@@ -1345,7 +1330,7 @@ gammaBar^kl = inv(gammaBar_kl)
 		partial2_epsilon_LLll);
 
 	value.vsym3 = trBar_partial2_gammaBar_ll;
-]], env),
+]],
 	}
 --]=]
 
@@ -1353,7 +1338,7 @@ gammaBar^kl = inv(gammaBar_kl)
 	vars:insert{
 		name = 'tr34 (gamma*dGamma)',
 		type = 'real3x3',
-		code = template([[
+		code = self:template[[
 
 	sym3 gammaBar_LL = calc_gammaBar_LL(U, x);
 	real det_gammaBarLL = calc_det_gammaBarLL(x);
@@ -1380,7 +1365,7 @@ end
 ?>
 	
 	value.vreal3x3 = tr34_gamma_dGamma_ll;
-]], env),
+]],
 	}
 --]=]
 
@@ -1388,7 +1373,7 @@ end
 	vars:insert{
 		name = 'tr14 (Gamma*dgamma)',
 		type = 'real3x3',
-		code = template([[
+		code = self:template[[
 <?=eqn:makePartial1'epsilon_LL'?>
 	_3sym3 partial_gammaBar_LLL = calc_partial_gammaBar_LLL(x, U->epsilon_LL, partial_epsilon_LLl);
 
@@ -1424,7 +1409,7 @@ for i,xi in ipairs(xNames) do
 end
 ?>
 	value.vreal3x3 = tr14_Gamma_dgamma_ll;
-]], env),
+]],
 	}
 --]=]
 
@@ -1433,7 +1418,7 @@ end
 		vars:insert{
 			name = 'Delta_ULL '..xi,
 			type = 'sym3',
-			code = template([[
+			code = self:template[[
 	sym3 gammaBar_LL = calc_gammaBar_LL(U, x);
 	real det_gammaBarLL = calc_det_gammaBarLL(x);
 	sym3 gammaBar_UU = sym3_inv(gammaBar_LL, det_gammaBarLL);
@@ -1450,7 +1435,7 @@ end
 	_3sym3 Delta_ULL = _3sym3_sub(connBar_ULL, connHat_ULL);
 
 	value.vsym3 = Delta_ULL.<?=xi?>;
-]], table(env, {i=i, xi=xi})),
+]], {i=i, xi=xi}),
 		}
 	end
 --]=]
@@ -1459,7 +1444,7 @@ end
 	vars:insert{
 		name = 'Delta_U',
 		type = 'real3',
-		code = template([[
+		code = self:template[[
 	sym3 gammaBar_LL = calc_gammaBar_LL(U, x);
 	real det_gammaBarLL = calc_det_gammaBarLL(x);
 	sym3 gammaBar_UU = sym3_inv(gammaBar_LL, det_gammaBarLL);
@@ -1479,27 +1464,27 @@ end
 ?>	value_real3-><?=xi?> = sym3_dot(gammaBar_UU, Delta_ULL.<?=xi?>);
 <? end
 ?>
-]], env),
+]],
 	}
 --]=]
 
 -- [=[
 	vars:insert{
 		name='tr_ABarSq',
-		code = template([[
+		code = self:template[[
 	sym3 gammaBar_UU = calc_gammaBar_UU(U, x);
 	real3x3 ABar_UL = sym3_sym3_mul(gammaBar_UU, U->ABar_LL);
 	sym3 ABar_UU = real3x3_sym3_to_sym3_mul(ABar_UL, gammaBar_UU);
 	real tr_ABarSq = sym3_dot(U->ABar_LL, ABar_UU);
 	value.vreal = tr_ABarSq;
-]], env),
+]],
 	}
 --]=]
 
 -- [=[
 	vars:insert{
 		name='tr_DBar2_alpha',
-		code = template([[
+		code = self:template[[
 <?=eqn:makePartial1'alpha'?>
 	real3 partial_alpha_L = real3_rescaleFromCoord_l(partial_alpha_l, x);
 <?=eqn:makePartial2'alpha'?>		//partial2_alpha_ll.ij := alpha_,ij
@@ -1511,7 +1496,7 @@ end
 	sym3 DBar2_alpha_LL = sym3_sub(partial2_alpha_LL, real3_3sym3_dot1(partial_alpha_L, connBar_ULL));
 	real tr_DBar2_alpha = sym3_dot(gammaBar_UU, DBar2_alpha_LL);
 	value.vreal = tr_DBar2_alpha;
-]], env),
+]],
 	}
 --]=]
 

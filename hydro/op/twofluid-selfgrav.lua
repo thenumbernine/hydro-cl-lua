@@ -41,7 +41,8 @@ real3 calcGravityAccel<?=op.name?>(
 kernel void calcGravityDeriv<?=op.name?>(
 	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* derivBuffer,
-	global const <?=eqn.cons_t?>* UBuf
+	global const <?=eqn.cons_t?>* UBuf,
+	global const <?=solver.coord.cell_t?>* cellBuf
 ) {
 	SETBOUNDS(numGhost,numGhost);
 	real3 x = cell_x(i);

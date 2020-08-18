@@ -1,7 +1,5 @@
 <?
 local clnumber = require 'cl.obj.number'
-local fluids = eqn.fluids
-local xNames = require 'hydro.common'.xNames
 ?>
 
 #define sqrt_1_2 <?=('%.50f'):format(math.sqrt(.5))?>
@@ -26,59 +24,6 @@ typedef <?=eqn.eigen_t?> eigen_t;
 typedef <?=eqn.waves_t?> waves_t;
 typedef <?=solver.solver_t?> solver_t;
 
-cons_t fluxFromCons(
-	constant solver_t* solver,
-	cons_t U,
-	real3 x,
-	normalInfo_t n
-) {
-	prim_t W = primFromCons(solver, U, x);
-	cons_t F;
-
-<? 
-for _,fluid in ipairs(fluids) do
-?>	real <?=fluid?>_vj = normalInfo_vecDotN1(n, W.<?=fluid?>_v);
-	real <?=fluid?>_HTotal = U.<?=fluid?>_ETotal + W.<?=fluid?>_P;
-	
-	F.<?=fluid?>_rho = normalInfo_vecDotN1(n, U.<?=fluid?>_m);
-	F.<?=fluid?>_m = real3_real_mul(U.<?=fluid?>_m, <?=fluid?>_vj);
-<? 	for i,xi in ipairs(xNames) do
-?>	F.<?=fluid?>_m.<?=xi?> += normalInfo_u1<?=xi?>(n) * W.<?=fluid?>_P;
-<? 	end
-?>	F.<?=fluid?>_ETotal = <?=fluid?>_HTotal * <?=fluid?>_vj;
-<? 
-end
-?>
-	
-	real eps = solver->sqrt_eps * solver->sqrt_eps / unit_C2_s2_per_kg_m3;
-	real mu = solver->sqrt_mu * solver->sqrt_mu / unit_kg_m_per_C2;
-	real G = solver->sqrt_G * solver->sqrt_G / unit_m3_per_kg_s2;
-	real speedOfLightSq = solver->speedOfLight * solver->speedOfLight / unit_m2_per_s2;
-	real eps_g = 1. / (4. * M_PI * G);
-	real mu_g = 1. / (eps_g * speedOfLightSq);
-
-	//taken from glm-maxwell instead of the 2014 Abgrall, Kumar
-	// then replace D = epsilon E and phi' -> epsilon phi
-	<? for _,suffix in ipairs{'', '_g'} do ?>{
-		real3 E = real3_real_mul(U.D<?=suffix?>, 1. / eps<?=suffix?>);
-		real3 H = real3_real_mul(U.B<?=suffix?>, 1. / mu<?=suffix?>);
-		if (n.side == 0) {
-			F.D<?=suffix?> = _real3(U.phi<?=suffix?> * solver->divPhiWavespeed<?=suffix?> / unit_m_per_s, H.z, -H.y);
-			F.B<?=suffix?> = _real3(U.psi<?=suffix?> * solver->divPsiWavespeed<?=suffix?> / unit_m_per_s, -E.z, E.y);
-		} else if (n.side == 1) {
-			F.D<?=suffix?> = _real3(-H.z, U.phi<?=suffix?> * solver->divPhiWavespeed<?=suffix?> / unit_m_per_s, H.x);
-			F.B<?=suffix?> = _real3(E.z, U.psi<?=suffix?> * solver->divPsiWavespeed<?=suffix?> / unit_m_per_s, -E.x);
-		} else if (n.side == 2) {
-			F.D<?=suffix?> = _real3(H.y, -H.x, U.phi<?=suffix?> * solver->divPhiWavespeed<?=suffix?> / unit_m_per_s);
-			F.B<?=suffix?> = _real3(-E.y, E.x, U.psi<?=suffix?> * solver->divPsiWavespeed<?=suffix?> / unit_m_per_s);
-		}
-		F.phi<?=suffix?> = normalInfo_vecDotN1(n, U.D<?=suffix?>) * solver->divPhiWavespeed<?=suffix?> / unit_m_per_s;
-		F.psi<?=suffix?> = normalInfo_vecDotN1(n, U.B<?=suffix?>) * solver->divPsiWavespeed<?=suffix?> / unit_m_per_s;
-	}<? end ?>
-
-	return F;
-}
-
 eigen_t eigen_forInterface(
 	constant solver_t* solver,
 	cons_t UL,
@@ -90,7 +35,7 @@ eigen_t eigen_forInterface(
 	prim_t WR = primFromCons(solver, UR, x);
 	eigen_t eig;
 
-<? for _,fluid in ipairs(fluids) do ?>
+<? for _,fluid in ipairs(eqn.fluids) do ?>
 
 	real <?=fluid?>_sqrtRhoL = sqrt(WL.<?=fluid?>_rho);
 	real3 <?=fluid?>_vL = WL.<?=fluid?>_v;
@@ -133,7 +78,7 @@ eigen_t eigen_forCell(
 	normalInfo_t n
 ) {
 	prim_t W = primFromCons(solver, U, x);
-<? for _,fluid in ipairs(fluids) do ?>
+<? for _,fluid in ipairs(eqn.fluids) do ?>
 	real <?=fluid?>_vSq = coordLenSq(W.<?=fluid?>_v, x);
 	real <?=fluid?>_eKin = .5 * <?=fluid?>_vSq;
 	real <?=fluid?>_hTotal = calc_hTotal(solver, W.<?=fluid?>_rho, W.<?=fluid?>_P, U.<?=fluid?>_ETotal);
@@ -141,7 +86,7 @@ eigen_t eigen_forCell(
 	real <?=fluid?>_Cs = sqrt(<?=fluid?>_CsSq);
 <? end ?>	
 	return (eigen_t){
-<? for _,fluid in ipairs(fluids) do ?>
+<? for _,fluid in ipairs(eqn.fluids) do ?>
 		.<?=fluid?>_rho = W.<?=fluid?>_rho,
 		.<?=fluid?>_v = W.<?=fluid?>_v,
 		.<?=fluid?>_hTotal = <?=fluid?>_hTotal,
@@ -225,7 +170,7 @@ waves_t eigen_leftTransform(
 
 	if (n.side == 0) {
 <?
-					for i,fluid in ipairs(fluids) do
+					for i,fluid in ipairs(eqn.fluids) do
 ?>
 		Y[<?=5*i-5?>] = (X[<?=5*i-5?>] * (.5 * heatRatioMinusOne * <?=fluid?>_vSq + <?=fluid?>_Cs * <?=fluid?>_v.x / nLen)
 			+ X[<?=5*i-4?>] * (-heatRatioMinusOne * <?=fluid?>_vL.x - <?=fluid?>_Cs / nLen)
@@ -272,7 +217,7 @@ waves_t eigen_leftTransform(
 
 	} else if (n.side == 1) {
 <?	
-					for i,fluid in ipairs(fluids) do
+					for i,fluid in ipairs(eqn.fluids) do
 ?>
 		Y[<?=5*i-5?>] = (X[<?=5*i-5?>] * (.5 * heatRatioMinusOne * <?=fluid?>_vSq + <?=fluid?>_Cs * <?=fluid?>_v.y / nLen)
 			+ X[<?=5*i-4?>] * -heatRatioMinusOne * <?=fluid?>_vL.x
@@ -319,7 +264,7 @@ waves_t eigen_leftTransform(
 
 	} else if (n.side == 2) {
 <?
-					for i,fluid in ipairs(fluids) do
+					for i,fluid in ipairs(eqn.fluids) do
 ?>
 		Y[<?=5*i-5?>] = (X[<?=5*i-5?>] * (.5 * heatRatioMinusOne * <?=fluid?>_vSq + <?=fluid?>_Cs * <?=fluid?>_v.z / nLen)
 			+ X[<?=5*i-4?>] * -heatRatioMinusOne * <?=fluid?>_vL.x
@@ -396,7 +341,7 @@ cons_t eigen_rightTransform(
 	
 	if (n.side == 0) {
 <?
-					for i,fluid in ipairs(fluids) do
+					for i,fluid in ipairs(eqn.fluids) do
 ?>
 		Y[<?=5*i-5?>] = X[<?=5*i-5?>] + X[<?=5*i-4?>] + X[<?=5*i-1?>];
 		Y[<?=5*i-4?>] = X[<?=5*i-5?>] * (<?=fluid?>_v.x - <?=fluid?>_Cs * nLen)
@@ -436,7 +381,7 @@ cons_t eigen_rightTransform(
 
 	} else if (n.side == 1) {
 <?
-					for i,fluid in ipairs(fluids) do
+					for i,fluid in ipairs(eqn.fluids) do
 ?>	
 		Y[<?=5*i-5?>] = X[<?=5*i-5?>] + X[<?=5*i-3?>] + X[<?=5*i-1?>];
 		Y[<?=5*i-4?>] = X[<?=5*i-5?>] * (<?=fluid?>_v.x - <?=fluid?>_Cs * nU.x / nLen)
@@ -476,7 +421,7 @@ cons_t eigen_rightTransform(
 
 	} else if (n.side == 2) {
 <?
-					for i,fluid in ipairs(fluids) do
+					for i,fluid in ipairs(eqn.fluids) do
 ?>
 		Y[<?=5*i-5?>] = X[<?=5*i-5?>] + X[<?=5*i-2?>] + X[<?=5*i-1?>];
 		Y[<?=5*i-4?>] = X[<?=5*i-5?>] * (<?=fluid?>_v.x - <?=fluid?>_Cs * nU.x / nLen)
@@ -530,7 +475,7 @@ cons_t eigen_fluxTransform(
 	cons_t UY;
 	real* X = UX.ptr;
 <?
-					for i,fluid	in ipairs(fluids) do 
+					for i,fluid	in ipairs(eqn.fluids) do 
 ?>
 	UY.<?=fluid?>_rho = X[<?=5*i-4?>] * nx 
 		+ X[<?=5*i-3?>] * ny 
@@ -703,7 +648,7 @@ kernel void addSource(
 	//connection coefficient source terms of covariant derivative w/contravariant velocity vectors in a holonomic coordinate system
 	prim_t W = primFromCons(solver, *U, x);
 	real3 conn1_u = coord_conn_trace23(x);
-	<? for _,fluid in ipairs(fluids) do ?>{
+	<? for _,fluid in ipairs(eqn.fluids) do ?>{
 		real3 m_conn_vv = coord_conn_apply23(W.<?=fluid?>_v, U-><?=fluid?>_m, x);
 		deriv-><?=fluid?>_m = real3_sub(deriv-><?=fluid?>_m, m_conn_vv);	//-Conn^i_jk rho v^j v^k 
 		deriv-><?=fluid?>_m = real3_add(deriv-><?=fluid?>_m, real3_real_mul(coord_raise(coord_conn_trace13(x), x), W.<?=fluid?>_P));		//+Conn^j_kj g^ki P
@@ -723,7 +668,7 @@ kernel void constrainU(
 	real3 x = cellBuf[index].pos;
 	prim_t W = primFromCons(solver, *U, x);
 
-<? for _,fluid in ipairs(fluids) do
+<? for _,fluid in ipairs(eqn.fluids) do
 ?>	W.<?=fluid?>_rho = max((real)W.<?=fluid?>_rho, (real)solver->min_<?=fluid?>_rho);
 	W.<?=fluid?>_P = max((real)W.<?=fluid?>_P, (real)solver->min_<?=fluid?>_P);
 <? end

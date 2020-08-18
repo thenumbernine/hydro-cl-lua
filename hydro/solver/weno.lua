@@ -70,7 +70,8 @@ function WENO:initCodeModules()
 	self.modules:add{
 		name = 'WENO.calcFlux',
 		depends = {
-			'eqn.solvercode',	-- in Euler this has fluxFromCons
+			--'eqn.solvercode',
+			'fluxFromCons',
 			'coord.normal',
 		},
 		code = template(file['hydro/solver/weno.cl'], {
