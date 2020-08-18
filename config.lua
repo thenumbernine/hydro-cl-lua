@@ -998,4 +998,8 @@ end
 if cmdline['bssnok-fd-senr'] then
 	self.solvers:insert(require 'hydro.solver.bssnok-fd'(table(args, {eqn = 'bssnok-fd-senr'})))
 end
+
+if cmdline['bssnok-fd-num-pirk'] then
+	self.solvers:insert(require 'hydro.solver.bssnok-fd-pirk'(table(args, {eqn = 'bssnok-fd-num'})))
+end
 --]=]

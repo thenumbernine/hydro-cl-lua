@@ -53,22 +53,50 @@ function BSSNOKFiniteDifferencePIRKSolver:refreshBoundaryProgram()
 	local args = self:getBoundaryProgramArgs()
 	self.PIRK_EpsilonWAlphaBeta_BoundaryProgramObj, self.PIRK_EpsilonWAlphaBeta_BoundaryKernelObjs 
 		= self:createBoundaryProgramAndKernel(table(args, {
-			fields = {'epsilon_LL', 'W', 'alpha', 'beta_U'},
+			fields = {
+				'alpha',
+				'W',
+				'epsilon_LL.xx',
+				'epsilon_LL.xy',
+				'epsilon_LL.xz',
+				'epsilon_LL.yy',
+				'epsilon_LL.yz',
+				'epsilon_LL.zz',
+				'beta_U.x',
+				'beta_U.y',
+				'beta_U.z',
+			},
 			programNameSuffix = '-epsilon_LL,W,alpha,beta_U',
 		}))
 	self.PIRK_LambdaBar_BoundaryProgramObj, self.PIRK_LambdaBar_BoundaryKernelObjs 
 		= self:createBoundaryProgramAndKernel(table(args, {
-			fields = {'LambdaBar_U'},
+			fields = {
+				'LambdaBar_U.x',
+				'LambdaBar_U.y',
+				'LambdaBar_U.z',
+			},
 			programNameSuffx = '-LambdaBar_U',
 		}))
 	self.PIRK_ABarK_BoundaryProgramObj, self.PIRK_ABarK_BoundaryKernelObjs = 
 		self:createBoundaryProgramAndKernel(table(args, {
-			fields = {'ABar_LL', 'K'},
+			fields = {
+				'K',
+				'ABar_LL.xx',
+				'ABar_LL.xy',
+				'ABar_LL.xz',
+				'ABar_LL.yy',
+				'ABar_LL.yz',
+				'ABar_LL.zz',
+			},
 			programNameSuffix = '-ABar_LL,K',
 		}))
 	self.PIRK_B_BoundaryProgramObj, self.PIRK_B_BoundaryKernelObjs =
 		self:createBoundaryProgramAndKernel(table(args, {
-			fields = {'B_U'},
+			fields = {
+				'B_U.x',
+				'B_U.y',
+				'B_U.z',
+			},
 			programNameSuffix = '-B_U',
 		}))
 end
@@ -266,7 +294,7 @@ function BSSNOKFiniteDifferencePIRKSolver:step(dt)
 	self.calcDeriv_PIRK_L2_LambdaBar_KernelObj(self.solverBuf, self.derivL2_n, self.UBuf, self.cellBuf)
 	self.calcDeriv_PIRK_L2_LambdaBar_KernelObj(self.solverBuf, self.derivL2_next, self.UNext, self.cellBuf)
 	self.calcDeriv_PIRK_L3_LambdaBar_KernelObj(self.solverBuf, self.derivL3_n, self.UBuf, self.cellBuf)
-	self.calcDeriv_PIRK_L3_LambdaBar_KernelObj(self.solverBuf, self.derivL3_1, self.UTemp--[[self.U1--]], self.cellBuf
+	self.calcDeriv_PIRK_L3_LambdaBar_KernelObj(self.solverBuf, self.derivL3_1, self.UTemp--[[self.U1--]], self.cellBuf)
 	
 	-- UNext = UBuf + 0.5 * dt * (derivL2_n + derivL2_next + derivL3_n + derivL3_1)
 	self.PIRK_Eq4_LambdaBar_KernelObj(self.solverBuf, self.UNext, self.UBuf, self.derivL2_n, self.derivL2_next, self.derivL3_n, self.derivL3_1, real(dt))
