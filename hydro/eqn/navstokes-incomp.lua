@@ -8,14 +8,6 @@ NavierStokesDivFree.name = 'Navier-Stokes div-free'
 NavierStokesDivFree.hasCalcDTCode = true
 NavierStokesDivFree.numStates = 4
 
-NavierStokesDivFree.reflectVars = {
-	mirror = {
-		{'v.x'},
-		{'v.y'},
-		{'v.z'},
-	},
-}
-
 NavierStokesDivFree.initConds = require 'hydro.init.euler'
 
 function NavierStokesDivFree:getTypeCode()

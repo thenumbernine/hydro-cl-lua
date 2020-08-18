@@ -28,14 +28,6 @@ local xNames = common.xNames
 local GLM_Maxwell = class(Equation)
 GLM_Maxwell.name = 'GLM_Maxwell'
 
-GLM_Maxwell.reflectVars = {
-	mirror = {
-		{'D.x', 'B.x'},
-		{'D.y', 'B.y'},
-		{'D.z', 'B.z'},
-	},
-}
-
 GLM_Maxwell.hasFluxFromConsCode = true
 GLM_Maxwell.useSourceTerm = true
 GLM_Maxwell.roeUseFluxFromCons = true
