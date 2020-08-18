@@ -152,8 +152,6 @@ io.stderr:write'WARNING!!! make sure gr.UBuf is initialized first!\n'
 		numStates = self.solvers:map(function(solver) return solver.eqn.numStates end):sum(),
 		numIntStates = self.solvers:map(function(solver) return solver.eqn.numIntStates end):sum(),
 		numWaves = self.solvers:map(function(solver) return solver.eqn.numWaves end):sum(),
-		getEigenTypeCode = function() end,
-		getCodePrefix = function() end,
 	}
 
 	-- call this after we've assigned 'self' all its fields

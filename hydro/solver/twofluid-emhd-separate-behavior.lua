@@ -107,8 +107,6 @@ local function TwoFluidEMHDBehavior(parent)
 					'// TwoFluidEMHDSeparateBehavior.eqn:getTypeCode() end',
 				}:concat'\n'
 			end,
-			getEigenTypeCode = function() end,
-			getCodePrefix = function() end,
 			getEnv = function() return self.maxwell.eqn:getEnv() end,
 		}
 

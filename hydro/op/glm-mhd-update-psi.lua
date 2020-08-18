@@ -13,17 +13,11 @@ function GLM_MHD_UpdatePsi:initCodeModules(solver)
 	solver.modules:add{
 		name = 'op.GLM_MHD_UpdatePsi',
 		code = template([[
-<?
-local solver = op.solver
-local eqn = solver.eqn
-?>
 kernel void updatePsi(
 	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* UBuf,
-	real dt
-<? if require 'hydro.solver.meshsolver'.is(solver) then ?>
-	,const global cell_t* cells
-<? end ?>
+	real dt,
+	const global <?=solver.coord.cell_t?>* cellBuf
 ) {
 	SETBOUNDS(0,0);
 	real3 x = cell_x(i);
@@ -45,6 +39,8 @@ kernel void updatePsi(
 }
 ]], 	{
 			op = self,
+			solver = self.solver,
+			eqn = self.solver.eqn,
 		}),
 	}
 	solver.solverModulesEnabled['op.GLM_MHD_UpdatePsi'] = true
@@ -52,10 +48,7 @@ end
 
 function GLM_MHD_UpdatePsi:refreshSolverProgram()
 	local solver = self.solver
-	self.updatePsiKernelObj = solver.solverProgramObj:kernel('updatePsi', solver.solverBuf, solver.UBuf)
-	if require 'hydro.solver.meshsolver'.is(solver) then
-		self.updatePsiKernelObj.obj:setArg(3, solver.cellBuf)
-	end
+	self.updatePsiKernelObj = solver.solverProgramObj:kernel('updatePsi', solver.solverBuf, solver.UBuf, solver.cellBuf)
 end
 
 function GLM_MHD_UpdatePsi:step(dt)

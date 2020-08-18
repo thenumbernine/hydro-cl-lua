@@ -23,7 +23,6 @@ local makePartials = require 'hydro.eqn.makepartial'
 
 local BSSNOKFiniteDifferenceEquation = class(BSSNOKFiniteDifferenceEquationBase)
 BSSNOKFiniteDifferenceEquation.name = 'BSSNOK finite difference' 
-BSSNOKFiniteDifferenceEquation.hasCalcDTCode = true
 BSSNOKFiniteDifferenceEquation.hasFluxFromConsCode = true
 BSSNOKFiniteDifferenceEquation.useConstrainU = true
 BSSNOKFiniteDifferenceEquation.useSourceTerm = true
@@ -1842,12 +1841,6 @@ kernel void initDerivs(
 end
 
 BSSNOKFiniteDifferenceEquation.solverCodeFile = 'hydro/eqn/bssnok-fd-sym.cl'
-
-function BSSNOKFiniteDifferenceEquation:getEigenTypeCode()
-	return template([[
-typedef struct { char unused; } <?=eqn.eigen_t?>;
-]], {eqn=self})
-end
 
 BSSNOKFiniteDifferenceEquation.predefinedDisplayVars = {
 -- [=[

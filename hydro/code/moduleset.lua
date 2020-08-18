@@ -47,6 +47,7 @@ print('building:')
 	local function add(name, from, indent, last)
 		local range = require 'ext.range'
 		indent = indent or ''
+		local indentlen = #indent
 		
 		local module, deps
 		if not addedkeys[name] then
@@ -63,7 +64,7 @@ print('building:')
 			end)
 		end
 		local numdeps = deps and #deps or 0
-		local indentlen = #indent
+		
 		local str = range(indentlen):mapi(function(i)
 			if i < indentlen then
 				return '│'
@@ -72,22 +73,23 @@ print('building:')
 		end):concat()
 			..(numdeps > 0 and '┴' or '─')	-- ┬
 			..'─> '..name
+		
 		-- don't include twice
 		if module then
 			assert(addedkeys[name])
 			for i=1,numdeps do
 				local dep = deps[i]
-				add(dep, name, indent..' ', i == 1)--numdeps)
-				--pm1 = pm1:sub(1, -2):gsub('.', '│')  .. (i < n and '├' or '└')
+				add(dep, name, indent..' ', i == 1)
 			end
 			added:insert(module)
 		end
+		
 		print(str)
 	end
 	local numModules = select('#', ...)
 	for i=1,numModules do
 		local name = select(i, ...)
-		add(name, '', ' ', i == 1)--numModules)
+		add(name, '', ' ', i == 1)
 	end
 	print()
 	return added

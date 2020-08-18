@@ -28,11 +28,12 @@ PoissonKrylov.verbose = false
 PoissonKrylov.linearSolverType = 'conjres'
 
 function PoissonKrylov:getPotBufType()
-	return self.solver.UBufObj.type
+	--return self.solver.UBufObj.type
+	return self.solver.eqn.cons_t
 end
 
 function PoissonKrylov:getPotBuf()
-	return self.solver.UBuf
+	return assert(self.solver.UBuf)
 end
 
 function PoissonKrylov:init(args)
@@ -81,7 +82,7 @@ function PoissonKrylov:initSolver()
 	end
 
 	-- just headers are needed
-	local codePrefix = solver.modules:getHeader(solver.sharedModulesEnabled:keys():unpack()),
+	local codePrefix = solver.modules:getHeader(solver.sharedModulesEnabled:keys():unpack())
 
 	local mulWithoutBorderKernelObj = solver.domain:kernel{
 		name = 'Poisson_mulWithoutBorder'..self.name,
@@ -179,7 +180,7 @@ function PoissonKrylov:initSolver()
 	linearSolverArgs.A = function(UNext, U)
 		-- A(x) = div x
 		-- but don't use the routine in hydro/op/poisson.cl, that's for Jacobi
-		self.poissonKrylovLinearFuncKernelObj(solver.solverBuf, UNext, U)
+		self.poissonKrylovLinearFuncKernelObj(solver.solverBuf, UNext, U, solver.cellBuf)
 	end	
 	self.linearSolver = ThisKrylov(linearSolverArgs)
 end
@@ -193,7 +194,8 @@ local eqn = op.solver.eqn
 kernel void poissonKrylovLinearFunc<?=op.name?>(
 	constant <?=solver.solver_t?>* solver,
 	global real* Y,
-	global real* X
+	global real* X,
+	const global <?=solver.coord.cell_t?>* cellBuf
 ) {
 	SETBOUNDS(0,0);
 	if (OOB(numGhost, numGhost)) {

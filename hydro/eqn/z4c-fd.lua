@@ -272,12 +272,6 @@ end
 
 Z4cFiniteDifferenceEquation.solverCodeFile = 'hydro/eqn/z4c-fd.cl'
 
-function Z4cFiniteDifferenceEquation:getEigenTypeCode()
-	return template([[
-typedef struct { char unused; } <?=eqn.eigen_t?>;
-]], {eqn=self})
-end
-
 Z4cFiniteDifferenceEquation.predefinedDisplayVars = {
 	'U alpha',
 	'U beta_u mag',

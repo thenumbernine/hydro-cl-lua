@@ -87,6 +87,13 @@ function InitCond:initCodeModules(solver)
 	}
 
 	solver.modules:add{
+		name = 'initCond.guiVars.compileTime',
+		headercode = table.mapi(self.guiVars or {}, function(var,i,t) 
+			return (var.compileTime and var:getCode() or nil), #t+1
+		end):concat'\n',
+	}
+
+	solver.modules:add{
 		name = 'initCond.codeprefix',
 		depends = {'initCond.initCond_t'},
 		code = self.getCodePrefix and self:getCodePrefix(solver) or nil,
@@ -101,9 +108,12 @@ function InitCond:initCodeModules(solver)
 			'solver.solver_t',
 			'initCond.initCond_t',
 			'eqn.cons_t',
+			'initCond.guiVars.compileTime',
 			-- initCond code is specified in terms of primitives, so if the eqn has prim<->cons then it will be needed
 			'eqn.prim-cons',
-		}:append(self.depends):append(solver.eqn:getModuleDependsApplyInitCond()),
+		}
+		:append(self.depends)
+		:append(solver.eqn:getModuleDependsApplyInitCond()),
 		-- this in turn calls self:getInitCondCode() but with proper template args applied
 		code = solver.eqn:getInitCondCode() or nil,
 	}

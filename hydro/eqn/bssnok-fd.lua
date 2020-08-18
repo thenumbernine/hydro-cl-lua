@@ -128,6 +128,67 @@ void setFlatSpace(
 	}
 end
 
+function BSSNOKFiniteDifferenceEquationBase:initCodeModuleCalcDT()
+	self.solver.modules:add{
+		name = 'eqn.calcDT',
+		depends = {'eqn.common'},
+		code = template([[
+kernel void calcDT(
+	constant <?=solver.solver_t?>* solver,
+	global real* dtBuf,
+	const global <?=eqn.cons_t?>* UBuf,
+	const global <?=solver.coord.cell_t?>* cellBuf
+) {
+	SETBOUNDS(0,0);
+	if (OOB(numGhost,numGhost)) {
+		dtBuf[index] = INFINITY;
+		return;
+	}
+	real3 x = cellBuf[index].pos;
+	const global <?=eqn.cons_t?>* U = UBuf + index;
+
+<? if eqn.cflMethod == '2008 Alcubierre' then
+?>	sym3 gamma_uu = calc_gamma_uu(U, x);
+<? elseif eqn.cflMethod == '2017 Ruchlin et al, eqn 53' then
+?>	sym3 gammaBar_ll = calc_gammaBar_ll(U, x);
+<? end 
+?>
+	real dt = INFINITY;
+	<? for side=0,solver.dim-1 do ?>{
+<? 
+if eqn.cflMethod == '2013 Baumgarte et al, eqn 32' then
+	-- TODO if the grid is static then this only needs to be done once
+	if side == 0 then 
+?>		dt = (real)min(dt, solver->grid_dx.x);
+<?	elseif side == 1 then 
+?>		dt = (real)min(dt, .5 * solver->grid_dx.x * solver->grid_dx.y);
+<? 	elseif side == 2 then 
+?>		dt = (real)min(dt, .5 * solver->grid_dx.x * sin(.5 * solver->grid_dx.y) * solver->grid_dx.z);
+<? 	end 
+else
+	if eqn.cflMethod == '2008 Alcubierre' then 
+?>		//this is asserting alpha and W >0, which they should be
+		real absLambdaMax = U->alpha * sqrt(gamma_uu.<?=sym(side+1,side+1)?>);
+		real dx = solver->grid_dx.s<?=side?>;
+		dt = (real)min(dt, dx / absLambdaMax);
+<? 	elseif eqn.cflMethod == '2017 Ruchlin et al, eqn 53' then 
+?>		// for wavespeeds alpha sqrt(gamma^ii)
+		// and if we assume gamma_ii ~ 1/gamma^ii and alpha > 1 then the typical CFL equation turns into the SENR code
+		real ds = sqrt(gammaBar_ll.<?=sym(side+1,side+1)?>) * solver->grid_dx.s<?=side?>;
+		dt = (real)min(dt, ds);
+<? 	end
+end
+?>	}<? end ?>
+	dtBuf[index] = dt;
+}
+]], 	{
+			eqn = self,
+			solver = self.solver,
+			sym = require 'hydro.common'.sym,
+		}),
+	}
+end
+
 function BSSNOKFiniteDifferenceEquationBase:getModuleDependsCommon()
 	return {
 		'setFlatSpace',

@@ -90,7 +90,4 @@ kernel void applyInitCond(
 
 NLSEqn.solverCodeFile = 'hydro/eqn/nls.cl'
 
--- SolverBase adds eqn:getEigenTypeCode(), and hydro/eqn/eqn.lua provides a default, so this overrides it 
-function NLSEqn:getEigenTypeCode() end
-
 return NLSEqn 

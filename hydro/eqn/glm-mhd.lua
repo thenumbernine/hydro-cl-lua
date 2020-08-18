@@ -13,25 +13,6 @@ MHD.name = 'GLM-MHD'
 
 MHD.numWaves = 9
 MHD.numIntStates = 9
-MHD.numStates = 10
-
-MHD.primVars = table{
-	{name='rho', type='real', units='kg/m^3'},
-	{name='v', type='real3', units='m/s', variance='u'},
-	{name='P', type='real', units='kg/(m*s^2)'},
-	{name='B', type='real3', units='kg/(C*s)', variance='l'},
-	{name='psi', type='real', units='kg/(C*s)'},
-	{name='ePot', type='real', units='m^2/s^2'},
-}
-
-MHD.consVars = table{
-	{name='rho', type='real', units='kg/m^3'},
-	{name='m', type='real3', units='kg/(m^2*s)', variance='u'},
-	{name='ETotal', type='real', units='kg/(m*s^2)'},
-	{name='B', type='real3', units='kg/(C*s)', variance='l'},
-	{name='psi', type='real', units='kg/(C*s)'},
-	{name='ePot', type='real', units='m^2/s^2'},
-}
 
 MHD.hasFluxFromConsCode = true
 MHD.roeUseFluxFromCons = true
@@ -91,6 +72,29 @@ MHD.eigenVars = table(MHD.roeVars):append{
 
 
 function MHD:init(args)
+	self.primVars = table{
+		{name='rho', type='real', units='kg/m^3'},
+		{name='v', type='real3', units='m/s', variance='u'},
+		{name='P', type='real', units='kg/(m*s^2)'},
+		{name='B', type='real3', units='kg/(C*s)', variance='l'},
+		{name='psi', type='real', units='kg/(C*s)'},
+		{name='ePot', type='real', units='m^2/s^2'},
+	}
+
+	self.consVars = table{
+		{name='rho', type='real', units='kg/m^3'},
+		{name='m', type='real3', units='kg/(m^2*s)', variance='u'},
+		{name='ETotal', type='real', units='kg/(m*s^2)'},
+		{name='B', type='real3', units='kg/(C*s)', variance='l'},
+		{name='psi', type='real', units='kg/(C*s)'},
+		{name='ePot', type='real', units='m^2/s^2'},
+	}
+	
+	if args.incompressible then
+		self.consVars:insert{name='mPot', type='real', units='kg/(m*s)'}
+		self.primVars:insert{name='mPot', type='real', units='kg/(m*s)'}
+	end
+
 	local solver = assert(args.solver)
 	if require 'hydro.solver.meshsolver'.is(solver) then
 		print("not divergence with mesh solvers yet")
@@ -114,6 +118,33 @@ function MHD:init(args)
 		local SelfGrav = require 'hydro.op.selfgrav'
 		self.gravOp = SelfGrav{solver=solver}
 		solver.ops:insert(self.gravOp)
+	
+		if args.incompressible then
+			local NoDiv = require 'hydro.op.nodiv'{
+				poissonSolver = require 'hydro.op.poisson_jacobi',	-- krylov is having errors.  TODO bug in its boundary code?
+			}
+			self.solver.ops:insert(NoDiv{
+				solver = self.solver,
+				vectorField = 'm',
+				potentialField = 'mPot',
+			
+				-- div v = 0
+				-- div (m/ρ) = 0
+				-- 1/ρ div m - 1/ρ^2 m dot grad ρ = 0
+				-- div m = (m dot grad ρ)/ρ 
+				chargeCode = template([[
+	<? for j=0,solver.dim-1 do ?>{
+		global const <?=eqn.cons_t?>* Ujm = U - solver->stepsize.s<?=j?>;
+		global const <?=eqn.cons_t?>* Ujp = U + solver->stepsize.s<?=j?>;
+		real drho_dx = (Ujp->rho - Ujm->rho) * (.5 / solver->grid_dx.s<?=j?>);
+		source -= drho_dx * U->m.s<?=j?> / U->rho;
+	}<? end ?>
+]],				{
+					eqn = self,
+					solver = self.solver,
+				}),
+			})
+		end
 	end
 end
 
@@ -174,6 +205,21 @@ real3 calc_CA(constant <?=solver.solver_t?>* solver, <?=eqn.cons_t?> U) {
 		solver = self.solver,
 		eqn = self,
 	})
+end
+
+function MHD:initCodeModules()
+	MHD.super.initCodeModules(self)
+	local solver = self.solver
+
+	solver.modules:add{
+		name = 'roe_t',
+		structs = {self.roeStruct},
+	}
+	solver.solverModulesEnabled.roe_t = true
+end
+
+function MHD:getModuleDependsSolver() 
+	return {'eqn.prim-cons'}
 end
 
 function MHD:initCodeModulePrimCons()
@@ -456,13 +502,6 @@ function MHD:getDisplayVars()
 	vars:insert(self:createCurlDisplayVar{field='B', units='kg/(C*m*s)'} or nil)
 
 	return vars
-end
-
-function MHD:getEigenTypeCode()
-	return table{
-		self.roeStruct.typecode,
-		MHD.super.getEigenTypeCode(self),
-	}:concat'\n'
 end
 
 function MHD:eigenWaveCode(n, eig, x, waveIndex)

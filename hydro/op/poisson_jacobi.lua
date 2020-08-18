@@ -179,15 +179,16 @@ end
 
 function PoissonJacobi:initCodeModules(solver)
 	PoissonJacobi.super.initCodeModules(self, solver)
+	local name = 'op.PoissonJacobi-'..self.name
 	solver.modules:add{
-		name = 'op.PoissonJacobi',
+		name = name,
 		depends = {'cell_sqrt_det_g'},
 		code = table{
 			template(poissonJacobiCode, {op = self}),
 			self:getPoissonCode() or '',
 		}:concat'\n',
 	}
-	solver.solverModulesEnabled['op.PoissonJacobi'] = true
+	solver.solverModulesEnabled[name] = true
 end
 
 return PoissonJacobi

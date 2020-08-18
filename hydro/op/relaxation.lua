@@ -64,11 +64,12 @@ function Relaxation:init(args)
 end
 
 function Relaxation:initCodeModules(solver)
+	local name = 'op.Relaxation-'..self.name
 	solver.modules:add{
-		name = 'op.Relaxation',
+		name = name,
 		code = template(file[self.solverCodeFile], {op = self}),
 	}
-	solver.solverModulesEnabled['op.Relaxation'] = true
+	solver.solverModulesEnabled[name] = true
 end
 
 function Relaxation:refreshSolverProgram()

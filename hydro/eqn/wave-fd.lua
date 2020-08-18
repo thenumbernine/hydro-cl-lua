@@ -70,9 +70,6 @@ kernel void applyInitCond(
 
 WaveFDEqn.solverCodeFile = 'hydro/eqn/wave-fd.cl'
 
--- SolverBase adds eqn:getEigenTypeCode(), and hydro/eqn/eqn.lua provides a default, so this overrides it 
-function WaveFDEqn:getEigenTypeCode() end
-
 function WaveFDEqn:getDisplayVars()
 	local vars = WaveFDEqn.super.getDisplayVars(self)
 	vars:append{
