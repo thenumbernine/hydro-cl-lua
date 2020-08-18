@@ -1147,7 +1147,7 @@ real3x3 _3sym3_real3x3x3_dot12_23(_3sym3 a, real3x3x3 b);
 sym3 _3sym3_real3x3x3_dot13_to_sym3(_3sym3 a, real3x3x3 b);
 
 ]],
-		template([[
+		code = template([[
 
 //c_ij^k = a_ijl b^lk
 real3x3x3 _3sym3_sym3_mul(_3sym3 a, sym3 b) {

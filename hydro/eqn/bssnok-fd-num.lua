@@ -155,10 +155,19 @@ function BSSNOKFiniteDifferenceEquation:getEnv()
 	})
 end
 
-BSSNOKFiniteDifferenceEquation.solverCodeFile = 'hydro/eqn/bssnok-fd-num.cl'
-
-function BSSNOKFiniteDifferenceEquation:getCommonFuncCode()
-	return template(file[self.solverCodeFile], table(self:getEnv(), {getCommonCode=true}))
+function BSSNOKFiniteDifferenceEquation:initCodeModules()
+	BSSNOKFiniteDifferenceEquation.super.initCodeModules(self)
+	local solver = self.solver
+	
+	solver.modules:add{
+		name = 'calc_gammaHat_ll/uu/det',
+		depends = {'coord_g_ll/uu'},
+		code = [[
+#define calc_gammaHat_ll	coord_g_ll
+#define calc_det_gammaHat 	coord_det_g
+#define calc_gammaHat_uu 	coord_g_uu
+]],
+	}
 end
 
 --[[
@@ -509,6 +518,37 @@ kernel void initDerivs(
 ]=], table(env, {
 		code = initCond:getInitCondCode(self.solver),
 	}))
+end
+
+function BSSNOKFiniteDifferenceEquation:getModuleDependsApplyInitCond() 
+	return table(BSSNOKFiniteDifferenceEquation.super.getModuleDependsApplyInitCond(self)):append{
+		'_3sym3',
+	}
+end
+
+BSSNOKFiniteDifferenceEquation.solverCodeFile = 'hydro/eqn/bssnok-fd-num.cl'
+
+function BSSNOKFiniteDifferenceEquation:getCommonFuncCode()
+	return template(file[self.solverCodeFile], table(self:getEnv(), {getCommonCode=true}))
+end
+
+function BSSNOKFiniteDifferenceEquation:getModuleDependsSolver() 
+	return {
+		'eqn.common',
+		'_3sym3',
+		'sym3sym3',
+		'calc_gammaHat_ll/uu/det',
+		'real3x3x3',
+		-- only for display code. (actually most this is only for display code)
+		'initCond.codeprefix',	-- ...specifically, calc_f
+	}
+end
+
+function BSSNOKFiniteDifferenceEquation:getModuleDependsCommon()
+	return table(BSSNOKFiniteDifferenceEquation.super.getModuleDependsCommon(self))
+	:append{
+		'calc_gammaHat_ll/uu/det',
+	}
 end
 
 BSSNOKFiniteDifferenceEquation.predefinedDisplayVars = {

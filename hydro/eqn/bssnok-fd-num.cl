@@ -40,8 +40,6 @@ if getCommonCode then
 
 #define real3_add5(a,b,c,d,e)	real3_add(real3_add(a,b),real3_add3(c,d,e))
 #define real3_add6(a,b,c,d,e,f)	real3_add(real3_add3(a,b,c),real3_add3(d,e,f))
-
-#define cplx3_add5(a,b,c,d,e)	cplx3_add(cplx3_add(a,b),cplx3_add3(c,d,e))
 	
 #define sym3_add3(a,b,c)	sym3_add(sym3_add(a,b),c)
 #define sym3_add4(a,b,c,d)	sym3_add(sym3_add(a,b),sym3_add(c,d))	
@@ -63,11 +61,15 @@ real3 real3_rescaleFromCoord_l(real3 v, real3 x) {
 }
 #define real3_rescaleToCoord_U real3_rescaleFromCoord_l
 
+<? if eqn.useScalarField then ?>
+#define cplx3_add5(a,b,c,d,e)	cplx3_add(cplx3_add(a,b),cplx3_add3(c,d,e))
+
 cplx3 cplx3_rescaleFromCoord_l(cplx3 v, real3 x) {
 	return cplx3_from_real3_real3(
 		real3_rescaleFromCoord_l(cplx3_re(v), x),
 		real3_rescaleFromCoord_l(cplx3_im(v), x));
 }
+<? end ?>
 
 //convert coord upper to better
 //convert better lower to coord
@@ -247,10 +249,6 @@ local partial_len_over_len_lll = Tensor('_ijk', function(i,j,k)
 end)
 ?>
 
-#define calc_gammaHat_ll	coord_g_ll
-#define calc_det_gammaHat 	coord_det_g
-#define calc_gammaHat_uu 	coord_g_uu
-
 <?
 for i,xi in ipairs(xNames) do
 ?>#define calc_len_<?=xi?>	coord_dx<?=i-1?>
@@ -330,6 +328,7 @@ end
 ?>	return partial_T_ul;
 }
 
+<? if eqn.useScalarField then ?>
 /*
 This is breaking my old conventions too
 derivative index of result is last 
@@ -361,6 +360,8 @@ for i,xi in ipairs(xNames) do
 end
 ?>	return partial_T_LL;
 }
+<? end ?>
+
 /*
 derivative index is last
 e^i_I (T_M e_i^M)_,j e^j_J
@@ -521,35 +522,6 @@ sym3 calc_gamma_uu(global const <?=eqn.cons_t?>* U, real3 x) {
 	real det_gamma = calc_det_gammaBar(x) * exp_4phi * exp_4phi * exp_4phi;
 	sym3 gamma_uu = sym3_inv(gamma_ll, det_gamma); 
 	return gamma_uu;
-}
-
-void setFlatSpace(
-	constant <?=solver.solver_t?>* solver,
-	global <?=eqn.cons_t?>* U,
-	real3 x
-) {
-	U->alpha = 1.;
-	U->beta_U = real3_zero;
-	U->epsilon_LL = sym3_zero;
-	U->W = 1;
-	U->K = 0;
-	U->ABar_LL = sym3_zero;
-
-	//LambdaBar^i = Delta^i + C^i = Delta^i_jk gammaBar^jk = (connBar^i_jk - connHat^i_jk) gammaBar^jk + C^i
-	//but when space is flat we have connBar^i_jk = connHat^i_jk and therefore Delta^i_jk = 0, Delta^i = 0, and LambdaBar^i = 0
-	U->LambdaBar_U = mystery_C_U;
-
-<? if eqn.useShift == 'HyperbolicGammaDriver' then
-?>	U->B_U = real3_zero;
-<? end
-?>
-
-	//what to do with the constraint vars and the source vars?
-	U->rho = 0;
-	U->S_u = real3_zero;
-	U->S_ll = sym3_zero;
-	U->H = 0;
-	U->M_U = real3_zero;
 }
 
 static _3sym3 calc_partial_ABar_LLL(
