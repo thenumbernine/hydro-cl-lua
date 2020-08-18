@@ -31,7 +31,7 @@ then CLBuffer update fromCPU:
 local Struct = class()
 
 function Struct:init(args)
-	self.solver = args.solver
+	self.solver = assert(args.solver)
 	self.name = assert(args.name)
 	self.vars = table(args.vars)
 	self.dontUnion = args.dontUnion
@@ -62,8 +62,9 @@ function Struct:makeType()
 	-- then compare it to a map from typecode => typename
 	-- if it matches any, use the old typecode, typename, and metatype
 	-- otherwise generate a new one
-
-	local app = assert(assert(self.solver).app)
+	
+	local solver = assert(self.solver)
+	local app = assert(solver.app)
 	local codeWithoutTypename = self:getTypeCodeWithoutTypeName()
 	
 	app.typeInfoForCode = app.typeInfoForCode or {}

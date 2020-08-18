@@ -13,6 +13,7 @@ local file = require 'ext.file'
 local template = require 'template'
 local clnumber = require 'cl.obj.number'
 local Equation = require 'hydro.eqn.eqn'
+local Struct = require 'hydro.code.struct'
 local common = require 'hydro.common'
 
 local xNames = common.xNames
@@ -38,7 +39,8 @@ SRHD.hasFluxFromConsCode = true
 SRHD.initConds = require 'hydro.init.euler'
 
 function SRHD:init(args)
-	
+	local solver = assert(args.solver)
+
 	--[[
 	because of the unique shape of prim_only_t and cons_only_t, I can't use the consVars for struct generation ...
 
@@ -52,17 +54,30 @@ function SRHD:init(args)
 
 	TODO redo the srhd equations for a background grid metric, and take note of covariance/contravariance
 	--]]
-	self.consVars = table{
-		-- cons_only_t
-		{name='D', type='real', units='kg/m^3'},				-- D = ρ W, W = unitless Lorentz factor
-		{name='S', type='real3', units='kg/s^3', variance='l'},	-- S_j = ρ h W^2 v_j ... [ρ] [h] [v] = kg/m^3 * m^2/s^2 * m/s = kg/s^3
-		{name='tau', type='real', units='kg/(m*s^2)'},			-- tau = ρ h W^2 - P ... [ρ] [h] [W^2] = kg/m^3 * m^2/s^2 = kg/(m*s^2)
-		
-		-- prim_only_t
-		{name='rho', type='real', units='kg/m^3'},
-		{name='v', type='real3', units='m/s', variance='l'},
-		{name='eInt', type='real', units='m^2/s^2'},
-		
+	self.consOnlyStruct = Struct{
+		solver = solver,
+		name = 'cons_only_t',
+		vars = {
+			{name='D', type='real', units='kg/m^3'},				-- D = ρ W, W = unitless Lorentz factor
+			{name='S', type='real3', units='kg/s^3', variance='l'},	-- S_j = ρ h W^2 v_j ... [ρ] [h] [v] = kg/m^3 * m^2/s^2 * m/s = kg/s^3
+			{name='tau', type='real', units='kg/(m*s^2)'},			-- tau = ρ h W^2 - P ... [ρ] [h] [W^2] = kg/m^3 * m^2/s^2 = kg/(m*s^2)
+		},
+	}
+
+	self.primOnlyStruct = Struct{
+		solver = solver,
+		name = 'prim_only_t',
+		vars = {
+			{name='rho', type='real', units='kg/m^3'},
+			{name='v', type='real3', units='m/s', variance='l'},
+			{name='eInt', type='real', units='m^2/s^2'},
+		},
+	}
+
+	self.consVars = table()
+	:append(self.consOnlyStruct.vars)
+	:append(self.primOnlyStruct.vars)
+	:append{
 		-- extra
 		{name='ePot', type='real', units='m^2/s^2'},
 	}
@@ -71,9 +86,11 @@ function SRHD:init(args)
 		self.consVars:insert{name='SPot', type='real', units='kg*m/s^2'}
 	end
 
+	self.consOnlyStruct:makeType()
+	self.primOnlyStruct:makeType()
 
-	self.cons_only_t = args.solver.app:uniqueName'cons_only_t'
-	self.prim_only_t = args.solver.app:uniqueName'prim_only_t'
+	self.cons_only_t = self.consOnlyStruct.typename
+	self.prim_only_t = self.primOnlyStruct.typename
 
 	SRHD.super.init(self, args)
 
@@ -120,33 +137,6 @@ function SRHD:init(args)
 	end
 end
 
-function SRHD:getTypeCode()
-	return table{
-		SRHD.super.getTypeCode(self),
-		template([[
-typedef union {
-	real ptr[5];
-	struct {
-		real D;
-		real3 S;
-		real tau;
-	};
-} <?=eqn.cons_only_t?>;
-
-typedef union {
-	real ptr[5];
-	struct {
-		real rho;
-		real3 v;
-		real eInt;
-	};
-} <?=eqn.prim_only_t?>;
-]], 	{
-			eqn = self,
-		}),
-	}:concat'\n'
-end
-
 function SRHD:createInitState()
 	SRHD.super.createInitState(self)
 
@@ -182,6 +172,34 @@ function SRHD:createInitState()
 		{name='DMax', value=1e+20},
 		{name='tauMin', value=double and 1e-15 or 1e-7},
 		{name='tauMax', value=1e+20},
+	}
+end
+
+function SRHD:initCodeModules()
+	SRHD.super.initCodeModules(self)
+	local solver = self.solver
+
+	solver.modules:add{
+		name = 'cons_only_t,prim_only_t',
+		structs = {self.primOnlyStruct, self.consOnlyStruct},
+	}
+end
+
+function SRHD:getModuleDependsCommon()
+	return {'cons_only_t,prim_only_t'}
+end
+
+function SRHD:getModuleDependsApplyInitCond()
+	return {
+		'eqn.common',	-- calc_eInt_from_P, consFromPrimOnly
+	}
+end
+
+function SRHD:getModuleDependsSolver()
+	return {
+		'cons_only_t,prim_only_t',
+		'eqn.common',
+		'coord_lower',
 	}
 end
 

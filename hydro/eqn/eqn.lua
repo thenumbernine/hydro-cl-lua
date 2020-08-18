@@ -308,8 +308,6 @@ typedef union {
 		structs = {self.eigenStruct},
 	}
 
-	assert(not self.getTypeCode, "please convert :getTypeCode() to :initCodeModules()")
-
 	-- only require this if we're a fvsolver
 
 	-- parallel propagate autogen code 

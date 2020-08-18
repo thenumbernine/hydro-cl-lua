@@ -30,6 +30,8 @@ GRMHD.useConstrainU = true
 
 GRMHD.initConds = require 'hydro.init.euler'
 
+-- TODO upgrade this to srhd: put these all in consVars and just make separate cons_only_ and prim_only_t
+-- TODO also upgrade this to initCodeModules.  turn it into a struct, like srhd.
 function GRMHD:getTypeCode()
 	return template([[
 typedef union {

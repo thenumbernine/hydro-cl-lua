@@ -10,21 +10,10 @@ NavierStokesDivFree.numStates = 4
 
 NavierStokesDivFree.initConds = require 'hydro.init.euler'
 
-function NavierStokesDivFree:getTypeCode()
-	return template([[
-typedef union {
-	real ptr[4];
-	struct {
-		real rho;
-		real3 v;
-	};
-} <?=eqn.prim_t?>;
-
-typedef <?=eqn.prim_t?> <?=eqn.cons_t?>; 
-]], {
-		eqn = self,
-	})
-end
+NavierStokesDivFree.consVars = table{
+	{name='rho', type='real', units='kg/m^3'},
+	{name='v', type='real3', units='m/s', variance='u'},
+}
 
 NavierStokesDivFree.initCondCode = [[
 kernel void applyInitCond(
