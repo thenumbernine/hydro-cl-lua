@@ -16,9 +16,7 @@ SphereLogRadial.name = 'sphere-log-radial'
 -- but I don't need all them anyways (cue code module system)
 -- and it looks like it was stiff-arming me when it came to bssnok-fd-sym analytic simplifications.
 -- if we don't defer then calculating connections is incredibly slow
-local DEFER_SUBSTITUTE_RDEF = true
 -- bssnok-fd-sym needs it not defered.  TODO substitute it in bssnok-fd-sym
---local DEFER_SUBSTITUTE_RDEF = false
 
 --[[
 args
@@ -38,25 +36,23 @@ function SphereLogRadial:init(args)
 	self.sinh_w = .15
 --	local rmax = solver.maxs.x	-- not used (also not initialized at this point)
 
-	local sinh_w, amplitude 
-if not DEFER_SUBSTITUTE_RDEF then 
-	sinh_w = var'sinh(w)'
-	amplitude = var'amplitude'
-else
-	sinh_w = self.sinh_w
-	amplitude = self.amplitude
-end	
+	local amplitude, sinh_w
+
+	-- and now that all the coord code now depends on the compile-time solver vars, lets make sure everyone can see them
+	-- (technically anyone who uses any code that comes from solver.coord)
+	-- solver.sharedModulesEnabled['eqn.guiVars.compileTime'] = true
+	-- but this isn't defined yet in solver, so move it later ...
+	self.amplitude_var = var'AMPL'
+	self.sinh_w_var = var'SINHW'
+	amplitude = self.amplitude_var
+	sinh_w = self.sinh_w_var
+	
 	-- TODO repl vars for solver->coord_sinh_w and solver->coord_amplitude, and make these coord parameters?
 	-- or they can just be compile-time, but both can be accomplished with solver's guiVars
 	
 	local rDef = amplitude * sinh(rho / sinh_w) / sinh(frac(1, sinh_w))
 
-	local r
-if not DEFER_SUBSTITUTE_RDEF then 
-	r = rDef
-else
-	r = symmath.var('r', {rho})
-end
+	local r = symmath.var('r', {rho})
 	
 	self.vars = {
 		x = rDef * sin(theta) * cos(phi),
@@ -67,7 +63,6 @@ end
 		phi = phi,
 	}
 
-if DEFER_SUBSTITUTE_RDEF then
 	local r_for_rho = rDef
 	self.replvars = table{
 		{r:diff(rho, rho, rho), r_for_rho:diff(rho, rho, rho)()},
@@ -83,7 +78,6 @@ if DEFER_SUBSTITUTE_RDEF then
 	if cmdline.coordVerbose then
 		print(rho:eq(self.rho_for_r))
 	end
-end
 
 	self.eHolToE = symmath.Matrix{
 		{1/r:diff(rho), 0, 0},
@@ -100,6 +94,17 @@ end
 	end
 	
 	SphereLogRadial.super.init(self, args)
+end
+
+function SphereLogRadial:initCodeModules(...)
+	SphereLogRadial.super.initCodeModules(self, ...)
+	-- since now all coord code uses AMPL and SINHW macros ...
+	-- in fact to have it first ...
+	-- which means TODO it should be in the code module 'depends' of all code that 'coord' generates
+	-- so how about a 'getDepends' that is subclassed?
+	self.solver.eqn:addGuiVar{name='AMPL', value=self.amplitude, compileTime=true}
+	self.solver.eqn:addGuiVar{name='SINHW', value=self.sinh_w, compileTime=true}
+	self.solver.sharedModulesEnabled['eqn.guiVars.compileTime'] = true
 end
 
 local template = require 'template'
@@ -244,8 +249,11 @@ function SphereLogRadial:fillGridCellBuf(cellsCPU)
 	local solver = self.solver
 
 	local symmath = require 'symmath'
-	local calcR = symmath.export.Lua:compile(self.vars.r, self.baseCoords)
-
+	local params = table(self.baseCoords):append{self.amplitude_var, self.sinh_w_var}
+	local calcR, code = symmath.export.Lua:compile(self.vars.r, params)
+print('calcR code:')
+print(code)
+	
 	local index = 0
 	for k=0,tonumber(solver.gridSize.z)-1 do
 		local phi = solver.dim >= 3 
@@ -262,7 +270,7 @@ function SphereLogRadial:fillGridCellBuf(cellsCPU)
 				cellsCPU[index].pos.x = rho
 				cellsCPU[index].pos.y = theta
 				cellsCPU[index].pos.z = phi
-				cellsCPU[index].r = calcR(rho)
+				cellsCPU[index].r = calcR(rho, theta, phi, self.amplitude, self.sinh_w)
 				index = index + 1
 			end
 		end

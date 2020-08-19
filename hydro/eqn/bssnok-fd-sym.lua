@@ -565,6 +565,9 @@ time('building symbolic math env', function()
 
 	printbr'gammaHat_ll'
 		gammaHat_ll = Tensor.metric().metric
+		for _,repl in ipairs(solver.coord.replvars) do
+			gammaHat_ll = gammaHat_ll:replace(repl[1], repl[2])
+		end
 	printbr(gammaHat_ll)
 os.exit()
 	printbr'e'

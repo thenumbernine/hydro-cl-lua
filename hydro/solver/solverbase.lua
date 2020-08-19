@@ -347,6 +347,19 @@ function SolverBase:initMeshVars(args)
 	self.app = assert(args.app, "expected app")
 	self.dim = assert(args.dim, "expected dim")
 
+-- [[ do this before creating coord so it can populate them optionally
+-- (though in theory / philosophy of design, why would coord populate ops?)
+	-- operators for this solver
+	self.ops = table()
+
+	-- struct for the solver
+	self.solverStruct = Struct{
+		solver = self,
+		name = 'solver_t',
+		dontUnion = true,
+	}
+--]]
+	
 	-- MeshSolver needs coord created early
 	--  so that it can allocate cell_t's which are defined in coord
 	--  (come to think of it, GridSolver allocates cellBuf also)
@@ -359,14 +372,7 @@ function SolverBase:initMeshVars(args)
 	
 	self.color = vec3d(math.random(), math.random(), math.random()):normalize()
 
-	-- operators for this solver
-	self.ops = table()
 
-	self.solverStruct = Struct{
-		solver = self,
-		name = 'solver_t',
-		dontUnion = true,
-	}
 	self.solverStruct.vars:append{
 	-- [[ right now the mesh initial conditions use these, but otherwise they can be GridSolver-specific
 		{name='mins', type='real3'},
