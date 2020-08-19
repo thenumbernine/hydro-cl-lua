@@ -3,7 +3,7 @@ TODO one config per experiment (initial condition + config)
 and no more setting config values (boundary, etc) in the init cond file
 --]]
 
-local dim = cmdline.dim or 2
+local dim = cmdline.dim or 1
 local args = {
 	app = self, 
 	eqn = cmdline.eqn,
@@ -212,7 +212,7 @@ local args = {
 	--initCond = 'Bessel',
 	--initCond = 'cyclone',
 	
-	initCond = 'Sod',
+	--initCond = 'Sod',
 	--initCond = 'Sod with physical units',
 	--initCondArgs = {dim=cmdline.displayDim},
 	
@@ -315,7 +315,7 @@ local args = {
 
 	-- Einstein
 	--initCond = 'Minkowski',
-	--initCond = 'gaussian perturbation',
+	initCond = 'gaussian perturbation',
 	--initCond = 'plane gauge wave',
 
 

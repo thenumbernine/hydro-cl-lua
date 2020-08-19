@@ -272,13 +272,12 @@ end
 
 function ADM_BonaMasso_3D:getModuleDependsSolver()
 	return {
-		'coord_g_ll/uu',		-- coord_g_ll used by display code
 		'initCond.codeprefix',	-- calc_f
 	}
 end
 
 function ADM_BonaMasso_3D:getModuleDependsApplyInitCond()
-	return {'coord_g_ll/uu'}
+	return {'coordMap', 'coord_g_ll'}
 end
 ADM_BonaMasso_3D.initCondCode = [[
 kernel void applyInitCond(
@@ -324,7 +323,8 @@ kernel void applyInitCond(
 
 kernel void initDerivs(
 	constant <?=solver.solver_t?>* solver,
-	global <?=eqn.cons_t?>* UBuf
+	global <?=eqn.cons_t?>* UBuf,
+	global <?=solver.coord.cell_t?> const *cellBuf 
 ) {
 	SETBOUNDS(numGhost,numGhost);
 	global <?=eqn.cons_t?>* U = UBuf + index;

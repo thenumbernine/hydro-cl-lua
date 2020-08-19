@@ -302,6 +302,11 @@ function Euler:initCodeModulePrimCons()
 	}
 end
 
+
+function Euler:getModuleDependsApplyInitCond()
+	return table(Euler.super.getModuleDependsApplyInitCond(self))
+	:append{'cartesianToCoord'}
+end
 Euler.initCondCode = [[
 kernel void applyInitCond(
 	constant <?=solver.solver_t?>* solver,

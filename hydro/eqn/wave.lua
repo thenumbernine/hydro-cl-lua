@@ -166,6 +166,10 @@ function Wave:initCodeModule_fluxFromCons()
 	}
 end
 
+function Wave:getModuleDependsApplyInitCond()
+	return table(Wave.super.getModuleDependsApplyInitCond(self))
+	:append{'cartesianToCoord'}
+end
 Wave.initCondCode = [[
 <?
 local scalar = eqn.scalar
@@ -272,7 +276,6 @@ end
 function Wave:getModuleDependsSolver()
 	return {
 		'eqn.common',
-		'coord_g_ll/uu',
 	}
 end
 

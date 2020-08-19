@@ -3,12 +3,22 @@ local table = require 'ext.table'
 local symmath = require 'symmath'
 local CoordinateSystem = require 'hydro.coord.coord'
 
+local var = symmath.var
+local frac = symmath.frac
 local sin, cos = symmath.sin, symmath.cos
 local sinh = symmath.sinh
 local Tensor = symmath.Tensor
 
 local SphereLogRadial = class(CoordinateSystem)
 SphereLogRadial.name = 'sphere-log-radial'
+
+-- I was trying to hold off on this, thinking it would save something somewhere, because the subsequent conn calcs were slow
+-- but I don't need all them anyways (cue code module system)
+-- and it looks like it was stiff-arming me when it came to bssnok-fd-sym analytic simplifications.
+-- if we don't defer then calculating connections is incredibly slow
+local DEFER_SUBSTITUTE_RDEF = true
+-- bssnok-fd-sym needs it not defered.  TODO substitute it in bssnok-fd-sym
+--local DEFER_SUBSTITUTE_RDEF = false
 
 --[[
 args
@@ -24,15 +34,30 @@ function SphereLogRadial:init(args)
 
 	-- 2017 Ruchlin, Etienne after eqn 42
 	local solver = args.solver
-	local amplitude = 1000
-	local sinh_w = .15
-self.amplitude = amplitude
-self.sinh_w = sinh_w
+	self.amplitude = 1000 
+	self.sinh_w = .15
 --	local rmax = solver.maxs.x	-- not used (also not initialized at this point)
-	local r = symmath.var('r', {rho})
 
-	local rDef = amplitude * sinh(rho / sinh_w) / math.sinh(1 / sinh_w)
+	local sinh_w, amplitude 
+if not DEFER_SUBSTITUTE_RDEF then 
+	sinh_w = var'sinh(w)'
+	amplitude = var'amplitude'
+else
+	sinh_w = self.sinh_w
+	amplitude = self.amplitude
+end	
+	-- TODO repl vars for solver->coord_sinh_w and solver->coord_amplitude, and make these coord parameters?
+	-- or they can just be compile-time, but both can be accomplished with solver's guiVars
+	
+	local rDef = amplitude * sinh(rho / sinh_w) / sinh(frac(1, sinh_w))
 
+	local r
+if not DEFER_SUBSTITUTE_RDEF then 
+	r = rDef
+else
+	r = symmath.var('r', {rho})
+end
+	
 	self.vars = {
 		x = rDef * sin(theta) * cos(phi),
 		y = rDef * sin(theta) * sin(phi),
@@ -42,6 +67,7 @@ self.sinh_w = sinh_w
 		phi = phi,
 	}
 
+if DEFER_SUBSTITUTE_RDEF then
 	local r_for_rho = rDef
 	self.replvars = table{
 		{r:diff(rho, rho, rho), r_for_rho:diff(rho, rho, rho)()},
@@ -57,6 +83,8 @@ self.sinh_w = sinh_w
 	if cmdline.coordVerbose then
 		print(rho:eq(self.rho_for_r))
 	end
+end
+
 	self.eHolToE = symmath.Matrix{
 		{1/r:diff(rho), 0, 0},
 		{0, 1/r, 0},

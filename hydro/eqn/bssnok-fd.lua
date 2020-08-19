@@ -9,6 +9,17 @@ local xNames = common.xNames
 
 local BSSNOKFiniteDifferenceEquationBase = class(EinsteinEqn)
 
+-- seems all the hyperbolic formalisms listed in Alcubierre's book use alpha sqrt(gamma^ii) for the speed-of-light wavespeed
+-- however the 2017 Ruchlin paper says to use gamma_ij
+BSSNOKFiniteDifferenceEquationBase.cflMethod = '2008 Alcubierre'
+--BSSNOKFiniteDifferenceEquationBase.cflMethod = '2013 Baumgarte et al, eqn 32'
+--BSSNOKFiniteDifferenceEquationBase.cflMethod = '2017 Ruchlin et al, eqn 53'
+
+function BSSNOKFiniteDifferenceEquationBase:init(args)
+	self.cflMethod = args.cflMethod
+	BSSNOKFiniteDifferenceEquationBase.super.init(self, args)
+end
+
 -- source: https://en.wikipedia.org/wiki/Finite_difference_coefficient 
 -- derivCoeffs[derivative][order] = {coeffs...}
 local derivCoeffs = {
@@ -130,7 +141,10 @@ end
 function BSSNOKFiniteDifferenceEquationBase:initCodeModuleCalcDT()
 	self.solver.modules:add{
 		name = 'eqn.calcDT',
-		depends = {'eqn.common'},
+		depends = {
+			'eqn.common',
+			'coord_sqrt_g_uu##',
+		},
 		code = self:template[[
 kernel void calcDT(
 	constant <?=solver.solver_t?>* solver,
@@ -148,8 +162,6 @@ kernel void calcDT(
 
 <? if eqn.cflMethod == '2008 Alcubierre' then
 ?>	sym3 gamma_uu = calc_gamma_uu(U, x);
-<? elseif eqn.cflMethod == '2017 Ruchlin et al, eqn 53' then
-?>	sym3 gammaBar_ll = calc_gammaBar_ll(U, x);
 <? end 
 ?>
 	real dt = INFINITY;
@@ -171,9 +183,14 @@ else
 		real dx = solver->grid_dx.s<?=side?>;
 		dt = (real)min(dt, dx / absLambdaMax);
 <? 	elseif eqn.cflMethod == '2017 Ruchlin et al, eqn 53' then 
-?>		// for wavespeeds alpha sqrt(gamma^ii)
-		// and if we assume gamma_ii ~ 1/gamma^ii and alpha > 1 then the typical CFL equation turns into the SENR code
-		real ds = sqrt(gammaBar_ll.<?=sym(side+1,side+1)?>) * solver->grid_dx.s<?=side?>;
+?>		// for wavespeeds alpha sqrt(gammaBar^ii)
+		// and if we assume alpha > 1
+		// and gamma_ii ~ 1/gamma^ii 
+		// and gammaBar_ij ~ gammaHat_ij 
+		// then the typical CFL equation: dt <= dx / lambda, lambda = alpha sqrt(gammaBar^ii)
+		// turns into the SENR code: dt <= sqrt(gammaHat_ii) * dx
+		real sqrt_gammaHat_ii = coord_sqrt_g_uu<?=side..side?>(x);
+		real ds = sqrt_gammaHat_ii  * solver->grid_dx.s<?=side?>;
 		dt = (real)min(dt, ds);
 <? 	end
 end

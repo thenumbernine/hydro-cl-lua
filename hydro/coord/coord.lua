@@ -355,7 +355,7 @@ assert(args.anholonomic == nil, "coord.anholonomic is deprecated.  instead you s
 		print(var'g''_uv':eq(var'e''_u^I' * var'e''_v^J' * var'\\eta''_IJ'):eq(g'_uv'()))
 	end
 	Tensor.metric(g)
-
+	
 	
 	-- code generation
 
@@ -741,7 +741,7 @@ function CoordinateSystem:compile(expr)
 	for i,coord in ipairs(self.baseCoords) do
 		expr = expr:replace(coord, symmath.var('pt.'..xNames[i]))
 	end
-
+print('compiling\n', expr..'\n')
 	local code = symmath.export.C(expr)
 
 	return code
@@ -1016,20 +1016,17 @@ static inline real coordLen(real3 r, real3 pt) {
 
 	self.solver.modules:add{
 		name = 'coord_lower',
-		depends = {'real3'},
 		code = getCode_real3_real3_to_real3('coord_lower', self.lowerCodes),
 	}
 
 	self.solver.modules:add{
 		name = 'coord_raise',
-		depends = {'real3'},
 		code = getCode_real3_real3_to_real3('coord_raise', self.raiseCodes),
 	}
 
 	do
-		local lines = table()
-		
 		local function addSym3Components(name, codes)
+			local lines = table()
 			for i=1,3 do
 				for j=i,3 do
 					local code = (codes[i] and codes[i][j] or clnumber(i==j and 1 or 0))
@@ -1039,30 +1036,40 @@ static inline real coordLen(real3 r, real3 pt) {
 					end
 				end
 			end
+			return lines:concat'\n'
 		end
 
-		addSym3Components('coord_g_ll', self.gCode)
-		addSym3Components('coord_g_uu', self.gUCode)
-		-- curvilinear grid normals use sqrt(g^ii), as it is the metric-weighted coordinate normal magnitude
-		addSym3Components('coord_sqrt_g_uu', self.sqrt_gUCode)
-	
 		self.solver.modules:add{
-			name = 'coord_g_ll,uu,sqrt_guu component',
-			depends = {'real3'},
-			code = lines:concat'\n',
+			name = 'coord_g_ll##',
+			code = addSym3Components('coord_g_ll', self.gCode),
 		}
+
+		self.solver.modules:add{
+			name = 'coord_g_uu##',
+			code = addSym3Components('coord_g_uu', self.gUCode),
+		}
+		
+		-- curvilinear grid normals use sqrt(g^ii), as it is the metric-weighted coordinate normal magnitude
+		self.solver.modules:add{
+			name = 'coord_sqrt_g_uu##',
+			code = addSym3Components('coord_sqrt_g_uu', self.sqrt_gUCode),
+		}
+	
 	end
 
 	self.solver.modules:add{
-		name = 'coord_g_ll/uu',
+		name = 'coord_g_ll',
 		depends = {'sym3'},
-		code = table{
-			getCode_real3_to_sym3('coord_g_ll', self.gCode),
-			getCode_real3_to_sym3('coord_g_uu', self.gUCode),
-		}:concat'\n',
+		code = getCode_real3_to_sym3('coord_g_ll', self.gCode),
 	}
-	
-	lines:insert(self:getCoordMapCode())
+
+	self.solver.modules:add{
+		name = 'coord_g_uu',
+		depends = {'sym3'},
+		code = getCode_real3_to_sym3('coord_g_uu', self.gUCode),
+	}
+
+	self:initCodeModule_coordMap()
 
 	-- parallel propagate code
 	if require 'hydro.solver.fvsolver'.is(self.solver) then
@@ -1144,42 +1151,61 @@ static inline real coordLen(real3 r, real3 pt) {
 	}
 end
 
-function CoordinateSystem:getCoordMapCode()
-	local lines = table()
-		
+function CoordinateSystem:initCodeModule_coordMap()
+	local solver = self.solver
+
 	-- get back the Cartesian coordinate for some provided chart coordinates
 	-- TODO make this a macro based on cellBuf[index]
 	-- and make it custom per coord system (just like the cellBuf fields are)
-	lines:insert(getCode_real3_to_real3(
-		'coordMap',
-		range(3):mapi(function(i)
-			return self.uCode[i] or 'pt.'..xNames[i]
-		end)))
+	solver.modules:add{
+		name = 'coordMap',
+		code = getCode_real3_to_real3('coordMap', range(3):mapi(function(i) return self.uCode[i] or 'pt.'..xNames[i] end)),
+	}
 
 	-- get back the radial distance for some provided chart coordinates
-	lines:insert(getCode_real3_to_real(
-		'coordMapR',
-		self:compile(self.vars.r)))
+	solver.modules:add{
+		name = 'coordMapR',
+		code = getCode_real3_to_real('coordMapR', self:compile(self.vars.r)),
+	}
 
-	for i,eiCode in ipairs(self.eCode) do
-		lines:insert(getCode_real3_to_real3('coordBasis'..(i-1), eiCode))
+	do
+		local lines = table()
+		for i,eiCode in ipairs(self.eCode) do
+			lines:insert(getCode_real3_to_real3('coordBasis'..(i-1), eiCode))
+		end
+		solver.modules:add{
+			name = 'coordBasis#',
+			code = lines:concat'\n',
+		}
 	end
 
-	if require 'hydro.solver.fvsolver'.is(self.solver)
-	and self.vectorComponent == 'cartesian' 
-	then
+	if self.eHolUnitCode then
+		local lines = table()
 		for i,eHolUnitiCode in ipairs(self.eHolUnitCode) do
 			lines:insert(getCode_real3_to_real3('holunit_coordBasis'..(i-1), eHolUnitiCode))
 		end
+		solver.modules:add{
+			name = 'holunit_coordBasis#',
+			code = lines:concat'\n',
+		}
 	end
 
-	lines:insert(template([[
-
-<? if coord.vectorComponent == 'cartesian' 
-	or require 'hydro.coord.cartesian'.is(coord)
-then
- 	if not require 'hydro.coord.cartesian'.is(coord) then
-?>
+	do
+		local fromlines = table()
+		local tolines = table()
+		local depends = table()
+		local env = {
+			solver = self.solver,
+			coord = self,
+			xNames = xNames,
+		}
+		if self.vectorComponent == 'cartesian' 
+		or require 'hydro.coord.cartesian'.is(coord)
+		then
+			if not require 'hydro.coord.cartesian'.is(coord) then
+				
+				depends:insert'holunit_coordBasis#'
+				tolines:insert(template([[
 //converts a vector from cartesian coordinates to grid curvilinear coordinates
 //by projecting the vector into the grid basis vectors
 //at x, which is in grid curvilinear coordinates
@@ -1202,7 +1228,8 @@ real3 coord_cartesianToCoord(real3 u, real3 pt) {
 	uCoord = real3_add(uCoord, u);
 	return uCoord;
 }
-
+]], env))
+				fromlines:insert(template([[
 //converts a vector from cartesian to grid curvilinear coordinates
 //by projecting it onto the basis ... ?
 real3 coord_cartesianFromCoord(real3 u, real3 pt) {
@@ -1215,22 +1242,31 @@ real3 coord_cartesianFromCoord(real3 u, real3 pt) {
 	}<? end ?>
 	return uGrid;
 }
+]], env))
 
-<?	else	-- cartesian.is(coord) ?>
+			else	-- cartesian.is(coord)
+				fromlines:insert[[
 #define coord_cartesianFromCoord(u, pt) (u)
+]]
+				tolines:insert[[
 #define coord_cartesianToCoord(u, pt) 	(u)
-<?	end ?>
+]]
+			end 
 
-//TODO change names
-//'coord' is ambiguous
-// this is relative to teh vector component basis
+--TODO change names
+--'coord' is ambiguous
+-- this is relative to teh vector component basis
+			fromlines:insert[[
 #define cartesianFromCoord(u, pt) 	(u)
+]]
+			tolines:insert[[
 #define cartesianToCoord(u, pt) 	(u)
+]]
 
+		else	-- coord.vectorComponent
 
-<? else	-- coord.vectorComponent ?>
-
-
+			depends:insert'coordBasis#'
+			tolines:insert(template([[
 //converts a vector from cartesian coordinates to grid curvilinear coordinates
 //by projecting the vector into the grid basis vectors
 //at x, which is in grid curvilinear coordinates
@@ -1254,6 +1290,9 @@ real3 coord_cartesianToCoord(real3 u, real3 pt) {
 	return uCoord;
 }
 
+#define cartesianToCoord(u, pt) 	coord_cartesianToCoord(u, pt)
+]], env))
+			fromlines:insert(template([[
 //converts a vector from cartesian to grid curvilinear coordinates
 //by projecting it onto the basis ... ?
 real3 coord_cartesianFromCoord(real3 u, real3 pt) {
@@ -1266,19 +1305,23 @@ real3 coord_cartesianFromCoord(real3 u, real3 pt) {
 	}<? end ?>
 	return uGrid;
 }
-
 
 #define cartesianFromCoord(u, pt) 	coord_cartesianFromCoord(u, pt)
-#define cartesianToCoord(u, pt) 	coord_cartesianToCoord(u, pt)
+]], env))
 
-<? end -- coord.vectorComponent ?>
-]], {
-		solver = self.solver,
-		coord = self,
-		xNames = xNames,
-	}))
-	
-	return lines:concat'\n'
+		end -- coord.vectorComponent
+		
+		solver.modules:add{
+			name = 'cartesianFromCoord',
+			depends = depends,
+			code = fromlines:concat'\n',
+		}
+		solver.modules:add{
+			name = 'cartesianToCoord',
+			depends = depends,
+			code = tolines:concat'\n',
+		}
+	end
 end
 
 local function makeGLSL(code)
@@ -1300,7 +1343,7 @@ local function makeGLSL(code)
 end
 
 function CoordinateSystem:getCoordMapGLSLCode()
-	return makeGLSL(self:getCoordMapCode())
+	return makeGLSL(self.solver.modules:getCodeAndHeader('coordMap', 'cartesianFromCoord'))
 end
 
 -- until I get inverses on systems of equations working, I'll have this manually specified

@@ -29,12 +29,6 @@ BSSNOKFiniteDifferenceEquation.useSourceTerm = true
 -- not used with finite-difference schemes anyways
 BSSNOKFiniteDifferenceEquation.weightFluxByGridVolume = false
 
--- seems all the hyperbolic formalisms listed in Alcubierre's book use alpha sqrt(gamma^ii) for the speed-of-light wavespeed
--- however the 2017 Ruchlin paper says to use gamma_ij
-BSSNOKFiniteDifferenceEquation.cflMethod = '2008 Alcubierre'
---BSSNOKFiniteDifferenceEquation.cflMethod = '2013 Baumgarte et al, eqn 32'
---BSSNOKFiniteDifferenceEquation.cflMethod = '2017 Ruchlin et al, eqn 53'
-
 --[[
 args:
 	useShift = 'none'
@@ -46,7 +40,6 @@ function BSSNOKFiniteDifferenceEquation:init(args)
 	-- needs to be defined up front
 	-- otherwise rebuild intVars based on it ...
 	self.useShift = args.useShift or 'HyperbolicGammaDriver'
-	self.cflMethod = args.cflMethod
 
 	local intVars = table{
 		{name='alpha', type='real'},			-- 0:	1: alpha
@@ -71,6 +64,7 @@ function BSSNOKFiniteDifferenceEquation:init(args)
 		{name='H', type='real'},				--1
 		{name='M_U', type='real3'},				--3
 	}
+	self:cdefAllVarTypes(args.solver, intVars)
 	self.numIntStates = Struct.countScalars{vars=intVars}
 
 	-- call construction / build structures	
@@ -138,8 +132,10 @@ function BSSNOKFiniteDifferenceEquation:getEnv()
 	option 1) concat all dependent parameters, like I do in the accuracy test files
 	option 2) generate a MD5 hash.  this is what the computer science folks like to do, because it looks technical and is obfuscating.  That's exactly why I don't want to do it.
 	--]]
-	
+
+	-- should I put this here, or in the cache dir?  if so then store the cache dir in the solver itself.
 	local symdir = 'hydro/eqn/bssnok-fd-sym/'..self.solver.coord.name
+	
 	local function fixpath(s) return require 'ffi'.os == 'Windows' and s:gsub('/', '\\') or s end
 	if require 'ffi'.os == 'Windows' then
 		os.execute('mkdir '..fixpath(symdir))
@@ -192,17 +188,25 @@ function BSSNOKFiniteDifferenceEquation:getEnv()
 		symmath.tostring = symmath.export.MathJax
 		symmath.tostring.useCommaDerivative = true
 
+		coords = Tensor.coords()[1].variables
+		local coordNames = table.mapi(coords, function(coord) return coord.name end)
+
 		outfile = assert(io.open(symdir..'/math.html', 'w'))
 		outfile:write((tostring(symmath.tostring.header):gsub('tryToFindMathJax.js', '../tryToFindMathJax_andDeferMathRendering.js')))
 		local idnum = 1
 		local function convertSingle(arg)
 			local s = tostring(arg)
 			if symmath.Expression.is(arg) then
+				local carToCoord = {
+					x = coordNames[1],
+					y = coordNames[2],
+					z = coordNames[3],
+				}
 			-- TODO proper way is to arg:replace() everything
 			-- but that is slow
 				s = s:gsub('U%->alpha', '\\alpha')
 				s = s:gsub('U%->beta_U%.(.)', '\\beta^{\\hat{%1}}')
-				s = s:gsub('U%->epsilon_LL%.(.)(.)', '\\epsilon_{\\hat{%1}\\hat{%2}}')
+				s = s:gsub('U%->epsilon_LL%.(.)(.)', function(xi,xj) return '\\epsilon_{\\hat{'..carToCoord[xi]..'}\\hat{'..carToCoord[xj]..'}}' end)
 				s = s:gsub('U%->W', 'W')
 				s = s:gsub('U%->K', 'K')
 				s = s:gsub('U%->ABar_LL%.(.)(.)', '\\bar{A}_{\\hat{%1}\\hat{%2}}')
@@ -211,20 +215,20 @@ function BSSNOKFiniteDifferenceEquation:getEnv()
 				s = s:gsub('U%->rho', '\\rho')
 				s = s:gsub('U%->S_u%.(.)', 'S^{%1}')
 				s = s:gsub('U%->S_ll%.(..)', 'S_{%1}')
-				s = s:gsub('partial_alpha_l%.(.)', '\\alpha_{,%1}')
+				s = s:gsub('partial_alpha_l%.(.)', function(xi) return '\\alpha_{,'..carToCoord[xi]..'}' end)
 				s = s:gsub('partial_beta_Ul%.(.)%.(.)', '{\\beta^{\\hat{%2}}}_{,%1}')
-				s = s:gsub('partial_epsilon_LLl%[(.)%]%.(.)(.)', function(k,xi,xj) return '\\epsilon_{\\hat{'..xi..'}\\hat{'..xj..'},'..xNames[k+1]..'}' end)
+				s = s:gsub('partial_epsilon_LLl%[(.)%]%.(.)(.)', function(k,xi,xj) return '\\epsilon_{\\hat{'..xi..'}\\hat{'..xj..'},'..coordNames[k+1]..'}' end)
 				s = s:gsub('partial_W_l%.(.)', 'W_{,%1}')
-				s = s:gsub('partial_K_l%.(.)', 'K_{,%1}')
-				s = s:gsub('partial_ABar_LLl%[(.)%]%.(.)(.)', function(k,xi,xj) return '\\bar{A}_{\\hat{'..xi..'}\\hat{'..xj..'},'..xNames[k+1]..'}' end)
+				s = s:gsub('partial_K_l%.(.)', function(xi) return 'K_{,'..carToCoord[xi]..'}' end)
+				s = s:gsub('partial_ABar_LLl%[(.)%]%.(.)(.)', function(k,xi,xj) return '\\bar{A}_{\\hat{'..xi..'}\\hat{'..xj..'},'..coordNames[k+1]..'}' end)
 				s = s:gsub('partial_LambdaBar_Ul%.(.)%.(.)', '{\\bar{\\Lambda}^{\\hat{%2}}}_{,%1}')
 				s = s:gsub('partial_B_Ul%.(.)%.(.)', '{B^{\\hat{%2}}}_{,%1}')
 				s = s:gsub('partial_alpha_l_upwind%.(.)', '(\\alpha^{up})_{,%1}')
 				s = s:gsub('partial_beta_Ul_upwind%.(.)%.(.)', '{(\\beta^{up})^{\\hat{%2}}}_{,%1}')
-				s = s:gsub('partial_epsilon_LLl_upwind%[(.)%]%.(.)(.)', function(k,xi,xj) return '(\\epsilon^{up})_{\\hat{'..xi..'}\\hat{'..xj..'},'..xNames[k+1]..'}' end)
+				s = s:gsub('partial_epsilon_LLl_upwind%[(.)%]%.(.)(.)', function(k,xi,xj) return '(\\epsilon^{up})_{\\hat{'..xi..'}\\hat{'..xj..'},'..coordNames[k+1]..'}' end)
 				s = s:gsub('partial_W_l_upwind%.(.)', '(W^{up})_{,%1}')
 				s = s:gsub('partial_K_l_upwind%.(.)', '(K^{up})_{,%1}')
-				s = s:gsub('partial_ABar_LLl_upwind%[(.)%]%.(.)(.)', function(k,xi,xj) return '(\\bar{A}^{up})_{\\hat{'..xi..'}\\hat{'..xj..'},'..xNames[k+1]..'}' end)
+				s = s:gsub('partial_ABar_LLl_upwind%[(.)%]%.(.)(.)', function(k,xi,xj) return '(\\bar{A}^{up})_{\\hat{'..xi..'}\\hat{'..xj..'},'..coordNames[k+1]..'}' end)
 				s = s:gsub('partial_LambdaBar_Ul_upwind%.(.)%.(.)', '{(\\bar{\\Lambda}^{up})^{\\hat{%2}}}_{,%1}')
 				s = s:gsub('partial_B_Ul_upwind%.(.)%.(.)', '{(B^{up})^{\\hat{%2}}}_{,%1}')
 				s = s:gsub('partial2_alpha_ll%.(..)', '\\alpha_{,%1}')
@@ -240,7 +244,7 @@ function BSSNOKFiniteDifferenceEquation:getEnv()
 				s = s:gsub('ABarSq_ul%.(.)%.(.)', '{(\\bar{A}^2)^%1}_%2')
 				s = s:gsub('ABarSq_ll%.(..)', '\\bar{A}_{%1}')
 				s = s:gsub('solver%->shift_eta', '\\eta')
-				s = s:gsub('gammaBar_UU%.(.)(.)', '\\bar{\\gamma}^{\\hat{%1}\\hat{%2}}')
+				s = s:gsub('gammaBar_UU%.(.)(.)', function(xi,xj) return '\\bar{\\gamma}^{\\hat{'..carToCoord[xi]..'}\\hat{'..carToCoord[xj]..'}}' end)
 				s = s:gsub('connBar_LLL%.(.)%.(.)(.)', '{\\bar{\\Gamma}^{\\hat{%1}}}_{\\hat{%2}\\hat{%3}}')
 
 				idnum = idnum + 1
@@ -289,8 +293,6 @@ function BSSNOKFiniteDifferenceEquation:getEnv()
 		compileRepls = table()	
 --]]
 	end
-
-	coords = Tensor.coords()[1].variables
 
 	local replCoords = table()
 	for i=1,#coords do
@@ -564,7 +566,7 @@ time('building symbolic math env', function()
 	printbr'gammaHat_ll'
 		gammaHat_ll = Tensor.metric().metric
 	printbr(gammaHat_ll)
-
+os.exit()
 	printbr'e'
 		e = Tensor('_i^I', function(i,j)
 			return (i==j and solver.coord.lenExprs[i] or 0)

@@ -466,6 +466,8 @@ function Equation:initCodeModuleSolver()
 			'eqn.eigen_t',
 			'eqn.guiVars.compileTime',
 			'coord',
+			-- displayVars:
+			'coord_g_ll',	-- display code has 'mag metric' component, which uses coord_g_ll
 		}:append(self:getModuleDependsSolver()),
 		code = self:template(file[self.solverCodeFile]),
 	}

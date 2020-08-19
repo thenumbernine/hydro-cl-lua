@@ -34,12 +34,6 @@ BSSNOKFiniteDifferenceEquation.weightFluxByGridVolume = false
 
 BSSNOKFiniteDifferenceEquation.useScalarField = false
 
--- seems all the hyperbolic formalisms listed in Alcubierre's book use alpha sqrt(gamma^ii) for the speed-of-light wavespeed
--- however the 2017 Ruchlin paper says to use gamma_ij
-BSSNOKFiniteDifferenceEquation.cflMethod = '2008 Alcubierre'
---BSSNOKFiniteDifferenceEquation.cflMethod = '2013 Baumgarte et al, eqn 32'
---BSSNOKFiniteDifferenceEquation.cflMethod = '2017 Ruchlin et al, eqn 53'
-
 --[[
 args:
 	useShift = 'none'
@@ -52,7 +46,6 @@ function BSSNOKFiniteDifferenceEquation:init(args)
 	-- otherwise rebuild intVars based on it ...
 	self.useShift = args.useShift or 'HyperbolicGammaDriver'
 	self.useScalarField = args.useScalarField 
-	self.cflMethod = args.cflMethod
 	
 	local intVars = table{
 		{name='alpha', type='real'},						-- 0:	1: alpha
@@ -149,7 +142,7 @@ function BSSNOKFiniteDifferenceEquation:initCodeModules()
 	
 	solver.modules:add{
 		name = 'calc_gammaHat_ll/uu/det',
-		depends = {'coord_g_ll/uu'},
+		depends = {'coord_g_ll', 'coord_g_uu'},
 		code = [[
 #define calc_gammaHat_ll	coord_g_ll
 #define calc_det_gammaHat 	coord_det_g
@@ -161,6 +154,7 @@ end
 function BSSNOKFiniteDifferenceEquation:getModuleDependsApplyInitCond() 
 	return table(BSSNOKFiniteDifferenceEquation.super.getModuleDependsApplyInitCond(self)):append{
 		'_3sym3',		-- still used by some vars
+		'coordMap',
 		'calc_gammaHat_ll/uu/det',
 		'eqn.common',	-- *_rescaleTo/FromCoord_*
 	}
@@ -525,6 +519,7 @@ function BSSNOKFiniteDifferenceEquation:getModuleDependsSolver()
 		'_3sym3',
 		'calc_gammaHat_ll/uu/det',
 		'real3x3x3',
+		'coordMapR',
 		-- only for display code. (actually most this is only for display code)
 		'initCond.codeprefix',	-- ...specifically, calc_f
 	}
