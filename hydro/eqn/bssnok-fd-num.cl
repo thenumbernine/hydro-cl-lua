@@ -219,7 +219,8 @@ local log = symmath.log
 return alpha^2 * ]=]..fLuaCode))(alpha, symmath)
 	f_times_alphaSq = symmath.clone(f_times_alphaSq)()
 ?>real calc_f_times_alphaSq(real alpha) {
-	return <?=symmath.export.C(f_times_alphaSq)?>;
+	<?=symmath.export.C:toCode{output={f_times_alphaSq}}?>
+	return out1;
 }
 <?
 end

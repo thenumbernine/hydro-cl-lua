@@ -36,7 +36,9 @@ local function compileC(expr, name, vars)
 		
 		print('compiling '..name..':')
 		print(expr)
-		local code = expr:compile(vars, 'C'), name
+		local code = symmath.export.C:toCode{
+			output = vars,
+		}, name
 	
 		-- ugh...
 		code = code:gsub('sqrt%(', '(real)sqrt((real)')
@@ -100,7 +102,7 @@ return ]]..fLuaCode))(alphaVar, symmath)
 	codes.dalpha_f = compileC(dalpha_f, 'dalpha_f', {alphaVar})
 
 	return codes:map(function(code,name,t)
-		return 'real calc_'..name..code, #t+1
+		return 'real calc_'..name..'(real alpha) {\n\t'..code..'\n\treturn out1;\n}', #t+1
 	end):concat'\n'		
 end
 
@@ -187,7 +189,7 @@ return ]]..fLuaCode))(alphaVar, symmath)
 	codes.dalpha_f = compileC(dalpha_f, 'dalpha_f', {alphaVar})
 
 	return table.map(codes, function(code,name,t)
-		return 'real calc_'..name..code, #t+1
+		return 'real calc_'..name..'(real alpha) {\n\t'..code..'\n\treturn out1;\n}', #t+1
 	end):concat'\n'
 end
 

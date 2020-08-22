@@ -249,8 +249,11 @@ function SphereLogRadial:fillGridCellBuf(cellsCPU)
 	local solver = self.solver
 
 	local symmath = require 'symmath'
-	local params = table(self.baseCoords):append{self.amplitude_var, self.sinh_w_var}
-	local calcR, code = symmath.export.Lua:compile(self.vars.r, params)
+	local rho, theta, phi = self.baseCoords:unpack()
+	local calcR, code = symmath.export.Lua:toFunc{
+		output = {self.vars.r},
+		input = {{rho=rho}, {theta=theta}, {phi=phi}, self.amplitude_var, self.sinh_w_var},
+	}
 print('calcR code:')
 print(code)
 	
