@@ -623,6 +623,9 @@ self.Gamma_ull = Gamma_ull
 	
 	local sqrt_gU = Tensor('^ab', function(a,b) return symmath.sqrt(gU[a][b])() end)
 	compileTensorField('sqrt_gUCode', sqrt_gU)
+	
+	local sqrt_g = Tensor('_ab', function(a,b) return symmath.sqrt(g[a][b])() end)
+	compileTensorField('sqrt_gCode', sqrt_g)
 
 	local det_g_expr = symmath.Matrix.determinant(g)
 self.det_g = det_g_expr
@@ -1055,6 +1058,10 @@ static inline real coordLen(real3 r, real3 pt) {
 			code = addSym3Components('coord_sqrt_g_uu', self.sqrt_gUCode),
 		}
 	
+		self.solver.modules:add{
+			name = 'coord_sqrt_g_ll##',
+			code = addSym3Components('coord_sqrt_g_ll', self.sqrt_gCode),
+		}
 	end
 
 	self.solver.modules:add{

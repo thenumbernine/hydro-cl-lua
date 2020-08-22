@@ -1529,17 +1529,22 @@ return ]]..units), "failed to compile unit expression "..units)(m, s, kg, C, K)
 		end
 	end)
 	
-	local Ccode = expr:compile({
-		{__solver_meter = m}, 
-		{__solver_second = s},
-		{__solver_kilogram = kg},
-		{__solver_coulomb = C},
-		{__solver_kelvin = K},
-	}, 'C')
+	local Ccode = symmath.export.C:toCode{
+		output = {expr},
+		input = {
+			{__solver_meter = m}, 
+			{__solver_second = s},
+			{__solver_kilogram = kg},
+			{__solver_coulomb = C},
+			{__solver_kelvin = K},
+		},
+	}
 	Ccode = Ccode:gsub('__solver_', 'solver->')
-	Ccode = assert((Ccode:match'{ return (.*); }'), "failed to find code block")
 
-	local luaFunc, luaCode = expr:compile{m, s, kg, C, K}
+	local luaFunc, luaCode = symmath.export.Lua:toFunc{
+		output = {expr},
+		input = {m, s, kg, C, K},
+	}
 
 	local code = {
 		C = Ccode,

@@ -229,7 +229,7 @@ real calc_det_gammaBarLL(global const <?=eqn.cons_t?>* U, real3 x) {
 sym3 calc_gammaBar_UU(global const <?=eqn.cons_t?>* U, real3 x) {
 <?=assignRepls(cos_xs)?>
 <?=assignRepls(sin_xs)?>
-<?=assign'det_gammaBar_over_det_gammaHat'?>
+<? -- assign'det_gammaBar_over_det_gammaHat'?>
 <?=assign_sym3'gammaBar_UU'?>
 	return gammaBar_UU;
 }
@@ -420,7 +420,7 @@ kernel void calcDeriv(
 	
 	TODO detg ...
 	*/
-<?=assign'det_gammaBar_over_det_gammaHat'?>
+<? -- assign'det_gammaBar_over_det_gammaHat'?>
 
 
 	//////////////////////////////// alpha_,t //////////////////////////////// 
@@ -536,7 +536,7 @@ then
 
 <? else -- constrain_det_gammaBar or constrain_tr_ABar ?>
 
-<?=assign'det_gammaBar_over_det_gammaHat'?>
+<? -- assign'det_gammaBar_over_det_gammaHat'?>
 	
 <? end -- constrain_det_gammaBar or constrain_tr_ABar ?>
 

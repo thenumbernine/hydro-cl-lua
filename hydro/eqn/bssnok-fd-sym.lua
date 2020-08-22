@@ -205,7 +205,7 @@ function BSSNOKFiniteDifferenceEquation:getEnv()
 			-- TODO proper way is to arg:replace() everything
 			-- but that is slow
 				s = s:gsub('U%->alpha', '\\alpha')
-				s = s:gsub('U%->beta_U%.(.)', '\\beta^{\\hat{%1}}')
+				s = s:gsub('U%->beta_U%.(.)', function(xi) return '\\beta^{\\hat{'..carToCoord[xi]..'}}' end)
 				s = s:gsub('U%->epsilon_LL%.(.)(.)', function(xi,xj) return '\\epsilon_{\\hat{'..carToCoord[xi]..'}\\hat{'..carToCoord[xj]..'}}' end)
 				s = s:gsub('U%->W', 'W')
 				s = s:gsub('U%->K', 'K')
@@ -214,7 +214,7 @@ function BSSNOKFiniteDifferenceEquation:getEnv()
 				s = s:gsub('U%->B_U%.(.)', 'B^{\\hat{%1}}')
 				s = s:gsub('U%->rho', '\\rho')
 				s = s:gsub('U%->S_u%.(.)', 'S^{%1}')
-				s = s:gsub('U%->S_ll%.(..)', 'S_{%1}')
+				s = s:gsub('U%->S_ll%.(.)(.)', function(xi,xj) return 'S_{'..carToCoord[xi]..carToCoord[xj]..'}' end)
 				s = s:gsub('partial_alpha_l%.(.)', function(xi) return '\\alpha_{,'..carToCoord[xi]..'}' end)
 				s = s:gsub('partial_beta_Ul%.(.)%.(.)', '{\\beta^{\\hat{%2}}}_{,%1}')
 				s = s:gsub('partial_epsilon_LLl%[(.)%]%.(.)(.)', function(k,xi,xj) return '\\epsilon_{\\hat{'..xi..'}\\hat{'..xj..'},'..coordNames[k+1]..'}' end)
@@ -223,7 +223,7 @@ function BSSNOKFiniteDifferenceEquation:getEnv()
 				s = s:gsub('partial_ABar_LLl%[(.)%]%.(.)(.)', function(k,xi,xj) return '\\bar{A}_{\\hat{'..xi..'}\\hat{'..xj..'},'..coordNames[k+1]..'}' end)
 				s = s:gsub('partial_LambdaBar_Ul%.(.)%.(.)', '{\\bar{\\Lambda}^{\\hat{%2}}}_{,%1}')
 				s = s:gsub('partial_B_Ul%.(.)%.(.)', '{B^{\\hat{%2}}}_{,%1}')
-				s = s:gsub('partial_alpha_l_upwind%.(.)', '(\\alpha^{up})_{,%1}')
+				s = s:gsub('partial_alpha_l_upwind%.(.)', function(xi) return '(\\alpha^{up})_{,'..carToCoord[xi]..'}' end)
 				s = s:gsub('partial_beta_Ul_upwind%.(.)%.(.)', '{(\\beta^{up})^{\\hat{%2}}}_{,%1}')
 				s = s:gsub('partial_epsilon_LLl_upwind%[(.)%]%.(.)(.)', function(k,xi,xj) return '(\\epsilon^{up})_{\\hat{'..xi..'}\\hat{'..xj..'},'..coordNames[k+1]..'}' end)
 				s = s:gsub('partial_W_l_upwind%.(.)', '(W^{up})_{,%1}')
@@ -245,7 +245,7 @@ function BSSNOKFiniteDifferenceEquation:getEnv()
 				s = s:gsub('ABarSq_ll%.(..)', '\\bar{A}_{%1}')
 				s = s:gsub('solver%->shift_eta', '\\eta')
 				s = s:gsub('gammaBar_UU%.(.)(.)', function(xi,xj) return '\\bar{\\gamma}^{\\hat{'..carToCoord[xi]..'}\\hat{'..carToCoord[xj]..'}}' end)
-				s = s:gsub('connBar_LLL%.(.)%.(.)(.)', '{\\bar{\\Gamma}^{\\hat{%1}}}_{\\hat{%2}\\hat{%3}}')
+				s = s:gsub('connBar_LLL%.(.)%.(.)(.)', function(xi,xj,xk) return '{\\bar{\\Gamma}^{\\hat{'..carToCoord[xi]..'}}}_{\\hat{'..carToCoord[xj]..'}\\hat{'..carToCoord[xk]..'}}' end)
 
 				idnum = idnum + 1
 				local idname = 'span'..idnum
@@ -563,17 +563,20 @@ time('building symbolic math env', function()
 		-- either one to prevent symmath from automatically raising or lowering
 		-- otherwise using e or eu incorrectly will result in extra operations
 
-	printbr'gammaHat_ll'
-		gammaHat_ll = Tensor.metric().metric
+	local function dorepl(expr)
 		for _,repl in ipairs(solver.coord.replvars) do
-			gammaHat_ll = gammaHat_ll:replace(repl[1], repl[2])
+			expr = expr:replace(repl[1], repl[2])
 		end
+		return expr
+	end
+
+	printbr'gammaHat_ll'
+		gammaHat_ll = dorepl(Tensor.metric().metric)
 	printbr(gammaHat_ll)
-os.exit()
 	printbr'e'
-		e = Tensor('_i^I', function(i,j)
+		e = dorepl(Tensor('_i^I', function(i,j)
 			return (i==j and solver.coord.lenExprs[i] or 0)
-		end)
+		end))
 	printbr(e)
 	printbr'eu'
 		eu = Tensor('^i_I', function(i,j)
@@ -731,39 +734,46 @@ os.exit()
 
 	printbr'gammaBar_ll'
 		gammaBar_ll = (gammaHat_ll'_ij' + epsilon_ll'_ij')()
+		gammaBar_ll_vars = makevars_sym3('_ij', 'gammaBar_ll')
+-- TODO defer this	
 	printbr(gammaBar_ll)
 
 	printbr'det_gammaBar'
 		det_gammaBar = Matrix.determinant(gammaBar_ll)
+		det_gammaBar_var = var('det_gammaBar', coords)
 	printbr(det_gammaBar)
 
 		-- factor out the coord metric det: r^4 sin(theta)^2 of spherical
 		-- but leave the rest as a variable
 	printbr'det_gammaBar_over_det_gammaHat'
-		det_gammaBar_over_det_gammaHat = (det_gammaBar / det_gammaHat)()
-		det_gammaBar_over_det_gammaHat_var = var('det_gammaBar_over_det_gammaHat', coords)  
+		det_gammaBar_over_det_gammaHat = (det_gammaBar_var / det_gammaHat)()
+-- TODO don't defer this	
 	printbr(det_gammaBar_over_det_gammaHat)
 
 	printbr'gammaBar_UU'
 		gammaBar_UU = Tensor('^IJ', table.unpack((Matrix.inverse(gammaBar_LL, nil, nil, nil,
 			-- det(gammaBar_IJ) == det(gammaBar_ij)/det(gammaHat_ij)
-			det_gammaBar_over_det_gammaHat_var)))) 
+			det_gammaBar_over_det_gammaHat)))) 
 		-- I'm trying to remove all vars, but this one is pretty essential to lowering the symbolic expression sizes
 		-- I picked gammaBar^IJ because it is O(1/det gammaBar_IJ), which is near 1
-		gammaBar_UU_vars = makevars_sym3('^IJ', 'gammaBar_UU')
+		-- in fact, looking at the SENR generated code, it looks like gammaBar_ij and gammaBar^ij (conformal scale) are basically the only two explicitly defined (and therefore explicitly deferred?) calculations in the generated code? 
+		--  though don't quote me on this, because I was only going by tmp variable names.  there could be other vars explicitly deferred but not given distinct var names and still called 'tmp'.
+		--gammaBar_UU_vars = makevars_sym3('^IJ', 'gammaBar_UU')
+-- TODO don't defer this	
 	printbr(gammaBar_UU)
 
-	-- [[ defer det_gammaHat in det_gammaBar's definition
+	--[[ defer det_gammaHat in det_gammaBar's definition
 	printbr'det_gammaBar'
-		det_gammaBar = (det_gammaBar_over_det_gammaHat_var * det_gammaHat)() 
+		det_gammaBar = (det_gammaBar_over_det_gammaHat * det_gammaHat)() 
 	printbr(det_gammaBar)
 	--]]
 
 	printbr'gammaBar_uu'
-		gammaBar_uu = (eu'^i_I' * eu'^j_J' * gammaBar_UU_vars'^IJ')():factorDivision()
+		gammaBar_uu = (eu'^i_I' * eu'^j_J' * gammaBar_UU'^IJ')():factorDivision()
+		gammaBar_uu_vars = makevars_sym3('^ij', 'gammaBar_uu')
 	printbr(gammaBar_uu)
 	printbr'gamma_uu'
-		gamma_uu = (exp_neg4phi * gammaBar_uu'^ij')():factorDivision()
+		gamma_uu = (exp_neg4phi * gammaBar_uu_vars'^ij')():factorDivision()
 	printbr(gamma_uu)
 
 	printbr'partial_gammaBar_lll'
@@ -774,7 +784,7 @@ os.exit()
 	printbr(partial2_gammaBar_llll)
 	-- slow (but necessary to remove the singularity in RBar_ij:
 	printbr'trBar_partial2_gammaBar_ll'
-		trBar_partial2_gammaBar_ll = (gammaBar_uu'^kl' * partial2_gammaBar_llll'_ijkl')():factorDivision()
+		trBar_partial2_gammaBar_ll = (gammaBar_uu_vars'^kl' * partial2_gammaBar_llll'_ijkl')():factorDivision()
 	printbr(trBar_partial2_gammaBar_ll)
 	printbr'connBar_lll'
 		connBar_lll = ((partial_gammaBar_lll'_ijk' + partial_gammaBar_lll'_ikj' - partial_gammaBar_lll'_jki') / 2)()
@@ -782,11 +792,10 @@ os.exit()
 
 	printbr'connBar_LLL'
 		connBar_LLL = (((connBar_lll'_ijk' * eu'^i_I')() * eu'^j_J')() * eu'^k_K')():factorDivision()
-		connBar_LLL_vars = makevars_3sym3('_IJK', 'connBar_LLL')
 	printbr(connBar_LLL)
 
 	printbr'connBar_ULL'
-		connBar_ULL = (gammaBar_UU_vars'^IL' * connBar_LLL_vars'_LJK')():factorDivision()
+		connBar_ULL = (gammaBar_UU'^IL' * connBar_LLL'_LJK')():factorDivision()
 	printbr(connBar_ULL)
 
 		local function removeBetas(expr)
@@ -850,20 +859,22 @@ os.exit()
 		end)
 	printbr(partial_det_gammaBar_over_det_gammaHat_l)
 		partial_det_gammaBar_over_det_gammaHat_l_vars = Tensor('_i', function(i) 
-			return compileReplVar(det_gammaBar_over_det_gammaHat_var:diff(coords[i]), 'partial_det_gammaBar_over_det_gammaHat_l.'..xNames[i], coords) 
+			--return compileReplVar(det_gammaBar_over_det_gammaHat_var:diff(coords[i]), 'partial_det_gammaBar_over_det_gammaHat_l.'..xNames[i], coords) 
+			return compileReplVar(det_gammaBar_over_det_gammaHat:diff(coords[i]), 'partial_det_gammaBar_over_det_gammaHat_l.'..xNames[i], coords) 
 		end)
 	printbr'partial2_det_gammaBar_over_det_gammaHat_ll'
 		partial2_det_gammaBar_over_det_gammaHat_ll = partial_det_gammaBar_over_det_gammaHat_l'_i,j'():factorDivision()
 	printbr(partial2_det_gammaBar_over_det_gammaHat_ll)
 		partial2_det_gammaBar_over_det_gammaHat_ll_vars = Tensor('_ij', function(i,j) 
-			return compileReplVar(det_gammaBar_over_det_gammaHat_var:diff(coords[i], coords[j]), 'partial2_det_gammaBar_over_det_gammaHat_ll.'..sym(i,j), coords) 
+			--return compileReplVar(det_gammaBar_over_det_gammaHat_var:diff(coords[i], coords[j]), 'partial2_det_gammaBar_over_det_gammaHat_ll.'..sym(i,j), coords) 
+			return compileReplVar(det_gammaBar_over_det_gammaHat:diff(coords[i], coords[j]), 'partial2_det_gammaBar_over_det_gammaHat_ll.'..sym(i,j), coords) 
 		end)
 	--]]
 
 	-- [[ connBar^k_jk = sqrt(det gammaBar_mn),j
 	printbr'tr_connBar_l'	
 		tr_connBar_l  = Tensor('_i', function(i)
-			return (sqrt(det_gammaBar):diff(coords[i]) / sqrt(det_gammaBar))():factorDivision()
+			return (sqrt(det_gammaBar_var):diff(coords[i]) / sqrt(det_gammaBar_var))():factorDivision()
 		end)
 	printbr(tr_connBar_l)
 	--]]
@@ -913,17 +924,17 @@ os.exit()
 		-- or set some indexes to gammaBar and others to gamma? and yet others to non-coord gammaBar?
 
 	printbr'ABar_UL'
-		ABar_UL = (gammaBar_UU_vars'^IK' * ABar_LL'_KJ')():factorDivision()
+		ABar_UL = (gammaBar_UU'^IK' * ABar_LL'_KJ')():factorDivision()
 	printbr(ABar_UL)
 		tr_ABar = ABar_UL'^I_I'():factorDivision()
 	printbr'ABar_UU'
-		ABar_UU = (ABar_UL'^I_K' * gammaBar_UU_vars'^KJ')()
+		ABar_UU = (ABar_UL'^I_K' * gammaBar_UU'^KJ')()
 	printbr(ABar_UU)
 	printbr'ABarSq_LL'
 		ABarSq_LL = (ABar_LL'_IK' * ABar_UL'^K_J')()
 	printbr(ABarSq_LL)
 	printbr('tr_ABarSq')
-		tr_ABarSq = (gammaBar_UU_vars'^IJ' * ABarSq_LL'_IJ')():factorDivision()
+		tr_ABarSq = (gammaBar_UU'^IJ' * ABarSq_LL'_IJ')():factorDivision()
 	printbr(tr_ABarSq)
 
 	printbr'DBar2_alpha_ll'
@@ -941,11 +952,11 @@ os.exit()
 	printbr(DBar2_alpha_LL)
 
 	printbr('tr_DBar2_alpha')
-		tr_DBar2_alpha = (gammaBar_UU_vars'^IJ' * DBar2_alpha_LL'_IJ')():factorDivision()
+		tr_DBar2_alpha = (gammaBar_UU'^IJ' * DBar2_alpha_LL'_IJ')():factorDivision()
 	printbr(tr_DBar2_alpha)
 
 	printbr('partial_alpha_u')
-		partial_alpha_u = (gammaBar_uu'^ij' * partial_alpha_l'_j')():factorDivision()
+		partial_alpha_u = (gammaBar_uu_vars'^ij' * partial_alpha_l'_j')():factorDivision()
 	printbr(partial_alpha_u)
 
 		-- W_def = exp(-2 phi_var)
@@ -1011,7 +1022,7 @@ os.exit()
 
 		-- e^i_I e^j_J (gammaBar_ij,k beta^k + gammaBar_ki * beta^k,_j + gammaBar_kj * beta^k,_i)
 	printbr'gammaBar_times_partial_beta_ll'
-		gammaBar_times_partial_beta_ll = (gammaBar_ll'_ik' * partial_beta_ul'^k_j')()
+		gammaBar_times_partial_beta_ll = (gammaBar_ll_vars'_ik' * partial_beta_ul'^k_j')()
 	printbr(gammaBar_times_partial_beta_ll)
 
 	-- this is the rescaled version of the Lie derivative of gammaBar_ij
@@ -1097,8 +1108,8 @@ os.exit()
 	printbr'DHat_gammaBar_lll'
 		DHat_gammaBar_lll = (
 			partial_gammaBar_lll'_ijk'
-			- connHat_ull'^l_ki' * gammaBar_ll'_lj'
-			- connHat_ull'^l_kj' * gammaBar_ll'_li'
+			- connHat_ull'^l_ki' * gammaBar_ll_vars'_lj'
+			- connHat_ull'^l_kj' * gammaBar_ll_vars'_li'
 		)():permute'_ijk'
 	printbr(DHat_gammaBar_lll)
 
@@ -1112,8 +1123,8 @@ os.exit()
 		--]]
 		partial_DHat_gammaBar_llll = (
 				partial2_gammaBar_llll'_ijkl'
-				- partial_connHat_ulll'^m_kil' * gammaBar_ll'_mj'
-				- partial_connHat_ulll'^m_kjl' * gammaBar_ll'_mi'
+				- partial_connHat_ulll'^m_kil' * gammaBar_ll_vars'_mj'
+				- partial_connHat_ulll'^m_kjl' * gammaBar_ll_vars'_mi'
 				- connHat_ull'^m_ki' * partial_gammaBar_lll'_mjl'
 				- connHat_ull'^m_kj' * partial_gammaBar_lll'_mil'
 			)():permute'_ijkl'
@@ -1126,7 +1137,7 @@ os.exit()
 			- connHat^m_lj DHat_k gammaBar_mi
 		--]]
 	printbr'trBar_DHat2_gammaBar_ll'
-		trBar_DHat2_gammaBar_ll = (gammaBar_uu'^kl' * (
+		trBar_DHat2_gammaBar_ll = (gammaBar_uu_vars'^kl' * (
 				partial2_gammaBar_llll'_ijkl'
 				- connHat_ull'^m_lk' * DHat_gammaBar_lll'_ijm'
 				- connHat_ull'^m_li' * DHat_gammaBar_lll'_mjk'
@@ -1140,7 +1151,7 @@ os.exit()
 	printbr(DHat_LambdaBar_ul)
 
 	printbr'DHat_LambdaBar_LL'
-		DHat_LambdaBar_LL = (gammaBar_ll'_ik' * DHat_LambdaBar_ul'^k_j' * eu'^i_I' * eu'^j_J')():factorDivision():permute'_IJ'
+		DHat_LambdaBar_LL = (gammaBar_ll_vars'_ik' * DHat_LambdaBar_ul'^k_j' * eu'^i_I' * eu'^j_J')():factorDivision():permute'_IJ'
 	printbr(DHat_LambdaBar_LL)
 
 		-- this is (gammaBar^kl DHat_k DHat_l gammaBar_ij) e^i_I e^j_J
@@ -1155,7 +1166,7 @@ os.exit()
 	printbr(DeltaSq1_LL)
 
 	printbr'Delta_UUL'
-		Delta_UUL = (gammaBar_UU_vars'^JL' * Delta_ULL'^I_LK')():factorDivision():permute'^IJ_K'
+		Delta_UUL = (gammaBar_UU'^JL' * Delta_ULL'^I_LK')():factorDivision():permute'^IJ_K'
 	printbr(Delta_UUL)
 
 		-- Delta^ML_I * Delta_JML
@@ -1216,7 +1227,7 @@ os.exit()
 
 	-- not used in ABar_ij,t, but used elsewhere
 	printbr'tr_DBar2_phi'
-		tr_DBar2_phi = (DBar2_phi_LL'_IJ' * gammaBar_UU_vars'^IJ')()
+		tr_DBar2_phi = (DBar2_phi_LL'_IJ' * gammaBar_UU'^IJ')()
 	printbr(tr_DBar2_phi)
 
 	printbr'partial_ABar_lll_upwind'
@@ -1232,7 +1243,7 @@ os.exit()
 		))():factorDivision()
 	printbr(Lbeta_ABar_LL)
 
-		partial_phi_sq = (gammaBar_UU_vars'^KL' * partial_phi_L'_K' * partial_phi_L'_L')():factorDivision()
+		partial_phi_sq = (gammaBar_UU'^KL' * partial_phi_L'_K' * partial_phi_L'_L')():factorDivision()
 
 	-- not used by ABar_IJ,t, but used elsewhere
 		--2008 Alcubierre eqn 2.8.18
@@ -1274,15 +1285,15 @@ os.exit()
 		)()
 	printbr(tracelessPart_LL)
 	printbr'TF_tracelessPart_LL'
-		TF_tracelessPart_LL = (tracelessPart_LL'_IJ' - frac(1,3) * gammaBar_LL'_IJ' * (gammaBar_UU_vars'^KL' * tracelessPart_LL'_KL'))():factorDivision()
+		TF_tracelessPart_LL = (tracelessPart_LL'_IJ' - frac(1,3) * gammaBar_LL'_IJ' * (gammaBar_UU'^KL' * tracelessPart_LL'_KL'))():factorDivision()
 	printbr(TF_tracelessPart_LL)
 	
 	printbr'TF_DBar2_alpha_LL'
-		TF_DBar2_alpha_LL = (DBar2_alpha_LL'_IJ' - frac(1,3) * gammaBar_LL'_IJ' * (gammaBar_UU_vars'^KL' * DBar2_alpha_LL'_KL'))():factorDivision()
+		TF_DBar2_alpha_LL = (DBar2_alpha_LL'_IJ' - frac(1,3) * gammaBar_LL'_IJ' * (gammaBar_UU'^KL' * DBar2_alpha_LL'_KL'))():factorDivision()
 	printbr(TF_DBar2_alpha_LL)
 
 	printbr'tr_RBar'
-		tr_RBar = (gammaBar_UU_vars'^KL' * RBar_LL'_KL')():factorDivision()
+		tr_RBar = (gammaBar_UU'^KL' * RBar_LL'_KL')():factorDivision()
 	printbr(tr_RBar)
 	printbr'TF_RBar_LL'
 		TF_RBar_LL = (RBar_LL'_IJ' - frac(1,3) * gammaBar_LL'_IJ' * tr_RBar)():factorDivision()
@@ -1354,7 +1365,7 @@ os.exit()
 		)():factorDivision():permute'^i_jk'
 	printbr(DHat2_beta_ull)
 	printbr'trBar_DHat2_beta_u'
-		trBar_DHat2_beta_u = (DHat2_beta_ull'^i_jk' * gammaBar_uu'^jk')():factorDivision()
+		trBar_DHat2_beta_u = (DHat2_beta_ull'^i_jk' * gammaBar_uu_vars'^jk')():factorDivision()
 	printbr(trBar_DHat2_beta_u)
 	
 	--[[
@@ -1404,7 +1415,7 @@ os.exit()
 	printbr(DBar_tr_DBar_beta_l)
 	
 	printbr'DBar_tr_DBar_beta_u'
-		DBar_tr_DBar_beta_u = (gammaBar_uu'^ij' * DBar_tr_DBar_beta_l'_j')():factorDivision()
+		DBar_tr_DBar_beta_u = (gammaBar_uu_vars'^ij' * DBar_tr_DBar_beta_l'_j')():factorDivision()
 	printbr(DBar_tr_DBar_beta_u)
 		
 		--[[
@@ -1432,7 +1443,7 @@ os.exit()
 				partial_alpha_L'_J'
 				- 6 * alpha * partial_phi_L'_J'
 			)
-			- frac(4,3) * alpha * gammaBar_UU_vars'^IJ' * partial_K_L'_J'	
+			- frac(4,3) * alpha * gammaBar_UU'^IJ' * partial_K_L'_J'	
 			+ e'_i^I' * (
 				trBar_DHat2_beta_u'^i'
 				+ frac(1,3) * DBar_tr_DBar_beta_u'^i'
@@ -1560,14 +1571,14 @@ os.exit()
 		partial_ABar_LLL = (partial_ABar_lll'_ijk' * eu'^i_I' * eu'^j_J' * eu'^k_K')():permute'_IJK'
 		exp_neg6phi = W * W * W
 		M_U_def = (
-			- frac(2,3) * gammaBar_UU_vars'^IJ' * partial_K_L'_J'
+			- frac(2,3) * gammaBar_UU'^IJ' * partial_K_L'_J'
 			+ exp_neg6phi * (
 				- 8 * pi * S_u'^i' * e'_i^I'
 				+ 6 * ABar_UU'^IJ' * partial_phi_L'_J'
 				- connBar_ULL'^I_JK' * ABar_UU'^JK'
-				- ABar_UU'^KJ' * gammaBar_UU_vars'^LI' * partial_gammaBar_LLL'_KLJ'
-				- ABar_UU'^KI' * gammaBar_UU_vars'^LJ' * partial_gammaBar_LLL'_KLJ'
-				+ gammaBar_UU_vars'^IK' * gammaBar_UU_vars'^LJ' * partial_ABar_LLL'_KLJ'
+				- ABar_UU'^KJ' * gammaBar_UU'^LI' * partial_gammaBar_LLL'_KLJ'
+				- ABar_UU'^KI' * gammaBar_UU'^LJ' * partial_gammaBar_LLL'_KLJ'
+				+ gammaBar_UU'^IK' * gammaBar_UU'^LJ' * partial_ABar_LLL'_KLJ'
 			))():factorDivision()
 	printbr(M_U_def)
 
@@ -1576,7 +1587,7 @@ os.exit()
 		-- this just holds whatever derived values
 
 	printbr'LambdaBar0_U'
-		LambdaBar0_U = (Delta_ULL'^I_JK' * gammaBar_UU_vars'^JK')():factorDivision()
+		LambdaBar0_U = (Delta_ULL'^I_JK' * gammaBar_UU'^JK')():factorDivision()
 	printbr(LambdaBar0_U)
 
 

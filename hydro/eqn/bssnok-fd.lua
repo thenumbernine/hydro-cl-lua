@@ -143,7 +143,7 @@ function BSSNOKFiniteDifferenceEquationBase:initCodeModuleCalcDT()
 		name = 'eqn.calcDT',
 		depends = {
 			'eqn.common',
-			'coord_sqrt_g_uu##',
+			'coord_sqrt_g_ll##',
 		},
 		code = self:template[[
 kernel void calcDT(
@@ -189,10 +189,12 @@ else
 		// and gammaBar_ij ~ gammaHat_ij 
 		// then the typical CFL equation: dt <= dx / lambda, lambda = alpha sqrt(gammaBar^ii)
 		// turns into the SENR code: dt <= sqrt(gammaHat_ii) * dx
-		real sqrt_gammaHat_ii = coord_sqrt_g_uu<?=side..side?>(x);
+		real sqrt_gammaHat_ii = coord_sqrt_g_ll<?=side..side?>(x);
 		real ds = sqrt_gammaHat_ii  * solver->grid_dx.s<?=side?>;
 		dt = (real)min(dt, ds);
-<? 	end
+<? 	else
+		error("unknown cflMethod "..tostring(eqn.cflMethod))
+	end
 end
 ?>	}<? end ?>
 	dtBuf[index] = dt;
