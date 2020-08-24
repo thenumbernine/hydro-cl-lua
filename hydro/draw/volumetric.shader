@@ -7,11 +7,8 @@ varying vec3 texCoordStart;
 varying vec3 vertexStart;
 varying vec3 eye;
 
-<? -- coordMapInv isn't used by volumetric.shader, but in coord/sphere-log-radial.lua it does have important predefined functions (sinh, etc) which are needed by coordMap ?>
-<?=coord:getCoordMapInvGLSLCode()?>
-
 <? if vertexShader then ?>
-<?=solver.coord:getCoordMapGLSLCode()?>
+<?=coord:getModuleCodeGLSL'coordMapGLSL'?>
 
 uniform vec3 mins, maxs;
 void main() {

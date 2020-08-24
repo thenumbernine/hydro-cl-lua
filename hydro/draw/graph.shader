@@ -4,9 +4,6 @@
 //...sooo...
 #version 130
 
-<?=solver.coord:getCoordMapGLSLCode() or ''?>
-<?=solver.coord:getCoordMapInvGLSLCode() or ''?>
-
 <? if vertexShader then ?>
 in vec3 inVertex;
 out vec3 normal;
@@ -34,6 +31,8 @@ local sizeX = clnumber(solver.gridSize.x or 1)
 local sizeY = clnumber(solver.gridSize.y or 1)
 local numGhost = clnumber(solver.numGhost)
 ?>
+
+<?=solver.coord:getModuleCodeGLSL('coordMapGLSL')?>
 
 vec3 func(vec3 src) {
 	vec3 vertex = src.xyz;

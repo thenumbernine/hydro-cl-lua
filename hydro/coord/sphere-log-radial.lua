@@ -69,6 +69,10 @@ function SphereLogRadial:init(args)
 		{r:diff(rho, rho), r_for_rho:diff(rho, rho)()},
 		{r:diff(rho), r_for_rho:diff(rho)()},
 		{r, r_for_rho},
+
+		-- what to do about this ...
+		{self.amplitude_var, self.amplitude},
+		{self.sinh_w_var, self.sinh_w},
 	}
 
 	if cmdline.coordVerbose then
@@ -96,6 +100,24 @@ function SphereLogRadial:init(args)
 	SphereLogRadial.super.init(self, args)
 end
 
+function SphereLogRadial:getModuleDepends_coordMap() 
+	return {'eqn.guiVars.compileTime'}
+end
+
+-- TODO only for GLSL, depend on 'sinh'
+-- I could put '#ifdef GLSL' around the sinh and cosh modules, but what about asinh which C needs as well?
+-- I could put a 'glsl_code' option for each module, and give them to the sinh,cosh,acosh, but ... same question?
+-- I could add them as glslModulesEnabled[] ... but what would guarantee the order of code generation?
+-- I could add/remove sinh from coordMap's depends or code before/after adding it to the GLSL ... kind of ugly and very specific to sphere-log-radial only
+-- ... see this is a good argument for replacing the 'depends' system with a code gen execution and an 'include' function with 'pragma once' ability
+--		then coordMap for sphere-log-radial could have code that said "if included from glsl then include sinh end"
+--		also you can put the compile() symbolic codegen into the same code doing the include's of dependencies
+-- 		so to do this, get rid of 'depends', replace 'code', 'header', 'typecode' strings with functions, and give them an 'include' function that pulls in from other modules by their name
+-- for now I'll just make a separate 'coordMapGLSL' just like 'coordMap' but with the GLSL depends
+function SphereLogRadial:getModuleDepends_coordMapGLSL() 
+	return {'sinh'}
+end
+
 function SphereLogRadial:initCodeModules(...)
 	SphereLogRadial.super.initCodeModules(self, ...)
 	-- since now all coord code uses AMPL and SINHW macros ...
@@ -108,30 +130,36 @@ function SphereLogRadial:initCodeModules(...)
 end
 
 local template = require 'template'
-function SphereLogRadial:getCoordMapInvGLSLCode()
-	return template([[
-
-float sinh(float x) { return .5 * (exp(x) - exp(-x)); }
-float cosh(float x) { return .5 * (exp(x) + exp(-x)); }
-float asinh(float x) { return log(x + sqrt(x*x + 1.)); }
-
+function SphereLogRadial:getCoordMapInvModuleCode()
+	return 
+-- [[	
+		self.solver.modules:getCodeAndHeader(
+			--'eqn.guiVars.compileTime',
+			-- GLSL and GLSL alone needs these:
+			'sinh',
+			'cosh',
+			'asinh'
+		)..
+--]]	
+		template([[
 vec3 coordMapInv(vec3 pt) {
+	//this part matches sphere ... hmm
 <? if solver.dim == 1 then
-?>	float r = abs(pt.x);
-	float theta = 0.;
-	float phi = 0.;
+?>	real r = fabs(pt.x);
+	real theta = 0.;
+	real phi = 0.;
 <? elseif solver.dim == 2 then	-- xy -> rθ
-?>	float r = length(pt.xy);
-	float theta = acos(pt.y / r);
-	float phi = 0.;
+?>	real r = length(pt.xy);
+	real theta = acos(pt.y / r);
+	real phi = 0.;
 <? elseif solver.dim == 3 then 	-- xyz - rθφ
-?>	float r = length(pt);
-	float theta = acos(pt.z / r);
-	float phi = atan(pt.y, pt.x);
+?>	real r = length(pt);
+	real theta = acos(pt.z / r);
+	real phi = atan2(pt.y, pt.x);
 <? end 
 ?>	
-	float rho = <?=coord:compile(coord.rho_for_r)?>;
-	return vec3(rho, theta, phi);
+	real rho = <?=coord:compile(coord.rho_for_r)?>;
+	return _real3(rho, theta, phi);
 }
 ]], {
 		symmath = require 'symmath',
@@ -251,11 +279,14 @@ function SphereLogRadial:fillGridCellBuf(cellsCPU)
 	local symmath = require 'symmath'
 	local rho, theta, phi = self.baseCoords:unpack()
 	local calcR, code = symmath.export.Lua:toFunc{
-		output = {self.vars.r},
-		input = {{rho=rho}, {theta=theta}, {phi=phi}, self.amplitude_var, self.sinh_w_var},
+		output = {
+			self.vars.r
+				:replace(self.amplitude_var, self.amplitude)
+				:replace(self.sinh_w_var, self.sinh_w)
+		},
+		input = {{rho=rho}, {theta=theta}, {phi=phi}},
 	}
-print('calcR code:')
-print(code)
+print('calcR code:\n'..code)
 	
 	local index = 0
 	for k=0,tonumber(solver.gridSize.z)-1 do
@@ -273,7 +304,7 @@ print(code)
 				cellsCPU[index].pos.x = rho
 				cellsCPU[index].pos.y = theta
 				cellsCPU[index].pos.z = phi
-				cellsCPU[index].r = calcR(rho, theta, phi, self.amplitude, self.sinh_w)
+				cellsCPU[index].r = calcR(rho, theta, phi)
 				index = index + 1
 			end
 		end

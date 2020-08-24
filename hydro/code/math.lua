@@ -1697,6 +1697,37 @@ real3 normalForSide2();
 ]],
 	}
 
+	-- this is for GLSL esp which doesn't have these defs
+	modules:add{
+		name = 'sinh',
+		code = [[
+real sinh(real x) { 
+	real ex = exp(x);
+	return .5 * (ex - 1. / ex);
+}
+]],
+	}
+	
+	modules:add{
+		name = 'cosh',
+		code = [[
+real cosh(real x) { 
+	real ex = exp(x);
+	return .5 * (ex + 1. / ex);
+}
+]],
+	}
+
+	modules:add{
+		name = 'asinh',
+		code = [[
+real asinh(real x) { 
+	return log(x + sqrt(x*x + 1.));
+}
+]],
+	}
+
+
 --[[
 TODO don't just use 'math', 
 put a global depends list somewhere, build on it as we add eqn and solver

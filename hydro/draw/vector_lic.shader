@@ -8,8 +8,6 @@ local coord = solver.coord
 //z holds the fixed z slice of the 3D texture
 varying vec3 viewCoord;
 
-<?=coord:getCoordMapInvGLSLCode()?>
-
 <? if vertexShader then ?>
 
 void main() {
@@ -21,13 +19,16 @@ void main() {
 <? end
 if fragmentShader then ?>
 
-<?=solver:getGradientGLSLCode()?>
+<?=
+solver.coord:getModuleCodeGLSL(
+	'coordMapInv',
+	solver.coord.vectorComponent == 'cartesian'
+	and 'cartesianToCoord'	-- coord_cartesianToCoord
+	or 'coord_conn_apply23'
+)
+?>
 
-<? if solver.coord.vectorComponent == 'cartesian' then ?>
-<?=solver.coord:getCoordMapGLSLCode()?>
-<? else ?>
-<?=solver.coord:getGeodesicGLSLCode()?>
-<? end ?>
+<?=solver:getGradientGLSLCode()?>
 
 uniform bool useCoordMap;
 uniform sampler2D noiseTex;

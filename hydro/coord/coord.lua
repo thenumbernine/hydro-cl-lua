@@ -744,7 +744,9 @@ function CoordinateSystem:compile(expr)
 	for i,coord in ipairs(self.baseCoords) do
 		expr = expr:replace(coord, symmath.var('pt.'..xNames[i]))
 	end
-print('compiling\n', expr..'\n')
+	if self.verbose then
+		print('compiling\n', expr..'\n')
+	end
 	local code = symmath.export.C(expr)
 
 	return code
@@ -1011,6 +1013,13 @@ static inline real coordLen(real3 r, real3 pt) {
 		}
 	end
 
+	do
+		self.solver.modules:add{
+			name = 'coord_conn_apply23',
+			code = getCode_real3_real3_real3_to_real3('coord_conn_apply23', self.connApply23Codes),
+		}
+	end
+
 	--[[
 	for i=0,dim-1 do
 		lines:insert(getCode_real3_to_real('coordHolBasisLen'..i, self.eHolLenCode[i+1]))
@@ -1158,21 +1167,44 @@ static inline real coordLen(real3 r, real3 pt) {
 	}
 end
 
+function CoordinateSystem:getModuleDepends_coordMap() end
+
+function CoordinateSystem:getModuleDepends_coordMapGLSL() 
+	return self:getModuleDepends_coordMap()
+end
+
 function CoordinateSystem:initCodeModule_coordMap()
 	local solver = self.solver
 
 	-- get back the Cartesian coordinate for some provided chart coordinates
 	-- TODO make this a macro based on cellBuf[index]
 	-- and make it custom per coord system (just like the cellBuf fields are)
+	local code_coordMap = getCode_real3_to_real3('coordMap', range(3):mapi(function(i) return self.uCode[i] or 'pt.'..xNames[i] end))
 	solver.modules:add{
 		name = 'coordMap',
-		code = getCode_real3_to_real3('coordMap', range(3):mapi(function(i) return self.uCode[i] or 'pt.'..xNames[i] end)),
+		depends = self:getModuleDepends_coordMap(),
+		code = code_coordMap,
+	}
+
+	-- so GLSL needs some extra depends
+	--  and I can't think of how to add them in except by doing this ...
+	-- see my rant in SphereLogRadial:getModuleDepends_coordMap 
+	solver.modules:add{
+		name = 'coordMapGLSL',
+		depends = self:getModuleDepends_coordMapGLSL(),
+		code = code_coordMap,
 	}
 
 	-- get back the radial distance for some provided chart coordinates
 	solver.modules:add{
 		name = 'coordMapR',
 		code = getCode_real3_to_real('coordMapR', self:compile(self.vars.r)),
+	}
+
+	solver.modules:add{
+		name = 'coordMapInv',
+		depends = self:getModuleDepends_coordMap(),
+		code = self:getCoordMapInvModuleCode(),	-- until i can autogen this ...
 	}
 
 	do
@@ -1331,6 +1363,7 @@ real3 coord_cartesianFromCoord(real3 u, real3 pt) {
 	end
 end
 
+-- [[ TODO move this to hydro/draw somewhere
 local function makeGLSL(code)
 	return table{
 		'#define inline',
@@ -1342,32 +1375,24 @@ local function makeGLSL(code)
 		'#define real3_sub(a,b) ((a)-(b))',
 		'#define real3_real_mul(a,b) ((a)*(b))',
 		'#define real3_dot dot',
-		'',
-		'real real3_lenSq(real3 a) { return dot(a,a); }',
+		'#define real3_lenSq(a) dot(a,a)',
+		'#define atan2 atan',
 		'',
 		(code:gsub('static inline ', '')),
 	}:concat'\n'
 end
-
-function CoordinateSystem:getCoordMapGLSLCode()
-	return makeGLSL(self.solver.modules:getCodeAndHeader('coordMap', 'cartesianFromCoord'))
+function CoordinateSystem:getModuleCodeGLSL(...)
+	return makeGLSL(self.solver.modules:getCodeAndHeader(...))
 end
+--]]
 
 -- until I get inverses on systems of equations working, I'll have this manually specified
-function CoordinateSystem:getCoordMapInvGLSLCode()
+function CoordinateSystem:getCoordMapInvModuleCode()
 	return [[
-vec3 coordMapInv(vec3 x) { return x; }
+//real3 coordMapInv(real3 x) { return x; }
+#define coordMapInv(x) (x)
 ]]
 end
-
-function CoordinateSystem:getGeodesicGLSLCode()
-	local lines = table()
-	lines:insert(getCode_real3_real3_real3_to_real3('coord_conn_apply23', self.connApply23Codes))
-	return makeGLSL(lines:concat'\n')
-end
-
-
-
 
 --[[
 TODO put this somewhere above where display functions can use it

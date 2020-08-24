@@ -55,18 +55,16 @@ function Cylinder:init(args)
 end
 
 
-function Cylinder:getCoordMapInvGLSLCode()
-	return template([[
-vec3 coordMapInv(vec3 x) {
+function Cylinder:getCoordMapInvModuleCode()
+	return [[
+real3 coordMapInv(real3 x) {
 	//coord bounds don't seem to matter anywhere else,
 	//except here in the renderer
 	//TODO use the solver's bounds?
-	float theta = mod(atan(x.y, x.x), <?=clnumber(2. * math.pi)?>);
-	return vec3(length(x.xy), theta, x.z);
+	real theta = fmod(fmod(atan2(x.y, x.x), 2. * M_PI) + 2. * M_PI, 2. * M_PI);
+	return _real3(sqrt(x.x*x.x + x.y*x.y), theta, x.z);
 }
-]], {
-		clnumber = require 'cl.obj.number',
-	})
+]]
 end
 
 function Cylinder:getParallelPropagatorCode()

@@ -10,7 +10,7 @@ local app = solver.app
 
 varying vec4 color;
 
-<?=coord:getCoordMapGLSLCode()?>
+<?=coord:getModuleCodeGLSL('coordMapGLSL', 'cartesianFromCoord')?>
 
 uniform mat4 modelViewProjectionMatrix;
 

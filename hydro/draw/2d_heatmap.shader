@@ -23,7 +23,7 @@ void main() {
 <? end
 if fragmentShader then ?>
 
-<?=coord:getCoordMapInvGLSLCode()?>
+<?=solver.coord:getModuleCodeGLSL'coordMapInv'?>
 
 <?=solver:getGradientGLSLCode()?>
 

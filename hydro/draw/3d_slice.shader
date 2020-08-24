@@ -10,11 +10,8 @@ varying vec3 texCoord;	//[0,1]^n
 varying vec3 pos;		//positive after coordinate mapping, before view transform
 <? end ?>
 
-<? -- coordMapInv isn't used by volumetric.shader, but in coord/sphere-log-radial.lua it does have important predefined functions (sinh, etc) which are needed by coordMap ?>
-<?=coord:getCoordMapInvGLSLCode()?>
-
 <? if vertexShader then ?>
-<?=coord:getCoordMapGLSLCode()?>
+<?=coord:getModuleCodeGLSL'coordMapGLSL'?>
 
 uniform bool useCoordMap;
 

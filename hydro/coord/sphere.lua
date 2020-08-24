@@ -47,23 +47,23 @@ function Sphere:init(args)
 	}
 end
 
-function Sphere:getCoordMapInvGLSLCode()
+function Sphere:getCoordMapInvModuleCode()
 	return template([[
-vec3 coordMapInv(vec3 x) {
+real3 coordMapInv(real3 x) {
 <? if solver.dim == 1 then
-?>	float r = abs(x.x);
-	float theta = 0.;
-	float phi = 0.;
+?>	real r = fabs(x.x);
+	real theta = 0.;
+	real phi = 0.;
 <? elseif solver.dim == 2 then	-- xy -> rθ
-?>	float r = length(x.xy);
-	float theta = acos(x.y / r);
-	float phi = 0.;
+?>	real r = sqrt(x.x*x.x + x.y*x.y);
+	real theta = acos(x.y / r);
+	real phi = 0.;
 <? elseif solver.dim == 3 then 	-- xyz - rθφ
-?>	float r = length(x);
-	float theta = acos(x.z / r);
-	float phi = atan(x.y, x.x);
+?>	real r = length(x);
+	real theta = acos(x.z / r);
+	real phi = atan2(x.y, x.x);
 <? end 
-?>	return vec3(r, theta, phi);
+?>	return _real3(r, theta, phi);
 }
 ]], {
 		solver = self.solver,
