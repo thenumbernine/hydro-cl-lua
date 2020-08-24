@@ -2,6 +2,7 @@ local class = require 'ext.class'
 local table = require 'ext.table'
 local symmath = require 'symmath'
 local CoordinateSystem = require 'hydro.coord.coord'
+local template = require 'template'
 
 local var = symmath.var
 local frac = symmath.frac
@@ -117,6 +118,9 @@ end
 function SphereLogRadial:getModuleDepends_coordMapGLSL() 
 	return {'sinh'}
 end
+function SphereLogRadial:getModuleDepends_coordMapInvGLSL() 
+	return {'sinh', 'cosh', 'asinh'}
+end
 
 function SphereLogRadial:initCodeModules(...)
 	SphereLogRadial.super.initCodeModules(self, ...)
@@ -129,31 +133,20 @@ function SphereLogRadial:initCodeModules(...)
 	self.solver.sharedModulesEnabled['eqn.guiVars.compileTime'] = true
 end
 
-local template = require 'template'
 function SphereLogRadial:getCoordMapInvModuleCode()
-	return 
--- [[	
-		self.solver.modules:getCodeAndHeader(
-			--'eqn.guiVars.compileTime',
-			-- GLSL and GLSL alone needs these:
-			'sinh',
-			'cosh',
-			'asinh'
-		)..
---]]	
-		template([[
-vec3 coordMapInv(vec3 pt) {
+	return template([[
+real3 coordMapInv(real3 pt) {
 	//this part matches sphere ... hmm
 <? if solver.dim == 1 then
 ?>	real r = fabs(pt.x);
 	real theta = 0.;
 	real phi = 0.;
 <? elseif solver.dim == 2 then	-- xy -> rθ
-?>	real r = length(pt.xy);
+?>	real r = real3_len(pt.xy);
 	real theta = acos(pt.y / r);
 	real phi = 0.;
 <? elseif solver.dim == 3 then 	-- xyz - rθφ
-?>	real r = length(pt);
+?>	real r = real3_len(pt);
 	real theta = acos(pt.z / r);
 	real phi = atan2(pt.y, pt.x);
 <? end 

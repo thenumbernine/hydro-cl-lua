@@ -7,6 +7,7 @@ local vec2i = cmdline.renderBssnVideo and require 'vec-ffi.vec2i'
 local vec3i = cmdline.renderBssnVideo and require 'vec-ffi.vec3i'
 local vec3d = cmdline.renderBssnVideo and require 'vec-ffi.vec3d'
 local Image = cmdline.renderBssnVideo and require 'image'
+local template = cmdline.renderBssnVideo and require 'template'
 
 
 local EinsteinFiniteDifferenceSolver = class(GridSolver)
@@ -25,7 +26,7 @@ function EinsteinFiniteDifferenceSolver:init(...)
 	self.name = nil	-- don't append the eqn name to this
 
 
-	-- HACK FOR RENDERING SPHERE-LOG-RADIAL COORD SIMS TO CARTESIAN FOR MOVIE DUMPING
+	-- HACK FOR RENDERING COORD-TO-CARTESIAN FOR MOVIE DUMPING
 	-- right now the rest of my movie-making is done by capturing OpenGL-rendered content
 	-- so maybe this will morph into a more general movie dumping for all simulations
 	if cmdline.renderBssnVideo then
@@ -33,38 +34,18 @@ function EinsteinFiniteDifferenceSolver:init(...)
 		self.xcmax = vec3d(1.5, 0, 1.5)
 		self.csize = vec2i(80, 80)
 
-		self.writeOutImage = Image(csize.x, csize.y, 1, 'real')
-
-		local coord = self.coord
-		
-		assert(require 'hydro.coord.sphere-log-radial'.is(coord))
-		local symmath = require 'symmath'
-		local rho, theta, phi = coord.baseCoords:unpack()
+		self.writeOutImage = Image(self.csize.x, self.csize.y, 1, 'real')
 		
 		local env = self.app.env
 
-		self.writeResultBuf = env:buffer{name='writeResult', type='real', count=csize:volume()}
+		self.writeResultBuf = env:buffer{name='writeResult', type='real', count=self.csize:volume()}
 
-		self.writeResultProgram = env:program{
+		self.writeResultProgram = self.Program{--env:program{
 			name = 'writeResult',
 			code = self.modules:getCodeAndHeader(
-				self.sharedModulesEnabled:keys():unpack()
+				table(self.sharedModulesEnabled, {coordMapInv=true}):keys():unpack()
 			)
 			..template([[
-// right now I could use coordMapInv but it is hardcoded to GLSL
-// but I could ...
-// 1) make it a module
-// 2) move out sinh, cosh, asinh to dependency modules
-// 3) use the 'toGLSL' conversion to provide the old getCoordMapInvGLSLCode()
-
-real3 getCoordMapInv(real3 pt) {
-	real r = real3_len(pt);
-	real theta = fmod(acos(pt.z / r), M_PI
-	real phi = fmod(math.atan2(pt.y, pt.x), 2. * M_PI
-	real rho = calcRho(r, theta, phi, coord.amplitude, coord.sinh_w, math)
-	return rho, theta, phi
-}
-
 kernel void writeResult(
 	constant <?=solver.solver_t?>* solver,
 	global real* writeResultBuf,
@@ -72,13 +53,13 @@ kernel void writeResult(
 ) {
 	int dstx = get_global_id(0);
 	int dsty = get_global_id(1);
-	if (dstx >= <?=csize.x?> || dsty >= <?=csize.y?>) return;
+	if (dstx >= <?=solver.csize.x?> || dsty >= <?=solver.csize.y?>) return;
 	// write out a blitted frame of [-1.5, 1.5]^2 XZ
 	real3 xc = _real3(
-		((real)dstx+.5)/<?=csize.x?> * <?=xcmax.x - xcmin.x?> + <?=xcmin.x?>,
-		<?= .5 * (xcmin.y + xcmax.y) ?>,
-		((real)dsty+.5)/<?=csize.y?> * <?=xcmax.z - xcmin.z?> + <?=xcmin.z?>);
-	real3 x = getCoordMapInv(xc);
+		((real)dstx+.5)/<?=solver.csize.x?> * <?=solver.xcmax.x - solver.xcmin.x?> + <?=solver.xcmin.x?>,
+		<?= .5 * (solver.xcmin.y + solver.xcmax.y) ?>,
+		((real)dsty+.5)/<?=solver.csize.y?> * <?=solver.xcmax.z - solver.xcmin.z?> + <?=solver.xcmin.z?>);
+	real3 x = coordMapInv(xc);
 	real4 xf = (real4)(
 		(x.x - solver->mins.x) / (solver->maxs.x - solver->mins.x) * (real)(solver->gridSize.x - 2 * numGhost) + numGhost,
 		(x.y - solver->mins.y) / (solver->maxs.y - solver->mins.y) * (real)(solver->gridSize.y - 2 * numGhost) + numGhost,
@@ -96,15 +77,12 @@ kernel void writeResult(
 			  + t.x * s.y * UBuf[index + solver->stepsize.y].W
 			  + s.x * s.y * UBuf[index + solver->stepsize.x + solver->stepsize.y].W;
 	}
-	writeResultBuf[dstx + <?=csize.x?> * dsty] = value;
+	writeResultBuf[dstx + <?=solver.csize.x?> * dsty] = value;
 }
 ]], 		{
 				solver = self,
 				eqn = self.eqn,
 				coord = self.coord,
-				csize = csize,
-				xcmin = xcmin,
-				xcmax = xcmax,
 			}),
 		}
 		-- crashing without warning when i compile without 'kernel'
@@ -112,7 +90,7 @@ kernel void writeResult(
 
 		self.writeResultKernel = self.writeResultProgram:kernel{
 			name = 'writeResult',
-			domain = env:domain{size={csize.x, csize.y}},
+			domain = env:domain{size={self.csize.x, self.csize.y}},
 		}
 		self.writeResultKernel.obj:setArgs(
 			self.solverBuf,
@@ -169,7 +147,8 @@ if cmdline.renderBssnVideo then
 			self.writeResultBuf:toCPU(self.writeOutImage.buffer)
 			
 			self.imageCounter = (self.imageCounter or -1) + 1
-			local fn = rundir..'/frame-'..('%05d'):format(self.imageCounter)..'.png'
+			-- TODO mkdir like the other video output function in app
+			local fn = 'screenshots/frame-'..('%05d'):format(self.imageCounter)..'.png'
 			print('writing '..fn)
 			self.writeOutImage:normalize():rgb():save(fn)
 		end

@@ -1167,10 +1167,16 @@ static inline real coordLen(real3 r, real3 pt) {
 	}
 end
 
-function CoordinateSystem:getModuleDepends_coordMap() end
+function CoordinateSystem:getModuleDepends_coordMap() 
+end
+function CoordinateSystem:getModuleDepends_coordMapInv() 
+end
 
 function CoordinateSystem:getModuleDepends_coordMapGLSL() 
 	return self:getModuleDepends_coordMap()
+end
+function CoordinateSystem:getModuleDepends_coordMapInvGLSL() 
+	return self:getModuleDepends_coordMapInv()
 end
 
 function CoordinateSystem:initCodeModule_coordMap()
@@ -1186,6 +1192,20 @@ function CoordinateSystem:initCodeModule_coordMap()
 		code = code_coordMap,
 	}
 
+	-- get back the radial distance for some provided chart coordinates
+	solver.modules:add{
+		name = 'coordMapR',
+		code = getCode_real3_to_real('coordMapR', self:compile(self.vars.r)),
+	}
+
+	local code_coordMapInv = self:getCoordMapInvModuleCode()	-- until i can autogen this ...
+	solver.modules:add{
+		name = 'coordMapInv',
+		depends = self:getModuleDepends_coordMapInv(),
+		code = code_coordMapInv,
+	}
+
+
 	-- so GLSL needs some extra depends
 	--  and I can't think of how to add them in except by doing this ...
 	-- see my rant in SphereLogRadial:getModuleDepends_coordMap 
@@ -1194,18 +1214,12 @@ function CoordinateSystem:initCodeModule_coordMap()
 		depends = self:getModuleDepends_coordMapGLSL(),
 		code = code_coordMap,
 	}
-
-	-- get back the radial distance for some provided chart coordinates
 	solver.modules:add{
-		name = 'coordMapR',
-		code = getCode_real3_to_real('coordMapR', self:compile(self.vars.r)),
+		name = 'coordMapInvGLSL',
+		depends = self:getModuleDepends_coordMapInvGLSL(),
+		code = code_coordMapInv,
 	}
 
-	solver.modules:add{
-		name = 'coordMapInv',
-		depends = self:getModuleDepends_coordMap(),
-		code = self:getCoordMapInvModuleCode(),	-- until i can autogen this ...
-	}
 
 	do
 		local lines = table()

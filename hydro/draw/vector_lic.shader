@@ -21,7 +21,7 @@ if fragmentShader then ?>
 
 <?=
 solver.coord:getModuleCodeGLSL(
-	'coordMapInv',
+	'coordMapInvGLSL',
 	solver.coord.vectorComponent == 'cartesian'
 	and 'cartesianToCoord'	-- coord_cartesianToCoord
 	or 'coord_conn_apply23'
