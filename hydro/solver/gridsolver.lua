@@ -243,48 +243,76 @@ functionality (and abstraction):
 	}
 --]=]
 
+	-- TODO get rid of this, it's legacy from when all solver properties were macros
+	--  now they are in solver_t
 	self.modules:add{
-		name = 'GridSolver.codeprefix',
-		headercode = table{
-			'#define numGhost '..self.numGhost,
-			'#define INDEX(a,b,c)	((a) + solver->gridSize.x * ((b) + solver->gridSize.y * (c)))',
-			'#define INDEXV(i)		indexForInt4ForSize(i, solver->gridSize.x, solver->gridSize.y, solver->gridSize.z)',
-			
-			-- bounds-check macro
-			'#define OOB(lhs,rhs) (i.x < (lhs) || i.x >= solver->gridSize.x - (rhs)'
-				.. (self.dim < 2 and '' or ' || i.y < (lhs) || i.y >= solver->gridSize.y - (rhs)')
-				.. (self.dim < 3 and '' or ' || i.z < (lhs) || i.z >= solver->gridSize.z - (rhs)')
-				.. ')',
-			template([[
+		name = 'numGhost',
+		headercode = '#define numGhost '..self.numGhost,
+	}
+
+	self.modules:add{
+		name = 'INDEX',
+		depends = {'solver.solver_t'},
+		headercode = '#define INDEX(a,b,c)	((a) + solver->gridSize.x * ((b) + solver->gridSize.y * (c)))',
+	}
+
+	self.modules:add{
+		name = 'INDEXV',
+		depends = {'solver.solver_t'},
+		headercode = '#define INDEXV(i)		indexForInt4ForSize(i, solver->gridSize.x, solver->gridSize.y, solver->gridSize.z)',
+	}
+
+	self.modules:add{
+		name = 'OOB',
+		depends = {'solver.solver_t'},
+		-- bounds-check macro
+		headercode = '#define OOB(lhs,rhs) (i.x < (lhs) || i.x >= solver->gridSize.x - (rhs)'
+			.. (self.dim < 2 and '' or ' || i.y < (lhs) || i.y >= solver->gridSize.y - (rhs)')
+			.. (self.dim < 3 and '' or ' || i.z < (lhs) || i.z >= solver->gridSize.z - (rhs)')
+			.. ')',
+	}
+
+	self.modules:add{
+		name = 'SETBOUNDS',
+		depends = {
+			'SETBOUNDS',
+			'OOB',
+			'INDEXV',
+		},
+		headercode = [[
 // define i, index, and bounds-check
 #define SETBOUNDS(lhs,rhs)	\
 	int4 i = globalInt4(); \
 	if (OOB(lhs,rhs)) return; \
 	int index = INDEXV(i);
-		
+]],
+	}
+
+	self.modules:add{
+		name = 'SETBOUNDS_NOGHOST',
+		depends = {
+			'numGhost',
+			'OOB',
+			'INDEXV',
+		},
+		headercode = [[
 // same as above, except for kernels that don't use the boundary
 // index operates on buffers of 'gridSize' (with border)
 // but the kernel must be invoked across sizeWithoutBorder
-<? local range = require 'ext.range'
-?>#define SETBOUNDS_NOGHOST() \
+#define SETBOUNDS_NOGHOST() \
 	int4 i = globalInt4(); \
 	if (OOB(0,2*numGhost)) return; \
-	i += (int4)(<?=range(4):map(function(i) 
-		return i <= solver.dim and 'numGhost' or '0' 
-	end):concat','?>); \
+	i += (int4)(]]..range(4):map(function(i) 
+		return i <= self.dim and 'numGhost' or '0' 
+	end):concat','..[[); \
 	int index = INDEXV(i);
-]], {solver=self}),
-		}
-		:concat'\n',
+]],
 	}
-	self.sharedModulesEnabled['GridSolver.codeprefix'] = true
 
 	-- volume of a cell = volume element times grid dx's 
 	self.modules:add{
 		name = 'cell_sqrt_det_g',
-		depends = {
-			'coord',		-- for now this has coord_sqrt_det_g
-		},
+		depends = {'coord_sqrt_det_g'},
 		code = template([[
 static inline real cell_sqrt_det_g(constant <?=solver.solver_t?>* solver, real3 x) {
 	return coord_sqrt_det_g(x)<?
@@ -357,6 +385,17 @@ typedef struct {
 		}
 		self.sharedModulesEnabled['GridSolver.updateCTU'] = true
 	end
+
+	-- TODO only add these by 'depends'
+	-- but they are used just about everywhere
+	-- maybe they should be set in solverBase, since both gridsolver and meshsolver use them?
+	-- Fix this once you get MeshSolver working again.
+	self.sharedModulesEnabled['numGhost'] = true
+	self.sharedModulesEnabled['INDEX'] = true
+	self.sharedModulesEnabled['INDEXV'] = true
+	self.sharedModulesEnabled['OOB'] = true
+	self.sharedModulesEnabled['SETBOUNDS'] = true
+	self.sharedModulesEnabled['SETBOUNDS_NOGHOST'] = true
 end
 
 -- call this when a gui var changes

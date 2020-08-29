@@ -5,7 +5,7 @@
 	<?=eqn.cons_t?> pUL,
 	<?=eqn.cons_t?> pUR,
 	real3 xInt,
-	normalInfo_t n
+	normal_t n
 <? if solver.fluxLimiter > 1 then 
 ?>	,realparam dt_dx,
 	<?=eqn.cons_t?> pUL_L,
@@ -180,7 +180,7 @@ then
 		cons_t pUL = cons_parallelPropagate<?=side?>(*UL, xL, .5 * dx);
 		cons_t pUR = cons_parallelPropagate<?=side?>(*UR, xR, -.5 * dx);
 	
-		normalInfo_t n = normalInfo_forSide<?=side?>(xInt);
+		normal_t n = normal_forSide<?=side?>(xInt);
 
 <? if solver.fluxLimiter > 1 then 
 ?>		int indexR2 = indexR + solver->stepsize.s<?=side?>;

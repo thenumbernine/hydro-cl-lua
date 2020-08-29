@@ -195,20 +195,20 @@ function TwoFluidEMHD:initCodeModule_fluxFromCons()
 	constant <?=solver.solver_t?>* solver,
 	<?=eqn.cons_t?> U,
 	real3 x,
-	normalInfo_t n
+	normal_t n
 ) {
 	<?=eqn.prim_t?> W = primFromCons(solver, U, x);
 	<?=eqn.cons_t?> F;
 
 <? 
 for _,fluid in ipairs(eqn.fluids) do
-?>	real <?=fluid?>_vj = normalInfo_vecDotN1(n, W.<?=fluid?>_v);
+?>	real <?=fluid?>_vj = normal_vecDotN1(n, W.<?=fluid?>_v);
 	real <?=fluid?>_HTotal = U.<?=fluid?>_ETotal + W.<?=fluid?>_P;
 	
-	F.<?=fluid?>_rho = normalInfo_vecDotN1(n, U.<?=fluid?>_m);
+	F.<?=fluid?>_rho = normal_vecDotN1(n, U.<?=fluid?>_m);
 	F.<?=fluid?>_m = real3_real_mul(U.<?=fluid?>_m, <?=fluid?>_vj);
 <? 	for i,xi in ipairs(xNames) do
-?>	F.<?=fluid?>_m.<?=xi?> += normalInfo_u1<?=xi?>(n) * W.<?=fluid?>_P;
+?>	F.<?=fluid?>_m.<?=xi?> += normal_u1<?=xi?>(n) * W.<?=fluid?>_P;
 <? 	end
 ?>	F.<?=fluid?>_ETotal = <?=fluid?>_HTotal * <?=fluid?>_vj;
 <? 
@@ -231,8 +231,8 @@ end
 		F.D = _real3(H.y, -H.x, U.phi * solver->divPhiWavespeed / unit_m_per_s);
 		F.B = _real3(-E.y, E.x, U.psi * solver->divPsiWavespeed / unit_m_per_s);
 	}
-	F.phi = normalInfo_vecDotN1(n, U.D) * solver->divPhiWavespeed / unit_m_per_s;
-	F.psi = normalInfo_vecDotN1(n, U.B) * solver->divPsiWavespeed / unit_m_per_s;
+	F.phi = normal_vecDotN1(n, U.D) * solver->divPhiWavespeed / unit_m_per_s;
+	F.psi = normal_vecDotN1(n, U.B) * solver->divPsiWavespeed / unit_m_per_s;
 
 	return F;
 }
@@ -669,8 +669,8 @@ TwoFluidEMHD.eigenVars = eigenVars
 function TwoFluidEMHD:eigenWaveCodePrefix(n, eig, x)
 	return self:template([[
 <? for i,fluid in ipairs(fluids) do ?>
-	real <?=fluid?>_Cs_nLen = <?=eig?>.<?=fluid?>_Cs * normalInfo_len(<?=n?>);
-	real <?=fluid?>_v_n = normalInfo_vecDotN1(n, <?=eig?>.<?=fluid?>_v);
+	real <?=fluid?>_Cs_nLen = <?=eig?>.<?=fluid?>_Cs * normal_len(<?=n?>);
+	real <?=fluid?>_v_n = normal_vecDotN1(n, <?=eig?>.<?=fluid?>_v);
 <? end ?>
 ]], {
 		x = x,
@@ -731,9 +731,9 @@ function TwoFluidEMHD:consWaveCodePrefix(n, U, x)
 
 <? for _,fluid in ipairs(eqn.fluids) do
 ?>	real <?=fluid?>_Cs = calc_<?=fluid?>_Cs(solver, &W);
-	real <?=fluid?>_Cs_nLen = <?=fluid?>_Cs * normalInfo_len(<?=n?>);
-	consWaveCode_lambdaMin = min(consWaveCode_lambdaMin, normalInfo_vecDotN1(n, W.<?=fluid?>_v) - <?=fluid?>_Cs_nLen);
-	consWaveCode_lambdaMax = max(consWaveCode_lambdaMax, normalInfo_vecDotN1(n, W.<?=fluid?>_v) + <?=fluid?>_Cs_nLen);
+	real <?=fluid?>_Cs_nLen = <?=fluid?>_Cs * normal_len(<?=n?>);
+	consWaveCode_lambdaMin = min(consWaveCode_lambdaMin, normal_vecDotN1(n, W.<?=fluid?>_v) - <?=fluid?>_Cs_nLen);
+	consWaveCode_lambdaMax = max(consWaveCode_lambdaMax, normal_vecDotN1(n, W.<?=fluid?>_v) + <?=fluid?>_Cs_nLen);
 <? end
 ?>
 

@@ -20,11 +20,16 @@ function FiniteDifferenceSolver:createBuffers()
 	self:clalloc('fluxBuf', self.eqn.cons_t, self.numCells * self.dim)
 end
 
-function FiniteDifferenceSolver:getSolverCode()
-	return table{
-		FiniteDifferenceSolver.super.getSolverCode(self),
-		template(file['hydro/solver/calcDerivFD.cl'], {solver=self, eqn=self.eqn}),
-	}:concat'\n'
+function FiniteDifferenceSolver:initCodeModules()
+	FiniteDifferenceSolver.super.initCodeModules(self)
+	self.modules:add{
+		name = 'calcFluxAtCell,calcDerivFiniteDifference',
+		depends = {
+			'fluxFromCons',
+		},
+		code = template(file['hydro/solver/calcDerivFD.cl'], {solver=self, eqn=self.eqn}),
+	}
+	self.solverModulesEnabled['calcFluxAtCell,calcDerivFiniteDifference'] = true
 end
 
 function FiniteDifferenceSolver:refreshSolverProgram()

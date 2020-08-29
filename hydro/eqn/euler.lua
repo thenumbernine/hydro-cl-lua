@@ -102,11 +102,40 @@ end
 
 function Euler:initCodeModules()
 	Euler.super.initCodeModules(self)
-	
+
+	-- added by request only, so I don't have to compile the real3x3 code
+	-- not used at the moment
+	self.solver.modules:add{
+		name = 'calcCellMinMaxEigenvalues',
+		depends = {
+			'real3x3',
+			'eqn.prim-cons',
+		},
+		code = self:template[[
+range_t calcCellMinMaxEigenvalues(
+	constant <?=solver.solver_t?>* solver,
+	const global <?=eqn.cons_t?>* U,
+	real3 x,
+	real3x3 nL,
+	real3x3 nU,
+	real nLen
+) {
+	<?=eqn.prim_t?> W = primFromCons(solver, *U, x);
+	real v_n = real3_dot(W.v, nL.x);
+	real Cs = calc_Cs(solver, &W);
+	real Cs_nLen = Cs * nLen;
+	return (range_t){
+		.min = v_n - Cs_nLen, 
+		.max = v_n + Cs_nLen,
+	};
+}
+]],
+	}
+
 	self.solver.modules:add{
 		name = 'eigen_forCell',
 		depends = {
-			'coord.normal',	-- normalInfo_t
+			'normal_t',	-- normal_t
 			'coord_lower',
 			'eqn.cons_t',
 			'eqn.prim_t',
@@ -120,12 +149,12 @@ function Euler:initCodeModules()
 	constant <?=solver.solver_t?>* solver,
 	<?=eqn.cons_t?> U,
 	real3 x,
-	normalInfo_t n
+	normal_t n
 ) {
 	<?=eqn.prim_t?> W = primFromCons(solver, U, x);
 	real3 vL = coord_lower(W.v, x);
 	real vSq = real3_dot(W.v, vL);
-	real v_n = normalInfo_vecDotN1(n, W.v);
+	real v_n = normal_vecDotN1(n, W.v);
 	real eKin = .5 * vSq;
 	real hTotal = calc_hTotal(W.rho, W.P, U.ETotal);
 	real CsSq = (solver->heatCapacityRatio - 1.) * (hTotal - eKin);
@@ -149,17 +178,17 @@ function Euler:initCodeModule_fluxFromCons()
 		depends = {
 			'solver.solver_t',
 			'eqn.prim-cons',
-			'coord.normal',
+			'normal_t',
 		},
 		code = self:template[[
 <?=eqn.cons_t?> fluxFromCons(
 	constant <?=solver.solver_t?>* solver,
 	<?=eqn.cons_t?> U,
 	real3 x,
-	normalInfo_t n
+	normal_t n
 ) {
-	prim_t W = primFromCons(solver, U, x);
-	real v_n = normalInfo_vecDotN1(n, W.v);
+	<?=eqn.prim_t?> W = primFromCons(solver, U, x);
+	real v_n = normal_vecDotN1(n, W.v);
 	real HTotal = U.ETotal + W.P;
 	
 	return (<?=eqn.cons_t?>){
@@ -167,9 +196,9 @@ function Euler:initCodeModule_fluxFromCons()
 		.m = real3_add(
 			real3_real_mul(U.m, v_n),
 			_real3(
-				normalInfo_u1x(n) * W.P,
-				normalInfo_u1y(n) * W.P,
-				normalInfo_u1z(n) * W.P
+				normal_u1x(n) * W.P,
+				normal_u1y(n) * W.P,
+				normal_u1z(n) * W.P
 			)
 		),
 		.ETotal = HTotal * v_n,
@@ -188,7 +217,7 @@ function Euler:initCodeModuleCommon()
 			'eqn.prim_t',
 			'eqn.waves_t',
 			'eqn.eigen_t',
-			'coord',
+			'coordLenSq',
 		},
 		code = self:template[[
 real calc_H(constant <?=solver.solver_t?>* solver, real P) { return P * (solver->heatCapacityRatio / (solver->heatCapacityRatio - 1.)); }
@@ -444,8 +473,8 @@ Euler.eigenVars = table{
 
 function Euler:eigenWaveCodePrefix(n, eig, x)
 	return self:template([[
-	real Cs_nLen = <?=eig?>.Cs * normalInfo_len(<?=n?>);
-	real v_n = normalInfo_vecDotN1(<?=n?>, <?=eig?>.v);
+	real Cs_nLen = <?=eig?>.Cs * normal_len(<?=n?>);
+	real v_n = normal_vecDotN1(<?=n?>, <?=eig?>.v);
 ]],	{
 		eig = '('..eig..')',
 		x = x,
@@ -458,8 +487,8 @@ end
 function Euler:consWaveCodePrefix(n, U, x)
 	return self:template([[
 	<?=eqn.prim_t?> W = primFromCons(solver, <?=U?>, <?=x?>);
-	real Cs_nLen = calc_Cs(solver, &W) * normalInfo_len(<?=n?>);
-	real v_n = normalInfo_vecDotN1(<?=n?>, W.v);
+	real Cs_nLen = calc_Cs(solver, &W) * normal_len(<?=n?>);
+	real v_n = normal_vecDotN1(<?=n?>, W.v);
 ]], {
 		U = '('..U..')',
 		n = n,
@@ -491,7 +520,7 @@ function Euler:initCodeModuleCalcDT()
 			'solver.solver_t',
 			'eqn.prim-cons',
 			'eqn.guiVars.compileTime',
-			'coord.normal',
+			'normal_t',
 		},
 		code = self:template[[
 <? if require 'hydro.solver.gridsolver'.is(solver) then ?>
@@ -526,7 +555,7 @@ then
 ?>
 		if (dx > 1e-7) {
 			//use cell-centered eigenvalues
-			real v_n = normalInfo_vecDotN1(normalInfo_forSide<?=side?>(x), W.v);
+			real v_n = normal_vecDotN1(normal_forSide<?=side?>(x), W.v);
 			real lambdaMin = v_n - Cs;
 			real lambdaMax = v_n + Cs;
 			real absLambdaMax = max(fabs(lambdaMin), fabs(lambdaMax));
@@ -564,7 +593,7 @@ kernel void calcDT(
 			//all sides? or only the most prominent side?
 			//which should we pick eigenvalues from?
 			//use cell-centered eigenvalues
-			normalInfo_t n = normalInfo_forFace(face);
+			normal_t n = normal_forFace(face);
 			<?=eqn:consWaveCodePrefix('n', '*U', 'x')?>
 			real lambdaMin = <?=eqn:consMinWaveCode('n', '*U', 'x')?>;
 			real lambdaMax = <?=eqn:consMaxWaveCode('n', '*U', 'x')?>;
@@ -583,11 +612,18 @@ kernel void calcDT(
 end
 
 function Euler:getModuleDependsSolver() 
-	return {
+	return table{
 		'eqn.prim-cons',
-		'coord.normal',
+		'normal_t',
 		'coord_lower',
-	}
+	}:append(
+		not require 'hydro.coord.cartesian'.is(self.solver.coord)
+		and	{
+			'coord_conn_apply13',
+			'coord_conn_apply23',
+			'coord_conn_trace23',
+		} or nil
+	)
 end
 
 return Euler

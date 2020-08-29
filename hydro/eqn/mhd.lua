@@ -171,7 +171,7 @@ range_t calcCellMinMaxEigenvalues(
 	constant <?=solver.solver_t?>* solver,
 	<?=eqn.cons_t?> U,
 	real3 x,
-	normalInfo_t n
+	normal_t n
 ) {
 	<?=eqn.cons_t?> U_ = cons_rotateFrom(U, n);
 	<?=eqn.prim_t?> W = primFromCons(solver, U_, x);
@@ -185,7 +185,7 @@ range_t calcCellMinMaxEigenvalues(
 	real invRho = 1./W.rho;
 	
 	real aSq = solver->heatCapacityRatio * W.P * invRho;
-	real B_n = normalInfo_vecDotN1(n, B);
+	real B_n = normal_vecDotN1(n, B);
 	real CaxSq = B_n * B_n * invRho;
 	real CaSq = BSq * invRho;
 	
@@ -197,7 +197,7 @@ range_t calcCellMinMaxEigenvalues(
 
 	real Cf = sqrt(CfSq);
 	real Cs = sqrt(max(CsSq, 0.));
-	real v_n = normalInfo_vecDotN1(n, v);
+	real v_n = normal_vecDotN1(n, v);
 	return (range_t){.min=v_n - Cf, .max=v_n + Cf};
 #else
 	const real gamma = solver->heatCapacityRatio;
@@ -262,19 +262,19 @@ function MHD:initCodeModule_fluxFromCons()
 			'eqn.cons_t',
 			'eqn.prim_t',
 			'eqn.prim-cons',	-- primFromCons
-			'coord.normal',		-- normalInfo_*
-			'coord',			-- coodLenSq
+			'normal_t',
+			'coordLenSq',
 		},
 		code = self:template[[
 <?=eqn.cons_t?> fluxFromCons(
 	constant <?=solver.solver_t?>* solver,
 	<?=eqn.cons_t?> U,
 	real3 x,
-	normalInfo_t n
+	normal_t n
 ) {
 	<?=eqn.prim_t?> W = primFromCons(solver, U, x);
-	real vj = normalInfo_vecDotN1(n, W.v);
-	real Bj = normalInfo_vecDotN1(n, W.B);
+	real vj = normal_vecDotN1(n, W.v);
+	real Bj = normal_vecDotN1(n, W.B);
 	real BSq = coordLenSq(W.B, x);
 	real BDotV = real3_dot(W.B, W.v);
 	real PMag = .5 * BSq / (solver->mu0 / unit_kg_m_per_C2);
@@ -282,11 +282,11 @@ function MHD:initCodeModule_fluxFromCons()
 	real HTotal = U.ETotal + PTotal;
 	
 	<?=eqn.cons_t?> F;
-	F.rho = normalInfo_vecDotN1(n, U.m);
+	F.rho = normal_vecDotN1(n, U.m);
 	F.m = real3_sub(real3_real_mul(U.m, vj), real3_real_mul(U.B, Bj / (solver->mu0 / unit_kg_m_per_C2)));
-	F.m.x += PTotal * normalInfo_u1x(n);
-	F.m.y += PTotal * normalInfo_u1y(n);
-	F.m.z += PTotal * normalInfo_u1z(n);
+	F.m.x += PTotal * normal_u1x(n);
+	F.m.y += PTotal * normal_u1y(n);
+	F.m.z += PTotal * normal_u1z(n);
 	F.B = real3_sub(real3_real_mul(U.B, vj), real3_real_mul(W.v, Bj));
 	F.ETotal = HTotal * vj - BDotV * Bj / (solver->mu0 / unit_kg_m_per_C2);
 	F.psi = 0;
@@ -394,7 +394,7 @@ function MHD:initCodeModulePrimCons()
 			'solver.solver_t',
 			'eqn.prim_t',
 			'eqn.cons_t',
-			'coord',		-- coordLenSq
+			'coordLenSq',
 		},
 		code = self:template[[
 <?=eqn.prim_t?> primFromCons(

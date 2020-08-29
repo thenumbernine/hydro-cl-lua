@@ -122,7 +122,7 @@ function Maxwell:initCodeModule_fluxFromCons()
 		name = 'fluxFromCons',
 		depends = {
 			'solver.solver_t',
-			'coord.normal',
+			'normal_t',
 			'eqn.cons_t',
 			'eqn.prim_t',
 			'eqn.common',	-- calc_E, calc_H
@@ -132,7 +132,7 @@ function Maxwell:initCodeModule_fluxFromCons()
 	constant <?=solver.solver_t?>* solver,
 	<?=eqn.cons_t?> U,
 	real3 x,
-	normalInfo_t n
+	normal_t n
 ) {
 	<?=vec3?> E = calc_E(U);
 	<?=vec3?> H = calc_H(U);

@@ -29,7 +29,7 @@ end
 function EulerBurgers:createFlux(fluxName, fluxArgs)
 	self.flux = {
 		initCodeModules = function()
-			self.modules:add{name = 'Flux.calcFlux'}
+			self.modules:add{name = 'calcFlux'}
 		end,
 	}
 end
@@ -53,7 +53,10 @@ function EulerBurgers:initCodeModules()
 
 	self.modules:add{
 		name = 'EulerBurgers.solver',
-		depends = {'eqn.prim-cons'},
+		depends = {
+			'eqn.prim-cons',
+			'fluxLimiter',
+		},
 		code = template(file['hydro/solver/euler-burgers.cl'], {solver=self, eqn=self.eqn}),
 	}
 	self.solverModulesEnabled['EulerBurgers.solver'] = true
@@ -84,6 +87,8 @@ function EulerBurgers:addDisplayVars()
 
 	self:addDisplayVarGroup{
 		name = 'P', 
+		bufferType = 'real',
+		bufferField = 'PBuf',
 		vars = {
 			{name='P', code='value.vreal = buf[index];'},
 		},
@@ -92,6 +97,8 @@ function EulerBurgers:addDisplayVars()
 	for j,xj in ipairs(xNames) do
 		self:addDisplayVarGroup{
 			name = 'intVel', 
+			bufferType = 'real',
+			bufferField = 'intVelBuf',
 			codePrefix = [[
 	int indexInt = ]]..(j-1)..[[ + dim * index;
 ]],

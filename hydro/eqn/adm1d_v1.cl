@@ -8,7 +8,7 @@ eigen_t eigen_forInterface(
 	cons_t UL,
 	cons_t UR,
 	real3 x,
-	normalInfo_t n
+	normal_t n
 ) {
 	real alpha = .5 * (UL.alpha + UR.alpha);
 	return (eigen_t){
@@ -23,7 +23,7 @@ eigen_t eigen_forCell(
 	constant solver_t* solver,
 	cons_t U,
 	real3 x,
-	normalInfo_t n
+	normal_t n
 ) {
 	return (eigen_t){
 		.alpha = U.alpha,
@@ -37,7 +37,7 @@ waves_t eigen_leftTransform(
 	eigen_t eig,
 	cons_t x,
 	real3 pt,
-	normalInfo_t n
+	normal_t n
 ) {
 	real sqrt_f = sqrt(eig.f);
 	return (waves_t){.ptr={
@@ -52,7 +52,7 @@ cons_t eigen_rightTransform(
 	eigen_t eig,
 	waves_t x,
 	real3 pt,
-	normalInfo_t n
+	normal_t n
 ) {
 	return (cons_t){.ptr={
 		0,
@@ -68,7 +68,7 @@ cons_t eigen_fluxTransform(
 	eigen_t eig,
 	cons_t x,
 	real3 pt,
-	normalInfo_t n
+	normal_t n
 ) {
 	real alpha_over_sqrt_gamma_xx = eig.alpha / sqrt(eig.gamma_xx);
 	return (cons_t){.ptr={

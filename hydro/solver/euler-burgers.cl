@@ -47,8 +47,8 @@ kernel void calcDT(
 	real dt = INFINITY;
 	for (int i = 0; i < cell->faceCount; ++i) {
 		const global face_t* face = faceBuf + cellFaceIndexes[i + cell->faceOffset];
-		normalInfo_t n = normalInfo_forFace(face);
-		real v_n = normalInfo_vecDotN1(n, W.v);
+		normal_t n = normal_forFace(face);
+		real v_n = normal_vecDotN1(n, W.v);
 		real dx = face->area;
 		dt = (real)min(dt, dx / (Cs + fabs(v_n)));
 	}

@@ -108,7 +108,7 @@ function GLM_Maxwell:initCodeModule_fluxFromCons()
 			'solver.solver_t',
 			'eqn.cons_t',
 			'eqn.prim_t',
-			'coord.normal',
+			'normal_t',
 			'eqn.common',
 		},
 		code = self:template[[
@@ -116,7 +116,7 @@ function GLM_Maxwell:initCodeModule_fluxFromCons()
 	constant <?=solver.solver_t?>* solver,
 	<?=eqn.cons_t?> U,
 	real3 x,
-	normalInfo_t n
+	normal_t n
 ) {
 	<?=vec3?> E = calc_E(U);
 	<?=vec3?> H = calc_H(U);
@@ -132,8 +132,8 @@ function GLM_Maxwell:initCodeModule_fluxFromCons()
 		F.D = _<?=vec3?>( H.y, <?=neg?>(H.x), <?=real_mul?>(U.phi, solver->divPhiWavespeed / unit_m_per_s));
 		F.B = _<?=vec3?>(<?=neg?>(E.y),  E.x, <?=real_mul?>(U.psi, solver->divPsiWavespeed / unit_m_per_s));
 	}
-	real D_n = normalInfo_vecDotN1(n, U.D);
-	real B_n = normalInfo_vecDotN1(n, U.B);
+	real D_n = normal_vecDotN1(n, U.D);
+	real B_n = normal_vecDotN1(n, U.B);
 	F.phi = <?=real_mul?>(D_n, solver->divPhiWavespeed / unit_m_per_s);
 	F.psi = <?=real_mul?>(B_n, solver->divPsiWavespeed / unit_m_per_s);
 	F.sigma = <?=zero?>;

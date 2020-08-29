@@ -464,6 +464,8 @@ function SolverBase:initMeshVars(args)
 		function GLProgram:init(...)
 			local args = ...
 		
+			print('building '..args.name..'.shader:')
+			
 			local dir = 'cache/'..solver.uniqueIndex..'/shader'
 			mkdir(dir)
 			local path = dir..'/'..args.name
@@ -600,7 +602,7 @@ function SolverBase:initCodeModules()
 	self.sharedModulesEnabled['solver.macros'] = true
 
 	self.coord:initCodeModules()
-	self.sharedModulesEnabled.coord = true
+	--self.sharedModulesEnabled.coord = true
 	-- used by applyInitCond in initCode.cl
 	--  and the solver kernels in the eqn solver code maybe
 	self.sharedModulesEnabled['eqn.guiVars.compileTime'] = true
@@ -654,6 +656,13 @@ function SolverBase:initCodeModuleDisplay()
 	self.modules:add{
 		name = 'solver.displayCode',
 		-- this is going to have dependencies that vary greatly from eqn to eqn
+		depends = {
+			'coordLen',
+			-- hmm, only for sym3
+			-- but eqn.euler doesn't use sym3, so this needless adds sym3 ...
+			-- how do I add a 'depends' only if 'sym3' is already included?
+			'coord_g_ll',
+		},
 		code = self:getDisplayCode(),
 	}
 	self.solverModulesEnabled['solver.displayCode'] = true
@@ -796,7 +805,11 @@ function SolverBase:refreshCommonProgram()
 		'realparam',
 		'solver.solver_t',
 		'eqn.cons_t',
-		'GridSolver.codeprefix',	-- SETBOUNDS_NOGHOST
+		
+		-- This is in GridSolver, a subclass.  
+		-- In fact, all the display stuff is pretty specific to cartesian grids.
+		-- Not 100% though, since the MeshSolver stuff was working with it before I introduced the code module stuff.
+		'SETBOUNDS_NOGHOST',	
 	}
 print('common modules: '..moduleNames:sort():concat', ')
 	-- just header, no function calls needed

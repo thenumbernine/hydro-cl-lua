@@ -100,7 +100,7 @@ function InitCond:initCodeModules(solver)
 	}
 
 	solver.modules:add{
-		name = 'initCond.applyInitCond',
+		name = 'applyInitCond',
 		depends = table{
 			-- if an InitCond provides codeprefix, it is for code it expects to reference from within 'applyInitCond()'
 			'initCond.codeprefix',
@@ -121,7 +121,7 @@ end
 
 function InitCond:refreshInitStateProgram(solver)
 
-	solver.initModulesEnabled['initCond.applyInitCond'] = true
+	solver.initModulesEnabled['applyInitCond'] = true
 
 	local initCondCode 
 	time('generating init state code', function()

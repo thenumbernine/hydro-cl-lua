@@ -70,10 +70,10 @@ range_t calcCellMinMaxEigenvalues(
 	constant solver_t* solver,
 	const global cons_t* U,
 	real3 x,
-	normalInfo_t n
+	normal_t n
 ) {
-	real alpha_nLen = metric_alpha(x) * normalInfo_len(n);
-	real beta_n = normalInfo_vecDotN1(n, metric_beta_u(x));
+	real alpha_nLen = metric_alpha(x) * normal_len(n);
+	real beta_n = normal_vecDotN1(n, metric_beta_u(x));
 	return (range_t){
 		.min = solver->wavespeed * (-beta_n - alpha_nLen),
 		.max = solver->wavespeed * (-beta_n + alpha_nLen),
@@ -90,34 +90,34 @@ waves_t eigen_leftTransform(
 	eigen_t eig,
 	cons_t X,
 	real3 x,
-	normalInfo_t n
+	normal_t n
 ) { 
 	waves_t Y;
 
-	real nLen = normalInfo_len(n);
+	real nLen = normal_len(n);
 	real invDenom = 1. / (nLen * nLen);
 
 	Y.ptr[0] = .5 * invDenom * (
 		X.ptr[0] * nLen
-		+ X.ptr[1] * normalInfo_u1x(n)
-		+ X.ptr[2] * normalInfo_u1y(n)
-		+ X.ptr[3] * normalInfo_u1z(n)
+		+ X.ptr[1] * normal_u1x(n)
+		+ X.ptr[2] * normal_u1y(n)
+		+ X.ptr[3] * normal_u1z(n)
 	);
 	Y.ptr[1] = invDenom * (
-		X.ptr[1] * normalInfo_u2x(n)
-		+ X.ptr[2] * normalInfo_u2y(n)
-		+ X.ptr[3] * normalInfo_u2z(n)
+		X.ptr[1] * normal_u2x(n)
+		+ X.ptr[2] * normal_u2y(n)
+		+ X.ptr[3] * normal_u2z(n)
 	);
 	Y.ptr[2] = invDenom * (
-		X.ptr[1] * normalInfo_u3x(n)
-		+ X.ptr[2] * normalInfo_u3y(n)
-		+ X.ptr[3] * normalInfo_u3z(n)
+		X.ptr[1] * normal_u3x(n)
+		+ X.ptr[2] * normal_u3y(n)
+		+ X.ptr[3] * normal_u3z(n)
 	);
 	Y.ptr[3] = .5 * invDenom * (
 		-X.ptr[0] * nLen
-		+ X.ptr[1] * normalInfo_u1x(n)
-		+ X.ptr[2] * normalInfo_u1y(n)
-		+ X.ptr[3] * normalInfo_u1z(n)
+		+ X.ptr[1] * normal_u1x(n)
+		+ X.ptr[2] * normal_u1y(n)
+		+ X.ptr[3] * normal_u1z(n)
 	);
 
 	return Y;
@@ -128,26 +128,26 @@ cons_t eigen_rightTransform(
 	eigen_t eig,
 	waves_t X_,
 	real3 x,
-	normalInfo_t n
+	normal_t n
 ) {
 	<?=scalar?>* X = (<?=scalar?>*)X_.ptr;
 	
-	real nLen = normalInfo_len(n);
+	real nLen = normal_len(n);
 
 	cons_t Y;
 	Y.ptr[0] = (X[0] - X[3]) * nLen;
-	Y.ptr[1] = X[0] * normalInfo_l1x(n) 
-			+ X[1] * normalInfo_l2x(n) 
-			+ X[2] * normalInfo_l3x(n) 
-			+ X[3] * normalInfo_l1x(n);
-	Y.ptr[2] = X[0] * normalInfo_l1y(n) 
-			+ X[1] * normalInfo_l2y(n) 
-			+ X[2] * normalInfo_l3y(n) 
-			+ X[3] * normalInfo_l1y(n);
-	Y.ptr[3] = X[0] * normalInfo_l1z(n) 
-			+ X[1] * normalInfo_l2z(n) 
-			+ X[2] * normalInfo_l3z(n) 
-			+ X[3] * normalInfo_l1z(n);
+	Y.ptr[1] = X[0] * normal_l1x(n) 
+			+ X[1] * normal_l2x(n) 
+			+ X[2] * normal_l3x(n) 
+			+ X[3] * normal_l1x(n);
+	Y.ptr[2] = X[0] * normal_l1y(n) 
+			+ X[1] * normal_l2y(n) 
+			+ X[2] * normal_l3y(n) 
+			+ X[3] * normal_l1y(n);
+	Y.ptr[3] = X[0] * normal_l1z(n) 
+			+ X[1] * normal_l2z(n) 
+			+ X[2] * normal_l3z(n) 
+			+ X[3] * normal_l1z(n);
 	
 	return Y;
 }

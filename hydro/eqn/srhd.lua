@@ -180,7 +180,7 @@ function SRHD:initCodeModule_fluxFromCons()
 		depends = {
 			'solver.solver_t',
 			'eqn.cons_t',
-			'coord.normal',	-- normalInfo_*
+			'normal_t',	-- normal_*
 			'eqn.common',	-- calc_P
 		},
 		code = self:template[[
@@ -188,9 +188,9 @@ function SRHD:initCodeModule_fluxFromCons()
 	constant <?=solver.solver_t?>* solver,
 	<?=eqn.cons_t?> U,
 	real3 x,
-	normalInfo_t n
+	normal_t n
 ) {
-	real v_n = normalInfo_vecDotN1(n, U.v);
+	real v_n = normal_vecDotN1(n, U.v);
 	real P = calc_P(solver, U.rho, U.eInt);
 
 	<?=eqn.cons_t?> F = {
@@ -198,9 +198,9 @@ function SRHD:initCodeModule_fluxFromCons()
 		.S = real3_add(
 			real3_real_mul(U.S, v_n),
 			_real3(
-				normalInfo_u1x(n) * P,
-				normalInfo_u1y(n) * P,
-				normalInfo_u1z(n) * P
+				normal_u1x(n) * P,
+				normal_u1y(n) * P,
+				normal_u1z(n) * P
 			)
 		),
 		.tau = U.tau * v_n + P * v_n,
@@ -450,7 +450,7 @@ function SRHD:consWaveCodePrefix(n, U, x)
 	real cs = sqrt(csSq);
 	
 	//for the particular direction
-	real vi = normalInfo_vecDotN1(n, <?=U?>.v);
+	real vi = normal_vecDotN1(n, <?=U?>.v);
 	real viSq = vi * vi;
 	
 	// Marti 1998 eqn 19

@@ -35,18 +35,18 @@ function ShallowWater:initCodeModule_fluxFromCons()
 		depends = {
 			'solver.solver_t',
 			'eqn.prim-cons',
-			'coord.normal',
+			'normal_t',
 		},
 		code = self:template[[
 <?=eqn.cons_t?> fluxFromCons(
 	constant <?=solver.solver_t?>* solver,
 	<?=eqn.cons_t?> U,
 	real3 x,
-	normalInfo_t n
+	normal_t n
 ) {
 	<?=eqn.prim_t?> W = primFromCons(solver, U, x);
-	real v_n = normalInfo_vecDotN1(n, W.v);
-	real3 nU = normalInfo_u1(n);
+	real v_n = normal_vecDotN1(n, W.v);
+	real3 nU = normal_u1(n);
 	return (<?=eqn.cons_t?>){
 		.h = U.h * v_n,
 		.m = real3_add(
@@ -239,8 +239,8 @@ ShallowWater.eigenVars = table{
 
 function ShallowWater:eigenWaveCodePrefix(n, eig, x)
 	return self:template([[
-	real C_nLen = <?=eig?>.C * normalInfo_len(<?=n?>);
-	real v_n = normalInfo_vecDotN1(<?=n?>, <?=eig?>.v);
+	real C_nLen = <?=eig?>.C * normal_len(<?=n?>);
+	real v_n = normal_vecDotN1(<?=n?>, <?=eig?>.v);
 ]], {
 		eig = '('..eig..')',
 		x = x,
@@ -250,13 +250,13 @@ end
 
 function ShallowWater:consWaveCodePrefix(n, U, x, W)
 	return self:template([[
-	real C_nLen = calc_C(solver, <?=U?>) * normalInfo_len(<?=n?>);
+	real C_nLen = calc_C(solver, <?=U?>) * normal_len(<?=n?>);
 <? if not W then 
 	W = 'W'
 ?>
 	<?=eqn.prim_t?> W = primFromCons(solver, <?=U?>, <?=x?>);
 <? end ?>
-	real v_n = normalInfo_vecDotN1(n, <?=W?>.v);
+	real v_n = normal_vecDotN1(n, <?=W?>.v);
 ]], {
 		U = '('..U..')',
 		W = W and '('..W..')' or nil,

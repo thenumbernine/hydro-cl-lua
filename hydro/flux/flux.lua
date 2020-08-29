@@ -12,26 +12,26 @@ end
 
 function Flux:initCodeModules()
 	self.solver.modules:add{
-		name = 'Flux.calcFlux',
+		name = 'calcFlux',
 		-- TODO these may vary depending on the solverCodeFile contents
-		depends = {
-			'solver.solver_t',
-			'eqn.cons_t',
-			'eqn.waves_t',
-			'coord.normal',
-			'eqn.solvercode',
-			'eqn.cons_parallelPropagate',
-			
-			-- specific to Roe, when solver.fluxLimiter>1
-			'fluxLimiter',
-			'fluxFromCons',
-		},
+		depends = self:getModuleDepends_calcFlux(),
 		code = template(file[self.solverCodeFile], {
 			solver = self.solver,
 			eqn = self.solver.eqn,
 			clnumber = clnumber,
 		}),
 	}	
+end
+
+function Flux:getModuleDepends_calcFlux()
+	return {
+		'solver.solver_t',
+		'eqn.cons_t',
+		'eqn.waves_t',
+		'normal_t',
+		'eqn.solvercode',
+		'eqn.cons_parallelPropagate',
+	}
 end
 
 return Flux

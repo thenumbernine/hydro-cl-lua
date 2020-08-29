@@ -29,7 +29,7 @@ eigen_t eigen_forInterface(
 	cons_t UL,
 	cons_t UR,
 	real3 x,
-	normalInfo_t n
+	normal_t n
 ) {
 	prim_t WL = primFromCons(solver, UL, x);
 	prim_t WR = primFromCons(solver, UR, x);
@@ -75,7 +75,7 @@ eigen_t eigen_forCell(
 	constant solver_t* solver,
 	cons_t U,
 	real3 x,
-	normalInfo_t n
+	normal_t n
 ) {
 	prim_t W = primFromCons(solver, U, x);
 <? for _,fluid in ipairs(eqn.fluids) do ?>
@@ -99,7 +99,7 @@ eigen_t eigen_forCell(
 
 <?
 local prefix = [[
-	real nLen = normalInfo_len(n);
+	real nLen = normal_len(n);
 	real nLenSq = nLen * nLen;
 
 	//g^ij for fixed j=side
@@ -117,20 +117,20 @@ local prefix = [[
 	real elec_Cs = eig.elec_Cs;
 	real elec_Cs_over_nLen = elec_Cs / nLen; 
 
-	real nx = normalInfo_l1x(n);
-	real ny = normalInfo_l1y(n);
-	real nz = normalInfo_l1z(n);
-	real n1x = normalInfo_l2x(n);
-	real n1y = normalInfo_l2y(n);
-	real n1z = normalInfo_l2z(n);
-	real n2x = normalInfo_l3x(n);
-	real n2y = normalInfo_l3y(n);
-	real n2z = normalInfo_l3z(n);
-	real3 nU = normalInfo_u1(n);
+	real nx = normal_l1x(n);
+	real ny = normal_l1y(n);
+	real nz = normal_l1z(n);
+	real n1x = normal_l2x(n);
+	real n1y = normal_l2y(n);
+	real n1z = normal_l2z(n);
+	real n2x = normal_l3x(n);
+	real n2y = normal_l3y(n);
+	real n2z = normal_l3z(n);
+	real3 nU = normal_u1(n);
 
-	real3 ion_v_ns = normalInfo_vecDotNs(n, ion_v);
+	real3 ion_v_ns = normal_vecDotNs(n, ion_v);
 	real ion_v_n = ion_v_ns.x, ion_v_n1 = ion_v_ns.y, ion_v_n2 = ion_v_ns.z;
-	real3 elec_v_ns = normalInfo_vecDotNs(n, elec_v);
+	real3 elec_v_ns = normal_vecDotNs(n, elec_v);
 	real elec_v_n = elec_v_ns.x, elec_v_n1 = elec_v_ns.y, elec_v_n2 = elec_v_ns.z;
 ]]
 ?>
@@ -140,7 +140,7 @@ waves_t eigen_leftTransform(
 	eigen_t eig,
 	cons_t UX,
 	real3 x,
-	normalInfo_t n
+	normal_t n
 ) { 
 	waves_t UY;
 	real* Y = UY.ptr;
@@ -301,7 +301,7 @@ cons_t eigen_rightTransform(
 	eigen_t eig,
 	waves_t UX,	//numWaves = 16
 	real3 x,
-	normalInfo_t n
+	normal_t n
 ) {
 	cons_t UY;
 	real* Y = UY.ptr;
@@ -432,7 +432,7 @@ cons_t eigen_fluxTransform(
 	eigen_t eig,
 	cons_t UX,
 	real3 x,
-	normalInfo_t n
+	normal_t n
 ) {
 	<?=prefix?>
 	cons_t UY;
@@ -482,8 +482,8 @@ cons_t eigen_fluxTransform(
 		UY.D = _real3(H.y, -H.x, solver->divPhiWavespeed / unit_m_per_s * UX.phi);
 		UY.B = _real3(-E.y, E.x, solver->divPsiWavespeed / unit_m_per_s * UX.psi);
 	}
-	UY.phi = solver->divPhiWavespeed / unit_m_per_s * normalInfo_vecDotN1(n, UX.D);
-	UY.psi = solver->divPsiWavespeed / unit_m_per_s * normalInfo_vecDotN1(n, UX.B);
+	UY.phi = solver->divPhiWavespeed / unit_m_per_s * normal_vecDotN1(n, UX.D);
+	UY.psi = solver->divPsiWavespeed / unit_m_per_s * normal_vecDotN1(n, UX.B);
 	UY.ePot = 0;
 
 	return UY;

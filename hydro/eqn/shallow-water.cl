@@ -9,12 +9,12 @@ range_t calcCellMinMaxEigenvalues(
 	constant solver_t* solver,
 	const global cons_t* U,
 	real3 x,
-	normalInfo_t n
+	normal_t n
 ) {
 	prim_t W = primFromCons(solver, *U, x);
-	real v_n = normalInfo_vecDotN1(n, W.v);
+	real v_n = normal_vecDotN1(n, W.v);
 	real C = calc_C(solver, *U);
-	real C_nLen = C * normalInfo_len(n);
+	real C_nLen = C * normal_len(n);
 	return (range_t){
 		.min = v_n - C_nLen, 
 		.max = v_n + C_nLen,
@@ -26,7 +26,7 @@ eigen_t eigen_forInterface(
 	cons_t UL,
 	cons_t UR,
 	real3 x,
-	normalInfo_t n
+	normal_t n
 ) {
 	prim_t WL = primFromCons(solver, UL, x);
 	real sqrtHL = sqrt(WL.h);
@@ -57,16 +57,16 @@ eigen_t eigen_forInterface(
 
 <?
 local prefix = [[
-	real3 nL = normalInfo_l1(n);
-	real3 nU = normalInfo_u1(n);
-	real nLen = normalInfo_len(n);
+	real3 nL = normal_l1(n);
+	real3 nU = normal_u1(n);
+	real nLen = normal_len(n);
 	real nLenSq = nLen * nLen;
 
 	real3 v = eig.v;
 	real h = eig.h;
 	real C = eig.C;
 
-	real3 v_ns = normalInfo_vecDotNs(n, v);
+	real3 v_ns = normal_vecDotNs(n, v);
 	real v_n = v_ns.x;
 	real v_n2 = v_ns.y;
 	real v_n3 = v_ns.z;
@@ -78,13 +78,13 @@ waves_t eigen_leftTransform(
 	eigen_t eig,
 	cons_t X_,
 	real3 x,
-	normalInfo_t n
+	normal_t n
 ) { 
 	real* X = X_.ptr;
 	<?=prefix?>
 
-	real3 n2U = normalInfo_u2(n);
-	real3 n3U = normalInfo_u3(n);
+	real3 n2U = normal_u2(n);
+	real3 n3U = normal_u3(n);
 
 	//TODO double-check that this is the correct 3D generalization...
 	// seems strange to have an upper dot an upper
@@ -108,7 +108,7 @@ cons_t eigen_rightTransform(
 	eigen_t eig,
 	waves_t X_,
 	real3 x,
-	normalInfo_t n
+	normal_t n
 ) {
 	real* X = X_.ptr;
 	<?=prefix?>
@@ -120,15 +120,15 @@ cons_t eigen_rightTransform(
 		
 		(X[0] + X[3]) * h * nU.x 
 		+ (X[3] - X[0]) * (nLen * h * invC * v.x)
-		+ h * (X[1] * normalInfo_l2x(n) + X[2] * normalInfo_l3x(n)),
+		+ h * (X[1] * normal_l2x(n) + X[2] * normal_l3x(n)),
 		
 		(X[0] + X[3]) * h * nU.y
 		+ (X[3] - X[0]) * (nLen * h * invC * v.y)
-		+ h * (X[1] * normalInfo_l2y(n) + X[2] * normalInfo_l3y(n)),
+		+ h * (X[1] * normal_l2y(n) + X[2] * normal_l3y(n)),
 
 		(X[0] + X[3]) * h * nU.z
 		+ (X[3] - X[0]) * (nLen * h * invC * v.z)
-		+ h * (X[1] * normalInfo_l2z(n) + X[2] * normalInfo_l3z(n)),
+		+ h * (X[1] * normal_l2z(n) + X[2] * normal_l3z(n)),
 	}};
 }
 
@@ -137,7 +137,7 @@ cons_t eigen_fluxTransform(
 	eigen_t eig,
 	cons_t X_,
 	real3 x,
-	normalInfo_t n
+	normal_t n
 ) {
 	real* X = X_.ptr;
 	<?=prefix?>

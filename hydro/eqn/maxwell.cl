@@ -12,7 +12,7 @@ eigen_t eigen_forInterface(
 	cons_t UL,
 	cons_t UR,
 	real3 x,
-	normalInfo_t n
+	normal_t n
 ) {
 	//this will fail with tensor susceptibility
 	//but it doesn't belong here -- this is only the scalar case
@@ -28,7 +28,7 @@ eigen_t eigen_forCell(
 	constant solver_t* solver,
 	cons_t U,
 	real3 x,
-	normalInfo_t n
+	normal_t n
 ) {
 	return (eigen_t){
 		.sqrt_1_eps = U.sqrt_1_eps,
@@ -44,7 +44,7 @@ waves_t eigen_leftTransform(
 	eigen_t eig,
 	cons_t X,
 	real3 x,
-	normalInfo_t n
+	normal_t n
 ) {
 	waves_t Y;
 	<?=scalar?> *Xp = (<?=scalar?>*)X.ptr;
@@ -93,7 +93,7 @@ cons_t eigen_rightTransform(
 	eigen_t eig,
 	waves_t X,
 	real3 x,
-	normalInfo_t n
+	normal_t n
 ) {
 	cons_t Y;
 	<?=scalar?> *Yp = (<?=scalar?>*)Y.ptr;
@@ -185,7 +185,7 @@ kernel void addSource(
 	real _1_sqrt_det_g = 1. / coord_sqrt_det_g(x);
 	<? for j=0,solver.dim-1 do 
 		local xj = xNames[j+1] ?>{
-		cons_t flux = fluxFromCons(solver, *U, x, normalInfo_forSide<?=j?>(x));
+		cons_t flux = fluxFromCons(solver, *U, x, normal_forSide<?=j?>(x));
 		flux.D = <?=vec3?>_real_mul(eqn_coord_lower(flux.D, x), _1_sqrt_det_g);
 		flux.B = <?=vec3?>_real_mul(eqn_coord_lower(flux.B, x), _1_sqrt_det_g);
 		deriv->D.<?=xj?> = <?=sub?>(deriv->D.<?=xj?>, <?=vec3?>_dot(flux.D, grad_1_mu));

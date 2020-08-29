@@ -12,7 +12,6 @@ local Equation = require 'hydro.eqn.eqn'
 local NavierStokesWilcox = class(Equation)
 NavierStokesWilcox.name = 'Navier-Stokes -- 1998 Wilcox'
 
-NavierStokesWilcox.numStates = 8	-- ePot is the last param -- specific potential energy
 NavierStokesWilcox.numWaves = 7	-- v-a, v,v,v,v,v, v+a
 NavierStokesWilcox.numIntStates = 7
 
@@ -22,37 +21,65 @@ NavierStokesWilcox.useSourceTerm = true
 NavierStokesWilcox.initConds = require 'hydro.init.euler'
 
 function NavierStokesWilcox:init(args)
+	self.primVars = table{
+		{name='rhoBar', type='real'},
+		{name='vTilde', type='real3'},
+		{name='PStar', type='real'},
+		{name='k', type='real'},
+		{name='omega', type='real'},
+		{name='ePot', type='real'},
+	}
+
+	self.consVars = table{
+		{name='rhoBar', type='real'},
+		{name='rhoBar_vTilde', type='real3'},
+		{name='rhoBar_eTotalTilde', type='real'},
+		{name='rhoBar_k', type='real'},
+		{name='rhoBar_omega', type='real'},
+		{name='ePot', type='real'},
+	}
+
+	if args.incompressible then
+		self.consVars:insert{name='mPot', type='real', units='kg/(m*s)'}
+		self.primVars:insert{name='mPot', type='real', units='kg/(m*s)'}
+	end
+
 	NavierStokesWilcox.super.init(self, args)
 
---[[ might have to change the selfgrav terms ...
-	local SelfGrav = require 'hydro.op.selfgrav'
 
-if require 'hydro.solver.meshsolver'.is(self.solver) then
-	print("not using selfgrav with mesh solvers yet")
-else
+	if require 'hydro.solver.meshsolver'.is(self.solver) then
+		print("not using selfgrav with mesh solvers yet")
+	else
+--[[ might have to change the selfgrav terms ...
+		local SelfGrav = require 'hydro.op.selfgrav'
 		self.gravOp = SelfGrav{solver = self.solver}
 		self.solver.ops:insert(self.gravOp)
-end
 --]]
+		if args.incompressible then
+			local NoDiv = require 'hydro.op.nodiv'{
+				poissonSolver = require 'hydro.op.poisson_jacobi',	-- krylov is having errors.  TODO bug in its boundary code?
+			}
+			self.solver.ops:insert(NoDiv{
+				solver = self.solver,
+				vectorField = 'rhoBar_vTilde',
+				potentialField = 'mPot',
+			
+				-- div v = 0
+				-- div (m/ρ) = 0
+				-- 1/ρ div m - 1/ρ^2 m dot grad ρ = 0
+				-- div m = (m dot grad ρ)/ρ 
+				chargeCode = self:template[[
+	<? for j=0,solver.dim-1 do ?>{
+		global const <?=eqn.cons_t?>* Ujm = U - solver->stepsize.s<?=j?>;
+		global const <?=eqn.cons_t?>* Ujp = U + solver->stepsize.s<?=j?>;
+		real drho_dx = (Ujp->rhoBar - Ujm->rhoBar) * (.5 / solver->grid_dx.s<?=j?>);
+		source -= drho_dx * U->rhoBar_vTilde.s<?=j?> / U->rhoBar;
+	}<? end ?>
+]],
+			})
+		end
+	end
 end
-
-NavierStokesWilcox.primVars = table{
-	{name='rhoBar', type='real'},
-	{name='vTilde', type='real3'},
-	{name='PStar', type='real'},
-	{name='k', type='real'},
-	{name='omega', type='real'},
-	{name='ePot', type='real'},
-}
-
-NavierStokesWilcox.consVars = table{
-	{name='rhoBar', type='real'},
-	{name='rhoBar_vTilde', type='real3'},
-	{name='rhoBar_eTotalTilde', type='real'},
-	{name='rhoBar_k', type='real'},
-	{name='rhoBar_omega', type='real'},
-	{name='ePot', type='real'},
-}
 
 function NavierStokesWilcox:createInitState()
 	NavierStokesWilcox.super.createInitState(self)
@@ -90,16 +117,16 @@ real calc_EKinTilde(<?=eqn.prim_t?> W, real3 x) { return W.rhoBar * calc_eKinTil
 
 //after
 real calc_PBar(<?=eqn.prim_t?> W) { return W.PStar - 2./3. * W.rhoBar * W.k; }
-real calc_TTilde(<?=eqn.prim_t?> W) { return calc_PBar(W) / (W.rhoBar * solver->gasConstant); }
-real calc_eIntTilde(<?=eqn.prim_t?> W) { return solver->C_v * calc_TTilde(W); }
-real calc_EIntTilde(<?=eqn.prim_t?> W) { return W.rhoBar * calc_eIntTilde(W); }
+real calc_TTilde(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W) { return calc_PBar(W) / (W.rhoBar * solver->gasConstant); }
+real calc_eIntTilde(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W) { return solver->C_v * calc_TTilde(solver, W); }
+real calc_EIntTilde(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W) { return W.rhoBar * calc_eIntTilde(solver, W); }
 
 real calc_EKin_fromCons(<?=eqn.cons_t?> U, real3 x) { return .5 * coordLenSq(U.rhoBar_vTilde, x) / U.rhoBar; }
-real calc_ETotal(<?=eqn.prim_t?> W, real3 x) {
-	return calc_EKinTilde(W, x) + calc_EIntTilde(W);
+real calc_ETotal(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W, real3 x) {
+	return calc_EKinTilde(W, x) + calc_EIntTilde(solver, W);
 }
 
-real calc_Cs(const <?=eqn.prim_t?> W) {
+real calc_Cs(constant <?=solver.solver_t?>* solver, const <?=eqn.prim_t?> W) {
 	return sqrt((R_over_C_v + 1.) * W.PStar / W.rhoBar);
 }
 ]],
@@ -112,7 +139,7 @@ function NavierStokesWilcox:initCodeModulePrimCons()
 		depends = {
 			'eqn.prim_t',
 			'eqn.cons_t',
-			'coord',	-- coordLenSq
+			'coordLenSq',
 		},
 		code = self:template[[
 <?=eqn.prim_t?> primFromCons(
@@ -266,11 +293,29 @@ end
 		.omega = 0,
 		.ePot = ePot,
 	};
-	UBuf[index] = consFromPrim(W, x);
+	UBuf[index] = consFromPrim(solver, W, x);
 }
 ]]
 
 NavierStokesWilcox.solverCodeFile = 'hydro/eqn/navstokes-wilcox.cl'
+
+function NavierStokesWilcox:getModuleDependsApplyInitCond() 
+	return table(NavierStokesWilcox.super.getModuleDependsApplyInitCond(self)):append{
+		'cartesianToCoord',
+		'eqn.prim-cons',
+	}
+end
+
+function NavierStokesWilcox:getModuleDependsSolver() 
+	return table(NavierStokesWilcox.super.getModuleDependsSolver(self)):append{
+		'eqn.common',
+		'eqn.prim-cons',
+		'coord_g_uu##',
+		'coord_g_uu',
+		'coord_sqrt_g_uu##',
+		'coord_lower',
+	}
+end
 
 NavierStokesWilcox.displayVarCodeUsesPrims = true
 
@@ -279,10 +324,10 @@ function NavierStokesWilcox:getDisplayVars()
 	vars:append{
 		{name='vTilde', code='value.vreal3 = W.vTilde;', type='real3'},
 		{name='PStar', code='value.vreal = W.PStar;'},
-		{name='eIntTilde', code='value.vreal = calc_eIntTilde(W);'},
+		{name='eIntTilde', code='value.vreal = calc_eIntTilde(solver, W);'},
 		{name='eKinTilde', code='value.vreal = calc_eKinTilde(W, x);'},
 		{name='eTotalTilde', code='value.vreal = U->rhoBar_eTotalTilde / W.rhoBar;'},
-		{name='EIntTilde', code='value.vreal = calc_EIntTilde(W);'},
+		{name='EIntTilde', code='value.vreal = calc_EIntTilde(solver, W);'},
 		{name='EKinTilde', code='value.vreal = calc_EKinTilde(W, x);'},
 		{name='EPot', code='value.vreal = U->rhoBar * U->ePot;'},
 		{name='S', code='value.vreal = W.PStar / pow(W.rhoBar, R_over_C_v + 1. );'},
@@ -290,8 +335,8 @@ function NavierStokesWilcox:getDisplayVars()
 		--{name='h', code='value.vreal = calc_h(W.rhoBar, W.PStar);'},
 		--{name='HTotal', code='value.vreal = calc_HTotal(W.PStar, U->rhoBar_eTotalTilde);'},
 		--{name='hTotal', code='value.vreal = calc_hTotal(W.rhoBar, W.PStar, U->rhoBar_eTotalTilde);'},
-		{name='Speed of Sound', code='value.vreal = calc_Cs(W);'},
-		--{name='Mach number', code='value.vreal = coordLen(W.vTilde, x) / calc_Cs(W);'},
+		{name='Speed of Sound', code='value.vreal = calc_Cs(solver, W);'},
+		--{name='Mach number', code='value.vreal = coordLen(W.vTilde, x) / calc_Cs(solver, W);'},
 	}:append{self.gravOp and
 		{name='gravity', code=self:template[[
 	if (OOB(1,1)) {
@@ -310,7 +355,7 @@ for side=solver.dim,2 do ?>
 	}
 ]], type='real3'} or nil
 	}:append{
-		{name='temp', code='value.vreal = calc_eIntTilde(W) / solver->C_v;'},
+		{name='temp', code='value.vreal = calc_eIntTilde(solver, W) / solver->C_v;'},
 	}
 
 	vars:insert(self:createDivDisplayVar{
@@ -345,26 +390,40 @@ NavierStokesWilcox.eigenVars = table{
 	{name='Cs', type='real'},
 }
 
-function NavierStokesWilcox:eigenWaveCodePrefix(side, eig, x)
+function NavierStokesWilcox:eigenWaveCodePrefix(n, eig, x)
 	return self:template([[
-	real Cs_sqrt_gU = <?=eig?>->Cs * coord_sqrt_g_uu<?=side..side?>(<?=x?>);
-	real v_n = <?=eig?>->vTilde.s[<?=side?>];
+	real Cs_nLen = <?=eig?>.Cs * normal_len(<?=n?>);
+	real v_n = normal_vecDotN1(<?=n?>, <?=eig?>.vTilde);
 ]], {
 		eig = '('..eig..')',
-		side = side,
+		n = n,
 		x = x,
 	})
 end
 
-function NavierStokesWilcox:eigenWaveCode(side, eig, x, waveIndex)
+function NavierStokesWilcox:consWaveCodePrefix(n, U, x)
+	return self:template([[
+	<?=eqn.prim_t?> W = primFromCons(solver, <?=U?>, <?=x?>);
+	real Cs_nLen = calc_Cs(solver, W) * normal_len(<?=n?>);
+	real v_n = normal_vecDotN1(<?=n?>, W.vTilde);
+]], {
+		U = '('..U..')',
+		n = n,
+		x = x,
+	})
+end
+
+function NavierStokesWilcox:consWaveCode(n, eig, x, waveIndex)
 	if waveIndex == 0 then
-		return '(v_n - Cs_sqrt_gU)'
+		return '(v_n - Cs_nLen)'
 	elseif waveIndex >= 1 and waveIndex <= 5 then
 		return 'v_n'
 	elseif waveIndex == 6 then
-		return '(v_n + Cs_sqrt_gU)'
+		return '(v_n + Cs_nLen)'
 	end
 	error'got a bad waveIndex'
 end
+
+NavierStokesWilcox.eigenWaveCode = NavierStokesWilcox.consWaveCode
 
 return NavierStokesWilcox

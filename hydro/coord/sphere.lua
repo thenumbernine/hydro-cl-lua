@@ -47,6 +47,10 @@ function Sphere:init(args)
 	}
 end
 
+function Sphere:getModuleDepends_coord_parallelPropagate()
+	return {'rotate'}
+end
+
 function Sphere:getCoordMapInvModuleCode()
 	return template([[
 real3 coordMapInv(real3 x) {

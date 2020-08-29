@@ -106,7 +106,6 @@ local args = {
 		zmax = cmdline.boundary or 'periodic',
 	},
 	--]]
-	-- why would cylinder coordinates with cartesian components take 3x longer to compile (60 seconds vs 20 seconds) than cartesian coordinates? 
 	--[[ cylinder
 	coord = 'cylinder',
 		-- TODO doesn't work
@@ -146,6 +145,11 @@ local args = {
 	--[[ Sphere: r, θ, φ 
 	coord = 'sphere',
 	--coordArgs = {volumeDim = 3},	-- use higher dimension volume, even if the grid is only 1D to 3D
+		-- took 3 min to compile: =P
+	coordArgs = {vectorComponent='holonomic'},
+	--coordArgs = {vectorComponent='anholonomic'},
+		-- 70 seconds =P 
+	--coordArgs = {vectorComponent='cartesian'},
 	mins = cmdline.mins or {0, 0, -math.pi},
 	maxs = cmdline.maxs or {8, math.pi, math.pi},
 	gridSize = ({
@@ -583,9 +587,9 @@ self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='euler', wenoMe
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler', eqnArgs={incompressible=true}})))
 --self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='euler', eqnArgs={incompressible=true}, wenoMethod='2010 Shen Zha', order=5})))
 
-
--- TODO FIXME 
+-- Navier-Stokes-Wilcox:
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='navstokes-wilcox'})))
+--self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='navstokes-wilcox', eqnArgs={incompressible=true}})))
 
 
 -- compressible Euler equations - Burgers solver
@@ -985,9 +989,9 @@ local args = {
 	--]]
 	
 	-- only for bssnok-fd-senr
-	--initCond = 'SENR sphere-log-radial Minkowski',
+	initCond = 'SENR sphere-log-radial Minkowski',
 	--initCond = 'SENR sphere-log-radial UIUC',
-	initCond = 'SENR sphere-log-radial BrillLindquist',
+	--initCond = 'SENR sphere-log-radial BrillLindquist',
 	--initCond = 'SENR sphere-log-radial BoostedSchwarzschild',
 	--initCond = 'SENR sphere-log-radial StaticTrumpet',
 }

@@ -133,13 +133,16 @@ function SphereLogRadial:initCodeModules(...)
 	self.solver.sharedModulesEnabled['eqn.guiVars.compileTime'] = true
 end
 
+--[[
+This function is especially used in GLSL, and GLSL doesn't like converting literal integers to floats, so use '.'s after all your numbers
+--]]
 function SphereLogRadial:getCoordMapInvModuleCode()
 	return template([[
 real3 coordMapInv(real3 pt) {
 	//this part matches sphere ... hmm
 <? if solver.dim == 1 then
 ?>	real r = fabs(pt.x);
-	real theta = 0.;
+	real theta = .5*M_PI;
 	real phi = 0.;
 <? elseif solver.dim == 2 then	-- xy -> rθ
 ?>	real r = real3_len(pt.xy);
@@ -149,9 +152,24 @@ real3 coordMapInv(real3 pt) {
 ?>	real r = real3_len(pt);
 	real theta = acos(pt.z / r);
 	real phi = atan2(pt.y, pt.x);
+	if (phi < 0.) phi += 2. * M_PI;
 <? end 
 ?>	
-	real rho = <?=coord:compile(coord.rho_for_r)?>;
+
+	real rho = <?=
+-- the default expression uses 'pt' for the input arg, and pt.x for 'r' ...
+-- ... but we're already using 'pt' for xyz and 'pt.r' for x ...
+-- and if I replace it with var'r' ...
+-- ... then will coord:compile use coord.replvars to replace that with r_for_rho?
+--		coord:compile(coord.rho_for_r:replace(coord.baseCoords[1], require 'symmath'.var'r'))
+		require 'symmath.export.C'(coord.rho_for_r
+			:replace(coord.amplitude_var, coord.amplitude)
+			:replace(coord.sinh_w_var, coord.sinh_w)
+			:replace(coord.baseCoords[1], require 'symmath'.var'r')
+		)
+	?>;
+	
+	if (rho == 0. || theta == 0. || theta == M_PI) return _real3(0.,0.,0.);
 	return _real3(rho, theta, phi);
 }
 ]], {

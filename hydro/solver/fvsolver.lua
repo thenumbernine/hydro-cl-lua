@@ -33,9 +33,15 @@ function FiniteVolumeSolver:initCodeModules()
 
 	self.modules:add{
 		name = 'FiniteVolumeSolver.calcDerivFromFlux',
-		depends = {
-			'Flux.calcFlux',
-		},
+		depends = table{
+			'calcFlux',
+		
+		}:append(
+			(self.coord.vectorComponent == 'cartesian' 
+			or self.coord.vectorComponent == 'anholonomic')
+			and {'cell_volume'}
+			or nil
+		),
 		code = template(file['hydro/solver/calcDerivFV.cl'], {solver=self}),
 	}
 	self.solverModulesEnabled['FiniteVolumeSolver.calcDerivFromFlux'] = true
@@ -159,7 +165,7 @@ function FiniteVolumeSolver:addDisplayVars()
 	real3 xInt = x;
 	xInt.s<?=side?> -= .5 * solver->grid_dx.s<?=side?>;
 	<?=solver:getULRCode{bufName='buf'}:gsub('\n', '\n\t')?>
-	normalInfo_t n = normalInfo_forSide<?=side?>(xInt);
+	normal_t n = normal_forSide<?=side?>(xInt);
 	<?=eqn.eigen_t?> eig = eigen_forInterface(solver, *UL, *UR, xInt, n);
 ]], 	{
 			solver = self,
@@ -177,7 +183,7 @@ function FiniteVolumeSolver:addDisplayVars()
 			codePrefix = table{
 				getEigenCode{side=side},
 				template([[
-	normalInfo_t n<?=side?> = normalInfo_forSide<?=side?>(xInt);
+	normal_t n<?=side?> = normal_forSide<?=side?>(xInt);
 	<?=eqn:eigenWaveCodePrefix('n', 'eig', 'xInt'):gsub('\n', '\n\t')?>
 ]], 			{
 					eqn = self.eqn,
@@ -237,7 +243,7 @@ function FiniteVolumeSolver:addDisplayVars()
 			basis.ptr[j] = k == j ? 1 : 0;
 		}
 		
-		normalInfo_t n = normalInfo_forSide<?=side?>(xInt);
+		normal_t n = normal_forSide<?=side?>(xInt);
 		<?=eqn.waves_t?> chars = eigen_leftTransform(solver, eig, basis, xInt, n);
 		<?=eqn.cons_t?> newbasis = eigen_rightTransform(solver, eig, chars, xInt, n);
 	
@@ -269,7 +275,7 @@ function FiniteVolumeSolver:addDisplayVars()
 				{name='0', code=table{
 					getEigenCode{side=side},
 					template([[
-	normalInfo_t n<?=side?> = normalInfo_forSide<?=side?>(x);
+	normal_t n<?=side?> = normal_forSide<?=side?>(x);
 	<?=eqn:eigenWaveCodePrefix('n'..side, 'eig', 'xInt'):gsub('\n', '\n\t')?>
 	
 	value.vreal = 0;
@@ -281,7 +287,7 @@ function FiniteVolumeSolver:addDisplayVars()
 			basis.ptr[j] = k == j ? 1 : 0;
 		}
 
-		normalInfo_t n = normalInfo_forSide<?=side?>(xInt);
+		normal_t n = normal_forSide<?=side?>(xInt);
 		<?=eqn.waves_t?> chars = eigen_leftTransform(solver, eig, basis, xInt, n);
 
 		<?=eqn.waves_t?> charScaled;

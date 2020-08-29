@@ -66,9 +66,9 @@ eigen_t eigen_forCell(
 	cons_t U,
 	real3 x,
 	
-	//This is interesting, because normalInfo_t varies based on our vector components.
+	//This is interesting, because normal_t varies based on our vector components.
 	//However in my GR solvers the components are irrespective of the grid -- instead they are based on the metric of the state variables.
-	normalInfo_t n
+	normal_t n
 ) {
 	eigen_t eig;
 	eig.alpha = U.alpha;
@@ -87,7 +87,7 @@ eigen_t eigen_forCell(
 range_t calcCellMinMaxEigenvalues(
 	const global cons_t* U,
 	real3 x,
-	normalInfo_t n
+	normal_t n
 ) {
 	real det_gamma = sym3_det(U->gamma_ll);
 
@@ -126,7 +126,7 @@ eigen_t eigen_forInterface(
 	cons_t UL,
 	cons_t UR,
 	real3 x,
-	normalInfo_t n
+	normal_t n
 ) {
 	real alpha = .5 * (UL.alpha + UR.alpha);
 	sym3 avg_gamma = (sym3){
@@ -159,7 +159,7 @@ waves_t eigen_leftTransform(
 	eigen_t eig,
 	cons_t inputU,
 	real3 x,
-	normalInfo_t n
+	normal_t n
 ) {
 	waves_t results;
 <? if not eqn.noZeroRowsInFlux then ?>
@@ -465,7 +465,7 @@ cons_t eigen_rightTransform(
 	eigen_t eig,
 	waves_t input,
 	real3 x,
-	normalInfo_t n
+	normal_t n
 ) {
 	cons_t resultU;
 	for (int j = 0; j < numStates; ++j) {
@@ -1030,7 +1030,7 @@ cons_t eigen_fluxTransform(
 	eigen_t eig,
 	cons_t inputU,
 	real3 x,
-	normalInfo_t n
+	normal_t n
 ) {
 <? if not eqn.noZeroRowsInFlux then ?>
 

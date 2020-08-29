@@ -13,16 +13,16 @@ typedef <?=eqn.waves_t?> waves_t;
 typedef <?=solver.coord.cell_t?> cell_t;
 
 //align from vector coordinates to the normal basis
-cons_t cons_rotateFrom(cons_t U, normalInfo_t n) {
-	U.m = normalInfo_vecDotNs(n, U.m);
-	U.B = normalInfo_vecDotNs(n, U.B);
+cons_t cons_rotateFrom(cons_t U, normal_t n) {
+	U.m = normal_vecDotNs(n, U.m);
+	U.B = normal_vecDotNs(n, U.B);
 	return U;
 }
 
 //align from normal basis to vector coordinates
-cons_t cons_rotateTo(cons_t U, normalInfo_t n) {
-	U.m = normalInfo_vecFromNs(n, U.m);
-	U.B = normalInfo_vecFromNs(n, U.B);
+cons_t cons_rotateTo(cons_t U, normal_t n) {
+	U.m = normal_vecFromNs(n, U.m);
+	U.B = normal_vecFromNs(n, U.B);
 	return U;
 }
 
@@ -176,7 +176,7 @@ eigen_t eigen_forInterface(
 	cons_t UL,
 	cons_t UR,
 	real3 x,
-	normalInfo_t n
+	normal_t n
 ) {
 	//rotate UL and UR to be x-aligned?  that takes the normal ...
 
@@ -192,7 +192,7 @@ waves_t eigen_leftTransform(
 	eigen_t eig,
 	cons_t inputU,
 	real3 x,
-	normalInfo_t n
+	normal_t n
 ) {	
 	inputU = cons_rotateFrom(inputU, n);
 	
@@ -299,7 +299,7 @@ cons_t eigen_rightTransform(
 	eigen_t eig,
 	waves_t input,
 	real3 x,
-	normalInfo_t n
+	normal_t n
 ) {
 	const real gamma = solver->heatCapacityRatio;
 	const real gamma_1 = gamma - 1.;
@@ -398,7 +398,7 @@ cons_t eigen_fluxTransform(
 	eigen_t eig,
 	cons_t inputU,
 	real3 x,
-	normalInfo_t n
+	normal_t n
 ) {
 	inputU = cons_rotateFrom(inputU, n);
 
@@ -464,7 +464,7 @@ eigen_t eigen_forCell(
 	constant solver_t* solver,
 	cons_t U,
 	real3 x,
-	normalInfo_t n
+	normal_t n
 ) {
 	prim_t W = primFromCons(solver, U, x);
 	real PMag = .5 * coordLenSq(W.B, x);

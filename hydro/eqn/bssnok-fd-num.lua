@@ -139,15 +139,23 @@ end
 function BSSNOKFiniteDifferenceEquation:initCodeModules()
 	BSSNOKFiniteDifferenceEquation.super.initCodeModules(self)
 	local solver = self.solver
-	
+
 	solver.modules:add{
-		name = 'calc_gammaHat_ll/uu/det',
-		depends = {'coord_g_ll', 'coord_g_uu'},
-		code = [[
-#define calc_gammaHat_ll	coord_g_ll
-#define calc_det_gammaHat 	coord_det_g
-#define calc_gammaHat_uu 	coord_g_uu
-]],
+		name = 'calc_gammaHat_ll',
+		depends = {'coord_g_ll'},
+		headercode = '#define calc_gammaHat_ll	coord_g_ll',
+	}
+
+	solver.modules:add{
+		name = 'calc_gammaHat_uu',
+		depends = {'coord_g_uu'},
+		headercode = '#define calc_gammaHat_uu 	coord_g_uu',
+	}
+
+	solver.modules:add{
+		name = 'calc_det_gammaHat',
+		depends = {'coord_det_g'},
+		code = '#define calc_det_gammaHat 	coord_det_g',
 	}
 end
 
@@ -155,7 +163,7 @@ function BSSNOKFiniteDifferenceEquation:getModuleDependsApplyInitCond()
 	return table(BSSNOKFiniteDifferenceEquation.super.getModuleDependsApplyInitCond(self)):append{
 		'_3sym3',		-- still used by some vars
 		'coordMap',
-		'calc_gammaHat_ll/uu/det',
+		'calc_gammaHat_ll',
 		'eqn.common',	-- *_rescaleTo/FromCoord_*
 	}
 end
@@ -517,7 +525,9 @@ function BSSNOKFiniteDifferenceEquation:getModuleDependsSolver()
 	return {
 		'eqn.common',
 		'_3sym3',
-		'calc_gammaHat_ll/uu/det',
+		'calc_gammaHat_ll',
+		'calc_gammaHat_uu',		-- used by display code
+		'calc_det_gammaHat',	-- also used by display code
 		'real3x3x3',
 		'coordMapR',
 		-- only for display code. (actually most this is only for display code)
@@ -528,7 +538,9 @@ end
 function BSSNOKFiniteDifferenceEquation:getModuleDependsCommon()
 	return table(BSSNOKFiniteDifferenceEquation.super.getModuleDependsCommon(self))
 	:append{
-		'calc_gammaHat_ll/uu/det',
+		'coord_dx#',
+		'calc_gammaHat_ll',
+		'calc_det_gammaHat',	-- used by calc_det_gammaBar
 	}
 end
 

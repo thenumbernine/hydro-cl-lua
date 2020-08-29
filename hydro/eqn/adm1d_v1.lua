@@ -45,7 +45,7 @@ function ADM_BonaMasso_1D_2008Alcubierre:initCodeModule_fluxFromCons()
 	constant <?=solver.solver_t?>* solver,
 	<?=eqn.cons_t?> U,
 	real3 x,
-	normalInfo_t n
+	normal_t n
 ) {
 	real f = calc_f(U.alpha);
 	real alpha_over_sqrt_gamma_xx = U.alpha / sqrt(U.gamma_xx);

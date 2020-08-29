@@ -51,7 +51,7 @@ end
 function WENO:createFlux()
 	self.flux = {
 		initCodeModules = function()
-			self.modules:add{name = 'Flux.calcFlux'}
+			self.modules:add{name = 'calcFlux'}
 		end,
 	}
 end
@@ -70,9 +70,9 @@ function WENO:initCodeModules()
 	self.modules:add{
 		name = 'WENO.calcFlux',
 		depends = {
-			--'eqn.solvercode',
+			'eqn.solvercode',	-- eigen_rightTransform, eigen_leftTransform, eigen_forInterface
 			'fluxFromCons',
-			'coord.normal',
+			'normal_t',
 		},
 		code = template(file['hydro/solver/weno.cl'], {
 			solver = self,

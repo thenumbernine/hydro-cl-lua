@@ -38,9 +38,9 @@ kernel void calcDT(
 	real dt = INFINITY;
 	//for (int side = 0; side < dim; ++side) {
 	<? for side=0,solver.dim-1 do ?>{
-		normalInfo_t n = normalInfo_forSide<?=side?>(x);
+		normal_t n = normal_forSide<?=side?>(x);
 		//for the particular direction
-		real vi = normalInfo_vecDotN1(n, U.v);
+		real vi = normal_vecDotN1(n, U.v);
 		real viSq = vi * vi;
 		
 		// Marti 1998 eqn 19
@@ -62,7 +62,7 @@ eigen_t eigen_forInterface(
 	cons_t UL,
 	cons_t UR,
 	real3 xInt,
-	normalInfo_t n
+	normal_t n
 ) {
 <? if true then -- arithmetic averaging ?>
 	prim_only_t avg = {
@@ -75,7 +75,7 @@ eigen_t eigen_forInterface(
 <? end ?>
 
 	// rotate avg.v into n
-	avg.v = normalInfo_vecDotNs(n, avg.v);
+	avg.v = normal_vecDotNs(n, avg.v);
 
 	real rho = avg.rho;
 	real3 v = avg.v;
@@ -139,7 +139,7 @@ eigen_t eigen_forCell(
 	constant solver_t* solver,
 	cons_t U,
 	real3 x,
-	normalInfo_t n
+	normal_t n
 ) {
 	return eigen_forInterface(solver, U, U, x, n);
 }
@@ -157,13 +157,13 @@ waves_t eigen_leftTransform(
 	eigen_t eig,
 	cons_t X_,
 	real3 x,
-	normalInfo_t n
+	normal_t n
 ) { 
 	waves_t Y;
 
 	//rotate incoming v's in X
 	cons_t X = X_;
-	X.S = normalInfo_vecDotNs(n, X.S);
+	X.S = normal_vecDotNs(n, X.S);
 
 	<?=eigVarCode?>
 
@@ -230,7 +230,7 @@ cons_t eigen_rightTransform(
 	eigen_t eig,
 	waves_t X,
 	real3 x,
-	normalInfo_t n
+	normal_t n
 ) {
 	<?=eigVarCode?>
 	
@@ -267,7 +267,7 @@ cons_t eigen_rightTransform(
 		+ X.ptr[4] * (hW * ATildePlus - 1.);
 	
 	//rotate outgoing y's x's into side
-	Y.S = normalInfo_vecFromNs(n, Y.S);
+	Y.S = normal_vecFromNs(n, Y.S);
 
 	for (int i = numWaves; i < numStates; ++i) {
 		Y.ptr[i] = 0;
@@ -281,16 +281,16 @@ cons_t eigen_fluxTransform(
 	eigen_t eig,
 	cons_t X_,
 	real3 x,
-	normalInfo_t n
+	normal_t n
 ) {
 #if 0
 	//rotate incoming v's in x
-	X.S = normalInfo_vecDotNs(n, X.S);
+	X.S = normal_vecDotNs(n, X.S);
 
 	//TODO do the matrix multiply here
 
 	//rotate outgoing y's x's into side
-	X.S = normalInfo_vecFromNs(n, X.S);
+	X.S = normal_vecFromNs(n, X.S);
 #else
 	//default
 	waves_t waves = eigen_leftTransform(solver, eig, X_, x, n);

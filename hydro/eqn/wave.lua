@@ -91,7 +91,7 @@ function Wave:initCodeModule_fluxFromCons()
 		name = 'fluxFromCons',
 		depends = {
 			'solver.solver_t',
-			'coord.normal',
+			'normal_t',
 			'eqn.cons_t',
 			'eqn.prim_t',
 			'eqn.common',	-- metric_alpha
@@ -105,13 +105,13 @@ function Wave:initCodeModule_fluxFromCons()
 	constant <?=solver.solver_t?>* solver,
 	<?=eqn.cons_t?> U,
 	real3 x,
-	normalInfo_t n
+	normal_t n
 ) {
 	real alpha = metric_alpha(x);
-	real beta_n = normalInfo_vecDotN1(n, metric_beta_u(x));
+	real beta_n = normal_vecDotN1(n, metric_beta_u(x));
 	
-	real3 nL = normalInfo_l1(n);
-	real3 nU = normalInfo_u1(n);
+	real3 nL = normal_l1(n);
+	real3 nU = normal_u1(n);
 	
 	<?=eqn.cons_t?> F;
 	//F^Pi = -c (Pi beta_n + alpha Psi_i n^i)
@@ -282,8 +282,8 @@ end
 function Wave:eigenWaveCodePrefix(n, eig, x)
 	return self:template([[
 real wavespeed = solver->wavespeed / unit_m_per_s;
-real alpha_nLen = metric_alpha(<?=x?>) * normalInfo_len(n);
-real beta_n = normalInfo_vecDotN1(<?=n?>, metric_beta_u(<?=x?>));
+real alpha_nLen = metric_alpha(<?=x?>) * normal_len(n);
+real beta_n = normal_vecDotN1(<?=n?>, metric_beta_u(<?=x?>));
 ]], {
 		n = n,
 		x = x,

@@ -9,7 +9,7 @@ kernel void calcFluxAtCell(
 	real3 x = cell_x(i);
 	const global <?=eqn.cons_t?>* U = UBuf + index;
 <? for side=0,solver.dim-1 do 
-?>	fluxBuf[<?=side?> + dim * index] = fluxFromCons(solver, *U, x, normalInfo_forSide<?=side?>(x));
+?>	fluxBuf[<?=side?> + dim * index] = fluxFromCons(solver, *U, x, normal_forSide<?=side?>(x));
 <? end
 ?>
 }

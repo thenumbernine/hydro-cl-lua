@@ -425,7 +425,7 @@ kernel void calcCellFlux(
 	<? for side=0,solver.dim-1 do ?>{
 		real3 xInt = cell_x(i);
 		xInt.s<?=side?> -= .5 * solver->grid_dx.s<?=side?>;
-		normalInfo_t n = normalInfo_forSide<?=side?>(xInt);
+		normal_t n = normal_forSide<?=side?>(xInt);
 		global <?=eqn.cons_t?>* F = fluxCellBuf + <?=side?> + dim * index;
 		*F = fluxFromCons(solver, *U, xInt, n);
 	}<? end ?>
@@ -455,7 +455,7 @@ for side=0,solver.dim-1 do ?>{
 		real3 xInt = xR;
 		xInt.s<?=side?> -= .5 * solver->grid_dx.s<?=side?>;
 
-		normalInfo_t n = normalInfo_forSide<?=side?>(xInt);
+		normal_t n = normal_forSide<?=side?>(xInt);
 
 		int fluxIndexInt = side + dim * index;
 		global <?=eqn.cons_t?>* flux = fluxBuf + fluxIndexInt;

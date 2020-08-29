@@ -5,7 +5,7 @@
 	<?=eqn.cons_t?> pUL,
 	<?=eqn.cons_t?> pUR,
 	real3 xInt,
-	normalInfo_t n
+	normal_t n
 ) {
 	// get min/max lambdas of UL, UR, and interface U (based on Roe averaging)
 	// TODO this in a more computationally efficient way
@@ -112,7 +112,7 @@ then ?>
 		cons_t pUL = cons_parallelPropagate<?=side?>(*UL, xL, .5 * dx);
 		cons_t pUR = cons_parallelPropagate<?=side?>(*UR, xR, -.5 * dx);
 
-		normalInfo_t n = normalInfo_forSide<?=side?>(xInt);
+		normal_t n = normal_forSide<?=side?>(xInt);
 
 		*flux = calcFluxForInterface(solver, pUL, pUR, xInt, n);
 	}<? end ?>

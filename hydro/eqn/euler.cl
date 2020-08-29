@@ -13,41 +13,13 @@ typedef <?=eqn.eigen_t?> eigen_t;
 typedef <?=eqn.waves_t?> waves_t;
 typedef <?=solver.solver_t?> solver_t;
 
-<?
--- added by request only, so I don't have to compile the real3x3 code
--- not used at the moment
-solver.modules:add{
-	name = 'calcCellMinMaxEigenvalues',
-	depends = {'real3x3'},
-	code = [[
-range_t calcCellMinMaxEigenvalues(
-	constant solver_t* solver,
-	const global cons_t* U,
-	real3 x,
-	real3x3 nL,
-	real3x3 nU,
-	real nLen
-) {
-	prim_t W = primFromCons(solver, *U, x);
-	real v_n = real3_dot(W.v, nL.x);
-	real Cs = calc_Cs(solver, &W);
-	real Cs_nLen = Cs * nLen;
-	return (range_t){
-		.min = v_n - Cs_nLen, 
-		.max = v_n + Cs_nLen,
-	};
-}
-]],
-}
-?>
-
 //used by the mesh version
 eigen_t eigen_forInterface(
 	constant solver_t* solver,
 	cons_t UL,
 	cons_t UR,
 	real3 x,
-	normalInfo_t n
+	normal_t n
 ) {
 	prim_t WL = primFromCons(solver, UL, x);
 	real sqrtRhoL = sqrt(WL.rho);
@@ -91,10 +63,10 @@ local prefix = [[
 	real3 v = eig.v;
 	real3 vL = eig.vL;
 	real vSq = eig.vSq;
-	real3 v_n = normalInfo_vecDotNs(n, v);
+	real3 v_n = normal_vecDotNs(n, v);
 	real hTotal = eig.hTotal;
 	real Cs = eig.Cs;
-	real nLen = normalInfo_len(n);
+	real nLen = normal_len(n);
 ]]
 ?>
 
@@ -103,7 +75,7 @@ waves_t eigen_leftTransform(
 	eigen_t eig,
 	cons_t X_,
 	real3 x,
-	normalInfo_t n
+	normal_t n
 ) { 
 	real* X = X_.ptr;
 	<?=prefix?>
@@ -115,9 +87,9 @@ waves_t eigen_leftTransform(
 	return (waves_t){.ptr={
 		(
 			X[0] * (.5 * gamma_1 * vSq + Cs * v_n.x / nLen)
-			+ X[1] * (-gamma_1 * vL.x - Cs * normalInfo_l1x_over_len(n))
-			+ X[2] * (-gamma_1 * vL.y - Cs * normalInfo_l1y_over_len(n))
-			+ X[3] * (-gamma_1 * vL.z - Cs * normalInfo_l1z_over_len(n))
+			+ X[1] * (-gamma_1 * vL.x - Cs * normal_l1x_over_len(n))
+			+ X[2] * (-gamma_1 * vL.y - Cs * normal_l1y_over_len(n))
+			+ X[3] * (-gamma_1 * vL.z - Cs * normal_l1z_over_len(n))
 			+ X[4] * gamma_1
 		) * invDenom,
 		
@@ -130,20 +102,20 @@ waves_t eigen_leftTransform(
 		) * invDenom,
 		
 		X[0] * -v_n.y
-		+ X[1] * normalInfo_l2x(n)
-		+ X[2] * normalInfo_l2y(n)
-		+ X[3] * normalInfo_l2z(n),
+		+ X[1] * normal_l2x(n)
+		+ X[2] * normal_l2y(n)
+		+ X[3] * normal_l2z(n),
 		
 		X[0] * -v_n.z
-		+ X[1] * normalInfo_l3x(n)
-		+ X[2] * normalInfo_l3y(n)
-		+ X[3] * normalInfo_l3z(n),
+		+ X[1] * normal_l3x(n)
+		+ X[2] * normal_l3y(n)
+		+ X[3] * normal_l3z(n),
 		
 		(
 			X[0] * (.5 * gamma_1 * vSq - Cs * v_n.x / nLen)
-			+ X[1] * (-gamma_1 * vL.x + Cs * normalInfo_l1x_over_len(n))
-			+ X[2] * (-gamma_1 * vL.y + Cs * normalInfo_l1y_over_len(n))
-			+ X[3] * (-gamma_1 * vL.z + Cs * normalInfo_l1z_over_len(n))
+			+ X[1] * (-gamma_1 * vL.x + Cs * normal_l1x_over_len(n))
+			+ X[2] * (-gamma_1 * vL.y + Cs * normal_l1y_over_len(n))
+			+ X[3] * (-gamma_1 * vL.z + Cs * normal_l1z_over_len(n))
 			+ X[4] * gamma_1
 		) * invDenom,
 	}};
@@ -154,7 +126,7 @@ cons_t eigen_rightTransform(
 	eigen_t eig,
 	waves_t X_,
 	real3 x,
-	normalInfo_t n
+	normal_t n
 ) {
 	real* X = X_.ptr;
 	<?=prefix?>
@@ -163,23 +135,23 @@ cons_t eigen_rightTransform(
 		+ X[1] 
 		+ X[4],
 		
-		X[0] * (v.x - Cs * normalInfo_u1x_over_len(n))
+		X[0] * (v.x - Cs * normal_u1x_over_len(n))
 		+ X[1] * v.x
-		+ X[2] * normalInfo_u2x(n)
-		+ X[3] * normalInfo_u3x(n)
-		+ X[4] * (v.x + Cs * normalInfo_u1x_over_len(n)),
+		+ X[2] * normal_u2x(n)
+		+ X[3] * normal_u3x(n)
+		+ X[4] * (v.x + Cs * normal_u1x_over_len(n)),
 		
-		X[0] * (v.y - Cs * normalInfo_u1y_over_len(n))
+		X[0] * (v.y - Cs * normal_u1y_over_len(n))
 		+ X[1] * v.y
-		+ X[2] * normalInfo_u2y(n)
-		+ X[3] * normalInfo_u3y(n)
-		+ X[4] * (v.y + Cs * normalInfo_u1y_over_len(n)),
+		+ X[2] * normal_u2y(n)
+		+ X[3] * normal_u3y(n)
+		+ X[4] * (v.y + Cs * normal_u1y_over_len(n)),
 		
-		X[0] * (v.z - Cs * normalInfo_u1z_over_len(n))
+		X[0] * (v.z - Cs * normal_u1z_over_len(n))
 		+ X[1] * v.z
-		+ X[2] * normalInfo_u2z(n)
-		+ X[3] * normalInfo_u3z(n)
-		+ X[4] * (v.z + Cs * normalInfo_u1z_over_len(n)),
+		+ X[2] * normal_u2z(n)
+		+ X[3] * normal_u3z(n)
+		+ X[4] * (v.z + Cs * normal_u1z_over_len(n)),
 		
 		X[0] * (hTotal - Cs * v_n.x / nLen)
 		+ X[1] * .5 * vSq
@@ -196,7 +168,7 @@ cons_t eigen_fluxTransform(
 	eigen_t eig,
 	cons_t X_,
 	real3 x,
-	normalInfo_t n
+	normal_t n
 ) {
 	real* X = X_.ptr;
 	<?=prefix?>
@@ -204,32 +176,32 @@ cons_t eigen_fluxTransform(
 	const real gamma_1 = gamma - 1.;
 	const real gamma_2 = gamma - 2.;
 	return (cons_t){.ptr={
-		X[1] * normalInfo_l1x(n)
-		+ X[2] * normalInfo_l1y(n)
-		+ X[3] * normalInfo_l1z(n),
+		X[1] * normal_l1x(n)
+		+ X[2] * normal_l1y(n)
+		+ X[3] * normal_l1z(n),
 		
-		X[0] * (-v_n.x * v.x + gamma_1 * .5 * vSq * normalInfo_u1x(n))
-		+ X[1] * (v.x * normalInfo_l1x(n) - gamma_2 * normalInfo_u1x(n) * vL.x + v_n.x)
-		+ X[2] * (v.x * normalInfo_l1y(n) - gamma_2 * normalInfo_u1x(n) * vL.y)
-		+ X[3] * (v.x * normalInfo_l1z(n) - gamma_2 * normalInfo_u1x(n) * vL.z)
-		+ X[4] * gamma_1 * normalInfo_u1x(n),
+		X[0] * (-v_n.x * v.x + gamma_1 * .5 * vSq * normal_u1x(n))
+		+ X[1] * (v.x * normal_l1x(n) - gamma_2 * normal_u1x(n) * vL.x + v_n.x)
+		+ X[2] * (v.x * normal_l1y(n) - gamma_2 * normal_u1x(n) * vL.y)
+		+ X[3] * (v.x * normal_l1z(n) - gamma_2 * normal_u1x(n) * vL.z)
+		+ X[4] * gamma_1 * normal_u1x(n),
 		
-		X[0] * (-v_n.x * v.y + gamma_1 * .5 * vSq * normalInfo_u1y(n))
-		+ X[1] * (v.y * normalInfo_l1x(n) - gamma_2 * normalInfo_u1y(n) * vL.x)
-		+ X[2] * (v.y * normalInfo_l1y(n) - gamma_2 * normalInfo_u1y(n) * vL.y + v_n.x)
-		+ X[3] * (v.y * normalInfo_l1z(n) - gamma_2 * normalInfo_u1y(n) * vL.z)
-		+ X[4] * gamma_1 * normalInfo_u1y(n),
+		X[0] * (-v_n.x * v.y + gamma_1 * .5 * vSq * normal_u1y(n))
+		+ X[1] * (v.y * normal_l1x(n) - gamma_2 * normal_u1y(n) * vL.x)
+		+ X[2] * (v.y * normal_l1y(n) - gamma_2 * normal_u1y(n) * vL.y + v_n.x)
+		+ X[3] * (v.y * normal_l1z(n) - gamma_2 * normal_u1y(n) * vL.z)
+		+ X[4] * gamma_1 * normal_u1y(n),
 		
-		X[0] * (-v_n.x * v.z + gamma_1 * .5 * vSq * normalInfo_u1z(n))
-		+ X[1] * (v.z * normalInfo_l1x(n) - gamma_2 * normalInfo_u1z(n) * vL.x)
-		+ X[2] * (v.z * normalInfo_l1y(n) - gamma_2 * normalInfo_u1z(n) * vL.y)
-		+ X[3] * (v.z * normalInfo_l1z(n) - gamma_2 * normalInfo_u1z(n) * vL.z + v_n.x)
-		+ X[4] * gamma_1 * normalInfo_u1z(n),
+		X[0] * (-v_n.x * v.z + gamma_1 * .5 * vSq * normal_u1z(n))
+		+ X[1] * (v.z * normal_l1x(n) - gamma_2 * normal_u1z(n) * vL.x)
+		+ X[2] * (v.z * normal_l1y(n) - gamma_2 * normal_u1z(n) * vL.y)
+		+ X[3] * (v.z * normal_l1z(n) - gamma_2 * normal_u1z(n) * vL.z + v_n.x)
+		+ X[4] * gamma_1 * normal_u1z(n),
 		
 		X[0] * v_n.x * (.5 * gamma_1 * vSq - hTotal)
-		+ X[1] * (normalInfo_l1x(n) * hTotal - gamma_1 * v_n.x * vL.x)
-		+ X[2] * (normalInfo_l1y(n) * hTotal - gamma_1 * v_n.x * vL.y)
-		+ X[3] * (normalInfo_l1z(n) * hTotal - gamma_1 * v_n.x * vL.z)
+		+ X[1] * (normal_l1x(n) * hTotal - gamma_1 * v_n.x * vL.x)
+		+ X[2] * (normal_l1y(n) * hTotal - gamma_1 * v_n.x * vL.y)
+		+ X[3] * (normal_l1z(n) * hTotal - gamma_1 * v_n.x * vL.z)
 		+ X[4] * gamma * v_n.x,
 		
 		0,

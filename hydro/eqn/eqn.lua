@@ -430,14 +430,14 @@ function Equation:initCodeModule_fluxFromCons()
 			'eqn.solvercode',	-- eigen_fluxTransform, eigen_forCell
 			'eqn.cons_t',
 			'solver.solver_t',
-			'coord.normal',		-- normalInfo_t
+			'normal_t',		-- normal_t
 		},
 		code = self:template[[
 <?=eqn.cons_t?> fluxFromCons(
 	constant <?=solver.solver_t?>* solver,
 	<?=eqn.cons_t?> U,
 	real3 x,
-	normalInfo_t n
+	normal_t n
 ) {
 	return eigen_fluxTransform(solver, eigen_forCell(solver, U, x, n), U, x, n);
 }
@@ -465,9 +465,7 @@ function Equation:initCodeModuleSolver()
 			'eqn.waves_t',
 			'eqn.eigen_t',
 			'eqn.guiVars.compileTime',
-			'coord',
-			-- displayVars:
-			'coord_g_ll',	-- display code has 'mag metric' component, which uses coord_g_ll
+			'coordLenSq',
 		}:append(self:getModuleDependsSolver()),
 		code = self:template(file[self.solverCodeFile]),
 	}
@@ -718,7 +716,7 @@ function Equation:initCodeModuleCalcDT()
 			'eqn.prim_t',
 			'eqn.waves_t',
 			'eqn.eigen_t',
-			'coord.normal',
+			'normal_t',
 			-- so these dependencies are going to vary based on the eigen code of each eqn 
 			'eqn.common',		-- used by eqn/wave
 			'eqn.prim-cons',	-- used by eqn/shallow-water

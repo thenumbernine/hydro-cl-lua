@@ -13,7 +13,7 @@ end
 	<?=eqn.cons_t?> UL,
 	<?=eqn.cons_t?> UR,
 	real3 xInt,
-	normalInfo_t n
+	normal_t n
 ) {
 
 	<?=eqn.prim_t?> WL = primFromCons(solver, UL, xInt);
@@ -68,8 +68,8 @@ end
 #endif
 
 	//notice that, for Euler, consWaveCodePrefix calculates v dot n1 ... while here we're using v dot nj
-	real3 vnL = normalInfo_vecDotNs(n, WL.v);
-	real3 vnR = normalInfo_vecDotNs(n, WR.v);
+	real3 vnL = normal_vecDotNs(n, WL.v);
+	real3 vnR = normal_vecDotNs(n, WR.v);
 
 <? assert(solver.flux.hllcMethod) ?>	
 	real sStar = (WR.rho * vnR.x * (sR - vnR.x) - WL.rho * vnL.x * (sL - vnL.x) + WL.P - WR.P) 
@@ -87,7 +87,7 @@ end
 		<?=eqn.cons_t?> ULStar;
 		ULStar.rho = UL.rho * (sL - vnL.x) / (sL - sStar);
 	
-		real3 vStar = normalInfo_vecFromNs(n, _real3(sStar, vnL.y, vnL.z));
+		real3 vStar = normal_vecFromNs(n, _real3(sStar, vnL.y, vnL.z));
 		ULStar.m.x = ULStar.rho * vStar.x;
 		ULStar.m.y = ULStar.rho * vStar.y;
 		ULStar.m.z = ULStar.rho * vStar.z;
@@ -105,7 +105,7 @@ end
 		<?=eqn.cons_t?> URStar;
 		URStar.rho = UR.rho * (sR - vnR.x) / (sR - sStar);
 		
-		real3 vStar = normalInfo_vecFromNs(n, _real3(sStar, vnR.y, vnR.z));
+		real3 vStar = normal_vecFromNs(n, _real3(sStar, vnR.y, vnR.z));
 		URStar.m.x = URStar.rho * vStar.x;
 		URStar.m.y = URStar.rho * vStar.y;
 		URStar.m.z = URStar.rho * vStar.z;
@@ -124,9 +124,9 @@ end
 		<?=eqn.cons_t?> FL = fluxFromCons(solver, UL, xInt, n);
 		flux.rho = (sStar * (sL * UL.rho - FL.rho)) / (sL - sStar);
 	
-		real3 ULmn = normalInfo_vecDotNs(n, UL.m);
-		real3 FLmn = normalInfo_vecDotNs(n, FL.m);
-		flux.m = normalInfo_vecFromNs(n, _real3(
+		real3 ULmn = normal_vecDotNs(n, UL.m);
+		real3 FLmn = normal_vecDotNs(n, FL.m);
+		flux.m = normal_vecFromNs(n, _real3(
 			(sStar * (sL * ULmn.x - FLmn.x) + sL * (WL.P + WL.rho * (sL - vnL.x) * (sStar - vnL.x))) / (sL - sStar),
 			(sStar * (sL * ULmn.y - FLmn.y)) / (sL - sStar),
 			(sStar * (sL * ULmn.z - FLmn.z)) / (sL - sStar)
@@ -137,9 +137,9 @@ end
 		<?=eqn.cons_t?> FR = fluxFromCons(solver, UR, xInt, n);
 		flux.rho = (sStar * (sR * UR.rho - FR.rho)) / (sR - sStar);
 		
-		real3 URmn = normalInfo_vecDotNs(n, UR.m);
-		real3 FRmn = normalInfo_vecDotNs(n, FR.m);
-		flux.m = normalInfo_vecFromNs(n, _real3(
+		real3 URmn = normal_vecDotNs(n, UR.m);
+		real3 FRmn = normal_vecDotNs(n, FR.m);
+		flux.m = normal_vecFromNs(n, _real3(
 			(sStar * (sR * URmn.x - FRmn.x) + sR * (WR.P + WR.rho * (sR - vnR.x) * (sStar - vnR.x))) / (sR - sStar),
 			(sStar * (sR * URmn.y - FRmn.y)) / (sR - sStar),
 			(sStar * (sR * URmn.z - FRmn.z)) / (sR - sStar)
@@ -159,9 +159,9 @@ end
 		);
 		flux.rho = (sL * UL.rho - FL.rho) * sStar / (sL - sStar);
 		
-		real3 ULmn = normalInfo_vecDotNs(n, UL.m);
-		real3 FLmn = normalInfo_vecDotNs(n, FL.m);
-		flux.m = normalInfo_vecFromNs(n, _real3(
+		real3 ULmn = normal_vecDotNs(n, UL.m);
+		real3 FLmn = normal_vecDotNs(n, FL.m);
+		flux.m = normal_vecFromNs(n, _real3(
 			((sL * ULmn.x - FLmn.x) * sStar + sL * PLR) / (sL - sStar),
 			sStar * (sL * ULmn.y - FLmn.y) / (sL - sStar),
 			sStar * (sL * ULmn.z - FLmn.z) / (sL - sStar)
@@ -173,9 +173,9 @@ end
 		real PLR = .5 * (WL.P + WR.P + WL.rho * (sL - vnL.x) * (sStar - vnL.x) + WR.rho * (sR - vnR.x) * (sStar - vnR.x));
 		flux.rho = sStar * (sR * UR.rho - FR.rho) / (sR - sStar);
 		
-		real3 URmn = normalInfo_vecDotNs(n, UR.m);
-		real3 FRmn = normalInfo_vecDotNs(n, FR.m);
-		flux.m = normalInfo_vecFromNs(n, _real3(
+		real3 URmn = normal_vecDotNs(n, UR.m);
+		real3 FRmn = normal_vecDotNs(n, FR.m);
+		flux.m = normal_vecFromNs(n, _real3(
 			flux.m.x = (sStar * (sR * URmn.x - FRmn.x) + sR * PLR) / (sR - sStar),
 			flux.m.y = sStar * (sR * URmn.y - FRmn.y) / (sR - sStar),
 			flux.m.z = sStar * (sR * URmn.z - FRmn.z) / (sR - sStar)
@@ -232,7 +232,7 @@ kernel void calcFlux(
 		cons_t pUL = cons_parallelPropagate<?=side?>(*UL, xL, .5 * dx);
 		cons_t pUR = cons_parallelPropagate<?=side?>(*UR, xR, -.5 * dx);
 		
-		normalInfo_t n = normalInfo_forSide<?=side?>(xInt);
+		normal_t n = normal_forSide<?=side?>(xInt);
 	
 		global <?=eqn.cons_t?>* flux = fluxBuf + indexInt;
 		*flux = calcFluxForInterface(solver, pUL, pUR, xInt, n);

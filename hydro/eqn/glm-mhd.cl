@@ -6,16 +6,16 @@ tweaked it while looking at
 */
 
 //align from vector coordinates to the normal basis
-<?=eqn.cons_t?> cons_rotateFrom(<?=eqn.cons_t?> U, normalInfo_t n) {
-	U.m = normalInfo_vecDotNs(n, U.m);
-	U.B = normalInfo_vecDotNs(n, U.B);
+<?=eqn.cons_t?> cons_rotateFrom(<?=eqn.cons_t?> U, normal_t n) {
+	U.m = normal_vecDotNs(n, U.m);
+	U.B = normal_vecDotNs(n, U.B);
 	return U;
 }
 
 //align from normal basis to vector coordinates
-<?=eqn.cons_t?> cons_rotateTo(<?=eqn.cons_t?> U, normalInfo_t n) {
-	U.m = normalInfo_vecFromNs(n, U.m);
-	U.B = normalInfo_vecFromNs(n, U.B);
+<?=eqn.cons_t?> cons_rotateTo(<?=eqn.cons_t?> U, normal_t n) {
+	U.m = normal_vecFromNs(n, U.m);
+	U.B = normal_vecFromNs(n, U.B);
 	return U;
 }
 
@@ -26,7 +26,7 @@ range_t calcCellMinMaxEigenvalues(
 	constant <?=solver.solver_t?>* solver,
 	<?=eqn.cons_t?> U,
 	real3 x,
-	normalInfo_t n
+	normal_t n
 ) {
 	<?=eqn.cons_t?> U_ = cons_rotateFrom(U, n);
 	<?=eqn.prim_t?> W = primFromCons(solver, U_, x);
@@ -40,7 +40,7 @@ range_t calcCellMinMaxEigenvalues(
 	real invRho = 1./W.rho;
 	
 	real aSq = solver->heatCapacityRatio * W.P * invRho;
-	real B_n = normalInfo_vecDotN1(n, B);
+	real B_n = normal_vecDotN1(n, B);
 	real CaxSq = B_n * B_n * invRho;
 	real CaSq = BSq * invRho;
 	
@@ -52,7 +52,7 @@ range_t calcCellMinMaxEigenvalues(
 
 	real Cf = sqrt(CfSq);
 	real Cs = sqrt(max(CsSq, 0.));
-	real v_n = normalInfo_vecDotN1(n, v);
+	real v_n = normal_vecDotN1(n, v);
 	return (range_t){.min=v_n - Cf, .max=v_n + Cf};
 #else
 	const real gamma = solver->heatCapacityRatio;
@@ -262,7 +262,7 @@ range_t calcCellMinMaxEigenvalues(
 	<?=eqn.cons_t?> UL,
 	<?=eqn.cons_t?> UR,
 	real3 x,
-	normalInfo_t n
+	normal_t n
 ) {
 	//rotate UL and UR to be x-aligned?  that takes the normal ...
 
@@ -278,7 +278,7 @@ range_t calcCellMinMaxEigenvalues(
 	<?=eqn.eigen_t?> eig,
 	<?=eqn.cons_t?> inputU,
 	real3 x,
-	normalInfo_t n
+	normal_t n
 ) {	
 	inputU = cons_rotateFrom(inputU, n);
 	
@@ -390,7 +390,7 @@ range_t calcCellMinMaxEigenvalues(
 	<?=eqn.eigen_t?> eig,
 	<?=eqn.waves_t?> input,
 	real3 x,
-	normalInfo_t n
+	normal_t n
 ) {
 	const real gamma = solver->heatCapacityRatio;
 	const real gamma_1 = gamma - 1.;
@@ -494,7 +494,7 @@ range_t calcCellMinMaxEigenvalues(
 	<?=eqn.eigen_t?> eig,
 	<?=eqn.cons_t?> inputU,
 	real3 x,
-	normalInfo_t n
+	normal_t n
 ) {
 	inputU = cons_rotateFrom(inputU, n);
 
@@ -573,7 +573,7 @@ kernel void addSource(
 <? if not eqn.useFixedCh then ?>
 	real Ch = 0;
 	<? for side=0,solver.dim-1 do ?>{
-		<?=eqn.eigen_t?> eig = eigen_forCell(solver, *U, x, normalInfo_forSide<?=side?>(x));
+		<?=eqn.eigen_t?> eig = eigen_forCell(solver, *U, x, normal_forSide<?=side?>(x));
 		Ch = max(Ch, eig.Ch);
 	}<? end ?>
 <? end ?>

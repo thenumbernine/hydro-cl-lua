@@ -112,14 +112,14 @@ function ADM_BonaMasso_1D_1997Alcubierre:initCodeModule_fluxFromCons()
 		depends = {
 			'solver.solver_t',
 			'eqn.cons_t',
-			'coord.normal',
+			'normal_t',
 		},
 		code = self:template[[
 <?=eqn.cons_t?> fluxFromCons(
 	constant <?=solver.solver_t?>* solver,
 	<?=eqn.cons_t?> U,
 	real3 x,
-	normalInfo_t n
+	normal_t n
 ) {
 	real f = calc_f(U.alpha);
 	return (<?=eqn.cons_t?>){

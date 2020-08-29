@@ -30,7 +30,7 @@ then
 <? end 
 ?>
 		if (dx > 1e-7) {
-			normalInfo_t n = normalInfo_forSide<?=side?>(x);
+			normal_t n = normal_forSide<?=side?>(x);
 			//use cell-centered eigenvalues
 			<?=eqn:consWaveCodePrefix('n', '*U', 'x')?>
 			real lambdaMin = <?=eqn:consMinWaveCode('n', '*U', 'x')?>;
@@ -64,7 +64,7 @@ kernel void calcDT(
 		const global face_t* face = faces + cellFaceIndexes[i + cell->faceOffset];
 		real dx = face->area;	//face->cellDist?
 		if (dx > 1e-7 && face->cells.x != -1 && face->cells.y != -1) {
-			normalInfo_t n = normalInfo_forFace(face);
+			normal_t n = normal_forFace(face);
 			//all sides? or only the most prominent side?
 			//which should we pick eigenvalues from?
 			//use cell-centered eigenvalues

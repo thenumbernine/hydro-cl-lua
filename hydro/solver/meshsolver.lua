@@ -525,13 +525,13 @@ kernel void calcFlux(
 	}
 
 	real3 x = face->pos;
-	normalInfo_t n = normalInfo_forFace(face);
+	normal_t n = normal_forFace(face);
 	
 	cons_t UL, UR;	
 	getEdgeStates(&UL, &UR, face, UBuf, solver->boundaryRestitution);
 
 	//TODO option to rotate to align fluxes?
-	// then you'd have to build a new normalInfo_t based on the aligned (x-axis) normal.
+	// then you'd have to build a new normal_t based on the aligned (x-axis) normal.
 
 	*flux = calcFluxForInterface(solver, UL, UR, x, n);
 }

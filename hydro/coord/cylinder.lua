@@ -67,6 +67,10 @@ real3 coordMapInv(real3 x) {
 ]]
 end
 
+function Cylinder:getModuleDepends_coord_parallelPropagate()
+	return {'rotate'}
+end
+
 function Cylinder:getParallelPropagatorCode()
 	return template([[
 

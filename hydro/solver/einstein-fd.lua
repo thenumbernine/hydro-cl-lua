@@ -85,7 +85,7 @@ kernel void writeResult(
 				coord = self.coord,
 			}),
 		}
-		-- crashing without warning when i compile without 'kernel'
+		-- crashing without warning when i compile without 'kernel' on intel
 		self.writeResultProgram:compile()
 
 		self.writeResultKernel = self.writeResultProgram:kernel{
@@ -115,8 +115,6 @@ function EinsteinFiniteDifferenceSolver:calcDeriv(derivBufObj, dt)
 	self.calcDerivKernelObj()
 end
 
--- [=[ commenting out to try to reduce build time
--- only set these for certain types ... 
 function EinsteinFiniteDifferenceSolver:createDisplayComponents()
 	EinsteinFiniteDifferenceSolver.super.createDisplayComponents(self)
 	self:addDisplayComponent('real3', {
@@ -135,7 +133,6 @@ function EinsteinFiniteDifferenceSolver:createDisplayComponents()
 	value->vreal = sym3_dot(value->vsym3, calc_gamma_uu(U, x));]],
 	})
 end
---]=]
 
 if cmdline.renderBssnVideo then
 	function EinsteinFiniteDifferenceSolver:update()
@@ -148,7 +145,7 @@ if cmdline.renderBssnVideo then
 			
 			self.imageCounter = (self.imageCounter or -1) + 1
 			-- TODO mkdir like the other video output function in app
-			local fn = 'screenshots/frame-'..('%05d'):format(self.imageCounter)..'.png'
+			local fn = (cmdline.renderBssnVideoDir or 'screenshots')..'/frame-'..('%05d'):format(self.imageCounter)..'.png'
 			print('writing '..fn)
 			self.writeOutImage:normalize():rgb():save(fn)
 		end

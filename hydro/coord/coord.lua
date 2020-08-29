@@ -1,15 +1,5 @@
 --[[
 
-for bssnok-fd
-5495646 bytes with static inline 
-5529070 bytes without it
-dif of 30k
-
-TODO get rid of all the bloat that I added for bssn
-because I'm moving it directly into BSSN
-
-
-
 This tells us the coordinate chart for our embedding in nD Cartesian (Euclidian?) geometry.
 There are a few options on how to do this.
 
@@ -948,93 +938,98 @@ function CoordinateSystem:initCodeModules()
 	-- 3 since all our base types are in 'real3', 'sym3', etc
 	-- what about removing this restriction?
 	local dim = 3
-	local lines = table()
+	local solver = self.solver	
 
 	-- dx0, dx1, ...
 	-- this is the change in cartesian wrt the change in grid
 	-- this is also the normalization factor for the anholonomic ( ... is it?)
-	lines:append(range(dim):mapi(function(i)
-		local code = self.dxCodes[i]
-		return '#define coord_dx'..(i-1)..'(pt) ('..code..')'
-	end))
+	solver.modules:add{
+		name = 'coord_dx#',
+		headercode = range(dim):mapi(function(i)
+			local code = self.dxCodes[i]
+			return '#define coord_dx'..(i-1)..'(pt) ('..code..')'
+		end):concat'\n',
+	}
 
--- [[
 	-- area0, area1, ...
 	-- area_i = integral of u_j, j!=i of product of dx_j, j!=i
-	if require 'hydro.solver.fvsolver'.is(self.solver) then
-		lines:append(range(dim):mapi(function(i)
-			local code = self.cell_area_codes[i]
-			return '#define cell_area'..(i-1)..'(pt) ('..code..')'
-		end))
+	if require 'hydro.solver.fvsolver'.is(assert(solver)) then
+		solver.modules:add{
+			name = 'cell_area#',
+			headercode = range(dim):mapi(function(i)
+				local code = self.cell_area_codes[i]
+				return '#define cell_area'..(i-1)..'(pt) ('..code..')'
+			end):concat'\n',
+		}
 
-		lines:insert('#define cell_volume(pt) ('..self.cell_volume_code..')')
+		solver.modules:add{
+			name = 'cell_volume',
+			headercode = '#define cell_volume(pt) ('..self.cell_volume_code..')',
+		}
 	end
---]]
 
-	lines:insert'\n'
+	solver.modules:add{
+		name = 'cell_dx#',
+		depends = {
+			'solver.solver_t',
+			'coord_dx#',
+		},
+		headercode = range(dim):mapi(function(i)
+			return '#define cell_dx'..(i-1)..'(pt) (coord_dx'..(i-1)..'(pt) * solver->grid_dx.s'..(i-1)..')'
+		end):concat'\n',
+	}
 
-	lines:append(range(dim):mapi(function(i)
-		return '#define cell_dx'..(i-1)..'(pt) (coord_dx'..(i-1)..'(pt) * solver->grid_dx.s'..(i-1)..')'
-	end))
 	
-	lines:insert'\n'
-
 	-- metric determinant ... det_g = volume^2 for holonomic basis
 	local det_g_code = '(' .. self.det_g_code .. ')'
-	lines:insert(getCode_real3_to_real('coord_det_g', det_g_code))
-
+	solver.modules:add{
+		name = 'coord_det_g',
+		code = getCode_real3_to_real('coord_det_g', det_g_code),
+	}
+	
 	-- sqrt_det_g ... volume for holonomic basis
 	local sqrt_det_gCode = '(' .. self.sqrt_det_gCode .. ')'
-	lines:insert(getCode_real3_to_real('coord_sqrt_det_g', sqrt_det_gCode))
+	solver.modules:add{
+		name = 'coord_sqrt_det_g',
+		code = getCode_real3_to_real('coord_sqrt_det_g', sqrt_det_gCode),
+	}
 
 	-- coord len code: l(v) = v^i v^j g_ij
-	lines:insert(getCode_real3_real3_to_real('coordLenSq', self.uLenSqCode))
-	lines:insert[[
+	solver.modules:add{
+		name = 'coordLenSq',
+		code = getCode_real3_real3_to_real('coordLenSq', self.uLenSqCode),
+	}
+	
+	solver.modules:add{
+		name = 'coordLen',
+		depends = {'coordLenSq'},
+		code = [[
 static inline real coordLen(real3 r, real3 pt) {
 	return sqrt(coordLenSq(r, pt));
-}]]
-
-	do
-		local lines = table()
-		lines:insert(getCode_real3_to_real3('coord_tr23_c', self.tr23_cCode))
-		lines:insert(getCode_real3_real3_real3_to_real('coord_conn_apply123', self.connApply123Code))
-		lines:insert(getCode_real3_real3_real3_to_real3('coord_conn_apply12', self.connApply12Codes))
-		lines:insert(getCode_real3_real3_real3_to_real3('coord_conn_apply13', self.connApply13Codes))
-		lines:insert(getCode_real3_real3_real3_to_real3('coord_conn_apply23', self.connApply23Codes))
-		lines:insert(getCode_real3_to_real3('coord_conn_trace12', self.tr12_conn_l_codes))
-		lines:insert(getCode_real3_to_real3('coord_conn_trace13', self.tr13_conn_l_codes))
-		lines:insert(getCode_real3_to_real3('coord_conn_trace23', self.tr23_conn_u_codes))
-		lines:insert(getCode_real3_to_3sym3('coord_conn_lll', self.conn_lll_codes))
-		lines:insert(getCode_real3_to_3sym3('coord_conn_ull', self.conn_ull_codes))
-		self.solver.modules:add{
-			name = 'conn',
-			depends = {'real3', 'sym3', '_3sym3'},
-			code = lines:concat'\n',
-		}
-	end
-
-	do
-		self.solver.modules:add{
-			name = 'coord_conn_apply23',
-			code = getCode_real3_real3_real3_to_real3('coord_conn_apply23', self.connApply23Codes),
-		}
-	end
-
-	--[[
-	for i=0,dim-1 do
-		lines:insert(getCode_real3_to_real('coordHolBasisLen'..i, self.eHolLenCode[i+1]))
-	end
-	--]]
-
-	self.solver.modules:add{
-		name = 'coord_lower',
-		code = getCode_real3_real3_to_real3('coord_lower', self.lowerCodes),
+}]],
 	}
 
-	self.solver.modules:add{
-		name = 'coord_raise',
-		code = getCode_real3_real3_to_real3('coord_raise', self.raiseCodes),
+	solver.modules:add{name='coord_lower', code=getCode_real3_real3_to_real3('coord_lower', self.lowerCodes)}
+	solver.modules:add{name='coord_raise', code=getCode_real3_real3_to_real3('coord_raise', self.raiseCodes)}
+	solver.modules:add{name='coord_tr23_c', code=getCode_real3_to_real3('coord_tr23_c', self.tr23_cCode)}
+	solver.modules:add{name='coord_conn_apply123', code=getCode_real3_real3_real3_to_real('coord_conn_apply123', self.connApply123Code)}
+	solver.modules:add{name='coord_conn_apply12', code=getCode_real3_real3_real3_to_real3('coord_conn_apply12', self.connApply12Codes)}
+	solver.modules:add{name='coord_conn_apply13', code=getCode_real3_real3_real3_to_real3('coord_conn_apply13', self.connApply13Codes)}
+	solver.modules:add{name='coord_conn_apply23', code=getCode_real3_real3_real3_to_real3('coord_conn_apply23', self.connApply23Codes)}
+	solver.modules:add{name='coord_conn_trace12', code=getCode_real3_to_real3('coord_conn_trace12', self.tr12_conn_l_codes)}
+	solver.modules:add{name='coord_conn_trace13', code=getCode_real3_to_real3('coord_conn_trace13', self.tr13_conn_l_codes)}
+	solver.modules:add{name='coord_conn_trace23', code=getCode_real3_to_real3('coord_conn_trace23', self.tr23_conn_u_codes)}
+	solver.modules:add{name='coord_conn_lll', depends={'_3sym3'}, code=getCode_real3_to_3sym3('coord_conn_lll', self.conn_lll_codes)}
+	solver.modules:add{name='coord_conn_ull', depends={'_3sym3'}, code=getCode_real3_to_3sym3('coord_conn_ull', self.conn_ull_codes)}
+
+--[[ TODO only add upon request, and do this for all coord modules so I don't sym compute more than I have to
+	solver.modules:add{
+		name = 'coordHolBasisLen#',
+		code = range(dim):mapi(function(i)
+			return getCode_real3_to_real('coordHolBasisLen'..(i-1), self.eHolLenCode[i])
+		end):concat'\n',
 	}
+--]]
 
 	do
 		local function addSym3Components(name, codes)
@@ -1051,35 +1046,35 @@ static inline real coordLen(real3 r, real3 pt) {
 			return lines:concat'\n'
 		end
 
-		self.solver.modules:add{
+		solver.modules:add{
 			name = 'coord_g_ll##',
 			code = addSym3Components('coord_g_ll', self.gCode),
 		}
 
-		self.solver.modules:add{
+		solver.modules:add{
 			name = 'coord_g_uu##',
 			code = addSym3Components('coord_g_uu', self.gUCode),
 		}
 		
 		-- curvilinear grid normals use sqrt(g^ii), as it is the metric-weighted coordinate normal magnitude
-		self.solver.modules:add{
+		solver.modules:add{
 			name = 'coord_sqrt_g_uu##',
 			code = addSym3Components('coord_sqrt_g_uu', self.sqrt_gUCode),
 		}
 	
-		self.solver.modules:add{
+		solver.modules:add{
 			name = 'coord_sqrt_g_ll##',
 			code = addSym3Components('coord_sqrt_g_ll', self.sqrt_gCode),
 		}
 	end
 
-	self.solver.modules:add{
+	solver.modules:add{
 		name = 'coord_g_ll',
 		depends = {'sym3'},
 		code = getCode_real3_to_sym3('coord_g_ll', self.gCode),
 	}
 
-	self.solver.modules:add{
+	solver.modules:add{
 		name = 'coord_g_uu',
 		depends = {'sym3'},
 		code = getCode_real3_to_sym3('coord_g_uu', self.gUCode),
@@ -1088,7 +1083,7 @@ static inline real coordLen(real3 r, real3 pt) {
 	self:initCodeModule_coordMap()
 
 	-- parallel propagate code
-	if require 'hydro.solver.fvsolver'.is(self.solver) then
+	if require 'hydro.solver.fvsolver'.is(solver) then
 		local lines = table()
 		
 		-- parallel-propagate a vector from point 'x' along coordinate 'k' (suffix of func name) by amount 'dx'
@@ -1117,7 +1112,7 @@ static inline real coordLen(real3 r, real3 pt) {
 <? end ?>
 
 ]], 		{
-				solver = self.solver,
+				solver = solver,
 			}))
 		
 		-- anholonomic orthonormal = metric is identity, so inverse = transpose, so upper propagate = lower propagate ... so we only need to define the upper 
@@ -1128,7 +1123,7 @@ static inline real coordLen(real3 r, real3 pt) {
 ?>#define coord_parallelPropagateL<?=side?>(v, x, dx) coord_parallelPropagateU<?=side?>(v, x, dx)
 <? end ?>
 ]], 		{
-				solver = self.solver,
+				solver = solver,
 			}))
 		elseif self.vectorComponent == 'holonomic' then	-- TODO rename this to 'coordinate'
 			lines:insert(self:getParallelPropagatorCode())
@@ -1136,34 +1131,21 @@ static inline real coordLen(real3 r, real3 pt) {
 			error'here'
 		end
 	
-		self.solver.modules:add{
+		solver.modules:add{
 			name = 'coord.coord_parallelPropagate',
+			depends = self:getModuleDepends_coord_parallelPropagate(),
 			code = lines:concat'\n',
 		}
 	end
 
---print(require 'template.showcode'(lines:concat'\n'))
-
-	self:getNormalCodeGenerator()
-	self.solver.modules:add{
-		name = 'coord.normal',
-		typecode = self.normalTypeCode,
-		code = self.normalInfoCode,
-	}
-
-	self.solver.modules:add{
-		name = 'coord',
-		code = lines:concat'\n',
-	}
-
+	self:initCodeModule_normal()
+	
 	-- store all input coordinates for our cells
 	-- for holonomic/anholonomic this is just the linearly interpolated
-	self.solver.modules:add{
+	solver.modules:add{
 		name = 'coord.cell_t',
 		structs = {self.cellStruct},
-		headercode = [[
-#define cell_x(i)	cellBuf[INDEXV(i)].pos
-]],
+		headercode = '#define cell_x(i) (cellBuf[INDEXV(i)].pos)',
 	}
 end
 
@@ -1177,6 +1159,9 @@ function CoordinateSystem:getModuleDepends_coordMapGLSL()
 end
 function CoordinateSystem:getModuleDepends_coordMapInvGLSL() 
 	return self:getModuleDepends_coordMapInv()
+end
+
+function CoordinateSystem:getModuleDepends_coord_parallelPropagate()
 end
 
 function CoordinateSystem:initCodeModule_coordMap()
@@ -1233,13 +1218,11 @@ function CoordinateSystem:initCodeModule_coordMap()
 	end
 
 	if self.eHolUnitCode then
-		local lines = table()
-		for i,eHolUnitiCode in ipairs(self.eHolUnitCode) do
-			lines:insert(getCode_real3_to_real3('holunit_coordBasis'..(i-1), eHolUnitiCode))
-		end
 		solver.modules:add{
 			name = 'holunit_coordBasis#',
-			code = lines:concat'\n',
+			code = self.eHolUnitCode:mapi(function(eHolUnitiCode,i)
+				return getCode_real3_to_real3('holunit_coordBasis'..(i-1), eHolUnitiCode)
+			end):concat'\n',
 		}
 	end
 
@@ -1380,17 +1363,20 @@ end
 -- [[ TODO move this to hydro/draw somewhere
 local function makeGLSL(code)
 	return table{
+		'#define M_PI '..('%.50f'):format(math.pi),
 		'#define inline',
-		'#define real float',
-		'#define _real3 vec3',
-		'#define real3 vec3',
-		'#define real3_zero vec3(0.,0.,0.)',
-		'#define real3_add(a,b) ((a)+(b))',
-		'#define real3_sub(a,b) ((a)-(b))',
-		'#define real3_real_mul(a,b) ((a)*(b))',
-		'#define real3_dot dot',
-		'#define real3_lenSq(a) dot(a,a)',
-		'#define atan2 atan',
+		'#define real					float',
+		'#define _real3					vec3',
+		'#define real3					vec3',
+		'#define real3_zero				vec3(0.,0.,0.)',
+		'#define real3_add(a,b)			((a)+(b))',
+		'#define real3_sub(a,b)			((a)-(b))',
+		'#define real3_real_mul(a,b)	((a)*(b))',
+		'#define real3_dot				dot',
+		'#define real3_len(a)			length(a)',
+		'#define real3_lenSq(a)			dot(a,a)',
+		'#define atan2					atan',
+		'#define fmod					mod',
 		'',
 		(code:gsub('static inline ', '')),
 	}:concat'\n'
@@ -1436,7 +1422,9 @@ How to organize this?
 2) have a C struct for holding all our required info.
 3) have code gen for (1) calculating the struct and (2) accessing the struct.
 --]]
-function CoordinateSystem:getNormalCodeGenerator()
+function CoordinateSystem:initCodeModule_normal()
+	local typecode, code
+	local depends = table()
 	if require 'hydro.solver.meshsolver'.is(self.solver) then
 --[[
 mesh vertexes are provided in Cartesian coordinates
@@ -1447,15 +1435,16 @@ however their use with the cell vector components requires them to be converted 
 maybe I will just do that up front?  save a frame basis & dual (that is orthonormal to the basis)
 though for now I'll just support Cartesian / identity metric
 --]]
-		self.normalTypeCode = template([[
+		depends:insert'real3x3'
+		typecode = template([[
 typedef struct {
 	real3x3 n;
-} normalInfo_t;
+} normal_t;
 ]])
 
-		self.normalInfoCode = template([[
-#define normalInfo_forFace(face) \
-	((normalInfo_t){ \
+		code = template([[
+#define normal_forFace(face) \
+	((normal_t){ \
 		.n = (real3x3){ \
 			.x = face->normal, \
 			.y = face->normal2, \
@@ -1463,30 +1452,30 @@ typedef struct {
 		}, \
 	})
 
-#define normalInfo_len(n)	1.
-#define normalInfo_lenSq(n)	1.
+#define normal_len(n)	1.
+#define normal_lenSq(n)	1.
 
 <? 
 for j,xj in ipairs(xNames) do
 	for i,xi in ipairs(xNames) do
 ?>
-#define normalInfo_l<?=j?><?=xi?>(normal)		(normal.n.<?=xj?>.<?=xi?>)
-#define normalInfo_u<?=j?><?=xi?>(n)			normalInfo_l<?=j?><?=xi?>(n)
-#define normalInfo_l<?=j?><?=xi?>_over_len(n)	normalInfo_l<?=j?><?=xi?>(n)
-#define normalInfo_u<?=j?><?=xi?>_over_len(n)	normalInfo_u<?=j?><?=xi?>(n)
+#define normal_l<?=j?><?=xi?>(normal)		(normal.n.<?=xj?>.<?=xi?>)
+#define normal_u<?=j?><?=xi?>(n)			normal_l<?=j?><?=xi?>(n)
+#define normal_l<?=j?><?=xi?>_over_len(n)	normal_l<?=j?><?=xi?>(n)
+#define normal_u<?=j?><?=xi?>_over_len(n)	normal_u<?=j?><?=xi?>(n)
 <?
 	end
 end
 ?>
 
 //v^i (nj)_i
-#define normalInfo_vecDotNs(normal, v) (real3x3_real3_mul(normal.n, v))
+#define normal_vecDotNs(normal, v) (real3x3_real3_mul(normal.n, v))
 
 //v^i (n1)_i
-#define normalInfo_vecDotN1(normal, v) (real3_dot(normal.n.x, v))
+#define normal_vecDotN1(normal, v) (real3_dot(normal.n.x, v))
 
 // w_j <=> (n_j)^i w_i = v_j
-#define normalInfo_vecFromNs(normal, v) \
+#define normal_vecFromNs(normal, v) \
 	real3_add3( \
 		real3_real_mul(normal.n.x, v.x), \
 		real3_real_mul(normal.n.y, v.y), \
@@ -1504,35 +1493,35 @@ end
 			n_i = n^i = delta_ij for side j
 			|n| = 1
 			--]]
-			self.normalTypeCode = template([[
+			typecode = template([[
 typedef struct {
 	int side;		//0, 1, 2
-} normalInfo_t;		//nL = nU = normalBasisForSide (permutation of I), nLen = 1
+} normal_t;		//nL = nU = normalBasisForSide (permutation of I), nLen = 1
 ]])
 
 			-- this is overwhelmingly interface-based
 			-- with two exceptions: calcDT and some displayVars
-			self.normalInfoCode = template([[
+			code = template([[
 <? for side=0,solver.dim-1 do ?>
-#define normalInfo_forSide<?=side?>(x) \
-	((normalInfo_t){ \
+#define normal_forSide<?=side?>(x) \
+	((normal_t){ \
 		.side = <?=side?>, \
 	})
 <? end ?>
 
 //|n|
-#define normalInfo_len(n)	1.
-#define normalInfo_lenSq(n)	1.
+#define normal_len(n)	1.
+#define normal_lenSq(n)	1.
 
 //(nj)_i, (nj)^i, (nj)_i/|nj|, (nj)^i/|nj|
 <? 
 for j=1,3 do
 	for i,xi in ipairs(xNames) do
 ?>
-#define normalInfo_l<?=j?><?=xi?>(n)			(n.side == <?=(i-j)%3?> ? 1. : 0.)
-#define normalInfo_u<?=j?><?=xi?>(n)			normalInfo_l<?=j?><?=xi?>(n)
-#define normalInfo_l<?=j?><?=xi?>_over_len(n)	normalInfo_l<?=j?><?=xi?>(n)
-#define normalInfo_u<?=j?><?=xi?>_over_len(n)	normalInfo_u<?=j?><?=xi?>(n)
+#define normal_l<?=j?><?=xi?>(n)			(n.side == <?=(i-j)%3?> ? 1. : 0.)
+#define normal_u<?=j?><?=xi?>(n)			normal_l<?=j?><?=xi?>(n)
+#define normal_l<?=j?><?=xi?>_over_len(n)	normal_l<?=j?><?=xi?>(n)
+#define normal_u<?=j?><?=xi?>_over_len(n)	normal_u<?=j?><?=xi?>(n)
 <? 
 	end 
 end
@@ -1540,18 +1529,18 @@ end
 
 // this is the same as converting 'v' in global cartesian to 'v' in the basis of nj
 // v^i (nj)_i for side j 
-#define normalInfo_vecDotNs(n, v) \
+#define normal_vecDotNs(n, v) \
 	(_real3( \
 		v.s[n.side], \
 		v.s[(n.side+1)%3], \
 		v.s[(n.side+2)%3]))
 
 //v^i (n1)_i
-#define normalInfo_vecDotN1(n, v)	(v.s[n.side])
+#define normal_vecDotN1(n, v)	(v.s[n.side])
 
 // ...and this is the same as converting v in the basis of nj to v in global cartesian
 // v.x * e[side] + v.y * e[side+1] + v.z * e[side+2]
-#define normalInfo_vecFromNs(n, v) \
+#define normal_vecFromNs(n, v) \
 	(_real3( \
 		v.s[(3-n.side)%3], \
 		v.s[(3-n.side+1)%3], \
@@ -1565,23 +1554,26 @@ end
 
 		elseif self.vectorComponent == 'cartesian' then
 
+			depends:insert'real3x3'
+			depends:insert'holunit_coordBasis#'
+
 			--[[
 			n_i = n^i = unit(u^i_,j) for side j
 			|n| = sqrt(n^i n_i) = 1 (since g_ij = g^ij = delta_ij)
 			--]]
-			self.normalTypeCode = template([[
+			typecode = template([[
 typedef struct {
 	real3x3 n;		// nL = nU, both are orthonormal so nLen = 1
 	real len;
-} normalInfo_t;
+} normal_t;
 ]])
 
 			-- this would call coord_cartesianFromCoord
 			-- which itself aligns with the holunit_coordBasis
-			self.normalInfoCode = template([[
+			code = template([[
 <? for side=0,solver.dim-1 do ?>
-#define normalInfo_forSide<?=side?>(pt) \
-	((normalInfo_t){ \
+#define normal_forSide<?=side?>(pt) \
+	((normal_t){ \
 		.n = (real3x3){ \
 			.x = holunit_coordBasis<?=side?>(pt), \
 			.y = holunit_coordBasis<?=(side+1)%3?>(pt), \
@@ -1592,33 +1584,33 @@ typedef struct {
 <? end ?>
 
 //|n1|
-#define normalInfo_len(normal)		(normal.len)
-#define normalInfo_lenSq(normal)	(normal.len * normal.len)
+#define normal_len(normal)		(normal.len)
+#define normal_lenSq(normal)	(normal.len * normal.len)
 
 //(nj)_i, (nj)^i, (nj)_i / |nj|, (nj)^i / |nj|
 <? 
 for j,xj in ipairs(xNames) do
 	for i,xi in ipairs(xNames) do
 ?>
-#define normalInfo_l<?=j?><?=xi?>(normal)			(normal.n.<?=xj?>.<?=xi?>)
-#define normalInfo_u<?=j?><?=xi?>(normal)			normalInfo_l<?=j?><?=xi?>(normal)
-#define normalInfo_l<?=j?><?=xi?>_over_len(normal)	(normalInfo_l<?=j?><?=xi?>(normal) / normal.len)
-#define normalInfo_u<?=j?><?=xi?>_over_len(normal)	normalInfo_l<?=j?><?=xi?>_over_len(normal)
+#define normal_l<?=j?><?=xi?>(normal)			(normal.n.<?=xj?>.<?=xi?>)
+#define normal_u<?=j?><?=xi?>(normal)			normal_l<?=j?><?=xi?>(normal)
+#define normal_l<?=j?><?=xi?>_over_len(normal)	(normal_l<?=j?><?=xi?>(normal) / normal.len)
+#define normal_u<?=j?><?=xi?>_over_len(normal)	normal_l<?=j?><?=xi?>_over_len(normal)
 <?
 	end
 end
 ?>
 
 //v^i (nj)_i for side j 
-#define normalInfo_vecDotNs(normal, v) (real3x3_real3_mul(normal.n, v))
+#define normal_vecDotNs(normal, v) (real3x3_real3_mul(normal.n, v))
 
 //v^i (n1)_i
-#define normalInfo_vecDotN1(normal, v) (real3_dot(normal.n.x, v))
+#define normal_vecDotN1(normal, v) (real3_dot(normal.n.x, v))
 
 
 // ...and this is the same as converting v in the basis of nj to v in global cartesian
 // v.x * e[side] + v.y * e[side+1] + v.z * e[side+2]
-#define normalInfo_vecFromNs(normal, v) \
+#define normal_vecFromNs(normal, v) \
 	real3_add3( \
 		real3_real_mul(normal.n.x, v.x), \
 		real3_real_mul(normal.n.y, v.y), \
@@ -1633,23 +1625,27 @@ end
 		
 		elseif self.vectorComponent == 'holonomic' then
 
+			depends:insert'real3x3'
+			depends:insert'coord_g_uu##'
+			depends:insert'coord_sqrt_g_uu##'
+			
 			--[[
 			n_i = delta_ij for side j
 			n^i = g^ik delta_kj
 			|n| = sqrt(n^i n_i) = sqrt(g^jj)
 			--]]
-			self.normalTypeCode = template([[
+			typecode = template([[
 typedef struct {
 	int side;
 	real3x3 U;
 	real len;
-} normalInfo_t;
+} normal_t;
 		]])
 
-			self.normalInfoCode = template([[
+			code = template([[
 <? for side=0,solver.dim-1 do ?>
-#define normalInfo_forSide<?=side?>(x) \
-	((normalInfo_t){ \
+#define normal_forSide<?=side?>(x) \
+	((normal_t){ \
 		.side = <?=side?>, \
 		.U = _real3x3( \
 <? 
@@ -1665,16 +1661,16 @@ end
 <? end ?>
 
 //|n1|
-#define normalInfo_len(n)	(n.len)
-#define normalInfo_lenSq(n)	(n.len * n.len)
+#define normal_len(n)	(n.len)
+#define normal_lenSq(n)	(n.len * n.len)
 
 //(nj)_i, (nj_i / |nj|
 <?
 for j=1,3 do
 	for i,xi in ipairs(xNames) do
 ?>
-#define normalInfo_l<?=j?><?=xi?>(n)			(n.side == <?=(i-j)%3?> ? 1. : 0.)
-#define normalInfo_l<?=j?><?=xi?>_over_len(n)	(n.side == <?=(i-j)%3?> ? (1./n.len) : 0.)
+#define normal_l<?=j?><?=xi?>(n)			(n.side == <?=(i-j)%3?> ? 1. : 0.)
+#define normal_l<?=j?><?=xi?>_over_len(n)	(n.side == <?=(i-j)%3?> ? (1./n.len) : 0.)
 <?
 	end
 end
@@ -1685,26 +1681,26 @@ end
 for j,xj in ipairs(xNames) do
 	for i,xi in ipairs(xNames) do
 ?>
-#define normalInfo_u<?=j?><?=xi?>(n)			(n.U.<?=xj?>.<?=xi?>)
-#define normalInfo_u<?=j?><?=xi?>_over_len(n)	(normalInfo_u<?=j?><?=xi?>(n) / n.len)
+#define normal_u<?=j?><?=xi?>(n)			(n.U.<?=xj?>.<?=xi?>)
+#define normal_u<?=j?><?=xi?>_over_len(n)	(normal_u<?=j?><?=xi?>(n) / n.len)
 <?
 	end
 end
 ?>
 
 //v^i (nj)_i for side j
-#define normalInfo_vecDotNs(n, v) \
+#define normal_vecDotNs(n, v) \
 	(_real3( \
 		v.s[n.side], \
 		v.s[(n.side+1)%3], \
 		v.s[(n.side+2)%3]))
 
 //v^i (n1)_i
-#define normalInfo_vecDotN1(n, v) 	(v.s[n.side])
+#define normal_vecDotN1(n, v) 	(v.s[n.side])
 
 // ...and this is the same as converting v in the basis of nj to v in global cartesian
 // v.x * e[side] + v.y * e[side+1] + v.z * e[side+2]
-#define normalInfo_vecFromNs(n, v) \
+#define normal_vecFromNs(n, v) \
 	(_real3( \
 		v.s[(3-n.side)%3], \
 		v.s[(3-n.side+1)%3], \
@@ -1724,24 +1720,29 @@ end
 
 	end	-- meshsolver
 
-	self.normalInfoCode = self.normalInfoCode .. template[[
+	code = code .. template[[
 
 <? for side=1,3 do ?>
-#define normalInfo_l<?=side?>(n) \
+#define normal_l<?=side?>(n) \
 	(_real3( \
-		normalInfo_l<?=side?>x(n), \
-		normalInfo_l<?=side?>y(n), \
-		normalInfo_l<?=side?>z(n)))
+		normal_l<?=side?>x(n), \
+		normal_l<?=side?>y(n), \
+		normal_l<?=side?>z(n)))
 
-#define normalInfo_u<?=side?>(n) \
+#define normal_u<?=side?>(n) \
 	(_real3( \
-		normalInfo_u<?=side?>x(n), \
-		normalInfo_u<?=side?>y(n), \
-		normalInfo_u<?=side?>z(n)))
+		normal_u<?=side?>x(n), \
+		normal_u<?=side?>y(n), \
+		normal_u<?=side?>z(n)))
 <? end ?>
 
 ]]
-
+	self.solver.modules:add{
+		name = 'normal_t',
+		depends = depends,
+		typecode = typecode,
+		code = code,
+	}
 end
 
 

@@ -48,7 +48,7 @@ works for adm1d_v1 freeflow with oscillations (fails for mirror)
 	real dt,
 	real3 x,
 	int4 i,
-	normalInfo_t n
+	normal_t n
 ) {
 	const global <?=eqn.cons_t?>* UL = U - solver->stepsize.s<?=side?>;
 	const global <?=eqn.cons_t?>* UR = U + solver->stepsize.s<?=side?>;
@@ -113,8 +113,8 @@ for sgn b >= 0:
 	real dx = cell_dx<?=side?>(x);
 	real dt_dx = dt / dx;
 
-	<?=eqn.cons_t?> FHalfL = fluxFromCons(solver, UHalfL, xIntL, normalInfo_forSide<?=side?>(xIntL));
-	<?=eqn.cons_t?> FHalfR = fluxFromCons(solver, UHalfR, xIntR, normalInfo_forSide<?=side?>(xIntR));
+	<?=eqn.cons_t?> FHalfL = fluxFromCons(solver, UHalfL, xIntL, normal_forSide<?=side?>(xIntL));
+	<?=eqn.cons_t?> FHalfR = fluxFromCons(solver, UHalfR, xIntR, normal_forSide<?=side?>(xIntR));
 
 	<?=eqn.consLR_t?> ULR = {
 		.L = *U,
@@ -146,7 +146,7 @@ for sgn b >= 0:
 	real dt,
 	real3 x,
 	int4 i,
-	normalInfo_t n
+	normal_t n
 ) {
 	// extrapolate slopes in consered variable space
 	real dx = solver->grid_dx.s<?=side?>;
@@ -198,7 +198,7 @@ for sgn b >= 0:
 	real dt,
 	real3 x,
 	int4 i,
-	normalInfo_t n
+	normal_t n
 ) {
 	// extrapolate slopes in primitive space
 	real dx = solver->grid_dx.s<?=side?>;
@@ -288,7 +288,7 @@ works for adm1d_v1
 	real dt,
 	real3 x,
 	int4 i,
-	normalInfo_t n
+	normal_t n
 ) {
 	//1) calc delta q's ... l r c (eqn 36)
 	const global <?=eqn.cons_t?>* UL = U - solver->stepsize.s<?=side?>;
@@ -309,8 +309,8 @@ works for adm1d_v1
 	//calc eigen values and vectors at cell center
 	<?=eqn.eigen_t?> eig = eigen_forCell(solver, *U, x, n);
 		
-	<?=eqn.waves_t?> dULEig = eigen_leftTransform(solver, eig, dUL, xIntL, normalInfo_forSide<?=side?>(xIntL));
-	<?=eqn.waves_t?> dUREig = eigen_leftTransform(solver, eig, dUR, xIntR, normalInfo_forSide<?=side?>(xIntR));
+	<?=eqn.waves_t?> dULEig = eigen_leftTransform(solver, eig, dUL, xIntL, normal_forSide<?=side?>(xIntL));
+	<?=eqn.waves_t?> dUREig = eigen_leftTransform(solver, eig, dUR, xIntR, normal_forSide<?=side?>(xIntR));
 	<?=eqn.waves_t?> dUCEig = eigen_leftTransform(solver, eig, dUC, x, n);
 
 	//MUSCL slope of characteristic variables
@@ -426,7 +426,7 @@ based on Trangenstein, Athena, etc, except working on primitives like it says to
 	real dt,
 	real3 x,
 	int4 i,
-	normalInfo_t n
+	normal_t n
 ) {
 	real3 xL = x; xL.s<?=side?> -= solver->grid_dx.s<?=side?>;
 	real3 xR = x; xR.s<?=side?> += solver->grid_dx.s<?=side?>;
@@ -460,10 +460,10 @@ based on Trangenstein, Athena, etc, except working on primitives like it says to
 	<?=eqn.cons_t?> tmp;
 
 	tmp = apply_dU_dW(solver, W, dWL, xIntL); 
-	<?=eqn.waves_t?> dWLEig = eigen_leftTransform(solver, eig, tmp, xIntL, normalInfo_forSide<?=side?>(xIntL));
+	<?=eqn.waves_t?> dWLEig = eigen_leftTransform(solver, eig, tmp, xIntL, normal_forSide<?=side?>(xIntL));
 	
 	tmp = apply_dU_dW(solver, W, dWR, xIntR); 
-	<?=eqn.waves_t?> dWREig = eigen_leftTransform(solver, eig, tmp, xIntR, normalInfo_forSide<?=side?>(xIntR));
+	<?=eqn.waves_t?> dWREig = eigen_leftTransform(solver, eig, tmp, xIntR, normal_forSide<?=side?>(xIntR));
 	
 	tmp = apply_dU_dW(solver, W, dWC, x); 
 	<?=eqn.waves_t?> dWCEig = eigen_leftTransform(solver, eig, tmp, x, n);
@@ -502,10 +502,10 @@ based on Trangenstein, Athena, etc, except working on primitives like it says to
 	}<? end ?>
 
 	// transform slopes back to conserved variable space
-	tmp = eigen_rightTransform(solver, eig, aL, xIntL, normalInfo_forSide<?=side?>(xIntL)); 
+	tmp = eigen_rightTransform(solver, eig, aL, xIntL, normal_forSide<?=side?>(xIntL)); 
 	<?=eqn.prim_t?> sL = apply_dW_dU(solver, W, tmp, xIntL);
 	
-	tmp = eigen_rightTransform(solver, eig, aR, xIntR, normalInfo_forSide<?=side?>(xIntR)); 
+	tmp = eigen_rightTransform(solver, eig, aR, xIntR, normal_forSide<?=side?>(xIntR)); 
 	<?=eqn.prim_t?> sR = apply_dW_dU(solver, W, tmp, xIntR);
 
 	// linearly extrapolate the slopes forward and backward from the cell center
@@ -557,10 +557,10 @@ based on Trangenstein, Athena, etc, except working on primitives like it says to
 	}<? end ?>
 
 	// transform slopes back to conserved variable space
-	tmp = eigen_rightTransform(solver, eig, aL, xIntL, normalInfo_forSide<?=side?>(xIntL)); 
+	tmp = eigen_rightTransform(solver, eig, aL, xIntL, normal_forSide<?=side?>(xIntL)); 
 	<?=eqn.prim_t?> sL = apply_dW_dU(solver, W, tmp, xIntL);
 	
-	tmp = eigen_rightTransform(solver, eig, aR, xIntR, normalInfo_forSide<?=side?>(xIntR)); 
+	tmp = eigen_rightTransform(solver, eig, aR, xIntR, normal_forSide<?=side?>(xIntR)); 
 	<?=eqn.prim_t?> sR = apply_dW_dU(solver, W, tmp, xIntR);
 
 	// linearly extrapolate the slopes forward and backward from the cell center
@@ -595,7 +595,7 @@ based on Trangenstein, Athena, etc, except working on primitives like it says to
 	real dt,
 	real3 x,
 	int4 i,
-	normalInfo_t n
+	normal_t n
 ) {
 	real3 xIntL = x; xIntL.s<?=side?> -= .5 * solver->grid_dx.s<?=side?>;
 	real3 xIntR = x; xIntR.s<?=side?> += .5 * solver->grid_dx.s<?=side?>;
@@ -631,8 +631,8 @@ based on Trangenstein, Athena, etc, except working on primitives like it says to
 	}
 
 	//TODO shouldn't this be the dA/dW eigen transformation?
-	<?=eqn.waves_t?> dal = eigen_leftTransform(solver, eig, *(<?=eqn.cons_t?>*)&dWL, xIntL, normalInfo_forSide<?=side?>(xIntL));
-	<?=eqn.waves_t?> dar = eigen_leftTransform(solver, eig, *(<?=eqn.cons_t?>*)&dWR, xIntR, normalInfo_forSide<?=side?>(xIntR));
+	<?=eqn.waves_t?> dal = eigen_leftTransform(solver, eig, *(<?=eqn.cons_t?>*)&dWL, xIntL, normal_forSide<?=side?>(xIntL));
+	<?=eqn.waves_t?> dar = eigen_leftTransform(solver, eig, *(<?=eqn.cons_t?>*)&dWR, xIntR, normal_forSide<?=side?>(xIntR));
 	<?=eqn.waves_t?> dac = eigen_leftTransform(solver, eig, *(<?=eqn.cons_t?>*)&dWC, x, n);
 	<?=eqn.waves_t?> dag = eigen_leftTransform(solver, eig, *(<?=eqn.cons_t?>*)&dWG, x, n);
 
@@ -686,7 +686,7 @@ based on Trangenstein, Athena, etc, except working on primitives like it says to
 	real dt,
 	real3 x,
 	int4 i,
-	normalInfo_t n
+	normal_t n
 ) {
 	real3 xL = x; xL.s<?=side?> -= solver->grid_dx.s<?=side?>;
 	real3 xR = x; xR.s<?=side?> += solver->grid_dx.s<?=side?>;
@@ -864,7 +864,7 @@ based on Trangenstein, Athena, etc, except working on primitives like it says to
 	real dt,
 	real3 x,
 	int4 i,
-	normalInfo_t n
+	normal_t n
 ) {
 
 
@@ -889,7 +889,7 @@ kernel void calcLR(
 	//TODO skip this lr stuff if we're doing piecewise-constant
 	//...and just use the original buffers
 	<? for side=0,solver.dim-1 do ?>{
-		normalInfo_t n = normalInfo_forSide<?=side?>(x);
+		normal_t n = normal_forSide<?=side?>(x);
 		
 		//cell-centered index for a particular side...
 		int indexForSide = <?=side?> + dim * index;
