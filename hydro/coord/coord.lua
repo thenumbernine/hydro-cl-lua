@@ -1148,7 +1148,7 @@ static inline real coordLen(real3 r, real3 pt) {
 		end
 
 		solver.modules:add{
-			name = 'coord.coord_parallelPropagate',
+			name = 'coord_parallelPropagate',
 			depends = self:getModuleDepends_coord_parallelPropagate(),
 			code = lines:concat'\n',
 		}
@@ -1227,16 +1227,12 @@ function CoordinateSystem:initCodeModule_coordMap()
 	}
 
 
-	do
-		local lines = table()
-		for i,eiCode in ipairs(self.eCode) do
-			lines:insert(getCode_real3_to_real3('coordBasis'..(i-1), eiCode))
-		end
-		solver.modules:add{
-			name = 'coordBasis#',
-			code = lines:concat'\n',
-		}
-	end
+	solver.modules:add{
+		name = 'coordBasis#',
+		code = self.eCode:mapi(function(eiCode,i)
+			return getCode_real3_to_real3('coordBasis'..(i-1), eiCode)
+		end):concat'\n',
+	}
 
 	if self.eHolUnitCode then
 		solver.modules:add{

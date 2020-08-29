@@ -371,16 +371,6 @@ function MeshSolver:finalizeCLAllocs()
 	self.cmds:finish()
 end
 
-function MeshSolver:checkStructSizes_getTypes()
-	local typeinfos = MeshSolver.super.checkStructSizes_getTypes(self)
-	-- TODO use modules' structs instead of this
-	typeinfos:append{
-		self.coord.face_t,
-		self.coord.cell_t,
-	}
-	return typeinfos
-end
-
 function MeshSolver:getSizePropsForWorkGroupSize(maxWorkGroupSize)
 	-- numCells is the number of cells
 	-- maybe I should rename it to numCells

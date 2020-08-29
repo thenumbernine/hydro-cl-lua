@@ -2901,8 +2901,7 @@ function SolverBase:updateGUI()
 end
 
 -- [[ debugging -- determine sizeof
--- TODO use modules for this?
-function SolverBase:checkStructSizes_getTypes()
+function SolverBase:checkStructSizes()
 	local typeinfos = table{
 		'real',
 		'real2',
@@ -2932,10 +2931,7 @@ function SolverBase:checkStructSizes_getTypes()
 		end
 	end
 --]=]
-	return typeinfos
-end
-function SolverBase:checkStructSizes()
-	local typeinfos = self:checkStructSizes_getTypes()
+
 
 	local varcount = 0
 	for _,typeinfo in ipairs(typeinfos) do
@@ -2950,11 +2946,6 @@ function SolverBase:checkStructSizes()
 	local resultPtr = ffi.new('size_t[?]', varcount)
 	local resultBuf = self.app.env:buffer{name='result', type='size_t', count=varcount, data=resultPtr}
 
-	local moduleNames = table(
-		self.sharedModulesEnabled,
-		self.solverModulesEnabled,
-		self.initModulesEnabled
-	):keys()
 print('shared modules: '..moduleNames:sort():concat', ')
 	local codePrefix = self.modules:getTypeHeader(moduleNames:unpack())
 

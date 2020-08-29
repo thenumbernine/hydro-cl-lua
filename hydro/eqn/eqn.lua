@@ -359,7 +359,7 @@ typedef union {
 			name = 'eqn.cons_parallelPropagate',
 			depends = {
 				'eqn.cons_t',
-				'coord.coord_parallelPropagate',
+				'coord_parallelPropagate',
 			},
 			code = self:template([[
 <? for side=0,solver.dim-1 do
