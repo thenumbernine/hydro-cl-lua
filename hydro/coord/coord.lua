@@ -568,7 +568,10 @@ self.Gamma_ull = Gamma_ull
 
 	-- area of the side in each direction
 	-- TODO only by request -- for finite-volume solvers 
-	if require 'hydro.solver.fvsolver'.is(assert(args.solver)) then
+	if require 'hydro.solver.fvsolver'.is(assert(args.solver))
+	-- TODO only if it's a mesh solver using a flux integrator ... which is currently all mesh solvers
+	or require 'hydro.solver.meshsolver'.is(args.solver) 
+	then
 		compileTensorField('cell_area_codes', coord_area_exprs)
 	end
 
@@ -598,7 +601,10 @@ self.Gamma_ull = Gamma_ull
 			print(var'volume':eq(volume))
 			print(var'gHolDet':eq(gHolDet))
 		end
-		if require 'hydro.solver.fvsolver'.is(assert(args.solver)) then
+		if require 'hydro.solver.fvsolver'.is(assert(args.solver)) 
+		-- TODO only if it's a mesh solver using a flux integrator ... which is currently all mesh solvers
+		or require 'hydro.solver.meshsolver'.is(args.solver) 
+		then
 			compileTensorField('cell_volume_code', volume)
 		end
 	end
@@ -626,8 +632,12 @@ self.det_g = det_g_expr
 
 
 	self:createCellStruct()
+	
 	self.cellStruct:makeType()
 	self.cell_t = self.cellStruct.typename
+	
+	self.faceStruct:makeType()
+	self.face_t = self.faceStruct.typename
 end
 
 function CoordinateSystem:createCellStruct()
@@ -953,7 +963,10 @@ function CoordinateSystem:initCodeModules()
 
 	-- area0, area1, ...
 	-- area_i = integral of u_j, j!=i of product of dx_j, j!=i
-	if require 'hydro.solver.fvsolver'.is(assert(solver)) then
+	if require 'hydro.solver.fvsolver'.is(assert(solver))
+	-- TODO only if it's a mesh solver using a flux integrator ... which is currently all mesh solvers
+	or require 'hydro.solver.meshsolver'.is(solver) 
+	then
 		solver.modules:add{
 			name = 'cell_area#',
 			headercode = range(dim):mapi(function(i)
@@ -1083,7 +1096,10 @@ static inline real coordLen(real3 r, real3 pt) {
 	self:initCodeModule_coordMap()
 
 	-- parallel propagate code
-	if require 'hydro.solver.fvsolver'.is(solver) then
+	if require 'hydro.solver.fvsolver'.is(solver) 
+	-- TODO only if it's a mesh solver using a flux integrator ... which is currently all mesh solvers
+	or require 'hydro.solver.meshsolver'.is(solver) 
+	then
 		local lines = table()
 		
 		-- parallel-propagate a vector from point 'x' along coordinate 'k' (suffix of func name) by amount 'dx'
@@ -1130,7 +1146,7 @@ static inline real coordLen(real3 r, real3 pt) {
 		else
 			error'here'
 		end
-	
+
 		solver.modules:add{
 			name = 'coord.coord_parallelPropagate',
 			depends = self:getModuleDepends_coord_parallelPropagate(),
@@ -1146,6 +1162,11 @@ static inline real coordLen(real3 r, real3 pt) {
 		name = 'coord.cell_t',
 		structs = {self.cellStruct},
 		headercode = '#define cell_x(i) (cellBuf[INDEXV(i)].pos)',
+	}
+
+	solver.modules:add{
+		name = 'face_t',
+		structs = {self.faceStruct},
 	}
 end
 

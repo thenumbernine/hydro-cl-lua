@@ -104,11 +104,12 @@ function InitCond:initCodeModules(solver)
 		depends = table{
 			-- if an InitCond provides codeprefix, it is for code it expects to reference from within 'applyInitCond()'
 			'initCond.codeprefix',
-			-- applyInitCond has these parameters:
+			-- applyInitCond uses these:
 			'solver.solver_t',
 			'initCond.initCond_t',
 			'eqn.cons_t',
 			'initCond.guiVars.compileTime',
+			'INDEX', 'INDEXV', 'OOB', 'SETBOUNDS',
 			-- initCond code is specified in terms of primitives, so if the eqn has prim<->cons then it will be needed
 			'eqn.prim-cons',
 		}

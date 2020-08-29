@@ -149,10 +149,6 @@ SolverBase:init
 									self.getURLArg = ...
 									self.getURLCode = ...
 								
---------- here's where the program code is collected ---------
-
-								SolverBase:getSolverCode
-
 --------- here's where programs are created ---------
 
 								self.solverProgramObj = ...
@@ -812,12 +808,10 @@ function SolverBase:refreshCommonProgram()
 		'SETBOUNDS_NOGHOST',	
 	}
 print('common modules: '..moduleNames:sort():concat', ')
-	-- just header, no function calls needed
-	local codePrefix = self.modules:getHeader(moduleNames:unpack())
 
-	local commonCode = table():append{
-		codePrefix,
-	}:append{
+	local commonCode = table{
+		-- just header, no function calls needed
+		self.modules:getHeader(moduleNames:unpack()),
 		template([[
 kernel void multAddInto(
 	constant <?=solver.solver_t?>* solver,	// TODO just 'n'?
@@ -1130,7 +1124,10 @@ function SolverBase:refreshSolverProgram()
 
 	local code
 	time('generating solver code', function()
-		code = self:getSolverCode()	-- depends on createDisplayVars
+		local moduleNames = table(self.sharedModulesEnabled, self.solverModulesEnabled):keys()
+print('solver modules: '..moduleNames:sort():concat', ')
+		code = self.modules:getCodeAndHeader(moduleNames:unpack())
+		if self.getSolverCode then error("TODO turn this into code modules") end
 	end)
 
 	time('building solver program', function()
@@ -1180,13 +1177,6 @@ end
 function SolverBase:refreshCalcDTKernel()
 	self.calcDTKernelObj = self.solverProgramObj:kernel'calcDT'
 	self.calcDTKernelObj.obj:setArg(1, self.reduceBuf)
-end
-
-
-function SolverBase:getSolverCode()
-	local moduleNames = table(self.sharedModulesEnabled, self.solverModulesEnabled):keys()
-print('solver modules: '..moduleNames:sort():concat', ')
-	return self.modules:getCodeAndHeader(moduleNames:unpack())
 end
 
 function SolverBase:getDisplayCode()
@@ -1369,7 +1359,7 @@ kernel void <?=kernelName?>(
 	int component,
 	const global <?=solver.coord.cell_t?>* cellBuf<? 
 if require 'hydro.solver.meshsolver'.is(solver) then ?>
-	,const global face_t* faces							//[numFaces]<?
+	,const global <?=solver.coord.face_t?>* faces	//[numFaces]<?
 end ?><?=group.extraArgs and #group.extraArgs > 0
 		and ',\n\t'..table.concat(group.extraArgs, ',\n\t')
 		or '' ?>

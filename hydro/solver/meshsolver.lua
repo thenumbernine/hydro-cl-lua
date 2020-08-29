@@ -123,6 +123,15 @@ end
 	-- maybe I should rename this to numFaces?
 end
 
+function MeshSolver:initObjs(args)
+	MeshSolver.super.initObjs(self, args)
+
+	if self.fluxLimiter ~= 1 then
+		print("overriding and removing fluxLimiter=="..self.fluxLimiter.." for meshsolver")
+		self.fluxLimiter = 1
+	end
+end
+
 function MeshSolver:createSolverBuf()
 	MeshSolver.super.createSolverBuf(self)
 
@@ -247,6 +256,7 @@ function MeshSolver:initDraw()
 
 	local heatMapCode = assert(file['hydro/draw/mesh_heatmap.shader'])
 	self.heatMap2DShader = self.GLProgram{
+		name = 'mesh_heatmap',
 		vertexCode = template(heatMapCode, {
 			vertexShader = true,
 			solver = self,
@@ -270,6 +280,7 @@ function MeshSolver:initDraw()
 	}
 
 	self.drawPointsShader = self.GLProgram{
+		name = 'draw_points',
 		vertexCode = [[
 #version 460
 
@@ -421,14 +432,36 @@ function MeshSolver:refreshSolverProgram()
 	self.calcDerivFromFluxKernelObj.obj:setArg(5, self.cellFaceIndexesBuf)
 end
 
-function MeshSolver:getSolverCode()
-	error'convert this to initCodeModules'
-	self.flux:intiCodeModules()
-	return table{
-		MeshSolver.super.getSolverCode(self),
+function MeshSolver:initCodeModules()
+	MeshSolver.super.initCodeModules(self)
+	
+	self.flux:initCodeModules()
 
+-- [[ TODO this used to be in Mesh:getMeshTypeCode
+	-- TODO real3 vs vec3f/vec3d ...
+	-- TODO what if real3 isn't defined yet?
+	local vec2i = require 'vec-ffi.vec2i'
+	-- module dependencies are built by struct fields
+	-- and mesh adds vec2i to the face_t fields
+	-- so make sure there is a vec2i modules
+	-- TODO move this to hydro.code.math?
+	self.modules:add{
+		name = 'vec2i_t',
+		typecode = vec2i.typeCode,
+	}
+--]]
+
+	self.solverModulesEnabled['MeshSolver'] = true
+	self.modules:add{
+		name = 'MeshSolver',
+		depends = {
+			'face_t',
+			'normal_t',
+			'calcFlux',	-- calcFluxForInterface
+		},
 		-- boundary code, since meshsolver doesn't use gridsolver's boundary: 
-		template([[
+		code = table{
+			template([[
 <?=eqn.cons_t?> reflectCons(
 	<?=eqn.cons_t?> U,
 	real3 n,
@@ -535,50 +568,57 @@ kernel void calcFlux(
 
 	*flux = calcFluxForInterface(solver, UL, UR, x, n);
 }
-		]], {
-			solver = self,
-			eqn = self.eqn,
-		}),
-	
-		-- finite volume integration
-		template(file['hydro/solver/calcDerivFV.cl'], {
-			solver = self,
-			eqn = self.eqn,
-		}),
-	}:concat'\n'
-end
-
-
--- TODO replace this with self.modules and self.sharedModulesEnabled
-function MeshSolver:createCodePrefix()
-	MeshSolver.super.createCodePrefix(self)
-
-	local lines = table{
-		self.modules:getCodeAndHeader(self.sharedModulesEnabled:keys():unpack()),
-		self.mesh:getMeshTypeCode(),
+			]], {
+				solver = self,
+				eqn = self.eqn,
+			}),
+		
+			-- finite volume integration
+			template(file['hydro/solver/calcDerivFV.cl'], {
+				solver = self,
+				eqn = self.eqn,
+			}),
+		}:concat'\n',
 	}
 
-	lines:insert[[
-
-#define INDEX(a,b,c)	((a) + solver->gridSize.x * ((b) + solver->gridSize.y * (c)))
-#define INDEXV(i)		indexForInt4ForSize(i, solver->gridSize.x, solver->gridSize.y, solver->gridSize.z)
-
-#define OOB(lhs,rhs) (index >= get_global_size(0))
-
+	self.modules:add{
+		name = 'INDEX',
+		headercode = '#define INDEX(a,b,c)	((a) + solver->gridSize.x * ((b) + solver->gridSize.y * (c)))',
+	}
+	
+	self.modules:add{
+		name = 'INDEXV',
+		depends = {'solver.solver_t'},
+		headercode = '#define INDEXV(i)		indexForInt4ForSize(i, solver->gridSize.x, solver->gridSize.y, solver->gridSize.z)',
+	}
+	
+	-- this only test for bounds of valid mesh cell
+	self.modules:add{
+		name = 'OOB',
+		headercode = '#define OOB(lhs,rhs) (index >= get_global_size(0))',
+	}
+	self.modules:add{
+		name = 'SETBOUNDS',
+		depends = {'OOB'},
+		headercode = [[
 #define SETBOUNDS(lhs,rhs)	\
 	int index = get_global_id(0); \
 	int4 i = (int4)(index,0,0,0);	\
 	if (OOB(0,0)) return;
-
+]],
+	}
+	
+	-- this uses OOB only to test if the cell is valid
+	self.modules:add{
+		name = 'SETBOUNDS_NOGHOST',
+		depends = {'OOB'},
+		headercode = [[
 #define SETBOUNDS_NOGHOST()	\
 	int index = get_global_id(0); \
-	int4 i = (int4)(index,0,0,0);
-
-#define cell_x(i) cells[INDEXV(i)].pos
-
-]]
-
-	self.codePrefix = lines:concat'\n'
+	int4 i = (int4)(index,0,0,0); \
+	if (OOB(0,0)) return;
+]],
+	}
 end
 
 function MeshSolver:refreshCalcDTKernel()
@@ -627,7 +667,7 @@ MeshSolver.DisplayVar = MeshSolverDisplayVar
 
 function MeshSolverDisplayVar:setArgs(kernel)
 	MeshSolverDisplayVar.super.setArgs(self, kernel)
-	kernel:setArg(5, self.solver.facesBuf)
+	kernel:setArg(6, self.solver.facesBuf)
 end
 
 function MeshSolver:updateGUIParams()

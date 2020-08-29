@@ -386,16 +386,8 @@ typedef struct {
 		self.sharedModulesEnabled['GridSolver.updateCTU'] = true
 	end
 
-	-- TODO only add these by 'depends'
-	-- but they are used just about everywhere
-	-- maybe they should be set in solverBase, since both gridsolver and meshsolver use them?
-	-- Fix this once you get MeshSolver working again.
+	-- TODO move this to solver_t?
 	self.sharedModulesEnabled['numGhost'] = true
-	self.sharedModulesEnabled['INDEX'] = true
-	self.sharedModulesEnabled['INDEXV'] = true
-	self.sharedModulesEnabled['OOB'] = true
-	self.sharedModulesEnabled['SETBOUNDS'] = true
-	self.sharedModulesEnabled['SETBOUNDS_NOGHOST'] = true
 end
 
 -- call this when a gui var changes
@@ -1264,7 +1256,10 @@ function GridSolver:createBoundaryProgramAndKernel(args)
 
 	local lines = table()
 
-	local moduleNames = self.sharedModulesEnabled:keys()
+	local moduleNames = table(self.sharedModulesEnabled, {
+		['INDEX'] = true,
+		['INDEXV'] = true,
+	}):keys()
 print('boundary modules: '..moduleNames:sort():concat', ')
 	lines:insert(self.modules:getCodeAndHeader(moduleNames:unpack()))
 

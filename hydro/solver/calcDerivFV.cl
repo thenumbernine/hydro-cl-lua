@@ -118,7 +118,7 @@ kernel void calcDerivFromFlux(
 	const global <?=eqn.cons_t?>* fluxBuf,
 //mesh-specific parameters:	
 	const global <?=solver.coord.cell_t?>* cells,			//[numCells]
-	const global face_t* faces,			//[numFaces]
+	const global <?=solver.coord.face_t?>* faces,			//[numFaces]
 	const global int* cellFaceIndexes	//[numCellFaceIndexes]
 ) {
 	int cellIndex = get_global_id(0);
@@ -130,7 +130,7 @@ kernel void calcDerivFromFlux(
 	
 	for (int i = 0; i < cell->faceCount; ++i) {
 		int ei = cellFaceIndexes[i + cell->faceOffset];
-		const global face_t* e = faces + ei;
+		const global <?=solver.coord.face_t?>* e = faces + ei;
 		
 		const global <?=eqn.cons_t?>* flux = fluxBuf + ei;
 		real areaOverVolume = e->area / cell->volume;

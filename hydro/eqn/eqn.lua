@@ -343,7 +343,10 @@ typedef union {
 	--
 	-- TODO hmm, can't add the module unless it's being used
 	--  because some that don't use it (bssnok-fd) use custom suffixes on var names
-	if require 'hydro.solver.fvsolver'.is(solver) then
+	if require 'hydro.solver.fvsolver'.is(solver) 
+	-- TODO only if it's a mesh solver using a flux integrator ... which is currently all mesh solvers
+	or require 'hydro.solver.meshsolver'.is(solver) 
+	then
 		local degreeForType = {
 			real = 0,
 			real3 = 1,
@@ -466,6 +469,8 @@ function Equation:initCodeModuleSolver()
 			'eqn.eigen_t',
 			'eqn.guiVars.compileTime',
 			'coordLenSq',
+			-- commonly used by most solvers ... and anything that uses kernels for that matter
+			'INDEX', 'INDEXV', 'OOB', 'SETBOUNDS', 'SETBOUNDS_NOGHOST',
 		}:append(self:getModuleDependsSolver()),
 		code = self:template(file[self.solverCodeFile]),
 	}

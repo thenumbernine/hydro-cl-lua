@@ -82,25 +82,8 @@ end
 
 local Mesh = class()
 
-function Mesh:getMeshTypeCode()
-	-- TODO real3 vs vec3f/vec3d ...
-	local meshTypeCode = table{
-		vec2i.typeCode,
-		--face_t:getTypeCode(),
-		--cell_t:getTypeCode()
-	}:concat'\n'
-
-	-- TODO what if real3 isn't defined yet?
-	require 'hydro.code.safecdef'(meshTypeCode)
-
-	return meshTypeCode
-end
-
 function Mesh:init(solver)
 	self.solver = solver
-
-	-- cdef
-	self:getMeshTypeCode()
 
 	self.vtxs = vector'real3'
 	self.faces = vector(solver.coord.face_t)

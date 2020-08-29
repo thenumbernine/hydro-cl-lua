@@ -575,7 +575,7 @@ kernel void calcDT(
 	global real* dtBuf,					//[numCells]
 	const global <?=eqn.cons_t?>* UBuf,	//[numCells]
 	const global <?=solver.coord.cell_t?>* cellBuf,		//[numCells]
-	const global face_t* faces,			//[numFaces]
+	const global <?=solver.coord.face_t?>* faces,			//[numFaces]
 	const global int* cellFaceIndexes	//[numCellFaceIndexes]
 ) {
 	int cellIndex = get_global_id(0);
@@ -587,7 +587,7 @@ kernel void calcDT(
 
 	real dt = INFINITY;
 	for (int i = 0; i < cell->faceCount; ++i) {
-		const global face_t* face = faces + cellFaceIndexes[i + cell->faceOffset];
+		const global <?=solver.coord.face_t?>* face = faces + cellFaceIndexes[i + cell->faceOffset];
 		real dx = face->area;
 		if (dx > 1e-7 && face->cells.x != -1 && face->cells.y != -1) {
 			//all sides? or only the most prominent side?
