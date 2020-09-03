@@ -24,6 +24,8 @@ args
 	volumeDim = (TODO) change volume element etc to act as if we're in a higher dimension
 	
 	TODO add some other arg for rearranging the coordinate order so we can do 2D simulations of θ and φ alone
+	amplitude
+	sinh_w
 --]]
 function SphereLogRadial:init(args)
 	self.embedded = table{symmath.vars('x', 'y', 'z')}
@@ -33,8 +35,8 @@ function SphereLogRadial:init(args)
 
 	-- 2017 Ruchlin, Etienne after eqn 42
 	local solver = args.solver
-	self.amplitude = 1000 
-	self.sinh_w = .15
+	self.amplitude = args.amplitude or 1000 
+	self.sinh_w = args.sinh_w or .15
 --	local rmax = solver.maxs.x	-- not used (also not initialized at this point)
 
 	local amplitude, sinh_w
@@ -297,7 +299,6 @@ function SphereLogRadial:fillGridCellBuf(cellsCPU)
 		},
 		input = {{rho=rho}, {theta=theta}, {phi=phi}},
 	}
-print('calcR code:\n'..code)
 	
 	local index = 0
 	for k=0,tonumber(solver.gridSize.z)-1 do

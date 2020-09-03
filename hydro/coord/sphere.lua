@@ -172,4 +172,43 @@ real3 coord_parallelPropagateU2(real3 v, real3 x, real dx) {
 	})
 end
 
+function Sphere:createCellStruct()
+	Sphere.super.createCellStruct(self)
+	self.cellStruct.vars:insert{name='r', type='real'}
+end
+
+function Sphere:fillGridCellBuf(cellsCPU)
+	local solver = self.solver
+
+	local symmath = require 'symmath'
+	local r, theta, phi = self.baseCoords:unpack()
+	local calcR, code = symmath.export.Lua:toFunc{
+		output = {self.vars.r},
+		input = {{r=r}, {theta=theta}, {phi=phi}},
+	}
+	
+	local index = 0
+	for k=0,tonumber(solver.gridSize.z)-1 do
+		local phi = solver.dim >= 3 
+			and ((k + .5 - solver.numGhost) / (tonumber(solver.gridSize.z) - 2 * solver.numGhost) * (solver.maxs.z - solver.mins.z) + solver.mins.z)
+			or (.5 * (solver.maxs.z + solver.mins.z))
+		for j=0,tonumber(solver.gridSize.y)-1 do
+			local theta = solver.dim >= 2
+				and ((j + .5 - solver.numGhost) / (tonumber(solver.gridSize.y) - 2 * solver.numGhost) * (solver.maxs.y - solver.mins.y) + solver.mins.y)
+				or (.5 * (solver.maxs.y + solver.mins.y))
+			for i=0,tonumber(solver.gridSize.x)-1 do
+				local r = solver.dim >= 1
+					and ((i + .5 - solver.numGhost) / (tonumber(solver.gridSize.x) - 2 * solver.numGhost) * (solver.maxs.x - solver.mins.x) + solver.mins.x)
+					or (.5 * (solver.maxs.x + solver.mins.x))
+				cellsCPU[index].pos.x = r
+				cellsCPU[index].pos.y = theta
+				cellsCPU[index].pos.z = phi
+				cellsCPU[index].r = calcR(r, theta, phi)
+				index = index + 1
+			end
+		end
+	end
+end
+
+
 return Sphere

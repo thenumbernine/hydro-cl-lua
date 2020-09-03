@@ -432,13 +432,8 @@ end
 	// gammaBar_IJ and co
 
 
-static sym3 calc_gammaHat_LL(real3 x) {
-	return sym3_ident;
-}
-
-static sym3 calc_gammaHat_UU(real3 x) {
-	return sym3_ident;
-}
+#define calc_gammaHat_LL(x) (sym3_ident)
+#define calc_gammaHat_UU(x) (sym3_ident)
 
 sym3 calc_gammaBar_LL(global const <?=eqn.cons_t?>* U, real3 x) {
 	sym3 gammaHat_LL = calc_gammaHat_LL(x);
@@ -2470,6 +2465,7 @@ for ij,xij in ipairs(symNames) do
 <? end	-- useConstrainU ?>
 }
 
+//TODO combine with calcDeriv
 kernel void addSource(
 	constant solver_t* solver,
 	global cons_t* derivBuf,
