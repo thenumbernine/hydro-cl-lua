@@ -97,13 +97,16 @@ function BSSNOKFiniteDifferenceEquation:createInitState()
 		{name='calc_H_and_M', value=true, compileTime=true},
 		
 		-- 2013 Baumgarte et al, section IIIB
-		--{name='diffuseCoeff', value=.001/16},
-		{name='diffuseCoeff', value=.99},	-- matching SENR
+		--{name='dissipationCoeff', value=.001/16},
+		{name='dissipationCoeff', value=.99},	-- matching SENR
+		--{name='dissipationCoeff', value=0},		-- this is working better than 0.99.  hmm...
+		--{name='dissipationCoeff', value=-.99},	-- nope, this is worse, i must have my sign right
 		
 		--{name='alphaMin', value=1e-7},
-		{name='alphaMin', value=0},
+		{name='alphaMin', value=-math.huge},
 
-		{name='shift_eta', value=1},	--1, or 1 / (2 M), for total mass M
+		{name='dt_beta_U_k', value=3/4},
+		{name='dt_beta_U_eta', value=2},	--1, or 1 / (2 M), for total mass M, or SENR uses 2
 	}
 
 	if self.useScalarField then
@@ -695,7 +698,11 @@ function BSSNOKFiniteDifferenceEquation:getDisplayVars()
 	local vars = BSSNOKFiniteDifferenceEquation.super.getDisplayVars(self)
 
 	vars:append{
-		{name='gamma_ll', code = [[	value.vsym3 = calc_gamma_ll(U, x);]], type='sym3'},
+		-- convenient trackvars:
+		{name='alpha-1', code=[[ value.vreal = U->alpha - 1.;]], type='real'},
+		{name='W-1', code=[[ value.vreal = U->W - 1.;]], type='real'},
+		
+		{name='gamma_ll', code=[[	value.vsym3 = calc_gamma_ll(U, x);]], type='sym3'},
 		{name='gamma_uu', code=[[	value.vsym3 = calc_gamma_uu(U, x);]], type='sym3'},
 		{name='gammaHat_ll', code=[[	value.vsym3 = calc_gammaHat_ll(x);]], type='sym3'},
 		{name='gammaHat_uu', code=[[	value.vsym3 = calc_gammaHat_uu(x);]], type='sym3'},

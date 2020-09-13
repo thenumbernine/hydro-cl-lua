@@ -10,32 +10,33 @@ local common = require 'hydro.common'
 
 -- source: https://en.wikipedia.org/wiki/Finite_difference_coefficient 
 -- derivCoeffs[derivative][order] = {coeffs...}
+-- separating out the denom is improving my numerical accuracy.  without doing so, bssnok-fd-num, cartesian, minkowski, RK4 diverges.
 local derivCoeffs = {
-	-- centered 1st deriv coefficients 
+	-- centered, antisymmetric 1st deriv coefficients 
 	{
-		[2] = {.5},
-		[4] = {2/3, -1/12},
-		[6] = {3/4, -3/20, 1/60},
-		[8] = {4/5, -1/5, 4/105, -1/280},
+		[2] = {1, denom=2},
+		[4] = {8, -1, denom=12},
+		[6] = {45, -9, 1, denom=60},
+		[8] = {672, -168, 32, -3, denom=840},
 	},
-	-- centered 2nd deriv coefficients
+	-- centered, symmetric 2nd deriv coefficients
 	{
 		[2] = {[0] = -2, 1},
-		[4] = {[0] = -5/2, 4/3, -1/12},
-		[6] = {[0] = -49/18, 3/2, -3/20, 1/90},
+		[4] = {[0] = -30, 16, -1, denom=12},
+		[6] = {[0] = -490, 270, -27, 2, denom=180},
 		[8] = {[0] = -205/72, 8/5, -1/5, 8/315, -1/560},
 	},
-	-- centered 3rd deriv coefficients
+	-- centered, antisymmetric 3rd deriv coefficients
 	{
-		[2] = {-1, 1/2},
-		[4] = {-13/8, 1, -1/8},
-		[6] = {-61/30, 169/120, -3/10, 7/240},
+		[2] = {-2, 1, denom=2},
+		[4] = {-13, 8, -1, denom=8},
+		[6] = {-488, 338, -72, 7, denom=240},
 	},
-	-- centered 4th deriv coefficients
+	-- centered, symmetric 4th deriv coefficients
 	{
 		[2] = {[0] = 6, -4, 1},
-		[4] = {[0] = 28/3, -13/2, 2, -1/6},
-		[6] = {[0] = 91/8, -122/15, 169/60, -2/5, 7/240},
+		[4] = {[0] = 56, -39, 12, -1, denom=6},
+		[6] = {[0] = 2730, -1952, 676, -96, 7},
 	}
 }
 
@@ -51,11 +52,29 @@ local function makePartialRank1(deriv, order, solver, field, fieldType, nameOver
 	local xNames = common.xNames
 	local suffix = 'l'
 	if not field:find'_' then suffix = '_' .. suffix end
-
-	local function add(x,y) return fieldType..'_add('..x..', '..y..')' end
-	local function sub(x,y) return fieldType..'_sub('..x..', '..y..')' end
-	local function real_mul(x,y) return fieldType..'_real_mul('..x..', '..y..')' end
-	local zero = fieldType..'_zero'
+	
+	local add, sub, real_mul, zero
+	if fieldType == 'real' then	--for readability, just inline the macros here
+		add = function(x,y,xt,yt)
+			return x..' + '..y, 'add'
+		end
+		sub = function(x,y,xt,yt)
+			if yt == 'add' or yt == 'sub' then y = '('..y..')' end
+			return x..' - '..y, 'sub'
+		end
+		real_mul = function(x,y,xt,yt)
+			if xt == 'add' or xt == 'sub' then x = '('..x..')' end
+			if yt == 'add' or yt == 'sub' then y = '('..y..')' end
+			return x..' * '..y, 'mul'
+		end
+		zero = '0.'
+	else
+		add = function(x,y) return fieldType..'_add('..x..', '..y..')' end
+		sub = function(x,y) return fieldType..'_sub('..x..', '..y..')' end
+		real_mul = function(x,y) return fieldType..'_real_mul('..x..', '..y..')' end
+		zero = fieldType..'_zero'
+	end
+	
 	local name = nameOverride or ('partial_'..field..suffix)
 	local d1coeffs = assert(derivCoeffs[deriv][order], "couldn't find d/dx^"..deriv.." coefficients of order "..order)
 	local lines = table()
@@ -81,14 +100,21 @@ local function makePartialRank1(deriv, order, solver, field, fieldType, nameOver
 		else
 			namei = name..'['..(i-1)..']'
 		end
-		local expr = zero
+		local expr, exprtype = zero, 'value'
 		if i <= solver.dim then
 			for j,coeff in ipairs(d1coeffs) do
 				local UR = 'U['..j..' * solver->stepsize.'..xi..'].'..field
 				local UL = 'U[-'..j..' * solver->stepsize.'..xi..'].'..field
-				expr = add(expr, real_mul(sub(UR, UL), clnumber(coeff)))
+				
+				local subexpr, subexprtype = sub(UR, UL, 'value', 'value')
+				local mulexpr, mulexprtype = real_mul(subexpr, clnumber(coeff), subexprtype, 'value')
+				expr, exprtype = add(expr, mulexpr, exprtype, mulexprtype)
 			end
-			expr = real_mul(expr, '1. / solver->grid_dx.'..xi)
+			local denom = 'solver->grid_dx.'..xi
+			if d1coeffs.denom then
+				denom = denom .. ' * ' .. clnumber(d1coeffs.denom)
+			end
+			expr, exprtype = real_mul(expr, '(1. / ('..denom..'))', exprtype, 'value')
 		end
 		lines:insert('\t'..namei..' = '..expr..';')
 	end
@@ -102,10 +128,28 @@ local function makePartialRank2(deriv, order, solver, field, fieldType, nameOver
 	local suffix = 'll'
 	if not field:find'_' then suffix = '_' .. suffix end
 	
-	local function add(x,y) return fieldType..'_add('..x..', '..y..')' end
-	local function sub(x,y) return fieldType..'_sub('..x..', '..y..')' end
-	local function real_mul(x,y) return fieldType..'_real_mul('..x..', '..y..')' end
-	local zero = fieldType..'_zero'
+	local add, sub, real_mul, zero
+	if fieldType == 'real' then	--for readability, just inline the macros here
+		add = function(x,y,xt,yt)
+			return x..' + '..y, 'add'
+		end
+		sub = function(x,y,xt,yt)
+			if yt == 'add' or yt == 'sub' then y = '('..y..')' end
+			return x..' - '..y, 'sub'
+		end
+		real_mul = function(x,y,xt,yt)
+			if xt == 'add' or xt == 'sub' then x = '('..x..')' end
+			if yt == 'add' or yt == 'sub' then y = '('..y..')' end
+			return x..' * '..y, 'mul'
+		end
+		zero = '0.'
+	else
+		add = function(x,y) return fieldType..'_add('..x..', '..y..')' end
+		sub = function(x,y) return fieldType..'_sub('..x..', '..y..')' end
+		real_mul = function(x,y) return fieldType..'_real_mul('..x..', '..y..')' end
+		zero = fieldType..'_zero'
+	end
+
 	local name = nameOverride or ('partial2_'..field..suffix)
 	local d1coeffs = assert(derivCoeffs[deriv/2][order], "couldn't find d/dx^"..(deriv/2).." coefficients of order "..order)
 	local d2coeffs = assert(derivCoeffs[deriv][order], "couldn't find d/dx^"..deriv.." coefficients of order "..order)
@@ -127,26 +171,40 @@ local function makePartialRank2(deriv, order, solver, field, fieldType, nameOver
 		if i > solver.dim or j > solver.dim then
 			lines:insert('\t'..nameij..' = '..zero..';')
 		elseif i == j then
-			local expr = real_mul('U->'..field, d2coeffs[0])
+			local expr, exprtype = real_mul('U->'..field, d2coeffs[0], 'value', 'value')
 			for k,coeff in ipairs(d2coeffs) do
-				local UR = 'U['..k..' * solver->stepsize.s'..(i-1)..'].'..field
-				local UL = 'U[-'..k..' * solver->stepsize.s'..(i-1)..'].'..field
-				expr = add(expr, real_mul(add(UR, UL), clnumber(coeff)))
+				local UR = 'U['..k..' * solver->stepsize.'..xi..'].'..field
+				local UL = 'U[-'..k..' * solver->stepsize.'..xi..'].'..field
+				local addexpr, addexprtype = add(UR, UL, 'value', 'value')
+				local mulexpr, mulexprtype = real_mul(addexpr, clnumber(coeff), addexprtype)
+				expr, exprtype = add(expr, mulexpr, exprtype, mulexprtype)
 			end
-			expr = real_mul(expr, '1. / (solver->grid_dx.'..xi..' * solver->grid_dx.'..xi..')')
+			local denom = 'solver->grid_dx.'..xi..' * solver->grid_dx.'..xi
+			if d2coeffs.denom then
+				denom = denom .. ' * ' .. clnumber(d2coeffs.denom)
+			end
+			expr, exprtype = real_mul(expr, '(1. / ('..denom..'))', exprtype, 'value')
 			lines:insert('\t'..nameij..' = '..expr..';')
 		else
-			local expr = zero
+			local expr, exprtype = zero, 'value'
 			for k,coeff_k in ipairs(d1coeffs) do
 				for l,coeff_l in ipairs(d1coeffs) do
 					local URR = 'U['..k..' * solver->stepsize.'..xi..' + '..l..' * solver->stepsize.'..xj..'].'..field
 					local ULL = 'U[-'..k..' * solver->stepsize.'..xi..' - '..l..' * solver->stepsize.'..xj..'].'..field
-					local ULR = 'U[-'..k..' * solver->stepsize.'..xi..' + '..l..' * solver->stepsize.'..xi..'].'..field
-					local URL = 'U['..k..' * solver->stepsize.'..xi..' - '..l..' * solver->stepsize.'..xi..'].'..field
-					expr = add(expr, real_mul(sub(add(URR, ULL), add(ULR, URL)), clnumber(coeff_k * coeff_l)))
+					local ULR = 'U[-'..k..' * solver->stepsize.'..xi..' + '..l..' * solver->stepsize.'..xj..'].'..field
+					local URL = 'U['..k..' * solver->stepsize.'..xi..' - '..l..' * solver->stepsize.'..xj..'].'..field
+					local addRRLLexpr, addRRLLtype = add(URR, ULL)
+					local addLRRLexpr, addLRRLtype = add(ULR, URL)
+					local subexpr, subexprtype = sub(addRRLLexpr, addLRRLexpr, addRRLLtype, addLRRLtype)
+					local mulexpr, mulexprtype = real_mul(subexpr, clnumber(coeff_k * coeff_l), subexprtype, 'value')
+					expr, exprtype = add(expr, mulexpr, exprtype, mulexprtype)
 				end
 			end
-			expr = real_mul(expr, '1. / (solver->grid_dx.'..xi..' * solver->grid_dx.'..xj..')')
+			local denom = 'solver->grid_dx.'..xi..' * solver->grid_dx.'..xj
+			if d1coeffs.denom then
+				denom = denom .. ' * ' .. clnumber(d1coeffs.denom)
+			end
+			expr, exprtype = real_mul(expr, '(1. / ('..denom..'))', exprtype, 'value')
 			lines:insert('\t'..nameij..' = '..expr..';')
 		end
 	end

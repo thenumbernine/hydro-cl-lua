@@ -71,4 +71,19 @@ function BSSNOKFiniteDifferenceSolver:createDisplayComponents()
 end
 --]=]
 
+-- for certain hydro/eqn/bssnok-fd calculations, dt is based on grid only and no state vars
+-- so we only need to calculate it once
+function BSSNOKFiniteDifferenceSolver:calcDT()
+	local dt = BSSNOKFiniteDifferenceSolver.super.calcDT(self)
+	if not self.useFixedDT then
+		if self.eqn.cflMethod == '2013 Baumgarte et al, eqn 32' 
+		or self.eqn.cflMethod == '2017 Ruchlin et al, eqn 53'
+		then
+			self.useFixedDT = true
+			self.fixedDT = dt
+		end
+	end
+	return dt
+end
+
 return BSSNOKFiniteDifferenceSolver

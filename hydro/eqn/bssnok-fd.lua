@@ -26,9 +26,17 @@ local derivCoeffs = {
 	-- upwind 1st deriv coefficients
 	{
 		[2] = {[0] = -1, 1},
-		[4] = {[0] = -3/2, 2, -1/2},
-		[6] = {[0] = -11/6, 3, -3/2, 1/3},
-		[8] = {[0] = -25/12, 4, -3, 4/3, -1/4},
+		[4] = {[0] = -3, 4, -1, denom=2},
+		[6] = {[0] = -11, 18, -9, 2, denom=6},
+		[8] = {[0] = -25, 48, -36, 16, -3, denom=12},
+		senr_8 = { 	-- SENR's coeffs
+			[-1] = -3,
+			[0] = -10,
+			[1] = 18,
+			[2] = -6,
+			[3] = 1,
+			denom = 12,
+		},
 	}
 }
 
@@ -43,15 +51,34 @@ function BSSNOKFiniteDifferenceEquationBase:makePartialUpwind(field, fieldType, 
 	local suffix = 'l'
 	if not field:find'_' then suffix = '_' .. suffix end
 
-	local function add(x,y) return fieldType..'_add('..x..', '..y..')' end
-	local function sub(x,y) return fieldType..'_sub('..x..', '..y..')' end
-	local function real_mul(x,y) return fieldType..'_real_mul('..x..', '..y..')' end
-	local zero = fieldType..'_zero'
+	local add, real_mul, zero
+	if fieldType == 'real' then
+		--[[ no codegen precedence
+		add = function(x,y) return '(('..x..') + ('..y..'))' end
+		real_mul = function(x,y) return '(('..x..') * ('..y..'))' end
+		--]]
+		-- [[ codegen with precedence
+		add = function(x,y,xt,yt)
+			return x..' + '..y, 'add'
+		end
+		real_mul = function(x,y,xt,yt)
+			if xt == 'add' then x = '('..x..')' end
+			if yt == 'add' then y = '('..y..')' end
+			return x..' * '..y, 'mul'
+		end
+		--]]
+		zero = '0.'
+	else
+		add = function(x,y) return fieldType..'_add('..x..', '..y..')' end
+		real_mul = function(x,y) return fieldType..'_real_mul('..x..', '..y..')' end
+		zero = fieldType..'_zero'
+	end
+
 	local name = nameOverride or ('partial_'..field..suffix..'_upwind')
 	local deriv = 1
-	local order = 2
+	local order = 'senr_8'
 	local d1coeffs = assert(derivCoeffs[deriv][order], "couldn't find d/dx^"..(deriv/2).." coefficients of order "..order)
-	
+
 	local lines = table()
 	if fieldType == 'real' then
 		lines:insert('\treal3 '..name..';')
@@ -75,18 +102,27 @@ function BSSNOKFiniteDifferenceEquationBase:makePartialUpwind(field, fieldType, 
 		else
 			namei = name..'['..(i-1)..']'
 		end
-		local expr = zero
+		local expr, exprtype = zero, 'value'
 		if i <= self.solver.dim then
-			local U = 'U[0].'..field
-			local expr = real_mul(U, clnumber(d1coeffs[0]))
-			for j=1,#d1coeffs do
-				local coeff = d1coeffs[j]
-				local U = 'U['..j..' * updir.'..xi..' * solver->stepsize.'..xi..'].'..field
-				expr = add(expr, real_mul(U, clnumber(coeff)))
+			local U = 'U->'..field
+			expr, exprtype = real_mul(U, clnumber(d1coeffs[0]), 'value', 'value')
+			for j,coeff in pairs(d1coeffs) do
+			--for j=1,#d1coeffs do
+				--local coeff = d1coeffs[j]
+				if type(j) == 'number' and j ~= 0 then
+					local U = 'U['..j..' * updir.'..xi..' * solver->stepsize.'..xi..'].'..field
+				
+					local subexpr, subexprtype = real_mul(U, clnumber(coeff))
+					expr, exprtype = add(expr, subexpr, exprtype, subexprtype)
+				end
 			end
-			expr = real_mul(expr, '1. / solver->grid_dx.'..xi)
+			local denom = 'solver->grid_dx.'..xi
+			if d1coeffs.denom then
+				denom = denom .. ' * ' .. clnumber(d1coeffs.denom)
+			end
+			expr, exprtype = real_mul(expr, '(1. / ('..denom..'))', exprtype, 'value')
 		end
-		expr = real_mul(expr, '(real)updir.'..xi)
+		expr, exprtype = real_mul(expr, '(real)updir.'..xi, exprtype, 'value')
 		lines:insert('\t'..namei..' = '..expr..';')
 	end
 	return lines:concat'\n'

@@ -134,7 +134,9 @@ function BSSNOKFiniteDifferencePIRKSolver:refreshSolverProgram()
 	self.copyLambdaBarKernelObj = self.solverProgramObj:kernel'copyLambdaBar'
 	
 	-- to calc or to store detg?
-	self.BSSN_Det_PIRK_KernelObj = self.solverProgramObj:kernel'BSSN_Det_PIRK'
+	if require 'hydro.eqn.bssnok-fd-senr'.is(assert(self.eqn)) then
+		self.BSSN_Det_PIRK_KernelObj = self.solverProgramObj:kernel'BSSN_Det_PIRK'
+	end
 end
 
 -- the name 'applyBoundaryToBuffer' was already taken
@@ -180,8 +182,10 @@ end
 	-- apply boundary to U1 fields epsilon_IJ, W, alpha, beta^I
 	self:applyBoundaryTo(self.U1, self.PIRK_EpsilonWAlphaBeta_BoundaryKernelObjs)
 
--- re-constrain/recompute detg of U1 here, since its epsilon_IJ was updated
-self.BSSN_Det_PIRK_KernelObj(self.solverBuf, self.U1, self.cellBuf)
+	-- re-constrain/recompute detg of U1 here, since its epsilon_IJ was updated
+	if self.BSSN_Det_PIRK_KernelObj then
+		self.BSSN_Det_PIRK_KernelObj(self.solverBuf, self.U1, self.cellBuf)
+	end
 
 if cmdline.printBufs then
 	print()
@@ -202,7 +206,7 @@ end
 
 if cmdline.printBufs then
 	print()
-	print('UBuf PIRK step 2 - UTemp ... should have W alpha beta^I from U1 and rest from UBuf:')
+	print('UBuf PIRK step 2 - UTemp:')
 	self:printBuf(self.UTempObj)
 end
 
@@ -225,7 +229,6 @@ end
 	-- (reads _PHI and _DETG)
 	self.calcDeriv_PIRK_L2_LambdaBar_KernelObj(self.solverBuf, self.derivL2_1, self.UTemp, self.cellBuf)
 
--- FIXME LambdaBar^I is effing up right here
 -- mind you, UTemp looks like it has too many 0's
 if cmdline.printBufs then
 	print()
@@ -333,8 +336,10 @@ end
 	-- apply boundary to UNext updated fields (epsilon_IJ, W, alpha, beta^I)
 	self:applyBoundaryTo(self.UNext, self.PIRK_EpsilonWAlphaBeta_BoundaryKernelObjs)
 
--- re-constrain/recompute detg of U1 here? only if you are storing it ...
-self.BSSN_Det_PIRK_KernelObj(self.solverBuf, self.UNext, self.cellBuf)
+	-- re-constrain/recompute detg of UNext here? only if you are storing it ...
+	if self.BSSN_Det_PIRK_KernelObj then
+		self.BSSN_Det_PIRK_KernelObj(self.solverBuf, self.U1, self.cellBuf)
+	end
 
 if cmdline.printBufs then
 	print()
@@ -371,6 +376,7 @@ end
 	-- derivL2_next = PIRK L2 part2 (LambdaBar^I) based on UTemp
 	self.calcDeriv_PIRK_L2_LambdaBar_KernelObj(self.solverBuf, self.derivL2_next, self.UTemp, self.cellBuf)
 
+-- FIXME LambdaBar^I is effing up right here
 if cmdline.printBufs then
 	print()
 	print('UBuf PIRK step 7 - derivL2_next:')

@@ -900,23 +900,40 @@ local args = {
 	--integrator = 'backward Euler',
 	--integratorArgs = {verbose=true},
 	cfl = .5,
-	
-	-- [[
+
+	--[[
+	coord = 'cartesian',
+	mins = {-3,-3,-3},
+	maxs = {3,3,3},
+	gridSize = ({
+		{250, 1, 1},
+		{40, 40, 1},
+		{8, 8, 8},
+	})[dim],
+	boundary = {
+		--xmin='freeflow',
+		--xmax='freeflow',
+		--ymin='freeflow',
+		--ymax='freeflow',
+		--zmin='freeflow',
+		--zmax='freeflow',
+		xmin = 'quadratic',
+		xmax = 'quadratic',
+		ymin = 'quadratic',
+		ymax = 'quadratic',
+		zmin = 'quadratic',
+		zmax = 'quadratic',
+	},
+	--]]
+	--[[
 	coord = 'sphere',
-	--coord = 'sphere-log-radial',
 	coordArgs = {
 		vectorComponent = 'holonomic',	-- this isn't really used since bssn is a finite-difference solver, so just pick the one that has the least complications.               
-		-- SENR uses these parameters:
-		amplitude = 1000,
-		sinh_w = .15
 	},
 	mins = {0, 0, 0},
 	maxs = {
-		-- 2017 Ruchlin et al, rely on coordinate chart to remap to rmax
-		--1,
-		
 		-- 2015 Baumgarte et al, spherical coordinates (not log-remapped), PIRK uses this rmax:
-		12,--24 M1, but I'm using M1 = M2 = 0.5
+		12.8,--24 M1, but I'm using M1 = M2 = 0.5
 
 		math.pi,
 		2*math.pi,
@@ -926,7 +943,60 @@ local args = {
 		{64, 16, 1},
 		
 		-- N x 2 x 2:
-		{32, 2, 2},
+		--{32, 2, 2},
+		--{80, 80, 2},
+		--{128, 2, 2},
+		--{128, 32, 2},
+		--{400, 64, 2},
+	
+		-- 80N x 40N x 2N
+		--{160, 80, 4},
+	
+		-- Brill-Lindquist head-on merger:2017 Ruchlin, Etienne, section 3, 2 paragraphs after eqn 70: 
+		--{400, 64, 2},
+	
+		-- 2015 Baumgarte et al, head-on collision: 128N, 48N, 2
+		--{128, 48, 2},
+	
+		-- SENR PIRK sphere 'agrees with Baumgarte' grid size
+		--{64,32,32}, -- seems to be running fine with -num, rk4, sphere, UIUC
+		{16,8,8},
+	})[dim],
+	boundary = {
+		xmin='sphereRMin',
+		
+		-- runs a gauge wave until t=...
+		--xmax='fixed',		-- 5.3875
+		--xmax='freeflow',	-- diverges near rmin after t=60 or so
+		--xmax='linear',	-- 13.1875
+		xmax='quadratic',	-- 10.6125
+		
+		ymin='sphereTheta',
+		ymax='sphereTheta',
+		zmin='periodic',	-- spherePhi is the same as periodic
+		zmax='periodic',
+	},
+	--]]
+	-- [[
+	coord = 'sphere-log-radial',
+	coordArgs = {
+		vectorComponent = 'holonomic',	-- this isn't really used since bssn is a finite-difference solver, so just pick the one that has the least complications.               
+		-- SENR uses these parameters:
+		amplitude = 1000,
+		sinh_w = .15
+	},
+	mins = {0, 0, 0},
+	maxs = {
+		1,	-- 2017 Ruchlin et al, rely on coordinate chart to remap to rmax
+		math.pi,
+		2*math.pi,
+	},
+	gridSize = cmdline.gridSize or ({
+		{128, 1, 1},
+		{64, 16, 1},
+		
+		-- N x 2 x 2:
+		{32, 2, 2},		-- SENR sphere-sinh-radial uses this by default
 		--{80, 80, 2},
 		--{128, 2, 2},
 		--{128, 32, 2},
@@ -956,26 +1026,8 @@ local args = {
 		zmax='periodic',
 	},
 	--]]
-	--[[
-	coord = 'cartesian',
-	mins = {-4,-4,-4},
-	maxs = {4,4,4},
-	gridSize = ({
-		{250, 1, 1},
-		{40, 40, 1},
-		{16, 16, 16},
-	})[dim],
 
-	boundary = {
-		xmin='freeflow',
-		xmax='freeflow',
-		ymin='freeflow',
-		ymax='freeflow',
-		zmin='freeflow',
-		zmax='freeflow',
-	},
-	--]]
-	
+
 	--initCond = 'Minkowski',	-- TODO sphere-log-radial 
 	
 	-- TODO look up Teukolsky Phys Rev 26 745 1982 
@@ -1007,12 +1059,13 @@ local args = {
 	--]]
 	
 	-- only for bssnok-fd-senr
-	initCond = 'SENR sphere UIUC',
-	--initCond = 'SENR sphere-log-radial Minkowski',
-	--initCond = 'SENR sphere-log-radial UIUC',
-	--initCond = 'SENR sphere-log-radial BrillLindquist',
-	--initCond = 'SENR sphere-log-radial BoostedSchwarzschild',
-	--initCond = 'SENR sphere-log-radial StaticTrumpet',
+	--initCond = 'Minkowski',
+	-- TODO move the coordinate system from the name to an assertion within the init
+	--initCond = 'SENR Minkowski',
+	initCond = 'SENR UIUC',
+	--initCond = 'SENR BrillLindquist',
+	--initCond = 'SENR BoostedSchwarzschild',
+	--initCond = 'SENR StaticTrumpet',
 }
 --self.solvers:insert(require 'hydro.solver.bssnok-fd-pirk'(table(args, {eqn = 'bssnok-fd-num'})))	-- requires extra PIRK kernels to be defined in the eqn file
 --self.solvers:insert(require 'hydro.solver.bssnok-fd'(table(args, {eqn = 'bssnok-fd-num'})))
