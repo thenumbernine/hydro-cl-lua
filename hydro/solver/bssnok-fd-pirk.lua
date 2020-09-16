@@ -135,6 +135,7 @@ function BSSNOKFiniteDifferencePIRKSolver:refreshSolverProgram()
 	
 	-- to calc or to store detg?
 	if require 'hydro.eqn.bssnok-fd-senr'.is(assert(self.eqn)) then
+		-- TODO constrainU ?  but we don't need to update RBar ... but that could generalize PIRK for other equations ...
 		self.BSSN_Det_PIRK_KernelObj = self.solverProgramObj:kernel'BSSN_Det_PIRK'
 	end
 end
@@ -265,10 +266,12 @@ end
 -- step 3: ABar_IJ, K
 
 	-- derivL2_n = PIRK L2 part1 (ABar_IJ, K) based on UBuf
-	-- derivL2_1 = PIRK L2 part1 (ABar_IJ, K) based on U1
-	-- derivL3_n = PIRK L3 part1 (ABar_IJ, K) based on UBuf
 	self.calcDeriv_PIRK_L2_ABarK_KernelObj(self.solverBuf, self.derivL2_n, self.UBuf, self.cellBuf)
+	
+	-- derivL2_1 = PIRK L2 part1 (ABar_IJ, K) based on U1
 	self.calcDeriv_PIRK_L2_ABarK_KernelObj(self.solverBuf, self.derivL2_1, self.U1, self.cellBuf)
+	
+	-- derivL3_n = PIRK L3 part1 (ABar_IJ, K) based on UBuf
 	self.calcDeriv_PIRK_L3_ABarK_KernelObj(self.solverBuf, self.derivL3_n, self.UBuf, self.cellBuf)
 
 	-- U1 = UBuf + dt * (.5 * (derivL2_n + derivL2_1) + derivL3_n)
@@ -286,10 +289,12 @@ end
 -- step 4: Lambda^I
 
 	-- derivL2_n = PIRK L2 part2 (LambdaBar^I) based on UBuf 
-	-- derivL2_1 = PIRK L2 part2 (LambdaBar^I) based on U1
-	-- derivL3_n = PIRK L3 part2 (LambdaBar^I) based on UBuf
 	self.calcDeriv_PIRK_L2_LambdaBar_KernelObj(self.solverBuf, self.derivL2_n, self.UBuf, self.cellBuf)
+	
+	-- derivL2_1 = PIRK L2 part2 (LambdaBar^I) based on U1
 	self.calcDeriv_PIRK_L2_LambdaBar_KernelObj(self.solverBuf, self.derivL2_1, self.U1, self.cellBuf)
+	
+	-- derivL3_n = PIRK L3 part2 (LambdaBar^I) based on UBuf
 	self.calcDeriv_PIRK_L3_LambdaBar_KernelObj(self.solverBuf, self.derivL3_n, self.UBuf, self.cellBuf)
 	
 	-- U1 = UBuf + dt * (.5 * (derivL2_n + derivL2_1) + derivL3_n)
@@ -307,10 +312,12 @@ end
 -- step 5: B^I
 
 	-- derivL2_n = PIRK L2 part3 (B^I) based on UBuf 
-	-- derivL2_1 = PIRK L2 part3 (B^I) based on U1
-	-- derivL3_n = PIRK L3 part3 (B^I) based on UBuf
 	self.calcDeriv_PIRK_L2_B_KernelObj(self.solverBuf, self.derivL2_n, self.UBuf, self.cellBuf)
+	
+	-- derivL2_1 = PIRK L2 part3 (B^I) based on U1
 	self.calcDeriv_PIRK_L2_B_KernelObj(self.solverBuf, self.derivL2_1, self.U1, self.cellBuf)
+	
+	-- derivL3_n = PIRK L3 part3 (B^I) based on UBuf
 	self.calcDeriv_PIRK_L3_B_KernelObj(self.solverBuf, self.derivL3_n, self.UBuf, self.cellBuf)
 	
 	-- U1 = UBuf + dt * (.5 * (derivL2_n + derivL2_1) + derivL3_n)
@@ -338,7 +345,7 @@ end
 
 	-- re-constrain/recompute detg of UNext here? only if you are storing it ...
 	if self.BSSN_Det_PIRK_KernelObj then
-		self.BSSN_Det_PIRK_KernelObj(self.solverBuf, self.U1, self.cellBuf)
+		self.BSSN_Det_PIRK_KernelObj(self.solverBuf, self.UNext, self.cellBuf)
 	end
 
 if cmdline.printBufs then
@@ -376,7 +383,7 @@ end
 	-- derivL2_next = PIRK L2 part2 (LambdaBar^I) based on UTemp
 	self.calcDeriv_PIRK_L2_LambdaBar_KernelObj(self.solverBuf, self.derivL2_next, self.UTemp, self.cellBuf)
 
--- FIXME LambdaBar^I is effing up right here
+-- FIXME LambdaBar^I is effing up right here .. for UIUC.  for Minkowski it keeps going fine.
 if cmdline.printBufs then
 	print()
 	print('UBuf PIRK step 7 - derivL2_next:')
@@ -416,14 +423,42 @@ end
 -- step 8: ABar_IJ, K
 
 	-- derivL2_n = PIRK L2 part1 of UBuf (ABar_IJ, K) of UBuf
-	-- derivL2_next = PIRK L2 part1 of UBuf (ABar_IJ, K) of UNext
-	-- derivL3_n = PIRK L3 part1 of UBuf (ABar_IJ, K) of UBuf
-	-- derivL3_1 = PIRK L3 part1 of UBuf (ABar_IJ, K) of U1
 	self.calcDeriv_PIRK_L2_ABarK_KernelObj(self.solverBuf, self.derivL2_n, self.UBuf, self.cellBuf)
+
+if cmdline.printBufs then
+	print()
+	print('UBuf PIRK step 8 - derivL2_n:')
+	self:printBuf(self.derivL2_nObj)
+end
+
+	-- derivL2_next = PIRK L2 part1 of UBuf (ABar_IJ, K) of UNext
 	self.calcDeriv_PIRK_L2_ABarK_KernelObj(self.solverBuf, self.derivL2_next, self.UNext, self.cellBuf)
-	self.calcDeriv_PIRK_L3_ABarK_KernelObj(self.solverBuf, self.derivL3_n, self.UBuf, self.cellBuf)
-	self.calcDeriv_PIRK_L3_ABarK_KernelObj(self.solverBuf, self.derivL3_1, self.U1, self.cellBuf)
+
+-- FIXME K and ABar_IJ are effing up right here for Minkowski 
+if cmdline.printBufs then
+	print()
+	print('UBuf PIRK step 8 - derivL2_next:')
+	self:printBuf(self.derivL2_nextObj)
+end
 	
+	-- derivL3_n = PIRK L3 part1 of UBuf (ABar_IJ, K) of UBuf
+	self.calcDeriv_PIRK_L3_ABarK_KernelObj(self.solverBuf, self.derivL3_n, self.UBuf, self.cellBuf)
+
+if cmdline.printBufs then
+	print()
+	print('UBuf PIRK step 8 - derivL3_n:')
+	self:printBuf(self.derivL3_nObj)
+end
+	
+	-- derivL3_1 = PIRK L3 part1 of UBuf (ABar_IJ, K) of U1
+	self.calcDeriv_PIRK_L3_ABarK_KernelObj(self.solverBuf, self.derivL3_1, self.U1, self.cellBuf)
+
+if cmdline.printBufs then
+	print()
+	print('UBuf PIRK step 8 - derivL3_1:')
+	self:printBuf(self.derivL3_1Obj)
+end
+
 	-- UNext = UBuf + 0.5 * dt * (derivL2_n + derivL2_next + derivL3_n + derivL3_1)
 	self.PIRK_Eq4_ABarK_KernelObj(self.solverBuf, self.UNext, self.UBuf, self.derivL2_n, self.derivL2_next, self.derivL3_n, self.derivL3_1, real(dt))
 	

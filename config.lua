@@ -925,7 +925,7 @@ local args = {
 		zmax = 'quadratic',
 	},
 	--]]
-	--[[
+	-- [[
 	coord = 'sphere',
 	coordArgs = {
 		vectorComponent = 'holonomic',	-- this isn't really used since bssn is a finite-difference solver, so just pick the one that has the least complications.               
@@ -977,7 +977,7 @@ local args = {
 		zmax='periodic',
 	},
 	--]]
-	-- [[
+	--[[
 	coord = 'sphere-log-radial',
 	coordArgs = {
 		vectorComponent = 'holonomic',	-- this isn't really used since bssn is a finite-difference solver, so just pick the one that has the least complications.               
@@ -996,7 +996,7 @@ local args = {
 		{64, 16, 1},
 		
 		-- N x 2 x 2:
-		{32, 2, 2},		-- SENR sphere-sinh-radial uses this by default
+		--{32, 2, 2},		-- SENR sphere-sinh-radial uses this by default
 		--{80, 80, 2},
 		--{128, 2, 2},
 		--{128, 32, 2},
@@ -1010,6 +1010,8 @@ local args = {
 	
 		-- 2015 Baumgarte et al, head-on collision: 128N, 48N, 2
 		--{128, 48, 2},
+	
+		{16,8,8},
 	})[dim],
 	boundary = {
 		xmin='sphereRMin',

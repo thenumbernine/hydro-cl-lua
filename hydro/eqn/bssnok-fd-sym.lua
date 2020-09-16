@@ -1968,6 +1968,10 @@ function BSSNOKFiniteDifferenceEquation:getDisplayVars()
 	local env = self:getEnv()
 
 	vars:append{
+		-- convenient trackvars:
+		{name='alpha-1', code=[[ value.vreal = U->alpha - 1.;]], type='real'},
+		{name='W-1', code=[[ value.vreal = U->W - 1.;]], type='real'},
+		
 		{name='gamma_ll', type='sym3', code = [[	value.vsym3 = calc_gamma_ll(U, x);]]},
 		{name='gamma_uu', type='sym3', code=[[	value.vsym3 = calc_gamma_uu(U, x);]]},
 		{name='gammaHat_ll', type='sym3', code=[[	value.vsym3 = calc_gammaHat_ll(x);]]},

@@ -80,7 +80,6 @@ function BSSNOKFiniteDifferenceSolver:calcDT()
 		or self.eqn.cflMethod == '2017 Ruchlin et al, eqn 53'
 		then
 			self.useFixedDT = true
-			self.fixedDT = dt
 		end
 	end
 	return dt

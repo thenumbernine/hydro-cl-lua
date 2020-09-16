@@ -436,6 +436,7 @@ function SolverBase:initMeshVars(args)
 			end
 		end
 	end
+	
 	function Program:compile(args)
 		args = args or {}
 		args.buildOptions = '-w'	-- show warnings
@@ -453,8 +454,10 @@ function SolverBase:initMeshVars(args)
 		end
 		return results
 	end
-	self.Program = Program
 	
+	self.Program = Program
+
+
 	if self.app.targetSystem ~= 'console' then
 		local GLProgram = class(require 'gl.program')
 		function GLProgram:init(...)

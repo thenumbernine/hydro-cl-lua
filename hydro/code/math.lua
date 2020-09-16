@@ -982,6 +982,7 @@ for i=0,2 do
 		typecode = [[
 typedef union {
 	real s[18];
+	sym3 v[3];
 	struct {
 		sym3 v0,v1,v2;	//why not s0,s1,s2?
 	};

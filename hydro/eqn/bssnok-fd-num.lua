@@ -106,7 +106,7 @@ function BSSNOKFiniteDifferenceEquation:createInitState()
 		{name='alphaMin', value=-math.huge},
 
 		{name='dt_beta_U_k', value=3/4},
-		{name='dt_beta_U_eta', value=2},	--1, or 1 / (2 M), for total mass M, or SENR uses 2
+		{name='dt_beta_U_eta', value=cmdline.dt_beta_U_eta or 2},	--1, or 1 / (2 M), for total mass M, or SENR uses 2
 	}
 
 	if self.useScalarField then
@@ -160,6 +160,45 @@ function BSSNOKFiniteDifferenceEquation:initCodeModules()
 		depends = {'coord_det_g'},
 		code = '#define calc_det_gammaHat 	coord_det_g',
 	}
+
+
+	solver.modules:add{
+		name = 'calc_partial_det_gammaHat_l',
+		depends = {'coord_partial_det_g'},
+		code = '#define calc_partial_det_gammaHat_l coord_partial_det_g',
+	}
+
+	solver.modules:add{
+		name = 'calc_partial_det_gammaHat_L',
+		depends = {'calc_partial_det_gammaHat_l'},
+		code = [[
+real3 calc_partial_det_gammaHat_L(real3 x) {
+	real3 partial_det_gammaHat_l = calc_partial_det_gammaHat_l(x);
+	real3 partial_det_gammaHat_L = real3_rescaleFromCoord_l(partial_det_gammaHat_l, x);
+	return partial_det_gammaHat_L;
+}
+]],
+	}
+
+	solver.modules:add{
+		name = 'calc_partial2_det_gammaHat_ll',
+		depends = {'coord_partial2_det_g'},
+		code = '#define calc_partial2_det_gammaHat_ll coord_partial2_det_g',
+	}
+
+	solver.modules:add{
+		name = 'calc_partial2_det_gammaHat_LL',
+		depends = {'calc_partial2_det_gammaHat_ll'},
+		code = [[
+sym3 calc_partial2_det_gammaHat_LL(real3 x) {
+	sym3 partial2_det_gammaHat_ll = calc_partial2_det_gammaHat_ll(x);
+	sym3 partial2_det_gammaHat_LL = sym3_rescaleFromCoord_ll(partial2_det_gammaHat_ll, x);
+	return partial2_det_gammaHat_LL;
+}
+]],
+	}
+
+
 end
 
 function BSSNOKFiniteDifferenceEquation:getModuleDependsApplyInitCond() 
@@ -531,6 +570,8 @@ function BSSNOKFiniteDifferenceEquation:getModuleDependsSolver()
 		'calc_gammaHat_ll',
 		'calc_gammaHat_uu',		-- used by display code
 		'calc_det_gammaHat',	-- also used by display code
+		'calc_partial_det_gammaHat_L',	-- used by LambdaBar^I_,t
+		'calc_partial2_det_gammaHat_LL',	-- used by LambdaBar^I_,t
 		'real3x3x3',
 		'coordMapR',
 		-- only for display code. (actually most this is only for display code)
@@ -1227,15 +1268,15 @@ end ?>;
 	sym3 RBar_LL = calc_RBar_LL(
 		U,
 		x,
-		gammaBar_LL,
-		gammaBar_UU,
-		connHat_ULL,
-		partial_gammaBar_LLL,
-		trBar_partial2_gammaBar_ll,
-		partial_LambdaBar_UL,
-		Delta_U,
-		Delta_ULL,
-		Delta_LLL);
+		&gammaBar_LL,
+		&gammaBar_UU,
+		&connHat_ULL,
+		&partial_gammaBar_LLL,
+		&trBar_partial2_gammaBar_ll,
+		&partial_LambdaBar_UL,
+		&Delta_U,
+		&Delta_ULL,
+		&Delta_LLL);
 
 	value.vsym3 = sym3_rescaleToCoord_LL(RBar_LL, x);
 ]],

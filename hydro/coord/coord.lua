@@ -626,10 +626,19 @@ self.Gamma_ull = Gamma_ull
 	local det_g_expr = symmath.Matrix.determinant(g)
 self.det_g = det_g_expr
 	compileTensorField('det_g_code', det_g_expr)
-
+	
 	local sqrt_det_gExpr = symmath.sqrt(det_g_expr)()
 	compileTensorField('sqrt_det_gCode', sqrt_det_gExpr)
 
+	-- g_,i or gHol_,i?  which am I using? I'm only using this for SENR which should be using the grid volume (so that g_,i isn't just 1_,i = 0)
+	local partial_det_g = Tensor('_a', function(a)
+		return coords[a]:applyDiff(det_g_expr)()
+	end)
+	compileTensorField('partial_det_g_codes', partial_det_g)
+
+	-- g_,ij
+	local connExpr = partial_det_g'_a,b'()
+	compileTensorField('partial2_det_g_codes', connExpr)
 
 	self:createCellStruct()
 	
@@ -1032,6 +1041,8 @@ static inline real coordLen(real3 r, real3 pt) {
 	solver.modules:add{name='coord_conn_trace12', code=getCode_real3_to_real3('coord_conn_trace12', self.tr12_conn_l_codes)}
 	solver.modules:add{name='coord_conn_trace13', code=getCode_real3_to_real3('coord_conn_trace13', self.tr13_conn_l_codes)}
 	solver.modules:add{name='coord_conn_trace23', code=getCode_real3_to_real3('coord_conn_trace23', self.tr23_conn_u_codes)}
+	solver.modules:add{name='coord_partial_det_g', code=getCode_real3_to_real3('coord_partial_det_g', self.partial_det_g_codes)}
+	solver.modules:add{name='coord_partial2_det_g', code=getCode_real3_to_sym3('coord_partial2_det_g', self.partial2_det_g_codes)}
 	solver.modules:add{name='coord_conn_lll', depends={'_3sym3'}, code=getCode_real3_to_3sym3('coord_conn_lll', self.conn_lll_codes)}
 	solver.modules:add{name='coord_conn_ull', depends={'_3sym3'}, code=getCode_real3_to_3sym3('coord_conn_ull', self.conn_ull_codes)}
 

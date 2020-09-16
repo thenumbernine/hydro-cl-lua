@@ -699,15 +699,15 @@ static sym3 calc_trBar_partial2_gammaBar_ll(
 static sym3 calc_RBar_LL(
 	const global <?=eqn.cons_t?>* U,
 	real3 x,
-	sym3 gammaBar_LL,
-	sym3 gammaBar_UU,
-	_3sym3 connHat_ULL,
-	_3sym3 partial_gammaBar_LLL,
-	sym3 trBar_partial2_gammaBar_ll,
-	real3x3 partial_LambdaBar_UL,
-	real3 Delta_U,
-	_3sym3 Delta_ULL,
-	_3sym3 Delta_LLL
+	const sym3* gammaBar_LL,
+	const sym3* gammaBar_UU,
+	const _3sym3* connHat_ULL,
+	const _3sym3* partial_gammaBar_LLL,
+	const sym3* trBar_partial2_gammaBar_ll,
+	const real3x3* partial_LambdaBar_UL,
+	const real3* Delta_U,
+	const _3sym3* Delta_ULL,
+	const _3sym3* Delta_LLL
 ) {
 	
 	//DHat_gammaBar_lll.k.ij = DHat_k gammaBar_ij 
@@ -718,20 +718,20 @@ for k,xk in ipairs(xNames) do
 	for ij,xij in ipairs(symNames) do
 		local i,j,xi,xj = from6to3x3(ij)
 ?>	DHat_gammaBar_LLL.<?=xk?>.<?=xij?> = 0.
-		+ partial_gammaBar_LLL.<?=xk?>.<?=xij?>
+		+ partial_gammaBar_LLL-><?=xk?>.<?=xij?>
 <?		for l,xl in ipairs(xNames) do
-?>		- connHat_ULL.<?=xl?>.<?=sym(k,i)?> * gammaBar_LL.<?=sym(l,j)?>
-		- connHat_ULL.<?=xl?>.<?=sym(k,j)?> * gammaBar_LL.<?=sym(l,i)?>
+?>		- connHat_ULL-><?=xl?>.<?=sym(k,i)?> * gammaBar_LL-><?=sym(l,j)?>
+		- connHat_ULL-><?=xl?>.<?=sym(k,j)?> * gammaBar_LL-><?=sym(l,i)?>
 <?		end
 ?>	;
 <?	end
 end
 ?>
 
-	_3sym3 connHat_ull = _3sym3_rescaleToCoord_ULL(connHat_ULL, x);
+	_3sym3 connHat_ull = _3sym3_rescaleToCoord_ULL(*connHat_ULL, x);
 	
 	//partial_gammaBar_lll.k.ij := gammaBar_ij,k
-	_3sym3 partial_gammaBar_lll = _3sym3_rescaleToCoord_LLL(partial_gammaBar_LLL, x);
+	_3sym3 partial_gammaBar_lll = _3sym3_rescaleToCoord_LLL(*partial_gammaBar_LLL, x);
 
 	//connHat_times_partial_gammaBar_llll[l].k.ij := connHat^m_ij gammaBar_mk,l
 	_3sym3 connHat_times_partial_gammaBar_llll[3];
@@ -757,7 +757,7 @@ end
 		for l,xl in ipairs(xNames) do
 ?>	gammaBar_times_partial_connHat_llll[<?=l-1?>].<?=xi?>.<?=xjk?> = 0.
 <?			for m,xm in ipairs(xNames) do
-?>		+ gammaBar_LL.<?=sym(i,m)?> * calc_len_<?=xi?>(x) * calc_partial_connHat_Ulll_<?=xm..xjk..xl?>(x)
+?>		+ gammaBar_LL-><?=sym(i,m)?> * calc_len_<?=xi?>(x) * calc_partial_connHat_Ulll_<?=xm..xjk..xl?>(x)
 <?			end
 ?>	;
 <?		end
@@ -784,14 +784,14 @@ for ij,xij in ipairs(symNames) do
 		- gammaBar_times_partial_connHat_llll[<?=l-1?>].<?=xi?>.<?=sym(k,j)?>
 		- connHat_times_partial_gammaBar_llll[<?=l-1?>].<?=xj?>.<?=sym(i,k)?>
 		- connHat_times_partial_gammaBar_llll[<?=l-1?>].<?=xi?>.<?=sym(j,k)?>
-	) * (gammaBar_UU.<?=sym(k,l)?> / (calc_len_<?=xk?>(x) * calc_len_<?=xl?>(x)));
+	) * (gammaBar_UU-><?=sym(k,l)?> / (calc_len_<?=xk?>(x) * calc_len_<?=xl?>(x)));
 <?		end
 	end
 end
 ?>
 
 	//connHat^i_jk gammaBar^jk
-	real3 trBar_connHat_U = _3sym3_sym3_dot23(connHat_ULL, gammaBar_UU);
+	real3 trBar_connHat_U = _3sym3_sym3_dot23(*connHat_ULL, *gammaBar_UU);
 
 	_3sym3 DHat_gammaBar_lll = _3sym3_rescaleToCoord_LLL(DHat_gammaBar_LLL, x);
 
@@ -844,7 +844,7 @@ for ij,xij in ipairs(symNames) do
 		+ (0.
 			- DHat_gammaBar_dot12_connHat_llll[<?=k-1?>].<?=xi?>.<?=sym(j,l)?>
 			- DHat_gammaBar_dot12_connHat_llll[<?=k-1?>].<?=xj?>.<?=sym(i,l)?>
-		) * (gammaBar_UU.<?=sym(k,l)?> / (calc_len_<?=xk?>(x) * calc_len_<?=xl?>(x)))
+		) * (gammaBar_UU-><?=sym(k,l)?> / (calc_len_<?=xk?>(x) * calc_len_<?=xl?>(x)))
 <?		end
 	end
 ?>	);
@@ -854,16 +854,16 @@ end
 
 	//trBar_DHat2_gammaBar_ll.ij := gammaBar^kl DHat_k DHat_l gammaBar_ij
 	sym3 trBar_DHat2_gammaBar_ll = sym3_add(
-		trBar_partial2_gammaBar_ll,
+		*trBar_partial2_gammaBar_ll,
 		trBar_DHat2_gammaBar_without_partial2_gammaBar_ll);
 
 	//derivative is the last index, unlike the partial_*'s
 	//DHat_LambdaBar_ul.i.j := DHat_j LambdaBar^i = LambdaBar^i_,j + connHat^i_jk LambdaBar^k
 	real3x3 DHat_LambdaBar_UL = real3x3_add(
-		partial_LambdaBar_UL,
+		*partial_LambdaBar_UL,
 		real3_3sym3_dot2(
 			U->LambdaBar_U,
-			connHat_ULL
+			*connHat_ULL
 	));
 
 	/*
@@ -897,21 +897,21 @@ end
 			- .5 * trBar_DHat2_gammaBar_ll.<?=xij?> / (calc_len_<?=xi?>(x) * calc_len_<?=xj?>(x))
 <?	for k,xk in ipairs(xNames) do
 ?>			//Less accurate when I defer this
-			+ .5 * gammaBar_LL.<?=sym(i,k)?> * DHat_LambdaBar_UL.<?=xk?>.<?=xj?> 
-			+ .5 * gammaBar_LL.<?=sym(j,k)?> * DHat_LambdaBar_UL.<?=xk?>.<?=xi?>
+			+ .5 * gammaBar_LL-><?=sym(i,k)?> * DHat_LambdaBar_UL.<?=xk?>.<?=xj?> 
+			+ .5 * gammaBar_LL-><?=sym(j,k)?> * DHat_LambdaBar_UL.<?=xk?>.<?=xi?>
 			
 			//Less accurate when deferring these calculations
-			+ .5 * Delta_U.<?=xk?> * (0.
-				+ Delta_LLL.<?=xi?>.<?=sym(k,j)?> 
-				+ Delta_LLL.<?=xj?>.<?=sym(k,i)?>
+			+ .5 * Delta_U-><?=xk?> * (0.
+				+ Delta_LLL-><?=xi?>.<?=sym(k,j)?> 
+				+ Delta_LLL-><?=xj?>.<?=sym(k,i)?>
 			)
 
 <?		for l,xl in ipairs(xNames) do
 			for m,xm in ipairs(xNames) do
-?>			+ gammaBar_UU.<?=sym(k,l)?> * (0.
-				+ Delta_ULL.<?=xm?>.<?=sym(k,i)?> * Delta_LLL.<?=xj?>.<?=sym(m,l)?>
-				+ Delta_ULL.<?=xm?>.<?=sym(k,j)?> * Delta_LLL.<?=xi?>.<?=sym(m,l)?>
-				+ Delta_ULL.<?=xm?>.<?=sym(i,k)?> * Delta_LLL.<?=xm?>.<?=sym(j,l)?>
+?>			+ gammaBar_UU-><?=sym(k,l)?> * (0.
+				+ Delta_ULL-><?=xm?>.<?=sym(k,i)?> * Delta_LLL-><?=xj?>.<?=sym(m,l)?>
+				+ Delta_ULL-><?=xm?>.<?=sym(k,j)?> * Delta_LLL-><?=xi?>.<?=sym(m,l)?>
+				+ Delta_ULL-><?=xm?>.<?=sym(i,k)?> * Delta_LLL-><?=xm?>.<?=sym(j,l)?>
 			)
 <?			end
 		end
@@ -972,6 +972,13 @@ const int4 getUpwind(real3 v) {
 }
 
 
+//ok I have this in lua code for inline codegen, but here it is in C code, while debugging:
+int from3x3to6(int i, int j) {
+	int minij = min(i,j);
+	int maxij = max(i,j);
+	return maxij + minij + (minij > 1);
+}
+
 //////////////////////////////// W_,t //////////////////////////////// 
 
 
@@ -991,8 +998,10 @@ static void calcDeriv_W(
 	real L2_W = (1. / 3.) * U->W * (U->alpha * U->K - tr_DBar_beta);
 
 	//2017 Ruchlin et al eqn 11c
-	//W_,t = 1/3 W (alpha K - beta^k connBar^j_kj - beta^k_,k) + beta^k W_,k
-	// connBar^j_kj = log(sqrt(gamma))_,k = 
+	//W_,t =
+	//L2:		1/3 W (alpha K - beta^k connBar^j_kj - beta^k_,k) 
+	//Lbeta:	+ beta^k W_,k
+	//connBar^j_kj = log(sqrt(gammaBar))_,k = gammaBar_,k / (2 gammaBar)
 	deriv->W += L2_W + Lbeta_W;
 }
 
@@ -1005,21 +1014,18 @@ static real calc_PIRK_L2_K(
 	real3 x,					//only needed for debugging
 	global const cons_t* U,
 	sym3 gammaBar_UU,
-	const sym3* ABar_UU,
 	const sym3* DBar2_alpha_LL,
 	const real3* partial_alpha_L,
 	const real3* partial_phi_L,
 	real exp_neg4phi
 ) {
-	//tr_ABarSq := ABar_ij ABar^ij = ABar_ij ABar_kl gammaBar^ik gammaBar^jl
-	real tr_ABarSq = sym3_dot(U->ABar_LL, *ABar_UU);
 	
 	//tr_DBar2_alpha := gammaBar^ij DBar_i DBar_j alpha
 	real tr_DBar2_alpha = sym3_dot(gammaBar_UU, *DBar2_alpha_LL);
 	
 	//2013 Baumgarte eqn B3: 
+	// SENR/NRPy's code has a note that the "+ alpha ABar_ij ABar^ij" term should be in L3
 	// L2 K = -exp(-4phi) (DBar^2 alpha + 2 DBar^i alpha DBar_i alpha) 
-	//		+ alpha ABar_ij ABar^ij
 	return -exp_neg4phi * (
 			
 			//this is the problem term.  specifically the partial_alpha_ll part of it.
@@ -1027,14 +1033,20 @@ static real calc_PIRK_L2_K(
 			
 			+ 2. * real3_weightedDot(*partial_phi_L, *partial_alpha_L, gammaBar_UU)
 		)
-		+ U->alpha * tr_ABarSq
 	;
 }
 
 static real calc_PIRK_L3_K(
-	global const cons_t* U
+	global const cons_t* U,
+	const sym3* ABar_UU
 ) {
-	return U->alpha * U->K * U->K / 3.;
+	//tr_ABarSq := ABar_ij ABar^ij = ABar_ij ABar_kl gammaBar^ik gammaBar^jl
+	real tr_ABarSq = sym3_dot(U->ABar_LL, *ABar_UU);
+
+	// SENR/NRPy's code has a note that the "+ alpha ABar_ij ABar^ij" term should be in L3
+	return U->alpha * U->K * U->K / 3.
+		+ U->alpha * tr_ABarSq
+	;
 }
 
 static void calcDeriv_K(
@@ -1056,14 +1068,16 @@ static void calcDeriv_K(
 		x,
 		U,
 		gammaBar_UU,
-		ABar_UU,
 		DBar2_alpha_LL,
 		partial_alpha_L,
 		partial_phi_L,
 		exp_neg4phi
 	);
 
-	real L3_K = calc_PIRK_L3_K(U);
+	real L3_K = calc_PIRK_L3_K(
+		U,
+		ABar_UU
+	);
 
 <?=eqn:makePartialUpwind'K'?>
 	real3 partial_K_L_upwind = real3_rescaleFromCoord_l(partial_K_l_upwind, x);
@@ -1083,12 +1097,13 @@ static void calcDeriv_K(
 		) 
 		+ K_,i beta^i
 		+ 4 pi alpha (rho + S)
+	
 	wrt W:
 	K_,t = 
-L2:		+ alpha ABar_ij ABar^ij 
-		- W^2 gammaBar^ij DBar_i DBar_j alpha 
+L2:		- W^2 gammaBar^ij DBar_i DBar_j alpha 
 		+ W gammaBar^ij alpha_,i * W_,j
 L3:		+ 1/3 alpha K^2 
+		+ alpha ABar_ij ABar^ij 			// this term is in L2 in the paper but L3 in code with note of the error
 Lbeta:	+ K_,i beta^i
 source:	+ 4 pi alpha (rho + S)
 	*/
@@ -1104,15 +1119,34 @@ source:	+ 4 pi alpha (rho + S)
 
 
 static sym3 sym3_Lbeta_LL(
-	sym3 T_LL,
-	_3sym3 partial_T_LLL,
-	real3 beta_U,
-	real3x3 partial_beta_UL
+	sym3 T_LL,					//T_LL.ij = T_ij
+	_3sym3 partial_T_LLL,		//partial_T_LLL.k.ij = T_ij,k
+	real3 beta_U,				//beta_U.i = beta^i
+	real3x3 partial_beta_UL		//partial_beta_UL.i.j = beta^i_,j
 ) {
+#if 0	
 	sym3 beta_times_partial_T_LL = real3_3sym3_dot1(beta_U, partial_T_LLL);
 	real3x3 T_times_partial_beta_LL = sym3_real3x3_mul(T_LL, partial_beta_UL);
 	sym3 sym_T_times_partial_beta_LL = sym3_from_real3x3(T_times_partial_beta_LL);
 	sym3 Lbeta_T_LL = sym3_add(beta_times_partial_T_LL, sym_T_times_partial_beta_LL);
+#else
+	
+	sym3 Lbeta_T_LL;
+	int ij = 0;
+	for (int i = 0; i < 3; ++i) {
+		for (int j = i; j < 3; ++j, ++ij) {
+			Lbeta_T_LL.s[ij] = 0;
+			for (int k = 0; k < 3; ++k) {
+				//  beta^k ∂up_k(gammaBar_ij)
+				//+ gammaBar_kj beta^k_,i
+				//+ gammaBar_ki beta^k_,j
+				Lbeta_T_LL.s[ij] += partial_T_LLL.v[k].s[ij] * beta_U.s[k]
+					+ T_LL.s[from3x3to6(k,j)] * partial_beta_UL.v[k].s[i]
+					+ T_LL.s[from3x3to6(k,i)] * partial_beta_UL.v[k].s[j];
+			}
+		}
+	}
+#endif
 	return Lbeta_T_LL;
 }
 
@@ -1122,12 +1156,12 @@ static void calcDeriv_epsilon_LL(
 	const global cons_t* U,
 	int4 updir,
 	real3 x,
-	sym3 gammaBar_LL,
-	real3x3 partial_beta_UL,
-	real3x3 ABar_UL,
+	const sym3* gammaBar_LL,
+	const real3x3* partial_beta_UL,
+	const real3x3* ABar_UL,
 	real tr_DBar_beta
 ) {
-	real tr_ABar = real3x3_trace(ABar_UL);
+	real tr_ABar = real3x3_trace(*ABar_UL);
 
 <?=eqn:makePartialUpwind'epsilon_LL'?>
 	_3sym3 partial_gammaBar_LLL_upwind = calc_partial_gammaBar_LLL(
@@ -1136,26 +1170,29 @@ static void calcDeriv_epsilon_LL(
 		partial_epsilon_LLl_upwind);
 
 	sym3 Lbeta_gammaBar_LL = sym3_Lbeta_LL(
-		gammaBar_LL,
+		*gammaBar_LL,
 		partial_gammaBar_LLL_upwind,
 		U->beta_U,
-		partial_beta_UL);
+		*partial_beta_UL);
 	
 	/*
 	2017 Ruchlin et al, eqn 11a
 	epsilon_ij,t = 2/3 gammaBar_ij (alpha ABar^k_k - DBar_k beta^k) + DHat_i beta_j + DHat_j beta_i - 2 alpha ABar_ij + epsilon_ij,k beta^k + epsilon_ik beta^k_,j + epsilon_kj beta^k_,i
 	...using DBar_(i beta_j) = DHat_(i beta_j) + epsilon_k(j beta^k_,i) + 1/2 epsilon_ij,k beta^k
-	= 	
-		beta^k gammaBar_ij,k
+	
+	epsilon_ij,t = 	
+L2:		+ 2/3 gammaBar_ij (
+			alpha ABar^k_k 
+			- DBar_k beta^k
+		) 
+L3:		- 2 alpha ABar_ij 
+
+Lbeta:	+ beta^k ∂up_k(gammaBar_ij)
 		+ gammaBar_kj beta^k_,i
 		+ gammaBar_ki beta^k_,j
-		
-		+ 2/3 gammaBar_ij (
-			alpha ABar^k_k 
-			- beta^k_,k 
-			- connBar^k_lk beta^l
-		) 
-		- 2 alpha ABar_ij 
+
+	gammaBar_ij,k = connBar_ikj + connBar_jki
+	the SENR code doesn't separate the L2 and L3 out - only putting it all in L1
 	*/
 	deriv->epsilon_LL = sym3_add4(
 		deriv->epsilon_LL,
@@ -1164,7 +1201,7 @@ static void calcDeriv_epsilon_LL(
 		Lbeta_gammaBar_LL,
 	
 		//part 2
-		sym3_real_mul(gammaBar_LL, 2. / 3. * (U->alpha * tr_ABar - tr_DBar_beta)),
+		sym3_real_mul(*gammaBar_LL, 2. / 3. * (U->alpha * tr_ABar - tr_DBar_beta)),
 	
 		//part 3
 		sym3_real_mul(U->ABar_LL, -2. * U->alpha)
@@ -1172,38 +1209,38 @@ static void calcDeriv_epsilon_LL(
 }
 
 
-//////////////////////////////// A_IJ_,t //////////////////////////////// 
+//////////////////////////////// A_IJ,t //////////////////////////////// 
 
 
 static sym3 calc_PIRK_L2_ABar_LL(
 	constant solver_t* solver,
 	const global cons_t* U,
 	real3 x,
-	sym3 gammaBar_LL,
-	sym3 gammaBar_UU,
-	sym3 DBar2_alpha_LL,
-	real3 partial_alpha_L, 
-	real3 partial_phi_L, 
-	_3sym3 connBar_ULL,
-	real3 partial_W_l,
+	const sym3* gammaBar_LL,
+	const sym3* gammaBar_UU,
+	const sym3* DBar2_alpha_LL,
+	const real3* partial_alpha_L, 
+	const real3* partial_phi_L, 
+	const _3sym3* connBar_ULL,
+	const real3* partial_W_l,
 	real exp_neg4phi,
 	//for RBar_IJ:
 	const sym3 partial_epsilon_LLl[3],
-	_3sym3 Delta_ULL,
-	real3 Delta_U,
-	_3sym3 connHat_ULL,
-	_3sym3 partial_gammaBar_LLL
+	const _3sym3* Delta_ULL,
+	const real3* Delta_U,
+	const _3sym3* connHat_ULL,
+	const _3sym3* partial_gammaBar_LLL
 ) {
 <?=eqn:makePartial2'epsilon_LL'?>
 
 	sym3 trBar_partial2_gammaBar_ll = calc_trBar_partial2_gammaBar_ll(
 		U, 
 		x, 
-		gammaBar_UU, 
+		*gammaBar_UU, 
 		partial_epsilon_LLl, 
 		partial2_epsilon_LLll);
 
-	_3sym3 Delta_LLL = sym3_3sym3_mul(gammaBar_LL, Delta_ULL);
+	_3sym3 Delta_LLL = sym3_3sym3_mul(*gammaBar_LL, *Delta_ULL);
 
 	real3x3 partial_LambdaBar_UL;
 	{
@@ -1220,11 +1257,11 @@ static sym3 calc_PIRK_L2_ABar_LL(
 		gammaBar_UU,
 		connHat_ULL,
 		partial_gammaBar_LLL,
-		trBar_partial2_gammaBar_ll,
-		partial_LambdaBar_UL,
+		&trBar_partial2_gammaBar_ll,
+		&partial_LambdaBar_UL,
 		Delta_U,
 		Delta_ULL,
-		Delta_LLL);
+		&Delta_LLL);
 
 <?=eqn:makePartial2'W'?>			//partial2_W_ll.ij := W_,ij
 	//partial2_phi_ll.ij := phi_,ij = 1/(2W) (-W_,ij + W_,i W_,j / W)
@@ -1233,18 +1270,18 @@ static sym3 calc_PIRK_L2_ABar_LL(
 	local i,j,xi,xj = from6to3x3(ij)
 ?>	partial2_phi_LL.<?=xij?> = .5 * (
 		- partial2_W_ll.<?=xij?> / (calc_len_<?=xi?>(x) * calc_len_<?=xj?>(x))
-		+ partial_W_l.<?=xi?> / calc_len_<?=xi?>(x)
-			* partial_W_l.<?=xj?> / calc_len_<?=xj?>(x)
+		+ partial_W_l-><?=xi?> / calc_len_<?=xi?>(x)
+			* partial_W_l-><?=xj?> / calc_len_<?=xj?>(x)
 			/ U->W
 	) / U->W;
 <? end ?>
 	
 	//DBar2_phi_ll.ij := DBar_i DBar_j phi = phi_,ij - connBar^k_ij phi_,k
-	sym3 DBar2_phi_LL = sym3_sub(partial2_phi_LL, real3_3sym3_dot1(partial_phi_L, connBar_ULL));
+	sym3 DBar2_phi_LL = sym3_sub(partial2_phi_LL, real3_3sym3_dot1(*partial_phi_L, *connBar_ULL));
 
-	sym3 TF_DBar2_alpha_LL = tracefree(DBar2_alpha_LL, gammaBar_LL, gammaBar_UU);
+	sym3 TF_DBar2_alpha_LL = tracefree(*DBar2_alpha_LL, *gammaBar_LL, *gammaBar_UU);
 
-	sym3 TF_RBar_LL = tracefree(RBar_LL, gammaBar_LL, gammaBar_UU);
+	sym3 TF_RBar_LL = tracefree(RBar_LL, *gammaBar_LL, *gammaBar_UU);
 
 	/*
 	2017 Ruchlin et al eqn 11b
@@ -1264,13 +1301,13 @@ static sym3 calc_PIRK_L2_ABar_LL(
 	*/
 	sym3 tracelessPart_LL = tracefree(
 		sym3_add4(
-			sym3_real_mul(sym3_from_real3x3(real3_real3_outer(partial_phi_L, partial_alpha_L)), 2.),
+			sym3_real_mul(sym3_from_real3x3(real3_real3_outer(*partial_phi_L, *partial_alpha_L)), 2.),
 			sym3_real_mul(DBar2_phi_LL, -2. * U->alpha),
-			sym3_real_mul(real3_outer(partial_phi_L), 4. * U->alpha),
+			sym3_real_mul(real3_outer(*partial_phi_L), 4. * U->alpha),
 			sym3_real_mul(sym3_rescaleFromCoord_ll(U->S_ll, x), -8. * M_PI * U->alpha)
 		), 
-		gammaBar_LL, 
-		gammaBar_UU);
+		*gammaBar_LL, 
+		*gammaBar_UU);
 
 	return sym3_add3(
 		sym3_real_mul(tracelessPart_LL, exp_neg4phi),
@@ -1299,23 +1336,23 @@ static void calcDeriv_ABar_LL(
 	const global cons_t* U,
 	int4 updir,
 	real3 x,
-	sym3 gammaBar_LL,
-	sym3 gammaBar_UU,
-	sym3 DBar2_alpha_LL,
-	real3 partial_alpha_L, 
-	real3 partial_phi_L, 
-	_3sym3 connBar_ULL,
-	real3x3 ABar_UL,
-	real3x3 partial_beta_UL,
-	real3 partial_W_l,
+	const sym3* gammaBar_LL,
+	const sym3* gammaBar_UU,
+	const sym3* DBar2_alpha_LL,
+	const real3* partial_alpha_L,
+	const real3* partial_phi_L,
+	const _3sym3* connBar_ULL,
+	const real3x3* ABar_UL,
+	const real3x3* partial_beta_UL,
+	const real3* partial_W_l,
 	real exp_neg4phi,
 	real tr_DBar_beta,
 	//for RBar_IJ:
 	const sym3 partial_epsilon_LLl[3],
-	_3sym3 Delta_ULL,
-	real3 Delta_U,
-	_3sym3 connHat_ULL,
-	_3sym3 partial_gammaBar_LLL
+	const _3sym3* Delta_ULL,
+	const real3* Delta_U,
+	const _3sym3* connHat_ULL,
+	const _3sym3* partial_gammaBar_LLL
 ) {
 	sym3 L2_ABar_LL = calc_PIRK_L2_ABar_LL(
 		solver,
@@ -1338,7 +1375,7 @@ static void calcDeriv_ABar_LL(
 	
 	sym3 L3_ABar_LL = calc_PIRK_L3_ABar_LL(
 		U,
-		ABar_UL,
+		*ABar_UL,
 		tr_DBar_beta
 	);
 
@@ -1353,20 +1390,18 @@ static void calcDeriv_ABar_LL(
 		U->ABar_LL,
 		partial_ABar_LLL_upwind,
 		U->beta_U,
-		partial_beta_UL);
+		*partial_beta_UL);
 		
-
 	/*
 	2017 Ruchlin et al, eqn. 11b
 	ABar_ij,t = 
-		+ beta^k_,i ABar_jk
+L2:		exp(-4 phi) (trace-free part above)_ij
+L3:		- 2/3 ABar_ij DBar_k beta^k
+		+ alpha ABar_ij K
+		- 2 alpha ABar_ik ABar^k_j
+Lbeta:	+ beta^k_,i ABar_jk
 		+ beta^k_,j ABar_ik
 		+ ABar_ij,k beta^k
-		
-		- 2/3 ABar_ij DBar_k beta^k
-		- 2 alpha ABar_ik ABar^k_j
-		+ alpha ABar_ij K
-		+ exp(-4 phi) (trace-free part above)_ij
 	*/
 	deriv->ABar_LL = sym3_add4(
 		deriv->ABar_LL,
@@ -1377,38 +1412,37 @@ static void calcDeriv_ABar_LL(
 }
 
 	
-//////////////////////////////// LambdaBar_,t //////////////////////////////// 
+//////////////////////////////// LambdaBar^I_,t //////////////////////////////// 
 
 
 static real3 calc_PIRK_L2_LambdaBar_U(
 	constant solver_t* solver,
 	global const cons_t* U,
 	real3 x,
-	sym3 gammaBar_UU,
-	sym3 ABar_UU,
-	real3 partial_alpha_L,
-	real3 partial_phi_L,
-	real3 partial_K_L,
-	real3x3 partial_beta_Ul,
-	real3x3 partial_beta_UL,
-	_3sym3 connHat_ULL,
-	_3sym3 Delta_ULL,
+	const sym3* gammaBar_UU,
+	const sym3* ABar_UU,
+	const real3* partial_alpha_L,
+	const real3* partial_phi_L,
+	const real3* partial_K_L,
+	const real3x3* partial_beta_Ul,
+	const real3x3* partial_beta_UL,
+	const _3sym3* connHat_ULL,
+	const _3sym3* Delta_ULL,
 	real detg,
-	real3 partial_detg_L,
-	real det_gammaHat_over_det_gammaBar,
-	real3 partial_det_gammaHat_over_det_gammaHat_L,
-	real3 partial_det_gammaBar_over_det_gammaBar_L
+	const real3* partial_detg_L,
+	const sym3* partial2_detg_LL
 ) {
 	//partial2_beta_ULL.I.JK = e^i_I (beta^M e^i_M)_,jk e^j_J e^k_K
 <?=eqn:makePartial2'beta_U'?>		
+#if 1 //removing this for debugging and setting to zero.  no dif.
 	_3sym3 partial2_beta_ULL;
 <? for i,xi in ipairs(xNames) do
 	for jk,xjk in ipairs(symNames) do
 		local j,k,xj,xk = from6to3x3(jk)
 ?>	partial2_beta_ULL.<?=xi?>.<?=xjk?> = (
 		partial2_beta_Ull[<?=jk-1?>].<?=xi?> + (
-			- partial_beta_Ul.<?=xj?>.<?=xi?> * calc_partial_len_over_len_<?=xi..xk..xi?>(x)
-			- partial_beta_Ul.<?=xk?>.<?=xi?> * calc_partial_len_over_len_<?=xi..xj..xj?>(x)
+			- partial_beta_Ul-><?=xj?>.<?=xi?> * calc_partial_len_over_len_<?=xi..xk..xi?>(x)
+			- partial_beta_Ul-><?=xk?>.<?=xi?> * calc_partial_len_over_len_<?=xi..xj..xj?>(x)
 			+ U->beta_U.<?=xi?> * (
 				calc_partial2_len_<?=xi..xj..xk?>(x) / calc_len_<?=xi?>(x)
 				+ 2. * calc_partial_len_over_len_<?=xi..xj..xi?>(x) * calc_partial_len_over_len_<?=xi..xk..xi?>(x)
@@ -1418,21 +1452,6 @@ static real3 calc_PIRK_L2_LambdaBar_U(
 <?	end
 end ?>
 
-	//for 1D this is r^2 sin(th) * (either sin(th) or cos(th))
-	//in case it can be factored out somewhere
-	sym3 partial2_det_gammaHat_over_det_gammaHat_LL = calc_partial2_det_gammaHat_over_det_gammaHat_LL(x);
-	
-	sym3 partial2_detg_LL = sym3_zero;
-
-	sym3 partial2_det_gammaBar_over_det_gammaHat_LL = sym3_add3(
-			sym3_real_mul(partial2_det_gammaHat_over_det_gammaHat_LL, detg),
-			sym3_from_real3x3(real3_real3_outer(partial_det_gammaHat_over_det_gammaHat_L, partial_detg_L)),
-			partial2_detg_LL);
-	
-	sym3 partial2_det_gammaBar_over_det_gammaBar_LL = sym3_real_mul(
-		partial2_det_gammaBar_over_det_gammaHat_LL,
-		det_gammaHat_over_det_gammaBar);
-	
 	/*
 	DHat2_beta_ull.i.j.k = DHat_k DHat_j beta^i
 	= DHat_k (beta^i_,j + connHat^i_lj beta^l)
@@ -1459,12 +1478,12 @@ for i,xi in ipairs(xNames) do
 <?		for l,xl in ipairs(xNames) do
 ?>		+ calc_partial_connHat_Ulll_<?=xi..sym(l,j)..xk?>(x) * U->beta_U.<?=xl?> 
 			/ (calc_len_<?=xj?>(x) * calc_len_<?=xk?>(x) * calc_len_<?=xl?>(x))
-		+ connHat_ULL.<?=xi?>.<?=sym(l,j)?> * partial_beta_UL.<?=xl?>.<?=xk?>
-		+ connHat_ULL.<?=xi?>.<?=sym(l,k)?> * partial_beta_UL.<?=xl?>.<?=xj?>
-		- connHat_ULL.<?=xl?>.<?=sym(j,k)?> * partial_beta_UL.<?=xi?>.<?=xl?>
+		+ connHat_ULL-><?=xi?>.<?=sym(l,j)?> * partial_beta_UL-><?=xl?>.<?=xk?>
+		+ connHat_ULL-><?=xi?>.<?=sym(l,k)?> * partial_beta_UL-><?=xl?>.<?=xj?>
+		- connHat_ULL-><?=xl?>.<?=sym(j,k)?> * partial_beta_UL-><?=xi?>.<?=xl?>
 <?			for m,xm in ipairs(xNames) do
-?>		+ connHat_ULL.<?=xi?>.<?=sym(m,k)?> * connHat_ULL.<?=xm?>.<?=sym(l,j)?> * U->beta_U.<?=xl?>
-		- connHat_ULL.<?=xi?>.<?=sym(m,l)?> * connHat_ULL.<?=xm?>.<?=sym(k,j)?> * U->beta_U.<?=xl?>
+?>		+ connHat_ULL-><?=xi?>.<?=sym(m,k)?> * connHat_ULL-><?=xm?>.<?=sym(l,j)?> * U->beta_U.<?=xl?>
+		- connHat_ULL-><?=xi?>.<?=sym(m,l)?> * connHat_ULL-><?=xm?>.<?=sym(k,j)?> * U->beta_U.<?=xl?>
 <?			end
 		end
 ?>	;
@@ -1472,6 +1491,17 @@ for i,xi in ipairs(xNames) do
 	end 
 end
 ?>
+#else
+	_3sym3 partial2_beta_ULL = _3sym3_zero;
+	real3x3x3 DHat2_beta_ULL;
+	for (int j = 0; j < 3; ++j) {
+		for (int k = 0; k < 3; ++k) {
+			for (int l = 0; l < 3; ++l) {
+				DHat2_beta_ULL.v[l].v[k].s[j] = 0;
+			}
+		}
+	}
+#endif
 
 	/*
 	tr12_partial2_beta_l.i := beta^j_,ji
@@ -1482,11 +1512,25 @@ end
 	*/
 	real3 tr12_partial2_beta_L = _3sym3_tr12(partial2_beta_ULL);
 
-	real3 partial2_det_gammaBar_over_det_gammaBar_times_beta_L = sym3_real3_mul(partial2_det_gammaBar_over_det_gammaBar_LL, U->beta_U);
+	//SENR's formulas
+	//detg is the ratio of det(gammaBar_ij)/det(gammaHat_ij)
 
-	real partial_det_gammaBar_over_det_gammaBar_dot_beta = real3_dot(partial_det_gammaBar_over_det_gammaBar_L, U->beta_U);
+	real det_gammaHat = calc_det_gammaHat(x);
+	real3 partial_det_gammaHat_L = calc_partial_det_gammaHat_L(x);
+	sym3 partial2_det_gammaHat_LL = calc_partial2_det_gammaHat_LL(x);
+	
+	real det_gammaBar = det_gammaHat * detg;
 
-	real3 partial_det_gammaBar_over_det_gammaBar_times_partial_beta_L = real3_real3x3_mul(partial_det_gammaBar_over_det_gammaBar_L, partial_beta_UL);
+	real3 partial_det_gammaBar_L = real3_add(
+		real3_real_mul(partial_det_gammaHat_L, detg),
+		real3_real_mul(*partial_detg_L, det_gammaHat));
+
+	sym3 partial2_det_gammaBar_LL = sym3_add3(
+		sym3_real_mul(partial2_det_gammaHat_LL, detg),
+		sym3_from_real3x3(real3_real3_outer(partial_det_gammaHat_L, *partial_detg_L)),
+		sym3_real_mul(*partial2_detg_LL, det_gammaHat));
+	
+	real3 partial_det_gammaBar_times_partial_beta_L = real3_real3x3_mul(partial_det_gammaBar_L, *partial_beta_UL);
 
 	/*
 	DBar_tr_DBar_beta_l.i = DBar_i DBar_j beta^j
@@ -1512,35 +1556,49 @@ end
 	Etienne's SENR uses this alternative formulation: 
 	= beta^j_,ji
 		+ 1/2 (
-			gammaBar_,ij beta^j / gammaBar
-			+ (gammaBar_,j / gammaBar) beta^j_,i 
-			- (gammaBar_,i / gammaBar) (gammaBar_,j / gammaBar) beta^j
-		)
+			gammaBar_,ij beta^j
+			- gammaBar_,i gammaBar_,j beta^j / gammaBar
+			+ gammaBar_,j beta^j_,i 
+		) / gammaBar
 	*/
 	real3 DBar_tr_DBar_beta_L = real3_add(
 		tr12_partial2_beta_L,
 		real3_real_mul(
 			real3_add3(
-				partial2_det_gammaBar_over_det_gammaBar_times_beta_L,
-				partial_det_gammaBar_over_det_gammaBar_times_partial_beta_L,
-				real3_real_mul(partial_det_gammaBar_over_det_gammaBar_L, -partial_det_gammaBar_over_det_gammaBar_dot_beta)
-			), .5)
+				sym3_real3_mul(
+					partial2_det_gammaBar_LL,
+					U->beta_U),
+				real3_real_mul(
+					real3_real_mul(
+						partial_det_gammaBar_L,
+						-real3_dot(partial_det_gammaBar_L, U->beta_U)),
+					1. / det_gammaBar),
+				partial_det_gammaBar_times_partial_beta_L
+			), .5 / det_gammaBar)
 	);
 	
 	//DBar_tr_DBar_beta_u.i = DBar^i DBar_k beta^k = gammaBar^ij DBar_j DBar_k beta^k
-	real3 DBar_tr_DBar_beta_U = sym3_real3_mul(gammaBar_UU, DBar_tr_DBar_beta_L);
+	real3 DBar_tr_DBar_beta_U = sym3_real3_mul(*gammaBar_UU, DBar_tr_DBar_beta_L);
 
 	//tr_gammaBar_DHat2_beta_u.i = gammaBar^jk DHat_j DHat_k beta^i
-	real3 tr_gammaBar_DHat2_beta_U = real3x3x3_sym3_dot23(DHat2_beta_ULL, gammaBar_UU);
+	real3 tr_gammaBar_DHat2_beta_U = real3x3x3_sym3_dot23(DHat2_beta_ULL, *gammaBar_UU);
 
-	real3 ABar_times_partial_alpha_U = sym3_real3_mul(ABar_UU, partial_alpha_L);
-	real3 ABar_times_partial_phi_U = sym3_real3_mul(ABar_UU, partial_phi_L);
+	real3 ABar_times_partial_alpha_U = sym3_real3_mul(*ABar_UU, *partial_alpha_L);
+	real3 ABar_times_partial_phi_U = sym3_real3_mul(*ABar_UU, *partial_phi_L);
 
-	real3 Delta_times_ABar_U = _3sym3_sym3_dot23(Delta_ULL, ABar_UU);
+	real3 Delta_times_ABar_U = _3sym3_sym3_dot23(*Delta_ULL, *ABar_UU);
 
-	real3 gammaBar_times_partial_K_U = sym3_real3_mul(gammaBar_UU, partial_K_L);
+	real3 gammaBar_times_partial_K_U = sym3_real3_mul(*gammaBar_UU, *partial_K_L);
 
-	
+/*
+L2 Lambda^I =
+		+ gammaBar^JK DHat_J DHat_K beta^I
+		+ 1/3 DBar^I DBar_J beta^J
+		- 4/3 alpha gammaBar^IJ K_,J
+		- 2 ABar^IJ alpha_,J 
+		+ 12 alpha ABar^IJ phi_,J
+		+ 2 alpha ABar^JK Delta^I_JK
+*/
 	real3 L2_LambdaBar_U = real3_add6(
 		tr_gammaBar_DHat2_beta_U,
 		real3_real_mul(DBar_tr_DBar_beta_U, 1. / 3.),
@@ -1554,34 +1612,34 @@ end
 
 static real3 calc_PIRK_L3_LambdaBar_U(
 	real tr_DBar_beta,
-	real3 Delta_U
+	const real3* Delta_U
 ) {
-	real3 L3_LambdaBar_U = real3_real_mul(Delta_U, 2. / 3. * tr_DBar_beta);
+	//L3 LambdaBar^I = 2/3 Delta^I DBar_J beta^J
+	real3 L3_LambdaBar_U = real3_real_mul(*Delta_U, 2. / 3. * tr_DBar_beta);
 	return L3_LambdaBar_U;
 }
 
-static real3 calc_dt_LambdaBar_U(
+//another name for this could be d0_LambdaBar_U (2017 Ruchlin, eqn 15)
+static real3 calc_dt_LambdaBar_U_wo_partial_upwind_beta_LambdaBar(
 	constant solver_t* solver,
 	global const cons_t* U,
 	int4 updir,
 	real3 x,
-	sym3 gammaBar_UU,
-	sym3 ABar_UU,
-	real3 partial_alpha_L,
-	real3 partial_phi_L,
-	real3 partial_K_L,
-	real3x3 partial_beta_Ul,
-	real3x3 partial_beta_UL,
-	_3sym3 connHat_ULL,
-	_3sym3 Delta_ULL,
-	real3 Delta_U,
+	const sym3* gammaBar_UU,
+	const sym3* ABar_UU,
+	const real3* partial_alpha_L,
+	const real3* partial_phi_L,
+	const real3* partial_K_L,
+	const real3x3* partial_beta_Ul,
+	const real3x3* partial_beta_UL,
+	const _3sym3* connHat_ULL,
+	const _3sym3* Delta_ULL,
+	const real3* Delta_U,
 	real exp_neg4phi,
 	real tr_DBar_beta,
 	real detg,
-	real3 partial_detg_L,
-	real det_gammaHat_over_det_gammaBar,
-	real3 partial_det_gammaBar_over_det_gammaBar_L,
-	real3 partial_det_gammaHat_over_det_gammaHat_L
+	const real3* partial_detg_L,
+	const sym3* partial2_detg_LL
 ) {
 	real3 L2_LambdaBar_U = calc_PIRK_L2_LambdaBar_U(
 		solver,
@@ -1598,9 +1656,7 @@ static real3 calc_dt_LambdaBar_U(
 		Delta_ULL,
 		detg,
 		partial_detg_L,
-		det_gammaHat_over_det_gammaBar,
-		partial_det_gammaHat_over_det_gammaHat_L,
-		partial_det_gammaBar_over_det_gammaBar_L
+		partial2_detg_LL
 	);
 
 	real3 L3_LambdaBar_U = calc_PIRK_L3_LambdaBar_U(
@@ -1608,17 +1664,16 @@ static real3 calc_dt_LambdaBar_U(
 		Delta_U
 	);
 
-
 <?=eqn:makePartialUpwind'LambdaBar_U'?>
 	real3x3 partial_LambdaBar_UL_upwind = real3x3_partial_rescaleFromCoord_Ul(
 		U->LambdaBar_U, 	//TODO upwind avg
 		partial_LambdaBar_Ul_upwind,
-		x	//TODO upwind x
+		x					//TODO upwind x
 	);
 
-	real3 Lbeta_LambdaBar_U = real3_sub(
-		real3x3_real3_mul(partial_LambdaBar_UL_upwind, U->beta_U),
-		real3x3_real3_mul(partial_beta_UL, U->LambdaBar_U));
+//	real3 Lbeta_LambdaBar_U = real3_sub(
+//		real3x3_real3_mul(partial_LambdaBar_UL_upwind, U->beta_U),
+//		real3x3_real3_mul(*partial_beta_UL, U->LambdaBar_U));
 
 
 	/*
@@ -1629,27 +1684,36 @@ static real3 calc_dt_LambdaBar_U(
 		- 2 ABar^ij (alpha_,j - 6 alpha phi_,j)
 		+ 2 alpha ABar^jk Delta^i_jk
 		- 4/3 alpha gammaBar^ij K_,j
-		- 16 pi exp(4 phi) alpha S^i
-		+ LambdaBar^i_,k beta^k
+Lbeta:	+ LambdaBar^i_,k beta^k
 		- LambdaBar^k beta^i_,k
+source:	- 16 pi exp(4 phi) alpha S^i
+	
+	wrt W and IJK:
+	LambdaBar^I_,t = 
+L2:		+ 1/3 DBar^I DBar_J beta^J
+		- 4/3 alpha gammaBar^IJ K_,J
+		+ gammaBar^JK DHat_J DHat_K beta^I
+		- 2 ABar^IJ (alpha_,J - 6 alpha phi_,J)
+		+ 2 alpha ABar^JK Delta^I_JK
+L3:		+ 2/3 Delta^I DBar_J beta^J
+Lbeta:	+ beta^J Dup_J(LambdaBar^I) 
+		- beta^I_,J LambdaBar^J
+source:	- 16 pi alpha S^I / W^2
+
 	*/
-	real3 dt_LambdaBar_U = real3_add4(
+	real3 dt_LambdaBar_U_wo_partial_upwind_beta_LambdaBar = real3_add4(
 		L2_LambdaBar_U,
 		L3_LambdaBar_U,
-		Lbeta_LambdaBar_U,
+
+//		Lbeta_LambdaBar_U,
+		real3_neg(real3x3_real3_mul(*partial_beta_UL, U->LambdaBar_U)),
+		
 		real3_real_mul(
 			real3_rescaleFromCoord_u(U->S_u, x),
 			- 16. * M_PI * U->alpha / exp_neg4phi)
 	);
 
-	return dt_LambdaBar_U;
-}
-
-static void calcDeriv_LambdaBar_U(
-	global cons_t* deriv,
-	real3 dt_LambdaBar_U
-) {
-	deriv->LambdaBar_U = real3_add(deriv->LambdaBar_U, dt_LambdaBar_U);
+	return dt_LambdaBar_U_wo_partial_upwind_beta_LambdaBar;
 }
 
 
@@ -1658,9 +1722,12 @@ static void calcDeriv_LambdaBar_U(
 
 static real3 calc_PIRK_L2_B_U(
 	constant solver_t* solver,
-	real3 dt_LambdaBar_U
+	real3 dt_LambdaBar_U_wo_partial_upwind_beta_LambdaBar
 ) {
-	return real3_real_mul(dt_LambdaBar_U, solver->dt_beta_U_k);
+	return real3_real_mul(
+		dt_LambdaBar_U_wo_partial_upwind_beta_LambdaBar,
+		solver->dt_beta_U_k
+	);
 }
 
 static real3 calc_PIRK_L3_B_U(
@@ -1849,6 +1916,7 @@ kernel void calcDeriv(
 	real3 x = cellBuf[index].pos;
 	global cons_t* deriv = derivBuf + index;
 	const global cons_t* U = UBuf + index;
+	const global cell_t* cell = cellBuf + index;
 	int4 updir = getUpwind(U->beta_U);
 
 	//////////////////////////////// alpha_,t //////////////////////////////// 
@@ -1909,6 +1977,7 @@ kernel void calcDeriv(
 	*/
 	real detg = 1.;
 	real3 partial_detg_L = real3_zero;
+	sym3 partial2_detg_LL = sym3_zero;
 	
 	real3 partial_det_gammaBar_over_det_gammaHat_L = real3_add(
 		real3_real_mul(partial_det_gammaHat_over_det_gammaHat_L, detg),
@@ -2026,7 +2095,7 @@ kernel void calcDeriv(
 
 <? end	-- useCalcDeriv_K ?>
 
-	//////////////////////////////// epsilon_ij,t //////////////////////////////// 
+	//////////////////////////////// epsilon_ij_,t //////////////////////////////// 
 
 <? if useCalcDeriv_epsilon_LL then ?>
 	calcDeriv_epsilon_LL(
@@ -2035,9 +2104,9 @@ kernel void calcDeriv(
 		U,
 		updir,
 		x,
-		gammaBar_LL,
-		partial_beta_UL,
-		ABar_UL,
+		&gammaBar_LL,
+		&partial_beta_UL,
+		&ABar_UL,
 		tr_DBar_beta
 	);
 <? end	-- useCalcDeriv_epsilon_LL ?>
@@ -2061,23 +2130,23 @@ kernel void calcDeriv(
 		U,
 		updir,
 		x,
-		gammaBar_LL,
-		gammaBar_UU,
-		DBar2_alpha_LL,
-		partial_alpha_L, 
-		partial_phi_L, 
-		connBar_ULL,
-		ABar_UL,
-		partial_beta_UL,
-		partial_W_l,
+		&gammaBar_LL,
+		&gammaBar_UU,
+		&DBar2_alpha_LL,
+		&partial_alpha_L, 
+		&partial_phi_L, 
+		&connBar_ULL,
+		&ABar_UL,
+		&partial_beta_UL,
+		&partial_W_l,
 		exp_neg4phi,
 		tr_DBar_beta,
 		//for RBar_IJ:
 		partial_epsilon_LLl,
-		Delta_ULL,
-		Delta_U,
-		connHat_ULL,
-		partial_gammaBar_LLL
+		&Delta_ULL,
+		&Delta_U,
+		&connHat_ULL,
+		&partial_gammaBar_LLL
 	);
 
 <? end	-- useCalcDeriv_ABar_LL ?>
@@ -2086,47 +2155,74 @@ kernel void calcDeriv(
 
 <? if useCalcDeriv_LambdaBar_U then ?>
 
-	real3 dt_LambdaBar_U = calc_dt_LambdaBar_U(
+	//debugging: SENR calculates the Delta^I from Delta^I_JK gammaBar^JK
+	real3 Delta_U_from_Delta_ULL = _3sym3_sym3_dot23(Delta_ULL, gammaBar_UU);
+
+	real3 dt_LambdaBar_U_wo_partial_upwind_beta_LambdaBar = calc_dt_LambdaBar_U_wo_partial_upwind_beta_LambdaBar(
 		solver,
 		U,
 		updir,
 		x,
-		gammaBar_UU,
-		ABar_UU,
-		partial_alpha_L,
-		partial_phi_L,
-		partial_K_L,
-		partial_beta_Ul,
-		partial_beta_UL,
-		connHat_ULL,
-		Delta_ULL,
-		Delta_U,
+		&gammaBar_UU,
+		&ABar_UU,
+		&partial_alpha_L,
+		&partial_phi_L,
+		&partial_K_L,
+		&partial_beta_Ul,
+		&partial_beta_UL,
+		&connHat_ULL,
+		&Delta_ULL,
+		&Delta_U_from_Delta_ULL,
 		exp_neg4phi,
 		tr_DBar_beta,
 		detg,
-		partial_detg_L,
-		det_gammaHat_over_det_gammaBar,
-		partial_det_gammaHat_over_det_gammaHat_L,
-		partial_det_gammaBar_over_det_gammaBar_L
+		&partial_detg_L,
+		&partial2_detg_LL
 	);
 
-	calcDeriv_LambdaBar_U(
-		deriv,
-		dt_LambdaBar_U
+<?=eqn:makePartialUpwind'LambdaBar_U'?>
+
+	real3x3 partial_LambdaBar_UL_upwind = real3x3_partial_rescaleFromCoord_Ul(
+		U->LambdaBar_U, 	//TODO upwind avg
+		partial_LambdaBar_Ul_upwind,
+		x					//TODO upwind x
 	);
+
+#if 0
+	real3 dt_LambdaBar_U = real3_add(
+		dt_LambdaBar_U_wo_partial_upwind_beta_LambdaBar,
+		real3x3_real3_mul(partial_LambdaBar_UL_upwind, U->beta_U));
+#else	//written out
+	real3 dt_LambdaBar_U;
+	for (int j = 0; j < 3; ++j) {
+		dt_LambdaBar_U.s[j] = dt_LambdaBar_U_wo_partial_upwind_beta_LambdaBar.s[j];
+		for (int k = 0; k < 3; ++k) {
+			dt_LambdaBar_U.s[j] += partial_LambdaBar_UL_upwind.v[k].s[j] * U->beta_U.s[k];
+		}
+	}
+#endif
+
+#if 0
+	deriv->LambdaBar_U = real3_add(deriv->LambdaBar_U, dt_LambdaBar_U);
+#else
+	for (int j = 0; j < 3; ++j) {
+		deriv->LambdaBar_U.s[j] += dt_LambdaBar_U.s[j];
+	}
+#endif
 
 <? end	-- useCalcDeriv_LambdaBar_U ?>
 
 	//////////////////////////////// beta^i_,t and B^i_,t //////////////////////////////// 
 
 <? if eqn.useShift == 'GammaDriver' then ?>
+	
 	//Gamma-driver
 	//B&S 4.82
 	//beta^i_,t = k LambdaBar^i_,t + eta LambdaBar^i
 	//const real k = 3. / 4.;
 	//const real eta = 1.;	//1.;	// 1 / (2 M), for total mass M
 	real3 dt_beta_U = real3_add(
-		real3_real_mul(dt_LambdaBar_U, solver->dt_beta_U_k),
+		real3_real_mul(dt_LambdaBar_U_wo_partial_upwind_beta_LambdaBar, solver->dt_beta_U_k),
 		real3_real_mul(U->LambdaBar_U, solver->dt_beta_U_eta));
 	
 <? elseif eqn.useShift == 'HyperbolicGammaDriver' then ?>
@@ -2134,26 +2230,19 @@ kernel void calcDeriv(
 <?=eqn:makePartialUpwind'beta_U'?>
 	real3x3 partial_beta_UL_upwind = real3x3_partial_rescaleFromCoord_Ul(U->beta_U, partial_beta_Ul_upwind, x);
 
-	//SENR's 'shiftadvect':
 	real3 partial_beta_times_beta_upwind = real3x3_real3_mul(partial_beta_UL_upwind, U->beta_U);
 
 	/*
 	hyperbolic Gamma driver 
 	2017 Ruchlin et al, eqn 14a, 14b
-	beta^i_,t = B^i + beta^i_,j beta^j - beta^i_,j beta^j = B^i
-	B^i_,t = 3/4 (
-			LambdaBar^i_,t 
-			- LambdaBar^i_,j beta^j 
-			+ LambdaBar^j beta^i_,j
-		) 
-		- eta B^i 
-		+ B^i_,j beta^j 
-		- B^j beta^i_,j
+	β^i_,t = B^i
+advect shift field:	+ β^i_,j β^j
 	*/
 	real3 dt_beta_U = real3_add(U->B_U, partial_beta_times_beta_upwind);
 
-	//L2 B^I = 3/4 LambdaBar^I_,t
-	real3 L2_B_U = calc_PIRK_L2_B_U(solver, dt_LambdaBar_U);
+
+	//L2 B^I = (k=3/4) ΛBar^I_,t
+	real3 L2_B_U = calc_PIRK_L2_B_U(solver, dt_LambdaBar_U_wo_partial_upwind_beta_LambdaBar);
 	
 	//L3 B^I = -eta B^I 
 	real3 L3_B_U = calc_PIRK_L3_B_U(solver, U);
@@ -2163,24 +2252,67 @@ kernel void calcDeriv(
 	//partial_B_UL.I.J := e_i^I (B^M e^i_M)_,j e^j_J
 	real3x3 partial_B_UL_upwind = real3x3_partial_rescaleFromCoord_Ul(U->B_U, partial_B_Ul_upwind, x);
 
-	//SENR's 'biadvect':
 	real3 partial_B_times_beta_upwind = real3x3_real3_mul(partial_B_UL_upwind, U->beta_U);
 
-	const real eta = 1.;
+	/*
+	for k = 3/4
+	B^i_,t = 
+L2:		k (∂_0 ΛBar^i = ΛBar^i_,t - β^j ∂up_j ΛBar^i)
+L3:		- eta B^i
+(not a Lie derivative, just an advection)
+Lβ:		+ β^j ∂up_j B^i 
+	
+
+OK to fully go over this, in 2017 Ruchlin:
+eqn 10 defines ∂_⊥ = ∂_t - Lβ
+eqn 11e define ∂_⊥ ΛBar^i = ... 
+implying (∂_t + Lβ) ΛBar^i = ... 
+∂_t ΛBar^i = ... - Lβ ΛBar^i
+Lie derivatives of vectors are defined as LA(B) = A^i_,j B^j - A^j B^i_,j
+∂_t ΛBar^i = ... - β^i_,j ΛBar^j + β^j ΛBar^i_,j
+
+and that would mean that eqn 14b & 15 would imply ...
+∂_0 = ∂_t - β^j ∂_j
+so
+∂_0 ΛBar^i = ∂_t ΛBar^i - β^j ΛBar^i_,j
+so 
+∂_0 ΛBar^i = ... - β^i_,j ΛBar^j + β^j ΛBar^i_,j - β^j ΛBar^i_,j
+∂_0 ΛBar^i = ... - β^i_,j ΛBar^j
+
+so we can rewrite
+∂_t ΛBar^i = ∂_0 ΛBar^i + β^j ΛBar^i_,j
+
+and last, eqn 14b:
+∂_0 B^i = k ∂_0 ΛBar^i - η B^i
+∂_0 B^i = k (∂_t ΛBar^i - β^j ΛBar^i_,j) - η B^i
+∂_0 B^i = k (... - β^i_,j ΛBar^j) - η B^i
+
+so if we store ΛBar^i_,t without Lβ (which is ∂_⊥ ΛBar^i)
+or even the ∂_0 ΛBar^i then we can re-add the needed terms later
+	*/
+#if 0	
 	deriv->B_U = real3_add4(
 		deriv->B_U,
-		
 		L2_B_U,
-	
 		L3_B_U,
 		partial_B_times_beta_upwind
 	);
+#else
+	for (int j = 0; j < 3; ++j) {
+		deriv->B_U.s[j] += solver->dt_beta_U_k * dt_LambdaBar_U_wo_partial_upwind_beta_LambdaBar.s[j]
+			- solver->dt_beta_U_eta * U->B_U.s[j];
+		for (int k = 0; k < 3; ++k) {
+			deriv->B_U.s[j] -= U->beta_U.s[k] * partial_B_UL_upwind.v[k].s[j];
+		}
+	}
+#endif
 
 <? end	-- eqn.useShift ?>
 
 <? if useCalcDeriv_beta_U then ?>
 	deriv->beta_U = real3_add(deriv->beta_U, dt_beta_U);
 <? end	-- useCalcDeriv_beta_U ?>
+
 
 <? if eqn.useScalarField then ?>
 	
@@ -2220,39 +2352,68 @@ kernel void calcDeriv(
 	//////////////////////////////// Kreiss-Oligar dissipation //////////////////////////////// 
 
 <? if useKreissOligarDissipation then ?>
+// TODO because this is here (and not addSource), it won't be used by PIRK
+//  but in addSource() it would be based on new values and not old values, so it would alternate what values are dissipated
+// solve this by also moving it to the L3 PIRK step
 	if (solver->dissipationCoeff != 0.) { 
-		const real r = coordMapR(x);
+		real r = coordMapR(x);
 		//Kreiss-Oligar dissipation
 		real coeff = solver->dissipationCoeff;
 #if 0	// 2013 Baumgarte et al, section IIIB
 		coeff /= dt;
-#elif 1	//used in SENR
-		coeff *= .5 * (erf((r - 2.) / .17) + 1.);
+#elif 1	// 2017 Ruchlin et al eqn 44
+		// all params > 0
+		real rKO = 2.;		//rKO/M = 2
+		real wKO = .17;		//wKO/M = .17
+		//epsKO0 = .99 doubles as my 'dissipationCoeff' var
+		coeff *= .5 * (erf((r - rKO) / wKO) + 1.);
 #endif
+	
+<? if require 'hydro.coord.sphere-log-radial'.is(solver.coord) then ?>
+//from SENR: use d/dy
+		real3 yR = _real3(cell->r, cell->pos.y, cell->pos.z);
+		const global cell_t* cellL0 = cell - solver->stepsize.x;
+		real3 yL0 = _real3(cellL0->r, cellL0->pos.y, cellL0->pos.z);
+		const global cell_t* cellL1 = cell - solver->stepsize.y;
+		real3 yL1 = _real3(cellL1->r, cellL1->pos.y, cellL1->pos.z);
+		const global cell_t* cellL2 = cell - solver->stepsize.z;
+		real3 yL2 = _real3(cellL2->r, cellL2->pos.y, cellL2->pos.z);
+		real3 dySq = _real3(
+			real3_lenSq(real3_sub(yR, yL0)),
+			real3_lenSq(real3_sub(yR, yL1)),
+			real3_lenSq(real3_sub(yR, yL2)));
+<? else ?>
+		real3 dySq = _real3(
+			solver->grid_dx.x * solver->grid_dx.x,
+			solver->grid_dx.y * solver->grid_dx.y,
+			solver->grid_dx.z * solver->grid_dx.z);
+<? end ?>
+		real3 _1_dySq = _real3(1./dySq.x, 1./dySq.y, 1./dySq.z);
 
 		//described in 2008 Babiuc et al as Q = (-1)^r h^(2r-1) (D+)^r rho (D-)^r / 2^(2r)
 		//...for r=2... -sigma h^3 (D+)^2 rho (D-)^2 / 16 ... and rho=1, except rho=0 at borders maybe.
+		// TODO base on d/dy
 		for (int i = 0; i < numIntStates; ++i) {
-			deriv->ptr[i] += coeff * (0.
+			deriv->ptr[i] += coeff * (
+				  (
+					-20. * U->ptr[i]
+					+ 15. * (U[1 * solver->stepsize.x].ptr[i] + U[-1 * solver->stepsize.x].ptr[i])
+					+ -6. * (U[2 * solver->stepsize.x].ptr[i] + U[-2 * solver->stepsize.x].ptr[i])
+					+ U[3 * solver->stepsize.x].ptr[i] + U[-3 * solver->stepsize.x].ptr[i]
+				) * _1_dySq.x
 				+ (
-					(-5./16.) * U->ptr[i]
-					+ (15./64.) * (U[1 * solver->stepsize.x].ptr[i] + U[-1 * solver->stepsize.x].ptr[i])
-					+ (-3./32.) * (U[2 * solver->stepsize.x].ptr[i] + U[-2 * solver->stepsize.x].ptr[i])
-					+ (1./64.) * (U[3 * solver->stepsize.x].ptr[i] + U[-3 * solver->stepsize.x].ptr[i])
-				) * (1. / (solver->grid_dx.x * solver->grid_dx.x))
+					-20. * U->ptr[i]
+					+ 15. * (U[1 * solver->stepsize.y].ptr[i] + U[-1 * solver->stepsize.y].ptr[i])
+					+ -6. * (U[2 * solver->stepsize.y].ptr[i] + U[-2 * solver->stepsize.y].ptr[i])
+					+ U[3 * solver->stepsize.y].ptr[i] + U[-3 * solver->stepsize.y].ptr[i]
+				) * _1_dySq.y
 				+ (
-					(-5./16.) * U->ptr[i]
-					+ (15./64.) * (U[1 * solver->stepsize.y].ptr[i] + U[-1 * solver->stepsize.y].ptr[i])
-					+ (-3./32.) * (U[2 * solver->stepsize.y].ptr[i] + U[-2 * solver->stepsize.y].ptr[i])
-					+ (1./64.) * (U[3 * solver->stepsize.y].ptr[i] + U[-3 * solver->stepsize.y].ptr[i])
-				) * (1. / (solver->grid_dx.y * solver->grid_dx.y))
-				+ (
-					(-5./16.) * U->ptr[i]
-					+ (15./64.) * (U[1 * solver->stepsize.z].ptr[i] + U[-1 * solver->stepsize.z].ptr[i])
-					+ (-3./32.) * (U[2 * solver->stepsize.z].ptr[i] + U[-2 * solver->stepsize.z].ptr[i])
-					+ (1./64.) * (U[3 * solver->stepsize.z].ptr[i] + U[-3 * solver->stepsize.z].ptr[i])
-				) * (1. / (solver->grid_dx.z * solver->grid_dx.z))
-			);
+					-20. * U->ptr[i]
+					+ 15. * (U[1 * solver->stepsize.z].ptr[i] + U[-1 * solver->stepsize.z].ptr[i])
+					+ -6. * (U[2 * solver->stepsize.z].ptr[i] + U[-2 * solver->stepsize.z].ptr[i])
+					+ U[3 * solver->stepsize.z].ptr[i] + U[-3 * solver->stepsize.z].ptr[i]
+				) * _1_dySq.z
+			) * (1. / 64.);
 		}
 	}
 <? end	-- useKreissOligarDissipation ?>
@@ -2453,15 +2614,15 @@ for ij,xij in ipairs(symNames) do
 	sym3 RBar_LL = calc_RBar_LL(
 		U,
 		x,
-		gammaBar_LL,
-		gammaBar_UU,
-		connHat_ULL,
-		partial_gammaBar_LLL,
-		trBar_partial2_gammaBar_ll,
-		partial_LambdaBar_UL,
-		Delta_U,
-		Delta_ULL,
-		Delta_LLL);
+		&gammaBar_LL,
+		&gammaBar_UU,
+		&connHat_ULL,
+		&partial_gammaBar_LLL,
+		&trBar_partial2_gammaBar_ll,
+		&partial_LambdaBar_UL,
+		&Delta_U,
+		&Delta_ULL,
+		&Delta_LLL);
 
 	//RBar := RBar_ij gammaBar^ij
 	real RBar = sym3_dot(gammaBar_UU, RBar_LL);
@@ -2699,7 +2860,7 @@ kernel void calcDeriv_PIRK_L1_EpsilonWAlphaBeta(
 	sym3 gammaBar_LL = calc_gammaBar_LL(U, x);
 	sym3 gammaBar_UU = sym3_inv(gammaBar_LL, det_gammaBarLL);
 
-	//////////////////////////////// epsilon_ij,t //////////////////////////////// 
+	//////////////////////////////// epsilon_ij_,t //////////////////////////////// 
 	
 	//ABar^i_j := gammaBar^ik ABar_kj
 	real3x3 ABar_UL = sym3_sym3_mul(gammaBar_UU, U->ABar_LL);
@@ -2711,9 +2872,9 @@ kernel void calcDeriv_PIRK_L1_EpsilonWAlphaBeta(
 		U,
 		updir,
 		x,
-		gammaBar_LL,
-		partial_beta_UL,
-		ABar_UL,
+		&gammaBar_LL,
+		&partial_beta_UL,
+		&ABar_UL,
 		tr_DBar_beta
 	);
 
@@ -2748,11 +2909,14 @@ kernel void calcDeriv_PIRK_L1_EpsilonWAlphaBeta(
 	//////////////////////////////// beta^i_,t //////////////////////////////// 
 
 <? if eqn.useShift == 'GammaDriver' then ?>
+	
+	real3 dt_LambdaBar_U = real3_add(
+		dt_LambdaBar_U_wo_partial_upwind_beta_LambdaBar,
+		real3x3_real3_mul(partial_LambdaBar_UL_upwind, U->beta_U));
+	
 	//Gamma-driver
 	//B&S 4.82
 	//beta^i_,t = k LambdaBar^i_,t + eta LambdaBar^i
-	//const real k = 3. / 4.;
-	//const real eta = 1.;	//1.;	// 1 / (2 M), for total mass M
 	deriv->beta_U = real3_add(
 		real3_real_mul(dt_LambdaBar_U, solver->dt_beta_U_k),
 		real3_real_mul(U->LambdaBar_U, solver->dt_beta_U_eta));
@@ -2763,22 +2927,19 @@ kernel void calcDeriv_PIRK_L1_EpsilonWAlphaBeta(
 	real3x3 partial_beta_UL_upwind = real3x3_partial_rescaleFromCoord_Ul(U->beta_U, partial_beta_Ul_upwind, x);
 
 	//SENR's 'shiftadvect':
+	//advecting the shift vector: beta^i_,j beta^j
 	real3 partial_beta_times_beta_upwind = real3x3_real3_mul(partial_beta_UL_upwind, U->beta_U);
 
 	/*
 	hyperbolic Gamma driver 
 	2017 Ruchlin et al, eqn 14a, 14b
-	beta^i_,t = B^i 
-		+ beta^i_,j beta^j		(SENR's SHIFTADVECT term)
-	B^i_,t = 3/4 (
-			LambdaBar^i_,t 
-			- LambdaBar^i_,j beta^j 
-			+ LambdaBar^j beta^i_,j
-		) - eta B^i 
-		+ B^i_,j beta^j 
-		- B^j beta^i_,j
+	beta^i_,t = 
+				B^i 
+advect shift:	+ beta^i_,j beta^j
 	*/
-	deriv->beta_U = real3_add(U->B_U, partial_beta_times_beta_upwind);
+	deriv->beta_U = real3_add(
+		U->B_U, 
+		partial_beta_times_beta_upwind);
 <? end	-- eqn.useShift ?>
 }
 
@@ -2831,30 +2992,23 @@ kernel void calcDeriv_PIRK_L2_ABarK(
 		DBar2_alpha_LL = sym3_sub(partial2_alpha_LL, real3_3sym3_dot1(partial_alpha_L, connBar_ULL));
 	}
 
-	//ABar^i_j := gammaBar^ik ABar_kj
-	real3x3 ABar_UL = sym3_sym3_mul(gammaBar_UU, U->ABar_LL);
-	
-	//ABar^ij := ABar^i_k gammaBar^kj
-	sym3 ABar_UU = real3x3_sym3_to_sym3_mul(ABar_UL, gammaBar_UU);
-	
-
 	deriv->ABar_LL = calc_PIRK_L2_ABar_LL(
 		solver,
 		U,
 		x,
-		gammaBar_LL,
-		gammaBar_UU,
-		DBar2_alpha_LL,
-		partial_alpha_L,
-		partial_phi_L,
-		connBar_ULL,
-		partial_W_l,
+		&gammaBar_LL,
+		&gammaBar_UU,
+		&DBar2_alpha_LL,
+		&partial_alpha_L,
+		&partial_phi_L,
+		&connBar_ULL,
+		&partial_W_l,
 		exp_neg4phi,
 		partial_epsilon_LLl,
-		Delta_ULL,
-		Delta_U,
-		connHat_ULL,
-		partial_gammaBar_LLL
+		&Delta_ULL,
+		&Delta_U,
+		&connHat_ULL,
+		&partial_gammaBar_LLL
 	);
 
 	deriv->K = calc_PIRK_L2_K(
@@ -2862,7 +3016,6 @@ kernel void calcDeriv_PIRK_L2_ABarK(
 		x,
 		U,
 		gammaBar_UU,
-		&ABar_UU,
 		&DBar2_alpha_LL,
 		&partial_alpha_L,
 		&partial_phi_L,
@@ -2889,6 +3042,9 @@ kernel void calcDeriv_PIRK_L3_ABarK(
 
 	//ABar_ul.i.j := ABar^i_j = gammaBar^kl ABar_kj
 	real3x3 ABar_UL = sym3_sym3_mul(gammaBar_UU, U->ABar_LL);
+	
+	//ABar_uu.i.j := ABar^ij = ABar^i_k gammaBar^kj
+	sym3 ABar_UU = real3x3_sym3_to_sym3_mul(ABar_UL, gammaBar_UU);
 	
 	real3 partial_det_gammaHat_over_det_gammaHat_L = calc_partial_det_gammaHat_over_det_gammaHat_L(x);
 
@@ -2927,7 +3083,10 @@ kernel void calcDeriv_PIRK_L3_ABarK(
 		tr_DBar_beta
 	);
 
-	deriv->K = calc_PIRK_L3_K(U);
+	deriv->K = calc_PIRK_L3_K(
+		U,
+		&ABar_UU
+	);
 }
 
 // LambdaBar^I
@@ -2975,6 +3134,7 @@ kernel void calcDeriv_PIRK_L2_LambdaBar(
 	
 	real detg = 1.;
 	real3 partial_detg_L = real3_zero;
+	sym3 partial2_detg_LL = sym3_zero;
 	
 	real3 partial_det_gammaBar_over_det_gammaHat_L = real3_add(
 		real3_real_mul(partial_det_gammaHat_over_det_gammaHat_L, detg),
@@ -2998,20 +3158,18 @@ kernel void calcDeriv_PIRK_L2_LambdaBar(
 		solver,
 		U,
 		x,
-		gammaBar_UU,
-		ABar_UU,
-		partial_alpha_L,
-		partial_phi_L,
-		partial_K_L,
-		partial_beta_Ul,
-		partial_beta_UL,
-		connHat_ULL,
-		Delta_ULL,
+		&gammaBar_UU,
+		&ABar_UU,
+		&partial_alpha_L,
+		&partial_phi_L,
+		&partial_K_L,
+		&partial_beta_Ul,
+		&partial_beta_UL,
+		&connHat_ULL,
+		&Delta_ULL,
 		detg,
-		partial_detg_L,
-		det_gammaHat_over_det_gammaBar,
-		partial_det_gammaHat_over_det_gammaHat_L,
-		partial_det_gammaBar_over_det_gammaBar_L
+		&partial_detg_L,
+		&partial2_detg_LL
 	);
 }
 
@@ -3050,8 +3208,21 @@ kernel void calcDeriv_PIRK_L3_LambdaBar(
 
 	//tr_partial_beta := beta^i_,i
 	real tr_partial_beta = real3x3_trace(partial_beta_UL);
-	
-	real3 Delta_U = real3_sub(U->LambdaBar_U, mystery_C_U);
+
+
+	sym3 gammaBar_LL = calc_gammaBar_LL(U, x);
+	sym3 gammaBar_UU = sym3_inv(gammaBar_LL, det_gammaBarLL);
+
+	_3sym3 connHat_LLL, connHat_ULL;
+	calc_connHat_LLL_and_ULL(&connHat_LLL, &connHat_ULL, U, x);
+
+<?=eqn:makePartial1'epsilon_LL'?>
+	_3sym3 partial_gammaBar_LLL = calc_partial_gammaBar_LLL(x, U->epsilon_LL, partial_epsilon_LLl);
+	_3sym3 connBar_ULL = calc_connBar_ULL(partial_gammaBar_LLL, gammaBar_UU);
+
+	_3sym3 Delta_ULL = _3sym3_sub(connBar_ULL, connHat_ULL);
+
+	real3 Delta_U = _3sym3_sym3_dot23(Delta_ULL, gammaBar_UU);
 
 	/*
 	tr_DBar_beta := DBar_j beta^j = beta^j_,j + connBar^j_kj beta^k
@@ -3062,7 +3233,7 @@ kernel void calcDeriv_PIRK_L3_LambdaBar(
 
 	deriv->LambdaBar_U = calc_PIRK_L3_LambdaBar_U(
 		tr_DBar_beta,
-		Delta_U
+		&Delta_U
 	);
 }
 
@@ -3108,13 +3279,15 @@ kernel void calcDeriv_PIRK_L2_B(
 	
 	_3sym3 Delta_ULL = _3sym3_sub(connBar_ULL, connHat_ULL);
 
-	real3 Delta_U = real3_sub(U->LambdaBar_U, mystery_C_U);
+	//debugging: SENR calculates the Delta^I from Delta^I_JK gammaBar^JK
+	real3 Delta_U = _3sym3_sym3_dot23(Delta_ULL, gammaBar_UU);
 
 
 	real3 partial_det_gammaHat_over_det_gammaHat_L = calc_partial_det_gammaHat_over_det_gammaHat_L(x);
 
 	real detg = 1.;
 	real3 partial_detg_L = real3_zero;
+	sym3 partial2_detg_LL = sym3_zero;
 	
 	real3 partial_det_gammaBar_over_det_gammaHat_L = real3_add(
 		real3_real_mul(partial_det_gammaHat_over_det_gammaHat_L, detg),
@@ -3148,31 +3321,29 @@ kernel void calcDeriv_PIRK_L2_B(
 	sym3 ABar_UU = real3x3_sym3_to_sym3_mul(ABar_UL, gammaBar_UU);	//ABar^IJ = ABar^I_K gammaBar^KJ
 
 
-	real3 dt_LambdaBar_U = calc_dt_LambdaBar_U(
+	real3 dt_LambdaBar_U_wo_partial_upwind_beta_LambdaBar = calc_dt_LambdaBar_U_wo_partial_upwind_beta_LambdaBar(
 		solver,
 		U,
 		updir,
 		x,
-		gammaBar_UU,
-		ABar_UU,
-		partial_alpha_L,
-		partial_phi_L,
-		partial_K_L,
-		partial_beta_Ul,
-		partial_beta_UL,
-		connHat_ULL,
-		Delta_ULL,
-		Delta_U,
+		&gammaBar_UU,
+		&ABar_UU,
+		&partial_alpha_L,
+		&partial_phi_L,
+		&partial_K_L,
+		&partial_beta_Ul,
+		&partial_beta_UL,
+		&connHat_ULL,
+		&Delta_ULL,
+		&Delta_U,
 		exp_neg4phi,
 		tr_DBar_beta,
 		detg,
-		partial_detg_L,
-		det_gammaHat_over_det_gammaBar,
-		partial_det_gammaHat_over_det_gammaHat_L,
-		partial_det_gammaBar_over_det_gammaBar_L
+		&partial_detg_L,
+		&partial2_detg_LL
 	);
 
-	deriv->B_U = calc_PIRK_L2_B_U(solver, dt_LambdaBar_U);
+	deriv->B_U = calc_PIRK_L2_B_U(solver, dt_LambdaBar_U_wo_partial_upwind_beta_LambdaBar);
 }
 
 // B^I
@@ -3305,7 +3476,7 @@ kernel void PIRK_Eq3_EpsilonWAlphaBeta(
 }
 
 //dst = src + (derivL2_n + derivL2_next + derivL3_n + derivL3_1) * .5 * dt
-#define PIRK_EQ4(type, x)	dst->x = type##_add(dst->x, type##_real_mul(type##_add4(derivL2_n->x, derivL2_next->x, derivL3_n->x, derivL3_1->x), .5 * dt))
+#define PIRK_EQ4(type, x)	dst->x = type##_add(src->x, type##_real_mul(type##_add4(derivL2_n->x, derivL2_next->x, derivL3_n->x, derivL3_1->x), .5 * dt))
 
 //LambdaBar^I
 kernel void PIRK_Eq4_LambdaBar(
