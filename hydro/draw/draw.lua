@@ -31,6 +31,8 @@ uniform float valueMax;
 
 uniform sampler1D gradientTex;
 
+uniform vec3 solverMins;
+uniform vec3 solverMaxs;
 
 <? 
 -- if solver.dim < 3 then -- doesn't consider meshsolver
@@ -127,6 +129,12 @@ function Draw:setupDisplayVarShader(shader, app, solver, var, valueMin, valueMax
 	end
 	if uniforms.valueMax then
 		gl.glUniform1f(uniforms.valueMax.loc, valueMax)
+	end
+	if uniforms.solverMins then
+		gl.glUniform3f(uniforms.solverMins.loc, solver.mins:unpack())
+	end
+	if uniforms.solverMaxs then	
+		gl.glUniform3f(uniforms.solverMaxs.loc, solver.maxs:unpack())
 	end
 end
 

@@ -20,8 +20,6 @@ var.solver = solver
 
 	solver:calcDisplayVarToTex(var)
 	
-	gl.glUniform3f(uniforms.solverMins.loc, solver.mins:unpack())
-	gl.glUniform3f(uniforms.solverMaxs.loc, solver.maxs:unpack())
 	local tex = solver:getTex(var)
 	local size = var.group.getBuffer().sizevec or solver.texSize
 	tex:bind(0)

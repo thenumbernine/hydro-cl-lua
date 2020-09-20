@@ -145,9 +145,6 @@ function DrawVectorField:showDisplayVar(app, solver, var, varName, ar, xmin, xma
 	shader:use()
 	self:setupDisplayVarShader(shader, app, solver, var, valueMin, valueMax)
 
-	gl.glUniform3f(uniforms.solverMins.loc, solver.mins:unpack())
-	gl.glUniform3f(uniforms.solverMaxs.loc, solver.maxs:unpack())
-
 	local tex = solver:getTex(var)
 	tex:bind(0)
 	app.gradientTex:bind(1)

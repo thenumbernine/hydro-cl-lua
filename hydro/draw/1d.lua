@@ -45,8 +45,6 @@ function Draw1D:showDisplayVar(app, solver, var)
 	gl.glUniform1f(uniforms.scale.loc, 1)
 	gl.glUniform1f(uniforms.offset.loc, 0)
 	gl.glUniform1f(uniforms.ambient.loc, 1)
-	gl.glUniform2f(uniforms.xmin.loc, solver.mins.x, 0)
-	gl.glUniform2f(uniforms.xmax.loc, solver.maxs.x, 0)
 
 	gl.glUniform2f(uniforms.size.loc, solver.gridSize.x, solver.gridSize.y)
 	gl.glUniform3f(uniforms.color.loc, (#app.solvers > 1 and solver or var).color:unpack())

@@ -12,8 +12,6 @@ local inout = vertexShader and 'out'
 <? if vertexShader then ?>
 in vec3 inVertex;
 
-uniform vec2 xmin;
-uniform vec2 xmax;
 uniform float scale;
 uniform float offset;
 uniform vec2 size;
@@ -31,8 +29,12 @@ local numGhost = clnumber(solver.numGhost)
 
 vec3 func(vec3 src) {
 	vec3 vertex = src.xyz;
-	vertex.x = (vertex.x * <?=sizeX?> - <?=numGhost?>) / <?=sizeWithoutBorderX?> * (xmax.x - xmin.x) + xmin.x;
-	vertex.y = (vertex.y * <?=sizeY?> - <?=numGhost?>) / <?=sizeWithoutBorderY?> * (xmax.y - xmin.y) + xmin.y;
+	vertex.x = (vertex.x * <?=sizeX?> - <?=numGhost?>) / <?=sizeWithoutBorderX?> * (solverMaxs.x - solverMins.x) + solverMins.x;
+	if (displayDim == 1) {
+		vertex.y = 0.;
+	} else {
+		vertex.y = (vertex.y * <?=sizeY?> - <?=numGhost?>) / <?=sizeWithoutBorderY?> * (solverMaxs.y - solverMins.y) + solverMins.y;
+	}
 
 	vertex[displayDim] = getTex(src).r;
 	vertex[displayDim] -= offset;

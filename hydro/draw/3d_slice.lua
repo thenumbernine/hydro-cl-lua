@@ -69,8 +69,6 @@ function Draw3DSlice:showDisplayVar(app, solver, var, varName, ar, xmin, xmax, y
 
 	gl.glUniform1f(uniforms.alpha.loc, self.alpha)
 	gl.glUniform1f(uniforms.alphaGamma.loc, self.alphaGamma)
-	gl.glUniform3f(uniforms.solverMins.loc, solver.mins:unpack())
-	gl.glUniform3f(uniforms.solverMaxs.loc, solver.maxs:unpack())
 	gl.glUniform1i(uniforms.useIsos.loc, self.useIsos)
 	gl.glUniform1f(uniforms.numIsobars.loc, self.numIsobars)
 	gl.glUniform1i(uniforms.useLighting.loc, self.useLighting)

@@ -19,8 +19,6 @@ attribute vec3 tc;
 
 uniform float scale;
 
-uniform vec3 solverMins, solverMaxs;
-
 void main() {
 	vec3 realtc = tc;
 	if (displayDim <= 1) realtc.y = displayFixed.x;

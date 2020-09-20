@@ -28,8 +28,6 @@ if fragmentShader then ?>
 
 uniform vec2 texCoordMax;
 
-uniform vec2 solverMins, solverMaxs;
-
 out vec4 fragColor;
 
 void main() {

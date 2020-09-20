@@ -23,7 +23,6 @@ attribute vec4 vertex;
 
 <?=coord:getModuleCodeGLSL("coordMapGLSL")?>
 
-uniform vec3 solverMins, solverMaxs;
 void main() {
 	texCoord = vertex.xyz;
 	

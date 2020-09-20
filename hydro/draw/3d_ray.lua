@@ -72,8 +72,6 @@ function Draw3DRay:showDisplayVar(app, solver, var, ar)
 
 			gl.glUniform1f(uniforms.alpha.loc, self.alpha)
 			gl.glUniform1f(uniforms.alphaGamma.loc, self.alphaGamma)
-			gl.glUniform3f(uniforms.mins.loc, solver.mins:unpack())
-			gl.glUniform3f(uniforms.maxs.loc, solver.maxs:unpack())
 			gl.glUniform1f(uniforms.alpha.loc, self.alpha)
 			gl.glUniform1i(uniforms.useIsos.loc, self.useIsos)
 			gl.glUniform1f(uniforms.numIsobars.loc, self.numIsobars)				

@@ -51,8 +51,6 @@ function Draw2DGraph:showDisplayVar(app, solver, var)
 	gl.glUniform1f(uniforms.scale.loc, scale)
 	gl.glUniform1f(uniforms.offset.loc, offset)
 	gl.glUniform1f(uniforms.ambient.loc, self.ambient)
-	gl.glUniform2f(uniforms.xmin.loc, solver.mins.x, solver.mins.y)
-	gl.glUniform2f(uniforms.xmax.loc, solver.maxs.x, solver.maxs.y)
 
 	gl.glUniform2f(uniforms.size.loc, solver.gridSize.x, solver.gridSize.y)
 	

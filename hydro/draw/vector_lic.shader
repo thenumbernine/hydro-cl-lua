@@ -30,7 +30,6 @@ solver.coord:getModuleCodeGLSL(
 ?>
 
 uniform sampler2D noiseTex;
-uniform vec3 solverMins, solverMaxs;
 uniform int integralMaxIter;
 
 vec3 getTexCoordForGridCoord(vec3 gridCoord) {

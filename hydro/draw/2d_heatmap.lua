@@ -15,9 +15,6 @@ var.solver = solver
 	
 	solver:calcDisplayVarToTex(var)
 
-	gl.glUniform2f(uniforms.solverMins.loc, solver.mins.x, solver.mins.y)
-	gl.glUniform2f(uniforms.solverMaxs.loc, solver.maxs.x, solver.maxs.y)
-
 	local tex = solver:getTex(var)
 	if uniforms.texCoordMax then
 		local texSize = var.group.getBuffer().sizevec or solver.texSize
