@@ -54,7 +54,7 @@ function Draw3DRay:showDisplayVar(app, solver, var, ar)
 
 	gl.glColor3f(1,1,1)
 	for pass=1,1 do
-		local tex
+		local tex, shader, uniforms
 		if pass == 0 then
 			gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_LINE)
 		else
@@ -62,21 +62,25 @@ function Draw3DRay:showDisplayVar(app, solver, var, ar)
 			gl.glCullFace(gl.GL_FRONT)
 			gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
 			gl.glEnable(gl.GL_BLEND)
-			solver.volumeRayShader:use()
 			
-			self:setupDisplayVarShader(solver.volumeRayShader, app, solver, var, valueMin, valueMax)
+			shader = solver.volumeRayShader
+			uniforms = shader.uniforms
+			
+			shader:use()
+			
+			self:setupDisplayVarShader(shader, app, solver, var, valueMin, valueMax)
 
-			gl.glUniform1f(solver.volumeRayShader.uniforms.alpha.loc, self.alpha)
-			gl.glUniform1f(solver.volumeRayShader.uniforms.alphaGamma.loc, self.alphaGamma)
-			gl.glUniform3f(solver.volumeRayShader.uniforms.mins.loc, solver.mins:unpack())
-			gl.glUniform3f(solver.volumeRayShader.uniforms.maxs.loc, solver.maxs:unpack())
-			gl.glUniform1f(solver.volumeRayShader.uniforms.alpha.loc, self.alpha)
-			gl.glUniform1i(solver.volumeRayShader.uniforms.useIsos.loc, self.useIsos)
-			gl.glUniform1f(solver.volumeRayShader.uniforms.numIsobars.loc, self.numIsobars)				
-			gl.glUniform1i(solver.volumeRayShader.uniforms.useLighting.loc, self.useLighting)
-			gl.glUniform1f(solver.volumeRayShader.uniforms.numGhost.loc, solver.numGhost)
-			gl.glUniform3f(solver.volumeRayShader.uniforms.texSize.loc, solver.gridSize:unpack())
-			gl.glUniform1i(solver.volumeRayShader.uniforms.maxiter.loc, solver.display3D_Ray_maxiter)
+			gl.glUniform1f(uniforms.alpha.loc, self.alpha)
+			gl.glUniform1f(uniforms.alphaGamma.loc, self.alphaGamma)
+			gl.glUniform3f(uniforms.mins.loc, solver.mins:unpack())
+			gl.glUniform3f(uniforms.maxs.loc, solver.maxs:unpack())
+			gl.glUniform1f(uniforms.alpha.loc, self.alpha)
+			gl.glUniform1i(uniforms.useIsos.loc, self.useIsos)
+			gl.glUniform1f(uniforms.numIsobars.loc, self.numIsobars)				
+			gl.glUniform1i(uniforms.useLighting.loc, self.useLighting)
+			gl.glUniform1f(uniforms.numGhost.loc, solver.numGhost)
+			gl.glUniform3f(uniforms.texSize.loc, solver.gridSize:unpack())
+			gl.glUniform1i(uniforms.maxiter.loc, solver.display3D_Ray_maxiter)
 			local tex = solver:getTex(var)
 			tex:bind(0)
 			app.gradientTex:bind(1)
@@ -95,7 +99,7 @@ function Draw3DRay:showDisplayVar(app, solver, var, ar)
 		else
 			app.gradientTex:unbind(1)
 			tex:unbind(0)
-			solver.volumeRayShader:useNone()
+			shader:useNone()
 			gl.glDisable(gl.GL_BLEND)
 			gl.glDisable(gl.GL_DEPTH_TEST)
 			gl.glCullFace(gl.GL_BACK)

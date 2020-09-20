@@ -12,8 +12,6 @@ local inout = vertexShader and 'out'
 <? if vertexShader then ?>
 in vec3 inVertex;
 
-uniform mat4 ModelViewProjectionMatrix;
-
 uniform vec2 xmin;
 uniform vec2 xmax;
 uniform float scale;
@@ -56,7 +54,7 @@ void main() {
 	normal = normalize(cross(xp - xm, yp - ym));
 
 	vertex = coordMap(vertex);
-	gl_Position = ModelViewProjectionMatrix * vec4(vertex, 1.);
+	gl_Position = modelViewProjectionMatrix * vec4(vertex, 1.);
 }
 
 <?

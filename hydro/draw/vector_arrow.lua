@@ -63,7 +63,8 @@ function DrawVectorField:showDisplayVar(app, solver, var, varName, ar, xmin, xma
 		arrowCount = icount * jcount * kcount
 	end
 
-	local vectorArrowShader = solver.vectorArrowShader
+	local shader = solver.vectorArrowShader
+	local uniforms = shader.uniforms
 
 	if not solver.vectorArrowGLVtxArrayBuffer
 	or solver.vectorArrowGLBufSize ~= arrowCount
@@ -130,7 +131,7 @@ function DrawVectorField:showDisplayVar(app, solver, var, varName, ar, xmin, xma
 		}
 		
 		solver.vectorArrowVAO = GLVertexArray{
-			program = vectorArrowShader,
+			program = shader,
 			attrs = {
 				vtx = solver.vectorArrowGLVtxArrayBuffer,
 				center = solver.vectorArrowGLCentersArrayBuffer,
@@ -141,12 +142,11 @@ function DrawVectorField:showDisplayVar(app, solver, var, varName, ar, xmin, xma
 
 	gl.glEnable(gl.GL_BLEND)
 
-	vectorArrowShader:use()
-	
-	self:setupDisplayVarShader(vectorArrowShader, app, solver, var, valueMin, valueMax)
-		
-	gl.glUniform3f(vectorArrowShader.uniforms.solverMins.loc, solver.mins:unpack())
-	gl.glUniform3f(vectorArrowShader.uniforms.solverMaxs.loc, solver.maxs:unpack())
+	shader:use()
+	self:setupDisplayVarShader(shader, app, solver, var, valueMin, valueMax)
+
+	gl.glUniform3f(uniforms.solverMins.loc, solver.mins:unpack())
+	gl.glUniform3f(uniforms.solverMaxs.loc, solver.maxs:unpack())
 
 	local tex = solver:getTex(var)
 	tex:bind(0)
@@ -156,14 +156,14 @@ function DrawVectorField:showDisplayVar(app, solver, var, varName, ar, xmin, xma
 	--local scale = self.scale * (valueMax - valueMin)
 	--local scale = self.scale / (valueMax - valueMin)
 	local scale = self.scale * step * solver.mindx
-	gl.glUniform1f(vectorArrowShader.uniforms.scale.loc, scale) 
+	gl.glUniform1f(uniforms.scale.loc, scale) 
 
 --[[ glVertexAttrib prim calls
 	gl.glBegin(gl.GL_LINES)
 	for i=0,arrowCount * #arrow-1 do
-		gl.glVertexAttrib3f(vectorArrowShader.attrs.tc.loc, solver.vectorArrowGLTCsArrayBuffer.data[i]:unpack())
-		gl.glVertexAttrib3f(vectorArrowShader.attrs.center.loc, solver.vectorArrowGLCentersArrayBuffer.data[i]:unpack())
-		gl.glVertexAttrib2f(vectorArrowShader.attrs.vtx.loc, solver.vectorArrowGLVtxArrayBuffer.data[i]:unpack())
+		gl.glVertexAttrib3f(shader.attrs.tc.loc, solver.vectorArrowGLTCsArrayBuffer.data[i]:unpack())
+		gl.glVertexAttrib3f(shader.attrs.center.loc, solver.vectorArrowGLCentersArrayBuffer.data[i]:unpack())
+		gl.glVertexAttrib2f(shader.attrs.vtx.loc, solver.vectorArrowGLVtxArrayBuffer.data[i]:unpack())
 	end
 	gl.glEnd()
 --]]
@@ -180,7 +180,7 @@ function DrawVectorField:showDisplayVar(app, solver, var, varName, ar, xmin, xma
 
 	app.gradientTex:unbind(1)
 	tex:unbind(0)
-	vectorArrowShader:useNone()
+	shader:useNone()
 
 	gl.glDisable(gl.GL_BLEND)
 

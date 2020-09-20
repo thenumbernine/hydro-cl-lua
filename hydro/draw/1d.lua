@@ -33,22 +33,23 @@ function Draw1D:showDisplayVar(app, solver, var)
 	end
 
 
-	local graphShader = solver.graphShader
+	local shader = solver.graphShader
+	local uniforms = shader.uniforms
 
-	graphShader:use()
+	shader:use()
 	local tex = solver:getTex(var)
 	tex:bind()
 	
-	self:setupDisplayVarShader(graphShader, app, solver, var, valueMin, valueMax)
+	self:setupDisplayVarShader(shader, app, solver, var, valueMin, valueMax)
 
-	gl.glUniform1f(graphShader.uniforms.scale.loc, 1)
-	gl.glUniform1f(graphShader.uniforms.offset.loc, 0)
-	gl.glUniform1f(graphShader.uniforms.ambient.loc, 1)
-	gl.glUniform2f(graphShader.uniforms.xmin.loc, solver.mins.x, 0)
-	gl.glUniform2f(graphShader.uniforms.xmax.loc, solver.maxs.x, 0)
+	gl.glUniform1f(uniforms.scale.loc, 1)
+	gl.glUniform1f(uniforms.offset.loc, 0)
+	gl.glUniform1f(uniforms.ambient.loc, 1)
+	gl.glUniform2f(uniforms.xmin.loc, solver.mins.x, 0)
+	gl.glUniform2f(uniforms.xmax.loc, solver.maxs.x, 0)
 
-	gl.glUniform2f(graphShader.uniforms.size.loc, solver.gridSize.x, solver.gridSize.y)
-	gl.glUniform3f(graphShader.uniforms.color.loc, (#app.solvers > 1 and solver or var).color:unpack())
+	gl.glUniform2f(uniforms.size.loc, solver.gridSize.x, solver.gridSize.y)
+	gl.glUniform3f(uniforms.color.loc, (#app.solvers > 1 and solver or var).color:unpack())
 
 	local step = 1
 	local numVertexes = math.floor((tonumber(solver.gridSize.x) - 2 * solver.numGhost + 1) / step)	-- (endindex - startindex + 1) / step
@@ -56,18 +57,25 @@ function Draw1D:showDisplayVar(app, solver, var)
 		self.numVertexes = numVertexes 
 		self.vertexes = ffi.new('float[?]', 3*numVertexes)
 	end
-	
+
+	-- [[ overwrite the modelViewProjectionMatrix uniform here
+	-- this is different from the other 'Draw.modelViewProjectionMatrix'
+	-- that one is based on hydro.view, 
+	-- this is based on the GL state set in hydro.app for 1D graphs
+	-- TODO maybe combine the two, make the hydro.app 1D graph stuff use hydro.view.ortho, 
+	-- then this could just use the default 'modelViewProjectionMatrix'
 	self.ModelViewMatrix = self.ModelViewMatrix or matrix_ffi(nil, 'float', {4,4})--ffi.new'float[16]'
 	gl.glGetFloatv(gl.GL_MODELVIEW_MATRIX, self.ModelViewMatrix.ptr)
-	
+
 	self.ProjectionMatrix = self.ProjectionMatrix or matrix_ffi(nil, 'float', {4,4})--ffi.new'float[16]'
 	gl.glGetFloatv(gl.GL_PROJECTION_MATRIX, self.ProjectionMatrix.ptr)
 
 	self.ModelViewProjectionMatrix = self.ModelViewProjectionMatrix or require 'matrix.ffi'(nil, 'float', {4,4})--ffi.new'float[16]'
 	matrix_ffi.mul(self.ModelViewProjectionMatrix, self.ProjectionMatrix, self.ModelViewMatrix)
 
-	gl.glUniformMatrix4fv(graphShader.uniforms.ModelViewProjectionMatrix.loc, 1, gl.GL_FALSE, self.ModelViewProjectionMatrix.ptr)
-	
+	gl.glUniformMatrix4fv(uniforms.modelViewProjectionMatrix.loc, 1, gl.GL_FALSE, self.ModelViewProjectionMatrix.ptr)
+	--]]
+
 	for i=0,self.numVertexes-1 do
 		local x = (i * step + .5 + solver.numGhost) / tonumber(solver.gridSize.x)
 		self.vertexes[0+3*i] = x
@@ -75,15 +83,15 @@ function Draw1D:showDisplayVar(app, solver, var)
 		self.vertexes[2+3*i] = app.displayFixedZ
 	end
 	
-	gl.glEnableVertexAttribArray(graphShader.attrs.inVertex.loc)
-	gl.glVertexAttribPointer(graphShader.attrs.inVertex.loc, 3, gl.GL_FLOAT, false, 0, self.vertexes)
+	gl.glEnableVertexAttribArray(shader.attrs.inVertex.loc)
+	gl.glVertexAttribPointer(shader.attrs.inVertex.loc, 3, gl.GL_FLOAT, false, 0, self.vertexes)
 	
 	gl.glDrawArrays(gl.GL_LINE_STRIP, 0, self.numVertexes) 
 	
-	gl.glDisableVertexAttribArray(graphShader.attrs.inVertex.loc)
+	gl.glDisableVertexAttribArray(shader.attrs.inVertex.loc)
 	
 	tex:unbind()
-	graphShader:useNone()
+	shader:useNone()
 end
 
 function Draw1D:display(app, solvers, varName, ar, xmin, xmax, ymin, ymax, useLog, valueMin, valueMax)

@@ -7,20 +7,21 @@ local Draw = require 'hydro.draw.draw'
 
 local Draw2DHeatmap = class(Draw)
 
-function Draw2DHeatmap:drawSolverWithVar(app, solver, var, heatMap2DShader, xmin, xmax, ymin, ymax)
+function Draw2DHeatmap:drawSolverWithVar(app, solver, var, shader, xmin, xmax, ymin, ymax)
+	local uniforms = shader.uniforms
 -- hmm ... this is needed for sub-solvers
 local origSolver = var.solver
 var.solver = solver
 	
 	solver:calcDisplayVarToTex(var)
 
-	gl.glUniform2f(heatMap2DShader.uniforms.solverMins.loc, solver.mins.x, solver.mins.y)
-	gl.glUniform2f(heatMap2DShader.uniforms.solverMaxs.loc, solver.maxs.x, solver.maxs.y)
+	gl.glUniform2f(uniforms.solverMins.loc, solver.mins.x, solver.mins.y)
+	gl.glUniform2f(uniforms.solverMaxs.loc, solver.maxs.x, solver.maxs.y)
 
 	local tex = solver:getTex(var)
-	if heatMap2DShader.uniforms.texCoordMax then
+	if uniforms.texCoordMax then
 		local texSize = var.group.getBuffer().sizevec or solver.texSize
-		gl.glUniform2f(heatMap2DShader.uniforms.texCoordMax.loc, 
+		gl.glUniform2f(uniforms.texCoordMax.loc, 
 			tonumber(texSize.x) / tex.width,
 			tonumber(texSize.y) / tex.height)
 	end
@@ -59,21 +60,21 @@ function Draw2DHeatmap:showDisplayVar(app, solver, var, varName, ar, xmin, xmax,
 		var.heatMapValueMax = valueMax
 	end
 	
-	local heatMap2DShader = solver.heatMap2DShader
-	heatMap2DShader:use()
+	local shader = solver.heatMap2DShader
+	shader:use()
 	app.gradientTex:bind(1)
 
-	self:setupDisplayVarShader(heatMap2DShader, app, solver, var, valueMin, valueMax)
+	self:setupDisplayVarShader(shader, app, solver, var, valueMin, valueMax)
 
 	gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
 	gl.glEnable(gl.GL_BLEND)
 	
-	self:drawSolverWithVar(app, solver, var, heatMap2DShader, xmin, xmax, ymin, ymax)
+	self:drawSolverWithVar(app, solver, var, shader, xmin, xmax, ymin, ymax)
 
 -- [[
 	if solver.amr then
 		for k,subsolver in pairs(solver.amr.child) do
-			self:drawSolverWithVar(app, subsolver, var, heatMap2DShader, xmin, xmax, ymin, ymax)
+			self:drawSolverWithVar(app, subsolver, var, shader, xmin, xmax, ymin, ymax)
 		end
 	end
 --]]
@@ -82,7 +83,7 @@ function Draw2DHeatmap:showDisplayVar(app, solver, var, varName, ar, xmin, xmax,
 
 	app.gradientTex:unbind(1)
 	gl.glActiveTexture(gl.GL_TEXTURE0)
-	heatMap2DShader:useNone()
+	shader:useNone()
 
 --	gl.glDisable(gl.GL_DEPTH_TEST)
 

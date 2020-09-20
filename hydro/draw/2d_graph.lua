@@ -37,26 +37,27 @@ function Draw2DGraph:showDisplayVar(app, solver, var)
 	end
 
 
-	local graphShader = solver.graphShader
-	
-	graphShader:use()
+	local shader = solver.graphShader
+	local uniforms = shader.uniforms
+
+	shader:use()
 	local tex = solver:getTex(var)
 	tex:bind()
 	
-	self:setupDisplayVarShader(graphShader, app, solver, var, valueMin, valueMax)
+	self:setupDisplayVarShader(shader, app, solver, var, valueMin, valueMax)
 
 	local scale = 1 / (valueMax - valueMin)
 	local offset = valueMin
-	gl.glUniform1f(graphShader.uniforms.scale.loc, scale)
-	gl.glUniform1f(graphShader.uniforms.offset.loc, offset)
-	gl.glUniform1f(graphShader.uniforms.ambient.loc, self.ambient)
-	gl.glUniform2f(graphShader.uniforms.xmin.loc, solver.mins.x, solver.mins.y)
-	gl.glUniform2f(graphShader.uniforms.xmax.loc, solver.maxs.x, solver.maxs.y)
+	gl.glUniform1f(uniforms.scale.loc, scale)
+	gl.glUniform1f(uniforms.offset.loc, offset)
+	gl.glUniform1f(uniforms.ambient.loc, self.ambient)
+	gl.glUniform2f(uniforms.xmin.loc, solver.mins.x, solver.mins.y)
+	gl.glUniform2f(uniforms.xmax.loc, solver.maxs.x, solver.maxs.y)
 
-	gl.glUniform2f(graphShader.uniforms.size.loc, solver.gridSize.x, solver.gridSize.y)
+	gl.glUniform2f(uniforms.size.loc, solver.gridSize.x, solver.gridSize.y)
 	
 	-- TODO where to specify using the heatmap gradient vs using the variable/solver color
-	gl.glUniform3f(graphShader.uniforms.color.loc, (#app.solvers > 1 and solver or var).color:unpack())
+	gl.glUniform3f(uniforms.color.loc, (#app.solvers > 1 and solver or var).color:unpack())
 
 	local step = math.max(1, self.step)
 	local numX = math.floor((tonumber(solver.gridSize.x) - 2 * solver.numGhost + 1) / step)
@@ -68,17 +69,6 @@ function Draw2DGraph:showDisplayVar(app, solver, var)
 		-- 2 vtxs per tristrip * 3 components per vertex
 		self.vertexes = ffi.new('float[?]', 2*3*numVertexes2D)
 	end
-
-	self.ModelViewMatrix = self.ModelViewMatrix or matrix_ffi(nil, 'float', {4,4})--ffi.new'float[16]'
-	gl.glGetFloatv(gl.GL_MODELVIEW_MATRIX, self.ModelViewMatrix.ptr)
-
-	self.ProjectionMatrix = self.ProjectionMatrix or matrix_ffi(nil, 'float', {4,4})--ffi.new'float[16]'
-	gl.glGetFloatv(gl.GL_PROJECTION_MATRIX, self.ProjectionMatrix.ptr)
-
-	self.ModelViewProjectionMatrix = self.ModelViewProjectionMatrix or require 'matrix.ffi'(nil, 'float', {4,4})--ffi.new'float[16]'
-	matrix_ffi.mul(self.ModelViewProjectionMatrix, self.ProjectionMatrix, self.ModelViewMatrix)
-
-	gl.glUniformMatrix4fv(graphShader.uniforms.ModelViewProjectionMatrix.loc, 1, gl.GL_FALSE, self.ModelViewProjectionMatrix.ptr)
 
 	for j=0,numY-2 do
 		for i=0,numX-1 do
@@ -92,8 +82,8 @@ function Draw2DGraph:showDisplayVar(app, solver, var)
 		end
 	end
 	
-	gl.glEnableVertexAttribArray(graphShader.attrs.inVertex.loc)
-	gl.glVertexAttribPointer(graphShader.attrs.inVertex.loc, 3, gl.GL_FLOAT, false, 0, self.vertexes)
+	gl.glEnableVertexAttribArray(shader.attrs.inVertex.loc)
+	gl.glVertexAttribPointer(shader.attrs.inVertex.loc, 3, gl.GL_FLOAT, false, 0, self.vertexes)
 	
 	gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_LINE)
 
@@ -103,10 +93,10 @@ function Draw2DGraph:showDisplayVar(app, solver, var)
 	
 	gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_FILL)
 	
-	gl.glDisableVertexAttribArray(graphShader.attrs.inVertex.loc)
+	gl.glDisableVertexAttribArray(shader.attrs.inVertex.loc)
 	
 	tex:unbind()
-	graphShader:useNone()
+	shader:useNone()
 end
 
 function Draw2DGraph:display(app, solvers, varName, ar, graph_xmin, graph_xmax, graph_ymin, graph_ymax)

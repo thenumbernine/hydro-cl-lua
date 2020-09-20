@@ -216,7 +216,9 @@ end
 local Draw3DIso = class(Draw)
 
 function Draw3DIso:showDisplayVar(app, solver, var)
-	app.isobarShader:use()
+	local shader = app.isobarShader
+
+	shader:use()
 	gl.glBegin(gl.GL_TRIANGLES)
 	
 	local valueMin, valueMax
@@ -231,7 +233,7 @@ function Draw3DIso:showDisplayVar(app, solver, var)
 	
 	solver:calcDisplayVarToTex(var)	
 	
-	self:setupDisplayVarShader(app.isobarShader, app, solver, var, valueMin, valueMax)
+	self:setupDisplayVarShader(shader, app, solver, var, valueMin, valueMax)
 	
 	assert(not app.useGLSharing, "I still need to code in the GL sharing version")
 	local dest = ffi.cast('float*', solver.calcDisplayVarToTexPtr)
@@ -325,7 +327,7 @@ function Draw3DIso:showDisplayVar(app, solver, var)
 	end
 	
 	gl.glEnd()
-	app.isobarShader:useNone()
+	shader:useNone()
 end
 
 function Draw3DIso:display(app, solvers, varName, ar, xmin, xmax, ymin, ymax, useLog)

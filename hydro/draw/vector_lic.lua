@@ -11,15 +11,17 @@ local DrawVectorLIC = class(Draw)
 
 DrawVectorLIC.integralMaxIter = 10
 
-function DrawVectorLIC:drawSolverWithVar(app, solver, var, vectorLICShader, xmin, xmax, ymin, ymax)
+function DrawVectorLIC:drawSolverWithVar(app, solver, var, shader, xmin, xmax, ymin, ymax)
 -- hmm ... this is needed for sub-solvers
 local origSolver = var.solver
 var.solver = solver
-	
+
+	local uniforms = shader.uniforms
+
 	solver:calcDisplayVarToTex(var)
 	
-	gl.glUniform3f(vectorLICShader.uniforms.solverMins.loc, solver.mins:unpack())
-	gl.glUniform3f(vectorLICShader.uniforms.solverMaxs.loc, solver.maxs:unpack())
+	gl.glUniform3f(uniforms.solverMins.loc, solver.mins:unpack())
+	gl.glUniform3f(uniforms.solverMaxs.loc, solver.maxs:unpack())
 	local tex = solver:getTex(var)
 	local size = var.group.getBuffer().sizevec or solver.texSize
 	tex:bind(0)
@@ -86,21 +88,21 @@ function DrawVectorLIC:showDisplayVar(app, solver, var, varName, ar, xmin, xmax,
 		}
 	end
 
-	local vectorLICShader = solver.vectorLICShader
-	vectorLICShader:use()
+	local shader = solver.vectorLICShader
+	shader:use()
 	app.gradientTex:bind(1)
 
-	gl.glUniform1i(vectorLICShader.uniforms.integralMaxIter.loc, self.integralMaxIter)
+	gl.glUniform1i(shader.uniforms.integralMaxIter.loc, self.integralMaxIter)
 	
 	gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
 	gl.glEnable(gl.GL_BLEND)
 	
-	self:drawSolverWithVar(app, solver, var, vectorLICShader, xmin, xmax, ymin, ymax)
+	self:drawSolverWithVar(app, solver, var, shader, xmin, xmax, ymin, ymax)
 
 -- [[
 	if solver.amr then
 		for k,subsolver in pairs(solver.amr.child) do
-			self:drawSolverWithVar(app, subsolver, var, vectorLICShader, xmin, xmax, ymin, ymax)
+			self:drawSolverWithVar(app, subsolver, var, shader, xmin, xmax, ymin, ymax)
 		end
 	end
 --]]
@@ -109,7 +111,7 @@ function DrawVectorLIC:showDisplayVar(app, solver, var, varName, ar, xmin, xmax,
 
 	app.gradientTex:unbind(1)
 	gl.glActiveTexture(gl.GL_TEXTURE0)
-	vectorLICShader:useNone()
+	shader:useNone()
 
 --	gl.glDisable(gl.GL_DEPTH_TEST)
 
