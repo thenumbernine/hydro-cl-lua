@@ -2,11 +2,14 @@
 
 <?
 local coord = solver.coord
+local varying = vertexShader and 'out'
+		or fragmentShader and 'in'
+		or error("don't know what to set varying to")
 ?>
 
 //xy holds the view xy
 //z holds the fixed z slice of the 3D texture
-varying vec3 viewCoord;
+<?=varying?> vec3 viewCoord;
 
 <?=draw:getCommonGLSLFragCode(solver)?>
 
@@ -15,9 +18,13 @@ varying vec3 viewCoord;
 attribute vec4 vertex;
 
 void main() {
-	viewCoord = vertex.xyz;
-	// disregard 'z' for rendering
-	gl_Position = modelViewProjectionMatrix * vertex;
+	vec4 v;
+	v.xy = vertex.xy;
+	v.z = displayFixed.y;
+	viewCoord = v.xyz;
+	//v.z = 0.;// should we disregard 'z' for rendering?
+	v.w = 1.;
+	gl_Position = modelViewProjectionMatrix * v;
 }
 
 <? end
@@ -25,6 +32,7 @@ if fragmentShader then ?>
 
 <?=solver.coord:getModuleCodeGLSL('coordMapInvGLSL')?>
 
+//this is from the start of the amr stuff that I haven't finished
 uniform vec2 texCoordMax;
 
 out vec4 fragColor;

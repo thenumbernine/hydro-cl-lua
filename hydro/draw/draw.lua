@@ -40,17 +40,29 @@ uniform vec3 texSize;
 uniform vec3 gridSize;
 uniform vec3 sizeWithoutBorder;
 
+uniform vec4 displaySliceAngle;
+
+vec3 quatRotate(vec4 q, vec3 v) { 
+	return v + 2. * cross(cross(v, q.xyz) - q.w * v, q.xyz);
+}
+
+vec4 quatConj(vec4 q) {
+	return vec4(q.xyz, -q.w);
+}
+
 <? 
 -- if solver.dim < 3 then -- doesn't consider meshsolver
 if require 'gl.tex2d'.is(solver.tex) then -- does
 ?>
 uniform sampler2D tex;
 vec4 getTex(vec3 texCoord) {
+	texCoord = quatRotate(displaySliceAngle, texCoord);
 	return texture2D(tex, texCoord.xy);
 }
 <? else ?>
 uniform sampler3D tex;
 vec4 getTex(vec3 texCoord) {
+	texCoord = quatRotate(displaySliceAngle, texCoord);
 	return texture3D(tex, texCoord);
 }
 <? end ?>
@@ -153,6 +165,10 @@ function Draw:setupDisplayVarShader(shader, app, solver, var, valueMin, valueMax
 	end
 	if uniforms.sizeWithoutBorder then
 		gl.glUniform3f(uniforms.sizeWithoutBorder.loc, solver.sizeWithoutBorder:unpack())
+	end
+	if uniforms.displaySliceAngle then
+		--gl.glUniform4fv(uniforms.displaySliceAngle.loc, 4, app.displaySliceAngle.s)
+		gl.glUniform4f(uniforms.displaySliceAngle.loc, app.displaySliceAngle:unpack())
 	end
 end
 

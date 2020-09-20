@@ -9,7 +9,6 @@ varying vec3 eye;
 <? if vertexShader then ?>
 <?=coord:getModuleCodeGLSL'coordMapGLSL'?>
 
-uniform vec3 mins, maxs;
 void main() {
 	//this only needs to be done once per render
 	//i.e. uniform?
@@ -17,8 +16,8 @@ void main() {
 	texCoordStart = gl_MultiTexCoord0.xyz;
 	
 	vec4 x = gl_Vertex;
-	x.xyz *= maxs - mins;
-	x.xyz += mins;
+	x.xyz *= solverMaxs - solverMins;
+	x.xyz += solverMins;
 	x = vec4(coordMap(x.xyz), x.w);	
 	
 	vertexStart = x.xyz;	//this means we have to invert coordMap as we travel through the cartesian space
@@ -28,16 +27,13 @@ void main() {
 <? end
 if fragmentShader then ?>
 
-uniform int maxiter;
-uniform vec3 oneOverDx;
-
-uniform vec3 texSize;
-
+uniform bool useLighting;
 uniform float alpha;
 uniform float alphaGamma;
-uniform bool useIsos;
-uniform bool useLighting;
+uniform bool useIsobars;
 uniform float numIsobars;
+
+uniform int maxiter;
 
 <?=draw:getCommonGLSLFragCode(solver)?>
 
@@ -85,7 +81,7 @@ void main() {
 		//voxelColor.a /= min(1., length(voxelColor.rgb));
 
 		//don't bother with the gamma factor if we're using isobars
-		if (useIsos) {
+		if (useIsobars) {
 			float ffrac = fract(frac * numIsobars + .5);
 //percentage of each isobar that is solid
 #define stepThickness .1

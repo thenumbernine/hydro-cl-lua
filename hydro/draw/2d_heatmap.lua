@@ -16,7 +16,7 @@ var.solver = solver
 	solver:calcDisplayVarToTex(var)
 
 	local tex = solver:getTex(var)
-	-- TODO why is this here?  why do I think it's leftover from my first attempt at AMR?
+	-- I think it's leftover from my first attempt at AMR ...
 	if uniforms.texCoordMax then
 		local texSize = var.group.getBuffer().sizevec or solver.texSize
 		gl.glUniform2f(uniforms.texCoordMax.loc, 
@@ -31,10 +31,10 @@ var.solver = solver
 	end
 
 	gl.glBegin(gl.GL_QUADS)
-	gl.glVertex3d(xmin, ymin, app.displayFixedZ)
-	gl.glVertex3d(xmax, ymin, app.displayFixedZ)
-	gl.glVertex3d(xmax, ymax, app.displayFixedZ)
-	gl.glVertex3d(xmin, ymax, app.displayFixedZ)
+	gl.glVertex2d(xmin, ymin) --, app.displayFixedZ)
+	gl.glVertex2d(xmax, ymin) --, app.displayFixedZ)
+	gl.glVertex2d(xmax, ymax) --, app.displayFixedZ)
+	gl.glVertex2d(xmin, ymax) --, app.displayFixedZ)
 	gl.glEnd()
 	
 	tex:unbind(0)

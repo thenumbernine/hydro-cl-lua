@@ -1,11 +1,11 @@
 #version 460
 
 <?
-local inout = vertexShader and 'out'
+local varying = vertexShader and 'out'
 		or fragmentShader and 'in'
-		or error("don't know what to set inout to")
+		or error("don't know what to set varying to")
 ?>
-<?=inout?> vec3 normal;
+<?=varying?> vec3 normal;
 
 <?=draw:getCommonGLSLFragCode(solver)?>
 
@@ -15,6 +15,12 @@ in vec3 inVertex;
 <?=solver.coord:getModuleCodeGLSL('coordMapGLSL')?>
 
 vec3 func(vec3 src) {
+	if (displayDim == 1) {
+		src.yz = displayFixed;
+	} else if (displayDim == 2) {
+		src.z = displayFixed.y;
+	}
+	
 	vec3 vertex = src.xyz;
 	vertex.x = (vertex.x * gridSize.x - numGhost) / sizeWithoutBorder.x * (solverMaxs.x - solverMins.x) + solverMins.x;
 	if (displayDim == 1) {

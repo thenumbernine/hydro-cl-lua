@@ -1,12 +1,12 @@
 #version 460
 
 <? 
-local inout = vertexShader and 'out'
+local varying = vertexShader and 'out'
 		or fragmentShader and 'in'
-		or error("don't know what to set inout to")
+		or error("don't know what to set varying to")
 ?>
 
-<?=inout?> float cellindexv;
+<?=varying?> float cellindexv;
 
 <?=draw:getCommonGLSLFragCode(solver)?>
 

@@ -353,6 +353,7 @@ have hydro make draw objs *and* solver shaders upon request
 then create the draw objs before the shaders (so they exist during shader ctor)
 --]]
 function HydroCLApp:initDraw()
+	self.displaySliceAngle = require 'vec-ffi.quatf'(0,0,0,1)
 
 	self.display2DMethods = table{
 		{Heatmap = HydroCLApp.display2D_Heatmap},
@@ -1336,6 +1337,18 @@ function HydroCLApp:updateGUI()
 		tooltip.sliderTable('fixed y', self, 'displayFixedY', 0, 1)
 		tooltip.sliderTable('fixed z', self, 'displayFixedZ', 0, 1)
 
+		if tooltip.sliderTable('slice qw', self.displaySliceAngle, 'w', -1, 1) then
+			self.displaySliceAngle:normalize(self.displaySliceAngle)
+		end
+		if tooltip.sliderTable('slice qx', self.displaySliceAngle, 'x', -1, 1) then
+			self.displaySliceAngle:normalize(self.displaySliceAngle)
+		end
+		if tooltip.sliderTable('slice qy', self.displaySliceAngle, 'y', -1, 1) then
+			self.displaySliceAngle:normalize(self.displaySliceAngle)
+		end
+		if tooltip.sliderTable('slice qz', self.displaySliceAngle, 'z', -1, 1) then
+			self.displaySliceAngle:normalize(self.displaySliceAngle)
+		end
 
 		-- TODO flag for separate/combined displays (esp for ortho view)
 

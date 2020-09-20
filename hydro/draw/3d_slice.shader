@@ -2,16 +2,16 @@
 
 <?
 local coord = solver.coord
-local inout = vertexShader and 'out'
+local varying = vertexShader and 'out'
 		or fragmentShader and 'in'
-		or error("don't know what to set inout to")
+		or error("don't know what to set varying to")
 ?>
 
-<?=inout?> vec3 texCoord;	//[0,1]^n
+<?=varying?> vec3 texCoord;	//[0,1]^n
 
 <? local useClipPlanes = false ?>
 <? if useClipPlanes then ?>
-<?=inout?> vec3 pos;		//positive after coordinate mapping, before view transform
+<?=varying?> vec3 pos;		//positive after coordinate mapping, before view transform
 <? end ?>
 
 <?=draw:getCommonGLSLFragCode(solver)?>
@@ -45,19 +45,19 @@ if fragmentShader then ?>
 
 out vec4 fragColor;
 
-uniform vec3 normal;
+uniform bool useLighting;
 uniform float alpha;
 uniform float alphaGamma;
-
 uniform bool useIsos;
 uniform float numIsobars;
+
+uniform vec3 normal;
 <? if useClipPlanes then ?>
 <? for i,clipInfo in ipairs(clipInfos) do
 ?>uniform bool clipEnabled<?=i?>;
 <? end
 ?>
 <? end ?>
-uniform bool useLighting;
 
 float getVoxelValue(vec3 tc) {
 	//using texel coordinates as-is

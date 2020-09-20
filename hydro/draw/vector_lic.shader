@@ -1,23 +1,39 @@
+#version 460
+
 <?
 local coord = solver.coord
+local varying = vertexShader and 'out'
+		or fragmentShader and 'in'
+		or error("don't know what to set varying to")
 ?>
 
 //xy holds the view xy
 //z holds the fixed z slice of the 3D texture
-varying vec3 viewCoord;
+<?=varying?> vec3 viewCoord;
 
 <?=draw:getCommonGLSLFragCode(solver)?>
 
 <? if vertexShader then ?>
 
+attribute vec3 vertex;
+
 void main() {
-	viewCoord = gl_Vertex.xyz;
-	// disregard 'z' for rendering
-	gl_Position = gl_ModelViewProjectionMatrix * vec4(gl_Vertex.xy, 0., 1.);
+	vec4 v;
+	v.xy = vertex.xy;
+	v.z = displayFixed.y;
+	viewCoord = v.xyz;
+	v.z = 0.;	// should we disregard 'z' for rendering?
+	v.w = 1.;
+	gl_Position = modelViewProjectionMatrix * v;
 }
 
 <? end
 if fragmentShader then ?>
+
+out vec4 fragColor;
+
+uniform sampler2D noiseTex;
+uniform int integralMaxIter;
 
 <?=
 solver.coord:getModuleCodeGLSL(
@@ -27,9 +43,6 @@ solver.coord:getModuleCodeGLSL(
 	or 'coord_conn_apply23'
 )
 ?>
-
-uniform sampler2D noiseTex;
-uniform int integralMaxIter;
 
 vec3 getTexCoordForGridCoord(vec3 gridCoord) {
 	vec3 texCoord = (
@@ -58,9 +71,8 @@ void main() {
 	if (useCoordMap) {
 		gridCoord = coordMapInv(gridCoord);
 	} else {
-		gridCoord = .5 * (gridCoord + 1.) 
-		* vec3(solverMaxs.xy - solverMins.xy, 0.) 
-		+ vec3(solverMins.xy, 0.); 
+		gridCoord = .5 * (gridCoord + 1.) * (solverMaxs - solverMins) + solverMins; 
+		gridCoord.z = 0.; 
 	}
 	
 	if (gridCoord.x < solverMins.x || gridCoord.x > solverMaxs.x ||
@@ -124,7 +136,7 @@ fieldMagn = clamp(fieldMagn, valueMin, valueMax);
 	vec4 licColorTimesGradColor = getGradientColor(fieldMagn);
 	licColorTimesGradColor.rgb *= licMag;
 	
-	gl_FragColor = licColorTimesGradColor;
+	fragColor = licColorTimesGradColor;
 }
 
 <? end ?>

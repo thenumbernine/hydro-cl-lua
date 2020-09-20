@@ -69,7 +69,7 @@ function Draw2DGraph:showDisplayVar(app, solver, var)
 				local y = ((j + jofs) * step + .5 + solver.numGhost) / tonumber(solver.gridSize.y)
 				self.vertexes[0 + 3 * (jofs + 2 * (i + numX * j))] = x
 				self.vertexes[1 + 3 * (jofs + 2 * (i + numX * j))] = y
-				self.vertexes[2 + 3 * (jofs + 2 * (i + numX * j))] = app.displayFixedZ
+				self.vertexes[2 + 3 * (jofs + 2 * (i + numX * j))] = 0--app.displayFixedZ
 			end
 		end
 	end

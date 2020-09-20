@@ -74,8 +74,8 @@ function Draw1D:showDisplayVar(app, solver, var)
 	for i=0,self.numVertexes-1 do
 		local x = (i * step + .5 + solver.numGhost) / tonumber(solver.gridSize.x)
 		self.vertexes[0+3*i] = x
-		self.vertexes[1+3*i] = app.displayFixedY
-		self.vertexes[2+3*i] = app.displayFixedZ
+		self.vertexes[1+3*i] = 0--app.displayFixedY
+		self.vertexes[2+3*i] = 0--app.displayFixedZ
 	end
 	
 	gl.glEnableVertexAttribArray(shader.attrs.inVertex.loc)
