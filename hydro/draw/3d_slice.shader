@@ -1,7 +1,6 @@
 #version 460
 
 <?
-local clnumber = require 'cl.obj.number'
 local coord = solver.coord
 local inout = vertexShader and 'out'
 		or fragmentShader and 'in'
@@ -45,7 +44,6 @@ void main() {
 if fragmentShader then ?>
 
 out vec4 fragColor;
-uniform vec3 texSize;
 
 uniform vec3 normal;
 uniform float alpha;

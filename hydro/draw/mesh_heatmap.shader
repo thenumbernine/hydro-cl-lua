@@ -1,7 +1,6 @@
 #version 460
 
 <? 
-local clnumber = require 'cl.obj.number'
 local inout = vertexShader and 'out'
 		or fragmentShader and 'in'
 		or error("don't know what to set inout to")
@@ -33,14 +32,13 @@ if require 'gl.tex2d'.is(solver.tex) then
 	if solver.texSize.y == 1 then
 ?>
 float getValue() {
-	float tc = (cellindexv + .5) * <?=clnumber(1 / tonumber(solver.texSize.x))?>;
+	float tc = (cellindexv + .5) / texSize.x;
 	return texture2D(tex, vec2(tc, .5)).r;
 }
 <?
 	else
 ?>
 float getValue() {
-	vec2 texSize = vec2(<?=clnumber(solver.texSize.x)?>, <?=clnumber(solver.texSize.y)?>);
 	float i = cellindexv;
 	vec2 tc;
 	tc.x = mod(i, texSize.x);
@@ -55,7 +53,6 @@ float getValue() {
 elseif require 'gl.tex3d'.is(solver.tex) then 
 ?>
 function getValue() {
-	vec3 texSize = vec3(<?=clnumber(solver.texSize.x)?>, <?=clnumber(solver.texSize.y)?>, <?=clnumber(solver.texSize.z)?>);
 	float i = cellindexv;
 	vec3 tc;
 	

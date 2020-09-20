@@ -36,6 +36,10 @@ uniform sampler1D gradientTex;
 uniform vec3 solverMins;
 uniform vec3 solverMaxs;
 
+uniform vec3 texSize;
+uniform vec3 gridSize;
+uniform vec3 sizeWithoutBorder;
+
 <? 
 -- if solver.dim < 3 then -- doesn't consider meshsolver
 if require 'gl.tex2d'.is(solver.tex) then -- does
@@ -140,6 +144,15 @@ function Draw:setupDisplayVarShader(shader, app, solver, var, valueMin, valueMax
 	end
 	if uniforms.numGhost then
 		gl.glUniform1f(uniforms.numGhost.loc, solver.numGhost)
+	end
+	if uniforms.texSize then
+		gl.glUniform3f(uniforms.texSize.loc, solver.texSize:unpack())
+	end
+	if uniforms.gridSize then
+		gl.glUniform3f(uniforms.gridSize.loc, solver.gridSize:unpack())
+	end
+	if uniforms.sizeWithoutBorder then
+		gl.glUniform3f(uniforms.sizeWithoutBorder.loc, solver.sizeWithoutBorder:unpack())
 	end
 end
 

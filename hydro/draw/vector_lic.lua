@@ -21,7 +21,6 @@ var.solver = solver
 	solver:calcDisplayVarToTex(var)
 	
 	local tex = solver:getTex(var)
-	local size = var.group.getBuffer().sizevec or solver.texSize
 	tex:bind(0)
 	self.noiseTex:bind(2)
 	if app.displayBilinearTextures then

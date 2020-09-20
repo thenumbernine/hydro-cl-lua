@@ -12,25 +12,15 @@ local inout = vertexShader and 'out'
 <? if vertexShader then ?>
 in vec3 inVertex;
 
-uniform vec2 size;
-
-<?
-local clnumber = require 'cl.obj.number'
-local sizeWithoutBorderX = clnumber(solver.sizeWithoutBorder.x or 1)
-local sizeWithoutBorderY = clnumber(solver.sizeWithoutBorder.y or 1)
-local sizeX = clnumber(solver.gridSize.x or 1)
-local sizeY = clnumber(solver.gridSize.y or 1)
-?>
-
 <?=solver.coord:getModuleCodeGLSL('coordMapGLSL')?>
 
 vec3 func(vec3 src) {
 	vec3 vertex = src.xyz;
-	vertex.x = (vertex.x * <?=sizeX?> - numGhost) / <?=sizeWithoutBorderX?> * (solverMaxs.x - solverMins.x) + solverMins.x;
+	vertex.x = (vertex.x * gridSize.x - numGhost) / sizeWithoutBorder.x * (solverMaxs.x - solverMins.x) + solverMins.x;
 	if (displayDim == 1) {
 		vertex.y = 0.;
 	} else {
-		vertex.y = (vertex.y * <?=sizeY?> - numGhost) / <?=sizeWithoutBorderY?> * (solverMaxs.y - solverMins.y) + solverMins.y;
+		vertex.y = (vertex.y * gridSize.y - numGhost) / sizeWithoutBorder.y * (solverMaxs.y - solverMins.y) + solverMins.y;
 	}
 
 	vertex[displayDim] = getTex(src).r;
@@ -47,10 +37,10 @@ vec3 func(vec3 src) {
 void main() {
 	vec3 vertex = func(inVertex);
 
-	vec3 xp = func(inVertex + vec3(1./size.x, 0., 0.));
-	vec3 xm = func(inVertex - vec3(1./size.x, 0., 0.));
-	vec3 yp = func(inVertex + vec3(0., 1./size.y, 0.));
-	vec3 ym = func(inVertex - vec3(0., 1./size.y, 0.));
+	vec3 xp = func(inVertex + vec3(1./gridSize.x, 0., 0.));
+	vec3 xm = func(inVertex - vec3(1./gridSize.x, 0., 0.));
+	vec3 yp = func(inVertex + vec3(0., 1./gridSize.y, 0.));
+	vec3 ym = func(inVertex - vec3(0., 1./gridSize.y, 0.));
 
 	normal = normalize(cross(xp - xm, yp - ym));
 

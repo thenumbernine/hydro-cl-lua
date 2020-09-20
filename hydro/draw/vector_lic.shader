@@ -1,5 +1,4 @@
 <?
-local clnumber = require 'cl.obj.number'
 local coord = solver.coord
 ?>
 
@@ -36,17 +35,17 @@ vec3 getTexCoordForGridCoord(vec3 gridCoord) {
 	vec3 texCoord = (
 		(gridCoord - vec3(solverMins.xy, 0.)) 
 		/ vec3(solverMaxs.xy - solverMins.xy, 0.) 
-		* vec3(<?=
-			clnumber(tonumber(solver.sizeWithoutBorder.x))?>, <?=
-			clnumber(tonumber(solver.sizeWithoutBorder.y))?>, <?=
-			clnumber(tonumber(solver.sizeWithoutBorder.z))
-		?>) 
+		* vec3(
+			sizeWithoutBorder.x,
+			sizeWithoutBorder.y,
+			sizeWithoutBorder.z
+		)
 		+ vec3(numGhost, numGhost, numGhost)
-	) * vec3(<?=
-		clnumber(1 / tonumber(solver.gridSize.x))?>, <?=
-		clnumber(1 / tonumber(solver.gridSize.y))?>, <?=
-		clnumber(1 / tonumber(solver.gridSize.z))
-	?>);
+	) * vec3(
+		1. / gridSize.x,
+		1. / gridSize.y,
+		1. / gridSize.z
+	);
 	texCoord.z = viewCoord.z;
 	return texCoord;
 }

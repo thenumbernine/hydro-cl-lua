@@ -1,7 +1,6 @@
 #version 460
 
 <?
-local clnumber = require 'cl.obj.number'
 local coord = solver.coord
 ?>
 

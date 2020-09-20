@@ -76,7 +76,6 @@ function Draw3DRay:showDisplayVar(app, solver, var, ar)
 			gl.glUniform1i(uniforms.useIsos.loc, self.useIsos)
 			gl.glUniform1f(uniforms.numIsobars.loc, self.numIsobars)				
 			gl.glUniform1i(uniforms.useLighting.loc, self.useLighting)
-			gl.glUniform3f(uniforms.texSize.loc, solver.gridSize:unpack())
 			gl.glUniform1i(uniforms.maxiter.loc, solver.display3D_Ray_maxiter)
 			local tex = solver:getTex(var)
 			tex:bind(0)
@@ -120,7 +119,10 @@ end
 function Draw3DRay:prepareShader(solver)
 	if solver.volumeRayShader then return end
 	
-	solver.display3D_Ray_maxiter = math.max(tonumber(solver.gridSize.x), tonumber(solver.gridSize.y), tonumber(solver.gridSize.z))
+	solver.display3D_Ray_maxiter = math.max(
+		tonumber(solver.gridSize.x),
+		tonumber(solver.gridSize.y),
+		tonumber(solver.gridSize.z))
 	
 	local volumetricCode = assert(file['hydro/draw/volumetric.shader'])
 	solver.volumeRayShader = solver.GLProgram{

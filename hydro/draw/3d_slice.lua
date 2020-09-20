@@ -72,7 +72,6 @@ function Draw3DSlice:showDisplayVar(app, solver, var, varName, ar, xmin, xmax, y
 	gl.glUniform1i(uniforms.useIsos.loc, self.useIsos)
 	gl.glUniform1f(uniforms.numIsobars.loc, self.numIsobars)
 	gl.glUniform1i(uniforms.useLighting.loc, self.useLighting)
-	gl.glUniform3f(uniforms.texSize.loc, solver.texSize:unpack())
 
 	if useClipPlanes then
 		for i,info in ipairs(clipInfos) do
