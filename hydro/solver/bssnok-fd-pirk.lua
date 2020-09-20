@@ -8,12 +8,6 @@ local BSSNOKFiniteDifferenceSolver = require 'hydro.solver.bssnok-fd'
 local BSSNOKFiniteDifferencePIRKSolver = class(BSSNOKFiniteDifferenceSolver)
 BSSNOKFiniteDifferencePIRKSolver.name = 'BSSNOK_FiniteDifference_PIRK'
 
---[[
-function BSSNOKFiniteDifferencePIRKSolver:calcDT()
-	-- TODO based on grid
-end
---]]
-
 function BSSNOKFiniteDifferencePIRKSolver:createEqn()
 	self.eqnArgs = table(self.eqnArgs)
 	
@@ -39,6 +33,9 @@ function BSSNOKFiniteDifferencePIRKSolver:createBuffers()
 	self:clalloc('derivL3_n', self.eqn.cons_t, self.numCells)
 end
 
+-- TODO sort of, make this a real integrator,
+-- but the compatible solver would need to provide, instead of calcDeriv, 
+-- a matrix of callbacks for each var and for each PIRK stage
 local FakeIntegrator = class()
 function FakeIntegrator:integrate(dt) end
 
@@ -133,10 +130,12 @@ function BSSNOKFiniteDifferencePIRKSolver:refreshSolverProgram()
 	self.copyWAlphaBetaKernelObj = self.solverProgramObj:kernel'copyWAlphaBeta'
 	self.copyLambdaBarKernelObj = self.solverProgramObj:kernel'copyLambdaBar'
 	
-	-- to calc or to store detg?
 	if require 'hydro.eqn.bssnok-fd-senr'.is(assert(self.eqn)) then
-		-- TODO constrainU ?  but we don't need to update RBar ... but that could generalize PIRK for other equations ...
-		self.BSSN_Det_PIRK_KernelObj = self.solverProgramObj:kernel'BSSN_Det_PIRK'
+		-- to calc or to store detg
+		-- TODO constrainU ?  
+		-- but we don't need all of constrainU's functions. 
+		-- we don't need to update RBar_IJ or H or M^I
+		self.BSSN_Det_KernelObj = self.solverProgramObj:kernel'BSSN_Det'
 	end
 end
 
@@ -157,7 +156,7 @@ end
 function BSSNOKFiniteDifferencePIRKSolver:step(dt)
 	local bufferSize = self.numCells * ffi.sizeof(self.eqn.cons_t)
 
-	-- zero all derivatives
+--[[ zero all derivatives
 	self.cmds:enqueueFillBuffer{buffer=self.derivL1_1, size=bufferSize}
 	self.cmds:enqueueFillBuffer{buffer=self.derivL1_n, size=bufferSize}
 	self.cmds:enqueueFillBuffer{buffer=self.derivL2_1, size=bufferSize}
@@ -165,6 +164,8 @@ function BSSNOKFiniteDifferencePIRKSolver:step(dt)
 	self.cmds:enqueueFillBuffer{buffer=self.derivL2_next, size=bufferSize}
 	self.cmds:enqueueFillBuffer{buffer=self.derivL3_1, size=bufferSize}
 	self.cmds:enqueueFillBuffer{buffer=self.derivL3_n, size=bufferSize}
+--]]
+-- or don't.  we're going to overwrite them each frame, and never read from old values, so don't bother?
 
 -- step 1: evolve epsilon_IJ, alpha, W, beta^I
 
@@ -184,8 +185,8 @@ end
 	self:applyBoundaryTo(self.U1, self.PIRK_EpsilonWAlphaBeta_BoundaryKernelObjs)
 
 	-- re-constrain/recompute detg of U1 here, since its epsilon_IJ was updated
-	if self.BSSN_Det_PIRK_KernelObj then
-		self.BSSN_Det_PIRK_KernelObj(self.solverBuf, self.U1, self.cellBuf)
+	if self.BSSN_Det_KernelObj then
+		self.BSSN_Det_KernelObj(self.solverBuf, self.U1, self.cellBuf)
 	end
 
 if cmdline.printBufs then
@@ -202,7 +203,7 @@ if cmdline.printBufs then
 	self:printBuf(self.UBufObj)
 end
 
-	-- UTemp = UBuf except W, alpha, beta^I come from U1 
+	-- UTemp = UBuf except W, alpha, beta^I come from U1
 	self.copyWAlphaBetaKernelObj(self.solverBuf, self.UTemp, self.UBuf, self.U1)
 
 if cmdline.printBufs then
@@ -344,8 +345,8 @@ end
 	self:applyBoundaryTo(self.UNext, self.PIRK_EpsilonWAlphaBeta_BoundaryKernelObjs)
 
 	-- re-constrain/recompute detg of UNext here? only if you are storing it ...
-	if self.BSSN_Det_PIRK_KernelObj then
-		self.BSSN_Det_PIRK_KernelObj(self.solverBuf, self.UNext, self.cellBuf)
+	if self.BSSN_Det_KernelObj then
+		self.BSSN_Det_KernelObj(self.solverBuf, self.UNext, self.cellBuf)
 	end
 
 if cmdline.printBufs then
@@ -383,7 +384,6 @@ end
 	-- derivL2_next = PIRK L2 part2 (LambdaBar^I) based on UTemp
 	self.calcDeriv_PIRK_L2_LambdaBar_KernelObj(self.solverBuf, self.derivL2_next, self.UTemp, self.cellBuf)
 
--- FIXME LambdaBar^I is effing up right here .. for UIUC.  for Minkowski it keeps going fine.
 if cmdline.printBufs then
 	print()
 	print('UBuf PIRK step 7 - derivL2_next:')
@@ -434,7 +434,6 @@ end
 	-- derivL2_next = PIRK L2 part1 of UBuf (ABar_IJ, K) of UNext
 	self.calcDeriv_PIRK_L2_ABarK_KernelObj(self.solverBuf, self.derivL2_next, self.UNext, self.cellBuf)
 
--- FIXME K and ABar_IJ are effing up right here for Minkowski 
 if cmdline.printBufs then
 	print()
 	print('UBuf PIRK step 8 - derivL2_next:')
@@ -477,12 +476,15 @@ end
 	self.copyLambdaBarKernelObj(self.solverBuf, self.UTemp, self.UNext, self.U1)
 
 	-- derivL2_n = PIRK L2 part2 (LambdaBar^I) based on UBuf
-	-- derivL2_next = PIRK L2 part2 (LambdaBar^I) based on UNext
-	-- derivL3_n = PIRK L3 part2 (LambdaBar^I) based on UBuf
-	-- derivL3_1 = PIRK L3 part2 (LambdaBar^I) based on UTemp
 	self.calcDeriv_PIRK_L2_LambdaBar_KernelObj(self.solverBuf, self.derivL2_n, self.UBuf, self.cellBuf)
+	
+	-- derivL2_next = PIRK L2 part2 (LambdaBar^I) based on UNext
 	self.calcDeriv_PIRK_L2_LambdaBar_KernelObj(self.solverBuf, self.derivL2_next, self.UNext, self.cellBuf)
+	
+	-- derivL3_n = PIRK L3 part2 (LambdaBar^I) based on UBuf
 	self.calcDeriv_PIRK_L3_LambdaBar_KernelObj(self.solverBuf, self.derivL3_n, self.UBuf, self.cellBuf)
+	
+	-- derivL3_1 = PIRK L3 part2 (LambdaBar^I) based on UTemp
 	self.calcDeriv_PIRK_L3_LambdaBar_KernelObj(self.solverBuf, self.derivL3_1, self.UTemp--[[self.U1--]], self.cellBuf)
 	
 	-- UNext = UBuf + 0.5 * dt * (derivL2_n + derivL2_next + derivL3_n + derivL3_1)
@@ -500,12 +502,15 @@ end
 -- step 10: B^I
 
 	-- derivL2_n = PIRK L2 part3 (B^I) based on UBuf
-	-- derivL2_next = PIRK L2 part3 (B^I) based on UNext
-	-- derivL3_n = PIRK L3 part3 (B^I) based on UBuf
-	-- derivL3_1 = PIRK L3 part3 (B^I) based on U1
 	self.calcDeriv_PIRK_L2_B_KernelObj(self.solverBuf, self.derivL2_n, self.UBuf, self.cellBuf)
+	
+	-- derivL2_next = PIRK L2 part3 (B^I) based on UNext
 	self.calcDeriv_PIRK_L2_B_KernelObj(self.solverBuf, self.derivL2_next, self.UNext, self.cellBuf)
+	
+	-- derivL3_n = PIRK L3 part3 (B^I) based on UBuf
 	self.calcDeriv_PIRK_L3_B_KernelObj(self.solverBuf, self.derivL3_n, self.UBuf, self.cellBuf)
+	
+	-- derivL3_1 = PIRK L3 part3 (B^I) based on U1
 	self.calcDeriv_PIRK_L3_B_KernelObj(self.solverBuf, self.derivL3_1, self.U1, self.cellBuf)
 	
 	-- UNext = UBuf + 0.5 * dt * (derivL2_n + derivL2_next + derivL3_n + derivL3_1)
@@ -528,9 +533,16 @@ end
 	-- copy to UBuf
 
 	self.cmds:enqueueCopyBuffer{dst=self.UBuf, src=self.UNext, size=bufferSize}
-	
+
+	-- and last, constrain U
+	--self:constrainU()
+	-- this will call boundary() which I don't want
+	-- I also don't want to calculate RBar_IJ, H, M^I
+	-- I just want to update det(gammaBar_IJ)=1 and ABar^I_I=0
+
 	assert(FakeIntegrator.is(self.integrator))
-	-- has constrainU and boundary
+
+	-- this just tests nans.  it would call integrator:integrate() but that is set to nothing.
 	BSSNOKFiniteDifferencePIRKSolver.super.step(self, dt)
 end
 

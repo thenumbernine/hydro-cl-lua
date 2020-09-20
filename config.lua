@@ -9,7 +9,7 @@ local args = {
 	eqn = cmdline.eqn,
 	dim = dim,
 	
-	integrator = cmdline.integrator or 'forward Euler',	
+	--integrator = cmdline.integrator or 'forward Euler',	
 	--integrator = 'Iterative Crank-Nicolson',
 	--integrator = 'Runge-Kutta 2',
 	--integrator = 'Runge-Kutta 2 Heun',
@@ -22,9 +22,10 @@ local args = {
 	--integrator = 'Runge-Kutta 3, TVD',
 	--integrator = 'Runge-Kutta 4, TVD',
 	--integrator = 'Runge-Kutta 4, non-TVD',
-	--integrator = 'backward Euler',	-- The epsilon on this is very sensitive.  Too small and it never converges.  Too large and it stops convergence too soon.
+	integrator = 'backward Euler',	-- The epsilon on this is very sensitive.  Too small and it never converges.  Too large and it stops convergence too soon.
+	--integrator = 'backward Euler, CPU',
 	--integratorArgs = {verbose=true},
-
+	
 	--fixedDT = .0001,
 	fixedDT = cmdline.fixedDT,
 	cfl = cmdline.cfl or .3/dim,	-- 1/dim,
@@ -896,8 +897,9 @@ local args = {
 	},
 	dim = dim,
 	
-	integrator = 'Runge-Kutta 4',
-	--integrator = 'backward Euler',
+	integrator = cmdline.integrator or 'Runge-Kutta 4',
+	--integrator = cmdline.integrator or 'backward Euler',
+	--integrator = cmdline.integrator or 'backward Euler, CPU',	-- debugging
 	--integratorArgs = {verbose=true},
 	cfl = .5,
 
@@ -925,7 +927,7 @@ local args = {
 		zmax = 'quadratic',
 	},
 	--]]
-	-- [[
+	--[[
 	coord = 'sphere',
 	coordArgs = {
 		vectorComponent = 'holonomic',	-- this isn't really used since bssn is a finite-difference solver, so just pick the one that has the least complications.               
@@ -933,7 +935,7 @@ local args = {
 	mins = {0, 0, 0},
 	maxs = {
 		-- 2015 Baumgarte et al, spherical coordinates (not log-remapped), PIRK uses this rmax:
-		12.8,--24 M1, but I'm using M1 = M2 = 0.5
+		cmdline.rmax or 12.8,--24 M1, but I'm using M1 = M2 = 0.5
 
 		math.pi,
 		2*math.pi,
@@ -977,7 +979,7 @@ local args = {
 		zmax='periodic',
 	},
 	--]]
-	--[[
+	-- [[
 	coord = 'sphere-log-radial',
 	coordArgs = {
 		vectorComponent = 'holonomic',	-- this isn't really used since bssn is a finite-difference solver, so just pick the one that has the least complications.               
@@ -1064,8 +1066,8 @@ local args = {
 	--initCond = 'Minkowski',
 	-- TODO move the coordinate system from the name to an assertion within the init
 	--initCond = 'SENR Minkowski',
-	initCond = 'SENR UIUC',
-	--initCond = 'SENR BrillLindquist',
+	--initCond = 'SENR UIUC',
+	initCond = 'SENR BrillLindquist',
 	--initCond = 'SENR BoostedSchwarzschild',
 	--initCond = 'SENR StaticTrumpet',
 }

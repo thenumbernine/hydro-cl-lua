@@ -72,28 +72,18 @@ predefined vars:
 
 	vectorFieldStep = spacing between cells of vector field display
 --]]
-cmdline = cmdline or {}	--global
-
-local fromlua = require 'ext.fromlua'
-for _,w in ipairs(arg or {}) do
-	local k,v = w:match'^(.-)=(.*)$'
-	if k then
-		pcall(function()
-			cmdline[k] = fromlua(v)
-		end)
-		if cmdline[k] == nil then cmdline[k] = v end
-	else
-		cmdline[w] = true
-	end
-end
+local table = require 'ext.table'
+cmdline = table(
+	require 'ext.cmdline'(table.unpack(arg)),
+	cmdline)	-- let any previous cmdline global fall through, as an override for require'ing files.  I know, very messy.
 
 local bit = require 'bit'
 local ffi = require 'ffi'
 local cl = require 'ffi.OpenCL'
 local io = require 'ext.io'
+local os = require 'ext.os'
 local class = require 'ext.class'
 local math = require 'ext.math'
-local table = require 'ext.table'
 local file = require 'ext.file'
 local range = require 'ext.range'
 local template = require 'template'
@@ -701,7 +691,7 @@ function HydroCLApp:screenshot()
 	local ext = self.screenshotExts[self.screenshotExtIndex]
 
 	-- TODO only once upon init?
-	if not io.fileexists'screenshots' then
+	if not os.fileexists'screenshots' then
 		-- don't assert -- if it already exists the cmd will fail
 		os.execute'mkdir screenshots'
 	end
@@ -710,13 +700,8 @@ function HydroCLApp:screenshot()
 	if not self.screenshotDir then
 		self.screenshotDir = os.date('%Y.%m.%d-%H.%M.%S')
 		local dir = 'screenshots/'..self.screenshotDir
-		assert(not io.fileexists(dir), "found a duplicate screenshot timestamp subdir")
-	
-		-- bleh, windows.
-		-- TODO a mkdir for everyone, either in ext.file or get lfs working with luajit 
-		if ffi.os == 'Windows' then dir = dir:gsub('/', '\\') end
-		assert(os.execute('mkdir '..dir))
-		
+		assert(not os.fileexists(dir), "found a duplicate screenshot timestamp subdir")
+		assert(os.mkdir(dir))
 		self.screenshotIndex = 0
 	end
 

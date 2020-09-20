@@ -203,7 +203,7 @@ local ig = require 'ffi.imgui'
 local class = require 'ext.class'
 local table = require 'ext.table'
 local string = require 'ext.string'
-local io = require 'ext.io'
+local os = require 'ext.os'
 local file = require 'ext.file'
 local math = require 'ext.math'
 local gl = require 'gl'
@@ -425,7 +425,7 @@ function SolverBase:initMeshVars(args)
 		
 		-- Write generated code the first time.  Subsequent times use the pre-existing code.  Useful for debugging things in the generated OpenCL.
 		else
-			if io.fileexists(clfn) then
+			if os.fileexists(clfn) then
 				local cachedCode = file[clfn]
 				assert(cachedCode:sub(1,#args.env.code) == args.env.code, "seems you have changed the cl env code")
 				args.code = cachedCode:sub(#args.env.code+1)	-- because the program will prepend env.code ... hmm, this could be done a better way.
@@ -2415,6 +2415,8 @@ local <?=varabsmax?> = math.max(math.abs(<?=varmin?>, <?=varmax?>))
 
 	if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
 
+	-- TODO make this the responsibility of every operation that acts on UBuf to call
+	-- ... to prevent redundant calls (like here)
 	self:boundary()
 
 	if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
@@ -2462,10 +2464,9 @@ if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
 		if op.step then
 			self:boundary()
 			op:step(dt)
+			if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
 		end
 	end
-
-	if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
 end
 
 

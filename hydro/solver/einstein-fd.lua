@@ -1,4 +1,5 @@
 local class = require 'ext.class'
+local os = require 'ext.os'
 local table = require 'ext.table'
 local GridSolver = require 'hydro.solver.gridsolver'
 
@@ -34,6 +35,11 @@ function EinsteinFiniteDifferenceSolver:init(...)
 		self.xcmax = vec3d(1.5, 0, 1.5)
 		self.csize = vec2i(80, 80)
 
+		self.renderDir = cmdline.renderBssnVideoDir or ('screenshots/'..os.date('%Y.%m.%d-%H.%M.%S'))
+		assert(not os.fileexists(self.renderDir), "found a duplicate screenshot timestamp subdir")
+	
+		os.mkdir(self.renderDir)
+	
 		self.writeOutImage = Image(self.csize.x, self.csize.y, 1, 'real')
 		
 		local env = self.app.env
@@ -43,7 +49,7 @@ function EinsteinFiniteDifferenceSolver:init(...)
 		self.writeResultProgram = self.Program{--env:program{
 			name = 'writeResult',
 			code = self.modules:getCodeAndHeader(
-				table(self.sharedModulesEnabled, {coordMapInv=true}):keys():unpack()
+				table(self.sharedModulesEnabled, {coordMapInv=true, INDEXV=true, OOB=true}):keys():unpack()
 			)
 			..template([[
 kernel void writeResult(
@@ -145,7 +151,7 @@ if cmdline.renderBssnVideo then
 			
 			self.imageCounter = (self.imageCounter or -1) + 1
 			-- TODO mkdir like the other video output function in app
-			local fn = (cmdline.renderBssnVideoDir or 'screenshots')..'/frame-'..('%05d'):format(self.imageCounter)..'.png'
+			local fn = self.renderDir..'/frame-'..('%05d'):format(self.imageCounter)..'.png'
 			print('writing '..fn)
 			self.writeOutImage:normalize():rgb():save(fn)
 		end

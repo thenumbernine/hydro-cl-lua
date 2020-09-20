@@ -79,6 +79,7 @@ function BSSNOKFiniteDifferenceSolver:calcDT()
 		if self.eqn.cflMethod == '2013 Baumgarte et al, eqn 32' 
 		or self.eqn.cflMethod == '2017 Ruchlin et al, eqn 53'
 		then
+			-- fixedDT is already updated to the latest dt by SolverBase.calcDT
 			self.useFixedDT = true
 		end
 	end

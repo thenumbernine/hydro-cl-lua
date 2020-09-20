@@ -14,6 +14,8 @@ local useCalcDeriv_Psi = true
 local useCalcDeriv_Pi = true
 -- scalar field source terms?
 local coupleTandPhi = true
+-- PIRK:
+local useLBetaWithPIRK = true
 
 -- constrains det gammaBar_ij = det gammaHat_ij, ABar^i_i = 0, and calculates H and M^i ... if the associated flags are set
 local useConstrainU = true
@@ -27,7 +29,7 @@ local useKreissOligarDissipation = true
 -- this block is shared with other things like initCond
 -- it will be pasted above the !getCommonCode block below, despite that being in an exclusive condition to this
 -- I'm moving it here from the .lua inline multiline string so I can get .cl syntax highlighting
-if getCommonCode then	
+if getCommonCode then
 ?>
 
 
@@ -926,6 +928,10 @@ end
 else	-- getCommonCode -- this block is for the scheme 
 ?>
 
+//do I have these defined somewhere else?
+#define numberof(x)	(sizeof(x)/sizeof(x[0]))
+#define endof(x)	((x) + numberof(x))
+
 //this is for convenience, but is bad for any kind of composite solver
 typedef <?=eqn.cons_t?> cons_t;
 typedef <?=solver.solver_t?> solver_t;
@@ -979,6 +985,81 @@ int from3x3to6(int i, int j) {
 	return maxij + minij + (minij > 1);
 }
 
+//////////////////////////////// Kreiss-Oligar dissipation //////////////////////////////// 
+
+static void applyKreissOligar(
+	constant solver_t* solver,
+	const global cons_t* U,
+	global cons_t* deriv,
+	real3 x,
+	int* fields,
+	int numFields
+) {
+<? if useKreissOligarDissipation then ?>
+	if (solver->dissipationCoeff == 0.) return;
+		
+	real r = coordMapR(x);
+	//Kreiss-Oligar dissipation
+	real coeff = solver->dissipationCoeff;
+#if 0	// 2013 Baumgarte et al, section IIIB
+	coeff /= dt;
+#elif 1	// 2017 Ruchlin et al eqn 44
+	// all params > 0
+	real rKO = 2.;		//rKO/M = 2
+	real wKO = .17;		//wKO/M = .17
+	//epsKO0 = .99 doubles as my 'dissipationCoeff' var
+	coeff *= .5 * (erf((r - rKO) / wKO) + 1.);
+#endif
+
+<? if require 'hydro.coord.sphere-log-radial'.is(solver.coord) then ?>
+	real3 yR = _real3(cell->r, cell->pos.y, cell->pos.z);
+	const global cell_t* cellL0 = cell - solver->stepsize.x;
+	real3 yL0 = _real3(cellL0->r, cellL0->pos.y, cellL0->pos.z);
+	const global cell_t* cellL1 = cell - solver->stepsize.y;
+	real3 yL1 = _real3(cellL1->r, cellL1->pos.y, cellL1->pos.z);
+	const global cell_t* cellL2 = cell - solver->stepsize.z;
+	real3 yL2 = _real3(cellL2->r, cellL2->pos.y, cellL2->pos.z);
+	real3 dySq = _real3(
+		real3_lenSq(real3_sub(yR, yL0)),
+		real3_lenSq(real3_sub(yR, yL1)),
+		real3_lenSq(real3_sub(yR, yL2)));
+<? else ?>
+	real3 dySq = _real3(
+		solver->grid_dx.x * solver->grid_dx.x,
+		solver->grid_dx.y * solver->grid_dx.y,
+		solver->grid_dx.z * solver->grid_dx.z);
+<? end ?>
+	
+	real3 _1_dySq = _real3(1./dySq.x, 1./dySq.y, 1./dySq.z);
+
+	//described in 2008 Babiuc et al as Q = (-1)^r h^(2r-1) (D+)^r rho (D-)^r / 2^(2r)
+	//...for r=2... -sigma h^3 (D+)^2 rho (D-)^2 / 16 ... and rho=1, except rho=0 at borders maybe.
+	for (int *ip = fields; ip < endof(fields); ++ip) {
+		int i = *ip;
+		deriv->ptr[i] += coeff * (
+			  (
+				-20. * U->ptr[i]
+				+ 15. * (U[1 * solver->stepsize.x].ptr[i] + U[-1 * solver->stepsize.x].ptr[i])
+				+ -6. * (U[2 * solver->stepsize.x].ptr[i] + U[-2 * solver->stepsize.x].ptr[i])
+				+ U[3 * solver->stepsize.x].ptr[i] + U[-3 * solver->stepsize.x].ptr[i]
+			) * _1_dySq.x
+			+ (
+				-20. * U->ptr[i]
+				+ 15. * (U[1 * solver->stepsize.y].ptr[i] + U[-1 * solver->stepsize.y].ptr[i])
+				+ -6. * (U[2 * solver->stepsize.y].ptr[i] + U[-2 * solver->stepsize.y].ptr[i])
+				+ U[3 * solver->stepsize.y].ptr[i] + U[-3 * solver->stepsize.y].ptr[i]
+			) * _1_dySq.y
+			+ (
+				-20. * U->ptr[i]
+				+ 15. * (U[1 * solver->stepsize.z].ptr[i] + U[-1 * solver->stepsize.z].ptr[i])
+				+ -6. * (U[2 * solver->stepsize.z].ptr[i] + U[-2 * solver->stepsize.z].ptr[i])
+				+ U[3 * solver->stepsize.z].ptr[i] + U[-3 * solver->stepsize.z].ptr[i]
+			) * _1_dySq.z
+		) * (1. / 64.);
+	}
+<? end	-- useKreissOligarDissipation ?>
+}
+
 //////////////////////////////// W_,t //////////////////////////////// 
 
 
@@ -999,7 +1080,7 @@ static void calcDeriv_W(
 
 	//2017 Ruchlin et al eqn 11c
 	//W_,t =
-	//L2:		1/3 W (alpha K - beta^k connBar^j_kj - beta^k_,k) 
+	//L1:		1/3 W (alpha K - beta^k connBar^j_kj - beta^k_,k) 
 	//Lbeta:	+ beta^k W_,k
 	//connBar^j_kj = log(sqrt(gammaBar))_,k = gammaBar_,k / (2 gammaBar)
 	deriv->W += L2_W + Lbeta_W;
@@ -1036,6 +1117,7 @@ static real calc_PIRK_L2_K(
 	;
 }
 
+// NOTICE - all my PIRK_L3 functions DO NOT contribute Lbeta
 static real calc_PIRK_L3_K(
 	global const cons_t* U,
 	const sym3* ABar_UU
@@ -1181,18 +1263,17 @@ static void calcDeriv_epsilon_LL(
 	...using DBar_(i beta_j) = DHat_(i beta_j) + epsilon_k(j beta^k_,i) + 1/2 epsilon_ij,k beta^k
 	
 	epsilon_ij,t = 	
-L2:		+ 2/3 gammaBar_ij (
+L1:		+ 2/3 gammaBar_ij (
 			alpha ABar^k_k 
 			- DBar_k beta^k
 		) 
-L3:		- 2 alpha ABar_ij 
+		- 2 alpha ABar_ij 
 
 Lbeta:	+ beta^k ∂up_k(gammaBar_ij)
 		+ gammaBar_kj beta^k_,i
 		+ gammaBar_ki beta^k_,j
 
 	gammaBar_ij,k = connBar_ikj + connBar_jki
-	the SENR code doesn't separate the L2 and L3 out - only putting it all in L1
 	*/
 	deriv->epsilon_LL = sym3_add4(
 		deriv->epsilon_LL,
@@ -1315,6 +1396,7 @@ static sym3 calc_PIRK_L2_ABar_LL(
 		sym3_real_mul(TF_RBar_LL, U->alpha * exp_neg4phi));
 }
 
+// NOTICE - all my PIRK_L3 functions DO NOT contribute Lbeta
 static sym3 calc_PIRK_L3_ABar_LL(
 	const global cons_t* U,
 	real3x3 ABar_UL,
@@ -1610,6 +1692,7 @@ L2 Lambda^I =
 	return L2_LambdaBar_U;
 }
 
+// NOTICE - all my PIRK_L3 functions DO NOT contribute Lbeta
 static real3 calc_PIRK_L3_LambdaBar_U(
 	real tr_DBar_beta,
 	const real3* Delta_U
@@ -1730,6 +1813,7 @@ static real3 calc_PIRK_L2_B_U(
 	);
 }
 
+// NOTICE - all my PIRK_L3 functions DO NOT contribute Lbeta
 static real3 calc_PIRK_L3_B_U(
 	constant solver_t* solver,
 	global const cons_t* U
@@ -2230,12 +2314,15 @@ kernel void calcDeriv(
 <?=eqn:makePartialUpwind'beta_U'?>
 	real3x3 partial_beta_UL_upwind = real3x3_partial_rescaleFromCoord_Ul(U->beta_U, partial_beta_Ul_upwind, x);
 
+	//SENR's 'shiftadvect':
+	//advecting the shift vector: beta^i_,j beta^j
 	real3 partial_beta_times_beta_upwind = real3x3_real3_mul(partial_beta_UL_upwind, U->beta_U);
 
 	/*
 	hyperbolic Gamma driver 
 	2017 Ruchlin et al, eqn 14a, 14b
-	β^i_,t = B^i
+	β^i_,t = 
+L1:					B^i
 advect shift field:	+ β^i_,j β^j
 	*/
 	real3 dt_beta_U = real3_add(U->B_U, partial_beta_times_beta_upwind);
@@ -2349,74 +2436,11 @@ or even the ∂_0 ΛBar^i then we can re-add the needed terms later
 <? end	-- useCalcDeriv_Pi ?>
 <? end	--eqn.useScalarField ?>
 
-	//////////////////////////////// Kreiss-Oligar dissipation //////////////////////////////// 
+	// Kreiss-Oligar dissipation:
+	int fields[numIntStates];
+	for (int i = 0; i < numberof(fields); ++i) fields[i] = i;
+	applyKreissOligar(solver, U, deriv, x, fields, numberof(fields));
 
-<? if useKreissOligarDissipation then ?>
-// TODO because this is here (and not addSource), it won't be used by PIRK
-//  but in addSource() it would be based on new values and not old values, so it would alternate what values are dissipated
-// solve this by also moving it to the L3 PIRK step
-	if (solver->dissipationCoeff != 0.) { 
-		real r = coordMapR(x);
-		//Kreiss-Oligar dissipation
-		real coeff = solver->dissipationCoeff;
-#if 0	// 2013 Baumgarte et al, section IIIB
-		coeff /= dt;
-#elif 1	// 2017 Ruchlin et al eqn 44
-		// all params > 0
-		real rKO = 2.;		//rKO/M = 2
-		real wKO = .17;		//wKO/M = .17
-		//epsKO0 = .99 doubles as my 'dissipationCoeff' var
-		coeff *= .5 * (erf((r - rKO) / wKO) + 1.);
-#endif
-	
-<? if require 'hydro.coord.sphere-log-radial'.is(solver.coord) then ?>
-//from SENR: use d/dy
-		real3 yR = _real3(cell->r, cell->pos.y, cell->pos.z);
-		const global cell_t* cellL0 = cell - solver->stepsize.x;
-		real3 yL0 = _real3(cellL0->r, cellL0->pos.y, cellL0->pos.z);
-		const global cell_t* cellL1 = cell - solver->stepsize.y;
-		real3 yL1 = _real3(cellL1->r, cellL1->pos.y, cellL1->pos.z);
-		const global cell_t* cellL2 = cell - solver->stepsize.z;
-		real3 yL2 = _real3(cellL2->r, cellL2->pos.y, cellL2->pos.z);
-		real3 dySq = _real3(
-			real3_lenSq(real3_sub(yR, yL0)),
-			real3_lenSq(real3_sub(yR, yL1)),
-			real3_lenSq(real3_sub(yR, yL2)));
-<? else ?>
-		real3 dySq = _real3(
-			solver->grid_dx.x * solver->grid_dx.x,
-			solver->grid_dx.y * solver->grid_dx.y,
-			solver->grid_dx.z * solver->grid_dx.z);
-<? end ?>
-		real3 _1_dySq = _real3(1./dySq.x, 1./dySq.y, 1./dySq.z);
-
-		//described in 2008 Babiuc et al as Q = (-1)^r h^(2r-1) (D+)^r rho (D-)^r / 2^(2r)
-		//...for r=2... -sigma h^3 (D+)^2 rho (D-)^2 / 16 ... and rho=1, except rho=0 at borders maybe.
-		// TODO base on d/dy
-		for (int i = 0; i < numIntStates; ++i) {
-			deriv->ptr[i] += coeff * (
-				  (
-					-20. * U->ptr[i]
-					+ 15. * (U[1 * solver->stepsize.x].ptr[i] + U[-1 * solver->stepsize.x].ptr[i])
-					+ -6. * (U[2 * solver->stepsize.x].ptr[i] + U[-2 * solver->stepsize.x].ptr[i])
-					+ U[3 * solver->stepsize.x].ptr[i] + U[-3 * solver->stepsize.x].ptr[i]
-				) * _1_dySq.x
-				+ (
-					-20. * U->ptr[i]
-					+ 15. * (U[1 * solver->stepsize.y].ptr[i] + U[-1 * solver->stepsize.y].ptr[i])
-					+ -6. * (U[2 * solver->stepsize.y].ptr[i] + U[-2 * solver->stepsize.y].ptr[i])
-					+ U[3 * solver->stepsize.y].ptr[i] + U[-3 * solver->stepsize.y].ptr[i]
-				) * _1_dySq.y
-				+ (
-					-20. * U->ptr[i]
-					+ 15. * (U[1 * solver->stepsize.z].ptr[i] + U[-1 * solver->stepsize.z].ptr[i])
-					+ -6. * (U[2 * solver->stepsize.z].ptr[i] + U[-2 * solver->stepsize.z].ptr[i])
-					+ U[3 * solver->stepsize.z].ptr[i] + U[-3 * solver->stepsize.z].ptr[i]
-				) * _1_dySq.z
-			) * (1. / 64.);
-		}
-	}
-<? end	-- useKreissOligarDissipation ?>
 <? end 	-- useCalcDeriv ?>
 }
 
@@ -2934,13 +2958,18 @@ kernel void calcDeriv_PIRK_L1_EpsilonWAlphaBeta(
 	hyperbolic Gamma driver 
 	2017 Ruchlin et al, eqn 14a, 14b
 	beta^i_,t = 
-				B^i 
+L1:				B^i 
 advect shift:	+ beta^i_,j beta^j
 	*/
 	deriv->beta_U = real3_add(
-		U->B_U, 
+		U->B_U,
 		partial_beta_times_beta_upwind);
 <? end	-- eqn.useShift ?>
+
+
+	// Kreiss-Oligar dissipation:
+	int fields[] = {0, 1, 3, 4, 5, 12, 13, 14, 15, 16, 17};	//TODO derive this from eqn.consVars, or ptr offsets / sizeof(real), rather than hardcoding here
+	applyKreissOligar(solver, U, deriv, x, fields, numberof(fields));
 }
 
 // ABar_IJ, K
@@ -3087,6 +3116,37 @@ kernel void calcDeriv_PIRK_L3_ABarK(
 		U,
 		&ABar_UU
 	);
+
+<? if useLBetaWithPIRK then ?>
+
+	int4 updir = getUpwind(U->beta_U);
+
+<?=eqn:makePartialUpwind'ABar_LL'?>		//partial_ABar_lll[k].ij = ABar_ij,k
+	_3sym3 partial_ABar_LLL_upwind = calc_partial_ABar_LLL(
+		x,			//xup?
+		U->ABar_LL,	//upwind avg?
+		partial_ABar_LLl_upwind);
+
+	sym3 Lbeta_ABar_LL = sym3_Lbeta_LL(
+		U->ABar_LL,
+		partial_ABar_LLL_upwind,
+		U->beta_U,
+		partial_beta_UL);
+
+	deriv->ABar_LL = sym3_add(deriv->ABar_LL, Lbeta_ABar_LL);
+
+
+<?=eqn:makePartialUpwind'K'?>
+	real3 partial_K_L_upwind = real3_rescaleFromCoord_l(partial_K_l_upwind, x);
+	real Lbeta_K = real3_dot(partial_K_L_upwind, U->beta_U);
+
+	deriv->K += Lbeta_K;
+<? end	-- useLBetaWithPIRK ?>
+
+	
+	// Kreiss-Oligar dissipation:
+	int fields[] = {2, 18, 19, 20, 21, 22, 23};	//TODO derive this from eqn.consVars, or ptr offsets / sizeof(real), rather than hardcoding here
+	applyKreissOligar(solver, U, deriv, x, fields, numberof(fields));
 }
 
 // LambdaBar^I
@@ -3184,7 +3244,6 @@ kernel void calcDeriv_PIRK_L3_LambdaBar(
 	real3 x = cellBuf[index].pos;
 	global cons_t* deriv = derivBuf + index;
 	const global cons_t* U = UBuf + index;
-	int4 updir = getUpwind(U->beta_U);
 	
 	real3 partial_det_gammaHat_over_det_gammaHat_L = calc_partial_det_gammaHat_over_det_gammaHat_L(x);
 
@@ -3235,6 +3294,32 @@ kernel void calcDeriv_PIRK_L3_LambdaBar(
 		tr_DBar_beta,
 		&Delta_U
 	);
+
+
+<? if useLBetaWithPIRK then ?>
+	int4 updir = getUpwind(U->beta_U);
+
+//notice that, despite LambdaBar^I_,t only using one of the two Lie derivative terms, L3 LambdaBar^I uses both
+<?=eqn:makePartialUpwind'LambdaBar_U'?>
+	real3x3 partial_LambdaBar_UL_upwind = real3x3_partial_rescaleFromCoord_Ul(
+		U->LambdaBar_U, 	//TODO upwind avg
+		partial_LambdaBar_Ul_upwind,
+		x					//TODO upwind x
+	);
+
+	real3 Lbeta_LambdaBar_U = real3_sub(
+		real3x3_real3_mul(partial_LambdaBar_UL_upwind, U->beta_U),
+		real3x3_real3_mul(partial_beta_UL, U->LambdaBar_U));
+	
+	deriv->LambdaBar_U = real3_add(
+		deriv->LambdaBar_U,
+		Lbeta_LambdaBar_U);
+<? end	-- useLBetaWithPIRK ?>
+
+
+	// Kreiss-Oligar dissipation:
+	int fields[] = {9, 10, 11};	//TODO derive this from eqn.consVars, or ptr offsets / sizeof(real), rather than hardcoding here
+	applyKreissOligar(solver, U, deriv, x, fields, numberof(fields));
 }
 
 // B^I
@@ -3354,10 +3439,42 @@ kernel void calcDeriv_PIRK_L3_B(
 	const global cell_t* cellBuf
 ) {
 	SETBOUNDS(numGhost,numGhost);
+	real3 x = cellBuf[index].pos;
 	global cons_t* deriv = derivBuf + index;
 	const global cons_t* U = UBuf + index;
 
 	deriv->B_U = calc_PIRK_L3_B_U(solver, U);
+
+
+<? if useLBetaWithPIRK then ?>
+	//partial_beta_Ul.j..i := beta^I_,j
+<?=eqn:makePartial1'beta_U'?>
+	
+	//partial_beta_UL.I.J := e_i^I (beta^M e^i_M)_,j e^j_J
+	real3x3 partial_beta_UL = real3x3_partial_rescaleFromCoord_Ul(U->beta_U, partial_beta_Ul, x);
+
+	int4 updir = getUpwind(U->beta_U);
+
+<?=eqn:makePartialUpwind'B_U'?>
+	real3x3 partial_B_UL_upwind = real3x3_partial_rescaleFromCoord_Ul(
+		U->B_U, 	//TODO upwind avg
+		partial_B_Ul_upwind,
+		x					//TODO upwind x
+	);
+
+	real3 Lbeta_B_U = real3_sub(
+		real3x3_real3_mul(partial_B_UL_upwind, U->beta_U),
+		real3x3_real3_mul(partial_beta_UL, U->B_U));
+
+	deriv->B_U = real3_add(
+		deriv->B_U,
+		Lbeta_B_U);
+<? end	-- useLBetaWithPIRK ?>
+
+
+	// Kreiss-Oligar dissipation:
+	int fields[] = {6, 7, 8};	//TODO derive this from eqn.consVars, or ptr offsets / sizeof(real), rather than hardcoding here
+	applyKreissOligar(solver, U, deriv, x, fields, numberof(fields));
 }
 	
 //dst = src + deriv * dt

@@ -41,15 +41,7 @@ for k,v in pairs(require 'tests.util') do _G[k] = v end
 __useConsole__ = true	-- set this before require 'hydro.app'
 
 
-local cmdline = {}
-for _,w in ipairs(arg or {}) do
-	local k,v = w:match'^(.-)=(.*)$'
-	if k then
-		cmdline[k] = fromlua(v)
-	else
-		cmdline[w] = true
-	end
-end
+local cmdline = require 'ext.cmdline'(...)
 
 -- which problem to use
 local problemName = cmdline.init or 'advect wave'

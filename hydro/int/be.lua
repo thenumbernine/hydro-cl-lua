@@ -13,7 +13,6 @@ local CLBuffer = require 'cl.obj.buffer'
 local tooltip = require 'hydro.tooltip'
 local Integrator = require 'hydro.int.int'
 
-
 --local CLKrylov = require 'solver.cl.conjgrad'
 --local CLKrylov = require 'solver.cl.conjres'
 local CLKrylov = require 'solver.cl.gmres'
@@ -44,7 +43,7 @@ function BackwardEuler:init(solver, args)
 
 -- formerly createBuffers
 
-	local bufferSize = solver.volumeWithoutBorder * solver.eqn.numIntStates
+	local bufferSizeWithoutBorder = solver.volumeWithoutBorder * solver.eqn.numIntStates
 	for _,name in ipairs{
 		'krylov_b',
 		'krylov_x',
@@ -54,7 +53,7 @@ function BackwardEuler:init(solver, args)
 			env = solver.app.env,
 			name = name,
 			type = solver.app.real,
-			count = bufferSize,
+			count = bufferSizeWithoutBorder,
 		}
 	end
 	-- full buffer, with ghost cells and non-integratable state variables
@@ -68,7 +67,7 @@ function BackwardEuler:init(solver, args)
 	local copyBufferWithOrWithoutGhostProgram = solver.Program{
 		name = 'int-be',
 		code = template(
-			solver.modules:getCodeAndHeader(solver.sharedModulesEnabled:keys():unpack())
+			solver.modules:getCodeAndHeader(solver.sharedModulesEnabled:keys():append{'SETBOUNDS_NOGHOST'}:unpack())
 			..[[
 <? local range = require 'ext.range' ?>
 kernel void copyBufferWithoutGhostToBufferWithGhost(
@@ -153,18 +152,18 @@ if solver.checkNaNs then assert(solver:checkFinite(derivBufObj)) end
 	end
 
 	local volumeWithoutBorder = solver.volumeWithoutBorder
-	local numreals = volumeWithoutBorder * solver.eqn.numIntStates
+	local numRealsWithoutBorder = volumeWithoutBorder * solver.eqn.numIntStates
 	
 	local restart = cmdline.intBERestart or (args and args.restart) or 20
 
 	local linearSolverArgs = {
 		env = solver.app.env,
 		x = self.krylov_xObj,
-		count = numreals,
+		count = numRealsWithoutBorder,
 		epsilon = cmdline.intBEEpsilon or (args and args.epsilon) or 1e-10,
 		--maxiter = 1000,
 		restart = restart,
-		maxiter = cmdline.intBEMaxIter or (args and args.maxiter) or restart * numreals,
+		maxiter = cmdline.intBEMaxIter or (args and args.maxiter) or restart * numRealsWithoutBorder,
 		-- logging:
 		errorCallback = function(residual, iter, x, rLenSq)
 			self.lastResidual = residual
@@ -172,7 +171,7 @@ if solver.checkNaNs then assert(solver:checkFinite(derivBufObj)) end
 			if self.verbose then
 				print('t', solver.t, 'iter', iter, 'residual', residual)
 			end
---if iter < numreals then return false end
+--if iter < numRealsWithoutBorder then return false end
 			if not math.isfinite(residual) then
 				print("got non-finite residual: "..residual)	-- error?
 				return true	-- fail
@@ -213,7 +212,14 @@ if solver.checkNaNs then assert(solver:checkFinite(derivBufObj)) end
 
 	local oldDot = self.linearSolver.args.dot
 	self.linearSolver.args.dot = function(a,b)
-		return oldDot(a,b) / math.sqrt(numreals)
+		-- TODO getting nil values, esp from smaller grid sizes, i think due to reduce()
+		assert(a)
+		assert(b)
+		assert(numRealsWithoutBorder)
+		local d = oldDot(a,b)
+		assert(d)
+		-- sqrt?  cbrt for 3D?
+		return d / math.sqrt(numRealsWithoutBorder)
 	end
 end
 

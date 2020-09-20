@@ -17,7 +17,7 @@ local sdl = require 'ffi.sdl'
 local class = require 'ext.class'
 local table = require 'ext.table'
 local range = require 'ext.range'
-local io = require 'ext.io'
+local os = require 'ext.os'
 
 cmdline = {sys='console'}	-- set this before require 'hydro.app'
 
@@ -262,7 +262,7 @@ for _,cfg in ipairs(configurations) do
 	local destMovieName = nameForConfig(cfg, args)..'.mp4'
 	print(destMovieName)
 	
-	if io.fileexists(rundir..'/'..destMovieName) then
+	if os.fileexists(rundir..'/'..destMovieName) then
 		print("I already found movie "..destMovieName)
 	else
 		local movieStartTime = cfg.movieStartTime or 0

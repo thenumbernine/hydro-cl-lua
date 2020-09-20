@@ -242,6 +242,7 @@ function SelfGravProblem:init(args)
 	self.getRadiusCode = args.getRadiusCode
 end
 
+SelfGravProblem.depends = {'coordMap'}
 function SelfGravProblem:getInitCondCode(initCond, solver)
 	local args = self.args
 
@@ -430,6 +431,7 @@ local initConds = table{
 		solverVars = {
 			heatCapacityRatio = 7/5,
 		},
+		depends = {'coordMap'},
 		getInitCondCode = function(self, solver)
 			return [[
 	real3 xc = coordMap(x);
@@ -453,6 +455,7 @@ local initConds = table{
 			{name = 'y0', value = -.5},
 			{name = 'z0', value = 0},
 		},
+		depends = {'coordMap'},
 		getInitCondCode = function(self, solver)
 			return template([[
 	real3 xc = coordMap(x);
@@ -477,6 +480,7 @@ local initConds = table{
 		-- boundary waves seem to mess with this, 
 		-- otherwise it looks like a wave equation solution
 		name = 'Bessel',
+		depends = {'coordMap'},
 		getInitCondCode = function(self, solver)
 			return [[
 	real r = coordMapR(x);
@@ -514,6 +518,7 @@ local initConds = table{
 			{name = 'rho1', value = 3.2e-1},
 			{name = 'P0', value = 1},
 		},
+		depends = {'coordMap'},
 		getInitCondCode = function(self, solver)
 			solver:setBoundaryMethods{
 				xmin = 'periodic',
@@ -761,6 +766,7 @@ end
 		solverVars = {
 			heatCapacityRatio = 7/5,
 		},
+		depends = {'coordMap'},
 		getInitCondCode = function(self, solver)
 			return [[
 	real3 xc = coordMap(x);
@@ -795,6 +801,7 @@ end
 
 	{
 		name = 'spinning magnetic fluid',
+		depends = {'coordMap'},
 		getInitCondCode = function(self, solver)
 			return [[
 	real3 xc = coordMap(x);
@@ -831,6 +838,7 @@ end
 
 	{
 		name = 'magnetic fluid',
+		depends = {'coordMap'},
 		getInitCondCode = function(self, solver)
 			solver.useGravity = true
 			return [[
@@ -1039,6 +1047,7 @@ end) then
 	-- http://www.cfd-online.com/Wiki/Explosion_test_in_2-D
 	{
 		name = 'sphere',
+		depends = {'coordMap'},
 		getInitCondCode = function(self, solver)
 			return [[
 	real3 xc = coordMap(x);
@@ -1059,6 +1068,7 @@ end) then
 			{name = 'v', value = .5},
 			{name = 'D', value = 1},
 		},
+		depends = {'coordMap'},
 		getInitCondCode = function(self, solver)
 			return [[
 	real3 xc = coordMap(x);
@@ -1080,6 +1090,7 @@ end) then
 			{name = 'P', value = 1},
 			{name = 'inlet_v', value = .1},
 		},
+		depends = {'coordMap'},
 		getInitCondCode = function(self, solver)
 			
 			local ProblemBoundary = class(solver.Boundary)
@@ -1148,6 +1159,7 @@ end) then
 
 	{
 		name = 'radial gaussian',
+		depends = {'coordMap'},
 		getInitCondCode = function(self, solver)
 			return [[
 	const real gaussianCenter = 6;
@@ -1912,6 +1924,7 @@ end ?>;
 
 	{
 		name = 'Maxwell scattering around cylinder',
+		depends = {'coordMap'},
 		getInitCondCode = function(self, solver)
 			addMaxwellOscillatingBoundary{
 				solver = solver,
@@ -1979,11 +1992,12 @@ for _,pn in ipairs(obj) do
 <? end ?>
 	;
 }
-]], {
-		solver = solver,
-		clnumber = clnumber,
-	})
+]], 		{
+				solver = solver,
+				clnumber = clnumber,
+			})
 		end,
+		depends = {'coordMap'},
 		getInitCondCode = function(self, solver)
 			-- hmm, choosing min or max doesn't matter, it always shows up on min...
 			addMaxwellOscillatingBoundary{
@@ -2006,6 +2020,7 @@ for _,pn in ipairs(obj) do
 
 	{
 		name = 'Maxwell scattering around square',
+		depends = {'coordMap'},
 		getInitCondCode = function(self, solver)
 			-- hmm, choosing min or max doesn't matter, it always shows up on min...
 			addMaxwellOscillatingBoundary{
@@ -2100,10 +2115,11 @@ bool testTriangle(real3 xc) {
 		real3_dot(real3_sub(xc, p2), n2) < 0. &&
 		real3_dot(real3_sub(xc, p3), n3) < 0.);
 }
-]], {
-	clnumber = clnumber,
-})
+]], 		{
+				clnumber = clnumber,
+			})
 		end,
+		depends = {'coordMap'},
 		getInitCondCode = function(self, solver)
 			addMaxwellOscillatingBoundary{
 				solver = solver,
@@ -2359,6 +2375,7 @@ kernel void addExtraSource(
 			{name = 'v', value = .5},
 			{name = 'B', value = 1},
 		},
+		depends = {'coordMap'},
 		getInitCondCode = function(self, solver)
 			return [[
 	real3 xc = coordMap(x);

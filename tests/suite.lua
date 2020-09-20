@@ -11,7 +11,7 @@ require 'ffi.c.stdlib'		-- free
 local unistd = require 'ffi.c.unistd'
 local class = require 'ext.class'
 local table = require 'ext.table'
-local io = require 'ext.io'
+local os = require 'ext.os'
 local file = require 'ext.file'
 
 -- save the cwd and chdir to ../..
@@ -39,7 +39,7 @@ HydroApp.allnames = {}
 local configs = dofile(rundir..'/config.lua')	-- could use 'require' but there is another in the newly added package.path
 for _,config in ipairs(configs) do
 	local resultFile = rundir..'/results-'..config.name..'.txt'
-	if not io.fileexists(resultFile) then
+	if not os.fileexists(resultFile) then
 		
 		-- another TODO for hydro.app ... reuse names for matching ctypes
 		local data = table()

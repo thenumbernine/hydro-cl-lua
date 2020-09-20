@@ -1,7 +1,7 @@
 require 'ext'
 local gnuplot = require 'gnuplot'
 local txts = table()
-for fn in io.dir'.' do
+for fn in os.listdir'.' do
 	local name,ext = io.getfileext(fn)
 	if ext == 'txt' then
 		txts:insert(fn)

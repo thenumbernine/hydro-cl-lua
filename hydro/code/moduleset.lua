@@ -26,6 +26,7 @@ function ModuleSet:init(...)
 			self.set[k] = v
 		end
 	end
+	self.verbose = cmdline.moduleVerbose
 end
 
 -- during init, building modules, do this:
@@ -43,7 +44,9 @@ end
 function ModuleSet:getDependentModules(...)
 	local addedkeys = {}
 	local added = table()
-print('building:')
+if self.verbose then
+	print('building:')
+end	
 	local function add(name, from, indent, last)
 		local range = require 'ext.range'
 		indent = indent or ''
@@ -83,15 +86,18 @@ print('building:')
 			end
 			added:insert(module)
 		end
-		
-		print(str)
+if self.verbose then	
+	print(str)
+end	
 	end
 	local numModules = select('#', ...)
 	for i=1,numModules do
 		local name = select(i, ...)
 		add(name, '', ' ', i == 1)
 	end
+if self.verbose	then
 	print()
+end
 	return added
 end
 
