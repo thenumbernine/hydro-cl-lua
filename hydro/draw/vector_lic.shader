@@ -35,17 +35,7 @@ uniform sampler2D noiseTex;
 uniform vec3 solverMins, solverMaxs;
 uniform int integralMaxIter;
 
-<? if solver.dim == 3 then ?>
-uniform sampler3D tex;
-vec4 getTex(vec3 texCoord) {
-	return texture3D(tex, texCoord);
-}
-<? else ?>
-uniform sampler2D tex;
-vec4 getTex(vec3 texCoord) {
-	return texture2D(tex, texCoord.xy);
-}
-<? end ?>
+<?=draw:getCommonGLSLFragCode(solver)?>
 
 vec3 getTexCoordForGridCoord(vec3 gridCoord) {
 	vec3 texCoord = (

@@ -1,25 +1,36 @@
+#version 460
+
 <?
 local clnumber = require 'cl.obj.number'
 local coord = solver.coord
 local app = solver.app
+local inout = vertexShader and 'out'
+		or fragmentShader and 'in'
+		or error("don't know what to set inout to")
 ?>
-varying vec3 texCoord;	//[0,1]^n
+
+<?=inout?> vec3 texCoord;	//[0,1]^n
 
 <? local useClipPlanes = false ?>
 <? if useClipPlanes then ?>
-varying vec3 pos;		//positive after coordinate mapping, before view transform
+<?=inout?> vec3 pos;		//positive after coordinate mapping, before view transform
 <? end ?>
 
+uniform mat4 modelViewProjectionMatrix;
+
 <? if vertexShader then ?>
+
+attribute vec4 vertex;
+
 <?=coord:getModuleCodeGLSL'coordMapGLSL'?>
 
 uniform bool useCoordMap;
 
 uniform vec3 solverMins, solverMaxs;
 void main() {
-	texCoord = gl_Vertex.xyz;
+	texCoord = vertex.xyz;
 	
-	vec4 x = gl_Vertex;
+	vec4 x = vertex;
 	if (useCoordMap) {
 		x.xyz *= solverMaxs - solverMins;
 		x.xyz += solverMins;
@@ -31,21 +42,13 @@ void main() {
 <? if useClipPlanes then ?>
 	pos = x.xyz;
 <? end ?>
-	gl_Position = gl_ModelViewProjectionMatrix * x;
+	gl_Position = modelViewProjectionMatrix * x;
 }
 
 <? end
 if fragmentShader then ?>
 
-<?=solver:getGradientGLSLCode()?>
-
-<? if solver.dim == 3 then
-?>uniform sampler3D tex;
-<? else
-?>uniform sampler2D tex;
-<? end
-?>
-
+out vec4 fragColor;
 uniform float numGhost;
 uniform vec3 texSize;
 
@@ -62,19 +65,20 @@ uniform float numIsobars;
 ?>
 <? end ?>
 uniform bool useLighting;
+uniform mat3 normalMatrix;
 
-float getTex(vec3 tc) {
+<?=solver:getGradientGLSLCode()?>
+
+<?=draw:getCommonGLSLFragCode(solver)?>
+
+float getVoxelValue(vec3 tc) {
 	//using texel coordinates as-is
-	//return texture3D(tex, tc).r;
+	//return getTex(tc).r;
 
 	//getting rid of the ghost cells
 	tc = tc * ((texSize - 2. * numGhost) / texSize) + (numGhost / texSize);
-<? if solver.dim == 3 then
-?>	return texture3D(tex, tc).r;
-<? else
-?>	return texture2D(tex, tc.xy).r;
-<? end
-?>}
+	return getTex(tc).r;
+}
 
 void main() {
 <? if useClipPlanes then ?>
@@ -84,7 +88,7 @@ void main() {
 <? end
 ?>
 <? end
-?>	float value = getTex(texCoord);
+?>	float value = getVoxelValue(texCoord);
 	
 	float frac = getGradientFrac(value);
 	float gradTC = getGradientTexCoord(frac);
@@ -108,21 +112,21 @@ void main() {
 		const float ambient = .3;
 		vec3 lightVec = vec3(0., 0., 1.);
 		vec3 texGrad = vec3(
-			getTex(texCoord + vec3(dx,0.,0.)) - getTex(texCoord - vec3(dx,0.,0.)),
-			getTex(texCoord + vec3(0.,dx,0.)) - getTex(texCoord - vec3(0.,dx,0.)),
-			getTex(texCoord + vec3(0.,0.,dx)) - getTex(texCoord - vec3(0.,0.,dx)));
-		texGrad = gl_NormalMatrix * texGrad;
+			getVoxelValue(texCoord + vec3(dx,0.,0.)) - getVoxelValue(texCoord - vec3(dx,0.,0.)),
+			getVoxelValue(texCoord + vec3(0.,dx,0.)) - getVoxelValue(texCoord - vec3(0.,dx,0.)),
+			getVoxelValue(texCoord + vec3(0.,0.,dx)) - getVoxelValue(texCoord - vec3(0.,0.,dx)));
+		texGrad = normalMatrix * texGrad;
 		texGrad = normalize(texGrad);
 		float lum = max(ambient, abs(dot(lightVec, texGrad)));	
 		voxelColor.rgb *= lum;
 	}
 
 	//calculate normal in screen coordinates
-	vec4 n = gl_ModelViewProjectionMatrix * vec4(normal, 0.);
+	vec4 n = modelViewProjectionMatrix * vec4(normal, 0.);
 	//determine length of line through slice at its angle
 	voxelColor.a /= -n.w;
 	
-	gl_FragColor = vec4(voxelColor.rgb, voxelColor.a * alpha);
+	fragColor = vec4(voxelColor.rgb, voxelColor.a * alpha);
 }
 
 <? end ?>

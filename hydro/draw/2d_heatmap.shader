@@ -23,19 +23,14 @@ void main() {
 <? end
 if fragmentShader then ?>
 
-<?=solver.coord:getModuleCodeGLSL'coordMapInvGLSL'?>
+<?=solver.coord:getModuleCodeGLSL('coordMapInvGLSL')?>
 
 <?=solver:getGradientGLSLCode()?>
 
 uniform bool useCoordMap;
-
 uniform vec2 texCoordMax;
-<? if solver.dim == 3 then
-?>uniform sampler3D tex;
-<? else
-?>uniform sampler2D tex;
-<? end
-?>
+
+<?=draw:getCommonGLSLFragCode(solver)?>
 
 uniform vec2 solverMins, solverMaxs;
 
@@ -65,7 +60,7 @@ if (abs(gridCoord.x - solverMins.x) < epsilon ||
 	abs(gridCoord.y - solverMins.y) < epsilon ||
 	abs(gridCoord.y - solverMaxs.y) < epsilon)
 {
-	gl_FragColor = vec4(1.,1.,1.,1.);
+	fragColor = vec4(1.,1.,1.,1.);
 	return;
 }
 #endif
@@ -77,12 +72,7 @@ if (abs(gridCoord.x - solverMins.x) < epsilon ||
 	) * texCoordMax;
 	texCoord.z = viewCoord.z;
 
-<? if solver.dim == 3 then
-?>	float value = texture3D(tex, texCoord).r;
-<? else
-?>	float value = texture2D(tex, texCoord.xy).r;
-<? end
-?>	
+	float value = getTex(texCoord).r;
 	fragColor = getGradientColor(value);
 }
 

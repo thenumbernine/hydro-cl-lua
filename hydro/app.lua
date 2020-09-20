@@ -267,30 +267,19 @@ local clipInfos = range(4):mapi(function(i)
 end)
 end
 
--- needs to go before display2DMethods, display3DMethods, etc
-if targetSystem ~= 'console' then
-	require 'hydro.draw.1d'(HydroCLApp)			-- App:display1D
-	
-	require 'hydro.draw.2d_heatmap'(HydroCLApp)	-- App:display2D_Heatmap
-	require 'hydro.draw.2d_graph'(HydroCLApp)		-- App:display2D_Graph
-	
-	require 'hydro.draw.3d_slice'(HydroCLApp)		-- App:display3D_Slice
-	require 'hydro.draw.3d_ray'(HydroCLApp)		-- App:display3D_Ray
-	require 'hydro.draw.3d_iso'(HydroCLApp)		-- App:display3D_ISO
-	
-	require 'hydro.draw.vector_arrow'(HydroCLApp)	-- App:displayVector_Arrows
-	require 'hydro.draw.vector_lic'(HydroCLApp)	-- App:displayVector_LIC
+
+-- shader needs it, but shaders are created per-solver (before the app initializes the 'draw' objects)
+--HydroCLApp.drawVectorLICNoiseSize = 256
+HydroCLApp.drawVectorLICNoiseSize = 1024
+
+-- only option is draw1D
+function HydroCLApp:display1D(...)
+	self.draw1D = self.draw1D or require 'hydro.draw.1d'()
+	return self.draw1D:display(self, ...)
 end
 
-
--- needs to go before initGL
-local display2DMethods = table{
-	{Heatmap = HydroCLApp.display2D_Heatmap},
-	{Graph = HydroCLApp.display2D_Graph},
-}
-
 function HydroCLApp:display2D(...)
-	for _,method in ipairs(display2DMethods) do
+	for _,method in ipairs(self.display2DMethods) do
 		local name, func = next(method)
 		if self.display2DMethodsEnabled[name] then
 			func(self, ...)
@@ -298,15 +287,8 @@ function HydroCLApp:display2D(...)
 	end
 end
 
-
-local display3DMethods = table{
-	{Slices = HydroCLApp.display3D_Slice},
-	{Raytrace = HydroCLApp.display3D_Ray},
-	{Isosurfaces = HydroCLApp.display3D_Isosurface},
-}
-
 function HydroCLApp:display3D(...)
-	for _,method in ipairs(display3DMethods) do
+	for _,method in ipairs(self.display3DMethods) do
 		local name, func = next(method)
 		if self.display3DMethodsEnabled[name] then
 			func(self, ...)
@@ -314,19 +296,8 @@ function HydroCLApp:display3D(...)
 	end
 end
 
-
--- shader needs it, but shaders are created per-solver (before the app initializes the 'draw' objects)
---HydroCLApp.drawVectorLICNoiseSize = 256
-HydroCLApp.drawVectorLICNoiseSize = 1024
-
-
-local displayVectorMethods = table{
-	{Arrows = HydroCLApp.displayVector_Arrows},
-	{LIC = HydroCLApp.displayVector_LIC},
-}
-
 function HydroCLApp:displayVector(...)
-	for _,method in ipairs(displayVectorMethods) do
+	for _,method in ipairs(self.displayVectorMethods) do
 		local name, func = next(method)
 		if self.displayVectorMethodsEnabled[name] then
 			func(self, ...)
@@ -334,6 +305,71 @@ function HydroCLApp:displayVector(...)
 	end
 end
 
+function HydroCLApp:display2D_Heatmap(...)
+	self.draw2DHeatmap = self.draw2DHeatmap or require 'hydro.draw.2d_heatmap'()
+	return self.draw2DHeatmap:display(self, ...)
+end
+
+function HydroCLApp:display2D_Graph(...)
+	self.draw2DGraph = self.draw2DGraph or require 'hydro.draw.2d_graph'()
+	return self.draw2DGraph:display(self, ...)
+end
+
+function HydroCLApp:display3D_Slice(...)
+	self.draw3DSlice = self.draw3DSlice or require 'hydro.draw.3d_slice'()
+	return self.draw3DSlice:display(self, ...)
+end
+
+function HydroCLApp:display3D_Ray(...)
+	self.draw3DRay = self.draw3DRay or require 'hydro.draw.3d_ray'()
+	return self.draw3DRay:display(self, ...)
+end
+
+function HydroCLApp:display3D_Isosurface(...)
+	self.draw3DIso = self.draw3DIso or require 'hydro.draw.3d_iso'()
+	return self.draw3DIso:display(self, ...)
+end
+
+function HydroCLApp:displayVector_Arrows(...)
+	self.drawVectorArrows = self.drawVectorArrows or require 'hydro.draw.vector_arrow'() 
+	return self.drawVectorArrows:display(self, ...)
+end
+
+function HydroCLApp:displayVector_LIC(...)
+	self.drawVectorLIC = self.drawVectorLIC or require 'hydro.draw.vector_lic'()
+	return self.drawVectorLIC:display(self, ...)
+end
+
+--[[
+called from initGL
+only called if sys ~= console
+
+some design thoughts:
+a lot of draw is ui-specific, so it can be app members (like gradient tex, buffers, etc)
+but the shader and state buf tex stuff is solver-specific, hence why solvers build their shader and provide it to the draw objects
+and originally draw objs were built upon request ... but shaders were built upon solver init ... but shaders are now needing draw objs to be already built ...
+so here's an idea:
+have hydro make draw objs *and* solver shaders upon request
+then create the draw objs before the shaders (so they exist during shader ctor)
+--]]
+function HydroCLApp:initDraw()
+
+	self.display2DMethods = table{
+		{Heatmap = HydroCLApp.display2D_Heatmap},
+		{Graph = HydroCLApp.display2D_Graph},
+	}
+
+	self.display3DMethods = table{
+		{Slices = HydroCLApp.display3D_Slice},
+		{Raytrace = HydroCLApp.display3D_Ray},
+		{Isosurfaces = HydroCLApp.display3D_Isosurface},
+	}
+
+	self.displayVectorMethods = table{
+		{Arrows = HydroCLApp.displayVector_Arrows},
+		{LIC = HydroCLApp.displayVector_LIC},
+	}
+end
 
 
 --[[ Cheap output of the state each frame so I can compare it to other solvers.
@@ -360,6 +396,8 @@ local function printState(solver)
 end
 --]]
 
+-- always called by glapp, even if sys=console 
+-- ... in that case a dummy subsys is provided above that calls initGL 
 function HydroCLApp:initGL(...)
 	if HydroCLApp.super
 	and HydroCLApp.super.initGL 
@@ -480,9 +518,13 @@ function HydroCLApp:initGL(...)
 		-- don't wrap the colors, but do use GL_REPEAT
 		self.gradientTex:setWrap{s = gl.GL_REPEAT}
 
-		-- init all resources for all draw methods, so the user can switch between methods quickly
+		self:initDraw()
+
+		-- this is only used by chopped and meshsolver for post-init display finalizing
 		for _,solver in ipairs(self.solvers) do
-			solver:initDraw()
+			if solver.initDraw then
+				solver:initDraw()
+			end
 		end
 
 
@@ -523,15 +565,15 @@ void main() {
 		end
 
 		-- todo reorganize me
-		self.display2DMethodsEnabled = display2DMethods:mapi(function(method, index)
+		self.display2DMethodsEnabled = self.display2DMethods:mapi(function(method, index)
 			local name, func = next(method)
 			return index == 1, name
 		end)
-		self.display3DMethodsEnabled = display3DMethods:mapi(function(method, index)
+		self.display3DMethodsEnabled = self.display3DMethods:mapi(function(method, index)
 			local name, func = next(method)
 			return index == 1, name
 		end)
-		self.displayVectorMethodsEnabled = displayVectorMethods:mapi(function(method, index)
+		self.displayVectorMethodsEnabled = self.displayVectorMethods:mapi(function(method, index)
 			local name, func = next(method)
 			local enabled = index == 2	-- LIC
 			-- cmdline arrows overrides the default from LIC to arrows
@@ -1305,7 +1347,7 @@ function HydroCLApp:updateGUI()
 			if dim == 2 then
 				ig.igPushIDStr'2D'
 				
-				for i,method in ipairs(display2DMethods) do
+				for i,method in ipairs(self.display2DMethods) do
 					if i > 1 then ig.igSameLine() end
 					local name, func = next(method)
 					tooltip.checkboxTable(name, self.display2DMethodsEnabled, name)
@@ -1322,7 +1364,7 @@ function HydroCLApp:updateGUI()
 			elseif dim == 3 then
 				ig.igPushIDStr'3D'
 				
-				for i,method in ipairs(display3DMethods) do
+				for i,method in ipairs(self.display3DMethods) do
 					if i > 1 then ig.igSameLine() end
 					local name, func = next(method)
 					tooltip.checkboxTable(name, self.display3DMethodsEnabled, name)
@@ -1366,7 +1408,7 @@ function HydroCLApp:updateGUI()
 			do
 				ig.igPushIDStr'Vector'
 
-				for i,method in ipairs(displayVectorMethods) do
+				for i,method in ipairs(self.displayVectorMethods) do
 					if i > 1 then ig.igSameLine() end
 					local name, func = next(method)
 					tooltip.checkboxTable(name, self.displayVectorMethodsEnabled, name)

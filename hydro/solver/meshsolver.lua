@@ -163,27 +163,7 @@ function MeshSolver:createSolverBuf()
 end
 
 function MeshSolver:initDraw()
-	if self.app.targetSystem == 'console' then return end
-
-	local vectorArrowCode = file['hydro/draw/vector_arrow.shader']
-	self.vectorArrowShader = self.GLProgram{
-		name = 'vector_arrow',
-		vertexCode = template(vectorArrowCode, {
-			solver = self,
-			vertexShader = true,
-		}),
-		fragmentCode = template(vectorArrowCode, {
-			solver = self,
-			fragmentShader = true,
-		}),
-		uniforms = {
-			valueMin = 0,
-			valueMax = 1,
-			tex = 0,
-			gradientTex = 1,
-			scale = 1,
-		},
-	}
+	assert(self.app.targetSystem ~= 'console')
 
 	local mesh = self.mesh
 
@@ -254,31 +234,6 @@ function MeshSolver:initDraw()
 		size = #glcellindex * ffi.sizeof(glcellindex.type),
 	}
 
-	local heatMapCode = assert(file['hydro/draw/mesh_heatmap.shader'])
-	self.heatMap2DShader = self.GLProgram{
-		name = 'mesh_heatmap',
-		vertexCode = template(heatMapCode, {
-			vertexShader = true,
-			solver = self,
-		}),
-		fragmentCode = template(heatMapCode, {
-			fragmentShader = true,
-			solver = self,
-		}),
-		uniforms = {
-			valueMin = 0,
-			valueMax = 0,
-			tex = 0,
-			gradientTex = 1,
-			drawCellScale = 1,
-		},
-		attrs = {
-			vtx = self.glvtxArrayBuffer,
-			vtxcenter = self.glvtxcenterArrayBuffer,
-			cellindex = self.glcellindexArrayBuffer,
-		},
-	}
-
 	self.drawPointsShader = self.GLProgram{
 		name = 'draw_points',
 		vertexCode = [[
@@ -308,10 +263,6 @@ void main() {
 			vtxcenter = self.glvtxcenterArrayBuffer,
 		}
 	}
-end
-
-function MeshSolver:getHeatMap2DShader(var)
-	return self.heatMap2DShader
 end
 
 -- TODO organize this between SolverBase and MeshSolver
@@ -731,7 +682,7 @@ local function showDisplayVar(app, solver, var, varName, ar)
 		gl.glEnable(gl.GL_DEPTH_TEST)
 	--	gl.glEnable(gl.GL_CULL_FACE)
 
-		local heatMap2DShader = solver:getHeatMap2DShader()
+		local heatMap2DShader = solver.heatMap2DShader
 		heatMap2DShader:use()
 		
 		local gradientTex = app.gradientTex
@@ -765,6 +716,41 @@ local function showDisplayVar(app, solver, var, varName, ar)
 	app:drawGradientLegend(solver, var, varName, ar, valueMin, valueMax)
 end
 
+function MeshSolver:prepareShader()
+	error'this really needs to be changed into a draw obj, so it can subclass hydro.draw.draw, even if it only works for meshsolvers'
+	
+	if self.heatMap2DShader then return end
+	
+	local heatMapCode = assert(file['hydro/draw/mesh_heatmap.shader'])
+	
+	self.heatMap2DShader = self.GLProgram{
+		name = 'mesh_heatmap',
+		vertexCode = template(heatMapCode, {
+			vertexShader = true,
+			solver = self,
+		}),
+		fragmentCode = template(heatMapCode, {
+			fragmentShader = true,
+			solver = self,
+		}),
+		uniforms = {
+			valueMin = 0,
+			valueMax = 0,
+			tex = 0,
+			gradientTex = 1,
+			drawCellScale = 1,
+		},
+		attrs = {
+			vtx = self.glvtxArrayBuffer,
+			vtxcenter = self.glvtxcenterArrayBuffer,
+			cellindex = self.glcellindexArrayBuffer,
+		},
+	}
+
+
+end
+
+-- TODO, this all parallels the app's draw objects ... so make one out of it?
 function MeshSolver:display(varName, ar)
 	local app = self.app
 	if app.targetSystem == 'console' then return end	
@@ -774,6 +760,7 @@ function MeshSolver:display(varName, ar)
 
 	local var = self.displayVarForName[varName]
 	if not var then return end
+	self:prepareShader()
 
 	-- if it's a vector field then let app handle it.
 	local component = self.displayComponentFlatList[var.component]

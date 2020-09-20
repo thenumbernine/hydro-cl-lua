@@ -1,10 +1,13 @@
-local gl = require 'ffi.OpenGL'
 local ffi = require 'ffi'
 local class = require 'ext.class'
+local file = require 'ext.file'
+local template = require 'template'
+local gl = require 'ffi.OpenGL'
 local GLTex2D = require 'gl.tex2d'
+local Draw = require 'hydro.draw.draw'
 
 
-local DrawVectorLIC = class()
+local DrawVectorLIC = class(Draw)
 
 DrawVectorLIC.integralMaxIter = 10
 
@@ -169,6 +172,7 @@ function DrawVectorLIC:display(app, solvers, varName, ar, graph_xmin, graph_xmax
 		if not require 'hydro.solver.meshsolver'.is(solver) then
 			local var = solver.displayVarForName[varName]
 			if var and var.enabled then
+				self:prepareShader(solver)
 				self:showDisplayVar(app, solver, var, varName, ar, xmin, xmax, ymin, ymax)
 			end
 		end
@@ -176,9 +180,31 @@ function DrawVectorLIC:display(app, solvers, varName, ar, graph_xmin, graph_xmax
 --	gl.glDisable(gl.GL_DEPTH_TEST)
 end
 
-return function(HydroCLApp)
-	function HydroCLApp:displayVector_LIC(...)
-		if not self.drawVectorLIC then self.drawVectorLIC = DrawVectorLIC() end
-		return self.drawVectorLIC:display(self, ...)
-	end
+function DrawVectorLIC:prepareShader(solver)
+	if solver.vectorLICShader then return end
+	
+	local vectorLICCode = assert(file['hydro/draw/vector_lic.shader'])
+	
+	solver.vectorLICShader = solver.GLProgram{
+		name = 'vector_lic',
+		vertexCode = template(vectorLICCode, {
+			draw = self,
+			solver = solver,
+			vertexShader = true,
+		}),
+		fragmentCode = template(vectorLICCode, {
+			draw = self,
+			solver = solver,
+			fragmentShader = true,
+		}),
+		uniforms = {
+			valueMin = 0,
+			valueMax = 0,
+			tex = 0,
+			gradientTex = 1,
+			noiseTex = 2,
+		},
+	}
 end
+
+return DrawVectorLIC

@@ -29,9 +29,6 @@ void main() {
 <? end
 if fragmentShader then ?>
 
-<?=solver:getGradientGLSLCode()?>
-
-uniform sampler3D tex;
 uniform int maxiter;
 uniform vec3 oneOverDx;
 
@@ -42,22 +39,27 @@ uniform float alpha;
 uniform float alphaGamma;
 uniform bool useIsos;
 uniform bool useLighting;
+uniform mat3 normalMatrix
 uniform float numIsobars;
 
-float getTex(vec3 tc) {
+<?=solver:getGradientGLSLCode()?>
+
+<?=draw:getCommonGLSLFragCode(solver)?>
+
+float getVoxelValue(vec3 tc) {
 	//using texel coordinates as-is
-	//return texture3D(tex, tc).r;
+	//return getTex(tc).r;
 
 	//getting rid of the ghost cells
 	tc = tc * ((texSize - 2. * numGhost) / texSize) + (numGhost / texSize);
-	return texture3D(tex, tc).r;
+	return getTex(tc).r;
 }
 
 void main() {
 	vec3 p = texCoordStart;
 	vec4 result = vec4(0., 0., 0., 1.);
 		
-	float value = getTex(p);
+	float value = getVoxelValue(p);
 	float frac = getGradientFrac(value);
 	float gradTC = getGradientTexCoord(frac);
 	vec4 voxelColor = texture1D(gradientTex, gradTC);
@@ -81,7 +83,7 @@ void main() {
 		//instead of having to backward-trace
 		//(as you would when rendering transparent stuff on top of each other)
 		//this will allow you to bailout early if your transparency ever hits fully opaque
-		value = getTex(p);
+		value = getVoxelValue(p);
 		frac = getGradientFrac(value);
 		gradTC = getGradientTexCoord(frac);
 		voxelColor = texture1D(gradientTex, gradTC);
@@ -105,10 +107,10 @@ void main() {
 			const float ambient = .3;
 			vec3 lightVec = vec3(0., 0., 1.);
 			vec3 texGrad = vec3(
-				getTex(p + vec3(dx,0.,0.)) - getTex(p - vec3(dx,0.,0.)),
-				getTex(p + vec3(0.,dx,0.)) - getTex(p - vec3(0.,dx,0.)),
-				getTex(p + vec3(0.,0.,dx)) - getTex(p - vec3(0.,0.,dx)));
-			texGrad = gl_NormalMatrix * texGrad;
+				getVoxelValue(p + vec3(dx,0.,0.)) - getVoxelValue(p - vec3(dx,0.,0.)),
+				getVoxelValue(p + vec3(0.,dx,0.)) - getVoxelValue(p - vec3(0.,dx,0.)),
+				getVoxelValue(p + vec3(0.,0.,dx)) - getVoxelValue(p - vec3(0.,0.,dx)));
+			texGrad = normalMatrix * texGrad;
 			texGrad = normalize(texGrad);
 			float lum = max(ambient, abs(dot(lightVec, texGrad)));	
 			voxelColor.rgb *= lum;

@@ -1,21 +1,19 @@
-//my intel ubuntu opengl driver's error:
-// error: GLSL 4.60 is not supported. Supported versions are: 1.10, 1.20, 1.30, 1.00 ES, 3.00 ES, 3.10 ES, and 3.20 ES
-//#version 460
-//...sooo...
-#version 130
+#version 460
+
+<?
+local inout = vertexShader and 'out'
+		or fragmentShader and 'in'
+		or error("don't know what to set inout to")
+?>
+<?=inout?> vec3 normal;
 
 <? if vertexShader then ?>
 in vec3 inVertex;
-out vec3 normal;
 
 uniform mat4 ModelViewProjectionMatrix;
 
-<? if solver.dim == 3 then
-?>uniform sampler3D tex;
-<? else
-?>uniform sampler2D tex;
-<? end
-?>uniform int axis;
+<?=draw:getCommonGLSLFragCode(solver)?>
+
 uniform vec2 xmin;
 uniform vec2 xmax;
 uniform float scale;
@@ -39,15 +37,11 @@ vec3 func(vec3 src) {
 	vertex.x = (vertex.x * <?=sizeX?> - <?=numGhost?>) / <?=sizeWithoutBorderX?> * (xmax.x - xmin.x) + xmin.x;
 	vertex.y = (vertex.y * <?=sizeY?> - <?=numGhost?>) / <?=sizeWithoutBorderY?> * (xmax.y - xmin.y) + xmin.y;
 
-<? if solver.dim == 3 then
-?>	vertex[axis] = texture3D(tex, src).r;
-<? else
-?>	vertex[axis] = texture2D(tex, src.xy).r;
-<? end
-?>	vertex[axis] -= offset;
-	vertex[axis] *= scale;
+	vertex[displayDim] = getTex(src).r;
+	vertex[displayDim] -= offset;
+	vertex[displayDim] *= scale;
 	if (useLog) {
-		vertex[axis] = log(max(0., vertex[axis])) * <?=('%.50f'):format(1/math.log(10))?>;
+		vertex[displayDim] = log(max(0., vertex[displayDim])) * <?=('%.50f'):format(1/math.log(10))?>;
 	}
 	return vertex;
 }
@@ -70,7 +64,7 @@ void main() {
 end
 if fragmentShader then ?>
 
-in vec3 normal;
+out vec4 fragColor;
 
 uniform vec3 color;
 uniform float ambient;
@@ -80,9 +74,9 @@ void main() {
 	float lum = dot(normal, light);
 	//lum = max(lum, -lum);	//...for two-sided
 	lum = max(lum, ambient);
-	gl_FragColor.rgb = color;
-	gl_FragColor.rgb *= lum;
-	gl_FragColor.a = 1.;
+	fragColor.rgb = color;
+	fragColor.rgb *= lum;
+	fragColor.a = 1.;
 }
 
 <? end ?>

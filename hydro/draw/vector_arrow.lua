@@ -1,5 +1,7 @@
 local ffi = require 'ffi'
 local class = require 'ext.class'
+local file = require 'ext.file'
+local template = require 'template'
 local vec2f = require 'vec-ffi.vec2f'
 local vec3f = require 'vec-ffi.vec3f'
 local gl = require 'gl'
@@ -8,6 +10,7 @@ local GLVertexArray = require 'gl.vertexarray'
 local GLArrayBuffer = require 'gl.arraybuffer'
 local GLAttribute = require 'gl.attribute'
 local vector = require 'hydro.util.vector'
+local Draw = require 'hydro.draw.draw'
 
 
 local arrow = {
@@ -19,7 +22,7 @@ local arrow = {
 	{.5, 0.},
 }
 
-local DrawVectorField = class()
+local DrawVectorField = class(Draw)
 
 
 -- TODO move to draw/vectorfield 
@@ -140,14 +143,12 @@ function DrawVectorField:showDisplayVar(app, solver, var, varName, ar, xmin, xma
 
 	vectorArrowShader:use()
 	
-	gl.glUniformMatrix4fv(vectorArrowShader.uniforms.modelViewProjectionMatrix.loc, 1, 0, app.view.modelViewProjectionMatrix.ptr)
+	self:setupDisplayVarShader(vectorArrowShader, app, solver, var)
+	
 	gl.glUniform1i(vectorArrowShader.uniforms.useCoordMap.loc, app.display_useCoordMap)
 	gl.glUniform1i(vectorArrowShader.uniforms.useLog.loc, var.useLog)
 	gl.glUniform1f(vectorArrowShader.uniforms.valueMin.loc, valueMin)
 	gl.glUniform1f(vectorArrowShader.uniforms.valueMax.loc, valueMax)
-	
-	gl.glUniform1i(vectorArrowShader.uniforms.displayDim.loc, app.displayDim)
-	gl.glUniform2f(vectorArrowShader.uniforms.displayFixed.loc, app.displayFixedY, app.displayFixedZ)
 	
 	gl.glUniform3f(vectorArrowShader.uniforms.solverMins.loc, solver.mins:unpack())
 	gl.glUniform3f(vectorArrowShader.uniforms.solverMaxs.loc, solver.maxs:unpack())
@@ -201,15 +202,38 @@ function DrawVectorField:display(app, solvers, varName, ar, ...)
 	for _,solver in ipairs(solvers) do
 		local var = solver.displayVarForName[varName]
 		if var and var.enabled then
+			self:prepareShader(solver)
 			self:showDisplayVar(app, solver, var, varName, ar, ...)
 		end
 	end
 
 end
 
-return function(HydroCLApp)
-	function HydroCLApp:displayVector_Arrows(...)
-		if not self.drawVectorArrows then self.drawVectorArrows = DrawVectorField() end
-		return self.drawVectorArrows:display(self, ...)
-	end
+function DrawVectorField:prepareShader(solver)
+	if solver.vectorArrowShader then return end
+
+	local vectorArrowCode = assert(file['hydro/draw/vector_arrow.shader'])
+	
+	solver.vectorArrowShader = solver.GLProgram{
+		name = 'vector_arrow',
+		vertexCode = template(vectorArrowCode, {
+			draw = self,
+			solver = solver,
+			vertexShader = true,
+		}),
+		fragmentCode = template(vectorArrowCode, {
+			draw = self,
+			solver = solver,
+			fragmentShader = true,
+		}),
+		uniforms = {
+			scale = 1,
+			valueMin = 0,
+			valueMax = 0,
+			tex = 0,
+			gradientTex = 1,
+		},
+	}
 end
+
+return DrawVectorField

@@ -1,7 +1,10 @@
-local gl = require 'ffi.OpenGL'
 local class = require 'ext.class'
+local file = require 'ext.file'
+local template = require 'template'
+local gl = require 'ffi.OpenGL'
 local ffi = require 'ffi'
 local table = require 'ext.table'
+local Draw = require 'hydro.draw.draw'
 
 
 -- 3D
@@ -210,9 +213,12 @@ end
 --]]
 
 
-local Draw3DIso = class()
+local Draw3DIso = class(Draw)
 
 function Draw3DIso:showDisplayVar(app, solver, var)
+	app.isobarShader:use()
+	gl.glBegin(gl.GL_TRIANGLES)
+	
 	local valueMin, valueMax
 	if var.heatMapFixedRange then
 		valueMin = var.heatMapValueMin
@@ -224,6 +230,8 @@ function Draw3DIso:showDisplayVar(app, solver, var)
 	end
 	
 	solver:calcDisplayVarToTex(var)	
+	
+	self:setupDisplayVarShader(app.isobarShader, app, solver, var)
 	
 	assert(not app.useGLSharing, "I still need to code in the GL sharing version")
 	local dest = ffi.cast('float*', solver.calcDisplayVarToTexPtr)
@@ -315,6 +323,9 @@ function Draw3DIso:showDisplayVar(app, solver, var)
 			end
 		end
 	end
+	
+	gl.glEnd()
+	app.isobarShader:useNone()
 end
 
 function Draw3DIso:display(app, solvers, varName, ar, xmin, xmax, ymin, ymax, useLog)
@@ -346,26 +357,45 @@ function Draw3DIso:display(app, solvers, varName, ar, xmin, xmax, ymin, ymax, us
 	gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE)
 	gl.glEnable(gl.GL_BLEND)
 	
-	app.isobarShader:use()
-	gl.glBegin(gl.GL_TRIANGLES)
 
 	for _,solver in ipairs(solvers) do 
 		local var = solver.displayVarForName[varName]
 		if var and var.enabled then
+			self:prepareShader(solver)
 			self:showDisplayVar(app, solver, var)
 		end
 	end
-	
-	gl.glEnd()
-	app.isobarShader:useNone()
+		
 	gl.glDisable(gl.GL_DEPTH_TEST)
 	gl.glDisable(gl.GL_CULL_FACE)
 	gl.glDisable(gl.GL_BLEND)
 end
 
-return function(HydroCLApp)
-	function HydroCLApp:display3D_Isosurface(...)
-		if not self.draw3DIso then self.draw3DIso = Draw3DIso() end
-		return self.draw3DIso:display(self, ...)
-	end
+-- TODO this in common with 3d_ray.lua.  subclass?
+function Draw3DIso:prepareShader(solver)
+	if solver.volumeRayShader then return end
+	
+	solver.display3D_Ray_maxiter = math.max(tonumber(solver.gridSize.x), tonumber(solver.gridSize.y), tonumber(solver.gridSize.z))
+	
+	local volumetricCode = file['hydro/draw/volumetric.shader']
+	solver.volumeRayShader = solver.GLProgram{
+		name = 'volumetric',
+		vertexCode = template(volumetricCode, {
+			app = solver.app,
+			solver = solver,
+			vertexShader = true,
+		}),
+		fragmentCode = template(volumetricCode, {
+			app = solver.app,
+			solver = solver,
+			fragmentShader = true,
+		}),
+		uniforms = {
+			tex = 0,
+			gradientTex = 1,
+			oneOverDx = {(solver.maxs - solver.mins):unpack()},
+		},
+	}
 end
+
+return Draw3DIso

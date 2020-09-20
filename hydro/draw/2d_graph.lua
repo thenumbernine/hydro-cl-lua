@@ -1,11 +1,14 @@
 -- TODO make use of app.display_useCoordMap
-local gl = require 'ffi.OpenGL'
 local ffi = require 'ffi'
+local template = require 'template'
 local class = require 'ext.class'
+local file = require 'ext.file'
+local gl = require 'ffi.OpenGL'
 local matrix_ffi = require 'matrix.ffi'
+local Draw = require 'hydro.draw.draw'
 
 
-local Draw2DGraph = class()
+local Draw2DGraph = class(Draw)
 
 Draw2DGraph.step = 1
 
@@ -13,6 +16,7 @@ Draw2DGraph.step = 1
 Draw2DGraph.ambient = .3
 
 function Draw2DGraph:showDisplayVar(app, solver, var)
+	
 	-- TODO allow a fixed, manual colormap range
 	local valueMin, valueMax
 	if var.heatMapFixedRange then
@@ -26,10 +30,20 @@ function Draw2DGraph:showDisplayVar(app, solver, var)
 
 	solver:calcDisplayVarToTex(var)
 
+
+	if app.displayDim == 3 then
+		io.stderr:write'Why are you using a graph shader to display 3D data?  Use a 3D display instead.\n'
+		do return end
+	end
+
+
 	local graphShader = solver.graphShader
 	
 	graphShader:use()
-	solver:getTex(var):bind()
+	local tex = solver:getTex(var)
+	tex:bind()
+	
+	self:setupDisplayVarShader(graphShader, app, solver, var)
 
 	local scale = 1 / (valueMax - valueMin)
 	local offset = valueMin
@@ -39,13 +53,6 @@ function Draw2DGraph:showDisplayVar(app, solver, var)
 	gl.glUniform1i(graphShader.uniforms.useLog.loc, var.useLog)
 	gl.glUniform2f(graphShader.uniforms.xmin.loc, solver.mins.x, solver.mins.y)
 	gl.glUniform2f(graphShader.uniforms.xmax.loc, solver.maxs.x, solver.maxs.y)
-
-	local displayDim = app.displayDim -- solver.dim
-	if displayDim == 3 then
-		error'Why are you using a graph shader to display 3D data?  Use a 3D display instead.'
-	else
-		gl.glUniform1i(graphShader.uniforms.axis.loc, displayDim)
-	end
 
 	gl.glUniform2f(graphShader.uniforms.size.loc, solver.gridSize.x, solver.gridSize.y)
 	
@@ -99,7 +106,7 @@ function Draw2DGraph:showDisplayVar(app, solver, var)
 	
 	gl.glDisableVertexAttribArray(graphShader.attrs.inVertex.loc)
 	
-	solver:getTex(var):unbind()
+	tex:unbind()
 	graphShader:useNone()
 end
 
@@ -113,6 +120,7 @@ function Draw2DGraph:display(app, solvers, varName, ar, graph_xmin, graph_xmax, 
 		if not require 'hydro.solver.meshsolver'.is(solver) then
 			local var = solver.displayVarForName[varName]
 			if var and var.enabled then
+				self:prepareShader(solver)
 				self:showDisplayVar(app, solver, var)
 			end
 			
@@ -124,9 +132,30 @@ function Draw2DGraph:display(app, solvers, varName, ar, graph_xmin, graph_xmax, 
 	gl.glDisable(gl.GL_DEPTH_TEST)
 end
 
-return function(HydroCLApp)
-	function HydroCLApp:display2D_Graph(...)
-		if not self.draw2DGraph then self.draw2DGraph = Draw2DGraph() end
-		self.draw2DGraph:display(self, ...)
-	end
+-- also in 1d.lua.  subclass?
+function Draw2DGraph:prepareShader(solver)
+	if solver.graphShader then return end
+	
+	local graphShaderCode = assert(file['hydro/draw/graph.shader'])
+	
+	solver.graphShader = solver.GLProgram{
+		name = 'graph',
+		vertexCode = template(graphShaderCode, {
+			draw = self,
+			solver = solver,
+			vertexShader = true,
+		}),
+		fragmentCode = template(graphShaderCode, {
+			draw = self,
+			solver = solver,
+			fragmentShader = true,
+		}),
+		uniforms = {
+			tex = 0,
+			scale = 1,
+			ambient = 1,
+		},
+	}
 end
+
+return Draw2DGraph

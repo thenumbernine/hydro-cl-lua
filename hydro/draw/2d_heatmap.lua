@@ -1,8 +1,11 @@
-local gl = require 'ffi.OpenGL'
 local class = require 'ext.class'
+local file = require 'ext.file'
+local template = require 'template'
+local gl = require 'ffi.OpenGL'
+local Draw = require 'hydro.draw.draw'
 
 
-local Draw2DHeatmap = class()
+local Draw2DHeatmap = class(Draw)
 
 function Draw2DHeatmap:drawSolverWithVar(app, solver, var, heatMap2DShader, xmin, xmax, ymin, ymax)
 -- hmm ... this is needed for sub-solvers
@@ -27,7 +30,7 @@ var.solver = solver
 	else
 		gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MAG_FILTER, gl.GL_NEAREST)
 	end
-	
+
 	gl.glBegin(gl.GL_QUADS)
 	gl.glVertex3d(xmin, ymin, app.displayFixedZ)
 	gl.glVertex3d(xmax, ymin, app.displayFixedZ)
@@ -56,11 +59,12 @@ function Draw2DHeatmap:showDisplayVar(app, solver, var, varName, ar, xmin, xmax,
 		var.heatMapValueMax = valueMax
 	end
 	
-	local heatMap2DShader = solver:getHeatMap2DShader(var)
+	local heatMap2DShader = solver.heatMap2DShader
 	heatMap2DShader:use()
 	app.gradientTex:bind(1)
 
-	gl.glUniformMatrix4fv(heatMap2DShader.uniforms.modelViewProjectionMatrix.loc, 1, 0, app.view.modelViewProjectionMatrix.ptr)
+	self:setupDisplayVarShader(heatMap2DShader, app, solver, var) 
+
 	gl.glUniform1i(heatMap2DShader.uniforms.useCoordMap.loc, app.display_useCoordMap)
 	gl.glUniform1i(heatMap2DShader.uniforms.useLog.loc, var.useLog)
 	gl.glUniform1f(heatMap2DShader.uniforms.valueMin.loc, valueMin)
@@ -142,15 +146,37 @@ function Draw2DHeatmap:display(app, solvers, varName, ar, graph_xmin, graph_xmax
 	for _,solver in ipairs(solvers) do 
 		local var = solver.displayVarForName[varName]
 		if var and var.enabled then
+			self:prepareShader(solver)
 			self:showDisplayVar(app, solver, var, varName, ar, xmin, xmax, ymin, ymax)
 		end
 	end
 --	gl.glDisable(gl.GL_DEPTH_TEST)
 end
 
-return function(HydroCLApp)
-	function HydroCLApp:display2D_Heatmap(...)
-		if not self.draw2DHeatmap then self.draw2DHeatmap = Draw2DHeatmap() end
-		return self.draw2DHeatmap:display(self, ...)
-	end
+function Draw2DHeatmap:prepareShader(solver)
+	if solver.heatMap2DShader then return end
+
+	local heatMapCode = assert(file['hydro/draw/2d_heatmap.shader'])
+	
+	solver.heatMap2DShader = solver.GLProgram{
+		name = '2d_heatmap',
+		vertexCode = template(heatMapCode, {
+			draw = self,
+			solver = solver,
+			vertexShader = true,
+		}),
+		fragmentCode = template(heatMapCode, {
+			draw = self,
+			solver = solver,
+			fragmentShader = true,
+		}),
+		uniforms = {
+			valueMin = 0,
+			valueMax = 0,
+			tex = 0,
+			gradientTex = 1,
+		},
+	}
 end
+
+return Draw2DHeatmap

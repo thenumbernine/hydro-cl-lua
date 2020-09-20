@@ -21,14 +21,7 @@ attribute vec3 tc;
 
 uniform float scale;
 
-<? if solver.dim < 3 then ?>
-uniform sampler2D tex;
-<? else ?>
-uniform sampler3D tex;
-<? end ?>
-
-uniform int displayDim;
-uniform vec2 displayFixed;	//xy holds the fixed yz for when displayDim < dim
+<?=draw:getCommonGLSLFragCode(solver)?>
 
 uniform bool useCoordMap;
 uniform vec3 solverMins, solverMaxs;
@@ -39,11 +32,7 @@ void main() {
 	vec3 realtc = tc;
 	if (displayDim <= 1) realtc.y = displayFixed.x;
 	if (displayDim <= 2) realtc.z = displayFixed.y;
-<? if solver.dim < 3 then ?>
-	vec3 dir = texture2D(tex, realtc.xy).rgb;
-<? else ?>
-	vec3 dir = texture3D(tex, realtc.xyz).rgb;
-<? end ?>
+	vec3 dir = getTex(realtc).rgb;
 
 	dir = cartesianFromCoord(dir, center);	
 	float value = length(dir);

@@ -1,10 +1,13 @@
-local gl = require 'ffi.OpenGL'
 local table = require 'ext.table'
 local class = require 'ext.class'
+local file = require 'ext.file'
+local template = require 'template'
+local gl = require 'ffi.OpenGL'
 local CartesianCoordinateSystem = require 'hydro.coord.cartesian'
+local Draw = require 'hydro.draw.draw'
 
 
-local Draw3DSlice = class()
+local Draw3DSlice = class(Draw)
 
 -- 2D
 local vertexesInQuad = {{0,0},{1,0},{1,1},{0,1}}
@@ -31,14 +34,15 @@ function Draw3DSlice:display(app, solvers, varName, ar, xmin, xmax, ymin, ymax, 
 
 			local var = solver.displayVarForName[varName]
 			if var and var.enabled then
+				self:prepareShader(solver)
 				
 				app.view:setup(ar)
 
-	if useClipPlanes then
-		for i,clipInfo in ipairs(clipInfos) do
-			gl.glClipPlane(gl.GL_CLIP_PLANE0+i-1, clipInfo.plane.s)
-		end
-	end
+				if useClipPlanes then
+					for i,clipInfo in ipairs(clipInfos) do
+						gl.glClipPlane(gl.GL_CLIP_PLANE0+i-1, clipInfo.plane.s)
+					end
+				end
 				
 				
 				local valueMin, valueMax
@@ -54,14 +58,18 @@ function Draw3DSlice:display(app, solvers, varName, ar, xmin, xmax, ymin, ymax, 
 				solver:calcDisplayVarToTex(var)	
 
 				solver.volumeSliceShader:use()
-				solver:getTex(var):bind(0)
+				local tex = solver:getTex(var)
+				tex:bind(0)
 				if app.displayBilinearTextures then
 					gl.glTexParameteri(gl.GL_TEXTURE_3D, gl.GL_TEXTURE_MAG_FILTER, gl.GL_LINEAR)
 				else
 					gl.glTexParameteri(gl.GL_TEXTURE_3D, gl.GL_TEXTURE_MAG_FILTER, gl.GL_NEAREST)
-				end		
+				end
 				
 				app.gradientTex:bind(1)
+				
+				self:setupDisplayVarShader(solver.volumeSliceShader, app, solver, var)
+
 				gl.glUniform1f(solver.volumeSliceShader.uniforms.alpha.loc, self.alpha)
 				gl.glUniform1f(solver.volumeSliceShader.uniforms.alphaGamma.loc, self.alphaGamma)
 				gl.glUniform3f(solver.volumeSliceShader.uniforms.solverMins.loc, solver.mins:unpack())
@@ -75,12 +83,13 @@ function Draw3DSlice:display(app, solvers, varName, ar, xmin, xmax, ymin, ymax, 
 				gl.glUniform1i(solver.volumeSliceShader.uniforms.useLighting.loc, self.useLighting)
 				gl.glUniform1f(solver.volumeSliceShader.uniforms.numGhost.loc, solver.numGhost)
 				gl.glUniform3f(solver.volumeSliceShader.uniforms.texSize.loc, solver.texSize:unpack())
+		
 
-	if useClipPlanes then
-				for i,info in ipairs(clipInfos) do
-					gl.glUniform1i(solver.volumeSliceShader.uniforms['clipEnabled'..i].loc, info.enabled and 1 or 0)
+				if useClipPlanes then
+					for i,info in ipairs(clipInfos) do
+						gl.glUniform1i(solver.volumeSliceShader.uniforms['clipEnabled'..i].loc, info.enabled and 1 or 0)
+					end
 				end
-	end
 
 				if self.usePoints then
 					gl.glEnable(gl.GL_DEPTH_TEST)
@@ -182,7 +191,7 @@ function Draw3DSlice:display(app, solvers, varName, ar, xmin, xmax, ymin, ymax, 
 				end
 
 				app.gradientTex:unbind(1)
-				solver:getTex(var):unbind(0)
+				tex:unbind(0)
 				solver.volumeSliceShader:useNone()
 		
 				app:drawGradientLegend(solver, var, varName, ar, valueMin, valueMax)
@@ -191,10 +200,32 @@ function Draw3DSlice:display(app, solvers, varName, ar, xmin, xmax, ymin, ymax, 
 	end
 end
 
-
-return function(HydroCLApp)
-	function HydroCLApp:display3D_Slice(...)
-		if not self.draw3DSlice then self.draw3DSlice = Draw3DSlice() end
-		return self.draw3DSlice:display(self, ...)
-	end
+function Draw3DSlice:prepareShader(solver)
+	if solver.volumeSliceShader then return end 
+	
+	local volumeSliceCode = assert(file['hydro/draw/3d_slice.shader'])
+	
+	solver.volumeSliceShader = solver.GLProgram{
+		name = '3d_slice',
+		vertexCode = template(volumeSliceCode, {
+			draw = self,
+			solver = solver,
+			vertexShader = true
+		}),
+		fragmentCode = template(volumeSliceCode, {
+			draw = self,
+			solver = solver,
+			fragmentShader = true,
+			-- TODO move this from app, or make it a field of app?
+			clipInfos = useClipPlanes and clipInfos or nil,
+		}),
+		uniforms = {
+			volTex = 0,
+			gradientTex = 1,
+			valueMin = 0,
+			valueMax = 0,
+		},
+	}
 end
+
+return Draw3DSlice

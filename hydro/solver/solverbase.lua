@@ -2214,9 +2214,6 @@ end
 
 
 
-function SolverBase:initDraw()
-end
-
 -- some common draw code that everyone seems to use
 -- can GLSL use #include ?
 function SolverBase:getGradientGLSLCode()
