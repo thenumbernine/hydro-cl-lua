@@ -3,7 +3,7 @@ TODO one config per experiment (initial condition + config)
 and no more setting config values (boundary, etc) in the init cond file
 --]]
 
-local dim = cmdline.dim or 2
+local dim = cmdline.dim or 3
 local args = {
 	app = self, 
 	eqn = cmdline.eqn,
@@ -539,7 +539,7 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn
 -- compressible Euler equations
 
 
-self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
+--self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
 
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct bounded'})))	-- this is the default hllCalcWaveMethod
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct'})))
@@ -897,8 +897,8 @@ local args = {
 	},
 	dim = dim,
 	
-	integrator = cmdline.integrator or 'Runge-Kutta 4',
-	--integrator = cmdline.integrator or 'backward Euler',
+	--integrator = cmdline.integrator or 'Runge-Kutta 4',
+	integrator = cmdline.integrator or 'backward Euler',
 	--integrator = cmdline.integrator or 'backward Euler, CPU',	-- debugging
 	--integratorArgs = {verbose=true},
 	cfl = .5,
@@ -999,7 +999,7 @@ local args = {
 		
 		-- N x 2 x 2:
 		--{32, 2, 2},		-- SENR sphere-sinh-radial uses this by default
-		--{80, 80, 2},
+		{80, 80, 2},		-- this works well for BrillLindquist sphere-log-radial when viewing the xz slice
 		--{128, 2, 2},
 		--{128, 32, 2},
 		--{400, 64, 2},
@@ -1013,7 +1013,7 @@ local args = {
 		-- 2015 Baumgarte et al, head-on collision: 128N, 48N, 2
 		--{128, 48, 2},
 	
-		{16,8,8},
+		--{16,8,8},
 	})[dim],
 	boundary = {
 		xmin='sphereRMin',

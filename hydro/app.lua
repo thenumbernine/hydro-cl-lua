@@ -1264,8 +1264,8 @@ end
 HydroCLApp.display_useCoordMap = cmdline.display_useCoordMap 
 if HydroCLApp.display_useCoordMap == nil then HydroCLApp.display_useCoordMap = true end
 		
-HydroCLApp.displayFixedY = .5
-HydroCLApp.displayFixedZ = .5
+HydroCLApp.displayFixedY = 0
+HydroCLApp.displayFixedZ = 0
 
 function HydroCLApp:updateGUI()
 	if ig.igCollapsingHeader'simulation' then
@@ -1334,9 +1334,13 @@ function HydroCLApp:updateGUI()
 			if j < 3 then ig.igSameLine() end
 		end
 
-		tooltip.sliderTable('fixed y', self, 'displayFixedY', 0, 1)
-		tooltip.sliderTable('fixed z', self, 'displayFixedZ', 0, 1)
+		
+		--tooltip.sliderTable('fixed y', self, 'displayFixedY', -10, 10)
+		--tooltip.sliderTable('fixed z', self, 'displayFixedZ', -10, 10)
+		tooltip.numberTable('fixed y', self, 'displayFixedY')
+		tooltip.numberTable('fixed z', self, 'displayFixedZ')
 
+		--[[ TODO replace this with trackball behavior
 		if tooltip.sliderTable('slice qw', self.displaySliceAngle, 'w', -1, 1) then
 			self.displaySliceAngle:normalize(self.displaySliceAngle)
 		end
@@ -1349,6 +1353,22 @@ function HydroCLApp:updateGUI()
 		if tooltip.sliderTable('slice qz', self.displaySliceAngle, 'z', -1, 1) then
 			self.displaySliceAngle:normalize(self.displaySliceAngle)
 		end
+		--]]
+		-- [[ fixed planes
+		ig.igText'slice:'
+		ig.igSameLine()
+		if ig.igButton'xy' then
+			self.displaySliceAngle:set(0,0,0,1)
+		end
+		ig.igSameLine()
+		if ig.igButton'xz' then
+			self.displaySliceAngle:fromAngleAxis(1,0,0,90)
+		end
+		ig.igSameLine()
+		if ig.igButton'yz' then
+			self.displaySliceAngle:fromAngleAxis(0,1,0,90)
+		end
+		--]]
 
 		-- TODO flag for separate/combined displays (esp for ortho view)
 

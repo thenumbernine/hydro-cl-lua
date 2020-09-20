@@ -42,27 +42,17 @@ uniform vec3 sizeWithoutBorder;
 
 uniform vec4 displaySliceAngle;
 
-vec3 quatRotate(vec4 q, vec3 v) { 
-	return v + 2. * cross(cross(v, q.xyz) - q.w * v, q.xyz);
-}
-
-vec4 quatConj(vec4 q) {
-	return vec4(q.xyz, -q.w);
-}
-
 <? 
 -- if solver.dim < 3 then -- doesn't consider meshsolver
 if require 'gl.tex2d'.is(solver.tex) then -- does
 ?>
 uniform sampler2D tex;
 vec4 getTex(vec3 texCoord) {
-	texCoord = quatRotate(displaySliceAngle, texCoord);
 	return texture2D(tex, texCoord.xy);
 }
 <? else ?>
 uniform sampler3D tex;
 vec4 getTex(vec3 texCoord) {
-	texCoord = quatRotate(displaySliceAngle, texCoord);
 	return texture3D(tex, texCoord);
 }
 <? end ?>
@@ -104,6 +94,15 @@ vec4 getGradientColor(float value) {
 	float frac = getGradientFrac(value);
 	float tc = getGradientTexCoord(frac);
 	return texture1D(gradientTex, tc);
+}
+
+// hmm, where to put this?
+vec3 quatRotate(vec4 q, vec3 v) { 
+	return v + 2. * cross(cross(v, q.xyz) - q.w * v, q.xyz);
+}
+
+vec4 quatConj(vec4 q) {
+	return vec4(q.xyz, -q.w);
 }
 
 ]], {
