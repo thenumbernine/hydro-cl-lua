@@ -12,8 +12,6 @@ local inout = vertexShader and 'out'
 <? if vertexShader then ?>
 in vec3 inVertex;
 
-uniform float scale;
-uniform float offset;
 uniform vec2 size;
 
 <?
@@ -22,23 +20,24 @@ local sizeWithoutBorderX = clnumber(solver.sizeWithoutBorder.x or 1)
 local sizeWithoutBorderY = clnumber(solver.sizeWithoutBorder.y or 1)
 local sizeX = clnumber(solver.gridSize.x or 1)
 local sizeY = clnumber(solver.gridSize.y or 1)
-local numGhost = clnumber(solver.numGhost)
 ?>
 
 <?=solver.coord:getModuleCodeGLSL('coordMapGLSL')?>
 
 vec3 func(vec3 src) {
 	vec3 vertex = src.xyz;
-	vertex.x = (vertex.x * <?=sizeX?> - <?=numGhost?>) / <?=sizeWithoutBorderX?> * (solverMaxs.x - solverMins.x) + solverMins.x;
+	vertex.x = (vertex.x * <?=sizeX?> - numGhost) / <?=sizeWithoutBorderX?> * (solverMaxs.x - solverMins.x) + solverMins.x;
 	if (displayDim == 1) {
 		vertex.y = 0.;
 	} else {
-		vertex.y = (vertex.y * <?=sizeY?> - <?=numGhost?>) / <?=sizeWithoutBorderY?> * (solverMaxs.y - solverMins.y) + solverMins.y;
+		vertex.y = (vertex.y * <?=sizeY?> - numGhost) / <?=sizeWithoutBorderY?> * (solverMaxs.y - solverMins.y) + solverMins.y;
 	}
 
 	vertex[displayDim] = getTex(src).r;
-	vertex[displayDim] -= offset;
-	vertex[displayDim] *= scale;
+	if (displayDim > 1) {
+		vertex[displayDim] -= valueMin;
+		vertex[displayDim] *= 1. / (valueMax - valueMin);
+	}
 	if (useLog) {
 		vertex[displayDim] = log(max(0., vertex[displayDim])) * <?=('%.50f'):format(1/math.log(10))?>;
 	}

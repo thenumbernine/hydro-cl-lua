@@ -32,7 +32,6 @@ if fragmentShader then ?>
 uniform int maxiter;
 uniform vec3 oneOverDx;
 
-uniform float numGhost;
 uniform vec3 texSize;
 
 uniform float alpha;

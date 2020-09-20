@@ -45,7 +45,6 @@ void main() {
 if fragmentShader then ?>
 
 out vec4 fragColor;
-uniform float numGhost;
 uniform vec3 texSize;
 
 uniform vec3 normal;

@@ -46,12 +46,7 @@ function Draw2DGraph:showDisplayVar(app, solver, var)
 	
 	self:setupDisplayVarShader(shader, app, solver, var, valueMin, valueMax)
 
-	local scale = 1 / (valueMax - valueMin)
-	local offset = valueMin
-	gl.glUniform1f(uniforms.scale.loc, scale)
-	gl.glUniform1f(uniforms.offset.loc, offset)
 	gl.glUniform1f(uniforms.ambient.loc, self.ambient)
-
 	gl.glUniform2f(uniforms.size.loc, solver.gridSize.x, solver.gridSize.y)
 	
 	-- TODO where to specify using the heatmap gradient vs using the variable/solver color

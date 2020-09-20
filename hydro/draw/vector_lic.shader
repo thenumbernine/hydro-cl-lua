@@ -34,17 +34,14 @@ uniform int integralMaxIter;
 
 vec3 getTexCoordForGridCoord(vec3 gridCoord) {
 	vec3 texCoord = (
-		(gridCoord - solverMins) / (solverMaxs - solverMins) 
+		(gridCoord - vec3(solverMins.xy, 0.)) 
+		/ vec3(solverMaxs.xy - solverMins.xy, 0.) 
 		* vec3(<?=
 			clnumber(tonumber(solver.sizeWithoutBorder.x))?>, <?=
 			clnumber(tonumber(solver.sizeWithoutBorder.y))?>, <?=
 			clnumber(tonumber(solver.sizeWithoutBorder.z))
 		?>) 
-		+ vec3(<?=
-			clnumber(tonumber(solver.numGhost))?>, <?=
-			clnumber(tonumber(solver.numGhost))?>, <?=
-			clnumber(tonumber(solver.numGhost))
-		?>)
+		+ vec3(numGhost, numGhost, numGhost)
 	) * vec3(<?=
 		clnumber(1 / tonumber(solver.gridSize.x))?>, <?=
 		clnumber(1 / tonumber(solver.gridSize.y))?>, <?=
@@ -62,7 +59,9 @@ void main() {
 	if (useCoordMap) {
 		gridCoord = coordMapInv(gridCoord);
 	} else {
-		gridCoord = .5 * (gridCoord + 1.) * (solverMaxs - solverMins) + solverMins; 
+		gridCoord = .5 * (gridCoord + 1.) 
+		* vec3(solverMaxs.xy - solverMins.xy, 0.) 
+		+ vec3(solverMins.xy, 0.); 
 	}
 	
 	if (gridCoord.x < solverMins.x || gridCoord.x > solverMaxs.x ||
@@ -82,7 +81,9 @@ void main() {
 			
 			vec3 dPos_ds = getTex(getTexCoordForGridCoord(pos)).xyz;
 			
-<? if solver.coord.vectorComponent == 'cartesian' then ?>
+<? if solver.coord.name == 'cartesian' then ?>
+			vec3 dVel_ds = vec3(0., 0., 0.);
+<? elseif solver.coord.vectorComponent == 'cartesian' then ?>
 			//If the vector components are cartesian but our coords are chart-based
 			//then convert the vector back to the chart based coordinates.
 			vec3 dVel_ds = vec3(0., 0., 0.);

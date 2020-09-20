@@ -61,8 +61,8 @@ if (abs(gridCoord.x - solverMins.x) < epsilon ||
 
 	vec3 texCoord;
 	texCoord.xy = vec2(
-		((gridCoord.x - solverMins.x) / (solverMaxs.x - solverMins.x) * <?=clnumber(solver.sizeWithoutBorder.x)?> + <?=clnumber(solver.numGhost)?>) / <?=clnumber(solver.gridSize.x)?>,
-		((gridCoord.y - solverMins.y) / (solverMaxs.y - solverMins.y) * <?=clnumber(solver.sizeWithoutBorder.y)?> + <?=clnumber(solver.numGhost)?>) / <?=clnumber(solver.gridSize.y)?>
+		((gridCoord.x - solverMins.x) / (solverMaxs.x - solverMins.x) * <?=clnumber(solver.sizeWithoutBorder.x)?> + numGhost) / <?=clnumber(solver.gridSize.x)?>,
+		((gridCoord.y - solverMins.y) / (solverMaxs.y - solverMins.y) * <?=clnumber(solver.sizeWithoutBorder.y)?> + numGhost) / <?=clnumber(solver.gridSize.y)?>
 	) * texCoordMax;
 	texCoord.z = viewCoord.z;
 

@@ -37,8 +37,8 @@ var.solver = solver
 	gl.glVertex3d(xmin, ymax, app.displayFixedZ)
 	gl.glEnd()
 	
-	tex:unbind(0)
 	self.noiseTex:unbind(2)
+	tex:unbind(0)
 
 var.solver = origSolver
 end
@@ -90,8 +90,12 @@ function DrawVectorLIC:showDisplayVar(app, solver, var, varName, ar, xmin, xmax,
 	shader:use()
 	app.gradientTex:bind(1)
 
-	gl.glUniform1i(shader.uniforms.integralMaxIter.loc, self.integralMaxIter)
-	
+	self:setupDisplayVarShader(shader, app, solver, var, valueMin, valueMax)
+
+	if shader.uniforms.integralMaxIter then
+		gl.glUniform1i(shader.uniforms.integralMaxIter.loc, self.integralMaxIter)
+	end
+
 	gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
 	gl.glEnable(gl.GL_BLEND)
 	

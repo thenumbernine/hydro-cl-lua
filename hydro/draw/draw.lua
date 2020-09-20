@@ -20,6 +20,8 @@ function Draw:getCommonGLSLFragCode(solver)
 uniform int displayDim;
 uniform vec2 displayFixed;	//xy holds the fixed yz for when displayDim < dim
 
+uniform float numGhost;
+
 uniform bool useCoordMap;
 
 uniform mat3 normalMatrix;
@@ -135,6 +137,9 @@ function Draw:setupDisplayVarShader(shader, app, solver, var, valueMin, valueMax
 	end
 	if uniforms.solverMaxs then	
 		gl.glUniform3f(uniforms.solverMaxs.loc, solver.maxs:unpack())
+	end
+	if uniforms.numGhost then
+		gl.glUniform1f(uniforms.numGhost.loc, solver.numGhost)
 	end
 end
 
