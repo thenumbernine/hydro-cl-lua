@@ -68,16 +68,12 @@ function Draw3DSlice:display(app, solvers, varName, ar, xmin, xmax, ymin, ymax, 
 				
 				app.gradientTex:bind(1)
 				
-				self:setupDisplayVarShader(solver.volumeSliceShader, app, solver, var)
+				self:setupDisplayVarShader(solver.volumeSliceShader, app, solver, var, valueMin, valueMax)
 
 				gl.glUniform1f(solver.volumeSliceShader.uniforms.alpha.loc, self.alpha)
 				gl.glUniform1f(solver.volumeSliceShader.uniforms.alphaGamma.loc, self.alphaGamma)
 				gl.glUniform3f(solver.volumeSliceShader.uniforms.solverMins.loc, solver.mins:unpack())
 				gl.glUniform3f(solver.volumeSliceShader.uniforms.solverMaxs.loc, solver.maxs:unpack())
-				gl.glUniform1i(solver.volumeSliceShader.uniforms.useCoordMap.loc, app.display_useCoordMap)
-				gl.glUniform1i(solver.volumeSliceShader.uniforms.useLog.loc, var.useLog)
-				gl.glUniform1f(solver.volumeSliceShader.uniforms.valueMin.loc, valueMin)
-				gl.glUniform1f(solver.volumeSliceShader.uniforms.valueMax.loc, valueMax)
 				gl.glUniform1i(solver.volumeSliceShader.uniforms.useIsos.loc, self.useIsos)
 				gl.glUniform1f(solver.volumeSliceShader.uniforms.numIsobars.loc, self.numIsobars)
 				gl.glUniform1i(solver.volumeSliceShader.uniforms.useLighting.loc, self.useLighting)
@@ -209,11 +205,13 @@ function Draw3DSlice:prepareShader(solver)
 		name = '3d_slice',
 		vertexCode = template(volumeSliceCode, {
 			draw = self,
+			app = solver.app,
 			solver = solver,
 			vertexShader = true
 		}),
 		fragmentCode = template(volumeSliceCode, {
 			draw = self,
+			app = solver.app,
 			solver = solver,
 			fragmentShader = true,
 			-- TODO move this from app, or make it a field of app?

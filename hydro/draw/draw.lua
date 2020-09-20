@@ -13,9 +13,24 @@ local Draw = class()
 
 function Draw:getCommonGLSLFragCode(solver)
 	return template([[
+#define _1_LN_10 	<?=('%.50f'):format(1/math.log(10))?>
+
+
 
 uniform int displayDim;
 uniform vec2 displayFixed;	//xy holds the fixed yz for when displayDim < dim
+
+uniform bool useCoordMap;
+
+uniform mat3 normalMatrix;
+uniform mat4 modelViewProjectionMatrix;
+
+uniform bool useLog;
+uniform float valueMin;
+uniform float valueMax;
+
+uniform sampler1D gradientTex;
+
 
 <? 
 -- if solver.dim < 3 then -- doesn't consider meshsolver
@@ -32,12 +47,53 @@ vec4 getTex(vec3 texCoord) {
 }
 <? end ?>
 
+
+float logmap(float x) {
+	return log(1. + abs(x)) * _1_LN_10;
+}
+
+//used by 3d_slice, vector_arrow, volumetric
+float getGradientFrac(float value) {
+	if (useLog) {
+		
+		// TODO all of this on CPU before setting the uniforms
+		float logValueMin = logmap(valueMin);
+		float logValueMax = logmap(valueMax);
+		if ((valueMin < 0.) != (valueMax < 0.)) {
+			logValueMin = 0.;	//logmap(0)
+		} else {
+			if (valueMin < 0.) {
+				float tmp = logValueMin;
+				logValueMin = logValueMax;
+				logValueMax = tmp;
+			}
+		}
+		
+		return (logmap(value) - logValueMin) / (logValueMax - logValueMin);
+	} else {
+		return (value - valueMin) / (valueMax - valueMin);
+	}
+}
+
+//TODO just change texel lookup in gradTex?
+float getGradientTexCoord(float frac) {
+	return (frac * <?=clnumber(app.gradientTex.width-1)?> + .5) * <?=clnumber(1 / app.gradientTex.width)?>;
+}
+
+vec4 getGradientColor(float value) {
+	float frac = getGradientFrac(value);
+	float tc = getGradientTexCoord(frac);
+	return texture1D(gradientTex, tc);
+}
+
 ]], {
 		solver = solver,
+		app = solver.app,
+		clnumber = require 'cl.obj.number',
 	})
 end
 
-function Draw:setupDisplayVarShader(shader, app, solver, var)
+function Draw:setupDisplayVarShader(shader, app, solver, var, valueMin, valueMax)
 	local uniforms = shader.uniforms
 	if uniforms.displayDim then
 		gl.glUniform1i(uniforms.displayDim.loc, app.displayDim)
@@ -59,6 +115,18 @@ function Draw:setupDisplayVarShader(shader, app, solver, var)
 			end
 		end
 		gl.glUniformMatrix3fv(uniforms.normalMatrix.loc, 1, 0, self.normalMatrix.ptr)
+	end
+	if uniforms.useCoordMap then
+		gl.glUniform1i(uniforms.useCoordMap.loc, app.display_useCoordMap and 1 or 0)
+	end
+	if uniforms.useLog then
+		gl.glUniform1i(uniforms.useLog.loc, var.useLog and 1 or 0)
+	end
+	if uniforms.valueMin then
+		gl.glUniform1f(uniforms.valueMin.loc, valueMin)
+	end
+	if uniforms.valueMax then
+		gl.glUniform1f(uniforms.valueMax.loc, valueMax)
 	end
 end
 

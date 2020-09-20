@@ -39,10 +39,7 @@ uniform float alpha;
 uniform float alphaGamma;
 uniform bool useIsos;
 uniform bool useLighting;
-uniform mat3 normalMatrix
 uniform float numIsobars;
-
-<?=solver:getGradientGLSLCode()?>
 
 <?=draw:getCommonGLSLFragCode(solver)?>
 

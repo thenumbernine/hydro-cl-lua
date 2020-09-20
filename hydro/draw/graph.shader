@@ -7,18 +7,17 @@ local inout = vertexShader and 'out'
 ?>
 <?=inout?> vec3 normal;
 
+<?=draw:getCommonGLSLFragCode(solver)?>
+
 <? if vertexShader then ?>
 in vec3 inVertex;
 
 uniform mat4 ModelViewProjectionMatrix;
 
-<?=draw:getCommonGLSLFragCode(solver)?>
-
 uniform vec2 xmin;
 uniform vec2 xmax;
 uniform float scale;
 uniform float offset;
-uniform bool useLog;
 uniform vec2 size;
 
 <?

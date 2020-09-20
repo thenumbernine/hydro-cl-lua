@@ -231,7 +231,7 @@ function Draw3DIso:showDisplayVar(app, solver, var)
 	
 	solver:calcDisplayVarToTex(var)	
 	
-	self:setupDisplayVarShader(app.isobarShader, app, solver, var)
+	self:setupDisplayVarShader(app.isobarShader, app, solver, var, valueMin, valueMax)
 	
 	assert(not app.useGLSharing, "I still need to code in the GL sharing version")
 	local dest = ffi.cast('float*', solver.calcDisplayVarToTexPtr)

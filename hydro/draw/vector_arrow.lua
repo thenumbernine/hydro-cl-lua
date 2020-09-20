@@ -143,13 +143,8 @@ function DrawVectorField:showDisplayVar(app, solver, var, varName, ar, xmin, xma
 
 	vectorArrowShader:use()
 	
-	self:setupDisplayVarShader(vectorArrowShader, app, solver, var)
-	
-	gl.glUniform1i(vectorArrowShader.uniforms.useCoordMap.loc, app.display_useCoordMap)
-	gl.glUniform1i(vectorArrowShader.uniforms.useLog.loc, var.useLog)
-	gl.glUniform1f(vectorArrowShader.uniforms.valueMin.loc, valueMin)
-	gl.glUniform1f(vectorArrowShader.uniforms.valueMax.loc, valueMax)
-	
+	self:setupDisplayVarShader(vectorArrowShader, app, solver, var, valueMin, valueMax)
+		
 	gl.glUniform3f(vectorArrowShader.uniforms.solverMins.loc, solver.mins:unpack())
 	gl.glUniform3f(vectorArrowShader.uniforms.solverMaxs.loc, solver.maxs:unpack())
 
@@ -218,11 +213,13 @@ function DrawVectorField:prepareShader(solver)
 		name = 'vector_arrow',
 		vertexCode = template(vectorArrowCode, {
 			draw = self,
+			app = solver.app,
 			solver = solver,
 			vertexShader = true,
 		}),
 		fragmentCode = template(vectorArrowCode, {
 			draw = self,
+			app = solver.app,
 			solver = solver,
 			fragmentShader = true,
 		}),

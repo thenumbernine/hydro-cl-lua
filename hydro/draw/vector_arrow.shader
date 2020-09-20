@@ -3,8 +3,9 @@
 <?
 local clnumber = require 'cl.obj.number'
 local coord = solver.coord
-local app = solver.app
 ?>
+
+<?=draw:getCommonGLSLFragCode(solver)?>
 
 <? if vertexShader then ?>
 
@@ -12,21 +13,13 @@ varying vec4 color;
 
 <?=coord:getModuleCodeGLSL('coordMapGLSL', 'cartesianFromCoord')?>
 
-uniform mat4 modelViewProjectionMatrix;
-
 attribute vec2 vtx;
 attribute vec3 center;
 attribute vec3 tc;
 
-
 uniform float scale;
 
-<?=draw:getCommonGLSLFragCode(solver)?>
-
-uniform bool useCoordMap;
 uniform vec3 solverMins, solverMaxs;
-
-<?=solver:getGradientGLSLCode()?>
 
 void main() {
 	vec3 realtc = tc;

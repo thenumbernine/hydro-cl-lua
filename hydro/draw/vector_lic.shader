@@ -1,12 +1,13 @@
 <?
 local clnumber = require 'cl.obj.number'
-local app = solver.app
 local coord = solver.coord
 ?>
 
 //xy holds the view xy
 //z holds the fixed z slice of the 3D texture
 varying vec3 viewCoord;
+
+<?=draw:getCommonGLSLFragCode(solver)?>
 
 <? if vertexShader then ?>
 
@@ -28,14 +29,9 @@ solver.coord:getModuleCodeGLSL(
 )
 ?>
 
-<?=solver:getGradientGLSLCode()?>
-
-uniform bool useCoordMap;
 uniform sampler2D noiseTex;
 uniform vec3 solverMins, solverMaxs;
 uniform int integralMaxIter;
-
-<?=draw:getCommonGLSLFragCode(solver)?>
 
 vec3 getTexCoordForGridCoord(vec3 gridCoord) {
 	vec3 texCoord = (

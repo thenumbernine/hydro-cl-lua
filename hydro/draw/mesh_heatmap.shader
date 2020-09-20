@@ -9,10 +9,11 @@ local inout = vertexShader and 'out'
 
 <?=inout?> float cellindexv;
 
+<?=draw:getCommonGLSLFragCode(solver)?>
+
 <? if vertexShader then ?>
 
 uniform float drawCellScale;
-uniform mat4 modelViewProjectionMatrix;
 
 attribute vec3 vtx;
 attribute vec3 vtxcenter;
@@ -26,9 +27,6 @@ void main() {
 
 <? end
 if fragmentShader then ?>
-
-<?=solver:getGradientGLSLCode()?>
-<?=draw:getCommonGLSLFragCode(solver)?>
 
 <? 
 if require 'gl.tex2d'.is(solver.tex) then 

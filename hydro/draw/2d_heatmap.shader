@@ -9,10 +9,11 @@ local coord = solver.coord
 //z holds the fixed z slice of the 3D texture
 varying vec3 viewCoord;
 
+<?=draw:getCommonGLSLFragCode(solver)?>
+
 <? if vertexShader then ?>
 
 attribute vec4 vertex;
-uniform mat4 modelViewProjectionMatrix;
 
 void main() {
 	viewCoord = vertex.xyz;
@@ -25,12 +26,7 @@ if fragmentShader then ?>
 
 <?=solver.coord:getModuleCodeGLSL('coordMapInvGLSL')?>
 
-<?=solver:getGradientGLSLCode()?>
-
-uniform bool useCoordMap;
 uniform vec2 texCoordMax;
-
-<?=draw:getCommonGLSLFragCode(solver)?>
 
 uniform vec2 solverMins, solverMaxs;
 

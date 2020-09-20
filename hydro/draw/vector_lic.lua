@@ -90,10 +90,6 @@ function DrawVectorLIC:showDisplayVar(app, solver, var, varName, ar, xmin, xmax,
 	vectorLICShader:use()
 	app.gradientTex:bind(1)
 
-	gl.glUniform1i(vectorLICShader.uniforms.useCoordMap.loc, app.display_useCoordMap)
-	gl.glUniform1i(vectorLICShader.uniforms.useLog.loc, var.useLog)
-	gl.glUniform1f(vectorLICShader.uniforms.valueMin.loc, valueMin)
-	gl.glUniform1f(vectorLICShader.uniforms.valueMax.loc, valueMax)
 	gl.glUniform1i(vectorLICShader.uniforms.integralMaxIter.loc, self.integralMaxIter)
 	
 	gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
@@ -189,11 +185,13 @@ function DrawVectorLIC:prepareShader(solver)
 		name = 'vector_lic',
 		vertexCode = template(vectorLICCode, {
 			draw = self,
+			app = solver.app,
 			solver = solver,
 			vertexShader = true,
 		}),
 		fragmentCode = template(vectorLICCode, {
 			draw = self,
+			app = solver.app,
 			solver = solver,
 			fragmentShader = true,
 		}),

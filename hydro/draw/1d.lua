@@ -39,12 +39,11 @@ function Draw1D:showDisplayVar(app, solver, var)
 	local tex = solver:getTex(var)
 	tex:bind()
 	
-	self:setupDisplayVarShader(graphShader, app, solver, var)
+	self:setupDisplayVarShader(graphShader, app, solver, var, valueMin, valueMax)
 
 	gl.glUniform1f(graphShader.uniforms.scale.loc, 1)
 	gl.glUniform1f(graphShader.uniforms.offset.loc, 0)
 	gl.glUniform1f(graphShader.uniforms.ambient.loc, 1)
-	gl.glUniform1i(graphShader.uniforms.useLog.loc, var.useLog)
 	gl.glUniform2f(graphShader.uniforms.xmin.loc, solver.mins.x, 0)
 	gl.glUniform2f(graphShader.uniforms.xmax.loc, solver.maxs.x, 0)
 
@@ -183,11 +182,13 @@ function Draw1D:prepareShader(solver)
 		name = 'graph',
 		vertexCode = template(graphShaderCode, {
 			draw = self,
+			app = solver.app,
 			solver = solver,
 			vertexShader = true,
 		}),
 		fragmentCode = template(graphShaderCode, {
 			draw = self,
+			app = solver.app,
 			solver = solver,
 			fragmentShader = true,
 		}),

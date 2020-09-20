@@ -43,14 +43,13 @@ function Draw2DGraph:showDisplayVar(app, solver, var)
 	local tex = solver:getTex(var)
 	tex:bind()
 	
-	self:setupDisplayVarShader(graphShader, app, solver, var)
+	self:setupDisplayVarShader(graphShader, app, solver, var, valueMin, valueMax)
 
 	local scale = 1 / (valueMax - valueMin)
 	local offset = valueMin
 	gl.glUniform1f(graphShader.uniforms.scale.loc, scale)
 	gl.glUniform1f(graphShader.uniforms.offset.loc, offset)
 	gl.glUniform1f(graphShader.uniforms.ambient.loc, self.ambient)
-	gl.glUniform1i(graphShader.uniforms.useLog.loc, var.useLog)
 	gl.glUniform2f(graphShader.uniforms.xmin.loc, solver.mins.x, solver.mins.y)
 	gl.glUniform2f(graphShader.uniforms.xmax.loc, solver.maxs.x, solver.maxs.y)
 
@@ -142,11 +141,13 @@ function Draw2DGraph:prepareShader(solver)
 		name = 'graph',
 		vertexCode = template(graphShaderCode, {
 			draw = self,
+			app = solver.app,
 			solver = solver,
 			vertexShader = true,
 		}),
 		fragmentCode = template(graphShaderCode, {
 			draw = self,
+			app = solver.app,
 			solver = solver,
 			fragmentShader = true,
 		}),

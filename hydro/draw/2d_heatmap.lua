@@ -63,13 +63,8 @@ function Draw2DHeatmap:showDisplayVar(app, solver, var, varName, ar, xmin, xmax,
 	heatMap2DShader:use()
 	app.gradientTex:bind(1)
 
-	self:setupDisplayVarShader(heatMap2DShader, app, solver, var) 
+	self:setupDisplayVarShader(heatMap2DShader, app, solver, var, valueMin, valueMax)
 
-	gl.glUniform1i(heatMap2DShader.uniforms.useCoordMap.loc, app.display_useCoordMap)
-	gl.glUniform1i(heatMap2DShader.uniforms.useLog.loc, var.useLog)
-	gl.glUniform1f(heatMap2DShader.uniforms.valueMin.loc, valueMin)
-	gl.glUniform1f(heatMap2DShader.uniforms.valueMax.loc, valueMax)
-	
 	gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
 	gl.glEnable(gl.GL_BLEND)
 	
@@ -162,11 +157,13 @@ function Draw2DHeatmap:prepareShader(solver)
 		name = '2d_heatmap',
 		vertexCode = template(heatMapCode, {
 			draw = self,
+			app = solver.app,
 			solver = solver,
 			vertexShader = true,
 		}),
 		fragmentCode = template(heatMapCode, {
 			draw = self,
+			app = solver.app,
 			solver = solver,
 			fragmentShader = true,
 		}),

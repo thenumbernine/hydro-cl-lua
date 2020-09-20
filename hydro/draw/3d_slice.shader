@@ -3,7 +3,6 @@
 <?
 local clnumber = require 'cl.obj.number'
 local coord = solver.coord
-local app = solver.app
 local inout = vertexShader and 'out'
 		or fragmentShader and 'in'
 		or error("don't know what to set inout to")
@@ -16,15 +15,13 @@ local inout = vertexShader and 'out'
 <?=inout?> vec3 pos;		//positive after coordinate mapping, before view transform
 <? end ?>
 
-uniform mat4 modelViewProjectionMatrix;
+<?=draw:getCommonGLSLFragCode(solver)?>
 
 <? if vertexShader then ?>
 
 attribute vec4 vertex;
 
-<?=coord:getModuleCodeGLSL'coordMapGLSL'?>
-
-uniform bool useCoordMap;
+<?=coord:getModuleCodeGLSL("coordMapGLSL")?>
 
 uniform vec3 solverMins, solverMaxs;
 void main() {
@@ -65,11 +62,6 @@ uniform float numIsobars;
 ?>
 <? end ?>
 uniform bool useLighting;
-uniform mat3 normalMatrix;
-
-<?=solver:getGradientGLSLCode()?>
-
-<?=draw:getCommonGLSLFragCode(solver)?>
 
 float getVoxelValue(vec3 tc) {
 	//using texel coordinates as-is
