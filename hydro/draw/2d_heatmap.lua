@@ -16,13 +16,6 @@ var.solver = solver
 	solver:calcDisplayVarToTex(var)
 
 	local tex = solver:getTex(var)
-	-- I think it's leftover from my first attempt at AMR ...
-	if uniforms.texCoordMax then
-		local texSize = var.group.getBuffer().sizevec or solver.texSize
-		gl.glUniform2f(uniforms.texCoordMax.loc, 
-			tonumber(texSize.x) / tex.width,
-			tonumber(texSize.y) / tex.height)
-	end
 	tex:bind(0)
 	if app.displayBilinearTextures then
 		gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MAG_FILTER, gl.GL_LINEAR)
@@ -31,10 +24,10 @@ var.solver = solver
 	end
 
 	gl.glBegin(gl.GL_QUADS)
-	gl.glVertex2d(xmin, ymin) --, app.displayFixedZ)
-	gl.glVertex2d(xmax, ymin) --, app.displayFixedZ)
-	gl.glVertex2d(xmax, ymax) --, app.displayFixedZ)
-	gl.glVertex2d(xmin, ymax) --, app.displayFixedZ)
+	gl.glVertex2d(xmin, ymin)
+	gl.glVertex2d(xmax, ymin)
+	gl.glVertex2d(xmax, ymax)
+	gl.glVertex2d(xmin, ymax)
 	gl.glEnd()
 	
 	tex:unbind(0)

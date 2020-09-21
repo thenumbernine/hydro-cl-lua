@@ -1337,8 +1337,29 @@ function HydroCLApp:updateGUI()
 		
 		--tooltip.sliderTable('fixed y', self, 'displayFixedY', -10, 10)
 		--tooltip.sliderTable('fixed z', self, 'displayFixedZ', -10, 10)
+		ig.igPushIDStr'fixed y zoom'
+		if ig.igButton'+' then
+			self.displayFixedY = self.displayFixedY + .1
+		end
+		ig.igSameLine()
+		if ig.igButton'-' then
+			self.displayFixedY = self.displayFixedY - .1
+		end
+		ig.igSameLine()
 		tooltip.numberTable('fixed y', self, 'displayFixedY')
+		ig.igPopID()
+		
+		ig.igPushIDStr'fixed z zoom'
+		if ig.igButton'+' then
+			self.displayFixedZ = self.displayFixedZ + .1
+		end
+		ig.igSameLine()
+		if ig.igButton'-' then
+			self.displayFixedZ = self.displayFixedZ - .1
+		end
+		ig.igSameLine()
 		tooltip.numberTable('fixed z', self, 'displayFixedZ')
+		ig.igPopID()
 
 		--[[ TODO replace this with trackball behavior
 		if tooltip.sliderTable('slice qw', self.displaySliceAngle, 'w', -1, 1) then

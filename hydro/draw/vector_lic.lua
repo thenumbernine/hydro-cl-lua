@@ -30,10 +30,10 @@ var.solver = solver
 	end
 
 	gl.glBegin(gl.GL_QUADS)
-	gl.glVertex2d(xmin, ymin)--, app.displayFixedZ)
-	gl.glVertex2d(xmax, ymin)--, app.displayFixedZ)
-	gl.glVertex2d(xmax, ymax)--, app.displayFixedZ)
-	gl.glVertex2d(xmin, ymax)--, app.displayFixedZ)
+	gl.glVertex2d(xmin, ymin)
+	gl.glVertex2d(xmax, ymin)
+	gl.glVertex2d(xmax, ymax)
+	gl.glVertex2d(xmin, ymax)
 	gl.glEnd()
 	
 	self.noiseTex:unbind(2)

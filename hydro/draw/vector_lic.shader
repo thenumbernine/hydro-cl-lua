@@ -11,19 +11,16 @@ local varying = vertexShader and 'out'
 //z holds the fixed z slice of the 3D texture
 <?=varying?> vec3 viewCoord;
 
+<?=coord:getModuleCodeGLSL("coordMapGLSL", "coordMapInvGLSL")?>
 <?=draw:getCommonGLSLFragCode(solver)?>
 
 <? if vertexShader then ?>
 
-attribute vec3 vertex;
+attribute vec4 vertex;
 
 void main() {
-	vec4 v;
-	v.xy = vertex.xy;
-	v.z = displayFixed.y;
+	vec4 v = vertex;
 	viewCoord = v.xyz;
-	v.z = 0.;	// should we disregard 'z' for rendering?
-	v.w = 1.;
 	gl_Position = modelViewProjectionMatrix * v;
 }
 
@@ -44,53 +41,32 @@ solver.coord:getModuleCodeGLSL(
 )
 ?>
 
-vec3 getTexCoordForGridCoord(vec3 gridCoord) {
-	vec3 texCoord = (
-		(gridCoord - vec3(solverMins.xy, 0.)) 
-		/ vec3(solverMaxs.xy - solverMins.xy, 0.) 
-		* vec3(
-			sizeWithoutBorder.x,
-			sizeWithoutBorder.y,
-			sizeWithoutBorder.z
-		)
-		+ vec3(numGhost, numGhost, numGhost)
-	) * vec3(
-		1. / gridSize.x,
-		1. / gridSize.y,
-		1. / gridSize.z
-	);
-	texCoord.z = viewCoord.z;
-	return texCoord;
-}
-
 void main() {
 	//start in 2D coords, bounded by the screen space
 	//TODO if we are viewing this in 3D then we will have to draw a quad bigger than the intersection of the camera hull with the XY plane
 	//TODO make this a flag:
-	vec3 gridCoord = vec3(viewCoord.xy, 0.);
-	if (useCoordMap) {
-		gridCoord = coordMapInv(gridCoord);
-	} else {
-		gridCoord = .5 * (gridCoord + 1.) * (solverMaxs - solverMins) + solverMins; 
-		gridCoord.z = 0.; 
-	}
-	
-	if (gridCoord.x < solverMins.x || gridCoord.x > solverMaxs.x ||
-		gridCoord.y < solverMins.y || gridCoord.y > solverMaxs.y
-	) {
-		discard;
-	}
+	vec3 chartCoord = viewCoord;
+	chartCoord.z = displayFixed.y;
+	chartCoord = quatRotate(displaySliceAngle, chartCoord);
+	chartCoord = worldToChartCoord(chartCoord);
+
+	vec3 texCoord = chartToTexCoord(chartCoord);
+#if 1
+	if (texCoord.x < 0. || texCoord.x > 1.) discard;
+	if (displayDim > 1 && (texCoord.y < 0. || texCoord.y > 1.)) discard;
+	if (displayDim > 2 && (texCoord.z < 0. || texCoord.z > 1.)) discard;
+#endif
 
 <? local ds = 1/solver.app.drawVectorLICNoiseSize ?>
-	float licMag = texture2D(noiseTex, getTexCoordForGridCoord(gridCoord).xy).r;
+	float licMag = texture2D(noiseTex, chartToNoGhostCoord(chartCoord).xy).r;
 	float totalWeight = 1.;
 	<? for dir=-1,1,2 do ?>{
-		vec3 pos = gridCoord;
+		vec3 pos = chartCoord;
 		vec3 vel = vec3(0., 0., 0.);
 		vec3 last_dPos_ds = vec3(0., 0., 0.);
 		for (int iter = 0; iter < integralMaxIter; ++iter) {
 			
-			vec3 dPos_ds = getTex(getTexCoordForGridCoord(pos)).xyz;
+			vec3 dPos_ds = getTex(chartToNoGhostCoord(pos)).xyz;
 			
 <? if solver.coord.name == 'cartesian' then ?>
 			vec3 dVel_ds = vec3(0., 0., 0.);
@@ -118,7 +94,7 @@ void main() {
 			
 			float f = float(iter + 1) / float(integralMaxIter+1);
 			float weight = smoothstep(1., 0., f);
-			licMag += texture2D(noiseTex, getTexCoordForGridCoord(pos).xy).r * weight;
+			licMag += texture2D(noiseTex, chartToNoGhostCoord(pos).xy).r * weight;
 			totalWeight += weight;
 			last_dPos_ds = dPos_ds;
 		}
@@ -130,7 +106,7 @@ void main() {
 	licMag = smoothstep(.2, .8, licMag);
 	
 	//color by magnitude
-	float fieldMagn = length(getTex(getTexCoordForGridCoord(gridCoord)).xyz);
+	float fieldMagn = length(getTex(chartToNoGhostCoord(chartCoord)).xyz);
 // where did these flickers come from?  I'm getting an unnderrun of values...
 fieldMagn = clamp(fieldMagn, valueMin, valueMax);
 	vec4 licColorTimesGradColor = getGradientColor(fieldMagn);

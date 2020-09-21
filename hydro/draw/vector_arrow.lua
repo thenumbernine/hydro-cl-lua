@@ -75,8 +75,6 @@ function DrawVectorField:showDisplayVar(app, solver, var, varName, ar, xmin, xma
 		glvtxs:setcapacity(arrowCount * #arrow)
 		local glcenters = vector'vec3f_t'
 		glcenters:setcapacity(arrowCount * #arrow)
-		local gltcs = vector'vec3f_t'
-		gltcs:setcapacity(arrowCount * #arrow)
 
 		-- glCallOrDraw goes just slightly faster.  24 vs 23 fps.
 		if isMeshSolver then
@@ -86,7 +84,6 @@ function DrawVectorField:showDisplayVar(app, solver, var, varName, ar, xmin, xma
 				local c = solver.mesh.cells.v[ci]
 				for _,q in ipairs(arrow) do
 					glcenters:push_back(vec3f(c.pos:unpack()))
-					gltcs:push_back(vec3f((ci + .5) / tonumber(solver.numCells), .5, .5))
 					glvtxs:push_back(vec2f(q[1], q[2]))
 				end
 			end
@@ -103,11 +100,6 @@ function DrawVectorField:showDisplayVar(app, solver, var, varName, ar, xmin, xma
 								(j + .5) / tonumber(solver.sizeWithoutBorder.y) * (solver.maxs.y - solver.mins.y) + solver.mins.y,
 								(k + .5) / tonumber(solver.sizeWithoutBorder.z) * (solver.maxs.z - solver.mins.z) + solver.mins.z)
 							glcenters:push_back(x)
-							gltcs:push_back(vec3f(
-								(i + .5 + solver.numGhost) / tonumber(solver.texSize.x),
-								solver.dim > 1 and (j + .5 + solver.numGhost) / tonumber(solver.texSize.y) or .5,
-								solver.dim > 2 and (k + .5 + solver.numGhost) / tonumber(solver.texSize.z) or .5
-							))
 							glvtxs:push_back(vec2f(q[1], q[2]))
 						end
 					end
@@ -125,17 +117,11 @@ function DrawVectorField:showDisplayVar(app, solver, var, varName, ar, xmin, xma
 			size = #glcenters * ffi.sizeof(glcenters.type)
 		}
 		
-		solver.vectorArrowGLTCsArrayBuffer = GLArrayBuffer{
-			data = gltcs.v,
-			size = #gltcs * ffi.sizeof(gltcs.type)
-		}
-		
 		solver.vectorArrowVAO = GLVertexArray{
 			program = shader,
 			attrs = {
 				vtx = solver.vectorArrowGLVtxArrayBuffer,
 				center = solver.vectorArrowGLCentersArrayBuffer,
-				tc = solver.vectorArrowGLTCsArrayBuffer,
 			},
 		}
 	end
@@ -158,7 +144,6 @@ function DrawVectorField:showDisplayVar(app, solver, var, varName, ar, xmin, xma
 --[[ glVertexAttrib prim calls
 	gl.glBegin(gl.GL_LINES)
 	for i=0,arrowCount * #arrow-1 do
-		gl.glVertexAttrib3f(shader.attrs.tc.loc, solver.vectorArrowGLTCsArrayBuffer.data[i]:unpack())
 		gl.glVertexAttrib3f(shader.attrs.center.loc, solver.vectorArrowGLCentersArrayBuffer.data[i]:unpack())
 		gl.glVertexAttrib2f(shader.attrs.vtx.loc, solver.vectorArrowGLVtxArrayBuffer.data[i]:unpack())
 	end

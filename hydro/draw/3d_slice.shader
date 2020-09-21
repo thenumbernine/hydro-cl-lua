@@ -14,26 +14,19 @@ local varying = vertexShader and 'out'
 <?=varying?> vec3 pos;		//positive after coordinate mapping, before view transform
 <? end ?>
 
+<?=coord:getModuleCodeGLSL("coordMapGLSL", "coordMapInvGLSL")?>
 <?=draw:getCommonGLSLFragCode(solver)?>
 
 <? if vertexShader then ?>
 
+//in tex coords
 attribute vec4 vertex;
-
-<?=coord:getModuleCodeGLSL("coordMapGLSL")?>
 
 void main() {
 	texCoord = vertex.xyz;
 	
 	vec4 x = vertex;
-	if (useCoordMap) {
-		x.xyz *= solverMaxs - solverMins;
-		x.xyz += solverMins;
-		x = vec4(coordMap(x.xyz), x.w);
-	} else {
-		x.xyz *= 2.;
-		x.xyz -= 1.;
-	}
+	x.xyz = texToWorldCoord(x.xyz);
 <? if useClipPlanes then ?>
 	pos = x.xyz;
 <? end ?>
@@ -60,11 +53,6 @@ uniform vec3 normal;
 <? end ?>
 
 float getVoxelValue(vec3 tc) {
-	//using texel coordinates as-is
-	//return getTex(tc).r;
-
-	//getting rid of the ghost cells
-	tc = tc * ((texSize - 2. * numGhost) / texSize) + (numGhost / texSize);
 	return getTex(tc).r;
 }
 
@@ -74,9 +62,18 @@ void main() {
 <? for i,clipInfo in ipairs(clipInfos) do
 ?>	if (clipEnabled<?=i?> && dot(worldPos, gl_ClipPlane[<?=i-1?>]) < 0.) discard;
 <? end
-?>
-<? end
-?>	float value = getVoxelValue(texCoord);
+end
+?>	
+
+	vec3 tc = texCoord;
+	if (displayDim <= 1) tc.y = displayFixed.x;
+	if (displayDim <= 2) tc.z = displayFixed.y;
+	tc = texToWorldCoord(tc);
+	tc = quatRotate(displaySliceAngle, tc);
+	tc = worldToTexCoord(tc);
+	tc = texToNoGhostCoord(tc);	//getting rid of the ghost cells
+
+	float value = getVoxelValue(tc);
 	
 	float frac = getGradientFrac(value);
 	float gradTC = getGradientTexCoord(frac);
@@ -100,9 +97,9 @@ void main() {
 		const float ambient = .3;
 		vec3 lightVec = vec3(0., 0., 1.);
 		vec3 texGrad = vec3(
-			getVoxelValue(texCoord + vec3(dx,0.,0.)) - getVoxelValue(texCoord - vec3(dx,0.,0.)),
-			getVoxelValue(texCoord + vec3(0.,dx,0.)) - getVoxelValue(texCoord - vec3(0.,dx,0.)),
-			getVoxelValue(texCoord + vec3(0.,0.,dx)) - getVoxelValue(texCoord - vec3(0.,0.,dx)));
+			getVoxelValue(tc + vec3(dx,0.,0.)) - getVoxelValue(tc - vec3(dx,0.,0.)),
+			getVoxelValue(tc + vec3(0.,dx,0.)) - getVoxelValue(tc - vec3(0.,dx,0.)),
+			getVoxelValue(tc + vec3(0.,0.,dx)) - getVoxelValue(tc - vec3(0.,0.,dx)));
 		texGrad = normalMatrix * texGrad;
 		texGrad = normalize(texGrad);
 		float lum = max(ambient, abs(dot(lightVec, texGrad)));	

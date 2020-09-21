@@ -96,6 +96,62 @@ vec4 getGradientColor(float value) {
 	return texture1D(gradientTex, tc);
 }
 
+
+// here's my naming convention
+// grid coords: i in [.5, n-.5] in Integers-1/2
+// tex coords: t in [0, 1] in Reals. t = i / sizeWithoutBorder
+// chart coords: x in [solver.mins, solver.maxs] in Reals.  x = t * (solverMax - solverMin) + solverMin
+// world coords: y in Reals.  nonlinear transform.  y = f(x)
+// 'useCoordMap' replaces the chart f(x) with f(x) = (x - solverMins)/(solverMaxs - solverMins) * 2 - 1 = t * 2 - 1
+
+//chart coords to world coords
+//gets coordMap, or the normalized version, depending on the 'useCoordMap' flag
+vec3 chartToWorldCoord(vec3 x) {
+	if (useCoordMap) {
+		return coordMap(x);
+	} else {
+		return (x - solverMins) / (solverMaxs - solverMins) * 2. - 1.;
+	}
+}
+
+vec3 texToWorldCoord(vec3 x) {
+	if (useCoordMap) {
+		return coordMap(x * (solverMaxs - solverMins) + solverMins);
+	} else {
+		return x * 2. - 1.;
+	}
+}
+
+vec3 worldToTexCoord(vec3 x) {
+	if (useCoordMap) {
+		return (coordMapInv(x) - solverMins) / (solverMaxs - solverMins);
+	} else {
+		return .5 * (x + 1.);
+	}
+}
+
+//world coords to chart coords
+vec3 worldToChartCoord(vec3 x) {
+	if (useCoordMap) {
+		return coordMapInv(x);
+	} else {
+		return .5 * (x + 1.) * (solverMaxs - solverMins) + solverMins; 
+	}
+}
+
+//chart coord to tex coord
+vec3 chartToTexCoord(vec3 x) {
+	return ((x - solverMins) / (solverMaxs - solverMins) * sizeWithoutBorder + numGhost) / gridSize;
+}
+
+vec3 texToNoGhostCoord(vec3 x) {
+	return (x * sizeWithoutBorder + numGhost) / gridSize;
+}
+
+vec3 chartToNoGhostCoord(vec3 x) {
+	return texToNoGhostCoord(chartToTexCoord(x));
+}
+
 // hmm, where to put this?
 vec3 quatRotate(vec4 q, vec3 v) { 
 	return v + 2. * cross(cross(v, q.xyz) - q.w * v, q.xyz);

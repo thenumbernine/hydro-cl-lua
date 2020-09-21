@@ -2,27 +2,45 @@
 
 <?
 local coord = solver.coord
+local varying = vertexShader and 'out'
+		or fragmentShader and 'in'
+		or error("don't know what to set varying to")
 ?>
 
+<?=coord:getModuleCodeGLSL("coordMapGLSL", "coordMapInvGLSL", "cartesianFromCoord")?>
 <?=draw:getCommonGLSLFragCode(solver)?>
 
 <? if vertexShader then ?>
 
-varying vec4 color;
-
-<?=coord:getModuleCodeGLSL('coordMapGLSL', 'cartesianFromCoord')?>
+<?=varying?> vec4 color;
 
 attribute vec2 vtx;
 attribute vec3 center;
-attribute vec3 tc;
 
 uniform float scale;
 
 void main() {
-	vec3 realtc = tc;
-	if (displayDim <= 1) realtc.y = displayFixed.x;
-	if (displayDim <= 2) realtc.z = displayFixed.y;
-	vec3 dir = getTex(realtc).rgb;
+	//hmm, to rotate the sampled slice in coordinate space, I would have to 
+	// 1) map from grid coord to world coords
+	// 2) pad with fixed coords.  
+	// 3) rotate
+	// 4) map back from world coords to grid coords
+	// 5) map back from grid coords to texel coords
+	// ... seems redundant.
+	vec3 chartCoord = center;
+	if (displayDim <= 1) chartCoord.y = displayFixed.x;
+	if (displayDim <= 2) chartCoord.z = displayFixed.y;
+	chartCoord = chartToWorldCoord(chartCoord);
+	chartCoord = quatRotate(displaySliceAngle, chartCoord);
+	chartCoord = worldToChartCoord(chartCoord);
+
+	vec3 texCoord = chartToTexCoord(chartCoord);
+#if 0
+	if (texCoord.x < 0. || texCoord.x > 1.) discard;
+	if (displayDim > 1 && (texCoord.y < 0. || texCoord.y > 1.)) discard;
+	if (displayDim > 2 && (texCoord.z < 0. || texCoord.z > 1.)) discard;
+#endif
+	vec3 dir = getTex(texCoord).rgb;
 
 	dir = cartesianFromCoord(dir, center);	
 	float value = length(dir);
@@ -62,13 +80,7 @@ void main() {
 	color = texture1D(gradientTex, value);
 
 	//cartesian coords
-	vec3 centerpos = center;
-	if (useCoordMap) {
-		centerpos = coordMap(centerpos);
-	} else {
-		centerpos = (centerpos - solverMins) / (solverMaxs - solverMins) * vec3(2., 2., 1.) - vec3(1., 1., 0.);
-	}
-	vec3 v = centerpos + valuescale * (vtx.x * dir + vtx.y * tv);
+	vec3 v = chartToWorldCoord(center) + valuescale * (vtx.x * dir + vtx.y * tv);
 	
 	gl_Position = modelViewProjectionMatrix * vec4(v, 1.);
 }
@@ -78,7 +90,7 @@ end
 if fragmentShader then
 ?>
 
-varying vec4 color;
+<?=varying?> vec4 color;
 
 out vec4 fragColor;
 
