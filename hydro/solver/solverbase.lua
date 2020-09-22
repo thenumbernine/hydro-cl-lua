@@ -2251,7 +2251,7 @@ function SolverBase:update()
 		self.fpsSamples = table()
 	end
 	if self.lastFrameTime then
-		local tick = cmdline.tick or 1
+		local tick = cmdline.tick or 1e-9
 		local deltaTime = thisTime - self.lastFrameTime
 		local fps = 1 / deltaTime
 		self.fpsIndex = (self.fpsIndex % self.fpsNumSamples) + 1
