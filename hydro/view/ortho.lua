@@ -8,7 +8,8 @@ matrix_ffi.real = 'float'	-- default matrix_ffi type
 local OrthoView = class()
 
 function OrthoView:init()
-	self.zoom = vec2d(.5,.5)
+	local zoom = cmdline.zoom or .5
+	self.zoom = vec2d(zoom, zoom)
 	self.pos = vec2d()
 
 	self.modelViewMatrix = matrix_ffi.zeros(4,4)

@@ -77,17 +77,17 @@ kernel void copyBufferWithoutGhostToBufferWithGhost(
 ) {
 	SETBOUNDS_NOGHOST();
 	for (int j = 0; j < numIntStates; ++j) {
-		dst[j + numStates * index] = src[j 
+		dst[j + numStates * index] = src[j
 			+ numIntStates * (
-				(i.x - numGhost) 
-<? if solver.dim > 1 then ?>				
+				(i.x - numGhost)
+<? if solver.dim > 1 then ?>
 				+ (solver->gridSize.x - 2 * numGhost) * (
 					(i.y - numGhost) 
-<? if solver.dim > 2 then ?>					
-					+ (solver->gridSize.x - 2 * numGhost) * (i.z - numGhost)
-<? end ?>				
+<? if solver.dim > 2 then ?>
+					+ (solver->gridSize.y - 2 * numGhost) * (i.z - numGhost)
+<? end ?>
 				)
-<? end ?>			
+<? end ?>
 			)];
 	}
 }
@@ -102,14 +102,14 @@ kernel void copyBufferWithGhostToBufferWithoutGhost(
 		dst[j 
 			+ numIntStates * (
 				(i.x - numGhost) 
-<? if solver.dim > 1 then ?>				
+<? if solver.dim > 1 then ?>
 				+ (solver->gridSize.x - 2 * numGhost) * (
 					(i.y - numGhost) 
-<? if solver.dim > 2 then ?>					
-					+ (solver->gridSize.x - 2 * numGhost) * (i.z - numGhost)
-<? end ?>				
+<? if solver.dim > 2 then ?>
+					+ (solver->gridSize.y - 2 * numGhost) * (i.z - numGhost)
+<? end ?>
 				)
-<? end ?>			
+<? end ?>
 			)] = src[j + numStates * index];
 	}
 }
@@ -139,9 +139,9 @@ kernel void copyBufferWithGhostToBufferWithoutGhost(
 
 		self.copyWithoutToWithGhostKernel(solver.solverBuf, solver.UBufObj, UBuf)
 		
-		solver:boundary()	
 if solver.checkNaNs then assert(solver:checkFinite(derivBufObj)) end
 		solver:constrainU()
+		solver:boundary()
 		
 		self.derivBufObj:fill()	-- fill with zero
 		self.integrateCallback(self.derivBufObj)
@@ -184,11 +184,18 @@ if solver.checkNaNs then assert(solver:checkFinite(derivBufObj)) end
 	linearSolverArgs.b = self.krylov_bObj
 	linearSolverArgs.A = function(UNext, U)
 		local dUdt = self.krylov_dUdtObj
+		-- [[ evolve based on U(t) ... so this is solving GMRES against an unchanging matrix, i.e. static linear solver.
+		-- this is stable, but not backward-Euler
 		calc_dU_dt(dUdt, self.krylov_bObj)
+		--]]
+		--[[ evolve based on U(t+dt) ... this is a correct backward-Euler solver
+		-- doesn't seem to be stable.
+		calc_dU_dt(dUdt, U)
+		--]]
 		
 		--UNext = U - dt * calc_dU_dt(lastU)
---print'\nU:' solver:printBuf(U, nil, solver.numIntStates) 
---print('self.linearSolverDT', self.linearSolverDT)		
+--print'\nU:' solver:printBuf(U, nil, solver.numIntStates)
+--print('self.linearSolverDT', self.linearSolverDT)
 		
 		self.linearSolver.args.mulAdd(UNext, U, dUdt.obj, -self.linearSolverDT)
 --print'\nUNext:' solver:printBuf(UNext, nil, solver.numIntStates)
@@ -212,7 +219,8 @@ if solver.checkNaNs then assert(solver:checkFinite(derivBufObj)) end
 
 	local oldDot = self.linearSolver.args.dot
 	self.linearSolver.args.dot = function(a,b)
-		-- TODO getting nil values, esp from smaller grid sizes, i think due to reduce()
+		-- TODO getting nil values, esp from smaller grid sizes, 
+		-- i think due to reduce() requiring a minimum amount of data, and for small grids it is overflowing?  maybe
 		assert(a)
 		assert(b)
 		assert(numRealsWithoutBorder)

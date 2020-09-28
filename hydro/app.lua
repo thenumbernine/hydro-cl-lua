@@ -45,6 +45,9 @@ predefined vars:
 	showMouseCoords = whether to show mouse coords.  default is true.
 	displayDim = override dimension of display (useful for displaying 3D simulations as 1D graphs)
 
+	displaySlice = 'xy' by default, 'xz' for the xz slice, 'yz' for the yz slice.
+		set this to {x,y,z,theta} for angle/axis initialization.
+
 	intVerbose = output extra info from int/*.lua
 	intBEEpsilon = backwards Euler stop on residual less than this epsilon
 	intBERestart = backwards Euler GMRES restart
@@ -354,6 +357,14 @@ then create the draw objs before the shaders (so they exist during shader ctor)
 --]]
 function HydroCLApp:initDraw()
 	self.displaySliceAngle = require 'vec-ffi.quatf'(0,0,0,1)
+	if cmdline.displaySlice == 'xz' then
+		self.displaySliceAngle:fromAngleAxis(1,0,0,90)
+	elseif cmdline.displaySlice == 'yz' then
+		self.displaySliceAngle:fromAngleAxis(0,1,0,90)
+	elseif type(cmdline.displaySlice) == 'table' then
+		assert(#cmdline.displaySlice == 4, "don't know how to handle this cmdline.displaySlice")
+		self.displaySliceAngle:fromAngleAxis(table.unpack(cmdline.displaySlice))
+	end
 
 	self.display2DMethods = table{
 		{Heatmap = HydroCLApp.display2D_Heatmap},

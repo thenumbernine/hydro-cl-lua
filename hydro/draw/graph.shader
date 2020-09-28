@@ -7,12 +7,11 @@ local varying = vertexShader and 'out'
 ?>
 <?=varying?> vec3 normal;
 
+<?=solver.coord:getModuleCodeGLSL("coordMapGLSL", "coordMapInvGLSL")?>
 <?=draw:getCommonGLSLFragCode(solver)?>
 
 <? if vertexShader then ?>
 in vec3 inVertex;
-
-<?=solver.coord:getModuleCodeGLSL('coordMapGLSL')?>
 
 vec3 func(vec3 src) {
 	if (displayDim == 1) {

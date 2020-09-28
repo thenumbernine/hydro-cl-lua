@@ -95,8 +95,8 @@ function Euler:createInitState()
 	local double = false --solver.app.real == 'double'
 	self:addGuiVars{	
 		{name='heatCapacityRatio', value=7/5},				-- unitless
-		{name='rhoMin', value=double and 1e-15 or 1e-7},	-- kg/m^3
-		{name='PMin', value=double and 1e-15 or 1e-7},		-- kg/m^3
+		{name='rhoMin', value=double and 1e-15 or 1e-7, units='kg/m^3'},
+		{name='PMin', value=double and 1e-15 or 1e-7, units='kg/(m*s^2)'},
 	}
 end
 

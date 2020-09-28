@@ -3,13 +3,13 @@ TODO one config per experiment (initial condition + config)
 and no more setting config values (boundary, etc) in the init cond file
 --]]
 
-local dim = cmdline.dim or 2
+local dim = cmdline.dim or 1
 local args = {
 	app = self, 
 	eqn = cmdline.eqn,
 	dim = dim,
 	
-	--integrator = cmdline.integrator or 'forward Euler',	
+	integrator = cmdline.integrator or 'forward Euler',	
 	--integrator = 'Iterative Crank-Nicolson',
 	--integrator = 'Runge-Kutta 2',
 	--integrator = 'Runge-Kutta 2 Heun',
@@ -22,7 +22,7 @@ local args = {
 	--integrator = 'Runge-Kutta 3, TVD',
 	--integrator = 'Runge-Kutta 4, TVD',
 	--integrator = 'Runge-Kutta 4, non-TVD',
-	integrator = 'backward Euler',	-- The epsilon on this is very sensitive.  Too small and it never converges.  Too large and it stops convergence too soon.
+	--integrator = 'backward Euler',	-- The epsilon on this is very sensitive.  Too small and it never converges.  Too large and it stops convergence too soon.
 	--integrator = 'backward Euler, CPU',
 	--integratorArgs = {verbose=true},
 	
@@ -99,12 +99,12 @@ local args = {
 		}
 	)[dim],
 	boundary = type(cmdline.boundary) == 'table' and cmdline.boundary or {
-		xmin = cmdline.boundary or 'periodic',
-		xmax = cmdline.boundary or 'periodic',
-		ymin = cmdline.boundary or 'periodic',
-		ymax = cmdline.boundary or 'periodic',
-		zmin = cmdline.boundary or 'periodic',
-		zmax = cmdline.boundary or 'periodic',
+		xmin = cmdline.boundary or 'freeflow',
+		xmax = cmdline.boundary or 'freeflow',
+		ymin = cmdline.boundary or 'freeflow',
+		ymax = cmdline.boundary or 'freeflow',
+		zmin = cmdline.boundary or 'freeflow',
+		zmax = cmdline.boundary or 'freeflow',
 	},
 	--]]
 	--[[ cylinder
@@ -539,7 +539,7 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn
 -- compressible Euler equations
 
 
---self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
+self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
 
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct bounded'})))	-- this is the default hllCalcWaveMethod
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct'})))
@@ -897,8 +897,8 @@ local args = {
 	},
 	dim = dim,
 	
-	--integrator = cmdline.integrator or 'Runge-Kutta 4',
-	integrator = cmdline.integrator or 'backward Euler',
+	integrator = cmdline.integrator or 'Runge-Kutta 4',
+	--integrator = cmdline.integrator or 'backward Euler',
 	--integrator = cmdline.integrator or 'backward Euler, CPU',	-- debugging.   seems that, for grid sizes too small, B.E. GPU fails.  i think because the reduce() gpu function isn't set up for lower bounds of buffer sizes.
 	--integratorArgs = {verbose=true},
 	cfl = .5,
@@ -945,7 +945,7 @@ local args = {
 		{64, 16, 1},
 		
 		-- N x 2 x 2:
-		--{32, 2, 2},
+		{32, 2, 2},
 		--{80, 80, 2},
 		--{128, 2, 2},
 		--{128, 32, 2},
@@ -962,7 +962,7 @@ local args = {
 	
 		-- SENR PIRK sphere 'agrees with Baumgarte' grid size
 		--{64,32,32}, -- seems to be running fine with -num, rk4, sphere, UIUC
-		{16,8,8},
+		--{16,8,8},
 	})[dim],
 	boundary = {
 		xmin='sphereRMin',
@@ -998,8 +998,8 @@ local args = {
 		{64, 16, 1},
 		
 		-- N x 2 x 2:
-		--{32, 2, 2},		-- SENR sphere-sinh-radial uses this by default
-		{80, 80, 2},		-- this works well for BrillLindquist sphere-log-radial when viewing the xz slice
+		{32, 2, 2},		-- SENR sphere-sinh-radial uses this by default
+		--{80, 80, 2},		-- this works well for BrillLindquist sphere-log-radial when viewing the xz slice
 		--{128, 2, 2},
 		--{128, 32, 2},
 		--{400, 64, 2},
@@ -1066,8 +1066,8 @@ local args = {
 	--initCond = 'Minkowski',
 	-- TODO move the coordinate system from the name to an assertion within the init
 	--initCond = 'SENR Minkowski',
-	--initCond = 'SENR UIUC',
-	initCond = 'SENR BrillLindquist',
+	initCond = 'SENR UIUC',
+	--initCond = 'SENR BrillLindquist',
 	--initCond = 'SENR BoostedSchwarzschild',
 	--initCond = 'SENR StaticTrumpet',
 }
