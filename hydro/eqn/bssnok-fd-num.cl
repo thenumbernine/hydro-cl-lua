@@ -990,6 +990,7 @@ int from3x3to6(int i, int j) {
 static void applyKreissOligar(
 	constant solver_t* solver,
 	const global cons_t* U,
+	const global cell_t* cell,
 	global cons_t* deriv,
 	real3 x,
 	int* fields,
@@ -1997,10 +1998,10 @@ kernel void calcDeriv(
 ) {
 <? if useCalcDeriv then ?>
 	SETBOUNDS(numGhost,numGhost);
-	real3 x = cellBuf[index].pos;
+	const global cell_t* cell = cellBuf + index;
+	real3 x = cell->pos;
 	global cons_t* deriv = derivBuf + index;
 	const global cons_t* U = UBuf + index;
-	const global cell_t* cell = cellBuf + index;
 	int4 updir = getUpwind(U->beta_U);
 
 	//////////////////////////////// alpha_,t //////////////////////////////// 
@@ -2439,7 +2440,7 @@ or even the ∂_0 ΛBar^i then we can re-add the needed terms later
 	// Kreiss-Oligar dissipation:
 	int fields[numIntStates];
 	for (int i = 0; i < numberof(fields); ++i) fields[i] = i;
-	applyKreissOligar(solver, U, deriv, x, fields, numberof(fields));
+	applyKreissOligar(solver, U, cell, deriv, x, fields, numberof(fields));
 
 <? end 	-- useCalcDeriv ?>
 }
@@ -2451,7 +2452,8 @@ kernel void constrainU(
 ) {
 <? if useConstrainU then ?>	
 	SETBOUNDS(numGhost,numGhost);
-	real3 x = cellBuf[index].pos;
+	const global cell_t* cell = cellBuf + index;
+	real3 x = cell->pos;
 	global cons_t* U = UBuf + index;
 	
 	sym3 gammaBar_LL = sym3_add(sym3_ident, U->epsilon_LL);
@@ -2744,7 +2746,8 @@ kernel void addSource(
 	SETBOUNDS_NOGHOST();
 	const global cons_t* U = UBuf + index;
 	global cons_t* deriv = derivBuf + index;
-	real3 x = cellBuf[index].pos;
+	const global cell_t* cell = cellBuf + index;
+	real3 x = cell->pos;
 
 <? if useScalarField then ?>
 <?=eqn:makePartialUpwind'alpha'?>
@@ -2842,7 +2845,8 @@ kernel void calcDeriv_PIRK_L1_EpsilonWAlphaBeta(
 	const global cell_t* cellBuf
 ) {
 	SETBOUNDS(numGhost,numGhost);
-	real3 x = cellBuf[index].pos;
+	const global cell_t* cell = cellBuf + index;
+	real3 x = cell->pos;
 	global cons_t* deriv = derivBuf + index;
 	const global cons_t* U = UBuf + index;
 	int4 updir = getUpwind(U->beta_U);
@@ -2969,7 +2973,7 @@ advect shift:	+ beta^i_,j beta^j
 
 	// Kreiss-Oligar dissipation:
 	int fields[] = {0, 1, 3, 4, 5, 12, 13, 14, 15, 16, 17};	//TODO derive this from eqn.consVars, or ptr offsets / sizeof(real), rather than hardcoding here
-	applyKreissOligar(solver, U, deriv, x, fields, numberof(fields));
+	applyKreissOligar(solver, U, cell, deriv, x, fields, numberof(fields));
 }
 
 // ABar_IJ, K
@@ -2980,7 +2984,8 @@ kernel void calcDeriv_PIRK_L2_ABarK(
 	const global cell_t* cellBuf
 ) {
 	SETBOUNDS(numGhost,numGhost);
-	real3 x = cellBuf[index].pos;
+	const global cell_t* cell = cellBuf + index;
+	real3 x = cell->pos;
 	global cons_t* deriv = derivBuf + index;
 	const global cons_t* U = UBuf + index;
 
@@ -3060,7 +3065,8 @@ kernel void calcDeriv_PIRK_L3_ABarK(
 	const global cell_t* cellBuf
 ) {
 	SETBOUNDS(numGhost,numGhost);
-	real3 x = cellBuf[index].pos;
+	const global cell_t* cell = cellBuf + index;
+	real3 x = cell->pos;
 	global cons_t* deriv = derivBuf + index;
 	const global cons_t* U = UBuf + index;
 	
@@ -3146,7 +3152,7 @@ kernel void calcDeriv_PIRK_L3_ABarK(
 	
 	// Kreiss-Oligar dissipation:
 	int fields[] = {2, 18, 19, 20, 21, 22, 23};	//TODO derive this from eqn.consVars, or ptr offsets / sizeof(real), rather than hardcoding here
-	applyKreissOligar(solver, U, deriv, x, fields, numberof(fields));
+	applyKreissOligar(solver, U, cell, deriv, x, fields, numberof(fields));
 }
 
 // LambdaBar^I
@@ -3157,7 +3163,8 @@ kernel void calcDeriv_PIRK_L2_LambdaBar(
 	const global cell_t* cellBuf
 ) {
 	SETBOUNDS(numGhost,numGhost);
-	real3 x = cellBuf[index].pos;
+	const global cell_t* cell = cellBuf + index;
+	real3 x = cell->pos;
 	global cons_t* deriv = derivBuf + index;
 	const global cons_t* U = UBuf + index;
 
@@ -3241,7 +3248,8 @@ kernel void calcDeriv_PIRK_L3_LambdaBar(
 	const global cell_t* cellBuf
 ) {
 	SETBOUNDS(numGhost,numGhost);
-	real3 x = cellBuf[index].pos;
+	const global cell_t* cell = cellBuf + index;
+	real3 x = cell->pos;
 	global cons_t* deriv = derivBuf + index;
 	const global cons_t* U = UBuf + index;
 	
@@ -3319,7 +3327,7 @@ kernel void calcDeriv_PIRK_L3_LambdaBar(
 
 	// Kreiss-Oligar dissipation:
 	int fields[] = {9, 10, 11};	//TODO derive this from eqn.consVars, or ptr offsets / sizeof(real), rather than hardcoding here
-	applyKreissOligar(solver, U, deriv, x, fields, numberof(fields));
+	applyKreissOligar(solver, U, cell, deriv, x, fields, numberof(fields));
 }
 
 // B^I
@@ -3330,7 +3338,8 @@ kernel void calcDeriv_PIRK_L2_B(
 	const global cell_t* cellBuf
 ) {
 	SETBOUNDS(numGhost,numGhost);
-	real3 x = cellBuf[index].pos;
+	const global cell_t* cell = cellBuf + index;
+	real3 x = cell->pos;
 	global cons_t* deriv = derivBuf + index;
 	const global cons_t* U = UBuf + index;
 	int4 updir = getUpwind(U->beta_U);
@@ -3439,7 +3448,8 @@ kernel void calcDeriv_PIRK_L3_B(
 	const global cell_t* cellBuf
 ) {
 	SETBOUNDS(numGhost,numGhost);
-	real3 x = cellBuf[index].pos;
+	const global cell_t* cell = cellBuf + index;
+	real3 x = cell->pos;
 	global cons_t* deriv = derivBuf + index;
 	const global cons_t* U = UBuf + index;
 
@@ -3474,7 +3484,7 @@ kernel void calcDeriv_PIRK_L3_B(
 
 	// Kreiss-Oligar dissipation:
 	int fields[] = {6, 7, 8};	//TODO derive this from eqn.consVars, or ptr offsets / sizeof(real), rather than hardcoding here
-	applyKreissOligar(solver, U, deriv, x, fields, numberof(fields));
+	applyKreissOligar(solver, U, cell, deriv, x, fields, numberof(fields));
 }
 	
 //dst = src + deriv * dt
