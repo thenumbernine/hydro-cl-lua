@@ -3,8 +3,10 @@ local gl = require 'ffi.OpenGL'
 local ffi = require 'ffi'
 local template = require 'template'
 local class = require 'ext.class'
+local vec3f = require 'vec-ffi.vec3f'
 local file = require 'ext.file'
 local matrix_ffi = require 'matrix.ffi'
+local vector = require 'hydro.util.vector'
 local Draw = require 'hydro.draw.draw'
 
 
@@ -46,11 +48,14 @@ function Draw1D:showDisplayVar(app, solver, var)
 
 	gl.glUniform3f(uniforms.color.loc, (#app.solvers > 1 and solver or var).color:unpack())
 
+	if not self.vertexes then
+		self.vertexes = vector'vec3f_t'
+	end
+
 	local step = 1
 	local numVertexes = math.floor((tonumber(solver.gridSize.x) - 2 * solver.numGhost + 1) / step)	-- (endindex - startindex + 1) / step
-	if numVertexes ~= self.numVertexes then
-		self.numVertexes = numVertexes 
-		self.vertexes = ffi.new('float[?]', 3*numVertexes)
+	if #self.vertexes ~= numVertexes then
+		self.vertexes:resize(numVertexes)
 	end
 
 	-- [[ overwrite the modelViewProjectionMatrix uniform here
@@ -71,17 +76,17 @@ function Draw1D:showDisplayVar(app, solver, var)
 	gl.glUniformMatrix4fv(uniforms.modelViewProjectionMatrix.loc, 1, gl.GL_FALSE, self.ModelViewProjectionMatrix.ptr)
 	--]]
 
-	for i=0,self.numVertexes-1 do
-		local x = (i * step + .5 + solver.numGhost) / tonumber(solver.gridSize.x)
-		self.vertexes[0+3*i] = x
-		self.vertexes[1+3*i] = 0--app.displayFixedY
-		self.vertexes[2+3*i] = 0--app.displayFixedZ
+	for i=0,numVertexes-1 do
+		local v = self.vertexes.v[i]
+		v.x = (i * step + .5 + solver.numGhost) / tonumber(solver.gridSize.x)
+		v.y = 0--app.displayFixedY
+		v.z = 0--app.displayFixedZ
 	end
 	
 	gl.glEnableVertexAttribArray(shader.attrs.inVertex.loc)
-	gl.glVertexAttribPointer(shader.attrs.inVertex.loc, 3, gl.GL_FLOAT, false, 0, self.vertexes)
+	gl.glVertexAttribPointer(shader.attrs.inVertex.loc, 3, gl.GL_FLOAT, false, 0, self.vertexes.v)
 	
-	gl.glDrawArrays(gl.GL_LINE_STRIP, 0, self.numVertexes) 
+	gl.glDrawArrays(gl.GL_LINE_STRIP, 0, numVertexes) 
 	
 	gl.glDisableVertexAttribArray(shader.attrs.inVertex.loc)
 	

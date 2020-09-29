@@ -66,41 +66,49 @@ function DrawVectorField:showDisplayVar(app, solver, var, varName, ar, xmin, xma
 	local shader = solver.vectorArrowShader
 	local uniforms = shader.uniforms
 
+	-- TODO store these vectors per-solver?
+	if not self.glvtxs then
+		self.glvtxs = vector'vec2f_t'
+	end
+	if not self.glcenters then
+		self.glcenters = vector'vec3f_t'
+	end
+
 	if not solver.vectorArrowGLVtxArrayBuffer
-	or solver.vectorArrowGLBufSize ~= arrowCount
+	-- assert that glvtxs and glcenters are the same size
+	or #self.glvtxs ~= arrowCount * #arrow
 	then
-		solver.vectorArrowGLBufSize = arrowCount
-		
-		local glvtxs = vector'vec2f_t'
-		glvtxs:setcapacity(arrowCount * #arrow)
-		local glcenters = vector'vec3f_t'
-		glcenters:setcapacity(arrowCount * #arrow)
+		self.glvtxs:resize(arrowCount * #arrow)
+		self.glcenters:resize(arrowCount * #arrow)
 
 		-- glCallOrDraw goes just slightly faster.  24 vs 23 fps.
 		if isMeshSolver then
 			-- TODO Lua coroutine cell iterator, abstracted between grids and meshes?
 			-- how fast/slow are coroutines compared to number for-loops anyways?
+			local index = 0
 			for ci=0,solver.numCells-1 do
 				local c = solver.mesh.cells.v[ci]
 				for _,q in ipairs(arrow) do
-					glcenters:push_back(vec3f(c.pos:unpack()))
-					glvtxs:push_back(vec2f(q[1], q[2]))
+					self.glcenters.v[index]:set(c.pos:unpack())
+					self.glvtxs.v[index]:set(q[1], q[2])
+					index = index + 1
 				end
 			end
 		else
+			local index = 0
 			for kbase=0,kcount-1 do
 				local k = kbase * step
+				local z = (k + .5) / tonumber(solver.sizeWithoutBorder.z) * (solver.maxs.z - solver.mins.z) + solver.mins.z
 				for jbase=0,jcount-1 do
 					local j = jbase * step
+					local y = (j + .5) / tonumber(solver.sizeWithoutBorder.y) * (solver.maxs.y - solver.mins.y) + solver.mins.y
 					for ibase=0,icount-1 do
 						local i = ibase * step
+						local x = (i + .5) / tonumber(solver.sizeWithoutBorder.x) * (solver.maxs.x - solver.mins.x) + solver.mins.x
 						for _,q in ipairs(arrow) do
-							local x = vec3f(
-								(i + .5) / tonumber(solver.sizeWithoutBorder.x) * (solver.maxs.x - solver.mins.x) + solver.mins.x,
-								(j + .5) / tonumber(solver.sizeWithoutBorder.y) * (solver.maxs.y - solver.mins.y) + solver.mins.y,
-								(k + .5) / tonumber(solver.sizeWithoutBorder.z) * (solver.maxs.z - solver.mins.z) + solver.mins.z)
-							glcenters:push_back(x)
-							glvtxs:push_back(vec2f(q[1], q[2]))
+							self.glcenters.v[index]:set(x,y,z)
+							self.glvtxs.v[index]:set(q[1], q[2])
+							index = index + 1
 						end
 					end
 				end
@@ -108,13 +116,13 @@ function DrawVectorField:showDisplayVar(app, solver, var, varName, ar, xmin, xma
 		end
 
 		solver.vectorArrowGLVtxArrayBuffer = GLArrayBuffer{
-			data = glvtxs.v,
-			size = #glvtxs * ffi.sizeof(glvtxs.type)
+			data = self.glvtxs.v,
+			size = #self.glvtxs * ffi.sizeof(self.glvtxs.type)
 		}
 
 		solver.vectorArrowGLCentersArrayBuffer = GLArrayBuffer{
-			data = glcenters.v,
-			size = #glcenters * ffi.sizeof(glcenters.type)
+			data = self.glcenters.v,
+			size = #self.glcenters * ffi.sizeof(self.glcenters.type)
 		}
 		
 		solver.vectorArrowVAO = GLVertexArray{

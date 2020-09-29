@@ -3,8 +3,10 @@ local ffi = require 'ffi'
 local template = require 'template'
 local class = require 'ext.class'
 local file = require 'ext.file'
+local vec3f = require 'vec-ffi.vec3f'
 local gl = require 'ffi.OpenGL'
 local matrix_ffi = require 'matrix.ffi'
+local vector = require 'hydro.util.vector'
 local Draw = require 'hydro.draw.draw'
 
 
@@ -51,31 +53,38 @@ function Draw2DGraph:showDisplayVar(app, solver, var)
 	-- TODO where to specify using the heatmap gradient vs using the variable/solver color
 	gl.glUniform3f(uniforms.color.loc, (#app.solvers > 1 and solver or var).color:unpack())
 
+	-- 3 components per vertex
+	if not self.vertexes then
+		self.vertexes = vector'vec3f_t'
+	end
+
 	local step = math.max(1, self.step)
 	local numX = math.floor((tonumber(solver.gridSize.x) - 2 * solver.numGhost + 1) / step)
 	local numY = math.floor((tonumber(solver.gridSize.y) - 2 * solver.numGhost + 1) / step)
-	local numVertexes2D = numX * numY
-	
-	if numVertexes2D ~= self.numVertexes2D then
-		self.numVertexes2D = numVertexes2D
-		-- 2 vtxs per tristrip * 3 components per vertex
-		self.vertexes = ffi.new('float[?]', 2*3*numVertexes2D)
+	-- 2 vtxs per tristrip 
+	local numVertexes = 2 * numX * numY
+
+	if #self.vertexes ~= numVertexes then
+		self.vertexes:resize(numVertexes)
 	end
 
+	local index = 0
 	for j=0,numY-2 do
 		for i=0,numX-1 do
 			local x = (i * step + .5 + solver.numGhost) / tonumber(solver.gridSize.x)
 			for jofs=0,1 do
 				local y = ((j + jofs) * step + .5 + solver.numGhost) / tonumber(solver.gridSize.y)
-				self.vertexes[0 + 3 * (jofs + 2 * (i + numX * j))] = x
-				self.vertexes[1 + 3 * (jofs + 2 * (i + numX * j))] = y
-				self.vertexes[2 + 3 * (jofs + 2 * (i + numX * j))] = 0--app.displayFixedZ
+				local v = self.vertexes.v[index]
+				v.x = x
+				v.y = y
+				v.z = 0--app.displayFixedZ
+				index = index + 1
 			end
 		end
 	end
 	
 	gl.glEnableVertexAttribArray(shader.attrs.inVertex.loc)
-	gl.glVertexAttribPointer(shader.attrs.inVertex.loc, 3, gl.GL_FLOAT, false, 0, self.vertexes)
+	gl.glVertexAttribPointer(shader.attrs.inVertex.loc, 3, gl.GL_FLOAT, false, 0, self.vertexes.v)
 	
 	gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_LINE)
 

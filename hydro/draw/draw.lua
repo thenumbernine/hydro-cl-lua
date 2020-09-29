@@ -99,8 +99,9 @@ vec4 getGradientColor(float value) {
 
 // here's my naming convention
 // grid coords: i in [.5, n-.5] in Integers-1/2
-// tex coords: t in [0, 1] in Reals. t = i / sizeWithoutBorder
-// chart coords: x in [solver.mins, solver.maxs] in Reals.  x = t * (solverMax - solverMin) + solverMin
+// tex coords: t in [.5/n, (n-.5)/n] in Reals. t = i / sizeWithoutBorder, i in [.5, n-.5]
+// tex no-ghost coords: tng in [(.5+g)/n,(n-.5-g)/n] in Reals. t = i / sizeWithoutBorder, i in [.5+g, n-.5-g]
+// chart coords: x in [solver.mins, solver.maxs] in Reals.  x = tng * (solverMax - solverMin) + solverMin
 // world coords: y in Reals.  nonlinear transform.  y = f(x)
 // 'useCoordMap' replaces the chart f(x) with f(x) = (x - solverMins)/(solverMaxs - solverMins) * 2 - 1 = t * 2 - 1
 

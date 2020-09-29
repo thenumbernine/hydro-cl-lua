@@ -3,7 +3,7 @@ TODO one config per experiment (initial condition + config)
 and no more setting config values (boundary, etc) in the init cond file
 --]]
 
-local dim = cmdline.dim or 1
+local dim = cmdline.dim or 2
 local args = {
 	app = self, 
 	eqn = cmdline.eqn,
@@ -539,7 +539,7 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn
 -- compressible Euler equations
 
 
---self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
+self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
 
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct bounded'})))	-- this is the default hllCalcWaveMethod
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct'})))
@@ -927,11 +927,13 @@ local args = {
 		zmax = 'quadratic',
 	},
 	--]]
-	--[[
+	-- [[
 	coord = 'sphere',
 	coordArgs = {
 		vectorComponent = 'holonomic',	-- this isn't really used since bssn is a finite-difference solver, so just pick the one that has the least complications.               
 	},
+	-- mind you, these mins/maxs correlate with SENR
+	-- however, this would put the mid phi at pi, which puts the graph on the x- side of the xy plane ... not the x+ side as it would if phi-mid was equal to 0
 	mins = {0, 0, 0},
 	maxs = {
 		-- 2015 Baumgarte et al, spherical coordinates (not log-remapped), PIRK uses this rmax:
@@ -945,7 +947,7 @@ local args = {
 		{64, 16, 1},
 		
 		-- N x 2 x 2:
-		{32, 2, 2},
+		--{32, 2, 2},
 		--{80, 80, 2},
 		--{128, 2, 2},
 		--{128, 32, 2},
@@ -979,7 +981,7 @@ local args = {
 		zmax='periodic',
 	},
 	--]]
-	-- [[
+	--[[
 	coord = 'sphere-log-radial',
 	coordArgs = {
 		vectorComponent = 'holonomic',	-- this isn't really used since bssn is a finite-difference solver, so just pick the one that has the least complications.               

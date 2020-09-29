@@ -49,7 +49,9 @@ void main() {
 
 	normal = normalize(cross(xp - xm, yp - ym));
 
-	vertex = coordMap(vertex);
+	if (displayDim > 1) {
+		vertex = chartToWorldCoord(vertex);
+	}
 	gl_Position = modelViewProjectionMatrix * vec4(vertex, 1.);
 }
 
