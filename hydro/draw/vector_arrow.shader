@@ -15,7 +15,7 @@ local varying = vertexShader and 'out'
 <?=varying?> vec4 color;
 
 attribute vec2 vtx;
-attribute vec3 center;
+attribute vec3 gridCoord;	//in hydro/draw/draw.lua I said gridCoord was already half-off, but this is integers starting at 0
 
 uniform float scale;
 
@@ -27,6 +27,7 @@ void main() {
 	// 4) map back from world coords to grid coords
 	// 5) map back from grid coords to texel coords
 	// ... seems redundant.
+	vec3 center = (gridCoord + .5) / sizeWithoutBorder * (solverMaxs - solverMins) + solverMins;
 	vec3 chartCoord = center;
 	if (displayDim <= 1) chartCoord.y = displayFixed.x;
 	if (displayDim <= 2) chartCoord.z = displayFixed.y;

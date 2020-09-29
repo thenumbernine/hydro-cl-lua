@@ -67,12 +67,9 @@ function DrawVectorField:showDisplayVar(app, solver, var, varName, ar, xmin, xma
 	local uniforms = shader.uniforms
 
 	-- TODO store these vectors per-solver?
-	if not self.glvtxs then
-		self.glvtxs = vector'vec2f_t'
-	end
-	if not self.glcenters then
-		self.glcenters = vector'vec3f_t'
-	end
+	-- nah, once the capacity grows to the largest solver's size, it will stay there.
+	if not self.glvtxs then self.glvtxs = vector'vec2f_t' end
+	if not self.glcenters then self.glcenters = vector'vec3f_t' end
 
 	if not solver.vectorArrowGLVtxArrayBuffer
 	-- assert that glvtxs and glcenters are the same size
@@ -85,30 +82,37 @@ function DrawVectorField:showDisplayVar(app, solver, var, varName, ar, xmin, xma
 		if isMeshSolver then
 			-- TODO Lua coroutine cell iterator, abstracted between grids and meshes?
 			-- how fast/slow are coroutines compared to number for-loops anyways?
-			local index = 0
+			local pc = self.glcenters.v
+			local pv = self.glvtxs.v
 			for ci=0,solver.numCells-1 do
 				local c = solver.mesh.cells.v[ci]
 				for _,q in ipairs(arrow) do
-					self.glcenters.v[index]:set(c.pos:unpack())
-					self.glvtxs.v[index]:set(q[1], q[2])
-					index = index + 1
+					pc[0].x = c.pos.x
+					pc[0].y = c.pox.y
+					pc[0].z = c.pos.z
+					pc = pc + 1
+					pv[0].x = q[1]
+					pv[0].y = q[2]
+					pv = pv + 1
 				end
 			end
 		else
-			local index = 0
+			local pc = self.glcenters.v
+			local pv = self.glvtxs.v
 			for kbase=0,kcount-1 do
 				local k = kbase * step
-				local z = (k + .5) / tonumber(solver.sizeWithoutBorder.z) * (solver.maxs.z - solver.mins.z) + solver.mins.z
 				for jbase=0,jcount-1 do
 					local j = jbase * step
-					local y = (j + .5) / tonumber(solver.sizeWithoutBorder.y) * (solver.maxs.y - solver.mins.y) + solver.mins.y
 					for ibase=0,icount-1 do
 						local i = ibase * step
-						local x = (i + .5) / tonumber(solver.sizeWithoutBorder.x) * (solver.maxs.x - solver.mins.x) + solver.mins.x
 						for _,q in ipairs(arrow) do
-							self.glcenters.v[index]:set(x,y,z)
-							self.glvtxs.v[index]:set(q[1], q[2])
-							index = index + 1
+							pc[0].x = i
+							pc[0].y = j
+							pc[0].z = k
+							pc = pc + 1
+							pv[0].x = q[1]
+							pv[0].y = q[2]
+							pv = pv + 1
 						end
 					end
 				end
@@ -129,7 +133,7 @@ function DrawVectorField:showDisplayVar(app, solver, var, varName, ar, xmin, xma
 			program = shader,
 			attrs = {
 				vtx = solver.vectorArrowGLVtxArrayBuffer,
-				center = solver.vectorArrowGLCentersArrayBuffer,
+				gridCoord = solver.vectorArrowGLCentersArrayBuffer,
 			},
 		}
 	end
@@ -152,7 +156,7 @@ function DrawVectorField:showDisplayVar(app, solver, var, varName, ar, xmin, xma
 --[[ glVertexAttrib prim calls
 	gl.glBegin(gl.GL_LINES)
 	for i=0,arrowCount * #arrow-1 do
-		gl.glVertexAttrib3f(shader.attrs.center.loc, solver.vectorArrowGLCentersArrayBuffer.data[i]:unpack())
+		gl.glVertexAttrib3f(shader.attrs.gridCoord.loc, solver.vectorArrowGLCentersArrayBuffer.data[i]:unpack())
 		gl.glVertexAttrib2f(shader.attrs.vtx.loc, solver.vectorArrowGLVtxArrayBuffer.data[i]:unpack())
 	end
 	gl.glEnd()
