@@ -27,15 +27,15 @@ void main() {
 	// 4) map back from world coords to grid coords
 	// 5) map back from grid coords to texel coords
 	// ... seems redundant.
-	vec3 center = (gridCoord + .5) / sizeWithoutBorder * (solverMaxs - solverMins) + solverMins;
-	vec3 chartCoord = center;
+	vec3 texCoord = (gridCoord + .5) / sizeWithoutBorder;
+	vec3 chartCoord = texToChartCoord(texCoord);
+	vec3 center = chartCoord;
 	if (displayDim <= 1) chartCoord.y = displayFixed.x;
 	if (displayDim <= 2) chartCoord.z = displayFixed.y;
 	chartCoord = chartToWorldCoord(chartCoord);
 	chartCoord = quatRotate(displaySliceAngle, chartCoord);
 	chartCoord = worldToChartCoord(chartCoord);
-
-	vec3 texCoord = chartToTexCoord(chartCoord);
+	texCoord = chartToTexCoord(chartCoord);
 #if 0
 	if (texCoord.x < 0. || texCoord.x > 1.) discard;
 	if (displayDim > 1 && (texCoord.y < 0. || texCoord.y > 1.)) discard;

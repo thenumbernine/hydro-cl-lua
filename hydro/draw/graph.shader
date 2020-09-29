@@ -7,47 +7,57 @@ local varying = vertexShader and 'out'
 ?>
 <?=varying?> vec3 normal;
 
+uniform float ambient;
+
 <?=solver.coord:getModuleCodeGLSL("coordMapGLSL", "coordMapInvGLSL")?>
 <?=draw:getCommonGLSLFragCode(solver)?>
 
 <? if vertexShader then ?>
-in vec3 inVertex;
+in vec3 gridCoord;
 
-vec3 func(vec3 src) {
-	if (displayDim == 1) {
-		src.yz = displayFixed;
-	} else if (displayDim == 2) {
-		src.z = displayFixed.y;
-	}
+vec3 getVertex(vec3 gridCoord) {
+	//convert from integer gridCoord to texNoGhostCoord
+	vec3 texCoord = (gridCoord + .5 + numGhost) / gridSize;
+	vec3 chartCoord = texToChartCoord(texCoord);
+	vec3 vertex = chartCoord;
+	if (displayDim <= 1) chartCoord.y = displayFixed.x;
+	if (displayDim <= 2) chartCoord.z = displayFixed.y;
 	
-	vec3 vertex = src.xyz;
-	vertex.x = (vertex.x * gridSize.x - numGhost) / sizeWithoutBorder.x * (solverMaxs.x - solverMins.x) + solverMins.x;
-	if (displayDim == 1) {
-		vertex.y = 0.;
-	} else {
-		vertex.y = (vertex.y * gridSize.y - numGhost) / sizeWithoutBorder.y * (solverMaxs.y - solverMins.y) + solverMins.y;
-	}
+	//should this go before vertex def, and allow rotations of the vertices themselves?
+	//or should this go here, and only rotate the data source?
+	chartCoord = chartToWorldCoord(chartCoord);
+	chartCoord = quatRotate(displaySliceAngle, chartCoord);
+	chartCoord = worldToChartCoord(chartCoord);
+	texCoord = chartToTexCoord(chartCoord);
 
-	vertex[displayDim] = getTex(src).r;
+	float value = getTex(texCoord).r;
+	// for displayDim==2, use the normalized height
 	if (displayDim > 1) {
-		vertex[displayDim] -= valueMin;
-		vertex[displayDim] *= 1. / (valueMax - valueMin);
+		value = getGradientFrac(value);
+	} else {
+		// for displayDim==1, the GL ymin/ymax is set to the solver ymin/ymax, so don't transform the value
+		if (useLog) {
+			value = logmap(value);
+		}
+		//also make sure the vertex is in the z=0 plane
+		vertex.z = 0.;
 	}
-	if (useLog) {
-		vertex[displayDim] = log(max(0., vertex[displayDim])) * <?=('%.50f'):format(1/math.log(10))?>;
-	}
+	vertex[displayDim] = value;
 	return vertex;
 }
 
 void main() {
-	vec3 vertex = func(inVertex);
+	vec3 vertex = getVertex(gridCoord);
 
-	vec3 xp = func(inVertex + vec3(1./gridSize.x, 0., 0.));
-	vec3 xm = func(inVertex - vec3(1./gridSize.x, 0., 0.));
-	vec3 yp = func(inVertex + vec3(0., 1./gridSize.y, 0.));
-	vec3 ym = func(inVertex - vec3(0., 1./gridSize.y, 0.));
-
-	normal = normalize(cross(xp - xm, yp - ym));
+	if (ambient < 1.) {
+		vec3 xp = getVertex(gridCoord + vec3(1., 0., 0.));
+		vec3 xm = getVertex(gridCoord - vec3(1., 0., 0.));
+		vec3 yp = getVertex(gridCoord + vec3(0., 1., 0.));
+		vec3 ym = getVertex(gridCoord - vec3(0., 1., 0.));
+		normal = normalize(cross(xp - xm, yp - ym));
+	} else {
+		normal = vec3(0., 0., 0.);
+	}
 
 	if (displayDim > 1) {
 		vertex = chartToWorldCoord(vertex);
@@ -62,7 +72,6 @@ if fragmentShader then ?>
 out vec4 fragColor;
 
 uniform vec3 color;
-uniform float ambient;
 
 void main() {
 	vec3 light = normalize(vec3(.5, .5, 1.));

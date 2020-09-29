@@ -5,7 +5,6 @@ local class = require 'ext.class'
 local file = require 'ext.file'
 local vec3f = require 'vec-ffi.vec3f'
 local gl = require 'ffi.OpenGL'
-local matrix_ffi = require 'matrix.ffi'
 local vector = require 'hydro.util.vector'
 local Draw = require 'hydro.draw.draw'
 
@@ -54,9 +53,7 @@ function Draw2DGraph:showDisplayVar(app, solver, var)
 	gl.glUniform3f(uniforms.color.loc, (#app.solvers > 1 and solver or var).color:unpack())
 
 	-- 3 components per vertex
-	if not self.vertexes then
-		self.vertexes = vector'vec3f_t'
-	end
+	if not self.vertexes then self.vertexes = vector'vec3f_t' end
 
 	local step = math.max(1, self.step)
 	local numX = math.floor((tonumber(solver.gridSize.x) - 2 * solver.numGhost + 1) / step)
@@ -71,9 +68,9 @@ function Draw2DGraph:showDisplayVar(app, solver, var)
 	local index = 0
 	for j=0,numY-2 do
 		for i=0,numX-1 do
-			local x = (i * step + .5 + solver.numGhost) / tonumber(solver.gridSize.x)
+			local x = i * step
 			for jofs=0,1 do
-				local y = ((j + jofs) * step + .5 + solver.numGhost) / tonumber(solver.gridSize.y)
+				local y = (j + jofs) * step
 				local v = self.vertexes.v[index]
 				v.x = x
 				v.y = y
@@ -83,8 +80,8 @@ function Draw2DGraph:showDisplayVar(app, solver, var)
 		end
 	end
 	
-	gl.glEnableVertexAttribArray(shader.attrs.inVertex.loc)
-	gl.glVertexAttribPointer(shader.attrs.inVertex.loc, 3, gl.GL_FLOAT, false, 0, self.vertexes.v)
+	gl.glEnableVertexAttribArray(shader.attrs.gridCoord.loc)
+	gl.glVertexAttribPointer(shader.attrs.gridCoord.loc, 3, gl.GL_FLOAT, false, 0, self.vertexes.v)
 	
 	gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_LINE)
 
@@ -94,7 +91,7 @@ function Draw2DGraph:showDisplayVar(app, solver, var)
 	
 	gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_FILL)
 	
-	gl.glDisableVertexAttribArray(shader.attrs.inVertex.loc)
+	gl.glDisableVertexAttribArray(shader.attrs.gridCoord.loc)
 	
 	tex:unbind()
 	shader:useNone()

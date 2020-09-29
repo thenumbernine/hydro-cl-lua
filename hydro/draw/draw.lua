@@ -99,8 +99,8 @@ vec4 getGradientColor(float value) {
 
 // here's my naming convention
 // grid coords: i in [.5, n-.5] in Integers-1/2
-// tex coords: t in [.5/n, (n-.5)/n] in Reals. t = i / sizeWithoutBorder, i in [.5, n-.5]
-// tex no-ghost coords: tng in [(.5+g)/n,(n-.5-g)/n] in Reals. t = i / sizeWithoutBorder, i in [.5+g, n-.5-g]
+// tex coords: t in [.5, n-.5]/n in Reals. t = i / sizeWithoutBorder, i in [.5, n-.5]
+// tex no-ghost coords: tng in [.5-g,n-.5-g]/(n-2g) in Reals. t = i / sizeWithoutBorder, i in [.5+g, n-.5-g]
 // chart coords: x in [solver.mins, solver.maxs] in Reals.  x = tng * (solverMax - solverMin) + solverMin
 // world coords: y in Reals.  nonlinear transform.  y = f(x)
 // 'useCoordMap' replaces the chart f(x) with f(x) = (x - solverMins)/(solverMaxs - solverMins) * 2 - 1 = t * 2 - 1
@@ -115,6 +115,11 @@ vec3 chartToWorldCoord(vec3 x) {
 	}
 }
 
+vec3 texToChartCoord(vec3 x) {
+	return x * (solverMaxs - solverMins) + solverMins;
+}
+
+//should match chartToWorldCoord(texToChartCoord(x))
 vec3 texToWorldCoord(vec3 x) {
 	if (useCoordMap) {
 		return coordMap(x * (solverMaxs - solverMins) + solverMins);

@@ -48,9 +48,7 @@ function Draw1D:showDisplayVar(app, solver, var)
 
 	gl.glUniform3f(uniforms.color.loc, (#app.solvers > 1 and solver or var).color:unpack())
 
-	if not self.vertexes then
-		self.vertexes = vector'vec3f_t'
-	end
+	if not self.vertexes then self.vertexes = vector'vec3f_t' end
 
 	local step = 1
 	local numVertexes = math.floor((tonumber(solver.gridSize.x) - 2 * solver.numGhost + 1) / step)	-- (endindex - startindex + 1) / step
@@ -78,17 +76,17 @@ function Draw1D:showDisplayVar(app, solver, var)
 
 	for i=0,numVertexes-1 do
 		local v = self.vertexes.v[i]
-		v.x = (i * step + .5 + solver.numGhost) / tonumber(solver.gridSize.x)
+		v.x = i * step
 		v.y = 0--app.displayFixedY
 		v.z = 0--app.displayFixedZ
 	end
 	
-	gl.glEnableVertexAttribArray(shader.attrs.inVertex.loc)
-	gl.glVertexAttribPointer(shader.attrs.inVertex.loc, 3, gl.GL_FLOAT, false, 0, self.vertexes.v)
+	gl.glEnableVertexAttribArray(shader.attrs.gridCoord.loc)
+	gl.glVertexAttribPointer(shader.attrs.gridCoord.loc, 3, gl.GL_FLOAT, false, 0, self.vertexes.v)
 	
 	gl.glDrawArrays(gl.GL_LINE_STRIP, 0, numVertexes) 
 	
-	gl.glDisableVertexAttribArray(shader.attrs.inVertex.loc)
+	gl.glDisableVertexAttribArray(shader.attrs.gridCoord.loc)
 	
 	tex:unbind()
 	shader:useNone()
