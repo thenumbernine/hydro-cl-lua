@@ -747,7 +747,7 @@ function HydroCLApp:screenshot()
 	-- TODO only once upon init?
 	if not os.fileexists'screenshots' then
 		-- don't assert -- if it already exists the cmd will fail
-		os.execute'mkdir screenshots'
+		os.mkdir'screenshots'
 	end
 
 	-- make a new subdir for each application instance ... ?

@@ -321,13 +321,9 @@ args:
 	integratorArgs = integrator args
 --]]
 function SolverBase:init(args)
+self.initArgs = table(args)	-- save for later	
+self.initArgs.app = nil
 	time('SolverBase:init()', function()
-	
-		-- Using this for naming in the cache folder.
-		-- I might replace it with a serialized string or a hash of that.
-		self.uniqueIndex = solverUniqueIndex
-		solverUniqueIndex = solverUniqueIndex + 1
-
 		self:initMeshVars(args)
 		self:initCLDomainVars(args)
 		self:initObjs(args)
@@ -336,6 +332,49 @@ function SolverBase:init(args)
 		self:initCDefs()
 		self:postInit()
 	end)
+end
+
+-- an identifying string
+-- used for filesystem
+-- I could hash it and use that, for shorter names, but I'd rather things be identifiable
+-- TODO: make use of this in tests/test-order" etc when saving files according to their parameters
+function SolverBase:getIdent()
+-- [[ the original way
+	if not self.uniqueIndex then
+		self.uniqueIndex = solverUniqueIndex
+		solverUniqueIndex = solverUniqueIndex + 1
+	end
+	return tostring(self.uniqueIndex)
+--]]
+--[[ TODO derive this from the solver's state	
+	return require 'ext.tolua'{
+		solver = getmetatable(self).name,	-- TODO ensure this matches the require('hydro/solver/$name')
+		eqn = self.eqn.name,				-- TODO ensure this matches the require('hydro/eqn/$name')
+		--eqnArgs = {}, -- TODO params here. anything beyond the default.
+		coord = self.coord.name,			-- this already matches.
+	}
+--]]
+--[[ until then, trust the init args to be serialized already (and not objects ... which can be accepted as init args in some cases)
+	--return require 'ext.tolua'(self.initArgs, {indent=false})
+	-- here's how tests/test-order does it:
+	-- (this is causing errors, because i think these filenames are coming out too long, because they include stuff that test-order didn't
+	-- 	such as boundary condition info, eqn args, etc ... these need to be shortened)
+	assert(self.initArgs)
+	local destName = require 'ext.tolua'(self.initArgs)
+	destName = destName:match('^{(.*)}$')
+	assert(destName, "we must have got a circular reference in:\n"..destName)
+	destName = destName 
+		:gsub('%s+', ' ')
+		:gsub('"', '')
+	destName = string.trim(destName)
+	-- 
+	local destFilename = destName
+		:gsub('/', '')
+--		:gsub('{', '(')
+--		:gsub('}', ')')
+	
+	return destFilename
+--]]
 end
 
 function SolverBase:initMeshVars(args)
@@ -380,15 +419,6 @@ function SolverBase:initMeshVars(args)
 	--]]
 	}
 
-	-- TODO put this in App?
-	local function mkdir(dir)
-		if ffi.os == 'Windows' then
-			return os.execute('mkdir '..('%q'):format(dir)..' 2> nul')
-		else
-			return os.execute('mkdir -p '..('%q'):format(dir)..' 2> /dev/null')
-		end
-	end
-
 	-- in GridSolver this was 'initMeshVars' which comes first
 	-- in MeshSolver this was 'preInit' which comes later
 	
@@ -406,10 +436,10 @@ function SolverBase:initMeshVars(args)
 		args.env = solver.app.env
 		args.domain = solver.domain
 			
-		local cldir = 'cache/'..solver.uniqueIndex..'/src'
-		local bindir = 'cache/'..solver.uniqueIndex..'/bin'
-		mkdir(cldir)
-		mkdir(bindir)
+		local cldir = 'cache/'..solver:getIdent()..'/src'
+		local bindir = 'cache/'..solver:getIdent()..'/bin'
+		os.mkdir(cldir, true)
+		os.mkdir(bindir, true)
 		local clfn = cldir..'/'..args.name..'.cl'
 		local binfn = bindir..'/'..args.name..'.bin'
 		
@@ -449,7 +479,7 @@ function SolverBase:initMeshVars(args)
 		end
 		-- if we are using cached code then manually write binaries
 		if cmdline.usecachedcode and useCache then
-			local binfn = 'cache/'..solver.uniqueIndex..'/bin/'..self.name..'.bin'
+			local binfn = 'cache/'..solver:getIdent()..'/bin/'..self.name..'.bin'
 			file[binfn] = require 'ext.tolua'(self.obj:getBinaries())
 		end
 		return results
@@ -465,8 +495,8 @@ function SolverBase:initMeshVars(args)
 		
 			print('building '..args.name..'.shader:')
 			
-			local dir = 'cache/'..solver.uniqueIndex..'/shader'
-			mkdir(dir)
+			local dir = 'cache/'..solver:getIdent()..'/shader'
+			os.mkdir(dir, true)
 			local path = dir..'/'..args.name
 			-- Write generated code
 			file[path..'.vert'] = args.vertexCode

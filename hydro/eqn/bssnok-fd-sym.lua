@@ -13,6 +13,7 @@ Then I'm double checking all against (and borrowing heavily from) Zach Etienne's
 --]]
 local file = require 'ext.file'
 local class = require 'ext.class'
+local os = require 'ext.os'
 local table = require 'ext.table'
 local template = require 'template'
 local common = require 'hydro.common'
@@ -135,13 +136,8 @@ function BSSNOKFiniteDifferenceEquation:getEnv()
 
 	-- should I put this here, or in the cache dir?  if so then store the cache dir in the solver itself.
 	local symdir = 'hydro/eqn/bssnok-fd-sym/'..self.solver.coord.name
-	
-	local function fixpath(s) return require 'ffi'.os == 'Windows' and s:gsub('/', '\\') or s end
-	if require 'ffi'.os == 'Windows' then
-		os.execute('mkdir '..fixpath(symdir))
-	else
-		os.execute('mkdir -p '..fixpath(symdir))
-	end
+
+	os.mkdir(symdir, true)
 
 	-- next chore: save everything in env to env.lua
 	-- this means saving anything that will be assign'd
