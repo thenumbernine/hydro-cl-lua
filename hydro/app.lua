@@ -277,7 +277,7 @@ HydroCLApp.drawVectorLICNoiseSize = 1024
 
 -- only option is draw1D
 function HydroCLApp:display1D(...)
-	self.draw1D = self.draw1D or require 'hydro.draw.1d'()
+	self.draw1D = self.draw1D or require 'hydro.draw.1d_graph'()
 	return self.draw1D:display(self, ...)
 end
 

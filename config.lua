@@ -897,8 +897,8 @@ local args = {
 	},
 	dim = dim,
 	
-	--integrator = cmdline.integrator or 'Runge-Kutta 4',
-	integrator = cmdline.integrator or 'backward Euler',
+	integrator = cmdline.integrator or 'Runge-Kutta 4',
+	--integrator = cmdline.integrator or 'backward Euler',
 	--integrator = cmdline.integrator or 'backward Euler, CPU',	-- debugging.   seems that, for grid sizes too small, B.E. GPU fails.  i think because the reduce() gpu function isn't set up for lower bounds of buffer sizes.
 	--integratorArgs = {verbose=true},
 	cfl = .5,
@@ -1068,8 +1068,8 @@ local args = {
 	--initCond = 'Minkowski',
 	-- TODO move the coordinate system from the name to an assertion within the init
 	--initCond = 'SENR Minkowski',
-	--initCond = 'SENR UIUC',
-	initCond = 'SENR BrillLindquist',
+	initCond = 'SENR UIUC',
+	--initCond = 'SENR BrillLindquist',
 	--initCond = 'SENR BoostedSchwarzschild',
 	--initCond = 'SENR StaticTrumpet',
 }
