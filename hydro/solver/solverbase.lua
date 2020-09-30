@@ -339,7 +339,7 @@ end
 -- I could hash it and use that, for shorter names, but I'd rather things be identifiable
 -- TODO: make use of this in tests/test-order" etc when saving files according to their parameters
 function SolverBase:getIdent()
--- [[ the original way
+--[[ the original way
 	if not self.uniqueIndex then
 		self.uniqueIndex = solverUniqueIndex
 		solverUniqueIndex = solverUniqueIndex + 1
@@ -354,7 +354,7 @@ function SolverBase:getIdent()
 		coord = self.coord.name,			-- this already matches.
 	}
 --]]
---[[ until then, trust the init args to be serialized already (and not objects ... which can be accepted as init args in some cases)
+-- [[ until then, trust the init args to be serialized already (and not objects ... which can be accepted as init args in some cases)
 	--return require 'ext.tolua'(self.initArgs, {indent=false})
 	-- here's how tests/test-order does it:
 	-- (this is causing errors, because i think these filenames are coming out too long, because they include stuff that test-order didn't
@@ -370,10 +370,26 @@ function SolverBase:getIdent()
 	-- 
 	local destFilename = destName
 		:gsub('/', '')
---		:gsub('{', '(')
---		:gsub('}', ')')
+		:gsub('{', '(')
+		:gsub('}', ')')
 	
-	return destFilename
+--	return destFilename
+
+-- hmm, seems the filenames are too long
+-- how about hashing them?
+	local bit = require 'bit'
+	local len = 8
+	local chs = require 'ext.range'(len):mapi(function() return 0 end)
+	for i=1,#destFilename do
+		local j = (i-1)%len+1
+		chs[j] = bit.bxor(chs[j], destFilename:sub(i,i):byte()) 
+	end
+	return chs
+		:sub(1, math.min(len, #destFilename))
+		:mapi(function(ch) 
+			--return string.char(ch) 
+			return ('%02x'):format(ch)
+		end):concat()
 --]]
 end
 
