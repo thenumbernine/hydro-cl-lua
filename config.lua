@@ -539,7 +539,7 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn
 -- compressible Euler equations
 
 
-self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
+--self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
 
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct bounded'})))	-- this is the default hllCalcWaveMethod
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct'})))
@@ -897,8 +897,8 @@ local args = {
 	},
 	dim = dim,
 	
-	integrator = cmdline.integrator or 'Runge-Kutta 4',
-	--integrator = cmdline.integrator or 'backward Euler',
+	--integrator = cmdline.integrator or 'Runge-Kutta 4',
+	integrator = cmdline.integrator or 'backward Euler',
 	--integrator = cmdline.integrator or 'backward Euler, CPU',	-- debugging.   seems that, for grid sizes too small, B.E. GPU fails.  i think because the reduce() gpu function isn't set up for lower bounds of buffer sizes.
 	--integratorArgs = {verbose=true},
 	cfl = .5,
@@ -927,7 +927,7 @@ local args = {
 		zmax = 'quadratic',
 	},
 	--]]
-	-- [[
+	--[[
 	coord = 'sphere',
 	coordArgs = {
 		vectorComponent = 'holonomic',	-- this isn't really used since bssn is a finite-difference solver, so just pick the one that has the least complications.               
@@ -947,7 +947,7 @@ local args = {
 		{64, 16, 1},
 		
 		-- N x 2 x 2:
-		--{32, 2, 2},
+		{32, 2, 2},
 		--{80, 80, 2},
 		--{128, 2, 2},
 		--{128, 32, 2},
@@ -981,7 +981,7 @@ local args = {
 		zmax='periodic',
 	},
 	--]]
-	--[[
+	-- [[
 	coord = 'sphere-log-radial',
 	coordArgs = {
 		vectorComponent = 'holonomic',	-- this isn't really used since bssn is a finite-difference solver, so just pick the one that has the least complications.               
@@ -1068,8 +1068,8 @@ local args = {
 	--initCond = 'Minkowski',
 	-- TODO move the coordinate system from the name to an assertion within the init
 	--initCond = 'SENR Minkowski',
-	initCond = 'SENR UIUC',
-	--initCond = 'SENR BrillLindquist',
+	--initCond = 'SENR UIUC',
+	initCond = 'SENR BrillLindquist',
 	--initCond = 'SENR BoostedSchwarzschild',
 	--initCond = 'SENR StaticTrumpet',
 }

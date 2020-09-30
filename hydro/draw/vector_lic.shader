@@ -2,8 +2,8 @@
 
 <?
 local coord = solver.coord
-local varying = vertexShader and 'out'
-		or fragmentShader and 'in'
+local varying = vertexShader and "out"
+		or fragmentShader and "in"
 		or error("don't know what to set varying to")
 ?>
 
@@ -11,7 +11,11 @@ local varying = vertexShader and 'out'
 //z holds the fixed z slice of the 3D texture
 <?=varying?> vec3 viewCoord;
 
-<?=coord:getModuleCodeGLSL("coordMapGLSL", "coordMapInvGLSL")?>
+<?=coord:getModuleCodeGLSL("coordMapGLSL", "coordMapInvGLSL", 
+	solver.coord.vectorComponent == "cartesian"
+	and "cartesianToCoord"	-- coord_cartesianToCoord
+	or "coord_conn_apply23"
+)?>
 <?=draw:getCommonGLSLFragCode(solver)?>
 
 <? if vertexShader then ?>
@@ -31,15 +35,6 @@ out vec4 fragColor;
 
 uniform sampler2D noiseTex;
 uniform int integralMaxIter;
-
-<?=
-solver.coord:getModuleCodeGLSL(
-	'coordMapInvGLSL',
-	solver.coord.vectorComponent == 'cartesian'
-	and 'cartesianToCoord'	-- coord_cartesianToCoord
-	or 'coord_conn_apply23'
-)
-?>
 
 void main() {
 	//start in 2D coords, bounded by the screen space
@@ -68,9 +63,9 @@ void main() {
 			
 			vec3 dPos_ds = getTex(chartToNoGhostCoord(pos)).xyz;
 			
-<? if solver.coord.name == 'cartesian' then ?>
+<? if solver.coord.name == "cartesian" then ?>
 			vec3 dVel_ds = vec3(0., 0., 0.);
-<? elseif solver.coord.vectorComponent == 'cartesian' then ?>
+<? elseif solver.coord.vectorComponent == "cartesian" then ?>
 			//If the vector components are cartesian but our coords are chart-based
 			//then convert the vector back to the chart based coordinates.
 			vec3 dVel_ds = vec3(0., 0., 0.);
