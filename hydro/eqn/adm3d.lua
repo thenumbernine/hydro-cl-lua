@@ -317,7 +317,7 @@ kernel void applyInitCond(
 	real K = 0.;
 	real3 LambdaBar_U = real3_zero;
 	real3 beta_U = real3_zero;
-	real B_U = real3_zero;
+	real3 B_U = real3_zero;
 	sym3 epsilon_LL = sym3_zero;
 	sym3 ABar_LL = sym3_zero;
 
@@ -333,15 +333,14 @@ kernel void applyInitCond(
 	// gamma_ij = e_i^I e_j^J (epsilon_IJ + gammaHat_IJ) / W^2
 	sym3 gammaBar_LL = sym3_add(epsilon_LL, sym3_ident);
 	sym3 gamma_LL = sym3_real_mul(gammaBar_LL, 1. / (W*W));
-	U->gamma_ll = sym3_rescaleFromCoord_LL(gamma_LL);
+	U->gamma_ll = sym3_rescaleToCoord_LL(gamma_LL, x);
 	
 	// K_ij = e_i^I e_j^J (ABar_IJ + gammaBar_IJ K/3) / W^2
-	U->K_ll = sym3_rescaleFromCoord_LL(
+	U->K_ll = sym3_rescaleToCoord_LL(
 		sym3_add(
 			sym3_real_mul(ABar_LL, 1. / (W*W)),
 			sym3_real_mul(gamma_LL, K / 3.)
-		)
-	);
+		), x);
 
 	// TODO maybe derive this from LambdaBar_U ?
 	U->V_l = real3_zero;

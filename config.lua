@@ -537,7 +537,7 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn
 -- compressible Euler equations
 
 
-self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
+--self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
 
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct bounded'})))	-- this is the default hllCalcWaveMethod
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct'})))
@@ -928,7 +928,11 @@ local args = {
 	-- [[
 	coord = 'sphere',
 	coordArgs = {
-		vectorComponent = 'holonomic',	-- this isn't really used since bssn is a finite-difference solver, so just pick the one that has the least complications.               
+		-- this isn't really used since bssn is a finite-difference solver, so just pick the one that has the least complications.
+		-- but if you want to compare this to finite volume then you should use anholonomic or cartesian
+		--vectorComponent = 'holonomic',
+		vectorComponent = 'anholonomic',
+		--vectorComponent = 'cartesian',
 	},
 	-- mind you, these mins/maxs correlate with SENR
 	-- however, this would put the mid phi at pi, which puts the graph on the x- side of the xy plane ... not the x+ side as it would if phi-mid was equal to 0
@@ -1062,9 +1066,9 @@ local args = {
 	},
 	--]]
 	
-	initCond = 'Minkowski',
+	--initCond = 'Minkowski',
 	--initCond = 'SENR Minkowski',
-	--initCond = 'SENR UIUC',
+	initCond = 'SENR UIUC',
 	--initCond = 'SENR BrillLindquist',
 	--initCond = 'SENR BoostedSchwarzschild',
 	--initCond = 'SENR StaticTrumpet',
