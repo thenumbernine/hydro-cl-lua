@@ -54,7 +54,7 @@ local args = {
 	-- this is functional without usePLM, but doing so falls back on the cell-centered buffer, which with the current useCTU code will update the same cell twice from different threads
 	--useCTU = true,
 	
-	-- [[ Cartesian
+	--[[ Cartesian
 	coord = 'cartesian',
 	coordArgs = {vectorComponent='holonomic'},		-- use the coordinate derivatives to represent our vector components (though they may not be normalized)
 	--coordArgs = {vectorComponent='anholonomic'},		-- use orthonormal basis to represent our vector components
@@ -112,8 +112,8 @@ local args = {
 		-- TODO doesn't work
 	--coordArgs = {vectorComponent='holonomic'},		-- use the coordinate derivatives to represent our vector components (though they may not be normalized)
 		-- TODO doesn't work for rmin=0
-	--coordArgs = {vectorComponent='anholonomic'},		-- use orthonormal basis to represent our vector components.
-	coordArgs = {vectorComponent='cartesian'},		-- use cartesian vector components 
+	coordArgs = {vectorComponent='anholonomic'},		-- use orthonormal basis to represent our vector components.
+	--coordArgs = {vectorComponent='cartesian'},		-- use cartesian vector components 
 	mins = cmdline.mins or {0, 0, -1},
 	maxs = cmdline.maxs or {1, 2*math.pi, 1},			-- TODO bake the 2π into the coordinate chart so this matches grid/cylinder.  Technically θ→2πθ means it isn't the standard θ variable.  I did this for UI convenience with CFDMesh.
 	gridSize = ({
@@ -125,7 +125,7 @@ local args = {
 		-- r
 		-- notice, this boundary is designed with cylindrical components in mind, so it will fail with vectorComponent==cartesian 
 		--xmin=cmdline.boundary or 'freeflow',		
-		--xmin=cmdline.boundary or 'cylinderRMin',	-- use this when rmin=0
+		xmin=cmdline.boundary or 'cylinderRMin',	-- use this when rmin=0
 		--xmin=cmdline.boundary or 'mirror',
 		--xmin=cmdline.boundary or {name='mirror', args={restitution=0}},
 		xmax=cmdline.boundary or 'freeflow',
@@ -143,13 +143,11 @@ local args = {
 		zmax=cmdline.boundary or 'freeflow',
 	},
 	--]]
-	--[[ Sphere: r, θ, φ 
+	-- [[ Sphere: r, θ, φ 
 	coord = 'sphere',
 	--coordArgs = {volumeDim = 3},	-- use higher dimension volume, even if the grid is only 1D to 3D
-		-- took 3 min to compile: =P
-	coordArgs = {vectorComponent='holonomic'},
-	--coordArgs = {vectorComponent='anholonomic'},
-		-- 70 seconds =P 
+	--coordArgs = {vectorComponent='holonomic'},
+	coordArgs = {vectorComponent='anholonomic'},
 	--coordArgs = {vectorComponent='cartesian'},
 	mins = cmdline.mins or {0, 0, -math.pi},
 	maxs = cmdline.maxs or {8, math.pi, math.pi},
@@ -204,13 +202,13 @@ local args = {
 	
 	-- Euler / SRHD / MHD initial states:
 	
-	--initCond = 'constant',
-	--initCondArgs = {v={1e-1,1e-1}},
+	initCond = 'constant',
+	initCondArgs = {v={1e-1,1e-1}},
 	
 	--initCond = 'random',
 	--initCond = 'linear',
 	--initCond = 'gaussian',
-	initCond = 'advect wave',
+	--initCond = 'advect wave',
 	--initCond = 'sphere',
 	--initCond = 'spiral',
 	--initCond = 'rarefaction wave',

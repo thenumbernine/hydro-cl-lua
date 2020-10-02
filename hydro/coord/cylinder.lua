@@ -42,7 +42,13 @@ function Cylinder:init(args)
 	-- https://ntrs.nasa.gov/archive/nasa/casi.ntrs.nasa.gov/19870019781.pdf
 	-- it looks like all I need is the volume and I'm fine
 
-	self.chart = function() return Tensor('^I', r * cos(theta), r * sin(theta), z) end
+	self.chart = function() 
+		return Tensor('^I', 
+			r * cos(theta), 
+			r * sin(theta), 
+			z
+		) 
+	end
 	
 	Cylinder.super.init(self, args)
 

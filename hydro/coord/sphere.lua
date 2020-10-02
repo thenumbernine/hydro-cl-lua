@@ -23,11 +23,11 @@ function Sphere:init(args)
 	self.baseCoords = table{r, theta, phi}
 
 	-- TODO same as lenExprs
-	self.eHolToE = symmath.Matrix{
+	self.eHolToE = symmath.Matrix(
 		{1, 0, 0},
 		{0, 1/r, 0},
-		{0, 0, 1/(r*symmath.sin(theta))},
-	}
+		{0, 0, 1/(r*symmath.sin(theta))}
+	)
 	
 	self.chart = function() 
 		return Tensor('^I', 
@@ -45,10 +45,6 @@ function Sphere:init(args)
 		y = r * sin(theta) * sin(phi),
 		z = r * cos(theta),
 	}
-end
-
-function Sphere:getModuleDepends_coord_parallelPropagate()
-	return {'rotate'}
 end
 
 function Sphere:getCoordMapInvModuleCode()
@@ -72,6 +68,10 @@ real3 coordMapInv(real3 x) {
 ]], {
 		solver = self.solver,
 	})
+end
+
+function Sphere:getModuleDepends_coord_parallelPropagate()
+	return {'rotate'}
 end
 
 function Sphere:getParallelPropagatorCode()
@@ -162,7 +162,7 @@ real3 coord_parallelPropagateU1(real3 v, real3 x, real dx) {
 }
 
 real3 coord_parallelPropagateU2(real3 v, real3 x, real dx) {
-	return real3_rotateX(-dx);
+	return real3_rotateX(v, -dx);
 }
 
 <? end ?>
@@ -209,6 +209,5 @@ function Sphere:fillGridCellBuf(cellsCPU)
 		end
 	end
 end
-
 
 return Sphere

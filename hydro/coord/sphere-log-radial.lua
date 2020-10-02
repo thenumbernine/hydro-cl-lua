@@ -86,11 +86,11 @@ function SphereLogRadial:init(args)
 		print(rho:eq(self.rho_for_r))
 	end
 
-	self.eHolToE = symmath.Matrix{
+	self.eHolToE = symmath.Matrix(
 		{1/r:diff(rho), 0, 0},
 		{0, 1/r, 0},
-		{0, 0, 1/(r*symmath.sin(theta))},
-	}
+		{0, 0, 1/(r*symmath.sin(theta))}
+	)
 	
 	self.chart = function() 
 		return Tensor('^I', 
