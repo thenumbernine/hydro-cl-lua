@@ -286,7 +286,7 @@ function ADM_BonaMasso_3D:getModuleDependsSolver()
 end
 
 function ADM_BonaMasso_3D:getModuleDependsApplyInitCond()
-	return {'coordMap', 'coord_g_ll'}
+	return {'coordMap', 'coord_g_ll', 'rescaleFromCoord/rescaleToCoord'}
 end
 
 -- always true, except for initAnalytica, but I don't have that coded yet
@@ -313,9 +313,13 @@ kernel void applyInitCond(
 	global <?=eqn.cons_t?>* U = UBuf + index;
 
 	real alpha = 1.;
-	real3 beta_u = real3_zero;
-	sym3 gamma_ll = coord_g_ll(x);
-	sym3 K_ll = sym3_zero;
+	real W = 1.;
+	real K = 0.;
+	real3 LambdaBar_U = real3_zero;
+	real3 beta_U = real3_zero;
+	real B_U = real3_zero;
+	sym3 epsilon_LL = sym3_zero;
+	sym3 ABar_LL = sym3_zero;
 
 	//throw-away for ADM3D ... but not for BSSNOK
 	// TODO hold rho somewhere?
@@ -324,16 +328,14 @@ kernel void applyInitCond(
 	<?=code?>
 
 	U->alpha = alpha;
-	<? if eqn.useShift ~= 'none' then
-	U->beta_u = real3_rescaleFromCoord_U(beta_U);
 
-	-- gammaHat_IJ = delta_IJ
-	-- gamma_ij = e_i^I e_j^J (epsilon_IJ + gammaHat_IJ) / W^2
+	// gammaHat_IJ = delta_IJ
+	// gamma_ij = e_i^I e_j^J (epsilon_IJ + gammaHat_IJ) / W^2
 	sym3 gammaBar_LL = sym3_add(epsilon_LL, sym3_ident);
 	sym3 gamma_LL = sym3_real_mul(gammaBar_LL, 1. / (W*W));
 	U->gamma_ll = sym3_rescaleFromCoord_LL(gamma_LL);
 	
-	-- K_ij = e_i^I e_j^J (ABar_IJ + gammaBar_IJ K/3) / W^2
+	// K_ij = e_i^I e_j^J (ABar_IJ + gammaBar_IJ K/3) / W^2
 	U->K_ll = sym3_rescaleFromCoord_LL(
 		sym3_add(
 			sym3_real_mul(ABar_LL, 1. / (W*W)),
@@ -344,11 +346,9 @@ kernel void applyInitCond(
 	// TODO maybe derive this from LambdaBar_U ?
 	U->V_l = real3_zero;
 
-<? 
-if eqn.useShift ~= 'none' then
+<? if eqn.useShift ~= 'none' then
 ?>	U->beta_u = real3_rescaleFromCoord_U(beta_U);
-<? 	-- TODO support for hyperbolic gamma driver, so we can read B_U
-end
+<? end -- TODO support for hyperbolic gamma driver, so we can read B_U
 ?>
 
 <? if eqn.useStressEnergyTerms then ?>
@@ -424,8 +424,7 @@ kernel void applyInitCond(
 	sym3 gamma_ll = coord_g_ll(x);
 	sym3 K_ll = sym3_zero;
 
-	//throw-away for ADM3D ... but not for BSSNOK
-	// TODO hold rho somewhere?
+	//TODO stress-energy vars 
 	real rho = 0.;
 
 	<?=code?>

@@ -72,6 +72,12 @@ function BSSNOKFiniteDifferenceEquation:init(args)
 	BSSNOKFiniteDifferenceEquation.super.init(self, args)
 end
 
+function BSSNOKFiniteDifferenceEquation:getModuleDependsCommon()
+	return {
+		'rescaleFromCoord/rescaleToCoord',
+	}
+end
+
 function BSSNOKFiniteDifferenceEquation:createInitState()
 	BSSNOKFiniteDifferenceEquation.super.createInitState(self)
 	self:addGuiVars{

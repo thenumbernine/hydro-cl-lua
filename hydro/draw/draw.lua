@@ -3,6 +3,7 @@ parent class for some common functions that all draw glsl code uses
 --]]
 
 local class = require 'ext.class'
+local table = require 'ext.table'
 local template = require 'template'
 local gl = require 'gl'
 local matrix_ffi = require 'matrix.ffi'
@@ -14,7 +15,6 @@ local Draw = class()
 function Draw:getCommonGLSLFragCode(solver)
 	return template([[
 #define _1_LN_10 	<?=('%.50f'):format(1/math.log(10))?>
-
 
 
 uniform int displayDim;
@@ -231,6 +231,32 @@ function Draw:setupDisplayVarShader(shader, app, solver, var, valueMin, valueMax
 		--gl.glUniform4fv(uniforms.displaySliceAngle.loc, 4, app.displaySliceAngle.s)
 		gl.glUniform4f(uniforms.displaySliceAngle.loc, app.displaySliceAngle:unpack())
 	end
+end
+
+local function makeGLSL(code)
+	return table{
+		'#define M_PI '..('%.50f'):format(math.pi),
+		'#define inline',
+		'#define real					float',
+		'#define _real3					vec3',
+		'#define real3					vec3',
+		'#define real3_zero				vec3(0.,0.,0.)',
+		'#define real3_add(a,b)			((a)+(b))',
+		'#define real3_sub(a,b)			((a)-(b))',
+		'#define real3_real_mul(a,b)	((a)*(b))',
+		'#define real3_dot				dot',
+		'#define real3_len(a)			length(a)',
+		'#define real3_lenSq(a)			dot(a,a)',
+		'#define atan2					atan',
+		'#define fmod					mod',
+		'#define fabs					abs',
+		'',
+		(code:gsub('static inline ', '')),
+	}:concat'\n'
+end
+
+function Draw:getModuleCodeGLSL(solver, ...)
+	return makeGLSL(solver.modules:getCodeAndHeader(...))
 end
 
 return Draw

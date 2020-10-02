@@ -6,8 +6,10 @@ varying vec3 texCoordStart;
 varying vec3 vertexStart;
 varying vec3 eye;
 
+<?=draw:getModuleCodeGLSL(solver, "coordMapGLSL")?>
+<?=draw:getCommonGLSLFragCode(solver)?>
+
 <? if vertexShader then ?>
-<?=coord:getModuleCodeGLSL'coordMapGLSL'?>
 
 void main() {
 	//this only needs to be done once per render
@@ -34,8 +36,6 @@ uniform bool useIsobars;
 uniform float numIsobars;
 
 uniform int maxiter;
-
-<?=draw:getCommonGLSLFragCode(solver)?>
 
 float getVoxelValue(vec3 tc) {
 	//using texel coordinates as-is

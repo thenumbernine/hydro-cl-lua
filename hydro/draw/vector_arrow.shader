@@ -7,7 +7,7 @@ local varying = vertexShader and 'out'
 		or error("don't know what to set varying to")
 ?>
 
-<?=coord:getModuleCodeGLSL("coordMapGLSL", "coordMapInvGLSL", "cartesianFromCoord")?>
+<?=draw:getModuleCodeGLSL(solver, "coordMapGLSL", "coordMapInvGLSL", "cartesianFromCoord")?>
 <?=draw:getCommonGLSLFragCode(solver)?>
 
 <? if vertexShader then ?>

@@ -210,7 +210,7 @@ local args = {
 	--initCond = 'random',
 	--initCond = 'linear',
 	--initCond = 'gaussian',
-	--initCond = 'advect wave',
+	initCond = 'advect wave',
 	--initCond = 'sphere',
 	--initCond = 'spiral',
 	--initCond = 'rarefaction wave',
@@ -320,7 +320,7 @@ local args = {
 
 	-- Einstein
 	--initCond = 'Minkowski',
-	initCond = 'gaussian perturbation',
+	--initCond = 'gaussian perturbation',
 	--initCond = 'plane gauge wave',
 
 
@@ -539,7 +539,7 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn
 -- compressible Euler equations
 
 
---self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
+self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
 
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct bounded'})))	-- this is the default hllCalcWaveMethod
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct'})))

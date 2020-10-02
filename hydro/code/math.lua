@@ -409,7 +409,10 @@ real real3_len(real3 a) {
 
 	modules:add{
 		name = 'rotate',
-		depends = {'real3'},
+		depends = {
+			'real3',
+			'quat',	-- used only for real3_rotateFrom and real3_rotateTo
+		},
 		headercode = [[
 
 real3 real3_swap0(real3 v);
@@ -1135,7 +1138,12 @@ real3x3 real3_3sym3_dot2(real3 a, _3sym3 b) {
 
 	modules:add{
 		name = 'real3x3x3',
-		depends = {'real3', 'sym3', 'real3x3', '_3sym3'},
+		depends = {
+			'real3',
+			'sym3',
+			'real3x3',
+			'_3sym3',	-- real3x3x3_from__3sym3x3, _3sym3x3_from_real3x3x3
+		},
 		typecode = [[
 
 typedef union {
@@ -1157,6 +1165,8 @@ real3 real3x3x3_sym3_dot23(real3x3x3 a, sym3 b);
 real3x3 _3sym3_real3x3x3_dot12_23(_3sym3 a, real3x3x3 b);
 sym3 _3sym3_real3x3x3_dot13_to_sym3(_3sym3 a, real3x3x3 b);
 
+real3x3x3 real3x3x3_from__3sym3(_3sym3 m);
+_3sym3 _3sym3_from_real3x3x3(real3x3x3 m);
 ]],
 		code = template([[
 
@@ -1225,6 +1235,34 @@ sym3 _3sym3_real3x3x3_dot13_to_sym3(_3sym3 a, real3x3x3 b) {
 ?>	};
 }
 
+real3x3x3 real3x3x3_from__3sym3(_3sym3 m) {
+	return (real3x3x3){
+<? for i,xi in ipairs(xNames) do
+?>		.<?=xi?> = (real3x3){
+<?	for j,xj in ipairs(xNames) do
+?>			.<?=xj?> = (real3){
+<?		for k,xk in ipairs(xNames) do
+?>				.<?=xk?> = m.<?=xi?>.<?=sym(j,k)?>,
+<?		end
+?>			},
+<?	end
+?>		},
+<? end
+?>	};
+}
+
+_3sym3 _3sym3_from_real3x3x3(real3x3x3 m) {
+	return (_3sym3){
+<? for i,xi in ipairs(xNames) do
+?>		.<?=xi?> = (sym3){
+<?	for jk,xjk in ipairs(symNames) do
+		local j,k,xj,xk = from6to3x3(jk)
+?>			.<?=xjk?> = .5 * (m.<?=xi?>.<?=xj?>.<?=xk?> + m.<?=xi?>.<?=xk?>.<?=xj?>),
+<?	end
+?>		},
+<? end
+?>	};
+}
 
 ]],		{
 			xNames = xNames,

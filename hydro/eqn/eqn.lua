@@ -355,12 +355,35 @@ typedef union {
 			_3sym3 = 3,
 			real3x3x3 = 3,
 		}
+		
+		for _,var in ipairs(self.consStruct.vars) do
+			-- guess the variance if it isn't specified
+			if not var.variance then
+				var.variance = var.name:match'_([^_]*)$' or ''
+			end
+			-- also assert it is the right one for the struct
+			local degree = degreeForType[var.type]
+			if #var.variance ~= degree  then
+				error("variable variance "..('%q'):format(var.variance).." does not match variable type "..var.type.." degree "..degree)
+			end
+		end
+
 		solver.modules:add{
 			name = 'eqn.cons_parallelPropagate',
-			depends = {
+			depends = table{
 				'eqn.cons_t',
 				'coord_parallelPropagate',
-			},
+			}:append(
+				-- rank-2 always use real3x3 for transformation
+				self.consStruct.vars:find(nil, function(var)
+					return degreeForType[var.type] == 2
+				end) and {'real3x3'} or nil
+			):append(
+				-- rank-3 always use real3x3x3 for transformation
+				self.consStruct.vars:find(nil, function(var)
+					return degreeForType[var.type] == 3
+				end) and {'real3x3x3'} or nil
+			),
 			code = self:template([[<? 
 for side=0,solver.dim-1 do
 	if coord.vectorComponent == 'cartesian'
@@ -370,11 +393,8 @@ for side=0,solver.dim-1 do
 <?	else
 ?><?=eqn.cons_t?> cons_parallelPropagate<?=side?>(<?=eqn.cons_t?> U, real3 x, real dx) {
 <?		for _,var in ipairs(eqn.consStruct.vars) do
-			local variance = var.variance or var.name:match'_([^_]*)$' or ''
+			local variance = assert(var.variance)
 			local degree = degreeForType[var.type]
-			if #variance ~= degree  then
-				error("variable variance "..('%q'):format(variance).." does not match variable type "..var.type.." degree "..degree)
-			end
 --print(var.name, var.type, variance, degree)			
 			if variance == '' then
 			elseif variance == 'u' then
@@ -387,19 +407,23 @@ for side=0,solver.dim-1 do
 <?
 			elseif variance == 'll' then
 -- (P^-T)_a^u (P^-T)_b^v T_uv
-?>				real3x3 t = real3x3_from_<?=var.type?>(U.<?=var.name?>);
-				t.x = coord_parallelPropagateL<?=side?>(t.x, x, dx);
-				t.y = coord_parallelPropagateL<?=side?>(t.y, x, dx);
-				t.z = coord_parallelPropagateL<?=side?>(t.z, x, dx);
-				t = real3x3_transpose(t);
-				t.x = coord_parallelPropagateL<?=side?>(t.x, x, dx);
-				t.y = coord_parallelPropagateL<?=side?>(t.y, x, dx);
-				t.z = coord_parallelPropagateL<?=side?>(t.z, x, dx);
-				U.<?=var.name?> = <?=var.type?>_from_real3x3(t);
+?>				{
+					real3x3 t = real3x3_from_<?=var.type?>(U.<?=var.name?>);
+					t.x = coord_parallelPropagateL<?=side?>(t.x, x, dx);
+					t.y = coord_parallelPropagateL<?=side?>(t.y, x, dx);
+					t.z = coord_parallelPropagateL<?=side?>(t.z, x, dx);
+					t = real3x3_transpose(t);
+					t.x = coord_parallelPropagateL<?=side?>(t.x, x, dx);
+					t.y = coord_parallelPropagateL<?=side?>(t.y, x, dx);
+					t.z = coord_parallelPropagateL<?=side?>(t.z, x, dx);
+					U.<?=var.name?> = <?=var.type?>_from_real3x3(t);
+				}
 <?			elseif variance == 'lll' then
-?>				real3x3x3 t = real3x3x3_from_<?=var.type?>(U.<?=var.name?>);
-				real3 tmp;
-<?				local is = table()
+?>				{
+					real3x3x3 t = real3x3x3_from_<?=var.type?>(U.<?=var.name?>);
+					real3 tmp;
+<?				local table = require 'ext.table'
+				local is = table()
 				for e=1,3 do
 					for i,xi in ipairs(xNames) do
 						is[e] = xi
@@ -407,17 +431,18 @@ for side=0,solver.dim-1 do
 							is[e%3+1] = xj
 							for k,xk in ipairs(xNames) do
 								is[(e+1)%3+1] = xk
-?>					tmp.<?=xk?> = t.<?=is:concat'.'?>;
+?>						tmp.<?=xk?> = t.<?=is:concat'.'?>;
 <?							end
-?>					tmp = coord_parallelPropagateL<?=side?>(tmp, x, dx);
+?>						tmp = coord_parallelPropagateL<?=side?>(tmp, x, dx);
 <?							for k,xk in ipairs(xNames) do
 								is[(e+1)%3+1] = xk
-?>					t.<?=is:concat'.'?> = tmp.<?=xk?>;
+?>						t.<?=is:concat'.'?> = tmp.<?=xk?>;
 <?							end
 						end
 					end
 				end
-?>				U.<?=var.name?> = real3x3x3_from_<?=var.type?>(t);
+?>					U.<?=var.name?> = <?=var.type?>_from_real3x3x3(t);
+				}
 <?			else
 				error("don't know how to handle variance for "..('%q'):format(variance))
 			end

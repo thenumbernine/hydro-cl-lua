@@ -164,7 +164,10 @@ function BSSNOKFiniteDifferenceEquation:initCodeModules()
 
 	solver.modules:add{
 		name = 'calc_partial_det_gammaHat_L',
-		depends = {'calc_partial_det_gammaHat_l'},
+		depends = {
+			'calc_partial_det_gammaHat_l',
+			'rescaleFromCoord/rescaleToCoord',
+		},
 		code = [[
 real3 calc_partial_det_gammaHat_L(real3 x) {
 	real3 partial_det_gammaHat_l = calc_partial_det_gammaHat_l(x);
@@ -182,7 +185,10 @@ real3 calc_partial_det_gammaHat_L(real3 x) {
 
 	solver.modules:add{
 		name = 'calc_partial2_det_gammaHat_LL',
-		depends = {'calc_partial2_det_gammaHat_ll'},
+		depends = {
+			'calc_partial2_det_gammaHat_ll',
+			'rescaleFromCoord/rescaleToCoord',
+		},
 		code = [[
 sym3 calc_partial2_det_gammaHat_LL(real3 x) {
 	sym3 partial2_det_gammaHat_ll = calc_partial2_det_gammaHat_ll(x);
@@ -201,7 +207,16 @@ function BSSNOKFiniteDifferenceEquation:getModuleDependsApplyInitCond()
 		'coordMap',
 		'calc_gammaHat_ll',
 		'eqn.common',	-- *_rescaleTo/FromCoord_*
-	}
+	}:append(
+		-- only initAnalytical or default (not useBSSNVars) need rescaling
+		(self.initCond.initAnalytical or not self.initCond.useBSSNVars) and {
+			'rescaleFromCoord/rescaleToCoord',
+		} or nil
+	):append(
+		self.initCond.initAnalytical and {
+			'_3sym3_rescaleFromCoord/_3sym3_rescaleToCoord',
+		} or nil
+	)
 end
 
 --[[
@@ -599,7 +614,13 @@ function BSSNOKFiniteDifferenceEquation:getModuleDependsCommon()
 		'coord_dx#',
 		'calc_gammaHat_ll',
 		'calc_det_gammaHat',	-- used by calc_det_gammaBar
-	}
+		'rescaleFromCoord/rescaleToCoord',
+		'_3sym3_rescaleFromCoord/_3sym3_rescaleToCoord',
+	}:append(
+		self.useScalarField and {
+			'cplx3_rescaleFromCoord/cplx3_rescaleToCoord',
+		} or nil
+	)
 end
 
 BSSNOKFiniteDifferenceEquation.predefinedDisplayVars = {

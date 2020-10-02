@@ -1388,32 +1388,6 @@ real3 coord_cartesianFromCoord(real3 u, real3 pt) {
 	end
 end
 
--- [[ TODO move this to hydro/draw somewhere
-local function makeGLSL(code)
-	return table{
-		'#define M_PI '..('%.50f'):format(math.pi),
-		'#define inline',
-		'#define real					float',
-		'#define _real3					vec3',
-		'#define real3					vec3',
-		'#define real3_zero				vec3(0.,0.,0.)',
-		'#define real3_add(a,b)			((a)+(b))',
-		'#define real3_sub(a,b)			((a)-(b))',
-		'#define real3_real_mul(a,b)	((a)*(b))',
-		'#define real3_dot				dot',
-		'#define real3_len(a)			length(a)',
-		'#define real3_lenSq(a)			dot(a,a)',
-		'#define atan2					atan',
-		'#define fmod					mod',
-		'',
-		(code:gsub('static inline ', '')),
-	}:concat'\n'
-end
-function CoordinateSystem:getModuleCodeGLSL(...)
-	return makeGLSL(self.solver.modules:getCodeAndHeader(...))
-end
---]]
-
 -- until I get inverses on systems of equations working, I'll have this manually specified
 function CoordinateSystem:getCoordMapInvModuleCode()
 	return [[

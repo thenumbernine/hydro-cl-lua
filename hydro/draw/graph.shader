@@ -9,7 +9,7 @@ local varying = vertexShader and 'out'
 
 uniform float ambient;
 
-<?=solver.coord:getModuleCodeGLSL("coordMapGLSL", "coordMapInvGLSL")?>
+<?=draw:getModuleCodeGLSL(solver, "coordMapGLSL", "coordMapInvGLSL")?>
 <?=draw:getCommonGLSLFragCode(solver)?>
 
 <? if vertexShader then ?>
