@@ -1755,6 +1755,89 @@ kernel void applyInitCond(
 		}))
 	end
 	
+	-- if we're using a SENR init cond then init the components directly
+	-- TODO port these from sympy into symmath 
+	if require 'hydro.init.senr'[1].super.is(initCond) then
+		return self:template([=[
+kernel void applyInitCond(
+	constant <?=solver.solver_t?>* solver,
+	constant <?=solver.initCond_t?>* initCond,
+	global <?=eqn.cons_t?>* UBuf,
+	const global <?=solver.coord.cell_t?>* cellBuf
+) {
+	SETBOUNDS(0,0);
+	global <?=eqn.cons_t?>* U = UBuf + index;
+	real3 x = cellBuf[index].pos;
+
+	if (OOB(numGhost,numGhost)) {
+		U->alpha = INFINITY;
+		U->W = INFINITY;
+		U->K = INFINITY;
+		U->beta_U = _real3(INFINITY, INFINITY, INFINITY);
+		U->B_U = _real3(INFINITY, INFINITY, INFINITY);
+		U->LambdaBar_U = _real3(INFINITY, INFINITY, INFINITY);
+		U->epsilon_LL = _sym3(INFINITY, INFINITY, INFINITY, INFINITY, INFINITY, INFINITY);
+		U->ABar_LL = _sym3(INFINITY, INFINITY, INFINITY, INFINITY, INFINITY, INFINITY);
+		U->H = INFINITY;
+		U->M_U = _real3(INFINITY, INFINITY, INFINITY);
+		U->rho = INFINITY;
+		U->S_u = _real3(INFINITY, INFINITY, INFINITY);
+		U->S_ll = _sym3(INFINITY, INFINITY, INFINITY, INFINITY, INFINITY, INFINITY);
+		return;
+	}
+
+	real3 xc = coordMap(x);
+	real3 mids = real3_real_mul(real3_add(solver->mins, solver->maxs), .5);
+
+	//bssn vars - use these for init.senr:
+	real alpha = 1.;
+	real W = 1.;
+	real K = 0.;
+	real3 LambdaBar_U = real3_zero;
+	real3 beta_U = real3_zero;
+	real3 B_U = real3_zero;
+	sym3 epsilon_LL = sym3_zero;
+	sym3 ABar_LL = sym3_zero;
+
+	// stress-energy tensor
+	real rho = 0.;
+
+<? if eqn.useScalarField then ?>	
+	cplx Phi = cplx_zero;
+	cplx3 Psi_l = cplx3_zero;
+	cplx Pi = cplx_zero;
+<? end ?>
+
+	<?=code?>
+
+	//bssn vars - use these for init.senr:
+	U->alpha = alpha;
+	U->K = K;
+	U->W = W;
+	U->LambdaBar_U = LambdaBar_U;
+	U->beta_U = beta_U;
+	U->B_U = B_U;
+	U->epsilon_LL = epsilon_LL;
+	U->ABar_LL = ABar_LL;
+
+	//stress-energy fields
+	U->rho = rho;
+	U->S_u = real3_zero;
+	U->S_ll = sym3_zero;
+	U->H = 0.;
+	U->M_U = real3_zero;
+
+<? if eqn.useScalarField then ?>
+	U->Phi = Phi;
+	U->Psi_l = Psi_l;	//init with a numeric derivative?
+	U->Pi = Pi;
+<? end ?>
+}
+]=], 	{
+			code = initCond:getInitCondCode(self.solver),
+		})
+	end
+
 	return template([=[
 kernel void applyInitCond(
 	constant <?=solver.solver_t?>* solver,

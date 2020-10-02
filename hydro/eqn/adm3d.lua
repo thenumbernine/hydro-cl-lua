@@ -191,6 +191,15 @@ end
 
 function ADM_BonaMasso_3D:createInitState()
 	ADM_BonaMasso_3D.super.createInitState(self)
+	
+	-- eqn.einstein compatability hack ...
+	-- if initCond.initAnalytical is *NOT* set then it will call initDerivs(), which is usually only done for finite-differencing the original state variables.
+	-- if initCond.initAnalytical is set then it expects the analytical expressions to be written *HERE*
+	-- ... which adm3d does not do yet.
+	if self.initCond.initAnalytical then
+		error("adm3d can't handle analytical initial conditions yet")
+	end
+
 	self:addGuiVars{
 		{
 			type = 'combo',

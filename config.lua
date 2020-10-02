@@ -3,7 +3,7 @@ TODO one config per experiment (initial condition + config)
 and no more setting config values (boundary, etc) in the init cond file
 --]]
 
-local dim = cmdline.dim or 2
+local dim = cmdline.dim or 1
 local args = {
 	app = self, 
 	eqn = cmdline.eqn,
@@ -217,7 +217,7 @@ local args = {
 	--initCond = 'Bessel',
 	--initCond = 'cyclone',
 	
-	initCond = 'Sod',
+	--initCond = 'Sod',
 	--initCond = 'Sod with physical units',
 	--initCondArgs = {dim=cmdline.displayDim},
 	
@@ -319,7 +319,7 @@ local args = {
 
 
 	-- Einstein
-	--initCond = 'Minkowski',
+	initCond = 'Minkowski',
 	--initCond = 'gaussian perturbation',
 	--initCond = 'plane gauge wave',
 
@@ -903,7 +903,7 @@ local args = {
 	--integratorArgs = {verbose=true},
 	cfl = .5,
 
-	--[[
+	-- [[
 	coord = 'cartesian',
 	mins = {-3,-3,-3},
 	maxs = {3,3,3},
@@ -1064,9 +1064,7 @@ local args = {
 	},
 	--]]
 	
-	-- only for bssnok-fd-senr
 	--initCond = 'Minkowski',
-	-- TODO move the coordinate system from the name to an assertion within the init
 	--initCond = 'SENR Minkowski',
 	initCond = 'SENR UIUC',
 	--initCond = 'SENR BrillLindquist',
@@ -1094,4 +1092,10 @@ if cmdline['bssnok-fd-senr-pirk'] then
 	self.solvers:insert(require 'hydro.solver.bssnok-fd-pirk'(table(args, {eqn = 'bssnok-fd-senr'})))
 end
 
+if cmdline['adm3d-roe'] then
+	self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='adm3d'})))
+end
+if cmdline['adm3d-hll'] then
+	self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='adm3d'})))
+end
 --]=]

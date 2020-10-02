@@ -19,12 +19,6 @@ local makePartials = require 'hydro.eqn.makepartial'
 
 local BSSNOKFiniteDifferenceEquation = class(BSSNOKFiniteDifferenceEquationBase)
 
-BSSNOKFiniteDifferenceEquation.initConds = table():append(
-	require 'hydro.init.senr'
-):append(
-	require 'hydro.init.einstein'
-)
-
 BSSNOKFiniteDifferenceEquation.name = 'BSSNOK finite difference' 
 BSSNOKFiniteDifferenceEquation.useConstrainU = true
 BSSNOKFiniteDifferenceEquation.useSourceTerm = true
@@ -412,9 +406,17 @@ kernel void applyInitCond(
 	real3 xc = coordMap(x);
 	real3 mids = real3_real_mul(real3_add(solver->mins, solver->maxs), .5);
 
-	//Minkowski:
-	setFlatSpace(solver, U, x);
+	//bssn vars - use these for init.senr:
+	real alpha = 1.;
+	real W = 1.;
+	real K = 0.;
+	real3 LambdaBar_U = real3_zero;
+	real3 beta_U = real3_zero;
+	real3 B_U = real3_zero;
+	sym3 epsilon_LL = sym3_zero;
+	sym3 ABar_LL = sym3_zero;
 
+	// stress-energy tensor
 	real rho = 0.;
 
 <? if eqn.useScalarField then ?>	
@@ -425,6 +427,17 @@ kernel void applyInitCond(
 
 	<?=code?>
 
+	//bssn vars - use these for init.senr:
+	U->alpha = alpha;
+	U->K = K;
+	U->W = W;
+	U->LambdaBar_U = LambdaBar_U;
+	U->beta_U = beta_U;
+	U->B_U = B_U;
+	U->epsilon_LL = epsilon_LL;
+	U->ABar_LL = ABar_LL;
+
+	//stress-energy fields
 	U->rho = rho;
 	U->S_u = real3_zero;
 	U->S_ll = sym3_zero;

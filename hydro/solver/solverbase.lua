@@ -323,6 +323,7 @@ args:
 function SolverBase:init(args)
 self.initArgs = table(args)	-- save for later	
 self.initArgs.app = nil
+self.initArgs.solver = getmetatable(self).name	-- not in initArgs but is unique	
 	time('SolverBase:init()', function()
 		self:initMeshVars(args)
 		self:initCLDomainVars(args)

@@ -212,7 +212,16 @@ return table{
 	{
 		name = 'Minkowski',
 		-- flag for determining whether to initialize variables (esp the derivative variables) from analytical expressions, or whether to use finite difference via initDerivs
-		initAnalytical = true,
+		-- don't use initAnalytical, since not all eqn.einstein subclasses use it
+		--initAnalytical = true,
+		getInitCondCode = function(self, solver)
+			return [[
+	alpha = 1.;
+	beta_u = real3_zero;
+	gamma_ll = coord_g_ll(x);
+	K_ll = sym3_zero;
+]]
+		end,
 	},
 
 	-- 2010 Baumgarte, Shapiro "Numerical Relativity ...", section 9.1.2

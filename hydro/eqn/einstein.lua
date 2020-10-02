@@ -11,7 +11,11 @@ local xNames = common.xNames
 
 local EinsteinEquation = class(Equation)
 
-EinsteinEquation.initConds = require 'hydro.init.einstein'
+EinsteinEquation.initConds = table():append(
+	require 'hydro.init.senr'
+):append(
+	require 'hydro.init.einstein'
+)
 
 function EinsteinEquation:createInitState()
 	EinsteinEquation.super.createInitState(self)
