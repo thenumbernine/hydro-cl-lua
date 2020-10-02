@@ -361,8 +361,8 @@ typedef union {
 				'eqn.cons_t',
 				'coord_parallelPropagate',
 			},
-			code = self:template([[
-<? for side=0,solver.dim-1 do
+			code = self:template([[<? 
+for side=0,solver.dim-1 do
 	if coord.vectorComponent == 'cartesian'
 	or require 'hydro.coord.cartesian'.is(coord) 
 	then
@@ -378,12 +378,47 @@ typedef union {
 --print(var.name, var.type, variance, degree)			
 			if variance == '' then
 			elseif variance == 'u' then
+-- P_u^a T^u
 ?>	U.<?=var.name?> = coord_parallelPropagateU<?=side?>(U.<?=var.name?>, x, dx);
 <?
 			elseif variance == 'l' then
+-- T_u (P^-T)_a^u
 ?>	U.<?=var.name?> = coord_parallelPropagateL<?=side?>(U.<?=var.name?>, x, dx);
 <?
-			else
+			elseif variance == 'll' then
+-- (P^-T)_a^u (P^-T)_b^v T_uv
+?>				real3x3 t = real3x3_from_<?=var.type?>(U.<?=var.name?>);
+				t.x = coord_parallelPropagateL<?=side?>(t.x, x, dx);
+				t.y = coord_parallelPropagateL<?=side?>(t.y, x, dx);
+				t.z = coord_parallelPropagateL<?=side?>(t.z, x, dx);
+				t = real3x3_transpose(t);
+				t.x = coord_parallelPropagateL<?=side?>(t.x, x, dx);
+				t.y = coord_parallelPropagateL<?=side?>(t.y, x, dx);
+				t.z = coord_parallelPropagateL<?=side?>(t.z, x, dx);
+				U.<?=var.name?> = <?=var.type?>_from_real3x3(t);
+<?			elseif variance == 'lll' then
+?>				real3x3x3 t = real3x3x3_from_<?=var.type?>(U.<?=var.name?>);
+				real3 tmp;
+<?				local is = table()
+				for e=1,3 do
+					for i,xi in ipairs(xNames) do
+						is[e] = xi
+						for j,xj in ipairs(xNames) do
+							is[e%3+1] = xj
+							for k,xk in ipairs(xNames) do
+								is[(e+1)%3+1] = xk
+?>					tmp.<?=xk?> = t.<?=is:concat'.'?>;
+<?							end
+?>					tmp = coord_parallelPropagateL<?=side?>(tmp, x, dx);
+<?							for k,xk in ipairs(xNames) do
+								is[(e+1)%3+1] = xk
+?>					t.<?=is:concat'.'?> = tmp.<?=xk?>;
+<?							end
+						end
+					end
+				end
+?>				U.<?=var.name?> = real3x3x3_from_<?=var.type?>(t);
+<?			else
 				error("don't know how to handle variance for "..('%q'):format(variance))
 			end
 		end

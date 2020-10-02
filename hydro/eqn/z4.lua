@@ -234,6 +234,7 @@ void setFlatSpace(
 	})
 end
 
+Z4_2004Bona.needsInitDerivs = true
 Z4_2004Bona.initCondCode = [[
 <? 
 local common = require 'hydro.common'

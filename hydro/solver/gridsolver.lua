@@ -39,6 +39,8 @@ end
 
 local GridSolver = class(SolverBase)
 
+GridSolver.name = 'gridsolver'
+
 GridSolver.numGhost = 2
 
 --[[

@@ -319,8 +319,8 @@ local args = {
 
 
 	-- Einstein
-	initCond = 'Minkowski',
-	--initCond = 'gaussian perturbation',
+	--initCond = 'Minkowski',
+	initCond = 'gaussian perturbation',
 	--initCond = 'plane gauge wave',
 
 
@@ -903,7 +903,7 @@ local args = {
 	--integratorArgs = {verbose=true},
 	cfl = .5,
 
-	-- [[
+	--[[
 	coord = 'cartesian',
 	mins = {-3,-3,-3},
 	maxs = {3,3,3},
@@ -927,7 +927,7 @@ local args = {
 		zmax = 'quadratic',
 	},
 	--]]
-	--[[
+	-- [[
 	coord = 'sphere',
 	coordArgs = {
 		vectorComponent = 'holonomic',	-- this isn't really used since bssn is a finite-difference solver, so just pick the one that has the least complications.               
@@ -981,7 +981,7 @@ local args = {
 		zmax='periodic',
 	},
 	--]]
-	-- [[
+	--[[
 	coord = 'sphere-log-radial',
 	coordArgs = {
 		vectorComponent = 'holonomic',	-- this isn't really used since bssn is a finite-difference solver, so just pick the one that has the least complications.               
@@ -1064,9 +1064,9 @@ local args = {
 	},
 	--]]
 	
-	--initCond = 'Minkowski',
+	initCond = 'Minkowski',
 	--initCond = 'SENR Minkowski',
-	initCond = 'SENR UIUC',
+	--initCond = 'SENR UIUC',
 	--initCond = 'SENR BrillLindquist',
 	--initCond = 'SENR BoostedSchwarzschild',
 	--initCond = 'SENR StaticTrumpet',

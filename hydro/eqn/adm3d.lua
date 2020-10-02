@@ -288,7 +288,124 @@ end
 function ADM_BonaMasso_3D:getModuleDependsApplyInitCond()
 	return {'coordMap', 'coord_g_ll'}
 end
-ADM_BonaMasso_3D.initCondCode = [[
+
+-- always true, except for initAnalytica, but I don't have that coded yet
+ADM_BonaMasso_3D.needsInitDerivs = true
+
+function ADM_BonaMasso_3D:getInitCondCode()
+	if self.initCond.initAnalytical then
+		error("TODO - adm3d initAnalytical")
+	end
+		
+	if self.initCond.useBSSNVars then
+		return self:template([[
+kernel void applyInitCond(
+	constant <?=solver.solver_t?>* solver,
+	constant <?=solver.initCond_t?>* initCond,
+	global <?=eqn.cons_t?>* UBuf,
+	const global <?=coord.cell_t?>* cellBuf
+) {
+	SETBOUNDS(0,0);
+	real3 x = cellBuf[index].pos;
+	real3 xc = coordMap(x);
+	real3 mids = real3_real_mul(real3_add(solver->mins, solver->maxs), .5);
+	
+	global <?=eqn.cons_t?>* U = UBuf + index;
+
+	real alpha = 1.;
+	real3 beta_u = real3_zero;
+	sym3 gamma_ll = coord_g_ll(x);
+	sym3 K_ll = sym3_zero;
+
+	//throw-away for ADM3D ... but not for BSSNOK
+	// TODO hold rho somewhere?
+	real rho = 0.;
+
+	<?=code?>
+
+	U->alpha = alpha;
+	<? if eqn.useShift ~= 'none' then
+	U->beta_u = real3_rescaleFromCoord_U(beta_U);
+
+	-- gammaHat_IJ = delta_IJ
+	-- gamma_ij = e_i^I e_j^J (epsilon_IJ + gammaHat_IJ) / W^2
+	sym3 gammaBar_LL = sym3_add(epsilon_LL, sym3_ident);
+	sym3 gamma_LL = sym3_real_mul(gammaBar_LL, 1. / (W*W));
+	U->gamma_ll = sym3_rescaleFromCoord_LL(gamma_LL);
+	
+	-- K_ij = e_i^I e_j^J (ABar_IJ + gammaBar_IJ K/3) / W^2
+	U->K_ll = sym3_rescaleFromCoord_LL(
+		sym3_add(
+			sym3_real_mul(ABar_LL, 1. / (W*W)),
+			sym3_real_mul(gamma_LL, K / 3.)
+		)
+	);
+
+	// TODO maybe derive this from LambdaBar_U ?
+	U->V_l = real3_zero;
+
+<? 
+if eqn.useShift ~= 'none' then
+?>	U->beta_u = real3_rescaleFromCoord_U(beta_U);
+<? 	-- TODO support for hyperbolic gamma driver, so we can read B_U
+end
+?>
+
+<? if eqn.useStressEnergyTerms then ?>
+	U->rho = 0;
+	U->S_u = real3_zero;
+	U->S_ll = sym3_zero;
+<? end ?>
+	U->H = 0;
+	U->M_u = real3_zero;
+}
+
+kernel void initDerivs(
+	constant <?=solver.solver_t?>* solver,
+	global <?=eqn.cons_t?>* UBuf,
+	global <?=solver.coord.cell_t?> const *cellBuf 
+) {
+	SETBOUNDS(numGhost,numGhost);
+	global <?=eqn.cons_t?>* U = UBuf + index;
+	
+	real det_gamma = sym3_det(U->gamma_ll);
+	sym3 gamma_uu = sym3_inv(U->gamma_ll, det_gamma);
+
+<? 
+for i=1,solver.dim do 
+	local xi = xNames[i]
+?>
+	U->a_l.<?=xi?> = (U[solver->stepsize.<?=xi?>].alpha - U[-solver->stepsize.<?=xi?>].alpha) / (solver->grid_dx.s<?=i-1?> * U->alpha);
+	<? for jk,xjk in ipairs(symNames) do ?>
+	U->d_lll.<?=xi?>.<?=xjk?> = .5 * (U[solver->stepsize.<?=xi?>].gamma_ll.<?=xjk?> - U[-solver->stepsize.<?=xi?>].gamma_ll.<?=xjk?>) / solver->grid_dx.s<?=i-1?>;
+	<? end ?>
+<? 
+end 
+for i=solver.dim+1,3 do
+	local xi = xNames[i]
+?>
+	U->a_l.<?=xi?> = 0;
+	U->d_lll.<?=xi?> = sym3_zero;
+<?
+end
+?>
+
+//V_i = d_ik^k - d^k_ki 
+<? for i,xi in ipairs(xNames) do ?>
+	U->V_l.<?=xi?> = 0.<?
+	for j,xj in ipairs(xNames) do
+		for k,xk in ipairs(xNames) do
+?> + gamma_uu.<?=sym(j,k)?> * ( U->d_lll.<?=xi?>.<?=sym(j,k)?> - U->d_lll.<?=xj?>.<?=sym(k,i)?> )<?
+		end
+	end ?>;
+<? end ?>
+}
+]], 	{
+			code = self.initCond:getInitCondCode(self.solver),
+		})
+	end
+
+	return self:template([[
 kernel void applyInitCond(
 	constant <?=solver.solver_t?>* solver,
 	constant <?=solver.initCond_t?>* initCond,
@@ -370,7 +487,10 @@ end
 	end ?>;
 <? end ?>
 }
-]]
+]], {
+		code = self.initCond:getInitCondCode(self.solver),
+	})
+end
 
 ADM_BonaMasso_3D.solverCodeFile = 'hydro/eqn/adm3d.cl'
 

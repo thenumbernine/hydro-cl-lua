@@ -732,6 +732,7 @@ real3x3 real3x3_addT(real3x3 a, real3x3 b);
 real3x3 real3x3_real3x3_mul(real3x3 a, real3x3 b);
 real3 real3x3_real3_mul(real3x3 a, real3 b);
 real real3x3_trace(real3x3 m);
+real3x3 real3x3_transpose(real3x3 m);
 real3x3 real3x3_from_real(real x);
 real real3x3_det(real3x3 m);
 real3x3 real3x3_inv(real3x3 m);
@@ -860,14 +861,13 @@ sym3 sym3_real3x3_to_sym3_mul(sym3 a, real3x3 b) {
 ?>	};
 }
 
-//a_ij = b_ij + b_ji
-//doesn't do the .5 ... that is left to you
+//a_ij = .5 (b_ij + b_ji)
 sym3 sym3_from_real3x3(real3x3 a) {
 	return (sym3){
 <? for ij,xij in ipairs(symNames) do
 	local i,j = from6to3x3(ij)
 	local xi,xj = xNames[i],xNames[j]
-?>		.<?=xij?> = a.<?=xi?>.<?=xj?> + a.<?=xj?>.<?=xi?>,
+?>		.<?=xij?> = .5 * (a.<?=xi?>.<?=xj?> + a.<?=xj?>.<?=xi?>),
 <? end
 ?>	};
 }
@@ -926,6 +926,16 @@ real real3x3_trace(real3x3 m) {
 	return m.x.x + m.y.y + m.z.z;
 }
 
+real3x3 real3x3_transpose(real3x3 m) {
+	return (real3x3){
+<? for i,xi in ipairs(xNames) do
+?>		.<?=xi?> = (real3){<?
+	for j,xj in ipairs(xNames) do
+?>.<?=xj?> = m.<?=xj?>.<?=xi?>, <?
+	end ?>},
+<? end
+?>	};
+}
 real3x3 real3x3_from_real(real x) {
 	return (real3x3){
 <? for i,xi in ipairs(xNames) do

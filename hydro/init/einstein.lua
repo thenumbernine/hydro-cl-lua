@@ -63,23 +63,6 @@ function EinsteinInitCond:init(args, ...)
 	--EinsteinInitCond.super.init(self, args, ...)
 end
 
-function EinsteinInitCond:refreshInitStateProgram(solver)
-	EinsteinInitCond.super.refreshInitStateProgram(self, solver)
-	-- analytical expressions don't need to run finite differences to initialize derivative variables
-	if not self.initAnalytical then
-		solver.initDerivsKernelObj = solver.initCondProgramObj:kernel('initDerivs', solver.solverBuf, solver.UBuf, solver.cellBuf)
-	end
-end
-
-function EinsteinInitCond:resetState(solver)
-	EinsteinInitCond.super.resetState(self, solver)
-	if not self.initAnalytical then
-		solver:boundary()
-		solver.initDerivsKernelObj()
-	end
-	solver:boundary()
-end
-
 function EinsteinInitCond:getCodePrefix(solver)
 	-- looks like all EFE solvers might need this
 	-- maybe I should put it in InitCond?
@@ -677,7 +660,7 @@ return table{
 
 		sym3 ABar_boost_ll = sym3_real_mul(
 			sym3_sub(
-				sym3_from_real3x3(real3_real3_outer(P_l, n_l)),
+				sym3_real_mul(sym3_from_real3x3(real3_real3_outer(P_l, n_l)), 2.),
 				sym3_real_mul(sym3_sub(real3_outer(n_l), sym3_ident), n_dot_P)
 			), 1.5 / rSq);
 
@@ -685,7 +668,7 @@ return table{
 		real3 S_cross_n_l = real3_cross(S_u, n_u);
 
 		sym3 ABar_spin_ll = sym3_real_mul(
-			sym3_from_real3x3(real3_real3_outer(S_cross_n_l, n_l)), 
+			sym3_real_mul(sym3_from_real3x3(real3_real3_outer(S_cross_n_l, n_l)), 2.),
 			3. / rCubed);
 
 		sym3 ABar_ll = sym3_add(ABar_boost_ll, ABar_spin_ll);

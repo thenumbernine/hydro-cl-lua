@@ -412,6 +412,7 @@ function MHD:initCodeModulePrimCons()
 	}
 end
 
+MHD.needsInitDerivs = true
 MHD.initCondCode = [[
 kernel void applyInitCond(
 	constant <?=solver.solver_t?>* solver,

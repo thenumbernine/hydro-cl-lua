@@ -1210,7 +1210,7 @@ static sym3 sym3_Lbeta_LL(
 #if 0	
 	sym3 beta_times_partial_T_LL = real3_3sym3_dot1(beta_U, partial_T_LLL);
 	real3x3 T_times_partial_beta_LL = sym3_real3x3_mul(T_LL, partial_beta_UL);
-	sym3 sym_T_times_partial_beta_LL = sym3_from_real3x3(T_times_partial_beta_LL);
+	sym3 sym_T_times_partial_beta_LL = sym3_real_mul(sym3_from_real3x3(T_times_partial_beta_LL), 2.);
 	sym3 Lbeta_T_LL = sym3_add(beta_times_partial_T_LL, sym_T_times_partial_beta_LL);
 #else
 	
@@ -1383,7 +1383,7 @@ static sym3 calc_PIRK_L2_ABar_LL(
 	*/
 	sym3 tracelessPart_LL = tracefree(
 		sym3_add4(
-			sym3_real_mul(sym3_from_real3x3(real3_real3_outer(*partial_phi_L, *partial_alpha_L)), 2.),
+			sym3_real_mul(sym3_from_real3x3(real3_real3_outer(*partial_phi_L, *partial_alpha_L)), 4.),
 			sym3_real_mul(DBar2_phi_LL, -2. * U->alpha),
 			sym3_real_mul(real3_outer(*partial_phi_L), 4. * U->alpha),
 			sym3_real_mul(sym3_rescaleFromCoord_ll(U->S_ll, x), -8. * M_PI * U->alpha)
@@ -1610,7 +1610,7 @@ end
 
 	sym3 partial2_det_gammaBar_LL = sym3_add3(
 		sym3_real_mul(partial2_det_gammaHat_LL, detg),
-		sym3_from_real3x3(real3_real3_outer(partial_det_gammaHat_L, *partial_detg_L)),
+		sym3_real_mul(sym3_from_real3x3(real3_real3_outer(partial_det_gammaHat_L, *partial_detg_L)), 2.),
 		sym3_real_mul(*partial2_detg_LL, det_gammaHat));
 	
 	real3 partial_det_gammaBar_times_partial_beta_L = real3_real3x3_mul(partial_det_gammaBar_L, *partial_beta_UL);

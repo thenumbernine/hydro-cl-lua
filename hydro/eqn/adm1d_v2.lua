@@ -164,6 +164,8 @@ function ADM_BonaMasso_1D_1997Alcubierre:getModuleDependsApplyInitCond()
 		'sym3',
 	})
 end
+
+ADM_BonaMasso_1D_1997Alcubierre.needsInitDerivs = true
 ADM_BonaMasso_1D_1997Alcubierre.initCondCode = [[
 kernel void applyInitCond(
 	constant <?=solver.solver_t?>* solver,

@@ -246,7 +246,7 @@ local integratorNames = integrators:map(function(integrator) return integrator.n
 
 local SolverBase = class()
 
-SolverBase.name = 'Solver'
+SolverBase.name = 'solverbase'
 
 -- override to specify which hydro/eqn/*.lua to use as the equation
 SolverBase.eqnName = nil
@@ -340,15 +340,17 @@ end
 -- I could hash it and use that, for shorter names, but I'd rather things be identifiable
 -- TODO: make use of this in tests/test-order" etc when saving files according to their parameters
 function SolverBase:getIdent()
+	if self.ident then return self.ident end
+
 --[[ the original way
 	if not self.uniqueIndex then
 		self.uniqueIndex = solverUniqueIndex
 		solverUniqueIndex = solverUniqueIndex + 1
 	end
-	return tostring(self.uniqueIndex)
+	self.ident = tostring(self.uniqueIndex)
 --]]
 --[[ TODO derive this from the solver's state	
-	return require 'ext.tolua'{
+	self.ident = require 'ext.tolua'{
 		solver = getmetatable(self).name,	-- TODO ensure this matches the require('hydro/solver/$name')
 		eqn = self.eqn.name,				-- TODO ensure this matches the require('hydro/eqn/$name')
 		--eqnArgs = {}, -- TODO params here. anything beyond the default.
@@ -374,8 +376,8 @@ function SolverBase:getIdent()
 		:gsub('{', '(')
 		:gsub('}', ')')
 	
---	return destFilename
-
+--	self.ident = destFilename
+-- [=[
 -- hmm, seems the filenames are too long
 -- how about hashing them?
 	local bit = require 'bit'
@@ -385,13 +387,16 @@ function SolverBase:getIdent()
 		local j = (i-1)%len+1
 		chs[j] = bit.bxor(chs[j], destFilename:sub(i,i):byte()) 
 	end
-	return chs
+	self.ident = chs
 		:sub(1, math.min(len, #destFilename))
 		:mapi(function(ch) 
-			--return string.char(ch) 
+			--return string.char(ch)
 			return ('%02x'):format(ch)
 		end):concat()
+	print("solver using ident "..self.ident.." from config str "..destFilename)
+--]=]
 --]]
+	return self.ident
 end
 
 function SolverBase:initMeshVars(args)

@@ -169,6 +169,7 @@ sym3 calc_gamma_ll(global const <?=eqn.cons_t?>* U, real3 x) {
 	})
 end
 
+Z4cFiniteDifferenceEquation.needsInitDerivs = true
 function Z4cFiniteDifferenceEquation:getInitCondCode()
 	return template([[
 kernel void applyInitCond(

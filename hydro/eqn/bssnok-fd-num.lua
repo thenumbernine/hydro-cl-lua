@@ -373,7 +373,7 @@ end ?>
 
 	-- if we're using a SENR init cond then init the components directly
 	-- TODO port these from sympy into symmath 
-	if require 'hydro.init.senr'[1].super.is(initCond) then
+	if initCond.useBSSNVars then
 		return self:template([=[
 kernel void applyInitCond(
 	constant <?=solver.solver_t?>* solver,
@@ -455,6 +455,7 @@ kernel void applyInitCond(
 		})
 	end
 
+	self.needsInitDerivs = true
 	return self:template([=[
 kernel void applyInitCond(
 	constant <?=solver.solver_t?>* solver,

@@ -138,12 +138,7 @@ print('initCond modules: '..moduleNames:sort():concat', ')
 
 	solver.applyInitCondKernelObj = solver.initCondProgramObj:kernel('applyInitCond', solver.solverBuf, solver.initCondBuf, solver.UBuf, solver.cellBuf)
 
-	-- here's an ugly hack ...
-	-- I need a custom init state kernel for the GLM_MHD only
-	-- and it shares init conditions with a lot of other solvers
-	-- so ...
-	-- (don't the Einstein solvers also use initDerivs?)
-	if require 'hydro.eqn.glm-mhd'.is(solver.eqn) then
+	if solver.eqn.needsInitDerivs then
 		solver.initDerivsKernelObj = solver.initCondProgramObj:kernel('initDerivs', solver.solverBuf, solver.UBuf, solver.cellBuf)
 	end
 end
@@ -174,7 +169,7 @@ function InitCond:resetState(solver)
 		solver:printBuf(solver.UBufObj)
 	end
 	
-	if require 'hydro.eqn.glm-mhd'.is(solver.eqn) then
+	if solver.eqn.needsInitDerivs then
 		solver:boundary()
 		solver.initDerivsKernelObj()
 	end

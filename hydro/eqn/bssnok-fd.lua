@@ -15,6 +15,10 @@ BSSNOKFiniteDifferenceEquationBase.cflMethod = '2008 Alcubierre'
 --BSSNOKFiniteDifferenceEquationBase.cflMethod = '2013 Baumgarte et al, eqn 32'
 --BSSNOKFiniteDifferenceEquationBase.cflMethod = '2017 Ruchlin et al, eqn 53'
 
+-- never need initDerivs for the finite-difference solvers
+-- since they don't use any first-derivative state variables like the hyperbolic conservation law solvers do
+BSSNOKFiniteDifferenceEquationBase.needsInitDerivs = false
+
 function BSSNOKFiniteDifferenceEquationBase:init(args)
 	self.cflMethod = args.cflMethod
 	BSSNOKFiniteDifferenceEquationBase.super.init(self, args)
