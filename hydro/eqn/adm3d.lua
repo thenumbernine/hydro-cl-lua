@@ -241,6 +241,7 @@ function ADM_BonaMasso_3D:initCodeModule_calcDT()
 			'solver.solver_t',
 			'eqn.prim-cons',
 			'eqn.guiVars.compileTime',
+			'initCond.codeprefix',		-- calc_f
 		},
 		code = self:template[[
 kernel void calcDT(
@@ -294,6 +295,94 @@ kernel void calcDT(
 ]]
 	}
 end
+
+-- [=[ comment this out for fluxFromCons to fall back on the eigensystem transforms
+function ADM_BonaMasso_3D:initCodeModule_fluxFromCons()
+	self.solver.modules:add{
+		name = 'fluxFromCons',
+		depends = {
+			'eqn.solvercode',	-- eigen_fluxTransform, eigen_forCell
+			'eqn.cons_t',
+			'solver.solver_t',
+			'normal_t',
+		},
+		code = self:template[[
+<?=eqn.cons_t?> fluxFromCons(
+	constant <?=solver.solver_t?>* solver,
+	<?=eqn.cons_t?> U,
+	real3 x,
+	normal_t n
+) {
+	real det_gamma = sym3_det(U.gamma_ll);
+	sym3 gamma_uu = sym3_inv(U.gamma_ll, det_gamma);
+	real K = sym3_dot(gamma_uu, U.K_ll);
+	real f = calc_f(U.alpha);
+	
+	<?=eqn.cons_t?> F;
+	F.alpha = 0.;
+	F.gamma_ll = sym3_zero;
+	F.a_l = real3_zero;
+	F.a_l.s[n.side] = -U.alpha * f * K;
+	F.d_lll = _3sym3_zero;
+	F.d_lll.v[n.side] = sym3_real_mul(U.K_ll, -U.alpha);
+	F.V_l = real3_zero;
+<? 
+if eqn.useShift ~= 'none' then
+?>	F.beta_u = real3_zero;
+<?	if self.useShift == 'MinimalDistortionElliptic' 
+	or self.useShift == 'MinimalDistortionEllipticEvolve' 
+	then
+?>	F.betaLap_u = real3_zero;
+<?	end
+end 
+?>
+
+<? 
+local function calcFluxK(side)
+?>	F.K_ll = sym3_zero;
+<? 	for i,xi in ipairs(xNames) do
+?>	F.K_ll.<?=sym(i,side)?> = -U.a_l.<?=xi?>;
+<? 	end
+?>
+<? 	for ij,xij in ipairs(symNames) do
+		local i,j,xi,xj = from6to3x3(ij)
+?>	F.K_ll.<?=xij?> += 0.
+<?		for a,xa in ipairs(xNames) do
+			for b,xb in ipairs(xNames) do
+?>		+ gamma_uu.<?=sym(a,b)?> * (0.
+<?				if j == side then
+?>			+ U.d_lll.<?=xa?>.<?=sym(b,i)?>
+			- U.d_lll.<?=xi?>.<?=sym(a,b)?>
+<?				end
+				if i == side then
+?>			+ U.d_lll.<?=xa?>.<?=sym(b,j)?>
+<?				end
+				if b == side then
+?>			- U.d_lll.<?=xa?>.<?=xij?>
+<?				end
+?>		)
+<?			end
+		end
+?>	;
+<? 	end
+?>	F.K_ll = sym3_real_mul(F.K_ll, U.alpha);
+<?
+end
+?>
+	if (n.side == 0) {
+		<?calcFluxK(1)?>
+	} else if (n.side == 1) {
+		<?calcFluxK(2)?>
+	} else if (n.side == 2) {
+		<?calcFluxK(3)?>
+	}
+
+	return F;
+}
+]],
+	}
+end
+--]=]
 
 function ADM_BonaMasso_3D:initCodeModule_setFlatSpace()
 	self.solver.modules:add{

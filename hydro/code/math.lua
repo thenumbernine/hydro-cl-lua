@@ -415,6 +415,7 @@ real real3_len(real3 a) {
 		},
 		headercode = [[
 
+real3 real3_swap(real3 v, int side);
 real3 real3_swap0(real3 v);
 real3 real3_swap1(real3 v);
 real3 real3_swap2(real3 v);
@@ -429,6 +430,13 @@ real3 real3_rotateTo(real3 v, real3 n);
 
 ]],
 		code = [[
+
+real3 real3_swap(real3 v, int side) {
+	real tmp = v.s[side];
+	v.s[side] = v.x;
+	v.x = tmp;
+	return v;
+}
 
 //for swapping dimensions between x and 012
 real3 real3_swap0(real3 v) { return v; }
@@ -581,6 +589,7 @@ real3 sym3_x(sym3 m);
 real3 sym3_y(sym3 m);
 real3 sym3_z(sym3 m);
 real sym3_trace(sym3 m);
+sym3 sym3_swap(sym3 m, int side);
 sym3 sym3_swap0(sym3 m);
 sym3 sym3_swap1(sym3 m);
 sym3 sym3_swap2(sym3 m);
@@ -684,6 +693,16 @@ real sym3_trace(sym3 m) {
 }
 
 //for swapping dimensions between x and 012
+sym3 sym3_swap(sym3 m, int side) {
+	if (side == 0) {
+		return m;
+	} else if (side == 1) {
+		return _sym3(m.yy, m.xy, m.yz, m.xx, m.xz, m.zz);
+	} else if (side == 2) {
+		return _sym3(m.zz, m.yz, m.xz, m.yy, m.xy, m.xx);
+	}
+}
+
 sym3 sym3_swap0(sym3 m) { return m; }
 sym3 sym3_swap1(sym3 m) { return _sym3(m.yy, m.xy, m.yz, m.xx, m.xz, m.zz); }
 sym3 sym3_swap2(sym3 m) { return _sym3(m.zz, m.yz, m.xz, m.yy, m.xy, m.xx); }
@@ -1019,6 +1038,7 @@ real3 sym3_3sym3_dot12(sym3 a, _3sym3 b);
 sym3 real3_3sym3_dot1(real3 a, _3sym3 b);
 real3 _3sym3_tr12(_3sym3 a);
 real3x3 real3_3sym3_dot2(real3 a, _3sym3 b);
+_3sym3 _3sym3_swap(_3sym3 m, int side);
 ]],
 		code = template([[
 
@@ -1127,7 +1147,13 @@ real3x3 real3_3sym3_dot2(real3 a, _3sym3 b) {
 ?>	};
 }
 
-
+_3sym3 _3sym3_swap(_3sym3 m, int side) {
+	return (_3sym3){
+		.x = sym3_swap(m.v[side], side),
+		.y = sym3_swap(m.v[side==1 ? 0 : 1], side),
+		.z = sym3_swap(m.v[side==2 ? 0 : 2], side),
+	};
+}
 
 ]], 	{
 			xNames = xNames,

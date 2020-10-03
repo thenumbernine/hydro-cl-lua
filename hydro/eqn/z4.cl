@@ -159,34 +159,6 @@ eigen_t eigen_forInterface(
 	return eig;
 }
 
-// I do have real3_swap# and sym3_swap# in math
-// but those only work with compile-time parameters
-// so here is the same thing, but for run-time
-real3 real3_swap(real3 v, int side) {
-	real tmp = v.s[side];
-	v.s[side] = v.x;
-	v.x = tmp;
-	return v;
-}
-
-sym3 sym3_swap(sym3 m, int side) {
-	if (side == 0) {
-		return m;
-	} else if (side == 1) {
-		return _sym3(m.yy, m.xy, m.yz, m.xx, m.xz, m.zz);
-	} else if (side == 2) {
-		return _sym3(m.zz, m.yz, m.xz, m.yy, m.xy, m.xx);
-	}
-}
-
-_3sym3 _3sym3_swap(_3sym3 m, int side) {
-	return (_3sym3){
-		.x = sym3_swap(m.v[side], side),
-		.y = sym3_swap(m.v[side==1 ? 0 : 1], side),
-		.z = sym3_swap(m.v[side==2 ? 0 : 2], side),
-	};
-}
-
 waves_t eigen_leftTransform(
 	constant solver_t* solver,
 	eigen_t eig,

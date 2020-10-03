@@ -318,8 +318,8 @@ local args = {
 
 	-- Einstein
 	--initCond = 'Minkowski',
-	initCond = 'gaussian perturbation',
-	--initCond = 'plane gauge wave',
+	--initCond = 'gaussian perturbation',
+	initCond = 'plane gauge wave',
 
 
 	--initCond = 'Alcubierre warp bubble',
@@ -887,6 +887,25 @@ self.solvers:insert(require 'hydro.solver.fvsolver'{
 	cfl = .5/dim,			-- no mention of cfl or timestep ...
 	fluxLimiter = cmdline.fluxLimiter or 'superbee',
 
+	-- [=[
+	coord = 'cartesian',
+	mins = {-20,-20,-20},
+	maxs = {20,20,20},
+	gridSize = ({
+		{250, 1, 1},
+		{40, 40, 1},
+		{8, 8, 8},
+	})[dim],
+	boundary = {
+		xmin = 'quadratic',
+		xmax = 'quadratic',
+		ymin = 'quadratic',
+		ymax = 'quadratic',
+		zmin = 'quadratic',
+		zmax = 'quadratic',
+	},
+	--]=]
+	--[=[
 	coord = 'sphere',
 	coordArgs = {
 		vectorComponent = 'anholonomic',
@@ -912,9 +931,10 @@ self.solvers:insert(require 'hydro.solver.fvsolver'{
 		zmin='periodic',
 		zmax='periodic',
 	},
+	--]=]
 
-	initCond = 'Minkowski',
-	--initCond = 'gaussian perturbation',
+	--initCond = 'Minkowski',
+	initCond = 'gaussian perturbation',
 	--initCond = 'plane gauge wave',
 	--initCond = 'black hole - isotropic',	-- this one has momentum and rotation and almost done with multiple sources.  TODO parameterize
 	

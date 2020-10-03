@@ -315,6 +315,7 @@ function Equation:initCodeModules()
 	solver.modules:add{
 		name = 'eqn.prim_t',
 		structs = {self.primStruct},
+		depends = {'eqn.cons_t'},
 		typecode = not self.primStruct and ('typedef '..self.cons_t..' '..self.prim_t..';') or nil,
 	}
 	
@@ -493,7 +494,7 @@ function Equation:initCodeModule_fluxFromCons()
 			'eqn.solvercode',	-- eigen_fluxTransform, eigen_forCell
 			'eqn.cons_t',
 			'solver.solver_t',
-			'normal_t',		-- normal_t
+			'normal_t',
 		},
 		code = self:template[[
 <?=eqn.cons_t?> fluxFromCons(
