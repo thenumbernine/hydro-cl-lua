@@ -62,6 +62,7 @@ useShift
 	--]=]
 --]]
 function Z4_2004Bona:init(args)
+	local solver = args.solver
 
 	local fluxVars = table{
 		{name='a_l', type='real3'},
@@ -144,6 +145,7 @@ function Z4_2004Bona:init(args)
 	end
 
 	-- only count int vars after the shifts have been added
+	self:cdefAllVarTypes(solver, self.consVars)	-- have to call before countScalars in eqn:init
 	self.numIntStates = Struct.countScalars{vars=self.consVars}
 
 	-- now add in the source terms (if you want them)
@@ -199,8 +201,14 @@ function Z4_2004Bona:createInitState()
 	-- but that means moving the consVars construction to the :init()
 end
 
-function Z4_2004Bona:getCommonFuncCode()
-	return template([[
+function Z4_2004Bona:initCodeModule_setFlatSpace()
+	self.solver.modules:add{
+		name = 'setFlatSpace',
+		depends = {
+			'solver.solver_t',
+			'eqn.cons_t',
+		},
+		code = self:template[[
 void setFlatSpace(
 	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* U,
@@ -228,14 +236,38 @@ void setFlatSpace(
 	U->H = 0;
 	U->M_u = real3_zero;
 }
-]], {
-		eqn = self,
-		solver = self.solver,
-	})
+]],
+	}
 end
 
+function Z4_2004Bona:getModuleDependsSolver()
+	return {
+		'initCond.codeprefix',	-- calc_f
+	}
+end
+
+function Z4_2004Bona:getModuleDependsApplyInitCond()
+	return {
+		'coordMap',
+		'coord_g_ll',
+		'rescaleFromCoord/rescaleToCoord',
+	}
+end
+
+
+-- always true, except for initAnalytical, but I don't have that coded yet
 Z4_2004Bona.needsInitDerivs = true
-Z4_2004Bona.initCondCode = [[
+
+function Z4_2004Bona:getInitCondCode()
+	if self.initCond.initAnalytical then
+		error("TODO - can't handle analytical initial conditions yet")
+	end
+	
+	if self.initCond.useBSSNVars then
+		error("TODO - can't handle BSSN var initial conditions yet")
+	end
+
+	return self:template([[
 <? 
 local common = require 'hydro.common'
 local xNames = common.xNames 
@@ -288,7 +320,8 @@ kernel void applyInitCond(
 
 kernel void initDerivs(
 	constant <?=solver.solver_t?>* solver,
-	global <?=eqn.cons_t?>* UBuf
+	global <?=eqn.cons_t?>* UBuf,
+	global <?=solver.coord.cell_t?> const *cellBuf
 ) {
 	SETBOUNDS(numGhost,numGhost);
 	global <?=eqn.cons_t?>* U = UBuf + index;
@@ -315,7 +348,10 @@ for i=solver.dim+1,3 do
 end
 ?>
 }
-]]
+]], {
+		code = self.initCond:getInitCondCode(self.solver),
+	})
+end
 
 Z4_2004Bona.solverCodeFile = 'hydro/eqn/z4.cl'
 
@@ -383,12 +419,12 @@ momentum constraints
 			local xi = xNames[i]
 		?>{
 			real di_alpha = (U[solver->stepsize.<?=xi?>].alpha - U[-solver->stepsize.<?=xi?>].alpha) / (2. * solver->grid_dx.s<?=i-1?>);
-			value_real3-><?=xi?> = fabs(di_alpha - U->alpha * U->a_l.<?=xi?>);
+			value.vreal3.<?=xi?> = fabs(di_alpha - U->alpha * U->a_l.<?=xi?>);
 		}<? end ?>
 		<? for i=solver.dim+1,3 do
 			local xi = xNames[i]
 		?>{
-			value_real3-><?=xi?> = 0;
+			value.vreal3.<?=xi?> = 0;
 		}<? end ?>
 	}
 ]], {
@@ -416,7 +452,7 @@ momentum constraints
 		value.vsym3 = sym3_sub(di_gamma_jk, sym3_real_mul(U->d_lll.<?=xi?>, 2.));
 		value.vsym3 = (sym3){<?
 	for jk,xjk in ipairs(symNames) do 
-?>			.<?=xjk?> = fabs(value_sym3-><?=xjk?>),
+?>			.<?=xjk?> = fabs(value.vsym3.<?=xjk?>),
 <?	end
 ?>		};
 	}
@@ -432,30 +468,31 @@ momentum constraints
 	return vars
 end
 
-function Z4_2004Bona:eigenWaveCodePrefix(side, eig, x, waveIndex)
+function Z4_2004Bona:eigenWaveCodePrefix(n, eig, x, waveIndex)
 	return template([[
-	<? if side==0 then ?>
-	real eig_lambdaLight = <?=eig?>.alpha * <?=eig?>.sqrt_gammaUjj.x;
-	<? elseif side==1 then ?>
-	real eig_lambdaLight = <?=eig?>.alpha * <?=eig?>.sqrt_gammaUjj.y;
-	<? elseif side==2 then ?>
-	real eig_lambdaLight = <?=eig?>.alpha * <?=eig?>.sqrt_gammaUjj.z;
-	<? end ?>
+	real eig_lambdaLight;
+	if (<?=n?>.side == 0) {
+		eig_lambdaLight = <?=eig?>.alpha * <?=eig?>.sqrt_gammaUjj.x;
+	} else if (<?=n?>.side == 1) {
+		eig_lambdaLight = <?=eig?>.alpha * <?=eig?>.sqrt_gammaUjj.y;
+	} else if (<?=n?>.side == 2) {
+		eig_lambdaLight = <?=eig?>.alpha * <?=eig?>.sqrt_gammaUjj.z;
+	}
 	real eig_lambdaGauge = eig_lambdaLight * <?=eig?>.sqrt_f;
 ]], {
 		eig = '('..eig..')',
-		side = side,
+		n = n,
 	})
 end
 
-function Z4_2004Bona:eigenWaveCode(side, eig, x, waveIndex)
+function Z4_2004Bona:eigenWaveCode(n, eig, x, waveIndex)
 	-- TODO find out if -- if we use the lagrangian coordinate shift operation -- do we still need to offset the eigenvalues by -beta^i?
 	local shiftingLambdas = self.useShift ~= 'none'
 		--and self.useShift ~= 'LagrangianCoordinates'
 
 	local betaUi
 	if self.useShift ~= 'none' then
-		betaUi = '('..eig..').beta_u.'..xNames[side+1]
+		betaUi = '('..eig..').beta_u.s['..n..'.side]'
 	else
 		betaUi = '0'
 	end
@@ -476,38 +513,25 @@ function Z4_2004Bona:eigenWaveCode(side, eig, x, waveIndex)
 	error'got a bad waveIndex'
 end
 
-function Z4_2004Bona:consWaveCodePrefix(side, U, x, waveIndex)
+function Z4_2004Bona:consWaveCodePrefix(n, U, x, waveIndex)
 	return template([[
 	real det_gamma = sym3_det(<?=U?>.gamma_ll);
 	sym3 gamma_uu = sym3_inv(<?=U?>.gamma_ll, det_gamma);
-	<? if side==0 then ?>
-	real eig_lambdaLight = <?=U?>.alpha * sqrt(gamma_uu.xx);
-	<? elseif side==1 then ?>                          
-	real eig_lambdaLight = <?=U?>.alpha * sqrt(gamma_uu.yy);
-	<? elseif side==2 then ?>                          
-	real eig_lambdaLight = <?=U?>.alpha * sqrt(gamma_uu.zz);
-	<? end ?>
+	real eig_lambdaLight;
+	if (<?=n?>.side == 0) {
+		eig_lambdaLight = <?=U?>.alpha * sqrt(gamma_uu.xx);
+	} else if (<?=n?>.side == 1) {
+		eig_lambdaLight = <?=U?>.alpha * sqrt(gamma_uu.yy);
+	} else if (<?=n?>.side == 2) {
+		eig_lambdaLight = <?=U?>.alpha * sqrt(gamma_uu.zz);
+	}
 	real f = calc_f(<?=U?>.alpha);
 	real eig_lambdaGauge = eig_lambdaLight * sqrt(f);
 ]], {
 		U = '('..U..')',
-		side = side,
+		n = n,
 	})
 end
 Z4_2004Bona.consWaveCode = Z4_2004Bona.eigenWaveCode
-
-
-function Z4_2004Bona:fillRandom(epsilon)
-	local ptr = Z4_2004Bona.super.fillRandom(self, epsilon)
-	local solver = self.solver
-	for i=0,solver.numCells-1 do
-		ptr[i].alpha = ptr[i].alpha + 1
-		ptr[i].gamma_ll.xx = ptr[i].gamma_ll.xx + 1
-		ptr[i].gamma_ll.yy = ptr[i].gamma_ll.yy + 1
-		ptr[i].gamma_ll.zz = ptr[i].gamma_ll.zz + 1
-	end
-	solver.UBufObj:fromCPU(ptr)
-	return ptr
-end
 
 return Z4_2004Bona

@@ -3,7 +3,7 @@ TODO one config per experiment (initial condition + config)
 and no more setting config values (boundary, etc) in the init cond file
 --]]
 
-local dim = cmdline.dim or 1
+local dim = cmdline.dim or 3
 local args = {
 	app = self, 
 	eqn = cmdline.eqn,
@@ -54,7 +54,7 @@ local args = {
 	-- this is functional without usePLM, but doing so falls back on the cell-centered buffer, which with the current useCTU code will update the same cell twice from different threads
 	--useCTU = true,
 	
-	--[[ Cartesian
+	-- [[ Cartesian
 	coord = 'cartesian',
 	coordArgs = {vectorComponent='holonomic'},		-- use the coordinate derivatives to represent our vector components (though they may not be normalized)
 	--coordArgs = {vectorComponent='anholonomic'},		-- use orthonormal basis to represent our vector components
@@ -143,7 +143,7 @@ local args = {
 		zmax=cmdline.boundary or 'freeflow',
 	},
 	--]]
-	-- [[ Sphere: r, θ, φ 
+	--[[ Sphere: r, θ, φ 
 	coord = 'sphere',
 	--coordArgs = {volumeDim = 3},	-- use higher dimension volume, even if the grid is only 1D to 3D
 	--coordArgs = {vectorComponent='holonomic'},
@@ -202,8 +202,8 @@ local args = {
 	
 	-- Euler / SRHD / MHD initial states:
 	
-	initCond = 'constant',
-	initCondArgs = {v={1e-1,1e-1}},
+	--initCond = 'constant',
+	--initCondArgs = {v={1e-1,1e-1}},
 	
 	--initCond = 'random',
 	--initCond = 'linear',
@@ -318,7 +318,7 @@ local args = {
 
 	-- Einstein
 	--initCond = 'Minkowski',
-	--initCond = 'gaussian perturbation',
+	initCond = 'gaussian perturbation',
 	--initCond = 'plane gauge wave',
 
 
@@ -737,7 +737,6 @@ self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='euler', wenoMe
 --self.solvers:insert(require 'hydro.solver.fdsolver'(table(args, {eqn='z4_2008yano', integrator='backward Euler'})))
 
 
-
 --[[
 bssnok is working in 1D-3D Cartesian for RK4 
 diverging for non-Cartesian
@@ -875,6 +874,56 @@ With hyperbolic gamma driver shift it has trouble.
 --self.solvers:insert(require 'hydro.solver.amr'(require 'hydro.solver.fvsolver')(table(args, {flux='roe', eqn='euler'})))
 
 
+-- [[ trying to reproduce 2009 Alic et al "Towards a gauge-polyvalent numerical relativity code"
+local dim = 1
+self.solvers:insert(require 'hydro.solver.fvsolver'{
+	app = self,
+	
+	eqn = 'adm3d',	-- works fine for Minkowski though it's not physical
+	--eqn = 'z4',	-- has numeric bugs/problems still
+	
+	integrator = 'Runge-Kutta 3, TVD',	-- p.20, eqn B.1
+	dim = dim,
+	cfl = .5/dim,			-- no mention of cfl or timestep ...
+	fluxLimiter = cmdline.fluxLimiter or 'superbee',
+
+	coord = 'sphere',
+	coordArgs = {
+		vectorComponent = 'anholonomic',
+	},
+	mins = {0, 0, 0},
+	maxs = {
+		cmdline.rmax or 20,	-- bottom of p.11: r(max)=20M
+		math.pi,
+		2*math.pi,
+	},
+	gridSize = cmdline.gridSize or ({
+		{200, 1, 1},		-- bottom of p.11: h = 0.1M
+		{64, 16, 1},
+		{32, 2, 2},
+	})[dim],
+	-- boundary described at top of p.21 ... not sure what they mean
+	-- advect by maximum propagation speed ... ?
+	boundary = {
+		xmin='sphereRMin',
+		xmax='quadratic',
+		ymin='sphereTheta',
+		ymax='sphereTheta',
+		zmin='periodic',
+		zmax='periodic',
+	},
+
+	initCond = 'Minkowski',
+	--initCond = 'gaussian perturbation',
+	--initCond = 'plane gauge wave',
+	--initCond = 'black hole - isotropic',	-- this one has momentum and rotation and almost done with multiple sources.  TODO parameterize
+	
+	flux = 'hll',
+})
+--]]
+
+
+
 
 -- [=[ 2013 Baumgarte et al, section IV A 1 example & 2017 Ruchlin, Etienne
 local dim = 3
@@ -901,7 +950,7 @@ local args = {
 	--integratorArgs = {verbose=true},
 	cfl = .5,
 
-	--[[
+	-- [[
 	coord = 'cartesian',
 	mins = {-3,-3,-3},
 	maxs = {3,3,3},
@@ -925,7 +974,7 @@ local args = {
 		zmax = 'quadratic',
 	},
 	--]]
-	-- [[
+	--[[
 	coord = 'sphere',
 	coordArgs = {
 		-- this isn't really used since bssn is a finite-difference solver, so just pick the one that has the least complications.
@@ -986,7 +1035,9 @@ local args = {
 	--[[
 	coord = 'sphere-log-radial',
 	coordArgs = {
-		vectorComponent = 'holonomic',	-- this isn't really used since bssn is a finite-difference solver, so just pick the one that has the least complications.               
+		--vectorComponent = 'holonomic',
+		vectorComponent = 'anholonomic',
+		--vectorComponent = 'cartesian',
 		-- SENR uses these parameters:
 		amplitude = 1000,
 		sinh_w = .15

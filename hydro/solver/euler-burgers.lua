@@ -18,7 +18,6 @@ local sym = common.sym
 -- TODO make this work with ops, specifically Euler's SelfGrav
 local EulerBurgers = class(FiniteVolumeSolver)
 EulerBurgers.name = 'EulerBurgers'
-EulerBurgers.eqnName = 'euler'
 
 function EulerBurgers:init(...)
 	EulerBurgers.super.init(self, ...)
@@ -35,10 +34,84 @@ function EulerBurgers:createFlux(fluxName, fluxArgs)
 end
 
 function EulerBurgers:createEqn()
-	EulerBurgers.super.createEqn(self)
-	-- tell eqn not to use the eqn.calcDT module
-	-- TODO this using modules somehow ...
-	self.eqn.hasCalcDTCode = true
+	-- TODO put this in its own eqn file? eqn/euler-burgers.lua?
+	local EulerEqn = require 'hydro.eqn.euler'
+	
+	local EulerBurgersEqn = class(EulerEqn)
+	
+	function EulerBurgersEqn:initCodeModule_calcDT()
+		local solver = self.solver
+		solver.modules:add{
+			name = 'calcDT',
+			depends = {
+				'solver.solver_t',
+				'eqn.prim-cons',
+				'eqn.guiVars.compileTime',
+			},
+			code = self:template[[
+<? if require 'hydro.solver.gridsolver'.is(solver) then ?>
+
+kernel void calcDT(
+	constant <?=solver.solver_t?>* solver,
+	global real* dtBuf,
+	const global <?=eqn.cons_t?>* UBuf,
+	const global <?=solver.coord.cell_t?>* cellBuf			//[numCells]
+) {
+	SETBOUNDS(0,0);
+	if (OOB(numGhost,numGhost)) {
+		dtBuf[index] = INFINITY;
+		return;
+	}
+	real3 x = cellBuf[index].pos;
+
+	const global <?=eqn.cons_t?>* U = UBuf + index;
+	<?=eqn.prim_t?> W = primFromCons(solver, *U, x);
+	real Cs = calc_Cs(solver, &W);
+
+	real dt = INFINITY;
+<? for side=0,solver.dim-1 do 
+?>	dt = min(dt, (real)solver->grid_dx.s<?=side?> / (Cs + fabs(W.v.s<?=side?>)));
+<? end
+?>	dtBuf[index] = dt;
+}
+
+<? else -- mesh solver ?>
+
+kernel void calcDT(
+	constant <?=solver.solver_t?>* solver,
+	global real* dtBuf,					//[numCells]
+	const global <?=eqn.cons_t?>* UBuf,	//[numCells]
+	const global <?=solver.coord.cell_t?>* cellBuf,			//[numCells]
+	const global <?=solver.coord.face_t?>* faceBuf,			//[numFaces]
+	const global int* cellFaceIndexes	//[numCellFaceIndexes]
+) {
+	int cellIndex = get_global_id(0);
+	if (cellIndex >= get_global_size(0)) return;
+	
+	const global cell_t* cell = cellBuf + cellIndex;
+	real3 x = cell->pos;
+	
+	const global <?=eqn.cons_t?>* U = UBuf + cellIndex;
+	<?=eqn.prim_t?> W = primFromCons(solver, *U, x);
+	real Cs = calc_Cs(solver, &W);
+
+	real dt = INFINITY;
+	for (int i = 0; i < cell->faceCount; ++i) {
+		const global face_t* face = faceBuf + cellFaceIndexes[i + cell->faceOffset];
+		normal_t n = normal_forFace(face);
+		real v_n = normal_vecDotN1(n, W.v);
+		real dx = face->area;
+		dt = (real)min(dt, dx / (Cs + fabs(v_n)));
+	}
+	dtBuf[cellIndex] = dt;
+}
+
+<? end -- mesh solver ?>
+]],
+		}
+	end
+	
+	self.eqn = EulerBurgersEqn(table(self.eqnArgs, {solver=self}))
 end
 
 function EulerBurgers:createBuffers()

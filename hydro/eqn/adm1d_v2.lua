@@ -279,16 +279,4 @@ function ADM_BonaMasso_1D_1997Alcubierre:consWaveCodePrefix(n, U, x, waveIndex)
 end
 ADM_BonaMasso_1D_1997Alcubierre.consWaveCode = ADM_BonaMasso_1D_1997Alcubierre.eigenWaveCode
 
-
-function ADM_BonaMasso_1D_1997Alcubierre:fillRandom(epsilon)
-	local ptr = ADM_BonaMasso_1D_1997Alcubierre.super.fillRandom(self, epsilon)
-	local solver = self.solver
-	for i=0,solver.numCells-1 do
-		ptr[i].alpha = ptr[i].alpha + 1
-		ptr[i].gamma_xx = ptr[i].gamma_xx + 1
-	end
-	solver.UBufObj:fromCPU(ptr)
-	return ptr
-end
-
 return ADM_BonaMasso_1D_1997Alcubierre

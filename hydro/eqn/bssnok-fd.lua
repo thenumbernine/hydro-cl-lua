@@ -178,9 +178,9 @@ void setFlatSpace(
 	}
 end
 
-function BSSNOKFiniteDifferenceEquationBase:initCodeModuleCalcDT()
+function BSSNOKFiniteDifferenceEquationBase:initCodeModule_calcDT()
 	self.solver.modules:add{
-		name = 'eqn.calcDT',
+		name = 'calcDT',
 		depends = {
 			'eqn.common',
 			'coord_sqrt_g_ll##',

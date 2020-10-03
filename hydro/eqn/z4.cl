@@ -67,12 +67,12 @@ kernel void calcDT(
 	dtBuf[index] = dt; 
 }
 
-//used by PLM
-<? for side=0,solver.dim-1 do ?>
-eigen_t eigen_forCell_<?=side?>(
+//used by PLM, and by the default fluxFromCons (used by hll, or roe when roeUseFluxFromCons is set)
+eigen_t eigen_forCell(
 	constant solver_t* solver,
 	cons_t U,
-	real3 x 
+	real3 x,
+	normal_t n
 ) {
 	eigen_t eig;
 	eig.alpha = U.alpha;
@@ -87,22 +87,23 @@ eigen_t eigen_forCell_<?=side?>(
 
 	return eig;
 }
-<? end ?>
 
-<? for side=0,solver.dim-1 do ?>
-range_t calcCellMinMaxEigenvalues_<?=side?>(
+
+range_t calcCellMinMaxEigenvalues(
 	const global cons_t* U,
-	real3 x
+	real3 x,
+	normal_t n
 ) {
 	real det_gamma = sym3_det(U->gamma_ll);
-	
-	<? if side==0 then ?>
-	real gammaUjj = (U->gamma_ll.yy * U->gamma_ll.zz - U->gamma_ll.yz * U->gamma_ll.yz) / det_gamma;
-	<? elseif side==1 then ?>
-	real gammaUjj = (U->gamma_ll.xx * U->gamma_ll.zz - U->gamma_ll.xz * U->gamma_ll.xz) / det_gamma;
-	<? elseif side==2 then ?>
-	real gammaUjj = (U->gamma_ll.xx * U->gamma_ll.yy - U->gamma_ll.xy * U->gamma_ll.xy) / det_gamma;
-	<? end ?>
+
+	real gammaUjj;
+	if (n.side == 0) {
+		gammaUjj = (U->gamma_ll.yy * U->gamma_ll.zz - U->gamma_ll.yz * U->gamma_ll.yz) / det_gamma;
+	} else if (n.side == 1) {
+		gammaUjj = (U->gamma_ll.xx * U->gamma_ll.zz - U->gamma_ll.xz * U->gamma_ll.xz) / det_gamma;
+	} else if (n.side == 2) {
+		gammaUjj = (U->gamma_ll.xx * U->gamma_ll.yy - U->gamma_ll.xy * U->gamma_ll.xy) / det_gamma;
+	}
 	
 	real lambdaLight = U->alpha * sqrt(gammaUjj);
 	
@@ -114,8 +115,8 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 	real lambdaMin = -lambdaMin;
 
 	<? if eqn.useShift ~= 'none' then ?>
-	lambdaMin -= U->beta_u.s<?=side?>;
-	lambdaMax -= U->beta_u.s<?=side?>;
+	lambdaMin -= normal_vecDotN1(n, U->beta_u);
+	lambdaMax -= normal_vecDotN1(n, U->beta_u);
 	<? end ?>
 
 	return (range_t){
@@ -123,7 +124,6 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 		.max = lambdaMax,
 	};
 }
-<? end ?>
 
 //used for interface eigen basis
 eigen_t eigen_forInterface(
@@ -131,7 +131,7 @@ eigen_t eigen_forInterface(
 	cons_t UL,
 	cons_t UR,
 	real3 x,
-	real3 n
+	normal_t n
 ) {
 	real alpha = .5 * (UL.alpha + UR.alpha);
 	sym3 avg_gamma = (sym3){
@@ -159,27 +159,51 @@ eigen_t eigen_forInterface(
 	return eig;
 }
 
-<? for side=0,solver.dim-1 do ?>
-waves_t eigen_leftTransform_<?=side?>(
+// I do have real3_swap# and sym3_swap# in math
+// but those only work with compile-time parameters
+// so here is the same thing, but for run-time
+real3 real3_swap(real3 v, int side) {
+	real tmp = v.s[side];
+	v.s[side] = v.x;
+	v.x = tmp;
+	return v;
+}
+
+sym3 sym3_swap(sym3 m, int side) {
+	if (side == 0) {
+		return m;
+	} else if (side == 1) {
+		return _sym3(m.yy, m.xy, m.yz, m.xx, m.xz, m.zz);
+	} else if (side == 2) {
+		return _sym3(m.zz, m.yz, m.xz, m.yy, m.xy, m.xx);
+	}
+}
+
+_3sym3 _3sym3_swap(_3sym3 m, int side) {
+	return (_3sym3){
+		.x = sym3_swap(m.v[side], side),
+		.y = sym3_swap(m.v[side==1 ? 0 : 1], side),
+		.z = sym3_swap(m.v[side==2 ? 0 : 2], side),
+	};
+}
+
+waves_t eigen_leftTransform(
 	constant solver_t* solver,
 	eigen_t eig,
 	cons_t inputU,
-	real3 x 
+	real3 x,
+	normal_t n
 ) {
 	waves_t results;
 
-	real3 a_l = real3_swap<?=side?>(inputU.a_l);							//0-2
-	_3sym3 d_lll = (_3sym3){
-		.x = sym3_swap<?=side?>(inputU.d_lll.v<?=side?>),					//3-8
-		.y = sym3_swap<?=side?>(inputU.d_lll.v<?=side==1 and 0 or 1?>),		//9-14
-		.z = sym3_swap<?=side?>(inputU.d_lll.v<?=side==2 and 0 or 2?>),		//15-20
-	};
-	sym3 K_ll = sym3_swap<?=side?>(inputU.K_ll);							//21-26
+	real3 a_l = real3_swap(inputU.a_l, n.side);							//0-2
+	_3sym3 d_lll = _3sym3_swap(inputU.d_lll, n.side);					//3-20 ... .x = 3-8, .y = 9-14, .z = 15-20
+	sym3 K_ll = sym3_swap(inputU.K_ll, n.side);							//21-26
 	real Theta = inputU.Theta;												//27
-	real3 Z_l = real3_swap<?=side?>(inputU.Z_l);							//28-30
+	real3 Z_l = real3_swap(inputU.Z_l, n.side);							//28-30
 	
-	sym3 gamma_ll = sym3_swap<?=side?>(eig.gamma_ll);
-	sym3 gamma_uu = sym3_swap<?=side?>(eig.gamma_uu);
+	sym3 gamma_ll = sym3_swap(eig.gamma_ll, n.side);
+	sym3 gamma_uu = sym3_swap(eig.gamma_uu, n.side);
 
 	real sqrt_gammaUUxx = sqrt(gamma_uu.xx);
 	real gammaUUxx_toThe_3_2 = sqrt_gammaUUxx * gamma_uu.xx;
@@ -222,23 +246,23 @@ waves_t eigen_leftTransform_<?=side?>(
 	results.ptr[29] = ((Theta - (gamma_uu.xx * Z_l.x)) + ((gamma_uu.xx * gamma_uu.yy * d_lll.x.yy) - (gamma_uu.xx * gamma_uu.yy * d_lll.y.xy)) + (((2. * gamma_uu.xx * gamma_uu.yz * d_lll.x.yz) - (gamma_uu.xx * gamma_uu.yz * d_lll.y.xz)) - (gamma_uu.xx * gamma_uu.yz * d_lll.z.xy)) + (((gamma_uu.xx * gamma_uu.zz * d_lll.x.zz) - (gamma_uu.xx * gamma_uu.zz * d_lll.z.xz)) - (gamma_uu.xy * gamma_uu.xy * d_lll.x.yy)) + (((gamma_uu.xy * gamma_uu.xy * d_lll.y.xy) - (gamma_uu.xy * Z_l.y)) - (2. * gamma_uu.xy * gamma_uu.xz * d_lll.x.yz)) + (gamma_uu.xy * gamma_uu.xz * d_lll.y.xz) + (gamma_uu.xy * gamma_uu.xz * d_lll.z.xy) + ((gamma_uu.xy * gamma_uu.yz * d_lll.y.yz) - (gamma_uu.xy * gamma_uu.yz * d_lll.z.yy)) + (((gamma_uu.xy * gamma_uu.zz * d_lll.y.zz) - (gamma_uu.xy * gamma_uu.zz * d_lll.z.yz)) - (gamma_uu.xz * gamma_uu.xz * d_lll.x.zz)) + (((gamma_uu.xz * gamma_uu.xz * d_lll.z.xz) - (gamma_uu.xz * Z_l.z)) - (gamma_uu.xz * gamma_uu.yy * d_lll.y.yz)) + ((gamma_uu.xz * gamma_uu.yy * d_lll.z.yy) - (gamma_uu.xz * gamma_uu.yz * d_lll.y.zz)) + (gamma_uu.xz * gamma_uu.yz * d_lll.z.yz));
 	results.ptr[30] = (-(((lambda_2 * gamma_uu.xx * Z_l.x) - (lambda_2 * gamma_uu.xx * gamma_uu.yy * d_lll.x.yy)) + ((lambda_2 * gamma_uu.xx * gamma_uu.yy * d_lll.y.xy) - (2. * lambda_2 * gamma_uu.xx * gamma_uu.yz * d_lll.x.yz)) + (lambda_2 * gamma_uu.xx * gamma_uu.yz * d_lll.y.xz) + ((lambda_2 * gamma_uu.xx * gamma_uu.yz * d_lll.z.xy) - (lambda_2 * gamma_uu.xx * gamma_uu.zz * d_lll.x.zz)) + (lambda_2 * gamma_uu.xx * gamma_uu.zz * d_lll.z.xz) + ((lambda_2 * gamma_uu.xy * gamma_uu.xy * d_lll.x.yy) - (lambda_2 * gamma_uu.xy * gamma_uu.xy * d_lll.y.xy)) + (lambda_2 * gamma_uu.xy * Z_l.y) + ((((2. * lambda_2 * gamma_uu.xy * gamma_uu.xz * d_lll.x.yz) - (lambda_2 * gamma_uu.xy * gamma_uu.xz * d_lll.y.xz)) - (lambda_2 * gamma_uu.xy * gamma_uu.xz * d_lll.z.xy)) - (lambda_2 * gamma_uu.xy * gamma_uu.yz * d_lll.y.yz)) + ((lambda_2 * gamma_uu.xy * gamma_uu.yz * d_lll.z.yy) - (lambda_2 * gamma_uu.xy * gamma_uu.zz * d_lll.y.zz)) + (lambda_2 * gamma_uu.xy * gamma_uu.zz * d_lll.z.yz) + ((lambda_2 * gamma_uu.xz * gamma_uu.xz * d_lll.x.zz) - (lambda_2 * gamma_uu.xz * gamma_uu.xz * d_lll.z.xz)) + (lambda_2 * gamma_uu.xz * Z_l.z) + ((lambda_2 * gamma_uu.xz * gamma_uu.yy * d_lll.y.yz) - (lambda_2 * gamma_uu.xz * gamma_uu.yy * d_lll.z.yy)) + ((((((((((((lambda_2 * gamma_uu.xz * gamma_uu.yz * d_lll.y.zz) - (lambda_2 * gamma_uu.xz * gamma_uu.yz * d_lll.z.yz)) - (sqrt_f * lambda_1 * Theta)) - (sqrt_f * gamma_uu.xx * K_ll.xx)) - (2. * sqrt_f * gamma_uu.xy * K_ll.xy)) - (2. * sqrt_f * gamma_uu.xz * K_ll.xz)) - (sqrt_f * gamma_uu.yy * K_ll.yy)) - (2. * sqrt_f * gamma_uu.yz * K_ll.yz)) - (sqrt_f * gamma_uu.zz * K_ll.zz)) - (gamma_uu.xx * a_l.x)) - (gamma_uu.xy * a_l.y)) - (gamma_uu.xz * a_l.z))));
 
-
 	return results;
 }
 
-cons_t eigen_rightTransform_<?=side?>(
+cons_t eigen_rightTransform(
 	constant solver_t* solver,
 	eigen_t eig,
 	waves_t input,
-	real3 x
+	real3 x,
+	normal_t n
 ) {
 	cons_t resultU;
 	for (int j = 0; j < numStates; ++j) {
 		resultU.ptr[j] = 0;
 	}
 	
-	sym3 gamma_ll = sym3_swap<?=side?>(eig.gamma_ll);
-	sym3 gamma_uu = sym3_swap<?=side?>(eig.gamma_uu);
+	sym3 gamma_ll = sym3_swap(eig.gamma_ll, n.side);
+	sym3 gamma_uu = sym3_swap(eig.gamma_uu, n.side);
 	
 	real sqrt_gammaUUxx = sqrt(gamma_uu.xx);
 	real gammaUUxx_toThe_3_2 = sqrt_gammaUUxx * gamma_uu.xx;
@@ -282,27 +306,37 @@ cons_t eigen_rightTransform_<?=side?>(
 	resultU.ptr[29] = (((input.ptr[2] * gamma_uu.xx) + ((input.ptr[7] * gamma_uu.xx) - (input.ptr[24] * gamma_uu.xx)) + (((gammaUUxxSq * input.ptr[9]) - (gamma_uu.xx * gamma_uu.yy * input.ptr[12])) - (2. * gamma_uu.xx * gamma_uu.yz * input.ptr[18])) + (gamma_uu.xy * input.ptr[4]) + (2. * gamma_uu.xy * input.ptr[10] * gamma_uu.xx) + ((2. * gamma_uu.xy * gamma_uu.xy * input.ptr[12]) - (gamma_uu.xy * input.ptr[26])) + (2. * gamma_uu.xy * gamma_uu.xz * input.ptr[13]) + (gamma_uu.xz * input.ptr[5]) + (2. * gamma_uu.xz * input.ptr[11] * gamma_uu.xx) + ((2. * gamma_uu.xz * gamma_uu.xz * input.ptr[19]) - (gamma_uu.xz * input.ptr[27])) + (2. * gamma_uu.xz * gamma_uu.xy * input.ptr[18]) + ((gamma_uu.zz * input.ptr[14] * gamma_uu.xx) - (2. * gamma_uu.zz * gamma_uu.xx * input.ptr[19]))) / (2. * gamma_uu.xx));
 	resultU.ptr[30] = (((input.ptr[3] * gamma_uu.xx) + ((input.ptr[8] * gamma_uu.xx) - (input.ptr[25] * gamma_uu.xx)) + ((((gammaUUxxSq * input.ptr[15]) - (2. * gamma_uu.xx * gamma_uu.yy * input.ptr[13])) - (2. * gamma_uu.xx * gamma_uu.yz * input.ptr[14])) - (gamma_uu.xx * gamma_uu.zz * input.ptr[20])) + (gamma_uu.xy * input.ptr[5]) + (2. * gamma_uu.xy * gamma_uu.xy * input.ptr[13]) + ((2. * gamma_uu.xy * input.ptr[16] * gamma_uu.xx) - (gamma_uu.xy * input.ptr[27])) + (2. * gamma_uu.xy * gamma_uu.xz * input.ptr[19]) + (gamma_uu.xz * input.ptr[6]) + (2. * gamma_uu.xz * input.ptr[17] * gamma_uu.xx) + ((2. * gamma_uu.xz * gamma_uu.xz * input.ptr[20]) - (gamma_uu.xz * input.ptr[28])) + (2. * gamma_uu.xz * gamma_uu.xy * input.ptr[14]) + (gamma_uu.yy * input.ptr[18] * gamma_uu.xx)) / (2. * gamma_uu.xx));
 
-	resultU.a_l = real3_swap<?=side?>(resultU.a_l);							//0-2
-	resultU.d_lll = (_3sym3){
-		.x = sym3_swap<?=side?>(resultU.d_lll.v<?=side?>),					//3-8
-		.y = sym3_swap<?=side?>(resultU.d_lll.v<?=side==1 and 0 or 1?>),		//9-14
-		.z = sym3_swap<?=side?>(resultU.d_lll.v<?=side==2 and 0 or 2?>),		//15-20
-	};
-	resultU.K_ll = sym3_swap<?=side?>(resultU.K_ll);							//21-26
-	resultU.Theta = resultU.Theta;												//27
-	resultU.Z_l = real3_swap<?=side?>(resultU.Z_l);							//28-30
+	resultU.a_l = real3_swap(resultU.a_l, n.side);			//0-2
+	resultU.d_lll = _3sym3_swap(resultU.d_lll, n.side);		//3-20
+	resultU.K_ll = sym3_swap(resultU.K_ll, n.side);			//21-26
+	resultU.Theta = resultU.Theta;							//27
+	resultU.Z_l = real3_swap(resultU.Z_l, n.side);			//28-30
 
 	return resultU;
 }
 
-cons_t eigen_fluxTransform_<?=side?>(
+//so long as roeUseFluxFromCons isn't set for the roe solver, 
+// and fluxFromCons is provided/unused,
+// eigen_fluxTransform isn't needed.
+// but some solvers do use a boilerplate right(lambda(left(U)))
+//however if you want to use the HLL solver then fluxFromCons is needed
+//...however fluxFromCons is not provided by this eqn.
+cons_t eigen_fluxTransform(
 	constant solver_t* solver,
 	eigen_t eig,
 	cons_t inputU,
-	real3 x
+	real3 x,
+	normal_t n
 ) {
+	//default
+	waves_t waves = eigen_leftTransform(solver, eig, inputU, x, n);
+	<?=eqn:eigenWaveCodePrefix('n', 'eig', 'x')?>
+<? for j=0,eqn.numWaves-1 do 
+?>	waves.ptr[<?=j?>] *= <?=eqn:eigenWaveCode('n', 'eig', 'x', j)?>;
+<? end 
+?>	return eigen_rightTransform(solver, eig, waves, x, n);
+
 }
-<? end ?>
 
 kernel void addSource(
 	constant solver_t* solver,

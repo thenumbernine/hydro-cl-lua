@@ -16,7 +16,6 @@ local xNames = common.xNames
 
 local ADM_BonaMasso_3D = class(EinsteinEqn)
 ADM_BonaMasso_3D.name = 'ADM_BonaMasso_3D'
-ADM_BonaMasso_3D.hasCalcDTCode = true
 ADM_BonaMasso_3D.useSourceTerm = true
 ADM_BonaMasso_3D.useConstrainU = true
 
@@ -192,14 +191,6 @@ end
 function ADM_BonaMasso_3D:createInitState()
 	ADM_BonaMasso_3D.super.createInitState(self)
 	
-	-- eqn.einstein compatability hack ...
-	-- if initCond.initAnalytical is *NOT* set then it will call initDerivs(), which is usually only done for finite-differencing the original state variables.
-	-- if initCond.initAnalytical is set then it expects the analytical expressions to be written *HERE*
-	-- ... which adm3d does not do yet.
-	if self.initCond.initAnalytical then
-		error("adm3d can't handle analytical initial conditions yet")
-	end
-
 	self:addGuiVars{
 		{
 			type = 'combo',
@@ -241,6 +232,67 @@ function ADM_BonaMasso_3D:createInitState()
 	}
 	-- TODO add shift option
 	-- but that means moving the consVars construction to the :init()
+end
+
+function ADM_BonaMasso_3D:initCodeModule_calcDT()
+	self.solver.modules:add{
+		name = 'calcDT',
+		depends = {
+			'solver.solver_t',
+			'eqn.prim-cons',
+			'eqn.guiVars.compileTime',
+		},
+		code = self:template[[
+kernel void calcDT(
+	constant <?=solver.solver_t?>* solver,
+	global real* dtBuf,
+	const global <?=eqn.cons_t?>* UBuf,
+	const global <?=solver.coord.cell_t?>* cellBuf
+) {
+	SETBOUNDS(0,0);
+	if (OOB(numGhost,numGhost)) {
+		dtBuf[index] = INFINITY;
+		return;
+	}
+		
+	const global <?=eqn.cons_t?>* U = UBuf + index;
+	
+	//the only advantage of this calcDT over the default is that here this sqrt(f) and det(gamma_ij) is only called once
+	real f = calc_f(U->alpha);
+	real det_gamma = sym3_det(U->gamma_ll);
+	real sqrt_f = sqrt(f);
+
+	real dt = INFINITY;
+	<? for side=0,solver.dim-1 do ?>{
+		
+		<? if side==0 then ?>
+		real gammaUjj = (U->gamma_ll.yy * U->gamma_ll.zz - U->gamma_ll.yz * U->gamma_ll.yz) / det_gamma;
+		<? elseif side==1 then ?>
+		real gammaUjj = (U->gamma_ll.xx * U->gamma_ll.zz - U->gamma_ll.xz * U->gamma_ll.xz) / det_gamma;
+		<? elseif side==2 then ?>
+		real gammaUjj = (U->gamma_ll.xx * U->gamma_ll.yy - U->gamma_ll.xy * U->gamma_ll.xy) / det_gamma;
+		<? end ?>	
+		real lambdaLight = U->alpha * sqrt(gammaUjj);
+		
+		real lambdaGauge = lambdaLight * sqrt_f;
+		real lambda = (real)max(lambdaGauge, lambdaLight);
+
+		<? if eqn.useShift ~= 'none' then ?>
+		real betaUi = U->beta_u.s<?=side?>;
+		<? else ?>
+		const real betaUi = 0.;
+		<? end ?>
+		
+		real lambdaMin = (real)min((real)0., -betaUi - lambda);
+		real lambdaMax = (real)max((real)0., -betaUi + lambda);
+		real absLambdaMax = max(fabs(lambdaMin), fabs(lambdaMax));
+		absLambdaMax = max((real)1e-9, absLambdaMax);
+		dt = (real)min(dt, solver->grid_dx.s<?=side?> / absLambdaMax);
+	}<? end ?>
+	dtBuf[index] = dt; 
+}
+]]
+	}
 end
 
 function ADM_BonaMasso_3D:initCodeModule_setFlatSpace()
@@ -289,14 +341,18 @@ function ADM_BonaMasso_3D:getModuleDependsApplyInitCond()
 	return {'coordMap', 'coord_g_ll', 'rescaleFromCoord/rescaleToCoord'}
 end
 
--- always true, except for initAnalytica, but I don't have that coded yet
+-- always true, except for initAnalytical, but I don't have that coded yet
 ADM_BonaMasso_3D.needsInitDerivs = true
 
 function ADM_BonaMasso_3D:getInitCondCode()
+	-- eqn.einstein compatability hack ...
+	-- if initCond.initAnalytical is *NOT* set then it will call initDerivs(), which is usually only done for finite-differencing the original state variables.
+	-- if initCond.initAnalytical is set then it expects the analytical expressions to be written *HERE*
+	-- ... which adm3d does not do yet.
 	if self.initCond.initAnalytical then
-		error("TODO - adm3d initAnalytical")
+		error("TODO - adm3d can't handle analytical initial conditions yet")
 	end
-		
+
 	if self.initCond.useBSSNVars then
 		return self:template([[
 kernel void applyInitCond(
@@ -616,11 +672,11 @@ end
 function ADM_BonaMasso_3D:eigenWaveCodePrefix(n, eig, x, waveIndex)
 	return self:template([[
 	real eig_lambdaLight;
-	if (n.side == 0) {
+	if (<?=n?>.side == 0) {
 		eig_lambdaLight = <?=eig?>.alpha * <?=eig?>.sqrt_gammaUjj.x;
-	} else if (n.side == 1) {
+	} else if (<?=n?>.side == 1) {
 		eig_lambdaLight = <?=eig?>.alpha * <?=eig?>.sqrt_gammaUjj.y;
-	} else if (n.side == 2) {
+	} else if (<?=n?>.side == 2) {
 		eig_lambdaLight = <?=eig?>.alpha * <?=eig?>.sqrt_gammaUjj.z;
 	}
 	real eig_lambdaGauge = eig_lambdaLight * <?=eig?>.sqrt_f;
@@ -637,11 +693,10 @@ function ADM_BonaMasso_3D:eigenWaveCode(n, eig, x, waveIndex)
 
 	local betaUi
 	if self.useShift ~= 'none' then
-		betaUi = '('..eig..').beta_u.s[n.side]'
+		betaUi = '('..eig..').beta_u.s['..n..'.side]'
 	else
 		betaUi = '0'
 	end
-
 
 	if not self.noZeroRowsInFlux then
 		if waveIndex == 0 then
@@ -678,11 +733,11 @@ function ADM_BonaMasso_3D:consWaveCodePrefix(n, U, x, waveIndex)
 	real det_gamma = sym3_det(<?=U?>.gamma_ll);
 	sym3 gamma_uu = sym3_inv(<?=U?>.gamma_ll, det_gamma);
 	real eig_lambdaLight;
-	if (n.side == 0) {
+	if (<?=n?>.side == 0) {
 		eig_lambdaLight = <?=U?>.alpha * sqrt(gamma_uu.xx);
-	} else if (n.side == 1) {
+	} else if (<?=n?>.side == 1) {
 		eig_lambdaLight = <?=U?>.alpha * sqrt(gamma_uu.yy);
-	} else if (n.side == 2) {
+	} else if (<?=n?>.side == 2) {
 		eig_lambdaLight = <?=U?>.alpha * sqrt(gamma_uu.zz);
 	}
 	real f = calc_f(<?=U?>.alpha);
@@ -693,19 +748,5 @@ function ADM_BonaMasso_3D:consWaveCodePrefix(n, U, x, waveIndex)
 	})
 end
 ADM_BonaMasso_3D.consWaveCode = ADM_BonaMasso_3D.eigenWaveCode
-
-
-function ADM_BonaMasso_3D:fillRandom(epsilon)
-	local ptr = ADM_BonaMasso_3D.super.fillRandom(self, epsilon)
-	local solver = self.solver
-	for i=0,solver.numCells-1 do
-		ptr[i].alpha = ptr[i].alpha + 1
-		ptr[i].gamma_ll.xx = ptr[i].gamma_ll.xx + 1
-		ptr[i].gamma_ll.yy = ptr[i].gamma_ll.yy + 1
-		ptr[i].gamma_ll.zz = ptr[i].gamma_ll.zz + 1
-	end
-	solver.UBufObj:fromCPU(ptr)
-	return ptr
-end
 
 return ADM_BonaMasso_3D

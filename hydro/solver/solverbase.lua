@@ -668,7 +668,7 @@ function SolverBase:initCodeModules()
 
 	-- TODO get rid of this flag? make everything a module
 	if not self.eqn.hasCalcDTCode then
-		self.solverModulesEnabled['eqn.calcDT'] = true
+		self.solverModulesEnabled['calcDT'] = true
 	end
 
 	self.modules:add{

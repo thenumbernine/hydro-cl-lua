@@ -271,17 +271,4 @@ function Z4_2008Yano:consWaveCodePrefix(side, U, x, waveIndex)
 end
 Z4_2008Yano.consWaveCode = Z4_2008Yano.eigenWaveCode
 
-function Z4_2008Yano:fillRandom(epsilon)
-	local ptr = Z4_2008Yano.super.fillRandom(self, epsilon)
-	local solver = self.solver
-	for i=0,solver.volume-1 do
-		ptr[i].alpha = ptr[i].alpha + 1
-		ptr[i].gamma_ll.xx = ptr[i].gamma_ll.xx + 1
-		ptr[i].gamma_ll.yy = ptr[i].gamma_ll.yy + 1
-		ptr[i].gamma_ll.zz = ptr[i].gamma_ll.zz + 1
-	end
-	solver.UBufObj:fromCPU(ptr)
-	return ptr
-end
-
 return Z4_2008Yano

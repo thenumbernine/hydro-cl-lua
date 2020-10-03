@@ -1145,8 +1145,20 @@ TODO I now have a Bessel function routine in hydro/math.cl
 			
 			solver.eqn:addGuiVar{name='epsilon', value=1e-10}
 		end,
-		getInitCode = function(self, solver)
-			error"TODO override all of applyInitCond.  don't generate U from the prims (and their derivatives), but gen U's fields (incl derivs) directly."
+		getInitCondCode = function(self, solver)
+			return [[
+	alpha = 1. + initCond->epsilon * U.ptr[0];
+	for (int j = 0; j < 6; ++j) {
+		gamma_ll.s[j] = initCond->epsilon * U.ptr[j+1];
+	}
+	gamma_ll = sym3_add(gamma_ll, conn_g_ll(x));
+	for (int j = 0; j < 6; ++j) {
+		K_ll.s[j] = initCond->epsilon * U.ptr[j+7];
+	}
+	for (int j = 0; j < 3; ++j) {
+		beta_u.s[j] = initCond->epsilon * U.ptr[j+10];
+	}
+]]
 		end,
 	},
 	{

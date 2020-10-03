@@ -11,55 +11,6 @@ typedef <?=eqn.eigen_t?> eigen_t;
 typedef <?=eqn.waves_t?> waves_t;
 typedef <?=solver.solver_t?> solver_t;
 
-kernel void calcDT(
-	constant solver_t* solver,
-	global real* dtBuf,
-	const global cons_t* UBuf,
-	const global <?=solver.coord.cell_t?>* cellBuf
-) {
-	SETBOUNDS(0,0);
-	if (OOB(numGhost,numGhost)) {
-		dtBuf[index] = INFINITY;
-		return;
-	}
-		
-	const global cons_t* U = UBuf + index;
-	
-	//the only advantage of this calcDT over the default is that here this sqrt(f) and det(gamma_ij) is only called once
-	real f = calc_f(U->alpha);
-	real det_gamma = sym3_det(U->gamma_ll);
-	real sqrt_f = sqrt(f);
-
-	real dt = INFINITY;
-	<? for side=0,solver.dim-1 do ?>{
-		
-		<? if side==0 then ?>
-		real gammaUjj = (U->gamma_ll.yy * U->gamma_ll.zz - U->gamma_ll.yz * U->gamma_ll.yz) / det_gamma;
-		<? elseif side==1 then ?>
-		real gammaUjj = (U->gamma_ll.xx * U->gamma_ll.zz - U->gamma_ll.xz * U->gamma_ll.xz) / det_gamma;
-		<? elseif side==2 then ?>
-		real gammaUjj = (U->gamma_ll.xx * U->gamma_ll.yy - U->gamma_ll.xy * U->gamma_ll.xy) / det_gamma;
-		<? end ?>	
-		real lambdaLight = U->alpha * sqrt(gammaUjj);
-		
-		real lambdaGauge = lambdaLight * sqrt_f;
-		real lambda = (real)max(lambdaGauge, lambdaLight);
-
-		<? if eqn.useShift ~= 'none' then ?>
-		real betaUi = U->beta_u.s<?=side?>;
-		<? else ?>
-		const real betaUi = 0.;
-		<? end ?>
-		
-		real lambdaMin = (real)min((real)0., -betaUi - lambda);
-		real lambdaMax = (real)max((real)0., -betaUi + lambda);
-		real absLambdaMax = max(fabs(lambdaMin), fabs(lambdaMax));
-		absLambdaMax = max((real)1e-9, absLambdaMax);
-		dt = (real)min(dt, solver->grid_dx.s<?=side?> / absLambdaMax);
-	}<? end ?>
-	dtBuf[index] = dt; 
-}
-
 //used by PLM
 eigen_t eigen_forCell(
 	constant solver_t* solver,
@@ -110,8 +61,8 @@ range_t calcCellMinMaxEigenvalues(
 	real lambdaMin = -lambdaMin;
 
 	<? if eqn.useShift ~= 'none' then ?>
-	lambdaMin -= U->beta_u.s[n.side];
-	lambdaMax -= U->beta_u.s[n.side];
+	lambdaMin -= normal_vecDotN1(n, U->beta_u);
+	lambdaMax -= normal_vecDotN1(n, U->beta_u);
 	<? end ?>
 
 	return (range_t){

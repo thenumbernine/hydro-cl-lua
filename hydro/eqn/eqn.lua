@@ -481,7 +481,7 @@ end
 	}
 
 	self:initCodeModuleSolver()
-	self:initCodeModuleCalcDT()
+	self:initCodeModule_calcDT()
 
 	self:initCodeModule_fluxFromCons()
 end
@@ -768,14 +768,17 @@ function Equation:consMaxWaveCode(n, U, x)
 end
 
 -- Whether the eqn has its own calcDT.  Otherwise hydro/eqn/cl/calcDT.cl is used. 
+-- the meaning of this changed
+-- it used to mean "does this solver define its own calcDT?"
+-- now it means "does this solver define calcDT in the .cl file / getSolverCode?"
 Equation.hasCalcDTCode = nil
 
-function Equation:initCodeModuleCalcDT()
+function Equation:initCodeModule_calcDT()
 	-- hmm can't do this anymore since even if calcDT is in cl code it won't be in the module system
 	if self.hasCalcDTCode then return end
 	
 	self.solver.modules:add{
-		name = 'eqn.calcDT',
+		name = 'calcDT',
 		depends = {
 			'eqn.cons_t',
 			'eqn.prim_t',

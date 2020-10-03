@@ -14,11 +14,6 @@ Euler.name = 'Euler'
 Euler.numWaves = 5
 Euler.numIntStates = 5	-- don't bother integrate ePot
 
--- the meaning of this changed
--- it used to mean "does this solver define its own calcDT?"
--- now it means "does this solver define calcDT in the .cl file / getSolverCode?"
-Euler.hasCalcDTCode = false
-
 Euler.roeUseFluxFromCons = true
 
 -- the only source term that the Euler equations has is the connection coefficients of the velocity vector
@@ -513,15 +508,19 @@ Euler.eigenWaveCode = Euler.consWaveCode
 -- this one calcs cell prims once and uses it for all sides
 -- it is put here instead of in hydro/eqn/euler.cl so euler-burgers can override it
 -- TODO move the sqrt() out of the loop altogether?
-function Euler:initCodeModuleCalcDT()
-	self.solver.modules:add{
-		name = 'eqn.calcDT',
-		depends = {
+function Euler:initCodeModule_calcDT()
+	local solver = self.solver
+	solver.modules:add{
+		name = 'calcDT',
+		depends = table{
 			'solver.solver_t',
 			'eqn.prim-cons',
 			'eqn.guiVars.compileTime',
-			'normal_t',
-		},
+		}:append(
+			require 'hydro.solver.meshsolver'.is(solver) and {
+				'normal_t',
+			} or nil
+		),
 		code = self:template[[
 <? if require 'hydro.solver.gridsolver'.is(solver) then ?>
 

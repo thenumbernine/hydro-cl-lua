@@ -207,19 +207,4 @@ end
 
 ADM_BonaMasso_1D_2008Alcubierre.consWaveCode = ADM_BonaMasso_1D_2008Alcubierre.eigenWaveCode
 	
-
--- TODO store flat values somewhere, then perturb all real values here
---  then you can move this into the parent class
-local function crand() return 2 * math.random() - 1 end
-function ADM_BonaMasso_1D_2008Alcubierre:fillRandom(epsilon)
-	local ptr = ADM_BonaMasso_1D_2008Alcubierre.super.fillRandom(self, epsilon)
-	local solver = self.solver
-	for i=0,solver.numCells-1 do
-		ptr[i].alpha = ptr[i].alpha + 1
-		ptr[i].gamma_xx = ptr[i].gamma_xx + 1
-	end
-	solver.UBufObj:fromCPU(ptr)
-	return ptr
-end
-
 return ADM_BonaMasso_1D_2008Alcubierre
