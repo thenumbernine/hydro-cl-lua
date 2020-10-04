@@ -588,6 +588,7 @@ real sym3_dot(sym3 a, sym3 b);
 real3 sym3_x(sym3 m);
 real3 sym3_y(sym3 m);
 real3 sym3_z(sym3 m);
+real3 sym3_col(sym3 m, int side);
 real sym3_trace(sym3 m);
 sym3 sym3_swap(sym3 m, int side);
 sym3 sym3_swap0(sym3 m);
@@ -687,6 +688,16 @@ real sym3_dot(sym3 a, sym3 b) {
 real3 sym3_x(sym3 m) { return _real3(m.xx, m.xy, m.xz); }
 real3 sym3_y(sym3 m) { return _real3(m.xy, m.yy, m.yz); }
 real3 sym3_z(sym3 m) { return _real3(m.xz, m.yz, m.zz); }
+
+real3 sym3_col(sym3 m, int side) {
+	if (side == 0) {
+		return sym3_x(m);
+	} else if (side == 1) {
+		return sym3_y(m);
+	} else if (side == 2) {
+		return sym3_z(m);
+	}
+}
 
 real sym3_trace(sym3 m) {
 	return m.xx + m.yy + m.zz;
@@ -1154,6 +1165,16 @@ _3sym3 _3sym3_swap(_3sym3 m, int side) {
 		.z = sym3_swap(m.v[side==2 ? 0 : 2], side),
 	};
 }
+
+<? for side=0,2 do ?>
+_3sym3 _3sym3_swap<?=side?>(_3sym3 m) {
+	return (_3sym3){
+		.x = sym3_swap<?=side?>(m.v[<?=side?>]),
+		.y = sym3_swap<?=side?>(m.v[<?=side==1 and 0 or 1?>]),
+		.z = sym3_swap<?=side?>(m.v[<?=side==2 and 0 or 2?>]),
+	};
+}
+<? end ?>
 
 ]], 	{
 			xNames = xNames,

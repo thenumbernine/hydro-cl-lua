@@ -18,55 +18,6 @@ typedef <?=eqn.eigen_t?> eigen_t;
 typedef <?=eqn.waves_t?> waves_t;
 typedef <?=solver.solver_t?> solver_t;
 
-kernel void calcDT(
-	constant solver_t* solver,
-	global real* dtBuf,
-	const global cons_t* UBuf,
-	const global <?=solver.coord.cell_t?>* cellBuf
-) {
-	SETBOUNDS(0,0);
-	if (OOB(numGhost,numGhost)) {
-		dtBuf[index] = INFINITY;
-		return;
-	}
-		
-	const global cons_t* U = UBuf + index;
-	
-	//the only advantage of this calcDT over the default is that here this sqrt(f) and det(gamma_ij) is only called once
-	real f = calc_f(U->alpha);
-	real det_gamma = sym3_det(U->gamma_ll);
-	real sqrt_f = sqrt(f);
-
-	real dt = INFINITY;
-	<? for side=0,solver.dim-1 do ?>{
-		
-		<? if side==0 then ?>
-		real gammaUjj = (U->gamma_ll.yy * U->gamma_ll.zz - U->gamma_ll.yz * U->gamma_ll.yz) / det_gamma;
-		<? elseif side==1 then ?>
-		real gammaUjj = (U->gamma_ll.xx * U->gamma_ll.zz - U->gamma_ll.xz * U->gamma_ll.xz) / det_gamma;
-		<? elseif side==2 then ?>
-		real gammaUjj = (U->gamma_ll.xx * U->gamma_ll.yy - U->gamma_ll.xy * U->gamma_ll.xy) / det_gamma;
-		<? end ?>	
-		real lambdaLight = U->alpha * sqrt(gammaUjj);
-		
-		real lambdaGauge = lambdaLight * sqrt_f;
-		real lambda = (real)max(lambdaGauge, lambdaLight);
-
-		<? if eqn.useShift ~= 'none' then ?>
-		real betaUi = U->beta_u.s<?=side?>;
-		<? else ?>
-		const real betaUi = 0.;
-		<? end ?>
-		
-		real lambdaMin = (real)min((real)0., -betaUi - lambda);
-		real lambdaMax = (real)max((real)0., -betaUi + lambda);
-		real absLambdaMax = max(fabs(lambdaMin), fabs(lambdaMax));
-		absLambdaMax = max((real)1e-9, absLambdaMax);
-		dt = (real)min(dt, solver->grid_dx.s<?=side?> / absLambdaMax);
-	}<? end ?>
-	dtBuf[index] = dt; 
-}
-
 //used by PLM, and by the default fluxFromCons (used by hll, or roe when roeUseFluxFromCons is set)
 eigen_t eigen_forCell(
 	constant solver_t* solver,
@@ -87,7 +38,6 @@ eigen_t eigen_forCell(
 
 	return eig;
 }
-
 
 range_t calcCellMinMaxEigenvalues(
 	const global cons_t* U,
@@ -341,11 +291,11 @@ kernel void addSource(
 ?>		sym3_sym3_mul(U->d_lll.<?=xi?>, gamma_uu),
 <? end
 ?>	};
-
+	
 	//d_ull = d^i_jk = gamma^il d_ljk
 	_3sym3 d_ull = sym3_3sym3_mul(gamma_uu, U->d_lll);
-
-	//e_l = d^j_ji
+	
+	//e_l = e_i = d^j_ji
 	real3 e_l = (real3){
 <? for i,xi in ipairs(xNames) do
 ?>		.<?=xi?> = 0.<?
@@ -369,7 +319,7 @@ kernel void addSource(
 ?>	};
 
 
-	//d_l = d_ij^j
+	//d_l = d_i = d_ij^j
 	real3 d_l = (real3){
 <? for i,xi in ipairs(xNames) do
 ?>		.<?=xi?> = real3x3_trace(d_llu[<?=i-1?>]),

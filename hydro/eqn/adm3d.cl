@@ -1001,6 +1001,7 @@ cons_t eigen_fluxTransform(
 	return eigen_rightTransform(solver, eig, waves, x);
 
 <? else -- noZeroRowsInFlux ?>
+<? if false then 	-- by-hand ?>
 
 	cons_t resultU;
 	for (int i = 0; i < numStates; ++i) {
@@ -1030,8 +1031,68 @@ cons_t eigen_fluxTransform(
 	<? end ?>
 
 	return resultU;
+<? else	-- codegen ?>
+	real f = eig.sqrt_f * eig.sqrt_f;
+	
+	sym3 gamma_uu = eig.gamma_uu;
+	
+	real alpha = inputU.alpha;
+	real3 V_l = inputU.V_l;
+	real3 a_l = inputU.a_l;
+	sym3 gamma_ll = inputU.gamma_ll;
+	sym3 K_ll = inputU.K_ll;
+	_3sym3 d_lll = inputU.d_lll;
+	
+	<? for side=0,solver.dim-1 do ?>
+	if (n.side == <?=side?>) {
+		V_l = real3_swap<?=side?>(V_l);
+		a_l = real3_swap<?=side?>(a_l);
+		gamma_ll = sym3_swap<?=side?>(gamma_ll);
+		K_ll = sym3_swap<?=side?>(K_ll);
+		d_lll = _3sym3_swap<?=side?>(d_lll);
+		gamma_uu = sym3_swap<?=side?>(gamma_uu);
+	}
+	<? end ?>
+
+	<?=eqn.cons_t?> resultU = {.ptr={0}};
+
+	// BEGIN CUT from numerical-relativity-codegen/flux_matrix_output/adm_noZeroRows.html
+	resultU.a_l.x = eig.alpha * f * (2. * K_ll.xy * gamma_uu.xy + 2. * K_ll.xz * gamma_uu.xz + 2. * K_ll.yz * gamma_uu.yz + K_ll.xx * gamma_uu.xx + K_ll.yy * gamma_uu.yy + K_ll.zz * gamma_uu.zz);
+	resultU.d_lll.x.xx = K_ll.xx * eig.alpha;
+	resultU.d_lll.x.xy = K_ll.xy * eig.alpha;
+	resultU.d_lll.x.xz = K_ll.xz * eig.alpha;
+	resultU.d_lll.x.yy = K_ll.yy * eig.alpha;
+	resultU.d_lll.x.yz = K_ll.yz * eig.alpha;
+	resultU.d_lll.x.zz = K_ll.zz * eig.alpha;
+	resultU.K_ll.xx = eig.alpha * (a_l.x + d_lll.x.yy * gamma_uu.yy + 2. * d_lll.x.yz * gamma_uu.yz + d_lll.x.zz * gamma_uu.zz - d_lll.y.xx * gamma_uu.xy - 2. * d_lll.y.xy * gamma_uu.yy - 2. * d_lll.y.xz * gamma_uu.yz - d_lll.z.xx * gamma_uu.xz - 2. * d_lll.z.xy * gamma_uu.yz - 2. * d_lll.z.xz * gamma_uu.zz);
+	resultU.K_ll.xy = (eig.alpha * (a_l.y - 2. * d_lll.x.yy * gamma_uu.xy - 2. * d_lll.x.yz * gamma_uu.xz - 2. * d_lll.y.yy * gamma_uu.yy - 2. * d_lll.y.yz * gamma_uu.yz - 2. * d_lll.z.yy * gamma_uu.yz - 2. * d_lll.z.yz * gamma_uu.zz)) / 2.;
+	resultU.K_ll.xz = (eig.alpha * (a_l.z - 2. * d_lll.x.yz * gamma_uu.xy - 2. * d_lll.x.zz * gamma_uu.xz - 2. * d_lll.y.yz * gamma_uu.yy - 2. * d_lll.y.zz * gamma_uu.yz - 2. * d_lll.z.yz * gamma_uu.yz - 2. * d_lll.z.zz * gamma_uu.zz)) / 2.;
+	resultU.K_ll.yy = eig.alpha * (d_lll.x.yy * gamma_uu.xx + d_lll.y.yy * gamma_uu.xy + d_lll.z.yy * gamma_uu.xz);
+	resultU.K_ll.yz = eig.alpha * (d_lll.x.yz * gamma_uu.xx + d_lll.y.yz * gamma_uu.xy + d_lll.z.yz * gamma_uu.xz);
+	resultU.K_ll.zz = eig.alpha * (d_lll.x.zz * gamma_uu.xx + d_lll.y.zz * gamma_uu.xy + d_lll.z.zz * gamma_uu.xz);
+	// END CUT
+
+	<? for side=0,solver.dim-1 do ?>
+	if (n.side == <?=side?>) {
+		resultU.V_l = real3_swap<?=side?>(resultU.V_l);
+		resultU.a_l = real3_swap<?=side?>(resultU.a_l);
+		resultU.gamma_ll = sym3_swap<?=side?>(resultU.gamma_ll);
+		resultU.K_ll = sym3_swap<?=side?>(resultU.K_ll);
+		resultU.d_lll = _3sym3_swap<?=side?>(resultU.d_lll);
+	}
+	<? end ?>
+
+	return resultU;
+<? end ?>
 <? end -- noZeroRowsInFlux ?>
 }
+
+/*
+this should just be 
+
+alpha_,t + F^i^alpha_,i = -f alpha gamma^ij K_ij
+*/
+
 
 //TODO if we're calculating the constrains in the derivative
 // then we do save calculations / memory on the equations
@@ -1060,8 +1121,10 @@ kernel void addSource(
 	real S = 0.;
 <? end ?>
 
+
+#if 1	//hand-rolled
 	// source terms
-	
+
 	real3x3 K_ul = sym3_sym3_mul(gamma_uu, U->K_ll);			//K^i_j
 	real tr_K = real3x3_trace(K_ul);							//K^k_k
 	sym3 KSq_ll = sym3_real3x3_to_sym3_mul(U->K_ll, K_ul);		//KSq_ij = K_ik K^k_j
@@ -1135,21 +1198,29 @@ kernel void addSource(
 	//		- 3 d_il^k d_jk^l
 	
 	//extrinsic curvature:
-	//		+ K K_ij - 2 K_ik K^k_j
+	//		+ K K_ij 
+	//		- 2 K_ik K^k_j
 
 	//matter terms:
-	//		- 4 pi (2 S_ij - gamma_ij (S - rho))
+	//		- 8 pi S_ij 
+	//		+ 4 pi  gamma_ij (S - rho)
 	
 	//...and the shift comes later ...
 
 	sym3 stressConstraint_ll = (sym3){
 <? for ij,xij in ipairs(symNames) do	
-?>		.<?=xij?> = R_ll.<?=xij?> + tr_K * U->K_ll.<?=xij?> - KSq_ll.<?=xij?>
-			- (8. * M_PI * S_ll.<?=xij?> - 4. * M_PI * U->gamma_ll.<?=xij?> * (S - U->rho)),
+?>		.<?=xij?> = 
+			R_ll.<?=xij?> 
+			+ tr_K * U->K_ll.<?=xij?> 
+			- KSq_ll.<?=xij?>
+			- 8. * M_PI * S_ll.<?=xij?> 
+			+ 4. * M_PI * U->gamma_ll.<?=xij?> * (S - U->rho)
+		,
 <? end
 ?>	};
 
 	real HamiltonianConstraint = sym3_dot(stressConstraint_ll, gamma_uu);
+
 
 	sym3 srcK_ll_over_alpha = (sym3){
 <? for ij,xij in ipairs(symNames) do
@@ -1160,12 +1231,11 @@ kernel void addSource(
 <? 	for k,xk in ipairs(xNames) do 
 ?>			+ conn_ull.<?=xk?>.<?=xij?> * U->a_l.<?=xk?>
 <?	end
-?>			+ solver->K_ll_srcStressCoeff * stressConstraint_ll.<?=xij?>
-			+ solver->K_ll_srcHCoeff * U->gamma_ll.<?=xij?> * HamiltonianConstraint
-			- KSq_ll.<?=xij?>
+?>			- KSq_ll.<?=xij?>
 		,
 <? end
 ?>	};
+
 
 	//d_i = d_ij^j
 	real3 d_l = (real3){
@@ -1205,11 +1275,7 @@ kernel void addSource(
 	
 	//gamma_ij,t = shift terms - 2 alpha K_ij
 <? for ij,xij in ipairs(symNames) do
-?>	deriv->gamma_ll.<?=xij?> += U->alpha * (
-		-2. * U->K_ll.<?=xij?>
-		+ solver->gamma_ll_srcStressCoeff * stressConstraint_ll.<?=xij?>
-		+ solver->gamma_ll_srcHCoeff * U->gamma_ll.<?=xij?> * HamiltonianConstraint
-	);
+?>	deriv->gamma_ll.<?=xij?> += -2. * U->alpha * U->K_ll.<?=xij?>;
 <? end
 ?>
 
@@ -1223,6 +1289,11 @@ kernel void addSource(
 ?>	deriv->V_l.<?=xi?> += U->alpha * srcV_l.<?=xi?>;
 <? end
 ?>
+#else	//code-generated
+
+// TODO 
+
+#endif
 
 <? if eqn.useShift ~= 'none' then ?>
 
@@ -1479,6 +1550,30 @@ for i,xi in ipairs(xNames) do
 	end
 end ?>
 
+
+	//add stress-energy terms and H damping:
+	//TODO I see it's a term in the K_ij,t ADM formalism
+	//but where is the idea of adding this to gamma_ij,t from?
+
+<? for ij,xij in ipairs(symNames) do
+?>	deriv->gamma_ll.<?=xij?> += U->alpha * (
+		+ solver->gamma_ll_srcStressCoeff * stressConstraint_ll.<?=xij?>
+		+ solver->gamma_ll_srcHCoeff * U->gamma_ll.<?=xij?> * HamiltonianConstraint
+	);
+<? end 
+?>
+
+<? for ij,xij in ipairs(symNames) do
+?>	deriv->K_ll.<?=xij?> += U->alpha * (
+			+ solver->K_ll_srcStressCoeff * stressConstraint_ll.<?=xij?>
+			+ solver->K_ll_srcHCoeff * U->gamma_ll.<?=xij?> * HamiltonianConstraint
+	);
+<? end 
+?>
+
+	//converge V_i to its constrained value:
+
+
 	//V_i = d_ik^k - d^k_ki <=> V_i += eta (d_ik^k - d^k_ki - V_i)
 	deriv->V_l = real3_add(
 		deriv->V_l,
@@ -1487,6 +1582,7 @@ end ?>
 			solver->V_convCoeff));
 
 	//Kreiss-Oligar diffusion, for stability's sake?
+	//isn't that just a hack to improve the stability of finite-difference, which diverges by nature?
 }
 
 kernel void constrainU(

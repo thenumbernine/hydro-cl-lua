@@ -213,13 +213,13 @@ function ADM_BonaMasso_3D:createInitState()
 		{name='K_ll_srcStressCoeff', value=1},
 		
 		-- K_ij source term Hamiltonian constraint coefficient
-		{name='K_ll_srcHCoeff', value=-.5},
+		{name='K_ll_srcHCoeff', value=0},-- -.5},
 
 		-- gamma_ij source term stress constraint coefficient
-		{name='gamma_ll_srcStressCoeff', value=1},
+		{name='gamma_ll_srcStressCoeff', value=0},	--1},
 	
 		-- gamma_ij source term Hamiltonian constraint coefficient
-		{name='gamma_ll_srcHCoeff', value=-.5},
+		{name='gamma_ll_srcHCoeff', value=0}, ---.5},
 
 		-- convergence between finite-difference of alpha,i and alpha a_i
 		{name='a_convCoeff', value=0},
@@ -230,8 +230,6 @@ function ADM_BonaMasso_3D:createInitState()
 		-- convergence between V_k and d_kj^j - d^j_jk
 		{name='V_convCoeff', value=10},
 	}
-	-- TODO add shift option
-	-- but that means moving the consVars construction to the :init()
 end
 
 function ADM_BonaMasso_3D:initCodeModule_calcDT()
@@ -301,10 +299,10 @@ function ADM_BonaMasso_3D:initCodeModule_fluxFromCons()
 	self.solver.modules:add{
 		name = 'fluxFromCons',
 		depends = {
-			'eqn.solvercode',	-- eigen_fluxTransform, eigen_forCell
 			'eqn.cons_t',
 			'solver.solver_t',
 			'normal_t',
+			'rotate',	-- real3_swap*
 		},
 		code = self:template[[
 <?=eqn.cons_t?> fluxFromCons(
@@ -313,69 +311,57 @@ function ADM_BonaMasso_3D:initCodeModule_fluxFromCons()
 	real3 x,
 	normal_t n
 ) {
-	real det_gamma = sym3_det(U.gamma_ll);
-	sym3 gamma_uu = sym3_inv(U.gamma_ll, det_gamma);
-	real K = sym3_dot(gamma_uu, U.K_ll);
 	real f = calc_f(U.alpha);
 	
-	<?=eqn.cons_t?> F;
-	F.alpha = 0.;
-	F.gamma_ll = sym3_zero;
-	F.a_l = real3_zero;
-	F.a_l.s[n.side] = -U.alpha * f * K;
-	F.d_lll = _3sym3_zero;
-	F.d_lll.v[n.side] = sym3_real_mul(U.K_ll, -U.alpha);
-	F.V_l = real3_zero;
-<? 
-if eqn.useShift ~= 'none' then
-?>	F.beta_u = real3_zero;
-<?	if self.useShift == 'MinimalDistortionElliptic' 
-	or self.useShift == 'MinimalDistortionEllipticEvolve' 
-	then
-?>	F.betaLap_u = real3_zero;
-<?	end
-end 
-?>
-
-<? 
-local function calcFluxK(side)
-?>	F.K_ll = sym3_zero;
-<? 	for i,xi in ipairs(xNames) do
-?>	F.K_ll.<?=sym(i,side)?> = -U.a_l.<?=xi?>;
-<? 	end
-?>
-<? 	for ij,xij in ipairs(symNames) do
-		local i,j,xi,xj = from6to3x3(ij)
-?>	F.K_ll.<?=xij?> += 0.
-<?		for a,xa in ipairs(xNames) do
-			for b,xb in ipairs(xNames) do
-?>		+ gamma_uu.<?=sym(a,b)?> * (0.
-<?				if j == side then
-?>			+ U.d_lll.<?=xa?>.<?=sym(b,i)?>
-			- U.d_lll.<?=xi?>.<?=sym(a,b)?>
-<?				end
-				if i == side then
-?>			+ U.d_lll.<?=xa?>.<?=sym(b,j)?>
-<?				end
-				if b == side then
-?>			- U.d_lll.<?=xa?>.<?=xij?>
-<?				end
-?>		)
-<?			end
-		end
-?>	;
-<? 	end
-?>	F.K_ll = sym3_real_mul(F.K_ll, U.alpha);
-<?
-end
-?>
-	if (n.side == 0) {
-		<?calcFluxK(1)?>
-	} else if (n.side == 1) {
-		<?calcFluxK(2)?>
-	} else if (n.side == 2) {
-		<?calcFluxK(3)?>
+	real det_gamma = sym3_det(U.gamma_ll);
+	sym3 gamma_uu = sym3_inv(U.gamma_ll, det_gamma);
+	
+	real alpha = U.alpha;
+	
+	real3 V_l = U.V_l;
+	real3 a_l = U.a_l;
+	sym3 gamma_ll = U.gamma_ll;
+	sym3 K_ll = U.K_ll;
+	_3sym3 d_lll = U.d_lll;
+	
+	<? for side=0,solver.dim-1 do ?>
+	if (n.side == <?=side?>) {
+		V_l = real3_swap<?=side?>(V_l);
+		a_l = real3_swap<?=side?>(a_l);
+		gamma_ll = sym3_swap<?=side?>(gamma_ll);
+		K_ll = sym3_swap<?=side?>(K_ll);
+		d_lll = _3sym3_swap<?=side?>(d_lll);
+		gamma_uu = sym3_swap<?=side?>(gamma_uu);
 	}
+	<? end ?>
+
+	<?=eqn.cons_t?> F = {.ptr={0}};
+
+	// BEGIN CUT from numerical-relativity-codegen/flux_matrix_output/adm_noZeroRows.html
+	F.a_l.x = alpha * f * (2. * K_ll.xy * gamma_uu.xy + 2. * K_ll.xz * gamma_uu.xz + 2. * K_ll.yz * gamma_uu.yz + K_ll.xx * gamma_uu.xx + K_ll.yy * gamma_uu.yy + K_ll.zz * gamma_uu.zz);
+	F.d_lll.x.xx = K_ll.xx * alpha;
+	F.d_lll.x.xy = K_ll.xy * alpha;
+	F.d_lll.x.xz = K_ll.xz * alpha;
+	F.d_lll.x.yy = K_ll.yy * alpha;
+	F.d_lll.x.yz = K_ll.yz * alpha;
+	F.d_lll.x.zz = K_ll.zz * alpha;
+	F.K_ll.xx = alpha * (a_l.x + d_lll.x.yy * gamma_uu.yy + 2. * d_lll.x.yz * gamma_uu.yz + d_lll.x.zz * gamma_uu.zz - d_lll.y.xx * gamma_uu.xy - 2. * d_lll.y.xy * gamma_uu.yy - 2. * d_lll.y.xz * gamma_uu.yz - d_lll.z.xx * gamma_uu.xz - 2. * d_lll.z.xy * gamma_uu.yz - 2. * d_lll.z.xz * gamma_uu.zz);
+	F.K_ll.xy = (alpha * (a_l.y - 2. * d_lll.x.yy * gamma_uu.xy - 2. * d_lll.x.yz * gamma_uu.xz - 2. * d_lll.y.yy * gamma_uu.yy - 2. * d_lll.y.yz * gamma_uu.yz - 2. * d_lll.z.yy * gamma_uu.yz - 2. * d_lll.z.yz * gamma_uu.zz)) / 2.;
+	F.K_ll.xz = (alpha * (a_l.z - 2. * d_lll.x.yz * gamma_uu.xy - 2. * d_lll.x.zz * gamma_uu.xz - 2. * d_lll.y.yz * gamma_uu.yy - 2. * d_lll.y.zz * gamma_uu.yz - 2. * d_lll.z.yz * gamma_uu.yz - 2. * d_lll.z.zz * gamma_uu.zz)) / 2.;
+	F.K_ll.yy = alpha * (d_lll.x.yy * gamma_uu.xx + d_lll.y.yy * gamma_uu.xy + d_lll.z.yy * gamma_uu.xz);
+	F.K_ll.yz = alpha * (d_lll.x.yz * gamma_uu.xx + d_lll.y.yz * gamma_uu.xy + d_lll.z.yz * gamma_uu.xz);
+	F.K_ll.zz = alpha * (d_lll.x.zz * gamma_uu.xx + d_lll.y.zz * gamma_uu.xy + d_lll.z.zz * gamma_uu.xz);	
+	// END CUT
+
+	<? for side=0,solver.dim-1 do ?>
+	if (n.side == <?=side?>) {
+		F.V_l = real3_swap<?=side?>(F.V_l);
+		F.a_l = real3_swap<?=side?>(F.a_l);
+		F.gamma_ll = sym3_swap<?=side?>(F.gamma_ll);
+		F.K_ll = sym3_swap<?=side?>(F.K_ll);
+		F.d_lll = _3sym3_swap<?=side?>(F.d_lll);
+	}
+	<? end ?>
 
 	return F;
 }
@@ -423,6 +409,7 @@ end
 function ADM_BonaMasso_3D:getModuleDependsSolver()
 	return {
 		'initCond.codeprefix',	-- calc_f
+		'rotate',	--real3_swap
 	}
 end
 

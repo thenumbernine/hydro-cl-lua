@@ -876,7 +876,7 @@ With hyperbolic gamma driver shift it has trouble.
 
 -- [[ trying to reproduce 2009 Alic et al "Towards a gauge-polyvalent numerical relativity code"
 local dim = 1
-self.solvers:insert(require 'hydro.solver.fvsolver'{
+local args = {
 	app = self,
 	
 	eqn = 'adm3d',	-- works fine for Minkowski though it's not physical
@@ -939,7 +939,10 @@ self.solvers:insert(require 'hydro.solver.fvsolver'{
 	--initCond = 'black hole - isotropic',	-- this one has momentum and rotation and almost done with multiple sources.  TODO parameterize
 	
 	flux = 'hll',
-})
+}
+-- comparing hll solvers
+self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {eqn='adm3d'})))
+self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {eqn='z4'})))
 --]]
 
 

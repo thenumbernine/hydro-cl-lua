@@ -19,7 +19,6 @@ local sym = common.sym
 
 local Z4_2004Bona = class(EinsteinEqn)
 Z4_2004Bona.name = 'Z4_2004Bona'
-Z4_2004Bona.hasCalcDTCode = true
 Z4_2004Bona.useSourceTerm = true
 
 --[[
@@ -201,6 +200,257 @@ function Z4_2004Bona:createInitState()
 	-- but that means moving the consVars construction to the :init()
 end
 
+function Z4_2004Bona:initCodeModule_calcDT()
+	local solver = self.solver
+	solver.modules:add{
+		name = 'calcDT',
+		depends = {
+			'eqn.cons_t',
+			'initCond.codeprefix',	-- calc_f
+		},
+		code = self:template[[
+kernel void calcDT(
+	constant <?=solver.solver_t?>* solver,
+	global real* dtBuf,
+	const global <?=eqn.cons_t?>* UBuf,
+	const global <?=solver.coord.cell_t?>* cellBuf
+) {
+	SETBOUNDS(0,0);
+	if (OOB(numGhost,numGhost)) {
+		dtBuf[index] = INFINITY;
+		return;
+	}
+		
+	const global <?=eqn.cons_t?>* U = UBuf + index;
+	
+	//the only advantage of this calcDT over the default is that here this sqrt(f) and det(gamma_ij) is only called once
+	real f = calc_f(U->alpha);
+	real det_gamma = sym3_det(U->gamma_ll);
+	real sqrt_f = sqrt(f);
+
+	real dt = INFINITY;
+	<? for side=0,solver.dim-1 do ?>{
+		
+		<? if side==0 then ?>
+		real gammaUjj = (U->gamma_ll.yy * U->gamma_ll.zz - U->gamma_ll.yz * U->gamma_ll.yz) / det_gamma;
+		<? elseif side==1 then ?>
+		real gammaUjj = (U->gamma_ll.xx * U->gamma_ll.zz - U->gamma_ll.xz * U->gamma_ll.xz) / det_gamma;
+		<? elseif side==2 then ?>
+		real gammaUjj = (U->gamma_ll.xx * U->gamma_ll.yy - U->gamma_ll.xy * U->gamma_ll.xy) / det_gamma;
+		<? end ?>	
+		real lambdaLight = U->alpha * sqrt(gammaUjj);
+		
+		real lambdaGauge = lambdaLight * sqrt_f;
+		real lambda = (real)max(lambdaGauge, lambdaLight);
+
+		<? if eqn.useShift ~= 'none' then ?>
+		real betaUi = U->beta_u.s<?=side?>;
+		<? else ?>
+		const real betaUi = 0.;
+		<? end ?>
+		
+		real lambdaMin = (real)min((real)0., -betaUi - lambda);
+		real lambdaMax = (real)max((real)0., -betaUi + lambda);
+		real absLambdaMax = max(fabs(lambdaMin), fabs(lambdaMax));
+		absLambdaMax = max((real)1e-9, absLambdaMax);
+		dt = (real)min(dt, solver->grid_dx.s<?=side?> / absLambdaMax);
+	}<? end ?>
+	dtBuf[index] = dt; 
+}
+]],
+	}
+end
+
+function Z4_2004Bona:initCodeModule_fluxFromCons()
+	self.solver.modules:add{
+		name = 'fluxFromCons',
+		depends = {
+			'eqn.cons_t',
+			'solver.solver_t',
+			'normal_t',
+		},
+		code = self:template[[
+<?=eqn.cons_t?> fluxFromCons(
+	constant <?=solver.solver_t?>* solver,
+	<?=eqn.cons_t?> U,
+	real3 x,
+	normal_t n
+) {
+
+#if 0	//old, by hand, based on the ADM version
+
+	real det_gamma = sym3_det(U.gamma_ll);
+	sym3 gamma_uu = sym3_inv(U.gamma_ll, det_gamma);
+	real K = sym3_dot(gamma_uu, U.K_ll);
+	real f = calc_f(U.alpha);
+
+	<?=eqn.cons_t?> F;
+	F.alpha = 0.;
+	F.gamma_ll = sym3_zero;
+	
+	// a_i,t = -alpha f gamma^jk K_jk,i + source terms
+	F.a_l = real3_zero;
+	F.a_l.s[n.side] = -U.alpha * f * K;
+	
+	//d_ijk,t = -alpha a_i K_jk + source terms
+	F.d_lll = _3sym3_zero;
+	F.d_lll.v[n.side] = sym3_real_mul(U.K_ll, -U.alpha);
+	
+<? 
+if eqn.useShift ~= 'none' then
+?>	//beta^i_,t = 0 + source terms
+	F.beta_u = real3_zero;
+<?	if self.useShift == 'MinimalDistortionElliptic' 
+	or self.useShift == 'MinimalDistortionEllipticEvolve' 
+	then
+?>	F.betaLap_u = real3_zero;
+<?	end
+end 
+?>
+
+
+	//Z_i,t = alpha (Theta_,i + gamma^jk (K_ij,k - K_jk,i))
+	F.Z_l = sym3_real3_mul(U.K_ll, sym3_col(gamma_uu, n.side));
+	F.Z_l.s[n.side] += U.Theta - sym3_dot(gamma_uu, U.K_ll);
+	F.Z_l = real3_real_mul(F.Z_l, U.alpha);
+<? 
+local function calcFluxKTheta(side)
+?>	
+	//Theta_,t = alpha gamma^ab (Z_a,b + gamma^cd (d_abc,d - d_cab,d)) + source terms
+	F.Theta = U.alpha * (0. +
+<?	for a,xa in ipairs(xNames) do
+?>		+ gamma_uu.<?=sym(a,side)?> * U.Z_l.<?=xa?>
+<?		for b,xb in ipairs(xNames) do
+?>		+ gamma_uu.<?=sym(a,b)?> * (0.
+<?			for c,xc in ipairs(xNames) do
+?>			+ gamma_uu.<?=sym(c,side)?> * (U.d_lll.<?=xa?>.<?=sym(b,c)?> - U.d_lll.<?=xc?>.<?=sym(a,b)?>)
+<?			end
+?>		)
+<?		end
+	end
+?>	);
+	
+	//K_ij,t = alpha (2 Z_(i,j) - a_(i,j) + gamma^ab (2 d_ab(i,j) - d_aij,b - d_iab,j)) + source terms
+	F.K_ll = sym3_zero;
+<? 	for i,xi in ipairs(xNames) do
+?>	F.K_ll.<?=sym(i,side)?> = 2. * U.Z_l.<?=xi?> - U.a_l.<?=xi?>;
+<? 	end
+?>
+<? 	for ij,xij in ipairs(symNames) do
+		local i,j,xi,xj = from6to3x3(ij)
+?>	F.K_ll.<?=xij?> += 0.
+<?		for a,xa in ipairs(xNames) do
+			for b,xb in ipairs(xNames) do
+?>		+ gamma_uu.<?=sym(a,b)?> * (0.
+<?				if j == side then
+?>			+ U.d_lll.<?=xa?>.<?=sym(b,i)?>
+			- U.d_lll.<?=xi?>.<?=sym(a,b)?>
+<?				end
+				if i == side then
+?>			+ U.d_lll.<?=xa?>.<?=sym(b,j)?>
+<?				end
+				if b == side then
+?>			- U.d_lll.<?=xa?>.<?=xij?>
+<?				end
+?>		)
+<?			end
+		end
+?>	;
+<? 	end
+?>	F.K_ll = sym3_real_mul(F.K_ll, U.alpha);
+<?
+end
+?>
+	if (n.side == 0) {
+		<?calcFluxKTheta(1)?>
+	} else if (n.side == 1) {
+		<?calcFluxKTheta(2)?>
+	} else if (n.side == 2) {
+		<?calcFluxKTheta(3)?>
+	}
+
+	return F;
+
+#else	// new, codegen from numerical-relativity-codegen
+
+	real f = calc_f(U.alpha);
+	
+	real det_gamma = sym3_det(U.gamma_ll);
+	sym3 gamma_uu = sym3_inv(U.gamma_ll, det_gamma);
+	
+	real alpha = U.alpha;
+	real Theta = U.Theta;
+	
+	real3 Z_l = U.Z_l;
+	real3 a_l = U.a_l;
+	sym3 gamma_ll = U.gamma_ll;
+	sym3 K_ll = U.K_ll;
+	_3sym3 d_lll = U.d_lll;
+	
+	<? for side=0,solver.dim-1 do ?>
+	if (n.side == <?=side?>) {
+		Z_l = real3_swap<?=side?>(Z_l);
+		a_l = real3_swap<?=side?>(a_l);
+		gamma_ll = sym3_swap<?=side?>(gamma_ll);
+		K_ll = sym3_swap<?=side?>(K_ll);
+		d_lll = _3sym3_swap<?=side?>(d_lll);
+		gamma_uu = sym3_swap<?=side?>(gamma_uu);
+	}
+	<? end ?>
+
+
+	<?=eqn.cons_t?> F = {.ptr={0}};
+	F.alpha = 0.;
+	F.gamma_ll = sym3_zero;
+	F.a_l = real3_zero;
+	F.d_lll.y = sym3_zero;
+	F.d_lll.z = sym3_zero;
+
+	// BEGIN CUT from numerical-relativity-codegen/flux_matrix_output/z4_noZeroRows.html
+	real tmp5 = gamma_uu.xz * gamma_uu.xz;
+	real tmp4 = gamma_uu.xy * gamma_uu.xy;
+	real tmp3 = K_ll.zz * gamma_uu.zz;
+	real tmp2 = K_ll.yy * gamma_uu.yy;
+	real tmp1 = 2. * K_ll.yz * gamma_uu.yz;
+	F.a_l.x = alpha * f * (2. * K_ll.xy * gamma_uu.xy + 2. * K_ll.xz * gamma_uu.xz + K_ll.xx * gamma_uu.xx + tmp1 + tmp2 + tmp3);
+	F.d_lll.x.xx = K_ll.xx * alpha;
+	F.d_lll.x.xy = K_ll.xy * alpha;
+	F.d_lll.x.xz = K_ll.xz * alpha;
+	F.d_lll.x.yy = K_ll.yy * alpha;
+	F.d_lll.x.yz = K_ll.yz * alpha;
+	F.d_lll.x.zz = K_ll.zz * alpha;
+	F.K_ll.xx = -alpha * (2. * Z_l.x - a_l.x - d_lll.x.yy * gamma_uu.yy - 2. * d_lll.x.yz * gamma_uu.yz - d_lll.x.zz * gamma_uu.zz - d_lll.y.xx * gamma_uu.xy - d_lll.z.xx * gamma_uu.xz);
+	F.K_ll.xy = (-alpha * (2. * Z_l.y - a_l.y + 2. * d_lll.x.yy * gamma_uu.xy + 2. * d_lll.x.yz * gamma_uu.xz + d_lll.y.xx * gamma_uu.xx - 2. * d_lll.y.xy * gamma_uu.xy - d_lll.y.yy * gamma_uu.yy - 2. * d_lll.y.yz * gamma_uu.yz - d_lll.y.zz * gamma_uu.zz - 2. * d_lll.z.xy * gamma_uu.xz)) / 2.;
+	F.K_ll.xz = (-alpha * (2. * Z_l.z - a_l.z + 2. * d_lll.x.yz * gamma_uu.xy + 2. * d_lll.x.zz * gamma_uu.xz - 2. * d_lll.y.xz * gamma_uu.xy + d_lll.z.xx * gamma_uu.xx - 2. * d_lll.z.xz * gamma_uu.xz - d_lll.z.yy * gamma_uu.yy - 2. * d_lll.z.yz * gamma_uu.yz - d_lll.z.zz * gamma_uu.zz)) / 2.;
+	F.K_ll.yy = alpha * (d_lll.x.yy * gamma_uu.xx - 2. * d_lll.y.xy * gamma_uu.xx - d_lll.y.yy * gamma_uu.xy - 2. * d_lll.y.yz * gamma_uu.xz + d_lll.z.yy * gamma_uu.xz);
+	F.K_ll.yz = alpha * (d_lll.x.yz * gamma_uu.xx - d_lll.y.xz * gamma_uu.xx - d_lll.y.zz * gamma_uu.xz - d_lll.z.xy * gamma_uu.xx - d_lll.z.yy * gamma_uu.xy);
+	F.K_ll.zz = alpha * (d_lll.x.zz * gamma_uu.xx + d_lll.y.zz * gamma_uu.xy - 2. * d_lll.z.xz * gamma_uu.xx - 2. * d_lll.z.yz * gamma_uu.xy - d_lll.z.zz * gamma_uu.xz);
+	F.Theta = -alpha * (Z_l.x * gamma_uu.xx + Z_l.y * gamma_uu.xy + Z_l.z * gamma_uu.xz - d_lll.x.yy * gamma_uu.xx * gamma_uu.yy + d_lll.x.yy * tmp4 - 2. * d_lll.x.yz * gamma_uu.xx * gamma_uu.yz + 2. * d_lll.x.yz * gamma_uu.xy * gamma_uu.xz - d_lll.x.zz * gamma_uu.xx * gamma_uu.zz + d_lll.x.zz * tmp5 + d_lll.y.xy * gamma_uu.xx * gamma_uu.yy - d_lll.y.xy * tmp4 + d_lll.y.xz * gamma_uu.xx * gamma_uu.yz - d_lll.y.xz * gamma_uu.xy * gamma_uu.xz - d_lll.y.yz * gamma_uu.xy * gamma_uu.yz + d_lll.y.yz * gamma_uu.xz * gamma_uu.yy - d_lll.y.zz * gamma_uu.xy * gamma_uu.zz + d_lll.y.zz * gamma_uu.xz * gamma_uu.yz + d_lll.z.xy * gamma_uu.xx * gamma_uu.yz - d_lll.z.xy * gamma_uu.xy * gamma_uu.xz + d_lll.z.xz * gamma_uu.xx * gamma_uu.zz - d_lll.z.xz * tmp5 + d_lll.z.yy * gamma_uu.xy * gamma_uu.yz - d_lll.z.yy * gamma_uu.xz * gamma_uu.yy + d_lll.z.yz * gamma_uu.xy * gamma_uu.zz - d_lll.z.yz * gamma_uu.xz * gamma_uu.yz);
+	F.Z_l.x = alpha * (K_ll.xy * gamma_uu.xy + K_ll.xz * gamma_uu.xz + tmp2 + tmp1 + tmp3 - Theta);
+	F.Z_l.y = -alpha * (K_ll.xy * gamma_uu.xx + K_ll.yy * gamma_uu.xy + K_ll.yz * gamma_uu.xz);
+	F.Z_l.z = -alpha * (K_ll.xz * gamma_uu.xx + K_ll.yz * gamma_uu.xy + K_ll.zz * gamma_uu.xz);
+	// END CUT
+
+	<? for side=0,solver.dim-1 do ?>
+	if (n.side == <?=side?>) {
+		F.Z_l = real3_swap<?=side?>(F.Z_l);
+		F.a_l = real3_swap<?=side?>(F.a_l);
+		F.gamma_ll = sym3_swap<?=side?>(F.gamma_ll);
+		F.K_ll = sym3_swap<?=side?>(F.K_ll);
+		F.d_lll = _3sym3_swap<?=side?>(F.d_lll);
+	}
+	<? end ?>
+
+	return F;
+
+
+#endif
+
+}
+]],
+	}
+end
+
 function Z4_2004Bona:initCodeModule_setFlatSpace()
 	self.solver.modules:add{
 		name = 'setFlatSpace',
@@ -242,6 +492,7 @@ end
 
 function Z4_2004Bona:getModuleDependsSolver()
 	return {
+		'rotate',	-- real3_swap ... though sym3_swap and _3sym3_swap are in their respective modules ...
 		'initCond.codeprefix',	-- calc_f
 	}
 end
