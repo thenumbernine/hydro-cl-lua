@@ -288,6 +288,7 @@ end
 
 function EinsteinEquation:getModuleDependsSolver() 
 	return {
+		-- for the addDisplayComponents 
 		'calc_gamma_ll',
 		'calc_gamma_uu',
 	}

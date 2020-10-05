@@ -480,8 +480,7 @@ kernel void applyInitCond(
 	sym3 epsilon_LL = sym3_zero;
 	sym3 ABar_LL = sym3_zero;
 
-	//throw-away for ADM3D ... but not for BSSNOK
-	// TODO hold rho somewhere?
+	//TODO more stress-energy vars 
 	real rho = 0.;
 
 	<?=code?>
@@ -510,7 +509,7 @@ kernel void applyInitCond(
 ?>
 
 <? if eqn.useStressEnergyTerms then ?>
-	U->rho = 0;
+	U->rho = rho;
 	U->S_u = real3_zero;
 	U->S_ll = sym3_zero;
 <? end ?>
@@ -582,7 +581,7 @@ kernel void applyInitCond(
 	sym3 gamma_ll = coord_g_ll(x);
 	sym3 K_ll = sym3_zero;
 
-	//TODO stress-energy vars 
+	//TODO more stress-energy vars 
 	real rho = 0.;
 
 	<?=code?>
@@ -596,7 +595,7 @@ kernel void applyInitCond(
 <? end
 ?>
 <? if eqn.useStressEnergyTerms then ?>
-	U->rho = 0;
+	U->rho = rho;
 	U->S_u = real3_zero;
 	U->S_ll = sym3_zero;
 <? end ?>

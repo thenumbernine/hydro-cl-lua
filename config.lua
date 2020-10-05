@@ -938,6 +938,7 @@ local args = {
 	--initCond = 'gaussian perturbation',
 	--initCond = 'plane gauge wave',
 	-- [[
+	-- TODO since converting this to useBSSNVars, it doesn't work for cartesian anymore ...
 	initCond = 'black hole - isotropic',	-- this one has momentum and rotation and almost done with multiple sources.  TODO parameterize
 	initCondArgs = {
 		bodies = {
@@ -952,11 +953,11 @@ local args = {
 	flux = 'hll',
 }
 -- comparing hll solvers
---self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {eqn='adm3d'})))
+self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {eqn='adm3d'})))
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {eqn='z4'})))
 --self.solvers:insert(require 'hydro.solver.bssnok-fd'(table(args, {eqn='bssnok-fd-num'})))
 --self.solvers:insert(require 'hydro.solver.bssnok-fd'(table(args, {eqn='bssnok-fd-senr'})))
-self.solvers:insert(require 'hydro.solver.bssnok-fd'(table(args, {eqn='bssnok-fd-sym'})))
+--self.solvers:insert(require 'hydro.solver.bssnok-fd'(table(args, {eqn='bssnok-fd-sym'})))
 --]]
 
 
