@@ -2154,6 +2154,9 @@ function SolverBase:createDisplayVars()
 	-- create component map for each display var
 	-- 'component' should be 'varproperty' or something else
 	self:createDisplayComponents()
+	if self.eqn.createDisplayComponents then
+		self.eqn:createDisplayComponents()
+	end
 	self:finalizeDisplayComponents()
 
 	self.displayVarGroups = table()

@@ -529,6 +529,7 @@ return table{
 		which is used to compute the psi parameter
 		--]]
 		name = 'black hole - isotropic',
+		useBSSNVars = true,	-- getInitCondCode writes to BSSN vars
 		--[[
 		args:
 			bodies:
@@ -572,7 +573,7 @@ return table{
 		end,
 		getInitCondCode = function(self, solver)
 			--solver:setBoundaryMethods'fixed'
-			solver:setBoundaryMethods'linear'
+			--solver:setBoundaryMethods'linear'
 
 			--[[
 			I'm trying to follow 1997 Brandt & Brugmann, but here's what I've gathered:
@@ -595,21 +596,18 @@ return table{
 
 			--]]
 			return template([[
-	real sln_oneOverAlpha = 0.;
-	
+	//real sln_oneOverAlpha = 0.;
 	
 	real psi = 1.;
 	real alpha_num = 1.;
 	<? for _,body in ipairs(bodies) do ?>{
 		const real R = <?=clnumber(body.R)?>;
-		real3 pos = _real3(<?=clnumber(body.pos[1])?>, <?=clnumber(body.pos[2])?>, <?=clnumber(body.pos[3])?>);
+		real3 pos = _real3(<?=table(body.pos):mapi(clnumber):concat', '?>);
 		real3 xrel = real3_sub(xc, pos);
 		real r = real3_len(xrel);
 		
-		
 		// the correct binary black hole way: B&S 12.51
-		sln_oneOverAlpha += .5 * <?=clnumber(body.R)?> / r;
-		
+		//sln_oneOverAlpha += .5 * <?=clnumber(body.R)?> / r;
 		
 		//the time-symmetric way:
 		psi += .25 * R / r;
@@ -620,7 +618,6 @@ return table{
 	//correct binary black hole way
 	//psi = 1 + 1/alpha + u	-- B&S 12.50
 
-	
 	//next solve u via 
 	// Baumgarte & Shapiro add an extra 1 to psi's calculations as compared to the original Brandt & Brugmann equation
 	//DBar^2 u = -1/8 alpha^7 ABar_ij ABar^ij / ( alpha (1 + u) + 1)^7 	<-- Baumgarte & Shapiro eqns 12.52, 12.53
@@ -631,13 +628,12 @@ return table{
 	alpha = alpha_num / psi;
 	real psi2 = psi * psi;
 	real psi4 = psi2 * psi2;
-
-
-	gamma_ll = sym3_real_mul(sym3_ident, psi4);
+	
+	W = psi2;
 
 	<? for _,body in ipairs(bodies) do ?>{
 
-		real3 pos = _real3(<?=clnumber(body.pos[1])?>, <?=clnumber(body.pos[2])?>, <?=clnumber(body.pos[3])?>);
+		real3 pos = _real3(<?=table(body.pos):mapi(clnumber):concat', '?>);
 		real3 xrel = real3_sub(xc, pos);
 		real r = real3_len(xrel);
 		real rSq = r * r;
@@ -648,8 +644,8 @@ return table{
 		real3 n_u = r == 0 ? _real3(0,0,1) : real3_real_mul(xrel, 1./r);
 		real3 n_l = real3_real_mul(n_u, psi4);
 
-		real3 P_u = _real3(<?=clnumber(body.P_u[1])?>, <?=clnumber(body.P_u[2])?>, <?=clnumber(body.P_u[3])?>);
-		real3 S_u = _real3(<?=clnumber(body.S_u[1])?>, <?=clnumber(body.S_u[2])?>, <?=clnumber(body.S_u[3])?>);
+		real3 P_u = _real3(<?=table(body.P_u):mapi(clnumber):concat', '?>);
+		real3 S_u = _real3(<?=table(body.S_u):mapi(clnumber):concat', '?>);
 
 		real3 P_l = real3_real_mul(P_u, psi4);
 		
@@ -671,14 +667,12 @@ return table{
 			sym3_real_mul(sym3_from_real3x3(real3_real3_outer(S_cross_n_l, n_l)), 2.),
 			3. / rCubed);
 
-		sym3 ABar_ll = sym3_add(ABar_boost_ll, ABar_spin_ll);
-
-
-
-		//ATilde_ij = A_ij * exp(-4 phi)
-		//K = 0, so A_ij = K_ij
-		//likewise sum the K_ij's for each black hole (1997 Brandt & Brugmann eqn 7)
-		K_ll = sym3_add(K_ll, sym3_real_mul(ABar_ll, 1. / psi2));
+		ABar_LL = sym3_add(
+			ABar_LL, 
+			sym3_rescaleFromCoord_LL(
+				sym3_add(ABar_boost_ll, ABar_spin_ll),
+				x)
+		);
 	}<? end ?>
 
 ]], 		{

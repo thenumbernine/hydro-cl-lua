@@ -232,6 +232,32 @@ function ADM_BonaMasso_3D:createInitState()
 	}
 end
 
+function ADM_BonaMasso_3D:initCodeModules()
+	ADM_BonaMasso_3D.super.initCodeModules(self)
+	local solver = self.solver
+	
+	solver.modules:add{
+		name = 'calc_gamma_ll',
+		code = [[
+#define calc_gamma_ll(U, x)	((U)->gamma_ll)
+]],
+	}
+
+	solver.modules:add{
+		name = 'calc_gamma_uu',
+		depends = {
+			'eqn.cons_t',
+		},
+		code = self:template[[
+sym3 calc_gamma_uu(const global <?=eqn.cons_t?>* U, real3 x) {
+	real det_gamma = sym3_det(U->gamma_ll);
+	sym3 gamma_uu = sym3_inv(U->gamma_ll, det_gamma);
+	return gamma_uu;
+}
+]],
+	}
+end
+
 function ADM_BonaMasso_3D:initCodeModule_calcDT()
 	self.solver.modules:add{
 		name = 'calcDT',
@@ -407,7 +433,8 @@ void setFlatSpace(
 end
 
 function ADM_BonaMasso_3D:getModuleDependsSolver()
-	return {
+	return table(ADM_BonaMasso_3D.super.getModuleDependsSolver(self))
+	:append{
 		'initCond.codeprefix',	-- calc_f
 		'rotate',	--real3_swap
 	}
@@ -643,7 +670,7 @@ function ADM_BonaMasso_3D:getDisplayVars()
 		{name='volume', code='value.vreal = U->alpha * sqrt(sym3_det(U->gamma_ll));'},
 		{name='f', code='value.vreal = calc_f(U->alpha);'},
 		{name='df/dalpha', code='value.vreal = calc_dalpha_f(U->alpha);'},
-		{name='K_ll', code=[[
+		{name='K', code=[[
 	real det_gamma = sym3_det(U->gamma_ll);
 	sym3 gamma_uu = sym3_inv(U->gamma_ll, det_gamma);
 	value.vreal = sym3_dot(gamma_uu, U->K_ll);

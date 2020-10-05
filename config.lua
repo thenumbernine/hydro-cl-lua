@@ -319,7 +319,7 @@ local args = {
 	-- Einstein
 	--initCond = 'Minkowski',
 	--initCond = 'gaussian perturbation',
-	initCond = 'plane gauge wave',
+	--initCond = 'plane gauge wave',
 
 
 	--initCond = 'Alcubierre warp bubble',
@@ -345,7 +345,7 @@ local args = {
 	--initCond = 'black hole - Schwarzschild',
 	
 	
-	--initCond = 'black hole - isotropic',	-- this one has momentum and rotation and almost done with multiple sources.  TODO parameterize
+	initCond = 'black hole - isotropic',	-- this one has momentum and rotation and almost done with multiple sources.  TODO parameterize
 	
 	--initCond = 'black hole - SENR/NumPy',
 
@@ -887,7 +887,7 @@ local args = {
 	cfl = .5/dim,			-- no mention of cfl or timestep ...
 	fluxLimiter = cmdline.fluxLimiter or 'superbee',
 
-	-- [=[
+	--[=[
 	coord = 'cartesian',
 	mins = {-20,-20,-20},
 	maxs = {20,20,20},
@@ -905,10 +905,11 @@ local args = {
 		zmax = 'quadratic',
 	},
 	--]=]
-	--[=[
+	-- [=[
 	coord = 'sphere',
 	coordArgs = {
 		vectorComponent = 'anholonomic',
+		--vectorComponent = 'cartesian',	-- adm3d isn't designed for cartesian / mesh / arbitrary normals yet
 	},
 	mins = {0, 0, 0},
 	maxs = {
@@ -934,15 +935,28 @@ local args = {
 	--]=]
 
 	--initCond = 'Minkowski',
-	initCond = 'gaussian perturbation',
+	--initCond = 'gaussian perturbation',
 	--initCond = 'plane gauge wave',
-	--initCond = 'black hole - isotropic',	-- this one has momentum and rotation and almost done with multiple sources.  TODO parameterize
-	
+	-- [[
+	initCond = 'black hole - isotropic',	-- this one has momentum and rotation and almost done with multiple sources.  TODO parameterize
+	initCondArgs = {
+		bodies = {
+			R = 2,
+			P_u = {0,0,0},
+			S_u = {0,0,0},
+			pos = {0,0,0},
+		}
+	},
+	--]]
+
 	flux = 'hll',
 }
 -- comparing hll solvers
-self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {eqn='adm3d'})))
-self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {eqn='z4'})))
+--self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {eqn='adm3d'})))
+--self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {eqn='z4'})))
+--self.solvers:insert(require 'hydro.solver.bssnok-fd'(table(args, {eqn='bssnok-fd-num'})))
+--self.solvers:insert(require 'hydro.solver.bssnok-fd'(table(args, {eqn='bssnok-fd-senr'})))
+self.solvers:insert(require 'hydro.solver.bssnok-fd'(table(args, {eqn='bssnok-fd-sym'})))
 --]]
 
 

@@ -11,9 +11,9 @@ local BSSNOKFiniteDifferenceEquationBase = class(EinsteinEqn)
 
 -- seems all the hyperbolic formalisms listed in Alcubierre's book use alpha sqrt(gamma^ii) for the speed-of-light wavespeed
 -- however the 2017 Ruchlin paper says to use gamma_ij
-BSSNOKFiniteDifferenceEquationBase.cflMethod = '2008 Alcubierre'
+--BSSNOKFiniteDifferenceEquationBase.cflMethod = '2008 Alcubierre'
 --BSSNOKFiniteDifferenceEquationBase.cflMethod = '2013 Baumgarte et al, eqn 32'
---BSSNOKFiniteDifferenceEquationBase.cflMethod = '2017 Ruchlin et al, eqn 53'
+BSSNOKFiniteDifferenceEquationBase.cflMethod = '2017 Ruchlin et al, eqn 53'
 
 -- never need initDerivs for the finite-difference solvers
 -- since they don't use any first-derivative state variables like the hyperbolic conservation law solvers do
@@ -132,6 +132,216 @@ function BSSNOKFiniteDifferenceEquationBase:makePartialUpwind(field, fieldType, 
 	return lines:concat'\n'
 end
 
+function BSSNOKFiniteDifferenceEquationBase:initCodeModules()
+	BSSNOKFiniteDifferenceEquationBase.super.initCodeModules(self)
+	self:initCodeModules_calc_gamma()
+end
+
+function BSSNOKFiniteDifferenceEquationBase:initCodeModules_calc_gamma()
+	local solver = self.solver
+	
+	-- gammaHat_ij and co
+	
+	solver.modules:add{
+		name = 'calc_gammaHat_ll',
+		depends = {'coord_g_ll'},
+		headercode = [[
+#define calc_gammaHat_ll	coord_g_ll
+]],
+	}
+
+	solver.modules:add{
+		name = 'calc_gammaHat_uu',
+		depends = {'coord_g_uu'},
+		headercode = [[
+#define calc_gammaHat_uu 	coord_g_uu
+]],
+	}
+
+	solver.modules:add{
+		name = 'calc_det_gammaHat',
+		depends = {'coord_det_g'},
+		code = [[
+#define calc_det_gammaHat 	coord_det_g
+]],
+	}
+
+	-- gammaBar_IJ and co
+
+	solver.modules:add{
+		name = 'calc_gammaHat_LL',
+		headercode = [[
+#define calc_gammaHat_LL(x) (sym3_ident)
+]],
+	}
+
+	solver.modules:add{
+		name = 'calc_gammaHat_UU',
+		headercode = [[
+#define calc_gammaHat_UU(x) (sym3_ident)
+]],
+	}
+
+	solver.modules:add{
+		name = 'calc_gammaBar_LL',
+		depends = {
+			'eqn.cons_t',
+			'calc_gammaHat_LL',
+		},
+		code = self:template[[
+sym3 calc_gammaBar_LL(global const <?=eqn.cons_t?>* U, real3 x) {
+	sym3 gammaHat_LL = calc_gammaHat_LL(x);
+	sym3 gammaBar_LL = sym3_add(gammaHat_LL, U->epsilon_LL);
+	return gammaBar_LL;
+}
+]],
+	}
+
+	solver.modules:add{
+		name = 'calc_det_gammaBarLL',
+		code = [[
+/*
+det(epsilon_IJ + gammaHat_IJ) 
+= det(epsilon_IJ + delta_IJ) 
+= det(e^i_I e^j_J (gammaHat_ij + epsilon_ij))
+= det(e^i_I) det(e^j_J) det(gammaHat_ij + epsilon_ij)
+= det(gammaHat^ij) det(gammaBar_ij)
+= det(gammaBar_ij) / det(gammaHat_ij)
+= 1
+TODO detg ... unless we want to change the constraint
+*/
+#if 0	//use the value
+real calc_det_gammaBarLL(global const <?=eqn.cons_t?>* U, ral3 x) {
+	sym3 gammaBar_LL = calc_gammaBar_LL(U, x);
+	real det_gammaBarLL = sym3_det(gammaBar_LL);
+	return det_gammaBarLL;
+}
+#else	//use the constraint
+#define calc_det_gammaBarLL(x) 1.
+#endif
+]],
+	}
+
+	solver.modules:add{
+		name = 'calc_gammaBar_UU',
+		depends = {
+			'eqn.cons_t',
+			'calc_gammaBar_LL',
+			'calc_det_gammaBarLL',
+		},
+		code = self:template[[
+sym3 calc_gammaBar_UU(global const <?=eqn.cons_t?>* U, real3 x) {
+	sym3 gammaBar_LL = calc_gammaBar_LL(U, x);
+	real det_gammaBarLL = calc_det_gammaBarLL(x);
+	sym3 gammaBar_UU = sym3_inv(gammaBar_LL, det_gammaBarLL);
+	return gammaBar_UU;
+}
+]],
+	}
+	
+	-- gammaBar_ij and co
+
+	solver.modules:add{
+		name = 'calc_gammaBar_ll',
+		depends = {
+			'eqn.cons_t',
+			'calc_gammaHat_ll',
+			'rescaleFromCoord/rescaleToCoord',
+		},
+		code = self:template[[
+//gammaBar_ll.ij := gammaBar_ij = gammaHat_ij + epsilon_ij = gammaHat_ij + epsilon_IJ e_i^I e_j^J
+sym3 calc_gammaBar_ll(global const <?=eqn.cons_t?>* U, real3 x) {
+	sym3 gammaHat_ll = calc_gammaHat_ll(x);
+	sym3 epsilon_ll = sym3_rescaleToCoord_LL(U->epsilon_LL, x);
+	sym3 gammaBar_ll = sym3_add(gammaHat_ll, epsilon_ll);
+	return gammaBar_ll;
+}
+]],
+	}
+
+	solver.modules:add{
+		name = 'calc_det_gammaBar',
+		depends = {
+			'calc_det_gammaHat',
+		},
+		code = self:template[[
+//det(gammaBar_ij) = det(gammaHat_ij + epsilon_ij)
+//...except sometimes, according to 2012 Baumgarte et al, last paragraph of II B
+real calc_det_gammaBar(real3 x) {
+	//TODO detg ...
+	real det_gammaHat = calc_det_gammaHat(x);
+	real detg = 1.;
+	real det_gammaBar = det_gammaHat * detg;
+	return det_gammaBar;
+}
+]],
+	}
+
+	solver.modules:add{
+		name = 'calc_exp_neg4phi',
+		headercode = [[
+#define calc_exp_neg4phi(U) ((U)->W * (U)->W)
+]],
+	}
+
+	solver.modules:add{
+		name = 'calc_gammaBar_uu',
+		depends = {
+			'eqn.cons_t',
+			'calc_gammaBar_ll',
+			'calc_det_gammaBar',
+		},
+		code = self:template[[
+sym3 calc_gammaBar_uu(global const <?=eqn.cons_t?>* U, real3 x) {
+	sym3 gammaBar_ll = calc_gammaBar_ll(U, x);
+	real det_gammaBar = calc_det_gammaBar(x);
+	sym3 gammaBar_uu = sym3_inv(gammaBar_ll, det_gammaBar);
+	return gammaBar_uu;
+}
+]],
+	}
+
+	solver.modules:add{
+		name = 'calc_gamma_ll',
+		depends = {
+			'eqn.cons_t',
+			'calc_gammaBar_ll',
+			'calc_exp_neg4phi',
+		},
+		code = self:template[[
+sym3 calc_gamma_ll(global const <?=eqn.cons_t?>* U, real3 x) {
+	sym3 gammaBar_ll = calc_gammaBar_ll(U, x);
+	real exp_4phi = 1. / calc_exp_neg4phi(U);
+	sym3 gamma_ll = sym3_real_mul(gammaBar_ll, exp_4phi);
+	return gamma_ll;
+}
+]],
+	}
+
+	solver.modules:add{
+		name = 'calc_gamma_uu',
+		depends = {
+			'eqn.cons_t',
+			'calc_gammaBar_ll',
+			'calc_exp_neg4phi',
+			'calc_det_gammaBar',
+		},
+		code = self:template[[
+sym3 calc_gamma_uu(global const <?=eqn.cons_t?>* U, real3 x) {
+	sym3 gammaBar_ll = calc_gammaBar_ll(U, x);
+	real exp_4phi = 1. / calc_exp_neg4phi(U);
+	sym3 gamma_ll = sym3_real_mul(gammaBar_ll, exp_4phi);
+	real det_gamma = calc_det_gammaBar(x) * exp_4phi * exp_4phi * exp_4phi;
+	sym3 gamma_uu = sym3_inv(gamma_ll, det_gamma); 
+	return gamma_uu;
+}
+]],
+	}
+
+
+
+end
+
 function BSSNOKFiniteDifferenceEquationBase:initCodeModule_setFlatSpace()
 	local solver = self.solver
 	solver.modules:add{
@@ -181,10 +391,14 @@ end
 function BSSNOKFiniteDifferenceEquationBase:initCodeModule_calcDT()
 	self.solver.modules:add{
 		name = 'calcDT',
-		depends = {
+		depends = table{
 			'eqn.common',
 			'coord_sqrt_g_ll##',
-		},
+		}:append(
+			self.cflMethod == '2008 Alcubierre' and { 
+				'calc_gamma_uu',
+			} or nil
+		),
 		code = self:template[[
 kernel void calcDT(
 	constant <?=solver.solver_t?>* solver,
@@ -246,6 +460,11 @@ end
 function BSSNOKFiniteDifferenceEquationBase:getModuleDependsCommon()
 	return {
 		'setFlatSpace',
+		-- used by the solver at least:
+		'calc_det_gammaBarLL',
+		'calc_gammaBar_LL',
+		'calc_gammaBar_UU',
+		'calc_gammaBar_uu',
 	}
 end
 

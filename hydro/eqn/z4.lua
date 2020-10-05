@@ -200,6 +200,32 @@ function Z4_2004Bona:createInitState()
 	-- but that means moving the consVars construction to the :init()
 end
 
+function Z4_2004Bona:initCodeModules()
+	Z4_2004Bona.super.initCodeModules(self)
+	local solver = self.solver
+	
+	solver.modules:add{
+		name = 'calc_gamma_ll',
+		code = [[
+#define calc_gamma_ll(U, x)	((U)->gamma_ll)
+]],
+	}
+
+	solver.modules:add{
+		name = 'calc_gamma_uu',
+		depends = {
+			'eqn.cons_t',
+		},
+		code = self:template[[
+sym3 calc_gamma_uu(const global <?=eqn.cons_t?>* U, real3 x) {
+	real det_gamma = sym3_det(U->gamma_ll);
+	sym3 gamma_uu = sym3_inv(U->gamma_ll, det_gamma);
+	return gamma_uu;
+}
+]],
+	}
+end
+
 function Z4_2004Bona:initCodeModule_calcDT()
 	local solver = self.solver
 	solver.modules:add{
@@ -491,7 +517,8 @@ void setFlatSpace(
 end
 
 function Z4_2004Bona:getModuleDependsSolver()
-	return {
+	return table(Z4_2004Bona.super.getModuleDependsSolver(self))
+	:append{
 		'rotate',	-- real3_swap ... though sym3_swap and _3sym3_swap are in their respective modules ...
 		'initCond.codeprefix',	-- calc_f
 	}

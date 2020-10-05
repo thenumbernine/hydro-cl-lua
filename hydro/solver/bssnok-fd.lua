@@ -13,10 +13,8 @@ BSSNOKFiniteDifferenceSolver.name = 'BSSNOK_FiniteDifference'
 -- 3 = 4th order
 BSSNOKFiniteDifferenceSolver.numGhost = 3
 
--- [=[ commenting out to try to reduce build time
 function BSSNOKFiniteDifferenceSolver:createDisplayComponents()
-	-- skip EinsteinFiniteDifferenceSolver create components
-	EinsteinFiniteDifferenceSolver.super.createDisplayComponents(self)
+	BSSNOKFiniteDifferenceSolver.super.createDisplayComponents(self)
 	
 	self:addDisplayComponent('real3', {
 		onlyFor = 'U',
@@ -38,6 +36,7 @@ function BSSNOKFiniteDifferenceSolver:createDisplayComponents()
 	sym3 gammaBar_ll = calc_gammaBar_ll(U, x);
 	value->vreal = real3_weightedLen(value->vreal3, gammaBar_ll);]],
 	})
+--[=[ now in eqn.einstein
 	self:addDisplayComponent('real3', {
 		onlyFor = 'U',
 		name = 'norm weighted gamma^ij',
@@ -48,6 +47,7 @@ function BSSNOKFiniteDifferenceSolver:createDisplayComponents()
 	sym3 gamma_uu = calc_gamma_uu(U, x);
 	value->vreal = real3_weightedLen(value->vreal3, gamma_uu);]],
 	})
+--]=]	
 	self:addDisplayComponent('sym3', {
 		onlyFor = 'U',
 		name = 'tr weighted gamma^IJ',
@@ -69,7 +69,6 @@ function BSSNOKFiniteDifferenceSolver:createDisplayComponents()
 	value->vreal = sym3_dot(value->vsym3, gammaBar_UU);]],
 	})
 end
---]=]
 
 -- for certain hydro/eqn/bssnok-fd calculations, dt is based on grid only and no state vars
 -- so we only need to calculate it once

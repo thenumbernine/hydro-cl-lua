@@ -286,4 +286,42 @@ function EinsteinEquation:createBoundaryOptions()
 	self.solver:addBoundaryOption(BoundaryFixed)
 end
 
+function EinsteinEquation:getModuleDependsSolver() 
+	return {
+		'calc_gamma_ll',
+		'calc_gamma_uu',
+	}
+end
+
+-- any modules this code needs, add to solver module dependencies
+function EinsteinEquation:createDisplayComponents()
+	local solver = self.solver
+	solver:addDisplayComponent('real3', {
+		onlyFor = 'U',
+		name = 'norm weighted gamma_ij',
+		code = [[
+const global <?=eqn.cons_t?>* U = buf + index;
+sym3 gamma_ll = calc_gamma_ll(U, x);
+value->vreal = real3_weightedLen(value->vreal3, gamma_ll);
+]],
+	})
+	solver:addDisplayComponent('real3', {
+		onlyFor = 'U',
+		name = 'norm weighted gamma^ij',
+		code = [[
+const global <?=eqn.cons_t?>* U = buf + index;
+sym3 gamma_uu = calc_gamma_uu(U, x);
+value->vreal = real3_weightedLen(value->vreal3, gamma_uu);
+]],
+	})
+	solver:addDisplayComponent('sym3', {
+		onlyFor = 'U',
+		name = 'tr weighted gamma^ij',
+		code = [[
+const global <?=eqn.cons_t?>* U = buf + index;
+sym3 gamma_uu = calc_gamma_uu(U, x);
+value->vreal = sym3_dot(value->vsym3, gamma_uu);]],
+	})
+end
+
 return EinsteinEquation

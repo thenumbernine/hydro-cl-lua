@@ -33,23 +33,4 @@ function EinsteinFiniteDifferenceSolver:calcDeriv(derivBufObj, dt)
 	self.calcDerivKernelObj()
 end
 
-function EinsteinFiniteDifferenceSolver:createDisplayComponents()
-	EinsteinFiniteDifferenceSolver.super.createDisplayComponents(self)
-	self:addDisplayComponent('real3', {
-		onlyFor = 'U',
-		name = 'norm weighted',
-		code = [[
-	const global <?=eqn.cons_t?>* U = buf + index;
-	value->vreal = real3_weightedLen(value->vreal3, calc_gamma_ll(U, x));
-]],
-	})
-	self:addDisplayComponent('sym3', {
-		onlyFor = 'U',
-		name = 'tr weighted',
-		code = [[
-	const global <?=eqn.cons_t?>* U = buf + index;
-	value->vreal = sym3_dot(value->vsym3, calc_gamma_uu(U, x));]],
-	})
-end
-
 return EinsteinFiniteDifferenceSolver

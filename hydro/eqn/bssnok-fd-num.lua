@@ -138,25 +138,6 @@ function BSSNOKFiniteDifferenceEquation:initCodeModules()
 	local solver = self.solver
 
 	solver.modules:add{
-		name = 'calc_gammaHat_ll',
-		depends = {'coord_g_ll'},
-		headercode = '#define calc_gammaHat_ll	coord_g_ll',
-	}
-
-	solver.modules:add{
-		name = 'calc_gammaHat_uu',
-		depends = {'coord_g_uu'},
-		headercode = '#define calc_gammaHat_uu 	coord_g_uu',
-	}
-
-	solver.modules:add{
-		name = 'calc_det_gammaHat',
-		depends = {'coord_det_g'},
-		code = '#define calc_det_gammaHat 	coord_det_g',
-	}
-
-
-	solver.modules:add{
 		name = 'calc_partial_det_gammaHat_l',
 		depends = {'coord_partial_det_g'},
 		code = '#define calc_partial_det_gammaHat_l coord_partial_det_g',
@@ -197,8 +178,6 @@ sym3 calc_partial2_det_gammaHat_LL(real3 x) {
 }
 ]],
 	}
-
-
 end
 
 function BSSNOKFiniteDifferenceEquation:getModuleDependsApplyInitCond() 
@@ -593,7 +572,8 @@ function BSSNOKFiniteDifferenceEquation:getCommonFuncCode()
 end
 
 function BSSNOKFiniteDifferenceEquation:getModuleDependsSolver() 
-	return {
+	return table(BSSNOKFiniteDifferenceEquation.super.getModuleDependsSolver(self))
+	:append{
 		'eqn.common',
 		'_3sym3',
 		'calc_gammaHat_ll',
