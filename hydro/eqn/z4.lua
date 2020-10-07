@@ -164,7 +164,7 @@ function Z4_2004Bona:init(args)
 
 	self.eigenVars = table{
 		{name='alpha', type='real'},
-		{name='sqrt_f', type='real'},
+		{name='alpha_sqrt_f', type='real'},
 		{name='gamma_ll', type='sym3'},
 		{name='gamma_uu', type='sym3'},
 		-- sqrt(gamma^jj) needs to be cached, otherwise the Intel kernel stalls (for seconds on end)
@@ -850,8 +850,8 @@ end
 
 function Z4_2004Bona:eigenWaveCodePrefix(n, eig, x, waveIndex)
 	return template([[
-	real eig_lambdaLight = <?=eig?>.alpha * <?=eig?>.sqrt_gammaUjj.s[<?=n?>.side];
-	real eig_lambdaGauge = eig_lambdaLight * <?=eig?>.sqrt_f;
+	real eig_lambdaLight = <?=eig?>.sqrt_gammaUjj.s[<?=n?>.side] * <?=eig?>.alpha;
+	real eig_lambdaGauge = <?=eig?>.sqrt_gammaUjj.s[<?=n?>.side] * <?=eig?>.alpha_sqrt_f;
 ]], {
 		eig = '('..eig..')',
 		n = n,

@@ -27,7 +27,7 @@ eigen_t eigen_forCell(
 ) {
 	eigen_t eig;
 	eig.alpha = U.alpha;
-	eig.sqrt_f = sqrt(calc_f(U.alpha));
+	eig.alpha_sqrt_f = sqrt(calc_f_alphaSq(U.alpha));
 	real det_gamma = sym3_det(U.gamma_ll);
 	eig.gamma_uu = sym3_inv(U.gamma_ll, det_gamma);
 	eig.sqrt_gammaUjj = _real3(sqrt(eig.gamma_uu.xx), sqrt(eig.gamma_uu.yy), sqrt(eig.gamma_uu.zz));
@@ -54,14 +54,13 @@ range_t calcCellMinMaxEigenvalues(
 	} else if (n.side == 2) {
 		gammaUjj = (U->gamma_ll.xx * U->gamma_ll.yy - U->gamma_ll.xy * U->gamma_ll.xy) / det_gamma;
 	}
+	real sqrt_gammaUjj = sqrt(gammaUjj);
+	real lambdaLight = U->alpha * sqrt_gammaUjj;
 	
-	real lambdaLight = U->alpha * sqrt(gammaUjj);
-	
-	real f = calc_f(U->alpha);
-	real lambdaGauge = lambdaLight * sqrt(f);
+	real f_alphaSq = calc_f_alphaSq(U->alpha);
+	real lambdaGauge = sqrt(f_alphaSq) * sqrt_gammaUjj;
 
 	real lambdaMax = max(lambdaGauge, lambdaLight);
-	//= lambdaLight * max(sqrt(f), 1)
 	real lambdaMin = -lambdaMin;
 
 	<? if eqn.useShift ~= 'none' then ?>
@@ -96,7 +95,7 @@ eigen_t eigen_forInterface(
 
 	eigen_t eig;
 	eig.alpha = alpha;
-	eig.sqrt_f = sqrt(calc_f(alpha));
+	eig.alpha_sqrt_f = sqrt(calc_f_alphaSq(alpha));
 	eig.gamma_uu = sym3_inv(avg_gamma, det_avg_gamma);
 	eig.sqrt_gammaUjj.x = sqrt(eig.gamma_uu.xx);
 	eig.sqrt_gammaUjj.y = sqrt(eig.gamma_uu.yy);
@@ -117,6 +116,7 @@ waves_t eigen_leftTransform(
 	real3 x,
 	normal_t n
 ) {
+#if 0	
 	waves_t results;
 
 	real3 a_l = real3_swap(inputU.a_l, n.side);							//0-2
@@ -174,6 +174,7 @@ waves_t eigen_leftTransform(
 	results.ptr[30] = (-(((lambda_2 * gamma_uu.xx * Z_l.x) - (lambda_2 * gamma_uu.xx * gamma_uu.yy * d_lll.x.yy)) + ((lambda_2 * gamma_uu.xx * gamma_uu.yy * d_lll.y.xy) - (2. * lambda_2 * gamma_uu.xx * gamma_uu.yz * d_lll.x.yz)) + (lambda_2 * gamma_uu.xx * gamma_uu.yz * d_lll.y.xz) + ((lambda_2 * gamma_uu.xx * gamma_uu.yz * d_lll.z.xy) - (lambda_2 * gamma_uu.xx * gamma_uu.zz * d_lll.x.zz)) + (lambda_2 * gamma_uu.xx * gamma_uu.zz * d_lll.z.xz) + ((lambda_2 * gamma_uu.xy * gamma_uu.xy * d_lll.x.yy) - (lambda_2 * gamma_uu.xy * gamma_uu.xy * d_lll.y.xy)) + (lambda_2 * gamma_uu.xy * Z_l.y) + ((((2. * lambda_2 * gamma_uu.xy * gamma_uu.xz * d_lll.x.yz) - (lambda_2 * gamma_uu.xy * gamma_uu.xz * d_lll.y.xz)) - (lambda_2 * gamma_uu.xy * gamma_uu.xz * d_lll.z.xy)) - (lambda_2 * gamma_uu.xy * gamma_uu.yz * d_lll.y.yz)) + ((lambda_2 * gamma_uu.xy * gamma_uu.yz * d_lll.z.yy) - (lambda_2 * gamma_uu.xy * gamma_uu.zz * d_lll.y.zz)) + (lambda_2 * gamma_uu.xy * gamma_uu.zz * d_lll.z.yz) + ((lambda_2 * gamma_uu.xz * gamma_uu.xz * d_lll.x.zz) - (lambda_2 * gamma_uu.xz * gamma_uu.xz * d_lll.z.xz)) + (lambda_2 * gamma_uu.xz * Z_l.z) + ((lambda_2 * gamma_uu.xz * gamma_uu.yy * d_lll.y.yz) - (lambda_2 * gamma_uu.xz * gamma_uu.yy * d_lll.z.yy)) + ((((((((((((lambda_2 * gamma_uu.xz * gamma_uu.yz * d_lll.y.zz) - (lambda_2 * gamma_uu.xz * gamma_uu.yz * d_lll.z.yz)) - (sqrt_f * lambda_1 * Theta)) - (sqrt_f * gamma_uu.xx * K_ll.xx)) - (2. * sqrt_f * gamma_uu.xy * K_ll.xy)) - (2. * sqrt_f * gamma_uu.xz * K_ll.xz)) - (sqrt_f * gamma_uu.yy * K_ll.yy)) - (2. * sqrt_f * gamma_uu.yz * K_ll.yz)) - (sqrt_f * gamma_uu.zz * K_ll.zz)) - (gamma_uu.xx * a_l.x)) - (gamma_uu.xy * a_l.y)) - (gamma_uu.xz * a_l.z))));
 
 	return results;
+#endif
 }
 
 //TODO these were based no noZeroRowsInFlux==false (I think) so maybe/certainly they are out of date
@@ -184,6 +185,7 @@ cons_t eigen_rightTransform(
 	real3 x,
 	normal_t n
 ) {
+#if 0	
 	cons_t resultU;
 	for (int j = 0; j < numStates; ++j) {
 		resultU.ptr[j] = 0;
@@ -242,6 +244,7 @@ cons_t eigen_rightTransform(
 	resultU.Z_l = real3_swap(resultU.Z_l, n.side);			//28-30
 
 	return resultU;
+#endif
 }
 
 //so long as roeUseFluxFromCons isn't set for the roe solver, 
@@ -257,6 +260,7 @@ cons_t eigen_fluxTransform(
 	real3 x,
 	normal_t n
 ) {
+#if 0	
 	//default
 	waves_t waves = eigen_leftTransform(solver, eig, inputU, x, n);
 	<?=eqn:eigenWaveCodePrefix('n', 'eig', 'x')?>
@@ -264,7 +268,7 @@ cons_t eigen_fluxTransform(
 ?>	waves.ptr[<?=j?>] *= <?=eqn:eigenWaveCode('n', 'eig', 'x', j)?>;
 <? end 
 ?>	return eigen_rightTransform(solver, eig, waves, x, n);
-
+#endif
 }
 
 kernel void addSource(
@@ -279,7 +283,6 @@ kernel void addSource(
 
 	real det_gamma = sym3_det(U->gamma_ll);
 	sym3 gamma_uu = sym3_inv(U->gamma_ll, det_gamma);
-	real f = calc_f(U->alpha);	//could be based on alpha...
 
 	real3 S_l = real3_zero;
 	sym3 S_ll = sym3_zero;
@@ -367,7 +370,7 @@ kernel void addSource(
 <? end
 ?>	};
 
-	//alpha_,t = shift terms - alpha^2 f gamma^ij K_ij
+	//alpha_,t = shift terms - alpha^2 f (K - m Theta)
 	real f_alphaSq = calc_f_alphaSq(U->alpha);
 	deriv->alpha += -f_alphaSq * (trK - solver->m * U->Theta);
 	
