@@ -116,7 +116,6 @@ waves_t eigen_leftTransform(
 	real3 x,
 	normal_t n
 ) {
-#if 0	
 	waves_t results;
 
 	real3 a_l = real3_swap(inputU.a_l, n.side);							//0-2
@@ -132,7 +131,7 @@ waves_t eigen_leftTransform(
 	real gammaUUxx_toThe_3_2 = sqrt_gammaUUxx * gamma_uu.xx;
 	real gammaUUxxSq = gamma_uu.xx * gamma_uu.xx;
 	
-	real sqrt_f = eig.sqrt_f;
+	real sqrt_f = eig.alpha_sqrt_f / eig.alpha;
 	real f = sqrt_f * sqrt_f;
 	// from 2004 Bona et al, "A symmetry breaking..." eqn A.20
 	// mind you the 'm' in that form is for alpha_,t = -alpha^2 (f K - m Theta)
@@ -174,7 +173,6 @@ waves_t eigen_leftTransform(
 	results.ptr[30] = (-(((lambda_2 * gamma_uu.xx * Z_l.x) - (lambda_2 * gamma_uu.xx * gamma_uu.yy * d_lll.x.yy)) + ((lambda_2 * gamma_uu.xx * gamma_uu.yy * d_lll.y.xy) - (2. * lambda_2 * gamma_uu.xx * gamma_uu.yz * d_lll.x.yz)) + (lambda_2 * gamma_uu.xx * gamma_uu.yz * d_lll.y.xz) + ((lambda_2 * gamma_uu.xx * gamma_uu.yz * d_lll.z.xy) - (lambda_2 * gamma_uu.xx * gamma_uu.zz * d_lll.x.zz)) + (lambda_2 * gamma_uu.xx * gamma_uu.zz * d_lll.z.xz) + ((lambda_2 * gamma_uu.xy * gamma_uu.xy * d_lll.x.yy) - (lambda_2 * gamma_uu.xy * gamma_uu.xy * d_lll.y.xy)) + (lambda_2 * gamma_uu.xy * Z_l.y) + ((((2. * lambda_2 * gamma_uu.xy * gamma_uu.xz * d_lll.x.yz) - (lambda_2 * gamma_uu.xy * gamma_uu.xz * d_lll.y.xz)) - (lambda_2 * gamma_uu.xy * gamma_uu.xz * d_lll.z.xy)) - (lambda_2 * gamma_uu.xy * gamma_uu.yz * d_lll.y.yz)) + ((lambda_2 * gamma_uu.xy * gamma_uu.yz * d_lll.z.yy) - (lambda_2 * gamma_uu.xy * gamma_uu.zz * d_lll.y.zz)) + (lambda_2 * gamma_uu.xy * gamma_uu.zz * d_lll.z.yz) + ((lambda_2 * gamma_uu.xz * gamma_uu.xz * d_lll.x.zz) - (lambda_2 * gamma_uu.xz * gamma_uu.xz * d_lll.z.xz)) + (lambda_2 * gamma_uu.xz * Z_l.z) + ((lambda_2 * gamma_uu.xz * gamma_uu.yy * d_lll.y.yz) - (lambda_2 * gamma_uu.xz * gamma_uu.yy * d_lll.z.yy)) + ((((((((((((lambda_2 * gamma_uu.xz * gamma_uu.yz * d_lll.y.zz) - (lambda_2 * gamma_uu.xz * gamma_uu.yz * d_lll.z.yz)) - (sqrt_f * lambda_1 * Theta)) - (sqrt_f * gamma_uu.xx * K_ll.xx)) - (2. * sqrt_f * gamma_uu.xy * K_ll.xy)) - (2. * sqrt_f * gamma_uu.xz * K_ll.xz)) - (sqrt_f * gamma_uu.yy * K_ll.yy)) - (2. * sqrt_f * gamma_uu.yz * K_ll.yz)) - (sqrt_f * gamma_uu.zz * K_ll.zz)) - (gamma_uu.xx * a_l.x)) - (gamma_uu.xy * a_l.y)) - (gamma_uu.xz * a_l.z))));
 
 	return results;
-#endif
 }
 
 //TODO these were based no noZeroRowsInFlux==false (I think) so maybe/certainly they are out of date
@@ -185,7 +183,6 @@ cons_t eigen_rightTransform(
 	real3 x,
 	normal_t n
 ) {
-#if 0	
 	cons_t resultU;
 	for (int j = 0; j < numStates; ++j) {
 		resultU.ptr[j] = 0;
@@ -198,7 +195,7 @@ cons_t eigen_rightTransform(
 	real gammaUUxx_toThe_3_2 = sqrt_gammaUUxx * gamma_uu.xx;
 	real gammaUUxxSq = gamma_uu.xx * gamma_uu.xx;
 
-	real sqrt_f = eig.sqrt_f;
+	real sqrt_f = eig.alpha_sqrt_f / eig.alpha;
 	real f = sqrt_f * sqrt_f;
 	real fSq = f * f;
 	// from 2004 Bona et al, "A symmetry breaking..." eqn A.20
@@ -244,7 +241,6 @@ cons_t eigen_rightTransform(
 	resultU.Z_l = real3_swap(resultU.Z_l, n.side);			//28-30
 
 	return resultU;
-#endif
 }
 
 //so long as roeUseFluxFromCons isn't set for the roe solver, 
@@ -260,7 +256,6 @@ cons_t eigen_fluxTransform(
 	real3 x,
 	normal_t n
 ) {
-#if 0	
 	//default
 	waves_t waves = eigen_leftTransform(solver, eig, inputU, x, n);
 	<?=eqn:eigenWaveCodePrefix('n', 'eig', 'x')?>
@@ -268,7 +263,6 @@ cons_t eigen_fluxTransform(
 ?>	waves.ptr[<?=j?>] *= <?=eqn:eigenWaveCode('n', 'eig', 'x', j)?>;
 <? end 
 ?>	return eigen_rightTransform(solver, eig, waves, x, n);
-#endif
 }
 
 kernel void addSource(
