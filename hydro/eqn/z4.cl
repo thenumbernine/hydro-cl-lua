@@ -109,6 +109,7 @@ eigen_t eigen_forInterface(
 	return eig;
 }
 
+//TODO these were based no noZeroRowsInFlux==false (I think) so maybe/certainly they are out of date
 waves_t eigen_leftTransform(
 	constant solver_t* solver,
 	eigen_t eig,
@@ -133,6 +134,10 @@ waves_t eigen_leftTransform(
 	
 	real sqrt_f = eig.sqrt_f;
 	real f = sqrt_f * sqrt_f;
+	// from 2004 Bona et al, "A symmetry breaking..." eqn A.20
+	// mind you the 'm' in that form is for alpha_,t = -alpha^2 (f K - m Theta)
+	// while in more modern Z4 papers it is alpha_,t = -alpha^2 f (K - m Theta)
+	// the difference means that this eigendecomposition is probably incorrect.
 	real lambda_1 = (2. - solver->m) / (f - 1);
 	real lambda_2 = (2. * f - solver->m) / (f - 1);
 
@@ -171,6 +176,7 @@ waves_t eigen_leftTransform(
 	return results;
 }
 
+//TODO these were based no noZeroRowsInFlux==false (I think) so maybe/certainly they are out of date
 cons_t eigen_rightTransform(
 	constant solver_t* solver,
 	eigen_t eig,
@@ -193,6 +199,7 @@ cons_t eigen_rightTransform(
 	real sqrt_f = eig.sqrt_f;
 	real f = sqrt_f * sqrt_f;
 	real fSq = f * f;
+	// from 2004 Bona et al, "A symmetry breaking..." eqn A.20
 	real lambda_1 = (2. - solver->m) / (f - 1);
 	real lambda_2 = (2. * f - solver->m) / (f - 1);
 	
@@ -283,7 +290,7 @@ kernel void addSource(
 	
 	real3x3 K_ul = sym3_sym3_mul(gamma_uu, U->K_ll);			//K^i_j
 	real trK = real3x3_trace(K_ul);								//K^k_k
-	sym3 KSq_ll = sym3_real3x3_to_sym3_mul(U->K_ll, K_ul);		//KSq_ij = K_ik K^k_j
+//	sym3 KSq_ll = sym3_real3x3_to_sym3_mul(U->K_ll, K_ul);		//KSq_ij = K_ik K^k_j
 
 	//d_llu = d_ij^k = d_ijl * gamma^lk
 	real3x3 d_llu[3] = {
@@ -312,12 +319,11 @@ kernel void addSource(
 <?	for ij,xij in ipairs(symNames) do
 		local i,j = from6to3x3(ij)
 		local xi,xj = xNames[i],xNames[j]
-?>			.<?=xij?> = d_llu[<?=i-1?>].<?=xj?>.<?=xk?> - d_llu[<?=j-1?>].<?=xi?>.<?=xk?> - U->d_lll.<?=xk?>.<?=xij?>,
+?>			.<?=xij?> = d_llu[<?=i-1?>].<?=xj?>.<?=xk?> - d_llu[<?=j-1?>].<?=xi?>.<?=xk?> - d_ull.<?=xk?>.<?=xij?>,
 <? end
 ?>		},
 <? end 
 ?>	};
-
 
 	//d_l = d_i = d_ij^j
 	real3 d_l = (real3){
@@ -362,10 +368,11 @@ kernel void addSource(
 ?>	};
 
 	//alpha_,t = shift terms - alpha^2 f gamma^ij K_ij
-	deriv->alpha += -U->alpha * U->alpha * f * trK;
+	real f_alphaSq = calc_f_alphaSq(U->alpha);
+	deriv->alpha += -f_alphaSq * (trK - solver->m * U->Theta);
 	
 	//gamma_ij,t = shift terms - 2 alpha K_ij
-	sym3_add(deriv->gamma_ll, sym3_real_mul(U->K_ll, -2. * U->alpha));
+	deriv->gamma_ll = sym3_add(deriv->gamma_ll, sym3_real_mul(U->K_ll, -2. * U->alpha));
 
 	//2005 Bona et al A.1
 <? for ij,xij in ipairs(symNames) do
@@ -421,4 +428,30 @@ for k,xk in ipairs(xNames) do
 	end
 end?>
 	) - 8. * M_PI * U->alpha * rho;
+
+//decay for 1st deriv hyperbolic state vars constraints:
+
+	// a_x = alpha,x / alpha <=> a_x += eta (alpha,x / alpha - a_x)
+	<? for i,xi in ipairs(xNames) do ?>{
+		<? if i <= solver.dim then ?>
+		real di_alpha = (U[solver->stepsize.<?=xi?>].alpha - U[-solver->stepsize.<?=xi?>].alpha) / (2. * solver->grid_dx.s<?=i-1?>);
+		<? else ?>
+		real di_alpha = 0.;
+		<? end ?>
+		deriv->a_l.<?=xi?> += solver->a_convCoeff * (di_alpha / U->alpha - U->a_l.<?=xi?>);
+	}<? end ?>	
+	
+	// d_xxx = .5 gamma_xx,x <=> d_xxx += eta (.5 gamma_xx,x - d_xxx)
+	<? 
+for i,xi in ipairs(xNames) do 
+	for jk,xjk in ipairs(symNames) do ?>{
+		<? if i <= solver.dim then ?>
+		real di_gamma_jk = (U[solver->stepsize.<?=xi?>].gamma_ll.<?=xjk?> - U[-solver->stepsize.<?=xi?>].gamma_ll.<?=xjk?>) / (2. * solver->grid_dx.s<?=i-1?>);
+		<? else ?>
+		real di_gamma_jk = 0;
+		<? end ?>
+		deriv->d_lll.<?=xi?>.<?=xjk?> += solver->d_convCoeff * (.5 * di_gamma_jk - U->d_lll.<?=xi?>.<?=xjk?>);
+	}<? 
+	end
+end ?>
 }

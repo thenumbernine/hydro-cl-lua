@@ -210,7 +210,8 @@ function ADM_BonaMasso_3D:createInitState()
 		},
 
 		-- K_ij source term stress constraint coefficient
-		{name='K_ll_srcStressCoeff', value=1},
+		-- 1 of these is occurring in the ADM formalism
+		{name='K_ll_srcStressCoeff', value=0},
 		
 		-- K_ij source term Hamiltonian constraint coefficient
 		{name='K_ll_srcHCoeff', value=0},-- -.5},
@@ -337,7 +338,7 @@ function ADM_BonaMasso_3D:initCodeModule_fluxFromCons()
 	real3 x,
 	normal_t n
 ) {
-	real f = calc_f(U.alpha);
+	real f_alpha = calc_f_alpha(U.alpha);
 	
 	real det_gamma = sym3_det(U.gamma_ll);
 	sym3 gamma_uu = sym3_inv(U.gamma_ll, det_gamma);
@@ -364,7 +365,8 @@ function ADM_BonaMasso_3D:initCodeModule_fluxFromCons()
 	<?=eqn.cons_t?> F = {.ptr={0}};
 
 	// BEGIN CUT from numerical-relativity-codegen/flux_matrix_output/adm_noZeroRows.html
-	F.a_l.x = alpha * f * (2. * K_ll.xy * gamma_uu.xy + 2. * K_ll.xz * gamma_uu.xz + 2. * K_ll.yz * gamma_uu.yz + K_ll.xx * gamma_uu.xx + K_ll.yy * gamma_uu.yy + K_ll.zz * gamma_uu.zz);
+	//(except me replacing alpha * f with f_alpha)
+	F.a_l.x = f_alpha * (2. * K_ll.xy * gamma_uu.xy + 2. * K_ll.xz * gamma_uu.xz + 2. * K_ll.yz * gamma_uu.yz + K_ll.xx * gamma_uu.xx + K_ll.yy * gamma_uu.yy + K_ll.zz * gamma_uu.zz);
 	F.d_lll.x.xx = K_ll.xx * alpha;
 	F.d_lll.x.xy = K_ll.xy * alpha;
 	F.d_lll.x.xz = K_ll.xz * alpha;
@@ -665,15 +667,9 @@ function ADM_BonaMasso_3D:getDisplayVars()
 	local vars = ADM_BonaMasso_3D.super.getDisplayVars(self)
 
 	vars:append{
-		{name='det_gamma', code='value.vreal = sym3_det(U->gamma_ll);'},
 		{name='volume', code='value.vreal = U->alpha * sqrt(sym3_det(U->gamma_ll));'},
 		{name='f', code='value.vreal = calc_f(U->alpha);'},
 		{name='df/dalpha', code='value.vreal = calc_dalpha_f(U->alpha);'},
-		{name='K', code=[[
-	real det_gamma = sym3_det(U->gamma_ll);
-	sym3 gamma_uu = sym3_inv(U->gamma_ll, det_gamma);
-	value.vreal = sym3_dot(gamma_uu, U->K_ll);
-]]		},
 		{name='expansion', code=[[
 	real det_gamma = sym3_det(U->gamma_ll);
 	sym3 gamma_uu = sym3_inv(U->gamma_ll, det_gamma);
@@ -812,7 +808,6 @@ function ADM_BonaMasso_3D:eigenWaveCode(n, eig, x, waveIndex)
 		elseif waveIndex == 29 then
 			return '-'..betaUi..' + eig_lambdaGauge'
 		end
-
 	else	-- noZeroRowsInFlux 
 		-- noZeroRowsInFlux implies useShift == 'none'
 		if waveIndex == 0 then

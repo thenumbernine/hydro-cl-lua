@@ -194,7 +194,16 @@ end
 function Z4_2004Bona:createInitState()
 	Z4_2004Bona.super.createInitState(self)
 	self:addGuiVars{
-		{name='m', value=-1},
+		
+		-- from 2004 Bona et al, "A symmetry breaking..." eqn A.20
+		{name='m', value=2},
+	
+		-- convergence between finite-difference of alpha,i and alpha a_i
+		{name='a_convCoeff', value=0},
+		
+		-- convergence between finite-difference of 1/2 gamma_ij,k and d_kij
+		{name='d_convCoeff', value=0},
+	
 	}
 	-- TODO add shift option
 	-- but that means moving the consVars construction to the :init()
@@ -250,9 +259,9 @@ kernel void calcDT(
 	const global <?=eqn.cons_t?>* U = UBuf + index;
 	
 	//the only advantage of this calcDT over the default is that here this sqrt(f) and det(gamma_ij) is only called once
-	real f = calc_f(U->alpha);
+	real f_alphaSq = calc_f_alphaSq(U->alpha);
 	real det_gamma = sym3_det(U->gamma_ll);
-	real sqrt_f = sqrt(f);
+	real alpha_sqrt_f = sqrt(f_alphaSq);
 
 	real dt = INFINITY;
 	<? for side=0,solver.dim-1 do ?>{
@@ -266,7 +275,7 @@ kernel void calcDT(
 		<? end ?>	
 		real lambdaLight = U->alpha * sqrt(gammaUjj);
 		
-		real lambdaGauge = lambdaLight * sqrt_f;
+		real lambdaGauge = sqrt(gammaUjj)* alpha_sqrt_f;
 		real lambda = (real)max(lambdaGauge, lambdaLight);
 
 		<? if eqn.useShift ~= 'none' then ?>
@@ -296,6 +305,7 @@ function Z4_2004Bona:initCodeModule_fluxFromCons()
 			'normal_t',
 		},
 		code = self:template[[
+
 <?=eqn.cons_t?> fluxFromCons(
 	constant <?=solver.solver_t?>* solver,
 	<?=eqn.cons_t?> U,
@@ -308,7 +318,7 @@ function Z4_2004Bona:initCodeModule_fluxFromCons()
 	real det_gamma = sym3_det(U.gamma_ll);
 	sym3 gamma_uu = sym3_inv(U.gamma_ll, det_gamma);
 	real K = sym3_dot(gamma_uu, U.K_ll);
-	real f = calc_f(U.alpha);
+	real f_alpha = calc_f_alpha(U.alpha);
 
 	<?=eqn.cons_t?> F;
 	F.alpha = 0.;
@@ -316,7 +326,7 @@ function Z4_2004Bona:initCodeModule_fluxFromCons()
 	
 	// a_i,t = -alpha f gamma^jk K_jk,i + source terms
 	F.a_l = real3_zero;
-	F.a_l.s[n.side] = -U.alpha * f * K;
+	F.a_l.s[n.side] = -f_alpha * K;
 	
 	//d_ijk,t = -alpha a_i K_jk + source terms
 	F.d_lll = _3sym3_zero;
@@ -399,7 +409,7 @@ end
 
 #else	// new, codegen from numerical-relativity-codegen
 
-	real f = calc_f(U.alpha);
+	real f_alpha = calc_f_alpha(U.alpha);
 	
 	real det_gamma = sym3_det(U.gamma_ll);
 	sym3 gamma_uu = sym3_inv(U.gamma_ll, det_gamma);
@@ -424,8 +434,8 @@ end
 	}
 	<? end ?>
 
-
 	<?=eqn.cons_t?> F = {.ptr={0}};
+
 	F.alpha = 0.;
 	F.gamma_ll = sym3_zero;
 	F.a_l = real3_zero;
@@ -438,7 +448,7 @@ end
 	real tmp3 = K_ll.zz * gamma_uu.zz;
 	real tmp2 = K_ll.yy * gamma_uu.yy;
 	real tmp1 = 2. * K_ll.yz * gamma_uu.yz;
-	F.a_l.x = alpha * f * (2. * K_ll.xy * gamma_uu.xy + 2. * K_ll.xz * gamma_uu.xz + K_ll.xx * gamma_uu.xx + tmp1 + tmp2 + tmp3);
+	F.a_l.x = f_alpha * (2. * K_ll.xy * gamma_uu.xy + 2. * K_ll.xz * gamma_uu.xz + K_ll.xx * gamma_uu.xx + tmp1 + tmp2 + tmp3);
 	F.d_lll.x.xx = K_ll.xx * alpha;
 	F.d_lll.x.xy = K_ll.xy * alpha;
 	F.d_lll.x.xz = K_ll.xz * alpha;
@@ -468,10 +478,7 @@ end
 	<? end ?>
 
 	return F;
-
-
 #endif
-
 }
 ]],
 	}
@@ -638,14 +645,6 @@ end
 	end
 
 	return self:template([[
-<? 
-local common = require 'hydro.common'
-local xNames = common.xNames 
-local symNames = common.symNames 
-local from3x3to6 = common.from3x3to6 
-local from6to3x3 = common.from6to3x3 
-local sym = common.sym 
-?>
 kernel void applyInitCond(
 	constant <?=solver.solver_t?>* solver,
 	constant <?=solver.initCond_t?>* initCond,
@@ -728,12 +727,26 @@ Z4_2004Bona.solverCodeFile = 'hydro/eqn/z4.cl'
 
 Z4_2004Bona.predefinedDisplayVars = {
 	'U alpha',
+--[[ for x dir only
 	'U gamma_ll x x',
 	'U d_lll_x x x',
 	'U K_ll x x',
 	'U Theta',
 	'U Z_l x',
+--]]	
+-- [[ for all dirs
+	'U gamma_ll norm',
+	'U a_l mag',
+	-- TODO a 3sym3 Frobenius norm - use for 'd'?
+	'U d_lll x norm',
+	'U d_lll y norm',
+	'U d_lll z norm',
+	'U K_ll norm',
+	'U Theta',
+	'U Z_l mag',
+--]]
 	'U H',
+	'U M_u mag',
 	'U volume',
 	'U f',
 }
@@ -742,15 +755,11 @@ function Z4_2004Bona:getDisplayVars()
 	local vars = Z4_2004Bona.super.getDisplayVars(self)
 
 	vars:append{
-		{name='det_gamma', code='value.vreal = sym3_det(U->gamma_ll);'},
 		{name='volume', code='value.vreal = U->alpha * sqrt(sym3_det(U->gamma_ll));'},
 		{name='f', code='value.vreal = calc_f(U->alpha);'},
 		{name='df/dalpha', code='value.vreal = calc_dalpha_f(U->alpha);'},
-		{name='K_ll', code=[[
-	real det_gamma = sym3_det(U->gamma_ll);
-	sym3 gamma_uu = sym3_inv(U->gamma_ll, det_gamma);
-	value.vreal = sym3_dot(gamma_uu, U->K_ll);
-]]		},
+		
+		-- is expansion really just -K?
 		{name='expansion', code=[[
 	real det_gamma = sym3_det(U->gamma_ll);
 	sym3 gamma_uu = sym3_inv(U->gamma_ll, det_gamma);
@@ -841,14 +850,7 @@ end
 
 function Z4_2004Bona:eigenWaveCodePrefix(n, eig, x, waveIndex)
 	return template([[
-	real eig_lambdaLight;
-	if (<?=n?>.side == 0) {
-		eig_lambdaLight = <?=eig?>.alpha * <?=eig?>.sqrt_gammaUjj.x;
-	} else if (<?=n?>.side == 1) {
-		eig_lambdaLight = <?=eig?>.alpha * <?=eig?>.sqrt_gammaUjj.y;
-	} else if (<?=n?>.side == 2) {
-		eig_lambdaLight = <?=eig?>.alpha * <?=eig?>.sqrt_gammaUjj.z;
-	}
+	real eig_lambdaLight = <?=eig?>.alpha * <?=eig?>.sqrt_gammaUjj.s[<?=n?>.side];
 	real eig_lambdaGauge = eig_lambdaLight * <?=eig?>.sqrt_f;
 ]], {
 		eig = '('..eig..')',
@@ -858,8 +860,8 @@ end
 
 function Z4_2004Bona:eigenWaveCode(n, eig, x, waveIndex)
 	-- TODO find out if -- if we use the lagrangian coordinate shift operation -- do we still need to offset the eigenvalues by -beta^i?
-	local shiftingLambdas = self.useShift ~= 'none'
-		--and self.useShift ~= 'LagrangianCoordinates'
+	--local shiftingLambdas = self.useShift ~= 'none'
+	--and self.useShift ~= 'LagrangianCoordinates'
 
 	local betaUi
 	if self.useShift ~= 'none' then
@@ -868,36 +870,71 @@ function Z4_2004Bona:eigenWaveCode(n, eig, x, waveIndex)
 		betaUi = '0'
 	end
 
-
-	if waveIndex == 0 then
-		return '-'..betaUi..' - eig_lambdaGauge'
-	elseif waveIndex >= 1 and waveIndex <= 6 then
-		return '-'..betaUi..' - eig_lambdaLight'
-	elseif waveIndex >= 7 and waveIndex <= 23 then
-		return '-'..betaUi
-	elseif waveIndex >= 24 and waveIndex <= 29 then
-		return '-'..betaUi..' + eig_lambdaLight'
-	elseif waveIndex == 30 then
-		return '-'..betaUi..' + eig_lambdaGauge'
+	if not self.noZeroRowsInFlux then
+		if waveIndex == 0 then
+			return '-'..betaUi..' - eig_lambdaGauge'
+		elseif waveIndex >= 1 and waveIndex <= 6 then
+			return '-'..betaUi..' - eig_lambdaLight'
+		elseif waveIndex >= 7 and waveIndex <= 23 then
+			return '-'..betaUi
+		elseif waveIndex >= 24 and waveIndex <= 29 then
+			return '-'..betaUi..' + eig_lambdaLight'
+		elseif waveIndex == 30 then
+			return '-'..betaUi..' + eig_lambdaGauge'
+		end
+	else	-- noZeroRowsInFlux 
+		-- noZeroRowsInFlux implies useShift == 'none'
+		if waveIndex == 0 then
+			return '-'..betaUi..' - eig_lambdaGauge'
+		elseif waveIndex >= 1 and waveIndex <= 5 then
+			return '-'..betaUi..' - eig_lambdaLight'
+		elseif waveIndex == 6 then
+			return '-'..betaUi
+		elseif waveIndex >= 7 and waveIndex <= 11 then
+			return '-'..betaUi..' + eig_lambdaLight'
+		elseif waveIndex == 12 then
+			return '-'..betaUi..' + eig_lambdaGauge'
+		end
 	end
-	
 	error'got a bad waveIndex'
+end
+
+function Z4_2004Bona:eigenWaveMinCode(n, eig, x)
+	local betaUi
+	if self.useShift ~= 'none' then
+		betaUi = '('..eig..').beta_u.s['..n..'.side]'
+	else
+		betaUi = '0'
+	end
+	return 'min(-'..betaUi..', min(-'..betaUi..' - eig_lambdaGauge, -'..betaUi..' - eig_lambdaLight))'
+end
+
+function Z4_2004Bona:eigenWaveMaxCode(n, eig, x)
+	local betaUi
+	if self.useShift ~= 'none' then
+		betaUi = '('..eig..').beta_u.s['..n..'.side]'
+	else
+		betaUi = '0'
+	end
+	return 'max('..betaUi..', max('..betaUi..' + eig_lambdaGauge, '..betaUi..' + eig_lambdaLight))'
 end
 
 function Z4_2004Bona:consWaveCodePrefix(n, U, x, waveIndex)
 	return template([[
 	real det_gamma = sym3_det(<?=U?>.gamma_ll);
 	sym3 gamma_uu = sym3_inv(<?=U?>.gamma_ll, det_gamma);
+	real sqrt_gammaUjj;
 	real eig_lambdaLight;
 	if (<?=n?>.side == 0) {
-		eig_lambdaLight = <?=U?>.alpha * sqrt(gamma_uu.xx);
+		sqrt_gammaUjj = sqrt(gamma_uu.xx);
 	} else if (<?=n?>.side == 1) {
-		eig_lambdaLight = <?=U?>.alpha * sqrt(gamma_uu.yy);
+		sqrt_gammaUjj = sqrt(gamma_uu.yy);
 	} else if (<?=n?>.side == 2) {
-		eig_lambdaLight = <?=U?>.alpha * sqrt(gamma_uu.zz);
+		sqrt_gammaUjj = sqrt(gamma_uu.zz);
 	}
-	real f = calc_f(<?=U?>.alpha);
-	real eig_lambdaGauge = eig_lambdaLight * sqrt(f);
+	eig_lambdaLight = <?=U?>.alpha * sqrt_gammaUjj;
+	real f_alphaSq = calc_f_alphaSq(<?=U?>.alpha);
+	real eig_lambdaGauge = sqrt(f_alphaSq) * sqrt_gammaUjj;
 ]], {
 		U = '('..U..')',
 		n = n,

@@ -937,7 +937,8 @@ local args = {
 	--initCond = 'Minkowski',
 	--initCond = 'gaussian perturbation',
 	--initCond = 'plane gauge wave',
-	-- [[
+	initCond = 'SENR UIUC',
+	--[=[
 	-- TODO since converting this to useBSSNVars, it doesn't work for cartesian anymore ...
 	initCond = 'black hole - isotropic',	-- this one has momentum and rotation and almost done with multiple sources.  TODO parameterize
 	initCondArgs = {
@@ -948,13 +949,13 @@ local args = {
 			pos = {0,0,0},
 		}
 	},
-	--]]
+	--]=]
 
 	flux = 'hll',
 }
 -- comparing hll solvers
-self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {eqn='adm3d'})))
---self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {eqn='z4'})))
+--self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {eqn='adm3d'})))
+self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {eqn='z4'})))
 --self.solvers:insert(require 'hydro.solver.bssnok-fd'(table(args, {eqn='bssnok-fd-num'})))
 --self.solvers:insert(require 'hydro.solver.bssnok-fd'(table(args, {eqn='bssnok-fd-senr'})))
 --self.solvers:insert(require 'hydro.solver.bssnok-fd'(table(args, {eqn='bssnok-fd-sym'})))
@@ -988,7 +989,7 @@ local args = {
 	--integratorArgs = {verbose=true},
 	cfl = .5,
 
-	-- [[
+	--[[
 	coord = 'cartesian',
 	mins = {-3,-3,-3},
 	maxs = {3,3,3},
@@ -1012,7 +1013,7 @@ local args = {
 		zmax = 'quadratic',
 	},
 	--]]
-	--[[
+	-- [[
 	coord = 'sphere',
 	coordArgs = {
 		-- this isn't really used since bssn is a finite-difference solver, so just pick the one that has the least complications.

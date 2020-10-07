@@ -63,6 +63,7 @@ function EinsteinInitCond:init(args, ...)
 	--EinsteinInitCond.super.init(self, args, ...)
 end
 
+-- this is used atm
 function EinsteinInitCond:getCodePrefix(solver)
 	-- looks like all EFE solvers might need this
 	-- maybe I should put it in InitCond?
@@ -82,6 +83,8 @@ return ]]..fLuaCode))(alphaVar, symmath)
 
 	local codes = table()
 	codes.f = compileC(f, 'f', {alphaVar})
+	codes.f_alpha = compileC((f * alphaVar)(), 'f_alpha', {alphaVar})
+	codes.f_alphaSq = compileC((f * alphaVar^2)(), 'f_alphaSq', {alphaVar})
 	codes.dalpha_f = compileC(dalpha_f, 'dalpha_f', {alphaVar})
 
 	return codes:map(function(code,name,t)
@@ -89,6 +92,7 @@ return ]]..fLuaCode))(alphaVar, symmath)
 	end):concat'\n'		
 end
 
+-- TODO this is not in use yet
 -- I'm working on a unified initial condition code for 1D and 3D NR problems:
 --[[
 args:
@@ -171,6 +175,7 @@ return ]]..fLuaCode))(alphaVar, symmath)
 	codes.f = compileC(f, 'f', {alphaVar})
 	codes.dalpha_f = compileC(dalpha_f, 'dalpha_f', {alphaVar})
 
+error'here'
 	return table.map(codes, function(code,name,t)
 		return 'real calc_'..name..'(real alpha) {\n\t'..code..'\n\treturn out1;\n}', #t+1
 	end):concat'\n'
