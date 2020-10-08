@@ -86,6 +86,8 @@ return ]]..fLuaCode))(alphaVar, symmath)
 	codes.f_alpha = compileC((f * alphaVar)(), 'f_alpha', {alphaVar})
 	codes.f_alphaSq = compileC((f * alphaVar^2)(), 'f_alphaSq', {alphaVar})
 	codes.dalpha_f = compileC(dalpha_f, 'dalpha_f', {alphaVar})
+	codes.alpha_dalpha_f = compileC((alphaVar * dalpha_f)(), 'alpha_dalpha_f', {alphaVar})
+	codes.alphaSq_dalpha_f = compileC((alphaVar^2 * dalpha_f)(), 'alphaSq_dalpha_f', {alphaVar})
 
 	return codes:map(function(code,name,t)
 		return 'real calc_'..name..'(real alpha) {\n\t'..code..'\n\treturn out1;\n}', #t+1

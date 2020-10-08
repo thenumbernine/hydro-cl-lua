@@ -283,7 +283,7 @@ kernel void addSource(
 	real S = 0.;
 	real rho = 0.;
 
-#if 1	//hand-rolled
+#if 0	//hand-rolled
 	// source terms
 	
 	real3x3 K_ul = sym3_sym3_mul(gamma_uu, U->K_ll);			//K^i_j
@@ -420,77 +420,48 @@ end?>
 	sym3 gamma_ll = U->gamma_ll;
 	sym3 K_ll = U->K_ll;
 	_3sym3 d_lll = U->d_lll;
-	
-	real f = calc_f(alpha);
-	real dalpha_f = calc_dalpha_f(alpha);
 
+	//for 1 + log(alpha) slicing:
+	//f = 2 / alpha
+	//f alpha = 2
+	//df/dalpha = -2 / alpha^2
+	//df/dalpha alpha = -2 / alpha
+	//df/dalpha alpha^2 = -2
+	real f_alpha = calc_f_alpha(alpha);	
+	real f_alphaSq = calc_f_alphaSq(alpha);	
+	real alphaSq_dalpha_f = calc_alphaSq_dalpha_f(alpha);
+
+	//TODO:
+	//alpha_,t = f alpha^2 ( ... )
+	//a_k,t = f alpha ( ... ) + ...
+	//
 	// BEGIN CUT from numerical-relativity-codegen/flux_matrix_output/adm_noZeroRows.html
 	real tmp1 = K_ll.xy * gamma_uu.xy;
 	real tmp2 = K_ll.xz * gamma_uu.xz;
 	real tmp3 = K_ll.yz * gamma_uu.yz;
 	real tmp4 = K_ll.zz * gamma_uu.zz;
 	real tmp8 = K_ll.yy * gamma_uu.yy;
-	real tmp32 = f * gamma_uu.xx;
-	real tmp34 = dalpha_f * gamma_uu.xx;
-	real tmp35 = alpha * tmp34;
 	real tmp37 = gamma_uu.xx * gamma_uu.xx;
-	real tmp38 = f * tmp37;
 	real tmp43 = gamma_uu.xx * gamma_uu.xy;
-	real tmp44 = f * tmp43;
 	real tmp49 = gamma_uu.xx * gamma_uu.xz;
-	real tmp50 = f * tmp49;
 	real tmp55 = gamma_uu.xy * gamma_uu.xy;
-	real tmp56 = f * tmp55;
 	real tmp61 = gamma_uu.xy * gamma_uu.xz;
-	real tmp62 = f * tmp61;
 	real tmp67 = gamma_uu.xz * gamma_uu.xz;
-	real tmp68 = f * tmp67;
-	real tmp73 = f * gamma_uu.xy;
-	real tmp76 = dalpha_f * gamma_uu.xy;
-	real tmp77 = alpha * tmp76;
 	real tmp86 = gamma_uu.xx * gamma_uu.yy;
-	real tmp87 = f * tmp86;
 	real tmp98 = gamma_uu.xx * gamma_uu.yz;
-	real tmp99 = f * tmp98;
 	real tmp110 = gamma_uu.xy * gamma_uu.yy;
-	real tmp111 = f * tmp110;
 	real tmp116 = gamma_uu.xy * gamma_uu.yz;
-	real tmp117 = f * tmp116;
 	real tmp122 = gamma_uu.xz * gamma_uu.yy;
-	real tmp123 = f * tmp122;
 	real tmp128 = gamma_uu.xz * gamma_uu.yz;
-	real tmp129 = f * tmp128;
-	real tmp134 = f * gamma_uu.xz;
-	real tmp137 = dalpha_f * gamma_uu.xz;
-	real tmp138 = alpha * tmp137;
 	real tmp159 = gamma_uu.xx * gamma_uu.zz;
-	real tmp160 = f * tmp159;
 	real tmp177 = gamma_uu.xy * gamma_uu.zz;
-	real tmp178 = f * tmp177;
 	real tmp189 = gamma_uu.xz * gamma_uu.zz;
-	real tmp190 = f * tmp189;
-	real tmp195 = f * gamma_uu.yy;
-	real tmp197 = dalpha_f * gamma_uu.yy;
-	real tmp198 = alpha * tmp197;
 	real tmp218 = gamma_uu.yy * gamma_uu.yy;
-	real tmp219 = f * tmp218;
 	real tmp224 = gamma_uu.yy * gamma_uu.yz;
-	real tmp225 = f * tmp224;
 	real tmp230 = gamma_uu.yz * gamma_uu.yz;
-	real tmp231 = f * tmp230;
-	real tmp236 = f * gamma_uu.yz;
-	real tmp239 = dalpha_f * gamma_uu.yz;
-	real tmp240 = alpha * tmp239;
 	real tmp279 = gamma_uu.yy * gamma_uu.zz;
-	real tmp280 = f * tmp279;
 	real tmp291 = gamma_uu.yz * gamma_uu.zz;
-	real tmp292 = f * tmp291;
-	real tmp297 = f * gamma_uu.zz;
-	real tmp299 = dalpha_f * gamma_uu.zz;
-	real tmp300 = alpha * tmp299;
 	real tmp332 = gamma_uu.zz * gamma_uu.zz;
-	real tmp333 = f * tmp332;
-	real tmp342 = alpha * dalpha_f;
 	real tmp1049 = a_l.x * alpha;
 	real tmp1061 = a_l.y * alpha;
 	real tmp1073 = a_l.z * alpha;
@@ -923,196 +894,205 @@ end?>
 	real tmp7341 = Z_l.x * gamma_uu.xz;
 	real tmp7343 = Z_l.y * gamma_uu.yz;
 	real tmp7345 = Z_l.z * gamma_uu.zz;
-	deriv->alpha += -f * (tmp8
+	deriv->alpha += -f_alphaSq * (tmp8
 		+ tmp4
 		- 2. * Theta
 		+ 2. * tmp3
 		+ 2. * tmp2
 		+ 2. * tmp1
-		+ K_ll.xx * gamma_uu.xx) * alpha * alpha;
+		+ K_ll.xx * gamma_uu.xx);
 	deriv->gamma_ll.xx += -2. * K_ll.xx * alpha;
 	deriv->gamma_ll.xy += -2. * K_ll.xy * alpha;
 	deriv->gamma_ll.xz += -2. * K_ll.xz * alpha;
 	deriv->gamma_ll.yy += -2. * K_ll.yy * alpha;
 	deriv->gamma_ll.yz += -2. * K_ll.yz * alpha;
 	deriv->gamma_ll.zz += -2. * K_ll.zz * alpha;
-	deriv->a_l.x += -alpha * (K_ll.zz * a_l.x * tmp300
-		- 2. * K_ll.zz * d_lll.x.xx * tmp68
-		- 4. * K_ll.zz * d_lll.x.xy * tmp129
-		- 4. * K_ll.zz * d_lll.x.xz * tmp190
-		- 2. * K_ll.zz * d_lll.x.yy * tmp231
-		- 4. * K_ll.zz * d_lll.x.yz * tmp292
-		- 2. * K_ll.zz * d_lll.x.zz * tmp333
-		- 2. * Theta * a_l.x * f
-		- 2. * Theta * a_l.x * tmp342
-		+ K_ll.zz * a_l.x * tmp297
-		+ 2. * K_ll.yz * a_l.x * tmp240
-		- 4. * K_ll.yz * d_lll.x.xx * tmp62
-		- 4. * K_ll.yz * d_lll.x.xy * tmp117
-		- 4. * K_ll.yz * d_lll.x.xy * tmp123
-		- 4. * K_ll.yz * d_lll.x.xz * tmp178
-		- 4. * K_ll.yz * d_lll.x.xz * tmp129
-		- 4. * K_ll.yz * d_lll.x.yy * tmp225
-		- 4. * K_ll.yz * d_lll.x.yz * tmp280
-		- 4. * K_ll.yz * d_lll.x.yz * tmp231
-		- 4. * K_ll.yz * d_lll.x.zz * tmp292
-		+ 2. * K_ll.yz * a_l.x * tmp236
-		+ K_ll.yy * a_l.x * tmp198
-		- 2. * K_ll.yy * d_lll.x.xx * tmp56
-		- 4. * K_ll.yy * d_lll.x.xy * tmp111
-		- 4. * K_ll.yy * d_lll.x.xz * tmp117
-		- 2. * K_ll.yy * d_lll.x.yy * tmp219
-		- 4. * K_ll.yy * d_lll.x.yz * tmp225
-		- 2. * K_ll.yy * d_lll.x.zz * tmp231
-		+ K_ll.yy * a_l.x * tmp195
-		+ 2. * K_ll.xz * a_l.x * tmp138
-		- 4. * K_ll.xz * d_lll.x.xx * tmp50
-		- 4. * K_ll.xz * d_lll.x.xy * tmp99
-		- 4. * K_ll.xz * d_lll.x.xy * tmp62
-		- 4. * K_ll.xz * d_lll.x.xz * tmp160
-		- 4. * K_ll.xz * d_lll.x.xz * tmp68
-		- 4. * K_ll.xz * d_lll.x.yy * tmp117
-		- 4. * K_ll.xz * d_lll.x.yz * tmp178
-		- 4. * K_ll.xz * d_lll.x.yz * tmp129
-		- 4. * K_ll.xz * d_lll.x.zz * tmp190
-		+ 2. * K_ll.xz * a_l.x * tmp134
-		+ 2. * K_ll.xy * a_l.x * tmp77
-		- 4. * K_ll.xy * d_lll.x.xx * tmp44
-		- 4. * K_ll.xy * d_lll.x.xy * tmp87
-		- 4. * K_ll.xy * d_lll.x.xy * tmp56
-		- 4. * K_ll.xy * d_lll.x.xz * tmp99
-		- 4. * K_ll.xy * d_lll.x.xz * tmp62
-		- 4. * K_ll.xy * d_lll.x.yy * tmp111
-		- 4. * K_ll.xy * d_lll.x.yz * tmp117
-		- 4. * K_ll.xy * d_lll.x.yz * tmp123
-		- 4. * K_ll.xy * d_lll.x.zz * tmp129
-		+ 2. * K_ll.xy * a_l.x * tmp73
-		+ K_ll.xx * a_l.x * tmp35
-		- 2. * K_ll.xx * d_lll.x.xx * tmp38
-		- 4. * K_ll.xx * d_lll.x.xy * tmp44
-		- 4. * K_ll.xx * d_lll.x.xz * tmp50
-		- 2. * K_ll.xx * d_lll.x.yy * tmp56
-		- 4. * K_ll.xx * d_lll.x.yz * tmp62
-		- 2. * K_ll.xx * d_lll.x.zz * tmp68
-		+ K_ll.xx * a_l.x * tmp32);
-	deriv->a_l.y += -alpha * (K_ll.zz * a_l.y * tmp300
-		- 2. * K_ll.zz * d_lll.y.xx * tmp68
-		- 4. * K_ll.zz * d_lll.y.xy * tmp129
-		- 4. * K_ll.zz * d_lll.y.xz * tmp190
-		- 2. * K_ll.zz * d_lll.y.yy * tmp231
-		- 4. * K_ll.zz * d_lll.y.yz * tmp292
-		- 2. * K_ll.zz * d_lll.y.zz * tmp333
-		- 2. * Theta * a_l.y * f
-		- 2. * Theta * a_l.y * tmp342
-		+ K_ll.zz * a_l.y * tmp297
-		+ 2. * K_ll.yz * a_l.y * tmp240
-		- 4. * K_ll.yz * d_lll.y.xx * tmp62
-		- 4. * K_ll.yz * d_lll.y.xy * tmp117
-		- 4. * K_ll.yz * d_lll.y.xy * tmp123
-		- 4. * K_ll.yz * d_lll.y.xz * tmp178
-		- 4. * K_ll.yz * d_lll.y.xz * tmp129
-		- 4. * K_ll.yz * d_lll.y.yy * tmp225
-		- 4. * K_ll.yz * d_lll.y.yz * tmp280
-		- 4. * K_ll.yz * d_lll.y.yz * tmp231
-		- 4. * K_ll.yz * d_lll.y.zz * tmp292
-		+ 2. * K_ll.yz * a_l.y * tmp236
-		+ K_ll.yy * a_l.y * tmp198
-		- 2. * K_ll.yy * d_lll.y.xx * tmp56
-		- 4. * K_ll.yy * d_lll.y.xy * tmp111
-		- 4. * K_ll.yy * d_lll.y.xz * tmp117
-		- 2. * K_ll.yy * d_lll.y.yy * tmp219
-		- 4. * K_ll.yy * d_lll.y.yz * tmp225
-		- 2. * K_ll.yy * d_lll.y.zz * tmp231
-		+ K_ll.yy * a_l.y * tmp195
-		+ 2. * K_ll.xz * a_l.y * tmp138
-		- 4. * K_ll.xz * d_lll.y.xx * tmp50
-		- 4. * K_ll.xz * d_lll.y.xy * tmp99
-		- 4. * K_ll.xz * d_lll.y.xy * tmp62
-		- 4. * K_ll.xz * d_lll.y.xz * tmp160
-		- 4. * K_ll.xz * d_lll.y.xz * tmp68
-		- 4. * K_ll.xz * d_lll.y.yy * tmp117
-		- 4. * K_ll.xz * d_lll.y.yz * tmp178
-		- 4. * K_ll.xz * d_lll.y.yz * tmp129
-		- 4. * K_ll.xz * d_lll.y.zz * tmp190
-		+ 2. * K_ll.xz * a_l.y * tmp134
-		+ 2. * K_ll.xy * a_l.y * tmp77
-		- 4. * K_ll.xy * d_lll.y.xx * tmp44
-		- 4. * K_ll.xy * d_lll.y.xy * tmp87
-		- 4. * K_ll.xy * d_lll.y.xy * tmp56
-		- 4. * K_ll.xy * d_lll.y.xz * tmp99
-		- 4. * K_ll.xy * d_lll.y.xz * tmp62
-		- 4. * K_ll.xy * d_lll.y.yy * tmp111
-		- 4. * K_ll.xy * d_lll.y.yz * tmp117
-		- 4. * K_ll.xy * d_lll.y.yz * tmp123
-		- 4. * K_ll.xy * d_lll.y.zz * tmp129
-		+ 2. * K_ll.xy * a_l.y * tmp73
-		+ K_ll.xx * a_l.y * tmp35
-		- 2. * K_ll.xx * d_lll.y.xx * tmp38
-		- 4. * K_ll.xx * d_lll.y.xy * tmp44
-		- 4. * K_ll.xx * d_lll.y.xz * tmp50
-		- 2. * K_ll.xx * d_lll.y.yy * tmp56
-		- 4. * K_ll.xx * d_lll.y.yz * tmp62
-		- 2. * K_ll.xx * d_lll.y.zz * tmp68
-		+ K_ll.xx * a_l.y * tmp32);
-	deriv->a_l.z += -alpha * (K_ll.zz * a_l.z * tmp300
-		- 2. * K_ll.zz * d_lll.z.xx * tmp68
-		- 4. * K_ll.zz * d_lll.z.xy * tmp129
-		- 4. * K_ll.zz * d_lll.z.xz * tmp190
-		- 2. * K_ll.zz * d_lll.z.yy * tmp231
-		- 4. * K_ll.zz * d_lll.z.yz * tmp292
-		- 2. * K_ll.zz * d_lll.z.zz * tmp333
-		- 2. * Theta * a_l.z * f
-		- 2. * Theta * a_l.z * tmp342
-		+ K_ll.zz * a_l.z * tmp297
-		+ 2. * K_ll.yz * a_l.z * tmp240
-		- 4. * K_ll.yz * d_lll.z.xx * tmp62
-		- 4. * K_ll.yz * d_lll.z.xy * tmp117
-		- 4. * K_ll.yz * d_lll.z.xy * tmp123
-		- 4. * K_ll.yz * d_lll.z.xz * tmp178
-		- 4. * K_ll.yz * d_lll.z.xz * tmp129
-		- 4. * K_ll.yz * d_lll.z.yy * tmp225
-		- 4. * K_ll.yz * d_lll.z.yz * tmp280
-		- 4. * K_ll.yz * d_lll.z.yz * tmp231
-		- 4. * K_ll.yz * d_lll.z.zz * tmp292
-		+ 2. * K_ll.yz * a_l.z * tmp236
-		+ K_ll.yy * a_l.z * tmp198
-		- 2. * K_ll.yy * d_lll.z.xx * tmp56
-		- 4. * K_ll.yy * d_lll.z.xy * tmp111
-		- 4. * K_ll.yy * d_lll.z.xz * tmp117
-		- 2. * K_ll.yy * d_lll.z.yy * tmp219
-		- 4. * K_ll.yy * d_lll.z.yz * tmp225
-		- 2. * K_ll.yy * d_lll.z.zz * tmp231
-		+ K_ll.yy * a_l.z * tmp195
-		+ 2. * K_ll.xz * a_l.z * tmp138
-		- 4. * K_ll.xz * d_lll.z.xx * tmp50
-		- 4. * K_ll.xz * d_lll.z.xy * tmp99
-		- 4. * K_ll.xz * d_lll.z.xy * tmp62
-		- 4. * K_ll.xz * d_lll.z.xz * tmp160
-		- 4. * K_ll.xz * d_lll.z.xz * tmp68
-		- 4. * K_ll.xz * d_lll.z.yy * tmp117
-		- 4. * K_ll.xz * d_lll.z.yz * tmp178
-		- 4. * K_ll.xz * d_lll.z.yz * tmp129
-		- 4. * K_ll.xz * d_lll.z.zz * tmp190
-		+ 2. * K_ll.xz * a_l.z * tmp134
-		+ 2. * K_ll.xy * a_l.z * tmp77
-		- 4. * K_ll.xy * d_lll.z.xx * tmp44
-		- 4. * K_ll.xy * d_lll.z.xy * tmp87
-		- 4. * K_ll.xy * d_lll.z.xy * tmp56
-		- 4. * K_ll.xy * d_lll.z.xz * tmp99
-		- 4. * K_ll.xy * d_lll.z.xz * tmp62
-		- 4. * K_ll.xy * d_lll.z.yy * tmp111
-		- 4. * K_ll.xy * d_lll.z.yz * tmp117
-		- 4. * K_ll.xy * d_lll.z.yz * tmp123
-		- 4. * K_ll.xy * d_lll.z.zz * tmp129
-		+ 2. * K_ll.xy * a_l.z * tmp73
-		+ K_ll.xx * a_l.z * tmp35
-		- 2. * K_ll.xx * d_lll.z.xx * tmp38
-		- 4. * K_ll.xx * d_lll.z.xy * tmp44
-		- 4. * K_ll.xx * d_lll.z.xz * tmp50
-		- 2. * K_ll.xx * d_lll.z.yy * tmp56
-		- 4. * K_ll.xx * d_lll.z.yz * tmp62
-		- 2. * K_ll.xx * d_lll.z.zz * tmp68
-		+ K_ll.xx * a_l.z * tmp32);
+	deriv->a_l.x += -alphaSq_dalpha_f * (
+		K_ll.zz * a_l.x * gamma_uu.zz
+		- 2. * Theta * a_l.x
+		+ 2. * K_ll.yz * a_l.x * gamma_uu.yz
+		+ K_ll.yy * a_l.x * gamma_uu.yy
+		+ 2. * K_ll.xz * a_l.x * gamma_uu.xz
+		+ 2. * K_ll.xy * a_l.x * gamma_uu.xy
+		+ K_ll.xx * a_l.x * gamma_uu.xx
+	)
+	- f_alpha * (
+		- 2. * K_ll.zz * d_lll.x.xx * tmp67
+		- 4. * K_ll.zz * d_lll.x.xy * tmp128
+		- 4. * K_ll.zz * d_lll.x.xz * tmp189
+		- 2. * K_ll.zz * d_lll.x.yy * tmp230
+		- 4. * K_ll.zz * d_lll.x.yz * tmp291
+		- 2. * K_ll.zz * d_lll.x.zz * tmp332
+		- 2. * Theta * a_l.x
+		+ K_ll.zz * a_l.x * gamma_uu.zz
+		- 4. * K_ll.yz * d_lll.x.xx * tmp61
+		- 4. * K_ll.yz * d_lll.x.xy * tmp116
+		- 4. * K_ll.yz * d_lll.x.xy * tmp122
+		- 4. * K_ll.yz * d_lll.x.xz * tmp177
+		- 4. * K_ll.yz * d_lll.x.xz * tmp128
+		- 4. * K_ll.yz * d_lll.x.yy * tmp224
+		- 4. * K_ll.yz * d_lll.x.yz * tmp279
+		- 4. * K_ll.yz * d_lll.x.yz * tmp230
+		- 4. * K_ll.yz * d_lll.x.zz * tmp291
+		+ 2. * K_ll.yz * a_l.x * gamma_uu.yz
+		- 2. * K_ll.yy * d_lll.x.xx * tmp55
+		- 4. * K_ll.yy * d_lll.x.xy * tmp110
+		- 4. * K_ll.yy * d_lll.x.xz * tmp116
+		- 2. * K_ll.yy * d_lll.x.yy * tmp218
+		- 4. * K_ll.yy * d_lll.x.yz * tmp224
+		- 2. * K_ll.yy * d_lll.x.zz * tmp230
+		+ K_ll.yy * a_l.x * gamma_uu.yy
+		- 4. * K_ll.xz * d_lll.x.xx * tmp49
+		- 4. * K_ll.xz * d_lll.x.xy * tmp98
+		- 4. * K_ll.xz * d_lll.x.xy * tmp61
+		- 4. * K_ll.xz * d_lll.x.xz * tmp159
+		- 4. * K_ll.xz * d_lll.x.xz * tmp67
+		- 4. * K_ll.xz * d_lll.x.yy * tmp116
+		- 4. * K_ll.xz * d_lll.x.yz * tmp177
+		- 4. * K_ll.xz * d_lll.x.yz * tmp128
+		- 4. * K_ll.xz * d_lll.x.zz * tmp189
+		+ 2. * K_ll.xz * a_l.x * gamma_uu.xz
+		- 4. * K_ll.xy * d_lll.x.xx * tmp43
+		- 4. * K_ll.xy * d_lll.x.xy * tmp86
+		- 4. * K_ll.xy * d_lll.x.xy * tmp55
+		- 4. * K_ll.xy * d_lll.x.xz * tmp98
+		- 4. * K_ll.xy * d_lll.x.xz * tmp61
+		- 4. * K_ll.xy * d_lll.x.yy * tmp110
+		- 4. * K_ll.xy * d_lll.x.yz * tmp116
+		- 4. * K_ll.xy * d_lll.x.yz * tmp122
+		- 4. * K_ll.xy * d_lll.x.zz * tmp128
+		+ 2. * K_ll.xy * a_l.x * gamma_uu.xy
+		- 2. * K_ll.xx * d_lll.x.xx * tmp37
+		- 4. * K_ll.xx * d_lll.x.xy * tmp43
+		- 4. * K_ll.xx * d_lll.x.xz * tmp49
+		- 2. * K_ll.xx * d_lll.x.yy * tmp55
+		- 4. * K_ll.xx * d_lll.x.yz * tmp61
+		- 2. * K_ll.xx * d_lll.x.zz * tmp67
+		+ K_ll.xx * a_l.x * gamma_uu.xx);
+	deriv->a_l.y += -alphaSq_dalpha_f * (
+		K_ll.zz * a_l.y * gamma_uu.zz
+		- 2. * Theta * a_l.y
+		+ 2. * K_ll.yz * a_l.y * gamma_uu.yz
+		+ K_ll.yy * a_l.y * gamma_uu.yy
+		+ 2. * K_ll.xz * a_l.y * gamma_uu.xz
+		+ 2. * K_ll.xy * a_l.y * gamma_uu.xy
+		+ K_ll.xx * a_l.y * gamma_uu.xx
+	)
+	- f_alpha * (
+		- 2. * K_ll.zz * d_lll.y.xx * tmp67
+		- 4. * K_ll.zz * d_lll.y.xy * tmp128
+		- 4. * K_ll.zz * d_lll.y.xz * tmp189
+		- 2. * K_ll.zz * d_lll.y.yy * tmp230
+		- 4. * K_ll.zz * d_lll.y.yz * tmp291
+		- 2. * K_ll.zz * d_lll.y.zz * tmp332
+		- 2. * Theta * a_l.y
+		+ K_ll.zz * a_l.y * gamma_uu.zz
+		- 4. * K_ll.yz * d_lll.y.xx * tmp61
+		- 4. * K_ll.yz * d_lll.y.xy * tmp116
+		- 4. * K_ll.yz * d_lll.y.xy * tmp122
+		- 4. * K_ll.yz * d_lll.y.xz * tmp177
+		- 4. * K_ll.yz * d_lll.y.xz * tmp128
+		- 4. * K_ll.yz * d_lll.y.yy * tmp224
+		- 4. * K_ll.yz * d_lll.y.yz * tmp279
+		- 4. * K_ll.yz * d_lll.y.yz * tmp230
+		- 4. * K_ll.yz * d_lll.y.zz * tmp291
+		+ 2. * K_ll.yz * a_l.y * gamma_uu.yz
+		- 2. * K_ll.yy * d_lll.y.xx * tmp55
+		- 4. * K_ll.yy * d_lll.y.xy * tmp110
+		- 4. * K_ll.yy * d_lll.y.xz * tmp116
+		- 2. * K_ll.yy * d_lll.y.yy * tmp218
+		- 4. * K_ll.yy * d_lll.y.yz * tmp224
+		- 2. * K_ll.yy * d_lll.y.zz * tmp230
+		+ K_ll.yy * a_l.y * gamma_uu.yy
+		- 4. * K_ll.xz * d_lll.y.xx * tmp49
+		- 4. * K_ll.xz * d_lll.y.xy * tmp98
+		- 4. * K_ll.xz * d_lll.y.xy * tmp61
+		- 4. * K_ll.xz * d_lll.y.xz * tmp159
+		- 4. * K_ll.xz * d_lll.y.xz * tmp67
+		- 4. * K_ll.xz * d_lll.y.yy * tmp116
+		- 4. * K_ll.xz * d_lll.y.yz * tmp177
+		- 4. * K_ll.xz * d_lll.y.yz * tmp128
+		- 4. * K_ll.xz * d_lll.y.zz * tmp189
+		+ 2. * K_ll.xz * a_l.y * gamma_uu.xz
+		- 4. * K_ll.xy * d_lll.y.xx * tmp43
+		- 4. * K_ll.xy * d_lll.y.xy * tmp86
+		- 4. * K_ll.xy * d_lll.y.xy * tmp55
+		- 4. * K_ll.xy * d_lll.y.xz * tmp98
+		- 4. * K_ll.xy * d_lll.y.xz * tmp61
+		- 4. * K_ll.xy * d_lll.y.yy * tmp110
+		- 4. * K_ll.xy * d_lll.y.yz * tmp116
+		- 4. * K_ll.xy * d_lll.y.yz * tmp122
+		- 4. * K_ll.xy * d_lll.y.zz * tmp128
+		+ 2. * K_ll.xy * a_l.y * gamma_uu.xy
+		- 2. * K_ll.xx * d_lll.y.xx * tmp37
+		- 4. * K_ll.xx * d_lll.y.xy * tmp43
+		- 4. * K_ll.xx * d_lll.y.xz * tmp49
+		- 2. * K_ll.xx * d_lll.y.yy * tmp55
+		- 4. * K_ll.xx * d_lll.y.yz * tmp61
+		- 2. * K_ll.xx * d_lll.y.zz * tmp67
+		+ K_ll.xx * a_l.y * gamma_uu.xx);
+	deriv->a_l.z += -alphaSq_dalpha_f * (
+		K_ll.zz * a_l.z * gamma_uu.zz
+		- 2. * Theta * a_l.z
+		+ 2. * K_ll.yz * a_l.z * gamma_uu.yz
+		+ K_ll.yy * a_l.z * gamma_uu.yy
+		+ 2. * K_ll.xz * a_l.z * gamma_uu.xz
+		+ 2. * K_ll.xy * a_l.z * gamma_uu.xy
+		+ K_ll.xx * a_l.z * gamma_uu.xx
+	)
+	- f_alpha * (
+		- 2. * K_ll.zz * d_lll.z.xx * tmp67
+		- 4. * K_ll.zz * d_lll.z.xy * tmp128
+		- 4. * K_ll.zz * d_lll.z.xz * tmp189
+		- 2. * K_ll.zz * d_lll.z.yy * tmp230
+		- 4. * K_ll.zz * d_lll.z.yz * tmp291
+		- 2. * K_ll.zz * d_lll.z.zz * tmp332
+		- 2. * Theta * a_l.z
+		+ K_ll.zz * a_l.z * gamma_uu.zz
+		- 4. * K_ll.yz * d_lll.z.xx * tmp61
+		- 4. * K_ll.yz * d_lll.z.xy * tmp116
+		- 4. * K_ll.yz * d_lll.z.xy * tmp122
+		- 4. * K_ll.yz * d_lll.z.xz * tmp177
+		- 4. * K_ll.yz * d_lll.z.xz * tmp128
+		- 4. * K_ll.yz * d_lll.z.yy * tmp224
+		- 4. * K_ll.yz * d_lll.z.yz * tmp279
+		- 4. * K_ll.yz * d_lll.z.yz * tmp230
+		- 4. * K_ll.yz * d_lll.z.zz * tmp291
+		+ 2. * K_ll.yz * a_l.z * gamma_uu.yz
+		- 2. * K_ll.yy * d_lll.z.xx * tmp55
+		- 4. * K_ll.yy * d_lll.z.xy * tmp110
+		- 4. * K_ll.yy * d_lll.z.xz * tmp116
+		- 2. * K_ll.yy * d_lll.z.yy * tmp218
+		- 4. * K_ll.yy * d_lll.z.yz * tmp224
+		- 2. * K_ll.yy * d_lll.z.zz * tmp230
+		+ K_ll.yy * a_l.z * gamma_uu.yy
+		- 4. * K_ll.xz * d_lll.z.xx * tmp49
+		- 4. * K_ll.xz * d_lll.z.xy * tmp98
+		- 4. * K_ll.xz * d_lll.z.xy * tmp61
+		- 4. * K_ll.xz * d_lll.z.xz * tmp159
+		- 4. * K_ll.xz * d_lll.z.xz * tmp67
+		- 4. * K_ll.xz * d_lll.z.yy * tmp116
+		- 4. * K_ll.xz * d_lll.z.yz * tmp177
+		- 4. * K_ll.xz * d_lll.z.yz * tmp128
+		- 4. * K_ll.xz * d_lll.z.zz * tmp189
+		+ 2. * K_ll.xz * a_l.z * gamma_uu.xz
+		- 4. * K_ll.xy * d_lll.z.xx * tmp43
+		- 4. * K_ll.xy * d_lll.z.xy * tmp86
+		- 4. * K_ll.xy * d_lll.z.xy * tmp55
+		- 4. * K_ll.xy * d_lll.z.xz * tmp98
+		- 4. * K_ll.xy * d_lll.z.xz * tmp61
+		- 4. * K_ll.xy * d_lll.z.yy * tmp110
+		- 4. * K_ll.xy * d_lll.z.yz * tmp116
+		- 4. * K_ll.xy * d_lll.z.yz * tmp122
+		- 4. * K_ll.xy * d_lll.z.zz * tmp128
+		+ 2. * K_ll.xy * a_l.z * gamma_uu.xy
+		- 2. * K_ll.xx * d_lll.z.xx * tmp37
+		- 4. * K_ll.xx * d_lll.z.xy * tmp43
+		- 4. * K_ll.xx * d_lll.z.xz * tmp49
+		- 2. * K_ll.xx * d_lll.z.yy * tmp55
+		- 4. * K_ll.xx * d_lll.z.yz * tmp61
+		- 2. * K_ll.xx * d_lll.z.zz * tmp67
+		+ K_ll.xx * a_l.z * gamma_uu.xx);
 	deriv->d_lll.x.xx += -K_ll.xx * tmp1049;
 	deriv->d_lll.x.xy += -K_ll.xy * tmp1049;
 	deriv->d_lll.x.xz += -K_ll.xz * tmp1049;
