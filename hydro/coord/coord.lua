@@ -554,6 +554,7 @@ self.Gamma_ull = Gamma_ull
 			if j ~= i then
 				local u = self.baseCoords[j]
 				local uL, uR = integralArgs[2*j-1], integralArgs[2*j]
+				area = self:applyReplVars(area)	-- just because of sphere-log-radial, insert replvars beforehand
 				area = area:integrate(u, uL, uR)()
 			end
 		end
@@ -594,6 +595,7 @@ self.Gamma_ull = Gamma_ull
 			local uL, uR = integralArgs[2*j-1], integralArgs[2*j]
 --print('volume was', volume)
 --print('integrating', u, 'from', uL, 'to', uR)
+			volume = self:applyReplVars(volume)	-- just because of sphere-log-radial, insert replvars beforehand
 			volume = volume:integrate(u, uL, uR)()
 --print('volume is now', volume)
 		end
@@ -730,15 +732,20 @@ function CoordinateSystem:fillGridCellBuf(cellsCPU)
 	end
 end
 
+function CoordinateSystem:applyReplVars(expr)
+	for _,repl in ipairs(self.replvars) do
+		expr = expr:replace(repl[1], repl[2])
+	end
+	return expr
+end
+
 function CoordinateSystem:compile(expr)
 	if type(expr) == 'number' then return clnumber(expr) end
 	
 	local symmath = require 'symmath'
 	local const = symmath.Constant
 
-	for _,repl in ipairs(self.replvars) do
-		expr = expr:replace(repl[1], repl[2])
-	end
+	expr = self:applyReplVars(expr)
 
 	-- replace pow(x, .5) with sqrt(x)
 	expr = expr:map(function(x)

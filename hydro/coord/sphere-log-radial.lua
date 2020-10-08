@@ -1,3 +1,5 @@
+-- TODO rename to sphere-sinh-radial ... then do another sphere-log-radial or sphere-radial-remapped ?
+
 local class = require 'ext.class'
 local table = require 'ext.table'
 local symmath = require 'symmath'
@@ -74,8 +76,10 @@ function SphereLogRadial:init(args)
 		{r, r_for_rho},
 
 		-- what to do about this ...
-		{self.amplitude_var, self.amplitude},
-		{self.sinh_w_var, self.sinh_w},
+		--{self.amplitude_var, self.amplitude},
+		--{self.sinh_w_var, self.sinh_w},
+		-- I don't want these here, because replvars are executed before integrate() and simplify() in coord ...
+		-- but I should put them somewhere ...
 	}
 
 	if cmdline.coordVerbose then
@@ -118,10 +122,20 @@ end
 -- 		so to do this, get rid of 'depends', replace 'code', 'header', 'typecode' strings with functions, and give them an 'include' function that pulls in from other modules by their name
 -- for now I'll just make a separate 'coordMapGLSL' just like 'coordMap' but with the GLSL depends
 function SphereLogRadial:getModuleDepends_coordMapGLSL() 
-	return {'sinh'}
+	return {
+		'sinh',
+		-- This is in sharedModules ... so should sharedModules be included in all GLSL modules?
+		-- until I decide, I'll just put this entry for GLSL here:
+		'eqn.guiVars.compileTime',	-- for AMPL and SINHW
+	}
 end
 function SphereLogRadial:getModuleDepends_coordMapInvGLSL() 
-	return {'sinh', 'cosh', 'asinh'}
+	return {
+		'sinh',
+		'cosh',
+		'asinh',
+		'eqn.guiVars.compileTime',	-- for AMPL and SINHW
+	}
 end
 
 function SphereLogRadial:initCodeModules(...)
@@ -273,11 +287,15 @@ real3 coord_parallelPropagateL2(real3 v, real3 x, real dx) {
 }
 
 <? else 
-	error "still need to do anholonomic"
+	print"!!! still need to do anholonomic !!! using identity in the mean time..."
+	for side=0,solver.dim-1 do 
+?>#define coord_parallelPropagateU<?=side?>(v, x, dx) (v)
+<?	end
 end ?>
 
 ]], {
 		coord = self,
+		solver = self.solver,
 	})
 end
 

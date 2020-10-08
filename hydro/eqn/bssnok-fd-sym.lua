@@ -786,18 +786,11 @@ time('building symbolic math env', function()
 		-- either one to prevent symmath from automatically raising or lowering
 		-- otherwise using e or eu incorrectly will result in extra operations
 
-	local function dorepl(expr)
-		for _,repl in ipairs(solver.coord.replvars) do
-			expr = expr:replace(repl[1], repl[2])
-		end
-		return expr
-	end
-
 	printbr'gammaHat_ll'
-		gammaHat_ll = dorepl(Tensor.metric().metric)
+		gammaHat_ll = solver.coord:applyReplVars(Tensor.metric().metric)
 	printbr(gammaHat_ll)
 	printbr'e'
-		e = dorepl(Tensor('_i^I', function(i,j)
+		e = solver.coord:applyReplVars(Tensor('_i^I', function(i,j)
 			return (i==j and solver.coord.lenExprs[i] or 0)
 		end))
 	printbr(e)

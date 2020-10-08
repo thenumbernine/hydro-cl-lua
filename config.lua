@@ -874,7 +874,7 @@ With hyperbolic gamma driver shift it has trouble.
 --self.solvers:insert(require 'hydro.solver.amr'(require 'hydro.solver.fvsolver')(table(args, {flux='roe', eqn='euler'})))
 
 
--- [[ trying to reproduce 2009 Alic et al "Towards a gauge-polyvalent numerical relativity code"
+-- [=[ trying to reproduce 2009 Alic et al "Towards a gauge-polyvalent numerical relativity code"
 local dim = 1
 local args = {
 	app = self,
@@ -888,12 +888,12 @@ local args = {
 	cfl = .5/dim,			-- no mention of cfl or timestep ...
 	fluxLimiter = cmdline.fluxLimiter or 'minmod',
 
-	--[=[
+	--[[
 	coord = 'cartesian',
 	mins = {-20,-20,-20},
 	maxs = {20,20,20},
 	gridSize = ({
-		{250, 1, 1},
+		{200, 1, 1},
 		{40, 40, 1},
 		{8, 8, 8},
 	})[dim],
@@ -905,8 +905,8 @@ local args = {
 		zmin = 'quadratic',
 		zmax = 'quadratic',
 	},
-	--]=]
-	-- [=[
+	--]]
+	--[[
 	coord = 'sphere',
 	coordArgs = {
 		vectorComponent = 'anholonomic',
@@ -933,13 +933,43 @@ local args = {
 		zmin='periodic',
 		zmax='periodic',
 	},
-	--]=]
+	--]]
+	-- [[
+	coord = 'sphere-log-radial',
+	coordArgs = {
+		--vectorComponent = 'holonomic',
+		vectorComponent = 'anholonomic',
+		--vectorComponent = 'cartesian',
+		-- SENR uses these parameters:
+		amplitude = 1000,
+		sinh_w = .15
+	},
+	mins = {0, 0, 0},
+	maxs = {
+		1,	-- 2017 Ruchlin et al, rely on coordinate chart to remap to rmax
+		math.pi,
+		2*math.pi,
+	},
+	gridSize = cmdline.gridSize or ({
+		{200, 1, 1},
+		{64, 16, 1},
+		{32, 2, 2},
+	})[dim],
+	boundary = {
+		xmin='sphereRMin',
+		xmax='quadratic',
+		ymin='sphereTheta',
+		ymax='sphereTheta',
+		zmin='periodic',
+		zmax='periodic',
+	},
+	--]]
 
 	--initCond = 'Minkowski',
 	--initCond = 'gaussian perturbation',
 	--initCond = 'plane gauge wave',
 	initCond = 'SENR UIUC',
-	--[=[
+	--[[
 	-- TODO since converting this to useBSSNVars, it doesn't work for cartesian anymore ...
 	initCond = 'black hole - isotropic',	-- this one has momentum and rotation and almost done with multiple sources.  TODO parameterize
 	initCondArgs = {
@@ -950,7 +980,7 @@ local args = {
 			pos = {0,0,0},
 		}
 	},
-	--]=]
+	--]]
 
 	flux = 'hll',
 }
@@ -960,7 +990,7 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {eqn='z4'})))
 --self.solvers:insert(require 'hydro.solver.bssnok-fd'(table(args, {eqn='bssnok-fd-num'})))
 --self.solvers:insert(require 'hydro.solver.bssnok-fd'(table(args, {eqn='bssnok-fd-senr'})))
 --self.solvers:insert(require 'hydro.solver.bssnok-fd'(table(args, {eqn='bssnok-fd-sym'})))
---]]
+--]=]
 
 
 
@@ -1014,7 +1044,7 @@ local args = {
 		zmax = 'quadratic',
 	},
 	--]]
-	-- [[
+	--[[
 	coord = 'sphere',
 	coordArgs = {
 		-- this isn't really used since bssn is a finite-difference solver, so just pick the one that has the least complications.
@@ -1072,7 +1102,7 @@ local args = {
 		zmax='periodic',
 	},
 	--]]
-	--[[
+	-- [[
 	coord = 'sphere-log-radial',
 	coordArgs = {
 		--vectorComponent = 'holonomic',
