@@ -312,103 +312,6 @@ function Z4_2004Bona:initCodeModule_fluxFromCons()
 	real3 x,
 	normal_t n
 ) {
-
-#if 0	//old, by hand, based on the ADM version
-
-	real det_gamma = sym3_det(U.gamma_ll);
-	sym3 gamma_uu = sym3_inv(U.gamma_ll, det_gamma);
-	real K = sym3_dot(gamma_uu, U.K_ll);
-	real f_alpha = calc_f_alpha(U.alpha);
-
-	<?=eqn.cons_t?> F;
-	F.alpha = 0.;
-	F.gamma_ll = sym3_zero;
-	
-	// a_i,t = -alpha f gamma^jk K_jk,i + source terms
-	F.a_l = real3_zero;
-	F.a_l.s[n.side] = -f_alpha * K;
-	
-	//d_ijk,t = -alpha a_i K_jk + source terms
-	F.d_lll = _3sym3_zero;
-	F.d_lll.v[n.side] = sym3_real_mul(U.K_ll, -U.alpha);
-	
-<? 
-if eqn.useShift ~= 'none' then
-?>	//beta^i_,t = 0 + source terms
-	F.beta_u = real3_zero;
-<?	if self.useShift == 'MinimalDistortionElliptic' 
-	or self.useShift == 'MinimalDistortionEllipticEvolve' 
-	then
-?>	F.betaLap_u = real3_zero;
-<?	end
-end 
-?>
-
-
-	//Z_i,t = alpha (Theta_,i + gamma^jk (K_ij,k - K_jk,i))
-	F.Z_l = sym3_real3_mul(U.K_ll, sym3_col(gamma_uu, n.side));
-	F.Z_l.s[n.side] += U.Theta - sym3_dot(gamma_uu, U.K_ll);
-	F.Z_l = real3_real_mul(F.Z_l, U.alpha);
-<? 
-local function calcFluxKTheta(side)
-?>	
-	//Theta_,t = alpha gamma^ab (Z_a,b + gamma^cd (d_abc,d - d_cab,d)) + source terms
-	F.Theta = U.alpha * (0. +
-<?	for a,xa in ipairs(xNames) do
-?>		+ gamma_uu.<?=sym(a,side)?> * U.Z_l.<?=xa?>
-<?		for b,xb in ipairs(xNames) do
-?>		+ gamma_uu.<?=sym(a,b)?> * (0.
-<?			for c,xc in ipairs(xNames) do
-?>			+ gamma_uu.<?=sym(c,side)?> * (U.d_lll.<?=xa?>.<?=sym(b,c)?> - U.d_lll.<?=xc?>.<?=sym(a,b)?>)
-<?			end
-?>		)
-<?		end
-	end
-?>	);
-	
-	//K_ij,t = alpha (2 Z_(i,j) - a_(i,j) + gamma^ab (2 d_ab(i,j) - d_aij,b - d_iab,j)) + source terms
-	F.K_ll = sym3_zero;
-<? 	for i,xi in ipairs(xNames) do
-?>	F.K_ll.<?=sym(i,side)?> = 2. * U.Z_l.<?=xi?> - U.a_l.<?=xi?>;
-<? 	end
-?>
-<? 	for ij,xij in ipairs(symNames) do
-		local i,j,xi,xj = from6to3x3(ij)
-?>	F.K_ll.<?=xij?> += 0.
-<?		for a,xa in ipairs(xNames) do
-			for b,xb in ipairs(xNames) do
-?>		+ gamma_uu.<?=sym(a,b)?> * (0.
-<?				if j == side then
-?>			+ U.d_lll.<?=xa?>.<?=sym(b,i)?>
-			- U.d_lll.<?=xi?>.<?=sym(a,b)?>
-<?				end
-				if i == side then
-?>			+ U.d_lll.<?=xa?>.<?=sym(b,j)?>
-<?				end
-				if b == side then
-?>			- U.d_lll.<?=xa?>.<?=xij?>
-<?				end
-?>		)
-<?			end
-		end
-?>	;
-<? 	end
-?>	F.K_ll = sym3_real_mul(F.K_ll, U.alpha);
-<?
-end
-?>
-	if (n.side == 0) {
-		<?calcFluxKTheta(1)?>
-	} else if (n.side == 1) {
-		<?calcFluxKTheta(2)?>
-	} else if (n.side == 2) {
-		<?calcFluxKTheta(3)?>
-	}
-
-	return F;
-
-#else	// new, codegen from numerical-relativity-codegen
-
 	real f_alpha = calc_f_alpha(U.alpha);
 	
 	real det_gamma = sym3_det(U.gamma_ll);
@@ -436,35 +339,61 @@ end
 
 	<?=eqn.cons_t?> F = {.ptr={0}};
 
-	F.alpha = 0.;
-	F.gamma_ll = sym3_zero;
-	F.a_l = real3_zero;
-	F.d_lll.y = sym3_zero;
-	F.d_lll.z = sym3_zero;
-
 	// BEGIN CUT from numerical-relativity-codegen/flux_matrix_output/z4_noZeroRows.html
-	real tmp5 = gamma_uu.xz * gamma_uu.xz;
-	real tmp4 = gamma_uu.xy * gamma_uu.xy;
-	real tmp3 = K_ll.zz * gamma_uu.zz;
-	real tmp2 = K_ll.yy * gamma_uu.yy;
-	real tmp1 = 2. * K_ll.yz * gamma_uu.yz;
-	F.a_l.x = f_alpha * (2. * K_ll.xy * gamma_uu.xy + 2. * K_ll.xz * gamma_uu.xz + K_ll.xx * gamma_uu.xx + tmp1 + tmp2 + tmp3);
+	real tmp1 = K_ll.xy * gamma_uu.xy;
+	real tmp2 = K_ll.xz * gamma_uu.xz;
+	real tmp3 = K_ll.yz * gamma_uu.yz;
+	real tmp4 = 2. * tmp3;
+	real tmp6 = K_ll.yy * gamma_uu.yy;
+	real tmp7 = K_ll.zz * gamma_uu.zz;
+	real tmp103 = gamma_uu.xx * gamma_uu.yy;
+	real tmp106 = gamma_uu.xy * gamma_uu.xy;
+	real tmp107 = gamma_uu.xx * gamma_uu.yz;
+	real tmp111 = gamma_uu.xy * gamma_uu.xz;
+	real tmp113 = gamma_uu.xx * gamma_uu.zz;
+	real tmp116 = gamma_uu.xz * gamma_uu.xz;
+	real tmp125 = gamma_uu.xy * gamma_uu.yz;
+	real tmp128 = gamma_uu.xz * gamma_uu.yy;
+	real tmp129 = gamma_uu.xy * gamma_uu.zz;
+	real tmp132 = gamma_uu.xz * gamma_uu.yz;
+	F.alpha = 0.;
+	F.gamma_ll.xx = 0.;
+	F.gamma_ll.xy = 0.;
+	F.gamma_ll.xz = 0.;
+	F.gamma_ll.yy = 0.;
+	F.gamma_ll.yz = 0.;
+	F.gamma_ll.zz = 0.;
+	F.a_l.x = f_alpha * (tmp6 + tmp7 + K_ll.xx * gamma_uu.xx + tmp4 - 2. * Theta + 2. * tmp2 + 2. * tmp1);
+	F.a_l.y = 0.;
+	F.a_l.z = 0.;
 	F.d_lll.x.xx = K_ll.xx * alpha;
 	F.d_lll.x.xy = K_ll.xy * alpha;
 	F.d_lll.x.xz = K_ll.xz * alpha;
 	F.d_lll.x.yy = K_ll.yy * alpha;
 	F.d_lll.x.yz = K_ll.yz * alpha;
 	F.d_lll.x.zz = K_ll.zz * alpha;
-	F.K_ll.xx = -alpha * (2. * Z_l.x - a_l.x - d_lll.x.yy * gamma_uu.yy - 2. * d_lll.x.yz * gamma_uu.yz - d_lll.x.zz * gamma_uu.zz - d_lll.y.xx * gamma_uu.xy - d_lll.z.xx * gamma_uu.xz);
-	F.K_ll.xy = (-alpha * (2. * Z_l.y - a_l.y + 2. * d_lll.x.yy * gamma_uu.xy + 2. * d_lll.x.yz * gamma_uu.xz + d_lll.y.xx * gamma_uu.xx - 2. * d_lll.y.xy * gamma_uu.xy - d_lll.y.yy * gamma_uu.yy - 2. * d_lll.y.yz * gamma_uu.yz - d_lll.y.zz * gamma_uu.zz - 2. * d_lll.z.xy * gamma_uu.xz)) / 2.;
-	F.K_ll.xz = (-alpha * (2. * Z_l.z - a_l.z + 2. * d_lll.x.yz * gamma_uu.xy + 2. * d_lll.x.zz * gamma_uu.xz - 2. * d_lll.y.xz * gamma_uu.xy + d_lll.z.xx * gamma_uu.xx - 2. * d_lll.z.xz * gamma_uu.xz - d_lll.z.yy * gamma_uu.yy - 2. * d_lll.z.yz * gamma_uu.yz - d_lll.z.zz * gamma_uu.zz)) / 2.;
-	F.K_ll.yy = alpha * (d_lll.x.yy * gamma_uu.xx - 2. * d_lll.y.xy * gamma_uu.xx - d_lll.y.yy * gamma_uu.xy - 2. * d_lll.y.yz * gamma_uu.xz + d_lll.z.yy * gamma_uu.xz);
-	F.K_ll.yz = alpha * (d_lll.x.yz * gamma_uu.xx - d_lll.y.xz * gamma_uu.xx - d_lll.y.zz * gamma_uu.xz - d_lll.z.xy * gamma_uu.xx - d_lll.z.yy * gamma_uu.xy);
-	F.K_ll.zz = alpha * (d_lll.x.zz * gamma_uu.xx + d_lll.y.zz * gamma_uu.xy - 2. * d_lll.z.xz * gamma_uu.xx - 2. * d_lll.z.yz * gamma_uu.xy - d_lll.z.zz * gamma_uu.xz);
-	F.Theta = -alpha * (Z_l.x * gamma_uu.xx + Z_l.y * gamma_uu.xy + Z_l.z * gamma_uu.xz - d_lll.x.yy * gamma_uu.xx * gamma_uu.yy + d_lll.x.yy * tmp4 - 2. * d_lll.x.yz * gamma_uu.xx * gamma_uu.yz + 2. * d_lll.x.yz * gamma_uu.xy * gamma_uu.xz - d_lll.x.zz * gamma_uu.xx * gamma_uu.zz + d_lll.x.zz * tmp5 + d_lll.y.xy * gamma_uu.xx * gamma_uu.yy - d_lll.y.xy * tmp4 + d_lll.y.xz * gamma_uu.xx * gamma_uu.yz - d_lll.y.xz * gamma_uu.xy * gamma_uu.xz - d_lll.y.yz * gamma_uu.xy * gamma_uu.yz + d_lll.y.yz * gamma_uu.xz * gamma_uu.yy - d_lll.y.zz * gamma_uu.xy * gamma_uu.zz + d_lll.y.zz * gamma_uu.xz * gamma_uu.yz + d_lll.z.xy * gamma_uu.xx * gamma_uu.yz - d_lll.z.xy * gamma_uu.xy * gamma_uu.xz + d_lll.z.xz * gamma_uu.xx * gamma_uu.zz - d_lll.z.xz * tmp5 + d_lll.z.yy * gamma_uu.xy * gamma_uu.yz - d_lll.z.yy * gamma_uu.xz * gamma_uu.yy + d_lll.z.yz * gamma_uu.xy * gamma_uu.zz - d_lll.z.yz * gamma_uu.xz * gamma_uu.yz);
-	F.Z_l.x = alpha * (K_ll.xy * gamma_uu.xy + K_ll.xz * gamma_uu.xz + tmp2 + tmp1 + tmp3 - Theta);
-	F.Z_l.y = -alpha * (K_ll.xy * gamma_uu.xx + K_ll.yy * gamma_uu.xy + K_ll.yz * gamma_uu.xz);
-	F.Z_l.z = -alpha * (K_ll.xz * gamma_uu.xx + K_ll.yz * gamma_uu.xy + K_ll.zz * gamma_uu.xz);
+	F.d_lll.y.xx = 0.;
+	F.d_lll.y.xy = 0.;
+	F.d_lll.y.xz = 0.;
+	F.d_lll.y.yy = 0.;
+	F.d_lll.y.yz = 0.;
+	F.d_lll.y.zz = 0.;
+	F.d_lll.z.xx = 0.;
+	F.d_lll.z.xy = 0.;
+	F.d_lll.z.xz = 0.;
+	F.d_lll.z.yy = 0.;
+	F.d_lll.z.yz = 0.;
+	F.d_lll.z.zz = 0.;
+	F.K_ll.xx = -alpha * (2. * d_lll.z.xz * gamma_uu.zz + 2. * d_lll.z.xy * gamma_uu.yz + d_lll.z.xx * gamma_uu.xz + 2. * d_lll.y.xz * gamma_uu.yz + 2. * d_lll.y.xy * gamma_uu.yy + d_lll.y.xx * gamma_uu.xy + 2. * Z_l.x - a_l.x - d_lll.x.yy * gamma_uu.yy - 2. * d_lll.x.yz * gamma_uu.yz - d_lll.x.zz * gamma_uu.zz);
+	F.K_ll.xy = (-alpha * (2. * d_lll.z.yz * gamma_uu.zz + 2. * d_lll.z.yy * gamma_uu.yz + 2. * d_lll.y.yz * gamma_uu.yz + 2. * d_lll.y.yy * gamma_uu.yy + 2. * d_lll.x.yz * gamma_uu.xz + 2. * d_lll.x.yy * gamma_uu.xy + 2. * Z_l.y - a_l.y)) / 2.;
+	F.K_ll.xz = (-alpha * (2. * d_lll.z.zz * gamma_uu.zz + 2. * d_lll.z.yz * gamma_uu.yz + 2. * d_lll.y.zz * gamma_uu.yz + 2. * d_lll.y.yz * gamma_uu.yy + 2. * d_lll.x.zz * gamma_uu.xz + 2. * d_lll.x.yz * gamma_uu.xy + 2. * Z_l.z - a_l.z)) / 2.;
+	F.K_ll.yy = alpha * (d_lll.z.yy * gamma_uu.xz + d_lll.y.yy * gamma_uu.xy + d_lll.x.yy * gamma_uu.xx);
+	F.K_ll.yz = alpha * (d_lll.z.yz * gamma_uu.xz + d_lll.y.yz * gamma_uu.xy + d_lll.x.yz * gamma_uu.xx);
+	F.K_ll.zz = alpha * (d_lll.z.zz * gamma_uu.xz + d_lll.y.zz * gamma_uu.xy + d_lll.x.zz * gamma_uu.xx);
+	F.Theta = -alpha * (d_lll.z.yz * tmp129 - d_lll.z.yz * tmp132 + d_lll.z.yy * tmp125 - d_lll.z.yy * tmp128 + d_lll.z.xz * tmp113 - d_lll.z.xz * tmp116 + d_lll.z.xy * tmp107 - d_lll.z.xy * tmp111 + d_lll.y.zz * tmp132 + d_lll.y.yz * tmp128 - d_lll.y.zz * tmp129 + d_lll.y.xz * tmp107 - d_lll.y.xz * tmp111 - d_lll.y.yz * tmp125 + d_lll.y.xy * tmp103 - d_lll.y.xy * tmp106 + d_lll.x.zz * tmp116 + 2. * d_lll.x.yz * tmp111 - d_lll.x.zz * tmp113 + d_lll.x.yy * tmp106 - 2. * d_lll.x.yz * tmp107 + Z_l.z * gamma_uu.xz - d_lll.x.yy * tmp103 + Z_l.y * gamma_uu.xy + Z_l.x * gamma_uu.xx);
+	F.Z_l.x = alpha * (tmp1 + tmp2 + tmp6 + tmp4 + tmp7 - Theta);
+	F.Z_l.y = -alpha * (K_ll.yz * gamma_uu.xz + K_ll.yy * gamma_uu.xy + K_ll.xy * gamma_uu.xx);
+	F.Z_l.z = -alpha * (K_ll.zz * gamma_uu.xz + K_ll.yz * gamma_uu.xy + K_ll.xz * gamma_uu.xx);	
 	// END CUT
 
 	<? for side=0,solver.dim-1 do ?>
@@ -477,8 +406,19 @@ end
 	}
 	<? end ?>
 
+<? 
+if eqn.useShift ~= 'none' then
+?>	//beta^i_,t = 0 + source terms
+	F.beta_u = real3_zero;
+<?	if self.useShift == 'MinimalDistortionElliptic' 
+	or self.useShift == 'MinimalDistortionEllipticEvolve' 
+	then
+?>	F.betaLap_u = real3_zero;
+<?	end
+end 
+?>
+
 	return F;
-#endif
 }
 ]],
 	}

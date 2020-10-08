@@ -1131,25 +1131,13 @@ kernel void addSource(
 	sym3 KSq_ll = sym3_real3x3_to_sym3_mul(U->K_ll, K_ul);		//KSq_ij = K_ik K^k_j
 
 	//d_llu = d_ij^k = d_ijl * gamma^lk
-	real3x3 d_llu[3] = {
-<? for i,xi in ipairs(xNames) do
-?>		sym3_sym3_mul(U->d_lll.<?=xi?>, gamma_uu),
-<? end
-?>	};
+	real3x3x3 d_llu = _3sym3_sym3_mul(U->d_lll, gamma_uu);
 
 	//d_ull = d^i_jk = gamma^il d_ljk
 	_3sym3 d_ull = sym3_3sym3_mul(gamma_uu, U->d_lll);
 
 	//e_i = d^j_ji
-	//real3 e_l = sym3_3sym3_dot12(gamma_uu, d_lll);
-	real3 e_l = (real3){
-<? for i,xi in ipairs(xNames) do
-?>		.<?=xi?> = 0.<?
-	for j,xj in ipairs(xNames) do
-		?> + d_ull.<?=xj?>.<?=sym(j,i)?><?
-	end	?>,
-<? end
-?>	};
+	real3 e_l = _3sym3_tr12(d_ull);
 
 	//conn^k_ij = d_ij^k + d_ji^k - d^k_ij
 	_3sym3 conn_ull = {
@@ -1158,7 +1146,7 @@ kernel void addSource(
 <?	for ij,xij in ipairs(symNames) do
 		local i,j = from6to3x3(ij)
 		local xi,xj = xNames[i],xNames[j]
-?>			.<?=xij?> = d_llu[<?=i-1?>].<?=xj?>.<?=xk?> + d_llu[<?=j-1?>].<?=xi?>.<?=xk?> - d_ull.<?=xk?>.<?=xij?>,
+?>			.<?=xij?> = d_llu.<?=xi?>.<?=xj?>.<?=xk?> + d_llu.<?=xj?>.<?=xi?>.<?=xk?> - d_ull.<?=xk?>.<?=xij?>,
 <? end
 ?>		},
 <? end 
@@ -1174,11 +1162,11 @@ kernel void addSource(
 			+ conn_ull.<?=xk?>.<?=xij?> * (U->V_l.<?=xk?> - e_l.<?=xk?>)
 
 <?		for l,xl in ipairs(xNames) do
-?>			+ 2. * d_llu[<?=k-1?>].<?=xi?>.<?=xl?> * d_ull.<?=xk?>.<?=sym(j,l)?>
-			- 2. * d_llu[<?=k-1?>].<?=xi?>.<?=xl?> * d_llu[<?=l-1?>].<?=xj?>.<?=xk?>
-			+ 2. * d_llu[<?=k-1?>].<?=xi?>.<?=xl?> * d_llu[<?=j-1?>].<?=xl?>.<?=xk?>
-			+ 2. * d_llu[<?=i-1?>].<?=xl?>.<?=xk?> * d_llu[<?=k-1?>].<?=xj?>.<?=xl?>
-			- 3. * d_llu[<?=i-1?>].<?=xl?>.<?=xk?> * d_llu[<?=j-1?>].<?=xk?>.<?=xl?>
+?>			+ 2. * d_llu.<?=xk?>.<?=xi?>.<?=xl?> * d_ull.<?=xk?>.<?=sym(j,l)?>
+			- 2. * d_llu.<?=xk?>.<?=xi?>.<?=xl?> * d_llu.<?=xl?>.<?=xj?>.<?=xk?>
+			+ 2. * d_llu.<?=xk?>.<?=xi?>.<?=xl?> * d_llu.<?=xj?>.<?=xl?>.<?=xk?>
+			+ 2. * d_llu.<?=xi?>.<?=xl?>.<?=xk?> * d_llu.<?=xk?>.<?=xj?>.<?=xl?>
+			- 3. * d_llu.<?=xi?>.<?=xl?>.<?=xk?> * d_llu.<?=xj?>.<?=xk?>.<?=xl?>
 <? 		end
 	end
 ?>		,
@@ -1243,7 +1231,7 @@ kernel void addSource(
 	//d_i = d_ij^j
 	real3 d_l = (real3){
 <? for i,xi in ipairs(xNames) do
-?>		.<?=xi?> = real3x3_trace(d_llu[<?=i-1?>]),
+?>		.<?=xi?> = real3x3_trace(d_llu.<?=xi?>),
 <? end
 ?>	};
 
@@ -1265,8 +1253,8 @@ kernel void addSource(
 			+ 2. * K_ul.<?=xj?>.<?=xk?> * e_l.<?=xj?>
 			+ 2. * K_ul.<?=xj?>.<?=xk?> * d_l.<?=xj?>
 <?		for i,xi in ipairs(xNames) do
-?>			- K_ul.<?=xi?>.<?=xj?> * d_llu[<?=k-1?>].<?=xi?>.<?=xj?>
-			+ 2. * K_ul.<?=xi?>.<?=xj?> * d_llu[<?=i-1?>].<?=xk?>.<?=xj?>
+?>			- K_ul.<?=xi?>.<?=xj?> * d_llu.<?=xk?>.<?=xi?>.<?=xj?>
+			+ 2. * K_ul.<?=xi?>.<?=xj?> * d_llu.<?=xi?>.<?=xk?>.<?=xj?>
 <? 		end
 	end ?>,
 <? end
@@ -2901,25 +2889,13 @@ end	-- constrain V
 ?>
 
 	//d_llu = d_ij^k = d_ijl * gamma^lk
-	real3x3 d_llu[3] = {
-<? for i,xi in ipairs(xNames) do
-?>		sym3_sym3_mul(U->d_lll.<?=xi?>, gamma_uu),
-<? end
-?>	};
+	real3x3x3 d_llu = _3sym3_sym3_mul(U->d_lll, gamma_uu);
 	
 	//d_ull = d^i_jk = gamma^il d_ljk
 	_3sym3 d_ull = sym3_3sym3_mul(gamma_uu, U->d_lll);
 
 	//e_i = d^j_ji
-	//real3 e_l = sym3_3sym3_dot12(gamma_uu, d_lll);
-	real3 e_l = (real3){
-<? for i,xi in ipairs(xNames) do
-?>		.<?=xi?> = 0.<?
-	for j,xj in ipairs(xNames) do
-		?> + d_ull.<?=xj?>.<?=sym(j,i)?><?
-	end	?>,
-<? end
-?>	};
+	real3 e_l = _3sym3_tr12(d_ull);
 
 	//conn^k_ij = d_ij^k + d_ji^k - d^k_ij
 	_3sym3 conn_ull = {
@@ -2928,7 +2904,7 @@ end	-- constrain V
 <?	for ij,xij in ipairs(symNames) do
 		local i,j = from6to3x3(ij)
 		local xi,xj = xNames[i],xNames[j]
-?>			.<?=xij?> = d_llu[<?=i-1?>].<?=xj?>.<?=xk?> + d_llu[<?=j-1?>].<?=xi?>.<?=xk?> - d_ull.<?=xk?>.<?=xij?>,
+?>			.<?=xij?> = d_llu.<?=xi?>.<?=xj?>.<?=xk?> + d_llu.<?=xj?>.<?=xi?>.<?=xk?> - d_ull.<?=xk?>.<?=xij?>,
 <? end
 ?>		},
 <? end 
@@ -2944,11 +2920,11 @@ end	-- constrain V
 			+ conn_ull.<?=xk?>.<?=xij?> * (U->V_l.<?=xk?> - e_l.<?=xk?>)
 
 <?		for l,xl in ipairs(xNames) do
-?>			+ 2. * d_llu[<?=k-1?>].<?=xi?>.<?=xl?> * d_ull.<?=xk?>.<?=sym(j,l)?>
-			- 2. * d_llu[<?=k-1?>].<?=xi?>.<?=xl?> * d_llu[<?=l-1?>].<?=xj?>.<?=xk?>
-			+ 2. * d_llu[<?=k-1?>].<?=xi?>.<?=xl?> * d_llu[<?=j-1?>].<?=xl?>.<?=xk?>
-			+ 2. * d_llu[<?=i-1?>].<?=xl?>.<?=xk?> * d_llu[<?=k-1?>].<?=xj?>.<?=xl?>
-			- 3. * d_llu[<?=i-1?>].<?=xl?>.<?=xk?> * d_llu[<?=j-1?>].<?=xk?>.<?=xl?>
+?>			+ 2. * d_llu.<?=xk?>.<?=xi?>.<?=xl?> * d_ull.<?=xk?>.<?=sym(j,l)?>
+			- 2. * d_llu.<?=xk?>.<?=xi?>.<?=xl?> * d_llu.<?=xl?>.<?=xj?>.<?=xk?>
+			+ 2. * d_llu.<?=xk?>.<?=xi?>.<?=xl?> * d_llu.<?=xj?>.<?=xl?>.<?=xk?>
+			+ 2. * d_llu.<?=xi?>.<?=xl?>.<?=xk?> * d_llu.<?=xk?>.<?=xj?>.<?=xl?>
+			- 3. * d_llu.<?=xi?>.<?=xl?>.<?=xk?> * d_llu.<?=xj?>.<?=xk?>.<?=xl?>
 <? 		end
 	end
 ?>		,

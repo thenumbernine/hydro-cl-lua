@@ -1211,6 +1211,7 @@ real3x3x3 _3sym3_sym3_mul(_3sym3 a, sym3 b);
 real3 real3x3x3_sym3_dot23(real3x3x3 a, sym3 b);
 real3x3 _3sym3_real3x3x3_dot12_23(_3sym3 a, real3x3x3 b);
 sym3 _3sym3_real3x3x3_dot13_to_sym3(_3sym3 a, real3x3x3 b);
+real3 real3x3x3_tr23(real3x3x3 a);
 
 real3x3x3 real3x3x3_from__3sym3(_3sym3 m);
 _3sym3 _3sym3_from_real3x3x3(real3x3x3 m);
@@ -1278,6 +1279,19 @@ sym3 _3sym3_real3x3x3_dot13_to_sym3(_3sym3 a, real3x3x3 b) {
 <?		end
 	end
 ?>		,
+<? end
+?>	};
+}
+
+//b_i = a_ij^j
+real3 real3x3x3_tr23(real3x3x3 a) {
+	return (real3){
+<? for i,xi in ipairs(xNames) do
+?>		.<?=xi?> = 0.<?
+	for j,xj in ipairs(xNames) do
+?> + a.<?=xi?>.<?=xj?>.<?=xj?><?
+	end
+?>,
 <? end
 ?>	};
 }

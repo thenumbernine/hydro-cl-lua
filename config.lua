@@ -879,13 +879,14 @@ local dim = 1
 local args = {
 	app = self,
 	
-	eqn = 'adm3d',	-- works fine for Minkowski though it's not physical
-	--eqn = 'z4',	-- has numeric bugs/problems still
+	--eqn = 'adm3d',
+	eqn = 'z4',
 	
+	--integrator = 'forward Euler',
 	integrator = 'Runge-Kutta 3, TVD',	-- p.20, eqn B.1
 	dim = dim,
 	cfl = .5/dim,			-- no mention of cfl or timestep ...
-	fluxLimiter = cmdline.fluxLimiter or 'superbee',
+	fluxLimiter = cmdline.fluxLimiter or 'minmod',
 
 	--[=[
 	coord = 'cartesian',
