@@ -874,7 +874,7 @@ With hyperbolic gamma driver shift it has trouble.
 --self.solvers:insert(require 'hydro.solver.amr'(require 'hydro.solver.fvsolver')(table(args, {flux='roe', eqn='euler'})))
 
 
--- [=[ trying to reproduce 2009 Alic et al "Towards a gauge-polyvalent numerical relativity code"
+-- [=[ reproducing 2009 Alic, Bona, Bona-Casas"Towards a gauge-polyvalent numerical relativity code"
 local dim = 1
 local args = {
 	app = self,
@@ -886,7 +886,7 @@ local args = {
 	integrator = 'Runge-Kutta 3, TVD',	-- p.20, eqn B.1
 	dim = dim,
 	cfl = .5/dim,			-- no mention of cfl or timestep ...
-	fluxLimiter = cmdline.fluxLimiter or 'donor cell',	--'minmod',
+	fluxLimiter = cmdline.fluxLimiter or 'donor cell',	-- I didn't read much into what kind of flux/slope limiter was used
 
 	--[[
 	coord = 'cartesian',
@@ -909,6 +909,7 @@ local args = {
 	--[[
 	coord = 'sphere',
 	coordArgs = {
+		--vectorComponent = 'holonomic',	-- TODO this is techically the case, but there may be bugs in this.
 		vectorComponent = 'anholonomic',
 		--vectorComponent = 'cartesian',	-- adm3d isn't designed for cartesian / mesh / arbitrary normals yet
 	},
@@ -937,9 +938,10 @@ local args = {
 	-- [[
 	coord = 'sphere-log-radial',
 	coordArgs = {
-		-- TODO do I have mem write / unwritten vars in "holonomic"?
+		-- TODO sort this out
+		-- TODO do I have mem write / unwritten vars in "holonomic"?  cuz there seem to be errors that persist past reset()
 		--vectorComponent = 'holonomic',	-- our tensor components are holonomic ... except the partial / 1st order state variables, like a_k, d_kij
-		vectorComponent = 'anholonomic',	-- our tensor components are holonomic ... except the partial / 1st order state variables, like a_k, d_kij
+		vectorComponent = 'anholonomic',	-- ... these settings also influence the finite volume area/volume calculations (in terms of the vector components) ... 
 		
 		-- [==[ the paper uses this remapping parameters (eqn 32):
 		-- Alic et al: 		R = L sinh(r / L)

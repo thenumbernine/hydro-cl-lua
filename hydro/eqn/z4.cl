@@ -333,28 +333,6 @@ kernel void addSource(
 
 	real3 V_l = real3_sub(d_l, e_l);
 
-	sym3 R_ll = (sym3){
-<? for ij,xij in ipairs(symNames) do
-	local i,j = from6to3x3(ij)
-	local xi, xj = xNames[i], xNames[j]
-?>		.<?=xij?> = 0.
-<? 	for k,xk in ipairs(xNames) do 
-?>
-			+ conn_ull.<?=xk?>.<?=xij?> * (V_l.<?=xk?> - e_l.<?=xk?>)
-
-<?		for l,xl in ipairs(xNames) do
-?>			+ 2. * d_llu.<?=xk?>.<?=xi?>.<?=xl?> * d_ull.<?=xk?>.<?=sym(j,l)?>
-			- 2. * d_llu.<?=xk?>.<?=xi?>.<?=xl?> * d_llu.<?=xl?>.<?=xj?>.<?=xk?>
-			+ 2. * d_llu.<?=xk?>.<?=xi?>.<?=xl?> * d_llu.<?=xj?>.<?=xl?>.<?=xk?>
-			+ 2. * d_llu.<?=xi?>.<?=xl?>.<?=xk?> * d_llu.<?=xk?>.<?=xj?>.<?=xl?>
-			- 3. * d_llu.<?=xi?>.<?=xl?>.<?=xk?> * d_llu.<?=xj?>.<?=xk?>.<?=xl?>
-<? 		end
-	end
-?>		,
-<? end
-?>	};
-
-
 	//d_luu = d_i^jk = gamma^jl d_il^k
 	_3sym3 d_luu = (_3sym3){
 <? for i,xi in ipairs(xNames) do		
@@ -2726,7 +2704,7 @@ end?>
 			real di_log_alpha = (
 				log(U[solver->stepsize.<?=xi?>].alpha) 
 				- log(U[-solver->stepsize.<?=xi?>].alpha)
-			) / (2. * solver->grid_dx.s<?=i-1?>);
+			) / (2. * solver->grid_dx.<?=xi?>);
 			<? else ?>
 			real di_log_alpha = 0.;
 			<? end ?>
@@ -2743,7 +2721,7 @@ end?>
 			real di_gamma_jk = .5 * (
 				U[solver->stepsize.<?=xi?>].gamma_ll.<?=xjk?> 
 				- U[-solver->stepsize.<?=xi?>].gamma_ll.<?=xjk?>
-			) / (2. * solver->grid_dx.s<?=i-1?>);
+			) / (2. * solver->grid_dx.<?=xi?>);
 				<? else ?>
 			real di_gamma_jk = 0;
 				<? end ?>
@@ -2790,15 +2768,40 @@ kernel void constrainU(
 <? end 
 ?>	};
 	
-	//d_l = d_i = d_ij^j
+	//d_l.i = d_i = d_ij^j
 	real3 d_l = real3x3x3_tr23(d_llu);
 
 	real3 V_l = real3_sub(d_l, e_l);
 
+	//partial_d_lll.ij.kl = d_kij,l = d_(k|(ij),|l)
+	//so this object's indexes are rearranged compared to the papers 
+	sym3sym3 partial_d_llll;
+<? 
+for ij,xij in ipairs(symNames) do
+	for kl,xkl in ipairs(symNames) do
+		local k,l,xk,xl = from6to3x3(kl)
+?>	partial_d_llll.<?=xij?>.<?=xkl?> = 0.
+<?		if l <= solver.dim then
+?>	+ .5 * (	// 1/2 d_kij,l
+		U[solver->stepsize.<?=xl?>].d_lll.<?=xk?>.<?=xij?>
+		- U[-solver->stepsize.<?=xl?>].d_lll.<?=xk?>.<?=xij?>
+	) / (2. * solver->grid_dx.<?=xl?>);
+<?
+		end
+		if k <= solver.dim then
+?>	+ .5 * (
+		U[solver->stepsize.<?=xk?>].d_lll.<?=xl?>.<?=xij?>
+		- U[-solver->stepsize.<?=xk?>].d_lll.<?=xl?>.<?=xij?>
+	) / (2. * solver->grid_dx.<?=xk?>);
+<?		end
+?>	;
+<?	end
+end
+?>
+
 	sym3 R_ll = (sym3){
 <? for ij,xij in ipairs(symNames) do
-	local i,j = from6to3x3(ij)
-	local xi, xj = xNames[i], xNames[j]
+	local i,j,xi,xj = from6to3x3(ij)
 ?>		.<?=xij?> = 0.
 <? 	for k,xk in ipairs(xNames) do 
 ?>
@@ -2810,6 +2813,12 @@ kernel void constrainU(
 			+ 2. * d_llu.<?=xk?>.<?=xi?>.<?=xl?> * d_llu.<?=xj?>.<?=xl?>.<?=xk?>
 			+ 2. * d_llu.<?=xi?>.<?=xl?>.<?=xk?> * d_llu.<?=xk?>.<?=xj?>.<?=xl?>
 			- 3. * d_llu.<?=xi?>.<?=xl?>.<?=xk?> * d_llu.<?=xj?>.<?=xk?>.<?=xl?>
+			+ gamma_uu.<?=sym(k,l)?> * (
+				partial_d_llll.<?=xij?>.<?=sym(k,l)?>
+				+ partial_d_llll.<?=sym(k,l)?>.<?=xij?>
+				- partial_d_llll.<?=sym(i,k)?>.<?=sym(j,l)?>
+				- partial_d_llll.<?=sym(j,k)?>.<?=sym(i,l)?>
+			)
 <? 		end
 	end
 ?>		,

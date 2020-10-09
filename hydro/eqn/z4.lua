@@ -516,6 +516,7 @@ function Z4_2004Bona:getModuleDependsSolver()
 	:append{
 		'rotate',	-- real3_swap ... though sym3_swap and _3sym3_swap are in their respective modules ...
 		'initCond.codeprefix',	-- calc_f
+		'sym3sym3',	-- d_kij,l
 	}
 end
 

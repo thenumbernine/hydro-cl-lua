@@ -2886,6 +2886,32 @@ end	-- constrain V
 <? end 
 ?>	};
 
+	//partial_d_lll.ij.kl = d_kij,l = d_(k|(ij),|l)
+	//so this object's indexes are rearranged compared to the papers 
+	sym3sym3 partial_d_llll;
+<? 
+for ij,xij in ipairs(symNames) do
+	for kl,xkl in ipairs(symNames) do
+		local k,l,xk,xl = from6to3x3(kl)
+?>	partial_d_llll.<?=xij?>.<?=xkl?> = 0.
+<?		if l <= solver.dim then
+?>	+ .5 * (	// 1/2 d_kij,l
+		U[solver->stepsize.<?=xl?>].d_lll.<?=xk?>.<?=xij?>
+		- U[-solver->stepsize.<?=xl?>].d_lll.<?=xk?>.<?=xij?>
+	) / (2. * solver->grid_dx.<?=xl?>);
+<?
+		end
+		if k <= solver.dim then
+?>	+ .5 * (
+		U[solver->stepsize.<?=xk?>].d_lll.<?=xl?>.<?=xij?>
+		- U[-solver->stepsize.<?=xk?>].d_lll.<?=xl?>.<?=xij?>
+	) / (2. * solver->grid_dx.<?=xk?>);
+<?		end
+?>	;
+<?	end
+end
+?>
+	
 	sym3 R_ll = (sym3){
 <? for ij,xij in ipairs(symNames) do
 	local i,j = from6to3x3(ij)
@@ -2901,6 +2927,12 @@ end	-- constrain V
 			+ 2. * d_llu.<?=xk?>.<?=xi?>.<?=xl?> * d_llu.<?=xj?>.<?=xl?>.<?=xk?>
 			+ 2. * d_llu.<?=xi?>.<?=xl?>.<?=xk?> * d_llu.<?=xk?>.<?=xj?>.<?=xl?>
 			- 3. * d_llu.<?=xi?>.<?=xl?>.<?=xk?> * d_llu.<?=xj?>.<?=xk?>.<?=xl?>
+			+ gamma_uu.<?=sym(k,l)?> * (
+				partial_d_llll.<?=xij?>.<?=sym(k,l)?>
+				+ partial_d_llll.<?=sym(k,l)?>.<?=xij?>
+				- partial_d_llll.<?=sym(i,k)?>.<?=sym(j,l)?>
+				- partial_d_llll.<?=sym(j,k)?>.<?=sym(i,l)?>
+			)
 <? 		end
 	end
 ?>		,
