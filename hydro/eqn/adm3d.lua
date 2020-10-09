@@ -710,8 +710,11 @@ momentum constraints
 		<? for i=1,solver.dim do
 			local xi = xNames[i]
 		?>{
-			real di_alpha = (U[solver->stepsize.<?=xi?>].alpha - U[-solver->stepsize.<?=xi?>].alpha) / (2. * solver->grid_dx.s<?=i-1?>);
-			value.vreal3.<?=xi?> = fabs(di_alpha - U->alpha * U->a_l.<?=xi?>);
+			real partial_i_log_alpha = (
+				log(U[solver->stepsize.<?=xi?>].alpha) 
+				- log(U[-solver->stepsize.<?=xi?>].alpha)
+			) / (2. * solver->grid_dx.s<?=i-1?>);
+			value.vreal3.<?=xi?> = fabs(partial_i_log_alpha - U->a_l.<?=xi?>);
 		}<? end ?>
 		<? for i=solver.dim+1,3 do
 			local xi = xNames[i]
@@ -728,7 +731,7 @@ momentum constraints
 		value.vsym3 = sym3_zero;
 	} else {
 		<? if i <= solver.dim then ?>
-		sym3 di_gamma_jk = sym3_real_mul(
+		sym3 partial_i_gamma_ll = sym3_real_mul(
 			sym3_sub(
 				U[solver->stepsize.<?=xi?>].gamma_ll, 
 				U[-solver->stepsize.<?=xi?>].gamma_ll
@@ -736,9 +739,9 @@ momentum constraints
 			1. / (2. * solver->grid_dx.s<?=i-1?>)
 		);
 		<? else ?>
-		sym3 di_gamma_jk = sym3_zero;
+		sym3 partial_i_gamma_ll = sym3_zero;
 		<? end ?>
-		value.vsym3 = sym3_sub(di_gamma_jk, sym3_real_mul(U->d_lll.<?=xi?>, 2.));
+		value.vsym3 = sym3_sub(sym3_real_mul(partial_i_gamma_ll, .5), U->d_lll.<?=xi?>);
 		value.vsym3 = (sym3){<?
 	for jk,xjk in ipairs(symNames) do 
 ?>			.<?=xjk?> = fabs(value.vsym3.<?=xjk?>),

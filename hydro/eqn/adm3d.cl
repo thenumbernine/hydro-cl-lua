@@ -2723,11 +2723,14 @@ end ?>
 	// a_x = alpha,x / alpha <=> a_x += eta (alpha,x / alpha - a_x)
 	<? for i,xi in ipairs(xNames) do ?>{
 		<? if i <= solver.dim then ?>
-		real di_alpha = (U[solver->stepsize.<?=xi?>].alpha - U[-solver->stepsize.<?=xi?>].alpha) / (2. * solver->grid_dx.s<?=i-1?>);
+		real partial_i_log_alpha = (
+			log(U[solver->stepsize.<?=xi?>].alpha)
+			- log(U[-solver->stepsize.<?=xi?>].alpha)
+		) / (2. * solver->grid_dx.s<?=i-1?>);
 		<? else ?>
-		real di_alpha = 0.;
+		real partial_i_log_alpha = 0.;
 		<? end ?>
-		deriv->a_l.<?=xi?> += solver->a_convCoeff * (di_alpha / U->alpha - U->a_l.<?=xi?>);
+		deriv->a_l.<?=xi?> += solver->a_convCoeff * (partial_i_log_alpha - U->a_l.<?=xi?>);
 	}<? end ?>	
 	
 	// d_xxx = .5 gamma_xx,x <=> d_xxx += eta (.5 gamma_xx,x - d_xxx)
@@ -2735,11 +2738,14 @@ end ?>
 for i,xi in ipairs(xNames) do 
 	for jk,xjk in ipairs(symNames) do ?>{
 		<? if i <= solver.dim then ?>
-		real di_gamma_jk = (U[solver->stepsize.<?=xi?>].gamma_ll.<?=xjk?> - U[-solver->stepsize.<?=xi?>].gamma_ll.<?=xjk?>) / (2. * solver->grid_dx.s<?=i-1?>);
+		real partial_i_gamma_jk = (
+			U[solver->stepsize.<?=xi?>].gamma_ll.<?=xjk?> 
+			- U[-solver->stepsize.<?=xi?>].gamma_ll.<?=xjk?>
+		) / (2. * solver->grid_dx.s<?=i-1?>);
 		<? else ?>
-		real di_gamma_jk = 0;
+		real partial_i_gamma_jk = 0;
 		<? end ?>
-		deriv->d_lll.<?=xi?>.<?=xjk?> += solver->d_convCoeff * (.5 * di_gamma_jk - U->d_lll.<?=xi?>.<?=xjk?>);
+		deriv->d_lll.<?=xi?>.<?=xjk?> += solver->d_convCoeff * (.5 * partial_i_gamma_jk - U->d_lll.<?=xi?>.<?=xjk?>);
 	}<? 
 	end
 end ?>
