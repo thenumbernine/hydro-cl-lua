@@ -46,7 +46,7 @@ range_t calcCellMinMaxEigenvalues(
 ) {
 	real det_gamma = sym3_det(U->gamma_ll);
 
-	real gammaUjj;
+	real gammaUjj = 0./0.;
 	if (n.side == 0) {
 		gammaUjj = (U->gamma_ll.yy * U->gamma_ll.zz - U->gamma_ll.yz * U->gamma_ll.yz) / det_gamma;
 	} else if (n.side == 1) {
@@ -116,7 +116,12 @@ waves_t eigen_leftTransform(
 	real3 x,
 	normal_t n
 ) {
-	waves_t results;
+	waves_t results = (waves_t){.ptr={0. / 0.}};
+	//for (int i = 0; i < numWaves; ++i) {
+	//	results.ptr[i] = 0;
+	//}
+
+#if 0	//don't enable this.  it's made for > waves than I'm using, so it will cause buffer corruption
 
 	real3 a_l = real3_swap(inputU.a_l, n.side);							//0-2
 	_3sym3 d_lll = _3sym3_swap(inputU.d_lll, n.side);					//3-20 ... .x = 3-8, .y = 9-14, .z = 15-20
@@ -172,6 +177,7 @@ waves_t eigen_leftTransform(
 	results.ptr[29] = ((Theta - (gamma_uu.xx * Z_l.x)) + ((gamma_uu.xx * gamma_uu.yy * d_lll.x.yy) - (gamma_uu.xx * gamma_uu.yy * d_lll.y.xy)) + (((2. * gamma_uu.xx * gamma_uu.yz * d_lll.x.yz) - (gamma_uu.xx * gamma_uu.yz * d_lll.y.xz)) - (gamma_uu.xx * gamma_uu.yz * d_lll.z.xy)) + (((gamma_uu.xx * gamma_uu.zz * d_lll.x.zz) - (gamma_uu.xx * gamma_uu.zz * d_lll.z.xz)) - (gamma_uu.xy * gamma_uu.xy * d_lll.x.yy)) + (((gamma_uu.xy * gamma_uu.xy * d_lll.y.xy) - (gamma_uu.xy * Z_l.y)) - (2. * gamma_uu.xy * gamma_uu.xz * d_lll.x.yz)) + (gamma_uu.xy * gamma_uu.xz * d_lll.y.xz) + (gamma_uu.xy * gamma_uu.xz * d_lll.z.xy) + ((gamma_uu.xy * gamma_uu.yz * d_lll.y.yz) - (gamma_uu.xy * gamma_uu.yz * d_lll.z.yy)) + (((gamma_uu.xy * gamma_uu.zz * d_lll.y.zz) - (gamma_uu.xy * gamma_uu.zz * d_lll.z.yz)) - (gamma_uu.xz * gamma_uu.xz * d_lll.x.zz)) + (((gamma_uu.xz * gamma_uu.xz * d_lll.z.xz) - (gamma_uu.xz * Z_l.z)) - (gamma_uu.xz * gamma_uu.yy * d_lll.y.yz)) + ((gamma_uu.xz * gamma_uu.yy * d_lll.z.yy) - (gamma_uu.xz * gamma_uu.yz * d_lll.y.zz)) + (gamma_uu.xz * gamma_uu.yz * d_lll.z.yz));
 	results.ptr[30] = (-(((lambda_2 * gamma_uu.xx * Z_l.x) - (lambda_2 * gamma_uu.xx * gamma_uu.yy * d_lll.x.yy)) + ((lambda_2 * gamma_uu.xx * gamma_uu.yy * d_lll.y.xy) - (2. * lambda_2 * gamma_uu.xx * gamma_uu.yz * d_lll.x.yz)) + (lambda_2 * gamma_uu.xx * gamma_uu.yz * d_lll.y.xz) + ((lambda_2 * gamma_uu.xx * gamma_uu.yz * d_lll.z.xy) - (lambda_2 * gamma_uu.xx * gamma_uu.zz * d_lll.x.zz)) + (lambda_2 * gamma_uu.xx * gamma_uu.zz * d_lll.z.xz) + ((lambda_2 * gamma_uu.xy * gamma_uu.xy * d_lll.x.yy) - (lambda_2 * gamma_uu.xy * gamma_uu.xy * d_lll.y.xy)) + (lambda_2 * gamma_uu.xy * Z_l.y) + ((((2. * lambda_2 * gamma_uu.xy * gamma_uu.xz * d_lll.x.yz) - (lambda_2 * gamma_uu.xy * gamma_uu.xz * d_lll.y.xz)) - (lambda_2 * gamma_uu.xy * gamma_uu.xz * d_lll.z.xy)) - (lambda_2 * gamma_uu.xy * gamma_uu.yz * d_lll.y.yz)) + ((lambda_2 * gamma_uu.xy * gamma_uu.yz * d_lll.z.yy) - (lambda_2 * gamma_uu.xy * gamma_uu.zz * d_lll.y.zz)) + (lambda_2 * gamma_uu.xy * gamma_uu.zz * d_lll.z.yz) + ((lambda_2 * gamma_uu.xz * gamma_uu.xz * d_lll.x.zz) - (lambda_2 * gamma_uu.xz * gamma_uu.xz * d_lll.z.xz)) + (lambda_2 * gamma_uu.xz * Z_l.z) + ((lambda_2 * gamma_uu.xz * gamma_uu.yy * d_lll.y.yz) - (lambda_2 * gamma_uu.xz * gamma_uu.yy * d_lll.z.yy)) + ((((((((((((lambda_2 * gamma_uu.xz * gamma_uu.yz * d_lll.y.zz) - (lambda_2 * gamma_uu.xz * gamma_uu.yz * d_lll.z.yz)) - (sqrt_f * lambda_1 * Theta)) - (sqrt_f * gamma_uu.xx * K_ll.xx)) - (2. * sqrt_f * gamma_uu.xy * K_ll.xy)) - (2. * sqrt_f * gamma_uu.xz * K_ll.xz)) - (sqrt_f * gamma_uu.yy * K_ll.yy)) - (2. * sqrt_f * gamma_uu.yz * K_ll.yz)) - (sqrt_f * gamma_uu.zz * K_ll.zz)) - (gamma_uu.xx * a_l.x)) - (gamma_uu.xy * a_l.y)) - (gamma_uu.xz * a_l.z))));
 
+#endif
 	return results;
 }
 
@@ -183,11 +189,12 @@ cons_t eigen_rightTransform(
 	real3 x,
 	normal_t n
 ) {
-	cons_t resultU;
-	for (int j = 0; j < numStates; ++j) {
-		resultU.ptr[j] = 0;
-	}
+	cons_t resultU = (cons_t){.ptr={0. / 0.}};
+	//for (int j = 0; j < numStates; ++j) {
+	//	resultU.ptr[j] = 0;
+	//}
 	
+#if 0	
 	sym3 gamma_ll = sym3_swap(eig.gamma_ll, n.side);
 	sym3 gamma_uu = sym3_swap(eig.gamma_uu, n.side);
 	
@@ -239,7 +246,7 @@ cons_t eigen_rightTransform(
 	resultU.K_ll = sym3_swap(resultU.K_ll, n.side);			//21-26
 	resultU.Theta = resultU.Theta;							//27
 	resultU.Z_l = real3_swap(resultU.Z_l, n.side);			//28-30
-
+#endif
 	return resultU;
 }
 
@@ -256,6 +263,7 @@ cons_t eigen_fluxTransform(
 	real3 x,
 	normal_t n
 ) {
+#if 0	
 	//default
 	waves_t waves = eigen_leftTransform(solver, eig, inputU, x, n);
 	<?=eqn:eigenWaveCodePrefix('n', 'eig', 'x')?>
@@ -263,6 +271,10 @@ cons_t eigen_fluxTransform(
 ?>	waves.ptr[<?=j?>] *= <?=eqn:eigenWaveCode('n', 'eig', 'x', j)?>;
 <? end 
 ?>	return eigen_rightTransform(solver, eig, waves, x, n);
+#else
+	cons_t F = {.ptr={0. / 0.}};
+	return F;
+#endif
 }
 
 kernel void addSource(
@@ -2704,27 +2716,115 @@ end?>
 #endif
 //decay for 1st deriv hyperbolic state vars constraints:
 
-	// a_x = alpha,x / alpha <=> a_x += eta (alpha,x / alpha - a_x)
-	<? for i,xi in ipairs(xNames) do ?>{
-		<? if i <= solver.dim then ?>
-		real di_alpha = (U[solver->stepsize.<?=xi?>].alpha - U[-solver->stepsize.<?=xi?>].alpha) / (2. * solver->grid_dx.s<?=i-1?>);
-		<? else ?>
-		real di_alpha = 0.;
-		<? end ?>
-		deriv->a_l.<?=xi?> += solver->a_convCoeff * (di_alpha / U->alpha - U->a_l.<?=xi?>);
-	}<? end ?>	
-	
+	//turns out if you "if conv != 0" all these then skipping decay explodes soon in simulation steps, but time grows quickly, so it dies at a high t value 
+
+	// a_x = log(alpha)_,x <=> a_x += eta (log(alpha)_,x - a_x)
+	if (solver->a_convCoeff != 0.) 
+	{
+		<? for i,xi in ipairs(xNames) do ?>{
+			<? if i <= solver.dim then ?>
+			real di_log_alpha = (
+				log(U[solver->stepsize.<?=xi?>].alpha) 
+				- log(U[-solver->stepsize.<?=xi?>].alpha)
+			) / (2. * solver->grid_dx.s<?=i-1?>);
+			<? else ?>
+			real di_log_alpha = 0.;
+			<? end ?>
+			deriv->a_l.<?=xi?> += solver->a_convCoeff * (di_log_alpha - U->a_l.<?=xi?>);
+		}<? end ?>	
+	}
+
 	// d_xxx = .5 gamma_xx,x <=> d_xxx += eta (.5 gamma_xx,x - d_xxx)
-	<? 
-for i,xi in ipairs(xNames) do 
-	for jk,xjk in ipairs(symNames) do ?>{
-		<? if i <= solver.dim then ?>
-		real di_gamma_jk = (U[solver->stepsize.<?=xi?>].gamma_ll.<?=xjk?> - U[-solver->stepsize.<?=xi?>].gamma_ll.<?=xjk?>) / (2. * solver->grid_dx.s<?=i-1?>);
-		<? else ?>
-		real di_gamma_jk = 0;
+	if (solver->d_convCoeff != 0.) 
+	{
+		<? for i,xi in ipairs(xNames) do 
+			for jk,xjk in ipairs(symNames) do ?>{
+				<? if i <= solver.dim then ?>
+			real di_gamma_jk = .5 * (
+				U[solver->stepsize.<?=xi?>].gamma_ll.<?=xjk?> 
+				- U[-solver->stepsize.<?=xi?>].gamma_ll.<?=xjk?>
+			) / (2. * solver->grid_dx.s<?=i-1?>);
+				<? else ?>
+			real di_gamma_jk = 0;
+				<? end ?>
+			deriv->d_lll.<?=xi?>.<?=xjk?> += solver->d_convCoeff * (.5 * di_gamma_jk - U->d_lll.<?=xi?>.<?=xjk?>);
+		}<? end ?>
 		<? end ?>
-		deriv->d_lll.<?=xi?>.<?=xjk?> += solver->d_convCoeff * (.5 * di_gamma_jk - U->d_lll.<?=xi?>.<?=xjk?>);
-	}<? 
+	}
+}
+
+kernel void constrainU(
+	constant solver_t* solver,
+	global cons_t* UBuf,
+	const global <?=solver.coord.cell_t?>* cellBuf
+) {
+	SETBOUNDS(numGhost,numGhost);		
+	global cons_t* U = UBuf + index;
+	
+	real det_gamma = sym3_det(U->gamma_ll);
+	sym3 gamma_uu = sym3_inv(U->gamma_ll, det_gamma);
+
+	real3x3 K_ul = sym3_sym3_mul(gamma_uu, U->K_ll);			//K^i_j
+	real tr_K = real3x3_trace(K_ul);							//K^k_k
+	sym3 KSq_ll = sym3_real3x3_to_sym3_mul(U->K_ll, K_ul);		//KSq_ij = K_ik K^k_j
+
+	//d_llu = d_ij^k = d_ijl * gamma^lk
+	real3x3x3 d_llu = _3sym3_sym3_mul(U->d_lll, gamma_uu);
+	
+	//d_ull = d^i_jk = gamma^il d_ljk
+	_3sym3 d_ull = sym3_3sym3_mul(gamma_uu, U->d_lll);
+
+	//e_i = d^j_ji
+	real3 e_l = _3sym3_tr12(d_ull);
+
+	//conn^k_ij = d_ij^k + d_ji^k - d^k_ij
+	_3sym3 conn_ull = {
+<? for k,xk in ipairs(xNames) do 
+?>		.<?=xk?> = (sym3){
+<?	for ij,xij in ipairs(symNames) do
+		local i,j = from6to3x3(ij)
+		local xi,xj = xNames[i],xNames[j]
+?>			.<?=xij?> = d_llu.<?=xi?>.<?=xj?>.<?=xk?> + d_llu.<?=xj?>.<?=xi?>.<?=xk?> - d_ull.<?=xk?>.<?=xij?>,
+<? end
+?>		},
+<? end 
+?>	};
+	
+	//d_l = d_i = d_ij^j
+	real3 d_l = real3x3x3_tr23(d_llu);
+
+	real3 V_l = real3_sub(d_l, e_l);
+
+	sym3 R_ll = (sym3){
+<? for ij,xij in ipairs(symNames) do
+	local i,j = from6to3x3(ij)
+	local xi, xj = xNames[i], xNames[j]
+?>		.<?=xij?> = 0.
+<? 	for k,xk in ipairs(xNames) do 
+?>
+			+ conn_ull.<?=xk?>.<?=xij?> * (V_l.<?=xk?> - e_l.<?=xk?>)
+
+<?		for l,xl in ipairs(xNames) do
+?>			+ 2. * d_llu.<?=xk?>.<?=xi?>.<?=xl?> * d_ull.<?=xk?>.<?=sym(j,l)?>
+			- 2. * d_llu.<?=xk?>.<?=xi?>.<?=xl?> * d_llu.<?=xl?>.<?=xj?>.<?=xk?>
+			+ 2. * d_llu.<?=xk?>.<?=xi?>.<?=xl?> * d_llu.<?=xj?>.<?=xl?>.<?=xk?>
+			+ 2. * d_llu.<?=xi?>.<?=xl?>.<?=xk?> * d_llu.<?=xk?>.<?=xj?>.<?=xl?>
+			- 3. * d_llu.<?=xi?>.<?=xl?>.<?=xk?> * d_llu.<?=xj?>.<?=xk?>.<?=xl?>
+<? 		end
 	end
-end ?>
+?>		,
+<? end
+?>	};
+
+	//scaled down by 1/8 to match B&S BSSNOK equations ... maybe I'll scale theirs up by 8 ...
+	//B&S eqn 2.125 ... divded by two
+	//Alcubierre eqn 2.5.9
+	//H = 1/2 (R + K^2 - K_ij K^ij) - 8 pi rho
+	real R = sym3_dot(R_ll, gamma_uu);
+	real tr_KSq = sym3_dot(KSq_ll, gamma_uu);
+	U->H = .5 * (R + tr_K * tr_K - tr_KSq) <? 
+if eqn.useStressEnergyTerms then ?>
+	- 8. * M_PI * U->rho <? 
+end ?>;
+	//momentum constraint
 }

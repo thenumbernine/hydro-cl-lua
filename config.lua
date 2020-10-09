@@ -886,7 +886,7 @@ local args = {
 	integrator = 'Runge-Kutta 3, TVD',	-- p.20, eqn B.1
 	dim = dim,
 	cfl = .5/dim,			-- no mention of cfl or timestep ...
-	fluxLimiter = cmdline.fluxLimiter or 'minmod',
+	fluxLimiter = cmdline.fluxLimiter or 'donor cell',	--'minmod',
 
 	--[[
 	coord = 'cartesian',
@@ -937,16 +937,26 @@ local args = {
 	-- [[
 	coord = 'sphere-log-radial',
 	coordArgs = {
-		--vectorComponent = 'holonomic',
-		vectorComponent = 'anholonomic',
-		--vectorComponent = 'cartesian',
-		-- SENR uses these parameters:
-		amplitude = 1000,
-		sinh_w = .15
+		-- TODO do I have mem write / unwritten vars in "holonomic"?
+		--vectorComponent = 'holonomic',	-- our tensor components are holonomic ... except the partial / 1st order state variables, like a_k, d_kij
+		vectorComponent = 'anholonomic',	-- our tensor components are holonomic ... except the partial / 1st order state variables, like a_k, d_kij
+		
+		-- [==[ the paper uses this remapping parameters (eqn 32):
+		-- Alic et al: 		R = L sinh(r / L)
+		-- comparing Alic's sinh remapping to SENR's remapping:
+		-- Etienne et al: 	rho = A sinh(rho / w) / sinh(1/w)
+		-- equate R=rho to get:
+		-- L sinh(r / L) = A sinh(rho / w) / sinh(1/w)
+		-- so with the SENR sinh-remapping function, we get:
+		-- w = L, A = L sinh(1/w)
+		sinh_w = 1.5,
+		amplitude = 1.5 * math.sinh(1 / 1.5),
+		--]==]
 	},
 	mins = {0, 0, 0},
 	maxs = {
-		1,	-- 2017 Ruchlin et al, rely on coordinate chart to remap to rmax
+		20,	-- p.13 says R = 20 M <=> r ~ 463000 M
+		-- for L = 1.5, rho(r) = L * sinh(r / L), we find rho(20) = 463078.22018288 ( as p.13 says )
 		math.pi,
 		2*math.pi,
 	},

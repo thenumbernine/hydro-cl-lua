@@ -68,18 +68,13 @@ function SphereLogRadial:init(args)
 		phi = phi,
 	}
 
+	-- don't replace these until we are compiling or integrating, to save on simplification time
 	local r_for_rho = rDef
 	self.replvars = table{
 		{r:diff(rho, rho, rho), r_for_rho:diff(rho, rho, rho)()},
 		{r:diff(rho, rho), r_for_rho:diff(rho, rho)()},
 		{r:diff(rho), r_for_rho:diff(rho)()},
 		{r, r_for_rho},
-
-		-- what to do about this ...
-		--{self.amplitude_var, self.amplitude},
-		--{self.sinh_w_var, self.sinh_w},
-		-- I don't want these here, because replvars are executed before integrate() and simplify() in coord ...
-		-- but I should put them somewhere ...
 	}
 
 	if cmdline.coordVerbose then

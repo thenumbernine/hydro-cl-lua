@@ -20,6 +20,7 @@ local sym = common.sym
 local Z4_2004Bona = class(EinsteinEqn)
 Z4_2004Bona.name = 'Z4_2004Bona'
 Z4_2004Bona.useSourceTerm = true
+Z4_2004Bona.useConstrainU = true
 
 --[[
 args:
@@ -139,7 +140,10 @@ function Z4_2004Bona:init(args)
 		self.numWaves = Struct.countScalars{vars=fluxVars}
 		assert(self.numWaves == 30)
 	else
-		-- skip alpha, gamma_ij, a_q, d_qij, V_i for q != the direction of flux
+		-- ok Z4 has a_x, d_xij, K_ij, Theta, Z_i ...
+		-- which is 17 waves
+		-- the min/max which HLL uses are the same waves iirc
+		-- but... I should fix that. 
 		self.numWaves = 13
 	end
 
@@ -177,7 +181,6 @@ function Z4_2004Bona:init(args)
 	end
 
 
-	
 	-- build stuff around consVars	
 	Z4_2004Bona.super.init(self, args)
 
@@ -266,11 +269,11 @@ kernel void calcDT(
 	real dt = INFINITY;
 	<? for side=0,solver.dim-1 do ?>{
 		
-		<? if side==0 then ?>
+		<? if side == 0 then ?>
 		real gammaUjj = (U->gamma_ll.yy * U->gamma_ll.zz - U->gamma_ll.yz * U->gamma_ll.yz) / det_gamma;
-		<? elseif side==1 then ?>
+		<? elseif side == 1 then ?>
 		real gammaUjj = (U->gamma_ll.xx * U->gamma_ll.zz - U->gamma_ll.xz * U->gamma_ll.xz) / det_gamma;
-		<? elseif side==2 then ?>
+		<? elseif side == 2 then ?>
 		real gammaUjj = (U->gamma_ll.xx * U->gamma_ll.yy - U->gamma_ll.xy * U->gamma_ll.xy) / det_gamma;
 		<? end ?>	
 		real lambdaLight = U->alpha * sqrt(gammaUjj);
@@ -325,9 +328,10 @@ function Z4_2004Bona:initCodeModule_fluxFromCons()
 	sym3 gamma_ll = U.gamma_ll;
 	sym3 K_ll = U.K_ll;
 	_3sym3 d_lll = U.d_lll;
-	
+
+	if (false) {}
 	<? for side=0,solver.dim-1 do ?>
-	if (n.side == <?=side?>) {
+	else if (n.side == <?=side?>) {
 		Z_l = real3_swap<?=side?>(Z_l);
 		a_l = real3_swap<?=side?>(a_l);
 		gamma_ll = sym3_swap<?=side?>(gamma_ll);
@@ -336,8 +340,31 @@ function Z4_2004Bona:initCodeModule_fluxFromCons()
 		gamma_uu = sym3_swap<?=side?>(gamma_uu);
 	}
 	<? end ?>
+	else {
+		alpha = 0./0.;
+		Theta = 0./0.;
+<? for k,xk in ipairs(xNames) do
+?>		a_l.<?=xk?> = 0./0.;
+		Z_l.<?=xk?> = 0./0.;
+<? end
+?>	
+<? for ij,xij in ipairs(symNames) do
+?>		K_ll.<?=xij?> = 0./0.;
+		gamma_ll.<?=xij?> = 0./0.;
+<? end
+?>
+<? for k,xk in ipairs(xNames) do
+	for ij,xij in ipairs(symNames) do
+?>		d_lll.<?=xk?>.<?=xij?> = 0./0.;
+<?	end
+end
+?>	}
 
-	<?=eqn.cons_t?> F = {.ptr={0}};
+	<?=eqn.cons_t?> F = {.ptr={ 0./0. }};
+	//for (int i = 0; i < numStates; ++i) {
+	//	F.ptr[i] = 0.;
+	//}
+
 
 	// BEGIN CUT from numerical-relativity-codegen/flux_matrix_output/z4_noZeroRows.html
 	real tmp1 = K_ll.xy * gamma_uu.xy;
@@ -396,8 +423,9 @@ function Z4_2004Bona:initCodeModule_fluxFromCons()
 	F.Z_l.z = -alpha * (K_ll.zz * gamma_uu.xz + K_ll.yz * gamma_uu.xy + K_ll.xz * gamma_uu.xx);	
 	// END CUT
 
+	if (false) {}
 	<? for side=0,solver.dim-1 do ?>
-	if (n.side == <?=side?>) {
+	else if (n.side == <?=side?>) {
 		F.Z_l = real3_swap<?=side?>(F.Z_l);
 		F.a_l = real3_swap<?=side?>(F.a_l);
 		F.gamma_ll = sym3_swap<?=side?>(F.gamma_ll);
@@ -405,6 +433,26 @@ function Z4_2004Bona:initCodeModule_fluxFromCons()
 		F.d_lll = _3sym3_swap<?=side?>(F.d_lll);
 	}
 	<? end ?>
+	else {
+		alpha = 0./0.;
+		Theta = 0./0.;
+<? for k,xk in ipairs(xNames) do
+?>		a_l.<?=xk?> = 0./0.;
+		Z_l.<?=xk?> = 0./0.;
+<? end
+?>	
+<? for ij,xij in ipairs(symNames) do
+?>		K_ll.<?=xij?> = 0./0.;
+		gamma_ll.<?=xij?> = 0./0.;
+<? end
+?>
+<? for k,xk in ipairs(xNames) do
+	for ij,xij in ipairs(symNames) do
+?>		d_lll.<?=xk?>.<?=xij?> = 0./0.;
+<?	end
+end
+?>	}
+
 
 <? 
 if eqn.useShift ~= 'none' then
@@ -496,7 +544,7 @@ kernel void applyInitCond(
 	global <?=eqn.cons_t?>* UBuf,
 	const global <?=coord.cell_t?>* cellBuf
 ) {
-	SETBOUNDS(0,0);
+	SETBOUNDS(numGhost,numGhost);
 	real3 x = cellBuf[index].pos;
 	real3 xc = coordMap(x);
 	real3 mids = real3_real_mul(real3_add(solver->mins, solver->maxs), .5);
@@ -515,6 +563,11 @@ kernel void applyInitCond(
 	real rho = 0.;
 
 	<?=code?>
+
+	//for (int i = 0; i < numStates; ++i) {
+	//	U->ptr[i] = 0.;
+	//}
+	*U = (<?=eqn.cons_t?>){.ptr={0}};
 
 	U->alpha = alpha;
 
@@ -563,9 +616,15 @@ kernel void initDerivs(
 for i=1,solver.dim do 
 	local xi = xNames[i]
 ?>
-	U->a_l.<?=xi?> = (U[solver->stepsize.<?=xi?>].alpha - U[-solver->stepsize.<?=xi?>].alpha) / (solver->grid_dx.s<?=i-1?> * U->alpha);
+	U->a_l.<?=xi?> = (
+		log(U[solver->stepsize.<?=xi?>].alpha) 
+		- log(U[-solver->stepsize.<?=xi?>].alpha)
+	) / (2. * solver->grid_dx.s<?=i-1?>);
 	<? for jk,xjk in ipairs(symNames) do ?>
-	U->d_lll.<?=xi?>.<?=xjk?> = .5 * (U[solver->stepsize.<?=xi?>].gamma_ll.<?=xjk?> - U[-solver->stepsize.<?=xi?>].gamma_ll.<?=xjk?>) / solver->grid_dx.s<?=i-1?>;
+	U->d_lll.<?=xi?>.<?=xjk?> = .5 * (
+		U[solver->stepsize.<?=xi?>].gamma_ll.<?=xjk?> 
+		- U[-solver->stepsize.<?=xi?>].gamma_ll.<?=xjk?>
+	) / (2. * solver->grid_dx.s<?=i-1?>);
 	<? end ?>
 <? 
 end 
@@ -643,9 +702,15 @@ kernel void initDerivs(
 for i=1,solver.dim do 
 	local xi = xNames[i]
 ?>
-	U->a_l.<?=xi?> = (U[solver->stepsize.<?=xi?>].alpha - U[-solver->stepsize.<?=xi?>].alpha) / (solver->grid_dx.s<?=i-1?> * U->alpha);
+	U->a_l.<?=xi?> = (
+		log(U[solver->stepsize.<?=xi?>].alpha) 
+		- log(U[-solver->stepsize.<?=xi?>].alpha)
+	) / (2. * solver->grid_dx.s<?=i-1?>);
 	<? for jk,xjk in ipairs(symNames) do ?>
-	U->d_lll.<?=xi?>.<?=xjk?> = .5 * (U[solver->stepsize.<?=xi?>].gamma_ll.<?=xjk?> - U[-solver->stepsize.<?=xi?>].gamma_ll.<?=xjk?>) / solver->grid_dx.s<?=i-1?>;
+	U->d_lll.<?=xi?>.<?=xjk?> = .5 * (
+		U[solver->stepsize.<?=xi?>].gamma_ll.<?=xjk?> 
+		- U[-solver->stepsize.<?=xi?>].gamma_ll.<?=xjk?>
+	) / (2. * solver->grid_dx.s<?=i-1?>);
 	<? end ?>
 <? 
 end 
@@ -738,8 +803,11 @@ momentum constraints
 		<? for i=1,solver.dim do
 			local xi = xNames[i]
 		?>{
-			real di_alpha = (U[solver->stepsize.<?=xi?>].alpha - U[-solver->stepsize.<?=xi?>].alpha) / (2. * solver->grid_dx.s<?=i-1?>);
-			value.vreal3.<?=xi?> = fabs(di_alpha - U->alpha * U->a_l.<?=xi?>);
+			real di_log_alpha = (
+				log(U[solver->stepsize.<?=xi?>].alpha)
+				- log(U[-solver->stepsize.<?=xi?>].alpha)
+			) / (2. * solver->grid_dx.s<?=i-1?>);
+			value.vreal3.<?=xi?> = fabs(di_log_alpha - U->a_l.<?=xi?>);
 		}<? end ?>
 		<? for i=solver.dim+1,3 do
 			local xi = xNames[i]
@@ -764,7 +832,7 @@ momentum constraints
 				U[solver->stepsize.<?=xi?>].gamma_ll, 
 				U[-solver->stepsize.<?=xi?>].gamma_ll
 			), 
-			1. / (2. * solver->grid_dx.s<?=i-1?>)
+			.5 / (2. * solver->grid_dx.s<?=i-1?>)
 		);
 		<? else ?>
 		sym3 di_gamma_jk = sym3_zero;
@@ -856,15 +924,14 @@ function Z4_2004Bona:eigenWaveMaxCode(n, eig, x)
 	else
 		betaUi = '0'
 	end
-	return 'max('..betaUi..', max('..betaUi..' + eig_lambdaGauge, '..betaUi..' + eig_lambdaLight))'
+	return 'max(-'..betaUi..', max(-'..betaUi..' + eig_lambdaGauge, -'..betaUi..' + eig_lambdaLight))'
 end
 
 function Z4_2004Bona:consWaveCodePrefix(n, U, x, waveIndex)
 	return template([[
 	real det_gamma = sym3_det(<?=U?>.gamma_ll);
 	sym3 gamma_uu = sym3_inv(<?=U?>.gamma_ll, det_gamma);
-	real sqrt_gammaUjj;
-	real eig_lambdaLight;
+	real sqrt_gammaUjj = 0./0.;
 	if (<?=n?>.side == 0) {
 		sqrt_gammaUjj = sqrt(gamma_uu.xx);
 	} else if (<?=n?>.side == 1) {
@@ -872,7 +939,7 @@ function Z4_2004Bona:consWaveCodePrefix(n, U, x, waveIndex)
 	} else if (<?=n?>.side == 2) {
 		sqrt_gammaUjj = sqrt(gamma_uu.zz);
 	}
-	eig_lambdaLight = <?=U?>.alpha * sqrt_gammaUjj;
+	real eig_lambdaLight = <?=U?>.alpha * sqrt_gammaUjj;
 	real f_alphaSq = calc_f_alphaSq(<?=U?>.alpha);
 	real eig_lambdaGauge = sqrt(f_alphaSq) * sqrt_gammaUjj;
 ]], {
