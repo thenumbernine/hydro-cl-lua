@@ -89,7 +89,11 @@
 	
 	cons_t flux = eigen_rightTransform(solver, eig, fluxEig, xInt, n);
 
-<? if eqn.roeUseFluxFromCons then ?>
+<? if eqn.roeUseFluxFromCons then 
+-- TODO hmm, fluxFromCons vs eigen_fluxTransform using the 'eig' structure
+-- fluxFromCons is using the left and right states to create their flux jacobian transform - applied to the left and right states to make the left and right flux vector
+-- while eigen_fluxTransform would use the intermediate state to create the flux vector
+?>
 	cons_t FL = fluxFromCons(solver, pUL, xInt, n);
 	cons_t FR = fluxFromCons(solver, pUR, xInt, n);
 

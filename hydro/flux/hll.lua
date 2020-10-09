@@ -18,7 +18,10 @@ end
 
 function HLL:getModuleDepends_calcFlux()
 	local depends = table(HLL.super.getModuleDepends_calcFlux(self))
-	depends:insert'fluxFromCons'
+	:append{
+		'fluxFromCons',
+		'eigen_forInterface',
+	}
 	if not require 'hydro.solver.meshsolver'.is(solver) then
 		depends:insert'cell_area#'
 	end

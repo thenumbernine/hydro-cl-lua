@@ -8,7 +8,11 @@ Roe.solverCodeFile = 'hydro/flux/roe.cl'
 
 function Roe:getModuleDepends_calcFlux()
 	local depends = table(Roe.super.getModuleDepends_calcFlux(self))
-	depends:insert'fluxLimiter'
+	:append{
+		'fluxLimiter',
+		'eigen_forInterface',
+		'eigen_left/rightTransform',
+	}
 	if self.solver.eqn.roeUseFluxFromCons then
 		depends:insert'fluxFromCons'
 	end

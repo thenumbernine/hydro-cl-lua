@@ -940,6 +940,7 @@ local args = {
 	coordArgs = {
 		-- TODO sort this out
 		-- TODO do I have mem write / unwritten vars in "holonomic"?  cuz there seem to be errors that persist past reset()
+		-- TODO move cell_area and cell_volume calcs into cell_t fields 
 		--vectorComponent = 'holonomic',	-- our tensor components are holonomic ... except the partial / 1st order state variables, like a_k, d_kij
 		vectorComponent = 'anholonomic',	-- ... these settings also influence the finite volume area/volume calculations (in terms of the vector components) ... 
 		
@@ -997,11 +998,21 @@ local args = {
 	flux = 'hll',
 }
 -- comparing hll solvers
---self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {eqn='adm3d'})))
-self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {eqn='z4'})))
---self.solvers:insert(require 'hydro.solver.bssnok-fd'(table(args, {eqn='bssnok-fd-num'})))
---self.solvers:insert(require 'hydro.solver.bssnok-fd'(table(args, {eqn='bssnok-fd-senr'})))
---self.solvers:insert(require 'hydro.solver.bssnok-fd'(table(args, {eqn='bssnok-fd-sym'})))
+if cmdline['2009Alic-adm'] then
+	self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {eqn='adm3d'})))
+end
+if cmdline['2009Alic-z4'] then
+	self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {eqn='z4'})))
+end
+if cmdline['2009Alic-bssnok-fd-senr'] then
+	self.solvers:insert(require 'hydro.solver.bssnok-fd'(table(args, {eqn='bssnok-fd-senr'})))
+end
+if cmdline['2009Alic-bssnok-fd-num'] then
+	self.solvers:insert(require 'hydro.solver.bssnok-fd'(table(args, {eqn='bssnok-fd-num'})))
+end
+if cmdline['2009Alic-bssnok-fd-sym'] then
+	self.solvers:insert(require 'hydro.solver.bssnok-fd'(table(args, {eqn='bssnok-fd-sym'})))
+end
 --]=]
 
 

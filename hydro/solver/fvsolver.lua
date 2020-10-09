@@ -219,20 +219,26 @@ function FiniteVolumeSolver:addDisplayVars()
 		end
 	end
 
-	-- ortho
-	-- TODO why is the x error getting 'nans' after a few iterations?
-	-- TODO WARNING - this only does ForSide, which doesn't match non-cartesian grids w/cartesian components
-	for side=0,self.dim-1 do
-		self:addDisplayVarGroup{
-			name = 'ortho error '..xNames[side+1],
-			bufferField = self.getULRBufName,
-			bufferType = self.getULRBufType,
-			codePrefix = '',
-			useLog = true,
-			vars = {
-				{name='0', code=table{
-					getEigenCode{side=side},
-					template([[
+	local moduleNames = table(self.sharedModulesEnabled, self.solverModulesEnabled):keys()
+	local modulesEnabled = self.modules:getDependentModules(moduleNames:unpack())
+		:mapi(function(module) return true, module.name end)
+	local function hasmodule(name) return modulesEnabled[name] end
+
+	if hasmodule'eigen_left/rightTransform' then
+		-- ortho
+		-- TODO why is the x error getting 'nans' after a few iterations?
+		-- TODO WARNING - this only does ForSide, which doesn't match non-cartesian grids w/cartesian components
+		for side=0,self.dim-1 do
+			self:addDisplayVarGroup{
+				name = 'ortho error '..xNames[side+1],
+				bufferField = self.getULRBufName,
+				bufferType = self.getULRBufType,
+				codePrefix = '',
+				useLog = true,
+				vars = {
+					{name='0', code=table{
+						getEigenCode{side=side},
+						template([[
 	value.vreal = 0;
 	//the flux transform is F v = R Lambda L v, I = R L
 	//but if numWaves < numIntStates then certain v will map to the nullspace 
@@ -253,30 +259,32 @@ function FiniteVolumeSolver:addDisplayVars()
 			value.vreal += fabs(newbasis.ptr[j] - basis.ptr[j]);
 		}
 	}
-]], 					{
-							eqn = self.eqn,
-							side = side,
-						}),
-					}:concat'\n',
-				},
+]], 						{
+								eqn = self.eqn,
+								side = side,
+							}),
+						}:concat'\n',
+					},
+				}
 			}
-		}
+		end
 	end
 
-	-- flux
-	-- TODO same as above, why is the x error getting 'nans' after a few iterations?
-	-- TODO WARNING - this only does ForSide, which doesn't match non-cartesian grids w/cartesian components
-	for side=0,self.dim-1 do
-		self:addDisplayVarGroup{
-			name = 'flux error '..xNames[side+1],
-			bufferField = self.getULRBufName,
-			bufferType = self.getULRBufType,
-			codePrefix = '',
-			useLog = true,
-			vars = {
-				{name='0', code=table{
-					getEigenCode{side=side},
-					template([[
+	if hasmodule'eigen_fluxTransform' then
+		-- flux
+		-- TODO same as above, why is the x error getting 'nans' after a few iterations?
+		-- TODO WARNING - this only does ForSide, which doesn't match non-cartesian grids w/cartesian components
+		for side=0,self.dim-1 do
+			self:addDisplayVarGroup{
+				name = 'flux error '..xNames[side+1],
+				bufferField = self.getULRBufName,
+				bufferType = self.getULRBufType,
+				codePrefix = '',
+				useLog = true,
+				vars = {
+					{name='0', code=table{
+						getEigenCode{side=side},
+						template([[
 	normal_t n<?=side?> = normal_forSide<?=side?>(x);
 	<?=eqn:eigenWaveCodePrefix('n'..side, 'eig', 'xInt'):gsub('\n', '\n\t')?>
 	
@@ -316,15 +324,16 @@ function FiniteVolumeSolver:addDisplayVars()
 			value.vreal += fabs(newtransformed.ptr[j] - transformed.ptr[j]);
 		}
 	}
-]], 					{
-							solver = self,
-							eqn = self.eqn,
-							side = side,
-						}),
-					}:concat'\n',
-				},
+]], 						{
+								solver = self,
+								eqn = self.eqn,
+								side = side,
+							}),
+						}:concat'\n',
+					},
+				}
 			}
-		}
+		end
 	end
 end
 
