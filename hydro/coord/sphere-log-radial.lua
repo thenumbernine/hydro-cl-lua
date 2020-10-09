@@ -70,11 +70,11 @@ function SphereLogRadial:init(args)
 
 	-- don't replace these until we are compiling or integrating, to save on simplification time
 	local r_for_rho = rDef
-	self.replvars = table{
-		{r:diff(rho, rho, rho), r_for_rho:diff(rho, rho, rho)()},
-		{r:diff(rho, rho), r_for_rho:diff(rho, rho)()},
-		{r:diff(rho), r_for_rho:diff(rho)()},
-		{r, r_for_rho},
+	self.repls = table{
+		r:diff(rho, rho, rho):eq(r_for_rho:diff(rho, rho, rho)()),
+		r:diff(rho, rho):eq(r_for_rho:diff(rho, rho)()),
+		r:diff(rho):eq(r_for_rho:diff(rho)()),
+		r:eq(r_for_rho),
 	}
 
 	if cmdline.coordVerbose then
@@ -171,7 +171,7 @@ real3 coordMapInv(real3 pt) {
 -- the default expression uses 'pt' for the input arg, and pt.x for 'r' ...
 -- ... but we're already using 'pt' for xyz and 'pt.r' for x ...
 -- and if I replace it with var'r' ...
--- ... then will coord:compile use coord.replvars to replace that with r_for_rho?
+-- ... then will coord:compile use coord.repls to replace that with r_for_rho?
 --		coord:compile(coord.rho_for_r:replace(coord.baseCoords[1], require 'symmath'.var'r'))
 		require 'symmath.export.C'(coord.rho_for_r
 			:replace(coord.amplitude_var, coord.amplitude)

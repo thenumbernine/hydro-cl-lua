@@ -23,7 +23,7 @@ eigen_t eigen_forCell(
 ) {
 	eigen_t eig;
 	eig.alpha = U.alpha;
-	eig.sqrt_f = sqrt(calc_f(U.alpha));
+	eig.alpha_sqrt_f = sqrt(calc_f_alphaSq(U.alpha));
 	real det_gamma = sym3_det(U.gamma_ll);
 	eig.gamma_uu = sym3_inv(U.gamma_ll, det_gamma);
 	eig.sqrt_gammaUjj = _real3(sqrt(eig.gamma_uu.xx), sqrt(eig.gamma_uu.yy), sqrt(eig.gamma_uu.zz));
@@ -92,7 +92,7 @@ eigen_t eigen_forInterface(
 
 	eigen_t eig;
 	eig.alpha = alpha;
-	eig.sqrt_f = sqrt(calc_f(alpha));
+	eig.alpha_sqrt_f = sqrt(calc_f_alphaSq(alpha));
 	eig.gamma_uu = sym3_inv(avg_gamma, det_avg_gamma);
 	eig.sqrt_gammaUjj.x = sqrt(eig.gamma_uu.xx);
 	eig.sqrt_gammaUjj.y = sqrt(eig.gamma_uu.yy);
@@ -146,14 +146,14 @@ waves_t eigen_leftTransform(
 
 		//a^x - f d^xj_j
 
-		real f = eig.sqrt_f * eig.sqrt_f;
+		real sqrt_f = eig.alpha_sqrt_f / eig.alpha;
 		real d_x_input = sym3_dot(eig.gamma_uu, inputU.d_lll.x);
 		results.ptr[23] = inputU.a_l.x - f * d_x_input;
 
 		//gauge:
 		//sqrt(f gamma^xx) K +- (a^x + 2 V^x)
 
-		real ev0a = eig.sqrt_f * sym3_dot(eig.gamma_uu, K_sqrt_gammaUxx);
+		real ev0a = sqrt_f * sym3_dot(eig.gamma_uu, K_sqrt_gammaUxx);
 		real ev0b = eig.gamma_uu.xx * (inputU.a_l.x + 2. * inputU.V_l.x) 
 					+ eig.gamma_uu.xy * (inputU.a_l.y + 2. * inputU.V_l.y)
 					+ eig.gamma_uu.xz * (inputU.a_l.z + 2. * inputU.V_l.z);
@@ -230,14 +230,15 @@ waves_t eigen_leftTransform(
 
 		//a^y - f d^yj_j
 
-		real f = eig.sqrt_f * eig.sqrt_f;
+		real sqrt_f = eig.alpha_sqrt_f / eig.alpha;
+		real f = sqrt_f * sqrt_f;
 		real d_y_input = sym3_dot(eig.gamma_uu, inputU.d_lll.y);
 		results.ptr[23] = inputU.a_l.y - f * d_y_input;
 		
 		//gauge:
 		//sqrt(f gamma^yy) K +- (a^y + 2 V^y)
 
-		real ev0a = eig.sqrt_f * sym3_dot(eig.gamma_uu, K_sqrt_gammaUyy);
+		real ev0a = sqrt_f * sym3_dot(eig.gamma_uu, K_sqrt_gammaUyy);
 		real ev0b = eig.gamma_uu.xy * (inputU.a_l.x + 2. * inputU.V_l.x)
 					+ eig.gamma_uu.yy * (inputU.a_l.y + 2. * inputU.V_l.y)
 					+ eig.gamma_uu.yz * (inputU.a_l.z + 2. * inputU.V_l.z);
@@ -314,14 +315,15 @@ waves_t eigen_leftTransform(
 
 		//a^z - f d^zj_j
 
-		real f = eig.sqrt_f * eig.sqrt_f;
+		real sqrt_f = eig.alpha_sqrt_f / eig.alpha;
+		real f = sqrt_f * sqrt_f;
 		real d_z_input = sym3_dot(eig.gamma_uu, inputU.d_lll.z);
 		results.ptr[23] = inputU.a_l.z - f * d_z_input;
 
 		//gauge:
 		//sqrt(f gamma^zz) K +- (a^z + 2 V^z)
 
-		real ev0a = eig.sqrt_f * sym3_dot(eig.gamma_uu, K_sqrt_gammaUzz);
+		real ev0a = sqrt_f * sym3_dot(eig.gamma_uu, K_sqrt_gammaUzz);
 		real ev0b = eig.gamma_uu.xz * (inputU.a_l.x + 2. * inputU.V_l.x)
 					+ eig.gamma_uu.yz * (inputU.a_l.y + 2. * inputU.V_l.y)
 					+ eig.gamma_uu.zz * (inputU.a_l.z + 2. * inputU.V_l.z);
@@ -371,7 +373,7 @@ waves_t eigen_leftTransform(
 
 <? else -- eqn.noZeroRowsInFlux ?>
 
-	real _1_sqrt_f = 1. / eig.sqrt_f;
+	real _1_sqrt_f = eig.alpha / eig.alpha_sqrt_f;
 	real _1_f = _1_sqrt_f * _1_sqrt_f; 
 
 	real sqrt_gammaUjj, _1_gammaUjj, a_j;
@@ -489,7 +491,7 @@ cons_t eigen_rightTransform(
 			) + eig.gamma_uu.yy * input.ptr[26]
 			+ eig.gamma_uu.zz * input.ptr[28];
 
-		real _1_sqrt_f = 1. / eig.sqrt_f;
+		real _1_sqrt_f = eig.alpha / eig.alpha_sqrt_f;
 		real _1_f = _1_sqrt_f * _1_sqrt_f;
 
 		resultU.d_lll.x.xx = -(
@@ -690,7 +692,7 @@ cons_t eigen_rightTransform(
 			) + eig.gamma_uu.xx * input.ptr[24]
 			+ eig.gamma_uu.zz * input.ptr[28];
 
-		real _1_sqrt_f = 1. / eig.sqrt_f;
+		real _1_sqrt_f = eig.alpha / eig.alpha_sqrt_f;
 		real _1_f = _1_sqrt_f  * _1_sqrt_f;
 
 		resultU.d_lll.y.yy = -(
@@ -881,7 +883,7 @@ cons_t eigen_rightTransform(
 			) + eig.gamma_uu.xx * input.ptr[24]
 			+ eig.gamma_uu.yy * input.ptr[27];
 
-		real _1_sqrt_f = 1. / eig.sqrt_f;
+		real _1_sqrt_f = eig.alpha / eig.alpha_sqrt_f;
 		real _1_f = _1_sqrt_f * _1_sqrt_f;
 
 		resultU.d_lll.z.zz = -(
@@ -943,12 +945,13 @@ cons_t eigen_rightTransform(
 			+ input.ptr[10] * 2. * gamma_uu.yz
 			+ input.ptr[11] * gamma_uu.zz;
 
-		real _1_sqrt_f = 1. / eig.sqrt_f;
+		real sqrt_f = eig.alpha_sqrt_f / eig.alpha;
+		real _1_sqrt_f = 1. / sqrt_f;
 		real sqrt_gammaUjj = eig.sqrt_gammaUjj.s<?=side?>;
 		real _1_sqrt_gammaUjj = 1. / sqrt_gammaUjj;
 		real _1_gammaUjj = _1_sqrt_gammaUjj * _1_sqrt_gammaUjj; 
 
-		resultU.a_l.s<?=side?> = eig.sqrt_f * sqrt_gammaUjj * (input.ptr[12] - input.ptr[0]);
+		resultU.a_l.s<?=side?> = sqrt_f * sqrt_gammaUjj * (input.ptr[12] - input.ptr[0]);
 
 		sym3 d_lll, K_ll;
 		d_lll.xx = (
@@ -1008,7 +1011,8 @@ cons_t eigen_fluxTransform(
 		resultU.ptr[i] = 0;
 	}
 
-	real f = eig.sqrt_f * eig.sqrt_f;
+	real sqrt_f = eig.alpha_sqrt_f / eig.alpha;
+	real f = sqrt_f * sqrt_f;
 
 	<? for side=0,solver.dim-1 do ?>
 	if (n.side == <?=side?>) {
@@ -1032,7 +1036,8 @@ cons_t eigen_fluxTransform(
 
 	return resultU;
 <? else	-- codegen ?>
-	real f = eig.sqrt_f * eig.sqrt_f;
+	real sqrt_f = eig.alpha_sqrt_f / eig.alpha;
+	real f = sqrt_f * sqrt_f;
 	
 	sym3 gamma_uu = eig.gamma_uu;
 	
@@ -1143,34 +1148,33 @@ kernel void addSource(
 <? for k,xk in ipairs(xNames) do 
 ?>		.<?=xk?> = (sym3){
 <?	for ij,xij in ipairs(symNames) do
-		local i,j = from6to3x3(ij)
-		local xi,xj = xNames[i],xNames[j]
+		local i,j,xi,xj = from6to3x3(ij)
 ?>			.<?=xij?> = d_llu.<?=xi?>.<?=xj?>.<?=xk?> + d_llu.<?=xj?>.<?=xi?>.<?=xk?> - d_ull.<?=xk?>.<?=xij?>,
 <? end
 ?>		},
 <? end 
 ?>	};
 
-	sym3 R_ll = (sym3){
+	// Rsrc_ll.ij := Rsrc_ij
+	//	= 	+ conn^k_ij (V_k - e_k)
+	//		+ 2 d^l_ki d_lj^k 
+	//		- 2 d^l_ki d^k_lj 
+	//		+ d_il^k d_jk^l
+	sym3 Rsrc_ll = (sym3){
 <? for ij,xij in ipairs(symNames) do
-	local i,j = from6to3x3(ij)
-	local xi, xj = xNames[i], xNames[j]
+	local i,j,xi,xj = from6to3x3(ij)
 ?>		.<?=xij?> = 0.
 <? 	for k,xk in ipairs(xNames) do 
-?>
-			+ conn_ull.<?=xk?>.<?=xij?> * (U->V_l.<?=xk?> - e_l.<?=xk?>)
-
+?>			+ conn_ull.<?=xk?>.<?=xij?> * (U->V_l.<?=xk?> - e_l.<?=xk?>)
 <?		for l,xl in ipairs(xNames) do
-?>			+ 2. * d_llu.<?=xk?>.<?=xi?>.<?=xl?> * d_ull.<?=xk?>.<?=sym(j,l)?>
-			- 2. * d_llu.<?=xk?>.<?=xi?>.<?=xl?> * d_llu.<?=xl?>.<?=xj?>.<?=xk?>
-			+ 2. * d_llu.<?=xk?>.<?=xi?>.<?=xl?> * d_llu.<?=xj?>.<?=xl?>.<?=xk?>
-			+ 2. * d_llu.<?=xi?>.<?=xl?>.<?=xk?> * d_llu.<?=xk?>.<?=xj?>.<?=xl?>
-			- 3. * d_llu.<?=xi?>.<?=xl?>.<?=xk?> * d_llu.<?=xj?>.<?=xk?>.<?=xl?>
+?>			+ 2. * d_ull.<?=xl?>.<?=sym(k,i)?> * (d_llu.<?=xl?>.<?=xj?>.<?=xk?> - d_ull.<?=xk?>.<?=sym(l,j)?>)
+			+ d_llu.<?=xi?>.<?=xl?>.<?=xk?> * d_llu.<?=xj?>.<?=xk?>.<?=xl?>
 <? 		end
 	end
 ?>		,
 <? end
 ?>	};
+
 
 	//srcK_ij = 
 	
@@ -1180,11 +1184,9 @@ kernel void addSource(
 
 	//Riemann curvature:
 	//		+ conn^k_ij (V_k - d^l_lk) 
-	//		+ 2 d_ki^l d^k_jl
-	//		- 2 d_ki^l d_lj^k
-	//		+ 2 d_ki^l d_jl^k
-	//		+ 2 d_il^k d_kj^l
-	//		- 3 d_il^k d_jk^l
+	//		+ 2 d^l_ki d_lj^k 
+	//		- 2 d^l_ki d^k_lj 
+	//		+ d_il^k d_jk^l
 	
 	//extrinsic curvature:
 	//		+ K K_ij 
@@ -1199,7 +1201,7 @@ kernel void addSource(
 	sym3 stressConstraint_ll = (sym3){
 <? for ij,xij in ipairs(symNames) do	
 ?>		.<?=xij?> = 
-			R_ll.<?=xij?> 
+			Rsrc_ll.<?=xij?> 
 			+ tr_K * U->K_ll.<?=xij?> 
 			- KSq_ll.<?=xij?>
 			- 8. * M_PI * S_ll.<?=xij?> 
@@ -2911,27 +2913,27 @@ for ij,xij in ipairs(symNames) do
 <?	end
 end
 ?>
-	
+
+	// R_ll.ij := R_ij
+	//	= gamma^kl (-gamma_ij,kl - gamma_kl,ij + gamma_ik,jl + gamma_jl,ik)
+	//		+ conn^k_ij (d_k - 2 e_k)
+	//		- 2 d^l_ki d^k_lj 
+	//		+ 2 d^l_ki d_lj^k 
+	//		+ d_il^k d_jk^l
 	sym3 R_ll = (sym3){
 <? for ij,xij in ipairs(symNames) do
-	local i,j = from6to3x3(ij)
-	local xi, xj = xNames[i], xNames[j]
+	local i,j,xi,xj = from6to3x3(ij)
 ?>		.<?=xij?> = 0.
 <? 	for k,xk in ipairs(xNames) do 
-?>
-			+ conn_ull.<?=xk?>.<?=xij?> * (U->V_l.<?=xk?> - e_l.<?=xk?>)
-
+?>			+ conn_ull.<?=xk?>.<?=xij?> * (U->V_l.<?=xk?> - e_l.<?=xk?>)
 <?		for l,xl in ipairs(xNames) do
-?>			+ 2. * d_llu.<?=xk?>.<?=xi?>.<?=xl?> * d_ull.<?=xk?>.<?=sym(j,l)?>
-			- 2. * d_llu.<?=xk?>.<?=xi?>.<?=xl?> * d_llu.<?=xl?>.<?=xj?>.<?=xk?>
-			+ 2. * d_llu.<?=xk?>.<?=xi?>.<?=xl?> * d_llu.<?=xj?>.<?=xl?>.<?=xk?>
-			+ 2. * d_llu.<?=xi?>.<?=xl?>.<?=xk?> * d_llu.<?=xk?>.<?=xj?>.<?=xl?>
-			- 3. * d_llu.<?=xi?>.<?=xl?>.<?=xk?> * d_llu.<?=xj?>.<?=xk?>.<?=xl?>
+?>			+ 2. * d_ull.<?=xl?>.<?=sym(k,i)?> * (d_llu.<?=xl?>.<?=xj?>.<?=xk?> - d_ull.<?=xk?>.<?=sym(l,j)?>)
+			+ d_llu.<?=xi?>.<?=xl?>.<?=xk?> * d_llu.<?=xj?>.<?=xk?>.<?=xl?>
 			+ gamma_uu.<?=sym(k,l)?> * (
-				partial_d_llll.<?=xij?>.<?=sym(k,l)?>
-				+ partial_d_llll.<?=sym(k,l)?>.<?=xij?>
-				- partial_d_llll.<?=sym(i,k)?>.<?=sym(j,l)?>
-				- partial_d_llll.<?=sym(j,k)?>.<?=sym(i,l)?>
+				- partial_d_llll.<?=xij?>.<?=sym(k,l)?>
+				- partial_d_llll.<?=sym(k,l)?>.<?=xij?>
+				+ partial_d_llll.<?=sym(i,k)?>.<?=sym(j,l)?>
+				+ partial_d_llll.<?=sym(j,l)?>.<?=sym(i,k)?>
 			)
 <? 		end
 	end

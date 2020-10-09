@@ -331,8 +331,6 @@ kernel void addSource(
 	real3 e_u = sym3_real3_mul(gamma_uu, e_l);
 	real3 Z_u = sym3_real3_mul(gamma_uu, U->Z_l);
 
-	real3 V_l = real3_sub(d_l, e_l);
-
 	//d_luu = d_i^jk = gamma^jl d_il^k
 	_3sym3 d_luu = (_3sym3){
 <? for i,xi in ipairs(xNames) do		
@@ -2771,8 +2769,6 @@ kernel void constrainU(
 	//d_l.i = d_i = d_ij^j
 	real3 d_l = real3x3x3_tr23(d_llu);
 
-	real3 V_l = real3_sub(d_l, e_l);
-
 	//partial_d_lll.ij.kl = d_kij,l = d_(k|(ij),|l)
 	//so this object's indexes are rearranged compared to the papers 
 	sym3sym3 partial_d_llll;
@@ -2799,25 +2795,26 @@ for ij,xij in ipairs(symNames) do
 end
 ?>
 
+	// R_ll.ij := R_ij
+	//	= gamma^kl (-gamma_ij,kl - gamma_kl,ij + gamma_ik,jl + gamma_jl,ik)
+	//		+ conn^k_ij (d_k - 2 e_k)
+	//		- 2 d^l_ki d^k_lj 
+	//		+ 2 d^l_ki d_lj^k 
+	//		+ d_il^k d_jk^l
 	sym3 R_ll = (sym3){
 <? for ij,xij in ipairs(symNames) do
 	local i,j,xi,xj = from6to3x3(ij)
 ?>		.<?=xij?> = 0.
 <? 	for k,xk in ipairs(xNames) do 
-?>
-			+ conn_ull.<?=xk?>.<?=xij?> * (V_l.<?=xk?> - e_l.<?=xk?>)
-
+?>			+ conn_ull.<?=xk?>.<?=xij?> * (d_l.<?=xk?> - 2. * e_l.<?=xk?>)
 <?		for l,xl in ipairs(xNames) do
-?>			+ 2. * d_llu.<?=xk?>.<?=xi?>.<?=xl?> * d_ull.<?=xk?>.<?=sym(j,l)?>
-			- 2. * d_llu.<?=xk?>.<?=xi?>.<?=xl?> * d_llu.<?=xl?>.<?=xj?>.<?=xk?>
-			+ 2. * d_llu.<?=xk?>.<?=xi?>.<?=xl?> * d_llu.<?=xj?>.<?=xl?>.<?=xk?>
-			+ 2. * d_llu.<?=xi?>.<?=xl?>.<?=xk?> * d_llu.<?=xk?>.<?=xj?>.<?=xl?>
-			- 3. * d_llu.<?=xi?>.<?=xl?>.<?=xk?> * d_llu.<?=xj?>.<?=xk?>.<?=xl?>
+?>			+ 2. * d_ull.<?=xl?>.<?=sym(k,i)?> * (d_llu.<?=xl?>.<?=xj?>.<?=xk?> - d_ull.<?=xk?>.<?=sym(l,j)?>)
+			+ d_llu.<?=xi?>.<?=xl?>.<?=xk?> * d_llu.<?=xj?>.<?=xk?>.<?=xl?>
 			+ gamma_uu.<?=sym(k,l)?> * (
-				partial_d_llll.<?=xij?>.<?=sym(k,l)?>
-				+ partial_d_llll.<?=sym(k,l)?>.<?=xij?>
-				- partial_d_llll.<?=sym(i,k)?>.<?=sym(j,l)?>
-				- partial_d_llll.<?=sym(j,k)?>.<?=sym(i,l)?>
+				- partial_d_llll.<?=xij?>.<?=sym(k,l)?>
+				- partial_d_llll.<?=sym(k,l)?>.<?=xij?>
+				+ partial_d_llll.<?=sym(i,k)?>.<?=sym(j,l)?>
+				+ partial_d_llll.<?=sym(j,l)?>.<?=sym(i,k)?>
 			)
 <? 		end
 	end

@@ -162,7 +162,7 @@ function ADM_BonaMasso_3D:init(args)
 
 	self.eigenVars = table{
 		{name='alpha', type='real'},
-		{name='sqrt_f', type='real'},
+		{name='alpha_sqrt_f', type='real'},
 		{name='gamma_uu', type='sym3'},
 		-- sqrt(gamma^jj) needs to be cached, otherwise the Intel kernel stalls (for seconds on end)
 		{name='sqrt_gammaUjj', type='real3'},
@@ -284,9 +284,9 @@ kernel void calcDT(
 	const global <?=eqn.cons_t?>* U = UBuf + index;
 	
 	//the only advantage of this calcDT over the default is that here this sqrt(f) and det(gamma_ij) is only called once
-	real f = calc_f(U->alpha);
+	real f_alphaSq = calc_f_alphaSq(U->alpha);
 	real det_gamma = sym3_det(U->gamma_ll);
-	real sqrt_f = sqrt(f);
+	real alpha_sqrt_f = sqrt(f_alphaSq);
 
 	real dt = INFINITY;
 	<? for side=0,solver.dim-1 do ?>{
@@ -298,9 +298,10 @@ kernel void calcDT(
 		<? elseif side==2 then ?>
 		real gammaUjj = (U->gamma_ll.xx * U->gamma_ll.yy - U->gamma_ll.xy * U->gamma_ll.xy) / det_gamma;
 		<? end ?>	
-		real lambdaLight = U->alpha * sqrt(gammaUjj);
+		real sqrt_gammaUjj = sqrt(gammaUjj);
+		real lambdaLight = sqrt_gammaUjj * U->alpha;
+		real lambdaGauge = sqrt_gammaUjj * alpha_sqrt_f;
 		
-		real lambdaGauge = lambdaLight * sqrt_f;
 		real lambda = (real)max(lambdaGauge, lambdaLight);
 
 		<? if eqn.useShift ~= 'none' then ?>
@@ -439,6 +440,7 @@ function ADM_BonaMasso_3D:getModuleDependsSolver()
 	:append{
 		'initCond.codeprefix',	-- calc_f
 		'rotate',	--real3_swap
+		'sym3sym3',	-- for partial_d_llll, for R_ll in addSource()
 	}
 end
 
@@ -769,15 +771,16 @@ end
 
 function ADM_BonaMasso_3D:eigenWaveCodePrefix(n, eig, x, waveIndex)
 	return self:template([[
-	real eig_lambdaLight;
+	real sqrt_gammaUjj = 0./0.;
 	if (<?=n?>.side == 0) {
-		eig_lambdaLight = <?=eig?>.alpha * <?=eig?>.sqrt_gammaUjj.x;
+		sqrt_gammaUjj = <?=eig?>.sqrt_gammaUjj.x;
 	} else if (<?=n?>.side == 1) {
-		eig_lambdaLight = <?=eig?>.alpha * <?=eig?>.sqrt_gammaUjj.y;
+		sqrt_gammaUjj = <?=eig?>.sqrt_gammaUjj.y;
 	} else if (<?=n?>.side == 2) {
-		eig_lambdaLight = <?=eig?>.alpha * <?=eig?>.sqrt_gammaUjj.z;
+		sqrt_gammaUjj = <?=eig?>.sqrt_gammaUjj.z;
 	}
-	real eig_lambdaGauge = eig_lambdaLight * <?=eig?>.sqrt_f;
+	real eig_lambdaLight = sqrt_gammaUjj * <?=eig?>.alpha;
+	real eig_lambdaGauge = sqrt_gammaUjj * <?=eig?>.alpha_sqrt_f;
 ]], {
 		eig = '('..eig..')',
 		n = n,
@@ -829,16 +832,17 @@ function ADM_BonaMasso_3D:consWaveCodePrefix(n, U, x, waveIndex)
 	return self:template([[
 	real det_gamma = sym3_det(<?=U?>.gamma_ll);
 	sym3 gamma_uu = sym3_inv(<?=U?>.gamma_ll, det_gamma);
-	real eig_lambdaLight;
+	real sqrt_gammaUjj = 0./0.;
 	if (<?=n?>.side == 0) {
-		eig_lambdaLight = <?=U?>.alpha * sqrt(gamma_uu.xx);
+		sqrt_gammaUjj = sqrt(gamma_uu.xx);
 	} else if (<?=n?>.side == 1) {
-		eig_lambdaLight = <?=U?>.alpha * sqrt(gamma_uu.yy);
+		sqrt_gammaUjj = sqrt(gamma_uu.yy);
 	} else if (<?=n?>.side == 2) {
-		eig_lambdaLight = <?=U?>.alpha * sqrt(gamma_uu.zz);
+		sqrt_gammaUjj = sqrt(gamma_uu.zz);
 	}
-	real f = calc_f(<?=U?>.alpha);
-	real eig_lambdaGauge = eig_lambdaLight * sqrt(f);
+	real eig_lambdaLight = <?=U?>.alpha * sqrt_gammaUjj;
+	real f_alphaSq = calc_f_alphaSq(<?=U?>.alpha);
+	real eig_lambdaGauge = sqrt_gammaUjj * sqrt(f_alphaSq);
 ]], {
 		U = '('..U..')',
 		n = n,
