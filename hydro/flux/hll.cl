@@ -86,11 +86,9 @@ kernel void calcFlux(
 		global cons_t* flux = fluxBuf + indexInt;
 
 
-<? if solver.coord.vectorComponent == 'cartesian' 
-	or solver.coord.vectorComponent == 'anholonomic'
-then ?>
-		real area = cell_area<?=side?>(xInt);
-<? else ?>
+<? if solver.coord.vectorComponent == 'holonomic'
+	or require 'hydro.coord.cartesian'.is(solver.coord)
+	then ?>
 		real area = 1.<?
 	for i=0,solver.dim-1 do
 		if i ~= side then
@@ -98,6 +96,8 @@ then ?>
 		end
 	end
 ?>;
+<? else ?>
+		real area = cell_area<?=side?>(xInt);
 <? end ?>
 		if (area <= 1e-7) {
 			for (int j = 0; j < numStates; ++j) {

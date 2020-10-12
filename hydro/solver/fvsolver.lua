@@ -39,10 +39,10 @@ function FiniteVolumeSolver:initCodeModules()
 			'calcFlux',
 		
 		}:append(
-			(self.coord.vectorComponent == 'cartesian' 
-			or self.coord.vectorComponent == 'anholonomic')
-			and {'cell_volume'}
-			or nil
+			(self.coord.vectorComponent == 'holonomic'
+			or require 'hydro.coord.cartesian'.is(self.coord))
+			and {}
+			or {'cell_volume', 'cell_area#'}
 		),
 		code = template(file['hydro/solver/calcDerivFV.cl'], {solver=self}),
 	}

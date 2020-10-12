@@ -592,9 +592,9 @@ kernel void calcDT(
 		<? elseif side == 2 then ?>
 		real gammaUjj = (U->gamma_ll.xx * U->gamma_ll.yy - U->gamma_ll.xy * U->gamma_ll.xy) / det_gamma;
 		<? end ?>	
-		real lambdaLight = U->alpha * sqrt(gammaUjj);
-		
-		real lambdaGauge = sqrt(gammaUjj)* alpha_sqrt_f;
+		real sqrt_gammaUjj = sqrt(gammaUjj);
+		real lambdaLight = sqrt_gammaUjj * U->alpha;
+		real lambdaGauge = sqrt_gammaUjj * alpha_sqrt_f;
 		real lambda = (real)max(lambdaGauge, lambdaLight);
 
 		<? if eqn.useShift ~= 'none' then ?>
@@ -884,7 +884,7 @@ kernel void applyInitCond(
 	//for (int i = 0; i < numStates; ++i) {
 	//	U->ptr[i] = 0.;
 	//}
-	*U = (<?=eqn.cons_t?>){.ptr={0}};
+	*U = (<?=eqn.cons_t?>){.ptr={ 0. / 0. }};
 
 	U->alpha = alpha;
 
@@ -984,6 +984,8 @@ kernel void applyInitCond(
 
 	<?=code?>
 
+	*U = (<?=eqn.cons_t?>){.ptr={ 0. / 0. }};
+	
 	U->alpha = alpha;
 	U->gamma_ll = gamma_ll;
 	U->K_ll = K_ll;
@@ -1231,7 +1233,7 @@ function Z4_2004Bona:eigenWaveMinCode(n, eig, x)
 	else
 		betaUi = '0'
 	end
-	return 'min(-'..betaUi..', min(-'..betaUi..' - eig_lambdaGauge, -'..betaUi..' - eig_lambdaLight))'
+	return 'min(0., min(-'..betaUi..' - eig_lambdaGauge, -'..betaUi..' - eig_lambdaLight))'
 end
 
 function Z4_2004Bona:eigenWaveMaxCode(n, eig, x)
@@ -1241,7 +1243,7 @@ function Z4_2004Bona:eigenWaveMaxCode(n, eig, x)
 	else
 		betaUi = '0'
 	end
-	return 'max(-'..betaUi..', max(-'..betaUi..' + eig_lambdaGauge, -'..betaUi..' + eig_lambdaLight))'
+	return 'max(0., max(-'..betaUi..' + eig_lambdaGauge, -'..betaUi..' + eig_lambdaLight))'
 end
 
 function Z4_2004Bona:consWaveCodePrefix(n, U, x, waveIndex)
@@ -1256,9 +1258,9 @@ function Z4_2004Bona:consWaveCodePrefix(n, U, x, waveIndex)
 	} else if (<?=n?>.side == 2) {
 		sqrt_gammaUjj = sqrt(gamma_uu.zz);
 	}
-	real eig_lambdaLight = <?=U?>.alpha * sqrt_gammaUjj;
-	real f_alphaSq = calc_f_alphaSq(<?=U?>.alpha);
-	real eig_lambdaGauge = sqrt(f_alphaSq) * sqrt_gammaUjj;
+	real eig_lambdaLight = sqrt_gammaUjj * <?=U?>.alpha;
+	real alpha_sqrt_f = sqrt(calc_f_alphaSq(<?=U?>.alpha));
+	real eig_lambdaGauge = sqrt_gammaUjj * alpha_sqrt_f;
 ]], {
 		U = '('..U..')',
 		n = n,

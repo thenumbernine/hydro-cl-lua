@@ -1439,7 +1439,7 @@ function GridSolver:saveBuffer(buffer, basefn)
 	
 	local channels = buffer.size / self.numCells / ffi.sizeof(self.app.real)
 	if channels ~= math.floor(channels) then
-		print("can't save buffer due to its size not being divisible by the numCells")
+		print("can't save "..basefn.." buffer due to its size not being divisible by the numCells")
 	else
 
 		local numReals = self.numCells * channels

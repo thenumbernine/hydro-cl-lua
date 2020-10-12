@@ -1297,9 +1297,10 @@ function HydroCLApp:updateGUI()
 		end
 		
 		if ig.igButton'Save' then
+			local savePrefix = os.date('%Y.%m.%d-%H.%M.%S')
 			-- save as cfits 
 			for i,solver in ipairs(self.solvers) do
-				solver:save(tostring(i))
+				solver:save(savePrefix..'_'..tostring(i))
 			end
 		end
 		

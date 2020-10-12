@@ -21,12 +21,12 @@ kernel void calcDT(
 	real dt = INFINITY;
 	<? for side=0,solver.dim-1 do ?>{
 <? 
-if solver.coord.vectorComponent == 'cartesian' 
-and not require 'hydro.coord.cartesian'.is(solver.coord)
+if solver.coord.vectorComponent == 'holonomic'
+or require 'hydro.coord.cartesian'.is(solver.coord)
 then 
-?>		real dx = cell_dx<?=side?>(x); 
-<? else 
 ?>		real dx = solver->grid_dx.s<?=side?>;
+<? else 
+?>		real dx = cell_dx<?=side?>(x); 
 <? end 
 ?>
 		if (dx > 1e-7) {

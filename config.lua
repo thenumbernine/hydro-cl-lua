@@ -941,8 +941,8 @@ local args = {
 		-- TODO sort this out
 		-- TODO do I have mem write / unwritten vars in "holonomic"?  cuz there seem to be errors that persist past reset()
 		-- TODO move cell_area and cell_volume calcs into cell_t fields 
-		--vectorComponent = 'holonomic',	-- our tensor components are holonomic ... except the partial / 1st order state variables, like a_k, d_kij
-		vectorComponent = 'anholonomic',	-- ... these settings also influence the finite volume area/volume calculations (in terms of the vector components) ... 
+		vectorComponent = 'holonomic',	-- our tensor components are holonomic ... except the partial / 1st order state variables, like a_k, d_kij
+		--vectorComponent = 'anholonomic',	-- ... these settings also influence the finite volume area/volume calculations (in terms of the vector components) ... 
 		
 		-- [==[ the paper uses this remapping parameters (eqn 32):
 		-- Alic et al: 		R = L sinh(r / L)
@@ -1146,11 +1146,13 @@ local args = {
 		{64, 16, 1},
 		
 		-- N x 2 x 2:
-		{32, 2, 2},		-- SENR sphere-sinh-radial uses this by default
+		--{32, 2, 2},		-- SENR sphere-sinh-radial uses this by default
 		--{80, 80, 2},		-- this works well for BrillLindquist sphere-log-radial when viewing the xz slice
 		--{128, 2, 2},
 		--{128, 32, 2},
 		--{400, 64, 2},
+		
+		{200, 2, 2},
 	
 		-- 80N x 40N x 2N
 		--{160, 80, 4},
