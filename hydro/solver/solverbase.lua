@@ -25,7 +25,7 @@ SolverBase:init
 				self.dim = ...
 			
 				-- hmm, meshsolver needs this before the numCells etc vars
-				-- but coord.sphere-log-radial needs this after .maxs is finalized, after getInitCondCode() is called
+				-- but coord.sphere-sinh-radial needs this after .maxs is finalized, after getInitCondCode() is called
 				self.coord = ...		<- this object creation is wedged between the other mesh vars because meshsolver needs it early
 				
 				self.device = ...

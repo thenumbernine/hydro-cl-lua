@@ -1,5 +1,3 @@
--- TODO rename to sphere-sinh-radial ... then do another sphere-log-radial or sphere-radial-remapped ?
-
 local class = require 'ext.class'
 local table = require 'ext.table'
 local symmath = require 'symmath'
@@ -13,7 +11,7 @@ local sinh = symmath.sinh
 local Tensor = symmath.Tensor
 
 local SphereLogRadial = class(CoordinateSystem)
-SphereLogRadial.name = 'sphere-log-radial'
+SphereLogRadial.name = 'sphere-sinh-radial'
 
 -- I was trying to hold off on this, thinking it would save something somewhere, because the subsequent conn calcs were slow
 -- but I don't need all them anyways (cue code module system)
@@ -110,9 +108,9 @@ end
 -- I could put '#ifdef GLSL' around the sinh and cosh modules, but what about asinh which C needs as well?
 -- I could put a 'glsl_code' option for each module, and give them to the sinh,cosh,acosh, but ... same question?
 -- I could add them as glslModulesEnabled[] ... but what would guarantee the order of code generation?
--- I could add/remove sinh from coordMap's depends or code before/after adding it to the GLSL ... kind of ugly and very specific to sphere-log-radial only
+-- I could add/remove sinh from coordMap's depends or code before/after adding it to the GLSL ... kind of ugly and very specific to sphere-sinh-radial only
 -- ... see this is a good argument for replacing the 'depends' system with a code gen execution and an 'include' function with 'pragma once' ability
---		then coordMap for sphere-log-radial could have code that said "if included from glsl then include sinh end"
+--		then coordMap for sphere-sinh-radial could have code that said "if included from glsl then include sinh end"
 --		also you can put the compile() symbolic codegen into the same code doing the include's of dependencies
 -- 		so to do this, get rid of 'depends', replace 'code', 'header', 'typecode' strings with functions, and give them an 'include' function that pulls in from other modules by their name
 -- for now I'll just make a separate 'coordMapGLSL' just like 'coordMap' but with the GLSL depends

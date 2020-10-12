@@ -112,7 +112,7 @@ function Draw3DSlice:showDisplayVar(app, solver, var, varName, ar, xmin, xmax, y
 		-- hack for picking order of axis for non-Cartesian
 		if app.display_useCoordMap
 		and (require 'hydro.coord.sphere'.is(solver.coord) 
-			or require 'hydro.coord.sphere-log-radial'.is(solver.coord))
+			or require 'hydro.coord.sphere-sinh-radial'.is(solver.coord))
 		then
 			fwddir = 1
 			jmin, jmax, jdir = 0, n, 1

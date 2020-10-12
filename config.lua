@@ -936,7 +936,7 @@ local args = {
 	},
 	--]]
 	-- [[
-	coord = 'sphere-log-radial',
+	coord = 'sphere-sinh-radial',
 	coordArgs = {
 		-- TODO sort this out
 		-- TODO do I have mem write / unwritten vars in "holonomic"?  cuz there seem to be errors that persist past reset()
@@ -1080,7 +1080,7 @@ local args = {
 	-- however, this would put the mid phi at pi, which puts the graph on the x- side of the xy plane ... not the x+ side as it would if phi-mid was equal to 0
 	mins = {0, 0, 0},
 	maxs = {
-		-- 2015 Baumgarte et al, spherical coordinates (not log-remapped), PIRK uses this rmax:
+		-- 2015 Baumgarte et al, spherical coordinates (not sinh-remapped), PIRK uses this rmax:
 		cmdline.rmax or 12.8,--24 M1, but I'm using M1 = M2 = 0.5
 
 		math.pi,
@@ -1126,7 +1126,7 @@ local args = {
 	},
 	--]]
 	-- [[
-	coord = 'sphere-log-radial',
+	coord = 'sphere-sinh-radial',
 	coordArgs = {
 		--vectorComponent = 'holonomic',
 		vectorComponent = 'anholonomic',
@@ -1147,7 +1147,7 @@ local args = {
 		
 		-- N x 2 x 2:
 		--{32, 2, 2},		-- SENR sphere-sinh-radial uses this by default
-		--{80, 80, 2},		-- this works well for BrillLindquist sphere-log-radial when viewing the xz slice
+		--{80, 80, 2},		-- this works well for BrillLindquist sphere-sinh-radial when viewing the xz slice
 		--{128, 2, 2},
 		--{128, 32, 2},
 		--{400, 64, 2},
@@ -1182,7 +1182,7 @@ local args = {
 	--]]
 
 
-	--initCond = 'Minkowski',	-- TODO sphere-log-radial 
+	--initCond = 'Minkowski',	-- TODO sphere-sinh-radial 
 	
 	-- TODO look up Teukolsky Phys Rev 26 745 1982 
 	--initCond = 'pure gauge wave',

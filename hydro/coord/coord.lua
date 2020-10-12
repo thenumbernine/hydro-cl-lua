@@ -554,7 +554,7 @@ self.Gamma_ull = Gamma_ull
 			if j ~= i then
 				local u = self.baseCoords[j]
 				local uL, uR = integralArgs[2*j-1], integralArgs[2*j]
-				area = self:applyReplVars(area)	-- just because of sphere-log-radial, insert repls beforehand
+				area = self:applyReplVars(area)	-- just because of sphere-sinh-radial, insert repls beforehand
 				area = area:integrate(u, uL, uR)()
 			end
 		end
@@ -595,7 +595,7 @@ self.Gamma_ull = Gamma_ull
 			local uL, uR = integralArgs[2*j-1], integralArgs[2*j]
 --print('volume was', volume)
 --print('integrating', u, 'from', uL, 'to', uR)
-			volume = self:applyReplVars(volume)	-- just because of sphere-log-radial, insert repls beforehand
+			volume = self:applyReplVars(volume)	-- just because of sphere-sinh-radial, insert repls beforehand
 			volume = volume:integrate(u, uL, uR)()
 --print('volume is now', volume)
 		end
