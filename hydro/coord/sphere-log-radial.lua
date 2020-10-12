@@ -281,12 +281,19 @@ real3 coord_parallelPropagateL2(real3 v, real3 x, real dx) {
 	return v;
 }
 
-<? else 
-	print"!!! still need to do anholonomic !!! using identity in the mean time..."
-	for side=0,solver.dim-1 do 
-?>#define coord_parallelPropagateU<?=side?>(v, x, dx) (v)
-<?	end
-end ?>
+<? else ?>
+
+#define coord_parallelPropagateU0(v, x, dx) (v)
+
+real3 coord_parallelPropagateU1(real3 v, real3 x, real dx) {
+	return real3_rotateZ(v, -dx);
+}
+
+real3 coord_parallelPropagateU2(real3 v, real3 x, real dx) {
+	return real3_rotateX(v, -dx);
+}
+
+<? end ?>
 
 ]], {
 		coord = self,
