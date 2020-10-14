@@ -6,7 +6,6 @@ probably 2004 Bona et al "A symmetry-breaking mechanism for the Z4 general-covar
 local class = require 'ext.class'
 local table = require 'ext.table'
 local file = require 'ext.file'
-local template = require 'template'
 local symmath = require 'symmath'
 local EinsteinEqn = require 'hydro.eqn.einstein'
 local Struct = require 'hydro.code.struct'
@@ -171,8 +170,8 @@ function Z4_2004Bona:init(args)
 		{name='alpha_sqrt_f', type='real'},
 		{name='gamma_ll', type='sym3'},
 		{name='gamma_uu', type='sym3'},
-		-- sqrt(gamma^jj) needs to be cached, otherwise the Intel kernel stalls (for seconds on end)
-		{name='sqrt_gammaUjj', type='real3'},
+		-- sqrt(n_i n_j gamma^ij) needs to be cached, otherwise the Intel kernel stalls (for seconds on end)
+		{name='sqrt_gammaUnn', type='real'},
 	}
 
 	-- hmm, only certain shift methods actually use beta_u ...
@@ -270,13 +269,30 @@ sym3 calc_gamma_uu(const global <?=eqn.cons_t?>* U, real3 x) {
 	eig.alpha = alpha;
 	eig.alpha_sqrt_f = sqrt(calc_f_alphaSq(alpha));
 	eig.gamma_uu = sym3_inv(avg_gamma, det_avg_gamma);
-	eig.sqrt_gammaUjj.x = sqrt(eig.gamma_uu.xx);
-	eig.sqrt_gammaUjj.y = sqrt(eig.gamma_uu.yy);
-	eig.sqrt_gammaUjj.z = sqrt(eig.gamma_uu.zz);
+
+<? if solver.coord.vectorComponent == 'cartesian' then ?>
+// I'm using .side for holonomic(coordinate) and anholonomic(orthonormal)
+//but for cartesian vector componets there is no .side, just .n, which is covariant iirc
+//and I haven't derived the flux in arbitrary-normal form, just in x-axis form (and i swap x<->y or z to calculate their fluxes)
+//so here I'm going to just wing it
+	real3 n_l = normal_l1(n);
+	real gammaUnn = real3_weightedLenSq(n_l, eig.gamma_uu);
+<? else ?>
+	real gammaUnn = 0./0.;
+	if (n.side == 0) {
+		gammaUnn = eig.gamma_uu.xx;
+	} else if (n.side == 1) {
+		gammaUnn = eig.gamma_uu.yy;
+	} else if (n.side == 2) {
+		gammaUnn = eig.gamma_uu.zz;
+	}
+<? end ?>
+
+	eig.sqrt_gammaUnn = sqrt(gammaUnn);
 	
-	<? if eqn.useShift ~= 'none' then ?>
+<? if eqn.useShift ~= 'none' then ?>
 	eig.beta_u = real3_real_mul(real3_add(UL.beta_u, UR.beta_u), .5);
-	<? end ?>
+<? end ?>
 
 	return eig;
 }
@@ -299,19 +315,25 @@ range_t calcCellMinMaxEigenvalues(
 ) {
 	real det_gamma = sym3_det(U->gamma_ll);
 
-	real gammaUjj = 0./0.;
+<? if solver.coord.vectorComponent == 'cartesian' then ?>
+	sym3 gamma_uu = sym3_inv(U->gamma_ll, det_gamma);
+	real3 n_l = normal_l1(n);
+	real gammaUnn = real3_weightedLenSq(n_l, gamma_uu);
+<? else ?>
+	real gammaUnn = 0./0.;
 	if (n.side == 0) {
-		gammaUjj = (U->gamma_ll.yy * U->gamma_ll.zz - U->gamma_ll.yz * U->gamma_ll.yz) / det_gamma;
+		gammaUnn = (U->gamma_ll.yy * U->gamma_ll.zz - U->gamma_ll.yz * U->gamma_ll.yz) / det_gamma;
 	} else if (n.side == 1) {
-		gammaUjj = (U->gamma_ll.xx * U->gamma_ll.zz - U->gamma_ll.xz * U->gamma_ll.xz) / det_gamma;
+		gammaUnn = (U->gamma_ll.xx * U->gamma_ll.zz - U->gamma_ll.xz * U->gamma_ll.xz) / det_gamma;
 	} else if (n.side == 2) {
-		gammaUjj = (U->gamma_ll.xx * U->gamma_ll.yy - U->gamma_ll.xy * U->gamma_ll.xy) / det_gamma;
+		gammaUnn = (U->gamma_ll.xx * U->gamma_ll.yy - U->gamma_ll.xy * U->gamma_ll.xy) / det_gamma;
 	}
-	real sqrt_gammaUjj = sqrt(gammaUjj);
-	real lambdaLight = U->alpha * sqrt_gammaUjj;
+<? end ?>
+	real sqrt_gammaUnn = sqrt(gammaUnn);
+	real lambdaLight = U->alpha * sqrt_gammaUnn;
 	
 	real f_alphaSq = calc_f_alphaSq(U->alpha);
-	real lambdaGauge = sqrt(f_alphaSq) * sqrt_gammaUjj;
+	real lambdaGauge = sqrt(f_alphaSq) * sqrt_gammaUnn;
 
 	real lambdaMax = max(lambdaGauge, lambdaLight);
 	real lambdaMin = -lambdaMin;
@@ -351,7 +373,22 @@ range_t calcCellMinMaxEigenvalues(
 	eig.alpha_sqrt_f = sqrt(calc_f_alphaSq(U.alpha));
 	real det_gamma = sym3_det(U.gamma_ll);
 	eig.gamma_uu = sym3_inv(U.gamma_ll, det_gamma);
-	eig.sqrt_gammaUjj = _real3(sqrt(eig.gamma_uu.xx), sqrt(eig.gamma_uu.yy), sqrt(eig.gamma_uu.zz));
+
+<? if solver.coord.vectorComponent == 'cartesian' then ?>
+	real3 n_l = normal_l1(n);
+	real gammaUnn = real3_weightedLenSq(n_l, eig.gamma_uu);
+<? else ?>
+	real gammaUnn = 0./0.;
+	if (n.side == 0) {
+		gammaUnn = eig.gamma_uu.xx;
+	} else if (n.side == 1) {
+		gammaUnn = eig.gamma_uu.yy;
+	} else if (n.side == 2) {
+		gammaUnn = eig.gamma_uu.zz;
+	}
+<? end ?>
+
+	eig.sqrt_gammaUnn = sqrt(gammaUnn);
 	
 	<? if eqn.useShift ~= 'none' then ?>
 	eig.beta_u = U.beta_u;
@@ -384,6 +421,7 @@ range_t calcCellMinMaxEigenvalues(
 	//	results.ptr[i] = 0;
 	//}
 
+#error here
 #if 0	//don't enable this.  it's made for > waves than I'm using, so it will cause buffer corruption
 
 	real3 a_l = real3_swap(inputU.a_l, n.side);							//0-2
@@ -456,7 +494,8 @@ range_t calcCellMinMaxEigenvalues(
 	//for (int j = 0; j < numStates; ++j) {
 	//	resultU.ptr[j] = 0;
 	//}
-	
+
+#error here
 #if 0	
 	sym3 gamma_ll = sym3_swap(eig.gamma_ll, n.side);
 	sym3 gamma_uu = sym3_swap(eig.gamma_uu, n.side);
@@ -625,6 +664,86 @@ function Z4_2004Bona:initCodeModule_fluxFromCons()
 		},
 		code = self:template[[
 
+<? if solver.coord.vectorComponent == 'cartesian' then ?>
+
+//taken from sym3 parallel propagate
+//so TODO somehow generalize this index transform for all data types
+//but this looks like a job for lambda functions, not so much C ... maybe I can generate it with scripts ... 
+
+sym3 sym3_rotateFrom(sym3 m, real3 n) {
+	real3x3 t = real3x3_from_sym3(m);
+	t.x = real3_rotateFrom(t.x, n);
+	t.y = real3_rotateFrom(t.y, n);
+	t.z = real3_rotateFrom(t.z, n);
+	t = real3x3_transpose(t);
+	t.x = real3_rotateFrom(t.x, n);
+	t.y = real3_rotateFrom(t.y, n);
+	t.z = real3_rotateFrom(t.z, n);
+	return sym3_from_real3x3(t);
+}
+
+sym3 sym3_rotateTo(sym3 m, real3 n) {
+	real3x3 t = real3x3_from_sym3(m);
+	t.x = real3_rotateTo(t.x, n);
+	t.y = real3_rotateTo(t.y, n);
+	t.z = real3_rotateTo(t.z, n);
+	t = real3x3_transpose(t);
+	t.x = real3_rotateTo(t.x, n);
+	t.y = real3_rotateTo(t.y, n);
+	t.z = real3_rotateTo(t.z, n);
+	return sym3_from_real3x3(t);
+}
+
+_3sym3 _3sym3_rotateFrom(_3sym3 m, real3 n) {
+	real3x3x3 t = real3x3x3_from__3sym3(m);
+	real3 tmp;
+<?	local is = require 'ext.table'()
+	for e=1,3 do
+		for i,xi in ipairs(xNames) do
+			is[e] = xi
+			for j,xj in ipairs(xNames) do
+				is[e%3+1] = xj
+				for k,xk in ipairs(xNames) do
+					is[(e+1)%3+1] = xk
+?>	tmp.<?=xk?> = t.<?=is:concat'.'?>;
+<?				end
+?>	tmp = real3_rotateFrom(tmp, n);
+<?				for k,xk in ipairs(xNames) do
+					is[(e+1)%3+1] = xk
+?>	t.<?=is:concat'.'?> = tmp.<?=xk?>;
+<?				end
+			end
+		end
+	end
+?>	return _3sym3_from_real3x3x3(t);
+}
+
+_3sym3 _3sym3_rotateTo(_3sym3 m, real3 n) {
+	real3x3x3 t = real3x3x3_from__3sym3(m);
+	real3 tmp;
+<?	local is = require 'ext.table'()
+	for e=1,3 do
+		for i,xi in ipairs(xNames) do
+			is[e] = xi
+			for j,xj in ipairs(xNames) do
+				is[e%3+1] = xj
+				for k,xk in ipairs(xNames) do
+					is[(e+1)%3+1] = xk
+?>	tmp.<?=xk?> = t.<?=is:concat'.'?>;
+<?				end
+?>	tmp = real3_rotateTo(tmp, n);
+<?				for k,xk in ipairs(xNames) do
+					is[(e+1)%3+1] = xk
+?>	t.<?=is:concat'.'?> = tmp.<?=xk?>;
+<?				end
+			end
+		end
+	end
+?>	return _3sym3_from_real3x3x3(t);
+}
+
+<? end ?>
+
 <?=eqn.cons_t?> fluxFromCons(
 	constant <?=solver.solver_t?>* solver,
 	<?=eqn.cons_t?> U,
@@ -634,7 +753,6 @@ function Z4_2004Bona:initCodeModule_fluxFromCons()
 	real f_alpha = calc_f_alpha(U.alpha);
 	
 	real det_gamma = sym3_det(U.gamma_ll);
-	sym3 gamma_uu = sym3_inv(U.gamma_ll, det_gamma);
 	
 	real alpha = U.alpha;
 	real Theta = U.Theta;
@@ -645,6 +763,22 @@ function Z4_2004Bona:initCodeModule_fluxFromCons()
 	sym3 K_ll = U.K_ll;
 	_3sym3 d_lll = U.d_lll;
 
+<? if solver.coord.vectorComponent == 'cartesian' then ?>
+
+// I'm using .side for holonomic(coordinate) and anholonomic(orthonormal)
+//but for cartesian vector componets there is no .side, just .n, which is covariant iirc
+//and I haven't derived the flux in arbitrary-normal form, just in x-axis form (and i swap x<->y or z to calculate their fluxes)
+//so here I'm going to just wing it
+	real3 n_l = normal_l1(n);
+
+	Z_l = real3_rotateFrom(Z_l, n_l);
+	a_l = real3_rotateFrom(a_l, n_l);
+	gamma_ll = sym3_rotateFrom(gamma_ll, n_l);
+	K_ll = sym3_rotateFrom(K_ll, n_l);
+	d_lll = _3sym3_rotateFrom(d_lll, n_l);
+
+<? else ?>
+
 	if (false) {}
 	<? for side=0,solver.dim-1 do ?>
 	else if (n.side == <?=side?>) {
@@ -653,7 +787,6 @@ function Z4_2004Bona:initCodeModule_fluxFromCons()
 		gamma_ll = sym3_swap<?=side?>(gamma_ll);
 		K_ll = sym3_swap<?=side?>(K_ll);
 		d_lll = _3sym3_swap<?=side?>(d_lll);
-		gamma_uu = sym3_swap<?=side?>(gamma_uu);
 	}
 	<? end ?>
 	else {
@@ -675,6 +808,10 @@ function Z4_2004Bona:initCodeModule_fluxFromCons()
 <?	end
 end
 ?>	}
+	
+<? end ?>
+
+	sym3 gamma_uu = sym3_inv(gamma_ll, det_gamma);
 
 	<?=eqn.cons_t?> F = {.ptr={ 0./0. }};
 	//for (int i = 0; i < numStates; ++i) {
@@ -739,6 +876,16 @@ end
 	F.Z_l.z = -alpha * (K_ll.zz * gamma_uu.xz + K_ll.yz * gamma_uu.xy + K_ll.xz * gamma_uu.xx);	
 	// END CUT
 
+<? if solver.coord.vectorComponent == 'cartesian' then ?>
+
+	F.Z_l = real3_rotateFrom(F.Z_l, n_l);
+	F.a_l = real3_rotateFrom(F.a_l, n_l);
+	F.gamma_ll = sym3_rotateFrom(F.gamma_ll, n_l);
+	F.K_ll = sym3_rotateFrom(F.K_ll, n_l);
+	F.d_lll = _3sym3_rotateFrom(F.d_lll, n_l);
+	
+<? else ?>
+
 	if (false) {}
 	<? for side=0,solver.dim-1 do ?>
 	else if (n.side == <?=side?>) {
@@ -769,6 +916,7 @@ end
 end
 ?>	}
 
+<? end ?>
 
 <? 
 if eqn.useShift ~= 'none' then
@@ -1115,7 +1263,7 @@ momentum constraints
 	value.vreal3 = real3_real_mul(sym3_real3_mul(gamma_uu, U->a_l), -U->alpha * U->alpha);
 ]], type='real3'}
 
-	vars:insert{name='alpha vs a_i', code=template([[
+	vars:insert{name='alpha vs a_i', code=self:template[[
 	if (OOB(1,1)) {
 		value.vreal3 = real3_zero;
 	} else {
@@ -1134,14 +1282,11 @@ momentum constraints
 			value.vreal3.<?=xi?> = 0;
 		}<? end ?>
 	}
-]], {
-	solver = self.solver,
-	xNames = xNames,
-}), type='real3'}
+]], type='real3'}
 
 	-- d_kij = gamma_ij,k
 	for i,xi in ipairs(xNames) do
-		vars:insert{name='gamma_ij vs d_'..xi..'ij', code=template([[
+		vars:insert{name='gamma_ij vs d_'..xi..'ij', code=self:template([[
 	if (OOB(1,1)) {
 		value.vsym3 = sym3_zero;
 	} else {
@@ -1166,9 +1311,6 @@ momentum constraints
 ]], {
 	i = i,
 	xi = xi,
-	xNames = xNames,
-	symNames = symNames,
-	solver = self.solver,
 }), type='sym3'}
 	end
 
@@ -1176,9 +1318,9 @@ momentum constraints
 end
 
 function Z4_2004Bona:eigenWaveCodePrefix(n, eig, x, waveIndex)
-	return template([[
-	real eig_lambdaLight = <?=eig?>.sqrt_gammaUjj.s[<?=n?>.side] * <?=eig?>.alpha;
-	real eig_lambdaGauge = <?=eig?>.sqrt_gammaUjj.s[<?=n?>.side] * <?=eig?>.alpha_sqrt_f;
+	return self:template([[
+	real eig_lambdaLight = <?=eig?>.sqrt_gammaUnn * <?=eig?>.alpha;
+	real eig_lambdaGauge = <?=eig?>.sqrt_gammaUnn * <?=eig?>.alpha_sqrt_f;
 ]], {
 		eig = '('..eig..')',
 		n = n,
@@ -1247,20 +1389,28 @@ function Z4_2004Bona:eigenWaveMaxCode(n, eig, x)
 end
 
 function Z4_2004Bona:consWaveCodePrefix(n, U, x, waveIndex)
-	return template([[
+	return self:template([[
 	real det_gamma = sym3_det(<?=U?>.gamma_ll);
 	sym3 gamma_uu = sym3_inv(<?=U?>.gamma_ll, det_gamma);
-	real sqrt_gammaUjj = 0./0.;
-	if (<?=n?>.side == 0) {
-		sqrt_gammaUjj = sqrt(gamma_uu.xx);
-	} else if (<?=n?>.side == 1) {
-		sqrt_gammaUjj = sqrt(gamma_uu.yy);
-	} else if (<?=n?>.side == 2) {
-		sqrt_gammaUjj = sqrt(gamma_uu.zz);
+	
+<? if solver.coord.vectorComponent == 'cartesian' then ?>
+	real3 n_l = normal_l1(n);
+	real gammaUnn = real3_weightedLenSq(n_l, gamma_uu);
+<? else ?>
+	real gammaUnn = 0./0.;
+	if (n.side == 0) {
+		gammaUnn = gamma_uu.xx;
+	} else if (n.side == 1) {
+		gammaUnn = gamma_uu.yy;
+	} else if (n.side == 2) {
+		gammaUnn = gamma_uu.zz;
 	}
-	real eig_lambdaLight = sqrt_gammaUjj * <?=U?>.alpha;
+<? end ?>
+
+	real sqrt_gammaUnn = sqrt(gammaUnn);
+	real eig_lambdaLight = sqrt_gammaUnn * <?=U?>.alpha;
 	real alpha_sqrt_f = sqrt(calc_f_alphaSq(<?=U?>.alpha));
-	real eig_lambdaGauge = sqrt_gammaUjj * alpha_sqrt_f;
+	real eig_lambdaGauge = sqrt_gammaUnn * alpha_sqrt_f;
 ]], {
 		U = '('..U..')',
 		n = n,

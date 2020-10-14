@@ -875,7 +875,7 @@ With hyperbolic gamma driver shift it has trouble.
 
 
 -- [=[ reproducing 2009 Alic, Bona, Bona-Casas"Towards a gauge-polyvalent numerical relativity code"
-local dim = 1
+local dim = 2
 local args = {
 	app = self,
 	
@@ -941,7 +941,8 @@ local args = {
 		-- TODO sort this out
 		-- TODO do I have mem write / unwritten vars in "holonomic"?  cuz there seem to be errors that persist past reset()
 		-- TODO move cell_area and cell_volume calcs into cell_t fields 
-		vectorComponent = 'holonomic',	-- our tensor components are holonomic ... except the partial / 1st order state variables, like a_k, d_kij
+		vectorComponent = 'cartesian',
+		--vectorComponent = 'holonomic',	-- our tensor components are holonomic ... except the partial / 1st order state variables, like a_k, d_kij
 		--vectorComponent = 'anholonomic',	-- ... these settings also influence the finite volume area/volume calculations (in terms of the vector components) ... 
 		
 		-- [==[ the paper uses this remapping parameters (eqn 32):
@@ -965,8 +966,33 @@ local args = {
 	},
 	gridSize = cmdline.gridSize or ({
 		{200, 1, 1},
-		{64, 16, 1},
-		{32, 2, 2},
+		{80, 80, 1},
+		{16, 8, 8},
+	})[dim],
+	boundary = {
+		xmin='sphereRMin',
+		xmax='quadratic',
+		ymin='sphereTheta',
+		ymax='sphereTheta',
+		zmin='periodic',
+		zmax='periodic',
+	},
+	--]]
+	--[[ sphere-sinh-radial but with SENR parameters ... for SENR init conds
+	coord = 'sphere-sinh-radial',
+	coordArgs = {
+		vectorComponent = 'cartesian',
+		--vectorComponent = 'holonomic',
+		--vectorComponent = 'anholonomic',
+		sinh_w = .15,
+		amplitude = 1000,
+	},
+	mins = {0, 0, 0},
+	maxs = {1, math.pi, 2*math.pi,},
+	gridSize = cmdline.gridSize or ({
+		{200, 1, 1},
+		{80, 80, 1},
+		{16, 8, 8},
 	})[dim],
 	boundary = {
 		xmin='sphereRMin',
@@ -982,6 +1008,7 @@ local args = {
 	--initCond = 'gaussian perturbation',
 	--initCond = 'plane gauge wave',
 	initCond = 'SENR UIUC',
+	--initCond = 'SENR BrillLindquist',
 	--[[
 	-- TODO since converting this to useBSSNVars, it doesn't work for cartesian anymore ...
 	initCond = 'black hole - isotropic',	-- this one has momentum and rotation and almost done with multiple sources.  TODO parameterize
