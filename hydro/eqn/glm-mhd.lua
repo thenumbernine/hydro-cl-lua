@@ -24,7 +24,7 @@ MHD.use2002DednerEqn24 = true	-- 2002 Dedner eqn 24, EGLM
 MHD.use2002DednerEqn38 = true	-- 2002 Dedner eqn 38
 
 -- hmm, we want init.euler and init.mhd here ...
-MHD.initConds = require 'hydro.init.euler'
+MHD.initConds = require 'hydro.init.euler':getList()
 
 
 -- these are calculated based on cell-centered (or extrapolated) conserved vars

@@ -10,48 +10,10 @@ local constants = require 'hydro.constants'
 local common = require 'hydro.common'
 local xNames = common.xNames
 
-local function compileC(expr, name, vars)
-	assert(type(expr) == 'table', "expected table, found "..type(expr))
-	if symmath.Expression.is(expr) then 
-		expr = expr()
-	
-		local range = require 'ext.range'
-		-- replace pow(x,2) with x*x
-		expr = expr:map(function(x)
-			if symmath.op.pow.is(x) 
-			and symmath.Constant.is(x[2])
-			then
-				local value = assert(x[2].value)
-				if value > 0 and value == math.floor(value) then
-					if value == 1 then
-						return x[1]
-					else
-						return symmath.op.mul(range(value):map(function() 
-							return symmath.clone(x[1])
-						end):unpack())
-					end
-				end
-			end
-		end)		
-		
-		print('compiling '..name..':')
-		print(expr)
-		local code = symmath.export.C:toCode{
-			output = vars,
-		}, name
-	
-		-- ugh...
-		code = code:gsub('sqrt%(', '(real)sqrt((real)')
-		
-		print(code)
-		return code
-	end
-	return table.map(expr, function(v,k) return compileC(v,k,vars) end), name
-end
 
 local EinsteinInitCond = class(InitCond)
 
-function EinsteinInitCond:init(args, ...)
+function EinsteinInitCond:init(solver, args, ...)
 	-- initialize analytical metric components to flat spacetime
 	-- you still have to set 'initAnalytical=true'
 	local Tensor = require 'symmath'.Tensor
@@ -63,11 +25,32 @@ function EinsteinInitCond:init(args, ...)
 	--EinsteinInitCond.super.init(self, args, ...)
 end
 
+function EinsteinInitCond:compileC(expr, name, vars)
+	assert(type(expr) == 'table', "expected table, found "..type(expr))
+	if symmath.Expression.is(expr) then 
+		expr = expr()
+		
+		print('compiling '..name..':')
+		print(expr)
+		local code = symmath.export.C:toCode{
+			output = {expr},
+			input = vars,
+		}, name
+	
+		-- ugh...
+		code = code:gsub('sqrt%(', '(real)sqrt((real)')
+		
+		print(code)
+		return code
+	end
+	return table.map(expr, function(v,k) return self:compileC(v,k,vars) end), name
+end
+
 -- this is used atm
 function EinsteinInitCond:getCodePrefix(solver)
 	-- looks like all EFE solvers might need this
 	-- maybe I should put it in InitCond?
-	
+
 	local alphaVar = symmath.var'alpha'
 	-- TODO each eqn must be stated as a guiVar of the solver
 	-- make a parent class or something for all Einstein field eqns
@@ -82,12 +65,12 @@ return ]]..fLuaCode))(alphaVar, symmath)
 	local dalpha_f = f:diff(alphaVar)()
 
 	local codes = table()
-	codes.f = compileC(f, 'f', {alphaVar})
-	codes.f_alpha = compileC((f * alphaVar)(), 'f_alpha', {alphaVar})
-	codes.f_alphaSq = compileC((f * alphaVar^2)(), 'f_alphaSq', {alphaVar})
-	codes.dalpha_f = compileC(dalpha_f, 'dalpha_f', {alphaVar})
-	codes.alpha_dalpha_f = compileC((alphaVar * dalpha_f)(), 'alpha_dalpha_f', {alphaVar})
-	codes.alphaSq_dalpha_f = compileC((alphaVar^2 * dalpha_f)(), 'alphaSq_dalpha_f', {alphaVar})
+	codes.f = self:compileC(f, 'f', {alphaVar})
+	codes.f_alpha = self:compileC((f * alphaVar)(), 'f_alpha', {alphaVar})
+	codes.f_alphaSq = self:compileC((f * alphaVar^2)(), 'f_alphaSq', {alphaVar})
+	codes.dalpha_f = self:compileC(dalpha_f, 'dalpha_f', {alphaVar})
+	codes.alpha_dalpha_f = self:compileC((alphaVar * dalpha_f)(), 'alpha_dalpha_f', {alphaVar})
+	codes.alphaSq_dalpha_f = self:compileC((alphaVar^2 * dalpha_f)(), 'alphaSq_dalpha_f', {alphaVar})
 
 	return codes:map(function(code,name,t)
 		return 'real calc_'..name..'(real alpha) {\n\t'..code..'\n\treturn out1;\n}', #t+1
@@ -155,7 +138,7 @@ local function initEinstein(args)
 			if args.preCompile then
 				v = args.preCompile(v)
 			end
-			return compileC(v,k,vars) 
+			return args.initCond:compileC(v,k,vars) 
 		end)
 	print('...done compiling expressions')
 	
@@ -174,8 +157,8 @@ return ]]..fLuaCode))(alphaVar, symmath)
 	f = symmath.clone(f)
 	local dalpha_f = f:diff(alphaVar)()
 
-	codes.f = compileC(f, 'f', {alphaVar})
-	codes.dalpha_f = compileC(dalpha_f, 'dalpha_f', {alphaVar})
+	codes.f = args.initCond:compileC(f, 'f', {alphaVar})
+	codes.dalpha_f = args.initCond:compileC(dalpha_f, 'dalpha_f', {alphaVar})
 
 error'here'
 	return table.map(codes, function(code,name,t)
@@ -193,12 +176,13 @@ local alpha, symmath = ...
 local log = symmath.log
 return ]]..fLuaCode))(alphaVar, symmath)
 	f = symmath.clone(f)
-	local fCCode = compileC(f, 'f', {alphaVar})
+	local fCCode = self:compileC(f, 'f', {alphaVar})
 
 	return fCCode
 end
 
-return table{
+local initConds = table{
+	
 	{
 		name = 'Minkowski',
 		-- flag for determining whether to initialize variables (esp the derivative variables) from analytical expressions, or whether to use finite difference via initDerivs
@@ -902,9 +886,10 @@ return table{
 		end,
 	},
 
-	{	-- another based on SENR
+	{	-- another based on SENR Mathematica
 		-- TODO make a way to provide BSSN variables rather than ADM variables
 		-- this way I don't have to worry about scaling and unscaling of the coordinate basis vectors
+		name = 'bleh',
 		getInitCondCode = function(self, solver)
 			return [[
 	real bScale = 1.;
@@ -1093,6 +1078,7 @@ return table{
 			--]]
 			
 			return initEinstein{
+				initCond = self,
 				solver = solver,
 				-- looks like I am no longer passing this into this function...
 				getCodes = getCodes,
@@ -1253,6 +1239,7 @@ TODO I now have a Bessel function routine in hydro/math.cl
 			local gamma = {t * symmath.exp(P), 0, 0, t * symmath.exp(-P), 0, 1/symmath.sqrt(t) * symmath.exp(lambda/2)}
 			local K = {-1/2 * t^(1/4) * symmath.exp(P-lambda/4) * (1 + t * dP_dt), 0, 0, -1/2 * t^(1/4) * symmath.exp(-P-lambda/4) * (1 - t * dP_dt), 0, 1/4*t^(-1/4) * symmath.exp(lambda/4) * (1/t - dlambda_dt)}
 			return initEinstein{
+				initCond = self,
 				solver = solver,
 				getCodes = getCodes,
 				vars = xs,
@@ -1263,6 +1250,17 @@ TODO I now have a Bessel function routine in hydro/math.cl
 		end,
 	},
 
-}:map(function(cl)
+}:mapi(function(cl)
 	return class(EinsteinInitCond, cl)
 end)
+
+function EinsteinInitCond:getList()
+print'EinsteinInitCond:getList()'
+print('#initConds', #initConds)
+for i,c in ipairs(initConds) do
+	print(i, c.name)
+end
+	return initConds
+end
+
+return EinsteinInitCond

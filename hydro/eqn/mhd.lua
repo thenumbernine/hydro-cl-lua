@@ -18,7 +18,7 @@ MHD.useSourceTerm = true
 MHD.useConstrainU = true
 
 -- hmm, we want init.euler and init.mhd here ...
-MHD.initConds = require 'hydro.init.euler'
+MHD.initConds = require 'hydro.init.euler':getList()
 
 
 -- these are calculated based on cell-centered (or extrapolated) conserved vars

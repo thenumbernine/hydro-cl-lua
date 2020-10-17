@@ -67,7 +67,7 @@ NLSEqn.predefinedDisplayVars = {
 	'U q arg',
 }
 
-NLSEqn.initConds = require 'hydro.init.nls'
+NLSEqn.initConds = require 'hydro.init.nls':getList()
 
 NLSEqn.initCondCode = [[
 kernel void applyInitCond(

@@ -6,7 +6,7 @@ NavierStokesDivFree.name = 'Navier-Stokes div-free'
 NavierStokesDivFree.hasCalcDTCode = true
 NavierStokesDivFree.numStates = 4
 
-NavierStokesDivFree.initConds = require 'hydro.init.euler'
+NavierStokesDivFree.initConds = require 'hydro.init.euler':getList()
 
 NavierStokesDivFree.consVars = table{
 	{name='rho', type='real', units='kg/m^3'},

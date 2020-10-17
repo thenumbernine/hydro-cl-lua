@@ -24,7 +24,7 @@ Euler.roeUseFluxFromCons = true
 Euler.useSourceTerm = true
 Euler.useConstrainU = true
 
-Euler.initConds = require 'hydro.init.euler'
+Euler.initConds = require 'hydro.init.euler':getList()
 
 
 function Euler:init(args)

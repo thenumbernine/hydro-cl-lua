@@ -46,7 +46,7 @@ Maxwell.useSourceTerm = true
 -- don't incorporate the Conn^k_ij E_k terms into the flux
 Maxwell.weightFluxByGridVolume = false
 
-Maxwell.initConds = require 'hydro.init.euler'
+Maxwell.initConds = require 'hydro.init.euler':getList()
 
 --[[
 args:

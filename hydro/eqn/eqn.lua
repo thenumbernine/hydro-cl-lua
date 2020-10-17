@@ -182,7 +182,7 @@ function Equation:init(args)
 	-- (put static states at the end of your cons_t structures)
 	if not self.numIntStates then self.numIntStates = self.numStates end
 	
-	self.initCondNames = table.map(self.initConds, function(info) return info.name end)
+	self.initCondNames = table.mapi(self.initConds, function(info) return info.name end)
 
 	
 	self.reflectVars = self.reflectVars or {}

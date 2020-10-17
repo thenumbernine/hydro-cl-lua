@@ -23,7 +23,7 @@ GRMHD.useConstrainU = true
 -- which means overriding the code that calls this? or the calc flux code?
 --GRMHD.roeUseFluxFromCons = true
 
-GRMHD.initConds = require 'hydro.init.euler'
+GRMHD.initConds = require 'hydro.init.euler':getList()
 
 -- TODO upgrade this to srhd: put these all in consVars and just make separate cons_only_ and prim_only_t
 -- TODO also upgrade this to initCodeModules.  turn it into a struct, like srhd.

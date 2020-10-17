@@ -43,7 +43,7 @@ WaveFDEqn.predefinedDisplayVars = {
 	--'U zeta arg',
 }
 
-WaveFDEqn.initConds = require 'hydro.init.nls'
+WaveFDEqn.initConds = require 'hydro.init.nls':getList()
 
 WaveFDEqn.initCondCode = [[
 kernel void applyInitCond(

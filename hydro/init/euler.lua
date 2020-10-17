@@ -15,6 +15,8 @@ local common = require 'hydro.common'
 local xNames = common.xNames
 local minmaxs = common.minmaxs
 
+local EulerInitCond = class(InitCond)
+
 local function RiemannProblem(initCond)
 	local WL, WR = initCond[1], initCond[2]
 
@@ -1317,7 +1319,7 @@ end) then
 		name = 'Kelvin-Helmholtz',
 		
 		createInitStruct = function(self, solver)
-			InitCond.createInitStruct(self, solver)
+			EulerInitCond.createInitStruct(self, solver)
 
 			local moveAxis = 1
 			local sliceAxis = 2
@@ -2240,7 +2242,7 @@ kernel void addExtraSource(
 		end,
 		resetState = function(self, solver)
 			-- super calls applyInitCondKernel ...
-			InitCond.resetState(self, solver)
+			EulerInitCond.resetState(self, solver)
 			-- and here I'm going to fill the permittivity 'eps' with random noise
 			-- ... and put a source + and - current 'sigma' at two points on the image
 			local ptr = ffi.cast(solver.eqn.cons_t..'*', solver.UBufObj:toCPU())
@@ -2418,7 +2420,12 @@ kernel void addExtraSource(
 ]]
 		end,
 	},
-}:map(function(cl)
-	return class(InitCond, cl)
+}:mapi(function(cl)
+	return class(EulerInitCond, cl)
 end)
-return initConds
+
+function EulerInitCond:getList()
+	return initConds
+end
+
+return EulerInitCond 

@@ -18,7 +18,7 @@ GRHD.useConstrainU = true
 --GRHD.roeUseFluxFromCons = true
 GRHD.useSourceTerm = true
 
-GRHD.initConds = require 'hydro.init.euler'
+GRHD.initConds = require 'hydro.init.euler':getList()
 
 function GRHD:init(args)
 	GRHD.super.init(self, args)

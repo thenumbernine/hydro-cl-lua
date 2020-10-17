@@ -2,7 +2,9 @@ local class = require 'ext.class'
 local table = require 'ext.table'
 local InitCond = require 'hydro.init.init'
 
-return table{
+local NLSInitCond = class(InitCond)
+
+local initConds = table{
 	{
 		name = 'Gaussian',
 		mins = {.1, .1, .1},
@@ -94,9 +96,12 @@ return table{
 ]]
 		end,
 	},
-
-
-
 }:map(function(cl)
-	return class(InitCond, cl)
+	return class(NLSInitCond, cl)
 end)
+
+function NLSInitCond:getList()
+	return initConds
+end
+
+return NLSInitCond 

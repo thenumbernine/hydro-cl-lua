@@ -28,7 +28,7 @@ SRHD.useConstrainU = true
 -- TODO if we enable this we get NANs when waves hit the border.  Bug in the srhd boundary prim calculations?
 --SRHD.roeUseFluxFromCons = true
 
-SRHD.initConds = require 'hydro.init.euler'
+SRHD.initConds = require 'hydro.init.euler':getList()
 
 function SRHD:init(args)
 	local solver = assert(args.solver)

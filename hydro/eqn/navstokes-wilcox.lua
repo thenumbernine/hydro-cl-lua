@@ -18,7 +18,7 @@ NavierStokesWilcox.numIntStates = 7
 NavierStokesWilcox.roeUseFluxFromCons = true
 NavierStokesWilcox.useSourceTerm = true
 
-NavierStokesWilcox.initConds = require 'hydro.init.euler'
+NavierStokesWilcox.initConds = require 'hydro.init.euler':getList()
 
 function NavierStokesWilcox:init(args)
 	self.primVars = table{

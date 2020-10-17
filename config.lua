@@ -875,7 +875,7 @@ With hyperbolic gamma driver shift it has trouble.
 
 
 -- [=[ reproducing 2009 Alic, Bona, Bona-Casas"Towards a gauge-polyvalent numerical relativity code"
-local dim = 2
+local dim = 1
 local args = {
 	app = self,
 	
