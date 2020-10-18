@@ -3,7 +3,7 @@ TODO one config per experiment (initial condition + config)
 and no more setting config values (boundary, etc) in the init cond file
 --]]
 
-local dim = cmdline.dim or 3
+local dim = cmdline.dim or 1
 local args = {
 	app = self, 
 	eqn = cmdline.eqn,
@@ -318,7 +318,7 @@ local args = {
 
 	-- Einstein
 	--initCond = 'Minkowski',
-	--initCond = 'gaussian perturbation',
+	initCond = 'gaussian perturbation',
 	--initCond = 'plane gauge wave',
 
 
@@ -345,7 +345,7 @@ local args = {
 	--initCond = 'black hole - Schwarzschild',
 	
 	
-	initCond = 'black hole - isotropic',	-- this one has momentum and rotation and almost done with multiple sources.  TODO parameterize
+	--initCond = 'black hole - isotropic',	-- this one has momentum and rotation and almost done with multiple sources.  TODO parameterize
 	
 	--initCond = 'black hole - SENR/NumPy',
 
@@ -587,6 +587,8 @@ self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='euler', wenoMe
 --self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='euler', eqnArgs={incompressible=true}, wenoMethod='2010 Shen Zha', order=5})))
 
 -- Navier-Stokes-Wilcox:
+-- TODO FIXME not done yet 
+-- needs 1) arbitrary normal calculations, 2) module based codegen
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='navstokes-wilcox'})))
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='navstokes-wilcox', eqnArgs={incompressible=true}})))
 
@@ -626,7 +628,7 @@ self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='euler', wenoMe
 -- TODO remove calcEigenBasis from hydro/eqn/grhd.cl
 -- this is the solver with plug-ins for ADM metric, 
 -- yet doesn't come coupled with any other solver, so it will act just like a srhd solver
---self.solvers:insert(require 'hydro.solver.grhd-roe'(args))
+--self.solvers:insert(require 'hydro.solver.grhd-fvsolver'(table(args, {flux='roe'})))
 
 
 -- ideal magnetohydrodynamics

@@ -48,6 +48,7 @@ function WENO:init(args)
 end
 
 -- don't let the parent create a flux object or require a flux arg
+-- TODO WENO should be a 'Flux' object rather than a 'Solver'
 function WENO:createFlux()
 	self.flux = {
 		initCodeModules = function()
@@ -69,11 +70,19 @@ function WENO:initCodeModules()
 	
 	self.modules:add{
 		name = 'WENO.calcFlux',
-		depends = {
+		depends = table{
 			'eqn.solvercode',	-- eigen_rightTransform, eigen_leftTransform, eigen_forInterface
 			'fluxFromCons',
 			'normal_t',
-		},
+			'eigen_forInterface',
+			'eigen_left/rightTransform',
+		}:append(
+			({
+				['Marquina'] = {
+					'eigen_forCell',
+				},
+			})[self.fluxMethod]
+		),
 		code = template(file['hydro/solver/weno.cl'], {
 			solver = self,
 			eqn = self.eqn,

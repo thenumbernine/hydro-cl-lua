@@ -1,7 +1,88 @@
 typedef <?=solver.solver_t?> solver_t;
 typedef <?=eqn.cons_t?> cons_t;
+
+<? if moduleName == nil then ?>
+<? elseif moduleName == "setFlatSpace" then ?>
+
+void setFlatSpace(
+	constant <?=solver.solver_t?>* solver,
+	global <?=eqn.cons_t?>* U,
+	real3 x
+) {
+	*U = (<?=eqn.cons_t?>){
+		.alpha = 1, 
+		.gamma_xx = 1,
+		.a_x = 0,
+		.D_g = 0,
+		.KTilde = 0,
+	};
+}
+
+<? elseif moduleName == "applyInitCond" then ?>
+
+kernel void applyInitCond(
+	constant <?=solver.solver_t?>* solver,
+	constant <?=solver.initCond_t?>* initCond,
+	global <?=eqn.cons_t?>* UBuf,
+	const global <?=coord.cell_t?>* cellBuf
+) {
+	SETBOUNDS(0,0);
+	real3 x = cellBuf[index].pos;
+	real3 xc = coordMap(x);
+	real3 mids = real3_real_mul(real3_add(solver->mins, solver->maxs), .5);
+	
+	global <?=eqn.cons_t?>* U = UBuf + index;
+	
+	real alpha = 1.;
+	real3 beta_u = real3_zero;
+	sym3 gamma_ll = sym3_ident;
+	sym3 K_ll = sym3_zero;
+
+	<?=initCode()?>
+
+	U->alpha = alpha;
+	U->gamma_xx = gamma_ll.xx;
+	U->KTilde = K_ll.xx / sqrt(gamma_ll.xx);
+}
+
+kernel void initDerivs(
+	constant <?=solver.solver_t?>* solver,
+	global <?=eqn.cons_t?>* UBuf,
+	const global <?=coord.cell_t?>* cellBuf
+) {
+	SETBOUNDS(numGhost,numGhost);
+	global <?=eqn.cons_t?>* U = UBuf + index;
+	
+	real dx_alpha = (U[1].alpha - U[-1].alpha) / solver->grid_dx.x;
+	real dx_gamma_xx = (U[1].gamma_xx - U[-1].gamma_xx) / solver->grid_dx.x;
+
+	U->a_x = dx_alpha / U->alpha;
+	U->D_g = dx_gamma_xx / U->gamma_xx;
+}
+
+
+<? elseif moduleName == "fluxFromCons" then ?>
+
+<?=eqn.cons_t?> fluxFromCons(
+	constant <?=solver.solver_t?>* solver,
+	<?=eqn.cons_t?> U,
+	real3 x,
+	normal_t n
+) {
+	real f = calc_f(U.alpha);
+	real alpha_over_sqrt_gamma_xx = U.alpha / sqrt(U.gamma_xx);
+	return (<?=eqn.cons_t?>){
+		.alpha = 0,
+		.gamma_xx = 0,
+		.a_x = U.KTilde * f * alpha_over_sqrt_gamma_xx,
+		.D_g = U.KTilde * 2. * alpha_over_sqrt_gamma_xx,
+		.KTilde = U.a_x * alpha_over_sqrt_gamma_xx,
+	};
+}
+
+<? elseif moduleName == "eigen_forInterface" then ?>
+
 typedef <?=eqn.eigen_t?> eigen_t;
-typedef <?=eqn.waves_t?> waves_t;
 
 eigen_t eigen_forInterface(
 	constant solver_t* solver,
@@ -18,6 +99,10 @@ eigen_t eigen_forInterface(
 	};
 }
 
+<? elseif moduleName == "eigen_forCell" then ?>
+
+typedef <?=eqn.eigen_t?> eigen_t;
+
 //used by PLM
 eigen_t eigen_forCell(
 	constant solver_t* solver,
@@ -31,6 +116,11 @@ eigen_t eigen_forCell(
 		.f = calc_f(U.alpha),
 	};
 }
+
+<? elseif moduleName == "eigen_left/rightTransform" then ?>
+
+typedef <?=eqn.eigen_t?> eigen_t;
+typedef <?=eqn.waves_t?> waves_t;
 
 waves_t eigen_leftTransform(
 	constant solver_t* solver,
@@ -63,6 +153,10 @@ cons_t eigen_rightTransform(
 	}};
 }
 
+<? elseif moduleName == "eigen_fluxTransform" then ?>
+
+typedef <?=eqn.eigen_t?> eigen_t;
+
 cons_t eigen_fluxTransform(
 	constant solver_t* solver,
 	eigen_t eig,
@@ -79,6 +173,8 @@ cons_t eigen_fluxTransform(
 		x.ptr[2] * alpha_over_sqrt_gamma_xx,
 	}};
 }
+
+<? elseif moduleName == "addSource" then ?>
 
 kernel void addSource(
 	constant solver_t* solver,
@@ -121,3 +217,9 @@ kernel void addSource(
 
 	//Kreiss-Oligar diffusion, for stability's sake?
 }
+
+<? 
+else
+	error("unknown moduleName "..require 'ext.tolua'(moduleName))
+end 
+?>

@@ -7,7 +7,6 @@ local Equation = require 'hydro.eqn.eqn'
 local WaveFDEqn = class(Equation)
 WaveFDEqn.name = 'wave-fd'
 
-WaveFDEqn.hasCalcDTCode = true			-- don't use default
 WaveFDEqn.useSourceTerm = true
 
 WaveFDEqn.consVars = table{

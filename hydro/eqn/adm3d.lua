@@ -130,6 +130,9 @@ function ADM_BonaMasso_3D:init(args)
 	--if self.useShift ~= 'none' then
 	--	self.noZeroRowsInFlux = false
 	--end
+	
+	-- only count int vars after the shifts have been added
+	self:cdefAllVarTypes(solver, self.consVars)	-- have to call before countScalars in eqn:init
 
 	if not self.noZeroRowsInFlux then
 		-- skip alpha and gamma
@@ -140,8 +143,6 @@ function ADM_BonaMasso_3D:init(args)
 		self.numWaves = 13
 	end
 
-	-- only count int vars after the shifts have been added
-	self:cdefAllVarTypes(solver, self.consVars)	-- have to call before countScalars in eqn:init
 	self.numIntStates = Struct.countScalars{vars=self.consVars}
 
 	-- now add in the source terms (if you want them)
@@ -257,400 +258,85 @@ sym3 calc_gamma_uu(const global <?=eqn.cons_t?>* U, real3 x) {
 }
 ]],
 	}
-end
 
-function ADM_BonaMasso_3D:initCodeModule_calcDT()
-	self.solver.modules:add{
-		name = 'calcDT',
-		depends = {
+	for moduleName, depends in pairs{
+
+		['setFlatSpace'] = {
+			'solver.solver_t',
+			'eqn.cons_t',
+		},
+
+-- [=[ comment this and initCodeModule_fluxFromCons out for fluxFromCons to fall back on the eigensystem transforms
+		['fluxFromCons'] = {
+			'eqn.cons_t',
+			'solver.solver_t',
+			'normal_t',
+			'rotate',	-- real3_swap*
+			'initCond.codeprefix',		-- calc_f
+		},
+--]=]
+
+		['calcDT'] = {
 			'solver.solver_t',
 			'eqn.prim-cons',
 			'eqn.guiVars.compileTime',
 			'initCond.codeprefix',		-- calc_f
 		},
-		code = self:template[[
-kernel void calcDT(
-	constant <?=solver.solver_t?>* solver,
-	global real* dtBuf,
-	const global <?=eqn.cons_t?>* UBuf,
-	const global <?=solver.coord.cell_t?>* cellBuf
-) {
-	SETBOUNDS(0,0);
-	if (OOB(numGhost,numGhost)) {
-		dtBuf[index] = INFINITY;
-		return;
-	}
-		
-	const global <?=eqn.cons_t?>* U = UBuf + index;
-	
-	//the only advantage of this calcDT over the default is that here this sqrt(f) and det(gamma_ij) is only called once
-	real f_alphaSq = calc_f_alphaSq(U->alpha);
-	real det_gamma = sym3_det(U->gamma_ll);
-	real alpha_sqrt_f = sqrt(f_alphaSq);
 
-	real dt = INFINITY;
-	<? for side=0,solver.dim-1 do ?>{
-		
-		<? if side==0 then ?>
-		real gammaUjj = (U->gamma_ll.yy * U->gamma_ll.zz - U->gamma_ll.yz * U->gamma_ll.yz) / det_gamma;
-		<? elseif side==1 then ?>
-		real gammaUjj = (U->gamma_ll.xx * U->gamma_ll.zz - U->gamma_ll.xz * U->gamma_ll.xz) / det_gamma;
-		<? elseif side==2 then ?>
-		real gammaUjj = (U->gamma_ll.xx * U->gamma_ll.yy - U->gamma_ll.xy * U->gamma_ll.xy) / det_gamma;
-		<? end ?>	
-		real sqrt_gammaUjj = sqrt(gammaUjj);
-		real lambdaLight = sqrt_gammaUjj * U->alpha;
-		real lambdaGauge = sqrt_gammaUjj * alpha_sqrt_f;
-		
-		real lambda = (real)max(lambdaGauge, lambdaLight);
-
-		<? if eqn.useShift ~= 'none' then ?>
-		real betaUi = U->beta_u.s<?=side?>;
-		<? else ?>
-		const real betaUi = 0.;
-		<? end ?>
-		
-		real lambdaMin = (real)min((real)0., -betaUi - lambda);
-		real lambdaMax = (real)max((real)0., -betaUi + lambda);
-		real absLambdaMax = max(fabs(lambdaMin), fabs(lambdaMax));
-		absLambdaMax = max((real)1e-9, absLambdaMax);
-		dt = (real)min(dt, solver->grid_dx.s<?=side?> / absLambdaMax);
-	}<? end ?>
-	dtBuf[index] = dt; 
-}
-]]
-	}
-end
-
--- [=[ comment this out for fluxFromCons to fall back on the eigensystem transforms
-function ADM_BonaMasso_3D:initCodeModule_fluxFromCons()
-	self.solver.modules:add{
-		name = 'fluxFromCons',
-		depends = {
-			'eqn.cons_t',
-			'solver.solver_t',
-			'normal_t',
-			'rotate',	-- real3_swap*
+		['eigen_forCell'] = {
+			'initCond.codeprefix',		-- calc_f
 		},
-		code = self:template[[
-<?=eqn.cons_t?> fluxFromCons(
-	constant <?=solver.solver_t?>* solver,
-	<?=eqn.cons_t?> U,
-	real3 x,
-	normal_t n
-) {
-	real f_alpha = calc_f_alpha(U.alpha);
-	
-	real det_gamma = sym3_det(U.gamma_ll);
-	sym3 gamma_uu = sym3_inv(U.gamma_ll, det_gamma);
-	
-	real alpha = U.alpha;
-	
-	real3 V_l = U.V_l;
-	real3 a_l = U.a_l;
-	sym3 gamma_ll = U.gamma_ll;
-	sym3 K_ll = U.K_ll;
-	_3sym3 d_lll = U.d_lll;
-	
-	<? for side=0,solver.dim-1 do ?>
-	if (n.side == <?=side?>) {
-		V_l = real3_swap<?=side?>(V_l);
-		a_l = real3_swap<?=side?>(a_l);
-		gamma_ll = sym3_swap<?=side?>(gamma_ll);
-		K_ll = sym3_swap<?=side?>(K_ll);
-		d_lll = _3sym3_swap<?=side?>(d_lll);
-		gamma_uu = sym3_swap<?=side?>(gamma_uu);
-	}
-	<? end ?>
-
-	<?=eqn.cons_t?> F = {.ptr={0}};
-
-	// BEGIN CUT from numerical-relativity-codegen/flux_matrix_output/adm_noZeroRows.html
-	//(except me replacing alpha * f with f_alpha)
-	F.a_l.x = f_alpha * (2. * K_ll.xy * gamma_uu.xy + 2. * K_ll.xz * gamma_uu.xz + 2. * K_ll.yz * gamma_uu.yz + K_ll.xx * gamma_uu.xx + K_ll.yy * gamma_uu.yy + K_ll.zz * gamma_uu.zz);
-	F.d_lll.x.xx = K_ll.xx * alpha;
-	F.d_lll.x.xy = K_ll.xy * alpha;
-	F.d_lll.x.xz = K_ll.xz * alpha;
-	F.d_lll.x.yy = K_ll.yy * alpha;
-	F.d_lll.x.yz = K_ll.yz * alpha;
-	F.d_lll.x.zz = K_ll.zz * alpha;
-	F.K_ll.xx = alpha * (a_l.x + d_lll.x.yy * gamma_uu.yy + 2. * d_lll.x.yz * gamma_uu.yz + d_lll.x.zz * gamma_uu.zz - d_lll.y.xx * gamma_uu.xy - 2. * d_lll.y.xy * gamma_uu.yy - 2. * d_lll.y.xz * gamma_uu.yz - d_lll.z.xx * gamma_uu.xz - 2. * d_lll.z.xy * gamma_uu.yz - 2. * d_lll.z.xz * gamma_uu.zz);
-	F.K_ll.xy = (alpha * (a_l.y - 2. * d_lll.x.yy * gamma_uu.xy - 2. * d_lll.x.yz * gamma_uu.xz - 2. * d_lll.y.yy * gamma_uu.yy - 2. * d_lll.y.yz * gamma_uu.yz - 2. * d_lll.z.yy * gamma_uu.yz - 2. * d_lll.z.yz * gamma_uu.zz)) / 2.;
-	F.K_ll.xz = (alpha * (a_l.z - 2. * d_lll.x.yz * gamma_uu.xy - 2. * d_lll.x.zz * gamma_uu.xz - 2. * d_lll.y.yz * gamma_uu.yy - 2. * d_lll.y.zz * gamma_uu.yz - 2. * d_lll.z.yz * gamma_uu.yz - 2. * d_lll.z.zz * gamma_uu.zz)) / 2.;
-	F.K_ll.yy = alpha * (d_lll.x.yy * gamma_uu.xx + d_lll.y.yy * gamma_uu.xy + d_lll.z.yy * gamma_uu.xz);
-	F.K_ll.yz = alpha * (d_lll.x.yz * gamma_uu.xx + d_lll.y.yz * gamma_uu.xy + d_lll.z.yz * gamma_uu.xz);
-	F.K_ll.zz = alpha * (d_lll.x.zz * gamma_uu.xx + d_lll.y.zz * gamma_uu.xy + d_lll.z.zz * gamma_uu.xz);	
-	// END CUT
-
-	<? for side=0,solver.dim-1 do ?>
-	if (n.side == <?=side?>) {
-		F.V_l = real3_swap<?=side?>(F.V_l);
-		F.a_l = real3_swap<?=side?>(F.a_l);
-		F.gamma_ll = sym3_swap<?=side?>(F.gamma_ll);
-		F.K_ll = sym3_swap<?=side?>(F.K_ll);
-		F.d_lll = _3sym3_swap<?=side?>(F.d_lll);
-	}
-	<? end ?>
-
-	return F;
-}
-]],
-	}
-end
---]=]
-
-function ADM_BonaMasso_3D:initCodeModule_setFlatSpace()
-	self.solver.modules:add{
-		name = 'setFlatSpace',
-		depends = {
-			'solver.solver_t',
-			'eqn.cons_t',
+		
+		['calcCellMinMaxEigenvalues'] = {
+			'initCond.codeprefix',		-- calc_f
 		},
-		code = [[
-void setFlatSpace(
-	constant <?=solver.solver_t?>* solver,
-	global <?=eqn.cons_t?>* U,
-	real3 x
-) {
-	U->alpha = 1.;
-	U->gamma_ll = sym3_ident;
-	U->a_l = real3_zero;
-	U->d_lll = _3sym3_zero;
-	U->K_ll = sym3_zero;
-	U->V_l = real3_zero;
-<? if eqn.useShift ~= 'none' then 
-?>	U->beta_u = real3_zero;
-<? end 
-?>	
-<? if eqn.useStressEnergyTerms then ?>
-	//what to do with the constraint vars and the source vars?
-	U->rho = 0;
-	U->S_u = real3_zero;
-	U->S_ll = sym3_zero;
-<? end ?>
-	U->H = 0;
-	U->M_u = real3_zero;
-}
-]],
-	}
+		
+		['eigen_forInterface'] = {
+			'initCond.codeprefix',		-- calc_f
+		},
+		
+		['eigen_left/rightTransform'] = {},
+		['eigen_fluxTransform'] = {},
+		
+		['addSource'] = {
+			'initCond.codeprefix',		-- calc_f
+		},
+		
+		['constrainU'] = {},
+
+	} do
+		self:addModuleFromSourceFile{
+			name = moduleName,
+			depends = depends,
+		}
+	end
 end
+
+-- don't use default
+function ADM_BonaMasso_3D:initCodeModule_calcDT() end
+function ADM_BonaMasso_3D:initCodeModule_fluxFromCons() end
+function ADM_BonaMasso_3D:initCodeModule_setFlatSpace() end
 
 function ADM_BonaMasso_3D:getModuleDependsSolver()
 	return table(ADM_BonaMasso_3D.super.getModuleDependsSolver(self))
 	:append{
 		'initCond.codeprefix',	-- calc_f
 		'rotate',	--real3_swap
+		'real3x3x3',	-- d_llu
 		'sym3sym3',	-- for partial_d_llll, for R_ll in addSource()
 	}
 end
 
 function ADM_BonaMasso_3D:getModuleDependsApplyInitCond()
-	return {'coordMap', 'coord_g_ll', 'rescaleFromCoord/rescaleToCoord'}
+	return {
+		'coordMap',
+		'coord_g_ll',
+		'rescaleFromCoord/rescaleToCoord',
+	}
 end
 
 -- always true, except for initAnalytical, but I don't have that coded yet
 ADM_BonaMasso_3D.needsInitDerivs = true
-
-function ADM_BonaMasso_3D:getInitCondCode()
-	-- eqn.einstein compatability hack ...
-	-- if initCond.initAnalytical is *NOT* set then it will call initDerivs(), which is usually only done for finite-differencing the original state variables.
-	-- if initCond.initAnalytical is set then it expects the analytical expressions to be written *HERE*
-	-- ... which adm3d does not do yet.
-	if self.initCond.initAnalytical then
-		error("TODO - adm3d can't handle analytical initial conditions yet")
-	end
-
-	if self.initCond.useBSSNVars then
-		return self:template([[
-kernel void applyInitCond(
-	constant <?=solver.solver_t?>* solver,
-	constant <?=solver.initCond_t?>* initCond,
-	global <?=eqn.cons_t?>* UBuf,
-	const global <?=coord.cell_t?>* cellBuf
-) {
-	SETBOUNDS(0,0);
-	real3 x = cellBuf[index].pos;
-	real3 xc = coordMap(x);
-	real3 mids = real3_real_mul(real3_add(solver->mins, solver->maxs), .5);
-	
-	global <?=eqn.cons_t?>* U = UBuf + index;
-
-	real alpha = 1.;
-	real W = 1.;
-	real K = 0.;
-	real3 LambdaBar_U = real3_zero;
-	real3 beta_U = real3_zero;
-	real3 B_U = real3_zero;
-	sym3 epsilon_LL = sym3_zero;
-	sym3 ABar_LL = sym3_zero;
-
-	//TODO more stress-energy vars 
-	real rho = 0.;
-
-	<?=code?>
-
-	U->alpha = alpha;
-
-	// gammaHat_IJ = delta_IJ
-	// gamma_ij = e_i^I e_j^J (epsilon_IJ + gammaHat_IJ) / W^2
-	sym3 gammaBar_LL = sym3_add(epsilon_LL, sym3_ident);
-	sym3 gamma_LL = sym3_real_mul(gammaBar_LL, 1. / (W*W));
-	U->gamma_ll = sym3_rescaleToCoord_LL(gamma_LL, x);
-	
-	// K_ij = e_i^I e_j^J (ABar_IJ + gammaBar_IJ K/3) / W^2
-	U->K_ll = sym3_rescaleToCoord_LL(
-		sym3_add(
-			sym3_real_mul(ABar_LL, 1. / (W*W)),
-			sym3_real_mul(gamma_LL, K / 3.)
-		), x);
-
-	// TODO maybe derive this from LambdaBar_U ?
-	U->V_l = real3_zero;
-
-<? if eqn.useShift ~= 'none' then
-?>	U->beta_u = real3_rescaleFromCoord_U(beta_U);
-<? end -- TODO support for hyperbolic gamma driver, so we can read B_U
-?>
-
-<? if eqn.useStressEnergyTerms then ?>
-	U->rho = rho;
-	U->S_u = real3_zero;
-	U->S_ll = sym3_zero;
-<? end ?>
-	U->H = 0;
-	U->M_u = real3_zero;
-}
-
-kernel void initDerivs(
-	constant <?=solver.solver_t?>* solver,
-	global <?=eqn.cons_t?>* UBuf,
-	global <?=solver.coord.cell_t?> const *cellBuf 
-) {
-	SETBOUNDS(numGhost,numGhost);
-	global <?=eqn.cons_t?>* U = UBuf + index;
-	
-	real det_gamma = sym3_det(U->gamma_ll);
-	sym3 gamma_uu = sym3_inv(U->gamma_ll, det_gamma);
-
-<? 
-for i=1,solver.dim do 
-	local xi = xNames[i]
-?>
-	U->a_l.<?=xi?> = (U[solver->stepsize.<?=xi?>].alpha - U[-solver->stepsize.<?=xi?>].alpha) / (solver->grid_dx.s<?=i-1?> * U->alpha);
-	<? for jk,xjk in ipairs(symNames) do ?>
-	U->d_lll.<?=xi?>.<?=xjk?> = .5 * (U[solver->stepsize.<?=xi?>].gamma_ll.<?=xjk?> - U[-solver->stepsize.<?=xi?>].gamma_ll.<?=xjk?>) / solver->grid_dx.s<?=i-1?>;
-	<? end ?>
-<? 
-end 
-for i=solver.dim+1,3 do
-	local xi = xNames[i]
-?>
-	U->a_l.<?=xi?> = 0;
-	U->d_lll.<?=xi?> = sym3_zero;
-<?
-end
-?>
-
-//V_i = d_ik^k - d^k_ki 
-<? for i,xi in ipairs(xNames) do ?>
-	U->V_l.<?=xi?> = 0.<?
-	for j,xj in ipairs(xNames) do
-		for k,xk in ipairs(xNames) do
-?> + gamma_uu.<?=sym(j,k)?> * ( U->d_lll.<?=xi?>.<?=sym(j,k)?> - U->d_lll.<?=xj?>.<?=sym(k,i)?> )<?
-		end
-	end ?>;
-<? end ?>
-}
-]], 	{
-			code = self.initCond:getInitCondCode(self.solver),
-		})
-	end
-
-	return self:template([[
-kernel void applyInitCond(
-	constant <?=solver.solver_t?>* solver,
-	constant <?=solver.initCond_t?>* initCond,
-	global <?=eqn.cons_t?>* UBuf,
-	const global <?=coord.cell_t?>* cellBuf
-) {
-	SETBOUNDS(0,0);
-	real3 x = cellBuf[index].pos;
-	real3 xc = coordMap(x);
-	real3 mids = real3_real_mul(real3_add(solver->mins, solver->maxs), .5);
-	
-	global <?=eqn.cons_t?>* U = UBuf + index;
-
-	real alpha = 1.;
-	real3 beta_u = real3_zero;
-	sym3 gamma_ll = coord_g_ll(x);
-	sym3 K_ll = sym3_zero;
-
-	//TODO more stress-energy vars 
-	real rho = 0.;
-
-	<?=code?>
-
-	U->alpha = alpha;
-	U->gamma_ll = gamma_ll;
-	U->K_ll = K_ll;
-	U->V_l = real3_zero;
-<? if eqn.useShift ~= 'none' then
-?>	U->beta_u = beta_u;
-<? end
-?>
-<? if eqn.useStressEnergyTerms then ?>
-	U->rho = rho;
-	U->S_u = real3_zero;
-	U->S_ll = sym3_zero;
-<? end ?>
-	U->H = 0;
-	U->M_u = real3_zero;
-}
-
-kernel void initDerivs(
-	constant <?=solver.solver_t?>* solver,
-	global <?=eqn.cons_t?>* UBuf,
-	global <?=solver.coord.cell_t?> const *cellBuf 
-) {
-	SETBOUNDS(numGhost,numGhost);
-	global <?=eqn.cons_t?>* U = UBuf + index;
-	
-	real det_gamma = sym3_det(U->gamma_ll);
-	sym3 gamma_uu = sym3_inv(U->gamma_ll, det_gamma);
-
-<? 
-for i=1,solver.dim do 
-	local xi = xNames[i]
-?>
-	U->a_l.<?=xi?> = (U[solver->stepsize.<?=xi?>].alpha - U[-solver->stepsize.<?=xi?>].alpha) / (solver->grid_dx.s<?=i-1?> * U->alpha);
-	<? for jk,xjk in ipairs(symNames) do ?>
-	U->d_lll.<?=xi?>.<?=xjk?> = .5 * (U[solver->stepsize.<?=xi?>].gamma_ll.<?=xjk?> - U[-solver->stepsize.<?=xi?>].gamma_ll.<?=xjk?>) / solver->grid_dx.s<?=i-1?>;
-	<? end ?>
-<? 
-end 
-for i=solver.dim+1,3 do
-	local xi = xNames[i]
-?>
-	U->a_l.<?=xi?> = 0;
-	U->d_lll.<?=xi?> = sym3_zero;
-<?
-end
-?>
-
-//V_i = d_ik^k - d^k_ki 
-<? for i,xi in ipairs(xNames) do ?>
-	U->V_l.<?=xi?> = 0.<?
-	for j,xj in ipairs(xNames) do
-		for k,xk in ipairs(xNames) do
-?> + gamma_uu.<?=sym(j,k)?> * ( U->d_lll.<?=xi?>.<?=sym(j,k)?> - U->d_lll.<?=xj?>.<?=sym(k,i)?> )<?
-		end
-	end ?>;
-<? end ?>
-}
-]], {
-		code = self.initCond:getInitCondCode(self.solver),
-	})
-end
 
 ADM_BonaMasso_3D.solverCodeFile = 'hydro/eqn/adm3d.cl'
 

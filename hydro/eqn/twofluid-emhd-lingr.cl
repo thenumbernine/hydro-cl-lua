@@ -1,10 +1,3 @@
-<?
-local clnumber = require 'cl.obj.number'
-?>
-
-#define sqrt_1_2 <?=('%.50f'):format(math.sqrt(.5))?>
-#define sqrt_2 <?=('%.50f'):format(math.sqrt(2))?>
-
 // r_e = q_e / m_e
 // r_e = q_e / (m_i / (m_i / m_e))
 // using m = m_i / m_e
@@ -20,9 +13,353 @@ local clnumber = require 'cl.obj.number'
 
 typedef <?=eqn.prim_t?> prim_t;
 typedef <?=eqn.cons_t?> cons_t;
-typedef <?=eqn.eigen_t?> eigen_t;
-typedef <?=eqn.waves_t?> waves_t;
 typedef <?=solver.solver_t?> solver_t;
+
+<? if moduleName == nil then ?>
+<? elseif moduleName == "sqrt_2_and_1_2" then ?>
+
+#define sqrt_1_2 <?=('%.50f'):format(math.sqrt(.5))?>
+#define sqrt_2 <?=('%.50f'):format(math.sqrt(2))?>
+
+<? elseif moduleName == "eqn.prim-cons" then ?>
+
+<?=eqn.prim_t?> primFromCons(constant <?=solver.solver_t?>* solver, <?=eqn.cons_t?> U, real3 x) {
+	<? for _,fluid in ipairs(eqn.fluids) do ?>
+	real <?=fluid?>_EKin = calc_<?=fluid?>_EKin_fromCons(U, x);
+	real <?=fluid?>_EInt = U.<?=fluid?>_ETotal - <?=fluid?>_EKin;
+	<? end ?>
+	return (<?=eqn.prim_t?>){
+		<? for _,fluid in ipairs(eqn.fluids) do ?>
+		.<?=fluid?>_rho = U.<?=fluid?>_rho,
+		.<?=fluid?>_v = real3_real_mul(U.<?=fluid?>_m, 1./U.<?=fluid?>_rho),
+		.<?=fluid?>_P = (solver->heatCapacityRatio - 1.) * <?=fluid?>_EInt,
+		<? end ?>
+		.D = U.D,
+		.B = U.B,
+		.psi = U.psi,
+		.phi = U.phi,
+		.D_g = U.D_g,
+		.B_g = U.B_g,
+		.psi_g = U.psi_g,
+		.phi_g = U.phi_g,
+	};
+}
+
+<?=eqn.cons_t?> consFromPrim(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W, real3 x) {
+	return (<?=eqn.cons_t?>){
+<? for _,fluid in ipairs(eqn.fluids) do ?>
+		.<?=fluid?>_rho = W.<?=fluid?>_rho,
+		.<?=fluid?>_m = real3_real_mul(W.<?=fluid?>_v, W.<?=fluid?>_rho),
+		.<?=fluid?>_ETotal = calc_<?=fluid?>_ETotal(solver, W, x),
+<? end ?>
+		.D = W.D,
+		.B = W.B,
+		.psi = W.psi,
+		.phi = W.phi,
+		.D_g = W.D_g,
+		.B_g = W.B_g,
+		.psi_g = W.psi_g,
+		.phi_g = W.phi_g,
+	};
+}
+
+<? elseif moduleName == "eqn.dU-dW" then ?>
+
+<?=eqn.cons_t?> apply_dU_dW(
+	constant <?=solver.solver_t?>* solver,
+	<?=eqn.prim_t?> WA, 
+	<?=eqn.prim_t?> W, 
+	real3 x
+) {
+<? for _,fluid in ipairs(eqn.fluids) do ?>
+	real3 WA_<?=fluid?>_vL = coord_lower(WA.<?=fluid?>_v, x);
+<? end ?>
+	return (<?=eqn.cons_t?>){
+<? for _,fluid in ipairs(eqn.fluids) do ?>
+		.<?=fluid?>_rho = W.<?=fluid?>_rho,
+		.<?=fluid?>_m = real3_add(
+			real3_real_mul(WA.<?=fluid?>_v, W.<?=fluid?>_rho), 
+			real3_real_mul(W.<?=fluid?>_v, WA.<?=fluid?>_rho)),
+		.<?=fluid?>_ETotal = W.<?=fluid?>_rho * .5 * real3_dot(WA.<?=fluid?>_v, WA_<?=fluid?>_vL) 
+			+ WA.<?=fluid?>_rho * real3_dot(W.<?=fluid?>_v, WA_<?=fluid?>_vL)
+			+ W.<?=fluid?>_P / (solver->heatCapacityRatio - 1.),
+<? end ?>
+		.B = W.B,
+		.D = W.D,
+		.phi = W.phi,
+		.psi = W.psi,
+		.B_g = W.B_g,
+		.D_g = W.D_g,
+		.phi_g = W.phi_g,
+		.psi_g = W.psi_g,
+	};
+}
+
+<?=eqn.prim_t?> apply_dW_dU(
+	constant <?=solver.solver_t?>* solver,
+	<?=eqn.prim_t?> WA,
+	<?=eqn.cons_t?> U,
+	real3 x
+) {
+<? for _,fluid in ipairs(eqn.fluids) do ?>
+	real3 WA_<?=fluid?>_vL = coord_lower(WA.<?=fluid?>_v, x);
+<? end ?>
+	return (<?=eqn.prim_t?>){
+<? for _,fluid in ipairs(eqn.fluids) do ?>
+		.<?=fluid?>_rho = U.<?=fluid?>_rho,
+		.<?=fluid?>_v = real3_sub(
+			real3_real_mul(U.<?=fluid?>_m, 1. / WA.<?=fluid?>_rho),
+			real3_real_mul(WA.<?=fluid?>_v, U.<?=fluid?>_rho / WA.<?=fluid?>_rho)),
+		.<?=fluid?>_P = (solver->heatCapacityRatio - 1.) * (
+			.5 * real3_dot(WA.<?=fluid?>_v, WA_<?=fluid?>_vL) * U.<?=fluid?>_rho 
+			- real3_dot(U.<?=fluid?>_m, WA_<?=fluid?>_vL)
+			+ U.<?=fluid?>_ETotal),
+<? end ?>
+		.B = U.B,
+		.D = U.D,
+		.phi = U.phi,
+		.psi = U.psi,
+		.B_g = U.B_g,
+		.D_g = U.D_g,
+		.phi_g = U.phi_g,
+		.psi_g = U.psi_g,
+	};
+}
+
+<? elseif moduleName == "eqn.common" then ?>
+
+real3 calc_EField(constant <?=solver.solver_t?>* solver, <?=eqn.cons_t?> U) {
+	real eps = solver->sqrt_eps * solver->sqrt_eps / unit_C2_s2_per_kg_m3;
+	return real3_real_mul(U.D, 1. / eps);
+}
+ 
+real3 calc_HField(constant <?=solver.solver_t?>* solver, <?=eqn.cons_t?> U) { 
+	real mu = solver->sqrt_mu * solver->sqrt_mu / unit_kg_m_per_C2;
+	return real3_real_mul(U.B, 1. / mu);
+}
+
+real3 calc_SField(constant <?=solver.solver_t?>* solver, <?=eqn.cons_t?> U) {
+	return real3_cross(
+		calc_EField(solver, U),
+		calc_HField(solver, U));
+}
+
+real calc_H(constant <?=solver.solver_t?>* solver, real P) { return P * (solver->heatCapacityRatio / (solver->heatCapacityRatio - 1.)); }
+real calc_h(constant <?=solver.solver_t?>* solver, real rho, real P) { return calc_H(solver, P) / rho; }
+real calc_hTotal(constant <?=solver.solver_t?>* solver, real rho, real P, real ETotal) { return (P + ETotal) / rho; }
+real calc_HTotal(real P, real ETotal) { return P + ETotal; }
+
+<? for _,fluid in ipairs(eqn.fluids) do ?>
+real calc_<?=fluid?>_eKin(<?=eqn.prim_t?> W, real3 x) { return .5 * coordLenSq(W.<?=fluid?>_v, x); }
+real calc_<?=fluid?>_EKin(<?=eqn.prim_t?> W, real3 x) { return W.<?=fluid?>_rho * calc_<?=fluid?>_eKin(W, x); }
+real calc_<?=fluid?>_EInt(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W) { return W.<?=fluid?>_P / (solver->heatCapacityRatio - 1.); }
+real calc_<?=fluid?>_eInt(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W) { return calc_<?=fluid?>_EInt(solver, W) / W.<?=fluid?>_rho; }
+real calc_<?=fluid?>_EKin_fromCons(<?=eqn.cons_t?> U, real3 x) { return .5 * coordLenSq(U.<?=fluid?>_m, x) / U.<?=fluid?>_rho; }
+real calc_<?=fluid?>_ETotal(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W, real3 x) {
+	return calc_<?=fluid?>_EKin(W, x) + calc_<?=fluid?>_EInt(solver, W);
+}
+real calc_<?=fluid?>_Cs(constant <?=solver.solver_t?>* solver, const <?=eqn.prim_t?>* W) {
+	return sqrt(solver->heatCapacityRatio * W-><?=fluid?>_P / W-><?=fluid?>_rho);
+}
+<? end ?>
+
+real calc_EM_energy(constant <?=solver.solver_t?>* solver, const global <?=eqn.cons_t?>* U, real3 x) {
+	real eps = solver->sqrt_eps * solver->sqrt_eps / unit_C2_s2_per_kg_m3;
+	real mu = solver->sqrt_mu * solver->sqrt_mu / unit_kg_m_per_C2;
+	return .5 * (coordLenSq(U->D, x) / eps + coordLenSq(U->B, x) / mu);
+}
+
+
+/*
+units:
+eps_g = 1 / (4 pi G) 
+mu_g = 4 pi G / c^2
+[eps_g] = kg s^2 / m^3
+[mu_g] = m / kg
+[E_g] = [D_g / eps_g]
+kg/m^2 * m^3/(kg s^2)
+m/s^2
+(rho * D_g / eps_g + m * B_g) / c
+[rho * D_g / eps_g]
+kg/m^3 * kg/m^2 * m^3 / (kg s^2)
+kg/(m^2 s^2)
+[m * B_g]
+kg/(m^2 s) 1/s = kg/(m^2 s^2)
+kg/m^3 * m/s^2 = kg / (m^2 s^2)
+densitized force, in units of kg/(m^2 s^2)
+*/
+real3 calcIonGravForce(constant <?=solver.solver_t?>* solver, const global <?=eqn.cons_t?>* U, real3 x) {
+	const real G = solver->sqrt_G * solver->sqrt_G / unit_m3_per_kg_s2;
+	const real eps_g = 1. / (4. * M_PI * G);
+	return _real3(
+		U->ion_rho * U->D_g.x / eps_g + 4. * (U->ion_m.y * U->B_g.z - U->ion_m.z * U->B_g.y),
+		U->ion_rho * U->D_g.y / eps_g + 4. * (U->ion_m.z * U->B_g.x - U->ion_m.x * U->B_g.z),
+		U->ion_rho * U->D_g.z / eps_g + 4. * (U->ion_m.x * U->B_g.y - U->ion_m.y * U->B_g.x));
+}
+
+real3 calcElecGravForce(constant <?=solver.solver_t?>* solver, const global <?=eqn.cons_t?>* U, real3 x) {
+	const real G = solver->sqrt_G * solver->sqrt_G / unit_m3_per_kg_s2;
+	const real eps_g = 1. / (4. * M_PI * G);
+	return _real3(
+		U->elec_rho * U->D_g.x / eps_g + 4. * (U->elec_m.y * U->B_g.z - U->elec_m.z * U->B_g.y),
+		U->elec_rho * U->D_g.y / eps_g + 4. * (U->elec_m.z * U->B_g.x - U->elec_m.x * U->B_g.z),
+		U->elec_rho * U->D_g.z / eps_g + 4. * (U->elec_m.x * U->B_g.y - U->elec_m.y * U->B_g.x));
+}
+
+<? elseif moduleName == "applyInitCond" then ?>
+
+<? 
+local cons_t = eqn.cons_t
+local susc_t = eqn.susc_t
+local scalar = eqn.scalar
+local vec3 = eqn.vec3
+local zero = scalar..'_zero'
+local inv = scalar..'_inv'
+local fromreal = scalar..'_from_real'
+local sqrt = scalar..'_sqrt'
+?>
+
+kernel void applyInitCond(
+	constant <?=solver.solver_t?>* solver,
+	constant <?=solver.initCond_t?>* initCond,
+	global <?=eqn.cons_t?>* UBuf,
+	const global <?=solver.coord.cell_t?>* cellBuf
+) {
+	SETBOUNDS(0,0);
+	real3 x = cellBuf[index].pos;
+	real3 mids = real3_real_mul(real3_add(solver->mins, solver->maxs), .5);
+	bool lhs = x.x < mids.x
+#if dim > 1
+		&& x.y < mids.y
+#endif
+#if dim > 2
+		&& x.z < mids.z
+#endif
+	;
+<? 
+if eqn.useEulerInitState then 
+?>
+	real rho = 0.;
+	real3 v = real3_zero;
+	real P = 0;
+	real ePot = 0;
+<?
+else
+	 for _,fluid in ipairs(eqn.fluids) do
+?>	real <?=fluid?>_rho = 0;
+	real3 <?=fluid?>_v = real3_zero;
+	real <?=fluid?>_P = 0;
+	real <?=fluid?>_ePot = 0;
+<? 
+	end 
+end
+?>	<?=vec3?> D = <?=vec3?>_zero;
+	<?=vec3?> B = <?=vec3?>_zero;
+	<?=scalar?> conductivity = <?=fromreal?>(1.);
+	<?=scalar?> permittivity = <?=fromreal?>(1. / (4. * M_PI));
+	<?=scalar?> permeability = <?=fromreal?>(4. * M_PI);
+
+	<?=initCode()?>
+
+	// intel OpenCL compiler bug crashing when I initialize W with a struct assign
+	<?=eqn.prim_t?> W;
+<? 
+if eqn.useEulerInitState then 
+?>
+	W.ion_rho = rho;
+	W.elec_rho = rho / solver->ionElectronMassRatio;
+
+	// "the electron pressure is taken to be elec_P = 5 ion_rho"
+	// is that arbitrary?
+	W.elec_P = 5. * rho;
+	
+	// "the ion pressure is 1/100th the electron pressure"
+	// is that from the mass ratio of ion/electron?
+	W.ion_P = P / solver->ionElectronMassRatio;
+
+	W.ion_v = cartesianToCoord(v, x);
+	W.elec_v = cartesianToCoord(v, x);
+
+<?	
+else	-- expect the initCond to explicitly provide the ion_ and elec_ Euler fluid variables
+	for _,fluid in ipairs(eqn.fluids) do ?>
+	W.<?=fluid?>_rho = <?=fluid?>_rho;
+	W.<?=fluid?>_v = cartesianToCoord(<?=fluid?>_v, x);
+	W.<?=fluid?>_P = <?=fluid?>_P;
+<?
+	end
+end
+?>
+	W.D = cartesianToCoord(D, x);
+	W.B = cartesianToCoord(B, x);
+	W.psi = 0;
+	W.phi = 0;
+	W.D_g = <?=vec3?>_zero;
+	W.B_g = <?=vec3?>_zero;
+	W.psi_g = 0;
+	W.phi_g = 0;
+	UBuf[index] = consFromPrim(solver, W, x);
+}
+
+
+<? elseif moduleName == "fluxFromCons" then ?>
+
+<?=eqn.cons_t?> fluxFromCons(
+	constant <?=solver.solver_t?>* solver,
+	<?=eqn.cons_t?> U,
+	real3 x,
+	normal_t n
+) {
+	<?=eqn.prim_t?> W = primFromCons(solver, U, x);
+	<?=eqn.cons_t?> F;
+
+<? 
+for _,fluid in ipairs(eqn.fluids) do
+?>	real <?=fluid?>_vj = normal_vecDotN1(n, W.<?=fluid?>_v);
+	real <?=fluid?>_HTotal = U.<?=fluid?>_ETotal + W.<?=fluid?>_P;
+	
+	F.<?=fluid?>_rho = normal_vecDotN1(n, U.<?=fluid?>_m);
+	F.<?=fluid?>_m = real3_real_mul(U.<?=fluid?>_m, <?=fluid?>_vj);
+<? 	for i,xi in ipairs(xNames) do
+?>	F.<?=fluid?>_m.<?=xi?> += normal_u1<?=xi?>(n) * W.<?=fluid?>_P;
+<? 	end
+?>	F.<?=fluid?>_ETotal = <?=fluid?>_HTotal * <?=fluid?>_vj;
+<? 
+end
+?>
+	
+	real eps = solver->sqrt_eps * solver->sqrt_eps / unit_C2_s2_per_kg_m3;
+	real mu = solver->sqrt_mu * solver->sqrt_mu / unit_kg_m_per_C2;
+	real G = solver->sqrt_G * solver->sqrt_G / unit_m3_per_kg_s2;
+	real speedOfLightSq = solver->speedOfLight * solver->speedOfLight / unit_m2_per_s2;
+	real eps_g = 1. / (4. * M_PI * G);
+	real mu_g = 1. / (eps_g * speedOfLightSq);
+
+	//taken from glm-maxwell instead of the 2014 Abgrall, Kumar
+	// then replace D = epsilon E and phi' -> epsilon phi
+	<? for _,suffix in ipairs{'', '_g'} do ?>{
+		real3 E = real3_real_mul(U.D<?=suffix?>, 1. / eps<?=suffix?>);
+		real3 H = real3_real_mul(U.B<?=suffix?>, 1. / mu<?=suffix?>);
+		if (n.side == 0) {
+			F.D<?=suffix?> = _real3(U.phi<?=suffix?> * solver->divPhiWavespeed<?=suffix?> / unit_m_per_s, H.z, -H.y);
+			F.B<?=suffix?> = _real3(U.psi<?=suffix?> * solver->divPsiWavespeed<?=suffix?> / unit_m_per_s, -E.z, E.y);
+		} else if (n.side == 1) {
+			F.D<?=suffix?> = _real3(-H.z, U.phi<?=suffix?> * solver->divPhiWavespeed<?=suffix?> / unit_m_per_s, H.x);
+			F.B<?=suffix?> = _real3(E.z, U.psi<?=suffix?> * solver->divPsiWavespeed<?=suffix?> / unit_m_per_s, -E.x);
+		} else if (n.side == 2) {
+			F.D<?=suffix?> = _real3(H.y, -H.x, U.phi<?=suffix?> * solver->divPhiWavespeed<?=suffix?> / unit_m_per_s);
+			F.B<?=suffix?> = _real3(-E.y, E.x, U.psi<?=suffix?> * solver->divPsiWavespeed<?=suffix?> / unit_m_per_s);
+		}
+		F.phi<?=suffix?> = normal_vecDotN1(n, U.D<?=suffix?>) * solver->divPhiWavespeed<?=suffix?> / unit_m_per_s;
+		F.psi<?=suffix?> = normal_vecDotN1(n, U.B<?=suffix?>) * solver->divPsiWavespeed<?=suffix?> / unit_m_per_s;
+	}<? end ?>
+
+	return F;
+}
+
+<? elseif moduleName == "eigen_forInterface" then ?>
+
+typedef <?=eqn.eigen_t?> eigen_t;
 
 eigen_t eigen_forInterface(
 	constant solver_t* solver,
@@ -71,6 +408,10 @@ eigen_t eigen_forInterface(
 	return eig;
 }
 
+<? elseif moduleName == "eigen_forCell" then ?>
+
+typedef <?=eqn.eigen_t?> eigen_t;
+
 eigen_t eigen_forCell(
 	constant solver_t* solver,
 	cons_t U,
@@ -95,6 +436,11 @@ eigen_t eigen_forCell(
 <? end ?>	
 	};
 }
+
+<? elseif moduleName == "eigen_left/rightTransform" then ?>
+
+typedef <?=eqn.eigen_t?> eigen_t;
+typedef <?=eqn.waves_t?> waves_t;
 
 <?
 local prefix = [[
@@ -464,6 +810,10 @@ cons_t eigen_rightTransform(
 	return UY;
 }
 
+<? elseif moduleName == "eigen_fluxTransform" then ?>
+
+typedef <?=eqn.eigen_t?> eigen_t;
+
 cons_t eigen_fluxTransform(
 	constant solver_t* solver,
 	eigen_t eig,
@@ -543,6 +893,8 @@ cons_t eigen_fluxTransform(
 
 	return UY;
 }
+
+<? elseif moduleName == "addSource" then ?>
 
 kernel void addSource(
 	constant solver_t* solver,
@@ -658,6 +1010,8 @@ kernel void addSource(
 <? end ?>
 }
 
+<? elseif moduleName == "constrainU" then ?>
+
 kernel void constrainU(
 	constant solver_t* solver,
 	global cons_t* UBuf,
@@ -676,3 +1030,9 @@ kernel void constrainU(
 
 	*U = consFromPrim(solver, W, x);
 }
+
+<? 
+else
+	error("unknown moduleName "..require 'ext.tolua'(moduleName))
+end 
+?>

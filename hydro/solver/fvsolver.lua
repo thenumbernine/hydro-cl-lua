@@ -270,7 +270,9 @@ function FiniteVolumeSolver:addDisplayVars()
 		end
 	end
 
-	if hasmodule'eigen_fluxTransform' then
+	if hasmodule'eigen_fluxTransform' 
+	and hasmodule'eigen_left/rightTransform'
+	then
 		-- flux
 		-- TODO same as above, why is the x error getting 'nans' after a few iterations?
 		-- TODO WARNING - this only does ForSide, which doesn't match non-cartesian grids w/cartesian components

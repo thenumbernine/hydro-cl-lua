@@ -1,15 +1,354 @@
-<?
-local derivOrder = 2 * solver.numGhost
-local makePartials = require 'hydro.eqn.makepartial'
-local makePartial1 = function(...) return makePartials.makePartial1(derivOrder, solver, ...) end
-local makePartial2 = function(...) return makePartials.makePartial2(derivOrder, solver, ...) end
-?>
-
 typedef <?=eqn.prim_t?> prim_t;
 typedef <?=eqn.cons_t?> cons_t;
-typedef <?=eqn.eigen_t?> eigen_t;
-typedef <?=eqn.waves_t?> waves_t;
 typedef <?=solver.solver_t?> solver_t;
+
+<? if moduleName == nil then ?>
+<? elseif moduleName == "setFlatSpace" then ?>
+
+void setFlatSpace(
+	constant <?=solver.solver_t?>* solver,
+	global <?=eqn.cons_t?>* U,
+	real3 x
+) {
+	U->alpha = 1.;
+	U->gamma_ll = sym3_ident;
+	U->a_l = real3_zero;
+	U->d_lll = _3sym3_zero;
+	U->K_ll = sym3_zero;
+	U->V_l = real3_zero;
+<? if eqn.useShift ~= 'none' then 
+?>	U->beta_u = real3_zero;
+<? end 
+?>	
+<? if eqn.useStressEnergyTerms then ?>
+	//what to do with the constraint vars and the source vars?
+	U->rho = 0;
+	U->S_u = real3_zero;
+	U->S_ll = sym3_zero;
+<? end ?>
+	U->H = 0;
+	U->M_u = real3_zero;
+}
+
+<? elseif moduleName == "applyInitCond" then ?>
+
+<?
+-- eqn.einstein compatability hack ...
+-- if initCond.initAnalytical is *NOT* set then it will call initDerivs(), which is usually only done for finite-differencing the original state variables.
+-- if initCond.initAnalytical is set then it expects the analytical expressions to be written *HERE*
+-- ... which adm3d does not do yet.
+if eqn.initCond.initAnalytical then
+	error("TODO - adm3d can't handle analytical initial conditions yet")
+end
+?>
+<? if eqn.initCond.useBSSNVars then ?>
+
+kernel void applyInitCond(
+	constant <?=solver.solver_t?>* solver,
+	constant <?=solver.initCond_t?>* initCond,
+	global <?=eqn.cons_t?>* UBuf,
+	const global <?=coord.cell_t?>* cellBuf
+) {
+	SETBOUNDS(0,0);
+	real3 x = cellBuf[index].pos;
+	real3 xc = coordMap(x);
+	real3 mids = real3_real_mul(real3_add(solver->mins, solver->maxs), .5);
+	
+	global <?=eqn.cons_t?>* U = UBuf + index;
+
+	real alpha = 1.;
+	real W = 1.;
+	real K = 0.;
+	real3 LambdaBar_U = real3_zero;
+	real3 beta_U = real3_zero;
+	real3 B_U = real3_zero;
+	sym3 epsilon_LL = sym3_zero;
+	sym3 ABar_LL = sym3_zero;
+
+	//TODO more stress-energy vars 
+	real rho = 0.;
+
+	<?=initCode()?>
+
+	U->alpha = alpha;
+
+	// gammaHat_IJ = delta_IJ
+	// gamma_ij = e_i^I e_j^J (epsilon_IJ + gammaHat_IJ) / W^2
+	sym3 gammaBar_LL = sym3_add(epsilon_LL, sym3_ident);
+	sym3 gamma_LL = sym3_real_mul(gammaBar_LL, 1. / (W*W));
+	U->gamma_ll = sym3_rescaleToCoord_LL(gamma_LL, x);
+	
+	// K_ij = e_i^I e_j^J (ABar_IJ + gammaBar_IJ K/3) / W^2
+	U->K_ll = sym3_rescaleToCoord_LL(
+		sym3_add(
+			sym3_real_mul(ABar_LL, 1. / (W*W)),
+			sym3_real_mul(gamma_LL, K / 3.)
+		), x);
+
+	// TODO maybe derive this from LambdaBar_U ?
+	U->V_l = real3_zero;
+
+<? if eqn.useShift ~= 'none' then
+?>	U->beta_u = real3_rescaleFromCoord_U(beta_U);
+<? end -- TODO support for hyperbolic gamma driver, so we can read B_U
+?>
+
+<? if eqn.useStressEnergyTerms then ?>
+	U->rho = rho;
+	U->S_u = real3_zero;
+	U->S_ll = sym3_zero;
+<? end ?>
+	U->H = 0;
+	U->M_u = real3_zero;
+}
+
+kernel void initDerivs(
+	constant <?=solver.solver_t?>* solver,
+	global <?=eqn.cons_t?>* UBuf,
+	global <?=solver.coord.cell_t?> const *cellBuf 
+) {
+	SETBOUNDS(numGhost,numGhost);
+	global <?=eqn.cons_t?>* U = UBuf + index;
+	
+	real det_gamma = sym3_det(U->gamma_ll);
+	sym3 gamma_uu = sym3_inv(U->gamma_ll, det_gamma);
+
+<? 
+for i=1,solver.dim do 
+	local xi = xNames[i]
+?>
+	U->a_l.<?=xi?> = (U[solver->stepsize.<?=xi?>].alpha - U[-solver->stepsize.<?=xi?>].alpha) / (solver->grid_dx.s<?=i-1?> * U->alpha);
+	<? for jk,xjk in ipairs(symNames) do ?>
+	U->d_lll.<?=xi?>.<?=xjk?> = .5 * (U[solver->stepsize.<?=xi?>].gamma_ll.<?=xjk?> - U[-solver->stepsize.<?=xi?>].gamma_ll.<?=xjk?>) / solver->grid_dx.s<?=i-1?>;
+	<? end ?>
+<? 
+end 
+for i=solver.dim+1,3 do
+	local xi = xNames[i]
+?>
+	U->a_l.<?=xi?> = 0;
+	U->d_lll.<?=xi?> = sym3_zero;
+<?
+end
+?>
+
+//V_i = d_ik^k - d^k_ki 
+<? for i,xi in ipairs(xNames) do ?>
+	U->V_l.<?=xi?> = 0.<?
+	for j,xj in ipairs(xNames) do
+		for k,xk in ipairs(xNames) do
+?> + gamma_uu.<?=sym(j,k)?> * ( U->d_lll.<?=xi?>.<?=sym(j,k)?> - U->d_lll.<?=xj?>.<?=sym(k,i)?> )<?
+		end
+	end ?>;
+<? end ?>
+}
+
+<? else	-- not eqn.initCond.useBSSNVars ?>
+
+kernel void applyInitCond(
+	constant <?=solver.solver_t?>* solver,
+	constant <?=solver.initCond_t?>* initCond,
+	global <?=eqn.cons_t?>* UBuf,
+	const global <?=coord.cell_t?>* cellBuf
+) {
+	SETBOUNDS(0,0);
+	real3 x = cellBuf[index].pos;
+	real3 xc = coordMap(x);
+	real3 mids = real3_real_mul(real3_add(solver->mins, solver->maxs), .5);
+	
+	global <?=eqn.cons_t?>* U = UBuf + index;
+
+	real alpha = 1.;
+	real3 beta_u = real3_zero;
+	sym3 gamma_ll = coord_g_ll(x);
+	sym3 K_ll = sym3_zero;
+
+	//TODO more stress-energy vars 
+	real rho = 0.;
+
+	<?=initCode()?>
+
+	U->alpha = alpha;
+	U->gamma_ll = gamma_ll;
+	U->K_ll = K_ll;
+	U->V_l = real3_zero;
+<? if eqn.useShift ~= 'none' then
+?>	U->beta_u = beta_u;
+<? end
+?>
+<? if eqn.useStressEnergyTerms then ?>
+	U->rho = rho;
+	U->S_u = real3_zero;
+	U->S_ll = sym3_zero;
+<? end ?>
+	U->H = 0;
+	U->M_u = real3_zero;
+}
+
+kernel void initDerivs(
+	constant <?=solver.solver_t?>* solver,
+	global <?=eqn.cons_t?>* UBuf,
+	global <?=solver.coord.cell_t?> const *cellBuf 
+) {
+	SETBOUNDS(numGhost,numGhost);
+	global <?=eqn.cons_t?>* U = UBuf + index;
+	
+	real det_gamma = sym3_det(U->gamma_ll);
+	sym3 gamma_uu = sym3_inv(U->gamma_ll, det_gamma);
+
+<? 
+for i=1,solver.dim do 
+	local xi = xNames[i]
+?>
+	U->a_l.<?=xi?> = (U[solver->stepsize.<?=xi?>].alpha - U[-solver->stepsize.<?=xi?>].alpha) / (solver->grid_dx.s<?=i-1?> * U->alpha);
+	<? for jk,xjk in ipairs(symNames) do ?>
+	U->d_lll.<?=xi?>.<?=xjk?> = .5 * (U[solver->stepsize.<?=xi?>].gamma_ll.<?=xjk?> - U[-solver->stepsize.<?=xi?>].gamma_ll.<?=xjk?>) / solver->grid_dx.s<?=i-1?>;
+	<? end ?>
+<? 
+end 
+for i=solver.dim+1,3 do
+	local xi = xNames[i]
+?>
+	U->a_l.<?=xi?> = 0;
+	U->d_lll.<?=xi?> = sym3_zero;
+<?
+end
+?>
+
+//V_i = d_ik^k - d^k_ki 
+<? for i,xi in ipairs(xNames) do ?>
+	U->V_l.<?=xi?> = 0.<?
+	for j,xj in ipairs(xNames) do
+		for k,xk in ipairs(xNames) do
+?> + gamma_uu.<?=sym(j,k)?> * ( U->d_lll.<?=xi?>.<?=sym(j,k)?> - U->d_lll.<?=xj?>.<?=sym(k,i)?> )<?
+		end
+	end ?>;
+<? end ?>
+}
+
+<? end	-- eqn.initCond.useBSSNVars ?>
+
+
+
+<? elseif moduleName == "fluxFromCons" then ?>
+
+<?=eqn.cons_t?> fluxFromCons(
+	constant <?=solver.solver_t?>* solver,
+	<?=eqn.cons_t?> U,
+	real3 x,
+	normal_t n
+) {
+	real f_alpha = calc_f_alpha(U.alpha);
+	
+	real det_gamma = sym3_det(U.gamma_ll);
+	sym3 gamma_uu = sym3_inv(U.gamma_ll, det_gamma);
+	
+	real alpha = U.alpha;
+	
+	real3 V_l = U.V_l;
+	real3 a_l = U.a_l;
+	sym3 gamma_ll = U.gamma_ll;
+	sym3 K_ll = U.K_ll;
+	_3sym3 d_lll = U.d_lll;
+	
+	<? for side=0,solver.dim-1 do ?>
+	if (n.side == <?=side?>) {
+		V_l = real3_swap<?=side?>(V_l);
+		a_l = real3_swap<?=side?>(a_l);
+		gamma_ll = sym3_swap<?=side?>(gamma_ll);
+		K_ll = sym3_swap<?=side?>(K_ll);
+		d_lll = _3sym3_swap<?=side?>(d_lll);
+		gamma_uu = sym3_swap<?=side?>(gamma_uu);
+	}
+	<? end ?>
+
+	<?=eqn.cons_t?> F = {.ptr={0}};
+
+	// BEGIN CUT from numerical-relativity-codegen/flux_matrix_output/adm_noZeroRows.html
+	//(except me replacing alpha * f with f_alpha)
+	F.a_l.x = f_alpha * (2. * K_ll.xy * gamma_uu.xy + 2. * K_ll.xz * gamma_uu.xz + 2. * K_ll.yz * gamma_uu.yz + K_ll.xx * gamma_uu.xx + K_ll.yy * gamma_uu.yy + K_ll.zz * gamma_uu.zz);
+	F.d_lll.x.xx = K_ll.xx * alpha;
+	F.d_lll.x.xy = K_ll.xy * alpha;
+	F.d_lll.x.xz = K_ll.xz * alpha;
+	F.d_lll.x.yy = K_ll.yy * alpha;
+	F.d_lll.x.yz = K_ll.yz * alpha;
+	F.d_lll.x.zz = K_ll.zz * alpha;
+	F.K_ll.xx = alpha * (a_l.x + d_lll.x.yy * gamma_uu.yy + 2. * d_lll.x.yz * gamma_uu.yz + d_lll.x.zz * gamma_uu.zz - d_lll.y.xx * gamma_uu.xy - 2. * d_lll.y.xy * gamma_uu.yy - 2. * d_lll.y.xz * gamma_uu.yz - d_lll.z.xx * gamma_uu.xz - 2. * d_lll.z.xy * gamma_uu.yz - 2. * d_lll.z.xz * gamma_uu.zz);
+	F.K_ll.xy = (alpha * (a_l.y - 2. * d_lll.x.yy * gamma_uu.xy - 2. * d_lll.x.yz * gamma_uu.xz - 2. * d_lll.y.yy * gamma_uu.yy - 2. * d_lll.y.yz * gamma_uu.yz - 2. * d_lll.z.yy * gamma_uu.yz - 2. * d_lll.z.yz * gamma_uu.zz)) / 2.;
+	F.K_ll.xz = (alpha * (a_l.z - 2. * d_lll.x.yz * gamma_uu.xy - 2. * d_lll.x.zz * gamma_uu.xz - 2. * d_lll.y.yz * gamma_uu.yy - 2. * d_lll.y.zz * gamma_uu.yz - 2. * d_lll.z.yz * gamma_uu.yz - 2. * d_lll.z.zz * gamma_uu.zz)) / 2.;
+	F.K_ll.yy = alpha * (d_lll.x.yy * gamma_uu.xx + d_lll.y.yy * gamma_uu.xy + d_lll.z.yy * gamma_uu.xz);
+	F.K_ll.yz = alpha * (d_lll.x.yz * gamma_uu.xx + d_lll.y.yz * gamma_uu.xy + d_lll.z.yz * gamma_uu.xz);
+	F.K_ll.zz = alpha * (d_lll.x.zz * gamma_uu.xx + d_lll.y.zz * gamma_uu.xy + d_lll.z.zz * gamma_uu.xz);	
+	// END CUT
+
+	<? for side=0,solver.dim-1 do ?>
+	if (n.side == <?=side?>) {
+		F.V_l = real3_swap<?=side?>(F.V_l);
+		F.a_l = real3_swap<?=side?>(F.a_l);
+		F.gamma_ll = sym3_swap<?=side?>(F.gamma_ll);
+		F.K_ll = sym3_swap<?=side?>(F.K_ll);
+		F.d_lll = _3sym3_swap<?=side?>(F.d_lll);
+	}
+	<? end ?>
+
+	return F;
+}
+
+<? elseif moduleName == "calcDT" then ?>
+
+kernel void calcDT(
+	constant <?=solver.solver_t?>* solver,
+	global real* dtBuf,
+	const global <?=eqn.cons_t?>* UBuf,
+	const global <?=solver.coord.cell_t?>* cellBuf
+) {
+	SETBOUNDS(0,0);
+	if (OOB(numGhost,numGhost)) {
+		dtBuf[index] = INFINITY;
+		return;
+	}
+		
+	const global <?=eqn.cons_t?>* U = UBuf + index;
+	
+	//the only advantage of this calcDT over the default is that here this sqrt(f) and det(gamma_ij) is only called once
+	real f_alphaSq = calc_f_alphaSq(U->alpha);
+	real det_gamma = sym3_det(U->gamma_ll);
+	real alpha_sqrt_f = sqrt(f_alphaSq);
+
+	real dt = INFINITY;
+	<? for side=0,solver.dim-1 do ?>{
+		
+		<? if side==0 then ?>
+		real gammaUjj = (U->gamma_ll.yy * U->gamma_ll.zz - U->gamma_ll.yz * U->gamma_ll.yz) / det_gamma;
+		<? elseif side==1 then ?>
+		real gammaUjj = (U->gamma_ll.xx * U->gamma_ll.zz - U->gamma_ll.xz * U->gamma_ll.xz) / det_gamma;
+		<? elseif side==2 then ?>
+		real gammaUjj = (U->gamma_ll.xx * U->gamma_ll.yy - U->gamma_ll.xy * U->gamma_ll.xy) / det_gamma;
+		<? end ?>	
+		real sqrt_gammaUjj = sqrt(gammaUjj);
+		real lambdaLight = sqrt_gammaUjj * U->alpha;
+		real lambdaGauge = sqrt_gammaUjj * alpha_sqrt_f;
+		
+		real lambda = (real)max(lambdaGauge, lambdaLight);
+
+		<? if eqn.useShift ~= 'none' then ?>
+		real betaUi = U->beta_u.s<?=side?>;
+		<? else ?>
+		const real betaUi = 0.;
+		<? end ?>
+		
+		real lambdaMin = (real)min((real)0., -betaUi - lambda);
+		real lambdaMax = (real)max((real)0., -betaUi + lambda);
+		real absLambdaMax = max(fabs(lambdaMin), fabs(lambdaMax));
+		absLambdaMax = max((real)1e-9, absLambdaMax);
+		dt = (real)min(dt, solver->grid_dx.s<?=side?> / absLambdaMax);
+	}<? end ?>
+	dtBuf[index] = dt; 
+}
+
+<? elseif moduleName == "eigen_forCell" then ?>
+
+typedef <?=eqn.eigen_t?> eigen_t;
 
 //used by PLM
 eigen_t eigen_forCell(
@@ -34,6 +373,8 @@ eigen_t eigen_forCell(
 
 	return eig;
 }
+
+<? elseif moduleName == "calcCellMinMaxEigenvalues" then ?>
 
 range_t calcCellMinMaxEigenvalues(
 	const global cons_t* U,
@@ -71,6 +412,10 @@ range_t calcCellMinMaxEigenvalues(
 	};
 }
 
+<? elseif moduleName == "eigen_forInterface" then ?>
+
+typedef <?=eqn.eigen_t?> eigen_t;
+
 //used for interface eigen basis
 eigen_t eigen_forInterface(
 	constant solver_t* solver,
@@ -105,6 +450,11 @@ eigen_t eigen_forInterface(
 	return eig;
 }
 
+<? elseif moduleName == "eigen_left/rightTransform" then ?>
+
+typedef <?=eqn.eigen_t?> eigen_t;
+typedef <?=eqn.waves_t?> waves_t;
+
 waves_t eigen_leftTransform(
 	constant solver_t* solver,
 	eigen_t eig,
@@ -114,6 +464,8 @@ waves_t eigen_leftTransform(
 ) {
 	waves_t results;
 <? if not eqn.noZeroRowsInFlux then ?>
+
+	real f = calc_f(eig.alpha);
 
 	if (n.side == 0) {
 
@@ -979,6 +1331,11 @@ cons_t eigen_rightTransform(
 	return resultU;
 }
 
+<? elseif moduleName == "eigen_fluxTransform" then ?>
+
+typedef <?=eqn.eigen_t?> eigen_t;
+typedef <?=eqn.waves_t?> waves_t;
+
 cons_t eigen_fluxTransform(
 	constant solver_t* solver,
 	eigen_t eig,
@@ -1091,6 +1448,8 @@ cons_t eigen_fluxTransform(
 <? end ?>
 <? end -- noZeroRowsInFlux ?>
 }
+
+<? elseif moduleName == "addSource" then ?>
 
 /*
 this should just be 
@@ -2785,6 +3144,8 @@ end ?>
 	//isn't that just a hack to improve the stability of finite-difference, which diverges by nature?
 }
 
+<? elseif moduleName == "constrainU" then ?>
+
 kernel void constrainU(
 	constant solver_t* solver,
 	global cons_t* UBuf,
@@ -2959,3 +3320,9 @@ if eqn.useStressEnergyTerms then ?>
 end ?>;
 	//momentum constraint
 }
+
+<? 
+else
+	error("unknown moduleName "..require 'ext.tolua'(moduleName))
+end 
+?>

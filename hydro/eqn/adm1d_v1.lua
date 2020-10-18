@@ -14,9 +14,9 @@ ADM_BonaMasso_1D_2008Alcubierre.name = 'ADM_BonaMasso_1D_2008Alcubierre'
 
 ADM_BonaMasso_1D_2008Alcubierre.consVars = {
 	{name='alpha', type='real'}, 
-	{name='gamma_xx', type='real'}, 
-	{name='a_x', type='real'}, 
-	{name='D_g', type='real'}, 
+	{name='gamma_xx', type='real', variance=''}, 
+	{name='a_x', type='real', variance=''}, 
+	{name='D_g', type='real', variance=''}, 
 	{name='KTilde', type='real'},
 }
 ADM_BonaMasso_1D_2008Alcubierre.numWaves = 3	-- alpha and gamma_xx are source-term only
@@ -29,109 +29,61 @@ ADM_BonaMasso_1D_2008Alcubierre.guiVars = {
 	{name='D_g_convCoeff', value=10},
 }
 
--- the PLM version that uses this crashes
--- so maybe there's something wrong with this
+function ADM_BonaMasso_1D_2008Alcubierre:initCodeModules()
+	ADM_BonaMasso_1D_2008Alcubierre.super.initCodeModules(self)
+	for moduleName, depends in pairs{
+
+		['setFlatSpace'] = {},
+
 --[=[
-function ADM_BonaMasso_1D_2008Alcubierre:initCodeModule_fluxFromCons()
-	self.solver.modules:add{
-		name = 'fluxFromCons',
-		depends = {
+		-- the PLM version that uses this crashes
+		-- so maybe there's something wrong with this
+		['fluxFromCons'] = {
 			'solver.solver_t',
 			'eqn.cons_t',
 			'eqn.common',	-- calc_f ... or is it initCond.codeprefix?
 		},
-		code = self:template[[
-<?=eqn.cons_t?> fluxFromCons(
-	constant <?=solver.solver_t?>* solver,
-	<?=eqn.cons_t?> U,
-	real3 x,
-	normal_t n
-) {
-	real f = calc_f(U.alpha);
-	real alpha_over_sqrt_gamma_xx = U.alpha / sqrt(U.gamma_xx);
-	return (<?=eqn.cons_t?>){
-		.alpha = 0,
-		.gamma_xx = 0,
-		.a_x = U.KTilde * f * alpha_over_sqrt_gamma_xx,
-		.D_g = U.KTilde * 2. * alpha_over_sqrt_gamma_xx,
-		.KTilde = U.a_x * alpha_over_sqrt_gamma_xx,
-	};
-}
-]],
-	}
-end
 --]=]
 
--- code that goes in initCond and in the solver
-function ADM_BonaMasso_1D_2008Alcubierre:initCodeModule_setFlatSpace()
-	self.solver.modules:add{
-		name = 'setFlatSpace',
-		code = self:template[[
-void setFlatSpace(
-	constant <?=solver.solver_t?>* solver,
-	global <?=eqn.cons_t?>* U,
-	real3 x
-) {
-	*U = (<?=eqn.cons_t?>){
-		.alpha = 1, 
-		.gamma_xx = 1,
-		.a_x = 0,
-		.D_g = 0,
-		.KTilde = 0,
-	};
-}
-
-]],
-	}
+		['eigen_forInterface'] = {},
+		['eigen_forCell'] = {},
+		['eigen_left/rightTransform'] = {},
+		['eigen_fluxTransform'] = {},
+		
+		['addSource'] = {
+			'initCond.codeprefix',	-- calc_*
+		},
+	} do
+		self:addModuleFromSourceFile{
+			name = moduleName,
+			depends = depends,
+		}
+	end
 end
+
+--[=[ enable this out if you enable the fluxFromCons above
+function ADM_BonaMasso_1D_2008Alcubierre:initCodeModule_fluxFromCons() end
+--]=]
+
+-- don't use default
+function ADM_BonaMasso_1D_2008Alcubierre:initCodeModule_setFlatSpace() end
 
 function ADM_BonaMasso_1D_2008Alcubierre:getModuleDependsApplyInitCond()
 	return table(ADM_BonaMasso_1D_2008Alcubierre.super.getModuleDependsApplyInitCond(self), {
 		'sym3',
+		'coordMap',
 	})
 end
 
+-- don't use eqn.einstein, which says calc_gamma_ll and calc_gamma_uu
+function ADM_BonaMasso_1D_2008Alcubierre:getModuleDependsSolver() 
+	return {}
+end
+
+-- don't use eqn.einstein:
+function ADM_BonaMasso_1D_2008Alcubierre:createDisplayComponents() end
+
 ADM_BonaMasso_1D_2008Alcubierre.needsInitDerivs = true
-ADM_BonaMasso_1D_2008Alcubierre.initCondCode = [[
-kernel void applyInitCond(
-	constant <?=solver.solver_t?>* solver,
-	constant <?=solver.initCond_t?>* initCond,
-	global <?=eqn.cons_t?>* UBuf,
-	const global <?=coord.cell_t?>* cellBuf
-) {
-	SETBOUNDS(0,0);
-	real3 x = cellBuf[index].pos;
-	real3 xc = coordMap(x);
-	real3 mids = real3_real_mul(real3_add(solver->mins, solver->maxs), .5);
-	
-	global <?=eqn.cons_t?>* U = UBuf + index;
-	
-	real alpha = 1.;
-	real3 beta_u = real3_zero;
-	sym3 gamma_ll = sym3_ident;
-	sym3 K_ll = sym3_zero;
-
-	<?=code?>
-
-	U->alpha = alpha;
-	U->gamma_xx = gamma_ll.xx;
-	U->KTilde = K_ll.xx / sqrt(gamma_ll.xx);
-}
-
-kernel void initDerivs(
-	constant <?=solver.solver_t?>* solver,
-	global <?=eqn.cons_t?>* UBuf
-) {
-	SETBOUNDS(numGhost,numGhost);
-	global <?=eqn.cons_t?>* U = UBuf + index;
-	
-	real dx_alpha = (U[1].alpha - U[-1].alpha) / solver->grid_dx.x;
-	real dx_gamma_xx = (U[1].gamma_xx - U[-1].gamma_xx) / solver->grid_dx.x;
-
-	U->a_x = dx_alpha / U->alpha;
-	U->D_g = dx_gamma_xx / U->gamma_xx;
-}
-]]
 
 ADM_BonaMasso_1D_2008Alcubierre.solverCodeFile = 'hydro/eqn/adm1d_v1.cl'
 

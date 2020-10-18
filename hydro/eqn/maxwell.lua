@@ -73,14 +73,14 @@ function Maxwell:init(args)
 		{name='phi', type=self.scalar, units='C/m^2'},
 		{name='psi', type=self.scalar, units='kg/(C*s)'},
 		{name='rhoCharge', type=self.scalar, units='C/m^3'},
-		{name='J', type=self.vec3, units='C/(m^2*s)'},
-		{name='sqrt_1_eps', type=self.susc_t, units='(kg*m^3)^.5/(C*s)'},
-		{name='sqrt_1_mu', type=self.susc_t, units='C/(kg*m)^.5'},
+		{name='J', type=self.vec3, units='C/(m^2*s)', variance='l'},
+		{name='sqrt_1_eps', type=self.susc_t, units='(kg*m^3)^.5/(C*s)', variance=''},
+		{name='sqrt_1_mu', type=self.susc_t, units='C/(kg*m)^.5', variance=''},
 	}
 	
 	self.eigenVars = table{
-		{name='sqrt_1_eps', type=self.susc_t, units='(kg*m^3)^.5/(C*s)'},
-		{name='sqrt_1_mu', type=self.susc_t, units='C/(kg*m)^.5'},
+		{name='sqrt_1_eps', type=self.susc_t, units='(kg*m^3)^.5/(C*s)', variance=''},
+		{name='sqrt_1_mu', type=self.susc_t, units='C/(kg*m)^.5', variance=''},
 	}
 
 	Maxwell.super.init(self, args)
@@ -117,146 +117,56 @@ function Maxwell:init(args)
 	})
 end
 
-function Maxwell:initCodeModule_fluxFromCons()
-	self.solver.modules:add{
-		name = 'fluxFromCons',
-		depends = {
+function Maxwell:initCodeModules()
+	Maxwell.super.initCodeModules(self)
+
+	for moduleName, depends in pairs{
+		['sqrt_2_and_1_2'] = {},
+
+		['eqn.common'] = {
+			'coordLenSq',
+			'cartesianToCoord',
+			'coord_lower',
+		},
+
+		['fluxFromCons'] = {
 			'solver.solver_t',
 			'normal_t',
 			'eqn.cons_t',
 			'eqn.prim_t',
 			'eqn.common',	-- calc_E, calc_H
 		},
-		code = self:template[[
-<?=eqn.cons_t?> fluxFromCons(
-	constant <?=solver.solver_t?>* solver,
-	<?=eqn.cons_t?> U,
-	real3 x,
-	normal_t n
-) {
-	<?=vec3?> E = calc_E(U);
-	<?=vec3?> H = calc_H(U);
-	<?=eqn.cons_t?> F;
-	if (n.side == 0) {
-		F.D = _<?=vec3?>(<?=zero?>, H.z, <?=neg?>(H.y));
-		F.B = _<?=vec3?>(<?=zero?>, <?=neg?>(E.z), E.y);
-	} else if (n.side == 1) {
-		F.D = _<?=vec3?>(<?=neg?>(H.z), <?=zero?>, H.x);
-		F.B = _<?=vec3?>(E.z, <?=zero?>, <?=neg?>(E.x));
-	} else if (n.side == 2) {
-		F.D = _<?=vec3?>(H.y, <?=neg?>(H.x), <?=zero?>);
-		F.B = _<?=vec3?>(<?=neg?>(E.y), E.x, <?=zero?>);
-	}
-	F.phi = <?=zero?>;
-	F.psi = <?=zero?>;
-	F.D = <?=vec3?>_zero;
-	F.rhoCharge = <?=zero?>;
-	F.sqrt_1_eps = <?=susc_t?>_zero;
-	F.sqrt_1_mu = <?=susc_t?>_zero;
-	return F;
-}
-]],
-	}
+
+		['eigen_forInterface'] = {},
+		['eigen_forCell'] = {},
+		
+		['eigen_left/rightTransform'] = {
+			'sqrt_2_and_1_2',
+		},
+		
+		['eigen_fluxTransform'] = {},
+		
+		['addSource'] = {
+			'coord_sqrt_det_g',
+			'fluxFromCons',
+		},
+	} do
+		self:addModuleFromSourceFile{
+			name = moduleName,
+			depends = depends,
+		}
+	end
 end
 
-function Maxwell:initCodeModuleCommon()
-	self.solver.modules:add{
-		name = 'eqn.common',
-		code = self:template[[
-<? if scalar == 'real' then ?>
-
-#define eqn_coordLenSq coordLenSq
-#define eqn_cartesianToCoord cartesianToCoord
-#define eqn_coord_lower coord_lower
-
-<? elseif scalar == 'cplx' then ?>
-
-real eqn_coordLenSq(cplx3 v, real3 x) {
-	return coordLenSq(cplx3_re(v), x)
-		+ coordLenSq(cplx3_im(v), x);
-}
-
-cplx3 eqn_cartesianToCoord(cplx3 v, real3 x) {
-	return cplx3_from_real3_real3(
-		cartesianToCoord(cplx3_re(v), x),
-		cartesianToCoord(cplx3_im(v), x));
-}
-
-cplx3 eqn_coord_lower(cplx3 v, real3 x) {
-	return cplx3_from_real3_real3(
-		coord_lower(cplx3_re(v), x),
-		coord_lower(cplx3_im(v), x));
-}
-
-<? end -- scalar ?>
-
-<?=vec3?> calc_E(<?=eqn.cons_t?> U) { 
-	return <?=vec3?>_<?=susc_t?>_mul(U.D, <?=susc_t?>_mul(U.sqrt_1_eps, U.sqrt_1_eps));
-}
-<?=vec3?> calc_H(<?=eqn.cons_t?> U) { 
-	return <?=vec3?>_<?=susc_t?>_mul(U.B, <?=susc_t?>_mul(U.sqrt_1_mu, U.sqrt_1_mu));
-}
-]],
-	}
-end
-
-Maxwell.initCondCode = [[
-<? 
-local cons_t = eqn.cons_t
-local susc_t = eqn.susc_t
-local scalar = eqn.scalar
-local vec3 = eqn.vec3
-local zero = scalar..'_zero'
-?>
-
-kernel void applyInitCond(
-	constant <?=solver.solver_t?>* solver,
-	constant <?=solver.initCond_t?>* initCond,
-	global <?=cons_t?>* UBuf,
-	const global <?=coord.cell_t?>* cellBuf
-) {
-	SETBOUNDS(0,0);
-	real3 x = cellBuf[index].pos;
-	real3 mids = real3_real_mul(real3_add(solver->mins, solver->maxs), .5);
-	bool lhs = x.x < mids.x
-#if dim > 1
-		&& x.y < mids.y
-#endif
-#if dim > 2
-		&& x.z < mids.z
-#endif
-	;
-	global <?=cons_t?>* U = UBuf + index;
-
-	//used
-	<?=vec3?> D = <?=vec3?>_zero;
-	<?=vec3?> B = <?=vec3?>_zero;
-	<?=scalar?> conductivity = <?=scalar?>_from_real(1.);
-	<?=susc_t?> permittivity = <?=susc_t?>_from_real(1.);
-	<?=susc_t?> permeability = <?=susc_t?>_from_real(1.);
-	<?=scalar?> rhoCharge = <?=zero?>;
-
-	//throw-away
-	real rho = 0;
-	real3 v = real3_zero;
-	real P = 0;
-	real ePot = 0;
-	
-<?=code?>
-	
-	U->D = eqn_cartesianToCoord(D, x);
-	U->B = eqn_cartesianToCoord(B, x);
-	U->phi = <?=zero?>;
-	U->psi = <?=zero?>;
-	U->J = <?=vec3?>_zero;
-	U->rhoCharge = rhoCharge;
-	U->sqrt_1_eps = <?=susc_t?>_sqrt(<?=susc_t?>_inv(permittivity));
-	U->sqrt_1_mu = <?=susc_t?>_sqrt(<?=susc_t?>_inv(permeability));
-}
-]]
+-- don't use default
+function Maxwell:initCodeModule_fluxFromCons() end
+function Maxwell:initCodeModuleCommon() end
 
 function Maxwell:getModuleDependsApplyInitCond()
-	return {'eqn.common'}
+	return table(Maxwell.super.getModuleDependsApplyInitCond(self))
+	:append{
+		'eqn.common',	-- eqn_cartesianToCoord
+	}
 end
 
 function Maxwell:getModuleDependsSolver()

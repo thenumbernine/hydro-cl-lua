@@ -97,280 +97,91 @@ end
 
 function Euler:initCodeModules()
 	Euler.super.initCodeModules(self)
+	for moduleName, depends in pairs{
 
-	-- added by request only, so I don't have to compile the real3x3 code
-	-- not used at the moment
-	self.solver.modules:add{
-		name = 'calcCellMinMaxEigenvalues',
-		depends = {
-			'real3x3',
-			'eqn.prim-cons',
-		},
-		code = self:template[[
-range_t calcCellMinMaxEigenvalues(
-	constant <?=solver.solver_t?>* solver,
-	const global <?=eqn.cons_t?>* U,
-	real3 x,
-	real3x3 nL,
-	real3x3 nU,
-	real nLen
-) {
-	<?=eqn.prim_t?> W = primFromCons(solver, *U, x);
-	real v_n = real3_dot(W.v, nL.x);
-	real Cs = calc_Cs(solver, &W);
-	real Cs_nLen = Cs * nLen;
-	return (range_t){
-		.min = v_n - Cs_nLen, 
-		.max = v_n + Cs_nLen,
-	};
-}
-]],
-	}
-
-	self.solver.modules:add{
-		name = 'eigen_forCell',
-		depends = {
-			'normal_t',	-- normal_t
-			'coord_lower',
-			'eqn.cons_t',
-			'eqn.prim_t',
-			'eqn.eigen_t',
-			'eqn.prim-cons',
-			'eqn.solvercode',	-- calc_hTotal
-		},
-		code = self:template[[
-// used by PLM
-<?=eqn.eigen_t?> eigen_forCell(
-	constant <?=solver.solver_t?>* solver,
-	<?=eqn.cons_t?> U,
-	real3 x,
-	normal_t n
-) {
-	<?=eqn.prim_t?> W = primFromCons(solver, U, x);
-	real3 vL = coord_lower(W.v, x);
-	real vSq = real3_dot(W.v, vL);
-	real v_n = normal_vecDotN1(n, W.v);
-	real eKin = .5 * vSq;
-	real hTotal = calc_hTotal(W.rho, W.P, U.ETotal);
-	real CsSq = (solver->heatCapacityRatio - 1.) * (hTotal - eKin);
-	real Cs = sqrt(CsSq);
-	return (<?=eqn.eigen_t?>){
-		.rho = W.rho,
-		.v = W.v,
-		.vSq = vSq,
-		.vL = vL,
-		.hTotal = hTotal,
-		.Cs = Cs,
-	};
-}
-]],
-	}
-end
-
-function Euler:initCodeModule_fluxFromCons()
-	self.solver.modules:add{
-		name = 'fluxFromCons',
-		depends = {
-			'solver.solver_t',
-			'eqn.prim-cons',
-			'normal_t',
-		},
-		code = self:template[[
-<?=eqn.cons_t?> fluxFromCons(
-	constant <?=solver.solver_t?>* solver,
-	<?=eqn.cons_t?> U,
-	real3 x,
-	normal_t n
-) {
-	<?=eqn.prim_t?> W = primFromCons(solver, U, x);
-	real v_n = normal_vecDotN1(n, W.v);
-	real HTotal = U.ETotal + W.P;
-	
-	return (<?=eqn.cons_t?>){
-		.rho = U.rho * v_n,
-		.m = real3_add(
-			real3_real_mul(U.m, v_n),
-			_real3(
-				normal_u1x(n) * W.P,
-				normal_u1y(n) * W.P,
-				normal_u1z(n) * W.P
-			)
-		),
-		.ETotal = HTotal * v_n,
-		.ePot = 0,
-	};
-}
-]],
-	}
-end
-
-function Euler:initCodeModuleCommon()
-	self.solver.modules:add{
-		name = 'eqn.common',
-		depends = {
-			'eqn.cons_t',
-			'eqn.prim_t',
-			'eqn.waves_t',
-			'eqn.eigen_t',
-			'coordLenSq',
-		},
-		code = self:template[[
-real calc_H(constant <?=solver.solver_t?>* solver, real P) { return P * (solver->heatCapacityRatio / (solver->heatCapacityRatio - 1.)); }
-real calc_h(constant <?=solver.solver_t?>* solver, real rho, real P) { return calc_H(solver, P) / rho; }
-real calc_HTotal(real P, real ETotal) { return P + ETotal; }
-real calc_hTotal(real rho, real P, real ETotal) { return calc_HTotal(P, ETotal) / rho; }
-real calc_eKin(<?=eqn.prim_t?> W, real3 x) { return .5 * coordLenSq(W.v, x); }
-real calc_EKin(<?=eqn.prim_t?> W, real3 x) { return W.rho * calc_eKin(W, x); }
-real calc_EInt(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W) { return W.P / (solver->heatCapacityRatio - 1.); }
-real calc_eInt(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W) { return calc_EInt(solver, W) / W.rho; }
-real calc_EKin_fromCons(<?=eqn.cons_t?> U, real3 x) { return .5 * coordLenSq(U.m, x) / U.rho; }
-real calc_ETotal(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W, real3 x) {
-	return calc_EKin(W, x) + calc_EInt(solver, W);
-}
-
-real calc_Cs(constant <?=solver.solver_t?>* solver, const <?=eqn.prim_t?>* W) {
-	return sqrt(solver->heatCapacityRatio * W->P / W->rho);
-}
-
-real calc_P(constant <?=solver.solver_t?>* solver, <?=eqn.cons_t?> U, real3 x) {
-	real EKin = calc_EKin_fromCons(U, x);
-	real EInt = U.ETotal - EKin;
-	return (solver->heatCapacityRatio - 1.) * EInt;
-}
-
-]],
-	}
-end
-
--- override the default
-function Euler:initCodeModulePrimCons()
-	self.solver.modules:add{
-		name = 'eqn.prim-cons',
-		depends = {
+		['eqn.prim-cons'] = {
 			'real3',
 			'solver.solver_t',
 			'eqn.prim_t',
 			'eqn.cons_t',
 			'eqn.common',	-- all the calc_* stuff
 		},
-		code = self:template[[
-<?=eqn.prim_t?> primFromCons(constant <?=solver.solver_t?>* solver, <?=eqn.cons_t?> U, real3 x) {
-	return (<?=eqn.prim_t?>){
-		.rho = U.rho,
-		.v = real3_real_mul(U.m, 1./U.rho),
-		.P = calc_P(solver, U, x),
-		.ePot = U.ePot,
-	};
-}
 
-<?=eqn.cons_t?> consFromPrim(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W, real3 x) {
-	return (<?=eqn.cons_t?>){
-		.rho = W.rho,
-		.m = real3_real_mul(W.v, W.rho),
-		.ETotal = calc_ETotal(solver, W, x),
-		.ePot = W.ePot,
-	};
-}
-]],
-	}
-
-	-- only used by PLM
-	self.solver.modules:add{
-		name = 'eqn.dU-dW',
-		depends = {
+		-- only used by PLM
+		['eqn.dU-dW'] = {
 			'solver.solver_t',
 			'eqn.prim_t',
 			'eqn.cons_t',
 			'coord_lower',
 		},
-		code = self:template[[
-<?=eqn.cons_t?> apply_dU_dW(
-	constant <?=solver.solver_t?>* solver,
-	<?=eqn.prim_t?> WA, 
-	<?=eqn.prim_t?> W, 
-	real3 x
-) {
-	real3 WA_vL = coord_lower(WA.v, x);
-	return (<?=eqn.cons_t?>){
-		.rho = W.rho,
-		.m = real3_add(
-			real3_real_mul(WA.v, W.rho), 
-			real3_real_mul(W.v, WA.rho)),
-		.ETotal = W.rho * .5 * real3_dot(WA.v, WA_vL) 
-			+ WA.rho * real3_dot(W.v, WA_vL)
-			+ W.P / (solver->heatCapacityRatio - 1.),
-		.ePot = W.ePot,
-	};
-}
 
-<?=eqn.prim_t?> apply_dW_dU(
-	constant <?=solver.solver_t?>* solver,
-	<?=eqn.prim_t?> WA,
-	<?=eqn.cons_t?> U,
-	real3 x
-) {
-	real3 WA_vL = coord_lower(WA.v, x);
-	return (<?=eqn.prim_t?>){
-		.rho = U.rho,
-		.v = real3_sub(
-			real3_real_mul(U.m, 1. / WA.rho),
-			real3_real_mul(WA.v, U.rho / WA.rho)),
-		.P = (solver->heatCapacityRatio - 1.) * (
-			.5 * real3_dot(WA.v, WA_vL) * U.rho 
-			- real3_dot(U.m, WA_vL)
-			+ U.ETotal),
-		.ePot = U.ePot,
-	};
-}
-]],
-	}
+		['eqn.common'] = {
+			'eqn.cons_t',
+			'eqn.prim_t',
+			'eqn.waves_t',
+			'eqn.eigen_t',
+			'coordLenSq',
+		},
+
+		['fluxFromCons'] = {
+			'solver.solver_t',
+			'eqn.prim-cons',
+			'normal_t',
+		},
+
+		-- added by request only, so I don't have to compile the real3x3 code
+		-- not used at the moment
+		['calcCellMinMaxEigenvalues'] = {
+			'real3x3',
+			'eqn.prim-cons',
+		},
+		
+		['eigen_forCell'] = {
+			'normal_t',
+			'coord_lower',
+			'eqn.cons_t',
+			'eqn.prim_t',
+			'eqn.eigen_t',
+			'eqn.prim-cons',
+			'eqn.solvercode',	-- calc_hTotal
+		},	
+		
+		['eigen_forInterface'] = {
+			'eqn.eigen_t',
+			'normal_t',
+			'coord_lower',
+		},
+		
+		['eigen_left/rightTransform'] = {
+			'eqn.eigen_t',
+			'normal_t',
+		},
+		
+		['eigen_fluxTransform'] = {
+			'eqn.eigen_t',
+			'normal_t',
+		},
+	
+		['addSource'] = {},
+		
+		['constrainU'] = {},
+	} do
+		self:addModuleFromSourceFile{
+			name = moduleName,
+			depends = depends,
+		}
+	end
 end
 
+-- don't use default
+function Euler:initCodeModule_fluxFromCons() end
+function Euler:initCodeModuleCommon() end
+function Euler:initCodeModulePrimCons() end
 
 function Euler:getModuleDependsApplyInitCond()
 	return table(Euler.super.getModuleDependsApplyInitCond(self))
 	:append{'cartesianToCoord'}
 end
-Euler.initCondCode = [[
-kernel void applyInitCond(
-	constant <?=solver.solver_t?>* solver,
-	constant <?=solver.initCond_t?>* initCond,
-	global <?=eqn.cons_t?>* UBuf,
-	const global <?=coord.cell_t?>* cellBuf
-) {
-	SETBOUNDS(0,0);
-	real3 x = cellBuf[index].pos;
-	
-	global <?=eqn.cons_t?>* U = UBuf + index;
-
-	real3 mids = real3_real_mul(real3_add(solver->initCondMins, solver->initCondMaxs), .5);
-	bool lhs = true<?
-for i=1,solver.dim do
-	local xi = xNames[i]
-?> && x.<?=xi?> < mids.<?=xi?><?
-end
-?>;
-
-	// these are all standard for all init/euler.lua initial conditions
-	real rho = 0;
-	real3 v = real3_zero;
-	real P = 0;
-	real3 D = real3_zero;
-	real3 B = real3_zero;
-	real ePot = 0;
-
-	<?=code?>
-
-	<?=eqn.prim_t?> W = {
-		.rho = rho,
-		.v = cartesianToCoord(v, x),
-		.P = P,
-		.ePot = ePot,
-	};
-
-	*U = consFromPrim(solver, W, x);
-}
-]]
 
 Euler.solverCodeFile = 'hydro/eqn/euler.cl'
 
@@ -516,11 +327,8 @@ function Euler:initCodeModule_calcDT()
 			'solver.solver_t',
 			'eqn.prim-cons',
 			'eqn.guiVars.compileTime',
-		}:append(
-			require 'hydro.solver.meshsolver'.is(solver) and {
-				'normal_t',
-			} or nil
-		),
+			'normal_t',
+		},
 		code = self:template[[
 <? if require 'hydro.solver.gridsolver'.is(solver) then ?>
 

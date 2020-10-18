@@ -82,7 +82,11 @@ function PoissonKrylov:initSolver()
 	end
 
 	-- just headers are needed
-	local codePrefix = solver.modules:getHeader(solver.sharedModulesEnabled:keys():unpack())
+	local codePrefix = solver.modules:getHeader(
+		table(solver.sharedModulesEnabled:keys())
+		:append{
+			'OOB',
+		}:unpack())
 
 	local mulWithoutBorderKernelObj = solver.domain:kernel{
 		name = 'Poisson_mulWithoutBorder'..self.name,
@@ -264,7 +268,10 @@ kernel void copyVecToPotentialField<?=op.name?>(
 function PoissonKrylov:initCodeModules(solver)
 	solver.modules:add{
 		name ='op.PoissonKrylov',
-		depends = {'cell_sqrt_det_g'},
+		depends = {
+			'cell_sqrt_det_g',
+			'cell_dx#',
+		},
 		code = template(
 			file['hydro/op/poisson.cl']..'\n'
 			..poissonKrylovCode,

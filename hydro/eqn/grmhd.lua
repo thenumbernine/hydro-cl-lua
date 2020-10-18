@@ -16,7 +16,6 @@ GRMHD.name = 'GRMHD'
 GRMHD.numStates = 9
 GRMHD.numWaves = 8
 
-GRMHD.hasCalcDTCode = true
 GRMHD.useConstrainU = true
 
 -- GRMHD fluxFromCons will need prims passed to it as well

@@ -663,13 +663,11 @@ function SolverBase:initCodeModules()
 
 
 	-------- solver modules --------
-	
+
+	-- TODO get rid of this, make everything a module
 	self.solverModulesEnabled['eqn.solvercode'] = true
 
-	-- TODO get rid of this flag? make everything a module
-	if not self.eqn.hasCalcDTCode then
-		self.solverModulesEnabled['calcDT'] = true
-	end
+	self.solverModulesEnabled['calcDT'] = true
 
 	self.modules:add{
 		name = 'fluxLimiter',
@@ -693,6 +691,13 @@ real fluxLimiter(real r) {
 		if op.initCodeModules then
 			op:initCodeModules(self)
 		end
+	end
+
+	if self.eqn.useSourceTerm then
+		self.solverModulesEnabled['addSource'] = true
+	end
+	if self.eqn.useConstrainU then
+		self.solverModulesEnabled['constrainU'] = true
 	end
 end
 

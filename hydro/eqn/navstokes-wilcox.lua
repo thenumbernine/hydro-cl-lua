@@ -23,7 +23,7 @@ NavierStokesWilcox.initConds = require 'hydro.init.euler':getList()
 function NavierStokesWilcox:init(args)
 	self.primVars = table{
 		{name='rhoBar', type='real'},
-		{name='vTilde', type='real3'},
+		{name='vTilde', type='real3', variance='u'},
 		{name='PStar', type='real'},
 		{name='k', type='real'},
 		{name='omega', type='real'},
@@ -32,10 +32,10 @@ function NavierStokesWilcox:init(args)
 
 	self.consVars = table{
 		{name='rhoBar', type='real'},
-		{name='rhoBar_vTilde', type='real3'},
-		{name='rhoBar_eTotalTilde', type='real'},
-		{name='rhoBar_k', type='real'},
-		{name='rhoBar_omega', type='real'},
+		{name='rhoBar_vTilde', type='real3', variance='u'},
+		{name='rhoBar_eTotalTilde', type='real', variance=''},	-- manually specify variance to variables that use underscores
+		{name='rhoBar_k', type='real', variance=''},
+		{name='rhoBar_omega', type='real', variance=''},
 		{name='ePot', type='real'},
 	}
 

@@ -54,13 +54,13 @@ function GLM_Maxwell:init(args)
 		{name='psi', type=self.scalar, units='kg/(C*s)'},	-- div B potential
 		{name='rhoCharge', type=self.scalar, units='C/m^3'},
 		{name='sigma', type=self.scalar, units='(C^2*s)/(kg*m^3)'},
-		{name='sqrt_1_eps', type=self.susc_t, units='(kg*m^3)^.5/(C*s)'},
-		{name='sqrt_1_mu', type=self.susc_t, units='C/(kg*m)^.5'},
+		{name='sqrt_1_eps', type=self.susc_t, units='(kg*m^3)^.5/(C*s)', variance=''},
+		{name='sqrt_1_mu', type=self.susc_t, units='C/(kg*m)^.5', variance=''},
 	}
 
 	self.eigenVars = table{
-		{name='sqrt_1_eps', type=self.susc_t, units='(kg*m^3)^.5/(C*s)'},
-		{name='sqrt_1_mu', type=self.susc_t, units='C/(kg*m)^.5'},
+		{name='sqrt_1_eps', type=self.susc_t, units='(kg*m^3)^.5/(C*s)', variance=''},
+		{name='sqrt_1_mu', type=self.susc_t, units='C/(kg*m)^.5', variance=''},
 	}
 
 	GLM_Maxwell.super.init(self, args)
@@ -101,91 +101,49 @@ function GLM_Maxwell:createInitState()
 	}
 end
 
-function GLM_Maxwell:initCodeModule_fluxFromCons()
-	self.solver.modules:add{
-		name = 'fluxFromCons',
-		depends = {
+function GLM_Maxwell:initCodeModules()
+	GLM_Maxwell.super.initCodeModules(self)
+	
+	for moduleName, depends in pairs{
+		['sqrt_1_2'] = {},
+	
+		['eqn.common'] = {
+			'coordLenSq',
+			'cartesianToCoord',
+			'coord_lower',
+		},
+
+		['fluxFromCons'] = {
 			'solver.solver_t',
 			'eqn.cons_t',
 			'eqn.prim_t',
 			'normal_t',
 			'eqn.common',
 		},
-		code = self:template[[
-<?=eqn.cons_t?> fluxFromCons(
-	constant <?=solver.solver_t?>* solver,
-	<?=eqn.cons_t?> U,
-	real3 x,
-	normal_t n
-) {
-	<?=vec3?> E = calc_E(U);
-	<?=vec3?> H = calc_H(U);
-	
-	<?=eqn.cons_t?> F;
-	if (n.side == 0) {
-		F.D = _<?=vec3?>(<?=real_mul?>(U.phi, solver->divPhiWavespeed / unit_m_per_s),  H.z, <?=neg?>(H.y));
-		F.B = _<?=vec3?>(<?=real_mul?>(U.psi, solver->divPsiWavespeed / unit_m_per_s), <?=neg?>(E.z),  E.y);
-	} else if (n.side == 1) {
-		F.D = _<?=vec3?>(<?=neg?>(H.z), <?=real_mul?>(U.phi, solver->divPhiWavespeed / unit_m_per_s),  H.x);
-		F.B = _<?=vec3?>( E.z, <?=real_mul?>(U.psi, solver->divPsiWavespeed / unit_m_per_s), <?=neg?>(E.x));
-	} else if (n.side == 2) {
-		F.D = _<?=vec3?>( H.y, <?=neg?>(H.x), <?=real_mul?>(U.phi, solver->divPhiWavespeed / unit_m_per_s));
-		F.B = _<?=vec3?>(<?=neg?>(E.y),  E.x, <?=real_mul?>(U.psi, solver->divPsiWavespeed / unit_m_per_s));
-	}
-	real D_n = normal_vecDotN1(n, U.D);
-	real B_n = normal_vecDotN1(n, U.B);
-	F.phi = <?=real_mul?>(D_n, solver->divPhiWavespeed / unit_m_per_s);
-	F.psi = <?=real_mul?>(B_n, solver->divPsiWavespeed / unit_m_per_s);
-	F.sigma = <?=zero?>;
-	F.rhoCharge = <?=zero?>;
-	F.sqrt_1_eps = <?=susc_t?>_zero;
-	F.sqrt_1_mu = <?=susc_t?>_zero;
-	return F;
-}
-]],
-	}
+
+		['eigen_forInterface'] = {},
+		['eigen_forCell'] = {},
+		['eigen_left/rightTransform'] = {
+			'eqn.waves_t',
+			'sqrt_1_2',
+		},
+		['eigen_fluxTransform'] = {},
+		
+		['addSource'] = {
+			'coord_sqrt_det_g',
+			'fluxFromCons',
+		},
+	} do
+		self:addModuleFromSourceFile{
+			name = moduleName,
+			depends = depends,
+		}
+	end
 end
 
-function GLM_Maxwell:initCodeModuleCommon()
-	self.solver.modules:add{
-		name = 'eqn.common',
-		code = self:template[[
-<? if scalar == 'real' then ?>
-
-#define eqn_coordLenSq coordLenSq
-#define eqn_cartesianToCoord cartesianToCoord
-#define eqn_coord_lower coord_lower
-
-<? elseif scalar == 'cplx' then ?>
-
-real eqn_coordLenSq(cplx3 v, real3 x) {
-	return coordLenSq(cplx3_re(v), x)
-		+ coordLenSq(cplx3_im(v), x);
-}
-
-cplx3 eqn_cartesianToCoord(cplx3 v, real3 x) {
-	return cplx3_from_real3_real3(
-		cartesianToCoord(cplx3_re(v), x),
-		cartesianToCoord(cplx3_im(v), x));
-}
-
-cplx3 eqn_coord_lower(cplx3 v, real3 x) {
-	return cplx3_from_real3_real3(
-		coord_lower(cplx3_re(v), x),
-		coord_lower(cplx3_im(v), x));
-}
-
-<? end -- scalar ?>
-
-<?=vec3?> calc_E(<?=eqn.cons_t?> U) { 
-	return <?=vec3?>_<?=susc_t?>_mul(U.D, <?=susc_t?>_mul(U.sqrt_1_eps, U.sqrt_1_eps));
-}
-<?=vec3?> calc_H(<?=eqn.cons_t?> U) { 
-	return <?=vec3?>_<?=susc_t?>_mul(U.B, <?=susc_t?>_mul(U.sqrt_1_mu, U.sqrt_1_mu));
-}
-]],
-	}
-end
+-- don't use default
+function GLM_Maxwell:initCodeModule_fluxFromCons() end
+function GLM_Maxwell:initCodeModuleCommon() end
 
 function GLM_Maxwell:getModuleDependsApplyInitCond()
 	return {
@@ -193,6 +151,7 @@ function GLM_Maxwell:getModuleDependsApplyInitCond()
 	}
 end
 
+-- TODO this is now the eqn.consWave dependencies
 function GLM_Maxwell:getModuleDependsSolver()
 	return {
 		'eqn.common',
@@ -200,61 +159,6 @@ function GLM_Maxwell:getModuleDependsSolver()
 		'fluxFromCons',
 	}
 end
-
-GLM_Maxwell.initCondCode = [[
-
-<? 
-local cons_t = eqn.cons_t
-local susc_t = eqn.susc_t
-local scalar = eqn.scalar
-local vec3 = eqn.vec3
-local zero = scalar..'_zero'
-?>
-
-kernel void applyInitCond(
-	constant <?=solver.solver_t?>* solver,
-	constant <?=solver.initCond_t?>* initCond,
-	global <?=cons_t?>* UBuf,
-	const global <?=coord.cell_t?>* cellBuf
-) {
-	SETBOUNDS(0,0);
-	real3 x = cellBuf[index].pos;
-	real3 mids = real3_real_mul(real3_add(solver->mins, solver->maxs), .5);
-	bool lhs = x.x < mids.x
-#if dim > 1
-		&& x.y < mids.y
-#endif
-#if dim > 2
-		&& x.z < mids.z
-#endif
-	;
-	global <?=cons_t?>* U = UBuf + index;
-
-	//used
-	<?=vec3?> D = <?=vec3?>_zero;
-	<?=vec3?> B = <?=vec3?>_zero;
-	<?=scalar?> conductivity = <?=scalar?>_from_real(1.);
-	<?=susc_t?> permittivity = <?=susc_t?>_from_real(1.);
-	<?=susc_t?> permeability = <?=susc_t?>_from_real(1.);
-	
-	//throw-away
-	real rho = 0;
-	real3 v = real3_zero;
-	real P = 0;
-	real ePot = 0;
-	
-<?=code?>
-	
-	U->D = eqn_cartesianToCoord(D, x);
-	U->B = eqn_cartesianToCoord(B, x);
-	U->phi = <?=zero?>;
-	U->psi = <?=zero?>;
-	U->sigma = conductivity;
-	U->rhoCharge = <?=zero?>;
-	U->sqrt_1_eps = <?=susc_t?>_sqrt(<?=susc_t?>_inv(permittivity));
-	U->sqrt_1_mu = <?=susc_t?>_sqrt(<?=susc_t?>_inv(permeability));
-}
-]]
 
 GLM_Maxwell.solverCodeFile = 'hydro/eqn/glm-maxwell.cl'
 

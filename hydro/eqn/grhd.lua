@@ -12,7 +12,6 @@ GRHD.numStates = 10
 GRHD.numWaves = 5
 GRHD.numIntStates = 5
 
-GRHD.hasCalcDTCode = true
 GRHD.useConstrainU = true
 
 --GRHD.roeUseFluxFromCons = true
@@ -193,7 +192,7 @@ kernel void applyInitCond(
 GRHD.solverCodeFile = 'hydro/eqn/grhd.cl'
 
 function GRHD:getDisplayVars()
-	return {
+	local vars = table{
 		{name='D', code='value.vreal = U->cons.D;'},
 		{name='S', code='value.vreal3 = U->cons.S;', type='real3'},
 		{name='S weighted', code=self:template[[
@@ -243,6 +242,8 @@ function GRHD:getDisplayVars()
 	
 	vars:insert(self:createDivDisplayVar{field='v', units='1/s'} or nil)
 	vars:insert(self:createCurlDisplayVar{field='v', units='1/s'} or nil)
+
+	return vars
 end
 
 GRHD.eigenVars = {

@@ -300,6 +300,16 @@ function Equation:template(code, args)
 	return template(code, args)
 end
 
+function Equation:addModuleFromSourceFile(args)
+	args.code = self:template(
+		file[self.solverCodeFile],
+		{
+			moduleName = args.name,
+		}
+	)
+	self.solver.modules:add(args)
+end
+
 -- add to self.solver.modules, or add to self.modules and have solver add later?
 function Equation:initCodeModules()
 	local solver = self.solver
@@ -365,7 +375,7 @@ typedef union {
 			-- also assert it is the right one for the struct
 			local degree = degreeForType[var.type]
 			if #var.variance ~= degree  then
-				error("variable variance "..('%q'):format(var.variance).." does not match variable type "..var.type.." degree "..degree)
+				error("variable "..('%q'):format(var.name).." variance "..('%q'):format(var.variance).." does not match variable type "..var.type.." degree "..degree)
 			end
 		end
 
@@ -494,6 +504,8 @@ function Equation:initCodeModule_fluxFromCons()
 			'eqn.solvercode',	-- eigen_fluxTransform, eigen_forCell
 			'eqn.cons_t',
 			'solver.solver_t',
+			'eigen_fluxTransform',
+			'eigen_forCell',
 			'normal_t',
 		},
 		code = self:template[[
@@ -560,6 +572,11 @@ function Equation:getEnv()
 		from3x3to6 = from3x3to6,
 		from6to3x3 = from6to3x3,
 		sym = sym,
+	
+		-- really only used by applyInitCond
+		initCode = function() 
+			return self.initCond:getInitCondCode(self.solver)
+		end,
 	}
 end
 
@@ -567,10 +584,13 @@ end
 -- and this is influenced by the initCond object
 -- changing initCond should only change this and not the solver program
 function Equation:getInitCondCode()
-	assert(self.initCondCode, "expected solver.eqn.initCondCode")
-	return self:template(self.initCondCode, {
-		code = self.initCond:getInitCondCode(self.solver),
-	})
+	-- maybe it's wrong to put this code into the solverCodeFile because its code goes into initCond.cl
+	return self:template(
+		file[self.solverCodeFile],
+		{
+			moduleName = 'applyInitCond',
+		}
+	)
 end
 
 Equation.displayVarCodeUsesPrims = false
@@ -768,28 +788,25 @@ function Equation:consMaxWaveCode(n, U, x)
 	return self:consWaveCode(n, U, x, self.numWaves-1)
 end
 
--- Whether the eqn has its own calcDT.  Otherwise hydro/eqn/cl/calcDT.cl is used. 
--- the meaning of this changed
--- it used to mean "does this solver define its own calcDT?"
--- now it means "does this solver define calcDT in the .cl file / getSolverCode?"
-Equation.hasCalcDTCode = nil
+function Equation:getModuleDepends_calcDT()
+	return {
+		'eqn.cons_t',
+		'eqn.prim_t',
+		'eqn.waves_t',
+		'eqn.eigen_t',
+		'normal_t',
+		-- so these dependencies are going to vary based on the eigen code of each eqn 
+		'eqn.common',		-- used by eqn/wave
+		'eqn.prim-cons',	-- used by eqn/shallow-water
+	}
+end
 
+-- By default calcDT is taken from hydro/eqn/cl/calcDT.cl
+-- Override to provide your own.
 function Equation:initCodeModule_calcDT()
-	-- hmm can't do this anymore since even if calcDT is in cl code it won't be in the module system
-	if self.hasCalcDTCode then return end
-	
 	self.solver.modules:add{
 		name = 'calcDT',
-		depends = {
-			'eqn.cons_t',
-			'eqn.prim_t',
-			'eqn.waves_t',
-			'eqn.eigen_t',
-			'normal_t',
-			-- so these dependencies are going to vary based on the eigen code of each eqn 
-			'eqn.common',		-- used by eqn/wave
-			'eqn.prim-cons',	-- used by eqn/shallow-water
-		},
+		depends = self:getModuleDepends_calcDT(),
 		code = self:template(file['hydro/eqn/cl/calcDT.cl']),
 	}
 end

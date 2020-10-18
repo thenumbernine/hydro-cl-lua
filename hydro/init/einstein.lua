@@ -1255,11 +1255,6 @@ TODO I now have a Bessel function routine in hydro/math.cl
 end)
 
 function EinsteinInitCond:getList()
-print'EinsteinInitCond:getList()'
-print('#initConds', #initConds)
-for i,c in ipairs(initConds) do
-	print(i, c.name)
-end
 	return initConds
 end
 

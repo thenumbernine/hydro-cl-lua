@@ -7,10 +7,100 @@ ideal-mhd, divergence-free, conservative-based eigensystem
 typedef <?=solver.solver_t?> solver_t;
 typedef <?=eqn.cons_t?> cons_t;
 typedef <?=eqn.prim_t?> prim_t;
-typedef <?=eqn.roe_t?> roe_t;
-typedef <?=eqn.eigen_t?> eigen_t;
-typedef <?=eqn.waves_t?> waves_t;
 typedef <?=solver.coord.cell_t?> cell_t;
+
+<? if moduleName == nil then ?>
+<? elseif moduleName == "eqn.prim-cons" then ?>
+
+<?=eqn.prim_t?> primFromCons(
+	constant <?=solver.solver_t?>* solver,
+	<?=eqn.cons_t?> U,
+	real3 x
+) {
+	<?=eqn.prim_t?> W;
+	W.rho = U.rho;
+	W.v = real3_real_mul(U.m, 1./U.rho);
+	W.B = U.B;
+	real vSq = coordLenSq(W.v, x);
+	real BSq = coordLenSq(W.B, x);
+	real EKin = .5 * U.rho * vSq;
+	real EMag = .5 * BSq / (solver->mu0 / unit_kg_m_per_C2);
+	real EInt = U.ETotal - EKin - EMag;
+	W.P = EInt * (solver->heatCapacityRatio - 1.);
+	W.P = max(W.P, (real)1e-7);
+	W.rho = max(W.rho, (real)1e-7);
+	W.psi = U.psi;
+	W.ePot = U.ePot;
+	return W;
+}
+
+<?=eqn.cons_t?> consFromPrim(
+	constant <?=solver.solver_t?>* solver,
+	<?=eqn.prim_t?> W,
+	real3 x
+) {
+	<?=eqn.cons_t?> U;
+	U.rho = W.rho;
+	U.m = real3_real_mul(W.v, W.rho);
+	U.B = W.B;
+	real vSq = coordLenSq(W.v, x);
+	real BSq = coordLenSq(W.B, x);
+	real EKin = .5 * W.rho * vSq;
+	real EMag = .5 * BSq / (solver->mu0 / unit_kg_m_per_C2);
+	real EInt = W.P / (solver->heatCapacityRatio - 1.);
+	U.ETotal = EInt + EKin + EMag;
+	U.psi = W.psi;
+	U.ePot = W.ePot;
+	return U;
+}
+
+<? elseif moduleName == "eqn.dU-dW" then ?>
+
+<?=eqn.cons_t?> apply_dU_dW(
+	constant <?=solver.solver_t?>* solver,
+	<?=eqn.prim_t?> WA, 
+	<?=eqn.prim_t?> W, 
+	real3 x
+) {
+	return (<?=eqn.cons_t?>){
+		.rho = W.rho,
+		.m = real3_add(
+			real3_real_mul(WA.v, W.rho),
+			real3_real_mul(W.v, WA.rho)),
+		.B = WA.B,
+		.ETotal = W.rho * .5 * real3_dot(WA.v, WA.v)
+			+ WA.rho * real3_dot(W.v, WA.v)
+			+ real3_dot(W.B, WA.B) / (solver->mu0 / unit_kg_m_per_C2)
+			+ W.P / (solver->heatCapacityRatio - 1.),
+		.psi = W.psi,
+		.ePot = W.ePot,
+	};
+}
+
+<?=eqn.prim_t?> apply_dW_dU(
+	constant <?=solver.solver_t?>* solver,
+	<?=eqn.prim_t?> WA,
+	<?=eqn.cons_t?> U,
+	real3 x
+) {
+	return (<?=eqn.prim_t?>){
+		.rho = U.rho,
+		.v = real3_sub(
+			real3_real_mul(U.m, 1. / WA.rho),
+			real3_real_mul(WA.v, U.rho / WA.rho)),
+		.B = U.B,
+		.P = (solver->heatCapacityRatio - 1.) *  (
+			.5 * U.rho * real3_dot(WA.v, WA.v)
+			- real3_dot(U.m, WA.v)
+			- real3_dot(U.B, WA.B) / (solver->mu0 / unit_kg_m_per_C2)
+			+ U.ETotal),
+		.psi = U.psi,
+		.ePot = U.ePot,
+	};
+}
+
+
+<? elseif moduleName == "cons_rotateFrom" then ?>
 
 //align from vector coordinates to the normal basis
 cons_t cons_rotateFrom(cons_t U, normal_t n) {
@@ -19,6 +109,8 @@ cons_t cons_rotateFrom(cons_t U, normal_t n) {
 	return U;
 }
 
+<? elseif moduleName == "cons_rotateTo" then ?>
+
 //align from normal basis to vector coordinates
 cons_t cons_rotateTo(cons_t U, normal_t n) {
 	U.m = normal_vecFromNs(n, U.m);
@@ -26,7 +118,56 @@ cons_t cons_rotateTo(cons_t U, normal_t n) {
 	return U;
 }
 
+<? elseif moduleName == "applyInitCond" then ?>
+
+kernel void applyInitCond(
+	constant <?=solver.solver_t?>* solver,
+	constant <?=solver.initCond_t?>* initCond,
+	global <?=eqn.cons_t?>* UBuf,
+	global <?=solver.coord.cell_t?>* cellBuf
+) {
+	SETBOUNDS(0,0);
+	real3 x = cellBuf[index].pos;
+	
+	global <?=eqn.cons_t?>* U = UBuf + index;
+	
+	real3 mids = real3_real_mul(real3_add(solver->mins, solver->maxs), .5);
+	bool lhs = true
+<?
+for i=1,solver.dim do
+	local xi = xNames[i]
+?>	&& x.<?=xi?> < mids.<?=xi?>
+<?
+end
+?>;
+
+	real rho = 0;
+	real3 v = real3_zero;
+	real P = 0;
+	real3 B = real3_zero;
+	real ePot = 0;
+	//ignored:
+	real3 D = real3_zero;
+
+	<?=initCode()?>
+	
+	<?=eqn.prim_t?> W = {
+		.rho = rho,
+		.v = cartesianToCoord(v, x),
+		.P = P,
+		.B = cartesianToCoord(B, x),
+		.psi = 0,
+		.ePot = ePot,
+	};
+	UBuf[index] = consFromPrim(solver, W, x);
+}
+
+
+<? elseif moduleName == "calcRoeValues" then ?>
+
 // TODO find out where mu_0 goes in the code below
+
+typedef <?=eqn.roe_t?> roe_t;
 
 //assumes UL and UR are already rotated so the 'x' direction is our flux direction
 roe_t calcRoeValues(
@@ -53,7 +194,7 @@ roe_t calcRoeValues(
 	
 	real invDenom = 1 / (sqrtRhoL + sqrtRhoR);
 	
-	W.rho  = sqrtRhoL * sqrtRhoR;
+	W.rho = sqrtRhoL * sqrtRhoR;
 	W.v = real3_real_mul(real3_add(
 		real3_real_mul(WL.v, sqrtRhoL),
 		real3_real_mul(WR.v, sqrtRhoR)), invDenom);
@@ -70,6 +211,11 @@ roe_t calcRoeValues(
 	
 	return W;
 };
+
+<? elseif moduleName == "eigen_forRoeAvgs" then ?>
+
+typedef <?=eqn.roe_t?> roe_t;
+typedef <?=eqn.eigen_t?> eigen_t;
 
 //assumes the vector values are x-axis aligned with the interface normal
 eigen_t eigen_forRoeAvgs(
@@ -151,7 +297,6 @@ eigen_t eigen_forRoeAvgs(
 		eig.alphaS = sqrt((CfSq - eig.aTildeSq) / (CfSq - CsSq));
 	}
 
-
 	eig.sqrtRho = sqrt(rho);
 	real _1_sqrtRho = 1. / eig.sqrtRho;
 	eig.sbx = B.x >= 0 ? 1 : -1;
@@ -171,6 +316,204 @@ eigen_t eigen_forRoeAvgs(
 	return eig;
 }
 
+<? elseif moduleName == "eqn.common" then ?>
+
+real calc_eKin(<?=eqn.prim_t?> W, real3 x) { 
+	return .5 * coordLenSq(W.v, x);
+}
+
+real calc_EKin(<?=eqn.prim_t?> W, real3 x) { 
+	return W.rho * calc_eKin(W, x); 
+}
+
+real calc_EInt(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W) { 
+	return W.P / (solver->heatCapacityRatio - 1.); 
+}
+
+real calc_eInt(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W) { 
+	return calc_EInt(solver, W) / W.rho; 
+}
+
+//units: 
+//B has units kg/(C*s)
+//mu0 has units kg*m/C^2
+//PMag = 1/2 B^2 / mu0 has units kg/(m*s^2)
+real calc_EM_energy(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W, real3 x) { 
+	return .5 * coordLenSq(W.B, x) / (solver->mu0 / unit_kg_m_per_C2); 
+}
+
+//same as calc_EM_energy
+real calc_PMag(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W, real3 x) { 
+	return .5 * coordLenSq(W.B, x) / (solver->mu0 / unit_kg_m_per_C2); 
+}
+
+real calc_EHydro(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W, real3 x) { 
+	return calc_EKin(W, x) + calc_EInt(solver, W); 
+}
+
+real calc_eHydro(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W, real3 x) { 
+	return calc_EHydro(solver, W, x) / W.rho; 
+}
+
+real calc_ETotal(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W, real3 x) { 
+	return calc_EKin(W, x) + calc_EInt(solver, W) + calc_EM_energy(solver, W, x); 
+}
+
+real calc_eTotal(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W, real3 x) { 
+	return calc_ETotal(solver, W, x) / W.rho; 
+}
+
+real calc_H(constant <?=solver.solver_t?>* solver, real P) { 
+	return P * (solver->heatCapacityRatio / (solver->heatCapacityRatio - 1.)); 
+}
+
+real calc_h(constant <?=solver.solver_t?>* solver, real rho, real P) { 
+	return calc_H(solver, P) / rho; 
+}
+
+real calc_HTotal(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W, real ETotal, real3 x) { 
+	return W.P + calc_PMag(solver, W, x) + ETotal; 
+}
+
+real calc_hTotal(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W, real ETotal, real3 x) { 
+	return calc_HTotal(solver, W, ETotal, x) / W.rho; 
+}
+
+//notice, this is speed of sound, to match the name convention of hydro/eqn/euler
+//but Cs in eigen_t is the slow speed
+//most the MHD papers use 'a' for the speed of sound
+real calc_Cs(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W) { 
+	return sqrt(solver->heatCapacityRatio * W.P / W.rho);
+}
+
+//CA = B/sqrt(mu0 rho)
+//B has units kg/(C*s)
+//mu0 has units kg*m/C^2
+//rho has units kg/m^3
+//CA has units m/s
+real3 calc_CA(constant <?=solver.solver_t?>* solver, <?=eqn.cons_t?> U) {
+	return real3_real_mul(U.B, 1./sqrt(U.rho * solver->mu0 / unit_kg_m_per_C2));
+}
+
+<? elseif moduleName == "fluxFromCons" then ?>
+
+<?=eqn.cons_t?> fluxFromCons(
+	constant <?=solver.solver_t?>* solver,
+	<?=eqn.cons_t?> U,
+	real3 x,
+	normal_t n
+) {
+	<?=eqn.prim_t?> W = primFromCons(solver, U, x);
+	real vj = normal_vecDotN1(n, W.v);
+	real Bj = normal_vecDotN1(n, W.B);
+	real BSq = coordLenSq(W.B, x);
+	real BDotV = real3_dot(W.B, W.v);
+	real PMag = .5 * BSq / (solver->mu0 / unit_kg_m_per_C2);
+	real PTotal = W.P + PMag;
+	real HTotal = U.ETotal + PTotal;
+	
+	<?=eqn.cons_t?> F;
+	F.rho = normal_vecDotN1(n, U.m);
+	F.m = real3_sub(real3_real_mul(U.m, vj), real3_real_mul(U.B, Bj / (solver->mu0 / unit_kg_m_per_C2)));
+	F.m.x += PTotal * normal_u1x(n);
+	F.m.y += PTotal * normal_u1y(n);
+	F.m.z += PTotal * normal_u1z(n);
+	F.B = real3_sub(real3_real_mul(U.B, vj), real3_real_mul(W.v, Bj));
+	F.ETotal = HTotal * vj - BDotV * Bj / (solver->mu0 / unit_kg_m_per_C2);
+	F.psi = 0;
+	F.ePot = 0;
+	return F;
+}
+
+<? elseif moduleName == "calcCellMinMaxEigenvalues" then ?>
+
+//called from calcDT
+range_t calcCellMinMaxEigenvalues(
+	constant <?=solver.solver_t?>* solver,
+	<?=eqn.cons_t?> U,
+	real3 x,
+	normal_t n
+) {
+	<?=eqn.cons_t?> U_ = cons_rotateFrom(U, n);
+	<?=eqn.prim_t?> W = primFromCons(solver, U_, x);
+	
+#if 0
+	<?=eqn.prim_t?> W = primFromCons(solver, *U, x);
+	real3 v = W.v;
+	real3 B = W.B;
+	
+	real BSq = coordLenSq(B, x);
+	real invRho = 1./W.rho;
+	
+	real aSq = solver->heatCapacityRatio * W.P * invRho;
+	real B_n = normal_vecDotN1(n, B);
+	real CaxSq = B_n * B_n * invRho;
+	real CaSq = BSq * invRho;
+	
+	real CStarSq = .5 * (CaSq + aSq);
+	real sqrtCfsDiscr = sqrt(max(0., CStarSq * CStarSq - aSq * CaxSq));
+	
+	real CfSq = CStarSq + sqrtCfsDiscr;
+	real CsSq = CStarSq - sqrtCfsDiscr;
+
+	real Cf = sqrt(CfSq);
+	real Cs = sqrt(max(CsSq, 0.));
+	real v_n = normal_vecDotN1(n, v);
+	return (range_t){.min=v_n - Cf, .max=v_n + Cf};
+#else
+	const real gamma = solver->heatCapacityRatio;
+	const real gamma_1 = gamma - 1.;
+	const real gamma_2 = gamma - 2.;
+	
+	real rho = W.rho;
+	real3 v = W.v;
+	real3 B = W.B;
+	real hTotal = .5 * coordLenSq(W.v, x) + (W.P * gamma / gamma_1 + coordLenSq(B, x)) / W.rho;
+
+	//the rest of this matches calcEigenBasis:
+
+	real _1_rho = 1. / rho;
+	real vSq = coordLenSq(v, x);
+#warning consider g_ij	
+	real BPerpSq = B.y*B.y + B.z*B.z;
+	real BStarPerpSq = (gamma_1 - gamma_2) * BPerpSq;
+	real CAxSq = B.x*B.x*_1_rho;
+	real CASq = CAxSq + BPerpSq * _1_rho;
+	real hHydro = hTotal - CASq;
+	// hTotal = (EHydro + EMag + P)/rho
+	// hHydro = hTotal - CASq, CASq = EMag/rho
+	// hHydro = eHydro + P/rho = eKin + eInt + P/rho
+	// hHydro - eKin = eInt + P/rho = (1./(gamma-1) + 1) P/rho = gamma/(gamma-1) P/rho
+	// a^2 = (gamma-1)(hHydro - eKin) = gamma P / rho
+	real aTildeSq = max((gamma_1 * (hHydro - .5 * vSq) - gamma_2), 1e-20);
+
+	real BStarPerpSq_rho = BStarPerpSq * _1_rho;
+	real CATildeSq = CAxSq + BStarPerpSq_rho;
+	real CStarSq = .5 * (CATildeSq + aTildeSq);
+	real CA_a_TildeSqDiff = .5 * (CATildeSq - aTildeSq);
+	real sqrtDiscr = sqrt(CA_a_TildeSqDiff * CA_a_TildeSqDiff + aTildeSq * BStarPerpSq_rho);
+	
+	real CfSq = CStarSq + sqrtDiscr;
+	real Cf = sqrt(CfSq);
+
+	real CsSq = aTildeSq * CAxSq / CfSq;
+	real Cs = sqrt(CsSq);
+
+	real lambdaFastMin = v.x - Cf;
+	real lambdaFastMax = v.x + Cf;
+	
+	return (range_t){
+		.min = lambdaFastMin,
+		.max = lambdaFastMax,
+	};
+#endif
+}
+
+<? elseif moduleName == "eigen_forInterface" then ?>
+
+typedef <?=eqn.roe_t?> roe_t;
+typedef <?=eqn.eigen_t?> eigen_t;
+
 eigen_t eigen_forInterface(
 	constant solver_t* solver,
 	cons_t UL,
@@ -186,6 +529,11 @@ eigen_t eigen_forInterface(
 	roe_t roe = calcRoeValues(solver, UL_, UR_, x);
 	return eigen_forRoeAvgs(solver, roe, x);
 }
+
+<? elseif moduleName == "eigen_left/rightTransform" then ?>
+
+typedef <?=eqn.eigen_t?> eigen_t;
+typedef <?=eqn.waves_t?> waves_t;
 
 waves_t eigen_leftTransform(
 	constant solver_t* solver,
@@ -393,6 +741,10 @@ cons_t eigen_rightTransform(
 	return cons_rotateTo(resultU, n);
 }
 
+<? elseif moduleName == "eigen_fluxTransform" then ?>
+
+typedef <?=eqn.eigen_t?> eigen_t;
+
 cons_t eigen_fluxTransform(
 	constant solver_t* solver,
 	eigen_t eig,
@@ -460,6 +812,11 @@ cons_t eigen_fluxTransform(
 	return cons_rotateTo(resultU, n);
 }
 
+<? elseif moduleName == "eigen_forCell" then ?>
+
+typedef <?=eqn.roe_t?> roe_t;
+typedef <?=eqn.eigen_t?> eigen_t;
+
 eigen_t eigen_forCell(
 	constant solver_t* solver,
 	cons_t U,
@@ -479,6 +836,8 @@ eigen_t eigen_forCell(
 	};
 	return eigen_forRoeAvgs(solver, roe, x);
 }
+
+<? elseif moduleName == "addSource" then ?>
 
 kernel void addSource(
 	constant solver_t* solver,
@@ -503,6 +862,8 @@ kernel void addSource(
 <? end ?>
 }
 
+<? elseif moduleName == "constrainU" then ?>
+
 kernel void constrainU(
 	constant solver_t* solver,
 	global cons_t* UBuf,
@@ -519,3 +880,9 @@ kernel void constrainU(
 
 	*U = consFromPrim(solver, W, x);
 }
+
+<? 
+else
+	error("unknown moduleName "..require 'ext.tolua'(moduleName))
+end 
+?>

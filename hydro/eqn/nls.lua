@@ -10,8 +10,6 @@ local xNames = require 'hydro.common'.xNames
 local NLSEqn = class(Equation)
 NLSEqn.name = 'nls'
 
-NLSEqn.hasCalcDTCode = true
-
 -- this tells eqn to not provide its own eigen code
 NLSEqn.useSourceTerm = true
 

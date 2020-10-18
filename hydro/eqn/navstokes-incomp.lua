@@ -3,7 +3,7 @@ local Equation = require 'hydro.eqn.eqn'
 
 local NavierStokesDivFree = class(Equation)
 NavierStokesDivFree.name = 'Navier-Stokes div-free' 
-NavierStokesDivFree.hasCalcDTCode = true
+
 NavierStokesDivFree.numStates = 4
 
 NavierStokesDivFree.initConds = require 'hydro.init.euler':getList()

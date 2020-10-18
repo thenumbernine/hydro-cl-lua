@@ -45,7 +45,6 @@ Z4_2008Yano.consVars:append{
 	{name='M_u', type='real3'},				--3
 }
 
-Z4_2008Yano.hasCalcDTCode = true
 Z4_2008Yano.useSourceTerm = true
 
 function Z4_2008Yano:createInitState()

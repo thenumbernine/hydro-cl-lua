@@ -1,10 +1,140 @@
 typedef <?=eqn.prim_t?> prim_t;
 typedef <?=eqn.cons_t?> cons_t;
-typedef <?=eqn.eigen_t?> eigen_t;
-typedef <?=eqn.waves_t?> waves_t;
 typedef <?=solver.solver_t?> solver_t;
 
+<? if moduleName == nil then ?>
+<? elseif moduleName == "sqrt_1_2" then ?>
+
 #define sqrt_1_2 <?=('%.50f'):format(math.sqrt(.5))?>
+
+<? elseif moduleName == "eqn.common" then ?>
+
+<? if scalar == 'real' then ?>
+
+#define eqn_coordLenSq coordLenSq
+#define eqn_cartesianToCoord cartesianToCoord
+#define eqn_coord_lower coord_lower
+
+<? elseif scalar == 'cplx' then ?>
+
+real eqn_coordLenSq(cplx3 v, real3 x) {
+	return coordLenSq(cplx3_re(v), x)
+		+ coordLenSq(cplx3_im(v), x);
+}
+
+cplx3 eqn_cartesianToCoord(cplx3 v, real3 x) {
+	return cplx3_from_real3_real3(
+		cartesianToCoord(cplx3_re(v), x),
+		cartesianToCoord(cplx3_im(v), x));
+}
+
+cplx3 eqn_coord_lower(cplx3 v, real3 x) {
+	return cplx3_from_real3_real3(
+		coord_lower(cplx3_re(v), x),
+		coord_lower(cplx3_im(v), x));
+}
+
+<? end -- scalar ?>
+
+<?=vec3?> calc_E(<?=eqn.cons_t?> U) { 
+	return <?=vec3?>_<?=susc_t?>_mul(U.D, <?=susc_t?>_mul(U.sqrt_1_eps, U.sqrt_1_eps));
+}
+<?=vec3?> calc_H(<?=eqn.cons_t?> U) { 
+	return <?=vec3?>_<?=susc_t?>_mul(U.B, <?=susc_t?>_mul(U.sqrt_1_mu, U.sqrt_1_mu));
+}
+
+<? elseif moduleName == "applyInitCond" then ?>
+
+<? 
+local cons_t = eqn.cons_t
+local susc_t = eqn.susc_t
+local scalar = eqn.scalar
+local vec3 = eqn.vec3
+local zero = scalar..'_zero'
+?>
+
+kernel void applyInitCond(
+	constant <?=solver.solver_t?>* solver,
+	constant <?=solver.initCond_t?>* initCond,
+	global <?=cons_t?>* UBuf,
+	const global <?=coord.cell_t?>* cellBuf
+) {
+	SETBOUNDS(0,0);
+	real3 x = cellBuf[index].pos;
+	real3 mids = real3_real_mul(real3_add(solver->mins, solver->maxs), .5);
+	bool lhs = x.x < mids.x
+#if dim > 1
+		&& x.y < mids.y
+#endif
+#if dim > 2
+		&& x.z < mids.z
+#endif
+	;
+	global <?=cons_t?>* U = UBuf + index;
+
+	//used
+	<?=vec3?> D = <?=vec3?>_zero;
+	<?=vec3?> B = <?=vec3?>_zero;
+	<?=scalar?> conductivity = <?=scalar?>_from_real(1.);
+	<?=susc_t?> permittivity = <?=susc_t?>_from_real(1.);
+	<?=susc_t?> permeability = <?=susc_t?>_from_real(1.);
+	
+	//throw-away
+	real rho = 0;
+	real3 v = real3_zero;
+	real P = 0;
+	real ePot = 0;
+	
+	<?=initCode()?>
+	
+	U->D = eqn_cartesianToCoord(D, x);
+	U->B = eqn_cartesianToCoord(B, x);
+	U->phi = <?=zero?>;
+	U->psi = <?=zero?>;
+	U->sigma = conductivity;
+	U->rhoCharge = <?=zero?>;
+	U->sqrt_1_eps = <?=susc_t?>_sqrt(<?=susc_t?>_inv(permittivity));
+	U->sqrt_1_mu = <?=susc_t?>_sqrt(<?=susc_t?>_inv(permeability));
+}
+
+
+<? elseif moduleName == "fluxFromCons" then ?>
+
+<?=eqn.cons_t?> fluxFromCons(
+	constant <?=solver.solver_t?>* solver,
+	<?=eqn.cons_t?> U,
+	real3 x,
+	normal_t n
+) {
+	<?=vec3?> E = calc_E(U);
+	<?=vec3?> H = calc_H(U);
+	
+	<?=eqn.cons_t?> F;
+	if (n.side == 0) {
+		F.D = _<?=vec3?>(<?=real_mul?>(U.phi, solver->divPhiWavespeed / unit_m_per_s),  H.z, <?=neg?>(H.y));
+		F.B = _<?=vec3?>(<?=real_mul?>(U.psi, solver->divPsiWavespeed / unit_m_per_s), <?=neg?>(E.z),  E.y);
+	} else if (n.side == 1) {
+		F.D = _<?=vec3?>(<?=neg?>(H.z), <?=real_mul?>(U.phi, solver->divPhiWavespeed / unit_m_per_s),  H.x);
+		F.B = _<?=vec3?>( E.z, <?=real_mul?>(U.psi, solver->divPsiWavespeed / unit_m_per_s), <?=neg?>(E.x));
+	} else if (n.side == 2) {
+		F.D = _<?=vec3?>( H.y, <?=neg?>(H.x), <?=real_mul?>(U.phi, solver->divPhiWavespeed / unit_m_per_s));
+		F.B = _<?=vec3?>(<?=neg?>(E.y),  E.x, <?=real_mul?>(U.psi, solver->divPsiWavespeed / unit_m_per_s));
+	}
+	real D_n = normal_vecDotN1(n, U.D);
+	real B_n = normal_vecDotN1(n, U.B);
+	F.phi = <?=real_mul?>(D_n, solver->divPhiWavespeed / unit_m_per_s);
+	F.psi = <?=real_mul?>(B_n, solver->divPsiWavespeed / unit_m_per_s);
+	F.sigma = <?=zero?>;
+	F.rhoCharge = <?=zero?>;
+	F.sqrt_1_eps = <?=susc_t?>_zero;
+	F.sqrt_1_mu = <?=susc_t?>_zero;
+	return F;
+}
+
+
+<? elseif moduleName == "eigen_forInterface" then ?>
+
+typedef <?=eqn.eigen_t?> eigen_t;
 
 eigen_t eigen_forInterface(
 	constant solver_t* solver,
@@ -22,6 +152,10 @@ eigen_t eigen_forInterface(
 	};
 }
 
+<? elseif moduleName == "eigen_forCell" then ?>
+
+typedef <?=eqn.eigen_t?> eigen_t;
+
 //used by PLM
 eigen_t eigen_forCell(
 	constant solver_t* solver,
@@ -34,6 +168,11 @@ eigen_t eigen_forCell(
 		.sqrt_1_mu = U.sqrt_1_mu,
 	};
 }
+
+<? elseif moduleName == "eigen_left/rightTransform" then ?>
+
+typedef <?=eqn.eigen_t?> eigen_t;
+typedef <?=eqn.waves_t?> waves_t;
 
 /*
 TODO update this for Einstein-Maxwell (take the metric into consideration
@@ -154,7 +293,11 @@ cons_t eigen_rightTransform(
 	return Y;
 }
 
+<? elseif moduleName == "eigen_fluxTransform" then ?>
+
 #define eigen_fluxTransform(solver, eig, X, x, n) fluxFromCons(solver, X, x, n)
+
+<? elseif moduleName == "addSource" then ?>
 
 kernel void addSource(
 	constant solver_t* solver,
@@ -213,3 +356,9 @@ kernel void addSource(
 	
 	deriv->phi = <?=add?>(deriv->phi, <?=real_mul?>(U->rhoCharge, solver->divPhiWavespeed / unit_m_per_s));
 }
+
+<? 
+else
+	error("unknown moduleName "..require 'ext.tolua'(moduleName))
+end 
+?>

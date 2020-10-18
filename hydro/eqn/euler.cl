@@ -12,6 +12,211 @@ typedef <?=eqn.cons_t?> cons_t;
 typedef <?=eqn.eigen_t?> eigen_t;
 typedef <?=eqn.waves_t?> waves_t;
 typedef <?=solver.solver_t?> solver_t;
+		
+<? if moduleName == nil then ?>
+<? elseif moduleName == "applyInitCond" then ?>
+
+kernel void applyInitCond(
+	constant <?=solver.solver_t?>* solver,
+	constant <?=solver.initCond_t?>* initCond,
+	global <?=eqn.cons_t?>* UBuf,
+	const global <?=coord.cell_t?>* cellBuf
+) {
+	SETBOUNDS(0,0);
+	real3 x = cellBuf[index].pos;
+	
+	global <?=eqn.cons_t?>* U = UBuf + index;
+
+	real3 mids = real3_real_mul(real3_add(solver->initCondMins, solver->initCondMaxs), .5);
+	bool lhs = true<?
+for i=1,solver.dim do
+	local xi = xNames[i]
+?> && x.<?=xi?> < mids.<?=xi?><?
+end
+?>;
+
+	// these are all standard for all init/euler.lua initial conditions
+	real rho = 0;
+	real3 v = real3_zero;
+	real P = 0;
+	real3 D = real3_zero;
+	real3 B = real3_zero;
+	real ePot = 0;
+
+	<?=initCode()?>
+
+	<?=eqn.prim_t?> W = {
+		.rho = rho,
+		.v = cartesianToCoord(v, x),
+		.P = P,
+		.ePot = ePot,
+	};
+
+	*U = consFromPrim(solver, W, x);
+}
+
+<? elseif moduleName == "eqn.prim-cons" then ?>
+
+<?=eqn.prim_t?> primFromCons(constant <?=solver.solver_t?>* solver, <?=eqn.cons_t?> U, real3 x) {
+	return (<?=eqn.prim_t?>){
+		.rho = U.rho,
+		.v = real3_real_mul(U.m, 1./U.rho),
+		.P = calc_P(solver, U, x),
+		.ePot = U.ePot,
+	};
+}
+
+<?=eqn.cons_t?> consFromPrim(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W, real3 x) {
+	return (<?=eqn.cons_t?>){
+		.rho = W.rho,
+		.m = real3_real_mul(W.v, W.rho),
+		.ETotal = calc_ETotal(solver, W, x),
+		.ePot = W.ePot,
+	};
+}
+
+<? elseif moduleName == "eqn.dU-dW" then ?>
+
+<?=eqn.cons_t?> apply_dU_dW(
+	constant <?=solver.solver_t?>* solver,
+	<?=eqn.prim_t?> WA, 
+	<?=eqn.prim_t?> W, 
+	real3 x
+) {
+	real3 WA_vL = coord_lower(WA.v, x);
+	return (<?=eqn.cons_t?>){
+		.rho = W.rho,
+		.m = real3_add(
+			real3_real_mul(WA.v, W.rho), 
+			real3_real_mul(W.v, WA.rho)),
+		.ETotal = W.rho * .5 * real3_dot(WA.v, WA_vL) 
+			+ WA.rho * real3_dot(W.v, WA_vL)
+			+ W.P / (solver->heatCapacityRatio - 1.),
+		.ePot = W.ePot,
+	};
+}
+
+<?=eqn.prim_t?> apply_dW_dU(
+	constant <?=solver.solver_t?>* solver,
+	<?=eqn.prim_t?> WA,
+	<?=eqn.cons_t?> U,
+	real3 x
+) {
+	real3 WA_vL = coord_lower(WA.v, x);
+	return (<?=eqn.prim_t?>){
+		.rho = U.rho,
+		.v = real3_sub(
+			real3_real_mul(U.m, 1. / WA.rho),
+			real3_real_mul(WA.v, U.rho / WA.rho)),
+		.P = (solver->heatCapacityRatio - 1.) * (
+			.5 * real3_dot(WA.v, WA_vL) * U.rho 
+			- real3_dot(U.m, WA_vL)
+			+ U.ETotal),
+		.ePot = U.ePot,
+	};
+}
+
+
+<? elseif moduleName == "eqn.common" then ?>
+
+real calc_H(constant <?=solver.solver_t?>* solver, real P) { return P * (solver->heatCapacityRatio / (solver->heatCapacityRatio - 1.)); }
+real calc_h(constant <?=solver.solver_t?>* solver, real rho, real P) { return calc_H(solver, P) / rho; }
+real calc_HTotal(real P, real ETotal) { return P + ETotal; }
+real calc_hTotal(real rho, real P, real ETotal) { return calc_HTotal(P, ETotal) / rho; }
+real calc_eKin(<?=eqn.prim_t?> W, real3 x) { return .5 * coordLenSq(W.v, x); }
+real calc_EKin(<?=eqn.prim_t?> W, real3 x) { return W.rho * calc_eKin(W, x); }
+real calc_EInt(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W) { return W.P / (solver->heatCapacityRatio - 1.); }
+real calc_eInt(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W) { return calc_EInt(solver, W) / W.rho; }
+real calc_EKin_fromCons(<?=eqn.cons_t?> U, real3 x) { return .5 * coordLenSq(U.m, x) / U.rho; }
+real calc_ETotal(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W, real3 x) {
+	return calc_EKin(W, x) + calc_EInt(solver, W);
+}
+
+real calc_Cs(constant <?=solver.solver_t?>* solver, const <?=eqn.prim_t?>* W) {
+	return sqrt(solver->heatCapacityRatio * W->P / W->rho);
+}
+
+real calc_P(constant <?=solver.solver_t?>* solver, <?=eqn.cons_t?> U, real3 x) {
+	real EKin = calc_EKin_fromCons(U, x);
+	real EInt = U.ETotal - EKin;
+	return (solver->heatCapacityRatio - 1.) * EInt;
+}
+
+<? elseif moduleName == "fluxFromCons" then ?>
+
+<?=eqn.cons_t?> fluxFromCons(
+	constant <?=solver.solver_t?>* solver,
+	<?=eqn.cons_t?> U,
+	real3 x,
+	normal_t n
+) {
+	<?=eqn.prim_t?> W = primFromCons(solver, U, x);
+	real v_n = normal_vecDotN1(n, W.v);
+	real HTotal = U.ETotal + W.P;
+	
+	return (<?=eqn.cons_t?>){
+		.rho = U.rho * v_n,
+		.m = real3_add(
+			real3_real_mul(U.m, v_n),
+			_real3(
+				normal_u1x(n) * W.P,
+				normal_u1y(n) * W.P,
+				normal_u1z(n) * W.P
+			)
+		),
+		.ETotal = HTotal * v_n,
+		.ePot = 0,
+	};
+}
+
+<? elseif moduleName == "calcCellMinMaxEigenvalues" then ?>
+
+range_t calcCellMinMaxEigenvalues(
+	constant <?=solver.solver_t?>* solver,
+	const global <?=eqn.cons_t?>* U,
+	real3 x,
+	real3x3 nL,
+	real3x3 nU,
+	real nLen
+) {
+	<?=eqn.prim_t?> W = primFromCons(solver, *U, x);
+	real v_n = real3_dot(W.v, nL.x);
+	real Cs = calc_Cs(solver, &W);
+	real Cs_nLen = Cs * nLen;
+	return (range_t){
+		.min = v_n - Cs_nLen, 
+		.max = v_n + Cs_nLen,
+	};
+}
+
+<? elseif moduleName == "eigen_forCell" then ?>
+
+// used by PLM
+<?=eqn.eigen_t?> eigen_forCell(
+	constant <?=solver.solver_t?>* solver,
+	<?=eqn.cons_t?> U,
+	real3 x,
+	normal_t n
+) {
+	<?=eqn.prim_t?> W = primFromCons(solver, U, x);
+	real3 vL = coord_lower(W.v, x);
+	real vSq = real3_dot(W.v, vL);
+	real v_n = normal_vecDotN1(n, W.v);
+	real eKin = .5 * vSq;
+	real hTotal = calc_hTotal(W.rho, W.P, U.ETotal);
+	real CsSq = (solver->heatCapacityRatio - 1.) * (hTotal - eKin);
+	real Cs = sqrt(CsSq);
+	return (<?=eqn.eigen_t?>){
+		.rho = W.rho,
+		.v = W.v,
+		.vSq = vSq,
+		.vL = vL,
+		.hTotal = hTotal,
+		.Cs = Cs,
+	};
+}
+
+<? elseif moduleName == "eigen_forInterface" then ?>
 
 //used by the mesh version
 eigen_t eigen_forInterface(
@@ -57,6 +262,8 @@ eigen_t eigen_forInterface(
 		.Cs = Cs,
 	};
 }
+
+<? elseif moduleName == "eigen_left/rightTransform" then ?>
 
 <?
 local prefix = [[
@@ -163,6 +370,8 @@ cons_t eigen_rightTransform(
 	}};
 }
 
+<? elseif moduleName == "eigen_fluxTransform" then ?>
+
 cons_t eigen_fluxTransform(
 	constant solver_t* solver,
 	eigen_t eig,
@@ -208,6 +417,7 @@ cons_t eigen_fluxTransform(
 	}};
 }
 
+<? elseif moduleName == "addSource" then ?>
 
 kernel void addSource(
 	constant solver_t* solver,
@@ -284,6 +494,8 @@ Maybe for an initial constant vel as large as sqrt(2) this fails, but it works o
 <? end -- vectorComponent == 'anholonomic' ?>
 }
 
+<? elseif moduleName == "constrainU" then ?>
+
 kernel void constrainU(
 	constant solver_t* solver,
 	global cons_t* UBuf,
@@ -300,3 +512,9 @@ kernel void constrainU(
 
 	*U = consFromPrim(solver, W, x);
 }
+
+<? 
+else
+	error("unknown moduleName "..require 'ext.tolua'(moduleName))
+end 
+?>

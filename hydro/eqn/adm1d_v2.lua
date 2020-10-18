@@ -89,10 +89,10 @@ ADM_BonaMasso_1D_1997Alcubierre.numWaves = 3
 
 ADM_BonaMasso_1D_1997Alcubierre.consVars = {
 	{name='alpha', type='real'},
-	{name='gamma_xx', type='real'},
-	{name='a_x', type='real'}, 
-	{name='d_xxx', type='real'}, 
-	{name='K_xx', type='real'},
+	{name='gamma_xx', type='real', variance=''},
+	{name='a_x', type='real', variance=''}, 
+	{name='d_xxx', type='real', variance=''}, 
+	{name='K_xx', type='real', variance=''},
 }
 
 ADM_BonaMasso_1D_1997Alcubierre.useSourceTerm = true
@@ -106,106 +106,63 @@ function ADM_BonaMasso_1D_1997Alcubierre:createInitState()
 	}
 end
 
-function ADM_BonaMasso_1D_1997Alcubierre:initCodeModule_fluxFromCons()
-	self.solver.modules:add{
-		name = 'fluxFromCons',
-		depends = {
+function ADM_BonaMasso_1D_1997Alcubierre:initCodeModules()
+	ADM_BonaMasso_1D_1997Alcubierre.super.initCodeModules(self)
+	for moduleName, depends in pairs{
+		['setFlatSpace'] = {
+			'solver.solver_t',
+			'eqn.cons_t',
+		},
+
+		['fluxFromCons'] = {
 			'solver.solver_t',
 			'eqn.cons_t',
 			'normal_t',
+			'initCond.codeprefix',	-- calc_*
 		},
-		code = self:template[[
-<?=eqn.cons_t?> fluxFromCons(
-	constant <?=solver.solver_t?>* solver,
-	<?=eqn.cons_t?> U,
-	real3 x,
-	normal_t n
-) {
-	real f = calc_f(U.alpha);
-	return (<?=eqn.cons_t?>){
-		.alpha = 0,
-		.gamma_xx = 0,
-		.a_x = U.alpha * U.K_xx * f / U.gamma_xx,
-		.d_xxx = U.alpha * U.K_xx,
-		.K_xx = U.alpha * U.a_x,
-	};
-}
-]],
-	}
+
+		['eigen_forCell'] = {
+			'initCond.codeprefix',	-- calc_*
+		},
+		
+		['eigen_forInterface'] = {
+			'initCond.codeprefix',	-- calc_*
+		},
+		
+		['eigen_left/rightTransform'] = {},
+		['eigen_fluxTransform'] = {},
+		
+		['addSource'] = {
+			'initCond.codeprefix',	-- calc_*
+		},
+	} do
+		self:addModuleFromSourceFile{
+			name = moduleName,
+			depends = depends,
+		}
+	end
 end
 
-function ADM_BonaMasso_1D_1997Alcubierre:initCodeModule_setFlatSpace()
-	self.solver.modules:add{
-		name = 'setFlatSpace',
-		depends = {
-			'solver.solver_t',
-			'eqn.cons_t',
-		},
-		code = self:template[[
-void setFlatSpace(
-	constant <?=solver.solver_t?>* solver,
-	global <?=eqn.cons_t?>* U,
-	real3 x
-) {
-	*U = (<?=eqn.cons_t?>){
-		.alpha = 1, 
-		.gamma_xx = 1,
-		.a_x = 0,
-		.d_xxx = 0,
-		.K_xx = 0,
-	};
-}
-]],
-	}
-end
+-- don't use default
+function ADM_BonaMasso_1D_1997Alcubierre:initCodeModule_fluxFromCons() end
+function ADM_BonaMasso_1D_1997Alcubierre:initCodeModule_setFlatSpace() end
 
 function ADM_BonaMasso_1D_1997Alcubierre:getModuleDependsApplyInitCond()
 	return table(ADM_BonaMasso_1D_1997Alcubierre.super.getModuleDependsApplyInitCond(self), {
 		'sym3',
+		'coordMap',
 	})
 end
 
+-- don't use eqn.einstein, which says calc_gamma_ll and calc_gamma_uu
+function ADM_BonaMasso_1D_1997Alcubierre:getModuleDependsSolver() 
+	return {}
+end
+
+-- don't use eqn.einstein:
+function ADM_BonaMasso_1D_1997Alcubierre:createDisplayComponents() end
+
 ADM_BonaMasso_1D_1997Alcubierre.needsInitDerivs = true
-ADM_BonaMasso_1D_1997Alcubierre.initCondCode = [[
-kernel void applyInitCond(
-	constant <?=solver.solver_t?>* solver,
-	constant <?=solver.initCond_t?>* initCond,
-	global <?=eqn.cons_t?>* UBuf,
-	const global <?=coord.cell_t?>* cellBuf
-) {
-	SETBOUNDS(0,0);
-	real3 x = cellBuf[index].pos;
-	real3 xc = coordMap(x);
-	real3 mids = real3_real_mul(real3_add(solver->mins, solver->maxs), .5);
-	
-	global <?=eqn.cons_t?>* U = UBuf + index;
-
-	real alpha = 1.;
-	real3 beta_u = real3_zero;
-	sym3 gamma_ll = sym3_ident;
-	sym3 K_ll = sym3_zero;
-
-	<?=code?>
-
-	U->alpha = alpha;
-	U->gamma_xx = gamma_ll.xx;
-	U->K_xx = K_ll.xx;
-}
-
-kernel void initDerivs(
-	constant <?=solver.solver_t?>* solver,
-	global <?=eqn.cons_t?>* UBuf
-) {
-	SETBOUNDS(numGhost,numGhost);
-	global <?=eqn.cons_t?>* U = UBuf + index;
-	
-	real dx_alpha = (U[1].alpha - U[-1].alpha) / solver->grid_dx.x;
-	real dx_gamma_xx = (U[1].gamma_xx - U[-1].gamma_xx) / solver->grid_dx.x;
-	
-	U->a_x = dx_alpha / U->alpha;
-	U->d_xxx = .5 * dx_gamma_xx;
-}
-]]
 
 ADM_BonaMasso_1D_1997Alcubierre.solverCodeFile = 'hydro/eqn/adm1d_v2.cl'
 

@@ -169,315 +169,108 @@ function MHD:initCodeModules()
 		name = 'roe_t',
 		structs = {self.roeStruct},
 	}
-	solver.solverModulesEnabled.roe_t = true
-end
-
-function MHD:initCodeModule_fluxFromCons()
-	self.solver.modules:add{
-		name = 'eigen_forCell',
-		depends = {
-			'solver.solver_t',
-			'roe_t',
-			'eqn.prim-cons',	-- primFromCons
-			'normal_t',
+	
+	for moduleName, depends in pairs{
+		['eqn.common'] = {
 			'coordLenSq',
 		},
-		code = self:template[[
-<?=eqn.eigen_t?> eigen_forCell(
-	constant <?=solver.solver_t?>* solver,
-	<?=eqn.cons_t?> U,
-	real3 x,
-	normal_t n
-) {
-	<?=eqn.prim_t?> W = primFromCons(solver, U, x);
-	real PMag = .5 * coordLenSq(W.B, x);
-	real hTotal = (U.ETotal + W.P + PMag) / W.rho;
-	<?=eqn.roe_t?> roe = {
-		.rho = W.rho,
-		.v = W.v,
-		.hTotal = hTotal,
-		.B = W.B,
-		.X = 0,
-		.Y = 1,
-	};
-	return eigen_forRoeAvgs(solver, roe, x);
-}
-]],
-	}
-	self.solver.solverModulesEnabled['eigen_forCell'] = true
 
-	self.solver.modules:add{
-		name = 'fluxFromCons',
-		depends = {
-			'solver.solver_t',
-			'eigen_forCell',
-			'normal_t',
-		},
-		code = self:template[[
-<?=eqn.cons_t?> fluxFromCons(
-	constant <?=solver.solver_t?>* solver,
-	<?=eqn.cons_t?> U,
-	real3 x,
-	normal_t n
-) {
-	<?=eqn.prim_t?> W = primFromCons(solver, U, x);
-	real vj = normal_vecDotN1(n, W.v);
-	real Bj = normal_vecDotN1(n, W.B);
-	real BSq = coordLenSq(W.B, x);
-	real BDotV = real3_dot(W.B, W.v);
-	real PMag = .5 * BSq / (solver->mu0 / unit_kg_m_per_C2);
-	real PTotal = W.P + PMag;
-	real HTotal = U.ETotal + PTotal;
-	
-<? if not eqn.useFixedCh then ?>
-	//TODO don't need the whole eigen here, just the Ch
-	real Ch = 0;
-	<? for side=0,solver.dim-1 do ?>{
-		<?=eqn.eigen_t?> eig = eigen_forCell(solver, U, x, normal_fromSide<?=side?>(x));
-		Ch = max(Ch, eig.Ch);
-	}<? end ?>
-<? else ?>
-	real Ch = solver->Ch;
-<? end ?>
-
-	<?=eqn.cons_t?> F;
-	F.rho = normal_vecDotN1(n, U.m);
-	F.m = real3_sub(real3_real_mul(U.m, vj), real3_real_mul(U.B, Bj / (solver->mu0 / unit_kg_m_per_C2)));
-	F.m.x += PTotal * normal_l1x(n);
-	F.m.y += PTotal * normal_l1y(n);
-	F.m.z += PTotal * normal_l1z(n);
-	F.B = real3_sub(real3_real_mul(U.B, vj), real3_real_mul(W.v, Bj));
-	F.psi = Ch * Ch;
-	F.B.x += F.psi * normal_l1x(n);
-	F.B.y += F.psi * normal_l1y(n);
-	F.B.z += F.psi * normal_l1z(n);
-	F.ETotal = HTotal * vj - BDotV * Bj / (solver->mu0 / unit_kg_m_per_C2);
-	F.ePot = 0;
-	return F;
-}
-]],
-	}
-end
-
-function MHD:initCodeModuleCommon()
-	self.solver.modules:add{
-		name = 'eqn.common',
-		code = self:template[[
-real calc_eKin(<?=eqn.prim_t?> W, real3 x) { return .5 * coordLenSq(W.v, x); }
-real calc_EKin(<?=eqn.prim_t?> W, real3 x) { return W.rho * calc_eKin(W, x); }
-real calc_EInt(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W) { return W.P / (solver->heatCapacityRatio - 1.); }
-real calc_eInt(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W) { return calc_EInt(solver, W) / W.rho; }
-real calc_EM_energy(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W, real3 x) { return .5 * coordLenSq(W.B, x) / (solver->mu0 / unit_kg_m_per_C2); }
-real calc_PMag(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W, real3 x) { return .5 * coordLenSq(W.B, x) / (solver->mu0 / unit_kg_m_per_C2); }
-real calc_EHydro(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W, real3 x) { return calc_EKin(W, x) + calc_EInt(solver, W); }
-real calc_eHydro(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W, real3 x) { return calc_EHydro(solver, W, x) / W.rho; }
-real calc_ETotal(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W, real3 x) { return calc_EKin(W, x) + calc_EInt(solver, W) + calc_EM_energy(solver, W, x); }
-real calc_eTotal(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W, real3 x) { return calc_ETotal(solver, W, x) / W.rho; }
-real calc_H(constant <?=solver.solver_t?>* solver, real P) { return P * (solver->heatCapacityRatio / (solver->heatCapacityRatio - 1.)); }
-real calc_h(constant <?=solver.solver_t?>* solver, real rho, real P) { return calc_H(solver, P) / rho; }
-real calc_HTotal(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W, real ETotal, real3 x) { return W.P + calc_PMag(solver, W, x) + ETotal; }
-real calc_hTotal(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W, real ETotal, real3 x) { return calc_HTotal(solver, W, ETotal, x) / W.rho; }
-
-//notice, this is speed of sound, to match the name convention of hydro/eqn/euler
-//but Cs in eigen_t is the slow speed
-//most the MHD papers use 'a' for the speed of sound
-real calc_Cs(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W) { 
-	return sqrt(solver->heatCapacityRatio * W.P / W.rho); 
-}
-
-//CA = B/sqrt(mu0 rho)
-//B has units kg/(C*s)
-//mu0 has units kg*m/C^2
-//rho has units kg/m^3
-//CA has units m/s
-real3 calc_CA(constant <?=solver.solver_t?>* solver, <?=eqn.cons_t?> U) {
-	return real3_real_mul(U.B, 1./sqrt(U.rho * solver->mu0 / unit_kg_m_per_C2));
-}
-
-]],
-	}
-end
-
-function MHD:getModuleDependsSolver() 
-	return {'eqn.prim-cons'}
-end
-
-function MHD:initCodeModulePrimCons()
-	self.solver.modules:add{
-		name = 'eqn.prim-cons',
-		depends = {
+		['eqn.prim-cons'] = {
 			'solver.solver_t',
 			'eqn.prim_t',
 			'eqn.cons_t',
 			'coordLenSq',
 		},
-		code = self:template[[
-<?=eqn.prim_t?> primFromCons(
-	constant <?=solver.solver_t?>* solver,
-	<?=eqn.cons_t?> U,
-	real3 x
-) {
-	<?=eqn.prim_t?> W;
-	W.rho = U.rho;
-	W.v = real3_real_mul(U.m, 1./U.rho);
-	W.B = U.B;
-	real vSq = coordLenSq(W.v, x);
-	real BSq = coordLenSq(W.B, x);
-	real EKin = .5 * U.rho * vSq;
-	real EMag = .5 * BSq / (solver->mu0 / unit_kg_m_per_C2);
-	real EInt = U.ETotal - EKin - EMag;
-	W.P = EInt * (solver->heatCapacityRatio - 1.);
-	W.P = max(W.P, (real)1e-7);
-	W.rho = max(W.rho, (real)1e-7);
-	W.psi = U.psi;
-	W.ePot = U.ePot;
-	return W;
-}
 
-<?=eqn.cons_t?> consFromPrim(
-	constant <?=solver.solver_t?>* solver,
-	<?=eqn.prim_t?> W,
-	real3 x
-) {
-	<?=eqn.cons_t?> U;
-	U.rho = W.rho;
-	U.m = real3_real_mul(W.v, W.rho);
-	U.B = W.B;
-	real vSq = coordLenSq(W.v, x);
-	real BSq = coordLenSq(W.B, x);
-	real EKin = .5 * W.rho * vSq;
-	real EMag = .5 * BSq / (solver->mu0 / unit_kg_m_per_C2);
-	real EInt = W.P / (solver->heatCapacityRatio - 1.);
-	U.ETotal = EInt + EKin + EMag;
-	U.psi = W.psi;
-	U.ePot = W.ePot;
-	return U;
-}
-]],
-	}
-
-	-- only used by PLM
-	self.solver.modules:add{
-		name = 'eqn.dU-dW',
-		depends = {
+		-- only used by PLM
+		['eqn.dU-dW'] = {
 			'real3',
 			'solver.solver_t',
 			'eqn.prim_t',
 			'eqn.cons_t',
 		},
-		code = self:template[[
-<?=eqn.cons_t?> apply_dU_dW(
-	constant <?=solver.solver_t?>* solver,
-	<?=eqn.prim_t?> WA, 
-	<?=eqn.prim_t?> W, 
-	real3 x
-) {
-	return (<?=eqn.cons_t?>){
-		.rho = W.rho,
-		.m = real3_add(
-			real3_real_mul(WA.v, W.rho),
-			real3_real_mul(W.v, WA.rho)),
-		.B = WA.B,
-		.ETotal = W.rho * .5 * real3_dot(WA.v, WA.v)
-			+ WA.rho * real3_dot(W.v, WA.v)
-			+ real3_dot(W.B, WA.B) / (solver->mu0 / unit_kg_m_per_C2)
-			+ W.P / (solver->heatCapacityRatio - 1.),
-		.psi = W.psi,
-		.ePot = W.ePot,
-	};
-}
 
-<?=eqn.prim_t?> apply_dW_dU(
-	constant <?=solver.solver_t?>* solver,
-	<?=eqn.prim_t?> WA,
-	<?=eqn.cons_t?> U,
-	real3 x
-) {
-	return (<?=eqn.prim_t?>){
-		.rho = U.rho,
-		.v = real3_sub(
-			real3_real_mul(U.m, 1. / WA.rho),
-			real3_real_mul(WA.v, U.rho / WA.rho)),
-		.B = U.B,
-		.P = (solver->heatCapacityRatio - 1.) *  (
-			.5 * U.rho * real3_dot(WA.v, WA.v)
-			- real3_dot(U.m, WA.v)
-			- real3_dot(U.B, WA.B) / (solver->mu0 / unit_kg_m_per_C2)
-			+ U.ETotal),
-		.psi = U.psi,
-		.ePot = U.ePot,
-	};
-}
-]],
+		['cons_rotateFrom'] = {
+			'eqn.cons_t',
+			'normal_t',
+		},
+		
+		['cons_rotateTo'] = {
+			'eqn.cons_t',
+			'normal_t',
+		},
+		
+		['calcCellMinMaxEigenvalues'] = {
+			'cons_rotateFrom',
+		},
+		
+		['calcRoeValues'] = {},
+		
+		['fluxFromCons'] = {
+			'solver.solver_t',
+			'eigen_forCell',
+			'normal_t',
+		},
+
+		['eigen_forRoeAvgs'] = {
+			'roe_t',
+		},
+		
+		['eigen_forInterface'] = {
+			'cons_rotateFrom',
+			'calcRoeValues',
+			'eigen_forRoeAvgs',
+		},
+		
+		['eigen_forCell'] = {
+			'solver.solver_t',
+			'eqn.prim-cons',	-- primFromCons
+			'normal_t',
+			'coordLenSq',
+			'eigen_forRoeAvgs',
+		},
+
+		['eigen_left/rightTransform'] = {
+			'cons_rotateTo',
+		},
+		
+		['eigen_fluxTransform'] = {},
+		['addSource'] = {},
+		['constrainU'] = {},
+	} do
+		self:addModuleFromSourceFile{
+			name = moduleName,
+			depends = depends,
+		}
+	end
+end
+
+-- don't use default
+function MHD:initCodeModule_fluxFromCons() end
+function MHD:initCodeModuleCommon() end
+function MHD:initCodeModulePrimCons() end
+
+function MHD:getModuleDependsApplyInitCond()
+	return table(MHD.super.getModuleDependsApplyInitCond(self)):append{
+		'cartesianToCoord',
+	}
+end
+
+function MHD:getModuleDepends_calcDT()
+	return table(MHD.super.getModuleDepends_calcDT(self)):append{
+		'eqn.solvercode',	-- i.e. inline
+	}
+end
+
+-- TODO change to eqn.waveCode
+function MHD:getModuleDependsSolver() 
+	return {
+		'eqn.prim-cons',
+		'calcCellMinMaxEigenvalues',
 	}
 end
 
 MHD.needsInitDerivs = true
-MHD.initCondCode = [[
-kernel void applyInitCond(
-	constant <?=solver.solver_t?>* solver,
-	constant <?=solver.initCond_t?>* initCond,
-	global <?=eqn.cons_t?>* UBuf,
-	const global <?=solver.coord.cell_t?>* cellBuf
-) {
-	SETBOUNDS(0,0);
-	real3 x = cellBuf[index].pos;
-	
-	global <?=eqn.cons_t?>* U = UBuf + index;
-	
-	real3 mids = real3_real_mul(real3_add(solver->mins, solver->maxs), .5);
-	bool lhs = true
-<?
-for i=1,solver.dim do
-	local xi = xNames[i]
-?>	&& x.<?=xi?> < mids.<?=xi?>
-<?
-end
-?>;
-
-	real rho = 0;
-	real3 v = real3_zero;
-	real P = 0;
-	real3 B = real3_zero;
-	real ePot = 0;
-	//ignored:
-	real3 D = real3_zero;
-
-	<?=code?>
-	
-	<?=eqn.prim_t?> W = {
-		.rho = rho,
-		.v = cartesianToCoord(v, x),
-		.P = P,
-		.B = cartesianToCoord(B, x),
-		.psi = 0,
-		.ePot = ePot,
-	};
-	UBuf[index] = consFromPrim(solver, W, x);
-}
-
-kernel void initDerivs(
-	constant <?=solver.solver_t?>* solver,
-	global <?=eqn.cons_t?>* UBuf,
-	const global <?=solver.coord.cell_t?>* cellBuf
-) {
-	SETBOUNDS(numGhost,numGhost);
-	real3 x = cellBuf[index].pos;
-	global <?=eqn.cons_t?>* U = UBuf + index;
-<? if require 'hydro.solver.meshsolver'.is(solver) then
-?>	U->psi = 0.;
-<? else
-?>	U->psi = .5 * (0.
-<? 	for j=0,solver.dim-1 do 
-?>		+ (U[solver->stepsize.s<?=j?>].B.s<?=j?> 
-			- U[-solver->stepsize.s<?=j?>].B.s<?=j?>
-		) / solver->grid_dx.s<?=j?>
-<? 	end 
-?>	);
-<? end
-?>
-}
-]]
 
 function MHD:getInitCondCode()
 	-- where do I put this to make it the default value for MHD solvers,

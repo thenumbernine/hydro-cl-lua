@@ -52,13 +52,13 @@ end
 
 TwoFluidEMHD.consVars = table{
 	--integration variables		
-	{name='ion_rho', type='real', units='kg/m^3'},
+	{name='ion_rho', type='real', units='kg/m^3', variance=''},
 	{name='ion_m', type='real3', units='kg/(m^2*s)', variance='u'},		-- m^i
-	{name='ion_ETotal', type='real', units='kg/(m*s^2)'},
+	{name='ion_ETotal', type='real', units='kg/(m*s^2)', variance=''},
 	
-	{name='elec_rho', type='real', units='kg/m^3'},
+	{name='elec_rho', type='real', units='kg/m^3', variance=''},
 	{name='elec_m', type='real3', units='kg/(m^2*s)', variance='u'},	-- m^i
-	{name='elec_ETotal', type='real', units='kg/(m*s^2)'},
+	{name='elec_ETotal', type='real', units='kg/(m*s^2)', variance=''},
 
 	{name='D', type='real3', units='C/m^2', variance='l'},				-- D_i
 	{name='B', type='real3', units='kg/(C*s)', variance='l'},			-- B_i
@@ -71,13 +71,13 @@ TwoFluidEMHD.consVars = table{
 
 TwoFluidEMHD.primVars = table{
 	--integration variables		
-	{name='ion_rho', type='real', units='kg/m^3'},
+	{name='ion_rho', type='real', units='kg/m^3', variance=''},
 	{name='ion_v', type='real3', units='m/s', variance='u'},
-	{name='ion_P', type='real', units='kg/(m*s^2)'},
+	{name='ion_P', type='real', units='kg/(m*s^2)', variance=''},
 	
-	{name='elec_rho', type='real', units='kg/m^3'},
+	{name='elec_rho', type='real', units='kg/m^3', variance=''},
 	{name='elec_v', type='real3', units='m/s', variance='u'},
-	{name='elec_P', type='real', units='kg/(m*s^2)'},
+	{name='elec_P', type='real', units='kg/(m*s^2)', variance=''},
 
 	{name='D', type='real3', units='C/m^2', variance='l'},				-- D_i
 	{name='B', type='real3', units='kg/(C*s)', variance='l'},			-- B_i
@@ -87,9 +87,6 @@ TwoFluidEMHD.primVars = table{
 	--extra	
 	{name='ePot', type='real', units='m^2/s^2'},
 }
-
--- not sure it's working right ...
---TwoFluidEMHD.hasCalcDTCode = true
 
 TwoFluidEMHD.roeUseFluxFromCons = true
 TwoFluidEMHD.useSourceTerm = true
@@ -187,344 +184,80 @@ function TwoFluidEMHD:createInitState()
 	end):unpack()))
 end
 
-function TwoFluidEMHD:initCodeModule_fluxFromCons()
-	self.solver.modules:add{
-		name = 'fluxFromCons',
-		code = self:template[[
-<?=eqn.cons_t?> fluxFromCons(
-	constant <?=solver.solver_t?>* solver,
-	<?=eqn.cons_t?> U,
-	real3 x,
-	normal_t n
-) {
-	<?=eqn.prim_t?> W = primFromCons(solver, U, x);
-	<?=eqn.cons_t?> F;
+function TwoFluidEMHD:initCodeModules()
+	TwoFluidEMHD.super.initCodeModules(self)
 
-<? 
-for _,fluid in ipairs(eqn.fluids) do
-?>	real <?=fluid?>_vj = normal_vecDotN1(n, W.<?=fluid?>_v);
-	real <?=fluid?>_HTotal = U.<?=fluid?>_ETotal + W.<?=fluid?>_P;
+	for moduleName, depends in pairs{
+		['sqrt_2_and_1_2'] = {},
 	
-	F.<?=fluid?>_rho = normal_vecDotN1(n, U.<?=fluid?>_m);
-	F.<?=fluid?>_m = real3_real_mul(U.<?=fluid?>_m, <?=fluid?>_vj);
-<? 	for i,xi in ipairs(xNames) do
-?>	F.<?=fluid?>_m.<?=xi?> += normal_u1<?=xi?>(n) * W.<?=fluid?>_P;
-<? 	end
-?>	F.<?=fluid?>_ETotal = <?=fluid?>_HTotal * <?=fluid?>_vj;
-<? 
-end
-?>	F.ePot = 0.;
-	
-	real eps = solver->sqrt_eps * solver->sqrt_eps / unit_C2_s2_per_kg_m3;
-	real mu = solver->sqrt_mu * solver->sqrt_mu / unit_kg_m_per_C2;
-
-	//taken from glm-maxwell instead of the 2014 Abgrall, Kumar
-	real3 E = real3_real_mul(U.D, 1. / eps);
-	real3 H = real3_real_mul(U.B, 1. / mu);
-	if (n.side == 0) {
-		F.D = _real3(U.phi * solver->divPhiWavespeed / unit_m_per_s, H.z, -H.y);
-		F.B = _real3(U.psi * solver->divPsiWavespeed / unit_m_per_s, -E.z, E.y);
-	} else if (n.side == 1) {
-		F.D = _real3(-H.z, U.phi * solver->divPhiWavespeed / unit_m_per_s, H.x);
-		F.B = _real3(E.z, U.psi * solver->divPsiWavespeed / unit_m_per_s, -E.x);
-	} else if (n.side == 2) {
-		F.D = _real3(H.y, -H.x, U.phi * solver->divPhiWavespeed / unit_m_per_s);
-		F.B = _real3(-E.y, E.x, U.psi * solver->divPsiWavespeed / unit_m_per_s);
-	}
-	F.phi = normal_vecDotN1(n, U.D) * solver->divPhiWavespeed / unit_m_per_s;
-	F.psi = normal_vecDotN1(n, U.B) * solver->divPsiWavespeed / unit_m_per_s;
-
-	return F;
-}
-]],
-	}
-end
-
-function TwoFluidEMHD:initCodeModuleCommon()
-	self.solver.modules:add{
-		name = 'eqn.common',
-		code = self:template[[
-real3 calc_EField(constant <?=solver.solver_t?>* solver, <?=eqn.cons_t?> U) {
-	real eps = solver->sqrt_eps * solver->sqrt_eps / unit_C2_s2_per_kg_m3;
-	return real3_real_mul(U.D, 1. / eps);
-}
- 
-real3 calc_HField(constant <?=solver.solver_t?>* solver, <?=eqn.cons_t?> U) { 
-	real mu = solver->sqrt_mu * solver->sqrt_mu / unit_kg_m_per_C2;
-	return real3_real_mul(U.B, 1. / mu);
-}
-
-real calc_H(constant <?=solver.solver_t?>* solver, real P) { return P * (solver->heatCapacityRatio / (solver->heatCapacityRatio - 1.)); }
-real calc_h(constant <?=solver.solver_t?>* solver, real rho, real P) { return calc_H(solver, P) / rho; }
-real calc_HTotal(real P, real ETotal) { return P + ETotal; }
-real calc_hTotal(constant <?=solver.solver_t?>* solver, real rho, real P, real ETotal) { return calc_HTotal(P, ETotal) / rho; }
-
-real calc_rho_from_U(<?=eqn.cons_t?> U) {
-	real rho = 0.;
-<? for _,fluid in ipairs(eqn.fluids) do 
-?>	rho += U.<?=fluid?>_rho;
-<? end 
-?>	return rho;
-}
-
-real calc_rho_from_W(<?=eqn.prim_t?> W) {
-	real rho = 0.;
-<? for _,fluid in ipairs(eqn.fluids) do 
-?>	rho += W.<?=fluid?>_rho;
-<? end 
-?>	return rho;
-}
-
-real calc_EPot(<?=eqn.cons_t?> U) { return calc_rho_from_U(U) * U.ePot; }
-real calc_EPot_from_W(<?=eqn.prim_t?> W) { return calc_rho_from_W(W) * W.ePot; }
-
-<? for _,fluid in ipairs(eqn.fluids) do ?>
-real calc_<?=fluid?>_eKin(<?=eqn.prim_t?> W, real3 x) { return .5 * coordLenSq(W.<?=fluid?>_v, x); }
-real calc_<?=fluid?>_EKin(<?=eqn.prim_t?> W, real3 x) { return W.<?=fluid?>_rho * calc_<?=fluid?>_eKin(W, x); }
-real calc_<?=fluid?>_EInt(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W) { return W.<?=fluid?>_P / (solver->heatCapacityRatio - 1.); }
-real calc_<?=fluid?>_eInt(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W) { return calc_<?=fluid?>_EInt(solver, W) / W.<?=fluid?>_rho; }
-real calc_<?=fluid?>_EKin_fromCons(<?=eqn.cons_t?> U, real3 x) { return .5 * coordLenSq(U.<?=fluid?>_m, x) / U.<?=fluid?>_rho; }
-real calc_<?=fluid?>_ETotal(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W, real3 x) {
-	return calc_<?=fluid?>_EKin(W, x) + calc_<?=fluid?>_EInt(solver, W);
-}
-real calc_<?=fluid?>_Cs(constant <?=solver.solver_t?>* solver, const <?=eqn.prim_t?>* W) {
-	return sqrt(solver->heatCapacityRatio * W-><?=fluid?>_P / W-><?=fluid?>_rho);
-}
-<? end ?>
-
-real calc_EM_energy(constant <?=solver.solver_t?>* solver, const global <?=eqn.cons_t?>* U, real3 x) {
-	real eps = solver->sqrt_eps * solver->sqrt_eps / unit_C2_s2_per_kg_m3;
-	real mu = solver->sqrt_mu * solver->sqrt_mu / unit_kg_m_per_C2;
-	return .5 * (coordLenSq(U->D, x) / eps + coordLenSq(U->B, x) / mu);
-}
-
-]],
-	}
-end
-
-function TwoFluidEMHD:initCodeModulePrimCons()
-	self.solver.modules:add{
-		name = 'eqn.prim-cons',
-		depends = {
+		['eqn.prim-cons'] = {
 			'real3',
 			'solver.solver_t',
 			'eqn.prim_t',
 			'eqn.cons_t',
 			'eqn.common',	-- calc_*
 		},
-		code = self:template[[
-<?=eqn.prim_t?> primFromCons(constant <?=solver.solver_t?>* solver, <?=eqn.cons_t?> U, real3 x) {
-	<? for _,fluid in ipairs(eqn.fluids) do ?>
-	real <?=fluid?>_EKin = calc_<?=fluid?>_EKin_fromCons(U, x);
-	real <?=fluid?>_EInt = U.<?=fluid?>_ETotal - <?=fluid?>_EKin;
-	<? end ?>
-	return (<?=eqn.prim_t?>){
-		<? for _,fluid in ipairs(eqn.fluids) do ?>
-		.<?=fluid?>_rho = U.<?=fluid?>_rho,
-		.<?=fluid?>_v = real3_real_mul(U.<?=fluid?>_m, 1./U.<?=fluid?>_rho),
-		.<?=fluid?>_P = (solver->heatCapacityRatio - 1.) * <?=fluid?>_EInt,
-		<? end ?>
-		.D = U.D,
-		.B = U.B,
-		.psi = U.psi,
-		.phi = U.phi,
-		.ePot = U.ePot,
-	};
-}
 
-<?=eqn.cons_t?> consFromPrim(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W, real3 x) {
-	return (<?=eqn.cons_t?>){
-<? for _,fluid in ipairs(eqn.fluids) do ?>
-		.<?=fluid?>_rho = W.<?=fluid?>_rho,
-		.<?=fluid?>_m = real3_real_mul(W.<?=fluid?>_v, W.<?=fluid?>_rho),
-		.<?=fluid?>_ETotal = calc_<?=fluid?>_ETotal(solver, W, x),
-<? end ?>
-		.D = W.D,
-		.B = W.B,
-		.psi = W.psi,
-		.phi = W.phi,
-		.ePot = W.ePot,
-	};
-}
-]],
-	}
-
-	-- only used by PLM
-	self.solver.modules:add{
-		name = 'eqn.dU-dW',
-		depends = {
+		-- only used by PLM
+		['eqn.dU-dW'] = {
 			'real3',
 			'solver.solver_t',
 			'eqn.prim_t',
 			'eqn.cons_t',
 			'coord_lower',
 		},
-		code = self:template[[
-<?=eqn.cons_t?> apply_dU_dW(
-	constant <?=solver.solver_t?>* solver,
-	<?=eqn.prim_t?> WA, 
-	<?=eqn.prim_t?> W, 
-	real3 x
-) {
-<? for _,fluid in ipairs(eqn.fluids) do ?>
-	real3 WA_<?=fluid?>_vL = coord_lower(WA.<?=fluid?>_v, x);
-<? end ?>
-	return (<?=eqn.cons_t?>){
-<? for _,fluid in ipairs(eqn.fluids) do ?>
-		.<?=fluid?>_rho = W.<?=fluid?>_rho,
-		.<?=fluid?>_m = real3_add(
-			real3_real_mul(WA.<?=fluid?>_v, W.<?=fluid?>_rho), 
-			real3_real_mul(W.<?=fluid?>_v, WA.<?=fluid?>_rho)),
-		.<?=fluid?>_ETotal = W.<?=fluid?>_rho * .5 * real3_dot(WA.<?=fluid?>_v, WA_<?=fluid?>_vL) 
-			+ WA.<?=fluid?>_rho * real3_dot(W.<?=fluid?>_v, WA_<?=fluid?>_vL)
-			+ W.<?=fluid?>_P / (solver->heatCapacityRatio - 1.),
-<? end ?>
-		.B = W.B,
-		.D = W.D,
-		.phi = W.phi,
-		.psi = W.psi,
-		.ePot = W.ePot,
-	};
-}
 
-<?=eqn.prim_t?> apply_dW_dU(
-	constant <?=solver.solver_t?>* solver,
-	<?=eqn.prim_t?> WA,
-	<?=eqn.cons_t?> U,
-	real3 x
-) {
-<? for _,fluid in ipairs(eqn.fluids) do ?>
-	real3 WA_<?=fluid?>_vL = coord_lower(WA.<?=fluid?>_v, x);
-<? end ?>
-	return (<?=eqn.prim_t?>){
-<? for _,fluid in ipairs(eqn.fluids) do ?>
-		.<?=fluid?>_rho = U.<?=fluid?>_rho,
-		.<?=fluid?>_v = real3_sub(
-			real3_real_mul(U.<?=fluid?>_m, 1. / WA.<?=fluid?>_rho),
-			real3_real_mul(WA.<?=fluid?>_v, U.<?=fluid?>_rho / WA.<?=fluid?>_rho)),
-		.<?=fluid?>_P = (solver->heatCapacityRatio - 1.) * (
-			.5 * real3_dot(WA.<?=fluid?>_v, WA_<?=fluid?>_vL) * U.<?=fluid?>_rho 
-			- real3_dot(U.<?=fluid?>_m, WA_<?=fluid?>_vL)
-			+ U.<?=fluid?>_ETotal),
-<? end ?>
-		.B = U.B,
-		.D = U.D,
-		.phi = U.phi,
-		.psi = U.psi,
-		.ePot = U.ePot,
-	};
-}
-]],
+		['eqn.common'] = {
+			'coordLenSq',
+		},
+		
+		['fluxFromCons'] = {
+			'normal_t',
+		},
+		
+		['eigen_forInterface'] = {},
+		['eigen_forCell'] = {},
+		
+		['eigen_left/rightTransform'] = {
+			'sqrt_2_and_1_2',
+		},
+		
+		['eigen_fluxTransform'] = {},
+		['addSource'] = {},
+		['constrainU'] = {},
+		
+		--['calcDT'] = {},	-- don't use this, use the deafult, this is breaking atm
+	} do
+		self:addModuleFromSourceFile{
+			name = moduleName,
+			depends = depends,
+		}
+	end
+end
+
+-- don't use default
+function TwoFluidEMHD:initCodeModule_fluxFromCons() end
+function TwoFluidEMHD:initCodeModuleCommon() end
+function TwoFluidEMHD:initCodeModulePrimCons() end
+
+function TwoFluidEMHD:getModuleDependsApplyInitCond()
+	return table(TwoFluidEMHD.super.getModuleDependsApplyInitCond(self))
+	:append{
+		'cartesianToCoord',
 	}
 end
 
--- overridden because it adds some extra parameters to the template args
--- should I either make a function for the template arg params
--- or maybe I shouldn't have super-class'd the initCond code to begin with ...
-function TwoFluidEMHD:getInitCondCode()
-	return self:template([[
-<? 
-local cons_t = eqn.cons_t
-local susc_t = eqn.susc_t
-local scalar = eqn.scalar
-local vec3 = eqn.vec3
-local zero = scalar..'_zero'
-local inv = scalar..'_inv'
-local fromreal = scalar..'_from_real'
-local sqrt = scalar..'_sqrt'
-?>
-
-kernel void applyInitCond(
-	constant <?=solver.solver_t?>* solver,
-	constant <?=solver.initCond_t?>* initCond,
-	global <?=eqn.cons_t?>* UBuf,
-	const global <?=solver.coord.cell_t?>* cellBuf
-) {
-	SETBOUNDS(0,0);
-	real3 x = cellBuf[index].pos;
-	real3 mids = real3_real_mul(real3_add(solver->mins, solver->maxs), .5);
-	bool lhs = x.x < mids.x
-#if dim > 1
-		&& x.y < mids.y
-#endif
-#if dim > 2
-		&& x.z < mids.z
-#endif
-	;
-	real ePot = 0;
-<? 
-if eqn.useEulerInitState then 
-?>
-	real rho = 0.;
-	real3 v = real3_zero;
-	real P = 0;
-<?
-else
-	 for _,fluid in ipairs(eqn.fluids) do
-?>	real <?=fluid?>_rho = 0;
-	real3 <?=fluid?>_v = real3_zero;
-	real <?=fluid?>_P = 0;
-<? 
-	end 
-end
-?>	<?=vec3?> D = <?=vec3?>_zero;
-	<?=vec3?> B = <?=vec3?>_zero;
-	<?=scalar?> conductivity = <?=fromreal?>(1.);
-	<?=scalar?> permittivity = <?=fromreal?>(1. / (4. * M_PI));
-	<?=scalar?> permeability = <?=fromreal?>(4. * M_PI);
-
-	<?=code?>
-
-	<?=eqn.prim_t?> W = {
-<? 
-if eqn.useEulerInitState then 
-?>
-		.ion_rho = rho,
-		.elec_rho = rho / solver->ionElectronMassRatio, 
-
-		// "the electron pressure is taken to be elec_P = 5 ion_rho"
-		// is that arbitrary?
-		.elec_P = 5. * rho,
-		
-		// "the ion pressure is 1/100th the electron pressure"
-		// is that from the mass ratio of ion/electron?
-		.ion_P = P / solver->ionElectronMassRatio, 
-
-		.ion_v = cartesianToCoord(v, x),
-		.elec_v = cartesianToCoord(v, x),
-	
-<?	
-else	-- expect the initCond to explicitly provide the ion_ and elec_ Euler fluid variables
-	for _,fluid in ipairs(eqn.fluids) do ?>
-		.<?=fluid?>_rho = <?=fluid?>_rho,
-		.<?=fluid?>_v = cartesianToCoord(<?=fluid?>_v, x),
-		.<?=fluid?>_P = <?=fluid?>_P,
-<?
-	end
-end
-?>
-		.D = cartesianToCoord(D, x), 
-		.B = cartesianToCoord(B, x),
-		.psi = 0,
-		.phi = 0,
-	
-		.ePot = 0,
-	};
-	UBuf[index] = consFromPrim(solver, W, x);
-}
-]], {
-		code = self.initCond:getInitCondCode(self.solver),
-	})
-end
-
-TwoFluidEMHD.solverCodeFile = 'hydro/eqn/twofluid-emhd.cl'
-
+-- this is to be turned into eqn.waveCode for the inline wave calcs
 function TwoFluidEMHD:getModuleDependsSolver()
 	return {
 		'eqn.prim-cons',
 		'coord_lower',
+		-- but this is for postComputeFluxCode used by the flux stuff
+		'coord_sqrt_det_g',
 	}
 end
+
+TwoFluidEMHD.solverCodeFile = 'hydro/eqn/twofluid-emhd.cl'
 
 function TwoFluidEMHD:getEnv()
 	local scalar = self.scalar

@@ -129,6 +129,7 @@ function EulerBurgers:initCodeModules()
 		depends = {
 			'eqn.prim-cons',
 			'fluxLimiter',
+			'eigen_forInterface',
 		},
 		code = template(file['hydro/solver/euler-burgers.cl'], {solver=self, eqn=self.eqn}),
 	}
