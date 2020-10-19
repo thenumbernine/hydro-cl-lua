@@ -30,6 +30,32 @@ function WaveFDEqn:createInitState()
 	}
 end
 
+WaveFDEqn.initConds = require 'hydro.init.nls':getList()
+
+WaveFDEqn.solverCodeFile = 'hydro/eqn/wave-fd.cl'
+
+function WaveFDEqn:initCodeModules()
+	WaveFDEqn.super.initCodeModules(self)
+	for moduleName, depends in pairs{
+		['calcDT'] = {},
+		['addSource'] = {},
+	} do
+		self:addModuleFromSourceFile{
+			name = moduleName,
+			depends = depends,
+		}
+	end
+end
+
+-- don't use default
+function WaveFDEqn:initCodeModule_calcDT() end
+
+function WaveFDEqn:getModuleDependsSolver()
+	return table(WaveFDEqn.super.getModuleDependsSolver(self)):append{
+		'Bessel'	-- BESSJ0 in display vars
+	}
+end
+
 -- the default display-all is broken since i switched to the pick-component option
 WaveFDEqn.predefinedDisplayVars = {
 	'U psi re',
@@ -41,35 +67,6 @@ WaveFDEqn.predefinedDisplayVars = {
 	'U zeta abs',
 	--'U zeta arg',
 }
-
-WaveFDEqn.initConds = require 'hydro.init.nls':getList()
-
-WaveFDEqn.initCondCode = [[
-kernel void applyInitCond(
-	constant <?=solver.solver_t?>* solver,
-	constant <?=solver.initCond_t?>* initCond,
-	global <?=eqn.cons_t?>* UBuf,
-	const global <?=coord.cell_t?>* cellBuf
-) {
-	SETBOUNDS(0,0);
-	real3 x = cellBuf[index].pos;
-	real r = fabs(x.x);
-	cplx q = cplx_zero;
-	<?=code?>
-	UBuf[index] = (<?=eqn.cons_t?>){
-		.psi = q,
-		.zeta = cplx_zero,
-	};
-}
-]]
-
-WaveFDEqn.solverCodeFile = 'hydro/eqn/wave-fd.cl'
-
-function WaveFDEqn:getModuleDependsSolver()
-	return table(WaveFDEqn.super.getModuleDependsSolver(self)):append{
-		'Bessel'	-- BESSJ0 in display vars
-	}
-end
 
 function WaveFDEqn:getDisplayVars()
 	local vars = WaveFDEqn.super.getDisplayVars(self)

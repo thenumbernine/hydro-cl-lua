@@ -18,6 +18,9 @@ NLSEqn.consVars = {
 	{name='q', type='cplx'},
 }
 
+NLSEqn.solverCodeFile = 'hydro/eqn/nls.cl'
+NLSEqn.initConds = require 'hydro.init.nls':getList()
+
 function NLSEqn:createBoundaryOptions()
 	local Boundary = self.solver.Boudary
 	local BoundaryOscillating = class(Boundary)
@@ -65,25 +68,20 @@ NLSEqn.predefinedDisplayVars = {
 	'U q arg',
 }
 
-NLSEqn.initConds = require 'hydro.init.nls':getList()
+function NLSEqn:initCodeModules()
+	NLSEqn.super.initCodeModules(self)
+	for moduleName, depends in pairs{
+		['calcDT'] = {},
+		['addSource'] = {},
+	} do
+		self:addModuleFromSourceFile{
+			name = moduleName,
+			depends = depends,
+		}
+	end
+end
 
-NLSEqn.initCondCode = [[
-kernel void applyInitCond(
-	constant <?=solver.solver_t?>* solver,
-	constant <?=solver.initCond_t?>* initCond,
-	global <?=eqn.cons_t?>* UBuf,
-	const global <?=coord.cell_t?>* cellBuf
-) {
-	SETBOUNDS(0,0);
-	real3 x = cellBuf[index].pos;
-
-	real r = fabs(x.x);
-	cplx q = cplx_zero;
-	<?=code?>
-	UBuf[index].q = q;
-}
-]]
-
-NLSEqn.solverCodeFile = 'hydro/eqn/nls.cl'
+-- don't use default
+function NLSEqn:initCodeModule_calcDT() end
 
 return NLSEqn 

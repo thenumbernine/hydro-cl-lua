@@ -19,6 +19,12 @@ function EinsteinFiniteDifferenceSolver:init(...)
 	self.name = nil	-- don't append the eqn name to this
 end
 
+function EinsteinFiniteDifferenceSolver:initCodeModules()
+	EinsteinFiniteDifferenceSolver.super.initCodeModules(self)
+
+	self.solverModulesEnabled['calcDeriv'] = true
+end
+
 function EinsteinFiniteDifferenceSolver:refreshSolverProgram()
 	EinsteinFiniteDifferenceSolver.super.refreshSolverProgram(self)
 	

@@ -26,46 +26,53 @@ local useAddSource = true
 -- Does Kreiss-Oligar dissipation (in the calcDeriv function)
 local useKreissOligarDissipation = true 
 
--- this block is shared with other things like initCond
--- it will be pasted above the !getCommonCode block below, despite that being in an exclusive condition to this
--- I'm moving it here from the .lua inline multiline string so I can get .cl syntax highlighting
-if getCommonCode then
+-- symmath?
+local Tensor = require 'symmath.Tensor'
 ?>
 
-<? if eqn.useScalarField then ?>
-#define cplx3_add5(a,b,c,d,e)	cplx3_add(cplx3_add(a,b),cplx3_add3(c,d,e))
+
+//do I have these defined somewhere else?
+#define numberof(x)	(sizeof(x)/sizeof(x[0]))
+#define endof(x)	((x) + numberof(x))
+
+//this is for convenience, but is bad for any kind of composite solver
+typedef <?=eqn.cons_t?> cons_t;
+typedef <?=solver.solver_t?> solver_t;
+typedef <?=solver.coord.cell_t?> cell_t;
+
+
+<? if moduleName == nil then ?>
+<? elseif moduleName == "calc_partial_det_gammaHat_l" then ?>
+
+#define calc_partial_det_gammaHat_l coord_partial_det_g
+
+<? elseif moduleName == "calc_partial_det_gammaHat_L" then ?>
+
+real3 calc_partial_det_gammaHat_L(real3 x) {
+	real3 partial_det_gammaHat_l = calc_partial_det_gammaHat_l(x);
+	real3 partial_det_gammaHat_L = real3_rescaleFromCoord_l(partial_det_gammaHat_l, x);
+	return partial_det_gammaHat_L;
+}
+
+<? elseif moduleName == "calc_partial2_det_gammaHat_ll" then ?>
+
+#define calc_partial2_det_gammaHat_ll coord_partial2_det_g
+
+<? elseif moduleName == "calc_partial2_det_gammaHat_LL" then ?>
+
+sym3 calc_partial2_det_gammaHat_LL(real3 x) {
+	sym3 partial2_det_gammaHat_ll = calc_partial2_det_gammaHat_ll(x);
+	sym3 partial2_det_gammaHat_LL = sym3_rescaleFromCoord_ll(partial2_det_gammaHat_ll, x);
+	return partial2_det_gammaHat_LL;
+}
+
+<? elseif moduleName == "calc_len_#" then ?>
+
+<? for i,xi in ipairs(xNames) do
+?>#define calc_len_<?=xi?>	coord_dx<?=i-1?>
 <? end ?>
 
-#define real3_add5(a,b,c,d,e)	real3_add(real3_add(a,b),real3_add3(c,d,e))
-#define real3_add6(a,b,c,d,e,f)	real3_add(real3_add3(a,b,c),real3_add3(d,e,f))
-	
-#define sym3_add3(a,b,c)	sym3_add(sym3_add(a,b),c)
-#define sym3_add4(a,b,c,d)	sym3_add(sym3_add(a,b),sym3_add(c,d))	
-
-
-	// alpha^2 f(alpha)
-
-<?
-local symmath = require 'symmath'
-local Tensor = symmath.Tensor
-do
-	local alpha = symmath.var'alpha'
-	local fGuiVar = solver.eqn.guiVars.f_eqn
-	local fLuaCode = fGuiVar.options[fGuiVar.value]
-	local f_times_alphaSq = assert(loadstring([=[
-local alpha, symmath = ...
-local log = symmath.log
-return alpha^2 * ]=]..fLuaCode))(alpha, symmath)
-	f_times_alphaSq = symmath.clone(f_times_alphaSq)()
-?>real calc_f_times_alphaSq(real alpha) {
-	<?=symmath.export.C:toCode{output={f_times_alphaSq}}?>
-	return out1;
-}
-<?
-end
-?>
-
-	// gammaHat_ij and co
+<? elseif moduleName == "calc_partial*_len*" then ?>
 
 /*
 e_i^I = delta_i^I f_i is a diagonal matrix with f_i indexed function.  for spherical, f_i = diag(1,r,r sin(theta))
@@ -74,21 +81,8 @@ I'm trying to keep the differentiations to an absolute minimum in the bssnok-fd-
 coord_dx#(x) is the same as f_# 
 */
 <?
-
 local partial_len_ll = coord.lenExprs'_i,j'():permute'_ij'
 local partial2_len_lll = partial_len_ll'_ij,k'():factorDivision():permute'_ijk'
-
--- this is used often enough
-local partial_len_over_len_lll = Tensor('_ijk', function(i,j,k)
-	return (partial_len_ll[i][j] / coord.lenExprs[k])()
-end)
-?>
-
-<?
-for i,xi in ipairs(xNames) do
-?>#define calc_len_<?=xi?>	coord_dx<?=i-1?>
-<? 
-end
 
 for i,xi in ipairs(xNames) do
 	for j,xj in ipairs(xNames) do
@@ -97,6 +91,10 @@ for i,xi in ipairs(xNames) do
 <? 	end
 end
 
+-- this is used often enough
+local partial_len_over_len_lll = Tensor('_ijk', function(i,j,k)
+	return (partial_len_ll[i][j] / coord.lenExprs[k])()
+end)
 for i,xi in ipairs(xNames) do
 	for j,xj in ipairs(xNames) do
 		for k,xk in ipairs(xNames) do
@@ -114,6 +112,19 @@ for i,xi in ipairs(xNames) do
 end
 ?>
 
+<? elseif moduleName == "eqn.common" then ?>
+
+<? if eqn.useScalarField then ?>
+#define cplx3_add5(a,b,c,d,e)	cplx3_add(cplx3_add(a,b),cplx3_add3(c,d,e))
+<? end ?>
+
+#define real3_add5(a,b,c,d,e)	real3_add(real3_add(a,b),real3_add3(c,d,e))
+#define real3_add6(a,b,c,d,e,f)	real3_add(real3_add3(a,b,c),real3_add3(d,e,f))
+	
+#define sym3_add3(a,b,c)	sym3_add(sym3_add(a,b),c)
+#define sym3_add4(a,b,c,d)	sym3_add(sym3_add(a,b),sym3_add(c,d))	
+
+<? elseif moduleName == "real3x3_partial_rescaleFromCoord_Ul" then ?>
 
 /*
 derivative index of the result is last
@@ -139,6 +150,8 @@ end ?>
 	return partial_T_UL;
 }
 
+<? elseif moduleName == "real3x3_partial_rescaleToCoord_Ul" then ?>
+
 /*
 derivative index of result is last 
 T^i_,j = (T^I e^i_I)_,j
@@ -163,7 +176,8 @@ end
 ?>	return partial_T_ul;
 }
 
-<? if eqn.useScalarField then ?>
+<? elseif moduleName == "cplx3x3_partial_rescaleFromCoord_Ll" then ?>
+
 /*
 This is breaking my old conventions too
 derivative index of result is last 
@@ -195,7 +209,8 @@ for i,xi in ipairs(xNames) do
 end
 ?>	return partial_T_LL;
 }
-<? end ?>
+
+<? elseif moduleName == "real3x3_partial_rescaleFromCoord_Ll" then ?>
 
 /*
 derivative index is last
@@ -217,6 +232,8 @@ end ?>
 	return partial_T_LL;
 }
 
+<? elseif moduleName == "calc_partial_connHat_Ulll_*" then ?>
+
 //calc_partial_connHat_Ulll_ijkl := e_i^I connHat^i_jk,l
 <? 
 local partial_connHat_ulll = coord.Gamma_ull'^i_jk,l'():permute'^i_jkl'
@@ -231,8 +248,11 @@ for i,xi in ipairs(xNames) do
 <?		end
 	end
 end
+?>
 
+<? elseif moduleName == "calc_partial*_det_gammaHat_over_det_gammaHat_*" then ?>
 
+<?
 local det_gammaHat = coord.det_g 
 local partial_det_gammaHat_l = Tensor('_i', function(i)
 	return det_gammaHat:diff(coord.coords[i])()
@@ -267,6 +287,8 @@ end
 ?>	return partial2_det_gammaHat_over_det_gammaHat_LL;
 }
 
+<? elseif moduleName == "calc_partial_ABar_LLL" then ?>
+
 static _3sym3 calc_partial_ABar_LLL(
 	real3 x,
 	sym3 ABar_LL,
@@ -292,6 +314,8 @@ end
 ?>	return partial_ABar_LLL;
 }
 
+<? elseif moduleName == "calc_partial_gammaBar_LLL" then ?>
+
 static _3sym3 calc_partial_gammaBar_LLL(
 	real3 x,
 	sym3 epsilon_LL,
@@ -316,6 +340,8 @@ for ij,xij in ipairs(symNames) do
 end
 ?>	return partial_gammaBar_LLL;
 }
+
+<? elseif moduleName == "calc_connHat_LLL_and_ULL" then ?>
 
 static void calc_connHat_LLL_and_ULL(
 	_3sym3* connHat_LLL,
@@ -374,6 +400,8 @@ end
 	*connHat_ULL = *connHat_LLL;
 }
 
+<? elseif moduleName == "calc_connBar_ULL" then ?>
+
 static _3sym3 calc_connBar_ULL(
 	_3sym3 partial_gammaBar_LLL,
 	sym3 gammaBar_UU
@@ -396,6 +424,8 @@ end
 	_3sym3 connBar_ULL = sym3_3sym3_mul(gammaBar_UU, connBar_LLL);
 	return connBar_ULL;
 }
+
+<? elseif moduleName == "calc_trBar_partial2_gammaBar_ll" then ?>
 
 static sym3 calc_trBar_partial2_gammaBar_ll(
 	const global <?=eqn.cons_t?>* U,
@@ -445,6 +475,8 @@ static sym3 calc_trBar_partial2_gammaBar_ll(
 ?>
 	return trBar_partial2_gammaBar_ll;
 }
+
+<? elseif moduleName == "calc_RBar_LL" then ?>
 
 static sym3 calc_RBar_LL(
 	const global <?=eqn.cons_t?>* U,
@@ -671,67 +703,7 @@ end
 ?>	return RBar_LL;
 }
 
-
-<?
-else	-- getCommonCode -- this block is for the scheme 
-?>
-
-//do I have these defined somewhere else?
-#define numberof(x)	(sizeof(x)/sizeof(x[0]))
-#define endof(x)	((x) + numberof(x))
-
-//this is for convenience, but is bad for any kind of composite solver
-typedef <?=eqn.cons_t?> cons_t;
-typedef <?=solver.solver_t?> solver_t;
-typedef <?=solver.coord.cell_t?> cell_t;
-
-/*
-TF(K_ij) = K_ij - 1/3 gamma_ij gamma^kl K_kl
-
-tr(A_ij)
-= tr(K_ij - 1/3 gamma_ij K)
-= gamma^ij K_ij - 1/3 gamma^ij gamma_ij K
-= K - 1/3 3 K
-= 0
-
-tr(ABar_ij) = exp(-4 phi) tr(A_ij) 
-= exp(-4 phi) * 0
-= 0
-
-TFBar(K_ij) = K_ij - 1/3 gammaBar_ij gammaBar^kl K_kl 
-	= K_ij - 1/3 gamma_ij gamma^kl K_kl
-	= TF(K_ij)
-
-notice that gamma'_ij -> f gamma_ij; gamma'^ij -> 1/f gamma'^ij will produce the same result
-so feel free to use gammaBar, gammaHat, etc
-*/
-sym3 tracefree(sym3 A_ll, sym3 g_ll, sym3 g_uu) {
-	real tr_A = sym3_dot(A_ll, g_uu);
-	return sym3_sub(A_ll, sym3_real_mul(g_ll, tr_A / 3.));
-}
-
-/*
-Returns the step coefficients, [+-1, +-1, +-1]
-based on vector 'v'
-to compute upwind differencing from.
-Same thing as (int4)sgn(v)
-*/
-const int4 getUpwind(real3 v) {
-	return (int4)(
-		v.x >= 0 ? 1 : -1,
-		v.y >= 0 ? 1 : -1,
-		v.z >= 0 ? 1 : -1,
-		0
-	);
-}
-
-
-//ok I have this in lua code for inline codegen, but here it is in C code, while debugging:
-int from3x3to6(int i, int j) {
-	int minij = min(i,j);
-	int maxij = max(i,j);
-	return maxij + minij + (minij > 1);
-}
+<? elseif moduleName == "applyKreissOligar" then ?>
 
 //////////////////////////////// Kreiss-Oligar dissipation //////////////////////////////// 
 
@@ -808,6 +780,62 @@ static void applyKreissOligar(
 	}
 <? end	-- useKreissOligarDissipation ?>
 }
+
+<? elseif moduleName == "tracefree" then ?>
+
+/*
+TF(K_ij) = K_ij - 1/3 gamma_ij gamma^kl K_kl
+
+tr(A_ij)
+= tr(K_ij - 1/3 gamma_ij K)
+= gamma^ij K_ij - 1/3 gamma^ij gamma_ij K
+= K - 1/3 3 K
+= 0
+
+tr(ABar_ij) = exp(-4 phi) tr(A_ij) 
+= exp(-4 phi) * 0
+= 0
+
+TFBar(K_ij) = K_ij - 1/3 gammaBar_ij gammaBar^kl K_kl 
+	= K_ij - 1/3 gamma_ij gamma^kl K_kl
+	= TF(K_ij)
+
+notice that gamma'_ij -> f gamma_ij; gamma'^ij -> 1/f gamma'^ij will produce the same result
+so feel free to use gammaBar, gammaHat, etc
+*/
+sym3 tracefree(sym3 A_ll, sym3 g_ll, sym3 g_uu) {
+	real tr_A = sym3_dot(A_ll, g_uu);
+	return sym3_sub(A_ll, sym3_real_mul(g_ll, tr_A / 3.));
+}
+
+<? elseif moduleName == "getUpwind" then ?>
+
+/*
+Returns the step coefficients, [+-1, +-1, +-1]
+based on vector 'v'
+to compute upwind differencing from.
+Same thing as (int4)sgn(v)
+*/
+const int4 getUpwind(real3 v) {
+	return (int4)(
+		v.x >= 0 ? 1 : -1,
+		v.y >= 0 ? 1 : -1,
+		v.z >= 0 ? 1 : -1,
+		0
+	);
+}
+
+<? elseif moduleName == "from3x3to6" then ?>
+
+//ok I have this in lua code for inline codegen, but here it is in C code, while debugging:
+int from3x3to6(int i, int j) {
+	int minij = min(i,j);
+	int maxij = max(i,j);
+	return maxij + minij + (minij > 1);
+}
+
+
+<? elseif moduleName == "calcDeriv" then ?>
 
 //////////////////////////////// W_,t //////////////////////////////// 
 
@@ -1732,7 +1760,6 @@ static void calcDeriv_Pi(
 
 <? end 	-- eqn.useScalarField ?>
 
-
 //TODO if we're calculating the constrains in the derivative
 // then we do save calculations / memory on the equations
 // but we also, for >FE integrators (which require multiple steps) are duplicating calculations
@@ -1771,7 +1798,7 @@ kernel void calcDeriv(
 		//alpha_,t = -alpha^2 f(alpha) K + alpha_,i e^i_I beta^I
 		// for f(alpha) = 2/alpha
 		//alpha_,t = -2 alpha K + alpha_,i e^i_I beta^I
-		dt_alpha = -calc_f_times_alphaSq(U->alpha) * U->K
+		dt_alpha = -calc_f_alphaSq(U->alpha) * U->K
 			+ real3_dot(partial_alpha_L_upwind, U->beta_U);
 	}
 	
@@ -2193,6 +2220,8 @@ or even the ∂_0 ΛBar^i then we can re-add the needed terms later
 <? end 	-- useCalcDeriv ?>
 }
 
+<? elseif moduleName == "constrainU" then ?>
+
 kernel void constrainU(
 	constant solver_t* solver,
 	global cons_t* UBuf,
@@ -2483,6 +2512,8 @@ for ij,xij in ipairs(symNames) do
 <? end	-- useConstrainU ?>
 }
 
+<? elseif moduleName == "addSource" then ?>
+
 //TODO combine with calcDeriv
 kernel void addSource(
 	constant solver_t* solver,
@@ -2505,7 +2536,7 @@ kernel void addSource(
 	//Q = f(alpha) K
 	//d/dt alpha = -alpha^2 Q = alpha,t + alpha,i beta^i
 	//alpha,t = -alpha^2 f(alpha) K + alpha,i beta^i
-	real dt_alpha = -calc_f_times_alphaSq(U->alpha) * U->K
+	real dt_alpha = -calc_f_alphaSq(U->alpha) * U->K
 		+ real3_dot(partial_alpha_L_upwind, U->beta_U);
 	
 
@@ -2558,6 +2589,8 @@ kernel void addSource(
 <? end -- useScalarField ?>
 <? end -- useAddSource ?>
 }
+
+<? elseif moduleName == "BSSNOK-PIRK" then ?>
 
 kernel void copyWAlphaBeta(
 	constant solver_t* solver,
@@ -2677,7 +2710,7 @@ kernel void calcDeriv_PIRK_L1_EpsilonWAlphaBeta(
 	//Q = f(alpha) K
 	//d/dt alpha = -alpha^2 Q = alpha,t + alpha,i beta^i
 	//alpha,t = -alpha^2 f(alpha) K + alpha,i beta^i
-	real dt_alpha = -calc_f_times_alphaSq(U->alpha) * U->K
+	real dt_alpha = -calc_f_alphaSq(U->alpha) * U->K
 		+ real3_dot(partial_alpha_L_upwind, U->beta_U);
 	
 	deriv->alpha = dt_alpha;
@@ -3423,6 +3456,8 @@ kernel void PIRK_Eq4_B(
 	PIRK_EQ4(real3, B_U);
 }
 
-<?
-end		-- getCommonCode
+<? 
+else
+	error("unknown moduleName "..require 'ext.tolua'(moduleName))
+end 
 ?>

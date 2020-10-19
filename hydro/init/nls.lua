@@ -71,14 +71,14 @@ local initConds = table{
 		-- so is rmax fixed and h determined by (rmin-rmax)/n, 
 		--  or is h fixed and is rmax = rmin + n h ?
 		guiVars = {
-			{name='init_r0', value=2},
-			{name='init_sigma', value=.25},
+			{name='r0', value=2},
+			{name='sigma', value=.25},
 		},
 		getInitCondCode = function(self, solver)
 			return [[
 	real rmin = solver->mins.x;
 	real drmin = r - rmin;
-	real dr0_over_sigma = (r - solver->init_r0) / solver->init_sigma;
+	real dr0_over_sigma = (r - initCond->r0) / initCond->sigma;
 	q = cplx_from_real(drmin * drmin * exp(-.5 * dr0_over_sigma * dr0_over_sigma));
 ]]
 		end,
@@ -88,6 +88,7 @@ local initConds = table{
 		name = 'Wave-FD Bessel',
 		mins = {.3, .3, .3}, 
 		maxs = {20.3, 20.3, 20.3},	
+		depends = {'Bessel'},
 		getInitCondCode = function(self, solver)
 			return [[
 	//q = cplx_from_real(BESSJ0(x.x));

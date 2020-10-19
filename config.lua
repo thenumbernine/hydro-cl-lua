@@ -318,7 +318,7 @@ local args = {
 
 	-- Einstein
 	--initCond = 'Minkowski',
-	initCond = 'gaussian perturbation',
+	--initCond = 'gaussian perturbation',
 	--initCond = 'plane gauge wave',
 
 
@@ -485,7 +485,7 @@ local args = {
 	--initCond = 'Ring',
 	--initCond = 'Oscillatory',
 	---- piggybacking for my wave-finite-difference here: ----
-	--initCond = 'Wave-FD Gaussian',
+	initCond = 'Wave-FD Gaussian',
 	--initCond = 'Wave-FD Bessel',
 
 	-- multi-devices

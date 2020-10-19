@@ -6,6 +6,27 @@ typedef <?=eqn.cons_t?> cons_t;
 #define cplx_add4(a,b,c,d)		(cplx_add(a, cplx_add3(b,c,d)))
 #define cplx_add5(a,b,c,d,e)	(cplx_add(a, cplx_add4(b,c,d,e)))
 
+<? if moduleName == nil then ?>
+<? elseif moduleName == "calcDT" then ?>
+<? elseif moduleName == "applyInitCond" then ?>
+
+kernel void applyInitCond(
+	constant <?=solver.solver_t?>* solver,
+	constant <?=solver.initCond_t?>* initCond,
+	global <?=eqn.cons_t?>* UBuf,
+	const global <?=coord.cell_t?>* cellBuf
+) {
+	SETBOUNDS(0,0);
+	real3 x = cellBuf[index].pos;
+
+	real r = fabs(x.x);
+	cplx q = cplx_zero;
+	<?=initCode()?>
+	UBuf[index].q = q;
+}
+
+<? elseif moduleName == "addSource" then ?>
+
 kernel void addSource(
 	constant solver_t* solver,
 	global cons_t* derivBuf,
@@ -55,3 +76,9 @@ kernel void addSource(
 		)
 	);
 }
+
+<? 
+else
+	error("unknown moduleName "..require 'ext.tolua'(moduleName))
+end 
+?>
