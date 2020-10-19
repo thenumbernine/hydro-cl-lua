@@ -33,6 +33,12 @@ function BSSNOKFiniteDifferencePIRKSolver:createBuffers()
 	self:clalloc('derivL3_n', self.eqn.cons_t, self.numCells)
 end
 
+function BSSNOKFiniteDifferencePIRKSolver:initCodeModules()
+	BSSNOKFiniteDifferencePIRKSolver.super.initCodeModules(self)
+
+	self.solverModulesEnabled['BSSNOK-PIRK'] = true
+end
+
 -- TODO sort of, make this a real integrator,
 -- but the compatible solver would need to provide, instead of calcDeriv, 
 -- a matrix of callbacks for each var and for each PIRK stage

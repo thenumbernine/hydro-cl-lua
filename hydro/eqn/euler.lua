@@ -98,72 +98,16 @@ end
 function Euler:initCodeModules()
 	Euler.super.initCodeModules(self)
 	for moduleName, depends in pairs{
-
-		['eqn.prim-cons'] = {
-			'real3',
-			'solver.solver_t',
-			'eqn.prim_t',
-			'eqn.cons_t',
-			'eqn.common',	-- all the calc_* stuff
-		},
-
-		-- only used by PLM
-		['eqn.dU-dW'] = {
-			'solver.solver_t',
-			'eqn.prim_t',
-			'eqn.cons_t',
-			'coord_lower',
-		},
-
-		['eqn.common'] = {
-			'eqn.cons_t',
-			'eqn.prim_t',
-			'eqn.waves_t',
-			'eqn.eigen_t',
-			'coordLenSq',
-		},
-
-		['fluxFromCons'] = {
-			'solver.solver_t',
-			'eqn.prim-cons',
-			'normal_t',
-		},
-
-		-- added by request only, so I don't have to compile the real3x3 code
-		-- not used at the moment
-		['calcCellMinMaxEigenvalues'] = {
-			'real3x3',
-			'eqn.prim-cons',
-		},
-		
-		['eigen_forCell'] = {
-			'normal_t',
-			'coord_lower',
-			'eqn.cons_t',
-			'eqn.prim_t',
-			'eqn.eigen_t',
-			'eqn.prim-cons',
-			'eqn.solvercode',	-- calc_hTotal
-		},	
-		
-		['eigen_forInterface'] = {
-			'eqn.eigen_t',
-			'normal_t',
-			'coord_lower',
-		},
-		
-		['eigen_left/rightTransform'] = {
-			'eqn.eigen_t',
-			'normal_t',
-		},
-		
-		['eigen_fluxTransform'] = {
-			'eqn.eigen_t',
-			'normal_t',
-		},
-	
+		['eqn.prim-cons'] = {},
+		['eqn.dU-dW'] = {},	-- only used by PLM
+		['eqn.common'] = {},
+		['fluxFromCons'] = {},
+		['calcCellMinMaxEigenvalues'] = {},	-- added by request only, so I don't have to compile the real3x3 code. not used at the moment
+		['eigen_forCell'] = {},
+		['eigen_forInterface'] = {},
+		['eigen_left/rightTransform'] = {},
+		['eigen_fluxTransform'] = {},
 		['addSource'] = {},
-		
 		['constrainU'] = {},
 	} do
 		self:addModuleFromSourceFile{
@@ -177,11 +121,6 @@ end
 function Euler:initCodeModule_fluxFromCons() end
 function Euler:initCodeModuleCommon() end
 function Euler:initCodeModulePrimCons() end
-
-function Euler:getModuleDependsApplyInitCond()
-	return table(Euler.super.getModuleDependsApplyInitCond(self))
-	:append{'cartesianToCoord'}
-end
 
 Euler.solverCodeFile = 'hydro/eqn/euler.cl'
 

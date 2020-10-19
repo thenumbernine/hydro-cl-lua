@@ -183,6 +183,8 @@ function BSSNOKFiniteDifferenceEquation:initCodeModules()
 			'calc_partial*_len*',
 		},
 
+		['eqn.common'] = {},
+--[[
 		['eqn.common'] = table(BSSNOKFiniteDifferenceEquation.super.getModuleDependsCommon(self))
 		:append{
 			'calc_gammaHat_ll',
@@ -194,6 +196,13 @@ function BSSNOKFiniteDifferenceEquation:initCodeModules()
 				'cplx3_rescaleFromCoord/cplx3_rescaleToCoord',
 			} or nil
 		),
+--]]
+
+		['cplx3_add5'] = {'cplx3'},
+		['real3_add5'] = {'real3'},
+		['real3_add6'] = {'real3'},
+		['sym3_add3'] = {'sym3'},
+		['sym3_add4'] = {'sym3'},
 
 		['calc_partial_connHat_Ulll_*'] = {},
 
@@ -218,6 +227,7 @@ function BSSNOKFiniteDifferenceEquation:initCodeModules()
 		['calc_RBar_LL'] = {
 			'calc_partial_connHat_Ulll_*',
 			'calc_len_#',
+			'_3sym3_rescaleFromCoord/_3sym3_rescaleToCoord',	-- _3sym3_rescaleToCoord_ULL
 		},
 
 		['applyKreissOligar'] = {
@@ -228,7 +238,66 @@ function BSSNOKFiniteDifferenceEquation:initCodeModules()
 		['getUpwind'] = {},
 		['from3x3to6'] = {},
 		
-		['calcDeriv'] = {
+		['sym3_Lbeta_LL'] = {
+			'from3x3to6',
+		},
+		
+		['calcDeriv_epsilon_LL'] = {
+			'sym3_add4',
+			'sym3_Lbeta_LL',
+			'calc_partial_gammaBar_LLL',
+		},
+		
+		['calcDeriv_W'] = {
+			'rescaleFromCoord/rescaleToCoord',	-- in eqn.einstein
+		},
+
+		['calc_PIRK_L2_ABar_LL'] = {
+			'real3x3_partial_rescaleFromCoord_Ul',
+			'calc_RBar_LL',
+			'tracefree',
+			'sym3_add3',
+			'calc_trBar_partial2_gammaBar_ll',
+		},
+
+		['calc_PIRK_L2_K'] = {},
+
+		['calc_PIRK_L3_ABar_LL'] = {},
+			
+		['calc_PIRK_L3_K'] = {},
+
+		['calc_PIRK_L2_LambdaBar_U'] = {
+			'calc_det_gammaHat',
+			'calc_partial_det_gammaHat_L',
+			'calc_partial2_det_gammaHat_LL',
+			'real3_add6',
+		},
+
+		['calc_PIRK_L3_LambdaBar_U'] = {},
+
+		['calc_dt_LambdaBar_U_wo_partial_upwind_beta_LambdaBar'] = {
+			'calc_PIRK_L3_LambdaBar_U',
+		},
+
+		['calc_PIRK_L2_B_U'] = {},
+
+		['calc_PIRK_L3_B_U'] = {},
+			
+		['calcDeriv_K'] = {
+			'calc_PIRK_L3_K',
+		},
+
+		['calcDeriv_ABar_LL'] = {
+			'calc_partial_ABar_LLL',
+			'sym3_Lbeta_LL',
+			'calc_PIRK_L3_ABar_LL',
+		},
+
+		['calcDeriv_Phi'] = {},
+		['calcDeriv_Psi'] = {},
+		['calcDeriv_Pi'] = {},
+
+		['calcDeriv'] = table{
 			'initCond.codeprefix',	-- calc_*
 			'applyKreissOligar',
 			'getUpwind',
@@ -236,20 +305,28 @@ function BSSNOKFiniteDifferenceEquation:initCodeModules()
 			'calc_partial*_det_gammaHat_over_det_gammaHat_*',
 			'calc_connHat_LLL_and_ULL',
 			'calc_connBar_ULL',
-			-- needed by calcDeriv_epsilon_LL:
+			'calcDeriv_epsilon_LL',
+			'calcDeriv_W',
+			'calc_PIRK_L2_LambdaBar_U',
+			'calc_dt_LambdaBar_U_wo_partial_upwind_beta_LambdaBar',
+			'calc_PIRK_L2_B_U',
+			'calc_PIRK_L3_B_U',
+			'calcDeriv_K',
+			-- calcDeriv_epsilon_LL:
 			'calc_partial_gammaBar_LLL',
-			-- needed by calcDeriv_ABar_LL:
-			'calc_partial_ABar_LLL',
-			-- needed by calc_PIRK_L2_LambdaBar_U:
-			'calc_partial_det_gammaHat_L',
-			'calc_partial2_det_gammaHat_LL',
-			-- needed by calc_PIRK_L2_ABar_LL:
+			-- calc_PIRK_L2_ABar_LL:
 			'tracefree',
 			'calc_RBar_LL',
 			'calc_len_#',
 			'calc_trBar_partial2_gammaBar_ll',
 			'real3x3_partial_rescaleFromCoord_Ul',
-		},
+		}:append(
+			self.useScalarField and {
+				'calcDeriv_Phi',
+				'calcDeriv_Psi',
+				'calcDeriv_Pi',
+			} or nil
+		),
 		
 		['addSource'] = {
 			'initCond.codeprefix',	-- calc_*
@@ -261,8 +338,36 @@ function BSSNOKFiniteDifferenceEquation:initCodeModules()
 		},
 		
 		['BSSNOK-PIRK'] = {
-			-- needed by calcDeriv_PIRK_L1_EpsilonWAlphaBeta:
+			-- calcDeriv_PIRK_L1_EpsilonWAlphaBeta:
 			'initCond.codeprefix',	-- calc_*
+			'getUpwind',
+			'calc_partial*_det_gammaHat_over_det_gammaHat_*',
+			'calc_det_gammaBarLL',
+			'real3x3_partial_rescaleFromCoord_Ul',
+			'calc_gammaBar_LL',
+			'calcDeriv_epsilon_LL',
+			'calcDeriv_W',
+			'applyKreissOligar',
+			-- calcDeriv_PIRK_L2_ABarK:
+			'calc_connBar_ULL',
+			'calc_connHat_LLL_and_ULL',
+			'mystery_C_U',
+			'calc_PIRK_L2_ABar_LL',
+			'calc_PIRK_L2_K',
+			-- calcDeriv_PIRK_L3_ABarK:
+			'sym3_Lbeta_LL',
+			'calc_PIRK_L3_ABar_LL',
+			'calc_PIRK_L3_K',
+			'calc_partial_ABar_LLL',
+			-- calcDeriv_PIRK_L2_LambdaBar:
+			'calc_PIRK_L2_LambdaBar_U',
+			-- calcDeriv_PIRK_L3_LambdaBar:
+			'calc_PIRK_L3_LambdaBar_U',
+			-- calcDeriv_PIRK_L2_B:
+			'calc_PIRK_L2_B_U',
+			'calc_dt_LambdaBar_U_wo_partial_upwind_beta_LambdaBar',
+			-- calcDeriv_PIRK_L3_B:
+			'calc_PIRK_L3_B_U',
 		},
 	} do
 		self:addModuleFromSourceFile{
@@ -308,8 +413,10 @@ function BSSNOKFiniteDifferenceEquation:getModuleDependsSolver()
 		'calc_partial2_det_gammaHat_LL',	-- used by LambdaBar^I_,t
 		'real3x3x3',
 		'coordMapR',
-		-- only for display code. (actually most this is only for display code)
+		-- for display code: (actually most this is only for display code)
 		'initCond.codeprefix',	-- ...specifically, calc_f
+		'calc_gammaBar_UU',
+		'calc_gammaBar_uu',
 	}
 end
 

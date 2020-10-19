@@ -99,25 +99,36 @@ function InitCond:initCodeModules(solver)
 		code = self.getCodePrefix and self:getCodePrefix(solver) or nil,
 	}
 
+	local eqn = solver.eqn
+	eqn.codeDepends = table{
+		-- if an InitCond provides codeprefix, it is for code it expects to reference from within 'applyInitCond()'
+		'initCond.codeprefix',
+		-- applyInitCond uses these:
+		'solver.solver_t',
+		'initCond.initCond_t',
+		'eqn.cons_t',
+		'initCond.guiVars.compileTime',
+		'INDEX', 'INDEXV', 'OOB', 'SETBOUNDS',
+		-- initCond code is specified in terms of primitives, so if the eqn has prim<->cons then it will be needed
+		'eqn.prim-cons',
+	}
+	:append(self.depends)
+
+	-- maybe it's wrong to put this code into the solverCodeFile because technically it goes into initCond.cl
+	local code = eqn:template(
+		require 'ext.file'[eqn.solverCodeFile],
+		{
+			moduleName = 'applyInitCond',
+		}
+	)
+
 	solver.modules:add{
 		name = 'applyInitCond',
-		depends = table{
-			-- if an InitCond provides codeprefix, it is for code it expects to reference from within 'applyInitCond()'
-			'initCond.codeprefix',
-			-- applyInitCond uses these:
-			'solver.solver_t',
-			'initCond.initCond_t',
-			'eqn.cons_t',
-			'initCond.guiVars.compileTime',
-			'INDEX', 'INDEXV', 'OOB', 'SETBOUNDS',
-			-- initCond code is specified in terms of primitives, so if the eqn has prim<->cons then it will be needed
-			'eqn.prim-cons',
-		}
-		:append(self.depends)
-		:append(solver.eqn:getModuleDependsApplyInitCond()),
-		-- this in turn calls self:getInitCondCode() but with proper template args applied
-		code = solver.eqn:getInitCondCode() or nil,
+		depends = eqn.codeDepends,
+		code = code,
 	}
+	
+	eqn.codeDepends = nil
 end
 
 function InitCond:refreshInitStateProgram(solver)

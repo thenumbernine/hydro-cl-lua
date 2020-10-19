@@ -300,13 +300,46 @@ function Equation:template(code, args)
 	return template(code, args)
 end
 
+-- Really really used by maxwell, glm-maxwell, and other things that vary their scalar type between real and cplx.  but it fits here just as well.
+function Equation:getEnv()
+	return {
+		-- most have this
+		eqn = self,
+		solver = self.solver,
+		coord = self.solver.coord,
+		initCond = self.initCond,
+
+		-- common 
+		xNames = xNames,
+		symNames = symNames,
+		from3x3to6 = from3x3to6,
+		from6to3x3 = from6to3x3,
+		sym = sym,
+	
+		-- really only used by applyInitCond
+		initCode = function() 
+			-- calls initCond:getInitCondCode
+			return self.initCond:getInitCondCode(self.solver)
+		end,
+	
+
+		depmod = function(...)
+			self.codeDepends = self.codeDepends or table()
+			self.codeDepends:append(...)
+		end,
+	}
+end
+
 function Equation:addModuleFromSourceFile(args)
+	self.codeDepends = table()
 	args.code = self:template(
 		file[self.solverCodeFile],
 		{
 			moduleName = args.name,
 		}
 	)
+	args.depends = self.codeDepends:append(args.depends)
+	self.codeDepends = nil
 	self.solver.modules:add(args)
 end
 
@@ -550,49 +583,6 @@ function Equation:initCodeModuleSolver()
 end
 
 function Equation:getModuleDependsSolver() end	-- eqn.solver, used by solver
-
-function Equation:getModuleDependsApplyInitCond() 
-	return {
-		'solver.solver_t',
-		'eqn.cons_t',
-	}
-end	-- get'd in hydro/init/init.lua initCodeModules
-
--- Really really used by maxwell, glm-maxwell, and other things that vary their scalar type between real and cplx.  but it fits here just as well.
-function Equation:getEnv()
-	return {
-		-- most have this
-		eqn = self,
-		solver = self.solver,
-		coord = self.solver.coord,
-		initCond = self.initCond,
-	
-		-- common 
-		xNames = xNames,
-		symNames = symNames,
-		from3x3to6 = from3x3to6,
-		from6to3x3 = from6to3x3,
-		sym = sym,
-	
-		-- really only used by applyInitCond
-		initCode = function() 
-			return self.initCond:getInitCondCode(self.solver)
-		end,
-	}
-end
-
--- this only goes to hydro/init/init.lua
--- and this is influenced by the initCond object
--- changing initCond should only change this and not the solver program
-function Equation:getInitCondCode()
-	-- maybe it's wrong to put this code into the solverCodeFile because its code goes into initCond.cl
-	return self:template(
-		file[self.solverCodeFile],
-		{
-			moduleName = 'applyInitCond',
-		}
-	)
-end
 
 Equation.displayVarCodeUsesPrims = false
 function Equation:getDisplayVarCodePrefix()

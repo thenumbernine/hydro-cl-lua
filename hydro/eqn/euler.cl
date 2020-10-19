@@ -15,6 +15,9 @@ typedef <?=solver.solver_t?> solver_t;
 		
 <? if moduleName == nil then ?>
 <? elseif moduleName == "applyInitCond" then ?>
+<? depmod{
+	"cartesianToCoord",
+} ?>
 
 kernel void applyInitCond(
 	constant <?=solver.solver_t?>* solver,
@@ -56,6 +59,13 @@ end
 }
 
 <? elseif moduleName == "eqn.prim-cons" then ?>
+<? depmod{
+	"real3",
+	"solver.solver_t",
+	"eqn.prim_t",
+	"eqn.cons_t",
+	"eqn.common",	-- all the calc_* stuff
+} ?>
 
 <?=eqn.prim_t?> primFromCons(constant <?=solver.solver_t?>* solver, <?=eqn.cons_t?> U, real3 x) {
 	return (<?=eqn.prim_t?>){
@@ -76,6 +86,12 @@ end
 }
 
 <? elseif moduleName == "eqn.dU-dW" then ?>
+<? depmod{
+	"solver.solver_t",
+	"eqn.prim_t",
+	"eqn.cons_t",
+	"coord_lower",
+} ?>
 
 <?=eqn.cons_t?> apply_dU_dW(
 	constant <?=solver.solver_t?>* solver,
@@ -118,6 +134,13 @@ end
 
 
 <? elseif moduleName == "eqn.common" then ?>
+<? depmod{
+	"eqn.cons_t",
+	"eqn.prim_t",
+	"eqn.waves_t",
+	"eqn.eigen_t",
+	"coordLenSq",
+} ?>
 
 real calc_H(constant <?=solver.solver_t?>* solver, real P) { return P * (solver->heatCapacityRatio / (solver->heatCapacityRatio - 1.)); }
 real calc_h(constant <?=solver.solver_t?>* solver, real rho, real P) { return calc_H(solver, P) / rho; }
@@ -143,6 +166,11 @@ real calc_P(constant <?=solver.solver_t?>* solver, <?=eqn.cons_t?> U, real3 x) {
 }
 
 <? elseif moduleName == "fluxFromCons" then ?>
+<? depmod{
+	"solver.solver_t",
+	"eqn.prim-cons",
+	"normal_t",
+} ?>
 
 <?=eqn.cons_t?> fluxFromCons(
 	constant <?=solver.solver_t?>* solver,
@@ -170,6 +198,10 @@ real calc_P(constant <?=solver.solver_t?>* solver, <?=eqn.cons_t?> U, real3 x) {
 }
 
 <? elseif moduleName == "calcCellMinMaxEigenvalues" then ?>
+<? depmod{
+	"real3x3",
+	"eqn.prim-cons",
+} ?>
 
 range_t calcCellMinMaxEigenvalues(
 	constant <?=solver.solver_t?>* solver,
@@ -190,6 +222,15 @@ range_t calcCellMinMaxEigenvalues(
 }
 
 <? elseif moduleName == "eigen_forCell" then ?>
+<? depmod{
+	"normal_t",
+	"coord_lower",
+	"eqn.cons_t",
+	"eqn.prim_t",
+	"eqn.eigen_t",
+	"eqn.prim-cons",
+	"eqn.solvercode",	-- calc_hTotal
+} ?>
 
 // used by PLM
 <?=eqn.eigen_t?> eigen_forCell(
@@ -217,6 +258,11 @@ range_t calcCellMinMaxEigenvalues(
 }
 
 <? elseif moduleName == "eigen_forInterface" then ?>
+<? depmod{
+	"eqn.eigen_t",
+	"normal_t",
+	"coord_lower",
+} ?>
 
 //used by the mesh version
 eigen_t eigen_forInterface(
@@ -264,6 +310,10 @@ eigen_t eigen_forInterface(
 }
 
 <? elseif moduleName == "eigen_left/rightTransform" then ?>
+<? depmod{
+	"eqn.eigen_t",
+	"normal_t",
+} ?>
 
 <?
 local prefix = [[
@@ -371,6 +421,10 @@ cons_t eigen_rightTransform(
 }
 
 <? elseif moduleName == "eigen_fluxTransform" then ?>
+<? depmod{
+	"eqn.eigen_t",
+	"normal_t",
+} ?>
 
 cons_t eigen_fluxTransform(
 	constant solver_t* solver,

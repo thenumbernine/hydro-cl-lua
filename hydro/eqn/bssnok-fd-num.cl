@@ -114,14 +114,24 @@ end
 
 <? elseif moduleName == "eqn.common" then ?>
 
-<? if eqn.useScalarField then ?>
+<? elseif moduleName == "cplx3_add5" then ?>
+
 #define cplx3_add5(a,b,c,d,e)	cplx3_add(cplx3_add(a,b),cplx3_add3(c,d,e))
-<? end ?>
+
+<? elseif moduleName == "real3_add5" then ?>
 
 #define real3_add5(a,b,c,d,e)	real3_add(real3_add(a,b),real3_add3(c,d,e))
+
+<? elseif moduleName == "real3_add6" then ?>
+
 #define real3_add6(a,b,c,d,e,f)	real3_add(real3_add3(a,b,c),real3_add3(d,e,f))
 	
+<? elseif moduleName == "sym3_add3" then ?>
+
 #define sym3_add3(a,b,c)	sym3_add(sym3_add(a,b),c)
+
+<? elseif moduleName == "sym3_add4" then ?>
+
 #define sym3_add4(a,b,c,d)	sym3_add(sym3_add(a,b),sym3_add(c,d))	
 
 <? elseif moduleName == "real3x3_partial_rescaleFromCoord_Ul" then ?>
@@ -1191,148 +1201,7 @@ int from3x3to6(int i, int j) {
 	return maxij + minij + (minij > 1);
 }
 
-
-<? elseif moduleName == "calcDeriv" then ?>
-
-//////////////////////////////// W_,t //////////////////////////////// 
-
-
-static void calcDeriv_W(
-	constant solver_t* solver,
-	global cons_t* deriv,
-	const global cons_t* U,
-	int4 updir,
-	real3 x,
-	real tr_DBar_beta
-) {
-<?=eqn:makePartialUpwind'W'?>
-	real3 partial_W_L_upwind = real3_rescaleFromCoord_l(partial_W_l_upwind, x);
-
-	real Lbeta_W = real3_dot(partial_W_L_upwind, U->beta_U);
-
-	real L2_W = (1. / 3.) * U->W * (U->alpha * U->K - tr_DBar_beta);
-
-	//2017 Ruchlin et al eqn 11c
-	//W_,t =
-	//L1:		1/3 W (alpha K - beta^k connBar^j_kj - beta^k_,k) 
-	//Lbeta:	+ beta^k W_,k
-	//connBar^j_kj = log(sqrt(gammaBar))_,k = gammaBar_,k / (2 gammaBar)
-	deriv->W += L2_W + Lbeta_W;
-}
-
-
-//////////////////////////////// K_,t //////////////////////////////// 
-
-
-static real calc_PIRK_L2_K(
-	constant solver_t* solver,	//only needed for debugging
-	real3 x,					//only needed for debugging
-	global const cons_t* U,
-	sym3 gammaBar_UU,
-	const sym3* DBar2_alpha_LL,
-	const real3* partial_alpha_L,
-	const real3* partial_phi_L,
-	real exp_neg4phi
-) {
-	
-	//tr_DBar2_alpha := gammaBar^ij DBar_i DBar_j alpha
-	real tr_DBar2_alpha = sym3_dot(gammaBar_UU, *DBar2_alpha_LL);
-	
-	//2013 Baumgarte eqn B3: 
-	// SENR/NRPy's code has a note that the "+ alpha ABar_ij ABar^ij" term should be in L3
-	// L2 K = -exp(-4phi) (DBar^2 alpha + 2 DBar^i alpha DBar_i alpha) 
-	return -exp_neg4phi * (
-			
-			//this is the problem term.  specifically the partial_alpha_ll part of it.
-			tr_DBar2_alpha
-			
-			+ 2. * real3_weightedDot(*partial_phi_L, *partial_alpha_L, gammaBar_UU)
-		)
-	;
-}
-
-// NOTICE - all my PIRK_L3 functions DO NOT contribute Lbeta
-static real calc_PIRK_L3_K(
-	global const cons_t* U,
-	const sym3* ABar_UU
-) {
-	//tr_ABarSq := ABar_ij ABar^ij = ABar_ij ABar_kl gammaBar^ik gammaBar^jl
-	real tr_ABarSq = sym3_dot(U->ABar_LL, *ABar_UU);
-
-	// SENR/NRPy's code has a note that the "+ alpha ABar_ij ABar^ij" term should be in L3
-	return U->alpha * U->K * U->K / 3.
-		+ U->alpha * tr_ABarSq
-	;
-}
-
-static void calcDeriv_K(
-	constant solver_t* solver,
-	global cons_t* deriv,
-	const global cons_t* U,
-	int4 updir,
-	real3 x,
-	sym3 gammaBar_UU,
-	const sym3* ABar_UU,
-	const sym3* DBar2_alpha_LL,
-	const real3* partial_alpha_L,
-	const real3* partial_phi_L,
-	real exp_neg4phi,
-	real S
-) {
-	real L2_K = calc_PIRK_L2_K(
-		solver,
-		x,
-		U,
-		gammaBar_UU,
-		DBar2_alpha_LL,
-		partial_alpha_L,
-		partial_phi_L,
-		exp_neg4phi
-	);
-
-	real L3_K = calc_PIRK_L3_K(
-		U,
-		ABar_UU
-	);
-
-<?=eqn:makePartialUpwind'K'?>
-	real3 partial_K_L_upwind = real3_rescaleFromCoord_l(partial_K_l_upwind, x);
-	real Lbeta_K = real3_dot(partial_K_L_upwind, U->beta_U);
-
-	/*
-	B&S 11.52
-	Alcubierre 2.8.12
-	K_,t = -gamma^ij D_i D_j alpha + alpha (ABar_ij ABar^ij + K^2 / 3) + 4 pi alpha (rho + S) + beta^i K_,i
-	2017 Ruchlin et al
-	K_,t = 
-		1/3 alpha K^2 
-		+ alpha ABar_ij ABar^ij 
-		- exp(-4 phi) gammaBar^ij (
-			DBar_i DBar_j alpha 
-			+ 2 alpha_,i phi_,j
-		) 
-		+ K_,i beta^i
-		+ 4 pi alpha (rho + S)
-	
-	wrt W:
-	K_,t = 
-L2:		- W^2 gammaBar^ij DBar_i DBar_j alpha 
-		+ W gammaBar^ij alpha_,i * W_,j
-L3:		+ 1/3 alpha K^2 
-		+ alpha ABar_ij ABar^ij 			// this term is in L2 in the paper but L3 in code with note of the error
-Lbeta:	+ K_,i beta^i
-source:	+ 4 pi alpha (rho + S)
-	*/
-	deriv->K += 
-		L2_K	
-		+ L3_K
-		+ Lbeta_K
-		+ 4. * M_PI * U->alpha * (U->rho + S);
-}
-
-
-//////////////////////////////// epsilon_IJ_,t //////////////////////////////// 
-
+<? elseif moduleName == "sym3_Lbeta_LL" then ?>
 
 static sym3 sym3_Lbeta_LL(
 	sym3 T_LL,					//T_LL.ij = T_ij
@@ -1365,6 +1234,10 @@ static sym3 sym3_Lbeta_LL(
 #endif
 	return Lbeta_T_LL;
 }
+
+<? elseif moduleName == "calcDeriv_epsilon_LL" then ?>
+
+//////////////////////////////// epsilon_IJ_,t //////////////////////////////// 
 
 static void calcDeriv_epsilon_LL(
 	constant solver_t* solver,
@@ -1424,8 +1297,37 @@ Lbeta:	+ beta^k ∂up_k(gammaBar_ij)
 }
 
 
-//////////////////////////////// A_IJ,t //////////////////////////////// 
 
+<? elseif moduleName == "calcDeriv_W" then ?>
+
+//////////////////////////////// W_,t //////////////////////////////// 
+
+static void calcDeriv_W(
+	constant solver_t* solver,
+	global cons_t* deriv,
+	const global cons_t* U,
+	int4 updir,
+	real3 x,
+	real tr_DBar_beta
+) {
+<?=eqn:makePartialUpwind'W'?>
+	real3 partial_W_L_upwind = real3_rescaleFromCoord_l(partial_W_l_upwind, x);
+
+	real Lbeta_W = real3_dot(partial_W_L_upwind, U->beta_U);
+
+	real L2_W = (1. / 3.) * U->W * (U->alpha * U->K - tr_DBar_beta);
+
+	//2017 Ruchlin et al eqn 11c
+	//W_,t =
+	//L1:		1/3 W (alpha K - beta^k connBar^j_kj - beta^k_,k) 
+	//Lbeta:	+ beta^k W_,k
+	//connBar^j_kj = log(sqrt(gammaBar))_,k = gammaBar_,k / (2 gammaBar)
+	deriv->W += L2_W + Lbeta_W;
+}
+
+<? elseif moduleName == "calc_PIRK_L2_ABar_LL" then ?>
+
+//////////////////////////////// A_IJ,t //////////////////////////////// 
 
 static sym3 calc_PIRK_L2_ABar_LL(
 	constant solver_t* solver,
@@ -1530,6 +1432,40 @@ static sym3 calc_PIRK_L2_ABar_LL(
 		sym3_real_mul(TF_RBar_LL, U->alpha * exp_neg4phi));
 }
 
+
+<? elseif moduleName == "calc_PIRK_L2_K" then ?>
+
+//////////////////////////////// K_,t //////////////////////////////// 
+
+static real calc_PIRK_L2_K(
+	constant solver_t* solver,	//only needed for debugging
+	real3 x,					//only needed for debugging
+	global const cons_t* U,
+	sym3 gammaBar_UU,
+	const sym3* DBar2_alpha_LL,
+	const real3* partial_alpha_L,
+	const real3* partial_phi_L,
+	real exp_neg4phi
+) {
+	
+	//tr_DBar2_alpha := gammaBar^ij DBar_i DBar_j alpha
+	real tr_DBar2_alpha = sym3_dot(gammaBar_UU, *DBar2_alpha_LL);
+	
+	//2013 Baumgarte eqn B3: 
+	// SENR/NRPy's code has a note that the "+ alpha ABar_ij ABar^ij" term should be in L3
+	// L2 K = -exp(-4phi) (DBar^2 alpha + 2 DBar^i alpha DBar_i alpha) 
+	return -exp_neg4phi * (
+			
+			//this is the problem term.  specifically the partial_alpha_ll part of it.
+			tr_DBar2_alpha
+			
+			+ 2. * real3_weightedDot(*partial_phi_L, *partial_alpha_L, gammaBar_UU)
+		)
+	;
+}
+
+<? elseif moduleName == "calc_PIRK_L3_ABar_LL" then ?>
+
 // NOTICE - all my PIRK_L3 functions DO NOT contribute Lbeta
 static sym3 calc_PIRK_L3_ABar_LL(
 	const global cons_t* U,
@@ -1546,90 +1482,25 @@ static sym3 calc_PIRK_L3_ABar_LL(
 	return L3_ABar_LL;
 }
 
-static void calcDeriv_ABar_LL(
-	constant solver_t* solver,
-	global cons_t* deriv,
-	const global cons_t* U,
-	int4 updir,
-	real3 x,
-	const sym3* gammaBar_LL,
-	const sym3* gammaBar_UU,
-	const sym3* DBar2_alpha_LL,
-	const real3* partial_alpha_L,
-	const real3* partial_phi_L,
-	const _3sym3* connBar_ULL,
-	const real3x3* ABar_UL,
-	const real3x3* partial_beta_UL,
-	const real3* partial_W_l,
-	real exp_neg4phi,
-	real tr_DBar_beta,
-	//for RBar_IJ:
-	const sym3 partial_epsilon_LLl[3],
-	const _3sym3* Delta_ULL,
-	const real3* Delta_U,
-	const _3sym3* connHat_ULL,
-	const _3sym3* partial_gammaBar_LLL
+<? elseif moduleName == "calc_PIRK_L3_K" then ?>
+
+// NOTICE - all my PIRK_L3 functions DO NOT contribute Lbeta
+static real calc_PIRK_L3_K(
+	global const cons_t* U,
+	const sym3* ABar_UU
 ) {
-	sym3 L2_ABar_LL = calc_PIRK_L2_ABar_LL(
-		solver,
-		U,
-		x,
-		gammaBar_LL,
-		gammaBar_UU,
-		DBar2_alpha_LL,
-		partial_alpha_L,
-		partial_phi_L,
-		connBar_ULL,
-		partial_W_l,
-		exp_neg4phi,
-		partial_epsilon_LLl,
-		Delta_ULL,
-		Delta_U,
-		connHat_ULL,
-		partial_gammaBar_LLL
-	);
-	
-	sym3 L3_ABar_LL = calc_PIRK_L3_ABar_LL(
-		U,
-		*ABar_UL,
-		tr_DBar_beta
-	);
+	//tr_ABarSq := ABar_ij ABar^ij = ABar_ij ABar_kl gammaBar^ik gammaBar^jl
+	real tr_ABarSq = sym3_dot(U->ABar_LL, *ABar_UU);
 
-
-<?=eqn:makePartialUpwind'ABar_LL'?>		//partial_ABar_lll[k].ij = ABar_ij,k
-	_3sym3 partial_ABar_LLL_upwind = calc_partial_ABar_LLL(
-		x,			//xup?
-		U->ABar_LL,	//upwind avg?
-		partial_ABar_LLl_upwind);
-
-	sym3 Lbeta_ABar_LL = sym3_Lbeta_LL(
-		U->ABar_LL,
-		partial_ABar_LLL_upwind,
-		U->beta_U,
-		*partial_beta_UL);
-		
-	/*
-	2017 Ruchlin et al, eqn. 11b
-	ABar_ij,t = 
-L2:		exp(-4 phi) (trace-free part above)_ij
-L3:		- 2/3 ABar_ij DBar_k beta^k
-		+ alpha ABar_ij K
-		- 2 alpha ABar_ik ABar^k_j
-Lbeta:	+ beta^k_,i ABar_jk
-		+ beta^k_,j ABar_ik
-		+ ABar_ij,k beta^k
-	*/
-	deriv->ABar_LL = sym3_add4(
-		deriv->ABar_LL,
-		L2_ABar_LL,
-		L3_ABar_LL,
-		Lbeta_ABar_LL
-	);
+	// SENR/NRPy's code has a note that the "+ alpha ABar_ij ABar^ij" term should be in L3
+	return U->alpha * U->K * U->K / 3.
+		+ U->alpha * tr_ABarSq
+	;
 }
 
-	
-//////////////////////////////// LambdaBar^I_,t //////////////////////////////// 
+<? elseif moduleName == "calc_PIRK_L2_LambdaBar_U" then ?>
 
+//////////////////////////////// LambdaBar^I_,t //////////////////////////////// 
 
 static real3 calc_PIRK_L2_LambdaBar_U(
 	constant solver_t* solver,
@@ -1826,6 +1697,8 @@ L2 Lambda^I =
 	return L2_LambdaBar_U;
 }
 
+<? elseif moduleName == "calc_PIRK_L3_LambdaBar_U" then ?>
+
 // NOTICE - all my PIRK_L3 functions DO NOT contribute Lbeta
 static real3 calc_PIRK_L3_LambdaBar_U(
 	real tr_DBar_beta,
@@ -1835,6 +1708,8 @@ static real3 calc_PIRK_L3_LambdaBar_U(
 	real3 L3_LambdaBar_U = real3_real_mul(*Delta_U, 2. / 3. * tr_DBar_beta);
 	return L3_LambdaBar_U;
 }
+
+<? elseif moduleName == "calc_dt_LambdaBar_U_wo_partial_upwind_beta_LambdaBar" then ?>
 
 //another name for this could be d0_LambdaBar_U (2017 Ruchlin, eqn 15)
 static real3 calc_dt_LambdaBar_U_wo_partial_upwind_beta_LambdaBar(
@@ -1933,9 +1808,9 @@ source:	- 16 pi alpha S^I / W^2
 	return dt_LambdaBar_U_wo_partial_upwind_beta_LambdaBar;
 }
 
+<? elseif moduleName == "calc_PIRK_L2_B_U" then ?>
 
 //////////////////////////////// B^I_,t //////////////////////////////// 
-
 
 static real3 calc_PIRK_L2_B_U(
 	constant solver_t* solver,
@@ -1947,6 +1822,8 @@ static real3 calc_PIRK_L2_B_U(
 	);
 }
 
+<? elseif moduleName == "calc_PIRK_L3_B_U" then ?>
+
 // NOTICE - all my PIRK_L3 functions DO NOT contribute Lbeta
 static real3 calc_PIRK_L3_B_U(
 	constant solver_t* solver,
@@ -1955,11 +1832,159 @@ static real3 calc_PIRK_L3_B_U(
 	return real3_real_mul(U->B_U, -solver->dt_beta_U_eta);
 }
 
+<? elseif moduleName == "calcDeriv_K" then ?>
+
+static void calcDeriv_K(
+	constant solver_t* solver,
+	global cons_t* deriv,
+	const global cons_t* U,
+	int4 updir,
+	real3 x,
+	sym3 gammaBar_UU,
+	const sym3* ABar_UU,
+	const sym3* DBar2_alpha_LL,
+	const real3* partial_alpha_L,
+	const real3* partial_phi_L,
+	real exp_neg4phi,
+	real S
+) {
+	real L2_K = calc_PIRK_L2_K(
+		solver,
+		x,
+		U,
+		gammaBar_UU,
+		DBar2_alpha_LL,
+		partial_alpha_L,
+		partial_phi_L,
+		exp_neg4phi
+	);
+
+	real L3_K = calc_PIRK_L3_K(
+		U,
+		ABar_UU
+	);
+
+<?=eqn:makePartialUpwind'K'?>
+	real3 partial_K_L_upwind = real3_rescaleFromCoord_l(partial_K_l_upwind, x);
+	real Lbeta_K = real3_dot(partial_K_L_upwind, U->beta_U);
+
+	/*
+	B&S 11.52
+	Alcubierre 2.8.12
+	K_,t = -gamma^ij D_i D_j alpha + alpha (ABar_ij ABar^ij + K^2 / 3) + 4 pi alpha (rho + S) + beta^i K_,i
+	2017 Ruchlin et al
+	K_,t = 
+		1/3 alpha K^2 
+		+ alpha ABar_ij ABar^ij 
+		- exp(-4 phi) gammaBar^ij (
+			DBar_i DBar_j alpha 
+			+ 2 alpha_,i phi_,j
+		) 
+		+ K_,i beta^i
+		+ 4 pi alpha (rho + S)
+	
+	wrt W:
+	K_,t = 
+L2:		- W^2 gammaBar^ij DBar_i DBar_j alpha 
+		+ W gammaBar^ij alpha_,i * W_,j
+L3:		+ 1/3 alpha K^2 
+		+ alpha ABar_ij ABar^ij 			// this term is in L2 in the paper but L3 in code with note of the error
+Lbeta:	+ K_,i beta^i
+source:	+ 4 pi alpha (rho + S)
+	*/
+	deriv->K += 
+		L2_K	
+		+ L3_K
+		+ Lbeta_K
+		+ 4. * M_PI * U->alpha * (U->rho + S);
+}
+
+<? elseif moduleName == "calcDeriv_ABar_LL" then ?>
+
+static void calcDeriv_ABar_LL(
+	constant solver_t* solver,
+	global cons_t* deriv,
+	const global cons_t* U,
+	int4 updir,
+	real3 x,
+	const sym3* gammaBar_LL,
+	const sym3* gammaBar_UU,
+	const sym3* DBar2_alpha_LL,
+	const real3* partial_alpha_L,
+	const real3* partial_phi_L,
+	const _3sym3* connBar_ULL,
+	const real3x3* ABar_UL,
+	const real3x3* partial_beta_UL,
+	const real3* partial_W_l,
+	real exp_neg4phi,
+	real tr_DBar_beta,
+	//for RBar_IJ:
+	const sym3 partial_epsilon_LLl[3],
+	const _3sym3* Delta_ULL,
+	const real3* Delta_U,
+	const _3sym3* connHat_ULL,
+	const _3sym3* partial_gammaBar_LLL
+) {
+	sym3 L2_ABar_LL = calc_PIRK_L2_ABar_LL(
+		solver,
+		U,
+		x,
+		gammaBar_LL,
+		gammaBar_UU,
+		DBar2_alpha_LL,
+		partial_alpha_L,
+		partial_phi_L,
+		connBar_ULL,
+		partial_W_l,
+		exp_neg4phi,
+		partial_epsilon_LLl,
+		Delta_ULL,
+		Delta_U,
+		connHat_ULL,
+		partial_gammaBar_LLL
+	);
+	
+	sym3 L3_ABar_LL = calc_PIRK_L3_ABar_LL(
+		U,
+		*ABar_UL,
+		tr_DBar_beta
+	);
+
+
+<?=eqn:makePartialUpwind'ABar_LL'?>		//partial_ABar_lll[k].ij = ABar_ij,k
+	_3sym3 partial_ABar_LLL_upwind = calc_partial_ABar_LLL(
+		x,			//xup?
+		U->ABar_LL,	//upwind avg?
+		partial_ABar_LLl_upwind);
+
+	sym3 Lbeta_ABar_LL = sym3_Lbeta_LL(
+		U->ABar_LL,
+		partial_ABar_LLL_upwind,
+		U->beta_U,
+		*partial_beta_UL);
+		
+	/*
+	2017 Ruchlin et al, eqn. 11b
+	ABar_ij,t = 
+L2:		exp(-4 phi) (trace-free part above)_ij
+L3:		- 2/3 ABar_ij DBar_k beta^k
+		+ alpha ABar_ij K
+		- 2 alpha ABar_ik ABar^k_j
+Lbeta:	+ beta^k_,i ABar_jk
+		+ beta^k_,j ABar_ik
+		+ ABar_ij,k beta^k
+	*/
+	deriv->ABar_LL = sym3_add4(
+		deriv->ABar_LL,
+		L2_ABar_LL,
+		L3_ABar_LL,
+		Lbeta_ABar_LL
+	);
+}
+
+<? elseif moduleName == "calcDeriv_Phi" then ?>
 
 //////////////////////////////// Phi_,t, Psi_I,t //////////////////////////////// 
-
-
-<? if eqn.useScalarField then ?>
 
 static void calcDeriv_Phi(
 	constant solver_t* solver,
@@ -1980,6 +2005,8 @@ static void calcDeriv_Phi(
 		cplx_from_real(real3_dot(cplx3_re(partial_Phi_L_upwind), U->beta_U))
 	);
 }
+
+<? elseif moduleName == "calcDeriv_Psi" then ?>
 
 static void calcDeriv_Psi(
 	constant solver_t* solver,
@@ -2005,6 +2032,8 @@ static void calcDeriv_Psi(
 		cplx3x3_real3_mul(partial_Psi_ll_upwind, beta_u),
 		cplx3_real3x3_mul(U->Psi_l, partial_beta_ul));
 }
+
+<? elseif moduleName == "calcDeriv_Pi" then ?>
 
 static void calcDeriv_Pi(
 	constant solver_t* solver,
@@ -2115,7 +2144,7 @@ static void calcDeriv_Pi(
 	);
 }
 
-<? end 	-- eqn.useScalarField ?>
+<? elseif moduleName == "calcDeriv" then ?>
 
 //TODO if we're calculating the constrains in the derivative
 // then we do save calculations / memory on the equations
