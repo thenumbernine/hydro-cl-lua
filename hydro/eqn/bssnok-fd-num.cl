@@ -476,6 +476,363 @@ static sym3 calc_trBar_partial2_gammaBar_ll(
 	return trBar_partial2_gammaBar_ll;
 }
 
+<? elseif moduleName == "applyInitCond" then 
+
+-- Should initCond provide a metric in cartesian, or in the background metric?
+-- I'll say Cartesian for now, and then transform them using the rescaling.
+?>
+
+<?
+-- look for symmath expressions instead of code
+-- also skip the initDerivs finite difference 
+if initCond.initAnalytical then
+	local partial_gamma0_lll = initCond.gamma0_ll'_ij,k'():permute'_ijk'
+
+	--local symmath = require 'symmath'
+	--local det_gamma = symmath.Matrix.determinant(initCond.gamma0_ll)
+?>
+
+kernel void applyInitCond(
+	constant <?=solver.solver_t?>* solver,
+	constant <?=solver.initCond_t?>* initCond,
+	global <?=eqn.cons_t?>* UBuf,
+	const global <?=solver.coord.cell_t?>* cellBuf
+) {
+	SETBOUNDS(numGhost,numGhost);
+	real3 x = cellBuf[index].pos;
+	real3 xc = coordMap(x);
+	real3 mids = real3_real_mul(real3_add(solver->mins, solver->maxs), .5);
+
+	//compile compat. the compile code uses 'pt' as the grid point.
+	real3 pt = x;
+	
+	global <?=eqn.cons_t?>* U = UBuf + index;
+
+	U->alpha = <?=eqn:compile(initCond.alpha0)?>;
+
+	sym3 gamma_ll = (sym3){
+<? for ij,xij in ipairs(symNames) do
+	local i,j,xi,xj = from6to3x3(ij)
+?>		.<?=xij?> = <?=eqn:compile(initCond.gamma0_ll[i][j])?>,
+<? end
+?>	};
+
+	sym3 K_ll = (sym3){
+<? for ij,xij in ipairs(symNames) do
+	local i,j,xi,xj = from6to3x3(ij)
+?>		.<?=xij?> = <?=eqn:compile(initCond.K0_ll[i][j])?>,
+<? end
+?>	};
+
+	sym3 gammaHat_ll = calc_gammaHat_ll(x);
+	real det_gammaHat = sym3_det(gammaHat_ll);
+	real det_gammaBar = det_gammaHat;
+	real det_gamma = sym3_det(gamma_ll);
+	real det_gammaBar_over_det_gamma = det_gammaBar / det_gamma;
+	real exp_neg4phi = cbrt(det_gammaBar_over_det_gamma);
+	U->W = sqrt(exp_neg4phi);
+	sym3 gammaBar_ll = sym3_real_mul(gamma_ll, exp_neg4phi);
+	sym3 epsilon_ll = sym3_sub(gammaBar_ll, gammaHat_ll);
+	U->epsilon_LL = sym3_rescaleFromCoord_ll(epsilon_ll, x);
+	
+	sym3 gamma_uu = sym3_inv(gamma_ll, det_gamma);
+	U->K = sym3_dot(gamma_uu, K_ll);
+	sym3 A_ll = sym3_sub(K_ll, sym3_real_mul(gamma_ll, -U->K/3.));
+	sym3 ABar_ll = sym3_real_mul(A_ll, exp_neg4phi);
+	U->ABar_LL = sym3_rescaleFromCoord_ll(ABar_ll, x);
+
+	real3 beta_u = (real3){
+<? for i,xi in ipairs(xNames) do
+?>		.<?=xi?> = <?=eqn:compile(initCond.beta0_u[i])?>,
+<? end
+?>	};
+	U->beta_U = real3_rescaleFromCoord_u(beta_u, x);
+	U->B_U = real3_zero;
+
+	_3sym3 connHat_LLL, connHat_ULL;
+	calc_connHat_LLL_and_ULL(&connHat_LLL, &connHat_ULL, U, x);
+
+	// gammaBar_ij = exp(-4 phi) gamma_ij
+	// gammaBar^ij = exp(4 phi) gamma^ij
+	real exp_4phi = 1. / exp_neg4phi;
+	sym3 gammaBar_uu = sym3_real_mul(gamma_uu, exp_4phi);
+	sym3 gammaBar_UU = sym3_rescaleFromCoord_uu(gammaBar_uu, x);
+
+	//partial_gamma_lll.k.ij := gamma_ij,k
+	_3sym3 partial_gamma_lll;
+<? for ij,xij in ipairs(symNames) do
+	local i,j,xi,xj = from6to3x3(ij)
+	for k,xk in ipairs(xNames) do
+?>	partial_gamma_lll.<?=xk?>.<?=xij?> = <?=eqn:compile(partial_gamma0_lll[i][j][k])?>;
+<?	end
+end ?>
+
+	// (det gamma)_,i = det gamma * gamma^jk gamma_jk,i
+	real3 partial_det_gamma_l;
+<? for i,xi in ipairs(xNames) do
+?>	partial_det_gamma_l.<?=xi?> = det_gamma * (0.
+<?	for j,xj in ipairs(xNames) do
+		for k,xk in ipairs(xNames) do
+?>		+ gamma_uu.<?=sym(j,k)?> * partial_gamma_lll.<?=xi?>.<?=sym(j,k)?>
+<?		end
+	end
+?>	);
+<? end
+?>
+
+	real3 partial_det_gammaHat_l;
+<? 
+local symmath = require 'symmath'
+local det_gammaHat = solver.coord.det_g 
+local partial_det_gammaHat_l = symmath.Tensor('_i', function(i)
+	return det_gammaHat:diff(solver.coord.coords[i])()
+end)
+for i,xi in ipairs(xNames) do
+?>	partial_det_gammaHat_l.<?=xi?> = <?=eqn:compile(partial_det_gammaHat_l[i])?>;
+<? end
+?>
+	//W_,i = exp(2 phi)_,i
+	// = ((det gammaBar / det gamma)^(1/6))_,i
+	// = 1/6 (det gammaBar / det gamma)^(-5/6) (det gammaBar / det gamma)_,i
+	// = 1/6 (det gammaBar / det gamma)^(1/6) / (det gammaBar / det gamma) [(det gammaBar)_,i det gamma - det gammaBar (det gamma)_,i] / (det gamma)^2
+	// = 1/6 W / (det gammaBar / det gamma) [(det gammaBar)_,i - (det gamma)_,i (det gammaBar / det gamma)] / (det gamma)
+	real3 partial_W_l;
+<? for i,xi in ipairs(xNames) do
+?>	partial_W_l.<?=xi?> = 1./6. * U->W / det_gammaBar_over_det_gamma * (
+		partial_det_gammaHat_l.<?=xi?> - partial_det_gamma_l.<?=xi?> / det_gammaBar_over_det_gamma
+	) / det_gamma;
+<? end
+?>
+
+	//partial_gammaBar_lll.k.ij := gammaBar_ij,k
+	//= ( W^-2 gamma_ij )_,k
+	//= ( W^-2 gamma_ij )_,k
+	//= -2 W^_3 W_,k gamma_ij + W^-2 gamma_ij,k
+	_3sym3 partial_gammaBar_lll;
+<? for ij,xij in ipairs(symNames) do
+	for k,xk in ipairs(xNames) do
+?>	partial_gammaBar_lll.<?=xk?>.<?=xij?> = (-2. * partial_W_l.<?=xk?> / U->W * gamma_ll.<?=xij?> + partial_gamma_lll.<?=xk?>.<?=xij?>) / (U->W * U->W);
+<?	end
+end ?>
+	_3sym3 partial_gammaBar_LLL = _3sym3_rescaleFromCoord_lll(partial_gammaBar_lll, x);
+
+	_3sym3 connBar_ULL = calc_connBar_ULL(partial_gammaBar_LLL, gammaBar_UU);
+
+	_3sym3 Delta_ULL = _3sym3_sub(connBar_ULL, connHat_ULL);
+
+	real3 Delta_U = _3sym3_sym3_dot23(Delta_ULL, gammaBar_UU);
+	real3 LambdaBar_U = real3_add(Delta_U, mystery_C_U);
+
+	U->LambdaBar_U = LambdaBar_U;
+
+
+//TODO initialization of these ...
+//how about an initial call to constrainU?	
+	U->rho = 0.;
+	U->S_u = real3_zero;
+	U->S_ll = sym3_zero;
+	
+	U->H = 0.;
+	U->M_U = real3_zero;
+}
+
+<? elseif initCond.useBSSNVars then -- and not initCond.initAnalytical ?>
+
+kernel void applyInitCond(
+	constant <?=solver.solver_t?>* solver,
+	constant <?=solver.initCond_t?>* initCond,
+	global <?=eqn.cons_t?>* UBuf,
+	const global <?=solver.coord.cell_t?>* cellBuf
+) {
+	SETBOUNDS(0,0);
+	global <?=eqn.cons_t?>* U = UBuf + index;
+	real3 x = cellBuf[index].pos;
+
+	if (OOB(numGhost,numGhost)) {
+		U->alpha = INFINITY;
+		U->W = INFINITY;
+		U->K = INFINITY;
+		U->beta_U = _real3(INFINITY, INFINITY, INFINITY);
+		U->B_U = _real3(INFINITY, INFINITY, INFINITY);
+		U->LambdaBar_U = _real3(INFINITY, INFINITY, INFINITY);
+		U->epsilon_LL = _sym3(INFINITY, INFINITY, INFINITY, INFINITY, INFINITY, INFINITY);
+		U->ABar_LL = _sym3(INFINITY, INFINITY, INFINITY, INFINITY, INFINITY, INFINITY);
+		U->H = INFINITY;
+		U->M_U = _real3(INFINITY, INFINITY, INFINITY);
+		U->rho = INFINITY;
+		U->S_u = _real3(INFINITY, INFINITY, INFINITY);
+		U->S_ll = _sym3(INFINITY, INFINITY, INFINITY, INFINITY, INFINITY, INFINITY);
+		return;
+	}
+
+
+	real3 xc = coordMap(x);
+	real3 mids = real3_real_mul(real3_add(solver->mins, solver->maxs), .5);
+
+	//bssn vars - use these for init.senr:
+	real alpha = 1.;
+	real W = 1.;
+	real K = 0.;
+	real3 LambdaBar_U = real3_zero;
+	real3 beta_U = real3_zero;
+	real3 B_U = real3_zero;
+	sym3 epsilon_LL = sym3_zero;
+	sym3 ABar_LL = sym3_zero;
+
+	// stress-energy tensor
+	real rho = 0.;
+
+<? if eqn.useScalarField then ?>	
+	cplx Phi = cplx_zero;
+	cplx3 Psi_l = cplx3_zero;
+	cplx Pi = cplx_zero;
+<? end ?>
+
+	<?=initCode()?>
+
+	//bssn vars - use these for init.senr:
+	U->alpha = alpha;
+	U->K = K;
+	U->W = W;
+	U->LambdaBar_U = LambdaBar_U;
+	U->beta_U = beta_U;
+	U->B_U = B_U;
+	U->epsilon_LL = epsilon_LL;
+	U->ABar_LL = ABar_LL;
+
+	//stress-energy fields
+	U->rho = rho;
+	U->S_u = real3_zero;
+	U->S_ll = sym3_zero;
+	U->H = 0.;
+	U->M_U = real3_zero;
+
+<? if eqn.useScalarField then ?>
+	U->Phi = Phi;
+	U->Psi_l = Psi_l;	//init with a numeric derivative?
+	U->Pi = Pi;
+<? end ?>
+}
+
+<?	else -- not initCond.initAnalytical and not initCond.useBSSNVars 
+-- if we're using a SENR init cond then init the components directly
+-- TODO port these from sympy into symmath 
+?>
+
+kernel void applyInitCond(
+	constant <?=solver.solver_t?>* solver,
+	constant <?=solver.initCond_t?>* initCond,
+	global <?=eqn.cons_t?>* UBuf,
+	const global <?=solver.coord.cell_t?>* cellBuf
+) {
+	SETBOUNDS(numGhost,numGhost);
+
+	real3 x = cellBuf[index].pos;
+	real3 xc = coordMap(x);
+	real3 mids = real3_real_mul(real3_add(solver->mins, solver->maxs), .5);
+	
+	global <?=eqn.cons_t?>* U = UBuf + index;
+
+	sym3 gammaHat_ll = calc_gammaHat_ll(x);
+
+	//initCond will assume it is providing a metric in Cartesian
+	real alpha = 1.;
+	real3 beta_u = real3_zero;
+	real3 B_u = real3_zero;
+	sym3 gamma_ll = sym3_ident;
+	sym3 K_ll = sym3_zero;
+	real rho = 0.;
+
+<? if eqn.useScalarField then ?>	
+	cplx Phi = cplx_zero;
+	cplx3 Psi_l = cplx3_zero;
+	cplx Pi = cplx_zero;
+<? end ?>
+
+	<?=initCode()?>
+
+	//rescale from cartesian to spherical
+	//TODO what about rotations for change of coordinates?
+	// this is another reason why initial conditions should be symbolic
+//	beta_u = real3_rescaleToCoord_U(beta_u, x);
+	gamma_ll = sym3_rescaleToCoord_LL(gamma_ll, x);
+//	K_ll = sym3_rescaleToCoord_LL(K_ll, x);
+
+	U->alpha = alpha;
+	U->beta_U = real3_rescaleFromCoord_u(beta_u, x);
+
+	real det_gamma = sym3_det(gamma_ll);
+	sym3 gamma_uu = sym3_inv(gamma_ll, det_gamma);
+	
+	//det(gammaBar_ij) == det(gammaHat_ij)
+	real det_gammaBar = calc_det_gammaBar(x); 
+
+	//gammaBar_ij = e^(-4phi) gamma_ij
+	//real exp_neg4phi = exp(-4 * U->phi);
+	real exp_neg4phi = cbrt(det_gammaBar / det_gamma);
+
+	//W = exp(-2 phi)
+	U->W = sqrt(exp_neg4phi);
+
+	sym3 gammaBar_ll = sym3_real_mul(gamma_ll, exp_neg4phi);
+	sym3 epsilon_ll = sym3_sub(gammaBar_ll, gammaHat_ll);
+	U->epsilon_LL = sym3_rescaleFromCoord_ll(epsilon_ll, x);
+
+	U->K = sym3_dot(K_ll, gamma_uu);
+	sym3 A_ll = sym3_sub(K_ll, sym3_real_mul(gamma_ll, 1./3. * U->K));
+	sym3 ABar_ll = sym3_real_mul(A_ll, exp_neg4phi);
+	U->ABar_LL = sym3_rescaleFromCoord_ll(ABar_ll, x);
+	
+	U->B_U = real3_rescaleFromCoord_u(B_u, x);
+
+	U->rho = rho;
+	U->S_u = real3_zero;
+	U->S_ll = sym3_zero;
+	U->H = 0.;
+	U->M_U = real3_zero;
+
+<? if eqn.useScalarField then ?>
+	U->Phi = Phi;
+	U->Psi_l = Psi_l;	//init with a numeric derivative?
+	U->Pi = Pi;
+<? end ?>
+
+}
+
+<? eqn.needsInitDerivs = true ?>
+
+//after popularing gammaBar_ll, use its finite-difference derivative to initialize LambdaBar_u
+//TODO do this symbolically.  That's what I originally did, but symbolic calculations were getting complex
+// however, with spherical BSSN, you need to 
+kernel void initDerivs(
+	constant <?=solver.solver_t?>* solver,
+	global <?=eqn.cons_t?>* UBuf,
+	const global <?=solver.coord.cell_t?>* cellBuf
+) {
+	SETBOUNDS(numGhost,numGhost);
+	real3 x = cellBuf[index].pos;
+	global <?=eqn.cons_t?>* U = UBuf + index;
+
+	sym3 gammaBar_LL = calc_gammaBar_LL(U, x);
+	real det_gammaBarLL = calc_det_gammaBarLL(x);
+	sym3 gammaBar_UU = sym3_inv(gammaBar_LL, det_gammaBarLL);
+
+<?=eqn:makePartial1'epsilon_LL'?>
+	_3sym3 partial_gammaBar_LLL = calc_partial_gammaBar_LLL(x, U->epsilon_LL, partial_epsilon_LLl);
+
+	_3sym3 connBar_ULL = calc_connBar_ULL(partial_gammaBar_LLL, gammaBar_UU);
+
+	_3sym3 connHat_LLL, connHat_ULL;
+	calc_connHat_LLL_and_ULL(&connHat_LLL, &connHat_ULL, U, x);
+	
+	//Delta^i_jk = connBar^i_jk - connHat^i_jk
+	_3sym3 Delta_ULL = _3sym3_sub(connBar_ULL, connHat_ULL);
+	
+	U->LambdaBar_U = real3_add(_3sym3_sym3_dot23(Delta_ULL, gammaBar_UU), mystery_C_U);
+}
+
+<? end -- initCond.initAnalytical or initCond.useBSSNVars ?>
+
 <? elseif moduleName == "calc_RBar_LL" then ?>
 
 static sym3 calc_RBar_LL(

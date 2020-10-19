@@ -565,6 +565,7 @@ function Equation:getEnv()
 		eqn = self,
 		solver = self.solver,
 		coord = self.solver.coord,
+		initCond = self.initCond,
 	
 		-- common 
 		xNames = xNames,
