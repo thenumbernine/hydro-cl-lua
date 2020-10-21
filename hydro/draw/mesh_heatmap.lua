@@ -2,6 +2,7 @@ local class = require 'ext.class'
 local file = require 'ext.file'
 local template = require 'template'
 local gl = require 'ffi.OpenGL'
+local glreport = require 'gl.report'
 local Draw = require 'hydro.draw.draw'
 
 
@@ -215,7 +216,7 @@ function DrawMeshHeatmap:display(varName, ar)
 	gl.glDisable(gl.GL_DEPTH_TEST)
 	
 	-- from here on it's showDisplayVar
-	solver:showDisplayVar(var, varName, ar)
+	self:showDisplayVar(var, varName, ar)
 	glreport'here'
 end
 

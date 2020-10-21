@@ -329,8 +329,13 @@ well draw1d is still a giant mess wrt this.
 
 function HydroCLApp:display2D_Heatmap(solvers, ...)
 	for _,solver in ipairs(solvers) do
-		solver.draw2DHeatmap = solver.draw2DHeatmap or require 'hydro.draw.2d_heatmap'(solver)
-		solver.draw2DHeatmap:display(...)
+		if require 'hydro.solver.meshsolver'.is(solver) then
+			solver.drawMeshHeatmap = solver.drawMeshHeatmap or require 'hydro.draw.mesh_heatmap'(solver)
+			solver.drawMeshHeatmap:display(...)
+		else	-- gridsolver
+			solver.draw2DHeatmap = solver.draw2DHeatmap or require 'hydro.draw.2d_heatmap'(solver)
+			solver.draw2DHeatmap:display(...)
+		end
 	end
 end
 
