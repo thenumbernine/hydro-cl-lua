@@ -37,7 +37,9 @@ Draw3DRay.useLighting = false
 Draw3DRay.alpha = .15
 Draw3DRay.alphaGamma = 2
 
-function Draw3DRay:showDisplayVar(app, solver, var, ar)
+function Draw3DRay:showDisplayVar(var, ar)
+	local solver = self.solver
+	local app = solver.app
 	app.view:setup(ar)
 	
 	local valueMin, valueMax
@@ -68,7 +70,7 @@ function Draw3DRay:showDisplayVar(app, solver, var, ar)
 			
 			shader:use()
 			
-			self:setupDisplayVarShader(shader, app, solver, var, valueMin, valueMax)
+			self:setupDisplayVarShader(shader, var, valueMin, valueMax)
 
 			gl.glUniform1f(uniforms.alpha.loc, self.alpha)
 			gl.glUniform1f(uniforms.alphaGamma.loc, self.alphaGamma)
@@ -104,19 +106,20 @@ function Draw3DRay:showDisplayVar(app, solver, var, ar)
 	end
 end
 
-function Draw3DRay:display(app, solvers, varName, ar, xmin, xmax, ymin, ymax, useLog)
-	for _,solver in ipairs(solvers) do
-		local var = solver.displayVarForName[varName]
-		if var and var.enabled then
-			self:prepareShader(solver)
-			self:showDisplayVar(app, solver, var, ar)
-		end
+function Draw3DRay:display(varName, ar, xmin, xmax, ymin, ymax, useLog)
+	local solver = self.solver
+	local app = solver.app
+	local var = solver.displayVarForName[varName]
+	if var and var.enabled then
+		self:prepareShader()
+		self:showDisplayVar(var, ar)
 	end
 glreport'here'
 end
 
 -- TODO this in common with 3d_iso.lua.  subclass?
-function Draw3DRay:prepareShader(solver)
+function Draw3DRay:prepareShader()
+	local solver = self.solver
 	if solver.volumeRayShader then return end
 	
 	solver.display3D_Ray_maxiter = math.max(

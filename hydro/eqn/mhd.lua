@@ -254,14 +254,8 @@ function MHD:getModuleDepends_calcDT()
 	}
 end
 
-function MHD:getModuleDependsSolver() 
+function MHD:getModuleDepends_waveCode() 
 	return {
-		'eqn.prim-cons',
-	
-		-- WENO.calcFlux depends on eqn.solverocde specifically so solvercode can put any eigenvalue inline dependencies here...
-		-- and for MHD this is an inline eigenvalue dependnecy:
-		-- in fact, otherwise, I don't think eqn.solvercode is used
-		-- TODO remove eqn.solvercode altogether
 		'calcCellMinMaxEigenvalues',
 	}
 end

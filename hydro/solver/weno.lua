@@ -71,11 +71,11 @@ function WENO:initCodeModules()
 	self.modules:add{
 		name = 'WENO.calcFlux',
 		depends = table{
-			'eqn.solvercode',	-- eigen_rightTransform, eigen_leftTransform, eigen_forInterface
 			'fluxFromCons',
 			'normal_t',
 			'eigen_forInterface',
 			'eigen_left/rightTransform',
+			'eqn.waveCode',
 		}:append(
 			({
 				['Marquina'] = {

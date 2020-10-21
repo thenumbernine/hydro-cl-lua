@@ -16,8 +16,10 @@ Draw2DGraph.step = 1
 -- TODO gui this somewhere
 Draw2DGraph.ambient = .3
 
-function Draw2DGraph:showDisplayVar(app, solver, var)
-	
+function Draw2DGraph:showDisplayVar(var)
+	local solver = self.solver
+	local app = solver.app
+
 	-- TODO allow a fixed, manual colormap range
 	local valueMin, valueMax
 	if var.heatMapFixedRange then
@@ -45,7 +47,7 @@ function Draw2DGraph:showDisplayVar(app, solver, var)
 	local tex = solver:getTex(var)
 	tex:bind()
 	
-	self:setupDisplayVarShader(shader, app, solver, var, valueMin, valueMax)
+	self:setupDisplayVarShader(shader, var, valueMin, valueMax)
 
 	gl.glUniform1f(uniforms.ambient.loc, self.ambient)
 	
@@ -97,30 +99,32 @@ function Draw2DGraph:showDisplayVar(app, solver, var)
 	shader:useNone()
 end
 
-function Draw2DGraph:display(app, solvers, varName, ar, graph_xmin, graph_xmax, graph_ymin, graph_ymax)
+function Draw2DGraph:display(varName, ar, graph_xmin, graph_xmax, graph_ymin, graph_ymax)
+	local solver = self.solver
+	local app = solver.app
+
 	app.view:setup(ar)
 	
 	gl.glColor3f(1,1,1)
 	gl.glEnable(gl.GL_DEPTH_TEST)
 
-	for _,solver in ipairs(solvers) do 
-		if not require 'hydro.solver.meshsolver'.is(solver) then
-			local var = solver.displayVarForName[varName]
-			if var and var.enabled then
-				self:prepareShader(solver)
-				self:showDisplayVar(app, solver, var)
-			end
-			
-			-- TODO right here is where the color gradient display usually goes
-			-- mind you I'm not using it in the 2D graph display atm
+	if not require 'hydro.solver.meshsolver'.is(solver) then
+		local var = solver.displayVarForName[varName]
+		if var and var.enabled then
+			self:prepareShader()
+			self:showDisplayVar(var)
 		end
+		
+		-- TODO right here is where the color gradient display usually goes
+		-- mind you I'm not using it in the 2D graph display atm
 	end
 	
 	gl.glDisable(gl.GL_DEPTH_TEST)
 end
 
 -- also in 1d.lua.  subclass?
-function Draw2DGraph:prepareShader(solver)
+function Draw2DGraph:prepareShader()
+	local solver = self.solver
 	if solver.graphShader then return end
 	
 	local graphShaderCode = assert(file['hydro/draw/graph.shader'])

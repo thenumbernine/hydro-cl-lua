@@ -524,17 +524,16 @@ end
 		end):concat'\n',
 	}
 
-	self:initCodeModuleSolver()
 	self:initCodeModule_calcDT()
-
 	self:initCodeModule_fluxFromCons()
+	self:initCodeModule_waveCode()
+	self:initCodeModule_displayCode()
 end
 
 function Equation:initCodeModule_fluxFromCons()
 	self.solver.modules:add{
 		name = 'fluxFromCons',
 		depends = {
-			'eqn.solvercode',	-- eigen_fluxTransform, eigen_forCell
 			'eqn.cons_t',
 			'solver.solver_t',
 			'eigen_fluxTransform',
@@ -565,24 +564,25 @@ function Equation:initCodeModuleCommon()
 	}
 end
 
-function Equation:initCodeModuleSolver()
+-- put your eigenWaveCode / consWaveCode dependencies here
+function Equation:getModuleDepends_waveCode() end
+
+function Equation:initCodeModule_waveCode()
 	self.solver.modules:add{
-		name = 'eqn.solvercode',
-		depends = table{
-			'eqn.cons_t',
-			'eqn.prim_t',
-			'eqn.waves_t',
-			'eqn.eigen_t',
-			'eqn.guiVars.compileTime',
-			'coordLenSq',
-			-- commonly used by most solvers ... and anything that uses kernels for that matter
-			'INDEX', 'INDEXV', 'OOB', 'SETBOUNDS', 'SETBOUNDS_NOGHOST',
-		}:append(self:getModuleDependsSolver()),
-		code = self:template(file[self.solverCodeFile]),
+		name = 'eqn.waveCode',
+		depends = self:getModuleDepends_waveCode(),
 	}
 end
 
-function Equation:getModuleDependsSolver() end	-- eqn.solver, used by solver
+-- put your getDisplayVars code dependencies here
+function Equation:getModuleDepends_displayCode() end
+
+function Equation:initCodeModule_displayCode()
+	self.solver.modules:add{
+		name = 'eqn.displayCode',
+		depends = self:getModuleDepends_displayCode(),
+	}
+end
 
 Equation.displayVarCodeUsesPrims = false
 function Equation:getDisplayVarCodePrefix()
@@ -781,11 +781,14 @@ end
 
 function Equation:getModuleDepends_calcDT()
 	return {
+		-- used by the function prototype
 		'eqn.cons_t',
 		'eqn.prim_t',
 		'eqn.waves_t',
 		'eqn.eigen_t',
 		'normal_t',
+		-- used by the default implementation - or anything that uses eigen/cons wave code
+		'eqn.waveCode',
 		-- so these dependencies are going to vary based on the eigen code of each eqn 
 		'eqn.common',		-- used by eqn/wave
 		'eqn.prim-cons',	-- used by eqn/shallow-water

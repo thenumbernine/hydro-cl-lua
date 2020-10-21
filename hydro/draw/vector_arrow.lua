@@ -29,7 +29,9 @@ local DrawVectorField = class(Draw)
 DrawVectorField.scale = 1
 DrawVectorField.step = cmdline.vectorFieldStep or 4
 
-function DrawVectorField:showDisplayVar(app, solver, var, varName, ar, xmin, xmax, ymin, ymax, useLog)
+function DrawVectorField:showDisplayVar(var, varName, ar, xmin, xmax, ymin, ymax, useLog)
+	local solver = self.solver
+	local app = solver.app
 
 	local valueMin, valueMax
 	if var.heatMapFixedRange then
@@ -141,7 +143,7 @@ function DrawVectorField:showDisplayVar(app, solver, var, varName, ar, xmin, xma
 	gl.glEnable(gl.GL_BLEND)
 
 	shader:use()
-	self:setupDisplayVarShader(shader, app, solver, var, valueMin, valueMax)
+	self:setupDisplayVarShader(shader, var, valueMin, valueMax)
 
 	local tex = solver:getTex(var)
 	tex:bind(0)
@@ -183,22 +185,23 @@ function DrawVectorField:showDisplayVar(app, solver, var, varName, ar, xmin, xma
 	app:drawGradientLegend(solver, var, varName, ar, valueMin, valueMax)
 end
 
-function DrawVectorField:display(app, solvers, varName, ar, ...)
+function DrawVectorField:display(varName, ar, ...)
+	local solver = self.solver
+	local app = solver.app
+
 	app.view:setup(ar)
 
 	gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE)
 	
-	for _,solver in ipairs(solvers) do
-		local var = solver.displayVarForName[varName]
-		if var and var.enabled then
-			self:prepareShader(solver)
-			self:showDisplayVar(app, solver, var, varName, ar, ...)
-		end
+	local var = solver.displayVarForName[varName]
+	if var and var.enabled then
+		self:prepareShader()
+		self:showDisplayVar(var, varName, ar, ...)
 	end
-
 end
 
-function DrawVectorField:prepareShader(solver)
+function DrawVectorField:prepareShader()
+	local solver = self.solver
 	if solver.vectorArrowShader then return end
 
 	local vectorArrowCode = assert(file['hydro/draw/vector_arrow.shader'])

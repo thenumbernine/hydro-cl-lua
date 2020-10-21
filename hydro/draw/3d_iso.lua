@@ -215,7 +215,9 @@ end
 
 local Draw3DIso = class(Draw)
 
-function Draw3DIso:showDisplayVar(app, solver, var)
+function Draw3DIso:showDisplayVar(var)
+	local solver = self.solver
+	local app = solver.app
 	local shader = app.isobarShader
 
 	shader:use()
@@ -233,7 +235,7 @@ function Draw3DIso:showDisplayVar(app, solver, var)
 	
 	solver:calcDisplayVarToTex(var)	
 	
-	self:setupDisplayVarShader(shader, app, solver, var, valueMin, valueMax)
+	self:setupDisplayVarShader(shader, var, valueMin, valueMax)
 	
 	assert(not app.useGLSharing, "I still need to code in the GL sharing version")
 	local dest = ffi.cast('float*', solver.calcDisplayVarToTexPtr)
@@ -330,7 +332,9 @@ function Draw3DIso:showDisplayVar(app, solver, var)
 	shader:useNone()
 end
 
-function Draw3DIso:display(app, solvers, varName, ar, xmin, xmax, ymin, ymax, useLog)
+function Draw3DIso:display(varName, ar, xmin, xmax, ymin, ymax, useLog)
+	local solver = self.solver
+	local app = solver.app
 	app.view:setup(ar)
 
 	-- draw wireframe
@@ -360,12 +364,10 @@ function Draw3DIso:display(app, solvers, varName, ar, xmin, xmax, ymin, ymax, us
 	gl.glEnable(gl.GL_BLEND)
 	
 
-	for _,solver in ipairs(solvers) do 
-		local var = solver.displayVarForName[varName]
-		if var and var.enabled then
-			self:prepareShader(solver)
-			self:showDisplayVar(app, solver, var)
-		end
+	local var = solver.displayVarForName[varName]
+	if var and var.enabled then
+		self:prepareShader()
+		self:showDisplayVar(var)
 	end
 		
 	gl.glDisable(gl.GL_DEPTH_TEST)
@@ -374,7 +376,8 @@ function Draw3DIso:display(app, solvers, varName, ar, xmin, xmax, ymin, ymax, us
 end
 
 -- TODO this in common with 3d_ray.lua.  subclass?
-function Draw3DIso:prepareShader(solver)
+function Draw3DIso:prepareShader()
+	local solver = self.solver
 	if solver.volumeRayShader then return end
 	
 	solver.display3D_Ray_maxiter = math.max(tonumber(solver.gridSize.x), tonumber(solver.gridSize.y), tonumber(solver.gridSize.z))

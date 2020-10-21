@@ -276,9 +276,11 @@ end
 HydroCLApp.drawVectorLICNoiseSize = 1024
 
 -- only option is draw1D
-function HydroCLApp:display1D(...)
-	self.draw1D = self.draw1D or require 'hydro.draw.1d_graph'()
-	return self.draw1D:display(self, ...)
+function HydroCLApp:display1D(solvers, ...)
+	for _,solver in ipairs(solvers) do
+		solver.draw1D = solver.draw1D or require 'hydro.draw.1d_graph'(solver)
+		solver.draw1D:display(...)
+	end
 end
 
 function HydroCLApp:display2D(...)
@@ -308,39 +310,70 @@ function HydroCLApp:displayVector(...)
 	end
 end
 
-function HydroCLApp:display2D_Heatmap(...)
-	self.draw2DHeatmap = self.draw2DHeatmap or require 'hydro.draw.2d_heatmap'()
-	return self.draw2DHeatmap:display(self, ...)
+--[[
+meshsolver is throwing a wrench in this design
+because I'm making one draw object singleton
+but the draw object assigns fields to the solver
+
+however ...
+mesh_heatmap vs 2d_heatmap is assigned based on the solver type
+but only half the routines are single-solver specific
+
+and the per-solver routines are within draw2d, and only those would conditionally create meshsolver, so draw2d would have to bootstrap drawmesh
+
+so why not just make one draw object per solver?
+but then, what about overlapping graphs?
+
+well draw1d is still a giant mess wrt this.
+--]]
+
+function HydroCLApp:display2D_Heatmap(solvers, ...)
+	for _,solver in ipairs(solvers) do
+		solver.draw2DHeatmap = solver.draw2DHeatmap or require 'hydro.draw.2d_heatmap'(solver)
+		solver.draw2DHeatmap:display(...)
+	end
 end
 
-function HydroCLApp:display2D_Graph(...)
-	self.draw2DGraph = self.draw2DGraph or require 'hydro.draw.2d_graph'()
-	return self.draw2DGraph:display(self, ...)
+function HydroCLApp:display2D_Graph(solvers, ...)
+	for _,solver in ipairs(solvers) do
+		solver.draw2DGraph = solver.draw2DGraph or require 'hydro.draw.2d_graph'(solver)
+		solver.draw2DGraph:display(...)
+	end
 end
 
-function HydroCLApp:display3D_Slice(...)
-	self.draw3DSlice = self.draw3DSlice or require 'hydro.draw.3d_slice'()
-	return self.draw3DSlice:display(self, ...)
+function HydroCLApp:display3D_Slice(solvers, ...)
+	for _,solver in ipairs(solvers) do
+		solver.draw3DSlice = solver.draw3DSlice or require 'hydro.draw.3d_slice'(solver)
+		solver.draw3DSlice:display(...)
+	end
 end
 
-function HydroCLApp:display3D_Ray(...)
-	self.draw3DRay = self.draw3DRay or require 'hydro.draw.3d_ray'()
-	return self.draw3DRay:display(self, ...)
+function HydroCLApp:display3D_Ray(solver, ...)
+	for _,solver in ipairs(solvers) do
+		solver.draw3DRay = solver.draw3DRay or require 'hydro.draw.3d_ray'(solver)
+		solver.draw3DRay:display(...)
+	end
 end
 
-function HydroCLApp:display3D_Isosurface(...)
-	self.draw3DIso = self.draw3DIso or require 'hydro.draw.3d_iso'()
-	return self.draw3DIso:display(self, ...)
+function HydroCLApp:display3D_Isosurface(solvers, ...)
+	for _,solver in ipairs(solvers) do
+		solver.draw3DIso = solver.draw3DIso or require 'hydro.draw.3d_iso'(solver)
+		solver.draw3DIso:display(...)
+	end
 end
 
-function HydroCLApp:displayVector_Arrows(...)
-	self.drawVectorArrows = self.drawVectorArrows or require 'hydro.draw.vector_arrow'() 
-	return self.drawVectorArrows:display(self, ...)
+function HydroCLApp:displayVector_Arrows(solvers, ...)
+	for _,solver in ipairs(solvers) do
+		solver.drawVectorArrows = solver.drawVectorArrows or require 'hydro.draw.vector_arrow'(solver)
+		solver.drawVectorArrows:display(...)
+	end
 end
 
-function HydroCLApp:displayVector_LIC(...)
-	self.drawVectorLIC = self.drawVectorLIC or require 'hydro.draw.vector_lic'()
-	return self.drawVectorLIC:display(self, ...)
+function HydroCLApp:displayVector_LIC(solvers, ...)
+	for _,solver in ipairs(solvers) do
+		solver.drawVectorLIC = solver.drawVectorLIC or require 'hydro.draw.vector_lic'(solver)
+		solver.drawVectorLIC:display(...)
+	end
 end
 
 --[[

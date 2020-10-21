@@ -12,7 +12,7 @@ typedef <?=eqn.cons_t?> cons_t;
 typedef <?=eqn.eigen_t?> eigen_t;
 typedef <?=eqn.waves_t?> waves_t;
 typedef <?=solver.solver_t?> solver_t;
-		
+
 <? if moduleName == nil then ?>
 <? elseif moduleName == "applyInitCond" then ?>
 <? depmod{
@@ -86,7 +86,8 @@ end
 }
 
 <? elseif moduleName == "eqn.dU-dW" then ?>
-<? depmod{
+<? 	-- only used by PLM
+depmod{
 	"solver.solver_t",
 	"eqn.prim_t",
 	"eqn.cons_t",
@@ -198,7 +199,8 @@ real calc_P(constant <?=solver.solver_t?>* solver, <?=eqn.cons_t?> U, real3 x) {
 }
 
 <? elseif moduleName == "calcCellMinMaxEigenvalues" then ?>
-<? depmod{
+<? 	-- added by request only, so I don't have to compile the real3x3 code. not used at the moment
+depmod{
 	"real3x3",
 	"eqn.prim-cons",
 } ?>
@@ -229,7 +231,7 @@ range_t calcCellMinMaxEigenvalues(
 	"eqn.prim_t",
 	"eqn.eigen_t",
 	"eqn.prim-cons",
-	"eqn.solvercode",	-- calc_hTotal
+	"eqn.common",	-- calc_hTotal
 } ?>
 
 // used by PLM
@@ -259,6 +261,7 @@ range_t calcCellMinMaxEigenvalues(
 
 <? elseif moduleName == "eigen_forInterface" then ?>
 <? depmod{
+	"eqn.prim-cons",
 	"eqn.eigen_t",
 	"normal_t",
 	"coord_lower",
@@ -471,7 +474,14 @@ cons_t eigen_fluxTransform(
 	}};
 }
 
-<? elseif moduleName == "addSource" then ?>
+<? elseif moduleName == "addSource" then 
+depmod{
+	"solver.solver_t",
+	"eqn.cons_t",
+	"coord.cell_t",
+	"SETBOUNDS_NOGHOST",
+}
+?>
 
 kernel void addSource(
 	constant solver_t* solver,
@@ -548,7 +558,13 @@ Maybe for an initial constant vel as large as sqrt(2) this fails, but it works o
 <? end -- vectorComponent == 'anholonomic' ?>
 }
 
-<? elseif moduleName == "constrainU" then ?>
+<? elseif moduleName == "constrainU" then 
+depmod{
+	"solver.solver_t",
+	"eqn.cons_t",
+	"coord.cell_t",
+}
+?>
 
 kernel void constrainU(
 	constant solver_t* solver,

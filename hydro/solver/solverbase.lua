@@ -626,15 +626,12 @@ function SolverBase:initCodeModules()
 	-- sharedModulesEnabled = modules for both.  previously 'codeprefix'.
 	self.initModulesEnabled = table()
 	self.solverModulesEnabled = table()
-	self.sharedModulesEnabled = table{math=true}
+	self.sharedModulesEnabled = table()
 
 	self.modules:add{
 		name = 'solver.solver_t',
 		structs = {self.solverStruct},
 	}
-	-- applyInitCond uses these and pretty much every solver kernel
-	self.sharedModulesEnabled['solver.solver_t'] = true
-	self.sharedModulesEnabled['coord.cell_t'] = true
 
 	-- header
 	self.modules:add{
@@ -650,24 +647,11 @@ function SolverBase:initCodeModules()
 			'#define numWaves '..self.eqn.numWaves,
 		}:concat'\n',
 	}
-	self.sharedModulesEnabled['solver.macros'] = true
 
 	self.coord:initCodeModules()
-	--self.sharedModulesEnabled.coord = true
-	-- used by applyInitCond in initCode.cl
-	--  and the solver kernels in the eqn solver code maybe
-	self.sharedModulesEnabled['eqn.guiVars.compileTime'] = true
-	
-
 	self.eqn:initCodeModules()	-- calls eqn.initCond:initCodeModules()
 
-
 	-------- solver modules --------
-
-	-- TODO get rid of this, make everything a module
-	self.solverModulesEnabled['eqn.solvercode'] = true
-
-	self.solverModulesEnabled['calcDT'] = true
 
 	self.modules:add{
 		name = 'fluxLimiter',
@@ -677,14 +661,12 @@ real fluxLimiter(real r) {
 }
 ]], {solver=self}),
 	}
-	self.solverModulesEnabled.fluxLimiter = tru
 
 	self.modules:add{
 		name = 'range_t',
 		-- TODO use struct so I can verify cl/ffi struct alignment
 		typecode = 'typedef struct { real min, max; } range_t;',
 	}
-	self.solverModulesEnabled.range_t = true
 
 	-- when building modules for ops, only add them to solverModulesEnabled, not sharedModulesEnabled, since init doesn't need them
 	for _,op in ipairs(self.ops) do
@@ -692,6 +674,10 @@ real fluxLimiter(real r) {
 			op:initCodeModules(self)
 		end
 	end
+
+	-- set required modules (those that have kernels associated with them)
+
+	self.solverModulesEnabled['calcDT'] = true
 
 	if self.eqn.useSourceTerm then
 		self.solverModulesEnabled['addSource'] = true
@@ -718,6 +704,9 @@ function SolverBase:initCodeModuleDisplay()
 			-- but eqn.euler doesn't use sym3, so this needless adds sym3 ...
 			-- how do I add a 'depends' only if 'sym3' is already included?
 			'coord_g_ll',
+		
+			-- anything used by eqn:getDisplayVars
+			'eqn.displayCode',
 		},
 		code = self:getDisplayCode(),
 	}

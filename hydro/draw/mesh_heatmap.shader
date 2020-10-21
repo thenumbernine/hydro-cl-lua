@@ -8,7 +8,7 @@ local varying = vertexShader and 'out'
 
 <?=varying?> float cellindexv;
 
-<?=draw:getCommonGLSLFragCode(solver)?>
+<?=draw:getCommonGLSLFragCode()?>
 
 <? if vertexShader then ?>
 

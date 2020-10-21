@@ -6,8 +6,8 @@ varying vec3 texCoordStart;
 varying vec3 vertexStart;
 varying vec3 eye;
 
-<?=draw:getModuleCodeGLSL(solver, "coordMapGLSL")?>
-<?=draw:getCommonGLSLFragCode(solver)?>
+<?=draw:getModuleCodeGLSL("coordMapGLSL")?>
+<?=draw:getCommonGLSLFragCode()?>
 
 <? if vertexShader then ?>
 

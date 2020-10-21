@@ -7,7 +7,9 @@ local Draw = require 'hydro.draw.draw'
 
 local Draw2DHeatmap = class(Draw)
 
-function Draw2DHeatmap:drawSolverWithVar(app, solver, var, shader, xmin, xmax, ymin, ymax)
+function Draw2DHeatmap:drawSolverWithVar(var, shader, xmin, xmax, ymin, ymax)
+	local solver = self.solver
+	local app = solver.app
 	local uniforms = shader.uniforms
 -- hmm ... this is needed for sub-solvers
 local origSolver = var.solver
@@ -35,7 +37,9 @@ var.solver = solver
 var.solver = origSolver
 end
 
-function Draw2DHeatmap:showDisplayVar(app, solver, var, varName, ar, xmin, xmax, ymin, ymax)
+function Draw2DHeatmap:showDisplayVar(var, varName, ar, xmin, xmax, ymin, ymax)
+	local solver = self.solver
+	local app = solver.app
 	if require 'hydro.solver.meshsolver'.is(solver) then return end
 	
 	-- TODO allow a fixed, manual colormap range
@@ -55,12 +59,12 @@ function Draw2DHeatmap:showDisplayVar(app, solver, var, varName, ar, xmin, xmax,
 	shader:use()
 	app.gradientTex:bind(1)
 
-	self:setupDisplayVarShader(shader, app, solver, var, valueMin, valueMax)
+	self:setupDisplayVarShader(shader, var, valueMin, valueMax)
 
 	gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
 	gl.glEnable(gl.GL_BLEND)
 	
-	self:drawSolverWithVar(app, solver, var, shader, xmin, xmax, ymin, ymax)
+	self:drawSolverWithVar(var, shader, xmin, xmax, ymin, ymax)
 
 -- [[
 	if solver.amr then
@@ -83,7 +87,9 @@ function Draw2DHeatmap:showDisplayVar(app, solver, var, varName, ar, xmin, xmax,
 --	gl.glEnable(gl.GL_DEPTH_TEST)
 end
 
-function Draw2DHeatmap:display(app, solvers, varName, ar, graph_xmin, graph_xmax, graph_ymin, graph_ymax)
+function Draw2DHeatmap:display(varName, ar, graph_xmin, graph_xmax, graph_ymin, graph_ymax)
+	local solver = self.solver
+	local app = solver.app
 	app.view:setup(ar)
 	
 	if app.view.getOrthoBounds then
@@ -130,17 +136,16 @@ function Draw2DHeatmap:display(app, solvers, varName, ar, graph_xmin, graph_xmax
 
 	-- NOTICE overlays of multiple solvers won't be helpful.  It'll just draw over the last solver.
 	-- I've got to rethink the visualization
-	for _,solver in ipairs(solvers) do 
-		local var = solver.displayVarForName[varName]
-		if var and var.enabled then
-			self:prepareShader(solver)
-			self:showDisplayVar(app, solver, var, varName, ar, xmin, xmax, ymin, ymax)
-		end
+	local var = solver.displayVarForName[varName]
+	if var and var.enabled then
+		self:prepareShader()
+		self:showDisplayVar(var, varName, ar, xmin, xmax, ymin, ymax)
 	end
 --	gl.glDisable(gl.GL_DEPTH_TEST)
 end
 
-function Draw2DHeatmap:prepareShader(solver)
+function Draw2DHeatmap:prepareShader()
+	local solver = self.solver
 	if solver.heatMap2DShader then return end
 
 	local heatMapCode = assert(file['hydro/draw/2d_heatmap.shader'])

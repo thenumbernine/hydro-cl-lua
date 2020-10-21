@@ -27,7 +27,9 @@ Draw3DSlice.alphaGamma = 1
 Draw3DSlice.numSlices = 255
 
 
-function Draw3DSlice:showDisplayVar(app, solver, var, varName, ar, xmin, xmax, ymin, ymax, useLog)
+function Draw3DSlice:showDisplayVar(var, varName, ar, xmin, xmax, ymin, ymax, useLog)
+	local solver = self.solver
+	local app = solver.app
 	if require 'hydro.solver.meshsolver'.is(solver) then return end
 
 	app.view:setup(ar)
@@ -65,7 +67,7 @@ function Draw3DSlice:showDisplayVar(app, solver, var, varName, ar, xmin, xmax, y
 	
 	app.gradientTex:bind(1)
 	
-	self:setupDisplayVarShader(shader, app, solver, var, valueMin, valueMax)
+	self:setupDisplayVarShader(shader, var, valueMin, valueMax)
 
 	gl.glUniform1f(uniforms.alpha.loc, self.alpha)
 	gl.glUniform1f(uniforms.alphaGamma.loc, self.alphaGamma)
@@ -185,17 +187,18 @@ function Draw3DSlice:showDisplayVar(app, solver, var, varName, ar, xmin, xmax, y
 	app:drawGradientLegend(solver, var, varName, ar, valueMin, valueMax)
 end
 
-function Draw3DSlice:display(app, solvers, varName, ar, xmin, xmax, ymin, ymax, useLog)
-	for _,solver in ipairs(solvers) do 
-		local var = solver.displayVarForName[varName]
-		if var and var.enabled then
-			self:prepareShader(solver)
-			self:showDisplayVar(app, solver, var, varName, ar, xmin, xmax, ymin, ymax, useLog)
-		end
+function Draw3DSlice:display(varName, ar, xmin, xmax, ymin, ymax, useLog)
+	local solver = self.solver
+	local app = solver.app
+	local var = solver.displayVarForName[varName]
+	if var and var.enabled then
+		self:prepareShader()
+		self:showDisplayVar(var, varName, ar, xmin, xmax, ymin, ymax, useLog)
 	end
 end
 
-function Draw3DSlice:prepareShader(solver)
+function Draw3DSlice:prepareShader()
+	local solver = self.solver
 	if solver.volumeSliceShader then return end 
 	
 	local volumeSliceCode = assert(file['hydro/draw/3d_slice.shader'])

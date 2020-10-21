@@ -26,7 +26,6 @@ Euler.useConstrainU = true
 
 Euler.initConds = require 'hydro.init.euler':getList()
 
-
 function Euler:init(args)
 	
 	-- TODO primVars doesn't autogen displayVars, and therefore units doesn't matter
@@ -99,10 +98,10 @@ function Euler:initCodeModules()
 	Euler.super.initCodeModules(self)
 	for moduleName, depends in pairs{
 		['eqn.prim-cons'] = {},
-		['eqn.dU-dW'] = {},	-- only used by PLM
+		['eqn.dU-dW'] = {},
 		['eqn.common'] = {},
 		['fluxFromCons'] = {},
-		['calcCellMinMaxEigenvalues'] = {},	-- added by request only, so I don't have to compile the real3x3 code. not used at the moment
+		['calcCellMinMaxEigenvalues'] = {},
 		['eigen_forCell'] = {},
 		['eigen_forInterface'] = {},
 		['eigen_left/rightTransform'] = {},
@@ -115,6 +114,109 @@ function Euler:initCodeModules()
 			depends = depends,
 		}
 	end
+end
+
+-- this one calcs cell prims once and uses it for all sides
+-- it is put here instead of in hydro/eqn/euler.cl so euler-burgers can override it
+-- TODO move the sqrt() out of the loop altogether?
+function Euler:initCodeModule_calcDT()
+	local solver = self.solver
+	solver.modules:add{
+		name = 'calcDT',
+		depends = table{
+			'OOB',
+			'SETBOUNDS',
+			'solver.solver_t',
+			'eqn.prim-cons',
+			'eqn.guiVars.compileTime',
+			'normal_t',
+		},
+		code = self:template[[
+<? if require 'hydro.solver.gridsolver'.is(solver) then ?>
+
+kernel void calcDT(
+	constant <?=solver.solver_t?>* solver,
+	global real* dtBuf,
+	const global <?=eqn.cons_t?>* UBuf,
+	const global <?=solver.coord.cell_t?>* cellBuf
+) {
+	SETBOUNDS(0,0);
+	if (OOB(numGhost,numGhost)) {
+		dtBuf[index] = INFINITY;
+		return;
+	}
+	real3 x = cellBuf[index].pos;
+
+	const global <?=eqn.cons_t?>* U = UBuf + index;
+	<?=eqn.prim_t?> W = primFromCons(solver, *U, x);
+	real Cs = calc_Cs(solver, &W);
+
+	real dt = INFINITY;
+	<? for side=0,solver.dim-1 do ?>{
+<? 
+if solver.coord.vectorComponent == 'cartesian' 
+and not require 'hydro.coord.cartesian'.is(solver.coord)
+then 
+?>		real dx = cell_dx<?=side?>(x); 
+<? else 
+?>		real dx = solver->grid_dx.s<?=side?>;
+<? end 
+?>
+		if (dx > 1e-7) {
+			//use cell-centered eigenvalues
+			real v_n = normal_vecDotN1(normal_forSide<?=side?>(x), W.v);
+			real lambdaMin = v_n - Cs;
+			real lambdaMax = v_n + Cs;
+			real absLambdaMax = max(fabs(lambdaMin), fabs(lambdaMax));
+			absLambdaMax = max((real)1e-9, absLambdaMax);
+			//TODO this should be based on coord + vectorComponent 
+			//non-cartesian coord + cartesian component uses |u(x+dx)-u(x)|
+			dt = (real)min(dt, dx / absLambdaMax);
+		}
+	}<? end ?>
+	dtBuf[index] = dt;
+}
+
+<? else -- mesh solver ?>
+
+kernel void calcDT(
+	constant <?=solver.solver_t?>* solver,
+	global real* dtBuf,					//[numCells]
+	const global <?=eqn.cons_t?>* UBuf,	//[numCells]
+	const global <?=solver.coord.cell_t?>* cellBuf,		//[numCells]
+	const global <?=solver.coord.face_t?>* faces,			//[numFaces]
+	const global int* cellFaceIndexes	//[numCellFaceIndexes]
+) {
+	int cellIndex = get_global_id(0);
+	if (cellIndex >= get_global_size(0)) return;
+	
+	const global <?=eqn.cons_t?>* U = UBuf + cellIndex;
+	const global <?=solver.coord.cell_t?>* cell = cellBuf + cellIndex;
+	real3 x = cell->pos;
+
+	real dt = INFINITY;
+	for (int i = 0; i < cell->faceCount; ++i) {
+		const global <?=solver.coord.face_t?>* face = faces + cellFaceIndexes[i + cell->faceOffset];
+		real dx = face->area;
+		if (dx > 1e-7 && face->cells.x != -1 && face->cells.y != -1) {
+			//all sides? or only the most prominent side?
+			//which should we pick eigenvalues from?
+			//use cell-centered eigenvalues
+			normal_t n = normal_forFace(face);
+			<?=eqn:consWaveCodePrefix('n', '*U', 'x')?>
+			real lambdaMin = <?=eqn:consMinWaveCode('n', '*U', 'x')?>;
+			real lambdaMax = <?=eqn:consMaxWaveCode('n', '*U', 'x')?>;
+			real absLambdaMax = max(fabs(lambdaMin), fabs(lambdaMax));
+			absLambdaMax = max((real)1e-9, absLambdaMax);
+			dt = (real)min(dt, dx / absLambdaMax);
+		}
+	}
+	dtBuf[cellIndex] = dt;
+}
+
+<? end -- mesh vs grid solver ?>
+]],
+	}
 end
 
 -- don't use default
@@ -254,123 +356,6 @@ end
 
 -- as long as U or eig isn't used, we can use this for both implementations
 Euler.eigenWaveCode = Euler.consWaveCode
-
--- this one calcs cell prims once and uses it for all sides
--- it is put here instead of in hydro/eqn/euler.cl so euler-burgers can override it
--- TODO move the sqrt() out of the loop altogether?
-function Euler:initCodeModule_calcDT()
-	local solver = self.solver
-	solver.modules:add{
-		name = 'calcDT',
-		depends = table{
-			'solver.solver_t',
-			'eqn.prim-cons',
-			'eqn.guiVars.compileTime',
-			'normal_t',
-		},
-		code = self:template[[
-<? if require 'hydro.solver.gridsolver'.is(solver) then ?>
-
-kernel void calcDT(
-	constant <?=solver.solver_t?>* solver,
-	global real* dtBuf,
-	const global <?=eqn.cons_t?>* UBuf,
-	const global <?=solver.coord.cell_t?>* cellBuf
-) {
-	SETBOUNDS(0,0);
-	if (OOB(numGhost,numGhost)) {
-		dtBuf[index] = INFINITY;
-		return;
-	}
-	real3 x = cellBuf[index].pos;
-
-	const global <?=eqn.cons_t?>* U = UBuf + index;
-	<?=eqn.prim_t?> W = primFromCons(solver, *U, x);
-	real Cs = calc_Cs(solver, &W);
-
-	real dt = INFINITY;
-	<? for side=0,solver.dim-1 do ?>{
-<? 
-if solver.coord.vectorComponent == 'cartesian' 
-and not require 'hydro.coord.cartesian'.is(solver.coord)
-then 
-?>		real dx = cell_dx<?=side?>(x); 
-<? else 
-?>		real dx = solver->grid_dx.s<?=side?>;
-<? end 
-?>
-		if (dx > 1e-7) {
-			//use cell-centered eigenvalues
-			real v_n = normal_vecDotN1(normal_forSide<?=side?>(x), W.v);
-			real lambdaMin = v_n - Cs;
-			real lambdaMax = v_n + Cs;
-			real absLambdaMax = max(fabs(lambdaMin), fabs(lambdaMax));
-			absLambdaMax = max((real)1e-9, absLambdaMax);
-			//TODO this should be based on coord + vectorComponent 
-			//non-cartesian coord + cartesian component uses |u(x+dx)-u(x)|
-			dt = (real)min(dt, dx / absLambdaMax);
-		}
-	}<? end ?>
-	dtBuf[index] = dt;
-}
-
-<? else -- mesh solver ?>
-
-kernel void calcDT(
-	constant <?=solver.solver_t?>* solver,
-	global real* dtBuf,					//[numCells]
-	const global <?=eqn.cons_t?>* UBuf,	//[numCells]
-	const global <?=solver.coord.cell_t?>* cellBuf,		//[numCells]
-	const global <?=solver.coord.face_t?>* faces,			//[numFaces]
-	const global int* cellFaceIndexes	//[numCellFaceIndexes]
-) {
-	int cellIndex = get_global_id(0);
-	if (cellIndex >= get_global_size(0)) return;
-	
-	const global <?=eqn.cons_t?>* U = UBuf + cellIndex;
-	const global <?=solver.coord.cell_t?>* cell = cellBuf + cellIndex;
-	real3 x = cell->pos;
-
-	real dt = INFINITY;
-	for (int i = 0; i < cell->faceCount; ++i) {
-		const global <?=solver.coord.face_t?>* face = faces + cellFaceIndexes[i + cell->faceOffset];
-		real dx = face->area;
-		if (dx > 1e-7 && face->cells.x != -1 && face->cells.y != -1) {
-			//all sides? or only the most prominent side?
-			//which should we pick eigenvalues from?
-			//use cell-centered eigenvalues
-			normal_t n = normal_forFace(face);
-			<?=eqn:consWaveCodePrefix('n', '*U', 'x')?>
-			real lambdaMin = <?=eqn:consMinWaveCode('n', '*U', 'x')?>;
-			real lambdaMax = <?=eqn:consMaxWaveCode('n', '*U', 'x')?>;
-			real absLambdaMax = max(fabs(lambdaMin), fabs(lambdaMax));
-			absLambdaMax = max((real)1e-9, absLambdaMax);
-			dt = (real)min(dt, dx / absLambdaMax);
-		}
-	}
-	dtBuf[cellIndex] = dt;
-}
-
-
-<? end -- mesh vs grid solver ?>
-]],
-	}
-end
-
-function Euler:getModuleDependsSolver() 
-	return table{
-		'eqn.prim-cons',
-		'normal_t',
-		'coord_lower',
-	}:append(
-		not require 'hydro.coord.cartesian'.is(self.solver.coord)
-		and	{
-			'coord_conn_apply13',
-			'coord_conn_apply23',
-			'coord_conn_trace23',
-		} or nil
-	)
-end
 
 return Euler
 

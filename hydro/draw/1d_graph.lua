@@ -12,7 +12,10 @@ local Draw = require 'hydro.draw.draw'
 
 local Draw1D = class(Draw)
 
-function Draw1D:showDisplayVar(app, solver, var)
+function Draw1D:showDisplayVar(var)
+	local solver = self.solver
+	local app = self.solver.app
+	
 	local valueMin, valueMax
 	if var.heatMapFixedRange then
 		valueMin = var.heatMapValueMin
@@ -42,7 +45,7 @@ function Draw1D:showDisplayVar(app, solver, var)
 	local tex = solver:getTex(var)
 	tex:bind()
 	
-	self:setupDisplayVarShader(shader, app, solver, var, valueMin, valueMax)
+	self:setupDisplayVarShader(shader, var, valueMin, valueMax)
 
 	gl.glUniform1f(uniforms.ambient.loc, 1)
 
@@ -92,7 +95,10 @@ function Draw1D:showDisplayVar(app, solver, var)
 	shader:useNone()
 end
 
-function Draw1D:display(app, solvers, varName, ar, xmin, xmax, ymin, ymax, useLog, valueMin, valueMax)
+function Draw1D:display(varName, ar, xmin, xmax, ymin, ymax, useLog, valueMin, valueMax)
+	local solver = self.solver
+	local app = solver.app
+
 	gl.glMatrixMode(gl.GL_PROJECTION)
 	gl.glLoadIdentity()
 	gl.glOrtho(xmin, xmax, ymin, ymax, -1, 1)
@@ -130,77 +136,76 @@ function Draw1D:display(app, solvers, varName, ar, xmin, xmax, ymin, ymax, useLo
 	gl.glEnd()
 	
 	-- display here
-	for _,solver in ipairs(solvers) do
-		local var = solver.displayVarForName[varName]
-		if var and var.enabled then
-			self:prepareShader(solver)
-			self:showDisplayVar(app, solver, var)
-	
+	local var = solver.displayVarForName[varName]
+	if var and var.enabled then
+		self:prepareShader()
+		self:showDisplayVar(var)
 
-			local unitScale = 1
-			local valueMin = valueMin
-			local valueMax = valueMax
-			local varName = varName
-			if var.showInUnits and var.units then
-				unitScale = solver:convertToSIUnitsCode(var.units).func()
-				valueMin = valueMin * unitScale
-				valueMax = valueMax * unitScale
-				varName = varName..' ('..var.units..')'
-			end
+		local unitScale = 1
+		local valueMin = valueMin
+		local valueMax = valueMax
+		local varName = varName
+		if var.showInUnits and var.units then
+			unitScale = solver:convertToSIUnitsCode(var.units).func()
+			valueMin = valueMin * unitScale
+			valueMax = valueMax * unitScale
+			varName = varName..' ('..var.units..')'
+		end
 
-			-- this has already been done
-			-- but same with other draw objs, they are setting up the view multiple times
-			-- the dif is, Draw1D doesn't use self.orthoView ...
-			-- TODO fix that?
-			-- also notice: ymin/ymax has already been log()'d
-			--self.orthoView:projection(ar)
-			--self.orthoView:modelview()
-			--local xmin, xmax, ymin, ymax = self.orthoView:getOrthoBounds(ar)
-			
-			if app.font then
-				-- gradient uses 0.025
-				local fontSizeX = (xmax - xmin) * .05
-				local fontSizeY = (ymax - ymin) * .05
-				-- 1D:
-				local ystep = ystep * 2
-				-- Gradient:
-				--local ystep = 10^(math.log(ymax - ymin, 10) - 1.5)
-				for y=math.floor(ymin/ystep)*ystep,math.ceil(ymax/ystep)*ystep,ystep do
-					-- 1D uses value = y
-					local value = y
-					-- Gradient linearly maps valueMin/Max to ymin/max
-					if useLog then
-						value = 10^value
-					end
-					value = value * unitScale
-					local absvalue = math.abs(value)
-					app.font:draw{
-						pos={xmin * .9 + xmax * .1, y + fontSizeY * .5},
-						text=(
-							(absvalue > 1e+5 or absvalue < 1e-5)
-							and ('%.5e'):format(value) or ('%.5f'):format(value)),
-						color = {1,1,1,1},
-						fontSize={fontSizeX, -fontSizeY},
-						multiLine=false,
-					}
+		-- this has already been done
+		-- but same with other draw objs, they are setting up the view multiple times
+		-- the dif is, Draw1D doesn't use self.orthoView ...
+		-- TODO fix that?
+		-- also notice: ymin/ymax has already been log()'d
+		--self.orthoView:projection(ar)
+		--self.orthoView:modelview()
+		--local xmin, xmax, ymin, ymax = self.orthoView:getOrthoBounds(ar)
+		
+		if app.font then
+			-- gradient uses 0.025
+			local fontSizeX = (xmax - xmin) * .05
+			local fontSizeY = (ymax - ymin) * .05
+			-- 1D:
+			local ystep = ystep * 2
+			-- Gradient:
+			--local ystep = 10^(math.log(ymax - ymin, 10) - 1.5)
+			for y=math.floor(ymin/ystep)*ystep,math.ceil(ymax/ystep)*ystep,ystep do
+				-- 1D uses value = y
+				local value = y
+				-- Gradient linearly maps valueMin/Max to ymin/max
+				if useLog then
+					value = 10^value
 				end
+				value = value * unitScale
+				local absvalue = math.abs(value)
 				app.font:draw{
-					pos={xmin, ymax},
-					-- 1D:
-					text=('%s [%.3e, %.3e]'):format(varName, valueMin, valueMax),
-					-- Gradient:
-					--text = varName,
+					pos={xmin * .9 + xmax * .1, y + fontSizeY * .5},
+					text=(
+						(absvalue > 1e+5 or absvalue < 1e-5)
+						and ('%.5e'):format(value) or ('%.5f'):format(value)),
 					color = {1,1,1,1},
 					fontSize={fontSizeX, -fontSizeY},
 					multiLine=false,
 				}
 			end
+			app.font:draw{
+				pos={xmin, ymax},
+				-- 1D:
+				text=('%s [%.3e, %.3e]'):format(varName, valueMin, valueMax),
+				-- Gradient:
+				--text = varName,
+				color = {1,1,1,1},
+				fontSize={fontSizeX, -fontSizeY},
+				multiLine=false,
+			}
 		end
 	end
 end
 
 -- also in 2d_graph.lua.  subclass?
-function Draw1D:prepareShader(solver)
+function Draw1D:prepareShader()
+	local solver = self.solver
+
 	if solver.graphShader then return end
 	
 	local graphShaderCode = assert(file['hydro/draw/graph.shader'])

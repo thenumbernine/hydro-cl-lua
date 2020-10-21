@@ -9,8 +9,8 @@ local varying = vertexShader and 'out'
 
 uniform float ambient;
 
-<?=draw:getModuleCodeGLSL(solver, "coordMapGLSL", "coordMapInvGLSL")?>
-<?=draw:getCommonGLSLFragCode(solver)?>
+<?=draw:getModuleCodeGLSL("coordMapGLSL", "coordMapInvGLSL")?>
+<?=draw:getCommonGLSLFragCode()?>
 
 <? if vertexShader then ?>
 in vec3 gridCoord;

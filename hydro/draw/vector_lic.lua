@@ -11,7 +11,10 @@ local DrawVectorLIC = class(Draw)
 
 DrawVectorLIC.integralMaxIter = 10
 
-function DrawVectorLIC:drawSolverWithVar(app, solver, var, shader, xmin, xmax, ymin, ymax)
+function DrawVectorLIC:drawSolverWithVar(var, shader, xmin, xmax, ymin, ymax)
+	local solver = self.solver
+	local app = solver.app
+
 -- hmm ... this is needed for sub-solvers
 local origSolver = var.solver
 var.solver = solver
@@ -42,7 +45,10 @@ var.solver = solver
 var.solver = origSolver
 end
 
-function DrawVectorLIC:showDisplayVar(app, solver, var, varName, ar, xmin, xmax, ymin, ymax)
+function DrawVectorLIC:showDisplayVar(var, varName, ar, xmin, xmax, ymin, ymax)
+	local solver = self.solver
+	local app = solver.app
+
 	-- TODO allow a fixed, manual colormap range
 	-- NOTICE with AMR this will only get from the root node
 	--  which should at least have blitters of the children
@@ -89,7 +95,7 @@ function DrawVectorLIC:showDisplayVar(app, solver, var, varName, ar, xmin, xmax,
 	shader:use()
 	app.gradientTex:bind(1)
 
-	self:setupDisplayVarShader(shader, app, solver, var, valueMin, valueMax)
+	self:setupDisplayVarShader(shader, var, valueMin, valueMax)
 
 	if shader.uniforms.integralMaxIter then
 		gl.glUniform1i(shader.uniforms.integralMaxIter.loc, self.integralMaxIter)
@@ -98,13 +104,16 @@ function DrawVectorLIC:showDisplayVar(app, solver, var, varName, ar, xmin, xmax,
 	gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
 	gl.glEnable(gl.GL_BLEND)
 	
-	self:drawSolverWithVar(app, solver, var, shader, xmin, xmax, ymin, ymax)
+	self:drawSolverWithVar(var, shader, xmin, xmax, ymin, ymax)
 
 -- [[
 	if solver.amr then
+		local tmp = self.solver
 		for k,subsolver in pairs(solver.amr.child) do
-			self:drawSolverWithVar(app, subsolver, var, shader, xmin, xmax, ymin, ymax)
+			self.solver = subsolver
+			self:drawSolverWithVar(var, shader, xmin, xmax, ymin, ymax)
 		end
+		self.solver = tmp 
 	end
 --]]
 
@@ -122,7 +131,10 @@ function DrawVectorLIC:showDisplayVar(app, solver, var, varName, ar, xmin, xmax,
 --	gl.glEnable(gl.GL_DEPTH_TEST)
 end
 
-function DrawVectorLIC:display(app, solvers, varName, ar, graph_xmin, graph_xmax, graph_ymin, graph_ymax)
+function DrawVectorLIC:display(varName, ar, graph_xmin, graph_xmax, graph_ymin, graph_ymax)
+	local solver = self.solver
+	local app = solver.app
+
 	app.view:setup(ar)
 	
 	if app.view.getOrthoBounds then
@@ -167,19 +179,19 @@ function DrawVectorLIC:display(app, solvers, varName, ar, graph_xmin, graph_xmax
 			
 	-- NOTICE overlays of multiple solvers won't be helpful.  It'll just draw over the last solver.
 	-- I've got to rethink the visualization
-	for _,solver in ipairs(solvers) do 
-		if not require 'hydro.solver.meshsolver'.is(solver) then
-			local var = solver.displayVarForName[varName]
-			if var and var.enabled then
-				self:prepareShader(solver)
-				self:showDisplayVar(app, solver, var, varName, ar, xmin, xmax, ymin, ymax)
-			end
+	if not require 'hydro.solver.meshsolver'.is(solver) then
+		local var = solver.displayVarForName[varName]
+		if var and var.enabled then
+			self:prepareShader()
+			self:showDisplayVar(var, varName, ar, xmin, xmax, ymin, ymax)
 		end
 	end
 --	gl.glDisable(gl.GL_DEPTH_TEST)
 end
 
-function DrawVectorLIC:prepareShader(solver)
+function DrawVectorLIC:prepareShader()
+	local solver = self.solver
+
 	if solver.vectorLICShader then return end
 	
 	local vectorLICCode = assert(file['hydro/draw/vector_lic.shader'])

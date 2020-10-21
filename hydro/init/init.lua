@@ -100,6 +100,8 @@ function InitCond:initCodeModules(solver)
 	}
 
 	local eqn = solver.eqn
+	
+	-- depends of applyInitCond:
 	eqn.codeDepends = table{
 		-- if an InitCond provides codeprefix, it is for code it expects to reference from within 'applyInitCond()'
 		'initCond.codeprefix',
@@ -107,6 +109,7 @@ function InitCond:initCodeModules(solver)
 		'solver.solver_t',
 		'initCond.initCond_t',
 		'eqn.cons_t',
+		'coord.cell_t',
 		'initCond.guiVars.compileTime',
 		'INDEX', 'INDEXV', 'OOB', 'SETBOUNDS',
 		-- initCond code is specified in terms of primitives, so if the eqn has prim<->cons then it will be needed

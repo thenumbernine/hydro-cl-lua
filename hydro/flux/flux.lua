@@ -29,8 +29,11 @@ function Flux:getModuleDepends_calcFlux()
 		'eqn.cons_t',
 		'eqn.waves_t',
 		'normal_t',
-		'eqn.solvercode',
+		-- used by most subclasses:
 		'eqn.cons_parallelPropagate',
+		'math',	
+		'solver.macros',
+		'eqn.waveCode',
 	}
 end
 

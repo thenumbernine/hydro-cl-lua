@@ -256,14 +256,7 @@ function MHD:getModuleDependsApplyInitCond()
 	}
 end
 
-function MHD:getModuleDepends_calcDT()
-	return table(MHD.super.getModuleDepends_calcDT(self)):append{
-		'eqn.solvercode',	-- i.e. inline
-	}
-end
-
--- TODO change to eqn.waveCode
-function MHD:getModuleDependsSolver() 
+function MHD:getModuleDepends_waveCode() 
 	return {
 		'eqn.prim-cons',
 		'calcCellMinMaxEigenvalues',

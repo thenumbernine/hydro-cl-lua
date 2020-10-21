@@ -12,7 +12,12 @@ matrix_ffi.real = 'float'	-- default matrix_ffi type
 
 local Draw = class()
 
-function Draw:getCommonGLSLFragCode(solver)
+function Draw:init(solver)
+	self.solver = assert(solver)
+end
+
+function Draw:getCommonGLSLFragCode()
+	local solver = self.solver
 	return template([[
 #define _1_LN_10 	<?=('%.50f'):format(1/math.log(10))?>
 
@@ -174,7 +179,10 @@ vec4 quatConj(vec4 q) {
 	})
 end
 
-function Draw:setupDisplayVarShader(shader, app, solver, var, valueMin, valueMax)
+function Draw:setupDisplayVarShader(shader, var, valueMin, valueMax)
+	local solver = self.solver
+	local app = solver.app
+
 	local uniforms = shader.uniforms
 	if uniforms.displayDim then
 		gl.glUniform1i(uniforms.displayDim.loc, app.displayDim)
@@ -255,8 +263,8 @@ local function makeGLSL(code)
 	}:concat'\n'
 end
 
-function Draw:getModuleCodeGLSL(solver, ...)
-	return makeGLSL(solver.modules:getCodeAndHeader(...))
+function Draw:getModuleCodeGLSL(...)
+	return makeGLSL(self.solver.modules:getCodeAndHeader(...))
 end
 
 return Draw
