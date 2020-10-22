@@ -175,13 +175,8 @@ function MHD:initCodeModules()
 			'coordLenSq',
 		},
 
-		['eqn.prim-cons'] = {
-			'units',
-			'solver_t',
-			'prim_t',
-			'cons_t',
-			'coordLenSq',
-		},
+		['primFromCons'] = {},
+		['consFromPrim'] = {},
 
 		-- only used by PLM
 		['eqn.dU-dW'] = {
@@ -221,7 +216,7 @@ function MHD:initCodeModules()
 		
 		['eigen_forCell'] = {
 			'solver_t',
-			'eqn.prim-cons',	-- primFromCons
+			'primFromCons',	-- primFromCons
 			'normal_t',
 			'coordLenSq',
 			'eigen_forRoeAvgs',
@@ -249,7 +244,7 @@ function MHD:initCodeModulePrimCons() end
 
 function MHD:getModuleDepends_waveCode() 
 	return {
-		'eqn.prim-cons',
+		'primFromCons',
 		'calcCellMinMaxEigenvalues',
 	}
 end

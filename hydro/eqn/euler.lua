@@ -97,7 +97,8 @@ end
 function Euler:initCodeModules()
 	Euler.super.initCodeModules(self)
 	for moduleName, depends in pairs{
-		['eqn.prim-cons'] = {},
+		['primFromCons'] = {},
+		['consFromPrim'] = {},
 		['eqn.dU-dW'] = {},
 		['eqn.common'] = {},
 		['fluxFromCons'] = {},
@@ -127,7 +128,7 @@ function Euler:initCodeModule_calcDT()
 			'OOB',
 			'SETBOUNDS',
 			'solver_t',
-			'eqn.prim-cons',
+			'primFromCons',
 			'eqn.guiVars.compileTime',
 			'normal_t',
 		},

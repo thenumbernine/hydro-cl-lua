@@ -39,7 +39,15 @@ real3 calc_CA(constant <?=solver.solver_t?>* solver, <?=eqn.cons_t?> U) {
 	return real3_real_mul(U.B, 1./sqrt(U.rho * solver->mu0 / unit_kg_m_per_C2));
 }
 
-<? elseif moduleName == "eqn.prim-cons" then ?>
+<? elseif moduleName == "primFromCons" then 
+depmod{
+	"units",
+	"solver_t",
+	"prim_t",
+	"cons_t",
+	"coordLenSq",
+}
+?>
 
 <?=eqn.prim_t?> primFromCons(
 	constant <?=solver.solver_t?>* solver,
@@ -62,6 +70,16 @@ real3 calc_CA(constant <?=solver.solver_t?>* solver, <?=eqn.cons_t?> U) {
 	W.ePot = U.ePot;
 	return W;
 }
+
+<? elseif moduleName == "consFromPrim" then 
+depmod{
+	"units",
+	"solver_t",
+	"prim_t",
+	"cons_t",
+	"coordLenSq",
+}
+?>
 
 <?=eqn.cons_t?> consFromPrim(
 	constant <?=solver.solver_t?>* solver,

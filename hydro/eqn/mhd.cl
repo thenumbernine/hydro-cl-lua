@@ -10,7 +10,16 @@ typedef <?=eqn.prim_t?> prim_t;
 typedef <?=solver.coord.cell_t?> cell_t;
 
 <? if moduleName == nil then ?>
-<? elseif moduleName == "eqn.prim-cons" then ?>
+<? elseif moduleName == "primFromCons" then 
+depmod{
+	"units",
+	"real3",
+	"solver_t",
+	"prim_t",
+	"cons_t",
+	"coordLenSq",
+}
+?>
 
 <?=eqn.prim_t?> primFromCons(
 	constant <?=solver.solver_t?>* solver,
@@ -34,6 +43,17 @@ typedef <?=solver.coord.cell_t?> cell_t;
 	return W;
 }
 
+<? elseif moduleName == "consFromPrim" then 
+depmod{
+	"units",
+	"real3",
+	"solver_t",
+	"prim_t",
+	"cons_t",
+	"coordLenSq",
+}
+?>
+
 <?=eqn.cons_t?> consFromPrim(
 	constant <?=solver.solver_t?>* solver,
 	<?=eqn.prim_t?> W,
@@ -54,7 +74,15 @@ typedef <?=solver.coord.cell_t?> cell_t;
 	return U;
 }
 
-<? elseif moduleName == "eqn.dU-dW" then ?>
+<? elseif moduleName == "eqn.dU-dW" then 
+depmod{
+	"units",
+	"real3",
+	"solver_t",
+	"prim_t",
+	"cons_t",
+}
+?>
 
 <?=eqn.cons_t?> apply_dU_dW(
 	constant <?=solver.solver_t?>* solver,
@@ -100,7 +128,12 @@ typedef <?=solver.coord.cell_t?> cell_t;
 }
 
 
-<? elseif moduleName == "cons_rotateFrom" then ?>
+<? elseif moduleName == "cons_rotateFrom" then 
+depmod{
+	"cons_t",
+	"normal_t",
+}
+?>
 
 //align from vector coordinates to the normal basis
 cons_t cons_rotateFrom(cons_t U, normal_t n) {
@@ -109,7 +142,12 @@ cons_t cons_rotateFrom(cons_t U, normal_t n) {
 	return U;
 }
 
-<? elseif moduleName == "cons_rotateTo" then ?>
+<? elseif moduleName == "cons_rotateTo" then 
+depmod{
+	"cons_t",
+	"normal_t",
+}
+?>
 
 //align from normal basis to vector coordinates
 cons_t cons_rotateTo(cons_t U, normal_t n) {
@@ -118,7 +156,12 @@ cons_t cons_rotateTo(cons_t U, normal_t n) {
 	return U;
 }
 
-<? elseif moduleName == "applyInitCond" then ?>
+<? elseif moduleName == "applyInitCond" then 
+depmod{
+	"cartesianToCoord",
+	"consFromPrim",
+}
+?>
 
 kernel void applyInitCond(
 	constant <?=solver.solver_t?>* solver,
@@ -163,7 +206,12 @@ end
 }
 
 
-<? elseif moduleName == "calcRoeValues" then ?>
+<? elseif moduleName == "calcRoeValues" then 
+depmod{
+	"primFromCons",
+	"roe_t",
+}
+?>
 
 // TODO find out where mu_0 goes in the code below
 
@@ -212,7 +260,11 @@ roe_t calcRoeValues(
 	return W;
 };
 
-<? elseif moduleName == "eigen_forRoeAvgs" then ?>
+<? elseif moduleName == "eigen_forRoeAvgs" then 
+depmod{
+	"roe_t",
+}
+?>
 
 typedef <?=eqn.roe_t?> roe_t;
 typedef <?=eqn.eigen_t?> eigen_t;
@@ -316,7 +368,12 @@ eigen_t eigen_forRoeAvgs(
 	return eig;
 }
 
-<? elseif moduleName == "eqn.common" then ?>
+<? elseif moduleName == "eqn.common" then 
+depmod{
+	"units",
+	"coordLenSq",
+}
+?>
 
 real calc_eKin(<?=eqn.prim_t?> W, real3 x) { 
 	return .5 * coordLenSq(W.v, x);
@@ -395,7 +452,17 @@ real3 calc_CA(constant <?=solver.solver_t?>* solver, <?=eqn.cons_t?> U) {
 	return real3_real_mul(U.B, 1./sqrt(U.rho * solver->mu0 / unit_kg_m_per_C2));
 }
 
-<? elseif moduleName == "fluxFromCons" then ?>
+<? elseif moduleName == "fluxFromCons" then 
+depmod{
+	"units",
+	"solver_t",
+	"cons_t",
+	"prim_t",
+	"primFromCons",
+	"normal_t",
+	"coordLenSq",
+}
+?>
 
 <?=eqn.cons_t?> fluxFromCons(
 	constant <?=solver.solver_t?>* solver,
@@ -425,7 +492,13 @@ real3 calc_CA(constant <?=solver.solver_t?>* solver, <?=eqn.cons_t?> U) {
 	return F;
 }
 
-<? elseif moduleName == "calcCellMinMaxEigenvalues" then ?>
+<? elseif moduleName == "calcCellMinMaxEigenvalues" then 
+depmod{
+	"range_t",
+	"cons_rotateFrom",
+	"primFromCons",
+}
+?>
 
 //called from calcDT
 range_t calcCellMinMaxEigenvalues(
@@ -509,7 +582,14 @@ range_t calcCellMinMaxEigenvalues(
 #endif
 }
 
-<? elseif moduleName == "eigen_forInterface" then ?>
+<? elseif moduleName == "eigen_forInterface" then 
+depmod{
+	"roe_t",
+	"cons_rotateFrom",
+	"calcRoeValues",
+	"eigen_forRoeAvgs",
+}
+?>
 
 typedef <?=eqn.roe_t?> roe_t;
 typedef <?=eqn.eigen_t?> eigen_t;
@@ -530,7 +610,14 @@ eigen_t eigen_forInterface(
 	return eigen_forRoeAvgs(solver, roe, x);
 }
 
-<? elseif moduleName == "eigen_left/rightTransform" then ?>
+<? elseif moduleName == "eigen_left/rightTransform" then 
+depmod{
+	"eigen_t",
+	"waves_t",
+	"cons_rotateFrom",
+	"cons_rotateTo",
+}
+?>
 
 typedef <?=eqn.eigen_t?> eigen_t;
 typedef <?=eqn.waves_t?> waves_t;
@@ -812,7 +899,12 @@ cons_t eigen_fluxTransform(
 	return cons_rotateTo(resultU, n);
 }
 
-<? elseif moduleName == "eigen_forCell" then ?>
+<? elseif moduleName == "eigen_forCell" then 
+depmod{
+	"roe_t",
+	"primFromCons",
+}
+?>
 
 typedef <?=eqn.roe_t?> roe_t;
 typedef <?=eqn.eigen_t?> eigen_t;
@@ -837,7 +929,12 @@ eigen_t eigen_forCell(
 	return eigen_forRoeAvgs(solver, roe, x);
 }
 
-<? elseif moduleName == "addSource" then ?>
+<? elseif moduleName == "addSource" then 
+depmod{
+	"units",
+	"primFromCons",
+}
+?>
 
 kernel void addSource(
 	constant solver_t* solver,
@@ -862,7 +959,12 @@ kernel void addSource(
 <? end ?>
 }
 
-<? elseif moduleName == "constrainU" then ?>
+<? elseif moduleName == "constrainU" then 
+depmod{
+	"consFromPrim",
+	"primFromCons",
+}
+?>
 
 kernel void constrainU(
 	constant solver_t* solver,

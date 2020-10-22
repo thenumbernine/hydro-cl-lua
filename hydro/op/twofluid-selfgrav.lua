@@ -1,9 +1,16 @@
 local class = require 'ext.class'
+local table = require 'ext.table'
 local template = require 'template'
 local SelfGrav = require 'hydro.op.selfgrav'
 local TwoFluidSelfGrav = class(SelfGrav)
 
 TwoFluidSelfGrav.name = 'TwoFluidSelfGrav'
+
+function TwoFluidSelfGrav:getModuleDepends_Poisson()
+	return table(TwoFluidSelfGrav.super.getModuleDepends_Poisson(self)):append{
+		'cell_x',
+	}
+end
 
 function TwoFluidSelfGrav:getPoissonDivCode()
 	return [[

@@ -514,7 +514,7 @@ end
 
 	self:initCodeModuleCommon()	-- eqn.common
 
-	-- init eqn.prim-cons
+	-- init primFromCons and consFromPrim
 	-- prim-cons should have access to all ... prefix stuff?
 	-- but initstate has access to it
 	self:initCodeModulePrimCons()
@@ -823,12 +823,8 @@ function Equation:initCodeModulePrimCons()
 	assert(not self.primStruct, "if you're using the default prim<->cons code then you shouldn't have any primStruct")
 
 	self.solver.modules:add{
-		name = 'eqn.prim-cons',
-		depends = {
-			'solver_t',
-			'prim_t',
-			'cons_t',
-		},
+		name = 'primFromCons',
+		--depends = {'solver_t', 'prim_t', 'cons_t'},
 		code = self:template[[
 #define primFromCons(solver, U, x)	U
 /*
@@ -840,7 +836,13 @@ function Equation:initCodeModulePrimCons()
 	return U; 
 }
 */
-
+]],
+	}
+	
+	self.solver.modules:add{
+		name = 'consFromPrim',
+		--depends = {'solver_t', 'prim_t', 'cons_t'},
+		code = self:template[[
 #define consFromPrim(solver, W, x)	W
 /*
 <?=eqn.cons_t?> consFromPrim(
@@ -857,11 +859,7 @@ function Equation:initCodeModulePrimCons()
 	-- only used by PLM
 	self.solver.modules:add{
 		name = 'eqn.dU-dW',
-		depends = {
-			'solver_t',
-			'prim_t',
-			'cons_t',
-		},
+		--depends = {'solver_t', 'prim_t', 'cons_t'},
 		code = self:template[[
 /*
 WA = W components that make up the jacobian matrix

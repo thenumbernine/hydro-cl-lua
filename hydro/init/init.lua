@@ -113,7 +113,7 @@ function InitCond:initCodeModules(solver)
 		'initCond.guiVars.compileTime',
 		'INDEX', 'INDEXV', 'OOB', 'SETBOUNDS',
 		-- initCond code is specified in terms of primitives, so if the eqn has prim<->cons then it will be needed
-		'eqn.prim-cons',
+		'consFromPrim',
 	}
 	:append(self.depends)
 	

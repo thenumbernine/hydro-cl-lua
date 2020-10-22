@@ -45,7 +45,7 @@ function EulerBurgers:createEqn()
 			name = 'calcDT',
 			depends = {
 				'solver_t',
-				'eqn.prim-cons',
+				'primFromCons',
 				'eqn.guiVars.compileTime',
 			},
 			code = self:template[[
@@ -127,9 +127,11 @@ function EulerBurgers:initCodeModules()
 	self.modules:add{
 		name = 'EulerBurgers.solver',
 		depends = {
-			'eqn.prim-cons',
+			'primFromCons',
 			'fluxLimiter',
 			'eigen_forInterface',
+			'SETBOUNDS',
+			'cell_x',
 		},
 		code = template(file['hydro/solver/euler-burgers.cl'], {solver=self, eqn=self.eqn}),
 	}

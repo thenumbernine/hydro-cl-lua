@@ -1,11 +1,221 @@
-<? for side=0,solver.dim-1 do ?>
-<?=eqn.cons_t?> fluxFromCons_<?=side?>(
+<? if moduleName == nil then ?>
+<? elseif moduleName == "primFromCons" then 
+depmod{
+	"prim_t",
+	"cons_t",
+	"coordLenSq",
+}
+?>
+
+<?=eqn.prim_t?> primFromCons(
 	constant <?=solver.solver_t?>* solver,
 	<?=eqn.cons_t?> U,
 	real3 x
 ) {
+	real3 vTilde = real3_real_mul(U.rhoBar_vTilde, 1. / U.rhoBar);
+	real vTildeSq = coordLenSq(vTilde, x);
+	real rhoBar_eIntTilde = U.rhoBar_eTotalTilde - .5 * U.rhoBar * vTildeSq - U.rhoBar_k;
+	real rhoBar_TTilde = rhoBar_eIntTilde / solver->C_v;
+	real PBar = rhoBar_TTilde * solver->gasConstant;
+	real PStar = PBar + 2./3. * U.rhoBar_k;
+	
+	return (<?=eqn.prim_t?>){
+		.rhoBar = U.rhoBar,
+		.vTilde = vTilde,
+		.PStar = PStar,
+		.k = U.rhoBar_k / U.rhoBar,
+		.omega = U.rhoBar_omega / U.rhoBar,
+		.ePot = U.ePot,
+	};
+}
+
+<? elseif moduleName == "consFromPrim" then 
+depmod{
+	"prim_t",
+	"cons_t",
+	"coordLenSq",
+}
+?>
+
+<?=eqn.cons_t?> consFromPrim(
+	constant <?=solver.solver_t?>* solver,
+	<?=eqn.prim_t?> W,
+	real3 x
+) {
+	real rhoBar_k = W.rhoBar * W.k;
+
+	//eqn 6: PStar = PBar + 2/3 rhoBar k
+	real PBar = W.PStar - 2./3. * rhoBar_k;
+
+	//eqn 10: PBar = rhoBar R TTilde
+	real TTilde = PBar / (W.rhoBar * solver->gasConstant);
+	
+	//eqn 6: eIntTilde = C_v TTilde
+	real eIntTilde = solver->C_v * TTilde;
+	
+	//eqn 6: eTotalTilde = eIntTilde + 1/2 vTilde^2 + W.k
+	//so eTotalTilde = C_v PStar / rhoBar + 1/2 vTilde^2 + (1 - 2/3 C_v / solver->gasConstant) k
+	real eTotalTilde = eIntTilde + .5 * coordLenSq(W.vTilde, x) + W.k;
+	
+	return (<?=eqn.cons_t?>){
+		.rhoBar = W.rhoBar,
+		.rhoBar_vTilde = real3_real_mul(W.vTilde, W.rhoBar),
+		.rhoBar_eTotalTilde = W.rhoBar * eTotalTilde,
+		.rhoBar_k = rhoBar_k,
+		.rhoBar_omega = W.rhoBar * W.omega,
+		.ePot = W.ePot,
+	};
+}
+
+<? elseif moduleName == "eqn.dU-dW" then 
+depmod{
+	"real3",
+	"solver_t",
+	"prim_t",
+	"cons_t",
+	"coord_lower",
+}
+?>
+
+<?=eqn.cons_t?> apply_dU_dW(
+	constant <?=solver.solver_t?>* solver,
+	<?=eqn.prim_t?> WA, 
+	<?=eqn.prim_t?> W, 
+	real3 x
+) {
+	real3 WA_vTildeL = coord_lower(WA.vTilde, x);
+	return (<?=eqn.cons_t?>){
+		.rhoBar = W.rhoBar,
+		.rhoBar_vTilde = real3_add(
+			real3_real_mul(WA.vTilde, W.rhoBar), 
+			real3_real_mul(W.vTilde, WA.rhoBar)),
+		.rhoBar_eTotalTilde = W.rhoBar * (.5 * real3_dot(WA.vTilde, WA_vTildeL) 
+				+ (1. - 2./3. * C_v_over_R) * WA.k)
+			+ WA.rhoBar * real3_dot(W.vTilde, WA_vTildeL)
+			+ W.PStar * C_v_over_R
+			+ (1. - 2./3 * C_v_over_R) * WA.rhoBar * W.k,
+		.rhoBar_k = WA.k * W.rhoBar + WA.rhoBar * W.k,
+		.rhoBar_omega = WA.omega * W.rhoBar + WA.rhoBar * W.omega,
+		.ePot = W.ePot,
+	};
+}
+
+<?=eqn.prim_t?> apply_dW_dU(
+	constant <?=solver.solver_t?>* solver,
+	<?=eqn.prim_t?> WA,
+	<?=eqn.cons_t?> U,
+	real3 x
+) {
+	real3 WA_vTildeL = coord_lower(WA.vTilde, x);
+	return (<?=eqn.prim_t?>){
+		.rhoBar = U.rhoBar,
+		.vTilde = real3_sub(
+			real3_real_mul(U.rhoBar_vTilde, 1. / WA.rhoBar),
+			real3_real_mul(WA.vTilde, U.rhoBar / WA.rhoBar)),
+		.PStar = R_over_C_v * (
+				.5 * real3_dot(WA.vTilde, WA_vTildeL) * U.rhoBar 
+				- real3_dot(U.rhoBar_vTilde, WA_vTildeL)
+				+ U.rhoBar_eTotalTilde
+			) + (2./3. * R_over_C_v - 1.) * U.rhoBar_k,
+		.k = U.rhoBar_k / WA.rhoBar - WA.k / WA.rhoBar * U.rhoBar,
+		.omega = U.rhoBar_omega / WA.rhoBar - WA.omega / WA.rhoBar * U.rhoBar,
+		.ePot = U.ePot,
+	};
+}
+
+<? elseif moduleName == "eqn.common" then ?>
+
+#define R_over_C_v (solver->gasConstant / solver->C_v)
+#define C_v_over_R (solver->C_v / solver->gasConstant)
+
+//real calc_H(real PStar) { return PStar * ((R_over_C_v + 1.) / (R_over_C_v)); }
+//real calc_h(real rhoBar, real PStar) { return calc_H(PStar) / rhoBar; }
+//real calc_hTotal(real rhoBar, real PStar, real rhoBar_eTotalTilde) { return (PStar + rhoBar_eTotalTilde) / rhoBar; }
+//real calc_HTotal(real PStar, real rhoBar_eTotalTilde) { return PStar + rhoBar_eTotalTilde; }
+real calc_eKinTilde(<?=eqn.prim_t?> W, real3 x) { return .5 * coordLenSq(W.vTilde, x); }
+real calc_EKinTilde(<?=eqn.prim_t?> W, real3 x) { return W.rhoBar * calc_eKinTilde(W, x); }
+
+//before
+//real calc_EIntTilde(<?=eqn.prim_t?> W) { return W.PStar * C_v_over_R; }
+//real calc_eIntTilde(<?=eqn.prim_t?> W) { return calc_EIntTilde(W) / W.rhoBar; }
+
+//after
+real calc_PBar(<?=eqn.prim_t?> W) { return W.PStar - 2./3. * W.rhoBar * W.k; }
+real calc_TTilde(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W) { return calc_PBar(W) / (W.rhoBar * solver->gasConstant); }
+real calc_eIntTilde(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W) { return solver->C_v * calc_TTilde(solver, W); }
+real calc_EIntTilde(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W) { return W.rhoBar * calc_eIntTilde(solver, W); }
+
+real calc_EKin_fromCons(<?=eqn.cons_t?> U, real3 x) { return .5 * coordLenSq(U.rhoBar_vTilde, x) / U.rhoBar; }
+real calc_ETotal(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W, real3 x) {
+	return calc_EKinTilde(W, x) + calc_EIntTilde(solver, W);
+}
+
+real calc_Cs(constant <?=solver.solver_t?>* solver, const <?=eqn.prim_t?> W) {
+	return sqrt((R_over_C_v + 1.) * W.PStar / W.rhoBar);
+}
+
+<? elseif moduleName == "applyInitCond" then 
+depmod{
+	"cartesianToCoord",
+	"consFromPrim",
+}
+?>
+
+kernel void applyInitCond(
+	constant <?=solver.solver_t?>* solver,
+	constant <?=solver.initCond_t?>* initCond,
+	global <?=eqn.cons_t?>* UBuf,
+	const global <?=coord.cell_t?>* cellBuf
+) {
+	SETBOUNDS(0,0);
+	real3 x = cellBuf[index].pos;
+	real3 mids = real3_real_mul(real3_add(solver->mins, solver->maxs), .5);
+	bool lhs = true
+<?
+for i=1,solver.dim do
+	local xi = xNames[i]
+?>	&& x.<?=xi?> < mids.<?=xi?>
+<?
+end
+?>;
+	
+	real rho = 0;
+	real3 v = real3_zero;
+	real P = 0;
+	
+	//TODO make this B for Maxwell
+	
+	real3 B = real3_zero;	//set for MHD / thrown away for pure NavierStokesWilcox
+	real ePot = 0;
+
+	<?=initCode()?>
+
+	<?=eqn.prim_t?> W = {
+		.rhoBar = rho,
+		.vTilde = cartesianToCoord(v, x),	//transform from cartesian to coordinate space 
+		.PStar = P,
+		.k = 0,
+		.omega = 0,
+		.ePot = ePot,
+	};
+	UBuf[index] = consFromPrim(solver, W, x);
+}
+
+<? elseif moduleName == "fluxFromCons" then 
+depmod{
+	"coord_g_uu##",
+	"primFromCons",
+}
+?>
+
+<?=eqn.cons_t?> fluxFromCons(
+	constant <?=solver.solver_t?>* solver,
+	<?=eqn.cons_t?> U,
+	real3 x,
+	normal_t n
+) {
 	<?=eqn.prim_t?> W = primFromCons(solver, U, x);
-	real vTilde_j = W.vTilde.s<?=side?>;
+	real vTilde_j = W.vTilde.s[n.side];
 	
 	//this is the flux term used, but is it technically called 'HTotal' ?
 	//'HTotal' = rhoBar (1/2 vTilde^2 + (1 - 2/3/gamma_1) k) + 1/gamma_1 PStar ... + PStar
@@ -15,14 +225,19 @@
 	
 	<?=eqn.cons_t?> F;
 	
-	F.rhoBar = U.rhoBar_vTilde.s<?=side?>;
+	F.rhoBar = U.rhoBar_vTilde.s[n.side];
 	
 	F.rhoBar_vTilde = real3_real_mul(U.rhoBar_vTilde, vTilde_j);
 
+	if (false) {}
+<? for side=0,2 do ?>
+	else if (n.side == <?=side?>) {
 <? for i=0,2 do
 ?>	F.rhoBar_vTilde.s<?=i?> += coord_g_uu<?=i?><?=side?>(x) * W.PStar;
 <? end
-?>	
+?>	}
+<? end ?>
+
 	F.rhoBar_eTotalTilde = HTotal * vTilde_j;
 	
 	F.rhoBar_k = 0;
@@ -32,23 +247,40 @@
 	
 	return F;
 }
-<? end ?>
 
-<? for side=0,solver.dim-1 do ?>
-range_t calcCellMinMaxEigenvalues_<?=side?>(
+<? elseif moduleName == "calcCellMinMaxEigenvalues" then 
+depmod{
+	"coord_sqrt_g_uu##",
+	"primFromCons",
+	"eqn.common",
+}
+?>
+
+range_t calcCellMinMaxEigenvalues(
 	constant <?=solver.solver_t?>* solver,
 	const global <?=eqn.cons_t?>* U,
-	real3 x
+	real3 x,
+	normal_t n
 ) {
 	<?=eqn.prim_t?> W = primFromCons(solver, *U, x);
 	real Cs = calc_Cs(solver, W);
-	real Cs_sqrt_gU = Cs * coord_sqrt_g_uu<?=side..side?>(x);
-	return (range_t){
-		.min = W.vTilde.s<?=side?> - Cs_sqrt_gU, 
-		.max = W.vTilde.s<?=side?> + Cs_sqrt_gU,
-	};
-}
+	if (false) {}
+<? for side=0,2 do ?>
+	else if (n.side == <?=side?>) {
+		real Cs_sqrt_gU = Cs * coord_sqrt_g_uu<?=side..side?>(x);
+		return (range_t){
+			.min = W.vTilde.s<?=side?> - Cs_sqrt_gU, 
+			.max = W.vTilde.s<?=side?> + Cs_sqrt_gU,
+		};
+	}
 <? end ?>
+}
+
+<? elseif moduleName == "eigen_forInterface" then 
+depmod{
+	"primFromCons",
+}
+?>
 
 <?=eqn.eigen_t?> eigen_forInterface(
 	constant <?=solver.solver_t?>* solver,
@@ -114,6 +346,15 @@ Cs^2 = R/C_v (hTotalTilde - 1/2 vTilde^2 - (1 - 2/3 C_v/R) k)
 		.Cs = Cs,
 	};
 }
+
+<? elseif moduleName == "eigen_left/rightTransform" then 
+depmod{
+	"coord_g_uu",
+	"coord_g_uu##",
+	"coord_sqrt_g_uu##",
+	"coord_lower",
+}
+?>
 
 <?
 local prefixes = {}
@@ -396,6 +637,8 @@ end
 	}
 }
 
+<? elseif moduleName == "eigen_fluxTransform" then ?>
+
 <?=eqn.cons_t?> eigen_fluxTransform(
 	constant <?=solver.solver_t?>* solver,
 	<?=eqn.eigen_t?> eig,
@@ -520,9 +763,13 @@ end
 	}
 }
 
+<? elseif moduleName == "eigen_forCell" then 
+depmod{
+	"primFromCons",
+}
+?>
 
 // used by PLM
-
 
 <?=eqn.eigen_t?> eigen_forCell(
 	constant <?=solver.solver_t?>* solver,
@@ -547,6 +794,13 @@ end
 	};
 }
 
+<? elseif moduleName == "addSource" then 
+depmod{
+	"cell_x",
+	"primFromCons",
+}
+?>
+
 kernel void addSource(
 	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* derivBuf,
@@ -566,3 +820,9 @@ kernel void addSource(
 	deriv->rhoBar_vTilde = real3_add(deriv->rhoBar_vTilde, real3_real_mul(coord_raise(coord_conn_trace13(x), x), W.PStar));		//+Conn^j_kj g^ki PStar
 <? end ?>
 }
+
+<? 
+else
+	error("unknown moduleName "..require 'ext.tolua'(moduleName))
+end 
+?>

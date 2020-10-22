@@ -238,72 +238,21 @@ function ADM_BonaMasso_3D:initCodeModules()
 	ADM_BonaMasso_3D.super.initCodeModules(self)
 	local solver = self.solver
 	
-	solver.modules:add{
-		name = 'calc_gamma_ll',
-		code = [[
-#define calc_gamma_ll(U, x)	((U)->gamma_ll)
-]],
-	}
-
-	solver.modules:add{
-		name = 'calc_gamma_uu',
-		depends = {
-			'cons_t',
-		},
-		code = self:template[[
-sym3 calc_gamma_uu(const global <?=eqn.cons_t?>* U, real3 x) {
-	real det_gamma = sym3_det(U->gamma_ll);
-	sym3 gamma_uu = sym3_inv(U->gamma_ll, det_gamma);
-	return gamma_uu;
-}
-]],
-	}
-
 	for moduleName, depends in pairs{
-
-		['setFlatSpace'] = {
-			'solver_t',
-			'cons_t',
-		},
-
+		['calc_gamma_ll'] = {},
+		['calc_gamma_uu'] = {},
+		['setFlatSpace'] = {},
 -- [=[ comment this and initCodeModule_fluxFromCons out for fluxFromCons to fall back on the eigensystem transforms
-		['fluxFromCons'] = {
-			'cons_t',
-			'solver_t',
-			'normal_t',
-			'rotate',	-- real3_swap*
-			'initCond.codeprefix',		-- calc_f
-		},
+		['fluxFromCons'] = {},
 --]=]
-
-		['calcDT'] = {
-			'solver_t',
-			'eqn.prim-cons',
-			'eqn.guiVars.compileTime',
-			'initCond.codeprefix',		-- calc_f
-		},
-
-		['eigen_forCell'] = {
-			'initCond.codeprefix',		-- calc_f
-		},
-		
-		['calcCellMinMaxEigenvalues'] = {
-			'initCond.codeprefix',		-- calc_f
-		},
-		
-		['eigen_forInterface'] = {
-			'initCond.codeprefix',		-- calc_f
-		},
-		
+		['calcDT'] = {},
+		['eigen_forCell'] = {},
+		['calcCellMinMaxEigenvalues'] = {},
+		['eigen_forInterface'] = {},
 		['eigen_left/rightTransform'] = {},
 		['eigen_fluxTransform'] = {},
-		
-		['addSource'] = {
-			'initCond.codeprefix',		-- calc_f
-		},
-		
+		['addSource'] = {},
 		['constrainU'] = {},
-
 	} do
 		self:addModuleFromSourceFile{
 			name = moduleName,
@@ -317,21 +266,17 @@ function ADM_BonaMasso_3D:initCodeModule_calcDT() end
 function ADM_BonaMasso_3D:initCodeModule_fluxFromCons() end
 function ADM_BonaMasso_3D:initCodeModule_setFlatSpace() end
 
-function ADM_BonaMasso_3D:getModuleDependsSolver()
-	return table(ADM_BonaMasso_3D.super.getModuleDependsSolver(self))
-	:append{
+function ADM_BonaMasso_3D:getModuleDepends_waveCode()
+	return {
 		'initCond.codeprefix',	-- calc_f
-		'rotate',	--real3_swap
-		'real3x3x3',	-- d_llu
-		'sym3sym3',	-- for partial_d_llll, for R_ll in addSource()
 	}
 end
 
-function ADM_BonaMasso_3D:getModuleDependsApplyInitCond()
+function ADM_BonaMasso_3D:getModuleDepends_displayCode()
 	return {
-		'coordMap',
-		'coord_g_ll',
-		'rescaleFromCoord/rescaleToCoord',
+		'calc_gamma_ll',
+		'calc_gamma_uu',
+		'initCond.codeprefix',	-- calc_f
 	}
 end
 

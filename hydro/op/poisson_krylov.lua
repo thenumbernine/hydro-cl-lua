@@ -269,6 +269,7 @@ function PoissonKrylov:getModuleDepends_Poisson()
 	return {
 		'cell_sqrt_det_g',
 		'cell_dx#',
+		'cell_x',
 	}
 end
 

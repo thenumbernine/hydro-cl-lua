@@ -21,7 +21,15 @@ typedef <?=solver.solver_t?> solver_t;
 #define sqrt_1_2 <?=('%.50f'):format(math.sqrt(.5))?>
 #define sqrt_2 <?=('%.50f'):format(math.sqrt(2))?>
 
-<? elseif moduleName == "eqn.prim-cons" then ?>
+<? elseif moduleName == "primFromCons" then 
+depmod{
+	"real3",
+	"solver_t",
+	"prim_t",
+	"cons_t",
+	"eqn.common",	-- calc_*
+}
+?>
 
 <?=eqn.prim_t?> primFromCons(constant <?=solver.solver_t?>* solver, <?=eqn.cons_t?> U, real3 x) {
 	<? for _,fluid in ipairs(eqn.fluids) do ?>
@@ -42,6 +50,16 @@ typedef <?=solver.solver_t?> solver_t;
 	};
 }
 
+<? elseif moduleName == "consFromPrim" then 
+depmod{
+	"real3",
+	"solver_t",
+	"prim_t",
+	"cons_t",
+	"eqn.common",	-- calc_*
+}
+?>
+
 <?=eqn.cons_t?> consFromPrim(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W, real3 x) {
 	return (<?=eqn.cons_t?>){
 <? for _,fluid in ipairs(eqn.fluids) do ?>
@@ -57,7 +75,11 @@ typedef <?=solver.solver_t?> solver_t;
 	};
 }
 
-<? elseif moduleName == "eqn.dU-dW" then ?>
+<? elseif moduleName == "eqn.dU-dW" then 
+depmod{
+	"coord_lower",
+}
+?>
 
 <?=eqn.cons_t?> apply_dU_dW(
 	constant <?=solver.solver_t?>* solver,
@@ -114,7 +136,11 @@ typedef <?=solver.solver_t?> solver_t;
 	};
 }
 
-<? elseif moduleName == "eqn.common" then ?>
+<? elseif moduleName == "eqn.common" then 
+depmod{
+	"units",
+}
+?>
 
 real3 calc_EField(constant <?=solver.solver_t?>* solver, <?=eqn.cons_t?> U) {
 	real eps = solver->sqrt_eps * solver->sqrt_eps / unit_C2_s2_per_kg_m3;
@@ -170,7 +196,12 @@ real calc_EM_energy(constant <?=solver.solver_t?>* solver, const global <?=eqn.c
 	return .5 * (coordLenSq(U->D, x) / eps + coordLenSq(U->B, x) / mu);
 }
 
-<? elseif moduleName == "applyInitCond" then ?>
+<? elseif moduleName == "applyInitCond" then 
+depmod{
+	"consFromPrim",
+	"cartesianToCoord",
+}
+?>
 
 <? 
 local cons_t = eqn.cons_t
@@ -262,7 +293,12 @@ end
 	UBuf[index] = consFromPrim(solver, W, x);
 }
 
-<? elseif moduleName == "fluxFromCons" then ?>
+<? elseif moduleName == "fluxFromCons" then 
+depmod{
+	"units",
+	"primFromCons",
+}
+?>
 
 <?=eqn.cons_t?> fluxFromCons(
 	constant <?=solver.solver_t?>* solver,
@@ -310,7 +346,12 @@ end
 	return F;
 }
 
-<? elseif moduleName == "eigen_forInterface" then ?>
+<? elseif moduleName == "eigen_forInterface" then 
+depmod{
+	"eigen_t",
+	"primFromCons",
+}
+?>
 
 typedef <?=eqn.eigen_t?> eigen_t;
 
@@ -361,7 +402,12 @@ eigen_t eigen_forInterface(
 	return eig;
 }
 
-<? elseif moduleName == "eigen_forCell" then ?>
+<? elseif moduleName == "eigen_forCell" then 
+depmod{
+	"eigen_t",
+	"primFromCons",
+}
+?>
 
 typedef <?=eqn.eigen_t?> eigen_t;
 
@@ -390,7 +436,14 @@ eigen_t eigen_forCell(
 	};
 }
 
-<? elseif moduleName == "eigen_left/rightTransform" then ?>
+<? elseif moduleName == "eigen_left/rightTransform" then 
+depmod{
+	"units",
+	"eigen_t",
+	"waves_t",
+	"coord_lower",
+}
+?>
 
 typedef <?=eqn.eigen_t?> eigen_t;
 typedef <?=eqn.waves_t?> waves_t;
@@ -725,7 +778,11 @@ cons_t eigen_rightTransform(
 	return UY;
 }
 
-<? elseif moduleName == "eigen_fluxTransform" then ?>
+<? elseif moduleName == "eigen_fluxTransform" then 
+depmod{
+	"units",
+}
+?>
 
 typedef <?=eqn.eigen_t?> eigen_t;
 
@@ -791,7 +848,12 @@ cons_t eigen_fluxTransform(
 	return UY;
 }
 
-<? elseif moduleName == "addSource" then ?>
+<? elseif moduleName == "addSource" then 
+depmod{
+	"units",
+	"primFromCons",
+}
+?>
 
 kernel void addSource(
 	constant solver_t* solver,
@@ -860,7 +922,12 @@ kernel void addSource(
 <? end ?>
 }
 
-<? elseif moduleName == "constrainU" then ?>
+<? elseif moduleName == "constrainU" then 
+depmod{
+	"primFromCons",
+	"consFromPrim",
+}
+?>
 
 kernel void constrainU(
 	constant solver_t* solver,
@@ -881,7 +948,12 @@ kernel void constrainU(
 	*U = consFromPrim(solver, W, x);
 }
 
-<? elseif moduleName == "calcDT" then ?>
+<? elseif moduleName == "calcDT" then 
+depmod{
+	"units",
+	"primFromCons",
+}
+?>
 
 //2014 Abgrall, Kumar eqn 2.25
 // dt < sqrt(EInt_a/rho_a) sqrt(2) |lHat_r^a| / |E + v_a cross B|

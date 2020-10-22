@@ -160,79 +160,20 @@ function MHD:initCodeModules()
 	}
 	
 	for moduleName, depends in pairs{
-	
-		['eqn.prim-cons'] = {
-			'real3',
-			'solver_t',
-			'prim_t',
-			'cons_t',
-			'coordLenSq',
-		},
-
-		-- only used by PLM
-		['eqn.dU-dW'] = {
-			'real3',
-			'solver_t',
-			'prim_t',
-			'cons_t',
-		},
-
-		['cons_rotateFrom'] = {
-			'cons_t',
-			'normal_t',
-		},
-		
-		['cons_rotateTo'] = {
-			'cons_t',
-			'normal_t',
-		},
-
-		['calcRoeValues'] = {
-			'eqn.prim-cons',	-- primFromCons
-			'roe_t',
-		},
-		
-		['eigen_forRoeAvgs'] = {
-			'roe_t',
-		},
-
-		['eqn.common'] = {
-			'coordLenSq',
-		},
-
-		['fluxFromCons'] = {
-			'solver_t',
-			'cons_t',
-			'prim_t',
-			'eqn.prim-cons',	-- primFromCons
-			'normal_t',
-			'coordLenSq',
-		},
-
-		-- added by request only, so I don't have to compile the real3x3 code
-		['calcCellMinMaxEigenvalues'] = {
-			'range_t',
-			'cons_rotateFrom',
-		},
-	
-		['eigen_forInterface'] = {
-			'roe_t',
-			'cons_rotateFrom',
-			'calcRoeValues',
-			'eigen_forRoeAvgs',
-		},
-	
-		['eigen_left/rightTransform'] = {
-			'cons_rotateFrom',
-			'cons_rotateTo',
-		},
-	
+		['primFromCons'] = {},
+		['consFromPrim'] = {},
+		['eqn.dU-dW'] = {},
+		['cons_rotateFrom'] = {},
+		['cons_rotateTo'] = {},
+		['calcRoeValues'] = {},
+		['eigen_forRoeAvgs'] = {},
+		['eqn.common'] = {},
+		['fluxFromCons'] = {},
+		['calcCellMinMaxEigenvalues'] = {},	-- added by request only, so I don't have to compile the real3x3 code
+		['eigen_forInterface'] = {},
+		['eigen_left/rightTransform'] = {},
 		['eigen_fluxTransform'] = {},
-	
-		['eigen_forCell'] = {
-			'roe_t',
-		},
-		
+		['eigen_forCell'] = {},
 		['addSource'] = {},
 		['constrainU'] = {},
 	} do
@@ -260,9 +201,11 @@ function MHD:getModuleDepends_waveCode()
 	}
 end
 
-function MHD:getModuleDependsApplyInitCond()
-	return table(MHD.super.getModuleDependsApplyInitCond(self))
-	:append{'cartesianToCoord'}
+function MHD:getModuleDepends_displayCode() 
+	return {
+		'eqn.common',
+		'consFromPrim',
+	}
 end
 
 function MHD:getInitCondCode()

@@ -1,4 +1,5 @@
 local class = require 'ext.class'
+local table = require 'ext.table'
 local HLL = require 'hydro.flux.hll'
 
 local EulerHLLC = class(HLL)
@@ -17,6 +18,12 @@ args:
 function EulerHLLC:init(args)
 	self.hllcMethod = args.hllcMethod or 2
 	EulerHLLC.super.init(self, args)
+end
+
+function EulerHLLC:getModuleDepends_calcFlux()
+	return table(EulerHLLC.super.getModuleDepends_calcFlux(self)):append{
+		'cell_x',
+	}
 end
 
 return EulerHLLC

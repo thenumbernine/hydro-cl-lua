@@ -3,7 +3,7 @@ typedef <?=eqn.cons_t?> cons_t;
 typedef <?=solver.solver_t?> solver_t;
 
 <? if moduleName == nil then ?>
-<? elseif moduleName == "eqn.prim-cons" then
+<? elseif moduleName == "primFromCons" then
 depmod{
 	"real3",
 	"solver_t",
@@ -18,6 +18,15 @@ depmod{
 		.v = real3_real_mul(U.m, 1. / U.h),
 	};
 }
+
+<? elseif moduleName == "consFromPrim" then
+depmod{
+	"real3",
+	"solver_t",
+	"prim_t",
+	"cons_t",
+}
+?>
 
 <?=eqn.cons_t?> consFromPrim(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W, real3 x) {
 	return (<?=eqn.cons_t?>){
@@ -120,7 +129,7 @@ end
 <? elseif moduleName == "fluxFromCons" then 
 depmod{
 	"solver_t",
-	"eqn.prim-cons",
+	"primFromCons",
 	"normal_t",
 }
 ?>

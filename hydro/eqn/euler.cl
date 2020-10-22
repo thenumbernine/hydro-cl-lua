@@ -16,6 +16,7 @@ typedef <?=solver.solver_t?> solver_t;
 <? if moduleName == nil then ?>
 <? elseif moduleName == "applyInitCond" then ?>
 <? depmod{
+	"consFromPrim",
 	"cartesianToCoord",
 } ?>
 
@@ -58,7 +59,7 @@ end
 	*U = consFromPrim(solver, W, x);
 }
 
-<? elseif moduleName == "eqn.prim-cons" then ?>
+<? elseif moduleName == "primFromCons" then ?>
 <? depmod{
 	"real3",
 	"solver_t",
@@ -75,6 +76,15 @@ end
 		.ePot = U.ePot,
 	};
 }
+
+<? elseif moduleName == "consFromPrim" then ?>
+<? depmod{
+	"real3",
+	"solver_t",
+	"prim_t",
+	"cons_t",
+	"eqn.common",	-- all the calc_* stuff
+} ?>
 
 <?=eqn.cons_t?> consFromPrim(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W, real3 x) {
 	return (<?=eqn.cons_t?>){
@@ -169,7 +179,7 @@ real calc_P(constant <?=solver.solver_t?>* solver, <?=eqn.cons_t?> U, real3 x) {
 <? elseif moduleName == "fluxFromCons" then ?>
 <? depmod{
 	"solver_t",
-	"eqn.prim-cons",
+	"primFromCons",
 	"normal_t",
 } ?>
 
@@ -202,7 +212,7 @@ real calc_P(constant <?=solver.solver_t?>* solver, <?=eqn.cons_t?> U, real3 x) {
 <? 	-- added by request only, so I don't have to compile the real3x3 code. not used at the moment
 depmod{
 	"real3x3",
-	"eqn.prim-cons",
+	"primFromCons",
 } ?>
 
 range_t calcCellMinMaxEigenvalues(
@@ -230,7 +240,7 @@ range_t calcCellMinMaxEigenvalues(
 	"cons_t",
 	"prim_t",
 	"eigen_t",
-	"eqn.prim-cons",
+	"primFromCons",
 	"eqn.common",	-- calc_hTotal
 } ?>
 
@@ -261,7 +271,7 @@ range_t calcCellMinMaxEigenvalues(
 
 <? elseif moduleName == "eigen_forInterface" then ?>
 <? depmod{
-	"eqn.prim-cons",
+	"primFromCons",
 	"eigen_t",
 	"normal_t",
 	"coord_lower",
@@ -563,6 +573,8 @@ depmod{
 	"solver_t",
 	"cons_t",
 	"cell_t",
+	"primFromCons",
+	"consFromPrim",
 }
 ?>
 

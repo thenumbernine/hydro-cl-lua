@@ -180,45 +180,16 @@ function TwoFluidEMHDDeDonderGaugeLinearizedGR:initCodeModules()
 
 	for moduleName, depends in pairs{
 		['sqrt_2_and_1_2'] = {},
-		
-		['eqn.prim-cons'] = {
-			'solver_t',
-			'eqn.common',	-- calc_*
-			'prim_t',
-			'cons_t',
-		},
-
-		-- only used by PLM
-		['eqn.dU-dW'] = {
-			'real3',
-			'coord_lower',
-			'solver_t',
-			'prim_t',
-			'cons_t',
-		},
-
-		['eqn.common'] = {
-			'coordLenSq',
-			'cartesianToCoord',
-		},
-		
-		['fluxFromCons'] = {
-			'normal_t',
-		},
-		
+		['primFromCons'] = {},
+		['consFromPrim'] = {},
+		['eqn.dU-dW'] = {},
+		['eqn.common'] = {},
+		['fluxFromCons'] = {},
 		['eigen_forInterface'] = {},
 		['eigen_forCell'] = {},
-		
-		['eigen_left/rightTransform'] = {
-			'sqrt_2_and_1_2',
-		},
-		
+		['eigen_left/rightTransform'] = {},
 		['eigen_fluxTransform'] = {},
-		
-		['addSource'] = {
-			'eqn.common',	-- calcIonGravForce
-		},
-		
+		['addSource'] = {},
 		['constrainU'] = {},
 	} do
 		self:addModuleFromSourceFile{
@@ -228,20 +199,21 @@ function TwoFluidEMHDDeDonderGaugeLinearizedGR:initCodeModules()
 	end
 end
 
--- don't use default
-function TwoFluidEMHDDeDonderGaugeLinearizedGR:initCodeModule_fluxFromCons() end
-function TwoFluidEMHDDeDonderGaugeLinearizedGR:initCodeModuleCommon() end
-function TwoFluidEMHDDeDonderGaugeLinearizedGR:initCodeModulePrimCons() end
-
-function TwoFluidEMHDDeDonderGaugeLinearizedGR:getModuleDependsSolver()
+function TwoFluidEMHDDeDonderGaugeLinearizedGR:getModuleDepends_waveCode()
 	return {
+		'units',
 		'eqn.common',
-		'eqn.prim-cons',
+		'primFromCons',
 		'coord_lower',
 		-- for postComputeFluxCode 
 		'coord_sqrt_det_g',
 	}
 end
+
+-- don't use default
+function TwoFluidEMHDDeDonderGaugeLinearizedGR:initCodeModule_fluxFromCons() end
+function TwoFluidEMHDDeDonderGaugeLinearizedGR:initCodeModuleCommon() end
+function TwoFluidEMHDDeDonderGaugeLinearizedGR:initCodeModulePrimCons() end
 
 TwoFluidEMHDDeDonderGaugeLinearizedGR.solverCodeFile = 'hydro/eqn/twofluid-emhd-lingr.cl'
 

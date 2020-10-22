@@ -32,7 +32,8 @@ end
 function ShallowWater:initCodeModules()
 	ShallowWater.super.initCodeModules(self)
 	for moduleName, depends in pairs{
-		['eqn.prim-cons'] = {},
+		['primFromCons'] = {},
+		['consFromPrim'] = {},
 		['eqn.dU-dW'] = {},
 		['eqn.common'] = {},
 		['fluxFromCons'] = {},
@@ -57,7 +58,7 @@ function ShallowWater:initCodeModulePrimCons() end
 function ShallowWater:getModuleDepends_waveCode()
 	return {
 		'eqn.common',
-		'eqn.prim-cons',
+		'primFromCons',
 	}
 end
 

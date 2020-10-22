@@ -190,13 +190,8 @@ function TwoFluidEMHD:initCodeModules()
 	for moduleName, depends in pairs{
 		['sqrt_2_and_1_2'] = {},
 	
-		['eqn.prim-cons'] = {
-			'real3',
-			'solver_t',
-			'prim_t',
-			'cons_t',
-			'eqn.common',	-- calc_*
-		},
+		['primFromCons'] = {},
+		['consFromPrim'] = {},
 
 		-- only used by PLM
 		['eqn.dU-dW'] = {
@@ -240,19 +235,13 @@ function TwoFluidEMHD:initCodeModule_fluxFromCons() end
 function TwoFluidEMHD:initCodeModuleCommon() end
 function TwoFluidEMHD:initCodeModulePrimCons() end
 
-function TwoFluidEMHD:getModuleDependsApplyInitCond()
-	return table(TwoFluidEMHD.super.getModuleDependsApplyInitCond(self))
-	:append{
-		'cartesianToCoord',
-	}
-end
-
--- this is to be turned into eqn.waveCode for the inline wave calcs
-function TwoFluidEMHD:getModuleDependsSolver()
+function TwoFluidEMHD:getModuleDepends_waveCode()
 	return {
-		'eqn.prim-cons',
+		'units',
+		'primFromCons',
 		'coord_lower',
 		-- but this is for postComputeFluxCode used by the flux stuff
+		-- but calcFlux depends on eqn.waveCode because of its use of inline wave code, so put postComputeFluxCode in here too
 		'coord_sqrt_det_g',
 	}
 end

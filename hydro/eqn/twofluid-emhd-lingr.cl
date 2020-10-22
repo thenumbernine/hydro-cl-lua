@@ -21,7 +21,14 @@ typedef <?=solver.solver_t?> solver_t;
 #define sqrt_1_2 <?=('%.50f'):format(math.sqrt(.5))?>
 #define sqrt_2 <?=('%.50f'):format(math.sqrt(2))?>
 
-<? elseif moduleName == "eqn.prim-cons" then ?>
+<? elseif moduleName == "primFromCons" then 
+depmod{
+	"solver_t",
+	"eqn.common",	-- calc_*
+	"prim_t",
+	"cons_t",
+}
+?>
 
 <?=eqn.prim_t?> primFromCons(constant <?=solver.solver_t?>* solver, <?=eqn.cons_t?> U, real3 x) {
 	<? for _,fluid in ipairs(eqn.fluids) do ?>
@@ -45,6 +52,16 @@ typedef <?=solver.solver_t?> solver_t;
 	};
 }
 
+<? elseif moduleName == "consFromPrim" then 
+depmod{
+	"solver_t",
+	"eqn.common",	-- calc_*
+	"prim_t",
+	"cons_t",
+	"consFromPrim",
+}
+?>
+
 <?=eqn.cons_t?> consFromPrim(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W, real3 x) {
 	return (<?=eqn.cons_t?>){
 <? for _,fluid in ipairs(eqn.fluids) do ?>
@@ -63,7 +80,15 @@ typedef <?=solver.solver_t?> solver_t;
 	};
 }
 
-<? elseif moduleName == "eqn.dU-dW" then ?>
+<? elseif moduleName == "eqn.dU-dW" then  -- only used by PLM
+depmod{
+	"real3",
+	"coord_lower",
+	"solver_t",
+	"prim_t",
+	"cons_t",
+}
+?>
 
 <?=eqn.cons_t?> apply_dU_dW(
 	constant <?=solver.solver_t?>* solver,
@@ -126,7 +151,13 @@ typedef <?=solver.solver_t?> solver_t;
 	};
 }
 
-<? elseif moduleName == "eqn.common" then ?>
+<? elseif moduleName == "eqn.common" then 
+depmod{
+	"units",
+	"coordLenSq",
+	"cartesianToCoord",
+}
+?>
 
 real3 calc_EField(constant <?=solver.solver_t?>* solver, <?=eqn.cons_t?> U) {
 	real eps = solver->sqrt_eps * solver->sqrt_eps / unit_C2_s2_per_kg_m3;
@@ -302,7 +333,12 @@ end
 }
 
 
-<? elseif moduleName == "fluxFromCons" then ?>
+<? elseif moduleName == "fluxFromCons" then 
+depmod{
+	"units",
+	"normal_t",
+}
+?>
 
 <?=eqn.cons_t?> fluxFromCons(
 	constant <?=solver.solver_t?>* solver,
@@ -437,7 +473,11 @@ eigen_t eigen_forCell(
 	};
 }
 
-<? elseif moduleName == "eigen_left/rightTransform" then ?>
+<? elseif moduleName == "eigen_left/rightTransform" then 
+depmod{
+	"sqrt_2_and_1_2",
+}
+?>
 
 typedef <?=eqn.eigen_t?> eigen_t;
 typedef <?=eqn.waves_t?> waves_t;
@@ -894,7 +934,11 @@ cons_t eigen_fluxTransform(
 	return UY;
 }
 
-<? elseif moduleName == "addSource" then ?>
+<? elseif moduleName == "addSource" then 
+depmod{
+	"eqn.common",	-- calcIonGravForce
+}
+?>
 
 kernel void addSource(
 	constant solver_t* solver,
@@ -1010,7 +1054,11 @@ kernel void addSource(
 <? end ?>
 }
 
-<? elseif moduleName == "constrainU" then ?>
+<? elseif moduleName == "constrainU" then 
+depmod{
+	"consFromPrim",
+}
+?>
 
 kernel void constrainU(
 	constant solver_t* solver,

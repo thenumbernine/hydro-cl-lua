@@ -1,9 +1,29 @@
-typedef <?=eqn.prim_t?> prim_t;
 typedef <?=eqn.cons_t?> cons_t;
 typedef <?=solver.solver_t?> solver_t;
 
 <? if moduleName == nil then ?>
-<? elseif moduleName == "setFlatSpace" then ?>
+<? elseif moduleName == "calc_gamma_ll" then ?>
+
+#define calc_gamma_ll(U, x)	((U)->gamma_ll)
+
+<? elseif moduleName == "calc_gamma_uu" then 
+depmod{
+	"cons_t",
+}
+?>
+
+sym3 calc_gamma_uu(const global <?=eqn.cons_t?>* U, real3 x) {
+	real det_gamma = sym3_det(U->gamma_ll);
+	sym3 gamma_uu = sym3_inv(U->gamma_ll, det_gamma);
+	return gamma_uu;
+}
+
+<? elseif moduleName == "setFlatSpace" then 
+depmod{
+	"solver_t",
+	"cons_t",
+}
+?>
 
 void setFlatSpace(
 	constant <?=solver.solver_t?>* solver,
@@ -30,7 +50,13 @@ void setFlatSpace(
 	U->M_u = real3_zero;
 }
 
-<? elseif moduleName == "applyInitCond" then ?>
+<? elseif moduleName == "applyInitCond" then 
+depmod{
+	"coordMap",
+	"coord_g_ll",
+	"rescaleFromCoord/rescaleToCoord",
+}
+?>
 
 <?
 -- eqn.einstein compatability hack ...
@@ -230,7 +256,16 @@ end
 
 
 
-<? elseif moduleName == "fluxFromCons" then ?>
+<? elseif moduleName == "fluxFromCons" then 
+depmod{
+	"rotate",
+	"cons_t",
+	"solver_t",
+	"normal_t",
+	"rotate",	-- real3_swap*
+	"initCond.codeprefix",		-- calc_f
+}
+?>
 
 <?=eqn.cons_t?> fluxFromCons(
 	constant <?=solver.solver_t?>* solver,
@@ -294,7 +329,14 @@ end
 	return F;
 }
 
-<? elseif moduleName == "calcDT" then ?>
+<? elseif moduleName == "calcDT" then 
+depmod{
+	"solver_t",
+	"SETBOUNDS",
+	"eqn.guiVars.compileTime",
+	"initCond.codeprefix",		-- calc_f
+}
+?>
 
 kernel void calcDT(
 	constant <?=solver.solver_t?>* solver,
@@ -346,7 +388,11 @@ kernel void calcDT(
 	dtBuf[index] = dt; 
 }
 
-<? elseif moduleName == "eigen_forCell" then ?>
+<? elseif moduleName == "eigen_forCell" then 
+depmod{
+	"initCond.codeprefix",		-- calc_f
+}
+?>
 
 typedef <?=eqn.eigen_t?> eigen_t;
 
@@ -374,7 +420,11 @@ eigen_t eigen_forCell(
 	return eig;
 }
 
-<? elseif moduleName == "calcCellMinMaxEigenvalues" then ?>
+<? elseif moduleName == "calcCellMinMaxEigenvalues" then 
+depmod{
+	"initCond.codeprefix",		-- calc_f
+}
+?>
 
 range_t calcCellMinMaxEigenvalues(
 	const global cons_t* U,
@@ -412,7 +462,11 @@ range_t calcCellMinMaxEigenvalues(
 	};
 }
 
-<? elseif moduleName == "eigen_forInterface" then ?>
+<? elseif moduleName == "eigen_forInterface" then 
+depmod{
+	"initCond.codeprefix",		-- calc_f
+}
+?>
 
 typedef <?=eqn.eigen_t?> eigen_t;
 
@@ -1331,7 +1385,13 @@ cons_t eigen_rightTransform(
 	return resultU;
 }
 
-<? elseif moduleName == "eigen_fluxTransform" then ?>
+<? elseif moduleName == "eigen_fluxTransform" then 
+depmod{
+	"eigen_t",
+	"waves_t",
+	"rotate",
+}
+?>
 
 typedef <?=eqn.eigen_t?> eigen_t;
 typedef <?=eqn.waves_t?> waves_t;
@@ -1449,7 +1509,12 @@ cons_t eigen_fluxTransform(
 <? end -- noZeroRowsInFlux ?>
 }
 
-<? elseif moduleName == "addSource" then ?>
+<? elseif moduleName == "addSource" then 
+depmod{
+	"initCond.codeprefix",		-- calc_f
+	"real3x3x3",
+}
+?>
 
 /*
 this should just be 
@@ -3144,7 +3209,12 @@ end ?>
 	//isn't that just a hack to improve the stability of finite-difference, which diverges by nature?
 }
 
-<? elseif moduleName == "constrainU" then ?>
+<? elseif moduleName == "constrainU" then 
+depmod{
+	"real3x3x3",
+	"sym3sym3",
+}
+?>
 
 kernel void constrainU(
 	constant solver_t* solver,
