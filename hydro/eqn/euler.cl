@@ -478,7 +478,7 @@ cons_t eigen_fluxTransform(
 depmod{
 	"solver_t",
 	"cons_t",
-	"coord.cell_t",
+	"cell_t",
 	"SETBOUNDS_NOGHOST",
 }
 ?>
@@ -562,7 +562,7 @@ Maybe for an initial constant vel as large as sqrt(2) this fails, but it works o
 depmod{
 	"solver_t",
 	"cons_t",
-	"coord.cell_t",
+	"cell_t",
 }
 ?>
 

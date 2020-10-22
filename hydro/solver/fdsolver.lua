@@ -27,7 +27,7 @@ function FiniteDifferenceSolver:initCodeModules()
 		depends = {
 			'solver_t',
 			'cons_t',
-			'coord.cell_t',
+			'cell_t',
 			'SETBOUNDS',
 			'cell_x',
 			'solver.macros',

@@ -417,7 +417,7 @@ typedef union {
 		end
 
 		solver.modules:add{
-			name = 'eqn.cons_parallelPropagate',
+			name = 'cons_parallelPropagate',
 			depends = table{
 				'cons_t',
 				'coord_parallelPropagate',
@@ -788,7 +788,7 @@ function Equation:getModuleDepends_calcDT()
 		-- used by the function prototype
 		'solver_t',
 		'cons_t',
-		'coord.cell_t',
+		'cell_t',
 		'normal_t',
 		'eqn.waveCode',
 		'SETBOUNDS',

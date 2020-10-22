@@ -38,7 +38,7 @@ function FiniteVolumeSolver:initCodeModules()
 		depends = table{
 			'solver_t',
 			'cons_t',
-			'coord.cell_t',
+			'cell_t',
 			'solver.macros',	-- dim
 			'SETBOUNDS_NOGHOST',
 		}:append(

@@ -400,7 +400,7 @@ function MeshSolver:initCodeModules()
 			'face_t',
 			'normal_t',
 			'calcFlux',	-- calcFluxForInterface
-			'coord.cell_t',
+			'cell_t',
 		},
 		-- boundary code, since meshsolver doesn't use gridsolver's boundary: 
 		code = table{

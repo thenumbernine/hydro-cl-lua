@@ -82,7 +82,7 @@ end
 
 function InitCond:initCodeModules(solver)
 	solver.modules:add{
-		name = 'initCond.initCond_t',
+		name = 'initCond_t',
 		structs = {self.initStruct},
 	}
 
@@ -95,7 +95,7 @@ function InitCond:initCodeModules(solver)
 
 	solver.modules:add{
 		name = 'initCond.codeprefix',
-		depends = {'initCond.initCond_t'},
+		depends = {'initCond_t'},
 		code = self.getCodePrefix and self:getCodePrefix(solver) or nil,
 	}
 
@@ -107,9 +107,9 @@ function InitCond:initCodeModules(solver)
 		'initCond.codeprefix',
 		-- applyInitCond uses these:
 		'solver_t',
-		'initCond.initCond_t',
+		'initCond_t',
 		'cons_t',
-		'coord.cell_t',
+		'cell_t',
 		'initCond.guiVars.compileTime',
 		'INDEX', 'INDEXV', 'OOB', 'SETBOUNDS',
 		-- initCond code is specified in terms of primitives, so if the eqn has prim<->cons then it will be needed
