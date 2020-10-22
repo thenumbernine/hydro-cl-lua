@@ -48,68 +48,33 @@ function GRMaxwell:init(args)
 	self.solver.ops:insert(NoDiv{solver=self.solver})
 end
 
-function GRMaxwell:getCommonFuncCode()
-	return self:template[[
-static inline <?=eqn.prim_t?> primFromCons(<?=eqn.cons_t?> U, real3 x) { return U; }
-static inline <?=eqn.cons_t?> consFromPrim(<?=eqn.prim_t?> W, real3 x) { return W; }
-]]
+function GRMaxwell:initCodeModules()
+	GRMaxwell.super.initCodeModules(self)
+
+	for moduleName, depends in pairs{
+		['sqrt_1_2'] = {},
+		['fluxFromCons'] = {},
+		['calcCellMinMaxEigenvalues'] = {},
+		['calcEigenBasis'] = {},
+		['eigen_left/rightTransform'] = {},
+		['eigen_fluxTransform'] = {},
+		['addSource'] = {},
+	} do
+		self:addModuleFromSourceFile{
+			name = moduleName,
+			depends = depends,
+		}
+	end
 end
 
-GRMaxwell.initCondCode = [[
-kernel void applyInitCond(
-	constant <?=solver.solver_t?>* solver,
-	constant <?=solver.initCond_t?>* initCond,
-	global <?=eqn.cons_t?>* UBuf,
-	const global <?=coord.cell_t?>* cellBuf
-) {
-	SETBOUNDS(0,0);
-	real3 x = cellBuf[index].pos;
-	real3 mids = real3_real_mul(real3_add(solver->mins, solver->maxs), .5);
-	bool lhs = x.x < mids.x
-#if dim > 1
-		&& x.y < mids.y
-#endif
-#if dim > 2
-		&& x.z < mids.z
-#endif
-	;
-	global <?=eqn.cons_t?>* U = UBuf + index;
-
-	//used
-	real3 D = real3_zero;
-	real3 B = real3_zero;
-	real conductivity = 1.;
-	
-	//natural units say eps0 = 1/4pi, mu0 = 4pi
-	//but waves don't make it to the opposite side...
-	//mu0 eps0 = 1/c^2
-	real permittivity = 1.; //1. / (4. * M_PI);
-	real permeability = 1.; //4. * M_PI;
-	
-	//throw-away
-	real rho = 0;
-	real3 v = real3_zero;
-	real P = 0;
-	real ePot = 0;
-	
-	<?=code?>
-	
-	U->D = D;
-	U->B = B;
-	U->divBPot = 0;
-	U->sigma = conductivity;
-	U->eps = permittivity;
-	U->mu = permeability;
-}
-]]
+-- don't use default
+function GRMaxwell:getCommonFuncCode() end
 
 GRMaxwell.solverCodeFile = 'hydro/eqn/gr-maxwell.cl'
 
 function GRMaxwell:getEnv()
+	local env = GRMaxwell.super.getEnv(self)
 	local scalar = self.scalar
-	local env = {}
-	env.eqn = self
-	env.solver = self.solver
 	env.vec3 = self.vec3
 	env.susc_t = self.susc_t
 	env.scalar = scalar
@@ -123,7 +88,6 @@ function GRMaxwell:getEnv()
 	env.real_mul = scalar..'_real_mul'
 	return env
 end
-
 
 function GRMaxwell:getDisplayVars()
 	local solver = self.solver

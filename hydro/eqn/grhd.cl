@@ -2,9 +2,98 @@
 2008 Font "Numerical Hydrodynamics and Magnetohydrodynamics in General Relativity"
 */
 
-<? 
-local table = require 'ext.table'
-?>
+<? if moduleName == nil then ?>
+<? elseif moduleName == "eqn.common" then ?>
+
+//pressure function for ideal gas
+real calc_P(constant <?=solver.solver_t?>* solver, real rho, real eInt) {
+	return (solver->heatCapacityRatio - 1.) * rho * eInt;
+}	
+
+//chi in most papers
+real calc_dP_drho(constant <?=solver.solver_t?>* solver, real rho, real eInt) {
+	return (solver->heatCapacityRatio - 1.) * eInt;
+}
+
+//kappa in most papers
+real calc_dP_deInt(constant <?=solver.solver_t?>* solver, real rho, real eInt) {
+	return (solver->heatCapacityRatio - 1.) * rho;
+}
+
+real calc_eInt_from_P(constant <?=solver.solver_t?>* solver, real rho, real P) {
+	return P / ((solver->heatCapacityRatio - 1.) * rho);
+}
+
+real calc_h(real rho, real P, real eInt) {
+	return 1. + eInt + P / rho;
+}
+
+<?=eqn.cons_only_t?> consOnlyFromPrim(
+	constant <?=solver.solver_t?>* solver,
+	<?=eqn.prim_t?> prim,
+	real alpha,
+	real3 beta,
+	sym3 gamma
+) {
+	//2008 Font eqn 31 etc 
+	real det_gamma = sym3_det(gamma);
+	sym3 gammaU = sym3_inv(gamma, det_gamma);
+	real3 vU = sym3_real3_mul(gammaU, prim.v);
+	real vSq = real3_dot(prim.v, vU);
+	real WSq = 1. / (1. - vSq);
+	real W = sqrt(WSq);
+	real P = calc_P(solver, prim.rho, prim.eInt);
+	real h = calc_h(prim.rho, P, prim.eInt);
+
+	//2008 Font, eqn 28-30:
+	
+	real D = prim.rho * W;
+	real3 S = real3_real_mul(prim.v, prim.rho * h * WSq);
+	real tau = prim.rho * h * WSq - P - D;
+
+	return (<?=eqn.cons_only_t?>){.D=D, .S=S, .tau=tau};
+}
+
+<? elseif moduleName == "applyInitCond" then ?>
+
+kernel void applyInitCond(
+	constant <?=solver.solver_t?>* solver,
+	constant <?=solver.initCond_t?>* initCond,
+	global <?=eqn.cons_t?>* UBuf<?=
+	solver:getADMArgs()?>
+) {
+	SETBOUNDS(0,0);
+	real3 x = cell_x(i);
+	real3 mids = real3_real_mul(real3_add(solver->mins, solver->maxs), .5);
+	bool lhs = x.x < mids.x
+#if dim > 1
+		&& x.y < mids.y
+#endif
+#if dim > 2
+		&& x.z < mids.z
+#endif
+	;
+	real rho = 0;
+	real3 v = real3_zero;
+	real P = 0;
+	//ignored:
+	real3 B = real3_zero;
+
+	<?=solver:getADMVarCode()?>
+
+	<?=code?>
+	
+	real eInt = calc_eInt_from_P(solver, rho, P);
+
+	<?=eqn.prim_t?> prim = {.rho=rho, .v=v, .eInt=eInt};
+	UBuf[index] = (<?=eqn.cons_t?>){
+		.prim = prim,
+		.cons = consOnlyFromPrim(solver, prim, alpha, beta, gamma),
+	};
+}
+
+
+<? elseif moduleName == "calcDT" then ?>
 
 //everything matches the default except the params passed through to calcCellMinMaxEigenvalues
 kernel void calcDT(
@@ -54,11 +143,13 @@ kernel void calcDT(
 	dtBuf[index] = dt; 
 }
 
+<? elseif moduleName == "fluxFromCons" then ?>
+
 <? if false then ?>
-<? for side=0,solver.dim-1 do ?>
-<?=eqn.cons_t?> fluxFromCons_<?=side?>(
+<?=eqn.cons_t?> fluxFromCons(
 	constant <?=solver.solver_t?>* solver,
-	<?=eqn.cons_t?> U<?=
+	<?=eqn.cons_t?> U,
+	normal_t n,<?=
 	solver:getADMArgs()?>
 ) {
 	<?=solver:getADMVarCode()?>
@@ -84,7 +175,8 @@ kernel void calcDT(
 	return F;
 }
 <? end ?>
-<? end ?>
+
+<? elseif moduleName == "eigen_forCell" then ?>
 
 //used by PLM
 //TODO SRHD PLM needs to do this:
@@ -92,15 +184,14 @@ kernel void calcDT(
 //2) have a new kernel for calc consLR from primLR, since calcDeltaUEig and calcFlux both need this
 //or does the eigenbasis need to be derived from the variables being transformed?
 //shoud I PLM the U's then converge the prims ... and therefore track the prims on edges as well?
-<? for side=0,solver.dim-1 do ?>
-<?=eqn.eigen_t?> eigen_forCell_<?=side?>(
+<?=eqn.eigen_t?> eigen_forCell(
 	const global <?=eqn.cons_t?>* U,
 	real3 x
 ) {
 	return (<?=eqn.eigen_t?>){};
 }
-<? end ?>
 
+<? elseif moduleName == "calcEigenBasis" then ?>
 
 #error calcEigenBasis has been removed, and eigen_t structs are now calculated inline ... soooo ... convert this to something compatible
 kernel void calcEigenBasis(
@@ -245,12 +336,15 @@ for _,var in ipairs(eqn.eigenVars) do
 	}<? end ?>
 }
 
-<? for side=0,solver.dim-1 do 
-	local prefix = table.map(eqn.eigenVars, function(var)
-		return '\t'..var.type..' '..var.name..' = eig.'..var.name..';\n'
-	end):concat()
+<? elseif moduleName == "eigen_left/rightTransform" then ?>
+
+<? 
+local prefix = require 'ext.table'.map(eqn.eigenVars, function(var)
+	return '\t'..var.type..' '..var.name..' = eig.'..var.name..';\n'
+end):concat()
 ?>
-<?=eqn.waves_t?> eigen_leftTransform_<?=side?>(
+
+<?=eqn.waves_t?> eigen_leftTransform(
 	constant <?=solver.solver_t?>* solver,
 	<?=eqn.eigen_t?> eig,
 	<?=eqn.cons_t?> X_,
@@ -336,7 +430,7 @@ for _,var in ipairs(eqn.eigenVars) do
 	return Y;
 }
 
-<?=eqn.cons_t?> eigen_rightTransform_<?=side?>(
+<?=eqn.cons_t?> eigen_rightTransform(
 	constant <?=solver.solver_t?>* solver,
 	<?=eqn.eigen_t?> eig,
 	<?=eqn.waves_t?> X,
@@ -386,7 +480,9 @@ for _,var in ipairs(eqn.eigenVars) do
 	return Y;
 }
 
-<?=eqn.cons_t?> eigen_fluxTransform_<?=side?>(
+<? elseif moduleName == "eigen_fluxTransform" then ?>
+
+<?=eqn.cons_t?> eigen_fluxTransform(
 	constant <?=solver.solver_t?>* solver,
 	<?=eqn.eigen_t?> eig,
 	<?=eqn.cons_t?> X_,
@@ -420,7 +516,8 @@ for _,var in ipairs(eqn.eigenVars) do
 ?>	return eigen_rightTransform_<?=side?>(solver, eig, waves, x);
 #endif
 }
-<? end ?>
+
+<? elseif moduleName == "addSource" then ?>
 
 kernel void addSource(
 	constant <?=solver.solver_t?>* solver,
@@ -433,6 +530,8 @@ kernel void addSource(
 	const global <?=eqn.cons_t?>* U = UBuf + index;
 	<?=solver:getADMVarCode()?>
 }
+
+<? elseif moduleName == "constrainU" then ?>
 
 /*
 This is from 2008 Alcubierre eqn 7.3.11
@@ -516,3 +615,9 @@ kernel void constrainU(
 		}
 	}
 }
+
+<? 
+else
+	error("unknown moduleName "..require 'ext.tolua'(moduleName))
+end 
+?>

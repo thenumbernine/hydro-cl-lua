@@ -5,14 +5,6 @@ To get back to the original code,
 just replace all the g_ab stuff with their constant values and simplify away.
 */
 
-//as long as no subsequent solvers' codes are tacked onto the end of this,
-//I can safely do this:
-typedef <?=eqn.prim_t?> prim_t;
-typedef <?=eqn.cons_t?> cons_t;
-typedef <?=eqn.eigen_t?> eigen_t;
-typedef <?=eqn.waves_t?> waves_t;
-typedef <?=solver.solver_t?> solver_t;
-
 <? if moduleName == nil then ?>
 <? elseif moduleName == "applyInitCond" then ?>
 <? depmod{

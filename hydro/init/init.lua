@@ -84,6 +84,8 @@ function InitCond:initCodeModules(solver)
 	solver.modules:add{
 		name = 'initCond_t',
 		structs = {self.initStruct},
+		-- only generated for cl, not for ffi cdef
+		headercode = 'typedef '..self.initCond_t..' initCond_t;',
 	}
 
 	solver.modules:add{

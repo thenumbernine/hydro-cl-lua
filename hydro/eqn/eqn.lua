@@ -351,18 +351,24 @@ function Equation:initCodeModules()
 	solver.modules:add{
 		name = 'cons_t',
 		structs = {self.consStruct},
+		-- only generated for cl, not for ffi cdef
+		headercode = 'typedef '..self.cons_t..' cons_t;',
 	}
 
 	if self.primStruct then
 		solver.modules:add{
 			name = 'prim_t',
 			structs = {self.primStruct},
+			-- only generated for cl, not for ffi cdef
+			headercode = 'typedef '..self.prim_t..' prim_t;',
 		}
 	else
 		solver.modules:add{
 			name = 'prim_t',
 			depends = {'cons_t'},
 			typecode = 'typedef '..self.cons_t..' '..self.prim_t..';',
+			-- only generated for cl, not for ffi cdef
+			headercode = 'typedef '..self.prim_t..' prim_t;',
 		}
 	end
 	
@@ -374,12 +380,16 @@ typedef union {
 	real ptr[<?=eqn.numWaves?>]; 
 } <?=eqn.waves_t?>;
 ]],
+		-- only generated for cl, not for ffi cdef
+		headercode = 'typedef '..self.waves_t..' waves_t;',
 	}
 	
 	assert(self.eigenStruct)
 	solver.modules:add{
 		name = 'eigen_t',
 		structs = {self.eigenStruct},
+		-- only generated for cl, not for ffi cdef
+		headercode = 'typedef '..self.eigen_t..' eigen_t;',
 	}
 
 	-- only require this if we're a fvsolver

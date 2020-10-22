@@ -1,11 +1,70 @@
+<? if moduleName == nil then ?>
+<? elseif moduleName == "sqrt_1_2" then ?>
+
 #define sqrt_1_2 <?=('%.50f'):format(math.sqrt(.5))?>
 
+<? elseif moduleName == "eqn.common" then ?>
+
+static inline <?=eqn.prim_t?> primFromCons(<?=eqn.cons_t?> U, real3 x) { return U; }
+static inline <?=eqn.cons_t?> consFromPrim(<?=eqn.prim_t?> W, real3 x) { return W; }
+
+<? elseif moduleName == "applyInitCond" then ?>
+
+kernel void applyInitCond(
+	constant <?=solver.solver_t?>* solver,
+	constant <?=solver.initCond_t?>* initCond,
+	global <?=eqn.cons_t?>* UBuf,
+	const global <?=coord.cell_t?>* cellBuf
+) {
+	SETBOUNDS(0,0);
+	real3 x = cellBuf[index].pos;
+	real3 mids = real3_real_mul(real3_add(solver->mins, solver->maxs), .5);
+	bool lhs = x.x < mids.x
+#if dim > 1
+		&& x.y < mids.y
+#endif
+#if dim > 2
+		&& x.z < mids.z
+#endif
+	;
+	global <?=eqn.cons_t?>* U = UBuf + index;
+
+	//used
+	real3 D = real3_zero;
+	real3 B = real3_zero;
+	real conductivity = 1.;
+	
+	//natural units say eps0 = 1/4pi, mu0 = 4pi
+	//but waves don't make it to the opposite side...
+	//mu0 eps0 = 1/c^2
+	real permittivity = 1.; //1. / (4. * M_PI);
+	real permeability = 1.; //4. * M_PI;
+	
+	//throw-away
+	real rho = 0;
+	real3 v = real3_zero;
+	real P = 0;
+	real ePot = 0;
+	
+	<?=code?>
+	
+	U->D = D;
+	U->B = B;
+	U->divBPot = 0;
+	U->sigma = conductivity;
+	U->eps = permittivity;
+	U->mu = permeability;
+}
+
+
+<? elseif moduleName == "fluxFromCons" then ?>
+
 #error this is out of date, should be made with normal_t, then moved to fluxFromCons
-<? for side=0,solver.dim-1 do ?>
-<?=eqn.cons_t?> fluxFromCons_<?=side?>(
+<?=eqn.cons_t?> fluxFromCons(
 	constant <?=solver.solver_t?>* solver,
 	<?=eqn.cons_t?> U,
-	real3 x<?=
+	real3 x,
+	normal_t n<?=
 	solver:getADMArgs()?>
 ) {
 	<?=solver:getADMVarCode()?>
@@ -38,10 +97,10 @@
 		.mu = 0.,
 	};
 }
-<? end ?>
 
-<? for side=0,solver.dim-1 do ?>
-range_t calcCellMinMaxEigenvalues_<?=side?>(
+<? elseif moduleName == "fluxFromCons" then ?>
+
+range_t calcCellMinMaxEigenvalues(
 	const global <?=eqn.cons_t?>* U,
 	real3 x<?=
 	solver:getADMArgs()?>
@@ -62,7 +121,8 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 	real lambda = alpha * sqrt(detg_gUjj / (det_gamma3 * U->eps * U->mu));
 	return (range_t){-lambda, lambda};
 }
-<? end ?>
+
+<? elseif moduleName == "calcEigenBasis" then ?>
 
 //TODO HLL needs eigen_forInterface 
 //but it would have to pass the extra ADM args into it
@@ -140,12 +200,13 @@ kernel void calcEigenBasis(
 	}<? end ?>
 }
 
+<? elseif moduleName == "eigen_left/rightTransform" then ?>
+
 /*
 TODO update this for Einstein-Maxwell (take the metric into consideration
 */
-<? for side=0,solver.dim-1 do ?>
 
-<?=eqn.waves_t?> eigen_leftTransform_<?=side?>(
+<?=eqn.waves_t?> eigen_leftTransform(
 	constant <?=solver.solver_t?>* solver,
 	<?=eqn.eigen_t?> eig,
 	<?=eqn.cons_t?> UX,
@@ -190,7 +251,7 @@ TODO update this for Einstein-Maxwell (take the metric into consideration
 	return UY;
 }
 
-<?=eqn.cons_t?> eigen_rightTransform_<?=side?>(
+<?=eqn.cons_t?> eigen_rightTransform(
 	constant <?=solver.solver_t?>* solver,
 	<?=eqn.eigen_t?> eig,
 	<?=eqn.waves_t?> UX,
@@ -262,7 +323,9 @@ x,  y,  z, z,  y,  x
 	return UY;
 }
 
-<?=eqn.cons_t?> eigen_fluxTransform_<?=side?>(
+<? elseif moduleName == "eigen_fluxTransform" then ?>
+
+<?=eqn.cons_t?> eigen_fluxTransform(
 	constant <?=solver.solver_t?>* solver,
 	<?=eqn.eigen_t?> eig,
 	<?=eqn.cons_t?> UX,
@@ -311,7 +374,8 @@ x,  y,  z, z,  y,  x
 
 	return UY;
 }
-<? end ?>
+
+<? elseif moduleName == "addSource" then ?>
 
 kernel void addSource(
 	constant <?=solver.solver_t?>* solver,
@@ -324,12 +388,12 @@ kernel void addSource(
 	deriv->D = real3_sub(deriv->D, real3_real_mul(U->D, 1. / U->eps * U->sigma));
 }
 
+<? elseif moduleName == "eigen_forCell" then ?>
 
 //used by PLM
 
 //TODO FINISHME
-<? for side=0,solver.dim-1 do ?>
-<?=eqn.eigen_t?> eigen_forCell_<?=side?>(
+<?=eqn.eigen_t?> eigen_forCell(
 	<?=eqn.cons_t?> U,
 	real3 x
 ) {
@@ -339,4 +403,9 @@ kernel void addSource(
 	//eig.lambda = eig.alpha / sqrt(eig.detg_gUjj / (det_gamma3 * eig.eps * eig.mu));
 	return eig;
 }
-<? end ?>
+
+<? 
+else
+	error("unknown moduleName "..require 'ext.tolua'(moduleName))
+end 
+?>

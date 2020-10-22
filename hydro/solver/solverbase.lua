@@ -631,6 +631,8 @@ function SolverBase:initCodeModules()
 	self.modules:add{
 		name = 'solver_t',
 		structs = {self.solverStruct},
+		-- only generated for cl, not for ffi cdef
+		headercode = 'typedef '..self.solver_t..' solver_t;',
 	}
 
 	-- header

@@ -49,103 +49,32 @@ Z4_2008Yano.useSourceTerm = true
 
 function Z4_2008Yano:createInitState()
 	Z4_2008Yano.super.createInitState(self)
-	self:addGuiVar{name = 'm', value = -1}
+	self:addGuiVar{name = 'm', value = 2}
 end
 
-function Z4_2008Yano:getCommonFuncCode()
-	return template([[
-void setFlatSpace(
-	constant <?=solver.solver_t?>* solver,
-	global <?=eqn.cons_t?>* U,
-	real3 x
-) {
-	U->alpha = 1;
-	U->gamma_ll = sym3_ident;
-	U->a_l = real3_zero;
-	U->d_lll.x = sym3_zero;
-	U->d_lll.y = sym3_zero;
-	U->d_lll.z = sym3_zero;
-	U->K_ll = sym3_zero;
-	U->Theta = 0;
-	U->Z_l = real3_zero;
-}
-]], {
-		eqn = self,
-		solver = self.solver,
-	})
+function Z4_2008Yano:initCodeModules()
+	Z4_2008Yano.super.initCodeModules(self)
+
+	for moduleName, depends in pairs{
+		['calcDT'] = {},
+		['eigen_forCell'] = {},
+		['calcCellMinMaxEigenvalues'] = {},
+		['eigen_forInterface'] = {},
+		['eigen_left/rightTransform'] = {},
+		['eigen_fluxTransform'] = {},
+		['addSource'] = {},
+	} do
+		self:addModuleFromSourceFile{
+			name = moduleName,
+			depends = depends,
+		}
+	end
 end
+
+-- don't use default
+function Z4_2008Yano:initCodeModule_calcDT() end
 
 Z4_2008Yano.needsInitDerivs = true
-Z4_2008Yano.initCondCode = [[
-<? 
-local common = require 'hydro.common'
-local xNames = common.xNames 
-local symNames = common.symNames 
-local from3x3to6 = common.from3x3to6 
-local from6to3x3 = common.from6to3x3 
-local sym = common.sym 
-?>
-kernel void applyInitCond(
-	constant <?=solver.solver_t?>* solver,
-	constant <?=solver.initCond_t?>* initCond,
-	global <?=eqn.cons_t?>* UBuf,
-	const global <?=coord.cell_t?>* cellBuf
-) {
-	SETBOUNDS(0,0);
-	real3 x = cellBuf[index].pos;
-	real3 xc = coordMap(x);
-	real3 mids = real3_real_mul(real3_add(solver->mins, solver->maxs), .5);
-	
-	global <?=eqn.cons_t?>* U = UBuf + index;
-	setFlatSpace(solver, U, x);
-
-	real alpha = 1.;
-	real3 beta_u = real3_zero;
-	sym3 gamma_ll = sym3_ident;
-	sym3 K_ll = sym3_zero;
-
-	<?=code?>
-
-	U->alpha = alpha;
-	U->gamma_ll = gamma_ll;
-	U->K_ll = K_ll;
-	
-	//Z_u n^u = 0
-	//Theta = alpha n_u Z^u = alpha Z^u
-	//for n_a = (-alpha, 0)
-	//n^a_l = (1/alpha, -beta^i/alpha)
-	//(Z_t - Z_i beta^i) / alpha = Theta ... = ?
-	//Z^t n_t + Z^i n_i = -alpha Z^t = Theta
-	U->Theta = 0;
-	U->Z_l = real3_zero;
-}
-
-kernel void initDerivs(
-	constant <?=solver.solver_t?>* solver,
-	global <?=eqn.cons_t?>* UBuf
-) {
-	SETBOUNDS(numGhost,numGhost);
-	global <?=eqn.cons_t?>* U = UBuf + index;
-
-<? 
-for i=1,solver.dim do 
-	local xi = xNames[i]
-?>
-	U->a_l.<?=xi?> = (U[solver->stepsize.<?=xi?>].alpha - U[-solver->stepsize.<?=xi?>].alpha) / (solver->grid_dx.s<?=i-1?> * U->alpha);
-	<? for jk,xjk in ipairs(symNames) do ?>
-	U->d_lll.<?=xi?>.<?=xjk?> = .5 * (U[solver->stepsize.<?=xi?>].gamma_ll.<?=xjk?> - U[-solver->stepsize.<?=xi?>].gamma_ll.<?=xjk?>) / solver->grid_dx.s<?=i-1?>;
-	<? end ?>
-<? end
-for i=solver.dim+1,3 do
-	local xi = xNames[i]
-?>
-	U->a_l.<?=xi?> = 0;
-	U->d_lll.<?=xi?> = sym3_zero;
-<?
-end
-?>
-}
-]]
 
 Z4_2008Yano.solverCodeFile = 'hydro/eqn/z4_2008yano.cl'
 

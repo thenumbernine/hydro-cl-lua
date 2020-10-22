@@ -94,100 +94,29 @@ function GRHD:createInitState()
 	}
 end
 
-function GRHD:getCommonFuncCode()
-	return self:template[[
+function GRHD:initCodeModules()
+	GRHD.super.initCodeModules(self)
 
-//pressure function for ideal gas
-real calc_P(constant <?=solver.solver_t?>* solver, real rho, real eInt) {
-	return (solver->heatCapacityRatio - 1.) * rho * eInt;
-}	
-
-//chi in most papers
-real calc_dP_drho(constant <?=solver.solver_t?>* solver, real rho, real eInt) {
-	return (solver->heatCapacityRatio - 1.) * eInt;
-}
-
-//kappa in most papers
-real calc_dP_deInt(constant <?=solver.solver_t?>* solver, real rho, real eInt) {
-	return (solver->heatCapacityRatio - 1.) * rho;
-}
-
-real calc_eInt_from_P(constant <?=solver.solver_t?>* solver, real rho, real P) {
-	return P / ((solver->heatCapacityRatio - 1.) * rho);
-}
-
-real calc_h(real rho, real P, real eInt) {
-	return 1. + eInt + P / rho;
-}
-
-<?=eqn.cons_only_t?> consOnlyFromPrim(
-	constant <?=solver.solver_t?>* solver,
-	<?=eqn.prim_t?> prim,
-	real alpha,
-	real3 beta,
-	sym3 gamma
-) {
-	//2008 Font eqn 31 etc 
-	real det_gamma = sym3_det(gamma);
-	sym3 gammaU = sym3_inv(gamma, det_gamma);
-	real3 vU = sym3_real3_mul(gammaU, prim.v);
-	real vSq = real3_dot(prim.v, vU);
-	real WSq = 1. / (1. - vSq);
-	real W = sqrt(WSq);
-	real P = calc_P(solver, prim.rho, prim.eInt);
-	real h = calc_h(prim.rho, P, prim.eInt);
-
-	//2008 Font, eqn 28-30:
-	
-	real D = prim.rho * W;
-	real3 S = real3_real_mul(prim.v, prim.rho * h * WSq);
-	real tau = prim.rho * h * WSq - P - D;
-
-	return (<?=eqn.cons_only_t?>){.D=D, .S=S, .tau=tau};
-}
-]]
+	for moduleName, depends in pairs{
+		['eqn.common'] = {},
+		['calcDT'] = {},
+		['fluxFromCons'] = {},
+		['eigen_forCell'] = {},
+		['calcEigenBasis'] = {},
+		['eigen_left/rightTransform'] = {},
+		['eigen_fluxTransform'] = {},
+		['addSource'] = {},
+		['constrainU'] = {},
+	} do
+		self:addModuleFromSourceFile{
+			name = moduleName,
+			depends = depends,
+		}
+	end
 end
 
--- hmm, this is from renovating 'getPrimConsCode() end', but will it work with the module system?
+-- don't use default 
 function GRHD:initCodeModulePrimCons() end
-
-GRHD.initCondCode = [[
-kernel void applyInitCond(
-	constant <?=solver.solver_t?>* solver,
-	constant <?=solver.initCond_t?>* initCond,
-	global <?=eqn.cons_t?>* UBuf<?=
-	solver:getADMArgs()?>
-) {
-	SETBOUNDS(0,0);
-	real3 x = cell_x(i);
-	real3 mids = real3_real_mul(real3_add(solver->mins, solver->maxs), .5);
-	bool lhs = x.x < mids.x
-#if dim > 1
-		&& x.y < mids.y
-#endif
-#if dim > 2
-		&& x.z < mids.z
-#endif
-	;
-	real rho = 0;
-	real3 v = real3_zero;
-	real P = 0;
-	//ignored:
-	real3 B = real3_zero;
-
-	<?=solver:getADMVarCode()?>
-
-	<?=code?>
-	
-	real eInt = calc_eInt_from_P(solver, rho, P);
-
-	<?=eqn.prim_t?> prim = {.rho=rho, .v=v, .eInt=eInt};
-	UBuf[index] = (<?=eqn.cons_t?>){
-		.prim = prim,
-		.cons = consOnlyFromPrim(solver, prim, alpha, beta, gamma),
-	};
-}
-]]
 
 GRHD.solverCodeFile = 'hydro/eqn/grhd.cl'
 

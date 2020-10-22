@@ -13,6 +13,8 @@ NavierStokesDivFree.consVars = table{
 	{name='v', type='real3', units='m/s', variance='u'},
 }
 
+-- hmm, if this is using euler.cl then how can we extend this for applyInitCond?
+-- I might have to bring the getModuleCode_applyInitCond function back 
 NavierStokesDivFree.initCondCode = [[
 kernel void applyInitCond(
 	global <?=solver.solver_t?>* solver,

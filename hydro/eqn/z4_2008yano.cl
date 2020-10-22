@@ -1,17 +1,86 @@
-<?
-local common = require 'hydro.common'
-local xNames = common.xNames
-local symNames = common.symNames
-local from3x3to6 = common.from3x3to6 
-local from6to3x3 = common.from6to3x3 
-local sym = common.sym
-?>
+<? if moduleName == nil then ?>
+<? elseif moduleName == "setFlatSpace" then ?>
 
-typedef <?=eqn.prim_t?> prim_t;
-typedef <?=eqn.cons_t?> cons_t;
-typedef <?=eqn.eigen_t?> eigen_t;
-typedef <?=eqn.waves_t?> waves_t;
-typedef <?=solver.solver_t?> solver_t;
+void setFlatSpace(
+	constant <?=solver.solver_t?>* solver,
+	global <?=eqn.cons_t?>* U,
+	real3 x
+) {
+	U->alpha = 1;
+	U->gamma_ll = sym3_ident;
+	U->a_l = real3_zero;
+	U->d_lll.x = sym3_zero;
+	U->d_lll.y = sym3_zero;
+	U->d_lll.z = sym3_zero;
+	U->K_ll = sym3_zero;
+	U->Theta = 0;
+	U->Z_l = real3_zero;
+}
+
+<? elseif moduleName == "applyInitCond" then ?>
+
+kernel void applyInitCond(
+	constant <?=solver.solver_t?>* solver,
+	constant <?=solver.initCond_t?>* initCond,
+	global <?=eqn.cons_t?>* UBuf,
+	const global <?=coord.cell_t?>* cellBuf
+) {
+	SETBOUNDS(0,0);
+	real3 x = cellBuf[index].pos;
+	real3 xc = coordMap(x);
+	real3 mids = real3_real_mul(real3_add(solver->mins, solver->maxs), .5);
+	
+	global <?=eqn.cons_t?>* U = UBuf + index;
+	setFlatSpace(solver, U, x);
+
+	real alpha = 1.;
+	real3 beta_u = real3_zero;
+	sym3 gamma_ll = sym3_ident;
+	sym3 K_ll = sym3_zero;
+
+	<?=code?>
+
+	U->alpha = alpha;
+	U->gamma_ll = gamma_ll;
+	U->K_ll = K_ll;
+	
+	//Z_u n^u = 0
+	//Theta = alpha n_u Z^u = alpha Z^u
+	//for n_a = (-alpha, 0)
+	//n^a_l = (1/alpha, -beta^i/alpha)
+	//(Z_t - Z_i beta^i) / alpha = Theta ... = ?
+	//Z^t n_t + Z^i n_i = -alpha Z^t = Theta
+	U->Theta = 0;
+	U->Z_l = real3_zero;
+}
+
+kernel void initDerivs(
+	constant <?=solver.solver_t?>* solver,
+	global <?=eqn.cons_t?>* UBuf
+) {
+	SETBOUNDS(numGhost,numGhost);
+	global <?=eqn.cons_t?>* U = UBuf + index;
+
+<? 
+for i=1,solver.dim do 
+	local xi = xNames[i]
+?>
+	U->a_l.<?=xi?> = (U[solver->stepsize.<?=xi?>].alpha - U[-solver->stepsize.<?=xi?>].alpha) / (solver->grid_dx.s<?=i-1?> * U->alpha);
+	<? for jk,xjk in ipairs(symNames) do ?>
+	U->d_lll.<?=xi?>.<?=xjk?> = .5 * (U[solver->stepsize.<?=xi?>].gamma_ll.<?=xjk?> - U[-solver->stepsize.<?=xi?>].gamma_ll.<?=xjk?>) / solver->grid_dx.s<?=i-1?>;
+	<? end ?>
+<? end
+for i=solver.dim+1,3 do
+	local xi = xNames[i]
+?>
+	U->a_l.<?=xi?> = 0;
+	U->d_lll.<?=xi?> = sym3_zero;
+<?
+end
+?>
+}
+
+<? elseif moduleName == "calcDT" then ?>
 
 kernel void calcDT(
 	constant solver_t* solver,
@@ -56,12 +125,14 @@ kernel void calcDT(
 	dtBuf[index] = dt; 
 }
 
+<? elseif moduleName == "eigen_forCell" then ?>
+
 //used by PLM
-<? for side=0,solver.dim-1 do ?>
-eigen_t eigen_forCell_<?=side?>(
+eigen_t eigen_forCell(
 	constant solver_t* solver,
 	cons_t U,
-	real3 x 
+	real3 x,
+	normal_t n
 ) {
 	eigen_t eig;
 	eig.alpha = U.alpha;
@@ -72,12 +143,13 @@ eigen_t eigen_forCell_<?=side?>(
 	eig.sqrt_gammaUjj = _real3(sqrt(eig.gamma_uu.xx), sqrt(eig.gamma_uu.yy), sqrt(eig.gamma_uu.zz));
 	return eig;
 }
-<? end ?>
 
-<? for side=0,solver.dim-1 do ?>
-range_t calcCellMinMaxEigenvalues_<?=side?>(
+<? elseif moduleName == "calcCellMinMaxEigenvalues" then ?>
+
+range_t calcCellMinMaxEigenvalues(
 	const global cons_t* U,
-	real3 x
+	real3 x,
+	normal_t n
 ) {
 	real det_gamma = sym3_det(U->gamma_ll);
 	
@@ -102,7 +174,8 @@ range_t calcCellMinMaxEigenvalues_<?=side?>(
 		.max = lambdaMax,
 	};
 }
-<? end ?>
+
+<? elseif moduleName == "eigen_forInterface" then ?>
 
 eigen_t eigen_forInterface(
 	constant solver_t* solver,
@@ -130,8 +203,9 @@ eigen_t eigen_forInterface(
 	return eig;
 }
 
-<? for side=0,solver.dim-1 do ?>
-waves_t eigen_leftTransform_<?=side?>(
+<? elseif moduleName == "eigen_left/rightTransform" then ?>
+
+waves_t eigen_leftTransform(
 	constant solver_t* solver,
 	eigen_t eig,
 	cons_t inputU,
@@ -763,7 +837,7 @@ waves_t eigen_leftTransform_<?=side?>(
 	return results;
 }
 
-cons_t eigen_rightTransform_<?=side?>(
+cons_t eigen_rightTransform(
 	constant solver_t* solver,
 	eigen_t eig,
 	waves_t input,
@@ -1294,9 +1368,11 @@ cons_t eigen_rightTransform_<?=side?>(
 	return resultU;
 }
 
+<? elseif moduleName == "eigen_fluxTransform" then ?>
+
 //notice this paper uses the decomposition alpha A = R Lambda L
 // so this computation is for alpha A
-cons_t eigen_fluxTransform_<?=side?>(
+cons_t eigen_fluxTransform(
 	constant solver_t* solver,
 	eigen_t eig,
 	cons_t input,
@@ -1449,7 +1525,8 @@ cons_t eigen_fluxTransform_<?=side?>(
 
 	return results;
 }
-<? end ?>
+
+<? elseif moduleName == "addSource" then ?>
 
 kernel void addSource(
 	constant solver_t* solver,
@@ -1622,3 +1699,9 @@ end?>
 	real tr_KSq = sym3_dot(KSq_ll, gamma_uu);
 	U->H = .5 * (R + trK * trK - tr_KSq) - 8. * M_PI * rho;
 }
+
+<? 
+else
+	error("unknown moduleName "..require 'ext.tolua'(moduleName))
+end 
+?>

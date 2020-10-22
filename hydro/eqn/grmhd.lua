@@ -107,104 +107,31 @@ function GRMHD:createInitState()
 --]]
 end
 
+function GRMHD:initCodeModules()
+	GRMHD.super.initCodeModules(self)
+
+	for moduleName, depends in pairs{
+		['eqn.common'] = {},
+		['fluxFromCons'] = {},
+		['calcDT'] = {},
+		['eigen_forCell'] = {},
+		['calcEigenBasis'] = {},
+		['eigen_left/rightTransform'] = {},
+		['eigen_fluxTransform'] = {},
+		['constrainU'] = {},
+		['updatePrims'] = {},
+	} do
+		self:addModuleFromSourceFile{
+			name = moduleName,
+			depends = depends,
+		}
+	end
+end
 
 -- YOU ARE HERE in converting stuff from SRHD to GRMHD
 
-function GRMHD:getCommonFuncCode()
-	return self:template[[
-//I'm going to fix metric coordinates at first
-//then later the transition to the evolved metric will be easier
-constant const real alpha = 1;
-constant const real3 betaU = real3_zero;
-
-//pressure function for ideal gas
-real calc_P(real rho, real eInt) {
-	return (heatCapacityRatio - 1.) * rho * eInt;
-}	
-
-//chi in most papers
-real calc_dP_drho(real rho, real eInt) {
-	return (heatCapacityRatio - 1.) * eInt;
-}
-
-//kappa in most papers
-real calc_dP_deInt(real rho, real eInt) {
-	return (heatCapacityRatio - 1.) * rho;
-}
-
-real calc_eInt_from_P(real rho, real P) {
-	return P / ((heatCapacityRatio - 1.) * rho);
-}
-
-real calc_h(real rho, real P, real eInt) {
-	return 1. + eInt + P / rho;
-}
-
-<?=eqn.cons_t?> consFromPrim(<?=eqn.prim_t?> prim, real3 x) {
-	real vSq = coordLenSq(prim.v, x);
-	real WSq = 1. / (1. - vSq);
-	real W = sqrt(WSq);
-	real P = calc_P(prim.rho, prim.eInt);
-	real h = calc_h(prim.rho, P, prim.eInt);
-
-	//2008 Font, eqn 40-42:
-	
-	//rest-mass density = J^0 = rho u^0
-	real D = prim.rho * W;	
-	
-	//momentum = T^0i = rho h u^0 u^i + P g^0i
-	real3 S = real3_add(
-		real3_real_mul(prim.v, prim.rho * h * WSq),
-		real3_real_mul(betaU, P / (alpha * alpha)));
-	
-	//energy = T^00 = rho h u^0 u^0 + P g^00
-	real tau = prim.rho * h * WSq - D - P / (alpha * alpha);
-	
-	return (<?=eqn.cons_t?>){.D=D, .S=S, .tau=tau};
-}
-]]
-end
-
--- hmm, this is from renovating 'getPrimConsCode() end', but will it work with the module system?
+-- don't use default 
 function GRMHD:initCodeModulePrimCons() end
-
-GRMHD.initCondCode = [[
-kernel void applyInitCond(
-	constant <?=solver.solver_t?>* solver,
-	constant <?=solver.initCond_t?>* initCond,
-	global <?=eqn.cons_t?>* consBuf,
-	const global <?=coord.cell_t?>* cellBuf,
-	global <?=eqn.prim_t?>* primBuf
-) {
-	SETBOUNDS(0,0);
-	real3 x = cellBuf[index].pos;
-	real3 mids = real3_real_mul(real3_add(mins, maxs), .5);
-	bool lhs = x.x < mids.x
-#if dim > 1
-		&& x.y < mids.y
-#endif
-#if dim > 2
-		&& x.z < mids.z
-#endif
-	;
-	real rho = 0;
-	real3 v = real3_zero;
-	real P = 0;
-	//ignored:
-	real3 B = real3_zero;
-
-	<?=code?>
-	
-	real eInt = calc_eInt_from_P(rho, P);
-	real vSq = coordLenSq(v, x);
-	real W = 1. / sqrt(1. - vSq);
-	real h = calc_h(rho, P, eInt);
-
-	<?=eqn.prim_t?> prim = {.rho=rho, .v=v, .eInt=eInt};
-	primBuf[index] = prim;
-	consBuf[index] = consFromPrim(prim, x);
-}
-]]
 
 GRMHD.solverCodeFile = 'hydro/eqn/srhd.cl'
 
