@@ -67,7 +67,7 @@ depmod{
 	};
 }
 
-<? elseif moduleName == "eqn.dU-dW" then 
+<? elseif moduleName == "apply_dU_dW" then 
 depmod{
 	"real3",
 	"solver_t",
@@ -99,6 +99,16 @@ depmod{
 		.ePot = W.ePot,
 	};
 }
+
+<? elseif moduleName == "apply_dW_dU" then 
+depmod{
+	"real3",
+	"solver_t",
+	"prim_t",
+	"cons_t",
+	"coord_lower",
+}
+?>
 
 <?=eqn.prim_t?> apply_dW_dU(
 	constant <?=solver.solver_t?>* solver,

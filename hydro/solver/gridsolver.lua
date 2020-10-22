@@ -382,11 +382,13 @@ typedef struct {
 				'eigen_forCell',
 				'eigen_left/rightTransform',
 				-- plm-eig-prim:
-				'eqn.dU-dW',
+				'apply_dU_dW',
+				'apply_dW_dU',
 				'eigen_left/rightTransform',
 				-- plm-eig-prim-ref:
 				'eigen_forCell',
-				'eqn.dU-dW',
+				'apply_dU_dW',
+				'apply_dW_dU',
 				'eigen_left/rightTransform',
 				-- plm-athena:
 				'eigen_forCell',

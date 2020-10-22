@@ -189,38 +189,18 @@ function TwoFluidEMHD:initCodeModules()
 
 	for moduleName, depends in pairs{
 		['sqrt_2_and_1_2'] = {},
-	
 		['primFromCons'] = {},
 		['consFromPrim'] = {},
-
-		-- only used by PLM
-		['eqn.dU-dW'] = {
-			'real3',
-			'solver_t',
-			'prim_t',
-			'cons_t',
-			'coord_lower',
-		},
-
-		['eqn.common'] = {
-			'coordLenSq',
-		},
-		
-		['fluxFromCons'] = {
-			'normal_t',
-		},
-		
+		['apply_dU_dW'] = {},
+		['apply_dW_dU'] = {},
+		['eqn.common'] = {},
+		['fluxFromCons'] = {},
 		['eigen_forInterface'] = {},
 		['eigen_forCell'] = {},
-		
-		['eigen_left/rightTransform'] = {
-			'sqrt_2_and_1_2',
-		},
-		
+		['eigen_left/rightTransform'] = {},
 		['eigen_fluxTransform'] = {},
 		['addSource'] = {},
 		['constrainU'] = {},
-		
 		--['calcDT'] = {},	-- don't use this, use the deafult, this is breaking atm
 	} do
 		self:addModuleFromSourceFile{

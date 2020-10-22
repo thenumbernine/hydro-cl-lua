@@ -171,61 +171,20 @@ function MHD:initCodeModules()
 	}
 	
 	for moduleName, depends in pairs{
-		['eqn.common'] = {
-			'coordLenSq',
-		},
-
+		['eqn.common'] = {},
 		['primFromCons'] = {},
 		['consFromPrim'] = {},
-
-		-- only used by PLM
-		['eqn.dU-dW'] = {
-			'real3',
-			'solver_t',
-			'prim_t',
-			'cons_t',
-		},
-
-		['cons_rotateFrom'] = {
-			'cons_t',
-			'normal_t',
-		},
-		
-		['cons_rotateTo'] = {
-			'cons_t',
-			'normal_t',
-		},
-		
+		['apply_dU_dW'] = {},
+		['apply_dW_dU'] = {},
+		['cons_rotateFrom'] = {},
+		['cons_rotateTo'] = {},
 		['calcCellMinMaxEigenvalues'] = {},
-		
 		['calcRoeValues'] = {},
-		
-		['fluxFromCons'] = {
-			'solver_t',
-			'eigen_forCell',
-			'normal_t',
-		},
-
-		['eigen_forRoeAvgs'] = {},
-		
-		['eigen_forInterface'] = {
-			'cons_rotateFrom',
-			'calcRoeValues',
-			'eigen_forRoeAvgs',
-		},
-		
-		['eigen_forCell'] = {
-			'solver_t',
-			'primFromCons',	-- primFromCons
-			'normal_t',
-			'coordLenSq',
-			'eigen_forRoeAvgs',
-		},
-
-		['eigen_left/rightTransform'] = {
-			'cons_rotateTo',
-		},
-		
+		['fluxFromCons'] = {},
+		['eigen_forRoeAvgs'] = {},	
+		['eigen_forInterface'] = {},
+		['eigen_forCell'] = {},
+		['eigen_left/rightTransform'] = {},
 		['eigen_fluxTransform'] = {},
 		['addSource'] = {},
 		['constrainU'] = {},
@@ -252,6 +211,7 @@ end
 function MHD:getModuleDepends_displayCode() 
 	return {
 		'eqn.common',
+		'consFromPrim',
 	}
 end
 

@@ -99,7 +99,8 @@ function Euler:initCodeModules()
 	for moduleName, depends in pairs{
 		['primFromCons'] = {},
 		['consFromPrim'] = {},
-		['eqn.dU-dW'] = {},
+		['apply_dU_dW'] = {},
+		['apply_dW_dU'] = {},
 		['eqn.common'] = {},
 		['fluxFromCons'] = {},
 		['calcCellMinMaxEigenvalues'] = {},

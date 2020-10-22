@@ -95,8 +95,7 @@ end
 	};
 }
 
-<? elseif moduleName == "eqn.dU-dW" then ?>
-<? 	-- only used by PLM
+<? elseif moduleName == "apply_dU_dW" then	-- only used by PLM
 depmod{
 	"solver_t",
 	"prim_t",
@@ -122,6 +121,14 @@ depmod{
 		.ePot = W.ePot,
 	};
 }
+
+<? elseif moduleName == "apply_dW_dU" then	-- only used by PLM
+depmod{
+	"solver_t",
+	"prim_t",
+	"cons_t",
+	"coord_lower",
+} ?>
 
 <?=eqn.prim_t?> apply_dW_dU(
 	constant <?=solver.solver_t?>* solver,

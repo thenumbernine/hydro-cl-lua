@@ -80,7 +80,7 @@ depmod{
 	};
 }
 
-<? elseif moduleName == "eqn.dU-dW" then  -- only used by PLM
+<? elseif moduleName == "apply_dU_dW" then  -- only used by PLM
 depmod{
 	"real3",
 	"coord_lower",
@@ -119,6 +119,16 @@ depmod{
 		.psi_g = W.psi_g,
 	};
 }
+
+<? elseif moduleName == "apply_dW_dU" then  -- only used by PLM
+depmod{
+	"real3",
+	"coord_lower",
+	"solver_t",
+	"prim_t",
+	"cons_t",
+}
+?>
 
 <?=eqn.prim_t?> apply_dW_dU(
 	constant <?=solver.solver_t?>* solver,

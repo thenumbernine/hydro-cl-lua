@@ -215,7 +215,7 @@ local args = {
 	--initCond = 'Bessel',
 	--initCond = 'cyclone',
 	
-	--initCond = 'Sod',
+	initCond = 'Sod',
 	--initCond = 'Sod with physical units',
 	--initCondArgs = {dim=cmdline.displayDim},
 	
@@ -322,7 +322,7 @@ local args = {
 	--initCond = 'plane gauge wave',
 
 
-	initCond = 'Alcubierre warp bubble',
+	--initCond = 'Alcubierre warp bubble',
 	
 	--initCondArgs = {R=.5, sigma=8, speed=.1},	-- sub-luminal
 	
@@ -537,7 +537,7 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn
 -- compressible Euler equations
 
 
---self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
+self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
 
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct bounded'})))	-- this is the default hllCalcWaveMethod
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct'})))
@@ -587,8 +587,7 @@ self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='euler', wenoMe
 --self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='euler', eqnArgs={incompressible=true}, wenoMethod='2010 Shen Zha', order=5})))
 
 -- Navier-Stokes-Wilcox:
--- TODO FIXME not done yet 
--- needs 1) arbitrary normal calculations, 2) module based codegen
+-- TODO FIXME i think the eigen code isn't correct
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='navstokes-wilcox'})))
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='navstokes-wilcox', eqnArgs={incompressible=true}})))
 
@@ -713,7 +712,7 @@ self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='euler', wenoMe
 
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='adm1d_v1'})))
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='adm1d_v2'})))
-self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='adm3d'})))
+--self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='adm3d'})))
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='adm3d', eqnArgs={noZeroRowsInFlux=false}})))
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='adm3d', eqnArgs={useShift='MinimalDistortionElliptic'}})))	-- TODO finish me
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='adm3d', eqnArgs={useShift='MinimalDistortionEllipticEvolve'}})))	-- TODO finish me

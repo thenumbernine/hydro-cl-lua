@@ -858,7 +858,7 @@ function Equation:initCodeModulePrimCons()
 
 	-- only used by PLM
 	self.solver.modules:add{
-		name = 'eqn.dU-dW',
+		name = 'apply_dU_dW',
 		--depends = {'solver_t', 'prim_t', 'cons_t'},
 		code = self:template[[
 /*
@@ -878,7 +878,14 @@ returns output vector
 	return W; 
 }
 */
+]],
+	}
 
+	-- only used by PLM
+	self.solver.modules:add{
+		name = 'apply_dW_dU',
+		--depends = {'solver_t', 'prim_t', 'cons_t'},
+		code = self:template[[
 /*
 WA = W components that make up the jacobian matrix
 U = input vector

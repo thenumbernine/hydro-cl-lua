@@ -75,8 +75,13 @@ depmod{
 	};
 }
 
-<? elseif moduleName == "eqn.dU-dW" then 
+<? elseif moduleName == "apply_dU_dW" then 	-- only used by PLM
 depmod{
+	"real3",
+	"solver_t",
+	"prim_t",
+	"cons_t",
+	"coord_lower",
 	"coord_lower",
 }
 ?>
@@ -107,6 +112,17 @@ depmod{
 		.ePot = W.ePot,
 	};
 }
+
+<? elseif moduleName == "apply_dW_dU" then 	-- only used by PLM
+depmod{
+	"real3",
+	"solver_t",
+	"prim_t",
+	"cons_t",
+	"coord_lower",
+	"coord_lower",
+}
+?>
 
 <?=eqn.prim_t?> apply_dW_dU(
 	constant <?=solver.solver_t?>* solver,
@@ -139,6 +155,7 @@ depmod{
 <? elseif moduleName == "eqn.common" then 
 depmod{
 	"units",
+	"coordLenSq",
 }
 ?>
 
@@ -297,6 +314,7 @@ end
 depmod{
 	"units",
 	"primFromCons",
+	"normal_t",
 }
 ?>
 
@@ -442,6 +460,7 @@ depmod{
 	"eigen_t",
 	"waves_t",
 	"coord_lower",
+	"sqrt_2_and_1_2",
 }
 ?>
 

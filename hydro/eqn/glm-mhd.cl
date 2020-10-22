@@ -6,7 +6,11 @@ tweaked it while looking at
 */
 
 <? if moduleName == nil then ?>
-<? elseif moduleName == "eqn.common" then ?>
+<? elseif moduleName == "eqn.common" then 
+depmod{
+	"coordLenSq",
+}
+?>
 
 real calc_eKin(<?=eqn.prim_t?> W, real3 x) { return .5 * coordLenSq(W.v, x); }
 real calc_EKin(<?=eqn.prim_t?> W, real3 x) { return W.rho * calc_eKin(W, x); }
@@ -101,7 +105,14 @@ depmod{
 	return U;
 }
 
-<? elseif moduleName == "eqn.dU-dW" then ?>
+<? elseif moduleName == "apply_dU_dW" then -- only used by PLM
+depmod{
+	"real3",
+	"solver_t",
+	"prim_t",
+	"cons_t",
+}
+?>
 
 <?=eqn.cons_t?> apply_dU_dW(
 	constant <?=solver.solver_t?>* solver,
@@ -123,6 +134,15 @@ depmod{
 		.ePot = W.ePot,
 	};
 }
+
+<? elseif moduleName == "apply_dW_dU" then -- only used by PLM
+depmod{
+	"real3",
+	"solver_t",
+	"prim_t",
+	"cons_t",
+}
+?>
 
 <?=eqn.prim_t?> apply_dW_dU(
 	constant <?=solver.solver_t?>* solver,
@@ -149,6 +169,7 @@ depmod{
 <? elseif moduleName == "applyInitCond" then 
 depmod{
 	"cartesianToCoord",
+	"consFromPrim",
 }
 ?>
 
@@ -216,7 +237,12 @@ kernel void initDerivs(
 ?>
 }
 
-<? elseif moduleName == "cons_rotateFrom" then ?>
+<? elseif moduleName == "cons_rotateFrom" then 
+depmod{
+	"cons_t",
+	"normal_t",
+}
+?>
 
 //align from vector coordinates to the normal basis
 <?=eqn.cons_t?> cons_rotateFrom(<?=eqn.cons_t?> U, normal_t n) {
@@ -225,7 +251,12 @@ kernel void initDerivs(
 	return U;
 }
 
-<? elseif moduleName == "cons_rotateTo" then ?>
+<? elseif moduleName == "cons_rotateTo" then 
+depmod{
+	"cons_t",
+	"normal_t",
+}
+?>
 
 //align from normal basis to vector coordinates
 <?=eqn.cons_t?> cons_rotateTo(<?=eqn.cons_t?> U, normal_t n) {
@@ -376,7 +407,13 @@ range_t calcCellMinMaxEigenvalues(
 	return W;
 };
 
-<? elseif moduleName == "fluxFromCons" then ?>
+<? elseif moduleName == "fluxFromCons" then 
+depmod{
+	"solver_t",
+	"eigen_forCell",
+	"normal_t",
+}
+?>
 
 <?=eqn.cons_t?> fluxFromCons(
 	constant <?=solver.solver_t?>* solver,
@@ -532,7 +569,13 @@ depmod{
 	return eig;
 }
 
-<? elseif moduleName == "eigen_forInterface" then ?>
+<? elseif moduleName == "eigen_forInterface" then 
+depmod{
+	"cons_rotateFrom",
+	"calcRoeValues",
+	"eigen_forRoeAvgs",
+}
+?>
 
 <?=eqn.eigen_t?> eigen_forInterface(
 	constant <?=solver.solver_t?>* solver,
@@ -550,7 +593,15 @@ depmod{
 	return eigen_forRoeAvgs(solver, roe, x);
 }
 
-<? elseif moduleName == "eigen_forCell" then ?>
+<? elseif moduleName == "eigen_forCell" then 
+depmod{
+	"solver_t",
+	"primFromCons",	-- primFromCons
+	"normal_t",
+	"coordLenSq",
+	"eigen_forRoeAvgs",
+}
+?>
 
 <?=eqn.eigen_t?> eigen_forCell(
 	constant <?=solver.solver_t?>* solver,
@@ -572,7 +623,11 @@ depmod{
 	return eigen_forRoeAvgs(solver, roe, x);
 }
 
-<? elseif moduleName == "eigen_left/rightTransform" then ?>
+<? elseif moduleName == "eigen_left/rightTransform" then 
+depmod{
+	"cons_rotateTo",
+}
+?>
 
 <?=eqn.waves_t?> eigen_leftTransform(
 	constant <?=solver.solver_t?>* solver,
@@ -936,7 +991,11 @@ then
 end ?>
 }
 
-<? elseif moduleName == "constrainU" then ?>
+<? elseif moduleName == "constrainU" then 
+depmod{
+	"consFromPrim",
+}
+?>
 
 kernel void constrainU(
 	constant <?=solver.solver_t?>* solver,
