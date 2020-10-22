@@ -53,7 +53,6 @@ end
 
 -- don't use default
 function ShallowWater:initCodeModule_fluxFromCons() end
-function ShallowWater:initCodeModuleCommon() end
 function ShallowWater:initCodeModulePrimCons() end
 
 function ShallowWater:getModuleDepends_waveCode()

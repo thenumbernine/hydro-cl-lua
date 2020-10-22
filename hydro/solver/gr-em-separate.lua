@@ -32,6 +32,7 @@ function GREMSeparateSolver:init(args)
 	self.gr = gr
 
 	local GRMaxwellSolver = class(require 'hydro.solver.gr-maxwell-roe')
+	-- TODO :createCodePrefix() has been replaced with :initCodeModules()
 	function GRMaxwellSolver:createCodePrefix()
 		GRMaxwellSolver.super.createCodePrefix(self)
 		
@@ -153,6 +154,7 @@ function GREMSeparateSolver:replaceSourceKernels()
 	local lines = table{
 		self.modules:getCodeAndHeader(self.sharedModulesEnabled:keys():unpack()),
 		self.gr.eqn:getTypeCode(),
+		-- TODO :getCommonFuncCode() has been replaced with :initCodeModules()
 		self.gr.eqn:getCommonFuncCode(),
 		self.em.eqn:getTypeCode(),
 		template([[

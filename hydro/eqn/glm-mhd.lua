@@ -198,7 +198,6 @@ end
 
 -- don't use default
 function MHD:initCodeModule_fluxFromCons() end
-function MHD:initCodeModuleCommon() end
 function MHD:initCodeModulePrimCons() end
 
 function MHD:getModuleDepends_waveCode() 

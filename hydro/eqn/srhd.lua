@@ -215,7 +215,6 @@ end
 -- don't use default
 function SRHD:initCodeModule_calcDT() end
 function SRHD:initCodeModule_fluxFromCons() end
-function SRHD:initCodeModuleCommon() end
 
 function SRHD:getModuleDependsApplyInitCond()
 	return {

@@ -212,7 +212,6 @@ end
 
 -- don't use default
 function TwoFluidEMHD:initCodeModule_fluxFromCons() end
-function TwoFluidEMHD:initCodeModuleCommon() end
 function TwoFluidEMHD:initCodeModulePrimCons() end
 
 function TwoFluidEMHD:getModuleDepends_waveCode()

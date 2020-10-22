@@ -394,6 +394,7 @@ function BSSNOKFiniteDifferenceEquationBase:initCodeModule_calcDT()
 		depends = table{
 			'eqn.common',
 			'coord_sqrt_g_ll##',
+			'SETBOUNDS',
 		}:append(
 			self.cflMethod == '2008 Alcubierre' and { 
 				'calc_gamma_uu',
@@ -457,22 +458,10 @@ end
 	}
 end
 
-function BSSNOKFiniteDifferenceEquationBase:getModuleDependsCommon()
-	return {
-		'setFlatSpace',
-		-- used by the solver at least:
-		'calc_det_gammaBarLL',
-		'calc_gammaBar_LL',
-		'calc_gammaBar_UU',
-		'calc_gammaBar_uu',
-	}
-end
-
 function BSSNOKFiniteDifferenceEquationBase:getModuleDependsApplyInitCond()
 	return {
 		'setFlatSpace',
 	}
 end
-
 
 return BSSNOKFiniteDifferenceEquationBase 

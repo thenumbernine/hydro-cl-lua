@@ -522,8 +522,6 @@ end
 	-- eqn:initCodeModules is called after ... hmm
 	self.initCond:initCodeModules(solver)
 
-	self:initCodeModuleCommon()	-- eqn.common
-
 	-- init primFromCons and consFromPrim
 	-- prim-cons should have access to all ... prefix stuff?
 	-- but initstate has access to it
@@ -564,17 +562,6 @@ function Equation:initCodeModule_fluxFromCons()
 	return eigen_fluxTransform(solver, eigen_forCell(solver, U, x, n), U, x, n);
 }
 ]],
-	}
-end
-
-function Equation:getModuleDependsCommon() end	-- eqn.common, used by init and solver
-
-function Equation:initCodeModuleCommon()
-	-- TODO don't even use this, just subclass initModule
-	self.solver.modules:add{
-		name = 'eqn.common',
-		depends = self:getModuleDependsCommon(),
-		code = self.getCommonFuncCode and self:getCommonFuncCode() or nil,
 	}
 end
 

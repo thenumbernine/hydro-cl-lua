@@ -293,12 +293,6 @@ sym3 calc_gamma_uu(global const <?=eqn.cons_t?>* U, real3 x) {
 
 end
 
-function BSSNOKFiniteDifferenceEquation:getModuleDependsCommon()
-	return {
-		'rescaleFromCoord/rescaleToCoord',
-	}
-end
-
 function BSSNOKFiniteDifferenceEquation:createInitState()
 	BSSNOKFiniteDifferenceEquation.super.createInitState(self)
 	self:addGuiVars{

@@ -67,9 +67,6 @@ function GRMaxwell:initCodeModules()
 	end
 end
 
--- don't use default
-function GRMaxwell:getCommonFuncCode() end
-
 GRMaxwell.solverCodeFile = 'hydro/eqn/gr-maxwell.cl'
 
 function GRMaxwell:getEnv()

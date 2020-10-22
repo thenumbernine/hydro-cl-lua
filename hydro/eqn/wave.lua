@@ -162,7 +162,6 @@ end
 Wave.solverCodeFile = 'hydro/eqn/wave.cl'
 
 -- don't use default
-function Wave:initCodeModuleCommon() end
 function Wave:initCodeModule_fluxFromCons() end
 
 function Wave:getModuleDepends_waveCode()

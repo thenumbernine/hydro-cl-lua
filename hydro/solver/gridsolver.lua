@@ -1159,6 +1159,8 @@ function GridSolver:createBoundaryProgramAndKernel(args)
 		'cons_t',
 		'INDEX',
 		'INDEXV',
+		-- some Boundary :getCode use numStates
+		'solver.macros',
 	}
 print('boundary modules: '..moduleNames:sort():concat', ')
 	lines:insert(self.modules:getCodeAndHeader(moduleNames:unpack()))

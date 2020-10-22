@@ -223,7 +223,6 @@ end
 
 -- don't use default
 function Euler:initCodeModule_fluxFromCons() end
-function Euler:initCodeModuleCommon() end
 function Euler:initCodeModulePrimCons() end
 
 Euler.solverCodeFile = 'hydro/eqn/euler.cl'

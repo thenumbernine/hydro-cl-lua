@@ -160,7 +160,6 @@ end
 
 -- don't use default
 function Maxwell:initCodeModule_fluxFromCons() end
-function Maxwell:initCodeModuleCommon() end
 
 function Maxwell:getModuleDependsApplyInitCond()
 	return table(Maxwell.super.getModuleDependsApplyInitCond(self))

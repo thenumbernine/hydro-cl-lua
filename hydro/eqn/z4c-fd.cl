@@ -7,18 +7,76 @@ Baumgarte & Shapiro "Numerical Relativity"
 */
 
 <? 
-local common = require 'hydro.common'
-local xNames = common.xNames
-local symNames = common.symNames
-local from3x3to6 = common.from3x3to6 
-local from6to3x3 = common.from6to3x3 
-local sym = common.sym
-
 local derivOrder = 2 * solver.numGhost
 local makePartials = require 'hydro.eqn.makepartial'
 local makePartial1 = function(...) return makePartials.makePartial1(derivOrder, solver, ...) end
 local makePartial2 = function(...) return makePartials.makePartial2(derivOrder, solver, ...) end
 ?>
+
+<? if moduleName == nil then ?>
+<? elseif moduleName == "eqn.common" then ?>
+
+//gammaBar_ij = gammaHat_ij + epsilon_ij
+sym3 calc_gammaBar_ll(global const <?=eqn.cons_t?>* U, real3 x) {
+	sym3 gammaHat_ll = coord_g_ll(x);
+	return sym3_add(gammaHat_ll, U->epsilon_ll);
+}
+
+//det(gammaBar_ij) = det(gammaHat_ij + epsilon_ij)
+//however det(gammaHat_ij) == det(gammaBar_ij) by the eqn just before (6) in 2017 Ruchlin
+real calc_det_gammaBar_ll(real3 x) {
+	return coord_sqrt_det_g(x);
+}
+
+void setFlatSpace(
+	constant <?=solver.solver_t?>* solver,
+	global <?=eqn.cons_t?>* U,
+	real3 x
+) {
+	U->alpha = 1.;
+	U->beta_u = real3_zero;
+	U->epsilon_ll = sym3_zero;
+	U->chi = 1;
+	U->KHat = 0;
+	U->Theta = 0;
+	U->ABar_ll = sym3_ident;
+	U->Delta_u = real3_zero;
+<? if eqn.useShift == 'HyperbolicGammaDriver' then
+?>	U->B_u = real3_zero;
+<? end
+?>	sym3 gammaBar_ll = calc_gammaBar_ll(U, x);
+	real det_gammaBar_ll = calc_det_gammaBar_ll(x);
+	U->gammaBar_uu = sym3_inv(gammaBar_ll, det_gammaBar_ll);
+
+	//what to do with the constraint vars and the source vars?
+	U->rho = 0;
+	U->S_u = real3_zero;
+	U->S_ll = sym3_zero;
+	U->H = 0;
+	U->M_u = real3_zero;
+}
+
+#define calc_exp_neg4phi(U) ((U)->chi)
+
+//det(gamma_ij) = exp(12 phi) det(gammaBar_ij)
+//				= det(gammaHat_ij) / (exp(-4 phi)^3) 
+real calc_det_gamma_ll(global const <?=eqn.cons_t?>* U, real3 x) {
+	real exp_neg4phi = calc_exp_neg4phi(U);
+	return calc_det_gammaBar_ll(x) / (exp_neg4phi * exp_neg4phi * exp_neg4phi);
+}
+
+sym3 calc_gamma_uu(global const <?=eqn.cons_t?>* U, real3 x) {
+	real exp_neg4phi = calc_exp_neg4phi(U);
+	sym3 gamma_uu = sym3_real_mul(U->gammaBar_uu, exp_neg4phi);
+	return gamma_uu;
+}
+
+sym3 calc_gamma_ll(global const <?=eqn.cons_t?>* U, real3 x) {
+	sym3 gammaBar_ll = calc_gammaBar_ll(U, x);
+	real exp_4phi = 1. / calc_exp_neg4phi(U);
+	sym3 gamma_ll = sym3_real_mul(gammaBar_ll, exp_4phi);
+	return gamma_ll;
+}
 
 /*
 TF(K_ij) = K_ij - 1/3 gamma_ij gamma^kl K_kl
@@ -53,6 +111,105 @@ sym3 tracefree(sym3 A_ll, sym3 gamma_ll, sym3 gamma_uu) {
 	real tr_A = sym3_dot(A_ll, gamma_uu);
 	return sym3_sub(A_ll, sym3_real_mul(gamma_ll, tr_A / 3.));
 }
+
+<? elseif moduleName == "applyInitCond" then ?>
+
+kernel void applyInitCond(
+	constant <?=solver.solver_t?>* solver,
+	constant <?=solver.initCond_t?>* initCond,
+	global <?=eqn.cons_t?>* UBuf,
+	const global <?=coord.cell_t?>* cellBuf
+) {
+	SETBOUNDS(numGhost,numGhost);
+	real3 x = cellBuf[index].pos;
+	real3 xc = coordMap(x);
+	real3 mids = real3_real_mul(real3_add(solver->mins, solver->maxs), .5);
+	
+	global <?=eqn.cons_t?>* U = UBuf + index;
+
+	real alpha = 1.;
+	real3 beta_u = real3_zero;
+	
+	sym3 gammaHat_ll = coord_g_ll(x);
+	sym3 gamma_ll = gammaHat_ll;
+	
+	sym3 K_ll = sym3_zero;
+	real rho = 0.;
+
+	<?=initCond()?>
+
+	U->alpha = alpha;
+	U->beta_u = beta_u;
+
+	real det_gamma_ll = sym3_det(gamma_ll);
+	sym3 gamma_uu = sym3_inv(gamma_ll, det_gamma_ll);
+
+	//det(gammaBar_ij) == det(gammaHat_ij)
+	real det_gammaBar_ll = calc_det_gammaBar_ll(x); 
+	
+	//gammaBar_ij = e^(-4phi) gamma_ij
+	//real exp_neg4phi = exp(-4 * U->phi);
+	real exp_neg4phi = cbrt(det_gammaBar_ll / det_gamma_ll);
+	U->chi = exp_neg4phi;
+	
+	sym3 gammaBar_ll = sym3_real_mul(gamma_ll, exp_neg4phi);
+	U->epsilon_ll = sym3_sub(gammaBar_ll, gammaHat_ll);
+	U->gammaBar_uu = sym3_inv(gammaBar_ll, det_gammaBar_ll);
+
+<? if false then ?>
+<? for _,x in ipairs(xNames) do
+?>	U->a.<?=x?> = calc_a_<?=x?>(x.x, x.y, x.z);
+<? end ?>	
+<? end ?>
+
+	U->Theta = 0.;	//TODO ... Theta = -Z^mu n_mu = alpha * Z^t ... which is?
+
+	real K = sym3_dot(K_ll, gamma_uu);
+	U->KHat = K - 2. * U->Theta;
+	
+	sym3 A_ll = sym3_sub(K_ll, sym3_real_mul(gamma_ll, 1./3. * K));
+	U->ABar_ll = sym3_real_mul(A_ll, exp_neg4phi);
+	
+	U->rho = rho;
+	U->S_u = real3_zero;
+	U->S_ll = sym3_zero;
+	
+	U->H = 0.;
+	U->M_u = real3_zero;
+}
+
+//after popularing gammaBar_ll, use its finite-difference derivative to initialize connBar_u
+kernel void initDerivs(
+	constant <?=solver.solver_t?>* solver,
+	global <?=eqn.cons_t?>* UBuf
+) {
+	SETBOUNDS(numGhost,numGhost);
+	real3 x = cell_x(i);
+	global <?=eqn.cons_t?>* U = UBuf + index;
+	
+<?=makePartial1('gammaBar_uu', 'sym3')?>
+
+	//connBar^i = connBar^i_jk gammaBar^jk
+	// TODO is this still true?
+	//= -gammaBar^ij_,j + 2 gammaBar^ij Z_j
+	//= gammaBar_jk,l gammaBar^ij gammaBar^kl + 2 gammaBar^ij Z_j
+	real3 connBar_u;
+<? for i,xi in ipairs(xNames) do
+?>	connBar_u.<?=xi?> =<?
+	for j,xj in ipairs(xNames) do
+?> - partial_gammaBar_uul[<?=j-1?>].<?=sym(i,j)?><?
+	end ?>;
+<? end ?>
+	
+	//Delta^i = gammaBar^jk Delta^i_jk = gammaBar^jk (connBar^i_jk - connHat^i_jk)
+	//= gammaBar^jk Delta^i_jk = connBar^i - connHat^i
+	_3sym3 connHat_ull = coord_conn_ull(x);
+	real3 connHat_u = _3sym3_sym3_dot23(connHat_ull, U->gammaBar_uu);
+	U->Delta_u = real3_sub(connBar_u, connHat_u);
+}
+
+
+<? elseif moduleName == "constrainU" then ?>
 
 kernel void constrainU(
 	constant <?=solver.solver_t?>* solver,
@@ -112,6 +269,8 @@ end
 	//makes the spinning black hole simulations look ugly
 	U->alpha = max(U->alpha, solver->alphaMin);
 }
+
+<? elseif moduleName == "calcDeriv" then ?>
 
 kernel void calcDeriv(
 	constant <?=solver.solver_t?>* solver,
@@ -653,6 +812,8 @@ end ?>
 
 }
 
+<? elseif moduleName == "addSource" then ?>
+
 kernel void addSource(
 	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* derivBuf,
@@ -680,6 +841,8 @@ end
 <? end ?>
 }
 
+<? elseif moduleName == "calcDT" then ?>
+
 kernel void calcDT(
 	constant <?=solver.solver_t?>* solver,
 	global real* dtBuf,
@@ -704,3 +867,9 @@ kernel void calcDT(
 	}<? end ?>
 	dtBuf[index] = dt;
 }
+
+<? 
+else
+	error("unknown moduleName "..require 'ext.tolua'(moduleName))
+end 
+?>

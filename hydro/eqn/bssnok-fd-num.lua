@@ -113,7 +113,10 @@ end
 
 function BSSNOKFiniteDifferenceEquation:fieldTypeForVar(varname)
 	local _, var = self.consStruct.vars:find(nil, function(v) return v.name == varname end)
-	return assert(var).type
+	if not var then
+		error("couldn't find var "..varname)
+	end
+	return var.type
 end
 
 function BSSNOKFiniteDifferenceEquation:makePartial1(field, fieldType, nameOverride)
@@ -137,7 +140,7 @@ function BSSNOKFiniteDifferenceEquation:initCodeModules()
 	BSSNOKFiniteDifferenceEquation.super.initCodeModules(self)
 	local solver = self.solver
 
-	for moduleName, depends in pairs{
+	local kv = {
 		['calc_partial_det_gammaHat_l'] = {
 			'coord_partial_det_g',
 		},
@@ -184,19 +187,6 @@ function BSSNOKFiniteDifferenceEquation:initCodeModules()
 		},
 
 		['eqn.common'] = {},
---[[
-		['eqn.common'] = table(BSSNOKFiniteDifferenceEquation.super.getModuleDependsCommon(self))
-		:append{
-			'calc_gammaHat_ll',
-			'calc_det_gammaHat',	-- used by calc_det_gammaBar
-			'rescaleFromCoord/rescaleToCoord',
-			'_3sym3_rescaleFromCoord/_3sym3_rescaleToCoord',
-		}:append(
-			self.useScalarField and {
-				'cplx3_rescaleFromCoord/cplx3_rescaleToCoord',
-			} or nil
-		),
---]]
 
 		['cplx3_add5'] = {'cplx3'},
 		['real3_add5'] = {'real3'},
@@ -293,10 +283,6 @@ function BSSNOKFiniteDifferenceEquation:initCodeModules()
 			'calc_PIRK_L3_ABar_LL',
 		},
 
-		['calcDeriv_Phi'] = {},
-		['calcDeriv_Psi'] = {},
-		['calcDeriv_Pi'] = {},
-
 		['calcDeriv'] = table{
 			'initCond.codeprefix',	-- calc_*
 			'applyKreissOligar',
@@ -369,7 +355,17 @@ function BSSNOKFiniteDifferenceEquation:initCodeModules()
 			-- calcDeriv_PIRK_L3_B:
 			'calc_PIRK_L3_B_U',
 		},
-	} do
+	} 
+
+	if self.useScalarField then
+		kv = table(kv, {
+			['calcDeriv_Phi'] = {},
+			['calcDeriv_Psi'] = {},
+			['calcDeriv_Pi'] = {},
+		})
+	end
+
+	for moduleName, depends in pairs(kv) do
 		self:addModuleFromSourceFile{
 			name = moduleName,
 			depends = depends,
@@ -397,26 +393,31 @@ end
 
 BSSNOKFiniteDifferenceEquation.solverCodeFile = 'hydro/eqn/bssnok-fd-num.cl'
 
--- don't use default
-function BSSNOKFiniteDifferenceEquation:initCodeModuleCommon() end
-
--- TODO this is now only used for eqn.waveCode and eqn.displayVars
-function BSSNOKFiniteDifferenceEquation:getModuleDependsSolver() 
-	return table(BSSNOKFiniteDifferenceEquation.super.getModuleDependsSolver(self))
-	:append{
+--[[
+function BSSNOKFiniteDifferenceEquation:getModuleDepends_waveCode() 
+	return {
 		'eqn.common',
 		'_3sym3',
+		--'calc_partial_det_gammaHat_L',	-- used by LambdaBar^I_,t
+		--'calc_partial2_det_gammaHat_LL',	-- used by LambdaBar^I_,t
+		--'real3x3x3',
+		--'coordMapR',
+		-- for display code: (actually most this is only for display code)
+	}
+end
+--]]
+
+function BSSNOKFiniteDifferenceEquation:getModuleDepends_displayCode() 
+	return {
+		'cell_x',
+		'initCond.codeprefix',	-- ...specifically, calc_f
+		'calc_det_gammaHat',	-- also used by display code
+		'calc_gamma_ll',
+		'calc_gamma_uu',
 		'calc_gammaHat_ll',
 		'calc_gammaHat_uu',		-- used by display code
-		'calc_det_gammaHat',	-- also used by display code
-		'calc_partial_det_gammaHat_L',	-- used by LambdaBar^I_,t
-		'calc_partial2_det_gammaHat_LL',	-- used by LambdaBar^I_,t
-		'real3x3x3',
-		'coordMapR',
-		-- for display code: (actually most this is only for display code)
-		'initCond.codeprefix',	-- ...specifically, calc_f
-		'calc_gammaBar_UU',
 		'calc_gammaBar_uu',
+		'calc_gammaBar_UU',
 	}
 end
 

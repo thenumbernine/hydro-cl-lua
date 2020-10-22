@@ -537,7 +537,7 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn
 -- compressible Euler equations
 
 
-self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
+--self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
 
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct bounded'})))	-- this is the default hllCalcWaveMethod
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct'})))
@@ -1060,9 +1060,9 @@ local args = {
 		--useShift = 'none',
 		--useScalarField = true,	-- needed for the scalar field init cond below
 	
-		--cflMethod = '2008 Alcubierre',
-		--cflMethod = '2013 Baumgarte et al, eqn 32',
-		cflMethod = '2017 Ruchlin et al, eqn 53',
+		--cflMethod = cmdline.cflMethod or '2008 Alcubierre',
+		--cflMethod = cmdline.cflMethod or '2013 Baumgarte et al, eqn 32',
+		cflMethod = cmdline.cflMethod or '2017 Ruchlin et al, eqn 53',
 	},
 	dim = dim,
 	

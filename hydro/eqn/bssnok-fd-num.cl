@@ -35,12 +35,6 @@ local Tensor = require 'symmath.Tensor'
 #define numberof(x)	(sizeof(x)/sizeof(x[0]))
 #define endof(x)	((x) + numberof(x))
 
-//this is for convenience, but is bad for any kind of composite solver
-typedef <?=eqn.cons_t?> cons_t;
-typedef <?=solver.solver_t?> solver_t;
-typedef <?=solver.coord.cell_t?> cell_t;
-
-
 <? if moduleName == nil then ?>
 <? elseif moduleName == "calc_partial_det_gammaHat_l" then ?>
 
@@ -297,7 +291,13 @@ end
 ?>	return partial2_det_gammaHat_over_det_gammaHat_LL;
 }
 
-<? elseif moduleName == "calc_partial_ABar_LLL" then ?>
+<? elseif moduleName == "calc_partial_ABar_LLL" then 
+depmod{
+	"calc_len_#",
+	"calc_partial*_len*",
+	"calc_PIRK_L2_ABar_LL",
+}
+?>
 
 static _3sym3 calc_partial_ABar_LLL(
 	real3 x,
@@ -435,7 +435,11 @@ end
 	return connBar_ULL;
 }
 
-<? elseif moduleName == "calc_trBar_partial2_gammaBar_ll" then ?>
+<? elseif moduleName == "calc_trBar_partial2_gammaBar_ll" then 
+depmod{
+	"rescaleFromCoord/rescaleToCoord",
+}
+?>
 
 static sym3 calc_trBar_partial2_gammaBar_ll(
 	const global <?=eqn.cons_t?>* U,
@@ -843,7 +847,11 @@ kernel void initDerivs(
 
 <? end -- initCond.initAnalytical or initCond.useBSSNVars ?>
 
-<? elseif moduleName == "calc_RBar_LL" then ?>
+<? elseif moduleName == "calc_RBar_LL" then 
+depmod{
+	"rescaleFromCoord/rescaleToCoord",
+}
+?>
 
 static sym3 calc_RBar_LL(
 	const global <?=eqn.cons_t?>* U,
@@ -1325,7 +1333,12 @@ static void calcDeriv_W(
 	deriv->W += L2_W + Lbeta_W;
 }
 
-<? elseif moduleName == "calc_PIRK_L2_ABar_LL" then ?>
+<? elseif moduleName == "calc_PIRK_L2_ABar_LL" then 
+depmod{
+	"sym3_add4",
+	"rescaleFromCoord/rescaleToCoord",
+}
+?>
 
 //////////////////////////////// A_IJ,t //////////////////////////////// 
 
@@ -1498,7 +1511,13 @@ static real calc_PIRK_L3_K(
 	;
 }
 
-<? elseif moduleName == "calc_PIRK_L2_LambdaBar_U" then ?>
+<? elseif moduleName == "calc_PIRK_L2_LambdaBar_U" then 
+depmod{
+	"real3x3x3",
+	"calc_partial_connHat_Ulll_*",
+	"sym3_add3",
+}
+?>
 
 //////////////////////////////// LambdaBar^I_,t //////////////////////////////// 
 
@@ -1709,7 +1728,11 @@ static real3 calc_PIRK_L3_LambdaBar_U(
 	return L3_LambdaBar_U;
 }
 
-<? elseif moduleName == "calc_dt_LambdaBar_U_wo_partial_upwind_beta_LambdaBar" then ?>
+<? elseif moduleName == "calc_dt_LambdaBar_U_wo_partial_upwind_beta_LambdaBar" then 
+depmod{
+	"real3x3_partial_rescaleFromCoord_Ul",
+}
+?>
 
 //another name for this could be d0_LambdaBar_U (2017 Ruchlin, eqn 15)
 static real3 calc_dt_LambdaBar_U_wo_partial_upwind_beta_LambdaBar(
@@ -1832,7 +1855,11 @@ static real3 calc_PIRK_L3_B_U(
 	return real3_real_mul(U->B_U, -solver->dt_beta_U_eta);
 }
 
-<? elseif moduleName == "calcDeriv_K" then ?>
+<? elseif moduleName == "calcDeriv_K" then 
+depmod{
+	"calc_PIRK_L2_K",
+}
+?>
 
 static void calcDeriv_K(
 	constant solver_t* solver,
@@ -2144,7 +2171,16 @@ static void calcDeriv_Pi(
 	);
 }
 
-<? elseif moduleName == "calcDeriv" then ?>
+<? elseif moduleName == "calcDeriv" then 
+depmod{
+	"calc_det_gammaBarLL",
+	"calc_gammaBar_LL",
+	"calc_exp_neg4phi",
+	"calcDeriv_ABar_LL",
+	"solver.macros",	-- numIntStates
+	"mystery_C_U",
+}
+?>
 
 //TODO if we're calculating the constrains in the derivative
 // then we do save calculations / memory on the equations
@@ -2606,7 +2642,12 @@ or even the ∂_0 ΛBar^i then we can re-add the needed terms later
 <? end 	-- useCalcDeriv ?>
 }
 
-<? elseif moduleName == "constrainU" then ?>
+<? elseif moduleName == "constrainU" then 
+depmod{
+	"mystery_C_U",
+	"calc_partial_ABar_LLL",
+}
+?>
 
 kernel void constrainU(
 	constant solver_t* solver,
@@ -2898,7 +2939,14 @@ for ij,xij in ipairs(symNames) do
 <? end	-- useConstrainU ?>
 }
 
-<? elseif moduleName == "addSource" then ?>
+<? elseif moduleName == "addSource" then 
+depmod{
+	"solver_t",
+	"cons_t",
+	"cell_t",
+	"SETBOUNDS_NOGHOST",
+}
+?>
 
 //TODO combine with calcDeriv
 kernel void addSource(

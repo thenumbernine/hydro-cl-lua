@@ -38,6 +38,7 @@ function GRHDSeparateSolver:init(args)
 	self.gr = gr
 
 	local HydroSolver = class(require 'hydro.solver.grhd-roe')
+	-- TODO :createCodePrefix() has been replaced with :initCodeModules()
 	function HydroSolver:createCodePrefix()
 		HydroSolver.super.createCodePrefix(self)
 		

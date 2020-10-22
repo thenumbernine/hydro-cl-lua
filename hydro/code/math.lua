@@ -556,6 +556,9 @@ real3 real3_rotateZ(real3 v, real theta) {
 
 	modules:add{
 		name = 'sym3',
+		depends = {
+			'real3',
+		},
 		typecode = [[
 typedef union {
 	real s[6];

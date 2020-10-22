@@ -213,7 +213,6 @@ end
 
 -- don't use default
 function TwoFluidEMHDDeDonderGaugeLinearizedGR:initCodeModule_fluxFromCons() end
-function TwoFluidEMHDDeDonderGaugeLinearizedGR:initCodeModuleCommon() end
 function TwoFluidEMHDDeDonderGaugeLinearizedGR:initCodeModulePrimCons() end
 
 TwoFluidEMHDDeDonderGaugeLinearizedGR.solverCodeFile = 'hydro/eqn/twofluid-emhd-lingr.cl'

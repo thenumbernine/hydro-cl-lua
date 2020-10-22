@@ -1179,6 +1179,8 @@ static inline real coordLen(real3 r, real3 pt) {
 	solver.modules:add{
 		name = 'cell_t',
 		structs = {self.cellStruct},
+		-- only generated for cl, not for ffi cdef
+		headercode = 'typedef '..self.cell_t..' cell_t;',
 	}
 
 	solver.modules:add{
@@ -1193,6 +1195,8 @@ static inline real coordLen(real3 r, real3 pt) {
 	solver.modules:add{
 		name = 'face_t',
 		structs = {self.faceStruct},
+		-- only generated for cl, not for ffi cdef
+		headercode = 'typedef '..self.face_t..' face_t;',
 	}
 end
 

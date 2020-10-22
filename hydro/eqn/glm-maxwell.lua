@@ -143,7 +143,6 @@ end
 
 -- don't use default
 function GLM_Maxwell:initCodeModule_fluxFromCons() end
-function GLM_Maxwell:initCodeModuleCommon() end
 
 function GLM_Maxwell:getModuleDependsApplyInitCond()
 	return {
