@@ -780,19 +780,21 @@ function Equation:consMaxWaveCode(n, U, x)
 end
 
 function Equation:getModuleDepends_calcDT()
-	return {
+	return table{
 		-- used by the function prototype
+		'solver.solver_t',
 		'eqn.cons_t',
-		'eqn.prim_t',
-		'eqn.waves_t',
-		'eqn.eigen_t',
+		'eqn.cons_t',
+		'coord.cell_t',
 		'normal_t',
-		-- used by the default implementation - or anything that uses eigen/cons wave code
 		'eqn.waveCode',
-		-- so these dependencies are going to vary based on the eigen code of each eqn 
-		'eqn.common',		-- used by eqn/wave
-		'eqn.prim-cons',	-- used by eqn/shallow-water
-	}
+		'SETBOUNDS',
+	}:append(
+		require 'hydro.solver.meshsolver'.is(self.solver)
+		and {
+			'face_t',
+		} or nil
+	)
 end
 
 -- By default calcDT is taken from hydro/eqn/cl/calcDT.cl

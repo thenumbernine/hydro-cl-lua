@@ -392,6 +392,7 @@ function MeshSolver:initCodeModules()
 	}
 --]]
 
+	-- TODO call this the same as whatever provides calcFlux() in flux and solver?
 	self.solverModulesEnabled['MeshSolver'] = true
 	self.modules:add{
 		name = 'MeshSolver',
@@ -399,6 +400,7 @@ function MeshSolver:initCodeModules()
 			'face_t',
 			'normal_t',
 			'calcFlux',	-- calcFluxForInterface
+			'coord.cell_t',
 		},
 		-- boundary code, since meshsolver doesn't use gridsolver's boundary: 
 		code = table{

@@ -128,7 +128,11 @@ real3 calc_CA(constant <?=solver.solver_t?>* solver, <?=eqn.cons_t?> U) {
 	};
 }
 
-<? elseif moduleName == "applyInitCond" then ?>
+<? elseif moduleName == "applyInitCond" then 
+depmod{
+	"cartesianToCoord",
+}
+?>
 
 kernel void applyInitCond(
 	constant <?=solver.solver_t?>* solver,
@@ -212,7 +216,12 @@ kernel void initDerivs(
 	return U;
 }
 
-<? elseif moduleName == "calcCellMinMaxEigenvalues" then ?>
+<? elseif moduleName == "calcCellMinMaxEigenvalues" then 
+depmod{
+	"range_t",
+	"cons_rotateFrom",
+}
+?>
 
 // TODO find out where mu_0 goes in the code below
 
@@ -393,7 +402,12 @@ range_t calcCellMinMaxEigenvalues(
 	return F;
 }
 
-<? elseif moduleName == "eigen_forRoeAvgs" then ?>
+<? elseif moduleName == "eigen_forRoeAvgs" then 
+depmod{
+	"roe_t",
+	"eqn.eigen_t",
+}
+?>
 
 //assumes the vector values are x-axis aligned with the interface normal
 <?=eqn.eigen_t?> eigen_forRoeAvgs(
@@ -827,7 +841,11 @@ range_t calcCellMinMaxEigenvalues(
 	return cons_rotateTo(resultU, n);
 }
 
-<? elseif moduleName == "addSource" then ?>
+<? elseif moduleName == "addSource" then 
+depmod{
+	"SETBOUNDS_NOGHOST",
+}
+?>
 
 kernel void addSource(
 	constant <?=solver.solver_t?>* solver,

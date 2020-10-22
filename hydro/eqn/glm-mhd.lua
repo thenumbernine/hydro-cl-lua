@@ -176,6 +176,7 @@ function MHD:initCodeModules()
 		},
 
 		['eqn.prim-cons'] = {
+			'units',
 			'solver.solver_t',
 			'eqn.prim_t',
 			'eqn.cons_t',
@@ -200,9 +201,7 @@ function MHD:initCodeModules()
 			'normal_t',
 		},
 		
-		['calcCellMinMaxEigenvalues'] = {
-			'cons_rotateFrom',
-		},
+		['calcCellMinMaxEigenvalues'] = {},
 		
 		['calcRoeValues'] = {},
 		
@@ -212,9 +211,7 @@ function MHD:initCodeModules()
 			'normal_t',
 		},
 
-		['eigen_forRoeAvgs'] = {
-			'roe_t',
-		},
+		['eigen_forRoeAvgs'] = {},
 		
 		['eigen_forInterface'] = {
 			'cons_rotateFrom',
@@ -250,16 +247,16 @@ function MHD:initCodeModule_fluxFromCons() end
 function MHD:initCodeModuleCommon() end
 function MHD:initCodeModulePrimCons() end
 
-function MHD:getModuleDependsApplyInitCond()
-	return table(MHD.super.getModuleDependsApplyInitCond(self)):append{
-		'cartesianToCoord',
-	}
-end
-
 function MHD:getModuleDepends_waveCode() 
 	return {
 		'eqn.prim-cons',
 		'calcCellMinMaxEigenvalues',
+	}
+end
+
+function MHD:getModuleDepends_displayCode() 
+	return {
+		'eqn.common',
 	}
 end
 

@@ -12,6 +12,10 @@ end
 function GLM_MHD_UpdatePsi:initCodeModules(solver)
 	solver.modules:add{
 		name = 'op.GLM_MHD_UpdatePsi',
+		depends = {
+			'cell_x',
+			'eqn.guiVars.compileTime',	-- Cp
+		},
 		code = template([[
 kernel void updatePsi(
 	constant <?=solver.solver_t?>* solver,

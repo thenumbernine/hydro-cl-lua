@@ -49,19 +49,19 @@ kernel void calcDT(
 	constant <?=solver.solver_t?>* solver,
 	global real* dtBuf,					//[numCells]
 	const global <?=eqn.cons_t?>* UBuf,	//[numCells]
-	const global cell_t* cells,			//[numCells]
-	const global face_t* faces,			//[numFaces]
+	const global <?=solver.coord.cell_t?>* cells,			//[numCells]
+	const global <?=solver.coord.face_t?>* faces,			//[numFaces]
 	const global int* cellFaceIndexes	//[numCellFaceIndexes]
 ) {
 	SETBOUNDS(0,0);
-	const global cell_t* cell = cells + index;
+	const global <?=solver.coord.cell_t?>* cell = cells + index;
 	real3 x = cell->pos;
 	
 	const global <?=eqn.cons_t?>* U = UBuf + index;
 
 	real dt = INFINITY;
 	for (int i = 0; i < cell->faceCount; ++i) {
-		const global face_t* face = faces + cellFaceIndexes[i + cell->faceOffset];
+		const global <?=solver.coord.face_t?>* face = faces + cellFaceIndexes[i + cell->faceOffset];
 		real dx = face->area;	//face->cellDist?
 		if (dx > 1e-7 && face->cells.x != -1 && face->cells.y != -1) {
 			normal_t n = normal_forFace(face);

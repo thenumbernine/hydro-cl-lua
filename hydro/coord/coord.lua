@@ -1179,6 +1179,14 @@ static inline real coordLen(real3 r, real3 pt) {
 	solver.modules:add{
 		name = 'coord.cell_t',
 		structs = {self.cellStruct},
+	}
+
+	solver.modules:add{
+		name = 'cell_x',
+		depends = {
+			'INDEXV',
+			'coord.cell_t',
+		},
 		headercode = '#define cell_x(i) (cellBuf[INDEXV(i)].pos)',
 	}
 

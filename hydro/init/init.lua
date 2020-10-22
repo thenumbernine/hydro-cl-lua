@@ -116,6 +116,11 @@ function InitCond:initCodeModules(solver)
 		'eqn.prim-cons',
 	}
 	:append(self.depends)
+	
+	-- TODO get rid of this and switch all over to depmod ... maybe?
+	if eqn.getModuleDependsApplyInitCond then
+		eqn.codeDepends:append(eqn:getModuleDependsApplyInitCond())
+	end
 
 	-- maybe it's wrong to put this code into the solverCodeFile because technically it goes into initCond.cl
 	local code = eqn:template(
