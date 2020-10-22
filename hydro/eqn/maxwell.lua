@@ -130,10 +130,10 @@ function Maxwell:initCodeModules()
 		},
 
 		['fluxFromCons'] = {
-			'solver.solver_t',
+			'solver_t',
 			'normal_t',
-			'eqn.cons_t',
-			'eqn.prim_t',
+			'cons_t',
+			'prim_t',
 			'eqn.common',	-- calc_E, calc_H
 		},
 

@@ -106,9 +106,9 @@ function InitCond:initCodeModules(solver)
 		-- if an InitCond provides codeprefix, it is for code it expects to reference from within 'applyInitCond()'
 		'initCond.codeprefix',
 		-- applyInitCond uses these:
-		'solver.solver_t',
+		'solver_t',
 		'initCond.initCond_t',
-		'eqn.cons_t',
+		'cons_t',
 		'coord.cell_t',
 		'initCond.guiVars.compileTime',
 		'INDEX', 'INDEXV', 'OOB', 'SETBOUNDS',

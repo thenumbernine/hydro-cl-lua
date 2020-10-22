@@ -185,7 +185,7 @@ function BSSNOKFiniteDifferenceEquationBase:initCodeModules_calc_gamma()
 	solver.modules:add{
 		name = 'calc_gammaBar_LL',
 		depends = {
-			'eqn.cons_t',
+			'cons_t',
 			'calc_gammaHat_LL',
 		},
 		code = self:template[[
@@ -225,7 +225,7 @@ real calc_det_gammaBarLL(global const <?=eqn.cons_t?>* U, ral3 x) {
 	solver.modules:add{
 		name = 'calc_gammaBar_UU',
 		depends = {
-			'eqn.cons_t',
+			'cons_t',
 			'calc_gammaBar_LL',
 			'calc_det_gammaBarLL',
 		},
@@ -244,7 +244,7 @@ sym3 calc_gammaBar_UU(global const <?=eqn.cons_t?>* U, real3 x) {
 	solver.modules:add{
 		name = 'calc_gammaBar_ll',
 		depends = {
-			'eqn.cons_t',
+			'cons_t',
 			'calc_gammaHat_ll',
 			'rescaleFromCoord/rescaleToCoord',
 		},
@@ -287,7 +287,7 @@ real calc_det_gammaBar(real3 x) {
 	solver.modules:add{
 		name = 'calc_gammaBar_uu',
 		depends = {
-			'eqn.cons_t',
+			'cons_t',
 			'calc_gammaBar_ll',
 			'calc_det_gammaBar',
 		},
@@ -304,7 +304,7 @@ sym3 calc_gammaBar_uu(global const <?=eqn.cons_t?>* U, real3 x) {
 	solver.modules:add{
 		name = 'calc_gamma_ll',
 		depends = {
-			'eqn.cons_t',
+			'cons_t',
 			'calc_gammaBar_ll',
 			'calc_exp_neg4phi',
 		},
@@ -321,7 +321,7 @@ sym3 calc_gamma_ll(global const <?=eqn.cons_t?>* U, real3 x) {
 	solver.modules:add{
 		name = 'calc_gamma_uu',
 		depends = {
-			'eqn.cons_t',
+			'cons_t',
 			'calc_gammaBar_ll',
 			'calc_exp_neg4phi',
 			'calc_det_gammaBar',

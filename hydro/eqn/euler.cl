@@ -61,9 +61,9 @@ end
 <? elseif moduleName == "eqn.prim-cons" then ?>
 <? depmod{
 	"real3",
-	"solver.solver_t",
-	"eqn.prim_t",
-	"eqn.cons_t",
+	"solver_t",
+	"prim_t",
+	"cons_t",
 	"eqn.common",	-- all the calc_* stuff
 } ?>
 
@@ -88,9 +88,9 @@ end
 <? elseif moduleName == "eqn.dU-dW" then ?>
 <? 	-- only used by PLM
 depmod{
-	"solver.solver_t",
-	"eqn.prim_t",
-	"eqn.cons_t",
+	"solver_t",
+	"prim_t",
+	"cons_t",
 	"coord_lower",
 } ?>
 
@@ -136,10 +136,10 @@ depmod{
 
 <? elseif moduleName == "eqn.common" then ?>
 <? depmod{
-	"eqn.cons_t",
-	"eqn.prim_t",
-	"eqn.waves_t",
-	"eqn.eigen_t",
+	"cons_t",
+	"prim_t",
+	"waves_t",
+	"eigen_t",
 	"coordLenSq",
 } ?>
 
@@ -168,7 +168,7 @@ real calc_P(constant <?=solver.solver_t?>* solver, <?=eqn.cons_t?> U, real3 x) {
 
 <? elseif moduleName == "fluxFromCons" then ?>
 <? depmod{
-	"solver.solver_t",
+	"solver_t",
 	"eqn.prim-cons",
 	"normal_t",
 } ?>
@@ -227,9 +227,9 @@ range_t calcCellMinMaxEigenvalues(
 <? depmod{
 	"normal_t",
 	"coord_lower",
-	"eqn.cons_t",
-	"eqn.prim_t",
-	"eqn.eigen_t",
+	"cons_t",
+	"prim_t",
+	"eigen_t",
 	"eqn.prim-cons",
 	"eqn.common",	-- calc_hTotal
 } ?>
@@ -262,7 +262,7 @@ range_t calcCellMinMaxEigenvalues(
 <? elseif moduleName == "eigen_forInterface" then ?>
 <? depmod{
 	"eqn.prim-cons",
-	"eqn.eigen_t",
+	"eigen_t",
 	"normal_t",
 	"coord_lower",
 } ?>
@@ -314,7 +314,7 @@ eigen_t eigen_forInterface(
 
 <? elseif moduleName == "eigen_left/rightTransform" then ?>
 <? depmod{
-	"eqn.eigen_t",
+	"eigen_t",
 	"normal_t",
 } ?>
 
@@ -425,7 +425,7 @@ cons_t eigen_rightTransform(
 
 <? elseif moduleName == "eigen_fluxTransform" then ?>
 <? depmod{
-	"eqn.eigen_t",
+	"eigen_t",
 	"normal_t",
 } ?>
 
@@ -476,8 +476,8 @@ cons_t eigen_fluxTransform(
 
 <? elseif moduleName == "addSource" then 
 depmod{
-	"solver.solver_t",
-	"eqn.cons_t",
+	"solver_t",
+	"cons_t",
 	"coord.cell_t",
 	"SETBOUNDS_NOGHOST",
 }
@@ -560,8 +560,8 @@ Maybe for an initial constant vel as large as sqrt(2) this fails, but it works o
 
 <? elseif moduleName == "constrainU" then 
 depmod{
-	"solver.solver_t",
-	"eqn.cons_t",
+	"solver_t",
+	"cons_t",
 	"coord.cell_t",
 }
 ?>

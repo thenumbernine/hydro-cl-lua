@@ -39,8 +39,8 @@ function ADM_BonaMasso_1D_2008Alcubierre:initCodeModules()
 		-- the PLM version that uses this crashes
 		-- so maybe there's something wrong with this
 		['fluxFromCons'] = {
-			'solver.solver_t',
-			'eqn.cons_t',
+			'solver_t',
+			'cons_t',
 			'eqn.common',	-- calc_f ... or is it initCond.codeprefix?
 		},
 --]=]

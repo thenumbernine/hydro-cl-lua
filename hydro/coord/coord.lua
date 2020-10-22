@@ -1000,7 +1000,7 @@ function CoordinateSystem:initCodeModules()
 	solver.modules:add{
 		name = 'cell_dx#',
 		depends = {
-			'solver.solver_t',
+			'solver_t',
 			'coord_dx#',
 		},
 		headercode = range(dim):mapi(function(i)

@@ -134,7 +134,7 @@ real calc_det_gammaHat(real3 x) {
 	solver.modules:add{
 		name = 'calc_gammaBar_LL',
 		depends = {
-			'eqn.cons_t',
+			'cons_t',
 		},
 		code = self:template[[
 sym3 calc_gammaBar_LL(global const <?=eqn.cons_t?>* U, real3 x) {
@@ -176,7 +176,7 @@ real calc_det_gammaBarLL(global const <?=eqn.cons_t?>* U, ral3 x) {
 	solver.modules:add{
 		name = 'calc_gammaBar_UU',
 		depends = {
-			'eqn.cons_t',
+			'cons_t',
 		},
 		code = self:template[[
 sym3 calc_gammaBar_UU(global const <?=eqn.cons_t?>* U, real3 x) {
@@ -194,7 +194,7 @@ sym3 calc_gammaBar_UU(global const <?=eqn.cons_t?>* U, real3 x) {
 	solver.modules:add{
 		name = 'calc_gammaBar_ll',
 		depends = {
-			'eqn.cons_t',
+			'cons_t',
 		},
 		code = self:template[[
 //gammaBar_ll.ij := gammaBar_ij = gammaHat_ij + epsilon_ij = gammaHat_ij + epsilon_IJ e_i^I e_j^J
@@ -237,7 +237,7 @@ real calc_det_gammaBar(real3 x) {
 	solver.modules:add{
 		name = 'calc_gammaBar_uu',
 		depends = {
-			'eqn.cons_t',
+			'cons_t',
 			'calc_gammaBar_ll',
 			'calc_det_gammaBar',
 		},
@@ -255,7 +255,7 @@ sym3 calc_gammaBar_uu(global const <?=eqn.cons_t?>* U, real3 x) {
 	solver.modules:add{
 		name = 'calc_gamma_ll',
 		depends = {
-			'eqn.cons_t',
+			'cons_t',
 			'calc_gammaBar_ll',
 			'calc_exp_neg4phi',
 		},
@@ -273,7 +273,7 @@ sym3 calc_gamma_ll(global const <?=eqn.cons_t?>* U, real3 x) {
 	solver.modules:add{
 		name = 'calc_gamma_uu',
 		depends = {
-			'eqn.cons_t',
+			'cons_t',
 			'calc_gammaBar_ll',
 			'calc_exp_neg4phi',
 			'calc_det_gammaBar',

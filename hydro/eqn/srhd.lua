@@ -179,8 +179,8 @@ function SRHD:initCodeModules()
 		},
 
 		['fluxFromCons'] = {
-			'solver.solver_t',
-			'eqn.cons_t',
+			'solver_t',
+			'cons_t',
 			'normal_t',	-- normal_*
 			'eqn.common',	-- calc_P
 		},

@@ -405,7 +405,7 @@ range_t calcCellMinMaxEigenvalues(
 <? elseif moduleName == "eigen_forRoeAvgs" then 
 depmod{
 	"roe_t",
-	"eqn.eigen_t",
+	"eigen_t",
 }
 ?>
 

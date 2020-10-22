@@ -6,9 +6,9 @@ typedef <?=solver.solver_t?> solver_t;
 <? elseif moduleName == "eqn.prim-cons" then
 depmod{
 	"real3",
-	"solver.solver_t",
-	"eqn.prim_t",
-	"eqn.cons_t",
+	"solver_t",
+	"prim_t",
+	"cons_t",
 }
 ?>
 
@@ -29,9 +29,9 @@ depmod{
 <? elseif moduleName == "eqn.dU-dW" then
 depmod{
 	"real3",
-	"solver.solver_t",
-	"eqn.prim_t",
-	"eqn.cons_t",
+	"solver_t",
+	"prim_t",
+	"cons_t",
 }
 ?>
 
@@ -66,8 +66,8 @@ depmod{
 
 <? elseif moduleName == "eqn.common" then 
 depmod{
-	"solver.solver_t",
-	"eqn.cons_t",
+	"solver_t",
+	"cons_t",
 }
 ?>
 
@@ -119,7 +119,7 @@ end
 
 <? elseif moduleName == "fluxFromCons" then 
 depmod{
-	"solver.solver_t",
+	"solver_t",
 	"eqn.prim-cons",
 	"normal_t",
 }
@@ -202,7 +202,7 @@ eigen_t eigen_forInterface(
 
 <? elseif moduleName == "eigen_left/rightTransform" then 
 depmod{
-	"eqn.waves_t",
+	"waves_t",
 }
 ?>
 

@@ -531,7 +531,7 @@ kernel void calcFlux(
 	
 	self.modules:add{
 		name = 'INDEXV',
-		depends = {'solver.solver_t'},
+		depends = {'solver_t'},
 		headercode = '#define INDEXV(i)		indexForInt4ForSize(i, solver->gridSize.x, solver->gridSize.y, solver->gridSize.z)',
 	}
 	

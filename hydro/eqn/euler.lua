@@ -126,7 +126,7 @@ function Euler:initCodeModule_calcDT()
 		depends = table{
 			'OOB',
 			'SETBOUNDS',
-			'solver.solver_t',
+			'solver_t',
 			'eqn.prim-cons',
 			'eqn.guiVars.compileTime',
 			'normal_t',

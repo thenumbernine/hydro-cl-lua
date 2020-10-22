@@ -349,21 +349,25 @@ function Equation:initCodeModules()
 
 	assert(self.consStruct)
 	solver.modules:add{
-		name = 'eqn.cons_t',
+		name = 'cons_t',
 		structs = {self.consStruct},
 	}
-	-- boundary, initCond, solver ... everyone needs this
-	solver.sharedModulesEnabled['eqn.cons_t'] = true
 
-	solver.modules:add{
-		name = 'eqn.prim_t',
-		structs = {self.primStruct},
-		depends = {'eqn.cons_t'},
-		typecode = not self.primStruct and ('typedef '..self.cons_t..' '..self.prim_t..';') or nil,
-	}
+	if self.primStruct then
+		solver.modules:add{
+			name = 'prim_t',
+			structs = {self.primStruct},
+		}
+	else
+		solver.modules:add{
+			name = 'prim_t',
+			depends = {'cons_t'},
+			typecode = 'typedef '..self.cons_t..' '..self.prim_t..';',
+		}
+	end
 	
 	solver.modules:add{
-		name = 'eqn.waves_t',
+		name = 'waves_t',
 		depends = {'real'},
 		typecode = self:template[[
 typedef union { 
@@ -374,7 +378,7 @@ typedef union {
 	
 	assert(self.eigenStruct)
 	solver.modules:add{
-		name = 'eqn.eigen_t',
+		name = 'eigen_t',
 		structs = {self.eigenStruct},
 	}
 
@@ -415,7 +419,7 @@ typedef union {
 		solver.modules:add{
 			name = 'eqn.cons_parallelPropagate',
 			depends = table{
-				'eqn.cons_t',
+				'cons_t',
 				'coord_parallelPropagate',
 			}:append(
 				-- rank-2 always use real3x3 for transformation
@@ -534,8 +538,8 @@ function Equation:initCodeModule_fluxFromCons()
 	self.solver.modules:add{
 		name = 'fluxFromCons',
 		depends = {
-			'eqn.cons_t',
-			'solver.solver_t',
+			'cons_t',
+			'solver_t',
 			'eigen_fluxTransform',
 			'eigen_forCell',
 			'normal_t',
@@ -782,9 +786,8 @@ end
 function Equation:getModuleDepends_calcDT()
 	return table{
 		-- used by the function prototype
-		'solver.solver_t',
-		'eqn.cons_t',
-		'eqn.cons_t',
+		'solver_t',
+		'cons_t',
 		'coord.cell_t',
 		'normal_t',
 		'eqn.waveCode',
@@ -822,9 +825,9 @@ function Equation:initCodeModulePrimCons()
 	self.solver.modules:add{
 		name = 'eqn.prim-cons',
 		depends = {
-			'solver.solver_t',
-			'eqn.prim_t',
-			'eqn.cons_t',
+			'solver_t',
+			'prim_t',
+			'cons_t',
 		},
 		code = self:template[[
 #define primFromCons(solver, U, x)	U
@@ -855,9 +858,9 @@ function Equation:initCodeModulePrimCons()
 	self.solver.modules:add{
 		name = 'eqn.dU-dW',
 		depends = {
-			'solver.solver_t',
-			'eqn.prim_t',
-			'eqn.cons_t',
+			'solver_t',
+			'prim_t',
+			'cons_t',
 		},
 		code = self:template[[
 /*

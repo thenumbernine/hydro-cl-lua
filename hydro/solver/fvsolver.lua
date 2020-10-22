@@ -36,8 +36,8 @@ function FiniteVolumeSolver:initCodeModules()
 	self.modules:add{
 		name = 'calcDerivFromFlux',
 		depends = table{
-			'solver.solver_t',
-			'eqn.cons_t',
+			'solver_t',
+			'cons_t',
 			'coord.cell_t',
 			'solver.macros',	-- dim
 			'SETBOUNDS_NOGHOST',
@@ -145,7 +145,7 @@ function FiniteVolumeSolver:getModuleDepends_displayCode()
 	return table(FiniteVolumeSolver.super.getModuleDepends_displayCode(self)):append{
 		-- wave #
 		'normal_t',
-		'eqn.eigen_t',
+		'eigen_t',
 		'eqn.waveCode',
 		'eigen_forInterface',
 	}

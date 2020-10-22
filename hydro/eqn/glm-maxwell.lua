@@ -114,9 +114,9 @@ function GLM_Maxwell:initCodeModules()
 		},
 
 		['fluxFromCons'] = {
-			'solver.solver_t',
-			'eqn.cons_t',
-			'eqn.prim_t',
+			'solver_t',
+			'cons_t',
+			'prim_t',
 			'normal_t',
 			'eqn.common',
 		},
@@ -124,7 +124,7 @@ function GLM_Maxwell:initCodeModules()
 		['eigen_forInterface'] = {},
 		['eigen_forCell'] = {},
 		['eigen_left/rightTransform'] = {
-			'eqn.waves_t',
+			'waves_t',
 			'sqrt_1_2',
 		},
 		['eigen_fluxTransform'] = {},

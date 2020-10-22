@@ -224,7 +224,7 @@ function Z4_2004Bona:initCodeModules()
 	solver.modules:add{
 		name = 'calc_gamma_uu',
 		depends = {
-			'eqn.cons_t',
+			'cons_t',
 		},
 		code = self:template[[
 sym3 calc_gamma_uu(const global <?=eqn.cons_t?>* U, real3 x) {
@@ -238,27 +238,27 @@ sym3 calc_gamma_uu(const global <?=eqn.cons_t?>* U, real3 x) {
 	for moduleName, depends in pairs{
 	
 		['setFlatSpace'] = {
-			'solver.solver_t',
-			'eqn.cons_t',
+			'solver_t',
+			'cons_t',
 		},
 
 		['calcDT'] = {
-			'eqn.cons_t',
+			'cons_t',
 			'initCond.codeprefix',	-- calc_f
 		},
 
 		['fluxFromCons'] = {
-			'eqn.cons_t',
-			'solver.solver_t',
+			'cons_t',
+			'solver_t',
 			'normal_t',
 			'rotate',	-- real3_rotateFrom/To
 		},
 
 		-- used by hll, roe, weno, plm ... anything that uses eigenvalues or eigenvector transforms
 		['eigen_forInterface'] = {
-			'solver.solver_t',
-			'eqn.eigen_t',
-			'eqn.cons_t',
+			'solver_t',
+			'eigen_t',
+			'cons_t',
 			'normal_t',
 			'initCond.codeprefix',	-- calc_f
 		},
@@ -267,22 +267,22 @@ sym3 calc_gamma_uu(const global <?=eqn.cons_t?>* U, real3 x) {
 		['calcCellMinMaxEigenvalues'] = {
 			'range_t',
 			'normal_t',
-			'eqn.cons_t',
+			'cons_t',
 			'initCond.codeprefix',	-- calc_f
 		},
 
 		-- used by plm
 		['eigen_forCell'] = {
-			'solver.solver_t',
-			'eqn.cons_t',
+			'solver_t',
+			'cons_t',
 			'normal_t',
 			'initCond.codeprefix',	-- calc_f
 		},
 
 		-- used by roe, weno, some plm
 		['eigen_left/rightTransform'] = {
-			'solver.solver_t',
-			'eqn.cons_t',
+			'solver_t',
+			'cons_t',
 			'normal_t',
 			'rotate',	-- real3_swap ... though sym3_swap and _3sym3_swap are in their respective modules ... 
 			'initCond.codeprefix',	-- calc_f
@@ -296,8 +296,8 @@ sym3 calc_gamma_uu(const global <?=eqn.cons_t?>* U, real3 x) {
 		--however if you want to use the HLL solver then fluxFromCons is needed
 		--...however fluxFromCons is not provided by this eqn.	
 		['eigen_fluxTransform'] = {
-			'solver.solver_t',
-			'eqn.cons_t',
+			'solver_t',
+			'cons_t',
 			'normal_t',
 		},
 

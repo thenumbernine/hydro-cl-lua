@@ -25,9 +25,9 @@ end
 
 function Flux:getModuleDepends_calcFlux()
 	return {
-		'solver.solver_t',
-		'eqn.cons_t',
-		'eqn.waves_t',
+		'solver_t',
+		'cons_t',
+		'waves_t',
 		'normal_t',
 		-- used by most subclasses:
 		'eqn.cons_parallelPropagate',

@@ -163,27 +163,27 @@ function MHD:initCodeModules()
 	
 		['eqn.prim-cons'] = {
 			'real3',
-			'solver.solver_t',
-			'eqn.prim_t',
-			'eqn.cons_t',
+			'solver_t',
+			'prim_t',
+			'cons_t',
 			'coordLenSq',
 		},
 
 		-- only used by PLM
 		['eqn.dU-dW'] = {
 			'real3',
-			'solver.solver_t',
-			'eqn.prim_t',
-			'eqn.cons_t',
+			'solver_t',
+			'prim_t',
+			'cons_t',
 		},
 
 		['cons_rotateFrom'] = {
-			'eqn.cons_t',
+			'cons_t',
 			'normal_t',
 		},
 		
 		['cons_rotateTo'] = {
-			'eqn.cons_t',
+			'cons_t',
 			'normal_t',
 		},
 
@@ -201,9 +201,9 @@ function MHD:initCodeModules()
 		},
 
 		['fluxFromCons'] = {
-			'solver.solver_t',
-			'eqn.cons_t',
-			'eqn.prim_t',
+			'solver_t',
+			'cons_t',
+			'prim_t',
 			'eqn.prim-cons',	-- primFromCons
 			'normal_t',
 			'coordLenSq',

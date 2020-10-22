@@ -44,7 +44,7 @@ function EulerBurgers:createEqn()
 		solver.modules:add{
 			name = 'calcDT',
 			depends = {
-				'solver.solver_t',
+				'solver_t',
 				'eqn.prim-cons',
 				'eqn.guiVars.compileTime',
 			},

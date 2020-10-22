@@ -254,19 +254,19 @@ functionality (and abstraction):
 
 	self.modules:add{
 		name = 'INDEX',
-		depends = {'solver.solver_t'},
+		depends = {'solver_t'},
 		headercode = '#define INDEX(a,b,c)	((a) + solver->gridSize.x * ((b) + solver->gridSize.y * (c)))',
 	}
 
 	self.modules:add{
 		name = 'INDEXV',
-		depends = {'solver.solver_t'},
+		depends = {'solver_t'},
 		headercode = '#define INDEXV(i)		indexForInt4ForSize(i, solver->gridSize.x, solver->gridSize.y, solver->gridSize.z)',
 	}
 
 	self.modules:add{
 		name = 'OOB',
-		depends = {'solver.solver_t'},
+		depends = {'solver_t'},
 		-- bounds-check macro
 		headercode = '#define OOB(lhs,rhs) (i.x < (lhs) || i.x >= solver->gridSize.x - (rhs)'
 			.. (self.dim < 2 and '' or ' || i.y < (lhs) || i.y >= solver->gridSize.y - (rhs)')
@@ -343,7 +343,7 @@ real slopeLimiter(real r) {
 		
 		self.modules:add{
 			name = 'consLR_t',
-			depends = {'eqn.cons_t'},
+			depends = {'cons_t'},
 			typecode = template([[
 typedef union {
 	<?=eqn.cons_t?> LR[2];
@@ -366,8 +366,8 @@ typedef struct {
 			name = 'GridSolver.usePLM',
 			depends = {
 				'consLR_t',
-				'solver.solver_t',
-				'eqn.cons_t',
+				'solver_t',
+				'cons_t',
 				'normal_t',
 				'cell_x',
 				'cell_dx#',
@@ -1152,10 +1152,12 @@ function GridSolver:createBoundaryProgramAndKernel(args)
 
 	local lines = table()
 
-	local moduleNames = table(self.sharedModulesEnabled, {
-		['INDEX'] = true,
-		['INDEXV'] = true,
-	}):keys()
+	local moduleNames = self.sharedModulesEnabled:keys():append{
+		'solver_t',
+		'cons_t',
+		'INDEX',
+		'INDEXV',
+	}
 print('boundary modules: '..moduleNames:sort():concat', ')
 	lines:insert(self.modules:getCodeAndHeader(moduleNames:unpack()))
 

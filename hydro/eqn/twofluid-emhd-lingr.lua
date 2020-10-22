@@ -182,19 +182,19 @@ function TwoFluidEMHDDeDonderGaugeLinearizedGR:initCodeModules()
 		['sqrt_2_and_1_2'] = {},
 		
 		['eqn.prim-cons'] = {
-			'solver.solver_t',
+			'solver_t',
 			'eqn.common',	-- calc_*
-			'eqn.prim_t',
-			'eqn.cons_t',
+			'prim_t',
+			'cons_t',
 		},
 
 		-- only used by PLM
 		['eqn.dU-dW'] = {
 			'real3',
 			'coord_lower',
-			'solver.solver_t',
-			'eqn.prim_t',
-			'eqn.cons_t',
+			'solver_t',
+			'prim_t',
+			'cons_t',
 		},
 
 		['eqn.common'] = {

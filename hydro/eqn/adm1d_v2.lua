@@ -110,13 +110,13 @@ function ADM_BonaMasso_1D_1997Alcubierre:initCodeModules()
 	ADM_BonaMasso_1D_1997Alcubierre.super.initCodeModules(self)
 	for moduleName, depends in pairs{
 		['setFlatSpace'] = {
-			'solver.solver_t',
-			'eqn.cons_t',
+			'solver_t',
+			'cons_t',
 		},
 
 		['fluxFromCons'] = {
-			'solver.solver_t',
-			'eqn.cons_t',
+			'solver_t',
+			'cons_t',
 			'normal_t',
 			'initCond.codeprefix',	-- calc_*
 		},

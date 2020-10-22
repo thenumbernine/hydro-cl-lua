@@ -629,7 +629,7 @@ function SolverBase:initCodeModules()
 	self.sharedModulesEnabled = table()
 
 	self.modules:add{
-		name = 'solver.solver_t',
+		name = 'solver_t',
 		structs = {self.solverStruct},
 	}
 
@@ -728,7 +728,7 @@ function SolverBase:initCDefs()
 		self.solverModulesEnabled,
 		self.sharedModulesEnabled
 	):keys()
-	moduleNames:insert'eqn.prim_t'	-- believe it or not, sometimes this isn't enabled (eqn/wave)
+	moduleNames:insert'prim_t'	-- believe it or not, sometimes this isn't enabled (eqn/wave)
 print("ffi.cdef'ing: "..moduleNames:concat', ')
 	require 'hydro.code.safecdef'(self.modules:getTypeHeader(moduleNames:unpack()))
 end
@@ -853,8 +853,8 @@ function SolverBase:refreshCommonProgram()
 	-- it only seems to use solver_t and cons_t
 	local moduleNames = table{
 		'realparam',
-		'solver.solver_t',
-		'eqn.cons_t',
+		'solver_t',
+		'cons_t',
 		
 		-- This is in GridSolver, a subclass.  
 		-- In fact, all the display stuff is pretty specific to cartesian grids.

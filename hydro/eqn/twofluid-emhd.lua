@@ -192,18 +192,18 @@ function TwoFluidEMHD:initCodeModules()
 	
 		['eqn.prim-cons'] = {
 			'real3',
-			'solver.solver_t',
-			'eqn.prim_t',
-			'eqn.cons_t',
+			'solver_t',
+			'prim_t',
+			'cons_t',
 			'eqn.common',	-- calc_*
 		},
 
 		-- only used by PLM
 		['eqn.dU-dW'] = {
 			'real3',
-			'solver.solver_t',
-			'eqn.prim_t',
-			'eqn.cons_t',
+			'solver_t',
+			'prim_t',
+			'cons_t',
 			'coord_lower',
 		},
 

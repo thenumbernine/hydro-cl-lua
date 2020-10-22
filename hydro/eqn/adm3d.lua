@@ -248,7 +248,7 @@ function ADM_BonaMasso_3D:initCodeModules()
 	solver.modules:add{
 		name = 'calc_gamma_uu',
 		depends = {
-			'eqn.cons_t',
+			'cons_t',
 		},
 		code = self:template[[
 sym3 calc_gamma_uu(const global <?=eqn.cons_t?>* U, real3 x) {
@@ -262,14 +262,14 @@ sym3 calc_gamma_uu(const global <?=eqn.cons_t?>* U, real3 x) {
 	for moduleName, depends in pairs{
 
 		['setFlatSpace'] = {
-			'solver.solver_t',
-			'eqn.cons_t',
+			'solver_t',
+			'cons_t',
 		},
 
 -- [=[ comment this and initCodeModule_fluxFromCons out for fluxFromCons to fall back on the eigensystem transforms
 		['fluxFromCons'] = {
-			'eqn.cons_t',
-			'solver.solver_t',
+			'cons_t',
+			'solver_t',
 			'normal_t',
 			'rotate',	-- real3_swap*
 			'initCond.codeprefix',		-- calc_f
@@ -277,7 +277,7 @@ sym3 calc_gamma_uu(const global <?=eqn.cons_t?>* U, real3 x) {
 --]=]
 
 		['calcDT'] = {
-			'solver.solver_t',
+			'solver_t',
 			'eqn.prim-cons',
 			'eqn.guiVars.compileTime',
 			'initCond.codeprefix',		-- calc_f

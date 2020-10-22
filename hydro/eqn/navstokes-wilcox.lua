@@ -137,8 +137,8 @@ function NavierStokesWilcox:initCodeModulePrimCons()
 	self.solver.modules:add{
 		name = 'eqn.prim-cons',
 		depends = {
-			'eqn.prim_t',
-			'eqn.cons_t',
+			'prim_t',
+			'cons_t',
 			'coordLenSq',
 		},
 		code = self:template[[
@@ -201,9 +201,9 @@ function NavierStokesWilcox:initCodeModulePrimCons()
 		name = 'eqn.dU-dW',
 		depends = {
 			'real3',
-			'solver.solver_t',
-			'eqn.prim_t',
-			'eqn.cons_t',
+			'solver_t',
+			'prim_t',
+			'cons_t',
 		},
 		code = self:template[[
 <?=eqn.cons_t?> apply_dU_dW(

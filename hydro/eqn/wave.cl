@@ -112,9 +112,9 @@ end
 
 <? elseif moduleName == "fluxFromCons" then 
 depmod{
-	"solver.solver_t",
+	"solver_t",
 	"normal_t",
-	"eqn.cons_t",
+	"cons_t",
 	"eqn.common",	-- metric_alpha
 }
 ?>
@@ -204,7 +204,7 @@ range_t calcCellMinMaxEigenvalues(
 
 <? elseif moduleName == "eigen_forInterface" then 
 depmod{
-	"eqn.eigen_t",
+	"eigen_t",
 }
 ?>
 
@@ -213,7 +213,7 @@ typedef <?=eqn.eigen_t?> eigen_t;
 
 <? elseif moduleName == "eigen_forCell" then 
 depmod{
-	"eqn.eigen_t",
+	"eigen_t",
 }
 ?>
 
@@ -222,8 +222,8 @@ typedef <?=eqn.eigen_t?> eigen_t;
 
 <? elseif moduleName == "eigen_left/rightTransform" then 
 depmod{
-	"eqn.eigen_t",
-	"eqn.waves_t",
+	"eigen_t",
+	"waves_t",
 }
 ?>
 
