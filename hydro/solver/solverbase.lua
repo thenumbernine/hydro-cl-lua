@@ -697,20 +697,24 @@ function SolverBase:initCodeModuleDisplay()
 	-- this depends on :createDisplayVars()
 	self.modules:add{
 		name = 'solver.displayCode',
-		-- this is going to have dependencies that vary greatly from eqn to eqn
-		depends = {
-			'coordLen',
-			-- hmm, only for sym3
-			-- but eqn.euler doesn't use sym3, so this needless adds sym3 ...
-			-- how do I add a 'depends' only if 'sym3' is already included?
-			'coord_g_ll',
-		
-			-- anything used by eqn:getDisplayVars
-			'eqn.displayCode',
-		},
+		depends = self:getModuleDepends_displayCode(),
 		code = self:getDisplayCode(),
 	}
 	self.solverModulesEnabled['solver.displayCode'] = true
+end
+
+function SolverBase:getModuleDepends_displayCode()
+	-- this is going to have dependencies that vary greatly from eqn to eqn
+	return {
+		'coordLen',
+		-- hmm, only for sym3
+		-- but eqn.euler doesn't use sym3, so this needless adds sym3 ...
+		-- how do I add a 'depends' only if 'sym3' is already included?
+		'coord_g_ll',
+	
+		-- anything used by eqn:getDisplayVars
+		'eqn.displayCode',
+	}
 end
 
 -- TODO if you want to define ffi ctype metatable then put them all in one spot here
@@ -724,6 +728,7 @@ function SolverBase:initCDefs()
 		self.solverModulesEnabled,
 		self.sharedModulesEnabled
 	):keys()
+	moduleNames:insert'eqn.prim_t'	-- believe it or not, sometimes this isn't enabled (eqn/wave)
 print("ffi.cdef'ing: "..moduleNames:concat', ')
 	require 'hydro.code.safecdef'(self.modules:getTypeHeader(moduleNames:unpack()))
 end
@@ -1922,14 +1927,6 @@ function SolverBase:getUBufDisplayVarsArgs()
 end
 
 
--- TODO this is the only function that calls DisplayVarGroup ctor
-function SolverBase:newDisplayVarGroup(args)
-	local displayVarGroup = DisplayVarGroup(table(args,  {solver=self}))
-	self.displayVarGroups:insert(displayVarGroup)
-	return displayVarGroup
-end
-
-
 function SolverBase:addUBufDisplayVars()
 	-- TODO make this getUBufDisplayVarGroupArgs, and make the vars getter separate
 	local args = self:getUBufDisplayVarsArgs()
@@ -1953,6 +1950,15 @@ function SolverBase:addUBufDisplayVars()
 	self:addDisplayVarGroup(args, self.DisplayVar_U)
 end
 
+
+-- TODO this is the only function that calls DisplayVarGroup ctor
+function SolverBase:newDisplayVarGroup(args)
+	local displayVarGroup = DisplayVarGroup(table(args,  {solver=self}))
+	self.displayVarGroups:insert(displayVarGroup)
+	return displayVarGroup
+end
+
+-- TODO proper module with depends and all
 function SolverBase:addDisplayVarGroup(args, cl)
 	cl = cl or self.DisplayVar
 
@@ -2032,6 +2038,7 @@ enableVector = false
 
 	return args.group
 end
+
 
 function SolverBase:addDisplayVars()
 	self:addUBufDisplayVars()

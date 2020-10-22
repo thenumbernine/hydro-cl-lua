@@ -71,6 +71,7 @@ function WENO:initCodeModules()
 	self.modules:add{
 		name = 'WENO.calcFlux',
 		depends = table{
+			'cell_x',
 			'fluxFromCons',
 			'normal_t',
 			'eigen_forInterface',

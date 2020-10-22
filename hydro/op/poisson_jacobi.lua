@@ -177,15 +177,19 @@ end
 }
 ]]
 
+function PoissonJacobi:getModuleDepends_Poisson()
+	return {
+		'cell_sqrt_det_g',
+		'cell_dx#',
+	}
+end
+
 function PoissonJacobi:initCodeModules(solver)
 	PoissonJacobi.super.initCodeModules(self, solver)
 	local name = 'op.PoissonJacobi-'..self.name
 	solver.modules:add{
 		name = name,
-		depends = {
-			'cell_sqrt_det_g',
-			'cell_dx#',
-		},
+		depends = self:getModuleDepends_Poisson(),
 		code = table{
 			template(poissonJacobiCode, {op = self}),
 			self:getPoissonCode() or '',

@@ -36,8 +36,11 @@ function FiniteVolumeSolver:initCodeModules()
 	self.modules:add{
 		name = 'calcDerivFromFlux',
 		depends = table{
-			'calcFlux',
-		
+			'solver.solver_t',
+			'eqn.cons_t',
+			'coord.cell_t',
+			'solver.macros',	-- dim
+			'SETBOUNDS_NOGHOST',
 		}:append(
 			(self.coord.vectorComponent == 'holonomic'
 			or require 'hydro.coord.cartesian'.is(self.coord))
@@ -47,6 +50,9 @@ function FiniteVolumeSolver:initCodeModules()
 		code = template(file['hydro/solver/calcDerivFV.cl'], {solver=self}),
 	}
 	self.solverModulesEnabled['calcDerivFromFlux'] = true
+	
+	-- this module is set up in hydro/flux/flux.lua
+	self.solverModulesEnabled['calcFlux'] = true
 end
 
 function FiniteVolumeSolver:createFlux(fluxName, fluxArgs)
@@ -135,6 +141,15 @@ if self.checkNaNs then assert(self:checkFinite(derivBufObj)) end
 end
 
 
+function FiniteVolumeSolver:getModuleDepends_displayCode()
+	return table(FiniteVolumeSolver.super.getModuleDepends_displayCode(self)):append{
+		-- wave #
+		'normal_t',
+		'eqn.eigen_t',
+		'eqn.waveCode',
+		'eigen_forInterface',
+	}
+end
 
 function FiniteVolumeSolver:addDisplayVars()
 	FiniteVolumeSolver.super.addDisplayVars(self)

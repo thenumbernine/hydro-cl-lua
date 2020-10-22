@@ -365,11 +365,35 @@ typedef struct {
 		self.modules:add{
 			name = 'GridSolver.usePLM',
 			depends = {
-				'cell_sqrt_det_g',
 				'consLR_t',
+				'solver.solver_t',
+				'eqn.cons_t',
+				'normal_t',
+				'cell_x',
+				'cell_dx#',
+				-- plm-cons:
+				'fluxFromCons',
 				'slopeLimiter',
-				'eigen_forCell',		-- defined in eqn, used by PLM
-				'eqn.dU-dW',	-- plm.cl uses apply_dU_dW, apply_dW_dU
+				-- plm-cons-alone:
+				'slopeLimiter',
+				-- plm-prim-alone:
+				'slopeLimiter',
+				-- plm-eig:
+				'eigen_forCell',
+				'eigen_left/rightTransform',
+				-- plm-eig-prim:
+				'eqn.dU-dW',
+				'eigen_left/rightTransform',
+				-- plm-eig-prim-ref:
+				'eigen_forCell',
+				'eqn.dU-dW',
+				'eigen_left/rightTransform',
+				-- plm-athena:
+				'eigen_forCell',
+				'eigen_left/rightTransform',
+				-- ppm-experimental:
+				'eigen_forCell',
+				'eigen_left/rightTransform',
 			},
 			code = template(file['hydro/solver/plm.cl'], {solver=self, eqn=self.eqn}),
 		}

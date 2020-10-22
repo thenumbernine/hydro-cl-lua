@@ -29,165 +29,45 @@ function ShallowWater:createInitState()
 	}
 end
 
-function ShallowWater:initCodeModule_fluxFromCons()
-	self.solver.modules:add{
-		name = 'fluxFromCons',
-		depends = {
-			'solver.solver_t',
-			'eqn.prim-cons',
-			'normal_t',
-		},
-		code = self:template[[
-<?=eqn.cons_t?> fluxFromCons(
-	constant <?=solver.solver_t?>* solver,
-	<?=eqn.cons_t?> U,
-	real3 x,
-	normal_t n
-) {
-	<?=eqn.prim_t?> W = primFromCons(solver, U, x);
-	real v_n = normal_vecDotN1(n, W.v);
-	real3 nU = normal_u1(n);
-	return (<?=eqn.cons_t?>){
-		.h = U.h * v_n,
-		.m = real3_add(
-			real3_real_mul(U.m, v_n),	//h v^i v_n
-			real3_real_mul(nU, .5 * solver->gravity * U.h * U.h)	//.5 g h^2 n^i
-		),
-	};
-}
-]],
-	}
+function ShallowWater:initCodeModules()
+	ShallowWater.super.initCodeModules(self)
+	for moduleName, depends in pairs{
+		['eqn.prim-cons'] = {},
+		['eqn.dU-dW'] = {},
+		['eqn.common'] = {},
+		['fluxFromCons'] = {},
+		['calcCellMinMaxEigenvalues'] = {},
+		['eigen_forInterface'] = {},
+		['eigen_left/rightTransform'] = {},
+		['eigen_fluxTransform'] = {},
+		['eigen_forCell'] = {},
+	} do
+		self:addModuleFromSourceFile{
+			name = moduleName,
+			depends = depends,
+		}
+	end
 end
 
-function ShallowWater:initCodeModuleCommon()
-	self.solver.modules:add{
-		name = 'eqn.common',
-		depends = {
-			'solver.solver_t',
-			'eqn.cons_t',
-		},
-		code = self:template[[
-real calc_C(constant <?=solver.solver_t?>* solver, <?=eqn.cons_t?> U) {
-	return sqrt(solver->gravity * U.h);
-}
-]],
-	}
-end
+-- don't use default
+function ShallowWater:initCodeModule_fluxFromCons() end
+function ShallowWater:initCodeModuleCommon() end
+function ShallowWater:initCodeModulePrimCons() end
 
-function ShallowWater:initCodeModulePrimCons()
-	self.solver.modules:add{
-		name = 'eqn.prim-cons',
-		depends = {
-			'real3',
-			'solver.solver_t',
-			'eqn.prim_t',
-			'eqn.cons_t',
-		},
-		code = self:template[[
-<?=eqn.prim_t?> primFromCons(constant <?=solver.solver_t?>* solver, <?=eqn.cons_t?> U, real3 x) {
-	return (<?=eqn.prim_t?>){
-		.h = U.h,
-		.v = real3_real_mul(U.m, 1. / U.h),
-	};
-}
-
-<?=eqn.cons_t?> consFromPrim(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W, real3 x) {
-	return (<?=eqn.cons_t?>){
-		.h = W.h,
-		.m = real3_real_mul(W.v, W.h),
-	};
-}
-]],
-	}
-
-	-- only used by PLM
-	self.solver.modules:add{
-		name = 'eqn.dU-dW',
-		depends = {
-			'real3',
-			'solver.solver_t',
-			'eqn.prim_t',
-			'eqn.cons_t',
-		},
-		code = self:template[[
-<?=eqn.cons_t?> apply_dU_dW(
-	constant <?=solver.solver_t?>* solver,
-	<?=eqn.prim_t?> WA, 
-	<?=eqn.prim_t?> W, 
-	real3 x
-) {
-	return (<?=eqn.cons_t?>){
-		.h = W.h,
-		.m = real3_add(
-			real3_real_mul(WA.v, W.h), 
-			real3_real_mul(W.v, WA.h)),
-	};
-}
-
-<?=eqn.prim_t?> apply_dW_dU(
-	constant <?=solver.solver_t?>* solver,
-	<?=eqn.prim_t?> WA,
-	<?=eqn.cons_t?> U,
-	real3 x
-) {
-	real3 WA_vL = coord_lower(WA.v, x);
-	return (<?=eqn.prim_t?>){
-		.h = U.h,
-		.v = real3_sub(
-			real3_real_mul(U.m, 1. / WA.h),
-			real3_real_mul(WA.v, U.h / WA.h)),
-	};
-}
-]],
-	}
-end
-
-ShallowWater.initCondCode = [[
-kernel void applyInitCond(
-	constant <?=solver.solver_t?>* solver,
-	constant <?=solver.initCond_t?>* initCond,
-	global <?=eqn.cons_t?>* UBuf,
-	const global <?=coord.cell_t?>* cellBuf
-) {
-	SETBOUNDS(0,0);
-	real3 x = cellBuf[index].pos;
-	
-	// this is in all init/euler.lua
-	real3 mids = real3_real_mul(real3_add(solver->initCondMins, solver->initCondMaxs), .5);
-	bool lhs = true<?
-for i=1,solver.dim do
-	local xi = xNames[i]
-?> && x.<?=xi?> < mids.<?=xi?><?
-end
-?>;
-
-	// these are all standard for all init/euler.lua initial conditions
-	real rho = 0;
-	real3 v = real3_zero;
-	real P = 0;
-	real3 D = real3_zero;
-	real3 B = real3_zero;
-	real ePot = 0;
-
-	<?=code?>
-
-	<?=eqn.prim_t?> W = {
-		.h = rho,
-		.v = cartesianToCoord(v, x),
-	};
-
-	UBuf[index] = consFromPrim(solver, W, x);
-}
-]]
-
-ShallowWater.solverCodeFile = 'hydro/eqn/shallow-water.cl'
-
-function ShallowWater:getModuleDependsSolver() 
+function ShallowWater:getModuleDepends_waveCode()
 	return {
+		'eqn.common',
 		'eqn.prim-cons',
+	}
+end
+
+function ShallowWater:getModuleDepends_displayCode()
+	return {
 		'eqn.common',
 	}
 end
+
+ShallowWater.solverCodeFile = 'hydro/eqn/shallow-water.cl'
 
 ShallowWater.displayVarCodeUsesPrims = true
 

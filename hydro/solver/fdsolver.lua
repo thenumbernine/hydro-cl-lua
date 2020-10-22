@@ -25,6 +25,12 @@ function FiniteDifferenceSolver:initCodeModules()
 	self.modules:add{
 		name = 'calcFluxAtCell,calcDerivFiniteDifference',
 		depends = {
+			'solver.solver_t',
+			'eqn.cons_t',
+			'coord.cell_t',
+			'SETBOUNDS',
+			'cell_x',
+			'solver.macros',
 			'fluxFromCons',
 		},
 		code = template(file['hydro/solver/calcDerivFD.cl'], {solver=self, eqn=self.eqn}),

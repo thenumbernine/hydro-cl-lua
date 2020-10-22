@@ -1,12 +1,13 @@
 //TODO I have the templated types so I can mix solver code.  In such a case, these typedefs shouldn't go in the getCommonCode.
-typedef <?=eqn.prim_t?> prim_t;
 typedef <?=eqn.cons_t?> cons_t;
-typedef <?=eqn.eigen_t?> eigen_t;
-typedef <?=eqn.waves_t?> waves_t;
 typedef <?=solver.solver_t?> solver_t;
 
-<? if getCommonCode then ?>
-
+<? if moduleName == nil then ?>
+<? elseif moduleName == "eqn.common" then 
+depmod{
+	"real3x3",
+}
+?>
 
 /*
 background metric ADM decomposition
@@ -63,7 +64,128 @@ real3x3 metric_partial_beta_ul(real3 pt) {
 ?>	};
 }
 
-<? else -- getCommonCode ?> 
+<? elseif moduleName == "applyInitCond" then 
+depmod{
+	"cartesianToCoord",
+}
+?>
+
+<?
+local scalar = eqn.scalar
+local vec3 = eqn.vec3
+?>
+kernel void applyInitCond(
+	constant <?=solver.solver_t?>* solver,
+	constant <?=solver.initCond_t?>* initCond,
+	global <?=eqn.cons_t?>* UBuf,
+	const global <?=solver.coord.cell_t?>* cellBuf
+) {
+	SETBOUNDS(0,0);
+	real3 x = cellBuf[index].pos;
+	
+	real3 mids = real3_real_mul(real3_add(solver->mins, solver->maxs), .5);
+	bool lhs = true<?
+for i=1,solver.dim do
+	local xi = xNames[i]
+?> && x.<?=xi?> < mids.<?=xi?><?
+end
+?>;
+
+	real rho = 0;
+	real3 v = real3_zero;
+	real P = 0;
+	real3 D = real3_zero;
+	real3 B = real3_zero;
+	real ePot = 0;
+	
+	<?=initCode()?>
+
+	UBuf[index] = (<?=eqn.cons_t?>){
+<? if eqn.usePressure then
+?>		.Pi = <?=scalar?>_from_real(P),
+<? else		
+?>		.Pi = <?=scalar?>_from_real(rho),
+<? end		
+?>		.Psi_l = <?=vec3?>_from_real3(cartesianToCoord(v, x)),
+	};
+}
+
+<? elseif moduleName == "fluxFromCons" then 
+depmod{
+	"solver.solver_t",
+	"normal_t",
+	"eqn.cons_t",
+	"eqn.common",	-- metric_alpha
+}
+?>
+
+// What's the difference between eigen_fluxTransform and fluxFromCons?
+// The difference is that the flux matrix of this is based on 'eig', which is derived from U's ... especially UL & UR in the case of the Roe solver
+// whereas that of fluxFromCons is based purely on 'U'.
+// Since hydro/eqn/wave has no eigen_t info derived from U, the two functions are identical.
+<?=eqn.cons_t?> fluxFromCons(
+	constant <?=solver.solver_t?>* solver,
+	<?=eqn.cons_t?> U,
+	real3 x,
+	normal_t n
+) {
+	real alpha = metric_alpha(x);
+	real beta_n = normal_vecDotN1(n, metric_beta_u(x));
+	
+	real3 nL = normal_l1(n);
+	real3 nU = normal_u1(n);
+	
+	<?=eqn.cons_t?> F;
+	//F^Pi = -c (Pi beta_n + alpha Psi_i n^i)
+	F.Pi = <?=scalar?>_real_mul(
+		//Pi beta_n + alpha Psi_i n^i
+		real_<?=scalar?>_add(
+		
+			//Pi beta_n:
+			<?=scalar?>_real_mul(U.Pi, beta_n), 
+			
+			//alpha Psi_i n^i:
+			<?=scalar?>_real_mul(
+				//Psi_i n^i:
+				<?=vec3?>_real3_dot(
+					U.Psi_l, 
+					nU
+				), 
+				alpha
+			)
+		), 
+		-solver->wavespeed
+	);
+	
+	//F^{Psi_j} = -c (alpha Pi n_j + Psi_j beta_n)
+	F.Psi_l = <?=vec3?>_real_mul(
+		<?=vec3?>_add(
+			//Psi_j beta_n:
+			<?=vec3?>_real_mul(
+				U.Psi_l,
+				beta_n
+			),
+			
+			//alpha Pi n_j:
+			<?=vec3?>_<?=scalar?>_mul(
+				//n:
+				<?=vec3?>_from_real3(nL),
+				
+				//alpha Pi:
+				<?=scalar?>_real_mul(
+					U.Pi, 
+					alpha
+				)
+			)
+		),
+		//-c
+		-solver->wavespeed
+	);
+	
+	return F;
+}
+
+<? elseif moduleName == "calcCellMinMaxEigenvalues" then ?>
 
 // used by PLM
 range_t calcCellMinMaxEigenvalues(
@@ -80,10 +202,33 @@ range_t calcCellMinMaxEigenvalues(
 	};
 }
 
+<? elseif moduleName == "eigen_forInterface" then 
+depmod{
+	"eqn.eigen_t",
+}
+?>
 
+typedef <?=eqn.eigen_t?> eigen_t;
 #define eigen_forInterface(solver, UL, UR, x, n) ((eigen_t){})
-#define eigen_forCell(solver, UL, UR, x, n) ((eigen_t){})
 
+<? elseif moduleName == "eigen_forCell" then 
+depmod{
+	"eqn.eigen_t",
+}
+?>
+
+typedef <?=eqn.eigen_t?> eigen_t;
+#define eigen_forCell(solver, U, x, n) ((eigen_t){})
+
+<? elseif moduleName == "eigen_left/rightTransform" then 
+depmod{
+	"eqn.eigen_t",
+	"eqn.waves_t",
+}
+?>
+
+typedef <?=eqn.eigen_t?> eigen_t;
+typedef <?=eqn.waves_t?> waves_t;
 
 waves_t eigen_leftTransform(
 	constant solver_t* solver,
@@ -152,10 +297,13 @@ cons_t eigen_rightTransform(
 	return Y;
 }
 
+<? elseif moduleName == "eigen_fluxTransform" then ?>
+
 // by default in hydro/eqn/eqn.lua, fluxFromCons is defined by eigen_fluxTransform
 // but since eig is empty, we can define eigen_fluxTransform with fluxFromCons
 #define eigen_fluxTransform(solver, eig, X, x, n) fluxFromCons(solver, X, x, n)
 
+<? elseif moduleName == "addSource" then ?>
 
 kernel void addSource(
 	constant solver_t* solver,
@@ -199,4 +347,8 @@ kernel void addSource(
 #endif
 }
 
-<? end -- getCommonCode ?> 
+<? 
+else
+	error("unknown moduleName "..require 'ext.tolua'(moduleName))
+end 
+?>

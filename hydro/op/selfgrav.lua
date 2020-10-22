@@ -46,6 +46,13 @@ SelfGrav.guiVars = {
 	{name='gravitationalConstant', value=1, units='m^3/(kg*s^2)'},
 }
 
+function SelfGrav:getModuleDepends_Poisson()
+	return table(SelfGrav.super.getModuleDepends_Poisson(self)):append{
+		'units',
+		'realparam',	-- used in offsetPotential
+	}
+end
+
 -- params for hydro/op/poisson.cl 
 -- units of m^3/(kg*s^2) * kg/m^3 = 1/s^2
 function SelfGrav:getPoissonDivCode()

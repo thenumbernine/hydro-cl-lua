@@ -1,8 +1,149 @@
 typedef <?=eqn.prim_t?> prim_t;
 typedef <?=eqn.cons_t?> cons_t;
-typedef <?=eqn.eigen_t?> eigen_t;
-typedef <?=eqn.waves_t?> waves_t;
 typedef <?=solver.solver_t?> solver_t;
+
+<? if moduleName == nil then ?>
+<? elseif moduleName == "eqn.prim-cons" then
+depmod{
+	"real3",
+	"solver.solver_t",
+	"eqn.prim_t",
+	"eqn.cons_t",
+}
+?>
+
+<?=eqn.prim_t?> primFromCons(constant <?=solver.solver_t?>* solver, <?=eqn.cons_t?> U, real3 x) {
+	return (<?=eqn.prim_t?>){
+		.h = U.h,
+		.v = real3_real_mul(U.m, 1. / U.h),
+	};
+}
+
+<?=eqn.cons_t?> consFromPrim(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W, real3 x) {
+	return (<?=eqn.cons_t?>){
+		.h = W.h,
+		.m = real3_real_mul(W.v, W.h),
+	};
+}
+
+<? elseif moduleName == "eqn.dU-dW" then
+depmod{
+	"real3",
+	"solver.solver_t",
+	"eqn.prim_t",
+	"eqn.cons_t",
+}
+?>
+
+<?=eqn.cons_t?> apply_dU_dW(
+	constant <?=solver.solver_t?>* solver,
+	<?=eqn.prim_t?> WA, 
+	<?=eqn.prim_t?> W, 
+	real3 x
+) {
+	return (<?=eqn.cons_t?>){
+		.h = W.h,
+		.m = real3_add(
+			real3_real_mul(WA.v, W.h), 
+			real3_real_mul(W.v, WA.h)),
+	};
+}
+
+<?=eqn.prim_t?> apply_dW_dU(
+	constant <?=solver.solver_t?>* solver,
+	<?=eqn.prim_t?> WA,
+	<?=eqn.cons_t?> U,
+	real3 x
+) {
+	real3 WA_vL = coord_lower(WA.v, x);
+	return (<?=eqn.prim_t?>){
+		.h = U.h,
+		.v = real3_sub(
+			real3_real_mul(U.m, 1. / WA.h),
+			real3_real_mul(WA.v, U.h / WA.h)),
+	};
+}
+
+<? elseif moduleName == "eqn.common" then 
+depmod{
+	"solver.solver_t",
+	"eqn.cons_t",
+}
+?>
+
+real calc_C(constant <?=solver.solver_t?>* solver, <?=eqn.cons_t?> U) {
+	return sqrt(solver->gravity * U.h);
+}
+
+<? elseif moduleName == "applyInitCond" then
+depmod{
+	"cartesianToCoord",
+}
+?>
+
+kernel void applyInitCond(
+	constant <?=solver.solver_t?>* solver,
+	constant <?=solver.initCond_t?>* initCond,
+	global <?=eqn.cons_t?>* UBuf,
+	const global <?=coord.cell_t?>* cellBuf
+) {
+	SETBOUNDS(0,0);
+	real3 x = cellBuf[index].pos;
+	
+	// this is in all init/euler.lua
+	real3 mids = real3_real_mul(real3_add(solver->initCondMins, solver->initCondMaxs), .5);
+	bool lhs = true<?
+for i=1,solver.dim do
+	local xi = xNames[i]
+?> && x.<?=xi?> < mids.<?=xi?><?
+end
+?>;
+
+	// these are all standard for all init/euler.lua initial conditions
+	real rho = 0;
+	real3 v = real3_zero;
+	real P = 0;
+	real3 D = real3_zero;
+	real3 B = real3_zero;
+	real ePot = 0;
+
+	<?=initCode()?>
+
+	<?=eqn.prim_t?> W = {
+		.h = rho,
+		.v = cartesianToCoord(v, x),
+	};
+
+	UBuf[index] = consFromPrim(solver, W, x);
+}
+
+<? elseif moduleName == "fluxFromCons" then 
+depmod{
+	"solver.solver_t",
+	"eqn.prim-cons",
+	"normal_t",
+}
+?>
+
+<?=eqn.cons_t?> fluxFromCons(
+	constant <?=solver.solver_t?>* solver,
+	<?=eqn.cons_t?> U,
+	real3 x,
+	normal_t n
+) {
+	<?=eqn.prim_t?> W = primFromCons(solver, U, x);
+	real v_n = normal_vecDotN1(n, W.v);
+	real3 nU = normal_u1(n);
+	return (<?=eqn.cons_t?>){
+		.h = U.h * v_n,
+		.m = real3_add(
+			real3_real_mul(U.m, v_n),	//h v^i v_n
+			real3_real_mul(nU, .5 * solver->gravity * U.h * U.h)	//.5 g h^2 n^i
+		),
+	};
+}
+
+<? elseif moduleName == "calcCellMinMaxEigenvalues" then ?>
 
 // used by PLM
 range_t calcCellMinMaxEigenvalues(
@@ -20,6 +161,10 @@ range_t calcCellMinMaxEigenvalues(
 		.max = v_n + C_nLen,
 	};
 }
+
+<? elseif moduleName == "eigen_forInterface" then ?>
+
+typedef <?=eqn.eigen_t?> eigen_t;
 
 eigen_t eigen_forInterface(
 	constant solver_t* solver,
@@ -55,6 +200,12 @@ eigen_t eigen_forInterface(
 	};
 }
 
+<? elseif moduleName == "eigen_left/rightTransform" then 
+depmod{
+	"eqn.waves_t",
+}
+?>
+
 <?
 local prefix = [[
 	real3 nL = normal_l1(n);
@@ -72,6 +223,9 @@ local prefix = [[
 	real v_n3 = v_ns.z;
 ]]
 ?>
+
+typedef <?=eqn.eigen_t?> eigen_t;
+typedef <?=eqn.waves_t?> waves_t;
 
 waves_t eigen_leftTransform(
 	constant solver_t* solver,
@@ -132,6 +286,10 @@ cons_t eigen_rightTransform(
 	}};
 }
 
+<? elseif moduleName == "eigen_fluxTransform" then ?>
+
+typedef <?=eqn.eigen_t?> eigen_t;
+
 cons_t eigen_fluxTransform(
 	constant solver_t* solver,
 	eigen_t eig,
@@ -163,6 +321,9 @@ cons_t eigen_fluxTransform(
 	}};
 }
 
+<? elseif moduleName == "eigen_forCell" then ?>
+
+typedef <?=eqn.eigen_t?> eigen_t;
 
 // used by PLM
 eigen_t eigen_forCell(
@@ -180,3 +341,9 @@ eigen_t eigen_forCell(
 		.C = C,
 	};
 }
+
+<? 
+else
+	error("unknown moduleName "..require 'ext.tolua'(moduleName))
+end 
+?>
