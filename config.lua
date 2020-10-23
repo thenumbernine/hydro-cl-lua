@@ -537,7 +537,7 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn
 -- compressible Euler equations
 
 
---self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
+self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
 
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct bounded'})))	-- this is the default hllCalcWaveMethod
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct'})))
@@ -886,9 +886,11 @@ local args = {
 	
 	--integrator = 'forward Euler',
 	integrator = 'Runge-Kutta 3, TVD',	-- p.20, eqn B.1
+	--integrator = 'Runge-Kutta 4',
 	dim = dim,
 	cfl = .5/dim,			-- no mention of cfl or timestep ...
 	fluxLimiter = cmdline.fluxLimiter or 'donor cell',	-- I didn't read much into what kind of flux/slope limiter was used
+	--fluxLimiter = cmdline.fluxLimiter or 'superbee',
 
 	--[[
 	coord = 'cartesian',

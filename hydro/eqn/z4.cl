@@ -873,7 +873,91 @@ typedef <?=eqn.waves_t?> waves_t;
 #endif
 }
 
-<? elseif moduleName == "addSource" then ?>
+<? elseif moduleName == "addSource" then 
+depmod{
+	"coordMapR",
+	"cell_t",
+	"cell_x",
+}
+?>
+
+//TODO put these somewhere
+#define numberof(x)	(sizeof(x)/sizeof(x[0]))
+#define endof(x)	((x) + numberof(x))
+
+// TODO this is finite-difference KO
+// but the 2009 Alic paper says to use finite-volume KO
+static void applyKreissOligar(
+	constant solver_t* solver,
+	const global cons_t* U,
+	const global cell_t* cell,
+	global cons_t* deriv,
+	real3 x,
+	int* fields,
+	int numFields
+) {
+	if (solver->dissipationCoeff == 0.) return;
+		
+	real r = coordMapR(x);
+	//Kreiss-Oligar dissipation
+	real coeff = solver->dissipationCoeff;
+#if 0	// 2013 Baumgarte et al, section IIIB
+	coeff /= dt;
+#elif 1	// 2017 Ruchlin et al eqn 44
+	// all params > 0
+	real rKO = 2.;		//rKO/M = 2
+	real wKO = .17;		//wKO/M = .17
+	//epsKO0 = .99 doubles as my 'dissipationCoeff' var
+	coeff *= .5 * (erf((r - rKO) / wKO) + 1.);
+#endif
+
+<? if require 'hydro.coord.sphere-sinh-radial'.is(solver.coord) then ?>
+	real3 yR = _real3(cell->r, cell->pos.y, cell->pos.z);
+	const global cell_t* cellL0 = cell - solver->stepsize.x;
+	real3 yL0 = _real3(cellL0->r, cellL0->pos.y, cellL0->pos.z);
+	const global cell_t* cellL1 = cell - solver->stepsize.y;
+	real3 yL1 = _real3(cellL1->r, cellL1->pos.y, cellL1->pos.z);
+	const global cell_t* cellL2 = cell - solver->stepsize.z;
+	real3 yL2 = _real3(cellL2->r, cellL2->pos.y, cellL2->pos.z);
+	real3 dySq = _real3(
+		real3_lenSq(real3_sub(yR, yL0)),
+		real3_lenSq(real3_sub(yR, yL1)),
+		real3_lenSq(real3_sub(yR, yL2)));
+<? else ?>
+	real3 dySq = _real3(
+		solver->grid_dx.x * solver->grid_dx.x,
+		solver->grid_dx.y * solver->grid_dx.y,
+		solver->grid_dx.z * solver->grid_dx.z);
+<? end ?>
+	
+	real3 _1_dySq = _real3(1./dySq.x, 1./dySq.y, 1./dySq.z);
+
+	//described in 2008 Babiuc et al as Q = (-1)^r h^(2r-1) (D+)^r rho (D-)^r / 2^(2r)
+	//...for r=2... -sigma h^3 (D+)^2 rho (D-)^2 / 16 ... and rho=1, except rho=0 at borders maybe.
+	for (int *ip = fields; ip < endof(fields); ++ip) {
+		int i = *ip;
+		deriv->ptr[i] += coeff * (
+			  (
+				-20. * U->ptr[i]
+				+ 15. * (U[1 * solver->stepsize.x].ptr[i] + U[-1 * solver->stepsize.x].ptr[i])
+				+ -6. * (U[2 * solver->stepsize.x].ptr[i] + U[-2 * solver->stepsize.x].ptr[i])
+				+ U[3 * solver->stepsize.x].ptr[i] + U[-3 * solver->stepsize.x].ptr[i]
+			) * _1_dySq.x
+			+ (
+				-20. * U->ptr[i]
+				+ 15. * (U[1 * solver->stepsize.y].ptr[i] + U[-1 * solver->stepsize.y].ptr[i])
+				+ -6. * (U[2 * solver->stepsize.y].ptr[i] + U[-2 * solver->stepsize.y].ptr[i])
+				+ U[3 * solver->stepsize.y].ptr[i] + U[-3 * solver->stepsize.y].ptr[i]
+			) * _1_dySq.y
+			+ (
+				-20. * U->ptr[i]
+				+ 15. * (U[1 * solver->stepsize.z].ptr[i] + U[-1 * solver->stepsize.z].ptr[i])
+				+ -6. * (U[2 * solver->stepsize.z].ptr[i] + U[-2 * solver->stepsize.z].ptr[i])
+				+ U[3 * solver->stepsize.z].ptr[i] + U[-3 * solver->stepsize.z].ptr[i]
+			) * _1_dySq.z
+		) * (1. / 64.);
+	}
+}
 
 kernel void addSource(
 	constant solver_t* solver,
@@ -3325,6 +3409,11 @@ end?>
 		}<? end ?>
 		<? end ?>
 	}
+
+	// Kreiss-Oligar dissipation:
+	int fields[numIntStates];
+	for (int i = 0; i < numberof(fields); ++i) fields[i] = i;
+	applyKreissOligar(solver, U, cellBuf + index, deriv, cell_x(i), fields, numberof(fields));
 }
 
 <? elseif moduleName == "constrainU" then ?>

@@ -204,7 +204,9 @@ function Z4_2004Bona:createInitState()
 		
 		-- convergence between finite-difference of 1/2 gamma_ij,k and d_kij
 		{name='d_convCoeff', value=0},
-		
+
+		{name='dissipationCoeff', value=cmdline.dissipationCoeff or 0},
+	
 		--{name='alphaMin', value=0},
 		{name='alphaMin', value=-math.huge},
 	
