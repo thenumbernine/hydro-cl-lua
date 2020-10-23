@@ -204,6 +204,9 @@ function Z4_2004Bona:createInitState()
 		
 		-- convergence between finite-difference of 1/2 gamma_ij,k and d_kij
 		{name='d_convCoeff', value=0},
+		
+		--{name='alphaMin', value=0},
+		{name='alphaMin', value=-math.huge},
 	
 	}
 	-- TODO add shift option
@@ -314,6 +317,13 @@ sym3 calc_gamma_uu(const global <?=eqn.cons_t?>* U, real3 x) {
 			depends = depends,
 		}
 	end
+end
+
+function Z4_2004Bona:getModuleDepends_displayCode() 
+	return {
+		"calc_gamma_ll",
+		"calc_gamma_uu",
+	}
 end
 
 -- don't use default

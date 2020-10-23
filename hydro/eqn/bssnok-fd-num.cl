@@ -2863,14 +2863,15 @@ for ij,xij in ipairs(symNames) do
 
 	//2017 Ruchlin et al, eqn 46
 	//H = 2/3 K^2 - ABar^ij ABar_ij + exp(-4 phi) (RBar - 8 DBar^i phi DBar_i phi - 8 gammaBar^ij DBar_i DBar_j phi)
-	U->H = 2. / 3. * U->K * U->K
-		- sym3_dot(U->ABar_LL, ABar_UU)
-		+ exp_neg4phi * (0.
+	// but I will scale down by 1/2 to match other equations
+	U->H = 1. / 3. * U->K * U->K
+		- .5 * sym3_dot(U->ABar_LL, ABar_UU)
+		+ .5 * exp_neg4phi * (0.
 			+ RBar
 			- 8. * real3_weightedLenSq(partial_phi_L, gammaBar_UU) 
 			- 8. * tr_DBar2_phi
 		)
-		- 16. * M_PI * U->rho;
+		- 8. * M_PI * U->rho;
 
 #if 1
 
@@ -2912,10 +2913,11 @@ for ij,xij in ipairs(symNames) do
 				- 2/3 K_,j gammaBar^ij 
 				- 8 pi S^i
 			)
+	but I will rescale the exp(6 phi) out of it so it matches the other eqns
 	*/
 	real exp_6phi = 1. / (U->W * U->W * U->W);
 <? for i,xi in ipairs(xNames) do
-?>	U->M_U.<?=xi?> = exp_6phi * (
+?>	U->M_U.<?=xi?> = 
 		- 8. * M_PI * U->S_u.<?=xi?> * calc_len_<?=xi?>(x)
 <?	for j,xj in ipairs(xNames) do
 ?>		+ 6. * ABar_UU.<?=sym(i,j)?> * partial_phi_L.<?=xj?>
@@ -2929,7 +2931,7 @@ for ij,xij in ipairs(symNames) do
 <?			end
 		end
 	end
-?>	);
+?>	;
 <? end ?>
 #else
 	//2017 Ruchlin et al, eqn 47

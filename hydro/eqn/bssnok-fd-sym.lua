@@ -20,7 +20,6 @@ local common = require 'hydro.common'
 local time, getTime = table.unpack(require 'hydro.util.time')
 local BSSNOKFiniteDifferenceEquationBase = require 'hydro.eqn.bssnok-fd'
 local Struct = require 'hydro.code.struct'
-local makePartials = require 'hydro.eqn.makepartial'
 
 local BSSNOKFiniteDifferenceEquation = class(BSSNOKFiniteDifferenceEquationBase)
 BSSNOKFiniteDifferenceEquation.name = 'BSSNOK finite difference' 
@@ -313,23 +312,6 @@ function BSSNOKFiniteDifferenceEquation:createInitState()
 
 		{name='shift_eta', value=1},	--1, or 1 / (2 M), for total mass M
 	}
-end
-
-function BSSNOKFiniteDifferenceEquation:fieldTypeForVar(varname)
-	local _, var = self.consVars:find(nil, function(v) return v.name == varname end)
-	return assert(var).type
-end
-
-function BSSNOKFiniteDifferenceEquation:makePartial1(field, fieldType, nameOverride)
-	local derivOrder = 2 * self.solver.numGhost
-	fieldType = fieldType or self:fieldTypeForVar(field)
-	return makePartials.makePartial1(derivOrder, self.solver, field, fieldType, nameOverride)
-end
-
-function BSSNOKFiniteDifferenceEquation:makePartial2(field, fieldType, nameOverride)
-	local derivOrder = 2 * self.solver.numGhost
-	fieldType = fieldType or self:fieldTypeForVar(field)
-	return makePartials.makePartial2(derivOrder, self.solver, field, fieldType, nameOverride)
 end
 
 -- NOTICE you have to use this in the scope of a push/pop of the previous fenv

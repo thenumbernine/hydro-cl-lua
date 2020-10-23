@@ -5,6 +5,7 @@ local range = require 'ext.range'
 local file = require 'ext.file'
 local template = require 'template'
 local Struct = require 'hydro.code.struct'
+local makePartials = require 'hydro.eqn.makepartial'
 
 local common = require 'hydro.common'
 local xNames = common.xNames
@@ -902,6 +903,30 @@ returns output vector
 */
 ]],
 	}
+end
+
+-- especially used by the num rel stuff
+-- especially the finite-difference num rel (bsnsok-fd), but sometimes by the constrain equations of the finite-volume num rel (adm3d, z4, etc)
+-- but anyone can use it.
+function Equation:fieldTypeForVar(varname)
+	local _, var = self.consStruct.vars:find(nil, function(v) return v.name == varname end)
+	if not var then
+		error("couldn't find var "..varname)
+	end
+	return var.type
+end
+
+function Equation:makePartial1(field, fieldType, nameOverride)
+	-- order = 4 = 2 * 2 = 2 * (3 - 1), so numGhost == 3
+	local derivOrder = 2 * (self.solver.numGhost - 1)
+	fieldType = fieldType or self:fieldTypeForVar(field)
+	return makePartials.makePartial1(derivOrder, self.solver, field, fieldType, nameOverride)
+end
+
+function Equation:makePartial2(field, fieldType, nameOverride)
+	local derivOrder = 2 * (self.solver.numGhost - 1)
+	fieldType = fieldType or self:fieldTypeForVar(field)
+	return makePartials.makePartial2(derivOrder, self.solver, field, fieldType, nameOverride)
 end
 
 return Equation

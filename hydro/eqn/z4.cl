@@ -72,6 +72,7 @@ kernel void applyInitCond(
 	U->S_u = real3_zero;
 	U->S_ll = sym3_zero;
 <? end ?>
+	
 	U->H = 0;
 	U->M_u = real3_zero;
 }
@@ -156,6 +157,7 @@ kernel void applyInitCond(
 	U->S_u = real3_zero;
 	U->S_ll = sym3_zero;
 <? end ?>
+	
 	U->H = 0;
 	U->M_u = real3_zero;
 }
@@ -227,11 +229,16 @@ void setFlatSpace(
 	U->S_u = real3_zero;
 	U->S_ll = sym3_zero;
 <? end ?>
+	
 	U->H = 0;
 	U->M_u = real3_zero;
 }
 
-<? elseif moduleName == "calcDT" then ?>
+<? elseif moduleName == "calcDT" then 
+depmod{
+	"SETBOUNDS",
+}
+?>
 
 kernel void calcDT(
 	constant <?=solver.solver_t?>* solver,
@@ -3335,7 +3342,8 @@ kernel void constrainU(
 
 	real3x3 K_ul = sym3_sym3_mul(gamma_uu, U->K_ll);			//K^i_j
 	real tr_K = real3x3_trace(K_ul);							//K^k_k
-	sym3 KSq_ll = sym3_real3x3_to_sym3_mul(U->K_ll, K_ul);		//KSq_ij = K_ik K^k_j
+	sym3 KSq_ll = sym3_real3x3_to_sym3_mul(U->K_ll, K_ul);		//KSq_ij = K_ik K^k_j	
+	sym3 K_uu = real3x3_sym3_to_sym3_mul(K_ul, gamma_uu);			//K^ij
 
 	//d_llu = d_ij^k = d_ijl * gamma^lk
 	real3x3x3 d_llu = _3sym3_sym3_mul(U->d_lll, gamma_uu);
@@ -3417,7 +3425,7 @@ end
 
 	//scaled down by 1/8 to match B&S BSSNOK equations ... maybe I'll scale theirs up by 8 ...
 	//B&S eqn 2.125 ... divded by two
-	//Alcubierre eqn 2.5.9
+	//Alcubierre eqn 2.5.9, also Alcubierre 2.4.10 divided by two 
 	//H = 1/2 (R + K^2 - K_ij K^ij) - 8 pi rho
 	real R = sym3_dot(R_ll, gamma_uu);
 	real tr_KSq = sym3_dot(KSq_ll, gamma_uu);
@@ -3425,7 +3433,60 @@ end
 if eqn.useStressEnergyTerms then ?>
 	- 8. * M_PI * U->rho <? 
 end ?>;
-	//momentum constraint
+
+<?=eqn:makePartial1'K_ll'?>	
+
+	/*
+	momentum constraint
+	Alcubierre eqn 2.4.11
+	M^i = K^ij_;j 
+		- gamma^ij K_,j 
+		- 8 pi S^i
+	M^i = gamma^im gamma^jn (
+			K_mn,j 
+			- conn^k_mj K_kn 
+			- conn^k_nj K_mk
+		) 
+		- gamma^ij (gamma^mn_,j K_mn + gamma^mn K_mn,j)
+		- 8 pi S^i
+	M^i = gamma^ij (
+			gamma^mn (
+				K_jn,m 
+				- K_mn,j
+				- conn^k_jm K_kn 
+				- conn^k_nm K_jk
+			) 
+			+ 2 d_jmn K^mn 
+		)
+		- 8 pi S^i
+	*/
+<? for i,xi in ipairs(xNames) do 
+?>	U->M_u.<?=xi?> = 
+<?	for j,xj in ipairs(xNames) do
+		for m,xm in ipairs(xNames) do
+			for n,xn in ipairs(xNames) do
+?>		+ gamma_uu.<?=sym(i,j)?> * (
+			gamma_uu.<?=sym(m,n)?> * (0.
+				+ partial_K_lll[<?=m-1?>].<?=sym(j,n)?>
+				- partial_K_lll[<?=j-1?>].<?=sym(m,n)?>
+<?				for k,xk in ipairs(xNames) do
+?>				- conn_ull.<?=xk?>.<?=sym(j,m)?> * U->K_ll.<?=sym(k,n)?>
+				- conn_ull.<?=xk?>.<?=sym(n,m)?> * U->K_ll.<?=sym(j,k)?>
+<?				end			
+?>			)
+			+ 2. * U->d_lll.<?=xj?>.<?=sym(m,n)?> * K_uu.<?=sym(m,n)?>
+		)
+<?			end
+		end
+	end
+	if eqn.useStressEnergyTerms then
+?>		- 8. * M_PI * U->S_u.<?=xi?>
+<?	end
+?>	;
+<? end
+?>
+
+	U->alpha = max(U->alpha, solver->alphaMin);
 }
 
 <? 

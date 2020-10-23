@@ -943,9 +943,9 @@ local args = {
 		-- TODO sort this out
 		-- TODO do I have mem write / unwritten vars in "holonomic"?  cuz there seem to be errors that persist past reset()
 		-- TODO move cell_area and cell_volume calcs into cell_t fields 
-		vectorComponent = 'cartesian',
+		--vectorComponent = 'cartesian',
 		--vectorComponent = 'holonomic',	-- our tensor components are holonomic ... except the partial / 1st order state variables, like a_k, d_kij
-		--vectorComponent = 'anholonomic',	-- ... these settings also influence the finite volume area/volume calculations (in terms of the vector components) ... 
+		vectorComponent = 'anholonomic',	-- ... these settings also influence the finite volume area/volume calculations (in terms of the vector components) ... 
 		
 		-- [==[ the paper uses this remapping parameters (eqn 32):
 		-- Alic et al: 		R = L sinh(r / L)

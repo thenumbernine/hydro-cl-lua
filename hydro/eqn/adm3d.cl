@@ -2933,7 +2933,7 @@ kernel void addSource(
 	// for any '-FiniteDifference' shift, the flux won't have any shift terms.
 
 	//partial_beta_ul[j].i := beta^i_,j
-<?=makePartial('beta_u', 'real3')?>	
+<?=eqn:makePartial1'beta_u'?>	
 
 	//= gamma_ik beta^k_,j
 	real3x3 partial_beta_u_ll = (real3x3){
@@ -2978,7 +2978,7 @@ kernel void addSource(
 
 
 	//partial_a_l[j].i = a_i,j
-<?=makePartial('a', 'real3')?>
+<?=eqn:makePartial1'a_l'?>
 
 	//a_i,t = a_i,j beta^j + a_j beta^j_,i
 <? for i,xi in ipairs(xNames) do
@@ -2993,7 +2993,7 @@ kernel void addSource(
 
 	//technically this can be represented as a sym3sym3 since d_ijk,l is symmetric with jk and il
 	//partial_d_llll[k][l].ij = d_kij,l
-<?=makePartial('d_lll', '_3sym3')?>
+<?=eqn:makePartial1'd_lll'?>
 
 	//d_kij,t = d_kij,l beta^l + d_lij beta^l_,k + d_klj beta^l_,i + d_kil beta^l_,j
 <? for k,xk in ipairs(xNames) do
@@ -3007,8 +3007,8 @@ kernel void addSource(
 <?	end
 end ?>
 
-	//partial_K_l[k].ij = K_ij,k
-<?=makePartial('K', 'sym3')?>
+	//partial_K_lll[k].ij = K_ij,k
+<?=eqn:makePartial1'K_ll'?>
 
 	//K_ij,t = K_ij,k beta^k + K_kj beta^k_,i + K_ik beta^k_,j
 <? for ij,xij in ipairs(symNames) do
@@ -3024,7 +3024,7 @@ end ?>
 <? end ?>
 
 	//partial_V_l[j].i = V_i,j
-<?=makePartial('V_l', 'real3')?>
+<?=eqn:makePartial1'V_l'?>
 
 	//V_i,t = V_i,j beta^j + V_j beta^i_,j
 <? for i,xi in ipairs(xNames) do
@@ -3230,6 +3230,7 @@ kernel void constrainU(
 	real3x3 K_ul = sym3_sym3_mul(gamma_uu, U->K_ll);			//K^i_j
 	real tr_K = real3x3_trace(K_ul);							//K^k_k
 	sym3 KSq_ll = sym3_real3x3_to_sym3_mul(U->K_ll, K_ul);		//KSq_ij = K_ik K^k_j
+	sym3 K_uu = real3x3_sym3_to_sym3_mul(K_ul, gamma_uu);			//K^ij
 
 <?
 local constrainVGuiVar = eqn.guiVars['constrain V']
@@ -3388,7 +3389,59 @@ end
 if eqn.useStressEnergyTerms then ?>
 	- 8. * M_PI * U->rho <? 
 end ?>;
-	//momentum constraint
+
+<?=eqn:makePartial1'K_ll'?>	
+
+	/*
+	momentum constraint
+	Alcubierre eqn 2.4.11
+	M^i = K^ij_;j 
+		- gamma^ij K_,j 
+		- 8 pi S^i
+	M^i = gamma^im gamma^jn (
+			K_mn,j 
+			- conn^k_mj K_kn 
+			- conn^k_nj K_mk
+		) 
+		- gamma^ij (gamma^mn_,j K_mn + gamma^mn K_mn,j)
+		- 8 pi S^i
+	M^i = gamma^ij (
+			gamma^mn (
+				K_jn,m 
+				- K_mn,j
+				- conn^k_jm K_kn 
+				- conn^k_nm K_jk
+			) 
+			+ 2 d_jmn K^mn 
+		)
+		- 8 pi S^i
+	*/
+<? for i,xi in ipairs(xNames) do 
+?>	U->M_u.<?=xi?> = 
+<?	for j,xj in ipairs(xNames) do
+		for m,xm in ipairs(xNames) do
+			for n,xn in ipairs(xNames) do
+?>		+ gamma_uu.<?=sym(i,j)?> * (
+			gamma_uu.<?=sym(m,n)?> * (0.
+				+ partial_K_lll[<?=m-1?>].<?=sym(j,n)?>
+				- partial_K_lll[<?=j-1?>].<?=sym(m,n)?>
+<?				for k,xk in ipairs(xNames) do
+?>				- conn_ull.<?=xk?>.<?=sym(j,m)?> * U->K_ll.<?=sym(k,n)?>
+				- conn_ull.<?=xk?>.<?=sym(n,m)?> * U->K_ll.<?=sym(j,k)?>
+<?				end			
+?>			)
+			+ 2. * U->d_lll.<?=xj?>.<?=sym(m,n)?> * K_uu.<?=sym(m,n)?>
+		)
+<?			end
+		end
+	end
+	if eqn.useStressEnergyTerms then
+?>		- 8. * M_PI * U->S_u.<?=xi?>
+<?	end
+?>	;
+<? end
+?>
+
 }
 
 <? 

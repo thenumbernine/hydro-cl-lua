@@ -188,6 +188,12 @@ real3 coordMapInv(real3 pt) {
 	})
 end
 
+function SphereLogRadial:getModuleDepends_coord_parallelPropagate()
+	return {
+		'rotate',
+	}
+end
+
 function SphereLogRadial:getParallelPropagatorCode()
 	return template([[
 <? local clnumber = require 'cl.obj.number' ?>

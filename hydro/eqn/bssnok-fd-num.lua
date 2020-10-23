@@ -15,7 +15,6 @@ local class = require 'ext.class'
 local table = require 'ext.table'
 local BSSNOKFiniteDifferenceEquationBase = require 'hydro.eqn.bssnok-fd'
 local Struct = require 'hydro.code.struct'
-local makePartials = require 'hydro.eqn.makepartial'
 
 local BSSNOKFiniteDifferenceEquation = class(BSSNOKFiniteDifferenceEquationBase)
 
@@ -109,27 +108,6 @@ function BSSNOKFiniteDifferenceEquation:createInitState()
 			{name='scalar_mu', value=1},
 		}
 	end
-end
-
-function BSSNOKFiniteDifferenceEquation:fieldTypeForVar(varname)
-	local _, var = self.consStruct.vars:find(nil, function(v) return v.name == varname end)
-	if not var then
-		error("couldn't find var "..varname)
-	end
-	return var.type
-end
-
-function BSSNOKFiniteDifferenceEquation:makePartial1(field, fieldType, nameOverride)
-	-- order = 4 = 2 * 2 = 2 * (3 - 1), so numGhost == 3
-	local derivOrder = 2 * (self.solver.numGhost - 1)
-	fieldType = fieldType or self:fieldTypeForVar(field)
-	return makePartials.makePartial1(derivOrder, self.solver, field, fieldType, nameOverride)
-end
-
-function BSSNOKFiniteDifferenceEquation:makePartial2(field, fieldType, nameOverride)
-	local derivOrder = 2 * (self.solver.numGhost - 1)
-	fieldType = fieldType or self:fieldTypeForVar(field)
-	return makePartials.makePartial2(derivOrder, self.solver, field, fieldType, nameOverride)
 end
 
 function BSSNOKFiniteDifferenceEquation:compile(expr)
