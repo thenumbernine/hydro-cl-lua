@@ -1,4 +1,10 @@
 --[[
+Alcubierre "Introduction to 3+1 Numerical Relativity"
+Baumgarte & Shapiro "Numerical Relativity"
+2005 Campanelli
+2011 Cao, Hilditch "Numerical stability of the Z4c formulation of general relativity"
+2017 Ruchlin
+
 changes I'm making to coincide with 2017 Ruchlin 
 1) rename the gammaTilde_ll => gammaBar_ll
 2) rename ATilde_ll => ABar_ll
@@ -83,30 +89,6 @@ function Z4cFiniteDifferenceEquation:createInitState()
 		{name='diffuseSigma', value=.01},
 		{name='alphaMin', value=1e-7},
 	}
-end
-
-function Z4cFiniteDifferenceEquation:getEnv()
-	local derivOrder = 2 * self.solver.numGhost
-	return table(Z4cFiniteDifferenceEquation.super.getEnv(self), {
-		makePartial1 = function(...) return makePartial1(derivOrder, self.solver, ...) end,
-		makePartial2 = function(...) return makePartial2(derivOrder, self.solver, ...) end,
-	})
-end
-
-function Z4cFiniteDifferenceEquation:initCodeModules()
-	Z4cFiniteDifferenceEquation.super.initCodeModules(self)
-	for moduleName, depends in pairs{
-		['eqn.common'] = {},
-		['constrainU'] = {},
-		['calcDeriv'] = {},
-		['addSource'] = {},
-		['calcDT'] = {},
-	} do
-		self:addModuleFromSourceFile{
-			name = moduleName,
-			depends = depends,
-		}
-	end
 end
 
 -- don't use default

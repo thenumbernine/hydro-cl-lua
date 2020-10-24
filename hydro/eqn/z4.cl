@@ -1,9 +1,5 @@
-typedef <?=eqn.cons_t?> cons_t;
-typedef <?=solver.solver_t?> solver_t;
-
-<? if moduleName == nil then ?>
-
-<? elseif moduleName == "applyInitCond" then ?>
+//// MODULE_NAME: applyInitCond
+//// MODULE_DEPENDS: coordMap coord_g_ll rescaleFromCoord/rescaleToCoord
 
 <?
 if eqn.initCond.initAnalytical then
@@ -203,7 +199,8 @@ end
 
 
 
-<? elseif moduleName == "setFlatSpace" then ?>
+//// MODULE_NAME: setFlatSpace
+//// MODULE_DEPENDS: solver_t cons_t
 
 void setFlatSpace(
 	constant <?=solver.solver_t?>* solver,
@@ -234,11 +231,8 @@ void setFlatSpace(
 	U->M_u = real3_zero;
 }
 
-<? elseif moduleName == "calcDT" then 
-depmod{
-	"SETBOUNDS",
-}
-?>
+//// MODULE_NAME: calcDT
+//// MODULE_DEPENDS: SETBOUNDS cons_t initCond.codeprefix
 
 kernel void calcDT(
 	constant <?=solver.solver_t?>* solver,
@@ -289,7 +283,8 @@ kernel void calcDT(
 	dtBuf[index] = dt; 
 }
 
-<? elseif moduleName == "fluxFromCons" then ?>
+//// MODULE_NAME: fluxFromCons
+//// MODULE_DEPENDS: cons_t solver_t normal_t rotate
 
 <? if solver.coord.vectorComponent == 'cartesian' then ?>
 
@@ -560,9 +555,9 @@ end
 	return F;
 }
 
-<? elseif moduleName == "eigen_forInterface" then ?>
-
-typedef <?=eqn.eigen_t?> eigen_t;
+//// MODULE_NAME: eigen_forInterface
+//// MODULE_DEPENDS: solver_t eigen_t cons_t normal_t initCond.codeprefix
+// used by hll, roe, weno, plm ... anything that uses eigenvalues or eigenvector transforms
 
 //used for interface eigen basis
 <?=eqn.eigen_t?> eigen_forInterface(
@@ -615,7 +610,9 @@ typedef <?=eqn.eigen_t?> eigen_t;
 	return eig;
 }
 
-<? elseif moduleName == "calcCellMinMaxEigenvalues" then ?>
+//// MODULE_NAME: calcCellMinMaxEigenvalues
+//// MODULE_DEPENDS: range_t normal_t cons_t initCond.codeprefix
+// not used anymore, replaced in calcDT by eqn:consMinWaveCode/eqn:consMaxWaveCode eigenvalue inlining
 
 range_t calcCellMinMaxEigenvalues(
 	const global <?=eqn.cons_t?>* U,
@@ -658,9 +655,9 @@ range_t calcCellMinMaxEigenvalues(
 	};
 }
 
-<? elseif moduleName == "eigen_forCell" then ?>
-
-typedef <?=eqn.eigen_t?> eigen_t;
+//// MODULE_NAME: eigen_forCell
+//// MODULE_DEPENDS: solver_t cons_t normal_t initCond.codeprefix
+// used by plm
 
 //used by PLM, and by the default fluxFromCons (used by hll, or roe when roeUseFluxFromCons is set)
 <?=eqn.eigen_t?> eigen_forCell(
@@ -698,10 +695,9 @@ typedef <?=eqn.eigen_t?> eigen_t;
 	return eig;
 }
 
-<? elseif moduleName == "eigen_left/rightTransform" then ?>
-
-typedef <?=eqn.eigen_t?> eigen_t;
-typedef <?=eqn.waves_t?> waves_t;
+//// MODULE_NAME: eigen_left/rightTransform
+//// MODULE_DEPENDS: solver_t cons_t normal_t rotate initCond.codeprefix
+// used by roe, weno, some plm
 
 //TODO these were based no noZeroRowsInFlux==false (I think) so maybe/certainly they are out of date
 <?=eqn.waves_t?> eigen_leftTransform(
@@ -847,10 +843,15 @@ typedef <?=eqn.waves_t?> waves_t;
 	return resultU;
 }
 
-<? elseif moduleName == "eigen_fluxTransform" then ?>
-
-typedef <?=eqn.eigen_t?> eigen_t;
-typedef <?=eqn.waves_t?> waves_t;
+//// MODULE_NAME: eigen_fluxTransform
+//// MODULE_DEPENDS: solver_t cons_t normal_t
+// used by roe, some plm
+//so long as roeUseFluxFromCons isn't set for the roe solver, 
+// and fluxFromCons is provided/unused,
+// eigen_fluxTransform isn't needed.
+// but some solvers do use a boilerplate right(lambda(left(U)))
+//however if you want to use the HLL solver then fluxFromCons is needed
+//...however fluxFromCons is not provided by this eqn.	
 
 <?=eqn.cons_t?> eigen_fluxTransform(
 	constant <?=solver.solver_t?>* solver,
@@ -873,13 +874,8 @@ typedef <?=eqn.waves_t?> waves_t;
 #endif
 }
 
-<? elseif moduleName == "addSource" then 
-depmod{
-	"coordMapR",
-	"cell_t",
-	"cell_x",
-}
-?>
+//// MODULE_NAME: addSource
+//// MODULE_DEPENDS: coordMapR cell_t cell_x initCond.codeprefix
 
 //TODO put these somewhere
 #define numberof(x)	(sizeof(x)/sizeof(x[0]))
@@ -3416,7 +3412,8 @@ end?>
 	applyKreissOligar(solver, U, cellBuf + index, deriv, cell_x(i), fields, numberof(fields));
 }
 
-<? elseif moduleName == "constrainU" then ?>
+//// MODULE_NAME: constrainU
+//// MODULE_DEPENDS: sym3sym3
 
 kernel void constrainU(
 	constant solver_t* solver,
@@ -3577,9 +3574,3 @@ end ?>;
 
 	U->alpha = max(U->alpha, solver->alphaMin);
 }
-
-<? 
-else
-	error("unknown moduleName "..require 'ext.tolua'(moduleName))
-end 
-?>

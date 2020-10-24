@@ -1,25 +1,5 @@
-/*
-Stone et al 2008 - https://arxiv.org/pdf/0804.0402v1.pdf
-based on Athena's version of eigenvectors of derivative of adiabatic MHD flux wrt primitives
-ideal-mhd, divergence-free, conservative-based eigensystem
-*/
-
-typedef <?=solver.solver_t?> solver_t;
-typedef <?=eqn.cons_t?> cons_t;
-typedef <?=eqn.prim_t?> prim_t;
-typedef <?=solver.coord.cell_t?> cell_t;
-
-<? if moduleName == nil then ?>
-<? elseif moduleName == "primFromCons" then 
-depmod{
-	"units",
-	"real3",
-	"solver_t",
-	"prim_t",
-	"cons_t",
-	"coordLenSq",
-}
-?>
+//// MODULE_NAME: primFromCons
+//// MODULE_DEPENDS: units real3 solver_t prim_t cons_t coordLenSq
 
 <?=eqn.prim_t?> primFromCons(
 	constant <?=solver.solver_t?>* solver,
@@ -43,16 +23,8 @@ depmod{
 	return W;
 }
 
-<? elseif moduleName == "consFromPrim" then 
-depmod{
-	"units",
-	"real3",
-	"solver_t",
-	"prim_t",
-	"cons_t",
-	"coordLenSq",
-}
-?>
+//// MODULE_NAME: consFromPrim
+//// MODULE_DEPENDS: units real3 solver_t prim_t cons_t coordLenSq
 
 <?=eqn.cons_t?> consFromPrim(
 	constant <?=solver.solver_t?>* solver,
@@ -74,15 +46,8 @@ depmod{
 	return U;
 }
 
-<? elseif moduleName == "apply_dU_dW" then 
-depmod{
-	"units",
-	"real3",
-	"solver_t",
-	"prim_t",
-	"cons_t",
-}
-?>
+//// MODULE_NAME: apply_dU_dW
+//// MODULE_DEPENDS: units real3 solver_t prim_t cons_t
 
 <?=eqn.cons_t?> apply_dU_dW(
 	constant <?=solver.solver_t?>* solver,
@@ -105,15 +70,8 @@ depmod{
 	};
 }
 
-<? elseif moduleName == "apply_dW_dU" then 
-depmod{
-	"units",
-	"real3",
-	"solver_t",
-	"prim_t",
-	"cons_t",
-}
-?>
+//// MODULE_NAME: apply_dW_dU
+//// MODULE_DEPENDS: units real3 solver_t prim_t cons_t
 
 <?=eqn.prim_t?> apply_dW_dU(
 	constant <?=solver.solver_t?>* solver,
@@ -138,12 +96,8 @@ depmod{
 }
 
 
-<? elseif moduleName == "cons_rotateFrom" then 
-depmod{
-	"cons_t",
-	"normal_t",
-}
-?>
+//// MODULE_NAME: cons_rotateFrom
+//// MODULE_DEPENDS: cons_t normal_t
 
 //align from vector coordinates to the normal basis
 cons_t cons_rotateFrom(cons_t U, normal_t n) {
@@ -152,12 +106,8 @@ cons_t cons_rotateFrom(cons_t U, normal_t n) {
 	return U;
 }
 
-<? elseif moduleName == "cons_rotateTo" then 
-depmod{
-	"cons_t",
-	"normal_t",
-}
-?>
+//// MODULE_NAME: cons_rotateTo
+//// MODULE_DEPENDS: cons_t normal_t
 
 //align from normal basis to vector coordinates
 cons_t cons_rotateTo(cons_t U, normal_t n) {
@@ -166,12 +116,8 @@ cons_t cons_rotateTo(cons_t U, normal_t n) {
 	return U;
 }
 
-<? elseif moduleName == "applyInitCond" then 
-depmod{
-	"cartesianToCoord",
-	"consFromPrim",
-}
-?>
+//// MODULE_NAME: applyInitCond
+//// MODULE_DEPENDS: cartesianToCoord consFromPrim
 
 kernel void applyInitCond(
 	constant <?=solver.solver_t?>* solver,
@@ -216,16 +162,10 @@ end
 }
 
 
-<? elseif moduleName == "calcRoeValues" then 
-depmod{
-	"primFromCons",
-	"roe_t",
-}
-?>
+//// MODULE_NAME: calcRoeValues
+//// MODULE_DEPENDS: primFromCons roe_t
 
 // TODO find out where mu_0 goes in the code below
-
-typedef <?=eqn.roe_t?> roe_t;
 
 //assumes UL and UR are already rotated so the 'x' direction is our flux direction
 roe_t calcRoeValues(
@@ -270,14 +210,8 @@ roe_t calcRoeValues(
 	return W;
 };
 
-<? elseif moduleName == "eigen_forRoeAvgs" then 
-depmod{
-	"roe_t",
-}
-?>
-
-typedef <?=eqn.roe_t?> roe_t;
-typedef <?=eqn.eigen_t?> eigen_t;
+//// MODULE_NAME: eigen_forRoeAvgs
+//// MODULE_DEPENDS: roe_t
 
 //assumes the vector values are x-axis aligned with the interface normal
 eigen_t eigen_forRoeAvgs(
@@ -378,12 +312,8 @@ eigen_t eigen_forRoeAvgs(
 	return eig;
 }
 
-<? elseif moduleName == "eqn.common" then 
-depmod{
-	"units",
-	"coordLenSq",
-}
-?>
+//// MODULE_NAME: eqn.common
+//// MODULE_DEPENDS: units coordLenSq
 
 real calc_eKin(<?=eqn.prim_t?> W, real3 x) { 
 	return .5 * coordLenSq(W.v, x);
@@ -462,17 +392,8 @@ real3 calc_CA(constant <?=solver.solver_t?>* solver, <?=eqn.cons_t?> U) {
 	return real3_real_mul(U.B, 1./sqrt(U.rho * solver->mu0 / unit_kg_m_per_C2));
 }
 
-<? elseif moduleName == "fluxFromCons" then 
-depmod{
-	"units",
-	"solver_t",
-	"cons_t",
-	"prim_t",
-	"primFromCons",
-	"normal_t",
-	"coordLenSq",
-}
-?>
+//// MODULE_NAME: fluxFromCons
+//// MODULE_DEPENDS: units solver_t cons_t prim_t primFromCons normal_t coordLenSq
 
 <?=eqn.cons_t?> fluxFromCons(
 	constant <?=solver.solver_t?>* solver,
@@ -502,13 +423,8 @@ depmod{
 	return F;
 }
 
-<? elseif moduleName == "calcCellMinMaxEigenvalues" then 
-depmod{
-	"range_t",
-	"cons_rotateFrom",
-	"primFromCons",
-}
-?>
+//// MODULE_NAME: calcCellMinMaxEigenvalues
+//// MODULE_DEPENDS: range_t cons_rotateFrom primFromCons
 
 //called from calcDT
 range_t calcCellMinMaxEigenvalues(
@@ -592,17 +508,8 @@ range_t calcCellMinMaxEigenvalues(
 #endif
 }
 
-<? elseif moduleName == "eigen_forInterface" then 
-depmod{
-	"roe_t",
-	"cons_rotateFrom",
-	"calcRoeValues",
-	"eigen_forRoeAvgs",
-}
-?>
-
-typedef <?=eqn.roe_t?> roe_t;
-typedef <?=eqn.eigen_t?> eigen_t;
+//// MODULE_NAME: eigen_forInterface
+//// MODULE_DEPENDS: roe_t cons_rotateFrom calcRoeValues eigen_forRoeAvgs
 
 eigen_t eigen_forInterface(
 	constant solver_t* solver,
@@ -620,17 +527,8 @@ eigen_t eigen_forInterface(
 	return eigen_forRoeAvgs(solver, roe, x);
 }
 
-<? elseif moduleName == "eigen_left/rightTransform" then 
-depmod{
-	"eigen_t",
-	"waves_t",
-	"cons_rotateFrom",
-	"cons_rotateTo",
-}
-?>
-
-typedef <?=eqn.eigen_t?> eigen_t;
-typedef <?=eqn.waves_t?> waves_t;
+//// MODULE_NAME: eigen_left/rightTransform
+//// MODULE_DEPENDS: eigen_t waves_t cons_rotateFrom cons_rotateTo
 
 waves_t eigen_leftTransform(
 	constant solver_t* solver,
@@ -838,9 +736,7 @@ cons_t eigen_rightTransform(
 	return cons_rotateTo(resultU, n);
 }
 
-<? elseif moduleName == "eigen_fluxTransform" then ?>
-
-typedef <?=eqn.eigen_t?> eigen_t;
+//// MODULE_NAME: eigen_fluxTransform
 
 cons_t eigen_fluxTransform(
 	constant solver_t* solver,
@@ -909,15 +805,8 @@ cons_t eigen_fluxTransform(
 	return cons_rotateTo(resultU, n);
 }
 
-<? elseif moduleName == "eigen_forCell" then 
-depmod{
-	"roe_t",
-	"primFromCons",
-}
-?>
-
-typedef <?=eqn.roe_t?> roe_t;
-typedef <?=eqn.eigen_t?> eigen_t;
+//// MODULE_NAME: eigen_forCell
+//// MODULE_DEPENDS: roe_t primFromCons
 
 eigen_t eigen_forCell(
 	constant solver_t* solver,
@@ -939,12 +828,8 @@ eigen_t eigen_forCell(
 	return eigen_forRoeAvgs(solver, roe, x);
 }
 
-<? elseif moduleName == "addSource" then 
-depmod{
-	"units",
-	"primFromCons",
-}
-?>
+//// MODULE_NAME: addSource
+//// MODULE_DEPENDS: units primFromCons
 
 kernel void addSource(
 	constant solver_t* solver,
@@ -969,12 +854,8 @@ kernel void addSource(
 <? end ?>
 }
 
-<? elseif moduleName == "constrainU" then 
-depmod{
-	"consFromPrim",
-	"primFromCons",
-}
-?>
+//// MODULE_NAME: constrainU
+//// MODULE_DEPENDS: consFromPrim primFromCons
 
 kernel void constrainU(
 	constant solver_t* solver,
@@ -992,9 +873,3 @@ kernel void constrainU(
 
 	*U = consFromPrim(solver, W, x);
 }
-
-<? 
-else
-	error("unknown moduleName "..require 'ext.tolua'(moduleName))
-end 
-?>

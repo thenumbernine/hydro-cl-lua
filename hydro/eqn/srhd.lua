@@ -1,5 +1,8 @@
 --[[
-based on Marti 1998, Marti & Muller 2008, and maybe some of Font 2008 (but that's grhd)
+based on 
+Marti & Muller 2008
+Marti 1998
+Font "Numerical Hydrodynamics and Magnetohydrodynamics in General Relativity" 2008 
 
 honestly I developed a Marti & Muller SRHD solver
 then I bumped it up to GRHD by incorporating (fixed) alphas betas and gammas
@@ -169,78 +172,15 @@ function SRHD:initCodeModules()
 	solver.modules:add{
 		name = 'cons_only_t,prim_only_t',
 		structs = {self.primOnlyStruct, self.consOnlyStruct},
+		-- only generated for cl, not for ffi cdef
+		headercode = 'typedef '..self.cons_only_t..' cons_only_t;'..'\n'..
+					'typedef '..self.prim_only_t..' prim_only_t;',
 	}
-
-	for moduleName, depends in pairs{
-		
-		['eqn.common'] = {
-			'coordLenSq',
-			'cons_only_t,prim_only_t',
-		},
-
-		['fluxFromCons'] = {
-			'solver_t',
-			'cons_t',
-			'normal_t',	-- normal_*
-			'eqn.common',	-- calc_P
-		},
-	
-		['calcDT'] = {
-			'coordLenSq',
-			'eqn.common',	-- calc_P
-			'normal_t',
-		},
-	
-		['eigen_forInterface'] = {},
-	
-		['eigen_forCell'] = {},
-	
-		['eigen_left/rightTransform'] = {},
-	
-		['eigen_fluxTransform'] = {},
-	
-		['constrainU'] = {
-			'coordLen',
-		},
-
-		['addSource'] = {},
-	} do
-		self:addModuleFromSourceFile{
-			name = moduleName,
-			depends = depends,
-		}
-	end
 end
 
 -- don't use default
 function SRHD:initCodeModule_calcDT() end
 function SRHD:initCodeModule_fluxFromCons() end
-
-function SRHD:getModuleDependsApplyInitCond()
-	return {
-		'eqn.common',	-- calc_eInt_from_P, consFromPrimOnly
-	}
-end
-
--- TODO get rid of this
-function SRHD:getModuleDependsSolver()
-	return {
-		'cons_only_t,prim_only_t',
-		'eqn.common',
-		'coord_lower',
-	}
-end
-
--- called by hydro.init.init
-function SRHD:getInitCondCode()
-	-- maybe it's wrong to put this code into the solverCodeFile because its code goes into initCond.cl
-	return self:template(
-		require 'ext.file'[self.solverCodeFile],
-		{
-			moduleName = 'applyInitCond',
-		}
-	)
-end
 
 SRHD.solverCodeFile = 'hydro/eqn/srhd.cl'
 

@@ -1,16 +1,5 @@
-/*
-started with the mhd.lua and mhd.cl
-tweaked it while looking at
-2006 Xueshang et al - A 3rd Order WENO GLM-MHD Scheme for Magnetic Reconnection
-2009 Mignone, Tzeferacos - A Second-Order Unsplit Godunov Scheme for Cell-Centered MHD- the CTU-GLM scheme
-*/
-
-<? if moduleName == nil then ?>
-<? elseif moduleName == "eqn.common" then 
-depmod{
-	"coordLenSq",
-}
-?>
+//// MODULE_NAME: eqn.common
+//// MODULE_DEPENDS: coordLenSq
 
 real calc_eKin(<?=eqn.prim_t?> W, real3 x) { return .5 * coordLenSq(W.v, x); }
 real calc_EKin(<?=eqn.prim_t?> W, real3 x) { return W.rho * calc_eKin(W, x); }
@@ -43,15 +32,8 @@ real3 calc_CA(constant <?=solver.solver_t?>* solver, <?=eqn.cons_t?> U) {
 	return real3_real_mul(U.B, 1./sqrt(U.rho * solver->mu0 / unit_kg_m_per_C2));
 }
 
-<? elseif moduleName == "primFromCons" then 
-depmod{
-	"units",
-	"solver_t",
-	"prim_t",
-	"cons_t",
-	"coordLenSq",
-}
-?>
+//// MODULE_NAME: primFromCons
+//// MODULE_DEPENDS: units solver_t prim_t cons_t coordLenSq
 
 <?=eqn.prim_t?> primFromCons(
 	constant <?=solver.solver_t?>* solver,
@@ -75,15 +57,8 @@ depmod{
 	return W;
 }
 
-<? elseif moduleName == "consFromPrim" then 
-depmod{
-	"units",
-	"solver_t",
-	"prim_t",
-	"cons_t",
-	"coordLenSq",
-}
-?>
+//// MODULE_NAME: consFromPrim
+//// MODULE_DEPENDS: units solver_t prim_t cons_t coordLenSq
 
 <?=eqn.cons_t?> consFromPrim(
 	constant <?=solver.solver_t?>* solver,
@@ -105,14 +80,9 @@ depmod{
 	return U;
 }
 
-<? elseif moduleName == "apply_dU_dW" then -- only used by PLM
-depmod{
-	"real3",
-	"solver_t",
-	"prim_t",
-	"cons_t",
-}
-?>
+//// MODULE_NAME: apply_dU_dW
+//// MODULE_DEPENDS: real3 solver_t prim_t cons_t
+//-- only used by PLM
 
 <?=eqn.cons_t?> apply_dU_dW(
 	constant <?=solver.solver_t?>* solver,
@@ -135,14 +105,9 @@ depmod{
 	};
 }
 
-<? elseif moduleName == "apply_dW_dU" then -- only used by PLM
-depmod{
-	"real3",
-	"solver_t",
-	"prim_t",
-	"cons_t",
-}
-?>
+//// MODULE_NAME: apply_dW_dU
+//// MODULE_DEPENDS: real3 solver_t prim_t cons_t
+//-- only used by PLM
 
 <?=eqn.prim_t?> apply_dW_dU(
 	constant <?=solver.solver_t?>* solver,
@@ -166,12 +131,8 @@ depmod{
 	};
 }
 
-<? elseif moduleName == "applyInitCond" then 
-depmod{
-	"cartesianToCoord",
-	"consFromPrim",
-}
-?>
+//// MODULE_NAME: applyInitCond
+//// MODULE_DEPENDS: cartesianToCoord consFromPrim
 
 kernel void applyInitCond(
 	constant <?=solver.solver_t?>* solver,
@@ -237,12 +198,8 @@ kernel void initDerivs(
 ?>
 }
 
-<? elseif moduleName == "cons_rotateFrom" then 
-depmod{
-	"cons_t",
-	"normal_t",
-}
-?>
+//// MODULE_NAME: cons_rotateFrom
+//// MODULE_DEPENDS: cons_t normal_t
 
 //align from vector coordinates to the normal basis
 <?=eqn.cons_t?> cons_rotateFrom(<?=eqn.cons_t?> U, normal_t n) {
@@ -251,12 +208,8 @@ depmod{
 	return U;
 }
 
-<? elseif moduleName == "cons_rotateTo" then 
-depmod{
-	"cons_t",
-	"normal_t",
-}
-?>
+//// MODULE_NAME: cons_rotateTo
+//// MODULE_DEPENDS: cons_t normal_t
 
 //align from normal basis to vector coordinates
 <?=eqn.cons_t?> cons_rotateTo(<?=eqn.cons_t?> U, normal_t n) {
@@ -265,12 +218,8 @@ depmod{
 	return U;
 }
 
-<? elseif moduleName == "calcCellMinMaxEigenvalues" then 
-depmod{
-	"range_t",
-	"cons_rotateFrom",
-}
-?>
+//// MODULE_NAME: calcCellMinMaxEigenvalues
+//// MODULE_DEPENDS: range_t cons_rotateFrom
 
 // TODO find out where mu_0 goes in the code below
 
@@ -362,7 +311,7 @@ range_t calcCellMinMaxEigenvalues(
 #endif
 }
 
-<? elseif moduleName == "calcRoeValues" then ?>
+//// MODULE_NAME: calcRoeValues
 
 //assumes UL and UR are already rotated so the 'x' direction is our flux direction
 <?=eqn.roe_t?> calcRoeValues(
@@ -407,13 +356,8 @@ range_t calcCellMinMaxEigenvalues(
 	return W;
 };
 
-<? elseif moduleName == "fluxFromCons" then 
-depmod{
-	"solver_t",
-	"eigen_forCell",
-	"normal_t",
-}
-?>
+//// MODULE_NAME: fluxFromCons
+//// MODULE_DEPENDS: solver_t eigen_forCell normal_t
 
 <?=eqn.cons_t?> fluxFromCons(
 	constant <?=solver.solver_t?>* solver,
@@ -457,12 +401,8 @@ depmod{
 	return F;
 }
 
-<? elseif moduleName == "eigen_forRoeAvgs" then 
-depmod{
-	"roe_t",
-	"eigen_t",
-}
-?>
+//// MODULE_NAME: eigen_forRoeAvgs
+//// MODULE_DEPENDS: roe_t eigen_t
 
 //assumes the vector values are x-axis aligned with the interface normal
 <?=eqn.eigen_t?> eigen_forRoeAvgs(
@@ -569,13 +509,8 @@ depmod{
 	return eig;
 }
 
-<? elseif moduleName == "eigen_forInterface" then 
-depmod{
-	"cons_rotateFrom",
-	"calcRoeValues",
-	"eigen_forRoeAvgs",
-}
-?>
+//// MODULE_NAME: eigen_forInterface
+//// MODULE_DEPENDS: cons_rotateFrom calcRoeValues eigen_forRoeAvgs
 
 <?=eqn.eigen_t?> eigen_forInterface(
 	constant <?=solver.solver_t?>* solver,
@@ -593,15 +528,8 @@ depmod{
 	return eigen_forRoeAvgs(solver, roe, x);
 }
 
-<? elseif moduleName == "eigen_forCell" then 
-depmod{
-	"solver_t",
-	"primFromCons",	-- primFromCons
-	"normal_t",
-	"coordLenSq",
-	"eigen_forRoeAvgs",
-}
-?>
+//// MODULE_NAME: eigen_forCell
+//// MODULE_DEPENDS: solver_t primFromCons normal_t coordLenSq eigen_forRoeAvgs
 
 <?=eqn.eigen_t?> eigen_forCell(
 	constant <?=solver.solver_t?>* solver,
@@ -623,11 +551,8 @@ depmod{
 	return eigen_forRoeAvgs(solver, roe, x);
 }
 
-<? elseif moduleName == "eigen_left/rightTransform" then 
-depmod{
-	"cons_rotateTo",
-}
-?>
+//// MODULE_NAME: eigen_left/rightTransform
+//// MODULE_DEPENDS: cons_rotateTo
 
 <?=eqn.waves_t?> eigen_leftTransform(
 	constant <?=solver.solver_t?>* solver,
@@ -845,7 +770,7 @@ depmod{
 	return cons_rotateTo(resultU, n);
 }
 
-<? elseif moduleName == "eigen_fluxTransform" then ?>
+//// MODULE_NAME: eigen_fluxTransform
 
 <?=eqn.cons_t?> eigen_fluxTransform(
 	constant <?=solver.solver_t?>* solver,
@@ -914,11 +839,8 @@ depmod{
 	return cons_rotateTo(resultU, n);
 }
 
-<? elseif moduleName == "addSource" then 
-depmod{
-	"SETBOUNDS_NOGHOST",
-}
-?>
+//// MODULE_NAME: addSource
+//// MODULE_DEPENDS: SETBOUNDS_NOGHOST
 
 kernel void addSource(
 	constant <?=solver.solver_t?>* solver,
@@ -991,11 +913,8 @@ then
 end ?>
 }
 
-<? elseif moduleName == "constrainU" then 
-depmod{
-	"consFromPrim",
-}
-?>
+//// MODULE_NAME: constrainU
+//// MODULE_DEPENDS: consFromPrim
 
 kernel void constrainU(
 	constant <?=solver.solver_t?>* solver,
@@ -1013,9 +932,3 @@ kernel void constrainU(
 
 	*U = consFromPrim(solver, W, x);
 }
-
-<? 
-else
-	error("unknown moduleName "..require 'ext.tolua'(moduleName))
-end 
-?>

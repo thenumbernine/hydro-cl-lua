@@ -87,10 +87,6 @@ function Wave:getEnv()
 end
 
 function Wave:initCodeModules()
-	Wave.super.initCodeModules(self)
-
-	-- prereq for eqn.common
-	
 	local symmath = require 'symmath'
 	local Tensor = symmath.Tensor
 	local Constant = symmath.Constant
@@ -138,24 +134,8 @@ function Wave:initCodeModules()
 	if self.init_f then
 		self.metric.f = readarg(self.init_f)
 	end
-
-	-- end prereq for eqn.common
-
-	for moduleName, depends in pairs{
-		['eqn.common'] = {},
-		['fluxFromCons'] = {},
-		['calcCellMinMaxEigenvalues'] = {},
-		['eigen_forInterface'] = {},
-		['eigen_forCell'] = {},
-		['eigen_left/rightTransform'] = {},
-		['eigen_fluxTransform'] = {},
-		['addSource'] = {},
-	} do
-		self:addModuleFromSourceFile{
-			name = moduleName,
-			depends = depends,
-		}
-	end
+	
+	Wave.super.initCodeModules(self)
 end
 
 

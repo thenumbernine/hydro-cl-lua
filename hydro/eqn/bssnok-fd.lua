@@ -1,7 +1,6 @@
 local class = require 'ext.class'
 local table = require 'ext.table'
 local EinsteinEqn = require 'hydro.eqn.einstein'
-local makePartials = require 'hydro.eqn.makepartial'
 
 local common = require 'hydro.common'
 local xNames = common.xNames
@@ -134,10 +133,7 @@ end
 
 function BSSNOKFiniteDifferenceEquationBase:initCodeModules()
 	BSSNOKFiniteDifferenceEquationBase.super.initCodeModules(self)
-	self:initCodeModules_calc_gamma()
-end
-
-function BSSNOKFiniteDifferenceEquationBase:initCodeModules_calc_gamma()
+	
 	local solver = self.solver
 	
 	-- gammaHat_ij and co
@@ -338,12 +334,6 @@ sym3 calc_gamma_uu(global const <?=eqn.cons_t?>* U, real3 x) {
 ]],
 	}
 
-
-
-end
-
-function BSSNOKFiniteDifferenceEquationBase:initCodeModule_setFlatSpace()
-	local solver = self.solver
 	solver.modules:add{
 		name = 'mystery_C_U',
 		code = [[
@@ -386,6 +376,7 @@ void setFlatSpace(
 }
 ]],
 	}
+
 end
 
 function BSSNOKFiniteDifferenceEquationBase:initCodeModule_calcDT()

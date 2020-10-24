@@ -1,3 +1,5 @@
+//// MODULE_NAME: elecChargeMassRatio
+
 // r_e = q_e / m_e
 // r_e = q_e / (m_i / (m_i / m_e))
 // using m = m_i / m_e
@@ -11,25 +13,13 @@
 // notice this hasn't been converted to units yet, so divide by unit_C_per_kg
 #define elecChargeMassRatio			(solver->ionElectronMassRatio * solver->ionChargeMassRatio)
 
-typedef <?=eqn.prim_t?> prim_t;
-typedef <?=eqn.cons_t?> cons_t;
-typedef <?=solver.solver_t?> solver_t;
-
-<? if moduleName == nil then ?>
-<? elseif moduleName == "sqrt_2_and_1_2" then ?>
+//// MODULE_NAME: sqrt_2_and_1_2
 
 #define sqrt_1_2 <?=('%.50f'):format(math.sqrt(.5))?>
 #define sqrt_2 <?=('%.50f'):format(math.sqrt(2))?>
 
-<? elseif moduleName == "primFromCons" then 
-depmod{
-	"real3",
-	"solver_t",
-	"prim_t",
-	"cons_t",
-	"eqn.common",	-- calc_*
-}
-?>
+//// MODULE_NAME: primFromCons
+//// MODULE_DEPENDS: real3 solver_t prim_t cons_t eqn.common
 
 <?=eqn.prim_t?> primFromCons(constant <?=solver.solver_t?>* solver, <?=eqn.cons_t?> U, real3 x) {
 	<? for _,fluid in ipairs(eqn.fluids) do ?>
@@ -50,15 +40,8 @@ depmod{
 	};
 }
 
-<? elseif moduleName == "consFromPrim" then 
-depmod{
-	"real3",
-	"solver_t",
-	"prim_t",
-	"cons_t",
-	"eqn.common",	-- calc_*
-}
-?>
+//// MODULE_NAME: consFromPrim
+//// MODULE_DEPENDS: real3 solver_t prim_t cons_t eqn.common
 
 <?=eqn.cons_t?> consFromPrim(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W, real3 x) {
 	return (<?=eqn.cons_t?>){
@@ -75,16 +58,9 @@ depmod{
 	};
 }
 
-<? elseif moduleName == "apply_dU_dW" then 	-- only used by PLM
-depmod{
-	"real3",
-	"solver_t",
-	"prim_t",
-	"cons_t",
-	"coord_lower",
-	"coord_lower",
-}
-?>
+//// MODULE_NAME: apply_dU_dW
+//// MODULE_DEPENDS: real3 solver_t prim_t cons_t coord_lower coord_lower
+// only used by PLM
 
 <?=eqn.cons_t?> apply_dU_dW(
 	constant <?=solver.solver_t?>* solver,
@@ -113,16 +89,8 @@ depmod{
 	};
 }
 
-<? elseif moduleName == "apply_dW_dU" then 	-- only used by PLM
-depmod{
-	"real3",
-	"solver_t",
-	"prim_t",
-	"cons_t",
-	"coord_lower",
-	"coord_lower",
-}
-?>
+//// MODULE_NAME: apply_dW_dU
+//// MODULE_DEPENDS: real3 solver_t prim_t cons_t coord_lower coord_lower
 
 <?=eqn.prim_t?> apply_dW_dU(
 	constant <?=solver.solver_t?>* solver,
@@ -152,12 +120,8 @@ depmod{
 	};
 }
 
-<? elseif moduleName == "eqn.common" then 
-depmod{
-	"units",
-	"coordLenSq",
-}
-?>
+//// MODULE_NAME: eqn.common
+//// MODULE_DEPENDS: units coordLenSq
 
 real3 calc_EField(constant <?=solver.solver_t?>* solver, <?=eqn.cons_t?> U) {
 	real eps = solver->sqrt_eps * solver->sqrt_eps / unit_C2_s2_per_kg_m3;
@@ -213,23 +177,8 @@ real calc_EM_energy(constant <?=solver.solver_t?>* solver, const global <?=eqn.c
 	return .5 * (coordLenSq(U->D, x) / eps + coordLenSq(U->B, x) / mu);
 }
 
-<? elseif moduleName == "applyInitCond" then 
-depmod{
-	"consFromPrim",
-	"cartesianToCoord",
-}
-?>
-
-<? 
-local cons_t = eqn.cons_t
-local susc_t = eqn.susc_t
-local scalar = eqn.scalar
-local vec3 = eqn.vec3
-local zero = scalar..'_zero'
-local inv = scalar..'_inv'
-local fromreal = scalar..'_from_real'
-local sqrt = scalar..'_sqrt'
-?>
+//// MODULE_NAME: applyInitCond
+//// MODULE_DEPENDS: consFromPrim cartesianToCoord
 
 kernel void applyInitCond(
 	constant <?=solver.solver_t?>* solver,
@@ -310,13 +259,8 @@ end
 	UBuf[index] = consFromPrim(solver, W, x);
 }
 
-<? elseif moduleName == "fluxFromCons" then 
-depmod{
-	"units",
-	"primFromCons",
-	"normal_t",
-}
-?>
+//// MODULE_NAME: fluxFromCons
+//// MODULE_DEPENDS: units primFromCons normal_t
 
 <?=eqn.cons_t?> fluxFromCons(
 	constant <?=solver.solver_t?>* solver,
@@ -364,14 +308,8 @@ end
 	return F;
 }
 
-<? elseif moduleName == "eigen_forInterface" then 
-depmod{
-	"eigen_t",
-	"primFromCons",
-}
-?>
-
-typedef <?=eqn.eigen_t?> eigen_t;
+//// MODULE_NAME: eigen_forInterface
+//// MODULE_DEPENDS: eigen_t primFromCons
 
 eigen_t eigen_forInterface(
 	constant solver_t* solver,
@@ -420,14 +358,8 @@ eigen_t eigen_forInterface(
 	return eig;
 }
 
-<? elseif moduleName == "eigen_forCell" then 
-depmod{
-	"eigen_t",
-	"primFromCons",
-}
-?>
-
-typedef <?=eqn.eigen_t?> eigen_t;
+//// MODULE_NAME: eigen_forCell
+//// MODULE_DEPENDS: eigen_t primFromCons
 
 eigen_t eigen_forCell(
 	constant solver_t* solver,
@@ -454,18 +386,8 @@ eigen_t eigen_forCell(
 	};
 }
 
-<? elseif moduleName == "eigen_left/rightTransform" then 
-depmod{
-	"units",
-	"eigen_t",
-	"waves_t",
-	"coord_lower",
-	"sqrt_2_and_1_2",
-}
-?>
-
-typedef <?=eqn.eigen_t?> eigen_t;
-typedef <?=eqn.waves_t?> waves_t;
+//// MODULE_NAME: eigen_left/rightTransform
+//// MODULE_DEPENDS: units eigen_t waves_t coord_lower sqrt_2_and_1_2
 
 <?
 local prefix = [[
@@ -797,13 +719,8 @@ cons_t eigen_rightTransform(
 	return UY;
 }
 
-<? elseif moduleName == "eigen_fluxTransform" then 
-depmod{
-	"units",
-}
-?>
-
-typedef <?=eqn.eigen_t?> eigen_t;
+//// MODULE_NAME: eigen_fluxTransform
+//// MODULE_DEPENDS: units
 
 cons_t eigen_fluxTransform(
 	constant solver_t* solver,
@@ -867,12 +784,8 @@ cons_t eigen_fluxTransform(
 	return UY;
 }
 
-<? elseif moduleName == "addSource" then 
-depmod{
-	"units",
-	"primFromCons",
-}
-?>
+//// MODULE_NAME: addSource
+//// MODULE_DEPENDS: units elecChargeMassRatio primFromCons 
 
 kernel void addSource(
 	constant solver_t* solver,
@@ -941,12 +854,8 @@ kernel void addSource(
 <? end ?>
 }
 
-<? elseif moduleName == "constrainU" then 
-depmod{
-	"primFromCons",
-	"consFromPrim",
-}
-?>
+//// MODULE_NAME: constrainU
+//// MODULE_DEPENDS: primFromCons consFromPrim
 
 kernel void constrainU(
 	constant solver_t* solver,
@@ -966,55 +875,3 @@ kernel void constrainU(
 	
 	*U = consFromPrim(solver, W, x);
 }
-
-<? elseif moduleName == "calcDT" then 
-depmod{
-	"units",
-	"primFromCons",
-}
-?>
-
-//2014 Abgrall, Kumar eqn 2.25
-// dt < sqrt(EInt_a/rho_a) sqrt(2) |lHat_r^a| / |E + v_a cross B|
-//lHat_r^a = lHat_r for a=i, -lHat_r/m for a=e
-kernel void calcDT(
-	constant solver_t* solver,
-	global real* dtBuf,
-	const global cons_t* UBuf,
-	const global <?=solver.coord.cell_t?>* cellBuf
-) {
-	SETBOUNDS(0,0);
-	if (OOB(numGhost,numGhost)) {
-		dtBuf[index] = INFINITY;
-		return;
-	}
-	
-	real3 x = cellBuf[index].pos;
-	const global cons_t* U = UBuf + index;
-	
-	real eps = solver->sqrt_eps * solver->sqrt_eps / unit_C2_s2_per_kg_m3;
-	real mu = solver->sqrt_mu * solver->sqrt_mu / unit_kg_m_per_C2;
-
-	prim_t W = primFromCons(solver, *U, x);
-	real lHat_ion = normalizedIonLarmorRadius;
-	real lHat_elec = lHat_ion / solver->ionElectronMassRatio;
-<? for _,fluid in ipairs(eqn.fluids) do ?>
-	real EInt_<?=fluid?> = calc_<?=fluid?>_EInt(solver, W);
-	real LorentzForceSq_<?=fluid?> = coordLenSq(
-		real3_add(
-			real3_real_mul(W.D, 1. / eps),
-			real3_cross(W.<?=fluid?>_v, W.B)
-		), x);
-	real sqrt_EInt_lHat_over_rho_<?=fluid?> = sqrt(2. * EInt_<?=fluid?> * lHat_<?=fluid?> / (W.<?=fluid?>_rho * LorentzForceSq_<?=fluid?>));
-<? end ?>
-
-	dtBuf[index] = min(
-		sqrt_EInt_lHat_over_rho_ion,
-		sqrt_EInt_lHat_over_rho_elec);
-}
-
-<? 
-else
-	error("unknown moduleName "..require 'ext.tolua'(moduleName))
-end 
-?>

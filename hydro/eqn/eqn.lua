@@ -322,26 +322,7 @@ function Equation:getEnv()
 			-- calls initCond:getInitCondCode
 			return self.initCond:getInitCondCode(self.solver)
 		end,
-	
-
-		depmod = function(...)
-			self.codeDepends = self.codeDepends or table()
-			self.codeDepends:append(...)
-		end,
 	}
-end
-
-function Equation:addModuleFromSourceFile(args)
-	self.codeDepends = table()
-	args.code = self:template(
-		file[self.solverCodeFile],
-		{
-			moduleName = args.name,
-		}
-	)
-	args.depends = self.codeDepends:append(args.depends)
-	self.codeDepends = nil
-	self.solver.modules:add(args)
 end
 
 -- add to self.solver.modules, or add to self.modules and have solver add later?
@@ -541,6 +522,57 @@ end
 	self:initCodeModule_fluxFromCons()
 	self:initCodeModule_waveCode()
 	self:initCodeModule_displayCode()
+
+
+	local string = require 'ext.string'
+
+	local code = self:template(file[self.solverCodeFile])
+	local lines = string.split(code, '\n')
+
+	local moduleName
+	local moduleLines = table()
+	local moduleDeps = table()
+	local function makeModule()
+		if moduleName then
+			-- special case for applyInitCond ...
+			if moduleName == 'applyInitCond' then
+				moduleDeps:append(self.initCond.baseDepends)
+				moduleDeps:append(self.initCond.depends)
+				-- only used by hydro/eqn/bssnok-fd.lua:
+				if self.getModuleDependsApplyInitCond then
+					moduleDeps:append(self:getModuleDependsApplyInitCond())
+				end
+			end
+			local args = {
+				name = moduleName,
+				depends = moduleDeps,
+				code = moduleLines:concat'\n',
+			}		
+			print('making module '..require 'ext.tolua'(args))
+			solver.modules:add(args)
+		elseif moduleLines and #moduleLines > 0 then
+			print('throwing away:\n'..moduleLines:concat'\n')
+		end
+		moduleName = nil
+		moduleLines = table()
+		moduleDeps = table()
+	end
+	for _,line in ipairs(lines) do
+		local name = line:match'^//// MODULE_NAME: (.*)'
+		if name then
+			makeModule()
+			moduleName = string.trim(name)
+			assert(#moduleName > 0, "got an empty module name")
+		else
+			local deps = line:match'^//// MODULE_DEPENDS: (.*)'
+			if deps then
+				moduleDeps:append(string.split(string.trim(deps), ' '))
+			else
+				moduleLines:insert(line)
+			end
+		end
+	end
+	makeModule()
 end
 
 function Equation:initCodeModule_fluxFromCons()
@@ -577,7 +609,11 @@ function Equation:initCodeModule_waveCode()
 end
 
 -- put your getDisplayVars code dependencies here
-function Equation:getModuleDepends_displayCode() end
+function Equation:getModuleDepends_displayCode() 
+	return {
+		'SETBOUNDS',
+	}
+end
 
 function Equation:initCodeModule_displayCode()
 	self.solver.modules:add{

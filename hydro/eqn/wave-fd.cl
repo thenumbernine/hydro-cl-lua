@@ -1,38 +1,33 @@
-typedef <?=solver.solver_t?> solver_t;
-typedef <?=eqn.cons_t?> cons_t;
+//// MODULE_NAME: calcDT
 
-//TODO move to math via makescalar
-#define cplx_add3(a,b,c)		(cplx_add(a, cplx_add(b,c)))
-#define cplx_add4(a,b,c,d)		(cplx_add(a, cplx_add3(b,c,d)))
-
-<? if moduleName == nil then ?>
-<? elseif moduleName == "calcDT" then ?>
-<? elseif moduleName == "applyInitCond" then ?>
+//// MODULE_NAME: applyInitCond
+//// MODULE_DEPENDS: solver_t initCond_t cons_t cell_t SETBOUNDS
 
 kernel void applyInitCond(
-	constant <?=solver.solver_t?>* solver,
-	constant <?=solver.initCond_t?>* initCond,
-	global <?=eqn.cons_t?>* UBuf,
-	const global <?=coord.cell_t?>* cellBuf
+	constant solver_t* solver,
+	constant initCond_t* initCond,
+	global cons_t* UBuf,
+	const global cell_t* cellBuf
 ) {
 	SETBOUNDS(0,0);
 	real3 x = cellBuf[index].pos;
 	real r = fabs(x.x);
 	cplx q = cplx_zero;
 	<?=initCode()?>
-	UBuf[index] = (<?=eqn.cons_t?>){
+	UBuf[index] = (cons_t){
 		.psi = q,
 		.zeta = cplx_zero,
 	};
 }
 
-<? elseif moduleName == "addSource" then ?>
+//// MODULE_NAME: addSource
+//// MODULE_DEPENDS: solver_t cons_t cell_t SETBOUNDS_NOGHOST cell_x
 
 kernel void addSource(
 	constant solver_t* solver,
 	global cons_t* derivBuf,
 	const global cons_t* UBuf,
-	const global <?=solver.coord.cell_t?>* cellBuf
+	const global cell_t* cellBuf
 ) {
 	SETBOUNDS_NOGHOST();
 	real3 x = cell_x(i);
@@ -67,9 +62,3 @@ kernel void addSource(
 		)
 	);
 }
-
-<? 
-else
-	error("unknown moduleName "..require 'ext.tolua'(moduleName))
-end 
-?>

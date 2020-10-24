@@ -97,29 +97,6 @@ function NavierStokesWilcox:createInitState()
 	}
 end
 
-function NavierStokesWilcox:initCodeModules()
-	NavierStokesWilcox.super.initCodeModules(self)
-
-	for moduleName, depends in pairs{
-		['primFromCons'] = {},
-		['consFromPrim'] = {},
-		['apply_dU_dW'] = {},
-		['apply_dW_dU'] = {},
-		['eqn.common'] = {},
-		['fluxFromCons'] = {},
-		['calcCellMinMaxEigenvalues'] = {},
-		['eigen_forInterface'] = {},
-		['eigen_left/rightTransform'] = {},
-		['eigen_forCell'] = {},
-		['addSource'] = {},
-	} do
-		self:addModuleFromSourceFile{
-			name = moduleName,
-			depends = depends,
-		}
-	end
-end
-
 -- don't use default
 function NavierStokesWilcox:initCodeModulePrimCons() end
 function NavierStokesWilcox:initCodeModule_fluxFromCons() end

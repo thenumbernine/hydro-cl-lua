@@ -95,14 +95,6 @@ typedef union {
 
 	local function makevec3header(vec, scalar)
 		return template([[
-
-<? -- TODO move this to makescalar ?>
-#define <?=scalar?>_add3(a,b,c)		(<?=add?>(a, <?=add?>(b,c)))
-#define <?=scalar?>_add4(a,b,c,d)	(<?=add?>(a, <?=scalar?>_add3(b,c,d)))
-#define <?=scalar?>_add5(a,b,c,d,e) (<?=add?>(a, <?=scalar?>_add4(b,c,d,e)))
-
-#define <?=scalar?>_mul3(a,b,c)		(<?=mul?>(<?=mul?>(a,b),c))
-
 //is buggy with doubles on intel opencl ubuntu compiler
 //#define _<?=vec?>(a,b,c) 			((<?=vec?>){.s={a,b,c}})
 //so we do this instead and are safe:
@@ -344,6 +336,20 @@ my current convention is this:
 ]],
 	}
 
+	local function makescalarheader(scalar)
+		return template([[
+#define <?=scalar?>_add3(a,b,c)		(<?=add?>(a, <?=add?>(b,c)))
+#define <?=scalar?>_add4(a,b,c,d)	(<?=add?>(a, <?=scalar?>_add3(b,c,d)))
+#define <?=scalar?>_add5(a,b,c,d,e) (<?=add?>(a, <?=scalar?>_add4(b,c,d,e)))
+
+#define <?=scalar?>_mul3(a,b,c)		(<?=mul?>(<?=mul?>(a,b),c))
+]], 	{
+			scalar = scalar,
+			add = scalar..'_add',
+			mul = scalar..'_mul',
+		})
+	end
+
 	modules:add{
 		name = 'real',
 		headercode = [[
@@ -366,7 +372,7 @@ my current convention is this:
 
 #define real_sqrt			sqrt
 
-]],
+]]..makescalarheader'real',
 	}
 
 	modules:add{
@@ -1410,7 +1416,7 @@ cplx cplx_log(cplx a);
 cplx cplx_pow(cplx a, cplx b);
 cplx cplx_sqrt(cplx a);
 
-]],
+]]..makescalarheader'cplx',
 		code = [[
 
 

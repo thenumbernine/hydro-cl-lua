@@ -29,28 +29,6 @@ function ShallowWater:createInitState()
 	}
 end
 
-function ShallowWater:initCodeModules()
-	ShallowWater.super.initCodeModules(self)
-	for moduleName, depends in pairs{
-		['primFromCons'] = {},
-		['consFromPrim'] = {},
-		['apply_dU_dW'] = {},
-		['apply_dW_dU'] = {},
-		['eqn.common'] = {},
-		['fluxFromCons'] = {},
-		['calcCellMinMaxEigenvalues'] = {},
-		['eigen_forInterface'] = {},
-		['eigen_left/rightTransform'] = {},
-		['eigen_fluxTransform'] = {},
-		['eigen_forCell'] = {},
-	} do
-		self:addModuleFromSourceFile{
-			name = moduleName,
-			depends = depends,
-		}
-	end
-end
-
 -- don't use default
 function ShallowWater:initCodeModule_fluxFromCons() end
 function ShallowWater:initCodeModulePrimCons() end

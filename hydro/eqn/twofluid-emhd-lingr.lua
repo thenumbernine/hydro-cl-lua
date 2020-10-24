@@ -175,31 +175,6 @@ function TwoFluidEMHDDeDonderGaugeLinearizedGR:createInitState()
 	end):unpack()))
 end
 
-function TwoFluidEMHDDeDonderGaugeLinearizedGR:initCodeModules()
-	TwoFluidEMHDDeDonderGaugeLinearizedGR.super.initCodeModules(self)
-
-	for moduleName, depends in pairs{
-		['sqrt_2_and_1_2'] = {},
-		['primFromCons'] = {},
-		['consFromPrim'] = {},
-		['apply_dU_dW'] = {},
-		['apply_dW_dU'] = {},
-		['eqn.common'] = {},
-		['fluxFromCons'] = {},
-		['eigen_forInterface'] = {},
-		['eigen_forCell'] = {},
-		['eigen_left/rightTransform'] = {},
-		['eigen_fluxTransform'] = {},
-		['addSource'] = {},
-		['constrainU'] = {},
-	} do
-		self:addModuleFromSourceFile{
-			name = moduleName,
-			depends = depends,
-		}
-	end
-end
-
 function TwoFluidEMHDDeDonderGaugeLinearizedGR:getModuleDepends_waveCode()
 	return {
 		'units',
@@ -221,6 +196,7 @@ function TwoFluidEMHDDeDonderGaugeLinearizedGR:getEnv()
 	local scalar = self.scalar
 	local env = table(TwoFluidEMHDDeDonderGaugeLinearizedGR.super.getEnv(self))
 	env.vec3 = self.vec3
+	env.cons_t = self.cons_t
 	env.susc_t = self.susc_t
 	env.scalar = scalar
 	env.zero = scalar..'_zero'

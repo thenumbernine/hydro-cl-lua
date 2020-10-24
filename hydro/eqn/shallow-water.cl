@@ -1,16 +1,5 @@
-typedef <?=eqn.prim_t?> prim_t;
-typedef <?=eqn.cons_t?> cons_t;
-typedef <?=solver.solver_t?> solver_t;
-
-<? if moduleName == nil then ?>
-<? elseif moduleName == "primFromCons" then
-depmod{
-	"real3",
-	"solver_t",
-	"prim_t",
-	"cons_t",
-}
-?>
+//// MODULE_NAME: primFromCons
+//// MODULE_DEPENDS: real3 solver_t prim_t cons_t
 
 <?=eqn.prim_t?> primFromCons(constant <?=solver.solver_t?>* solver, <?=eqn.cons_t?> U, real3 x) {
 	return (<?=eqn.prim_t?>){
@@ -19,14 +8,8 @@ depmod{
 	};
 }
 
-<? elseif moduleName == "consFromPrim" then
-depmod{
-	"real3",
-	"solver_t",
-	"prim_t",
-	"cons_t",
-}
-?>
+//// MODULE_NAME: consFromPrim
+//// MODULE_DEPENDS: real3 solver_t prim_t cons_t
 
 <?=eqn.cons_t?> consFromPrim(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W, real3 x) {
 	return (<?=eqn.cons_t?>){
@@ -35,14 +18,8 @@ depmod{
 	};
 }
 
-<? elseif moduleName == "apply_dU_dW" then
-depmod{
-	"real3",
-	"solver_t",
-	"prim_t",
-	"cons_t",
-}
-?>
+//// MODULE_NAME: apply_dU_dW
+//// MODULE_DEPENDS: real3 solver_t prim_t cons_t
 
 <?=eqn.cons_t?> apply_dU_dW(
 	constant <?=solver.solver_t?>* solver,
@@ -58,14 +35,8 @@ depmod{
 	};
 }
 
-<? elseif moduleName == "apply_dW_dU" then
-depmod{
-	"real3",
-	"solver_t",
-	"prim_t",
-	"cons_t",
-}
-?>
+//// MODULE_NAME: apply_dW_dU
+//// MODULE_DEPENDS: real3 solver_t prim_t cons_t
 
 <?=eqn.prim_t?> apply_dW_dU(
 	constant <?=solver.solver_t?>* solver,
@@ -82,22 +53,15 @@ depmod{
 	};
 }
 
-<? elseif moduleName == "eqn.common" then 
-depmod{
-	"solver_t",
-	"cons_t",
-}
-?>
+//// MODULE_NAME: eqn.common
+//// MODULE_DEPENDS: solver_t cons_t
 
 real calc_C(constant <?=solver.solver_t?>* solver, <?=eqn.cons_t?> U) {
 	return sqrt(solver->gravity * U.h);
 }
 
-<? elseif moduleName == "applyInitCond" then
-depmod{
-	"cartesianToCoord",
-}
-?>
+//// MODULE_NAME: applyInitCond
+//// MODULE_DEPENDS: cartesianToCoord
 
 kernel void applyInitCond(
 	constant <?=solver.solver_t?>* solver,
@@ -135,13 +99,8 @@ end
 	UBuf[index] = consFromPrim(solver, W, x);
 }
 
-<? elseif moduleName == "fluxFromCons" then 
-depmod{
-	"solver_t",
-	"primFromCons",
-	"normal_t",
-}
-?>
+//// MODULE_NAME: fluxFromCons
+//// MODULE_DEPENDS: solver_t primFromCons normal_t
 
 <?=eqn.cons_t?> fluxFromCons(
 	constant <?=solver.solver_t?>* solver,
@@ -161,7 +120,7 @@ depmod{
 	};
 }
 
-<? elseif moduleName == "calcCellMinMaxEigenvalues" then ?>
+//// MODULE_NAME: calcCellMinMaxEigenvalues
 
 // used by PLM
 range_t calcCellMinMaxEigenvalues(
@@ -180,9 +139,7 @@ range_t calcCellMinMaxEigenvalues(
 	};
 }
 
-<? elseif moduleName == "eigen_forInterface" then ?>
-
-typedef <?=eqn.eigen_t?> eigen_t;
+//// MODULE_NAME: eigen_forInterface
 
 eigen_t eigen_forInterface(
 	constant solver_t* solver,
@@ -218,11 +175,8 @@ eigen_t eigen_forInterface(
 	};
 }
 
-<? elseif moduleName == "eigen_left/rightTransform" then 
-depmod{
-	"waves_t",
-}
-?>
+//// MODULE_NAME: eigen_left/rightTransform
+//// MODULE_DEPENDS: waves_t
 
 <?
 local prefix = [[
@@ -241,9 +195,6 @@ local prefix = [[
 	real v_n3 = v_ns.z;
 ]]
 ?>
-
-typedef <?=eqn.eigen_t?> eigen_t;
-typedef <?=eqn.waves_t?> waves_t;
 
 waves_t eigen_leftTransform(
 	constant solver_t* solver,
@@ -304,9 +255,7 @@ cons_t eigen_rightTransform(
 	}};
 }
 
-<? elseif moduleName == "eigen_fluxTransform" then ?>
-
-typedef <?=eqn.eigen_t?> eigen_t;
+//// MODULE_NAME: eigen_fluxTransform
 
 cons_t eigen_fluxTransform(
 	constant solver_t* solver,
@@ -339,9 +288,7 @@ cons_t eigen_fluxTransform(
 	}};
 }
 
-<? elseif moduleName == "eigen_forCell" then ?>
-
-typedef <?=eqn.eigen_t?> eigen_t;
+//// MODULE_NAME: eigen_forCell
 
 // used by PLM
 eigen_t eigen_forCell(
@@ -359,9 +306,3 @@ eigen_t eigen_forCell(
 		.C = C,
 	};
 }
-
-<? 
-else
-	error("unknown moduleName "..require 'ext.tolua'(moduleName))
-end 
-?>

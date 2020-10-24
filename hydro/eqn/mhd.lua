@@ -1,3 +1,9 @@
+--[[
+Stone et al 2008 - https://arxiv.org/pdf/0804.0402v1.pdf
+based on Athena's version of eigenvectors of derivative of adiabatic MHD flux wrt primitives
+ideal-mhd, divergence-free, conservative-based eigensystem
+--]]
+
 local class = require 'ext.class'
 local table = require 'ext.table'
 local constants = require 'hydro.constants'
@@ -150,39 +156,12 @@ MHD.guiVars = {
 function MHD:initCodeModules()
 	MHD.super.initCodeModules(self)
 	
-	-- TODO find a better place to put this
-	
-	local solver = self.solver
-
-	solver.modules:add{
+	self.solver.modules:add{
 		name = 'roe_t',
 		structs = {self.roeStruct},
+		-- only generated for cl, not for ffi cdef
+		headercode = 'typedef '..self.roe_t..' roe_t;',
 	}
-	
-	for moduleName, depends in pairs{
-		['primFromCons'] = {},
-		['consFromPrim'] = {},
-		['apply_dU_dW'] = {},
-		['apply_dW_dU'] = {},
-		['cons_rotateFrom'] = {},
-		['cons_rotateTo'] = {},
-		['calcRoeValues'] = {},
-		['eigen_forRoeAvgs'] = {},
-		['eqn.common'] = {},
-		['fluxFromCons'] = {},
-		['calcCellMinMaxEigenvalues'] = {},	-- added by request only, so I don't have to compile the real3x3 code
-		['eigen_forInterface'] = {},
-		['eigen_left/rightTransform'] = {},
-		['eigen_fluxTransform'] = {},
-		['eigen_forCell'] = {},
-		['addSource'] = {},
-		['constrainU'] = {},
-	} do
-		self:addModuleFromSourceFile{
-			name = moduleName,
-			depends = depends,
-		}
-	end
 end
 
 -- don't use default

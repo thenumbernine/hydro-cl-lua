@@ -48,25 +48,6 @@ function GRMaxwell:init(args)
 	self.solver.ops:insert(NoDiv{solver=self.solver})
 end
 
-function GRMaxwell:initCodeModules()
-	GRMaxwell.super.initCodeModules(self)
-
-	for moduleName, depends in pairs{
-		['sqrt_1_2'] = {},
-		['fluxFromCons'] = {},
-		['calcCellMinMaxEigenvalues'] = {},
-		['calcEigenBasis'] = {},
-		['eigen_left/rightTransform'] = {},
-		['eigen_fluxTransform'] = {},
-		['addSource'] = {},
-	} do
-		self:addModuleFromSourceFile{
-			name = moduleName,
-			depends = depends,
-		}
-	end
-end
-
 GRMaxwell.solverCodeFile = 'hydro/eqn/gr-maxwell.cl'
 
 function GRMaxwell:getEnv()

@@ -101,63 +101,8 @@ function GLM_Maxwell:createInitState()
 	}
 end
 
-function GLM_Maxwell:initCodeModules()
-	GLM_Maxwell.super.initCodeModules(self)
-	
-	for moduleName, depends in pairs{
-		['sqrt_1_2'] = {},
-	
-		['eqn.common'] = {
-			'coordLenSq',
-			'cartesianToCoord',
-			'coord_lower',
-		},
-
-		['fluxFromCons'] = {
-			'solver_t',
-			'cons_t',
-			'prim_t',
-			'normal_t',
-			'eqn.common',
-		},
-
-		['eigen_forInterface'] = {},
-		['eigen_forCell'] = {},
-		['eigen_left/rightTransform'] = {
-			'waves_t',
-			'sqrt_1_2',
-		},
-		['eigen_fluxTransform'] = {},
-		
-		['addSource'] = {
-			'coord_sqrt_det_g',
-			'fluxFromCons',
-		},
-	} do
-		self:addModuleFromSourceFile{
-			name = moduleName,
-			depends = depends,
-		}
-	end
-end
-
 -- don't use default
 function GLM_Maxwell:initCodeModule_fluxFromCons() end
-
-function GLM_Maxwell:getModuleDependsApplyInitCond()
-	return {
-		'eqn.common',
-	}
-end
-
--- TODO this is now the eqn.consWave dependencies
-function GLM_Maxwell:getModuleDependsSolver()
-	return {
-		'eqn.common',
-		'coord_lower',
-		'fluxFromCons',
-	}
-end
 
 GLM_Maxwell.solverCodeFile = 'hydro/eqn/glm-maxwell.cl'
 
@@ -165,6 +110,7 @@ function GLM_Maxwell:getEnv()
 	local scalar = self.scalar
 	local env = GLM_Maxwell.super.getEnv(self)
 	env.vec3 = self.vec3
+	env.cons_t = self.cons_t
 	env.susc_t = self.susc_t
 	env.scalar = scalar
 	env.zero = scalar..'_zero'

@@ -35,8 +35,6 @@ end
 
 function EinsteinEquation:initCodeModules()
 	EinsteinEquation.super.initCodeModules(self)
-	
-	self:initCodeModule_setFlatSpace()
 
 	local solver = self.solver
 
@@ -255,12 +253,6 @@ sym3sym3 sym3sym3_rescaleToCoord_LLLL(sym3sym3 a, real3 x) {
 	}
 end
 
-function EinsteinEquation:getModuleDependsSolver()
-	return {
-		'initCond.codeprefix',	-- eigen_forInterface & others uss calc_f
-	}
-end
-
 -- add an option for fixed Minkowsky boundary spacetime
 -- TODO now there is already a BoundaryFixed in hydro/solver/gridsolver, but no easy way to parameterize how to set what fixed values it is
 function EinsteinEquation:createBoundaryOptions()
@@ -286,7 +278,7 @@ function EinsteinEquation:createBoundaryOptions()
 	self.solver:addBoundaryOption(BoundaryFixed)
 end
 
-function EinsteinEquation:getModuleDependsSolver() 
+function EinsteinEquation:getModuleDepends_displayCode() 
 	return {
 		-- for the addDisplayComponents 
 		'calc_gamma_ll',

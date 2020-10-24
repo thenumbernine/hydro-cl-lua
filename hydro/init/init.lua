@@ -80,6 +80,24 @@ function InitCond:addGuiVar(args)
 end
 --]]
 
+-- these depends are added to the applyInitCond module in the eqn.initCodeModules function
+-- so are any in the initCond.depends table
+InitCond.baseDepends = {
+	-- if an InitCond provides codeprefix, it is for code it expects to reference from within 'applyInitCond()'
+	'initCond.codeprefix',
+	-- applyInitCond uses these:
+	'solver_t',
+	'initCond_t',
+	'cons_t',
+	'cell_t',
+	'initCond.guiVars.compileTime',
+	'INDEX', 'INDEXV', 'OOB', 'SETBOUNDS',
+	-- enough use #if dim that i'll put this here:
+	'solver.macros',
+	-- initCond code is specified in terms of primitives, so if the eqn has prim<->cons then it will be needed
+	'consFromPrim',
+}
+
 function InitCond:initCodeModules(solver)
 	solver.modules:add{
 		name = 'initCond_t',
@@ -100,45 +118,6 @@ function InitCond:initCodeModules(solver)
 		depends = {'initCond_t'},
 		code = self.getCodePrefix and self:getCodePrefix(solver) or nil,
 	}
-
-	local eqn = solver.eqn
-	
-	-- depends of applyInitCond:
-	eqn.codeDepends = table{
-		-- if an InitCond provides codeprefix, it is for code it expects to reference from within 'applyInitCond()'
-		'initCond.codeprefix',
-		-- applyInitCond uses these:
-		'solver_t',
-		'initCond_t',
-		'cons_t',
-		'cell_t',
-		'initCond.guiVars.compileTime',
-		'INDEX', 'INDEXV', 'OOB', 'SETBOUNDS',
-		-- initCond code is specified in terms of primitives, so if the eqn has prim<->cons then it will be needed
-		'consFromPrim',
-	}
-	:append(self.depends)
-	
-	-- TODO get rid of this and switch all over to depmod ... maybe?
-	if eqn.getModuleDependsApplyInitCond then
-		eqn.codeDepends:append(eqn:getModuleDependsApplyInitCond())
-	end
-
-	-- maybe it's wrong to put this code into the solverCodeFile because technically it goes into initCond.cl
-	local code = eqn:template(
-		require 'ext.file'[eqn.solverCodeFile],
-		{
-			moduleName = 'applyInitCond',
-		}
-	)
-
-	solver.modules:add{
-		name = 'applyInitCond',
-		depends = eqn.codeDepends,
-		code = code,
-	}
-	
-	eqn.codeDepends = nil
 end
 
 function InitCond:refreshInitStateProgram(solver)

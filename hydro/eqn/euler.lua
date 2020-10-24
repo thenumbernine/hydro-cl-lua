@@ -94,30 +94,6 @@ function Euler:createInitState()
 	}
 end
 
-function Euler:initCodeModules()
-	Euler.super.initCodeModules(self)
-	for moduleName, depends in pairs{
-		['primFromCons'] = {},
-		['consFromPrim'] = {},
-		['apply_dU_dW'] = {},
-		['apply_dW_dU'] = {},
-		['eqn.common'] = {},
-		['fluxFromCons'] = {},
-		['calcCellMinMaxEigenvalues'] = {},
-		['eigen_forCell'] = {},
-		['eigen_forInterface'] = {},
-		['eigen_left/rightTransform'] = {},
-		['eigen_fluxTransform'] = {},
-		['addSource'] = {},
-		['constrainU'] = {},
-	} do
-		self:addModuleFromSourceFile{
-			name = moduleName,
-			depends = depends,
-		}
-	end
-end
-
 -- this one calcs cell prims once and uses it for all sides
 -- it is put here instead of in hydro/eqn/euler.cl so euler-burgers can override it
 -- TODO move the sqrt() out of the loop altogether?

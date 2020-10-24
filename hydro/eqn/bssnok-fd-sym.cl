@@ -1,3 +1,5 @@
+//// MODULE_NAME: eqn.common
+
 <? 
 -- constrains det gammaBar_ij = det gammaHat_ij, ABar^i_i = 0, and calculates H and M^i ... if the associated flags are set
 local useConstrainU = true
@@ -14,9 +16,6 @@ However I've also read that Intel OpenCL used to have bugs with pass-by-value.
 Then there's the possibility that, by moving the calc_RBar_LL code into its own function, maybe it uses too many arguments?
 Then there's the possibility that I'm using too many locals and the compiler has a bug with stack allocations beyond a certain size.
 */
-
-typedef <?=eqn.cons_t?> cons_t;
-typedef <?=solver.solver_t?> solver_t;
 
 /*
 TF(K_ij) = K_ij - 1/3 gamma_ij gamma^kl K_kl

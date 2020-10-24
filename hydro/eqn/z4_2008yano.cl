@@ -1,5 +1,4 @@
-<? if moduleName == nil then ?>
-<? elseif moduleName == "setFlatSpace" then ?>
+//// MODULE_NAME: setFlatSpace
 
 void setFlatSpace(
 	constant <?=solver.solver_t?>* solver,
@@ -17,7 +16,8 @@ void setFlatSpace(
 	U->Z_l = real3_zero;
 }
 
-<? elseif moduleName == "applyInitCond" then ?>
+//// MODULE_NAME: applyInitCond
+//// MODULE_DEPENDS: SETBOUNDS coordMap setFlatSpace
 
 kernel void applyInitCond(
 	constant <?=solver.solver_t?>* solver,
@@ -38,7 +38,7 @@ kernel void applyInitCond(
 	sym3 gamma_ll = sym3_ident;
 	sym3 K_ll = sym3_zero;
 
-	<?=code?>
+	<?=initCode()?>
 
 	U->alpha = alpha;
 	U->gamma_ll = gamma_ll;
@@ -56,7 +56,8 @@ kernel void applyInitCond(
 
 kernel void initDerivs(
 	constant <?=solver.solver_t?>* solver,
-	global <?=eqn.cons_t?>* UBuf
+	global <?=eqn.cons_t?>* UBuf,
+	const global <?=coord.cell_t?>* cellBuf
 ) {
 	SETBOUNDS(numGhost,numGhost);
 	global <?=eqn.cons_t?>* U = UBuf + index;
@@ -80,7 +81,8 @@ end
 ?>
 }
 
-<? elseif moduleName == "calcDT" then ?>
+//// MODULE_NAME: calcDT
+//// MODULE_DEPENDS: SETBOUNDS initCond.codeprefix
 
 kernel void calcDT(
 	constant solver_t* solver,
@@ -125,7 +127,8 @@ kernel void calcDT(
 	dtBuf[index] = dt; 
 }
 
-<? elseif moduleName == "eigen_forCell" then ?>
+//// MODULE_NAME: eigen_forCell
+//// MODULE_DEPENDS: initCond.codeprefix
 
 //used by PLM
 eigen_t eigen_forCell(
@@ -144,7 +147,8 @@ eigen_t eigen_forCell(
 	return eig;
 }
 
-<? elseif moduleName == "calcCellMinMaxEigenvalues" then ?>
+//// MODULE_NAME: calcCellMinMaxEigenvalues
+//// MODULE_DEPENDS: initCond.codeprefix
 
 range_t calcCellMinMaxEigenvalues(
 	const global cons_t* U,
@@ -175,14 +179,15 @@ range_t calcCellMinMaxEigenvalues(
 	};
 }
 
-<? elseif moduleName == "eigen_forInterface" then ?>
+//// MODULE_NAME: eigen_forInterface
+//// MODULE_DEPENDS: initCond.codeprefix
 
 eigen_t eigen_forInterface(
 	constant solver_t* solver,
 	cons_t UL,
 	cons_t UR,
 	real3 x,
-	real3 n
+	normal_t n
 ) {
 	real alpha = .5 * (UL.alpha + UR.alpha);
 	sym3 avg_gamma = (sym3){
@@ -203,26 +208,24 @@ eigen_t eigen_forInterface(
 	return eig;
 }
 
-<? elseif moduleName == "eigen_left/rightTransform" then ?>
+//// MODULE_NAME: eigen_left/rightTransform
+//// MODULE_DEPENDS: rotate
 
 waves_t eigen_leftTransform(
 	constant solver_t* solver,
 	eigen_t eig,
 	cons_t inputU,
-	real3 pt
+	real3 pt,
+	normal_t n
 ) {
 	waves_t results;
 
 	//input
-	real3 a_l = real3_swap<?=side?>(inputU.a_l);							//0-2
-	_3sym3 d_lll = (_3sym3){
-		.x = sym3_swap<?=side?>(inputU.d_lll.v<?=side?>),					//3-8
-		.y = sym3_swap<?=side?>(inputU.d_lll.v<?=side==1 and 0 or 1?>),		//9-14
-		.z = sym3_swap<?=side?>(inputU.d_lll.v<?=side==2 and 0 or 2?>),		//15-20
-	};
-	sym3 K_ll = sym3_swap<?=side?>(inputU.K_ll);							//21-26
-	real Theta = inputU.Theta;												//27
-	real3 Z_l = real3_swap<?=side?>(inputU.Z_l);							//28-30
+	real3 a_l = real3_swap(inputU.a_l, n.side);							//0-2
+	_3sym3 d_lll = _3sym3_swap(inputU.d_lll, n.side);					//3-20
+	sym3 K_ll = sym3_swap(inputU.K_ll, n.side);							//21-26
+	real Theta = inputU.Theta;											//27
+	real3 Z_l = real3_swap(inputU.Z_l, n.side);							//28-30
 
 	//eig
 	real sqrt_f = eig.sqrt_f;
@@ -236,8 +239,8 @@ waves_t eigen_leftTransform(
 	real f_minus_1 = f - 1.;
 	real f_minus_1_sq = f_minus_1 * f_minus_1;
 
-	sym3 gamma_ll = sym3_swap<?=side?>(eig.gamma_ll);
-	sym3 gamma_uu = sym3_swap<?=side?>(eig.gamma_uu);
+	sym3 gamma_ll = sym3_swap(eig.gamma_ll, n.side);
+	sym3 gamma_uu = sym3_swap(eig.gamma_uu, n.side);
 	
 	_3sym3 d_ull = sym3_3sym3_mul(gamma_uu, d_lll);
 	
@@ -252,7 +255,14 @@ waves_t eigen_leftTransform(
 
 	real tr_K = real3x3_trace(K_ul);
 
-	real sqrt_gUxx = eig.sqrt_gammaUjj.s<?=side?>;
+	real sqrt_gUxx;
+	if (false) {}
+<? for side=0,2 do 
+?>	else if (n.side == <?=side?>) {
+		sqrt_gUxx = eig.sqrt_gammaUjj.s<?=side?>;
+	}
+<? end
+?>
 	real _1_sqrt_gUxx = 1. / sqrt_gUxx;
 	real _1_gammaUxx = _1_sqrt_gUxx * _1_sqrt_gUxx;
 
@@ -841,15 +851,16 @@ cons_t eigen_rightTransform(
 	constant solver_t* solver,
 	eigen_t eig,
 	waves_t input,
-	real3 unused
+	real3 unused,
+	normal_t n
 ) {
 	cons_t resultU;
 	for (int j = 0; j < numStates; ++j) {
 		resultU.ptr[j] = 0;
 	}
 	
-	sym3 gamma_ll = sym3_swap<?=side?>(eig.gamma_ll);
-	sym3 gamma_uu = sym3_swap<?=side?>(eig.gamma_uu);
+	sym3 gamma_ll = sym3_swap(eig.gamma_ll, n.side);
+	sym3 gamma_uu = sym3_swap(eig.gamma_uu, n.side);
 
 	real sqrt_f = eig.sqrt_f;
 	real f = sqrt_f * sqrt_f;
@@ -1356,19 +1367,16 @@ cons_t eigen_rightTransform(
 		+ input.ptr[23] 
 		+ input.ptr[24];
 
-	resultU.a_l = real3_swap<?=side?>(resultU.a_l);							//0-2
-	resultU.d_lll = (_3sym3){
-		.x = sym3_swap<?=side?>(resultU.d_lll.v<?=side?>),					//3-8
-		.y = sym3_swap<?=side?>(resultU.d_lll.v<?=side==1 and 0 or 1?>),		//9-14
-		.z = sym3_swap<?=side?>(resultU.d_lll.v<?=side==2 and 0 or 2?>),		//15-20
-	};
-	resultU.K_ll = sym3_swap<?=side?>(resultU.K_ll);							//21-26
-	resultU.Z_l = real3_swap<?=side?>(resultU.Z_l);							//28-30
+	resultU.a_l = real3_swap(resultU.a_l, n.side);							//0-2
+	resultU.d_lll = _3sym3_swap(resultU.d_lll, n.side);						//3-20
+	resultU.K_ll = sym3_swap(resultU.K_ll, n.side);							//21-26
+	resultU.Z_l = real3_swap(resultU.Z_l, n.side);							//28-30
 
 	return resultU;
 }
 
-<? elseif moduleName == "eigen_fluxTransform" then ?>
+//// MODULE_NAME: eigen_fluxTransform
+//// MODULE_DEPENDS: rotate
 
 //notice this paper uses the decomposition alpha A = R Lambda L
 // so this computation is for alpha A
@@ -1376,7 +1384,8 @@ cons_t eigen_fluxTransform(
 	constant solver_t* solver,
 	eigen_t eig,
 	cons_t input,
-	real3 pt 
+	real3 pt,
+	normal_t n
 ) {
 	cons_t results;
 	for (int i = 0; i < numStates; ++i) {
@@ -1384,18 +1393,14 @@ cons_t eigen_fluxTransform(
 	}
 
 	//input
-	real3 a_l = real3_swap<?=side?>(input.a_l);							//0-2
-	_3sym3 d_lll = (_3sym3){
-		.x = sym3_swap<?=side?>(input.d_lll.v<?=side?>),					//3-8
-		.y = sym3_swap<?=side?>(input.d_lll.v<?=side==1 and 0 or 1?>),		//9-14
-		.z = sym3_swap<?=side?>(input.d_lll.v<?=side==2 and 0 or 2?>),		//15-20
-	};
-	sym3 K_ll = sym3_swap<?=side?>(input.K_ll);							//21-26
-	real Theta = input.Theta;												//27
-	real3 Z_l = real3_swap<?=side?>(input.Z_l);							//28-30
+	real3 a_l = real3_swap(input.a_l, n.side);							//0-2
+	_3sym3 d_lll = _3sym3_swap(input.d_lll, n.side);					//3-20
+	sym3 K_ll = sym3_swap(input.K_ll, n.side);							//21-26
+	real Theta = input.Theta;											//27
+	real3 Z_l = real3_swap(input.Z_l, n.side);							//28-30
 
-	sym3 gamma_ll = sym3_swap<?=side?>(eig.gamma_ll);
-	sym3 gamma_uu = sym3_swap<?=side?>(eig.gamma_uu);
+	sym3 gamma_ll = sym3_swap(eig.gamma_ll, n.side);
+	sym3 gamma_uu = sym3_swap(eig.gamma_uu, n.side);
 	
 	real sqrt_f = eig.sqrt_f;
 	real f = sqrt_f * sqrt_f;
@@ -1526,7 +1531,8 @@ cons_t eigen_fluxTransform(
 	return results;
 }
 
-<? elseif moduleName == "addSource" then ?>
+//// MODULE_NAME: addSource
+//// MODULE_DEPENDS: SETBOUNDS_NOGHOST initCond.codeprefix
 
 kernel void addSource(
 	constant solver_t* solver,
@@ -1699,9 +1705,3 @@ end?>
 	real tr_KSq = sym3_dot(KSq_ll, gamma_uu);
 	U->H = .5 * (R + trK * trK - tr_KSq) - 8. * M_PI * rho;
 }
-
-<? 
-else
-	error("unknown moduleName "..require 'ext.tolua'(moduleName))
-end 
-?>

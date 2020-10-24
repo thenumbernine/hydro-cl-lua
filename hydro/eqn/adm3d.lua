@@ -234,37 +234,9 @@ function ADM_BonaMasso_3D:createInitState()
 	}
 end
 
-function ADM_BonaMasso_3D:initCodeModules()
-	ADM_BonaMasso_3D.super.initCodeModules(self)
-	local solver = self.solver
-	
-	for moduleName, depends in pairs{
-		['calc_gamma_ll'] = {},
-		['calc_gamma_uu'] = {},
-		['setFlatSpace'] = {},
--- [=[ comment this and initCodeModule_fluxFromCons out for fluxFromCons to fall back on the eigensystem transforms
-		['fluxFromCons'] = {},
---]=]
-		['calcDT'] = {},
-		['eigen_forCell'] = {},
-		['calcCellMinMaxEigenvalues'] = {},
-		['eigen_forInterface'] = {},
-		['eigen_left/rightTransform'] = {},
-		['eigen_fluxTransform'] = {},
-		['addSource'] = {},
-		['constrainU'] = {},
-	} do
-		self:addModuleFromSourceFile{
-			name = moduleName,
-			depends = depends,
-		}
-	end
-end
-
 -- don't use default
 function ADM_BonaMasso_3D:initCodeModule_calcDT() end
 function ADM_BonaMasso_3D:initCodeModule_fluxFromCons() end
-function ADM_BonaMasso_3D:initCodeModule_setFlatSpace() end
 
 function ADM_BonaMasso_3D:getModuleDepends_waveCode()
 	return {

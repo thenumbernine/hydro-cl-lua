@@ -1,20 +1,4 @@
-/*
-Alcubierre "Introduction to 3+1 Numerical Relativity"
-Baumgarte & Shapiro "Numerical Relativity"
-2005 Campanelli
-2011 Cao, Hilditch "Numerical stability of the Z4c formulation of general relativity"
-2017 Ruchlin
-*/
-
-<? 
-local derivOrder = 2 * solver.numGhost
-local makePartials = require 'hydro.eqn.makepartial'
-local makePartial1 = function(...) return makePartials.makePartial1(derivOrder, solver, ...) end
-local makePartial2 = function(...) return makePartials.makePartial2(derivOrder, solver, ...) end
-?>
-
-<? if moduleName == nil then ?>
-<? elseif moduleName == "eqn.common" then ?>
+//// MODULE_NAME: eqn.common
 
 //gammaBar_ij = gammaHat_ij + epsilon_ij
 sym3 calc_gammaBar_ll(global const <?=eqn.cons_t?>* U, real3 x) {
@@ -112,7 +96,7 @@ sym3 tracefree(sym3 A_ll, sym3 gamma_ll, sym3 gamma_uu) {
 	return sym3_sub(A_ll, sym3_real_mul(gamma_ll, tr_A / 3.));
 }
 
-<? elseif moduleName == "applyInitCond" then ?>
+//// MODULE_NAME: applyInitCond
 
 kernel void applyInitCond(
 	constant <?=solver.solver_t?>* solver,
@@ -187,7 +171,7 @@ kernel void initDerivs(
 	real3 x = cell_x(i);
 	global <?=eqn.cons_t?>* U = UBuf + index;
 	
-<?=makePartial1('gammaBar_uu', 'sym3')?>
+<?=eqn:makePartial1'gammaBar_uu'?>
 
 	//connBar^i = connBar^i_jk gammaBar^jk
 	// TODO is this still true?
@@ -209,7 +193,7 @@ kernel void initDerivs(
 }
 
 
-<? elseif moduleName == "constrainU" then ?>
+//// MODULE_NAME: constrainU
 
 kernel void constrainU(
 	constant <?=solver.solver_t?>* solver,
@@ -270,7 +254,7 @@ end
 	U->alpha = max(U->alpha, solver->alphaMin);
 }
 
-<? elseif moduleName == "calcDeriv" then ?>
+//// MODULE_NAME: calcDeriv
 
 kernel void calcDeriv(
 	constant <?=solver.solver_t?>* solver,
@@ -302,10 +286,10 @@ for i,xi in ipairs(xNames) do
 ?> + partial_beta_ul[<?=i-1?>].<?=xi?><?
 end ?>;
 
-<?=makePartial2('alpha', 'real')?>			//partial2_alpha_ll.ij := alpha_,ij
-<?=makePartial2('chi', 'real')?>			//partial2_chi_ll.ij := chi_,ij
-<?=makePartial2('epsilon_ll', 'sym3')?>		//partial2_epsilon_llll[kl].ij = epsilon_ij,kl = gammaBar_ij,kl for static grids
-<?=makePartial2('beta_u', 'real3')?>		//partial2_beta_ull[jk].i = beta^i_,jk
+<?=eqn:makePartial2'alpha'?>			//partial2_alpha_ll.ij := alpha_,ij
+<?=eqn:makePartial2'chi'?>			//partial2_chi_ll.ij := chi_,ij
+<?=eqn:makePartial2'epsilon_ll'?>		//partial2_epsilon_llll[kl].ij = epsilon_ij,kl = gammaBar_ij,kl for static grids
+<?=eqn:makePartial2'beta_u'?>		//partial2_beta_ull[jk].i = beta^i_,jk
 
 	real exp_neg4phi = calc_exp_neg4phi(U);
 	//TODO minimize using these 
@@ -812,7 +796,7 @@ end ?>
 
 }
 
-<? elseif moduleName == "addSource" then ?>
+//// MODULE_NAME: addSource
 
 kernel void addSource(
 	constant <?=solver.solver_t?>* solver,
@@ -829,7 +813,7 @@ kernel void addSource(
 	//described in 2008 Babiuc et al as Q = (-1)^r h^(2r-1) (D+)^r rho (D-)^r / 2^(2r)
 	//...for r=2... -sigma h^3 (D+)^2 rho (D-)^2 / 16 ... and rho=1, except rho=0 at borders maybe.
 	for (int i = 0; i < numIntStates; ++i) {
-<?=makePartial2('ptr[i]', 'real', 'partial2_Ui_ll')?>	
+<?=eqn:makePartial2('ptr[i]', 'real', 'partial2_Ui_ll')?>	
 		real lap = 0<?
 for j,xj in ipairs(xNames) do
 	local jj = from3x3to6(j,j)
@@ -841,7 +825,7 @@ end
 <? end ?>
 }
 
-<? elseif moduleName == "calcDT" then ?>
+//// MODULE_NAME: calcDT
 
 kernel void calcDT(
 	constant <?=solver.solver_t?>* solver,
@@ -867,9 +851,3 @@ kernel void calcDT(
 	}<? end ?>
 	dtBuf[index] = dt;
 }
-
-<? 
-else
-	error("unknown moduleName "..require 'ext.tolua'(moduleName))
-end 
-?>

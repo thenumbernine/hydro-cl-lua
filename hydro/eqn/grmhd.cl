@@ -1,9 +1,4 @@
-/*
-2010 Anton et al 
-*/
-
-<? if moduleName == nil then ?>
-<? elseif moduleName == "eqn.common" then ?>
+//// MODULE_NAME: eqn.common
 
 //I'm going to fix metric coordinates at first
 //then later the transition to the evolved metric will be easier
@@ -56,7 +51,7 @@ real calc_h(real rho, real P, real eInt) {
 	return (<?=eqn.cons_t?>){.D=D, .S=S, .tau=tau};
 }
 
-<? elseif moduleName == "applyInitCond" then ?>
+//// MODULE_NAME: applyInitCond
 
 kernel void applyInitCond(
 	constant <?=solver.solver_t?>* solver,
@@ -95,7 +90,7 @@ kernel void applyInitCond(
 }
 
 
-<? elseif moduleName == "fluxFromCons" then ?>
+//// MODULE_NAME: fluxFromCons
 
 <?=eqn.cons_t?> fluxFromCons(
 	constant <?=solver.solver_t?>* solver,
@@ -115,7 +110,7 @@ kernel void applyInitCond(
 	return F;
 }
 
-<? elseif moduleName == "calcDT" then ?>
+//// MODULE_NAME: calcDT
 
 //everything matches the default except the params passed through to calcCellMinMaxEigenvalues
 kernel void calcDT(
@@ -162,7 +157,7 @@ kernel void calcDT(
 	dtBuf[index] = dt; 
 }
 
-<? elseif moduleName == "eigen_forCell" then ?>
+//// MODULE_NAME: eigen_forCell
 
 //used by PLM
 //TODO SRHD PLM needs to do this:
@@ -177,7 +172,7 @@ kernel void calcDT(
 	return (<?=eqn.eigen_t?>){};
 }
 
-<? elseif moduleName == "calcEigenBasis" then ?>
+//// MODULE_NAME: calcEigenBasis
 
 #error calcEigenBasis has been removed, and eigen_t structs are now calculated inline ... soooo ... convert this to something compatible
 kernel void calcEigenBasis(
@@ -299,7 +294,7 @@ for _,field in ipairs(eqn.eigenVars) do
 	}<? end ?>
 }
 
-<? elseif moduleName == "eigen_left/rightTransform" then ?>
+//// MODULE_NAME: eigen_left/rightTransform
 
 void eigen_leftTransform(
 	constant <?=solver.solver_t?>* solver,
@@ -433,7 +428,7 @@ void eigen_rightTransform(
 	<? end ?>
 }
 
-<? elseif moduleName == "eigen_fluxTransform" then ?>
+//// MODULE_NAME: eigen_fluxTransform
 
 void eigen_fluxTransform(
 	constant <?=solver.solver_t?>* solver,
@@ -461,7 +456,7 @@ void eigen_fluxTransform(
 	<? end ?>
 }
 
-<? elseif moduleName == "constrainU" then ?>
+//// MODULE_NAME: constrainU
 
 kernel void constrainU(
 	constant <?=solver.solver_t?>* solver,
@@ -478,7 +473,7 @@ kernel void constrainU(
 	U->tau = min(U->tau, (real)tauMax);
 }
 
-<? elseif moduleName == "updatePrims" then ?>
+//// MODULE_NAME: updatePrims
 
 //TODO update to include alphas, betas, and gammas
 kernel void updatePrims(
@@ -533,9 +528,3 @@ kernel void updatePrims(
 		}
 	}
 }
-
-<? 
-else
-	error("unknown moduleName "..require 'ext.tolua'(moduleName))
-end 
-?>

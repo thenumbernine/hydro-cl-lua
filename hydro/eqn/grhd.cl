@@ -1,9 +1,4 @@
-/*
-2008 Font "Numerical Hydrodynamics and Magnetohydrodynamics in General Relativity"
-*/
-
-<? if moduleName == nil then ?>
-<? elseif moduleName == "eqn.common" then ?>
+//// MODULE_NAME: eqn.common
 
 //pressure function for ideal gas
 real calc_P(constant <?=solver.solver_t?>* solver, real rho, real eInt) {
@@ -54,7 +49,7 @@ real calc_h(real rho, real P, real eInt) {
 	return (<?=eqn.cons_only_t?>){.D=D, .S=S, .tau=tau};
 }
 
-<? elseif moduleName == "applyInitCond" then ?>
+//// MODULE_NAME: applyInitCond
 
 kernel void applyInitCond(
 	constant <?=solver.solver_t?>* solver,
@@ -93,7 +88,7 @@ kernel void applyInitCond(
 }
 
 
-<? elseif moduleName == "calcDT" then ?>
+//// MODULE_NAME: calcDT
 
 //everything matches the default except the params passed through to calcCellMinMaxEigenvalues
 kernel void calcDT(
@@ -143,7 +138,7 @@ kernel void calcDT(
 	dtBuf[index] = dt; 
 }
 
-<? elseif moduleName == "fluxFromCons" then ?>
+//// MODULE_NAME: fluxFromCons
 
 <? if false then ?>
 <?=eqn.cons_t?> fluxFromCons(
@@ -176,7 +171,7 @@ kernel void calcDT(
 }
 <? end ?>
 
-<? elseif moduleName == "eigen_forCell" then ?>
+//// MODULE_NAME: eigen_forCell
 
 //used by PLM
 //TODO SRHD PLM needs to do this:
@@ -191,7 +186,7 @@ kernel void calcDT(
 	return (<?=eqn.eigen_t?>){};
 }
 
-<? elseif moduleName == "calcEigenBasis" then ?>
+//// MODULE_NAME: calcEigenBasis
 
 #error calcEigenBasis has been removed, and eigen_t structs are now calculated inline ... soooo ... convert this to something compatible
 kernel void calcEigenBasis(
@@ -336,7 +331,7 @@ for _,var in ipairs(eqn.eigenVars) do
 	}<? end ?>
 }
 
-<? elseif moduleName == "eigen_left/rightTransform" then ?>
+//// MODULE_NAME: eigen_left/rightTransform
 
 <? 
 local prefix = require 'ext.table'.map(eqn.eigenVars, function(var)
@@ -480,7 +475,7 @@ end):concat()
 	return Y;
 }
 
-<? elseif moduleName == "eigen_fluxTransform" then ?>
+//// MODULE_NAME: eigen_fluxTransform
 
 <?=eqn.cons_t?> eigen_fluxTransform(
 	constant <?=solver.solver_t?>* solver,
@@ -517,7 +512,7 @@ end):concat()
 #endif
 }
 
-<? elseif moduleName == "addSource" then ?>
+//// MODULE_NAME: addSource
 
 kernel void addSource(
 	constant <?=solver.solver_t?>* solver,
@@ -531,7 +526,7 @@ kernel void addSource(
 	<?=solver:getADMVarCode()?>
 }
 
-<? elseif moduleName == "constrainU" then ?>
+//// MODULE_NAME: constrainU
 
 /*
 This is from 2008 Alcubierre eqn 7.3.11
@@ -615,9 +610,3 @@ kernel void constrainU(
 		}
 	}
 }
-
-<? 
-else
-	error("unknown moduleName "..require 'ext.tolua'(moduleName))
-end 
-?>

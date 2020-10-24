@@ -34,24 +34,11 @@ WaveFDEqn.initConds = require 'hydro.init.nls':getList()
 
 WaveFDEqn.solverCodeFile = 'hydro/eqn/wave-fd.cl'
 
-function WaveFDEqn:initCodeModules()
-	WaveFDEqn.super.initCodeModules(self)
-	for moduleName, depends in pairs{
-		['calcDT'] = {},
-		['addSource'] = {},
-	} do
-		self:addModuleFromSourceFile{
-			name = moduleName,
-			depends = depends,
-		}
-	end
-end
-
 -- don't use default
 function WaveFDEqn:initCodeModule_calcDT() end
 
-function WaveFDEqn:getModuleDependsSolver()
-	return table(WaveFDEqn.super.getModuleDependsSolver(self)):append{
+function WaveFDEqn:getModuleDepends_displayCode()
+	return table(WaveFDEqn.super.getModuleDepends_displayCode(self)):append{
 		'Bessel'	-- BESSJ0 in display vars
 	}
 end

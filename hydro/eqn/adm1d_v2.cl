@@ -1,8 +1,5 @@
-typedef <?=solver.solver_t?> solver_t;
-typedef <?=eqn.cons_t?> cons_t;
-
-<? if moduleName == nil then ?>
-<? elseif moduleName == "setFlatSpace" then ?>
+//// MODULE_NAME: setFlatSpace
+//// MODULE_DEPENDS: solver_t cons_t
 
 void setFlatSpace(
 	constant <?=solver.solver_t?>* solver,
@@ -18,7 +15,8 @@ void setFlatSpace(
 	};
 }
 
-<? elseif moduleName == "applyInitCond" then ?>
+//// MODULE_NAME: applyInitCond
+//// MODULE_DEPENDS: sym3 coordMap
 
 kernel void applyInitCond(
 	constant <?=solver.solver_t?>* solver,
@@ -61,7 +59,8 @@ kernel void initDerivs(
 }
 
 
-<? elseif moduleName == "fluxFromCons" then ?>
+//// MODULE_NAME: fluxFromCons
+//// MODULE_DEPENDS: solver_t cons_t normal_t initCond.codeprefix
 
 <?=eqn.cons_t?> fluxFromCons(
 	constant <?=solver.solver_t?>* solver,
@@ -79,9 +78,8 @@ kernel void initDerivs(
 	};
 }
 
-<? elseif moduleName == "eigen_forCell" then ?>
-
-typedef <?=eqn.eigen_t?> eigen_t;
+//// MODULE_NAME: eigen_forCell
+//// MODULE_DEPENDS: initCond.codeprefix
 
 //used by PLM
 eigen_t eigen_forCell(
@@ -97,9 +95,8 @@ eigen_t eigen_forCell(
 	};
 }
 
-<? elseif moduleName == "eigen_forInterface" then ?>
-
-typedef <?=eqn.eigen_t?> eigen_t;
+//// MODULE_NAME: eigen_forInterface
+//// MODULE_DEPENDS: initCond.codeprefix
 
 //used for interface eigen basis
 eigen_t eigen_forInterface(
@@ -118,10 +115,7 @@ eigen_t eigen_forInterface(
 	};
 }
 
-<? elseif moduleName == "eigen_left/rightTransform" then ?>
-
-typedef <?=eqn.eigen_t?> eigen_t;
-typedef <?=eqn.waves_t?> waves_t;
+//// MODULE_NAME: eigen_left/rightTransform
 
 waves_t eigen_leftTransform(
 	constant solver_t* solver,
@@ -154,9 +148,7 @@ cons_t eigen_rightTransform(
 	}};
 }
 
-<? elseif moduleName == "eigen_fluxTransform" then ?>
-
-typedef <?=eqn.eigen_t?> eigen_t;
+//// MODULE_NAME: eigen_fluxTransform
 
 cons_t eigen_fluxTransform(
 	constant solver_t* solver,
@@ -175,7 +167,8 @@ cons_t eigen_fluxTransform(
 	}};
 }
 
-<? elseif moduleName == "addSource" then ?>
+//// MODULE_NAME: addSource
+//// MODULE_DEPENDS: initCond.codeprefix
 
 kernel void addSource(
 	constant solver_t* solver,
@@ -219,9 +212,3 @@ kernel void addSource(
 
 	//Kreiss-Oligar diffusion, for stability's sake?
 }
-
-<? 
-else
-	error("unknown moduleName "..require 'ext.tolua'(moduleName))
-end 
-?>

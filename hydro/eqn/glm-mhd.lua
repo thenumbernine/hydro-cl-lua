@@ -1,3 +1,10 @@
+--[[
+started with the mhd.lua and mhd.cl
+tweaked it while looking at
+2006 Xueshang et al - A 3rd Order WENO GLM-MHD Scheme for Magnetic Reconnection
+2009 Mignone, Tzeferacos - A Second-Order Unsplit Godunov Scheme for Cell-Centered MHD- the CTU-GLM scheme
+--]]
+
 local class = require 'ext.class'
 local table = require 'ext.table'
 local constants = require 'hydro.constants'
@@ -163,37 +170,13 @@ end
 
 function MHD:initCodeModules()
 	MHD.super.initCodeModules(self)
-	local solver = self.solver
 
-	solver.modules:add{
+	self.solver.modules:add{
 		name = 'roe_t',
 		structs = {self.roeStruct},
+		-- only generated for cl, not for ffi cdef
+		headercode = 'typedef '..self.roe_t..' roe_t;',
 	}
-	
-	for moduleName, depends in pairs{
-		['eqn.common'] = {},
-		['primFromCons'] = {},
-		['consFromPrim'] = {},
-		['apply_dU_dW'] = {},
-		['apply_dW_dU'] = {},
-		['cons_rotateFrom'] = {},
-		['cons_rotateTo'] = {},
-		['calcCellMinMaxEigenvalues'] = {},
-		['calcRoeValues'] = {},
-		['fluxFromCons'] = {},
-		['eigen_forRoeAvgs'] = {},	
-		['eigen_forInterface'] = {},
-		['eigen_forCell'] = {},
-		['eigen_left/rightTransform'] = {},
-		['eigen_fluxTransform'] = {},
-		['addSource'] = {},
-		['constrainU'] = {},
-	} do
-		self:addModuleFromSourceFile{
-			name = moduleName,
-			depends = depends,
-		}
-	end
 end
 
 -- don't use default

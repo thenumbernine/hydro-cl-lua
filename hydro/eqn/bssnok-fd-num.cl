@@ -30,17 +30,21 @@ local useKreissOligarDissipation = true
 local Tensor = require 'symmath.Tensor'
 ?>
 
+//// MODULE_NAME: eqn.common
+// only here to appease eqn/bssnok-fd.lua whose calcDT module adds eqn.common, which exists in its other subclasses
+//// MODULE_NAME: eqn.macros
 
 //do I have these defined somewhere else?
 #define numberof(x)	(sizeof(x)/sizeof(x[0]))
 #define endof(x)	((x) + numberof(x))
 
-<? if moduleName == nil then ?>
-<? elseif moduleName == "calc_partial_det_gammaHat_l" then ?>
+//// MODULE_NAME: calc_partial_det_gammaHat_l
+//// MODULE_DEPENDS: coord_partial_det_g
 
 #define calc_partial_det_gammaHat_l coord_partial_det_g
 
-<? elseif moduleName == "calc_partial_det_gammaHat_L" then ?>
+//// MODULE_NAME: calc_partial_det_gammaHat_L
+//// MODULE_DEPENDS: calc_partial_det_gammaHat_l rescaleFromCoord/rescaleToCoord
 
 real3 calc_partial_det_gammaHat_L(real3 x) {
 	real3 partial_det_gammaHat_l = calc_partial_det_gammaHat_l(x);
@@ -48,11 +52,13 @@ real3 calc_partial_det_gammaHat_L(real3 x) {
 	return partial_det_gammaHat_L;
 }
 
-<? elseif moduleName == "calc_partial2_det_gammaHat_ll" then ?>
+//// MODULE_NAME: calc_partial2_det_gammaHat_ll
+//// MODULE_DEPENDS: coord_partial2_det_g
 
 #define calc_partial2_det_gammaHat_ll coord_partial2_det_g
 
-<? elseif moduleName == "calc_partial2_det_gammaHat_LL" then ?>
+//// MODULE_NAME: calc_partial2_det_gammaHat_LL
+//// MODULE_DEPENDS: calc_partial2_det_gammaHat_ll rescaleFromCoord/rescaleToCoord
 
 sym3 calc_partial2_det_gammaHat_LL(real3 x) {
 	sym3 partial2_det_gammaHat_ll = calc_partial2_det_gammaHat_ll(x);
@@ -60,13 +66,14 @@ sym3 calc_partial2_det_gammaHat_LL(real3 x) {
 	return partial2_det_gammaHat_LL;
 }
 
-<? elseif moduleName == "calc_len_#" then ?>
+//// MODULE_NAME: calc_len_#
+//// MODULE_DEPENDS: coord_dx#
 
 <? for i,xi in ipairs(xNames) do
 ?>#define calc_len_<?=xi?>	coord_dx<?=i-1?>
 <? end ?>
 
-<? elseif moduleName == "calc_partial*_len*" then ?>
+//// MODULE_NAME: calc_partial*_len*
 
 /*
 e_i^I = delta_i^I f_i is a diagonal matrix with f_i indexed function.  for spherical, f_i = diag(1,r,r sin(theta))
@@ -106,29 +113,29 @@ for i,xi in ipairs(xNames) do
 end
 ?>
 
-<? elseif moduleName == "eqn.common" then ?>
-
-<? elseif moduleName == "cplx3_add5" then ?>
+//// MODULE_NAME: cplx3_add5
+//// MODULE_DEPENDS: cplx3
 
 #define cplx3_add5(a,b,c,d,e)	cplx3_add(cplx3_add(a,b),cplx3_add3(c,d,e))
 
-<? elseif moduleName == "real3_add5" then ?>
+//// MODULE_NAME: real3_add5
 
 #define real3_add5(a,b,c,d,e)	real3_add(real3_add(a,b),real3_add3(c,d,e))
 
-<? elseif moduleName == "real3_add6" then ?>
+//// MODULE_NAME: real3_add6
 
 #define real3_add6(a,b,c,d,e,f)	real3_add(real3_add3(a,b,c),real3_add3(d,e,f))
 	
-<? elseif moduleName == "sym3_add3" then ?>
+//// MODULE_NAME: sym3_add3
 
 #define sym3_add3(a,b,c)	sym3_add(sym3_add(a,b),c)
 
-<? elseif moduleName == "sym3_add4" then ?>
+//// MODULE_NAME: sym3_add4
 
 #define sym3_add4(a,b,c,d)	sym3_add(sym3_add(a,b),sym3_add(c,d))	
 
-<? elseif moduleName == "real3x3_partial_rescaleFromCoord_Ul" then ?>
+//// MODULE_NAME: real3x3_partial_rescaleFromCoord_Ul
+//// MODULE_DEPENDS: calc_len_# calc_partial*_len*
 
 /*
 derivative index of the result is last
@@ -154,7 +161,8 @@ end ?>
 	return partial_T_UL;
 }
 
-<? elseif moduleName == "real3x3_partial_rescaleToCoord_Ul" then ?>
+//// MODULE_NAME: real3x3_partial_rescaleToCoord_Ul
+//// MODULE_DEPENDS: calc_len_# calc_partial*_len*
 
 /*
 derivative index of result is last 
@@ -180,7 +188,8 @@ end
 ?>	return partial_T_ul;
 }
 
-<? elseif moduleName == "cplx3x3_partial_rescaleFromCoord_Ll" then ?>
+//// MODULE_NAME: cplx3x3_partial_rescaleFromCoord_Ll
+//// MODULE_DEPENDS: calc_len_# calc_partial*_len*
 
 /*
 This is breaking my old conventions too
@@ -214,7 +223,8 @@ end
 ?>	return partial_T_LL;
 }
 
-<? elseif moduleName == "real3x3_partial_rescaleFromCoord_Ll" then ?>
+//// MODULE_NAME: real3x3_partial_rescaleFromCoord_Ll
+//// MODULE_DEPENDS: calc_len_# calc_partial*_len*
 
 /*
 derivative index is last
@@ -236,7 +246,7 @@ end ?>
 	return partial_T_LL;
 }
 
-<? elseif moduleName == "calc_partial_connHat_Ulll_*" then ?>
+//// MODULE_NAME: calc_partial_connHat_Ulll_*
 
 //calc_partial_connHat_Ulll_ijkl := e_i^I connHat^i_jk,l
 <? 
@@ -254,7 +264,7 @@ for i,xi in ipairs(xNames) do
 end
 ?>
 
-<? elseif moduleName == "calc_partial*_det_gammaHat_over_det_gammaHat_*" then ?>
+//// MODULE_NAME: calc_partial*_det_gammaHat_over_det_gammaHat_*
 
 <?
 local det_gammaHat = coord.det_g 
@@ -291,13 +301,8 @@ end
 ?>	return partial2_det_gammaHat_over_det_gammaHat_LL;
 }
 
-<? elseif moduleName == "calc_partial_ABar_LLL" then 
-depmod{
-	"calc_len_#",
-	"calc_partial*_len*",
-	"calc_PIRK_L2_ABar_LL",
-}
-?>
+//// MODULE_NAME: calc_partial_ABar_LLL
+//// MODULE_DEPENDS: calc_len_# calc_partial*_len* calc_PIRK_L2_ABar_LL
 
 static _3sym3 calc_partial_ABar_LLL(
 	real3 x,
@@ -324,7 +329,8 @@ end
 ?>	return partial_ABar_LLL;
 }
 
-<? elseif moduleName == "calc_partial_gammaBar_LLL" then ?>
+//// MODULE_NAME: calc_partial_gammaBar_LLL
+//// MODULE_DEPENDS: calc_partial*_len* calc_len_#
 
 static _3sym3 calc_partial_gammaBar_LLL(
 	real3 x,
@@ -351,7 +357,8 @@ end
 ?>	return partial_gammaBar_LLL;
 }
 
-<? elseif moduleName == "calc_connHat_LLL_and_ULL" then ?>
+//// MODULE_NAME: calc_connHat_LLL_and_ULL
+//// MODULE_DEPENDS: calc_partial*_len* calc_len_#
 
 static void calc_connHat_LLL_and_ULL(
 	_3sym3* connHat_LLL,
@@ -410,7 +417,7 @@ end
 	*connHat_ULL = *connHat_LLL;
 }
 
-<? elseif moduleName == "calc_connBar_ULL" then ?>
+//// MODULE_NAME: calc_connBar_ULL
 
 static _3sym3 calc_connBar_ULL(
 	_3sym3 partial_gammaBar_LLL,
@@ -435,11 +442,8 @@ end
 	return connBar_ULL;
 }
 
-<? elseif moduleName == "calc_trBar_partial2_gammaBar_ll" then 
-depmod{
-	"rescaleFromCoord/rescaleToCoord",
-}
-?>
+//// MODULE_NAME: calc_trBar_partial2_gammaBar_ll
+//// MODULE_DEPENDS: rescaleFromCoord/rescaleToCoord
 
 static sym3 calc_trBar_partial2_gammaBar_ll(
 	const global <?=eqn.cons_t?>* U,
@@ -490,11 +494,20 @@ static sym3 calc_trBar_partial2_gammaBar_ll(
 	return trBar_partial2_gammaBar_ll;
 }
 
-<? elseif moduleName == "applyInitCond" then 
+//// MODULE_NAME: applyInitCond
+//// MODULE_DEPENDS: _3sym3 coordMap calc_gammaHat_ll<?
+-- only initAnalytical or default (not useBSSNVars) need rescaling
+if eqn.initCond.initAnalytical or not eqn.initCond.useBSSNVars then
+?> rescaleFromCoord/rescaleToCoord<?
+end
+if eqn.initCond.initAnalytical then
+?> _3sym3_rescaleFromCoord/_3sym3_rescaleToCoord<?
+end
+?> calc_gammaBar_LL calc_det_gammaBar calc_det_gammaBarLL calc_partial_gammaBar_LLL calc_connBar_ULL calc_connHat_LLL_and_ULL
+//calc_gammaBar_LL is only used in the initDerivs ... should I allow multiple MODULE_DEPENDS to be inserted? maybe ...
 
--- Should initCond provide a metric in cartesian, or in the background metric?
--- I'll say Cartesian for now, and then transform them using the rescaling.
-?>
+// Should initCond provide a metric in cartesian, or in the background metric?
+// I'll say Cartesian for now, and then transform them using the rescaling.
 
 <?
 -- look for symmath expressions instead of code
@@ -847,11 +860,8 @@ kernel void initDerivs(
 
 <? end -- initCond.initAnalytical or initCond.useBSSNVars ?>
 
-<? elseif moduleName == "calc_RBar_LL" then 
-depmod{
-	"rescaleFromCoord/rescaleToCoord",
-}
-?>
+//// MODULE_NAME: calc_RBar_LL
+//// MODULE_DEPENDS: rescaleFromCoord/rescaleToCoord calc_partial_connHat_Ulll_* calc_len_# _3sym3_rescaleFromCoord/_3sym3_rescaleToCoord
 
 static sym3 calc_RBar_LL(
 	const global <?=eqn.cons_t?>* U,
@@ -1078,7 +1088,8 @@ end
 ?>	return RBar_LL;
 }
 
-<? elseif moduleName == "applyKreissOligar" then ?>
+//// MODULE_NAME: applyKreissOligar
+//// MODULE_DEPENDS: coordMapR eqn.macros
 
 //////////////////////////////// Kreiss-Oligar dissipation //////////////////////////////// 
 
@@ -1156,7 +1167,7 @@ static void applyKreissOligar(
 <? end	-- useKreissOligarDissipation ?>
 }
 
-<? elseif moduleName == "tracefree" then ?>
+//// MODULE_NAME: tracefree
 
 /*
 TF(K_ij) = K_ij - 1/3 gamma_ij gamma^kl K_kl
@@ -1183,7 +1194,7 @@ sym3 tracefree(sym3 A_ll, sym3 g_ll, sym3 g_uu) {
 	return sym3_sub(A_ll, sym3_real_mul(g_ll, tr_A / 3.));
 }
 
-<? elseif moduleName == "getUpwind" then ?>
+//// MODULE_NAME: getUpwind
 
 /*
 Returns the step coefficients, [+-1, +-1, +-1]
@@ -1200,7 +1211,7 @@ const int4 getUpwind(real3 v) {
 	);
 }
 
-<? elseif moduleName == "from3x3to6" then ?>
+//// MODULE_NAME: from3x3to6
 
 //ok I have this in lua code for inline codegen, but here it is in C code, while debugging:
 int from3x3to6(int i, int j) {
@@ -1209,7 +1220,8 @@ int from3x3to6(int i, int j) {
 	return maxij + minij + (minij > 1);
 }
 
-<? elseif moduleName == "sym3_Lbeta_LL" then ?>
+//// MODULE_NAME: sym3_Lbeta_LL
+//// MODULE_DEPENDS: from3x3to6
 
 static sym3 sym3_Lbeta_LL(
 	sym3 T_LL,					//T_LL.ij = T_ij
@@ -1243,7 +1255,8 @@ static sym3 sym3_Lbeta_LL(
 	return Lbeta_T_LL;
 }
 
-<? elseif moduleName == "calcDeriv_epsilon_LL" then ?>
+//// MODULE_NAME: calcDeriv_epsilon_LL
+//// MODULE_DEPENDS: sym3_add4 sym3_Lbeta_LL calc_partial_gammaBar_LLL
 
 //////////////////////////////// epsilon_IJ_,t //////////////////////////////// 
 
@@ -1306,7 +1319,8 @@ Lbeta:	+ beta^k ∂up_k(gammaBar_ij)
 
 
 
-<? elseif moduleName == "calcDeriv_W" then ?>
+//// MODULE_NAME: calcDeriv_W
+//// MODULE_DEPENDS: rescaleFromCoord/rescaleToCoord
 
 //////////////////////////////// W_,t //////////////////////////////// 
 
@@ -1333,12 +1347,8 @@ static void calcDeriv_W(
 	deriv->W += L2_W + Lbeta_W;
 }
 
-<? elseif moduleName == "calc_PIRK_L2_ABar_LL" then 
-depmod{
-	"sym3_add4",
-	"rescaleFromCoord/rescaleToCoord",
-}
-?>
+//// MODULE_NAME: calc_PIRK_L2_ABar_LL
+//// MODULE_DEPENDS: sym3_add4 rescaleFromCoord/rescaleToCoord real3x3_partial_rescaleFromCoord_Ul calc_RBar_LL tracefree sym3_add3 calc_trBar_partial2_gammaBar_ll
 
 //////////////////////////////// A_IJ,t //////////////////////////////// 
 
@@ -1446,7 +1456,7 @@ static sym3 calc_PIRK_L2_ABar_LL(
 }
 
 
-<? elseif moduleName == "calc_PIRK_L2_K" then ?>
+//// MODULE_NAME: calc_PIRK_L2_K
 
 //////////////////////////////// K_,t //////////////////////////////// 
 
@@ -1477,7 +1487,7 @@ static real calc_PIRK_L2_K(
 	;
 }
 
-<? elseif moduleName == "calc_PIRK_L3_ABar_LL" then ?>
+//// MODULE_NAME: calc_PIRK_L3_ABar_LL
 
 // NOTICE - all my PIRK_L3 functions DO NOT contribute Lbeta
 static sym3 calc_PIRK_L3_ABar_LL(
@@ -1495,7 +1505,7 @@ static sym3 calc_PIRK_L3_ABar_LL(
 	return L3_ABar_LL;
 }
 
-<? elseif moduleName == "calc_PIRK_L3_K" then ?>
+//// MODULE_NAME: calc_PIRK_L3_K
 
 // NOTICE - all my PIRK_L3 functions DO NOT contribute Lbeta
 static real calc_PIRK_L3_K(
@@ -1511,13 +1521,8 @@ static real calc_PIRK_L3_K(
 	;
 }
 
-<? elseif moduleName == "calc_PIRK_L2_LambdaBar_U" then 
-depmod{
-	"real3x3x3",
-	"calc_partial_connHat_Ulll_*",
-	"sym3_add3",
-}
-?>
+//// MODULE_NAME: calc_PIRK_L2_LambdaBar_U
+//// MODULE_DEPENDS: real3x3x3 calc_partial_connHat_Ulll_* sym3_add3 calc_det_gammaHat calc_partial_det_gammaHat_L calc_partial2_det_gammaHat_LL real3_add6
 
 //////////////////////////////// LambdaBar^I_,t //////////////////////////////// 
 
@@ -1716,7 +1721,7 @@ L2 Lambda^I =
 	return L2_LambdaBar_U;
 }
 
-<? elseif moduleName == "calc_PIRK_L3_LambdaBar_U" then ?>
+//// MODULE_NAME: calc_PIRK_L3_LambdaBar_U
 
 // NOTICE - all my PIRK_L3 functions DO NOT contribute Lbeta
 static real3 calc_PIRK_L3_LambdaBar_U(
@@ -1728,11 +1733,8 @@ static real3 calc_PIRK_L3_LambdaBar_U(
 	return L3_LambdaBar_U;
 }
 
-<? elseif moduleName == "calc_dt_LambdaBar_U_wo_partial_upwind_beta_LambdaBar" then 
-depmod{
-	"real3x3_partial_rescaleFromCoord_Ul",
-}
-?>
+//// MODULE_NAME: calc_dt_LambdaBar_U_wo_partial_upwind_beta_LambdaBar
+//// MODULE_DEPENDS: real3x3_partial_rescaleFromCoord_Ul calc_PIRK_L3_LambdaBar_U
 
 //another name for this could be d0_LambdaBar_U (2017 Ruchlin, eqn 15)
 static real3 calc_dt_LambdaBar_U_wo_partial_upwind_beta_LambdaBar(
@@ -1831,7 +1833,7 @@ source:	- 16 pi alpha S^I / W^2
 	return dt_LambdaBar_U_wo_partial_upwind_beta_LambdaBar;
 }
 
-<? elseif moduleName == "calc_PIRK_L2_B_U" then ?>
+//// MODULE_NAME: calc_PIRK_L2_B_U
 
 //////////////////////////////// B^I_,t //////////////////////////////// 
 
@@ -1845,7 +1847,7 @@ static real3 calc_PIRK_L2_B_U(
 	);
 }
 
-<? elseif moduleName == "calc_PIRK_L3_B_U" then ?>
+//// MODULE_NAME: calc_PIRK_L3_B_U
 
 // NOTICE - all my PIRK_L3 functions DO NOT contribute Lbeta
 static real3 calc_PIRK_L3_B_U(
@@ -1855,11 +1857,8 @@ static real3 calc_PIRK_L3_B_U(
 	return real3_real_mul(U->B_U, -solver->dt_beta_U_eta);
 }
 
-<? elseif moduleName == "calcDeriv_K" then 
-depmod{
-	"calc_PIRK_L2_K",
-}
-?>
+//// MODULE_NAME: calcDeriv_K
+//// MODULE_DEPENDS: calc_PIRK_L2_K calc_PIRK_L3_K
 
 static void calcDeriv_K(
 	constant solver_t* solver,
@@ -1926,7 +1925,8 @@ source:	+ 4 pi alpha (rho + S)
 		+ 4. * M_PI * U->alpha * (U->rho + S);
 }
 
-<? elseif moduleName == "calcDeriv_ABar_LL" then ?>
+//// MODULE_NAME: calcDeriv_ABar_LL
+//// MODULE_DEPENDS: calc_partial_ABar_LLL sym3_Lbeta_LL calc_PIRK_L3_ABar_LL
 
 static void calcDeriv_ABar_LL(
 	constant solver_t* solver,
@@ -2009,7 +2009,9 @@ Lbeta:	+ beta^k_,i ABar_jk
 	);
 }
 
-<? elseif moduleName == "calcDeriv_Phi" then ?>
+<? if eqn.useScalarField then ?>
+
+//// MODULE_NAME: calcDeriv_Phi
 
 //////////////////////////////// Phi_,t, Psi_I,t //////////////////////////////// 
 
@@ -2033,7 +2035,7 @@ static void calcDeriv_Phi(
 	);
 }
 
-<? elseif moduleName == "calcDeriv_Psi" then ?>
+//// MODULE_NAME: calcDeriv_Psi
 
 static void calcDeriv_Psi(
 	constant solver_t* solver,
@@ -2060,7 +2062,7 @@ static void calcDeriv_Psi(
 		cplx3_real3x3_mul(U->Psi_l, partial_beta_ul));
 }
 
-<? elseif moduleName == "calcDeriv_Pi" then ?>
+//// MODULE_NAME: calcDeriv_Pi
 
 static void calcDeriv_Pi(
 	constant solver_t* solver,
@@ -2171,16 +2173,24 @@ static void calcDeriv_Pi(
 	);
 }
 
-<? elseif moduleName == "calcDeriv" then 
-depmod{
-	"calc_det_gammaBarLL",
-	"calc_gammaBar_LL",
-	"calc_exp_neg4phi",
-	"calcDeriv_ABar_LL",
-	"solver.macros",	-- numIntStates
-	"mystery_C_U",
-}
+<? end	-- eqn.useScalarField ?>
+
+//// MODULE_NAME: calcDeriv
+//// MODULE_DEPENDS: calc_det_gammaBarLL calc_gammaBar_LL calc_exp_neg4phi calcDeriv_ABar_LL solver.macros mystery_C_U calcDeriv_ABar_LL initCond.codeprefix applyKreissOligar getUpwind from3x3to6 calc_partial*_det_gammaHat_over_det_gammaHat_* calc_connHat_LLL_and_ULL calc_connBar_ULL calcDeriv_epsilon_LL calcDeriv_W calc_PIRK_L2_LambdaBar_U calc_dt_LambdaBar_U_wo_partial_upwind_beta_LambdaBar calc_PIRK_L2_B_U calc_PIRK_L3_B_U calcDeriv_K calc_partial_gammaBar_LLL tracefree calc_RBar_LL calc_len_# calc_trBar_partial2_gammaBar_ll real3x3_partial_rescaleFromCoord_Ul eqn.macros<?
+if eqn.useScalarField then
+?> calcDeriv_Phi calcDeriv_Psi calcDeriv_Pi<? 
+end
 ?>
+/*
+-- calcDeriv_epsilon_LL:
+	'calc_partial_gammaBar_LLL',
+-- calc_PIRK_L2_ABar_LL:
+	'tracefree',
+	'calc_RBar_LL',
+	'calc_len_#',
+	'calc_trBar_partial2_gammaBar_ll',
+	'real3x3_partial_rescaleFromCoord_Ul',
+*/
 
 //TODO if we're calculating the constrains in the derivative
 // then we do save calculations / memory on the equations
@@ -2642,12 +2652,8 @@ or even the ∂_0 ΛBar^i then we can re-add the needed terms later
 <? end 	-- useCalcDeriv ?>
 }
 
-<? elseif moduleName == "constrainU" then 
-depmod{
-	"mystery_C_U",
-	"calc_partial_ABar_LLL",
-}
-?>
+//// MODULE_NAME: constrainU
+//// MODULE_DEPENDS: mystery_C_U calc_partial_ABar_LLL tracefree calc_RBar_LL
 
 kernel void constrainU(
 	constant solver_t* solver,
@@ -2941,14 +2947,8 @@ for ij,xij in ipairs(symNames) do
 <? end	-- useConstrainU ?>
 }
 
-<? elseif moduleName == "addSource" then 
-depmod{
-	"solver_t",
-	"cons_t",
-	"cell_t",
-	"SETBOUNDS_NOGHOST",
-}
-?>
+//// MODULE_NAME: addSource
+//// MODULE_DEPENDS: solver_t cons_t cell_t SETBOUNDS_NOGHOST initCond.codeprefix
 
 //TODO combine with calcDeriv
 kernel void addSource(
@@ -3026,7 +3026,40 @@ kernel void addSource(
 <? end -- useAddSource ?>
 }
 
-<? elseif moduleName == "BSSNOK-PIRK" then ?>
+//// MODULE_NAME: BSSNOK-PIRK
+//// MODULE_DEPENDS: initCond.codeprefix getUpwind calc_partial*_det_gammaHat_over_det_gammaHat_* calc_det_gammaBarLL real3x3_partial_rescaleFromCoord_Ul calc_gammaBar_LL calcDeriv_epsilon_LL calcDeriv_W applyKreissOligar calc_connBar_ULL calc_connHat_LLL_and_ULL mystery_C_U calc_PIRK_L2_ABar_LL calc_PIRK_L2_K sym3_Lbeta_LL calc_PIRK_L3_ABar_LL calc_PIRK_L3_K calc_partial_ABar_LLL calc_PIRK_L2_LambdaBar_U calc_PIRK_L3_LambdaBar_U calc_PIRK_L2_B_U calc_dt_LambdaBar_U_wo_partial_upwind_beta_LambdaBar calc_PIRK_L3_B_U
+/*
+-- calcDeriv_PIRK_L1_EpsilonWAlphaBeta:
+'initCond.codeprefix',	-- calc_*
+'getUpwind',
+'calc_partial*_det_gammaHat_over_det_gammaHat_*',
+'calc_det_gammaBarLL',
+'real3x3_partial_rescaleFromCoord_Ul',
+'calc_gammaBar_LL',
+'calcDeriv_epsilon_LL',
+'calcDeriv_W',
+'applyKreissOligar',
+-- calcDeriv_PIRK_L2_ABarK:
+'calc_connBar_ULL',
+'calc_connHat_LLL_and_ULL',
+'mystery_C_U',
+'calc_PIRK_L2_ABar_LL',
+'calc_PIRK_L2_K',
+-- calcDeriv_PIRK_L3_ABarK:
+'sym3_Lbeta_LL',
+'calc_PIRK_L3_ABar_LL',
+'calc_PIRK_L3_K',
+'calc_partial_ABar_LLL',
+-- calcDeriv_PIRK_L2_LambdaBar:
+'calc_PIRK_L2_LambdaBar_U',
+-- calcDeriv_PIRK_L3_LambdaBar:
+'calc_PIRK_L3_LambdaBar_U',
+-- calcDeriv_PIRK_L2_B:
+'calc_PIRK_L2_B_U',
+'calc_dt_LambdaBar_U_wo_partial_upwind_beta_LambdaBar',
+-- calcDeriv_PIRK_L3_B:
+'calc_PIRK_L3_B_U',
+*/
 
 kernel void copyWAlphaBeta(
 	constant solver_t* solver,
@@ -3891,9 +3924,3 @@ kernel void PIRK_Eq4_B(
 
 	PIRK_EQ4(real3, B_U);
 }
-
-<? 
-else
-	error("unknown moduleName "..require 'ext.tolua'(moduleName))
-end 
-?>

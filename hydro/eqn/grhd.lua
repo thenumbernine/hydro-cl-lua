@@ -1,5 +1,5 @@
 --[[
-Font 2008
+2008 Font "Numerical Hydrodynamics and Magnetohydrodynamics in General Relativity"
 similar to SRHD except using a metric based on a metric of alpha, beta, gamma
 which needs to be provided externally from another solver (via gr-hd-separate-behavior)
 --]]
@@ -92,27 +92,6 @@ function GRHD:createInitState()
 		{name='tauMin', value=double and 1e-15 or 1e-7},
 		{name='tauMax', value=1e+20},
 	}
-end
-
-function GRHD:initCodeModules()
-	GRHD.super.initCodeModules(self)
-
-	for moduleName, depends in pairs{
-		['eqn.common'] = {},
-		['calcDT'] = {},
-		['fluxFromCons'] = {},
-		['eigen_forCell'] = {},
-		['calcEigenBasis'] = {},
-		['eigen_left/rightTransform'] = {},
-		['eigen_fluxTransform'] = {},
-		['addSource'] = {},
-		['constrainU'] = {},
-	} do
-		self:addModuleFromSourceFile{
-			name = moduleName,
-			depends = depends,
-		}
-	end
 end
 
 -- don't use default 

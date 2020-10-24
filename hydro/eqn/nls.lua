@@ -68,19 +68,6 @@ NLSEqn.predefinedDisplayVars = {
 	'U q arg',
 }
 
-function NLSEqn:initCodeModules()
-	NLSEqn.super.initCodeModules(self)
-	for moduleName, depends in pairs{
-		['calcDT'] = {},
-		['addSource'] = {},
-	} do
-		self:addModuleFromSourceFile{
-			name = moduleName,
-			depends = depends,
-		}
-	end
-end
-
 -- don't use default
 function NLSEqn:initCodeModule_calcDT() end
 

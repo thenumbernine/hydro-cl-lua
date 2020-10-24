@@ -1,13 +1,5 @@
-//TODO I have the templated types so I can mix solver code.  In such a case, these typedefs shouldn't go in the getCommonCode.
-typedef <?=eqn.cons_t?> cons_t;
-typedef <?=solver.solver_t?> solver_t;
-
-<? if moduleName == nil then ?>
-<? elseif moduleName == "eqn.common" then 
-depmod{
-	"real3x3",
-}
-?>
+//// MODULE_NAME: eqn.common
+//// MODULE_DEPENDS: real3x3
 
 /*
 background metric ADM decomposition
@@ -64,16 +56,9 @@ real3x3 metric_partial_beta_ul(real3 pt) {
 ?>	};
 }
 
-<? elseif moduleName == "applyInitCond" then 
-depmod{
-	"cartesianToCoord",
-}
-?>
+//// MODULE_NAME: applyInitCond
+//// MODULE_DEPENDS: cartesianToCoord
 
-<?
-local scalar = eqn.scalar
-local vec3 = eqn.vec3
-?>
 kernel void applyInitCond(
 	constant <?=solver.solver_t?>* solver,
 	constant <?=solver.initCond_t?>* initCond,
@@ -110,14 +95,9 @@ end
 	};
 }
 
-<? elseif moduleName == "fluxFromCons" then 
-depmod{
-	"solver_t",
-	"normal_t",
-	"cons_t",
-	"eqn.common",	-- metric_alpha
-}
-?>
+//// MODULE_NAME: fluxFromCons
+//// MODULE_DEPENDS: solver_t normal_t cons_t eqn.common
+// eqn.common has metric_alpha
 
 // What's the difference between eigen_fluxTransform and fluxFromCons?
 // The difference is that the flux matrix of this is based on 'eig', which is derived from U's ... especially UL & UR in the case of the Roe solver
@@ -185,7 +165,7 @@ depmod{
 	return F;
 }
 
-<? elseif moduleName == "calcCellMinMaxEigenvalues" then ?>
+//// MODULE_NAME: calcCellMinMaxEigenvalues
 
 // used by PLM
 range_t calcCellMinMaxEigenvalues(
@@ -202,33 +182,18 @@ range_t calcCellMinMaxEigenvalues(
 	};
 }
 
-<? elseif moduleName == "eigen_forInterface" then 
-depmod{
-	"eigen_t",
-}
-?>
+//// MODULE_NAME: eigen_forInterface
+//// MODULE_DEPENDS: eigen_t
 
-typedef <?=eqn.eigen_t?> eigen_t;
 #define eigen_forInterface(solver, UL, UR, x, n) ((eigen_t){})
 
-<? elseif moduleName == "eigen_forCell" then 
-depmod{
-	"eigen_t",
-}
-?>
+//// MODULE_NAME: eigen_forCell
+//// MODULE_DEPENDS: eigen_t
 
-typedef <?=eqn.eigen_t?> eigen_t;
 #define eigen_forCell(solver, U, x, n) ((eigen_t){})
 
-<? elseif moduleName == "eigen_left/rightTransform" then 
-depmod{
-	"eigen_t",
-	"waves_t",
-}
-?>
-
-typedef <?=eqn.eigen_t?> eigen_t;
-typedef <?=eqn.waves_t?> waves_t;
+//// MODULE_NAME: eigen_left/rightTransform
+//// MODULE_DEPENDS: eigen_t waves_t
 
 waves_t eigen_leftTransform(
 	constant solver_t* solver,
@@ -297,13 +262,13 @@ cons_t eigen_rightTransform(
 	return Y;
 }
 
-<? elseif moduleName == "eigen_fluxTransform" then ?>
+//// MODULE_NAME: eigen_fluxTransform
 
 // by default in hydro/eqn/eqn.lua, fluxFromCons is defined by eigen_fluxTransform
 // but since eig is empty, we can define eigen_fluxTransform with fluxFromCons
 #define eigen_fluxTransform(solver, eig, X, x, n) fluxFromCons(solver, X, x, n)
 
-<? elseif moduleName == "addSource" then ?>
+//// MODULE_NAME: addSource
 
 kernel void addSource(
 	constant solver_t* solver,
@@ -346,9 +311,3 @@ kernel void addSource(
 	);
 #endif
 }
-
-<? 
-else
-	error("unknown moduleName "..require 'ext.tolua'(moduleName))
-end 
-?>

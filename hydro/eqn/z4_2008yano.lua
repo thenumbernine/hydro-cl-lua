@@ -21,31 +21,38 @@ local sym = common.sym
 local Z4_2008Yano = class(EinsteinEqn)
 Z4_2008Yano.name = 'Z4 (2008 Yano et al)'
 
-local fluxVars = table{
-	{name='a_l', type='real3'},		-- 3:  0-2
-	{name='d_lll', type='_3sym3'},	-- 18: 3-20
-	{name='K_ll', type='sym3'},		-- 6:  21-26
-	{name='Theta', type='real'},	-- 1:  27
-	{name='Z_l', type='real3'},		-- 3:  28-30
-}
-
-Z4_2008Yano.consVars = table{
-	{name='alpha', type='real'},
-	{name='gamma_ll', type='sym3'},
-}:append(fluxVars)
-
-Z4_2008Yano.numWaves = Struct.countScalars{vars=fluxVars}
-assert(Z4_2008Yano.numWaves == 31)
-	
-Z4_2008Yano.numIntStates = Struct.countScalars{vars=Z4_2008Yano.consVars}
-
-Z4_2008Yano.consVars:append{
-	--constraints:              
-	{name='H', type='real'},				--1
-	{name='M_u', type='real3'},				--3
-}
-
 Z4_2008Yano.useSourceTerm = true
+
+function Z4_2008Yano:init(args)
+	
+	local fluxVars = table{
+		{name='a_l', type='real3'},		-- 3:  0-2
+		{name='d_lll', type='_3sym3'},	-- 18: 3-20
+		{name='K_ll', type='sym3'},		-- 6:  21-26
+		{name='Theta', type='real'},	-- 1:  27
+		{name='Z_l', type='real3'},		-- 3:  28-30
+	}
+
+	self.consVars = table{
+		{name='alpha', type='real'},
+		{name='gamma_ll', type='sym3'},
+	}:append(fluxVars)
+	
+	self:cdefAllVarTypes(args.solver, self.consVars)	-- have to call before countScalars in eqn:init
+
+	self.numWaves = Struct.countScalars{vars=fluxVars}
+	assert(self.numWaves == 31)
+		
+	self.numIntStates = Struct.countScalars{vars=self.consVars}
+
+	self.consVars:append{
+		--constraints:              
+		{name='H', type='real'},				--1
+		{name='M_u', type='real3'},				--3
+	}
+
+	Z4_2008Yano.super.init(self, args)
+end
 
 function Z4_2008Yano:createInitState()
 	Z4_2008Yano.super.createInitState(self)
@@ -54,21 +61,28 @@ end
 
 function Z4_2008Yano:initCodeModules()
 	Z4_2008Yano.super.initCodeModules(self)
+	local solver = self.solver
 
-	for moduleName, depends in pairs{
-		['calcDT'] = {},
-		['eigen_forCell'] = {},
-		['calcCellMinMaxEigenvalues'] = {},
-		['eigen_forInterface'] = {},
-		['eigen_left/rightTransform'] = {},
-		['eigen_fluxTransform'] = {},
-		['addSource'] = {},
-	} do
-		self:addModuleFromSourceFile{
-			name = moduleName,
-			depends = depends,
-		}
-	end
+	solver.modules:add{
+		name = 'calc_gamma_ll',
+		code = [[
+#define calc_gamma_ll(U, x)	((U)->gamma_ll)
+]],
+	}
+
+	solver.modules:add{
+		name = 'calc_gamma_uu',
+		depends = {
+			'cons_t',
+		},
+		code = self:template[[
+sym3 calc_gamma_uu(const global <?=eqn.cons_t?>* U, real3 x) {
+	real det_gamma = sym3_det(U->gamma_ll);
+	sym3 gamma_uu = sym3_inv(U->gamma_ll, det_gamma);
+	return gamma_uu;
+}
+]],
+	}
 end
 
 -- don't use default
@@ -135,26 +149,21 @@ Z4_2008Yano.eigenVars = table{
 	{name='sqrt_gammaUjj', type='real3'},
 }
 
-function Z4_2008Yano:eigenWaveCodePrefix(side, eig, x, waveIndex)
+function Z4_2008Yano:eigenWaveCodePrefix(n, eig, x, waveIndex)
 	return template([[
-	<? if side==0 then ?>
-	real eig_lambdaLight = <?=eig?>.alpha * <?=eig?>.sqrt_gammaUjj.x;
-	<? elseif side==1 then ?>
-	real eig_lambdaLight = <?=eig?>.alpha * <?=eig?>.sqrt_gammaUjj.y;
-	<? elseif side==2 then ?>
-	real eig_lambdaLight = <?=eig?>.alpha * <?=eig?>.sqrt_gammaUjj.z;
-	<? end ?>
+	real eig_lambdaLight = <?=eig?>.alpha * <?=eig?>.sqrt_gammaUjj.s[n.side];
 	real eig_lambdaGauge = eig_lambdaLight * <?=eig?>.sqrt_f;
 ]], {
 		eig = '('..eig..')',
 		side = side,
+		n = n,
 	})
 end
 
-function Z4_2008Yano:eigenWaveCode(side, eig, x, waveIndex)
+function Z4_2008Yano:eigenWaveCode(n, eig, x, waveIndex)
 	local betaUi
 	if self.useShift then
-		betaUi = '('..eig..').beta_u.'..xNames[side+1]
+		betaUi = '('..eig..').beta_u.s[n.side]'
 	else
 		betaUi = '0'
 	end
@@ -173,22 +182,23 @@ function Z4_2008Yano:eigenWaveCode(side, eig, x, waveIndex)
 	error'got a bad waveIndex'
 end
 
-function Z4_2008Yano:consWaveCodePrefix(side, U, x, waveIndex)
+function Z4_2008Yano:consWaveCodePrefix(n, U, x, waveIndex)
 	return template([[
 	real det_gamma = sym3_det(<?=U?>.gamma_ll);
 	sym3 gamma_uu = sym3_inv(<?=U?>.gamma_ll, det_gamma);
-	<? if side==0 then ?>
-	real eig_lambdaLight = <?=U?>.alpha * sqrt(gamma_uu.xx);
-	<? elseif side==1 then ?>                          
-	real eig_lambdaLight = <?=U?>.alpha * sqrt(gamma_uu.yy);
-	<? elseif side==2 then ?>                          
-	real eig_lambdaLight = <?=U?>.alpha * sqrt(gamma_uu.zz);
-	<? end ?>
+	real eig_lambdaLight;
+	if (n.side == 0) {
+		eig_lambdaLight = <?=U?>.alpha * sqrt(gamma_uu.xx);
+	} else if (n.side == 1) {
+		eig_lambdaLight = <?=U?>.alpha * sqrt(gamma_uu.yy);
+	} else if (n.side == 2) {
+		eig_lambdaLight = <?=U?>.alpha * sqrt(gamma_uu.zz);
+	}
 	real f = calc_f(<?=U?>.alpha);
 	real eig_lambdaGauge = eig_lambdaLight * sqrt(f);
 ]], {
 		U = '('..U..')',
-		side = side,
+		n = n,
 	})
 end
 Z4_2008Yano.consWaveCode = Z4_2008Yano.eigenWaveCode

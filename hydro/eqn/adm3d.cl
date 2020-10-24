@@ -1,16 +1,9 @@
-typedef <?=eqn.cons_t?> cons_t;
-typedef <?=solver.solver_t?> solver_t;
-
-<? if moduleName == nil then ?>
-<? elseif moduleName == "calc_gamma_ll" then ?>
+//// MODULE_NAME: calc_gamma_ll
 
 #define calc_gamma_ll(U, x)	((U)->gamma_ll)
 
-<? elseif moduleName == "calc_gamma_uu" then 
-depmod{
-	"cons_t",
-}
-?>
+//// MODULE_NAME: calc_gamma_uu
+//// MODULE_DEPENDS: cons_t
 
 sym3 calc_gamma_uu(const global <?=eqn.cons_t?>* U, real3 x) {
 	real det_gamma = sym3_det(U->gamma_ll);
@@ -18,12 +11,8 @@ sym3 calc_gamma_uu(const global <?=eqn.cons_t?>* U, real3 x) {
 	return gamma_uu;
 }
 
-<? elseif moduleName == "setFlatSpace" then 
-depmod{
-	"solver_t",
-	"cons_t",
-}
-?>
+//// MODULE_NAME: setFlatSpace
+//// MODULE_DEPENDS: solver_t cons_t
 
 void setFlatSpace(
 	constant <?=solver.solver_t?>* solver,
@@ -50,13 +39,8 @@ void setFlatSpace(
 	U->M_u = real3_zero;
 }
 
-<? elseif moduleName == "applyInitCond" then 
-depmod{
-	"coordMap",
-	"coord_g_ll",
-	"rescaleFromCoord/rescaleToCoord",
-}
-?>
+//// MODULE_NAME: applyInitCond
+//// MODULE_DEPENDS: coordMap coord_g_ll rescaleFromCoord/rescaleToCoord
 
 <?
 -- eqn.einstein compatability hack ...
@@ -256,16 +240,8 @@ end
 
 
 
-<? elseif moduleName == "fluxFromCons" then 
-depmod{
-	"rotate",
-	"cons_t",
-	"solver_t",
-	"normal_t",
-	"rotate",	-- real3_swap*
-	"initCond.codeprefix",		-- calc_f
-}
-?>
+//// MODULE_NAME: fluxFromCons
+//// MODULE_DEPENDS: rotate cons_t solver_t normal_t rotate initCond.codeprefix
 
 <?=eqn.cons_t?> fluxFromCons(
 	constant <?=solver.solver_t?>* solver,
@@ -329,14 +305,8 @@ depmod{
 	return F;
 }
 
-<? elseif moduleName == "calcDT" then 
-depmod{
-	"solver_t",
-	"SETBOUNDS",
-	"eqn.guiVars.compileTime",
-	"initCond.codeprefix",		-- calc_f
-}
-?>
+//// MODULE_NAME: calcDT
+//// MODULE_DEPENDS: solver_t SETBOUNDS eqn.guiVars.compileTime initCond.codeprefix
 
 kernel void calcDT(
 	constant <?=solver.solver_t?>* solver,
@@ -388,13 +358,8 @@ kernel void calcDT(
 	dtBuf[index] = dt; 
 }
 
-<? elseif moduleName == "eigen_forCell" then 
-depmod{
-	"initCond.codeprefix",		-- calc_f
-}
-?>
-
-typedef <?=eqn.eigen_t?> eigen_t;
+//// MODULE_NAME: eigen_forCell
+//// MODULE_DEPENDS: initCond.codeprefix
 
 //used by PLM
 eigen_t eigen_forCell(
@@ -420,11 +385,8 @@ eigen_t eigen_forCell(
 	return eig;
 }
 
-<? elseif moduleName == "calcCellMinMaxEigenvalues" then 
-depmod{
-	"initCond.codeprefix",		-- calc_f
-}
-?>
+//// MODULE_NAME: calcCellMinMaxEigenvalues
+//// MODULE_DEPENDS: initCond.codeprefix
 
 range_t calcCellMinMaxEigenvalues(
 	const global cons_t* U,
@@ -462,13 +424,8 @@ range_t calcCellMinMaxEigenvalues(
 	};
 }
 
-<? elseif moduleName == "eigen_forInterface" then 
-depmod{
-	"initCond.codeprefix",		-- calc_f
-}
-?>
-
-typedef <?=eqn.eigen_t?> eigen_t;
+//// MODULE_NAME: eigen_forInterface
+//// MODULE_DEPENDS: initCond.codeprefix
 
 //used for interface eigen basis
 eigen_t eigen_forInterface(
@@ -504,10 +461,7 @@ eigen_t eigen_forInterface(
 	return eig;
 }
 
-<? elseif moduleName == "eigen_left/rightTransform" then ?>
-
-typedef <?=eqn.eigen_t?> eigen_t;
-typedef <?=eqn.waves_t?> waves_t;
+//// MODULE_NAME: eigen_left/rightTransform
 
 waves_t eigen_leftTransform(
 	constant solver_t* solver,
@@ -1385,16 +1339,8 @@ cons_t eigen_rightTransform(
 	return resultU;
 }
 
-<? elseif moduleName == "eigen_fluxTransform" then 
-depmod{
-	"eigen_t",
-	"waves_t",
-	"rotate",
-}
-?>
-
-typedef <?=eqn.eigen_t?> eigen_t;
-typedef <?=eqn.waves_t?> waves_t;
+//// MODULE_NAME: eigen_fluxTransform
+//// MODULE_DEPENDS: eigen_t waves_t rotate
 
 cons_t eigen_fluxTransform(
 	constant solver_t* solver,
@@ -1509,12 +1455,8 @@ cons_t eigen_fluxTransform(
 <? end -- noZeroRowsInFlux ?>
 }
 
-<? elseif moduleName == "addSource" then 
-depmod{
-	"initCond.codeprefix",		-- calc_f
-	"real3x3x3",
-}
-?>
+//// MODULE_NAME: addSource
+//// MODULE_DEPENDS: initCond.codeprefix real3x3x3
 
 /*
 this should just be 
@@ -3209,12 +3151,8 @@ end ?>
 	//isn't that just a hack to improve the stability of finite-difference, which diverges by nature?
 }
 
-<? elseif moduleName == "constrainU" then 
-depmod{
-	"real3x3x3",
-	"sym3sym3",
-}
-?>
+//// MODULE_NAME: constrainU
+//// MODULE_DEPENDS: real3x3x3 sym3sym3
 
 kernel void constrainU(
 	constant solver_t* solver,
@@ -3443,9 +3381,3 @@ end ?>;
 ?>
 
 }
-
-<? 
-else
-	error("unknown moduleName "..require 'ext.tolua'(moduleName))
-end 
-?>

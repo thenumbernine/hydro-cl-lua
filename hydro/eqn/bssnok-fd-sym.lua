@@ -71,7 +71,7 @@ function BSSNOKFiniteDifferenceEquation:init(args)
 	BSSNOKFiniteDifferenceEquation.super.init(self, args)
 end
 
-function BSSNOKFiniteDifferenceEquation:initCodeModules_calc_gamma()
+function BSSNOKFiniteDifferenceEquation:initCodeModule_calc_gamma()
 	local solver = self.solver
 
 	-- gammaHat_ij and co

@@ -1,15 +1,5 @@
-/*
-Marti & Muller 2008
-Marti 1998
-Font "Numerical Hydrodynamics and Magnetohydrodynamics in General Relativity" 2008 
-*/
-
-typedef <?=eqn.prim_t?> prim_t;
-typedef <?=eqn.cons_t?> cons_t;
-typedef <?=solver.solver_t?> solver_t;
-
-<? if moduleName == nil then ?>
-<? elseif moduleName == "eqn.common" then ?>
+//// MODULE_NAME: eqn.common
+//// MODULE_DEPENDS: coordLenSq cons_only_t,prim_only_t
 
 //pressure function for ideal gas
 real calc_P(constant <?=solver.solver_t?>* solver, real rho, real eInt) {
@@ -101,7 +91,8 @@ real calc_h(real rho, real P, real eInt) {
 //PLM uses prim_only_t and cons_t, esp using the 'numIntStates' reals that they start with
 //...and PLM uses consFromPrim and primFromCons
 
-<? elseif moduleName == "applyInitCond" then ?>
+//// MODULE_NAME: applyInitCond
+//// MODULE_DEPENDS: eqn.common
 
 kernel void applyInitCond(
 	constant <?=solver.solver_t?>* solver,
@@ -139,7 +130,8 @@ kernel void applyInitCond(
 }
 
 
-<? elseif moduleName == "fluxFromCons" then ?>
+//// MODULE_NAME: fluxFromCons
+//// MODULE_DEPENDS: solver_t cons_t normal_t eqn.common
 
 <?=eqn.cons_t?> fluxFromCons(
 	constant <?=solver.solver_t?>* solver,
@@ -170,7 +162,8 @@ kernel void applyInitCond(
 	return F;
 }
 
-<? elseif moduleName == "calcDT" then ?>
+//// MODULE_NAME: calcDT
+//// MODULE_DEPENDS: SETBOUNDS coordLenSq eqn.common normal_t
 
 //everything matches the default except the params passed through to calcCellMinMaxEigenvalues
 kernel void calcDT(
@@ -217,12 +210,8 @@ kernel void calcDT(
 	dtBuf[index] = dt; 
 }
 
-<? elseif moduleName == "eigen_forInterface" then ?>
-
-typedef <?=eqn.eigen_t?> eigen_t;
-typedef <?=eqn.waves_t?> waves_t;
-typedef <?=eqn.prim_only_t?> prim_only_t;
-typedef <?=eqn.cons_only_t?> cons_only_t;
+//// MODULE_NAME: eigen_forInterface
+//// MODULE_DEPENDS: coord_lower
 
 eigen_t eigen_forInterface(
 	constant solver_t* solver,
@@ -301,12 +290,7 @@ eigen_t eigen_forInterface(
 	return eig;
 }
 
-<? elseif moduleName == "eigen_forCell" then ?>
-
-typedef <?=eqn.eigen_t?> eigen_t;
-typedef <?=eqn.waves_t?> waves_t;
-typedef <?=eqn.prim_only_t?> prim_only_t;
-typedef <?=eqn.cons_only_t?> cons_only_t;
+//// MODULE_NAME: eigen_forCell
 
 //used by PLM
 eigen_t eigen_forCell(
@@ -318,12 +302,7 @@ eigen_t eigen_forCell(
 	return eigen_forInterface(solver, U, U, x, n);
 }
 
-<? elseif moduleName == "eigen_left/rightTransform" then ?>
-
-typedef <?=eqn.eigen_t?> eigen_t;
-typedef <?=eqn.waves_t?> waves_t;
-typedef <?=eqn.prim_only_t?> prim_only_t;
-typedef <?=eqn.cons_only_t?> cons_only_t;
+//// MODULE_NAME: eigen_left/rightTransform
 
 <? -- create code to initialize local vars of all the eig vars
 local eigVarCode = require 'ext.table'.map(eqn.eigenVars, function(var)
@@ -455,7 +434,7 @@ cons_t eigen_rightTransform(
 	return Y;
 }
 
-<? elseif moduleName == "eigen_fluxTransform" then ?>
+//// MODULE_NAME: eigen_fluxTransform
 
 cons_t eigen_fluxTransform(
 	constant solver_t* solver,
@@ -483,7 +462,8 @@ cons_t eigen_fluxTransform(
 #endif
 }
 
-<? elseif moduleName == "constrainU" then ?>
+//// MODULE_NAME: constrainU
+//// MODULE_DEPENDS: coordLen eqn.guiVars.compileTime
 
 kernel void constrainU(
 	constant solver_t* solver,
@@ -544,7 +524,7 @@ kernel void constrainU(
 	}
 }
 
-<? elseif moduleName == "addSource" then ?>
+//// MODULE_NAME: addSource
 
 kernel void addSource(
 	constant solver_t* solver,
@@ -577,9 +557,3 @@ kernel void addSource(
 //	deriv->ETotal -= (solver->heatCapacityRatio - 1.) * coord_conn_apply123(U->v, U->v, U->S, x);	
 <? end ?>
 }
-
-<? 
-else
-	error("unknown moduleName "..require 'ext.tolua'(moduleName))
-end 
-?>

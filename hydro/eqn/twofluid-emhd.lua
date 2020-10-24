@@ -184,32 +184,6 @@ function TwoFluidEMHD:createInitState()
 	end):unpack()))
 end
 
-function TwoFluidEMHD:initCodeModules()
-	TwoFluidEMHD.super.initCodeModules(self)
-
-	for moduleName, depends in pairs{
-		['sqrt_2_and_1_2'] = {},
-		['primFromCons'] = {},
-		['consFromPrim'] = {},
-		['apply_dU_dW'] = {},
-		['apply_dW_dU'] = {},
-		['eqn.common'] = {},
-		['fluxFromCons'] = {},
-		['eigen_forInterface'] = {},
-		['eigen_forCell'] = {},
-		['eigen_left/rightTransform'] = {},
-		['eigen_fluxTransform'] = {},
-		['addSource'] = {},
-		['constrainU'] = {},
-		--['calcDT'] = {},	-- don't use this, use the deafult, this is breaking atm
-	} do
-		self:addModuleFromSourceFile{
-			name = moduleName,
-			depends = depends,
-		}
-	end
-end
-
 -- don't use default
 function TwoFluidEMHD:initCodeModule_fluxFromCons() end
 function TwoFluidEMHD:initCodeModulePrimCons() end
@@ -225,12 +199,66 @@ function TwoFluidEMHD:getModuleDepends_waveCode()
 	}
 end
 
+--[=[
+function TwoFluidEMHD:initCodeModule_calcDT()
+	self.solver.modules:add{
+		name = 'calcDT',
+		depends = {
+			'units',
+			'primFromCons',
+		},
+		code = self:template[[
+
+//2014 Abgrall, Kumar eqn 2.25
+// dt < sqrt(EInt_a/rho_a) sqrt(2) |lHat_r^a| / |E + v_a cross B|
+//lHat_r^a = lHat_r for a=i, -lHat_r/m for a=e
+kernel void calcDT(
+	constant solver_t* solver,
+	global real* dtBuf,
+	const global cons_t* UBuf,
+	const global <?=solver.coord.cell_t?>* cellBuf
+) {
+	SETBOUNDS(0,0);
+	if (OOB(numGhost,numGhost)) {
+		dtBuf[index] = INFINITY;
+		return;
+	}
+	
+	real3 x = cellBuf[index].pos;
+	const global cons_t* U = UBuf + index;
+	
+	real eps = solver->sqrt_eps * solver->sqrt_eps / unit_C2_s2_per_kg_m3;
+	real mu = solver->sqrt_mu * solver->sqrt_mu / unit_kg_m_per_C2;
+
+	prim_t W = primFromCons(solver, *U, x);
+	real lHat_ion = normalizedIonLarmorRadius;
+	real lHat_elec = lHat_ion / solver->ionElectronMassRatio;
+<? for _,fluid in ipairs(eqn.fluids) do ?>
+	real EInt_<?=fluid?> = calc_<?=fluid?>_EInt(solver, W);
+	real LorentzForceSq_<?=fluid?> = coordLenSq(
+		real3_add(
+			real3_real_mul(W.D, 1. / eps),
+			real3_cross(W.<?=fluid?>_v, W.B)
+		), x);
+	real sqrt_EInt_lHat_over_rho_<?=fluid?> = sqrt(2. * EInt_<?=fluid?> * lHat_<?=fluid?> / (W.<?=fluid?>_rho * LorentzForceSq_<?=fluid?>));
+<? end ?>
+
+	dtBuf[index] = min(
+		sqrt_EInt_lHat_over_rho_ion,
+		sqrt_EInt_lHat_over_rho_elec);
+}
+]],
+	}
+end
+--]=]
+
 TwoFluidEMHD.solverCodeFile = 'hydro/eqn/twofluid-emhd.cl'
 
 function TwoFluidEMHD:getEnv()
 	local scalar = self.scalar
 	local env = TwoFluidEMHD.super.getEnv(self)
 	env.vec3 = self.vec3
+	env.cons_t = self.cons_t
 	env.susc_t = self.susc_t
 	env.scalar = scalar
 	env.zero = scalar..'_zero'

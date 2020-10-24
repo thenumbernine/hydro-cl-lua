@@ -29,54 +29,43 @@ ADM_BonaMasso_1D_2008Alcubierre.guiVars = {
 	{name='D_g_convCoeff', value=10},
 }
 
-function ADM_BonaMasso_1D_2008Alcubierre:initCodeModules()
-	ADM_BonaMasso_1D_2008Alcubierre.super.initCodeModules(self)
-	for moduleName, depends in pairs{
-
-		['setFlatSpace'] = {},
-
---[=[
-		-- the PLM version that uses this crashes
-		-- so maybe there's something wrong with this
-		['fluxFromCons'] = {
+--[=[ enable this out if you enable the fluxFromCons above
+-- the PLM version that uses this crashes
+-- so maybe there's something wrong with this
+function ADM_BonaMasso_1D_2008Alcubierre:initCodeModule_fluxFromCons() 
+	self.solver.modules:add{
+		name = 'fluxFromCons',
+		depends = {
 			'solver_t',
 			'cons_t',
 			'eqn.common',	-- calc_f ... or is it initCond.codeprefix?
 		},
---]=]
+		code = self:template[[
 
-		['eigen_forInterface'] = {},
-		['eigen_forCell'] = {},
-		['eigen_left/rightTransform'] = {},
-		['eigen_fluxTransform'] = {},
-		
-		['addSource'] = {
-			'initCond.codeprefix',	-- calc_*
-		},
-	} do
-		self:addModuleFromSourceFile{
-			name = moduleName,
-			depends = depends,
-		}
-	end
+<?=eqn.cons_t?> fluxFromCons(
+	constant <?=solver.solver_t?>* solver,
+	<?=eqn.cons_t?> U,
+	real3 x,
+	normal_t n
+) {
+	real f = calc_f(U.alpha);
+	real alpha_over_sqrt_gamma_xx = U.alpha / sqrt(U.gamma_xx);
+	return (<?=eqn.cons_t?>){
+		.alpha = 0,
+		.gamma_xx = 0,
+		.a_x = U.KTilde * f * alpha_over_sqrt_gamma_xx,
+		.D_g = U.KTilde * 2. * alpha_over_sqrt_gamma_xx,
+		.KTilde = U.a_x * alpha_over_sqrt_gamma_xx,
+	};
+}
+
+]],
+	}
 end
-
---[=[ enable this out if you enable the fluxFromCons above
-function ADM_BonaMasso_1D_2008Alcubierre:initCodeModule_fluxFromCons() end
 --]=]
-
--- don't use default
-function ADM_BonaMasso_1D_2008Alcubierre:initCodeModule_setFlatSpace() end
-
-function ADM_BonaMasso_1D_2008Alcubierre:getModuleDependsApplyInitCond()
-	return table(ADM_BonaMasso_1D_2008Alcubierre.super.getModuleDependsApplyInitCond(self), {
-		'sym3',
-		'coordMap',
-	})
-end
 
 -- don't use eqn.einstein, which says calc_gamma_ll and calc_gamma_uu
-function ADM_BonaMasso_1D_2008Alcubierre:getModuleDependsSolver() 
+function ADM_BonaMasso_1D_2008Alcubierre:getModuleDepends_displayCode() 
 	return {}
 end
 

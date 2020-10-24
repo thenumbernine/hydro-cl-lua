@@ -1,16 +1,12 @@
+//// MODULE_NAME: applyInitCond
+//// MODULE_DEPENDS: consFromPrim cartesianToCoord
+
 /*
 I've highjacked all of this.  It was a normal Euler eqn solver.
 But I experimented with a curved-space solver.  
 To get back to the original code,
 just replace all the g_ab stuff with their constant values and simplify away.
 */
-
-<? if moduleName == nil then ?>
-<? elseif moduleName == "applyInitCond" then ?>
-<? depmod{
-	"consFromPrim",
-	"cartesianToCoord",
-} ?>
 
 kernel void applyInitCond(
 	constant <?=solver.solver_t?>* solver,
@@ -51,14 +47,9 @@ end
 	*U = consFromPrim(solver, W, x);
 }
 
-<? elseif moduleName == "primFromCons" then ?>
-<? depmod{
-	"real3",
-	"solver_t",
-	"prim_t",
-	"cons_t",
-	"eqn.common",	-- all the calc_* stuff
-} ?>
+//// MODULE_NAME: primFromCons
+//// MODULE_DEPENDS: real3 solver_t prim_t cons_t eqn.common
+// eqn.common is for all the calc_* stuff
 
 <?=eqn.prim_t?> primFromCons(constant <?=solver.solver_t?>* solver, <?=eqn.cons_t?> U, real3 x) {
 	return (<?=eqn.prim_t?>){
@@ -69,14 +60,9 @@ end
 	};
 }
 
-<? elseif moduleName == "consFromPrim" then ?>
-<? depmod{
-	"real3",
-	"solver_t",
-	"prim_t",
-	"cons_t",
-	"eqn.common",	-- all the calc_* stuff
-} ?>
+//// MODULE_NAME: consFromPrim
+//// MODULE_DEPENDS: real3 solver_t prim_t cons_t eqn.common
+// eqn.common is for all the calc_* stuff
 
 <?=eqn.cons_t?> consFromPrim(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W, real3 x) {
 	return (<?=eqn.cons_t?>){
@@ -87,13 +73,9 @@ end
 	};
 }
 
-<? elseif moduleName == "apply_dU_dW" then	-- only used by PLM
-depmod{
-	"solver_t",
-	"prim_t",
-	"cons_t",
-	"coord_lower",
-} ?>
+// only used by PLM
+//// MODULE_NAME: apply_dU_dW	
+//// MODULE_DEPENDS: solver_t prim_t cons_t coord_lower
 
 <?=eqn.cons_t?> apply_dU_dW(
 	constant <?=solver.solver_t?>* solver,
@@ -114,13 +96,9 @@ depmod{
 	};
 }
 
-<? elseif moduleName == "apply_dW_dU" then	-- only used by PLM
-depmod{
-	"solver_t",
-	"prim_t",
-	"cons_t",
-	"coord_lower",
-} ?>
+// only used by PLM
+//// MODULE_NAME: apply_dW_dU	
+//// MODULE_DEPENDS: solver_t prim_t cons_t coord_lower
 
 <?=eqn.prim_t?> apply_dW_dU(
 	constant <?=solver.solver_t?>* solver,
@@ -142,15 +120,8 @@ depmod{
 	};
 }
 
-
-<? elseif moduleName == "eqn.common" then ?>
-<? depmod{
-	"cons_t",
-	"prim_t",
-	"waves_t",
-	"eigen_t",
-	"coordLenSq",
-} ?>
+//// MODULE_NAME: eqn.common
+//// MODULE_DEPENDS: cons_t prim_t waves_t eigen_t coordLenSq
 
 real calc_H(constant <?=solver.solver_t?>* solver, real P) { return P * (solver->heatCapacityRatio / (solver->heatCapacityRatio - 1.)); }
 real calc_h(constant <?=solver.solver_t?>* solver, real rho, real P) { return calc_H(solver, P) / rho; }
@@ -175,12 +146,8 @@ real calc_P(constant <?=solver.solver_t?>* solver, <?=eqn.cons_t?> U, real3 x) {
 	return (solver->heatCapacityRatio - 1.) * EInt;
 }
 
-<? elseif moduleName == "fluxFromCons" then ?>
-<? depmod{
-	"solver_t",
-	"primFromCons",
-	"normal_t",
-} ?>
+//// MODULE_NAME: fluxFromCons
+//// MODULE_DEPENDS: solver_t primFromCons normal_t
 
 <?=eqn.cons_t?> fluxFromCons(
 	constant <?=solver.solver_t?>* solver,
@@ -207,12 +174,9 @@ real calc_P(constant <?=solver.solver_t?>* solver, <?=eqn.cons_t?> U, real3 x) {
 	};
 }
 
-<? elseif moduleName == "calcCellMinMaxEigenvalues" then ?>
-<? 	-- added by request only, so I don't have to compile the real3x3 code. not used at the moment
-depmod{
-	"real3x3",
-	"primFromCons",
-} ?>
+// added by request only, so I don't have to compile the real3x3 code. not used at the moment
+//// MODULE_NAME: calcCellMinMaxEigenvalues
+//// MODULE_DEPENDS: real3x3 primFromCons
 
 range_t calcCellMinMaxEigenvalues(
 	constant <?=solver.solver_t?>* solver,
@@ -232,16 +196,9 @@ range_t calcCellMinMaxEigenvalues(
 	};
 }
 
-<? elseif moduleName == "eigen_forCell" then ?>
-<? depmod{
-	"normal_t",
-	"coord_lower",
-	"cons_t",
-	"prim_t",
-	"eigen_t",
-	"primFromCons",
-	"eqn.common",	-- calc_hTotal
-} ?>
+//// MODULE_NAME: eigen_forCell
+//// MODULE_DEPENDS: normal_t coord_lower cons_t prim_t eigen_t primFromCons eqn.common
+// eqn.common is for all the calc_* stuff
 
 // used by PLM
 <?=eqn.eigen_t?> eigen_forCell(
@@ -268,13 +225,8 @@ range_t calcCellMinMaxEigenvalues(
 	};
 }
 
-<? elseif moduleName == "eigen_forInterface" then ?>
-<? depmod{
-	"primFromCons",
-	"eigen_t",
-	"normal_t",
-	"coord_lower",
-} ?>
+//// MODULE_NAME: eigen_forInterface
+//// MODULE_DEPENDS: primFromCons eigen_t normal_t coord_lower
 
 //used by the mesh version
 eigen_t eigen_forInterface(
@@ -321,11 +273,8 @@ eigen_t eigen_forInterface(
 	};
 }
 
-<? elseif moduleName == "eigen_left/rightTransform" then ?>
-<? depmod{
-	"eigen_t",
-	"normal_t",
-} ?>
+//// MODULE_NAME: eigen_left/rightTransform
+//// MODULE_DEPENDS: eigen_t normal_t
 
 <?
 local prefix = [[
@@ -432,11 +381,8 @@ cons_t eigen_rightTransform(
 	}};
 }
 
-<? elseif moduleName == "eigen_fluxTransform" then ?>
-<? depmod{
-	"eigen_t",
-	"normal_t",
-} ?>
+//// MODULE_NAME: eigen_fluxTransform
+//// MODULE_DEPENDS: eigen_t normal_t
 
 cons_t eigen_fluxTransform(
 	constant solver_t* solver,
@@ -483,14 +429,8 @@ cons_t eigen_fluxTransform(
 	}};
 }
 
-<? elseif moduleName == "addSource" then 
-depmod{
-	"solver_t",
-	"cons_t",
-	"cell_t",
-	"SETBOUNDS_NOGHOST",
-}
-?>
+//// MODULE_NAME: addSource
+//// MODULE_DEPENDS: solver_t cons_t cell_t SETBOUNDS_NOGHOST
 
 kernel void addSource(
 	constant solver_t* solver,
@@ -567,15 +507,8 @@ Maybe for an initial constant vel as large as sqrt(2) this fails, but it works o
 <? end -- vectorComponent == 'anholonomic' ?>
 }
 
-<? elseif moduleName == "constrainU" then 
-depmod{
-	"solver_t",
-	"cons_t",
-	"cell_t",
-	"primFromCons",
-	"consFromPrim",
-}
-?>
+//// MODULE_NAME: constrainU
+//// MODULE_DEPENDS: solver_t cons_t cell_t primFromCons consFromPrim
 
 kernel void constrainU(
 	constant solver_t* solver,
@@ -593,9 +526,3 @@ kernel void constrainU(
 
 	*U = consFromPrim(solver, W, x);
 }
-
-<? 
-else
-	error("unknown moduleName "..require 'ext.tolua'(moduleName))
-end 
-?>

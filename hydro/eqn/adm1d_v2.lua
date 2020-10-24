@@ -106,56 +106,11 @@ function ADM_BonaMasso_1D_1997Alcubierre:createInitState()
 	}
 end
 
-function ADM_BonaMasso_1D_1997Alcubierre:initCodeModules()
-	ADM_BonaMasso_1D_1997Alcubierre.super.initCodeModules(self)
-	for moduleName, depends in pairs{
-		['setFlatSpace'] = {
-			'solver_t',
-			'cons_t',
-		},
-
-		['fluxFromCons'] = {
-			'solver_t',
-			'cons_t',
-			'normal_t',
-			'initCond.codeprefix',	-- calc_*
-		},
-
-		['eigen_forCell'] = {
-			'initCond.codeprefix',	-- calc_*
-		},
-		
-		['eigen_forInterface'] = {
-			'initCond.codeprefix',	-- calc_*
-		},
-		
-		['eigen_left/rightTransform'] = {},
-		['eigen_fluxTransform'] = {},
-		
-		['addSource'] = {
-			'initCond.codeprefix',	-- calc_*
-		},
-	} do
-		self:addModuleFromSourceFile{
-			name = moduleName,
-			depends = depends,
-		}
-	end
-end
-
 -- don't use default
 function ADM_BonaMasso_1D_1997Alcubierre:initCodeModule_fluxFromCons() end
-function ADM_BonaMasso_1D_1997Alcubierre:initCodeModule_setFlatSpace() end
-
-function ADM_BonaMasso_1D_1997Alcubierre:getModuleDependsApplyInitCond()
-	return table(ADM_BonaMasso_1D_1997Alcubierre.super.getModuleDependsApplyInitCond(self), {
-		'sym3',
-		'coordMap',
-	})
-end
 
 -- don't use eqn.einstein, which says calc_gamma_ll and calc_gamma_uu
-function ADM_BonaMasso_1D_1997Alcubierre:getModuleDependsSolver() 
+function ADM_BonaMasso_1D_1997Alcubierre:getModuleDepends_displayCode() 
 	return {}
 end
 

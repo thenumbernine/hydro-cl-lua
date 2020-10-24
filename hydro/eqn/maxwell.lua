@@ -117,64 +117,8 @@ function Maxwell:init(args)
 	})
 end
 
-function Maxwell:initCodeModules()
-	Maxwell.super.initCodeModules(self)
-
-	for moduleName, depends in pairs{
-		['sqrt_2_and_1_2'] = {},
-
-		['eqn.common'] = {
-			'coordLenSq',
-			'cartesianToCoord',
-			'coord_lower',
-		},
-
-		['fluxFromCons'] = {
-			'solver_t',
-			'normal_t',
-			'cons_t',
-			'prim_t',
-			'eqn.common',	-- calc_E, calc_H
-		},
-
-		['eigen_forInterface'] = {},
-		['eigen_forCell'] = {},
-		
-		['eigen_left/rightTransform'] = {
-			'sqrt_2_and_1_2',
-		},
-		
-		['eigen_fluxTransform'] = {},
-		
-		['addSource'] = {
-			'coord_sqrt_det_g',
-			'fluxFromCons',
-		},
-	} do
-		self:addModuleFromSourceFile{
-			name = moduleName,
-			depends = depends,
-		}
-	end
-end
-
 -- don't use default
 function Maxwell:initCodeModule_fluxFromCons() end
-
-function Maxwell:getModuleDependsApplyInitCond()
-	return table(Maxwell.super.getModuleDependsApplyInitCond(self))
-	:append{
-		'eqn.common',	-- eqn_cartesianToCoord
-	}
-end
-
-function Maxwell:getModuleDependsSolver()
-	return {
-		'eqn.common',
-		'coord_lower',
-		'fluxFromCons',
-	}
-end
 
 Maxwell.solverCodeFile = 'hydro/eqn/maxwell.cl'
 
@@ -182,6 +126,7 @@ function Maxwell:getEnv()
 	local scalar = self.scalar
 	local env = Maxwell.super.getEnv(self)
 	env.vec3 = self.vec3
+	env.cons_t = self.cons_t
 	env.susc_t = self.susc_t
 	env.scalar = scalar
 	env.zero = scalar..'_zero'

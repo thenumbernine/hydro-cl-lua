@@ -1,14 +1,10 @@
-typedef <?=eqn.prim_t?> prim_t;
-typedef <?=eqn.cons_t?> cons_t;
-typedef <?=solver.solver_t?> solver_t;
-
-<? if moduleName == nil then ?>
-<? elseif moduleName == "sqrt_2_and_1_2" then ?>
+//// MODULE_NAME: sqrt_2_and_1_2
 
 #define sqrt_2 <?=('%.50f'):format(math.sqrt(2))?>
 #define sqrt_1_2 <?=('%.50f'):format(math.sqrt(.5))?>
 
-<? elseif moduleName == "eqn.common" then ?>
+//// MODULE_NAME: eqn.common
+//// MODULE_DEPENDS: coordLenSq cartesianToCoord coord_lower
 
 <? if scalar == 'real' then ?>
 
@@ -44,15 +40,8 @@ cplx3 eqn_coord_lower(cplx3 v, real3 x) {
 	return <?=vec3?>_<?=susc_t?>_mul(U.B, <?=susc_t?>_mul(U.sqrt_1_mu, U.sqrt_1_mu));
 }
 
-<? elseif moduleName == "applyInitCond" then ?>
-
-<? 
-local cons_t = eqn.cons_t
-local susc_t = eqn.susc_t
-local scalar = eqn.scalar
-local vec3 = eqn.vec3
-local zero = scalar..'_zero'
-?>
+//// MODULE_NAME: applyInitCond
+//// MODULE_DEPENDS: eqn.common
 
 kernel void applyInitCond(
 	constant <?=solver.solver_t?>* solver,
@@ -100,7 +89,9 @@ kernel void applyInitCond(
 }
 
 
-<? elseif moduleName == "fluxFromCons" then ?>
+//// MODULE_NAME: fluxFromCons
+//// MODULE_DEPENDS: solver_t normal_t cons_t prim_t eqn.common
+//eqn.common has calc_E, calc_H
 
 <?=eqn.cons_t?> fluxFromCons(
 	constant <?=solver.solver_t?>* solver,
@@ -131,9 +122,7 @@ kernel void applyInitCond(
 }
 
 
-<? elseif moduleName == "eigen_forInterface" then ?>
-
-typedef <?=eqn.eigen_t?> eigen_t;
+//// MODULE_NAME: eigen_forInterface
 
 eigen_t eigen_forInterface(
 	constant solver_t* solver,
@@ -151,9 +140,7 @@ eigen_t eigen_forInterface(
 	};
 }
 
-<? elseif moduleName == "eigen_forCell" then ?>
-
-typedef <?=eqn.eigen_t?> eigen_t;
+//// MODULE_NAME: eigen_forCell
 
 //used by PLM
 eigen_t eigen_forCell(
@@ -168,10 +155,8 @@ eigen_t eigen_forCell(
 	};
 }
 
-<? elseif moduleName == "eigen_left/rightTransform" then ?>
-
-typedef <?=eqn.eigen_t?> eigen_t;
-typedef <?=eqn.waves_t?> waves_t;
+//// MODULE_NAME: eigen_left/rightTransform
+//// MODULE_DEPENDS: sqrt_2_and_1_2
 
 /*
 TODO update this for Einstein-Maxwell (take the metric into consideration
@@ -278,11 +263,12 @@ cons_t eigen_rightTransform(
 	return Y;
 }
 
-<? elseif moduleName == "eigen_fluxTransform" then ?>
+//// MODULE_NAME: eigen_fluxTransform
 
 #define eigen_fluxTransform(solver, eig, X, x, n)	fluxFromCons(solver, X, x, n)
 
-<? elseif moduleName == "addSource" then ?>
+//// MODULE_NAME: addSource
+//// MODULE_DEPENDS: coord_sqrt_det_g fluxFromCons
 
 kernel void addSource(
 	constant solver_t* solver,
@@ -333,9 +319,3 @@ kernel void addSource(
 		deriv->B.<?=xj?> = <?=sub?>(deriv->B.<?=xj?>, <?=vec3?>_dot(flux.B, grad_1_eps));
 	}<? end ?>
 }
-
-<? 
-else
-	error("unknown moduleName "..require 'ext.tolua'(moduleName))
-end 
-?>

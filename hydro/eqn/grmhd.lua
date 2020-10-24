@@ -107,27 +107,6 @@ function GRMHD:createInitState()
 --]]
 end
 
-function GRMHD:initCodeModules()
-	GRMHD.super.initCodeModules(self)
-
-	for moduleName, depends in pairs{
-		['eqn.common'] = {},
-		['fluxFromCons'] = {},
-		['calcDT'] = {},
-		['eigen_forCell'] = {},
-		['calcEigenBasis'] = {},
-		['eigen_left/rightTransform'] = {},
-		['eigen_fluxTransform'] = {},
-		['constrainU'] = {},
-		['updatePrims'] = {},
-	} do
-		self:addModuleFromSourceFile{
-			name = moduleName,
-			depends = depends,
-		}
-	end
-end
-
 -- YOU ARE HERE in converting stuff from SRHD to GRMHD
 
 -- don't use default 

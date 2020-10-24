@@ -1,14 +1,13 @@
-<? if moduleName == nil then ?>
-<? elseif moduleName == "sqrt_1_2" then ?>
+//// MODULE_NAME: sqrt_1_2
 
 #define sqrt_1_2 <?=('%.50f'):format(math.sqrt(.5))?>
 
-<? elseif moduleName == "eqn.common" then ?>
+//// MODULE_NAME: eqn.common
 
 static inline <?=eqn.prim_t?> primFromCons(<?=eqn.cons_t?> U, real3 x) { return U; }
 static inline <?=eqn.cons_t?> consFromPrim(<?=eqn.prim_t?> W, real3 x) { return W; }
 
-<? elseif moduleName == "applyInitCond" then ?>
+//// MODULE_NAME: applyInitCond
 
 kernel void applyInitCond(
 	constant <?=solver.solver_t?>* solver,
@@ -57,7 +56,7 @@ kernel void applyInitCond(
 }
 
 
-<? elseif moduleName == "fluxFromCons" then ?>
+//// MODULE_NAME: fluxFromCons
 
 #error this is out of date, should be made with normal_t, then moved to fluxFromCons
 <?=eqn.cons_t?> fluxFromCons(
@@ -98,7 +97,7 @@ kernel void applyInitCond(
 	};
 }
 
-<? elseif moduleName == "fluxFromCons" then ?>
+//// MODULE_NAME: fluxFromCons
 
 range_t calcCellMinMaxEigenvalues(
 	const global <?=eqn.cons_t?>* U,
@@ -122,7 +121,7 @@ range_t calcCellMinMaxEigenvalues(
 	return (range_t){-lambda, lambda};
 }
 
-<? elseif moduleName == "calcEigenBasis" then ?>
+//// MODULE_NAME: calcEigenBasis
 
 //TODO HLL needs eigen_forInterface 
 //but it would have to pass the extra ADM args into it
@@ -200,7 +199,7 @@ kernel void calcEigenBasis(
 	}<? end ?>
 }
 
-<? elseif moduleName == "eigen_left/rightTransform" then ?>
+//// MODULE_NAME: eigen_left/rightTransform
 
 /*
 TODO update this for Einstein-Maxwell (take the metric into consideration
@@ -323,7 +322,7 @@ x,  y,  z, z,  y,  x
 	return UY;
 }
 
-<? elseif moduleName == "eigen_fluxTransform" then ?>
+//// MODULE_NAME: eigen_fluxTransform
 
 <?=eqn.cons_t?> eigen_fluxTransform(
 	constant <?=solver.solver_t?>* solver,
@@ -375,7 +374,7 @@ x,  y,  z, z,  y,  x
 	return UY;
 }
 
-<? elseif moduleName == "addSource" then ?>
+//// MODULE_NAME: addSource
 
 kernel void addSource(
 	constant <?=solver.solver_t?>* solver,
@@ -388,7 +387,7 @@ kernel void addSource(
 	deriv->D = real3_sub(deriv->D, real3_real_mul(U->D, 1. / U->eps * U->sigma));
 }
 
-<? elseif moduleName == "eigen_forCell" then ?>
+//// MODULE_NAME: eigen_forCell
 
 //used by PLM
 
@@ -403,9 +402,3 @@ kernel void addSource(
 	//eig.lambda = eig.alpha / sqrt(eig.detg_gUjj / (det_gamma3 * eig.eps * eig.mu));
 	return eig;
 }
-
-<? 
-else
-	error("unknown moduleName "..require 'ext.tolua'(moduleName))
-end 
-?>

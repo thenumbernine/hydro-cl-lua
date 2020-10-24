@@ -1,11 +1,5 @@
-<? if moduleName == nil then ?>
-<? elseif moduleName == "primFromCons" then 
-depmod{
-	"prim_t",
-	"cons_t",
-	"coordLenSq",
-}
-?>
+//// MODULE_NAME: primFromCons
+//// MODULE_DEPENDS: prim_t cons_t coordLenSq
 
 <?=eqn.prim_t?> primFromCons(
 	constant <?=solver.solver_t?>* solver,
@@ -29,13 +23,8 @@ depmod{
 	};
 }
 
-<? elseif moduleName == "consFromPrim" then 
-depmod{
-	"prim_t",
-	"cons_t",
-	"coordLenSq",
-}
-?>
+//// MODULE_NAME: consFromPrim
+//// MODULE_DEPENDS: prim_t cons_t coordLenSq
 
 <?=eqn.cons_t?> consFromPrim(
 	constant <?=solver.solver_t?>* solver,
@@ -67,15 +56,8 @@ depmod{
 	};
 }
 
-<? elseif moduleName == "apply_dU_dW" then 
-depmod{
-	"real3",
-	"solver_t",
-	"prim_t",
-	"cons_t",
-	"coord_lower",
-}
-?>
+//// MODULE_NAME: apply_dU_dW
+//// MODULE_DEPENDS: real3 solver_t prim_t cons_t coord_lower
 
 <?=eqn.cons_t?> apply_dU_dW(
 	constant <?=solver.solver_t?>* solver,
@@ -100,15 +82,8 @@ depmod{
 	};
 }
 
-<? elseif moduleName == "apply_dW_dU" then 
-depmod{
-	"real3",
-	"solver_t",
-	"prim_t",
-	"cons_t",
-	"coord_lower",
-}
-?>
+//// MODULE_NAME: apply_dW_dU
+//// MODULE_DEPENDS: real3 solver_t prim_t cons_t coord_lower
 
 <?=eqn.prim_t?> apply_dW_dU(
 	constant <?=solver.solver_t?>* solver,
@@ -133,7 +108,7 @@ depmod{
 	};
 }
 
-<? elseif moduleName == "eqn.common" then ?>
+//// MODULE_NAME: eqn.common
 
 #define R_over_C_v (solver->gasConstant / solver->C_v)
 #define C_v_over_R (solver->C_v / solver->gasConstant)
@@ -164,12 +139,8 @@ real calc_Cs(constant <?=solver.solver_t?>* solver, const <?=eqn.prim_t?> W) {
 	return sqrt((R_over_C_v + 1.) * W.PStar / W.rhoBar);
 }
 
-<? elseif moduleName == "applyInitCond" then 
-depmod{
-	"cartesianToCoord",
-	"consFromPrim",
-}
-?>
+//// MODULE_NAME: applyInitCond
+//// MODULE_DEPENDS: cartesianToCoord consFromPrim
 
 kernel void applyInitCond(
 	constant <?=solver.solver_t?>* solver,
@@ -211,12 +182,8 @@ end
 	UBuf[index] = consFromPrim(solver, W, x);
 }
 
-<? elseif moduleName == "fluxFromCons" then 
-depmod{
-	"coord_g_uu##",
-	"primFromCons",
-}
-?>
+//// MODULE_NAME: fluxFromCons
+//// MODULE_DEPENDS: coord_g_uu## primFromCons
 
 <?=eqn.cons_t?> fluxFromCons(
 	constant <?=solver.solver_t?>* solver,
@@ -258,13 +225,8 @@ depmod{
 	return F;
 }
 
-<? elseif moduleName == "calcCellMinMaxEigenvalues" then 
-depmod{
-	"coord_sqrt_g_uu##",
-	"primFromCons",
-	"eqn.common",
-}
-?>
+//// MODULE_NAME: calcCellMinMaxEigenvalues
+//// MODULE_DEPENDS: coord_sqrt_g_uu## primFromCons eqn.common
 
 range_t calcCellMinMaxEigenvalues(
 	constant <?=solver.solver_t?>* solver,
@@ -286,11 +248,8 @@ range_t calcCellMinMaxEigenvalues(
 <? end ?>
 }
 
-<? elseif moduleName == "eigen_forInterface" then 
-depmod{
-	"primFromCons",
-}
-?>
+//// MODULE_NAME: eigen_forInterface
+//// MODULE_DEPENDS: primFromCons
 
 <?=eqn.eigen_t?> eigen_forInterface(
 	constant <?=solver.solver_t?>* solver,
@@ -357,14 +316,8 @@ Cs^2 = R/C_v (hTotalTilde - 1/2 vTilde^2 - (1 - 2/3 C_v/R) k)
 	};
 }
 
-<? elseif moduleName == "eigen_left/rightTransform" then 
-depmod{
-	"coord_g_uu",
-	"coord_g_uu##",
-	"coord_sqrt_g_uu##",
-	"coord_lower",
-}
-?>
+//// MODULE_NAME: eigen_left/rightTransform
+//// MODULE_DEPENDS: coord_g_uu coord_g_uu## coord_sqrt_g_uu## coord_lower
 
 <?
 local prefixes = {}
@@ -647,7 +600,7 @@ end
 	}
 }
 
-<? elseif moduleName == "eigen_fluxTransform" then ?>
+//// MODULE_NAME: eigen_fluxTransform
 
 <?=eqn.cons_t?> eigen_fluxTransform(
 	constant <?=solver.solver_t?>* solver,
@@ -773,11 +726,8 @@ end
 	}
 }
 
-<? elseif moduleName == "eigen_forCell" then 
-depmod{
-	"primFromCons",
-}
-?>
+//// MODULE_NAME: eigen_forCell
+//// MODULE_DEPENDS: primFromCons
 
 // used by PLM
 
@@ -804,12 +754,8 @@ depmod{
 	};
 }
 
-<? elseif moduleName == "addSource" then 
-depmod{
-	"cell_x",
-	"primFromCons",
-}
-?>
+//// MODULE_NAME: addSource
+//// MODULE_DEPENDS: cell_x primFromCons
 
 kernel void addSource(
 	constant <?=solver.solver_t?>* solver,
@@ -830,9 +776,3 @@ kernel void addSource(
 	deriv->rhoBar_vTilde = real3_add(deriv->rhoBar_vTilde, real3_real_mul(coord_raise(coord_conn_trace13(x), x), W.PStar));		//+Conn^j_kj g^ki PStar
 <? end ?>
 }
-
-<? 
-else
-	error("unknown moduleName "..require 'ext.tolua'(moduleName))
-end 
-?>
