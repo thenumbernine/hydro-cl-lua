@@ -1,5 +1,5 @@
 //// MODULE_NAME: applyInitCond
-//// MODULE_DEPENDS: coordMap coord_g_ll rescaleFromCoord/rescaleToCoord
+//// MODULE_DEPENDS: coordMap coord_gHol_ll rescaleFromCoord/rescaleToCoord
 
 <?
 if eqn.initCond.initAnalytical then
@@ -110,7 +110,7 @@ end
 ?>
 }
 
-<? else	-- eqn.initCond.useBSSNVars ?>
+<? else	-- not eqn.initCond.useBSSNVars ?>
 
 kernel void applyInitCond(
 	constant <?=solver.solver_t?>* solver,
@@ -127,7 +127,7 @@ kernel void applyInitCond(
 
 	real alpha = 1.;
 	real3 beta_u = real3_zero;
-	sym3 gamma_ll = coord_g_ll(x);
+	sym3 gamma_ll = coord_gHol_ll(x);
 	sym3 K_ll = sym3_zero;
 
 	//TODO more stress-energy vars 

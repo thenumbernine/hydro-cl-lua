@@ -435,7 +435,6 @@ for side=0,solver.dim-1 do
 <?		for _,var in ipairs(eqn.consStruct.vars) do
 			local variance = assert(var.variance)
 			local degree = degreeForType[var.type]
---print(var.name, var.type, variance, degree)			
 			if variance == '' then
 			elseif variance == 'u' then
 -- P_u^a T^u
@@ -548,7 +547,6 @@ end
 				depends = moduleDeps,
 				code = moduleLines:concat'\n',
 			}		
-			print('making module '..require 'ext.tolua'(args))
 			solver.modules:add(args)
 		elseif moduleLines and #moduleLines > 0 then
 			print('throwing away:\n'..moduleLines:concat'\n')

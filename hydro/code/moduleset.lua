@@ -144,6 +144,11 @@ function ModuleSet:getHeader(...)
 	end
 	-- headercode
 	for _,module in ipairs(deps) do
+		-- allow lazy code generation
+		if type(module.headercode) == 'function' then
+			module.headercode = module.headercode()
+		end
+		
 		lines:insert(comment(module.headercode, module.name, 'headercode') or nil)
 	end
 	return lines:concat'\n'
@@ -167,10 +172,20 @@ function ModuleSet:getCodeAndHeader(...)
 	end
 	-- headercode
 	for _,module in ipairs(deps) do
+		-- allow lazy code generation
+		if type(module.headercode) == 'function' then
+			module.headercode = module.headercode()
+		end
+
 		lines:insert(comment(module.headercode, module.name, 'headercode') or nil)
 	end
 	-- code
 	for _,module in ipairs(deps) do
+		-- allow lazy code generation
+		if type(module.code) == 'function' then
+			module.code = module.code()
+		end
+		
 		lines:insert(comment(module.code, module.name, 'code') or nil)
 	end
 	return lines:concat'\n'

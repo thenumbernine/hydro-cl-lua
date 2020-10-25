@@ -189,12 +189,7 @@ local initConds = table{
 		-- don't use initAnalytical, since not all eqn.einstein subclasses use it
 		--initAnalytical = true,
 		getInitCondCode = function(self, solver)
-			return [[
-	alpha = 1.;
-	beta_u = real3_zero;
-	gamma_ll = coord_g_ll(x);
-	K_ll = sym3_zero;
-]]
+			return ''
 		end,
 	},
 
@@ -461,9 +456,10 @@ local initConds = table{
 ]]
 		end,
 	},
+
+
 	
-	
-	
+	-- 2009 Bona et al "Elements in Numerical Relativity ... " eqn 6.22-6.24
 	{	
 		name = 'black hole - Schwarzschild',
 		init = function(self, solver, args)
@@ -476,7 +472,7 @@ local initConds = table{
 				
 			-- TODO bodies
 			self:addGuiVars{
-				{name = 'R', value = args and args.R or 1},
+				{name = 'R', value = args and args.R or 2},	-- M = 1
 				{name = 'x', value = args and args.x or 0},
 				{name = 'y', value = args and args.y or 0},
 				{name = 'z', value = args and args.z or 0},
@@ -485,24 +481,17 @@ local initConds = table{
 		getInitCondCode = function(self, solver)
 			return template([[
 	const real R = initCond->R;
-	real3 center = _real3(
-		initCond->x,
-		initCond->y,
-		initCond->z);
+	real3 center = _real3(initCond->x, initCond->y, initCond->z);
 	real3 xrel = real3_sub(xc, center);
 
 	real r = real3_len(xrel);
-
-	//real one_minus_R_over_r = (fabs(r) < 1e-3 || fabs(r - R) < 1e-3) ? 1. : 1. - R / r;
-	real one_minus_R_over_r = 1. - R / r;
-	alpha = sqrt(one_minus_R_over_r);
-
-	//bssnok-fd init cond expects the metric in non-coord normalized basis
-	//...and all the finite-volume solvers (adm3d, etc) only work with cartesian grids
-	gamma_ll = sym3_zero;
-	gamma_ll.xx = 1. / one_minus_R_over_r;
-	gamma_ll.yy = 1. / one_minus_R_over_r;
-	gamma_ll.zz = 1. / one_minus_R_over_r;
+	
+	real R_over_r = R / r;
+	real psi = 1. + .25 * R_over_r;
+	real psiSq = psi * psi;
+	real psiToThe4 = psiSq * psiSq;
+	gamma_ll = sym3_real_mul(gamma_ll, psiToThe4);
+	alpha = 1. / psiSq;
 ]], 	{
 			solver = solver,
 		})
@@ -601,8 +590,9 @@ local initConds = table{
 		//sln_oneOverAlpha += .5 * <?=clnumber(body.R)?> / r;
 		
 		//the time-symmetric way:
-		psi += .25 * R / r;
-		alpha_num -= .25 * R / r;
+		real R_over_r = R / r;
+		psi += .25 * R_over_r;
+		alpha_num -= .25 * R_over_r;
 	
 	}<? end ?>		//sum of mass over radius
 
