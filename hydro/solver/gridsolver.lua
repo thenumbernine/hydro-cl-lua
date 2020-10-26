@@ -1175,6 +1175,9 @@ function GridSolver:createBoundaryProgramAndKernel(args)
 		'INDEXV',
 		-- some Boundary :getCode use numStates
 		'solver.macros',
+		'cell_x',
+		'cartesianFromCoord',
+		'normalForSide',
 	}
 print('boundary modules: '..moduleNames:sort():concat', ')
 	lines:insert(self.modules:getCodeAndHeader(moduleNames:unpack()))
@@ -1209,7 +1212,8 @@ print('boundary modules: '..moduleNames:sort():concat', ')
 		lines:insert(template([[
 kernel void boundary_<?=xNames[side]?>(
 	constant <?=solver.solver_t?>* solver,
-	global <?=args.type?>* buf<?= 
+	global <?=args.type?>* buf,
+	global <?=solver.coord.cell_t?>* cellBuf<?= 
 args.extraArgs and #args.extraArgs > 0 
 	and ',\n\t'..table.concat(args.extraArgs, ',\n\t')
 	or '' ?>
@@ -1310,6 +1314,7 @@ function GridSolver:refreshBoundaryProgram()
 	self.boundaryProgramObj, self.boundaryKernelObjs = self:createBoundaryProgramAndKernel(self:getBoundaryProgramArgs())
 	for _,obj in ipairs(self.boundaryKernelObjs) do
 		obj.obj:setArg(1, self.UBuf)
+		obj.obj:setArg(2, self.cellBuf)
 	end
 	for _,op in ipairs(self.ops) do
 		if op.refreshBoundaryProgram then
@@ -1342,6 +1347,7 @@ function GridSolver:refreshBoundaryProgram()
 		self.lrBoundaryProgramObj, self.lrBoundaryKernelObjs = self:createBoundaryProgramAndKernel(args)
 		for _,obj in ipairs(self.lrBoundaryKernelObjs) do
 			obj.obj:setArg(1, self:getULRBuf())
+			obj.obj:setArg(2, self.cellBuf)
 		end
 	end
 end

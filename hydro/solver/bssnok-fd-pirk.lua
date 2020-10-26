@@ -150,11 +150,13 @@ function BSSNOKFiniteDifferencePIRKSolver:applyBoundaryTo(buf, kernelObjs)
 	assert(kernelObjs)
 	for _,obj in ipairs(kernelObjs) do
 		obj.obj:setArg(1, buf)
+		obj.obj:setArg(2, self.cellBuf)
 	end
 	assert(kernelObjs)
 	self:applyBoundaryToBuffer(kernelObjs)
 	for _,obj in ipairs(kernelObjs) do
 		obj.obj:setArg(1, self.UBuf)
+		obj.obj:setArg(2, self.cellBuf)
 	end
 end
 

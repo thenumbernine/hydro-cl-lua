@@ -311,6 +311,7 @@ function PoissonKrylov:refreshBoundaryProgram()
 		}
 	for _,obj in ipairs(self.potentialBoundaryKernelObjs) do
 		obj.obj:setArg(1, self:getPotBuf())
+		obj.obj:setArg(2, solver.cellBuf)
 	end
 end
 
