@@ -410,13 +410,20 @@ typedef struct {
 
 	if self.useCTU then
 		self.modules:add{
-			name = 'GridSolver.updateCTU',
-			depends = table{'cell_sqrt_det_g'}
-				-- optionally dependent on consLR_t when usePLM is enabled
-				:append{self.usePLM and 'consLR_t' or nil},
+			name = 'updateCTU',
+			depends = table{
+				'solver_t',
+				'cell_t',
+				'cons_t',
+				'SETBOUNDS',
+				'cell_x',
+				'cell_sqrt_det_g',
+			}
+			-- optionally dependent on consLR_t when usePLM is enabled
+			:append{self.usePLM and 'consLR_t' or nil},
 			code = template(file['hydro/solver/ctu.cl'], {solver=self, eqn=self.eqn}),
 		}
-		self.sharedModulesEnabled['GridSolver.updateCTU'] = true
+		self.sharedModulesEnabled['updateCTU'] = true
 	end
 
 	-- TODO move this to solver_t?
