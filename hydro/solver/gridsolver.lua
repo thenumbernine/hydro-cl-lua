@@ -90,7 +90,16 @@ args:
 	boundary = boundary info
 --]]
 function GridSolver:initObjs(args)
+
+	-- [[ grab these before calling super, or else refreshGetULR will be initialized incorrectly at first
+	self.usePLM = args.usePLM
+	self.slopeLimiter = self.app.limiterNames:find(args.slopeLimiter) or 1
+	self.useCTU = args.useCTU
+	--]]
+
 	GridSolver.super.initObjs(self, args)
+	
+	assert(not self.usePLM or self.fluxLimiter == 1, "are you sure you want to use flux and slope limiters at the same time?")
 	
 	self:createBoundaryOptions()
 
@@ -108,12 +117,6 @@ function GridSolver:initObjs(args)
 			self.boundaryMethods[var] = boundaryClass(boundaryObjArgs)
 		end
 	end
-	
-	self.usePLM = args.usePLM
-	assert(not self.usePLM or self.fluxLimiter == 1, "are you sure you want to use flux and slope limiters at the same time?")
-	self.slopeLimiter = self.app.limiterNames:find(args.slopeLimiter) or 1
-	
-	self.useCTU = args.useCTU
 end
 
 
@@ -361,9 +364,10 @@ typedef struct {
 				eqn = self.eqn,
 			}),
 		}
-	
+
+		-- TODO use the same MODULE_* markup as the eqn/.cl files
 		self.modules:add{
-			name = 'GridSolver.usePLM',
+			name = 'calcLR',
 			depends = {
 				'consLR_t',
 				'solver_t',
@@ -378,6 +382,7 @@ typedef struct {
 				'slopeLimiter',
 				-- plm-prim-alone:
 				'slopeLimiter',
+				'consFromPrim',
 				-- plm-eig:
 				'eigen_forCell',
 				'eigen_left/rightTransform',
@@ -400,7 +405,7 @@ typedef struct {
 			code = template(file['hydro/solver/plm.cl'], {solver=self, eqn=self.eqn}),
 		}
 		
-		self.solverModulesEnabled['GridSolver.usePLM'] = true
+		self.solverModulesEnabled['calcLR'] = true
 	end
 
 	if self.useCTU then
@@ -518,7 +523,7 @@ function GridSolver:boundaryLR()
 	if self.usePLM then
 		for _,obj in ipairs(self.lrBoundaryKernelObjs) do
 			obj()
-	if self.checkNaNs then assert(self:checkFinite(derivBufObj)) end
+			if self.checkNaNs then assert(self:checkFinite(derivBufObj)) end
 		end
 	else
 		self:boundary()
@@ -543,14 +548,16 @@ function GridSolver:refreshGetULR()
 			args = args or {}
 			local suffix = args.suffix or ''
 			return template([[
-const global <?=eqn.cons_t?>* UL<?=suffix?> = &<?=solver.getULRBufName?>[side + dim * <?=indexL?>].R;
-const global <?=eqn.cons_t?>* UR<?=suffix?> = &<?=solver.getULRBufName?>[side + dim * <?=indexR?>].L;
+const global <?=eqn.cons_t?>* UL<?=suffix?> = &<?=bufName?>[<?=side?> + dim * <?=indexL?>].R;
+const global <?=eqn.cons_t?>* UR<?=suffix?> = &<?=bufName?>[<?=side?> + dim * <?=indexR?>].L;
 ]],			{
 				solver = self,
 				eqn = self.eqn,
 				suffix = suffix,
+				side = args.side or 'side',
 				indexL = args.indexL or 'indexL'..suffix,
 				indexR = args.indexR or 'indexR'..suffix,
+				bufName = args.bufName or self.getULRBufName,	-- for displayVars the variable name is 'buf', so I need to override it either in displayCode or here
 			})
 		end
 	else 

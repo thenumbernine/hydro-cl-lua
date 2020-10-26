@@ -181,7 +181,7 @@ function FiniteVolumeSolver:addDisplayVars()
 	int indexL = index - solver->stepsize.s<?=side?>;
 	real3 xInt = x;
 	xInt.s<?=side?> -= .5 * solver->grid_dx.s<?=side?>;
-	<?=solver:getULRCode{bufName='buf'}:gsub('\n', '\n\t')?>
+	<?=solver:getULRCode{bufName='buf', side=side}:gsub('\n', '\n\t')?>
 	normal_t n = normal_forSide<?=side?>(xInt);
 	<?=eqn.eigen_t?> eig = eigen_forInterface(solver, *UL, *UR, xInt, n);
 ]], 	{

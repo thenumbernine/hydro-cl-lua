@@ -470,7 +470,10 @@ then ?>
 <? end ?>
 
 <? do -- if not solver.coord.vectorComponent == 'anholonomic' then ?>
-<? if not require 'hydro.coord.cartesian'.is(solver.coord) then ?>
+<? if not (require 'hydro.coord.cartesian'.is(solver.coord) 
+		or solver.coord.vectorComponent == 'cartesian')
+then ?>
+//// MODULE_DEPENDS: primFromCons coord_conn_apply23 coord_conn_trace23 coord_conn_apply13
 /*
 This is working for init conds with zero velocity.
 Introducing constant velocity of v=[x=1,y=1]=[r=sqrt(2),theta=pi/4] in the init cond causes some numerical errors.

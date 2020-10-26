@@ -1176,8 +1176,6 @@ end
 
 -- depends on buffers
 function SolverBase:refreshSolverProgram()
-	self:refreshGetULR()	
-
 	local code
 	time('generating solver code', function()
 		local moduleNames = table(self.sharedModulesEnabled, self.solverModulesEnabled):keys()
