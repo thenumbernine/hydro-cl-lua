@@ -211,14 +211,15 @@ function ModuleSet:addFromMarkup(args)
 	local moduleDeps = table()
 	local function makeModule()
 		if moduleName then
-			if args.onAdd then
-				args.onAdd(moduleName, moduleDeps)
-			end
-			self:add{
+			local moduleArgs = {
 				name = moduleName,
 				depends = moduleDeps,
 				code = moduleLines:concat'\n',
 			}
+			if args.onAdd then
+				args.onAdd(moduleArgs)
+			end
+			self:add(moduleArgs)
 		elseif moduleLines and #moduleLines > 0 then
 			print('throwing away:\n'..moduleLines:concat'\n')
 		end

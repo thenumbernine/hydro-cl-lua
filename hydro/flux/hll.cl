@@ -1,3 +1,5 @@
+//// MODULE_NAME: calcFluxForInterface
+//// MODULE_DEPENDS: solver.macros math eigen_forInterface eqn.waveCode fluxFromCons
 //HLL solver:
 
 <?=eqn.cons_t?> calcFluxForInterface(
@@ -52,70 +54,3 @@
 		return flux;
 	}
 }
-
-
-<? if not require 'hydro.solver.meshsolver'.is(solver) then ?>
-
-kernel void calcFlux(
-	constant <?=solver.solver_t?>* solver,
-	global <?=eqn.cons_t?>* fluxBuf,
-	const global <?=solver.getULRArg?>,
-	realparam dt,	//not used by HLL, just making this match Roe / other FV solvers
-	const global <?=solver.coord.cell_t?>* cellBuf
-) {
-	typedef <?=eqn.cons_t?> cons_t;
-
-	SETBOUNDS(numGhost,numGhost-1);
-	
-	real3 xR = cellBuf[index].pos;
-	int indexR = index;
-	
-	<? for side=0,solver.dim-1 do ?>{
-		const int side = <?=side?>;
-
-		real dx = solver->grid_dx.s<?=side?>;
-		
-		int indexL = index - solver->stepsize.s<?=side?>;
-		real3 xL = xR;
-		xL.s<?=side?> -= dx;
-		
-		real3 xInt = xR;
-		xInt.s<?=side?> -= .5 * dx;
-		
-		int indexInt = side + dim * index;
-		global cons_t* flux = fluxBuf + indexInt;
-
-
-<? if solver.coord.vectorComponent == 'holonomic'
-	or require 'hydro.coord.cartesian'.is(solver.coord)
-	then ?>
-		real area = 1.<?
-	for i=0,solver.dim-1 do
-		if i ~= side then
-			?> * solver->grid_dx.s<?=i?><?
-		end
-	end
-?>;
-<? else ?>
-		real area = cell_area<?=side?>(xInt);
-<? end ?>
-		if (area <= 1e-7) {
-			for (int j = 0; j < numStates; ++j) {
-				flux->ptr[j] = 0;
-			}
-			return;
-		}
-
-
-		<?=solver:getULRCode():gsub('\n', '\n\t\t')?>
-		
-		cons_t pUL = cons_parallelPropagate<?=side?>(*UL, xL, .5 * dx);
-		cons_t pUR = cons_parallelPropagate<?=side?>(*UR, xR, -.5 * dx);
-
-		normal_t n = normal_forSide<?=side?>(xInt);
-
-		*flux = calcFluxForInterface(solver, pUL, pUR, xInt, n);
-	}<? end ?>
-}
-
-<? end -- mesh vs grid solver ?>

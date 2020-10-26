@@ -20,10 +20,4 @@ function EulerHLLC:init(args)
 	EulerHLLC.super.init(self, args)
 end
 
-function EulerHLLC:getModuleDepends_calcFlux()
-	return table(EulerHLLC.super.getModuleDepends_calcFlux(self)):append{
-		'cell_x',
-	}
-end
-
 return EulerHLLC

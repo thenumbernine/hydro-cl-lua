@@ -524,14 +524,14 @@ end
 
 	self.solver.modules:addFromMarkup{
 		code = self:template(file[self.solverCodeFile]),
-		onAdd = function(moduleName, moduleDeps)
+		onAdd = function(args)
 			-- special case for applyInitCond ...
-			if moduleName == 'applyInitCond' then
-				moduleDeps:append(self.initCond.baseDepends)
-				moduleDeps:append(self.initCond.depends)
+			if args.name == 'applyInitCond' then
+				args.depends:append(self.initCond.baseDepends)
+				args.depends:append(self.initCond.depends)
 				-- only used by hydro/eqn/bssnok-fd.lua:
 				if self.getModuleDependsApplyInitCond then
-					moduleDeps:append(self:getModuleDependsApplyInitCond())
+					args.depends:append(self:getModuleDependsApplyInitCond())
 				end
 			end
 		end,

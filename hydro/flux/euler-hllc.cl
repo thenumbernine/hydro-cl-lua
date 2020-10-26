@@ -1,3 +1,11 @@
+//// MODULE_NAME: calcFlux
+//// MODULE_DEPENDS: solver.macros math cons_parallelPropagate
+//// MODULE_DEPENDS: eigen_forInterface eqn.waveCode
+//// MODULE_DEPENDS: fluxFromCons
+<? if not require 'hydro.solver.meshsolver'.is(solver) then ?>
+//// MODULE_DEPENDS: cell_x
+<? end ?>
+
 //HLLC based on
 //http://math.lanl.gov/~shenli/publications/hllc_mhd.pdf
 //2012 Toro, "The HLLC Riemann Solver" presentation: http://marian.fsik.cvut.cz/~bodnar/PragueSum_2012/Toro_2-HLLC-RiemannSolver.pdf

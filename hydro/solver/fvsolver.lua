@@ -33,26 +33,16 @@ function FiniteVolumeSolver:initCodeModules()
 
 	self.flux:initCodeModules()
 
-	self.modules:add{
-		name = 'calcDerivFromFlux',
-		depends = table{
-			'solver_t',
-			'cons_t',
-			'cell_t',
-			'solver.macros',	-- dim
-			'SETBOUNDS_NOGHOST',
-		}:append(
-			(self.coord.vectorComponent == 'holonomic'
-			or require 'hydro.coord.cartesian'.is(self.coord))
-			and {}
-			or {'cell_volume', 'cell_area#'}
-		),
-		code = template(file['hydro/solver/calcDerivFV.cl'], {solver=self}),
-	}
-	self.solverModulesEnabled['calcDerivFromFlux'] = true
-	
-	-- this module is set up in hydro/flux/flux.lua
+	-- the calcFlux kernel is in calcDerivFV.cl for gridsolvers and in meshsolver.lua for meshsolvers
+	-- both are dependent on calcFluxForInterface
+	-- which is set up in hydro/flux/flux.lua
 	self.solverModulesEnabled['calcFlux'] = true
+
+	self.modules:addFromMarkup(
+		template(file['hydro/solver/calcDerivFV.cl'], {solver=self, eqn=self.eqn, flux=self.flux})
+	)
+	
+	self.solverModulesEnabled['calcDerivFromFlux'] = true
 end
 
 function FiniteVolumeSolver:createFlux(fluxName, fluxArgs)
