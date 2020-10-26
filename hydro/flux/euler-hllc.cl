@@ -1,10 +1,5 @@
-//// MODULE_NAME: calcFlux
-//// MODULE_DEPENDS: solver.macros math cons_parallelPropagate
-//// MODULE_DEPENDS: eigen_forInterface eqn.waveCode
-//// MODULE_DEPENDS: fluxFromCons
-<? if not require 'hydro.solver.meshsolver'.is(solver) then ?>
-//// MODULE_DEPENDS: cell_x
-<? end ?>
+//// MODULE_NAME: calcFluxForInterface
+//// MODULE_DEPENDS: solver.macros math eigen_forInterface eqn.waveCode fluxFromCons
 
 //HLLC based on
 //http://math.lanl.gov/~shenli/publications/hllc_mhd.pdf
@@ -208,43 +203,3 @@ end
 	//flux.m = real3_rotTo<?=side?>(flux.m);
 	return flux;
 }
-
-
-<? if not require 'hydro.solver.meshsolver'.is(solver) then ?>
-
-kernel void calcFlux(
-	constant <?=solver.solver_t?>* solver,
-	global <?=eqn.cons_t?>* fluxBuf,
-	const global <?=solver.getULRArg?>,
-	realparam dt,
-	const global <?=solver.coord.cell_t?>* cellBuf
-) {
-	SETBOUNDS(numGhost,numGhost-1);
-	
-	real3 xR = cell_x(i);
-	int indexR = index;
-	
-	<? for side=0,solver.dim-1 do ?>{
-		const int side = <?=side?>;	
-		
-		int indexL = index - solver->stepsize.s<?=side?>;
-		real3 xL = xR;
-		xL.s<?=side?> -= solver->grid_dx.s<?=side?>;
-		
-		real3 xInt = xR;
-		xInt.s<?=side?> -= .5 * solver->grid_dx.s<?=side?>;
-		int indexInt = side + dim * index;
-
-		<?=solver:getULRCode():gsub('\n', '\n\t\t')?>
-		
-		cons_t pUL = cons_parallelPropagate<?=side?>(*UL, xL, .5 * dx);
-		cons_t pUR = cons_parallelPropagate<?=side?>(*UR, xR, -.5 * dx);
-		
-		normal_t n = normal_forSide<?=side?>(xInt);
-	
-		global <?=eqn.cons_t?>* flux = fluxBuf + indexInt;
-		*flux = calcFluxForInterface(solver, pUL, pUR, xInt, n);
-	}<? end ?>
-}
-
-<? end -- mesh vs grid solver ?>

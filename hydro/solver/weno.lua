@@ -52,9 +52,12 @@ end
 function WENO:createFlux()
 	self.flux = {
 		initCodeModules = function()
-			self.modules:add{name = 'calcFlux'}
+			self.modules:add{name = 'calcFluxForInterface'}
 		end,
 	}
+end
+
+function WENO:initCodeModule_calcFlux()
 end
 
 -- TODO find what intermediate values to buffer for perf increase
@@ -65,32 +68,14 @@ function WENO:createBuffers()
 --	self:clalloc('fluxCellBuf', self.eqn.cons_t, self.numCells * self.dim)
 end
 
-function WENO:initCodeModules()
-	WENO.super.initCodeModules(self)
-	
-	self.modules:add{
-		name = 'WENO.calcFlux',
-		depends = table{
-			'cell_x',
-			'fluxFromCons',
-			'normal_t',
-			'eigen_forInterface',
-			'eigen_left/rightTransform',
-			'eqn.waveCode',
-		}:append(
-			({
-				['Marquina'] = {
-					'eigen_forCell',
-				},
-			})[self.fluxMethod]
-		),
-		code = template(file['hydro/solver/weno.cl'], {
+function WENO:initCodeModule_calcFlux()
+	self.modules:addFromMarkup(
+		template(file['hydro/solver/weno.cl'], {
 			solver = self,
 			eqn = self.eqn,
 			clnumber = require 'cl.obj.number',
-		}),
-	}
-	self.solverModulesEnabled['WENO.calcFlux'] = true
+		})
+	)
 end
 
 -- all these are found eqn's cl code

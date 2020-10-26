@@ -1,3 +1,6 @@
+//// MODULE_NAME: calcFlux
+//// MODULE_DEPENDS: cell_x fluxFromCons normal_t eigen_forInterface eigen_left/rightTransform eqn.waveCode
+
 /*
 WENO solver:
 sources:
@@ -519,7 +522,9 @@ for side=0,solver.dim-1 do ?>{
 	
 	elseif solver.fluxMethod == 'Marquina' then
 
-?>		<?=eqn.eigen_t?> eigL = eigen_forCell(solver, *UL, xInt, n);
+?>
+//// MODULE_DEPENDS: eigen_forCell
+		<?=eqn.eigen_t?> eigL = eigen_forCell(solver, *UL, xInt, n);
 		<?=eqn.eigen_t?> eigR = eigen_forCell(solver, *UR, xInt, n);
 
 		real lambdaL[<?=eqn.numWaves?>];
