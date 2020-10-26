@@ -780,31 +780,10 @@ function Equation:consMaxWaveCode(n, U, x)
 	return self:consWaveCode(n, U, x, self.numWaves-1)
 end
 
-function Equation:getModuleDepends_calcDT()
-	return table{
-		-- used by the function prototype
-		'solver_t',
-		'cons_t',
-		'cell_t',
-		'normal_t',
-		'eqn.waveCode',
-		'SETBOUNDS',
-	}:append(
-		require 'hydro.solver.meshsolver'.is(self.solver)
-		and {
-			'face_t',
-		} or nil
-	)
-end
-
 -- By default calcDT is taken from hydro/eqn/cl/calcDT.cl
 -- Override to provide your own.
 function Equation:initCodeModule_calcDT()
-	self.solver.modules:add{
-		name = 'calcDT',
-		depends = self:getModuleDepends_calcDT(),
-		code = self:template(file['hydro/eqn/cl/calcDT.cl']),
-	}
+	self.solver.modules:addFromMarkup(self:template(file['hydro/eqn/cl/calcDT.cl']))
 end
 
 --[[

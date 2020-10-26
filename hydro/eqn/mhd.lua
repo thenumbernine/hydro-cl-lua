@@ -168,12 +168,6 @@ end
 function MHD:initCodeModule_fluxFromCons() end
 function MHD:initCodeModulePrimCons() end
 
-function MHD:getModuleDepends_calcDT()
-	return table(MHD.super.getModuleDepends_calcDT(self)):append{
-		'calcCellMinMaxEigenvalues',
-	}
-end
-
 function MHD:getModuleDepends_waveCode() 
 	return {
 		'calcCellMinMaxEigenvalues',

@@ -86,6 +86,7 @@ function PoissonKrylov:initSolver()
 		table(solver.sharedModulesEnabled:keys())
 		:append{
 			'OOB',
+			'numGhost',
 		}:unpack())
 
 	local mulWithoutBorderKernelObj = solver.domain:kernel{

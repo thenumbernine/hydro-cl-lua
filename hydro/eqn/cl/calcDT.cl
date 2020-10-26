@@ -1,3 +1,6 @@
+//// MODULE_NAME: calcDT
+//// MODULE_DEPENDS: solver_t cons_t cell_t normal_t eqn.waveCode SETBOUNDS
+
 <? if not require 'hydro.solver.meshsolver'.is(solver) then ?>
 /*
 run across each cell
@@ -44,6 +47,7 @@ then
 }
 
 <? else -- meshsolver ?>
+//// MODULE_DEPENDS: face_t
 
 kernel void calcDT(
 	constant <?=solver.solver_t?>* solver,
