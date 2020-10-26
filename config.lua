@@ -113,7 +113,7 @@ local args = {
 	--coordArgs = {vectorComponent='holonomic'},		-- use the coordinate derivatives to represent our vector components (though they may not be normalized)
 		-- TODO doesn't work for rmin=0
 	--coordArgs = {vectorComponent='anholonomic'},		-- use orthonormal basis to represent our vector components.
-	coordArgs = {vectorComponent='cartesian'},		-- use cartesian vector components 
+	coordArgs = {vectorComponent='cartesian'},			-- use cartesian vector components 
 	mins = cmdline.mins or {0, 0, -1},
 	maxs = cmdline.maxs or {1, 2*math.pi, 1},			-- TODO bake the 2π into the coordinate chart so this matches grid/cylinder.  Technically θ→2πθ means it isn't the standard θ variable.  I did this for UI convenience with CFDMesh.
 	gridSize = ({

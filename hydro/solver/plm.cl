@@ -1,3 +1,6 @@
+//// MODULE_NAME: calcLR
+//// MODULE_DEPENDS: consLR_t solver_t cons_t normal_t cell_x cell_dx#
+
 // TODO incorporate parallel propagators
 
 <? if not solver.usePLM then return end ?>
@@ -17,6 +20,7 @@ for side=0,solver.dim-1 do
 	-- piecewise-linear
 	if solver.usePLM == 'plm-cons' then 
 ?>
+//// MODULE_DEPENDS: fluxFromCons slopeLimiter
 
 /*
 #1: slope based on conservative variables
@@ -139,6 +143,7 @@ for sgn b >= 0:
 	-- and this one 'plm-cons'
 	elseif solver.usePLM == 'plm-cons-alone' then 
 ?>
+//// MODULE_DEPENDS: slopeLimiter
 
 <?=eqn.consLR_t?> calcCellLR_<?=side?>(
 	constant <?=solver.solver_t?>* solver,
@@ -191,6 +196,7 @@ for sgn b >= 0:
 <? 
 	elseif solver.usePLM == 'plm-prim-alone' then 
 ?>
+//// MODULE_DEPENDS: slopeLimiter consFromPrim
 
 <?=eqn.consLR_t?> calcCellLR_<?=side?>(
 	constant <?=solver.solver_t?>* solver,
@@ -253,6 +259,7 @@ for sgn b >= 0:
 <? 
 	elseif solver.usePLM == 'plm-eig' then 
 ?>
+//// MODULE_DEPENDS: eigen_forCell eigen_left/rightTransform
 
 /*
 #2: next step, project into eigenspace
@@ -489,7 +496,8 @@ based on Trangenstein, Athena, etc, except working on primitives like it says to
 <? 	
 		if solver.usePLM == 'plm-eig-prim' then 
 ?>
-	
+//// MODULE_DEPENDS: apply_dU_dW apply_dW_dU eigen_left/rightTransform
+
 	//without reference state
 
 	// calculate left and right slopes in characteristic space
@@ -524,7 +532,8 @@ based on Trangenstein, Athena, etc, except working on primitives like it says to
 <?	
 		elseif solver.usePLM == 'plm-eig-prim-ref' then 
 ?>
-	
+//// MODULE_DEPENDS: eigen_forCell apply_dU_dW apply_dW_dU eigen_left/rightTransform
+
 	//with reference state
 
 	//min and max waves
@@ -587,6 +596,7 @@ based on Trangenstein, Athena, etc, except working on primitives like it says to
 	elseif solver.usePLM == 'plm-athena' then 
 
 ?>
+//// MODULE_DEPENDS: eigen_forCell eigen_left/rightTransform
 
 //based on Athena
 <?=eqn.consLR_t?> calcCellLR_<?=side?>(
@@ -677,6 +687,7 @@ based on Trangenstein, Athena, etc, except working on primitives like it says to
 <? 
 	elseif solver.usePLM == 'ppm-experimental' then 
 ?>
+//// MODULE_DEPENDS: eigen_forCell eigen_left/rightTransform
 
 //here's my attempt at Trangenstein section 5.12 PPM
 //with help from Zingale's ppm code

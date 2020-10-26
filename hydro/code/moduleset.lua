@@ -191,4 +191,57 @@ function ModuleSet:getCodeAndHeader(...)
 	return lines:concat'\n'
 end
 
+--[[
+add using the following markup:
+//// MODULE_NAME: (name)
+//// MODULE_DEPENDS: space-separated-dependencies
+(code)
+
+args:
+	code
+	onAdd = function(moduleName, moduleDeps)
+--]]
+function ModuleSet:addFromMarkup(args)
+	if type(args) == 'string' then args = {code = args} end
+
+	local lines = string.split(args.code, '\n')
+
+	local moduleName
+	local moduleLines = table()
+	local moduleDeps = table()
+	local function makeModule()
+		if moduleName then
+			if args.onAdd then
+				args.onAdd(moduleName, moduleDeps)
+			end
+			self:add{
+				name = moduleName,
+				depends = moduleDeps,
+				code = moduleLines:concat'\n',
+			}
+		elseif moduleLines and #moduleLines > 0 then
+			print('throwing away:\n'..moduleLines:concat'\n')
+		end
+		moduleName = nil
+		moduleLines = table()
+		moduleDeps = table()
+	end
+	for _,line in ipairs(lines) do
+		local name = line:match'^//// MODULE_NAME: (.*)'
+		if name then
+			makeModule()
+			moduleName = string.trim(name)
+			assert(#moduleName > 0, "got an empty module name")
+		else
+			local deps = line:match'^//// MODULE_DEPENDS: (.*)'
+			if deps then
+				moduleDeps:append(string.split(string.trim(deps), ' '))
+			else
+				moduleLines:insert(line)
+			end
+		end
+	end
+	makeModule()
+end
+
 return ModuleSet

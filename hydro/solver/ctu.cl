@@ -1,3 +1,9 @@
+//// MODULE_NAME: updateCTU
+//// MODULE_DEPENDS: solver_t cell_t cons_t SETBOUNDS cell_x cell_sqrt_det_g
+<? if solver.usePLM then ?>
+//// MODULE_DEPENDS: consLR_t
+<? end ?>
+
 /*
 using the interface flux
 update the LR states by integrating dt/2 times the interface flux

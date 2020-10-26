@@ -365,69 +365,14 @@ typedef struct {
 			}),
 		}
 
-		-- TODO use the same MODULE_* markup as the eqn/.cl files
-		self.modules:add{
-			name = 'calcLR',
-			depends = {
-				'consLR_t',
-				'solver_t',
-				'cons_t',
-				'normal_t',
-				'cell_x',
-				'cell_dx#',
-				-- plm-cons:
-				'fluxFromCons',
-				'slopeLimiter',
-				-- plm-cons-alone:
-				'slopeLimiter',
-				-- plm-prim-alone:
-				'slopeLimiter',
-				'consFromPrim',
-				-- plm-eig:
-				'eigen_forCell',
-				'eigen_left/rightTransform',
-				-- plm-eig-prim:
-				'apply_dU_dW',
-				'apply_dW_dU',
-				'eigen_left/rightTransform',
-				-- plm-eig-prim-ref:
-				'eigen_forCell',
-				'apply_dU_dW',
-				'apply_dW_dU',
-				'eigen_left/rightTransform',
-				-- plm-athena:
-				'eigen_forCell',
-				'eigen_left/rightTransform',
-				-- ppm-experimental:
-				'eigen_forCell',
-				'eigen_left/rightTransform',
-			},
-			code = template(file['hydro/solver/plm.cl'], {solver=self, eqn=self.eqn}),
-		}
-		
+		self.modules:addFromMarkup(template(file['hydro/solver/plm.cl'], {solver=self, eqn=self.eqn}))
 		self.solverModulesEnabled['calcLR'] = true
 	end
 
 	if self.useCTU then
-		self.modules:add{
-			name = 'updateCTU',
-			depends = table{
-				'solver_t',
-				'cell_t',
-				'cons_t',
-				'SETBOUNDS',
-				'cell_x',
-				'cell_sqrt_det_g',
-			}
-			-- optionally dependent on consLR_t when usePLM is enabled
-			:append{self.usePLM and 'consLR_t' or nil},
-			code = template(file['hydro/solver/ctu.cl'], {solver=self, eqn=self.eqn}),
-		}
+		self.modules:addFromMarkup(template(file['hydro/solver/ctu.cl'], {solver=self, eqn=self.eqn}))
 		self.sharedModulesEnabled['updateCTU'] = true
 	end
-
-	-- TODO move this to solver_t?
-	self.sharedModulesEnabled['numGhost'] = true
 end
 
 -- call this when a gui var changes
@@ -1174,12 +1119,13 @@ function GridSolver:createBoundaryProgramAndKernel(args)
 		'INDEX',
 		'INDEXV',
 		-- some Boundary :getCode use numStates
+		-- TODO use the addCodeMarkup function and inline these all?
 		'solver.macros',
 		'cell_x',
 		'cartesianFromCoord',
 		'normalForSide',
+		'numGhost',
 	}
-print('boundary modules: '..moduleNames:sort():concat', ')
 	lines:insert(self.modules:getCodeAndHeader(moduleNames:unpack()))
 
 	local iFields = ({
@@ -1207,7 +1153,6 @@ print('boundary modules: '..moduleNames:sort():concat', ')
 		local function index(j)
 			return 'INDEX('..indexv(j)..')'
 		end
-
 
 		lines:insert(template([[
 kernel void boundary_<?=xNames[side]?>(

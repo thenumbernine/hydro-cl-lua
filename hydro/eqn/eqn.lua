@@ -522,17 +522,9 @@ end
 	self:initCodeModule_waveCode()
 	self:initCodeModule_displayCode()
 
-
-	local string = require 'ext.string'
-
-	local code = self:template(file[self.solverCodeFile])
-	local lines = string.split(code, '\n')
-
-	local moduleName
-	local moduleLines = table()
-	local moduleDeps = table()
-	local function makeModule()
-		if moduleName then
+	self.solver.modules:addFromMarkup{
+		code = self:template(file[self.solverCodeFile]),
+		onAdd = function(moduleName, moduleDeps)
 			-- special case for applyInitCond ...
 			if moduleName == 'applyInitCond' then
 				moduleDeps:append(self.initCond.baseDepends)
@@ -542,35 +534,8 @@ end
 					moduleDeps:append(self:getModuleDependsApplyInitCond())
 				end
 			end
-			local args = {
-				name = moduleName,
-				depends = moduleDeps,
-				code = moduleLines:concat'\n',
-			}		
-			solver.modules:add(args)
-		elseif moduleLines and #moduleLines > 0 then
-			print('throwing away:\n'..moduleLines:concat'\n')
-		end
-		moduleName = nil
-		moduleLines = table()
-		moduleDeps = table()
-	end
-	for _,line in ipairs(lines) do
-		local name = line:match'^//// MODULE_NAME: (.*)'
-		if name then
-			makeModule()
-			moduleName = string.trim(name)
-			assert(#moduleName > 0, "got an empty module name")
-		else
-			local deps = line:match'^//// MODULE_DEPENDS: (.*)'
-			if deps then
-				moduleDeps:append(string.split(string.trim(deps), ' '))
-			else
-				moduleLines:insert(line)
-			end
-		end
-	end
-	makeModule()
+		end,
+	}
 end
 
 function Equation:initCodeModule_fluxFromCons()

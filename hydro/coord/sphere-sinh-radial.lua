@@ -315,7 +315,7 @@ function SphereLogRadial:fillGridCellBuf(cellsCPU)
 
 	local symmath = require 'symmath'
 	local rho, theta, phi = self.baseCoords:unpack()
-	local calcR, code = symmath.export.Lua:toFunc{
+	local calcR = symmath.export.Lua:toFunc{
 		output = {
 			self.vars.r
 				:replace(self.amplitude_var, self.amplitude)

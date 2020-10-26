@@ -718,17 +718,22 @@ meshsolver needs to pass 'cellBuf'
 		dontUnion = true,
 		vars = {
 			{name='pos', type='real3'},	-- x1 x2 x3 input coordinates to the chart
+--[[ should volume always be in cell_t?  or should we use macros that abstract it per-coord?  (same with cell_x?)
+			{name='volume', type='real'},	--volume of the cell
+--]]		
 		},
 	}
 	
 	-- here's the mesh-specific stuff
 	if require 'hydro.solver.meshsolver'.is(assert(self.solver)) then
 		self.cellStruct.vars:append{
-			{type='real', name='volume'},	--volume of the cell
-			{type='int', name='faceOffset'},
-			{type='int', name='faceCount'},
-			{type='int', name='vtxOffset'},
-			{type='int', name='vtxCount'},
+-- [[			
+			{name='volume', type='real'},	--volume of the cell
+--]]			
+			{name='faceOffset', type='int'},
+			{name='faceCount', type='int'},
+			{name='vtxOffset', type='int'},
+			{name='vtxCount', type='int'},
 		}
 	end
 
@@ -763,6 +768,18 @@ end
 
 function CoordinateSystem:fillGridCellBuf(cellsCPU)
 	local solver = self.solver
+
+--[[ TODO replace 'solver->' with 'solver.solverPtr.'
+	local symmath = require 'symmath'
+	local u, v, w = self.baseCoords:unpack()
+	local calcVolume = assert(symmath.export.Lua:toFunc{
+		output = {
+			self.request'volume',
+		},
+		input = {{u=u}, {v=v}, {w=w}},
+	})
+--]]
+
 	local index = 0
 	for k=0,tonumber(solver.gridSize.z)-1 do
 		local w = solver.dim >= 3 
@@ -779,6 +796,9 @@ function CoordinateSystem:fillGridCellBuf(cellsCPU)
 				cellsCPU[index].pos.x = u
 				cellsCPU[index].pos.y = v
 				cellsCPU[index].pos.z = w
+--[[				
+				cellsCPU[index].volume = calcVolume(u,v,w)
+--]]				
 				index = index + 1
 			end
 		end
@@ -1072,8 +1092,8 @@ function CoordinateSystem:initCodeModules()
 		{name='coordLenSq', build=getCode_real3_real3_to_real},		-- coord len code: l(v) = v^i v^j g_ij
 		{name='coordLen', build=getCode_real3_real3_to_real},
 		{name='coord_tr23_c', build=getCode_real3_to_real3},
-		{name='coord_conn_lll', build=getCode_real3_to_3sym3, depends={'_3sym3'}},
-		{name='coord_conn_ull', build=getCode_real3_to_3sym3, depends={'_3sym3'}},
+		{name='coord_conn_lll', build=getCode_real3_to_3sym3},
+		{name='coord_conn_ull', build=getCode_real3_to_3sym3},
 		{name='coord_conn_apply12', build=getCode_real3_real3_real3_to_real3},
 		{name='coord_conn_apply13', build=getCode_real3_real3_real3_to_real3},
 		{name='coord_conn_apply23', build=getCode_real3_real3_real3_to_real3},
@@ -1084,9 +1104,13 @@ function CoordinateSystem:initCodeModules()
 		{name='coord_partial_det_g', build=getCode_real3_to_real3},
 		{name='coord_partial2_det_g', build=getCode_real3_to_sym3},
 	} do
+		local depends
+		if info.build == getCode_real3_to_3sym3 then
+			depends = (depends or table()):append{'_3sym3'}
+		end
 		solver.modules:add{
 			name = info.name,
-			depends = info.depends,
+			depends = depends,
 			code = function()
 				return info.build(info.name, self.compilePrintRequestTensor(info.name))
 			end,
