@@ -1,5 +1,18 @@
+//// MODULE_NAME: calc_gamma_ll
+
+#define calc_gamma_ll(U, x)	((U)->gamma_ll)
+
+//// MODULE_NAME: calc_gamma_uu
+//// MODULE_DEPENDS: cons_t
+
+sym3 calc_gamma_uu(const global <?=eqn.cons_t?>* U, real3 x) {
+	real det_gamma = sym3_det(U->gamma_ll);
+	sym3 gamma_uu = sym3_inv(U->gamma_ll, det_gamma);
+	return gamma_uu;
+}
+
 //// MODULE_NAME: applyInitCond
-//// MODULE_DEPENDS: coordMap coord_gHol_ll rescaleFromCoord/rescaleToCoord
+//// MODULE_DEPENDS: numGhost coordMap coord_gHol_ll rescaleFromCoord/rescaleToCoord
 
 <?
 if eqn.initCond.initAnalytical then

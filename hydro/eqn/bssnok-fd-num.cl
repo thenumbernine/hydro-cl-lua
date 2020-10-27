@@ -28,6 +28,11 @@ local useKreissOligarDissipation = true
 
 -- symmath?
 local Tensor = require 'symmath.Tensor'
+
+
+local lenExprs = coord.request'lenExprs'
+local Gamma_ull = coord.request'coord_conn_ull'
+local det_gammaHat = coord.request'coord_det_g'
 ?>
 
 //// MODULE_NAME: eqn.common
@@ -82,7 +87,7 @@ I'm trying to keep the differentiations to an absolute minimum in the bssnok-fd-
 coord_dx#(x) is the same as f_# 
 */
 <?
-local partial_len_ll = coord.lenExprs'_i,j'():permute'_ij'
+local partial_len_ll = lenExprs'_i,j'():permute'_ij'
 local partial2_len_lll = partial_len_ll'_ij,k'():factorDivision():permute'_ijk'
 
 for i,xi in ipairs(xNames) do
@@ -94,7 +99,7 @@ end
 
 -- this is used often enough
 local partial_len_over_len_lll = Tensor('_ijk', function(i,j,k)
-	return (partial_len_ll[i][j] / coord.lenExprs[k])()
+	return (partial_len_ll[i][j] / lenExprs[k])()
 end)
 for i,xi in ipairs(xNames) do
 	for j,xj in ipairs(xNames) do
@@ -250,9 +255,9 @@ end ?>
 
 //calc_partial_connHat_Ulll_ijkl := e_i^I connHat^i_jk,l
 <? 
-local partial_connHat_ulll = coord.Gamma_ull'^i_jk,l'():permute'^i_jkl'
+local partial_connHat_ulll = Gamma_ull'^i_jk,l'():permute'^i_jkl'
 local partial_connHat_Ulll = Tensor('^I_jkl', function(i,j,k,l)
-	return (partial_connHat_ulll[i][j][k][l] * coord.lenExprs[i])()
+	return (partial_connHat_ulll[i][j][k][l] * lenExprs[i])()
 end)
 for i,xi in ipairs(xNames) do
 	for jk,xjk in ipairs(symNames) do
@@ -267,12 +272,11 @@ end
 //// MODULE_NAME: calc_partial*_det_gammaHat_over_det_gammaHat_*
 
 <?
-local det_gammaHat = coord.det_g 
 local partial_det_gammaHat_l = Tensor('_i', function(i)
 	return det_gammaHat:diff(coord.coords[i])()
 end)
 local partial_det_gammaHat_over_det_gammaHat_L = Tensor('_i', function(i)
-	return (partial_det_gammaHat_l[i] / (det_gammaHat * coord.lenExprs[i]))()
+	return (partial_det_gammaHat_l[i] / (det_gammaHat * lenExprs[i]))()
 end)
 ?>
 real3 calc_partial_det_gammaHat_over_det_gammaHat_L(real3 pt) {
@@ -287,7 +291,7 @@ for i,xi in ipairs(xNames) do
 <?
 local partial2_det_gammaHat_ll = partial_det_gammaHat_l'_i,j'():factorDivision()
 local partial2_det_gammaHat_over_det_gammaHat_LL = Tensor('_ij', function(i,j)
-	return (partial2_det_gammaHat_ll[i][j] / (det_gammaHat * coord.lenExprs[i] * coord.lenExprs[j]))()
+	return (partial2_det_gammaHat_ll[i][j] / (det_gammaHat * lenExprs[i] * lenExprs[j]))()
 end)
 ?>
 sym3 calc_partial2_det_gammaHat_over_det_gammaHat_LL(real3 pt) {
@@ -495,16 +499,7 @@ static sym3 calc_trBar_partial2_gammaBar_ll(
 }
 
 //// MODULE_NAME: applyInitCond
-//// MODULE_DEPENDS: _3sym3 coordMap calc_gammaHat_ll<?
--- only initAnalytical or default (not useBSSNVars) need rescaling
-if eqn.initCond.initAnalytical or not eqn.initCond.useBSSNVars then
-?> rescaleFromCoord/rescaleToCoord<?
-end
-if eqn.initCond.initAnalytical then
-?> _3sym3_rescaleFromCoord/_3sym3_rescaleToCoord<?
-end
-?> calc_gammaBar_LL calc_det_gammaBar calc_det_gammaBarLL calc_partial_gammaBar_LLL calc_connBar_ULL calc_connHat_LLL_and_ULL
-//calc_gammaBar_LL is only used in the initDerivs ... should I allow multiple MODULE_DEPENDS to be inserted? maybe ...
+//// MODULE_DEPENDS: _3sym3 numGhost coordMap calc_gammaHat_ll calc_det_gammaBar calc_det_gammaBarLL calc_partial_gammaBar_LLL calc_connBar_ULL calc_connHat_LLL_and_ULL
 
 // Should initCond provide a metric in cartesian, or in the background metric?
 // I'll say Cartesian for now, and then transform them using the rescaling.
@@ -518,6 +513,7 @@ if initCond.initAnalytical then
 	--local symmath = require 'symmath'
 	--local det_gamma = symmath.Matrix.determinant(initCond.gamma0_ll)
 ?>
+//// MODULE_DEPENDS: rescaleFromCoord/rescaleToCoord _3sym3_rescaleFromCoord/_3sym3_rescaleToCoord
 
 kernel void applyInitCond(
 	constant <?=solver.solver_t?>* solver,
@@ -609,8 +605,6 @@ end ?>
 
 	real3 partial_det_gammaHat_l;
 <? 
-local symmath = require 'symmath'
-local det_gammaHat = solver.coord.det_g 
 local partial_det_gammaHat_l = symmath.Tensor('_i', function(i)
 	return det_gammaHat:diff(solver.coord.coords[i])()
 end)
@@ -745,6 +739,7 @@ kernel void applyInitCond(
 -- if we're using a SENR init cond then init the components directly
 -- TODO port these from sympy into symmath 
 ?>
+//// MODULE_DEPENDS: rescaleFromCoord/rescaleToCoord calc_gammaBar_LL 
 
 kernel void applyInitCond(
 	constant <?=solver.solver_t?>* solver,
@@ -2176,11 +2171,7 @@ static void calcDeriv_Pi(
 <? end	-- eqn.useScalarField ?>
 
 //// MODULE_NAME: calcDeriv
-//// MODULE_DEPENDS: calc_det_gammaBarLL calc_gammaBar_LL calc_exp_neg4phi calcDeriv_ABar_LL solver.macros mystery_C_U calcDeriv_ABar_LL initCond.codeprefix applyKreissOligar getUpwind from3x3to6 calc_partial*_det_gammaHat_over_det_gammaHat_* calc_connHat_LLL_and_ULL calc_connBar_ULL calcDeriv_epsilon_LL calcDeriv_W calc_PIRK_L2_LambdaBar_U calc_dt_LambdaBar_U_wo_partial_upwind_beta_LambdaBar calc_PIRK_L2_B_U calc_PIRK_L3_B_U calcDeriv_K calc_partial_gammaBar_LLL tracefree calc_RBar_LL calc_len_# calc_trBar_partial2_gammaBar_ll real3x3_partial_rescaleFromCoord_Ul eqn.macros<?
-if eqn.useScalarField then
-?> calcDeriv_Phi calcDeriv_Psi calcDeriv_Pi<? 
-end
-?>
+//// MODULE_DEPENDS: calc_det_gammaBarLL calc_gammaBar_LL calc_exp_neg4phi calcDeriv_ABar_LL solver.macros mystery_C_U calcDeriv_ABar_LL initCond.codeprefix applyKreissOligar getUpwind from3x3to6 calc_partial*_det_gammaHat_over_det_gammaHat_* calc_connHat_LLL_and_ULL calc_connBar_ULL calcDeriv_epsilon_LL calcDeriv_W calc_PIRK_L2_LambdaBar_U calc_dt_LambdaBar_U_wo_partial_upwind_beta_LambdaBar calc_PIRK_L2_B_U calc_PIRK_L3_B_U calcDeriv_K calc_partial_gammaBar_LLL tracefree calc_RBar_LL calc_len_# calc_trBar_partial2_gammaBar_ll real3x3_partial_rescaleFromCoord_Ul eqn.macros
 /*
 -- calcDeriv_epsilon_LL:
 	'calc_partial_gammaBar_LLL',
@@ -2610,7 +2601,7 @@ or even the ∂_0 ΛBar^i then we can re-add the needed terms later
 
 
 <? if eqn.useScalarField then ?>
-	
+//// MODULE_DEPENDS: calcDeriv_Phi calcDeriv_Psi calcDeriv_Pi	
 	//////////////////////////////// Phi_,t //////////////////////////////// 
 
 <? if useCalcDeriv_Phi then ?>

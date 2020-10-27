@@ -97,6 +97,7 @@ end
 -- this one calcs cell prims once and uses it for all sides
 -- it is put here instead of in hydro/eqn/euler.cl so euler-burgers can override it
 -- TODO move the sqrt() out of the loop altogether?
+-- TODO allow module overriding in the markup somehow?
 function Euler:initCodeModule_calcDT()
 	local solver = self.solver
 	solver.modules:add{

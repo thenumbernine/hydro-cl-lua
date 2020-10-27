@@ -402,7 +402,11 @@ self.compilePrintRequestTensor = compilePrintRequestTensor
 	self.calc = {}
 	self.request = function(name)
 		if not self.cached[name] then 
-			self.cached[name] = self.calc[name]() or true
+			local build = self.calc[name]
+			if not build then
+				error("requested calculation of '"..name.."' but couldn't find it")
+			end
+			self.cached[name] = build() or true
 		end
 		return self.cached[name]
 	end
