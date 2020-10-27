@@ -861,7 +861,7 @@ function SolverBase:refreshCommonProgram()
 		-- This is in GridSolver, a subclass.  
 		-- In fact, all the display stuff is pretty specific to cartesian grids.
 		-- Not 100% though, since the MeshSolver stuff was working with it before I introduced the code module stuff.
-		'SETBOUNDS_NOGHOST',	
+		'SETBOUNDS_NOGHOST',
 	}
 print('common modules: '..moduleNames:sort():concat', ')
 
@@ -870,7 +870,7 @@ print('common modules: '..moduleNames:sort():concat', ')
 		self.modules:getHeader(moduleNames:unpack()),
 		template([[
 kernel void multAddInto(
-	constant <?=solver.solver_t?>* solver,	// TODO just 'n'?
+	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* a,
 	const global <?=eqn.cons_t?>* b,
 	realparam c
@@ -884,7 +884,7 @@ end
 ?>}
 
 kernel void multAdd(
-	constant <?=solver.solver_t?>* solver,	// TODO just 'n'?
+	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* a,
 	const global <?=eqn.cons_t?>* b,
 	const global <?=eqn.cons_t?>* c,
@@ -904,7 +904,7 @@ end
 ?>}
 
 kernel void square(
-	constant <?=solver.solver_t?>* solver,	// TODO just 'n'?
+	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* a
 ) {
 	SETBOUNDS_NOGHOST();

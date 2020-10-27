@@ -1,3 +1,5 @@
+//// MODULE_NAME: calcFluxAtCell
+//// MODULE_DEPENDS: solver_t cons_t cell_t SETBOUNDS cell_x solver.macros fluxFromCons
 
 kernel void calcFluxAtCell(
 	constant <?=solver.solver_t?>* solver,
@@ -13,6 +15,9 @@ kernel void calcFluxAtCell(
 <? end
 ?>
 }
+
+//// MODULE_NAME: calcDerivFiniteDifference
+//// MODULE_DEPENDS: solver_t cons_t cell_t SETBOUNDS solver.macros
 
 kernel void calcDerivFiniteDifference(
 	constant <?=solver.solver_t?>* solver,

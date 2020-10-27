@@ -121,23 +121,22 @@ function InitCond:initCodeModules(solver)
 end
 
 function InitCond:refreshInitStateProgram(solver)
-
 	solver.initModulesEnabled['applyInitCond'] = true
-
+	
 	local initCondCode 
 	time('generating init state code', function()
 		local moduleNames = table(solver.sharedModulesEnabled, solver.initModulesEnabled):keys()
 print('initCond modules: '..moduleNames:sort():concat', ')
 		initCondCode = solver.modules:getCodeAndHeader(moduleNames:unpack())
 	end)
-
+	
 	time('building initCond program', function()
 		solver.initCondProgramObj = solver.Program{name='initCond', code=initCondCode}
 		solver.initCondProgramObj:compile()
 	end)
-
+	
 	solver.applyInitCondKernelObj = solver.initCondProgramObj:kernel('applyInitCond', solver.solverBuf, solver.initCondBuf, solver.UBuf, solver.cellBuf)
-
+	
 	if solver.eqn.needsInitDerivs then
 		solver.initDerivsKernelObj = solver.initCondProgramObj:kernel('initDerivs', solver.solverBuf, solver.UBuf, solver.cellBuf)
 	end

@@ -195,50 +195,80 @@ end
 add using the following markup:
 //// MODULE_NAME: (name)
 //// MODULE_DEPENDS: space-separated-dependencies
+
+//// MODULE_CODE:
 (code)
+
+//// MODULE_HEADER: 
+(header)
 
 args:
 	code
-	onAdd = function(moduleName, moduleDeps)
+	onAdd = function(moduleArgs)
 --]]
 function ModuleSet:addFromMarkup(args)
 	if type(args) == 'string' then args = {code = args} end
 
-	local lines = string.split(args.code, '\n')
+	local srcLines = string.split(args.code, '\n')
 
-	local moduleName
-	local moduleLines = table()
-	local moduleDeps = table()
+	local name, dstLines, lineTarget, depends
+	name = nil
+	dstLines = {
+		headercode = table(),
+		code = table(),
+	}
+	lineTarget = 'code'
+	depends = table()
+	
 	local function makeModule()
-		if moduleName then
+		if name then
 			local moduleArgs = {
-				name = moduleName,
-				depends = moduleDeps,
-				code = moduleLines:concat'\n',
+				name = name,
+				depends = depends,
+				headercode = dstLines.headercode:concat'\n',
+				code = dstLines.code:concat'\n',
 			}
 			if args.onAdd then
 				args.onAdd(moduleArgs)
 			end
+			if string.trim(moduleArgs.headercode) == '' then moduleArgs.headercode = nil end
+			if string.trim(moduleArgs.code) == '' then moduleArgs.code = nil end
 			self:add(moduleArgs)
-		elseif moduleLines and #moduleLines > 0 then
-			print('throwing away:\n'..moduleLines:concat'\n')
+		else
+			if dstLines.headercode and #dstLines.headercode > 0 then
+				print('!!! throwing away headercode !!!!:\n'..dstLines.headercode:concat'\n')
+			end
+			if dstLines.code and #dstLines.code > 0 then
+				print('!!! throwing away code !!!!:\n'..dstLines.code:concat'\n')
+			end
 		end
-		moduleName = nil
-		moduleLines = table()
-		moduleDeps = table()
+		
+		name = nil
+		dstLines = {
+			headercode = table(),
+			code = table(),
+		}
+		lineTarget = 'code'
+		depends = table()
 	end
-	for _,line in ipairs(lines) do
-		local name = line:match'^//// MODULE_NAME: (.*)'
-		if name then
+	for _,line in ipairs(srcLines) do
+		local readname = line:match'^//// MODULE_NAME: (.*)'
+		if readname then
 			makeModule()
-			moduleName = string.trim(name)
-			assert(#moduleName > 0, "got an empty module name")
+			name = string.trim(readname)
+			assert(#name > 0, "got an empty module name")
 		else
 			local deps = line:match'^//// MODULE_DEPENDS: (.*)'
 			if deps then
-				moduleDeps:append(string.split(string.trim(deps), ' '))
+				depends:append(string.split(string.trim(deps), ' '))
 			else
-				moduleLines:insert(line)
+				if string.trim(line) == '//// MODULE_CODE:' then
+					lineTarget = 'code'
+				elseif string.trim(line) == '//// MODULE_HEADER:' then
+					lineTarget = 'headercode'
+				else
+					table.insert(dstLines[lineTarget], line)
+				end
 			end
 		end
 	end

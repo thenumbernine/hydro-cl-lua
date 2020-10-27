@@ -18,6 +18,8 @@ and then during codegen it will have to only pick out the modules that it needs
 local class = require 'ext.class'
 local table = require 'ext.table'
 
+local verbose = cmdline.moduleVerbose
+
 local Module = class()
 
 local predefinedStructTypes = {
@@ -47,6 +49,9 @@ function Module:init(args)
 			end
 		end
 	end
+if verbose then	
+	print(require 'ext.tolua'(self))
+end			
 end
 
 return Module

@@ -22,20 +22,11 @@ end
 
 function FiniteDifferenceSolver:initCodeModules()
 	FiniteDifferenceSolver.super.initCodeModules(self)
-	self.modules:add{
-		name = 'calcFluxAtCell,calcDerivFiniteDifference',
-		depends = {
-			'solver_t',
-			'cons_t',
-			'cell_t',
-			'SETBOUNDS',
-			'cell_x',
-			'solver.macros',
-			'fluxFromCons',
-		},
-		code = template(file['hydro/solver/calcDerivFD.cl'], {solver=self, eqn=self.eqn}),
-	}
-	self.solverModulesEnabled['calcFluxAtCell,calcDerivFiniteDifference'] = true
+	self.modules:addFromMarkup(
+		template(file['hydro/solver/fdsolver.cl'], {solver=self, eqn=self.eqn})
+	)
+	self.solverModulesEnabled['calcFluxAtCell'] = true
+	self.solverModulesEnabled['calcDerivFiniteDifference'] = true
 end
 
 function FiniteDifferenceSolver:refreshSolverProgram()
