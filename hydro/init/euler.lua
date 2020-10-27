@@ -48,7 +48,6 @@ local function RiemannProblem(initCond)
 			end):concat'\n'
 		end
 		return template([[
-	
 	bool lhsSod = true<?
 for i=1,overrideDim or solver.dim do
 	local xi = xNames[i]

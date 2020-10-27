@@ -34,9 +34,9 @@ end
 	real3 D = real3_zero;
 	real3 B = real3_zero;
 	real ePot = 0;
-
+	
 	<?=initCode()?>
-
+	
 	<?=eqn.prim_t?> W = {
 		.rho = rho,
 		.v = cartesianToCoord(v, x),

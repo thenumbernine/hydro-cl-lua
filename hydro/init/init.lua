@@ -115,7 +115,9 @@ function InitCond:initCodeModules(solver)
 
 	solver.modules:add{
 		name = 'initCond.codeprefix',
-		depends = {'initCond_t'},
+		depends = {
+			'initCond_t',
+		},
 		code = self.getCodePrefix and self:getCodePrefix(solver) or nil,
 	}
 end

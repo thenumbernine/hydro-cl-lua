@@ -496,7 +496,7 @@ based on Trangenstein, Athena, etc, except working on primitives like it says to
 <? 	
 		if solver.usePLM == 'plm-eig-prim' then 
 ?>
-//// MODULE_DEPENDS: apply_dU_dW apply_dW_dU eigen_left/rightTransform
+//// MODULE_DEPENDS: apply_dU_dW apply_dW_dU eigen_left/rightTransform consFromPrim
 
 	//without reference state
 
@@ -532,7 +532,7 @@ based on Trangenstein, Athena, etc, except working on primitives like it says to
 <?	
 		elseif solver.usePLM == 'plm-eig-prim-ref' then 
 ?>
-//// MODULE_DEPENDS: eigen_forCell apply_dU_dW apply_dW_dU eigen_left/rightTransform
+//// MODULE_DEPENDS: eigen_forCell apply_dU_dW apply_dW_dU eigen_left/rightTransform consFromPrim
 
 	//with reference state
 
@@ -596,7 +596,7 @@ based on Trangenstein, Athena, etc, except working on primitives like it says to
 	elseif solver.usePLM == 'plm-athena' then 
 
 ?>
-//// MODULE_DEPENDS: eigen_forCell eigen_left/rightTransform
+//// MODULE_DEPENDS: eigen_forCell eigen_left/rightTransform consFromPrim
 
 //based on Athena
 <?=eqn.consLR_t?> calcCellLR_<?=side?>(
@@ -687,7 +687,7 @@ based on Trangenstein, Athena, etc, except working on primitives like it says to
 <? 
 	elseif solver.usePLM == 'ppm-experimental' then 
 ?>
-//// MODULE_DEPENDS: eigen_forCell eigen_left/rightTransform
+//// MODULE_DEPENDS: eigen_forCell eigen_left/rightTransform consFromPrim
 
 //here's my attempt at Trangenstein section 5.12 PPM
 //with help from Zingale's ppm code

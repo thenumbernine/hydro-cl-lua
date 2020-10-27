@@ -13,8 +13,8 @@ function Cylinder2DMeshFactory:init(args)
 	args = table(args)
 	args.mins = vec3d(args.mins or {0, 0, -1})
 	args.maxs = vec3d(args.maxs or {1, 1, 1})
-	args.wrap = vec3d(args.wrap or {1, 0, 0})
-	args.capmin = vec3d(args.capmin or {0, 0, 0})
+	args.wrap = vec3i(args.wrap or {1, 0, 0})
+	args.capmin = vec3i(args.capmin or {0, 0, 0})
 	Cylinder2DMeshFactory.super.init(self, args)
 end
 

@@ -1,7 +1,10 @@
 local class = require 'ext.class'
 local table = require 'ext.table'
 local InitCond = require 'hydro.init.init'
-return table{
+
+local TwoFluidInitCond = class(InitCond)
+
+local initConds = table{
 	{
 		name = 'Brio-Wu',
 		getInitCondCode = function(self, solver)
@@ -27,6 +30,7 @@ return table{
 		name = 'GEM challenge',
 		mins = {-4*math.pi, -2*math.pi, -1},
 		maxs = {4*math.pi, 2*math.pi, 1},
+		depends = {'sech'},
 		getInitCondCode = function(self, solver)
 			solver:setBoundaryMethods{
 				xmin = 'periodic',
@@ -68,5 +72,11 @@ return table{
 	},
 
 }:map(function(cl)
-	return class(InitCond, cl)
+	return class(TwoFluidInitCond, cl)
 end)
+
+function TwoFluidInitCond:getList()
+	return initConds
+end
+
+return TwoFluidInitCond 
