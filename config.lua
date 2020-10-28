@@ -315,7 +315,7 @@ local args = {
 	--initCond = 'two-fluid EMHD soliton maxwell',
 	
 	-- initConds for twofluid-emhd stored in hydro/init/twofluid-emhd.lua:
-	--initCond = 'Brio-Wu', eqnArgs = {useEulerInitState=false},
+	--initCond = 'two-fluid Brio-Wu', eqnArgs = {useEulerInitState=false},
 	initCond = 'GEM challenge', eqnArgs = {useEulerInitState=false},
 
 	-- Einstein
@@ -699,7 +699,7 @@ self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='euler', wenoMe
 -- ...which means, with the Maxwell equations waves propagating at the speed of light, that it goes very slow
 -- TODO: I suppose I could make this work with my integrator by (1) removing the maxwell terms from the integration variable list and (2) providing a separate operator that updates them implicitly
 -- TODO still needs PLM support
-self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='twofluid-emhd'})))
+--self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='twofluid-emhd'})))
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='twofluid-emhd'})))
 --self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='twofluid-emhd', wenoMethod='1996 Jiang Shu', order=9})))	-- exploded...
 --self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='twofluid-emhd', wenoMethod='2010 Shen Zha', order=5})))

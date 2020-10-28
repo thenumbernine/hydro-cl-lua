@@ -6,7 +6,7 @@ local TwoFluidInitCond = class(InitCond)
 
 local initConds = table{
 	{
-		name = 'Brio-Wu',
+		name = 'two-fluid Brio-Wu',
 		getInitCondCode = function(self, solver)
 			if solver.eqn.guiVars.heatCapacityRatio then	
 				solver.eqn.guiVars.heatCapacityRatio.value = 2

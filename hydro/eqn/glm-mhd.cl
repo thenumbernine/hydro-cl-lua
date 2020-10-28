@@ -552,7 +552,7 @@ range_t calcCellMinMaxEigenvalues(
 }
 
 //// MODULE_NAME: eigen_left/rightTransform
-//// MODULE_DEPENDS: cons_rotateTo
+//// MODULE_DEPENDS: cons_rotateTo waves_t
 
 <?=eqn.waves_t?> eigen_leftTransform(
 	constant <?=solver.solver_t?>* solver,
