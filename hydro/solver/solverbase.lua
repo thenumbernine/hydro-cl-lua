@@ -324,6 +324,9 @@ function SolverBase:init(args)
 self.initArgs = table(args)	-- save for later	
 self.initArgs.app = nil
 self.initArgs.solver = getmetatable(self).name	-- not in initArgs but is unique	
+if self.initArgs.subsolverClass then
+	self.initArgs.subsolverClass = 'choppedup'
+end
 	time('SolverBase:init()', function()
 		self:initMeshVars(args)
 		self:initCLDomainVars(args)
@@ -363,9 +366,9 @@ function SolverBase:getIdent()
 	-- (this is causing errors, because i think these filenames are coming out too long, because they include stuff that test-order didn't
 	-- 	such as boundary condition info, eqn args, etc ... these need to be shortened)
 	assert(self.initArgs)
-	local destName = require 'ext.tolua'(self.initArgs)
-	destName = destName:match('^{(.*)}$')
-	assert(destName, "we must have got a circular reference in:\n"..destName)
+	local serStr = require 'ext.tolua'(self.initArgs)
+	local destName = serStr:match('^{(.*)}$')
+	assert(destName, "we must have got a circular reference in:\n"..serStr)
 	destName = destName 
 		:gsub('%s+', ' ')
 		:gsub('"', '')
