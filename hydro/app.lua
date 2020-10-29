@@ -80,6 +80,10 @@ cmdline = table(
 	require 'ext.cmdline'(table.unpack(arg)),
 	cmdline)	-- let any previous cmdline global fall through, as an override for require'ing files.  I know, very messy.
 
+if cmdline.verbose then
+	print('cmdline: '..require'ext.tolua'(cmdline))
+end
+
 local bit = require 'bit'
 local ffi = require 'ffi'
 local cl = require 'ffi.OpenCL'
