@@ -302,7 +302,8 @@ eigen_t eigen_forCell(
 	return eigen_forInterface(solver, U, U, x, n);
 }
 
-//// MODULE_NAME: eigen_left/rightTransform
+//// MODULE_NAME: eigen_left/rightTransform 
+//// MODULE_DEPENDS: waves_t
 
 <? -- create code to initialize local vars of all the eig vars
 local eigVarCode = require 'ext.table'.map(eqn.eigenVars, function(var)

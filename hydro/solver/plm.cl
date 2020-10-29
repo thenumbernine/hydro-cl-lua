@@ -196,7 +196,7 @@ for sgn b >= 0:
 <? 
 	elseif solver.usePLM == 'plm-prim-alone' then 
 ?>
-//// MODULE_DEPENDS: slopeLimiter consFromPrim
+//// MODULE_DEPENDS: slopeLimiter consFromPrim primFromCons
 
 <?=eqn.consLR_t?> calcCellLR_<?=side?>(
 	constant <?=solver.solver_t?>* solver,
@@ -496,7 +496,7 @@ based on Trangenstein, Athena, etc, except working on primitives like it says to
 <? 	
 		if solver.usePLM == 'plm-eig-prim' then 
 ?>
-//// MODULE_DEPENDS: apply_dU_dW apply_dW_dU eigen_left/rightTransform consFromPrim
+//// MODULE_DEPENDS: apply_dU_dW apply_dW_dU eigen_left/rightTransform consFromPrim primFromCons
 
 	//without reference state
 
@@ -532,7 +532,7 @@ based on Trangenstein, Athena, etc, except working on primitives like it says to
 <?	
 		elseif solver.usePLM == 'plm-eig-prim-ref' then 
 ?>
-//// MODULE_DEPENDS: eigen_forCell apply_dU_dW apply_dW_dU eigen_left/rightTransform consFromPrim
+//// MODULE_DEPENDS: eigen_forCell apply_dU_dW apply_dW_dU eigen_left/rightTransform consFromPrim primFromCons
 
 	//with reference state
 
@@ -596,7 +596,7 @@ based on Trangenstein, Athena, etc, except working on primitives like it says to
 	elseif solver.usePLM == 'plm-athena' then 
 
 ?>
-//// MODULE_DEPENDS: eigen_forCell eigen_left/rightTransform consFromPrim
+//// MODULE_DEPENDS: eigen_forCell eigen_left/rightTransform consFromPrim primFromCons
 
 //based on Athena
 <?=eqn.consLR_t?> calcCellLR_<?=side?>(
@@ -687,7 +687,7 @@ based on Trangenstein, Athena, etc, except working on primitives like it says to
 <? 
 	elseif solver.usePLM == 'ppm-experimental' then 
 ?>
-//// MODULE_DEPENDS: eigen_forCell eigen_left/rightTransform consFromPrim
+//// MODULE_DEPENDS: eigen_forCell eigen_left/rightTransform consFromPrim primFromCons
 
 //here's my attempt at Trangenstein section 5.12 PPM
 //with help from Zingale's ppm code

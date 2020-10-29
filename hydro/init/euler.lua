@@ -1316,7 +1316,7 @@ end) then
 	-- derived from Athena Kelvin-Helmholtz I think
 	{
 		name = 'Kelvin-Helmholtz',
-		
+		depends = {'cartesianFromCoord'},
 		createInitStruct = function(self, solver)
 			EulerInitCond.createInitStruct(self, solver)
 
@@ -1338,7 +1338,7 @@ end) then
 				{name='rhoOutside', value=1.},
 				{name='amplitude', value=1e-2},
 				-- not seeing much of a difference
-				{name='noiseAmplitude', value=1e-4},
+				{name='noiseAmplitude', value=1e-2},
 				{name='backgroundPressure', value=2.5},
 				{name='frequency', value=2.},
 				--{name='thickness', value=1e-7}

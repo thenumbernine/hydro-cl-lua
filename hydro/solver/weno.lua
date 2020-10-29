@@ -85,7 +85,7 @@ function WENO:refreshSolverProgram()
 --	self.calcCellFluxKernelObj = self.solverProgramObj:kernel'calcCellFlux'
 
 	self.calcFluxKernelObj = self.solverProgramObj:kernel'calcFlux'
-	self.calcFluxKernelObj.obj:setArg(2, self.fluxBuf)
+	self.calcFluxKernelObj.obj:setArg(1, self.fluxBuf)
 end
 
 -- NOTICE this adds the contents of derivBufObj and does not clear it
@@ -104,9 +104,9 @@ function WENO:calcDeriv(derivBufObj, dt)
 --]]
 	
 	self.calcFluxKernelObj.obj:setArg(0, self.solverBuf)
-	self.calcFluxKernelObj.obj:setArg(1, self.cellBuf)
-self.calcFluxKernelObj.obj:setArg(2, self.fluxBuf)
-	self.calcFluxKernelObj.obj:setArg(3, self.UBuf)
+	self.calcFluxKernelObj.obj:setArg(1, self.fluxBuf)
+	self.calcFluxKernelObj.obj:setArg(2, self:getULRBuf())
+	self.calcFluxKernelObj.obj:setArg(3, self.cellBuf)
 --	self.calcFluxKernelObj.obj:setArg(4, self.fluxCellBuf)
 	self.calcFluxKernelObj()
 

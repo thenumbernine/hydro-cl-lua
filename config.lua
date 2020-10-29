@@ -30,9 +30,9 @@ local args = {
 	fixedDT = cmdline.fixedDT,
 	cfl = cmdline.cfl or .3/dim,	-- 1/dim,
 	
-	--fluxLimiter = cmdline.fluxLimiter or 'superbee',
+	fluxLimiter = cmdline.fluxLimiter or 'superbee',
 	--fluxLimiter = 'monotized central',
-	fluxLimiter = 'donor cell',
+	--fluxLimiter = 'donor cell',
 	
 	-- piecewise-linear slope limiter
 	-- TODO rename this to 'calcLR' or something
@@ -41,7 +41,7 @@ local args = {
 	--usePLM = 'plm-prim-alone',
 	--usePLM = 'plm-eig',
 	--usePLM = 'plm-eig-prim',
-	usePLM = 'plm-eig-prim-ref',
+	--usePLM = 'plm-eig-prim-ref',
 	--usePLM = 'plm-athena',			-- based on Athena.  most accurate from 1D sod tests atm
 	--usePLM = 'ppm-experimental',	-- FIXME one more attempt to figure out all the PLM stuff, based on 2017 Zingale
 	--usePLM = 'weno',				-- TODO make WENO one of these 'usePLM' methods. rename it to 'construct LR state method' or something.  then we can use CTU with WENO.
@@ -52,7 +52,7 @@ local args = {
 	--slopeLimiter = 'superbee',
 
 	-- this is functional without usePLM, but doing so falls back on the cell-centered buffer, which with the current useCTU code will update the same cell twice from different threads
-	useCTU = true,
+	--useCTU = true,
 	
 	-- [[ Cartesian
 	coord = 'cartesian',
@@ -82,13 +82,13 @@ local args = {
 			},
 			['Intel(R) OpenCL HD Graphics/Intel(R) Gen9 HD Graphics NEO'] = {
 				{600,1,1},
-				{16,16,1},
+				{128,128,1},
 				
 				-- for 11th WENO (2010 Shen Zha) once we reduce size below 6,6 it breaks
 				-- so TODO something about boundary conditions on WENO or something ... maybe an error
 				-- other than weno, this works fine with finite volume codes
 				--{64,1,1},
-				{10,10,10},
+				{32,32,32},
 			},
 		})[platAndDevicesNames]
 		-- default size options
@@ -99,12 +99,12 @@ local args = {
 		}
 	)[dim],
 	boundary = type(cmdline.boundary) == 'table' and cmdline.boundary or {
-		xmin = cmdline.boundary or 'freeflow',
-		xmax = cmdline.boundary or 'freeflow',
-		ymin = cmdline.boundary or 'freeflow',
-		ymax = cmdline.boundary or 'freeflow',
-		zmin = cmdline.boundary or 'freeflow',
-		zmax = cmdline.boundary or 'freeflow',
+		xmin = cmdline.boundary or 'periodic',
+		xmax = cmdline.boundary or 'periodic',
+		ymin = cmdline.boundary or 'periodic',
+		ymax = cmdline.boundary or 'periodic',
+		zmin = cmdline.boundary or 'periodic',
+		zmax = cmdline.boundary or 'periodic',
 	},
 	--]]
 	--[[ cylinder
@@ -228,7 +228,7 @@ local args = {
 	--initCond = 'Colella-Woodward',
 	--initCond = 'double mach reflection',
 	--initCond = 'square cavity',
-	--initCond = 'shock bubble interaction',		-- with usePLM only works with prim or with athena
+	initCond = 'shock bubble interaction',		-- with usePLM only works with prim or with athena
 	--initCond = 'Richmyer-Meshkov',
 	--initCond = 'radial gaussian',
 
@@ -316,7 +316,7 @@ local args = {
 	
 	-- initConds for twofluid-emhd stored in hydro/init/twofluid-emhd.lua:
 	--initCond = 'two-fluid Brio-Wu', eqnArgs = {useEulerInitState=false},
-	initCond = 'GEM challenge', eqnArgs = {useEulerInitState=false},
+	--initCond = 'GEM challenge', eqnArgs = {useEulerInitState=false},
 
 	-- Einstein
 	--initCond = 'Minkowski',
@@ -539,7 +539,7 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn
 -- compressible Euler equations
 
 
---self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
+self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
 
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct bounded'})))	-- this is the default hllCalcWaveMethod
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct'})))
@@ -867,7 +867,7 @@ With hyperbolic gamma driver shift it has trouble.
 --		Then I could rewrite the current higher order PLM/WENO stuff for the MeshSolver
 -- 2) flux
 -- 3) vector component coordinates
-
+-- in fact, the biggest difference between mesh and grid solver is the n'th spatial derivative calculations, so if this can be abstracted then the two can be combined
 
 -- multi GPU
 -- how about 'composite grid' instead of 'chopped up'?

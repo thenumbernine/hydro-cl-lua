@@ -436,10 +436,9 @@ kernel void calcCellFlux(
 
 kernel void calcFlux(
 	constant <?=solver.solver_t?>* solver,
-	const global <?=solver.coord.cell_t?>* cellBuf,
 	global <?=eqn.cons_t?>* fluxBuf,
-	const global <?=eqn.cons_t?>* UBuf
-//	,const global <?=eqn.cons_t?>* fluxCellBuf
+	const global <?=eqn.cons_t?>* UBuf/*<?=solver.getULRArg?>*/,
+	const global <?=solver.coord.cell_t?>* cellBuf
 ) {
 	SETBOUNDS(numGhost,numGhost-1);
 	
@@ -450,10 +449,14 @@ for side=0,solver.dim-1 do ?>{
 		const int side = <?=side?>;	
 		
 		int indexL = index - solver->stepsize.s<?=side?>;
-		const global <?=eqn.cons_t?>* UL = UBuf + indexL;
-	
 		int indexR = index;
+
+#if 0
+		<?=solver:getULRCode():gsub('\n', '\n\t\t')?>
+#else
+		const global <?=eqn.cons_t?>* UL = UBuf + indexL;
 		const global <?=eqn.cons_t?>* UR = UBuf + indexR;
+#endif
 
 		real3 xInt = xR;
 		xInt.s<?=side?> -= .5 * solver->grid_dx.s<?=side?>;

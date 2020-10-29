@@ -1,4 +1,5 @@
 local class = require 'ext.class'
+local table = require 'ext.table'
 local template = require 'template'
 local ig = require 'ffi.imgui'
 local tooltip = require 'hydro.tooltip'
@@ -26,6 +27,12 @@ function SRHDSelfGrav:init(args)
 	args.linearSolver = cmdline.selfGravLinearSolver or 'conjres'	-- so far works best for selfgrav
 	SRHDSelfGrav.super.init(self, args)
 	self.solver[self.enableField] = not not self.solver[self.enableField]
+end
+
+function SRHDSelfGrav:getModuleDepends_Poisson()
+	return table(SRHDSelfGrav.super.getModuleDepends_Poisson(self)):append{
+		'units',
+	}
 end
 
 -- params for hydro/op/poisson.cl 

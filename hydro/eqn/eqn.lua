@@ -800,7 +800,7 @@ function Equation:initCodeModulePrimCons()
 
 	self.solver.modules:add{
 		name = 'primFromCons',
-		--depends = {'solver_t', 'prim_t', 'cons_t'},
+		depends = {'solver_t', 'prim_t', 'cons_t'},
 		code = self:template[[
 #define primFromCons(solver, U, x)	U
 /*
@@ -817,7 +817,7 @@ function Equation:initCodeModulePrimCons()
 	
 	self.solver.modules:add{
 		name = 'consFromPrim',
-		--depends = {'solver_t', 'prim_t', 'cons_t'},
+		depends = {'solver_t', 'prim_t', 'cons_t'},
 		code = self:template[[
 #define consFromPrim(solver, W, x)	W
 /*
@@ -835,7 +835,7 @@ function Equation:initCodeModulePrimCons()
 	-- only used by PLM
 	self.solver.modules:add{
 		name = 'apply_dU_dW',
-		--depends = {'solver_t', 'prim_t', 'cons_t'},
+		depends = {'solver_t', 'prim_t', 'cons_t'},
 		code = self:template[[
 /*
 WA = W components that make up the jacobian matrix
@@ -860,7 +860,7 @@ returns output vector
 	-- only used by PLM
 	self.solver.modules:add{
 		name = 'apply_dW_dU',
-		--depends = {'solver_t', 'prim_t', 'cons_t'},
+		depends = {'solver_t', 'prim_t', 'cons_t'},
 		code = self:template[[
 /*
 WA = W components that make up the jacobian matrix
