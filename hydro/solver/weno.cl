@@ -1,10 +1,8 @@
 //// MODULE_NAME: weno_l/r
-//// MODULE_DEPENDS: cell_x fluxFromCons normal_t eigen_forInterface eigen_left/rightTransform eqn.waveCode
-
-static inline real sqr(real x) { return x * x; }
+//// MODULE_DEPENDS: cell_x sqr fluxFromCons normal_t eigen_forInterface eigen_left/rightTransform eqn.waveCode
 
 <? 
-local clnumber = require 'cl.obj.number'
+local clnumber = require "cl.obj.number"
 
 local stencilSize = solver.stencilSize
 local coeffs = solver.coeffs
@@ -15,13 +13,13 @@ local d = coeff.d
 local betaCoeffs = coeff.betaCoeffs
 
 for side=0,solver.dim-1 do
-	for _,l_or_r in ipairs{'l', 'r'} do
-		local ak0 = l_or_r == 'l' and stencilSize or 1
-		local akd = l_or_r == 'l' and -1 or 1
-		local al0 = l_or_r == 'l' and stencilSize or 1
-		local ald = l_or_r == 'l' and -1 or 1
-		local d0 = l_or_r == 'l' and stencilSize or 1
-		local dd = l_or_r == 'l' and -1 or 1
+	for _,l_or_r in ipairs{"l", "r"} do
+		local ak0 = l_or_r == "l" and stencilSize or 1
+		local akd = l_or_r == "l" and -1 or 1
+		local al0 = l_or_r == "l" and stencilSize or 1
+		local ald = l_or_r == "l" and -1 or 1
+		local d0 = l_or_r == "l" and stencilSize or 1
+		local dd = l_or_r == "l" and -1 or 1
 
 -- how should I generalize this?
 -- base pointer
@@ -37,13 +35,13 @@ for side=0,solver.dim-1 do
 <? 		for j=0,stencilSize-1 do 
 ?>		real beta<?=j?> = 0.<?
 			for m=0,stencilSize-1 do
-				for n=0,m do
-			?> + <?=clnumber(betaCoeffs[j+1][m+1][n+1])?> * v[<?=j+m?>].ptr[k] * v[<?=j+n?>].ptr[k]<?
+				for n=0,m do ?> 
+			+ <?=clnumber(betaCoeffs[j+1][m+1][n+1])?> * v[<?=j+m?>].ptr[k] * v[<?=j+n?>].ptr[k]<?
 				end
 			end?>;
 <?		end
 	
-		if solver.wenoMethod == '1996 Jiang Shu' then 		-- WENO-JS
+		if solver.wenoMethod == "1996 Jiang Shu" then 		-- WENO-JS
 			--local epsilon = clnumber(1e-14)
 			local epsilon = clnumber(1e-6)
 ?>
@@ -51,7 +49,7 @@ for side=0,solver.dim-1 do
 ?>		real alpha<?=i?> = <?=clnumber(d[d0 + i * dd])?> / sqr(<?=epsilon?> + beta<?=i?>);
 <? 			end 
 
-		elseif solver.wenoMethod == '2008 Borges' then 	-- WENO-Z
+		elseif solver.wenoMethod == "2008 Borges" then 	-- WENO-Z
 			local epsilon = clnumber(1e-6)
 			
 			-- TODO different coeffs of betas?
@@ -64,40 +62,45 @@ for side=0,solver.dim-1 do
 ?>		real alpha<?=i?> = <?=clnumber(d[d0 + i * dd])?> * (1. + (tau / (beta<?=i?> + <?=epsilon?>)));
 <? 			end
 
-		elseif solver.wenoMethod == '2010 Shen Zha' then -- WENO-BS?
+		elseif solver.wenoMethod == "2010 Shen Zha" then -- WENO-BS?
 			local epsilon = clnumber(1e-10)
 		
 			-- TODO find these for other order WENO's
 			local shen_zha_A = clnumber(50)	-- 0-100
 ?>		
-		real minB = beta0, maxB = beta1;
+		real minB = beta0;
 <?			for j=1,stencilSize-1 do
-?>		minB = min(minB, beta<?=j?>); maxB = max(maxB, beta<?=j?>);
+?>		minB = min(minB, beta<?=j?>);
 <?			end
-?>		real R0 = minB / (maxB + <?=epsilon?>);
+?>		
+		real maxB = beta0;
+<?			for j=1,stencilSize-1 do
+?>		maxB = max(maxB, beta<?=j?>);
+<?			end
+?>		
+		real R0 = minB / (maxB + <?=epsilon?>);
+
 <? 			for i=0,stencilSize-1 do 
-?>		beta<?=i?> += R0 * <?=shen_zha_A?> * minB;
-<? 			end 
- 			for i=0,stencilSize-1 do 
-?>		real alpha<?=i?> = <?=clnumber(d[d0 + i * dd])?> / sqr(<?=epsilon?> + beta<?=i?>);
+?>		real alpha<?=i?> = <?=clnumber(d[d0 + i * dd])?> / sqr(<?=epsilon?> + beta<?=i?> + R0 * <?=shen_zha_A?> * minB);
 <?	 		end 
- 
 		else
 			error("unknown wenoMethod "..tostring(solver.wenoMethod))
 		end
-
-		for i=0,stencilSize-1 do 
+?>
+<?		for i=0,stencilSize-1 do 
 ?>		real vs<?=i?> = 0.<?
-			for j=0,stencilSize-1 do
-		?> + <?=clnumber(a[ak0+akd*i][al0+ald*j])?> * v[<?=i+j?>].ptr[k]<?
+			for j=0,stencilSize-1 do ?>
+			+ <?=clnumber(a[ak0+akd*i][al0+ald*j])?> * v[<?=i+j?>].ptr[k]<?
 			end ?>;
-<? 
-		end 
-?>		real alphasum= 0.<? for i=0,stencilSize-1 do ?> + alpha<?=i?><? end ?>;
+<? 		end 
+?>		
+		real alphasum = 0.<? for i=0,stencilSize-1 do ?> + alpha<?=i?><? end ?>;
+		
 		result.ptr[k] = (0.<?
-		for i=0,stencilSize-1 do
-		?> + alpha<?=i?> * vs<?=i?><?
-		end ?>) / alphasum;
+		for i=0,stencilSize-1 do ?> 
+			+ alpha<?=i?> * vs<?=i?><?
+		end ?>
+		) / alphasum;
 	}
 	return result;
 }
@@ -181,7 +184,8 @@ for side=0,solver.dim-1 do ?>{
 
 <? 	
 		for j=0,2*stencilSize-1 do
-?>		const global <?=eqn.cons_t?>* U<?=j?> = U + <?=j - stencilSize?> * solver->stepsize.s<?=side?>;
+?>		
+		const global <?=eqn.cons_t?>* U<?=j?> = U + <?=j - stencilSize?> * solver->stepsize.s<?=side?>;
 		//<?=eqn.cons_t?> F<?=j?> = fluxCellBuf[<?=side?> + dim * (index + <?=j - stencilSize?> * solver->stepsize.s<?=side?>)];
 		<?=eqn.cons_t?> F<?=j?> = fluxFromCons(solver, *U<?=j?>, xInt, n);
 <?
@@ -200,16 +204,20 @@ for side=0,solver.dim-1 do ?>{
 			end
 		end	
 ?>	
-		
-		<?=eqn.waves_t?> afp[<?=2*stencilSize-1?>], afm[<?=2*stencilSize-1?>];
+		<?=eqn.waves_t?> afp[<?=2*stencilSize-1?>];
 <? 		for j=0,2*stencilSize-2 do
 ?>		afp[<?=j?>] = eigen_leftTransform(solver, eig, fp<?=j?>, xInt, n);
-		afm[<?=j?>] = eigen_leftTransform(solver, eig, fm<?=j?>, xInt, n);
+<?		end
+?>
+		<?=eqn.waves_t?> afm[<?=2*stencilSize-1?>];
+<?		for j=0,2*stencilSize-2 do
+?>		afm[<?=j?>] = eigen_leftTransform(solver, eig, fm<?=j?>, xInt, n);
 <? 		end 
 ?>
-		<?=eqn.waves_t?> waf;
 		<?=eqn.waves_t?> wafp = weno_r_<?=side?>(afp);
 		<?=eqn.waves_t?> wafm = weno_l_<?=side?>(afm);
+		
+		<?=eqn.waves_t?> waf;
 		for (int j = 0; j < numWaves; ++j) {
 			waf.ptr[j] = wafp.ptr[j] + wafm.ptr[j];
 		}

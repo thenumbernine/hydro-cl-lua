@@ -3,18 +3,9 @@
 
 // TODO incorporate parallel propagators
 
-<? if not solver.usePLM then return end ?>
-
-real min3(real x, real y, real z) {
-	return min(min(x, y), z);
-}
-
-real minmod(real a, real b) {
-	if (a * b < 0) return 0;
-	return fabs(a) < fabs(b) ? a : b;
-}
-
 <? 
+if not solver.usePLM then return end
+
 for side=0,solver.dim-1 do
 
 	-- piecewise-linear
@@ -259,7 +250,7 @@ for sgn b >= 0:
 <? 
 	elseif solver.usePLM == 'plm-eig' then 
 ?>
-//// MODULE_DEPENDS: eigen_forCell eigen_left/rightTransform
+//// MODULE_DEPENDS: eigen_forCell eigen_left/rightTransform min3
 
 /*
 #2: next step, project into eigenspace
@@ -384,6 +375,7 @@ works for adm1d_v1
 	or solver.usePLM == 'plm-eig-prim-ref' 
 	then 
 ?>
+//// MODULE_DEPENDS: min3
 
 /*
 #3a: next step, convert to primitives
@@ -685,12 +677,12 @@ based on Trangenstein, Athena, etc, except working on primitives like it says to
 }
 
 <? 
-	elseif solver.usePLM == 'ppm-experimental' then 
+	elseif solver.usePLM == 'ppm-wip' then 
 ?>
-//// MODULE_DEPENDS: eigen_forCell eigen_left/rightTransform consFromPrim primFromCons
+//// MODULE_DEPENDS: eigen_forCell eigen_left/rightTransform consFromPrim primFromCons min3 sqr
 
-//here's my attempt at Trangenstein section 5.12 PPM
-//with help from Zingale's ppm code
+// based on http://zingale.github.io/hydro1d/  ppm code
+
 <?=eqn.consLR_t?> calcCellLR_<?=side?>(
 	constant <?=solver.solver_t?>* solver,
 	const global <?=eqn.cons_t?>* U,
@@ -702,163 +694,243 @@ based on Trangenstein, Athena, etc, except working on primitives like it says to
 	real3 xL = x; xL.s<?=side?> -= solver->grid_dx.s<?=side?>;
 	real3 xR = x; xR.s<?=side?> += solver->grid_dx.s<?=side?>;
 
-	const global <?=eqn.cons_t?>* UL = U - solver->stepsize.s<?=side?>;
-	const global <?=eqn.cons_t?>* UR = U + solver->stepsize.s<?=side?>;
-	const global <?=eqn.cons_t?>* UR2 = UR + solver->stepsize.s<?=side?>;
-
-	<?=eqn.prim_t?> WL = primFromCons(solver, *UL, xL);
-	<?=eqn.prim_t?> W = primFromCons(solver, *U, x);
-	<?=eqn.prim_t?> WR = primFromCons(solver, *UR, xR);
-	<?=eqn.prim_t?> WR2 = primFromCons(solver, *UR2, xR);
-
-	<?=eqn.prim_t?> Qplus, Qminus;
-	for (int j = 0; j < numStates; ++j) {
-		real dq0 = .5 * (WR.ptr[j] - WL.ptr[j]);
-		real dqp = .5 * (WR2.ptr[j] - W.ptr[j]);
+	const real z0 = .75;
+	const real z1 = .85;
+	const real delta = .33;
+	const real minP = 1e-10;
 	
-		if ((WR.ptr[j] - W.ptr[j]) * (W.ptr[j] - WL.ptr[j]) > 0) {
-			dq0 = (dq0 > 0 ? 1. : -1.) * min(
-				fabs(dq0), min(
-					2. * fabs(W.ptr[j] - WL.ptr[j]),
-					2. * fabs(WR.ptr[j] - W.ptr[j])
-				)
-			);
+	prim_t W_im3 = primFromCons(solver, U[-3 * solver->stepsize.s<?=side?>], x);
+	prim_t W_im2 = primFromCons(solver, U[-2 * solver->stepsize.s<?=side?>], x);
+	prim_t W_im1 = primFromCons(solver, U[-1 * solver->stepsize.s<?=side?>], x);
+	prim_t W_i = primFromCons(solver, *U, x);
+	prim_t W_ip1 = primFromCons(solver, U[1 * solver->stepsize.s<?=side?>], x);
+	prim_t W_ip2 = primFromCons(solver, U[2 * solver->stepsize.s<?=side?>], x);
+	prim_t W_ip3 = primFromCons(solver, U[3 * solver->stepsize.s<?=side?>], x);
+
+	// this is based on pressure ... how to generalize for all PDEs?
+	real dP_i = fabs(W_ip1.P - W_im1.P);
+	real dP2_i = fabs(W_ip2.P - W_im2.P);
+	real z_i = dP_i / max(dP2_i, minP);
+	
+	real xi_t_i;
+	if ((W_im1.v.s<?=side?> - W_ip1.v.s<?=side?> > 0) && (dP_i / min(W_ip1.P, W_im1.P) > delta)) {
+		xi_t_i = clamp(1. - (z_i - z0) / (z1 - z0), 0., 1.);
+	} else {
+		xi_t_i = 0;
+	}
+
+
+	real dP_ip1 = fabs(W_ip2.P - W_i.P);
+	real dP2_ip1 = fabs(W_ip3.P - W_im1.P);
+	real z_ip1 = dP_ip1 / max(dP2_ip1, minP);
+	
+	real xi_t_ip1;
+	if ((W_i.v.s<?=side?> - W_ip2.v.s<?=side?> > 0) && (dP_ip1 / min(W_ip2.P, W_i.P) > delta)) {
+		xi_t_ip1 = clamp(1. - (z_ip1 - z0) / (z1 - z0), 0., 1.);
+	} else {
+		xi_t_ip1 = 0;
+	}
+
+
+	real dP_im1 = fabs(W_i.P - W_im2.P);
+	real dP2_im1 = fabs(W_ip1.P - W_im3.P);
+	real z_im1 = dP_im1 / max(dP2_im1, minP);
+	
+	real xi_t_im1;
+	if ((W_im2.v.s<?=side?> - W_i.v.s<?=side?> > 0) && (dP_im1 / min(W_i.P, W_im2.P) > delta)) {
+		xi_t_im1 = clamp(1. - (z_im1 - z0) / (z1 - z0), 0., 1.);
+	} else {
+		xi_t_im1 = 0;
+	}
+
+
+	real xi_i;
+	if (W_ip1.P - W_im1.P > 0) {
+		xi_i = min(xi_t_i, xi_t_im1);
+	} else if (W_ip1.P - W_im1.P < 0) {
+		xi_i = min(xi_t_i, xi_t_ip1);
+	} else {
+		xi_i = xi_t_i;
+	}
+
+	cons_t Wplus_i;
+	cons_t Wminus_i;
+	for (int j = 0; j < numStates; ++j) {
+		// 1984 collela & woodward eqn 1.7
+		real dq0_i = .5 * (W_ip1.ptr[j] - W_im1.ptr[j]);
+		
+		// 1984 collela & woodward eqn 1.8
+		if ((W_ip1.ptr[j] - W_i.ptr[j]) * (W_i.ptr[j] - W_im1.ptr[j]) > 0) {
+			dq0_i = sign(dq0_i) * min3( 
+				fabs(dq0_i),
+				2. * fabs(W_i.ptr[j] - W_im1.ptr[j]),
+				2. * fabs(W_ip1.ptr[j] - W_i.ptr[j]));
 		} else {
-			dq0 = 0.;
+			dq0_i = 0;
 		}
 	
-		if ((WR2.ptr[j] - WR.ptr[j]) * (WR.ptr[j] - W.ptr[j]) > 0) {
-			dqp = (dqp > 0 ? 1. : -1.) * min(
-				fabs(dqp), min(
-					2. * fabs(WR.ptr[j] - W.ptr[j]),
-					2. * fabs(WR2.ptr[j] - WR.ptr[j])
-				)
-			);
+		// 1984 collela & woodward eqn 1.7
+		real dqp_i = .5 * (W_ip2.ptr[j] - W_i.ptr[j]);
+		
+		// 1984 collela & woodward eqn 1.8
+		if ((W_ip2.ptr[j] - W_ip1.ptr[j]) * (W_ip1.ptr[j] - W_i.ptr[j]) > 0) {
+			dqp_i = sign(dqp_i) * min3(
+				fabs(dqp_i),
+				2. * fabs(W_ip1.ptr[j] - W_i.ptr[j]),
+				2. * fabs(W_ip2.ptr[j] - W_ip1.ptr[j]));
 		} else {
-			dqp = 0.;
+			dqp_i = 0;
 		}
 
-		//Qminus[i+1]
-		Qplus.ptr[j] = Qminus.ptr[j] = .5 * (W.ptr[j] + WR.ptr[j]) - 1./6. * (dqp - dq0);
+
+		// 1984 collela & woodward eqn 1.7
+		real dq0_im1 = .5 * (W_i.ptr[j] - W_im2.ptr[j]);
+		
+		// 1984 collela & woodward eqn 1.8
+		if ((W_i.ptr[j] - W_im1.ptr[j]) * (W_im1.ptr[j] - W_im2.ptr[j]) > 0) {
+			dq0_im1 = sign(dq0_im1) * min3( 
+				fabs(dq0_im1),
+				2. * fabs(W_im1.ptr[j] - W_im2.ptr[j]),
+				2. * fabs(W_i.ptr[j] - W_im1.ptr[j]));
+		} else {
+			dq0_im1 = 0;
+		}
 	
-		Qplus.ptr[j] = max(Qplus.ptr[j], min(W.ptr[j], WR.ptr[j]));
-		Qplus.ptr[j] = min(Qplus.ptr[j], max(W.ptr[j], WR.ptr[j]));
+		// 1984 collela & woodward eqn 1.7
+		real dqp_im1 = .5 * (W_ip1.ptr[j] - W_im1.ptr[j]);
+		
+		// 1984 collela & woodward eqn 1.8
+		if ((W_ip1.ptr[j] - W_i.ptr[j]) * (W_i.ptr[j] - W_im1.ptr[j]) > 0) {
+			dqp_im1 = sign(dqp_im1) * min3(
+				fabs(dqp_im1),
+				2. * fabs(W_i.ptr[j] - W_im1.ptr[j]),
+				2. * fabs(W_ip1.ptr[j] - W_i.ptr[j]));
+		} else {
+			dqp_im1 = 0;
+		}
+
+
+		// 1984 collela & woodward, eqn 1.6
+		Wplus_i.ptr[j] = .5 * (W_i.ptr[j] + W_ip1.ptr[j]) - (1./6.) * (dqp_i - dq0_i);
+		Wminus_i.ptr[j] = .5 * (W_im1.ptr[j] + W_i.ptr[j]) - (1./6.) * (dqp_im1 - dq0_im1);
 	
-		Qminus.ptr[j] = max(Qminus.ptr[j], min(W.ptr[j], WR.ptr[j]));
-		Qminus.ptr[j] = min(Qminus.ptr[j], max(W.ptr[j], WR.ptr[j]));
+		// 2008 Colella & Sekora
+		Wplus_i.ptr[j] = max(Wplus_i.ptr[j], min(W_i.ptr[j], W_ip1.ptr[j]));
+		Wplus_i.ptr[j] = min(Wplus_i.ptr[j], max(W_i.ptr[j], W_ip1.ptr[j]));
+		
+		Wminus_i.ptr[j] = max(Wminus_i.ptr[j], min(W_im1.ptr[j], W_i.ptr[j]));
+		Wminus_i.ptr[j] = min(Wminus_i.ptr[j], max(W_im1.ptr[j], W_i.ptr[j]));
 	}
 
+	// 1984 Collela & Woodward eqn 1.10 is somewhere in here:
 	for (int j = 0; j < numStates; ++j) {
-		real dWR = WR.ptr[j] - W.ptr[j];
-		real dWL = W.ptr[j] - WL.ptr[j];
-		real dWRm = WR.ptr[j] - WL.ptr[j];
-		real avgWRm = .5 * (WR.ptr[j] + WL.ptr[j]);
-		if (dWR * dWL <= 0) {
-			WR.ptr[j] = WL.ptr[j] = W.ptr[j];
-		} else if (dWRm * (W.ptr[j] - avgWRm) > dWRm * dWRm / 6.) {
-			WL.ptr[j] = 3. * W.ptr[j] - 2. * WR.ptr[j];
-		} else if (-dWRm * dWRm / 6. > dWRm * (W.ptr[j] - avgWRm)) {
-			WR.ptr[j] = 3. * W.ptr[j] - 2. * WL.ptr[j];
+		if ((Wplus_i.ptr[j] - W_i.ptr[j]) * (W_i.ptr[j] - Wminus_i.ptr[j]) <= 0) {
+			Wminus_i.ptr[j] = W_i.ptr[j];
+			Wplus_i.ptr[j] = W_i.ptr[j];
+		} else if ((Wplus_i.ptr[j] - Wminus_i.ptr[j]) * (W_i.ptr[j] - .5 * (Wminus_i.ptr[j] + Wplus_i.ptr[j])) > sqr(Wplus_i.ptr[j] - Wminus_i.ptr[j]) / 6.) {
+			Wminus_i.ptr[j] = 3. * W_i.ptr[j] - 2. * Wplus_i.ptr[j];
+		} else if (-sqr(Wplus_i.ptr[j] - Wminus_i.ptr[j]) / 6. > (Wplus_i.ptr[j] - Wminus_i.ptr[j]) * (W_i.ptr[j] - .5 * (Wminus_i.ptr[j] + Wplus_i.ptr[j]))) {
+			Wplus_i.ptr[j] = 3. * W_i.ptr[j] - 2. * Wminus_i.ptr[j];
 		}
 	}
-	
+
+	// flatten
 	for (int j = 0; j < numStates; ++j) {
-		WL.ptr[j] = .5 * (W.ptr[j] +  WL.ptr[j]);
-		WR.ptr[j] = .5 * (W.ptr[j] +  WR.ptr[j]);
+		Wminus_i.ptr[j] = (1. - xi_i) * W_i.ptr[j] + xi_i * Wminus_i.ptr[j];
+		Wplus_i.ptr[j] = (1. - xi_i) * W_i.ptr[j] + xi_i * Wplus_i.ptr[j];
+	}
+	
+	// W6
+	cons_t W6_i;
+	for (int j = 0; j < numStates; ++j) {
+		W6_i.ptr[j] = 6. * W_i.ptr[j] - 3. * (Wminus_i.ptr[j] + Wplus_i.ptr[j]);
 	}
 
-	//1984 Collela & Woodward eqn 1.5
-	real W6[numStates];
-	for (int j = 0; j < numStates; ++j) {
-		W6[j] = 6. * W.ptr[j] - 3. * (WR.ptr[j] + WL.ptr[j]);
+	eigen_t eig = eigen_forCell(solver, *U, x, n);
+
+	waves_t lambda;
+	real lambdaMin = INFINITY;
+	real lambdaMax = -INFINITY;
+	{
+		<?=eqn:eigenWaveCodePrefix("n", "eig", "x")?>
+		<? for j=0,eqn.numWaves-1 do ?>{
+			real lambda_j = <?=eqn:eigenWaveCode("n", "*U", "x", j)?>;
+			lambdaMin = min(lambdaMin, lambda_j);
+			lambdaMax = min(lambdaMax, lambda_j);
+			lambda.ptr[<?=j?>] = lambda_j;
+		}<? end ?>	
 	}
-	
+
 	real dx = cell_dx<?=side?>(x);
 	real dt_dx = dt / dx;
-
-	//calc eigen values and vectors at cell center
-	<?=eqn.eigen_t?> eig = eigen_forCell(solver, *U, x, n);
 	
-	<?=eqn:eigenWaveCodePrefix('n', 'eig', 'x')?>
-	real eval[numWaves] = {
-<? for j=0,eqn.numWaves-1 do
-?>		<?=eqn:eigenWaveCode('n', 'eig', 'x', j)?>,
-<? end
-?>	};
-
-	<?=eqn.prim_t?> Iplus[numWaves];
-	<?=eqn.prim_t?> Iminus[numWaves];
-	for (int p = 0; p < numWaves; ++p) {
-		real sigma = fabs(eval[p]) * dt_dx;
-		if (eval[p] >= 0) {
-			for (int q = 0; q < numStates; ++q) {
-				Iplus[p].ptr[q] = WR.ptr[q] - .5 * sigma * (WR.ptr[q] - WL.ptr[q] - (1. - 2./3.*sigma) * W6[q]);
-			}
-		} else {
-			Iplus[p] = W;
-		}
-		if (eval[p] <= 0) {
-			for (int q = 0; q < numStates; ++q) {
-				Iminus[p].ptr[q] = WL.ptr[q] + .5 * sigma * (WR.ptr[q] - WL.ptr[q] + (1. - 2./3.*sigma) * W6[q]);
-			}
-		} else {
-			Iminus[p] = W;
-		}
-	}
-
-	<?=eqn.prim_t?> Wref_xp = eval[numWaves-1] < 0 ? W : Iplus[numWaves-1];
-	<?=eqn.prim_t?> Wref_xm = eval[0] > 0 ? W : Iminus[0];
-
-	//TODO eigenvectors wrt dA/dW 
-	<?=eqn.waves_t?> beta_xm, beta_xp;
-	for (int p = 0; p < numWaves; ++p) {
-		beta_xm.ptr[p] = beta_xp.ptr[p] = 0;
-	}
-	for (int p = 0; p < numWaves; ++p) {
-		<?=eqn.prim_t?> Wref_xm_minus_Im, Wref_xp_minus_Ip;
-		for (int q = 0; q < numStates; ++q) {
-			Wref_xm_minus_Im.ptr[q] = Wref_xm.ptr[q] - Iminus[p].ptr[q];
-			Wref_xp_minus_Ip.ptr[q] = Wref_xp.ptr[q] - Iplus[p].ptr[q];
-		}
-		
-		if (eval[p] >= 0) {
-			<?=eqn.waves_t?> beta_xp_add = eigen_leftTransform(solver, eig, *(<?=eqn.cons_t?>*)&Wref_xm_minus_Im, x, n);
-			for (int q = 0; q < numWaves; ++q) {
-				beta_xp.ptr[q] += beta_xp_add.ptr[q];
-			}
-		}
-		
-		if (eval[p] <= 0) {
-			<?=eqn.waves_t?> beta_xm_add = eigen_leftTransform(solver, eig, *(<?=eqn.cons_t?>*)&Wref_xp_minus_Ip, x, n);
-			for (int q = 0; q < numWaves; ++q) {
-				beta_xm.ptr[q] += beta_xm_add.ptr[q];
-			}
-		}
-	}
-	
+	prim_t Iplus[numWaves];
+	prim_t Iminus[numWaves];
 	for (int j = 0; j < numWaves; ++j) {
-		beta_xp.ptr[j] = max(0., beta_xp.ptr[j]);
-		beta_xm.ptr[j] = min(0., beta_xm.ptr[j]);
+		real sigma = fabs(lambda.ptr[j]) * dt_dx;
+		for (int k = 0; k < numStates; ++k) {
+			if (lambda.ptr[j] >= 0) {
+				Iplus[j].ptr[k] = Wplus_i.ptr[k] - .5 * sigma * (Wplus_i.ptr[k] - Wminus_i.ptr[k] - (1 - (2./3.)*sigma) * W6_i.ptr[k]);
+			} else {
+				Iplus[j].ptr[k] = W_i.ptr[k];
+			}
+			if (lambda.ptr[j] <= 0) {
+				Iminus[j].ptr[k] = Wminus_i.ptr[k] + .5 * sigma * (Wplus_i.ptr[k] - Wminus_i.ptr[k] + (1 - (2./3.)*sigma) * W6_i.ptr[k]);
+			} else {
+				Iminus[j].ptr[k] = W_i.ptr[k];
+			}
+		}
 	}
 
-	<?=eqn.cons_t?> tmp;
-	tmp = eigen_rightTransform(solver, eig, beta_xp, x, n);
-	<?=eqn.prim_t?> WresL = *(<?=eqn.prim_t?>*)&tmp;
-	tmp = eigen_rightTransform(solver, eig, beta_xm, x, n);
-	<?=eqn.prim_t?> WresR = *(<?=eqn.prim_t?>*)&tmp;
-	
-	for (int j = 0; j < numIntStates; ++j) {
-		WresL.ptr[j] = Wref_xp.ptr[j] - WresL.ptr[j];
-		WresR.ptr[j] = Wref_xm.ptr[j] - WresR.ptr[j];
+	prim_t Wref_xp;
+	if (lambdaMax >= 0) {
+		Wref_xp = Iplus[numWaves-1];	//this assumes max == numWaves-1
+	} else {
+		Wref_xp = W_i;
 	}
-	for (int j = numIntStates; j < numStates; ++j) {
-		WresL.ptr[j] = WresR.ptr[j] = 0;
+
+	prim_t Wref_xm;
+	if (lambdaMin <= 0) {
+		Wref_xm = Iminus[0];			//this assumes min == 0
+	} else {
+		Wref_xm = W_i;
+	}
+
+	// beta± = L*(Wref± - I±)
+
+	prim_t dwxp, dwxm;
+	for (int j = 0; j < numStates; ++j) {
+		dwxp.ptr[j] = Wref_xp.ptr[j] - Iplus[numWaves-1].ptr[j];
+		dwxm.ptr[j] = Wref_xm.ptr[j] - Iminus[0].ptr[j];
+	}
+
+	//TODO ... convert prim to cons, then cons eig transform
+	waves_t beta_xp = eigen_leftTransform(solver, eig, Wref_xp, x, n);
+	waves_t beta_xm = eigen_leftTransform(solver, eig, Wref_xm, x, n);
+	
+	for (int m = 0; m < numWaves; ++m) {
+		beta_xm(m) -= dot_product(lvec(m,:), Iminus(m,:))
+		beta_xp(m) -= dot_product(lvec(m,:), Iplus(m,:))
+	}
+
+	for (int j = 0; j < numWaves; ++j) {
+		if (lambda.ptr[j] < 0) beta_xp.ptr[j] = 0;
+		if (lambda.ptr[j] > 0) beta_xm.ptr[j] = 0;
+	}
+
+	cons_t W_l_ip1 = eigen_rightTransform(solver, eig, beta_xp, x, n);
+	cons_t W_r_i = eigen_rightTransform(solver, eig, beta_xm, x, n);
+
+	for (int j = 0; j < numStates; ++j) {
+		W_l_ip1.ptr[j] = Wref_xp.ptr[j] - W_l_ip1.ptr[j];
+		W_r_i.ptr[j] = Wref_xm.ptr[j] - W_r_i.ptr[j];
 	}
 
 	return (<?=eqn.consLR_t?>){
-		.L = consFromPrim(solver, WresL, x),
-		.R = consFromPrim(solver, WresR, x),
+		.L = consFromPrim(solver, W_r_i, x),
+		.R = consFromPrim(solver, W_l_ip1, x),
 	};
+
 }
 
 <?

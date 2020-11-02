@@ -202,6 +202,9 @@ add using the following markup:
 //// MODULE_HEADER: 
 (header)
 
+//// MODULE_TYPE: 
+(type)
+
 args:
 	code
 	onAdd = function(moduleArgs)
@@ -212,19 +215,25 @@ function ModuleSet:addFromMarkup(args)
 	local srcLines = string.split(args.code, '\n')
 
 	local name, dstLines, lineTarget, depends
-	name = nil
-	dstLines = {
-		headercode = table(),
-		code = table(),
-	}
-	lineTarget = 'code'
-	depends = table()
 	
+	local function resetState()
+		name = nil
+		dstLines = {
+			typecode = table(),
+			headercode = table(),
+			code = table(),
+		}
+		lineTarget = 'code'
+		depends = table()
+	end
+	resetState()
+
 	local function makeModule()
 		if name then
 			local moduleArgs = {
 				name = name,
 				depends = depends,
+				typecode = dstLines.typecode:concat'\n',
 				headercode = dstLines.headercode:concat'\n',
 				code = dstLines.code:concat'\n',
 			}
@@ -242,14 +251,8 @@ function ModuleSet:addFromMarkup(args)
 				print('!!! throwing away code !!!!:\n'..dstLines.code:concat'\n')
 			end
 		end
-		
-		name = nil
-		dstLines = {
-			headercode = table(),
-			code = table(),
-		}
-		lineTarget = 'code'
-		depends = table()
+	
+		resetState()
 	end
 	for _,line in ipairs(srcLines) do
 		local readname = line:match'^//// MODULE_NAME: (.*)'
@@ -266,6 +269,8 @@ function ModuleSet:addFromMarkup(args)
 					lineTarget = 'code'
 				elseif string.trim(line) == '//// MODULE_HEADER:' then
 					lineTarget = 'headercode'
+				elseif string.trim(line) == '//// MODULE_TYPE:' then
+					lineTarget = 'typecode'
 				else
 					table.insert(dstLines[lineTarget], line)
 				end

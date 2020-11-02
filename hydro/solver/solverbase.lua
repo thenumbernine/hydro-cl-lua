@@ -322,11 +322,19 @@ args:
 --]]
 function SolverBase:init(args)
 self.initArgs = table(args)	-- save for later	
+-- remove/replace object references
 self.initArgs.app = nil
 self.initArgs.solver = getmetatable(self).name	-- not in initArgs but is unique	
 if self.initArgs.subsolverClass then
 	self.initArgs.subsolverClass = 'choppedup'
 end
+-- remove compile-time variables
+self.initArgs.fixedDT = nil
+self.initArgs.cfl = nil
+self.initArgs.mins = nil
+self.initArgs.maxs = nil
+self.initArgs.gridSize = nil	
+	
 	time('SolverBase:init()', function()
 		self:initMeshVars(args)
 		self:initCLDomainVars(args)
