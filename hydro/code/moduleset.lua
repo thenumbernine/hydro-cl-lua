@@ -244,11 +244,17 @@ function ModuleSet:addFromMarkup(args)
 			if string.trim(moduleArgs.code) == '' then moduleArgs.code = nil end
 			self:add(moduleArgs)
 		else
-			if dstLines.headercode and #dstLines.headercode > 0 then
-				print('!!! throwing away headercode !!!!:\n'..dstLines.headercode:concat'\n')
+			if dstLines.headercode then
+				local code = dstLines.headercode:concat'\n'
+				if code:match'%S' then
+					print('!!! throwing away headercode !!!!:\n'..code)
+				end
 			end
-			if dstLines.code and #dstLines.code > 0 then
-				print('!!! throwing away code !!!!:\n'..dstLines.code:concat'\n')
+			if dstLines.code then
+				local code = dstLines.code:concat'\n'
+				if code:match'%S' then
+					print('!!! throwing away code !!!!:\n'..code)
+				end
 			end
 		end
 	

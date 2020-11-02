@@ -1,3 +1,231 @@
+<?
+local function makevec3type(name, scalar)
+	if scalar == "real"
+	and (
+		app.real == "float"
+		or app.real == "double"
+	) then
+		-- use vec-ffi when we can
+		assert(name == "real3")
+		
+		local vecType
+		if app.real == "float" then
+			vecType = require "vec-ffi.vec3f"
+		elseif app.real == "double" then
+			vecType = require "vec-ffi.vec3d"
+		end
+		-- use the vec-ffi type code
+		-- granted if we ffi.cdef this, it will have already been ffi.cdef'd from the require 'vec-ffi.vec3x'
+?>
+<?=vecType.typeCode?>
+typedef <?=vecType.type?> <?=name?>;
+<?
+		else
+			-- normal
+?>
+typedef union {
+	<?=scalar?> s[3];
+	struct { <?=scalar?> s0, s1, s2; };
+	struct { <?=scalar?> x, y, z; };
+} <?=app.real=='half' and '__attribute__ ((packed))' or ''
+-- __attribute__ ((packed)) seems to need to be here with real=half
+?> <?=name?>;
+<?
+	end
+end
+
+local function makevec3header(vec, scalar)
+	local add = scalar.."_add"
+	local mul = scalar.."_mul"
+?>
+//is buggy with doubles on intel opencl ubuntu compiler
+//#define _<?=vec?>(a,b,c) 			((<?=vec?>){.s={a,b,c}})
+//so we do this instead and are safe:
+#define _<?=vec?>(a,b,c) 			((<?=vec?>){.x=a, .y=b, .z=c})
+
+#define <?=vec?>_zero				_<?=vec?>(<?=scalar?>_zero,<?=scalar?>_zero,<?=scalar?>_zero)
+
+<?=scalar?> <?=vec?>_<?=vec?>_dot(<?=vec?> a, <?=vec?> b);
+#define	<?=vec?>_dot <?=vec?>_<?=vec?>_dot
+<?=vec?> <?=vec?>_<?=scalar?>_mul(<?=vec?> a, <?=scalar?> s);
+<?=vec?> <?=scalar?>_<?=vec?>_mul(<?=scalar?> a, <?=vec?> b);
+<? if scalar ~= 'real' then ?>
+<?=vec?> <?=vec?>_real_mul(<?=vec?> a, real b);
+<?=vec?> real_<?=vec?>_mul(real a, <?=vec?> b);
+<? end ?>
+<?=vec?> <?=vec?>_add(<?=vec?> a, <?=vec?> b);
+<?=vec?> <?=vec?>_sub(<?=vec?> a, <?=vec?> b);
+<?=vec?> <?=vec?>_cross(<?=vec?> a, <?=vec?> b);
+<?=vec?> <?=vec?>_neg(<?=vec?> a);
+
+#define <?=vec?>_add3(a,b,c)	<?=vec?>_add(<?=vec?>_add(a,b),c)
+#define <?=vec?>_add4(a,b,c,d)	<?=vec?>_add(<?=vec?>_add(a,b),<?=vec?>_add(c,d))
+<?
+end
+
+local function makevec3code(vec,scalar)
+	local add = scalar.."_add"
+	local sub = scalar.."_sub"
+	local mul = scalar.."_mul"
+	local real_mul = scalar.."_real_mul"
+	local neg = scalar.."_neg"
+	local conj = scalar.."_conj"
+	local add3 = scalar.."_add3"
+	local mul3 = scalar.."_mul3"
+?>
+<?=vec?> <?=vec?>_<?=scalar?>_mul(<?=vec?> a, <?=scalar?> s) {
+	return _<?=vec?>(
+		<?=mul?>(a.x, s),
+		<?=mul?>(a.y, s),
+		<?=mul?>(a.z, s));
+}
+
+<?=vec?> <?=scalar?>_<?=vec?>_mul(<?=scalar?> a, <?=vec?> b) {
+	return _<?=vec?>(
+		<?=mul?>(a, b.x),
+		<?=mul?>(a, b.y),
+		<?=mul?>(a, b.z));
+}
+
+<? if scalar ~= "real" then ?>
+<?=vec?> <?=vec?>_real_mul(<?=vec?> a, real b) {
+	return _<?=vec?>(
+		<?=real_mul?>(a.x, b),
+		<?=real_mul?>(a.y, b),
+		<?=real_mul?>(a.z, b));
+}
+
+<?=vec?> real_<?=vec?>_mul(real a, <?=vec?> b) {
+	return _<?=vec?>(
+		<?=real_mul?>(b.x, a),
+		<?=real_mul?>(b.y, a),
+		<?=real_mul?>(b.z, a));
+}
+<? end ?>
+
+<?=vec?> <?=vec?>_add(<?=vec?> a, <?=vec?> b) {
+	return _<?=vec?>(
+		<?=add?>(a.x, b.x),
+		<?=add?>(a.y, b.y),
+		<?=add?>(a.z, b.z));
+}
+
+<?=vec?> <?=vec?>_sub(<?=vec?> a, <?=vec?> b) {
+	return _<?=vec?>(
+		<?=sub?>(a.x, b.x),
+		<?=sub?>(a.y, b.y),
+		<?=sub?>(a.z, b.z));
+}
+
+<?=vec?> <?=vec?>_neg(<?=vec?> a) {
+	return _<?=vec?>(<?=neg?>(a.x), <?=neg?>(a.y), <?=neg?>(a.z));
+}
+
+<?=vec?> <?=vec?>_cross(<?=vec?> a, <?=vec?> b) {
+	return _<?=vec?>(
+		<?=sub?>(<?=mul?>(a.y, b.z), <?=mul?>(a.z, b.y)),
+		<?=sub?>(<?=mul?>(a.z, b.x), <?=mul?>(a.x, b.z)),
+		<?=sub?>(<?=mul?>(a.x, b.y), <?=mul?>(a.y, b.x)));
+}
+
+<?=vec?> <?=vec?>_unit(<?=vec?> a) {
+	return <?=vec?>_real_mul(a, 1. / <?=vec?>_len(a));
+}
+<?
+end
+
+local function make3x3type(scalar)
+	local vec3 = scalar.."3"
+	local name = scalar.."3x3"
+?>
+typedef union {
+	<?=scalar?> s[9];
+	<?=vec3?> v[3];
+	struct {
+		<?=vec3?> v0,v1,v2;
+	};
+	struct {
+		<?=vec3?> x,y,z;
+	};
+} <?=name?>;
+<?
+end
+
+local function makecplx(name, real)
+?>
+typedef union {
+	<?=real?> s[2];
+	struct { <?=real?> s0, s1; };
+	struct { <?=real?> re, im; };
+} <?=name?>;
+<?
+end
+
+local function resultType(atype, btype)
+	if atype == "real" and btype == "real" then return "real" end
+	if atype == "cplx" and btype == "real" then return "cplx" end
+	if atype == "real" and btype == "cplx" then return "cplx" end
+	if atype == "cplx" and btype == "cplx" then return "cplx" end
+	error("no resultType for operations of "..atype.." and "..btype)
+end
+
+local function make_dot(atype, btype)
+	local ctype = resultType(atype, btype)
+?>
+<?=ctype?> <?=atype?>3_<?=btype?>3_dot(<?=atype?>3 a, <?=btype?>3 b) {
+	return <?=ctype?>_add3(
+		<?=atype?>_<?=btype?>_mul(a.x, <?=btype?>_conj(b.x)),
+		<?=atype?>_<?=btype?>_mul(a.y, <?=btype?>_conj(b.y)),
+		<?=atype?>_<?=btype?>_mul(a.z, <?=btype?>_conj(b.z))
+	);
+}
+<?
+end
+
+local function make_3x3_3_mul(atype, btype)
+	local ctype = resultType(atype, btype)
+?>
+//c_i = a_ij * b^j
+<?=ctype?>3 <?=atype?>3x3_<?=btype?>3_mul(<?=atype?>3x3 a, <?=btype?>3 b) {
+	return (<?=ctype?>3){
+<? for i,xi in ipairs(xNames) do
+?>		.<?=xi?> = <?=atype?>3_<?=btype?>3_dot(a.<?=xi?>, b),
+<? end
+?>	};
+}
+<?
+end
+
+local function make_3_3x3_mul(atype, btype)
+	local ctype = resultType(atype, btype)
+?>
+//c_j = a^i * b_ij = b_ji * a^i
+//so this is the same behavior as transpose(A) * b
+<?=ctype?>3 <?=atype?>3_<?=btype?>3x3_mul(<?=atype?>3 a, <?=btype?>3x3 b) {
+	return (<?=ctype?>3){
+<? for i,xi in ipairs(xNames) do
+?>		.<?=xi?> = <?=ctype?>_add3(
+			<?=atype?>_<?=btype?>_mul(a.x, b.x.<?=xi?>),
+			<?=atype?>_<?=btype?>_mul(a.y, b.y.<?=xi?>),
+			<?=atype?>_<?=btype?>_mul(a.z, b.z.<?=xi?>)),
+<? end
+?>	};
+}
+<?
+end
+
+local function makescalarheader(scalar)
+	local add = scalar.."_add"
+	local mul = scalar.."_mul"
+?>
+#define <?=scalar?>_add3(a,b,c)		(<?=add?>(a, <?=add?>(b,c)))
+#define <?=scalar?>_add4(a,b,c,d)	(<?=add?>(a, <?=scalar?>_add3(b,c,d)))
+#define <?=scalar?>_add5(a,b,c,d,e) (<?=add?>(a, <?=scalar?>_add4(b,c,d,e)))
+
+#define <?=scalar?>_mul3(a,b,c)		(<?=mul?>(<?=mul?>(a,b),c))
+<?
+end
+?>
 //// MODULE_NAME: realparam
 //// MODULE_TYPE:
 // used for passing parameters into real, distinct from real in the case that real=half which can't be passed as kernel arguments
@@ -63,17 +291,17 @@ my current convention is this:
 
 #define real_sqrt			sqrt
 
-<?=makescalarheader"real"?>
+<?makescalarheader"real"?>
 
 //// MODULE_NAME: real3
 //// MODULE_DEPENDS: real
 //// MODULE_TYPE:
 
-<?=makevec3type("real3", "real")?>
+<?makevec3type("real3", "real")?>
 
 //// MODULE_HEADER:
 
-<?=makevec3header("real3", "real")?>
+<?makevec3header("real3", "real")?>
 
 #define real3_from_real3(x)	x
 
@@ -82,8 +310,8 @@ real real3_len(real3 a);
 
 //// MODULE_CODE:
 
-<?=makevec3code("real3", "real")?>
-<?=make_dot("real", "real")?>
+<?makevec3code("real3", "real")?>
+<?make_dot("real", "real")?>
 
 real real3_lenSq(real3 a) {
 	return real3_dot(a,a);
@@ -130,7 +358,7 @@ real3 real3_rotFrom0(real3 v) { return v; }
 real3 real3_rotFrom1(real3 v) { return _real3(v.y, -v.x, v.z); }
 real3 real3_rotFrom2(real3 v) { return _real3(v.z, v.y, -v.x); }
 
-//rotate to put x back to the side 
+//rotate to put x back to the side
 real3 real3_rotTo0(real3 v) { return v; }
 real3 real3_rotTo1(real3 v) { return _real3(-v.y, v.x, v.z); }
 real3 real3_rotTo2(real3 v) { return _real3(-v.z, v.y, v.x); }
@@ -148,16 +376,16 @@ real3 real3_rotateFrom(real3 v, real3 n) {
 #elif dim == 3
 	/*
 	axis is n cross x-axis
-	[ 1  0  0] x [nx ny nz] = [0, -nz, ny] / (ny^2 + nz^2)	
+	[ 1  0  0] x [nx ny nz] = [0, -nz, ny] / (ny^2 + nz^2)
 	angle = acos(n.x)
 	cos angle = n.x
 	sin angle = sqrt(1 - nx^2)
-	cos (angle/2) = 
+	cos (angle/2) =
 
 	cos^2 theta + sin^2 theta = 1
 	sin^2 theta = 1 - cos^2
-	cos^2 theta - sin^2 theta = cos(2 theta) <-> 
-	cos(theta/2) = sqrt((1 + cos(theta))/2) <-> 
+	cos^2 theta - sin^2 theta = cos(2 theta) <->
+	cos(theta/2) = sqrt((1 + cos(theta))/2) <->
 	2 sin theta cos theta = sin(2 theta)
 	*/
 	real cosTheta = n.x;
@@ -185,7 +413,7 @@ real3 real3_rotateTo(real3 v, real3 n) {
 		v.x * n.y + v.y * n.x,
 		v.z);
 #elif dim == 3
-	//same as above but with negative axis	
+	//same as above but with negative axis
 	real cosTheta = n.x;
 	real cosHalfTheta = sqrt(.5 * (1. + cosTheta));
 	real sinHalfTheta = sqrt(1. - cosHalfTheta * cosHalfTheta);
@@ -413,7 +641,7 @@ real real3_weightedLen(real3 a, sym3 m) {
 //// MODULE_TYPE:
 
 // row vectors, so a.i.j = a_ij
-<?=make3x3type"real"?>
+<?make3x3type"real"?>
 
 //// MODULE_HEADER:
 
@@ -502,7 +730,7 @@ real3x3 sym3_sym3_mul(sym3 a, sym3 b) {
 		end ?>,
 <?	end
 ?>		},
-<? end 
+<? end
 ?>	};
 }
 
@@ -517,7 +745,7 @@ real3x3 real3x3_sym3_mul(real3x3 a, sym3 b) {
 		end ?>,
 <?	end
 ?>		},
-<? end 
+<? end
 ?>	};
 }
 
@@ -532,7 +760,7 @@ real3x3 sym3_real3x3_mul(sym3 a, real3x3 b) {
 		end ?>,
 <?	end
 ?>		},
-<? end 
+<? end
 ?>	};
 }
 
@@ -608,7 +836,7 @@ real3x3 real3x3_real3x3_mul(real3x3 a, real3x3 b) {
 <?	for j,xj in ipairs(xNames) do
 ?>			.<?=xj?> = 0.<?
 		for k,xk in ipairs(xNames) do
-?> + a.<?=xi?>.<?=xk?> * b.<?=xk?>.<?=xj?><? 
+?> + a.<?=xi?>.<?=xk?> * b.<?=xk?>.<?=xj?><?
 		end ?>,
 <? 	end
 ?>		},
@@ -616,15 +844,8 @@ real3x3 real3x3_real3x3_mul(real3x3 a, real3x3 b) {
 ?>	};
 }
 
-<?=
-make_3x3_3_mul("real", "real")
--- real3x3_real3_mul
-?>
-
-<?=
-make_3_3x3_mul("real", "real")
--- real3_real3x3_mul
-?>
+<?make_3x3_3_mul("real", "real")	-- real3x3_real3_mul ?>
+<?make_3_3x3_mul("real", "real") -- real3_real3x3_mul ?>
 
 real real3x3_trace(real3x3 m) {
 	return m.x.x + m.y.y + m.z.z;
@@ -660,7 +881,7 @@ real real3x3_det(real3x3 m) {
 real3x3 real3x3_inv(real3x3 m) {
 	real invDet = 1. / real3x3_det(m);
 	return (real3x3){
-<? 
+<?
 --n.x.x = (m.y.y * m.z.z - m.z.y * m.y.z) / det;
 --n.x.y = (m.z.y * m.x.z - m.x.y * m.z.z) / det;
 --n.x.z = (m.x.y * m.y.z - m.y.y * m.x.z) / det;
@@ -675,7 +896,7 @@ for i=0,2 do
 ?>			.s<?=j?> = (m.v<?=j1?>.s<?=i1?> * m.v<?=j2?>.s<?=i2?> - m.v<?=j2?>.s<?=i1?> * m.v<?=j1?>.s<?=i2?>) * invDet,
 <? end
 ?>		},
-<? end	
+<? end
 ?>	};
 }
 
@@ -748,7 +969,7 @@ _3sym3 sym3_3sym3_mul(sym3 a, _3sym3 b) {
 <?	for jk,xjk in ipairs(symNames) do
 ?>			.<?=xjk?> = 0.<?
 		for l,xl in ipairs(xNames) do
-				?> + a.<?=sym(i,l)?> * b.<?=xl?>.<?=xjk?><? 
+				?> + a.<?=sym(i,l)?> * b.<?=xl?>.<?=xjk?><?
 		end ?>,
 <?	end
 ?>		},
@@ -1037,7 +1258,7 @@ real4 quatMul(real4 q, real4 r) {
 //// MODULE_NAME: cplx
 //// MODULE_TYPE:
 
-<?=makecplx("cplx", "real")?>
+<?makecplx("cplx", "real")?>
 
 //// MODULE_HEADER:
 
@@ -1073,7 +1294,7 @@ cplx cplx_log(cplx a);
 cplx cplx_pow(cplx a, cplx b);
 cplx cplx_sqrt(cplx a);
 
-<?=makescalarheader"cplx"?>
+<?makescalarheader"cplx"?>
 
 //// MODULE_CODE:
 
@@ -1108,24 +1329,24 @@ cplx cplx_mul(cplx a, cplx b) {
 		a.re * b.im + a.im * b.re);
 }
 
-cplx cplx_real_add(cplx a, real b) { 
-	return _cplx(a.re + b, a.im); 
+cplx cplx_real_add(cplx a, real b) {
+	return _cplx(a.re + b, a.im);
 }
 
-cplx real_cplx_add(real a, cplx b) { 
-	return _cplx(b.re + a, b.im); 
+cplx real_cplx_add(real a, cplx b) {
+	return _cplx(b.re + a, b.im);
 }
 
-cplx cplx_real_mul(cplx a, real b) { 
-	return _cplx(a.re * b, a.im * b); 
+cplx cplx_real_mul(cplx a, real b) {
+	return _cplx(a.re * b, a.im * b);
 }
 
-cplx cplx_inv(cplx a) { 
-	return cplx_real_mul(cplx_conj(a), 1. / cplx_lenSq(a)); 
+cplx cplx_inv(cplx a) {
+	return cplx_real_mul(cplx_conj(a), 1. / cplx_lenSq(a));
 }
 
-cplx cplx_div(cplx a, cplx b) { 
-	return cplx_mul(a, cplx_inv(b)); 
+cplx cplx_div(cplx a, cplx b) {
+	return cplx_mul(a, cplx_inv(b));
 }
 
 cplx cplx_exp(cplx a) {
@@ -1150,11 +1371,11 @@ cplx cplx_sqrt(cplx a) { return cplx_pow(a, cplx_from_real(.5)); }
 //// MODULE_DEPENDS: cplx sym3
 //// MODULE_TYPE:
 
-<?=makevec3type("cplx3", "cplx")?>
+<?makevec3type("cplx3", "cplx")?>
 
 //// MODULE_HEADER:
 
-<?=makevec3header("cplx3", "cplx")?>
+<?makevec3header("cplx3", "cplx")?>
 
 #define real3_from_cplx3		cplx3_re
 
@@ -1168,13 +1389,13 @@ cplx3 real3_cplx_mul(real3 a, cplx b);
 cplx cplx3_real3_dot(cplx3 a, real3 b);
 #define real3_cplx3_dot(a,b) cplx3_real3_dot(b,a)
 
-//TODO instead of sym3 as a depends, put this into a cplx+sym3 module? 
+//TODO instead of sym3 as a depends, put this into a cplx+sym3 module?
 real cplx3_re_weightedDot(cplx3 a, cplx3 b, sym3 m);
 real cplx3_weightedLenSq(cplx3 a, sym3 m);
 
 //// MODULE_CODE:
 
-<?=makevec3code("cplx3", "cplx")?>
+<?makevec3code("cplx3", "cplx")?>
 
 cplx3 cplx3_from_real3(real3 re) {
 	return (cplx3){
@@ -1192,12 +1413,12 @@ cplx3 cplx3_from_real3_real3(real3 re, real3 im) {
 ?>	};
 }
 
-real3 cplx3_re(cplx3 v) { 
-	return _real3(v.x.re, v.y.re, v.z.re); 
+real3 cplx3_re(cplx3 v) {
+	return _real3(v.x.re, v.y.re, v.z.re);
 }
 
-real3 cplx3_im(cplx3 v) { 
-	return _real3(v.x.im, v.y.im, v.z.im); 
+real3 cplx3_im(cplx3 v) {
+	return _real3(v.x.im, v.y.im, v.z.im);
 }
 
 real cplx3_lenSq(cplx3 v) {
@@ -1215,8 +1436,7 @@ cplx3 real3_cplx_mul(real3 a, cplx b) {
 		real_cplx_mul(a.z, b));
 }
 
-<?=make_dot("cplx", "real")	-- cplx3_real3_dot
-?>
+<?make_dot("cplx", "real")	-- cplx3_real3_dot ?>
 
 /*
 assumes the weights are real and only returns the real component ...
@@ -1239,15 +1459,15 @@ real cplx3_weightedLenSq(cplx3 a, sym3 m) {
 //// MODULE_DEPENDS: sym3 real3x3 cplx3
 
 //// MODULE_TYPE:
-<?=make3x3type"cplx"?>
+<?make3x3type"cplx"?>
 
 //// MODULE_HEADER:
 
 cplx3x3 cplx3x3_from_real3x3_real3x3(real3x3 re, real3x3 im);
-cplx3 cplx3x3_real3_mul(cplx3x3 a, real3 b);                 
-cplx3 cplx3_real3x3_mul(cplx3 a, real3x3 b);                 
-real3x3 cplx3x3_re(cplx3x3 v);                               
-real3x3 cplx3x3_im(cplx3x3 v);                               
+cplx3 cplx3x3_real3_mul(cplx3x3 a, real3 b);
+cplx3 cplx3_real3x3_mul(cplx3 a, real3x3 b);
+real3x3 cplx3x3_re(cplx3x3 v);
+real3x3 cplx3x3_im(cplx3x3 v);
 
 //// MODULE_CODE:
 
@@ -1259,7 +1479,7 @@ cplx3x3 cplx3x3_from_real3x3_real3x3(real3x3 re, real3x3 im) {
 ?>	};
 }
 
-real3x3 cplx3x3_re(cplx3x3 v) { 
+real3x3 cplx3x3_re(cplx3x3 v) {
 	return (real3x3){
 <? for i,xi in ipairs(xNames) do
 ?>		.<?=xi?> = cplx3_re(v.<?=xi?>),
@@ -1267,7 +1487,7 @@ real3x3 cplx3x3_re(cplx3x3 v) {
 ?>	};
 }
 
-real3x3 cplx3x3_im(cplx3x3 v) { 
+real3x3 cplx3x3_im(cplx3x3 v) {
 	return (real3x3){
 <? for i,xi in ipairs(xNames) do
 ?>		.<?=xi?> = cplx3_im(v.<?=xi?>),
@@ -1275,11 +1495,9 @@ real3x3 cplx3x3_im(cplx3x3 v) {
 ?>	};
 }
 
-<?=
-make_3x3_3_mul("cplx", "real")		-- cplx3x3_real3_mul
-..make_3x3_3_mul("real", "cplx")	-- real3x3_cplx3_mul
-..make_3_3x3_mul("cplx", "real")	-- cplx3_real3x3_mul
-?>
+<?make_3x3_3_mul("cplx", "real")	-- cplx3x3_real3_mul ?>
+<?make_3x3_3_mul("real", "cplx")	-- real3x3_cplx3_mul ?>
+<?make_3_3x3_mul("cplx", "real")	-- cplx3_real3x3_mul ?>
 
 cplx cplx3x3_sym3_dot(cplx3x3 a, sym3 b) {
 	cplx sum = cplx_zero;
@@ -1287,7 +1505,7 @@ cplx cplx3x3_sym3_dot(cplx3x3 a, sym3 b) {
 	for j,xj in ipairs(xNames) do
 ?> 	sum = cplx_add(sum, cplx_real_mul(a.<?=xi?>.<?=xj?>, b.<?=sym(i,j)?>));
 <?	end
-end 
+end
 ?>	return sum;
 }
 
@@ -1323,7 +1541,7 @@ real BESSJ0(real X) {
 			P1=1.0, P2=-0.1098628627E-2, P3=0.2734510407E-4,
 			P4=-0.2073370639E-5, P5= 0.2093887211E-6,
 			Q1=-0.1562499995E-1, Q2= 0.1430488765E-3, Q3=-0.6911147651E-5,
-			Q4= 0.7621095161E-6, Q5=-0.9349451520E-7;	
+			Q4= 0.7621095161E-6, Q5=-0.9349451520E-7;
 		real Z = 8./AX;
 		real Y = Z*Z;
 		real XX = AX-0.785398164;
@@ -1428,7 +1646,7 @@ void getPerpendicularBasis3x3(real3x3* n) {
 //// MODULE_NAME: sinh
 // this is for GLSL esp which doesn't have these defs
 
-real sinh(real x) { 
+real sinh(real x) {
 	real ex = exp(x);
 	return .5 * (ex - 1. / ex);
 }
@@ -1436,7 +1654,7 @@ real sinh(real x) {
 //// MODULE_NAME: cosh
 // also for GLSL
 
-real cosh(real x) { 
+real cosh(real x) {
 	real ex = exp(x);
 	return .5 * (ex + 1. / ex);
 }
@@ -1449,7 +1667,7 @@ real sech(real x) {
 
 //// MODULE_NAME: asinh
 
-real asinh(real x) { 
+real asinh(real x) {
 	return log(x + sqrt(x*x + 1.));
 }
 
@@ -1476,7 +1694,7 @@ real sqr(real x) {
 //// MODULE_NAME: math
 //// MODULE_DEPENDS: realparam units real real3
 /*
-TODO don't just use 'math', 
+TODO don't just use 'math',
 put a global depends list somewhere, build on it as we add eqn and solver
 but app has its own modules which it needs typecode for first (which other solvers use ffi instances of)
 and solvers modules depend on those app modules...

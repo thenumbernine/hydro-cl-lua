@@ -528,7 +528,11 @@ function HydroCLApp:initGL(...)
 
 	-- hmm, sorting out how to do the module system ...
 	self.modules = require 'hydro.code.moduleset'()
-	require 'hydro.code.math'(self.modules, self)
+
+	self.modules:addFromMarkup(template(file['hydro/code/math.cl'], table(require 'hydro.common', {
+		app = self,
+	})))
+
 	require 'hydro.code.safecdef'(self.modules:getTypeHeader'math')
 
 	self.solvers = table()
