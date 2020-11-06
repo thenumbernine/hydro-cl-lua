@@ -539,7 +539,7 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn
 -- compressible Euler equations
 
 
-self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
+--self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
 
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct bounded'})))	-- this is the default hllCalcWaveMethod
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct'})))
@@ -1248,13 +1248,16 @@ local args = {
 		sigma = 10,
 	},
 	--]]
-	
+		
 	--initCond = 'Minkowski',
 	--initCond = 'SENR Minkowski',
 	initCond = 'SENR UIUC',
 	--initCond = 'SENR BrillLindquist',
 	--initCond = 'SENR BoostedSchwarzschild',
 	--initCond = 'SENR StaticTrumpet',
+	
+	-- multi-devices
+	multiSlices = {cmdline.multiSlices or 3, 1, 1},
 }
 --self.solvers:insert(require 'hydro.solver.bssnok-fd-pirk'(table(args, {eqn = 'bssnok-fd-num'})))	-- requires extra PIRK kernels to be defined in the eqn file
 --self.solvers:insert(require 'hydro.solver.bssnok-fd'(table(args, {eqn = 'bssnok-fd-num'})))
@@ -1268,6 +1271,9 @@ if cmdline['bssnok-fd-sym'] then
 end
 if cmdline['bssnok-fd-senr'] then
 	self.solvers:insert(require 'hydro.solver.bssnok-fd'(table(args, {eqn = 'bssnok-fd-senr'})))
+end
+if cmdline['bssnok-fd-senr-multi'] then
+	self.solvers:insert(require 'hydro.solver.choppedup'(table(args, {eqn = 'bssnok-fd-senr', subsolverClass=require 'hydro.solver.bssnok-fd'})))
 end
 
 if cmdline['bssnok-fd-num-pirk'] then

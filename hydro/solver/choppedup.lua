@@ -313,13 +313,19 @@ these are needed for displaying things
 	displayVarForName
 --]]
 
+-- TODO is this still needed?  gridsolvers init color now in 'initMeshVars'
+-- but meshsolver has separate initDraw and initMeshVars
+-- so ... should I be doing this?
+-- or should I move it somewhere like initMeshVars or maybe initCodeModuleDisplay?
 function Chopped:initDraw()
 	self.displayVars = table()
 	self.t = 0
 	self.color = vec3d(math.random(), math.random(), math.random()):normalize()
 	self.name = 'Chopped '..self.solvers[1].name
 	for _,solver in ipairs(self.solvers) do
-		solver:initDraw()
+		if solver.initDraw then
+			solver:initDraw()
+		end
 		solver.color = vec3d(self.color:unpack())
 	end
 

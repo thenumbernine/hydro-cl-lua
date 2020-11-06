@@ -679,7 +679,7 @@ based on Trangenstein, Athena, etc, except working on primitives like it says to
 <? 
 	elseif solver.usePLM == 'ppm-wip' then 
 ?>
-//// MODULE_DEPENDS: eigen_forCell eigen_left/rightTransform consFromPrim primFromCons min3 sqr
+//// MODULE_DEPENDS: eigen_forCell eigen_left/rightTransform consFromPrim primFromCons min3 sqr apply_dU_dW apply_dW_dU
 
 // based on http://zingale.github.io/hydro1d/  ppm code
 
@@ -898,28 +898,40 @@ based on Trangenstein, Athena, etc, except working on primitives like it says to
 
 	// beta± = L*(Wref± - I±)
 
-	prim_t dwxp, dwxm;
-	for (int j = 0; j < numStates; ++j) {
-		dwxp.ptr[j] = Wref_xp.ptr[j] - Iplus[numWaves-1].ptr[j];
-		dwxm.ptr[j] = Wref_xm.ptr[j] - Iminus[0].ptr[j];
-	}
+	// dF = dF/dU dU = R_F Lambda_F L_F dU
+	// 
 
 	//TODO ... convert prim to cons, then cons eig transform
-	waves_t beta_xp = eigen_leftTransform(solver, eig, Wref_xp, x, n);
-	waves_t beta_xm = eigen_leftTransform(solver, eig, Wref_xm, x, n);
+	cons_t Uref_xp = apply_dU_dW(solver, W_i, Wref_xp, x);
+	waves_t beta_xp = eigen_leftTransform(solver, eig, Uref_xp, x, n);
+	
+	cons_t Uref_xm = apply_dU_dW(solver, W_i, Wref_xm, x);
+	waves_t beta_xm = eigen_leftTransform(solver, eig, Uref_xm, x, n);
 	
 	for (int m = 0; m < numWaves; ++m) {
-		beta_xm(m) -= dot_product(lvec(m,:), Iminus(m,:))
-		beta_xp(m) -= dot_product(lvec(m,:), Iplus(m,:))
+		{
+			cons_t Uminus = apply_dU_dW(solver, W_i, Iminus[m], x);
+			waves_t waves = eigen_leftTransform(solver, eig, Uminus, x, n);
+			beta_xm.ptr[m] -= waves.ptr[m];
+		}
+
+		{
+			cons_t Uplus = apply_dU_dW(solver, W_i, Iplus[m], x);
+			waves_t waves = eigen_leftTransform(solver, eig, Uplus, x, n);
+			beta_xp.ptr[m] -= waves.ptr[m];
+		}
 	}
 
 	for (int j = 0; j < numWaves; ++j) {
 		if (lambda.ptr[j] < 0) beta_xp.ptr[j] = 0;
 		if (lambda.ptr[j] > 0) beta_xm.ptr[j] = 0;
 	}
+	
+	cons_t U_l_ip1 = eigen_rightTransform(solver, eig, beta_xp, x, n);
+	cons_t U_r_i = eigen_rightTransform(solver, eig, beta_xm, x, n);
 
-	cons_t W_l_ip1 = eigen_rightTransform(solver, eig, beta_xp, x, n);
-	cons_t W_r_i = eigen_rightTransform(solver, eig, beta_xm, x, n);
+	cons_t W_l_ip1 = apply_dW_dU(solver, W_i, U_l_ip1, x);
+	cons_t W_r_i = apply_dW_dU(solver, W_i, U_r_i, x);
 
 	for (int j = 0; j < numStates; ++j) {
 		W_l_ip1.ptr[j] = Wref_xp.ptr[j] - W_l_ip1.ptr[j];

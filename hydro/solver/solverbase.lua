@@ -326,7 +326,7 @@ self.initArgs = table(args)	-- save for later
 self.initArgs.app = nil
 self.initArgs.solver = getmetatable(self).name	-- not in initArgs but is unique	
 if self.initArgs.subsolverClass then
-	self.initArgs.subsolverClass = 'choppedup'
+	self.initArgs.subsolverClass = self.initArgs.subsolverClass.name
 end
 -- remove compile-time variables
 self.initArgs.fixedDT = nil
@@ -334,6 +334,9 @@ self.initArgs.cfl = nil
 self.initArgs.mins = nil
 self.initArgs.maxs = nil
 self.initArgs.gridSize = nil	
+self.initArgs.cmds = nil		-- in choppedup
+self.initArgs.device = nil		-- in choppedup
+self.initArgs.id = nil			-- in choppedup
 	
 	time('SolverBase:init()', function()
 		self:initMeshVars(args)

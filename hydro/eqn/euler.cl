@@ -73,9 +73,9 @@ end
 	};
 }
 
-// only used by PLM
 //// MODULE_NAME: apply_dU_dW	
 //// MODULE_DEPENDS: solver_t prim_t cons_t coord_lower
+// only used by PLM
 
 <?=eqn.cons_t?> apply_dU_dW(
 	constant <?=solver.solver_t?>* solver,
@@ -96,9 +96,9 @@ end
 	};
 }
 
-// only used by PLM
 //// MODULE_NAME: apply_dW_dU	
 //// MODULE_DEPENDS: solver_t prim_t cons_t coord_lower
+// only used by PLM
 
 <?=eqn.prim_t?> apply_dW_dU(
 	constant <?=solver.solver_t?>* solver,
