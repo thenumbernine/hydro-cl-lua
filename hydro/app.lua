@@ -26,6 +26,7 @@ predefined vars:
 	vsync = set to enable vsync and slow down the simulation
 	createAnimation = set to start off creating an animation / framedump
 	exitTime = start the app running, and exit it after the simulation reaches this time
+	saveOnExit = filename to save all solvers (appending _1 _2 for multiple solvers) before quitting
 	maxiter = max # of iterations to run the application for
 	verbose = output extra stuff
 
@@ -878,6 +879,16 @@ function HydroCLApp:update(...)
 		if oldestSolver then 
 			-- check before :update(), in case we want to exit at t=0
 			if self.exitTime and oldestSolver.t >= self.exitTime then
+				-- save on exit?
+				if cmdline.saveOnExit then
+					for i,solver in ipairs(self.solvers) do
+						solver:save(tostring(cmdline.saveOnExit)
+							.. (#self.solvers == 1 and '' or (
+								'_'..i
+							)))
+					end
+				end
+
 				self:requestExit()
 				return
 			end		

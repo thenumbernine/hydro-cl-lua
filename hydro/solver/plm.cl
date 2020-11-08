@@ -7,9 +7,28 @@
 if not solver.usePLM then return end
 
 for side=0,solver.dim-1 do
+	
+	-- piecewise-constant
+	if solver.usePLM == 'piecewise-constant' then 
+?>
 
+<?=eqn.consLR_t?> calcCellLR_<?=side?>(
+	constant <?=solver.solver_t?>* solver,
+	const global <?=eqn.cons_t?>* U,
+	real dt,
+	real3 x,
+	int4 i,
+	normal_t n
+) {
+	return (<?=eqn.consLR_t?>){
+		.L = *U,
+		.R = *U,
+	};
+}
+
+<?
 	-- piecewise-linear
-	if solver.usePLM == 'plm-cons' then 
+	elseif solver.usePLM == 'plm-cons' then 
 ?>
 //// MODULE_DEPENDS: fluxFromCons slopeLimiter
 

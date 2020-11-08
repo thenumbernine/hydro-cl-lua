@@ -3,7 +3,7 @@ TODO one config per experiment (initial condition + config)
 and no more setting config values (boundary, etc) in the init cond file
 --]]
 
-local dim = cmdline.dim or 1
+local dim = cmdline.dim or 2
 local args = {
 	app = self, 
 	eqn = cmdline.eqn,
@@ -36,6 +36,7 @@ local args = {
 	
 	-- piecewise-linear slope limiter
 	-- TODO rename this to 'calcLR' or something
+	--usePLM = 'piecewise-constant',	-- degenerate case.  don't use this, instead just disable usePLM, or else this will allocate more memory / run more functions.
 	--usePLM = 'plm-cons',
 	--usePLM = 'plm-cons-alone',
 	--usePLM = 'plm-prim-alone',
@@ -99,12 +100,12 @@ local args = {
 		}
 	)[dim],
 	boundary = type(cmdline.boundary) == 'table' and cmdline.boundary or {
-		xmin = cmdline.boundary or 'freeflow',
-		xmax = cmdline.boundary or 'freeflow',
-		ymin = cmdline.boundary or 'freeflow',
-		ymax = cmdline.boundary or 'freeflow',
-		zmin = cmdline.boundary or 'freeflow',
-		zmax = cmdline.boundary or 'freeflow',
+		xmin = cmdline.boundary or 'periodic',
+		xmax = cmdline.boundary or 'periodic',
+		ymin = cmdline.boundary or 'periodic',
+		ymax = cmdline.boundary or 'periodic',
+		zmin = cmdline.boundary or 'periodic',
+		zmax = cmdline.boundary or 'periodic',
 	},
 	--]]
 	--[[ cylinder
@@ -215,7 +216,7 @@ local args = {
 	--initCond = 'Bessel',
 	--initCond = 'cyclone',
 	
-	initCond = 'Sod',
+	--initCond = 'Sod',
 	--initCond = 'Sod with physical units',
 	--initCondArgs = {dim=cmdline.displayDim},
 	
@@ -228,7 +229,7 @@ local args = {
 	--initCond = 'Colella-Woodward',
 	--initCond = 'double mach reflection',
 	--initCond = 'square cavity',
-	--initCond = 'shock bubble interaction',		-- with usePLM only works with prim or with athena
+	initCond = 'shock bubble interaction',		-- with usePLM only works with prim or with athena
 	--initCond = 'Richmyer-Meshkov',
 	--initCond = 'radial gaussian',
 
@@ -539,7 +540,7 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn
 -- compressible Euler equations
 
 
---self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
+self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
 
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct bounded'})))	-- this is the default hllCalcWaveMethod
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct'})))
