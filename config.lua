@@ -540,7 +540,7 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn
 -- compressible Euler equations
 
 
-self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
+--self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
 
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct bounded'})))	-- this is the default hllCalcWaveMethod
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct'})))
@@ -704,6 +704,11 @@ self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='euler', wenoMe
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='twofluid-emhd'})))
 --self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='twofluid-emhd', wenoMethod='1996 Jiang Shu', order=9})))	-- exploded...
 --self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='twofluid-emhd', wenoMethod='2010 Shen Zha', order=5})))
+
+
+-- de Donder gauge + weak field limit + cartesian components, as a wave equation (+ TODO fluid as well)
+self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='lingr'})))
+--self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='lingr'})))
 
 
 -- here's another one: two-fluid emhd with de Donder gauge linearized general relativity

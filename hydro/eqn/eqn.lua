@@ -69,6 +69,14 @@ function Equation:getParityVars(...)
 					vars:insert(var.name..'.'..xij)
 				end
 			end
+		elseif var.type == 'real3x3' then
+			for i,xi in ipairs(xNames) do
+				for j,xj in ipairs(xNames) do
+					if sign[i] * sign[j] == -1 then
+						vars:insert(var.name..'.'..xi..'.'..xj)
+					end
+				end
+			end	
 		elseif var.type == '_3sym3' then
 			for k,xk in ipairs(xNames) do
 				for ij,xij in ipairs(symNames) do
@@ -183,7 +191,9 @@ function Equation:init(args)
 	-- (put static states at the end of your cons_t structures)
 	if not self.numIntStates then self.numIntStates = self.numStates end
 	
-	self.initCondNames = table.mapi(self.initConds, function(info) return info.name end)
+	self.initCondNames = table.mapi(
+		assert(self.initConds, "you forgot to specify your initConds in your hydro/eqn/* file"),
+		function(info) return info.name end)
 
 	
 	self.reflectVars = self.reflectVars or {}
