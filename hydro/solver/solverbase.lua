@@ -1247,38 +1247,38 @@ function SolverBase:refreshCalcDTKernel()
 	self.calcDTKernelObj.obj:setArg(1, self.reduceBuf)
 end
 
-function SolverBase:getDisplayCode()
+function SolverBase:hasmodule(name)
 	local moduleNames = table(self.sharedModulesEnabled, self.solverModulesEnabled):keys()
 	local modulesEnabled = self.modules:getDependentModules(moduleNames:unpack())
 		:mapi(function(module) return true, module.name end)
-	local function hasmodule(name) return modulesEnabled[name] end
---local function hasmodule(name) return true end
-	
+	return modulesEnabled[name]
+end
+
+function SolverBase:getDisplayCode()
 	local lines = table()
 	lines:insert(template([[
 
 typedef union {
 	real	ptr[9];
 	real	vreal;
-<? if hasmodule'sym3' then ?>
+<? if solver:hasmodule'sym3' then ?>
 	sym3	vsym3;
 <? end ?>
-<? if hasmodule'cplx' then ?>
+<? if solver:hasmodule'cplx' then ?>
 	cplx	vcplx;
 <? end ?>
-<? if hasmodule'real3' then ?>
+<? if solver:hasmodule'real3' then ?>
 	real3	vreal3;
 <? end ?>
-<? if hasmodule'cplx3' then ?>
+<? if solver:hasmodule'cplx3' then ?>
 	cplx3	vcplx3;
 <? end ?>
-<? if hasmodule'real3x3' then ?>
+<? if solver:hasmodule'real3x3' then ?>
 	real3x3	vreal3x3;
 <? end ?>
 } displayValue_t;
 ]], {
 		solver = self,
-		hasmodule = hasmodule,
 	}))
 
 	local accumFunc = self.displayVarAccumFunc and 'max' or nil
@@ -1346,7 +1346,7 @@ for i,component in ipairs(solver.displayComponentFlatList) do
 	if not component.onlyFor 
 	or (group.name == component.onlyFor)
 	then
-		if hasmodule(component.base) then
+		if solver:hasmodule(component.base) then
 ?>	case <?=i?>:	//<?=component.base or 'real'?> <?=component.name?>
 		{
 			<?=component.code?>
@@ -1363,7 +1363,6 @@ end
 			name = name,
 			solver = self,
 			group = group,
-			hasmodule = hasmodule,
 		})))
 	end
 	addPickComponetForGroup{

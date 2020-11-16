@@ -19,6 +19,10 @@ Pi_ab,t - Psi_ab,i = ...
 Pi_ab,i + Psi_ab,i = 0
 
 however we have some options for stress-energies
+
+let's do ordinary euler fluid equations first
+
+TODO how about a composite 'equation' ? instead of a composite solver file?
 --]]
 local class = require 'ext.class'
 local Equation = require 'hydro.eqn.eqn'
