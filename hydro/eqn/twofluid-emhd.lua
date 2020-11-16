@@ -89,7 +89,6 @@ TwoFluidEMHD.primVars = table{
 }
 
 TwoFluidEMHD.roeUseFluxFromCons = true
-TwoFluidEMHD.useConstrainU = true
 
 TwoFluidEMHD.useEulerInitState = true	-- default to true.
 

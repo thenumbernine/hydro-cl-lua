@@ -16,8 +16,6 @@ GRMHD.name = 'GRMHD'
 GRMHD.numStates = 9
 GRMHD.numWaves = 8
 
-GRMHD.useConstrainU = true
-
 -- GRMHD fluxFromCons will need prims passed to it as well
 -- which means overriding the code that calls this? or the calc flux code?
 --GRMHD.roeUseFluxFromCons = true

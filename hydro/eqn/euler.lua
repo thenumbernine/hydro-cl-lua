@@ -16,12 +16,6 @@ Euler.numIntStates = 5	-- don't bother integrate ePot
 
 Euler.roeUseFluxFromCons = true
 
--- the only source term that the Euler equations has is the connection coefficients of the velocity vector
--- maybe later I will automatically flag what elements are vectors
--- and automatically add connection coefficients
---
-Euler.useConstrainU = true
-
 Euler.initConds = require 'hydro.init.euler':getList()
 
 function Euler:init(args)

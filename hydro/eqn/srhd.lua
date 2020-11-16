@@ -23,8 +23,6 @@ SRHD.name = 'SRHD'
 SRHD.numWaves = 5
 SRHD.numIntStates = 5
 
-SRHD.useConstrainU = true
-
 -- TODO if we enable this we get NANs when waves hit the border.  Bug in the srhd boundary prim calculations?
 --SRHD.roeUseFluxFromCons = true
 

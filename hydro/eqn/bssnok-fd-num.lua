@@ -19,7 +19,6 @@ local Struct = require 'hydro.code.struct'
 local BSSNOKFiniteDifferenceEquation = class(BSSNOKFiniteDifferenceEquationBase)
 
 BSSNOKFiniteDifferenceEquation.name = 'BSSNOK finite difference' 
-BSSNOKFiniteDifferenceEquation.useConstrainU = true
 
 -- not used with finite-difference schemes anyways
 BSSNOKFiniteDifferenceEquation.weightFluxByGridVolume = false

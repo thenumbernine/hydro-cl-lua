@@ -16,7 +16,6 @@ local xNames = common.xNames
 
 local ADM_BonaMasso_3D = class(EinsteinEqn)
 ADM_BonaMasso_3D.name = 'ADM_BonaMasso_3D'
-ADM_BonaMasso_3D.useConstrainU = true
 
 --[[
 args:
@@ -200,12 +199,6 @@ function ADM_BonaMasso_3D:createInitState()
 				'replace V',
 				'average',	-- TODO add averaging weights, from 100% V (which works) to 100% d (which doesn't yet work)
 			},
-			-- upon setting this, set useConstrainU accordingly (turn it off if we're not constraining U)
-			onChange = function(guivar, value, solver)
-				-- disable the solver's constrainU if we're not needing it
-				-- note that the kernel is still created, just now won't be called
-				solver.useConstrainU = value ~= 0
-			end,
 			compileTime = true,
 		},
 

@@ -694,10 +694,6 @@ real fluxLimiter(real r) {
 	-- set required modules (those that have kernels associated with them)
 
 	self.solverModulesEnabled['calcDT'] = true
-
-	if self.eqn.useConstrainU then
-		self.solverModulesEnabled['constrainU'] = true
-	end
 end
 
 -- Calling :getDisplayCode() will query other modules (esp type info) for what to produce
@@ -1192,6 +1188,9 @@ function SolverBase:refreshSolverProgram()
 	if self:hasModule'addSource' then
 		self.solverModulesEnabled['addSource'] = true
 	end
+	if self:hasModule'constrainU' then
+		self.solverModulesEnabled['constrainU'] = true
+	end
 
 	local code
 	time('generating solver code', function()
@@ -1217,7 +1216,7 @@ print('solver modules: '..moduleNames:sort():concat', ')
 		self.addSourceKernelObj = self.solverProgramObj:kernel{name='addSource', domain=self.domainWithoutBorder}
 	end
 
-	if self.eqn.useConstrainU then
+	if self:hasModule'constrainU' then
 		self.constrainUKernelObj = self.solverProgramObj:kernel'constrainU'
 	end
 
@@ -1558,7 +1557,7 @@ function SolverBase:resetState()
 end
 
 function SolverBase:constrainU()
-	if self.eqn.useConstrainU then
+	if self.constrainUKernelObj then
 		self.constrainUKernelObj(self.solverBuf, self.UBuf, self.cellBuf)
 		if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
 		self:boundary()

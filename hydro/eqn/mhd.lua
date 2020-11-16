@@ -18,7 +18,6 @@ MHD.numWaves = 7
 MHD.numIntStates = 8
 
 MHD.roeUseFluxFromCons = true
-MHD.useConstrainU = true
 
 -- hmm, we want init.euler and init.mhd here ...
 MHD.initConds = require 'hydro.init.euler':getList()

@@ -352,7 +352,7 @@ function MeshSolver:refreshSolverProgram()
 	if self.addSourceKernelObj then
 		self.addSourceKernelObj.obj:setArg(3, self.cellBuf)
 	end
-	if self.eqn.useConstrainU then
+	if self.constrainUKernelObj then
 		self.constrainUKernelObj.obj:setArg(2, self.cellBuf)
 	end
 
