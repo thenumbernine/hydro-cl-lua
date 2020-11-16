@@ -7,8 +7,6 @@ local Equation = require 'hydro.eqn.eqn'
 local WaveFDEqn = class(Equation)
 WaveFDEqn.name = 'wave-fd'
 
-WaveFDEqn.useSourceTerm = true
-
 WaveFDEqn.consVars = table{
 	-- typically phi
 	{name='psi', type='cplx', units='kg/(m^3)'},

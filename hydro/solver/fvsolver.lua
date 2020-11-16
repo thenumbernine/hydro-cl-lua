@@ -350,7 +350,7 @@ function FiniteVolumeSolver:addDisplayVars()
 		end
 	end
 
-	if self:hasmodule'eigen_left/rightTransform' then
+	if self:isModuleUsed'eigen_left/rightTransform' then
 		-- ortho
 		-- TODO why is the x error getting 'nans' after a few iterations?
 		-- TODO WARNING - this only does ForSide, which doesn't match non-cartesian grids w/cartesian components
@@ -396,8 +396,8 @@ function FiniteVolumeSolver:addDisplayVars()
 		end
 	end
 
-	if self:hasmodule'eigen_fluxTransform' 
-	and self:hasmodule'eigen_left/rightTransform'
+	if self:isModuleUsed'eigen_fluxTransform' 
+	and self:isModuleUsed'eigen_left/rightTransform'
 	then
 		-- flux
 		-- TODO same as above, why is the x error getting 'nans' after a few iterations?

@@ -23,7 +23,6 @@ local Equation = require 'hydro.eqn.eqn'
 local GLM_Maxwell = class(Equation)
 GLM_Maxwell.name = 'GLM_Maxwell'
 
-GLM_Maxwell.useSourceTerm = true
 GLM_Maxwell.roeUseFluxFromCons = true
 
 -- don't incorporate the Conn^k_ij E_k terms into the flux

@@ -84,7 +84,6 @@ TwoFluidEMHDDeDonderGaugeLinearizedGR.primVars = table{
 }
 
 TwoFluidEMHDDeDonderGaugeLinearizedGR.roeUseFluxFromCons = true
-TwoFluidEMHDDeDonderGaugeLinearizedGR.useSourceTerm = true
 TwoFluidEMHDDeDonderGaugeLinearizedGR.useConstrainU = true
 
 TwoFluidEMHDDeDonderGaugeLinearizedGR.useEulerInitState = true	-- default to true.

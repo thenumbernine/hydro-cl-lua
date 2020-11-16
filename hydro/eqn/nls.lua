@@ -10,9 +10,6 @@ local xNames = require 'hydro.common'.xNames
 local NLSEqn = class(Equation)
 NLSEqn.name = 'nls'
 
--- this tells eqn to not provide its own eigen code
-NLSEqn.useSourceTerm = true
-
 -- TODO just use cplx_t?
 NLSEqn.consVars = {
 	{name='q', type='cplx'},

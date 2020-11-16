@@ -19,7 +19,6 @@ MHD.numWaves = 9
 MHD.numIntStates = 9
 
 MHD.roeUseFluxFromCons = true
-MHD.useSourceTerm = true
 MHD.useConstrainU = true
 
 -- TODO this is broken

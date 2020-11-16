@@ -41,7 +41,6 @@ local Maxwell = class(Equation)
 Maxwell.name = 'Maxwell'
 
 Maxwell.roeUseFluxFromCons = true
-Maxwell.useSourceTerm = true
 
 -- don't incorporate the Conn^k_ij E_k terms into the flux
 Maxwell.weightFluxByGridVolume = false

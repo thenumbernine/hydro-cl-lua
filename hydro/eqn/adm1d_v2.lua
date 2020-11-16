@@ -95,8 +95,6 @@ ADM_BonaMasso_1D_1997Alcubierre.consVars = {
 	{name='K_xx', type='real', variance=''},
 }
 
-ADM_BonaMasso_1D_1997Alcubierre.useSourceTerm = true
-
 function ADM_BonaMasso_1D_1997Alcubierre:createInitState()
 	ADM_BonaMasso_1D_1997Alcubierre.super.createInitState(self)
 	self:addGuiVars{

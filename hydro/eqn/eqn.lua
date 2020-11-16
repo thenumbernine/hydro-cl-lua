@@ -32,10 +32,6 @@ I think other equations were better performing without this, like Euler.
 --]]
 Equation.roeUseFluxFromCons = nil
 
--- whether to use the 'addSource' kernel
-Equation.useSourceTerm = nil
-
-
 -- used by bssnok-fd-num and bssnok-fd-sym
 -- useful with spherical grids
 -- (which no other eqn has attempted to implement yet)

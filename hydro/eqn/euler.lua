@@ -20,8 +20,6 @@ Euler.roeUseFluxFromCons = true
 -- maybe later I will automatically flag what elements are vectors
 -- and automatically add connection coefficients
 --
--- I'm also using the source term for the viscosity ... if you choose to use FANS
-Euler.useSourceTerm = true
 Euler.useConstrainU = true
 
 Euler.initConds = require 'hydro.init.euler':getList()

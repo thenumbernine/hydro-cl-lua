@@ -268,19 +268,16 @@ kernel void addSource_maxwell(
 		self.ion.addSourceKernelObj.obj:setArg(0, self.ion.solverBuf)
 		self.ion.addSourceKernelObj.obj:setArg(2, self.ion.UBuf)
 		self.ion.addSourceKernelObj.obj:setArg(3, self.maxwell.UBuf)
-		self.ion.eqn.useSourceTerm = true
 		
 		self.electron.addSourceKernelObj = self.addSourceProgramObj:kernel'addSource_electron'
 		self.electron.addSourceKernelObj.obj:setArg(0, self.electron.solverBuf)
 		self.electron.addSourceKernelObj.obj:setArg(2, self.electron.UBuf)
 		self.electron.addSourceKernelObj.obj:setArg(3, self.maxwell.UBuf)
-		self.electron.eqn.useSourceTerm = true
 
 		self.maxwell.addSourceKernelObj = self.addSourceProgramObj:kernel'addSource_maxwell'
 		self.maxwell.addSourceKernelObj.obj:setArg(0, self.maxwell.solverBuf)
 		self.maxwell.addSourceKernelObj.obj:setArg(2, self.ion.UBuf)
 		self.maxwell.addSourceKernelObj.obj:setArg(3, self.electron.UBuf)
-		self.maxwell.eqn.useSourceTerm = true
 	end
 
 	function templateClass:callAll(name, ...)

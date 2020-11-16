@@ -21,8 +21,6 @@ local sym = common.sym
 local Z4_2008Yano = class(EinsteinEqn)
 Z4_2008Yano.name = 'Z4 (2008 Yano et al)'
 
-Z4_2008Yano.useSourceTerm = true
-
 function Z4_2008Yano:init(args)
 	
 	local fluxVars = table{

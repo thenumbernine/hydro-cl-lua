@@ -21,7 +21,6 @@ ADM_BonaMasso_1D_2008Alcubierre.consVars = {
 }
 ADM_BonaMasso_1D_2008Alcubierre.numWaves = 3	-- alpha and gamma_xx are source-term only
 
-ADM_BonaMasso_1D_2008Alcubierre.useSourceTerm = true
 ADM_BonaMasso_1D_2008Alcubierre.roeUseFluxFromCons = true
 
 ADM_BonaMasso_1D_2008Alcubierre.guiVars = {

@@ -16,7 +16,6 @@ NavierStokesWilcox.numWaves = 7	-- v-a, v,v,v,v,v, v+a
 NavierStokesWilcox.numIntStates = 7
 
 NavierStokesWilcox.roeUseFluxFromCons = true
-NavierStokesWilcox.useSourceTerm = true
 
 NavierStokesWilcox.initConds = require 'hydro.init.euler':getList()
 

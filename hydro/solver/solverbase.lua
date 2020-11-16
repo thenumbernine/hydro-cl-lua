@@ -695,9 +695,6 @@ real fluxLimiter(real r) {
 
 	self.solverModulesEnabled['calcDT'] = true
 
-	if self.eqn.useSourceTerm then
-		self.solverModulesEnabled['addSource'] = true
-	end
 	if self.eqn.useConstrainU then
 		self.solverModulesEnabled['constrainU'] = true
 	end
@@ -1190,6 +1187,12 @@ end
 
 -- depends on buffers
 function SolverBase:refreshSolverProgram()
+
+	-- enable here after all modules are provided
+	if self:hasModule'addSource' then
+		self.solverModulesEnabled['addSource'] = true
+	end
+
 	local code
 	time('generating solver code', function()
 		local moduleNames = table(self.sharedModulesEnabled, self.solverModulesEnabled):keys()
@@ -1210,7 +1213,7 @@ print('solver modules: '..moduleNames:sort():concat', ')
 
 	-- this is created in the parent class, however it isn't called by the parent class.
 	--  instead it has to be called by the individual implementation classes
-	if self.eqn.useSourceTerm then
+	if self:hasModule'addSource' then
 		self.addSourceKernelObj = self.solverProgramObj:kernel{name='addSource', domain=self.domainWithoutBorder}
 	end
 
@@ -1247,7 +1250,11 @@ function SolverBase:refreshCalcDTKernel()
 	self.calcDTKernelObj.obj:setArg(1, self.reduceBuf)
 end
 
-function SolverBase:hasmodule(name)
+function SolverBase:hasModule(name)
+	return self.modules.set[name]
+end
+
+function SolverBase:isModuleUsed(name)
 	local moduleNames = table(self.sharedModulesEnabled, self.solverModulesEnabled):keys()
 	local modulesEnabled = self.modules:getDependentModules(moduleNames:unpack())
 		:mapi(function(module) return true, module.name end)
@@ -1261,19 +1268,19 @@ function SolverBase:getDisplayCode()
 typedef union {
 	real	ptr[9];
 	real	vreal;
-<? if solver:hasmodule'sym3' then ?>
+<? if solver:isModuleUsed'sym3' then ?>
 	sym3	vsym3;
 <? end ?>
-<? if solver:hasmodule'cplx' then ?>
+<? if solver:isModuleUsed'cplx' then ?>
 	cplx	vcplx;
 <? end ?>
-<? if solver:hasmodule'real3' then ?>
+<? if solver:isModuleUsed'real3' then ?>
 	real3	vreal3;
 <? end ?>
-<? if solver:hasmodule'cplx3' then ?>
+<? if solver:isModuleUsed'cplx3' then ?>
 	cplx3	vcplx3;
 <? end ?>
-<? if solver:hasmodule'real3x3' then ?>
+<? if solver:isModuleUsed'real3x3' then ?>
 	real3x3	vreal3x3;
 <? end ?>
 } displayValue_t;
@@ -1346,7 +1353,7 @@ for i,component in ipairs(solver.displayComponentFlatList) do
 	if not component.onlyFor 
 	or (group.name == component.onlyFor)
 	then
-		if solver:hasmodule(component.base) then
+		if solver:isModuleUsed(component.base) then
 ?>	case <?=i?>:	//<?=component.base or 'real'?> <?=component.name?>
 		{
 			<?=component.code?>
@@ -2448,7 +2455,7 @@ if self.checkNaNs then assert(self:checkFinite(derivBufObj)) end
 if self.checkNaNs then assert(self:checkFinite(derivBufObj)) end
 if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
 
-		if self.eqn.useSourceTerm then
+		if self.addSourceKernelObj then
 if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
 if self.checkNaNs then assert(self:checkFinite(derivBufObj)) end
 			self.addSourceKernelObj(self.solverBuf, derivBufObj.obj, self.UBuf, self.cellBuf)

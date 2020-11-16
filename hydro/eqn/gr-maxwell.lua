@@ -36,7 +36,6 @@ GRMaxwell.consVars = {
 	{name='mu', type=GRMaxwell.susc_t},
 }
 
-GRMaxwell.useSourceTerm = true
 GRMaxwell.roeUseFluxFromCons = true
 
 GRMaxwell.initConds = require 'hydro.init.euler':getList()

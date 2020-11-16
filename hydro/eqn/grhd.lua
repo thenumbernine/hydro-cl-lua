@@ -15,7 +15,6 @@ GRHD.numIntStates = 5
 GRHD.useConstrainU = true
 
 --GRHD.roeUseFluxFromCons = true
-GRHD.useSourceTerm = true
 
 GRHD.initConds = require 'hydro.init.euler':getList()
 

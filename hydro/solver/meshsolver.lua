@@ -349,7 +349,7 @@ function MeshSolver:refreshSolverProgram()
 	MeshSolver.super.refreshSolverProgram(self)
 
 	-- solverbase:
-	if self.eqn.useSourceTerm then
+	if self.addSourceKernelObj then
 		self.addSourceKernelObj.obj:setArg(3, self.cellBuf)
 	end
 	if self.eqn.useConstrainU then

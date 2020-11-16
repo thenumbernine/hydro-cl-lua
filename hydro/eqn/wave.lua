@@ -8,8 +8,6 @@ local Equation = require 'hydro.eqn.eqn'
 local Wave = class(Equation)
 Wave.name = 'wave'
 
-Wave.useSourceTerm = true
-
 Wave.roeUseFluxFromCons = true
 
 Wave.initConds = require 'hydro.init.euler':getList()	 -- use rho as our initial condition
