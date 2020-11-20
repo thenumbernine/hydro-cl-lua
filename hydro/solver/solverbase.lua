@@ -1718,7 +1718,7 @@ assert(not args.codePrefix, "move this to DisplayVarGroup")
 
 	-- display stuff
 	self.enabled = not not args.enabled
-	self.useLog = args.useLog or false
+	self.useLog = args.useLog or cmdline.display_useLog or false
 	self.color = vec3d(math.random(), math.random(), math.random()):normalize()
 	self.heatMapFixedRange = false	-- args.name ~= 'error'
 	self.heatMapValueMin = 0

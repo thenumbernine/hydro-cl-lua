@@ -93,8 +93,9 @@ function BSSNOKFiniteDifferenceEquation:createInitState()
 		--{name='dissipationCoeff', value=0},		-- this is working better than 0.99.  hmm...
 		--{name='dissipationCoeff', value=-.99},	-- nope, this is worse, i must have my sign right
 		
+		{name='alphaMin', value=1e-3},
 		--{name='alphaMin', value=1e-7},
-		{name='alphaMin', value=-math.huge},
+		--{name='alphaMin', value=-math.huge},
 
 		{name='dt_beta_U_k', value=cmdline.dt_beta_U_k or 3/4},
 		{name='dt_beta_U_eta', value=cmdline.dt_beta_U_eta or 2},	--1, or 1 / (2 M), for total mass M, or SENR uses 2
