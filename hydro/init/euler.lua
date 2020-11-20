@@ -1750,6 +1750,7 @@ end ?>;
 				
 				coulombConstant = constants.CoulombConstant_in_kg_m3_per_C2_s2,
 			},
+			depends = {'coordMap'},
 			getInitCondCode = function(self, solver)
 				local f = SelfGravProblem{
 					solver = solver,
@@ -1760,7 +1761,7 @@ end ?>;
 						},
 					},
 				}
-				return f(self, solver)
+				return f:getInitCondCode(self, solver)
 			end
 		}
 	end)(),
@@ -1770,6 +1771,7 @@ end ?>;
 		-- hmm, what about spherical coordinates...
 		--mins = {-1,-1,-1},
 		--maxs = {1,1,1},
+		depends = {'coordMap'},
 		getInitCondCode = function(self, solver)
 			local f = SelfGravProblem{
 				solver = solver,
@@ -1777,12 +1779,13 @@ end ?>;
 					{center={0, 0, 0}, radius = .5},
 				},
 			}
-			return f(self, solver)
+			return f:getInitCondCode(self, solver)
 		end
 	},
 
 	{
 		name = 'self-gravitation test 1 spinning',
+		depends = {'coordMap'},
 		getInitCondCode = function(self, solver)
 			local inside = [[
 	v.x = -2 * delta.y;
@@ -1805,88 +1808,85 @@ end ?>;
 						inside = inside,
 					},
 				},
-			}(self, solver)
+			}:getInitCondCode(self, solver)
 		end,
 	},
 
 	{
 		name = 'self-gravitation test 2',
-		getInitCondCode = SelfGravProblem{ 
-			sources={
-				{
-					center = {-.25, 0, 0},
-					radius = .1,
+		depends = {'coordMap'},
+		getInitCondCode = function(self, solver)
+			return SelfGravProblem{ 
+				sources={
+					{
+						center = {-.25, 0, 0},
+						radius = .1,
+					},
+					{
+						center = {.25, 0, 0},
+						radius = .1,
+					},
 				},
-				{
-					center = {.25, 0, 0},
-					radius = .1,
-				},
-			},
-		},
+			}:getInitCondCode(self, solver)
+		end,
 	},
 
 	{
 		-- TODO add tidal-locked rotations
 		name = 'self-gravitation test 2 orbiting',
-		getInitCondCode = SelfGravProblem{ 
-			sources = {
-				{
-					center = {-.25, 0, 0},
-					radius = .1,
-					inside = [[
+		depends = {'coordMap'},
+		getInitCondCode = function(self, solver)
+			return SelfGravProblem{ 
+				sources = {
+					{
+						center = {-.25, 0, 0},
+						radius = .1,
+						inside = [[
 	v.x = -2 * delta.y - .1 * x.y;
 	v.y = 2 * delta.x + .1 * x.x;
 	rho = 1;
 	P = 1;
-					]],
-				},
-				{
-					center = {.25, 0, 0},
-					radius = .1,
-					inside = [[
+]],
+					},
+					{
+						center = {.25, 0, 0},
+						radius = .1,
+						inside = [[
 	v.x = -2 * delta.y - .1 * x.y;
 	v.y = 2 * delta.x + .1 * x.x;
 	rho = 1;
 	P = 1;
-					]],
+]],
+					},
 				},
-			},
-		},
+			}:getInitCondCode(self, solver)
+		end,
 	},
 	
 	{
 		name = 'self-gravitation test 4',
-		getInitCondCode =  SelfGravProblem{
-			sources={
-				{center={.25, .25, 0}, radius = .1},
-				{center={-.25, .25, 0}, radius = .1},
-				{center={.25, -.25, 0}, radius = .1},
-				{center={-.25, -.25, 0}, radius = .1},
-			},
-		},
+		depends = {'coordMap'},
+		getInitCondCode = function(self, solver)
+			return SelfGravProblem{
+				sources={
+					{center={.25, .25, 0}, radius = .1},
+					{center={-.25, .25, 0}, radius = .1},
+					{center={.25, -.25, 0}, radius = .1},
+					{center={-.25, -.25, 0}, radius = .1},
+				},
+			}:getInitCondCode(self, solver)
+		end,
 	},
 
 	{
 		name = 'self-gravitation soup',
 		getInitCondCode = function(self, solver)
 			return [[
-	int q = index;
-	for (int i = 0; i < 20; ++i) {
-		q = (int)floor((float)0x7fffffff * fabs(sin(2. * M_PI * (float)q / (float)0x7fffffff)));
-	}
-	rho = .1 * (float)(q & 0xff) / (float)0xff + .1;
-	
-	q = (int)floor((float)0x7fffffff * fabs(sin(2. * M_PI * (float)q / (float)0x7fffffff)));
-	P = .1 * (float)(q & 0xff) / (float)0xff + .1;
-
-	q = (int)floor((float)0x7fffffff * fabs(sin(2. * M_PI * (float)q / (float)0x7fffffff)));
-	v.x = .2 * (float)(q & 0xff) / (float)0xff - .1;
-	
-	q = (int)floor((float)0x7fffffff * fabs(sin(2. * M_PI * (float)q / (float)0x7fffffff)));
-	v.y = .2 * (float)(q & 0xff) / (float)0xff - .1;
-	
-	q = (int)floor((float)0x7fffffff * fabs(sin(2. * M_PI * (float)q / (float)0x7fffffff)));
-	v.z = .2 * (float)(q & 0xff) / (float)0xff - .1;
+	rho = .1 * U->rho + .1;
+	P = .1 * U->ETotal + .1;
+	v.x = .2 * U->m.x - .1;
+	v.y = .2 * U->m.y - .1;
+	v.z = .2 * U->m.z - .1;
 ]]
 		end,
 	},

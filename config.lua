@@ -229,7 +229,7 @@ local args = {
 	--initCond = 'Colella-Woodward',
 	--initCond = 'double mach reflection',
 	--initCond = 'square cavity',
-	initCond = 'shock bubble interaction',		-- with usePLM only works with prim or with athena
+	--initCond = 'shock bubble interaction',		-- with usePLM only works with prim or with athena
 	--initCond = 'Richmyer-Meshkov',
 	--initCond = 'radial gaussian',
 
@@ -284,7 +284,7 @@ local args = {
 	--initCond = 'self-gravitation test 2',		--FIXME
 	--initCond = 'self-gravitation test 2 orbiting',
 	--initCond = 'self-gravitation test 4',
-	--initCond = 'self-gravitation soup',	--FIXME
+	initCond = 'self-gravitation soup',
 
 
 	-- those designed for SRHD / GRHD from Marti & Muller 1998:
@@ -920,7 +920,7 @@ local args = {
 		zmax = 'quadratic',
 	},
 	--]]
-	--[[
+	-- [[
 	coord = 'sphere',
 	coordArgs = {
 		--vectorComponent = 'holonomic',	-- TODO this is techically the case, but there may be bugs in this.
@@ -949,15 +949,15 @@ local args = {
 		zmax='periodic',
 	},
 	--]]
-	-- [[
+	--[[
 	coord = 'sphere-sinh-radial',
 	coordArgs = {
 		-- TODO sort this out
 		-- TODO do I have mem write / unwritten vars in "holonomic"?  cuz there seem to be errors that persist past reset()
 		-- TODO move cell_area and cell_volume calcs into cell_t fields 
 		--vectorComponent = 'cartesian',
-		--vectorComponent = 'anholonomic',	-- ... these settings also influence the finite volume area/volume calculations (in terms of the vector components) ... 
-		vectorComponent = 'holonomic',	-- our tensor components are holonomic ... except the partial / 1st order state variables, like a_k, d_kij
+		vectorComponent = 'anholonomic',	-- ... these settings also influence the finite volume area/volume calculations (in terms of the vector components) ... 
+		--vectorComponent = 'holonomic',	-- our tensor components are holonomic ... except the partial / 1st order state variables, like a_k, d_kij
 		
 		-- [==[ the paper uses this remapping parameters (eqn 32):
 		-- Alic et al: 		R = L sinh(r / L)
