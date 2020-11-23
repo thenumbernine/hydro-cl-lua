@@ -4,16 +4,14 @@
 // used by all the finite volume solvers
 
 kernel void calcDerivFromFlux(
-	constant <?=solver.solver_t?>* solver,
-	global <?=eqn.cons_t?>* derivBuf,
-	const global <?=eqn.cons_t?>* fluxBuf,
-	const global <?=solver.coord.cell_t?>* cellBuf
+	constant solver_t const * const solver,
+	global cons_t * const derivBuf,
+	global cons_t const * const fluxBuf,
+	global cell_t const * const cellBuf
 ) {
-	typedef <?=eqn.cons_t?> cons_t;
-	
 	SETBOUNDS_NOGHOST();
-	global cons_t* deriv = derivBuf + index;
-	real3 x = cellBuf[index].pos;
+	global cons_t * const deriv = derivBuf + index;
+	real3 const x = cellBuf[index].pos;
 
 /*<?--[[
 volume vs area ...
@@ -35,22 +33,22 @@ in curvilinear coords, cartesian basis:
 <? if solver.coord.vectorComponent == 'holonomic'
 or require 'hydro.coord.cartesian'.is(solver.coord)
 then ?>
-	real volume = 1.<?
+	real const volume = 1.<?
 	for i=0,solver.dim-1 do
 		?> * solver->grid_dx.s<?=i?><?
 	end
 ?>;
 <? else ?>
 //// MODULE_DEPENDS: cell_volume 
-	real volume = cell_volume(x);
+	real const volume = cell_volume(x);
 <? end ?>
 
 	<? for side=0,solver.dim-1 do ?>{
-		int indexIntL = <?=side?> + dim * index;
-		const global cons_t* fluxL = fluxBuf + indexIntL;
+		int const indexIntL = <?=side?> + dim * index;
+		global cons_t const * const fluxL = fluxBuf + indexIntL;
 		
-		int indexIntR = indexIntL + dim * solver->stepsize.s<?=side?>; 
-		const global cons_t* fluxR = fluxBuf + indexIntR;
+		int const indexIntR = indexIntL + dim * solver->stepsize.s<?=side?>; 
+		global cons_t const * const fluxR = fluxBuf + indexIntR;
 		
 		real3 xIntL = x; xIntL.s<?=side?> -= .5 * solver->grid_dx.s<?=side?>;
 		real3 xIntR = x; xIntR.s<?=side?> += .5 * solver->grid_dx.s<?=side?>;
@@ -63,14 +61,14 @@ then ?>
 <? if solver.coord.vectorComponent == 'holonomic'
 or require 'hydro.coord.cartesian'.is(solver.coord)
 then ?>
-		real areaL, areaR;
-		areaL = areaR = 1.<?
+		real areaL = 1.<?
 	for i=0,solver.dim-1 do
 		if i ~= side then
 			?> * solver->grid_dx.s<?=i?><?
 		end
 	end
 ?>;
+		real areaR = areaL;
 <? else ?>
 //// MODULE_DEPENDS: cell_area#
 		real areaL = cell_area<?=side?>(xIntL);
@@ -78,7 +76,7 @@ then ?>
 <? end ?>
 
 		if (volume > 1e-7) {
-			real invVolume = 1. / volume;
+			real const invVolume = 1. / volume;
 			if (areaL <= 1e-7) areaL = 0.;
 			if (areaR <= 1e-7) areaR = 0.;
 			areaL *= invVolume;

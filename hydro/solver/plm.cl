@@ -9,16 +9,16 @@ if not solver.usePLM then return end
 for side=0,solver.dim-1 do
 	
 	-- piecewise-constant
-	if solver.usePLM == 'piecewise-constant' then 
+	if solver.usePLM == "piecewise-constant" then 
 ?>
 
 <?=eqn.consLR_t?> calcCellLR_<?=side?>(
-	constant <?=solver.solver_t?>* solver,
-	const global <?=eqn.cons_t?>* U,
-	real dt,
-	real3 x,
-	int4 i,
-	normal_t n
+	constant solver_t const * const solver,
+	global cons_t const * const U,
+	real const dt,
+	real3 const x,
+	int4 const i,
+	normal_t const n
 ) {
 	return (<?=eqn.consLR_t?>){
 		.L = *U,
@@ -28,7 +28,7 @@ for side=0,solver.dim-1 do
 
 <?
 	-- piecewise-linear
-	elseif solver.usePLM == 'plm-cons' then 
+	elseif solver.usePLM == "plm-cons" then 
 ?>
 //// MODULE_DEPENDS: fluxFromCons slopeLimiter
 
@@ -57,20 +57,20 @@ works for maxwell with oscillations
 works for adm1d_v1 freeflow with oscillations (fails for mirror)
 */
 <?=eqn.consLR_t?> calcCellLR_<?=side?>(
-	constant <?=solver.solver_t?>* solver,
-	const global <?=eqn.cons_t?>* U,
-	real dt,
-	real3 x,
-	int4 i,
-	normal_t n
+	constant solver_t const * const solver,
+	global cons_t const * const U,
+	real const dt,
+	real3 const x,
+	int4 const i,
+	normal_t const n
 ) {
-	const global <?=eqn.cons_t?>* UL = U - solver->stepsize.s<?=side?>;
-	const global <?=eqn.cons_t?>* UR = U + solver->stepsize.s<?=side?>;
+	global cons_t const * const UL = U - solver->stepsize.s<?=side?>;
+	global cons_t const * const UR = U + solver->stepsize.s<?=side?>;
 	
 	real3 xIntL = x; xIntL.s<?=side?> -= .5 * solver->grid_dx.s<?=side?>;
 	real3 xIntR = x; xIntR.s<?=side?> += .5 * solver->grid_dx.s<?=side?>;
 	
-	<?=eqn.cons_t?> UHalfL, UHalfR;
+	cons_t UHalfL, UHalfR;
 	for (int j = 0; j < numIntStates; ++j) {
 		real dUL = U->ptr[j] - UL->ptr[j];
 		real dUR = UR->ptr[j] - U->ptr[j];
@@ -127,8 +127,10 @@ for sgn b >= 0:
 	real dx = cell_dx<?=side?>(x);
 	real dt_dx = dt / dx;
 
-	<?=eqn.cons_t?> FHalfL = fluxFromCons(solver, UHalfL, xIntL, normal_forSide<?=side?>(xIntL));
-	<?=eqn.cons_t?> FHalfR = fluxFromCons(solver, UHalfR, xIntR, normal_forSide<?=side?>(xIntR));
+	cons_t FHalfL;
+	fluxFromCons(&FHalfL, solver, &UHalfL, xIntL, normal_forSide<?=side?>(xIntL));
+	cons_t FHalfR;
+	fluxFromCons(&FHalfR, solver, &UHalfR, xIntR, normal_forSide<?=side?>(xIntR));
 
 	<?=eqn.consLR_t?> ULR = {
 		.L = *U,
@@ -149,19 +151,19 @@ for sgn b >= 0:
 }
 
 <? 
-	-- technically i should call the one above 'plm-cons-with-flux' 
-	-- and this one 'plm-cons'
-	elseif solver.usePLM == 'plm-cons-alone' then 
+	-- technically i should call the one above "plm-cons-with-flux" 
+	-- and this one "plm-cons"
+	elseif solver.usePLM == "plm-cons-alone" then 
 ?>
 //// MODULE_DEPENDS: slopeLimiter
 
 <?=eqn.consLR_t?> calcCellLR_<?=side?>(
-	constant <?=solver.solver_t?>* solver,
-	const global <?=eqn.cons_t?>* U,
-	real dt,
-	real3 x,
-	int4 i,
-	normal_t n
+	constant solver_t const * const solver,
+	global cons_t const * const U,
+	real const dt,
+	real3 const x,
+	int4 const i,
+	normal_t const n
 ) {
 	// extrapolate slopes in consered variable space
 	real dx = solver->grid_dx.s<?=side?>;
@@ -169,8 +171,8 @@ for sgn b >= 0:
 	real3 xL = x; xL.s<?=side?> -= dx;
 	real3 xR = x; xR.s<?=side?> += dx;
 
-	const global <?=eqn.cons_t?>* UL = U - solver->stepsize.s<?=side?>;
-	const global <?=eqn.cons_t?>* UR = U + solver->stepsize.s<?=side?>;
+	const global cons_t* UL = U - solver->stepsize.s<?=side?>;
+	const global cons_t* UR = U + solver->stepsize.s<?=side?>;
 
 	<?=eqn.consLR_t?> ULR = {
 		.L = *U,
@@ -204,17 +206,17 @@ for sgn b >= 0:
 }
 
 <? 
-	elseif solver.usePLM == 'plm-prim-alone' then 
+	elseif solver.usePLM == "plm-prim-alone" then 
 ?>
 //// MODULE_DEPENDS: slopeLimiter consFromPrim primFromCons
 
 <?=eqn.consLR_t?> calcCellLR_<?=side?>(
-	constant <?=solver.solver_t?>* solver,
-	const global <?=eqn.cons_t?>* U,
-	real dt,
-	real3 x,
-	int4 i,
-	normal_t n
+	constant solver_t const * const solver,
+	global cons_t const * const U,
+	real const dt,
+	real3 const x,
+	int4 const i,
+	normal_t const n
 ) {
 	// extrapolate slopes in primitive space
 	real dx = solver->grid_dx.s<?=side?>;
@@ -222,16 +224,19 @@ for sgn b >= 0:
 	real3 xL = x; xL.s<?=side?> -= dx;
 	real3 xR = x; xR.s<?=side?> += dx;
 
-	const global <?=eqn.cons_t?>* UL = U - solver->stepsize.s<?=side?>;
-	const global <?=eqn.cons_t?>* UR = U + solver->stepsize.s<?=side?>;
+	const global cons_t* UL = U - solver->stepsize.s<?=side?>;
+	const global cons_t* UR = U + solver->stepsize.s<?=side?>;
 
-	<?=eqn.prim_t?> W = primFromCons(solver, *U, x);
-	<?=eqn.prim_t?> WL = primFromCons(solver, *UL, xL);
-	<?=eqn.prim_t?> WR = primFromCons(solver, *UR, xR);
+	prim_t W;
+	primFromCons(&W, solver, U, x);
+	prim_t WL;
+	primFromCons(&WL, solver, UL, xL);
+	prim_t WR;
+	primFromCons(&WR, solver, UR, xR);
 	
 	// minmod
-	<?=eqn.prim_t?> nWL = W;
-	<?=eqn.prim_t?> nWR = W;
+	prim_t nWL = W;
+	prim_t nWR = W;
 	for (int j = 0; j < numIntStates; ++j) {
 #if 1	// taken from above / from Dullemond "Hydrodynamics II"
 		real dWR = WR.ptr[j] - W.ptr[j];
@@ -260,14 +265,14 @@ for sgn b >= 0:
 	real3 xIntR = x; xIntR.s<?=side?> += .5 * dx;
 
 	//converting from cons->prim and then prim->cons might lose us accuracy? 
-	return (<?=eqn.consLR_t?>){
-		.L = consFromPrim(solver, nWL, xIntL),
-		.R = consFromPrim(solver, nWR, xIntR),
-	};
+	<?=eqn.consLR_t?> ULR;
+	consFromPrim(&ULR.L, solver, &nWL, xIntL);
+	consFromPrim(&ULR.R, solver, &nWR, xIntR);
+	return ULR;
 }
 
 <? 
-	elseif solver.usePLM == 'plm-eig' then 
+	elseif solver.usePLM == "plm-eig" then 
 ?>
 //// MODULE_DEPENDS: eigen_forCell eigen_left/rightTransform min3
 
@@ -300,17 +305,17 @@ works for adm1d_v1
 */
 
 <?=eqn.consLR_t?> calcCellLR_<?=side?>(
-	constant <?=solver.solver_t?>* solver,
-	const global <?=eqn.cons_t?>* U,
-	real dt,
-	real3 x,
-	int4 i,
-	normal_t n
+	constant solver_t const * const solver,
+	global cons_t const * const U,
+	real const dt,
+	real3 const x,
+	int4 const i,
+	normal_t const n
 ) {
 	//1) calc delta q's ... l r c (eqn 36)
-	const global <?=eqn.cons_t?>* UL = U - solver->stepsize.s<?=side?>;
-	const global <?=eqn.cons_t?>* UR = U + solver->stepsize.s<?=side?>;
-	<?=eqn.cons_t?> dUL, dUR, dUC;
+	const global cons_t* UL = U - solver->stepsize.s<?=side?>;
+	const global cons_t* UR = U + solver->stepsize.s<?=side?>;
+	cons_t dUL, dUR, dUC;
 	for (int j = 0; j < numIntStates; ++j) {
 		dUL.ptr[j] = U->ptr[j] - UL->ptr[j];
 		dUR.ptr[j] = UR->ptr[j] - U->ptr[j];
@@ -324,15 +329,19 @@ works for adm1d_v1
 	real3 xIntR = x; xIntR.s<?=side?> += .5 * solver->grid_dx.s<?=side?>;
 
 	//calc eigen values and vectors at cell center
-	<?=eqn.eigen_t?> eig = eigen_forCell(solver, *U, x, n);
+	eigen_t eig;
+	eigen_forCell(&eig, solver, U, x, n);
 		
-	<?=eqn.waves_t?> dULEig = eigen_leftTransform(solver, eig, dUL, xIntL, normal_forSide<?=side?>(xIntL));
-	<?=eqn.waves_t?> dUREig = eigen_leftTransform(solver, eig, dUR, xIntR, normal_forSide<?=side?>(xIntR));
-	<?=eqn.waves_t?> dUCEig = eigen_leftTransform(solver, eig, dUC, x, n);
+	waves_t dULEig;
+	eigen_leftTransform(&dULEig, solver, &eig, &dUL, xIntL, normal_forSide<?=side?>(xIntL));
+	waves_t dUREig;
+	eigen_leftTransform(&dUREig, solver, &eig, &dUR, xIntR, normal_forSide<?=side?>(xIntR));
+	waves_t dUCEig;
+	eigen_leftTransform(&dUCEig, solver, &eig, &dUC, x, n);
 
 	//MUSCL slope of characteristic variables
 	//TODO make this based on the choice of slope limiter
-	<?=eqn.waves_t?> dUMEig;
+	waves_t dUMEig;
 	for (int j = 0; j < numWaves; ++j) {
 
 // This is adapted from above to use the modular slopeLimiter
@@ -362,21 +371,23 @@ works for adm1d_v1
 	real dx = cell_dx<?=side?>(x);
 	real dt_dx = dt / dx;
 
-	<?=eqn:eigenWaveCodePrefix('n', 'eig', 'x')?>
+	<?=eqn:eigenWaveCodePrefix("n", "&eig", "x")?>
 
 	// slopes in characteristic space
-	<?=eqn.waves_t?> aL;
-	<?=eqn.waves_t?> aR;
+	waves_t aL;
+	waves_t aR;
 	<? for j=0,eqn.numWaves-1 do ?>{
 		const int j = <?=j?>;
-		real wave_j = <?=eqn:eigenWaveCode('n', 'eig', 'x', j)?>;
+		real wave_j = <?=eqn:eigenWaveCode("n", "&eig", "x", j)?>;
 		aL.ptr[j] = wave_j < 0 ? 0 : dUMEig.ptr[j] * .5 * (1. - wave_j * dt_dx);
 		aR.ptr[j] = wave_j > 0 ? 0 : dUMEig.ptr[j] * .5 * (1. + wave_j * dt_dx);
 	}<? end ?>
 	
 	//convert back to conservation variable space
-	<?=eqn.cons_t?> sL = eigen_rightTransform(solver, eig, aL, x, n);
-	<?=eqn.cons_t?> sR = eigen_rightTransform(solver, eig, aR, x, n);
+	cons_t sL;
+	eigen_rightTransform(&sL, solver, &eig, &aL, x, n);
+	cons_t sR;
+	eigen_rightTransform(&sR, solver, &eig, &aR, x, n);
 
 	<?=eqn.consLR_t?> ULR = {
 		.L = *U,
@@ -390,11 +401,11 @@ works for adm1d_v1
 }
 
 <? 
-	elseif solver.usePLM == 'plm-eig-prim' 
-	or solver.usePLM == 'plm-eig-prim-ref' 
+	elseif solver.usePLM == "plm-eig-prim" 
+	or solver.usePLM == "plm-eig-prim-ref" 
 	then 
 ?>
-//// MODULE_DEPENDS: min3
+//// MODULE_DEPENDS: min3 primFromCons
 
 /*
 #3a: next step, convert to primitives
@@ -439,12 +450,12 @@ based on Trangenstein, Athena, etc, except working on primitives like it says to
 */
 
 <?=eqn.consLR_t?> calcCellLR_<?=side?>(
-	constant <?=solver.solver_t?>* solver,
-	const global <?=eqn.cons_t?>* U,
-	real dt,
-	real3 x,
-	int4 i,
-	normal_t n
+	constant solver_t const * const solver,
+	global cons_t const * const U,
+	real const dt,
+	real3 const x,
+	int4 const i,
+	normal_t const n
 ) {
 	real3 xL = x; xL.s<?=side?> -= solver->grid_dx.s<?=side?>;
 	real3 xR = x; xR.s<?=side?> += solver->grid_dx.s<?=side?>;
@@ -452,14 +463,17 @@ based on Trangenstein, Athena, etc, except working on primitives like it says to
 	real3 xIntL = x; xIntL.s<?=side?> -= .5 * solver->grid_dx.s<?=side?>;
 	real3 xIntR = x; xIntR.s<?=side?> += .5 * solver->grid_dx.s<?=side?>;
 	
-	const global <?=eqn.cons_t?>* UL = U - solver->stepsize.s<?=side?>;
-	const global <?=eqn.cons_t?>* UR = U + solver->stepsize.s<?=side?>;
+	const global cons_t* UL = U - solver->stepsize.s<?=side?>;
+	const global cons_t* UR = U + solver->stepsize.s<?=side?>;
 	
 	//1) calc delta q's ... l r c (eqn 36)
-	<?=eqn.prim_t?> W = primFromCons(solver, *U, x);
-	<?=eqn.prim_t?> WL = primFromCons(solver, *UL, xL);
-	<?=eqn.prim_t?> WR = primFromCons(solver, *UR, xR);
-	<?=eqn.prim_t?> dWL, dWR, dWC;
+	prim_t W;
+	primFromCons(&W, solver, U, x);
+	prim_t WL;
+	primFromCons(&WL, solver, UL, xL);
+	prim_t WR;
+	primFromCons(&WR, solver, UR, xR);
+	prim_t dWL, dWR, dWC;
 	for (int j = 0; j < numIntStates; ++j) {
 		dWL.ptr[j] = W.ptr[j] - WL.ptr[j];
 		dWR.ptr[j] = WR.ptr[j] - W.ptr[j];
@@ -471,23 +485,27 @@ based on Trangenstein, Athena, etc, except working on primitives like it says to
 
 	//calc eigen values and vectors at cell center
 	//TODO calculate the eigenstate wrt W instead of U - to save some computations
-	<?=eqn.eigen_t?> eig = eigen_forCell(solver, *U, x, n);
+	eigen_t eig;
+	eigen_forCell(&eig, solver, U, x, n);
 		
 	//apply dU/dW before applying left/right eigenvectors so the eigenvectors are of the flux wrt primitives 
 	//RW = dW/dU RU, LW = LU dU/dW
-	<?=eqn.cons_t?> tmp;
+	cons_t tmp;
 
-	tmp = apply_dU_dW(solver, W, dWL, xIntL); 
-	<?=eqn.waves_t?> dWLEig = eigen_leftTransform(solver, eig, tmp, xIntL, normal_forSide<?=side?>(xIntL));
+	apply_dU_dW(&tmp, solver, &W, &dWL, xIntL); 
+	waves_t dWLEig;
+	eigen_leftTransform(&dWLEig, solver, &eig, &tmp, xIntL, normal_forSide<?=side?>(xIntL));
 	
-	tmp = apply_dU_dW(solver, W, dWR, xIntR); 
-	<?=eqn.waves_t?> dWREig = eigen_leftTransform(solver, eig, tmp, xIntR, normal_forSide<?=side?>(xIntR));
+	apply_dU_dW(&tmp, solver, &W, &dWR, xIntR); 
+	waves_t dWREig;
+	eigen_leftTransform(&dWREig, solver, &eig, &tmp, xIntR, normal_forSide<?=side?>(xIntR));
 	
-	tmp = apply_dU_dW(solver, W, dWC, x); 
-	<?=eqn.waves_t?> dWCEig = eigen_leftTransform(solver, eig, tmp, x, n);
+	apply_dU_dW(&tmp, solver, &W, &dWC, x); 
+	waves_t dWCEig;
+	eigen_leftTransform(&dWCEig, solver, &eig, &tmp, x, n);
 
 	//MUSCL slope of characteristic variables
-	<?=eqn.waves_t?> dWMEig;
+	waves_t dWMEig;
 	for (int j = 0; j < numWaves; ++j) {
 		dWMEig.ptr[j] = dWLEig.ptr[j] * dWREig.ptr[j] < 0. ? 0. : (
 			(dWCEig.ptr[j] >= 0. ? 1. : -1.)
@@ -502,33 +520,35 @@ based on Trangenstein, Athena, etc, except working on primitives like it says to
 	real dx = cell_dx<?=side?>(x);
 	real dt_dx = dt / dx;
 
-	<?=eqn:eigenWaveCodePrefix('n', 'eig', 'x')?>
+	<?=eqn:eigenWaveCodePrefix("n", "&eig", "x")?>
 
 <? 	
-		if solver.usePLM == 'plm-eig-prim' then 
+		if solver.usePLM == "plm-eig-prim" then 
 ?>
-//// MODULE_DEPENDS: apply_dU_dW apply_dW_dU eigen_left/rightTransform consFromPrim primFromCons
+//// MODULE_DEPENDS: apply_dU_dW apply_dW_dU eigen_left/rightTransform consFromPrim
 
 	//without reference state
 
 	// calculate left and right slopes in characteristic space
-	<?=eqn.waves_t?> aL, aR;
+	waves_t aL, aR;
 	<? for j=0,eqn.numWaves-1 do ?>{
 		const int j = <?=j?>;
-		real wave_j = <?=eqn:eigenWaveCode(side, 'eig', 'x', j)?>;
+		real wave_j = <?=eqn:eigenWaveCode(side, "&eig", "x", j)?>;
 		aL.ptr[j] = wave_j < 0 ? 0 : dWMEig.ptr[j] * .5 * (1. - wave_j * dt_dx);
 		aR.ptr[j] = wave_j > 0 ? 0 : dWMEig.ptr[j] * .5 * (1. + wave_j * dt_dx);
 	}<? end ?>
 
 	// transform slopes back to conserved variable space
-	tmp = eigen_rightTransform(solver, eig, aL, xIntL, normal_forSide<?=side?>(xIntL)); 
-	<?=eqn.prim_t?> sL = apply_dW_dU(solver, W, tmp, xIntL);
+	eigen_rightTransform(&tmp, solver, &eig, &aL, xIntL, normal_forSide<?=side?>(xIntL)); 
+	prim_t sL;
+	apply_dW_dU(&sL, solver, &W, &tmp, xIntL);
 	
-	tmp = eigen_rightTransform(solver, eig, aR, xIntR, normal_forSide<?=side?>(xIntR)); 
-	<?=eqn.prim_t?> sR = apply_dW_dU(solver, W, tmp, xIntR);
+	eigen_rightTransform(&tmp, solver, &eig, &aR, xIntR, normal_forSide<?=side?>(xIntR)); 
+	prim_t sR;
+	apply_dW_dU(&sR, solver, &W, &tmp, xIntR);
 
 	// linearly extrapolate the slopes forward and backward from the cell center
-	<?=eqn.prim_t?> W2L, W2R;
+	prim_t W2L, W2R;
 	for (int j = 0; j < numIntStates; ++j) {
 		W2L.ptr[j] = W.ptr[j] + sL.ptr[j];
 		W2R.ptr[j] = W.ptr[j] - sR.ptr[j];
@@ -536,29 +556,30 @@ based on Trangenstein, Athena, etc, except working on primitives like it says to
 	for (int j = numIntStates; j < numStates; ++j) {
 		W2L.ptr[j] = W2R.ptr[j] = W.ptr[j];
 	}
-	return (<?=eqn.consLR_t?>){
-		.L = consFromPrim(solver, W2L, xIntL),
-		.R = consFromPrim(solver, W2R, xIntR),
-	};
+	<?=eqn.consLR_t?> ULR;
+	consFromPrim(&ULR.L, solver, &W2L, xIntL);
+	consFromPrim(&ULR.R, solver, &W2R, xIntR);
+	return ULR;
 <?	
-		elseif solver.usePLM == 'plm-eig-prim-ref' then 
+		elseif solver.usePLM == "plm-eig-prim-ref" then 
 ?>
-//// MODULE_DEPENDS: eigen_forCell apply_dU_dW apply_dW_dU eigen_left/rightTransform consFromPrim primFromCons
+//// MODULE_DEPENDS: eigen_forCell apply_dU_dW apply_dW_dU eigen_left/rightTransform consFromPrim
 
 	//with reference state
 
 	//min and max waves
 	//TODO use calcCellMinMaxEigenvalues ... except based on eigen_t
 	// so something like calcEigenMinMaxWaves ... 
-	real waveMin = min((real)0., <?=eqn:eigenWaveCode('n', 'eig', 'x', 0)?>);
-	real waveMax = max((real)0., <?=eqn:eigenWaveCode('n', 'eig', 'x', eqn.numWaves-1)?>);
+	real waveMin = min((real)0., <?=eqn:eigenWaveCode("n", "&eig", "x", 0)?>);
+	real waveMax = max((real)0., <?=eqn:eigenWaveCode("n", "&eig", "x", eqn.numWaves-1)?>);
 
 	//limited slope in primitive variable space
-	tmp = eigen_rightTransform(solver, eig, dWMEig, x, n);
-	<?=eqn.prim_t?> dWM = apply_dW_dU(solver, W, tmp, x);
+	eigen_rightTransform(&tmp, solver, &eig, &dWMEig, x, n);
+	prim_t dWM;
+	apply_dW_dU(&dWM, solver, &W, &tmp, x);
 
 	//left and right reference states
-	<?=eqn.prim_t?> WLRef, WRRef;
+	prim_t WLRef, WRRef;
 	for (int j = 0; j < numIntStates; ++j) {
 		WLRef.ptr[j] = W.ptr[j] + .5 * (1. - dt_dx * waveMax) * dWM.ptr[j];
 		WRRef.ptr[j] = W.ptr[j] - .5 * (1. + dt_dx * waveMin) * dWM.ptr[j];
@@ -568,23 +589,25 @@ based on Trangenstein, Athena, etc, except working on primitives like it says to
 	}
 
 	// calculate left and right slopes in characteristic space
-	<?=eqn.waves_t?> aL, aR;
+	waves_t aL, aR;
 	<? for j=0,eqn.numWaves-1 do ?>{
 		const int j = <?=j?>;
-		real wave_j = <?=eqn:eigenWaveCode(side, 'eig', 'x', j)?>;
+		real wave_j = <?=eqn:eigenWaveCode(side, "&eig", "x", j)?>;
 		aL.ptr[j] = wave_j < 0 ? 0 : (dWMEig.ptr[j] * dt_dx * (waveMax - wave_j));
 		aR.ptr[j] = wave_j > 0 ? 0 : (dWMEig.ptr[j] * dt_dx * (waveMin - wave_j));
 	}<? end ?>
 
 	// transform slopes back to conserved variable space
-	tmp = eigen_rightTransform(solver, eig, aL, xIntL, normal_forSide<?=side?>(xIntL)); 
-	<?=eqn.prim_t?> sL = apply_dW_dU(solver, W, tmp, xIntL);
+	eigen_rightTransform(&tmp, solver, &eig, &aL, xIntL, normal_forSide<?=side?>(xIntL)); 
+	prim_t sL;
+	apply_dW_dU(&sL, solver, &W, &tmp, xIntL);
 	
-	tmp = eigen_rightTransform(solver, eig, aR, xIntR, normal_forSide<?=side?>(xIntR)); 
-	<?=eqn.prim_t?> sR = apply_dW_dU(solver, W, tmp, xIntR);
+	eigen_rightTransform(&tmp, solver, &eig, &aR, xIntR, normal_forSide<?=side?>(xIntR)); 
+	prim_t sR;
+	apply_dW_dU(&sR, solver, &W, &tmp, xIntR);
 
 	// linearly extrapolate the slopes forward and backward from the cell center
-	<?=eqn.prim_t?> W2L, W2R;
+	prim_t W2L, W2R;
 	for (int j = 0; j < numIntStates; ++j) {
 		W2R.ptr[j] = WRRef.ptr[j] + .5 * sR.ptr[j];
 		W2L.ptr[j] = WLRef.ptr[j] + .5 * sL.ptr[j];
@@ -593,10 +616,10 @@ based on Trangenstein, Athena, etc, except working on primitives like it says to
 		W2R.ptr[j] = W2L.ptr[j] = W.ptr[j];
 	}
 	//TODO fix the x's
-	return (<?=eqn.consLR_t?>){
-		.L = consFromPrim(solver, W2L, xIntL),
-		.R = consFromPrim(solver, W2R, xIntR),
-	};
+	<?=eqn.consLR_t?> ULR;
+	consFromPrim(&ULR.L, solver, &W2L, xIntL);
+	consFromPrim(&ULR.R, solver, &W2R, xIntR);
+	return ULR;
 <?
 		end	-- solver.usePLM
 ?>
@@ -604,19 +627,19 @@ based on Trangenstein, Athena, etc, except working on primitives like it says to
 
 <?
 
-	elseif solver.usePLM == 'plm-athena' then 
+	elseif solver.usePLM == "plm-athena" then 
 
 ?>
 //// MODULE_DEPENDS: eigen_forCell eigen_left/rightTransform consFromPrim primFromCons
 
 //based on Athena
 <?=eqn.consLR_t?> calcCellLR_<?=side?>(
-	constant <?=solver.solver_t?>* solver,
-	const global <?=eqn.cons_t?>* U,
-	real dt,
-	real3 x,
-	int4 i,
-	normal_t n
+	constant solver_t const * const solver,
+	global cons_t const * const U,
+	real const dt,
+	real3 const x,
+	int4 const i,
+	normal_t const n
 ) {
 	real3 xIntL = x; xIntL.s<?=side?> -= .5 * solver->grid_dx.s<?=side?>;
 	real3 xIntR = x; xIntR.s<?=side?> += .5 * solver->grid_dx.s<?=side?>;
@@ -625,20 +648,24 @@ based on Trangenstein, Athena, etc, except working on primitives like it says to
 	real3 xR = x; xR.s<?=side?> += solver->grid_dx.s<?=side?>;
 
 	//calc eigen values and vectors at cell center
-	<?=eqn.eigen_t?> eig = eigen_forCell(solver, *U, x, n);
+	eigen_t eig;
+	eigen_forCell(&eig, solver, U, x, n);
 
-	real dx = cell_dx<?=side?>(x);
-	real dt_dx = dt / dx;
+	real const dx = cell_dx<?=side?>(x);
+	real const dt_dx = dt / dx;
 
 	//1) calc delta q's ... l r c (eqn 36)
-	const global <?=eqn.cons_t?>* UL = U - solver->stepsize.s<?=side?>;
-	const global <?=eqn.cons_t?>* UR = U + solver->stepsize.s<?=side?>;
+	global cons_t const * const UL = U - solver->stepsize.s<?=side?>;
+	global cons_t const * const UR = U + solver->stepsize.s<?=side?>;
 
-	<?=eqn.prim_t?> W = primFromCons(solver, *U, x);
-	<?=eqn.prim_t?> WL = primFromCons(solver, *UL, xL);
-	<?=eqn.prim_t?> WR = primFromCons(solver, *UR, xR);
+	prim_t W;
+	primFromCons(&W, solver, U, x);
+	prim_t WL;
+	primFromCons(&WL, solver, UL, xL);
+	prim_t WR;
+	primFromCons(&WR, solver, UR, xR);
 	
-	<?=eqn.prim_t?> dWL, dWR, dWC, dWG;
+	prim_t dWL, dWR, dWC, dWG;
 	for (int j = 0; j < numIntStates; ++j) {
 		dWL.ptr[j] = W.ptr[j] - WL.ptr[j];
 		dWR.ptr[j] = WR.ptr[j] - W.ptr[j];
@@ -652,12 +679,16 @@ based on Trangenstein, Athena, etc, except working on primitives like it says to
 	}
 
 	//TODO shouldn't this be the dA/dW eigen transformation?
-	<?=eqn.waves_t?> dal = eigen_leftTransform(solver, eig, *(<?=eqn.cons_t?>*)&dWL, xIntL, normal_forSide<?=side?>(xIntL));
-	<?=eqn.waves_t?> dar = eigen_leftTransform(solver, eig, *(<?=eqn.cons_t?>*)&dWR, xIntR, normal_forSide<?=side?>(xIntR));
-	<?=eqn.waves_t?> dac = eigen_leftTransform(solver, eig, *(<?=eqn.cons_t?>*)&dWC, x, n);
-	<?=eqn.waves_t?> dag = eigen_leftTransform(solver, eig, *(<?=eqn.cons_t?>*)&dWG, x, n);
+	waves_t dal;
+	eigen_leftTransform(&dal, solver, &eig, (cons_t*)&dWL, xIntL, normal_forSide<?=side?>(xIntL));
+	waves_t dar;
+	eigen_leftTransform(&dar, solver, &eig, (cons_t*)&dWR, xIntR, normal_forSide<?=side?>(xIntR));
+	waves_t dac;
+	eigen_leftTransform(&dac, solver, &eig, (cons_t*)&dWC, x, n);
+	waves_t dag;
+	eigen_leftTransform(&dag, solver, &eig, (cons_t*)&dWG, x, n);
 
-	<?=eqn.waves_t?> da;
+	waves_t da;
 	for (int j = 0; j < numWaves; ++j) {
 		da.ptr[j] = 0;
 		if (dal.ptr[j] * dar.ptr[j] > 0) {
@@ -667,10 +698,11 @@ based on Trangenstein, Athena, etc, except working on primitives like it says to
 		}
 	}
 
-	<?=eqn.cons_t?> dWm_tmp = eigen_rightTransform(solver, eig, da, x, n);
-	<?=eqn.prim_t?> dWm = *(<?=eqn.prim_t?>*)&dWm_tmp;
+	cons_t dWm_tmp;
+	eigen_rightTransform(&dWm_tmp, solver, &eig, &da, x, n);
+	prim_t dWm = *(prim_t*)&dWm_tmp;
 
-	<?=eqn.prim_t?> Wlv, Wrv;
+	prim_t Wlv, Wrv;
 	for (int j = 0; j < numIntStates; ++j) {
 		Wlv.ptr[j] = W.ptr[j] - .5 * dWm.ptr[j];
 		Wrv.ptr[j] = W.ptr[j] + .5 * dWm.ptr[j];
@@ -689,10 +721,10 @@ based on Trangenstein, Athena, etc, except working on primitives like it says to
 		Wrv.ptr[j] = W.ptr[j];
 	}
 
-	return (<?=eqn.consLR_t?>){
-		.L = consFromPrim(solver, Wrv, xIntL),
-		.R = consFromPrim(solver, Wlv, xIntR),
-	};
+	<?=eqn.consLR_t?> ULR;
+	consFromPrim(&ULR.L, solver, &Wrv, xIntL);
+	consFromPrim(&ULR.R, solver, &Wlv, xIntR);
+	return ULR;
 }
 
 <? 
@@ -703,33 +735,40 @@ based on Trangenstein, Athena, etc, except working on primitives like it says to
 // based on http://zingale.github.io/hydro1d/  ppm code
 
 <?=eqn.consLR_t?> calcCellLR_<?=side?>(
-	constant <?=solver.solver_t?>* solver,
-	const global <?=eqn.cons_t?>* U,
-	real dt,
-	real3 x,
-	int4 i,
-	normal_t n
+	constant solver_t const * const solver,
+	global cons_t const * const U,
+	real const dt,
+	real3 const x,
+	int4 const i,
+	normal_t const n
 ) {
 	real3 xL = x; xL.s<?=side?> -= solver->grid_dx.s<?=side?>;
 	real3 xR = x; xR.s<?=side?> += solver->grid_dx.s<?=side?>;
 
-	const real z0 = .75;
-	const real z1 = .85;
-	const real delta = .33;
-	const real minP = 1e-10;
+	real const z0 = .75;
+	real const z1 = .85;
+	real const delta = .33;
+	real const minP = 1e-10;
 	
-	prim_t W_im3 = primFromCons(solver, U[-3 * solver->stepsize.s<?=side?>], x);
-	prim_t W_im2 = primFromCons(solver, U[-2 * solver->stepsize.s<?=side?>], x);
-	prim_t W_im1 = primFromCons(solver, U[-1 * solver->stepsize.s<?=side?>], x);
-	prim_t W_i = primFromCons(solver, *U, x);
-	prim_t W_ip1 = primFromCons(solver, U[1 * solver->stepsize.s<?=side?>], x);
-	prim_t W_ip2 = primFromCons(solver, U[2 * solver->stepsize.s<?=side?>], x);
-	prim_t W_ip3 = primFromCons(solver, U[3 * solver->stepsize.s<?=side?>], x);
+	prim_t W_im3;
+	primFromCons(&W_im3, solver, U - 3 * solver->stepsize.s<?=side?>, x);
+	prim_t W_im2;
+	primFromCons(&W_im2, solver, U - 2 * solver->stepsize.s<?=side?>, x);
+	prim_t W_im1;
+	primFromCons(&W_im1, solver, U - 1 * solver->stepsize.s<?=side?>, x);
+	prim_t W_i;
+	primFromCons(&W_i, solver, U, x);
+	prim_t W_ip1;
+	primFromCons(&W_ip1, solver, U + 1 * solver->stepsize.s<?=side?>, x);
+	prim_t W_ip2;
+	primFromCons(&W_ip2, solver, U + 2 * solver->stepsize.s<?=side?>, x);
+	prim_t W_ip3;
+	primFromCons(&W_ip3, solver, U + 3 * solver->stepsize.s<?=side?>, x);
 
 	// this is based on pressure ... how to generalize for all PDEs?
-	real dP_i = fabs(W_ip1.P - W_im1.P);
-	real dP2_i = fabs(W_ip2.P - W_im2.P);
-	real z_i = dP_i / max(dP2_i, minP);
+	real const dP_i = fabs(W_ip1.P - W_im1.P);
+	real const dP2_i = fabs(W_ip2.P - W_im2.P);
+	real const z_i = dP_i / max(dP2_i, minP);
 	
 	real xi_t_i;
 	if ((W_im1.v.s<?=side?> - W_ip1.v.s<?=side?> > 0) && (dP_i / min(W_ip1.P, W_im1.P) > delta)) {
@@ -739,9 +778,9 @@ based on Trangenstein, Athena, etc, except working on primitives like it says to
 	}
 
 
-	real dP_ip1 = fabs(W_ip2.P - W_i.P);
-	real dP2_ip1 = fabs(W_ip3.P - W_im1.P);
-	real z_ip1 = dP_ip1 / max(dP2_ip1, minP);
+	real const dP_ip1 = fabs(W_ip2.P - W_i.P);
+	real const dP2_ip1 = fabs(W_ip3.P - W_im1.P);
+	real const z_ip1 = dP_ip1 / max(dP2_ip1, minP);
 	
 	real xi_t_ip1;
 	if ((W_i.v.s<?=side?> - W_ip2.v.s<?=side?> > 0) && (dP_ip1 / min(W_ip2.P, W_i.P) > delta)) {
@@ -751,9 +790,9 @@ based on Trangenstein, Athena, etc, except working on primitives like it says to
 	}
 
 
-	real dP_im1 = fabs(W_i.P - W_im2.P);
-	real dP2_im1 = fabs(W_ip1.P - W_im3.P);
-	real z_im1 = dP_im1 / max(dP2_im1, minP);
+	real const dP_im1 = fabs(W_i.P - W_im2.P);
+	real const dP2_im1 = fabs(W_ip1.P - W_im3.P);
+	real const z_im1 = dP_im1 / max(dP2_im1, minP);
 	
 	real xi_t_im1;
 	if ((W_im2.v.s<?=side?> - W_i.v.s<?=side?> > 0) && (dP_im1 / min(W_i.P, W_im2.P) > delta)) {
@@ -865,7 +904,8 @@ based on Trangenstein, Athena, etc, except working on primitives like it says to
 		W6_i.ptr[j] = 6. * W_i.ptr[j] - 3. * (Wminus_i.ptr[j] + Wplus_i.ptr[j]);
 	}
 
-	eigen_t eig = eigen_forCell(solver, *U, x, n);
+	eigen_t eig;
+	eigen_forCell(&eig, solver, U, x, n);
 
 	waves_t lambda;
 	real lambdaMin = INFINITY;
@@ -921,22 +961,30 @@ based on Trangenstein, Athena, etc, except working on primitives like it says to
 	// 
 
 	//TODO ... convert prim to cons, then cons eig transform
-	cons_t Uref_xp = apply_dU_dW(solver, W_i, Wref_xp, x);
-	waves_t beta_xp = eigen_leftTransform(solver, eig, Uref_xp, x, n);
+	cons_t Uref_xp;
+	apply_dU_dW(&Uref_xp, solver, &W_i, &Wref_xp, x);
+	waves_t beta_xp;
+	eigen_leftTransform(&beta_xp, solver, &eig, &Uref_xp, x, n);
 	
-	cons_t Uref_xm = apply_dU_dW(solver, W_i, Wref_xm, x);
-	waves_t beta_xm = eigen_leftTransform(solver, eig, Uref_xm, x, n);
+	cons_t Uref_xm;
+	apply_dU_dW(&Uref_xm, solver, &W_i, &Wref_xm, x);
+	waves_t beta_xm;
+	eigen_leftTransform(&beta_xm, solver, &eig, &Uref_xm, x, n);
 	
 	for (int m = 0; m < numWaves; ++m) {
 		{
-			cons_t Uminus = apply_dU_dW(solver, W_i, Iminus[m], x);
-			waves_t waves = eigen_leftTransform(solver, eig, Uminus, x, n);
+			cons_t Uminus;
+			apply_dU_dW(&Uminus, solver, &W_i, Iminus + m, x);
+			waves_t waves;
+			eigen_leftTransform(&waves, solver, &eig, &Uminus, x, n);
 			beta_xm.ptr[m] -= waves.ptr[m];
 		}
 
 		{
-			cons_t Uplus = apply_dU_dW(solver, W_i, Iplus[m], x);
-			waves_t waves = eigen_leftTransform(solver, eig, Uplus, x, n);
+			cons_t Uplus;
+			apply_dU_dW(&Uplus, solver, &W_i, Iplus + m, x);
+			waves_t waves;
+			eigen_leftTransform(&waves, solver, &eig, &Uplus, x, n);
 			beta_xp.ptr[m] -= waves.ptr[m];
 		}
 	}
@@ -946,22 +994,25 @@ based on Trangenstein, Athena, etc, except working on primitives like it says to
 		if (lambda.ptr[j] > 0) beta_xm.ptr[j] = 0;
 	}
 	
-	cons_t U_l_ip1 = eigen_rightTransform(solver, eig, beta_xp, x, n);
-	cons_t U_r_i = eigen_rightTransform(solver, eig, beta_xm, x, n);
+	cons_t U_l_ip1;
+	eigen_rightTransform(&U_l_ip1, solver, &eig, &beta_xp, x, n);
+	cons_t U_r_i;
+	eigen_rightTransform(&U_r_i, solver, &eig, &beta_xm, x, n);
 
-	cons_t W_l_ip1 = apply_dW_dU(solver, W_i, U_l_ip1, x);
-	cons_t W_r_i = apply_dW_dU(solver, W_i, U_r_i, x);
+	cons_t W_l_ip1;
+	apply_dW_dU(&W_l_ip1, solver, &W_i, &U_l_ip1, x);
+	cons_t W_r_i;
+	apply_dW_dU(&W_r_i, solver, &W_i, &U_r_i, x);
 
 	for (int j = 0; j < numStates; ++j) {
 		W_l_ip1.ptr[j] = Wref_xp.ptr[j] - W_l_ip1.ptr[j];
 		W_r_i.ptr[j] = Wref_xm.ptr[j] - W_r_i.ptr[j];
 	}
 
-	return (<?=eqn.consLR_t?>){
-		.L = consFromPrim(solver, W_r_i, x),
-		.R = consFromPrim(solver, W_l_ip1, x),
-	};
-
+	<?=eqn.consLR_t?> ULR;
+	consFromPrim(&ULR.L, solver, &W_r_i, x);
+	consFromPrim(&ULR.R, solver, &W_l_ip1, x);
+	return ULR;
 }
 
 <?
@@ -973,12 +1024,12 @@ based on Trangenstein, Athena, etc, except working on primitives like it says to
 ?>
 
 <?=eqn.consLR_t?> calcCellLR_<?=side?>(
-	constant <?=solver.solver_t?>* solver,
-	const global <?=eqn.cons_t?>* U,
-	real dt,
-	real3 x,
-	int4 i,
-	normal_t n
+	constant solver_t const * const solver,
+	global cons_t const * const U,
+	real const dt,
+	real3 const x,
+	int4 const i,
+	normal_t const n
 ) {
 
 
@@ -990,23 +1041,23 @@ end
 ?>
 
 kernel void calcLR(
-	constant <?=solver.solver_t?>* solver,
-	const global <?=solver.coord.cell_t?>* cellBuf,
-	global <?=eqn.consLR_t?>* ULRBuf,
-	const global <?=eqn.cons_t?>* UBuf,
-	real dt
+	constant solver_t const * const solver,
+	global cell_t const * const cellBuf,
+	global <?=eqn.consLR_t?> * const ULRBuf,
+	global cons_t const * const UBuf,
+	real const dt
 ) {
 	SETBOUNDS(1,1);
-	const global <?=eqn.cons_t?>* U = UBuf + index;
-	real3 x = cell_x(i);
+	global cons_t const * const U = UBuf + index;
+	real3 const x = cell_x(i);
 
 	//TODO skip this lr stuff if we're doing piecewise-constant
 	//...and just use the original buffers
 	<? for side=0,solver.dim-1 do ?>{
-		normal_t n = normal_forSide<?=side?>(x);
+		normal_t const n = normal_forSide<?=side?>(x);
 		
 		//cell-centered index for a particular side...
-		int indexForSide = <?=side?> + dim * index;
+		int const indexForSide = <?=side?> + dim * index;
 		ULRBuf[indexForSide] = calcCellLR_<?=side?>(solver, U, dt, x, i, n);
 	}<? end ?>
 }

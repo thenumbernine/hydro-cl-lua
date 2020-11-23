@@ -32,9 +32,9 @@ local args = {
 	-- with Kelvin-Helmholts, this will explode even at .5/(dim=2), but runs safe for .3/(dim=2)
 	cfl = cmdline.cfl or .3/dim,
 	
-	fluxLimiter = cmdline.fluxLimiter or 'superbee',
+	--fluxLimiter = cmdline.fluxLimiter or 'superbee',
 	--fluxLimiter = 'monotized central',
-	--fluxLimiter = 'donor cell',
+	fluxLimiter = 'donor cell',
 	
 	-- piecewise-linear slope limiter
 	-- TODO rename this to 'calcLR' or something
@@ -218,7 +218,7 @@ local args = {
 	--initCond = 'Bessel',
 	--initCond = 'cyclone',
 	
-	--initCond = 'Sod',
+	initCond = 'Sod',
 	--initCond = 'Sod with physical units',
 	--initCondArgs = {dim=cmdline.displayDim},
 	
@@ -226,7 +226,7 @@ local args = {
 	--initCond = 'Sedov',
 	--initCond = 'Noh',
 	--initCond = 'implosion',
-	initCond = 'Kelvin-Helmholtz',
+	--initCond = 'Kelvin-Helmholtz',
 	--initCond = 'Rayleigh-Taylor',	--FIXME ... get initial / static hydro potential working
 	--initCond = 'Colella-Woodward',
 	--initCond = 'double mach reflection',

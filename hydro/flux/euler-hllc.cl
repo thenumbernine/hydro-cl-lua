@@ -25,7 +25,8 @@ end
 #if 1	//use interface waves?
 	// get min/max lambdas of UL, UR, and interface U (based on Roe averaging)
 	// TODO this in a more computationally efficient way
-	<?=eqn.eigen_t?> eigInt = eigen_forInterface(solver, UL, UR, xInt, n);
+	<?=eqn.eigen_t?> eigInt;
+	eigen_forInterface(&eigInt, solver, UL, UR, xInt, n);
 	
 	real lambdaIntMin, lambdaIntMax;
 	{

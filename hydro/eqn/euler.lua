@@ -14,12 +14,11 @@ Euler.name = 'Euler'
 Euler.numWaves = 5
 Euler.numIntStates = 5	-- don't bother integrate ePot
 
-Euler.roeUseFluxFromCons = true
+--Euler.roeUseFluxFromCons = true
 
 Euler.initConds = require 'hydro.init.euler':getList()
 
 function Euler:init(args)
-	
 	-- TODO primVars doesn't autogen displayVars, and therefore units doesn't matter
 	
 	self.primVars = table{
@@ -175,9 +174,9 @@ kernel void calcDT(
 			//which should we pick eigenvalues from?
 			//use cell-centered eigenvalues
 			normal_t n = normal_forFace(face);
-			<?=eqn:consWaveCodePrefix('n', '*U', 'x')?>
-			real lambdaMin = <?=eqn:consMinWaveCode('n', '*U', 'x')?>;
-			real lambdaMax = <?=eqn:consMaxWaveCode('n', '*U', 'x')?>;
+			<?=eqn:consWaveCodePrefix('n', 'U', 'x')?>
+			real lambdaMin = <?=eqn:consMinWaveCode('n', 'U', 'x')?>;
+			real lambdaMax = <?=eqn:consMaxWaveCode('n', 'U', 'x')?>;
 			real absLambdaMax = max(fabs(lambdaMin), fabs(lambdaMax));
 			absLambdaMax = max((real)1e-9, absLambdaMax);
 			dt = (real)min(dt, dx / absLambdaMax);
@@ -291,8 +290,8 @@ Euler.eigenVars = table{
 
 function Euler:eigenWaveCodePrefix(n, eig, x)
 	return self:template([[
-	real Cs_nLen = <?=eig?>.Cs * normal_len(<?=n?>);
-	real v_n = normal_vecDotN1(<?=n?>, <?=eig?>.v);
+	real const Cs_nLen = normal_len(<?=n?>) * <?=eig?>->Cs;
+	real const v_n = normal_vecDotN1(<?=n?>, <?=eig?>->v);
 ]],	{
 		eig = '('..eig..')',
 		x = x,
@@ -305,7 +304,7 @@ end
 function Euler:consWaveCodePrefix(n, U, x)
 	return self:template([[
 	prim_t W;
-	primFromCons(&W, solver, &(<?=U?>), <?=x?>);
+	primFromCons(&W, solver, <?=U?>, <?=x?>);
 	real const Cs_nLen = calc_Cs(solver, &W) * normal_len(<?=n?>);
 	real const v_n = normal_vecDotN1(<?=n?>, W.v);
 ]], {

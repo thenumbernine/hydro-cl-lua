@@ -60,31 +60,31 @@ local useFlux = solver.fluxLimiter > 1
 ?>
 
 kernel void calcFlux(
-	constant solver_t* solver,
-	global cons_t* fluxBuf,
+	constant solver_t const * const solver,
+	global cons_t * const fluxBuf,
 	const global <?=solver.getULRArg?>,
-	realparam dt,	//not used by HLL, just making this match Roe / other FV solvers
-	const global cell_t* cellBuf
+	realparam const dt,	//not used by HLL, just making this match Roe / other FV solvers
+	global cell_t const * const cellBuf
 ) {
 	SETBOUNDS(numGhost,numGhost-1);
 	
-	int indexR = index;
-	real3 xR = cellBuf[index].pos;
+	int const indexR = index;
+	real3 const xR = cellBuf[index].pos;
 	
 	<? for side=0,solver.dim-1 do ?>{
-		const int side = <?=side?>;	
+		int const side = <?=side?>;	
 
-		real dx = solver->grid_dx.s<?=side?>;
+		real const dx = solver->grid_dx.s<?=side?>;
 
-		int indexL = index - solver->stepsize.s<?=side?>;
+		int const indexL = index - solver->stepsize.s<?=side?>;
 		real3 xL = xR;
 		xL.s<?=side?> -= dx;
 
 		real3 xInt = xR;
 		xInt.s<?=side?> -= .5 * dx;
 
-		int indexInt = side + dim * index;
-		global cons_t* flux = fluxBuf + indexInt;
+		int const indexInt = side + dim * index;
+		global cons_t * const flux = fluxBuf + indexInt;
 
 
 <? if solver.coord.vectorComponent == 'cartesian' 
@@ -105,66 +105,66 @@ then ?>
 			for (int j = 0; j < numStates; ++j) {
 				flux->ptr[j] = 0;
 			}
-			return;
-		}
+		} else {
 		
-		<?=solver:getULRCode():gsub('\n', '\n\t\t')?>
+			<?=solver:getULRCode():gsub('\n', '\n\t\t')?>
 
-		//the single act of removing the copy of the U's from global to local memory
-		// increases the framerate from 78 to 127
-		cons_parallelPropagate<?=side?>(ppUL, UL, xL, .5 * dx);
-		cons_parallelPropagate<?=side?>(ppUR, UR, xR, -.5 * dx);
+			//the single act of removing the copy of the U's from global to local memory
+			// increases the framerate from 78 to 127
+			cons_parallelPropagate<?=side?>(ppUL, UL, xL, .5 * dx);
+			cons_parallelPropagate<?=side?>(ppUR, UR, xR, -.5 * dx);
 
-		normal_t n = normal_forSide<?=side?>(xInt);
+			normal_t const n = normal_forSide<?=side?>(xInt);
 
 <? 
 if useFlux then 
-?>		//this is used for the flux limiter
-		//should it be using the coordinate dx or the grid dx?
-		//real dt_dx = dt / cell_dx<?=side?>(xInt);
+?>			//this is used for the flux limiter
+			//should it be using the coordinate dx or the grid dx?
+			//real dt_dx = dt / cell_dx<?=side?>(xInt);
 <? 
 	if solver.coord.vectorComponent == 'cartesian' 
 	and not require 'hydro.coord.cartesian'.is(solver.coord)
 	then 
-?>		real dt_dx = dt / cell_dx<?=side?>(xInt);
+?>			real const dt_dx = dt / cell_dx<?=side?>(xInt);
 <? 	else 
-?>		real dt_dx = dt / dx;
+?>			real const dt_dx = dt / dx;
 <? 	end
 ?>
-		real3 xIntL = xInt;
-		xIntL.s<?=side?> -= dx;
-		
-		real3 xIntR = xInt;
-		xIntR.s<?=side?> += dx;
-		
-		int indexR2 = indexR + solver->stepsize.s<?=side?>;
-		int indexL2 = indexL - solver->stepsize.s<?=side?>;
-		<?=solver:getULRCode{indexL = 'indexL2', indexR = 'indexL', suffix='_L'}:gsub('\n', '\n\t\t')?>
-		<?=solver:getULRCode{indexL = 'indexR', indexR = 'indexR2', suffix='_R'}:gsub('\n', '\n\t\t')?>
+			real3 xIntL = xInt;
+			xIntL.s<?=side?> -= dx;
+			
+			real3 xIntR = xInt;
+			xIntR.s<?=side?> += dx;
+			
+			int const indexR2 = indexR + solver->stepsize.s<?=side?>;
+			int const indexL2 = indexL - solver->stepsize.s<?=side?>;
+			<?=solver:getULRCode{indexL = 'indexL2', indexR = 'indexL', suffix='_L'}:gsub('\n', '\n\t\t')?>
+			<?=solver:getULRCode{indexL = 'indexR', indexR = 'indexR2', suffix='_R'}:gsub('\n', '\n\t\t')?>
 
-		cons_parallelPropagate<?=side?>(ppUL_L, UL_L, xIntL, 1.5 * dx);		//xIntL2?
-		cons_parallelPropagate<?=side?>(ppUL_R, UL_R, xIntL, .5 * dx);
-		cons_parallelPropagate<?=side?>(ppUR_L, UR_L, xIntR, -.5 * dx);
-		cons_parallelPropagate<?=side?>(ppUR_R, UR_R, xIntR, -1.5 * dx);	// xIntR2?
+			cons_parallelPropagate<?=side?>(ppUL_L, UL_L, xIntL, 1.5 * dx);		//xIntL2?
+			cons_parallelPropagate<?=side?>(ppUL_R, UL_R, xIntL, .5 * dx);
+			cons_parallelPropagate<?=side?>(ppUR_L, UR_L, xIntR, -.5 * dx);
+			cons_parallelPropagate<?=side?>(ppUR_R, UR_R, xIntR, -1.5 * dx);	// xIntR2?
 
-<? 
+<?
 end
 ?>
-		calcFluxForInterface(
-			flux,
-			solver,
-			ppULptr,
-			ppURptr,
-			xInt,
-			n<? if useFlux then ?>,
-			dt_dx,
-			ppUL_Lptr,
-			ppUL_Rptr,
-			ppUR_Lptr,
-			ppUR_Rptr,
-			xIntL,
-			xIntR<? end ?>
-		);
+			calcFluxForInterface(
+				flux,
+				solver,
+				UL,//ppULptr,
+				UR,//ppURptr,
+				xInt,
+				n<? if useFlux then ?>,
+				dt_dx,
+				UL_L,//ppUL_Lptr,
+				UL_R,//ppUL_Rptr,
+				UR_L,//ppUR_Lptr,
+				UR_R,//ppUR_Rptr,
+				xIntL,
+				xIntR<? end ?>
+			);
+		}
 	}<? end ?>
 }
 
@@ -283,7 +283,7 @@ function FiniteVolumeSolver:addDisplayVars()
 			bufferType = self.eqn.cons_t,
 			codePrefix = template([[
 	int indexInt = <?=side?> + dim * index;
-	const global <?=eqn.cons_t?>* flux = buf + indexInt;
+	const global cons_t* flux = buf + indexInt;
 ]],			{
 				eqn = self.eqn,
 				side = side,
@@ -303,7 +303,7 @@ function FiniteVolumeSolver:addDisplayVars()
 	xInt.s<?=side?> -= .5 * solver->grid_dx.s<?=side?>;
 	<?=solver:getULRCode{bufName='buf', side=side}:gsub('\n', '\n\t')?>
 	normal_t n = normal_forSide<?=side?>(xInt);
-	<?=eqn.eigen_t?> eig;
+	eigen_t eig;
 	eigen_forInterface(&eig, solver, UL, UR, xInt, n);
 ]], 	{
 			solver = self,
@@ -322,7 +322,7 @@ function FiniteVolumeSolver:addDisplayVars()
 				getEigenCode{side=side},
 				template([[
 	normal_t n<?=side?> = normal_forSide<?=side?>(xInt);
-<?=eqn:eigenWaveCodePrefix('n', 'eig', 'xInt')?>
+<?=eqn:eigenWaveCodePrefix('n', '&eig', 'xInt')?>
 ]], 			{
 					eqn = self.eqn,
 					side = side,
@@ -330,7 +330,7 @@ function FiniteVolumeSolver:addDisplayVars()
 			}:concat'\n',
 			vars = range(0, self.eqn.numWaves-1):map(function(i)
 				return {name=tostring(i), code=template([[
-	value.vreal = <?=eqn:eigenWaveCode('n'..side, 'eig', 'xInt', i)?>;
+	value.vreal = <?=eqn:eigenWaveCode('n'..side, '&eig', 'xInt', i)?>;
 ]], 			{
 					eqn = self.eqn,
 					side = side,
@@ -377,16 +377,16 @@ function FiniteVolumeSolver:addDisplayVars()
 	//I = L R
 	//Also note (courtesy of Trangenstein) consider summing across outer products of basis vectors to fulfill rank
 	for (int k = 0; k < numWaves; ++k) {
-		<?=eqn.cons_t?> basis;
+		cons_t basis;
 		for (int j = 0; j < numStates; ++j) {
 			basis.ptr[j] = k == j ? 1 : 0;
 		}
 		
 		normal_t n = normal_forSide<?=side?>(xInt);
 		<?=eqn.waves_t?> chars;
-		eigen_leftTransform(&chars, solver, eig, basis, xInt, n);
-		<?=eqn.cons_t?> newbasis;
-		eigen_rightTransform(&newbasis, solver, eig, chars, xInt, n);
+		eigen_leftTransform(&chars, solver, &eig, &basis, xInt, n);
+		cons_t newbasis;
+		eigen_rightTransform(&newbasis, solver, &eig, &chars, xInt, n);
 	
 		for (int j = 0; j < numStates; ++j) {
 			value.vreal += fabs(newbasis.ptr[j] - basis.ptr[j]);
@@ -421,30 +421,30 @@ function FiniteVolumeSolver:addDisplayVars()
 						getEigenCode{side=side},
 						template([[
 	normal_t n<?=side?> = normal_forSide<?=side?>(x);
-	<?=eqn:eigenWaveCodePrefix('n'..side, 'eig', 'xInt'):gsub('\n', '\n\t')?>
+	<?=eqn:eigenWaveCodePrefix('n'..side, '&eig', 'xInt'):gsub('\n', '\n\t')?>
 	
 	value.vreal = 0;
 	for (int k = 0; k < numIntStates; ++k) {
 		//This only needs to be numIntStates in size, but just in case the left/right transforms are reaching past that memory boundary ...
 		//Then again, how do I know what the non-integrated states should be?  Defaulting to zero is a bad idea.
-		<?=eqn.cons_t?> basis;
+		cons_t basis;
 		for (int j = 0; j < numStates; ++j) {
 			basis.ptr[j] = k == j ? 1 : 0;
 		}
 
 		normal_t n = normal_forSide<?=side?>(xInt);
 		<?=eqn.waves_t?> chars;
-		eigen_leftTransform(&chars, solver, eig, basis, xInt, n);
+		eigen_leftTransform(&chars, solver, &eig, &basis, xInt, n);
 
 		<?=eqn.waves_t?> charScaled;
 		<? for j=0,eqn.numWaves-1 do ?>{
-			real lambda_j = <?=eqn:eigenWaveCode('n'..side, 'eig', 'xInt', j)?>;
+			real lambda_j = <?=eqn:eigenWaveCode('n'..side, '&eig', 'xInt', j)?>;
 			charScaled.ptr[<?=j?>] = chars.ptr[<?=j?>] * lambda_j;
 		}<? end ?>
 	
 		//once again, only needs to be numIntStates
-		<?=eqn.cons_t?> newtransformed;
-		eigen_rightTransform(&newtransformed, solver, eig, charScaled, xInt, n);
+		cons_t newtransformed;
+		eigen_rightTransform(&newtransformed, solver, &eig, &charScaled, xInt, n);
 
 #if 1
 		//this shouldn't need to be reset here
@@ -455,7 +455,8 @@ function FiniteVolumeSolver:addDisplayVars()
 #endif
 
 		//once again, only needs to be numIntStates
-		<?=eqn.cons_t?> transformed = eigen_fluxTransform(solver, eig, basis, xInt, n);
+		cons_t transformed;
+		eigen_fluxTransform(&transformed, solver, &eig, &basis, xInt, n);
 		
 		for (int j = 0; j < numIntStates; ++j) {
 			value.vreal += fabs(newtransformed.ptr[j] - transformed.ptr[j]);

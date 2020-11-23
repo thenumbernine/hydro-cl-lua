@@ -16,24 +16,24 @@ local useFlux = solver.fluxLimiter > 1
 
 //TODO entropy fix ... for the Euler equations at least
 #define calcFluxForInterface(\
-	/*<?=eqn.cons_t?> * const */resultFlux,\
-	/*constant <?=solver.solver_t?> const * const */solver,\
-	/*<?=eqn.cons_t?> const * const */UL,\
-	/*<?=eqn.cons_t?> const * const */UR,\
+	/*cons_t * const */resultFlux,\
+	/*constant solver_t const * const */solver,\
+	/*cons_t const * const */UL,\
+	/*cons_t const * const */UR,\
 	/*real3 const */xInt,\
 	/*normal_t const */n<? if useFlux then ?>,\
 	/*realparam const */dt_dx,\
-	/*<?=eqn.cons_t?> const * const */UL_L,\
-	/*<?=eqn.cons_t?> const * const */UL_R,\
-	/*<?=eqn.cons_t?> const * const */UR_L,\
-	/*<?=eqn.cons_t?> const * const */UR_R,\
+	/*cons_t const * const */UL_L,\
+	/*cons_t const * const */UL_R,\
+	/*cons_t const * const */UR_L,\
+	/*cons_t const * const */UR_R,\
 	/*real3 const */xIntL,\
 	/*real3 const */xIntR<? end ?>\
 ) {\
 	eigen_t eig;\
 	eigen_forInterface(&eig, solver, UL, UR, xInt, n);\
 \
-	<?=eqn:eigenWaveCodePrefix("n", "eig", "xInt"):gsub("\n", "\\\n\t\t")?>\
+<?=eqn:eigenWaveCodePrefix("n", "&eig", "xInt"):gsub("\n", "\\\n")?>\
 \
 	waves_t fluxEig;\
 <? if not eqn.roeUseFluxFromCons then --\
@@ -42,7 +42,7 @@ local useFlux = solver.fluxLimiter > 1
 		UAvg.ptr[j] = .5 * ((UL)->ptr[j] + (UR)->ptr[j]);\
 	}\
 \
-	eigen_leftTransform(&fluxEig, solver, eig, UAvg, xInt, n);\
+	eigen_leftTransform(&fluxEig, solver, &eig, &UAvg, xInt, n);\
 <? end --\
 ?>\
 	cons_t deltaU;\
@@ -59,43 +59,51 @@ local useFlux = solver.fluxLimiter > 1
 ?>	}\
 \
 	waves_t deltaUEig;\
-	eigen_leftTransform(&deltaUEig, solver, eig, deltaU, xInt, n);\
+	eigen_leftTransform(&deltaUEig, solver, &eig, &deltaU, xInt, n);\
 <? 	if useFlux then ?>\
 	eigen_t eigL;\
 	eigen_forInterface(&eigL, solver, UL_L, UR_L, xInt, n);\
 	eigen_t eigR;\
 	eigen_forInterface(&eigR, solver, UL_R, UR_R, xInt, n);\
 	waves_t deltaUEigL;\
-	eigen_leftTransform(&deltaUEigL, solver, eigL, deltaUL, xIntL, n);\
+	eigen_leftTransform(&deltaUEigL, solver, &eigL, &deltaUL, xIntL, n);\
 	waves_t deltaUEigR;\
-	eigen_leftTransform(&deltaUEigR, solver, eigR, deltaUR, xIntR, n);\
+	eigen_leftTransform(&deltaUEigR, solver, &eigR, &deltaUR, xIntR, n);\
 <? 	end ?>\
 \
 	<? for j=0,eqn.numWaves-1 do ?>{\
-		real const lambda = <?=eqn:eigenWaveCode("n", "eig", "xInt", j)?>;\
-		real const sgnLambda = lambda >= 0 ? 1 : -1;\
+		const int j = <?=j?>;\
+		real lambda = <?=eqn:eigenWaveCode("n", "&eig", "xInt", j)?>;\
+\
+<? if not eqn.roeUseFluxFromCons then --\
+?>		fluxEig.ptr[j] *= lambda;\
+<? else --\
+?>		fluxEig.ptr[j] = 0.;\
+<? end --\
+?>		real sgnLambda = lambda >= 0 ? 1 : -1;\
+\
 <? if useFlux then --\
-?>		real const rEig = deltaUEig.ptr[<?=j?>] == 0\
-			? 0\
-			: lambda >= 0\
-				? deltaUEigL.ptr[<?=j?>] / deltaUEig.ptr[<?=j?>]\
-				: deltaUEigR.ptr[<?=j?>] / deltaUEig.ptr[<?=j?>];\
-		real const phi = fluxLimiter(rEig);\
+?>		real rEig;\
+		if (deltaUEig.ptr[j] == 0) {\
+			rEig = 0;\
+		} else {\
+			if (lambda >= 0) {\
+				rEig = deltaUEigL.ptr[j] / deltaUEig.ptr[j];\
+			} else {\
+				rEig = deltaUEigR.ptr[j] / deltaUEig.ptr[j];\
+			}\
+		}\
+		real phi = fluxLimiter(rEig);\
 <? end --\
 ?>\
-<? if not eqn.roeUseFluxFromCons then --\
-?>		fluxEig.ptr[<?=j?>] *= lambda;\
-<? else --\
-?>		fluxEig.ptr[<?=j?>] = 0.;\
-<? end --\
-?>		fluxEig.ptr[<?=j?>] -= .5 * lambda * deltaUEig.ptr[<?=j?>] * (sgnLambda\
+		fluxEig.ptr[j] -= .5 * lambda * deltaUEig.ptr[j] * (sgnLambda\
 <? if useFlux then  --\
 ?>			+ phi * (lambda * (dt_dx) - sgnLambda)\
 <? end  --\
 ?>		);\
 	}<? end ?>\
 \
-	eigen_rightTransform(resultFlux, solver, eig, fluxEig, xInt, n);\
+	eigen_rightTransform(resultFlux, solver, &eig, &fluxEig, xInt, n);\
 \
 <? if eqn.roeUseFluxFromCons then  --\
 -- TODO hmm, fluxFromCons vs eigen_fluxTransform using the 'eig' structure --\

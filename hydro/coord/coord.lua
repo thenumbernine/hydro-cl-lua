@@ -1652,6 +1652,10 @@ for j=1,3 do
 #define normal_u<?=j?><?=xi?>_over_len(n)	normal_u<?=j?><?=xi?>(n)
 <? 
 	end 
+?>
+#define normal_u<?=j?>(n) _real3(normal_u<?=j?>x(n), normal_u<?=j?>y(n), normal_u<?=j?>z(n))
+#define normal_l<?=j?>(n) _real3(normal_l<?=j?>x(n), normal_l<?=j?>y(n), normal_l<?=j?>z(n))
+<?
 end
 ?>
 

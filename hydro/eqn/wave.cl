@@ -15,11 +15,11 @@ TODO make this configurable somehow
 or make it modular enough to merge with BSSNOK
 */
 
-real metric_alpha(real3 pt) { 
+static inline real metric_alpha(real3 const pt) { 
 	return <?=eqn:compile(eqn.metric.alpha)?>; 
 }
 
-real3 metric_beta_u(real3 pt) { 
+static inline real3 metric_beta_u(real3 const pt) { 
 	return (real3){
 <? for i,xi in ipairs(xNames) do
 ?>		.<?=xi?> = <?=eqn:compile(eqn.metric.beta_u[i])?>,
@@ -27,15 +27,15 @@ real3 metric_beta_u(real3 pt) {
 ?>	};
 }
 
-real metric_K(real3 pt) { 
+static inline real metric_K(real3 const pt) { 
 	return <?=eqn:compile(eqn.metric.K)?>;
 }
 
-real metric_f(real3 pt) { 
+static inline real metric_f(real3 const pt) { 
 	return <?=eqn:compile(eqn.metric.f)?>;
 }
 
-real3 metric_partial_alpha_l(real3 pt) { 
+static inline real3 metric_partial_alpha_l(real3 const pt) { 
 	return (real3){
 <? for i,xi in ipairs(xNames) do
 ?>		.<?=xi?> = <?=eqn:compile(eqn.metric.alpha:diff(eqn.metric.coords[i])())?>,
@@ -44,7 +44,7 @@ real3 metric_partial_alpha_l(real3 pt) {
 }
 
 //partial_beta_ul[i][j] = beta^i_,j
-real3x3 metric_partial_beta_ul(real3 pt) { 
+static inline real3x3 metric_partial_beta_ul(real3 const pt) { 
 	return (real3x3){
 <? for i,xi in ipairs(xNames) do
 ?>		.<?=xi?> = (real3){
@@ -60,10 +60,10 @@ real3x3 metric_partial_beta_ul(real3 pt) {
 //// MODULE_DEPENDS: cartesianToCoord
 
 kernel void applyInitCond(
-	constant <?=solver.solver_t?>* solver,
-	constant <?=solver.initCond_t?>* initCond,
-	global <?=eqn.cons_t?>* UBuf,
-	const global <?=solver.coord.cell_t?>* cellBuf
+	constant solver_t const * const solver,
+	constant initCond_t const * const initCond,
+	global cons_t * const UBuf,
+	global cell_t const * const cellBuf
 ) {
 	SETBOUNDS(0,0);
 	real3 x = cellBuf[index].pos;
@@ -85,7 +85,7 @@ end
 	
 	<?=initCode()?>
 
-	UBuf[index] = (<?=eqn.cons_t?>){
+	UBuf[index] = (cons_t){
 <? if eqn.usePressure then
 ?>		.Pi = <?=scalar?>_from_real(P),
 <? else		
@@ -103,102 +103,102 @@ end
 // The difference is that the flux matrix of this is based on 'eig', which is derived from U's ... especially UL & UR in the case of the Roe solver
 // whereas that of fluxFromCons is based purely on 'U'.
 // Since hydro/eqn/wave has no eigen_t info derived from U, the two functions are identical.
-<?=eqn.cons_t?> fluxFromCons(
-	constant <?=solver.solver_t?>* solver,
-	<?=eqn.cons_t?> U,
-	real3 x,
-	normal_t n
-) {
-	real alpha = metric_alpha(x);
-	real beta_n = normal_vecDotN1(n, metric_beta_u(x));
-	
-	real3 nL = normal_l1(n);
-	real3 nU = normal_u1(n);
-	
-	<?=eqn.cons_t?> F;
-	//F^Pi = -c (Pi beta_n + alpha Psi_i n^i)
-	F.Pi = <?=scalar?>_real_mul(
-		//Pi beta_n + alpha Psi_i n^i
-		real_<?=scalar?>_add(
-		
-			//Pi beta_n:
-			<?=scalar?>_real_mul(U.Pi, beta_n), 
-			
-			//alpha Psi_i n^i:
-			<?=scalar?>_real_mul(
-				//Psi_i n^i:
-				<?=vec3?>_real3_dot(
-					U.Psi_l, 
-					nU
-				), 
-				alpha
-			)
-		), 
-		-solver->wavespeed
-	);
-	
-	//F^{Psi_j} = -c (alpha Pi n_j + Psi_j beta_n)
-	F.Psi_l = <?=vec3?>_real_mul(
-		<?=vec3?>_add(
-			//Psi_j beta_n:
-			<?=vec3?>_real_mul(
-				U.Psi_l,
-				beta_n
-			),
-			
-			//alpha Pi n_j:
-			<?=vec3?>_<?=scalar?>_mul(
-				//n:
-				<?=vec3?>_from_real3(nL),
-				
-				//alpha Pi:
-				<?=scalar?>_real_mul(
-					U.Pi, 
-					alpha
-				)
-			)
-		),
-		//-c
-		-solver->wavespeed
-	);
-	
-	return F;
+#define fluxFromCons(\
+	/*cons_t * const */resultFlux,\
+	/*constant solver_t const * const */solver,\
+	/*cons_t const * const */U,\
+	/*real3 const */pt,\
+	/*normal_t const */n\
+) {\
+	real const alpha = metric_alpha(pt);\
+	real const beta_n = normal_vecDotN1(n, metric_beta_u(pt));\
+	\
+	real3 const nL = normal_l1(n);\
+	real3 const nU = normal_u1(n);\
+	\
+	/* F^Pi = -c (Pi beta_n + alpha Psi_i n^i) */\
+	(resultFlux)->Pi = <?=scalar?>_real_mul(\
+		/* Pi beta_n + alpha Psi_i n^i */\
+		real_<?=scalar?>_add(\
+		\
+			/* Pi beta_n: */\
+			<?=scalar?>_real_mul((U)->Pi, beta_n), \
+			\
+			/* alpha Psi_i n^i: */\
+			<?=scalar?>_real_mul(\
+				/* Psi_i n^i: */\
+				<?=vec3?>_real3_dot(\
+					(U)->Psi_l, \
+					nU\
+				), \
+				alpha\
+			)\
+		), \
+		-solver->wavespeed\
+	);\
+	\
+	/* F^{Psi_j} = -c (alpha Pi n_j + Psi_j beta_n) */\
+	(resultFlux)->Psi_l = <?=vec3?>_real_mul(\
+		<?=vec3?>_add(\
+			/* Psi_j beta_n: */\
+			<?=vec3?>_real_mul(\
+				(U)->Psi_l,\
+				beta_n\
+			),\
+			\
+			/* alpha Pi n_j: */\
+			<?=vec3?>_<?=scalar?>_mul(\
+				/* n: */\
+				<?=vec3?>_from_real3(nL),\
+				\
+				/* alpha Pi: */\
+				<?=scalar?>_real_mul(\
+					(U)->Pi, \
+					alpha\
+				)\
+			)\
+		),\
+		/* -c */\
+		-solver->wavespeed\
+	);\
 }
 
 //// MODULE_NAME: calcCellMinMaxEigenvalues
 
 // used by PLM
-range_t calcCellMinMaxEigenvalues(
-	constant solver_t* solver,
-	const global cons_t* U,
-	real3 x,
-	normal_t n
+void calcCellMinMaxEigenvalues(
+	range_t * const result,
+	constant solver_t const * const solver,
+	global cons_t const * const U,
+	real3 const x,
+	normal_t const n
 ) {
-	real alpha_nLen = metric_alpha(x) * normal_len(n);
-	real beta_n = normal_vecDotN1(n, metric_beta_u(x));
-	return (range_t){
-		.min = solver->wavespeed * (-beta_n - alpha_nLen),
-		.max = solver->wavespeed * (-beta_n + alpha_nLen),
-	};
+	real const alpha_nLen = metric_alpha(x) * normal_len(n);
+	real const beta_n = normal_vecDotN1(n, metric_beta_u(x));
+	result->min = solver->wavespeed * (-beta_n - alpha_nLen);
+	result->max = solver->wavespeed * (-beta_n + alpha_nLen);
 }
 
 //// MODULE_NAME: eigen_forInterface
 //// MODULE_DEPENDS: eigen_t
 
-#define eigen_forInterface(solver, UL, UR, x, n) ((eigen_t){})
+#define eigen_forInterface(resultEig, solver, UL, UR, x, n) \
+	*(resultEig) = (eigen_t){}
 
 //// MODULE_NAME: eigen_forCell
 //// MODULE_DEPENDS: eigen_t
 
-#define eigen_forCell(solver, U, x, n) ((eigen_t){})
+#define eigen_forCell(resultEig, solver, U, x, n) \
+	*(resultEig) = (eigen_t){};
 
 //// MODULE_NAME: eigen_left/rightTransform
 //// MODULE_DEPENDS: eigen_t waves_t
 
-waves_t eigen_leftTransform(
-	constant solver_t* solver,
-	eigen_t eig,
-	cons_t X,
+#define eigen_leftTransform(
+	/*waves_t * const */result,
+	constant solver_t const * const solver,
+	eigen_t const * const eig,
+	cons_t const * const X,
 	real3 x,
 	normal_t n
 ) { 
@@ -266,7 +266,7 @@ cons_t eigen_rightTransform(
 
 // by default in hydro/eqn/eqn.lua, fluxFromCons is defined by eigen_fluxTransform
 // but since eig is empty, we can define eigen_fluxTransform with fluxFromCons
-#define eigen_fluxTransform(solver, eig, X, x, n) fluxFromCons(solver, X, x, n)
+#define eigen_fluxTransform(resultFlux, solver, eig, X, x, n) fluxFromCons(resultFlux, solver, X, x, n)
 
 //// MODULE_NAME: addSource
 
@@ -274,7 +274,7 @@ kernel void addSource(
 	constant solver_t* solver,
 	global cons_t* derivBuf,
 	const global cons_t* UBuf,
-	const global <?=solver.coord.cell_t?>* cellBuf
+	const global cell_t* cellBuf
 ) {
 #if 0
 	SETBOUNDS_NOGHOST();
