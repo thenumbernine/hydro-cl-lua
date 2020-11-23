@@ -109,10 +109,12 @@ then ?>
 		}
 		
 		<?=solver:getULRCode():gsub('\n', '\n\t\t')?>
-		
-		cons_t pUL = cons_parallelPropagate<?=side?>(*UL, xL, .5 * dx);
-		cons_t pUR = cons_parallelPropagate<?=side?>(*UR, xR, -.5 * dx);
-	
+
+		//the single act of removing the copy of the U's from global to local memory
+		// increases the framerate from 78 to 127
+		cons_parallelPropagate<?=side?>(ppUL, UL, xL, .5 * dx);
+		cons_parallelPropagate<?=side?>(ppUR, UR, xR, -.5 * dx);
+
 		normal_t n = normal_forSide<?=side?>(xInt);
 
 <? 
@@ -140,24 +142,26 @@ if useFlux then
 		<?=solver:getULRCode{indexL = 'indexL2', indexR = 'indexL', suffix='_L'}:gsub('\n', '\n\t\t')?>
 		<?=solver:getULRCode{indexL = 'indexR', indexR = 'indexR2', suffix='_R'}:gsub('\n', '\n\t\t')?>
 
-		cons_t pUL_L = cons_parallelPropagate<?=side?>(*UL_L, xIntL, 1.5 * dx);		//xIntL2?
-		cons_t pUL_R = cons_parallelPropagate<?=side?>(*UL_R, xIntL, .5 * dx);
-		cons_t pUR_L = cons_parallelPropagate<?=side?>(*UR_L, xIntR, -.5 * dx);
-		cons_t pUR_R = cons_parallelPropagate<?=side?>(*UR_R, xIntR, -1.5 * dx);	// xIntR2?
+		cons_parallelPropagate<?=side?>(ppUL_L, UL_L, xIntL, 1.5 * dx);		//xIntL2?
+		cons_parallelPropagate<?=side?>(ppUL_R, UL_R, xIntL, .5 * dx);
+		cons_parallelPropagate<?=side?>(ppUR_L, UR_L, xIntR, -.5 * dx);
+		cons_parallelPropagate<?=side?>(ppUR_R, UR_R, xIntR, -1.5 * dx);	// xIntR2?
+
 <? 
 end
 ?>
-		*flux = calcFluxForInterface(
+		calcFluxForInterface(
+			flux,
 			solver,
-			pUL,
-			pUR,
+			ppULptr,
+			ppURptr,
 			xInt,
 			n<? if useFlux then ?>,
 			dt_dx,
-			pUL_L,
-			pUL_R,
-			pUR_L,
-			pUR_R,
+			ppUL_Lptr,
+			ppUL_Rptr,
+			ppUR_Lptr,
+			ppUR_Rptr,
 			xIntL,
 			xIntR<? end ?>
 		);
@@ -299,7 +303,8 @@ function FiniteVolumeSolver:addDisplayVars()
 	xInt.s<?=side?> -= .5 * solver->grid_dx.s<?=side?>;
 	<?=solver:getULRCode{bufName='buf', side=side}:gsub('\n', '\n\t')?>
 	normal_t n = normal_forSide<?=side?>(xInt);
-	<?=eqn.eigen_t?> eig = eigen_forInterface(solver, *UL, *UR, xInt, n);
+	<?=eqn.eigen_t?> eig;
+	eigen_forInterface(&eig, solver, UL, UR, xInt, n);
 ]], 	{
 			solver = self,
 			eqn = self.eqn,
@@ -317,7 +322,7 @@ function FiniteVolumeSolver:addDisplayVars()
 				getEigenCode{side=side},
 				template([[
 	normal_t n<?=side?> = normal_forSide<?=side?>(xInt);
-	<?=eqn:eigenWaveCodePrefix('n', 'eig', 'xInt'):gsub('\n', '\n\t')?>
+<?=eqn:eigenWaveCodePrefix('n', 'eig', 'xInt')?>
 ]], 			{
 					eqn = self.eqn,
 					side = side,
@@ -378,8 +383,10 @@ function FiniteVolumeSolver:addDisplayVars()
 		}
 		
 		normal_t n = normal_forSide<?=side?>(xInt);
-		<?=eqn.waves_t?> chars = eigen_leftTransform(solver, eig, basis, xInt, n);
-		<?=eqn.cons_t?> newbasis = eigen_rightTransform(solver, eig, chars, xInt, n);
+		<?=eqn.waves_t?> chars;
+		eigen_leftTransform(&chars, solver, eig, basis, xInt, n);
+		<?=eqn.cons_t?> newbasis;
+		eigen_rightTransform(&newbasis, solver, eig, chars, xInt, n);
 	
 		for (int j = 0; j < numStates; ++j) {
 			value.vreal += fabs(newbasis.ptr[j] - basis.ptr[j]);
@@ -426,7 +433,8 @@ function FiniteVolumeSolver:addDisplayVars()
 		}
 
 		normal_t n = normal_forSide<?=side?>(xInt);
-		<?=eqn.waves_t?> chars = eigen_leftTransform(solver, eig, basis, xInt, n);
+		<?=eqn.waves_t?> chars;
+		eigen_leftTransform(&chars, solver, eig, basis, xInt, n);
 
 		<?=eqn.waves_t?> charScaled;
 		<? for j=0,eqn.numWaves-1 do ?>{
@@ -435,7 +443,8 @@ function FiniteVolumeSolver:addDisplayVars()
 		}<? end ?>
 	
 		//once again, only needs to be numIntStates
-		<?=eqn.cons_t?> newtransformed = eigen_rightTransform(solver, eig, charScaled, xInt, n);
+		<?=eqn.cons_t?> newtransformed;
+		eigen_rightTransform(&newtransformed, solver, eig, charScaled, xInt, n);
 
 #if 1
 		//this shouldn't need to be reset here

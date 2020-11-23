@@ -234,8 +234,8 @@ if useCache == nil then useCache = true end
 
 local function addTab(s)
 	s = tostring(s)
-	if s:sub(1,1) ~= '\t' then s = '\t' .. s end
 	if s:sub(-1) ~= '\n' then s = s .. '\n' end
+	s = '\t'..s:gsub('\n([^\n])', '\n\t%1')
 	return s
 end
 
@@ -385,31 +385,38 @@ function SolverBase:getIdent()
 		:gsub('"', '')
 	destName = string.trim(destName)
 	-- 
-	local destFilename = destName
+	local configStr = destName
 		:gsub('/', '')
 		:gsub('{', '(')
 		:gsub('}', ')')
 	
---	self.ident = destFilename
+--	self.ident = configStr
 -- [=[
 -- hmm, seems the filenames are too long
 -- how about hashing them?
 	local bit = require 'bit'
 	local len = 8
 	local chs = require 'ext.range'(len):mapi(function() return 0 end)
-	for i=1,#destFilename do
+	for i=1,#configStr do
 		local j = (i-1)%len+1
-		chs[j] = bit.bxor(chs[j], destFilename:sub(i,i):byte()) 
+		chs[j] = bit.bxor(chs[j], configStr:sub(i,i):byte()) 
 	end
 	self.ident = chs
-		:sub(1, math.min(len, #destFilename))
+		:sub(1, math.min(len, #configStr))
 		:mapi(function(ch) 
 			--return string.char(ch)
 			return ('%02x'):format(ch)
 		end):concat()
-	print("solver using ident "..self.ident.." from config str "..destFilename)
+	print("solver using ident "..self.ident.." from config str "..configStr)
 --]=]
 --]]
+
+
+	-- debugging?
+	local dir = 'cache/'..self.ident
+	os.mkdir(dir, true)
+	file[dir..'/config'] = configStr
+
 	return self.ident
 end
 
@@ -713,17 +720,19 @@ function SolverBase:initCodeModuleDisplay()
 end
 
 function SolverBase:getModuleDepends_displayCode()
-	-- this is going to have dependencies that vary greatly from eqn to eqn
-	return {
-		'coordLen',
-		-- hmm, only for sym3
-		-- but eqn.euler doesn't use sym3, so this needless adds sym3 ...
-		-- how do I add a 'depends' only if 'sym3' is already included?
-		'coord_g_ll',
+	local depends = table(self.eqn:getModuleDepends_displayCode())
+
+	-- add in any real3 pickComponent code dependencies here
+	if self:isModuleUsed'real3' then
+		depends:insert'coordLen'
+	end
 	
-		-- anything used by eqn:getDisplayVars
-		'eqn.displayCode',
-	}
+	-- add in any sym3 pickComponent code dependencies here
+	if self:isModuleUsed'sym3' then
+		depends:insert'coord_g_ll'
+	end
+
+	return depends 
 end
 
 -- TODO if you want to define ffi ctype metatable then put them all in one spot here
@@ -1335,7 +1344,7 @@ typedef union {
 		if alreadyAddedComponentForGroup[name] then return end
 		alreadyAddedComponentForGroup[name] = true
 		lines:insert((template([[
-void <?=name?>(
+static inline void <?=name?>(
 	constant <?=solver.solver_t?>* solver,
 	global const <?=group.bufferType?>* buf,
 	int component,
@@ -1452,8 +1461,8 @@ end ?><?=group.extraArgs and #group.extraArgs > 0
 <? end 		-- mesh vs grid 
 ?>	displayValue_t value = {.ptr={0}};
 
-	<?=group.codePrefix or ''?>
-	
+	<?=group.codePrefix or ''
+?>
 	int vectorField = 0;
 	switch (displayVarIndex) {
 ]], 			table({
@@ -1503,7 +1512,7 @@ end ?><?=group.extraArgs and #group.extraArgs > 0
 							addTab = addTab,
 						}
 						lines:insert(template([[
-<?=addTab(var.code)
+<?=addTab(addTab(var.code))
 ?>			vectorField = <?=solver:isVarTypeAVectorField(var.type) and '1' or '0'?>;
 ]], env))
 					end
@@ -1720,7 +1729,7 @@ assert(not args.codePrefix, "move this to DisplayVarGroup")
 	self.enabled = not not args.enabled
 	self.useLog = args.useLog or cmdline.display_useLog or false
 	self.color = vec3d(math.random(), math.random(), math.random()):normalize()
-	self.heatMapFixedRange = false	-- args.name ~= 'error'
+	self.heatMapFixedRange = cmdline.display_fixedRange or false	-- args.name ~= 'error'
 	self.heatMapValueMin = 0
 	self.heatMapValueMax = 1
 

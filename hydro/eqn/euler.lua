@@ -106,21 +106,22 @@ function Euler:initCodeModule_calcDT()
 <? if require 'hydro.solver.gridsolver'.is(solver) then ?>
 
 kernel void calcDT(
-	constant <?=solver.solver_t?>* solver,
-	global real* dtBuf,
-	const global <?=eqn.cons_t?>* UBuf,
-	const global <?=solver.coord.cell_t?>* cellBuf
+	constant solver_t const * const solver,
+	global real * const dtBuf,
+	const global cons_t const * const UBuf,
+	const global cell_t const * const cellBuf
 ) {
 	SETBOUNDS(0,0);
 	if (OOB(numGhost,numGhost)) {
 		dtBuf[index] = INFINITY;
 		return;
 	}
-	real3 x = cellBuf[index].pos;
+	real3 const x = cellBuf[index].pos;
 
-	const global <?=eqn.cons_t?>* U = UBuf + index;
-	<?=eqn.prim_t?> W = primFromCons(solver, *U, x);
-	real Cs = calc_Cs(solver, &W);
+	global cons_t const * const U = UBuf + index;
+	prim_t W;
+	primFromCons(&W, solver, U, x);
+	real const Cs = calc_Cs(solver, &W);
 
 	real dt = INFINITY;
 	<? for side=0,solver.dim-1 do ?>{
@@ -128,16 +129,16 @@ kernel void calcDT(
 if solver.coord.vectorComponent == 'cartesian' 
 and not require 'hydro.coord.cartesian'.is(solver.coord)
 then 
-?>		real dx = cell_dx<?=side?>(x); 
+?>		real const dx = cell_dx<?=side?>(x); 
 <? else 
-?>		real dx = solver->grid_dx.s<?=side?>;
+?>		real const dx = solver->grid_dx.s<?=side?>;
 <? end 
 ?>
 		if (dx > 1e-7) {
 			//use cell-centered eigenvalues
-			real v_n = normal_vecDotN1(normal_forSide<?=side?>(x), W.v);
-			real lambdaMin = v_n - Cs;
-			real lambdaMax = v_n + Cs;
+			real const v_n = normal_vecDotN1(normal_forSide<?=side?>(x), W.v);
+			real const lambdaMin = v_n - Cs;
+			real const lambdaMax = v_n + Cs;
 			real absLambdaMax = max(fabs(lambdaMin), fabs(lambdaMax));
 			absLambdaMax = max((real)1e-9, absLambdaMax);
 			//TODO this should be based on coord + vectorComponent 
@@ -151,7 +152,7 @@ then
 <? else -- mesh solver ?>
 
 kernel void calcDT(
-	constant <?=solver.solver_t?>* solver,
+	constant solver_t const * const solver,
 	global real* dtBuf,					//[numCells]
 	const global <?=eqn.cons_t?>* UBuf,	//[numCells]
 	const global <?=solver.coord.cell_t?>* cellBuf,		//[numCells]
@@ -231,11 +232,11 @@ function Euler:getDisplayVars()
 		-- should SI unit displays be auto generated as well?
 		{name='v', code='value.vreal3 = W.v;', type='real3', units='m/s'},
 		{name='P', code='value.vreal = W.P;', units='kg/(m*s^2)'},
-		{name='eInt', code='value.vreal = calc_eInt(solver, W);', units='m^2/s^2'},
-		{name='eKin', code='value.vreal = calc_eKin(W, x);', units='m^2/s^2'},
+		{name='eInt', code='value.vreal = calc_eInt(solver, &W);', units='m^2/s^2'},
+		{name='eKin', code='value.vreal = calc_eKin(&W, x);', units='m^2/s^2'},
 		{name='eTotal', code='value.vreal = U->ETotal / W.rho;', units='m^2/s^2'},
-		{name='EInt', code='value.vreal = calc_EInt(solver, W);', units='kg/(m*s^2)'},
-		{name='EKin', code='value.vreal = calc_EKin(W, x);', units='kg/(m*s^2)'},
+		{name='EInt', code='value.vreal = calc_EInt(solver, &W);', units='kg/(m*s^2)'},
+		{name='EKin', code='value.vreal = calc_EKin(&W, x);', units='kg/(m*s^2)'},
 		{name='EPot', code='value.vreal = U->rho * U->ePot;', units='kg/(m*s^2)'},
 		{name='S', code='value.vreal = W.P / pow(W.rho, (real)solver->heatCapacityRatio);'},
 		{name='H', code='value.vreal = calc_H(solver, W.P);', units='kg/(m*s^2)'},
@@ -248,7 +249,7 @@ function Euler:getDisplayVars()
 <? local clnumber = require 'cl.obj.number' ?>
 <? local materials = require 'hydro.materials' ?>
 #define C_v				<?=('%.50f'):format(materials.Air.C_v)?>
-	value.vreal = calc_eInt(solver, W) / C_v;
+	value.vreal = calc_eInt(solver, &W) / C_v;
 ]], units='K'},
 	}:append(self.gravOp and
 		{{name='gravity', code=self:template[[
@@ -303,9 +304,10 @@ end
 -- but then I just explicitly wrote out the calcDT, so the extra parameters just aren't used anymore.
 function Euler:consWaveCodePrefix(n, U, x)
 	return self:template([[
-	<?=eqn.prim_t?> W = primFromCons(solver, <?=U?>, <?=x?>);
-	real Cs_nLen = calc_Cs(solver, &W) * normal_len(<?=n?>);
-	real v_n = normal_vecDotN1(<?=n?>, W.v);
+	prim_t W;
+	primFromCons(&W, solver, &(<?=U?>), <?=x?>);
+	real const Cs_nLen = calc_Cs(solver, &W) * normal_len(<?=n?>);
+	real const v_n = normal_vecDotN1(<?=n?>, W.v);
 ]], {
 		U = '('..U..')',
 		n = n,

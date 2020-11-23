@@ -3,7 +3,7 @@ TODO one config per experiment (initial condition + config)
 and no more setting config values (boundary, etc) in the init cond file
 --]]
 
-local dim = cmdline.dim or 1
+local dim = cmdline.dim or 2
 local args = {
 	app = self, 
 	eqn = cmdline.eqn,
@@ -28,7 +28,9 @@ local args = {
 	
 	--fixedDT = .0001,
 	fixedDT = cmdline.fixedDT,
-	cfl = cmdline.cfl or .3/dim,	-- 1/dim,
+	
+	-- with Kelvin-Helmholts, this will explode even at .5/(dim=2), but runs safe for .3/(dim=2)
+	cfl = cmdline.cfl or .3/dim,
 	
 	fluxLimiter = cmdline.fluxLimiter or 'superbee',
 	--fluxLimiter = 'monotized central',
@@ -83,7 +85,7 @@ local args = {
 			},
 			['Intel(R) OpenCL HD Graphics/Intel(R) Gen9 HD Graphics NEO'] = {
 				{600,1,1},
-				{128,128,1},
+				{256,256,1},
 				
 				-- for 11th WENO (2010 Shen Zha) once we reduce size below 6,6 it breaks
 				-- so TODO something about boundary conditions on WENO or something ... maybe an error
@@ -100,12 +102,12 @@ local args = {
 		}
 	)[dim],
 	boundary = type(cmdline.boundary) == 'table' and cmdline.boundary or {
-		xmin = cmdline.boundary or 'freeflow',
-		xmax = cmdline.boundary or 'freeflow',
-		ymin = cmdline.boundary or 'freeflow',
-		ymax = cmdline.boundary or 'freeflow',
-		zmin = cmdline.boundary or 'freeflow',
-		zmax = cmdline.boundary or 'freeflow',
+		xmin = cmdline.boundary or 'periodic',
+		xmax = cmdline.boundary or 'periodic',
+		ymin = cmdline.boundary or 'periodic',
+		ymax = cmdline.boundary or 'periodic',
+		zmin = cmdline.boundary or 'periodic',
+		zmax = cmdline.boundary or 'periodic',
 	},
 	--]]
 	--[[ cylinder
@@ -216,7 +218,7 @@ local args = {
 	--initCond = 'Bessel',
 	--initCond = 'cyclone',
 	
-	initCond = 'Sod',
+	--initCond = 'Sod',
 	--initCond = 'Sod with physical units',
 	--initCondArgs = {dim=cmdline.displayDim},
 	
@@ -224,7 +226,7 @@ local args = {
 	--initCond = 'Sedov',
 	--initCond = 'Noh',
 	--initCond = 'implosion',
-	--initCond = 'Kelvin-Helmholtz',
+	initCond = 'Kelvin-Helmholtz',
 	--initCond = 'Rayleigh-Taylor',	--FIXME ... get initial / static hydro potential working
 	--initCond = 'Colella-Woodward',
 	--initCond = 'double mach reflection',

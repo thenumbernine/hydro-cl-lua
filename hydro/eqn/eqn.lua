@@ -414,6 +414,12 @@ typedef union {
 			end
 		end
 
+		--[[			
+		cons_parallelPropagate is a macro
+		First argument is the name of the result local var
+		a pointer to it with 'ptr' appended is also produced.
+		In the event of identity propagation, only the poitner is produced.
+		--]]
 		solver.modules:add{
 			name = 'cons_parallelPropagate',
 			depends = table{
@@ -435,38 +441,46 @@ for side=0,solver.dim-1 do
 	if coord.vectorComponent == 'cartesian'
 	or require 'hydro.coord.cartesian'.is(coord) 
 	then
-?>#define cons_parallelPropagate<?=side?>(U, x, dx) (U)
+?>#define cons_parallelPropagate<?=side?>(resultName, U, x, dx)\
+	global cons_t const * const resultName##ptr = U;
 <?	else
-?><?=eqn.cons_t?> cons_parallelPropagate<?=side?>(<?=eqn.cons_t?> U, real3 x, real dx) {
+?>#define cons_parallelPropagate<?=side?>(\
+	resultNameBase,\
+	/*cons_t const * const */U,\
+	/*real3 const */x,\
+	/*real const */dx\
+)\
+/* TODO don't assign here, instead assign all fields and just don't propagate the scalars */\
+	cons_t resultName = *(U);\
 <?		for _,var in ipairs(eqn.consStruct.vars) do
 			local variance = assert(var.variance)
 			local degree = degreeForType[var.type]
 			if variance == '' then
 			elseif variance == 'u' then
 -- P_u^a T^u
-?>	U.<?=var.name?> = coord_parallelPropagateU<?=side?>(U.<?=var.name?>, x, dx);
+?>	resultName.<?=var.name?> = coord_parallelPropagateU<?=side?>(resultName.<?=var.name?>, x, dx);\
 <?
 			elseif variance == 'l' then
 -- T_u (P^-T)_a^u
-?>	U.<?=var.name?> = coord_parallelPropagateL<?=side?>(U.<?=var.name?>, x, dx);
+?>	resultName.<?=var.name?> = coord_parallelPropagateL<?=side?>(resultName.<?=var.name?>, x, dx);\
 <?
 			elseif variance == 'll' then
 -- (P^-T)_a^u (P^-T)_b^v T_uv
-?>				{
-					real3x3 t = real3x3_from_<?=var.type?>(U.<?=var.name?>);
-					t.x = coord_parallelPropagateL<?=side?>(t.x, x, dx);
-					t.y = coord_parallelPropagateL<?=side?>(t.y, x, dx);
-					t.z = coord_parallelPropagateL<?=side?>(t.z, x, dx);
-					t = real3x3_transpose(t);
-					t.x = coord_parallelPropagateL<?=side?>(t.x, x, dx);
-					t.y = coord_parallelPropagateL<?=side?>(t.y, x, dx);
-					t.z = coord_parallelPropagateL<?=side?>(t.z, x, dx);
-					U.<?=var.name?> = <?=var.type?>_from_real3x3(t);
-				}
+?>				{\
+					real3x3 t = real3x3_from_<?=var.type?>(resultName.<?=var.name?>);\
+					t.x = coord_parallelPropagateL<?=side?>(t.x, x, dx);\
+					t.y = coord_parallelPropagateL<?=side?>(t.y, x, dx);\
+					t.z = coord_parallelPropagateL<?=side?>(t.z, x, dx);\
+					t = real3x3_transpose(t);\
+					t.x = coord_parallelPropagateL<?=side?>(t.x, x, dx);\
+					t.y = coord_parallelPropagateL<?=side?>(t.y, x, dx);\
+					t.z = coord_parallelPropagateL<?=side?>(t.z, x, dx);\
+					resultName.<?=var.name?> = <?=var.type?>_from_real3x3(t);\
+				}\
 <?			elseif variance == 'lll' then
-?>				{
-					real3x3x3 t = real3x3x3_from_<?=var.type?>(U.<?=var.name?>);
-					real3 tmp;
+?>				{\
+					real3x3x3 t = real3x3x3_from_<?=var.type?>(resultName.<?=var.name?>);\
+					real3 tmp;\
 <?				local table = require 'ext.table'
 				local is = table()
 				for e=1,3 do
@@ -476,24 +490,23 @@ for side=0,solver.dim-1 do
 							is[e%3+1] = xj
 							for k,xk in ipairs(xNames) do
 								is[(e+1)%3+1] = xk
-?>						tmp.<?=xk?> = t.<?=is:concat'.'?>;
+?>						tmp.<?=xk?> = t.<?=is:concat'.'?>;\
 <?							end
-?>						tmp = coord_parallelPropagateL<?=side?>(tmp, x, dx);
+?>						tmp = coord_parallelPropagateL<?=side?>(tmp, x, dx);\
 <?							for k,xk in ipairs(xNames) do
 								is[(e+1)%3+1] = xk
-?>						t.<?=is:concat'.'?> = tmp.<?=xk?>;
+?>						t.<?=is:concat'.'?> = tmp.<?=xk?>;\
 <?							end
 						end
 					end
 				end
-?>					U.<?=var.name?> = <?=var.type?>_from_real3x3x3(t);
-				}
+?>					resultName.<?=var.name?> = <?=var.type?>_from_real3x3x3(t);\
+				}\
 <?			else
 				error("don't know how to handle variance for "..('%q'):format(variance))
 			end
 		end
-?>	return U;
-}
+?>	global cons_t const * const resultName##ptr = &resultName;
 <?	end
 end
 ?>]], 		{
@@ -526,7 +539,6 @@ end
 	self:initCodeModule_calcDT()
 	self:initCodeModule_fluxFromCons()
 	self:initCodeModule_waveCode()
-	self:initCodeModule_displayCode()
 
 	self.solver.modules:addFromMarkup{
 		code = self:template(file[self.solverCodeFile]),
@@ -578,16 +590,10 @@ function Equation:initCodeModule_waveCode()
 end
 
 -- put your getDisplayVars code dependencies here
+-- called from solverbase
 function Equation:getModuleDepends_displayCode() 
 	return {
 		'SETBOUNDS',
-	}
-end
-
-function Equation:initCodeModule_displayCode()
-	self.solver.modules:add{
-		name = 'eqn.displayCode',
-		depends = self:getModuleDepends_displayCode(),
 	}
 end
 
@@ -596,7 +602,8 @@ function Equation:getDisplayVarCodePrefix()
 	return self:template[[
 	const global <?=eqn.cons_t?>* U = buf + index;
 <? if eqn.displayVarCodeUsesPrims then 
-?>	<?=eqn.prim_t?> W = primFromCons(solver, *U, x);
+?>	<?=eqn.prim_t?> W;
+	primFromCons(&W, solver, U, x);
 <? end 
 ?>]]
 end
@@ -808,12 +815,13 @@ function Equation:initCodeModulePrimCons()
 		name = 'primFromCons',
 		depends = {'solver_t', 'prim_t', 'cons_t'},
 		code = self:template[[
-#define primFromCons(solver, U, x)	U
+#define primFromCons(W, solver, U, x)	(*(W) = *(U))
 /*
-<?=eqn.prim_t?> primFromCons(
-	constant <?=solver.solver_t?>* solver,
-	<?=eqn.cons_t?> U, 
-	real3 x
+void primFromCons(
+	<?=eqn.prim_t?> * const W,
+	constant <?=solver.solver_t?> const * const solver,
+	<?=eqn.cons_t?> const * const U, 
+	real3 const x
 ) { 
 	return U; 
 }
@@ -825,12 +833,13 @@ function Equation:initCodeModulePrimCons()
 		name = 'consFromPrim',
 		depends = {'solver_t', 'prim_t', 'cons_t'},
 		code = self:template[[
-#define consFromPrim(solver, W, x)	W
+#define consFromPrim(U, solver, W, x)	(*(U) = *(W))
 /*
 <?=eqn.cons_t?> consFromPrim(
-	constant <?=solver.solver_t?>* solver,
-	<?=eqn.prim_t?> W, 
-	real3 x
+	<?=eqn.cons_t?> * const U,
+	constant <?=solver.solver_t?> const * const solver,
+	<?=eqn.prim_t?> const * const W, 
+	real3 const x
 ) { 
 	return W; 
 }
