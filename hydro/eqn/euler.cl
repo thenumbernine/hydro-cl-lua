@@ -66,7 +66,7 @@
 	real3 const WA_vL = coord_lower((WA)->v, x);\
 	(result)->rho = (U)->rho;\
 	(result)->v = real3_sub(\
-		real3_real_mul((U)->m, 1. / (WA)->rho);\
+		real3_real_mul((U)->m, 1. / (WA)->rho),\
 		real3_real_mul((WA)->v, (U)->rho / (WA)->rho));\
 	(result)->P = (solver->heatCapacityRatio - 1.) * (\
 		.5 * real3_dot((WA)->v, WA_vL) * (U)->rho \

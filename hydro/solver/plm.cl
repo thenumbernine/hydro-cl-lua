@@ -1,5 +1,5 @@
 //// MODULE_NAME: calcLR
-//// MODULE_DEPENDS: consLR_t solver_t cons_t normal_t cell_x cell_dx#
+//// MODULE_DEPENDS: consLR_t solver_t cons_t normal_t cell_dx#
 
 // TODO incorporate parallel propagators
 
@@ -12,18 +12,17 @@ for side=0,solver.dim-1 do
 	if solver.usePLM == "piecewise-constant" then 
 ?>
 
-<?=eqn.consLR_t?> calcCellLR_<?=side?>(
-	constant solver_t const * const solver,
-	global cons_t const * const U,
-	real const dt,
-	real3 const x,
-	int4 const i,
-	normal_t const n
-) {
-	return (<?=eqn.consLR_t?>){
-		.L = *U,
-		.R = *U,
-	};
+#define calcCellLR_<?=side?>(\
+	/*<?=eqn.consLR_t?> * const */result,\
+	/*constant solver_t const * const */solver,\
+	/*global cons_t const * const */U,\
+	/*real const */dt,\
+	/*real3 const */x,\
+	/*int4 const */i,\
+	/*normal_t const */n\
+) {\
+	(result)->L = *(U);\
+	(result)->R = *(U);\
 }
 
 <?
@@ -56,7 +55,8 @@ works for mhd Brio-Wu 1D with oscillations
 works for maxwell with oscillations 
 works for adm1d_v1 freeflow with oscillations (fails for mirror)
 */
-<?=eqn.consLR_t?> calcCellLR_<?=side?>(
+void calcCellLR_<?=side?>(
+	global <?=eqn.consLR_t?> * const result,
 	constant solver_t const * const solver,
 	global cons_t const * const U,
 	real const dt,
@@ -132,22 +132,19 @@ for sgn b >= 0:
 	cons_t FHalfR;
 	fluxFromCons(&FHalfR, solver, &UHalfR, xIntR, normal_forSide<?=side?>(xIntR));
 
-	<?=eqn.consLR_t?> ULR = {
-		.L = *U,
-		.R = *U,
-	};
+	result->L = *U;
+	result->R = *U;
 	for (int j = 0; j < numIntStates; ++j) {
 		real dF = FHalfR.ptr[j] - FHalfL.ptr[j];
 
 		//U-cell-L = q^n+1/2_i-1/2,R (Hydrodynamics II 6.62)
 		// = q^n_i-1/2,R + 1/2 dt/dx (f_k(q^n_i+1/2,L) - f_k(q_i-1/2,R))
-		ULR.L.ptr[j] = UHalfL.ptr[j] + .5 * dt_dx * dF;
+		result->L.ptr[j] = UHalfL.ptr[j] + .5 * dt_dx * dF;
 
 		//U-cell R = q^n+1/2_i+1/2,L (Hydrodynamics II 6.63)
 		// = q^n_i+1/2,L + 1/2 dt/dx (f_k(q^n_i+1/2,L) - f_k(q_i-1/2,R))
-		ULR.R.ptr[j] = UHalfR.ptr[j] + .5 * dt_dx * dF;
+		result->R.ptr[j] = UHalfR.ptr[j] + .5 * dt_dx * dF;
 	}
-	return ULR;
 }
 
 <? 
@@ -157,7 +154,8 @@ for sgn b >= 0:
 ?>
 //// MODULE_DEPENDS: slopeLimiter
 
-<?=eqn.consLR_t?> calcCellLR_<?=side?>(
+void calcCellLR_<?=side?>(
+	global <?=eqn.consLR_t?> * const result,
 	constant solver_t const * const solver,
 	global cons_t const * const U,
 	real const dt,
@@ -174,10 +172,8 @@ for sgn b >= 0:
 	const global cons_t* UL = U - solver->stepsize.s<?=side?>;
 	const global cons_t* UR = U + solver->stepsize.s<?=side?>;
 
-	<?=eqn.consLR_t?> ULR = {
-		.L = *U,
-		.R = *U,
-	};
+	result->L = *U;
+	result->R = *U;
 	// minmod
 	for (int j = 0; j < numIntStates; ++j) {
 #if 1	// taken from above / from Dullemond "Hydrodynamics II"
@@ -186,8 +182,8 @@ for sgn b >= 0:
 		real r = dUR == 0 ? 0 : (dUL / dUR);
 		real phi = slopeLimiter(r);	//works good with minmod, bad with superbee
 		real sigma = phi * dUR;
-		ULR.L.ptr[j] -= .5 * sigma;
-		ULR.R.ptr[j] += .5 * sigma;
+		result->L.ptr[j] -= .5 * sigma;
+		result->R.ptr[j] += .5 * sigma;
 #endif
 #if 0 	// Based on Mara's PLM.  Looks to be asymmetric, favoring the x+ and y+ directions. Maybe I copied it wrong.
 		real dUL = U->ptr[j] - UL->ptr[j];
@@ -198,11 +194,10 @@ for sgn b >= 0:
 		real adwc = fabs(dUC);
 		real mindw = min3(adwl, adwr, adwc);
 		real dUM = .25 * fabs(sign(dUL) + sign(dUC)) * fabs(sign(dUL) + sign(dUR)) * mindw;
-		ULR.L.ptr[j] -= .5 * dUM; 
-		ULR.R.ptr[j] += .5 * dUM; 
+		result->L.ptr[j] -= .5 * dUM; 
+		result->R.ptr[j] += .5 * dUM; 
 #endif
 	}
-	return ULR;
 }
 
 <? 
@@ -210,7 +205,8 @@ for sgn b >= 0:
 ?>
 //// MODULE_DEPENDS: slopeLimiter consFromPrim primFromCons
 
-<?=eqn.consLR_t?> calcCellLR_<?=side?>(
+void calcCellLR_<?=side?>(
+	global <?=eqn.consLR_t?> * const result,
 	constant solver_t const * const solver,
 	global cons_t const * const U,
 	real const dt,
@@ -265,10 +261,8 @@ for sgn b >= 0:
 	real3 xIntR = x; xIntR.s<?=side?> += .5 * dx;
 
 	//converting from cons->prim and then prim->cons might lose us accuracy? 
-	<?=eqn.consLR_t?> ULR;
-	consFromPrim(&ULR.L, solver, &nWL, xIntL);
-	consFromPrim(&ULR.R, solver, &nWR, xIntR);
-	return ULR;
+	consFromPrim(&result->L, solver, &nWL, xIntL);
+	consFromPrim(&result->R, solver, &nWR, xIntR);
 }
 
 <? 
@@ -304,7 +298,8 @@ works for maxwell
 works for adm1d_v1 
 */
 
-<?=eqn.consLR_t?> calcCellLR_<?=side?>(
+void calcCellLR_<?=side?>(
+	global <?=eqn.consLR_t?> * const result,
 	constant solver_t const * const solver,
 	global cons_t const * const U,
 	real const dt,
@@ -389,15 +384,12 @@ works for adm1d_v1
 	cons_t sR;
 	eigen_rightTransform(&sR, solver, &eig, &aR, x, n);
 
-	<?=eqn.consLR_t?> ULR = {
-		.L = *U,
-		.R = *U,
-	};
+	result->L = *U;
+	result->R = *U;
 	for (int j = 0; j < numIntStates; ++j) {
-		ULR.L.ptr[j] += sL.ptr[j];
-		ULR.R.ptr[j] -= sR.ptr[j];
+		result->L.ptr[j] += sL.ptr[j];
+		result->R.ptr[j] -= sR.ptr[j];
 	}
-	return ULR;
 }
 
 <? 
@@ -405,7 +397,7 @@ works for adm1d_v1
 	or solver.usePLM == "plm-eig-prim-ref" 
 	then 
 ?>
-//// MODULE_DEPENDS: min3 primFromCons
+//// MODULE_DEPENDS: eigen_forCell min3 primFromCons
 
 /*
 #3a: next step, convert to primitives
@@ -449,7 +441,8 @@ U_i+1/2,L = U( W_i + 1/2 dW/dU evR (aL + (1 - dt/dx max(wave)) dWMe) )
 based on Trangenstein, Athena, etc, except working on primitives like it says to
 */
 
-<?=eqn.consLR_t?> calcCellLR_<?=side?>(
+void calcCellLR_<?=side?>(
+	global <?=eqn.consLR_t?> * const result,
 	constant solver_t const * const solver,
 	global cons_t const * const U,
 	real const dt,
@@ -556,14 +549,12 @@ based on Trangenstein, Athena, etc, except working on primitives like it says to
 	for (int j = numIntStates; j < numStates; ++j) {
 		W2L.ptr[j] = W2R.ptr[j] = W.ptr[j];
 	}
-	<?=eqn.consLR_t?> ULR;
-	consFromPrim(&ULR.L, solver, &W2L, xIntL);
-	consFromPrim(&ULR.R, solver, &W2R, xIntR);
-	return ULR;
+	consFromPrim(&result->L, solver, &W2L, xIntL);
+	consFromPrim(&result->R, solver, &W2R, xIntR);
 <?	
 		elseif solver.usePLM == "plm-eig-prim-ref" then 
 ?>
-//// MODULE_DEPENDS: eigen_forCell apply_dU_dW apply_dW_dU eigen_left/rightTransform consFromPrim
+//// MODULE_DEPENDS: apply_dU_dW apply_dW_dU eigen_left/rightTransform consFromPrim
 
 	//with reference state
 
@@ -616,10 +607,8 @@ based on Trangenstein, Athena, etc, except working on primitives like it says to
 		W2R.ptr[j] = W2L.ptr[j] = W.ptr[j];
 	}
 	//TODO fix the x's
-	<?=eqn.consLR_t?> ULR;
-	consFromPrim(&ULR.L, solver, &W2L, xIntL);
-	consFromPrim(&ULR.R, solver, &W2R, xIntR);
-	return ULR;
+	consFromPrim(&result->L, solver, &W2L, xIntL);
+	consFromPrim(&result->R, solver, &W2R, xIntR);
 <?
 		end	-- solver.usePLM
 ?>
@@ -633,7 +622,8 @@ based on Trangenstein, Athena, etc, except working on primitives like it says to
 //// MODULE_DEPENDS: eigen_forCell eigen_left/rightTransform consFromPrim primFromCons
 
 //based on Athena
-<?=eqn.consLR_t?> calcCellLR_<?=side?>(
+void calcCellLR_<?=side?>(
+	global <?=eqn.consLR_t?> * const result,
 	constant solver_t const * const solver,
 	global cons_t const * const U,
 	real const dt,
@@ -721,10 +711,8 @@ based on Trangenstein, Athena, etc, except working on primitives like it says to
 		Wrv.ptr[j] = W.ptr[j];
 	}
 
-	<?=eqn.consLR_t?> ULR;
-	consFromPrim(&ULR.L, solver, &Wrv, xIntL);
-	consFromPrim(&ULR.R, solver, &Wlv, xIntR);
-	return ULR;
+	consFromPrim(&result->L, solver, &Wrv, xIntL);
+	consFromPrim(&result->R, solver, &Wlv, xIntR);
 }
 
 <? 
@@ -734,7 +722,8 @@ based on Trangenstein, Athena, etc, except working on primitives like it says to
 
 // based on http://zingale.github.io/hydro1d/  ppm code
 
-<?=eqn.consLR_t?> calcCellLR_<?=side?>(
+void calcCellLR_<?=side?>(
+	global <?=eqn.consLR_t?> * const result,
 	constant solver_t const * const solver,
 	global cons_t const * const U,
 	real const dt,
@@ -1009,10 +998,8 @@ based on Trangenstein, Athena, etc, except working on primitives like it says to
 		W_r_i.ptr[j] = Wref_xm.ptr[j] - W_r_i.ptr[j];
 	}
 
-	<?=eqn.consLR_t?> ULR;
-	consFromPrim(&ULR.L, solver, &W_r_i, x);
-	consFromPrim(&ULR.R, solver, &W_l_ip1, x);
-	return ULR;
+	consFromPrim(&result->L, solver, &W_r_i, x);
+	consFromPrim(&result->R, solver, &W_l_ip1, x);
 }
 
 <?
@@ -1023,7 +1010,8 @@ based on Trangenstein, Athena, etc, except working on primitives like it says to
 -- to make sure there's no OOB reads
 ?>
 
-<?=eqn.consLR_t?> calcCellLR_<?=side?>(
+void calcCellLR_<?=side?>(
+	global <?=eqn.consLR_t?> * const result,
 	constant solver_t const * const solver,
 	global cons_t const * const U,
 	real const dt,
@@ -1049,7 +1037,7 @@ kernel void calcLR(
 ) {
 	SETBOUNDS(1,1);
 	global cons_t const * const U = UBuf + index;
-	real3 const x = cell_x(i);
+	real3 const x = cellBuf[index].pos;
 
 	//TODO skip this lr stuff if we're doing piecewise-constant
 	//...and just use the original buffers
@@ -1058,7 +1046,7 @@ kernel void calcLR(
 		
 		//cell-centered index for a particular side...
 		int const indexForSide = <?=side?> + dim * index;
-		ULRBuf[indexForSide] = calcCellLR_<?=side?>(solver, U, dt, x, i, n);
+		calcCellLR_<?=side?>(ULRBuf + indexForSide, solver, U, dt, x, i, n);
 	}<? end ?>
 }
 

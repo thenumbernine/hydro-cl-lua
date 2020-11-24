@@ -32,13 +32,13 @@ local args = {
 	-- with Kelvin-Helmholts, this will explode even at .5/(dim=2), but runs safe for .3/(dim=2)
 	cfl = cmdline.cfl or .3/dim,
 	
-	--fluxLimiter = cmdline.fluxLimiter or 'superbee',
+	fluxLimiter = cmdline.fluxLimiter or 'superbee',
 	--fluxLimiter = 'monotized central',
-	fluxLimiter = 'donor cell',
+	--fluxLimiter = 'donor cell',
 	
 	-- piecewise-linear slope limiter
 	-- TODO rename this to 'calcLR' or something
-	usePLM = 'piecewise-constant',	-- degenerate case.  don't use this, instead just disable usePLM, or else this will allocate more memory / run more functions.
+	--usePLM = 'piecewise-constant',	-- degenerate case.  don't use this, instead just disable usePLM, or else this will allocate more memory / run more functions.
 	--usePLM = 'plm-cons',
 	--usePLM = 'plm-cons-alone',
 	--usePLM = 'plm-prim-alone',
@@ -55,7 +55,7 @@ local args = {
 	--slopeLimiter = 'superbee',
 
 	-- this is functional without usePLM, but doing so falls back on the cell-centered buffer, which with the current useCTU code will update the same cell twice from different threads
-	useCTU = true,
+	--useCTU = true,
 	
 	-- [[ Cartesian
 	coord = 'cartesian',
