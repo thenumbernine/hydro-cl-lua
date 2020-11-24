@@ -174,7 +174,7 @@ kernel void calcDT(
 			//which should we pick eigenvalues from?
 			//use cell-centered eigenvalues
 			normal_t n = normal_forFace(face);
-			<?=eqn:consWaveCodePrefix('n', 'U', 'x')?>
+			<?=eqn:consWaveCodePrefix('n', 'U', 'x'):gsub('\n', '\n\t\t\t')?>
 			real lambdaMin = <?=eqn:consMinWaveCode('n', 'U', 'x')?>;
 			real lambdaMax = <?=eqn:consMaxWaveCode('n', 'U', 'x')?>;
 			real absLambdaMax = max(fabs(lambdaMin), fabs(lambdaMax));
@@ -290,8 +290,8 @@ Euler.eigenVars = table{
 
 function Euler:eigenWaveCodePrefix(n, eig, x)
 	return self:template([[
-	real const Cs_nLen = normal_len(<?=n?>) * <?=eig?>->Cs;
-	real const v_n = normal_vecDotN1(<?=n?>, <?=eig?>->v);
+real const Cs_nLen = normal_len(<?=n?>) * <?=eig?>->Cs;
+real const v_n = normal_vecDotN1(<?=n?>, <?=eig?>->v);
 ]],	{
 		eig = '('..eig..')',
 		x = x,
@@ -303,10 +303,10 @@ end
 -- but then I just explicitly wrote out the calcDT, so the extra parameters just aren't used anymore.
 function Euler:consWaveCodePrefix(n, U, x)
 	return self:template([[
-	prim_t W;
-	primFromCons(&W, solver, <?=U?>, <?=x?>);
-	real const Cs_nLen = calc_Cs(solver, &W) * normal_len(<?=n?>);
-	real const v_n = normal_vecDotN1(<?=n?>, W.v);
+prim_t W;
+primFromCons(&W, solver, <?=U?>, <?=x?>);
+real const Cs_nLen = calc_Cs(solver, &W) * normal_len(<?=n?>);
+real const v_n = normal_vecDotN1(<?=n?>, W.v);
 ]], {
 		U = '('..U..')',
 		n = n,

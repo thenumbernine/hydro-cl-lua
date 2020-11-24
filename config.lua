@@ -212,13 +212,13 @@ local args = {
 	--initCond = 'linear',
 	--initCond = 'gaussian',
 	--initCond = 'advect wave',
-	--initCond = 'sphere',
+	initCond = 'sphere',
 	--initCond = 'spiral',
 	--initCond = 'rarefaction wave',
 	--initCond = 'Bessel',
 	--initCond = 'cyclone',
 	
-	initCond = 'Sod',
+	--initCond = 'Sod',
 	--initCond = 'Sod with physical units',
 	--initCondArgs = {dim=cmdline.displayDim},
 	
@@ -542,7 +542,7 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn
 -- compressible Euler equations
 
 
-self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
+--self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
 
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct bounded'})))	-- this is the default hllCalcWaveMethod
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct'})))
@@ -553,7 +553,7 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn
 
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='euler-hllc', eqn='euler', fluxArgs={hllcMethod=0}})))
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='euler-hllc', eqn='euler', fluxArgs={hllcMethod=1}})))
---self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='euler-hllc', eqn='euler', fluxArgs={hllcMethod=2}})))
+self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='euler-hllc', eqn='euler', fluxArgs={hllcMethod=2}})))
 
 -- NOTICE, these are very accurate with RK4, etc., but incur oscillations with Forward-Euler
 -- TODO weno doesn't seem to work with self-gravitation
