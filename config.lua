@@ -38,7 +38,7 @@ local args = {
 	
 	-- piecewise-linear slope limiter
 	-- TODO rename this to 'calcLR' or something
-	--usePLM = 'piecewise-constant',	-- degenerate case.  don't use this, instead just disable usePLM, or else this will allocate more memory / run more functions.
+	usePLM = 'piecewise-constant',	-- degenerate case.  don't use this, instead just disable usePLM, or else this will allocate more memory / run more functions.
 	--usePLM = 'plm-cons',
 	--usePLM = 'plm-cons-alone',
 	--usePLM = 'plm-prim-alone',
@@ -55,7 +55,7 @@ local args = {
 	--slopeLimiter = 'superbee',
 
 	-- this is functional without usePLM, but doing so falls back on the cell-centered buffer, which with the current useCTU code will update the same cell twice from different threads
-	--useCTU = true,
+	useCTU = true,
 	
 	-- [[ Cartesian
 	coord = 'cartesian',
