@@ -69,8 +69,8 @@ function NavierStokesWilcox:init(args)
 				-- div m = (m dot grad ρ)/ρ 
 				chargeCode = self:template[[
 	<? for j=0,solver.dim-1 do ?>{
-		global const <?=eqn.cons_t?>* Ujm = U - solver->stepsize.s<?=j?>;
-		global const <?=eqn.cons_t?>* Ujp = U + solver->stepsize.s<?=j?>;
+		global <?=eqn.cons_t?> const * const Ujm = U - solver->stepsize.s<?=j?>;
+		global <?=eqn.cons_t?> const * const Ujp = U + solver->stepsize.s<?=j?>;
 		real drho_dx = (Ujp->rhoBar - Ujm->rhoBar) * (.5 / solver->grid_dx.s<?=j?>);
 		source -= drho_dx * U->rhoBar_vTilde.s<?=j?> / U->rhoBar;
 	}<? end ?>
@@ -122,19 +122,19 @@ function NavierStokesWilcox:getDisplayVars()
 	vars:append{
 		{name='vTilde', code='value.vreal3 = W.vTilde;', type='real3'},
 		{name='PStar', code='value.vreal = W.PStar;'},
-		{name='eIntTilde', code='value.vreal = calc_eIntTilde(solver, W);'},
-		{name='eKinTilde', code='value.vreal = calc_eKinTilde(W, x);'},
+		{name='eIntTilde', code='value.vreal = calc_eIntTilde(solver, &W);'},
+		{name='eKinTilde', code='value.vreal = calc_eKinTilde(&W, x);'},
 		{name='eTotalTilde', code='value.vreal = U->rhoBar_eTotalTilde / W.rhoBar;'},
-		{name='EIntTilde', code='value.vreal = calc_EIntTilde(solver, W);'},
-		{name='EKinTilde', code='value.vreal = calc_EKinTilde(W, x);'},
+		{name='EIntTilde', code='value.vreal = calc_EIntTilde(solver, &W);'},
+		{name='EKinTilde', code='value.vreal = calc_EKinTilde(&W, x);'},
 		{name='EPot', code='value.vreal = U->rhoBar * U->ePot;'},
 		{name='S', code='value.vreal = W.PStar / pow(W.rhoBar, R_over_C_v + 1. );'},
 		--{name='H', code='value.vreal = calc_H(W.PStar);'},
 		--{name='h', code='value.vreal = calc_h(W.rhoBar, W.PStar);'},
 		--{name='HTotal', code='value.vreal = calc_HTotal(W.PStar, U->rhoBar_eTotalTilde);'},
 		--{name='hTotal', code='value.vreal = calc_hTotal(W.rhoBar, W.PStar, U->rhoBar_eTotalTilde);'},
-		{name='Speed of Sound', code='value.vreal = calc_Cs(solver, W);'},
-		--{name='Mach number', code='value.vreal = coordLen(W.vTilde, x) / calc_Cs(solver, W);'},
+		{name='Speed of Sound', code='value.vreal = calc_Cs(solver, &W);'},
+		--{name='Mach number', code='value.vreal = coordLen(W.vTilde, x) / calc_Cs(solver, &W);'},
 	}:append{self.gravOp and
 		{name='gravity', code=self:template[[
 	if (OOB(1,1)) {
@@ -153,7 +153,7 @@ for side=solver.dim,2 do ?>
 	}
 ]], type='real3'} or nil
 	}:append{
-		{name='temp', code='value.vreal = calc_eIntTilde(solver, W) / solver->C_v;'},
+		{name='temp', code='value.vreal = calc_eIntTilde(solver, &W) / solver->C_v;'},
 	}
 
 	vars:insert(self:createDivDisplayVar{
@@ -190,23 +190,24 @@ NavierStokesWilcox.eigenVars = table{
 
 function NavierStokesWilcox:eigenWaveCodePrefix(n, eig, x)
 	return self:template([[
-	real Cs_nLen = <?=eig?>.Cs * normal_len(<?=n?>);
-	real v_n = normal_vecDotN1(<?=n?>, <?=eig?>.vTilde);
+real Cs_nLen = <?=eig?>->Cs * normal_len(<?=n?>);
+real v_n = normal_vecDotN1(<?=n?>, <?=eig?>->vTilde);
 ]], {
-		eig = '('..eig..')',
 		n = n,
+		eig = '('..eig..')',
 		x = x,
 	})
 end
 
 function NavierStokesWilcox:consWaveCodePrefix(n, U, x)
 	return self:template([[
-	<?=eqn.prim_t?> W = primFromCons(solver, <?=U?>, <?=x?>);
-	real Cs_nLen = calc_Cs(solver, W) * normal_len(<?=n?>);
-	real v_n = normal_vecDotN1(<?=n?>, W.vTilde);
+prim_t W;
+primFromCons(&W, solver, <?=U?>, <?=x?>);
+real Cs_nLen = calc_Cs(solver, &W) * normal_len(<?=n?>);
+real v_n = normal_vecDotN1(<?=n?>, W.vTilde);
 ]], {
-		U = '('..U..')',
 		n = n,
+		U = '('..U..')',
 		x = x,
 	})
 end
