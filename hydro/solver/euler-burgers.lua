@@ -98,7 +98,7 @@ function EulerBurgers:addDisplayVars()
 			bufferType = 'real',
 			bufferField = 'intVelBuf',
 			codePrefix = [[
-	int indexInt = ]]..(j-1)..[[ + dim * index;
+	int const indexInt = ]]..(j-1)..[[ + dim * index;
 ]],
 			vars = range(0,self.dim-1):map(function(i)
 				return {name=xj..'_'..i, code='value.vreal = buf['..i..' + indexInt];'}
