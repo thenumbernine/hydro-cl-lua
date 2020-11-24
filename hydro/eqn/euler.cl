@@ -405,7 +405,7 @@ end
 		+ (X)->ptr[2] * v_n.y\
 		+ (X)->ptr[3] * v_n.z\
 		+ (X)->ptr[4] * ((eig)->hTotal + (eig)->Cs * v_n.x * inv_nLen);\
-	(result)->ptr[0] =\
+	(result)->ptr[5] =\
 		0;\
 }
 
