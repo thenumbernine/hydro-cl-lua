@@ -66,7 +66,7 @@ function ShallowWater:getDisplayVars()
 	
 	vars:append{
 		{name='v', code='value.vreal3 = W.v;', type='real3', units='m/s'},
-		{name='wavespeed', code='value.vreal = calc_C(solver, *U);', units='m/s'},
+		{name='wavespeed', code='value.vreal = calc_C(solver, U);', units='m/s'},
 	}
 
 	vars:insert(self:createDivDisplayVar{
@@ -98,8 +98,8 @@ ShallowWater.eigenVars = table{
 
 function ShallowWater:eigenWaveCodePrefix(n, eig, x)
 	return self:template([[
-	real C_nLen = <?=eig?>.C * normal_len(<?=n?>);
-	real v_n = normal_vecDotN1(<?=n?>, <?=eig?>.v);
+real C_nLen = <?=eig?>->C * normal_len(<?=n?>);
+real v_n = normal_vecDotN1(<?=n?>, <?=eig?>->v);
 ]], {
 		eig = '('..eig..')',
 		x = x,
@@ -109,18 +109,18 @@ end
 
 function ShallowWater:consWaveCodePrefix(n, U, x, W)
 	return self:template([[
-	real C_nLen = calc_C(solver, <?=U?>) * normal_len(<?=n?>);
+real C_nLen = calc_C(solver, <?=U?>) * normal_len(<?=n?>);
 <? if not W then 
 	W = 'W'
-?>
-	<?=eqn.prim_t?> W = primFromCons(solver, <?=U?>, <?=x?>);
-<? end ?>
-	real v_n = normal_vecDotN1(n, <?=W?>.v);
+?><?=eqn.prim_t?> W;
+primFromCons(&W, solver, <?=U?>, <?=x?>);
+<? end 
+?>real v_n = normal_vecDotN1(n, <?=W?>.v);
 ]], {
-		U = '('..U..')',
-		W = W and '('..W..')' or nil,
 		n = n,
+		U = '('..U..')',
 		x = x,
+		W = W and '('..W..')' or nil,
 	})
 end
 

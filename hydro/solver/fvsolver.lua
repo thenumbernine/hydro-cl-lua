@@ -107,7 +107,7 @@ then ?>
 			}
 		} else {
 		
-			<?=solver:getULRCode():gsub('\n', '\n\t\t')?>
+			<?=solver:getULRCode():gsub('\n', '\n\t\t\t')?>
 
 			//the single act of removing the copy of the U's from global to local memory
 			// increases the framerate from 78 to 127
@@ -138,8 +138,8 @@ if useFlux then
 			
 			int const indexR2 = indexR + solver->stepsize.s<?=side?>;
 			int const indexL2 = indexL - solver->stepsize.s<?=side?>;
-			<?=solver:getULRCode{indexL = 'indexL2', indexR = 'indexL', suffix='_L'}:gsub('\n', '\n\t\t')?>
-			<?=solver:getULRCode{indexL = 'indexR', indexR = 'indexR2', suffix='_R'}:gsub('\n', '\n\t\t')?>
+			<?=solver:getULRCode{indexL = 'indexL2', indexR = 'indexL', suffix='_L'}:gsub('\n', '\n\t\t\t')?>
+			<?=solver:getULRCode{indexL = 'indexR', indexR = 'indexR2', suffix='_R'}:gsub('\n', '\n\t\t\t')?>
 
 			cons_parallelPropagate<?=side?>(ppUL_L, UL_L, xIntL, 1.5 * dx);		//xIntL2?
 			cons_parallelPropagate<?=side?>(ppUL_R, UL_R, xIntL, .5 * dx);

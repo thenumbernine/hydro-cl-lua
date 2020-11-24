@@ -1,73 +1,78 @@
 //// MODULE_NAME: primFromCons
 //// MODULE_DEPENDS: real3 solver_t prim_t cons_t
 
-<?=eqn.prim_t?> primFromCons(constant <?=solver.solver_t?>* solver, <?=eqn.cons_t?> U, real3 x) {
-	return (<?=eqn.prim_t?>){
-		.h = U.h,
-		.v = real3_real_mul(U.m, 1. / U.h),
-	};
+#define primFromCons(\
+	/*prim_t * const */result,\
+	/*constant solver_t const * const */solver,\
+	/*cons_t const * const */U, \
+	/*real3 const */pt\
+) {\
+	(result)->h = (U)->h;\
+	(result)->v = real3_real_mul((U)->m, 1. / (U)->h);\
 }
 
 //// MODULE_NAME: consFromPrim
 //// MODULE_DEPENDS: real3 solver_t prim_t cons_t
 
-<?=eqn.cons_t?> consFromPrim(constant <?=solver.solver_t?>* solver, <?=eqn.prim_t?> W, real3 x) {
-	return (<?=eqn.cons_t?>){
-		.h = W.h,
-		.m = real3_real_mul(W.v, W.h),
-	};
+#define consFromPrim(\
+	/*cons_t * const */result,\
+	/*constant solver_t const * const */solver,\
+	/*prim_t const * const */W,\
+	/*real3 const */pt\
+) {\
+	(result)->h = (W)->h;\
+	(result)->m = real3_real_mul((W)->v, (W)->h);\
 }
 
 //// MODULE_NAME: apply_dU_dW
 //// MODULE_DEPENDS: real3 solver_t prim_t cons_t
 
-<?=eqn.cons_t?> apply_dU_dW(
-	constant <?=solver.solver_t?>* solver,
-	<?=eqn.prim_t?> WA, 
-	<?=eqn.prim_t?> W, 
-	real3 x
-) {
-	return (<?=eqn.cons_t?>){
-		.h = W.h,
-		.m = real3_add(
-			real3_real_mul(WA.v, W.h), 
-			real3_real_mul(W.v, WA.h)),
-	};
+#define apply_dU_dW(\
+	/*cons_t * const */result,\
+	/*constant solver_t const * const */solver,\
+	/*prim_t const * const */WA, \
+	/*prim_t const * const */W, \
+	/*real3 const */pt\
+) {\
+	(result)->h = (W)->h;\
+	(result)->m = real3_add(\
+		real3_real_mul((WA)->v, (W)->h), \
+		real3_real_mul((W)->v, (WA)->h));\
 }
 
 //// MODULE_NAME: apply_dW_dU
 //// MODULE_DEPENDS: real3 solver_t prim_t cons_t
 
-<?=eqn.prim_t?> apply_dW_dU(
-	constant <?=solver.solver_t?>* solver,
-	<?=eqn.prim_t?> WA,
-	<?=eqn.cons_t?> U,
-	real3 x
-) {
-	real3 WA_vL = coord_lower(WA.v, x);
-	return (<?=eqn.prim_t?>){
-		.h = U.h,
-		.v = real3_sub(
-			real3_real_mul(U.m, 1. / WA.h),
-			real3_real_mul(WA.v, U.h / WA.h)),
-	};
+#define apply_dW_dU(\
+	/*prim_t * const */result,\
+	/*constant solver_t const * const */solver,\
+	/*prim_t const * const */WA,\
+	/*cons_t const * const */U,\
+	/*real3 const */pt\
+) {\
+	(result)->h = (U)->h;\
+	(result)->v = real3_sub(\
+		real3_real_mul((U)->m, 1. / (WA)->h),\
+		real3_real_mul((WA)->v, (U)->h / (WA)->h));\
 }
 
 //// MODULE_NAME: eqn.common
 //// MODULE_DEPENDS: solver_t cons_t
 
-real calc_C(constant <?=solver.solver_t?>* solver, <?=eqn.cons_t?> U) {
-	return sqrt(solver->gravity * U.h);
-}
+#define calc_C(\
+	/*constant solver_t const * const */solver,\
+	/*cons_t const * const */U\
+)\
+	sqrt(solver->gravity * (U)->h)
 
 //// MODULE_NAME: applyInitCond
 //// MODULE_DEPENDS: cartesianToCoord
 
 kernel void applyInitCond(
-	constant <?=solver.solver_t?>* solver,
-	constant <?=solver.initCond_t?>* initCond,
-	global <?=eqn.cons_t?>* UBuf,
-	const global <?=coord.cell_t?>* cellBuf
+	constant solver_t* solver,
+	constant initCond_t* initCond,
+	global cons_t* UBuf,
+	const global cell_t* cellBuf
 ) {
 	SETBOUNDS(0,0);
 	real3 x = cellBuf[index].pos;
@@ -91,218 +96,228 @@ end
 
 	<?=initCode()?>
 
-	<?=eqn.prim_t?> W = {
+	prim_t W = {
 		.h = rho,
 		.v = cartesianToCoord(v, x),
 	};
-
-	UBuf[index] = consFromPrim(solver, W, x);
+	consFromPrim(UBuf + index, solver, &W, x);
 }
 
 //// MODULE_NAME: fluxFromCons
 //// MODULE_DEPENDS: solver_t primFromCons normal_t
 
-<?=eqn.cons_t?> fluxFromCons(
-	constant <?=solver.solver_t?>* solver,
-	<?=eqn.cons_t?> U,
-	real3 x,
-	normal_t n
-) {
-	<?=eqn.prim_t?> W = primFromCons(solver, U, x);
-	real v_n = normal_vecDotN1(n, W.v);
-	real3 nU = normal_u1(n);
-	return (<?=eqn.cons_t?>){
-		.h = U.h * v_n,
-		.m = real3_add(
-			real3_real_mul(U.m, v_n),	//h v^i v_n
-			real3_real_mul(nU, .5 * solver->gravity * U.h * U.h)	//.5 g h^2 n^i
-		),
-	};
+#define fluxFromCons(\
+	/*cons_t * const */result,\
+	/*constant solver_t const * const */solver,\
+	/*cons_t const * const */U,\
+	/*real3 const */pt,\
+	/*normal_t const */n\
+) {\
+	prim_t W;\
+	primFromCons(&W, solver, U, pt);\
+	real const v_n = normal_vecDotN1(n, W.v);\
+	real3 const nU = normal_u1(n);\
+	(result)->h = (U)->h * v_n,\
+	(result)->m = real3_add(\
+		real3_real_mul((U)->m, v_n),	/*h v^i v_n*/\
+		real3_real_mul(nU, .5 * solver->gravity * (U)->h * (U)->h)	/*.5 g h^2 n^i*/\
+	);\
 }
 
 //// MODULE_NAME: calcCellMinMaxEigenvalues
 
 // used by PLM
-range_t calcCellMinMaxEigenvalues(
-	constant solver_t* solver,
-	const global cons_t* U,
-	real3 x,
-	normal_t n
-) {
-	prim_t W = primFromCons(solver, *U, x);
-	real v_n = normal_vecDotN1(n, W.v);
-	real C = calc_C(solver, *U);
-	real C_nLen = C * normal_len(n);
-	return (range_t){
-		.min = v_n - C_nLen, 
-		.max = v_n + C_nLen,
-	};
+#define calcCellMinMaxEigenvalues(\
+	/*range_t * const */result,\
+	/*constant solver_t const * const */solver,\
+	/*global cons_t const * const */U,\
+	/*real3 const */pt,\
+	/*normal_t const */n\
+) {\
+	prim_t W;\
+	primFromCons(&W, solver, U, pt);\
+	real const v_n = normal_vecDotN1(n, W.v);\
+	real const C = calc_C(solver, U);\
+	real const C_nLen = C * normal_len(n);\
+	(result)->min = v_n - C_nLen;\
+	(result)->max = v_n + C_nLen;\
 }
 
 //// MODULE_NAME: eigen_forInterface
 
-eigen_t eigen_forInterface(
-	constant solver_t* solver,
-	cons_t UL,
-	cons_t UR,
-	real3 x,
-	normal_t n
-) {
-	prim_t WL = primFromCons(solver, UL, x);
-	real sqrtHL = sqrt(WL.h);
-	real3 vL = WL.v;
-	
-	prim_t WR = primFromCons(solver, UR, x);
-	real sqrtHR = sqrt(WR.h);
-	real3 vR = WR.v;
-
-	real invDenom = 1. / (sqrtHL + sqrtHR);
-	
-	//Roe-averaged
-	real h = sqrtHL * sqrtHR;
-	real3 v = real3_add(
-			real3_real_mul(vL, sqrtHL * invDenom),
-			real3_real_mul(vR, sqrtHR * invDenom));
-
-	//derived:
-	real CSq = solver->gravity * h;
-	real C = sqrt(CSq);
-
-	return (eigen_t){
-		.h = h, 
-		.v = v,
-		.C = C,
-	};
+#define eigen_forInterface(\
+	/*eigen_t * const */result,\
+	/*constant solver_t const * const */solver,\
+	/*cons_t const * const */UL,\
+	/*cons_t const * const */UR,\
+	/*real3 const */pt,\
+	/*normal_t const */n\
+) {\
+	prim_t WL;\
+	primFromCons(&WL, solver, UL, pt);\
+	real const sqrtHL = sqrt(WL.h);\
+	real3 const vL = WL.v;\
+	\
+	prim_t WR;\
+	primFromCons(&WR, solver, UR, pt);\
+	real const sqrtHR = sqrt(WR.h);\
+	real3 const vR = WR.v;\
+	\
+	real const invDenom = 1. / (sqrtHL + sqrtHR);\
+	\
+	/*Roe-averaged:*/\
+	(result)->h = sqrtHL * sqrtHR;\
+	(result)->v = real3_add(\
+		real3_real_mul(vL, sqrtHL * invDenom),\
+		real3_real_mul(vR, sqrtHR * invDenom));\
+\
+	/*derived:*/\
+	real const CSq = solver->gravity * (result)->h;\
+	(result)->C = sqrt(CSq);\
 }
 
 //// MODULE_NAME: eigen_left/rightTransform
 //// MODULE_DEPENDS: waves_t
 
-<?
-local prefix = [[
-	real3 nL = normal_l1(n);
-	real3 nU = normal_u1(n);
-	real nLen = normal_len(n);
-	real nLenSq = nLen * nLen;
-
-	real3 v = eig.v;
-	real h = eig.h;
-	real C = eig.C;
-
-	real3 v_ns = normal_vecDotNs(n, v);
-	real v_n = v_ns.x;
-	real v_n2 = v_ns.y;
-	real v_n3 = v_ns.z;
-]]
-?>
-
-waves_t eigen_leftTransform(
-	constant solver_t* solver,
-	eigen_t eig,
-	cons_t X_,
-	real3 x,
-	normal_t n
-) { 
-	real* X = X_.ptr;
-	<?=prefix?>
-
-	real3 n2U = normal_u2(n);
-	real3 n3U = normal_u3(n);
-
-	//TODO double-check that this is the correct 3D generalization...
-	// seems strange to have an upper dot an upper
-	real vU_dot_n2U = real3_dot(v, n2U);
-	real vU_dot_n3U = real3_dot(v, n3U);
-
-	real C_nLen = C * nLen;
-	real denom = 2. * eig.h * nLenSq;
-	real invDenom = 1. / denom;
-
-	return (waves_t){.ptr={
-		(X[0] * (-C_nLen - v_n) + X[1] * nL.x + X[2] * nL.y + X[3] * nL.z) * invDenom,
-		(X[0] * -vU_dot_n2U + X[1] * n2U.x + X[2] * n2U.y + X[3] * n2U.z) * 2. * invDenom,
-		(X[0] * -vU_dot_n3U + X[1] * n3U.x + X[2] * n3U.y + X[3] * n3U.z) * 2. * invDenom,
-		(X[0] * (C_nLen - v_n) + X[1] * nL.x + X[2] * nL.y + X[3] * nL.z) * invDenom,
-	}};
+#define eigen_leftTransform(\
+	/*waves_t * const */result,\
+	/*constant solver_t const * const */solver,\
+	/*eigen_t const * const */eig,\
+	/*cons_t const * const */X_,\
+	/*real3 const */pt,\
+	/*normal_t const */n\
+) { \
+	real3 const nL = normal_l1(n);\
+	real const nLen = normal_len(n);\
+	real const nLenSq = nLen * nLen;\
+	real3 const v_ns = normal_vecDotNs(n, (eig)->v);\
+	real const v_n = v_ns.x;\
+	real3 const n2U = normal_u2(n);\
+	real3 const n3U = normal_u3(n);\
+\
+	/*\
+	TODO double-check that this is the correct 3D generalization...\
+	 seems strange to have an upper dot an upper\
+	*/\
+	real const vU_dot_n2U = real3_dot((eig)->v, n2U);\
+	real const vU_dot_n3U = real3_dot((eig)->v, n3U);\
+\
+	real const C_nLen = (eig)->C * nLen;\
+	real const denom = 2. * (eig)->h * nLenSq;\
+	real const invDenom = 1. / denom;\
+\
+	(result)->ptr[0] = (\
+			  (X_)->ptr[0] * (-C_nLen - v_n) \
+			+ (X_)->ptr[1] * nL.x \
+			+ (X_)->ptr[2] * nL.y \
+			+ (X_)->ptr[3] * nL.z\
+		) * invDenom;\
+	(result)->ptr[1] = (\
+			  (X_)->ptr[0] * -vU_dot_n2U \
+			+ (X_)->ptr[1] * n2U.x \
+			+ (X_)->ptr[2] * n2U.y \
+			+ (X_)->ptr[3] * n2U.z\
+		) * 2. * invDenom;\
+	(result)->ptr[2] = (\
+			  (X_)->ptr[0] * -vU_dot_n3U \
+			+ (X_)->ptr[1] * n3U.x \
+			+ (X_)->ptr[2] * n3U.y \
+			+ (X_)->ptr[3] * n3U.z\
+		) * 2. * invDenom;\
+	(result)->ptr[3] = (\
+			  (X_)->ptr[0] * (C_nLen - v_n) \
+			+ (X_)->ptr[1] * nL.x \
+			+ (X_)->ptr[2] * nL.y \
+			+ (X_)->ptr[3] * nL.z\
+		) * invDenom;\
 }
 
-cons_t eigen_rightTransform(
-	constant solver_t* solver,
-	eigen_t eig,
-	waves_t X_,
-	real3 x,
-	normal_t n
-) {
-	real* X = X_.ptr;
-	<?=prefix?>
-
-	real invC = 1. / C;
-
-	return (cons_t){.ptr={
-		nLen * h * invC * (X[3] - X[0]),
-		
-		(X[0] + X[3]) * h * nU.x 
-		+ (X[3] - X[0]) * (nLen * h * invC * v.x)
-		+ h * (X[1] * normal_l2x(n) + X[2] * normal_l3x(n)),
-		
-		(X[0] + X[3]) * h * nU.y
-		+ (X[3] - X[0]) * (nLen * h * invC * v.y)
-		+ h * (X[1] * normal_l2y(n) + X[2] * normal_l3y(n)),
-
-		(X[0] + X[3]) * h * nU.z
-		+ (X[3] - X[0]) * (nLen * h * invC * v.z)
-		+ h * (X[1] * normal_l2z(n) + X[2] * normal_l3z(n)),
-	}};
+#define eigen_rightTransform(\
+	/*cons_t * const */result,\
+	/*constant solver_t const * const */solver,\
+	/*eigen_t const * const */eig,\
+	/*waves_t const * const */X_,\
+	/*real3 const */pt,\
+	/*normal_t const */n\
+) {\
+	real3 const nU = normal_u1(n);\
+	real const nLen = normal_len(n);\
+	real const invC = 1. / (eig)->C;\
+\
+	(result)->ptr[0] = \
+		nLen * (eig)->h * invC * ((X_)->ptr[3] - (X_)->ptr[0]);\
+		\
+	(result)->ptr[1] = \
+		((X_)->ptr[0] + (X_)->ptr[3]) * (eig)->h * nU.x \
+		+ ((X_)->ptr[3] - (X_)->ptr[0]) * (nLen * (eig)->h * invC * (eig)->v.x)\
+		+ (eig)->h * ((X_)->ptr[1] * normal_l2x(n) + (X_)->ptr[2] * normal_l3x(n));\
+		\
+	(result)->ptr[2] = \
+		((X_)->ptr[0] + (X_)->ptr[3]) * (eig)->h * nU.y\
+		+ ((X_)->ptr[3] - (X_)->ptr[0]) * (nLen * (eig)->h * invC * (eig)->v.y)\
+		+ (eig)->h * ((X_)->ptr[1] * normal_l2y(n) + (X_)->ptr[2] * normal_l3y(n));\
+\
+	(result)->ptr[3] = \
+		((X_)->ptr[0] + (X_)->ptr[3]) * (eig)->h * nU.z\
+		+ ((X_)->ptr[3] - (X_)->ptr[0]) * (nLen * (eig)->h * invC * (eig)->v.z)\
+		+ (eig)->h * ((X_)->ptr[1] * normal_l2z(n) + (X_)->ptr[2] * normal_l3z(n));\
 }
 
 //// MODULE_NAME: eigen_fluxTransform
 
-cons_t eigen_fluxTransform(
-	constant solver_t* solver,
-	eigen_t eig,
-	cons_t X_,
-	real3 x,
-	normal_t n
-) {
-	real* X = X_.ptr;
-	<?=prefix?>
-	return (cons_t){.ptr={
-		X[1] * nL.x 
-		+ X[2] * nL.y 
-		+ X[3] * nL.z,
-		
-		X[0] * (C * C * nU.x - v.x * v_n)
-		+ X[1] * (v.x * nL.x + v_n)
-		+ X[2] * (v.x * nL.y)
-		+ X[3] * (v.x * nL.z),
-		
-		X[0] * (C * C * nU.y - v.y * v_n)
-		+ X[1] * (v.y * nL.x)
-		+ X[2] * (v.y * nL.y + v_n)
-		+ X[3] * (v.y * nL.z),
-		
-		X[0] * (C * C * nU.z - v.z * v_n)
-		+ X[1] * (v.z * nL.x)
-		+ X[2] * (v.z * nL.y)
-		+ X[3] * (v.z * nL.z + v_n),
-	}};
+#define eigen_fluxTransform(\
+	/*cons_t * const */result,\
+	/*constant solver_t const * const */solver,\
+	/*eigen_t const * const */eig,\
+	/*cons_t const * const */X_,\
+	/*real3 const */pt,\
+	/*normal_t const */n\
+) {\
+	real3 const nL = normal_l1(n);\
+	real3 const nU = normal_u1(n);\
+	real const CSq = (eig)->C * (eig)->C;\
+	real3 const v_ns = normal_vecDotNs(n, (eig)->v);\
+	real const v_n = v_ns.x;\
+\
+	(result)->ptr[0] = \
+		(X_)->ptr[1] * nL.x \
+		+ (X_)->ptr[2] * nL.y \
+		+ (X_)->ptr[3] * nL.z;\
+		\
+	(result)->ptr[1] = \
+		(X_)->ptr[0] * (CSq * nU.x - (eig)->v.x * v_n)\
+		+ (X_)->ptr[1] * ((eig)->v.x * nL.x + v_n)\
+		+ (X_)->ptr[2] * ((eig)->v.x * nL.y)\
+		+ (X_)->ptr[3] * ((eig)->v.x * nL.z);\
+		\
+	(result)->ptr[2] = \
+		(X_)->ptr[0] * (CSq * nU.y - (eig)->v.y * v_n)\
+		+ (X_)->ptr[1] * ((eig)->v.y * nL.x)\
+		+ (X_)->ptr[2] * ((eig)->v.y * nL.y + v_n)\
+		+ (X_)->ptr[3] * ((eig)->v.y * nL.z);\
+		\
+	(result)->ptr[3] = \
+		(X_)->ptr[0] * (CSq * nU.z - (eig)->v.z * v_n)\
+		+ (X_)->ptr[1] * ((eig)->v.z * nL.x)\
+		+ (X_)->ptr[2] * ((eig)->v.z * nL.y)\
+		+ (X_)->ptr[3] * ((eig)->v.z * nL.z + v_n);\
 }
 
 //// MODULE_NAME: eigen_forCell
 
 // used by PLM
-eigen_t eigen_forCell(
-	constant solver_t* solver,
-	cons_t U,
-	real3 x,
-	real3 n
-) {
-	prim_t W = primFromCons(solver, U, x);
-	real CSq = solver->gravity * U.h;
-	real C = sqrt(CSq);
-	return (eigen_t){
-		.h = W.h,
-		.v = W.v,
-		.C = C,
-	};
+#define eigen_forCell(\
+	/*eigen_t * const */result,\
+	/*constant solver_t const * const */solver,\
+	/*cons_t const * const */U,\
+	/*real3 const */pt,\
+	/*real3 const */n\
+) {\
+	prim_t W;\
+	primFromCons(&W, solver, U, pt);\
+	real const CSq = solver->gravity * (U)->h;\
+	real const C = sqrt(CSq);\
+	(result)->h = W.h;\
+	(result)->v = W.v;\
+	(result)->C = C;\
 }
