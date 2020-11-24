@@ -181,6 +181,14 @@ function SRHD:initCodeModule_fluxFromCons() end
 
 SRHD.solverCodeFile = 'hydro/eqn/srhd.cl'
 
+SRHD.predefinedDisplayVars = {
+	'U rho',
+	'U v',
+	'U tau',
+	'U div v',
+	'U curl v',
+}
+
 function SRHD:getDisplayVars()
 	local vars = SRHD.super.getDisplayVars(self)
 	vars:append{
@@ -196,7 +204,8 @@ function SRHD:getDisplayVars()
 	//prim have just been reconstructed from cons
 	//so reconstruct cons from prims again and calculate the difference
 	{
-		<?=eqn.cons_only_t?> U2 = consOnlyFromPrim(solver, *U, x);
+		<?=eqn.cons_only_t?> U2;
+		consOnlyFromPrim(&U2, solver, U, x);
 		value.vreal = 0;
 		for (int j = 0; j < numIntStates; ++j) {
 			value.vreal += fabs(U->ptr[j] - U2.ptr[j]);
@@ -236,12 +245,12 @@ SRHD.eigenVars = {
 
 function SRHD:eigenWaveCode(n, eig, x, waveIndex)
 	if waveIndex == 0 then
-		return '('..eig..').lambdaMin'
+		return '('..eig..')->lambdaMin'
 	elseif waveIndex >= 1 and waveIndex <= 3 then
 		-- v.x because v has been rotated so x points along the normal
-		return '('..eig..').v.x'
+		return '('..eig..')->v.x'
 	elseif waveIndex == 4 then
-		return '('..eig..').lambdaMax'
+		return '('..eig..')->lambdaMax'
 	else
 		error'got a bad waveIndex'
 	end
@@ -253,36 +262,30 @@ end
 function SRHD:consWaveCodePrefix(n, U, x)
 	U = '('..U..')'
 	return self:template([[	
-	real eInt = <?=U?>.eInt;
-	
-	real vSq = coordLenSq(<?=U?>.v, <?=x?>);
-	real P = calc_P(solver, <?=U?>.rho, eInt);
-	real h = calc_h(<?=U?>.rho, P, eInt);
-	real csSq = solver->heatCapacityRatio * P / (<?=U?>.rho * h);
-	real cs = sqrt(csSq);
-	
-	//for the particular direction
-	real vi = normal_vecDotN1(n, <?=U?>.v);
-	real viSq = vi * vi;
-	
-	// Marti 1998 eqn 19
-	// also Marti & Muller 2008 eqn 68
-	// also Font 2008 eqn 106
-	real discr = sqrt((1. - vSq) * (1. - vSq * csSq - viSq * (1. - csSq)));
-	real _srhd_lambdaMin = (vi * (1. - csSq) - cs * discr) / (1. - vSq * csSq);
-	real _srhd_lambdaMax = (vi * (1. - csSq) + cs * discr) / (1. - vSq * csSq);
-	// v.x because v has been rotated so x points along the normal
-	real v_n = <?=U?>.v.x;
+real const eInt = <?=U?>->eInt;
+
+real const vSq = coordLenSq(<?=U?>->v, <?=x?>);
+real const P = calc_P(solver, <?=U?>->rho, eInt);
+real const h = calc_h(<?=U?>->rho, P, eInt);
+real const csSq = solver->heatCapacityRatio * P / (<?=U?>->rho * h);
+real const cs = sqrt(csSq);
+
+/* for the particular direction */
+real const vi = normal_vecDotN1(n, <?=U?>->v);
+real const viSq = vi * vi;
+
+/*  Marti 1998 eqn 19 */
+/*  also Marti & Muller 2008 eqn 68 */
+/*  also Font 2008 eqn 106 */
+real const discr = sqrt((1. - vSq) * (1. - vSq * csSq - viSq * (1. - csSq)));
+real const _srhd_lambdaMin = (vi * (1. - csSq) - cs * discr) / (1. - vSq * csSq);
+real const _srhd_lambdaMax = (vi * (1. - csSq) + cs * discr) / (1. - vSq * csSq);
+/*  v.x because v has been rotated so x points along the normal */
+real const v_n = <?=U?>->v.x;
 ]], {
 		n = n,
 		U = U,
 		x = x,
-		-- extra params either provided or calculated
-		-- TODO I almost need two prefixes ... one for all sides, and one per-side
-		rho = U..'.rho',
-		v = U..'.v',
-		P = U..'.P',
-		eInt = U..'.eInt',
 	})
 end
 
