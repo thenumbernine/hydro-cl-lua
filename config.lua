@@ -621,7 +621,7 @@ self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='euler', wenoMe
 --    but works with RK2-Heun, RK2-Ralston, RK2-TVD, RK3, RK4-3/8ths
 -- Kelvin-Helmholtz works for all borderes freeflow, float precision, 256x256, superbee flux limiter
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='srhd'})))
-self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='srhd'})))
+--self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='srhd'})))
 --self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='srhd', wenoMethod='2010 Shen Zha', order=5})))
 
 -- srhd incompressible
@@ -648,7 +648,7 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn
 --		and works fine with backwards Euler 
 -- when run alongside HD Roe solver, curves don't match (different heat capacity ratios?)
 --		but that could be because of issues with simultaneous solvers.
---self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='mhd'})))
+self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='mhd'})))
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='mhd'})))
 
 -- explodes with Orszag-Tang
