@@ -194,72 +194,67 @@ void calcCellMinMaxEigenvalues(
 //// MODULE_NAME: eigen_left/rightTransform
 //// MODULE_DEPENDS: eigen_t waves_t
 
-#define eigen_leftTransform(
-	/*waves_t * const */result,
-	constant solver_t const * const solver,
-	eigen_t const * const eig,
-	cons_t const * const X,
-	real3 x,
-	normal_t n
-) { 
-	waves_t Y;
-
-	real nLen = normal_len(n);
-	real invDenom = 1. / (nLen * nLen);
-
-	Y.ptr[0] = .5 * invDenom * (
-		X.ptr[0] * nLen
-		+ X.ptr[1] * normal_u1x(n)
-		+ X.ptr[2] * normal_u1y(n)
-		+ X.ptr[3] * normal_u1z(n)
-	);
-	Y.ptr[1] = invDenom * (
-		X.ptr[1] * normal_u2x(n)
-		+ X.ptr[2] * normal_u2y(n)
-		+ X.ptr[3] * normal_u2z(n)
-	);
-	Y.ptr[2] = invDenom * (
-		X.ptr[1] * normal_u3x(n)
-		+ X.ptr[2] * normal_u3y(n)
-		+ X.ptr[3] * normal_u3z(n)
-	);
-	Y.ptr[3] = .5 * invDenom * (
-		-X.ptr[0] * nLen
-		+ X.ptr[1] * normal_u1x(n)
-		+ X.ptr[2] * normal_u1y(n)
-		+ X.ptr[3] * normal_u1z(n)
-	);
-
-	return Y;
+#define eigen_leftTransform(\
+	/*waves_t * const */result,\
+	/*constant solver_t const * const */solver,\
+	/*eigen_t const * const */eig,\
+	/*cons_t const * const */X,\
+	/*real3 const */x,\
+	/*normal_t const */n\
+) { \
+	real const nLen = normal_len(n);\
+	real const invDenom = 1. / (nLen * nLen);\
+	(result)->ptr[0] = .5 * invDenom * (\
+		  (X)->ptr[0] * nLen\
+		+ (X)->ptr[1] * normal_u1x(n)\
+		+ (X)->ptr[2] * normal_u1y(n)\
+		+ (X)->ptr[3] * normal_u1z(n)\
+	);\
+	(result)->ptr[1] = invDenom * (\
+		  (X)->ptr[1] * normal_u2x(n)\
+		+ (X)->ptr[2] * normal_u2y(n)\
+		+ (X)->ptr[3] * normal_u2z(n)\
+	);\
+	(result)->ptr[2] = invDenom * (\
+		  (X)->ptr[1] * normal_u3x(n)\
+		+ (X)->ptr[2] * normal_u3y(n)\
+		+ (X)->ptr[3] * normal_u3z(n)\
+	);\
+	(result)->ptr[3] = .5 * invDenom * (\
+		- (X)->ptr[0] * nLen\
+		+ (X)->ptr[1] * normal_u1x(n)\
+		+ (X)->ptr[2] * normal_u1y(n)\
+		+ (X)->ptr[3] * normal_u1z(n)\
+	);\
 }
 
-cons_t eigen_rightTransform(
-	constant solver_t* solver,
-	eigen_t eig,
-	waves_t X_,
-	real3 x,
-	normal_t n
-) {
-	<?=scalar?>* X = (<?=scalar?>*)X_.ptr;
-	
-	real nLen = normal_len(n);
-
-	cons_t Y;
-	Y.ptr[0] = (X[0] - X[3]) * nLen;
-	Y.ptr[1] = X[0] * normal_l1x(n) 
-			+ X[1] * normal_l2x(n) 
-			+ X[2] * normal_l3x(n) 
-			+ X[3] * normal_l1x(n);
-	Y.ptr[2] = X[0] * normal_l1y(n) 
-			+ X[1] * normal_l2y(n) 
-			+ X[2] * normal_l3y(n) 
-			+ X[3] * normal_l1y(n);
-	Y.ptr[3] = X[0] * normal_l1z(n) 
-			+ X[1] * normal_l2z(n) 
-			+ X[2] * normal_l3z(n) 
-			+ X[3] * normal_l1z(n);
-	
-	return Y;
+#define eigen_rightTransform(\
+	/*cons_t * const */result,\
+	/*constant solver_t const * const */solver,\
+	/*eigen_t const * const */eig,\
+	/*waves_t const * const */X_,\
+	/*real3 const */x,\
+	/*normal_t const */n\
+) {\
+	<?=scalar?>* X = (<?=scalar?>*)(X_)->ptr;\
+	real nLen = normal_len(n);\
+	(result)->ptr[0] = \
+		  (X[0] - X[3]) * nLen;\
+	(result)->ptr[1] = \
+		  X[0] * normal_l1x(n) \
+		+ X[1] * normal_l2x(n) \
+		+ X[2] * normal_l3x(n) \
+		+ X[3] * normal_l1x(n);\
+	(result)->ptr[2] = \
+		  X[0] * normal_l1y(n) \
+		+ X[1] * normal_l2y(n) \
+		+ X[2] * normal_l3y(n) \
+		+ X[3] * normal_l1y(n);\
+	(result)->ptr[3] = \
+		  X[0] * normal_l1z(n) \
+		+ X[1] * normal_l2z(n) \
+		+ X[2] * normal_l3z(n) \
+		+ X[3] * normal_l1z(n);\
 }
 
 //// MODULE_NAME: eigen_fluxTransform
@@ -268,6 +263,7 @@ cons_t eigen_rightTransform(
 // but since eig is empty, we can define eigen_fluxTransform with fluxFromCons
 #define eigen_fluxTransform(resultFlux, solver, eig, X, x, n) fluxFromCons(resultFlux, solver, X, x, n)
 
+<? if false then ?>
 //// MODULE_NAME: addSource
 
 kernel void addSource(
@@ -309,5 +305,6 @@ kernel void addSource(
 		),
 		real3_real_mul(partial_alpha_l, U->Pi)
 	);
-#endif
 }
+#endif
+<? end ?>
