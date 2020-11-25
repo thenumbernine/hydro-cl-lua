@@ -126,9 +126,9 @@ function MHD:init(args)
 				-- div m = (m dot grad ρ)/ρ 
 				chargeCode = self:template[[
 	<? for j=0,solver.dim-1 do ?>{
-		global const <?=eqn.cons_t?>* Ujm = U - solver->stepsize.s<?=j?>;
-		global const <?=eqn.cons_t?>* Ujp = U + solver->stepsize.s<?=j?>;
-		real drho_dx = (Ujp->rho - Ujm->rho) * (.5 / solver->grid_dx.s<?=j?>);
+		global <?=eqn.cons_t?> const * const Ujm = U - solver->stepsize.s<?=j?>;
+		global <?=eqn.cons_t?> const * const Ujp = U + solver->stepsize.s<?=j?>;
+		real const drho_dx = (Ujp->rho - Ujm->rho) * (.5 / solver->grid_dx.s<?=j?>);
 		source -= drho_dx * U->m.s<?=j?> / U->rho;
 	}<? end ?>
 ]],
