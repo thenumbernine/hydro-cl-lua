@@ -176,6 +176,10 @@ function MHD:initCodeModules()
 		-- only generated for cl, not for ffi cdef
 		headercode = 'typedef '..self.roe_t..' roe_t;',
 	}
+	
+	-- where do I put this to make it the default value for MHD solvers,
+	-- but not override a value set by the init state?
+	self.guiVars.coulomb.value = math.sqrt(self.guiVars.kilogram.value * self.guiVars.meter.value / self.guiVars.mu0.value)
 end
 
 -- don't use default
@@ -197,14 +201,6 @@ function MHD:getModuleDepends_displayCode()
 end
 
 MHD.needsInitDerivs = true
-
-function MHD:getInitCondCode()
-	-- where do I put this to make it the default value for MHD solvers,
-	-- but not override a value set by the init state?
-	self.guiVars.coulomb.value = math.sqrt(self.guiVars.kilogram.value * self.guiVars.meter.value / self.guiVars.mu0.value)
-
-	return MHD.super.getInitCondCode(self)
-end
 
 MHD.solverCodeFile = 'hydro/eqn/glm-mhd.cl'
 

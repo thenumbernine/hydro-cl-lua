@@ -1627,7 +1627,8 @@ end
 Should initCond provide a metric in cartesian, or in the background metric?
 I'll say Cartesian for now, and then transform them using the rescaling.
 --]]
-function BSSNOKFiniteDifferenceEquation:getInitCondCode()
+function BSSNOKFiniteDifferenceEquation:initCodeModules()
+error'move the code gen to the cl file module'	
 	-- do this first to initialize the expression fields
 	local env = self:getEnv()
 	local initCond = self.initCond
@@ -1717,17 +1718,13 @@ kernel void applyInitCond(
 	U->H = 0.;
 	U->M_U = real3_zero;
 }
-]], 	setmetatable({
-			initCond = initCond,
-		}, {
-			__index = env,
-		}))
+]], 	env)
 	end
 	
 	-- if we're using a SENR init cond then init the components directly
 	-- TODO port these from sympy into symmath 
 	if initCond.useBSSNVars then
-		return self:template([=[
+		return self:template[=[
 kernel void applyInitCond(
 	constant <?=solver.solver_t?>* solver,
 	constant <?=solver.initCond_t?>* initCond,
@@ -1777,7 +1774,7 @@ kernel void applyInitCond(
 	cplx Pi = cplx_zero;
 <? end ?>
 
-	<?=code?>
+	<?=initCode()?>
 
 	//bssn vars - use these for init.senr:
 	U->alpha = alpha;
@@ -1802,9 +1799,7 @@ kernel void applyInitCond(
 	U->Pi = Pi;
 <? end ?>
 }
-]=], 	{
-			code = initCond:getInitCondCode(self.solver),
-		})
+]=]
 	end
 
 	self.needsInitDerivs = true
@@ -1836,7 +1831,7 @@ kernel void applyInitCond(
 	sym3 K_ll = sym3_zero;
 	real rho = 0.;
 
-	<?=code?>
+	<?=initCode()?>
 	
 	//rescale from cartesian to spherical
 	gamma_ll = sym3_rescaleToCoord_LL(gamma_ll, x);
@@ -1897,11 +1892,7 @@ kernel void initDerivs(
 <?=assign_real3'LambdaBar0_U'?>
 	U->LambdaBar_U = LambdaBar0_U;
 }
-]=], setmetatable({
-		code = initCond:getInitCondCode(self.solver),
-	}, {
-		__index = env,
-	}))
+]=], env)
 end
 
 BSSNOKFiniteDifferenceEquation.solverCodeFile = 'hydro/eqn/bssnok-fd-sym.cl'
