@@ -565,104 +565,104 @@ static inline real3 calc_CA(
 	/*waves_t * const */result,\
 	/*constant solver_t const * const */solver,\
 	/*eigen_t const * const */eig,\
-	/*cons_t const * const */inputU_,\
+	/*cons_t const * const */inputU,\
 	/*real3 const */pt,\
 	/*normal_t const */n\
 ) {\
 	/* rotate vector components to align with normal */\
-	real3 const Um = normal_vecDotNs(n, (inputU_)->m);\
-	real3 const UB = normal_vecDotNs(n, (inputU_)->B);\
+	real3 const Um = normal_vecDotNs(n, (inputU)->m);\
+	real3 const UB = normal_vecDotNs(n, (inputU)->B);\
 \
 	real const gamma = solver->heatCapacityRatio;\
 	real const gamma_1 = gamma - 1.;\
 	real const gamma_2 = gamma - 2.;\
 \
 <? for _,var in ipairs(eqn.eigenVars) do --\
-?> 	<?=var.type or 'real'?> <?=var.name?> = (eig)-><?=var.name?>;\
+?> 	<?=var.type?> const <?=var.name?> = (eig)-><?=var.name?>;\
 <? end ?>\
 \
 <? print("you can't use coordLenSq (which uses g_ij) after rotating coordinates") ?>\
 	real const vSq = coordLenSq(v, pt);\
 \
 	/*  left eigenvectors */\
-	real norm = .5 / (eig)->aTildeSq;\
+	real const norm = .5 / (eig)->aTildeSq;\
 	real const Cff = norm * alphaF * Cf;\
 	real const Css = norm * alphaS * Cs;\
-	Qf = Qf * norm;\
-	Qs = Qs * norm;\
+	real const Qf2 = Qf * norm;\
+	real const Qs2 = Qs * norm;\
 	real const AHatF = norm * Af * rho;\
 	real const AHatS = norm * As * rho;\
 	real const afpb = norm * Af * BStarPerpLen;\
 	real const aspb = norm * As * BStarPerpLen;\
 \
-	norm = norm * gamma_1;\
-	alphaF = alphaF * norm;\
-	alphaS = alphaS * norm;\
+	real const norm2 = norm * gamma_1;\
+	real const alphaF2 = alphaF * norm2;\
+	real const alphaS2 = alphaS * norm2;\
 	real const QStarY = betaStarY/betaStarSq;\
 	real const QStarZ = betaStarZ/betaStarSq;\
 	real const vqstr = (v.y * QStarY + v.z * QStarZ);\
-	norm = norm * 2.;\
+	real norm3 = norm2 * 2.;\
 \
-	real const l16 = AHatS * QStarY - alphaF * B.y;\
-	real const l17 = AHatS * QStarZ - alphaF * B.z;\
+	real const l16 = AHatS * QStarY - alphaF2 * B.y;\
+	real const l17 = AHatS * QStarZ - alphaF2 * B.z;\
 	real const l21 = .5 * (v.y * betaZ - v.z * betaY);\
 	real const l23 = .5 * betaZ;\
 	real const l24 = .5 * betaY;\
 	real const l26 = -.5 * sqrtRho * betaZ * sbx;\
 	real const l27 = .5 * sqrtRho * betaY * sbx;\
-	real const l36 = -AHatF * QStarY - alphaS * B.y;\
-	real const l37 = -AHatF * QStarZ - alphaS * B.z;\
+	real const l36 = -AHatF * QStarY - alphaS2 * B.y;\
+	real const l37 = -AHatF * QStarZ - alphaS2 * B.z;\
 \
 	(result)->ptr[0] = \
-		  (inputU_)->rho * (alphaF * (vSq - (eig)->hHydro) + Cff * (Cf + v.x) - Qs * vqstr - aspb) \
-		+ Um.x * (-alphaF * v.x - Cff)\
-		+ Um.y * (-alphaF * v.y + Qs * QStarY)\
-		+ Um.z * (-alphaF * v.z + Qs * QStarZ)\
-		+ (inputU_)->ETotal * alphaF\
+		  (inputU)->rho * (alphaF2 * (vSq - (eig)->hHydro) + Cff * (Cf + v.x) - Qs2 * vqstr - aspb) \
+		+ Um.x * (-alphaF2 * v.x - Cff)\
+		+ Um.y * (-alphaF2 * v.y + Qs2 * QStarY)\
+		+ Um.z * (-alphaF2 * v.z + Qs2 * QStarZ)\
+		+ (inputU)->ETotal * alphaF2\
 		+ UB.y * l16\
 		+ UB.z * l17;\
 	(result)->ptr[1] = \
-		  (inputU_)->rho * l21\
+		  (inputU)->rho * l21\
 		+ Um.y * l23\
 		+ Um.z * l24\
 		+ UB.y * l26\
 		+ UB.z * l27;\
 	(result)->ptr[2] = \
-		  (inputU_)->rho * (alphaS * (vSq - (eig)->hHydro) + Css * (Cs + v.x) + Qf * vqstr + afpb)\
-		+ Um.x * (-alphaS * v.x - Css)\
-		+ Um.y * (-alphaS * v.y - Qf * QStarY)\
-		+ Um.z * (-alphaS * v.z - Qf * QStarZ)\
-		+ (inputU_)->ETotal * alphaS\
+		  (inputU)->rho * (alphaS2 * (vSq - (eig)->hHydro) + Css * (Cs + v.x) + Qf2 * vqstr + afpb)\
+		+ Um.x * (-alphaS2 * v.x - Css)\
+		+ Um.y * (-alphaS2 * v.y - Qf2 * QStarY)\
+		+ Um.z * (-alphaS2 * v.z - Qf2 * QStarZ)\
+		+ (inputU)->ETotal * alphaS2\
 		+ UB.y * l36\
 		+ UB.z * l37;\
 	(result)->ptr[3] = \
-		  (inputU_)->rho * (1. - norm * (.5 * vSq - gamma_2 * X / gamma_1))\
-		+ Um.x * norm*v.x\
-		+ Um.y * norm*v.y\
-		+ Um.z * norm*v.z\
-		+ (inputU_)->ETotal * -norm\
-		+ UB.y * norm*B.y\
-		+ UB.z * norm*B.z;\
+		  (inputU)->rho * (1. - norm3 * (.5 * vSq - gamma_2 * X / gamma_1))\
+		+ Um.x * norm3*v.x\
+		+ Um.y * norm3*v.y\
+		+ Um.z * norm3*v.z\
+		+ (inputU)->ETotal * -norm3\
+		+ UB.y * norm3*B.y\
+		+ UB.z * norm3*B.z;\
 	(result)->ptr[4] = \
-		  (inputU_)->rho * (alphaS * (vSq - (eig)->hHydro) + Css * (Cs - v.x) - Qf * vqstr + afpb)\
-		+ Um.x * (-alphaS * v.x + Css)\
-		+ Um.y * (-alphaS * v.y + Qf * QStarY)\
-		+ Um.z * (-alphaS * v.z + Qf * QStarZ)\
-		+ (inputU_)->ETotal * alphaS\
+		  (inputU)->rho * (alphaS2 * (vSq - (eig)->hHydro) + Css * (Cs - v.x) - Qf2 * vqstr + afpb)\
+		+ Um.x * (-alphaS2 * v.x + Css)\
+		+ Um.y * (-alphaS2 * v.y + Qf2 * QStarY)\
+		+ Um.z * (-alphaS2 * v.z + Qf2 * QStarZ)\
+		+ (inputU)->ETotal * alphaS2\
 		+ UB.y * l36\
 		+ UB.z * l37;\
 	(result)->ptr[5] = \
-		  (inputU_)->rho * -l21\
+		  (inputU)->rho * -l21\
 		+ Um.y * -l23\
 		+ Um.z * -l24\
 		+ UB.y * l26\
 		+ UB.z * l27;\
 	(result)->ptr[6] = \
-		  (inputU_)->rho * (alphaF * (vSq - (eig)->hHydro) + Cff * (Cf - v.x) + Qs * vqstr - aspb)\
-		+ Um.x * (-alphaF * v.x + Cff)\
-		+ Um.y * (-alphaF * v.y - Qs * QStarY)\
-		+ Um.z * (-alphaF * v.z - Qs * QStarZ)\
-		+ (inputU_)->ETotal * alphaF\
+		  (inputU)->rho * (alphaF2 * (vSq - (eig)->hHydro) + Cff * (Cf - v.x) + Qs2 * vqstr - aspb)\
+		+ Um.x * (-alphaF2 * v.x + Cff)\
+		+ Um.y * (-alphaF2 * v.y - Qs2 * QStarY)\
+		+ Um.z * (-alphaF2 * v.z - Qs2 * QStarZ)\
+		+ (inputU)->ETotal * alphaF2\
 		+ UB.y * l16\
 		+ UB.z * l17;\
 }
@@ -680,7 +680,7 @@ static inline real3 calc_CA(
 	real const gamma_2 = gamma - 2.;\
 \
 <? for _,var in ipairs(eqn.eigenVars) do --\
-?> 	<?=var.type or "real"?> <?=var.name?> = (eig)-><?=var.name?>;\
+?> 	<?=var.type?> const <?=var.name?> = (eig)-><?=var.name?>;\
 <? end ?>\
 \
 	real const vSq = coordLenSq(v, pt);\
@@ -775,13 +775,13 @@ static inline real3 calc_CA(
 	/*cons_t * const */result,\
 	/*constant solver_t const * const */solver,\
 	/*eigen_t const * const */eig,\
-	/*cons_t const * const */inputU_,\
+	/*cons_t const * const */inputU,\
 	/*real3 const */pt,\
 	/*normal_t const */n\
 ) {\
 	/* rotate vector components to align with normal */\
-	real3 const Um = normal_vecDotNs(n, (inputU_)->m);\
-	real3 const UB = normal_vecDotNs(n, (inputU_)->B);\
+	real3 const Um = normal_vecDotNs(n, (inputU)->m);\
+	real3 const UB = normal_vecDotNs(n, (inputU)->B);\
 \
 	real const gamma = solver->heatCapacityRatio;\
 	real const gamma_1 = gamma - 1.;\
@@ -789,7 +789,7 @@ static inline real3 calc_CA(
 	real const gamma_3 = gamma - 3.;\
 \
 <? for _,var in ipairs(eqn.eigenVars) do --\
-?> 	<?=var.type or "real"?> <?=var.name?> = (eig)-><?=var.name?>;\
+?> 	<?=var.type?> const <?=var.name?> = (eig)-><?=var.name?>;\
 <? end ?>\
 \
 	real const _1_rho = 1. / rho;\
@@ -801,41 +801,41 @@ static inline real3 calc_CA(
 	(result)->rho = Um.x;\
 	real3 resultm;\
 	resultm.x =\
-		  (inputU_)->rho * (-v.x*v.x + .5*gamma_1*vSq - gamma_2*X)\
+		  (inputU)->rho * (-v.x*v.x + .5*gamma_1*vSq - gamma_2*X)\
 		+ Um.x * -gamma_3*v.x\
 		+ Um.y * -gamma_1*v.y\
 		+ Um.z * -gamma_1*v.z\
-		+ (inputU_)->ETotal * gamma_1\
+		+ (inputU)->ETotal * gamma_1\
 		+ UB.y * -gamma_2*Y*B.y\
 		+ UB.z * -gamma_2*Y*B.z;\
 	resultm.y =\
-		  (inputU_)->rho * -v.x*v.y\
+		  (inputU)->rho * -v.x*v.y\
 		+ Um.x * v.y\
 		+ Um.y * v.x\
 		+ UB.y * -B.x;\
 	resultm.z =\
-		  (inputU_)->rho * -v.x*v.z\
+		  (inputU)->rho * -v.x*v.z\
 		+ Um.x * v.z\
 		+ Um.z * v.x\
 		+ UB.z * -B.x;\
 	(result)->m = normal_vecFromNs(n, resultm);\
 	(result)->ETotal =\
-		  (inputU_)->rho * (v.x*(.5*gamma_1*vSq - hTotal) + B.x*BDotV * _1_rho)\
+		  (inputU)->rho * (v.x*(.5*gamma_1*vSq - hTotal) + B.x*BDotV * _1_rho)\
 		+ Um.x * (-gamma_1*v.x*v.x + hTotal - B.x*B.x * _1_rho)\
 		+ Um.y * (-gamma_1*v.x*v.y - B.x*B.y * _1_rho)\
 		+ Um.z * (-gamma_1*v.x*v.z - B.x*B.z * _1_rho)\
-		+ (inputU_)->ETotal * gamma*v.x\
+		+ (inputU)->ETotal * gamma*v.x\
 		+ UB.y * (-gamma_2*Y*B.y*v.x - B.x*v.y)\
 		+ UB.z * (-gamma_2*Y*B.z*v.x - B.x*v.z);\
 	real3 resultB;\
 	resultB.x = 0;\
 	resultB.y =\
-		  (inputU_)->rho * (B.x*v.y - B.y*v.x) * _1_rho\
+		  (inputU)->rho * (B.x*v.y - B.y*v.x) * _1_rho\
 		+ Um.x * B.y * _1_rho\
 		+ Um.y * -B.x * _1_rho\
 		+ UB.y * v.x;\
 	resultB.z =\
-		  (inputU_)->rho * (B.x*v.z - B.z*v.x) * _1_rho\
+		  (inputU)->rho * (B.x*v.z - B.z*v.x) * _1_rho\
 		+ Um.x * B.z * _1_rho\
 		+ Um.z * -B.x * _1_rho\
 		+ UB.z * v.x;\
