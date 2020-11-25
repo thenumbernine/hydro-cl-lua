@@ -245,7 +245,7 @@ local args = {
 	
 	-- states for ideal MHD or two-fluid (not two-fluid-separate)
 	--initCond = 'Brio-Wu',
-	initCond = 'Orszag-Tang',
+	--initCond = 'Orszag-Tang',
 	--initCond = 'MHD rotor',
 	--initCond = 'spinning magnetic fluid',
 	--initCond = 'magnetic fluid',
@@ -298,7 +298,7 @@ local args = {
 
 
 	-- Maxwell:
-	--initCond = 'Maxwell default',
+	initCond = 'Maxwell default',
 	--initCond = 'Maxwell empty waves',
 	--initCond = 'Maxwell scattering around cylinder',
 	--initCond = 'Maxwell scattering around pyramid',
@@ -661,7 +661,7 @@ self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='euler', wenoMe
 
 
 -- eqn.useFixedCh == false is failing
-self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='glm-mhd'})))
+--self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='glm-mhd'})))
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='glm-mhd'})))
 --self.solvers:insert(require 'hydro.solver.fdsolver'(table(args, {eqn='glm-mhd'})))
 --self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='glm-mhd', wenoMethod='1996 Jiang Shu', order=5})))
@@ -673,7 +673,7 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn
 -- Maxwell
 
 
---self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='maxwell'})))
+self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='maxwell'})))
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='maxwell'})))
 --self.solvers:insert(require 'hydro.solver.fdsolver'(table(args, {eqn='maxwell'})))
 --self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='maxwell', wenoMethod='1996 Jiang Shu', order=5})))

@@ -1,5 +1,5 @@
 //// MODULE_NAME: calcFluxForInterface
-//// MODULE_DEPENDS: solver.macros math eqn.waveCode fluxLimiter eigen_forInterface eigen_left/rightTransform
+//// MODULE_DEPENDS: solver.macros math eqn.waveCode fluxLimiter eigen_forInterface eigen_left/rightTransform waves_t
 
 <? if eqn.roeUseFluxFromCons then 
 -- this was inline'd before I made the function into a giant macro, then I can't use the //// comments to inline anymore so TODO change the MODULE_ markup to handle /* */ instead/aswell?
