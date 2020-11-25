@@ -14,7 +14,7 @@ end
 
 function TwoFluidSelfGrav:getPoissonDivCode()
 	return [[
-	source = 4. * M_PI * calc_rho_from_U(*U)
+	source = 4. * M_PI * calc_rho_from_U(U)
 		* solver->gravitationalConstant / unit_m3_per_kg_s2;	//'G'
 ]]
 end

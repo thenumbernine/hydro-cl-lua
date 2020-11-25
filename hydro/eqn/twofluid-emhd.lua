@@ -15,7 +15,6 @@ I could work around this by scaling down the Maxwell eigenvalues by sqrt(det(g))
  then calcDeriv will scale all variables back up -- and the Maxwell ones will be identity weighted once again.
  then in the post-flux code, transform D and B by g_ij
  and in the source terms, add to ion_ and elec_ m^i connection values
-
 --]]
 local class = require 'ext.class'
 local table = require 'ext.table'
@@ -228,11 +227,12 @@ kernel void calcDT(
 	real eps = solver->sqrt_eps * solver->sqrt_eps / unit_C2_s2_per_kg_m3;
 	real mu = solver->sqrt_mu * solver->sqrt_mu / unit_kg_m_per_C2;
 
-	prim_t W = primFromCons(solver, *U, x);
+	prim_t W;
+	primFromCons(&W, solver, U, x);
 	real lHat_ion = normalizedIonLarmorRadius;
 	real lHat_elec = lHat_ion / solver->ionElectronMassRatio;
 <? for _,fluid in ipairs(eqn.fluids) do ?>
-	real EInt_<?=fluid?> = calc_<?=fluid?>_EInt(solver, W);
+	real EInt_<?=fluid?> = calc_<?=fluid?>_EInt(solver, &W);
 	real LorentzForceSq_<?=fluid?> = coordLenSq(
 		real3_add(
 			real3_real_mul(W.D, 1. / eps),
@@ -298,10 +298,10 @@ function TwoFluidEMHD:getDisplayVars()
 		vars:append{
 			{name=fluid..' v', code='value.vreal3 = W.'..fluid..'_v;', type='real3', units='m/s'},
 			{name=fluid..' P', code='value.vreal = W.'..fluid..'_P;', units='kg/(m*s^2)'},
-			{name=fluid..' eInt', code='value.vreal = calc_'..fluid..'_eInt(solver, W);', units='m^2/s^2'},
-			{name=fluid..' eKin', code='value.vreal = calc_'..fluid..'_eKin(W, x);', units='m^2/s^2'},
-			{name=fluid..' EInt', code='value.vreal = calc_'..fluid..'_EInt(solver, W);'},
-			{name=fluid..' EKin', code='value.vreal = calc_'..fluid..'_EKin(W, x);'},
+			{name=fluid..' eInt', code='value.vreal = calc_'..fluid..'_eInt(solver, &W);', units='m^2/s^2'},
+			{name=fluid..' eKin', code='value.vreal = calc_'..fluid..'_eKin(&W, x);', units='m^2/s^2'},
+			{name=fluid..' EInt', code='value.vreal = calc_'..fluid..'_EInt(solver, &W);'},
+			{name=fluid..' EKin', code='value.vreal = calc_'..fluid..'_EKin(&W, x);'},
 			{name=fluid..' ETotal', code='value.vreal = U->'..fluid..'_ETotal;'},
 			{name=fluid..' S', code='value.vreal = W.'..fluid..'_P / pow(W.'..fluid..'_rho, (real)solver->heatCapacityRatio);'},
 			{name=fluid..' H', code='value.vreal = calc_H(solver, W.'..fluid..'_P);'},
@@ -332,19 +332,19 @@ function TwoFluidEMHD:getDisplayVars()
 	vars:append{
 		{
 			name = 'EField',
-			code = self:template[[	value.vreal3 = calc_EField(solver, *U);]],
+			code = self:template[[	value.vreal3 = calc_EField(solver, U);]],
 			type = 'real3',
 			units = '(kg*m)/(C*s)',
 		},
 		{
 			name = 'HField',
-			code = self:template[[	value.vreal3 = calc_HField(solver, *U);]],
+			code = self:template[[	value.vreal3 = calc_HField(solver, U);]],
 			type = 'real3',
 			units = 'C/(m*s)',
 		},
 		{
 			name = 'SField',
-			code = self:template[[	value.vreal3 = real3_cross(calc_EField(solver, *U), calc_HField(solver, *U));]], 
+			code = self:template[[	value.vreal3 = real3_cross(calc_EField(solver, U), calc_HField(solver, U));]], 
 			type = 'real3',
 			units = 'kg/s^3',
 		},
@@ -358,7 +358,7 @@ function TwoFluidEMHD:getDisplayVars()
 		},
 		{
 			name = 'EPot',
-			code = 'value.vreal = calc_rho_from_U(*U) * U->ePot;', 
+			code = 'value.vreal = calc_rho_from_U(U) * U->ePot;', 
 			units='kg/(m*s^2)',
 		},
 		{
@@ -396,8 +396,8 @@ TwoFluidEMHD.eigenVars = eigenVars
 function TwoFluidEMHD:eigenWaveCodePrefix(n, eig, x)
 	return self:template([[
 <? for i,fluid in ipairs(fluids) do ?>
-	real <?=fluid?>_Cs_nLen = <?=eig?>.<?=fluid?>_Cs * normal_len(<?=n?>);
-	real <?=fluid?>_v_n = normal_vecDotN1(n, <?=eig?>.<?=fluid?>_v);
+real const <?=fluid?>_Cs_nLen = <?=eig?>-><?=fluid?>_Cs * normal_len(<?=n?>);
+real const <?=fluid?>_v_n = normal_vecDotN1(n, <?=eig?>-><?=fluid?>_v);
 <? end ?>
 ]], {
 		x = x,
@@ -440,27 +440,28 @@ end
 -- dt < sqrt( E_alpha,i / rho_alpha,i) * |lHat_r,alpha| sqrt(2) / |E_i + v_alpha,i x B_i|
 function TwoFluidEMHD:consWaveCodePrefix(n, U, x)
 	return self:template([[
-	<?=eqn.prim_t?> W = primFromCons(solver, <?=U?>, <?=x?>);
+<?=eqn.prim_t?> W;
+primFromCons(&W, solver, <?=U?>, <?=x?>);
 
 <? if eqn.implicitEMIntegration then 	--ignoring EM wavespeed	?>	
-	real consWaveCode_lambdaMax = -INFINITY;
+real consWaveCode_lambdaMax = -INFINITY;
 <? else 								--using EM wavespeed ?>
-	real consWaveCode_lambdaMax = max(
-			max(
-				solver->divPsiWavespeed,
-				solver->divPhiWavespeed
-			), 
-		solver->speedOfLight
-	) / unit_m_per_s;
+real consWaveCode_lambdaMax = max(
+		max(
+			solver->divPsiWavespeed,
+			solver->divPhiWavespeed
+		), 
+	solver->speedOfLight
+) / unit_m_per_s;
 <? end ?>
 
-	real consWaveCode_lambdaMin = -consWaveCode_lambdaMax;
+real consWaveCode_lambdaMin = -consWaveCode_lambdaMax;
 
 <? for _,fluid in ipairs(eqn.fluids) do
 ?>	real <?=fluid?>_Cs = calc_<?=fluid?>_Cs(solver, &W);
-	real <?=fluid?>_Cs_nLen = <?=fluid?>_Cs * normal_len(<?=n?>);
-	consWaveCode_lambdaMin = min(consWaveCode_lambdaMin, normal_vecDotN1(n, W.<?=fluid?>_v) - <?=fluid?>_Cs_nLen);
-	consWaveCode_lambdaMax = max(consWaveCode_lambdaMax, normal_vecDotN1(n, W.<?=fluid?>_v) + <?=fluid?>_Cs_nLen);
+real <?=fluid?>_Cs_nLen = <?=fluid?>_Cs * normal_len(<?=n?>);
+consWaveCode_lambdaMin = min(consWaveCode_lambdaMin, normal_vecDotN1(n, W.<?=fluid?>_v) - <?=fluid?>_Cs_nLen);
+consWaveCode_lambdaMax = max(consWaveCode_lambdaMax, normal_vecDotN1(n, W.<?=fluid?>_v) + <?=fluid?>_Cs_nLen);
 <? end
 ?>
 
