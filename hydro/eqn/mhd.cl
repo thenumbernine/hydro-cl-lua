@@ -94,13 +94,29 @@
 //// MODULE_NAME: cons_rotateFrom
 //// MODULE_DEPENDS: cons_t normal_t
 
+//TODO don't call this.
+//instead separate out the vectors and rotate those vars inline, and use the orig struct for the rest.
+//but this might require picking apart the individual fields of calcRoeValues
+// or at least providing separate overrides of the vector components
+
 //align from vector coordinates to the normal basis
-cons_t cons_rotateFrom(cons_t U, normal_t n) {
+static inline cons_t cons_rotateFrom(cons_t U, normal_t n) {
 	U.m = normal_vecDotNs(n, U.m);
 	U.B = normal_vecDotNs(n, U.B);
 	return U;
 }
 
+//// MODULE_NAME: prim_rotateFrom
+//// MODULE_DEPENDS: prim_t normal_t
+
+//TODO also don't call this.
+
+//align from vector coordinates to the normal basis
+static inline prim_t prim_rotateFrom(prim_t W, normal_t n) {
+	W.v = normal_vecDotNs(n, W.v);
+	W.B = normal_vecDotNs(n, W.B);
+	return W;
+}
 //// MODULE_NAME: cons_rotateTo
 //// MODULE_DEPENDS: cons_t normal_t
 

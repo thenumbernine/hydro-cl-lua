@@ -85,7 +85,7 @@ local args = {
 			},
 			['Intel(R) OpenCL HD Graphics/Intel(R) Gen9 HD Graphics NEO'] = {
 				{600,1,1},
-				{256,256,1},
+				{128,128,1},
 				
 				-- for 11th WENO (2010 Shen Zha) once we reduce size below 6,6 it breaks
 				-- so TODO something about boundary conditions on WENO or something ... maybe an error
@@ -212,7 +212,7 @@ local args = {
 	--initCond = 'linear',
 	--initCond = 'gaussian',
 	--initCond = 'advect wave',
-	initCond = 'sphere',
+	--initCond = 'sphere',
 	--initCond = 'spiral',
 	--initCond = 'rarefaction wave',
 	--initCond = 'Bessel',
@@ -245,7 +245,7 @@ local args = {
 	
 	-- states for ideal MHD or two-fluid (not two-fluid-separate)
 	--initCond = 'Brio-Wu',
-	--initCond = 'Orszag-Tang',
+	initCond = 'Orszag-Tang',
 	--initCond = 'MHD rotor',
 	--initCond = 'spinning magnetic fluid',
 	--initCond = 'magnetic fluid',
