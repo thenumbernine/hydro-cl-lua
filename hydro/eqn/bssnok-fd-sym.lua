@@ -1623,6 +1623,7 @@ end)	-- time()
 	return self.env
 end
 
+-- TODO move all this to bssnok-fd-sym.cl
 --[[
 Should initCond provide a metric in cartesian, or in the background metric?
 I'll say Cartesian for now, and then transform them using the rescaling.
@@ -1802,7 +1803,6 @@ kernel void applyInitCond(
 ]=]
 	end
 
-	self.needsInitDerivs = true
 	return template([=[
 kernel void applyInitCond(
 	constant <?=solver.solver_t?>* solver,
@@ -1869,6 +1869,9 @@ kernel void applyInitCond(
 	U->H = 0.;
 	U->M_U = real3_zero;
 }
+
+//// MODULE_NAME: initDerivs
+//// MODULE_DEPENDS: solver_t cons_t cell_t SETBOUNDS numGhost
 
 //after popularing gammaBar_ll, use its finite-difference derivative to initialize LambdaBar_u
 //TODO do this symbolically.  That's what I originally did, but symbolic calculations were getting complex

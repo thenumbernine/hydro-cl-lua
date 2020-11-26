@@ -175,6 +175,9 @@ end
 	consFromPrim(UBuf + index, solver, &W, x);
 }
 
+//// MODULE_NAME: initDerivs
+//// MODULE_DEPENDS: solver_t cons_t cell_t SETBOUNDS numGhost
+
 kernel void initDerivs(
 	constant solver_t const * const solver,
 	global cons_t * const UBuf,

@@ -162,6 +162,9 @@ kernel void applyInitCond(
 	U->M_u = real3_zero;
 }
 
+//// MODULE_NAME: initDerivs
+//// MODULE_DEPENDS: solver_t cons_t cell_t SETBOUNDS numGhost
+
 //after popularing gammaBar_ll, use its finite-difference derivative to initialize connBar_u
 kernel void initDerivs(
 	constant <?=solver.solver_t?>* solver,

@@ -115,8 +115,6 @@ end
 -- don't use eqn.einstein:
 function ADM_BonaMasso_1D_1997Alcubierre:createDisplayComponents() end
 
-ADM_BonaMasso_1D_1997Alcubierre.needsInitDerivs = true
-
 ADM_BonaMasso_1D_1997Alcubierre.solverCodeFile = 'hydro/eqn/adm1d_v2.cl'
 
 function ADM_BonaMasso_1D_1997Alcubierre:getDisplayVars()

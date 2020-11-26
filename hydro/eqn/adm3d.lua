@@ -244,9 +244,6 @@ function ADM_BonaMasso_3D:getModuleDepends_displayCode()
 	}
 end
 
--- always true, except for initAnalytical, but I don't have that coded yet
-ADM_BonaMasso_3D.needsInitDerivs = true
-
 ADM_BonaMasso_3D.solverCodeFile = 'hydro/eqn/adm3d.cl'
 
 ADM_BonaMasso_3D.predefinedDisplayVars = {

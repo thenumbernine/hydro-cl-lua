@@ -71,8 +71,6 @@ end
 -- don't use eqn.einstein:
 function ADM_BonaMasso_1D_2008Alcubierre:createDisplayComponents() end
 
-ADM_BonaMasso_1D_2008Alcubierre.needsInitDerivs = true
-
 ADM_BonaMasso_1D_2008Alcubierre.solverCodeFile = 'hydro/eqn/adm1d_v1.cl'
 
 function ADM_BonaMasso_1D_2008Alcubierre:getDisplayVars()
@@ -118,7 +116,7 @@ ADM_BonaMasso_1D_2008Alcubierre.eigenVars = {
 
 function ADM_BonaMasso_1D_2008Alcubierre:eigenWaveCodePrefix(n, eig, x, waveIndex)
 	return self:template([[
-	real eig_lambda = <?=eig?>.alpha * sqrt(<?=eig?>.f / <?=eig?>.gamma_xx);
+real const eig_lambda = <?=eig?>->alpha * sqrt(<?=eig?>->f / <?=eig?>->gamma_xx);
 ]], {
 		eig = '('..eig..')',
 	})
@@ -138,8 +136,8 @@ end
 
 function ADM_BonaMasso_1D_2008Alcubierre:consWaveCodePrefix(n, U, x, waveIndex)
 	return self:template([[
-	real f = calc_f(<?=U?>.alpha);
-	real eig_lambda = <?=U?>.alpha * sqrt(f / <?=U?>.gamma_xx);
+real const alphaSq_f = calc_f_alphaSq(<?=U?>->alpha);
+real const eig_lambda = sqrt(alphaSq_f / <?=U?>->gamma_xx);
 ]], {
 		U = '('..U..')',
 	})

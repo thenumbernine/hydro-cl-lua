@@ -3,7 +3,7 @@ TODO one config per experiment (initial condition + config)
 and no more setting config values (boundary, etc) in the init cond file
 --]]
 
-local dim = cmdline.dim or 2
+local dim = cmdline.dim or 1
 local args = {
 	app = self, 
 	eqn = cmdline.eqn,
@@ -245,7 +245,7 @@ local args = {
 	
 	-- states for ideal MHD or two-fluid (not two-fluid-separate)
 	--initCond = 'Brio-Wu',
-	initCond = 'Orszag-Tang',
+	--initCond = 'Orszag-Tang',
 	--initCond = 'MHD rotor',
 	--initCond = 'spinning magnetic fluid',
 	--initCond = 'magnetic fluid',
@@ -323,7 +323,7 @@ local args = {
 
 	-- Einstein
 	--initCond = 'Minkowski',
-	--initCond = 'gaussian perturbation',
+	initCond = 'gaussian perturbation',
 	--initCond = 'plane gauge wave',
 
 
@@ -714,7 +714,7 @@ self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='euler', wenoMe
 
 
 -- here's another one: two-fluid emhd with de Donder gauge linearized general relativity
-self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='twofluid-emhd-lingr'})))
+--self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='twofluid-emhd-lingr'})))
 --self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='twofluid-emhd-lingr', wenoMethod='1996 Jiang Shu', order=5})))
 --self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='twofluid-emhd-lingr', wenoMethod='2010 Shen Zha', order=7})))
 
@@ -722,7 +722,7 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn
 -- general relativity
 
 
---self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='adm1d_v1'})))
+self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='adm1d_v1'})))
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='adm1d_v2'})))
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='adm3d'})))
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='adm3d', eqnArgs={noZeroRowsInFlux=false}})))

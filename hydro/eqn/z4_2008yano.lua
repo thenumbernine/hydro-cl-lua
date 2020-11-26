@@ -60,8 +60,6 @@ end
 -- don't use default
 function Z4_2008Yano:initCodeModule_calcDT() end
 
-Z4_2008Yano.needsInitDerivs = true
-
 Z4_2008Yano.solverCodeFile = 'hydro/eqn/z4_2008yano.cl'
 
 Z4_2008Yano.predefinedDisplayVars = {

@@ -86,6 +86,9 @@ kernel void applyInitCond(
 	U->M_u = real3_zero;
 }
 
+//// MODULE_NAME: initDerivs
+//// MODULE_DEPENDS: solver_t cons_t cell_t SETBOUNDS numGhost
+
 kernel void initDerivs(
 	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* UBuf,
@@ -170,6 +173,9 @@ kernel void applyInitCond(
 	U->H = 0;
 	U->M_u = real3_zero;
 }
+
+//// MODULE_NAME: initDerivs
+//// MODULE_DEPENDS: solver_t cons_t cell_t SETBOUNDS numGhost
 
 kernel void initDerivs(
 	constant <?=solver.solver_t?>* solver,

@@ -567,13 +567,16 @@ function Equation:initCodeModule_fluxFromCons()
 			'normal_t',
 		},
 		code = self:template[[
-<?=eqn.cons_t?> fluxFromCons(
-	constant <?=solver.solver_t?>* solver,
-	<?=eqn.cons_t?> U,
-	real3 x,
-	normal_t n
-) {
-	return eigen_fluxTransform(solver, eigen_forCell(solver, U, x, n), U, x, n);
+#define fluxFromCons(\
+	/*cons_t const * const */flux,\
+	/*constant solver_t const * const */solver,\
+	/*cons_t const * const */U,\
+	/*real3 const */x,\
+	/*normal_t const */n\
+) {\
+	eigen_t eig;\
+	eigen_forCell(&eig, solver, U, x, n)\
+	eigen_fluxTransform(flux, solver, &eig, U, x, n);\
 }
 ]],
 	}
@@ -835,10 +838,10 @@ void primFromCons(
 		code = self:template[[
 #define consFromPrim(U, solver, W, x)	(*(U) = *(W))
 /*
-<?=eqn.cons_t?> consFromPrim(
-	<?=eqn.cons_t?> * const U,
-	constant <?=solver.solver_t?> const * const solver,
-	<?=eqn.prim_t?> const * const W, 
+void consFromPrim(
+	cons_t * const U,
+	constant solver_t const * const solver,
+	prim_t const * const W, 
 	real3 const x
 ) { 
 	return W; 
@@ -858,13 +861,14 @@ W = input vector
 x = coordinate location
 returns output vector
 */
-#define apply_dU_dW(solver, WA, W, x)	W
+#define apply_dU_dW(result, solver, WA, W, x)	(*(result) = *(W))
 /*
-<?=eqn.cons_t?> apply_dU_dW(
-	constant <?=solver.solver_t?>* solver,
-	<?=eqn.prim_t?> WA, 
-	<?=eqn.prim_t?> W, 
-	real3 x
+void apply_dU_dW(
+	cons_t * const result,
+	constant solver_t* solver,
+	prim_t const * const WA, 
+	prim_t const * const W, 
+	real3 const x
 ) { 
 	return W; 
 }
@@ -883,13 +887,14 @@ U = input vector
 x = coordinate location
 returns output vector
 */
-#define apply_dW_dU(solver, WA, U, x)	U
+#define apply_dW_dU(solver, WA, U, x)	(*(result) = (*U))
 /*
-<?=eqn.prim_t?> apply_dW_dU(
-	constant <?=solver.solver_t?>* solver,
-	<?=eqn.prim_t?> WA, 
-	<?=eqn.cons_t?> U, 
-	real3 x
+void apply_dW_dU(
+	prim_t const * W,
+	constant solver_t const * const solver,
+	prim_t const * const WA, 
+	cons_t const * const U,
+	real3 const x
 ) { 
 	return U; 
 }

@@ -92,8 +92,6 @@ end
 -- don't use default
 function Z4cFiniteDifferenceEquation:initCodeModule_calcDT() end
 
-Z4cFiniteDifferenceEquation.needsInitDerivs = true
-
 Z4cFiniteDifferenceEquation.solverCodeFile = 'hydro/eqn/z4c-fd.cl'
 
 Z4cFiniteDifferenceEquation.predefinedDisplayVars = {

@@ -125,7 +125,10 @@ end
 
 function InitCond:refreshInitStateProgram(solver)
 	solver.initModulesEnabled['applyInitCond'] = true
-	
+	if solver:hasModule'initDerivs' then
+		solver.initModulesEnabled['initDerivs'] = true
+	end
+
 	local initCondCode 
 	time('generating init state code', function()
 		local moduleNames = table(solver.sharedModulesEnabled, solver.initModulesEnabled):keys()
@@ -140,7 +143,7 @@ print('initCond modules: '..moduleNames:sort():concat', ')
 	
 	solver.applyInitCondKernelObj = solver.initCondProgramObj:kernel('applyInitCond', solver.solverBuf, solver.initCondBuf, solver.UBuf, solver.cellBuf)
 	
-	if solver.eqn.needsInitDerivs then
+	if solver:hasModule'initDerivs' then
 		solver.initDerivsKernelObj = solver.initCondProgramObj:kernel('initDerivs', solver.solverBuf, solver.UBuf, solver.cellBuf)
 	end
 end
@@ -171,7 +174,7 @@ function InitCond:resetState(solver)
 		solver:printBuf(solver.UBufObj)
 	end
 	
-	if solver.eqn.needsInitDerivs then
+	if solver:hasModule'initDerivs' then
 		solver:boundary()
 		solver.initDerivsKernelObj()
 	end

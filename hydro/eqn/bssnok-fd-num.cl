@@ -821,7 +821,8 @@ kernel void applyInitCond(
 
 }
 
-<? eqn.needsInitDerivs = true ?>
+//// MODULE_NAME: initDerivs
+//// MODULE_DEPENDS: solver_t cons_t cell_t SETBOUNDS numGhost
 
 //after popularing gammaBar_ll, use its finite-difference derivative to initialize LambdaBar_u
 //TODO do this symbolically.  That's what I originally did, but symbolic calculations were getting complex

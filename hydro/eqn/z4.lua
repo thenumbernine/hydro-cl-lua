@@ -217,9 +217,6 @@ end
 function Z4_2004Bona:initCodeModule_calcDT() end
 function Z4_2004Bona:initCodeModule_fluxFromCons() end
 
--- always true, except for initAnalytical, but I don't have that coded yet
-Z4_2004Bona.needsInitDerivs = true
-
 Z4_2004Bona.solverCodeFile = 'hydro/eqn/z4.cl'
 
 Z4_2004Bona.predefinedDisplayVars = {

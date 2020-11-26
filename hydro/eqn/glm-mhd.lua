@@ -199,8 +199,6 @@ function MHD:getModuleDepends_displayCode()
 	}
 end
 
-MHD.needsInitDerivs = true
-
 MHD.solverCodeFile = 'hydro/eqn/glm-mhd.cl'
 
 MHD.displayVarCodeUsesPrims = true

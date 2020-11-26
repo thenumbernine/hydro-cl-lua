@@ -43,6 +43,9 @@ kernel void applyInitCond(
 	U->K_xx = K_ll.xx;
 }
 
+//// MODULE_NAME: initDerivs
+//// MODULE_DEPENDS: solver_t cons_t cell_t SETBOUNDS numGhost
+
 kernel void initDerivs(
 	constant <?=solver.solver_t?>* solver,
 	global <?=eqn.cons_t?>* UBuf,
