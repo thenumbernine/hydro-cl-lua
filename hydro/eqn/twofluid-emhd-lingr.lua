@@ -208,6 +208,7 @@ function TwoFluidEMHDDeDonderGaugeLinearizedGR:getEnv()
 	env.real_mul = scalar..'_real_mul'
 	env.sqrt = scalar..'_sqrt'
 	env.abs = scalar..'_abs'
+	env.fluids = self.fluids
 	return env
 end
 
@@ -234,10 +235,10 @@ function TwoFluidEMHDDeDonderGaugeLinearizedGR:getDisplayVars()
 		vars:append{
 			{name=fluid..' v', code='value.vreal3 = W.'..fluid..'_v;', type='real3', units='m/s'},
 			{name=fluid..' P', code='value.vreal = W.'..fluid..'_P;', units='kg/(m*s^2)'},
-			{name=fluid..' eInt', code='value.vreal = calc_'..fluid..'_eInt(solver, W);', units='m^2/s^2'},
-			{name=fluid..' eKin', code='value.vreal = calc_'..fluid..'_eKin(W, x);', units='m^2/s^2'},
-			{name=fluid..' EInt', code='value.vreal = calc_'..fluid..'_EInt(solver, W);'},
-			{name=fluid..' EKin', code='value.vreal = calc_'..fluid..'_EKin(W, x);'},
+			{name=fluid..' eInt', code='value.vreal = calc_'..fluid..'_eInt(solver, &W);', units='m^2/s^2'},
+			{name=fluid..' eKin', code='value.vreal = calc_'..fluid..'_eKin(&W, x);', units='m^2/s^2'},
+			{name=fluid..' EInt', code='value.vreal = calc_'..fluid..'_EInt(solver, &W);'},
+			{name=fluid..' EKin', code='value.vreal = calc_'..fluid..'_EKin(&W, x);'},
 			{name=fluid..' ETotal', code='value.vreal = U->'..fluid..'_ETotal;'},
 			{name=fluid..' S', code='value.vreal = W.'..fluid..'_P / pow(W.'..fluid..'_rho, (real)solver->heatCapacityRatio);'},
 			{name=fluid..' H', code='value.vreal = calc_H(solver, W.'..fluid..'_P);'},
@@ -268,19 +269,19 @@ function TwoFluidEMHDDeDonderGaugeLinearizedGR:getDisplayVars()
 	vars:append{
 		{
 			name = 'EField',
-			code = 'value.vreal3 = calc_EField(solver, *U);',
+			code = 'value.vreal3 = calc_EField(solver, U);',
 			type = 'real3',
 			units = '(kg*m)/(C*s)',
 		},
 		{
 			name = 'HField',
-			code = 'value.vreal3 = calc_HField(solver, *U);',
+			code = 'value.vreal3 = calc_HField(solver, U);',
 			type = 'real3',
 			units = 'C/(m*s)',
 		},
 		{
 			name = 'SField',	-- S Poynting, not S entropy
-			code = 'value.vreal3 = calc_SField(solver, *U);', 
+			code = 'value.vreal3 = calc_SField(solver, U);', 
 			type = 'real3',
 			units = 'kg/s^3',
 		},	
@@ -337,13 +338,12 @@ TwoFluidEMHDDeDonderGaugeLinearizedGR.eigenVars = eigenVars
 function TwoFluidEMHDDeDonderGaugeLinearizedGR:eigenWaveCodePrefix(n, eig, x)
 	return self:template([[
 <? for i,fluid in ipairs(fluids) do ?>
-	real <?=fluid?>_Cs_nLen = <?=eig?>.<?=fluid?>_Cs * normal_len(n);
-	real <?=fluid?>_v_n = normal_vecDotN1(n, <?=eig?>.<?=fluid?>_v);
+real const <?=fluid?>_Cs_nLen = <?=eig?>-><?=fluid?>_Cs * normal_len(n);
+real const <?=fluid?>_v_n = normal_vecDotN1(n, <?=eig?>-><?=fluid?>_v);
 <? end ?>
 ]], {
 		x = x,
 		eig = '('..eig..')',
-		fluids = fluids,
 		n = n,
 	})
 end
@@ -393,29 +393,29 @@ end
 -- dt < sqrt( E_alpha,i / rho_alpha,i) * |lHat_r,alpha| sqrt(2) / |E_i + v_alpha,i x B_i|
 function TwoFluidEMHDDeDonderGaugeLinearizedGR:consWaveCodePrefix(n, U, x)
 	return self:template([[
-	<?=eqn.prim_t?> W = primFromCons(solver, <?=U?>, <?=x?>);
+prim_t W;
+primFromCons(&W, solver, <?=U?>, <?=x?>);
 
 #if 1	//using the EM wavespeed
-	real consWaveCode_lambdaMax = max(
-			max(
-				max(solver->divPsiWavespeed, solver->divPhiWavespeed),
-				max(solver->divPsiWavespeed_g, solver->divPhiWavespeed_g)
-			),
-			solver->speedOfLight
-		) / unit_m_per_s;
+real consWaveCode_lambdaMax = max(
+		max(
+			max(solver->divPsiWavespeed, solver->divPhiWavespeed),
+			max(solver->divPsiWavespeed_g, solver->divPhiWavespeed_g)
+		),
+		solver->speedOfLight
+	) / unit_m_per_s;
 #else	//ignoring it
-	real consWaveCode_lambdaMax = INFINITY;
+real consWaveCode_lambdaMax = INFINITY;
 #endif
-	
-	real consWaveCode_lambdaMin = -consWaveCode_lambdaMax;
 
-<? for _,fluid in ipairs(eqn.fluids) do
-?>	real <?=fluid?>_Cs = calc_<?=fluid?>_Cs(solver, &W);
-	real <?=fluid?>_Cs_nLen = <?=fluid?>_Cs * normal_len(n);
-	consWaveCode_lambdaMin = min(consWaveCode_lambdaMin, normal_vecDotN1(n, W.<?=fluid?>_v) - <?=fluid?>_Cs_nLen);
-	consWaveCode_lambdaMax = max(consWaveCode_lambdaMax, normal_vecDotN1(n, W.<?=fluid?>_v) + <?=fluid?>_Cs_nLen);
-<? end
-?>
+real consWaveCode_lambdaMin = -consWaveCode_lambdaMax;
+
+<? for _,fluid in ipairs(fluids) do ?>
+real const <?=fluid?>_Cs = calc_<?=fluid?>_Cs(solver, &W);
+real const <?=fluid?>_Cs_nLen = <?=fluid?>_Cs * normal_len(n);
+consWaveCode_lambdaMin = min(consWaveCode_lambdaMin, normal_vecDotN1(n, W.<?=fluid?>_v) - <?=fluid?>_Cs_nLen);
+consWaveCode_lambdaMax = max(consWaveCode_lambdaMax, normal_vecDotN1(n, W.<?=fluid?>_v) + <?=fluid?>_Cs_nLen);
+<? end ?>
 
 ]], {
 		n = n,
