@@ -62,7 +62,7 @@ local useFlux = solver.fluxLimiter > 1
 kernel void calcFlux(
 	constant solver_t const * const solver,
 	global cons_t * const fluxBuf,
-	const global <?=solver.getULRArg?>,
+	global const <?=solver.getULRArg?>,
 	realparam const dt,	//not used by HLL, just making this match Roe / other FV solvers
 	global cell_t const * const cellBuf
 ) {
@@ -282,8 +282,8 @@ function FiniteVolumeSolver:addDisplayVars()
 			bufferField = 'fluxBuf',
 			bufferType = self.eqn.cons_t,
 			codePrefix = template([[
-	int indexInt = <?=side?> + dim * index;
-	const global cons_t* flux = buf + indexInt;
+	int const indexInt = <?=side?> + dim * index;
+	global cons_t const * const flux = buf + indexInt;
 ]],			{
 				eqn = self.eqn,
 				side = side,

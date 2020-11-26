@@ -492,7 +492,7 @@ function GridSolver:refreshGetULR()
 
 	self.getULRArg = self.getULRBufType..'* '..self.getULRBufName
 
-	-- this code creates the const global cons_t* UL, UR variables
+	-- this code creates the 'global cons_t const * const UL, Ul'R variables
 	-- it assumes that indexL, indexR, and side are already defined
 	-- both UBuf and ULRBuf should be cell-centered
 	if self.usePLM then
@@ -500,8 +500,8 @@ function GridSolver:refreshGetULR()
 			args = args or {}
 			local suffix = args.suffix or ''
 			return template([[
-const global <?=eqn.cons_t?>* UL<?=suffix?> = &<?=bufName?>[<?=side?> + dim * <?=indexL?>].R;
-const global <?=eqn.cons_t?>* UR<?=suffix?> = &<?=bufName?>[<?=side?> + dim * <?=indexR?>].L;
+global <?=eqn.cons_t?> const * const UL<?=suffix?> = &<?=bufName?>[<?=side?> + dim * <?=indexL?>].R;
+global <?=eqn.cons_t?> const * const UR<?=suffix?> = &<?=bufName?>[<?=side?> + dim * <?=indexR?>].L;
 ]],			{
 				solver = self,
 				eqn = self.eqn,
@@ -517,8 +517,8 @@ const global <?=eqn.cons_t?>* UR<?=suffix?> = &<?=bufName?>[<?=side?> + dim * <?
 			args = args or {}
 			local suffix = args.suffix or ''
 			return template([[
-const global <?=eqn.cons_t?>* UL<?=suffix?> = <?=bufName?> + <?=indexL?>;
-const global <?=eqn.cons_t?>* UR<?=suffix?> = <?=bufName?> + <?=indexR?>;
+global <?=eqn.cons_t?> const * const UL<?=suffix?> = <?=bufName?> + <?=indexL?>;
+global <?=eqn.cons_t?> const * const UR<?=suffix?> = <?=bufName?> + <?=indexR?>;
 ]],			{
 				solver = self,
 				eqn = self.eqn,

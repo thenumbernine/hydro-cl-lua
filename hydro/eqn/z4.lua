@@ -134,13 +134,11 @@ function Z4_2004Bona:init(args)
 	if not self.noZeroRowsInFlux then
 		-- skip alpha and gamma
 		self.numWaves = Struct.countScalars{vars=fluxVars}
-		assert(self.numWaves == 30)
+		assert(self.numWaves == 31)
 	else
-		-- ok Z4 has a_x, d_xij, K_ij, Theta, Z_i ...
+		-- Z4 has a_x, d_xij, K_ij, Theta, Z_i ...
 		-- which is 17 waves
-		-- the min/max which HLL uses are the same waves iirc
-		-- but... I should fix that. 
-		self.numWaves = 13
+		self.numWaves = 17
 	end
 
 	-- only count int vars after the shifts have been added
@@ -377,13 +375,13 @@ function Z4_2004Bona:eigenWaveCode(n, eig, x, waveIndex)
 		-- noZeroRowsInFlux implies useShift == 'none'
 		if waveIndex == 0 then
 			return '-'..betaUi..' - eig_lambdaGauge'
-		elseif waveIndex >= 1 and waveIndex <= 5 then
+		elseif waveIndex >= 1 and waveIndex <= 6 then
 			return '-'..betaUi..' - eig_lambdaLight'
-		elseif waveIndex == 6 then
+		elseif waveIndex >= 7 and waveIndex <= 9 then
 			return '-'..betaUi
-		elseif waveIndex >= 7 and waveIndex <= 11 then
+		elseif waveIndex >= 10 and waveIndex <= 15 then
 			return '-'..betaUi..' + eig_lambdaLight'
-		elseif waveIndex == 12 then
+		elseif waveIndex == 16 then
 			return '-'..betaUi..' + eig_lambdaGauge'
 		end
 	end

@@ -441,13 +441,13 @@ for side=0,solver.dim-1 do
 	if coord.vectorComponent == 'cartesian'
 	or require 'hydro.coord.cartesian'.is(coord) 
 	then
-?>#define cons_parallelPropagate<?=side?>(resultName, U, x, dx)\
+?>#define cons_parallelPropagate<?=side?>(resultName, U, pt, dx)\
 	global cons_t const * const resultName##ptr = U;
 <?	else
 ?>#define cons_parallelPropagate<?=side?>(\
-	resultNameBase,\
+	resultName,\
 	/*cons_t const * const */U,\
-	/*real3 const */x,\
+	/*real3 const */pt,\
 	/*real const */dx\
 )\
 /* TODO don't assign here, instead assign all fields and just don't propagate the scalars */\
@@ -458,23 +458,23 @@ for side=0,solver.dim-1 do
 			if variance == '' then
 			elseif variance == 'u' then
 -- P_u^a T^u
-?>	resultName.<?=var.name?> = coord_parallelPropagateU<?=side?>(resultName.<?=var.name?>, x, dx);\
+?>	resultName.<?=var.name?> = coord_parallelPropagateU<?=side?>(resultName.<?=var.name?>, pt, dx);\
 <?
 			elseif variance == 'l' then
 -- T_u (P^-T)_a^u
-?>	resultName.<?=var.name?> = coord_parallelPropagateL<?=side?>(resultName.<?=var.name?>, x, dx);\
+?>	resultName.<?=var.name?> = coord_parallelPropagateL<?=side?>(resultName.<?=var.name?>, pt, dx);\
 <?
 			elseif variance == 'll' then
 -- (P^-T)_a^u (P^-T)_b^v T_uv
 ?>				{\
 					real3x3 t = real3x3_from_<?=var.type?>(resultName.<?=var.name?>);\
-					t.x = coord_parallelPropagateL<?=side?>(t.x, x, dx);\
-					t.y = coord_parallelPropagateL<?=side?>(t.y, x, dx);\
-					t.z = coord_parallelPropagateL<?=side?>(t.z, x, dx);\
+					t.x = coord_parallelPropagateL<?=side?>(t.x, pt, dx);\
+					t.y = coord_parallelPropagateL<?=side?>(t.y, pt, dx);\
+					t.z = coord_parallelPropagateL<?=side?>(t.z, pt, dx);\
 					t = real3x3_transpose(t);\
-					t.x = coord_parallelPropagateL<?=side?>(t.x, x, dx);\
-					t.y = coord_parallelPropagateL<?=side?>(t.y, x, dx);\
-					t.z = coord_parallelPropagateL<?=side?>(t.z, x, dx);\
+					t.x = coord_parallelPropagateL<?=side?>(t.x, pt, dx);\
+					t.y = coord_parallelPropagateL<?=side?>(t.y, pt, dx);\
+					t.z = coord_parallelPropagateL<?=side?>(t.z, pt, dx);\
 					resultName.<?=var.name?> = <?=var.type?>_from_real3x3(t);\
 				}\
 <?			elseif variance == 'lll' then
@@ -492,7 +492,7 @@ for side=0,solver.dim-1 do
 								is[(e+1)%3+1] = xk
 ?>						tmp.<?=xk?> = t.<?=is:concat'.'?>;\
 <?							end
-?>						tmp = coord_parallelPropagateL<?=side?>(tmp, x, dx);\
+?>						tmp = coord_parallelPropagateL<?=side?>(tmp, pt, dx);\
 <?							for k,xk in ipairs(xNames) do
 								is[(e+1)%3+1] = xk
 ?>						t.<?=is:concat'.'?> = tmp.<?=xk?>;\
@@ -506,7 +506,7 @@ for side=0,solver.dim-1 do
 				error("don't know how to handle variance for "..('%q'):format(variance))
 			end
 		end
-?>	global cons_t const * const resultName##ptr = &resultName;
+?>	cons_t const * const resultName##ptr = &resultName;
 <?	end
 end
 ?>]], 		{

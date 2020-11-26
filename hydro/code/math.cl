@@ -1655,7 +1655,7 @@ static inline void getPerpendicularBasis3x3(
 //// MODULE_NAME: sinh
 // this is for GLSL esp which doesn't have these defs
 
-static inline real sinh(real const x) {
+static inline real sinh(real /*GLSL can't handle: const*/ x) {
 	real ex = exp(x);
 	return .5 * (ex - 1. / ex);
 }
@@ -1663,7 +1663,7 @@ static inline real sinh(real const x) {
 //// MODULE_NAME: cosh
 // also for GLSL
 
-static inline real cosh(real const x) {
+static inline real cosh(real /*GLSL can't handle: const*/ x) {
 	real ex = exp(x);
 	return .5 * (ex + 1. / ex);
 }
@@ -1676,7 +1676,7 @@ static inline real sech(real const x) {
 
 //// MODULE_NAME: asinh
 
-static inline real asinh(real const x) {
+static inline real asinh(real/*GLSL can't handle: const*/ x) {
 	return log(x + sqrt(x*x + 1.));
 }
 

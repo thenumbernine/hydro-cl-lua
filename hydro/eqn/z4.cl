@@ -729,7 +729,7 @@ end --\
 		(result)->ptr[i] = 0./0.;\
 	}\
 \
-#error here\
+#error "this is broke for now. use a solver like hll, not anything that requires eigensystems like roe"\
 <? if false then ?>	/* don't enable this.  it's made for > waves than I'm using, so it will cause buffer corruption */\
 \
 	real3 const a_l = real3_swap((inputU)->a_l, n.side);							/* 0-2 */\
