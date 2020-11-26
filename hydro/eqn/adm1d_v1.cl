@@ -154,35 +154,29 @@ kernel void addSource(
 	global cons_t * const deriv = derivBuf + index;
 	global cons_t const * const U = UBuf + index;
 	
-	real const alpha = U->alpha;
-	real const gamma_xx = U->gamma_xx;
-	real const a_x = U->a_x;
-	real const D_g = U->D_g;
-	real const KTilde = U->KTilde;
-	
-	real const sqrt_gamma_xx = sqrt(gamma_xx);
-	real const K_xx = KTilde / sqrt_gamma_xx;
-	real const K = KTilde / sqrt_gamma_xx;
+	real const sqrt_gamma_xx = sqrt(U->gamma_xx);
+	real const K_xx = U->KTilde / sqrt_gamma_xx;
+	real const K = U->KTilde / sqrt_gamma_xx;
 
-	real const f = calc_f(alpha);
-	real const alphaSq_f = calc_f_alphaSq(alpha);
-	real const alpha_dalpha_f = calc_alpha_dalpha_f(alpha);
+	real const f = calc_f(U->alpha);
+	real const alphaSq_f = calc_f_alphaSq(U->alpha);
+	real const alpha_dalpha_f = calc_alpha_dalpha_f(U->alpha);
 	
 	deriv->alpha -= alphaSq_f * K;
-	deriv->gamma_xx -= 2. * alpha * gamma_xx * K;
-	deriv->a_x -= ((.5 * D_g - a_x) * f - alpha_dalpha_f * a_x) * alpha * K;
-	deriv->D_g -= (.5 * D_g - a_x) * 2 * alpha * K;
-	deriv->KTilde -= (.5 * D_g - a_x) * a_x * alpha / sqrt_gamma_xx;
+	deriv->gamma_xx -= 2. * U->alpha * U->gamma_xx * K;
+	deriv->a_x -= ((.5 * U->D_g - U->a_x) * f - alpha_dalpha_f * U->a_x) * U->alpha * K;
+	deriv->D_g -= (.5 * U->D_g - U->a_x) * 2 * U->alpha * K;
+	deriv->KTilde -= (.5 * U->D_g - U->a_x) * U->a_x * U->alpha / sqrt_gamma_xx;
 
 	// and now for the first-order constraints
 	
 	// a_x = alpha,x / alpha <=> a_x += eta (alpha,x / alpha - a_x)
 	real const dx_alpha = (U[1].alpha - U[-1].alpha) / (2. * solver->grid_dx.x);
-	deriv->a_x += solver->a_x_convCoeff * (dx_alpha / alpha - a_x);
+	deriv->a_x += solver->a_x_convCoeff * (dx_alpha / U->alpha - U->a_x);
 	
 	// D_g = gamma_xx,x / gamma_xx <=> D_g += eta (gamma_xx,x / gamma_xx - D_g)
 	real const dx_gamma_xx = (U[1].gamma_xx - U[-1].gamma_xx) / (2. * solver->grid_dx.x);
-	deriv->D_g += solver->D_g_convCoeff * (dx_gamma_xx / gamma_xx - D_g);
+	deriv->D_g += solver->D_g_convCoeff * (dx_gamma_xx / U->gamma_xx - U->D_g);
 
 	//Kreiss-Oligar diffusion, for stability's sake?
 }

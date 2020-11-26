@@ -174,35 +174,34 @@ kernel void addSource(
 	global cons_t * const deriv = derivBuf + index;
 	global cons_t const * const U = UBuf + index;
 	
-	real const alpha = U->alpha;
-	real const gamma_xx = U->gamma_xx;
-	real const a_x = U->a_x;
-	real const d_xxx = U->d_xxx;
-	real const K_xx = U->K_xx;
-	real const K = K_xx / gamma_xx;	
-	real const f = calc_f(alpha);
-	real const dalpha_f = calc_dalpha_f(alpha);
+	real const K = U->K_xx / U->gamma_xx;	
+	real const alphaSq_f = calc_f_alphaSq(U->alpha);
 	
-	deriv->alpha -= alpha * alpha * f * K;
-	deriv->gamma_xx -= 2. * alpha * K_xx;
-	deriv->K_xx += alpha / gamma_xx * (a_x * d_xxx - K_xx * K_xx);
+	deriv->alpha -= alphaSq_f * K;
+	deriv->gamma_xx -= 2. * U->alpha * U->K_xx;
+	deriv->K_xx += U->alpha / U->gamma_xx * (U->a_x * U->d_xxx - U->K_xx * U->K_xx);
 // terms that mysteriously disappear when you compare the linearized flux matrix terms moved to source, vs the source that Alcubierre uses in his 1997 paper
 // adding these neglected terms back in make things blow up
 #if 0 
-	deriv->a_x += ((2. * d_xxx / gamma_xx - a_x) * f - alpha * dalpha_f * a_x) * alpha * K;
-	deriv->d_xxx -= alpha * a_x * K_xx;
-	deriv->K_xx -= alpha * a_x * a_x; 
+	real const alphaSq_dalpha_f = calc_alphaSq_dalpha_f(U->alpha);
+	real const alpha_f = calc_f_alpha(U->alpha);
+	deriv->a_x += (
+		(2. * U->d_xxx / U->gamma_xx - U->a_x) * alpha_f
+		- alphaSq_dalpha_f * U->a_x
+	) * K;
+	deriv->d_xxx -= U->alpha * U->a_x * U->K_xx;
+	deriv->K_xx -= U->alpha * U->a_x * U->a_x; 
 #endif
 
 	// and now for the first-order constraints
 	
 	// a_x = alpha,x / alpha <=> a_x += eta (alpha,x / alpha - a_x)
 	real const dx_alpha = (U[1].alpha - U[-1].alpha) / (2. * solver->grid_dx.x);
-	deriv->a_x += solver->a_x_convCoeff * (dx_alpha / alpha - a_x);
+	deriv->a_x += solver->a_x_convCoeff * (dx_alpha / U->alpha - U->a_x);
 	
 	// d_xxx = .5 gamma_xx,x <=> d_xxx += eta (.5 gamma_xx,x - d_xxx)
 	real const dx_gamma_xx = (U[1].gamma_xx - U[-1].gamma_xx) / (2. * solver->grid_dx.x);
-	deriv->d_xxx += solver->d_xxx_convCoeff * (.5 * dx_gamma_xx - d_xxx);
+	deriv->d_xxx += solver->d_xxx_convCoeff * (.5 * dx_gamma_xx - U->d_xxx);
 
 	//Kreiss-Oligar diffusion, for stability's sake?
 }
