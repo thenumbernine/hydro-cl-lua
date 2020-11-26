@@ -159,7 +159,7 @@ ADM_BonaMasso_1D_1997Alcubierre.eigenVars = {
 
 function ADM_BonaMasso_1D_1997Alcubierre:eigenWaveCodePrefix(n, eig, x, waveIndex)
 	return self:template([[
-	real eig_lambda = <?=eig?>.alpha * <?=eig?>.sqrt_f_over_gamma_xx;
+real const eig_lambda = <?=eig?>->alpha * <?=eig?>->sqrt_f_over_gamma_xx;
 ]], {
 		eig = '('..eig..')',
 	})
@@ -179,8 +179,8 @@ end
 
 function ADM_BonaMasso_1D_1997Alcubierre:consWaveCodePrefix(n, U, x, waveIndex)
 	return self:template([[
-	real f = calc_f(<?=U?>.alpha);
-	real eig_lambda = <?=U?>.alpha * sqrt(f / <?=U?>.gamma_xx);
+real const f = calc_f(<?=U?>->alpha);
+real const eig_lambda = <?=U?>->alpha * sqrt(f / <?=U?>->gamma_xx);
 ]], {
 		U = '('..U..')',
 	})
