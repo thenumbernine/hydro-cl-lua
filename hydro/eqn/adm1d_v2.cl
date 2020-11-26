@@ -181,8 +181,9 @@ kernel void addSource(
 	deriv->gamma_xx -= 2. * U->alpha * U->K_xx;
 	deriv->K_xx += U->alpha / U->gamma_xx * (U->a_x * U->d_xxx - U->K_xx * U->K_xx);
 // terms that mysteriously disappear when you compare the linearized flux matrix terms moved to source, vs the source that Alcubierre uses in his 1997 paper
-// adding these neglected terms back in make things blow up
-#if 0 
+// adding these neglected terms back in make things blow up ... 
+// ... or it used to I guess, maybe now it doesn't because I replaced the f (~ 1/alpha) times alpha with analytically simplified versions?
+#if 1 
 	real const alphaSq_dalpha_f = calc_alphaSq_dalpha_f(U->alpha);
 	real const alpha_f = calc_f_alpha(U->alpha);
 	deriv->a_x += (

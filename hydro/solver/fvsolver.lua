@@ -51,7 +51,7 @@ function FiniteVolumeSolver:initCodeModule_calcFlux()
 	self.modules:addFromMarkup{
 		code = template([[
 //// MODULE_NAME: calcFlux
-//// MODULE_DEPENDS: calcFluxForInterface cons_parallelPropagate
+//// MODULE_DEPENDS: calcFluxForInterface cons_parallelPropagate normal_t
 // used by all gridsolvers.  the meshsolver alternative is in solver/meshsolver.lua
 
 <? 

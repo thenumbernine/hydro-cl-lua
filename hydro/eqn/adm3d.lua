@@ -366,16 +366,16 @@ end
 
 function ADM_BonaMasso_3D:eigenWaveCodePrefix(n, eig, x, waveIndex)
 	return self:template([[
-	real sqrt_gammaUjj = 0./0.;
-	if (<?=n?>.side == 0) {
-		sqrt_gammaUjj = <?=eig?>.sqrt_gammaUjj.x;
-	} else if (<?=n?>.side == 1) {
-		sqrt_gammaUjj = <?=eig?>.sqrt_gammaUjj.y;
-	} else if (<?=n?>.side == 2) {
-		sqrt_gammaUjj = <?=eig?>.sqrt_gammaUjj.z;
-	}
-	real eig_lambdaLight = sqrt_gammaUjj * <?=eig?>.alpha;
-	real eig_lambdaGauge = sqrt_gammaUjj * <?=eig?>.alpha_sqrt_f;
+real sqrt_gammaUjj = 0./0.;
+if (<?=n?>.side == 0) {
+	sqrt_gammaUjj = <?=eig?>->sqrt_gammaUjj.x;
+} else if (<?=n?>.side == 1) {
+	sqrt_gammaUjj = <?=eig?>->sqrt_gammaUjj.y;
+} else if (<?=n?>.side == 2) {
+	sqrt_gammaUjj = <?=eig?>->sqrt_gammaUjj.z;
+}
+real const eig_lambdaLight = sqrt_gammaUjj * <?=eig?>->alpha;
+real const eig_lambdaGauge = sqrt_gammaUjj * <?=eig?>->alpha_sqrt_f;
 ]], {
 		eig = '('..eig..')',
 		n = n,
@@ -425,19 +425,19 @@ end
 
 function ADM_BonaMasso_3D:consWaveCodePrefix(n, U, x, waveIndex)
 	return self:template([[
-	real det_gamma = sym3_det(<?=U?>.gamma_ll);
-	sym3 gamma_uu = sym3_inv(<?=U?>.gamma_ll, det_gamma);
-	real sqrt_gammaUjj = 0./0.;
-	if (<?=n?>.side == 0) {
-		sqrt_gammaUjj = sqrt(gamma_uu.xx);
-	} else if (<?=n?>.side == 1) {
-		sqrt_gammaUjj = sqrt(gamma_uu.yy);
-	} else if (<?=n?>.side == 2) {
-		sqrt_gammaUjj = sqrt(gamma_uu.zz);
-	}
-	real eig_lambdaLight = <?=U?>.alpha * sqrt_gammaUjj;
-	real f_alphaSq = calc_f_alphaSq(<?=U?>.alpha);
-	real eig_lambdaGauge = sqrt_gammaUjj * sqrt(f_alphaSq);
+real const det_gamma = sym3_det(<?=U?>->gamma_ll);
+sym3 const gamma_uu = sym3_inv(<?=U?>->gamma_ll, det_gamma);
+real sqrt_gammaUjj = 0./0.;
+if (<?=n?>.side == 0) {
+	sqrt_gammaUjj = sqrt(gamma_uu.xx);
+} else if (<?=n?>.side == 1) {
+	sqrt_gammaUjj = sqrt(gamma_uu.yy);
+} else if (<?=n?>.side == 2) {
+	sqrt_gammaUjj = sqrt(gamma_uu.zz);
+}
+real const eig_lambdaLight = <?=U?>->alpha * sqrt_gammaUjj;
+real const f_alphaSq = calc_f_alphaSq(<?=U?>->alpha);
+real const eig_lambdaGauge = sqrt_gammaUjj * sqrt(f_alphaSq);
 ]], {
 		U = '('..U..')',
 		n = n,
