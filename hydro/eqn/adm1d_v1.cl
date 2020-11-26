@@ -70,8 +70,9 @@ kernel void initDerivs(
 	/*normal_t const */n\
 ) {\
 	(eig)->alpha = .5 * ((UL)->alpha + (UR)->alpha);\
-	(eig)->gamma_xx = .5 * ((UL)->gamma_xx + (UR)->gamma_xx);\
-	(eig)->f = calc_f((eig)->alpha);\
+	real const gamma_xx = .5 * ((UL)->gamma_xx + (UR)->gamma_xx);\
+	(eig)->sqrt_gamma_xx = sqrt(gamma_xx);\
+	(eig)->sqrt_f = sqrt(calc_f((eig)->alpha));\
 }
 
 //// MODULE_NAME: eigen_forCell
@@ -85,8 +86,8 @@ kernel void initDerivs(
 	/*normal_t const */n\
 ) {\
 	(eig)->alpha = (U)->alpha;\
-	(eig)->gamma_xx = (U)->gamma_xx;\
-	(eig)->f = calc_f((U)->alpha);\
+	(eig)->sqrt_gamma_xx = sqrt((U)->gamma_xx);\
+	(eig)->sqrt_f = sqrt(calc_f((U)->alpha));\
 }
 
 //// MODULE_NAME: eigen_left/rightTransform
@@ -99,10 +100,10 @@ kernel void initDerivs(
 	/*real3 const */pt,\
 	/*normal_t const */n\
 ) {\
-	real const sqrt_f = sqrt((eig)->f);\
-	(result)->ptr[0] = ((x)->ptr[2] / (eig)->f - (x)->ptr[4] / sqrt_f) / 2.;\
-	(result)->ptr[1] = -2. * (x)->ptr[2] / (eig)->f + (x)->ptr[3];\
-	(result)->ptr[2] = ((x)->ptr[2] / (eig)->f + (x)->ptr[4] / sqrt_f) / 2.;\
+	real const f = (eig)->sqrt_f * (eig)->sqrt_f;\
+	(result)->ptr[0] = ((x)->ptr[2] / f - (x)->ptr[4] / (eig)->sqrt_f) / 2.;\
+	(result)->ptr[1] = -2. * (x)->ptr[2] / f + (x)->ptr[3];\
+	(result)->ptr[2] = ((x)->ptr[2] / f + (x)->ptr[4] / (eig)->sqrt_f) / 2.;\
 }
 
 #define eigen_rightTransform(\
@@ -113,11 +114,12 @@ kernel void initDerivs(
 	/*real3 const */pt,\
 	/*normal_t const */n\
 ) {\
+	real const f = (eig)->sqrt_f * (eig)->sqrt_f;\
 	(result)->ptr[0] = 0;\
 	(result)->ptr[1] = 0;\
-	(result)->ptr[2] = ((x)->ptr[0] + (x)->ptr[2]) * (eig)->f;\
+	(result)->ptr[2] = ((x)->ptr[0] + (x)->ptr[2]) * f;\
 	(result)->ptr[3] = 2. * ((x)->ptr[0] + (x)->ptr[2]) + (x)->ptr[1];\
-	(result)->ptr[4] = sqrt((eig)->f) * ((x)->ptr[2] - (x)->ptr[0]);\
+	(result)->ptr[4] = (eig)->sqrt_f * ((x)->ptr[2] - (x)->ptr[0]);\
 }
 
 //// MODULE_NAME: eigen_fluxTransform
@@ -130,10 +132,11 @@ kernel void initDerivs(
 	/*real3 const */pt,\
 	/*normal_t const */n\
 ) {\
-	real const alpha_over_sqrt_gamma_xx = (eig)->alpha / sqrt((eig)->gamma_xx);\
+	real const f = (eig)->sqrt_f * (eig)->sqrt_f;\
+	real const alpha_over_sqrt_gamma_xx = (eig)->alpha / (eig)->sqrt_gamma_xx;\
 	(result)->ptr[0] = 0;\
 	(result)->ptr[1] = 0;\
-	(result)->ptr[2] = (x)->ptr[4] * (eig)->f * alpha_over_sqrt_gamma_xx;\
+	(result)->ptr[2] = (x)->ptr[4] * f * alpha_over_sqrt_gamma_xx;\
 	(result)->ptr[3] = (x)->ptr[4] * 2. * alpha_over_sqrt_gamma_xx;\
 	(result)->ptr[4] = (x)->ptr[2] * alpha_over_sqrt_gamma_xx;\
 }

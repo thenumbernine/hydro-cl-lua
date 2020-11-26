@@ -109,14 +109,14 @@ function ADM_BonaMasso_1D_2008Alcubierre:getDisplayVars()
 end
 
 ADM_BonaMasso_1D_2008Alcubierre.eigenVars = {
-	{name='f', type='real'},
 	{name='alpha', type='real'},
-	{name='gamma_xx', type='real'},
+	{name='sqrt_gamma_xx', type='real'},
+	{name='sqrt_f', type='real'},
 }
 
 function ADM_BonaMasso_1D_2008Alcubierre:eigenWaveCodePrefix(n, eig, x, waveIndex)
 	return self:template([[
-real const eig_lambda = <?=eig?>->alpha * sqrt(<?=eig?>->f / <?=eig?>->gamma_xx);
+real const eig_lambda = <?=eig?>->alpha * <?=eig?>->sqrt_f / <?=eig?>->sqrt_gamma_xx;
 ]], {
 		eig = '('..eig..')',
 	})
