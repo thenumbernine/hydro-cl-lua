@@ -341,8 +341,8 @@ end
 
 function Z4_2004Bona:eigenWaveCodePrefix(n, eig, x, waveIndex)
 	return self:template([[
-	real eig_lambdaLight = <?=eig?>.sqrt_gammaUnn * <?=eig?>.alpha;
-	real eig_lambdaGauge = <?=eig?>.sqrt_gammaUnn * <?=eig?>.alpha_sqrt_f;
+real const eig_lambdaLight = <?=eig?>->sqrt_gammaUnn * <?=eig?>->alpha;
+real const eig_lambdaGauge = <?=eig?>->sqrt_gammaUnn * <?=eig?>->alpha_sqrt_f;
 ]], {
 		eig = '('..eig..')',
 		n = n,
@@ -412,27 +412,27 @@ end
 
 function Z4_2004Bona:consWaveCodePrefix(n, U, x, waveIndex)
 	return self:template([[
-	real det_gamma = sym3_det(<?=U?>.gamma_ll);
-	sym3 gamma_uu = sym3_inv(<?=U?>.gamma_ll, det_gamma);
-	
+real const det_gamma = sym3_det(<?=U?>->gamma_ll);
+sym3 const gamma_uu = sym3_inv(<?=U?>->gamma_ll, det_gamma);
+
 <? if solver.coord.vectorComponent == 'cartesian' then ?>
-	real3 n_l = normal_l1(n);
-	real gammaUnn = real3_weightedLenSq(n_l, gamma_uu);
+real3 const n_l = normal_l1(n);
+real const gammaUnn = real3_weightedLenSq(n_l, gamma_uu);
 <? else ?>
-	real gammaUnn = 0./0.;
-	if (n.side == 0) {
-		gammaUnn = gamma_uu.xx;
-	} else if (n.side == 1) {
-		gammaUnn = gamma_uu.yy;
-	} else if (n.side == 2) {
-		gammaUnn = gamma_uu.zz;
-	}
+real gammaUnn = 0./0.;
+if (n.side == 0) {
+	gammaUnn = gamma_uu.xx;
+} else if (n.side == 1) {
+	gammaUnn = gamma_uu.yy;
+} else if (n.side == 2) {
+	gammaUnn = gamma_uu.zz;
+}
 <? end ?>
 
-	real sqrt_gammaUnn = sqrt(gammaUnn);
-	real eig_lambdaLight = sqrt_gammaUnn * <?=U?>.alpha;
-	real alpha_sqrt_f = sqrt(calc_f_alphaSq(<?=U?>.alpha));
-	real eig_lambdaGauge = sqrt_gammaUnn * alpha_sqrt_f;
+real const sqrt_gammaUnn = sqrt(gammaUnn);
+real const eig_lambdaLight = sqrt_gammaUnn * <?=U?>->alpha;
+real const alpha_sqrt_f = sqrt(calc_f_alphaSq(<?=U?>->alpha));
+real const eig_lambdaGauge = sqrt_gammaUnn * alpha_sqrt_f;
 ]], {
 		U = '('..U..')',
 		n = n,

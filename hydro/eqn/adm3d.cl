@@ -9,8 +9,8 @@ static inline sym3 calc_gamma_uu(
 	global cons_t const * const U,
 	real3 const x
 ) {
-	real det_gamma = sym3_det((U)->gamma_ll);
-	sym3 gamma_uu = sym3_inv((U)->gamma_ll, det_gamma);
+	real const det_gamma = sym3_det((U)->gamma_ll);
+	sym3 const gamma_uu = sym3_inv((U)->gamma_ll, det_gamma);
 	return gamma_uu;
 }
 
@@ -262,8 +262,6 @@ end
 	real const det_gamma = sym3_det((U)->gamma_ll);\
 	sym3 gamma_uu = sym3_inv((U)->gamma_ll, det_gamma);\
 \
-	real const alpha = (U)->alpha;\
-\
 	real3 V_l = (U)->V_l;\
 	real3 a_l = (U)->a_l;\
 	sym3 gamma_ll = (U)->gamma_ll;\
@@ -284,18 +282,18 @@ end
 	/*  BEGIN CUT from numerical-relativity-codegen/flux_matrix_output/adm_noZeroRows.html */\
 	/* (except me replacing alpha * f with f_alpha) */\
 	(F)->a_l.x = f_alpha * (2. * K_ll.xy * gamma_uu.xy + 2. * K_ll.xz * gamma_uu.xz + 2. * K_ll.yz * gamma_uu.yz + K_ll.xx * gamma_uu.xx + K_ll.yy * gamma_uu.yy + K_ll.zz * gamma_uu.zz);\
-	(F)->d_lll.x.xx = K_ll.xx * alpha;\
-	(F)->d_lll.x.xy = K_ll.xy * alpha;\
-	(F)->d_lll.x.xz = K_ll.xz * alpha;\
-	(F)->d_lll.x.yy = K_ll.yy * alpha;\
-	(F)->d_lll.x.yz = K_ll.yz * alpha;\
-	(F)->d_lll.x.zz = K_ll.zz * alpha;\
-	(F)->K_ll.xx = alpha * (a_l.x + d_lll.x.yy * gamma_uu.yy + 2. * d_lll.x.yz * gamma_uu.yz + d_lll.x.zz * gamma_uu.zz - d_lll.y.xx * gamma_uu.xy - 2. * d_lll.y.xy * gamma_uu.yy - 2. * d_lll.y.xz * gamma_uu.yz - d_lll.z.xx * gamma_uu.xz - 2. * d_lll.z.xy * gamma_uu.yz - 2. * d_lll.z.xz * gamma_uu.zz);\
-	(F)->K_ll.xy = (alpha * (a_l.y - 2. * d_lll.x.yy * gamma_uu.xy - 2. * d_lll.x.yz * gamma_uu.xz - 2. * d_lll.y.yy * gamma_uu.yy - 2. * d_lll.y.yz * gamma_uu.yz - 2. * d_lll.z.yy * gamma_uu.yz - 2. * d_lll.z.yz * gamma_uu.zz)) / 2.;\
-	(F)->K_ll.xz = (alpha * (a_l.z - 2. * d_lll.x.yz * gamma_uu.xy - 2. * d_lll.x.zz * gamma_uu.xz - 2. * d_lll.y.yz * gamma_uu.yy - 2. * d_lll.y.zz * gamma_uu.yz - 2. * d_lll.z.yz * gamma_uu.yz - 2. * d_lll.z.zz * gamma_uu.zz)) / 2.;\
-	(F)->K_ll.yy = alpha * (d_lll.x.yy * gamma_uu.xx + d_lll.y.yy * gamma_uu.xy + d_lll.z.yy * gamma_uu.xz);\
-	(F)->K_ll.yz = alpha * (d_lll.x.yz * gamma_uu.xx + d_lll.y.yz * gamma_uu.xy + d_lll.z.yz * gamma_uu.xz);\
-	(F)->K_ll.zz = alpha * (d_lll.x.zz * gamma_uu.xx + d_lll.y.zz * gamma_uu.xy + d_lll.z.zz * gamma_uu.xz);	\
+	(F)->d_lll.x.xx = K_ll.xx * (U)->alpha;\
+	(F)->d_lll.x.xy = K_ll.xy * (U)->alpha;\
+	(F)->d_lll.x.xz = K_ll.xz * (U)->alpha;\
+	(F)->d_lll.x.yy = K_ll.yy * (U)->alpha;\
+	(F)->d_lll.x.yz = K_ll.yz * (U)->alpha;\
+	(F)->d_lll.x.zz = K_ll.zz * (U)->alpha;\
+	(F)->K_ll.xx = (U)->alpha * (a_l.x + d_lll.x.yy * gamma_uu.yy + 2. * d_lll.x.yz * gamma_uu.yz + d_lll.x.zz * gamma_uu.zz - d_lll.y.xx * gamma_uu.xy - 2. * d_lll.y.xy * gamma_uu.yy - 2. * d_lll.y.xz * gamma_uu.yz - d_lll.z.xx * gamma_uu.xz - 2. * d_lll.z.xy * gamma_uu.yz - 2. * d_lll.z.xz * gamma_uu.zz);\
+	(F)->K_ll.xy = ((U)->alpha * (a_l.y - 2. * d_lll.x.yy * gamma_uu.xy - 2. * d_lll.x.yz * gamma_uu.xz - 2. * d_lll.y.yy * gamma_uu.yy - 2. * d_lll.y.yz * gamma_uu.yz - 2. * d_lll.z.yy * gamma_uu.yz - 2. * d_lll.z.yz * gamma_uu.zz)) / 2.;\
+	(F)->K_ll.xz = ((U)->alpha * (a_l.z - 2. * d_lll.x.yz * gamma_uu.xy - 2. * d_lll.x.zz * gamma_uu.xz - 2. * d_lll.y.yz * gamma_uu.yy - 2. * d_lll.y.zz * gamma_uu.yz - 2. * d_lll.z.yz * gamma_uu.yz - 2. * d_lll.z.zz * gamma_uu.zz)) / 2.;\
+	(F)->K_ll.yy = (U)->alpha * (d_lll.x.yy * gamma_uu.xx + d_lll.y.yy * gamma_uu.xy + d_lll.z.yy * gamma_uu.xz);\
+	(F)->K_ll.yz = (U)->alpha * (d_lll.x.yz * gamma_uu.xx + d_lll.y.yz * gamma_uu.xy + d_lll.z.yz * gamma_uu.xz);\
+	(F)->K_ll.zz = (U)->alpha * (d_lll.x.zz * gamma_uu.xx + d_lll.y.zz * gamma_uu.xy + d_lll.z.zz * gamma_uu.xz);	\
 	/*  END CUT */\
 \
 	<? for side=0,solver.dim-1 do ?>\
@@ -437,19 +435,11 @@ kernel void calcDT(
 	/*real3 const */pt,\
 	/*normal_t const */n\
 ) {\
-	real alpha = .5 * ((UL)->alpha + (UR)->alpha);\
-	sym3 const avg_gamma = (sym3){\
-		.xx = .5 * ((UL)->gamma_ll.xx + (UR)->gamma_ll.xx),\
-		.xy = .5 * ((UL)->gamma_ll.xy + (UR)->gamma_ll.xy),\
-		.xz = .5 * ((UL)->gamma_ll.xz + (UR)->gamma_ll.xz),\
-		.yy = .5 * ((UL)->gamma_ll.yy + (UR)->gamma_ll.yy),\
-		.yz = .5 * ((UL)->gamma_ll.yz + (UR)->gamma_ll.yz),\
-		.zz = .5 * ((UL)->gamma_ll.zz + (UR)->gamma_ll.zz),\
-	};\
+	(eig)->alpha = .5 * ((UL)->alpha + (UR)->alpha);\
+	sym3 const avg_gamma = sym3_real_mul(sym3_add((UL)->gamma_ll, (UR)->gamma_ll), .5);\
 	real const det_avg_gamma = sym3_det(avg_gamma);\
 \
-	(eig)->alpha = alpha;\
-	(eig)->alpha_sqrt_f = sqrt(calc_f_alphaSq(alpha));\
+	(eig)->alpha_sqrt_f = sqrt(calc_f_alphaSq((eig)->alpha));\
 	(eig)->gamma_uu = sym3_inv(avg_gamma, det_avg_gamma);\
 	(eig)->sqrt_gammaUjj.x = sqrt((eig)->gamma_uu.xx);\
 	(eig)->sqrt_gammaUjj.y = sqrt((eig)->gamma_uu.yy);\
@@ -1619,7 +1609,7 @@ kernel void addSource(
 <? end
 ?>	};
 
-	real f = calc_f(U->alpha);	//could be based on alpha...
+	real const f = calc_f(U->alpha);	//could be based on alpha...
 
 	//alpha_,t = shift terms - alpha^2 f gamma^ij K_ij
 	deriv->alpha += -U->alpha * U->alpha * f * tr_K;
