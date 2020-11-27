@@ -38,8 +38,12 @@ unistd.chdir'../..'
 
 for k,v in pairs(require 'tests.util') do _G[k] = v end
 
-__useConsole__ = true	-- set this before require 'hydro.app'
-
+-- I guess I'll set the HYDROCL_ENV variable to override the sys=console cmdline
+-- I could alternatively set the cmdline global ... but for some reason I named this test's cmdline var as 'cmdline' also, so the names collide
+--  I could reuse this 'cmdline' as a global to get around that, and set its cmdline.sys='console'
+--  or I could rename this 'local cmdline' to 'local testcmdline' and declare a separate global "cmdline={sys='console'}"
+-- TODO looks like my own setenv always returns 0, even if it fails to write ...
+assert(0 == ffi.C.setenv('HYDROCL_ENV', 'sys="console",'..(os.getenv'HYDROCL_ENV' or ''), 0))
 
 local cmdline = require 'ext.cmdline'(...)
 

@@ -1,5 +1,5 @@
 --[[
-predefined vars:
+command-line variables:
 	clcpu = (in run.lua, preceding this) use experimental cl-cpu CL-to-C OpenCL wrapper
 	(config file cmdline override options:)
 		solver = 
@@ -75,18 +75,48 @@ predefined vars:
 	stackGraphs = stack graphs initially
 
 	vectorFieldStep = spacing between cells of vector field display
+
+environment variables:
+	HYDROCL_ENV = set to a Lua enumeration of key=value,key=value,... (table grammar without wrapping {})
+
 --]]
 local table = require 'ext.table'
-cmdline = table(
-	require 'ext.cmdline'(table.unpack(arg)),
-	cmdline)	-- let any previous cmdline global fall through, as an override for require'ing files.  I know, very messy.
+local ffi = require 'ffi'
+
+--[[ order of application of command-line key/values:
+1) HYDROCL_ENV env var
+2) previous global 'cmdline' definition
+3) the command-line ... key/values
+--]]
+do
+	-- save the previous global if it's there, apply it later
+	local oldcmdline = cmdline
+	
+	-- initialize our new global cmdline
+	cmdline = table()
+
+	-- first handle HYDROCL_ENV env var
+	local envvarptr = os.getenv'HYDROCL_ENV'
+	if envvarptr ~= nil then	-- cdata NULL will cast to boolean as 'true', but (cdata NULL ~= nil) will evaluate to false
+		local envstr = ffi.string(envvarptr)	-- ffi.string segfaults on NULL last I checked
+		-- ok i am not going to treat this as a cmdline -- why make parsing more miserable
+		-- just treat it as a Lua table
+		local env = require 'ext.fromlua'('{'..envstr..'}')
+		cmdline = table(env, cmdline)
+	end
+
+	-- 2) add in anything from the previously-set cmdline global
+	cmdline = table(oldcmdline, cmdline)
+	
+	-- 3) add in anything from the real command-line
+	cmdline = table(require 'ext.cmdline'(table.unpack(arg)), cmdline)
+end
 
 if cmdline.verbose then
 	print('cmdline: '..require'ext.tolua'(cmdline))
 end
 
 local bit = require 'bit'
-local ffi = require 'ffi'
 local cl = require 'ffi.OpenCL'
 local io = require 'ext.io'
 local os = require 'ext.os'
@@ -106,11 +136,6 @@ TODO 'targetPlatform'?
 options: console, glapp, imguiapp
 --]]
 local targetSystem = cmdline.sys or 'imguiapp'
-
--- allow the global to be set
--- if we are disabling the gui then replace the imgui and tooltip requires, so we don't try to unnecessarily load it
-if __disableGUI__ then targetSystem = 'glapp' end
-if __useConsole__ then targetSystem = 'console' end
 
 -- TODO make this work with the fallback mechanism as well
 -- -- that will probalby mean lots of pcalls around requires

@@ -10,7 +10,7 @@ local class = require 'ext.class'
 local table = require 'ext.table'
 unistd.chdir'../..'
 
-__useConsole__ = true
+assert(0 == ffi.C.setenv('HYDROCL_ENV', 'sys="console",'..(os.getenv'HYDROCL_ENV' or ''), 0))
 
 local dim, solvername, initState = ...
 dim = math.floor(assert(tonumber(dim)))
