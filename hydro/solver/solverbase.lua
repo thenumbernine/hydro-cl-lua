@@ -2936,11 +2936,6 @@ function SolverBase:checkStructSizes()
 		'real2',
 		'real3',
 		'real4',
-		self.eqn.consStruct or self.eqn.cons_t,
-		self.eqn.primStruct or self.eqn.prim_t,
-		self.eqn.eigen_t,
-		self.eqn.waves_t,
-		self.solverStruct,
 	}
 -- [=[ automatically use types in the code modules
 	local moduleNames = table(
@@ -2950,11 +2945,11 @@ function SolverBase:checkStructSizes()
 	):keys()
 	for _,module in ipairs(self.modules:getDependentModules(moduleNames:unpack())) do
 		for _,struct in ipairs(module.structs) do
-			print(struct.typename)
+			--print('checking for struct '..struct.typename..' from module '..module.name)
 			if not typeinfos:find(struct)
 			and not typeinfos:find(struct.typename) 
 			then
-				print('adding struct from modules '..struct.typename)
+				print('adding struct '..struct.typename..' from module '..module.name)
 				typeinfos:insert(struct)
 			end
 		end
@@ -3024,6 +3019,7 @@ end
 		domain = _1x1_domain,
 		argsOut = {resultBuf},
 		header = codePrefix,
+		showCodeOnError = true,
 		body = template([[
 #define offsetof __builtin_offsetof
 
