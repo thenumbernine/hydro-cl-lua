@@ -346,7 +346,7 @@ real slopeLimiter(real r) {
 		
 		self.modules:add{
 			name = 'consLR_t',
-			depends = {'cons_t'},
+			depends = {self.eqn.cons_t},
 			typecode = template([[
 typedef union {
 	<?=eqn.cons_t?> LR[2];
@@ -1115,7 +1115,7 @@ function GridSolver:createBoundaryProgramAndKernel(args)
 
 	local moduleNames = self.sharedModulesEnabled:keys():append{
 		'solver_t',
-		'cons_t',
+		self.eqn.cons_t,
 		'INDEX',
 		'INDEXV',
 		-- some Boundary :getCode use numStates

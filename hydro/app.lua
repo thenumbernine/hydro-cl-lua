@@ -702,6 +702,15 @@ end
 	end):sup() or 1
 end
 
+function HydroCLApp:randomizeGradientTex()
+	local colors = range(math.random(2,10)):mapi(function()
+		return {math.random(), math.random(), math.random(), 0.8}
+	end)
+	self.gradientTex = GLGradientTex(1024, colors, false)
+	-- don't wrap the colors, but do use GL_REPEAT
+	self.gradientTex:setWrap{s = gl.GL_REPEAT}
+end
+
 --[[
 rendering:
 graph variables - many - 1D and 2D ... and hypercoordinates in 3D?
@@ -1386,6 +1395,10 @@ function HydroCLApp:updateGUI()
 			end
 		end
 		
+		if ig.igButton'Randomize Palette' then
+			self:randomizeGradientTex()		
+		end
+
 		-- dump min/max(/avg?) of displayvars to a .txt file
 		tooltip.checkboxTable('dump to text file', dumpFile, 'enabled')
 

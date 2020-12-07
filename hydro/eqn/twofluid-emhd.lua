@@ -183,7 +183,7 @@ end
 
 -- don't use default
 function TwoFluidEMHD:initCodeModule_fluxFromCons() end
-function TwoFluidEMHD:initCodeModulePrimCons() end
+function TwoFluidEMHD:initCodeModule_consFromPrim_primFromCons() end
 
 function TwoFluidEMHD:getModuleDepends_waveCode()
 	return {

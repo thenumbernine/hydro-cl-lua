@@ -31,7 +31,7 @@ end
 
 -- don't use default
 function ShallowWater:initCodeModule_fluxFromCons() end
-function ShallowWater:initCodeModulePrimCons() end
+function ShallowWater:initCodeModule_consFromPrim_primFromCons() end
 
 function ShallowWater:getModuleDepends_waveCode()
 	return {

@@ -319,6 +319,9 @@ args:
 	initCondArgs (optional) = args of init state ctor
 	integrator = name of integrator in int/all.lua to use
 	integratorArgs = integrator args
+
+TODO this should be 'final' i.e. no child inherits it
+so that SolverBase:init can run stuff after all child classes have initialized
 --]]
 function SolverBase:init(args)
 self.initArgs = table(args)	-- save for later	
@@ -746,7 +749,6 @@ function SolverBase:initCDefs()
 		self.solverModulesEnabled,
 		self.sharedModulesEnabled
 	):keys()
-	moduleNames:insert'prim_t'	-- believe it or not, sometimes this isn't enabled (eqn/wave)
 print("ffi.cdef'ing: "..moduleNames:concat', ')
 	require 'hydro.code.safecdef'(self.modules:getTypeHeader(moduleNames:unpack()))
 end
@@ -784,6 +786,19 @@ function SolverBase:postInit()
 		-- doing this now is unreasonable, considering how solver_t is tightly wound with initCond, eqn, and the scheme
 
 		self:copyGuiVarsToBufs()
+		
+		-- during solver init, all writes to solverPtr and initCondPtr were deferred
+		-- so instead do them all at once here:
+print("******* writing solverBuf and initCondBuf *******")
+print("******* t="..self.t.." *******")
+print(debug.traceback())
+print('solverPtr = '..self.solverPtr)	
+print('initCondPtr = '..self.initCondPtr)	
+		-- TODO but I have to also write these before applyInitCond ...
+		if false then
+			self.solverBuf:fromCPU(self.solverPtr)
+			self.initCondBuf:fromCPU(self.initCondPtr)
+		end
 	end)
 end
 
@@ -810,15 +825,52 @@ function SolverBase:createInitCondBuf()
 	}
 end
 
+--[[
+TODO NVIDIA driver, upon multiple writes, is - upon clEnqueueWriteBuffer, giving me CL_OUT_OF_RESOURCES.
+This is documented nowhere (not in the official opencl docs),
+however in some forums people complain of a similar thing with nvidia under clEnqueueReadBuffer.
+	https://www.nvidia.com/en-us/geforce/forums/geforce-graphics-cards/5/229335/opencl-out-of-resources-error/
+	https://forums.developer.nvidia.com/t/cl-out-of-resources-error-on-clenqueuereadbuffer-driver-crashes-and-i-get-an-cl-out-of-resources-err/16426
+	https://stackoverflow.com/questions/34943647/c-opencl-return-cl-out-of-resources
+To supplicant a similar clEnqueueReadBuffer problem, the solution is "just wait a few seconds for NVIDIA to settle its jimmies.  I tried waiting 30 seconds, no difference, so it is a state problem.
+Another cause of this error on NVIDIA seems to be writing OOB ... which shouldn't be the case here, solverPtr, solverBuf, and solver_t are all the same size.
+It seems to always happen in the same place, and only after several writes to the same buffer. 
+So my attempted fix: to minimize all writes to the solverBuf until just before the simulation starts.
+--]]
 function SolverBase:refreshSolverBuf()
-	self.solverBuf:fromCPU(self.solverPtr)
+	-- only update buffers if we are not initializing
+	-- if we are initializing then intead do this at the start of the simulation
+	-- this aggregates writes to prevent multiple writes, which could be our mystery CL_OUT_OF_RESOURCES error on NVIDIA
+	-- TODO but I have to also write these before applyInitCond ...
+	if true then -- self.t > 0 then
+print("******* writing solverBuf *******")
+print("******* t="..self.t.." *******")
+print(debug.traceback())	
+		self.solverBuf:fromCPU(self.solverPtr)
+	else
+print("******* denying solverBuf write request *******")
+print("******* t="..self.t.." *******")
+	end
 end
 
 function SolverBase:refreshInitCondBuf()
-	self.initCondBuf:fromCPU(self.initCondPtr)
+	-- only update buffers if we are not initializing
+	-- if we are initializing then intead do this at the start of the simulation
+	-- this aggregates writes to prevent multiple writes, which could be our mystery CL_OUT_OF_RESOURCES error on NVIDIA
+	-- TODO but I have to also write these before applyInitCond ...
+	if true then -- self.t > 0 then
+print("******* writing initCondBuf *******")
+print("******* t="..self.t.." *******")
+print(debug.traceback())	
+		self.initCondBuf:fromCPU(self.initCondPtr)
+	else
+print("******* denying initCondBuf write request *******")
+print("******* t="..self.t.." *******")
+	end
 end
 
 function SolverBase:copyGuiVarsToBufs()
+	-- copy solverBuf vars
 	for _,var in ipairs(self.eqn.guiVars) do
 		if not var.compileTime then
 			if var.ctype == 'real' then
@@ -830,6 +882,7 @@ function SolverBase:copyGuiVarsToBufs()
 	end
 	self:refreshSolverBuf()
 
+	-- copy initCondBuf vars
 	for _,var in ipairs(self.eqn.initCond.guiVars) do
 		if not var.compileTime then
 			if var.ctype == 'real' then
@@ -872,7 +925,7 @@ function SolverBase:refreshCommonProgram()
 	local moduleNames = table{
 		'realparam',
 		'solver_t',
-		'cons_t',
+		self.eqn.cons_t,
 		
 		-- This is in GridSolver, a subclass.  
 		-- In fact, all the display stuff is pretty specific to cartesian grids.
@@ -1461,7 +1514,7 @@ end ?><?=group.extraArgs and #group.extraArgs > 0
 <? end 		-- mesh vs grid 
 ?>	displayValue_t value = {.ptr={0}};
 
-	<?=group.codePrefix or ''
+<?=group.codePrefix or ''
 ?>
 	int vectorField = 0;
 	switch (displayVarIndex) {
@@ -1512,7 +1565,7 @@ end ?><?=group.extraArgs and #group.extraArgs > 0
 							addTab = addTab,
 						}
 						lines:insert(template([[
-<?=addTab(addTab(var.code))
+<?=addTab(addTab(addTab(var.code)))
 ?>			vectorField = <?=solver:isVarTypeAVectorField(var.type) and '1' or '0'?>;
 ]], env))
 					end

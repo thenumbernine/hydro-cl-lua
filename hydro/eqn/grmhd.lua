@@ -108,7 +108,7 @@ end
 -- YOU ARE HERE in converting stuff from SRHD to GRMHD
 
 -- don't use default 
-function GRMHD:initCodeModulePrimCons() end
+function GRMHD:initCodeModule_consFromPrim_primFromCons() end
 
 GRMHD.solverCodeFile = 'hydro/eqn/srhd.cl'
 

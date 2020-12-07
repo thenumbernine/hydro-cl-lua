@@ -64,8 +64,8 @@ function Euler:init(args)
 				-- div m = (m dot grad ρ)/ρ 
 				chargeCode = self:template[[
 	<? for j=0,solver.dim-1 do ?>{
-		global <?=eqn.cons_t?> const * const Ujm = U - solver->stepsize.s<?=j?>;
-		global <?=eqn.cons_t?> const * const Ujp = U + solver->stepsize.s<?=j?>;
+		global <?=cons_t?> const * const Ujm = U - solver->stepsize.s<?=j?>;
+		global <?=cons_t?> const * const Ujp = U + solver->stepsize.s<?=j?>;
 		real drho_dx = (Ujp->rho - Ujm->rho) * (.5 / solver->grid_dx.s<?=j?>);
 		source -= drho_dx * U->m.s<?=j?> / U->rho;
 	}<? end ?>
@@ -107,8 +107,8 @@ function Euler:initCodeModule_calcDT()
 kernel void calcDT(
 	constant solver_t const * const solver,
 	global real * const dtBuf,
-	const global cons_t const * const UBuf,
-	const global cell_t const * const cellBuf
+	global cons_t const * const UBuf,
+	global cell_t const * const cellBuf
 ) {
 	SETBOUNDS(0,0);
 	if (OOB(numGhost,numGhost)) {
@@ -153,21 +153,21 @@ then
 kernel void calcDT(
 	constant solver_t const * const solver,
 	global real* dtBuf,					//[numCells]
-	const global <?=eqn.cons_t?>* UBuf,	//[numCells]
-	const global <?=solver.coord.cell_t?>* cellBuf,		//[numCells]
-	const global <?=solver.coord.face_t?>* faces,			//[numFaces]
-	const global int* cellFaceIndexes	//[numCellFaceIndexes]
+	global <?=cons_t?> const * const UBuf,	//[numCells]
+	global <?=cell_t?> const * const cellBuf,		//[numCells]
+	global <?=face_t?> const * const faces,			//[numFaces]
+	global int const * const cellFaceIndexes	//[numCellFaceIndexes]
 ) {
 	int cellIndex = get_global_id(0);
 	if (cellIndex >= get_global_size(0)) return;
 	
-	const global <?=eqn.cons_t?>* U = UBuf + cellIndex;
-	const global <?=solver.coord.cell_t?>* cell = cellBuf + cellIndex;
+	global <?=cons_t?> const * const U = UBuf + cellIndex;
+	global <?=cell_t?> const * const cell = cellBuf + cellIndex;
 	real3 x = cell->pos;
 
 	real dt = INFINITY;
 	for (int i = 0; i < cell->faceCount; ++i) {
-		const global <?=solver.coord.face_t?>* face = faces + cellFaceIndexes[i + cell->faceOffset];
+		global <?=face_t?> const * const face = faces + cellFaceIndexes[i + cell->faceOffset];
 		real dx = face->area;
 		if (dx > 1e-7 && face->cells.x != -1 && face->cells.y != -1) {
 			//all sides? or only the most prominent side?
@@ -192,7 +192,7 @@ end
 
 -- don't use default
 function Euler:initCodeModule_fluxFromCons() end
-function Euler:initCodeModulePrimCons() end
+function Euler:initCodeModule_consFromPrim_primFromCons() end
 
 Euler.solverCodeFile = 'hydro/eqn/euler.cl'
 
@@ -200,7 +200,7 @@ Euler.displayVarCodeUsesPrims = true
 
 -- [=[
 Euler.predefinedDisplayVars = {
--- [[	
+-- [[
 	'U rho',
 	'U v',
 	'U P',

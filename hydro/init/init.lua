@@ -88,7 +88,6 @@ InitCond.baseDepends = {
 	-- applyInitCond uses these:
 	'solver_t',
 	'initCond_t',
-	'cons_t',
 	'cell_t',
 	'initCond.guiVars.compileTime',
 	'INDEX', 'INDEXV', 'OOB', 'SETBOUNDS',

@@ -97,7 +97,7 @@ function NavierStokesWilcox:createInitState()
 end
 
 -- don't use default
-function NavierStokesWilcox:initCodeModulePrimCons() end
+function NavierStokesWilcox:initCodeModule_consFromPrim_primFromCons() end
 function NavierStokesWilcox:initCodeModule_fluxFromCons() end
 
 function NavierStokesWilcox:getModuleDepends_waveCode() 

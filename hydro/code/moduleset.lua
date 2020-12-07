@@ -56,9 +56,10 @@ end
 		if not addedkeys[name] then
 			module = self.set[name]
 			if not module then
-				error("failed to find module "..name
-					..(from and (" when requesting from module "..from)
-						or " when requesting from root function call")
+				error(
+					(from and ("module %q"):format(from) or "function call").." requested to include module "..name
+					.." but I failed to find it.\n"
+					.."modules defined so far: "..table.keys(self.set):concat' '
 				)
 			end
 			addedkeys[name] = true
@@ -93,7 +94,7 @@ end
 	local numModules = select('#', ...)
 	for i=1,numModules do
 		local name = select(i, ...)
-		add(name, '', ' ', i == 1)
+		add(name, nil, ' ', i == 1)
 	end
 if self.verbose	then
 	print()

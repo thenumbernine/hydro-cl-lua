@@ -32,6 +32,68 @@ I think other equations were better performing without this, like Euler.
 --]]
 Equation.roeUseFluxFromCons = nil
 
+-- singleton
+Equation.parityVarsGetters = table{
+	real = function(sign, parityVars, field) end,
+	cplx = function(sign, parityVars, field) end,
+	real3 = function(sign, parityVars, field)
+		for i,xi in ipairs(xNames) do
+			if sign[i] == -1 then
+				parityVars:insert(field..'.'..xi)
+			end
+		end
+	end,
+	cplx3 = function(sign, parityVars, field)
+		for i,xi in ipairs(xNames) do
+			if sign[i] == -1 then
+				-- should reals be inserted in and - used?
+				-- or should scalars be inserted and <scalar>_neg be used?
+				parityVars:insert(field..'.'..xi..'.re')
+				parityVars:insert(field..'.'..xi..'.im')
+			end
+		end	
+	end,
+	sym3 = function(sign, parityVars, field)
+		for ij,xij in ipairs(symNames) do
+			local i,j = from6to3x3(ij)
+			if sign[i] * sign[j] == -1 then
+				parityVars:insert(field..'.'..xij)
+			end
+		end
+	end,
+	real3x3 = function(sign, parityVars, field)
+		for i,xi in ipairs(xNames) do
+			for j,xj in ipairs(xNames) do
+				if sign[i] * sign[j] == -1 then
+					parityVars:insert(field..'.'..xi..'.'..xj)
+				end
+			end
+		end	
+	end,
+	_3sym3 = function(sign, parityVars, field)
+		for k,xk in ipairs(xNames) do
+			for ij,xij in ipairs(symNames) do
+				local i,j = from6to3x3(ij)
+				if sign[i] * sign[j] * sign[k] == -1 then
+					parityVars:insert(field..'.'..xk..'.'..xij)
+				end
+			end		
+		end
+	end,
+}
+
+local function getParityVars(structVars, sign, parityVars, field)
+	field = field and (field..'.') or ''
+	for _,var in ipairs(structVars) do
+		local getter = Equation.parityVarsGetters[var.type]
+		if not getter then
+			error("don't know how to handle type "..var.type)
+			-- TODO if it's a struct made up of these types, then handle it recursively
+		end
+		getter(sign, parityVars, field..var.name)
+	end
+end
+
 -- used by bssnok-fd-num and bssnok-fd-sym
 -- useful with spherical grids
 -- (which no other eqn has attempted to implement yet)
@@ -39,54 +101,9 @@ Equation.roeUseFluxFromCons = nil
 -- see table III in 2017 Ruchlin
 function Equation:getParityVars(...)
 	local sign = {...}
-	local vars = table()
-	for _,var in ipairs(self.consStruct.vars) do
-		if var.type == 'real' then
-		elseif var.type == 'cplx' then
-		elseif var.type == 'real3' then
-			for i,xi in ipairs(xNames) do
-				if sign[i] == -1 then
-					vars:insert(var.name..'.'..xi)
-				end
-			end
-		elseif var.type == 'cplx3' then
-			for i,xi in ipairs(xNames) do
-				if sign[i] == -1 then
-					-- should reals be inserted in and - used?
-					-- or should scalars be inserted and <scalar>_neg be used?
-					vars:insert(var.name..'.'..xi..'.re')
-					vars:insert(var.name..'.'..xi..'.im')
-				end
-			end	
-		elseif var.type == 'sym3' then
-			for ij,xij in ipairs(symNames) do
-				local i,j = from6to3x3(ij)
-				if sign[i] * sign[j] == -1 then
-					vars:insert(var.name..'.'..xij)
-				end
-			end
-		elseif var.type == 'real3x3' then
-			for i,xi in ipairs(xNames) do
-				for j,xj in ipairs(xNames) do
-					if sign[i] * sign[j] == -1 then
-						vars:insert(var.name..'.'..xi..'.'..xj)
-					end
-				end
-			end	
-		elseif var.type == '_3sym3' then
-			for k,xk in ipairs(xNames) do
-				for ij,xij in ipairs(symNames) do
-					local i,j = from6to3x3(ij)
-					if sign[i] * sign[j] * sign[k] == -1 then
-						vars:insert(var.name..'.'..xk..'.'..xij)
-					end
-				end		
-			end
-		else
-			error("don't know how to handle type "..var.type)
-		end
-	end
-	return vars
+	local parityVars = table()
+	getParityVars(self.consStruct.vars, sign, parityVars)
+	return parityVars
 end
 
 
@@ -100,7 +117,6 @@ function Equation:init(args)
 	local solver = assert(args.solver)
 	self.solver = solver
 	local app = solver.app
-
 	
 	-- build consStruct and primStruct from self.consVars and .primVars (then erase them -- don't use them anymore)
 	-- TODO think of a better way for the eqn to pass this info along, maybe a callback instead of a field?
@@ -142,6 +158,7 @@ function Equation:init(args)
 		-- or you could typedef this ...
 		self.prim_t = app:uniqueName'prim_t'
 	end
+
 
 	if not self.eigenVars then
 		self.eigenStruct = Struct{
@@ -224,9 +241,18 @@ function Equation:init(args)
 		self:getParityVars(1, -1, 1),
 		self:getParityVars(1, 1, -1),
 	}
+
+	-- now add our own prim_t, cons_t to the parityVarsGetters for recursive application
+	self.parityVarsGetters[assert(self.cons_t)] = function(sign, parityVars, field)
+		getParityVars(self.consStruct.vars, sign, parityVars, field)
+	end
+	self.parityVarsGetters[assert(self.prim_t)] = function(sign, vars, var)
+		getParityVars(self.primStruct.vars, sign, parityVars, field)
+	end
 end
 
 function Equation:cdefAllVarTypes(solver, vars)
+	-- TODO not just math, but also cons_t
 	require 'hydro.code.safecdef'(
 		solver.app.modules:getTypeHeader(
 			table.mapi(vars, function(var,i,t)
@@ -315,6 +341,17 @@ function Equation:getEnv()
 		solver = self.solver,
 		coord = self.solver.coord,
 		initCond = self.initCond,
+	
+		-- convenience
+		cons_t = self.cons_t,
+		prim_t = self.prim_t,
+		eigen_t = self.eigen_t,
+		waves_t = self.waves_t,
+		solver_t = self.solver.solver_t,
+		initCond_t = self.solver.initCond_t,
+		cell_t = self.solver.coord.cell_t,
+		face_t = self.solver.coord.face_t,
+		numWaves = self.numWaves,
 
 		-- common 
 		xNames = xNames,
@@ -335,51 +372,20 @@ end
 function Equation:initCodeModules()
 	local solver = self.solver
 
-	assert(self.consStruct)
-	solver.modules:add{
-		name = 'cons_t',
-		structs = {self.consStruct},
-		-- only generated for cl, not for ffi cdef
-		headercode = 'typedef '..self.cons_t..' cons_t;',
-	}
+	self:initCodeModule_cons_prim_eigen()
 
-	if self.primStruct then
-		solver.modules:add{
-			name = 'prim_t',
-			structs = {self.primStruct},
-			-- only generated for cl, not for ffi cdef
-			headercode = 'typedef '..self.prim_t..' prim_t;',
-		}
-	else
-		solver.modules:add{
-			name = 'prim_t',
-			depends = {'cons_t'},
-			typecode = 'typedef '..self.cons_t..' '..self.prim_t..';',
-			-- only generated for cl, not for ffi cdef
-			headercode = 'typedef '..self.prim_t..' prim_t;',
-		}
-	end
-	
 	solver.modules:add{
-		name = 'waves_t',
+		name = self.waves_t,
 		depends = {'real'},
 		typecode = self:template[[
 typedef union { 
-	real ptr[<?=eqn.numWaves?>]; 
-} <?=eqn.waves_t?>;
+	real ptr[<?=numWaves?>]; 
+} <?=waves_t?>;
 ]],
 		-- only generated for cl, not for ffi cdef
 		headercode = 'typedef '..self.waves_t..' waves_t;',
 	}
 	
-	assert(self.eigenStruct)
-	solver.modules:add{
-		name = 'eigen_t',
-		structs = {self.eigenStruct},
-		-- only generated for cl, not for ffi cdef
-		headercode = 'typedef '..self.eigen_t..' eigen_t;',
-	}
-
 	-- only require this if we're a fvsolver
 
 	-- parallel propagate autogen code 
@@ -408,9 +414,10 @@ typedef union {
 				var.variance = var.name:match'_([^_]*)$' or ''
 			end
 			-- also assert it is the right one for the struct
-			local degree = degreeForType[var.type]
+			local degree = degreeForType[var.type] or 0
 			if #var.variance ~= degree  then
-				error("variable "..('%q'):format(var.name).." variance "..('%q'):format(var.variance).." does not match variable type "..var.type.." degree "..degree)
+				local tolua = require 'ext.tolua'
+				error("variable "..tolua(var.name).." variance "..tolua(var.variance).." does not match variable type "..tolua(var.type).." degree "..tolua(degree))
 			end
 		end
 
@@ -423,7 +430,7 @@ typedef union {
 		solver.modules:add{
 			name = 'cons_parallelPropagate',
 			depends = table{
-				'cons_t',
+				self.cons_t,
 				'coord_parallelPropagate',
 			}:append(
 				-- rank-2 always use real3x3 for transformation
@@ -525,7 +532,7 @@ end
 	-- init primFromCons and consFromPrim
 	-- prim-cons should have access to all ... prefix stuff?
 	-- but initstate has access to it
-	self:initCodeModulePrimCons()
+	self:initCodeModule_consFromPrim_primFromCons()
 
 	-- these are only the compile-time gui vars
 	-- the runtime ones are stored in solver_t
@@ -540,7 +547,7 @@ end
 	self:initCodeModule_fluxFromCons()
 	self:initCodeModule_waveCode()
 
-	self.solver.modules:addFromMarkup{
+	solver.modules:addFromMarkup{
 		code = self:template(file[self.solverCodeFile]),
 		onAdd = function(args)
 			-- special case for applyInitCond ...
@@ -556,11 +563,50 @@ end
 	}
 end
 
+-- separate this out so composite solvers can init this and this alone -- without anything else (which would cause module name collisions)
+function Equation:initCodeModule_cons_prim_eigen()
+	local solver = self.solver
+
+	assert(self.consStruct)
+	solver.modules:add{
+		name = self.cons_t,
+		structs = {self.consStruct},
+		depends = self.getModuleDepends_cons_t and self:getModuleDepends_cons_t() or nil,
+		-- only generated for cl, not for ffi cdef
+		headercode = 'typedef '..self.cons_t..' cons_t;',
+	}
+
+	if self.primStruct then
+		solver.modules:add{
+			name = self.prim_t,
+			structs = {self.primStruct},
+			-- only generated for cl, not for ffi cdef
+			headercode = 'typedef '..self.prim_t..' prim_t;',
+		}
+	else
+		solver.modules:add{
+			name = self.prim_t,
+			depends = {self.cons_t},
+			typecode = 'typedef '..self.cons_t..' '..self.prim_t..';',
+			-- only generated for cl, not for ffi cdef
+			headercode = 'typedef '..self.prim_t..' prim_t;',
+		}
+	end
+
+	assert(self.eigenStruct)
+	solver.modules:add{
+		name = self.eigen_t,
+		structs = {self.eigenStruct},
+		-- only generated for cl, not for ffi cdef
+		headercode = 'typedef '..self.eigen_t..' eigen_t;',
+	}
+end
+
 function Equation:initCodeModule_fluxFromCons()
 	self.solver.modules:add{
 		name = 'fluxFromCons',
 		depends = {
-			'cons_t',
+			self.cons_t,
 			'solver_t',
 			'eigen_fluxTransform',
 			'eigen_forCell',
@@ -603,9 +649,9 @@ end
 Equation.displayVarCodeUsesPrims = false
 function Equation:getDisplayVarCodePrefix()
 	return self:template[[
-	const global <?=eqn.cons_t?>* U = buf + index;
+	global <?=cons_t?> const * const U = buf + index;
 <? if eqn.displayVarCodeUsesPrims then 
-?>	<?=eqn.prim_t?> W;
+?>	<?=prim_t?> W;
 	primFromCons(&W, solver, U, x);
 <? end 
 ?>]]
@@ -670,8 +716,8 @@ function Equation:createDivDisplayVar(args)
 	} else {
 		<?=scalar?> v = <?=scalar?>_zero;
 		<? for j=0,solver.dim-1 do ?>{
-			global const <?=eqn.cons_t?>* Ujm = U - solver->stepsize.s<?=j?>;
-			global const <?=eqn.cons_t?>* Ujp = U + solver->stepsize.s<?=j?>;
+			global <?=cons_t?> const * const Ujm = U - solver->stepsize.s<?=j?>;
+			global <?=cons_t?> const * const Ujp = U + solver->stepsize.s<?=j?>;
 			v = <?=scalar?>_add(v, <?=scalar?>_real_mul(
 				<?=scalar?>_sub(
 					<?=getField('Ujp', j)?>,
@@ -711,10 +757,10 @@ function Equation:createCurlDisplayVar(args)
 	if (OOB(1,1)) {
 		<?=result?> = 0./0.;
 	} else {
-		global const <?=eqn.cons_t?>* Uim = U - solver->stepsize.s<?=i?>;
-		global const <?=eqn.cons_t?>* Uip = U + solver->stepsize.s<?=i?>;
-		global const <?=eqn.cons_t?>* Ujm = U - solver->stepsize.s<?=j?>;
-		global const <?=eqn.cons_t?>* Ujp = U + solver->stepsize.s<?=j?>;
+		global <?=cons_t?> const * const Uim = U - solver->stepsize.s<?=i?>;
+		global <?=cons_t?> const * const Uip = U + solver->stepsize.s<?=i?>;
+		global <?=cons_t?> const * const Ujm = U - solver->stepsize.s<?=j?>;
+		global <?=cons_t?> const * const Ujp = U + solver->stepsize.s<?=j?>;
 
 		//TODO incorporate metric
 
@@ -811,19 +857,19 @@ Default code for the following:
 
 The default assumes prim_t == cons_t and this transformation is identity
 --]]
-function Equation:initCodeModulePrimCons()
+function Equation:initCodeModule_consFromPrim_primFromCons()
 	assert(not self.primStruct, "if you're using the default prim<->cons code then you shouldn't have any primStruct")
 
 	self.solver.modules:add{
 		name = 'primFromCons',
-		depends = {'solver_t', 'prim_t', 'cons_t'},
+		depends = {'solver_t', self.prim_t, self.cons_t},
 		code = self:template[[
 #define primFromCons(W, solver, U, x)	(*(W) = *(U))
 /*
 void primFromCons(
-	<?=eqn.prim_t?> * const W,
-	constant <?=solver.solver_t?> const * const solver,
-	<?=eqn.cons_t?> const * const U, 
+	<?=prim_t?> * const W,
+	constant <?=solver_t?> const * const solver,
+	<?=cons_t?> const * const U, 
 	real3 const x
 ) { 
 	return U; 
@@ -834,14 +880,14 @@ void primFromCons(
 	
 	self.solver.modules:add{
 		name = 'consFromPrim',
-		depends = {'solver_t', 'prim_t', 'cons_t'},
+		depends = {'solver_t', self.prim_t, self.cons_t},
 		code = self:template[[
 #define consFromPrim(U, solver, W, x)	(*(U) = *(W))
 /*
 void consFromPrim(
-	cons_t * const U,
+	<?=cons_t?> * const U,
 	constant solver_t const * const solver,
-	prim_t const * const W, 
+	<?=prim_t?> const * const W, 
 	real3 const x
 ) { 
 	return W; 
@@ -853,7 +899,7 @@ void consFromPrim(
 	-- only used by PLM
 	self.solver.modules:add{
 		name = 'apply_dU_dW',
-		depends = {'solver_t', 'prim_t', 'cons_t'},
+		depends = {'solver_t', self.prim_t, self.cons_t},
 		code = self:template[[
 /*
 WA = W components that make up the jacobian matrix
@@ -864,10 +910,10 @@ returns output vector
 #define apply_dU_dW(result, solver, WA, W, x)	(*(result) = *(W))
 /*
 void apply_dU_dW(
-	cons_t * const result,
+	<?=cons_t?> * const result,
 	constant solver_t* solver,
-	prim_t const * const WA, 
-	prim_t const * const W, 
+	<?=prim_t?> const * const WA, 
+	<?=prim_t?> const * const W, 
 	real3 const x
 ) { 
 	return W; 
@@ -879,7 +925,7 @@ void apply_dU_dW(
 	-- only used by PLM
 	self.solver.modules:add{
 		name = 'apply_dW_dU',
-		depends = {'solver_t', 'prim_t', 'cons_t'},
+		depends = {'solver_t', self.prim_t, self.cons_t},
 		code = self:template[[
 /*
 WA = W components that make up the jacobian matrix
@@ -890,10 +936,10 @@ returns output vector
 #define apply_dW_dU(solver, WA, U, x)	(*(result) = (*U))
 /*
 void apply_dW_dU(
-	prim_t const * W,
+	<?=prim_t?> const * W,
 	constant solver_t const * const solver,
-	prim_t const * const WA, 
-	cons_t const * const U,
+	<?=prim_t?> const * const WA, 
+	<?=cons_t?> const * const U,
 	real3 const x
 ) { 
 	return U; 

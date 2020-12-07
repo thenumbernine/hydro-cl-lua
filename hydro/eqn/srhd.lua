@@ -64,6 +64,7 @@ function SRHD:init(args)
 		},
 	}
 
+	-- TODO how about anonymous structs, so we can copy out prim_only_t and cons_only_t?
 	self.consVars = table()
 	:append(self.consOnlyStruct.vars)
 	:append(self.primOnlyStruct.vars)

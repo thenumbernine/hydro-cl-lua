@@ -1,5 +1,5 @@
 //// MODULE_NAME: calcDerivFromFlux
-//// MODULE_DEPENDS: solver_t cons_t cell_t solver.macros SETBOUNDS_NOGHOST
+//// MODULE_DEPENDS: solver_t <?=eqn.cons_t?> cell_t solver.macros SETBOUNDS_NOGHOST
 
 // used by all the finite volume solvers
 

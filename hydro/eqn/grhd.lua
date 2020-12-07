@@ -92,7 +92,7 @@ function GRHD:createInitState()
 end
 
 -- don't use default 
-function GRHD:initCodeModulePrimCons() end
+function GRHD:initCodeModule_consFromPrim_primFromCons() end
 
 GRHD.solverCodeFile = 'hydro/eqn/grhd.cl'
 

@@ -266,7 +266,7 @@ function FiniteVolumeSolver:getModuleDepends_displayCode()
 	return table(FiniteVolumeSolver.super.getModuleDepends_displayCode(self)):append{
 		-- wave #
 		'normal_t',
-		'eigen_t',
+		self.eqn.eigen_t,
 		'eqn.waveCode',
 		'eigen_forInterface',
 	}

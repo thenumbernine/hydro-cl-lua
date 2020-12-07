@@ -169,7 +169,7 @@ end
 
 -- don't use default
 function MHD:initCodeModule_fluxFromCons() end
-function MHD:initCodeModulePrimCons() end
+function MHD:initCodeModule_consFromPrim_primFromCons() end
 
 function MHD:getModuleDepends_waveCode() 
 	return {
