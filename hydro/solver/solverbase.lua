@@ -789,11 +789,11 @@ function SolverBase:postInit()
 		
 		-- during solver init, all writes to solverPtr and initCondPtr were deferred
 		-- so instead do them all at once here:
-print("******* writing solverBuf and initCondBuf *******")
-print("******* t="..self.t.." *******")
-print(debug.traceback())
-print('solverPtr = '..self.solverPtr)	
-print('initCondPtr = '..self.initCondPtr)	
+--print("******* writing solverBuf and initCondBuf *******")
+--print("******* t="..self.t.." *******")
+--print(debug.traceback())
+--print('solverPtr = '..self.solverPtr)	
+--print('initCondPtr = '..self.initCondPtr)	
 		-- TODO but I have to also write these before applyInitCond ...
 		if false then
 			self.solverBuf:fromCPU(self.solverPtr)
@@ -843,13 +843,13 @@ function SolverBase:refreshSolverBuf()
 	-- this aggregates writes to prevent multiple writes, which could be our mystery CL_OUT_OF_RESOURCES error on NVIDIA
 	-- TODO but I have to also write these before applyInitCond ...
 	if true then -- self.t > 0 then
-print("******* writing solverBuf *******")
-print("******* t="..self.t.." *******")
-print(debug.traceback())	
+--print("******* writing solverBuf *******")
+--print("******* t="..self.t.." *******")
+--print(debug.traceback())	
 		self.solverBuf:fromCPU(self.solverPtr)
 	else
-print("******* denying solverBuf write request *******")
-print("******* t="..self.t.." *******")
+--print("******* denying solverBuf write request *******")
+--print("******* t="..self.t.." *******")
 	end
 end
 
@@ -859,13 +859,13 @@ function SolverBase:refreshInitCondBuf()
 	-- this aggregates writes to prevent multiple writes, which could be our mystery CL_OUT_OF_RESOURCES error on NVIDIA
 	-- TODO but I have to also write these before applyInitCond ...
 	if true then -- self.t > 0 then
-print("******* writing initCondBuf *******")
-print("******* t="..self.t.." *******")
-print(debug.traceback())	
+--print("******* writing initCondBuf *******")
+--print("******* t="..self.t.." *******")
+--print(debug.traceback())	
 		self.initCondBuf:fromCPU(self.initCondPtr)
 	else
-print("******* denying initCondBuf write request *******")
-print("******* t="..self.t.." *******")
+--print("******* denying initCondBuf write request *******")
+--print("******* t="..self.t.." *******")
 	end
 end
 

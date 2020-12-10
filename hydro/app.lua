@@ -896,7 +896,22 @@ local pushVarNamesEnabled
 -- any smaller than this and the font starts to screw up (maybe because it is using floating point?)
 local minDeltaY = 1e-5
 
+local time, getTime = table.unpack(require 'hydro.util.time')
+local startTime
+
+function HydroCLApp:requestExit(...)
+	if startTime then
+		local endTime = getTime()
+		print("duration: "..(endTime - startTime))
+	end
+	HydroCLApp.super.requestExit(self, ...)
+end
+
 function HydroCLApp:update(...)
+	if not startTime then
+		startTime = getTime()
+	end
+
 	if canHandleMouse() then
 		mouse:update()
 	end
@@ -957,7 +972,9 @@ end
 
 
 	self.iteration = (self.iteration or 0) + 1
-	if cmdline.maxiter and self.iteration > cmdline.maxiter then self:requestExit() end
+	if cmdline.maxiter and self.iteration > cmdline.maxiter then
+		self:requestExit()
+	end
 
 
 	if self.targetSystem == 'console' then return end
