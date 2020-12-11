@@ -19,20 +19,20 @@ function BSSNOKFiniteDifferenceSolver:createDisplayComponents()
 	self:addDisplayComponent('real3', {
 		onlyFor = 'U',
 		name = 'norm weighted gammaBar_IJ',
-		code = [[
+		code = self.eqn:template[[
 	int index = INDEXV(i);
 	real3 x = cell_x(i);
-	const global <?=eqn.cons_t?>* U = buf + index;
+	const global <?=cons_t?>* U = buf + index;
 	sym3 gammaBar_LL = calc_gammaBar_LL(U, x);
 	value->vreal = real3_weightedLen(value->vreal3, gammaBar_LL);]],
 	})
 	self:addDisplayComponent('real3', {
 		onlyFor = 'U',
 		name = 'norm weighted gammaBar_ij',
-		code = [[
+		code = self.eqn:template[[
 	int index = INDEXV(i);
 	real3 x = cell_x(i);
-	const global <?=eqn.cons_t?>* U = buf + index;
+	const global <?=cons_t?>* U = buf + index;
 	sym3 gammaBar_ll = calc_gammaBar_ll(U, x);
 	value->vreal = real3_weightedLen(value->vreal3, gammaBar_ll);]],
 	})
@@ -40,10 +40,10 @@ function BSSNOKFiniteDifferenceSolver:createDisplayComponents()
 	self:addDisplayComponent('real3', {
 		onlyFor = 'U',
 		name = 'norm weighted gamma^ij',
-		code = [[
+		code = self.eqn:template[[
 	int index = INDEXV(i);
 	real3 x = cell_x(i);
-	const global <?=eqn.cons_t?>* U = buf + index;
+	const global <?=cons_t?>* U = buf + index;
 	sym3 gamma_uu = calc_gamma_uu(U, x);
 	value->vreal = real3_weightedLen(value->vreal3, gamma_uu);]],
 	})
@@ -51,20 +51,20 @@ function BSSNOKFiniteDifferenceSolver:createDisplayComponents()
 	self:addDisplayComponent('sym3', {
 		onlyFor = 'U',
 		name = 'tr weighted gamma^IJ',
-		code = [[
+		code = self.eqn:template[[
 	int index = INDEXV(i);
 	real3 x = cell_x(i);
-	const global <?=eqn.cons_t?>* U = buf + index;
+	const global <?=cons_t?>* U = buf + index;
 	sym3 gamma_UU = sym3_rescaleFromCoord_uu(calc_gamma_uu(U, x), x);
 	value->vreal = sym3_dot(value->vsym3, gamma_UU);]],
 	})
 	self:addDisplayComponent('sym3', {
 		onlyFor = 'U',
 		name = 'tr weighted gammaBar^IJ',
-		code = [[
+		code = self.eqn:template[[
 	int index = INDEXV(i);
 	real3 x = cell_x(i);
-	const global <?=eqn.cons_t?>* U = buf + index;
+	const global <?=cons_t?>* U = buf + index;
 	sym3 gammaBar_UU = calc_gammaBar_UU(U, x);
 	value->vreal = sym3_dot(value->vsym3, gammaBar_UU);]],
 	})

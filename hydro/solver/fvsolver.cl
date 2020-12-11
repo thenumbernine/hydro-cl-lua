@@ -1,16 +1,16 @@
 //// MODULE_NAME: calcDerivFromFlux
-//// MODULE_DEPENDS: solver_t <?=eqn.cons_t?> cell_t solver.macros SETBOUNDS_NOGHOST
+//// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> <?=cell_t?> solver.macros SETBOUNDS_NOGHOST
 
 // used by all the finite volume solvers
 
 kernel void calcDerivFromFlux(
-	constant solver_t const * const solver,
-	global cons_t * const derivBuf,
-	global cons_t const * const fluxBuf,
-	global cell_t const * const cellBuf
+	constant <?=solver_t?> const * const solver,
+	global <?=cons_t?> * const derivBuf,
+	global <?=cons_t?> const * const fluxBuf,
+	global <?=cell_t?> const * const cellBuf
 ) {
 	SETBOUNDS_NOGHOST();
-	global cons_t * const deriv = derivBuf + index;
+	global <?=cons_t?> * const deriv = derivBuf + index;
 	real3 const x = cellBuf[index].pos;
 
 /*<?--[[
@@ -45,10 +45,10 @@ then ?>
 
 	<? for side=0,solver.dim-1 do ?>{
 		int const indexIntL = <?=side?> + dim * index;
-		global cons_t const * const fluxL = fluxBuf + indexIntL;
+		global <?=cons_t?> const * const fluxL = fluxBuf + indexIntL;
 		
 		int const indexIntR = indexIntL + dim * solver->stepsize.s<?=side?>; 
-		global cons_t const * const fluxR = fluxBuf + indexIntR;
+		global <?=cons_t?> const * const fluxR = fluxBuf + indexIntR;
 		
 		real3 xIntL = x; xIntL.s<?=side?> -= .5 * solver->grid_dx.s<?=side?>;
 		real3 xIntR = x; xIntR.s<?=side?> += .5 * solver->grid_dx.s<?=side?>;
@@ -83,7 +83,7 @@ then ?>
 			areaR *= invVolume;
 <? -- TODO get rid of this, it's only used by the maxwell and glm-maxwell eqns
 if eqn.postComputeFluxCode then ?>
-			cons_t flux = {.ptr={0}};
+			<?=cons_t?> flux = {.ptr={0}};
 			for (int j = 0; j < numIntStates; ++j) {
 				flux.ptr[j] = 
 					fluxR->ptr[j] * areaR

@@ -22,9 +22,9 @@
 #define calc_gammaHat_UU(x) (sym3_ident)
 
 //// MODULE_NAME: calc_gammaBar_LL
-//// MODULE_DEPENDS: cons_t calc_gammaHat_LL
+//// MODULE_DEPENDS: <?=cons_t?> calc_gammaHat_LL
 
-sym3 calc_gammaBar_LL(global const <?=eqn.cons_t?>* U, real3 x) {
+sym3 calc_gammaBar_LL(global const <?=cons_t?>* U, real3 x) {
 	sym3 gammaHat_LL = calc_gammaHat_LL(x);
 	sym3 gammaBar_LL = sym3_add(gammaHat_LL, U->epsilon_LL);
 	return gammaBar_LL;
@@ -42,7 +42,7 @@ det(epsilon_IJ + gammaHat_IJ)
 TODO detg ... unless we want to change the constraint
 */
 #if 0	//use the value
-real calc_det_gammaBarLL(global const <?=eqn.cons_t?>* U, ral3 x) {
+real calc_det_gammaBarLL(global const <?=cons_t?>* U, ral3 x) {
 	sym3 gammaBar_LL = calc_gammaBar_LL(U, x);
 	real det_gammaBarLL = sym3_det(gammaBar_LL);
 	return det_gammaBarLL;
@@ -52,9 +52,9 @@ real calc_det_gammaBarLL(global const <?=eqn.cons_t?>* U, ral3 x) {
 #endif
 
 //// MODULE_NAME: calc_gammaBar_UU
-//// MODULE_DEPENDS: cons_t calc_gammaBar_LL calc_det_gammaBarLL
+//// MODULE_DEPENDS: <?=cons_t?> calc_gammaBar_LL calc_det_gammaBarLL
 
-sym3 calc_gammaBar_UU(global const <?=eqn.cons_t?>* U, real3 x) {
+sym3 calc_gammaBar_UU(global const <?=cons_t?>* U, real3 x) {
 	sym3 gammaBar_LL = calc_gammaBar_LL(U, x);
 	real det_gammaBarLL = calc_det_gammaBarLL(x);
 	sym3 gammaBar_UU = sym3_inv(gammaBar_LL, det_gammaBarLL);
@@ -62,10 +62,10 @@ sym3 calc_gammaBar_UU(global const <?=eqn.cons_t?>* U, real3 x) {
 }
 
 //// MODULE_NAME: calc_gammaBar_ll
-//// MODULE_DEPENDS: cons_t calc_gammaHat_ll rescaleFromCoord/rescaleToCoord
+//// MODULE_DEPENDS: <?=cons_t?> calc_gammaHat_ll rescaleFromCoord/rescaleToCoord
 
 //gammaBar_ll.ij := gammaBar_ij = gammaHat_ij + epsilon_ij = gammaHat_ij + epsilon_IJ e_i^I e_j^J
-sym3 calc_gammaBar_ll(global const <?=eqn.cons_t?>* U, real3 x) {
+sym3 calc_gammaBar_ll(global const <?=cons_t?>* U, real3 x) {
 	sym3 gammaHat_ll = calc_gammaHat_ll(x);
 	sym3 epsilon_ll = sym3_rescaleToCoord_LL(U->epsilon_LL, x);
 	sym3 gammaBar_ll = sym3_add(gammaHat_ll, epsilon_ll);
@@ -90,9 +90,9 @@ real calc_det_gammaBar(real3 x) {
 #define calc_exp_neg4phi(U) ((U)->W * (U)->W)
 
 //// MODULE_NAME: calc_gammaBar_uu
-//// MODULE_DEPENDS: cons_t calc_gammaBar_ll calc_det_gammaBar
+//// MODULE_DEPENDS: <?=cons_t?> calc_gammaBar_ll calc_det_gammaBar
 
-sym3 calc_gammaBar_uu(global const <?=eqn.cons_t?>* U, real3 x) {
+sym3 calc_gammaBar_uu(global const <?=cons_t?>* U, real3 x) {
 	sym3 gammaBar_ll = calc_gammaBar_ll(U, x);
 	real det_gammaBar = calc_det_gammaBar(x);
 	sym3 gammaBar_uu = sym3_inv(gammaBar_ll, det_gammaBar);
@@ -100,9 +100,9 @@ sym3 calc_gammaBar_uu(global const <?=eqn.cons_t?>* U, real3 x) {
 }
 
 //// MODULE_NAME: calc_gamma_ll
-//// MODULE_DEPENDS: cons_t calc_gammaBar_ll calc_exp_neg4phi
+//// MODULE_DEPENDS: <?=cons_t?> calc_gammaBar_ll calc_exp_neg4phi
 
-sym3 calc_gamma_ll(global const <?=eqn.cons_t?>* U, real3 x) {
+sym3 calc_gamma_ll(global const <?=cons_t?>* U, real3 x) {
 	sym3 gammaBar_ll = calc_gammaBar_ll(U, x);
 	real exp_4phi = 1. / calc_exp_neg4phi(U);
 	sym3 gamma_ll = sym3_real_mul(gammaBar_ll, exp_4phi);
@@ -110,9 +110,9 @@ sym3 calc_gamma_ll(global const <?=eqn.cons_t?>* U, real3 x) {
 }
 
 //// MODULE_NAME: calc_gamma_uu
-//// MODULE_DEPENDS: cons_t calc_gammaBar_ll calc_exp_neg4phi calc_det_gammaBar
+//// MODULE_DEPENDS: <?=cons_t?> calc_gammaBar_ll calc_exp_neg4phi calc_det_gammaBar
 
-sym3 calc_gamma_uu(global const <?=eqn.cons_t?>* U, real3 x) {
+sym3 calc_gamma_uu(global const <?=cons_t?>* U, real3 x) {
 	sym3 gammaBar_ll = calc_gammaBar_ll(U, x);
 	real exp_4phi = 1. / calc_exp_neg4phi(U);
 	sym3 gamma_ll = sym3_real_mul(gammaBar_ll, exp_4phi);
@@ -130,8 +130,8 @@ sym3 calc_gamma_uu(global const <?=eqn.cons_t?>* U, real3 x) {
 //// MODULE_DEPENDS: mystery_C_U
 
 void setFlatSpace(
-	constant <?=solver.solver_t?>* solver,
-	global <?=eqn.cons_t?>* U,
+	constant <?=solver_t?>* solver,
+	global <?=cons_t?>* U,
 	real3 x
 ) {
 	U->alpha = 1.;

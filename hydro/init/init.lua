@@ -82,25 +82,30 @@ end
 
 -- these depends are added to the applyInitCond module in the eqn.initCodeModules function
 -- so are any in the initCond.depends table
-InitCond.baseDepends = {
-	-- if an InitCond provides codeprefix, it is for code it expects to reference from within 'applyInitCond()'
-	'initCond.codeprefix',
-	-- applyInitCond uses these:
-	'solver_t',
-	'initCond_t',
-	'cell_t',
-	'initCond.guiVars.compileTime',
-	'INDEX', 'INDEXV', 'OOB', 'SETBOUNDS',
-	'numGhost',
-	-- enough use #if dim that i'll put this here:
-	'solver.macros',
-	-- initCond code is specified in terms of primitives, so if the eqn has prim<->cons then it will be needed
-	'consFromPrim',
-}
+function InitCond:getBaseDepends(solver)
+	return {
+		-- if an InitCond provides codeprefix, it is for code it expects to reference from within 'applyInitCond()'
+		'initCond.codeprefix',
+		-- applyInitCond uses these:
+		solver.solver_t,
+		self.initCond_t,
+		solver.coord.cell_t,
+		'initCond.guiVars.compileTime',
+		'INDEX',
+		'INDEXV',
+		'OOB',
+		'SETBOUNDS',
+		'numGhost',
+		-- enough use #if dim that i'll put this here:
+		'solver.macros',
+		-- initCond code is specified in terms of primitives, so if the eqn has prim<->cons then it will be needed
+		'consFromPrim',
+	}
+end
 
 function InitCond:initCodeModules(solver)
 	solver.modules:add{
-		name = 'initCond_t',
+		name = self.initCond_t,
 		structs = {self.initStruct},
 		-- only generated for cl, not for ffi cdef
 		headercode = 'typedef '..self.initCond_t..' initCond_t;',
@@ -116,7 +121,7 @@ function InitCond:initCodeModules(solver)
 	solver.modules:add{
 		name = 'initCond.codeprefix',
 		depends = {
-			'initCond_t',
+			self.initCond_t,
 		},
 		code = self.getCodePrefix and self:getCodePrefix(solver) or nil,
 	}

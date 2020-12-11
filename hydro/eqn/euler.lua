@@ -96,7 +96,7 @@ function Euler:initCodeModule_calcDT()
 		depends = table{
 			'OOB',
 			'SETBOUNDS',
-			'solver_t',
+			self.solver.solver_t,
 			'primFromCons',
 			'eqn.guiVars.compileTime',
 			'normal_t',
@@ -105,10 +105,10 @@ function Euler:initCodeModule_calcDT()
 <? if require 'hydro.solver.gridsolver'.is(solver) then ?>
 
 kernel void calcDT(
-	constant solver_t const * const solver,
+	constant <?=solver_t?> const * const solver,
 	global real * const dtBuf,
-	global cons_t const * const UBuf,
-	global cell_t const * const cellBuf
+	global <?=cons_t?> const * const UBuf,
+	global <?=cell_t?> const * const cellBuf
 ) {
 	SETBOUNDS(0,0);
 	if (OOB(numGhost,numGhost)) {
@@ -117,7 +117,7 @@ kernel void calcDT(
 	}
 	real3 const x = cellBuf[index].pos;
 
-	global cons_t const * const U = UBuf + index;
+	global <?=cons_t?> const * const U = UBuf + index;
 	prim_t W;
 	primFromCons(&W, solver, U, x);
 	real const Cs = calc_Cs(solver, &W);
@@ -151,7 +151,7 @@ then
 <? else -- mesh solver ?>
 
 kernel void calcDT(
-	constant solver_t const * const solver,
+	constant <?=solver_t?> const * const solver,
 	global real* dtBuf,					//[numCells]
 	global <?=cons_t?> const * const UBuf,	//[numCells]
 	global <?=cell_t?> const * const cellBuf,		//[numCells]

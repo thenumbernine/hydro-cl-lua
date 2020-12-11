@@ -39,6 +39,10 @@ function FiniteVolumeSolver:initCodeModules()
 			solver = self,
 			eqn = self.eqn,
 			flux = self.flux,
+		
+			solver_t = assert(self.solver_t),
+			cons_t = assert(self.eqn.cons_t),
+			cell_t = assert(self.coord.cell_t),
 		})
 	)
 	

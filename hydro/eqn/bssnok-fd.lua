@@ -168,10 +168,10 @@ function BSSNOKFiniteDifferenceEquationBase:initCodeModule_calcDT()
 		),
 		code = self:template[[
 kernel void calcDT(
-	constant <?=solver.solver_t?>* solver,
+	constant <?=solver_t?>* solver,
 	global real* dtBuf,
-	const global <?=eqn.cons_t?>* UBuf,
-	const global <?=solver.coord.cell_t?>* cellBuf
+	const global <?=cons_t?>* UBuf,
+	const global <?=cell_t?>* cellBuf
 ) {
 	SETBOUNDS(0,0);
 	if (OOB(numGhost,numGhost)) {
@@ -179,7 +179,7 @@ kernel void calcDT(
 		return;
 	}
 	real3 x = cellBuf[index].pos;
-	const global <?=eqn.cons_t?>* U = UBuf + index;
+	const global <?=cons_t?>* U = UBuf + index;
 
 <? if eqn.cflMethod == '2008 Alcubierre' then
 ?>	sym3 gamma_uu = calc_gamma_uu(U, x);

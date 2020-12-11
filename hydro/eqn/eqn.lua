@@ -552,7 +552,7 @@ end
 		onAdd = function(args)
 			-- special case for applyInitCond ...
 			if args.name == 'applyInitCond' then
-				args.depends:append(self.initCond.baseDepends)
+				args.depends:append(self.initCond:getBaseDepends(solver))
 				args.depends:append(self.initCond.depends)
 				-- only used by hydro/eqn/bssnok-fd.lua:
 				if self.getModuleDependsApplyInitCond then
@@ -862,7 +862,7 @@ function Equation:initCodeModule_consFromPrim_primFromCons()
 
 	self.solver.modules:add{
 		name = 'primFromCons',
-		depends = {'solver_t', self.prim_t, self.cons_t},
+		depends = {self.solver.solver_t, self.prim_t, self.cons_t},
 		code = self:template[[
 #define primFromCons(W, solver, U, x)	(*(W) = *(U))
 /*
@@ -880,7 +880,7 @@ void primFromCons(
 	
 	self.solver.modules:add{
 		name = 'consFromPrim',
-		depends = {'solver_t', self.prim_t, self.cons_t},
+		depends = {self.solver.solver_t, self.prim_t, self.cons_t},
 		code = self:template[[
 #define consFromPrim(U, solver, W, x)	(*(U) = *(W))
 /*

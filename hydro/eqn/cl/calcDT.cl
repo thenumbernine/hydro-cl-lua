@@ -1,5 +1,5 @@
 //// MODULE_NAME: calcDT
-//// MODULE_DEPENDS: solver_t cons_t cell_t normal_t eqn.waveCode SETBOUNDS
+//// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> <?=cell_t?> normal_t eqn.waveCode SETBOUNDS
 
 <? if not require "hydro.solver.meshsolver".is(solver) then ?>
 /*
@@ -7,10 +7,10 @@ run across each cell
 */
 
 kernel void calcDT(
-	constant solver_t const * const solver,
+	constant <?=solver_t?> const * const solver,
 	global real * const dtBuf,
-	global cons_t const * const UBuf,
-	global cell_t const * const cellBuf
+	global <?=cons_t?> const * const UBuf,
+	global <?=cell_t?> const * const cellBuf
 ) {
 	SETBOUNDS(0,0);
 	if (OOB(numGhost,numGhost)) {
@@ -18,7 +18,7 @@ kernel void calcDT(
 		return;
 	}
 	real3 const x = cellBuf[index].pos;
-	global cons_t const * const U = UBuf + index;
+	global <?=cons_t?> const * const U = UBuf + index;
 
 	real dt = INFINITY;
 	<? for side=0,solver.dim-1 do ?>{
@@ -45,24 +45,24 @@ then
 }
 
 <? else -- meshsolver ?>
-//// MODULE_DEPENDS: face_t
+//// MODULE_DEPENDS: <?=face_t?>
 
 kernel void calcDT(
-	constant solver_t const * const solver,
+	constant <?=solver_t?> const * const solver,
 	global real * const dtBuf,					//[numCells]
-	global cons_t const * const UBuf,			//[numCells]
-	global cell_t const * const cells,			//[numCells]
-	global face_t const * const faces,			//[numFaces]
+	global <?=cons_t?> const * const UBuf,			//[numCells]
+	global <?=cell_t?> const * const cells,			//[numCells]
+	global <?=face_t?> const * const faces,			//[numFaces]
 	global int const * const cellFaceIndexes	//[numCellFaceIndexes]
 ) {
 	SETBOUNDS(0,0);
-	global cell_t const * const cell = cells + index;
+	global <?=cell_t?> const * const cell = cells + index;
 	real3 const x = cell->pos;
-	global cons_t const * const U = UBuf + index;
+	global <?=cons_t?> const * const U = UBuf + index;
 
 	real dt = INFINITY;
 	for (int i = 0; i < cell->faceCount; ++i) {
-		global face_t const * const face = faces + cellFaceIndexes[i + cell->faceOffset];
+		global <?=face_t?> const * const face = faces + cellFaceIndexes[i + cell->faceOffset];
 		real const dx = face->area;	//face->cellDist?
 		if (dx > 1e-7 && face->cells.x != -1 && face->cells.y != -1) {
 			normal_t const n = normal_forFace(face);

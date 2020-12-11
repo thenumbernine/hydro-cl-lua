@@ -653,7 +653,7 @@ function SolverBase:initCodeModules()
 	self.sharedModulesEnabled = table()
 
 	self.modules:add{
-		name = 'solver_t',
+		name = self.solver_t,
 		structs = {self.solverStruct},
 		-- only generated for cl, not for ffi cdef
 		headercode = 'typedef '..self.solver_t..' solver_t;',
@@ -747,7 +747,11 @@ function SolverBase:initCDefs()
 	local moduleNames = table(
 		self.initModulesEnabled,
 		self.solverModulesEnabled,
-		self.sharedModulesEnabled
+		self.sharedModulesEnabled,
+		{	-- need these for ffi.sizeof
+			[self.eqn.prim_t] = true,
+			[self.eqn.cons_t] = true,
+		}
 	):keys()
 print("ffi.cdef'ing: "..moduleNames:concat', ')
 	require 'hydro.code.safecdef'(self.modules:getTypeHeader(moduleNames:unpack()))
@@ -924,7 +928,7 @@ function SolverBase:refreshCommonProgram()
 	-- it only seems to use solver_t and cons_t
 	local moduleNames = table{
 		'realparam',
-		'solver_t',
+		self.solver_t,
 		self.eqn.cons_t,
 		
 		-- This is in GridSolver, a subclass.  
@@ -1113,7 +1117,7 @@ function SolverBase:createBuffers()
 	-- times three because this is also used by the displayVar
 	-- on non-GL-sharing cards.
 	self:clalloc('reduceBuf', app.real, self.numCells * 3)
-	self:clalloc('reduceSwapBuf', app.real, math.ceil(self.numCells / self.localSize1d))
+	self:clalloc('reduceSwapBuf', app.real, math.ceil(self.numCells * 3 / self.localSize1d))
 	self.reduceResultPtr = ffi.new('real[1]', 0)
 
 	-- as big as reduceBuf, because it is a replacement for reduceBuf

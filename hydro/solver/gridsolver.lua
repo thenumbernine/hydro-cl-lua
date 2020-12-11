@@ -129,7 +129,7 @@ function GridSolver:getSizePropsForWorkGroupSize(maxWorkGroupSize)
 	if self.dim == 3 then
 		local localSizeX = math.min(tonumber(self.gridSize.x), 2^math.ceil(math.log(maxWorkGroupSize,2)/2))
 		local localSizeY = maxWorkGroupSize / localSizeX
-		localSize2d = {localSizeX, localSizeY}
+		localSize2d = vec3sz(localSizeX, localSizeY, 1)
 	end
 
 --	self.localSize = self.dim < 3 and vec3sz(16,16,16) or vec3sz(4,4,4)
@@ -183,6 +183,32 @@ function GridSolver:getSizePropsForWorkGroupSize(maxWorkGroupSize)
 		dim = self.dim,
 	}
 
+--[[ TODO use these stored values ... but don't forget they have to be adjusted for each kernel (based on obj.localSize2d)
+	local boundaryLocalSize
+	local boundaryGlobalSize
+	if self.dim == 1 then
+		boundaryLocalSize = 1
+		boundaryGlobalSize = 1
+	elseif self.dim == 2 then
+		boundaryLocalSize = math.min(localSize1d, maxWorkGroupSize)
+		boundaryGlobalSize = roundup(
+				side == 1 
+				and tonumber(gridSize.y)
+				or tonumber(gridSize.x),
+			boundaryLocalSize)
+	elseif self.dim == 3 then
+		-- xy xz yz
+		local maxSizeX = roundup(
+			math.max(tonumber(gridSize.x), tonumber(gridSize.y)),
+			localSize2d.x)
+		local maxSizeY = roundup(
+			math.max(tonumber(gridSize.y), tonumber(gridSize.z)),
+			localSize2d.y)
+		boundaryGlobalSize = {maxSizeX, maxSizeY}
+		boundaryLocalSize = {maxSizeX, maxSizeY}
+	end	
+--]]
+
 	return {
 		localSize1d = localSize1d,
 		localSize2d = localSize2d,
@@ -193,6 +219,10 @@ function GridSolver:getSizePropsForWorkGroupSize(maxWorkGroupSize)
 		numCells = numCells,
 		stepSize = stepSize,
 		offset = offset,
+--[[
+		boundaryGlobalSize = boundaryGlobalSize,
+		boundaryLocalSize = boundaryLocalSize,
+--]]
 	}
 end
 
@@ -257,19 +287,19 @@ functionality (and abstraction):
 
 	self.modules:add{
 		name = 'INDEX',
-		depends = {'solver_t'},
+		depends = {self.solver_t},
 		headercode = '#define INDEX(a,b,c)	((a) + solver->gridSize.x * ((b) + solver->gridSize.y * (c)))',
 	}
 
 	self.modules:add{
 		name = 'INDEXV',
-		depends = {'solver_t'},
+		depends = {self.solver_t},
 		headercode = '#define INDEXV(i)		indexForInt4ForSize(i, solver->gridSize.x, solver->gridSize.y, solver->gridSize.z)',
 	}
 
 	self.modules:add{
 		name = 'OOB',
-		depends = {'solver_t'},
+		depends = {self.solver_t},
 		-- bounds-check macro
 		headercode = '#define OOB(lhs,rhs) (i.x < (lhs) || i.x >= solver->gridSize.x - (rhs)'
 			.. (self.dim < 2 and '' or ' || i.y < (lhs) || i.y >= solver->gridSize.y - (rhs)')
@@ -1114,7 +1144,7 @@ function GridSolver:createBoundaryProgramAndKernel(args)
 	local lines = table()
 
 	local moduleNames = self.sharedModulesEnabled:keys():append{
-		'solver_t',
+		self.solver_t,
 		self.eqn.cons_t,
 		'INDEX',
 		'INDEXV',
@@ -1324,10 +1354,10 @@ function GridSolver:applyBoundaryToBuffer(kernelObjs)
 			-- xy xz yz
 			local maxSizeX = roundup(
 				math.max(tonumber(self.gridSize.x), tonumber(self.gridSize.y)),
-				self.localSize2d[1])
+				tonumber(self.localSize2d.x))
 			local maxSizeY = roundup(
 				math.max(tonumber(self.gridSize.y), tonumber(self.gridSize.z)),
-				self.localSize2d[2])
+				tonumber(self.localSize2d.y))
 			self.cmds:enqueueNDRangeKernel{
 				kernel = obj.obj,
 				globalSize = {maxSizeX, maxSizeY},

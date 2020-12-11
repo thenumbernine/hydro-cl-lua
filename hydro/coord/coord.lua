@@ -698,7 +698,6 @@ self.compilePrintRequestTensor = compilePrintRequestTensor
 	end
 
 
-
 	self:createCellStruct()
 	
 	self.cellStruct:makeType()
@@ -1080,7 +1079,7 @@ function CoordinateSystem:initCodeModules()
 	solver.modules:add{
 		name = 'cell_dx#',
 		depends = {
-			'solver_t',
+			self.solver.solver_t,
 			'coord_dx#',
 		},
 		headercode = range(dim):mapi(function(i)
@@ -1264,7 +1263,7 @@ function CoordinateSystem:initCodeModules()
 	-- store all input coordinates for our cells
 	-- for holonomic/anholonomic this is just the linearly interpolated
 	solver.modules:add{
-		name = 'cell_t',
+		name = self.cell_t,
 		structs = {self.cellStruct},
 		-- only generated for cl, not for ffi cdef
 		headercode = 'typedef '..self.cell_t..' cell_t;',
@@ -1274,13 +1273,13 @@ function CoordinateSystem:initCodeModules()
 		name = 'cell_x',
 		depends = {
 			'INDEXV',
-			'cell_t',
+			assert(self.cell_t),
 		},
 		headercode = '#define cell_x(i) (cellBuf[INDEXV(i)].pos)',
 	}
 
 	solver.modules:add{
-		name = 'face_t',
+		name = self.face_t,
 		structs = {self.faceStruct},
 		-- only generated for cl, not for ffi cdef
 		headercode = 'typedef '..self.face_t..' face_t;',
