@@ -1,25 +1,25 @@
 //// MODULE_NAME: eqn.common
 //// MODULE_DEPENDS: coordLenSq
 
-static inline real calc_eKin(prim_t const * const W, real3 x) { return .5 * coordLenSq((W)->v, x); }
-static inline real calc_EKin(prim_t const * const W, real3 x) { return (W)->rho * calc_eKin(W, x); }
-static inline real calc_EInt(constant solver_t const * const solver, prim_t const * const W) { return (W)->P / (solver->heatCapacityRatio - 1.); }
-static inline real calc_eInt(constant solver_t const * const solver, prim_t const * const W) { return calc_EInt(solver, W) / (W)->rho; }
-static inline real calc_EM_energy(constant solver_t const * const solver, prim_t const * const W, real3 const x) { return .5 * coordLenSq((W)->B, x) / (solver->mu0 / unit_kg_m_per_C2); }
-static inline real calc_PMag(constant solver_t const * const solver, prim_t const * const W, real3 const x) { return .5 * coordLenSq((W)->B, x) / (solver->mu0 / unit_kg_m_per_C2); }
-static inline real calc_EHydro(constant solver_t const * const solver, prim_t const * const W, real3 const x) { return calc_EKin(W, x) + calc_EInt(solver, W); }
-static inline real calc_eHydro(constant solver_t const * const solver, prim_t const * const W, real3 const x) { return calc_EHydro(solver, W, x) / (W)->rho; }
-static inline real calc_ETotal(constant solver_t const * const solver, prim_t const * const W, real3 const x) { return calc_EKin(W, x) + calc_EInt(solver, W) + calc_EM_energy(solver, W, x); }
-static inline real calc_eTotal(constant solver_t const * const solver, prim_t const * const W, real3 const x) { return calc_ETotal(solver, W, x) / (W)->rho; }
-static inline real calc_H(constant solver_t const * const solver, real const P) { return P * (solver->heatCapacityRatio / (solver->heatCapacityRatio - 1.)); }
-static inline real calc_h(constant solver_t const * const solver, real const rho, real const P) { return calc_H(solver, P) / rho; }
-static inline real calc_HTotal(constant solver_t const * const solver, prim_t const * const W, real const ETotal, real3 const x) { return (W)->P + calc_PMag(solver, W, x) + ETotal; }
-static inline real calc_hTotal(constant solver_t const * const solver, prim_t const * const W, real const ETotal, real3 const x) { return calc_HTotal(solver, W, ETotal, x) / (W)->rho; }
+static inline real calc_eKin(<?=prim_t?> const * const W, real3 x) { return .5 * coordLenSq((W)->v, x); }
+static inline real calc_EKin(<?=prim_t?> const * const W, real3 x) { return (W)->rho * calc_eKin(W, x); }
+static inline real calc_EInt(constant <?=solver_t?> const * const solver, <?=prim_t?> const * const W) { return (W)->P / (solver->heatCapacityRatio - 1.); }
+static inline real calc_eInt(constant <?=solver_t?> const * const solver, <?=prim_t?> const * const W) { return calc_EInt(solver, W) / (W)->rho; }
+static inline real calc_EM_energy(constant <?=solver_t?> const * const solver, <?=prim_t?> const * const W, real3 const x) { return .5 * coordLenSq((W)->B, x) / (solver->mu0 / unit_kg_m_per_C2); }
+static inline real calc_PMag(constant <?=solver_t?> const * const solver, <?=prim_t?> const * const W, real3 const x) { return .5 * coordLenSq((W)->B, x) / (solver->mu0 / unit_kg_m_per_C2); }
+static inline real calc_EHydro(constant <?=solver_t?> const * const solver, <?=prim_t?> const * const W, real3 const x) { return calc_EKin(W, x) + calc_EInt(solver, W); }
+static inline real calc_eHydro(constant <?=solver_t?> const * const solver, <?=prim_t?> const * const W, real3 const x) { return calc_EHydro(solver, W, x) / (W)->rho; }
+static inline real calc_ETotal(constant <?=solver_t?> const * const solver, <?=prim_t?> const * const W, real3 const x) { return calc_EKin(W, x) + calc_EInt(solver, W) + calc_EM_energy(solver, W, x); }
+static inline real calc_eTotal(constant <?=solver_t?> const * const solver, <?=prim_t?> const * const W, real3 const x) { return calc_ETotal(solver, W, x) / (W)->rho; }
+static inline real calc_H(constant <?=solver_t?> const * const solver, real const P) { return P * (solver->heatCapacityRatio / (solver->heatCapacityRatio - 1.)); }
+static inline real calc_h(constant <?=solver_t?> const * const solver, real const rho, real const P) { return calc_H(solver, P) / rho; }
+static inline real calc_HTotal(constant <?=solver_t?> const * const solver, <?=prim_t?> const * const W, real const ETotal, real3 const x) { return (W)->P + calc_PMag(solver, W, x) + ETotal; }
+static inline real calc_hTotal(constant <?=solver_t?> const * const solver, <?=prim_t?> const * const W, real const ETotal, real3 const x) { return calc_HTotal(solver, W, ETotal, x) / (W)->rho; }
 
 //notice, this is speed of sound, to match the name convention of hydro/eqn/euler
-//but Cs in eigen_t is the slow speed
+//but Cs in <?=eigen_t?> is the slow speed
 //most the MHD papers use 'a' for the speed of sound
-static inline real calc_Cs(constant solver_t const * const solver, prim_t const * const W) { 
+static inline real calc_Cs(constant <?=solver_t?> const * const solver, <?=prim_t?> const * const W) { 
 	return sqrt(solver->heatCapacityRatio * (W)->P / (W)->rho); 
 }
 
@@ -29,19 +29,19 @@ static inline real calc_Cs(constant solver_t const * const solver, prim_t const 
 //rho has units kg/m^3
 //CA has units m/s
 static inline real3 calc_CA(
-	constant solver_t const * const solver,
-	global cons_t const * const U
+	constant <?=solver_t?> const * const solver,
+	global <?=cons_t?> const * const U
 ) {
 	return real3_real_mul((U)->B, 1./sqrt((U)->rho * solver->mu0 / unit_kg_m_per_C2));
 }
 
 //// MODULE_NAME: primFromCons
-//// MODULE_DEPENDS: units solver_t prim_t cons_t coordLenSq
+//// MODULE_DEPENDS: units <?=solver_t?> <?=prim_t?> <?=cons_t?> coordLenSq
 
 #define primFromCons(\
-	/*prim_t const * const */W,\
-	/*constant solver_t const * const */solver,\
-	/*cons_t const * const */U,\
+	/*<?=prim_t?> const * const */W,\
+	/*constant <?=solver_t?> const * const */solver,\
+	/*<?=cons_t?> const * const */U,\
 	/*real3 const */x\
 ) {\
 	(W)->rho = (U)->rho;\
@@ -60,12 +60,12 @@ static inline real3 calc_CA(
 }
 
 //// MODULE_NAME: consFromPrim
-//// MODULE_DEPENDS: units solver_t prim_t cons_t coordLenSq
+//// MODULE_DEPENDS: units <?=solver_t?> <?=prim_t?> <?=cons_t?> coordLenSq
 
 #define consFromPrim(\
-	/*cons_t const * const */U,\
-	/*constant solver_t const * const */solver,\
-	/*prim_t const * const */W,\
+	/*<?=cons_t?> const * const */U,\
+	/*constant <?=solver_t?> const * const */solver,\
+	/*<?=prim_t?> const * const */W,\
 	/*real3 const */x\
 ) {\
 	(U)->rho = (W)->rho;\
@@ -82,14 +82,14 @@ static inline real3 calc_CA(
 }
 
 //// MODULE_NAME: apply_dU_dW
-//// MODULE_DEPENDS: real3 solver_t prim_t cons_t
+//// MODULE_DEPENDS: real3 <?=solver_t?> <?=prim_t?> <?=cons_t?>
 //-- only used by PLM
 
 #define apply_dU_dW(\
-	/*cons_t * const */result,\
-	/*constant solver_t const * const */solver,\
-	/*prim_t const * const */WA, \
-	/*prim_t const * const */W, \
+	/*<?=cons_t?> * const */result,\
+	/*constant <?=solver_t?> const * const */solver,\
+	/*<?=prim_t?> const * const */WA, \
+	/*<?=prim_t?> const * const */W, \
 	/*real3 const */x\
 ) {\
 	(result)->rho = (W)->rho;\
@@ -106,14 +106,14 @@ static inline real3 calc_CA(
 }
 
 //// MODULE_NAME: apply_dW_dU
-//// MODULE_DEPENDS: real3 solver_t prim_t cons_t
+//// MODULE_DEPENDS: real3 <?=solver_t?> <?=prim_t?> <?=cons_t?>
 //-- only used by PLM
 
 #define apply_dW_dU(\
-	/*prim_t * const */result\
-	/*constant solver_t const * const */solver,\
-	/*prim_t const * const */WA,\
-	/*cons_t const * const */U,\
+	/*<?=prim_t?> * const */result\
+	/*constant <?=solver_t?> const * const */solver,\
+	/*<?=prim_t?> const * const */WA,\
+	/*<?=cons_t?> const * const */U,\
 	/*real3 const */x\
 ) {\
 	(result)->rho = (U)->rho;\
@@ -134,15 +134,15 @@ static inline real3 calc_CA(
 //// MODULE_DEPENDS: cartesianToCoord consFromPrim
 
 kernel void applyInitCond(
-	constant solver_t const * const solver,
+	constant <?=solver_t?> const * const solver,
 	constant initCond_t const * const initCond,
-	global cons_t * const UBuf,
-	global cell_t const * const cellBuf
+	global <?=cons_t?> * const UBuf,
+	global <?=cell_t?> const * const cellBuf
 ) {
 	SETBOUNDS(0,0);
 	real3 const x = cellBuf[index].pos;
 	
-	global cons_t const * const U = UBuf + index;
+	global <?=cons_t?> const * const U = UBuf + index;
 	
 	real3 const mids = real3_real_mul(real3_add(solver->mins, solver->maxs), .5);
 	bool const lhs = true
@@ -164,7 +164,7 @@ end
 
 	<?=initCode()?>
 	
-	prim_t W = {
+	<?=prim_t?> W = {
 		.rho = rho,
 		.v = cartesianToCoord(v, x),
 		.P = P,
@@ -176,16 +176,16 @@ end
 }
 
 //// MODULE_NAME: initDerivs
-//// MODULE_DEPENDS: solver_t cons_t cell_t SETBOUNDS numGhost
+//// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> <?=cell_t?> SETBOUNDS numGhost
 
 kernel void initDerivs(
-	constant solver_t const * const solver,
-	global cons_t * const UBuf,
-	global cell_t const * const cellBuf
+	constant <?=solver_t?> const * const solver,
+	global <?=cons_t?> * const UBuf,
+	global <?=cell_t?> const * const cellBuf
 ) {
 	SETBOUNDS(numGhost,numGhost);
 	real3 const x = cellBuf[index].pos;
-	global cons_t * const U = UBuf + index;
+	global <?=cons_t?> * const U = UBuf + index;
 <? if require "hydro.solver.meshsolver".is(solver) then
 ?>	U->psi = 0.;
 <? else
@@ -208,13 +208,13 @@ kernel void initDerivs(
 //called from calcDT
 #define calcCellMinMaxEigenvalues(\
 	/*range_t * const */result,\
-	/*constant solver_t const * const */solver,\
-	/*cons_t const * const */U,\
+	/*constant <?=solver_t?> const * const */solver,\
+	/*<?=cons_t?> const * const */U,\
 	/*real3 const */pt,\
 	/*normal_t const */n\
 ) {	\
 <? if false then ?>\
-	prim_t W;\
+	<?=prim_t?> W;\
 	primFromCons(&W, solver, U, pt);\
 	real3 v = W.v;\
 	real3 B = W.B;\
@@ -238,7 +238,7 @@ kernel void initDerivs(
 	real v_n = normal_vecDotN1(n, v);\
 	return (range_t){.min=v_n - Cf, .max=v_n + Cf};\
 <? else ?>\
-	prim_t W;\
+	<?=prim_t?> W;\
 	primFromCons(&W, solver, U, pt);\
 \
 	real3 const v_n = normal_vecDotNs(n, W.v);\
@@ -300,14 +300,14 @@ kernel void initDerivs(
 // produces a roe_t with vectors aligned to the x axis
 #define calcRoeValues(\
 	/*roe_t * const */result,\
-	/*constant solver_t const * const */solver,\
-	/*cons_t const * const */UL,\
-	/*cons_t const * const */UR,\
+	/*constant <?=solver_t?> const * const */solver,\
+	/*<?=cons_t?> const * const */UL,\
+	/*<?=cons_t?> const * const */UR,\
 	/*real3 const */pt,\
 	/*normal_t const */n\
 ) {\
 	/*  should I use Bx, or BxL/R, for calculating the PMag at the L and R states? */\
-	prim_t WL;\
+	<?=prim_t?> WL;\
 	primFromCons(&WL, solver, UL, pt);\
 	real const sqrtRhoL = sqrt((UL)->rho);\
 	real const PMagL = .5 * coordLenSq((UL)->B, pt);\
@@ -315,7 +315,7 @@ kernel void initDerivs(
 	real3 const vL = normal_vecDotNs(n, WL.v);\
 	real3 const BL = normal_vecDotNs(n, WL.B);\
 \
-	prim_t WR;\
+	<?=prim_t?> WR;\
 	primFromCons(&WR, solver, UR, pt);\
 	real const sqrtRhoR = sqrt((UR)->rho);\
 	real const PMagR = .5 * coordLenSq((UR)->B, pt);\
@@ -345,16 +345,16 @@ kernel void initDerivs(
 };
 
 //// MODULE_NAME: fluxFromCons
-//// MODULE_DEPENDS: solver_t eigen_forCell normal_t
+//// MODULE_DEPENDS: <?=solver_t?> eigen_forCell normal_t
 
 #define fluxFromCons(\
-	/*cons_t * const */F,\
-	/*constant solver_t const * const */solver,\
-	/*cons_t const * const */U,\
+	/*<?=cons_t?> * const */F,\
+	/*constant <?=solver_t?> const * const */solver,\
+	/*<?=cons_t?> const * const */U,\
 	/*real3 const */pt,\
 	/*normal_t const */n\
 ) {\
-	prim_t W;\
+	<?=prim_t?> W;\
 	primFromCons(&W, solver, U, pt);\
 	real const vj = normal_vecDotN1(n, W.v);\
 	real const Bj = normal_vecDotN1(n, W.B);\
@@ -368,7 +368,7 @@ kernel void initDerivs(
 	/* TODO don't need the whole eigen here, just the Ch */\
 	real Ch = 0;\
 	<? for side=0,solver.dim-1 do ?>{\
-		eigen_t eig;\
+		<?=eigen_t?> eig;\
 		eigen_forCell(&eig, solver, U, pt, normal_fromSide<?=side?>(pt));\
 		Ch = max(Ch, eig.Ch);\
 	}<? end ?>\
@@ -391,12 +391,12 @@ kernel void initDerivs(
 }
 
 //// MODULE_NAME: eigen_forRoeAvgs
-//// MODULE_DEPENDS: roe_t eigen_t
+//// MODULE_DEPENDS: roe_t <?=eigen_t?>
 
 //assumes the vector values are x-axis aligned with the interface normal
 #define eigen_forRoeAvgs(\
-	/*eigen_t * const */eig,\
-	/*constant solver_t const * const */solver,\
+	/*<?=eigen_t?> * const */eig,\
+	/*constant <?=solver_t?> const * const */solver,\
 	/*roe_t const * const */roe,\
 	/*real3 const */pt\
 ) {\
@@ -498,10 +498,10 @@ kernel void initDerivs(
 //// MODULE_DEPENDS: calcRoeValues eigen_forRoeAvgs
 
 #define eigen_forInterface(\
-	/*eigen_t * const */eig,\
-	/*constant solver_t const * const */solver,\
-	/*cons_t const * const */UL,\
-	/*cons_t const * const */UR,\
+	/*<?=eigen_t?> * const */eig,\
+	/*constant <?=solver_t?> const * const */solver,\
+	/*<?=cons_t?> const * const */UL,\
+	/*<?=cons_t?> const * const */UR,\
 	/*real3 const */x,\
 	/*normal_t const */n\
 ) {\
@@ -511,16 +511,16 @@ kernel void initDerivs(
 }
 
 //// MODULE_NAME: eigen_forCell
-//// MODULE_DEPENDS: solver_t primFromCons normal_t coordLenSq eigen_forRoeAvgs
+//// MODULE_DEPENDS: <?=solver_t?> primFromCons normal_t coordLenSq eigen_forRoeAvgs
 
 #define eigen_forCell(\
-	/*eigen_t * const */eig,\
-	/*constant solver_t const * const */solver,\
-	/*cons_t const * const */U,\
+	/*<?=eigen_t?> * const */eig,\
+	/*constant <?=solver_t?> const * const */solver,\
+	/*<?=cons_t?> const * const */U,\
 	/*real3 const */x,\
 	/*normal_t const */n\
 ) {\
-	prim_t W;\
+	<?=prim_t?> W;\
 	primFromCons(&W, solver, U, x);\
 	real const PMag = .5 * coordLenSq(W.B, x);\
 	real const hTotal = ((U)->ETotal + W.P + PMag) / W.rho;\
@@ -536,13 +536,13 @@ kernel void initDerivs(
 }
 
 //// MODULE_NAME: eigen_left/rightTransform
-//// MODULE_DEPENDS: waves_t
+//// MODULE_DEPENDS: <?=waves_t?>
 
 #define eigen_leftTransform(\
-	/*waves_t * const */result,\
-	/*constant solver_t const * const */solver,\
-	/*eigen_t const * const */eig,\
-	/*cons_t const * const */inputU,\
+	/*<?=waves_t?> * const */result,\
+	/*constant <?=solver_t?> const * const */solver,\
+	/*<?=eigen_t?> const * const */eig,\
+	/*<?=cons_t?> const * const */inputU,\
 	/*real3 const */pt,\
 	/*normal_t const */n\
 ) {	\
@@ -651,10 +651,10 @@ kernel void initDerivs(
 }
 
 #define eigen_rightTransform(\
-	/*cons_t * const */result,\
-	/*constant solver_t const * const */solver,\
-	/*eigen_t const * const */eig,\
-	/*waves_t const * const */input,\
+	/*<?=cons_t?> * const */result,\
+	/*constant <?=solver_t?> const * const */solver,\
+	/*<?=eigen_t?> const * const */eig,\
+	/*<?=waves_t?> const * const */input,\
 	/*real3 const */pt,\
 	/*normal_t const */n\
 ) {\
@@ -759,10 +759,10 @@ kernel void initDerivs(
 //// MODULE_NAME: eigen_fluxTransform
 
 #define eigen_fluxTransform(\
-	/*cons_t * const */result,\
-	/*constant solver_t const * const */solver,\
-	/*eigen_t const * const */eig,\
-	/*cons_t const * const */inputU,\
+	/*<?=cons_t?> * const */result,\
+	/*constant <?=solver_t?> const * const */solver,\
+	/*<?=eigen_t?> const * const */eig,\
+	/*<?=cons_t?> const * const */inputU,\
 	/*real3 const * const */pt,\
 	/*normal_t const * const */n\
 ) {\
@@ -834,23 +834,23 @@ kernel void initDerivs(
 //// MODULE_DEPENDS: SETBOUNDS_NOGHOST
 
 kernel void addSource(
-	constant solver_t const * const solver,
-	global cons_t * const derivBuf,
-	global cons_t const * const UBuf,
-	global cell_t const * const cellBuf
+	constant <?=solver_t?> const * const solver,
+	global <?=cons_t?> * const derivBuf,
+	global <?=cons_t?> const * const UBuf,
+	global <?=cell_t?> const * const cellBuf
 ) {
 	SETBOUNDS_NOGHOST();
 	real3 const x = cellBuf[index].pos;
 	
-	global cons_t * const deriv = derivBuf + index;
-	global cons_t const * const U = UBuf + index;
+	global <?=cons_t?> * const deriv = derivBuf + index;
+	global <?=cons_t?> const * const U = UBuf + index;
 
 #if 0
 	//TODO don't need the whole eigen here, just the Ch	
 <? if not eqn.useFixedCh then ?>
 	real Ch = 0;
 	<? for side=0,solver.dim-1 do ?>{
-		eigen_t eig = eigen_forCell(solver, *U, x, normal_forSide<?=side?>(x));
+		<?=eigen_t?> eig = eigen_forCell(solver, *U, x, normal_forSide<?=side?>(x));
 		Ch = max(Ch, eig.Ch);
 	}<? end ?>
 <? end ?>
@@ -908,15 +908,15 @@ end ?>
 //// MODULE_DEPENDS: consFromPrim
 
 kernel void constrainU(
-	constant solver_t const * const solver,
-	global cons_t * const UBuf,
-	global cell_t const * const cellBuf
+	constant <?=solver_t?> const * const solver,
+	global <?=cons_t?> * const UBuf,
+	global <?=cell_t?> const * const cellBuf
 ) {
 	SETBOUNDS(0,0);
 	real3 const x = cellBuf[index].pos;
 
-	global cons_t * const U = UBuf + index;
-	prim_t W;
+	global <?=cons_t?> * const U = UBuf + index;
+	<?=prim_t?> W;
 	primFromCons(&W, solver, U, x);
 
 	W.rho = max(W.rho, 1e-7);

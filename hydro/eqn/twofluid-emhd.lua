@@ -34,7 +34,7 @@ TwoFluidEMHD.postComputeFluxCode = [[
 		flux.B = real3_real_mul(coord_lower(flux.B, x), _1_sqrt_det_g);
 ]]
 
-TwoFluidEMHD.name = 'TwoFluidEMHD'
+TwoFluidEMHD.name = 'twofluid-emhd'
 
 -- set this to false to integrate the EM D,B,phi,psi variables together with the ion and electron Euler fluid equations
 -- set this to true to integrate them separately using an implicit method

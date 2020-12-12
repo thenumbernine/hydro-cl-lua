@@ -56,7 +56,7 @@ end
 
 function EulerBurgers:initCodeModules()
 	EulerBurgers.super.initCodeModules(self)
-	self.modules:addFromMarkup(template(file['hydro/solver/euler-burgers.cl'], {solver=self, eqn=self.eqn}))
+	self.modules:addFromMarkup(self.eqn:template(file['hydro/solver/euler-burgers.cl']))
 	self.solverModulesEnabled['EulerBurgers.solver'] = true
 end
 

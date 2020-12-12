@@ -67,6 +67,9 @@ function Relaxation:initCodeModules(solver)
 	local name = 'op.Relaxation-'..self.name
 	solver.modules:add{
 		name = name,
+		depends = {
+			'SETBOUNDS_NOGHOST',
+		},
 		code = template(file[self.solverCodeFile], {op = self}),
 	}
 	solver.solverModulesEnabled[name] = true

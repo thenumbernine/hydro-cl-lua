@@ -125,6 +125,13 @@ function SRHD:init(args)
 	end
 end
 
+function SRHD:getEnv()
+	return table(SRHD.super.getEnv(self), {
+		cons_only_t = self.cons_only_t,
+		prim_only_t = self.prim_only_t,
+	})
+end
+
 function SRHD:createInitState()
 	SRHD.super.createInitState(self)
 

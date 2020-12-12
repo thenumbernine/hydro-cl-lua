@@ -1,8 +1,8 @@
 //// MODULE_NAME: setFlatSpace
 
 void setFlatSpace(
-	constant solver_t const * const solver,
-	global cons_t * const U,
+	constant <?=solver_t?> const * const solver,
+	global <?=cons_t?> * const U,
 	real3 const x
 ) {
 	(U)->alpha = 1; 
@@ -16,17 +16,17 @@ void setFlatSpace(
 //// MODULE_DEPENDS: sym3 coordMap
 
 kernel void applyInitCond(
-	constant solver_t const * const solver,
-	constant initCond_t const * const initCond,
-	global cons_t * const UBuf,
-	global cell_t const * const cellBuf
+	constant <?=solver_t?> const * const solver,
+	constant <?=initCond_t?> const * const initCond,
+	global <?=cons_t?> * const UBuf,
+	global <?=cell_t?> const * const cellBuf
 ) {
 	SETBOUNDS(0,0);
 	real3 const x = cellBuf[index].pos;
 	real3 const xc = coordMap(x);
 	real3 const mids = real3_real_mul(real3_add(solver->mins, solver->maxs), .5);
 	
-	global cons_t * const U = UBuf + index;
+	global <?=cons_t?> * const U = UBuf + index;
 	
 	real alpha = 1.;
 	real3 beta_u = real3_zero;
@@ -41,15 +41,15 @@ kernel void applyInitCond(
 }
 
 //// MODULE_NAME: initDerivs
-//// MODULE_DEPENDS: solver_t cons_t cell_t SETBOUNDS numGhost
+//// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> <?=cell_t?> SETBOUNDS numGhost
 
 kernel void initDerivs(
-	constant solver_t const * const solver,
-	global cons_t * const UBuf,
-	global cell_t const * const cellBuf
+	constant <?=solver_t?> const * const solver,
+	global <?=cons_t?> * const UBuf,
+	global <?=cell_t?> const * const cellBuf
 ) {
 	SETBOUNDS(numGhost,numGhost);
-	global cons_t * const U = UBuf + index;
+	global <?=cons_t?> * const U = UBuf + index;
 	
 	real const dx_alpha = (U[1].alpha - U[-1].alpha) / solver->grid_dx.x;
 	real const dx_gamma_xx = (U[1].gamma_xx - U[-1].gamma_xx) / solver->grid_dx.x;
@@ -62,10 +62,10 @@ kernel void initDerivs(
 //// MODULE_NAME: eigen_forInterface
 
 #define eigen_forInterface(\
-	/*eigen_t const * const */eig,\
-	/*constant solver_t const * const */solver,\
-	/*cons_t const * const */UL,\
-	/*cons_t const * const */UR,\
+	/*<?=eigen_t?> const * const */eig,\
+	/*constant <?=solver_t?> const * const */solver,\
+	/*<?=cons_t?> const * const */UL,\
+	/*<?=cons_t?> const * const */UR,\
 	/*real3 const */x,\
 	/*normal_t const */n\
 ) {\
@@ -79,9 +79,9 @@ kernel void initDerivs(
 
 //used by PLM
 #define eigen_forCell(\
-	/*eigen_t const * const */eig,\
-	/*constant solver_t const * const */solver,\
-	/*cons_t const * const */U,\
+	/*<?=eigen_t?> const * const */eig,\
+	/*constant <?=solver_t?> const * const */solver,\
+	/*<?=cons_t?> const * const */U,\
 	/*real3 const */x,\
 	/*normal_t const */n\
 ) {\
@@ -93,10 +93,10 @@ kernel void initDerivs(
 //// MODULE_NAME: eigen_left/rightTransform
 
 #define eigen_leftTransform(\
-	/*waves_t * const */result,\
-	/*constant solver_t const * const */solver,\
-	/*eigen_t const * const */eig,\
-	/*cons_t const * const */x,\
+	/*<?=waves_t?> * const */result,\
+	/*constant <?=solver_t?> const * const */solver,\
+	/*<?=eigen_t?> const * const */eig,\
+	/*<?=cons_t?> const * const */x,\
 	/*real3 const */pt,\
 	/*normal_t const */n\
 ) {\
@@ -107,10 +107,10 @@ kernel void initDerivs(
 }
 
 #define eigen_rightTransform(\
-	/*cons_t * const */result,\
-	/*constant solver_t const * const */solver,\
-	/*eigen_t const * const */eig,\
-	/*waves_t const * const */x,\
+	/*<?=cons_t?> * const */result,\
+	/*constant <?=solver_t?> const * const */solver,\
+	/*<?=eigen_t?> const * const */eig,\
+	/*<?=waves_t?> const * const */x,\
 	/*real3 const */pt,\
 	/*normal_t const */n\
 ) {\
@@ -125,10 +125,10 @@ kernel void initDerivs(
 //// MODULE_NAME: eigen_fluxTransform
 
 #define eigen_fluxTransform(\
-	/*cons_t * const */result,\
-	/*constant solver_t * const */solver,\
-	/*eigen_t const * const */eig,\
-	/*cons_t const * const */x,\
+	/*<?=cons_t?> * const */result,\
+	/*constant <?=solver_t?> * const */solver,\
+	/*<?=eigen_t?> const * const */eig,\
+	/*<?=cons_t?> const * const */x,\
 	/*real3 const */pt,\
 	/*normal_t const */n\
 ) {\
@@ -145,14 +145,14 @@ kernel void initDerivs(
 //// MODULE_DEPENDS: initCond.codeprefix
 
 kernel void addSource(
-	constant solver_t const * const solver,
-	global cons_t * const derivBuf,
-	global cons_t const * const UBuf,
-	global cell_t const * const cellBuf
+	constant <?=solver_t?> const * const solver,
+	global <?=cons_t?> * const derivBuf,
+	global <?=cons_t?> const * const UBuf,
+	global <?=cell_t?> const * const cellBuf
 ) {
 	SETBOUNDS_NOGHOST();
-	global cons_t * const deriv = derivBuf + index;
-	global cons_t const * const U = UBuf + index;
+	global <?=cons_t?> * const deriv = derivBuf + index;
+	global <?=cons_t?> const * const U = UBuf + index;
 	
 	real const sqrt_gamma_xx = sqrt(U->gamma_xx);
 	real const K_xx = U->KTilde / sqrt_gamma_xx;

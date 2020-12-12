@@ -1,13 +1,13 @@
 //// MODULE_NAME: calcDT
-//// MODULE_DEPENDS: solver_t primFromCons eqn.guiVars.compileTime
+//// MODULE_DEPENDS: <?=solver_t?> primFromCons eqn.guiVars.compileTime
 
 <? if require "hydro.solver.gridsolver".is(solver) then ?>
 
 kernel void calcDT(
-	constant solver_t const * const solver,
+	constant <?=solver_t?> const * const solver,
 	global real * const dtBuf,
-	global cons_t const * const UBuf,
-	global cell_t const * const cellBuf			//[numCells]
+	global <?=cons_t?> const * const UBuf,
+	global <?=cell_t?> const * const cellBuf			//[numCells]
 ) {
 	SETBOUNDS(0,0);
 	if (OOB(numGhost,numGhost)) {
@@ -16,8 +16,8 @@ kernel void calcDT(
 	}
 	real3 const x = cellBuf[index].pos;
 
-	global cons_t const * const U = UBuf + index;
-	prim_t W;
+	global <?=cons_t?> const * const U = UBuf + index;
+	<?=prim_t?> W;
 	primFromCons(&W, solver, U, x);
 	real Cs = calc_Cs(solver, &W);
 
@@ -31,27 +31,27 @@ kernel void calcDT(
 <? else -- mesh solver ?>
 
 kernel void calcDT(
-	constant solver_t const * const solver,
+	constant <?=solver_t?> const * const solver,
 	global real * const dtBuf,					//[numCells]
-	global cons_t const * const UBuf,			//[numCells]
-	global cell_t const * const cellBuf,		//[numCells]
-	global face_t const * const faceBuf,		//[numFaces]
+	global <?=cons_t?> const * const UBuf,			//[numCells]
+	global <?=cell_t?> const * const cellBuf,		//[numCells]
+	global <?=face_t?> const * const faceBuf,		//[numFaces]
 	global int const * const cellFaceIndexes	//[numCellFaceIndexes]
 ) {
 	int const cellIndex = get_global_id(0);
 	if (cellIndex >= get_global_size(0)) return;
 	
-	global cell_t const * const cell = cellBuf + cellIndex;
+	global <?=cell_t?> const * const cell = cellBuf + cellIndex;
 	real3 const x = cell->pos;
 	
-	global cons_t const * const U = UBuf + cellIndex;
-	prim_t W;
+	global <?=cons_t?> const * const U = UBuf + cellIndex;
+	<?=prim_t?> W;
 	primFromCons(&W, solver, U, x);
 	real Cs = calc_Cs(solver, &W);
 
 	real dt = INFINITY;
 	for (int i = 0; i < cell->faceCount; ++i) {
-		global face_t const * const face = faceBuf + cellFaceIndexes[i + cell->faceOffset];
+		global <?=face_t?> const * const face = faceBuf + cellFaceIndexes[i + cell->faceOffset];
 		normal_t const n = normal_forFace(face);
 		real const v_n = normal_vecDotN1(n, W.v);
 		real const dx = face->area;
@@ -66,10 +66,10 @@ kernel void calcDT(
 //// MODULE_DEPENDS: primFromCons fluxLimiter eigen_forInterface SETBOUNDS
 
 kernel void calcIntVel(
-	constant solver_t const * const solver,
+	constant <?=solver_t?> const * const solver,
 	global real * const intVelBuf,
 	const global <?=solver.getULRArg?>,
-	global cell_t const * const cellBuf
+	global <?=cell_t?> const * const cellBuf
 ) {
 	SETBOUNDS(numGhost,numGhost-1);
 	real3 const xR = cellBuf[index].pos;
@@ -96,11 +96,11 @@ kernel void calcIntVel(
 }
 
 kernel void calcFlux(
-	constant solver_t const * const solver,
-	global cons_t * const fluxBuf,
+	constant <?=solver_t?> const * const solver,
+	global <?=cons_t?> * const fluxBuf,
 	const global <?=solver.getULRArg?>,
 	global real const * const intVelBuf,
-	global cell_t const * const cellBuf,
+	global <?=cell_t?> const * const cellBuf,
 	realparam const dt
 ) {
 	SETBOUNDS(numGhost,numGhost-1);
@@ -120,7 +120,7 @@ kernel void calcFlux(
 	
 		int const indexInt = side + dim * index;
 		real const intVel = intVelBuf[indexInt];
-		global cons_t * const flux = fluxBuf + indexInt;
+		global <?=cons_t?> * const flux = fluxBuf + indexInt;
 		
 		real3 xInt = xR;
 		xInt.s<?=side?> -= .5 * solver->grid_dx.s<?=side?>;
@@ -146,16 +146,16 @@ kernel void calcFlux(
 }
 
 kernel void computePressure(
-	constant solver_t const * const solver,
+	constant <?=solver_t?> const * const solver,
 	global real * const PBuf,
-	global cons_t const * const UBuf,
-	global cell_t const * const cellBuf
+	global <?=cons_t?> const * const UBuf,
+	global <?=cell_t?> const * const cellBuf
 ) {
 	SETBOUNDS(numGhost-1,numGhost-2);
 	real3 const x = cellBuf[index].pos;
 	
-	global cons_t const * const U = UBuf + index;
-	prim_t W;
+	global <?=cons_t?> const * const U = UBuf + index;
+	<?=prim_t?> W;
 	primFromCons(&W, solver, U, x);
 	real P = W.P;
 
@@ -163,8 +163,8 @@ kernel void computePressure(
 ?>	real dvSqSum = 0.;
 	<? for side=0,solver.dim-1 do ?>{
 		int const side = <?=side?>;
-		global cons_t const * const UL = U - solver->stepsize.s<?=side?>;
-		global cons_t const * const UR = U + solver->stepsize.s<?=side?>;
+		global <?=cons_t?> const * const UL = U - solver->stepsize.s<?=side?>;
+		global <?=cons_t?> const * const UR = U + solver->stepsize.s<?=side?>;
 		
 		real const dv = UR->m.s<?=side?> / UR->rho
 			- UL->m.s<?=side?> / UL->rho;
@@ -177,12 +177,12 @@ kernel void computePressure(
 }
 
 kernel void diffuseMomentum(
-	constant solver_t const * const solver,
-	global cons_t * const derivBuf,
+	constant <?=solver_t?> const * const solver,
+	global <?=cons_t?> * const derivBuf,
 	global real const * const PBuf
 ) {
 	SETBOUNDS_NOGHOST();
-	global cons_t * const deriv = derivBuf + index; 
+	global <?=cons_t?> * const deriv = derivBuf + index; 
 	global real const * const P = PBuf + index; 
 
 	<? for side=0,solver.dim-1 do ?>{
@@ -193,21 +193,21 @@ kernel void diffuseMomentum(
 }
 
 kernel void diffuseWork(
-	constant solver_t const * const solver,
-	global cons_t * const derivBuf,
-	global cons_t const * const UBuf,
+	constant <?=solver_t?> const * const solver,
+	global <?=cons_t?> * const derivBuf,
+	global <?=cons_t?> const * const UBuf,
 	global real const * const PBuf
 ) {
 	SETBOUNDS_NOGHOST();
-	global cons_t * const deriv = derivBuf + index; 
-	global cons_t const * const U = UBuf + index;
+	global <?=cons_t?> * const deriv = derivBuf + index; 
+	global <?=cons_t?> const * const U = UBuf + index;
 	global real const * const P = PBuf + index;
 
 	real dE = 0.;
 	<? for side=0,solver.dim-1 do ?>{
 		int const side = <?=side?>;
-		global cons_t const * const UL = U - solver->stepsize.s<?=side?>;
-		global cons_t const * const UR = U + solver->stepsize.s<?=side?>;
+		global <?=cons_t?> const * const UL = U - solver->stepsize.s<?=side?>;
+		global <?=cons_t?> const * const UR = U + solver->stepsize.s<?=side?>;
 		
 		real const vR = UR->m.s<?=side?> / UR->rho;
 		real const PR = P[solver->stepsize.s<?=side?>];

@@ -3,10 +3,10 @@
 #define calc_gamma_ll(U, x)	((U)->gamma_ll)
 
 //// MODULE_NAME: calc_gamma_uu
-//// MODULE_DEPENDS: cons_t
+//// MODULE_DEPENDS: <?=cons_t?>
 
 static inline sym3 calc_gamma_uu(
-	global cons_t const * const U,
+	global <?=cons_t?> const * const U,
 	real3 const x
 ) {
 	real const det_gamma = sym3_det((U)->gamma_ll);
@@ -15,11 +15,11 @@ static inline sym3 calc_gamma_uu(
 }
 
 //// MODULE_NAME: setFlatSpace
-//// MODULE_DEPENDS: solver_t cons_t
+//// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?>
 
 static inline void setFlatSpace(
-	constant solver_t const * const solver,
-	global cons_t const * const U,
+	constant <?=solver_t?> const * const solver,
+	global <?=cons_t?> const * const U,
 	real3 const x
 ) {
 	(U)->alpha = 1.;
@@ -57,17 +57,17 @@ end
 <? if eqn.initCond.useBSSNVars then ?>
 
 kernel void applyInitCond(
-	constant solver_t const * const solver,
-	constant initCond_t * const initCond,
-	global cons_t * const UBuf,
-	global cell_t const * const cellBuf
+	constant <?=solver_t?> const * const solver,
+	constant <?=initCond_t?> * const initCond,
+	global <?=cons_t?> * const UBuf,
+	global <?=cell_t?> const * const cellBuf
 ) {
 	SETBOUNDS(0,0);
 	real3 const x = cellBuf[index].pos;
 	real3 const xc = coordMap(x);
 	real3 const mids = real3_real_mul(real3_add(solver->mins, solver->maxs), .5);
 	
-	global cons_t * const U = UBuf + index;
+	global <?=cons_t?> * const U = UBuf + index;
 
 	real alpha = 1.;
 	real W = 1.;
@@ -116,15 +116,15 @@ kernel void applyInitCond(
 }
 
 //// MODULE_NAME: initDerivs
-//// MODULE_DEPENDS: solver_t cons_t cell_t SETBOUNDS numGhost
+//// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> <?=cell_t?> SETBOUNDS numGhost
 
 kernel void initDerivs(
-	constant solver_t const * const solver,
-	global cons_t * const UBuf,
-	global cell_t const * const cellBuf 
+	constant <?=solver_t?> const * const solver,
+	global <?=cons_t?> * const UBuf,
+	global <?=cell_t?> const * const cellBuf 
 ) {
 	SETBOUNDS(numGhost,numGhost);
-	global cons_t * const U = UBuf + index;
+	global <?=cons_t?> * const U = UBuf + index;
 	
 	real const det_gamma = sym3_det(U->gamma_ll);
 	sym3 const gamma_uu = sym3_inv(U->gamma_ll, det_gamma);
@@ -162,17 +162,17 @@ end
 <? else	-- not eqn.initCond.useBSSNVars ?>
 
 kernel void applyInitCond(
-	constant solver_t const * const solver,
-	constant initCond_t const * const initCond,
-	global cons_t * const UBuf,
-	global cell_t * const cellBuf
+	constant <?=solver_t?> const * const solver,
+	constant <?=initCond_t?> const * const initCond,
+	global <?=cons_t?> * const UBuf,
+	global <?=cell_t?> * const cellBuf
 ) {
 	SETBOUNDS(0,0);
 	real3 const x = cellBuf[index].pos;
 	real3 const xc = coordMap(x);
 	real3 const mids = real3_real_mul(real3_add(solver->mins, solver->maxs), .5);
 	
-	global cons_t * const U = UBuf + index;
+	global <?=cons_t?> * const U = UBuf + index;
 
 	real alpha = 1.;
 	real3 beta_u = real3_zero;
@@ -202,15 +202,15 @@ kernel void applyInitCond(
 }
 
 //// MODULE_NAME: initDerivs
-//// MODULE_DEPENDS: solver_t cons_t cell_t SETBOUNDS numGhost
+//// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> <?=cell_t?> SETBOUNDS numGhost
 
 kernel void initDerivs(
-	constant solver_t const * const solver,
-	global cons_t * const UBuf,
-	global cell_t const * const cellBuf 
+	constant <?=solver_t?> const * const solver,
+	global <?=cons_t?> * const UBuf,
+	global <?=cell_t?> const * const cellBuf 
 ) {
 	SETBOUNDS(numGhost,numGhost);
-	global cons_t * const U = UBuf + index;
+	global <?=cons_t?> * const U = UBuf + index;
 	
 	real const det_gamma = sym3_det(U->gamma_ll);
 	sym3 const gamma_uu = sym3_inv(U->gamma_ll, det_gamma);
@@ -248,12 +248,12 @@ end
 <? end	-- eqn.initCond.useBSSNVars ?>
 
 //// MODULE_NAME: fluxFromCons
-//// MODULE_DEPENDS: rotate cons_t solver_t normal_t rotate initCond.codeprefix
+//// MODULE_DEPENDS: rotate <?=cons_t?> <?=solver_t?> normal_t rotate initCond.codeprefix
 
 #define fluxFromCons(\
-	/*cons_t const * const */F,\
-	/*constant solver_t const * const */solver,\
-	/*cons_t const * const */U,\
+	/*<?=cons_t?> const * const */F,\
+	/*constant <?=solver_t?> const * const */solver,\
+	/*<?=cons_t?> const * const */U,\
 	/*real3 const */pt,\
 	/*normal_t const */n\
 ) {\
@@ -308,13 +308,13 @@ end
 }
 
 //// MODULE_NAME: calcDT
-//// MODULE_DEPENDS: solver_t SETBOUNDS eqn.guiVars.compileTime initCond.codeprefix
+//// MODULE_DEPENDS: <?=solver_t?> SETBOUNDS eqn.guiVars.compileTime initCond.codeprefix
 
 kernel void calcDT(
-	constant solver_t const * const solver,
+	constant <?=solver_t?> const * const solver,
 	global real * const dtBuf,
-	global cons_t const * const UBuf,
-	global cell_t const * const cellBuf
+	global <?=cons_t?> const * const UBuf,
+	global <?=cell_t?> const * const cellBuf
 ) {
 	SETBOUNDS(0,0);
 	if (OOB(numGhost,numGhost)) {
@@ -322,7 +322,7 @@ kernel void calcDT(
 		return;
 	}
 		
-	global cons_t const * const U = UBuf + index;
+	global <?=cons_t?> const * const U = UBuf + index;
 	
 	//the only advantage of this calcDT over the default is that here this sqrt(f) and det(gamma_ij) is only called once
 	real const f_alphaSq = calc_f_alphaSq(U->alpha);
@@ -365,9 +365,9 @@ kernel void calcDT(
 
 //used by PLM
 #define eigen_forCell(\
-	/*eigen_t * const */eig,\
-	/*constant solver_t const * const */solver,\
-	/*cons_t const * const */U,\
+	/*<?=eigen_t?> * const */eig,\
+	/*constant <?=solver_t?> const * const */solver,\
+	/*<?=cons_t?> const * const */U,\
 	/*real3 const */pt,\
 \
 	/* This is interesting, because normal_t varies based on our vector components. */\
@@ -390,7 +390,7 @@ kernel void calcDT(
 
 #define calcCellMinMaxEigenvalues(\
 	/*range_t * const */result,\
-	/*global cons_t const * const */U,\
+	/*global <?=cons_t?> const * const */U,\
 	/*real3 const */pt,\
 	/*normal_t const */n\
 ) {\
@@ -428,10 +428,10 @@ kernel void calcDT(
 
 //used for interface eigen basis
 #define eigen_forInterface(\
-	/*eigen_t * const */eig,\
-	/*constant solver_t const * const */solver,\
-	/*cons_t const * const */UL,\
-	/*cons_t const * const */UR,\
+	/*<?=eigen_t?> * const */eig,\
+	/*constant <?=solver_t?> const * const */solver,\
+	/*<?=cons_t?> const * const */UL,\
+	/*<?=cons_t?> const * const */UR,\
 	/*real3 const */pt,\
 	/*normal_t const */n\
 ) {\
@@ -453,10 +453,10 @@ kernel void calcDT(
 //// MODULE_NAME: eigen_left/rightTransform
 
 #define eigen_leftTransform(\
-	/*waves_t * const */result,\
-	/*constant solver_t const * const */solver,\
-	/*eigen_t const * const */eig,\
-	/*cons_t const * const */inputU,\
+	/*<?=waves_t?> * const */result,\
+	/*constant <?=solver_t?> const * const */solver,\
+	/*<?=eigen_t?> const * const */eig,\
+	/*<?=cons_t?> const * const */inputU,\
 	/*real3 const */pt,\
 	/*normal_t const */n\
 ) {\
@@ -762,10 +762,10 @@ kernel void calcDT(
 }
 
 #define eigen_rightTransform(\
-	/*cons_t * const */result,\
-	/*constant solver_t const * const */solver,\
-	/*eigen_t const * const */eig,\
-	/*waves_t const * const */input,\
+	/*<?=cons_t?> * const */result,\
+	/*constant <?=solver_t?> const * const */solver,\
+	/*<?=eigen_t?> const * const */eig,\
+	/*<?=waves_t?> const * const */input,\
 	/*real3 const */pt,\
 	/*normal_t const */n\
 ) {\
@@ -1278,7 +1278,7 @@ kernel void calcDT(
 \
 	<? for side=0,solver.dim-1 do ?>\
 	if (n.side == <?=side?>) {\
-		/* TODO swap size inside eigen_t structure */\
+		/* TODO swap size inside <?=eigen_t?> structure */\
 		/* instead of doing it here */\
 		sym3 const gamma_uu = sym3_swap<?=side?>((eig)->gamma_uu);\
 \
@@ -1327,13 +1327,13 @@ kernel void calcDT(
 }
 
 //// MODULE_NAME: eigen_fluxTransform
-//// MODULE_DEPENDS: eigen_t waves_t rotate
+//// MODULE_DEPENDS: <?=eigen_t?> <?=waves_t?> rotate
 
 #define eigen_fluxTransform(\
-	/*cons_t * const */result, \
-	/*constant solver_t const * const */solver,\
-	/*eigen_t const * const */eig,\
-	/*cons_t const * const */inputU,\
+	/*<?=cons_t?> * const */result, \
+	/*constant <?=solver_t?> const * const */solver,\
+	/*<?=eigen_t?> const * const */eig,\
+	/*<?=cons_t?> const * const */inputU,\
 	/*real3 const */pt,\
 	/*normal_t const */n\
 ) {\
@@ -1343,7 +1343,7 @@ kernel void calcDT(
 	/*  If no one has provided one then just fall back on left / wave / right transform. */\
 	/*  TODO use that static function for the calc waves as well */\
 	\
-	waves_t waves;\
+	<?=waves_t?> waves;\
 	eigen_leftTransform(&waves, solver, eig, inputU, pt);\
 \
 	<?=eqn:eigenWaveCodePrefix(n, "eig", "x")?>\
@@ -1451,14 +1451,14 @@ alpha_,t + F^i^alpha_,i = -f alpha gamma^ij K_ij
 // then we do save calculations / memory on the equations
 // but we also, for >FE integrators (which require multiple steps) are duplicating calculations
 kernel void addSource(
-	constant solver_t const * const solver,
-	global cons_t * const derivBuf,
-	global cons_t const * const UBuf,
-	global cell_t const * const cellBuf
+	constant <?=solver_t?> const * const solver,
+	global <?=cons_t?> * const derivBuf,
+	global <?=cons_t?> const * const UBuf,
+	global <?=cell_t?> const * const cellBuf
 ) {
 	SETBOUNDS_NOGHOST();
-	global cons_t * const deriv = derivBuf + index;
-	global cons_t const * const U = UBuf + index;
+	global <?=cons_t?> * const deriv = derivBuf + index;
+	global <?=cons_t?> const * const U = UBuf + index;
 
 	real const det_gamma = sym3_det(U->gamma_ll);
 	sym3 const gamma_uu = sym3_inv(U->gamma_ll, det_gamma);
@@ -3136,12 +3136,12 @@ end ?>
 //// MODULE_DEPENDS: real3x3x3 sym3sym3
 
 kernel void constrainU(
-	constant solver_t const * const solver,
-	global cons_t * const UBuf,
-	global cell_t const * const cellBuf
+	constant <?=solver_t?> const * const solver,
+	global <?=cons_t?> * const UBuf,
+	global <?=cell_t?> const * const cellBuf
 ) {
 	SETBOUNDS(numGhost,numGhost);		
-	global cons_t * const U = UBuf + index;
+	global <?=cons_t?> * const U = UBuf + index;
 	
 	real const det_gamma = sym3_det(U->gamma_ll);
 	sym3 const gamma_uu = sym3_inv(U->gamma_ll, det_gamma);

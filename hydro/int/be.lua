@@ -67,7 +67,10 @@ function BackwardEuler:init(solver, args)
 	local copyBufferWithOrWithoutGhostProgram = solver.Program{
 		name = 'int-be',
 		code = template(
-			solver.modules:getCodeAndHeader(solver.sharedModulesEnabled:keys():append{'SETBOUNDS_NOGHOST'}:unpack())
+			solver.modules:getCodeAndHeader(solver.sharedModulesEnabled:keys():append{
+				'SETBOUNDS_NOGHOST',
+				'solver.macros',
+			}:unpack())
 			..[[
 <? local range = require 'ext.range' ?>
 kernel void copyBufferWithoutGhostToBufferWithGhost(

@@ -23,30 +23,30 @@
 //// MODULE_DEPENDS: units coordLenSq
 
 static inline real3 calc_EField(
-	constant solver_t const * const solver,
-	global cons_t const * const U
+	constant <?=solver_t?> const * const solver,
+	global <?=cons_t?> const * const U
 ) {
 	real const eps = solver->sqrt_eps * solver->sqrt_eps / unit_C2_s2_per_kg_m3;
 	return real3_real_mul((U)->D, 1. / eps);
 }
  
 static inline real3 calc_HField(
-	constant solver_t const * const solver,
-	global cons_t const * const U
+	constant <?=solver_t?> const * const solver,
+	global <?=cons_t?> const * const U
 ) { 
 	real mu = solver->sqrt_mu * solver->sqrt_mu / unit_kg_m_per_C2;
 	return real3_real_mul((U)->B, 1. / mu);
 }
 
 static inline real calc_H(
-	constant solver_t const * const solver,
+	constant <?=solver_t?> const * const solver,
 	real const P
 ) {
 	return P * (solver->heatCapacityRatio / (solver->heatCapacityRatio - 1.));
 }
 
 static inline real calc_h(
-	constant solver_t const * const solver,
+	constant <?=solver_t?> const * const solver,
 	real const rho,
 	real const P
 ) {
@@ -61,7 +61,7 @@ static inline real calc_HTotal(
 }
 
 static inline real calc_hTotal(
-	constant solver_t const * const solver,
+	constant <?=solver_t?> const * const solver,
 	real const rho,
 	real const P,
 	real const ETotal
@@ -70,7 +70,7 @@ static inline real calc_hTotal(
 }
 
 static inline real calc_rho_from_U(
-	global cons_t const * const U
+	global <?=cons_t?> const * const U
 ) {
 	return 0.<? 
 for _,fluid in ipairs(eqn.fluids) do 
@@ -80,7 +80,7 @@ end
 }
 
 static inline real calc_rho_from_W(
-	prim_t const * const W
+	<?=prim_t?> const * const W
 ) {
 	return 0.<?
 for _,fluid in ipairs(eqn.fluids) do 
@@ -90,13 +90,13 @@ end
 }
 
 static inline real calc_EPot(
-	global cons_t const * const U
+	global <?=cons_t?> const * const U
 ) {
 	return calc_rho_from_U(U) * (U)->ePot;
 }
 
 static inline real calc_EPot_from_W(
-	prim_t const * const W
+	<?=prim_t?> const * const W
 ) {
 	return calc_rho_from_W(W) * (W)->ePot;
 }
@@ -104,70 +104,70 @@ static inline real calc_EPot_from_W(
 <? for _,fluid in ipairs(eqn.fluids) do ?>
 
 static inline real calc_<?=fluid?>_eKin(
-	prim_t const * const W,
+	<?=prim_t?> const * const W,
 	real3 const x
 ) {
 	return .5 * coordLenSq((W)-><?=fluid?>_v, x);
 }
 
 static inline real calc_<?=fluid?>_EKin(
-	prim_t const * const W,
+	<?=prim_t?> const * const W,
 	real3 const x
 ) {
 	return (W)-><?=fluid?>_rho * calc_<?=fluid?>_eKin(W, x);
 }
 
 static inline real calc_<?=fluid?>_EInt(
-	constant solver_t const * const solver,
-	prim_t const * const W
+	constant <?=solver_t?> const * const solver,
+	<?=prim_t?> const * const W
 ) {
 	return (W)-><?=fluid?>_P / (solver->heatCapacityRatio - 1.);
 }
 
 static inline real calc_<?=fluid?>_eInt(
-	constant solver_t const * const solver,
-	prim_t const * const W
+	constant <?=solver_t?> const * const solver,
+	<?=prim_t?> const * const W
 ) {
 	return calc_<?=fluid?>_EInt(solver, W) / (W)-><?=fluid?>_rho;
 }
 
 static inline real calc_<?=fluid?>_EKin_fromCons(
-	global cons_t const * const U,
+	global <?=cons_t?> const * const U,
 	real3 const x
 ) {
 	return .5 * coordLenSq((U)-><?=fluid?>_m, x) / (U)-><?=fluid?>_rho;
 }
 
 static inline real calc_<?=fluid?>_ETotal(
-	constant solver_t const * const solver,
-	prim_t const * const W,
+	constant <?=solver_t?> const * const solver,
+	<?=prim_t?> const * const W,
 	real3 const x
 ) {
 	return calc_<?=fluid?>_EKin(W, x) + calc_<?=fluid?>_EInt(solver, W);
 }
 
 static inline real calc_<?=fluid?>_Cs(
-	constant solver_t const * const solver,
-	prim_t const * const W
+	constant <?=solver_t?> const * const solver,
+	<?=prim_t?> const * const W
 ) {
 	return sqrt(solver->heatCapacityRatio * (W)-><?=fluid?>_P / (W)-><?=fluid?>_rho);
 }
 
 <? end ?>
 
-static inline real calc_EM_energy(constant solver_t* solver, const global cons_t* U, real3 x) {
+static inline real calc_EM_energy(constant <?=solver_t?>* solver, const global <?=cons_t?>* U, real3 x) {
 	real const eps = solver->sqrt_eps * solver->sqrt_eps / unit_C2_s2_per_kg_m3;
 	real const mu = solver->sqrt_mu * solver->sqrt_mu / unit_kg_m_per_C2;
 	return .5 * (coordLenSq(U->D, x) / eps + coordLenSq(U->B, x) / mu);
 }
 
 //// MODULE_NAME: primFromCons
-//// MODULE_DEPENDS: real3 solver_t prim_t cons_t eqn.common
+//// MODULE_DEPENDS: real3 <?=solver_t?> <?=prim_t?> <?=cons_t?> eqn.common
 
 #define primFromCons(\
-	/*prim_t * const */W,\
-	/*constant solver_t const * const */solver,\
-	/*cons_t const * const */U,\
+	/*<?=prim_t?> * const */W,\
+	/*constant <?=solver_t?> const * const */solver,\
+	/*<?=cons_t?> const * const */U,\
 	/*real3 const */pt\
 ) {\
 <? for _,fluid in ipairs(eqn.fluids) do ?>\
@@ -187,12 +187,12 @@ static inline real calc_EM_energy(constant solver_t* solver, const global cons_t
 }
 
 //// MODULE_NAME: consFromPrim
-//// MODULE_DEPENDS: real3 solver_t prim_t cons_t eqn.common
+//// MODULE_DEPENDS: real3 <?=solver_t?> <?=prim_t?> <?=cons_t?> eqn.common
 
 #define consFromPrim(\
-	/*cons_t * const */U,\
-	/*constant solver_t const * const */solver,\
-	/*prim_t const * const */W,\
+	/*<?=cons_t?> * const */U,\
+	/*constant <?=solver_t?> const * const */solver,\
+	/*<?=prim_t?> const * const */W,\
 	/*real3 const */pt\
 ) {\
 <? for _,fluid in ipairs(eqn.fluids) do ?>\
@@ -208,14 +208,14 @@ static inline real calc_EM_energy(constant solver_t* solver, const global cons_t
 }
 
 //// MODULE_NAME: apply_dU_dW
-//// MODULE_DEPENDS: real3 solver_t prim_t cons_t coord_lower coord_lower
+//// MODULE_DEPENDS: real3 <?=solver_t?> <?=prim_t?> <?=cons_t?> coord_lower coord_lower
 // only used by PLM
 
 #define apply_dU_dW(\
-	/*cons_t * const */result\
-	/*constant solver_t const * const */solver,\
-	/*prim_t const * const */WA, \
-	/*prim_t const * const */W, \
+	/*<?=cons_t?> * const */result\
+	/*constant <?=solver_t?> const * const */solver,\
+	/*<?=prim_t?> const * const */WA, \
+	/*<?=prim_t?> const * const */W, \
 	/*real3 const */pt\
 ) {\
 <? for _,fluid in ipairs(eqn.fluids) do ?>\
@@ -238,13 +238,13 @@ static inline real calc_EM_energy(constant solver_t* solver, const global cons_t
 }
 
 //// MODULE_NAME: apply_dW_dU
-//// MODULE_DEPENDS: real3 solver_t prim_t cons_t coord_lower coord_lower
+//// MODULE_DEPENDS: real3 <?=solver_t?> <?=prim_t?> <?=cons_t?> coord_lower coord_lower
 
 #define apply_dW_dU(\
-	/*prim_t * const */result\
-	/*constant solver_t const * const */solver,\
-	/*prim_t const * const */WA,\
-	/*cons_t const * const */U,\
+	/*<?=prim_t?> * const */result\
+	/*constant <?=solver_t?> const * const */solver,\
+	/*<?=prim_t?> const * const */WA,\
+	/*<?=cons_t?> const * const */U,\
 	/*real3 const */pt\
 ) {\
 <? for _,fluid in ipairs(eqn.fluids) do ?>\
@@ -271,10 +271,10 @@ static inline real calc_EM_energy(constant solver_t* solver, const global cons_t
 //// MODULE_DEPENDS: consFromPrim cartesianToCoord
 
 kernel void applyInitCond(
-	constant solver_t* solver,
-	constant initCond_t* initCond,
-	global cons_t* UBuf,
-	const global cell_t* cellBuf
+	constant <?=solver_t?> const * const solver,
+	constant <?=initCond_t?> const * const initCond,
+	global <?=cons_t?> * const UBuf,
+	global <?=cell_t?> const * const cellBuf
 ) {
 	SETBOUNDS(0,0);
 	real3 const x = cellBuf[index].pos;
@@ -311,7 +311,7 @@ end
 
 	<?=initCode()?>
 
-	prim_t W = {
+	<?=prim_t?> W = {
 <? 
 if eqn.useEulerInitState then 
 ?>
@@ -353,13 +353,13 @@ end
 //// MODULE_DEPENDS: units primFromCons normal_t
 
 #define fluxFromCons(\
-	/*cons_t * const */F,\
-	/*constant solver_t const * const */solver,\
-	/*cons_t const * const */U,\
+	/*<?=cons_t?> * const */F,\
+	/*constant <?=solver_t?> const * const */solver,\
+	/*<?=cons_t?> const * const */U,\
 	/*real3 const */pt,\
 	/*normal_t const */n\
 ) {\
-	prim_t W;\
+	<?=prim_t?> W;\
 	primFromCons(&W, solver, U, pt);\
 \
 <? --\
@@ -398,19 +398,19 @@ end --\
 }
 
 //// MODULE_NAME: eigen_forInterface
-//// MODULE_DEPENDS: eigen_t primFromCons
+//// MODULE_DEPENDS: <?=eigen_t?> primFromCons
 
 #define eigen_forInterface(\
-	/*eigen_t * const */eig,\
-	/*constant solver_t const * const */solver,\
-	/*cons_t const * const */UL,\
-	/*cons_t const * const */UR,\
+	/*<?=eigen_t?> * const */eig,\
+	/*constant <?=solver_t?> const * const */solver,\
+	/*<?=cons_t?> const * const */UL,\
+	/*<?=cons_t?> const * const */UR,\
 	/*real3 const */pt,\
 	/*normal_t const */n\
 ) {\
-	prim_t WL;\
+	<?=prim_t?> WL;\
 	primFromCons(&WL, solver, UL, pt);\
-	prim_t WR;\
+	<?=prim_t?> WR;\
 	primFromCons(&WR, solver, UR, pt);\
 \
 <? for _,fluid in ipairs(eqn.fluids) do ?>\
@@ -441,16 +441,16 @@ end --\
 }
 
 //// MODULE_NAME: eigen_forCell
-//// MODULE_DEPENDS: eigen_t primFromCons
+//// MODULE_DEPENDS: <?=eigen_t?> primFromCons
 
 #define eigen_forCell(\
-	/*eigen_t * const */eig,\
-	/*constant solver_t const * const */solver,\
-	/*cons_t const * const */U,\
+	/*<?=eigen_t?> * const */eig,\
+	/*constant <?=solver_t?> const * const */solver,\
+	/*<?=cons_t?> const * const */U,\
 	/*real3 const */pt,\
 	/*normal_t const */n\
 ) {\
-	prim_t W;\
+	<?=prim_t?> W;\
 	primFromCons(&W, solver, U, pt);\
 <? for _,fluid in ipairs(eqn.fluids) do ?>\
 	real const <?=fluid?>_vSq = coordLenSq(W.<?=fluid?>_v, pt);\
@@ -469,13 +469,13 @@ end --\
 }
 
 //// MODULE_NAME: eigen_left/rightTransform
-//// MODULE_DEPENDS: units eigen_t waves_t coord_lower sqrt_2_and_1_2
+//// MODULE_DEPENDS: units <?=eigen_t?> <?=waves_t?> coord_lower sqrt_2_and_1_2
 
 #define eigen_leftTransform(\
-	/*waves_t * const */UY,\
-	/*constant solver_t const * const */solver,\
-	/*eigen_t const * const */eig,\
-	/*cons_t const * const */UX,\
+	/*<?=waves_t?> * const */UY,\
+	/*constant <?=solver_t?> const * const */solver,\
+	/*<?=eigen_t?> const * const */eig,\
+	/*<?=cons_t?> const * const */UX,\
 	/*real3 const */pt,\
 	/*normal_t const */n\
 ) { \
@@ -670,10 +670,10 @@ end --\
 }
 
 #define eigen_rightTransform(\
-	/*cons_t * const */UY,\
-	/*constant solver_t const * const */solver,\
-	/*eigen_t const * const */eig,\
-	/*waves_t const * const */UX,	/* numWaves = 16 */\
+	/*<?=cons_t?> * const */UY,\
+	/*constant <?=solver_t?> const * const */solver,\
+	/*<?=eigen_t?> const * const */eig,\
+	/*<?=waves_t?> const * const */UX,	/* numWaves = 16 */\
 	/*real3 const */pt,\
 	/*normal_t const */n\
 ) {\
@@ -847,10 +847,10 @@ end --\
 //// MODULE_DEPENDS: units
 
 static inline void eigen_fluxTransform(
-	cons_t * const UY,
-	constant solver_t const * const solver,
-	eigen_t const * const eig,
-	cons_t const * const UX,
+	<?=cons_t?> * const UY,
+	constant <?=solver_t?> const * const solver,
+	<?=eigen_t?> const * const eig,
+	<?=cons_t?> const * const UX,
 	real3 const x,
 	normal_t const n
 ) {
@@ -944,14 +944,14 @@ static inline void eigen_fluxTransform(
 //// MODULE_DEPENDS: units elecChargeMassRatio primFromCons 
 
 kernel void addSource(
-	constant solver_t const * const solver,
-	global cons_t * const derivBuf,
-	global cons_t const * const UBuf,
-	global cell_t const * const cellBuf
+	constant <?=solver_t?> const * const solver,
+	global <?=cons_t?> * const derivBuf,
+	global <?=cons_t?> const * const UBuf,
+	global <?=cell_t?> const * const cellBuf
 ) {
 	SETBOUNDS_NOGHOST();
-	global cons_t * const deriv = derivBuf + index;
-	global cons_t const * const U = UBuf + index;
+	global <?=cons_t?> * const deriv = derivBuf + index;
+	global <?=cons_t?> const * const U = UBuf + index;
 
 	real const eps = solver->sqrt_eps * solver->sqrt_eps / unit_C2_s2_per_kg_m3;
 	real const mu = solver->sqrt_mu * solver->sqrt_mu / unit_kg_m_per_C2;
@@ -998,7 +998,7 @@ kernel void addSource(
 <? if not require 'hydro.coord.cartesian'.is(solver.coord) then ?>
 	real3 x = cellBuf[index].pos;
 	/* connection coefficient source terms of covariant derivative w/contravariant velocity vectors in a holonomic coordinate system */
-	prim_t W;
+	<?=prim_t?> W;
 	primFromCons(&W, solver, U, x);
 	real3 const conn1_u = coord_conn_trace23(x);
 	<? for _,fluid in ipairs(eqn.fluids) do ?>{
@@ -1015,14 +1015,14 @@ kernel void addSource(
 //// MODULE_DEPENDS: primFromCons consFromPrim
 
 kernel void constrainU(
-	constant solver_t const * const solver,
-	global cons_t * const UBuf,
-	global cell_t const * const cellBuf
+	constant <?=solver_t?> const * const solver,
+	global <?=cons_t?> * const UBuf,
+	global <?=cell_t?> const * const cellBuf
 ) {
 	SETBOUNDS(0,0);
-	global cons_t * const U = UBuf + index;
+	global <?=cons_t?> * const U = UBuf + index;
 	real3 const x = cellBuf[index].pos;
-	prim_t W;
+	<?=prim_t?> W;
 	primFromCons(&W, solver, U, x);
 
 <? for _,fluid in ipairs(eqn.fluids) do

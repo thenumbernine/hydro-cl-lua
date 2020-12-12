@@ -37,7 +37,7 @@ TwoFluidEMHDDeDonderGaugeLinearizedGR.postComputeFluxCode = [[
 		flux.B_g = real3_real_mul(coord_lower(flux.B_g, x), _1_sqrt_det_g);
 ]]
 
-TwoFluidEMHDDeDonderGaugeLinearizedGR.name = 'TwoFluidEMHDDeDonderGaugeLinearizedGR'
+TwoFluidEMHDDeDonderGaugeLinearizedGR.name = 'twofluid-emhd-lingr'
 TwoFluidEMHDDeDonderGaugeLinearizedGR.numWaves = 26
 TwoFluidEMHDDeDonderGaugeLinearizedGR.numIntStates = 26
 

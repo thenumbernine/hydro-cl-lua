@@ -607,7 +607,7 @@ function Equation:initCodeModule_fluxFromCons()
 		name = 'fluxFromCons',
 		depends = {
 			self.cons_t,
-			'solver_t',
+			self.solver.solver_t,
 			'eigen_fluxTransform',
 			'eigen_forCell',
 			'normal_t',
@@ -899,7 +899,7 @@ void consFromPrim(
 	-- only used by PLM
 	self.solver.modules:add{
 		name = 'apply_dU_dW',
-		depends = {'solver_t', self.prim_t, self.cons_t},
+		depends = {self.solver.solver_t, self.prim_t, self.cons_t},
 		code = self:template[[
 /*
 WA = W components that make up the jacobian matrix
@@ -925,7 +925,7 @@ void apply_dU_dW(
 	-- only used by PLM
 	self.solver.modules:add{
 		name = 'apply_dW_dU',
-		depends = {'solver_t', self.prim_t, self.cons_t},
+		depends = {self.solver.solver_t, self.prim_t, self.cons_t},
 		code = self:template[[
 /*
 WA = W components that make up the jacobian matrix

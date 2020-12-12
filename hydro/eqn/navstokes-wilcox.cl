@@ -1,10 +1,10 @@
 //// MODULE_NAME: primFromCons
-//// MODULE_DEPENDS: prim_t cons_t coordLenSq
+//// MODULE_DEPENDS: <?=prim_t?> <?=cons_t?> coordLenSq
 
 #define primFromCons(\
-	/*prim_t * const */result,\
-	/*constant solver_t const * const */solver,\
-	/*cons_t const * const */U,\
+	/*<?=prim_t?> * const */result,\
+	/*constant <?=solver_t?> const * const */solver,\
+	/*<?=cons_t?> const * const */U,\
 	/*real3 const */pt\
 ) {\
 	(result)->rhoBar = (U)->rhoBar;\
@@ -21,12 +21,12 @@
 }
 
 //// MODULE_NAME: consFromPrim
-//// MODULE_DEPENDS: prim_t cons_t coordLenSq
+//// MODULE_DEPENDS: <?=prim_t?> <?=cons_t?> coordLenSq
 
 #define consFromPrim(\
-	/*cons_t * const */result,\
-	/*constant solver_t const * const */solver,\
-	/*prim_t const * const */W,\
+	/*<?=cons_t?> * const */result,\
+	/*constant <?=solver_t?> const * const */solver,\
+	/*<?=prim_t?> const * const */W,\
 	/*real3 const */pt\
 ) {\
 	real const rhoBar_k = (W)->rhoBar * (W)->k;\
@@ -53,13 +53,13 @@
 }
 
 //// MODULE_NAME: apply_dU_dW
-//// MODULE_DEPENDS: real3 solver_t prim_t cons_t coord_lower
+//// MODULE_DEPENDS: real3 <?=solver_t?> <?=prim_t?> <?=cons_t?> coord_lower
 
 #define apply_dU_dW(\
-	/*cons_t * const */result,\
-	/*constant solver_t const * const */solver,\
-	/*prim_t const * const */WA, \
-	/*prim_t const * const */W, \
+	/*<?=cons_t?> * const */result,\
+	/*constant <?=solver_t?> const * const */solver,\
+	/*<?=prim_t?> const * const */WA, \
+	/*<?=prim_t?> const * const */W, \
 	/*real3 const */pt\
 ) {\
 	real3 WA_vTildeL = coord_lower((WA)->vTilde, pt);\
@@ -78,13 +78,13 @@
 }
 
 //// MODULE_NAME: apply_dW_dU
-//// MODULE_DEPENDS: real3 solver_t prim_t cons_t coord_lower
+//// MODULE_DEPENDS: real3 <?=solver_t?> <?=prim_t?> <?=cons_t?> coord_lower
 
 #define apply_dW_dU(\
-	/*prim_t * const */result,\
-	/*constant solver_t const * const */solver,\
-	/*prim_t const * const */WA,\
-	/*cons_t const * const */U,\
+	/*<?=prim_t?> * const */result,\
+	/*constant <?=solver_t?> const * const */solver,\
+	/*<?=prim_t?> const * const */WA,\
+	/*<?=cons_t?> const * const */U,\
 	/*real3 const */pt\
 ) {\
 	real3 const WA_vTildeL = coord_lower((WA)->vTilde, pt);\
@@ -111,25 +111,25 @@
 //real calc_h(real rhoBar, real PStar) { return calc_H(PStar) / rhoBar; }
 //real calc_hTotal(real rhoBar, real PStar, real rhoBar_eTotalTilde) { return (PStar + rhoBar_eTotalTilde) / rhoBar; }
 //real calc_HTotal(real PStar, real rhoBar_eTotalTilde) { return PStar + rhoBar_eTotalTilde; }
-static inline real calc_eKinTilde(prim_t const * const W, real3 x) { return .5 * coordLenSq((W)->vTilde, x); }
-static inline real calc_EKinTilde(prim_t const * const W, real3 x) { return (W)->rhoBar * calc_eKinTilde(W, x); }
+static inline real calc_eKinTilde(<?=prim_t?> const * const W, real3 x) { return .5 * coordLenSq((W)->vTilde, x); }
+static inline real calc_EKinTilde(<?=prim_t?> const * const W, real3 x) { return (W)->rhoBar * calc_eKinTilde(W, x); }
 
 //before
-//real calc_EIntTilde(prim_t W) { return W.PStar * C_v_over_R; }
-//real calc_eIntTilde(prim_t W) { return calc_EIntTilde(W) / W.rhoBar; }
+//real calc_EIntTilde(<?=prim_t?> W) { return W.PStar * C_v_over_R; }
+//real calc_eIntTilde(<?=prim_t?> W) { return calc_EIntTilde(W) / W.rhoBar; }
 
 //after
-static inline real calc_PBar(prim_t const * const W) { return (W)->PStar - 2./3. * (W)->rhoBar * (W)->k; }
-static inline real calc_TTilde(constant solver_t const * const solver, prim_t const * const W) { return calc_PBar(W) / ((W)->rhoBar * solver->gasConstant); }
-static inline real calc_eIntTilde(constant solver_t const * const solver, prim_t const * const W) { return solver->C_v * calc_TTilde(solver, W); }
-static inline real calc_EIntTilde(constant solver_t const * const solver, prim_t const * const W) { return (W)->rhoBar * calc_eIntTilde(solver, W); }
+static inline real calc_PBar(<?=prim_t?> const * const W) { return (W)->PStar - 2./3. * (W)->rhoBar * (W)->k; }
+static inline real calc_TTilde(constant <?=solver_t?> const * const solver, <?=prim_t?> const * const W) { return calc_PBar(W) / ((W)->rhoBar * solver->gasConstant); }
+static inline real calc_eIntTilde(constant <?=solver_t?> const * const solver, <?=prim_t?> const * const W) { return solver->C_v * calc_TTilde(solver, W); }
+static inline real calc_EIntTilde(constant <?=solver_t?> const * const solver, <?=prim_t?> const * const W) { return (W)->rhoBar * calc_eIntTilde(solver, W); }
 
-static inline real calc_EKin_fromCons(cons_t const * const U, real3 const x) { return .5 * coordLenSq((U)->rhoBar_vTilde, x) / (U)->rhoBar; }
-static inline real calc_ETotal(constant solver_t const * const solver, prim_t const * const W, real3 const x) {
+static inline real calc_EKin_fromCons(<?=cons_t?> const * const U, real3 const x) { return .5 * coordLenSq((U)->rhoBar_vTilde, x) / (U)->rhoBar; }
+static inline real calc_ETotal(constant <?=solver_t?> const * const solver, <?=prim_t?> const * const W, real3 const x) {
 	return calc_EKinTilde(W, x) + calc_EIntTilde(solver, W);
 }
 
-static inline real calc_Cs(constant solver_t const * const solver, prim_t const * const W) {
+static inline real calc_Cs(constant <?=solver_t?> const * const solver, <?=prim_t?> const * const W) {
 	return sqrt((R_over_C_v + 1.) * (W)->PStar / (W)->rhoBar);
 }
 
@@ -137,10 +137,10 @@ static inline real calc_Cs(constant solver_t const * const solver, prim_t const 
 //// MODULE_DEPENDS: cartesianToCoord consFromPrim
 
 kernel void applyInitCond(
-	constant solver_t const * const solver,
-	constant initCond_t const * const initCond,
-	global cons_t * const UBuf,
-	global cell_t const * const cellBuf
+	constant <?=solver_t?> const * const solver,
+	constant <?=initCond_t?> const * const initCond,
+	global <?=cons_t?> * const UBuf,
+	global <?=cell_t?> const * const cellBuf
 ) {
 	SETBOUNDS(0,0);
 	real3 const x = cellBuf[index].pos;
@@ -165,7 +165,7 @@ end
 
 	<?=initCode()?>
 
-	prim_t W = {
+	<?=prim_t?> W = {
 		.rhoBar = rho,
 		.vTilde = cartesianToCoord(v, x),	/* transform from cartesian to coordinate space  */
 		.PStar = P,
@@ -180,13 +180,13 @@ end
 //// MODULE_DEPENDS: coord_g_uu## primFromCons
 
 #define fluxFromCons(\
-	/*cons_t * const */resultFlux,\
-	/*constant solver_t const * const */solver,\
-	/*cons_t const * const */U,\
+	/*<?=cons_t?> * const */resultFlux,\
+	/*constant <?=solver_t?> const * const */solver,\
+	/*<?=cons_t?> const * const */U,\
 	/*real3 const */x,\
 	/*normal_t const */n\
 ) {\
-	prim_t W;\
+	<?=prim_t?> W;\
 	primFromCons(&W, solver, U, x);\
 	real const vTilde_j = W.vTilde.s[n.side];\
 	\
@@ -218,12 +218,12 @@ end
 
 #define calcCellMinMaxEigenvalues(\
 	/*range_t * const */result,\
-	/*constant solver_t const * const */solver,\
-	/*global cons_t const * const */U,\
+	/*constant <?=solver_t?> const * const */solver,\
+	/*global <?=cons_t?> const * const */U,\
 	/*real3 const */x,\
 	/*normal_t const */n\
 ) {\
-	prim_t W;\
+	<?=prim_t?> W;\
 	primFromCons(&W, solver, U, x);\
 	real Cs = calc_Cs(solver, W);\
 	if (false) {}\
@@ -240,14 +240,14 @@ end
 //// MODULE_DEPENDS: primFromCons
 
 #define eigen_forInterface(\
-	/*eigen_t * const */result,\
-	/*constant solver_t const * const */solver,\
-	/*cons_t const * const */UL,\
-	/*cons_t const * const */UR,\
+	/*<?=eigen_t?> * const */result,\
+	/*constant <?=solver_t?> const * const */solver,\
+	/*<?=cons_t?> const * const */UL,\
+	/*<?=cons_t?> const * const */UR,\
 	/*real3 const */x,\
 	/*normal_t const */n\
 ) {\
-	prim_t WL;\
+	<?=prim_t?> WL;\
 	primFromCons(&WL, solver, UL, x);\
 	real const sqrtRhoL = sqrt(WL.rhoBar);\
 	real3 const vTildeL = WL.vTilde;\
@@ -255,7 +255,7 @@ end
 	real const kL = WL.k;\
 	real const omegaL = WL.omega;\
 \
-	prim_t WR;\
+	<?=prim_t?> WR;\
 	primFromCons(&WR, solver, UR, x);\
 	real const sqrtRhoR = sqrt(WR.rhoBar);\
 	real3 const vTildeR = WR.vTilde;\
@@ -299,7 +299,7 @@ Cs^2 = R/C_v (hTotalTilde - 1/2 vTilde^2 - (1 - 2/3 C_v/R) k)\
 }
 
 //// MODULE_NAME: eigen_left/rightTransform
-//// MODULE_DEPENDS: coord_g_uu coord_g_uu## coord_sqrt_g_uu## coord_lower waves_t 
+//// MODULE_DEPENDS: coord_g_uu coord_g_uu## coord_sqrt_g_uu## coord_lower <?=waves_t?> 
 
 <?
 local prefixes = {}
@@ -356,10 +356,10 @@ end
 ?>
 
 #define eigen_leftTransform(\
-	/*waves_t * const */result,\
-	/*constant solver_t const * const */solver,\
-	/*eigen_t const * const */eig,\
-	/*cons_t const * const */X,\
+	/*<?=waves_t?> * const */result,\
+	/*constant <?=solver_t?> const * const */solver,\
+	/*<?=eigen_t?> const * const */eig,\
+	/*<?=cons_t?> const * const */X,\
 	/*real3 const */pt,\
 	/*normal_t const */n\
 ) {\
@@ -502,10 +502,10 @@ end
 }
 
 #define eigen_rightTransform(\
-	/*cons_t const * const */result,\
-	/*constant solver_t const * const */solver,\
-	/*eigen_t const * const */eig,\
-	/*waves_t const * const */X,\
+	/*<?=cons_t?> const * const */result,\
+	/*constant <?=solver_t?> const * const */solver,\
+	/*<?=eigen_t?> const * const */eig,\
+	/*<?=waves_t?> const * const */X,\
 	/*real3 const */pt,\
 	/*normal_t const */n\
 ) {\
@@ -617,10 +617,10 @@ end
 //// MODULE_NAME: eigen_fluxTransform
 
 static inline void eigen_fluxTransform(
-	cons_t const * const result,
-	constant solver_t const * const solver,
-	eigen_t eig,
-	cons_t X,
+	<?=cons_t?> const * const result,
+	constant <?=solver_t?> const * const solver,
+	<?=eigen_t?> eig,
+	<?=cons_t?> X,
 	real3 pt,
 	normal_t n
 ) {
@@ -628,7 +628,7 @@ static inline void eigen_fluxTransform(
 		<?=prefixes[0]:gsub("\n", "\\\n")?>
 		real const CsSq = Cs * Cs;
 		real const PStar = CsSq * rhoBar / (1. + R_over_C_v);
-		*(result) = (cons_t){.ptr={
+		*(result) = (<?=cons_t?>){.ptr={
 			X.ptr[1],
 			- X.ptr[0] * (vTilde.x * vTilde.x - .5 * gUj.x * R_over_C_v * vTildeSq)
 				+ X.ptr[1] * (2 * vTilde.x - gUj.x * R_over_C_v * vTildeL.x) 
@@ -666,7 +666,7 @@ static inline void eigen_fluxTransform(
 		<?=prefixes[1]:gsub("\n", "\\\n")?>
 		real const CsSq = Cs * Cs;
 		real const PStar = CsSq * rhoBar / (1. + R_over_C_v);
-		*(result) = (cons_t){.ptr={
+		*(result) = (<?=cons_t?>){.ptr={
 			X.ptr[2],
 			-X.ptr[0] * (vTilde.x * vTilde.y - .5 * gUj.x * R_over_C_v * vTildeSq)
 				+ X.ptr[1] * (vTilde.y - gUj.x * R_over_C_v * vTildeL.x)
@@ -704,7 +704,7 @@ static inline void eigen_fluxTransform(
 		<?=prefixes[2]:gsub("\n", "\\\n")?>
 		real const CsSq = Cs * Cs;
 		real const PStar = CsSq * rhoBar / (1. + R_over_C_v);
-		*(result) = (cons_t){.ptr={
+		*(result) = (<?=cons_t?>){.ptr={
 			X.ptr[3],
 			- X.ptr[0] * (vTilde.x * vTilde.z - .5 * gUj.x * R_over_C_v * vTildeSq)
 				+ X.ptr[1] * (vTilde.z - gUj.x * R_over_C_v * vTildeL.x)
@@ -747,13 +747,13 @@ static inline void eigen_fluxTransform(
 // used by PLM
 
 #define eigen_forCell(\
-	/*eigen_t const * const */result,\
-	/*constant solver_t const * const */solver,\
-	/*cons_t const * const */U,\
+	/*<?=eigen_t?> const * const */result,\
+	/*constant <?=solver_t?> const * const */solver,\
+	/*<?=cons_t?> const * const */U,\
 	/*real3 const */pt,\
 	/*normal_t const */n\
 ) {\
-	prim_t W;\
+	<?=prim_t?> W;\
 	primFromCons(&W, solver, U, pt);\
 	(result)->rhoBar = W.rhoBar;\
 	(result)->vTilde = W.vTilde;\
@@ -770,19 +770,19 @@ static inline void eigen_fluxTransform(
 //// MODULE_DEPENDS: primFromCons
 
 kernel void addSource(
-	constant solver_t const * const solver,
-	global cons_t * const derivBuf,
-	global cons_t const * const UBuf,
-	global cell_t const * const cellBuf
+	constant <?=solver_t?> const * const solver,
+	global <?=cons_t?> * const derivBuf,
+	global <?=cons_t?> const * const UBuf,
+	global <?=cell_t?> const * const cellBuf
 ) {
 	SETBOUNDS_NOGHOST();
 	real3 const x = cellBuf[index].pos;
-	global cons_t * const deriv = derivBuf + index;
-	global cons_t const * const U = UBuf + index;
+	global <?=cons_t?> * const deriv = derivBuf + index;
+	global <?=cons_t?> const * const U = UBuf + index;
 
 <? if not require "hydro.coord.cartesian".is(solver.coord) then ?>
 	/* connection coefficient source terms of covariant derivative w/contravariant velocity vectors in a holonomic coordinate system */
-	prim_t W;
+	<?=prim_t?> W;
 	primFromCons(&W, solver, U, x);
 	real3 m_conn_vv = coord_conn_apply23(W.vTilde, U->rhoBar_vTilde, x);
 	deriv->rhoBar_vTilde = real3_sub(deriv->rhoBar_vTilde, m_conn_vv);	/* -Conn^i_jk rhoBar vTilde^j vTilde^k  */

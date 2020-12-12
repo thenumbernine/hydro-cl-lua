@@ -34,21 +34,21 @@ cplx3 eqn_coord_lower(cplx3 v, real3 x) {
 <? end -- scalar ?>
 
 #define /*<?=vec3?>*/ calc_E(\
-	/*global cons_t const * const */U\
+	/*global <?=cons_t?> const * const */U\
 )  (<?=vec3?>_<?=susc_t?>_mul((U)->D, <?=susc_t?>_mul((U)->sqrt_1_eps, (U)->sqrt_1_eps)))
 
 #define /*<?=vec3?>*/ calc_H(\
-	/*global cons_t const * const */U\
+	/*global <?=cons_t?> const * const */U\
 ) 	(<?=vec3?>_<?=susc_t?>_mul((U)->B, <?=susc_t?>_mul((U)->sqrt_1_mu, (U)->sqrt_1_mu)))
 
 //// MODULE_NAME: applyInitCond
 //// MODULE_DEPENDS: eqn.common
 
 kernel void applyInitCond(
-	constant solver_t const * const solver,
-	constant initCond_t const * const initCond,
-	global cons_t * const UBuf,
-	global cell_t const * const cellBuf
+	constant <?=solver_t?> const * const solver,
+	constant <?=initCond_t?> const * const initCond,
+	global <?=cons_t?> * const UBuf,
+	global <?=cell_t?> const * const cellBuf
 ) {
 	SETBOUNDS(0,0);
 	real3 const x = cellBuf[index].pos;
@@ -61,7 +61,7 @@ kernel void applyInitCond(
 		&& x.z < mids.z
 #endif
 	;
-	global cons_t * const U = UBuf + index;
+	global <?=cons_t?> * const U = UBuf + index;
 
 	/* used */
 	<?=vec3?> D = <?=vec3?>_zero;
@@ -91,13 +91,13 @@ kernel void applyInitCond(
 
 
 //// MODULE_NAME: fluxFromCons
-//// MODULE_DEPENDS: solver_t normal_t cons_t prim_t eqn.common
+//// MODULE_DEPENDS: <?=solver_t?> normal_t <?=cons_t?> <?=prim_t?> eqn.common
 //eqn.common has calc_E, calc_H
 
 #define fluxFromCons(\
-	/*cons_t * const */F,\
-	/*constant solver_t const * const */solver,\
-	/*cons_t const * const */U,\
+	/*<?=cons_t?> * const */F,\
+	/*constant <?=solver_t?> const * const */solver,\
+	/*<?=cons_t?> const * const */U,\
 	/*real3 const */pt,\
 	/*normal_t const */n\
 ) {\
@@ -124,10 +124,10 @@ kernel void applyInitCond(
 //// MODULE_NAME: eigen_forInterface
 
 #define eigen_forInterface(\
-	/*eigen_t * const */eig,\
-	/*constant solver_t const * const */solver,\
-	/*cons_t const * const */UL,\
-	/*cons_t const * const */UR,\
+	/*<?=eigen_t?> * const */eig,\
+	/*constant <?=solver_t?> const * const */solver,\
+	/*<?=cons_t?> const * const */UL,\
+	/*<?=cons_t?> const * const */UR,\
 	/*real3 const */x,\
 	/*normal_t const */n\
 ) {\
@@ -142,9 +142,9 @@ kernel void applyInitCond(
 
 //used by PLM
 #define eigen_forCell(\
-	/*eigen_t * const */eig,\
-	/*constant solver_t const * const */solver,\
-	/*cons_t const * const */U,\
+	/*<?=eigen_t?> * const */eig,\
+	/*constant <?=solver_t?> const * const */solver,\
+	/*<?=cons_t?> const * const */U,\
 	/*real3 const */x,\
 	/*normal_t const */n\
 ) {\
@@ -159,10 +159,10 @@ kernel void applyInitCond(
 TODO update this for Einstein-Maxwell (take the metric into consideration
 */
 #define eigen_leftTransform(\
-	/*waves_t * const */Y,\
-	/*constant solver_t const * const */solver,\
-	/*eigen_t const * const */eig,\
-	/*cons_t const * const */X,\
+	/*<?=waves_t?> * const */Y,\
+	/*constant <?=solver_t?> const * const */solver,\
+	/*<?=eigen_t?> const * const */eig,\
+	/*<?=cons_t?> const * const */X,\
 	/*real3 const */x,\
 	/*normal_t const */n\
 ) {\
@@ -208,10 +208,10 @@ TODO update this for Einstein-Maxwell (take the metric into consideration
 }
 
 #define eigen_rightTransform(\
-	/*cons_t * const */Y,\
-	/*constant solver_t const * const */solver,\
-	/*eigen_t const * const */eig,\
-	/*waves_t const * const */X,\
+	/*<?=cons_t?> * const */Y,\
+	/*constant <?=solver_t?> const * const */solver,\
+	/*<?=eigen_t?> const * const */eig,\
+	/*<?=waves_t?> const * const */X,\
 	/*real3 const */x,\
 	/*normal_t const */n\
 ) {\
@@ -268,16 +268,16 @@ TODO update this for Einstein-Maxwell (take the metric into consideration
 //// MODULE_DEPENDS: coord_sqrt_det_g fluxFromCons
 
 kernel void addSource(
-	constant solver_t const * const solver,
-	global cons_t * const derivBuf,
-	global cons_t const * const UBuf,
-	global cell_t const * const cellBuf
+	constant <?=solver_t?> const * const solver,
+	global <?=cons_t?> * const derivBuf,
+	global <?=cons_t?> const * const UBuf,
+	global <?=cell_t?> const * const cellBuf
 ) {
 	SETBOUNDS_NOGHOST();
 	real3 const x = cellBuf[index].pos;
 	
-	global cons_t * const deriv = derivBuf + index;
-	global cons_t const * const U = UBuf + index;
+	global <?=cons_t?> * const deriv = derivBuf + index;
+	global <?=cons_t?> const * const U = UBuf + index;
 
 	/* TODO J = J_f + J_b = J_f + J_P + J_M = J_f + dP/dt + curl M */
 	deriv->D = <?=vec3?>_sub(deriv->D, U->J);
@@ -309,7 +309,7 @@ kernel void addSource(
 	real _1_sqrt_det_g = 1. / coord_sqrt_det_g(x);
 	<? for j=0,solver.dim-1 do 
 		local xj = xNames[j+1] ?>{
-		cons_t flux;
+		<?=cons_t?> flux;
 		fluxFromCons(&flux, solver, U, x, normal_forSide<?=j?>(x));
 		flux.D = <?=vec3?>_real_mul(eqn_coord_lower(flux.D, x), _1_sqrt_det_g);
 		flux.B = <?=vec3?>_real_mul(eqn_coord_lower(flux.B, x), _1_sqrt_det_g);

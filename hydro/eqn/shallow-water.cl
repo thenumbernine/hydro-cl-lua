@@ -1,10 +1,10 @@
 //// MODULE_NAME: primFromCons
-//// MODULE_DEPENDS: real3 solver_t prim_t cons_t
+//// MODULE_DEPENDS: real3 <?=solver_t?> <?=prim_t?> <?=cons_t?>
 
 #define primFromCons(\
-	/*prim_t * const */result,\
-	/*constant solver_t const * const */solver,\
-	/*cons_t const * const */U, \
+	/*<?=prim_t?> * const */result,\
+	/*constant <?=solver_t?> const * const */solver,\
+	/*<?=cons_t?> const * const */U, \
 	/*real3 const */pt\
 ) {\
 	(result)->h = (U)->h;\
@@ -12,12 +12,12 @@
 }
 
 //// MODULE_NAME: consFromPrim
-//// MODULE_DEPENDS: real3 solver_t prim_t cons_t
+//// MODULE_DEPENDS: real3 <?=solver_t?> <?=prim_t?> <?=cons_t?>
 
 #define consFromPrim(\
-	/*cons_t * const */result,\
-	/*constant solver_t const * const */solver,\
-	/*prim_t const * const */W,\
+	/*<?=cons_t?> * const */result,\
+	/*constant <?=solver_t?> const * const */solver,\
+	/*<?=prim_t?> const * const */W,\
 	/*real3 const */pt\
 ) {\
 	(result)->h = (W)->h;\
@@ -25,13 +25,13 @@
 }
 
 //// MODULE_NAME: apply_dU_dW
-//// MODULE_DEPENDS: real3 solver_t prim_t cons_t
+//// MODULE_DEPENDS: real3 <?=solver_t?> <?=prim_t?> <?=cons_t?>
 
 #define apply_dU_dW(\
-	/*cons_t * const */result,\
-	/*constant solver_t const * const */solver,\
-	/*prim_t const * const */WA, \
-	/*prim_t const * const */W, \
+	/*<?=cons_t?> * const */result,\
+	/*constant <?=solver_t?> const * const */solver,\
+	/*<?=prim_t?> const * const */WA, \
+	/*<?=prim_t?> const * const */W, \
 	/*real3 const */pt\
 ) {\
 	(result)->h = (W)->h;\
@@ -41,13 +41,13 @@
 }
 
 //// MODULE_NAME: apply_dW_dU
-//// MODULE_DEPENDS: real3 solver_t prim_t cons_t
+//// MODULE_DEPENDS: real3 <?=solver_t?> <?=prim_t?> <?=cons_t?>
 
 #define apply_dW_dU(\
-	/*prim_t * const */result,\
-	/*constant solver_t const * const */solver,\
-	/*prim_t const * const */WA,\
-	/*cons_t const * const */U,\
+	/*<?=prim_t?> * const */result,\
+	/*constant <?=solver_t?> const * const */solver,\
+	/*<?=prim_t?> const * const */WA,\
+	/*<?=cons_t?> const * const */U,\
 	/*real3 const */pt\
 ) {\
 	(result)->h = (U)->h;\
@@ -57,11 +57,11 @@
 }
 
 //// MODULE_NAME: eqn.common
-//// MODULE_DEPENDS: solver_t cons_t
+//// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?>
 
 #define calc_C(\
-	/*constant solver_t const * const */solver,\
-	/*cons_t const * const */U\
+	/*constant <?=solver_t?> const * const */solver,\
+	/*<?=cons_t?> const * const */U\
 )\
 	sqrt(solver->gravity * (U)->h)
 
@@ -69,17 +69,17 @@
 //// MODULE_DEPENDS: cartesianToCoord
 
 kernel void applyInitCond(
-	constant solver_t* solver,
-	constant initCond_t* initCond,
-	global cons_t* UBuf,
-	const global cell_t* cellBuf
+	constant <?=solver_t?> const * const solver,
+	constant <?=initCond_t?> const * const initCond,
+	global <?=cons_t?> * const UBuf,
+	global <?=cell_t?> const * const cellBuf
 ) {
 	SETBOUNDS(0,0);
-	real3 x = cellBuf[index].pos;
+	real3 const x = cellBuf[index].pos;
 	
 	// this is in all init/euler.lua
-	real3 mids = real3_real_mul(real3_add(solver->initCondMins, solver->initCondMaxs), .5);
-	bool lhs = true<?
+	real3 const mids = real3_real_mul(real3_add(solver->initCondMins, solver->initCondMaxs), .5);
+	bool const lhs = true<?
 for i=1,solver.dim do
 	local xi = xNames[i]
 ?> && x.<?=xi?> < mids.<?=xi?><?
@@ -96,7 +96,7 @@ end
 
 	<?=initCode()?>
 
-	prim_t W = {
+	<?=prim_t?> const W = {
 		.h = rho,
 		.v = cartesianToCoord(v, x),
 	};
@@ -104,16 +104,16 @@ end
 }
 
 //// MODULE_NAME: fluxFromCons
-//// MODULE_DEPENDS: solver_t primFromCons normal_t
+//// MODULE_DEPENDS: <?=solver_t?> primFromCons normal_t
 
 #define fluxFromCons(\
-	/*cons_t * const */result,\
-	/*constant solver_t const * const */solver,\
-	/*cons_t const * const */U,\
+	/*<?=cons_t?> * const */result,\
+	/*constant <?=solver_t?> const * const */solver,\
+	/*<?=cons_t?> const * const */U,\
 	/*real3 const */pt,\
 	/*normal_t const */n\
 ) {\
-	prim_t W;\
+	<?=prim_t?> W;\
 	primFromCons(&W, solver, U, pt);\
 	real const v_n = normal_vecDotN1(n, W.v);\
 	real3 const nU = normal_u1(n);\
@@ -129,12 +129,12 @@ end
 // used by PLM
 #define calcCellMinMaxEigenvalues(\
 	/*range_t * const */result,\
-	/*constant solver_t const * const */solver,\
-	/*global cons_t const * const */U,\
+	/*constant <?=solver_t?> const * const */solver,\
+	/*global <?=cons_t?> const * const */U,\
 	/*real3 const */pt,\
 	/*normal_t const */n\
 ) {\
-	prim_t W;\
+	<?=prim_t?> W;\
 	primFromCons(&W, solver, U, pt);\
 	real const v_n = normal_vecDotN1(n, W.v);\
 	real const C = calc_C(solver, U);\
@@ -146,19 +146,19 @@ end
 //// MODULE_NAME: eigen_forInterface
 
 #define eigen_forInterface(\
-	/*eigen_t * const */result,\
-	/*constant solver_t const * const */solver,\
-	/*cons_t const * const */UL,\
-	/*cons_t const * const */UR,\
+	/*<?=eigen_t?> * const */result,\
+	/*constant <?=solver_t?> const * const */solver,\
+	/*<?=cons_t?> const * const */UL,\
+	/*<?=cons_t?> const * const */UR,\
 	/*real3 const */pt,\
 	/*normal_t const */n\
 ) {\
-	prim_t WL;\
+	<?=prim_t?> WL;\
 	primFromCons(&WL, solver, UL, pt);\
 	real const sqrtHL = sqrt(WL.h);\
 	real3 const vL = WL.v;\
 	\
-	prim_t WR;\
+	<?=prim_t?> WR;\
 	primFromCons(&WR, solver, UR, pt);\
 	real const sqrtHR = sqrt(WR.h);\
 	real3 const vR = WR.v;\
@@ -177,13 +177,13 @@ end
 }
 
 //// MODULE_NAME: eigen_left/rightTransform
-//// MODULE_DEPENDS: waves_t
+//// MODULE_DEPENDS: <?=waves_t?>
 
 #define eigen_leftTransform(\
-	/*waves_t * const */result,\
-	/*constant solver_t const * const */solver,\
-	/*eigen_t const * const */eig,\
-	/*cons_t const * const */X_,\
+	/*<?=waves_t?> * const */result,\
+	/*constant <?=solver_t?> const * const */solver,\
+	/*<?=eigen_t?> const * const */eig,\
+	/*<?=cons_t?> const * const */X_,\
 	/*real3 const */pt,\
 	/*normal_t const */n\
 ) { \
@@ -233,10 +233,10 @@ end
 }
 
 #define eigen_rightTransform(\
-	/*cons_t * const */result,\
-	/*constant solver_t const * const */solver,\
-	/*eigen_t const * const */eig,\
-	/*waves_t const * const */X_,\
+	/*<?=cons_t?> * const */result,\
+	/*constant <?=solver_t?> const * const */solver,\
+	/*<?=eigen_t?> const * const */eig,\
+	/*<?=waves_t?> const * const */X_,\
 	/*real3 const */pt,\
 	/*normal_t const */n\
 ) {\
@@ -266,10 +266,10 @@ end
 //// MODULE_NAME: eigen_fluxTransform
 
 #define eigen_fluxTransform(\
-	/*cons_t * const */result,\
-	/*constant solver_t const * const */solver,\
-	/*eigen_t const * const */eig,\
-	/*cons_t const * const */X_,\
+	/*<?=cons_t?> * const */result,\
+	/*constant <?=solver_t?> const * const */solver,\
+	/*<?=eigen_t?> const * const */eig,\
+	/*<?=cons_t?> const * const */X_,\
 	/*real3 const */pt,\
 	/*normal_t const */n\
 ) {\
@@ -307,13 +307,13 @@ end
 
 // used by PLM
 #define eigen_forCell(\
-	/*eigen_t * const */result,\
-	/*constant solver_t const * const */solver,\
-	/*cons_t const * const */U,\
+	/*<?=eigen_t?> * const */result,\
+	/*constant <?=solver_t?> const * const */solver,\
+	/*<?=cons_t?> const * const */U,\
 	/*real3 const */pt,\
 	/*real3 const */n\
 ) {\
-	prim_t W;\
+	<?=prim_t?> W;\
 	primFromCons(&W, solver, U, pt);\
 	real const CSq = solver->gravity * (U)->h;\
 	real const C = sqrt(CSq);\

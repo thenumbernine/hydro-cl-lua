@@ -60,10 +60,10 @@ static inline real3x3 metric_partial_beta_ul(real3 const pt) {
 //// MODULE_DEPENDS: cartesianToCoord
 
 kernel void applyInitCond(
-	constant solver_t const * const solver,
-	constant initCond_t const * const initCond,
-	global cons_t * const UBuf,
-	global cell_t const * const cellBuf
+	constant <?=solver_t?> const * const solver,
+	constant <?=initCond_t?> const * const initCond,
+	global <?=cons_t?> * const UBuf,
+	global <?=cell_t?> const * const cellBuf
 ) {
 	SETBOUNDS(0,0);
 	real3 x = cellBuf[index].pos;
@@ -85,7 +85,7 @@ end
 	
 	<?=initCode()?>
 
-	UBuf[index] = (cons_t){
+	UBuf[index] = (<?=cons_t?>){
 <? if eqn.usePressure then
 ?>		.Pi = <?=scalar?>_from_real(P),
 <? else		
@@ -96,17 +96,17 @@ end
 }
 
 //// MODULE_NAME: fluxFromCons
-//// MODULE_DEPENDS: solver_t normal_t cons_t eqn.common
+//// MODULE_DEPENDS: <?=solver_t?> normal_t <?=cons_t?> eqn.common
 // eqn.common has metric_alpha
 
 // What's the difference between eigen_fluxTransform and fluxFromCons?
 // The difference is that the flux matrix of this is based on 'eig', which is derived from U's ... especially UL & UR in the case of the Roe solver
 // whereas that of fluxFromCons is based purely on 'U'.
-// Since hydro/eqn/wave has no eigen_t info derived from U, the two functions are identical.
+// Since hydro/eqn/wave has no <?=eigen_t?> info derived from U, the two functions are identical.
 #define fluxFromCons(\
-	/*cons_t * const */resultFlux,\
-	/*constant solver_t const * const */solver,\
-	/*cons_t const * const */U,\
+	/*<?=cons_t?> * const */resultFlux,\
+	/*constant <?=solver_t?> const * const */solver,\
+	/*<?=cons_t?> const * const */U,\
 	/*real3 const */pt,\
 	/*normal_t const */n\
 ) {\
@@ -168,8 +168,8 @@ end
 // used by PLM
 void calcCellMinMaxEigenvalues(
 	range_t * const result,
-	constant solver_t const * const solver,
-	global cons_t const * const U,
+	constant <?=solver_t?> const * const solver,
+	global <?=cons_t?> const * const U,
 	real3 const x,
 	normal_t const n
 ) {
@@ -180,25 +180,25 @@ void calcCellMinMaxEigenvalues(
 }
 
 //// MODULE_NAME: eigen_forInterface
-//// MODULE_DEPENDS: eigen_t
+//// MODULE_DEPENDS: <?=eigen_t?>
 
 #define eigen_forInterface(resultEig, solver, UL, UR, x, n) \
-	*(resultEig) = (eigen_t){}
+	*(resultEig) = (<?=eigen_t?>){}
 
 //// MODULE_NAME: eigen_forCell
-//// MODULE_DEPENDS: eigen_t
+//// MODULE_DEPENDS: <?=eigen_t?>
 
 #define eigen_forCell(resultEig, solver, U, x, n) \
-	*(resultEig) = (eigen_t){};
+	*(resultEig) = (<?=eigen_t?>){};
 
 //// MODULE_NAME: eigen_left/rightTransform
-//// MODULE_DEPENDS: eigen_t waves_t
+//// MODULE_DEPENDS: <?=eigen_t?> <?=waves_t?>
 
 #define eigen_leftTransform(\
-	/*waves_t * const */result,\
-	/*constant solver_t const * const */solver,\
-	/*eigen_t const * const */eig,\
-	/*cons_t const * const */X,\
+	/*<?=waves_t?> * const */result,\
+	/*constant <?=solver_t?> const * const */solver,\
+	/*<?=eigen_t?> const * const */eig,\
+	/*<?=cons_t?> const * const */X,\
 	/*real3 const */x,\
 	/*normal_t const */n\
 ) { \
@@ -229,10 +229,10 @@ void calcCellMinMaxEigenvalues(
 }
 
 #define eigen_rightTransform(\
-	/*cons_t * const */result,\
-	/*constant solver_t const * const */solver,\
-	/*eigen_t const * const */eig,\
-	/*waves_t const * const */X_,\
+	/*<?=cons_t?> * const */result,\
+	/*constant <?=solver_t?> const * const */solver,\
+	/*<?=eigen_t?> const * const */eig,\
+	/*<?=waves_t?> const * const */X_,\
 	/*real3 const */x,\
 	/*normal_t const */n\
 ) {\
@@ -267,17 +267,17 @@ void calcCellMinMaxEigenvalues(
 //// MODULE_NAME: addSource
 
 kernel void addSource(
-	constant solver_t* solver,
-	global cons_t* derivBuf,
-	const global cons_t* UBuf,
-	const global cell_t* cellBuf
+	constant <?=solver_t?>* solver,
+	global <?=cons_t?>* derivBuf,
+	const global <?=cons_t?>* UBuf,
+	const global <?=cell_t?>* cellBuf
 ) {
 #if 0
 	SETBOUNDS_NOGHOST();
 	real3 x = cellBuf[index].pos;
 	
-	global cons_t* deriv = derivBuf + index;
-	const global cons_t* U = UBuf + index;
+	global <?=cons_t?>* deriv = derivBuf + index;
+	const global <?=cons_t?>* U = UBuf + index;
 	//TODO make use of this
 	//real c = solver->wavespeed / unit_m_per_s;
 
