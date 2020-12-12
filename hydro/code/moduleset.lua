@@ -33,8 +33,10 @@ end
 
 function ModuleSet:add(args)
 	local module = Module(args)
+	module.traceback = debug.traceback()
 	if self.set[module.name] then
-		error("trying to re-add module "..tostring(module.name))
+		error("trying to re-add module "..tostring(module.name).."\n"
+			.."originally added from "..self.set[module.name].traceback)
 	end
 	self.set[module.name] = module
 end

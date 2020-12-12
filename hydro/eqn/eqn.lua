@@ -335,14 +335,14 @@ end
 
 -- Really really used by maxwell, glm-maxwell, and other things that vary their scalar type between real and cplx.  but it fits here just as well.
 function Equation:getEnv()
-	return {
+	local env = {
 		-- most have this
 		eqn = self,
 		solver = self.solver,
 		coord = self.solver.coord,
 		initCond = self.initCond,
 	
-		-- convenience
+		-- type names
 		cons_t = self.cons_t,
 		prim_t = self.prim_t,
 		eigen_t = self.eigen_t,
@@ -351,6 +351,8 @@ function Equation:getEnv()
 		initCond_t = self.solver.initCond_t,
 		cell_t = self.solver.coord.cell_t,
 		face_t = self.solver.coord.face_t,
+		
+		-- macro numbers 
 		numWaves = self.numWaves,
 
 		-- common 
@@ -366,6 +368,12 @@ function Equation:getEnv()
 			return self.initCond:getInitCondCode(self.solver)
 		end,
 	}
+
+	for _,field in ipairs(self.memberFields) do
+		env[field] = self[field]
+	end
+
+	return env
 end
 
 -- add to self.solver.modules, or add to self.modules and have solver add later?
@@ -652,42 +660,66 @@ function Equation:getDisplayVarCodePrefix()
 	global <?=cons_t?> const * const U = buf + index;
 <? if eqn.displayVarCodeUsesPrims then 
 ?>	<?=prim_t?> W;
-	primFromCons(&W, solver, U, x);
+	<?=primFromCons?>(&W, solver, U, x);
 <? end 
 ?>]]
 end
 
--- accepts a list of struct var info {name=..., [type=..., units=...]}
--- returns a list of display var construction info
+function Equation:addDisplayVarInfosForType(args)
+	return {
+		name = args.name,
+		code = 'value.v' .. args.type .. ' = ' .. args.ptrName .. args.varname .. ';', 
+		type = args.type,
+		units = args.units,
+		
+		-- if a display var has 'field' set then use a predefined calcDisplayVar function to just read the field directly (without any computations required)
+		-- ... unless it has units too ... in which case ... I'll be scaling the units
+		-- ... of course I could do the scaling after reading the value ...
+		field = args.varname,
+	}
+end
+
+--[[
+accepts a list of struct var info {name=..., [type=..., units=...]}
+returns a list of display var construction info
+
+TODO use a _3sym3 struct object and build it recursively
+ and make recursive building the default for all unaccounted types
+but to do this you need a mapping from the type string to its struct object
+once you do this, you can get rid of the equivalent within CompositeEquation
+and you can merge addDisplayVarInfosForType directly into this function
+--]]
 function Equation:getDisplayVarsForStructVars(structVarInfos, ptrName)
 	ptrName = ptrName or 'U'
 	ptrName = ptrName .. '->'
-	local displayVarInfos = table()
+	local displayVarInfos = table()	-- array of ctor args for DisplayVars
 	for _,structVarInfo in ipairs(structVarInfos) do
-		
-		local function addvar(name, varname, vartype)
-			local assignvar = 'value.v'..vartype
-			displayVarInfos:insert{
-				name = name,
-				code = assignvar..' = '..ptrName..varname..';', 
-				type = vartype,
-				units = structVarInfo.units,
-				
-				-- if a display var has 'field' set then use a predefined calcDisplayVar function to just read the field directly (without any computations required)
-				-- ... unless it has units too ... in which case ... I'll be scaling the units
-				-- ... of course I could do the scaling after reading the value ...
-				field = varname,
-			}
-		end
-
+		local units = structVarInfo.units
 		local varname = structVarInfo.name
 		local vartype = structVarInfo.type
+
 		if vartype == '_3sym3' then
 			for i,xi in ipairs(xNames) do
-				addvar(varname..' '..xi, varname..'.'..xi, 'sym3')
+				displayVarInfos:append{
+					self:addDisplayVarInfosForType{
+						ptrName = ptrName,
+						name = varname..' '..xi,
+						varname = varname..'.'..xi,
+						type = 'sym3',
+						units = units,
+					}
+				}
 			end
 		else
-			addvar(varname, varname, vartype)
+			displayVarInfos:append{
+				self:addDisplayVarInfosForType{
+					ptrName = ptrName,
+					name = varname,
+					varname = varname,
+					type = vartype,
+					units = units,
+				}
+			}
 		end
 	end
 	return displayVarInfos	
@@ -861,12 +893,12 @@ function Equation:initCodeModule_consFromPrim_primFromCons()
 	assert(not self.primStruct, "if you're using the default prim<->cons code then you shouldn't have any primStruct")
 
 	self.solver.modules:add{
-		name = 'primFromCons',
+		name = self.primFromCons,
 		depends = {self.solver.solver_t, self.prim_t, self.cons_t},
 		code = self:template[[
-#define primFromCons(W, solver, U, x)	(*(W) = *(U))
+#define <?=primFromCons?>(W, solver, U, x)	(*(W) = *(U))
 /*
-void primFromCons(
+void <?=primFromCons?>(
 	<?=prim_t?> * const W,
 	constant <?=solver_t?> const * const solver,
 	<?=cons_t?> const * const U, 

@@ -53,7 +53,7 @@ end
 	
 function FiniteVolumeSolver:initCodeModule_calcFlux()
 	self.modules:addFromMarkup{
-		code = template([[
+		code = self.eqn:template([[
 //// MODULE_NAME: calcFlux
 //// MODULE_DEPENDS: calcFluxForInterface cons_parallelPropagate normal_t
 // used by all gridsolvers.  the meshsolver alternative is in solver/meshsolver.lua
@@ -173,8 +173,6 @@ end
 }
 
 ]], 	{
-			solver = self,
-			eqn = self.eqn,
 			flux = self.flux,
 		}),
 	}
@@ -272,7 +270,7 @@ function FiniteVolumeSolver:getModuleDepends_displayCode()
 		'normal_t',
 		self.eqn.eigen_t,
 		'eqn.waveCode',
-		'eigen_forInterface',
+		self.eqn.eigen_forInterface,
 	}
 end
 
@@ -300,7 +298,7 @@ function FiniteVolumeSolver:addDisplayVars()
 
 	-- code for getting the interface eigensystem variables
 	local function getEigenCode(args)
-		return template([[
+		return self.eqn:template([[
 	int indexR = index;
 	int indexL = index - solver->stepsize.s<?=side?>;
 	real3 xInt = x;
@@ -308,10 +306,8 @@ function FiniteVolumeSolver:addDisplayVars()
 	<?=solver:getULRCode{bufName='buf', side=side}:gsub('\n', '\n\t')?>
 	normal_t n = normal_forSide<?=side?>(xInt);
 	eigen_t eig;
-	eigen_forInterface(&eig, solver, UL, UR, xInt, n);
+	<?=eigen_forInterface?>(&eig, solver, UL, UR, xInt, n);
 ]], 	{
-			solver = self,
-			eqn = self.eqn,
 			side = args.side,
 		})
 	end

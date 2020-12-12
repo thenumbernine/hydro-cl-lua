@@ -2170,6 +2170,7 @@ function SolverBase:addDisplayVars()
 		
 		args.group = group
 		args.vars = self.eqn:getDisplayVarsForStructVars(self.eqn.consStruct.vars)
+		
 		-- why in addUBufDisplayVars() do I make a new group and assign args.group to it?
 		self:addDisplayVarGroup(args, self.DisplayVar_U)
 	end

@@ -12,9 +12,7 @@ end
 
 function Flux:initCodeModules()
 	self.solver.modules:addFromMarkup(
-		template(file[self.solverCodeFile], {
-			solver = self.solver,
-			eqn = self.solver.eqn,
+		self.solver.eqn:template(file[self.solverCodeFile], {
 			clnumber = clnumber,
 			flux = self,
 		})

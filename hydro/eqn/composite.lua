@@ -29,9 +29,11 @@ assert(#self.eqns > 0, "you need at least one entry in args.subeqns")
 		end
 	end
 
+-- [[
 	self.submodules = self.eqns:mapi(function()
 		return require 'hydro.code.moduleset'()
 	end)
+--]]
 
 	--[[
 	initCodeModules of subeqns needs to be called here before super.init
@@ -61,29 +63,48 @@ assert(#self.eqns > 0, "you need at least one entry in args.subeqns")
 	but solver can't be changed, it's the same as this solver
 	so replace with the a forwrarding meta
 	--]]
-	for _,eqn in ipairs(self.eqns) do
-		eqn.solver = setmetatable({}, {
+	for i,eqn in ipairs(self.eqns) do
+		-- alright I don't just want to override modules:add => app.modules:add
+		-- I also want to do so to solver.modules:add as well
+		-- I can either manually copy the modules after-the-fact (modify callback)
+		-- or if I want to modify the mt then I'll have to make a new solver.modules (via override field)
+		-- which itself forwards everything to one of the modules, except :add, which adds to both
+		eqn.solver = setmetatable({
+			modules = solver.app.modules,
+--[[
+			modules = {
+				add = function(fakesubmodules, args)
+					solver.app.modules:add(args)
+				end,
+				addFromMarkup = function(fakesubmodules, args)
+					solver.app.modules:addFromMarkup(args)
+				end,
+			},
+--]]
+		}, {
 			__index = solver,
 		})
 		eqn.initCond = {
-			initCodeModules = function(eqn, solver)
+			initCodeModules = function(fakeInitCond, solver)
 			end,
-			getInitCondCode = function(eqn, solver)
+			getInitCondCode = function(fakeInitCond, solver)
 				return ''
 			end,
 		}
 		--eqn:initCodeModules()
 		-- assign the cons_t, prim_t, and eigen_t to app
 		-- so that, when querying modules in the composite's cdefAllVarTypes, it looks in app's modules and finds them
-		rawset(eqn.solver, 'modules', solver.app.modules)
+		--rawset(eqn.solver, 'modules', solver.app.modules)
 		eqn:initCodeModule_cons_prim_eigen()
 	end
 
 	-- now set the subeqns' modules to our local stored copies
 	-- so we can store them for later and use them as needed by the composite 
+-- [[
 	for i,eqn in ipairs(self.eqns) do
 		rawset(eqn.solver, 'modules', self.submodules[i])
 	end
+--]]
 
 	self.consVars = self.eqns:mapi(function(eqn, i)
 		return {type=assert(eqn.cons_t), name='eqn'..i}
@@ -120,8 +141,12 @@ end
 function CompositeEquation:initCodeModules()
 	-- first build the submodules' code
 	-- store them locally in composite's submodules[]
+	-- but don't initCodeModule_cons_prim_eigen because we already did that (for app.modules for cdefAll...)
 	for _,eqn in ipairs(self.eqns) do
+		local old = eqn.initCodeModule_cons_prim_eigen
+		eqn.initCodeModule_cons_prim_eigen = function() end
 		eqn:initCodeModules()
+		eqn.initCodeModule_cons_prim_eigen = old
 	end
 end
 
@@ -134,16 +159,29 @@ which means ... suffix on the code?  or grep it away?
 next: useAddSource?  TODO remove this and replace it with detection of the 'addSource' module
 and for composite equations, just check all equation modules. 
 --]]
-
 function CompositeEquation:initCodeModule_consFromPrim_primFromCons()
 end
 
-function CompositeEquation:getDisplayVars()
-	return table():append(
-		self.eqns:mapi(function(eqn)
-			return eqn:getDisplayVars()
-		end):unpack()
-	)
+function CompositeEquation:addDisplayVarInfosForType(args)
+	local eqnAndStructForType = {}
+	for _,eqn in ipairs(self.eqns) do
+		eqnAndStructForType[eqn.cons_t] = {eqn = eqn, struct = eqn.consStruct}
+		eqnAndStructForType[eqn.eigen_t] = {eqn = eqn, struct = eqn.eigenStruct}
+	end
+	local eqnAndStruct = eqnAndStructForType[args.type]
+	if eqnAndStruct then
+		local eqn = eqnAndStruct.eqn
+		local struct = eqnAndStruct.struct
+		local vars = eqn:getDisplayVarsForStructVars(struct.vars)
+		return table.unpack(vars)
+	else
+		return CompositeEquation.super.addDisplayVarInfosForType(self, args)
+	end
 end
+
+-- calcDT ... this should be the min of all sub-calcDT's
+-- next big issue is that we need a unique name for each function 
+-- this is where classes come in handy
+-- why can't OpenCL use C++?
 
 return CompositeEquation

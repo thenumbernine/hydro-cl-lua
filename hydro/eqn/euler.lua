@@ -4,7 +4,7 @@ local Equation = require 'hydro.eqn.eqn'
 
 
 local Euler = class(Equation)
-Euler.name = 'Euler'
+Euler.name = 'euler'
 
 -- ePot is the 6th param
 -- which means it's now in the derivBuf, but it is always zero
@@ -19,8 +19,32 @@ Euler.numIntStates = 5	-- don't bother integrate ePot
 Euler.initConds = require 'hydro.init.euler':getList()
 
 function Euler:init(args)
-	-- TODO primVars doesn't autogen displayVars, and therefore units doesn't matter
+-- [[ make unique names for the C symbols
+	self.memberFields = table{
+		'primFromCons',
+		'consFromPrim',
+		'apply_dU_dW',
+		'apply_dW_dU',
+		'fluxFromCons',
+		'calcCellMinMaxEigenvalues',
+		'eigen_forCell',
+		'eigen_forInterface',
+		'eigen_leftTransform',
+		'eigen_rightTransform',
+		'eigen_fluxTransform',
 	
+		-- kernels:
+		'applyInitCond',
+		'addSource',
+		'constrainU',
+	}
+
+	for _,field in ipairs(self.memberFields) do
+		self[field] = self.name..'_'..field
+	end
+--]]
+
+	-- TODO primVars doesn't autogen displayVars, and therefore units doesn't matter
 	self.primVars = table{
 		{name='rho', type='real', units='kg/m^3'},
 		{name='v', type='real3', units='m/s', variance='u'},			-- contravariant
@@ -97,7 +121,7 @@ function Euler:initCodeModule_calcDT()
 			'OOB',
 			'SETBOUNDS',
 			self.solver.solver_t,
-			'primFromCons',
+			self.primFromCons,
 			'eqn.guiVars.compileTime',
 			'normal_t',
 		},
@@ -119,7 +143,7 @@ kernel void calcDT(
 
 	global <?=cons_t?> const * const U = UBuf + index;
 	prim_t W;
-	primFromCons(&W, solver, U, x);
+	<?=primFromCons?>(&W, solver, U, x);
 	real const Cs = calc_Cs(solver, &W);
 
 	real dt = INFINITY;
@@ -304,7 +328,7 @@ end
 function Euler:consWaveCodePrefix(n, U, x)
 	return self:template([[
 prim_t W;
-primFromCons(&W, solver, <?=U?>, <?=x?>);
+<?=primFromCons?>(&W, solver, <?=U?>, <?=x?>);
 real const Cs_nLen = calc_Cs(solver, &W) * normal_len(<?=n?>);
 real const v_n = normal_vecDotN1(<?=n?>, W.v);
 ]], {

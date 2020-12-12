@@ -1,15 +1,10 @@
-<?
-local cons_t = eqn.cons_t
-local waves_t = eqn.waves_t
-local eigen_t = eqn.eigen_t
-?>
 //// MODULE_NAME: calcFluxForInterface
-//// MODULE_DEPENDS: solver.macros math eqn.waveCode fluxLimiter eigen_forInterface eigen_left/rightTransform <?=waves_t?>
+//// MODULE_DEPENDS: solver.macros math eqn.waveCode fluxLimiter <?=eigen_forInterface?> <?=eigen_leftTransform?> <?=eigen_rightTransform?> <?=waves_t?>
 
 <? if eqn.roeUseFluxFromCons then 
 -- this was inline'd before I made the function into a giant macro, then I can't use the //// comments to inline anymore so TODO change the MODULE_ markup to handle /* */ instead/aswell?
 ?>
-//// MODULE_DEPENDS: fluxFromCons
+//// MODULE_DEPENDS: <?=fluxFromCons?>
 <? end ?>
 
 // Roe solver:
@@ -36,7 +31,7 @@ local useFlux = solver.fluxLimiter > 1
 	/*real3 const */xIntR<? end ?>\
 ) {\
 	<?=eigen_t?> eig;\
-	eigen_forInterface(&eig, solver, UL, UR, xInt, n);\
+	<?=eigen_forInterface?>(&eig, solver, UL, UR, xInt, n);\
 \
 <?=eqn:eigenWaveCodePrefix("n", "&eig", "xInt"):gsub("\n", "\\\n")?>\
 \
@@ -47,7 +42,7 @@ local useFlux = solver.fluxLimiter > 1
 		UAvg.ptr[j] = .5 * ((UL)->ptr[j] + (UR)->ptr[j]);\
 	}\
 \
-	eigen_leftTransform(&fluxEig, solver, &eig, &UAvg, xInt, n);\
+	<?=eigen_leftTransform?>(&fluxEig, solver, &eig, &UAvg, xInt, n);\
 <? end --\
 ?>\
 	<?=cons_t?> deltaU;\
@@ -64,16 +59,16 @@ local useFlux = solver.fluxLimiter > 1
 ?>	}\
 \
 	<?=waves_t?> deltaUEig;\
-	eigen_leftTransform(&deltaUEig, solver, &eig, &deltaU, xInt, n);\
+	<?=eigen_leftTransform?>(&deltaUEig, solver, &eig, &deltaU, xInt, n);\
 <? 	if useFlux then ?>\
 	<?=eigen_t?> eigL;\
-	eigen_forInterface(&eigL, solver, UL_L, UR_L, xInt, n);\
+	<?=eigen_forInterface?>(&eigL, solver, UL_L, UR_L, xInt, n);\
 	<?=eigen_t?> eigR;\
-	eigen_forInterface(&eigR, solver, UL_R, UR_R, xInt, n);\
+	<?=eigen_forInterface?>(&eigR, solver, UL_R, UR_R, xInt, n);\
 	<?=waves_t?> deltaUEigL;\
-	eigen_leftTransform(&deltaUEigL, solver, &eigL, &deltaUL, xIntL, n);\
+	<?=eigen_leftTransform?>(&deltaUEigL, solver, &eigL, &deltaUL, xIntL, n);\
 	<?=waves_t?> deltaUEigR;\
-	eigen_leftTransform(&deltaUEigR, solver, &eigR, &deltaUR, xIntR, n);\
+	<?=eigen_leftTransform?>(&deltaUEigR, solver, &eigR, &deltaUR, xIntR, n);\
 <? 	end ?>\
 \
 	<? for j=0,eqn.numWaves-1 do ?>{\
@@ -108,17 +103,17 @@ local useFlux = solver.fluxLimiter > 1
 ?>		);\
 	}<? end ?>\
 \
-	eigen_rightTransform(resultFlux, solver, &eig, &fluxEig, xInt, n);\
+	<?=eigen_rightTransform?>(resultFlux, solver, &eig, &fluxEig, xInt, n);\
 \
 <? if eqn.roeUseFluxFromCons then  --\
--- TODO hmm, fluxFromCons vs eigen_fluxTransform using the 'eig' structure --\
--- fluxFromCons is using the left and right states to create their flux jacobian transform - applied to the left and right states to make the left and right flux vector --\
--- while eigen_fluxTransform would use the intermediate state to create the flux vector --\
+-- TODO hmm, <?=fluxFromCons?> vs <?=eigen_fluxTransform?> using the 'eig' structure --\
+-- <?=fluxFromCons?> is using the left and right states to create their flux jacobian transform - applied to the left and right states to make the left and right flux vector --\
+-- while <?=eigen_fluxTransform?> would use the intermediate state to create the flux vector --\
 ?>\
 	<?=cons_t?> FL;\
-	fluxFromCons(&FL, solver, UL, xInt, n);\
+	<?=fluxFromCons?>(&FL, solver, UL, xInt, n);\
 	<?=cons_t?> FR;\
-	fluxFromCons(&FR, solver, UR, xInt, n);\
+	<?=fluxFromCons?>(&FR, solver, UR, xInt, n);\
 \
 	for (int j = 0; j < numIntStates; ++j) {\
 		(resultFlux)->ptr[j] += .5 * (FL.ptr[j] + FR.ptr[j]);\
