@@ -114,6 +114,34 @@ args:
 	make sure self.consStruct and self.primStruct is defined beforehand
 --]]
 function Equation:init(args)
+	-- [[ make C symbols unique to the eqn class.
+	-- TODO later,unique to the eqn object, in case I make a composite of two like classes
+	-- like euler + euler to do two-fluid simulations
+	self.memberFields = table{
+		'primFromCons',
+		'consFromPrim',
+		'apply_dU_dW',
+		'apply_dW_dU',
+		'fluxFromCons',
+		'calcCellMinMaxEigenvalues',
+		'eigen_forCell',
+		'eigen_forInterface',
+		'eigen_leftTransform',
+		'eigen_rightTransform',
+		'eigen_fluxTransform',
+	
+		-- kernels:
+		'applyInitCond',
+		'calcDT',
+		'addSource',
+		'constrainU',
+	}
+
+	for _,field in ipairs(self.memberFields) do
+		self[field] = self.name..'_'..field
+	end
+--]]
+
 	local solver = assert(args.solver)
 	self.solver = solver
 	local app = solver.app

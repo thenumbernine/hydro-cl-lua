@@ -19,31 +19,6 @@ Euler.numIntStates = 5	-- don't bother integrate ePot
 Euler.initConds = require 'hydro.init.euler':getList()
 
 function Euler:init(args)
--- [[ make unique names for the C symbols
-	self.memberFields = table{
-		'primFromCons',
-		'consFromPrim',
-		'apply_dU_dW',
-		'apply_dW_dU',
-		'fluxFromCons',
-		'calcCellMinMaxEigenvalues',
-		'eigen_forCell',
-		'eigen_forInterface',
-		'eigen_leftTransform',
-		'eigen_rightTransform',
-		'eigen_fluxTransform',
-	
-		-- kernels:
-		'applyInitCond',
-		'addSource',
-		'constrainU',
-	}
-
-	for _,field in ipairs(self.memberFields) do
-		self[field] = self.name..'_'..field
-	end
---]]
-
 	-- TODO primVars doesn't autogen displayVars, and therefore units doesn't matter
 	self.primVars = table{
 		{name='rho', type='real', units='kg/m^3'},
@@ -116,7 +91,7 @@ end
 function Euler:initCodeModule_calcDT()
 	local solver = self.solver
 	solver.modules:add{
-		name = 'calcDT',
+		name = self.calcDT,
 		depends = table{
 			'OOB',
 			'SETBOUNDS',
@@ -128,7 +103,7 @@ function Euler:initCodeModule_calcDT()
 		code = self:template[[
 <? if require 'hydro.solver.gridsolver'.is(solver) then ?>
 
-kernel void calcDT(
+kernel void <?=calcDT?>(
 	constant <?=solver_t?> const * const solver,
 	global real * const dtBuf,
 	global <?=cons_t?> const * const UBuf,
@@ -174,7 +149,7 @@ then
 
 <? else -- mesh solver ?>
 
-kernel void calcDT(
+kernel void <?=calcDT?>(
 	constant <?=solver_t?> const * const solver,
 	global real* dtBuf,					//[numCells]
 	global <?=cons_t?> const * const UBuf,	//[numCells]

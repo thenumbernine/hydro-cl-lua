@@ -700,10 +700,6 @@ real fluxLimiter(real r) {
 			op:initCodeModules(self)
 		end
 	end
-
-	-- set required modules (those that have kernels associated with them)
-
-	self.solverModulesEnabled['calcDT'] = true
 end
 
 -- Calling :getDisplayCode() will query other modules (esp type info) for what to produce
@@ -1251,11 +1247,12 @@ end
 function SolverBase:refreshSolverProgram()
 
 	-- enable here after all modules are provided
-	if self:hasModule'addSource' then
-		self.solverModulesEnabled['addSource'] = true
+	self.solverModulesEnabled[self.eqn.calcDT] = true
+	if self:hasModule(self.eqn.addSource) then
+		self.solverModulesEnabled[self.eqn.addSource] = true
 	end
-	if self:hasModule'constrainU' then
-		self.solverModulesEnabled['constrainU'] = true
+	if self:hasModule(self.eqn.constrainU) then
+		self.solverModulesEnabled[self.eqn.constrainU] = true
 	end
 
 	local code
@@ -1278,12 +1275,12 @@ print('solver modules: '..moduleNames:sort():concat', ')
 
 	-- this is created in the parent class, however it isn't called by the parent class.
 	--  instead it has to be called by the individual implementation classes
-	if self:hasModule'addSource' then
-		self.addSourceKernelObj = self.solverProgramObj:kernel{name='addSource', domain=self.domainWithoutBorder}
+	if self:hasModule(self.eqn.addSource) then
+		self.addSourceKernelObj = self.solverProgramObj:kernel{name=self.eqn.addSource, domain=self.domainWithoutBorder}
 	end
 
-	if self:hasModule'constrainU' then
-		self.constrainUKernelObj = self.solverProgramObj:kernel'constrainU'
+	if self:hasModule(self.eqn.constrainU) then
+		self.constrainUKernelObj = self.solverProgramObj:kernel(self.eqn.constrainU)
 	end
 
 
@@ -1311,7 +1308,7 @@ end
 
 -- for solvers who don't rely on calcDT
 function SolverBase:refreshCalcDTKernel()
-	self.calcDTKernelObj = self.solverProgramObj:kernel'calcDT'
+	self.calcDTKernelObj = self.solverProgramObj:kernel(self.eqn.calcDT)
 	self.calcDTKernelObj.obj:setArg(1, self.reduceBuf)
 end
 

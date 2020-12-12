@@ -1,4 +1,4 @@
-//// MODULE_NAME: calcDT
+//// MODULE_NAME: <?=calcDT?>
 //// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> <?=cell_t?> normal_t eqn.waveCode SETBOUNDS
 
 <? if not require "hydro.solver.meshsolver".is(solver) then ?>
@@ -6,7 +6,7 @@
 run across each cell
 */
 
-kernel void calcDT(
+kernel void <?=calcDT?>(
 	constant <?=solver_t?> const * const solver,
 	global real * const dtBuf,
 	global <?=cons_t?> const * const UBuf,
@@ -47,7 +47,7 @@ then
 <? else -- meshsolver ?>
 //// MODULE_DEPENDS: <?=face_t?>
 
-kernel void calcDT(
+kernel void <?=calcDT?>(
 	constant <?=solver_t?> const * const solver,
 	global real * const dtBuf,					//[numCells]
 	global <?=cons_t?> const * const UBuf,			//[numCells]
