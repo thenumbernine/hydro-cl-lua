@@ -395,12 +395,12 @@ typedef struct {
 			}),
 		}
 
-		self.modules:addFromMarkup(template(file['hydro/solver/plm.cl'], {solver=self, eqn=self.eqn}))
+		self.modules:addFromMarkup(self.eqn:template(file['hydro/solver/plm.cl']))
 		self.solverModulesEnabled['calcLR'] = true
 	end
 
 	if self.useCTU then
-		self.modules:addFromMarkup(template(file['hydro/solver/ctu.cl'], {solver=self, eqn=self.eqn}))
+		self.modules:addFromMarkup(self.eqn:template(file['hydro/solver/ctu.cl']))
 		self.sharedModulesEnabled['updateCTU'] = true
 	end
 end

@@ -1,5 +1,5 @@
 //// MODULE_NAME: updateCTU
-//// MODULE_DEPENDS: solver_t cell_t cons_t SETBOUNDS cell_sqrt_det_g
+//// MODULE_DEPENDS: <?=solver_t?> <?=cell_t?> <?=cons_t?> SETBOUNDS cell_sqrt_det_g
 <? if solver.usePLM then ?>
 //// MODULE_DEPENDS: consLR_t
 <? end ?>
@@ -9,10 +9,10 @@ using the interface flux
 update the LR states by integrating dt/2 times the interface flux
 */
 kernel void updateCTU(
-	constant solver_t const * const solver,
-	global cell_t const * const cellBuf,
+	constant <?=solver_t?> const * const solver,
+	global <?=cell_t?> const * const cellBuf,
 	global <?=solver.getULRArg?>,
-	global cons_t const * const fluxBuf,
+	global <?=cons_t?> const * const fluxBuf,
 	real const dt
 ) {
 	SETBOUNDS(0,1);
@@ -29,10 +29,10 @@ for side=0,solver.dim-1 do
 		int const side = <?=side?>;
 		
 		int const indexIntL = side + dim * index;
-		global cons_t const * const fluxL = fluxBuf + indexIntL;
+		global <?=cons_t?> const * const fluxL = fluxBuf + indexIntL;
 		
 		int const indexIntR = indexIntL + dim * solver->stepsize.s<?=side?>;
-		global cons_t const * const fluxR = fluxBuf + indexIntR;
+		global <?=cons_t?> const * const fluxR = fluxBuf + indexIntR;
 		
 <? if eqn.weightFluxByGridVolume then ?>
 		real3 xIntL = x;
@@ -67,7 +67,7 @@ for side=0,solver.dim-1 do
 				ULR->R.ptr[j] -= .5 * dt * dF_dx;
 			}
 <? elseif solver.getULRArg == eqn.cons_t.."* UBuf" then
-?>			global cons_t * const U = UBuf + index;
+?>			global <?=cons_t?> * const U = UBuf + index;
 
 			for (int j = 0; j < numIntStates; ++j) {
 				real const dF_dx = (
