@@ -100,10 +100,10 @@ assert(#self.eqns > 0, "you need at least one entry in args.subeqns")
 		eqn.initCond = {
 			initCodeModules = function(fakeInitCond, solver)
 			end,
-			getInitCondCode = function(fakeInitCond, solver)
-				return ''
-			end,
 		}
+		eqn.initCond.getInitCondCode = function(fakeInitCond, solver)
+			return self.initCond:getInitCondCode(solver)
+		end
 		
 		-- this is to prevent initCond_t from being re-added
 		eqn.createInitState_createInitState = function() end
@@ -206,7 +206,7 @@ end
 function Composite:initCodeModule_cons_parallelPropagate() end
 function Composite:initCodeModule_fluxFromCons() end
 function Composite:initCodeModule_consFromPrim_primFromCons() end
---function Composite:initCodeModule_calcDT() end
+function Composite:initCodeModule_calcDTCell() end
 
 function Composite:getModuleDepends_waveCode()
 	return table():append(

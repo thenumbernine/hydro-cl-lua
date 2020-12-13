@@ -542,7 +542,7 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn
 -- compressible Euler equations
 
 
-self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
+--self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
 
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct bounded'})))	-- this is the default hllCalcWaveMethod
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct'})))
@@ -885,7 +885,7 @@ With hyperbolic gamma driver shift it has trouble.
 --self.solvers:insert(require 'hydro.solver.choppedup'(table(args, {flux='roe', eqn='euler', subsolverClass=require 'hydro.solver.fvsolver'})))
 
 
---[[ composite equations.  better than composite solver. less kernel calls.
+-- [[ composite equations.  better than composite solver. less kernel calls.
 self.solvers:insert(
 	require 'hydro.solver.fvsolver'(
 		table(

@@ -155,13 +155,12 @@ just replace all the g_ab stuff with their constant values and simplify away.
 void <?=applyInitCondCell?>(
 	constant <?=solver_t?> const * const solver,
 	constant <?=initCond_t?> const * const initCond,
-	global <?=cons_t?>* U,
+	global <?=cons_t?> * const U,
 	global <?=cell_t?> const * const cell
 ) {
-	real3 x = cell->pos;
-
-	real3 mids = real3_real_mul(real3_add(solver->initCondMins, solver->initCondMaxs), .5);
-	bool lhs = true<?
+	real3 const x = cell->pos;
+	real3 const mids = real3_real_mul(real3_add(solver->initCondMins, solver->initCondMaxs), .5);
+	bool const lhs = true<?
 for i=1,solver.dim do
 	local xi = xNames[i]
 ?> && x.<?=xi?> < mids.<?=xi?><?
