@@ -32,6 +32,12 @@ I think other equations were better performing without this, like Euler.
 --]]
 Equation.roeUseFluxFromCons = nil
 
+
+-- singleton
+-- TODO move this to Struct?
+Equation.structForType = {}
+
+
 -- singleton
 Equation.parityVarsGetters = table{
 	real = function(sign, parityVars, field) end,
@@ -178,6 +184,10 @@ function Equation:init(args)
 	self.consVars = nil
 	-- if you have multiple eqns then the class needs to keep the field
 	--getmetatable(self).consVars = nil
+	
+	self.consStruct.eqn = self	-- hack
+	self.structForType[self.consStruct.typename] = self.consStruct	-- hack
+
 
 	if not self.primStruct and self.primVars then
 		self.primStruct = Struct{
@@ -196,6 +206,9 @@ function Equation:init(args)
 		self.primVars = nil
 		-- if you have multiple eqns then the class needs to keep the field
 		--getmetatable(self).primVars = nil
+		
+		self.primStruct.eqn = self	-- hack
+		self.structForType[self.primStruct.typename] = self.primStruct
 	else
 		--self.symbols.prim_t = self.symbols.cons_t
 		-- or you could typedef this ...
@@ -216,12 +229,32 @@ function Equation:init(args)
 	else
 		self.eigenStruct = Struct{solver=solver, name='eigen_t', vars=self.eigenVars}
 	end
+
 	self.eigenStruct:makeType()
 	self.symbols.eigen_t = assert(self.eigenStruct.typename)
+	
+	self.eigenStruct.eqn = self	-- hack
+	self.structForType[self.eigenStruct.typename] = self.eigenStruct
 
 	self.symbols.consLR_t = app:uniqueName'consLR_t'
-	self.symbols.waves_t = app:uniqueName'waves_t'
 	
+	if not self.wavesVars then
+		self.wavesVars = range(self.numWaves):mapi(function(i)
+			return {name='wave'..(i-1), type='real'}
+		end)
+	end
+	self.wavesStruct = Struct{
+		solver = solver,
+		name = 'waves_t',
+		vars = self.wavesVars,
+	}
+	
+	self.wavesStruct:makeType()
+	self.symbols.waves_t = assert(self.wavesStruct.typename)
+
+	self.wavesStruct.eqn = self	-- hack
+	self.structForType[self.wavesStruct.typename] = self.wavesStruct
+
 	local numReals
 	if self.consStruct.vars then
 		numReals = self.consStruct:countScalars()
@@ -423,20 +456,8 @@ end
 function Equation:initCodeModules()
 	local solver = self.solver
 
-	self:initCodeModule_cons_prim_eigen()
+	self:initCodeModule_cons_prim_eigen_waves()
 
-	solver.modules:add{
-		name = self.symbols.waves_t,
-		depends = {'real'},
-		typecode = self:template[[
-typedef union { 
-	real ptr[<?=numWaves?>]; 
-} <?=waves_t?>;
-]],
-		-- only generated for cl, not for ffi cdef
-		headercode = 'typedef '..self.symbols.waves_t..' waves_t;',
-	}
-	
 	self:initCodeModule_cons_parallelPropagate()
 
 	-- Put this here or in SolverBase?
@@ -644,7 +665,7 @@ end
 end
 
 -- separate this out so composite solvers can init this and this alone -- without anything else (which would cause module name collisions)
-function Equation:initCodeModule_cons_prim_eigen()
+function Equation:initCodeModule_cons_prim_eigen_waves()
 	local solver = self.solver
 
 	assert(self.consStruct)
@@ -673,12 +694,18 @@ function Equation:initCodeModule_cons_prim_eigen()
 		}
 	end
 
-	assert(self.eigenStruct)
 	solver.modules:add{
 		name = self.symbols.eigen_t,
-		structs = {self.eigenStruct},
+		structs = {assert(self.eigenStruct)},
 		-- only generated for cl, not for ffi cdef
 		headercode = 'typedef '..self.symbols.eigen_t..' eigen_t;',
+	}
+
+	solver.modules:add{
+		name = self.symbols.waves_t,
+		structs = {assert(self.wavesStruct)},
+		-- only generated for cl, not for ffi cdef
+		headercode = 'typedef '..self.symbols.waves_t..' waves_t;',
 	}
 end
 
@@ -738,17 +765,6 @@ function Equation:getDisplayVarCodePrefix()
 end
 
 function Equation:addDisplayVarInfosForType(args)
-	return {
-		name = args.name,
-		code = 'value.v' .. args.type .. ' = ' .. args.ptrName .. args.varname .. ';', 
-		type = args.type,
-		units = args.units,
-		
-		-- if a display var has 'field' set then use a predefined calcDisplayVar function to just read the field directly (without any computations required)
-		-- ... unless it has units too ... in which case ... I'll be scaling the units
-		-- ... of course I could do the scaling after reading the value ...
-		field = args.varname,
-	}
 end
 
 --[[
@@ -761,40 +777,49 @@ but to do this you need a mapping from the type string to its struct object
 once you do this, you can get rid of the equivalent within CompositeEquation
 and you can merge addDisplayVarInfosForType directly into this function
 --]]
-function Equation:getDisplayVarsForStructVars(structVarInfos, ptrName)
+function Equation:getDisplayVarsForStructVars(structVars, ptrName, namePrefix)
+	-- initialize structForType
+	-- TODO put the _3sym3Struct initialization somewhere else
+	-- TODO is the structForType table the same as typeInfoForCode table within hydro/code/struct.lua?
+	if not self.structForType['_3sym3'] then
+		local _3sym3Struct = Struct{
+			solver = self.solver,
+			name = '_3sym3',
+			typename = '_3sym3',	-- TODO don't uniquely gen this name
+			vars = {
+				{name='x', type='sym3'},
+				{name='y', type='sym3'},
+				{name='z', type='sym3'},
+			},
+		}
+		self.structForType['_3sym3'] = _3sym3Struct
+	end
+	
 	ptrName = ptrName or 'U'
 	ptrName = ptrName .. '->'
-	local displayVarInfos = table()	-- array of ctor args for DisplayVars
-	for _,structVarInfo in ipairs(structVarInfos) do
-		local units = structVarInfo.units
-		local varname = structVarInfo.name
-		local vartype = structVarInfo.type
-
-		if vartype == '_3sym3' then
-			for i,xi in ipairs(xNames) do
-				displayVarInfos:append{
-					self:addDisplayVarInfosForType{
-						ptrName = ptrName,
-						name = varname..' '..xi,
-						varname = varname..'.'..xi,
-						type = 'sym3',
-						units = units,
-					}
-				}
-			end
+	local results = table()	-- array of ctor args for DisplayVars
+	for _,var in ipairs(structVars) do
+		local substruct = self.structForType[var.type]
+		if substruct then
+			assert(not var.units)	-- struct which are being recursively called shouldn't have units if their fields have units
+			results:append(
+				self:getDisplayVarsForStructVars(substruct.vars, '(&'..ptrName..var.name..')', var.name)
+			)
 		else
-			displayVarInfos:append{
-				self:addDisplayVarInfosForType{
-					ptrName = ptrName,
-					name = varname,
-					varname = varname,
-					type = vartype,
-					units = units,
-				}
+			results:insert{
+				name = (namePrefix and (namePrefix..' ') or '')..var.name,
+				code = 'value.v' .. var.type .. ' = ' .. ptrName .. var.name .. ';', 
+				type = var.type,
+				units = var.units,
+				
+				-- if a display var has 'field' set then use a predefined calcDisplayVar function to just read the field directly (without any computations required)
+				-- ... unless it has units too ... in which case ... I'll be scaling the units
+				-- ... of course I could do the scaling after reading the value ...
+				field = var.name,
 			}
 		end
 	end
-	return displayVarInfos	
+	return results	
 end
 
 function Equation:getDisplayVars()

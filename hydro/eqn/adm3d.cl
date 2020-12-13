@@ -42,8 +42,8 @@ static inline void setFlatSpace(
 	(U)->M_u = real3_zero;
 }
 
-//// MODULE_NAME: <?=applyInitCond?>
-//// MODULE_DEPENDS: coordMap coord_g_ll rescaleFromCoord/rescaleToCoord
+//// MODULE_NAME: <?=applyInitCondCell?>
+//// MODULE_DEPENDS: coordMap coord_g_ll rescaleFromCoord/rescaleToCoord <?=initCond_t?>
 
 <?
 -- eqn.einstein compatability hack ...
@@ -56,18 +56,15 @@ end
 ?>
 <? if eqn.initCond.useBSSNVars then ?>
 
-kernel void <?=applyInitCond?>(
+void <?=applyInitCondCell?>(
 	constant <?=solver_t?> const * const solver,
 	constant <?=initCond_t?> * const initCond,
-	global <?=cons_t?> * const UBuf,
-	global <?=cell_t?> const * const cellBuf
+	global <?=cons_t?> * const U,
+	global <?=cell_t?> const * const cell
 ) {
-	SETBOUNDS(0,0);
-	real3 const x = cellBuf[index].pos;
+	real3 const x = cell->pos;
 	real3 const xc = coordMap(x);
 	real3 const mids = real3_real_mul(real3_add(solver->mins, solver->maxs), .5);
-	
-	global <?=cons_t?> * const U = UBuf + index;
 
 	real alpha = 1.;
 	real W = 1.;
@@ -161,18 +158,15 @@ end
 
 <? else	-- not eqn.initCond.useBSSNVars ?>
 
-kernel void <?=applyInitCond?>(
+void <?=applyInitCondCell?>(
 	constant <?=solver_t?> const * const solver,
 	constant <?=initCond_t?> const * const initCond,
-	global <?=cons_t?> * const UBuf,
-	global <?=cell_t?> * const cellBuf
+	global <?=cons_t?> * const U,
+	global <?=cell_t?> * const cell
 ) {
-	SETBOUNDS(0,0);
-	real3 const x = cellBuf[index].pos;
+	real3 const x = cell->pos;
 	real3 const xc = coordMap(x);
 	real3 const mids = real3_real_mul(real3_add(solver->mins, solver->maxs), .5);
-	
-	global <?=cons_t?> * const U = UBuf + index;
 
 	real alpha = 1.;
 	real3 beta_u = real3_zero;

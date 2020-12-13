@@ -8,7 +8,10 @@ local CompositeEquation = class(Equation)
 
 CompositeEquation.name = 'composite'
 
+-- TODO ... ? list from sub-eqns? unique?
 CompositeEquation.initConds = require 'hydro.init.euler':getList()
+
+CompositeEquation.solverCodeFile = 'hydro/eqn/composite.cl'
 
 --[[
 args:
@@ -109,11 +112,12 @@ assert(#self.eqns > 0, "you need at least one entry in args.subeqns")
 		-- assign the cons_t, prim_t, and eigen_t to app
 		-- so that, when querying modules in the composite's cdefAllVarTypes, it looks in app's modules and finds them
 		--rawset(eqn.solver, 'modules', solver.app.modules)
-		eqn:initCodeModule_cons_prim_eigen()
+		eqn:initCodeModule_cons_prim_eigen_waves()
 		-- hack here: remove the typedefs from the cons_t and prim_t
 		solver.app.modules.set[eqn.symbols.cons_t].headercode = ''
 		solver.app.modules.set[eqn.symbols.prim_t].headercode = ''
 		solver.app.modules.set[eqn.symbols.eigen_t].headercode = ''
+		solver.app.modules.set[eqn.symbols.waves_t].headercode = ''
 	end
 
 	-- now set the subeqns' modules to our local stored copies
@@ -144,6 +148,10 @@ assert(#self.eqns > 0, "you need at least one entry in args.subeqns")
 	self.numWaves = self.eqns:mapi(function(eqn)
 		return eqn.numWaves
 	end):sum()
+	
+	self.wavesVars = self.eqns:mapi(function(eqn, i)
+		return {type=assert(eqn.symbols.waves_t), name='eqn'..i}
+	end)
 
 	CompositeEquation.super.init(self, args)
 end
@@ -180,13 +188,11 @@ function CompositeEquation:createInitState()
 --]]
 end
 
-CompositeEquation.solverCodeFile = 'hydro/eqn/composite.cl'
-
 --[=[
 function CompositeEquation:initCodeModules()
 	local solver = self.solver
 	
-	self:initCodeModule_cons_prim_eigen()
+	self:initCodeModule_cons_prim_eigen_waves()
 
 	solver.modules:add{
 		name = self.symbols.waves_t,
@@ -248,52 +254,27 @@ end
 function CompositeEquation:initCodeModules()
 	-- build the submodules' code
 	-- store them locally in composite's submodules[]
-	-- but don't initCodeModule_cons_prim_eigen because we already did that (for app.modules for cdefAll...)
+	-- but don't initCodeModule_cons_prim_eigen_waves because we already did that (for app.modules for cdefAll...)
 	for _,eqn in ipairs(self.eqns) do
-		local old = eqn.initCodeModule_cons_prim_eigen
-		eqn.initCodeModule_cons_prim_eigen = function() end
+		local old = eqn.initCodeModule_cons_prim_eigen_waves
+		eqn.initCodeModule_cons_prim_eigen_waves = function() end
 		eqn:initCodeModules()
-		eqn.initCodeModule_cons_prim_eigen = old
-		self.solver.modules.set[eqn.symbols.waves_t].headercode = ''
+		eqn.initCodeModule_cons_prim_eigen_waves = old
 	end
 
 	CompositeEquation.super.initCodeModules(self)
 end
 
+-- in the solverCodeFile
 function CompositeEquation:initCodeModule_cons_parallelPropagate()
 end
 
+-- in the solverCodeFile
 function CompositeEquation:initCodeModule_fluxFromCons()
 end
 
-
---[[
-next issue: implementing functions/modules
-I will want to just copy the sub-equations' module code into here
-but I also don't want namespace collisions
-which means ... suffix on the code?  or grep it away?
-
-next: useAddSource?  TODO remove this and replace it with detection of the 'addSource' module
-and for composite equations, just check all equation modules. 
---]]
+-- in the solverCodeFile
 function CompositeEquation:initCodeModule_consFromPrim_primFromCons()
-end
-
-function CompositeEquation:addDisplayVarInfosForType(args)
-	local eqnAndStructForType = {}
-	for _,eqn in ipairs(self.eqns) do
-		eqnAndStructForType[eqn.symbols.cons_t] = {eqn = eqn, struct = eqn.consStruct}
-		eqnAndStructForType[eqn.symbols.eigen_t] = {eqn = eqn, struct = eqn.eigenStruct}
-	end
-	local eqnAndStruct = eqnAndStructForType[args.type]
-	if eqnAndStruct then
-		local eqn = eqnAndStruct.eqn
-		local struct = eqnAndStruct.struct
-		local vars = eqn:getDisplayVarsForStructVars(struct.vars)
-		return table.unpack(vars)
-	else
-		return CompositeEquation.super.addDisplayVarInfosForType(self, args)
-	end
 end
 
 -- calcDT ... this should be the min of all sub-calcDT's
