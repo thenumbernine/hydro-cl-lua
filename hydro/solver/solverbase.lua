@@ -251,6 +251,13 @@ SolverBase.name = 'solverbase'
 -- override to specify which hydro/eqn/*.lua to use as the equation
 SolverBase.eqnName = nil
 
+
+-- singleton mapping from struct C name to Struct object
+-- TODO move this to Struct?
+-- but maybe don't do this until you fix / remove the uniqueName stuff, and replace it with forcing the names to be unique, and generate the names based on the eqn/solver objects themselves
+SolverBase.structForType = {}
+
+
 -- whether to use separate linked binaries.  would it save on compile time?
 -- this does work, however I don't have caching for linked libraries set up yet
 -- TODO with the new code module system, I'm removing this for now
@@ -2167,13 +2174,65 @@ function SolverBase:addDisplayVars()
 		args.extraArgs = nil
 		
 		args.group = group
-		args.vars = self.eqn:getDisplayVarsForStructVars(self.eqn.consStruct.vars)
+		args.vars = self:createDisplayVarArgsForStructVars(self.eqn.consStruct.vars)
 		
 		-- why in addUBufDisplayVars() do I make a new group and assign args.group to it?
 		self:addDisplayVarGroup(args, self.DisplayVar_U)
 	end
 --]]
 end
+
+--[[
+accepts a list of struct var info {name=..., [type=..., units=...]}
+returns a list of display var construction info
+--]]
+function SolverBase:createDisplayVarArgsForStructVars(structVars, ptrName, namePrefix)
+	-- initialize structForType
+	-- TODO put the _3sym3Struct initialization somewhere else
+	-- TODO is the structForType table the same as typeInfoForCode table within hydro/code/struct.lua?
+	if not self.structForType['_3sym3'] then
+		local _3sym3Struct = Struct{
+			solver = self,
+			name = '_3sym3',
+			typename = '_3sym3',	-- TODO don't uniquely gen this name
+			vars = {
+				{name='x', type='sym3'},
+				{name='y', type='sym3'},
+				{name='z', type='sym3'},
+			},
+		}
+		self.structForType['_3sym3'] = _3sym3Struct
+	end
+
+	-- should I always force it to be a ptr, hence always using -> ?
+	ptrName = ptrName or 'U'
+	ptrName = ptrName .. '->'
+	
+	local results = table()	-- array of ctor args for DisplayVars
+	for _,var in ipairs(structVars) do
+		local substruct = self.structForType[var.type]
+		if substruct then
+			assert(not var.units)	-- struct which are being recursively called shouldn't have units if their fields have units
+			results:append(
+				self:createDisplayVarArgsForStructVars(substruct.vars, '(&'..ptrName..var.name..')', var.name)
+			)
+		else
+			results:insert{
+				name = (namePrefix and (namePrefix..' ') or '')..var.name,
+				code = 'value.v' .. var.type .. ' = ' .. ptrName .. var.name .. ';', 
+				type = var.type,
+				units = var.units,
+				
+				-- if a display var has 'field' set then use a predefined calcDisplayVar function to just read the field directly (without any computations required)
+				-- ... unless it has units too ... in which case ... I'll be scaling the units
+				-- ... of course I could do the scaling after reading the value ...
+				field = var.name,
+			}
+		end
+	end
+	return results	
+end
+
 
 function SolverBase:finalizeDisplayVars()
 	self.displayVars = table()
