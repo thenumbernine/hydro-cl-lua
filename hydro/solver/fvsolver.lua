@@ -57,11 +57,11 @@ local useFlux = solver.fluxLimiter > 1
 ?>
 
 kernel void calcFlux(
-	constant solver_t const * const solver,
-	global cons_t * const fluxBuf,
+	constant <?=solver_t?> const * const solver,
+	global <?=cons_t?> * const fluxBuf,
 	global const <?=solver.getULRArg?>,
 	realparam const dt,	//not used by HLL, just making this match Roe / other FV solvers
-	global cell_t const * const cellBuf
+	global <?=cell_t?> const * const cellBuf
 ) {
 	SETBOUNDS(numGhost,numGhost-1);
 	
@@ -81,7 +81,7 @@ kernel void calcFlux(
 		xInt.s<?=side?> -= .5 * dx;
 
 		int const indexInt = side + dim * index;
-		global cons_t * const flux = fluxBuf + indexInt;
+		global <?=cons_t?> * const flux = fluxBuf + indexInt;
 
 
 <? if solver.coord.vectorComponent == 'cartesian' 
@@ -278,7 +278,7 @@ function FiniteVolumeSolver:addDisplayVars()
 			bufferType = self.eqn.symbols.cons_t,
 			codePrefix = self.eqn:template([[
 	int const indexInt = <?=side?> + dim * index;
-	global cons_t const * const flux = buf + indexInt;
+	global <?=cons_t?> const * const flux = buf + indexInt;
 ]],			{
 				side = side,
 			}),
@@ -297,7 +297,7 @@ function FiniteVolumeSolver:addDisplayVars()
 	xInt.s<?=side?> -= .5 * solver->grid_dx.s<?=side?>;
 	<?=solver:getULRCode{bufName='buf', side=side}:gsub('\n', '\n\t')?>
 	normal_t n = normal_forSide<?=side?>(xInt);
-	eigen_t eig;
+	<?=eigen_t?> eig;
 	<?=eigen_forInterface?>(&eig, solver, UL, UR, xInt, n);
 ]], 	{
 			side = args.side,
@@ -345,7 +345,9 @@ function FiniteVolumeSolver:addDisplayVars()
 		end
 	end
 
-	if self:isModuleUsed'eigen_left/rightTransform' then
+	if self:isModuleUsed(self.eqn.symbols.eigen_leftTransform)
+	and self:isModuleUsed(self.eqn.symbols.eigen_rightTransform)
+	then
 		-- ortho
 		-- TODO why is the x error getting 'nans' after a few iterations?
 		-- TODO WARNING - this only does ForSide, which doesn't match non-cartesian grids w/cartesian components
@@ -367,16 +369,16 @@ function FiniteVolumeSolver:addDisplayVars()
 	//I = L R
 	//Also note (courtesy of Trangenstein) consider summing across outer products of basis vectors to fulfill rank
 	for (int k = 0; k < numWaves; ++k) {
-		cons_t basis;
+		<?=cons_t?> basis;
 		for (int j = 0; j < numStates; ++j) {
 			basis.ptr[j] = k == j ? 1 : 0;
 		}
 		
 		normal_t n = normal_forSide<?=side?>(xInt);
 		<?=waves_t?> chars;
-		eigen_leftTransform(&chars, solver, &eig, &basis, xInt, n);
-		cons_t newbasis;
-		eigen_rightTransform(&newbasis, solver, &eig, &chars, xInt, n);
+		<?=eigen_leftTransform?>(&chars, solver, &eig, &basis, xInt, n);
+		<?=cons_t?> newbasis;
+		<?=eigen_rightTransform?>(&newbasis, solver, &eig, &chars, xInt, n);
 	
 		for (int j = 0; j < numStates; ++j) {
 			value.vreal += fabs(newbasis.ptr[j] - basis.ptr[j]);
@@ -392,8 +394,9 @@ function FiniteVolumeSolver:addDisplayVars()
 		end
 	end
 
-	if self:isModuleUsed'eigen_fluxTransform' 
-	and self:isModuleUsed'eigen_left/rightTransform'
+	if self:isModuleUsed(self.eqn.symbols.eigen_fluxTransform)
+	and self:isModuleUsed(self.eqn.symbols.eigen_leftTransform)
+	and self:isModuleUsed(self.eqn.symbols.eigen_rightTransform)
 	then
 		-- flux
 		-- TODO same as above, why is the x error getting 'nans' after a few iterations?
@@ -416,14 +419,14 @@ function FiniteVolumeSolver:addDisplayVars()
 	for (int k = 0; k < numIntStates; ++k) {
 		//This only needs to be numIntStates in size, but just in case the left/right transforms are reaching past that memory boundary ...
 		//Then again, how do I know what the non-integrated states should be?  Defaulting to zero is a bad idea.
-		cons_t basis;
+		<?=cons_t?> basis;
 		for (int j = 0; j < numStates; ++j) {
 			basis.ptr[j] = k == j ? 1 : 0;
 		}
 
 		normal_t n = normal_forSide<?=side?>(xInt);
 		<?=waves_t?> chars;
-		eigen_leftTransform(&chars, solver, &eig, &basis, xInt, n);
+		<?=eigen_leftTransform?>(&chars, solver, &eig, &basis, xInt, n);
 
 		<?=waves_t?> charScaled;
 		<? for j=0,eqn.numWaves-1 do ?>{
@@ -432,8 +435,8 @@ function FiniteVolumeSolver:addDisplayVars()
 		}<? end ?>
 	
 		//once again, only needs to be numIntStates
-		cons_t newtransformed;
-		eigen_rightTransform(&newtransformed, solver, &eig, &charScaled, xInt, n);
+		<?=cons_t?> newtransformed;
+		<?=eigen_rightTransform?>(&newtransformed, solver, &eig, &charScaled, xInt, n);
 
 #if 1
 		//this shouldn't need to be reset here
@@ -444,8 +447,8 @@ function FiniteVolumeSolver:addDisplayVars()
 #endif
 
 		//once again, only needs to be numIntStates
-		cons_t transformed;
-		eigen_fluxTransform(&transformed, solver, &eig, &basis, xInt, n);
+		<?=cons_t?> transformed;
+		<?=eigen_fluxTransform?>(&transformed, solver, &eig, &basis, xInt, n);
 		
 		for (int j = 0; j < numIntStates; ++j) {
 			value.vreal += fabs(newtransformed.ptr[j] - transformed.ptr[j]);

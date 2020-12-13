@@ -794,9 +794,11 @@ function Equation:getDisplayVarsForStructVars(structVars, ptrName, namePrefix)
 		}
 		self.structForType['_3sym3'] = _3sym3Struct
 	end
-	
+
+	-- should I always force it to be a ptr, hence always using -> ?
 	ptrName = ptrName or 'U'
 	ptrName = ptrName .. '->'
+	
 	local results = table()	-- array of ctor args for DisplayVars
 	for _,var in ipairs(structVars) do
 		local substruct = self.structForType[var.type]
