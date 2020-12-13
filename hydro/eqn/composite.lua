@@ -141,7 +141,80 @@ end
 
 CompositeEquation.solverCodeFile = 'hydro/eqn/composite.cl'
 
+--[=[
 function CompositeEquation:initCodeModules()
+	local solver = self.solver
+	
+	self:initCodeModule_cons_prim_eigen()
+
+	solver.modules:add{
+		name = self.symbols.waves_t,
+		depends = {'real'},
+		typecode = self:template[[
+typedef union { 
+	real ptr[<?=numWaves?>]; 
+} <?=waves_t?>;
+]],
+		-- only generated for cl, not for ffi cdef
+		headercode = 'typedef '..self.symbols.waves_t..' waves_t;',
+	}
+
+-- TODO from here on down, it is a lot in common with eqn/eqn.lua
+
+	self:initCodeModule_calcDT()
+	self:initCodeModule_fluxFromCons()
+	self:initCodeModule_waveCode()
+
+	solver.modules:addFromMarkup{
+		code = self:template(file[self.solverCodeFile]),
+		onAdd = function(args)
+			-- special case for applyInitCond ...
+			if args.name == self.symbols.applyInitCond then
+				args.depends:append(self.initCond:getBaseDepends(solver))
+				args.depends:append(self.initCond.depends)
+				-- only used by hydro/eqn/bssnok-fd.lua:
+				if self.getModuleDependsApplyInitCond then
+					args.depends:append(self:getModuleDependsApplyInitCond())
+				end
+			end
+		end,
+	}
+
+	solver.modules:add{
+		name = self.symbols.applyInitCond,
+		depends = {
+			self.symbols.cell_t,
+			self.symbols.initCond_t,
+			self.symbols.applyInitCondCell,
+			'SETBOUNDS',
+		},
+		code = self:template[[
+kernel void <?=applyInitCond?>(
+	constant <?=solver_t?> const * const solver,
+	constant <?=initCond_t?> const * const initCond,
+	global <?=cons_t?>* UBuf,
+	global <?=cell_t?> const * const cellBuf
+) {
+	SETBOUNDS(0,0);
+	global <?=cons_t?> * const U = UBuf + index;
+	global <?=cons_t?> const * const cell = cellBuf + index;
+	<?=applyInitCondCell?>(solver, initCond, U, cell);
+}
+]],
+	}
+end
+--]=]
+
+function CompositeEquation:initCodeModule_cons_parallelPropagate()
+end
+	
+function CompositeEquation:initCodeModule_fluxFromCons()
+end
+
+function CompositeEquation:initCodeModule_calcDT()
+end
+
+function CompositeEquation:initCodeModule_cons_prim_eigen()
 	local solver = self.solver
 	
 	-- first build the submodules' code
@@ -154,26 +227,7 @@ function CompositeEquation:initCodeModules()
 		eqn.initCodeModule_cons_prim_eigen = old
 	end
 
--- TODO from here on down, it is a lot in common with eqn/eqn.lua
-
-	--self:initCodeModule_calcDT()
-	--self:initCodeModule_fluxFromCons()
-	--self:initCodeModule_waveCode()
-
-	solver.modules:addFromMarkup{
-		code = self:template(file[self.solverCodeFile]),
-		onAdd = function(args)
-			-- special case for applyInitCond ...
-			if args.name == 'applyInitCond' then
-				args.depends:append(self.initCond:getBaseDepends(solver))
-				args.depends:append(self.initCond.depends)
-				-- only used by hydro/eqn/bssnok-fd.lua:
-				if self.getModuleDependsApplyInitCond then
-					args.depends:append(self:getModuleDependsApplyInitCond())
-				end
-			end
-		end,
-	}
+	CompositeEquation.super.initCodeModule_cons_prim_eigen(self)
 end
 
 --[[

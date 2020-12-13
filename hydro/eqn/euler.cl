@@ -142,8 +142,9 @@
 	/*real3 const */x\
 )	(solver->heatCapacityRatio - 1.) * (/*EInt=*/(U)->ETotal - /*EKin=*/calc_EKin_fromCons(U, x))
 
-//// MODULE_NAME: <?=applyInitCond?>
-//// MODULE_DEPENDS: <?=cell_t?> <?=consFromPrim?> cartesianToCoord <?=initCond_t?> SETBOUNDS
+
+//// MODULE_NAME: <?=applyInitCondCell?>
+//// MODULE_DEPENDS: <?=cell_t?> <?=consFromPrim?> <?=initCond_t?> cartesianToCoord
 
 /*
 I've highjacked all of this.  It was a normal Euler eqn solver.
@@ -151,17 +152,13 @@ But I experimented with a curved-space solver.
 To get back to the original code,
 just replace all the g_ab stuff with their constant values and simplify away.
 */
-
-kernel void <?=applyInitCond?>(
+void <?=applyInitCondCell?>(
 	constant <?=solver_t?> const * const solver,
 	constant <?=initCond_t?> const * const initCond,
-	global <?=cons_t?>* UBuf,
-	global <?=cell_t?> const * const cellBuf
+	global <?=cons_t?>* U,
+	global <?=cell_t?> const * const cell
 ) {
-	SETBOUNDS(0,0);
-	real3 x = cellBuf[index].pos;
-	
-	global <?=cons_t?>* U = UBuf + index;
+	real3 x = cell->pos;
 
 	real3 mids = real3_real_mul(real3_add(solver->initCondMins, solver->initCondMaxs), .5);
 	bool lhs = true<?

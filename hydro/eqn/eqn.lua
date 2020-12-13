@@ -131,6 +131,7 @@ function Equation:init(args)
 		'eigen_rightTransform',
 		'eigen_fluxTransform',
 		'cons_parallelPropagate',
+		'applyInitCondCell',
 	
 		-- kernels:
 		'applyInitCond',
@@ -432,6 +433,74 @@ typedef union {
 		headercode = 'typedef '..self.symbols.waves_t..' waves_t;',
 	}
 	
+	self:initCodeModule_cons_parallelPropagate()
+
+	-- Put this here or in SolverBase?
+	-- This calls initCond:getCodePrefix, which adds to eqn.guiVars.
+	-- That means call this after eqn:createInitState (solverbase.lua:524 in :initObjs)
+	-- eqn:initCodeModules is called after ... hmm
+	self.initCond:initCodeModules(solver)
+
+	-- init primFromCons and consFromPrim
+	-- prim-cons should have access to all ... prefix stuff?
+	-- but initstate has access to it
+	self:initCodeModule_consFromPrim_primFromCons()
+
+	-- these are only the compile-time gui vars
+	-- the runtime ones are stored in solver_t
+	solver.modules:add{
+		name = 'eqn.guiVars.compileTime',
+		headercode = table.mapi(self.guiVars or {}, function(var,i,t) 
+			return (var.compileTime and var:getCode() or nil), #t+1
+		end):concat'\n',
+	}
+
+	self:initCodeModule_calcDT()
+	self:initCodeModule_fluxFromCons()
+	self:initCodeModule_waveCode()
+
+	solver.modules:addFromMarkup{
+		code = self:template(file[self.solverCodeFile]),
+		onAdd = function(args)
+			-- special case for applyInitCond ...
+			if args.name == self.symbols.applyInitCond then
+				args.depends:append(self.initCond:getBaseDepends(solver))
+				args.depends:append(self.initCond.depends)
+				-- only used by hydro/eqn/bssnok-fd.lua:
+				if self.getModuleDependsApplyInitCond then
+					args.depends:append(self:getModuleDependsApplyInitCond())
+				end
+			end
+		end,
+	}
+
+	solver.modules:add{
+		name = self.symbols.applyInitCond,
+		depends = {
+			self.symbols.cell_t,
+			self.symbols.initCond_t,
+			self.symbols.applyInitCondCell,
+			'SETBOUNDS',
+		},
+		code = self:template[[
+kernel void <?=applyInitCond?>(
+	constant <?=solver_t?> const * const solver,
+	constant <?=initCond_t?> const * const initCond,
+	global <?=cons_t?>* UBuf,
+	global <?=cell_t?> const * const cellBuf
+) {
+	SETBOUNDS(0,0);
+	global <?=cons_t?> * const U = UBuf + index;
+	global <?=cons_t?> const * const cell = cellBuf + index;
+	<?=applyInitCondCell?>(solver, initCond, U, cell);
+}
+]],
+	}
+end
+
+function Equation:initCodeModule_cons_parallelPropagate()
+	local solver = self.solver
+
 	-- only require this if we're a fvsolver
 
 	-- parallel propagate autogen code 
@@ -569,44 +638,6 @@ end
 		}
 	end
 
-	-- Put this here or in SolverBase?
-	-- This calls initCond:getCodePrefix, which adds to eqn.guiVars.
-	-- That means call this after eqn:createInitState (solverbase.lua:524 in :initObjs)
-	-- eqn:initCodeModules is called after ... hmm
-	self.initCond:initCodeModules(solver)
-
-	-- init primFromCons and consFromPrim
-	-- prim-cons should have access to all ... prefix stuff?
-	-- but initstate has access to it
-	self:initCodeModule_consFromPrim_primFromCons()
-
-	-- these are only the compile-time gui vars
-	-- the runtime ones are stored in solver_t
-	solver.modules:add{
-		name = 'eqn.guiVars.compileTime',
-		headercode = table.mapi(self.guiVars or {}, function(var,i,t) 
-			return (var.compileTime and var:getCode() or nil), #t+1
-		end):concat'\n',
-	}
-
-	self:initCodeModule_calcDT()
-	self:initCodeModule_fluxFromCons()
-	self:initCodeModule_waveCode()
-
-	solver.modules:addFromMarkup{
-		code = self:template(file[self.solverCodeFile]),
-		onAdd = function(args)
-			-- special case for applyInitCond ...
-			if args.name == self.symbols.applyInitCond then
-				args.depends:append(self.initCond:getBaseDepends(solver))
-				args.depends:append(self.initCond.depends)
-				-- only used by hydro/eqn/bssnok-fd.lua:
-				if self.getModuleDependsApplyInitCond then
-					args.depends:append(self:getModuleDependsApplyInitCond())
-				end
-			end
-		end,
-	}
 end
 
 -- separate this out so composite solvers can init this and this alone -- without anything else (which would cause module name collisions)
