@@ -1,7 +1,7 @@
-//// MODULE_NAME: applyInitCond
+//// MODULE_NAME: <?=applyInitCond?>
 //// MODULE_DEPENDS: cartesianToCoord
 
-kernel void applyInitCond(
+kernel void <?=applyInitCond?>(
 	constant <?=solver_t?> const * const solver,
 	constant <?=initCond_t?> const * const initCond,
 	global <?=cons_t?> * const UBuf,
@@ -42,10 +42,10 @@ end
 	};
 }
 
-//// MODULE_NAME: fluxFromCons
+//// MODULE_NAME: <?=fluxFromCons?>
 //// MODULE_DEPENDS: <?=solver_t?> normal_t <?=cons_t?>
 
-#define fluxFromCons(\
+#define <?=fluxFromCons?>(\
 	/*<?=cons_t?> * const */F,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */U,\
@@ -77,20 +77,20 @@ end --\
 ?>\
 }
 
-//// MODULE_NAME: eigen_forInterface
+//// MODULE_NAME: <?=eigen_forInterface?>
 //// MODULE_DEPENDS: <?=eigen_t?>
 
-#define eigen_forInterface(eig, solver, UL, UR, x, n)
+#define <?=eigen_forInterface?>(eig, solver, UL, UR, x, n)
 
-//// MODULE_NAME: eigen_forCell
+//// MODULE_NAME: <?=eigen_forCell?>
 //// MODULE_DEPENDS: <?=eigen_t?>
 
-#define eigen_forCell(eig, solver, U, x, n)
+#define <?=eigen_forCell?>(eig, solver, U, x, n)
 
-//// MODULE_NAME: eigen_left/rightTransform
+//// MODULE_NAME: <?=eigen_leftTransform?>
 //// MODULE_DEPENDS: <?=eigen_t?> <?=waves_t?>
 
-#define eigen_leftTransform(\
+#define <?=eigen_leftTransform?>(\
 	/*<?=waves_t?> * const */Y,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=eigen_t?> const * const */eig,\
@@ -141,7 +141,10 @@ end --\
 ?>\
 }
 
-#define eigen_rightTransform(\
+//// MODULE_NAME: <?=eigen_rightTransform?>
+//// MODULE_DEPENDS: <?=eigen_t?> <?=waves_t?>
+
+#define <?=eigen_rightTransform?>(\
 	/*<?=cons_t?> * const */Y,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=eigen_t?> const * const */eig,\
@@ -180,15 +183,15 @@ end --\
 ?>\
 }
 
-//// MODULE_NAME: eigen_fluxTransform
+//// MODULE_NAME: <?=eigen_fluxTransform?>
 
-// by default in hydro/eqn/eqn.lua, fluxFromCons is defined by eigen_fluxTransform
-// but since eig is empty, we can define eigen_fluxTransform with fluxFromCons
-#define eigen_fluxTransform(Y, solver, eig, X, x, n) fluxFromCons(Y, solver, X, x, n)
+// by default in hydro/eqn/eqn.lua, <?=fluxFromCons?> is defined by <?=eigen_fluxTransform?>
+// but since eig is empty, we can define <?=eigen_fluxTransform?> with <?=fluxFromCons?>
+#define <?=eigen_fluxTransform?>(Y, solver, eig, X, x, n) <?=fluxFromCons?>(Y, solver, X, x, n)
 
-//// MODULE_NAME: addSource
+//// MODULE_NAME: <?=addSource?>
 
-kernel void addSource(
+kernel void <?=addSource?>(
 	constant <?=solver_t?> const * const solver,
 	global <?=cons_t?> * const derivBuf,
 	global <?=cons_t?> const * const UBuf,

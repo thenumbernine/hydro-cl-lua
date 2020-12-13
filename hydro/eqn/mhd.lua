@@ -12,7 +12,7 @@ local Equation = require 'hydro.eqn.eqn'
 
 local MHD = class(Equation)
 
-MHD.name = 'MHD'
+MHD.name = 'mhd'
 
 MHD.numWaves = 7
 MHD.numIntStates = 8
@@ -126,8 +126,8 @@ function MHD:init(args)
 				-- div m = (m dot grad ρ)/ρ 
 				chargeCode = self:template[[
 	<? for j=0,solver.dim-1 do ?>{
-		global <?=eqn.cons_t?> const * const Ujm = U - solver->stepsize.s<?=j?>;
-		global <?=eqn.cons_t?> const * const Ujp = U + solver->stepsize.s<?=j?>;
+		global <?=cons_t?> const * const Ujm = U - solver->stepsize.s<?=j?>;
+		global <?=cons_t?> const * const Ujp = U + solver->stepsize.s<?=j?>;
 		real const drho_dx = (Ujp->rho - Ujm->rho) * (.5 / solver->grid_dx.s<?=j?>);
 		source -= drho_dx * U->m.s<?=j?> / U->rho;
 	}<? end ?>
@@ -173,14 +173,14 @@ function MHD:initCodeModule_consFromPrim_primFromCons() end
 
 function MHD:getModuleDepends_waveCode() 
 	return {
-		'calcCellMinMaxEigenvalues',
+		self.symbols.calcCellMinMaxEigenvalues,
 	}
 end
 
 function MHD:getModuleDepends_displayCode() 
 	return {
 		'eqn.common',
-		'consFromPrim',
+		self.symbols.consFromPrim,
 	}
 end
 
@@ -229,8 +229,8 @@ function MHD:getDisplayVars()
 		{name='primitive reconstruction error', code=self:template[[
 	//prim have just been reconstructed from cons
 	//so reconstruct cons from prims again and calculate the difference
-	<?=eqn.cons_t?> U2;
-	consFromPrim(&U2, solver, &W, x);
+	<?=cons_t?> U2;
+	<?=consFromPrim?>(&U2, solver, &W, x);
 	value.vreal = 0;
 	for (int j = 0; j < numIntStates; ++j) {
 		value.vreal += fabs(U->ptr[j] - U2.ptr[j]);
@@ -289,7 +289,7 @@ end
 function MHD:consWaveCodePrefix(n, U, x)
 	return self:template([[
 range_t lambda;
-calcCellMinMaxEigenvalues(&lambda, solver, <?=U?>, <?=x?>, <?=n?>); 
+<?=calcCellMinMaxEigenvalues?>(&lambda, solver, <?=U?>, <?=x?>, <?=n?>); 
 ]], {
 		n = n,
 		U = '('..U..')',

@@ -12,10 +12,10 @@ void setFlatSpace(
 	(U)->KTilde = 0;
 }
 
-//// MODULE_NAME: applyInitCond
+//// MODULE_NAME: <?=applyInitCond?>
 //// MODULE_DEPENDS: sym3 coordMap
 
-kernel void applyInitCond(
+kernel void <?=applyInitCond?>(
 	constant <?=solver_t?> const * const solver,
 	constant <?=initCond_t?> const * const initCond,
 	global <?=cons_t?> * const UBuf,
@@ -38,12 +38,13 @@ kernel void applyInitCond(
 	U->alpha = alpha;
 	U->gamma_xx = gamma_ll.xx;
 	U->KTilde = K_ll.xx / sqrt(gamma_ll.xx);
+
 }
 
-//// MODULE_NAME: initDerivs
+//// MODULE_NAME: <?=initDerivs?>
 //// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> <?=cell_t?> SETBOUNDS numGhost
 
-kernel void initDerivs(
+kernel void <?=initDerivs?>(
 	constant <?=solver_t?> const * const solver,
 	global <?=cons_t?> * const UBuf,
 	global <?=cell_t?> const * const cellBuf
@@ -59,9 +60,9 @@ kernel void initDerivs(
 }
 
 
-//// MODULE_NAME: eigen_forInterface
+//// MODULE_NAME: <?=eigen_forInterface?>
 
-#define eigen_forInterface(\
+#define <?=eigen_forInterface?>(\
 	/*<?=eigen_t?> const * const */eig,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */UL,\
@@ -75,10 +76,10 @@ kernel void initDerivs(
 	(eig)->sqrt_f = sqrt(calc_f((eig)->alpha));\
 }
 
-//// MODULE_NAME: eigen_forCell
+//// MODULE_NAME: <?=eigen_forCell?>
 
 //used by PLM
-#define eigen_forCell(\
+#define <?=eigen_forCell?>(\
 	/*<?=eigen_t?> const * const */eig,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */U,\
@@ -90,9 +91,9 @@ kernel void initDerivs(
 	(eig)->sqrt_f = sqrt(calc_f((U)->alpha));\
 }
 
-//// MODULE_NAME: eigen_left/rightTransform
+//// MODULE_NAME: <?=eigen_leftTransform?>
 
-#define eigen_leftTransform(\
+#define <?=eigen_leftTransform?>(\
 	/*<?=waves_t?> * const */result,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=eigen_t?> const * const */eig,\
@@ -106,7 +107,9 @@ kernel void initDerivs(
 	(result)->ptr[2] = ((x)->ptr[2] / f + (x)->ptr[4] / (eig)->sqrt_f) / 2.;\
 }
 
-#define eigen_rightTransform(\
+//// MODULE_NAME: <?=eigen_rightTransform?>
+
+#define <?=eigen_rightTransform?>(\
 	/*<?=cons_t?> * const */result,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=eigen_t?> const * const */eig,\
@@ -122,9 +125,9 @@ kernel void initDerivs(
 	(result)->ptr[4] = (eig)->sqrt_f * ((x)->ptr[2] - (x)->ptr[0]);\
 }
 
-//// MODULE_NAME: eigen_fluxTransform
+//// MODULE_NAME: <?=eigen_fluxTransform?>
 
-#define eigen_fluxTransform(\
+#define <?=eigen_fluxTransform?>(\
 	/*<?=cons_t?> * const */result,\
 	/*constant <?=solver_t?> * const */solver,\
 	/*<?=eigen_t?> const * const */eig,\
@@ -141,10 +144,10 @@ kernel void initDerivs(
 	(result)->ptr[4] = (x)->ptr[2] * alpha_over_sqrt_gamma_xx;\
 }
 
-//// MODULE_NAME: addSource
+//// MODULE_NAME: <?=addSource?>
 //// MODULE_DEPENDS: initCond.codeprefix
 
-kernel void addSource(
+kernel void <?=addSource?>(
 	constant <?=solver_t?> const * const solver,
 	global <?=cons_t?> * const derivBuf,
 	global <?=cons_t?> const * const UBuf,

@@ -41,10 +41,10 @@ cplx3 eqn_coord_lower(cplx3 v, real3 x) {
 	/*global <?=cons_t?> const * const */U\
 ) 	(<?=vec3?>_<?=susc_t?>_mul((U)->B, <?=susc_t?>_mul((U)->sqrt_1_mu, (U)->sqrt_1_mu)))
 
-//// MODULE_NAME: applyInitCond
+//// MODULE_NAME: <?=applyInitCond?>
 //// MODULE_DEPENDS: eqn.common
 
-kernel void applyInitCond(
+kernel void <?=applyInitCond?>(
 	constant <?=solver_t?> const * const solver,
 	constant <?=initCond_t?> const * const initCond,
 	global <?=cons_t?> * const UBuf,
@@ -90,11 +90,11 @@ kernel void applyInitCond(
 }
 
 
-//// MODULE_NAME: fluxFromCons
+//// MODULE_NAME: <?=fluxFromCons?>
 //// MODULE_DEPENDS: <?=solver_t?> normal_t <?=cons_t?> <?=prim_t?> eqn.common
 //eqn.common has calc_E, calc_H
 
-#define fluxFromCons(\
+#define <?=fluxFromCons?>(\
 	/*<?=cons_t?> * const */F,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */U,\
@@ -121,9 +121,9 @@ kernel void applyInitCond(
 	(F)->sqrt_1_mu = <?=susc_t?>_zero;\
 }
 
-//// MODULE_NAME: eigen_forInterface
+//// MODULE_NAME: <?=eigen_forInterface?>
 
-#define eigen_forInterface(\
+#define <?=eigen_forInterface?>(\
 	/*<?=eigen_t?> * const */eig,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */UL,\
@@ -138,10 +138,10 @@ kernel void applyInitCond(
 	(eig)->sqrt_1_mu = <?=susc_t?>_real_mul(<?=susc_t?>_add((UL)->sqrt_1_mu, (UR)->sqrt_1_mu), .5);\
 }
 
-//// MODULE_NAME: eigen_forCell
+//// MODULE_NAME: <?=eigen_forCell?>
 
 //used by PLM
-#define eigen_forCell(\
+#define <?=eigen_forCell?>(\
 	/*<?=eigen_t?> * const */eig,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */U,\
@@ -152,13 +152,13 @@ kernel void applyInitCond(
 	(eig)->sqrt_1_mu = U.sqrt_1_mu:\
 }
 
-//// MODULE_NAME: eigen_left/rightTransform
+//// MODULE_NAME: <?=eigen_leftTransform?>
 //// MODULE_DEPENDS: sqrt_2_and_1_2
 
 /*
 TODO update this for Einstein-Maxwell (take the metric into consideration
 */
-#define eigen_leftTransform(\
+#define <?=eigen_leftTransform?>(\
 	/*<?=waves_t?> * const */Y,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=eigen_t?> const * const */eig,\
@@ -207,7 +207,10 @@ TODO update this for Einstein-Maxwell (take the metric into consideration
 	}\
 }
 
-#define eigen_rightTransform(\
+//// MODULE_NAME: <?=eigen_rightTransform?>
+//// MODULE_DEPENDS: sqrt_2_and_1_2
+
+#define <?=eigen_rightTransform?>(\
 	/*<?=cons_t?> * const */Y,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=eigen_t?> const * const */eig,\
@@ -260,14 +263,14 @@ TODO update this for Einstein-Maxwell (take the metric into consideration
 	}\
 }
 
-//// MODULE_NAME: eigen_fluxTransform
+//// MODULE_NAME: <?=eigen_fluxTransform?>
 
-#define eigen_fluxTransform(result, solver, eig, X, x, n)	fluxFromCons(result, solver, X, x, n)
+#define <?=eigen_fluxTransform?>(result, solver, eig, X, x, n)	<?=fluxFromCons?>(result, solver, X, x, n)
 
-//// MODULE_NAME: addSource
-//// MODULE_DEPENDS: coord_sqrt_det_g fluxFromCons
+//// MODULE_NAME: <?=addSource?>
+//// MODULE_DEPENDS: coord_sqrt_det_g eqn.common <?=fluxFromCons?>
 
-kernel void addSource(
+kernel void <?=addSource?>(
 	constant <?=solver_t?> const * const solver,
 	global <?=cons_t?> * const derivBuf,
 	global <?=cons_t?> const * const UBuf,
@@ -310,7 +313,7 @@ kernel void addSource(
 	<? for j=0,solver.dim-1 do 
 		local xj = xNames[j+1] ?>{
 		<?=cons_t?> flux;
-		fluxFromCons(&flux, solver, U, x, normal_forSide<?=j?>(x));
+		<?=fluxFromCons?>(&flux, solver, U, x, normal_forSide<?=j?>(x));
 		flux.D = <?=vec3?>_real_mul(eqn_coord_lower(flux.D, x), _1_sqrt_det_g);
 		flux.B = <?=vec3?>_real_mul(eqn_coord_lower(flux.B, x), _1_sqrt_det_g);
 		deriv->D.<?=xj?> = <?=sub?>(deriv->D.<?=xj?>, <?=vec3?>_dot(flux.D, grad_1_mu));

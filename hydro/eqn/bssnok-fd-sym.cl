@@ -34,9 +34,9 @@ real calc_det_gammaHat(real3 x) {
 #define calc_gammaHat_UU(x) (sym3_ident)
 
 //// MODULE_NAME: calc_gammaBar_LL
-//// MODULE_DEPENDS: cons_t
+//// MODULE_DEPENDS: <?=cons_t?>
 
-sym3 calc_gammaBar_LL(global const <?=eqn.cons_t?>* U, real3 x) {
+sym3 calc_gammaBar_LL(global const <?=cons_t?>* U, real3 x) {
 <?=assignRepls(cos_xs)?>
 <?=assignRepls(sin_xs)?>
 <?=assign_sym3'gammaBar_LL'?>
@@ -56,7 +56,7 @@ det(epsilon_IJ + gammaHat_IJ)
 TODO detg ... unless we want to change the constraint
 */
 #if 0	//use the value
-real calc_det_gammaBarLL(global const <?=eqn.cons_t?>* U, ral3 x) {
+real calc_det_gammaBarLL(global const <?=cons_t?>* U, ral3 x) {
 <?=assignRepls(cos_xs)?>
 <?=assignRepls(sin_xs)?>
 <?=assign'det_gammaBar_over_det_gammaHat'?>
@@ -67,9 +67,9 @@ real calc_det_gammaBarLL(global const <?=eqn.cons_t?>* U, ral3 x) {
 #endif
 
 //// MODULE_NAME: calc_gammaBar_UU
-//// MODULE_DEPENDS: cons_t
+//// MODULE_DEPENDS: <?=cons_t?>
 
-sym3 calc_gammaBar_UU(global const <?=eqn.cons_t?>* U, real3 x) {
+sym3 calc_gammaBar_UU(global const <?=cons_t?>* U, real3 x) {
 <?=assignRepls(cos_xs)?>
 <?=assignRepls(sin_xs)?>
 <? -- assign'det_gammaBar_over_det_gammaHat'?>
@@ -78,10 +78,10 @@ sym3 calc_gammaBar_UU(global const <?=eqn.cons_t?>* U, real3 x) {
 }
 
 //// MODULE_NAME: calc_gammaBar_ll
-//// MODULE_DEPENDS: cons_t
+//// MODULE_DEPENDS: <?=cons_t?>
 
 //gammaBar_ll.ij := gammaBar_ij = gammaHat_ij + epsilon_ij = gammaHat_ij + epsilon_IJ e_i^I e_j^J
-sym3 calc_gammaBar_ll(global const <?=eqn.cons_t?>* U, real3 x) {
+sym3 calc_gammaBar_ll(global const <?=cons_t?>* U, real3 x) {
 <?=assignRepls(cos_xs)?>
 <?=assignRepls(sin_xs)?>
 <?=assign_sym3'gammaBar_ll'?>
@@ -106,10 +106,10 @@ real calc_det_gammaBar(real3 x) {
 #define calc_exp_neg4phi(U) ((U)->W * (U)->W)
 
 //// MODULE_NAME: calc_gammaBar_uu
-//// MODULE_DEPENDS: cons_t calc_gammaBar_ll calc_det_gammaBar
+//// MODULE_DEPENDS: <?=cons_t?> calc_gammaBar_ll calc_det_gammaBar
 
 // also in parent
-sym3 calc_gammaBar_uu(global const <?=eqn.cons_t?>* U, real3 x) {
+sym3 calc_gammaBar_uu(global const <?=cons_t?>* U, real3 x) {
 	sym3 gammaBar_ll = calc_gammaBar_ll(U, x);
 	real det_gammaBar = calc_det_gammaBar(x);
 	sym3 gammaBar_uu = sym3_inv(gammaBar_ll, det_gammaBar);
@@ -117,10 +117,10 @@ sym3 calc_gammaBar_uu(global const <?=eqn.cons_t?>* U, real3 x) {
 }
 
 //// MODULE_NAME: calc_gamma_ll
-//// MODULE_DEPENDS: cons_t calc_gammaBar_ll calc_exp_neg4phi
+//// MODULE_DEPENDS: <?=cons_t?> calc_gammaBar_ll calc_exp_neg4phi
 
 // also in parent
-sym3 calc_gamma_ll(global const <?=eqn.cons_t?>* U, real3 x) {
+sym3 calc_gamma_ll(global const <?=cons_t?>* U, real3 x) {
 	sym3 gammaBar_ll = calc_gammaBar_ll(U, x);
 	real exp_4phi = 1. / calc_exp_neg4phi(U);
 	sym3 gamma_ll = sym3_real_mul(gammaBar_ll, exp_4phi);
@@ -128,10 +128,10 @@ sym3 calc_gamma_ll(global const <?=eqn.cons_t?>* U, real3 x) {
 }
 	
 //// MODULE_NAME: calc_gamma_uu
-//// MODULE_DEPENDS: cons_t calc_gammaBar_ll calc_exp_neg4phi calc_det_gammaBar
+//// MODULE_DEPENDS: <?=cons_t?> calc_gammaBar_ll calc_exp_neg4phi calc_det_gammaBar
 // also in parent
 
-sym3 calc_gamma_uu(global const <?=eqn.cons_t?>* U, real3 x) {
+sym3 calc_gamma_uu(global const <?=cons_t?>* U, real3 x) {
 	sym3 gammaBar_ll = calc_gammaBar_ll(U, x);
 	real exp_4phi = 1. / calc_exp_neg4phi(U);
 	sym3 gamma_ll = sym3_real_mul(gammaBar_ll, exp_4phi);
@@ -203,16 +203,16 @@ const int4 getUpwind(real3 v) {
 // then we do save calculations / memory on the equations
 // but we also, for >FE integrators (which require multiple steps) are duplicating calculations
 kernel void calcDeriv(
-	constant solver_t* solver,
-	global cons_t* derivBuf,
-	const global cons_t* UBuf,
-	const global <?=solver.coord.cell_t?>* cellBuf
+	constant <?=solver_t?> const * const solver,
+	global <?=cons_t?> * const derivBuf,
+	global <?=cons_t?> const * const UBuf,
+	global <?=cell_t?> const * const cellBuf
 ) {
 	SETBOUNDS(numGhost,numGhost);
-	real3 x = cellBuf[index].pos;
-	global cons_t* deriv = derivBuf + index;
-	const global cons_t* U = UBuf + index;
-	int4 updir = getUpwind(U->beta_U);
+	real3 const x = cellBuf[index].pos;
+	global <?=cons_t?> * const deriv = derivBuf + index;
+	global <?=cons_t?> const * const U = UBuf + index;
+	int4 const updir = getUpwind(U->beta_U);
 
 <?=assignRepls(cos_xs)?>
 <?=assignRepls(sin_xs)?>
@@ -319,14 +319,14 @@ kernel void calcDeriv(
 }
 
 kernel void constrainU(
-	constant solver_t* solver,
-	global cons_t* UBuf,
-	const global <?=solver.coord.cell_t?>* cellBuf
+	constant <?=solver_t?> const * const solver,
+	global <?=cons_t?> * const UBuf,
+	global <?=cell_t?> const * const cellBuf
 ) {
 <? if useConstrainU then ?>	
 	SETBOUNDS(numGhost,numGhost);
-	real3 x = cellBuf[index].pos;
-	global cons_t* U = UBuf + index;
+	real3 const x = cellBuf[index].pos;
+	global <?=cons_t?> * const U = UBuf + index;
 
 <?=assignRepls(cos_xs)?>
 <?=assignRepls(sin_xs)?>
@@ -401,16 +401,16 @@ then
 }
 
 kernel void addSource(
-	constant solver_t* solver,
-	global cons_t* derivBuf,
-	const global cons_t* UBuf,
-	const global <?=solver.coord.cell_t?>* cellBuf
+	constant <?=solver_t?> const * const solver,
+	global <?=cons_t?> * const derivBuf,
+	global <?=cons_t?> const * const UBuf,
+	global <?=cell_t?> const * const cellBuf
 ) {
 <? if useAddSource then ?>
 	SETBOUNDS_NOGHOST();
 	
-	const global <?=eqn.cons_t?>* U = UBuf + index;
-	global cons_t* deriv = derivBuf + index;
+	global <?=cons_t?> const * const U = UBuf + index;
+	global <?=cons_t?> * const deriv = derivBuf + index;
 
 	if (solver->diffuseCoeff != 0.) { 
 		//Kreiss-Oligar dissipation

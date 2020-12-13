@@ -937,7 +937,7 @@ end
 	//args.index provides this ... post-converted to an integer
 	//I need the vector now
 	real3 x = cell_x((int4)(<?=args.indexv'j'?>,0));
-	<?=eqn.prim_t?> W = {
+	<?=prim_t?> W = {
 		.rho = 1.,
 		.v = _real3(2.9, 0., 0.),
 		.B = _real3(.5, 0., 0.),
@@ -957,7 +957,7 @@ end) then
 				local U = 'buf['..args.index'j'..']'
 				return template([[
 	real3 x = cell_x(i);
-	<?=eqn.prim_t?> W = {
+	<?=prim_t?> W = {
 		.rho = 1.4598,
 		.v = _real3(2.717, -.4049, 0.),
 		.B = _real3(.6838, -.1019, 0.),
@@ -1112,7 +1112,7 @@ end) then
 						lines:insert('buf['..dst..'].'..field..' = '..field.type..'_zero;')
 					end
 				else
-					lines:insert(template([[
+					lines:insert(solver.eqn:template([[
 	real3 x = cell_x(i);
 	real3 xc = coordMap(x);
 	bool inlet = false;
@@ -1122,7 +1122,7 @@ end) then
 		real dyz2 = dy*dy + dz*dy;
 		inlet = dyz2 < .1;
 	}
-	<?=eqn.cons_t?> W = {.ptr={0}}
+	<?=cons_t?> W = {.ptr={0}}
 	W.rho = initCond->rho;
 	W.v = real3_zero;
 	W.P = initCond->P;
@@ -1130,7 +1130,7 @@ end) then
 	if (inlet) {
 		W.v = real3(-initCond->inlet_v, 0., 0.);
 	}
-	buf[<?=dst?>] = primFromCons(W);
+	buf[<?=dst?>] = <?=primFromCons?>(W);
 ]], 				{
 						dst = dst,
 						eqn = solver.eqn,
@@ -2207,10 +2207,10 @@ bool testTriangle(real3 xc) {
 				name = 'addExtraSource',
 				code = table{
 					solver.modules:getCodeAndHeader(solver.sharedModulesEnabled:keys():unpack()),
-					template([[
+					solver.eqn:template([[
 //single cell domain
 kernel void addExtraSource(
-	global <?=eqn.cons_t?>* UBuf
+	global <?=cons_t?>* UBuf
 ) {
 	UBuf[INDEX(<?=src[1]?>,<?=src[2]?>,<?=src[3]?>)].D.x = -10;
 	UBuf[INDEX(<?=dst[1]?>,<?=dst[2]?>,<?=dst[3]?>)].D.x = -10;
@@ -2244,7 +2244,7 @@ kernel void addExtraSource(
 			EulerInitCond.resetState(self, solver)
 			-- and here I'm going to fill the permittivity 'eps' with random noise
 			-- ... and put a source + and - current 'sigma' at two points on the image
-			local ptr = ffi.cast(solver.eqn.cons_t..'*', solver.UBufObj:toCPU())
+			local ptr = ffi.cast(solver.eqn.symbols.cons_t..'*', solver.UBufObj:toCPU())
 			for i=0,solver.numCells-1 do
 				ptr[i].sigma = math.random() * 1e-4 + 1e-7
 			end

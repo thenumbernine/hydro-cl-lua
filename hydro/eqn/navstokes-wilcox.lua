@@ -1,5 +1,6 @@
 --[[
 Taken from Petrova - Finite Volume Methods: Powerful Means of Engineering Design
+cited as 1998 Wilcox' version of Navier-Stokes
 
 k-omega turbulence model of Navier Stokes method for finite volume
 --]]
@@ -10,7 +11,7 @@ local materials = require 'hydro.materials'
 local Equation = require 'hydro.eqn.eqn'
 
 local NavierStokesWilcox = class(Equation)
-NavierStokesWilcox.name = 'Navier-Stokes -- 1998 Wilcox'
+NavierStokesWilcox.name = 'navstokes_wilcox'
 
 NavierStokesWilcox.numWaves = 7	-- v-a, v,v,v,v,v, v+a
 NavierStokesWilcox.numIntStates = 7
@@ -69,8 +70,8 @@ function NavierStokesWilcox:init(args)
 				-- div m = (m dot grad ρ)/ρ 
 				chargeCode = self:template[[
 	<? for j=0,solver.dim-1 do ?>{
-		global <?=eqn.cons_t?> const * const Ujm = U - solver->stepsize.s<?=j?>;
-		global <?=eqn.cons_t?> const * const Ujp = U + solver->stepsize.s<?=j?>;
+		global <?=cons_t?> const * const Ujm = U - solver->stepsize.s<?=j?>;
+		global <?=cons_t?> const * const Ujp = U + solver->stepsize.s<?=j?>;
 		real drho_dx = (Ujp->rhoBar - Ujm->rhoBar) * (.5 / solver->grid_dx.s<?=j?>);
 		source -= drho_dx * U->rhoBar_vTilde.s<?=j?> / U->rhoBar;
 	}<? end ?>
@@ -142,8 +143,8 @@ function NavierStokesWilcox:getDisplayVars()
 	} else {
 		<? 
 for side=0,solver.dim-1 do ?>{
-			global const <?=eqn.cons_t?>* Um = U - solver->stepsize.s<?=side?>;
-			global const <?=eqn.cons_t?>* Up = U + solver->stepsize.s<?=side?>;
+			global const <?=cons_t?>* Um = U - solver->stepsize.s<?=side?>;
+			global const <?=cons_t?>* Up = U + solver->stepsize.s<?=side?>;
 			value_real3->s<?=side?> = -(Up-><?=eqn.gravOp.potentialField?> - Um-><?=eqn.gravOp.potentialField?>) / (2. * cell_dx<?=side?>(x));
 		}<? 
 end
@@ -202,7 +203,7 @@ end
 function NavierStokesWilcox:consWaveCodePrefix(n, U, x)
 	return self:template([[
 prim_t W;
-primFromCons(&W, solver, <?=U?>, <?=x?>);
+<?=primFromCons?>(&W, solver, <?=U?>, <?=x?>);
 real Cs_nLen = calc_Cs(solver, &W) * normal_len(<?=n?>);
 real v_n = normal_vecDotN1(<?=n?>, W.vTilde);
 ]], {

@@ -1,36 +1,36 @@
 //// MODULE_NAME: calcFluxForInterface
-//// MODULE_DEPENDS: solver.macros math eigen_forInterface eqn.waveCode fluxFromCons
+//// MODULE_DEPENDS: solver.macros math <?=eigen_forInterface?> <?=waveCode_depends?> <?=fluxFromCons?>
 
 //HLLC based on
 //http://math.lanl.gov/~shenli/publications/hllc_mhd.pdf
 //2012 Toro, "The HLLC Riemann Solver" presentation: http://marian.fsik.cvut.cz/~bodnar/PragueSum_2012/Toro_2-HLLC-RiemannSolver.pdf
 <?
-if not require 'hydro.eqn.euler'.is(solver.eqn) then 
+if not require "hydro.eqn.euler".is(solver.eqn) then 
 	error("euler-hllc only works with euler eqn") 
 end
 ?>
 
 
 #define calcFluxForInterface(\
-	/*global cons_t * const */flux,\
-	/*constant solver_t const * const */solver,\
-	/*cons_t const * const */UL,\
-	/*cons_t const * const */UR,\
+	/*global <?=cons_t?> * const */flux,\
+	/*constant <?=solver_t?> const * const */solver,\
+	/*<?=cons_t?> const * const */UL,\
+	/*<?=cons_t?> const * const */UR,\
 	/*real3 const */xInt,\
 	/*normal_t const */n\
 ) {\
-	prim_t WL;\
-	primFromCons(&WL, solver, UL, xInt);\
-	prim_t WR;\
-	primFromCons(&WR, solver, UR, xInt);\
+	<?=prim_t?> WL;\
+	<?=primFromCons?>(&WL, solver, UL, xInt);\
+	<?=prim_t?> WR;\
+	<?=primFromCons?>(&WR, solver, UR, xInt);\
 \
 <? if true then ?> /* use interface waves? */\
 	/*\
 	get min/max lambdas of UL, UR, and interface U (based on Roe averaging)\
 	TODO this in a more computationally efficient way\
 	*/\
-	eigen_t eigInt;\
-	eigen_forInterface(&eigInt, solver, UL, UR, xInt, n);\
+	<?=eigen_t?> eigInt;\
+	<?=eigen_forInterface?>(&eigInt, solver, UL, UR, xInt, n);\
 	\
 	real lambdaIntMin, lambdaIntMax;\
 	{\
@@ -84,13 +84,13 @@ end
 		/ (WR.rho * (sR - vnR.x) - WL.rho * (sL - vnL.x));\
 \
 	if (0 <= sL) {\
-		fluxFromCons(flux, solver, UL, xInt, n);\
+		<?=fluxFromCons?>(flux, solver, UL, xInt, n);\
 <? if solver.flux.hllcMethod == 0 then ?>\
 	\
 	} else if (sL <= 0. && 0. <= sStar) {\
-		cons_t FL;\
-		fluxFromCons(&FL, solver, UL, xInt, n);\
-		cons_t ULStar;\
+		<?=cons_t?> FL;\
+		<?=fluxFromCons?>(&FL, solver, UL, xInt, n);\
+		<?=cons_t?> ULStar;\
 		ULStar.rho = UL->rho * (sL - vnL.x) / (sL - sStar);\
 	\
 		real3 vStar = normal_vecFromNs(n, _real3(sStar, vnL.y, vnL.z));\
@@ -107,9 +107,9 @@ end
 			flux->ptr[i] = FL.ptr[i] + sL * (ULStar.ptr[i] - UL->ptr[i]);\
 		}\
 	} else if (sStar <= 0. && 0. <= sR) {\
-		cons_t FR;\
-		fluxFromCons(&FR, solver, UR, xInt, n);\
-		cons_t URStar;\
+		<?=cons_t?> FR;\
+		<?=fluxFromCons?>(&FR, solver, UR, xInt, n);\
+		<?=cons_t?> URStar;\
 		URStar.rho = UR->rho * (sR - vnR.x) / (sR - sStar);\
 		\
 		real3 vStar = normal_vecFromNs(n, _real3(sStar, vnR.y, vnR.z));\
@@ -128,8 +128,8 @@ end
 <? elseif solver.flux.hllcMethod == 1 then ?>\
 \
 	} else if (sL <= 0. && 0. <= sStar) {\
-		cons_t FL;\
-		fluxFromCons(&FL, solver, UL, xInt, n);\
+		<?=cons_t?> FL;\
+		<?=fluxFromCons?>(&FL, solver, UL, xInt, n);\
 		flux->rho = (sStar * (sL * UL->rho - FL.rho)) / (sL - sStar);\
 	\
 		real3 ULmn = normal_vecDotNs(n, UL->m);\
@@ -142,8 +142,8 @@ end
 		\
 		flux->ETotal = (sStar * (sL * UL->ETotal - FL.ETotal) + sL * (WL.P + WL.rho * (sL - vnL.x) * (sStar - vnL.x)) * sStar) / (sL - sStar);\
 	} else if (sStar <= 0. && 0. <= sR) {\
-		cons_t FR;\
-		fluxFromCons(&FR, solver, UR, xInt, n);\
+		<?=cons_t?> FR;\
+		<?=fluxFromCons?>(&FR, solver, UR, xInt, n);\
 		flux->rho = (sStar * (sR * UR->rho - FR.rho)) / (sR - sStar);\
 		\
 		real3 URmn = normal_vecDotNs(n, UR->m);\
@@ -159,8 +159,8 @@ end
 <? elseif solver.flux.hllcMethod == 2 then ?>\
 \
 	} else if (sL <= 0. && 0. <= sStar) {\
-		cons_t FL;\
-		fluxFromCons(&FL, solver, UL, xInt, n);\
+		<?=cons_t?> FL;\
+		<?=fluxFromCons?>(&FL, solver, UL, xInt, n);\
 		real PLR = .5 * (\
 			WL.P\
 			+ WR.P\
@@ -179,8 +179,8 @@ end
 \
 		flux->ETotal = (sStar * (sL * UL->ETotal - FL.ETotal) + sL * PLR * sStar) / (sL - sStar);\
 	} else if (sStar <= 0. && 0. <= sR) {\
-		cons_t FR;\
-		fluxFromCons(&FR, solver, UR, xInt, n);\
+		<?=cons_t?> FR;\
+		<?=fluxFromCons?>(&FR, solver, UR, xInt, n);\
 		real PLR = .5 * (WL.P + WR.P + WL.rho * (sL - vnL.x) * (sStar - vnL.x) + WR.rho * (sR - vnR.x) * (sStar - vnR.x));\
 		flux->rho = sStar * (sR * UR->rho - FR.rho) / (sR - sStar);\
 		\
@@ -198,13 +198,13 @@ end
 <? end	--solver.flux.hllcMethod ?>\
 	\
 	} else if (sR <= 0) {\
-		fluxFromCons(flux, solver, UR, xInt, n);\
+		<?=fluxFromCons?>(flux, solver, UR, xInt, n);\
 <? if true then ?>	/*why is this here? for when sStar is not between sL and sR*/\
 	} else if (sL <= 0 && 0 <= sR) {\
-		cons_t FL;\
-		fluxFromCons(&FL, solver, UL, xInt, n);\
-		cons_t FR;\
-		fluxFromCons(&FR, solver, UR, xInt, n);\
+		<?=cons_t?> FL;\
+		<?=fluxFromCons?>(&FL, solver, UL, xInt, n);\
+		<?=cons_t?> FR;\
+		<?=fluxFromCons?>(&FR, solver, UR, xInt, n);\
 		for (int j = 0; j < numIntStates; ++j) {\
 			flux->ptr[j] = (sR * FL.ptr[j] - sL * FR.ptr[j] + sL * sR * (UR->ptr[j] - UL->ptr[j])) / (sR - sL);\
 		}\

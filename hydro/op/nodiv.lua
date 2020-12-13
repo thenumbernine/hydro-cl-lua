@@ -32,13 +32,11 @@ return function(args)
 	solve del^2 psi = delta . B for psi
 	--]]
 	function NoDiv:getPoissonDivCode()
-		return template([[
+		return self.solver.eqn:template([[
 	if (OOB(1,1)) {
 		source = 0.;
 	} else {
 <?
-local solver = op.solver
-
 local scalar = op.scalar
 local zero = scalar..'_zero'
 local add = scalar..'_add'
@@ -79,21 +77,18 @@ end
 	so delta . B' = delta . B - delta . del^-2 delta . B = ...should be 0
 	--]]
 	function NoDiv:getPoissonCode()
-		return template([[
+		return self.solver.eqn:template([[
 <?
-local solver = op.solver
-local eqn = solver.eqn
-
 local scalar = op.scalar
 local sub = scalar..'_sub'
 local real_mul = scalar..'_real_mul'
 ?>
 kernel void noDiv<?=op.name?>(
-	constant <?=solver.solver_t?>* solver,
-	global <?=eqn.cons_t?>* UBuf
+	constant <?=solver_t?>* solver,
+	global <?=cons_t?>* UBuf
 ) {
 	SETBOUNDS(numGhost,numGhost);
-	global <?=eqn.cons_t?>* U = UBuf + index;
+	global <?=cons_t?>* U = UBuf + index;
 <? for j=0,solver.dim-1 do ?> 
 	U-><?=op.vectorField?>.s<?=j?> = 
 		<?=sub?>(
@@ -110,9 +105,9 @@ kernel void noDiv<?=op.name?>(
 
 //TODO just use the display var kernels
 kernel void copyPotentialToReduce<?=op.name?>(
-	constant <?=solver.solver_t?>* solver,
+	constant <?=solver_t?>* solver,
 	global real* reduceBuf,
-	global const <?=eqn.cons_t?>* UBuf
+	global const <?=cons_t?>* UBuf
 ) {
 	SETBOUNDS(0,0);
 	reduceBuf[index] = UBuf[index].<?=op.potentialField?>;

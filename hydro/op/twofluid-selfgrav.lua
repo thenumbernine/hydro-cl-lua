@@ -20,17 +20,11 @@ function TwoFluidSelfGrav:getPoissonDivCode()
 end
 
 function TwoFluidSelfGrav:getPoissonCode()
-	return template([[
-<?
-local solver = op.solver
-local eqn = solver.eqn
-local fluids = eqn.fluids
-?>
-
+	return self.solver.eqn:template([[
 real3 calcGravityAccel<?=op.name?>(
-	constant <?=solver.solver_t?>* solver,
-	global const <?=eqn.cons_t?>* U,
-	real3 x
+	constant <?=solver_t?> const * const solver,
+	global <?=cons_t?> const * const U,
+	real3 const x
 ) {
 	real3 accel_g = real3_zero;
 	
@@ -46,26 +40,26 @@ real3 calcGravityAccel<?=op.name?>(
 }
 
 kernel void calcGravityDeriv<?=op.name?>(
-	constant <?=solver.solver_t?>* solver,
-	global <?=eqn.cons_t?>* derivBuffer,
-	global const <?=eqn.cons_t?>* UBuf,
-	global const <?=solver.coord.cell_t?>* cellBuf
+	constant <?=solver_t?> const * const solver,
+	global <?=cons_t?> * const derivBuffer,
+	global <?=cons_t?> const * const UBuf,
+	global <?=cell_t?> const * const cellBuf
 ) {
 	SETBOUNDS(numGhost,numGhost);
-	real3 x = cell_x(i);
+	real3 const x = cell_x(i);
 	
-	global <?=eqn.cons_t?>* deriv = derivBuffer + index;
-	const global <?=eqn.cons_t?>* U = UBuf + index;
+	global <?=cons_t?> * const deriv = derivBuffer + index;
+	global <?=cons_t?> const * const U = UBuf + index;
 	
 	real3 accel_g = calcGravityAccel<?=op.name?>(solver, U, x);
 
 	// kg/(m^2 s) = kg/m^3 * m/s^2
-<? for _,fluid in ipairs(fluids) do	
+<? for _,fluid in ipairs(eqn.fluids) do	
 ?>	deriv-><?=fluid?>_m = real3_sub(deriv-><?=fluid?>_m, real3_real_mul(accel_g, U-><?=fluid?>_rho));
 <? end	
 ?>
 	// kg/(m s^2) = (kg m^2 / s) * m/s^2
-<? for _,fluid in ipairs(fluids) do	
+<? for _,fluid in ipairs(eqn.fluids) do	
 ?>	deriv-><?=fluid?>_ETotal -= real3_dot(U-><?=fluid?>_m, accel_g);
 <? end	
 ?>
@@ -73,9 +67,9 @@ kernel void calcGravityDeriv<?=op.name?>(
 
 // this matches hydro/op/selfgrav.lua
 kernel void copyPotentialToReduce<?=op.name?>(
-	constant <?=solver.solver_t?>* solver,
-	global real* reduceBuf,
-	global const <?=eqn.cons_t?>* UBuf
+	constant <?=solver_t?> const * const solver,
+	global real * const reduceBuf,
+	global <?=cons_t?> const * const UBuf
 ) {
 	SETBOUNDS(0,0);
 	reduceBuf[index] = UBuf[index].<?=op.potentialField?>;
@@ -83,12 +77,12 @@ kernel void copyPotentialToReduce<?=op.name?>(
 
 // this matches hydro/op/selfgrav.lua
 kernel void offsetPotential<?=op.name?>(
-	constant <?=solver.solver_t?>* solver,
-	global <?=eqn.cons_t?>* UBuf,
-	realparam ePotMax
+	constant <?=solver_t?> const * const solver,
+	global <?=cons_t?> * const UBuf,
+	realparam const ePotMax
 ) {
 	SETBOUNDS(0,0);
-	global <?=eqn.cons_t?>* U = UBuf + index;
+	global <?=cons_t?>* U = UBuf + index;
 	U-><?=op.potentialField?> -= ePotMax;
 }
 

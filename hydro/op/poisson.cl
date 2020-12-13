@@ -18,9 +18,6 @@ discrete evaluation:
 1/sqrt(g) (sqrt(g(x+dxi/2)) g^ij(x+dxj/2) (f(x+dxj) - f(x)) / dx(x+dxj/2))_,i
 */
 <?
-local solver = op.solver
-local eqn = solver.eqn
-
 local scalar = op.scalar 
 local neg = scalar..'_neg'
 local zero = scalar..'_zero'
@@ -34,11 +31,11 @@ this is only called upon solver reset
 each iteration uses the previous iteration's results as the starting point
 */
 kernel void initPotential<?=op.name?>(
-	constant <?=solver.solver_t?>* solver,
-	global <?=op:getPotBufType()?>* UBuf
+	constant <?=solver_t?> const * const solver,
+	global <?=op:getPotBufType()?> * const UBuf
 ) {
 	SETBOUNDS(numGhost,numGhost);
-	global <?=op:getPotBufType()?>* U = UBuf + index;
+	global <?=op:getPotBufType()?> * const U = UBuf + index;
 	<?=scalar?> source = <?=zero?>;
 <?=op:getPoissonDivCode() or ''?>
 	
@@ -52,9 +49,9 @@ kernel void initPotential<?=op.name?>(
 
 //used by hydro/op/relaxation.lua
 kernel void copyWriteToPotentialNoGhost<?=op.name?>(
-	constant <?=solver.solver_t?>* solver,
-	global <?=eqn.cons_t?>* UBuf,
-	global const real* writeBuf
+	constant <?=solver_t?> const * const solver,
+	global <?=cons_t?> * const UBuf,
+	global real const * const writeBuf
 ) {
 	SETBOUNDS_NOGHOST();
 	UBuf[index].<?=op.potentialField?> = writeBuf[index];
@@ -62,9 +59,9 @@ kernel void copyWriteToPotentialNoGhost<?=op.name?>(
 
 //used by hydro/op/relaxation.lua
 kernel void setReduceToPotentialSquared<?=op.name?>(
-	constant <?=solver.solver_t?>* solver,
-	global real* reduceBuf,
-	const global <?=eqn.cons_t?>* UBuf
+	constant <?=solver_t?> const * const solver,
+	global real * const reduceBuf,
+	global <?=cons_t?> const * const UBuf
 ) {
 	SETBOUNDS_NOGHOST();
 	reduceBuf[index] = <?=lenSq?>(UBuf[index].<?=op.potentialField?>);

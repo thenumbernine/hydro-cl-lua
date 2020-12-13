@@ -375,24 +375,21 @@ real slopeLimiter(real r) {
 		}
 		
 		self.modules:add{
-			name = 'consLR_t',
-			depends = {self.eqn.cons_t},
-			typecode = template([[
+			name = self.eqn.symbols.consLR_t,
+			depends = {self.eqn.symbols.cons_t},
+			typecode = self.eqn:template([[
 typedef union {
-	<?=eqn.cons_t?> LR[2];
+	<?=cons_t?> LR[2];
 	struct {
-		<?=eqn.cons_t?> L, R;
+		<?=cons_t?> L, R;
 	};
-} <?=eqn.consLR_t?>;
+} <?=consLR_t?>;
 
 //ugly hack to work around even uglier boundary code
 typedef struct {
-	<?=eqn.consLR_t?> side[<?=solver.dim?>];
-} <?=eqn.consLR_t?>_dim;
-]], 		{
-				solver = self,
-				eqn = self.eqn,
-			}),
+	<?=consLR_t?> side[<?=solver.dim?>];
+} <?=consLR_t?>_dim;
+]]),
 		}
 
 		self.modules:addFromMarkup(self.eqn:template(file['hydro/solver/plm.cl']))
@@ -477,8 +474,8 @@ function GridSolver:createBuffers()
 	self:clalloc('cellBuf', self.coord.cell_t, self.numCells)
 
 	if self.usePLM then
-		-- TODO self.eqn.consLR_t..'_dim' and remove * self.dim ?
-		self:clalloc('ULRBuf', self.eqn.consLR_t, self.numCells * self.dim)
+		-- TODO self.eqn.symbols.consLR_t..'_dim' and remove * self.dim ?
+		self:clalloc('ULRBuf', self.eqn.symbols.consLR_t, self.numCells * self.dim)
 	end
 end
 
@@ -517,7 +514,7 @@ function GridSolver:refreshGetULR()
 	-- for piecewise-constant that is the original UBuf
 	-- for piecewise-linear that is the ULRBuf
 	-- TODO do this after createBuffers and you can get rid of a lot of these
-	self.getULRBufType = self.usePLM and self.eqn.consLR_t or self.eqn.cons_t
+	self.getULRBufType = self.usePLM and self.eqn.symbols.consLR_t or self.eqn.symbols.cons_t
 	self.getULRBufName = self.usePLM and 'ULRBuf' or 'UBuf'
 
 	self.getULRArg = self.getULRBufType..'* '..self.getULRBufName
@@ -529,12 +526,10 @@ function GridSolver:refreshGetULR()
 		self.getULRCode = function(self, args)
 			args = args or {}
 			local suffix = args.suffix or ''
-			return template([[
-global <?=eqn.cons_t?> const * const UL<?=suffix?> = &<?=bufName?>[<?=side?> + dim * <?=indexL?>].R;
-global <?=eqn.cons_t?> const * const UR<?=suffix?> = &<?=bufName?>[<?=side?> + dim * <?=indexR?>].L;
+			return self.eqn:template([[
+global <?=cons_t?> const * const UL<?=suffix?> = &<?=bufName?>[<?=side?> + dim * <?=indexL?>].R;
+global <?=cons_t?> const * const UR<?=suffix?> = &<?=bufName?>[<?=side?> + dim * <?=indexR?>].L;
 ]],			{
-				solver = self,
-				eqn = self.eqn,
 				suffix = suffix,
 				side = args.side or 'side',
 				indexL = args.indexL or 'indexL'..suffix,
@@ -546,12 +541,10 @@ global <?=eqn.cons_t?> const * const UR<?=suffix?> = &<?=bufName?>[<?=side?> + d
 		self.getULRCode = function(self, args)
 			args = args or {}
 			local suffix = args.suffix or ''
-			return template([[
-global <?=eqn.cons_t?> const * const UL<?=suffix?> = <?=bufName?> + <?=indexL?>;
-global <?=eqn.cons_t?> const * const UR<?=suffix?> = <?=bufName?> + <?=indexR?>;
+			return self.eqn:template([[
+global <?=cons_t?> const * const UL<?=suffix?> = <?=bufName?> + <?=indexL?>;
+global <?=cons_t?> const * const UR<?=suffix?> = <?=bufName?> + <?=indexR?>;
 ]],			{
-				solver = self,
-				eqn = self.eqn,
 				suffix = suffix,
 				indexL = args.indexL or 'indexL'..suffix,
 				indexR = args.indexR or 'indexR'..suffix,
@@ -1145,7 +1138,7 @@ function GridSolver:createBoundaryProgramAndKernel(args)
 
 	local moduleNames = self.sharedModulesEnabled:keys():append{
 		self.solver_t,
-		self.eqn.cons_t,
+		self.eqn.symbols.cons_t,
 		'INDEX',
 		'INDEXV',
 		-- some Boundary :getCode use numStates
@@ -1273,7 +1266,7 @@ end
 
 function GridSolver:getBoundaryProgramArgs()
 	return {
-		type = self.eqn.cons_t,
+		type = self.eqn.symbols.cons_t,
 		-- remap from enum/combobox int values to functions from the solver.boundaryOptions table
 		methods = self.boundaryMethods,
 
@@ -1299,7 +1292,7 @@ function GridSolver:refreshBoundaryProgram()
 
 	if self.useCTU and self.usePLM then
 		local args = self:getBoundaryProgramArgs()
-		args.type = self.eqn.consLR_t..'_dim'
+		args.type = self.eqn.symbols.consLR_t..'_dim'
 	
 		-- TODO use the real list of boundary names here
 		for _,boundaryOptionName in ipairs(self.boundaryOptionNames) do
@@ -1396,7 +1389,7 @@ end
 function GridSolver:calcExactError(numStates)
 	numStates = numStates or self.eqn.numIntStates
 	local exact = assert(self.eqn.initCond.exactSolution, "can't test accuracy of a configuration that has no exact solution")
-	local ptr = ffi.cast(self.eqn.cons_t..'*', self.UBufObj:toCPU())
+	local ptr = ffi.cast(self.eqn.symbols.cons_t..'*', self.UBufObj:toCPU())
 	assert(self.dim == 1)
 	local n = self.gridSize.x
 	local ghost = self.numGhost

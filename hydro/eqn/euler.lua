@@ -91,12 +91,12 @@ end
 function Euler:initCodeModule_calcDT()
 	local solver = self.solver
 	solver.modules:add{
-		name = self.calcDT,
+		name = self.symbols.calcDT,
 		depends = table{
 			'OOB',
 			'SETBOUNDS',
 			self.solver.solver_t,
-			self.primFromCons,
+			self.symbols.primFromCons,
 			'eqn.guiVars.compileTime',
 			'normal_t',
 		},

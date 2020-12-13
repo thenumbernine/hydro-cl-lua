@@ -1,5 +1,6 @@
 local table = require 'ext.table'
 local class = require 'ext.class'
+local file = require 'ext.file'
 local Struct = require 'hydro.code.struct'
 local Equation = require 'hydro.eqn.eqn'
 
@@ -107,15 +108,15 @@ assert(#self.eqns > 0, "you need at least one entry in args.subeqns")
 --]]
 
 	self.consVars = self.eqns:mapi(function(eqn, i)
-		return {type=assert(eqn.cons_t), name='eqn'..i}
+		return {type=assert(eqn.symbols.cons_t), name='eqn'..i}
 	end)
 
 	self.primVars = self.eqns:mapi(function(eqn, i)
-		return {type=assert(eqn.prim_t), name='eqn'..i}
+		return {type=assert(eqn.symbols.prim_t), name='eqn'..i}
 	end)
 	
 	self.eigenVars = self.eqns:mapi(function(eqn, i)
-		return {type=assert(eqn.eigen_t), name='eqn'..i}
+		return {type=assert(eqn.symbols.eigen_t), name='eqn'..i}
 	end)
 
 	self.numWaves = self.eqns:mapi(function(eqn)
@@ -127,7 +128,7 @@ end
 
 function CompositeEquation:getModuleDepends_cons_t()
 	return self.eqns:mapi(function(eqn)
-		return eqn.cons_t
+		return eqn.symbols.cons_t
 	end)
 end
 
@@ -138,7 +139,11 @@ function CompositeEquation:createInitState()
 	end
 end
 
+CompositeEquation.solverCodeFile = 'hydro/eqn/composite.cl'
+
 function CompositeEquation:initCodeModules()
+	local solver = self.solver
+	
 	-- first build the submodules' code
 	-- store them locally in composite's submodules[]
 	-- but don't initCodeModule_cons_prim_eigen because we already did that (for app.modules for cdefAll...)
@@ -148,6 +153,27 @@ function CompositeEquation:initCodeModules()
 		eqn:initCodeModules()
 		eqn.initCodeModule_cons_prim_eigen = old
 	end
+
+-- TODO from here on down, it is a lot in common with eqn/eqn.lua
+
+	--self:initCodeModule_calcDT()
+	--self:initCodeModule_fluxFromCons()
+	--self:initCodeModule_waveCode()
+
+	solver.modules:addFromMarkup{
+		code = self:template(file[self.solverCodeFile]),
+		onAdd = function(args)
+			-- special case for applyInitCond ...
+			if args.name == 'applyInitCond' then
+				args.depends:append(self.initCond:getBaseDepends(solver))
+				args.depends:append(self.initCond.depends)
+				-- only used by hydro/eqn/bssnok-fd.lua:
+				if self.getModuleDependsApplyInitCond then
+					args.depends:append(self:getModuleDependsApplyInitCond())
+				end
+			end
+		end,
+	}
 end
 
 --[[
@@ -165,8 +191,8 @@ end
 function CompositeEquation:addDisplayVarInfosForType(args)
 	local eqnAndStructForType = {}
 	for _,eqn in ipairs(self.eqns) do
-		eqnAndStructForType[eqn.cons_t] = {eqn = eqn, struct = eqn.consStruct}
-		eqnAndStructForType[eqn.eigen_t] = {eqn = eqn, struct = eqn.eigenStruct}
+		eqnAndStructForType[eqn.symbols.cons_t] = {eqn = eqn, struct = eqn.consStruct}
+		eqnAndStructForType[eqn.symbols.eigen_t] = {eqn = eqn, struct = eqn.eigenStruct}
 	end
 	local eqnAndStruct = eqnAndStructForType[args.type]
 	if eqnAndStruct then
@@ -183,5 +209,13 @@ end
 -- next big issue is that we need a unique name for each function 
 -- this is where classes come in handy
 -- why can't OpenCL use C++?
+
+function CompositeEquation:getModuleDepends_waveCode()
+	return table():append(
+		self.eqns:mapi(function(eqn)
+			return eqn:getModuleDepends_waveCode()
+		end):unpack()
+	)
+end
 
 return CompositeEquation

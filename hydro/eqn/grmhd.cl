@@ -28,7 +28,7 @@ real calc_h(real rho, real P, real eInt) {
 	return 1. + eInt + P / rho;
 }
 
-<?=eqn.cons_t?> consFromPrim(<?=eqn.prim_t?> prim, real3 x) {
+<?=cons_t?> consFromPrim(<?=prim_t?> prim, real3 x) {
 	real vSq = coordLenSq(prim.v, x);
 	real WSq = 1. / (1. - vSq);
 	real W = sqrt(WSq);
@@ -48,17 +48,17 @@ real calc_h(real rho, real P, real eInt) {
 	//energy = T^00 = rho h u^0 u^0 + P g^00
 	real tau = prim.rho * h * WSq - D - P / (alpha * alpha);
 	
-	return (<?=eqn.cons_t?>){.D=D, .S=S, .tau=tau};
+	return (<?=cons_t?>){.D=D, .S=S, .tau=tau};
 }
 
 //// MODULE_NAME: applyInitCond
 
 kernel void applyInitCond(
-	constant <?=solver.solver_t?>* solver,
-	constant <?=solver.initCond_t?>* initCond,
-	global <?=eqn.cons_t?>* consBuf,
+	constant <?=solver_t?>* solver,
+	constant <?=initCond_t?>* initCond,
+	global <?=cons_t?>* consBuf,
 	const global <?=coord.cell_t?>* cellBuf,
-	global <?=eqn.prim_t?>* primBuf
+	global <?=prim_t?>* primBuf
 ) {
 	SETBOUNDS(0,0);
 	real3 x = cellBuf[index].pos;
@@ -84,7 +84,7 @@ kernel void applyInitCond(
 	real W = 1. / sqrt(1. - vSq);
 	real h = calc_h(rho, P, eInt);
 
-	<?=eqn.prim_t?> prim = {.rho=rho, .v=v, .eInt=eInt};
+	<?=prim_t?> prim = {.rho=rho, .v=v, .eInt=eInt};
 	primBuf[index] = prim;
 	consBuf[index] = consFromPrim(prim, x);
 }
@@ -92,9 +92,9 @@ kernel void applyInitCond(
 
 //// MODULE_NAME: fluxFromCons
 
-<?=eqn.cons_t?> fluxFromCons(
-	constant <?=solver.solver_t?>* solver,
-	<?=eqn.cons_t?> U,
+<?=cons_t?> fluxFromCons(
+	constant <?=solver_t?>* solver,
+	<?=cons_t?> U,
 	real3 x,
 	normal_t n
 ) {
@@ -102,7 +102,7 @@ kernel void applyInitCond(
 	real vi_shift = vi - betaU.s<?=side?> / alpha;
 
 	//2008 Font eqn 34
-	<?=eqn.cons_t?> F;
+	<?=cons_t?> F;
 	F.D = U->D * vi_shift;
 	F.S = real3_real_mul(U->S, vi_shift);
 	F.S.s<?=side?> += W->p;
@@ -114,9 +114,9 @@ kernel void applyInitCond(
 
 //everything matches the default except the params passed through to calcCellMinMaxEigenvalues
 kernel void calcDT(
-	constant <?=solver.solver_t?>* solver,
+	constant <?=solver_t?>* solver,
 	global real* dtBuf,
-	const global <?=eqn.prim_t?>* primBuf
+	const global <?=prim_t?>* primBuf
 ) {
 	SETBOUNDS(0,0);
 	if (OOB(numGhost,numGhost)) {
@@ -126,7 +126,7 @@ kernel void calcDT(
 	real3 x = cell_x(i);
 	sym3 gammaU = coord_g_uu(x);
 
-	<?=eqn.prim_t?> prim = primBuf[index];
+	<?=prim_t?> prim = primBuf[index];
 	real rho = prim.rho;
 	real eInt = prim.eInt;
 	real vSq = coordLenSq(prim.v, x);
@@ -161,24 +161,24 @@ kernel void calcDT(
 
 //used by PLM
 //TODO SRHD PLM needs to do this:
-//1) calcLR for the <?=eqn.prim_t?> (that means put calcLR in its own file, and a new primLR buf)
+//1) calcLR for the <?=prim_t?> (that means put calcLR in its own file, and a new primLR buf)
 //2) have a new kernel for calc consLR from primLR, since calcDeltaUEig and calcFlux both need this
 //or does the eigenbasis need to be derived from the variables being transformed?
 //shoud I PLM the U's then converge the prims ... and therefore track the prims on edges as well?
-<?=eqn.eigen_t?> eigen_forCell(
-	const global <?=eqn.cons_t?>* U,
+<?=eigen_t?> eigen_forCell(
+	const global <?=cons_t?>* U,
 	real3 x
 ) {
-	return (<?=eqn.eigen_t?>){};
+	return (<?=eigen_t?>){};
 }
 
 //// MODULE_NAME: calcEigenBasis
 
 #error calcEigenBasis has been removed, and eigen_t structs are now calculated inline ... soooo ... convert this to something compatible
 kernel void calcEigenBasis(
-	constant <?=solver.solver_t?>* solver,
+	constant <?=solver_t?>* solver,
 	global real* waveBuf,
-	global <?=eqn.eigen_t?>* eigenBuf,
+	global <?=eigen_t?>* eigenBuf,
 	
 	//TODO 
 	//turn this into a LR extrapolation
@@ -186,27 +186,27 @@ kernel void calcEigenBasis(
 	//right now only primBuf is being used for getting neighbor values
 	//so SRHD should perform the PLM stuff on the primBuf instead of the UBUf?
 	// or do the PLM on the UBuf and do the cons->prim on the ULR edge values
-	const global <?=eqn.prim_t?>* primBuf	
+	const global <?=prim_t?>* primBuf	
 ) {
 	SETBOUNDS(numGhost,numGhost-1);
 	real3 x = cell_x(i);
 	
 	int indexR = index;
-	<?=eqn.prim_t?> primR = primBuf[indexR];
+	<?=prim_t?> primR = primBuf[indexR];
 	
 	//for (int side = 0; side < dim; ++side) {
 	<? for side=0,solver.dim-1 do ?>{
 		const int side = <?=side?>;
 		
 		int indexL = index - solver->stepsize.s<?=side?>;
-		<?=eqn.prim_t?> primL = primBuf[indexL];
+		<?=prim_t?> primL = primBuf[indexL];
 		
 		real3 xInt = x;
 		xInt.s<?=side?> -= .5 * solver->grid_dx.s<?=side?>;
 		sym3 gammaU = coord_g_uu(xInt);
 
 <? if true then -- arithmetic averaging ?>
-		<?=eqn.prim_t?> avg = (<?=eqn.prim_t?>){
+		<?=prim_t?> avg = (<?=prim_t?>){
 			.rho = .5 * (primL.rho + primR.rho),
 			.v = real3_real_mul(real3_add(primL.v, primR.v), .5),
 			.eInt = .5 * (primL.eInt + primR.eInt),
@@ -282,7 +282,7 @@ kernel void calcEigenBasis(
 		real Kappa = kappaTilde / (kappaTilde - csSq);	//2008 Font eqn 112.  
 		//Kappa = h;	//approx for ideal gas
 		
-		global <?=eqn.eigen_t?>* eig = eigenBuf + indexInt;	
+		global <?=eigen_t?>* eig = eigenBuf + indexInt;	
 
 <?
 for _,field in ipairs(eqn.eigenVars) do
@@ -297,9 +297,9 @@ for _,field in ipairs(eqn.eigenVars) do
 //// MODULE_NAME: eigen_left/rightTransform
 
 void eigen_leftTransform(
-	constant <?=solver.solver_t?>* solver,
+	constant <?=solver_t?>* solver,
 	real* Y,
-	const <?=eqn.eigen_t?>* eig,
+	const <?=eigen_t?>* eig,
 	const real* X_,
 	real3 x
 ) { 
@@ -380,9 +380,9 @@ void eigen_leftTransform(
 }
 
 void eigen_rightTransform(
-	constant <?=solver.solver_t?>* solver,
+	constant <?=solver_t?>* solver,
 	real* Y,
-	const <?=eqn.eigen_t?>* eig,
+	const <?=eigen_t?>* eig,
 	const real* X,
 	real3 x
 ) {
@@ -431,9 +431,9 @@ void eigen_rightTransform(
 //// MODULE_NAME: eigen_fluxTransform
 
 void eigen_fluxTransform(
-	constant <?=solver.solver_t?>* solver,
+	constant <?=solver_t?>* solver,
 	real* Y,
-	const <?=eqn.eigen_t?>* eig,
+	const <?=eigen_t?>* eig,
 	const real* X_,
 	real3 x
 ) {
@@ -459,12 +459,12 @@ void eigen_fluxTransform(
 //// MODULE_NAME: constrainU
 
 kernel void constrainU(
-	constant <?=solver.solver_t?>* solver,
-	global <?=eqn.cons_t?>* UBuf
+	constant <?=solver_t?>* solver,
+	global <?=cons_t?>* UBuf
 ) {
 	SETBOUNDS(0,0);
 
-	global <?=eqn.cons_t?>* U = UBuf + index;
+	global <?=cons_t?>* U = UBuf + index;
 	
 	U->D = max(U->D, (real)DMin);
 	U->tau = max(U->tau, (real)tauMin);
@@ -477,19 +477,19 @@ kernel void constrainU(
 
 //TODO update to include alphas, betas, and gammas
 kernel void updatePrims(
-	constant <?=solver.solver_t?>* solver,
-	global <?=eqn.prim_t?>* primBuf,
-	const global <?=eqn.cons_t?>* UBuf
+	constant <?=solver_t?>* solver,
+	global <?=prim_t?>* primBuf,
+	const global <?=cons_t?>* UBuf
 ) {
 	SETBOUNDS(numGhost,numGhost-1);
 	real3 x = cell_x(i);
 
-	const global <?=eqn.cons_t?>* U = UBuf + index;
+	const global <?=cons_t?>* U = UBuf + index;
 	real D = U->D;
 	real3 S = U->S;
 	real tau = U->tau;
 
-	global <?=eqn.prim_t?>* prim = primBuf + index;
+	global <?=prim_t?>* prim = primBuf + index;
 	real3 v = prim->v;
 
 	real SLen = coordLen(S, x);

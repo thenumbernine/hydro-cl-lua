@@ -99,7 +99,7 @@ function InitCond:getBaseDepends(solver)
 		-- enough use #if dim that i'll put this here:
 		'solver.macros',
 		-- initCond code is specified in terms of primitives, so if the eqn has prim<->cons then it will be needed
-		solver.eqn.consFromPrim,
+		solver.eqn.symbols.consFromPrim,
 	}
 end
 
@@ -128,9 +128,11 @@ function InitCond:initCodeModules(solver)
 end
 
 function InitCond:refreshInitStateProgram(solver)
-	solver.initModulesEnabled[solver.eqn.applyInitCond] = true
-	if solver:hasModule'initDerivs' then
-		solver.initModulesEnabled['initDerivs'] = true
+	local eqn = solver.eqn
+	
+	solver.initModulesEnabled[eqn.symbols.applyInitCond] = true
+	if solver:hasModule(eqn.symbols.initDerivs) then
+		solver.initModulesEnabled[eqn.symbols.initDerivs] = true
 	end
 
 	local initCondCode 
@@ -145,10 +147,10 @@ print('initCond modules: '..moduleNames:sort():concat', ')
 		solver.initCondProgramObj:compile()
 	end)
 	
-	solver.applyInitCondKernelObj = solver.initCondProgramObj:kernel(solver.eqn.applyInitCond, solver.solverBuf, solver.initCondBuf, solver.UBuf, solver.cellBuf)
+	solver.applyInitCondKernelObj = solver.initCondProgramObj:kernel(eqn.symbols.applyInitCond, solver.solverBuf, solver.initCondBuf, solver.UBuf, solver.cellBuf)
 	
-	if solver:hasModule'initDerivs' then
-		solver.initDerivsKernelObj = solver.initCondProgramObj:kernel('initDerivs', solver.solverBuf, solver.UBuf, solver.cellBuf)
+	if solver:hasModule(eqn.symbols.initDerivs) then
+		solver.initDerivsKernelObj = solver.initCondProgramObj:kernel(eqn.symbols.initDerivs, solver.solverBuf, solver.UBuf, solver.cellBuf)
 	end
 end
 
@@ -178,7 +180,7 @@ function InitCond:resetState(solver)
 		solver:printBuf(solver.UBufObj)
 	end
 	
-	if solver:hasModule'initDerivs' then
+	if solver:hasModule(solver.eqn.symbols.initDerivs) then
 		solver:boundary()
 		solver.initDerivsKernelObj()
 	end

@@ -7,7 +7,6 @@ local table = require 'ext.table'
 local range = require 'ext.range'
 local math = require 'ext.math'
 local file = require 'ext.file'
-local template = require 'template'
 local real = require 'hydro.real'
 local GridSolver = require 'hydro.solver.gridsolver'
 
@@ -35,14 +34,8 @@ function FiniteVolumeSolver:initCodeModules()
 	self.solverModulesEnabled['calcFlux'] = true
 
 	self.modules:addFromMarkup(
-		template(file['hydro/solver/fvsolver.cl'], {
-			solver = self,
-			eqn = self.eqn,
+		self.eqn:template(file['hydro/solver/fvsolver.cl'], {
 			flux = self.flux,
-		
-			solver_t = assert(self.solver_t),
-			cons_t = assert(self.eqn.cons_t),
-			cell_t = assert(self.coord.cell_t),
 		})
 	)
 	
@@ -55,7 +48,7 @@ function FiniteVolumeSolver:initCodeModule_calcFlux()
 	self.modules:addFromMarkup{
 		code = self.eqn:template([[
 //// MODULE_NAME: calcFlux
-//// MODULE_DEPENDS: calcFluxForInterface cons_parallelPropagate normal_t
+//// MODULE_DEPENDS: calcFluxForInterface <?=cons_parallelPropagate?> normal_t
 // used by all gridsolvers.  the meshsolver alternative is in solver/meshsolver.lua
 
 <? 
@@ -115,8 +108,8 @@ then ?>
 
 			//the single act of removing the copy of the U's from global to local memory
 			// increases the framerate from 78 to 127
-			cons_parallelPropagate<?=side?>(ppUL, UL, xL, .5 * dx);
-			cons_parallelPropagate<?=side?>(ppUR, UR, xR, -.5 * dx);
+			<?=cons_parallelPropagate?><?=side?>(ppUL, UL, xL, .5 * dx);
+			<?=cons_parallelPropagate?><?=side?>(ppUR, UR, xR, -.5 * dx);
 
 			normal_t const n = normal_forSide<?=side?>(xInt);
 
@@ -145,10 +138,10 @@ if useFlux then
 			<?=solver:getULRCode{indexL = 'indexL2', indexR = 'indexL', suffix='_L'}:gsub('\n', '\n\t\t\t')?>
 			<?=solver:getULRCode{indexL = 'indexR', indexR = 'indexR2', suffix='_R'}:gsub('\n', '\n\t\t\t')?>
 
-			cons_parallelPropagate<?=side?>(ppUL_L, UL_L, xIntL, 1.5 * dx);		//xIntL2?
-			cons_parallelPropagate<?=side?>(ppUL_R, UL_R, xIntL, .5 * dx);
-			cons_parallelPropagate<?=side?>(ppUR_L, UR_L, xIntR, -.5 * dx);
-			cons_parallelPropagate<?=side?>(ppUR_R, UR_R, xIntR, -1.5 * dx);	// xIntR2?
+			<?=cons_parallelPropagate?><?=side?>(ppUL_L, UL_L, xIntL, 1.5 * dx);		//xIntL2?
+			<?=cons_parallelPropagate?><?=side?>(ppUL_R, UL_R, xIntL, .5 * dx);
+			<?=cons_parallelPropagate?><?=side?>(ppUR_L, UR_L, xIntR, -.5 * dx);
+			<?=cons_parallelPropagate?><?=side?>(ppUR_R, UR_R, xIntR, -1.5 * dx);	// xIntR2?
 
 <?
 end
@@ -187,7 +180,7 @@ end
 
 function FiniteVolumeSolver:createBuffers()
 	FiniteVolumeSolver.super.createBuffers(self)
-	self:clalloc('fluxBuf', self.eqn.cons_t, self.numCells * self.dim)
+	self:clalloc('fluxBuf', self.eqn.symbols.cons_t, self.numCells * self.dim)
 end
 
 function FiniteVolumeSolver:refreshSolverProgram()
@@ -268,9 +261,9 @@ function FiniteVolumeSolver:getModuleDepends_displayCode()
 	return table(FiniteVolumeSolver.super.getModuleDepends_displayCode(self)):append{
 		-- wave #
 		'normal_t',
-		self.eqn.eigen_t,
-		'eqn.waveCode',
-		self.eqn.eigen_forInterface,
+		self.eqn.symbols.eigen_t,
+		self.eqn.symbols.waveCode_depends,
+		self.eqn.symbols.eigen_forInterface,
 	}
 end
 
@@ -282,12 +275,11 @@ function FiniteVolumeSolver:addDisplayVars()
 		self:addDisplayVarGroup{
 			name = 'flux '..xj, 
 			bufferField = 'fluxBuf',
-			bufferType = self.eqn.cons_t,
-			codePrefix = template([[
+			bufferType = self.eqn.symbols.cons_t,
+			codePrefix = self.eqn:template([[
 	int const indexInt = <?=side?> + dim * index;
 	global cons_t const * const flux = buf + indexInt;
 ]],			{
-				eqn = self.eqn,
 				side = side,
 			}),
 			vars = range(0,self.eqn.numIntStates-1):map(function(i)
@@ -320,19 +312,17 @@ function FiniteVolumeSolver:addDisplayVars()
 			bufferType = self.getULRBufType,
 			codePrefix = table{
 				getEigenCode{side=side},
-				template([[
+				self.eqn:template([[
 	normal_t n<?=side?> = normal_forSide<?=side?>(xInt);
 <?=eqn:eigenWaveCodePrefix('n', '&eig', 'xInt')?>
 ]], 			{
-					eqn = self.eqn,
 					side = side,
 				}),
 			}:concat'\n',
 			vars = range(0, self.eqn.numWaves-1):map(function(i)
-				return {name=tostring(i), code=template([[
+				return {name=tostring(i), code=self.eqn:template([[
 	value.vreal = <?=eqn:eigenWaveCode('n'..side, '&eig', 'xInt', i)?>;
 ]], 			{
-					eqn = self.eqn,
 					side = side,
 					i = i,
 				})}
@@ -369,7 +359,7 @@ function FiniteVolumeSolver:addDisplayVars()
 				vars = {
 					{name='0', code=table{
 						getEigenCode{side=side},
-						template([[
+						self.eqn:template([[
 	value.vreal = 0;
 	//the flux transform is F v = R Lambda L v, I = R L
 	//but if numWaves < numIntStates then certain v will map to the nullspace 
@@ -383,7 +373,7 @@ function FiniteVolumeSolver:addDisplayVars()
 		}
 		
 		normal_t n = normal_forSide<?=side?>(xInt);
-		<?=eqn.waves_t?> chars;
+		<?=waves_t?> chars;
 		eigen_leftTransform(&chars, solver, &eig, &basis, xInt, n);
 		cons_t newbasis;
 		eigen_rightTransform(&newbasis, solver, &eig, &chars, xInt, n);
@@ -393,7 +383,6 @@ function FiniteVolumeSolver:addDisplayVars()
 		}
 	}
 ]], 						{
-								eqn = self.eqn,
 								side = side,
 							}),
 						}:concat'\n',
@@ -419,7 +408,7 @@ function FiniteVolumeSolver:addDisplayVars()
 				vars = {
 					{name='0', code=table{
 						getEigenCode{side=side},
-						template([[
+						self.eqn:template([[
 	normal_t n<?=side?> = normal_forSide<?=side?>(x);
 	<?=eqn:eigenWaveCodePrefix('n'..side, '&eig', 'xInt'):gsub('\n', '\n\t')?>
 	
@@ -433,10 +422,10 @@ function FiniteVolumeSolver:addDisplayVars()
 		}
 
 		normal_t n = normal_forSide<?=side?>(xInt);
-		<?=eqn.waves_t?> chars;
+		<?=waves_t?> chars;
 		eigen_leftTransform(&chars, solver, &eig, &basis, xInt, n);
 
-		<?=eqn.waves_t?> charScaled;
+		<?=waves_t?> charScaled;
 		<? for j=0,eqn.numWaves-1 do ?>{
 			real lambda_j = <?=eqn:eigenWaveCode('n'..side, '&eig', 'xInt', j)?>;
 			charScaled.ptr[<?=j?>] = chars.ptr[<?=j?>] * lambda_j;
@@ -463,8 +452,6 @@ function FiniteVolumeSolver:addDisplayVars()
 		}
 	}
 ]], 						{
-								solver = self,
-								eqn = self.eqn,
 								side = side,
 							}),
 						}:concat'\n',

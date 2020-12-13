@@ -117,7 +117,8 @@ function Equation:init(args)
 	-- [[ make C symbols unique to the eqn class.
 	-- TODO later,unique to the eqn object, in case I make a composite of two like classes
 	-- like euler + euler to do two-fluid simulations
-	self.memberFields = table{
+	local memberFields = table{
+		-- functions:
 		'primFromCons',
 		'consFromPrim',
 		'apply_dU_dW',
@@ -129,16 +130,23 @@ function Equation:init(args)
 		'eigen_leftTransform',
 		'eigen_rightTransform',
 		'eigen_fluxTransform',
+		'cons_parallelPropagate',
 	
 		-- kernels:
 		'applyInitCond',
+		'initDerivs',
 		'calcDT',
 		'addSource',
 		'constrainU',
+	
+		-- placeholder modules for dependencies
+		'waveCode_depends',
 	}
-
-	for _,field in ipairs(self.memberFields) do
-		self[field] = self.name..'_'..field
+	-- TODO add the typedef names into this
+	-- TODO don't use uniqueName() instead just use the object uid suffix (and use it for functions too)
+	self.symbols = {}
+	for _,field in ipairs(memberFields) do
+		self.symbols[field] = self.name..'_'..field
 	end
 --]]
 
@@ -161,7 +169,9 @@ function Equation:init(args)
 	self:cdefAllVarTypes(solver, self.consStruct.vars)
 
 	self.consStruct:makeType()	-- create consStruct.typename
-	self.cons_t = self.consStruct.typename
+	-- TODO replace the cdef uniqueName with a unique eqn object name
+	self.symbols.cons_t = self.consStruct.typename
+	
 	-- don't use consVars anymore ... use consStruct.vars instead
 	self.consVars = nil
 	-- if you have multiple eqns then the class needs to keep the field
@@ -176,15 +186,19 @@ function Equation:init(args)
 	end
 	if self.primStruct then
 		self.primStruct:makeType()
-		self.prim_t = self.primStruct.typename
+	
+		-- TODO replace the cdef uniqueName with a unique eqn object name
+		self.symbols.prim_t = self.primStruct.typename
+		
 		-- don't use primVars anymore ... use primStruct.vars instead
 		self.primVars = nil
 		-- if you have multiple eqns then the class needs to keep the field
 		--getmetatable(self).primVars = nil
 	else
-		--self.prim_t = self.cons_t
+		--self.symbols.prim_t = self.symbols.cons_t
 		-- or you could typedef this ...
-		self.prim_t = app:uniqueName'prim_t'
+		-- TODO replace the cdef uniqueName with a unique eqn object name
+		self.symbols.prim_t = app:uniqueName'prim_t'
 	end
 
 
@@ -201,10 +215,10 @@ function Equation:init(args)
 		self.eigenStruct = Struct{solver=solver, name='eigen_t', vars=self.eigenVars}
 	end
 	self.eigenStruct:makeType()
-	self.eigen_t = assert(self.eigenStruct.typename)
+	self.symbols.eigen_t = assert(self.eigenStruct.typename)
 
-	self.consLR_t = app:uniqueName'consLR_t'
-	self.waves_t = app:uniqueName'waves_t'
+	self.symbols.consLR_t = app:uniqueName'consLR_t'
+	self.symbols.waves_t = app:uniqueName'waves_t'
 	
 	local numReals
 	if self.consStruct.vars then
@@ -271,10 +285,10 @@ function Equation:init(args)
 	}
 
 	-- now add our own prim_t, cons_t to the parityVarsGetters for recursive application
-	self.parityVarsGetters[assert(self.cons_t)] = function(sign, parityVars, field)
+	self.parityVarsGetters[assert(self.symbols.cons_t)] = function(sign, parityVars, field)
 		getParityVars(self.consStruct.vars, sign, parityVars, field)
 	end
-	self.parityVarsGetters[assert(self.prim_t)] = function(sign, vars, var)
+	self.parityVarsGetters[assert(self.symbols.prim_t)] = function(sign, vars, var)
 		getParityVars(self.primStruct.vars, sign, parityVars, field)
 	end
 end
@@ -371,10 +385,6 @@ function Equation:getEnv()
 		initCond = self.initCond,
 	
 		-- type names
-		cons_t = self.cons_t,
-		prim_t = self.prim_t,
-		eigen_t = self.eigen_t,
-		waves_t = self.waves_t,
 		solver_t = self.solver.solver_t,
 		initCond_t = self.solver.initCond_t,
 		cell_t = self.solver.coord.cell_t,
@@ -397,8 +407,8 @@ function Equation:getEnv()
 		end,
 	}
 
-	for _,field in ipairs(self.memberFields) do
-		env[field] = self[field]
+	for k,v in pairs(self.symbols) do
+		env[k] = v
 	end
 
 	return env
@@ -411,7 +421,7 @@ function Equation:initCodeModules()
 	self:initCodeModule_cons_prim_eigen()
 
 	solver.modules:add{
-		name = self.waves_t,
+		name = self.symbols.waves_t,
 		depends = {'real'},
 		typecode = self:template[[
 typedef union { 
@@ -419,7 +429,7 @@ typedef union {
 } <?=waves_t?>;
 ]],
 		-- only generated for cl, not for ffi cdef
-		headercode = 'typedef '..self.waves_t..' waves_t;',
+		headercode = 'typedef '..self.symbols.waves_t..' waves_t;',
 	}
 	
 	-- only require this if we're a fvsolver
@@ -464,9 +474,9 @@ typedef union {
 		In the event of identity propagation, only the poitner is produced.
 		--]]
 		solver.modules:add{
-			name = 'cons_parallelPropagate',
+			name = self.symbols.cons_parallelPropagate,
 			depends = table{
-				self.cons_t,
+				self.symbols.cons_t,
 				'coord_parallelPropagate',
 			}:append(
 				-- rank-2 always use real3x3 for transformation
@@ -484,10 +494,10 @@ for side=0,solver.dim-1 do
 	if coord.vectorComponent == 'cartesian'
 	or require 'hydro.coord.cartesian'.is(coord) 
 	then
-?>#define cons_parallelPropagate<?=side?>(resultName, U, pt, dx)\
+?>#define <?=cons_parallelPropagate?><?=side?>(resultName, U, pt, dx)\
 	global cons_t const * const resultName##ptr = U;
 <?	else
-?>#define cons_parallelPropagate<?=side?>(\
+?>#define <?=cons_parallelPropagate?><?=side?>(\
 	resultName,\
 	/*cons_t const * const */U,\
 	/*real3 const */pt,\
@@ -587,7 +597,7 @@ end
 		code = self:template(file[self.solverCodeFile]),
 		onAdd = function(args)
 			-- special case for applyInitCond ...
-			if args.name == 'applyInitCond' then
+			if args.name == self.symbols.applyInitCond then
 				args.depends:append(self.initCond:getBaseDepends(solver))
 				args.depends:append(self.initCond.depends)
 				-- only used by hydro/eqn/bssnok-fd.lua:
@@ -605,60 +615,60 @@ function Equation:initCodeModule_cons_prim_eigen()
 
 	assert(self.consStruct)
 	solver.modules:add{
-		name = self.cons_t,
+		name = self.symbols.cons_t,
 		structs = {self.consStruct},
 		depends = self.getModuleDepends_cons_t and self:getModuleDepends_cons_t() or nil,
 		-- only generated for cl, not for ffi cdef
-		headercode = 'typedef '..self.cons_t..' cons_t;',
+		headercode = 'typedef '..self.symbols.cons_t..' cons_t;',
 	}
 
 	if self.primStruct then
 		solver.modules:add{
-			name = self.prim_t,
+			name = self.symbols.prim_t,
 			structs = {self.primStruct},
 			-- only generated for cl, not for ffi cdef
-			headercode = 'typedef '..self.prim_t..' prim_t;',
+			headercode = 'typedef '..self.symbols.prim_t..' prim_t;',
 		}
 	else
 		solver.modules:add{
-			name = self.prim_t,
-			depends = {self.cons_t},
-			typecode = 'typedef '..self.cons_t..' '..self.prim_t..';',
+			name = self.symbols.prim_t,
+			depends = {self.symbols.cons_t},
+			typecode = 'typedef '..self.symbols.cons_t..' '..self.symbols.prim_t..';',
 			-- only generated for cl, not for ffi cdef
-			headercode = 'typedef '..self.prim_t..' prim_t;',
+			headercode = 'typedef '..self.symbols.prim_t..' prim_t;',
 		}
 	end
 
 	assert(self.eigenStruct)
 	solver.modules:add{
-		name = self.eigen_t,
+		name = self.symbols.eigen_t,
 		structs = {self.eigenStruct},
 		-- only generated for cl, not for ffi cdef
-		headercode = 'typedef '..self.eigen_t..' eigen_t;',
+		headercode = 'typedef '..self.symbols.eigen_t..' eigen_t;',
 	}
 end
 
 function Equation:initCodeModule_fluxFromCons()
 	self.solver.modules:add{
-		name = 'fluxFromCons',
+		name = self.symbols.fluxFromCons,
 		depends = {
-			self.cons_t,
 			self.solver.solver_t,
-			'eigen_fluxTransform',
-			'eigen_forCell',
+			self.symbols.cons_t,
+			self.symbols.eigen_fluxTransform,
+			self.symbols.eigen_forCell,
 			'normal_t',
 		},
 		code = self:template[[
-#define fluxFromCons(\
-	/*cons_t const * const */flux,\
-	/*constant solver_t const * const */solver,\
-	/*cons_t const * const */U,\
+#define <?=fluxFromCons?>(\
+	/*<?=cons_t?> const * const */flux,\
+	/*constant <?=solver_t?> const * const */solver,\
+	/*<?=cons_t?> const * const */U,\
 	/*real3 const */x,\
 	/*normal_t const */n\
 ) {\
-	eigen_t eig;\
-	eigen_forCell(&eig, solver, U, x, n)\
-	eigen_fluxTransform(flux, solver, &eig, U, x, n);\
+	<?=eigen_t?> eig;\
+	<?=eigen_forCell?>(&eig, solver, U, x, n)\
+	<?=eigen_fluxTransform?>(flux, solver, &eig, U, x, n);\
 }
 ]],
 	}
@@ -669,7 +679,7 @@ function Equation:getModuleDepends_waveCode() end
 
 function Equation:initCodeModule_waveCode()
 	self.solver.modules:add{
-		name = 'eqn.waveCode',
+		name = self.symbols.waveCode_depends,
 		depends = self:getModuleDepends_waveCode(),
 	}
 end
@@ -921,8 +931,8 @@ function Equation:initCodeModule_consFromPrim_primFromCons()
 	assert(not self.primStruct, "if you're using the default prim<->cons code then you shouldn't have any primStruct")
 
 	self.solver.modules:add{
-		name = self.primFromCons,
-		depends = {self.solver.solver_t, self.prim_t, self.cons_t},
+		name = self.symbols.primFromCons,
+		depends = {self.solver.solver_t, self.symbols.prim_t, self.symbols.cons_t},
 		code = self:template[[
 #define <?=primFromCons?>(W, solver, U, x)	(*(W) = *(U))
 /*
@@ -939,12 +949,16 @@ void <?=primFromCons?>(
 	}
 	
 	self.solver.modules:add{
-		name = 'consFromPrim',
-		depends = {self.solver.solver_t, self.prim_t, self.cons_t},
+		name = self.symbols.consFromPrim,
+		depends = {
+			self.solver.solver_t,
+			self.symbols.prim_t,
+			self.symbols.cons_t,
+		},
 		code = self:template[[
-#define consFromPrim(U, solver, W, x)	(*(U) = *(W))
+#define <?=consFromPrim?>(U, solver, W, x)	(*(U) = *(W))
 /*
-void consFromPrim(
+void <?=consFromPrim?>(
 	<?=cons_t?> * const U,
 	constant solver_t const * const solver,
 	<?=prim_t?> const * const W, 
@@ -958,8 +972,8 @@ void consFromPrim(
 
 	-- only used by PLM
 	self.solver.modules:add{
-		name = 'apply_dU_dW',
-		depends = {self.solver.solver_t, self.prim_t, self.cons_t},
+		name = self.symbols.apply_dU_dW,
+		depends = {self.solver.solver_t, self.symbols.prim_t, self.symbols.cons_t},
 		code = self:template[[
 /*
 WA = W components that make up the jacobian matrix
@@ -967,9 +981,9 @@ W = input vector
 x = coordinate location
 returns output vector
 */
-#define apply_dU_dW(result, solver, WA, W, x)	(*(result) = *(W))
+#define <?=apply_dU_dW?>(result, solver, WA, W, x)	(*(result) = *(W))
 /*
-void apply_dU_dW(
+void <?=apply_dU_dW?>(
 	<?=cons_t?> * const result,
 	constant solver_t* solver,
 	<?=prim_t?> const * const WA, 
@@ -984,8 +998,8 @@ void apply_dU_dW(
 
 	-- only used by PLM
 	self.solver.modules:add{
-		name = 'apply_dW_dU',
-		depends = {self.solver.solver_t, self.prim_t, self.cons_t},
+		name = self.symbols.apply_dW_dU,
+		depends = {self.solver.solver_t, self.symbols.prim_t, self.symbols.cons_t},
 		code = self:template[[
 /*
 WA = W components that make up the jacobian matrix
@@ -993,9 +1007,9 @@ U = input vector
 x = coordinate location
 returns output vector
 */
-#define apply_dW_dU(solver, WA, U, x)	(*(result) = (*U))
+#define <?=apply_dW_dU?>(solver, WA, U, x)	(*(result) = (*U))
 /*
-void apply_dW_dU(
+void <?=apply_dW_dU?>(
 	<?=prim_t?> const * W,
 	constant solver_t const * const solver,
 	<?=prim_t?> const * const WA, 

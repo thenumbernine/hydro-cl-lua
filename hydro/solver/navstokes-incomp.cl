@@ -1,6 +1,6 @@
 kernel void diffuse(
-	global <?=eqn.cons_t?>* UNextBuf,
-	const global <?=eqn.cons_t?>* UBuf,
+	global <?=cons_t?>* UNextBuf,
+	const global <?=cons_t?>* UBuf,
 	real dt
 ) {
 	SETBOUNDS_NOGHOST()
@@ -12,8 +12,8 @@ kernel void diffuse(
 }
 
 kernel void advect(
-	global <?=eqn.cons_t?>* UNextBuf,
-	const global <?=eqn.cons_t?>* UBuf
+	global <?=cons_t?>* UNextBuf,
+	const global <?=cons_t?>* UBuf
 ) {
 	SETBOUNDS_NOGHOST();
 #error finishme
@@ -21,10 +21,10 @@ kernel void advect(
 
 kernel void calcDiv(
 	global real* divBuf,
-	const global <?=eqn.cons_t?>* UBuf
+	const global <?=cons_t?>* UBuf
 ) {
 	SETBOUNDS_NOGHOST();
-	const global <?=eqn.cons_t?>* U = UBuf + index;
+	const global <?=cons_t?>* U = UBuf + index;
 
 	real div = 0.;
 	<? for side=0,solver.dim-1 do ?>{
@@ -48,12 +48,12 @@ kernel void diffusePressure(
 }
 
 kernel void project(
-	global <?=eqn.cons_t?>* UBuf,
+	global <?=cons_t?>* UBuf,
 	const global real* PBuf
 ) {
 	SETBOUNDS_NOGHOST();
 	const global real* P = PBuf + index;
-	const <?=eqn.cons_t?>* U = UBuf + index;
+	const <?=cons_t?>* U = UBuf + index;
 	<? for side=0,solver.dim-1 do ?>{
 		U->v.s<?=side?> -= (P[solver->stepsize.s<?=side?>] - P[-solver->stepsize.s<?=side?>]) / grid_dx<?=side?>;
 	}<? end ?>

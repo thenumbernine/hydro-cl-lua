@@ -98,8 +98,8 @@ local function createBuffersAMR(self)
 
 	if self.amr.ctx.method == 'dt vs 2dt' then
 		-- here's my start at AMR, using the 1989 Berger, Collela two-small-steps vs one-big-step method
-		self:clalloc('lastUBuf', self.eqn.cons_t, self.numCells)
-		self:clalloc('U2Buf', self.eqn.cons_t, self.numCells)
+		self:clalloc('lastUBuf', self.eqn.symbols.cons_t, self.numCells)
+		self:clalloc('U2Buf', self.eqn.symbols.cons_t, self.numCells)
 	elseif self.amr.ctx.method == 'gradient' then
 		-- this is going to be a single value for each leaf
 		-- that means the destination will be the number of nodes it takes to cover the grid (excluding the border)
@@ -139,15 +139,15 @@ return function(cl)
 		return table{
 			cl.super.getSolverCode(self),
 		
-			template(({
+			self.eqn:template(({
 				['dt vs 2dt'] = [[
 kernel void compareUvsU2(
-	global <?=eqn.cons_t?>* U2Buf,
-	const global <?=eqn.cons_t?>* UBuf
+	global <?=cons_t?>* U2Buf,
+	const global <?=cons_t?>* UBuf
 ) {
 	SETBOUNDS(0,0);
-	global <?=eqn.cons_t?> *U2 = U2Buf + index;
-	const global <?=eqn.cons_t?> *U = UBuf + index;
+	global <?=cons_t?> *U2 = U2Buf + index;
+	const global <?=cons_t?> *U = UBuf + index;
 	
 	//what to use to compare values ...
 	//if we combine all primitives, they'll have to be appropriately weighted ...
@@ -162,9 +162,9 @@ kernel void compareUvsU2(
 				gradient = [==[
 <? local clnumber = require 'cl.obj.number' ?>
 kernel void calcAMRError(
-	constant <?=solver.solver_t?>* solver,	//parent node's solver_t
+	constant <?=solver_t?>* solver,	//parent node's solver_t
 	global real* amrErrorBuf,
-	const global <?=eqn.cons_t?>* UBuf		//parent node's UBuf
+	const global <?=cons_t?>* UBuf		//parent node's UBuf
 ) {
 	int4 nodei = globalInt4();
 	if (nodei.x >= <?=solver.amr.ctx.parentSizeInFromSize.x?> || 
@@ -194,7 +194,7 @@ for nx=0,tonumber(solver.amr.ctx.nodeFromSize.x)-1 do
 		
 		
 		int Uindex = INDEXV(Ui);
-		const global <?=eqn.cons_t?>* U = UBuf + Uindex;
+		const global <?=cons_t?>* U = UBuf + Uindex;
 				
 	//TODO this wasn't the exact formula ...
 	// and TODO make this modular.  some papers use velocity vector instead of density.  
@@ -216,8 +216,8 @@ end
 }
 
 kernel void initNodeFromRoot(
-	global <?=eqn.cons_t?>* childUBuf,
-	const global <?=eqn.cons_t?>* parentUBuf,
+	global <?=cons_t?>* childUBuf,
+	const global <?=cons_t?>* parentUBuf,
 	int4 from	//where in the child tree
 ) {
 	//'i' is the dest in the child node to write
@@ -248,10 +248,7 @@ kernel void initNodeFromRoot(
 	childUBuf[dstIndex] = parentUBuf[srcIndex];
 }
 ]==],
-			})[self.amr.ctx.method] or '', {
-				solver = self,
-				eqn = self.eqn,
-			}),
+			})[self.amr.ctx.method] or ''),
 		}:concat'\n'
 	end
 
@@ -278,7 +275,7 @@ kernel void initNodeFromRoot(
 			self:addDisplayVarGroup{
 				name = 'U2',
 				bufferField = 'U2Buf',
-				bufferType = self.eqn.cons_t,
+				bufferType = self.eqn.symbols.cons_t,
 				vars = {
 					{name='0', code='value.vreal = buf[index].ptr[0];'},
 				}
@@ -560,7 +557,7 @@ print("creating depth "..tonumber(self.amr.depth).." child "..tonumber(i))
 		-- now for our own allocations...
 		-- this is copied from GridSolver:createBuffers
 print('creating subsolver ubuffer...')									
-		self:clalloc('UBuf', self.eqn.cons_t, self.numCells)
+		self:clalloc('UBuf', self.eqn.symbols.cons_t, self.numCells)
 		
 		createBuffersAMR(self)
 	end

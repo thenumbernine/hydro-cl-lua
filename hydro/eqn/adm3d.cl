@@ -42,7 +42,7 @@ static inline void setFlatSpace(
 	(U)->M_u = real3_zero;
 }
 
-//// MODULE_NAME: applyInitCond
+//// MODULE_NAME: <?=applyInitCond?>
 //// MODULE_DEPENDS: coordMap coord_g_ll rescaleFromCoord/rescaleToCoord
 
 <?
@@ -56,7 +56,7 @@ end
 ?>
 <? if eqn.initCond.useBSSNVars then ?>
 
-kernel void applyInitCond(
+kernel void <?=applyInitCond?>(
 	constant <?=solver_t?> const * const solver,
 	constant <?=initCond_t?> * const initCond,
 	global <?=cons_t?> * const UBuf,
@@ -115,10 +115,10 @@ kernel void applyInitCond(
 	U->M_u = real3_zero;
 }
 
-//// MODULE_NAME: initDerivs
+//// MODULE_NAME: <?=initDerivs?>
 //// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> <?=cell_t?> SETBOUNDS numGhost
 
-kernel void initDerivs(
+kernel void <?=initDerivs?>(
 	constant <?=solver_t?> const * const solver,
 	global <?=cons_t?> * const UBuf,
 	global <?=cell_t?> const * const cellBuf 
@@ -161,7 +161,7 @@ end
 
 <? else	-- not eqn.initCond.useBSSNVars ?>
 
-kernel void applyInitCond(
+kernel void <?=applyInitCond?>(
 	constant <?=solver_t?> const * const solver,
 	constant <?=initCond_t?> const * const initCond,
 	global <?=cons_t?> * const UBuf,
@@ -201,10 +201,10 @@ kernel void applyInitCond(
 	U->M_u = real3_zero;
 }
 
-//// MODULE_NAME: initDerivs
+//// MODULE_NAME: <?=initDerivs?>
 //// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> <?=cell_t?> SETBOUNDS numGhost
 
-kernel void initDerivs(
+kernel void <?=initDerivs?>(
 	constant <?=solver_t?> const * const solver,
 	global <?=cons_t?> * const UBuf,
 	global <?=cell_t?> const * const cellBuf 
@@ -247,10 +247,10 @@ end
 
 <? end	-- eqn.initCond.useBSSNVars ?>
 
-//// MODULE_NAME: fluxFromCons
+//// MODULE_NAME: <?=fluxFromCons?>
 //// MODULE_DEPENDS: rotate <?=cons_t?> <?=solver_t?> normal_t rotate initCond.codeprefix
 
-#define fluxFromCons(\
+#define <?=fluxFromCons?>(\
 	/*<?=cons_t?> const * const */F,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */U,\
@@ -307,10 +307,10 @@ end
 	<? end ?>\
 }
 
-//// MODULE_NAME: calcDT
+//// MODULE_NAME: <?=calcDT?>
 //// MODULE_DEPENDS: <?=solver_t?> SETBOUNDS eqn.guiVars.compileTime initCond.codeprefix
 
-kernel void calcDT(
+kernel void <?=calcDT?>(
 	constant <?=solver_t?> const * const solver,
 	global real * const dtBuf,
 	global <?=cons_t?> const * const UBuf,
@@ -324,7 +324,7 @@ kernel void calcDT(
 		
 	global <?=cons_t?> const * const U = UBuf + index;
 	
-	//the only advantage of this calcDT over the default is that here this sqrt(f) and det(gamma_ij) is only called once
+	//the only advantage of this <?=calcDT?> over the default is that here this sqrt(f) and det(gamma_ij) is only called once
 	real const f_alphaSq = calc_f_alphaSq(U->alpha);
 	real const det_gamma = sym3_det(U->gamma_ll);
 	real const alpha_sqrt_f = sqrt(f_alphaSq);
@@ -360,11 +360,11 @@ kernel void calcDT(
 	dtBuf[index] = dt; 
 }
 
-//// MODULE_NAME: eigen_forCell
+//// MODULE_NAME: <?=eigen_forCell?>
 //// MODULE_DEPENDS: initCond.codeprefix
 
 //used by PLM
-#define eigen_forCell(\
+#define <?=eigen_forCell?>(\
 	/*<?=eigen_t?> * const */eig,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */U,\
@@ -385,10 +385,10 @@ kernel void calcDT(
 	<? end ?>\
 }
 
-//// MODULE_NAME: calcCellMinMaxEigenvalues
+//// MODULE_NAME: <?=calcCellMinMaxEigenvalues?>
 //// MODULE_DEPENDS: initCond.codeprefix
 
-#define calcCellMinMaxEigenvalues(\
+#define <?=calcCellMinMaxEigenvalues?>(\
 	/*range_t * const */result,\
 	/*global <?=cons_t?> const * const */U,\
 	/*real3 const */pt,\
@@ -423,11 +423,11 @@ kernel void calcDT(
 	(result)->max = lambdaMax;\
 }
 
-//// MODULE_NAME: eigen_forInterface
+//// MODULE_NAME: <?=eigen_forInterface?>
 //// MODULE_DEPENDS: initCond.codeprefix
 
 //used for interface eigen basis
-#define eigen_forInterface(\
+#define <?=eigen_forInterface?>(\
 	/*<?=eigen_t?> * const */eig,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */UL,\
@@ -450,9 +450,9 @@ kernel void calcDT(
 	<? end ?>\
 }
 
-//// MODULE_NAME: eigen_left/rightTransform
+//// MODULE_NAME: <?=eigen_leftTransform?>
 
-#define eigen_leftTransform(\
+#define <?=eigen_leftTransform?>(\
 	/*<?=waves_t?> * const */result,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=eigen_t?> const * const */eig,\
@@ -761,7 +761,9 @@ kernel void calcDT(
 <? end -- eqn.noZeroRowsInFlux ?>\
 }
 
-#define eigen_rightTransform(\
+//// MODULE_NAME: <?=eigen_rightTransform?>
+
+#define <?=eigen_rightTransform?>(\
 	/*<?=cons_t?> * const */result,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=eigen_t?> const * const */eig,\
@@ -1326,10 +1328,10 @@ kernel void calcDT(
 <? end 	-- eqn.noZeroRowsInFlux ?>\
 }
 
-//// MODULE_NAME: eigen_fluxTransform
+//// MODULE_NAME: <?=eigen_fluxTransform?>
 //// MODULE_DEPENDS: <?=eigen_t?> <?=waves_t?> rotate
 
-#define eigen_fluxTransform(\
+#define <?=eigen_fluxTransform?>(\
 	/*<?=cons_t?> * const */result, \
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=eigen_t?> const * const */eig,\
@@ -1344,7 +1346,7 @@ kernel void calcDT(
 	/*  TODO use that static function for the calc waves as well */\
 	\
 	<?=waves_t?> waves;\
-	eigen_leftTransform(&waves, solver, eig, inputU, pt);\
+	<?=eigen_leftTransform?>(&waves, solver, eig, inputU, pt);\
 \
 	<?=eqn:eigenWaveCodePrefix(n, "eig", "x")?>\
 \
@@ -1352,7 +1354,7 @@ kernel void calcDT(
 ?>	waves.ptr[<?=j?>] *= <?=eqn:eigenWaveCode(n, "eig", "x", j)?>;\
 <? end --\
 ?>\
-	eigen_rightTransform(result, solver, eig, &waves, pt);\
+	<?=eigen_rightTransform?>(result, solver, eig, &waves, pt);\
 \
 <? else -- noZeroRowsInFlux ?>\
 <? if false then 	-- by-hand ?>\
@@ -1437,7 +1439,7 @@ kernel void calcDT(
 <? end -- noZeroRowsInFlux ?>\
 }
 
-//// MODULE_NAME: addSource
+//// MODULE_NAME: <?=addSource?>
 //// MODULE_DEPENDS: initCond.codeprefix real3x3x3
 
 /*
@@ -1450,7 +1452,7 @@ alpha_,t + F^i^alpha_,i = -f alpha gamma^ij K_ij
 //TODO if we're calculating the constrains in the derivative
 // then we do save calculations / memory on the equations
 // but we also, for >FE integrators (which require multiple steps) are duplicating calculations
-kernel void addSource(
+kernel void <?=addSource?>(
 	constant <?=solver_t?> const * const solver,
 	global <?=cons_t?> * const derivBuf,
 	global <?=cons_t?> const * const UBuf,
@@ -3132,10 +3134,10 @@ end ?>
 	//isn't that just a hack to improve the stability of finite-difference, which diverges by nature?
 }
 
-//// MODULE_NAME: constrainU
+//// MODULE_NAME: <?=constrainU?>
 //// MODULE_DEPENDS: real3x3x3 sym3sym3
 
-kernel void constrainU(
+kernel void <?=constrainU?>(
 	constant <?=solver_t?> const * const solver,
 	global <?=cons_t?> * const UBuf,
 	global <?=cell_t?> const * const cellBuf

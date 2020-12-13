@@ -13,7 +13,7 @@ for side=0,solver.dim-1 do
 ?>
 
 #define calcCellLR_<?=side?>(\
-	/*<?=eqn.consLR_t?> * const */result,\
+	/*<?=consLR_t?> * const */result,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*global <?=cons_t?> const * const */U,\
 	/*real const */dt,\
@@ -56,7 +56,7 @@ works for maxwell with oscillations
 works for adm1d_v1 freeflow with oscillations (fails for mirror)
 */
 void calcCellLR_<?=side?>(
-	global <?=eqn.consLR_t?> * const result,
+	global <?=consLR_t?> * const result,
 	constant <?=solver_t?> const * const solver,
 	global <?=cons_t?> const * const U,
 	real const dt,
@@ -155,7 +155,7 @@ for sgn b >= 0:
 //// MODULE_DEPENDS: slopeLimiter
 
 void calcCellLR_<?=side?>(
-	global <?=eqn.consLR_t?> * const result,
+	global <?=consLR_t?> * const result,
 	constant <?=solver_t?> const * const solver,
 	global <?=cons_t?> const * const U,
 	real const dt,
@@ -206,7 +206,7 @@ void calcCellLR_<?=side?>(
 //// MODULE_DEPENDS: slopeLimiter consFromPrim primFromCons
 
 void calcCellLR_<?=side?>(
-	global <?=eqn.consLR_t?> * const result,
+	global <?=consLR_t?> * const result,
 	constant <?=solver_t?> const * const solver,
 	global <?=cons_t?> const * const U,
 	real const dt,
@@ -299,7 +299,7 @@ works for adm1d_v1
 */
 
 void calcCellLR_<?=side?>(
-	global <?=eqn.consLR_t?> * const result,
+	global <?=consLR_t?> * const result,
 	constant <?=solver_t?> const * const solver,
 	global <?=cons_t?> const * const U,
 	real const dt,
@@ -442,7 +442,7 @@ based on Trangenstein, Athena, etc, except working on primitives like it says to
 */
 
 void calcCellLR_<?=side?>(
-	global <?=eqn.consLR_t?> * const result,
+	global <?=consLR_t?> * const result,
 	constant <?=solver_t?> const * const solver,
 	global <?=cons_t?> const * const U,
 	real const dt,
@@ -623,7 +623,7 @@ void calcCellLR_<?=side?>(
 
 //based on Athena
 void calcCellLR_<?=side?>(
-	global <?=eqn.consLR_t?> * const result,
+	global <?=consLR_t?> * const result,
 	constant <?=solver_t?> const * const solver,
 	global <?=cons_t?> const * const U,
 	real const dt,
@@ -723,7 +723,7 @@ void calcCellLR_<?=side?>(
 // based on http://zingale.github.io/hydro1d/  ppm code
 
 void calcCellLR_<?=side?>(
-	global <?=eqn.consLR_t?> * const result,
+	global <?=consLR_t?> * const result,
 	constant <?=solver_t?> const * const solver,
 	global <?=cons_t?> const * const U,
 	real const dt,
@@ -1011,7 +1011,7 @@ void calcCellLR_<?=side?>(
 ?>
 
 void calcCellLR_<?=side?>(
-	global <?=eqn.consLR_t?> * const result,
+	global <?=consLR_t?> * const result,
 	constant <?=solver_t?> const * const solver,
 	global <?=cons_t?> const * const U,
 	real const dt,
@@ -1031,7 +1031,7 @@ end
 kernel void calcLR(
 	constant <?=solver_t?> const * const solver,
 	global <?=cell_t?> const * const cellBuf,
-	global <?=eqn.consLR_t?> * const ULRBuf,
+	global <?=consLR_t?> * const ULRBuf,
 	global <?=cons_t?> const * const UBuf,
 	real const dt
 ) {

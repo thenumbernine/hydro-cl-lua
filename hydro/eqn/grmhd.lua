@@ -39,7 +39,7 @@ typedef union {
 		real3 B;
 		real divBPot;
 	};
-} <?=eqn.prim_t?>;
+} <?=prim_t?>;
 
 typedef union {
 	real ptr[9];
@@ -53,7 +53,7 @@ typedef union {
 		// it is here because prim_t is expected to be the same size as cons_t
 		real divBPot;
 	};
-} <?=eqn.cons_t?>;
+} <?=cons_t?>;
 ]]
 end
 
@@ -121,7 +121,7 @@ function GRMHD:getDisplayVars()
 			//prim have just been reconstructed from cons
 			//so reconstruct cons from prims again and calculate the difference
 			{
-				<?=eqn.cons_t?> U2 = consFromPrim(prim, x);
+				<?=cons_t?> U2 = consFromPrim(prim, x);
 				value.vreal = 0;
 				for (int j = 0; j < numIntStates; ++j) {
 					value.vreal += fabs(U->ptr[j] - U2.ptr[j]);
@@ -133,7 +133,7 @@ end
 
 function GRMHD:getPrimDisplayVarCodePrefix()
 	return self:template[[
-	<?=eqn.prim_t?> prim = buf[index];
+	<?=prim_t?> prim = buf[index];
 ]]
 end
 

@@ -1361,6 +1361,7 @@ function CoordinateSystem:initCodeModule_coordMap()
 
 	solver.modules:add{
 		name = 'coordBasis#',
+		depends = {'real3'},
 		code = function()
 			local eExt = self.compilePrintRequestTensor'eExt'
 			return eExt:mapi(function(eiCode,i)

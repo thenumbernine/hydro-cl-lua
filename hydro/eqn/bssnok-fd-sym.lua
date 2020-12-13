@@ -1676,19 +1676,19 @@ for k in ('alpha0 W0 K0 beta0_U B0_U epsilon_LL ABar0_LL'):gmatch'%S+' do
 	print(k, env[k])
 end
 
-		return template([[
+		return self:template([[
 kernel void applyInitCond(
-	constant <?=solver.solver_t?>* solver,
-	constant <?=solver.initCond_t?>* initCond,
-	global <?=eqn.cons_t?>* UBuf,
-	const global <?=solver.coord.cell_t?>* cellBuf
+	constant <?=solver_t?>* solver,
+	constant <?=initCond_t?>* initCond,
+	global <?=cons_t?>* UBuf,
+	const global <?=cell_t?>* cellBuf
 ) {
 	SETBOUNDS(numGhost,numGhost);
 	real3 x = cellBuf[index].pos;
 	real3 xc = coordMap(x);
 	real3 mids = real3_real_mul(real3_add(solver->mins, solver->maxs), .5);
 	
-	global <?=eqn.cons_t?>* U = UBuf + index;
+	global <?=cons_t?>* U = UBuf + index;
 
 <?=assignRepls(cos_xs)?>
 <?=assignRepls(sin_xs)?>
@@ -1727,13 +1727,13 @@ kernel void applyInitCond(
 	if initCond.useBSSNVars then
 		return self:template[=[
 kernel void applyInitCond(
-	constant <?=solver.solver_t?>* solver,
-	constant <?=solver.initCond_t?>* initCond,
-	global <?=eqn.cons_t?>* UBuf,
-	const global <?=solver.coord.cell_t?>* cellBuf
+	constant <?=solver_t?>* solver,
+	constant <?=initCond_t?>* initCond,
+	global <?=cons_t?>* UBuf,
+	const global <?=cell_t?>* cellBuf
 ) {
 	SETBOUNDS(0,0);
-	global <?=eqn.cons_t?>* U = UBuf + index;
+	global <?=cons_t?>* U = UBuf + index;
 	real3 x = cellBuf[index].pos;
 
 	if (OOB(numGhost,numGhost)) {
@@ -1803,19 +1803,19 @@ kernel void applyInitCond(
 ]=]
 	end
 
-	return template([=[
+	return self:template([=[
 kernel void applyInitCond(
-	constant <?=solver.solver_t?>* solver,
-	constant <?=solver.initCond_t?>* initCond,
-	global <?=eqn.cons_t?>* UBuf,
-	const global <?=solver.coord.cell_t?>* cellBuf
+	constant <?=solver_t?>* solver,
+	constant <?=initCond_t?>* initCond,
+	global <?=cons_t?>* UBuf,
+	const global <?=cell_t?>* cellBuf
 ) {
 	SETBOUNDS(numGhost,numGhost);
 	real3 x = cellBuf[index].pos;
 	real3 xc = coordMap(x);
 	real3 mids = real3_real_mul(real3_add(solver->mins, solver->maxs), .5);
 	
-	global <?=eqn.cons_t?>* U = UBuf + index;
+	global <?=cons_t?>* U = UBuf + index;
 
 <?=assignRepls(cos_xs)?>
 <?=assignRepls(sin_xs)?>
@@ -1877,13 +1877,13 @@ kernel void applyInitCond(
 //TODO do this symbolically.  That's what I originally did, but symbolic calculations were getting complex
 // however, with spherical BSSN, you need to 
 kernel void initDerivs(
-	constant <?=solver.solver_t?>* solver,
-	global <?=eqn.cons_t?>* UBuf,
-	const global <?=solver.coord.cell_t?>* cellBuf
+	constant <?=solver_t?>* solver,
+	global <?=cons_t?>* UBuf,
+	const global <?=cell_t?>* cellBuf
 ) {
 	SETBOUNDS(numGhost,numGhost);
 	real3 x = cellBuf[index].pos;
-	global <?=eqn.cons_t?>* U = UBuf + index;
+	global <?=cons_t?>* U = UBuf + index;
 
 <?=assignRepls(cos_xs)?>
 <?=assignRepls(sin_xs)?>

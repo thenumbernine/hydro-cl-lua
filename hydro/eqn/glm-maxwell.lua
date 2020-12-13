@@ -21,7 +21,7 @@ local table = require 'ext.table'
 local Equation = require 'hydro.eqn.eqn'
 
 local GLM_Maxwell = class(Equation)
-GLM_Maxwell.name = 'GLM_Maxwell'
+GLM_Maxwell.name = 'glm_maxwell'
 
 GLM_Maxwell.roeUseFluxFromCons = true
 
@@ -65,6 +65,7 @@ function GLM_Maxwell:init(args)
 	GLM_Maxwell.super.init(self, args)
 
 	self.postComputeFluxCode = self:template[[
+//// MODULE_DEPENDS: coord_sqrt_det_g eqn.common
 <? local vec3 = eqn.vec3 ?>
 		//TODO shouldn't I be transforming both the left and right fluxes by the metrics at their respective coordinates?
 		//flux is computed raised via Levi-Civita upper
@@ -109,7 +110,6 @@ function GLM_Maxwell:getEnv()
 	local scalar = self.scalar
 	local env = GLM_Maxwell.super.getEnv(self)
 	env.vec3 = self.vec3
-	env.cons_t = self.cons_t
 	env.susc_t = self.susc_t
 	env.scalar = scalar
 	env.zero = scalar..'_zero'

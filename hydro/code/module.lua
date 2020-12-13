@@ -30,7 +30,7 @@ local predefinedStructTypes = {
 }
 
 function Module:init(args)
-	self.name = assert(args.name)
+	self.name = assert(args.name, "expected name")
 	assert(not self.name:find'%s', "got a module name with a space in it")
 	self.depends = table(args.depends)
 	-- structs & typedefs

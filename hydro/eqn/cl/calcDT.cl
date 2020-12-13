@@ -1,5 +1,5 @@
 //// MODULE_NAME: <?=calcDT?>
-//// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> <?=cell_t?> normal_t eqn.waveCode SETBOUNDS
+//// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> <?=cell_t?> normal_t <?=waveCode_depends?> SETBOUNDS
 
 <? if not require "hydro.solver.meshsolver".is(solver) then ?>
 /*

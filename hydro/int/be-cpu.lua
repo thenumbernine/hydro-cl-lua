@@ -32,7 +32,7 @@ function BackwardEuler:init(solver, args)
 	}
 
 	
-	self.cpuUTemp = ffi.new(solver.eqn.cons_t..'[?]', solver.numCells)
+	self.cpuUTemp = ffi.new(solver.eqn.symbols.cons_t..'[?]', solver.numCells)
 
 	local volumeWithoutBorder = solver.volumeWithoutBorder
 	local numRealsWithoutBorder = volumeWithoutBorder * solver.eqn.numIntStates

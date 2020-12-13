@@ -61,7 +61,7 @@ function GRHDSeparateSolver:init(args)
 	end
 	function HydroSolver:getADMArgs()
 		return template([[,
-	const global <?=gr.eqn.cons_t?>* grUBuf]], {gr=gr})
+	const global <?=gr.eqn.symbols.cons_t?>* grUBuf]], {gr=gr})
 	end
 	-- args is volatile
 	function HydroSolver:getADMVarCode(args)
@@ -73,7 +73,7 @@ function GRHDSeparateSolver:init(args)
 		args.gamma = args.gamma or ('gamma'..args.suffix)
 		args.U = 'grU'..args.suffix
 		return template([[
-	const global <?=gr.eqn.cons_t?>* <?=args.U?> = grUBuf + <?=args.index?>;
+	const global <?=gr.eqn.symbols.cons_t?>* <?=args.U?> = grUBuf + <?=args.index?>;
 	real <?=args.alpha?> = <?=args.U?>->alpha;
 	real3 <?=args.beta?> = <?=args.U?>->beta_u;
 	//sym3 gammaHat_ll = coord_g_ll(x); // with x I get some redefinitions, without it I get some undefined x's...
@@ -93,7 +93,7 @@ function GRHDSeparateSolver:init(args)
 	function HydroSolver:getUBufDisplayVarsArgs()
 		local args = HydroSolver.super.getUBufDisplayVarsArgs(self)
 		args.extraArgs = args.extraArgs or {}
-		table.insert(args.extraArgs, 'const global '..gr.eqn.cons_t..'* grUBuf')
+		table.insert(args.extraArgs, 'const global '..gr.eqn.symbols.cons_t..'* grUBuf')
 		args.extraArgNames = args.extraArgNames or {}
 		table.insert(args.extraArgNames, 'grUBuf')
 		return args
@@ -176,14 +176,14 @@ function GRHDSeparateSolver:createCalcStressEnergyKernel()
 		self.hydro.eqn:getTypeCode(),
 		template([[
 kernel void calcStressEnergy(
-	global <?=hydro.eqn.cons_t?>* hydroUBuf,
-	global <?=gr.eqn.cons_t?>* grUBuf
+	global <?=hydro.eqn.symbols.cons_t?>* hydroUBuf,
+	global <?=gr.eqn.symbols.cons_t?>* grUBuf
 ) {
 	SETBOUNDS(0,0);
 	
-	global <?=hydro.eqn.cons_only_t?>* hydroU = &hydroUBuf[index].cons;
-	global <?=hydro.eqn.prim_t?>* hydroPrim = &hydroUBuf[index].prim;
-	const global <?=gr.eqn.cons_t?>* grU = grUBuf + index;
+	global <?=hydro.eqn.symbols.cons_only_t?>* hydroU = &hydroUBuf[index].cons;
+	global <?=hydro.eqn.symbols.prim_t?>* hydroPrim = &hydroUBuf[index].prim;
+	const global <?=gr.eqn.symbols.cons_t?>* grU = grUBuf + index;
 
 	//as long as t is a separate coordinate ...
 	real alpha = grU->alpha;
@@ -270,13 +270,13 @@ kernel void copyMetricFromGRToHydro(
 	// I can't remember which of these two uses it -- maybe both? 
 	//TODO either just put it in one place ...
 	// or better yet, just pass gr.UBuf into all the grhd functions?
-	global <?=hydro.eqn.cons_t?>* hydroUBuf,
-	const global <?=gr.eqn.cons_t?>* grUBuf
+	global <?=hydro.eqn.symbols.cons_t?>* hydroUBuf,
+	const global <?=gr.eqn.symbols.cons_t?>* grUBuf
 ) {
 	SETBOUNDS(0,0);
-	global <?=hydro.eqn.cons_only_t?>* hydroU = &hydroUBuf[index].cons;
-	global <?=hydro.eqn.prim_t?>* hydroPrim = &hydroUBuf[index].prim;
-	const global <?=gr.eqn.cons_t?>* grU = grUBuf + index;
+	global <?=hydro.eqn.symbols.cons_only_t?>* hydroU = &hydroUBuf[index].cons;
+	global <?=hydro.eqn.symbols.prim_t?>* hydroPrim = &hydroUBuf[index].prim;
+	const global <?=gr.eqn.symbols.cons_t?>* grU = grUBuf + index;
 	hydroU->alpha = hydroPrim->alpha = grU->alpha;
 	hydroU->beta = hydroPrim->beta = grU->beta_u;
 

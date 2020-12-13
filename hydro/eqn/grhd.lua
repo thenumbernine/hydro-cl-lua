@@ -41,15 +41,15 @@ typedef union {
 		real3 v;	//v_i
 		real eInt;
 	};
-} <?=eqn.prim_t?>;
+} <?=prim_t?>;
 
 typedef union {
 	real ptr[10];
 	struct {
 		<?=eqn.cons_only_t?> cons;
-		<?=eqn.prim_t?> prim;
+		<?=prim_t?> prim;
 	};
-} <?=eqn.cons_t?>;
+} <?=cons_t?>;
 ]]
 end
 

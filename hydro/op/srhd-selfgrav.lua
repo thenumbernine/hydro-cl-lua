@@ -46,20 +46,16 @@ function SRHDSelfGrav:getPoissonDivCode()
 end
 
 function SRHDSelfGrav:getPoissonCode()
-	return template([[
-<?
-local solver = op.solver
-local eqn = solver.eqn
-?>
+	return self.solver.eqn:template([[
 kernel void calcGravityDeriv<?=op.name?>(
 	constant <?=solver.solver_t?>* solver,
-	global <?=eqn.cons_t?>* derivBuffer,
-	global const <?=eqn.cons_t?>* UBuf
+	global <?=cons_t?>* derivBuffer,
+	global const <?=cons_t?>* UBuf
 ) {
 	SETBOUNDS(numGhost,numGhost);
 	
-	global <?=eqn.cons_t?>* deriv = derivBuffer + index;
-	const global <?=eqn.cons_t?>* U = UBuf + index;
+	global <?=cons_t?>* deriv = derivBuffer + index;
+	const global <?=cons_t?>* U = UBuf + index;
 
 	real3 du_dt = real3_zero;
 	//for (int side = 0; side < dim; ++side) {

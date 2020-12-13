@@ -82,7 +82,7 @@ local table = require 'ext.table'
 local EinsteinEqn = require 'hydro.eqn.einstein'
 
 local ADM_BonaMasso_1D_1997Alcubierre = class(EinsteinEqn)
-ADM_BonaMasso_1D_1997Alcubierre.name = 'ADM Bona-Masso 1D (1997 Alcubierre)'
+ADM_BonaMasso_1D_1997Alcubierre.name = 'ADM_BonaMasso_1D_1997_Alcubierre'
 
 ADM_BonaMasso_1D_1997Alcubierre.numStates = 5
 ADM_BonaMasso_1D_1997Alcubierre.numWaves = 3

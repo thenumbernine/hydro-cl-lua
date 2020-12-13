@@ -9,7 +9,7 @@ NavierStokesIncompressible.eqnName = 'navstokes-incomp'
 function NavierStokesIncompressible:createBuffers()
 	NavierStokesIncompressible.super.createBuffers(self)
 
-	self:clalloc('UNextBuf', self.eqn.cons_t, self.numCells)
+	self:clalloc('UNextBuf', self.eqn.symbols.cons_t, self.numCells)
 	self:clalloc('divBuf', self.app.real, self.numCells)
 	self:clalloc('PBuf', self.app.real, self.numCells)
 end
@@ -48,7 +48,7 @@ function NavierStokesIncompressible:project()
 end
 
 function NavierStokesIncompressible:step(dt)
-	local bufferSize = self.numCells * ffi.sizeof(self.eqn.cons_t)
+	local bufferSize = self.numCells * ffi.sizeof(self.eqn.symbols.cons_t)
 
 	self.diffuseKernelObj.obj:setArg(2, real(dt))
 	

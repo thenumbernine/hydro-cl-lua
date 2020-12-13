@@ -11,9 +11,6 @@ PoissonJacobi.solverCodeFile = 'hydro/op/poisson.cl'
 
 local poissonJacobiCode = [[
 <?
-local solver = op.solver
-local eqn = solver.eqn
-
 local scalar = op.scalar 
 local neg = scalar..'_neg'
 local zero = scalar..'_zero'
@@ -50,12 +47,12 @@ input is poisson source divergence, in 1/s^2
 output is potentialField, in m^2/s^2
 */
 kernel void solveJacobi<?=op.name?>(
-	constant <?=solver.solver_t?>* solver,
-	global real* writeBuf,
-	const global <?=op:getPotBufType()?>* UBuf,
-	const global <?=solver.coord.cell_t?>* cellBuf<?
+	constant <?=solver_t?> const * const solver,
+	global real * const writeBuf,
+	global <?=op:getPotBufType()?> const * const UBuf,
+	global <?=cell_t?> const * const cellBuf<?
 if op.stopOnEpsilon then ?>,
-	global real* reduceBuf<? 
+	global real * const reduceBuf<? 
 end ?>
 ) {
 	SETBOUNDS(0,0);
@@ -67,12 +64,12 @@ end ?>
 ?>		return;
 	}
 	
-	real3 x = cellBuf[index].pos;
+	real3 const x = cellBuf[index].pos;
 
-	const global <?=op:getPotBufType()?>* U = UBuf + index;
+	global <?=op:getPotBufType()?> const * const U = UBuf + index;
 
 <? for j=0,solver.dim-1 do
-?>	real dx<?=j?> = cell_dx<?=j?>(x);
+?>	real const dx<?=j?> = cell_dx<?=j?>(x);
 <? end
 ?>
 	
@@ -85,7 +82,7 @@ end ?>
 	volR.s<?=j?> = cell_sqrt_det_g(solver, xInt);
 	xInt.s<?=j?> = x.s<?=j?>;
 <? end 
-?>	real volAtX = cell_sqrt_det_g(solver, x);
+?>	real const volAtX = cell_sqrt_det_g(solver, x);
 
 <? 
 --[=[
@@ -191,7 +188,7 @@ function PoissonJacobi:initCodeModules(solver)
 		name = name,
 		depends = self:getModuleDepends_Poisson(),
 		code = table{
-			template(poissonJacobiCode, {op = self}),
+			solver.eqn:template(poissonJacobiCode, {op = self}),
 			self:getPoissonCode() or '',
 		}:concat'\n',
 	}

@@ -36,7 +36,7 @@ function ShallowWater:initCodeModule_consFromPrim_primFromCons() end
 function ShallowWater:getModuleDepends_waveCode()
 	return {
 		'eqn.common',
-		'primFromCons',
+		self.symbols.primFromCons,
 	}
 end
 
@@ -112,8 +112,8 @@ function ShallowWater:consWaveCodePrefix(n, U, x, W)
 real C_nLen = calc_C(solver, <?=U?>) * normal_len(<?=n?>);
 <? if not W then 
 	W = 'W'
-?><?=eqn.prim_t?> W;
-primFromCons(&W, solver, <?=U?>, <?=x?>);
+?><?=prim_t?> W;
+<?=primFromCons?>(&W, solver, <?=U?>, <?=x?>);
 <? end 
 ?>real v_n = normal_vecDotN1(n, <?=W?>.v);
 ]], {

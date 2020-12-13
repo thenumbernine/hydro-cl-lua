@@ -1,5 +1,5 @@
 //// MODULE_NAME: weno_l/r
-//// MODULE_DEPENDS: cell_x sqr fluxFromCons normal_t eigen_forInterface eigen_left/rightTransform eqn.waveCode <?=waves_t?>
+//// MODULE_DEPENDS: cell_x sqr <?=fluxFromCons?> normal_t <?=eigen_forInterface?> <?=eigen_leftTransform?> <?=eigen_rightTransform?> <?=waveCode_depends?> <?=waves_t?>
 
 <? 
 local clnumber = require "cl.obj.number"
@@ -109,7 +109,7 @@ end
 ?>
 
 //// MODULE_NAME: calcCellFlux
-//// MODULE_DEPENDS: cell_x fluxFromCons normal_t
+//// MODULE_DEPENDS: cell_x <?=fluxFromCons?> normal_t
 
 kernel void calcCellFlux(
 	constant <?=solver_t?> const * const solver,
@@ -124,12 +124,12 @@ kernel void calcCellFlux(
 		xInt.s<?=side?> -= .5 * solver->grid_dx.s<?=side?>;
 		normal_t const n = normal_forSide<?=side?>(xInt);
 		global <?=cons_t?> const * const F = fluxCellBuf + <?=side?> + dim * index;
-		fluxFromCons(F, solver, U, xInt, n);
+		<?=fluxFromCons?>(F, solver, U, xInt, n);
 	}<? end ?>
 }
 
 //// MODULE_NAME: calcFlux
-//// MODULE_DEPENDS: cell_x fluxFromCons normal_t eigen_forInterface eigen_left/rightTransform eqn.waveCode weno_l/r
+//// MODULE_DEPENDS: cell_x <?=fluxFromCons?> normal_t <?=eigen_forInterface?> <?=eigen_leftTransform?> <?=eigen_rightTransform?> <?=waveCode_depends?> weno_l/r
 
 kernel void calcFlux(
 	constant <?=solver_t?> const * const  solver,
@@ -169,7 +169,7 @@ for side=0,solver.dim-1 do ?>{
 
 ?>
 		<?=eigen_t?> eig;
-		eigen_forInterface(&eig, solver, UL, UR, xInt, n);
+		<?=eigen_forInterface?>(&eig, solver, UL, UR, xInt, n);
 		real maxAbsLambda = 0.;
 		for (int j = 0; j < <?=2*stencilSize?>; ++j) {
 			global <?=cons_t?> const * const Uj = U + (j - <?=stencilSize?>) * solver->stepsize.s<?=side?>;
@@ -189,7 +189,7 @@ for side=0,solver.dim-1 do ?>{
 		global <?=cons_t?> const * const U<?=j?> = U + <?=j - stencilSize?> * solver->stepsize.s<?=side?>;
 		//<?=cons_t?> F<?=j?> = fluxCellBuf[<?=side?> + dim * (index + <?=j - stencilSize?> * solver->stepsize.s<?=side?>)];
 		<?=cons_t?> F<?=j?>;
-		fluxFromCons(&F<?=j?>, solver, U<?=j?>, xInt, n);
+		<?=fluxFromCons?>(&F<?=j?>, solver, U<?=j?>, xInt, n);
 <?
 			if j < 2*stencilSize-1 then
 ?>		<?=cons_t?> fp<?=j?>;
@@ -208,12 +208,12 @@ for side=0,solver.dim-1 do ?>{
 ?>	
 		<?=waves_t?> afp[<?=2*stencilSize-1?>];
 <? 		for j=0,2*stencilSize-2 do
-?>		eigen_leftTransform(afp + <?=j?>, solver, &eig, &fp<?=j?>, xInt, n);
+?>		<?=eigen_leftTransform?>(afp + <?=j?>, solver, &eig, &fp<?=j?>, xInt, n);
 <?		end
 ?>
 		<?=waves_t?> afm[<?=2*stencilSize-1?>];
 <?		for j=0,2*stencilSize-2 do
-?>		eigen_leftTransform(afm + <?=j?>, solver, &eig, &fm<?=j?>, xInt, n);
+?>		<?=eigen_leftTransform?>(afm + <?=j?>, solver, &eig, &fm<?=j?>, xInt, n);
 <? 		end 
 ?>
 		<?=waves_t?> wafp = weno_r_<?=side?>(afp);
@@ -224,7 +224,7 @@ for side=0,solver.dim-1 do ?>{
 			waf.ptr[j] = wafp.ptr[j] + wafm.ptr[j];
 		}
 		
-		eigen_rightTransform(flux, solver, &eig, &waf, xInt, n);
+		<?=eigen_rightTransform?>(flux, solver, &eig, &waf, xInt, n);
 <?
 	
 	elseif solver.fluxMethod == "Marquina" then
@@ -252,15 +252,15 @@ for side=0,solver.dim-1 do ?>{
 <? 		for j=0,2*stencilSize-1 do
 ?>		const global <?=cons_t?>* U<?=j?> = U + (<?=j - stencilSize?>) * solver->stepsize.s<?=side?>;
 		<?=cons_t?> F<?=j?>;
-		fluxFromCons(&F<?=j?>, solver, U<?=j?>, xInt, n);
+		<?=fluxFromCons?>(&F<?=j?>, solver, U<?=j?>, xInt, n);
 		<?=waves_t?> al<?=j?>;
-		eigen_leftTransform(&al<?=j?>, solver, &eigL, U<?=j?>, xInt, n);
+		<?=eigen_leftTransform?>(&al<?=j?>, solver, &eigL, U<?=j?>, xInt, n);
 		<?=waves_t?> ar<?=j?>;
-		eigen_leftTransform(&ar<?=j?>, solver, &eigR, U<?=j?>, xInt, n);
+		<?=eigen_leftTransform?>(&ar<?=j?>, solver, &eigR, U<?=j?>, xInt, n);
 		<?=waves_t?> afl<?=j?>;
-		eigen_leftTransform(&afl<?=j?>, solver, &eigL, &F<?=j?>, xInt, n);
+		<?=eigen_leftTransform?>(&afl<?=j?>, solver, &eigL, &F<?=j?>, xInt, n);
 		<?=waves_t?> afr<?=j?>;
-		eigen_leftTransform(&afr<?=j?>, solver, &eigR, &F<?=j?>, xInt, n);
+		<?=eigen_leftTransform?>(&afr<?=j?>, solver, &eigR, &F<?=j?>, xInt, n);
 
 <?		end
 ?>
@@ -301,9 +301,9 @@ for side=0,solver.dim-1 do ?>{
 		<?=waves_t?> wafm = weno_l_<?=side?>(afm);
 		
 		<?=cons_t?> fluxP;
-		eigen_rightTransform(&fluxP, solver, &eigL, &wafp, xInt, n);
+		<?=eigen_rightTransform?>(&fluxP, solver, &eigL, &wafp, xInt, n);
 		<?=cons_t?> fluxM;
-		eigen_rightTransform(&fluxM, solver, &eigR, &wafm, xInt, n);
+		<?=eigen_rightTransform?>(&fluxM, solver, &eigR, &wafm, xInt, n);
 		
 		for (int j = 0; j < numIntStates; ++j) {
 			flux->ptr[j] = fluxP.ptr[j] + fluxM.ptr[j];
@@ -317,7 +317,7 @@ for side=0,solver.dim-1 do ?>{
 		-- but this means making it a function of the lua parameters, like flux limiter.
 		-- and a flux limiter means +1 to the numGhost
 ?>
-//// MODULE_DEPENDS: eigen_left/rightTransform
+//// MODULE_DEPENDS: <?=eigen_leftTransform?> <?=eigen_rightTransform?>
 
 		<?=waves_t?> afp[<?=2*stencilSize-1?>], afm[<?=2*stencilSize-1?>];
 <?		for j=0,2*stencilSize-1 do
@@ -326,7 +326,7 @@ for side=0,solver.dim-1 do ?>{
 			const global <?=cons_t?>* UL<?=j?> = U + <?=j - stencilSize?> * solver->stepsize.s<?=side?>;
 			const global <?=cons_t?>* UR<?=j?> = U + <?=j+1 - stencilSize?> * solver->stepsize.s<?=side?>;
 			<?=eigen_t?> eig;
-			eigen_forInterface(&eig, solver, UL, UR, xInt, n);
+			<?=eigen_forInterface?>(&eig, solver, UL, UR, xInt, n);
 
 			<?=eqn:eigenWaveCodePrefix("n", "&eig", "xInt")?>
 
@@ -334,7 +334,7 @@ for side=0,solver.dim-1 do ?>{
 			for (int k = 0; k < numIntStates; ++k) {
 				UAvg.ptr[k] = .5 * (UL->ptr[k] + UR->ptr[k]);
 			}
-			eigen_leftTransform(afp + <?=j?>, solver, &eig, &UAvg, xInt, n);
+			<?=eigen_leftTransform?>(afp + <?=j?>, solver, &eig, &UAvg, xInt, n);
 			afm[<?=j?>] = afp[<?=j?>];
 
 			<?=cons_t?> deltaU;
@@ -343,7 +343,7 @@ for side=0,solver.dim-1 do ?>{
 			}
 			
 			<?=waves_t?> deltaUEig;
-			eigen_leftTransform(&deltaUEig, solver, &eig, &deltaU, xInt, n);
+			<?=eigen_leftTransform?>(&deltaUEig, solver, &eig, &deltaU, xInt, n);
 
 			<? for k=0,eqn.numWaves-1 do ?>{
 				const int k = <?=k?>;
@@ -369,8 +369,8 @@ for side=0,solver.dim-1 do ?>{
 		}
 	
 		<?=eigen_t?> eig;
-		eigen_forInterface(&eig, solver, UL, UR, xInt, n);
-		eigen_rightTransform(flux, solver, &eig, &waf, xInt, n);
+		<?=eigen_forInterface?>(&eig, solver, UL, UR, xInt, n);
+		<?=eigen_rightTransform?>(flux, solver, &eig, &waf, xInt, n);
 <?
 	
 	else

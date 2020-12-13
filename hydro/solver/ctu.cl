@@ -53,9 +53,9 @@ for side=0,solver.dim-1 do
 	for side2=0,solver.dim-1 do
 		if side2 ~= side then
 		?>{
-<? if solver.getULRArg == eqn.consLR_t.."* ULRBuf" then
+<? if solver.getULRArg == consLR_t.."* ULRBuf" then
 ?>			int const indexForSide = side + dim * index;
-			global <?=eqn.consLR_t?> * const ULR = ULRBuf + indexForSide;
+			global <?=consLR_t?> * const ULR = ULRBuf + indexForSide;
 
 			for (int j = 0; j < numIntStates; ++j) {
 				real const dF_dx = (
@@ -66,7 +66,7 @@ for side=0,solver.dim-1 do
 				ULR->L.ptr[j] -= .5 * dt * dF_dx;
 				ULR->R.ptr[j] -= .5 * dt * dF_dx;
 			}
-<? elseif solver.getULRArg == eqn.cons_t.."* UBuf" then
+<? elseif solver.getULRArg == cons_t.."* UBuf" then
 ?>			global <?=cons_t?> * const U = UBuf + index;
 
 			for (int j = 0; j < numIntStates; ++j) {

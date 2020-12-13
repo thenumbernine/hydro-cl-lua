@@ -53,7 +53,7 @@ function GREMSeparateSolver:init(args)
 	end
 	function GRMaxwellSolver:getADMArgs()
 		return template([[,
-	const global <?=gr.eqn.cons_t?>* grUBuf]], {gr=gr})
+	const global <?=gr.eqn.symbols.cons_t?>* grUBuf]], {gr=gr})
 	end
 	-- args is volatile
 	function GRMaxwellSolver:getADMVarCode(args)
@@ -65,7 +65,7 @@ function GREMSeparateSolver:init(args)
 		args.gamma = args.gamma or ('gamma'..args.suffix)
 		args.U = 'grU'..args.suffix
 		return template([[
-	const global <?=gr.eqn.cons_t?>* <?=args.U?> = grUBuf + <?=args.index?>;
+	const global <?=gr.eqn.symbols.cons_t?>* <?=args.U?> = grUBuf + <?=args.index?>;
 	real <?=args.alpha?> = <?=args.U?>->alpha;
 	real3 <?=args.beta?> = <?=args.U?>->beta_u;
 	sym3 <?=args.gamma?> = sym3_real_mul(<?=args.U?>->gammaTilde_ll, 1. / calc_exp_neg4phi(<?=args.U?>));
@@ -81,7 +81,7 @@ function GREMSeparateSolver:init(args)
 	function GRMaxwellSolver:getUBufDisplayVarsArgs()
 		local args = GRMaxwellSolver.super.getUBufDisplayVarsArgs(self)
 		args.extraArgs = args.extraArgs or {}
-		table.insert(args.extraArgs, 'const global '..gr.eqn.cons_t..'* grUBuf')
+		table.insert(args.extraArgs, 'const global '..gr.eqn.symbols.cons_t..'* grUBuf')
 		args.extraArgNames = args.extraArgNames or {}
 		table.insert(args.extraArgNames, 'grUBuf')
 		return args
@@ -159,15 +159,15 @@ function GREMSeparateSolver:replaceSourceKernels()
 		self.em.eqn:getTypeCode(),
 		template([[
 kernel void computeGRStressEnergy(
-	global <?=gr.eqn.cons_t?>* grUBuf,
-	const global <?=em.eqn.cons_t?>* emUBuf
+	global <?=gr.eqn.symbols.cons_t?>* grUBuf,
+	const global <?=em.eqn.symbols.cons_t?>* emUBuf
 ) {
 	SETBOUNDS(numGhost,numGhost);
 	
 	//populate grUBuf->rho, S_u, S_ll
 	
-	global <?=gr.eqn.cons_t?>* grU = grUBuf + index;
-	const global <?=em.eqn.cons_t?>* emU = emUBuf + index;
+	global <?=gr.eqn.symbols.cons_t?>* grU = grUBuf + index;
+	const global <?=em.eqn.symbols.cons_t?>* emU = emUBuf + index;
 
 	real exp_neg4phi = calc_exp_neg4phi(grU);
 	sym3 gamma_ll = sym3_real_mul(grU->gammaTilde_ll, 1. / exp_neg4phi);

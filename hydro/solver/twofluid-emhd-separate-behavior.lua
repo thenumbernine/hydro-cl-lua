@@ -254,8 +254,8 @@ kernel void addSource_maxwell(
 		local code = lines:concat'\n'
 		code = template(code, {
 			solver = self,
-			euler_cons_t = self.electron.eqn.cons_t,
-			maxwell_cons_t = self.maxwell.eqn.cons_t,
+			euler_cons_t = self.electron.eqn.symbols.cons_t,
+			maxwell_cons_t = self.maxwell.eqn.symbols.cons_t,
 		})
 		
 		-- the solver.Program is only unique to solvers wrt env and domain

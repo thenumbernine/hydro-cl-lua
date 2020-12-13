@@ -156,7 +156,7 @@ end
 
 function BSSNOKFiniteDifferenceEquationBase:initCodeModule_calcDT()
 	self.solver.modules:add{
-		name = 'calcDT',
+		name = self.symbols.calcDT,
 		depends = table{
 			'eqn.common',
 			'coord_sqrt_g_ll##',
@@ -167,7 +167,7 @@ function BSSNOKFiniteDifferenceEquationBase:initCodeModule_calcDT()
 			} or nil
 		),
 		code = self:template[[
-kernel void calcDT(
+kernel void <?=calcDT?>(
 	constant <?=solver_t?>* solver,
 	global real* dtBuf,
 	const global <?=cons_t?>* UBuf,
@@ -178,8 +178,8 @@ kernel void calcDT(
 		dtBuf[index] = INFINITY;
 		return;
 	}
-	real3 x = cellBuf[index].pos;
-	const global <?=cons_t?>* U = UBuf + index;
+	real3 const x = cellBuf[index].pos;
+	global <?=cons_t?> const * const U = UBuf + index;
 
 <? if eqn.cflMethod == '2008 Alcubierre' then
 ?>	sym3 gamma_uu = calc_gamma_uu(U, x);

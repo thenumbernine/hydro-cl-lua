@@ -27,6 +27,7 @@ local fluids = table{'ion', 'elec'}
 TwoFluidEMHD.fluids = fluids
 
 TwoFluidEMHD.postComputeFluxCode = [[
+//// MODULE_DEPENDS: coord_sqrt_det_g coord_lower
 		//flux is computed raised via Levi-Civita upper
 		//so here we lower it
 		real _1_sqrt_det_g = 1. / coord_sqrt_det_g(x);
@@ -34,7 +35,7 @@ TwoFluidEMHD.postComputeFluxCode = [[
 		flux.B = real3_real_mul(coord_lower(flux.B, x), _1_sqrt_det_g);
 ]]
 
-TwoFluidEMHD.name = 'twofluid-emhd'
+TwoFluidEMHD.name = 'twofluid_emhd'
 
 -- set this to false to integrate the EM D,B,phi,psi variables together with the ion and electron Euler fluid equations
 -- set this to true to integrate them separately using an implicit method
@@ -188,11 +189,8 @@ function TwoFluidEMHD:initCodeModule_consFromPrim_primFromCons() end
 function TwoFluidEMHD:getModuleDepends_waveCode()
 	return {
 		'units',
-		'primFromCons',
+		self.symbols.primFromCons,
 		'coord_lower',
-		-- but this is for postComputeFluxCode used by the flux stuff
-		-- but calcFlux depends on eqn.waveCode because of its use of inline wave code, so put postComputeFluxCode in here too
-		'coord_sqrt_det_g',
 	}
 end
 
@@ -256,7 +254,6 @@ function TwoFluidEMHD:getEnv()
 	local scalar = self.scalar
 	local env = TwoFluidEMHD.super.getEnv(self)
 	env.vec3 = self.vec3
-	env.cons_t = self.cons_t
 	env.susc_t = self.susc_t
 	env.scalar = scalar
 	env.zero = scalar..'_zero'
@@ -395,7 +392,7 @@ TwoFluidEMHD.eigenVars = eigenVars
 
 function TwoFluidEMHD:eigenWaveCodePrefix(n, eig, x)
 	return self:template([[
-<? for i,fluid in ipairs(fluids) do ?>
+<? for i,fluid in ipairs(eqn.fluids) do ?>
 real const <?=fluid?>_Cs_nLen = <?=eig?>-><?=fluid?>_Cs * normal_len(<?=n?>);
 real const <?=fluid?>_v_n = normal_vecDotN1(n, <?=eig?>-><?=fluid?>_v);
 <? end ?>
@@ -440,8 +437,8 @@ end
 -- dt < sqrt( E_alpha,i / rho_alpha,i) * |lHat_r,alpha| sqrt(2) / |E_i + v_alpha,i x B_i|
 function TwoFluidEMHD:consWaveCodePrefix(n, U, x)
 	return self:template([[
-<?=eqn.prim_t?> W;
-primFromCons(&W, solver, <?=U?>, <?=x?>);
+<?=prim_t?> W;
+<?=primFromCons?>(&W, solver, <?=U?>, <?=x?>);
 
 <? if eqn.implicitEMIntegration then 	--ignoring EM wavespeed	?>	
 real consWaveCode_lambdaMax = -INFINITY;

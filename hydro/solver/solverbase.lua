@@ -745,8 +745,8 @@ function SolverBase:initCDefs()
 		self.solverModulesEnabled,
 		self.sharedModulesEnabled,
 		{	-- need these for ffi.sizeof
-			[self.eqn.prim_t] = true,
-			[self.eqn.cons_t] = true,
+			[self.eqn.symbols.prim_t] = true,
+			[self.eqn.symbols.cons_t] = true,
 		}
 	):keys()
 print("ffi.cdef'ing: "..moduleNames:concat', ')
@@ -754,15 +754,15 @@ print("ffi.cdef'ing: "..moduleNames:concat', ')
 end
 
 function SolverBase:refreshGetULR()
-	self.getULRBufType = self.eqn.cons_t
+	self.getULRBufType = self.eqn.symbols.cons_t
 	self.getULRBufName = 'UBuf'
 	self.getULRArg = self.getULRBufType..'* '..self.getULRBufName
 	self.getULRCode = function(self, args)
 		args = args or {}
 		local suffix = args.suffix or ''
 		return template([[
-const global <?=eqn.cons_t?>* UL<?=suffix?> = <?=bufName?> + <?=indexL?>;
-const global <?=eqn.cons_t?>* UR<?=suffix?> = <?=bufName?> + <?=indexR?>;
+const global <?=eqn.symbols.cons_t?>* UL<?=suffix?> = <?=bufName?> + <?=indexL?>;
+const global <?=eqn.symbols.cons_t?>* UR<?=suffix?> = <?=bufName?> + <?=indexR?>;
 ]],		{
 			solver = self,
 			eqn = self.eqn,
@@ -925,7 +925,7 @@ function SolverBase:refreshCommonProgram()
 	local moduleNames = table{
 		'realparam',
 		self.solver_t,
-		self.eqn.cons_t,
+		self.eqn.symbols.cons_t,
 		
 		-- This is in GridSolver, a subclass.  
 		-- In fact, all the display stuff is pretty specific to cartesian grids.
@@ -940,8 +940,8 @@ print('common modules: '..moduleNames:sort():concat', ')
 		template([[
 kernel void multAddInto(
 	constant <?=solver.solver_t?>* solver,
-	global <?=eqn.cons_t?>* a,
-	const global <?=eqn.cons_t?>* b,
+	global <?=eqn.symbols.cons_t?>* a,
+	const global <?=eqn.symbols.cons_t?>* b,
 	realparam c
 ) {
 	SETBOUNDS_NOGHOST();
@@ -954,9 +954,9 @@ end
 
 kernel void multAdd(
 	constant <?=solver.solver_t?>* solver,
-	global <?=eqn.cons_t?>* a,
-	const global <?=eqn.cons_t?>* b,
-	const global <?=eqn.cons_t?>* c,
+	global <?=eqn.symbols.cons_t?>* a,
+	const global <?=eqn.symbols.cons_t?>* b,
+	const global <?=eqn.symbols.cons_t?>* c,
 	realparam d
 ) {
 	SETBOUNDS_NOGHOST();
@@ -974,7 +974,7 @@ end
 
 kernel void square(
 	constant <?=solver.solver_t?>* solver,
-	global <?=eqn.cons_t?>* a
+	global <?=eqn.symbols.cons_t?>* a
 ) {
 	SETBOUNDS_NOGHOST();
 <?	-- numStates or numIntStates?
@@ -1092,13 +1092,13 @@ function SolverBase:createBuffers()
 	local realSize = ffi.sizeof(app.real)
 	
 	-- for twofluid, cons_t has been renamed to euler_maxwell_t and maxwell_cons_t
-	if ffi.sizeof(self.eqn.cons_t) ~= self.eqn.numStates * realSize then
-	   error('Expected sizeof('..self.eqn.cons_t..') to be '
+	if ffi.sizeof(self.eqn.symbols.cons_t) ~= self.eqn.numStates * realSize then
+	   error('Expected sizeof('..self.eqn.symbols.cons_t..') to be '
 		   ..self.eqn.numStates..' * sizeof(real) = '..(self.eqn.numStates * realSize)
-		   ..' but found '..ffi.sizeof(self.eqn.cons_t)..' = '..(ffi.sizeof(self.eqn.cons_t) / realSize)..' * sizeof(real). '
+		   ..' but found '..ffi.sizeof(self.eqn.symbols.cons_t)..' = '..(ffi.sizeof(self.eqn.symbols.cons_t) / realSize)..' * sizeof(real). '
 		   ..'Maybe you need to update Eqn.numStates?')
 	end
-	if ffi.sizeof(self.eqn.cons_t) < ffi.sizeof(self.eqn.prim_t) then
+	if ffi.sizeof(self.eqn.symbols.cons_t) < ffi.sizeof(self.eqn.symbols.prim_t) then
 		error("for PLM's sake I might need sizeof(prim_t) <= sizeof(cons_t)")
 	end
 	
@@ -1106,7 +1106,7 @@ function SolverBase:createBuffers()
 	-- or finally make use of constant args ...
 	
 	-- this much for the first level U data
-	self:clalloc('UBuf', self.eqn.cons_t, self.numCells)
+	self:clalloc('UBuf', self.eqn.symbols.cons_t, self.numCells)
 
 	-- used both by reduceMin and reduceMax
 	-- (and TODO use this by sum() in implicit solver as well?)
@@ -1245,14 +1245,15 @@ end
 
 -- depends on buffers
 function SolverBase:refreshSolverProgram()
+	local eqn = self.eqn
 
 	-- enable here after all modules are provided
-	self.solverModulesEnabled[self.eqn.calcDT] = true
-	if self:hasModule(self.eqn.addSource) then
-		self.solverModulesEnabled[self.eqn.addSource] = true
+	self.solverModulesEnabled[eqn.symbols.calcDT] = true
+	if self:hasModule(eqn.symbols.addSource) then
+		self.solverModulesEnabled[eqn.symbols.addSource] = true
 	end
-	if self:hasModule(self.eqn.constrainU) then
-		self.solverModulesEnabled[self.eqn.constrainU] = true
+	if self:hasModule(eqn.symbols.constrainU) then
+		self.solverModulesEnabled[eqn.symbols.constrainU] = true
 	end
 
 	local code
@@ -1275,12 +1276,12 @@ print('solver modules: '..moduleNames:sort():concat', ')
 
 	-- this is created in the parent class, however it isn't called by the parent class.
 	--  instead it has to be called by the individual implementation classes
-	if self:hasModule(self.eqn.addSource) then
-		self.addSourceKernelObj = self.solverProgramObj:kernel{name=self.eqn.addSource, domain=self.domainWithoutBorder}
+	if self:hasModule(eqn.symbols.addSource) then
+		self.addSourceKernelObj = self.solverProgramObj:kernel{name=eqn.symbols.addSource, domain=self.domainWithoutBorder}
 	end
 
-	if self:hasModule(self.eqn.constrainU) then
-		self.constrainUKernelObj = self.solverProgramObj:kernel(self.eqn.constrainU)
+	if self:hasModule(eqn.symbols.constrainU) then
+		self.constrainUKernelObj = self.solverProgramObj:kernel(eqn.symbols.constrainU)
 	end
 
 
@@ -1308,7 +1309,7 @@ end
 
 -- for solvers who don't rely on calcDT
 function SolverBase:refreshCalcDTKernel()
-	self.calcDTKernelObj = self.solverProgramObj:kernel(self.eqn.calcDT)
+	self.calcDTKernelObj = self.solverProgramObj:kernel(self.eqn.symbols.calcDT)
 	self.calcDTKernelObj.obj:setArg(1, self.reduceBuf)
 end
 
@@ -1435,7 +1436,7 @@ end
 		})))
 	end
 	addPickComponetForGroup{
-		bufferType = self.eqn.cons_t,
+		bufferType = self.eqn.symbols.cons_t,
 	}
 
 --[=[
@@ -2003,7 +2004,7 @@ end
 function SolverBase:getUBufDisplayVarsArgs()
 	return {
 		codePrefix = self.eqn:getDisplayVarCodePrefix(),
-		bufferType = self.eqn.cons_t,
+		bufferType = self.eqn.symbols.cons_t,
 		bufferField = 'UBuf',
 	}
 end
@@ -2618,7 +2619,7 @@ function SolverBase:printBuf(buf, ptrorig, colsize, colmax)
 	local ptr = ffi.cast('real*', ptrorig)
 	local size = buf.count * ptrsPerReal
 --print('size', size)
-	if buf.type == self.eqn.cons_t then
+	if buf.type == self.eqn.symbols.cons_t then
 		local maxdigitlen = #tostring(self.numCells-1)
 --print('maxdigitlen', maxdigitlen)
 		local realsPerCell = math.floor(size / self.numCells)

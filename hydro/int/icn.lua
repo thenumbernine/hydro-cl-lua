@@ -19,14 +19,14 @@ function IterativeCrankNicolson:init(solver)
 	self.srcUBufObj = CLBuffer{
 		env = solver.app.env,
 		name = 'srcUBuf',
-		type = solver.eqn.cons_t,
+		type = solver.eqn.symbols.cons_t,
 		count = solver.numCells,
 	}
 
 	self.derivBufObj = CLBuffer{
 		env = solver.app.env,
 		name = 'derivBuf',
-		type = solver.eqn.cons_t,
+		type = solver.eqn.symbols.cons_t,
 		count = solver.numCells,
 	}
 end
@@ -45,7 +45,7 @@ This makes me think, the RK class could be designed to reuse buffers that are no
 -- u[i] = u[0] + dt * .5 * (du/dt(u[0]) + du/dt(u[i-1]))
 function IterativeCrankNicolson:integrate(dt, callback)
 	local solver = self.solver
-	local bufferSize = solver.numCells * ffi.sizeof(solver.eqn.cons_t)
+	local bufferSize = solver.numCells * ffi.sizeof(solver.eqn.symbols.cons_t)
 if solver.checkNaNs then assert(solver:checkFinite(self.derivBufObjs[1])) end
 	
 	-- TODO get rid of the cl.hpp impl in cl/*.lua and just replace it with cl/obj/*.lua

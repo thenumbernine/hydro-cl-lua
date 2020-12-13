@@ -109,8 +109,8 @@ function SRHD:init(args)
 				-- TODO make this work for non-ident metric & add connections for covariant derivatives
 				chargeCode = self:template[[
 	<? for j=0,solver.dim-1 do ?>{
-		global const <?=eqn.cons_t?>* Ujm = U - solver->stepsize.s<?=j?>;
-		global const <?=eqn.cons_t?>* Ujp = U + solver->stepsize.s<?=j?>;
+		global const <?=cons_t?>* Ujm = U - solver->stepsize.s<?=j?>;
+		global const <?=cons_t?>* Ujp = U + solver->stepsize.s<?=j?>;
 		real d_rho_h_WSq_over_dx = (
 			Ujp->D * Ujp->D / Ujp->rho * calc_h(Ujp->rho, calc_P(solver, Ujp->rho, Ujp->eInt), Ujp->eInt)
 			- Ujm->D * Ujm->D / Ujm->rho * calc_h(Ujm->rho, calc_P(solver, Ujm->rho, Ujm->eInt), Ujm->eInt)

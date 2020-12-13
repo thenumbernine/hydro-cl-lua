@@ -117,7 +117,7 @@ function Chopped:init(args)
 	-- for now I'll just override the ':boundary()' of each solver to after-the-fact copy stuff across
 	-- TODO TODO TODO solver:boundary() is called every frame both at int/fe.lua:46 and at hydro/solver/gridsolver.lua:1569 ... I only need one of those
 	local parent = self
-	local sizeof_cons_t = ffi.sizeof(self.solvers[1].eqn.cons_t)	-- assumes all solver have the same size eqn_t
+	local sizeof_cons_t = ffi.sizeof(self.solvers[1].eqn.symbols.cons_t)	-- assumes all solver have the same size eqn_t
 	for i=1,tonumber(self.multiSlices.x) do
 		for j=1,math.max(1,tonumber(self.multiSlices.y)) do
 			for k=1,math.max(1,tonumber(self.multiSlices.z)) do

@@ -36,7 +36,7 @@ Relaxation.solverCodeFile = nil
 function Relaxation:getPotBufType() 
 	--return self.solver.UBufObj.type
 	-- should be the same:
-	return self.solver.eqn.cons_t
+	return self.solver.eqn.symbols.cons_t
 end
 
 -- buffer holding the potential field
@@ -70,7 +70,7 @@ function Relaxation:initCodeModules(solver)
 		depends = {
 			'SETBOUNDS_NOGHOST',
 		},
-		code = template(file[self.solverCodeFile], {op = self}),
+		code = solver.eqn:template(file[self.solverCodeFile], {op = self}),
 	}
 	solver.solverModulesEnabled[name] = true
 end

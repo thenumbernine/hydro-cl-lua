@@ -29,7 +29,7 @@ PoissonKrylov.linearSolverType = 'conjres'
 
 function PoissonKrylov:getPotBufType()
 	--return self.solver.UBufObj.type
-	return self.solver.eqn.cons_t
+	return self.solver.eqn.symbols.cons_t
 end
 
 function PoissonKrylov:getPotBuf()
@@ -191,13 +191,8 @@ function PoissonKrylov:initSolver()
 end
 
 local poissonKrylovCode = [[
-<?
-local solver = op.solver
-local eqn = op.solver.eqn
-?>
-
 kernel void poissonKrylovLinearFunc<?=op.name?>(
-	constant <?=solver.solver_t?>* solver,
+	constant <?=solver_t?>* solver,
 	global real* Y,
 	global real* X,
 	const global <?=solver.coord.cell_t?>* cellBuf
@@ -241,14 +236,14 @@ kernel void poissonKrylovLinearFunc<?=op.name?>(
 }
 
 kernel void copyPotentialFieldToVecAndInitB<?=op.name?>(
-	constant <?=solver.solver_t?>* solver,
+	constant <?=solver_t?>* solver,
 	global real* x,
 	global real* b,
-	global const <?=eqn.cons_t?>* UBuf
+	global const <?=cons_t?>* UBuf
 ) {
 	SETBOUNDS(0, 0);
 	
-	global const <?=eqn.cons_t?>* U = UBuf + index;
+	global const <?=cons_t?>* U = UBuf + index;
 	x[index] = U-><?=op.potentialField?>;
 	
 	real source = 0.;
@@ -257,8 +252,8 @@ kernel void copyPotentialFieldToVecAndInitB<?=op.name?>(
 }
 
 kernel void copyVecToPotentialField<?=op.name?>(
-	constant <?=solver.solver_t?>* solver,
-	global <?=eqn.cons_t?>* UBuf,
+	constant <?=solver_t?>* solver,
+	global <?=cons_t?>* UBuf,
 	global const real* x
 ) {
 	SETBOUNDS(0, 0);
@@ -278,7 +273,7 @@ function PoissonKrylov:initCodeModules(solver)
 	solver.modules:add{
 		name ='op.PoissonKrylov',
 		depends = self:getModuleDepends_Poisson(),
-		code = template(
+		code = solver.eqn:template(
 			file['hydro/op/poisson.cl']..'\n'
 			..poissonKrylovCode,
 			{

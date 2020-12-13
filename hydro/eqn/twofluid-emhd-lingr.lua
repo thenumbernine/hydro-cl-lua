@@ -28,6 +28,7 @@ local fluids = table{'ion', 'elec'}
 TwoFluidEMHDDeDonderGaugeLinearizedGR.fluids = fluids
 
 TwoFluidEMHDDeDonderGaugeLinearizedGR.postComputeFluxCode = [[
+//// MODULE_DEPENDS: coord_sqrt_det_g coord_lower
 		//flux is computed raised via Levi-Civita upper
 		//so here we lower it
 		real _1_sqrt_det_g = 1. / coord_sqrt_det_g(x);
@@ -37,7 +38,7 @@ TwoFluidEMHDDeDonderGaugeLinearizedGR.postComputeFluxCode = [[
 		flux.B_g = real3_real_mul(coord_lower(flux.B_g, x), _1_sqrt_det_g);
 ]]
 
-TwoFluidEMHDDeDonderGaugeLinearizedGR.name = 'twofluid-emhd-lingr'
+TwoFluidEMHDDeDonderGaugeLinearizedGR.name = 'twofluid_emhd_lingr'
 TwoFluidEMHDDeDonderGaugeLinearizedGR.numWaves = 26
 TwoFluidEMHDDeDonderGaugeLinearizedGR.numIntStates = 26
 
@@ -177,10 +178,8 @@ function TwoFluidEMHDDeDonderGaugeLinearizedGR:getModuleDepends_waveCode()
 	return {
 		'units',
 		'eqn.common',
-		'primFromCons',
+		self.symbols.primFromCons,
 		'coord_lower',
-		-- for postComputeFluxCode 
-		'coord_sqrt_det_g',
 	}
 end
 
@@ -194,7 +193,6 @@ function TwoFluidEMHDDeDonderGaugeLinearizedGR:getEnv()
 	local scalar = self.scalar
 	local env = table(TwoFluidEMHDDeDonderGaugeLinearizedGR.super.getEnv(self))
 	env.vec3 = self.vec3
-	env.cons_t = self.cons_t
 	env.susc_t = self.susc_t
 	env.scalar = scalar
 	env.zero = scalar..'_zero'
@@ -393,8 +391,8 @@ end
 -- dt < sqrt( E_alpha,i / rho_alpha,i) * |lHat_r,alpha| sqrt(2) / |E_i + v_alpha,i x B_i|
 function TwoFluidEMHDDeDonderGaugeLinearizedGR:consWaveCodePrefix(n, U, x)
 	return self:template([[
-prim_t W;
-primFromCons(&W, solver, <?=U?>, <?=x?>);
+<?=prim_t?> W;
+<?=primFromCons?>(&W, solver, <?=U?>, <?=x?>);
 
 #if 1	//using the EM wavespeed
 real consWaveCode_lambdaMax = max(

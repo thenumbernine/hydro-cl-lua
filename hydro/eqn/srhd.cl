@@ -108,10 +108,10 @@
 //PLM uses prim_only_t and <?=cons_t?>, esp using the 'numIntStates' reals that they start with
 //...and PLM uses consFromPrim and primFromCons
 
-//// MODULE_NAME: applyInitCond
+//// MODULE_NAME: <?=applyInitCond?>
 //// MODULE_DEPENDS: eqn.common
 
-kernel void applyInitCond(
+kernel void <?=applyInitCond?>(
 	constant <?=solver_t?> const * const solver,
 	constant <?=initCond_t?> const * const initCond,
 	global <?=cons_t?> * const UBuf,
@@ -150,10 +150,10 @@ kernel void applyInitCond(
 }
 
 
-//// MODULE_NAME: fluxFromCons
+//// MODULE_NAME: <?=fluxFromCons?>
 //// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> normal_t eqn.common
 
-#define fluxFromCons(\
+#define <?=fluxFromCons?>(\
 	/*<?=cons_t?> * const */result,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */U,\
@@ -178,11 +178,11 @@ kernel void applyInitCond(
 	(result)->ePot = 0;\
 }
 
-//// MODULE_NAME: calcDT
+//// MODULE_NAME: <?=calcDT?>
 //// MODULE_DEPENDS: SETBOUNDS coordLenSq eqn.common normal_t
 
 //everything matches the default except the params passed through to calcCellMinMaxEigenvalues
-kernel void calcDT(
+kernel void <?=calcDT?>(
 	constant <?=solver_t?> const * const solver,
 	global real * const dtBuf,
 	global <?=cons_t?> const * const UBuf,
@@ -226,10 +226,10 @@ kernel void calcDT(
 	dtBuf[index] = dt; 
 }
 
-//// MODULE_NAME: eigen_forInterface
+//// MODULE_NAME: <?=eigen_forInterface?>
 //// MODULE_DEPENDS: coord_lower
 
-#define eigen_forInterface(\
+#define <?=eigen_forInterface?>(\
 	/*<?=eigen_t?> * const */eig,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */UL,\
@@ -305,20 +305,17 @@ kernel void calcDT(
 ?>\
 }
 
-//// MODULE_NAME: eigen_forCell
+//// MODULE_NAME: <?=eigen_forCell?>
 
 //used by PLM
-#define eigen_forCell(\
+#define <?=eigen_forCell?>(\
 	/*<?=eigen_t?> * const */eig,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */U,\
 	/*real3 const */x,\
 	/*normal_t const */n\
 )\
-	(eigen_forInterface(eig, solver, U, U, x, n))
-
-//// MODULE_NAME: eigen_left/rightTransform 
-//// MODULE_DEPENDS: <?=waves_t?>
+	(<?=eigen_forInterface?>(eig, solver, U, U, x, n))
 
 <? -- create code to initialize local vars of all the eig vars
 local eigVarCode = require "ext.table".map(eqn.eigenVars, function(var)
@@ -326,7 +323,10 @@ local eigVarCode = require "ext.table".map(eqn.eigenVars, function(var)
 end):concat()
 ?>
 
-#define eigen_leftTransform(\
+//// MODULE_NAME: <?=eigen_leftTransform?>
+//// MODULE_DEPENDS: <?=waves_t?>
+
+#define <?=eigen_leftTransform?>(\
 	/*<?=waves_t?> * const */result,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=eigen_t?> const * const */eig,\
@@ -403,7 +403,10 @@ end):concat()
 	}\
 }
 
-#define eigen_rightTransform(\
+//// MODULE_NAME: <?=eigen_rightTransform?>
+//// MODULE_DEPENDS: <?=waves_t?>
+
+#define <?=eigen_rightTransform?>(\
 	/*<?=cons_t?> * const */result,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=eigen_t?> const * const */eig,\
@@ -455,9 +458,9 @@ end):concat()
 	*(result) = Y;\
 }
 
-//// MODULE_NAME: eigen_fluxTransform
+//// MODULE_NAME: <?=eigen_fluxTransform?>
 
-#define eigen_fluxTransform(\
+#define <?=eigen_fluxTransform?>(\
 	/*<?=cons_t?> * const */result,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=eigen_t?> const * const */eig,\
@@ -475,19 +478,19 @@ end):concat()
 	X.S = normal_vecFromNs(n, X.S);\
 <? else ?>\
 	/* default */\
-	eigen_leftTransform(&waves, solver, eig, X_, x, n);\
+	<?=eigen_leftTransform?>(&waves, solver, eig, X_, x, n);\
 	<?=eqn:eigenWaveCodePrefix("n", "eig", "x")?>\
 <? for j=0,eqn.numWaves-1 do --\
 ?>	waves.ptr[<?=j?>] *= <?=eqn:eigenWaveCode("n", "eig", "x", j)?>;\
 <? end --\
-?>	eigen_rightTransform(result, solver, eig, waves, x, n);\
+?>	<?=eigen_rightTransform?>(result, solver, eig, waves, x, n);\
 <? end ?>\
 }
 
-//// MODULE_NAME: constrainU
+//// MODULE_NAME: <?=constrainU?>
 //// MODULE_DEPENDS: coordLen eqn.guiVars.compileTime
 
-kernel void constrainU(
+kernel void <?=constrainU?>(
 	constant <?=solver_t?> const * const solver,
 	global <?=cons_t?> * const UBuf,
 	global <?=cell_t?> const * const cellBuf
@@ -546,9 +549,9 @@ kernel void constrainU(
 	}
 }
 
-//// MODULE_NAME: addSource
+//// MODULE_NAME: <?=addSource?>
 
-kernel void addSource(
+kernel void <?=addSource?>(
 	constant <?=solver_t?> const * const solver,
 	global <?=cons_t?> * const derivBuf,
 	global <?=cons_t?> const * const UBuf,

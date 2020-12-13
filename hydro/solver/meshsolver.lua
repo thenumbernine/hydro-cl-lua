@@ -309,7 +309,7 @@ function MeshSolver:createBuffers()
 	self:clalloc('cellFaceIndexesBuf', 'int', self.numCellFaceIndexes)
 	
 	-- specific to FiniteVolumeSolver
-	self:clalloc('fluxBuf', self.eqn.cons_t, self.numFaces)
+	self:clalloc('fluxBuf', self.eqn.symbols.cons_t, self.numFaces)
 end
 
 function MeshSolver:finalizeCLAllocs()

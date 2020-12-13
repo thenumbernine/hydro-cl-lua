@@ -16,7 +16,7 @@ WaveFDEqn.consVars = table{
 
 function WaveFDEqn:createBoundaryOptions()
 	local BoundaryFixed = class(self.solver.BoundaryFixed)
-	BoundaryFixed.fixedCode = '('..self.cons_t..'){.psi=cplx_zero, .zeta=cplx_zero}'
+	BoundaryFixed.fixedCode = '('..self.symbols.cons_t..'){.psi=cplx_zero, .zeta=cplx_zero}'
 	self.solver:addBoundaryOption(BoundaryFixed)
 end
 

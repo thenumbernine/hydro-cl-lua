@@ -56,10 +56,10 @@ static inline real3x3 metric_partial_beta_ul(real3 const pt) {
 ?>	};
 }
 
-//// MODULE_NAME: applyInitCond
+//// MODULE_NAME: <?=applyInitCond?>
 //// MODULE_DEPENDS: cartesianToCoord
 
-kernel void applyInitCond(
+kernel void <?=applyInitCond?>(
 	constant <?=solver_t?> const * const solver,
 	constant <?=initCond_t?> const * const initCond,
 	global <?=cons_t?> * const UBuf,
@@ -95,15 +95,15 @@ end
 	};
 }
 
-//// MODULE_NAME: fluxFromCons
+//// MODULE_NAME: <?=fluxFromCons?>
 //// MODULE_DEPENDS: <?=solver_t?> normal_t <?=cons_t?> eqn.common
 // eqn.common has metric_alpha
 
-// What's the difference between eigen_fluxTransform and fluxFromCons?
+// What's the difference between <?=eigen_fluxTransform?> and <?=fluxFromCons?>?
 // The difference is that the flux matrix of this is based on 'eig', which is derived from U's ... especially UL & UR in the case of the Roe solver
-// whereas that of fluxFromCons is based purely on 'U'.
+// whereas that of <?=fluxFromCons?> is based purely on 'U'.
 // Since hydro/eqn/wave has no <?=eigen_t?> info derived from U, the two functions are identical.
-#define fluxFromCons(\
+#define <?=fluxFromCons?>(\
 	/*<?=cons_t?> * const */resultFlux,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */U,\
@@ -163,10 +163,10 @@ end
 	);\
 }
 
-//// MODULE_NAME: calcCellMinMaxEigenvalues
+//// MODULE_NAME: <?=calcCellMinMaxEigenvalues?>
 
 // used by PLM
-void calcCellMinMaxEigenvalues(
+void <?=calcCellMinMaxEigenvalues?>(
 	range_t * const result,
 	constant <?=solver_t?> const * const solver,
 	global <?=cons_t?> const * const U,
@@ -179,22 +179,22 @@ void calcCellMinMaxEigenvalues(
 	result->max = solver->wavespeed * (-beta_n + alpha_nLen);
 }
 
-//// MODULE_NAME: eigen_forInterface
+//// MODULE_NAME: <?=eigen_forInterface?>
 //// MODULE_DEPENDS: <?=eigen_t?>
 
-#define eigen_forInterface(resultEig, solver, UL, UR, x, n) \
+#define <?=eigen_forInterface?>(resultEig, solver, UL, UR, x, n) \
 	*(resultEig) = (<?=eigen_t?>){}
 
-//// MODULE_NAME: eigen_forCell
+//// MODULE_NAME: <?=eigen_forCell?>
 //// MODULE_DEPENDS: <?=eigen_t?>
 
-#define eigen_forCell(resultEig, solver, U, x, n) \
+#define <?=eigen_forCell?>(resultEig, solver, U, x, n) \
 	*(resultEig) = (<?=eigen_t?>){};
 
-//// MODULE_NAME: eigen_left/rightTransform
+//// MODULE_NAME: <?=eigen_leftTransform?>
 //// MODULE_DEPENDS: <?=eigen_t?> <?=waves_t?>
 
-#define eigen_leftTransform(\
+#define <?=eigen_leftTransform?>(\
 	/*<?=waves_t?> * const */result,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=eigen_t?> const * const */eig,\
@@ -228,7 +228,10 @@ void calcCellMinMaxEigenvalues(
 	);\
 }
 
-#define eigen_rightTransform(\
+//// MODULE_NAME: <?=eigen_rightTransform?>
+//// MODULE_DEPENDS: <?=eigen_t?> <?=waves_t?>
+
+#define <?=eigen_rightTransform?>(\
 	/*<?=cons_t?> * const */result,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=eigen_t?> const * const */eig,\
@@ -257,16 +260,16 @@ void calcCellMinMaxEigenvalues(
 		+ X[3] * normal_l1z(n);\
 }
 
-//// MODULE_NAME: eigen_fluxTransform
+//// MODULE_NAME: <?=eigen_fluxTransform?>
 
-// by default in hydro/eqn/eqn.lua, fluxFromCons is defined by eigen_fluxTransform
-// but since eig is empty, we can define eigen_fluxTransform with fluxFromCons
-#define eigen_fluxTransform(resultFlux, solver, eig, X, x, n) fluxFromCons(resultFlux, solver, X, x, n)
+// by default in hydro/eqn/eqn.lua, <?=fluxFromCons?> is defined by <?=eigen_fluxTransform?>
+// but since eig is empty, we can define <?=eigen_fluxTransform?> with <?=fluxFromCons?>
+#define <?=eigen_fluxTransform?>(resultFlux, solver, eig, X, x, n) <?=fluxFromCons?>(resultFlux, solver, X, x, n)
 
 <? if false then ?>
-//// MODULE_NAME: addSource
+//// MODULE_NAME: <?=addSource?>
 
-kernel void addSource(
+kernel void <?=addSource?>(
 	constant <?=solver_t?>* solver,
 	global <?=cons_t?>* derivBuf,
 	const global <?=cons_t?>* UBuf,

@@ -21,16 +21,16 @@ function BSSNOKFiniteDifferencePIRKSolver:createBuffers()
 	BSSNOKFiniteDifferencePIRKSolver.super.createBuffers(self)
 
 	-- UBuf = U^n
-	self:clalloc('U1', self.eqn.cons_t, self.numCells)
-	self:clalloc('UNext', self.eqn.cons_t, self.numCells)
-	self:clalloc('UTemp', self.eqn.cons_t, self.numCells)
-	self:clalloc('derivL1_1', self.eqn.cons_t, self.numCells)
-	self:clalloc('derivL1_n', self.eqn.cons_t, self.numCells)
-	self:clalloc('derivL2_1', self.eqn.cons_t, self.numCells)
-	self:clalloc('derivL2_n', self.eqn.cons_t, self.numCells)
-	self:clalloc('derivL2_next', self.eqn.cons_t, self.numCells)
-	self:clalloc('derivL3_1', self.eqn.cons_t, self.numCells)
-	self:clalloc('derivL3_n', self.eqn.cons_t, self.numCells)
+	self:clalloc('U1', self.eqn.symbols.cons_t, self.numCells)
+	self:clalloc('UNext', self.eqn.symbols.cons_t, self.numCells)
+	self:clalloc('UTemp', self.eqn.symbols.cons_t, self.numCells)
+	self:clalloc('derivL1_1', self.eqn.symbols.cons_t, self.numCells)
+	self:clalloc('derivL1_n', self.eqn.symbols.cons_t, self.numCells)
+	self:clalloc('derivL2_1', self.eqn.symbols.cons_t, self.numCells)
+	self:clalloc('derivL2_n', self.eqn.symbols.cons_t, self.numCells)
+	self:clalloc('derivL2_next', self.eqn.symbols.cons_t, self.numCells)
+	self:clalloc('derivL3_1', self.eqn.symbols.cons_t, self.numCells)
+	self:clalloc('derivL3_n', self.eqn.symbols.cons_t, self.numCells)
 end
 
 function BSSNOKFiniteDifferencePIRKSolver:initCodeModules()
@@ -162,7 +162,7 @@ end
 
 -- perform the 4 steps for PIRK integration
 function BSSNOKFiniteDifferencePIRKSolver:step(dt)
-	local bufferSize = self.numCells * ffi.sizeof(self.eqn.cons_t)
+	local bufferSize = self.numCells * ffi.sizeof(self.eqn.symbols.cons_t)
 
 --[[ zero all derivatives
 	self.cmds:enqueueFillBuffer{buffer=self.derivL1_1, size=bufferSize}

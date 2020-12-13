@@ -23,7 +23,7 @@ function RungeKutta:init(solver)
 			needed = needed or self.alphas[m][i] ~= 0
 		end
 		if needed then
-			self.UBufs[i] = solver.app.ctx:buffer{rw=true, size=solver.numCells * ffi.sizeof(solver.eqn.cons_t)}
+			self.UBufs[i] = solver.app.ctx:buffer{rw=true, size=solver.numCells * ffi.sizeof(solver.eqn.symbols.cons_t)}
 		end
 	
 		local needed = false
@@ -34,7 +34,7 @@ function RungeKutta:init(solver)
 			self.derivBufObjs[i] = CLBuffer{
 				env = solver.app.env,
 				name = 'derivBuf'..i,
-				type = solver.eqn.cons_t,
+				type = solver.eqn.symbols.cons_t,
 				count = solver.numCells,
 			}
 			
@@ -47,7 +47,7 @@ end
 
 function RungeKutta:integrate(dt, callback)
 	local solver = self.solver
-	local bufferSize = solver.numCells * ffi.sizeof(solver.eqn.cons_t)
+	local bufferSize = solver.numCells * ffi.sizeof(solver.eqn.symbols.cons_t)
 if solver.checkNaNs then assert(solver:checkFinite(self.derivBufObjs[1])) end
 
 --print("integrating rk with dt "..dt)

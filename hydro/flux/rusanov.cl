@@ -1,17 +1,16 @@
 //// MODULE_NAME: calcFluxForInterface
-//// MODULE_DEPENDS: solver.macros math cons_parallelPropagate
-//// MODULE_DEPENDS: eigen_forInterface eqn.waveCode fluxFromCons
+//// MODULE_DEPENDS: solver.macros math <?=cons_parallelPropagate?> <?=eigen_forInterface?> <?=waveCode_depends?> <?=fluxFromCons?>
 
 #define calcFluxForInterface(\
-	/*cons_t * const */resultFlux,\
-	/*constant solver_t const * const */solver,\
-	/*cons_t const * const */UL,\
-	/*cons_t const * const */UR,\
+	/*<?=cons_t?> * const */resultFlux,\
+	/*constant <?=solver_t?> const * const */solver,\
+	/*<?=cons_t?> const * const */UL,\
+	/*<?=cons_t?> const * const */UR,\
 	/*real3 const */xInt,\
 	/*normal_t const */n\
 ) {\
-	eigen_t eigInt;\
-	eigen_forInterface(&eigInt, solver, UL, UR, xInt, n);\
+	<?=eigen_t?> eigInt;\
+	<?=eigen_forInterface?>(&eigInt, solver, UL, UR, xInt, n);\
 <?=eqn:eigenWaveCodePrefix("n", "&eigInt", "xInt"):gsub("\n", "\\\n")?>\
 \
 	real lambdaMax;\
@@ -23,10 +22,10 @@
 	}<? end --\
 	end --\
 ?>\
-	cons_t FL;\
-	fluxFromCons(&FL, solver, UL, xInt, n);\
-	cons_t FR;\
-	fluxFromCons(&FR, solver, UR, xInt, n);\
+	<?=cons_t?> FL;\
+	<?=fluxFromCons?>(&FL, solver, UL, xInt, n);\
+	<?=cons_t?> FR;\
+	<?=fluxFromCons?>(&FR, solver, UR, xInt, n);\
 	for (int j = 0; j < numIntStates; ++j) {\
 		(resultFlux)->ptr[j] = .5 * (FL.ptr[j] + FR.ptr[j] - lambdaMax * ((UR)->ptr[j] - (UL)->ptr[j]));\
 	}\

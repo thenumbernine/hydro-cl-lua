@@ -1,9 +1,9 @@
-//// MODULE_NAME: calcDT
-//// MODULE_DEPENDS: <?=solver_t?> primFromCons eqn.guiVars.compileTime
+//// MODULE_NAME: <?=calcDT?>
+//// MODULE_DEPENDS: <?=solver_t?> <?=primFromCons?> eqn.guiVars.compileTime
 
 <? if require "hydro.solver.gridsolver".is(solver) then ?>
 
-kernel void calcDT(
+kernel void <?=calcDT?>(
 	constant <?=solver_t?> const * const solver,
 	global real * const dtBuf,
 	global <?=cons_t?> const * const UBuf,
@@ -18,7 +18,7 @@ kernel void calcDT(
 
 	global <?=cons_t?> const * const U = UBuf + index;
 	<?=prim_t?> W;
-	primFromCons(&W, solver, U, x);
+	<?=primFromCons?>(&W, solver, U, x);
 	real Cs = calc_Cs(solver, &W);
 
 	real dt = INFINITY;
@@ -30,7 +30,7 @@ kernel void calcDT(
 
 <? else -- mesh solver ?>
 
-kernel void calcDT(
+kernel void <?=calcDT?>(
 	constant <?=solver_t?> const * const solver,
 	global real * const dtBuf,					//[numCells]
 	global <?=cons_t?> const * const UBuf,			//[numCells]
@@ -46,7 +46,7 @@ kernel void calcDT(
 	
 	global <?=cons_t?> const * const U = UBuf + cellIndex;
 	<?=prim_t?> W;
-	primFromCons(&W, solver, U, x);
+	<?=primFromCons?>(&W, solver, U, x);
 	real Cs = calc_Cs(solver, &W);
 
 	real dt = INFINITY;
@@ -63,7 +63,7 @@ kernel void calcDT(
 <? end -- mesh solver ?>
 
 //// MODULE_NAME: EulerBurgers.solver
-//// MODULE_DEPENDS: primFromCons fluxLimiter eigen_forInterface SETBOUNDS
+//// MODULE_DEPENDS: <?=primFromCons?> fluxLimiter <?=eigen_forInterface?> SETBOUNDS
 
 kernel void calcIntVel(
 	constant <?=solver_t?> const * const solver,
@@ -156,7 +156,7 @@ kernel void computePressure(
 	
 	global <?=cons_t?> const * const U = UBuf + index;
 	<?=prim_t?> W;
-	primFromCons(&W, solver, U, x);
+	<?=primFromCons?>(&W, solver, U, x);
 	real P = W.P;
 
 <? if false then -- Von Newmannartificial viscosity

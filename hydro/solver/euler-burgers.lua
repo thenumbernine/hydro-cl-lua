@@ -3,7 +3,6 @@ local class = require 'ext.class'
 local table = require 'ext.table'
 local file = require 'ext.file'
 local range = require 'ext.range'
-local template = require 'template'
 local real = require 'hydro.real'
 local FiniteVolumeSolver = require 'hydro.solver.fvsolver'
 

@@ -13,10 +13,10 @@ local ADM_BonaMasso_1D_2008Alcubierre = class(EinsteinEqn)
 ADM_BonaMasso_1D_2008Alcubierre.name = 'ADM_BonaMasso_1D_2008Alcubierre' 
 
 ADM_BonaMasso_1D_2008Alcubierre.consVars = {
-	{name='alpha', type='real'}, 
-	{name='gamma_xx', type='real', variance=''}, 
-	{name='a_x', type='real', variance=''}, 
-	{name='D_g', type='real', variance=''}, 
+	{name='alpha', type='real'},
+	{name='gamma_xx', type='real', variance=''},
+	{name='a_x', type='real', variance=''},
+	{name='D_g', type='real', variance=''},
 	{name='KTilde', type='real'},
 }
 ADM_BonaMasso_1D_2008Alcubierre.numWaves = 3	-- alpha and gamma_xx are source-term only
@@ -41,15 +41,15 @@ function ADM_BonaMasso_1D_2008Alcubierre:initCodeModule_fluxFromCons()
 		},
 		code = self:template[[
 
-<?=eqn.cons_t?> fluxFromCons(
+<?=cons_t?> fluxFromCons(
 	constant <?=solver.solver_t?>* solver,
-	<?=eqn.cons_t?> U,
+	<?=cons_t?> U,
 	real3 x,
 	normal_t n
 ) {
 	real f = calc_f(U.alpha);
 	real alpha_over_sqrt_gamma_xx = U.alpha / sqrt(U.gamma_xx);
-	return (<?=eqn.cons_t?>){
+	return (<?=cons_t?>){
 		.alpha = 0,
 		.gamma_xx = 0,
 		.a_x = U.KTilde * f * alpha_over_sqrt_gamma_xx,

@@ -63,15 +63,10 @@ function SelfGrav:getPoissonDivCode()
 end
 
 function SelfGrav:getPoissonCode()
-	return template([[
-<?
-local solver = op.solver
-local eqn = solver.eqn
-?>
-
+	return self.solver.eqn:template([[
 real3 calcGravityAccel<?=op.name?>(
-	constant <?=solver.solver_t?>* solver,
-	global const <?=eqn.cons_t?>* U
+	constant <?=solver_t?> const * const solver,
+	global <?=cons_t?> * const U
 ) {
 	real3 accel_g = real3_zero;
 
@@ -87,14 +82,14 @@ real3 calcGravityAccel<?=op.name?>(
 }
 
 kernel void calcGravityDeriv<?=op.name?>(
-	constant <?=solver.solver_t?>* solver,
-	global <?=eqn.cons_t?>* derivBuffer,
-	global const <?=eqn.cons_t?>* UBuf
+	constant <?=solver_t?> const * const solver,
+	global <?=cons_t?>* derivBuffer,
+	global const <?=cons_t?>* UBuf
 ) {
 	SETBOUNDS(numGhost,numGhost);
 	
-	global <?=eqn.cons_t?>* deriv = derivBuffer + index;
-	const global <?=eqn.cons_t?>* U = UBuf + index;
+	global <?=cons_t?>* deriv = derivBuffer + index;
+	const global <?=cons_t?>* U = UBuf + index;
 
 	real3 accel_g = calcGravityAccel<?=op.name?>(solver, U);
 
@@ -107,9 +102,9 @@ kernel void calcGravityDeriv<?=op.name?>(
 
 //TODO just use the display var kernels
 kernel void copyPotentialToReduce<?=op.name?>(
-	constant <?=solver.solver_t?>* solver,
+	constant <?=solver_t?> const * const solver,
 	global real* reduceBuf,
-	global const <?=eqn.cons_t?>* UBuf
+	global const <?=cons_t?>* UBuf
 ) {
 	SETBOUNDS(0,0);
 	reduceBuf[index] = UBuf[index].<?=op.potentialField?>;
@@ -117,12 +112,12 @@ kernel void copyPotentialToReduce<?=op.name?>(
 
 //keep potential energy negative
 kernel void offsetPotential<?=op.name?>(
-	constant <?=solver.solver_t?>* solver,
-	global <?=eqn.cons_t?>* UBuf,
+	constant <?=solver_t?> const * const solver,
+	global <?=cons_t?>* UBuf,
 	realparam ePotMax
 ) {
 	SETBOUNDS(0,0);
-	global <?=eqn.cons_t?>* U = UBuf + index;
+	global <?=cons_t?>* U = UBuf + index;
 	U-><?=op.potentialField?> -= ePotMax;
 }
 ]], {op=self})

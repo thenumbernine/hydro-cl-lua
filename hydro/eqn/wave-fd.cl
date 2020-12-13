@@ -1,33 +1,33 @@
-//// MODULE_NAME: calcDT
+//// MODULE_NAME: <?=calcDT?>
 
-//// MODULE_NAME: applyInitCond
-//// MODULE_DEPENDS: solver_t initCond_t cons_t cell_t SETBOUNDS
+//// MODULE_NAME: <?=applyInitCond?>
+//// MODULE_DEPENDS: <?=solver_t?> <?=initCond_t?> <?=cons_t?> <?=cell_t?> SETBOUNDS
 
-kernel void applyInitCond(
-	constant solver_t* solver,
-	constant initCond_t* initCond,
-	global cons_t* UBuf,
-	const global cell_t* cellBuf
+kernel void <?=applyInitCond?>(
+	constant <?=solver_t?>* solver,
+	constant <?=initCond_t?>* initCond,
+	global <?=cons_t?>* UBuf,
+	const global <?=cell_t?>* cellBuf
 ) {
 	SETBOUNDS(0,0);
 	real3 x = cellBuf[index].pos;
 	real r = fabs(x.x);
 	cplx q = cplx_zero;
 	<?=initCode()?>
-	UBuf[index] = (cons_t){
+	UBuf[index] = (<?=cons_t?>){
 		.psi = q,
 		.zeta = cplx_zero,
 	};
 }
 
-//// MODULE_NAME: addSource
-//// MODULE_DEPENDS: solver_t cons_t cell_t SETBOUNDS_NOGHOST cell_x
+//// MODULE_NAME: <?=addSource?>
+//// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> <?=cell_t?> SETBOUNDS_NOGHOST cell_x
 
-kernel void addSource(
-	constant solver_t* solver,
-	global cons_t* derivBuf,
-	const global cons_t* UBuf,
-	const global cell_t* cellBuf
+kernel void <?=addSource?>(
+	constant <?=solver_t?>* solver,
+	global <?=cons_t?>* derivBuf,
+	const global <?=cons_t?>* UBuf,
+	const global <?=cell_t?>* cellBuf
 ) {
 	SETBOUNDS_NOGHOST();
 	real3 x = cell_x(i);
@@ -44,8 +44,8 @@ kernel void addSource(
 	const real m = solver->m;
 	const real Vm = (m*m - .5) / r2;
 
-	global cons_t* deriv = derivBuf + index;
-	const global cons_t* U = UBuf + index;
+	global <?=cons_t?>* deriv = derivBuf + index;
+	const global <?=cons_t?>* U = UBuf + index;
 	
 	deriv->psi = cplx_add(deriv->psi, U->zeta);
 	deriv->zeta = cplx_add4(

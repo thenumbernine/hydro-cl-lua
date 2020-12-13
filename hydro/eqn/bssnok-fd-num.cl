@@ -309,9 +309,9 @@ end
 //// MODULE_DEPENDS: calc_len_# calc_partial*_len* calc_PIRK_L2_ABar_LL
 
 static _3sym3 calc_partial_ABar_LLL(
-	real3 x,
-	sym3 ABar_LL,
-	const sym3 partial_ABar_LLl[3]
+	real3 const x,
+	sym3 const ABar_LL,
+	sym3 const partial_ABar_LLl[3]
 ) {
 	_3sym3 partial_ABar_LLL;
 	//derivative first
@@ -337,9 +337,9 @@ end
 //// MODULE_DEPENDS: calc_partial*_len* calc_len_#
 
 static _3sym3 calc_partial_gammaBar_LLL(
-	real3 x,
-	sym3 epsilon_LL,
-	const sym3 partial_epsilon_LLl[3]
+	real3 const x,
+	sym3 const epsilon_LL,
+	sym3 const partial_epsilon_LLl[3]
 ) {
 	_3sym3 partial_gammaBar_LLL;
 	//derivative first
@@ -365,10 +365,10 @@ end
 //// MODULE_DEPENDS: calc_partial*_len* calc_len_#
 
 static void calc_connHat_LLL_and_ULL(
-	_3sym3* connHat_LLL,
-	_3sym3* connHat_ULL,
-	const global <?=eqn.cons_t?>* U,
-	real3 x
+	_3sym3 * const connHat_LLL,
+	_3sym3 * const connHat_ULL,
+	global <?=cons_t?> const * const U,
+	real3 const x
 ) {
 	// TODO inline the partial_gammaHat_LLL's
 	//derivative first
@@ -450,14 +450,14 @@ end
 //// MODULE_DEPENDS: rescaleFromCoord/rescaleToCoord
 
 static sym3 calc_trBar_partial2_gammaBar_ll(
-	const global <?=eqn.cons_t?>* U,
+	const global <?=cons_t?>* U,
 	real3 x,
 	sym3 gammaBar_UU,
 	const sym3 partial_epsilon_LLl[3],
 	const sym3 partial2_epsilon_LLll[6]
 ) {
 	//gives accuracy errors if I try to inline this
-	sym3 gammaBar_uu = sym3_rescaleToCoord_UU(gammaBar_UU, x); 
+	sym3 const gammaBar_uu = sym3_rescaleToCoord_UU(gammaBar_UU, x); 
 	
 	/*
 	gammaBar_ij,kl gammaBar^kl
@@ -498,7 +498,7 @@ static sym3 calc_trBar_partial2_gammaBar_ll(
 	return trBar_partial2_gammaBar_ll;
 }
 
-//// MODULE_NAME: applyInitCond
+//// MODULE_NAME: <?=applyInitCond?>
 //// MODULE_DEPENDS: _3sym3 numGhost coordMap calc_gammaHat_ll calc_det_gammaBar calc_det_gammaBarLL calc_partial_gammaBar_LLL calc_connBar_ULL calc_connHat_LLL_and_ULL
 
 // Should initCond provide a metric in cartesian, or in the background metric?
@@ -515,21 +515,21 @@ if initCond.initAnalytical then
 ?>
 //// MODULE_DEPENDS: rescaleFromCoord/rescaleToCoord _3sym3_rescaleFromCoord/_3sym3_rescaleToCoord
 
-kernel void applyInitCond(
-	constant <?=solver.solver_t?>* solver,
-	constant <?=solver.initCond_t?>* initCond,
-	global <?=eqn.cons_t?>* UBuf,
-	const global <?=solver.coord.cell_t?>* cellBuf
+kernel void <?=applyInitCond?>(
+	constant <?=solver_t?> const * const solver,
+	constant <?=initCond_t?> const * const initCond,
+	global <?=cons_t?> * const UBuf,
+	global <?=cell_t?> const * const cellBuf
 ) {
 	SETBOUNDS(numGhost,numGhost);
-	real3 x = cellBuf[index].pos;
-	real3 xc = coordMap(x);
-	real3 mids = real3_real_mul(real3_add(solver->mins, solver->maxs), .5);
+	real3 const x = cellBuf[index].pos;
+	real3 const xc = coordMap(x);
+	real3 const mids = real3_real_mul(real3_add(solver->mins, solver->maxs), .5);
 
 	//compile compat. the compile code uses 'pt' as the grid point.
-	real3 pt = x;
+	real3 const pt = x;
 	
-	global <?=eqn.cons_t?>* U = UBuf + index;
+	global <?=cons_t?> * const U = UBuf + index;
 
 	U->alpha = <?=eqn:compile(initCond.alpha0)?>;
 
@@ -651,7 +651,7 @@ end ?>
 
 
 //TODO initialization of these ...
-//how about an initial call to constrainU?	
+//how about an initial call to <?=constrainU?>?	
 	U->rho = 0.;
 	U->S_u = real3_zero;
 	U->S_ll = sym3_zero;
@@ -662,15 +662,15 @@ end ?>
 
 <? elseif initCond.useBSSNVars then -- and not initCond.initAnalytical ?>
 
-kernel void applyInitCond(
-	constant <?=solver.solver_t?>* solver,
-	constant <?=solver.initCond_t?>* initCond,
-	global <?=eqn.cons_t?>* UBuf,
-	const global <?=solver.coord.cell_t?>* cellBuf
+kernel void <?=applyInitCond?>(
+	constant <?=solver_t?> const * const solver,
+	constant <?=initCond_t?> const * const initCond,
+	global <?=cons_t?> * const UBuf,
+	global <?=cell_t?> const * const cellBuf
 ) {
 	SETBOUNDS(0,0);
-	global <?=eqn.cons_t?>* U = UBuf + index;
-	real3 x = cellBuf[index].pos;
+	global <?=cons_t?> * const U = UBuf + index;
+	real3 const x = cellBuf[index].pos;
 
 	if (OOB(numGhost,numGhost)) {
 		U->alpha = INFINITY;
@@ -744,19 +744,19 @@ kernel void applyInitCond(
 ?>
 //// MODULE_DEPENDS: rescaleFromCoord/rescaleToCoord calc_gammaBar_LL 
 
-kernel void applyInitCond(
-	constant <?=solver.solver_t?>* solver,
-	constant <?=solver.initCond_t?>* initCond,
-	global <?=eqn.cons_t?>* UBuf,
-	const global <?=solver.coord.cell_t?>* cellBuf
+kernel void <?=applyInitCond?>(
+	constant <?=solver_t?> const * const solver,
+	constant <?=initCond_t?> const * const initCond,
+	global <?=cons_t?> * const UBuf,
+	global <?=cell_t?> const * const cellBuf
 ) {
 	SETBOUNDS(numGhost,numGhost);
 
-	real3 x = cellBuf[index].pos;
-	real3 xc = coordMap(x);
-	real3 mids = real3_real_mul(real3_add(solver->mins, solver->maxs), .5);
+	real3 const x = cellBuf[index].pos;
+	real3 const xc = coordMap(x);
+	real3 const mids = real3_real_mul(real3_add(solver->mins, solver->maxs), .5);
 	
-	global <?=eqn.cons_t?>* U = UBuf + index;
+	global <?=cons_t?> * const U = UBuf + index;
 
 	sym3 gammaHat_ll = calc_gammaHat_ll(x);
 
@@ -824,20 +824,20 @@ kernel void applyInitCond(
 
 }
 
-//// MODULE_NAME: initDerivs
-//// MODULE_DEPENDS: solver_t cons_t cell_t SETBOUNDS numGhost
+//// MODULE_NAME: <?=initDerivs?>
+//// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> <?=cell_t?> SETBOUNDS numGhost
 
 //after popularing gammaBar_ll, use its finite-difference derivative to initialize LambdaBar_u
 //TODO do this symbolically.  That's what I originally did, but symbolic calculations were getting complex
 // however, with spherical BSSN, you need to 
-kernel void initDerivs(
-	constant <?=solver.solver_t?>* solver,
-	global <?=eqn.cons_t?>* UBuf,
-	const global <?=solver.coord.cell_t?>* cellBuf
+kernel void <?=initDerivs?>(
+	constant <?=solver_t?> const * const solver,
+	global <?=cons_t?> * const UBuf,
+	global <?=cell_t?> const * const cellBuf
 ) {
 	SETBOUNDS(numGhost,numGhost);
-	real3 x = cellBuf[index].pos;
-	global <?=eqn.cons_t?>* U = UBuf + index;
+	real3 const x = cellBuf[index].pos;
+	global <?=cons_t?> * const U = UBuf + index;
 
 	sym3 gammaBar_LL = calc_gammaBar_LL(U, x);
 	real det_gammaBarLL = calc_det_gammaBarLL(x);
@@ -863,17 +863,17 @@ kernel void initDerivs(
 //// MODULE_DEPENDS: rescaleFromCoord/rescaleToCoord calc_partial_connHat_Ulll_* calc_len_# _3sym3_rescaleFromCoord/_3sym3_rescaleToCoord
 
 static sym3 calc_RBar_LL(
-	const global <?=eqn.cons_t?>* U,
-	real3 x,
-	const sym3* gammaBar_LL,
-	const sym3* gammaBar_UU,
-	const _3sym3* connHat_ULL,
-	const _3sym3* partial_gammaBar_LLL,
-	const sym3* trBar_partial2_gammaBar_ll,
-	const real3x3* partial_LambdaBar_UL,
-	const real3* Delta_U,
-	const _3sym3* Delta_ULL,
-	const _3sym3* Delta_LLL
+	global <?=cons_t?> const * const U,
+	real3 const x,
+	sym3 const * const gammaBar_LL,
+	sym3 const * const gammaBar_UU,
+	_3sym3 const * const connHat_ULL,
+	_3sym3 const * const partial_gammaBar_LLL,
+	sym3 const * const trBar_partial2_gammaBar_ll,
+	real3x3 const * const partial_LambdaBar_UL,
+	real3 const * const Delta_U,
+	_3sym3 const * const Delta_ULL,
+	_3sym3 const * const Delta_LLL
 ) {
 	
 	//DHat_gammaBar_lll.k.ij = DHat_k gammaBar_ij 
@@ -1093,37 +1093,37 @@ end
 //////////////////////////////// Kreiss-Oligar dissipation //////////////////////////////// 
 
 static void applyKreissOligar(
-	constant solver_t* solver,
-	const global cons_t* U,
-	const global cell_t* cell,
-	global cons_t* deriv,
-	real3 x,
-	int* fields,
-	int numFields
+	constant <?=solver_t?> const * const solver,
+	global <?=cons_t?> const * const U,
+	global <?=cell_t?> const * const cell,
+	global <?=cons_t?> * const deriv,
+	real3 const x,
+	int const * const fields,
+	int const numFields
 ) {
 <? if useKreissOligarDissipation then ?>
 	if (solver->dissipationCoeff == 0.) return;
 		
-	real r = coordMapR(x);
+	real const r = coordMapR(x);
 	//Kreiss-Oligar dissipation
 	real coeff = solver->dissipationCoeff;
 #if 0	// 2013 Baumgarte et al, section IIIB
 	coeff /= dt;
 #elif 1	// 2017 Ruchlin et al eqn 44
 	// all params > 0
-	real rKO = 2.;		//rKO/M = 2
-	real wKO = .17;		//wKO/M = .17
+	real const rKO = 2.;		//rKO/M = 2
+	real const wKO = .17;		//wKO/M = .17
 	//epsKO0 = .99 doubles as my 'dissipationCoeff' var
 	coeff *= .5 * (erf((r - rKO) / wKO) + 1.);
 #endif
 
 <? if require "hydro.coord.sphere-sinh-radial".is(solver.coord) then ?>
 	real3 yR = _real3(cell->r, cell->pos.y, cell->pos.z);
-	const global cell_t* cellL0 = cell - solver->stepsize.x;
+	global <?=cell_t?> const * const cellL0 = cell - solver->stepsize.x;
 	real3 yL0 = _real3(cellL0->r, cellL0->pos.y, cellL0->pos.z);
-	const global cell_t* cellL1 = cell - solver->stepsize.y;
+	global <?=cell_t?> const * const cellL1 = cell - solver->stepsize.y;
 	real3 yL1 = _real3(cellL1->r, cellL1->pos.y, cellL1->pos.z);
-	const global cell_t* cellL2 = cell - solver->stepsize.z;
+	global <?=cell_t?> const * const cellL2 = cell - solver->stepsize.z;
 	real3 yL2 = _real3(cellL2->r, cellL2->pos.y, cellL2->pos.z);
 	real3 dySq = _real3(
 		real3_lenSq(real3_sub(yR, yL0)),
@@ -1201,7 +1201,7 @@ based on vector 'v'
 to compute upwind differencing from.
 Same thing as (int4)sgn(v)
 */
-const int4 getUpwind(real3 v) {
+int4 getUpwind(real3 v) {
 	return (int4)(
 		v.x >= 0 ? 1 : -1,
 		v.y >= 0 ? 1 : -1,
@@ -1260,15 +1260,15 @@ static sym3 sym3_Lbeta_LL(
 //////////////////////////////// epsilon_IJ_,t //////////////////////////////// 
 
 static void calcDeriv_epsilon_LL(
-	constant solver_t* solver,
-	global cons_t* deriv,
-	const global cons_t* U,
-	int4 updir,
-	real3 x,
-	const sym3* gammaBar_LL,
-	const real3x3* partial_beta_UL,
-	const real3x3* ABar_UL,
-	real tr_DBar_beta
+	constant <?=solver_t?> const * const solver,
+	global <?=cons_t?> * const deriv,
+	global <?=cons_t?> const * const U,
+	int4 const updir,
+	real3 const x,
+	sym3 const * const gammaBar_LL,
+	real3x3 const * const partial_beta_UL,
+	real3x3 const * const ABar_UL,
+	real const tr_DBar_beta
 ) {
 	real tr_ABar = real3x3_trace(*ABar_UL);
 
@@ -1324,12 +1324,12 @@ Lbeta:	+ beta^k ∂up_k(gammaBar_ij)
 //////////////////////////////// W_,t //////////////////////////////// 
 
 static void calcDeriv_W(
-	constant solver_t* solver,
-	global cons_t* deriv,
-	const global cons_t* U,
-	int4 updir,
-	real3 x,
-	real tr_DBar_beta
+	constant <?=solver_t?> const * const solver,
+	global <?=cons_t?> * const deriv,
+	global <?=cons_t?> const * const U,
+	int4 const updir,
+	real3 const x,
+	real const tr_DBar_beta
 ) {
 <?=eqn:makePartialUpwind"W"?>
 	real3 partial_W_L_upwind = real3_rescaleFromCoord_l(partial_W_l_upwind, x);
@@ -1352,22 +1352,22 @@ static void calcDeriv_W(
 //////////////////////////////// A_IJ,t //////////////////////////////// 
 
 static sym3 calc_PIRK_L2_ABar_LL(
-	constant solver_t* solver,
-	const global cons_t* U,
-	real3 x,
-	const sym3* gammaBar_LL,
-	const sym3* gammaBar_UU,
-	const sym3* DBar2_alpha_LL,
-	const real3* partial_alpha_L, 
-	const real3* partial_phi_L_times_W,
-	const _3sym3* connBar_ULL,
-	const real3* partial_W_l,
+	constant <?=solver_t?> const * const solver,
+	global <?=cons_t?> const * const U,
+	real3 const x,
+	sym3 const * const gammaBar_LL,
+	sym3 const * const gammaBar_UU,
+	sym3 const * const DBar2_alpha_LL,
+	real3 const * const partial_alpha_L, 
+	real3 const * const partial_phi_L_times_W,
+	_3sym3 const * const connBar_ULL,
+	real3 const * const partial_W_l,
 	//for RBar_IJ:
-	const sym3 partial_epsilon_LLl[3],
-	const _3sym3* Delta_ULL,
-	const real3* Delta_U,
-	const _3sym3* connHat_ULL,
-	const _3sym3* partial_gammaBar_LLL
+	sym3 partial_epsilon_LLl[3],
+	_3sym3 const * const Delta_ULL,
+	real3 const * const Delta_U,
+	_3sym3 const * const connHat_ULL,
+	_3sym3 const * const partial_gammaBar_LLL
 ) {
 <?=eqn:makePartial2"epsilon_LL"?>
 
@@ -1482,14 +1482,14 @@ static sym3 calc_PIRK_L2_ABar_LL(
 //////////////////////////////// K_,t //////////////////////////////// 
 
 static inline real calc_PIRK_L2_K(
-	global const cons_t* U,
-	sym3 gammaBar_UU,
-	const sym3* DBar2_alpha_LL,
-	const real3* partial_alpha_L,
-	const real3* partial_phi_L_times_W
+	global <?=cons_t?> const * const U,
+	sym3 const gammaBar_UU,
+	sym3 const * const DBar2_alpha_LL,
+	real3 const * const partial_alpha_L,
+	real3 const * const partial_phi_L_times_W
 ) {
 	//tr_DBar2_alpha := gammaBar^ij DBar_i DBar_j alpha
-	real tr_DBar2_alpha = sym3_dot(gammaBar_UU, *DBar2_alpha_LL);
+	real const tr_DBar2_alpha = sym3_dot(gammaBar_UU, *DBar2_alpha_LL);
 	
 	//2013 Baumgarte eqn B3: 
 	// SENR/NRPy's code has a note that the "+ alpha ABar_ij ABar^ij" term should be in L3
@@ -1505,13 +1505,13 @@ static inline real calc_PIRK_L2_K(
 
 // NOTICE - all my PIRK_L3 functions DO NOT contribute Lbeta
 static sym3 calc_PIRK_L3_ABar_LL(
-	const global cons_t* U,
-	real3x3 ABar_UL,
-	real tr_DBar_beta
+	global <?=cons_t?> const * const U,
+	real3x3 const ABar_UL,
+	real const tr_DBar_beta
 ) {
-	sym3 ABarSq_LL = sym3_real3x3_to_sym3_mul(U->ABar_LL, ABar_UL);
+	sym3 const ABarSq_LL = sym3_real3x3_to_sym3_mul(U->ABar_LL, ABar_UL);
 
-	sym3 L3_ABar_LL = sym3_add(	
+	sym3 const L3_ABar_LL = sym3_add(	
 		sym3_real_mul(U->ABar_LL, U->alpha * U->K - (2. / 3.) * tr_DBar_beta),
 		sym3_real_mul(ABarSq_LL, -2. * U->alpha)
 	);	
@@ -1523,11 +1523,11 @@ static sym3 calc_PIRK_L3_ABar_LL(
 
 // NOTICE - all my PIRK_L3 functions DO NOT contribute Lbeta
 static real calc_PIRK_L3_K(
-	global const cons_t* U,
-	const sym3* ABar_UU
+	global <?=cons_t?> const * const U,
+	sym3 const * const ABar_UU
 ) {
 	//tr_ABarSq := ABar_ij ABar^ij = ABar_ij ABar_kl gammaBar^ik gammaBar^jl
-	real tr_ABarSq = sym3_dot(U->ABar_LL, *ABar_UU);
+	real const tr_ABarSq = sym3_dot(U->ABar_LL, *ABar_UU);
 
 	// SENR/NRPy's code has a note that the "+ alpha ABar_ij ABar^ij" term should be in L3
 	return U->alpha * U->K * U->K * (1. / 3.)
@@ -1541,21 +1541,21 @@ static real calc_PIRK_L3_K(
 //////////////////////////////// LambdaBar^I_,t //////////////////////////////// 
 
 static inline real3 calc_PIRK_L2_LambdaBar_U_times_W(
-	constant solver_t* solver,
-	global const cons_t* U,
-	real3 x,
-	const sym3* gammaBar_UU,
-	const sym3* ABar_UU,
-	const real3* partial_alpha_L,
-	const real3* partial_phi_L_times_W,
-	const real3* partial_K_L,
-	const real3x3* partial_beta_Ul,
-	const real3x3* partial_beta_UL,
-	const _3sym3* connHat_ULL,
-	const _3sym3* Delta_ULL,
-	real detg,
-	const real3* partial_detg_L,
-	const sym3* partial2_detg_LL
+	constant <?=solver_t?> const * const solver,
+	global <?=cons_t?> const * const U,
+	real3 const x,
+	sym3 const * const gammaBar_UU,
+	sym3 const * const ABar_UU,
+	real3 const * const partial_alpha_L,
+	real3 const * const partial_phi_L_times_W,
+	real3 const * const partial_K_L,
+	real3x3 const * const partial_beta_Ul,
+	real3x3 const * const partial_beta_UL,
+	_3sym3 const * const connHat_ULL,
+	_3sym3 const * const Delta_ULL,
+	real const detg,
+	real3 const * const partial_detg_L,
+	sym3 const * const partial2_detg_LL
 ) {
 	//partial2_beta_ULL.I.JK = e^i_I (beta^M e^i_M)_,jk e^j_J e^k_K
 <?=eqn:makePartial2"beta_U"?>		
@@ -1739,8 +1739,8 @@ L2 Lambda^I =
 
 // NOTICE - all my PIRK_L3 functions DO NOT contribute Lbeta
 static real3 calc_PIRK_L3_LambdaBar_U(
-	real tr_DBar_beta,
-	const real3* Delta_U
+	real const tr_DBar_beta,
+	real3 const * const Delta_U
 ) {
 	//L3 LambdaBar^I = 2/3 Delta^I DBar_J beta^J
 	real3 L3_LambdaBar_U = real3_real_mul(*Delta_U, (2. / 3.) * tr_DBar_beta);
@@ -1752,24 +1752,24 @@ static real3 calc_PIRK_L3_LambdaBar_U(
 
 //another name for this could be d0_LambdaBar_U (2017 Ruchlin, eqn 15)
 static inline real3 calc_dt_LambdaBar_U_wo_partial_upwind_beta_LambdaBar(
-	constant solver_t* solver,
-	global const cons_t* U,
-	int4 updir,
-	real3 x,
-	const sym3* gammaBar_UU,
-	const sym3* ABar_UU,
-	const real3* partial_alpha_L,
-	const real3* partial_phi_L_times_W,
-	const real3* partial_K_L,
-	const real3x3* partial_beta_Ul,
-	const real3x3* partial_beta_UL,
-	const _3sym3* connHat_ULL,
-	const _3sym3* Delta_ULL,
-	const real3* Delta_U,
-	real tr_DBar_beta,
-	real detg,
-	const real3* partial_detg_L,
-	const sym3* partial2_detg_LL
+	constant <?=solver_t?> const * const solver,
+	global <?=cons_t?> const * const U,
+	int4 const updir,
+	real3 const x,
+	sym3 const * const gammaBar_UU,
+	sym3 const * const ABar_UU,
+	real3 const * const partial_alpha_L,
+	real3 const * const partial_phi_L_times_W,
+	real3 const * const partial_K_L,
+	real3x3 const * const partial_beta_Ul,
+	real3x3 const * const partial_beta_UL,
+	_3sym3 const * const connHat_ULL,
+	_3sym3 const * const Delta_ULL,
+	real3 const * const Delta_U,
+	real const tr_DBar_beta,
+	real const detg,
+	real3 const * const partial_detg_L,
+	sym3 const * const partial2_detg_LL
 ) {
 	real3 L2_LambdaBar_U_times_W = calc_PIRK_L2_LambdaBar_U_times_W(
 		solver,
@@ -1831,7 +1831,7 @@ Lbeta:	+ beta^J Dup_J(LambdaBar^I)
 source:	- 16 pi alpha S^I / W^2
 
 	*/
-	real3 dt_LambdaBar_U_wo_partial_upwind_beta_LambdaBar_times_W = real3_add4(
+	real3 const dt_LambdaBar_U_wo_partial_upwind_beta_LambdaBar_times_W = real3_add4(
 		L2_LambdaBar_U_times_W,
 		real3_real_mul(L3_LambdaBar_U, U->W),
 
@@ -1841,7 +1841,7 @@ source:	- 16 pi alpha S^I / W^2
 		real3_real_mul(real3_rescaleFromCoord_u(U->S_u, x), -16. * M_PI * U->alpha / U->W)
 	);
 
-	return real3_real_mul(dt_LambdaBar_U_wo_partial_upwind_beta_LambdaBar, 1. / U->W);
+	return real3_real_mul(dt_LambdaBar_U_wo_partial_upwind_beta_LambdaBar_times_W, 1. / U->W);
 }
 
 //// MODULE_NAME: calc_PIRK_L2_B_U
@@ -1849,8 +1849,8 @@ source:	- 16 pi alpha S^I / W^2
 //////////////////////////////// B^I_,t //////////////////////////////// 
 
 static real3 calc_PIRK_L2_B_U(
-	constant solver_t* solver,
-	real3 dt_LambdaBar_U_wo_partial_upwind_beta_LambdaBar
+	constant <?=solver_t?> const * const solver,
+	real3 const dt_LambdaBar_U_wo_partial_upwind_beta_LambdaBar
 ) {
 	return real3_real_mul(
 		dt_LambdaBar_U_wo_partial_upwind_beta_LambdaBar,
@@ -1862,8 +1862,8 @@ static real3 calc_PIRK_L2_B_U(
 
 // NOTICE - all my PIRK_L3 functions DO NOT contribute Lbeta
 static real3 calc_PIRK_L3_B_U(
-	constant solver_t* solver,
-	global const cons_t* U
+	constant <?=solver_t?> const * const solver,
+	global <?=cons_t?> const * const U
 ) {
 	return real3_real_mul(U->B_U, -solver->dt_beta_U_eta);
 }
@@ -1872,17 +1872,17 @@ static real3 calc_PIRK_L3_B_U(
 //// MODULE_DEPENDS: calc_PIRK_L2_K calc_PIRK_L3_K
 
 static inline void calcDeriv_K(
-	constant solver_t* solver,
-	global cons_t* deriv,
-	const global cons_t* U,
-	int4 updir,
-	real3 x,
-	sym3 gammaBar_UU,
-	const sym3* ABar_UU,
-	const sym3* DBar2_alpha_LL,
-	const real3* partial_alpha_L,
-	const real3* partial_phi_L_times_W,
-	real S
+	constant <?=solver_t?> const * const solver,
+	global <?=cons_t?> * const deriv,
+	global <?=cons_t?> const * const U,
+	int4 const updir,
+	real3 const x,
+	sym3 const gammaBar_UU,
+	sym3 const * const ABar_UU,
+	sym3 const * const DBar2_alpha_LL,
+	real3 const * const partial_alpha_L,
+	real3 const * const partial_phi_L_times_W,
+	real const S
 ) {
 	real L2_K = calc_PIRK_L2_K(
 		U,
@@ -1936,27 +1936,27 @@ source:	+ 4 pi alpha (rho + S)
 //// MODULE_DEPENDS: calc_partial_ABar_LLL sym3_Lbeta_LL calc_PIRK_L3_ABar_LL
 
 static void calcDeriv_ABar_LL(
-	constant solver_t* solver,
-	global cons_t* deriv,
-	const global cons_t* U,
-	int4 updir,
-	real3 x,
-	const sym3* gammaBar_LL,
-	const sym3* gammaBar_UU,
-	const sym3* DBar2_alpha_LL,
-	const real3* partial_alpha_L,
-	const real3* partial_phi_L_times_W,
-	const _3sym3* connBar_ULL,
-	const real3x3* ABar_UL,
-	const real3x3* partial_beta_UL,
-	const real3* partial_W_l,
-	real tr_DBar_beta,
+	constant <?=solver_t?> const * const solver,
+	global <?=cons_t?> * const deriv,
+	global <?=cons_t?> const * const U,
+	int4 const updir,
+	real3 const x,
+	sym3 const * const gammaBar_LL,
+	sym3 const * const gammaBar_UU,
+	sym3 const * const DBar2_alpha_LL,
+	real3 const * const partial_alpha_L,
+	real3 const * const partial_phi_L_times_W,
+	_3sym3 const * const connBar_ULL,
+	real3x3 const * const ABar_UL,
+	real3x3 const * const partial_beta_UL,
+	real3 const * const partial_W_l,
+	real const tr_DBar_beta,
 	//for RBar_IJ:
-	const sym3 partial_epsilon_LLl[3],
-	const _3sym3* Delta_ULL,
-	const real3* Delta_U,
-	const _3sym3* connHat_ULL,
-	const _3sym3* partial_gammaBar_LLL
+	sym3 partial_epsilon_LLl[3],
+	_3sym3 const * const Delta_ULL,
+	real3 const * const Delta_U,
+	_3sym3 const * const connHat_ULL,
+	_3sym3 const * const partial_gammaBar_LLL
 ) {
 	sym3 L2_ABar_LL = calc_PIRK_L2_ABar_LL(
 		solver,
@@ -2021,11 +2021,11 @@ Lbeta:	+ beta^k_,i ABar_jk
 //////////////////////////////// Phi_,t, Psi_I,t //////////////////////////////// 
 
 static void calcDeriv_Phi(
-	constant solver_t* solver,
-	global cons_t* deriv,
-	const global cons_t* U,
-	int4 updir,
-	real3 x
+	constant <?=solver_t?> const * const solver,
+	global <?=cons_t?> * const deriv,
+	global <?=cons_t?> const * const U,
+	int4 const updir,
+	real3 const x
 ) {
 <?=eqn:makePartialUpwind"Phi"?>
 	cplx3 partial_Phi_L_upwind = cplx3_rescaleFromCoord_l(partial_Phi_l_upwind, x);
@@ -2043,13 +2043,13 @@ static void calcDeriv_Phi(
 //// MODULE_NAME: calcDeriv_Psi
 
 static void calcDeriv_Psi(
-	constant solver_t* solver,
-	global cons_t* deriv,
-	const global cons_t* U,
-	int4 updir,
-	real3 x,
-	real3 partial_alpha_l,
-	real3x3 partial_beta_ul
+	constant <?=solver_t?> const * const solver,
+	global <?=cons_t?> * const deriv,
+	global <?=cons_t?> const * const U,
+	int4 const updir,
+	real3 const x,
+	real3 const partial_alpha_l,
+	real3x3 const partial_beta_ul
 ) {
 <?=eqn:makePartialUpwind"Psi_l"?>
 <?=eqn:makePartial1"Pi"?>
@@ -2070,19 +2070,19 @@ static void calcDeriv_Psi(
 //// MODULE_NAME: calcDeriv_Pi
 
 static void calcDeriv_Pi(
-	constant solver_t* solver,
-	global cons_t* deriv,
-	const global cons_t* U,
-	int4 updir,
-	real3 x,
-	real dt_alpha,
-	real3 dt_beta_U,
-	real3 partial_alpha_L,
-	real3x3 partial_beta_UL,
-	sym3 gammaBar_uu,
-	_3sym3 connHat_ULL,
-	real3 Delta_U,
-	real3 partial_phi_l_times_W
+	constant <?=solver_t?> const * const solver,
+	global <?=cons_t?> * const deriv,
+	global <?=cons_t?> const * const U,
+	int4 const updir,
+	real3 const x,
+	real const dt_alpha,
+	real3 const dt_beta_U,
+	real3 const partial_alpha_L,
+	real3x3 const partial_beta_UL,
+	sym3 const gammaBar_uu,
+	_3sym3 const connHat_ULL,
+	real3 const Delta_U,
+	real3 const partial_phi_l_times_W
 ) {
 
 	cplx3 Psi_L = cplx3_from_real3_real3(
@@ -2203,21 +2203,21 @@ static void calcDeriv_Pi(
 //TODO if we're calculating the constrains in the derivative
 // then we do save calculations / memory on the equations
 // but we also, for >FE integrators (which require multiple steps) are duplicating calculations
-//TODO, what's the difference between 'calcDeriv' and 'addSource' in a finite-difference solver?
+//TODO, what's the difference between 'calcDeriv' and '<?=addSource?>' in a finite-difference solver?
 // or in any other solver for that matter?
 kernel void calcDeriv(
-	constant solver_t* solver,
-	global cons_t* derivBuf,
-	const global cons_t* UBuf,
-	const global cell_t* cellBuf
+	constant <?=solver_t?> const * const solver,
+	global <?=cons_t?> * const derivBuf,
+	global <?=cons_t?> const * const UBuf,
+	global <?=cell_t?> const * const cellBuf
 ) {
 <? if useCalcDeriv then ?>
 	SETBOUNDS(numGhost,numGhost);
-	const global cell_t* cell = cellBuf + index;
-	real3 x = cell->pos;
-	global cons_t* deriv = derivBuf + index;
-	const global cons_t* U = UBuf + index;
-	int4 updir = getUpwind(U->beta_U);
+	global <?=cell_t?> const * const cell = cellBuf + index;
+	real3 const x = cell->pos;
+	global <?=cons_t?> * const deriv = derivBuf + index;
+	global <?=cons_t?> const * const U = UBuf + index;
+	int4 const updir = getUpwind(U->beta_U);
 
 	//////////////////////////////// alpha_,t //////////////////////////////// 
 
@@ -2254,7 +2254,7 @@ kernel void calcDeriv(
 	notice: 
 	det(gammaBar_ij)/det(gammaHat_ij) = det(gammaBar_IJ)
 	*/
-	real3 partial_det_gammaHat_over_det_gammaHat_L = calc_partial_det_gammaHat_over_det_gammaHat_L(x);
+	real3 const partial_det_gammaHat_over_det_gammaHat_L = calc_partial_det_gammaHat_over_det_gammaHat_L(x);
 
 	/*
 	Etienne's SENR Mathematica notebook has '*  detg'...
@@ -2275,18 +2275,18 @@ kernel void calcDeriv(
 	
 	TODO detg ...
 	*/
-	real detg = 1.;
-	real3 partial_detg_L = real3_zero;
-	sym3 partial2_detg_LL = sym3_zero;
+	real const detg = 1.;
+	real3 const partial_detg_L = real3_zero;
+	sym3 const partial2_detg_LL = sym3_zero;
 	
-	real3 partial_det_gammaBar_over_det_gammaHat_L = real3_add(
+	real3 const partial_det_gammaBar_over_det_gammaHat_L = real3_add(
 		real3_real_mul(partial_det_gammaHat_over_det_gammaHat_L, detg),
 		partial_detg_L);
 	
-	real det_gammaBarLL = calc_det_gammaBarLL(x);
-	real det_gammaBar_over_det_gammaHat = det_gammaBarLL;
-	real det_gammaHat_over_det_gammaBar = 1. / det_gammaBar_over_det_gammaHat;
-	real3 partial_det_gammaBar_over_det_gammaBar_L = real3_real_mul(
+	real const det_gammaBarLL = calc_det_gammaBarLL(x);
+	real const det_gammaBar_over_det_gammaHat = det_gammaBarLL;
+	real const det_gammaHat_over_det_gammaBar = 1. / det_gammaBar_over_det_gammaHat;
+	real3 const partial_det_gammaBar_over_det_gammaBar_L = real3_real_mul(
 			partial_det_gammaBar_over_det_gammaHat_L, 
 			det_gammaHat_over_det_gammaBar); 
 
@@ -2658,19 +2658,19 @@ or even the ∂_0 ΛBar^i then we can re-add the needed terms later
 <? end 	-- useCalcDeriv ?>
 }
 
-//// MODULE_NAME: constrainU
-//// MODULE_DEPENDS: mystery_C_U calc_partial_ABar_LLL tracefree calc_RBar_LL
+//// MODULE_NAME: <?=constrainU?>
+//// MODULE_DEPENDS: mystery_C_U calc_partial_ABar_LLL tracefree calc_RBar_LL calc_exp_neg4phi calc_partial_gammaBar_LLL calc_connBar_ULL calc_connHat_LLL_and_ULL
 
-kernel void constrainU(
-	constant solver_t* solver,
-	global cons_t* UBuf,
-	const global cell_t* cellBuf
+kernel void <?=constrainU?>(
+	constant <?=solver_t?> const * const solver,
+	global <?=cons_t?> * const UBuf,
+	global <?=cell_t?> const * const cellBuf
 ) {
 <? if useConstrainU then ?>	
 	SETBOUNDS(numGhost,numGhost);
-	const global cell_t* cell = cellBuf + index;
-	real3 x = cell->pos;
-	global cons_t* U = UBuf + index;
+	global <?=cell_t?> const * const cell = cellBuf + index;
+	real3 const x = cell->pos;
+	global <?=cons_t?> * const U = UBuf + index;
 	
 	sym3 gammaBar_LL = sym3_add(sym3_ident, U->epsilon_LL);
 	real det_gammaBarLL = sym3_det(gammaBar_LL);
@@ -2691,8 +2691,8 @@ then
 <?	if eqn.guiVars.constrain_det_gammaBar.value then ?>
 
 #if 1	//rescale based on non-coords
-	const real det_gammaHatLL = 1.;
-	real rescaleMetric = cbrt(det_gammaHatLL/det_gammaBarLL);
+	real const det_gammaHatLL = 1.;
+	real const rescaleMetric = cbrt(det_gammaHatLL/det_gammaBarLL);
 <? 		for ij,xij in ipairs(symNames) do
 ?>	gammaBar_LL.<?=xij?> *= rescaleMetric;
 <? 		end ?>
@@ -2959,22 +2959,22 @@ for ij,xij in ipairs(symNames) do
 <? end	-- useConstrainU ?>
 }
 
-//// MODULE_NAME: addSource
-//// MODULE_DEPENDS: solver_t cons_t cell_t SETBOUNDS_NOGHOST initCond.codeprefix
+//// MODULE_NAME: <?=addSource?>
+//// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> <?=cell_t?> SETBOUNDS_NOGHOST initCond.codeprefix
 
 //TODO combine with calcDeriv
-kernel void addSource(
-	constant solver_t* solver,
-	global cons_t* derivBuf,
-	const global cons_t* UBuf,
-	const global cell_t* cellBuf
+kernel void <?=addSource?>(
+	constant <?=solver_t?> const * const solver,
+	global <?=cons_t?> * const derivBuf,
+	global <?=cons_t?> const * const UBuf,
+	global <?=cell_t?> const * const cellBuf
 ) {
 <? if useAddSource then ?>
 	SETBOUNDS_NOGHOST();
-	const global cons_t* U = UBuf + index;
-	global cons_t* deriv = derivBuf + index;
-	const global cell_t* cell = cellBuf + index;
-	real3 x = cell->pos;
+	global <?=cons_t?> const * const U = UBuf + index;
+	global <?=cons_t?> * const deriv = derivBuf + index;
+	global <?=cell_t?> const * const cell = cellBuf + index;
+	real3 const x = cell->pos;
 
 <? if useScalarField then ?>
 <?=eqn:makePartialUpwind"alpha"?>
@@ -3042,10 +3042,10 @@ kernel void addSource(
 //// MODULE_DEPENDS: initCond.codeprefix getUpwind calc_partial*_det_gammaHat_over_det_gammaHat_* calc_det_gammaBarLL real3x3_partial_rescaleFromCoord_Ul calc_gammaBar_LL calcDeriv_epsilon_LL calcDeriv_W applyKreissOligar calc_connBar_ULL calc_connHat_LLL_and_ULL mystery_C_U calc_PIRK_L2_ABar_LL calc_PIRK_L2_K sym3_Lbeta_LL calc_PIRK_L3_ABar_LL calc_PIRK_L3_K calc_partial_ABar_LLL calc_PIRK_L2_LambdaBar_U_times_W calc_PIRK_L3_LambdaBar_U calc_PIRK_L2_B_U calc_dt_LambdaBar_U_wo_partial_upwind_beta_LambdaBar calc_PIRK_L3_B_U calc_exp_neg4phi
 
 kernel void copyWAlphaBeta(
-	constant solver_t* solver,
-	global cons_t* dstBuf,
-	const global cons_t* srcA,
-	const global cons_t* srcB
+	constant <?=solver_t?> const * const solver,
+	global <?=cons_t?> * const dstBuf,
+	global <?=cons_t?> const * const srcA,
+	global <?=cons_t?> const * const srcB
 ) {
 	SETBOUNDS(numGhost,numGhost);
 
@@ -3056,10 +3056,10 @@ kernel void copyWAlphaBeta(
 }
 
 kernel void copyLambdaBar(
-	constant solver_t* solver,
-	global cons_t* dstBuf,
-	const global cons_t* srcA,
-	const global cons_t* srcB
+	constant <?=solver_t?> const * const solver,
+	global <?=cons_t?> * const dstBuf,
+	global <?=cons_t?> const * const srcA,
+	global <?=cons_t?> const * const srcB
 ) {
 	SETBOUNDS(numGhost,numGhost);
 
@@ -3069,17 +3069,17 @@ kernel void copyLambdaBar(
 
 // epsilon_IJ, W, alpha, beta^I
 kernel void calcDeriv_PIRK_L1_EpsilonWAlphaBeta(
-	constant solver_t* solver,
-	global cons_t* derivBuf,
-	const global cons_t* UBuf,
-	const global cell_t* cellBuf
+	constant <?=solver_t?> const * const solver,
+	global <?=cons_t?> * const derivBuf,
+	global <?=cons_t?> const * const UBuf,
+	global <?=cell_t?> const * const cellBuf
 ) {
 	SETBOUNDS(numGhost,numGhost);
-	const global cell_t* cell = cellBuf + index;
-	real3 x = cell->pos;
-	global cons_t* deriv = derivBuf + index;
-	const global cons_t* U = UBuf + index;
-	int4 updir = getUpwind(U->beta_U);
+	global <?=cell_t?> const * const cell = cellBuf + index;
+	real3 const x = cell->pos;
+	global <?=cons_t?> * const deriv = derivBuf + index;
+	global <?=cons_t?> const * const U = UBuf + index;
+	int4 const updir = getUpwind(U->beta_U);
 	
 <?=eqn:makePartial1"beta_U"?>		//partial_beta_Ul.j.i := beta^I_,j
 
@@ -3208,16 +3208,16 @@ advect shift:	+ beta^i_,j beta^j
 
 // ABar_IJ, K
 kernel void calcDeriv_PIRK_L2_ABarK(
-	constant solver_t* solver,
-	global cons_t* derivBuf,
-	const global cons_t* UBuf,
-	const global cell_t* cellBuf
+	constant <?=solver_t?> const * const solver,
+	global <?=cons_t?> * const derivBuf,
+	global <?=cons_t?> const * const UBuf,
+	global <?=cell_t?> const * const cellBuf
 ) {
 	SETBOUNDS(numGhost,numGhost);
-	const global cell_t* cell = cellBuf + index;
-	real3 x = cell->pos;
-	global cons_t* deriv = derivBuf + index;
-	const global cons_t* U = UBuf + index;
+	global <?=cell_t?> const * const cell = cellBuf + index;
+	real3 const x = cell->pos;
+	global <?=cons_t?> * const deriv = derivBuf + index;
+	global <?=cons_t?> const * const U = UBuf + index;
 
 <?=eqn:makePartial1"alpha"?>			//partial_alpha_l[i] := alpha_,i
 	real3 partial_alpha_L = real3_rescaleFromCoord_l(partial_alpha_l, x);
@@ -3285,16 +3285,16 @@ kernel void calcDeriv_PIRK_L2_ABarK(
 
 // ABar_IJ, K
 kernel void calcDeriv_PIRK_L3_ABarK(
-	constant solver_t* solver,
-	global cons_t* derivBuf,
-	const global cons_t* UBuf,
-	const global cell_t* cellBuf
+	constant <?=solver_t?> const * const solver,
+	global <?=cons_t?> * const derivBuf,
+	global <?=cons_t?> const * const UBuf,
+	global <?=cell_t?> const * const cellBuf
 ) {
 	SETBOUNDS(numGhost,numGhost);
-	const global cell_t* cell = cellBuf + index;
-	real3 x = cell->pos;
-	global cons_t* deriv = derivBuf + index;
-	const global cons_t* U = UBuf + index;
+	global <?=cell_t?> const * const cell = cellBuf + index;
+	real3 const x = cell->pos;
+	global <?=cons_t?> * const deriv = derivBuf + index;
+	global <?=cons_t?> const * const U = UBuf + index;
 	
 	real det_gammaBarLL = calc_det_gammaBarLL(x);
 
@@ -3383,16 +3383,16 @@ kernel void calcDeriv_PIRK_L3_ABarK(
 
 // LambdaBar^I
 kernel void calcDeriv_PIRK_L2_LambdaBar(
-	constant solver_t* solver,
-	global cons_t* derivBuf,
-	const global cons_t* UBuf,
-	const global cell_t* cellBuf
+	constant <?=solver_t?> const * const solver,
+	global <?=cons_t?> * const derivBuf,
+	global <?=cons_t?> const * const UBuf,
+	global <?=cell_t?> const * const cellBuf
 ) {
 	SETBOUNDS(numGhost,numGhost);
-	const global cell_t* cell = cellBuf + index;
-	real3 x = cell->pos;
-	global cons_t* deriv = derivBuf + index;
-	const global cons_t* U = UBuf + index;
+	global <?=cell_t?> const * const cell = cellBuf + index;
+	real3 const x = cell->pos;
+	global <?=cons_t?> * const deriv = derivBuf + index;
+	global <?=cons_t?> const * const U = UBuf + index;
 
 <?=eqn:makePartial1"alpha"?>			//partial_alpha_l[i] := alpha_,i
 	real3 partial_alpha_L = real3_rescaleFromCoord_l(partial_alpha_l, x);
@@ -3469,16 +3469,16 @@ kernel void calcDeriv_PIRK_L2_LambdaBar(
 
 // LambdaBar^I
 kernel void calcDeriv_PIRK_L3_LambdaBar(
-	constant solver_t* solver,
-	global cons_t* derivBuf,
-	const global cons_t* UBuf,
-	const global cell_t* cellBuf
+	constant <?=solver_t?> const * const solver,
+	global <?=cons_t?> * const derivBuf,
+	global <?=cons_t?> const * const UBuf,
+	global <?=cell_t?> const * const cellBuf
 ) {
 	SETBOUNDS(numGhost,numGhost);
-	const global cell_t* cell = cellBuf + index;
-	real3 x = cell->pos;
-	global cons_t* deriv = derivBuf + index;
-	const global cons_t* U = UBuf + index;
+	global <?=cell_t?> const * const cell = cellBuf + index;
+	real3 const x = cell->pos;
+	global <?=cons_t?> * const deriv = derivBuf + index;
+	global <?=cons_t?> const * const U = UBuf + index;
 	
 	real3 partial_det_gammaHat_over_det_gammaHat_L = calc_partial_det_gammaHat_over_det_gammaHat_L(x);
 
@@ -3559,17 +3559,17 @@ kernel void calcDeriv_PIRK_L3_LambdaBar(
 
 // B^I
 kernel void calcDeriv_PIRK_L2_B(
-	constant solver_t* solver,
-	global cons_t* derivBuf,
-	const global cons_t* UBuf,
-	const global cell_t* cellBuf
+	constant <?=solver_t?> const * const solver,
+	global <?=cons_t?> * const derivBuf,
+	global <?=cons_t?> const * const UBuf,
+	global <?=cell_t?> const * const cellBuf
 ) {
 	SETBOUNDS(numGhost,numGhost);
-	const global cell_t* cell = cellBuf + index;
-	real3 x = cell->pos;
-	global cons_t* deriv = derivBuf + index;
-	const global cons_t* U = UBuf + index;
-	int4 updir = getUpwind(U->beta_U);
+	global <?=cell_t?> const * const cell = cellBuf + index;
+	real3 const x = cell->pos;
+	global <?=cons_t?> * const deriv = derivBuf + index;
+	global <?=cons_t?> const * const U = UBuf + index;
+	int4 const updir = getUpwind(U->beta_U);
 
 <?=eqn:makePartial1"alpha"?>			//partial_alpha_l[i] := alpha_,i
 	real3 partial_alpha_L = real3_rescaleFromCoord_l(partial_alpha_l, x);
@@ -3669,16 +3669,16 @@ kernel void calcDeriv_PIRK_L2_B(
 
 // B^I
 kernel void calcDeriv_PIRK_L3_B(
-	constant solver_t* solver,
-	global cons_t* derivBuf,
-	const global cons_t* UBuf,
-	const global cell_t* cellBuf
+	constant <?=solver_t?> const * const solver,
+	global <?=cons_t?> * const derivBuf,
+	global <?=cons_t?> const * const UBuf,
+	global <?=cell_t?> const * const cellBuf
 ) {
 	SETBOUNDS(numGhost,numGhost);
-	const global cell_t* cell = cellBuf + index;
-	real3 x = cell->pos;
-	global cons_t* deriv = derivBuf + index;
-	const global cons_t* U = UBuf + index;
+	global <?=cell_t?> const * const cell = cellBuf + index;
+	real3 const x = cell->pos;
+	global <?=cons_t?> * const deriv = derivBuf + index;
+	global <?=cons_t?> const * const U = UBuf + index;
 
 	deriv->B_U = calc_PIRK_L3_B_U(solver, U);
 
@@ -3719,17 +3719,17 @@ kernel void calcDeriv_PIRK_L3_B(
 
 //epsilon_IJ, W, alpha, beta^I
 kernel void PIRK_Eq1_EpsilonWAlphaBeta(
-	constant solver_t* solver,
-	global cons_t* dstBuf,
-	const global cons_t* srcBuf,
-	const global cons_t* derivBuf,
-	real dt
+	constant <?=solver_t?> const * const solver,
+	global <?=cons_t?> * const dstBuf,
+	global <?=cons_t?> const * const srcBuf,
+	global <?=cons_t?> const * const derivBuf,
+	real const dt
 ) {
 	SETBOUNDS(numGhost,numGhost);
 	
-	global cons_t* dst = dstBuf + index;
-	const global cons_t* src = srcBuf + index;
-	const global cons_t* deriv = derivBuf + index;
+	global <?=cons_t?> * const dst = dstBuf + index;
+	global <?=cons_t?> const * const src = srcBuf + index;
+	global <?=cons_t?> const * const deriv = derivBuf + index;
 
 	PIRK_EQ1(real, alpha);
 	PIRK_EQ1(real, W);
@@ -3742,42 +3742,42 @@ kernel void PIRK_Eq1_EpsilonWAlphaBeta(
 
 //LambdaBar^I
 kernel void PIRK_Eq2_LambdaBar(
-	constant solver_t* solver,
-	global cons_t* dstBuf,
-	const global cons_t* srcBuf,
-	const global cons_t* derivL2_nBuf,
-	const global cons_t* derivL2_1Buf,
-	const global cons_t* derivL3_nBuf,
-	real dt
+	constant <?=solver_t?> const * const solver,
+	global <?=cons_t?> * const dstBuf,
+	global <?=cons_t?> const * const srcBuf,
+	global <?=cons_t?> const * const derivL2_nBuf,
+	global <?=cons_t?> const * const derivL2_1Buf,
+	global <?=cons_t?> const * const derivL3_nBuf,
+	real const dt
 ) {
 	SETBOUNDS(numGhost,numGhost);
 	
-	global cons_t* dst = dstBuf + index;
-	const global cons_t* src = srcBuf + index;
-	const global cons_t* derivL2_n = derivL2_nBuf + index;
-	const global cons_t* derivL2_1 = derivL2_1Buf + index;
-	const global cons_t* derivL3_n = derivL3_nBuf + index;
+	global <?=cons_t?> * const dst = dstBuf + index;
+	global <?=cons_t?> const * const src = srcBuf + index;
+	global <?=cons_t?> const * const derivL2_n = derivL2_nBuf + index;
+	global <?=cons_t?> const * const derivL2_1 = derivL2_1Buf + index;
+	global <?=cons_t?> const * const derivL3_n = derivL3_nBuf + index;
 
 	PIRK_EQ2(real3, LambdaBar_U);
 }
 
 //ABar_IJ, K
 kernel void PIRK_Eq2_ABarK(
-	constant solver_t* solver,
-	global cons_t* dstBuf,
-	const global cons_t* srcBuf,
-	const global cons_t* derivL2_nBuf,
-	const global cons_t* derivL2_1Buf,
-	const global cons_t* derivL3_nBuf,
-	real dt
+	constant <?=solver_t?> const * const solver,
+	global <?=cons_t?> * const dstBuf,
+	global <?=cons_t?> const * const srcBuf,
+	global <?=cons_t?> const * const derivL2_nBuf,
+	global <?=cons_t?> const * const derivL2_1Buf,
+	global <?=cons_t?> const * const derivL3_nBuf,
+	real const dt
 ) {
 	SETBOUNDS(numGhost,numGhost);
 	
-	global cons_t* dst = dstBuf + index;
-	const global cons_t* src = srcBuf + index;
-	const global cons_t* derivL2_n = derivL2_nBuf + index;
-	const global cons_t* derivL2_1 = derivL2_1Buf + index;
-	const global cons_t* derivL3_n = derivL3_nBuf + index;
+	global <?=cons_t?> * const dst = dstBuf + index;
+	global <?=cons_t?> const * const src = srcBuf + index;
+	global <?=cons_t?> const * const derivL2_n = derivL2_nBuf + index;
+	global <?=cons_t?> const * const derivL2_1 = derivL2_1Buf + index;
+	global <?=cons_t?> const * const derivL3_n = derivL3_nBuf + index;
 
 	PIRK_EQ2(real, K);
 	PIRK_EQ2(sym3, ABar_LL);	
@@ -3785,21 +3785,21 @@ kernel void PIRK_Eq2_ABarK(
 
 //B^I
 kernel void PIRK_Eq2_B(
-	constant solver_t* solver,
-	global cons_t* dstBuf,
-	const global cons_t* srcBuf,
-	const global cons_t* derivL2_nBuf,
-	const global cons_t* derivL2_1Buf,
-	const global cons_t* derivL3_nBuf,
-	real dt
+	constant <?=solver_t?> const * const solver,
+	global <?=cons_t?> * const dstBuf,
+	global <?=cons_t?> const * const srcBuf,
+	global <?=cons_t?> const * const derivL2_nBuf,
+	global <?=cons_t?> const * const derivL2_1Buf,
+	global <?=cons_t?> const * const derivL3_nBuf,
+	real const dt
 ) {
 	SETBOUNDS(numGhost,numGhost);
 	
-	global cons_t* dst = dstBuf + index;
-	const global cons_t* src = srcBuf + index;
-	const global cons_t* derivL2_n = derivL2_nBuf + index;
-	const global cons_t* derivL2_1 = derivL2_1Buf + index;
-	const global cons_t* derivL3_n = derivL3_nBuf + index;
+	global <?=cons_t?> * const dst = dstBuf + index;
+	global <?=cons_t?> const * const src = srcBuf + index;
+	global <?=cons_t?> const * const derivL2_n = derivL2_nBuf + index;
+	global <?=cons_t?> const * const derivL2_1 = derivL2_1Buf + index;
+	global <?=cons_t?> const * const derivL3_n = derivL3_nBuf + index;
 
 	PIRK_EQ2(real3, B_U);
 }
@@ -3809,19 +3809,19 @@ kernel void PIRK_Eq2_B(
 
 //epsilon_IJ, W, alpha, beta^I
 kernel void PIRK_Eq3_EpsilonWAlphaBeta(
-	constant solver_t* solver,
-	global cons_t* dstBuf,
-	const global cons_t* UBuf,
-	const global cons_t* U1Buf,
-	const global cons_t* derivL1_1Buf,
-	real dt
+	constant <?=solver_t?> const * const solver,
+	global <?=cons_t?> * const dstBuf,
+	global <?=cons_t?> const * const UBuf,
+	global <?=cons_t?> const * const U1Buf,
+	global <?=cons_t?> const * const derivL1_1Buf,
+	real const dt
 ) {
 	SETBOUNDS(numGhost,numGhost);
 	
-	global cons_t* dst = dstBuf + index;
-	global cons_t* U = UBuf + index;
-	global cons_t* U1 = U1Buf + index;
-	global cons_t* derivL1_1 = derivL1_1Buf + index;
+	global <?=cons_t?> * const dst = dstBuf + index;
+	global <?=cons_t?> const * const U = UBuf + index;
+	global <?=cons_t?> const * const U1 = U1Buf + index;
+	global <?=cons_t?> const * const derivL1_1 = derivL1_1Buf + index;
 
 	PIRK_EQ3(real, alpha);
 	PIRK_EQ3(real, W);
@@ -3834,46 +3834,46 @@ kernel void PIRK_Eq3_EpsilonWAlphaBeta(
 
 //LambdaBar^I
 kernel void PIRK_Eq4_LambdaBar(
-	constant solver_t* solver,
-	global cons_t* dstBuf,
-	const global cons_t* srcBuf,
-	const global cons_t* derivL2_nBuf,
-	const global cons_t* derivL2_nextBuf,
-	const global cons_t* derivL3_nBuf,
-	const global cons_t* derivL3_1Buf,
-	real dt
+	constant <?=solver_t?> const * const solver,
+	global <?=cons_t?> * const dstBuf,
+	global <?=cons_t?> const * const srcBuf,
+	global <?=cons_t?> const * const derivL2_nBuf,
+	global <?=cons_t?> const * const derivL2_nextBuf,
+	global <?=cons_t?> const * const derivL3_nBuf,
+	global <?=cons_t?> const * const derivL3_1Buf,
+	real const dt
 ) {
 	SETBOUNDS(numGhost,numGhost);
 	
-	global cons_t* dst = dstBuf + index;
-	const global cons_t* src = srcBuf + index;
-	const global cons_t* derivL2_n = derivL2_nBuf + index;
-	const global cons_t* derivL2_next = derivL2_nextBuf + index;
-	const global cons_t* derivL3_n = derivL3_nBuf + index;
-	const global cons_t* derivL3_1 = derivL3_1Buf + index;
+	global <?=cons_t?> * const dst = dstBuf + index;
+	global <?=cons_t?> const * const src = srcBuf + index;
+	global <?=cons_t?> const * const derivL2_n = derivL2_nBuf + index;
+	global <?=cons_t?> const * const derivL2_next = derivL2_nextBuf + index;
+	global <?=cons_t?> const * const derivL3_n = derivL3_nBuf + index;
+	global <?=cons_t?> const * const derivL3_1 = derivL3_1Buf + index;
 
 	PIRK_EQ4(real3, LambdaBar_U);
 }
 
 //ABar_IJ, K
 kernel void PIRK_Eq4_ABarK(
-	constant solver_t* solver,
-	global cons_t* dstBuf,
-	const global cons_t* srcBuf,
-	const global cons_t* derivL2_nBuf,
-	const global cons_t* derivL2_nextBuf,
-	const global cons_t* derivL3_nBuf,
-	const global cons_t* derivL3_1Buf,
-	real dt
+	constant <?=solver_t?> const * const solver,
+	global <?=cons_t?> * const dstBuf,
+	global <?=cons_t?> const * const srcBuf,
+	global <?=cons_t?> const * const derivL2_nBuf,
+	global <?=cons_t?> const * const derivL2_nextBuf,
+	global <?=cons_t?> const * const derivL3_nBuf,
+	global <?=cons_t?> const * const derivL3_1Buf,
+	real const dt
 ) {
 	SETBOUNDS(numGhost,numGhost);
 	
-	global cons_t* dst = dstBuf + index;
-	const global cons_t* src = srcBuf + index;
-	const global cons_t* derivL2_n = derivL2_nBuf + index;
-	const global cons_t* derivL2_next = derivL2_nextBuf + index;
-	const global cons_t* derivL3_n = derivL3_nBuf + index;
-	const global cons_t* derivL3_1 = derivL3_1Buf + index;
+	global <?=cons_t?> * const dst = dstBuf + index;
+	global <?=cons_t?> const * const src = srcBuf + index;
+	global <?=cons_t?> const * const derivL2_n = derivL2_nBuf + index;
+	global <?=cons_t?> const * const derivL2_next = derivL2_nextBuf + index;
+	global <?=cons_t?> const * const derivL3_n = derivL3_nBuf + index;
+	global <?=cons_t?> const * const derivL3_1 = derivL3_1Buf + index;
 
 	PIRK_EQ4(sym3, ABar_LL);
 	PIRK_EQ4(real, K);
@@ -3881,23 +3881,23 @@ kernel void PIRK_Eq4_ABarK(
 
 //B^I
 kernel void PIRK_Eq4_B(
-	constant solver_t* solver,
-	global cons_t* dstBuf,
-	const global cons_t* srcBuf,
-	const global cons_t* derivL2_nBuf,
-	const global cons_t* derivL2_nextBuf,
-	const global cons_t* derivL3_nBuf,
-	const global cons_t* derivL3_1Buf,
-	real dt
+	constant <?=solver_t?> const * const solver,
+	global <?=cons_t?> * const dstBuf,
+	global <?=cons_t?> const * const srcBuf,
+	global <?=cons_t?> const * const derivL2_nBuf,
+	global <?=cons_t?> const * const derivL2_nextBuf,
+	global <?=cons_t?> const * const derivL3_nBuf,
+	global <?=cons_t?> const * const derivL3_1Buf,
+	real const dt
 ) {
 	SETBOUNDS(numGhost,numGhost);
 	
-	global cons_t* dst = dstBuf + index;
-	const global cons_t* src = srcBuf + index;
-	const global cons_t* derivL2_n = derivL2_nBuf + index;
-	const global cons_t* derivL2_next = derivL2_nextBuf + index;
-	const global cons_t* derivL3_n = derivL3_nBuf + index;
-	const global cons_t* derivL3_1 = derivL3_1Buf + index;
+	global <?=cons_t?> * const dst = dstBuf + index;
+	global <?=cons_t?> const * const src = srcBuf + index;
+	global <?=cons_t?> const * const derivL2_n = derivL2_nBuf + index;
+	global <?=cons_t?> const * const derivL2_next = derivL2_nextBuf + index;
+	global <?=cons_t?> const * const derivL3_n = derivL3_nBuf + index;
+	global <?=cons_t?> const * const derivL3_1 = derivL3_1Buf + index;
 
 	PIRK_EQ4(real3, B_U);
 }

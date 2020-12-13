@@ -1,5 +1,5 @@
 //// MODULE_NAME: calcFluxAtCell
-//// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> <?=cell_t?> SETBOUNDS numGhost solver.macros fluxFromCons
+//// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> <?=cell_t?> SETBOUNDS numGhost solver.macros <?=fluxFromCons?>
 
 kernel void calcFluxAtCell(
 	constant <?=solver_t?> const * const solver,
@@ -11,7 +11,7 @@ kernel void calcFluxAtCell(
 	real3 const x = cellBuf[index].pos;
 	global <?=cons_t?> const * const U = UBuf + index;
 <? for side=0,solver.dim-1 do 
-?>	fluxFromCons(fluxBuf + <?=side?> + dim * index, solver, U, x, normal_forSide<?=side?>(x));
+?>	<?=fluxFromCons?>(fluxBuf + <?=side?> + dim * index, solver, U, x, normal_forSide<?=side?>(x));
 <? end
 ?>
 }

@@ -1,21 +1,21 @@
 //// MODULE_NAME: eqn.common
 
 //pressure function for ideal gas
-real calc_P(constant <?=solver.solver_t?>* solver, real rho, real eInt) {
+real calc_P(constant <?=solver_t?>* solver, real rho, real eInt) {
 	return (solver->heatCapacityRatio - 1.) * rho * eInt;
 }	
 
 //chi in most papers
-real calc_dP_drho(constant <?=solver.solver_t?>* solver, real rho, real eInt) {
+real calc_dP_drho(constant <?=solver_t?>* solver, real rho, real eInt) {
 	return (solver->heatCapacityRatio - 1.) * eInt;
 }
 
 //kappa in most papers
-real calc_dP_deInt(constant <?=solver.solver_t?>* solver, real rho, real eInt) {
+real calc_dP_deInt(constant <?=solver_t?>* solver, real rho, real eInt) {
 	return (solver->heatCapacityRatio - 1.) * rho;
 }
 
-real calc_eInt_from_P(constant <?=solver.solver_t?>* solver, real rho, real P) {
+real calc_eInt_from_P(constant <?=solver_t?>* solver, real rho, real P) {
 	return P / ((solver->heatCapacityRatio - 1.) * rho);
 }
 
@@ -24,8 +24,8 @@ real calc_h(real rho, real P, real eInt) {
 }
 
 <?=eqn.cons_only_t?> consOnlyFromPrim(
-	constant <?=solver.solver_t?>* solver,
-	<?=eqn.prim_t?> prim,
+	constant <?=solver_t?>* solver,
+	<?=prim_t?> prim,
 	real alpha,
 	real3 beta,
 	sym3 gamma
@@ -52,9 +52,9 @@ real calc_h(real rho, real P, real eInt) {
 //// MODULE_NAME: applyInitCond
 
 kernel void applyInitCond(
-	constant <?=solver.solver_t?>* solver,
-	constant <?=solver.initCond_t?>* initCond,
-	global <?=eqn.cons_t?>* UBuf<?=
+	constant <?=solver_t?>* solver,
+	constant <?=initCond_t?>* initCond,
+	global <?=cons_t?>* UBuf<?=
 	solver:getADMArgs()?>
 ) {
 	SETBOUNDS(0,0);
@@ -80,8 +80,8 @@ kernel void applyInitCond(
 	
 	real eInt = calc_eInt_from_P(solver, rho, P);
 
-	<?=eqn.prim_t?> prim = {.rho=rho, .v=v, .eInt=eInt};
-	UBuf[index] = (<?=eqn.cons_t?>){
+	<?=prim_t?> prim = {.rho=rho, .v=v, .eInt=eInt};
+	UBuf[index] = (<?=cons_t?>){
 		.prim = prim,
 		.cons = consOnlyFromPrim(solver, prim, alpha, beta, gamma),
 	};
@@ -92,9 +92,9 @@ kernel void applyInitCond(
 
 //everything matches the default except the params passed through to calcCellMinMaxEigenvalues
 kernel void calcDT(
-	constant <?=solver.solver_t?>* solver,
+	constant <?=solver_t?>* solver,
 	global real* dtBuf,
-	const global <?=eqn.cons_t?>* UBuf<?=
+	const global <?=cons_t?>* UBuf<?=
 	solver:getADMArgs()?>
 ) {
 	SETBOUNDS(0,0);
@@ -102,7 +102,7 @@ kernel void calcDT(
 		dtBuf[index] = INFINITY;
 		return;
 	}
-	<?=eqn.prim_t?> prim = UBuf[index].prim;
+	<?=prim_t?> prim = UBuf[index].prim;
 	<?=solver:getADMVarCode()?>
 
 	real det_gamma = sym3_det(gamma);
@@ -141,9 +141,9 @@ kernel void calcDT(
 //// MODULE_NAME: fluxFromCons
 
 <? if false then ?>
-<?=eqn.cons_t?> fluxFromCons(
-	constant <?=solver.solver_t?>* solver,
-	<?=eqn.cons_t?> U,
+<?=cons_t?> fluxFromCons(
+	constant <?=solver_t?>* solver,
+	<?=cons_t?> U,
 	normal_t n,<?=
 	solver:getADMArgs()?>
 ) {
@@ -156,12 +156,12 @@ kernel void calcDT(
 			+ gammaU.<?=sym(side+1,3)?> * U.prim.v.z;
 	real vUi_shift = vUi - beta.s<?=side?> / alpha;
 
-	<?=eqn.cons_t?> F;
+	<?=cons_t?> F;
 	F.cons.D = U.cons.D * vUi_shift;
 	F.S = real3_real_mul(U.cons.S, vUi_shift);
 	F.S.s<?=side?> += U.prim.p;
 	F.tau = U.cons.tau * vUi_shift + p * vUi;
-	F.prim = (<?=eqn.prim_t?>){
+	F.prim = (<?=prim_t?>){
 		.rho = 0,
 		.v = real3_zero,
 		.eInt = 0,
@@ -175,23 +175,23 @@ kernel void calcDT(
 
 //used by PLM
 //TODO SRHD PLM needs to do this:
-//1) calcLR for the <?=eqn.prim_t?> (that means put calcLR in its own file, and a new primLR buf)
+//1) calcLR for the <?=prim_t?> (that means put calcLR in its own file, and a new primLR buf)
 //2) have a new kernel for calc consLR from primLR, since calcDeltaUEig and calcFlux both need this
 //or does the eigenbasis need to be derived from the variables being transformed?
 //shoud I PLM the U's then converge the prims ... and therefore track the prims on edges as well?
-<?=eqn.eigen_t?> eigen_forCell(
-	const global <?=eqn.cons_t?>* U,
+<?=eigen_t?> eigen_forCell(
+	const global <?=cons_t?>* U,
 	real3 x
 ) {
-	return (<?=eqn.eigen_t?>){};
+	return (<?=eigen_t?>){};
 }
 
 //// MODULE_NAME: calcEigenBasis
 
 #error calcEigenBasis has been removed, and eigen_t structs are now calculated inline ... soooo ... convert this to something compatible
 kernel void calcEigenBasis(
-	constant <?=solver.solver_t?>* solver,
-	global <?=eqn.eigen_t?>* eigenBuf,
+	constant <?=solver_t?>* solver,
+	global <?=eigen_t?>* eigenBuf,
 	
 	//TODO 
 	//turn this into a LR extrapolation
@@ -199,13 +199,13 @@ kernel void calcEigenBasis(
 	//right now only primBuf is being used for getting neighbor values
 	//so SRHD should perform the PLM stuff on the primBuf instead of the UBUf?
 	// or do the PLM on the UBuf and do the cons->prim on the ULR edge values
-	const global <?=eqn.cons_t?>* UBuf<?=
+	const global <?=cons_t?>* UBuf<?=
 	solver:getADMArgs()?>
 ) {
 	SETBOUNDS(numGhost,numGhost-1);
 	
 	int indexR = index;
-	<?=eqn.prim_t?> primR = UBuf[indexR].prim;
+	<?=prim_t?> primR = UBuf[indexR].prim;
 	
 	<?=solver:getADMVarCode{suffix='R'} --[[ produce alphaR, betaR, gammaR at indexR ]] ?>
 	
@@ -214,12 +214,12 @@ kernel void calcEigenBasis(
 		const int side = <?=side?>;
 		
 		int indexL = index - solver->stepsize.s<?=side?>;
-		<?=eqn.prim_t?> primL = UBuf[indexL].prim;
+		<?=prim_t?> primL = UBuf[indexL].prim;
 	
 		<?=solver:getADMVarCode{suffix='L'} --[[ produce alphaL, betaL, gammaL at indexL ]] ?>
 
 <? if true then -- arithmetic averaging ?>
-		<?=eqn.prim_t?> avg = (<?=eqn.prim_t?>){
+		<?=prim_t?> avg = (<?=prim_t?>){
 			.rho = .5 * (primL.rho + primR.rho),
 			.v = real3_real_mul(real3_add(primL.v, primR.v), .5),
 			.eInt = .5 * (primL.eInt + primR.eInt),
@@ -322,7 +322,7 @@ kernel void calcEigenBasis(
 		//Kappa = h;	//approx for ideal gas
 	
 		int indexInt = side + dim * index;
-		global <?=eqn.eigen_t?>* eig = eigenBuf + indexInt;
+		global <?=eigen_t?>* eig = eigenBuf + indexInt;
 <?
 for _,var in ipairs(eqn.eigenVars) do
 ?>	eig-><?=var.name?> = <?=var.name?>;
@@ -339,23 +339,23 @@ local prefix = require 'ext.table'.map(eqn.eigenVars, function(var)
 end):concat()
 ?>
 
-<?=eqn.waves_t?> eigen_leftTransform(
-	constant <?=solver.solver_t?>* solver,
-	<?=eqn.eigen_t?> eig,
-	<?=eqn.cons_t?> X_,
+<?=waves_t?> eigen_leftTransform(
+	constant <?=solver_t?>* solver,
+	<?=eigen_t?> eig,
+	<?=cons_t?> X_,
 	real3 x
 ) { 
-	<?=eqn.waves_t?> Y;
+	<?=waves_t?> Y;
 
 	//rotate incoming v's in X
 	//this should match calcEigenBasis
 	//eig.beta and eig.gamma should already be rotated
 	<? if side==0 then ?>
-	<?=eqn.cons_t?> X = X_;
+	<?=cons_t?> X = X_;
 	<? elseif side == 1 then ?>
-	<?=eqn.cons_t?> X = {.ptr={X_.ptr[0], X_.ptr[2], -X_.ptr[1], X_.ptr[3], X_.ptr[4]}};
+	<?=cons_t?> X = {.ptr={X_.ptr[0], X_.ptr[2], -X_.ptr[1], X_.ptr[3], X_.ptr[4]}};
 	<? elseif side == 2 then ?>
-	<?=eqn.cons_t?> X = {.ptr={X_.ptr[0], X_.ptr[3], X_.ptr[2], -X_.ptr[1], X_.ptr[4]}};
+	<?=cons_t?> X = {.ptr={X_.ptr[0], X_.ptr[3], X_.ptr[2], -X_.ptr[1], X_.ptr[4]}};
 	<? end ?>
 	
 	<?=prefix?>
@@ -425,10 +425,10 @@ end):concat()
 	return Y;
 }
 
-<?=eqn.cons_t?> eigen_rightTransform(
-	constant <?=solver.solver_t?>* solver,
-	<?=eqn.eigen_t?> eig,
-	<?=eqn.waves_t?> X,
+<?=cons_t?> eigen_rightTransform(
+	constant <?=solver_t?>* solver,
+	<?=eigen_t?> eig,
+	<?=waves_t?> X,
 	real3 x
 ) {
 	<?=prefix?>
@@ -436,7 +436,7 @@ end):concat()
 	real hW = h * W;
 	real W2 = W * W;
 
-	<?=eqn.cons_t?> Y;
+	<?=cons_t?> Y;
 
 	//2008 Font eqns 108-111
 	Y.ptr[0] = X.ptr[0]
@@ -477,20 +477,20 @@ end):concat()
 
 //// MODULE_NAME: eigen_fluxTransform
 
-<?=eqn.cons_t?> eigen_fluxTransform(
-	constant <?=solver.solver_t?>* solver,
-	<?=eqn.eigen_t?> eig,
-	<?=eqn.cons_t?> X_,
+<?=cons_t?> eigen_fluxTransform(
+	constant <?=solver_t?>* solver,
+	<?=eigen_t?> eig,
+	<?=cons_t?> X_,
 	real3 x
 ) {
 #if 0
 	//rotate incoming v's in x
 	<? if side==0 then ?>
-	<?=eqn.cons_t?> X = X_;
+	<?=cons_t?> X = X_;
 	<? elseif side == 1 then ?>
-	<?=eqn.cons_t?> X = {.ptr={X_.ptr[0], X_.ptr[2], -X_.ptr[1], X_.ptr[3], X_.ptr[4]}};
+	<?=cons_t?> X = {.ptr={X_.ptr[0], X_.ptr[2], -X_.ptr[1], X_.ptr[3], X_.ptr[4]}};
 	<? elseif side == 2 then ?>
-	<?=eqn.cons_t?> X = {.ptr={X_.ptr[0], X_.ptr[3], X_.ptr[2], -X_.ptr[1], X_.ptr[4]}};
+	<?=cons_t?> X = {.ptr={X_.ptr[0], X_.ptr[3], X_.ptr[2], -X_.ptr[1], X_.ptr[4]}};
 	<? end ?>
 
 	//TODO do the matrix multiply here
@@ -503,7 +503,7 @@ end):concat()
 	<? end ?>
 #else
 	//default
-	<?=eqn.waves_t?> waves = eigen_leftTransform_<?=side?>(solver, eig, X_, x);
+	<?=waves_t?> waves = eigen_leftTransform_<?=side?>(solver, eig, X_, x);
 	<?=eqn:eigenWaveCodePrefix(side, 'eig', 'x')?>
 <? for j=0,eqn.numWaves-1 do 
 ?>	waves.ptr[<?=j?>] *= <?=eqn:eigenWaveCode(side, 'eig', 'x', j)?>;
@@ -515,14 +515,14 @@ end):concat()
 //// MODULE_NAME: addSource
 
 kernel void addSource(
-	constant <?=solver.solver_t?>* solver,
-	global <?=eqn.cons_t?>* derivBuf,
-	const global <?=eqn.cons_t?>* UBuf<?=
+	constant <?=solver_t?>* solver,
+	global <?=cons_t?>* derivBuf,
+	const global <?=cons_t?>* UBuf<?=
 	solver:getADMArgs()?>
 ) {
 	SETBOUNDS_NOGHOST();
-	global <?=eqn.cons_t?>* deriv = derivBuf + index;
-	const global <?=eqn.cons_t?>* U = UBuf + index;
+	global <?=cons_t?>* deriv = derivBuf + index;
+	const global <?=cons_t?>* U = UBuf + index;
 	<?=solver:getADMVarCode()?>
 }
 
@@ -544,8 +544,8 @@ u^i = W (v^i - beta^i / alpha)
 W = sqrt(1 - v^i v^j gamma_ij)
 */
 kernel void constrainU(
-	constant <?=solver.solver_t?>* solver,
-	global <?=eqn.cons_t?>* UBuf<?=
+	constant <?=solver_t?>* solver,
+	global <?=cons_t?>* UBuf<?=
 	solver:getADMArgs()?>
 ) {
 	SETBOUNDS(numGhost,numGhost-1);
@@ -568,7 +568,7 @@ kernel void constrainU(
 	real3 S = U->S;
 	real tau = U->tau;
 
-	global <?=eqn.prim_t?>* prim = &UBuf[index].prim;
+	global <?=prim_t?>* prim = &UBuf[index].prim;
 	real3 v = prim->v;
 
 	real SLen = real3_weightedLen(S, gammaU);
@@ -600,7 +600,7 @@ kernel void constrainU(
 			rho = min(rho, (real)solver->rhoMax);
 			eInt = P / (rho * (solver->heatCapacityRatio - 1.));
 			eInt = min(eInt, (real)solver->eIntMax);
-			*prim = (<?=eqn.prim_t?>){
+			*prim = (<?=prim_t?>){
 				.rho = rho,
 				.v = v,
 				.eInt = eInt,

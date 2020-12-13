@@ -161,10 +161,10 @@ static inline real calc_EM_energy(constant <?=solver_t?>* solver, const global <
 	return .5 * (coordLenSq(U->D, x) / eps + coordLenSq(U->B, x) / mu);
 }
 
-//// MODULE_NAME: primFromCons
+//// MODULE_NAME: <?=primFromCons?>
 //// MODULE_DEPENDS: real3 <?=solver_t?> <?=prim_t?> <?=cons_t?> eqn.common
 
-#define primFromCons(\
+#define <?=primFromCons?>(\
 	/*<?=prim_t?> * const */W,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */U,\
@@ -186,10 +186,10 @@ static inline real calc_EM_energy(constant <?=solver_t?>* solver, const global <
 	(W)->ePot = (U)->ePot;\
 }
 
-//// MODULE_NAME: consFromPrim
+//// MODULE_NAME: <?=consFromPrim?>
 //// MODULE_DEPENDS: real3 <?=solver_t?> <?=prim_t?> <?=cons_t?> eqn.common
 
-#define consFromPrim(\
+#define <?=consFromPrim?>(\
 	/*<?=cons_t?> * const */U,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=prim_t?> const * const */W,\
@@ -207,11 +207,11 @@ static inline real calc_EM_energy(constant <?=solver_t?>* solver, const global <
 	(U)->ePot = (W)->ePot;\
 }
 
-//// MODULE_NAME: apply_dU_dW
+//// MODULE_NAME: <?=apply_dU_dW?>
 //// MODULE_DEPENDS: real3 <?=solver_t?> <?=prim_t?> <?=cons_t?> coord_lower coord_lower
 // only used by PLM
 
-#define apply_dU_dW(\
+#define <?=apply_dU_dW?>(\
 	/*<?=cons_t?> * const */result\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=prim_t?> const * const */WA, \
@@ -237,10 +237,10 @@ static inline real calc_EM_energy(constant <?=solver_t?>* solver, const global <
 	(result)->ePot = (W)->ePot;\
 }
 
-//// MODULE_NAME: apply_dW_dU
+//// MODULE_NAME: <?=apply_dW_dU?>
 //// MODULE_DEPENDS: real3 <?=solver_t?> <?=prim_t?> <?=cons_t?> coord_lower coord_lower
 
-#define apply_dW_dU(\
+#define <?=apply_dW_dU?>(\
 	/*<?=prim_t?> * const */result\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=prim_t?> const * const */WA,\
@@ -267,10 +267,10 @@ static inline real calc_EM_energy(constant <?=solver_t?>* solver, const global <
 	(result)->ePot = (U)->ePot;\
 }
 
-//// MODULE_NAME: applyInitCond
-//// MODULE_DEPENDS: consFromPrim cartesianToCoord
+//// MODULE_NAME: <?=applyInitCond?>
+//// MODULE_DEPENDS: <?=consFromPrim?> cartesianToCoord
 
-kernel void applyInitCond(
+kernel void <?=applyInitCond?>(
 	constant <?=solver_t?> const * const solver,
 	constant <?=initCond_t?> const * const initCond,
 	global <?=cons_t?> * const UBuf,
@@ -346,13 +346,13 @@ end
 	
 		.ePot = 0,
 	};
-	consFromPrim(UBuf + index, solver, &W, x);
+	<?=consFromPrim?>(UBuf + index, solver, &W, x);
 }
 
-//// MODULE_NAME: fluxFromCons
-//// MODULE_DEPENDS: units primFromCons normal_t
+//// MODULE_NAME: <?=fluxFromCons?>
+//// MODULE_DEPENDS: units <?=primFromCons?> normal_t
 
-#define fluxFromCons(\
+#define <?=fluxFromCons?>(\
 	/*<?=cons_t?> * const */F,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */U,\
@@ -360,7 +360,7 @@ end
 	/*normal_t const */n\
 ) {\
 	<?=prim_t?> W;\
-	primFromCons(&W, solver, U, pt);\
+	<?=primFromCons?>(&W, solver, U, pt);\
 \
 <? --\
 for _,fluid in ipairs(eqn.fluids) do --\
@@ -397,10 +397,10 @@ end --\
 	(F)->psi = normal_vecDotN1(n, (U)->B) * solver->divPsiWavespeed / unit_m_per_s;\
 }
 
-//// MODULE_NAME: eigen_forInterface
-//// MODULE_DEPENDS: <?=eigen_t?> primFromCons
+//// MODULE_NAME: <?=eigen_forInterface?>
+//// MODULE_DEPENDS: <?=eigen_t?> <?=primFromCons?>
 
-#define eigen_forInterface(\
+#define <?=eigen_forInterface?>(\
 	/*<?=eigen_t?> * const */eig,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */UL,\
@@ -409,9 +409,9 @@ end --\
 	/*normal_t const */n\
 ) {\
 	<?=prim_t?> WL;\
-	primFromCons(&WL, solver, UL, pt);\
+	<?=primFromCons?>(&WL, solver, UL, pt);\
 	<?=prim_t?> WR;\
-	primFromCons(&WR, solver, UR, pt);\
+	<?=primFromCons?>(&WR, solver, UR, pt);\
 \
 <? for _,fluid in ipairs(eqn.fluids) do ?>\
 \
@@ -440,10 +440,10 @@ end --\
 <? end ?>\
 }
 
-//// MODULE_NAME: eigen_forCell
-//// MODULE_DEPENDS: <?=eigen_t?> primFromCons
+//// MODULE_NAME: <?=eigen_forCell?>
+//// MODULE_DEPENDS: <?=eigen_t?> <?=primFromCons?>
 
-#define eigen_forCell(\
+#define <?=eigen_forCell?>(\
 	/*<?=eigen_t?> * const */eig,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */U,\
@@ -451,7 +451,7 @@ end --\
 	/*normal_t const */n\
 ) {\
 	<?=prim_t?> W;\
-	primFromCons(&W, solver, U, pt);\
+	<?=primFromCons?>(&W, solver, U, pt);\
 <? for _,fluid in ipairs(eqn.fluids) do ?>\
 	real const <?=fluid?>_vSq = coordLenSq(W.<?=fluid?>_v, pt);\
 	real const <?=fluid?>_eKin = .5 * <?=fluid?>_vSq;\
@@ -468,10 +468,10 @@ end --\
 <? end ?>\
 }
 
-//// MODULE_NAME: eigen_left/rightTransform
+//// MODULE_NAME: <?=eigen_leftTransform?>
 //// MODULE_DEPENDS: units <?=eigen_t?> <?=waves_t?> coord_lower sqrt_2_and_1_2
 
-#define eigen_leftTransform(\
+#define <?=eigen_leftTransform?>(\
 	/*<?=waves_t?> * const */UY,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=eigen_t?> const * const */eig,\
@@ -669,7 +669,10 @@ end --\
 	}\
 }
 
-#define eigen_rightTransform(\
+//// MODULE_NAME: <?=eigen_rightTransform?>
+//// MODULE_DEPENDS: units <?=eigen_t?> <?=waves_t?> coord_lower sqrt_2_and_1_2
+
+#define <?=eigen_rightTransform?>(\
 	/*<?=cons_t?> * const */UY,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=eigen_t?> const * const */eig,\
@@ -843,10 +846,10 @@ end --\
 	}\
 }
 
-//// MODULE_NAME: eigen_fluxTransform
+//// MODULE_NAME: <?=eigen_fluxTransform?>
 //// MODULE_DEPENDS: units
 
-static inline void eigen_fluxTransform(
+static inline void <?=eigen_fluxTransform?>(
 	<?=cons_t?> * const UY,
 	constant <?=solver_t?> const * const solver,
 	<?=eigen_t?> const * const eig,
@@ -940,10 +943,10 @@ static inline void eigen_fluxTransform(
 	(UY)->ePot = 0;
 }
 
-//// MODULE_NAME: addSource
-//// MODULE_DEPENDS: units elecChargeMassRatio primFromCons 
+//// MODULE_NAME: <?=addSource?>
+//// MODULE_DEPENDS: units elecChargeMassRatio <?=primFromCons?> 
 
-kernel void addSource(
+kernel void <?=addSource?>(
 	constant <?=solver_t?> const * const solver,
 	global <?=cons_t?> * const derivBuf,
 	global <?=cons_t?> const * const UBuf,
@@ -999,7 +1002,7 @@ kernel void addSource(
 	real3 x = cellBuf[index].pos;
 	/* connection coefficient source terms of covariant derivative w/contravariant velocity vectors in a holonomic coordinate system */
 	<?=prim_t?> W;
-	primFromCons(&W, solver, U, x);
+	<?=primFromCons?>(&W, solver, U, x);
 	real3 const conn1_u = coord_conn_trace23(x);
 	<? for _,fluid in ipairs(eqn.fluids) do ?>{
 		real3 m_conn_vv = coord_conn_apply23(W.<?=fluid?>_v, U-><?=fluid?>_m, x);
@@ -1011,10 +1014,10 @@ kernel void addSource(
 <? end ?>
 }
 
-//// MODULE_NAME: constrainU
-//// MODULE_DEPENDS: primFromCons consFromPrim
+//// MODULE_NAME: <?=constrainU?>
+//// MODULE_DEPENDS: <?=primFromCons?> <?=consFromPrim?>
 
-kernel void constrainU(
+kernel void <?=constrainU?>(
 	constant <?=solver_t?> const * const solver,
 	global <?=cons_t?> * const UBuf,
 	global <?=cell_t?> const * const cellBuf
@@ -1023,12 +1026,12 @@ kernel void constrainU(
 	global <?=cons_t?> * const U = UBuf + index;
 	real3 const x = cellBuf[index].pos;
 	<?=prim_t?> W;
-	primFromCons(&W, solver, U, x);
+	<?=primFromCons?>(&W, solver, U, x);
 
 <? for _,fluid in ipairs(eqn.fluids) do
 ?>	W.<?=fluid?>_rho = max((real)W.<?=fluid?>_rho, (real)solver->min_<?=fluid?>_rho);
 	W.<?=fluid?>_P = max((real)W.<?=fluid?>_P, (real)solver->min_<?=fluid?>_P);
 <? end
 ?>
-	consFromPrim(U, solver, &W, x);
+	<?=consFromPrim?>(U, solver, &W, x);
 }

@@ -16,23 +16,23 @@ function GLM_MHD_UpdatePsi:initCodeModules(solver)
 			'cell_x',
 			'eqn.guiVars.compileTime',	-- Cp
 		},
-		code = template([[
+		code = solver.eqn:template([[
 kernel void updatePsi(
-	constant <?=solver.solver_t?>* solver,
-	global <?=eqn.cons_t?>* UBuf,
-	real dt,
-	const global <?=solver.coord.cell_t?>* cellBuf
+	constant <?=solver_t?> const * const solver,
+	global <?=cons_t?> * const UBuf,
+	real const dt,
+	global <?=cell_t?> const * const cellBuf
 ) {
 	SETBOUNDS(0,0);
-	real3 x = cell_x(i);
+	real3 const x = cell_x(i);
 
-	global <?=eqn.cons_t?>* U = UBuf + index;
+	global <?=cons_t?> * const U = UBuf + index;
 	
 	//TODO don't need the whole eigen here, just the Ch	
 <? if not eqn.useFixedCh then ?>
 	real Ch = 0;
 	<? for side=0,solver.dim-1 do ?>{
-		<?=eqn.eigen_t?> eig = eigen_forCell_<?=side?>(solver, *U, x);
+		<?=eigen_t?> eig = eigen_forCell_<?=side?>(solver, *U, x);
 		Ch = max(Ch, eig.Ch);
 	}<? end ?>
 <? else ?>
@@ -43,8 +43,6 @@ kernel void updatePsi(
 }
 ]], 	{
 			op = self,
-			solver = self.solver,
-			eqn = self.solver.eqn,
 		}),
 	}
 	solver.solverModulesEnabled['op.GLM_MHD_UpdatePsi'] = true

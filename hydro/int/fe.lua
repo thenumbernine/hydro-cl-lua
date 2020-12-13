@@ -26,7 +26,7 @@ function ForwardEuler:init(solver)
 	self.derivBufObj = CLBuffer{
 		env = solver.app.env,
 		name = 'derivBuf',
-		type = solver.eqn.cons_t,
+		type = solver.eqn.symbols.cons_t,
 		count = solver.numCells,
 	}
 end
