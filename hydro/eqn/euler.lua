@@ -156,7 +156,7 @@ then --\
 			/* which should we pick eigenvalues from? */\
 			/* use cell-centered eigenvalues */\
 			normal_t n = normal_forFace(face);\
-			<?=eqn:consWaveCodePrefix('n', 'U', 'x'):gsub('\n', '\n\\\t\t\t')?>\
+			<?=eqn:consWaveCodePrefix('n', 'U', 'x'):gsub('\n', '\\\n\t\t\t')?>\
 			real lambdaMin = <?=eqn:consMinWaveCode('n', 'U', 'x')?>;\
 			real lambdaMax = <?=eqn:consMaxWaveCode('n', 'U', 'x')?>;\
 			real absLambdaMax = max(fabs(lambdaMin), fabs(lambdaMax));\

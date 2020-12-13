@@ -22,7 +22,7 @@ then --\
 ?>		if (dx > 1e-7) {\
 			normal_t const n = normal_forSide<?=side?>(x);\
 			/* use cell-centered eigenvalues */\
-			<?=eqn:consWaveCodePrefix("n", "U", "x"):gsub("\n", "\n\\\t\t\t")?>\
+			<?=eqn:consWaveCodePrefix("n", "U", "x"):gsub("\n", "\\\n\t\t\t")?>\
 			real const lambdaMin = <?=eqn:consMinWaveCode("n", "U", "x")?>;\
 			real const lambdaMax = <?=eqn:consMaxWaveCode("n", "U", "x")?>;\
 			real absLambdaMax = max(fabs(lambdaMin), fabs(lambdaMax));\
@@ -52,7 +52,7 @@ then --\
 			/* all sides? or only the most prominent side? */\
 			/* which should we pick eigenvalues from? */\
 			/* use cell-centered eigenvalues */\
-			<?=eqn:consWaveCodePrefix("n", "U", "x"):gsub("\n", "\n\\\t\t\t")?>\
+			<?=eqn:consWaveCodePrefix("n", "U", "x"):gsub("\n", "\\\n\t\t\t")?>\
 			real const lambdaMin = <?=eqn:consMinWaveCode("n", "U", "x")?>;\
 			real const lambdaMax = <?=eqn:consMaxWaveCode("n", "U", "x")?>;\
 			real absLambdaMax = max(fabs(lambdaMin), fabs(lambdaMax));\
