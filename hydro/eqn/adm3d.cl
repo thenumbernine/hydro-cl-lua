@@ -301,24 +301,15 @@ end
 	<? end ?>\
 }
 
-//// MODULE_NAME: <?=calcDT?>
+//// MODULE_NAME: <?=calcDTCell?>
 //// MODULE_DEPENDS: SETBOUNDS initCond.codeprefix <?=solver_t?> <?=eqn_guiVars_compileTime?>
 
-kernel void <?=calcDT?>(
+real <?=calcDTCell?>(
 	constant <?=solver_t?> const * const solver,
-	global real * const dtBuf,
-	global <?=cons_t?> const * const UBuf,
-	global <?=cell_t?> const * const cellBuf
+	global <?=cons_t?> const * const U,
+	global <?=cell_t?> const * const cell
 ) {
-	SETBOUNDS(0,0);
-	if (OOB(numGhost,numGhost)) {
-		dtBuf[index] = INFINITY;
-		return;
-	}
-		
-	global <?=cons_t?> const * const U = UBuf + index;
-	
-	//the only advantage of this <?=calcDT?> over the default is that here this sqrt(f) and det(gamma_ij) is only called once
+	//the only advantage of this calcDT over the default is that here this sqrt(f) and det(gamma_ij) is only called once
 	real const f_alphaSq = calc_f_alphaSq(U->alpha);
 	real const det_gamma = sym3_det(U->gamma_ll);
 	real const alpha_sqrt_f = sqrt(f_alphaSq);
@@ -351,7 +342,7 @@ kernel void <?=calcDT?>(
 		absLambdaMax = max((real)1e-9, absLambdaMax);
 		dt = (real)min(dt, solver->grid_dx.s<?=side?> / absLambdaMax);
 	}<? end ?>
-	dtBuf[index] = dt; 
+	return dt; 
 }
 
 //// MODULE_NAME: <?=eigen_forCell?>

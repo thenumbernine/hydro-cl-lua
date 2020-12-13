@@ -4,20 +4,20 @@ local file = require 'ext.file'
 local Struct = require 'hydro.code.struct'
 local Equation = require 'hydro.eqn.eqn'
 
-local CompositeEquation = class(Equation)
+local Composite = class(Equation)
 
-CompositeEquation.name = 'composite'
+Composite.name = 'composite'
 
 -- TODO ... ? list from sub-eqns? unique?
-CompositeEquation.initConds = require 'hydro.init.euler':getList()
+Composite.initConds = require 'hydro.init.euler':getList()
 
-CompositeEquation.solverCodeFile = 'hydro/eqn/composite.cl'
+Composite.solverCodeFile = 'hydro/eqn/composite.cl'
 
 --[[
 args:
 	subeqns = equations (instances of 'hydro.eqn.eqn') to combine into one
 --]]
-function CompositeEquation:init(args)
+function Composite:init(args)
 	local solver = assert(args.solver)
 	self.eqns = table(assert(args.subeqns))
 assert(#self.eqns > 0, "you need at least one entry in args.subeqns")
@@ -65,9 +65,9 @@ assert(#self.eqns > 0, "you need at least one entry in args.subeqns")
 
 	so if I really want to call sub-eqn initCodeModules here then I also need to give them an initCond somehow 
 	... or convince them to ingore their own initCond initCodeModule call
-	... and what are the implications of that?  nothing ... since the only initCond we need is from the CompositeEquation, right?  right?
+	... and what are the implications of that?  nothing ... since the only initCond we need is from the Composite, right?  right?
 	
-	in fact, the initCond stuff is one of a few points of contention of the whole CompositeEquation.  here's the list:
+	in fact, the initCond stuff is one of a few points of contention of the whole Composite.  here's the list:
 	- initCond
 	- addSource
 	- constrainU
@@ -153,17 +153,17 @@ assert(#self.eqns > 0, "you need at least one entry in args.subeqns")
 		return {type=assert(eqn.symbols.waves_t), name='eqn'..i}
 	end)
 
-	CompositeEquation.super.init(self, args)
+	Composite.super.init(self, args)
 end
 
-function CompositeEquation:getModuleDepends_cons_t()
+function Composite:getModuleDepends_cons_t()
 	return self.eqns:mapi(function(eqn)
 		return eqn.symbols.cons_t
 	end)
 end
 
-function CompositeEquation:createInitState()
-	CompositeEquation.super.createInitState(self)
+function Composite:createInitState()
+	Composite.super.createInitState(self)
 --[[ but we need the fake initCond during initCodeModules to prevent initCond_t from being re-added	
 	for _,eqn in ipairs(self.eqns) do
 		eqn.initCond = self.initCond
@@ -188,70 +188,7 @@ function CompositeEquation:createInitState()
 --]]
 end
 
---[=[
-function CompositeEquation:initCodeModules()
-	local solver = self.solver
-	
-	self:initCodeModule_cons_prim_eigen_waves()
-
-	solver.modules:add{
-		name = self.symbols.waves_t,
-		depends = {'real'},
-		typecode = self:template[[
-typedef union { 
-	real ptr[<?=numWaves?>]; 
-} <?=waves_t?>;
-]],
-		-- only generated for cl, not for ffi cdef
-		headercode = 'typedef '..self.symbols.waves_t..' waves_t;',
-	}
-
--- TODO from here on down, it is a lot in common with eqn/eqn.lua
-
-	self:initCodeModule_calcDT()
-	self:initCodeModule_fluxFromCons()
-	self:initCodeModule_waveCode()
-
-	solver.modules:addFromMarkup{
-		code = self:template(file[self.solverCodeFile]),
-		onAdd = function(args)
-			-- special case for applyInitCond ...
-			if args.name == self.symbols.applyInitCond then
-				args.depends:append(self.initCond:getBaseDepends(solver))
-				args.depends:append(self.initCond.depends)
-				-- only used by hydro/eqn/bssnok-fd.lua:
-				if self.getModuleDependsApplyInitCond then
-					args.depends:append(self:getModuleDependsApplyInitCond())
-				end
-			end
-		end,
-	}
-
-	solver.modules:add{
-		name = self.symbols.applyInitCond,
-		depends = {
-			self.symbols.cell_t,
-			self.symbols.initCond_t,
-			self.symbols.applyInitCondCell,
-			'SETBOUNDS',
-		},
-		code = self:template[[
-kernel void <?=applyInitCond?>(
-	constant <?=solver_t?> const * const solver,
-	constant <?=initCond_t?> const * const initCond,
-	global <?=cons_t?>* UBuf,
-	global <?=cell_t?> const * const cellBuf
-) {
-	SETBOUNDS(0,0);
-	global <?=cons_t?> * const U = UBuf + index;
-	global <?=cons_t?> const * const cell = cellBuf + index;
-	<?=applyInitCondCell?>(solver, initCond, U, cell);
-}
-]],
-	}
-end
---]=]
-function CompositeEquation:initCodeModules()
+function Composite:initCodeModules()
 	-- build the submodules' code
 	-- store them locally in composite's submodules[]
 	-- but don't initCodeModule_cons_prim_eigen_waves because we already did that (for app.modules for cdefAll...)
@@ -262,27 +199,16 @@ function CompositeEquation:initCodeModules()
 		eqn.initCodeModule_cons_prim_eigen_waves = old
 	end
 
-	CompositeEquation.super.initCodeModules(self)
+	Composite.super.initCodeModules(self)
 end
 
 -- in the solverCodeFile
-function CompositeEquation:initCodeModule_cons_parallelPropagate()
-end
+function Composite:initCodeModule_cons_parallelPropagate() end
+function Composite:initCodeModule_fluxFromCons() end
+function Composite:initCodeModule_consFromPrim_primFromCons() end
+--function Composite:initCodeModule_calcDT() end
 
--- in the solverCodeFile
-function CompositeEquation:initCodeModule_fluxFromCons()
-end
-
--- in the solverCodeFile
-function CompositeEquation:initCodeModule_consFromPrim_primFromCons()
-end
-
--- calcDT ... this should be the min of all sub-calcDT's
--- next big issue is that we need a unique name for each function 
--- this is where classes come in handy
--- why can't OpenCL use C++?
-
-function CompositeEquation:getModuleDepends_waveCode()
+function Composite:getModuleDepends_waveCode()
 	return table():append(
 		self.eqns:mapi(function(eqn)
 			return eqn:getModuleDepends_waveCode()
@@ -290,23 +216,15 @@ function CompositeEquation:getModuleDepends_waveCode()
 	)
 end
 
-function CompositeEquation:getEigenDisplayVars()
-	return table():append(
-		self.eqns:mapi(function(eqn)
-			return eqn:getEigenDisplayVars() or {}
-		end):unpack()
-	)
-end
-
 -- TODO - prevent variable collisions - especially from multiple matching subeqns
 -- this might require some kind of namespace
-function CompositeEquation:eigenWaveCodePrefix(n, eig, x)
+function Composite:eigenWaveCodePrefix(n, eig, x)
 	return self.eqns:mapi(function(eqn,i)
 		return eqn:eigenWaveCodePrefix(n, '&('..eig..')->eqn'..i, x)
 	end):concat'\n'
 end
 
-function CompositeEquation:eigenWaveCode(n, eig, x, waveIndex)
+function Composite:eigenWaveCode(n, eig, x, waveIndex)
 	local origWaveIndex = waveIndex
 	for i,eqn in ipairs(self.eqns) do
 		if waveIndex >= 0 and waveIndex < eqn.numWaves then
@@ -318,13 +236,13 @@ function CompositeEquation:eigenWaveCode(n, eig, x, waveIndex)
 end
 
 -- TODO same as eigenWaveCodePrefix
-function CompositeEquation:consWaveCodePrefix(n, U, x)
+function Composite:consWaveCodePrefix(n, U, x)
 	return self.eqns:mapi(function(eqn,i)
 		return eqn:consWaveCodePrefix(n, '&('..U..')->eqn'..i, x)
 	end):concat'\n'
 end
 
-function CompositeEquation:consWaveCode(n, U, x, waveIndex)
+function Composite:consWaveCode(n, U, x, waveIndex)
 	local origWaveIndex = waveIndex
 	for i,eqn in ipairs(self.eqns) do
 		if waveIndex >= 0 and waveIndex < eqn.numWaves then
@@ -340,4 +258,4 @@ end
 -- TODO consMinWaveCode
 -- TODO consMaxWaveCode
 
-return CompositeEquation
+return Composite

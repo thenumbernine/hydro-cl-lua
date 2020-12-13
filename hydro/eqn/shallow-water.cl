@@ -65,17 +65,16 @@
 )\
 	sqrt(solver->gravity * (U)->h)
 
-//// MODULE_NAME: <?=applyInitCond?>
-//// MODULE_DEPENDS: cartesianToCoord
+//// MODULE_NAME: <?=applyInitCondCell?>
+//// MODULE_DEPENDS: cartesianToCoord <?=solver_t?> <?=initCond_t?> <?=cons_t?> <?=prim_t?> <?=cell_t?> <?=consFromPrim?>
 
-kernel void <?=applyInitCond?>(
+void <?=applyInitCondCell?>(
 	constant <?=solver_t?> const * const solver,
 	constant <?=initCond_t?> const * const initCond,
-	global <?=cons_t?> * const UBuf,
-	global <?=cell_t?> const * const cellBuf
+	global <?=cons_t?> * const U,
+	global <?=cell_t?> const * const cell
 ) {
-	SETBOUNDS(0,0);
-	real3 const x = cellBuf[index].pos;
+	real3 const x = cell->pos;
 	
 	// this is in all init/euler.lua
 	real3 const mids = real3_real_mul(real3_add(solver->initCondMins, solver->initCondMaxs), .5);
@@ -100,7 +99,7 @@ end
 		.h = rho,
 		.v = cartesianToCoord(v, x),
 	};
-	<?=consFromPrim?>(UBuf + index, solver, &W, x);
+	<?=consFromPrim?>(U, solver, &W, x);
 }
 
 //// MODULE_NAME: <?=fluxFromCons?>

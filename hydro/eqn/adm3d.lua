@@ -226,7 +226,7 @@ function ADM_BonaMasso_3D:createInitState()
 end
 
 -- don't use default
-function ADM_BonaMasso_3D:initCodeModule_calcDT() end
+function ADM_BonaMasso_3D:initCodeModule_calcDTCell() end
 function ADM_BonaMasso_3D:initCodeModule_fluxFromCons() end
 
 function ADM_BonaMasso_3D:getModuleDepends_waveCode()

@@ -4,7 +4,7 @@ local Equation = require 'hydro.eqn.eqn'
 
 
 local ShallowWater = class(Equation)
-ShallowWater.name = 'ShallowWater'
+ShallowWater.name = 'shallow_water'
 
 ShallowWater.roeUseFluxFromCons = true
 

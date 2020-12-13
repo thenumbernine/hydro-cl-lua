@@ -132,11 +132,12 @@ function Equation:init(args)
 		'eigen_fluxTransform',
 		'cons_parallelPropagate',
 		'applyInitCondCell',
+		'calcDTCell',
 	
 		-- kernels:
-		'applyInitCond',	-- technically doesn't have to be uniquely named, now that applyInitCondCell is uniquely named
+		'applyInitCond',	-- TODO don't uniquely identify this, only do the Cell version 
+		'calcDT',			-- TODO don't uniquely identify this, only do the Cell version 
 		'initDerivs',
-		'calcDT',
 		'addSource',
 		'constrainU',
 	
@@ -232,22 +233,6 @@ function Equation:init(args)
 
 	self.symbols.consLR_t = app:uniqueName'consLR_t'
 	
-	if not self.wavesVars then
-		self.wavesVars = range(self.numWaves):mapi(function(i)
-			return {name='wave'..(i-1), type='real'}
-		end)
-	end
-	self.wavesStruct = Struct{
-		solver = solver,
-		name = 'waves_t',
-		vars = self.wavesVars,
-	}
-	
-	self.wavesStruct:makeType()
-	self.symbols.waves_t = assert(self.wavesStruct.typename)
-
-	self.wavesStruct.eqn = self	-- hack
-	solver.structForType[self.wavesStruct.typename] = self.wavesStruct
 
 	local numReals
 	if self.consStruct.vars then
@@ -274,7 +259,27 @@ function Equation:init(args)
 	-- how many states are integratable
 	-- (put static states at the end of your cons_t structures)
 	if not self.numIntStates then self.numIntStates = self.numStates end
+
+
+	if not self.wavesVars then
+		self.wavesVars = range(self.numWaves):mapi(function(i)
+			return {name='wave'..(i-1), type='real'}
+		end)
+	end
+	self.wavesStruct = Struct{
+		solver = solver,
+		name = 'waves_t',
+		vars = self.wavesVars,
+	}
 	
+	self.wavesStruct:makeType()
+	self.symbols.waves_t = assert(self.wavesStruct.typename)
+
+	self.wavesStruct.eqn = self	-- hack
+	solver.structForType[self.wavesStruct.typename] = self.wavesStruct
+
+
+
 	self.initCondNames = table.mapi(
 		assert(self.initConds, "you forgot to specify your initConds in your hydro/eqn/* file"),
 		function(info) return info.name end)
@@ -474,7 +479,47 @@ function Equation:initCodeModules()
 		end):concat'\n',
 	}
 
-	self:initCodeModule_calcDT()
+	-- this contains calcDTCell, which varies per-equation
+	self:initCodeModule_calcDTCell()
+	-- and here is calcDT, which is always the same
+	solver.modules:add{
+		name = self.symbols.calcDT,
+		depends = {self.symbols.calcDTCell},
+		code = self:template[[
+kernel void <?=calcDT?>(
+	constant <?=solver_t?> const * const solver,
+	global real * const dtBuf,
+	global <?=cons_t?> const * const UBuf,
+	global <?=cell_t?> const * const cellBuf<?
+if require "hydro.solver.meshsolver".is(solver) then 
+?>,
+	global <?=face_t?> const * const faces,
+	global int const * const cellFaceIndexes<?
+end
+?>
+) {
+	SETBOUNDS(0,0);
+	if (OOB(numGhost,numGhost)) {
+		dtBuf[index] = INFINITY;
+		return;
+	}
+	global <?=cons_t?> const * const U = UBuf + index;
+	global <?=cell_t?> const * const cell = cellBuf + index;
+	dtBuf[index] = <?=calcDTCell?>(
+		solver,
+		U,
+		cell<?
+if require "hydro.solver.meshsolver".is(solver) then 
+?>,
+		faces,
+		cellFaceIndexes<?
+end
+?>
+	);
+}
+]],
+	}
+
 	self:initCodeModule_fluxFromCons()
 	self:initCodeModule_waveCode()
 
@@ -912,7 +957,7 @@ end
 
 -- By default calcDT is taken from hydro/eqn/cl/calcDT.cl
 -- Override to provide your own.
-function Equation:initCodeModule_calcDT()
+function Equation:initCodeModule_calcDTCell()
 	self.solver.modules:addFromMarkup(self:template(file['hydro/eqn/cl/calcDT.cl']))
 end
 

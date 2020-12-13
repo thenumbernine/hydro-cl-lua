@@ -88,10 +88,10 @@ end
 -- it is put here instead of in hydro/eqn/euler.cl so euler-burgers can override it
 -- TODO move the sqrt() out of the loop altogether?
 -- TODO allow module overriding in the markup somehow?
-function Euler:initCodeModule_calcDT()
+function Euler:initCodeModule_calcDTCell()
 	local solver = self.solver
 	solver.modules:add{
-		name = self.symbols.calcDT,
+		name = self.symbols.calcDTCell,
 		depends = table{
 			'OOB',
 			'SETBOUNDS',
@@ -103,20 +103,13 @@ function Euler:initCodeModule_calcDT()
 		code = self:template[[
 <? if require 'hydro.solver.gridsolver'.is(solver) then ?>
 
-kernel void <?=calcDT?>(
+real <?=calcDTCell?>(
 	constant <?=solver_t?> const * const solver,
-	global real * const dtBuf,
-	global <?=cons_t?> const * const UBuf,
-	global <?=cell_t?> const * const cellBuf
+	global <?=cons_t?> const * const U,
+	global <?=cell_t?> const * const cell
 ) {
-	SETBOUNDS(0,0);
-	if (OOB(numGhost,numGhost)) {
-		dtBuf[index] = INFINITY;
-		return;
-	}
-	real3 const x = cellBuf[index].pos;
+	real3 const x = cell->pos;
 
-	global <?=cons_t?> const * const U = UBuf + index;
 	<?=prim_t?> W;
 	<?=primFromCons?>(&W, solver, U, x);
 	real const Cs = calc_Cs(solver, &W);
@@ -144,26 +137,19 @@ then
 			dt = (real)min(dt, dx / absLambdaMax);
 		}
 	}<? end ?>
-	dtBuf[index] = dt;
+	return dt;
 }
 
 <? else -- mesh solver ?>
 
-kernel void <?=calcDT?>(
+real <?=calcDTCell?>(
 	constant <?=solver_t?> const * const solver,
-	global real* dtBuf,					//[numCells]
-	global <?=cons_t?> const * const UBuf,	//[numCells]
-	global <?=cell_t?> const * const cellBuf,		//[numCells]
+	global <?=cons_t?> const * const U,
+	global <?=cell_t?> const * const cell,
 	global <?=face_t?> const * const faces,			//[numFaces]
 	global int const * const cellFaceIndexes	//[numCellFaceIndexes]
 ) {
-	int cellIndex = get_global_id(0);
-	if (cellIndex >= get_global_size(0)) return;
-	
-	global <?=cons_t?> const * const U = UBuf + cellIndex;
-	global <?=cell_t?> const * const cell = cellBuf + cellIndex;
-	real3 x = cell->pos;
-
+	real3 const x = cell->pos;
 	real dt = INFINITY;
 	for (int i = 0; i < cell->faceCount; ++i) {
 		global <?=face_t?> const * const face = faces + cellFaceIndexes[i + cell->faceOffset];
@@ -181,7 +167,7 @@ kernel void <?=calcDT?>(
 			dt = (real)min(dt, dx / absLambdaMax);
 		}
 	}
-	dtBuf[cellIndex] = dt;
+	return dt;
 }
 
 <? end -- mesh vs grid solver ?>

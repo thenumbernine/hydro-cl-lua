@@ -56,20 +56,18 @@ static inline real3x3 metric_partial_beta_ul(real3 const pt) {
 ?>	};
 }
 
-//// MODULE_NAME: <?=applyInitCond?>
-//// MODULE_DEPENDS: cartesianToCoord
+//// MODULE_NAME: <?=applyInitCondCell?>
+//// MODULE_DEPENDS: cartesianToCoord <?=solver_t?> <?=initCond_t?> <?=cons_t?> <?=cell_t?>
 
-kernel void <?=applyInitCond?>(
+void <?=applyInitCondCell?>(
 	constant <?=solver_t?> const * const solver,
 	constant <?=initCond_t?> const * const initCond,
-	global <?=cons_t?> * const UBuf,
-	global <?=cell_t?> const * const cellBuf
+	global <?=cons_t?> * const U,
+	global <?=cell_t?> const * const cell
 ) {
-	SETBOUNDS(0,0);
-	real3 x = cellBuf[index].pos;
-	
-	real3 mids = real3_real_mul(real3_add(solver->mins, solver->maxs), .5);
-	bool lhs = true<?
+	real3 const x = cell->pos;
+	real3 const mids = real3_real_mul(real3_add(solver->mins, solver->maxs), .5);
+	bool const lhs = true<?
 for i=1,solver.dim do
 	local xi = xNames[i]
 ?> && x.<?=xi?> < mids.<?=xi?><?
@@ -85,14 +83,12 @@ end
 	
 	<?=initCode()?>
 
-	UBuf[index] = (<?=cons_t?>){
 <? if eqn.usePressure then
-?>		.Pi = <?=scalar?>_from_real(P),
+?>	U->Pi = <?=scalar?>_from_real(P);
 <? else		
-?>		.Pi = <?=scalar?>_from_real(rho),
+?>	U->Pi = <?=scalar?>_from_real(rho);
 <? end		
-?>		.Psi_l = <?=vec3?>_from_real3(cartesianToCoord(v, x)),
-	};
+?>	U->Psi_l = <?=vec3?>_from_real3(cartesianToCoord(v, x));
 }
 
 //// MODULE_NAME: <?=fluxFromCons?>

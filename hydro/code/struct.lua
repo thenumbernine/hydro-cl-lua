@@ -78,6 +78,8 @@ function Struct:makeType()
 		return
 	end
 
+-- TODO no more uniqueName and typename ~= name .. instead force names to be unique
+-- and make them unique before passing them in by appending the lua object uid or something
 	self.typename = app:uniqueName(self.name)
 	do
 		local typecode = codeWithoutTypename .. ' ' .. self.typename .. ';'
