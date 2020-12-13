@@ -95,10 +95,10 @@ function Euler:initCodeModule_calcDT()
 		depends = table{
 			'OOB',
 			'SETBOUNDS',
+			'normal_t',
 			self.solver.solver_t,
 			self.symbols.primFromCons,
-			'eqn.guiVars.compileTime',
-			'normal_t',
+			self.symbols.eqn_guiVars_compileTime,
 		},
 		code = self:template[[
 <? if require 'hydro.solver.gridsolver'.is(solver) then ?>
@@ -117,7 +117,7 @@ kernel void <?=calcDT?>(
 	real3 const x = cellBuf[index].pos;
 
 	global <?=cons_t?> const * const U = UBuf + index;
-	prim_t W;
+	<?=prim_t?> W;
 	<?=primFromCons?>(&W, solver, U, x);
 	real const Cs = calc_Cs(solver, &W);
 
@@ -302,7 +302,7 @@ end
 -- but then I just explicitly wrote out the calcDT, so the extra parameters just aren't used anymore.
 function Euler:consWaveCodePrefix(n, U, x)
 	return self:template([[
-prim_t W;
+<?=prim_t?> W;
 <?=primFromCons?>(&W, solver, <?=U?>, <?=x?>);
 real const Cs_nLen = calc_Cs(solver, &W) * normal_len(<?=n?>);
 real const v_n = normal_vecDotN1(<?=n?>, W.v);

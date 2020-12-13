@@ -262,7 +262,7 @@ function FiniteVolumeSolver:getModuleDepends_displayCode()
 		-- wave #
 		'normal_t',
 		self.eqn.symbols.eigen_t,
-		self.eqn.symbols.waveCode_depends,
+		self.eqn.symbols.eqn_waveCode_depends,
 		self.eqn.symbols.eigen_forInterface,
 	}
 end

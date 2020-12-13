@@ -488,7 +488,7 @@ end):concat()
 }
 
 //// MODULE_NAME: <?=constrainU?>
-//// MODULE_DEPENDS: coordLen eqn.guiVars.compileTime
+//// MODULE_DEPENDS: coordLen <?=eqn_guiVars_compileTime?>
 
 kernel void <?=constrainU?>(
 	constant <?=solver_t?> const * const solver,

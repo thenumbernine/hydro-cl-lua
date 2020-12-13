@@ -308,7 +308,7 @@ end
 }
 
 //// MODULE_NAME: <?=calcDT?>
-//// MODULE_DEPENDS: <?=solver_t?> SETBOUNDS eqn.guiVars.compileTime initCond.codeprefix
+//// MODULE_DEPENDS: SETBOUNDS initCond.codeprefix <?=solver_t?> <?=eqn_guiVars_compileTime?>
 
 kernel void <?=calcDT?>(
 	constant <?=solver_t?> const * const solver,

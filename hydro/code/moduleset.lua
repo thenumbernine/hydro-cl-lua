@@ -59,7 +59,7 @@ end
 			module = self.set[name]
 			if not module then
 				error(
-					(from and ("module %q"):format(from) or "function call").." requested to include module "..name
+					(from and ("module %q"):format(from) or "function call").." requested to include module "..("%q"):format(name)
 					.." but I failed to find it.\n"
 					.."modules defined so far: "..table.keys(self.set):concat' '
 				)

@@ -1,5 +1,5 @@
 //// MODULE_NAME: <?=calcDT?>
-//// MODULE_DEPENDS: <?=solver_t?> <?=primFromCons?> eqn.guiVars.compileTime
+//// MODULE_DEPENDS: <?=solver_t?> <?=primFromCons?> <?=eqn_guiVars_compileTime?>
 
 <? if require "hydro.solver.gridsolver".is(solver) then ?>
 

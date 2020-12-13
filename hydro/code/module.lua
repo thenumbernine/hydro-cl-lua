@@ -37,7 +37,7 @@ function Module:init(args)
 	self.typecode = args.typecode or ''
 	-- structs
 	self.structs = table(args.structs)
-	-- #defines 
+	-- #defines
 	self.headercode = args.headercode or ''
 	-- functions
 	self.code = args.code or ''

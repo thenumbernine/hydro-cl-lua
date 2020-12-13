@@ -134,14 +134,15 @@ function Equation:init(args)
 		'applyInitCondCell',
 	
 		-- kernels:
-		'applyInitCond',
+		'applyInitCond',	-- technically doesn't have to be uniquely named, now that applyInitCondCell is uniquely named
 		'initDerivs',
 		'calcDT',
 		'addSource',
 		'constrainU',
 	
 		-- placeholder modules for dependencies
-		'waveCode_depends',
+		'eqn_waveCode_depends',
+		'eqn_guiVars_compileTime',
 	}
 	-- TODO add the typedef names into this
 	-- TODO don't use uniqueName() instead just use the object uid suffix (and use it for functions too)
@@ -347,13 +348,8 @@ function Equation:createInitState()
 	if mt.guiVars then
 		self:addGuiVars(mt.guiVars)
 	end
-	
-	-- first create the init state
-	assert(self.initConds, "expected Eqn.initConds")
-	self.initCond = self.initConds[self.solver.initCondIndex](self.solver, self.solver.initCondArgs)
-	assert(self.initCond, "couldn't find initCond "..self.solver.initCondIndex)
-	self.initCond:createInitStruct(self.solver)
-	self.initCond:finalizeInitStruct(self.solver)
+
+	self:createInitState_createInitState()
 	
 	-- should ops add vars to initCond_t or solver_t?
 	-- or should there be a new eqn_t?
@@ -366,6 +362,15 @@ function Equation:createInitState()
 	end
 end
 
+function Equation:createInitState_createInitState()
+	-- first create the init state
+	assert(self.initConds, "expected Eqn.initConds")
+	self.initCond = self.initConds[self.solver.initCondIndex](self.solver, self.solver.initCondArgs)
+	assert(self.initCond, "couldn't find initCond "..self.solver.initCondIndex)
+	self.initCond:createInitStruct(self.solver)
+	self.initCond:finalizeInitStruct(self.solver)
+end
+
 -- shorthand
 function Equation:template(code, args)
 	if args then
@@ -376,7 +381,6 @@ function Equation:template(code, args)
 	return template(code, args)
 end
 
--- Really really used by maxwell, glm-maxwell, and other things that vary their scalar type between real and cplx.  but it fits here just as well.
 function Equation:getEnv()
 	local env = {
 		-- most have this
@@ -449,7 +453,7 @@ typedef union {
 	-- these are only the compile-time gui vars
 	-- the runtime ones are stored in solver_t
 	solver.modules:add{
-		name = 'eqn.guiVars.compileTime',
+		name = self.symbols.eqn_guiVars_compileTime,
 		headercode = table.mapi(self.guiVars or {}, function(var,i,t) 
 			return (var.compileTime and var:getCode() or nil), #t+1
 		end):concat'\n',
@@ -564,16 +568,16 @@ for side=0,solver.dim-1 do
 	or require 'hydro.coord.cartesian'.is(coord) 
 	then
 ?>#define <?=cons_parallelPropagate?><?=side?>(resultName, U, pt, dx)\
-	global cons_t const * const resultName##ptr = U;
+	global <?=cons_t?> const * const resultName##ptr = U;
 <?	else
 ?>#define <?=cons_parallelPropagate?><?=side?>(\
 	resultName,\
-	/*cons_t const * const */U,\
+	/*<?=cons_t?> const * const */U,\
 	/*real3 const */pt,\
 	/*real const */dx\
 )\
 /* TODO don't assign here, instead assign all fields and just don't propagate the scalars */\
-	cons_t resultName = *(U);\
+	<?=cons_t?> resultName = *(U);\
 <?		for _,var in ipairs(eqn.consStruct.vars) do
 			local variance = assert(var.variance)
 			local degree = degreeForType[var.type]
@@ -628,7 +632,7 @@ for side=0,solver.dim-1 do
 				error("don't know how to handle variance for "..('%q'):format(variance))
 			end
 		end
-?>	cons_t const * const resultName##ptr = &resultName;
+?>	<?=cons_t?> const * const resultName##ptr = &resultName;
 <?	end
 end
 ?>]], 		{
@@ -637,7 +641,6 @@ end
 			}),
 		}
 	end
-
 end
 
 -- separate this out so composite solvers can init this and this alone -- without anything else (which would cause module name collisions)
@@ -710,7 +713,7 @@ function Equation:getModuleDepends_waveCode() end
 
 function Equation:initCodeModule_waveCode()
 	self.solver.modules:add{
-		name = self.symbols.waveCode_depends,
+		name = self.symbols.eqn_waveCode_depends,
 		depends = self:getModuleDepends_waveCode(),
 	}
 end

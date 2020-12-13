@@ -15,7 +15,7 @@
 }
 
 //// MODULE_NAME: <?=consFromPrim?>
-//// MODULE_DEPENDS: real3 <?=solver_t?> <?=prim_t?> <?=cons_t?> eqn.common
+//// MODULE_DEPENDS: real3 eqn.common <?=solver_t?> <?=prim_t?> <?=cons_t?>
 // eqn.common is for all the calc_* stuff
 
 #define <?=consFromPrim?>(\
@@ -76,7 +76,7 @@
 }
 
 //// MODULE_NAME: eqn.common
-//// MODULE_DEPENDS: <?=cons_t?> <?=prim_t?> <?=waves_t?> <?=eigen_t?> coordLenSq
+//// MODULE_DEPENDS: coordLenSq <?=cons_t?> <?=prim_t?> <?=waves_t?> <?=eigen_t?> <?=eqn_guiVars_compileTime?>
 
 #define /*real*/ calc_H(\
 	/*constant <?=solver_t?> const * const */solver,\
@@ -144,7 +144,7 @@
 
 
 //// MODULE_NAME: <?=applyInitCondCell?>
-//// MODULE_DEPENDS: <?=cell_t?> <?=consFromPrim?> <?=initCond_t?> cartesianToCoord
+//// MODULE_DEPENDS: cartesianToCoord <?=cell_t?> <?=consFromPrim?> <?=initCond_t?>
 
 /*
 I've highjacked all of this.  It was a normal Euler eqn solver.

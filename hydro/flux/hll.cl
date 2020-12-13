@@ -1,5 +1,5 @@
 //// MODULE_NAME: calcFluxForInterface
-//// MODULE_DEPENDS: solver.macros math <?=eigen_forInterface?> <?=waveCode_depends?> <?=fluxFromCons?>
+//// MODULE_DEPENDS: solver.macros math <?=eigen_forInterface?> <?=eqn_waveCode_depends?> <?=fluxFromCons?>
 //HLL solver:
 
 #define calcFluxForInterface(\

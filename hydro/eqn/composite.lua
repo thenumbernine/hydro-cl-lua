@@ -30,7 +30,16 @@ assert(#self.eqns > 0, "you need at least one entry in args.subeqns")
 		end
 	end
 
--- [[
+	-- TODO
+	-- another pain point: how to handle ops?
+	-- since ops reference fields inside the eqn structs
+	-- and now all our eqn structs are merged / require prefixes
+	-- and in some cases (like ePot), we don't want to share them necessarily
+	-- or if we do then we want the ops to add them all together
+	-- so for now:
+	solver.ops = table()
+
+--[[
 	self.submodules = self.eqns:mapi(function()
 		return require 'hydro.code.moduleset'()
 	end)
@@ -92,18 +101,31 @@ assert(#self.eqns > 0, "you need at least one entry in args.subeqns")
 				return ''
 			end,
 		}
+		
+		-- this is to prevent initCond_t from being re-added
+		eqn.createInitState_createInitState = function() end
+		
 		--eqn:initCodeModules()
 		-- assign the cons_t, prim_t, and eigen_t to app
 		-- so that, when querying modules in the composite's cdefAllVarTypes, it looks in app's modules and finds them
 		--rawset(eqn.solver, 'modules', solver.app.modules)
 		eqn:initCodeModule_cons_prim_eigen()
+		-- hack here: remove the typedefs from the cons_t and prim_t
+		solver.app.modules.set[eqn.symbols.cons_t].headercode = ''
+		solver.app.modules.set[eqn.symbols.prim_t].headercode = ''
+		solver.app.modules.set[eqn.symbols.eigen_t].headercode = ''
 	end
 
 	-- now set the subeqns' modules to our local stored copies
 	-- so we can store them for later and use them as needed by the composite 
--- [[
+--[[
 	for i,eqn in ipairs(self.eqns) do
 		rawset(eqn.solver, 'modules', self.submodules[i])
+	end
+--]]
+-- [[
+	for i,eqn in ipairs(self.eqns) do
+		rawset(eqn.solver, 'modules', nil)
 	end
 --]]
 
@@ -134,9 +156,28 @@ end
 
 function CompositeEquation:createInitState()
 	CompositeEquation.super.createInitState(self)
+--[[ but we need the fake initCond during initCodeModules to prevent initCond_t from being re-added	
 	for _,eqn in ipairs(self.eqns) do
 		eqn.initCond = self.initCond
 	end
+--]]
+
+-- [[ now we have to deal with sub-eqn solver_t fields
+-- but we don't want to re-add the units
+	for _,eqn in ipairs(self.eqns) do
+		eqn:createInitState()
+--[=[ but what about overlapping names?		
+		self.guiVars:append(eqn.guiVars)
+--]=]	
+-- [=[
+		for _,var in ipairs(eqn.guiVars) do
+			if not self.guiVars:find(nil, function(var2) return var.name == var2.name end) then
+				self.guiVars:insert(var)
+			end
+		end
+--]=]	
+	end
+--]]
 end
 
 CompositeEquation.solverCodeFile = 'hydro/eqn/composite.cl'
@@ -204,20 +245,8 @@ kernel void <?=applyInitCond?>(
 	}
 end
 --]=]
-
-function CompositeEquation:initCodeModule_cons_parallelPropagate()
-end
-	
-function CompositeEquation:initCodeModule_fluxFromCons()
-end
-
-function CompositeEquation:initCodeModule_calcDT()
-end
-
-function CompositeEquation:initCodeModule_cons_prim_eigen()
-	local solver = self.solver
-	
-	-- first build the submodules' code
+function CompositeEquation:initCodeModules()
+	-- build the submodules' code
 	-- store them locally in composite's submodules[]
 	-- but don't initCodeModule_cons_prim_eigen because we already did that (for app.modules for cdefAll...)
 	for _,eqn in ipairs(self.eqns) do
@@ -225,10 +254,18 @@ function CompositeEquation:initCodeModule_cons_prim_eigen()
 		eqn.initCodeModule_cons_prim_eigen = function() end
 		eqn:initCodeModules()
 		eqn.initCodeModule_cons_prim_eigen = old
+		self.solver.modules.set[eqn.symbols.waves_t].headercode = ''
 	end
 
-	CompositeEquation.super.initCodeModule_cons_prim_eigen(self)
+	CompositeEquation.super.initCodeModules(self)
 end
+
+function CompositeEquation:initCodeModule_cons_parallelPropagate()
+end
+
+function CompositeEquation:initCodeModule_fluxFromCons()
+end
+
 
 --[[
 next issue: implementing functions/modules
@@ -271,5 +308,55 @@ function CompositeEquation:getModuleDepends_waveCode()
 		end):unpack()
 	)
 end
+
+function CompositeEquation:getEigenDisplayVars()
+	return table():append(
+		self.eqns:mapi(function(eqn)
+			return eqn:getEigenDisplayVars() or {}
+		end):unpack()
+	)
+end
+
+-- TODO - prevent variable collisions - especially from multiple matching subeqns
+-- this might require some kind of namespace
+function CompositeEquation:eigenWaveCodePrefix(n, eig, x)
+	return self.eqns:mapi(function(eqn,i)
+		return eqn:eigenWaveCodePrefix(n, '&('..eig..')->eqn'..i, x)
+	end):concat'\n'
+end
+
+function CompositeEquation:eigenWaveCode(n, eig, x, waveIndex)
+	local origWaveIndex = waveIndex
+	for i,eqn in ipairs(self.eqns) do
+		if waveIndex >= 0 and waveIndex < eqn.numWaves then
+			return eqn:eigenWaveCode(n, '&('..eig..')->eqn'..i, x, waveIndex)
+		end
+		waveIndex = waveIndex - eqn.numWaves
+	end
+	error("couldn't find waveIndex "..origWaveIndex.." in any sub-eqns")
+end
+
+-- TODO same as eigenWaveCodePrefix
+function CompositeEquation:consWaveCodePrefix(n, U, x)
+	return self.eqns:mapi(function(eqn,i)
+		return eqn:consWaveCodePrefix(n, '&('..U..')->eqn'..i, x)
+	end):concat'\n'
+end
+
+function CompositeEquation:consWaveCode(n, U, x, waveIndex)
+	local origWaveIndex = waveIndex
+	for i,eqn in ipairs(self.eqns) do
+		if waveIndex >= 0 and waveIndex < eqn.numWaves then
+			return eqn:consWaveCode(n, '&('..U..')->eqn'..i, x, waveIndex)
+		end
+		waveIndex = waveIndex - eqn.numWaves
+	end
+	error("couldn't find waveIndex "..origWaveIndex.." in any sub-eqns")
+end
+
+-- TODO eigenMinWaveCode
+-- TODO eigenMaxWaveCode
+-- TODO consMinWaveCode
+-- TODO consMaxWaveCode
 
 return CompositeEquation

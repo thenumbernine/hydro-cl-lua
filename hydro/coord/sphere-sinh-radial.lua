@@ -43,7 +43,7 @@ function SphereLogRadial:init(args)
 
 	-- and now that all the coord code now depends on the compile-time solver vars, lets make sure everyone can see them
 	-- (technically anyone who uses any code that comes from solver.coord)
-	-- solver.sharedModulesEnabled['eqn.guiVars.compileTime'] = true
+	-- solver.sharedModulesEnabled[solver.eqn.symbols.eqn_guiVars_compileTime] = true
 	-- but this isn't defined yet in solver, so move it later ...
 	self.amplitude_var = var'AMPL'
 	self.sinh_w_var = var'SINHW'
@@ -101,7 +101,7 @@ function SphereLogRadial:init(args)
 end
 
 function SphereLogRadial:getModuleDepends_coordMap() 
-	return {'eqn.guiVars.compileTime'}
+	return {self.solver.eqn.symbols.eqn_guiVars_compileTime}
 end
 
 -- TODO only for GLSL, depend on 'sinh'
@@ -119,7 +119,7 @@ function SphereLogRadial:getModuleDepends_coordMapGLSL()
 		'sinh',
 		-- This is in sharedModules ... so should sharedModules be included in all GLSL modules?
 		-- until I decide, I'll just put this entry for GLSL here:
-		'eqn.guiVars.compileTime',	-- for AMPL and SINHW
+		self.solver.eqn.symbols.eqn_guiVars_compileTime,	-- for AMPL and SINHW
 	}
 end
 function SphereLogRadial:getModuleDepends_coordMapInvGLSL() 
@@ -127,7 +127,7 @@ function SphereLogRadial:getModuleDepends_coordMapInvGLSL()
 		'sinh',
 		'cosh',
 		'asinh',
-		'eqn.guiVars.compileTime',	-- for AMPL and SINHW
+		self.solver.eqn.symbols.eqn_guiVars_compileTime,	-- for AMPL and SINHW
 	}
 end
 
@@ -139,7 +139,7 @@ function SphereLogRadial:initCodeModules(...)
 	-- so how about a 'getDepends' that is subclassed?
 	self.solver.eqn:addGuiVar{name='AMPL', value=self.amplitude, compileTime=true}
 	self.solver.eqn:addGuiVar{name='SINHW', value=self.sinh_w, compileTime=true}
-	self.solver.sharedModulesEnabled['eqn.guiVars.compileTime'] = true
+	self.solver.sharedModulesEnabled[self.solver.eqn.symbols.eqn_guiVars_compileTime] = true
 end
 
 --[[
