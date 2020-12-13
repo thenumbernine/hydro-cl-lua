@@ -103,71 +103,67 @@ function Euler:initCodeModule_calcDTCell()
 		code = self:template[[
 <? if require 'hydro.solver.gridsolver'.is(solver) then ?>
 
-real <?=calcDTCell?>(
-	constant <?=solver_t?> const * const solver,
-	global <?=cons_t?> const * const U,
-	global <?=cell_t?> const * const cell
-) {
-	real3 const x = cell->pos;
-
-	<?=prim_t?> W;
-	<?=primFromCons?>(&W, solver, U, x);
-	real const Cs = calc_Cs(solver, &W);
-
-	real dt = INFINITY;
-	<? for side=0,solver.dim-1 do ?>{
-<? 
-if solver.coord.vectorComponent == 'cartesian' 
-and not require 'hydro.coord.cartesian'.is(solver.coord)
-then 
-?>		real const dx = cell_dx<?=side?>(x); 
-<? else 
-?>		real const dx = solver->grid_dx.s<?=side?>;
-<? end 
-?>
-		if (dx > 1e-7) {
-			//use cell-centered eigenvalues
-			real const v_n = normal_vecDotN1(normal_forSide<?=side?>(x), W.v);
-			real const lambdaMin = v_n - Cs;
-			real const lambdaMax = v_n + Cs;
-			real absLambdaMax = max(fabs(lambdaMin), fabs(lambdaMax));
-			absLambdaMax = max((real)1e-9, absLambdaMax);
-			//TODO this should be based on coord + vectorComponent 
-			//non-cartesian coord + cartesian component uses |u(x+dx)-u(x)|
-			dt = (real)min(dt, dx / absLambdaMax);
-		}
-	}<? end ?>
-	return dt;
+#define <?=calcDTCell?>(\
+	/*real * const */dt,\
+	/*constant <?=solver_t?> const * const */solver,\
+	/*global <?=cons_t?> const * const */U,\
+	/*global <?=cell_t?> const * const */cell\
+) {\
+	real3 const x = cell->pos;\
+	<?=prim_t?> W;\
+	<?=primFromCons?>(&W, solver, U, x);\
+	real const Cs = calc_Cs(solver, &W);\
+	<? for side=0,solver.dim-1 do ?>{\
+<? --\
+if solver.coord.vectorComponent == 'cartesian' --\
+and not require 'hydro.coord.cartesian'.is(solver.coord) --\
+then --\
+?>		real const dx = cell_dx<?=side?>(x);\
+<? else --\
+?>		real const dx = solver->grid_dx.s<?=side?>;\
+<? end --\
+?>\
+		if (dx > 1e-7) {\
+			/* use cell-centered eigenvalues */\
+			real const v_n = normal_vecDotN1(normal_forSide<?=side?>(x), W.v);\
+			real const lambdaMin = v_n - Cs;\
+			real const lambdaMax = v_n + Cs;\
+			real absLambdaMax = max(fabs(lambdaMin), fabs(lambdaMax));\
+			absLambdaMax = max((real)1e-9, absLambdaMax);\
+			/* TODO this should be based on coord + vectorComponent */\
+			/* non-cartesian coord + cartesian component uses |u(x+dx)-u(x)| */\
+			*(dt) = (real)min(*(dt), dx / absLambdaMax);\
+		}\
+	}<? end ?>\
 }
 
 <? else -- mesh solver ?>
 
-real <?=calcDTCell?>(
-	constant <?=solver_t?> const * const solver,
-	global <?=cons_t?> const * const U,
-	global <?=cell_t?> const * const cell,
-	global <?=face_t?> const * const faces,			//[numFaces]
-	global int const * const cellFaceIndexes	//[numCellFaceIndexes]
-) {
-	real3 const x = cell->pos;
-	real dt = INFINITY;
-	for (int i = 0; i < cell->faceCount; ++i) {
-		global <?=face_t?> const * const face = faces + cellFaceIndexes[i + cell->faceOffset];
-		real dx = face->area;
-		if (dx > 1e-7 && face->cells.x != -1 && face->cells.y != -1) {
-			//all sides? or only the most prominent side?
-			//which should we pick eigenvalues from?
-			//use cell-centered eigenvalues
-			normal_t n = normal_forFace(face);
-			<?=eqn:consWaveCodePrefix('n', 'U', 'x'):gsub('\n', '\n\t\t\t')?>
-			real lambdaMin = <?=eqn:consMinWaveCode('n', 'U', 'x')?>;
-			real lambdaMax = <?=eqn:consMaxWaveCode('n', 'U', 'x')?>;
-			real absLambdaMax = max(fabs(lambdaMin), fabs(lambdaMax));
-			absLambdaMax = max((real)1e-9, absLambdaMax);
-			dt = (real)min(dt, dx / absLambdaMax);
-		}
-	}
-	return dt;
+#define <?=calcDTCell?>(\
+	/*real * const */dt,\
+	/*constant <?=solver_t?> const * const */solver,\
+	/*global <?=cons_t?> const * const */U,\
+	/*global <?=cell_t?> const * const */cell,\
+	/*global <?=face_t?> const * const */faces,		/* [numFaces] */\
+	/*global int const * const */cellFaceIndexes	/* [numCellFaceIndexes] */\
+) {\
+	real3 const x = cell->pos;\
+	for (int i = 0; i < cell->faceCount; ++i) {\
+		global <?=face_t?> const * const face = faces + cellFaceIndexes[i + cell->faceOffset];\
+		real dx = face->area;\
+		if (dx > 1e-7 && face->cells.x != -1 && face->cells.y != -1) {\
+			/* all sides? or only the most prominent side? */\
+			/* which should we pick eigenvalues from? */\
+			/* use cell-centered eigenvalues */\
+			normal_t n = normal_forFace(face);\
+			<?=eqn:consWaveCodePrefix('n', 'U', 'x'):gsub('\n', '\n\\\t\t\t')?>\
+			real lambdaMin = <?=eqn:consMinWaveCode('n', 'U', 'x')?>;\
+			real lambdaMax = <?=eqn:consMaxWaveCode('n', 'U', 'x')?>;\
+			real absLambdaMax = max(fabs(lambdaMin), fabs(lambdaMax));\
+			absLambdaMax = max((real)1e-9, absLambdaMax);\
+			*(dt) = (real)min(*(dt), dx / absLambdaMax);\
+		}\
+	}\
 }
 
 <? end -- mesh vs grid solver ?>

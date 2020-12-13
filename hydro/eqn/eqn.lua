@@ -505,7 +505,10 @@ end
 	}
 	global <?=cons_t?> const * const U = UBuf + index;
 	global <?=cell_t?> const * const cell = cellBuf + index;
-	dtBuf[index] = <?=calcDTCell?>(
+	global real * const dt = dtBuf + index;
+	*dt = INFINITY;
+	<?=calcDTCell?>(
+		dt,
 		solver,
 		U,
 		cell<?
