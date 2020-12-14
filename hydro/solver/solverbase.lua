@@ -751,9 +751,9 @@ function SolverBase:initCDefs()
 		self.initModulesEnabled,
 		self.solverModulesEnabled,
 		self.sharedModulesEnabled,
-		{	-- need these for ffi.sizeof
-			[self.eqn.symbols.prim_t] = true,
+		{
 			[self.eqn.symbols.cons_t] = true,
+			[self.eqn.symbols.prim_t] = true,
 		}
 	):keys()
 print("ffi.cdef'ing: "..moduleNames:concat', ')
@@ -767,12 +767,10 @@ function SolverBase:refreshGetULR()
 	self.getULRCode = function(self, args)
 		args = args or {}
 		local suffix = args.suffix or ''
-		return template([[
-const global <?=eqn.symbols.cons_t?>* UL<?=suffix?> = <?=bufName?> + <?=indexL?>;
-const global <?=eqn.symbols.cons_t?>* UR<?=suffix?> = <?=bufName?> + <?=indexR?>;
+		return self.eqn:template([[
+const global <?=cons_t?>* UL<?=suffix?> = <?=bufName?> + <?=indexL?>;
+const global <?=cons_t?>* UR<?=suffix?> = <?=bufName?> + <?=indexR?>;
 ]],		{
-			solver = self,
-			eqn = self.eqn,
 			suffix = suffix,
 			indexL = args.indexL or 'indexL'..suffix,
 			indexR = args.indexR or 'indexR'..suffix,

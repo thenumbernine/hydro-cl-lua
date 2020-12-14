@@ -31,7 +31,7 @@ then CLBuffer update fromCPU:
 local Struct = class()
 
 function Struct:init(args)
-	self.solver = assert(args.solver)
+	self.app = assert(assert(args.solver).app)
 	self.name = assert(args.name)
 	self.vars = table(args.vars)
 	self.dontUnion = args.dontUnion
@@ -42,13 +42,14 @@ function Struct:countScalars(scalar)
 	scalar = scalar or 'real'
 	local structSize = 0
 	for _,var in ipairs(self.vars) do
-		xpcall(function()
+		local res, err = xpcall(function()
 			structSize = structSize + ffi.sizeof(var.type)
 		end, function(err)
-			io.stderr:write('for var '..require 'ext.tolua'(var)..'\n')
-			io.stderr:write(err..'\n'..debug.traceback()..'\n')
-			os.exit(1)
+			return 'ffi.sizeof failed for var '..require 'ext.tolua'(var)..'\n'
+				..tostring(err)..'\n'
+				..debug.traceback()
 		end)
+		if not res then error(err) end
 	end
 	local numScalars = structSize / ffi.sizeof(scalar)
 	return numScalars
@@ -57,29 +58,39 @@ end
 function Struct:makeType()
 	assert(not self.typename, "don't call makeType() twice")
 	
-	-- TODO here
 	-- generate the typecode *except* the typename
 	-- then compare it to a map from typecode => typename
 	-- if it matches any, use the old typecode, typename, and metatype
 	-- otherwise generate a new one
-	
-	local solver = assert(self.solver)
-	local app = assert(solver.app)
+
+	local app = assert(self.app)
 	local codeWithoutTypename = self:getTypeCodeWithoutTypeName()
 	
 	app.typeInfoForCode = app.typeInfoForCode or {}
 	local info = app.typeInfoForCode[codeWithoutTypename]
 	if info then
-		print('reusing cached type '..info.typename)
-		-- use cached version
+		print('reusing matching struct '..info.typename..' for '..self.name)
+		
+		--[[ use cached version
 		self.typename = info.typename
 		self.typecode = info.typecode
 		self.metatype = info.metatype
 		return
+		--]]
+		-- but our module system now expects typenames to be unique names
+		-- which means that we can't use a matching typename but instead must do a unique name + a typedef
+		-- [[
+		self.typename = app:uniqueName(self.name)
+		codeWithoutTypename = 'typedef '..info.typename
+		self.typecode = codeWithoutTypename .. ' ' .. self.typename .. ';'
+		safecdef(assert(self.typecode))
+		self.metatype = info.metatype
+		return
+		--]]
 	end
 
--- TODO no more uniqueName and typename ~= name .. instead force names to be unique
--- and make them unique before passing them in by appending the lua object uid or something
+	-- TODO no more uniqueName and typename ~= name .. instead force names to be unique
+	-- and make them unique before passing them in by appending the lua object uid or something
 	self.typename = app:uniqueName(self.name)
 	do
 		local typecode = codeWithoutTypename .. ' ' .. self.typename .. ';'

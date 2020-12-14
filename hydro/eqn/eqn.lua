@@ -168,12 +168,13 @@ function Equation:init(args)
 		}
 	end
 	
-	-- make sure all math types are cdef'd
-	self:cdefAllVarTypes(solver, self.consStruct.vars)
 
 	self.consStruct:makeType()	-- create consStruct.typename
 	-- TODO replace the cdef uniqueName with a unique eqn object name
 	self.symbols.cons_t = self.consStruct.typename
+	
+	-- make sure all math types are cdef'd
+	self:cdefAllVarTypes(solver, self.consStruct.vars)
 	
 	-- don't use consVars anymore ... use consStruct.vars instead
 	self.consVars = nil
@@ -192,10 +193,19 @@ function Equation:init(args)
 		}
 	end
 	if self.primStruct then
-		self.primStruct:makeType()
-	
+		local res, err = xpcall(function()
+			self.primStruct:makeType()
+		end, function(err)
+			return "eqn "..self.name.." primStruct:makeType() failed for type "..require 'ext.tolua'(table(self.primStruct, {solver=false}))..'\n'
+				..tostring(err)..'\n'
+				..debug.traceback()
+		end)
+		if not res then error(err) end
+
 		-- TODO replace the cdef uniqueName with a unique eqn object name
 		self.symbols.prim_t = self.primStruct.typename
+	
+		self:cdefAllVarTypes(solver, self.primStruct.vars)
 		
 		-- don't use primVars anymore ... use primStruct.vars instead
 		self.primVars = nil
@@ -499,14 +509,18 @@ end
 ?>
 ) {
 	SETBOUNDS(0,0);
-	if (OOB(numGhost,numGhost)) {
-		dtBuf[index] = INFINITY;
-		return;
-	}
-	global <?=cons_t?> const * const U = UBuf + index;
-	global <?=cell_t?> const * const cell = cellBuf + index;
+	
+	//write inf to boundary cells
+	//TODO why not write inf to boundary cells upon init,
+	// and then give this the domain SETBOUNDS_NOGHOST?
+	//that would work except that it is writing to reduceBuf, which is reused for any reduce operation
+	// like display var min/max ranges
 	global real * const dt = dtBuf + index;
 	*dt = INFINITY;
+	
+	if (OOB(numGhost,numGhost)) return;
+	global <?=cons_t?> const * const U = UBuf + index;
+	global <?=cell_t?> const * const cell = cellBuf + index;
 	<?=calcDTCell?>(
 		dt,
 		solver,
@@ -723,6 +737,7 @@ function Equation:initCodeModule_cons_prim_eigen_waves()
 		solver.modules:add{
 			name = self.symbols.prim_t,
 			structs = {self.primStruct},
+			depends = self.getModuleDepends_prim_t and self:getModuleDepends_prim_t() or nil,
 			-- only generated for cl, not for ffi cdef
 			headercode = 'typedef '..self.symbols.prim_t..' prim_t;',
 		}

@@ -53,7 +53,7 @@ args:
 --]]
 function Maxwell:init(args)
 	self.scalar = (args and args.scalar) or 'real'
-	
+
 	self.vec3 = self.scalar..'3'
 	self.mat3x3 = self.scalar..'3x3'
 

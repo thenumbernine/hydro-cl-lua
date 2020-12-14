@@ -145,14 +145,21 @@ assert(#self.eqns > 0, "you need at least one entry in args.subeqns")
 		return {type=assert(eqn.symbols.eigen_t), name='eqn'..i}
 	end)
 
+	-- count waves here rather than later, because if you rely on super.init to count numWaves then it will use numStates
 	self.numWaves = self.eqns:mapi(function(eqn)
 		return eqn.numWaves
 	end):sum()
-	
+
 	self.wavesVars = self.eqns:mapi(function(eqn, i)
 		return {type=assert(eqn.symbols.waves_t), name='eqn'..i}
 	end)
 
+	-- BIG FUTURE TODO
+	-- in all eqns, separate out integratable vs non-integratable state vars
+	-- and then here pack all the integratable first and non-integratable second
+	-- then you can set numIntStates to the sum of sub-eqns' numIntStates
+	-- otherwise we have to integrate the non-integratable state vars with deriv=0, which wastes some flops
+	
 	Composite.super.init(self, args)
 end
 
@@ -161,6 +168,13 @@ function Composite:getModuleDepends_cons_t()
 		return eqn.symbols.cons_t
 	end)
 end
+
+function Composite:getModuleDepends_prim_t()
+	return self.eqns:mapi(function(eqn)
+		return eqn.symbols.prim_t
+	end)
+end
+
 
 function Composite:createInitState()
 	Composite.super.createInitState(self)

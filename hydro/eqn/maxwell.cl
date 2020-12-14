@@ -41,17 +41,16 @@ cplx3 eqn_coord_lower(cplx3 v, real3 x) {
 	/*global <?=cons_t?> const * const */U\
 ) 	(<?=vec3?>_<?=susc_t?>_mul((U)->B, <?=susc_t?>_mul((U)->sqrt_1_mu, (U)->sqrt_1_mu)))
 
-//// MODULE_NAME: <?=applyInitCond?>
-//// MODULE_DEPENDS: eqn.common
+//// MODULE_NAME: <?=applyInitCondCell?>
+//// MODULE_DEPENDS: eqn.common <?=solver_t?> <?=initCond_t?> <?=cons_t?> <?=cell_t?> <?=consFromPrim?>
 
-kernel void <?=applyInitCond?>(
+void <?=applyInitCondCell?>(
 	constant <?=solver_t?> const * const solver,
 	constant <?=initCond_t?> const * const initCond,
-	global <?=cons_t?> * const UBuf,
-	global <?=cell_t?> const * const cellBuf
+	global <?=cons_t?> * const U,
+	global <?=cell_t?> const * const cell
 ) {
-	SETBOUNDS(0,0);
-	real3 const x = cellBuf[index].pos;
+	real3 const x = cell->pos;
 	real3 const mids = real3_real_mul(real3_add(solver->mins, solver->maxs), .5);
 	bool const lhs = x.x < mids.x
 #if dim > 1
@@ -61,7 +60,6 @@ kernel void <?=applyInitCond?>(
 		&& x.z < mids.z
 #endif
 	;
-	global <?=cons_t?> * const U = UBuf + index;
 
 	/* used */
 	<?=vec3?> D = <?=vec3?>_zero;

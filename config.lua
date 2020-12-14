@@ -218,7 +218,7 @@ local args = {
 	--initCond = 'Bessel',
 	--initCond = 'cyclone',
 	
-	initCond = 'Sod',
+	--initCond = 'Sod',
 	--initCond = 'Sod with physical units',
 	--initCondArgs = {dim=cmdline.displayDim},
 	
@@ -244,7 +244,7 @@ local args = {
 	--initCond = 'configuration 6',
 	
 	-- states for ideal MHD or two-fluid (not two-fluid-separate)
-	--initCond = 'Brio-Wu',
+	initCond = 'Brio-Wu',
 	--initCond = 'Orszag-Tang',
 	--initCond = 'MHD rotor',
 	--initCond = 'spinning magnetic fluid',
@@ -504,7 +504,7 @@ if cmdline.solver then self.solvers:insert(require('hydro.solver.'..cmdline.solv
 -- wave equation
 
 
-self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='wave'})))
+--self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='wave'})))
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='wave'})))
 --self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='wave', wenoMethod='1996 Jiang Shu', order=5})))
 --self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='wave', wenoMethod='2008 Borges', order=5})))
@@ -868,31 +868,30 @@ With hyperbolic gamma driver shift it has trouble.
 
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='glm-mhd', mesh={type='torus3d', size={16, 16, 16}}})))
 
+
 -- NEXT BIG TODO
 -- * make meshsolver and gridsolver separate options
 -- * make grid coordinate chart separate of vector component coordinate chart
--- so in the end, the user can choose: 
--- 1) geometry: mesh (w/coordinate mapping) vs grid
+-- so in the end, the user can choose the geometry: mesh (w/coordinate mapping) vs grid
 --		The only dif between grid and mesh solver is that grid has easy n'th order finite difference stencils, thanks to its parameterization
 -- 		I can unify this with mesh if I store per-cell the d/dx^i(x + j*dx^i) in the i'th face direction to the j'th step.  
 --		Then I could rewrite the current higher order PLM/WENO stuff for the MeshSolver
--- 2) flux
--- 3) vector component coordinates
 -- in fact, the biggest difference between mesh and grid solver is the n'th spatial derivative calculations, so if this can be abstracted then the two can be combined
+
 
 -- multi GPU
 -- how about 'composite grid' instead of 'chopped up'?
 --self.solvers:insert(require 'hydro.solver.choppedup'(table(args, {flux='roe', eqn='euler', subsolverClass=require 'hydro.solver.fvsolver'})))
 
 
---[[ composite equations.  better than composite solver. less kernel calls.
-self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='composite', eqnArgs={subeqns={'euler'}}})))
+-- composite equations.  better than composite solver. less kernel calls.
+--self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='composite', eqnArgs={subeqns={'euler'}}})))
 -- TODO can't add two matching eqns
---self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='composite', eqnArgs={subeqns={'euler', 'euler'}}})))
+self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='composite', eqnArgs={subeqns={'euler', 'euler'}}})))
 -- TODO maxwell
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='composite', eqnArgs={subeqns={'maxwell'}}})))
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='composite', eqnArgs={subeqns={'euler', 'maxwell'}}})))
---]]
+
 
 -- the start of AMR
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
