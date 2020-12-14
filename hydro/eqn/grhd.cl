@@ -1,4 +1,4 @@
-//// MODULE_NAME: eqn.common
+//// MODULE_NAME: <?=eqn_common?>
 
 //pressure function for ideal gas
 real calc_P(constant <?=solver_t?>* solver, real rho, real eInt) {

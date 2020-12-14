@@ -37,7 +37,7 @@ function ADM_BonaMasso_1D_2008Alcubierre:initCodeModule_fluxFromCons()
 		depends = {
 			'solver_t',
 			'cons_t',
-			'eqn.common',	-- calc_f ... or is it initCond.codeprefix?
+			self.symbols.eqn_common,	-- calc_f ... or is it initCond.codeprefix?
 		},
 		code = self:template[[
 

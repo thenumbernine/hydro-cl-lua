@@ -2,7 +2,7 @@
 
 #define sqrt_1_2 <?=("%.50f"):format(math.sqrt(.5))?>
 
-//// MODULE_NAME: eqn.common
+//// MODULE_NAME: <?=eqn_common?>
 //// MODULE_DEPENDS: coordLenSq cartesianToCoord coord_lower
 
 <? if scalar == "real" then ?>
@@ -40,7 +40,7 @@ cplx3 eqn_coord_lower(cplx3 v, real3 x) {
 }
 
 //// MODULE_NAME: <?=applyInitCond?>
-//// MODULE_DEPENDS: eqn.common
+//// MODULE_DEPENDS: <?=eqn_common?>
 
 kernel void <?=applyInitCond?>(
 	constant <?=solver_t?> const * const solver,
@@ -88,7 +88,7 @@ kernel void <?=applyInitCond?>(
 
 
 //// MODULE_NAME: <?=fluxFromCons?>
-//// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> normal_t eqn.common units
+//// MODULE_DEPENDS: normal_t units <?=solver_t?> <?=cons_t?> <?=eqn_common?>
 
 #define <?=fluxFromCons?>(\
 	/*<?=cons_t?> * const */F,\

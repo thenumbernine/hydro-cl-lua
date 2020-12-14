@@ -19,7 +19,7 @@
 #define sqrt_2 <?=('%.50f'):format(math.sqrt(2))?>
 
 
-//// MODULE_NAME: eqn.common
+//// MODULE_NAME: <?=eqn_common?>
 //// MODULE_DEPENDS: units coordLenSq
 
 static inline real3 calc_EField(
@@ -162,7 +162,7 @@ static inline real calc_EM_energy(constant <?=solver_t?>* solver, const global <
 }
 
 //// MODULE_NAME: <?=primFromCons?>
-//// MODULE_DEPENDS: real3 <?=solver_t?> <?=prim_t?> <?=cons_t?> eqn.common
+//// MODULE_DEPENDS: real3 <?=solver_t?> <?=prim_t?> <?=cons_t?> <?=eqn_common?>
 
 #define <?=primFromCons?>(\
 	/*<?=prim_t?> * const */W,\
@@ -187,7 +187,7 @@ static inline real calc_EM_energy(constant <?=solver_t?>* solver, const global <
 }
 
 //// MODULE_NAME: <?=consFromPrim?>
-//// MODULE_DEPENDS: real3 <?=solver_t?> <?=prim_t?> <?=cons_t?> eqn.common
+//// MODULE_DEPENDS: real3 <?=solver_t?> <?=prim_t?> <?=cons_t?> <?=eqn_common?>
 
 #define <?=consFromPrim?>(\
 	/*<?=cons_t?> * const */U,\

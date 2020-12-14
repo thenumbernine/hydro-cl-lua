@@ -104,13 +104,13 @@ function NavierStokesWilcox:initCodeModule_fluxFromCons() end
 function NavierStokesWilcox:getModuleDepends_waveCode() 
 	return {
 		'normal_t',
-		'eqn.common',
+		self.symbols.eqn_common,
 	}
 end
 
 function NavierStokesWilcox:getModuleDepends_displayCode() 
 	return {
-		'eqn.common',
+		self.symbols.eqn_common,
 	}
 end
 

@@ -102,7 +102,7 @@
 	(result)->ePot = (U)->ePot;\
 }
 
-//// MODULE_NAME: eqn.common
+//// MODULE_NAME: <?=eqn_common?>
 //// MODULE_DEPENDS: coordLenSq
 
 #define R_over_C_v (solver->gasConstant / solver->C_v)
@@ -215,7 +215,7 @@ end
 }
 
 //// MODULE_NAME: <?=calcCellMinMaxEigenvalues?>
-//// MODULE_DEPENDS: coord_sqrt_g_uu## <?=primFromCons?> eqn.common
+//// MODULE_DEPENDS: coord_sqrt_g_uu## <?=primFromCons?> <?=eqn_common?>
 
 #define <?=calcCellMinMaxEigenvalues?>(\
 	/*range_t * const */result,\

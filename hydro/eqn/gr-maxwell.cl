@@ -2,7 +2,7 @@
 
 #define sqrt_1_2 <?=('%.50f'):format(math.sqrt(.5))?>
 
-//// MODULE_NAME: eqn.common
+//// MODULE_NAME: <?=eqn_common?>
 
 static inline <?=prim_t?> primFromCons(<?=cons_t?> U, real3 x) { return U; }
 static inline <?=cons_t?> consFromPrim(<?=prim_t?> W, real3 x) { return W; }

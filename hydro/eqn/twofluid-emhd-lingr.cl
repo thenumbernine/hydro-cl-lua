@@ -19,7 +19,7 @@
 #define sqrt_2 <?=("%.50f"):format(math.sqrt(2))?>
 
 //// MODULE_NAME: <?=primFromCons?>
-//// MODULE_DEPENDS: <?=solver_t?> eqn.common <?=prim_t?> <?=cons_t?>
+//// MODULE_DEPENDS: <?=solver_t?> <?=eqn_common?> <?=prim_t?> <?=cons_t?>
 
 #define <?=primFromCons?>(\
 	/*<?=prim_t?> * const */W,\
@@ -47,7 +47,7 @@
 }
 
 //// MODULE_NAME: <?=consFromPrim?>
-//// MODULE_DEPENDS: <?=solver_t?> eqn.common <?=prim_t?> <?=cons_t?> <?=consFromPrim?>
+//// MODULE_DEPENDS: <?=solver_t?> <?=eqn_common?> <?=prim_t?> <?=cons_t?> <?=consFromPrim?>
 
 #define <?=consFromPrim?>(\
 	/*<?=cons_t?> * const */U,\
@@ -135,7 +135,7 @@
 	(result)->psi_g = (U)->psi_g;\
 }
 
-//// MODULE_NAME: eqn.common
+//// MODULE_NAME: <?=eqn_common?>
 //// MODULE_DEPENDS: units coordLenSq cartesianToCoord
 
 #define /*real3*/ calc_EField(\
@@ -893,7 +893,7 @@ end --\
 }
 
 //// MODULE_NAME: <?=addSource?>
-//// MODULE_DEPENDS: eqn.common elecChargeMassRatio
+//// MODULE_DEPENDS: <?=eqn_common?> elecChargeMassRatio
 
 kernel void <?=addSource?>(
 	constant <?=solver_t?> const * const solver,

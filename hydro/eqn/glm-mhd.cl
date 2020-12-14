@@ -1,4 +1,4 @@
-//// MODULE_NAME: eqn.common
+//// MODULE_NAME: <?=eqn_common?>
 //// MODULE_DEPENDS: coordLenSq
 
 static inline real calc_eKin(<?=prim_t?> const * const W, real3 x) { return .5 * coordLenSq((W)->v, x); }

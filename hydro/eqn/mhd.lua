@@ -179,7 +179,7 @@ end
 
 function MHD:getModuleDepends_displayCode() 
 	return {
-		'eqn.common',
+		self.symbols.eqn_common,
 		self.symbols.consFromPrim,
 	}
 end

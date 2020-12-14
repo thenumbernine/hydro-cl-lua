@@ -140,7 +140,7 @@ sym3 calc_gamma_uu(global const <?=cons_t?>* U, real3 x) {
 	return gamma_uu;
 }
 
-//// MODULE_NAME: eqn.common
+//// MODULE_NAME: <?=eqn_common?>
 
 <? 
 -- constrains det gammaBar_ij = det gammaHat_ij, ABar^i_i = 0, and calculates H and M^i ... if the associated flags are set

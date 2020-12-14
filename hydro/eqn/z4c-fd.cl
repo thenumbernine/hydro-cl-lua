@@ -1,4 +1,4 @@
-//// MODULE_NAME: eqn.common
+//// MODULE_NAME: <?=eqn_common?>
 
 //gammaBar_ij = gammaHat_ij + epsilon_ij
 sym3 calc_gammaBar_ll(global const <?=cons_t?>* U, real3 x) {

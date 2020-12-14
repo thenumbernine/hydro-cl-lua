@@ -1,4 +1,4 @@
-//// MODULE_NAME: eqn.common
+//// MODULE_NAME: <?=eqn_common?>
 
 //I'm going to fix metric coordinates at first
 //then later the transition to the evolved metric will be easier

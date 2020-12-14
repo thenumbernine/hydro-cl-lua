@@ -158,7 +158,7 @@ function BSSNOKFiniteDifferenceEquationBase:initCodeModule_calcDT()
 	self.solver.modules:add{
 		name = self.symbols.calcDT,
 		depends = table{
-			'eqn.common',
+			self.symbols.eqn_common,
 			'coord_sqrt_g_ll##',
 			'SETBOUNDS',
 		}:append(

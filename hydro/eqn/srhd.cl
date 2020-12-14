@@ -1,4 +1,4 @@
-//// MODULE_NAME: eqn.common
+//// MODULE_NAME: <?=eqn_common?>
 //// MODULE_DEPENDS: coordLenSq cons_only_t,prim_only_t
 
 //pressure function for ideal gas
@@ -109,7 +109,7 @@
 //...and PLM uses consFromPrim and primFromCons
 
 //// MODULE_NAME: <?=applyInitCond?>
-//// MODULE_DEPENDS: eqn.common
+//// MODULE_DEPENDS: <?=eqn_common?>
 
 kernel void <?=applyInitCond?>(
 	constant <?=solver_t?> const * const solver,
@@ -151,7 +151,7 @@ kernel void <?=applyInitCond?>(
 
 
 //// MODULE_NAME: <?=fluxFromCons?>
-//// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> normal_t eqn.common
+//// MODULE_DEPENDS: normal_t <?=solver_t?> <?=cons_t?> <?=eqn_common?>
 
 #define <?=fluxFromCons?>(\
 	/*<?=cons_t?> * const */result,\
@@ -179,7 +179,7 @@ kernel void <?=applyInitCond?>(
 }
 
 //// MODULE_NAME: <?=calcDT?>
-//// MODULE_DEPENDS: SETBOUNDS coordLenSq eqn.common normal_t
+//// MODULE_DEPENDS: SETBOUNDS coordLenSq normal_t <?=eqn_common?>
 
 //everything matches the default except the params passed through to calcCellMinMaxEigenvalues
 kernel void <?=calcDT?>(

@@ -177,9 +177,9 @@ end
 function TwoFluidEMHDDeDonderGaugeLinearizedGR:getModuleDepends_waveCode()
 	return {
 		'units',
-		'eqn.common',
-		self.symbols.primFromCons,
 		'coord_lower',
+		self.symbols.eqn_common,
+		self.symbols.primFromCons,
 	}
 end
 

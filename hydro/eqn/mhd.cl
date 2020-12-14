@@ -285,7 +285,7 @@ end
 ?>\
 }
 
-//// MODULE_NAME: eqn.common
+//// MODULE_NAME: <?=eqn_common?>
 //// MODULE_DEPENDS: units coordLenSq
 
 static inline real calc_eKin(
