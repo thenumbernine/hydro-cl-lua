@@ -45,7 +45,7 @@ function Struct:countScalars(scalar)
 		local res, err = xpcall(function()
 			structSize = structSize + ffi.sizeof(var.type)
 		end, function(err)
-			return 'ffi.sizeof failed for var '..require 'ext.tolua'(var)..'\n'
+			return 'ffi.sizeof('..var.type..') failed for var '..require 'ext.tolua'(var)..'\n'
 				..tostring(err)..'\n'
 				..debug.traceback()
 		end)

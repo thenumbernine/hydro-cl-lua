@@ -123,39 +123,13 @@ function Equation:init(args)
 	-- [[ make C symbols unique to the eqn class.
 	-- TODO later,unique to the eqn object, in case I make a composite of two like classes
 	-- like euler + euler to do two-fluid simulations
-	local memberFields = table{
-		-- functions:
-		'primFromCons',
-		'consFromPrim',
-		'apply_dU_dW',
-		'apply_dW_dU',
-		'fluxFromCons',
-		'calcCellMinMaxEigenvalues',
-		'eigen_forCell',
-		'eigen_forInterface',
-		'eigen_leftTransform',
-		'eigen_rightTransform',
-		'eigen_fluxTransform',
-		'cons_parallelPropagate',
-		'applyInitCondCell',
-		'calcDTCell',
-	
-		-- kernels:
-		'applyInitCond',	-- TODO don't uniquely identify this, only do the Cell version 
-		'calcDT',			-- TODO don't uniquely identify this, only do the Cell version 
-		'initDerivs',
-		'addSource',
-		'constrainU',
-	
-		-- placeholder modules for dependencies
-		'eqn_common',
-		'eqn_waveCode_depends',
-		'eqn_guiVars_compileTime',
-	}
+	-- TODO this should be modular
+	local symbolFields = self:getSymbolFields()
+
 	-- TODO add the typedef names into this
 	-- TODO don't use uniqueName() instead just use the object uid suffix (and use it for functions too)
 	self.symbols = {}
-	for _,field in ipairs(memberFields) do
+	for _,field in ipairs(symbolFields) do
 		self.symbols[field] = self.symbolPrefix..field
 	end
 --]]
@@ -174,14 +148,17 @@ function Equation:init(args)
 			vars = self.consVars,
 		}
 	end
-	
+
+-- make sure all math types are cdef'd,
+-- for sizeof's for calculating the union ptr size 
+-- when we makeType the consStruct
+-- we can't do this after makeType unless we also put it after initCodeModule
+-- (but eqn:initCodeModule is called after the consStruct type is defined)	
+	self:cdefAllVarTypes(solver, self.consStruct.vars)
 
 	self.consStruct:makeType()	-- create consStruct.typename
 	-- TODO replace the cdef uniqueName with a unique eqn object name
 	self.symbols.cons_t = self.consStruct.typename
-	
-	-- make sure all math types are cdef'd
-	self:cdefAllVarTypes(solver, self.consStruct.vars)
 	
 	-- don't use consVars anymore ... use consStruct.vars instead
 	self.consVars = nil
@@ -200,10 +177,17 @@ function Equation:init(args)
 		}
 	end
 	if self.primStruct then
+
+		-- cdef the used types before :makeType the Struct.  see consStruct for more notes.
+		self:cdefAllVarTypes(solver, self.primStruct.vars)
+		
 		local res, err = xpcall(function()
 			self.primStruct:makeType()
 		end, function(err)
-			return "eqn "..self.name.." primStruct:makeType() failed for type "..require 'ext.tolua'(table(self.primStruct, {solver=false}))..'\n'
+			return "eqn "..self.name.." primStruct:makeType() failed for type "..self.primStruct.name..'\n'
+				..require 'ext.tolua'(table(
+					self.primStruct,
+					{app=false}))..'\n'
 				..tostring(err)..'\n'
 				..debug.traceback()
 		end)
@@ -211,8 +195,6 @@ function Equation:init(args)
 
 		-- TODO replace the cdef uniqueName with a unique eqn object name
 		self.symbols.prim_t = self.primStruct.typename
-	
-		self:cdefAllVarTypes(solver, self.primStruct.vars)
 		
 		-- don't use primVars anymore ... use primStruct.vars instead
 		self.primVars = nil
@@ -342,6 +324,38 @@ function Equation:init(args)
 	self.parityVarsGetters[assert(self.symbols.prim_t)] = function(sign, vars, var)
 		getParityVars(self.primStruct.vars, sign, parityVars, field)
 	end
+end
+
+function Equation:getSymbolFields()
+	return table{
+		-- functions:
+		'primFromCons',
+		'consFromPrim',
+		'apply_dU_dW',
+		'apply_dW_dU',
+		'fluxFromCons',
+		'calcCellMinMaxEigenvalues',
+		'eigen_forCell',
+		'eigen_forInterface',
+		'eigen_leftTransform',
+		'eigen_rightTransform',
+		'eigen_fluxTransform',
+		'cons_parallelPropagate',
+		'applyInitCondCell',
+		'calcDTCell',
+	
+		-- kernels:
+		'applyInitCond',	-- TODO don't uniquely identify this, only do the Cell version 
+		'calcDT',			-- TODO don't uniquely identify this, only do the Cell version 
+		'initDerivs',
+		'addSource',
+		'constrainU',
+	
+		-- placeholder modules for dependencies
+		'eqn_guiVars_compileTime',	-- module of code for compile-time #defines of gui vars
+		'eqn_waveCode_depends',		-- module of dependencies used by the eigen/cons wave code
+		'eqn_common',				-- module of functions that are commonly used ... not required.
+	}
 end
 
 function Equation:cdefAllVarTypes(solver, vars)

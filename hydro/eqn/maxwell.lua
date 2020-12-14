@@ -86,7 +86,7 @@ function Maxwell:init(args)
 
 -- [=[ TODO combine this into the flux and remove this variable from calcDerivFV
 	self.postComputeFluxCode = self:template[[
-//// MODULE_DEPENDS: coord_sqrt_det_g eqn.common
+//// MODULE_DEPENDS: coord_sqrt_det_g <?=eqn_common?>
 <? local vec3 = eqn.vec3 ?>
 		//TODO shouldn't I be transforming both the left and right fluxes by the metrics at their respective coordinates?
 		//flux is computed raised via Levi-Civita upper
@@ -115,6 +115,12 @@ function Maxwell:init(args)
 		potentialField = 'phi',
 		chargeField = 'rhoCharge',
 	})
+end
+
+function Maxwell:getSymbolFields()
+	return Maxwell.super.getSymbolFields(self):append{
+		'sqrt_2_and_1_2',
+	}
 end
 
 -- don't use default
@@ -199,24 +205,24 @@ function Maxwell:eigenWaveCodePrefix(n, eig, x, waveIndex)
 	if self.scalar == 'cplx' then
 		code = env.abs..'('..code..')'
 	end
-	return 'real const v_p_abs = '..code..';'
+	return 'real const '..self.symbolPrefix..'v_p_abs = '..code..';'
 --]=]
 end
 
 function Maxwell:eigenWaveCode(n, eig, x, waveIndex)
 	waveIndex = math.floor(waveIndex / self.numRealsInScalar)
 	return ({
-		'-v_p_abs',
-		'-v_p_abs',
+		'-'..self.symbolPrefix..'v_p_abs',
+		'-'..self.symbolPrefix..'v_p_abs',
 		'0',
 		'0',
-		'v_p_abs',
-		'v_p_abs',
+		self.symbolPrefix..'v_p_abs',
+		self.symbolPrefix..'v_p_abs',
 	})[waveIndex+1] or error('got a bad waveIndex: '..waveIndex)
 end
 
 function Maxwell:eigenMaxWaveCode(n, eig, x)
-	return 'v_p_abs'
+	return self.symbolPrefix..'v_p_abs'
 end
 function Maxwell:eigenMinWaveCode(n, eig, x)
 	return '-'..self:eigenMaxWaveCode(n, eig, x)

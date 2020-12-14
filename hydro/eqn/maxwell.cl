@@ -1,9 +1,9 @@
-//// MODULE_NAME: sqrt_2_and_1_2
+//// MODULE_NAME: <?=sqrt_2_and_1_2?>
 
 #define sqrt_2 <?=("%.50f"):format(math.sqrt(2))?>
 #define sqrt_1_2 <?=("%.50f"):format(math.sqrt(.5))?>
 
-//// MODULE_NAME: eqn.common
+//// MODULE_NAME: <?=eqn_common?>
 //// MODULE_DEPENDS: coordLenSq cartesianToCoord coord_lower
 
 <? if scalar == "real" then ?>
@@ -42,7 +42,7 @@ cplx3 eqn_coord_lower(cplx3 v, real3 x) {
 ) 	(<?=vec3?>_<?=susc_t?>_mul((U)->B, <?=susc_t?>_mul((U)->sqrt_1_mu, (U)->sqrt_1_mu)))
 
 //// MODULE_NAME: <?=applyInitCondCell?>
-//// MODULE_DEPENDS: eqn.common <?=solver_t?> <?=initCond_t?> <?=cons_t?> <?=cell_t?> <?=consFromPrim?>
+//// MODULE_DEPENDS: <?=eqn_common?> <?=solver_t?> <?=initCond_t?> <?=cons_t?> <?=cell_t?> <?=consFromPrim?>
 
 void <?=applyInitCondCell?>(
 	constant <?=solver_t?> const * const solver,
@@ -89,8 +89,8 @@ void <?=applyInitCondCell?>(
 
 
 //// MODULE_NAME: <?=fluxFromCons?>
-//// MODULE_DEPENDS: <?=solver_t?> normal_t <?=cons_t?> <?=prim_t?> eqn.common
-//eqn.common has calc_E, calc_H
+//// MODULE_DEPENDS: <?=solver_t?> normal_t <?=cons_t?> <?=prim_t?> <?=eqn_common?>
+//eqn_common has calc_E, calc_H
 
 #define <?=fluxFromCons?>(\
 	/*<?=cons_t?> * const */F,\
@@ -151,7 +151,7 @@ void <?=applyInitCondCell?>(
 }
 
 //// MODULE_NAME: <?=eigen_leftTransform?>
-//// MODULE_DEPENDS: sqrt_2_and_1_2
+//// MODULE_DEPENDS: <?=sqrt_2_and_1_2?>
 
 /*
 TODO update this for Einstein-Maxwell (take the metric into consideration
@@ -206,7 +206,7 @@ TODO update this for Einstein-Maxwell (take the metric into consideration
 }
 
 //// MODULE_NAME: <?=eigen_rightTransform?>
-//// MODULE_DEPENDS: sqrt_2_and_1_2
+//// MODULE_DEPENDS: <?=sqrt_2_and_1_2?>
 
 #define <?=eigen_rightTransform?>(\
 	/*<?=cons_t?> * const */Y,\
@@ -266,7 +266,7 @@ TODO update this for Einstein-Maxwell (take the metric into consideration
 #define <?=eigen_fluxTransform?>(result, solver, eig, X, x, n)	<?=fluxFromCons?>(result, solver, X, x, n)
 
 //// MODULE_NAME: <?=addSource?>
-//// MODULE_DEPENDS: coord_sqrt_det_g eqn.common <?=fluxFromCons?>
+//// MODULE_DEPENDS: coord_sqrt_det_g <?=eqn_common?> <?=fluxFromCons?>
 
 kernel void <?=addSource?>(
 	constant <?=solver_t?> const * const solver,

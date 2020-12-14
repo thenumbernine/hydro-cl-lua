@@ -885,11 +885,15 @@ With hyperbolic gamma driver shift it has trouble.
 
 
 -- composite equations.  better than composite solver. less kernel calls.
+-- single with distinct cons_t & prim_t
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='composite', eqnArgs={subeqns={'euler'}}})))
--- TODO can't add two matching eqns
-self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='composite', eqnArgs={subeqns={'euler', 'euler'}}})))
--- TODO maxwell
+-- single with matching cons_t & prim_t
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='composite', eqnArgs={subeqns={'maxwell'}}})))
+-- multiple w/ distinct cons_t & prim_t
+--self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='composite', eqnArgs={subeqns={'euler', 'euler'}}})))
+-- multiple w/ matching cons_t & prim_t
+self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='composite', eqnArgs={subeqns={'maxwell', 'maxwell'}}})))
+-- multiple w/ separate, distinct & matching cons_t & prim_t
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='composite', eqnArgs={subeqns={'euler', 'maxwell'}}})))
 
 
