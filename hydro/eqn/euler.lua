@@ -271,8 +271,8 @@ Euler.eigenVars = table{
 
 function Euler:eigenWaveCodePrefix(n, eig, x)
 	return self:template([[
-real const Cs_nLen = normal_len(<?=n?>) * <?=eig?>->Cs;
-real const v_n = normal_vecDotN1(<?=n?>, <?=eig?>->v);
+real const <?=eqn.symbolPrefix?>Cs_nLen = normal_len(<?=n?>) * <?=eig?>->Cs;
+real const <?=eqn.symbolPrefix?>v_n = normal_vecDotN1(<?=n?>, <?=eig?>->v);
 ]],	{
 		eig = '('..eig..')',
 		x = x,
@@ -286,8 +286,8 @@ function Euler:consWaveCodePrefix(n, U, x)
 	return self:template([[
 <?=prim_t?> W;
 <?=primFromCons?>(&W, solver, <?=U?>, <?=x?>);
-real const Cs_nLen = calc_Cs(solver, &W) * normal_len(<?=n?>);
-real const v_n = normal_vecDotN1(<?=n?>, W.v);
+real const <?=eqn.symbolPrefix?>Cs_nLen = calc_Cs(solver, &W) * normal_len(<?=n?>);
+real const <?=eqn.symbolPrefix?>v_n = normal_vecDotN1(<?=n?>, W.v);
 ]], {
 		U = '('..U..')',
 		n = n,
@@ -297,11 +297,11 @@ end
 
 function Euler:consWaveCode(n, U, x, waveIndex)
 	if waveIndex == 0 then
-		return '(v_n - Cs_nLen)'
+		return self:template'(<?=eqn.symbolPrefix?>v_n - <?=eqn.symbolPrefix?>Cs_nLen)'
 	elseif waveIndex >= 1 and waveIndex <= 3 then
-		return 'v_n'
+		return self:template'<?=eqn.symbolPrefix?>v_n'
 	elseif waveIndex == 4 then
-		return '(v_n + Cs_nLen)'
+		return self:template'(<?=eqn.symbolPrefix?>v_n + <?=eqn.symbolPrefix?>Cs_nLen)'
 	end
 	error'got a bad waveIndex'
 end

@@ -114,6 +114,12 @@ args:
 	make sure self.consStruct and self.primStruct is defined beforehand
 --]]
 function Equation:init(args)
+	local mt = getmetatable(self)
+	setmetatable(self, nil)
+	self.uid = assert(tostring(self):match'table: 0x(.*)')
+	setmetatable(self, mt)
+	self.symbolPrefix = self.name..'_'..self.uid..'_'
+
 	-- [[ make C symbols unique to the eqn class.
 	-- TODO later,unique to the eqn object, in case I make a composite of two like classes
 	-- like euler + euler to do two-fluid simulations
@@ -142,6 +148,7 @@ function Equation:init(args)
 		'constrainU',
 	
 		-- placeholder modules for dependencies
+		'eqn_common',
 		'eqn_waveCode_depends',
 		'eqn_guiVars_compileTime',
 	}
@@ -149,7 +156,7 @@ function Equation:init(args)
 	-- TODO don't use uniqueName() instead just use the object uid suffix (and use it for functions too)
 	self.symbols = {}
 	for _,field in ipairs(memberFields) do
-		self.symbols[field] = self.name..'_'..field
+		self.symbols[field] = self.symbolPrefix..field
 	end
 --]]
 
@@ -617,12 +624,15 @@ function Equation:initCodeModule_cons_parallelPropagate()
 			end
 		end
 
-		--[[			
-		cons_parallelPropagate is a macro
-		First argument is the name of the result local var
-		a pointer to it with 'ptr' appended is also produced.
-		In the event of identity propagation, only the poitner is produced.
-		--]]
+--[[			
+cons_parallelPropagate is a macro
+First argument is the name of the resulting local var
+that will hold a ptr to the results.
+
+In the event that propagation is identity, a pointer with name 'resultName' pointing to the original variable is created. 
+
+In the event that a transformation is necessary, then a temp var is created, and 'resultName' points to it.
+--]]
 		solver.modules:add{
 			name = self.symbols.cons_parallelPropagate,
 			depends = table{
@@ -645,7 +655,7 @@ for side=0,solver.dim-1 do
 	or require 'hydro.coord.cartesian'.is(coord) 
 	then
 ?>#define <?=cons_parallelPropagate?><?=side?>(resultName, U, pt, dx)\
-	global <?=cons_t?> const * const resultName##ptr = U;
+	global <?=cons_t?> const * const resultName = U;
 <?	else
 ?>#define <?=cons_parallelPropagate?><?=side?>(\
 	resultName,\
@@ -654,23 +664,23 @@ for side=0,solver.dim-1 do
 	/*real const */dx\
 )\
 /* TODO don't assign here, instead assign all fields and just don't propagate the scalars */\
-	<?=cons_t?> resultName = *(U);\
+	<?=cons_t?> resultName##base = *(U);\
 <?		for _,var in ipairs(eqn.consStruct.vars) do
 			local variance = assert(var.variance)
 			local degree = degreeForType[var.type]
 			if variance == '' then
 			elseif variance == 'u' then
 -- P_u^a T^u
-?>	resultName.<?=var.name?> = coord_parallelPropagateU<?=side?>(resultName.<?=var.name?>, pt, dx);\
+?>	resultName##base.<?=var.name?> = coord_parallelPropagateU<?=side?>(resultName##base.<?=var.name?>, pt, dx);\
 <?
 			elseif variance == 'l' then
 -- T_u (P^-T)_a^u
-?>	resultName.<?=var.name?> = coord_parallelPropagateL<?=side?>(resultName.<?=var.name?>, pt, dx);\
+?>	resultName##base.<?=var.name?> = coord_parallelPropagateL<?=side?>(resultName##base.<?=var.name?>, pt, dx);\
 <?
 			elseif variance == 'll' then
 -- (P^-T)_a^u (P^-T)_b^v T_uv
 ?>				{\
-					real3x3 t = real3x3_from_<?=var.type?>(resultName.<?=var.name?>);\
+					real3x3 t = real3x3_from_<?=var.type?>(resultName##base.<?=var.name?>);\
 					t.x = coord_parallelPropagateL<?=side?>(t.x, pt, dx);\
 					t.y = coord_parallelPropagateL<?=side?>(t.y, pt, dx);\
 					t.z = coord_parallelPropagateL<?=side?>(t.z, pt, dx);\
@@ -678,11 +688,11 @@ for side=0,solver.dim-1 do
 					t.x = coord_parallelPropagateL<?=side?>(t.x, pt, dx);\
 					t.y = coord_parallelPropagateL<?=side?>(t.y, pt, dx);\
 					t.z = coord_parallelPropagateL<?=side?>(t.z, pt, dx);\
-					resultName.<?=var.name?> = <?=var.type?>_from_real3x3(t);\
+					resultName##base.<?=var.name?> = <?=var.type?>_from_real3x3(t);\
 				}\
 <?			elseif variance == 'lll' then
 ?>				{\
-					real3x3x3 t = real3x3x3_from_<?=var.type?>(resultName.<?=var.name?>);\
+					real3x3x3 t = real3x3x3_from_<?=var.type?>(resultName##base.<?=var.name?>);\
 					real3 tmp;\
 <?				local table = require 'ext.table'
 				local is = table()
@@ -703,13 +713,13 @@ for side=0,solver.dim-1 do
 						end
 					end
 				end
-?>					resultName.<?=var.name?> = <?=var.type?>_from_real3x3x3(t);\
+?>					resultName##base.<?=var.name?> = <?=var.type?>_from_real3x3x3(t);\
 				}\
 <?			else
 				error("don't know how to handle variance for "..('%q'):format(variance))
 			end
 		end
-?>	<?=cons_t?> const * const resultName##ptr = &resultName;
+?>	<?=cons_t?> const * const resultName = &resultName##base;
 <?	end
 end
 ?>]], 		{

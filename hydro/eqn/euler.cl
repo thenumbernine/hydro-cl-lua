@@ -1,6 +1,6 @@
 //// MODULE_NAME: <?=primFromCons?>
-//// MODULE_DEPENDS: real3 <?=solver_t?> <?=prim_t?> <?=cons_t?> eqn.common
-// eqn.common is for all the calc_* stuff
+//// MODULE_DEPENDS: real3 <?=solver_t?> <?=prim_t?> <?=cons_t?> <?=eqn_common?>
+// eqn_common is for all the calc_* stuff
 
 #define <?=primFromCons?>(\
 	/*<?=prim_t?> * const */resultW,\
@@ -15,8 +15,8 @@
 }
 
 //// MODULE_NAME: <?=consFromPrim?>
-//// MODULE_DEPENDS: real3 eqn.common <?=solver_t?> <?=prim_t?> <?=cons_t?>
-// eqn.common is for all the calc_* stuff
+//// MODULE_DEPENDS: real3 <?=eqn_common?> <?=solver_t?> <?=prim_t?> <?=cons_t?>
+// eqn_common is for all the calc_* stuff
 
 #define <?=consFromPrim?>(\
 	/*<?=cons_t?> * const */ result,\
@@ -75,7 +75,7 @@
 	(result)->ePot = (U)->ePot;\
 }
 
-//// MODULE_NAME: eqn.common
+//// MODULE_NAME: <?=eqn_common?>
 //// MODULE_DEPENDS: coordLenSq <?=cons_t?> <?=prim_t?> <?=waves_t?> <?=eigen_t?> <?=eqn_guiVars_compileTime?>
 
 #define /*real*/ calc_H(\
@@ -234,8 +234,8 @@ end
 }
 
 //// MODULE_NAME: <?=eigen_forCell?>
-//// MODULE_DEPENDS: normal_t coord_lower <?=cons_t?> <?=prim_t?> <?=eigen_t?> <?=primFromCons?> eqn.common
-// eqn.common is for all the calc_* stuff
+//// MODULE_DEPENDS: normal_t coord_lower <?=cons_t?> <?=prim_t?> <?=eigen_t?> <?=primFromCons?> <?=eqn_common?>
+// eqn_common is for all the calc_* stuff
 
 // used by PLM
 #define <?=eigen_forCell?>(\

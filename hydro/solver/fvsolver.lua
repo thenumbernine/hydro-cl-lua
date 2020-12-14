@@ -149,15 +149,15 @@ end
 			calcFluxForInterface(
 				flux,
 				solver,
-				UL,//ppULptr,
-				UR,//ppURptr,
+				ppUL,
+				ppUR,
 				xInt,
 				n<? if useFlux then ?>,
 				dt_dx,
-				UL_L,//ppUL_Lptr,
-				UL_R,//ppUL_Rptr,
-				UR_L,//ppUR_Lptr,
-				UR_R,//ppUR_Rptr,
+				ppUL_L,
+				ppUL_R,
+				ppUR_L,
+				ppUR_R,
 				xIntL,
 				xIntR<? end ?>
 			);

@@ -1,5 +1,5 @@
 //// MODULE_NAME: calcFluxForInterface
-//// MODULE_DEPENDS: solver.macros math <?=cons_parallelPropagate?> <?=eigen_forInterface?> <?=eqn_waveCode_depends?> <?=fluxFromCons?>
+//// MODULE_DEPENDS: solver.macros math <?=eigen_forInterface?> <?=eqn_waveCode_depends?> <?=fluxFromCons?>
 
 #define calcFluxForInterface(\
 	/*<?=cons_t?> * const */resultFlux,\
