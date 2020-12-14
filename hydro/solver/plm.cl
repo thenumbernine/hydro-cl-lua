@@ -1,5 +1,5 @@
 //// MODULE_NAME: calcLR
-//// MODULE_DEPENDS: consLR_t <?=solver_t?> <?=cons_t?> normal_t cell_dx#
+//// MODULE_DEPENDS: <?=consLR_t?> <?=solver_t?> <?=cons_t?> normal_t cell_dx#
 
 // TODO incorporate parallel propagators
 
@@ -29,7 +29,7 @@ for side=0,solver.dim-1 do
 	-- piecewise-linear
 	elseif solver.usePLM == "plm-cons" then 
 ?>
-//// MODULE_DEPENDS: fluxFromCons slopeLimiter
+//// MODULE_DEPENDS: <?=fluxFromCons?> slopeLimiter
 
 /*
 #1: slope based on conservative variables
@@ -128,9 +128,9 @@ for sgn b >= 0:
 	real dt_dx = dt / dx;
 
 	<?=cons_t?> FHalfL;
-	fluxFromCons(&FHalfL, solver, &UHalfL, xIntL, normal_forSide<?=side?>(xIntL));
+	<?=fluxFromCons?>(&FHalfL, solver, &UHalfL, xIntL, normal_forSide<?=side?>(xIntL));
 	<?=cons_t?> FHalfR;
-	fluxFromCons(&FHalfR, solver, &UHalfR, xIntR, normal_forSide<?=side?>(xIntR));
+	<?=fluxFromCons?>(&FHalfR, solver, &UHalfR, xIntR, normal_forSide<?=side?>(xIntR));
 
 	result->L = *U;
 	result->R = *U;
@@ -203,7 +203,7 @@ void calcCellLR_<?=side?>(
 <? 
 	elseif solver.usePLM == "plm-prim-alone" then 
 ?>
-//// MODULE_DEPENDS: slopeLimiter consFromPrim primFromCons
+//// MODULE_DEPENDS: slopeLimiter <?=consFromPrim?> <?=primFromCons?>
 
 void calcCellLR_<?=side?>(
 	global <?=consLR_t?> * const result,
@@ -224,11 +224,11 @@ void calcCellLR_<?=side?>(
 	const global <?=cons_t?>* UR = U + solver->stepsize.s<?=side?>;
 
 	<?=prim_t?> W;
-	primFromCons(&W, solver, U, x);
+	<?=primFromCons?>(&W, solver, U, x);
 	<?=prim_t?> WL;
-	primFromCons(&WL, solver, UL, xL);
+	<?=primFromCons?>(&WL, solver, UL, xL);
 	<?=prim_t?> WR;
-	primFromCons(&WR, solver, UR, xR);
+	<?=primFromCons?>(&WR, solver, UR, xR);
 	
 	// minmod
 	<?=prim_t?> nWL = W;
@@ -261,14 +261,14 @@ void calcCellLR_<?=side?>(
 	real3 xIntR = x; xIntR.s<?=side?> += .5 * dx;
 
 	//converting from cons->prim and then prim->cons might lose us accuracy? 
-	consFromPrim(&result->L, solver, &nWL, xIntL);
-	consFromPrim(&result->R, solver, &nWR, xIntR);
+	<?=consFromPrim?>(&result->L, solver, &nWL, xIntL);
+	<?=consFromPrim?>(&result->R, solver, &nWR, xIntR);
 }
 
 <? 
 	elseif solver.usePLM == "plm-eig" then 
 ?>
-//// MODULE_DEPENDS: eigen_forCell eigen_left/rightTransform min3
+//// MODULE_DEPENDS: <?=eigen_forCell?> <?=eigen_leftTransform?> <?=eigen_rightTransform?> min3
 
 /*
 #2: next step, project into eigenspace
@@ -325,14 +325,14 @@ void calcCellLR_<?=side?>(
 
 	//calc eigen values and vectors at cell center
 	<?=eigen_t?> eig;
-	eigen_forCell(&eig, solver, U, x, n);
+	<?=eigen_forCell?>(&eig, solver, U, x, n);
 		
 	<?=waves_t?> dULEig;
-	eigen_leftTransform(&dULEig, solver, &eig, &dUL, xIntL, normal_forSide<?=side?>(xIntL));
+	<?=eigen_leftTransform?>(&dULEig, solver, &eig, &dUL, xIntL, normal_forSide<?=side?>(xIntL));
 	<?=waves_t?> dUREig;
-	eigen_leftTransform(&dUREig, solver, &eig, &dUR, xIntR, normal_forSide<?=side?>(xIntR));
+	<?=eigen_leftTransform?>(&dUREig, solver, &eig, &dUR, xIntR, normal_forSide<?=side?>(xIntR));
 	<?=waves_t?> dUCEig;
-	eigen_leftTransform(&dUCEig, solver, &eig, &dUC, x, n);
+	<?=eigen_leftTransform?>(&dUCEig, solver, &eig, &dUC, x, n);
 
 	//MUSCL slope of characteristic variables
 	//TODO make this based on the choice of slope limiter
@@ -380,9 +380,9 @@ void calcCellLR_<?=side?>(
 	
 	//convert back to conservation variable space
 	<?=cons_t?> sL;
-	eigen_rightTransform(&sL, solver, &eig, &aL, x, n);
+	<?=eigen_rightTransform?>(&sL, solver, &eig, &aL, x, n);
 	<?=cons_t?> sR;
-	eigen_rightTransform(&sR, solver, &eig, &aR, x, n);
+	<?=eigen_rightTransform?>(&sR, solver, &eig, &aR, x, n);
 
 	result->L = *U;
 	result->R = *U;
@@ -397,7 +397,7 @@ void calcCellLR_<?=side?>(
 	or solver.usePLM == "plm-eig-prim-ref" 
 	then 
 ?>
-//// MODULE_DEPENDS: eigen_forCell min3 primFromCons
+//// MODULE_DEPENDS: <?=eigen_forCell?> min3 <?=primFromCons?>
 
 /*
 #3a: next step, convert to primitives
@@ -461,11 +461,11 @@ void calcCellLR_<?=side?>(
 	
 	//1) calc delta q's ... l r c (eqn 36)
 	<?=prim_t?> W;
-	primFromCons(&W, solver, U, x);
+	<?=primFromCons?>(&W, solver, U, x);
 	<?=prim_t?> WL;
-	primFromCons(&WL, solver, UL, xL);
+	<?=primFromCons?>(&WL, solver, UL, xL);
 	<?=prim_t?> WR;
-	primFromCons(&WR, solver, UR, xR);
+	<?=primFromCons?>(&WR, solver, UR, xR);
 	<?=prim_t?> dWL, dWR, dWC;
 	for (int j = 0; j < numIntStates; ++j) {
 		dWL.ptr[j] = W.ptr[j] - WL.ptr[j];
@@ -479,23 +479,23 @@ void calcCellLR_<?=side?>(
 	//calc eigen values and vectors at cell center
 	//TODO calculate the eigenstate wrt W instead of U - to save some computations
 	<?=eigen_t?> eig;
-	eigen_forCell(&eig, solver, U, x, n);
+	<?=eigen_forCell?>(&eig, solver, U, x, n);
 		
 	//apply dU/dW before applying left/right eigenvectors so the eigenvectors are of the flux wrt primitives 
 	//RW = dW/dU RU, LW = LU dU/dW
 	<?=cons_t?> tmp;
 
-	apply_dU_dW(&tmp, solver, &W, &dWL, xIntL); 
+	<?=apply_dU_dW?>(&tmp, solver, &W, &dWL, xIntL); 
 	<?=waves_t?> dWLEig;
-	eigen_leftTransform(&dWLEig, solver, &eig, &tmp, xIntL, normal_forSide<?=side?>(xIntL));
+	<?=eigen_leftTransform?>(&dWLEig, solver, &eig, &tmp, xIntL, normal_forSide<?=side?>(xIntL));
 	
-	apply_dU_dW(&tmp, solver, &W, &dWR, xIntR); 
+	<?=apply_dU_dW?>(&tmp, solver, &W, &dWR, xIntR); 
 	<?=waves_t?> dWREig;
-	eigen_leftTransform(&dWREig, solver, &eig, &tmp, xIntR, normal_forSide<?=side?>(xIntR));
+	<?=eigen_leftTransform?>(&dWREig, solver, &eig, &tmp, xIntR, normal_forSide<?=side?>(xIntR));
 	
-	apply_dU_dW(&tmp, solver, &W, &dWC, x); 
+	<?=apply_dU_dW?>(&tmp, solver, &W, &dWC, x); 
 	<?=waves_t?> dWCEig;
-	eigen_leftTransform(&dWCEig, solver, &eig, &tmp, x, n);
+	<?=eigen_leftTransform?>(&dWCEig, solver, &eig, &tmp, x, n);
 
 	//MUSCL slope of characteristic variables
 	<?=waves_t?> dWMEig;
@@ -518,7 +518,7 @@ void calcCellLR_<?=side?>(
 <? 	
 		if solver.usePLM == "plm-eig-prim" then 
 ?>
-//// MODULE_DEPENDS: apply_dU_dW apply_dW_dU eigen_left/rightTransform consFromPrim
+//// MODULE_DEPENDS: <?=apply_dU_dW?> <?=apply_dW_dU?> <?=eigen_leftTransform?> <?=eigen_rightTransform?> <?=consFromPrim?>
 
 	//without reference state
 
@@ -532,13 +532,13 @@ void calcCellLR_<?=side?>(
 	}<? end ?>
 
 	// transform slopes back to conserved variable space
-	eigen_rightTransform(&tmp, solver, &eig, &aL, xIntL, normal_forSide<?=side?>(xIntL)); 
+	<?=eigen_rightTransform?>(&tmp, solver, &eig, &aL, xIntL, normal_forSide<?=side?>(xIntL)); 
 	<?=prim_t?> sL;
-	apply_dW_dU(&sL, solver, &W, &tmp, xIntL);
+	<?=apply_dW_dU?>(&sL, solver, &W, &tmp, xIntL);
 	
-	eigen_rightTransform(&tmp, solver, &eig, &aR, xIntR, normal_forSide<?=side?>(xIntR)); 
+	<?=eigen_rightTransform?>(&tmp, solver, &eig, &aR, xIntR, normal_forSide<?=side?>(xIntR)); 
 	<?=prim_t?> sR;
-	apply_dW_dU(&sR, solver, &W, &tmp, xIntR);
+	<?=apply_dW_dU?>(&sR, solver, &W, &tmp, xIntR);
 
 	// linearly extrapolate the slopes forward and backward from the cell center
 	<?=prim_t?> W2L, W2R;
@@ -549,12 +549,12 @@ void calcCellLR_<?=side?>(
 	for (int j = numIntStates; j < numStates; ++j) {
 		W2L.ptr[j] = W2R.ptr[j] = W.ptr[j];
 	}
-	consFromPrim(&result->L, solver, &W2L, xIntL);
-	consFromPrim(&result->R, solver, &W2R, xIntR);
+	<?=consFromPrim?>(&result->L, solver, &W2L, xIntL);
+	<?=consFromPrim?>(&result->R, solver, &W2R, xIntR);
 <?	
 		elseif solver.usePLM == "plm-eig-prim-ref" then 
 ?>
-//// MODULE_DEPENDS: apply_dU_dW apply_dW_dU eigen_left/rightTransform consFromPrim
+//// MODULE_DEPENDS: <?=apply_dU_dW?> <?=apply_dW_dU?> <?=eigen_leftTransform?> <?=eigen_rightTransform?> <?=consFromPrim?>
 
 	//with reference state
 
@@ -565,9 +565,9 @@ void calcCellLR_<?=side?>(
 	real waveMax = max((real)0., <?=eqn:eigenWaveCode("n", "&eig", "x", eqn.numWaves-1)?>);
 
 	//limited slope in primitive variable space
-	eigen_rightTransform(&tmp, solver, &eig, &dWMEig, x, n);
+	<?=eigen_rightTransform?>(&tmp, solver, &eig, &dWMEig, x, n);
 	<?=prim_t?> dWM;
-	apply_dW_dU(&dWM, solver, &W, &tmp, x);
+	<?=apply_dW_dU?>(&dWM, solver, &W, &tmp, x);
 
 	//left and right reference states
 	<?=prim_t?> WLRef, WRRef;
@@ -589,13 +589,13 @@ void calcCellLR_<?=side?>(
 	}<? end ?>
 
 	// transform slopes back to conserved variable space
-	eigen_rightTransform(&tmp, solver, &eig, &aL, xIntL, normal_forSide<?=side?>(xIntL)); 
+	<?=eigen_rightTransform?>(&tmp, solver, &eig, &aL, xIntL, normal_forSide<?=side?>(xIntL)); 
 	<?=prim_t?> sL;
-	apply_dW_dU(&sL, solver, &W, &tmp, xIntL);
+	<?=apply_dW_dU?>(&sL, solver, &W, &tmp, xIntL);
 	
-	eigen_rightTransform(&tmp, solver, &eig, &aR, xIntR, normal_forSide<?=side?>(xIntR)); 
+	<?=eigen_rightTransform?>(&tmp, solver, &eig, &aR, xIntR, normal_forSide<?=side?>(xIntR)); 
 	<?=prim_t?> sR;
-	apply_dW_dU(&sR, solver, &W, &tmp, xIntR);
+	<?=apply_dW_dU?>(&sR, solver, &W, &tmp, xIntR);
 
 	// linearly extrapolate the slopes forward and backward from the cell center
 	<?=prim_t?> W2L, W2R;
@@ -607,8 +607,8 @@ void calcCellLR_<?=side?>(
 		W2R.ptr[j] = W2L.ptr[j] = W.ptr[j];
 	}
 	//TODO fix the x's
-	consFromPrim(&result->L, solver, &W2L, xIntL);
-	consFromPrim(&result->R, solver, &W2R, xIntR);
+	<?=consFromPrim?>(&result->L, solver, &W2L, xIntL);
+	<?=consFromPrim?>(&result->R, solver, &W2R, xIntR);
 <?
 		end	-- solver.usePLM
 ?>
@@ -619,7 +619,7 @@ void calcCellLR_<?=side?>(
 	elseif solver.usePLM == "plm-athena" then 
 
 ?>
-//// MODULE_DEPENDS: eigen_forCell eigen_left/rightTransform consFromPrim primFromCons
+//// MODULE_DEPENDS: <?=eigen_forCell?> <?=eigen_leftTransform?> <?=eigen_rightTransform?> <?=consFromPrim?> <?=primFromCons?>
 
 //based on Athena
 void calcCellLR_<?=side?>(
@@ -639,7 +639,7 @@ void calcCellLR_<?=side?>(
 
 	//calc eigen values and vectors at cell center
 	<?=eigen_t?> eig;
-	eigen_forCell(&eig, solver, U, x, n);
+	<?=eigen_forCell?>(&eig, solver, U, x, n);
 
 	real const dx = cell_dx<?=side?>(x);
 	real const dt_dx = dt / dx;
@@ -649,11 +649,11 @@ void calcCellLR_<?=side?>(
 	global <?=cons_t?> const * const UR = U + solver->stepsize.s<?=side?>;
 
 	<?=prim_t?> W;
-	primFromCons(&W, solver, U, x);
+	<?=primFromCons?>(&W, solver, U, x);
 	<?=prim_t?> WL;
-	primFromCons(&WL, solver, UL, xL);
+	<?=primFromCons?>(&WL, solver, UL, xL);
 	<?=prim_t?> WR;
-	primFromCons(&WR, solver, UR, xR);
+	<?=primFromCons?>(&WR, solver, UR, xR);
 	
 	<?=prim_t?> dWL, dWR, dWC, dWG;
 	for (int j = 0; j < numIntStates; ++j) {
@@ -670,13 +670,13 @@ void calcCellLR_<?=side?>(
 
 	//TODO shouldn't this be the dA/dW eigen transformation?
 	<?=waves_t?> dal;
-	eigen_leftTransform(&dal, solver, &eig, (<?=cons_t?>*)&dWL, xIntL, normal_forSide<?=side?>(xIntL));
+	<?=eigen_leftTransform?>(&dal, solver, &eig, (<?=cons_t?>*)&dWL, xIntL, normal_forSide<?=side?>(xIntL));
 	<?=waves_t?> dar;
-	eigen_leftTransform(&dar, solver, &eig, (<?=cons_t?>*)&dWR, xIntR, normal_forSide<?=side?>(xIntR));
+	<?=eigen_leftTransform?>(&dar, solver, &eig, (<?=cons_t?>*)&dWR, xIntR, normal_forSide<?=side?>(xIntR));
 	<?=waves_t?> dac;
-	eigen_leftTransform(&dac, solver, &eig, (<?=cons_t?>*)&dWC, x, n);
+	<?=eigen_leftTransform?>(&dac, solver, &eig, (<?=cons_t?>*)&dWC, x, n);
 	<?=waves_t?> dag;
-	eigen_leftTransform(&dag, solver, &eig, (<?=cons_t?>*)&dWG, x, n);
+	<?=eigen_leftTransform?>(&dag, solver, &eig, (<?=cons_t?>*)&dWG, x, n);
 
 	<?=waves_t?> da;
 	for (int j = 0; j < numWaves; ++j) {
@@ -689,7 +689,7 @@ void calcCellLR_<?=side?>(
 	}
 
 	<?=cons_t?> dWm_tmp;
-	eigen_rightTransform(&dWm_tmp, solver, &eig, &da, x, n);
+	<?=eigen_rightTransform?>(&dWm_tmp, solver, &eig, &da, x, n);
 	<?=prim_t?> dWm = *(<?=prim_t?>*)&dWm_tmp;
 
 	<?=prim_t?> Wlv, Wrv;
@@ -711,14 +711,14 @@ void calcCellLR_<?=side?>(
 		Wrv.ptr[j] = W.ptr[j];
 	}
 
-	consFromPrim(&result->L, solver, &Wrv, xIntL);
-	consFromPrim(&result->R, solver, &Wlv, xIntR);
+	<?=consFromPrim?>(&result->L, solver, &Wrv, xIntL);
+	<?=consFromPrim?>(&result->R, solver, &Wlv, xIntR);
 }
 
 <? 
 	elseif solver.usePLM == 'ppm-wip' then 
 ?>
-//// MODULE_DEPENDS: eigen_forCell eigen_left/rightTransform consFromPrim primFromCons min3 sqr apply_dU_dW apply_dW_dU
+//// MODULE_DEPENDS: <?=eigen_forCell?> <?=eigen_leftTransform?> <?=eigen_rightTransform?> <?=consFromPrim?> <?=primFromCons?> min3 sqr <?=apply_dU_dW?> <?=apply_dW_dU?>
 
 // based on http://zingale.github.io/hydro1d/  ppm code
 
@@ -740,19 +740,19 @@ void calcCellLR_<?=side?>(
 	real const minP = 1e-10;
 	
 	<?=prim_t?> W_im3;
-	primFromCons(&W_im3, solver, U - 3 * solver->stepsize.s<?=side?>, x);
+	<?=primFromCons?>(&W_im3, solver, U - 3 * solver->stepsize.s<?=side?>, x);
 	<?=prim_t?> W_im2;
-	primFromCons(&W_im2, solver, U - 2 * solver->stepsize.s<?=side?>, x);
+	<?=primFromCons?>(&W_im2, solver, U - 2 * solver->stepsize.s<?=side?>, x);
 	<?=prim_t?> W_im1;
-	primFromCons(&W_im1, solver, U - 1 * solver->stepsize.s<?=side?>, x);
+	<?=primFromCons?>(&W_im1, solver, U - 1 * solver->stepsize.s<?=side?>, x);
 	<?=prim_t?> W_i;
-	primFromCons(&W_i, solver, U, x);
+	<?=primFromCons?>(&W_i, solver, U, x);
 	<?=prim_t?> W_ip1;
-	primFromCons(&W_ip1, solver, U + 1 * solver->stepsize.s<?=side?>, x);
+	<?=primFromCons?>(&W_ip1, solver, U + 1 * solver->stepsize.s<?=side?>, x);
 	<?=prim_t?> W_ip2;
-	primFromCons(&W_ip2, solver, U + 2 * solver->stepsize.s<?=side?>, x);
+	<?=primFromCons?>(&W_ip2, solver, U + 2 * solver->stepsize.s<?=side?>, x);
 	<?=prim_t?> W_ip3;
-	primFromCons(&W_ip3, solver, U + 3 * solver->stepsize.s<?=side?>, x);
+	<?=primFromCons?>(&W_ip3, solver, U + 3 * solver->stepsize.s<?=side?>, x);
 
 	// this is based on pressure ... how to generalize for all PDEs?
 	real const dP_i = fabs(W_ip1.P - W_im1.P);
@@ -894,15 +894,15 @@ void calcCellLR_<?=side?>(
 	}
 
 	<?=eigen_t?> eig;
-	eigen_forCell(&eig, solver, U, x, n);
+	<?=eigen_forCell?>(&eig, solver, U, x, n);
 
 	<?=waves_t?> lambda;
 	real lambdaMin = INFINITY;
 	real lambdaMax = -INFINITY;
 	{
-		<?=eqn:eigenWaveCodePrefix("n", "eig", "x")?>
+		<?=eqn:eigenWaveCodePrefix("n", "&eig", "x")?>
 		<? for j=0,eqn.numWaves-1 do ?>{
-			real lambda_j = <?=eqn:eigenWaveCode("n", "*U", "x", j)?>;
+			real lambda_j = <?=eqn:eigenWaveCode("n", "U", "x", j)?>;
 			lambdaMin = min(lambdaMin, lambda_j);
 			lambdaMax = min(lambdaMax, lambda_j);
 			lambda.ptr[<?=j?>] = lambda_j;
@@ -951,29 +951,29 @@ void calcCellLR_<?=side?>(
 
 	//TODO ... convert prim to cons, then cons eig transform
 	<?=cons_t?> Uref_xp;
-	apply_dU_dW(&Uref_xp, solver, &W_i, &Wref_xp, x);
+	<?=apply_dU_dW?>(&Uref_xp, solver, &W_i, &Wref_xp, x);
 	<?=waves_t?> beta_xp;
-	eigen_leftTransform(&beta_xp, solver, &eig, &Uref_xp, x, n);
+	<?=eigen_leftTransform?>(&beta_xp, solver, &eig, &Uref_xp, x, n);
 	
 	<?=cons_t?> Uref_xm;
-	apply_dU_dW(&Uref_xm, solver, &W_i, &Wref_xm, x);
+	<?=apply_dU_dW?>(&Uref_xm, solver, &W_i, &Wref_xm, x);
 	<?=waves_t?> beta_xm;
-	eigen_leftTransform(&beta_xm, solver, &eig, &Uref_xm, x, n);
+	<?=eigen_leftTransform?>(&beta_xm, solver, &eig, &Uref_xm, x, n);
 	
 	for (int m = 0; m < numWaves; ++m) {
 		{
 			<?=cons_t?> Uminus;
-			apply_dU_dW(&Uminus, solver, &W_i, Iminus + m, x);
+			<?=apply_dU_dW?>(&Uminus, solver, &W_i, Iminus + m, x);
 			<?=waves_t?> waves;
-			eigen_leftTransform(&waves, solver, &eig, &Uminus, x, n);
+			<?=eigen_leftTransform?>(&waves, solver, &eig, &Uminus, x, n);
 			beta_xm.ptr[m] -= waves.ptr[m];
 		}
 
 		{
 			<?=cons_t?> Uplus;
-			apply_dU_dW(&Uplus, solver, &W_i, Iplus + m, x);
+			<?=apply_dU_dW?>(&Uplus, solver, &W_i, Iplus + m, x);
 			<?=waves_t?> waves;
-			eigen_leftTransform(&waves, solver, &eig, &Uplus, x, n);
+			<?=eigen_leftTransform?>(&waves, solver, &eig, &Uplus, x, n);
 			beta_xp.ptr[m] -= waves.ptr[m];
 		}
 	}
@@ -984,22 +984,22 @@ void calcCellLR_<?=side?>(
 	}
 	
 	<?=cons_t?> U_l_ip1;
-	eigen_rightTransform(&U_l_ip1, solver, &eig, &beta_xp, x, n);
+	<?=eigen_rightTransform?>(&U_l_ip1, solver, &eig, &beta_xp, x, n);
 	<?=cons_t?> U_r_i;
-	eigen_rightTransform(&U_r_i, solver, &eig, &beta_xm, x, n);
+	<?=eigen_rightTransform?>(&U_r_i, solver, &eig, &beta_xm, x, n);
 
 	<?=cons_t?> W_l_ip1;
-	apply_dW_dU(&W_l_ip1, solver, &W_i, &U_l_ip1, x);
+	<?=apply_dW_dU?>(&W_l_ip1, solver, &W_i, &U_l_ip1, x);
 	<?=cons_t?> W_r_i;
-	apply_dW_dU(&W_r_i, solver, &W_i, &U_r_i, x);
+	<?=apply_dW_dU?>(&W_r_i, solver, &W_i, &U_r_i, x);
 
 	for (int j = 0; j < numStates; ++j) {
 		W_l_ip1.ptr[j] = Wref_xp.ptr[j] - W_l_ip1.ptr[j];
 		W_r_i.ptr[j] = Wref_xm.ptr[j] - W_r_i.ptr[j];
 	}
 
-	consFromPrim(&result->L, solver, &W_r_i, x);
-	consFromPrim(&result->R, solver, &W_l_ip1, x);
+	<?=consFromPrim?>(&result->L, solver, &W_r_i, x);
+	<?=consFromPrim?>(&result->R, solver, &W_l_ip1, x);
 }
 
 <?

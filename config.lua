@@ -42,9 +42,9 @@ local args = {
 	--usePLM = 'plm-cons',
 	--usePLM = 'plm-cons-alone',
 	--usePLM = 'plm-prim-alone',
-	--usePLM = 'plm-eig',
-	--usePLM = 'plm-eig-prim',
-	--usePLM = 'plm-eig-prim-ref',
+	--usePLM = 'plm-eig',				--\
+	--usePLM = 'plm-eig-prim',			-- - these have less sharp shock wave in Sod than the non-eig ones
+	--usePLM = 'plm-eig-prim-ref',		--/
 	--usePLM = 'plm-athena',			-- based on Athena.  most accurate from 1D sod tests atm
 	--usePLM = 'ppm-wip',				-- FIXME one more attempt to figure out all the PLM stuff, based on 2017 Zingale
 	--usePLM = 'weno',					-- TODO make WENO one of these 'usePLM' methods. rename it to 'construct LR state method' or something.  then we can use CTU with WENO.
@@ -506,6 +506,7 @@ if cmdline.solver then self.solvers:insert(require('hydro.solver.'..cmdline.solv
 
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='wave'})))
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='wave'})))
+--self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='rusanov', eqn='wave'})))
 --self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='wave', wenoMethod='1996 Jiang Shu', order=5})))
 --self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='wave', wenoMethod='2008 Borges', order=5})))
 --self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='wave', wenoMethod='2010 Shen Zha', order=5})))
@@ -542,7 +543,7 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn
 -- compressible Euler equations
 
 
---self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
+self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
 
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct bounded'})))	-- this is the default hllCalcWaveMethod
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct'})))
@@ -892,7 +893,7 @@ With hyperbolic gamma driver shift it has trouble.
 -- multiple w/ distinct cons_t & prim_t
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='composite', eqnArgs={subeqns={'euler', 'euler'}}})))
 -- multiple w/ matching cons_t & prim_t
-self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='composite', eqnArgs={subeqns={'maxwell', 'maxwell'}}})))
+--self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='composite', eqnArgs={subeqns={'maxwell', 'maxwell'}}})))
 -- multiple w/ separate, distinct & matching cons_t & prim_t
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='composite', eqnArgs={subeqns={'euler', 'maxwell'}}})))
 

@@ -56,7 +56,7 @@
 		real3_real_mul((WA)->v, (U)->h / (WA)->h));\
 }
 
-//// MODULE_NAME: eqn.common
+//// MODULE_NAME: <?=eqn_common?>
 //// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?>
 
 #define calc_C(\

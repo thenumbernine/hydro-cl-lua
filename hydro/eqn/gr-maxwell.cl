@@ -199,7 +199,7 @@ kernel void calcEigenBasis(
 	}<? end ?>
 }
 
-//// MODULE_NAME: eigen_left/rightTransform
+//// MODULE_NAME: eigen_leftTransform eigen_rightTransform
 
 /*
 TODO update this for Einstein-Maxwell (take the metric into consideration

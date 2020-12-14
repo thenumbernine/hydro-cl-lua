@@ -294,7 +294,7 @@ for _,field in ipairs(eqn.eigenVars) do
 	}<? end ?>
 }
 
-//// MODULE_NAME: eigen_left/rightTransform
+//// MODULE_NAME: eigen_leftTransform eigen_rightTransform
 
 void eigen_leftTransform(
 	constant <?=solver_t?>* solver,

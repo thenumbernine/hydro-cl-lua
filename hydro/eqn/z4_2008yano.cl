@@ -224,7 +224,7 @@ kernel void calcDT(
 	(eig)->sqrt_gammaUjj = _real3(sqrt((eig)->gamma_uu.xx), sqrt((eig)->gamma_uu.yy), sqrt((eig)->gamma_uu.zz));\
 }
 
-//// MODULE_NAME: eigen_left/rightTransform
+//// MODULE_NAME: eigen_leftTransform eigen_rightTransform
 //// MODULE_DEPENDS: rotate
 
 #define eigen_leftTransform(\

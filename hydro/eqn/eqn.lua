@@ -845,9 +845,6 @@ function Equation:getDisplayVarCodePrefix()
 ?>]]
 end
 
-function Equation:addDisplayVarInfosForType(args)
-end
-
 function Equation:getDisplayVars()
 	return self.solver:createDisplayVarArgsForStructVars(self.consStruct.vars)
 end

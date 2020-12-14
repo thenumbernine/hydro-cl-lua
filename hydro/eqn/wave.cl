@@ -1,4 +1,4 @@
-//// MODULE_NAME: eqn.common
+//// MODULE_NAME: <?=eqn_common?>
 //// MODULE_DEPENDS: real3x3
 
 /*
@@ -92,8 +92,8 @@ end
 }
 
 //// MODULE_NAME: <?=fluxFromCons?>
-//// MODULE_DEPENDS: <?=solver_t?> normal_t <?=cons_t?> eqn.common
-// eqn.common has metric_alpha
+//// MODULE_DEPENDS: <?=solver_t?> normal_t <?=cons_t?> <?=eqn_common?>
+// eqn_common has metric_alpha
 
 // What's the difference between <?=eigen_fluxTransform?> and <?=fluxFromCons?>?
 // The difference is that the flux matrix of this is based on 'eig', which is derived from U's ... especially UL & UR in the case of the Roe solver

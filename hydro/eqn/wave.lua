@@ -145,8 +145,8 @@ function Wave:initCodeModule_fluxFromCons() end
 function Wave:getModuleDepends_waveCode()
 	return {
 		'units',
-		'eqn.common',	-- metric_alpha
 		'normal_t',
+		self.symbols.eqn_common,	-- metric_alpha
 	}
 end
 

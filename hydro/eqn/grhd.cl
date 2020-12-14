@@ -331,7 +331,7 @@ for _,var in ipairs(eqn.eigenVars) do
 	}<? end ?>
 }
 
-//// MODULE_NAME: eigen_left/rightTransform
+//// MODULE_NAME: eigen_leftTransform eigen_rightTransform
 
 <? 
 local prefix = require 'ext.table'.map(eqn.eigenVars, function(var)

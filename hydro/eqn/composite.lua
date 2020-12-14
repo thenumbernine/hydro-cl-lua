@@ -42,12 +42,6 @@ assert(#self.eqns > 0, "you need at least one entry in args.subeqns")
 	-- so for now:
 	solver.ops = table()
 
---[[
-	self.submodules = self.eqns:mapi(function()
-		return require 'hydro.code.moduleset'()
-	end)
---]]
-
 	--[[
 	initCodeModules of subeqns needs to be called here before super.init
 	 which calls cdefAllVarTypes, and needs the sub-eqns' cons_t's defined
@@ -120,18 +114,10 @@ assert(#self.eqns > 0, "you need at least one entry in args.subeqns")
 		solver.app.modules.set[eqn.symbols.waves_t].headercode = ''
 	end
 
-	-- now set the subeqns' modules to our local stored copies
-	-- so we can store them for later and use them as needed by the composite 
---[[
-	for i,eqn in ipairs(self.eqns) do
-		rawset(eqn.solver, 'modules', self.submodules[i])
-	end
---]]
--- [[
+	-- now set the subeqns' modules to our solver's modules 
 	for i,eqn in ipairs(self.eqns) do
 		rawset(eqn.solver, 'modules', nil)
 	end
---]]
 
 	self.consVars = self.eqns:mapi(function(eqn, i)
 		return {type=assert(eqn.symbols.cons_t), name='eqn'..i}
@@ -203,9 +189,7 @@ function Composite:createInitState()
 end
 
 function Composite:initCodeModules()
-	-- build the submodules' code
-	-- store them locally in composite's submodules[]
-	-- but don't initCodeModule_cons_prim_eigen_waves because we already did that (for app.modules for cdefAll...)
+	-- don't initCodeModule_cons_prim_eigen_waves because we already did that (for app.modules for cdefAll...)
 	for _,eqn in ipairs(self.eqns) do
 		local old = eqn.initCodeModule_cons_prim_eigen_waves
 		eqn.initCodeModule_cons_prim_eigen_waves = function() end
@@ -221,6 +205,11 @@ function Composite:initCodeModule_cons_parallelPropagate() end
 function Composite:initCodeModule_fluxFromCons() end
 function Composite:initCodeModule_consFromPrim_primFromCons() end
 function Composite:initCodeModule_calcDTCell() end
+
+--[[ TODO getDisplayVars
+-- but that means swapping out the 'U' var for a new 'U' var per each sub-eqn
+-- (and each other temporary var defined in 'getDisplayVarCodePrefix' for that matter?
+--]]
 
 function Composite:getModuleDepends_waveCode()
 	return table():append(

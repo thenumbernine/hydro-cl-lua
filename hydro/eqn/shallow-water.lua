@@ -35,14 +35,14 @@ function ShallowWater:initCodeModule_consFromPrim_primFromCons() end
 
 function ShallowWater:getModuleDepends_waveCode()
 	return {
-		'eqn.common',
+		self.symbols.eqn_common,
 		self.symbols.primFromCons,
 	}
 end
 
 function ShallowWater:getModuleDepends_displayCode()
 	return {
-		'eqn.common',
+		self.symbols.eqn_common,
 	}
 end
 

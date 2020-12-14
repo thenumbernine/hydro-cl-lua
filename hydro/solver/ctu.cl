@@ -1,7 +1,7 @@
 //// MODULE_NAME: updateCTU
-//// MODULE_DEPENDS: <?=solver_t?> <?=cell_t?> <?=cons_t?> SETBOUNDS cell_sqrt_det_g
+//// MODULE_DEPENDS: <?=solver_t?> <?=cell_t?> <?=cons_t?> SETBOUNDS cell_sqrt_det_g solver.macros
 <? if solver.usePLM then ?>
-//// MODULE_DEPENDS: consLR_t
+//// MODULE_DEPENDS: <?=consLR_t?>
 <? end ?>
 
 /*
