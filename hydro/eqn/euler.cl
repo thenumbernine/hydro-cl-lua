@@ -144,7 +144,7 @@
 
 
 //// MODULE_NAME: <?=applyInitCondCell?>
-//// MODULE_DEPENDS: cartesianToCoord <?=cell_t?> <?=consFromPrim?> <?=initCond_t?>
+//// MODULE_DEPENDS: cartesianToCoord
 
 /*
 I've highjacked all of this.  It was a normal Euler eqn solver.

@@ -66,7 +66,7 @@
 	sqrt(solver->gravity * (U)->h)
 
 //// MODULE_NAME: <?=applyInitCondCell?>
-//// MODULE_DEPENDS: cartesianToCoord <?=solver_t?> <?=initCond_t?> <?=cons_t?> <?=prim_t?> <?=cell_t?> <?=consFromPrim?>
+//// MODULE_DEPENDS: cartesianToCoord
 
 void <?=applyInitCondCell?>(
 	constant <?=solver_t?> const * const solver,

@@ -521,8 +521,8 @@ function Equation:initCodeModules()
 	solver.modules:addFromMarkup{
 		code = self:template(file[self.solverCodeFile]),
 		onAdd = function(args)
-			-- special case for applyInitCond ...
-			if args.name == self.symbols.applyInitCond then
+			-- special case for applyInitCondCell ...
+			if args.name == self.symbols.applyInitCondCell then
 				args.depends:append(self.initCond:getBaseDepends(solver))
 				args.depends:append(self.initCond.depends)
 				-- only used by hydro/eqn/bssnok-fd.lua:

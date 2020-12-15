@@ -1,5 +1,5 @@
 //// MODULE_NAME: <?=eqn_common?>
-//// MODULE_DEPENDS: coordLenSq cons_only_t,prim_only_t
+//// MODULE_DEPENDS: coordLenSq <?=cons_only_t?> <?=prim_only_t?>
 
 //pressure function for ideal gas
 #define calc_P(\
@@ -108,19 +108,16 @@
 //PLM uses prim_only_t and <?=cons_t?>, esp using the 'numIntStates' reals that they start with
 //...and PLM uses consFromPrim and primFromCons
 
-//// MODULE_NAME: <?=applyInitCond?>
+//// MODULE_NAME: <?=applyInitCondCell?>
 //// MODULE_DEPENDS: <?=eqn_common?>
 
-kernel void <?=applyInitCond?>(
+void <?=applyInitCondCell?>(
 	constant <?=solver_t?> const * const solver,
 	constant <?=initCond_t?> const * const initCond,
-	global <?=cons_t?> * const UBuf,
-	global <?=cell_t?> const * const cellBuf
+	global <?=cons_t?> * const U,
+	global <?=cell_t?> const * const cell
 ) {
-	SETBOUNDS(0,0);
-	real3 const x = cellBuf[index].pos;
-	
-	global <?=cons_t?> * const U = UBuf + index;
+	real3 const x = cell->pos;
 	
 	real3 const mids = real3_real_mul(real3_add(solver->mins, solver->maxs), .5);
 	bool const lhs = x.x < mids.x
@@ -146,7 +143,7 @@ kernel void <?=applyInitCond?>(
 		.v = v,
 		.eInt = calc_eInt_from_P(solver, rho, P),
 	};
-	consFromPrimOnly(UBuf + index, solver, &prim, x);
+	consFromPrimOnly(U, solver, &prim, x);
 }
 
 
@@ -178,52 +175,40 @@ kernel void <?=applyInitCond?>(
 	(result)->ePot = 0;\
 }
 
-//// MODULE_NAME: <?=calcDT?>
+//// MODULE_NAME: <?=calcDTCell?>
 //// MODULE_DEPENDS: SETBOUNDS coordLenSq normal_t <?=eqn_common?>
 
 //everything matches the default except the params passed through to calcCellMinMaxEigenvalues
-kernel void <?=calcDT?>(
-	constant <?=solver_t?> const * const solver,
-	global real * const dtBuf,
-	global <?=cons_t?> const * const UBuf,
-	global <?=cell_t?> const * const cellBuf
-) {
-	SETBOUNDS(0,0);
-	if (OOB(numGhost,numGhost)) {
-		dtBuf[index] = INFINITY;
-		return;
-	}
-	real3 const x = cellBuf[index].pos;
-
-	global <?=cons_t?> const * const U = UBuf + index;
-	real const rho = (U)->rho;
-	real const eInt = (U)->eInt;
-	real const vSq = coordLenSq((U)->v, x);
-	real const P = calc_P(solver, rho, eInt);
-	real const h = calc_h(rho, P, eInt);
-	real const csSq = solver->heatCapacityRatio * P / (rho * h);
-	real const cs = sqrt(csSq);
-	
-	real dt = INFINITY;
-	/* for (int side = 0; side < dim; ++side) { */
-	<? for side=0,solver.dim-1 do ?>{
-		normal_t const n = normal_forSide<?=side?>(x);
-		/* for the particular direction */
-		real const vi = normal_vecDotN1(n, (U)->v);
-		real const viSq = vi * vi;
-		
-		/*  Marti 1998 eqn 19 */
-		/*  also Marti & Muller 2008 eqn 68 */
-		/*  also Font 2008 eqn 106 */
-		real const discr = sqrt((1. - vSq) * (1. - vSq * csSq - viSq * (1. - csSq)));
-		real const lambdaMin = (vi * (1. - csSq) - cs * discr) / (1. - vSq * csSq);
-		real const lambdaMax = (vi * (1. - csSq) + cs * discr) / (1. - vSq * csSq);
-		real absLambdaMax = max(fabs(lambdaMin), fabs(lambdaMax));
-		absLambdaMax = max((real)1e-9, absLambdaMax);
-		dt = (real)min(dt, solver->grid_dx.s<?=side?> / absLambdaMax);
-	}<? end ?>
-	
-	dtBuf[index] = dt; 
+#define <?=calcDTCell?>(\
+	/*global real * const */dt,\
+	/*constant <?=solver_t?> const * const */solver,\
+	/*global <?=cons_t?> const * const */U,\
+	/*global <?=cell_t?> const * const */cell\
+) {\
+	real3 const x = cell->pos;\
+	real const rho = (U)->rho;\
+	real const eInt = (U)->eInt;\
+	real const vSq = coordLenSq((U)->v, x);\
+	real const P = calc_P(solver, rho, eInt);\
+	real const h = calc_h(rho, P, eInt);\
+	real const csSq = solver->heatCapacityRatio * P / (rho * h);\
+	real const cs = sqrt(csSq);\
+	<? for side=0,solver.dim-1 do ?>{\
+		normal_t const n = normal_forSide<?=side?>(x);\
+		/* for the particular direction */\
+		real const vi = normal_vecDotN1(n, (U)->v);\
+		real const viSq = vi * vi;\
+		\
+		/*  Marti 1998 eqn 19 */\
+		/*  also Marti & Muller 2008 eqn 68 */\
+		/*  also Font 2008 eqn 106 */\
+		real const discr = sqrt((1. - vSq) * (1. - vSq * csSq - viSq * (1. - csSq)));\
+		real const lambdaMin = (vi * (1. - csSq) - cs * discr) / (1. - vSq * csSq);\
+		real const lambdaMax = (vi * (1. - csSq) + cs * discr) / (1. - vSq * csSq);\
+		real absLambdaMax = max(fabs(lambdaMin), fabs(lambdaMax));\
+		absLambdaMax = max((real)1e-9, absLambdaMax);\
+		*(dt) = (real)min(*(dt), solver->grid_dx.s<?=side?> / absLambdaMax);\
+	}<? end ?>\
 }
 
 //// MODULE_NAME: <?=eigen_forInterface?>
@@ -238,7 +223,7 @@ kernel void <?=calcDT?>(
 	/*normal_t const */n\
 ) {\
 <? if true then -- arithmetic averaging ?>\
-	prim_only_t avg = {\
+	<?=prim_only_t?> avg = {\
 		.rho = .5 * ((UL)->rho + (UR)->rho),\
 		.v = real3_real_mul(real3_add((UL)->v, (UR)->v), .5),\
 		.eInt = .5 * ((UL)->eInt + (UR)->eInt),\

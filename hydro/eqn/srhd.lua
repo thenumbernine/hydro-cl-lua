@@ -80,10 +80,10 @@ function SRHD:init(args)
 	self.consOnlyStruct:makeType()
 	self.primOnlyStruct:makeType()
 
-	self.cons_only_t = self.consOnlyStruct.typename
-	self.prim_only_t = self.primOnlyStruct.typename
-
 	SRHD.super.init(self, args)
+	
+	self.symbols.cons_only_t = self.consOnlyStruct.typename
+	self.symbols.prim_only_t = self.primOnlyStruct.typename
 
 	if require 'hydro.solver.meshsolver'.is(self.solver) then
 		print("not using ops (selfgrav, nodiv, etc) with mesh solvers yet")
@@ -125,11 +125,11 @@ function SRHD:init(args)
 	end
 end
 
-function SRHD:getEnv()
-	return table(SRHD.super.getEnv(self), {
-		cons_only_t = self.cons_only_t,
-		prim_only_t = self.prim_only_t,
-	})
+function SRHD:getSymbolFields()
+	return SRHD.super.getSymbolFields(self):append{
+		'cons_only_t',
+		'prim_only_t',
+	}
 end
 
 function SRHD:createInitState()
@@ -175,16 +175,22 @@ function SRHD:initCodeModules()
 	local solver = self.solver
 
 	solver.modules:add{
-		name = 'cons_only_t,prim_only_t',
-		structs = {self.primOnlyStruct, self.consOnlyStruct},
+		name = self.symbols.cons_only_t,
+		structs = {self.consOnlyStruct},
 		-- only generated for cl, not for ffi cdef
-		headercode = 'typedef '..self.cons_only_t..' cons_only_t;'..'\n'..
-					'typedef '..self.prim_only_t..' prim_only_t;',
+		headercode = 'typedef '..self.symbols.cons_only_t..' cons_only_t;',
+	}
+
+	solver.modules:add{
+		name = self.symbols.prim_only_t,
+		structs = {self.primOnlyStruct},
+		-- only generated for cl, not for ffi cdef
+		headercode = 'typedef '..self.symbols.prim_only_t..' prim_only_t;',
 	}
 end
 
 -- don't use default
-function SRHD:initCodeModule_calcDT() end
+function SRHD:initCodeModule_calcDTCell() end
 function SRHD:initCodeModule_fluxFromCons() end
 
 SRHD.solverCodeFile = 'hydro/eqn/srhd.cl'
@@ -212,7 +218,7 @@ function SRHD:getDisplayVars()
 	//prim have just been reconstructed from cons
 	//so reconstruct cons from prims again and calculate the difference
 	{
-		<?=eqn.cons_only_t?> U2;
+		<?=cons_only_t?> U2;
 		consOnlyFromPrim(&U2, solver, U, x);
 		value.vreal = 0;
 		for (int j = 0; j < numIntStates; ++j) {
