@@ -1,51 +1,46 @@
-//// MODULE_NAME: <?=calcDT?>
+//// MODULE_NAME: <?=applyInitCondCell?>
+//// MODULE_DEPENDS: <?=solver_t?> <?=initCond_t?> <?=cons_t?> <?=cell_t?>
 
-//// MODULE_NAME: <?=applyInitCond?>
-//// MODULE_DEPENDS: <?=solver_t?> <?=initCond_t?> <?=cons_t?> <?=cell_t?> SETBOUNDS
-
-kernel void <?=applyInitCond?>(
-	constant <?=solver_t?>* solver,
-	constant <?=initCond_t?>* initCond,
-	global <?=cons_t?>* UBuf,
-	const global <?=cell_t?>* cellBuf
+void <?=applyInitCondCell?>(
+	constant <?=solver_t?> const * const solver,
+	constant <?=initCond_t?> const * const initCond,
+	global <?=cons_t?> * const U,
+	global <?=cell_t?> const * const cell
 ) {
-	SETBOUNDS(0,0);
-	real3 x = cellBuf[index].pos;
-	real r = fabs(x.x);
+	real3 const x = cell->pos;
+	real const r = fabs(x.x);
 	cplx q = cplx_zero;
-	<?=initCode()?>
-	UBuf[index] = (<?=cons_t?>){
-		.psi = q,
-		.zeta = cplx_zero,
-	};
+<?=initCode()
+?>	U->psi = q;
+	U->zeta = cplx_zero;
 }
 
 //// MODULE_NAME: <?=addSource?>
 //// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> <?=cell_t?> SETBOUNDS_NOGHOST cell_x
 
 kernel void <?=addSource?>(
-	constant <?=solver_t?>* solver,
-	global <?=cons_t?>* derivBuf,
-	const global <?=cons_t?>* UBuf,
-	const global <?=cell_t?>* cellBuf
+	constant <?=solver_t?> const * const solver,
+	global <?=cons_t?> * const derivBuf,
+	global <?=cons_t?> const * const UBuf,
+	global <?=cell_t?> const * const cellBuf
 ) {
 	SETBOUNDS_NOGHOST();
-	real3 x = cell_x(i);
+	real3 const x = cell_x(i);
 	
 	//only 1D for now ...
-	real r = fabs(x.x);
-	real r2 = r * r;
-	real r4 = r2 * r2;
+	real const r = fabs(x.x);
+	real const r2 = r * r;
+	real const r4 = r2 * r2;
 	
-	const real h = solver->grid_dx.x;
-	const real ih2 = 1. / (h * h);
+	real const h = solver->grid_dx.x;
+	real const ih2 = 1. / (h * h);
 
-	const real C = solver->C;
-	const real m = solver->m;
-	const real Vm = (m*m - .5) / r2;
+	real const C = solver->C;
+	real const m = solver->m;
+	real const Vm = (m*m - .5) / r2;
 
-	global <?=cons_t?>* deriv = derivBuf + index;
-	const global <?=cons_t?>* U = UBuf + index;
+	global <?=cons_t?> * const deriv = derivBuf + index;
+	global <?=cons_t?> const * const U = UBuf + index;
 	
 	deriv->psi = cplx_add(deriv->psi, U->zeta);
 	deriv->zeta = cplx_add4(

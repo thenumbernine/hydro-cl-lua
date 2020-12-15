@@ -212,7 +212,7 @@ function Z4_2004Bona:createInitState()
 end
 
 -- don't use default
-function Z4_2004Bona:initCodeModule_calcDT() end
+function Z4_2004Bona:initCodeModule_calcDTCell() end
 function Z4_2004Bona:initCodeModule_fluxFromCons() end
 
 Z4_2004Bona.solverCodeFile = 'hydro/eqn/z4.cl'

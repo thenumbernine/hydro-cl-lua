@@ -76,9 +76,9 @@ local initConds = table{
 		},
 		getInitCondCode = function(self, solver)
 			return [[
-	real rmin = solver->mins.x;
-	real drmin = r - rmin;
-	real dr0_over_sigma = (r - initCond->r0) / initCond->sigma;
+	real const rmin = solver->mins.x;
+	real const drmin = r - rmin;
+	real const dr0_over_sigma = (r - initCond->r0) / initCond->sigma;
 	q = cplx_from_real(drmin * drmin * exp(-.5 * dr0_over_sigma * dr0_over_sigma));
 ]]
 		end,

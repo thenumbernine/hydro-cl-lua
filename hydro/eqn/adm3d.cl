@@ -309,7 +309,7 @@ real <?=calcDTCell?>(
 	global <?=cons_t?> const * const U,
 	global <?=cell_t?> const * const cell
 ) {
-	//the only advantage of this calcDT over the default is that here this sqrt(f) and det(gamma_ij) is only called once
+	//the only advantage of this calcDTCell over the default is that here this sqrt(f) and det(gamma_ij) is only called once
 	real const f_alphaSq = calc_f_alphaSq(U->alpha);
 	real const det_gamma = sym3_det(U->gamma_ll);
 	real const alpha_sqrt_f = sqrt(f_alphaSq);

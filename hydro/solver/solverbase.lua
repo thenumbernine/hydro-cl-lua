@@ -1253,7 +1253,9 @@ function SolverBase:refreshSolverProgram()
 	local eqn = self.eqn
 
 	-- enable here after all modules are provided
-	self.solverModulesEnabled[eqn.symbols.calcDT] = true
+	if self:hasModule(eqn.symbols.calcDT) then
+		self.solverModulesEnabled[eqn.symbols.calcDT] = true
+	end
 	if self:hasModule(eqn.symbols.addSource) then
 		self.solverModulesEnabled[eqn.symbols.addSource] = true
 	end
@@ -1369,11 +1371,14 @@ typedef union {
 	write_imagef(tex, <?= solver.dim == 3 and 'i' or 'i.xy'?>, texel);
 
 #define END_DISPLAYFUNC_BUFFER()\
-	if (vectorField) {\
+<? if solver:isModuleUsed'real3' then --\
+?>	if (vectorField) {\
 		dest[0+3*dstindex] = <?=accumFunc?>(value.ptr[0], dest[0+3*dstindex]);\
 		dest[1+3*dstindex] = <?=accumFunc?>(value.ptr[1], dest[1+3*dstindex]);\
 		dest[2+3*dstindex] = <?=accumFunc?>(value.ptr[2], dest[2+3*dstindex]);\
-	} else {\
+	} else\
+<? end --\
+?>	{\
 		dest[dstindex] = <?=accumFunc?>(value.ptr[0], dest[dstindex]);\
 	}
 
@@ -1386,9 +1391,12 @@ typedef union {
 	write_imagef(tex, <?= solver.dim == 3 and 'i' or 'i.xy'?>, (float4)(value.ptr[0], value.ptr[1], value.ptr[2], 0.));
 
 #define END_DISPLAYFUNC_BUFFER()\
-	if (vectorField) {\
+<? if solver:isModuleUsed'real3' then --\
+?>	if (vectorField) {\
 		((global real3*)dest)[dstindex] = value.vreal3;\
-	} else {\
+	} else\
+<? end --\	
+?>	{\
 		dest[dstindex] = value.vreal;\
 	}
 
@@ -1405,16 +1413,16 @@ typedef union {
 		alreadyAddedComponentForGroup[name] = true
 		lines:insert((template([[
 static inline void <?=name?>(
-	constant <?=solver.solver_t?>* solver,
-	global const <?=group.bufferType?>* buf,
-	int component,
-	int* vectorField,
-	displayValue_t* value,
-	int4 i,
-	int index,
-	const global <?=solver.coord.cell_t?>* cellBuf
+	constant <?=solver.solver_t?> const * const solver,
+	global <?=group.bufferType?> const * const buf,
+	int const component,
+	int * const vectorField,
+	displayValue_t * const value,
+	int4 const i,
+	int const index,
+	global <?=solver.coord.cell_t?> const * const cellBuf
 ) {
-	real3 x = cellBuf[index].pos;
+	real3 const x = cellBuf[index].pos;
 	switch (component) {
 <? 
 for i,component in ipairs(solver.displayComponentFlatList) do
@@ -1494,14 +1502,15 @@ end
 			lines:insert(template([[
 //<?=group.name?>
 kernel void <?=kernelName?>(
-	constant <?=solver.solver_t?>* solver,
+	constant <?=solver.solver_t?> const * const solver,
 	<?=outputArg?>,
-	global const <?=group.bufferType?>* buf,
-	int displayVarIndex,
-	int component,
-	const global <?=solver.coord.cell_t?>* cellBuf<? 
-if require 'hydro.solver.meshsolver'.is(solver) then ?>
-	,const global <?=solver.coord.face_t?>* faces	//[numFaces]<?
+	global <?=group.bufferType?> const * const buf,
+	int const displayVarIndex,
+	int const component,
+	global <?=solver.coord.cell_t?> const * const cellBuf<? 
+if require 'hydro.solver.meshsolver'.is(solver) then
+?>,
+	global <?=solver.coord.face_t?> const * const faces	//[numFaces]<?
 end ?><?=group.extraArgs and #group.extraArgs > 0
 		and ',\n\t'..table.concat(group.extraArgs, ',\n\t')
 		or '' ?>
@@ -1805,7 +1814,8 @@ function DisplayVar:setArgs(kernel)
 	local buffer = assert(self.group.getBuffer(), "failed to find buffer for var "..tostring(self.name))
 	kernel:setArg(0, self.solver.solverBuf)
 	kernel:setArg(2, buffer)
-	kernel:setArg(3, int(self.displayVarIndex))
+-- TODO fix this
+	kernel:setArg(3, int(self.originalVar and self.originalVar.displayVarIndex or self.displayVarIndex))
 	kernel:setArg(4, int(self.component))
 	kernel:setArg(5, self.solver.cellBuf)
 end
@@ -2261,6 +2271,7 @@ function SolverBase:finalizeDisplayVars()
 					originalVarForGroup = dupvar
 				else
 					dupvar.originalVar = originalVarForGroup
+dupvar.displayVarIndex = dupvar.originalVar.displayVarIndex
 				end
 				if component.name ~= 'default' then
 					dupvar.name = dupvar.name..' '..component.name
@@ -2808,7 +2819,8 @@ function SolverBase:calcDisplayVarToBuffer(var, componentIndex)
 	end
 	var:setToBufferArgs()
 	var.group.calcDisplayVarToBufferKernelObj.obj:setArg(1, self.reduceBuf)
-	var.group.calcDisplayVarToBufferKernelObj.obj:setArg(3, int(var.displayVarIndex))
+-- TODO fix this
+	var.group.calcDisplayVarToBufferKernelObj.obj:setArg(3, int(var.originalVar and var.originalVar.displayVarIndex or var.displayVarIndex))
 	var.group.calcDisplayVarToBufferKernelObj.obj:setArg(4, int(componentIndex))
 	var.group.calcDisplayVarToBufferKernelObj.obj:setArg(5, self.cellBuf)
 	var.group.calcDisplayVarToBufferKernelObj()

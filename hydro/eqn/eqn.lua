@@ -513,50 +513,7 @@ function Equation:initCodeModules()
 	-- this contains calcDTCell, which varies per-equation
 	self:initCodeModule_calcDTCell()
 	-- and here is calcDT, which is always the same
-	solver.modules:add{
-		name = self.symbols.calcDT,
-		depends = {self.symbols.calcDTCell},
-		code = self:template[[
-kernel void <?=calcDT?>(
-	constant <?=solver_t?> const * const solver,
-	global real * const dtBuf,
-	global <?=cons_t?> const * const UBuf,
-	global <?=cell_t?> const * const cellBuf<?
-if require "hydro.solver.meshsolver".is(solver) then 
-?>,
-	global <?=face_t?> const * const faces,
-	global int const * const cellFaceIndexes<?
-end
-?>
-) {
-	SETBOUNDS(0,0);
-	
-	//write inf to boundary cells
-	//TODO why not write inf to boundary cells upon init,
-	// and then give this the domain SETBOUNDS_NOGHOST?
-	//that would work except that it is writing to reduceBuf, which is reused for any reduce operation
-	// like display var min/max ranges
-	global real * const dt = dtBuf + index;
-	*dt = INFINITY;
-	
-	if (OOB(numGhost,numGhost)) return;
-	global <?=cons_t?> const * const U = UBuf + index;
-	global <?=cell_t?> const * const cell = cellBuf + index;
-	<?=calcDTCell?>(
-		dt,
-		solver,
-		U,
-		cell<?
-if require "hydro.solver.meshsolver".is(solver) then 
-?>,
-		faces,
-		cellFaceIndexes<?
-end
-?>
-	);
-}
-]],
-	}
+	self:initCodeModule_calcDT()
 
 	self:initCodeModule_fluxFromCons()
 	self:initCodeModule_waveCode()
@@ -747,6 +704,12 @@ end
 -- separate this out so composite solvers can init this and this alone -- without anything else (which would cause module name collisions)
 function Equation:initCodeModule_cons_prim_eigen_waves()
 	local solver = self.solver
+
+	-- while we're here, enable them as well, so solver:isModuleUsed knows they are used.
+	-- TODO move this somewhere else?
+	for _,var in ipairs(self.consStruct.vars) do
+		solver.sharedModulesEnabled[var.type] = true
+	end
 
 	assert(self.consStruct)
 	solver.modules:add{
@@ -998,6 +961,55 @@ end
 -- Override to provide your own.
 function Equation:initCodeModule_calcDTCell()
 	self.solver.modules:addFromMarkup(self:template(file['hydro/eqn/cl/calcDT.cl']))
+end
+
+-- override this if you don't want the original calcDT at all
+-- maybe if you don't know the waves and only want fixedDT use
+function Equation:initCodeModule_calcDT()
+	self.solver.modules:add{
+		name = self.symbols.calcDT,
+		depends = {self.symbols.calcDTCell},
+		code = self:template[[
+kernel void <?=calcDT?>(
+	constant <?=solver_t?> const * const solver,
+	global real * const dtBuf,
+	global <?=cons_t?> const * const UBuf,
+	global <?=cell_t?> const * const cellBuf<?
+if require "hydro.solver.meshsolver".is(solver) then 
+?>,
+	global <?=face_t?> const * const faces,
+	global int const * const cellFaceIndexes<?
+end
+?>
+) {
+	SETBOUNDS(0,0);
+	
+	//write inf to boundary cells
+	//TODO why not write inf to boundary cells upon init,
+	// and then give this the domain SETBOUNDS_NOGHOST?
+	//that would work except that it is writing to reduceBuf, which is reused for any reduce operation
+	// like display var min/max ranges
+	global real * const dt = dtBuf + index;
+	*dt = INFINITY;
+	
+	if (OOB(numGhost,numGhost)) return;
+	global <?=cons_t?> const * const U = UBuf + index;
+	global <?=cell_t?> const * const cell = cellBuf + index;
+	<?=calcDTCell?>(
+		dt,
+		solver,
+		U,
+		cell<?
+if require "hydro.solver.meshsolver".is(solver) then 
+?>,
+		faces,
+		cellFaceIndexes<?
+end
+?>
+	);
+}
+]],
+	}
 end
 
 --[[

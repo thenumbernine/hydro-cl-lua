@@ -5,7 +5,7 @@ local table = require 'ext.table'
 local Equation = require 'hydro.eqn.eqn'
 
 local WaveFDEqn = class(Equation)
-WaveFDEqn.name = 'wave-fd'
+WaveFDEqn.name = 'wave_fd'
 
 WaveFDEqn.consVars = table{
 	-- typically phi
@@ -34,6 +34,7 @@ WaveFDEqn.solverCodeFile = 'hydro/eqn/wave-fd.cl'
 
 -- don't use default
 function WaveFDEqn:initCodeModule_calcDT() end
+function WaveFDEqn:initCodeModule_calcDTCell() end
 
 function WaveFDEqn:getModuleDepends_displayCode()
 	return table(WaveFDEqn.super.getModuleDepends_displayCode(self)):append{

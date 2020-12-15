@@ -14,8 +14,8 @@ static inline sym3 calc_gamma_uu(
 	return gamma_uu;
 }
 
-//// MODULE_NAME: <?=applyInitCond?>
-//// MODULE_DEPENDS: numGhost coordMap coord_gHol_ll rescaleFromCoord/rescaleToCoord
+//// MODULE_NAME: <?=applyInitCondCell?>
+//// MODULE_DEPENDS: numGhost coordMap coord_gHol_ll rescaleFromCoord/rescaleToCoord <?=solver_t?> <?=initCond_t?> <?=cons_t?> <?=cell_t?>
 
 <?
 if eqn.initCond.initAnalytical then
@@ -25,18 +25,15 @@ end
 
 <? if eqn.initCond.useBSSNVars then ?>
 
-kernel void <?=applyInitCond?>(
+void <?=applyInitCondCell?>(
 	constant <?=solver_t?> const * const solver,
 	constant <?=initCond_t?> const * const initCond,
-	global <?=cons_t?> * const UBuf,
-	global <?=cell_t?> const * const cellBuf
+	global <?=cons_t?> * const U,
+	global <?=cell_t?> const * const cell
 ) {
-	SETBOUNDS(numGhost,numGhost);
-	real3 const x = cellBuf[index].pos;
+	real3 const x = cell->pos;
 	real3 const xc = coordMap(x);
 	real3 const mids = real3_real_mul(real3_add(solver->mins, solver->maxs), .5);
-	
-	global <?=cons_t?> * const U = UBuf + index;
 
 	real alpha = 1.;
 	real W = 1.;
@@ -131,18 +128,15 @@ end
 
 <? else	-- not eqn.initCond.useBSSNVars ?>
 
-kernel void <?=applyInitCond?>(
+void <?=applyInitCondCell?>(
 	constant <?=solver_t?> const * const solver,
 	constant <?=initCond_t?> const * const initCond,
-	global <?=cons_t?> * const UBuf,
-	const global <?=cell_t?>* cellBuf
+	global <?=cons_t?> * const U,
+	global <?=cell_t?> const * const cell
 ) {
-	SETBOUNDS(0,0);
-	real3 const x = cellBuf[index].pos;
+	real3 const x = cell->pos;
 	real3 const xc = coordMap(x);
 	real3 const mids = real3_real_mul(real3_add(solver->mins, solver->maxs), .5);
-	
-	global <?=cons_t?> * const U = UBuf + index;
 
 	real alpha = 1.;
 	real3 beta_u = real3_zero;
@@ -251,29 +245,20 @@ static inline void setFlatSpace(
 	(U)->M_u = real3_zero;
 }
 
-//// MODULE_NAME: <?=calcDT?>
+//// MODULE_NAME: <?=calcDTCell?>
 //// MODULE_DEPENDS: SETBOUNDS <?=cons_t?> initCond.codeprefix
 
-kernel void <?=calcDT?>(
+void <?=calcDTCell?>(
+	global real * const dt,
 	constant <?=solver_t?> const * const solver,
-	global real * const dtBuf,
-	const global <?=cons_t?>* UBuf,
-	const global <?=cell_t?>* cellBuf
+	global <?=cons_t?> const * const U,
+	global <?=cell_t?> const * const cell
 ) {
-	SETBOUNDS(0,0);
-	if (OOB(numGhost,numGhost)) {
-		dtBuf[index] = INFINITY;
-		return;
-	}
-		
-	global <?=cons_t?> const * const U = UBuf + index;
-	
-	//the only advantage of this <?=calcDT?> over the default is that here this sqrt(f) and det(gamma_ij) is only called once
+	//the only advantage of this calcDT over the default is that here this sqrt(f) and det(gamma_ij) is only called once
 	real const f_alphaSq = calc_f_alphaSq(U->alpha);
 	real const det_gamma = sym3_det(U->gamma_ll);
 	real const alpha_sqrt_f = sqrt(f_alphaSq);
 
-	real dt = INFINITY;
 	<? for side=0,solver.dim-1 do ?>{
 		
 		<? if side == 0 then ?>
@@ -298,9 +283,8 @@ kernel void <?=calcDT?>(
 		real const lambdaMax = (real)max((real)0., -betaUi + lambda);
 		real absLambdaMax = max(fabs(lambdaMin), fabs(lambdaMax));
 		absLambdaMax = max((real)1e-9, absLambdaMax);
-		dt = (real)min(dt, solver->grid_dx.s<?=side?> / absLambdaMax);
+		*(dt) = (real)min(*(dt), solver->grid_dx.s<?=side?> / absLambdaMax);
 	}<? end ?>
-	dtBuf[index] = dt; 
 }
 
 //// MODULE_NAME: <?=fluxFromCons?>
