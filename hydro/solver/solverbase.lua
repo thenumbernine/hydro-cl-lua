@@ -309,9 +309,10 @@ SolverBase.checkNaNs = cmdline.checknans or false
 
 SolverBase.showFPS = cmdline.showfps or false
 
+-- TODO this is made to be compile-time, but i don't support that right now (i think?)
 -- enable for us to let the user accum/not.  requires an extra buffer allocation
 SolverBase.allowAccum = true
-SolverBase.displayVarAccumFunc = false
+SolverBase.displayVarAccumFunc = cmdline.accum
 
 local solverUniqueIndex = 1
 
@@ -1384,6 +1385,7 @@ typedef union {
 
 ]],		{
 			solver = self,
+			accumFunc = accumFunc,
 		}))
 	else
 		lines:insert(template([[
@@ -2815,7 +2817,7 @@ function SolverBase:calcDisplayVarToBuffer(var, componentIndex)
 	end
 	
 	if self.displayVarAccumFunc	then
-		self.cmds:enqueueCopyBuffer{src=self.accumBuf, dst=self.reduceBuf, size=ffi.sizeof(app.real) * volume * channels}
+		self.cmds:enqueueCopyBuffer{src=self.accumBuf, dst=self.reduceBuf, size=ffi.sizeof(self.app.real) * volume * channels}
 	end
 	var:setToBufferArgs()
 	var.group.calcDisplayVarToBufferKernelObj.obj:setArg(1, self.reduceBuf)
@@ -2824,7 +2826,7 @@ function SolverBase:calcDisplayVarToBuffer(var, componentIndex)
 	var.group.calcDisplayVarToBufferKernelObj.obj:setArg(5, self.cellBuf)
 	var.group.calcDisplayVarToBufferKernelObj()
 	if self.displayVarAccumFunc then
-		self.cmds:enqueueCopyBuffer{src=self.reduceBuf, dst=self.accumBuf, size=ffi.sizeof(app.real) * volume * channels}
+		self.cmds:enqueueCopyBuffer{src=self.reduceBuf, dst=self.accumBuf, size=ffi.sizeof(self.app.real) * volume * channels}
 	end
 end
 
