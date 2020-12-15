@@ -1551,11 +1551,13 @@ end ?><?=group.extraArgs and #group.extraArgs > 0
 			))
 
 			for _,var in ipairs(group.vars) do
-				if not var.displayVarIndex then
-					var.displayVarIndex = lastDisplayVarIndex
-					lastDisplayVarIndex = lastDisplayVarIndex + 1
-				end
-				if not var.originalVar then
+				if var.originalVar then
+					var.displayVarIndex = var.originalVar.displayVarIndex
+				else
+					if not var.displayVarIndex then
+						var.displayVarIndex = lastDisplayVarIndex
+						lastDisplayVarIndex = lastDisplayVarIndex + 1
+					end
 					lines:insert('		//'..var.name)
 					lines:insert('		case '..var.displayVarIndex..': {')
 
@@ -1814,8 +1816,7 @@ function DisplayVar:setArgs(kernel)
 	local buffer = assert(self.group.getBuffer(), "failed to find buffer for var "..tostring(self.name))
 	kernel:setArg(0, self.solver.solverBuf)
 	kernel:setArg(2, buffer)
--- TODO fix this
-	kernel:setArg(3, int(self.originalVar and self.originalVar.displayVarIndex or self.displayVarIndex))
+	kernel:setArg(3, int(self.displayVarIndex))
 	kernel:setArg(4, int(self.component))
 	kernel:setArg(5, self.solver.cellBuf)
 end
@@ -2271,7 +2272,6 @@ function SolverBase:finalizeDisplayVars()
 					originalVarForGroup = dupvar
 				else
 					dupvar.originalVar = originalVarForGroup
-dupvar.displayVarIndex = dupvar.originalVar.displayVarIndex
 				end
 				if component.name ~= 'default' then
 					dupvar.name = dupvar.name..' '..component.name
@@ -2819,8 +2819,7 @@ function SolverBase:calcDisplayVarToBuffer(var, componentIndex)
 	end
 	var:setToBufferArgs()
 	var.group.calcDisplayVarToBufferKernelObj.obj:setArg(1, self.reduceBuf)
--- TODO fix this
-	var.group.calcDisplayVarToBufferKernelObj.obj:setArg(3, int(var.originalVar and var.originalVar.displayVarIndex or var.displayVarIndex))
+	var.group.calcDisplayVarToBufferKernelObj.obj:setArg(3, int(var.displayVarIndex))
 	var.group.calcDisplayVarToBufferKernelObj.obj:setArg(4, int(componentIndex))
 	var.group.calcDisplayVarToBufferKernelObj.obj:setArg(5, self.cellBuf)
 	var.group.calcDisplayVarToBufferKernelObj()
