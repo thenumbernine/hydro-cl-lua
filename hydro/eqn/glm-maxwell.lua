@@ -76,6 +76,13 @@ function GLM_Maxwell:init(args)
 ]]
 end
 
+function GLM_Maxwell:getSymbolFields()
+	return GLM_Maxwell.super.getSymbolFields(self):append{
+		'sqrt_1_2',
+	}
+end
+
+
 function GLM_Maxwell:createInitState()
 	GLM_Maxwell.super.createInitState(self)
 

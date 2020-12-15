@@ -343,14 +343,14 @@ function Equation:getSymbolFields()
 		'cons_parallelPropagate',
 		'applyInitCondCell',
 		'calcDTCell',
-	
+		
 		-- kernels:
 		'applyInitCond',	-- TODO don't uniquely identify this, only do the Cell version 
 		'calcDT',			-- TODO don't uniquely identify this, only do the Cell version 
 		'initDerivs',
 		'addSource',
 		'constrainU',
-	
+		
 		-- placeholder modules for dependencies
 		'eqn_guiVars_compileTime',	-- module of code for compile-time #defines of gui vars
 		'eqn_waveCode_depends',		-- module of dependencies used by the eigen/cons wave code

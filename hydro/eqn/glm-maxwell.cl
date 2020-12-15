@@ -1,4 +1,4 @@
-//// MODULE_NAME: sqrt_1_2
+//// MODULE_NAME: <?=sqrt_1_2?>
 
 #define sqrt_1_2 <?=("%.50f"):format(math.sqrt(.5))?>
 
@@ -39,17 +39,16 @@ cplx3 eqn_coord_lower(cplx3 v, real3 x) {
 	return <?=vec3?>_<?=susc_t?>_mul((U)->B, <?=susc_t?>_mul((U)->sqrt_1_mu, (U)->sqrt_1_mu));
 }
 
-//// MODULE_NAME: <?=applyInitCond?>
+//// MODULE_NAME: <?=applyInitCondCell?>
 //// MODULE_DEPENDS: <?=eqn_common?>
 
-kernel void <?=applyInitCond?>(
+kernel void <?=applyInitCondCell?>(
 	constant <?=solver_t?> const * const solver,
 	constant <?=initCond_t?> const * const initCond,
-	global <?=cons_t?> * const UBuf,
-	global <?=cell_t?> const * const cellBuf
+	global <?=cons_t?> * const U,
+	global <?=cell_t?> const * const cell
 ) {
-	SETBOUNDS(0,0);
-	real3 const x = cellBuf[index].pos;
+	real3 const x = cell->pos;
 	real3 const mids = real3_real_mul(real3_add(solver->mins, solver->maxs), .5);
 	bool const lhs = x.x < mids.x
 #if dim > 1
@@ -59,7 +58,6 @@ kernel void <?=applyInitCond?>(
 		&& x.z < mids.z
 #endif
 	;
-	global <?=cons_t?> * const U = UBuf + index;
 
 	//used
 	<?=vec3?> D = <?=vec3?>_zero;
@@ -152,7 +150,7 @@ kernel void <?=applyInitCond?>(
 }
 
 //// MODULE_NAME: <?=eigen_leftTransform?>
-//// MODULE_DEPENDS: <?=waves_t?> sqrt_1_2
+//// MODULE_DEPENDS: <?=waves_t?> <?=sqrt_1_2?>
 
 /*
 TODO update this for Einstein-Maxwell (take the metric into consideration
@@ -210,7 +208,7 @@ TODO update this for Einstein-Maxwell (take the metric into consideration
 }
 
 //// MODULE_NAME: <?=eigen_rightTransform?>
-//// MODULE_DEPENDS: <?=waves_t?> sqrt_1_2
+//// MODULE_DEPENDS: <?=waves_t?> <?=sqrt_1_2?>
 
 #define <?=eigen_rightTransform?>(\
 	/*<?=cons_t?> * const */Y,\

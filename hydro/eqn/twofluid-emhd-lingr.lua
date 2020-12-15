@@ -112,6 +112,13 @@ function TwoFluidEMHDDeDonderGaugeLinearizedGR:init(args)
 	TwoFluidEMHDDeDonderGaugeLinearizedGR.super.init(self, args)
 end
 
+function TwoFluidEMHDDeDonderGaugeLinearizedGR:getSymbolFields()
+	return TwoFluidEMHDDeDonderGaugeLinearizedGR.super.getSymbolFields(self):append{
+		'elecChargeMassRatio',
+		'sqrt_2_and_1_2',
+	}
+end
+
 function TwoFluidEMHDDeDonderGaugeLinearizedGR:createInitState()
 	TwoFluidEMHDDeDonderGaugeLinearizedGR.super.createInitState(self)
 
@@ -394,7 +401,7 @@ function TwoFluidEMHDDeDonderGaugeLinearizedGR:consWaveCodePrefix(n, U, x)
 <?=prim_t?> W;
 <?=primFromCons?>(&W, solver, <?=U?>, <?=x?>);
 
-#if 1	//using the EM wavespeed
+<?if true then  -- using the EM wavespeed ?>
 real consWaveCode_lambdaMax = max(
 		max(
 			max(solver->divPsiWavespeed, solver->divPhiWavespeed),
@@ -402,9 +409,9 @@ real consWaveCode_lambdaMax = max(
 		),
 		solver->speedOfLight
 	) / unit_m_per_s;
-#else	//ignoring it
+<? else -- ignoring it ?>
 real consWaveCode_lambdaMax = INFINITY;
-#endif
+<? end ?>
 
 real consWaveCode_lambdaMin = -consWaveCode_lambdaMax;
 

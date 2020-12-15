@@ -1,17 +1,15 @@
-//// MODULE_NAME: <?=applyInitCond?>
+//// MODULE_NAME: <?=applyInitCondCell?>
 //// MODULE_DEPENDS: cartesianToCoord
 
-kernel void <?=applyInitCond?>(
+kernel void <?=applyInitCondCell?>(
 	constant <?=solver_t?> const * const solver,
 	constant <?=initCond_t?> const * const initCond,
-	global <?=cons_t?> * const UBuf,
-	global <?=cell_t?> const * const cellBuf
+	global <?=cons_t?> * const U,
+	global <?=cell_t?> const * const cell
 ) {
-	SETBOUNDS(0,0);
-	real3 const x = cellBuf[index].pos;
-	
+	real3 const x = cell->pos;
 	real3 const mids = real3_real_mul(real3_add(solver->mins, solver->maxs), .5);
-	bool lhs = true<?
+	bool const lhs = true<?
 for i=1,solver.dim do
 	local xi = xNames[i]
 ?> && x.<?=xi?> < mids.<?=xi?><?
@@ -27,23 +25,20 @@ end
 	
 	<?=initCode()?>
 
-	UBuf[index] = (<?=cons_t?>){
 <? if eqn.usePressure then
-?>		.Pi_tt = P,
+?>	U->Pi_tt = P;
 <? else		
-?>		.Pi_tt = rho,
+?>	U->Pi_tt = rho;
 <? end		
-?>		.Pi_ti = real3_zero,
-		.Pi_ij = sym3_zero,
-		
-		.Psi_ttk = cartesianToCoord(v, x),
-		.Psi_tik = real3x3_zero,
-		.Psi_ijk = _3sym3_zero,
-	};
+?>	U->Pi_ti = real3_zero;
+	U->Pi_ij = sym3_zero;
+	U->Psi_ttk = cartesianToCoord(v, x);
+	U->Psi_tik = real3x3_zero;
+	U->Psi_ijk = _3sym3_zero;
 }
 
 //// MODULE_NAME: <?=fluxFromCons?>
-//// MODULE_DEPENDS: <?=solver_t?> normal_t <?=cons_t?>
+//// MODULE_DEPENDS: normal_t <?=solver_t?> <?=cons_t?>
 
 #define <?=fluxFromCons?>(\
 	/*<?=cons_t?> * const */F,\

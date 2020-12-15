@@ -125,6 +125,13 @@ function TwoFluidEMHD:init(args)
 	self.solver.ops:insert(self.gravOp)
 end
 
+function TwoFluidEMHD:getSymbolFields()
+	return TwoFluidEMHD.super.getSymbolFields(self):append{
+		'elecChargeMassRatio',
+		'sqrt_2_and_1_2',
+	}
+end
+
 function TwoFluidEMHD:createInitState()
 	TwoFluidEMHD.super.createInitState(self)
 

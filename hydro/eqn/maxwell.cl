@@ -42,7 +42,7 @@ cplx3 eqn_coord_lower(cplx3 v, real3 x) {
 ) 	(<?=vec3?>_<?=susc_t?>_mul((U)->B, <?=susc_t?>_mul((U)->sqrt_1_mu, (U)->sqrt_1_mu)))
 
 //// MODULE_NAME: <?=applyInitCondCell?>
-//// MODULE_DEPENDS: <?=eqn_common?> <?=solver_t?> <?=initCond_t?> <?=cons_t?> <?=cell_t?> <?=consFromPrim?>
+//// MODULE_DEPENDS: <?=eqn_common?> 
 
 void <?=applyInitCondCell?>(
 	constant <?=solver_t?> const * const solver,

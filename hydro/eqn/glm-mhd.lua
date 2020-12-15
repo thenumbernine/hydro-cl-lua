@@ -109,7 +109,7 @@ function MHD:init(args)
 	
 	self.roeStruct = Struct{solver=solver, name='roe_t', vars=self.roeVars}
 	self.roeStruct:makeType()
-	self.roe_t = self.roeStruct.typename
+	self.symbols.roe_t = self.roeStruct.typename
 
 	local UpdatePsi = require 'hydro.op.glm-mhd-update-psi'
 	solver.ops:insert(UpdatePsi{solver=solver})
@@ -147,6 +147,14 @@ function MHD:init(args)
 	end
 end
 
+function MHD:getSymbolFields()
+	return MHD.super.getSymbolFields(self):append{
+		'roe_t',
+		'calcRoeValues',
+		'eigen_forRoeAvgs',
+	}
+end
+
 --[[
 B^2 = kg^2/(C^2 s^2)
 B^2 / mu = kg^2/(C^2 s^2) * C^2/(kg*m) = kg/(m s^2)
@@ -171,10 +179,10 @@ function MHD:initCodeModules()
 	MHD.super.initCodeModules(self)
 
 	self.solver.modules:add{
-		name = 'roe_t',
+		name = self.symbols.roe_t,
 		structs = {self.roeStruct},
 		-- only generated for cl, not for ffi cdef
-		headercode = 'typedef '..self.roe_t..' roe_t;',
+		headercode = 'typedef '..self.symbols.roe_t..' roe_t;',
 	}
 	
 	-- where do I put this to make it the default value for MHD solvers,

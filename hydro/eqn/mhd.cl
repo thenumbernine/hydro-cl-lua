@@ -91,20 +91,16 @@
 	(result)->ePot = (U)->ePot;\
 }
 
-//// MODULE_NAME: <?=applyInitCond?>
-//// MODULE_DEPENDS: cartesianToCoord <?=consFromPrim?>
+//// MODULE_NAME: <?=applyInitCondCell?>
+//// MODULE_DEPENDS: cartesianToCoord
 
-kernel void <?=applyInitCond?>(
+void <?=applyInitCondCell?>(
 	constant <?=solver_t?> const * const solver,
 	constant initCond_t const * const initCond,
-	global <?=cons_t?> * const UBuf,
-	global <?=cell_t?> const * const cellBuf
+	global <?=cons_t?> * const U,
+	global <?=cell_t?> const * const cell
 ) {
-	SETBOUNDS(0,0);
-	real3 const x = cellBuf[index].pos;
-	
-	global <?=cons_t?> * const U = UBuf + index;
-	
+	real3 const x = cell->pos;
 	real3 const mids = real3_real_mul(real3_add(solver->mins, solver->maxs), .5);
 	bool const lhs = true
 <?
@@ -133,18 +129,18 @@ end
 		.psi = 0,
 		.ePot = ePot,
 	};
-	<?=consFromPrim?>(UBuf + index, solver, &W, x);
+	<?=consFromPrim?>(U, solver, &W, x);
 }
 
-//// MODULE_NAME: calcRoeValues
-//// MODULE_DEPENDS: <?=primFromCons?> roe_t normal_t
+//// MODULE_NAME: <?=calcRoeValues?>
+//// MODULE_DEPENDS: normal_t <?=primFromCons?> <?=roe_t?>
 
 // TODO find out where mu_0 goes in the code below
 
 // accepts states with correct orientation
 // produces a roe_t with vectors aligned to the x axis
-#define calcRoeValues(\
-	/*roe_t * const */result,\
+#define <?=calcRoeValues?>(\
+	/*<?=roe_t?> * const */result,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */UL, \
 	/*<?=cons_t?> const * const */UR,\
@@ -189,14 +185,14 @@ end
 	(result)->Y = .5 * ((UL)->rho + (UR)->rho) / (result)->rho;\
 };
 
-//// MODULE_NAME: eigen_forRoeAvgs
-//// MODULE_DEPENDS: roe_t
+//// MODULE_NAME: <?=eigen_forRoeAvgs?>
+//// MODULE_DEPENDS: <?=roe_t?>
 
 //assumes the vector values are x-axis aligned with the interface normal
-#define eigen_forRoeAvgs(\
+#define <?=eigen_forRoeAvgs?>(\
 	/*<?=eigen_t?> * const */eig,\
 	/*constant <?=solver_t?> const * const */solver,\
-	/*roe_t const * const */roe,\
+	/*<?=roe_t?> const * const */roe,\
 	/*real3 const */pt\
 ) {\
 	real const gamma = solver->heatCapacityRatio;\
@@ -543,7 +539,7 @@ static inline real3 calc_CA(
 }
 
 //// MODULE_NAME: <?=eigen_forInterface?>
-//// MODULE_DEPENDS: roe_t calcRoeValues eigen_forRoeAvgs
+//// MODULE_DEPENDS: <?=roe_t?> <?=calcRoeValues?> <?=eigen_forRoeAvgs?>
 
 #define <?=eigen_forInterface?>(\
 	/*<?=eigen_t?> * const */eig,\
@@ -553,9 +549,9 @@ static inline real3 calc_CA(
 	/*real3 const */x,\
 	/*normal_t const */n\
 ) {\
-	roe_t roe;\
-	calcRoeValues(&roe, solver, UL, UR, x, n);\
-	eigen_forRoeAvgs(eig, solver, &roe, x);\
+	<?=roe_t?> roe;\
+	<?=calcRoeValues?>(&roe, solver, UL, UR, x, n);\
+	<?=eigen_forRoeAvgs?>(eig, solver, &roe, x);\
 }
 
 //// MODULE_NAME: <?=eigen_leftTransform?>
@@ -847,7 +843,7 @@ static inline real3 calc_CA(
 }
 
 //// MODULE_NAME: <?=eigen_forCell?>
-//// MODULE_DEPENDS: roe_t <?=primFromCons?>
+//// MODULE_DEPENDS: <?=roe_t?> <?=primFromCons?>
 
 #define <?=eigen_forCell?>(\
 	/*<?=eigen_t?> * const */eig,\
@@ -860,7 +856,7 @@ static inline real3 calc_CA(
 	<?=primFromCons?>(&W, solver, U, pt);\
 	real PMag = .5 * coordLenSq(W.B, pt);\
 	real hTotal = ((U)->ETotal + W.P + PMag) / W.rho;\
-	roe_t roe = {\
+	<?=roe_t?> roe = {\
 		.rho = W.rho,\
 		.v = W.v,\
 		.hTotal = hTotal,\
@@ -868,7 +864,7 @@ static inline real3 calc_CA(
 		.X = 0,\
 		.Y = 1,\
 	};\
-	eigen_forRoeAvgs(eig, solver, &roe, pt);\
+	<?=eigen_forRoeAvgs?>(eig, solver, &roe, pt);\
 }
 
 //// MODULE_NAME: <?=addSource?>

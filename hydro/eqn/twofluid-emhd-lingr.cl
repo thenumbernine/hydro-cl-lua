@@ -1,4 +1,4 @@
-//// MODULE_NAME: elecChargeMassRatio
+//// MODULE_NAME: <?=elecChargeMassRatio?>
 
 // r_e = q_e / m_e
 // r_e = q_e / (m_i / (m_i / m_e))
@@ -13,7 +13,7 @@
 // notice this hasn't been converted to units yet, so divide by unit_C_per_kg
 #define elecChargeMassRatio			(solver->ionElectronMassRatio * solver->ionChargeMassRatio)
 
-//// MODULE_NAME: sqrt_2_and_1_2
+//// MODULE_NAME: <?=sqrt_2_and_1_2?>
 
 #define sqrt_1_2 <?=("%.50f"):format(math.sqrt(.5))?>
 #define sqrt_2 <?=("%.50f"):format(math.sqrt(2))?>
@@ -233,16 +233,15 @@ real3 calcElecGravForce(constant <?=solver_t?> const * const solver, global <?=c
 		U->elec_rho * U->D_g.z / eps_g + 4. * (U->elec_m.x * U->B_g.y - U->elec_m.y * U->B_g.x));
 }
 
-//// MODULE_NAME: <?=applyInitCond?>
+//// MODULE_NAME: <?=applyInitCondCell?>
 
-kernel void <?=applyInitCond?>(
+kernel void <?=applyInitCondCell?>(
 	constant <?=solver_t?> const * const solver,
 	constant initCond_t const * const initCond,
-	global <?=cons_t?> * const UBuf,
-	global <?=cell_t?> const * const cellBuf
+	global <?=cons_t?> * const U,
+	global <?=cell_t?> const * const cell
 ) {
-	SETBOUNDS(0,0);
-	real3 const x = cellBuf[index].pos;
+	real3 const x = cell->pos;
 	real3 const mids = real3_real_mul(real3_add(solver->mins, solver->maxs), .5);
 	bool const lhs = x.x < mids.x
 #if dim > 1
@@ -314,7 +313,7 @@ end
 	W.B_g = <?=vec3?>_zero;
 	W.psi_g = 0;
 	W.phi_g = 0;
-	<?=consFromPrim?>(UBuf + index, solver, &W, x);
+	<?=consFromPrim?>(U, solver, &W, x);
 }
 
 
@@ -440,7 +439,7 @@ end --\
 }
 
 //// MODULE_NAME: <?=eigen_leftTransform?>
-//// MODULE_DEPENDS: sqrt_2_and_1_2
+//// MODULE_DEPENDS: <?=sqrt_2_and_1_2?>
 
 #define <?=eigen_leftTransform?>(\
 	/*<?=waves_t?> * const */UY,\
@@ -630,7 +629,7 @@ end --\
 }
 
 //// MODULE_NAME: <?=eigen_rightTransform?>
-//// MODULE_DEPENDS: sqrt_2_and_1_2
+//// MODULE_DEPENDS: <?=sqrt_2_and_1_2?>
 
 #define <?=eigen_rightTransform?>(\
 	/*<?=cons_t?> * const */UY,\
@@ -893,7 +892,7 @@ end --\
 }
 
 //// MODULE_NAME: <?=addSource?>
-//// MODULE_DEPENDS: <?=eqn_common?> elecChargeMassRatio
+//// MODULE_DEPENDS: <?=eqn_common?> <?=elecChargeMassRatio?>
 
 kernel void <?=addSource?>(
 	constant <?=solver_t?> const * const solver,
