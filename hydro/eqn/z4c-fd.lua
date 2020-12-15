@@ -90,7 +90,7 @@ function Z4cFiniteDifferenceEquation:createInitState()
 end
 
 -- don't use default
-function Z4cFiniteDifferenceEquation:initCodeModule_calcDT() end
+function Z4cFiniteDifferenceEquation:initCodeModule_calcDTCell() end
 
 Z4cFiniteDifferenceEquation.solverCodeFile = 'hydro/eqn/z4c-fd.cl'
 

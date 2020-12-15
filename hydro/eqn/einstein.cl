@@ -1,3 +1,7 @@
+// TODO all these From/To names should be distinct per function if they will ever be used with composite eqn
+//  specifically if they will ever be used with more than one einstein solver
+//  but then again, if you already have one solver for your spacetime, why would you need two?
+
 //// MODULE_NAME: rescaleFromCoord/rescaleToCoord
 //// MODULE_DEPENDS: coord_dx#	
 // rescaling from/to diagonalization from the grid metric

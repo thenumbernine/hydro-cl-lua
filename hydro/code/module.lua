@@ -31,7 +31,9 @@ local predefinedStructTypes = {
 
 function Module:init(args)
 	self.name = assert(args.name, "expected name")
-	assert(not self.name:find'%s', "got a module name with a space in it")
+	if self.name:find'%s' then
+		error("got a module name with a space in it: "..('%q'):format(self.name))
+	end
 	self.depends = table(args.depends)
 	-- structs & typedefs
 	self.typecode = args.typecode or ''

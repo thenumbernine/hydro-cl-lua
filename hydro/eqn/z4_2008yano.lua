@@ -19,7 +19,7 @@ local sym = common.sym
 
 
 local Z4_2008Yano = class(EinsteinEqn)
-Z4_2008Yano.name = 'Z4 (2008 Yano et al)'
+Z4_2008Yano.name = 'z4_2008yano'
 
 function Z4_2008Yano:init(args)
 	
@@ -58,7 +58,7 @@ function Z4_2008Yano:createInitState()
 end
 
 -- don't use default
-function Z4_2008Yano:initCodeModule_calcDT() end
+function Z4_2008Yano:initCodeModule_calcDTCell() end
 
 Z4_2008Yano.solverCodeFile = 'hydro/eqn/z4_2008yano.cl'
 
@@ -121,8 +121,8 @@ Z4_2008Yano.eigenVars = table{
 
 function Z4_2008Yano:eigenWaveCodePrefix(n, eig, x, waveIndex)
 	return template([[
-	real eig_lambdaLight = <?=eig?>.alpha * <?=eig?>.sqrt_gammaUjj.s[n.side];
-	real eig_lambdaGauge = eig_lambdaLight * <?=eig?>.sqrt_f;
+	real eig_lambdaLight = <?=eig?>->alpha * <?=eig?>->sqrt_gammaUjj.s[n.side];
+	real eig_lambdaGauge = eig_lambdaLight * <?=eig?>->sqrt_f;
 ]], {
 		eig = '('..eig..')',
 		side = side,
@@ -133,7 +133,7 @@ end
 function Z4_2008Yano:eigenWaveCode(n, eig, x, waveIndex)
 	local betaUi
 	if self.useShift then
-		betaUi = '('..eig..').beta_u.s[n.side]'
+		betaUi = '('..eig..')->beta_u.s[n.side]'
 	else
 		betaUi = '0'
 	end
@@ -154,17 +154,17 @@ end
 
 function Z4_2008Yano:consWaveCodePrefix(n, U, x, waveIndex)
 	return template([[
-	real det_gamma = sym3_det(<?=U?>.gamma_ll);
-	sym3 gamma_uu = sym3_inv(<?=U?>.gamma_ll, det_gamma);
+	real det_gamma = sym3_det(<?=U?>->gamma_ll);
+	sym3 gamma_uu = sym3_inv(<?=U?>->gamma_ll, det_gamma);
 	real eig_lambdaLight;
 	if (n.side == 0) {
-		eig_lambdaLight = <?=U?>.alpha * sqrt(gamma_uu.xx);
+		eig_lambdaLight = <?=U?>->alpha * sqrt(gamma_uu.xx);
 	} else if (n.side == 1) {
-		eig_lambdaLight = <?=U?>.alpha * sqrt(gamma_uu.yy);
+		eig_lambdaLight = <?=U?>->alpha * sqrt(gamma_uu.yy);
 	} else if (n.side == 2) {
-		eig_lambdaLight = <?=U?>.alpha * sqrt(gamma_uu.zz);
+		eig_lambdaLight = <?=U?>->alpha * sqrt(gamma_uu.zz);
 	}
-	real f = calc_f(<?=U?>.alpha);
+	real f = calc_f(<?=U?>->alpha);
 	real eig_lambdaGauge = eig_lambdaLight * sqrt(f);
 ]], {
 		U = '('..U..')',

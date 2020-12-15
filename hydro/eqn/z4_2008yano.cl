@@ -1,12 +1,12 @@
-//// MODULE_NAME: calc_gamma_ll
+//// MODULE_NAME: <?=calc_gamma_ll?>
 
-#define calc_gamma_ll(U, x)	((U)->gamma_ll)
+#define <?=calc_gamma_ll?>(U, x)	((U)->gamma_ll)
 
-//// MODULE_NAME: calc_gamma_uu
+//// MODULE_NAME: <?=calc_gamma_uu?>
 //// MODULE_DEPENDS: <?=cons_t?>
 
 
-sym3 calc_gamma_uu(
+sym3 <?=calc_gamma_uu?>(
 	global <?=cons_t?> const * const U,
 	real3 const x
 ) {
@@ -15,9 +15,9 @@ sym3 calc_gamma_uu(
 	return gamma_uu;
 }
 
-//// MODULE_NAME: setFlatSpace
+//// MODULE_NAME: <?=setFlatSpace?>
 
-void setFlatSpace(
+void <?=setFlatSpace?>(
 	constant <?=solver_t?> const * const solver,
 	global <?=cons_t?> * const U,
 	real3 const x
@@ -33,22 +33,20 @@ void setFlatSpace(
 	U->Z_l = real3_zero;
 }
 
-//// MODULE_NAME: applyInitCond
-//// MODULE_DEPENDS: SETBOUNDS coordMap setFlatSpace
+//// MODULE_NAME: <?=applyInitCondCell?>
+//// MODULE_DEPENDS: SETBOUNDS coordMap <?=setFlatSpace?>
 
-kernel void applyInitCond(
+kernel void <?=applyInitCondCell?>(
 	constant <?=solver_t?> const * const solver,
 	constant <?=initCond_t?> const * const initCond,
-	global <?=cons_t?> * const UBuf,
-	global <?=cell_t?> const * const cellBuf
+	global <?=cons_t?> * const U,
+	global <?=cell_t?> const * const cell
 ) {
-	SETBOUNDS(0,0);
-	real3 const x = cellBuf[index].pos;
+	real3 const x = cell->pos;
 	real3 const xc = coordMap(x);
 	real3 const mids = real3_real_mul(real3_add(solver->mins, solver->maxs), .5);
 	
-	global <?=cons_t?> * const U = UBuf + index;
-	setFlatSpace(solver, U, x);
+	<?=setFlatSpace?>(solver, U, x);
 
 	real alpha = 1.;
 	real3 beta_u = real3_zero;
@@ -71,10 +69,10 @@ kernel void applyInitCond(
 	U->Z_l = real3_zero;
 }
 
-//// MODULE_NAME: initDerivs
+//// MODULE_NAME: <?=initDerivs?>
 //// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> <?=cell_t?> SETBOUNDS numGhost
 
-kernel void initDerivs(
+kernel void <?=initDerivs?>(
 	constant <?=solver_t?> const * const solver,
 	global <?=cons_t?> * const UBuf,
 	global <?=cell_t?> const * const cellBuf
@@ -101,57 +99,47 @@ end
 ?>
 }
 
-//// MODULE_NAME: calcDT
+//// MODULE_NAME: <?=calcDTCell?>
 //// MODULE_DEPENDS: SETBOUNDS initCond.codeprefix
 
-kernel void calcDT(
-	constant <?=solver_t?> const * const solver,
-	global real * const dtBuf,
-	global <?=cons_t?> const * const UBuf,
-	global <?=cell_t?> const * const cellBuf
-) {
-	SETBOUNDS(0,0);
-	if (OOB(numGhost,numGhost)) {
-		dtBuf[index] = INFINITY;
-		return;
-	}
-		
-	global <?=cons_t?> const * const U = UBuf + index;
-	real const det_gamma = sym3_det(U->gamma_ll);
-	real const f = calc_f(U->alpha);
-	
-	//the only advantage of this calcDT over the default is that here this sqrt(f) is only called once
-	real const sqrt_f = sqrt(f);
-
-	real dt = INFINITY;
-	<? for side=0,solver.dim-1 do ?>{
-		
-		<? if side==0 then ?>
-		real const gammaUjj = (U->gamma_ll.yy * U->gamma_ll.zz - U->gamma_ll.yz * U->gamma_ll.yz) / det_gamma;
-		<? elseif side==1 then ?>
-		real const gammaUjj = (U->gamma_ll.xx * U->gamma_ll.zz - U->gamma_ll.xz * U->gamma_ll.xz) / det_gamma;
-		<? elseif side==2 then ?>
-		real const gammaUjj = (U->gamma_ll.xx * U->gamma_ll.yy - U->gamma_ll.xy * U->gamma_ll.xy) / det_gamma;
-		<? end ?>	
-		real const lambdaLight = U->alpha * sqrt(gammaUjj);
-		
-		real const lambdaGauge = lambdaLight * sqrt_f;
-		real const lambda = (real)max(lambdaGauge, lambdaLight);
-		
-		real const lambdaMin = (real)min((real)0., -lambda);
-		real const lambdaMax = (real)max((real)0., lambda);
-		real absLambdaMax = max(fabs(lambdaMin), fabs(lambdaMax));
-		absLambdaMax = max((real)1e-9, absLambdaMax);
-		dt = (real)min(dt, solver->grid_dx.s<?=side?> / absLambdaMax);
-	}<? end ?>
-	dtBuf[index] = dt; 
+#define <?=calcDTCell?>(\
+	/*global real * const */dt,\
+	/*constant <?=solver_t?> const * const */solver,\
+	/*global <?=cons_t?> const * const */U,\
+	/*global <?=cell_t?> const * const */cell\
+) {\
+	real const det_gamma = sym3_det(U->gamma_ll);\
+	real const f = calc_f(U->alpha);\
+	\
+	/* the only advantage of this calcDT over the default is that here this sqrt(f) is only called once */\
+	real const sqrt_f = sqrt(f);\
+\
+	<? for side=0,solver.dim-1 do ?>{\
+		<? if side==0 then ?>\
+		real const gammaUjj = (U->gamma_ll.yy * U->gamma_ll.zz - U->gamma_ll.yz * U->gamma_ll.yz) / det_gamma;\
+		<? elseif side==1 then ?>\
+		real const gammaUjj = (U->gamma_ll.xx * U->gamma_ll.zz - U->gamma_ll.xz * U->gamma_ll.xz) / det_gamma;\
+		<? elseif side==2 then ?>\
+		real const gammaUjj = (U->gamma_ll.xx * U->gamma_ll.yy - U->gamma_ll.xy * U->gamma_ll.xy) / det_gamma;\
+		<? end ?>	\
+		real const lambdaLight = U->alpha * sqrt(gammaUjj);\
+		\
+		real const lambdaGauge = lambdaLight * sqrt_f;\
+		real const lambda = (real)max(lambdaGauge, lambdaLight);\
+		\
+		real const lambdaMin = (real)min((real)0., -lambda);\
+		real const lambdaMax = (real)max((real)0., lambda);\
+		real absLambdaMax = max(fabs(lambdaMin), fabs(lambdaMax));\
+		absLambdaMax = max((real)1e-9, absLambdaMax);\
+		*(dt) = (real)min(*(dt), solver->grid_dx.s<?=side?> / absLambdaMax);\
+	}<? end ?>\
 }
 
-//// MODULE_NAME: eigen_forCell
+//// MODULE_NAME: <?=eigen_forCell?>
 //// MODULE_DEPENDS: initCond.codeprefix
 
 //used by PLM
-#define eigen_forCell(\
+#define <?=eigen_forCell?>(\
 	/*<?=eigen_t?> * const */eig,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */U,\
@@ -166,10 +154,10 @@ kernel void calcDT(
 	(eig)->sqrt_gammaUjj = _real3(sqrt((eig)->gamma_uu.xx), sqrt((eig)->gamma_uu.yy), sqrt((eig)->gamma_uu.zz));\
 }
 
-//// MODULE_NAME: calcCellMinMaxEigenvalues
+//// MODULE_NAME: <?=calcCellMinMaxEigenvalues?>
 //// MODULE_DEPENDS: initCond.codeprefix
 
-#define calcCellMinMaxEigenvalues(\
+#define <?=calcCellMinMaxEigenvalues?>(\
 	/*range_t * const */result,\
 	/*global <?=cons_t?> const * const */U,\
 	/*real3 const */pt,\
@@ -197,10 +185,10 @@ kernel void calcDT(
 	(result)->max = lambdaMax;\
 }
 
-//// MODULE_NAME: eigen_forInterface
+//// MODULE_NAME: <?=eigen_forInterface?>
 //// MODULE_DEPENDS: initCond.codeprefix
 
-#define eigen_forInterface(\
+#define <?=eigen_forInterface?>(\
 	/*<?=eigen_t?> * const */eig,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */UL,\
@@ -224,10 +212,10 @@ kernel void calcDT(
 	(eig)->sqrt_gammaUjj = _real3(sqrt((eig)->gamma_uu.xx), sqrt((eig)->gamma_uu.yy), sqrt((eig)->gamma_uu.zz));\
 }
 
-//// MODULE_NAME: eigen_leftTransform eigen_rightTransform
+//// MODULE_NAME: <?=eigen_leftTransform?>
 //// MODULE_DEPENDS: rotate
 
-#define eigen_leftTransform(\
+#define <?=eigen_leftTransform?>(\
 	/*<?=waves_t?> * const */results,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=eigen_t?> const * const */eig,\
@@ -256,15 +244,8 @@ kernel void calcDT(
 \
 	sym3 const gamma_ll = sym3_swap((eig)->gamma_ll, n.side);\
 	sym3 const gamma_uu = sym3_swap((eig)->gamma_uu, n.side);\
-	\
+\
 	_3sym3 const d_ull = sym3_3sym3_mul(gamma_uu, d_lll);\
-	\
-	/* d_llu = d_ij^k = d_ijl * gamma^lk */\
-	real3x3 d_llu[3] = {\
-<? for i,xi in ipairs(xNames) do --\
-?>		sym3_sym3_mul(d_lll.<?=xi?>, gamma_uu),\
-<? end --\
-?>	};\
 \
 	real3x3 const K_ul = sym3_sym3_mul(gamma_uu, K_ll);\
 \
@@ -860,7 +841,10 @@ kernel void calcDT(
 		+ 4. * fSq));\
 }
 
-#define eigen_rightTransform(\
+//// MODULE_NAME: <?=eigen_rightTransform?>
+//// MODULE_DEPENDS: rotate
+
+#define <?=eigen_rightTransform?>(\
 	/*<?=cons_t?> * const */resultU,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=eigen_t?> const * const */eig,\
@@ -1386,12 +1370,12 @@ kernel void calcDT(
 	(resultU)->Z_l = real3_swap((resultU)->Z_l, n.side);							/* 28-30 */\
 }
 
-//// MODULE_NAME: eigen_fluxTransform
+//// MODULE_NAME: <?=eigen_fluxTransform?>
 //// MODULE_DEPENDS: rotate
 
 //notice this paper uses the decomposition alpha A = R Lambda L
 // so this computation is for alpha A
-#define eigen_fluxTransform(\
+#define <?=eigen_fluxTransform?>(\
 	/*<?=cons_t?> * const */results,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=eigen_t?> const * const */eig,\
@@ -1540,10 +1524,10 @@ kernel void calcDT(
 		+ gamma_uu.xz * (input)->ptr[26]);\
 }
 
-//// MODULE_NAME: addSource
+//// MODULE_NAME: <?=addSource?>
 //// MODULE_DEPENDS: SETBOUNDS_NOGHOST initCond.codeprefix
 
-kernel void addSource(
+kernel void <?=addSource?>(
 	constant <?=solver_t?> const * const solver,
 	global <?=cons_t?> * const derivBuf,
 	global <?=cons_t?> const * const UBuf,
@@ -1612,8 +1596,6 @@ kernel void addSource(
 	real3 const d_u = sym3_real3_mul(gamma_uu, d_l);
 	real3 const e_u = sym3_real3_mul(gamma_uu, e_l);
 	real3 const Z_u = sym3_real3_mul(gamma_uu, U->Z_l);
-
-	real3 const V_l = real3_sub(d_l, e_l);
 
 
 	/* d_luu */
@@ -1686,9 +1668,9 @@ end?>
 
 }
 
-//// MODULE_NAME: constrainU
+//// MODULE_NAME: <?=constrainU?>
 
-kernel void constrainU(
+kernel void <?=constrainU?>(
 	constant <?=solver_t?> const * const solver,
 	global <?=cons_t?> * const UBuf,
 	global <?=cell_t?> const * const cellBuf
@@ -1702,6 +1684,51 @@ kernel void constrainU(
 
 	real const rho = 0.;
 
+	real3x3 const K_ul = sym3_sym3_mul(gamma_uu, U->K_ll);			/* K^i_j */
+	real const trK = real3x3_trace(K_ul);								/* K^k_k */
+	sym3 const KSq_ll = sym3_real3x3_to_sym3_mul(U->K_ll, K_ul);		/* KSq_ij = K_ik K^k_j */
+
+	/* d_ull = d^i_jk = gamma^il d_ljk */
+	_3sym3 const d_ull = sym3_3sym3_mul(gamma_uu, U->d_lll);
+
+	/* e_l = d^j_ji */
+	real3 const e_l = (real3){
+<? for i,xi in ipairs(xNames) do
+?>		.<?=xi?> = 0.<?
+	for j,xj in ipairs(xNames) do
+		?> + d_ull.<?=xj?>.<?=sym(j,i)?><?
+	end	?>,
+<? end
+?>	};
+
+	/* d_llu = d_ij^k = d_ijl * gamma^lk */
+	real3x3 d_llu[3] = {
+<? for i,xi in ipairs(xNames) do
+?>		sym3_sym3_mul(U->d_lll.<?=xi?>, gamma_uu),
+<? end
+?>	};
+	
+	/* d_l = d_ij^j */
+	real3 const d_l = (real3){
+<? for i,xi in ipairs(xNames) do
+?>		.<?=xi?> = real3x3_trace(d_llu[<?=i-1?>]),
+<? end
+?>	};
+
+	/* conn^k_ij = d_ij^k + d_ji^k - d^k_ij */
+	_3sym3 const conn_ull = {
+<? for k,xk in ipairs(xNames) do 
+?>		.<?=xk?> = (sym3){
+<?	for ij,xij in ipairs(symNames) do
+		local i,j = from6to3x3(ij)
+		local xi,xj = xNames[i],xNames[j]
+?>			.<?=xij?> = d_llu[<?=i-1?>].<?=xj?>.<?=xk?> - d_llu[<?=j-1?>].<?=xi?>.<?=xk?> - U->d_lll.<?=xk?>.<?=xij?>,
+<? end
+?>		},
+<? end 
+?>	};
+
+	real3 const V_l = real3_sub(d_l, e_l);
 
 	sym3 const R_ll = (sym3){
 <? for ij,xij in ipairs(symNames) do

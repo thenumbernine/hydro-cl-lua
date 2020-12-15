@@ -1,6 +1,6 @@
-//// MODULE_NAME: setFlatSpace
+//// MODULE_NAME: <?=setFlatSpace?>
 
-void setFlatSpace(
+void <?=setFlatSpace?>(
 	constant <?=solver_t?> const * const solver,
 	global <?=cons_t?> * const U,
 	real3 const x
@@ -12,21 +12,18 @@ void setFlatSpace(
 	(U)->KTilde = 0;
 }
 
-//// MODULE_NAME: <?=applyInitCond?>
+//// MODULE_NAME: <?=applyInitCondCell?>
 //// MODULE_DEPENDS: sym3 coordMap
 
-kernel void <?=applyInitCond?>(
+void <?=applyInitCondCell?>(
 	constant <?=solver_t?> const * const solver,
 	constant <?=initCond_t?> const * const initCond,
-	global <?=cons_t?> * const UBuf,
-	global <?=cell_t?> const * const cellBuf
+	global <?=cons_t?> * const U,
+	global <?=cell_t?> const * const cell
 ) {
-	SETBOUNDS(0,0);
-	real3 const x = cellBuf[index].pos;
+	real3 const x = cell->pos;
 	real3 const xc = coordMap(x);
 	real3 const mids = real3_real_mul(real3_add(solver->mins, solver->maxs), .5);
-	
-	global <?=cons_t?> * const U = UBuf + index;
 	
 	real alpha = 1.;
 	real3 beta_u = real3_zero;

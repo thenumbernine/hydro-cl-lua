@@ -202,35 +202,28 @@ function TwoFluidEMHD:getModuleDepends_waveCode()
 end
 
 --[=[
-function TwoFluidEMHD:initCodeModule_calcDT()
+function TwoFluidEMHD:initCodeModule_calcDTCell()
 	self.solver.modules:add{
-		name = 'calcDT',
+		name = self.symbols.calcDTCell,
 		depends = {
 			'units',
-			'primFromCons',
+			self.symbols.primFromCons,
 		},
 		code = self:template[[
 
 //2014 Abgrall, Kumar eqn 2.25
 // dt < sqrt(EInt_a/rho_a) sqrt(2) |lHat_r^a| / |E + v_a cross B|
 //lHat_r^a = lHat_r for a=i, -lHat_r/m for a=e
-kernel void calcDT(
-	constant solver_t* solver,
-	global real* dtBuf,
-	const global cons_t* UBuf,
-	const global <?=solver.coord.cell_t?>* cellBuf
+kernel void <?=calcDTCell?>(
+	global real * const dt,
+	constant <?=solver_t?> const * const solver,
+	global <?=cons_t?> const * const U,
+	global <?=cell_t?> const * const cell
 ) {
-	SETBOUNDS(0,0);
-	if (OOB(numGhost,numGhost)) {
-		dtBuf[index] = INFINITY;
-		return;
-	}
+	real3 const x = cell->pos;
 	
-	real3 x = cellBuf[index].pos;
-	const global cons_t* U = UBuf + index;
-	
-	real eps = solver->sqrt_eps * solver->sqrt_eps / unit_C2_s2_per_kg_m3;
-	real mu = solver->sqrt_mu * solver->sqrt_mu / unit_kg_m_per_C2;
+	real const eps = solver->sqrt_eps * solver->sqrt_eps / unit_C2_s2_per_kg_m3;
+	real const mu = solver->sqrt_mu * solver->sqrt_mu / unit_kg_m_per_C2;
 
 	<?=prim_t?> W;
 	<?=primFromCons?>(&W, solver, U, x);
@@ -246,7 +239,8 @@ kernel void calcDT(
 	real sqrt_EInt_lHat_over_rho_<?=fluid?> = sqrt(2. * EInt_<?=fluid?> * lHat_<?=fluid?> / (W.<?=fluid?>_rho * LorentzForceSq_<?=fluid?>));
 <? end ?>
 
-	dtBuf[index] = min(
+	*(dt) = min3(
+		*(dt),
 		sqrt_EInt_lHat_over_rho_ion,
 		sqrt_EInt_lHat_over_rho_elec);
 }

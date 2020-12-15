@@ -171,7 +171,6 @@ function ADM_BonaMasso_3D:init(args)
 		self.eigenVars:insert{name='beta_u', type='real3'}
 	end
 
-
 	
 	-- build stuff around consVars	
 	ADM_BonaMasso_3D.super.init(self, args)
@@ -237,8 +236,8 @@ end
 
 function ADM_BonaMasso_3D:getModuleDepends_displayCode()
 	return {
-		'calc_gamma_ll',
-		'calc_gamma_uu',
+		self.symbols.calc_gamma_ll,
+		self.symbols.calc_gamma_uu,
 		'initCond.codeprefix',	-- calc_f
 	}
 end

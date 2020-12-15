@@ -18,6 +18,14 @@ EinsteinEquation.initConds = table():append(
 	require 'hydro.init.einstein':getList()
 )
 
+function EinsteinEquation:getSymbolFields() 
+	return EinsteinEquation.super.getSymbolFields(self):append{
+		'setFlatSpace',
+		'calc_gamma_ll',
+		'calc_gamma_uu',
+	}
+end
+
 function EinsteinEquation:createInitState()
 	EinsteinEquation.super.createInitState(self)
 	self:addGuiVars{
@@ -68,8 +76,8 @@ end
 function EinsteinEquation:getModuleDepends_displayCode() 
 	return {
 		-- for the addDisplayComponents 
-		'calc_gamma_ll',
-		'calc_gamma_uu',
+		self.symbols.calc_gamma_ll,
+		self.symbols.calc_gamma_uu,
 	}
 end
 
@@ -81,7 +89,7 @@ function EinsteinEquation:createDisplayComponents()
 		name = 'norm weighted gamma_ij',
 		code = self:template[[
 const global <?=cons_t?>* U = buf + index;
-sym3 gamma_ll = calc_gamma_ll(U, x);
+sym3 gamma_ll = <?=calc_gamma_ll?>(U, x);
 value->vreal = real3_weightedLen(value->vreal3, gamma_ll);
 ]],
 	})
@@ -90,7 +98,7 @@ value->vreal = real3_weightedLen(value->vreal3, gamma_ll);
 		name = 'norm weighted gamma^ij',
 		code = self:template[[
 const global <?=cons_t?>* U = buf + index;
-sym3 gamma_uu = calc_gamma_uu(U, x);
+sym3 gamma_uu = <?=calc_gamma_uu?>(U, x);
 value->vreal = real3_weightedLen(value->vreal3, gamma_uu);
 ]],
 	})
@@ -99,7 +107,7 @@ value->vreal = real3_weightedLen(value->vreal3, gamma_uu);
 		name = 'tr weighted gamma^ij',
 		code = self:template[[
 const global <?=cons_t?>* U = buf + index;
-sym3 gamma_uu = calc_gamma_uu(U, x);
+sym3 gamma_uu = <?=calc_gamma_uu?>(U, x);
 value->vreal = sym3_dot(value->vsym3, gamma_uu);]],
 	})
 end

@@ -44,7 +44,7 @@ function BSSNOKFiniteDifferenceSolver:createDisplayComponents()
 	int index = INDEXV(i);
 	real3 x = cell_x(i);
 	const global <?=cons_t?>* U = buf + index;
-	sym3 gamma_uu = calc_gamma_uu(U, x);
+	sym3 gamma_uu = <?=calc_gamma_uu?>(U, x);
 	value->vreal = real3_weightedLen(value->vreal3, gamma_uu);]],
 	})
 --]=]	
@@ -55,7 +55,7 @@ function BSSNOKFiniteDifferenceSolver:createDisplayComponents()
 	int index = INDEXV(i);
 	real3 x = cell_x(i);
 	const global <?=cons_t?>* U = buf + index;
-	sym3 gamma_UU = sym3_rescaleFromCoord_uu(calc_gamma_uu(U, x), x);
+	sym3 gamma_UU = sym3_rescaleFromCoord_uu(<?=calc_gamma_uu?>(U, x), x);
 	value->vreal = sym3_dot(value->vsym3, gamma_UU);]],
 	})
 	self:addDisplayComponent('sym3', {

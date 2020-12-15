@@ -110,23 +110,21 @@ kernel void applyInitCond(
 	return F;
 }
 
-//// MODULE_NAME: calcDT
+//// MODULE_NAME: calcDTCell
 
 //everything matches the default except the params passed through to calcCellMinMaxEigenvalues
-kernel void calcDT(
-	constant <?=solver_t?>* solver,
-	global real* dtBuf,
-	const global <?=prim_t?>* primBuf
+#error replace this with cons_t using the prim_only_t 
+void calcDTCell(
+	global real * const dt,
+	constant <?=solver_t?> const * const solver,
+	global <?=prim_t?> const * const U,
+	global <?=cell_t?> const * const cell
 ) {
-	SETBOUNDS(0,0);
-	if (OOB(numGhost,numGhost)) {
-		dtBuf[index] = INFINITY;
-		return;
-	}
-	real3 x = cell_x(i);
-	sym3 gammaU = coord_g_uu(x);
+	real3 const x = cell->pos;
+	sym3 const gammaU = coord_g_uu(x);
 
-	<?=prim_t?> prim = primBuf[index];
+	<?=prim_only_t?> primOnly;
+	primOnlyFromCons(&primOnly, solver, U, x);
 	real rho = prim.rho;
 	real eInt = prim.eInt;
 	real vSq = coordLenSq(prim.v, x);

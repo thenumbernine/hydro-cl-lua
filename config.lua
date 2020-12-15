@@ -3,7 +3,7 @@ TODO one config per experiment (initial condition + config)
 and no more setting config values (boundary, etc) in the init cond file
 --]]
 
-local dim = cmdline.dim or 2
+local dim = cmdline.dim or 1
 local args = {
 	app = self, 
 	eqn = cmdline.eqn,
@@ -606,7 +606,7 @@ self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='euler', wenoMe
 -- f.e. and b.e. are working, but none of the r.k. integrators
 -- PLM isn't implemented yet
 -- neither is source term / poisson stuff
---self.solvers:insert(require 'hydro.solver.euler-burgers'(args))
+self.solvers:insert(require 'hydro.solver.euler-burgers'(args))
 
 
 -- special relativistic compressible hydrodynamics
@@ -717,7 +717,7 @@ self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='euler', wenoMe
 
 
 -- here's another one: two-fluid emhd with de Donder gauge linearized general relativity
-self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='twofluid-emhd-lingr'})))
+--self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='twofluid-emhd-lingr'})))
 --self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='twofluid-emhd-lingr', wenoMethod='1996 Jiang Shu', order=5})))
 --self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='twofluid-emhd-lingr', wenoMethod='2010 Shen Zha', order=7})))
 
@@ -1037,11 +1037,11 @@ local args = {
 	},
 	--]]
 
-	initCond = 'Minkowski',
+	--initCond = 'Minkowski',
 	--initCond = 'SENR Minkowski',
 	--initCond = 'gaussian perturbation',
 	--initCond = 'plane gauge wave',
-	--initCond = 'SENR UIUC',
+	initCond = 'SENR UIUC',
 	--initCond = 'SENR BrillLindquist',
 	--initCond = 'black hole - Schwarzschild',
 	--[[

@@ -154,55 +154,48 @@ function BSSNOKFiniteDifferenceEquationBase:initCodeModules()
 	self.solver.modules:addFromMarkup(self:template(file['hydro/eqn/bssnok-fd.cl']))
 end
 
-function BSSNOKFiniteDifferenceEquationBase:initCodeModule_calcDT()
+function BSSNOKFiniteDifferenceEquationBase:initCodeModule_calcDTCell()
 	self.solver.modules:add{
-		name = self.symbols.calcDT,
+		name = self.symbols.calcDTCell,
 		depends = table{
 			self.symbols.eqn_common,
 			'coord_sqrt_g_ll##',
 			'SETBOUNDS',
 		}:append(
 			self.cflMethod == '2008 Alcubierre' and { 
-				'calc_gamma_uu',
+				self.symbols.calc_gamma_uu,
 			} or nil
 		),
 		code = self:template[[
-kernel void <?=calcDT?>(
+void <?=calcDTCell?>(
+	global real* dt,
 	constant <?=solver_t?>* solver,
-	global real* dtBuf,
-	const global <?=cons_t?>* UBuf,
-	const global <?=cell_t?>* cellBuf
+	const global <?=cons_t?>* U,
+	const global <?=cell_t?>* cell
 ) {
-	SETBOUNDS(0,0);
-	if (OOB(numGhost,numGhost)) {
-		dtBuf[index] = INFINITY;
-		return;
-	}
-	real3 const x = cellBuf[index].pos;
-	global <?=cons_t?> const * const U = UBuf + index;
+	real3 const x = cell->pos;
 
 <? if eqn.cflMethod == '2008 Alcubierre' then
-?>	sym3 gamma_uu = calc_gamma_uu(U, x);
+?>	sym3 gamma_uu = <?=calc_gamma_uu?>(U, x);
 <? end 
 ?>
-	real dt = INFINITY;
 	<? for side=0,solver.dim-1 do ?>{
 <? 
 if eqn.cflMethod == '2013 Baumgarte et al, eqn 32' then
 	-- TODO if the grid is static then this only needs to be done once
 	if side == 0 then 
-?>		dt = (real)min(dt, solver->grid_dx.x);
+?>		*(dt) = (real)min(*(dt), solver->grid_dx.x);
 <?	elseif side == 1 then 
-?>		dt = (real)min(dt, .5 * solver->grid_dx.x * solver->grid_dx.y);
+?>		*(dt) = (real)min(*(dt), .5 * solver->grid_dx.x * solver->grid_dx.y);
 <? 	elseif side == 2 then 
-?>		dt = (real)min(dt, .5 * solver->grid_dx.x * sin(.5 * solver->grid_dx.y) * solver->grid_dx.z);
+?>		*(dt) = (real)min(*(dt), .5 * solver->grid_dx.x * sin(.5 * solver->grid_dx.y) * solver->grid_dx.z);
 <? 	end 
 else
 	if eqn.cflMethod == '2008 Alcubierre' then 
 ?>		//this is asserting alpha and W >0, which they should be
 		real absLambdaMax = U->alpha * sqrt(gamma_uu.<?=sym(side+1,side+1)?>);
 		real dx = solver->grid_dx.s<?=side?>;
-		dt = (real)min(dt, dx / absLambdaMax);
+		*(dt) = (real)min(*(dt), dx / absLambdaMax);
 <? 	elseif eqn.cflMethod == '2017 Ruchlin et al, eqn 53' then 
 ?>		// for wavespeeds alpha sqrt(gammaBar^ii)
 		// and if we assume alpha > 1
@@ -212,13 +205,12 @@ else
 		// turns into the SENR code: dt <= sqrt(gammaHat_ii) * dx
 		real sqrt_gammaHat_ii = coord_sqrt_g_ll<?=side..side?>(x);
 		real ds = sqrt_gammaHat_ii  * solver->grid_dx.s<?=side?>;
-		dt = (real)min(dt, ds);
+		*(dt) = (real)min(*(dt), ds);
 <? 	else
 		error("unknown cflMethod "..tostring(eqn.cflMethod))
 	end
 end
 ?>	}<? end ?>
-	dtBuf[index] = dt;
 }
 ]],
 	}
@@ -226,7 +218,7 @@ end
 
 function BSSNOKFiniteDifferenceEquationBase:getModuleDependsApplyInitCond()
 	return {
-		'setFlatSpace',
+		self.symbols.setFlatSpace,
 	}
 end
 

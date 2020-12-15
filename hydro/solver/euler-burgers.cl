@@ -1,74 +1,59 @@
-//// MODULE_NAME: <?=calcDT?>
+//// MODULE_NAME: <?=calcDTCell?>
 //// MODULE_DEPENDS: <?=solver_t?> <?=primFromCons?> <?=eqn_guiVars_compileTime?>
 
 <? if require "hydro.solver.gridsolver".is(solver) then ?>
 
-kernel void <?=calcDT?>(
+kernel void <?=calcDTCell?>(
+	global real * const dt,
 	constant <?=solver_t?> const * const solver,
-	global real * const dtBuf,
-	global <?=cons_t?> const * const UBuf,
-	global <?=cell_t?> const * const cellBuf			//[numCells]
+	global <?=cons_t?> const * const U,
+	global <?=cell_t?> const * const cell
 ) {
-	SETBOUNDS(0,0);
-	if (OOB(numGhost,numGhost)) {
-		dtBuf[index] = INFINITY;
-		return;
-	}
-	real3 const x = cellBuf[index].pos;
-
-	global <?=cons_t?> const * const U = UBuf + index;
+	real3 const x = cell->pos;
 	<?=prim_t?> W;
 	<?=primFromCons?>(&W, solver, U, x);
-	real Cs = calc_Cs(solver, &W);
+	real const Cs = calc_Cs(solver, &W);
 
-	real dt = INFINITY;
 <? for side=0,solver.dim-1 do 
-?>	dt = min(dt, (real)solver->grid_dx.s<?=side?> / (Cs + fabs(W.v.s<?=side?>)));
+?>	*(dt) = min(*(dt), (real)solver->grid_dx.s<?=side?> / (Cs + fabs(W.v.s<?=side?>)));
 <? end
-?>	dtBuf[index] = dt;
+?>
 }
 
 <? else -- mesh solver ?>
 
-kernel void <?=calcDT?>(
+kernel void <?=calcDTCell?>(
+	global real * const dt,
 	constant <?=solver_t?> const * const solver,
-	global real * const dtBuf,					//[numCells]
-	global <?=cons_t?> const * const UBuf,			//[numCells]
-	global <?=cell_t?> const * const cellBuf,		//[numCells]
-	global <?=face_t?> const * const faceBuf,		//[numFaces]
+	global <?=cons_t?> const * const U,
+	global <?=cell_t?> const * const cell,
+	global <?=face_t?> const * const faceBuf,	//[numFaces]
 	global int const * const cellFaceIndexes	//[numCellFaceIndexes]
 ) {
-	int const cellIndex = get_global_id(0);
-	if (cellIndex >= get_global_size(0)) return;
-	
-	global <?=cell_t?> const * const cell = cellBuf + cellIndex;
 	real3 const x = cell->pos;
 	
-	global <?=cons_t?> const * const U = UBuf + cellIndex;
 	<?=prim_t?> W;
 	<?=primFromCons?>(&W, solver, U, x);
-	real Cs = calc_Cs(solver, &W);
+	real const Cs = calc_Cs(solver, &W);
 
-	real dt = INFINITY;
 	for (int i = 0; i < cell->faceCount; ++i) {
 		global <?=face_t?> const * const face = faceBuf + cellFaceIndexes[i + cell->faceOffset];
 		normal_t const n = normal_forFace(face);
 		real const v_n = normal_vecDotN1(n, W.v);
 		real const dx = face->area;
-		dt = (real)min(dt, dx / (Cs + fabs(v_n)));
+		*(dt) = (real)min(*(dt), dx / (Cs + fabs(v_n)));
 	}
-	dtBuf[cellIndex] = dt;
 }
 
 <? end -- mesh solver ?>
 
 //// MODULE_NAME: EulerBurgers.solver
-//// MODULE_DEPENDS: <?=primFromCons?> fluxLimiter <?=eigen_forInterface?> SETBOUNDS
+//// MODULE_DEPENDS: fluxLimiter SETBOUNDS <?=primFromCons?> <?=eigen_forInterface?>
 
 kernel void calcIntVel(
 	constant <?=solver_t?> const * const solver,
 	global real * const intVelBuf,
-	const global <?=solver.getULRArg?>,
+	global const <?=solver.getULRArg?>,
 	global <?=cell_t?> const * const cellBuf
 ) {
 	SETBOUNDS(numGhost,numGhost-1);
@@ -98,7 +83,7 @@ kernel void calcIntVel(
 kernel void calcFlux(
 	constant <?=solver_t?> const * const solver,
 	global <?=cons_t?> * const fluxBuf,
-	const global <?=solver.getULRArg?>,
+	global const <?=solver.getULRArg?>,
 	global real const * const intVelBuf,
 	global <?=cell_t?> const * const cellBuf,
 	realparam const dt
@@ -159,7 +144,7 @@ kernel void computePressure(
 	<?=primFromCons?>(&W, solver, U, x);
 	real P = W.P;
 
-<? if false then -- Von Newmannartificial viscosity
+<? if false then -- Von Newmann artificial viscosity
 ?>	real dvSqSum = 0.;
 	<? for side=0,solver.dim-1 do ?>{
 		int const side = <?=side?>;

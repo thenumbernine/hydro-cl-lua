@@ -36,7 +36,7 @@ local det_gammaHat = coord.request"coord_det_g"
 ?>
 
 //// MODULE_NAME: <?=eqn_common?>
-// only here to appease eqn/bssnok-fd.lua whose calcDT module adds eqn_common, which exists in its other subclasses
+// only here to appease eqn/bssnok-fd.lua whose calcDTCell module adds eqn_common, which exists in its other subclasses
 //// MODULE_NAME: eqn.macros
 
 //do I have these defined somewhere else?

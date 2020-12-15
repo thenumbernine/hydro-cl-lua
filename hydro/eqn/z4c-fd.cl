@@ -1,21 +1,21 @@
 //// MODULE_NAME: <?=eqn_common?>
 
 //gammaBar_ij = gammaHat_ij + epsilon_ij
-sym3 calc_gammaBar_ll(global const <?=cons_t?>* U, real3 x) {
+sym3 calc_gammaBar_ll(global <?=cons_t?> const * const U, real3 const x) {
 	sym3 gammaHat_ll = coord_g_ll(x);
 	return sym3_add(gammaHat_ll, U->epsilon_ll);
 }
 
 //det(gammaBar_ij) = det(gammaHat_ij + epsilon_ij)
 //however det(gammaHat_ij) == det(gammaBar_ij) by the eqn just before (6) in 2017 Ruchlin
-real calc_det_gammaBar_ll(real3 x) {
+real calc_det_gammaBar_ll(real3 const x) {
 	return coord_sqrt_det_g(x);
 }
 
-void setFlatSpace(
-	constant <?=solver_t?>* solver,
-	global <?=cons_t?>* U,
-	real3 x
+void <?=setFlatSpace?>(
+	constant <?=solver_t?> const * const solver,
+	global <?=cons_t?> * const U,
+	real3 const x
 ) {
 	U->alpha = 1.;
 	U->beta_u = real3_zero;
@@ -44,21 +44,21 @@ void setFlatSpace(
 
 //det(gamma_ij) = exp(12 phi) det(gammaBar_ij)
 //				= det(gammaHat_ij) / (exp(-4 phi)^3) 
-real calc_det_gamma_ll(global const <?=cons_t?>* U, real3 x) {
-	real exp_neg4phi = calc_exp_neg4phi(U);
+real calc_det_gamma_ll(global <?=cons_t?> const * const U, real3 const x) {
+	real const exp_neg4phi = calc_exp_neg4phi(U);
 	return calc_det_gammaBar_ll(x) / (exp_neg4phi * exp_neg4phi * exp_neg4phi);
 }
 
-sym3 calc_gamma_uu(global const <?=cons_t?>* U, real3 x) {
-	real exp_neg4phi = calc_exp_neg4phi(U);
-	sym3 gamma_uu = sym3_real_mul(U->gammaBar_uu, exp_neg4phi);
+sym3 <?=calc_gamma_uu?>(global <?=cons_t?> const * const U, real3 const x) {
+	real const exp_neg4phi = calc_exp_neg4phi(U);
+	sym3 const gamma_uu = sym3_real_mul(U->gammaBar_uu, exp_neg4phi);
 	return gamma_uu;
 }
 
-sym3 calc_gamma_ll(global const <?=cons_t?>* U, real3 x) {
-	sym3 gammaBar_ll = calc_gammaBar_ll(U, x);
-	real exp_4phi = 1. / calc_exp_neg4phi(U);
-	sym3 gamma_ll = sym3_real_mul(gammaBar_ll, exp_4phi);
+sym3 <?=calc_gamma_ll?>(global <?=cons_t?> const * const U, real3 const x) {
+	sym3 const gammaBar_ll = calc_gammaBar_ll(U, x);
+	real const exp_4phi = 1. / calc_exp_neg4phi(U);
+	sym3 const gamma_ll = sym3_real_mul(gammaBar_ll, exp_4phi);
 	return gamma_ll;
 }
 
@@ -91,25 +91,22 @@ tr(TF(A_ij + B_ij)) = gamma^ij ( A_ij + B_ij - 1/3 gamma_ij gamma^kl (A_kl + B_k
 	= A + B - A - B
 	= 0
 */
-sym3 tracefree(sym3 A_ll, sym3 gamma_ll, sym3 gamma_uu) {
-	real tr_A = sym3_dot(A_ll, gamma_uu);
+sym3 tracefree(sym3 const A_ll, sym3 const gamma_ll, sym3 const gamma_uu) {
+	real const tr_A = sym3_dot(A_ll, gamma_uu);
 	return sym3_sub(A_ll, sym3_real_mul(gamma_ll, tr_A / 3.));
 }
 
-//// MODULE_NAME: applyInitCond
+//// MODULE_NAME: <?=applyInitCondCell?>
 
-kernel void applyInitCond(
-	constant <?=solver_t?>* solver,
-	constant <?=initCond_t?>* initCond,
-	global <?=cons_t?>* UBuf,
-	const global <?=cell_t?>* cellBuf
+void <?=applyInitCondCell?>(
+	constant <?=solver_t?> const * const solver,
+	constant <?=initCond_t?> const * const initCond,
+	global <?=cons_t?> * const U,
+	global <?=cell_t?> const * const cell
 ) {
-	SETBOUNDS(numGhost,numGhost);
-	real3 x = cellBuf[index].pos;
-	real3 xc = coordMap(x);
-	real3 mids = real3_real_mul(real3_add(solver->mins, solver->maxs), .5);
-	
-	global <?=cons_t?>* U = UBuf + index;
+	real3 const x = cell->pos;
+	real3 const xc = coordMap(x);
+	real3 const mids = real3_real_mul(real3_add(solver->mins, solver->maxs), .5);
 
 	real alpha = 1.;
 	real3 beta_u = real3_zero;
@@ -162,13 +159,13 @@ kernel void applyInitCond(
 	U->M_u = real3_zero;
 }
 
-//// MODULE_NAME: initDerivs
+//// MODULE_NAME: <?=initDerivs?>
 //// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> <?=cell_t?> SETBOUNDS numGhost
 
 //after popularing gammaBar_ll, use its finite-difference derivative to initialize connBar_u
-kernel void initDerivs(
-	constant <?=solver_t?>* solver,
-	global <?=cons_t?>* UBuf
+kernel void <?=initDerivs?>(
+	constant <?=solver_t?> const * const solver,
+	global <?=cons_t?> * const UBuf
 ) {
 	SETBOUNDS(numGhost,numGhost);
 	real3 x = cell_x(i);
@@ -196,9 +193,9 @@ kernel void initDerivs(
 }
 
 
-//// MODULE_NAME: constrainU
+//// MODULE_NAME: <?=constrainU?>
 
-kernel void constrainU(
+kernel void <?=constrainU?>(
 	constant <?=solver_t?>* solver,
 	global <?=cons_t?>* UBuf,
 	const global <?=cell_t?>* cellBuf
@@ -257,13 +254,13 @@ end
 	U->alpha = max(U->alpha, solver->alphaMin);
 }
 
-//// MODULE_NAME: calcDeriv
+//// MODULE_NAME: <?=calcDeriv?>
 
-kernel void calcDeriv(
-	constant <?=solver_t?>* solver,
-	global <?=cons_t?>* derivBuf,
-	const global <?=cons_t?>* UBuf,
-	const global <?=cell_t?>* cellBuf
+kernel void <?=calcDeriv?>(
+	constant <?=solver_t?> const * const solver,
+	global <?=cons_t?> * const derivBuf,
+	global <?=cons_t?> const * const UBuf,
+	global <?=cell_t?> const * const cellBuf
 ) {
 	SETBOUNDS(numGhost,numGhost);
 	real3 x = cellBuf[index].pos;
@@ -799,18 +796,18 @@ end ?>
 
 }
 
-//// MODULE_NAME: addSource
+//// MODULE_NAME: <?=addSource?>
 
-kernel void addSource(
-	constant <?=solver_t?>* solver,
-	global <?=cons_t?>* derivBuf,
-	global <?=cons_t?>* UBuf,
-	const global <?=cell_t?>* cellBuf
+kernel void <?=addSource?>(
+	constant <?=solver_t?> const * const solver,
+	global <?=cons_t?> * const derivBuf,
+	global <?=cons_t?> const * const UBuf,
+	global <?=cell_t?> const * const cellBuf
 ) {
 <? if false then ?>
 	SETBOUNDS_NOGHOST();
 
-	global <?=cons_t?>* U = UBuf + index;
+	global <?=cons_t?> const * const U = UBuf + index;
 
 	//Kreiss-Oligar dissipation
 	//described in 2008 Babiuc et al as Q = (-1)^r h^(2r-1) (D+)^r rho (D-)^r / 2^(2r)
@@ -828,29 +825,20 @@ end
 <? end ?>
 }
 
-//// MODULE_NAME: calcDT
+//// MODULE_NAME: <?=calcDTCell?>
 
-kernel void calcDT(
-	constant <?=solver_t?>* solver,
-	global real* dtBuf,
-	const global <?=cons_t?>* UBuf,
-	const global <?=cell_t?>* cellBuf
+void <?=calcDTCell?>(
+	global real * const dtBuf,
+	constant <?=solver_t?> const * const solver,
+	global <?=cons_t?> const * const U,
+	global <?=cell_t?> const * const cell
 ) {
-	SETBOUNDS(0,0);
-	if (OOB(numGhost,numGhost)) {
-		dtBuf[index] = INFINITY;
-		return;
-	}
-	real3 x = cellBuf[index].pos;
-	const global <?=cons_t?>* U = UBuf + index;
+	real3 const x = cell->pos;
+	sym3 const gamma_uu = <?=calc_gamma_uu?>(U, x);
 
-	sym3 gamma_uu = calc_gamma_uu(U, x);
-
-	real dt = INFINITY;
 	<? for side=0,solver.dim-1 do ?>{
 		real absLambdaMax = U->alpha * sqrt(gamma_uu.<?=sym(side+1,side+1)?>);
 		real dx = solver->grid_dx.s<?=side?>;
-		dt = (real)min(dt, dx / absLambdaMax);
+		*(dt) = (real)min(*(dt), dx / absLambdaMax);
 	}<? end ?>
-	dtBuf[index] = dt;
 }

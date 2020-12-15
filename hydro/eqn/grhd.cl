@@ -49,18 +49,18 @@ real calc_h(real rho, real P, real eInt) {
 	return (<?=eqn.cons_only_t?>){.D=D, .S=S, .tau=tau};
 }
 
-//// MODULE_NAME: applyInitCond
+//// MODULE_NAME: <?=applyInitCondCell?>
 
-kernel void applyInitCond(
-	constant <?=solver_t?>* solver,
-	constant <?=initCond_t?>* initCond,
-	global <?=cons_t?>* UBuf<?=
+void <?=applyInitCondCell?>(
+	constant <?=solver_t?> const * const solver,
+	constant <?=initCond_t?> const * const initCond,
+	global <?=cons_t?> const * const U,
+	global <?=cell_t?> * const cell<?=
 	solver:getADMArgs()?>
 ) {
-	SETBOUNDS(0,0);
-	real3 x = cell_x(i);
-	real3 mids = real3_real_mul(real3_add(solver->mins, solver->maxs), .5);
-	bool lhs = x.x < mids.x
+	real3 const x = cell->pos;
+	real3 const mids = real3_real_mul(real3_add(solver->mins, solver->maxs), .5);
+	bool const lhs = x.x < mids.x
 #if dim > 1
 		&& x.y < mids.y
 #endif
@@ -80,45 +80,38 @@ kernel void applyInitCond(
 	
 	real eInt = calc_eInt_from_P(solver, rho, P);
 
-	<?=prim_t?> prim = {.rho=rho, .v=v, .eInt=eInt};
-	UBuf[index] = (<?=cons_t?>){
-		.prim = prim,
-		.cons = consOnlyFromPrim(solver, prim, alpha, beta, gamma),
-	};
+	<?=prim_only_t?> prim = {.rho=rho, .v=v, .eInt=eInt};
+	U->prim = prim;
+	U->cons = consOnlyFromPrim(solver, prim, alpha, beta, gamma);
 }
 
 
-//// MODULE_NAME: calcDT
+//// MODULE_NAME: <?=calcDTCell?>
 
 //everything matches the default except the params passed through to calcCellMinMaxEigenvalues
-kernel void calcDT(
-	constant <?=solver_t?>* solver,
-	global real* dtBuf,
-	const global <?=cons_t?>* UBuf<?=
+void <?=calcDTCell?>(
+	global real * const dt,
+	constant <?=solver_t?> const * const solver,
+	global <?=cons_t?> const * const U,
+	global <?=cell_t?> const * const cell<?=
 	solver:getADMArgs()?>
 ) {
-	SETBOUNDS(0,0);
-	if (OOB(numGhost,numGhost)) {
-		dtBuf[index] = INFINITY;
-		return;
-	}
-	<?=prim_t?> prim = UBuf[index].prim;
+	<?=prim_only_t?> prim = primOnlyFromPrim(U, solver, x);
 	<?=solver:getADMVarCode()?>
 
-	real det_gamma = sym3_det(gamma);
-	sym3 gammaU = sym3_inv(gamma, det_gamma);
-	real3 vU = sym3_real3_mul(gammaU, prim.v);
+	real const det_gamma = sym3_det(gamma);
+	sym3 const gammaU = sym3_inv(gamma, det_gamma);
+	real3 const vU = sym3_real3_mul(gammaU, prim.v);
 
-	real rho = prim.rho;
-	real eInt = prim.eInt;
+	real const rho = prim.rho;
+	real const eInt = prim.eInt;
 	//2008 Font Eqn 31: v^2 = gamma_ij v^i v^j
-	real vSq = real3_dot(prim.v, vU);
-	real P = calc_P(solver, rho, eInt);
-	real h = calc_h(rho, P, eInt);
-	real csSq = solver->heatCapacityRatio * P / (rho * h);
-	real cs = sqrt(csSq);
+	real const vSq = real3_dot(prim.v, vU);
+	real const P = calc_P(solver, rho, eInt);
+	real const h = calc_h(rho, P, eInt);
+	real const csSq = solver->heatCapacityRatio * P / (rho * h);
+	real const cs = sqrt(csSq);
 	
-	real dt = INFINITY;
 	//for (int side = 0; side < dim; ++side) {
 	<? for side=0,solver.dim-1 do ?>{
 		//for the particular direction
@@ -132,16 +125,14 @@ kernel void calcDT(
 		real lambdaMax = (vUi * (1. - csSq) + cs * discr) * alpha / (1. - vSq * csSq) - betaUi;
 		real absLambdaMax = max(fabs(lambdaMin), fabs(lambdaMax));
 		absLambdaMax = max((real)1e-9, absLambdaMax);
-		dt = (real)min(dt, solver->grid_dx.s<?=side?> / absLambdaMax);
+		*(dt) = (real)min(*(dt), solver->grid_dx.s<?=side?> / absLambdaMax);
 	}<? end ?>
-	
-	dtBuf[index] = dt; 
 }
 
-//// MODULE_NAME: fluxFromCons
+//// MODULE_NAME: <?=fluxFromCons?>
 
 <? if false then ?>
-<?=cons_t?> fluxFromCons(
+<?=cons_t?> <?=fluxFromCons?>(
 	constant <?=solver_t?>* solver,
 	<?=cons_t?> U,
 	normal_t n,<?=
@@ -171,7 +162,7 @@ kernel void calcDT(
 }
 <? end ?>
 
-//// MODULE_NAME: eigen_forCell
+//// MODULE_NAME: <?=eigen_forCell?>
 
 //used by PLM
 //TODO SRHD PLM needs to do this:
@@ -179,17 +170,17 @@ kernel void calcDT(
 //2) have a new kernel for calc consLR from primLR, since calcDeltaUEig and calcFlux both need this
 //or does the eigenbasis need to be derived from the variables being transformed?
 //shoud I PLM the U's then converge the prims ... and therefore track the prims on edges as well?
-<?=eigen_t?> eigen_forCell(
-	const global <?=cons_t?>* U,
-	real3 x
+<?=eigen_t?> <?=eigen_forCell?>(
+	global <?=cons_t?> const * const U,
+	real3 const x
 ) {
 	return (<?=eigen_t?>){};
 }
 
-//// MODULE_NAME: calcEigenBasis
+//// MODULE_NAME: <?=calcEigenBasis?>
 
-#error calcEigenBasis has been removed, and eigen_t structs are now calculated inline ... soooo ... convert this to something compatible
-kernel void calcEigenBasis(
+#error <?=calcEigenBasis?> has been removed, and eigen_t structs are now calculated inline ... soooo ... convert this to something compatible
+kernel void <?=calcEigenBasis?>(
 	constant <?=solver_t?>* solver,
 	global <?=eigen_t?>* eigenBuf,
 	
@@ -234,7 +225,7 @@ kernel void calcEigenBasis(
 		real3 vL = avg.v;
 		real eInt = avg.eInt;
 			
-		//these match eigen_leftTransform
+		//these match <?=eigen_leftTransform?>
 		<? if side == 1 then ?>
 		//v' = P [vx,vy,vz] = [vy,-vx,vz]
 		/*
@@ -293,7 +284,7 @@ kernel void calcEigenBasis(
 		real csSq = solver->heatCapacityRatio * P / (rho * h);
 		real cs = sqrt(csSq);
 
-		//Font 2008 eqn 106 -- matches calcDT
+		//Font 2008 eqn 106 -- matches calcDTCell
 		const real betaUi = beta.s<?=side?>;
 		real discr = sqrt((1. - vSq) * (gammaU.xx * (1. - vSq * csSq) - vUxSq * (1. - csSq)));
 		real lambdaMin = (vU.x * (1. - csSq) - cs * discr) * alpha / (1. - vSq * csSq) - betaUi;
@@ -331,7 +322,6 @@ for _,var in ipairs(eqn.eigenVars) do
 	}<? end ?>
 }
 
-//// MODULE_NAME: eigen_leftTransform eigen_rightTransform
 
 <? 
 local prefix = require 'ext.table'.map(eqn.eigenVars, function(var)
@@ -339,7 +329,9 @@ local prefix = require 'ext.table'.map(eqn.eigenVars, function(var)
 end):concat()
 ?>
 
-<?=waves_t?> eigen_leftTransform(
+//// MODULE_NAME: <?=eigen_leftTransform?>
+
+<?=waves_t?> <?=eigen_leftTransform?>(
 	constant <?=solver_t?>* solver,
 	<?=eigen_t?> eig,
 	<?=cons_t?> X_,
@@ -425,7 +417,9 @@ end):concat()
 	return Y;
 }
 
-<?=cons_t?> eigen_rightTransform(
+//// MODULE_NAME: <?=eigen_rightTransform?>
+
+<?=cons_t?> <?=eigen_rightTransform?>(
 	constant <?=solver_t?>* solver,
 	<?=eigen_t?> eig,
 	<?=waves_t?> X,
@@ -475,9 +469,9 @@ end):concat()
 	return Y;
 }
 
-//// MODULE_NAME: eigen_fluxTransform
+//// MODULE_NAME: <?=eigen_fluxTransform?>
 
-<?=cons_t?> eigen_fluxTransform(
+<?=cons_t?> <?=eigen_fluxTransform?>(
 	constant <?=solver_t?>* solver,
 	<?=eigen_t?> eig,
 	<?=cons_t?> X_,
@@ -512,9 +506,9 @@ end):concat()
 #endif
 }
 
-//// MODULE_NAME: addSource
+//// MODULE_NAME: <?=addSource?>
 
-kernel void addSource(
+kernel void <?=addSource?>(
 	constant <?=solver_t?>* solver,
 	global <?=cons_t?>* derivBuf,
 	const global <?=cons_t?>* UBuf<?=
@@ -526,7 +520,7 @@ kernel void addSource(
 	<?=solver:getADMVarCode()?>
 }
 
-//// MODULE_NAME: constrainU
+//// MODULE_NAME: <?=constrainU?>
 
 /*
 This is from 2008 Alcubierre eqn 7.3.11
@@ -543,7 +537,7 @@ u^0 = W / alpha
 u^i = W (v^i - beta^i / alpha)
 W = sqrt(1 - v^i v^j gamma_ij)
 */
-kernel void constrainU(
+kernel void <?=constrainU?>(
 	constant <?=solver_t?>* solver,
 	global <?=cons_t?>* UBuf<?=
 	solver:getADMArgs()?>

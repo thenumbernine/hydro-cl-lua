@@ -40,7 +40,7 @@ end
 -- TODO put this in its own eqn file? eqn/euler-burgers.lua?
 local EulerEqn = require 'hydro.eqn.euler'
 local EulerBurgersEqn = class(EulerEqn)
-function EulerBurgersEqn:initCodeModule_calcDT() end
+function EulerBurgersEqn:initCodeModule_calcDTCell() end
 
 function EulerBurgers:createEqn()
 	self.eqn = EulerBurgersEqn(table(self.eqnArgs, {solver=self}))

@@ -1,11 +1,11 @@
-//// MODULE_NAME: calc_gamma_ll
+//// MODULE_NAME: <?=calc_gamma_ll?>
 
-#define calc_gamma_ll(U, x)	((U)->gamma_ll)
+#define <?=calc_gamma_ll?>(U, x)	((U)->gamma_ll)
 
-//// MODULE_NAME: calc_gamma_uu
+//// MODULE_NAME: <?=calc_gamma_uu?>
 //// MODULE_DEPENDS: <?=cons_t?>
 
-static inline sym3 calc_gamma_uu(
+static inline sym3 <?=calc_gamma_uu?>(
 	global <?=cons_t?> const * const U,
 	real3 const x
 ) {
@@ -213,10 +213,10 @@ end
 
 <? end	-- eqn.initCond.useBSSNVars ?>
 
-//// MODULE_NAME: setFlatSpace
+//// MODULE_NAME: <?=setFlatSpace?>
 //// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?>
 
-static inline void setFlatSpace(
+static inline void <?=setFlatSpace?>(
 	constant <?=solver_t?> const * const solver,
 	global <?=cons_t?> * const U,
 	real3 const x
@@ -248,43 +248,43 @@ static inline void setFlatSpace(
 //// MODULE_NAME: <?=calcDTCell?>
 //// MODULE_DEPENDS: SETBOUNDS <?=cons_t?> initCond.codeprefix
 
-void <?=calcDTCell?>(
-	global real * const dt,
-	constant <?=solver_t?> const * const solver,
-	global <?=cons_t?> const * const U,
-	global <?=cell_t?> const * const cell
-) {
-	//the only advantage of this calcDT over the default is that here this sqrt(f) and det(gamma_ij) is only called once
-	real const f_alphaSq = calc_f_alphaSq(U->alpha);
-	real const det_gamma = sym3_det(U->gamma_ll);
-	real const alpha_sqrt_f = sqrt(f_alphaSq);
-
-	<? for side=0,solver.dim-1 do ?>{
-		
-		<? if side == 0 then ?>
-		real const gammaUjj = (U->gamma_ll.yy * U->gamma_ll.zz - U->gamma_ll.yz * U->gamma_ll.yz) / det_gamma;
-		<? elseif side == 1 then ?>
-		real const gammaUjj = (U->gamma_ll.xx * U->gamma_ll.zz - U->gamma_ll.xz * U->gamma_ll.xz) / det_gamma;
-		<? elseif side == 2 then ?>
-		real const gammaUjj = (U->gamma_ll.xx * U->gamma_ll.yy - U->gamma_ll.xy * U->gamma_ll.xy) / det_gamma;
-		<? end ?>	
-		real const sqrt_gammaUjj = sqrt(gammaUjj);
-		real const lambdaLight = sqrt_gammaUjj * U->alpha;
-		real const lambdaGauge = sqrt_gammaUjj * alpha_sqrt_f;
-		real const lambda = (real)max(lambdaGauge, lambdaLight);
-
-		<? if eqn.useShift ~= "none" then ?>
-		real const betaUi = U->beta_u.s<?=side?>;
-		<? else ?>
-		real const betaUi = 0.;
-		<? end ?>
-		
-		real const lambdaMin = (real)min((real)0., -betaUi - lambda);
-		real const lambdaMax = (real)max((real)0., -betaUi + lambda);
-		real absLambdaMax = max(fabs(lambdaMin), fabs(lambdaMax));
-		absLambdaMax = max((real)1e-9, absLambdaMax);
-		*(dt) = (real)min(*(dt), solver->grid_dx.s<?=side?> / absLambdaMax);
-	}<? end ?>
+#define <?=calcDTCell?>(\
+	/*global real * const */dt,\
+	/*constant <?=solver_t?> const * const */solver,\
+	/*global <?=cons_t?> const * const */U,\
+	/*global <?=cell_t?> const * const */cell\
+) {\
+	/* the only advantage of this calcDT over the default is that here this sqrt(f) and det(gamma_ij) is only called once */\
+	real const f_alphaSq = calc_f_alphaSq(U->alpha);\
+	real const det_gamma = sym3_det(U->gamma_ll);\
+	real const alpha_sqrt_f = sqrt(f_alphaSq);\
+	\
+	<? for side=0,solver.dim-1 do ?>{\
+		\
+		<? if side == 0 then ?>\
+		real const gammaUjj = (U->gamma_ll.yy * U->gamma_ll.zz - U->gamma_ll.yz * U->gamma_ll.yz) / det_gamma;\
+		<? elseif side == 1 then ?>\
+		real const gammaUjj = (U->gamma_ll.xx * U->gamma_ll.zz - U->gamma_ll.xz * U->gamma_ll.xz) / det_gamma;\
+		<? elseif side == 2 then ?>\
+		real const gammaUjj = (U->gamma_ll.xx * U->gamma_ll.yy - U->gamma_ll.xy * U->gamma_ll.xy) / det_gamma;\
+		<? end ?>	\
+		real const sqrt_gammaUjj = sqrt(gammaUjj);\
+		real const lambdaLight = sqrt_gammaUjj * U->alpha;\
+		real const lambdaGauge = sqrt_gammaUjj * alpha_sqrt_f;\
+		real const lambda = (real)max(lambdaGauge, lambdaLight);\
+		\
+		<? if eqn.useShift ~= "none" then ?>\
+		real const betaUi = U->beta_u.s<?=side?>;\
+		<? else ?>\
+		real const betaUi = 0.;\
+		<? end ?>\
+		\
+		real const lambdaMin = (real)min((real)0., -betaUi - lambda);\
+		real const lambdaMax = (real)max((real)0., -betaUi + lambda);\
+		real absLambdaMax = max(fabs(lambdaMin), fabs(lambdaMax));\
+		absLambdaMax = max((real)1e-9, absLambdaMax);\
+		*(dt) = (real)min(*(dt), solver->grid_dx.s<?=side?> / absLambdaMax);\
+	}<? end ?>\
 }
 
 //// MODULE_NAME: <?=fluxFromCons?>
