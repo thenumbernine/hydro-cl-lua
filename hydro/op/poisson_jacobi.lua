@@ -5,7 +5,7 @@ local Relaxation = require 'hydro.op.relaxation'
 
 local PoissonJacobi = class(Relaxation)
 
-PoissonJacobi.name = 'PoissonJacobi'
+PoissonJacobi.name = 'poisson_jacobi'
 
 PoissonJacobi.solverCodeFile = 'hydro/op/poisson.cl'
 
@@ -46,7 +46,7 @@ phi[x,k+1] = (f[x] - sum_i,j!=k (phi[x+e[i],k] / dx[i]^2))
 input is poisson source divergence, in 1/s^2
 output is potentialField, in m^2/s^2
 */
-kernel void solveJacobi<?=op.name?>(
+kernel void <?=op.symbolPrefix?>_solveJacobi(
 	constant <?=solver_t?> const * const solver,
 	global real * const writeBuf,
 	global <?=op:getPotBufType()?> const * const UBuf,
@@ -176,14 +176,14 @@ end
 
 function PoissonJacobi:getModuleDepends_Poisson()
 	return {
-		'cell_sqrt_det_g',
-		'cell_dx#',
+		self.solver.eqn.symbols.cell_sqrt_det_g,
+		self.solver.eqn.symbols.cell_dxi,
 	}
 end
 
 function PoissonJacobi:initCodeModules(solver)
 	PoissonJacobi.super.initCodeModules(self, solver)
-	local name = 'op.PoissonJacobi-'..self.name
+	local name = 'op.PoissonJacobi-'..self.symbolPrefix
 	solver.modules:add{
 		name = name,
 		depends = self:getModuleDepends_Poisson(),

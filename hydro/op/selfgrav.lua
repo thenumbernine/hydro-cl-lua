@@ -25,7 +25,7 @@ local Poisson = require(
 
 local SelfGrav = class(Poisson)
 
-SelfGrav.name = 'SelfGrav'
+SelfGrav.name = 'selfgrav'
 SelfGrav.enableField = 'useGravity'
 
 -- source field we are using
@@ -39,19 +39,21 @@ function SelfGrav:init(args)
 
 	SelfGrav.super.init(self, args)
 
+
+	self.symbols = {}
+	for _,field in ipairs{	-- symbol fields:
+		'calcGravityAccel',
+		'calcGravityDeriv',
+	} do
+		self.symbols[field] = self.symbolPrefix..'_'..field
+	end
+	
 	self.solver[self.enableField] = not not self.solver[self.enableField]
 end
 
 SelfGrav.guiVars = {
 	{name='gravitationalConstant', value=1, units='m^3/(kg*s^2)'},
 }
-
-function SelfGrav:getModuleDepends_Poisson()
-	return table(SelfGrav.super.getModuleDepends_Poisson(self)):append{
-		'units',
-		'realparam',	-- used in offsetPotential
-	}
-end
 
 -- params for hydro/op/poisson.cl 
 -- units of m^3/(kg*s^2) * kg/m^3 = 1/s^2
@@ -62,9 +64,14 @@ function SelfGrav:getPoissonDivCode()
 ]], {op=self})
 end
 
-function SelfGrav:getPoissonCode()
-	return self.solver.eqn:template([[
-real3 calcGravityAccel<?=op.name?>(
+function SelfGrav:initCodeModules(solver)
+	SelfGrav.super.initCodeModules(self, solver)
+
+	-- euler wants to use this function, so i need to guarantee its module order to be before euler's display code
+	solver.modules:add{
+		name = self.symbols.calcGravityAccel,
+		code = solver.eqn:template([[
+real3 <?=op.symbols.calcGravityAccel?>(
 	constant <?=solver_t?> const * const solver,
 	global <?=cons_t?> * const U
 ) {
@@ -80,8 +87,24 @@ real3 calcGravityAccel<?=op.name?>(
 
 	return accel_g;
 }
+]],
+		{
+			op = self,
+		}),
+	}
+end
 
-kernel void calcGravityDeriv<?=op.name?>(
+function SelfGrav:getModuleDepends_Poisson()
+	return table(SelfGrav.super.getModuleDepends_Poisson(self)):append{
+		'units',
+		'realparam',	-- used in offsetPotential
+		self.symbols.calcGravityAccel,
+	}
+end
+
+function SelfGrav:getPoissonCode()
+	return self.solver.eqn:template([[
+kernel void <?=op.symbols.calcGravityDeriv?>(
 	constant <?=solver_t?> const * const solver,
 	global <?=cons_t?>* derivBuffer,
 	global const <?=cons_t?>* UBuf
@@ -91,7 +114,7 @@ kernel void calcGravityDeriv<?=op.name?>(
 	global <?=cons_t?>* deriv = derivBuffer + index;
 	const global <?=cons_t?>* U = UBuf + index;
 
-	real3 accel_g = calcGravityAccel<?=op.name?>(solver, U);
+	real3 accel_g = <?=op.symbols.calcGravityAccel?>(solver, U);
 
 	// kg/(m^2 s) = kg/m^3 * m/s^2
 	deriv->m = real3_sub(deriv->m, real3_real_mul(accel_g, U->rho));
@@ -101,7 +124,7 @@ kernel void calcGravityDeriv<?=op.name?>(
 }
 
 //TODO just use the display var kernels
-kernel void copyPotentialToReduce<?=op.name?>(
+kernel void <?=op.symbolPrefix?>_copyPotentialToReduce(
 	constant <?=solver_t?> const * const solver,
 	global real* reduceBuf,
 	global const <?=cons_t?>* UBuf
@@ -111,7 +134,7 @@ kernel void copyPotentialToReduce<?=op.name?>(
 }
 
 //keep potential energy negative
-kernel void offsetPotential<?=op.name?>(
+kernel void <?=op.symbolPrefix?>_offsetPotential(
 	constant <?=solver_t?> const * const solver,
 	global <?=cons_t?>* UBuf,
 	realparam ePotMax
@@ -127,13 +150,13 @@ function SelfGrav:refreshSolverProgram()
 	SelfGrav.super.refreshSolverProgram(self)
 	
 	local solver = self.solver
-	self.calcGravityDerivKernelObj = solver.solverProgramObj:kernel('calcGravityDeriv'..self.name)
+	self.calcGravityDerivKernelObj = solver.solverProgramObj:kernel(self.symbols.calcGravityDeriv)
 	self.calcGravityDerivKernelObj.obj:setArg(0, solver.solverBuf)
 	self.calcGravityDerivKernelObj.obj:setArg(2, solver.UBuf)
 
 	--TODO just use the display var kernels?
-	self.copyPotentialToReduceKernelObj = solver.solverProgramObj:kernel('copyPotentialToReduce'..self.name, solver.solverBuf, solver.reduceBuf, solver.UBuf)
-	self.offsetPotentialKernelObj = solver.solverProgramObj:kernel('offsetPotential'..self.name, solver.solverBuf, solver.UBuf)
+	self.copyPotentialToReduceKernelObj = solver.solverProgramObj:kernel(self.symbolPrefix..'_copyPotentialToReduce', solver.solverBuf, solver.reduceBuf, solver.UBuf)
+	self.offsetPotentialKernelObj = solver.solverProgramObj:kernel(self.symbolPrefix..'_offsetPotential', solver.solverBuf, solver.UBuf)
 end
 
 

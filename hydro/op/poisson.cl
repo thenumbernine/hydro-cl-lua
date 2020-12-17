@@ -30,7 +30,7 @@ initialize the relaxation solver field
 this is only called upon solver reset
 each iteration uses the previous iteration's results as the starting point
 */
-kernel void initPotential<?=op.name?>(
+kernel void <?=op.symbolPrefix?>_initPotential(
 	constant <?=solver_t?> const * const solver,
 	global <?=op:getPotBufType()?> * const UBuf
 ) {
@@ -48,7 +48,7 @@ kernel void initPotential<?=op.name?>(
 }
 
 //used by hydro/op/relaxation.lua
-kernel void copyWriteToPotentialNoGhost<?=op.name?>(
+kernel void <?=op.symbolPrefix?>_copyWriteToPotentialNoGhost(
 	constant <?=solver_t?> const * const solver,
 	global <?=cons_t?> * const UBuf,
 	global real const * const writeBuf
@@ -58,7 +58,7 @@ kernel void copyWriteToPotentialNoGhost<?=op.name?>(
 }
 
 //used by hydro/op/relaxation.lua
-kernel void setReduceToPotentialSquared<?=op.name?>(
+kernel void <?=op.symbolPrefix?>_setReduceToPotentialSquared(
 	constant <?=solver_t?> const * const solver,
 	global real * const reduceBuf,
 	global <?=cons_t?> const * const UBuf

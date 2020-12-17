@@ -1,5 +1,5 @@
 //// MODULE_NAME: <?=eqn_common?>
-//// MODULE_DEPENDS: coordLenSq <?=cons_only_t?> <?=prim_only_t?>
+//// MODULE_DEPENDS: <?=coordLenSq?> <?=cons_only_t?> <?=prim_only_t?>
 
 //pressure function for ideal gas
 #define calc_P(\
@@ -176,7 +176,7 @@ void <?=applyInitCondCell?>(
 }
 
 //// MODULE_NAME: <?=calcDTCell?>
-//// MODULE_DEPENDS: SETBOUNDS coordLenSq normal_t <?=eqn_common?>
+//// MODULE_DEPENDS: SETBOUNDS <?=coordLenSq?> normal_t <?=eqn_common?>
 
 //everything matches the default except the params passed through to calcCellMinMaxEigenvalues
 #define <?=calcDTCell?>(\
@@ -212,7 +212,7 @@ void <?=applyInitCondCell?>(
 }
 
 //// MODULE_NAME: <?=eigen_forInterface?>
-//// MODULE_DEPENDS: coord_lower
+//// MODULE_DEPENDS: <?=coord_lower?>
 
 #define <?=eigen_forInterface?>(\
 	/*<?=eigen_t?> * const */eig,\
@@ -473,7 +473,7 @@ end):concat()
 }
 
 //// MODULE_NAME: <?=constrainU?>
-//// MODULE_DEPENDS: coordLen <?=eqn_guiVars_compileTime?>
+//// MODULE_DEPENDS: <?=coordLen?> <?=eqn_guiVars_compileTime?>
 
 kernel void <?=constrainU?>(
 	constant <?=solver_t?> const * const solver,

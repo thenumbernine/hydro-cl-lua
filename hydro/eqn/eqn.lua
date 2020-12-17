@@ -114,11 +114,8 @@ args:
 	make sure self.consStruct and self.primStruct is defined beforehand
 --]]
 function Equation:init(args)
-	local mt = getmetatable(self)
-	setmetatable(self, nil)
-	self.uid = assert(tostring(self):match'table: 0x(.*)')
-	setmetatable(self, mt)
-	self.symbolPrefix = self.name..'_'..self.uid..'_'
+	local uid = require 'hydro.code.uid'(self)
+	self.symbolPrefix = self.name..'_'..uid..'_'
 
 	-- [[ make C symbols unique to the eqn class.
 	-- TODO later,unique to the eqn object, in case I make a composite of two like classes
@@ -355,6 +352,58 @@ function Equation:getSymbolFields()
 		'eqn_guiVars_compileTime',	-- module of code for compile-time #defines of gui vars
 		'eqn_waveCode_depends',		-- module of dependencies used by the eigen/cons wave code
 		'eqn_common',				-- module of functions that are commonly used ... not required.
+	
+		-- placeholder, used by solver
+		-- it turns out all module names need to be unique in order to run more than one solver at a time.
+		-- makes me think we should move all these symbols/generation of them into solver
+		'solver_macros',
+		'solver_displayCode',
+	
+		-- coord symbols
+		'cell_dxi',
+		'cell_areai',
+		'cell_volume',
+		'cell_sqrt_det_g',	-- (this is actually defined in gridsolver ... but I can move it to coord)
+		-- everything needs a unique symbol here 
+		-- (at least for composite to work)
+		-- (or for using a singleton modules to work)
+		'coord_dxi',
+		'coord_det_g',
+		'coord_sqrt_det_g',
+		'coord_lower',
+		'coord_raise',
+		'coordLenSq',
+		'coordLen',
+		'coord_tr23_c',
+		'coord_conn_lll',
+		'coord_conn_ull',
+		'coord_conn_apply12',
+		'coord_conn_apply13',
+		'coord_conn_apply23',
+		'coord_conn_apply123',
+		'coord_conn_trace12',
+		'coord_conn_trace13',
+		'coord_conn_trace23',
+		'coord_partial_det_g',
+		'coord_partial2_det_g',
+		'coord_holBasisLen_i',
+		'coord_g_ll_ij',
+		'coord_g_uu_ij',
+		'coord_sqrt_g_uu_ij',
+		'coord_sqrt_g_ll_ij',
+		'coord_g_ll',
+		'coord_g_uu',
+		'coord_gHol_ll',
+		'coordMap',
+		'coordMapR',
+		'coordMapInv',
+		'coordMapGLSL',
+		'coordMapInvGLSL',
+		'coord_basis_i',
+		'coord_basisHolUnit_i',
+		'cartesianFromCoord',
+		'cartesianToCoord',
+		'coord_parallelPropagate',
 	}
 end
 
@@ -524,7 +573,9 @@ function Equation:initCodeModules()
 			-- special case for applyInitCondCell ...
 			if args.name == self.symbols.applyInitCondCell then
 				args.depends:append(self.initCond:getBaseDepends(solver))
-				args.depends:append(self.initCond.depends)
+				if self.initCond.getDepends then
+					args.depends:append(self.initCond:getDepends(solver))
+				end
 				-- only used by hydro/eqn/bssnok-fd.lua:
 				if self.getModuleDependsApplyInitCond then
 					args.depends:append(self:getModuleDependsApplyInitCond())
@@ -608,7 +659,7 @@ In the event that a transformation is necessary, then a temp var is created, and
 			name = self.symbols.cons_parallelPropagate,
 			depends = table{
 				self.symbols.cons_t,
-				'coord_parallelPropagate',
+				self.symbols.coord_parallelPropagate,
 			}:append(
 				-- rank-2 always use real3x3 for transformation
 				self.consStruct.vars:find(nil, function(var)

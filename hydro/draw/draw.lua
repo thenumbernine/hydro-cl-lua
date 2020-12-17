@@ -179,6 +179,7 @@ vec4 quatConj(vec4 q) {
 ]], {
 		solver = solver,
 		app = solver.app,
+		eqn = solver.eqn,
 		clnumber = require 'cl.obj.number',
 	})
 end

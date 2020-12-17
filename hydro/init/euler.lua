@@ -243,7 +243,12 @@ function SelfGravProblem:init(args)
 	self.getRadiusCode = args.getRadiusCode
 end
 
-SelfGravProblem.depends = {'coordMap'}
+function SelfGravProblem:getDepends(solver)
+	return table{
+		solver.eqn.symbols.coordMap,
+	}
+end
+
 function SelfGravProblem:getInitCondCode(initCond, solver)
 	local args = self.args
 
@@ -432,7 +437,11 @@ local initConds = table{
 		solverVars = {
 			heatCapacityRatio = 7/5,
 		},
-		depends = {'coordMap'},
+		getDepends = function(self, solver)
+			return table{
+				solver.eqn.symbols.coordMap,
+			}
+		end,
 		getInitCondCode = function(self, solver)
 			return [[
 	real3 xc = coordMap(x);
@@ -456,7 +465,11 @@ local initConds = table{
 			{name = 'y0', value = -.5},
 			{name = 'z0', value = 0},
 		},
-		depends = {'coordMap'},
+		getDepends = function(self, solver)
+			return table{
+				solver.eqn.symbols.coordMap,
+			}
+		end,
 		getInitCondCode = function(self, solver)
 			return template([[
 	real3 xc = coordMap(x);
@@ -481,7 +494,12 @@ local initConds = table{
 		-- boundary waves seem to mess with this, 
 		-- otherwise it looks like a wave equation solution
 		name = 'Bessel',
-		depends = {'coordMap'},
+		getDepends = function(self, solver)
+			return table{
+				solver.eqn.symbols.coordMapR,
+				solver.eqn.symbols.coordMap,
+			}
+		end,
 		getInitCondCode = function(self, solver)
 			return [[
 	real r = coordMapR(x);
@@ -519,7 +537,11 @@ local initConds = table{
 			{name = 'rho1', value = 3.2e-1},
 			{name = 'P0', value = 1},
 		},
-		depends = {'coordMap'},
+		getDepends = function(self, solver)
+			return table{
+				solver.eqn.symbols.coordMap,
+			}
+		end,
 		getInitCondCode = function(self, solver)
 			solver:setBoundaryMethods{
 				xmin = 'periodic',
@@ -767,7 +789,11 @@ end
 		solverVars = {
 			heatCapacityRatio = 7/5,
 		},
-		depends = {'coordMap'},
+		getDepends = function(self, solver)
+			return table{
+				solver.eqn.symbols.coordMap,
+			}
+		end,
 		getInitCondCode = function(self, solver)
 			return [[
 	real3 xc = coordMap(x);
@@ -802,7 +828,11 @@ end
 
 	{
 		name = 'spinning magnetic fluid',
-		depends = {'coordMap'},
+		getDepends = function(self, solver)
+			return table{
+				solver.eqn.symbols.coordMap,
+			}
+		end,
 		getInitCondCode = function(self, solver)
 			return [[
 	real3 xc = coordMap(x);
@@ -839,7 +869,11 @@ end
 
 	{
 		name = 'magnetic fluid',
-		depends = {'coordMap'},
+		getDepends = function(self, solver)
+			return table{
+				solver.eqn.symbols.coordMap,
+			}
+		end,
 		getInitCondCode = function(self, solver)
 			solver.useGravity = true
 			return [[
@@ -1048,7 +1082,11 @@ end) then
 	-- http://www.cfd-online.com/Wiki/Explosion_test_in_2-D
 	{
 		name = 'sphere',
-		depends = {'coordMap'},
+		getDepends = function(self, solver)
+			return table{
+				solver.eqn.symbols.coordMap,
+			}
+		end,
 		getInitCondCode = function(self, solver)
 			return [[
 	real3 xc = coordMap(x);
@@ -1069,7 +1107,11 @@ end) then
 			{name = 'v', value = .5},
 			{name = 'D', value = 1},
 		},
-		depends = {'coordMap'},
+		getDepends = function(self, solver)
+			return table{
+				solver.eqn.symbols.coordMap,
+			}
+		end,
 		getInitCondCode = function(self, solver)
 			return [[
 	real3 xc = coordMap(x);
@@ -1091,7 +1133,11 @@ end) then
 			{name = 'P', value = 1},
 			{name = 'inlet_v', value = .1},
 		},
-		depends = {'coordMap'},
+		getDepends = function(self, solver)
+			return table{
+				solver.eqn.symbols.coordMap,
+			}
+		end,
 		getInitCondCode = function(self, solver)
 			
 			local ProblemBoundary = class(solver.Boundary)
@@ -1160,7 +1206,11 @@ end) then
 
 	{
 		name = 'radial gaussian',
-		depends = {'coordMap'},
+		getDepends = function(self, solver)
+			return table{
+				solver.eqn.symbols.coordMap,
+			}
+		end,
 		getInitCondCode = function(self, solver)
 			return [[
 	const real gaussianCenter = 6;
@@ -1316,7 +1366,11 @@ end) then
 	-- derived from Athena Kelvin-Helmholtz I think
 	{
 		name = 'Kelvin-Helmholtz',
-		depends = {'cartesianFromCoord'},
+		getDepends = function(self,solver)
+			return table{
+				solver.eqn.symbols.cartesianFromCoord,
+			}
+		end,
 		createInitStruct = function(self, solver)
 			EulerInitCond.createInitStruct(self, solver)
 
@@ -1750,7 +1804,6 @@ end ?>;
 				
 				coulombConstant = constants.CoulombConstant_in_kg_m3_per_C2_s2,
 			},
-			depends = {'coordMap'},
 			getInitCondCode = function(self, solver)
 				local f = SelfGravProblem{
 					solver = solver,
@@ -1771,7 +1824,6 @@ end ?>;
 		-- hmm, what about spherical coordinates...
 		--mins = {-1,-1,-1},
 		--maxs = {1,1,1},
-		depends = {'coordMap'},
 		getInitCondCode = function(self, solver)
 			local f = SelfGravProblem{
 				solver = solver,
@@ -1785,7 +1837,6 @@ end ?>;
 
 	{
 		name = 'self-gravitation test 1 spinning',
-		depends = {'coordMap'},
 		getInitCondCode = function(self, solver)
 			local inside = [[
 	v.x = -2 * delta.y;
@@ -1814,7 +1865,6 @@ end ?>;
 
 	{
 		name = 'self-gravitation test 2',
-		depends = {'coordMap'},
 		getInitCondCode = function(self, solver)
 			return SelfGravProblem{ 
 				sources={
@@ -1834,7 +1884,6 @@ end ?>;
 	{
 		-- TODO add tidal-locked rotations
 		name = 'self-gravitation test 2 orbiting',
-		depends = {'coordMap'},
 		getInitCondCode = function(self, solver)
 			return SelfGravProblem{ 
 				sources = {
@@ -1865,7 +1914,6 @@ end ?>;
 	
 	{
 		name = 'self-gravitation test 4',
-		depends = {'coordMap'},
 		getInitCondCode = function(self, solver)
 			return SelfGravProblem{
 				sources={
@@ -1925,7 +1973,11 @@ end ?>;
 
 	{
 		name = 'Maxwell scattering around cylinder',
-		depends = {'coordMap'},
+		getDepends = function(self, solver)
+			return table{
+				solver.eqn.symbols.coordMap,
+			}
+		end,
 		getInitCondCode = function(self, solver)
 			addMaxwellOscillatingBoundary{
 				solver = solver,
@@ -1998,7 +2050,11 @@ for _,pn in ipairs(obj) do
 				clnumber = clnumber,
 			})
 		end,
-		depends = {'coordMap'},
+		getDepends = function(self, solver)
+			return table{
+				solver.eqn.symbols.coordMap,
+			}
+		end,
 		getInitCondCode = function(self, solver)
 			-- hmm, choosing min or max doesn't matter, it always shows up on min...
 			addMaxwellOscillatingBoundary{
@@ -2021,7 +2077,11 @@ for _,pn in ipairs(obj) do
 
 	{
 		name = 'Maxwell scattering around square',
-		depends = {'coordMap'},
+		getDepends = function(self, solver)
+			return table{
+				solver.eqn.symbols.coordMap,
+			}
+		end,
 		getInitCondCode = function(self, solver)
 			-- hmm, choosing min or max doesn't matter, it always shows up on min...
 			addMaxwellOscillatingBoundary{
@@ -2120,7 +2180,11 @@ bool testTriangle(real3 xc) {
 				clnumber = clnumber,
 			})
 		end,
-		depends = {'coordMap'},
+		getDepends = function(self, solver)
+			return table{
+				solver.eqn.symbols.coordMap,
+			}
+		end,
 		getInitCondCode = function(self, solver)
 			addMaxwellOscillatingBoundary{
 				solver = solver,
@@ -2376,7 +2440,11 @@ kernel void addExtraSource(
 			{name = 'v', value = .5},
 			{name = 'B', value = 1},
 		},
-		depends = {'coordMap'},
+		getDepends = function(self, solver)
+			return table{
+				solver.eqn.symbols.coordMap,
+			}
+		end,
 		getInitCondCode = function(self, solver)
 			return [[
 	real3 xc = coordMap(x);

@@ -71,7 +71,7 @@
 }
 
 //// MODULE_NAME: <?=apply_dU_dW?>
-//// MODULE_DEPENDS: real3 coord_lower <?=solver_t?> <?=prim_t?> <?=cons_t?>
+//// MODULE_DEPENDS: real3 <?=coord_lower?> <?=solver_t?> <?=prim_t?> <?=cons_t?>
 
 #define <?=apply_dU_dW?>(\
 	/*<?=cons_t?> * const */result,\
@@ -103,7 +103,7 @@
 }
 
 //// MODULE_NAME: <?=apply_dW_dU?>
-//// MODULE_DEPENDS: real3 coord_lower <?=solver_t?> <?=prim_t?> <?=cons_t?>
+//// MODULE_DEPENDS: real3 <?=coord_lower?> <?=solver_t?> <?=prim_t?> <?=cons_t?>
 
 #define <?=apply_dW_dU?>(\
 	/*<?=prim_t?> * const */result,\
@@ -136,7 +136,7 @@
 }
 
 //// MODULE_NAME: <?=eqn_common?>
-//// MODULE_DEPENDS: units coordLenSq cartesianToCoord
+//// MODULE_DEPENDS: units <?=coordLenSq?> <?=cartesianToCoord?>
 
 #define /*real3*/ calc_EField(\
 	/*constant <?=solver_t?> const * const */solver,\

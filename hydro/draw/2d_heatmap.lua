@@ -156,12 +156,14 @@ function Draw2DHeatmap:prepareShader()
 			draw = self,
 			app = solver.app,
 			solver = solver,
+			eqn = solver.eqn,
 			vertexShader = true,
 		}),
 		fragmentCode = template(heatMapCode, {
 			draw = self,
 			app = solver.app,
 			solver = solver,
+			eqn = solver.eqn,
 			fragmentShader = true,
 		}),
 		uniforms = {

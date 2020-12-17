@@ -19,7 +19,7 @@
 #define sqrt_2 <?=('%.50f'):format(math.sqrt(2))?>
 
 //// MODULE_NAME: <?=eqn_common?>
-//// MODULE_DEPENDS: units coordLenSq
+//// MODULE_DEPENDS: units <?=coordLenSq?>
 
 static inline real3 calc_EField(
 	constant <?=solver_t?> const * const solver,
@@ -207,7 +207,7 @@ static inline real calc_EM_energy(constant <?=solver_t?>* solver, const global <
 }
 
 //// MODULE_NAME: <?=apply_dU_dW?>
-//// MODULE_DEPENDS: real3 <?=solver_t?> <?=prim_t?> <?=cons_t?> coord_lower coord_lower
+//// MODULE_DEPENDS: real3 <?=solver_t?> <?=prim_t?> <?=cons_t?> <?=coord_lower?>
 // only used by PLM
 
 #define <?=apply_dU_dW?>(\
@@ -237,7 +237,7 @@ static inline real calc_EM_energy(constant <?=solver_t?>* solver, const global <
 }
 
 //// MODULE_NAME: <?=apply_dW_dU?>
-//// MODULE_DEPENDS: real3 <?=solver_t?> <?=prim_t?> <?=cons_t?> coord_lower coord_lower
+//// MODULE_DEPENDS: real3 <?=solver_t?> <?=prim_t?> <?=cons_t?> <?=coord_lower?>
 
 #define <?=apply_dW_dU?>(\
 	/*<?=prim_t?> * const */result\
@@ -267,7 +267,7 @@ static inline real calc_EM_energy(constant <?=solver_t?>* solver, const global <
 }
 
 //// MODULE_NAME: <?=applyInitCondCell?>
-//// MODULE_DEPENDS: cartesianToCoord
+//// MODULE_DEPENDS: <?=cartesianToCoord?>
 
 void <?=applyInitCondCell?>(
 	constant <?=solver_t?> const * const solver,
@@ -467,7 +467,7 @@ end --\
 }
 
 //// MODULE_NAME: <?=eigen_leftTransform?>
-//// MODULE_DEPENDS: units <?=eigen_t?> <?=waves_t?> coord_lower <?=sqrt_2_and_1_2?>
+//// MODULE_DEPENDS: units <?=eigen_t?> <?=waves_t?> <?=coord_lower?> <?=sqrt_2_and_1_2?>
 
 #define <?=eigen_leftTransform?>(\
 	/*<?=waves_t?> * const */UY,\
@@ -668,7 +668,7 @@ end --\
 }
 
 //// MODULE_NAME: <?=eigen_rightTransform?>
-//// MODULE_DEPENDS: units <?=eigen_t?> <?=waves_t?> coord_lower <?=sqrt_2_and_1_2?>
+//// MODULE_DEPENDS: units <?=eigen_t?> <?=waves_t?> <?=coord_lower?> <?=sqrt_2_and_1_2?>
 
 #define <?=eigen_rightTransform?>(\
 	/*<?=cons_t?> * const */UY,\

@@ -27,7 +27,7 @@ local fluids = table{'ion', 'elec'}
 TwoFluidEMHD.fluids = fluids
 
 TwoFluidEMHD.postComputeFluxCode = [[
-//// MODULE_DEPENDS: coord_sqrt_det_g coord_lower
+//// MODULE_DEPENDS: <?=coord_sqrt_det_g?> <?=coord_lower?>
 		//flux is computed raised via Levi-Civita upper
 		//so here we lower it
 		real _1_sqrt_det_g = 1. / coord_sqrt_det_g(x);
@@ -197,7 +197,7 @@ function TwoFluidEMHD:getModuleDepends_waveCode()
 	return {
 		'units',
 		self.symbols.primFromCons,
-		'coord_lower',
+		self.symbols.coord_lower,
 	}
 end
 
@@ -349,7 +349,7 @@ function TwoFluidEMHD:getDisplayVars()
 		{
 			name = 'gravity',
 			code = self:template[[
-	if (!OOB(1,1)) value.vreal3 = calcGravityAccel<?=eqn.gravOp.name?>(solver, U, x);
+	if (!OOB(1,1)) value.vreal3 = <?=eqn.gravOp.symbolPrefix?>_calcGravityAccel(solver, U, x);
 ]],
 			type='real3', 
 			units='m/s^2',

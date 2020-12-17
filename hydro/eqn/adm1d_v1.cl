@@ -13,7 +13,7 @@ void <?=setFlatSpace?>(
 }
 
 //// MODULE_NAME: <?=applyInitCondCell?>
-//// MODULE_DEPENDS: sym3 coordMap
+//// MODULE_DEPENDS: sym3 <?=coordMap?>
 
 void <?=applyInitCondCell?>(
 	constant <?=solver_t?> const * const solver,

@@ -34,7 +34,7 @@ void <?=setFlatSpace?>(
 }
 
 //// MODULE_NAME: <?=applyInitCondCell?>
-//// MODULE_DEPENDS: SETBOUNDS coordMap <?=setFlatSpace?>
+//// MODULE_DEPENDS: SETBOUNDS <?=coordMap?> <?=setFlatSpace?>
 
 kernel void <?=applyInitCondCell?>(
 	constant <?=solver_t?> const * const solver,

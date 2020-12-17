@@ -3,7 +3,7 @@
 //  but then again, if you already have one solver for your spacetime, why would you need two?
 
 //// MODULE_NAME: rescaleFromCoord/rescaleToCoord
-//// MODULE_DEPENDS: coord_dx#	
+//// MODULE_DEPENDS: coord_dxi
 // rescaling from/to diagonalization from the grid metric
 // used especially by the bssn solvers
 // but anything that wants to use their initial conditions will also need this.
@@ -80,7 +80,7 @@ cplx3 cplx3_rescaleFromCoord_l(cplx3 v, real3 x) {
 //// MODULE_DEPENDS: _3sym3
 // rescaleFromCoord/rescaleToCoord	// I could use this for sub-member rescaling
 // ... but I just did it manually
-//// MODULE_DEPENDS: coord_dx#
+//// MODULE_DEPENDS: <?=coord_dxi?>
 #if 1
 
 _3sym3 _3sym3_rescaleFromCoord_lll(_3sym3 a, real3 x) {
@@ -150,7 +150,7 @@ _3sym3 _3sym3_rescaleToCoord_ULL(_3sym3 a, real3 x) {
 //// MODULE_DEPENDS: sym3sym3
 // rescaleFromCoord/rescaleToCoord	// I could use this for sub-member rescaling
 // ... but I just did it manually
-//// MODULE_DEPENDS: coord_dx#
+//// MODULE_DEPENDS: <?=coord_dxi?>
 // only used by bssnok-fd-sym
 #if 1
 

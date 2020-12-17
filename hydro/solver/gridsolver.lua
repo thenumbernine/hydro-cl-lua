@@ -344,10 +344,13 @@ functionality (and abstraction):
 ]],
 	}
 
+	-- TODO move this to coord
 	-- volume of a cell = volume element times grid dx's 
 	self.modules:add{
-		name = 'cell_sqrt_det_g',
-		depends = {'coord_sqrt_det_g'},
+		name = self.eqn.symbols.cell_sqrt_det_g,
+		depends = {
+			self.eqn.symbols.coord_sqrt_det_g,
+		},
 		code = template([[
 static inline real cell_sqrt_det_g(constant <?=solver.solver_t?>* solver, real3 x) {
 	return coord_sqrt_det_g(x)<?
@@ -1143,9 +1146,9 @@ function GridSolver:createBoundaryProgramAndKernel(args)
 		'INDEXV',
 		-- some Boundary :getCode use numStates
 		-- TODO use the addCodeMarkup function and inline these all?
-		'solver.macros',
+		self.eqn.symbols.solver_macros,
+		self.eqn.symbols.cartesianFromCoord,
 		'cell_x',
-		'cartesianFromCoord',
 		'normalForSide',
 		'numGhost',
 	}

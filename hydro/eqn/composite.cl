@@ -18,10 +18,10 @@ end
 ) {\
 <? for i,subeqn in ipairs(eqn.eqns) do --\
 ?>	<?=subeqn.symbols.eigen_forInterface?>(\
-		&(resultEig)->eqn<?=i?>,\
+		&(resultEig)-><?=subeqn.field?>,\
 		solver,\
-		&(UL)->eqn<?=i?>,\
-		&(UR)->eqn<?=i?>,\
+		&(UL)-><?=subeqn.field?>,\
+		&(UR)-><?=subeqn.field?>,\
 		pt,\
 		n)\
 <? end --\
@@ -42,10 +42,10 @@ end
 <? --\
 for i,subeqn in ipairs(eqn.eqns) do --\
 ?>	<?=subeqn.symbols.eigen_leftTransform?>(\
-		&(result)->eqn<?=i?>,\
+		&(result)-><?=subeqn.field?>,\
 		solver,\
-		&(eig)->eqn<?=i?>,\
-		&(X)->eqn<?=i?>,\
+		&(eig)-><?=subeqn.field?>,\
+		&(X)-><?=subeqn.field?>,\
 		pt,\
 		n)\
 <? --\
@@ -67,10 +67,10 @@ end --\
 <? --\
 for i,subeqn in ipairs(eqn.eqns) do --\
 ?>	<?=subeqn.symbols.eigen_rightTransform?>(\
-		&(result)->eqn<?=i?>,\
+		&(result)-><?=subeqn.field?>,\
 		solver,\
-		&(eig)->eqn<?=i?>,\
-		&(X)->eqn<?=i?>,\
+		&(eig)-><?=subeqn.field?>,\
+		&(X)-><?=subeqn.field?>,\
 		pt,\
 		n)\
 <? --\
@@ -93,10 +93,10 @@ end --\
 <? for i,subeqn in ipairs(eqn.eqns) do --\
 ?>	<?=subeqn.symbols.cons_parallelPropagate?><?=side?>(\
 		<?=subeqn.symbolPrefix?>resultName,\
-		&(U)->eqn<?=i?>,\
+		&(U)-><?=subeqn.field?>,\
 		pt,\
 		dx);\
-	resultName##base.eqn<?=i?> = *<?=subeqn.symbolPrefix?>resultName;\
+	resultName##base.<?=subeqn.field?> = *<?=subeqn.symbolPrefix?>resultName;\
 <? end --\
 ?>\
 }\
@@ -116,7 +116,7 @@ void <?=applyInitCondCell?>(
 ?>	<?=subeqn.symbols.applyInitCondCell?>(
 		solver,
 		initCond,
-		&U->eqn<?=i?>,
+		&U-><?=subeqn.field?>,
 		cell
 	);
 <? end
@@ -148,7 +148,7 @@ end --\
 ?>	<?=subeqn.symbols.calcDTCell?>(\
 		dt,\
 		solver,\
-		&(U)->eqn<?=i?>,\
+		&(U)-><?=subeqn.field?>,\
 		cell<? --\
 if require "hydro.solver.meshsolver".is(solver) then --\
 ?>,\

@@ -4,7 +4,7 @@
 #define sqrt_1_2 <?=("%.50f"):format(math.sqrt(.5))?>
 
 //// MODULE_NAME: <?=eqn_common?>
-//// MODULE_DEPENDS: coordLenSq cartesianToCoord coord_lower
+//// MODULE_DEPENDS: <?=coordLenSq?> <?=cartesianToCoord?> <?=coord_lower?>
 
 <? if scalar == "real" then ?>
 
@@ -266,7 +266,7 @@ TODO update this for Einstein-Maxwell (take the metric into consideration
 #define <?=eigen_fluxTransform?>(result, solver, eig, X, x, n)	<?=fluxFromCons?>(result, solver, X, x, n)
 
 //// MODULE_NAME: <?=addSource?>
-//// MODULE_DEPENDS: coord_sqrt_det_g <?=eqn_common?> <?=fluxFromCons?>
+//// MODULE_DEPENDS: <?=coord_sqrt_det_g?> <?=eqn_common?> <?=fluxFromCons?>
 
 kernel void <?=addSource?>(
 	constant <?=solver_t?> const * const solver,

@@ -72,7 +72,7 @@ sym3 calc_partial2_det_gammaHat_LL(real3 x) {
 }
 
 //// MODULE_NAME: calc_len_#
-//// MODULE_DEPENDS: coord_dx#
+//// MODULE_DEPENDS: <?=coord_dxi?>
 
 <? for i,xi in ipairs(xNames) do
 ?>#define calc_len_<?=xi?>	coord_dx<?=i-1?>
@@ -84,7 +84,7 @@ sym3 calc_partial2_det_gammaHat_LL(real3 x) {
 e_i^I = delta_i^I f_i is a diagonal matrix with f_i indexed function.  for spherical, f_i = diag(1,r,r sin(theta))
 e^i_I = delta^i_I f^i is the inverse, so f^i = 1/(f_i)
 I'm trying to keep the differentiations to an absolute minimum in the bssnok-fd-num files
-coord_dx#(x) is the same as f_# 
+coord_dxi(x) is the same as f_i 
 */
 <?
 local partial_len_ll = lenExprs"_i,j"():permute"_ij"
@@ -499,7 +499,7 @@ static sym3 calc_trBar_partial2_gammaBar_ll(
 }
 
 //// MODULE_NAME: <?=applyInitCond?>
-//// MODULE_DEPENDS: _3sym3 numGhost coordMap calc_gammaHat_ll calc_det_gammaBar calc_det_gammaBarLL calc_partial_gammaBar_LLL calc_connBar_ULL calc_connHat_LLL_and_ULL
+//// MODULE_DEPENDS: _3sym3 numGhost <?=coordMap?> calc_gammaHat_ll calc_det_gammaBar calc_det_gammaBarLL calc_partial_gammaBar_LLL calc_connBar_ULL calc_connHat_LLL_and_ULL
 
 // Should initCond provide a metric in cartesian, or in the background metric?
 // I'll say Cartesian for now, and then transform them using the rescaling.
@@ -1088,7 +1088,7 @@ end
 }
 
 //// MODULE_NAME: applyKreissOligar
-//// MODULE_DEPENDS: coordMapR eqn.macros
+//// MODULE_DEPENDS: <?=coordMapR?> eqn.macros
 
 //////////////////////////////// Kreiss-Oligar dissipation //////////////////////////////// 
 
@@ -2188,7 +2188,7 @@ static void calcDeriv_Pi(
 <? end	-- eqn.useScalarField ?>
 
 //// MODULE_NAME: calcDeriv
-//// MODULE_DEPENDS: calc_det_gammaBarLL calc_gammaBar_LL calc_exp_neg4phi calcDeriv_ABar_LL solver.macros mystery_C_U initCond.codeprefix applyKreissOligar getUpwind from3x3to6 calc_partial*_det_gammaHat_over_det_gammaHat_* calc_connHat_LLL_and_ULL calc_connBar_ULL calcDeriv_epsilon_LL calcDeriv_W calc_dt_LambdaBar_U_wo_partial_upwind_beta_LambdaBar calc_PIRK_L2_B_U calc_PIRK_L3_B_U calcDeriv_K calc_partial_gammaBar_LLL tracefree calc_RBar_LL calc_len_# calc_trBar_partial2_gammaBar_ll real3x3_partial_rescaleFromCoord_Ul eqn.macros
+//// MODULE_DEPENDS: calc_det_gammaBarLL calc_gammaBar_LL calc_exp_neg4phi calcDeriv_ABar_LL <?=solver_macros?> mystery_C_U initCond.codeprefix applyKreissOligar getUpwind from3x3to6 calc_partial*_det_gammaHat_over_det_gammaHat_* calc_connHat_LLL_and_ULL calc_connBar_ULL calcDeriv_epsilon_LL calcDeriv_W calc_dt_LambdaBar_U_wo_partial_upwind_beta_LambdaBar calc_PIRK_L2_B_U calc_PIRK_L3_B_U calcDeriv_K calc_partial_gammaBar_LLL tracefree calc_RBar_LL calc_len_# calc_trBar_partial2_gammaBar_ll real3x3_partial_rescaleFromCoord_Ul eqn.macros
 /*
 -- calcDeriv_epsilon_LL:
 	'calc_partial_gammaBar_LLL',

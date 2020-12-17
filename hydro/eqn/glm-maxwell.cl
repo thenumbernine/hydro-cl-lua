@@ -3,11 +3,11 @@
 #define sqrt_1_2 <?=("%.50f"):format(math.sqrt(.5))?>
 
 //// MODULE_NAME: <?=eqn_common?>
-//// MODULE_DEPENDS: coordLenSq cartesianToCoord coord_lower
+//// MODULE_DEPENDS: <?=coordLenSq?> <?=cartesianToCoord?> <?=coord_lower?>
 
 <? if scalar == "real" then ?>
 
-#define eqn_coordLenSq coordLenSq
+#define eqn_coordLenSq <?=coordLenSq?>
 #define eqn_cartesianToCoord cartesianToCoord
 #define eqn_coord_lower coord_lower
 
@@ -269,7 +269,7 @@ TODO update this for Einstein-Maxwell (take the metric into consideration
 #define <?=eigen_fluxTransform?>(Y, solver, eig, X, x, n) <?=fluxFromCons?>(Y, solver, X, x, n)
 
 //// MODULE_NAME: <?=addSource?>
-//// MODULE_DEPENDS: coord_sqrt_det_g <?=fluxFromCons?> SETBOUNDS_NOGHOST
+//// MODULE_DEPENDS: <?=coord_sqrt_det_g?> <?=fluxFromCons?> SETBOUNDS_NOGHOST
 
 kernel void <?=addSource?>(
 	constant <?=solver_t?> const * const solver,
@@ -284,6 +284,7 @@ kernel void <?=addSource?>(
 	global <?=cons_t?> const * const U = UBuf + index;
 
 	/* TODO J = J_f + J_b = J_f + J_P + J_M = J_f + dP/dt + curl M */
+	// TODO TODO should it be D -= D / eps * sigma?  or D -= D * sigma, since it is originally E -= E * sigma, right?
 	deriv->D = <?=vec3?>_sub(
 		deriv->D, 
 		<?=vec3?>_<?=scalar?>_mul(

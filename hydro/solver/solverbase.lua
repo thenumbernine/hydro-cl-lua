@@ -312,7 +312,7 @@ SolverBase.showFPS = cmdline.showfps or false
 -- TODO this is made to be compile-time, but i don't support that right now (i think?)
 -- enable for us to let the user accum/not.  requires an extra buffer allocation
 SolverBase.allowAccum = true
-SolverBase.displayVarAccumFunc = cmdline.accum
+SolverBase.displayVarAccumFunc = cmdline.accum or false
 
 local solverUniqueIndex = 1
 
@@ -649,8 +649,10 @@ end
 -- first the global ones from math and app, then coord, initCond, boundary, eqn, solver ...
 -- then with all of them, specify which ones to target (for .h and .cl code) and they will trim the others
 function SolverBase:initCodeModules()
-	self.modules = require 'hydro.code.moduleset'(self.app.modules)
-	
+	--self.modules = require 'modules'(self.app.modules)
+-- TODO just change the references
+self.modules = self.app.modules
+
 	-- what to compile?
 	-- use keys of this
 	-- solverModulesEnabled = modules for solvers
@@ -669,7 +671,7 @@ function SolverBase:initCodeModules()
 
 	-- header
 	self.modules:add{
-		name = 'solver.macros',
+		name = self.eqn.symbols.solver_macros,
 		headercode = table{
 			self.dim == 3 and '#pragma OPENCL EXTENSION cl_khr_3d_image_writes : enable' or '',
 			'#ifndef M_PI',
@@ -719,11 +721,11 @@ function SolverBase:initCodeModuleDisplay()
 
 	-- this depends on :createDisplayVars()
 	self.modules:add{
-		name = 'solver.displayCode',
+		name = self.eqn.symbols.solver_displayCode,
 		depends = self:getModuleDepends_displayCode(),
 		code = self:getDisplayCode(),
 	}
-	self.solverModulesEnabled['solver.displayCode'] = true
+	self.solverModulesEnabled[self.eqn.symbols.solver_displayCode] = true
 end
 
 function SolverBase:getModuleDepends_displayCode()
@@ -731,12 +733,12 @@ function SolverBase:getModuleDepends_displayCode()
 
 	-- add in any real3 pickComponent code dependencies here
 	if self:isModuleUsed'real3' then
-		depends:insert'coordLen'
+		depends:insert(self.eqn.symbols.coordLen)
 	end
 	
 	-- add in any sym3 pickComponent code dependencies here
 	if self:isModuleUsed'sym3' then
-		depends:insert'coord_g_ll'
+		depends:insert(self.eqn.symbols.coord_g_ll)
 	end
 
 	return depends 

@@ -97,7 +97,7 @@ function InitCond:getBaseDepends(solver)
 		'SETBOUNDS',
 		'numGhost',
 		-- enough use #if dim that i'll put this here:
-		'solver.macros',
+		solver.eqn.symbols.solver_macros,
 		-- initCond code is specified in terms of primitives, so if the eqn has prim<->cons then it will be needed
 		solver.eqn.symbols.consFromPrim,
 	}

@@ -171,6 +171,12 @@ then --\
 	}
 end
 
+function Euler:getModuleDepends_displayCode() 
+	return table(Euler.super.getModuleDepends_displayCode(self)):append{
+		self.gravOp.symbols.calcGravityAccel,
+	}
+end
+
 -- don't use default
 function Euler:initCodeModule_fluxFromCons() end
 function Euler:initCodeModule_consFromPrim_primFromCons() end
@@ -234,7 +240,7 @@ function Euler:getDisplayVars()
 	}:append(self.gravOp and
 		{{name='gravity', code=self:template[[
 	if (!OOB(1,1)) {
-		value.vreal3 = calcGravityAccel<?=eqn.gravOp.name?>(solver, U);
+		value.vreal3 = <?=eqn.gravOp.symbols.calcGravityAccel?>(solver, U);
 	}
 ]], type='real3', units='m/s^2'}} or nil
 	)

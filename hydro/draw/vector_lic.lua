@@ -202,12 +202,14 @@ function DrawVectorLIC:prepareShader()
 			draw = self,
 			app = solver.app,
 			solver = solver,
+			eqn = solver.eqn,
 			vertexShader = true,
 		}),
 		fragmentCode = template(vectorLICCode, {
 			draw = self,
 			app = solver.app,
 			solver = solver,
+			eqn = solver.eqn,
 			fragmentShader = true,
 		}),
 		uniforms = {

@@ -14,7 +14,7 @@ void <?=setFlatSpace?>(
 }
 
 //// MODULE_NAME: <?=applyInitCondCell?>
-//// MODULE_DEPENDS: sym3 coordMap
+//// MODULE_DEPENDS: sym3 <?=coordMap?>
 
 kernel void <?=applyInitCondCell?>(
 	constant <?=solver_t?> const * const solver,

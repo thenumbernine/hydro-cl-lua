@@ -3,7 +3,7 @@ TODO one config per experiment (initial condition + config)
 and no more setting config values (boundary, etc) in the init cond file
 --]]
 
-local dim = cmdline.dim or 1
+local dim = cmdline.dim or 2
 local args = {
 	app = self, 
 	eqn = cmdline.eqn,
@@ -32,22 +32,25 @@ local args = {
 	-- with Kelvin-Helmholts, this will explode even at .5/(dim=2), but runs safe for .3/(dim=2)
 	cfl = cmdline.cfl or .3/dim,
 	
-	--fluxLimiter = cmdline.fluxLimiter or 'superbee',
+	fluxLimiter = cmdline.fluxLimiter or 'superbee',
 	--fluxLimiter = 'monotized central',
-	fluxLimiter = 'donor cell',
+	--fluxLimiter = 'donor cell',
 	
 	-- piecewise-linear slope limiter
 	-- TODO rename this to 'calcLR' or something
-	usePLM = 'piecewise-constant',	-- degenerate case.  don't use this, instead just disable usePLM, or else this will allocate more memory / run more functions.
-	--usePLM = 'plm-cons',
-	--usePLM = 'plm-cons-alone',
-	--usePLM = 'plm-prim-alone',
-	--usePLM = 'plm-eig',				--\
-	--usePLM = 'plm-eig-prim',			-- - these have less sharp shock wave in Sod than the non-eig ones
-	--usePLM = 'plm-eig-prim-ref',		--/
-	--usePLM = 'plm-athena',			-- based on Athena.  most accurate from 1D sod tests atm
-	--usePLM = 'ppm-wip',				-- FIXME one more attempt to figure out all the PLM stuff, based on 2017 Zingale
-	--usePLM = 'weno',					-- TODO make WENO one of these 'usePLM' methods. rename it to 'construct LR state method' or something.  then we can use CTU with WENO.
+	--									-- min div v for gridSize={1024} cfl=.3 Sod mirror at t=0.5:
+	--									-- -191 = no plm, superbee flux limiter
+	--									-- -184 = no plm, monotized central flux limiter
+	--usePLM = 'piecewise-constant',	-- -84		degenerate case.  don't use this, instead just disable usePLM, or else this will allocate more memory / run more functions.
+	--usePLM = 'plm-cons',				-- -190
+	--usePLM = 'plm-cons-alone',		-- -177
+	--usePLM = 'plm-prim-alone',		-- -175
+	--usePLM = 'plm-eig',				-- -88		\
+	--usePLM = 'plm-eig-prim',			-- -88		 - these have less sharp shock wave in Sod than the non-eig ones
+	--usePLM = 'plm-eig-prim-ref',		-- -28 		/
+	--usePLM = 'plm-athena',			-- -40		based on Athena.  most accurate from 1D sod tests atm
+	--usePLM = 'ppm-wip',				-- 			FIXME one more attempt to figure out all the PLM stuff, based on 2017 Zingale
+	--usePLM = 'weno',					-- 			TODO make WENO one of these 'usePLM' methods. rename it to 'construct LR state method' or something.  then we can use CTU with WENO.
 	
 	-- only enabled for certain usePLM methods
 	slopeLimiter = 'minmod',
@@ -218,7 +221,7 @@ local args = {
 	--initCond = 'Bessel',
 	--initCond = 'cyclone',
 	
-	--initCond = 'Sod',
+	initCond = 'Sod',
 	--initCond = 'Sod with physical units',
 	--initCondArgs = {dim=cmdline.displayDim},
 	
@@ -244,7 +247,7 @@ local args = {
 	--initCond = 'configuration 6',
 	
 	-- states for ideal MHD or two-fluid (not two-fluid-separate)
-	initCond = 'Brio-Wu',
+	--initCond = 'Brio-Wu',
 	--initCond = 'Orszag-Tang',
 	--initCond = 'MHD rotor',
 	--initCond = 'spinning magnetic fluid',

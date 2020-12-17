@@ -292,7 +292,8 @@ for _,field in ipairs(eqn.eigenVars) do
 	}<? end ?>
 }
 
-//// MODULE_NAME: eigen_leftTransform eigen_rightTransform
+//// MODULE_NAME: eigen_leftTransform
+//// MODULE_DEPENDS: <?=coord_sqrt_det_g?>
 
 void eigen_leftTransform(
 	constant <?=solver_t?>* solver,
@@ -376,6 +377,9 @@ void eigen_leftTransform(
 		+ X[4] * l5plus
 	) * scale;
 }
+
+//// MODULE_NAME: eigen_rightTransform
+//// MODULE_DEPENDS: <?=coord_sqrt_det_g?>
 
 void eigen_rightTransform(
 	constant <?=solver_t?>* solver,

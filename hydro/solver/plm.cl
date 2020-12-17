@@ -1,5 +1,5 @@
 //// MODULE_NAME: calcLR
-//// MODULE_DEPENDS: <?=consLR_t?> <?=solver_t?> <?=cons_t?> normal_t cell_dx#
+//// MODULE_DEPENDS: <?=consLR_t?> <?=solver_t?> <?=cons_t?> normal_t <?=cell_dxi?>
 
 // TODO incorporate parallel propagators
 

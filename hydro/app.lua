@@ -552,14 +552,19 @@ function HydroCLApp:initGL(...)
 	self.realparam = self.real == 'half' and 'float' or self.real
 
 
-	-- hmm, sorting out how to do the module system ...
-	self.modules = require 'hydro.code.moduleset'()
+	-- init the module system ...
+	do
+		local Modules = require 'modules'
+		Modules.verbose = cmdline.moduleVerbose
+		self.modules = Modules()
+	
+		self.modules:addFromMarkup(template(file['hydro/code/math.cl'], table(require 'hydro.common', {
+			app = self,
+		})))
+		
+		require 'hydro.code.safecdef'(self.modules:getTypeHeader'math')
+	end
 
-	self.modules:addFromMarkup(template(file['hydro/code/math.cl'], table(require 'hydro.common', {
-		app = self,
-	})))
-
-	require 'hydro.code.safecdef'(self.modules:getTypeHeader'math')
 
 	self.solvers = table()
 

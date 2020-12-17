@@ -1,5 +1,5 @@
 //// MODULE_NAME: <?=applyInitCondCell?>
-//// MODULE_DEPENDS: cartesianToCoord
+//// MODULE_DEPENDS: <?=cartesianToCoord?>
 
 kernel void <?=applyInitCondCell?>(
 	constant <?=solver_t?> const * const solver,

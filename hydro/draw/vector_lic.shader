@@ -11,10 +11,10 @@ local varying = vertexShader and "out"
 //z holds the fixed z slice of the 3D texture
 <?=varying?> vec3 viewCoord;
 
-<?=draw:getModuleCodeGLSL("coordMapGLSL", "coordMapInvGLSL", 
+<?=draw:getModuleCodeGLSL(eqn.symbols.coordMapGLSL, eqn.symbols.coordMapInvGLSL, 
 	solver.coord.vectorComponent == "cartesian"
-	and "cartesianToCoord"	-- coord_cartesianToCoord
-	or "coord_conn_apply23"
+	and eqn.symbols.cartesianToCoord	-- coord_cartesianToCoord
+	or eqn.symbols.coord_conn_apply23
 )?>
 <?=draw:getCommonGLSLFragCode()?>
 

@@ -159,7 +159,7 @@ function BSSNOKFiniteDifferenceEquationBase:initCodeModule_calcDTCell()
 		name = self.symbols.calcDTCell,
 		depends = table{
 			self.symbols.eqn_common,
-			'coord_sqrt_g_ll##',
+			self.symbols.coord_sqrt_g_ll_ij,
 			'SETBOUNDS',
 		}:append(
 			self.cflMethod == '2008 Alcubierre' and { 

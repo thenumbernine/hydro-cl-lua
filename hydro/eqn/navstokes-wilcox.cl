@@ -1,5 +1,5 @@
 //// MODULE_NAME: <?=primFromCons?>
-//// MODULE_DEPENDS: <?=prim_t?> <?=cons_t?> coordLenSq
+//// MODULE_DEPENDS: <?=prim_t?> <?=cons_t?> <?=coordLenSq?>
 
 #define <?=primFromCons?>(\
 	/*<?=prim_t?> * const */result,\
@@ -21,7 +21,7 @@
 }
 
 //// MODULE_NAME: <?=consFromPrim?>
-//// MODULE_DEPENDS: <?=prim_t?> <?=cons_t?> coordLenSq
+//// MODULE_DEPENDS: <?=prim_t?> <?=cons_t?> <?=coordLenSq?>
 
 #define <?=consFromPrim?>(\
 	/*<?=cons_t?> * const */result,\
@@ -53,7 +53,7 @@
 }
 
 //// MODULE_NAME: <?=apply_dU_dW?>
-//// MODULE_DEPENDS: real3 <?=solver_t?> <?=prim_t?> <?=cons_t?> coord_lower
+//// MODULE_DEPENDS: real3 <?=solver_t?> <?=prim_t?> <?=cons_t?> <?=coord_lower?>
 
 #define <?=apply_dU_dW?>(\
 	/*<?=cons_t?> * const */result,\
@@ -78,7 +78,7 @@
 }
 
 //// MODULE_NAME: <?=apply_dW_dU?>
-//// MODULE_DEPENDS: real3 <?=solver_t?> <?=prim_t?> <?=cons_t?> coord_lower
+//// MODULE_DEPENDS: real3 <?=solver_t?> <?=prim_t?> <?=cons_t?> <?=coord_lower?>
 
 #define <?=apply_dW_dU?>(\
 	/*<?=prim_t?> * const */result,\
@@ -103,7 +103,7 @@
 }
 
 //// MODULE_NAME: <?=eqn_common?>
-//// MODULE_DEPENDS: coordLenSq
+//// MODULE_DEPENDS: <?=coordLenSq?>
 
 #define R_over_C_v (solver->gasConstant / solver->C_v)
 #define C_v_over_R (solver->C_v / solver->gasConstant)
@@ -135,7 +135,7 @@ static inline real calc_Cs(constant <?=solver_t?> const * const solver, <?=prim_
 }
 
 //// MODULE_NAME: <?=applyInitCond?>
-//// MODULE_DEPENDS: cartesianToCoord <?=consFromPrim?>
+//// MODULE_DEPENDS: <?=cartesianToCoord?> <?=consFromPrim?>
 
 kernel void <?=applyInitCond?>(
 	constant <?=solver_t?> const * const solver,
@@ -178,7 +178,7 @@ end
 }
 
 //// MODULE_NAME: <?=fluxFromCons?>
-//// MODULE_DEPENDS: coord_g_uu## <?=primFromCons?>
+//// MODULE_DEPENDS: <?=coord_g_uu_ij?> <?=primFromCons?>
 
 #define <?=fluxFromCons?>(\
 	/*<?=cons_t?> * const */resultFlux,\
@@ -215,7 +215,7 @@ end
 }
 
 //// MODULE_NAME: <?=calcCellMinMaxEigenvalues?>
-//// MODULE_DEPENDS: coord_sqrt_g_uu## <?=primFromCons?> <?=eqn_common?>
+//// MODULE_DEPENDS: <?=coord_sqrt_g_uu_ij?> <?=primFromCons?> <?=eqn_common?>
 
 #define <?=calcCellMinMaxEigenvalues?>(\
 	/*range_t * const */result,\
@@ -354,7 +354,7 @@ end
 ?>
 
 //// MODULE_NAME: <?=eigen_leftTransform?>
-//// MODULE_DEPENDS: coord_g_uu coord_g_uu## coord_sqrt_g_uu## coord_lower <?=waves_t?> 
+//// MODULE_DEPENDS: <?=coord_g_uu?> <?=coord_g_uu_ij?> <?=coord_sqrt_g_uu_ij?> <?=coord_lower?> <?=waves_t?> 
 
 #define <?=eigen_leftTransform?>(\
 	/*<?=waves_t?> * const */result,\
@@ -503,7 +503,7 @@ end
 }
 
 //// MODULE_NAME: <?=eigen_rightTransform?>
-//// MODULE_DEPENDS: coord_g_uu coord_g_uu## coord_sqrt_g_uu## coord_lower <?=waves_t?> 
+//// MODULE_DEPENDS: <?=coord_g_uu?> <?=coord_g_uu_ij?> <?=coord_sqrt_g_uu_ij?> <?=coord_lower?> <?=waves_t?> 
 
 #define <?=eigen_rightTransform?>(\
 	/*<?=cons_t?> const * const */result,\

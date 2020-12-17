@@ -15,7 +15,7 @@ static inline sym3 <?=calc_gamma_uu?>(
 }
 
 //// MODULE_NAME: <?=applyInitCondCell?>
-//// MODULE_DEPENDS: numGhost coordMap coord_gHol_ll rescaleFromCoord/rescaleToCoord <?=solver_t?> <?=initCond_t?> <?=cons_t?> <?=cell_t?>
+//// MODULE_DEPENDS: numGhost <?=coordMap?> <?=coord_gHol_ll?> rescaleFromCoord/rescaleToCoord <?=solver_t?> <?=initCond_t?> <?=cons_t?> <?=cell_t?>
 
 <?
 if eqn.initCond.initAnalytical then
@@ -880,7 +880,7 @@ end --\
 }
 
 //// MODULE_NAME: <?=addSource?>
-//// MODULE_DEPENDS: coordMapR <?=cell_t?> cell_x initCond.codeprefix
+//// MODULE_DEPENDS: <?=coordMapR?> <?=cell_t?> cell_x initCond.codeprefix
 
 //TODO put these somewhere
 #define numberof(x)	(sizeof(x)/sizeof(x[0]))

@@ -69,7 +69,7 @@ function BackwardEuler:init(solver, args)
 		code = template(
 			solver.modules:getCodeAndHeader(solver.sharedModulesEnabled:keys():append{
 				'SETBOUNDS_NOGHOST',
-				'solver.macros',
+				solver.eqn.symbols.solver_macros,
 			}:unpack())
 			..[[
 <? local range = require 'ext.range' ?>

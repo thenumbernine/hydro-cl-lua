@@ -14,7 +14,7 @@ local varying = vertexShader and 'out'
 <?=varying?> vec3 pos;		//positive after coordinate mapping, before view transform
 <? end ?>
 
-<?=draw:getModuleCodeGLSL("coordMapGLSL", "coordMapInvGLSL")?>
+<?=draw:getModuleCodeGLSL(eqn.symbols.coordMapGLSL, eqn.symbols.coordMapInvGLSL)?>
 <?=draw:getCommonGLSLFragCode()?>
 
 <? if vertexShader then ?>

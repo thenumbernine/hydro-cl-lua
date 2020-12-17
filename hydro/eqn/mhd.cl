@@ -1,5 +1,5 @@
 //// MODULE_NAME: <?=primFromCons?>
-//// MODULE_DEPENDS: units real3 <?=solver_t?> <?=prim_t?> <?=cons_t?> coordLenSq
+//// MODULE_DEPENDS: units real3 <?=solver_t?> <?=prim_t?> <?=cons_t?> <?=coordLenSq?>
 
 #define <?=primFromCons?>(\
 	/*<?=prim_t?> * const */result,\
@@ -23,7 +23,7 @@
 }
 
 //// MODULE_NAME: <?=consFromPrim?>
-//// MODULE_DEPENDS: units real3 <?=solver_t?> <?=prim_t?> <?=cons_t?> coordLenSq
+//// MODULE_DEPENDS: units real3 <?=solver_t?> <?=prim_t?> <?=cons_t?> <?=coordLenSq?>
 
 #define <?=consFromPrim?>(\
 	/*<?=cons_t?> * const */result,\
@@ -92,7 +92,7 @@
 }
 
 //// MODULE_NAME: <?=applyInitCondCell?>
-//// MODULE_DEPENDS: cartesianToCoord
+//// MODULE_DEPENDS: <?=cartesianToCoord?>
 
 void <?=applyInitCondCell?>(
 	constant <?=solver_t?> const * const solver,
@@ -282,7 +282,7 @@ end
 }
 
 //// MODULE_NAME: <?=eqn_common?>
-//// MODULE_DEPENDS: units coordLenSq
+//// MODULE_DEPENDS: units <?=coordLenSq?>
 
 static inline real calc_eKin(
 	<?=prim_t?> const * const W,
@@ -421,7 +421,7 @@ static inline real3 calc_CA(
 }
 
 //// MODULE_NAME: <?=fluxFromCons?>
-//// MODULE_DEPENDS: units <?=solver_t?> <?=cons_t?> <?=prim_t?> <?=primFromCons?> normal_t coordLenSq
+//// MODULE_DEPENDS: units <?=solver_t?> <?=cons_t?> <?=prim_t?> <?=primFromCons?> normal_t <?=coordLenSq?>
 
 #define <?=fluxFromCons?>(\
 	/*<?=cons_t?> * const */F,\

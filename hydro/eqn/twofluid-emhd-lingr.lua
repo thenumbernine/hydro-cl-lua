@@ -28,7 +28,7 @@ local fluids = table{'ion', 'elec'}
 TwoFluidEMHDDeDonderGaugeLinearizedGR.fluids = fluids
 
 TwoFluidEMHDDeDonderGaugeLinearizedGR.postComputeFluxCode = [[
-//// MODULE_DEPENDS: coord_sqrt_det_g coord_lower
+//// MODULE_DEPENDS: <?=coord_sqrt_det_g?> <?=coord_lower?>
 		//flux is computed raised via Levi-Civita upper
 		//so here we lower it
 		real _1_sqrt_det_g = 1. / coord_sqrt_det_g(x);
@@ -184,7 +184,7 @@ end
 function TwoFluidEMHDDeDonderGaugeLinearizedGR:getModuleDepends_waveCode()
 	return {
 		'units',
-		'coord_lower',
+		self.symbols.coord_lower,
 		self.symbols.eqn_common,
 		self.symbols.primFromCons,
 	}

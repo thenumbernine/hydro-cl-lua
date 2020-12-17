@@ -2,9 +2,10 @@ local class = require 'ext.class'
 local table = require 'ext.table'
 local template = require 'template'
 local SelfGrav = require 'hydro.op.selfgrav'
+
 local TwoFluidSelfGrav = class(SelfGrav)
 
-TwoFluidSelfGrav.name = 'TwoFluidSelfGrav'
+TwoFluidSelfGrav.name = 'twofluid_selfgrav'
 
 function TwoFluidSelfGrav:getModuleDepends_Poisson()
 	return table(TwoFluidSelfGrav.super.getModuleDepends_Poisson(self)):append{
@@ -21,7 +22,7 @@ end
 
 function TwoFluidSelfGrav:getPoissonCode()
 	return self.solver.eqn:template([[
-real3 calcGravityAccel<?=op.name?>(
+real3 <?=op.symbolPrefix?>_calcGravityAccel(
 	constant <?=solver_t?> const * const solver,
 	global <?=cons_t?> const * const U,
 	real3 const x
@@ -39,7 +40,7 @@ real3 calcGravityAccel<?=op.name?>(
 	return accel_g;
 }
 
-kernel void calcGravityDeriv<?=op.name?>(
+kernel void <?=op.symbolPrefix?>_calcGravityDeriv(
 	constant <?=solver_t?> const * const solver,
 	global <?=cons_t?> * const derivBuffer,
 	global <?=cons_t?> const * const UBuf,
@@ -51,7 +52,7 @@ kernel void calcGravityDeriv<?=op.name?>(
 	global <?=cons_t?> * const deriv = derivBuffer + index;
 	global <?=cons_t?> const * const U = UBuf + index;
 	
-	real3 accel_g = calcGravityAccel<?=op.name?>(solver, U, x);
+	real3 accel_g = <?=op.symbolPrefix?>_calcGravityAccel(solver, U, x);
 
 	// kg/(m^2 s) = kg/m^3 * m/s^2
 <? for _,fluid in ipairs(eqn.fluids) do	
@@ -66,7 +67,7 @@ kernel void calcGravityDeriv<?=op.name?>(
 }
 
 // this matches hydro/op/selfgrav.lua
-kernel void copyPotentialToReduce<?=op.name?>(
+kernel void <?=op.symbolPrefix?>_copyPotentialToReduce(
 	constant <?=solver_t?> const * const solver,
 	global real * const reduceBuf,
 	global <?=cons_t?> const * const UBuf
@@ -76,7 +77,7 @@ kernel void copyPotentialToReduce<?=op.name?>(
 }
 
 // this matches hydro/op/selfgrav.lua
-kernel void offsetPotential<?=op.name?>(
+kernel void <?=op.symbolPrefix?>_offsetPotential(
 	constant <?=solver_t?> const * const solver,
 	global <?=cons_t?> * const UBuf,
 	realparam const ePotMax

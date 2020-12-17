@@ -86,7 +86,7 @@ function Maxwell:init(args)
 
 -- [=[ TODO combine this into the flux and remove this variable from calcDerivFV
 	self.postComputeFluxCode = self:template[[
-//// MODULE_DEPENDS: coord_sqrt_det_g <?=eqn_common?>
+//// MODULE_DEPENDS: <?=coord_sqrt_det_g?> <?=eqn_common?>
 <? local vec3 = eqn.vec3 ?>
 		//TODO shouldn't I be transforming both the left and right fluxes by the metrics at their respective coordinates?
 		//flux is computed raised via Levi-Civita upper

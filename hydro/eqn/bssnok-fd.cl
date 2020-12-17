@@ -1,10 +1,10 @@
 //// MODULE_NAME: calc_gammaHat_ll
-//// MODULE_DEPENDS: coord_g_ll
+//// MODULE_DEPENDS: <?=coord_g_ll?>
 
 #define calc_gammaHat_ll	coord_g_ll
 
 //// MODULE_NAME: calc_gammaHat_uu
-//// MODULE_DEPENDS: coord_g_uu
+//// MODULE_DEPENDS: <?=coord_g_uu?>
 
 #define calc_gammaHat_uu 	coord_g_uu
 

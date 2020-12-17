@@ -31,7 +31,7 @@
 }
 
 //// MODULE_NAME: <?=apply_dU_dW?>
-//// MODULE_DEPENDS: <?=solver_t?> <?=prim_t?> <?=cons_t?> coord_lower
+//// MODULE_DEPENDS: <?=solver_t?> <?=prim_t?> <?=cons_t?> <?=coord_lower?>
 // only used by PLM
 
 #define <?=apply_dU_dW?>(\
@@ -53,7 +53,7 @@
 }
 
 //// MODULE_NAME: <?=apply_dW_dU?>	
-//// MODULE_DEPENDS: <?=solver_t?> <?=prim_t?> <?=cons_t?> coord_lower
+//// MODULE_DEPENDS: <?=solver_t?> <?=prim_t?> <?=cons_t?> <?=coord_lower?>
 // only used by PLM
 
 #define <?=apply_dW_dU?>(\
@@ -76,7 +76,7 @@
 }
 
 //// MODULE_NAME: <?=eqn_common?>
-//// MODULE_DEPENDS: coordLenSq <?=cons_t?> <?=prim_t?> <?=waves_t?> <?=eigen_t?> <?=eqn_guiVars_compileTime?>
+//// MODULE_DEPENDS: <?=coordLenSq?> <?=cons_t?> <?=prim_t?> <?=waves_t?> <?=eigen_t?> <?=eqn_guiVars_compileTime?>
 
 #define /*real*/ calc_H(\
 	/*constant <?=solver_t?> const * const */solver,\
@@ -144,7 +144,7 @@
 
 
 //// MODULE_NAME: <?=applyInitCondCell?>
-//// MODULE_DEPENDS: cartesianToCoord
+//// MODULE_DEPENDS: <?=cartesianToCoord?>
 
 /*
 I've highjacked all of this.  It was a normal Euler eqn solver.
@@ -234,7 +234,7 @@ end
 }
 
 //// MODULE_NAME: <?=eigen_forCell?>
-//// MODULE_DEPENDS: normal_t coord_lower <?=cons_t?> <?=prim_t?> <?=eigen_t?> <?=primFromCons?> <?=eqn_common?>
+//// MODULE_DEPENDS: normal_t <?=coord_lower?> <?=cons_t?> <?=prim_t?> <?=eigen_t?> <?=primFromCons?> <?=eqn_common?>
 // eqn_common is for all the calc_* stuff
 
 // used by PLM
@@ -263,7 +263,7 @@ end
 }
 
 //// MODULE_NAME: <?=eigen_forInterface?>
-//// MODULE_DEPENDS: <?=primFromCons?> <?=eigen_t?> normal_t coord_lower
+//// MODULE_DEPENDS: <?=primFromCons?> <?=eigen_t?> normal_t <?=coord_lower?>
 
 //used by the mesh version
 #define <?=eigen_forInterface?>(\
@@ -478,7 +478,7 @@ kernel void <?=addSource?>(
 	SETBOUNDS_NOGHOST();
 	real3 const x = cellBuf[index].pos;
 
-	global <?=cons_t?> const * const deriv = derivBuf + index;
+	global <?=cons_t?> * const deriv = derivBuf + index;
 	global <?=cons_t?> const * const U = UBuf + index;
 
 <? if false 
@@ -513,7 +513,7 @@ then ?>
 <? if not (require 'hydro.coord.cartesian'.is(solver.coord) 
 		or solver.coord.vectorComponent == 'cartesian')
 then ?>
-//// MODULE_DEPENDS: <?=primFromCons?> coord_conn_apply23 coord_conn_trace23 coord_conn_apply13
+//// MODULE_DEPENDS: <?=primFromCons?> <?=coord_conn_apply23?> <?=coord_conn_trace23?> <?=coord_conn_apply13?>
 /*
 This is working for init conds with zero velocity.
 Introducing constant velocity of v=[x=1,y=1]=[r=sqrt(2),theta=pi/4] in the init cond causes some numerical errors.

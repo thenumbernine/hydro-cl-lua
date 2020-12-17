@@ -8,7 +8,7 @@ local varying = vertexShader and 'out'
 
 <?=varying?> float cellindexv;
 
-<?=draw:getModuleCodeGLSL("coordMapGLSL", "coordMapInvGLSL")?>
+<?=draw:getModuleCodeGLSL(eqn.symbols.coordMapGLSL, eqn.symbols.coordMapInvGLSL)?>
 <?=draw:getCommonGLSLFragCode()?>
 
 <? if vertexShader then ?>

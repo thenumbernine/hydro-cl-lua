@@ -101,34 +101,42 @@ assert(#self.eqns > 0, "you need at least one entry in args.subeqns")
 		
 		-- this is to prevent initCond_t from being re-added
 		eqn.createInitState_createInitState = function() end
-		
+
+--[[
 		--eqn:initCodeModules()
 		-- assign the cons_t, prim_t, and eigen_t to app
 		-- so that, when querying modules in the composite's cdefAllVarTypes, it looks in app's modules and finds them
 		--rawset(eqn.solver, 'modules', solver.app.modules)
+-- TODO now that it is setting sharedModulesEnabled,
+-- should we be doing this early here?
+-- but we have to in order to count scalars.
+-- hmm ... 
 		eqn:initCodeModule_cons_prim_eigen_waves()
 		-- hack here: remove the typedefs from the cons_t and prim_t
 		solver.app.modules.set[eqn.symbols.cons_t].headercode = ''
 		solver.app.modules.set[eqn.symbols.prim_t].headercode = ''
 		solver.app.modules.set[eqn.symbols.eigen_t].headercode = ''
 		solver.app.modules.set[eqn.symbols.waves_t].headercode = ''
+--]]	
 	end
 
 	-- now set the subeqns' modules to our solver's modules 
 	for i,eqn in ipairs(self.eqns) do
 		rawset(eqn.solver, 'modules', nil)
+		-- specific for composite:
+		eqn.field = 'eqn'..i
 	end
 
 	self.consVars = self.eqns:mapi(function(eqn, i)
-		return {type=assert(eqn.symbols.cons_t), name='eqn'..i}
+		return {type=assert(eqn.symbols.cons_t), name=eqn.field}
 	end)
 
 	self.primVars = self.eqns:mapi(function(eqn, i)
-		return {type=assert(eqn.symbols.prim_t), name='eqn'..i}
+		return {type=assert(eqn.symbols.prim_t), name=eqn.field}
 	end)
 	
 	self.eigenVars = self.eqns:mapi(function(eqn, i)
-		return {type=assert(eqn.symbols.eigen_t), name='eqn'..i}
+		return {type=assert(eqn.symbols.eigen_t), name=eqn.field}
 	end)
 
 	-- count waves here rather than later, because if you rely on super.init to count numWaves then it will use numStates
@@ -137,7 +145,7 @@ assert(#self.eqns > 0, "you need at least one entry in args.subeqns")
 	end):sum()
 
 	self.wavesVars = self.eqns:mapi(function(eqn, i)
-		return {type=assert(eqn.symbols.waves_t), name='eqn'..i}
+		return {type=assert(eqn.symbols.waves_t), name=eqn.field}
 	end)
 
 	-- BIG FUTURE TODO
@@ -188,6 +196,7 @@ function Composite:createInitState()
 --]]
 end
 
+--[[
 function Composite:initCodeModules()
 	-- don't initCodeModule_cons_prim_eigen_waves because we already did that (for app.modules for cdefAll...)
 	for _,eqn in ipairs(self.eqns) do
@@ -199,6 +208,7 @@ function Composite:initCodeModules()
 
 	Composite.super.initCodeModules(self)
 end
+--]]
 
 -- in the solverCodeFile
 function Composite:initCodeModule_cons_parallelPropagate() end
@@ -223,7 +233,7 @@ end
 -- this might require some kind of namespace
 function Composite:eigenWaveCodePrefix(n, eig, x)
 	return self.eqns:mapi(function(eqn,i)
-		return eqn:eigenWaveCodePrefix(n, '&('..eig..')->eqn'..i, x)
+		return eqn:eigenWaveCodePrefix(n, '&('..eig..')->'..eqn.field, x)
 	end):concat'\n'
 end
 
@@ -231,7 +241,7 @@ function Composite:eigenWaveCode(n, eig, x, waveIndex)
 	local origWaveIndex = waveIndex
 	for i,eqn in ipairs(self.eqns) do
 		if waveIndex >= 0 and waveIndex < eqn.numWaves then
-			return eqn:eigenWaveCode(n, '&('..eig..')->eqn'..i, x, waveIndex)
+			return eqn:eigenWaveCode(n, '&('..eig..')->'..eqn.field, x, waveIndex)
 		end
 		waveIndex = waveIndex - eqn.numWaves
 	end
@@ -241,7 +251,7 @@ end
 -- TODO same as eigenWaveCodePrefix
 function Composite:consWaveCodePrefix(n, U, x)
 	return self.eqns:mapi(function(eqn,i)
-		return eqn:consWaveCodePrefix(n, '&('..U..')->eqn'..i, x)
+		return eqn:consWaveCodePrefix(n, '&('..U..')->'..eqn.field, x)
 	end):concat'\n'
 end
 
@@ -249,7 +259,7 @@ function Composite:consWaveCode(n, U, x, waveIndex)
 	local origWaveIndex = waveIndex
 	for i,eqn in ipairs(self.eqns) do
 		if waveIndex >= 0 and waveIndex < eqn.numWaves then
-			return eqn:consWaveCode(n, '&('..U..')->eqn'..i, x, waveIndex)
+			return eqn:consWaveCode(n, '&('..U..')->'..eqn.field, x, waveIndex)
 		end
 		waveIndex = waveIndex - eqn.numWaves
 	end

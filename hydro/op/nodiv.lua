@@ -83,7 +83,7 @@ local scalar = op.scalar
 local sub = scalar..'_sub'
 local real_mul = scalar..'_real_mul'
 ?>
-kernel void noDiv<?=op.name?>(
+kernel void <?=op.symbolPrefix?>_noDiv(
 	constant <?=solver_t?>* solver,
 	global <?=cons_t?>* UBuf
 ) {
@@ -104,7 +104,7 @@ kernel void noDiv<?=op.name?>(
 }
 
 //TODO just use the display var kernels
-kernel void copyPotentialToReduce<?=op.name?>(
+kernel void <?=op.symbolPrefix?>_copyPotentialToReduce(
 	constant <?=solver_t?>* solver,
 	global real* reduceBuf,
 	global const <?=cons_t?>* UBuf
@@ -120,8 +120,8 @@ kernel void copyPotentialToReduce<?=op.name?>(
 	function NoDiv:refreshSolverProgram()
 		NoDiv.super.refreshSolverProgram(self)
 		local solver = self.solver
-		self.noDivKernelObj = solver.solverProgramObj:kernel('noDiv'..self.name, solver.solverBuf, solver.UBuf)
-		self.copyPotentialToReduceKernelObj = solver.solverProgramObj:kernel('copyPotentialToReduce'..self.name, solver.solverBuf, solver.reduceBuf, solver.UBuf)
+		self.noDivKernelObj = solver.solverProgramObj:kernel(self.symbolPrefix..'_noDiv', solver.solverBuf, solver.UBuf)
+		self.copyPotentialToReduceKernelObj = solver.solverProgramObj:kernel(self.symbolPrefix..'_copyPotentialToReduce', solver.solverBuf, solver.reduceBuf, solver.UBuf)
 	end
 
 	function NoDiv:step(dt)

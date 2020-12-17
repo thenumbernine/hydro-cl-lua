@@ -1,5 +1,5 @@
 //// MODULE_NAME: <?=eqn_common?>
-//// MODULE_DEPENDS: coordLenSq
+//// MODULE_DEPENDS: <?=coordLenSq?>
 
 static inline real calc_eKin(<?=prim_t?> const * const W, real3 x) { return .5 * coordLenSq((W)->v, x); }
 static inline real calc_EKin(<?=prim_t?> const * const W, real3 x) { return (W)->rho * calc_eKin(W, x); }
@@ -36,7 +36,7 @@ static inline real3 calc_CA(
 }
 
 //// MODULE_NAME: <?=primFromCons?>
-//// MODULE_DEPENDS: units <?=solver_t?> <?=prim_t?> <?=cons_t?> coordLenSq
+//// MODULE_DEPENDS: units <?=solver_t?> <?=prim_t?> <?=cons_t?> <?=coordLenSq?>
 
 #define <?=primFromCons?>(\
 	/*<?=prim_t?> const * const */W,\
@@ -60,7 +60,7 @@ static inline real3 calc_CA(
 }
 
 //// MODULE_NAME: <?=consFromPrim?>
-//// MODULE_DEPENDS: units <?=solver_t?> <?=prim_t?> <?=cons_t?> coordLenSq
+//// MODULE_DEPENDS: units <?=solver_t?> <?=prim_t?> <?=cons_t?> <?=coordLenSq?>
 
 #define <?=consFromPrim?>(\
 	/*<?=cons_t?> const * const */U,\
@@ -131,7 +131,7 @@ static inline real3 calc_CA(
 }
 
 //// MODULE_NAME: <?=applyInitCondCell?>
-//// MODULE_DEPENDS: cartesianToCoord
+//// MODULE_DEPENDS: <?=cartesianToCoord?>
 
 kernel void <?=applyInitCondCell?>(
 	constant <?=solver_t?> const * const solver,

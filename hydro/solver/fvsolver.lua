@@ -87,7 +87,7 @@ kernel void calcFlux(
 <? if solver.coord.vectorComponent == 'cartesian' 
 	or solver.coord.vectorComponent == 'anholonomic'
 then ?>
-//// MODULE_DEPENDS: cell_area#
+//// MODULE_DEPENDS: <?=cell_areai?>
 		real area = cell_area<?=side?>(xInt);
 <? else ?>
 		real area = 1.<?

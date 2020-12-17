@@ -266,7 +266,7 @@ function MHD:getDisplayVars()
 			name='gravity', 
 			code=self:template[[
 	if (!OOB(1,1)) {
-		value.vreal3 = calcGravityAccel<?=eqn.gravOp.name?>(solver, U);
+		value.vreal3 = <?=eqn.gravOp.symbolPrefix?>_calcGravityAccel(solver, U);
 	}
 ]], 
 			type='real3', 

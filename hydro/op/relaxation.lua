@@ -13,7 +13,7 @@ local toreal, fromreal = half.toreal, half.fromreal
 
 local Relaxation = class()
 
-Relaxation.name = 'Relaxation'
+Relaxation.name = 'relaxation'
 
 -- scalar type of our vectors -- real or cplx 
 -- TODO can be inferred from the type
@@ -53,7 +53,8 @@ function Relaxation:init(args)
 	self.verbose = args.verbose
 
 	-- this assumes 'self.name' is the class name
-	self.name = solver.app:uniqueName(self.name)
+	local uid = require 'hydro.code.uid'(self)
+	self.symbolPrefix = self.name..'_'..uid
 
 	self.writeBufObj = CLBuffer{
 		env = solver.app.env,
@@ -64,7 +65,7 @@ function Relaxation:init(args)
 end
 
 function Relaxation:initCodeModules(solver)
-	local name = 'op.Relaxation-'..self.name
+	local name = 'op.Relaxation-'..self.symbolPrefix
 	solver.modules:add{
 		name = name,
 		depends = {
@@ -77,13 +78,13 @@ end
 
 function Relaxation:refreshSolverProgram()
 	local solver = self.solver
-	self.initPotentialKernelObj = solver.solverProgramObj:kernel('initPotential'..self.name, solver.solverBuf, self:getPotBuf())
-	self.solveJacobiKernelObj = solver.solverProgramObj:kernel('solveJacobi'..self.name, self.solver.solverBuf, self.writeBufObj, self:getPotBuf(), solver.cellBuf)
+	self.initPotentialKernelObj = solver.solverProgramObj:kernel(self.symbolPrefix..'_initPotential', solver.solverBuf, self:getPotBuf())
+	self.solveJacobiKernelObj = solver.solverProgramObj:kernel(self.symbolPrefix..'_solveJacobi', self.solver.solverBuf, self.writeBufObj, self:getPotBuf(), solver.cellBuf)
 	if self.stopOnEpsilon then
 		self.solveJacobiKernelObj.obj:setArg(4, solver.reduceBuf)
 	end
 	self.copyWriteToPotentialNoGhostKernelObj = solver.solverProgramObj:kernel{
-		name='copyWriteToPotentialNoGhost'..self.name,
+		name = self.symbolPrefix..'_copyWriteToPotentialNoGhost',
 		setArgs={
 			solver.solverBuf,
 			solver.UBuf,
@@ -93,7 +94,7 @@ function Relaxation:refreshSolverProgram()
 	}
 
 	self.setReduceToPotentialSquaredKernelObj = solver.solverProgramObj:kernel{
-		name='setReduceToPotentialSquared'..self.name,
+		name=self.symbolPrefix..'_setReduceToPotentialSquared',
 		setArgs={
 			solver.solverBuf,
 			solver.reduceBuf,
@@ -113,7 +114,7 @@ function Relaxation:refreshBoundaryProgram()
 			type = self:getPotBufType(),
 			methods = solver.boundaryMethods,
 			fields = {self.potentialField},
-			programNameSuffix = '-'..self.name,
+			programNameSuffix = '-'..self.symbolPrefix,
 		}
 	for _,obj in ipairs(self.potentialBoundaryKernelObjs) do
 		obj.obj:setArg(1, self:getPotBuf())
@@ -170,7 +171,7 @@ function Relaxation:potentialBoundary()
 end
 
 function Relaxation:updateGUI()
-	ig.igPushIDStr(self.name..' solver')
+	ig.igPushIDStr(self.symbolPrefix..' solver')
 	-- TODO name from 'field' / 'enableField', though those aren't properties of Relaxation
 	if ig.igCollapsingHeader(self.name..' solver') then
 		if tooltip.checkboxTable('stop on epsilon', self, 'stopOnEpsilon') then

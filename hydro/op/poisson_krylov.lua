@@ -14,7 +14,7 @@ local toreal, fromreal = half.toreal, half.fromreal
 
 local PoissonKrylov = class()
 
-PoissonKrylov.name = 'PoissonKrylov'
+PoissonKrylov.name = 'poisson_krylov'
 PoissonKrylov.scalar = 'real'
 PoissonKrylov.potentialField = 'ePot'
 
@@ -45,7 +45,8 @@ function PoissonKrylov:init(args)
 	self.linearSolverType = args.linearSolver
 
 	-- matches hydro/op/relaxation.lua
-	self.name = solver.app:uniqueName(self.name)
+	local uid = require 'hydro.code.uid'(self)
+	self.symbolPrefix = self.name..'_'..uid
 end
 
 function PoissonKrylov:initSolver()
@@ -90,7 +91,7 @@ function PoissonKrylov:initSolver()
 		}:unpack())
 
 	local mulWithoutBorderKernelObj = solver.domain:kernel{
-		name = 'Poisson_mulWithoutBorder'..self.name,
+		name = self.symbolPrefix..'_mulWithoutBorder',
 		header = codePrefix,
 		argsOut = {
 			{name='y', type=solver.app.real, obj=true},
@@ -110,7 +111,7 @@ function PoissonKrylov:initSolver()
 	}
 
 	local squareKernelObj = solver.domain:kernel{
-		name = 'Poisson_square'..self.name,
+		name = self.symbolPrefix..'_square',
 		header = codePrefix,
 		argsOut = {
 			{name = 'y', type=solver.app.real, obj=true},
@@ -191,7 +192,7 @@ function PoissonKrylov:initSolver()
 end
 
 local poissonKrylovCode = [[
-kernel void poissonKrylovLinearFunc<?=op.name?>(
+kernel void <?=op.symbolPrefix?>_linearFunc(
 	constant <?=solver_t?>* solver,
 	global real* Y,
 	global real* X,
@@ -235,7 +236,7 @@ kernel void poissonKrylovLinearFunc<?=op.name?>(
 	Y[index] = sum;
 }
 
-kernel void copyPotentialFieldToVecAndInitB<?=op.name?>(
+kernel void <?=op.symbolPrefix?>_copyPotentialFieldToVecAndInitB(
 	constant <?=solver_t?>* solver,
 	global real* x,
 	global real* b,
@@ -251,7 +252,7 @@ kernel void copyPotentialFieldToVecAndInitB<?=op.name?>(
 	b[index] = source;
 }
 
-kernel void copyVecToPotentialField<?=op.name?>(
+kernel void <?=op.symbolPrefix?>_copyVecToPotentialField(
 	constant <?=solver_t?>* solver,
 	global <?=cons_t?>* UBuf,
 	global const real* x
@@ -263,8 +264,8 @@ kernel void copyVecToPotentialField<?=op.name?>(
 
 function PoissonKrylov:getModuleDepends_Poisson()
 	return {
-		'cell_sqrt_det_g',
-		'cell_dx#',
+		self.solver.eqn.symbols.cell_sqrt_det_g,
+		self.solver.eqn.symbols.cell_dxi,
 		'cell_x',
 	}
 end
@@ -288,10 +289,10 @@ end
 function PoissonKrylov:refreshSolverProgram()
 	local solver = self.solver
 	self:initSolver()
-	self.initPotentialKernelObj = solver.solverProgramObj:kernel('initPotential'..self.name, solver.solverBuf, self:getPotBuf())
-	self.copyPotentialFieldToVecAndInitBKernelObj = solver.solverProgramObj:kernel('copyPotentialFieldToVecAndInitB'..self.name, solver.solverBuf, assert(self.krylov_xObj.obj), self.krylov_bObj.obj, self:getPotBuf())
-	self.copyVecToPotentialFieldKernelObj = solver.solverProgramObj:kernel('copyVecToPotentialField'..self.name, solver.solverBuf, self:getPotBuf(), self.krylov_xObj.obj)
-	self.poissonKrylovLinearFuncKernelObj = solver.solverProgramObj:kernel('poissonKrylovLinearFunc'..self.name)
+	self.initPotentialKernelObj = solver.solverProgramObj:kernel(self.symbolPrefix..'_initPotential', solver.solverBuf, self:getPotBuf())
+	self.copyPotentialFieldToVecAndInitBKernelObj = solver.solverProgramObj:kernel(self.symbolPrefix..'_copyPotentialFieldToVecAndInitB', solver.solverBuf, assert(self.krylov_xObj.obj), self.krylov_bObj.obj, self:getPotBuf())
+	self.copyVecToPotentialFieldKernelObj = solver.solverProgramObj:kernel(self.symbolPrefix..'_copyVecToPotentialField', solver.solverBuf, self:getPotBuf(), self.krylov_xObj.obj)
+	self.poissonKrylovLinearFuncKernelObj = solver.solverProgramObj:kernel(self.symbolPrefix..'_linearFunc')
 end
 
 -- matches hydro/op/relaxation.lua
@@ -303,7 +304,7 @@ function PoissonKrylov:refreshBoundaryProgram()
 			type = self:getPotBufType(),
 			methods = solver.boundaryMethods,
 			fields = {self.potentialField},
-			programNameSuffix = '-'..self.name,	-- self.name is used to uniquely name the kernel as well as this boundary program
+			programNameSuffix = '_'..self.symbolPrefix,	-- self.symbolPrefix is used to uniquely name the kernel as well as this boundary program
 		}
 	for _,obj in ipairs(self.potentialBoundaryKernelObjs) do
 		obj.obj:setArg(1, self:getPotBuf())
@@ -343,7 +344,7 @@ end
 
 -- similar to hydro/op/relaxation.lua
 function PoissonKrylov:updateGUI()
-	ig.igPushIDStr(self.name..' solver')
+	ig.igPushIDStr(self.symbolPrefix..' solver')
 	-- TODO name from 'field' / 'enableField', though those aren't properties of PoissonKrylov
 	if ig.igCollapsingHeader'PoissonKrylov solver' then
 		tooltip.numberTable('Krylov epsilon', self.linearSolver.args, 'epsilon')

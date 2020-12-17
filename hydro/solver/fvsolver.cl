@@ -1,5 +1,5 @@
 //// MODULE_NAME: calcDerivFromFlux
-//// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> <?=cell_t?> solver.macros SETBOUNDS_NOGHOST
+//// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> <?=cell_t?> <?=solver_macros?> SETBOUNDS_NOGHOST
 
 // used by all the finite volume solvers
 
@@ -39,7 +39,7 @@ then ?>
 	end
 ?>;
 <? else ?>
-//// MODULE_DEPENDS: cell_volume 
+//// MODULE_DEPENDS: <?=cell_volume?> 
 	real const volume = cell_volume(x);
 <? end ?>
 
@@ -70,7 +70,7 @@ then ?>
 ?>;
 		real areaR = areaL;
 <? else ?>
-//// MODULE_DEPENDS: cell_area#
+//// MODULE_DEPENDS: <?=cell_areai?>
 		real areaL = cell_area<?=side?>(xIntL);
 		real areaR = cell_area<?=side?>(xIntR);
 <? end ?>
