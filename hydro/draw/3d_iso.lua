@@ -1,6 +1,5 @@
 local class = require 'ext.class'
 local file = require 'ext.file'
-local template = require 'template'
 local gl = require 'ffi.OpenGL'
 local ffi = require 'ffi'
 local table = require 'ext.table'
@@ -385,14 +384,12 @@ function Draw3DIso:prepareShader()
 	local volumetricCode = file['hydro/draw/volumetric.shader']
 	solver.volumeRayShader = solver.GLProgram{
 		name = 'volumetric',
-		vertexCode = template(volumetricCode, {
-			app = solver.app,
-			solver = solver,
+		vertexCode = solver.eqn:template(volumetricCode, {
+			draw = self,
 			vertexShader = true,
 		}),
-		fragmentCode = template(volumetricCode, {
-			app = solver.app,
-			solver = solver,
+		fragmentCode = solver.eqn:template(volumetricCode, {
+			draw = self,
 			fragmentShader = true,
 		}),
 		uniforms = {

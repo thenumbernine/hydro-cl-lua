@@ -144,6 +144,51 @@ args:
 		cartesian = cartesian components even in the presence of curvilinear coordinates 
 --]]
 function CoordinateSystem:init(args)
+	-- put all unique code module names here
+	require 'hydro.code.symbols'(self, {
+		'cell_area_i',
+		'cell_dx_i',
+		'cell_volume',
+		'cell_sqrt_det_g',
+		'coord_dxi',
+		'coord_det_g',
+		'coord_sqrt_det_g',
+		'coord_lower',
+		'coord_raise',
+		'coordLenSq',
+		'coordLen',
+		'coord_tr23_c',
+		'coord_conn_lll',
+		'coord_conn_ull',
+		'coord_conn_apply12',
+		'coord_conn_apply13',
+		'coord_conn_apply23',
+		'coord_conn_apply123',
+		'coord_conn_trace12',
+		'coord_conn_trace13',
+		'coord_conn_trace23',
+		'coord_partial_det_g',
+		'coord_partial2_det_g',
+		'coord_holBasisLen_i',
+		'coord_g_ll_ij',
+		'coord_g_uu_ij',
+		'coord_sqrt_g_uu_ij',
+		'coord_sqrt_g_ll_ij',
+		'coord_g_ll',
+		'coord_g_uu',
+		'coord_gHol_ll',
+		'coordMap',
+		'coordMapR',
+		'coordMapInv',
+		'coordMapGLSL',
+		'coordMapInvGLSL',
+		'coord_basis_i',
+		'coord_basisHolUnit_i',
+		'cartesianFromCoord',
+		'cartesianToCoord',
+		'coord_parallelPropagate',
+	})
+
 	self.solver = assert(args.solver)
 	self.repls = self.repls or table()
 
@@ -1046,7 +1091,7 @@ function CoordinateSystem:initCodeModules()
 	-- this is the change in cartesian wrt the change in grid
 	-- this is also the normalization factor for the anholonomic ( ... is it?)
 	solver.modules:add{
-		name = solver.eqn.symbols.coord_dxi,
+		name = self.symbols.coord_dxi,
 		headercode = function()
 			local lenExprs = self.compilePrintRequestTensor'lenExprs'
 			return range(dim):mapi(function(i)
@@ -1059,7 +1104,7 @@ function CoordinateSystem:initCodeModules()
 	-- area0, area1, ...
 	-- area_i = integral of u_j, j!=i of product of dx_j, j!=i
 	solver.modules:add{
-		name = solver.eqn.symbols.cell_areai,
+		name = self.symbols.cell_area_i,
 		headercode = function()
 			local cell_area_codes = self.compilePrintRequestTensor'coord_area_exprs'
 			return range(dim):mapi(function(i)
@@ -1070,17 +1115,35 @@ function CoordinateSystem:initCodeModules()
 	}
 	
 	solver.modules:add{
-		name = solver.eqn.symbols.cell_volume,
+		name = self.symbols.cell_volume,
 		headercode = function()
 			return '#define cell_volume(pt) ('..self.compilePrintRequestTensor'volume'..')'
 		end,
 	}
 
+	-- volume of a cell = volume element times grid dx's 
 	solver.modules:add{
-		name = solver.eqn.symbols.cell_dxi,
+		name = self.symbols.cell_sqrt_det_g,
+		depends = {
+			self.symbols.coord_sqrt_det_g,
+		},
+		code = solver.eqn:template[[
+static inline real cell_sqrt_det_g(constant <?=solver_t?> const * const solver, real3 const x) {
+	return coord_sqrt_det_g(x)<?
+for i=1,solver.dim do
+?> * solver->grid_dx.<?=xNames[i]?><?
+end
+?>;
+}
+]],
+	}
+	
+
+	solver.modules:add{
+		name = self.symbols.cell_dx_i,
 		depends = {
 			solver.solver_t,
-			solver.eqn.symbols.coord_dxi,
+			self.symbols.coord_dxi,
 		},
 		headercode = range(dim):mapi(function(i)
 			return '#define cell_dx'..(i-1)..'(pt) (coord_dx'..(i-1)..'(pt) * solver->grid_dx.s'..(i-1)..')'
@@ -1112,7 +1175,7 @@ function CoordinateSystem:initCodeModules()
 			depends = (depends or table()):append{'_3sym3'}
 		end
 		solver.modules:add{
-			name = solver.eqn.symbols[info.name],
+			name = self.symbols[info.name] or error("failed to find symbol for coord-depend "..info.name),
 			depends = depends,
 			code = function()
 				return info.build(info.name, self.compilePrintRequestTensor(info.name))
@@ -1121,7 +1184,7 @@ function CoordinateSystem:initCodeModules()
 	end
 	
 	solver.modules:add{
-		name = solver.eqn.symbols.coord_holBasisLen_i,
+		name = self.symbols.coord_holBasisLen_i,
 		code = function()
 			local eHolLen = self.compilePrintRequestTensor'eHolLen'
 			return range(dim):mapi(function(i)
@@ -1146,14 +1209,14 @@ function CoordinateSystem:initCodeModules()
 		end
 
 		solver.modules:add{
-			name = solver.eqn.symbols.coord_g_ll_ij,
+			name = self.symbols.coord_g_ll_ij,
 			code = function()
 				return addSym3Components('coord_g_ll', self.compilePrintRequestTensor'g')
 			end,
 		}
 
 		solver.modules:add{
-			name = solver.eqn.symbols.coord_g_uu_ij,
+			name = self.symbols.coord_g_uu_ij,
 			code = function()
 				return addSym3Components('coord_g_uu', self.compilePrintRequestTensor'gU')
 			end,
@@ -1161,14 +1224,14 @@ function CoordinateSystem:initCodeModules()
 		
 		-- curvilinear grid normals use sqrt(g^ii), as it is the metric-weighted coordinate normal magnitude
 		solver.modules:add{
-			name = solver.eqn.symbols.coord_sqrt_g_uu_ij,
+			name = self.symbols.coord_sqrt_g_uu_ij,
 			code = function()
 				return addSym3Components('coord_sqrt_g_uu', self.compilePrintRequestTensor'sqrt_gU')
 			end,
 		}
 	
 		solver.modules:add{
-			name = solver.eqn.symbols.coord_sqrt_g_ll_ij,
+			name = self.symbols.coord_sqrt_g_ll_ij,
 			code = function()
 				return addSym3Components('coord_sqrt_g_ll', self.compilePrintRequestTensor'sqrt_g')
 			end,
@@ -1176,7 +1239,7 @@ function CoordinateSystem:initCodeModules()
 	end
 
 	solver.modules:add{
-		name = solver.eqn.symbols.coord_g_ll,
+		name = self.symbols.coord_g_ll,
 		depends = {'sym3'},
 		code = function()
 			return getCode_real3_to_sym3('coord_g_ll', self.compilePrintRequestTensor'g')
@@ -1184,13 +1247,13 @@ function CoordinateSystem:initCodeModules()
 	}
 
 	solver.modules:add{
-		name = solver.eqn.symbols.coord_g_uu,
+		name = self.symbols.coord_g_uu,
 		depends = {'sym3'},
 		code = getCode_real3_to_sym3('coord_g_uu', self.compilePrintRequestTensor'gU'),
 	}
 
 	solver.modules:add{
-		name = solver.eqn.symbols.coord_gHol_ll,
+		name = self.symbols.coord_gHol_ll,
 		depends = {'sym3'},
 		code = function()
 			return getCode_real3_to_sym3('coord_gHol_ll', self.compilePrintRequestTensor'gHol')
@@ -1252,7 +1315,7 @@ function CoordinateSystem:initCodeModules()
 		end
 
 		solver.modules:add{
-			name = solver.eqn.symbols.coord_parallelPropagate,
+			name = self.symbols.coord_parallelPropagate,
 			depends = self:getModuleDepends_coord_parallelPropagate(),
 			code = lines:concat'\n',
 		}
@@ -1313,7 +1376,7 @@ function CoordinateSystem:initCodeModule_coordMap()
 	end))
 	
 	solver.modules:add{
-		name = solver.eqn.symbols.coordMap,
+		name = self.symbols.coordMap,
 		depends = self:getModuleDepends_coordMap(),
 		code = function()
 			return code_coordMap
@@ -1322,7 +1385,7 @@ function CoordinateSystem:initCodeModule_coordMap()
 
 	-- get back the radial distance for some provided chart coordinates
 	solver.modules:add{
-		name = solver.eqn.symbols.coordMapR,
+		name = self.symbols.coordMapR,
 		code = function()
 			return getCode_real3_to_real('coordMapR', self:compile(self.vars.r))
 		end,
@@ -1331,7 +1394,7 @@ function CoordinateSystem:initCodeModule_coordMap()
 	local code_coordMapInv = self:getCoordMapInvModuleCode()	-- until i can autogen this ...
 	
 	solver.modules:add{
-		name = solver.eqn.symbols.coordMapInv,
+		name = self.symbols.coordMapInv,
 		depends = self:getModuleDepends_coordMapInv(),
 		code = function()
 			return code_coordMapInv
@@ -1343,7 +1406,7 @@ function CoordinateSystem:initCodeModule_coordMap()
 	--  and I can't think of how to add them in except by doing this ...
 	-- see my rant in SphereLogRadial:getModuleDepends_coordMap 
 	solver.modules:add{
-		name = solver.eqn.symbols.coordMapGLSL,
+		name = self.symbols.coordMapGLSL,
 		depends = self:getModuleDepends_coordMapGLSL(),
 		code = function()
 			return code_coordMap
@@ -1351,7 +1414,7 @@ function CoordinateSystem:initCodeModule_coordMap()
 	}
 	
 	solver.modules:add{
-		name = solver.eqn.symbols.coordMapInvGLSL,
+		name = self.symbols.coordMapInvGLSL,
 		depends = self:getModuleDepends_coordMapInvGLSL(),
 		code = function()
 			return code_coordMapInv
@@ -1360,7 +1423,7 @@ function CoordinateSystem:initCodeModule_coordMap()
 
 
 	solver.modules:add{
-		name = solver.eqn.symbols.coord_basis_i,
+		name = self.symbols.coord_basis_i,
 		depends = {'real3'},
 		code = function()
 			local eExt = self.compilePrintRequestTensor'eExt'
@@ -1371,7 +1434,7 @@ function CoordinateSystem:initCodeModule_coordMap()
 	}
 
 	solver.modules:add{
-		name = solver.eqn.symbols.coord_basisHolUnit_i,
+		name = self.symbols.coord_basisHolUnit_i,
 		code = function()
 			local eHolUnitCode = self.compilePrintRequestTensor'eHolUnitExt'
 			return eHolUnitCode:mapi(function(eHolUnitiCode,i)
@@ -1394,7 +1457,7 @@ function CoordinateSystem:initCodeModule_coordMap()
 		then
 			if not require 'hydro.coord.cartesian'.is(coord) then
 				
-				depends:insert(solver.eqn.symbols.coord_basisHolUnit_i)
+				depends:insert(self.symbols.coord_basisHolUnit_i)
 				tolines:insert(template([[
 //converts a vector from cartesian coordinates to grid curvilinear coordinates
 //by projecting the vector into the grid basis vectors
@@ -1455,7 +1518,7 @@ real3 coord_cartesianFromCoord(real3 u, real3 pt) {
 
 		else	-- coord.vectorComponent
 
-			depends:insert(solver.eqn.symbols.coord_basis_i)
+			depends:insert(self.symbols.coord_basis_i)
 			tolines:insert(template([[
 //converts a vector from cartesian coordinates to grid curvilinear coordinates
 //by projecting the vector into the grid basis vectors
@@ -1502,12 +1565,12 @@ real3 coord_cartesianFromCoord(real3 u, real3 pt) {
 		end -- coord.vectorComponent
 		
 		solver.modules:add{
-			name = solver.eqn.symbols.cartesianFromCoord,
+			name = self.symbols.cartesianFromCoord,
 			depends = depends,
 			code = fromlines:concat'\n',
 		}
 		solver.modules:add{
-			name = solver.eqn.symbols.cartesianToCoord,
+			name = self.symbols.cartesianToCoord,
 			depends = depends,
 			code = tolines:concat'\n',
 		}
@@ -1687,7 +1750,7 @@ end
 		elseif self.vectorComponent == 'cartesian' then
 
 			depends:insert'real3x3'
-			depends:insert(solver.eqn.symbols.coord_basisHolUnit_i)
+			depends:insert(self.symbols.coord_basisHolUnit_i)
 
 			--[[
 			n_i = n^i = unit(u^i_,j) for side j
@@ -1758,8 +1821,8 @@ end
 		elseif self.vectorComponent == 'holonomic' then
 
 			depends:insert'real3x3'
-			depends:insert(solver.eqn.symbols.coord_g_uu_ij)
-			depends:insert(solver.eqn.symbols.coord_sqrt_g_uu_ij)
+			depends:insert(self.symbols.coord_g_uu_ij)
+			depends:insert(self.symbols.coord_sqrt_g_uu_ij)
 			
 			--[[
 			n_i = delta_ij for side j

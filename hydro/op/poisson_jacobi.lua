@@ -176,8 +176,8 @@ end
 
 function PoissonJacobi:getModuleDepends_Poisson()
 	return {
-		self.solver.eqn.symbols.cell_sqrt_det_g,
-		self.solver.eqn.symbols.cell_dxi,
+		self.solver.coord.symbols.cell_sqrt_det_g,
+		self.solver.coord.symbols.cell_dx_i,
 	}
 end
 

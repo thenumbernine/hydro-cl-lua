@@ -39,14 +39,10 @@ function SelfGrav:init(args)
 
 	SelfGrav.super.init(self, args)
 
-
-	self.symbols = {}
-	for _,field in ipairs{	-- symbol fields:
+	require 'hydro.code.symbols'(self, {
 		'calcGravityAccel',
 		'calcGravityDeriv',
-	} do
-		self.symbols[field] = self.symbolPrefix..'_'..field
-	end
+	})
 	
 	self.solver[self.enableField] = not not self.solver[self.enableField]
 end

@@ -1,7 +1,6 @@
 #version 460
 
 <?
-local coord = solver.coord
 local varying = vertexShader and 'out'
 		or fragmentShader and 'in'
 		or error("don't know what to set varying to")
@@ -14,7 +13,7 @@ local varying = vertexShader and 'out'
 <?=varying?> vec3 pos;		//positive after coordinate mapping, before view transform
 <? end ?>
 
-<?=draw:getModuleCodeGLSL(eqn.symbols.coordMapGLSL, eqn.symbols.coordMapInvGLSL)?>
+<?=draw:getModuleCodeGLSL(coordMapGLSL, coordMapInvGLSL)?>
 <?=draw:getCommonGLSLFragCode()?>
 
 <? if vertexShader then ?>

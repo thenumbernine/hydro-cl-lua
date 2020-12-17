@@ -1,7 +1,6 @@
 -- maybe a better name would be '1d_graph'?
 local gl = require 'ffi.OpenGL'
 local ffi = require 'ffi'
-local template = require 'template'
 local class = require 'ext.class'
 local vec3f = require 'vec-ffi.vec3f'
 local file = require 'ext.file'
@@ -212,16 +211,12 @@ function Draw1D:prepareShader()
 	
 	solver.graphShader = solver.GLProgram{
 		name = 'graph',
-		vertexCode = template(graphShaderCode, {
+		vertexCode = solver.eqn:template(graphShaderCode, {
 			draw = self,
-			app = solver.app,
-			solver = solver,
 			vertexShader = true,
 		}),
-		fragmentCode = template(graphShaderCode, {
+		fragmentCode = solver.eqn:template(graphShaderCode, {
 			draw = self,
-			app = solver.app,
-			solver = solver,
 			fragmentShader = true,
 		}),
 		uniforms = {

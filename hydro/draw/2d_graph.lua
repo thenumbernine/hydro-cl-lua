@@ -1,6 +1,5 @@
 -- TODO make use of app.display_useCoordMap
 local ffi = require 'ffi'
-local template = require 'template'
 local class = require 'ext.class'
 local file = require 'ext.file'
 local vec3f = require 'vec-ffi.vec3f'
@@ -131,16 +130,12 @@ function Draw2DGraph:prepareShader()
 	
 	solver.graphShader = solver.GLProgram{
 		name = 'graph',
-		vertexCode = template(graphShaderCode, {
+		vertexCode = solver.eqn:template(graphShaderCode, {
 			draw = self,
-			app = solver.app,
-			solver = solver,
 			vertexShader = true,
 		}),
-		fragmentCode = template(graphShaderCode, {
+		fragmentCode = solver.eqn:template(graphShaderCode, {
 			draw = self,
-			app = solver.app,
-			solver = solver,
 			fragmentShader = true,
 		}),
 		uniforms = {

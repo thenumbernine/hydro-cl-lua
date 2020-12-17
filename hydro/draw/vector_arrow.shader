@@ -1,13 +1,12 @@
 #version 460
 
 <?
-local coord = solver.coord
 local varying = vertexShader and 'out'
 		or fragmentShader and 'in'
 		or error("don't know what to set varying to")
 ?>
 
-<?=draw:getModuleCodeGLSL(eqn.symbols.coordMapGLSL, eqn.symbols.coordMapInvGLSL, eqn.symbols.cartesianFromCoord)?>
+<?=draw:getModuleCodeGLSL(coordMapGLSL, coordMapInvGLSL, cartesianFromCoord)?>
 <?=draw:getCommonGLSLFragCode()?>
 
 <? if vertexShader then ?>

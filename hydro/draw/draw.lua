@@ -4,7 +4,6 @@ parent class for some common functions that all draw glsl code uses
 
 local class = require 'ext.class'
 local table = require 'ext.table'
-local template = require 'template'
 local gl = require 'gl'
 local matrix_ffi = require 'matrix.ffi'
 
@@ -18,7 +17,7 @@ end
 
 function Draw:getCommonGLSLFragCode()
 	local solver = self.solver
-	return template([[
+	return solver.eqn:template([[
 #define _1_LN_10 	<?=('%.50f'):format(1/math.log(10))?>
 
 
@@ -177,9 +176,7 @@ vec4 quatConj(vec4 q) {
 }
 
 ]], {
-		solver = solver,
-		app = solver.app,
-		eqn = solver.eqn,
+		draw = self,
 		clnumber = require 'cl.obj.number',
 	})
 end

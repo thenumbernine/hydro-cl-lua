@@ -1,6 +1,5 @@
 local class = require 'ext.class'
 local file = require 'ext.file'
-local template = require 'template'
 local gl = require 'ffi.OpenGL'
 local glreport = require 'gl.report'
 local Draw = require 'hydro.draw.draw'
@@ -228,16 +227,12 @@ function DrawMeshHeatmap:prepareShader()
 	
 	solver.heatMap2DShader = solver.GLProgram{
 		name = 'mesh_heatmap',
-		vertexCode = template(heatMapCode, {
+		vertexCode = solver.eqn:template(heatMapCode, {
 			draw = self,
-			app = solver.app,
-			solver = solver,
 			vertexShader = true,
 		}),
-		fragmentCode = template(heatMapCode, {
+		fragmentCode = solver.eqn:template(heatMapCode, {
 			draw = self,
-			app = solver.app,
-			solver = solver,
 			fragmentShader = true,
 		}),
 		uniforms = {

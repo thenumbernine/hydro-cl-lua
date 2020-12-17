@@ -245,7 +245,7 @@ end
 
 function SelfGravProblem:getDepends(solver)
 	return table{
-		solver.eqn.symbols.coordMap,
+		solver.coord.symbols.coordMap,
 	}
 end
 
@@ -439,7 +439,7 @@ local initConds = table{
 		},
 		getDepends = function(self, solver)
 			return table{
-				solver.eqn.symbols.coordMap,
+				solver.coord.symbols.coordMap,
 			}
 		end,
 		getInitCondCode = function(self, solver)
@@ -467,7 +467,7 @@ local initConds = table{
 		},
 		getDepends = function(self, solver)
 			return table{
-				solver.eqn.symbols.coordMap,
+				solver.coord.symbols.coordMap,
 			}
 		end,
 		getInitCondCode = function(self, solver)
@@ -496,8 +496,8 @@ local initConds = table{
 		name = 'Bessel',
 		getDepends = function(self, solver)
 			return table{
-				solver.eqn.symbols.coordMapR,
-				solver.eqn.symbols.coordMap,
+				solver.coord.symbols.coordMapR,
+				solver.coord.symbols.coordMap,
 			}
 		end,
 		getInitCondCode = function(self, solver)
@@ -539,7 +539,7 @@ local initConds = table{
 		},
 		getDepends = function(self, solver)
 			return table{
-				solver.eqn.symbols.coordMap,
+				solver.coord.symbols.coordMap,
 			}
 		end,
 		getInitCondCode = function(self, solver)
@@ -791,7 +791,7 @@ end
 		},
 		getDepends = function(self, solver)
 			return table{
-				solver.eqn.symbols.coordMap,
+				solver.coord.symbols.coordMap,
 			}
 		end,
 		getInitCondCode = function(self, solver)
@@ -830,7 +830,7 @@ end
 		name = 'spinning magnetic fluid',
 		getDepends = function(self, solver)
 			return table{
-				solver.eqn.symbols.coordMap,
+				solver.coord.symbols.coordMap,
 			}
 		end,
 		getInitCondCode = function(self, solver)
@@ -871,7 +871,7 @@ end
 		name = 'magnetic fluid',
 		getDepends = function(self, solver)
 			return table{
-				solver.eqn.symbols.coordMap,
+				solver.coord.symbols.coordMap,
 			}
 		end,
 		getInitCondCode = function(self, solver)
@@ -1084,7 +1084,7 @@ end) then
 		name = 'sphere',
 		getDepends = function(self, solver)
 			return table{
-				solver.eqn.symbols.coordMap,
+				solver.coord.symbols.coordMap,
 			}
 		end,
 		getInitCondCode = function(self, solver)
@@ -1109,7 +1109,7 @@ end) then
 		},
 		getDepends = function(self, solver)
 			return table{
-				solver.eqn.symbols.coordMap,
+				solver.coord.symbols.coordMap,
 			}
 		end,
 		getInitCondCode = function(self, solver)
@@ -1135,7 +1135,7 @@ end) then
 		},
 		getDepends = function(self, solver)
 			return table{
-				solver.eqn.symbols.coordMap,
+				solver.coord.symbols.coordMap,
 			}
 		end,
 		getInitCondCode = function(self, solver)
@@ -1208,7 +1208,7 @@ end) then
 		name = 'radial gaussian',
 		getDepends = function(self, solver)
 			return table{
-				solver.eqn.symbols.coordMap,
+				solver.coord.symbols.coordMap,
 			}
 		end,
 		getInitCondCode = function(self, solver)
@@ -1975,7 +1975,7 @@ end ?>;
 		name = 'Maxwell scattering around cylinder',
 		getDepends = function(self, solver)
 			return table{
-				solver.eqn.symbols.coordMap,
+				solver.coord.symbols.coordMap,
 			}
 		end,
 		getInitCondCode = function(self, solver)
@@ -2052,7 +2052,7 @@ for _,pn in ipairs(obj) do
 		end,
 		getDepends = function(self, solver)
 			return table{
-				solver.eqn.symbols.coordMap,
+				solver.coord.symbols.coordMap,
 			}
 		end,
 		getInitCondCode = function(self, solver)
@@ -2079,7 +2079,7 @@ for _,pn in ipairs(obj) do
 		name = 'Maxwell scattering around square',
 		getDepends = function(self, solver)
 			return table{
-				solver.eqn.symbols.coordMap,
+				solver.coord.symbols.coordMap,
 			}
 		end,
 		getInitCondCode = function(self, solver)
@@ -2182,7 +2182,7 @@ bool testTriangle(real3 xc) {
 		end,
 		getDepends = function(self, solver)
 			return table{
-				solver.eqn.symbols.coordMap,
+				solver.coord.symbols.coordMap,
 			}
 		end,
 		getInitCondCode = function(self, solver)
@@ -2442,7 +2442,7 @@ kernel void addExtraSource(
 		},
 		getDepends = function(self, solver)
 			return table{
-				solver.eqn.symbols.coordMap,
+				solver.coord.symbols.coordMap,
 			}
 		end,
 		getInitCondCode = function(self, solver)

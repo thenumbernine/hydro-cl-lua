@@ -1,7 +1,6 @@
 local ffi = require 'ffi'
 local class = require 'ext.class'
 local file = require 'ext.file'
-local template = require 'template'
 local gl = require 'ffi.OpenGL'
 local GLTex2D = require 'gl.tex2d'
 local Draw = require 'hydro.draw.draw'
@@ -198,18 +197,12 @@ function DrawVectorLIC:prepareShader()
 	
 	solver.vectorLICShader = solver.GLProgram{
 		name = 'vector_lic',
-		vertexCode = template(vectorLICCode, {
+		vertexCode = solver.eqn:template(vectorLICCode, {
 			draw = self,
-			app = solver.app,
-			solver = solver,
-			eqn = solver.eqn,
 			vertexShader = true,
 		}),
-		fragmentCode = template(vectorLICCode, {
+		fragmentCode = solver.eqn:template(vectorLICCode, {
 			draw = self,
-			app = solver.app,
-			solver = solver,
-			eqn = solver.eqn,
 			fragmentShader = true,
 		}),
 		uniforms = {

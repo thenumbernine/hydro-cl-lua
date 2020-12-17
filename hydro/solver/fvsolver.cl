@@ -70,7 +70,7 @@ then ?>
 ?>;
 		real areaR = areaL;
 <? else ?>
-//// MODULE_DEPENDS: <?=cell_areai?>
+//// MODULE_DEPENDS: <?=cell_area_i?>
 		real areaL = cell_area<?=side?>(xIntL);
 		real areaR = cell_area<?=side?>(xIntR);
 <? end ?>

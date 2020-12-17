@@ -1,7 +1,6 @@
 local table = require 'ext.table'
 local class = require 'ext.class'
 local file = require 'ext.file'
-local template = require 'template'
 local gl = require 'ffi.OpenGL'
 local CartesianCoordinateSystem = require 'hydro.coord.cartesian'
 local Draw = require 'hydro.draw.draw'
@@ -205,16 +204,12 @@ function Draw3DSlice:prepareShader()
 	
 	solver.volumeSliceShader = solver.GLProgram{
 		name = '3d_slice',
-		vertexCode = template(volumeSliceCode, {
+		vertexCode = solver.eqn:template(volumeSliceCode, {
 			draw = self,
-			app = solver.app,
-			solver = solver,
 			vertexShader = true
 		}),
-		fragmentCode = template(volumeSliceCode, {
+		fragmentCode = solver.eqn:template(volumeSliceCode, {
 			draw = self,
-			app = solver.app,
-			solver = solver,
 			fragmentShader = true,
 			-- TODO move this from app, or make it a field of app?
 			clipInfos = useClipPlanes and clipInfos or nil,

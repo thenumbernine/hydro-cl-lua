@@ -344,27 +344,6 @@ functionality (and abstraction):
 ]],
 	}
 
-	-- TODO move this to coord
-	-- volume of a cell = volume element times grid dx's 
-	self.modules:add{
-		name = self.eqn.symbols.cell_sqrt_det_g,
-		depends = {
-			self.eqn.symbols.coord_sqrt_det_g,
-		},
-		code = template([[
-static inline real cell_sqrt_det_g(constant <?=solver.solver_t?>* solver, real3 x) {
-	return coord_sqrt_det_g(x)<?
-for i=1,solver.dim do
-?> * solver->grid_dx.<?=xNames[i]?><?
-end
-?>;
-}
-]], 	{
-			solver = self,
-			xNames = xNames,
-		}),
-	}
-	
 	if self.usePLM then
 		self.modules:add{
 			name = 'slopeLimiter',
@@ -1142,12 +1121,13 @@ function GridSolver:createBoundaryProgramAndKernel(args)
 	local moduleNames = self.sharedModulesEnabled:keys():append{
 		self.solver_t,
 		self.eqn.symbols.cons_t,
+		assert(self.coord.cell_t),
 		'INDEX',
 		'INDEXV',
 		-- some Boundary :getCode use numStates
 		-- TODO use the addCodeMarkup function and inline these all?
 		self.eqn.symbols.solver_macros,
-		self.eqn.symbols.cartesianFromCoord,
+		self.coord.symbols.cartesianFromCoord,
 		'cell_x',
 		'normalForSide',
 		'numGhost',

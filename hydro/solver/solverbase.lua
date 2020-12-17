@@ -733,12 +733,12 @@ function SolverBase:getModuleDepends_displayCode()
 
 	-- add in any real3 pickComponent code dependencies here
 	if self:isModuleUsed'real3' then
-		depends:insert(self.eqn.symbols.coordLen)
+		depends:insert(self.coord.symbols.coordLen)
 	end
 	
 	-- add in any sym3 pickComponent code dependencies here
 	if self:isModuleUsed'sym3' then
-		depends:insert(self.eqn.symbols.coord_g_ll)
+		depends:insert(self.coord.symbols.coord_g_ll)
 	end
 
 	return depends 

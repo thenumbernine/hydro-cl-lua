@@ -114,22 +114,7 @@ args:
 	make sure self.consStruct and self.primStruct is defined beforehand
 --]]
 function Equation:init(args)
-	local uid = require 'hydro.code.uid'(self)
-	self.symbolPrefix = self.name..'_'..uid..'_'
-
-	-- [[ make C symbols unique to the eqn class.
-	-- TODO later,unique to the eqn object, in case I make a composite of two like classes
-	-- like euler + euler to do two-fluid simulations
-	-- TODO this should be modular
-	local symbolFields = self:getSymbolFields()
-
-	-- TODO add the typedef names into this
-	-- TODO don't use uniqueName() instead just use the object uid suffix (and use it for functions too)
-	self.symbols = {}
-	for _,field in ipairs(symbolFields) do
-		self.symbols[field] = self.symbolPrefix..field
-	end
---]]
+	require 'hydro.code.symbols'(self, self:getSymbolFields())
 
 	local solver = assert(args.solver)
 	self.solver = solver
@@ -323,6 +308,7 @@ function Equation:init(args)
 	end
 end
 
+-- TODO add the typedef names into this
 function Equation:getSymbolFields()
 	return table{
 		-- functions:
@@ -343,10 +329,10 @@ function Equation:getSymbolFields()
 		
 		-- kernels:
 		'applyInitCond',	-- TODO don't uniquely identify this, only do the Cell version 
-		'calcDT',			-- TODO don't uniquely identify this, only do the Cell version 
-		'initDerivs',
-		'addSource',
-		'constrainU',
+		'calcDT',			-- TODO same
+		'initDerivs',		-- TODO same
+		'addSource',		-- TODO same
+		'constrainU',		-- TODO same
 		
 		-- placeholder modules for dependencies
 		'eqn_guiVars_compileTime',	-- module of code for compile-time #defines of gui vars
@@ -356,54 +342,10 @@ function Equation:getSymbolFields()
 		-- placeholder, used by solver
 		-- it turns out all module names need to be unique in order to run more than one solver at a time.
 		-- makes me think we should move all these symbols/generation of them into solver
+		-- TODO put these' symbol generation in solver?
 		'solver_macros',
 		'solver_displayCode',
 	
-		-- coord symbols
-		'cell_dxi',
-		'cell_areai',
-		'cell_volume',
-		'cell_sqrt_det_g',	-- (this is actually defined in gridsolver ... but I can move it to coord)
-		-- everything needs a unique symbol here 
-		-- (at least for composite to work)
-		-- (or for using a singleton modules to work)
-		'coord_dxi',
-		'coord_det_g',
-		'coord_sqrt_det_g',
-		'coord_lower',
-		'coord_raise',
-		'coordLenSq',
-		'coordLen',
-		'coord_tr23_c',
-		'coord_conn_lll',
-		'coord_conn_ull',
-		'coord_conn_apply12',
-		'coord_conn_apply13',
-		'coord_conn_apply23',
-		'coord_conn_apply123',
-		'coord_conn_trace12',
-		'coord_conn_trace13',
-		'coord_conn_trace23',
-		'coord_partial_det_g',
-		'coord_partial2_det_g',
-		'coord_holBasisLen_i',
-		'coord_g_ll_ij',
-		'coord_g_uu_ij',
-		'coord_sqrt_g_uu_ij',
-		'coord_sqrt_g_ll_ij',
-		'coord_g_ll',
-		'coord_g_uu',
-		'coord_gHol_ll',
-		'coordMap',
-		'coordMapR',
-		'coordMapInv',
-		'coordMapGLSL',
-		'coordMapInvGLSL',
-		'coord_basis_i',
-		'coord_basisHolUnit_i',
-		'cartesianFromCoord',
-		'cartesianToCoord',
-		'coord_parallelPropagate',
 	}
 end
 
@@ -494,18 +436,22 @@ function Equation:template(code, args)
 end
 
 function Equation:getEnv()
+	local solver = self.solver
+	local coord = solver.coord
+
 	local env = {
 		-- most have this
 		eqn = self,
-		solver = self.solver,
-		coord = self.solver.coord,
+		solver = solver,
+		coord = coord,
 		initCond = self.initCond,
+		app = solver.app,
 	
 		-- type names
-		solver_t = self.solver.solver_t,
-		initCond_t = self.solver.initCond_t,
-		cell_t = self.solver.coord.cell_t,
-		face_t = self.solver.coord.face_t,
+		solver_t = solver.solver_t,
+		initCond_t = solver.initCond_t,
+		cell_t = assert(coord.cell_t),
+		face_t = assert(coord.face_t),
 		
 		-- macro numbers 
 		numWaves = self.numWaves,
@@ -520,11 +466,17 @@ function Equation:getEnv()
 		-- really only used by applyInitCond
 		initCode = function() 
 			-- calls initCond:getInitCondCode
-			return self.initCond:getInitCondCode(self.solver)
+			return self.initCond:getInitCondCode(solver)
 		end,
 	}
 
+	-- add eqn's symbols
 	for k,v in pairs(self.symbols) do
+		env[k] = v
+	end
+
+	-- add coord's symbols
+	for k,v in pairs(coord.symbols) do
 		env[k] = v
 	end
 

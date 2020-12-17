@@ -1,7 +1,6 @@
 local ffi = require 'ffi'
 local class = require 'ext.class'
 local file = require 'ext.file'
-local template = require 'template'
 local vec2f = require 'vec-ffi.vec2f'
 local vec3f = require 'vec-ffi.vec3f'
 local gl = require 'gl'
@@ -208,16 +207,12 @@ function DrawVectorField:prepareShader()
 	
 	solver.vectorArrowShader = solver.GLProgram{
 		name = 'vector_arrow',
-		vertexCode = template(vectorArrowCode, {
+		vertexCode = solver.eqn:template(vectorArrowCode, {
 			draw = self,
-			app = solver.app,
-			solver = solver,
 			vertexShader = true,
 		}),
-		fragmentCode = template(vectorArrowCode, {
+		fragmentCode = solver.eqn:template(vectorArrowCode, {
 			draw = self,
-			app = solver.app,
-			solver = solver,
 			fragmentShader = true,
 		}),
 		uniforms = {

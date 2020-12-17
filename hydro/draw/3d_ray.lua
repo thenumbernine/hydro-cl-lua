@@ -1,6 +1,5 @@
 local class = require 'ext.class'
 local file = require 'ext.file'
-local template = require 'template'
 local gl = require 'ffi.OpenGL'
 local glreport = require 'gl.report'
 local Draw = require 'hydro.draw.draw'
@@ -130,16 +129,12 @@ function Draw3DRay:prepareShader()
 	local volumetricCode = assert(file['hydro/draw/volumetric.shader'])
 	solver.volumeRayShader = solver.GLProgram{
 		name = 'volumetric',
-		vertexCode = template(volumetricCode, {
+		vertexCode = solver.eqn:template(volumetricCode, {
 			draw = self,
-			app = solver.app,
-			solver = solver,
 			vertexShader = true,
 		}),
-		fragmentCode = template(volumetricCode, {
+		fragmentCode = solver.eqn:template(volumetricCode, {
 			draw = self,
-			app = solver.app,
-			solver = solver,
 			fragmentShader = true,
 		}),
 		uniforms = {
