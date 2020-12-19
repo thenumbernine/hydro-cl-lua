@@ -150,7 +150,7 @@ function CoordinateSystem:init(args)
 		'cell_dx_i',
 		'cell_volume',
 		'cell_sqrt_det_g',
-		'coord_dxi',
+		'coord_dx_i',
 		'coord_det_g',
 		'coord_sqrt_det_g',
 		'coord_lower',
@@ -1091,7 +1091,7 @@ function CoordinateSystem:initCodeModules()
 	-- this is the change in cartesian wrt the change in grid
 	-- this is also the normalization factor for the anholonomic ( ... is it?)
 	solver.modules:add{
-		name = self.symbols.coord_dxi,
+		name = self.symbols.coord_dx_i,
 		headercode = function()
 			local lenExprs = self.compilePrintRequestTensor'lenExprs'
 			return range(dim):mapi(function(i)
@@ -1143,7 +1143,7 @@ end
 		name = self.symbols.cell_dx_i,
 		depends = {
 			solver.solver_t,
-			self.symbols.coord_dxi,
+			self.symbols.coord_dx_i,
 		},
 		headercode = range(dim):mapi(function(i)
 			return '#define cell_dx'..(i-1)..'(pt) (coord_dx'..(i-1)..'(pt) * solver->grid_dx.s'..(i-1)..')'

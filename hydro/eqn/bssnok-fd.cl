@@ -9,7 +9,7 @@
 #define calc_gammaHat_uu 	coord_g_uu
 
 //// MODULE_NAME: calc_det_gammaHat
-//// MODULE_DEPENDS: coord_det_g
+//// MODULE_DEPENDS: <?=coord_det_g?>
 
 #define calc_det_gammaHat 	coord_det_g
 

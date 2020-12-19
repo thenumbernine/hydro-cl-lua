@@ -131,6 +131,30 @@ function Equation:init(args)
 		}
 	end
 
+--[[
+how to handle cdefs and subeqns wrt counting number of reals ...
+
+solver init:
+- build sub-objs 
+	- including eqn
+		- count scalars to determine # init states 
+			- early cdef of field types ... real, real3, sym3, etc
+- build code modules
+- cdef all required types: solver_t, cons_t, prim_t, etc
+
+solver w composite eqn init:
+- build sub-objs ... 
+	- including eqn 
+		- including its sub-eqns
+			- count scalars
+				- early cdef of all field types
+	- count scalars
+		- early cdef based on all cons_t's
+
+maybe I can wait to count scalars until after initCodeModules?
+no, they're needed for the integrator
+--]]
+
 -- make sure all math types are cdef'd,
 -- for sizeof's for calculating the union ptr size 
 -- when we makeType the consStruct
@@ -611,7 +635,7 @@ In the event that a transformation is necessary, then a temp var is created, and
 			name = self.symbols.cons_parallelPropagate,
 			depends = table{
 				self.symbols.cons_t,
-				self.symbols.coord_parallelPropagate,
+				solver.coord.symbols.coord_parallelPropagate,
 			}:append(
 				-- rank-2 always use real3x3 for transformation
 				self.consStruct.vars:find(nil, function(var)

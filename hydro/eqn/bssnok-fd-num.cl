@@ -72,7 +72,7 @@ sym3 calc_partial2_det_gammaHat_LL(real3 x) {
 }
 
 //// MODULE_NAME: calc_len_#
-//// MODULE_DEPENDS: <?=coord_dxi?>
+//// MODULE_DEPENDS: <?=coord_dx_i?>
 
 <? for i,xi in ipairs(xNames) do
 ?>#define calc_len_<?=xi?>	coord_dx<?=i-1?>
@@ -84,7 +84,7 @@ sym3 calc_partial2_det_gammaHat_LL(real3 x) {
 e_i^I = delta_i^I f_i is a diagonal matrix with f_i indexed function.  for spherical, f_i = diag(1,r,r sin(theta))
 e^i_I = delta^i_I f^i is the inverse, so f^i = 1/(f_i)
 I'm trying to keep the differentiations to an absolute minimum in the bssnok-fd-num files
-coord_dxi(x) is the same as f_i 
+coord_dx_i(x) is the same as f_i 
 */
 <?
 local partial_len_ll = lenExprs"_i,j"():permute"_ij"
