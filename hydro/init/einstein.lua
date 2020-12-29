@@ -1145,7 +1145,7 @@ TODO I now have a Bessel function routine in hydro/math.cl
 
 --			solver.mins = vec3d(-.5, -.5, -.5)
 --			solver.maxs = vec3d(-.5, -.5, -.5)
-			solver:setBoundaryMethods'periodic'
+--			solver:setBoundaryMethods'periodic'
 			self:addGuiVars{
 				{name='A', value=.1},	-- .1, .01
 				{name='d', value=1},
@@ -1155,11 +1155,19 @@ TODO I now have a Bessel function routine in hydro/math.cl
 		getInitCondCode = function(self, solver)
 			return [[
 	const real t = 0.;
-	real theta = 2. * M_PI / d * (xc.x - t);
+	real theta = 2. * M_PI / initCond->d * (xc.x - t);
 	real H = 1. + initCond->A * sin(theta);
+#if 0
 	alpha = sqrt(H);
 	gamma_ll.xx = H;
-	K_ll.xx = -M_PI * initCond->A / d * cos(theta) / alpha;
+	K_ll.xx = -M_PI * initCond->A / initCond->d * cos(theta) / alpha;
+#else
+	alpha = 1.;
+	gamma_ll.xx = 1. + H;
+	gamma_ll.yy = 1. - H;
+	K_ll.xx = -M_PI * initCond->A / initCond->d * cos(theta) / alpha;
+	K_ll.yy = M_PI * initCond->A / initCond->d * cos(theta) / alpha;
+#endif
 ]]
 		end,
 	},
@@ -1171,6 +1179,10 @@ TODO I now have a Bessel function routine in hydro/math.cl
 			error"finishme"
 		end,
 	},
+	
+	--[[
+	ds^2 = 
+	--]]
 	{
 		name = 'testbed - linear wave',
 		createInitStruct = function(self, solver)

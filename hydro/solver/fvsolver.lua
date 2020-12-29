@@ -258,13 +258,35 @@ end
 
 
 function FiniteVolumeSolver:getModuleDepends_displayCode()
-	return table(FiniteVolumeSolver.super.getModuleDepends_displayCode(self)):append{
+	local depends = table(FiniteVolumeSolver.super.getModuleDepends_displayCode(self))
+
+	depends:append{
 		-- wave #
 		'normal_t',
 		self.eqn.symbols.eigen_t,
 		self.eqn.symbols.eqn_waveCode_depends,
 		self.eqn.symbols.eigen_forInterface,
 	}
+
+	-- only if these symbols are defined is the ortho error display vars included, which themselves need these:
+	if self:isModuleUsed(self.eqn.symbols.eigen_leftTransform)
+	and self:isModuleUsed(self.eqn.symbols.eigen_rightTransform)
+	then
+		depends:append{
+			self.eqn.symbols.eigen_leftTransform,
+			self.eqn.symbols.eigen_rightTransform,
+		}
+	
+		-- and only if the two of them plus this is defined is the flux error display var used:
+
+		if self:isModuleUsed(self.eqn.symbols.eigen_fluxTransform) then
+			depends:append{
+				self.eqn.symbols.eigen_fluxTransform,
+			}
+		end
+	end
+
+	return depends
 end
 
 function FiniteVolumeSolver:addDisplayVars()
