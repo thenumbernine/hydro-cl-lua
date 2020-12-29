@@ -203,7 +203,7 @@ function Z4_2004Bona:createInitState()
 
 		{name='dissipationCoeff', value=cmdline.dissipationCoeff or 0},
 	
-		--{name='alphaMin', value=0},
+		--{name='alphaMin', value=1e-7},
 		{name='alphaMin', value=-math.huge},
 	
 	}

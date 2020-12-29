@@ -87,7 +87,7 @@ local args = {
 				{16,16,16},
 			},
 			['Intel(R) OpenCL HD Graphics/Intel(R) Gen9 HD Graphics NEO'] = {
-				{1024,1,1},
+				{4096,1,1},
 				{256,256,1},
 				
 				-- for 11th WENO (2010 Shen Zha) once we reduce size below 6,6 it breaks

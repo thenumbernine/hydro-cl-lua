@@ -258,9 +258,9 @@ static inline void <?=setFlatSpace?>(
 	real const f_alphaSq = calc_f_alphaSq(U->alpha);\
 	real const det_gamma = sym3_det(U->gamma_ll);\
 	real const alpha_sqrt_f = sqrt(f_alphaSq);\
-	\
+\
 	<? for side=0,solver.dim-1 do ?>{\
-		\
+\
 		<? if side == 0 then ?>\
 		real const gammaUjj = (U->gamma_ll.yy * U->gamma_ll.zz - U->gamma_ll.yz * U->gamma_ll.yz) / det_gamma;\
 		<? elseif side == 1 then ?>\
@@ -272,13 +272,13 @@ static inline void <?=setFlatSpace?>(
 		real const lambdaLight = sqrt_gammaUjj * U->alpha;\
 		real const lambdaGauge = sqrt_gammaUjj * alpha_sqrt_f;\
 		real const lambda = (real)max(lambdaGauge, lambdaLight);\
-		\
+\
 		<? if eqn.useShift ~= "none" then ?>\
 		real const betaUi = U->beta_u.s<?=side?>;\
 		<? else ?>\
 		real const betaUi = 0.;\
 		<? end ?>\
-		\
+\
 		real const lambdaMin = (real)min((real)0., -betaUi - lambda);\
 		real const lambdaMax = (real)max((real)0., -betaUi + lambda);\
 		real absLambdaMax = max(fabs(lambdaMin), fabs(lambdaMax));\
@@ -641,7 +641,7 @@ end --\
 <? end ?>\
 	real const sqrt_gammaUnn = sqrt(gammaUnn);\
 	real const lambdaLight = U->alpha * sqrt_gammaUnn;\
-	\
+\
 	real const f_alphaSq = calc_f_alphaSq(U->alpha);\
 	real const lambdaGauge = sqrt(f_alphaSq) * sqrt_gammaUnn;\
 \
@@ -717,7 +717,7 @@ end --\
 <? if false then ?>	/* don't enable this.  it's made for > waves than I'm using, so it will cause buffer corruption */\
 \
 	real3 const a_l = real3_swap((inputU)->a_l, n.side);							/* 0-2 */\
-	_3sym3 const d_lll = _3sym3_swap((inputU)->d_lll, n.side);					/* 3-20 ... .x = 3-8, .y = 9-14, .z = 15-20 */\
+	_3sym3 const d_lll = _3sym3_swap((inputU)->d_lll, n.side);						/* 3-20 ... .x = 3-8, .y = 9-14, .z = 15-20 */\
 	sym3 const K_ll = sym3_swap((inputU)->K_ll, n.side);							/* 21-26 */\
 	real const Theta = (inputU)->Theta;												/* 27 */\
 	real3 const Z_l = real3_swap((inputU)->Z_l, n.side);							/* 28-30 */\
@@ -897,8 +897,6 @@ static void applyKreissOligar(
 	int const * const fields,
 	int const numFields
 ) {
-	if (solver->dissipationCoeff == 0.) return;
-		
 	real const r = coordMapR(x);
 	//Kreiss-Oligar dissipation
 	real coeff = solver->dissipationCoeff;
@@ -3414,7 +3412,9 @@ end?>
 	// Kreiss-Oligar dissipation:
 	int fields[numIntStates];
 	for (int i = 0; i < numberof(fields); ++i) fields[i] = i;
-	applyKreissOligar(solver, U, cellBuf + index, deriv, cell_x(i), fields, numberof(fields));
+	if (solver->dissipationCoeff != 0.) {
+		applyKreissOligar(solver, U, cellBuf + index, deriv, cell_x(i), fields, numberof(fields));
+	}
 }
 
 //// MODULE_NAME: <?=constrainU?>

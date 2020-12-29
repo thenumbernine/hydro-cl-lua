@@ -190,7 +190,7 @@ function Draw1D:display(varName, ar, xmin, xmax, ymin, ymax, useLog, valueMin, v
 			app.font:draw{
 				pos={xmin, ymax},
 				-- 1D:
-				text=('%s [%.3e, %.3e]'):format(varName, valueMin, valueMax),
+				text=('%s [%.3e, %.3e]'):format(varName, ymin, ymax),
 				-- Gradient:
 				--text = varName,
 				color = {1,1,1,1},

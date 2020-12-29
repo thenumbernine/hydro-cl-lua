@@ -16,7 +16,7 @@
 	*/\
 	<?=eigen_t?> eigInt;\
 	<?=eigen_forInterface?>(&eigInt, solver, UL, UR, xInt, n);\
-	\
+\
 	<?=eqn:eigenWaveCodePrefix("n", "&eigInt", "xInt"):gsub("\n", "\\\n")?>\
 	real lambdaIntMin = <?=eqn:eigenMinWaveCode("n", "&eigInt", "xInt")?>;\
 	real lambdaIntMax = <?=eqn:eigenMaxWaveCode("n", "&eigInt", "xInt")?>;\
@@ -37,7 +37,7 @@
 		<?=eqn:consWaveCodePrefix("n", "UR", "xInt"):gsub("\n", "\\\n")?>\
 		lambdaRMax = <?=eqn:consMaxWaveCode("n", "UR", "xInt")?>;\
 	}\
-	\
+\
 	real sL = min(lambdaLMin, lambdaIntMin);\
 	real sR = max(lambdaRMax, lambdaIntMax);\
 <? end ?>\
