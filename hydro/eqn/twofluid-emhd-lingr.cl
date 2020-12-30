@@ -237,7 +237,7 @@ real3 calcElecGravForce(constant <?=solver_t?> const * const solver, global <?=c
 
 kernel void <?=applyInitCondCell?>(
 	constant <?=solver_t?> const * const solver,
-	constant initCond_t const * const initCond,
+	constant <?=initCond_t?> const * const initCond,
 	global <?=cons_t?> * const U,
 	global <?=cell_t?> const * const cell
 ) {
@@ -318,14 +318,14 @@ end
 
 
 //// MODULE_NAME: <?=fluxFromCons?>
-//// MODULE_DEPENDS: units normal_t
+//// MODULE_DEPENDS: units <?=normal_t?>
 
 #define <?=fluxFromCons?>(\
 	/*<?=cons_t?> const * const */F,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */U,\
 	/*real3 const */pt,\
-	/*normal_t const */n\
+	/*<?=normal_t?> const */n\
 ) {\
 	<?=prim_t?> W;\
 	<?=primFromCons?>(&W, solver, U, pt);\
@@ -381,7 +381,7 @@ end --\
 	/*<?=cons_t?> const * const */UL,\
 	/*<?=cons_t?> const * const */UR,\
 	/*real3 const */pt,\
-	/*normal_t const */n\
+	/*<?=normal_t?> const */n\
 ) {\
 	<?=prim_t?> WL;\
 	<?=primFromCons?>(&WL, solver, UL, pt);\
@@ -423,7 +423,7 @@ end --\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */U,\
 	/*real3 const */pt,\
-	/*normal_t const */n\
+	/*<?=normal_t?> const */n\
 ) {\
 	<?=prim_t?> W;\
 	<?=primFromCons?>(&W, solver, U, pt);\
@@ -447,7 +447,7 @@ end --\
 	/*<?=eigen_t?> const * const */eig,\
 	/*<?=cons_t?> const * const */UX,\
 	/*real3 const */pt,\
-	/*normal_t const */n\
+	/*<?=normal_t?> const */n\
 ) {\
 	real* X = UX.ptr;\
 \
@@ -637,7 +637,7 @@ end --\
 	/*<?=eigen_t?> const * const */eig,\
 	/*<?=waves_t?> const * const */UX,	/* numWaves = 26 */\
 	/*real3 const */pt,\
-	/*normal_t const */n\
+	/*<?=normal_t?> const */n\
 ) {\
 	real const nLen = normal_len(n);\
 	real const inv_nLen = 1. / nLen;\
@@ -801,7 +801,7 @@ end --\
 	/*<?=eigen_t?> const * const */eig,\
 	/*<?=cons_t?> const * const */UX,\
 	/*real3 const */pt,\
-	/*normal_t const */n\
+	/*<?=normal_t?> const */n\
 ) {\
 	real const nLen = normal_len(n);\
 	real const inv_nLen = 1. / nLen;\
@@ -900,7 +900,7 @@ kernel void <?=addSource?>(
 	global <?=cons_t?> const * const UBuf,
 	global <?=cell_t?> const * const cellBuf
 ) {
-	SETBOUNDS_NOGHOST();
+	<?=SETBOUNDS_NOGHOST?>();
 	real3 const x = cellBuf[index].pos;
 	global <?=cons_t?> * const deriv = derivBuf + index;
 	global <?=cons_t?> const * const U = UBuf + index;
@@ -1018,7 +1018,7 @@ kernel void <?=constrainU?>(
 	global <?=cons_t?> * const UBuf,
 	global <?=cell_t?> const * const cellBuf
 ) {
-	SETBOUNDS(0,0);
+	<?=SETBOUNDS?>(0,0);
 	global <?=cons_t?> * const U = UBuf + index;
 	real3 const x = cellBuf[index].pos;
 	<?=prim_t?> W;

@@ -86,14 +86,14 @@ kernel void <?=applyInitCondCell?>(
 
 
 //// MODULE_NAME: <?=fluxFromCons?>
-//// MODULE_DEPENDS: normal_t units <?=solver_t?> <?=cons_t?> <?=eqn_common?>
+//// MODULE_DEPENDS: <?=normal_t?> units <?=solver_t?> <?=cons_t?> <?=eqn_common?>
 
 #define <?=fluxFromCons?>(\
 	/*<?=cons_t?> * const */F,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */U,\
 	/*real3 const */pt,\
-	/*normal_t const */n\
+	/*<?=normal_t?> const */n\
 ) {\
 	<?=vec3?> const E = calc_E(U);\
 	<?=vec3?> const H = calc_H(U);\
@@ -126,7 +126,7 @@ kernel void <?=applyInitCondCell?>(
 	/*<?=cons_t?> const * const */UL,\
 	/*<?=cons_t?> const * const */UR,\
 	/*real3 const */pt,\
-	/*normal_t const */n\
+	/*<?=normal_t?> const */n\
 ) {\
 	/* this will fail with tensor susceptibility */\
 	/* but it doesn't belong here -- this is only the scalar case */\
@@ -143,7 +143,7 @@ kernel void <?=applyInitCondCell?>(
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */U,\
 	/*real3 const */pt,\
-	/*normal_t const */n\
+	/*<?=normal_t?> const */n\
 ) {\
 	(eig)->sqrt_1_eps = (U)->sqrt_1_eps;\
 	(eig)->sqrt_1_mu = (U)->sqrt_1_mu;\
@@ -161,7 +161,7 @@ TODO update this for Einstein-Maxwell (take the metric into consideration
 	/*<?=eigen_t?> const * const */eig,\
 	/*<?=cons_t?> const * const */X,\
 	/*real3 const */pt,\
-	/*normal_t const */n\
+	/*<?=normal_t?> const */n\
 ) {\
 	<?=susc_t?> const sqrt_1_eps = (eig)->sqrt_1_eps;					/* (m^3 kg)^.5/(C s) */\
 	<?=susc_t?> const sqrt_eps = <?=susc_t?>_inv(sqrt_1_eps);			/* (C s)/(m^3 kg)^.5 */\
@@ -216,7 +216,7 @@ TODO update this for Einstein-Maxwell (take the metric into consideration
 	/*<?=eigen_t?> const * const */eig,\
 	/*<?=waves_t?> const * const */X,\
 	/*real3 const */pt,\
-	/*normal_t const */n\
+	/*<?=normal_t?> const */n\
 ) {\
 	<?=scalar?> const sqrt_1_eps = (eig)->sqrt_1_eps;\
 	<?=scalar?> const sqrt_1_mu = (eig)->sqrt_1_mu;\
@@ -269,7 +269,7 @@ TODO update this for Einstein-Maxwell (take the metric into consideration
 #define <?=eigen_fluxTransform?>(Y, solver, eig, X, x, n) <?=fluxFromCons?>(Y, solver, X, x, n)
 
 //// MODULE_NAME: <?=addSource?>
-//// MODULE_DEPENDS: <?=coord_sqrt_det_g?> <?=fluxFromCons?> SETBOUNDS_NOGHOST
+//// MODULE_DEPENDS: <?=coord_sqrt_det_g?> <?=fluxFromCons?> <?=SETBOUNDS_NOGHOST?>
 
 kernel void <?=addSource?>(
 	constant <?=solver_t?> const * const solver,
@@ -277,7 +277,7 @@ kernel void <?=addSource?>(
 	const global <?=cons_t?>* UBuf,
 	const global <?=cell_t?>* cellBuf
 ) {
-	SETBOUNDS_NOGHOST();
+	<?=SETBOUNDS_NOGHOST?>();
 	real3 const x = cellBuf[index].pos;
 	
 	global <?=cons_t?> * const deriv = derivBuf + index;

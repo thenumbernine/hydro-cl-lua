@@ -37,18 +37,18 @@ function ADM_BonaMasso_1D_2008Alcubierre:initCodeModule_fluxFromCons()
 		depends = {
 			'solver_t',
 			'cons_t',
-			self.symbols.eqn_common,	-- calc_f ... or is it initCond.codeprefix?
+			self.symbols.eqn_common,	-- calc_f ... or is it initCond_codeprefix?
 		},
 		code = self:template[[
 
 <?=cons_t?> fluxFromCons(
-	constant <?=solver.solver_t?>* solver,
-	<?=cons_t?> U,
-	real3 x,
-	normal_t n
+	constant <?=solver_t?> const * const solver,
+	<?=cons_t?> const U,
+	real3 const x,
+	<?=normal_t?> const n
 ) {
-	real f = calc_f(U.alpha);
-	real alpha_over_sqrt_gamma_xx = U.alpha / sqrt(U.gamma_xx);
+	real const f = calc_f(U.alpha);
+	real const alpha_over_sqrt_gamma_xx = U.alpha / sqrt(U.gamma_xx);
 	return (<?=cons_t?>){
 		.alpha = 0,
 		.gamma_xx = 0,
@@ -89,7 +89,7 @@ function ADM_BonaMasso_1D_2008Alcubierre:getDisplayVars()
 		{name='gravity mag', code='value.vreal = -U->alpha * U->alpha * U->a_x / U->gamma_xx;'},
 	
 		{name='alpha vs a_x', code=[[
-	if (OOB(1,1)) {
+	if (<?=OOB?>(1,1)) {
 		value.vreal = 0.;
 	} else {
 		real dx_alpha = (U[1].alpha - U[-1].alpha) / (2. * solver->grid_dx.x);
@@ -98,7 +98,7 @@ function ADM_BonaMasso_1D_2008Alcubierre:getDisplayVars()
 ]]},
 
 		{name='gamma_xx vs D_g', code=[[
-	if (OOB(1,1)) {
+	if (<?=OOB?>(1,1)) {
 		value.vreal = 0.;
 	} else {
 		real dx_gamma_xx = (U[1].gamma_xx - U[-1].gamma_xx) / (2. * solver->grid_dx.x);

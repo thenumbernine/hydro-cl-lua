@@ -6,7 +6,7 @@ local eqn = solver.eqn
 kernel void <?=op.symbolPrefix?>_initPotential(
 	global <?=op:getPotBufType()?>* UBuf
 ) {
-	SETBOUNDS(numGhost,numGhost);
+	<?=SETBOUNDS?>(solver->numGhost, solver->numGhost);
 	global <?=op:getPotBufType()?>* U = UBuf + index;
 
 	//'betaLap'^i = 2 alpha_,j A^ij + 2 alpha A^ij_,j + 2 alpha Gamma^i_kj A^kj + 2 alpha Gamma^j_kj A^ik
@@ -16,12 +16,12 @@ kernel void <?=op.symbolPrefix?>_initPotential(
 }
 
 kernel void <?=op.symbolPrefix?>_solveJacobi(
-	constant <?=solver.solver_t?>* solver,
-	global <?=op:getPotBufType()?>* UBuf
+	constant <?=solver_t?> const * const solver,
+	global <?=op:getPotBufType()?> * const UBuf
 ) {
-	SETBOUNDS(numGhost,numGhost);
+	<?=SETBOUNDS?>(solver->numGhost, solver->numGhost);
 
-	global <?=op:getPotBufType()?>* U = UBuf + index;
+	global <?=op:getPotBufType()?> * const U = UBuf + index;
 
 <? for j=0,solver.dim-1 do ?>
 	real dx<?=j?> = cell_dx<?=j?>(x);
@@ -31,12 +31,12 @@ kernel void <?=op.symbolPrefix?>_solveJacobi(
 	real3 volL, volR;
 <? for j=0,solver.dim-1 do ?>
 	intIndex.s<?=j?> = i.s<?=j?> - .5;
-	volL.s<?=j?> = coord_sqrt_det_g(solver, cell_x(intIndex));
+	volL.s<?=j?> = coord_sqrt_det_g(solver, cellBuf[INDEXV(intIndex)].pos);
 	intIndex.s<?=j?> = i.s<?=j?> + .5;
-	volR.s<?=j?> = coord_sqrt_det_g(solver, cell_x(intIndex));
+	volR.s<?=j?> = coord_sqrt_det_g(solver, cellBuf[INDEXV(initIndex)].pos);
 	intIndex.s<?=j?> = i.s<?=j?>;
 <? end ?>
-	real volAtX = coord_sqrt_det_g(solver, cell_x(i));
+	real volAtX = coord_sqrt_det_g(solver, cellBuf[index].pos);
 
 <?
 local scalar = op.scalar

@@ -159,8 +159,8 @@ function BSSNOKFiniteDifferenceEquationBase:initCodeModule_calcDTCell()
 		name = self.symbols.calcDTCell,
 		depends = table{
 			self.symbols.eqn_common,
-			self.symbols.coord_sqrt_g_ll_ij,
-			'SETBOUNDS',
+			self.coord.symbols.coord_sqrt_g_ll_ij,
+			self.solver.symbols.SETBOUNDS,
 		}:append(
 			self.cflMethod == '2008 Alcubierre' and { 
 				self.symbols.calc_gamma_uu,
@@ -168,10 +168,10 @@ function BSSNOKFiniteDifferenceEquationBase:initCodeModule_calcDTCell()
 		),
 		code = self:template[[
 void <?=calcDTCell?>(
-	global real* dt,
-	constant <?=solver_t?>* solver,
-	const global <?=cons_t?>* U,
-	const global <?=cell_t?>* cell
+	global real * const dt,
+	constant <?=solver_t?> const * const solver,
+	global <?=cons_t?> const * const U,
+	global <?=cell_t?> const * const cell
 ) {
 	real3 const x = cell->pos;
 

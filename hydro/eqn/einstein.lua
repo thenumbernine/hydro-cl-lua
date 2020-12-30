@@ -57,11 +57,11 @@ function EinsteinEquation:createBoundaryOptions()
 	function BoundaryFixed:getCode(args)
 		local lines = table()
 		local gridSizeSide = 'solver->gridSize.'..xNames[args.side]
-		for _,j in ipairs{'j', gridSizeSide..'-numGhost+j'} do
+		for _,j in ipairs{'j', gridSizeSide..' - solver->numGhost + j'} do
 			local index = args.indexv(j)
 			local U = 'buf[INDEX('..index..')]'
 			lines:insert(self:template([[
-	setFlatSpace(solver, &<?=U?>, cell_x((int4)(<?=index?>, 0)));
+	setFlatSpace(solver, &<?=U?>, cellBuf[<?=index?>].pos);
 ]], 		{
 				U = U,
 				index = index,

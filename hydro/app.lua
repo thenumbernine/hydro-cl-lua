@@ -563,6 +563,17 @@ function HydroCLApp:initGL(...)
 		})))
 		
 		require 'hydro.code.safecdef'(self.modules:getTypeHeader'math')
+	
+		-- this expects solver_t to have gridSize, but it doesn't require its def (because it's a macro)
+		self.modules:add{
+			name = 'INDEX',
+			headercode = '#define INDEX(a,b,c)	((a) + solver->gridSize.x * ((b) + solver->gridSize.y * (c)))',
+		}
+	
+		self.modules:add{
+			name = 'INDEXV',
+			headercode = '#define INDEXV(i)		indexForInt4ForSize(i, solver->gridSize.x, solver->gridSize.y, solver->gridSize.z)',
+		}
 	end
 
 

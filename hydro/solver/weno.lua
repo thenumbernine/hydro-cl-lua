@@ -363,7 +363,9 @@ end
 function WENO:createFlux()
 	self.flux = {
 		initCodeModules = function()
-			self.modules:add{name = 'calcFluxForInterface'}
+			self.modules:add{
+				name = self.symbols.calcFluxForInterface,
+			}
 		end,
 	}
 end
@@ -393,7 +395,7 @@ function WENO:refreshSolverProgram()
 	
 --	self.calcCellFluxKernelObj = self.solverProgramObj:kernel'calcCellFlux'
 
-	self.calcFluxKernelObj = self.solverProgramObj:kernel'calcFlux'
+	self.calcFluxKernelObj = self.solverProgramObj:kernel(self.symbols.calcFlux)
 	self.calcFluxKernelObj.obj:setArg(1, self.fluxBuf)
 end
 

@@ -302,7 +302,7 @@ local function addMaxwellOscillatingBoundary(args)
 	function BoundaryOscillating:getCode(args)
 		local gridSizeSide = 'solver->gridSize.'..xNames[args.side]
 		local U = 'buf['..args.index(
-			side:sub(-3) == 'min' and 'j+1' or (gridSizeSide..'-numGhost-1-j')
+			side:sub(-3) == 'min' and 'j+1' or (gridSizeSide..' - solver->numGhost - 1 - j')
 		)..']'
 		
 		-- TODO put the old code here
@@ -687,7 +687,7 @@ end
 	-- http://www-troja.fjfi.cvut.cz/~liska/CompareEuler/compare8/node36_ct.html
 	{
 		name = 'Noh',
---[[ I don't think this is setting correctly.  cell_x is still [-1,1]^n
+--[[ I don't think this is setting correctly.  cell pos is still [-1,1]^n
 		mins = {0,0,0},
 		maxs = {1,1,1},
 --]]		
@@ -970,7 +970,7 @@ end
 	//TODO 'i'
 	//args.index provides this ... post-converted to an integer
 	//I need the vector now
-	real3 x = cell_x((int4)(<?=args.indexv'j'?>,0));
+	real3 const x = cellBuf[<?=args.index'j'?>].pos;
 	<?=prim_t?> W = {
 		.rho = 1.,
 		.v = _real3(2.9, 0., 0.),
@@ -990,7 +990,7 @@ end) then
 			boundaryMethods.ymin = function(args)
 				local U = 'buf['..args.index'j'..']'
 				return template([[
-	real3 x = cell_x(i);
+	real3 const x = cellBuf[index].pos;
 	<?=prim_t?> W = {
 		.rho = 1.4598,
 		.v = _real3(2.717, -.4049, 0.),
@@ -1150,7 +1150,7 @@ end) then
 					dst = args.index'j'
 				elseif args.minmax == 'max' then
 					local gridSizeSide = 'solver->gridSize.'..xNames[args.side]
-					dst = args.index(gridSizeSide..'-numGhost+j')
+					dst = args.index(gridSizeSide..' - solver->numGhost + j')
 				end
 				local lines = table()
 				if args.fields then
@@ -1159,8 +1159,8 @@ end) then
 					end
 				else
 					lines:insert(solver.eqn:template([[
-	real3 x = cell_x(i);
-	real3 xc = coordMap(x);
+	real3 const x = cellBuf[index].pos;
+	real3 const xc = coordMap(x);
 	bool inlet = false;
 	if (xc.x > 0) {
 		real dy = xc.y - .5;

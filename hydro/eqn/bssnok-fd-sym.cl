@@ -208,7 +208,7 @@ kernel void calcDeriv(
 	global <?=cons_t?> const * const UBuf,
 	global <?=cell_t?> const * const cellBuf
 ) {
-	SETBOUNDS(numGhost,numGhost);
+	<?=SETBOUNDS?>(solver->numGhost, solver->numGhost);
 	real3 const x = cellBuf[index].pos;
 	global <?=cons_t?> * const deriv = derivBuf + index;
 	global <?=cons_t?> const * const U = UBuf + index;
@@ -324,7 +324,7 @@ kernel void constrainU(
 	global <?=cell_t?> const * const cellBuf
 ) {
 <? if useConstrainU then ?>	
-	SETBOUNDS(numGhost,numGhost);
+	<?=SETBOUNDS?>(solver->numGhost, solver->numGhost);
 	real3 const x = cellBuf[index].pos;
 	global <?=cons_t?> * const U = UBuf + index;
 
@@ -407,7 +407,7 @@ kernel void addSource(
 	global <?=cell_t?> const * const cellBuf
 ) {
 <? if useAddSource then ?>
-	SETBOUNDS_NOGHOST();
+	<?=SETBOUNDS_NOGHOST?>();
 	
 	global <?=cons_t?> const * const U = UBuf + index;
 	global <?=cons_t?> * const deriv = derivBuf + index;

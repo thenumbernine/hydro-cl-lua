@@ -143,7 +143,7 @@ kernel void <?=applyInitCond?>(
 	global <?=cons_t?> * const UBuf,
 	global <?=cell_t?> const * const cellBuf
 ) {
-	SETBOUNDS(0,0);
+	<?=SETBOUNDS?>(0,0);
 	real3 const x = cellBuf[index].pos;
 	real3 mids = real3_real_mul(real3_add(solver->mins, solver->maxs), .5);
 	bool lhs = true
@@ -185,7 +185,7 @@ end
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */U,\
 	/*real3 const */x,\
-	/*normal_t const */n\
+	/*<?=normal_t?> const */n\
 ) {\
 	<?=prim_t?> W;\
 	<?=primFromCons?>(&W, solver, U, x);\
@@ -218,11 +218,11 @@ end
 //// MODULE_DEPENDS: <?=coord_sqrt_g_uu_ij?> <?=primFromCons?> <?=eqn_common?>
 
 #define <?=calcCellMinMaxEigenvalues?>(\
-	/*range_t * const */result,\
+	/*<?=range_t?> * const */result,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*global <?=cons_t?> const * const */U,\
 	/*real3 const */x,\
-	/*normal_t const */n\
+	/*<?=normal_t?> const */n\
 ) {\
 	<?=prim_t?> W;\
 	<?=primFromCons?>(&W, solver, U, x);\
@@ -246,7 +246,7 @@ end
 	/*<?=cons_t?> const * const */UL,\
 	/*<?=cons_t?> const * const */UR,\
 	/*real3 const */x,\
-	/*normal_t const */n\
+	/*<?=normal_t?> const */n\
 ) {\
 	<?=prim_t?> WL;\
 	<?=primFromCons?>(&WL, solver, UL, x);\
@@ -362,7 +362,7 @@ end
 	/*<?=eigen_t?> const * const */eig,\
 	/*<?=cons_t?> const * const */X,\
 	/*real3 const */pt,\
-	/*normal_t const */n\
+	/*<?=normal_t?> const */n\
 ) {\
 	if (n.side == 0) {\
 		<?=prefixes[0]:gsub("\n", "\\\n")?>\
@@ -511,7 +511,7 @@ end
 	/*<?=eigen_t?> const * const */eig,\
 	/*<?=waves_t?> const * const */X,\
 	/*real3 const */pt,\
-	/*normal_t const */n\
+	/*<?=normal_t?> const */n\
 ) {\
 	if (n.side == 0) {\
 		<?=prefixes[0]:gsub("\n", "\\\n")?>\
@@ -626,7 +626,7 @@ static inline void <?=eigen_fluxTransform?>(
 	<?=eigen_t?> eig,
 	<?=cons_t?> X,
 	real3 pt,
-	normal_t n
+	<?=normal_t?> n
 ) {
 	if (n.side == 0) {
 		<?=prefixes[0]:gsub("\n", "\\\n")?>
@@ -755,7 +755,7 @@ static inline void <?=eigen_fluxTransform?>(
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */U,\
 	/*real3 const */pt,\
-	/*normal_t const */n\
+	/*<?=normal_t?> const */n\
 ) {\
 	<?=prim_t?> W;\
 	<?=primFromCons?>(&W, solver, U, pt);\
@@ -779,7 +779,7 @@ kernel void <?=addSource?>(
 	global <?=cons_t?> const * const UBuf,
 	global <?=cell_t?> const * const cellBuf
 ) {
-	SETBOUNDS_NOGHOST();
+	<?=SETBOUNDS_NOGHOST?>();
 	real3 const x = cellBuf[index].pos;
 	global <?=cons_t?> * const deriv = derivBuf + index;
 	global <?=cons_t?> const * const U = UBuf + index;

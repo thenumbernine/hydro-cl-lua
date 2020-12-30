@@ -34,7 +34,7 @@ void <?=setFlatSpace?>(
 }
 
 //// MODULE_NAME: <?=applyInitCondCell?>
-//// MODULE_DEPENDS: SETBOUNDS <?=coordMap?> <?=setFlatSpace?>
+//// MODULE_DEPENDS: <?=SETBOUNDS?> <?=coordMap?> <?=setFlatSpace?>
 
 kernel void <?=applyInitCondCell?>(
 	constant <?=solver_t?> const * const solver,
@@ -70,14 +70,14 @@ kernel void <?=applyInitCondCell?>(
 }
 
 //// MODULE_NAME: <?=initDerivs?>
-//// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> <?=cell_t?> SETBOUNDS numGhost
+//// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> <?=cell_t?> <?=SETBOUNDS?>
 
 kernel void <?=initDerivs?>(
 	constant <?=solver_t?> const * const solver,
 	global <?=cons_t?> * const UBuf,
 	global <?=cell_t?> const * const cellBuf
 ) {
-	SETBOUNDS(numGhost,numGhost);
+	<?=SETBOUNDS?>(solver->numGhost, solver->numGhost);
 	global <?=cons_t?> * const U = UBuf + index;
 
 <? 
@@ -100,7 +100,7 @@ end
 }
 
 //// MODULE_NAME: <?=calcDTCell?>
-//// MODULE_DEPENDS: SETBOUNDS initCond.codeprefix
+//// MODULE_DEPENDS: <?=SETBOUNDS?> <?=initCond_codeprefix?>
 
 #define <?=calcDTCell?>(\
 	/*global real * const */dt,\
@@ -136,7 +136,7 @@ end
 }
 
 //// MODULE_NAME: <?=eigen_forCell?>
-//// MODULE_DEPENDS: initCond.codeprefix
+//// MODULE_DEPENDS: <?=initCond_codeprefix?>
 
 //used by PLM
 #define <?=eigen_forCell?>(\
@@ -144,7 +144,7 @@ end
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */U,\
 	/*real3 const */pt,\
-	/*normal_t const */n\
+	/*<?=normal_t?> const */n\
 ) {\
 	(eig)->alpha = U.alpha;\
 	(eig)->sqrt_f = sqrt(calc_f(U.alpha));\
@@ -155,13 +155,13 @@ end
 }
 
 //// MODULE_NAME: <?=calcCellMinMaxEigenvalues?>
-//// MODULE_DEPENDS: initCond.codeprefix
+//// MODULE_DEPENDS: <?=initCond_codeprefix?>
 
 #define <?=calcCellMinMaxEigenvalues?>(\
-	/*range_t * const */result,\
+	/*<?=range_t?> * const */result,\
 	/*global <?=cons_t?> const * const */U,\
 	/*real3 const */pt,\
-	/*normal_t const */n\
+	/*<?=normal_t?> const */n\
 ) {\
 	real const det_gamma = sym3_det((U)->gamma_ll);\
 	\
@@ -186,7 +186,7 @@ end
 }
 
 //// MODULE_NAME: <?=eigen_forInterface?>
-//// MODULE_DEPENDS: initCond.codeprefix
+//// MODULE_DEPENDS: <?=initCond_codeprefix?>
 
 #define <?=eigen_forInterface?>(\
 	/*<?=eigen_t?> * const */eig,\
@@ -194,7 +194,7 @@ end
 	/*<?=cons_t?> const * const */UL,\
 	/*<?=cons_t?> const * const */UR,\
 	/*real3 const */pt,\
-	/*normal_t const */n\
+	/*<?=normal_t?> const */n\
 ) {\
 	real const alpha = .5 * ((UL)->alpha + (UR)->alpha);\
 	sym3 const avg_gamma = (sym3){\
@@ -221,7 +221,7 @@ end
 	/*<?=eigen_t?> const * const */eig,\
 	/*<?=cons_t?> const * const */inputU,\
 	/*real3 const */pt,\
-	/*normal_t const */n\
+	/*<?=normal_t?> const */n\
 ) {\
 	/* input */\
 	real3 const a_l = real3_swap((inputU)->a_l, n.side);							/* 0-2 */\
@@ -850,7 +850,7 @@ end
 	/*<?=eigen_t?> const * const */eig,\
 	/*<?=waves_t?> const * const */input,\
 	/*real3 const */pt,\
-	/*normal_t const */n\
+	/*<?=normal_t?> const */n\
 ) {\
 	for (int j = 0; j < numStates; ++j) {\
 		(resultU)->ptr[j] = 0;\
@@ -1381,7 +1381,7 @@ end
 	/*<?=eigen_t?> const * const */eig,\
 	/*<?=cons_t?> const * const */input,\
 	/*real3 const */pt,\
-	/*normal_t const */n\
+	/*<?=normal_t?> const */n\
 ) {\
 	for (int i = 0; i < numStates; ++i) {\
 		(results)->ptr[i] = 0;\
@@ -1525,7 +1525,7 @@ end
 }
 
 //// MODULE_NAME: <?=addSource?>
-//// MODULE_DEPENDS: SETBOUNDS_NOGHOST initCond.codeprefix
+//// MODULE_DEPENDS: <?=SETBOUNDS_NOGHOST?> <?=initCond_codeprefix?>
 
 kernel void <?=addSource?>(
 	constant <?=solver_t?> const * const solver,
@@ -1533,7 +1533,7 @@ kernel void <?=addSource?>(
 	global <?=cons_t?> const * const UBuf,
 	global <?=cell_t?> const * const cellBuf
 ) {
-	SETBOUNDS_NOGHOST();
+	<?=SETBOUNDS_NOGHOST?>();
 	global <?=cons_t?> const * const U = UBuf + index;
 	global <?=cons_t?> * const deriv = derivBuf + index;
 
@@ -1675,7 +1675,7 @@ kernel void <?=constrainU?>(
 	global <?=cons_t?> * const UBuf,
 	global <?=cell_t?> const * const cellBuf
 ) {
-	SETBOUNDS(numGhost,numGhost);		
+	<?=SETBOUNDS?>(solver->numGhost, solver->numGhost);
 	global <?=cons_t?> * const U = UBuf + index;
 
 	real const det_gamma = sym3_det(U->gamma_ll);

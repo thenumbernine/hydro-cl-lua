@@ -162,7 +162,7 @@ kernel void computeGRStressEnergy(
 	global <?=gr.eqn.symbols.cons_t?>* grUBuf,
 	const global <?=em.eqn.symbols.cons_t?>* emUBuf
 ) {
-	SETBOUNDS(numGhost,numGhost);
+	<?=SETBOUNDS?>(solver->numGhost, solver->numGhost);
 	
 	//populate grUBuf->rho, S_u, S_ll
 	

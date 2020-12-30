@@ -1,15 +1,15 @@
-//// MODULE_NAME: calcDerivFromFlux
-//// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> <?=cell_t?> <?=solver_macros?> SETBOUNDS_NOGHOST
+//// MODULE_NAME: <?=calcDerivFromFlux?>
+//// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> <?=cell_t?> <?=solver_macros?> <?=SETBOUNDS_NOGHOST?>
 
 // used by all the finite volume solvers
 
-kernel void calcDerivFromFlux(
+kernel void <?=calcDerivFromFlux?>(
 	constant <?=solver_t?> const * const solver,
 	global <?=cons_t?> * const derivBuf,
 	global <?=cons_t?> const * const fluxBuf,
 	global <?=cell_t?> const * const cellBuf
 ) {
-	SETBOUNDS_NOGHOST();
+	<?=SETBOUNDS_NOGHOST?>();
 	global <?=cons_t?> * const deriv = derivBuf + index;
 	real3 const x = cellBuf[index].pos;
 

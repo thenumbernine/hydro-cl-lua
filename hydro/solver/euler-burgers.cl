@@ -38,7 +38,7 @@ kernel void <?=calcDTCell?>(
 
 	for (int i = 0; i < cell->faceCount; ++i) {
 		global <?=face_t?> const * const face = faceBuf + cellFaceIndexes[i + cell->faceOffset];
-		normal_t const n = normal_forFace(face);
+		<?=normal_t?> const n = normal_forFace(face);
 		real const v_n = normal_vecDotN1(n, W.v);
 		real const dx = face->area;
 		*(dt) = (real)min(*(dt), dx / (Cs + fabs(v_n)));
@@ -48,7 +48,7 @@ kernel void <?=calcDTCell?>(
 <? end -- mesh solver ?>
 
 //// MODULE_NAME: EulerBurgers.solver
-//// MODULE_DEPENDS: fluxLimiter SETBOUNDS <?=primFromCons?> <?=eigen_forInterface?>
+//// MODULE_DEPENDS: <?=SETBOUNDS?> <?=fluxLimiter?> <?=primFromCons?> <?=eigen_forInterface?>
 
 kernel void calcIntVel(
 	constant <?=solver_t?> const * const solver,
@@ -56,7 +56,7 @@ kernel void calcIntVel(
 	global const <?=solver.getULRArg?>,
 	global <?=cell_t?> const * const cellBuf
 ) {
-	SETBOUNDS(numGhost,numGhost-1);
+	<?=SETBOUNDS?>(solver->numGhost, solver->numGhost-1);
 	real3 const xR = cellBuf[index].pos;
 	int const indexR = index;
 	
@@ -80,7 +80,7 @@ kernel void calcIntVel(
 	}<? end ?>
 }
 
-kernel void calcFlux(
+kernel void <?=calcFlux?>(
 	constant <?=solver_t?> const * const solver,
 	global <?=cons_t?> * const fluxBuf,
 	global const <?=solver.getULRArg?>,
@@ -88,7 +88,7 @@ kernel void calcFlux(
 	global <?=cell_t?> const * const cellBuf,
 	realparam const dt
 ) {
-	SETBOUNDS(numGhost,numGhost-1);
+	<?=SETBOUNDS?>(solver->numGhost, solver->numGhost-1);
 	real3 const xR = cellBuf[index].pos;
 	int const indexR = index;
 
@@ -119,7 +119,7 @@ kernel void calcFlux(
 			real const r = (intVel >= 0. ? deltaL : deltaR) / delta;
 		
 <? if solver.fluxLimiter > 1 then ?>
-			real const phi = fluxLimiter(r);
+			real const phi = <?=fluxLimiter?>(r);
 <? end ?>
 			flux->ptr[j] = .5 * intVel * ((1. + theta) * UL->ptr[j] + (1. - theta) * UR->ptr[j])
 <? if solver.fluxLimiter > 1 then ?>
@@ -136,7 +136,7 @@ kernel void computePressure(
 	global <?=cons_t?> const * const UBuf,
 	global <?=cell_t?> const * const cellBuf
 ) {
-	SETBOUNDS(numGhost-1,numGhost-2);
+	<?=SETBOUNDS?>(solver->numGhost-1, solver->numGhost-2);
 	real3 const x = cellBuf[index].pos;
 	
 	global <?=cons_t?> const * const U = UBuf + index;
@@ -166,7 +166,7 @@ kernel void diffuseMomentum(
 	global <?=cons_t?> * const derivBuf,
 	global real const * const PBuf
 ) {
-	SETBOUNDS_NOGHOST();
+	<?=SETBOUNDS_NOGHOST?>();
 	global <?=cons_t?> * const deriv = derivBuf + index; 
 	global real const * const P = PBuf + index; 
 
@@ -183,7 +183,7 @@ kernel void diffuseWork(
 	global <?=cons_t?> const * const UBuf,
 	global real const * const PBuf
 ) {
-	SETBOUNDS_NOGHOST();
+	<?=SETBOUNDS_NOGHOST?>();
 	global <?=cons_t?> * const deriv = derivBuf + index; 
 	global <?=cons_t?> const * const U = UBuf + index;
 	global real const * const P = PBuf + index;

@@ -93,10 +93,10 @@ function Euler:initCodeModule_calcDTCell()
 	solver.modules:add{
 		name = self.symbols.calcDTCell,
 		depends = table{
-			'OOB',
-			'SETBOUNDS',
-			'normal_t',
+			self.solver.symbols.OOB,
+			self.solver.symbols.SETBOUNDS,
 			self.solver.solver_t,
+			self.solver.coord.symbols.normal_t,
 			self.symbols.primFromCons,
 			self.symbols.eqn_guiVars_compileTime,
 		},
@@ -155,7 +155,7 @@ then --\
 			/* all sides? or only the most prominent side? */\
 			/* which should we pick eigenvalues from? */\
 			/* use cell-centered eigenvalues */\
-			normal_t n = normal_forFace(face);\
+			<?=normal_t?> n = normal_forFace(face);\
 			<?=eqn:consWaveCodePrefix('n', 'U', 'x'):gsub('\n', '\\\n\t\t\t')?>\
 			real lambdaMin = <?=eqn:consMinWaveCode('n', 'U', 'x')?>;\
 			real lambdaMax = <?=eqn:consMaxWaveCode('n', 'U', 'x')?>;\
@@ -239,7 +239,7 @@ function Euler:getDisplayVars()
 ]], units='K'},
 	}:append(self.gravOp and
 		{{name='gravity', code=self:template[[
-	if (!OOB(1,1)) {
+	if (!<?=OOB?>(1,1)) {
 		value.vreal3 = <?=eqn.gravOp.symbols.calcGravityAccel?>(solver, U);
 	}
 ]], type='real3', units='m/s^2'}} or nil

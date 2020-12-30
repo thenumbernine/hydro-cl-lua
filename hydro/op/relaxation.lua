@@ -69,7 +69,7 @@ function Relaxation:initCodeModules(solver)
 	solver.modules:add{
 		name = name,
 		depends = {
-			'SETBOUNDS_NOGHOST',
+			solver.symbols.SETBOUNDS_NOGHOST,
 		},
 		code = solver.eqn:template(file[self.solverCodeFile], {op = self}),
 	}

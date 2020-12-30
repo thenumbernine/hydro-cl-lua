@@ -1,14 +1,14 @@
-//// MODULE_NAME: calcFluxForInterface
+//// MODULE_NAME: <?=calcFluxForInterface?>
 //// MODULE_DEPENDS: <?=solver_macros?> math <?=eigen_forInterface?> <?=eqn_waveCode_depends?> <?=fluxFromCons?>
 //HLL solver:
 
-#define calcFluxForInterface(\
+#define <?=calcFluxForInterface?>(\
 	/*<?=cons_t?> * const */resultFlux,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */UL,\
 	/*<?=cons_t?> const * const */UR,\
 	/*real3 const */xInt,\
-	/*normal_t const */n\
+	/*<?=normal_t?> const */n\
 ) {\
 	/* \
 	get min/max lambdas of UL, UR, and interface U (based on Roe averaging)\

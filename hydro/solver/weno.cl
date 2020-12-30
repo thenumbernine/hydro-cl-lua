@@ -1,5 +1,5 @@
 //// MODULE_NAME: weno_l/r
-//// MODULE_DEPENDS: cell_x sqr normal_t <?=fluxFromCons?> <?=eigen_forInterface?> <?=eigen_leftTransform?> <?=eigen_rightTransform?> <?=eqn_waveCode_depends?> <?=waves_t?>
+//// MODULE_DEPENDS: sqr <?=normal_t?> <?=fluxFromCons?> <?=eigen_forInterface?> <?=eigen_leftTransform?> <?=eigen_rightTransform?> <?=eqn_waveCode_depends?> <?=waves_t?>
 
 <? 
 local clnumber = require "cl.obj.number"
@@ -109,7 +109,7 @@ end
 ?>
 
 //// MODULE_NAME: calcCellFlux
-//// MODULE_DEPENDS: cell_x <?=fluxFromCons?> normal_t
+//// MODULE_DEPENDS: <?=fluxFromCons?> <?=normal_t?>
 
 kernel void calcCellFlux(
 	constant <?=solver_t?> const * const solver,
@@ -117,29 +117,29 @@ kernel void calcCellFlux(
 	global <?=cons_t?> * const fluxCellBuf,
 	global <?=cons_t?> const * const UBuf
 ) {
-	SETBOUNDS(0,0);
+	<?=SETBOUNDS?>(0,0);
 	global <?=cons_t?> const * const U = UBuf + index;
 	<? for side=0,solver.dim-1 do ?>{
-		real3 xInt = cell_x(i);
+		real3 xInt = cellBuf[index].pos;
 		xInt.s<?=side?> -= .5 * solver->grid_dx.s<?=side?>;
-		normal_t const n = normal_forSide<?=side?>(xInt);
+		<?=normal_t?> const n = normal_forSide<?=side?>(xInt);
 		global <?=cons_t?> const * const F = fluxCellBuf + <?=side?> + dim * index;
 		<?=fluxFromCons?>(F, solver, U, xInt, n);
 	}<? end ?>
 }
 
-//// MODULE_NAME: calcFlux
-//// MODULE_DEPENDS: cell_x normal_t weno_l/r <?=fluxFromCons?> <?=eigen_forInterface?> <?=eigen_leftTransform?> <?=eigen_rightTransform?> <?=eqn_waveCode_depends?>
+//// MODULE_NAME: <?=calcFlux?>
+//// MODULE_DEPENDS: <?=normal_t?> weno_l/r <?=fluxFromCons?> <?=eigen_forInterface?> <?=eigen_leftTransform?> <?=eigen_rightTransform?> <?=eqn_waveCode_depends?>
 
-kernel void calcFlux(
-	constant <?=solver_t?> const * const  solver,
+kernel void <?=calcFlux?>(
+	constant <?=solver_t?> const * const solver,
 	global <?=cons_t?> * const fluxBuf,
 	global <?=cons_t?> const * const UBuf/*<?=solver.getULRArg?> ... but why use getULR when we're using WENO? */,
 	global <?=cell_t?> const * const cellBuf
 ) {
-	SETBOUNDS(numGhost,numGhost-1);
+	<?=SETBOUNDS?>(solver->numGhost, solver->numGhost-1);
 	
-	real3 const xR = cell_x(i);
+	real3 const xR = cellBuf[index].pos;
 	global <?=cons_t?> const * const U = UBuf + index;
 	<?
 for side=0,solver.dim-1 do ?>{
@@ -158,7 +158,7 @@ for side=0,solver.dim-1 do ?>{
 		real3 xInt = xR;
 		xInt.s<?=side?> -= .5 * solver->grid_dx.s<?=side?>;
 
-		normal_t const n = normal_forSide<?=side?>(xInt);
+		<?=normal_t?> const n = normal_forSide<?=side?>(xInt);
 
 		int const fluxIndexInt = side + dim * index;
 		global <?=cons_t?> * const flux = fluxBuf + fluxIndexInt;

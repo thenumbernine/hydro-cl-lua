@@ -39,14 +39,14 @@ void <?=applyInitCondCell?>(
 }
 
 //// MODULE_NAME: <?=initDerivs?>
-//// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> <?=cell_t?> SETBOUNDS numGhost
+//// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> <?=cell_t?> <?=SETBOUNDS?>
 
 kernel void <?=initDerivs?>(
 	constant <?=solver_t?> const * const solver,
 	global <?=cons_t?> * const UBuf,
 	global <?=cell_t?> const * const cellBuf
 ) {
-	SETBOUNDS(numGhost,numGhost);
+	<?=SETBOUNDS?>(solver->numGhost, solver->numGhost);
 	global <?=cons_t?> * const U = UBuf + index;
 	
 	real const dx_alpha = (U[1].alpha - U[-1].alpha) / solver->grid_dx.x;
@@ -65,7 +65,7 @@ kernel void <?=initDerivs?>(
 	/*<?=cons_t?> const * const */UL,\
 	/*<?=cons_t?> const * const */UR,\
 	/*real3 const */x,\
-	/*normal_t const */n\
+	/*<?=normal_t?> const */n\
 ) {\
 	(eig)->alpha = .5 * ((UL)->alpha + (UR)->alpha);\
 	real const gamma_xx = .5 * ((UL)->gamma_xx + (UR)->gamma_xx);\
@@ -81,7 +81,7 @@ kernel void <?=initDerivs?>(
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */U,\
 	/*real3 const */x,\
-	/*normal_t const */n\
+	/*<?=normal_t?> const */n\
 ) {\
 	(eig)->alpha = (U)->alpha;\
 	(eig)->sqrt_gamma_xx = sqrt((U)->gamma_xx);\
@@ -96,7 +96,7 @@ kernel void <?=initDerivs?>(
 	/*<?=eigen_t?> const * const */eig,\
 	/*<?=cons_t?> const * const */x,\
 	/*real3 const */pt,\
-	/*normal_t const */n\
+	/*<?=normal_t?> const */n\
 ) {\
 	real const f = (eig)->sqrt_f * (eig)->sqrt_f;\
 	(result)->ptr[0] = ((x)->ptr[2] / f - (x)->ptr[4] / (eig)->sqrt_f) / 2.;\
@@ -112,7 +112,7 @@ kernel void <?=initDerivs?>(
 	/*<?=eigen_t?> const * const */eig,\
 	/*<?=waves_t?> const * const */x,\
 	/*real3 const */pt,\
-	/*normal_t const */n\
+	/*<?=normal_t?> const */n\
 ) {\
 	real const f = (eig)->sqrt_f * (eig)->sqrt_f;\
 	(result)->ptr[0] = 0;\
@@ -130,7 +130,7 @@ kernel void <?=initDerivs?>(
 	/*<?=eigen_t?> const * const */eig,\
 	/*<?=cons_t?> const * const */x,\
 	/*real3 const */pt,\
-	/*normal_t const */n\
+	/*<?=normal_t?> const */n\
 ) {\
 	real const f = (eig)->sqrt_f * (eig)->sqrt_f;\
 	real const alpha_over_sqrt_gamma_xx = (eig)->alpha / (eig)->sqrt_gamma_xx;\
@@ -142,7 +142,7 @@ kernel void <?=initDerivs?>(
 }
 
 //// MODULE_NAME: <?=addSource?>
-//// MODULE_DEPENDS: initCond.codeprefix
+//// MODULE_DEPENDS: <?=initCond_codeprefix?>
 
 kernel void <?=addSource?>(
 	constant <?=solver_t?> const * const solver,
@@ -150,7 +150,7 @@ kernel void <?=addSource?>(
 	global <?=cons_t?> const * const UBuf,
 	global <?=cell_t?> const * const cellBuf
 ) {
-	SETBOUNDS_NOGHOST();
+	<?=SETBOUNDS_NOGHOST?>();
 	global <?=cons_t?> * const deriv = derivBuf + index;
 	global <?=cons_t?> const * const U = UBuf + index;
 	

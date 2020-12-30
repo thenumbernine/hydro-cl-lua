@@ -30,6 +30,12 @@ local MeshSolver = class(SolverBase)
 -- for compat in some display stuff
 MeshSolver.numGhost = 0 
 
+function MeshSolver:getSymbolFields()
+	return MeshSolver.super.getSymbolFields(self):append{
+		'calcDerivFromFlux',
+	}
+end
+
 --[[
 args:
 	meshfile = name of mesh file to use
@@ -357,7 +363,7 @@ function MeshSolver:refreshSolverProgram()
 	end
 
 	-- fvsolver:
-	self.calcFluxKernelObj = self.solverProgramObj:kernel{name='calcFlux', domain=self.faceDomain}
+	self.calcFluxKernelObj = self.solverProgramObj:kernel{name=self.symbols.calcFlux, domain=self.faceDomain}
 	self.calcFluxKernelObj.obj:setArg(0, self.solverBuf)
 	self.calcFluxKernelObj.obj:setArg(1, self.fluxBuf)
 	self.calcFluxKernelObj.obj:setArg(2, self.UBuf)
@@ -365,7 +371,7 @@ function MeshSolver:refreshSolverProgram()
 	self.calcFluxKernelObj.obj:setArg(5, self.facesBuf)
 	self.calcFluxKernelObj.obj:setArg(6, self.cellFaceIndexesBuf)
 
-	self.calcDerivFromFluxKernelObj = self.solverProgramObj:kernel'calcDerivFromFlux'
+	self.calcDerivFromFluxKernelObj = self.solverProgramObj:kernel(self.symbols.calcDerivFromFlux)
 	self.calcDerivFromFluxKernelObj.obj:setArg(0, self.solverBuf)
 	self.calcDerivFromFluxKernelObj.obj:setArg(2, self.fluxBuf)
 	self.calcDerivFromFluxKernelObj.obj:setArg(3, self.cellBuf)
@@ -400,8 +406,8 @@ function MeshSolver:initCodeModules()
 		})
 	)
 
-	self.solverModulesEnabled['calcFlux'] = true
-	self.solverModulesEnabled['calcDerivFromFlux'] = true
+	self.solverModulesEnabled[self.symbols.calcFlux] = true
+	self.solverModulesEnabled[self.symbols.calcDerivFromFlux] = true
 end
 
 function MeshSolver:refreshCalcDTKernel()

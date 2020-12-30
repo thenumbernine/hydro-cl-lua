@@ -1,21 +1,37 @@
 //// MODULE_NAME: <?=eqn_common?>
 
 //pressure function for ideal gas
-real calc_P(constant <?=solver_t?>* solver, real rho, real eInt) {
+real calc_P(
+	constant <?=solver_t?> const * const solver,
+	real const rho,
+	real const eInt
+) {
 	return (solver->heatCapacityRatio - 1.) * rho * eInt;
 }	
 
 //chi in most papers
-real calc_dP_drho(constant <?=solver_t?>* solver, real rho, real eInt) {
+real calc_dP_drho(
+	constant <?=solver_t?> const * const solver,
+	real const rho,
+	real const eInt
+) {
 	return (solver->heatCapacityRatio - 1.) * eInt;
 }
 
 //kappa in most papers
-real calc_dP_deInt(constant <?=solver_t?>* solver, real rho, real eInt) {
+real calc_dP_deInt(
+	constant <?=solver_t?> const * const solver,
+	real const rho,
+	real const eInt
+) {
 	return (solver->heatCapacityRatio - 1.) * rho;
 }
 
-real calc_eInt_from_P(constant <?=solver_t?>* solver, real rho, real P) {
+real calc_eInt_from_P(
+	constant <?=solver_t?> const * const solver,
+	real const rho,
+	real const P
+) {
 	return P / ((solver->heatCapacityRatio - 1.) * rho);
 }
 
@@ -24,11 +40,11 @@ real calc_h(real rho, real P, real eInt) {
 }
 
 <?=eqn.cons_only_t?> consOnlyFromPrim(
-	constant <?=solver_t?>* solver,
-	<?=prim_t?> prim,
-	real alpha,
-	real3 beta,
-	sym3 gamma
+	constant <?=solver_t?> const * const solver,
+	<?=prim_t?> const prim,
+	real const alpha,
+	real3 const beta,
+	sym3 const gamma
 ) {
 	//2008 Font eqn 31 etc 
 	real det_gamma = sym3_det(gamma);
@@ -133,19 +149,19 @@ void <?=calcDTCell?>(
 
 <? if false then ?>
 <?=cons_t?> <?=fluxFromCons?>(
-	constant <?=solver_t?>* solver,
-	<?=cons_t?> U,
-	normal_t n,<?=
+	constant <?=solver_t?> const * const solver,
+	<?=cons_t?> const U,
+	<?=normal_t?> const n,<?=
 	solver:getADMArgs()?>
 ) {
 	<?=solver:getADMVarCode()?>
-	real det_gamma = sym3_det(gamma);
-	sym3 gammaU = sym3_inv(gamma, det_gamma);
+	real const det_gamma = sym3_det(gamma);
+	sym3 const gammaU = sym3_inv(gamma, det_gamma);
 	
-	real vUi = gammaU.<?=sym(side+1,1)?> * U.prim.v.x
+	real const vUi = gammaU.<?=sym(side+1,1)?> * U.prim.v.x
 			+ gammaU.<?=sym(side+1,2)?> * U.prim.v.y
 			+ gammaU.<?=sym(side+1,3)?> * U.prim.v.z;
-	real vUi_shift = vUi - beta.s<?=side?> / alpha;
+	real const vUi_shift = vUi - beta.s<?=side?> / alpha;
 
 	<?=cons_t?> F;
 	F.cons.D = U.cons.D * vUi_shift;
@@ -181,8 +197,8 @@ void <?=calcDTCell?>(
 
 #error <?=calcEigenBasis?> has been removed, and eigen_t structs are now calculated inline ... soooo ... convert this to something compatible
 kernel void <?=calcEigenBasis?>(
-	constant <?=solver_t?>* solver,
-	global <?=eigen_t?>* eigenBuf,
+	constant <?=solver_t?> const * const solver,
+	global <?=eigen_t?> * const eigenBuf,
 	
 	//TODO 
 	//turn this into a LR extrapolation
@@ -193,7 +209,7 @@ kernel void <?=calcEigenBasis?>(
 	const global <?=cons_t?>* UBuf<?=
 	solver:getADMArgs()?>
 ) {
-	SETBOUNDS(numGhost,numGhost-1);
+	<?=SETBOUNDS?>(solver->numGhost, solver->numGhost - 1);
 	
 	int indexR = index;
 	<?=prim_t?> primR = UBuf[indexR].prim;
@@ -332,10 +348,10 @@ end):concat()
 //// MODULE_NAME: <?=eigen_leftTransform?>
 
 <?=waves_t?> <?=eigen_leftTransform?>(
-	constant <?=solver_t?>* solver,
-	<?=eigen_t?> eig,
-	<?=cons_t?> X_,
-	real3 x
+	constant <?=solver_t?> const * const solver,
+	<?=eigen_t?> const eig,
+	<?=cons_t?> const X_,
+	real3 const x
 ) { 
 	<?=waves_t?> Y;
 
@@ -420,10 +436,10 @@ end):concat()
 //// MODULE_NAME: <?=eigen_rightTransform?>
 
 <?=cons_t?> <?=eigen_rightTransform?>(
-	constant <?=solver_t?>* solver,
-	<?=eigen_t?> eig,
-	<?=waves_t?> X,
-	real3 x
+	constant <?=solver_t?> const * const solver,
+	<?=eigen_t?> const eig,
+	<?=waves_t?> const X,
+	real3 const x
 ) {
 	<?=prefix?>
 	
@@ -472,10 +488,10 @@ end):concat()
 //// MODULE_NAME: <?=eigen_fluxTransform?>
 
 <?=cons_t?> <?=eigen_fluxTransform?>(
-	constant <?=solver_t?>* solver,
-	<?=eigen_t?> eig,
-	<?=cons_t?> X_,
-	real3 x
+	constant <?=solver_t?> const * const solver,
+	<?=eigen_t?> const eig,
+	<?=cons_t?> const X_,
+	real3 const x
 ) {
 #if 0
 	//rotate incoming v's in x
@@ -509,12 +525,12 @@ end):concat()
 //// MODULE_NAME: <?=addSource?>
 
 kernel void <?=addSource?>(
-	constant <?=solver_t?>* solver,
-	global <?=cons_t?>* derivBuf,
-	const global <?=cons_t?>* UBuf<?=
+	constant <?=solver_t?> const * const solver,
+	global <?=cons_t?> * const derivBuf,
+	global <?=cons_t?> const * const UBuf<?=
 	solver:getADMArgs()?>
 ) {
-	SETBOUNDS_NOGHOST();
+	<?=SETBOUNDS_NOGHOST?>();
 	global <?=cons_t?>* deriv = derivBuf + index;
 	const global <?=cons_t?>* U = UBuf + index;
 	<?=solver:getADMVarCode()?>
@@ -538,11 +554,11 @@ u^i = W (v^i - beta^i / alpha)
 W = sqrt(1 - v^i v^j gamma_ij)
 */
 kernel void <?=constrainU?>(
-	constant <?=solver_t?>* solver,
-	global <?=cons_t?>* UBuf<?=
+	constant <?=solver_t?> const * const solver,
+	global <?=cons_t?> * const UBuf<?=
 	solver:getADMArgs()?>
 ) {
-	SETBOUNDS(numGhost,numGhost-1);
+	<?=SETBOUNDS?>(solver->numGhost, solver->numGhost - 1);
 	
 	<?=solver:getADMVarCode()?>
 	

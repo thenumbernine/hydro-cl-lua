@@ -24,7 +24,8 @@ function Draw:getCommonGLSLFragCode()
 uniform int displayDim;
 uniform vec2 displayFixed;	//xy holds the fixed yz for when displayDim < dim
 
-uniform float numGhost;
+//#define instead of uniform since numGhost isn't going to change at runtime
+#define numGhost <?=clnumber(solver.numGhost)?>
 
 uniform bool useCoordMap;
 
@@ -224,9 +225,6 @@ function Draw:setupDisplayVarShader(shader, var, valueMin, valueMax)
 	end
 	if uniforms.solverMaxs then	
 		gl.glUniform3f(uniforms.solverMaxs.loc, solver.maxs:unpack())
-	end
-	if uniforms.numGhost then
-		gl.glUniform1f(uniforms.numGhost.loc, solver.numGhost)
 	end
 	if uniforms.texSize then
 		gl.glUniform3f(uniforms.texSize.loc, solver.texSize:unpack())

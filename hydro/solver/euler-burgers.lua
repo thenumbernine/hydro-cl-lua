@@ -34,7 +34,7 @@ function EulerBurgers:createFlux(fluxName, fluxArgs)
 end
 
 function EulerBurgers:initCodeModule_calcFlux()
-	self.modules:add{name = 'calcFlux'}
+	self.modules:add{name = self.symbols.calcFlux}
 end
 
 -- TODO put this in its own eqn file? eqn/euler-burgers.lua?
@@ -65,7 +65,7 @@ function EulerBurgers:refreshSolverProgram()
 	-- no mention of ULR just yet ...
 
 	self.calcIntVelKernelObj = self.solverProgramObj:kernel'calcIntVel'
-	self.calcFluxKernelObj = self.solverProgramObj:kernel'calcFlux'
+	self.calcFluxKernelObj = self.solverProgramObj:kernel(self.symbols.calcFlux)
 
 	self.computePressureKernelObj = self.solverProgramObj:kernel('computePressure', self.solverBuf, self.PBuf, self.UBuf, self.cellBuf)
 	

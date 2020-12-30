@@ -86,8 +86,7 @@ function PoissonKrylov:initSolver()
 	local codePrefix = solver.modules:getHeader(
 		table(solver.sharedModulesEnabled:keys())
 		:append{
-			'OOB',
-			'numGhost',
+			solver.symbols.OOB,
 		}:unpack())
 
 	local mulWithoutBorderKernelObj = solver.domain:kernel{
@@ -101,8 +100,8 @@ function PoissonKrylov:initSolver()
 			{name='a', type=solver.app.real, obj=true},
 			{name='b', type=solver.app.real, obj=true},
 		},
-		body = [[	
-	if (OOB(numGhost, numGhost)) {
+		body = solver.eqn:template[[	
+	if (<?=OOB?>(solver->numGhost, solver->numGhost)) {
 		y[index] = 0;
 		return;
 	}
@@ -120,8 +119,8 @@ function PoissonKrylov:initSolver()
 			solver.solverBuf,
 			{name = 'x', type=solver.app.real, obj=true},
 		},
-		body = [[
-	if (OOB(0,0)) return;
+		body = solver.eqn:template[[
+	if (<?=OOB?>(0,0)) return;
 	y[index] = x[index] * x[index];
 ]],
 	}
@@ -193,17 +192,17 @@ end
 
 local poissonKrylovCode = [[
 kernel void <?=op.symbolPrefix?>_linearFunc(
-	constant <?=solver_t?>* solver,
-	global real* Y,
-	global real* X,
-	const global <?=solver.coord.cell_t?>* cellBuf
+	constant <?=solver_t?> const * const solver,
+	global real * const Y,
+	global real const * const X,
+	global <?=cell_t?> const * const cellBuf
 ) {
-	SETBOUNDS(0,0);
-	if (OOB(numGhost, numGhost)) {
+	<?=SETBOUNDS?>(0,0);
+	if (<?=OOB?>(solver->numGhost, solver->numGhost)) {
 		Y[index] = 0.;
 		return;
 	}
-	real3 x = cell_x(i);
+	real3 const x = cellBuf[index].pos;
 
 <? for j=0,solver.dim-1 do ?>
 	real dx<?=j?> = cell_dx<?=j?>(x);
@@ -242,7 +241,7 @@ kernel void <?=op.symbolPrefix?>_copyPotentialFieldToVecAndInitB(
 	global real* b,
 	global const <?=cons_t?>* UBuf
 ) {
-	SETBOUNDS(0, 0);
+	<?=SETBOUNDS?>(0, 0);
 	
 	global const <?=cons_t?>* U = UBuf + index;
 	x[index] = U-><?=op.potentialField?>;
@@ -257,7 +256,7 @@ kernel void <?=op.symbolPrefix?>_copyVecToPotentialField(
 	global <?=cons_t?>* UBuf,
 	global const real* x
 ) {
-	SETBOUNDS(0, 0);
+	<?=SETBOUNDS?>(0, 0);
 	UBuf[index].<?=op.potentialField?> = x[index];
 }
 ]]
@@ -266,7 +265,6 @@ function PoissonKrylov:getModuleDepends_Poisson()
 	return {
 		self.solver.coord.symbols.cell_sqrt_det_g,
 		self.solver.coord.symbols.cell_dx_i,
-		'cell_x',
 	}
 end
 

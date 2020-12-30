@@ -23,7 +23,7 @@ kernel void lagrangianCoordinateAdvect(
 	const global <?=cons_t?>* UBuf,
 	real dt
 ) {
-	SETBOUNDS(numGhost, numGhost);
+	<?=SETBOUNDS?>(solver->numGhost, solver->numGhost);
 	
 	// U[i] = U[i - beta * dt]
 	const global <?=cons_t?>* U = UBuf + index;

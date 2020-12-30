@@ -113,15 +113,15 @@ local makePartial2 = function(...) return makePartials.makePartial2(derivOrder, 
 ?>
 
 kernel void <?=op.symbolPrefix?>_solveMinimalDistortionEllipticShift(
-	constant <?=solver.solver_t?>* solver,
-	global real* writeBuf,
-	global <?=op:getPotBufType()?>* UBuf<?
+	constant <?=solver_t?> const * const solver,
+	global real * const writeBuf,
+	global <?=op:getPotBufType()?> const * const UBuf<?
 if op.stopOnEpsilon then ?>,
-	global real* reduceBuf<?
+	global real * const reduceBuf<?
 end ?>
 ) {
-	SETBOUNDS(0,0);
-	if (OOB(numGhost,numGhost)) {
+	<?=SETBOUNDS?>(0,0);
+	if (<?=OOB?>(solver->numGhost, solver->numGhost)) {
 		writeBuf[index] = 0.;
 <? if op.stopOnEpsilon then 
 ?>		reduceBuf[index] = 0.;
@@ -129,7 +129,7 @@ end ?>
 ?>		return;
 	}
 
-	global <?=op:getPotBufType()?>* U = UBuf + index;
+	global <?=op:getPotBufType()?> const * const U = UBuf + index;
 
 <? for j=0,solver.dim-1 do ?>
 	real dx<?=j?> = cell_dx<?=j?>(x);
@@ -139,12 +139,12 @@ end ?>
 	real3 volL, volR;
 <? for j=0,solver.dim-1 do ?>
 	intIndex.s<?=j?> = i.s<?=j?> - .5;
-	volL.s<?=j?> = coord_sqrt_det_g(solver, cell_x(intIndex));
+	volL.s<?=j?> = coord_sqrt_det_g(solver, cellBuf[INDEXV(intIndex)].pos);
 	intIndex.s<?=j?> = i.s<?=j?> + .5;
-	volR.s<?=j?> = coord_sqrt_det_g(solver, ell_x(intIndex));
+	volR.s<?=j?> = coord_sqrt_det_g(solver, cellBuf[INDEXV(intIndex)].pos);
 	intIndex.s<?=j?> = i.s<?=j?>;
 <? end ?>
-	real volAtX = coord_sqrt_det_g(solver, cell_x(i));
+	real volAtX = coord_sqrt_det_g(solver, cellBuf[index].pos);
 
 <?
 local scalar = op.scalar
@@ -166,7 +166,7 @@ local real_mul = scalar..'_real_mul'
 <? end ?>
 	skewSum = <?=real_mul?>(skewSum, 1. / volAtX);
 
-	const real diag = (0.
+	real const diag = (0.
 <? for j=0,solver.dim-1 do ?>
 		- (volR.s<?=j?> + volL.s<?=j?>) / (dx<?=j?> * dx<?=j?>)
 <? end ?>

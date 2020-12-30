@@ -332,6 +332,7 @@ TODO this should be 'final' i.e. no child inherits it
 so that SolverBase:init can run stuff after all child classes have initialized
 --]]
 function SolverBase:init(args)
+
 self.initArgs = table(args)	-- save for later	
 -- remove/replace object references
 self.initArgs.app = nil
@@ -352,6 +353,7 @@ self.initArgs.id = nil			-- in choppedup
 self.initArgs.numDevices = #args.app.env.devices
 
 	time('SolverBase:init()', function()
+		require 'hydro.code.symbols'(self, self:getSymbolFields())	-- make unique symbols
 		self:initMeshVars(args)
 		self:initCLDomainVars(args)
 		self:initObjs(args)
@@ -360,6 +362,22 @@ self.initArgs.numDevices = #args.app.env.devices
 		self:initCDefs()
 		self:postInit()
 	end)
+end
+
+-- any module is going to need a symbol
+-- another TODO could be to keep track of the modules added by an object, and then just change the names after-the-fact
+-- then these symbols wouldn't need to be listed separately here ...
+function SolverBase:getSymbolFields()
+	return table{
+		-- placeholder, used by solver
+		-- it turns out all module names need to be unique in order to run more than one solver at a time.
+		-- makes me think we should move all these symbols/generation of them into solver
+		-- TODO put these' symbol generation in solver?
+		'solver_macros',
+		'solver_displayCode',
+		'fluxLimiter',
+		'range_t',
+	}
 end
 
 -- an identifying string
@@ -673,7 +691,7 @@ self.modules = self.app.modules
 
 	-- header
 	self.modules:add{
-		name = self.eqn.symbols.solver_macros,
+		name = self.symbols.solver_macros,
 		headercode = table{
 			self.dim == 3 and '#pragma OPENCL EXTENSION cl_khr_3d_image_writes : enable' or '',
 			'#ifndef M_PI',
@@ -692,16 +710,19 @@ self.modules = self.app.modules
 	-------- solver modules --------
 
 	self.modules:add{
-		name = 'fluxLimiter',
-		code = template([[
-real fluxLimiter(real r) {
+		name = self.symbols.fluxLimiter,
+		code = self.eqn:template[[
+real <?=fluxLimiter?>(real r) {
 	<?=solver.app.limiters[solver.fluxLimiter].code?>
 }
-]], {solver=self}),
+]],
 	}
 
+	-- this could go into app's modules ...
+	-- I'll keep it here, because as I make solvers more flexible, modules will be pushed solver-ward
+	-- and in the case that i want to run mixed float/double solvers, this will be solver-specific
 	self.modules:add{
-		name = 'range_t',
+		name = self.symbols.range_t,
 		-- TODO use struct so I can verify cl/ffi struct alignment
 		typecode = 'typedef struct { real min, max; } range_t;',
 	}
@@ -723,11 +744,11 @@ function SolverBase:initCodeModuleDisplay()
 
 	-- this depends on :createDisplayVars()
 	self.modules:add{
-		name = self.eqn.symbols.solver_displayCode,
+		name = self.symbols.solver_displayCode,
 		depends = self:getModuleDepends_displayCode(),
 		code = self:getDisplayCode(),
 	}
-	self.solverModulesEnabled[self.eqn.symbols.solver_displayCode] = true
+	self.solverModulesEnabled[self.symbols.solver_displayCode] = true
 end
 
 function SolverBase:getModuleDepends_displayCode()
@@ -796,19 +817,6 @@ function SolverBase:postInit()
 		-- doing this now is unreasonable, considering how solver_t is tightly wound with initCond, eqn, and the scheme
 
 		self:copyGuiVarsToBufs()
-		
-		-- during solver init, all writes to solverPtr and initCondPtr were deferred
-		-- so instead do them all at once here:
---print("******* writing solverBuf and initCondBuf *******")
---print("******* t="..self.t.." *******")
---print(debug.traceback())
---print('solverPtr = '..self.solverPtr)	
---print('initCondPtr = '..self.initCondPtr)	
-		-- TODO but I have to also write these before applyInitCond ...
-		if false then
-			self.solverBuf:fromCPU(self.solverPtr)
-			self.initCondBuf:fromCPU(self.initCondPtr)
-		end
 	end)
 end
 
@@ -846,37 +854,25 @@ To supplicant a similar clEnqueueReadBuffer problem, the solution is "just wait 
 Another cause of this error on NVIDIA seems to be writing OOB ... which shouldn't be the case here, solverPtr, solverBuf, and solver_t are all the same size.
 It seems to always happen in the same place, and only after several writes to the same buffer. 
 So my attempted fix: to minimize all writes to the solverBuf until just before the simulation starts.
+
+Turns out that's not the problem.
+The problem happens upon multiple writes ... but even only if ever writing to the same device.
+If slurm allocates 2 GPUs, then OpenCL creates a context with 2 devices, and we only use cmd-queue #1 associated with device #1 ... we will get this mystery error.
+But if slurm allocates 2 GPUs, then OpenCL creates a context with just 1 device, and we only use cmd-queue #1 associated with device #1 ... then things work fine.
+
+Also don't forget: only test multi-gpu with the choppedup solver, which creates sub-solvers, each with a unique device for each.
+But does choppedup itself ever allocate any memory?  I'm almost thinking no it doesn't.
+In that case ... each sub-solver has its own cmd-queue, associated with a unique (and ideally separate) device ...
+Next question: Should we create a unique context for each sub-solver?
+	Will that solve our problem? (it should, from what I've seen so far)
+	Will that just introduce more complexities with having to copy GPU data between different contexts? (in the GL world, copying between contexts is a headache)
 --]]
 function SolverBase:refreshSolverBuf()
-	-- only update buffers if we are not initializing
-	-- if we are initializing then intead do this at the start of the simulation
-	-- this aggregates writes to prevent multiple writes, which could be our mystery CL_OUT_OF_RESOURCES error on NVIDIA
-	-- TODO but I have to also write these before applyInitCond ...
-	if true then -- self.t > 0 then
---print("******* writing solverBuf *******")
---print("******* t="..self.t.." *******")
---print(debug.traceback())	
-		self.solverBuf:fromCPU(self.solverPtr)
-	else
---print("******* denying solverBuf write request *******")
---print("******* t="..self.t.." *******")
-	end
+	self.solverBuf:fromCPU(self.solverPtr)
 end
 
 function SolverBase:refreshInitCondBuf()
-	-- only update buffers if we are not initializing
-	-- if we are initializing then intead do this at the start of the simulation
-	-- this aggregates writes to prevent multiple writes, which could be our mystery CL_OUT_OF_RESOURCES error on NVIDIA
-	-- TODO but I have to also write these before applyInitCond ...
-	if true then -- self.t > 0 then
---print("******* writing initCondBuf *******")
---print("******* t="..self.t.." *******")
---print(debug.traceback())	
-		self.initCondBuf:fromCPU(self.initCondPtr)
-	else
---print("******* denying initCondBuf write request *******")
---print("******* t="..self.t.." *******")
-	end
+	self.initCondBuf:fromCPU(self.initCondPtr)
 end
 
 function SolverBase:copyGuiVarsToBufs()
@@ -940,21 +936,21 @@ function SolverBase:refreshCommonProgram()
 		-- This is in GridSolver, a subclass.  
 		-- In fact, all the display stuff is pretty specific to cartesian grids.
 		-- Not 100% though, since the MeshSolver stuff was working with it before I introduced the code module stuff.
-		'SETBOUNDS_NOGHOST',
+		self.symbols.SETBOUNDS_NOGHOST,
 	}
 print('common modules: '..moduleNames:sort():concat', ')
 
 	local commonCode = table{
 		-- just header, no function calls needed
 		self.modules:getHeader(moduleNames:unpack()),
-		template([[
+		self.eqn:template[[
 kernel void multAddInto(
-	constant <?=solver.solver_t?>* solver,
-	global <?=eqn.symbols.cons_t?>* a,
-	const global <?=eqn.symbols.cons_t?>* b,
-	realparam c
+	constant <?=solver_t?> const * const solver,
+	global <?=cons_t?> * const a,
+	global <?=cons_t?> const * const b,
+	realparam const c
 ) {
-	SETBOUNDS_NOGHOST();
+	<?=SETBOUNDS_NOGHOST?>();
 <? 
 for i=0,eqn.numIntStates-1 do
 ?>	a[index].ptr[<?=i?>] += b[index].ptr[<?=i?>] * c;
@@ -963,13 +959,13 @@ end
 ?>}
 
 kernel void multAdd(
-	constant <?=solver.solver_t?>* solver,
-	global <?=eqn.symbols.cons_t?>* a,
-	const global <?=eqn.symbols.cons_t?>* b,
-	const global <?=eqn.symbols.cons_t?>* c,
-	realparam d
+	constant <?=solver_t?> const * const solver,
+	global <?=cons_t?> * const a,
+	global <?=cons_t?> const * const b,
+	global <?=cons_t?> const * const c,
+	realparam const d
 ) {
-	SETBOUNDS_NOGHOST();
+	<?=SETBOUNDS_NOGHOST?>();
 <? 
 -- hmm, I only need numIntStates integrated
 -- but the remaining variables I need initialized at least
@@ -983,20 +979,17 @@ end
 ?>}
 
 kernel void square(
-	constant <?=solver.solver_t?>* solver,
-	global <?=eqn.symbols.cons_t?>* a
+	constant <?=solver_t?> const * const solver,
+	global <?=cons_t?> * const a
 ) {
-	SETBOUNDS_NOGHOST();
+	<?=SETBOUNDS_NOGHOST?>();
 <?	-- numStates or numIntStates?
 for i=0,eqn.numIntStates-1 do
 ?>	a[index].ptr[<?=i?>] *= a[index].ptr[<?=i?>];
 <? 
 end
 ?>}
-]], 	{
-			solver = self,
-			eqn = self.eqn,
-		})
+]]
 	}:concat'\n'
 
 	time('building common program', function()
@@ -1417,16 +1410,16 @@ typedef union {
 		local name = self:getPickComponentNameForGroup(group)
 		if alreadyAddedComponentForGroup[name] then return end
 		alreadyAddedComponentForGroup[name] = true
-		lines:insert((template([[
+		lines:insert((self.eqn:template([[
 static inline void <?=name?>(
-	constant <?=solver.solver_t?> const * const solver,
+	constant <?=solver_t?> const * const solver,
 	global <?=group.bufferType?> const * const buf,
 	int const component,
 	int * const vectorField,
 	displayValue_t * const value,
 	int4 const i,
 	int const index,
-	global <?=solver.coord.cell_t?> const * const cellBuf
+	global <?=cell_t?> const * const cellBuf
 ) {
 	real3 const x = cellBuf[index].pos;
 	switch (component) {
@@ -1450,7 +1443,6 @@ end
 }
 ]], 	{
 			name = name,
-			solver = self,
 			group = group,
 		})))
 	end
@@ -1505,15 +1497,15 @@ end
 			-- I guess types make a difference ... maybe ...
 			addPickComponetForGroup(group)
 			
-			lines:insert(template([[
+			lines:insert(self.eqn:template([[
 //<?=group.name?>
 kernel void <?=kernelName?>(
-	constant <?=solver.solver_t?> const * const solver,
+	constant <?=solver_t?> const * const solver,
 	<?=outputArg?>,
 	global <?=group.bufferType?> const * const buf,
 	int const displayVarIndex,
 	int const component,
-	global <?=solver.coord.cell_t?> const * const cellBuf<? 
+	global <?=cell_t?> const * const cellBuf<? 
 if require 'hydro.solver.meshsolver'.is(solver) then
 ?>,
 	global <?=solver.coord.face_t?> const * const faces	//[numFaces]<?
@@ -1521,13 +1513,13 @@ end ?><?=group.extraArgs and #group.extraArgs > 0
 		and ',\n\t'..table.concat(group.extraArgs, ',\n\t')
 		or '' ?>
 ) {
-	SETBOUNDS(0,0);
+	<?=SETBOUNDS?>(0,0);
 <? if not require 'hydro.solver.meshsolver'.is(solver) then 
 ?>	int4 dsti = i;
 	int dstindex = index;
 	real3 x = cellBuf[index].pos;
 <? for j=0,solver.dim-1 do 
-?>	i.s<?=j?> = clamp(i.s<?=j?>, numGhost, solver->gridSize.s<?=j?> - numGhost - 1);
+?>	i.s<?=j?> = clamp(i.s<?=j?>, solver->numGhost, solver->gridSize.s<?=j?> - solver->numGhost - 1);
 <? end
 ?>	index = INDEXV(i);
 <? else	-- mesh 
@@ -1541,7 +1533,6 @@ end ?><?=group.extraArgs and #group.extraArgs > 0
 	int vectorField = 0;
 	switch (displayVarIndex) {
 ]], 			table({
-					solver = self,
 					group = group,
 					kernelName = ({
 						Tex = group.toTexKernelName,

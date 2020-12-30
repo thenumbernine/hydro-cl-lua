@@ -148,14 +148,14 @@ void <?=applyInitCondCell?>(
 
 
 //// MODULE_NAME: <?=fluxFromCons?>
-//// MODULE_DEPENDS: normal_t <?=solver_t?> <?=cons_t?> <?=eqn_common?>
+//// MODULE_DEPENDS: <?=normal_t?> <?=solver_t?> <?=cons_t?> <?=eqn_common?>
 
 #define <?=fluxFromCons?>(\
 	/*<?=cons_t?> * const */result,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */U,\
 	/*real3 const */x,\
-	/*normal_t const */n\
+	/*<?=normal_t?> const */n\
 ) {\
 	real const v_n = normal_vecDotN1(n, (U)->v);\
 	real const P = calc_P(solver, (U)->rho, (U)->eInt);\
@@ -176,7 +176,7 @@ void <?=applyInitCondCell?>(
 }
 
 //// MODULE_NAME: <?=calcDTCell?>
-//// MODULE_DEPENDS: SETBOUNDS <?=coordLenSq?> normal_t <?=eqn_common?>
+//// MODULE_DEPENDS: <?=SETBOUNDS?> <?=coordLenSq?> <?=normal_t?> <?=eqn_common?>
 
 //everything matches the default except the params passed through to calcCellMinMaxEigenvalues
 #define <?=calcDTCell?>(\
@@ -194,7 +194,7 @@ void <?=applyInitCondCell?>(
 	real const csSq = solver->heatCapacityRatio * P / (rho * h);\
 	real const cs = sqrt(csSq);\
 	<? for side=0,solver.dim-1 do ?>{\
-		normal_t const n = normal_forSide<?=side?>(x);\
+		<?=normal_t?> const n = normal_forSide<?=side?>(x);\
 		/* for the particular direction */\
 		real const vi = normal_vecDotN1(n, (U)->v);\
 		real const viSq = vi * vi;\
@@ -220,7 +220,7 @@ void <?=applyInitCondCell?>(
 	/*<?=cons_t?> const * const */UL,\
 	/*<?=cons_t?> const * const */UR,\
 	/*real3 const */xInt,\
-	/*normal_t const */n\
+	/*<?=normal_t?> const */n\
 ) {\
 <? if true then -- arithmetic averaging ?>\
 	<?=prim_only_t?> avg = {\
@@ -298,7 +298,7 @@ void <?=applyInitCondCell?>(
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */U,\
 	/*real3 const */x,\
-	/*normal_t const */n\
+	/*<?=normal_t?> const */n\
 )\
 	(<?=eigen_forInterface?>(eig, solver, U, U, x, n))
 
@@ -317,7 +317,7 @@ end):concat()
 	/*<?=eigen_t?> const * const */eig,\
 	/*<?=cons_t?> const * const */X_,\
 	/*real3 const */pt,\
-	/*normal_t const */n\
+	/*<?=normal_t?> const */n\
 ) {\
 	/* rotate incoming v's in X */\
 	<?=cons_t?> X = *X_;\
@@ -397,7 +397,7 @@ end):concat()
 	/*<?=eigen_t?> const * const */eig,\
 	/*<?=waves_t?> const * const */X,\
 	/*real3 const */pt,\
-	/*normal_t const */n\
+	/*<?=normal_t?> const */n\
 ) {\
 	<?=eigVarCode:gsub("\n", "\\\n")?>\
 \
@@ -451,7 +451,7 @@ end):concat()
 	/*<?=eigen_t?> const * const */eig,\
 	/*<?=cons_t?> const * const */X_,\
 	/*real3 const */x,\
-	/*normal_t const */n\
+	/*<?=normal_t?> const */n\
 ) {\
 <? if false then ?>\
 	/* rotate incoming v's in x */\
@@ -480,7 +480,7 @@ kernel void <?=constrainU?>(
 	global <?=cons_t?> * const UBuf,
 	global <?=cell_t?> const * const cellBuf
 ) {
-	SETBOUNDS(numGhost,numGhost-1);
+	<?=SETBOUNDS?>(solver->numGhost, solver->numGhost - 1);
 	real3 const x = cellBuf[index].pos;
 
 	global <?=cons_t?> * const U = UBuf + index;
@@ -542,7 +542,7 @@ kernel void <?=addSource?>(
 	global <?=cons_t?> const * const UBuf,
 	global <?=cell_t?> const * const cellBuf
 ) {
-	SETBOUNDS_NOGHOST();
+	<?=SETBOUNDS_NOGHOST?>();
 	real3 const x = cellBuf[index].pos;
 	
 	global <?=cons_t?> * const deriv = derivBuf + index;

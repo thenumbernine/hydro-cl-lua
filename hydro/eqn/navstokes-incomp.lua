@@ -17,12 +17,12 @@ NavierStokesDivFree.consVars = table{
 -- I might have to bring the getModuleCode_applyInitCond function back 
 NavierStokesDivFree.initCondCode = [[
 kernel void applyInitCond(
-	global <?=solver_t?>* solver,
-	constant <?=initCond_t?>* initCond,
-	global <?=cons_t?>* UBuf,
-	const global <?=cell_t?>* cellBuf
+	constant <?=solver_t?> const * const solver,
+	constant <?=initCond_t?> const * const initCond,
+	global <?=cons_t?> * const UBuf,
+	global <?=cell_t?> const * const cellBuf
 ) {
-	SETBOUNDS(0,0);
+	<?=SETBOUNDS?>(0,0);
 	real3 const x = cellBuf[index].pos;
 	real3 const mids = real3_real_mul(real3_add(mins, maxs), .5);
 	bool const lhs = x.x < mids.x

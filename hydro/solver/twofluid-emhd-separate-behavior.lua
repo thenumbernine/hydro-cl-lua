@@ -209,15 +209,15 @@ local function TwoFluidEMHDBehavior(parent)
 ?>
 
 kernel void addSource_<?=species?>(
-	constant <?=solver.solver_t?>* solver,
-	global <?=euler_cons_t?>* derivBuf,
-	const global <?=euler_cons_t?>* UBuf,
-	const global <?=maxwell_cons_t?>* maxwellUBuf
+	constant <?=solver_t?> const * const solver,
+	global <?=euler_cons_t?> * const derivBuf,
+	global <?=euler_cons_t?> const * const UBuf,
+	global <?=maxwell_cons_t?> const * const maxwellUBuf
 ) {
-	SETBOUNDS_NOGHOST();
-	global <?=euler_cons_t?>* deriv = derivBuf + index;
-	const global <?=euler_cons_t?>* U = UBuf + index;
-	const global <?=maxwell_cons_t?>* maxwellU = maxwellUBuf + index;
+	<?=SETBOUNDS_NOGHOST?>();
+	global <?=euler_cons_t?> * const deriv = derivBuf + index;
+	global <?=euler_cons_t?> const * const U = UBuf + index;
+	global <?=maxwell_cons_t?> const * const maxwellU = maxwellUBuf + index;
 	
 	deriv->m.x += (<?=speciesElectronMassRatio?> / normalizedIonLarmorRadius) * (U->rho * maxwellU->E.x + U->m.y * maxwellU->B.z - U->m.z * maxwellU->B.y);
 	deriv->m.y += (<?=speciesElectronMassRatio?> / normalizedIonLarmorRadius) * (U->rho * maxwellU->E.y + U->m.z * maxwellU->B.x - U->m.x * maxwellU->B.z);
@@ -228,15 +228,15 @@ kernel void addSource_<?=species?>(
 <? end ?>
 
 kernel void addSource_maxwell(
-	constant <?=solver.solver_t?>* solver,
-	global <?=maxwell_cons_t?>* derivBuf,
-	const global <?=euler_cons_t?>* ionUBuf,
-	const global <?=euler_cons_t?>* electronUBuf
+	constant <?=solver_t?> const * const solver,
+	global <?=maxwell_cons_t?> * const derivBuf,
+	global <?=euler_cons_t?> const * const ionUBuf,
+	global <?=euler_cons_t?> const * const electronUBuf
 ) {
-	SETBOUNDS_NOGHOST();
-	global <?=maxwell_cons_t?>* deriv = derivBuf + index;
-	const global <?=euler_cons_t?>* ionU = ionUBuf + index;
-	const global <?=euler_cons_t?>* electronU = electronUBuf + index;
+	<?=SETBOUNDS_NOGHOST?>();
+	global <?=maxwell_cons_t?> * const deriv = derivBuf + index;
+	global <?=euler_cons_t?> const * const ionU = ionUBuf + index;
+	global <?=euler_cons_t?> const * const electronU = electronUBuf + index;
 	deriv->D = real3_sub(deriv->D, real3_real_mul(ionU->m, chargeMassRatio_ion));
 	deriv->D = real3_sub(deriv->D, real3_real_mul(electronU->m, chargeMassRatio_electron));
 	

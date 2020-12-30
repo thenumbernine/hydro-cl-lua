@@ -133,7 +133,7 @@ function ADM_BonaMasso_1D_1997Alcubierre:getDisplayVars()
 		{name='gravity mag', code='value.vreal = -U->alpha * U->alpha * U->a_x / U->gamma_xx;'},
 	
 		{name='alpha vs a_x', code=[[
-	if (OOB(1,1)) {
+	if (<?=OOB?>(1,1)) {
 		value.vreal = 0.;
 	} else {
 		real dx_alpha = (U[1].alpha - U[-1].alpha) / (2. * solver->grid_dx.x);
@@ -142,7 +142,7 @@ function ADM_BonaMasso_1D_1997Alcubierre:getDisplayVars()
 ]]},
 
 		{name='gamma_xx vs d_xxx', code=[[
-	if (OOB(1,1)) {
+	if (<?=OOB?>(1,1)) {
 		value.vreal = 0.;
 	} else {
 		real dx_gamma_xx = (U[1].gamma_xx - U[-1].gamma_xx) / (2. * solver->grid_dx.x);

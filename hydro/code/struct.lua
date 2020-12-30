@@ -65,7 +65,12 @@ function Struct:makeType()
 
 	local app = assert(self.app)
 	local codeWithoutTypename = self:getTypeCodeWithoutTypeName()
-	
+
+-- new issue with multi-solvers and modules
+-- setting the type code to this typedef also means the module using this code will need to depend on the previous def
+-- which I can't communicate just yet
+-- so in the mean time, I'll just disable this for now
+--[=[
 	app.typeInfoForCode = app.typeInfoForCode or {}
 	local info = app.typeInfoForCode[codeWithoutTypename]
 	if info then
@@ -88,6 +93,7 @@ function Struct:makeType()
 		return
 		--]]
 	end
+--]=]
 
 	-- TODO no more uniqueName and typename ~= name .. instead force names to be unique
 	-- and make them unique before passing them in by appending the lua object uid or something
@@ -169,12 +175,14 @@ function Struct:makeType()
 	
 	self.metatype = metatype
 
+--[=[
 	-- store it
 	app.typeInfoForCode[codeWithoutTypename] = {
 		typename = self.typename,
 		typecode = self.typecode,
 		metatype = self.metatype,
 	}
+--]=]
 end
 
 -- this gets the type code *except* the typename

@@ -39,14 +39,14 @@ kernel void <?=applyInitCondCell?>(
 }
 
 //// MODULE_NAME: <?=initDerivs?>
-//// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> <?=cell_t?> SETBOUNDS numGhost
+//// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> <?=cell_t?> <?=SETBOUNDS?>
 
 kernel void <?=initDerivs?>(
 	constant <?=solver_t?> const * const solver,
 	global <?=cons_t?> * const UBuf,
 	global <?=cell_t?> const * const cellBuf
 ) {
-	SETBOUNDS(numGhost,numGhost);
+	<?=SETBOUNDS?>(solver->numGhost, solver->numGhost);
 	global <?=cons_t?> * const U = UBuf + index;
 	
 	real const dx_alpha = (U[1].alpha - U[-1].alpha) / solver->grid_dx.x;
@@ -57,14 +57,14 @@ kernel void <?=initDerivs?>(
 }
 
 //// MODULE_NAME: <?=fluxFromCons?>
-//// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> normal_t initCond.codeprefix
+//// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> <?=normal_t?> <?=initCond_codeprefix?>
 
 #define <?=fluxFromCons?>(\
 	/*<?=cons_t?> * const */F,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */U,\
 	/*real3 const */x,\
-	/*normal_t const */n\
+	/*<?=normal_t?> const */n\
 ) {\
 	real const f = calc_f((U)->alpha);\
 	(F)->alpha = 0;\
@@ -75,7 +75,7 @@ kernel void <?=initDerivs?>(
 }
 
 //// MODULE_NAME: <?=eigen_forInterface?>
-//// MODULE_DEPENDS: initCond.codeprefix
+//// MODULE_DEPENDS: <?=initCond_codeprefix?>
 
 //used for interface eigen basis
 #define <?=eigen_forInterface?>(\
@@ -84,7 +84,7 @@ kernel void <?=initDerivs?>(
 	/*<?=cons_t?> const * const */UL,\
 	/*<?=cons_t?> const * const */UR,\
 	/*real3 const */x,\
-	/*normal_t const */n\
+	/*<?=normal_t?> const */n\
 ) {\
 	(eig)->alpha = .5 * ((UL)->alpha + (UR)->alpha);\
 	real const gamma_xx = .5 * ((UL)->gamma_xx + (UR)->gamma_xx);\
@@ -93,7 +93,7 @@ kernel void <?=initDerivs?>(
 }
 
 //// MODULE_NAME: <?=eigen_forCell?>
-//// MODULE_DEPENDS: initCond.codeprefix
+//// MODULE_DEPENDS: <?=initCond_codeprefix?>
 
 //used by PLM
 #define <?=eigen_forCell?>(\
@@ -101,7 +101,7 @@ kernel void <?=initDerivs?>(
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */U,\
 	/*real3 const */x,\
-	/*normal_t const */n\
+	/*<?=normal_t?> const */n\
 ) {\
 	real const f = calc_f((U)->alpha);\
 	(eig)->alpha = (U)->alpha;\
@@ -117,7 +117,7 @@ kernel void <?=initDerivs?>(
 	/*<?=eigen_t?> const * const */eig,\
 	/*<?=cons_t?> const * const */x,\
 	/*real3 const */pt,\
-	/*normal_t const */n\
+	/*<?=normal_t?> const */n\
 ) {\
 	real const gamma_xx_over_f = 1. / ((eig)->sqrt_f_over_gamma_xx * (eig)->sqrt_f_over_gamma_xx);\
 	(result)->ptr[0] = .5 * ((x)->ptr[2] / (eig)->sqrt_f_over_gamma_xx - (x)->ptr[4]);\
@@ -133,7 +133,7 @@ kernel void <?=initDerivs?>(
 	/*<?=eigen_t?> const * const */eig,\
 	/*<?=waves_t?> const * const */x,\
 	/*real3 const */pt,\
-	/*normal_t const */n\
+	/*<?=normal_t?> const */n\
 ) {\
 	(result)->ptr[0] = 0;\
 	(result)->ptr[1] = 0;\
@@ -150,7 +150,7 @@ kernel void <?=initDerivs?>(
 	/*<?=eigen_t?> const * const */eig,\
 	/*<?=cons_t?> const * const */x,\
 	/*real3 const */pt,\
-	/*normal_t const */n\
+	/*<?=normal_t?> const */n\
 ) {\
 	real const f_over_gamma_xx = (eig)->sqrt_f_over_gamma_xx * (eig)->sqrt_f_over_gamma_xx;\
 	(result)->ptr[0] = 0;\
@@ -161,7 +161,7 @@ kernel void <?=initDerivs?>(
 }
 
 //// MODULE_NAME: <?=addSource?>
-//// MODULE_DEPENDS: initCond.codeprefix
+//// MODULE_DEPENDS: <?=initCond_codeprefix?>
 
 kernel void <?=addSource?>(
 	constant <?=solver_t?> const * const solver,
@@ -169,7 +169,7 @@ kernel void <?=addSource?>(
 	global <?=cons_t?> const * const UBuf,
 	global <?=cell_t?> const * const cellBuf
 ) {
-	SETBOUNDS_NOGHOST();
+	<?=SETBOUNDS_NOGHOST?>();
 	global <?=cons_t?> * const deriv = derivBuf + index;
 	global <?=cons_t?> const * const U = UBuf + index;
 	

@@ -33,7 +33,7 @@ return function(args)
 	--]]
 	function NoDiv:getPoissonDivCode()
 		return self.solver.eqn:template([[
-	if (OOB(1,1)) {
+	if (<?=OOB?>(1,1)) {
 		source = 0.;
 	} else {
 <?
@@ -84,11 +84,11 @@ local sub = scalar..'_sub'
 local real_mul = scalar..'_real_mul'
 ?>
 kernel void <?=op.symbolPrefix?>_noDiv(
-	constant <?=solver_t?>* solver,
-	global <?=cons_t?>* UBuf
+	constant <?=solver_t?> const * const solver,
+	global <?=cons_t?> * const UBuf
 ) {
-	SETBOUNDS(numGhost,numGhost);
-	global <?=cons_t?>* U = UBuf + index;
+	<?=SETBOUNDS?>(solver->numGhost, solver->numGhost);
+	global <?=cons_t?> * const U = UBuf + index;
 <? for j=0,solver.dim-1 do ?> 
 	U-><?=op.vectorField?>.s<?=j?> = 
 		<?=sub?>(
@@ -105,11 +105,11 @@ kernel void <?=op.symbolPrefix?>_noDiv(
 
 //TODO just use the display var kernels
 kernel void <?=op.symbolPrefix?>_copyPotentialToReduce(
-	constant <?=solver_t?>* solver,
-	global real* reduceBuf,
-	global const <?=cons_t?>* UBuf
+	constant <?=solver_t?> const * const solver,
+	global real * const reduceBuf,
+	global <?=cons_t?> const * const UBuf
 ) {
-	SETBOUNDS(0,0);
+	<?=SETBOUNDS?>(0,0);
 	reduceBuf[index] = UBuf[index].<?=op.potentialField?>;
 }
 ]], 	{

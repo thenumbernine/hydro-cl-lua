@@ -1,4 +1,4 @@
-//// MODULE_NAME: calcFluxForInterface
+//// MODULE_NAME: <?=calcFluxForInterface?>
 //// MODULE_DEPENDS: <?=solver_macros?> math <?=eigen_forInterface?> <?=eqn_waveCode_depends?> <?=fluxFromCons?>
 
 //HLLC based on
@@ -11,13 +11,13 @@ end
 ?>
 
 
-#define calcFluxForInterface(\
+#define <?=calcFluxForInterface?>(\
 	/*global <?=cons_t?> * const */flux,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */UL,\
 	/*<?=cons_t?> const * const */UR,\
 	/*real3 const */xInt,\
-	/*normal_t const */n\
+	/*<?=normal_t?> const */n\
 ) {\
 	<?=prim_t?> WL;\
 	<?=primFromCons?>(&WL, solver, UL, xInt);\

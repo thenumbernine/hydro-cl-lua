@@ -130,8 +130,7 @@ end
 
 function BSSNOKFiniteDifferenceEquation:getModuleDepends_displayCode() 
 	return {
-		'cell_x',
-		'initCond.codeprefix',	-- ...specifically, calc_f
+		self.symbols.initCond_codeprefix,	-- ...specifically, calc_f
 		'calc_det_gammaHat',	-- also used by display code
 		'calc_gamma_ll',
 		'calc_gamma_uu',

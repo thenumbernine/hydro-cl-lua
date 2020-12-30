@@ -349,7 +349,7 @@ function TwoFluidEMHD:getDisplayVars()
 		{
 			name = 'gravity',
 			code = self:template[[
-	if (!OOB(1,1)) value.vreal3 = <?=eqn.gravOp.symbolPrefix?>_calcGravityAccel(solver, U, x);
+	if (!<?=OOB?>(1,1)) value.vreal3 = <?=eqn.gravOp.symbolPrefix?>_calcGravityAccel(solver, U, x);
 ]],
 			type='real3', 
 			units='m/s^2',

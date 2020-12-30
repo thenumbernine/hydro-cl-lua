@@ -16,7 +16,7 @@ void <?=applyInitCondCell?>(
 }
 
 //// MODULE_NAME: <?=addSource?>
-//// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> <?=cell_t?> SETBOUNDS_NOGHOST cell_x
+//// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> <?=cell_t?> <?=SETBOUNDS_NOGHOST?>
 
 kernel void <?=addSource?>(
 	constant <?=solver_t?> const * const solver,
@@ -24,8 +24,8 @@ kernel void <?=addSource?>(
 	global <?=cons_t?> const * const UBuf,
 	global <?=cell_t?> const * const cellBuf
 ) {
-	SETBOUNDS_NOGHOST();
-	real3 const x = cell_x(i);
+	<?=SETBOUNDS_NOGHOST?>();
+	real3 const x = cellBuf[index].pos;
 	
 	//only 1D for now ...
 	real const r = fabs(x.x);

@@ -13,7 +13,6 @@ function GLM_MHD_UpdatePsi:initCodeModules(solver)
 	solver.modules:add{
 		name = 'op.GLM_MHD_UpdatePsi',
 		depends = {
-			'cell_x',
 			self.solver.eqn.symbols.eqn_guiVars_compileTime,	-- Cp
 		},
 		code = solver.eqn:template([[
@@ -23,8 +22,8 @@ kernel void updatePsi(
 	real const dt,
 	global <?=cell_t?> const * const cellBuf
 ) {
-	SETBOUNDS(0,0);
-	real3 const x = cell_x(i);
+	<?=SETBOUNDS?>(0,0);
+	real3 const const x = cellBuf[index].pos;
 
 	global <?=cons_t?> * const U = UBuf + index;
 	

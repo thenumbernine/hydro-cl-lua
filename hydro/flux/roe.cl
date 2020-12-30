@@ -1,5 +1,5 @@
-//// MODULE_NAME: calcFluxForInterface
-//// MODULE_DEPENDS: <?=solver_macros?> math fluxLimiter <?=eqn_waveCode_depends?> <?=eigen_forInterface?> <?=eigen_leftTransform?> <?=eigen_rightTransform?> <?=waves_t?>
+//// MODULE_NAME: <?=calcFluxForInterface?>
+//// MODULE_DEPENDS: math <?=solver_macros?> <?=fluxLimiter?> <?=eqn_waveCode_depends?> <?=eigen_forInterface?> <?=eigen_leftTransform?> <?=eigen_rightTransform?> <?=waves_t?>
 
 <? if eqn.roeUseFluxFromCons then 
 -- this was inline'd before I made the function into a giant macro, then I can't use the //// comments to inline anymore so TODO change the MODULE_ markup to handle /* */ instead/aswell?
@@ -15,13 +15,13 @@ local useFlux = solver.fluxLimiter > 1
 ?>
 
 //TODO entropy fix ... for the Euler equations at least
-#define calcFluxForInterface(\
+#define <?=calcFluxForInterface?>(\
 	/*<?=cons_t?> * const */resultFlux,\
-	/*constant solver_t const * const */solver,\
+	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */UL,\
 	/*<?=cons_t?> const * const */UR,\
 	/*real3 const */xInt,\
-	/*normal_t const */n<? if useFlux then ?>,\
+	/*<?=normal_t?> const */n<? if useFlux then ?>,\
 	/*realparam const */dt_dx,\
 	/*<?=cons_t?> const * const */UL_L,\
 	/*<?=cons_t?> const * const */UL_R,\
@@ -93,7 +93,7 @@ local useFlux = solver.fluxLimiter > 1
 				rEig = deltaUEigR.ptr[j] / deltaUEig.ptr[j];\
 			}\
 		}\
-		real phi = fluxLimiter(rEig);\
+		real phi = <?=fluxLimiter?>(rEig);\
 <? end --\
 ?>\
 		fluxEig.ptr[j] -= .5 * lambda * deltaUEig.ptr[j] * (sgnLambda\

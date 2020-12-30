@@ -33,11 +33,11 @@ function NLSEqn:createBoundaryOptions()
 			-- buf[2] is ... ?
 			lines:insert(
 				assign('buf['..index'j'..']',
-					'buf['..index('2*numGhost-j')..']'))
+					'buf['..index('2 * solver->numGhost - j')..']'))
 		elseif args.minmax == 'max' then
 			lines:insert(
 				assign('buf['..index(gridSizeSide..'-1-j')..']',
-					'buf['..index(gridSizeSide..'-2*numGhost-2+j')..']'))
+					'buf['..index(gridSizeSide..' - 2 * solver->numGhost - 2 + j')..']'))
 		end
 		return lines:concat'\n'
 	end

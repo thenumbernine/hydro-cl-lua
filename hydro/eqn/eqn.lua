@@ -363,13 +363,9 @@ function Equation:getSymbolFields()
 		'eqn_waveCode_depends',		-- module of dependencies used by the eigen/cons wave code
 		'eqn_common',				-- module of functions that are commonly used ... not required.
 	
-		-- placeholder, used by solver
-		-- it turns out all module names need to be unique in order to run more than one solver at a time.
-		-- makes me think we should move all these symbols/generation of them into solver
-		-- TODO put these' symbol generation in solver?
-		'solver_macros',
-		'solver_displayCode',
-	
+		-- placeholder, used by initCond
+		'initCond_guiVars_compileTime',
+		'initCond_codeprefix',
 	}
 end
 
@@ -503,6 +499,11 @@ function Equation:getEnv()
 	for k,v in pairs(coord.symbols) do
 		env[k] = v
 	end
+	
+	-- add solver's symbols
+	for k,v in pairs(solver.symbols) do
+		env[k] = v
+	end
 
 	return env
 end
@@ -563,10 +564,10 @@ function Equation:initCodeModules()
 	solver.modules:add{
 		name = self.symbols.applyInitCond,
 		depends = {
+			self.solver.symbols.SETBOUNDS,
 			self.symbols.cell_t,
 			self.symbols.initCond_t,
 			self.symbols.applyInitCondCell,
-			'SETBOUNDS',
 		},
 		code = self:template[[
 kernel void <?=applyInitCond?>(
@@ -575,7 +576,7 @@ kernel void <?=applyInitCond?>(
 	global <?=cons_t?>* UBuf,
 	global <?=cell_t?> const * const cellBuf
 ) {
-	SETBOUNDS(0,0);
+	<?=SETBOUNDS?>(0,0);
 	global <?=cons_t?> * const U = UBuf + index;
 	global <?=cons_t?> const * const cell = cellBuf + index;
 	<?=applyInitCondCell?>(solver, initCond, U, cell);
@@ -788,7 +789,7 @@ function Equation:initCodeModule_fluxFromCons()
 			self.symbols.cons_t,
 			self.symbols.eigen_fluxTransform,
 			self.symbols.eigen_forCell,
-			'normal_t',
+			self.solver.coord.symbols.normal_t,
 		},
 		code = self:template[[
 #define <?=fluxFromCons?>(\
@@ -796,7 +797,7 @@ function Equation:initCodeModule_fluxFromCons()
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */U,\
 	/*real3 const */x,\
-	/*normal_t const */n\
+	/*<?=normal_t?> const */n\
 ) {\
 	<?=eigen_t?> eig;\
 	<?=eigen_forCell?>(&eig, solver, U, x, n)\
@@ -820,7 +821,7 @@ end
 -- called from solverbase
 function Equation:getModuleDepends_displayCode() 
 	return {
-		'SETBOUNDS',
+		self.solver.symbols.SETBOUNDS,
 	}
 end
 
@@ -853,7 +854,7 @@ function Equation:createDivDisplayVar(args)
 	return {
 		name = 'div '..field, 
 		code = self:template([[
-	if (OOB(1,1)) {
+	if (<?=OOB?>(1,1)) {
 		value.v<?=scalar?> = 0./0.;
 	} else {
 		<?=scalar?> v = <?=scalar?>_zero;
@@ -896,7 +897,7 @@ function Equation:createCurlDisplayVar(args)
 		return {
 			name = 'curl '..field..' '..xNames[k+1],
 			code = self:template([[
-	if (OOB(1,1)) {
+	if (<?=OOB?>(1,1)) {
 		<?=result?> = 0./0.;
 	} else {
 		global <?=cons_t?> const * const Uim = U - solver->stepsize.s<?=i?>;
@@ -1009,7 +1010,7 @@ if require "hydro.solver.meshsolver".is(solver) then
 end
 ?>
 ) {
-	SETBOUNDS(0,0);
+	<?=SETBOUNDS?>(0,0);
 	
 	//write inf to boundary cells
 	//TODO why not write inf to boundary cells upon init,
@@ -1019,7 +1020,7 @@ end
 	global real * const dt = dtBuf + index;
 	*dt = INFINITY;
 	
-	if (OOB(numGhost,numGhost)) return;
+	if (<?=OOB?>(solver->numGhost, solver->numGhost)) return;
 	global <?=cons_t?> const * const U = UBuf + index;
 	global <?=cell_t?> const * const cell = cellBuf + index;
 	<?=calcDTCell?>(
@@ -1081,7 +1082,7 @@ void <?=primFromCons?>(
 /*
 void <?=consFromPrim?>(
 	<?=cons_t?> * const U,
-	constant solver_t const * const solver,
+	constant <?=solver_t?> const * const solver,
 	<?=prim_t?> const * const W, 
 	real3 const x
 ) { 
@@ -1106,7 +1107,7 @@ returns output vector
 /*
 void <?=apply_dU_dW?>(
 	<?=cons_t?> * const result,
-	constant solver_t* solver,
+	constant <?=solver_t?> const * const solver,
 	<?=prim_t?> const * const WA, 
 	<?=prim_t?> const * const W, 
 	real3 const x
@@ -1132,7 +1133,7 @@ returns output vector
 /*
 void <?=apply_dW_dU?>(
 	<?=prim_t?> const * W,
-	constant solver_t const * const solver,
+	constant <?=solver_t?> const * const solver,
 	<?=prim_t?> const * const WA, 
 	<?=cons_t?> const * const U,
 	real3 const x

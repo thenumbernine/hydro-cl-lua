@@ -66,28 +66,28 @@ function BackwardEuler:init(solver, args)
 	
 	local copyBufferWithOrWithoutGhostProgram = solver.Program{
 		name = 'int-be',
-		code = template(
+		code = solver.eqn:template(
 			solver.modules:getCodeAndHeader(solver.sharedModulesEnabled:keys():append{
-				'SETBOUNDS_NOGHOST',
-				solver.eqn.symbols.solver_macros,
+				solver.symbols.SETBOUNDS_NOGHOST,
+				solver.symbols.solver_macros,
 			}:unpack())
 			..[[
 <? local range = require 'ext.range' ?>
 kernel void copyBufferWithoutGhostToBufferWithGhost(
-	constant <?=solver.solver_t?>* solver,
-	global real* dst,
-	global const real* src
+	constant <?=solver_t?> const * const solver,
+	global real * const dst,
+	global real const * const src
 ) {
-	SETBOUNDS_NOGHOST();
+	<?=SETBOUNDS_NOGHOST?>();
 	for (int j = 0; j < numIntStates; ++j) {
 		dst[j + numStates * index] = src[j
 			+ numIntStates * (
-				(i.x - numGhost)
+				(i.x - solver->numGhost)
 <? if solver.dim > 1 then ?>
-				+ (solver->gridSize.x - 2 * numGhost) * (
-					(i.y - numGhost) 
+				+ (solver->gridSize.x - 2 * solver->numGhost) * (
+					(i.y - solver->numGhost) 
 <? if solver.dim > 2 then ?>
-					+ (solver->gridSize.y - 2 * numGhost) * (i.z - numGhost)
+					+ (solver->gridSize.y - 2 * solver->numGhost) * (i.z - solver->numGhost)
 <? end ?>
 				)
 <? end ?>
@@ -96,29 +96,27 @@ kernel void copyBufferWithoutGhostToBufferWithGhost(
 }
 
 kernel void copyBufferWithGhostToBufferWithoutGhost(
-	constant <?=solver.solver_t?>* solver,
-	global real* dst,
-	global const real* src
+	constant <?=solver_t?> const * const solver,
+	global real * const dst,
+	global real const * const src
 ) {
-	SETBOUNDS_NOGHOST();
+	<?=SETBOUNDS_NOGHOST?>();
 	for (int j = 0; j < numIntStates; ++j) {
 		dst[j 
 			+ numIntStates * (
-				(i.x - numGhost) 
+				(i.x - solver->numGhost) 
 <? if solver.dim > 1 then ?>
-				+ (solver->gridSize.x - 2 * numGhost) * (
-					(i.y - numGhost) 
+				+ (solver->gridSize.x - 2 * solver->numGhost) * (
+					(i.y - solver->numGhost) 
 <? if solver.dim > 2 then ?>
-					+ (solver->gridSize.y - 2 * numGhost) * (i.z - numGhost)
+					+ (solver->gridSize.y - 2 * solver->numGhost) * (i.z - solver->numGhost)
 <? end ?>
 				)
 <? end ?>
 			)] = src[j + numStates * index];
 	}
 }
-]],		{
-			solver = solver,
-		})
+]])
 	}
 	copyBufferWithOrWithoutGhostProgram:compile()
 	self.copyWithoutToWithGhostKernel = copyBufferWithOrWithoutGhostProgram:kernel{

@@ -18,6 +18,14 @@ local FiniteVolumeSolver = class(GridSolver)
 
 FiniteVolumeSolver.name = 'fvsolver'
 
+function FiniteVolumeSolver:getSymbolFields()
+	return FiniteVolumeSolver.super.getSymbolFields(self):append{
+		'calcFlux',
+		'calcFluxForInterface',
+		'calcDerivFromFlux',
+	}
+end
+
 function FiniteVolumeSolver:initObjs(args)
 	FiniteVolumeSolver.super.initObjs(self, args)	
 	self:createFlux(args.flux, args.fluxArgs)
@@ -31,7 +39,7 @@ function FiniteVolumeSolver:initCodeModules()
 	-- the calcFlux kernel is in fvsolver.cl for gridsolvers and in meshsolver.lua for meshsolvers
 	-- both are dependent on calcFluxForInterface
 	-- which is set up in hydro/flux/flux.lua
-	self.solverModulesEnabled['calcFlux'] = true
+	self.solverModulesEnabled[self.symbols.calcFlux] = true
 
 	self.modules:addFromMarkup(
 		self.eqn:template(file['hydro/solver/fvsolver.cl'], {
@@ -39,7 +47,7 @@ function FiniteVolumeSolver:initCodeModules()
 		})
 	)
 	
-	self.solverModulesEnabled['calcDerivFromFlux'] = true
+	self.solverModulesEnabled[self.symbols.calcDerivFromFlux] = true
 
 	self:initCodeModule_calcFlux()
 end
@@ -47,8 +55,8 @@ end
 function FiniteVolumeSolver:initCodeModule_calcFlux()
 	self.modules:addFromMarkup{
 		code = self.eqn:template([[
-//// MODULE_NAME: calcFlux
-//// MODULE_DEPENDS: calcFluxForInterface <?=cons_parallelPropagate?> normal_t
+//// MODULE_NAME: <?=calcFlux?>
+//// MODULE_DEPENDS: <?=calcFluxForInterface?> <?=cons_parallelPropagate?> <?=normal_t?>
 // used by all gridsolvers.  the meshsolver alternative is in solver/meshsolver.lua
 
 <? 
@@ -56,14 +64,14 @@ local useFlux = solver.fluxLimiter > 1
 	and flux.usesFluxLimiter -- just flux/roe.lua right now
 ?>
 
-kernel void calcFlux(
+kernel void <?=calcFlux?>(
 	constant <?=solver_t?> const * const solver,
 	global <?=cons_t?> * const fluxBuf,
 	global const <?=solver.getULRArg?>,
 	realparam const dt,	//not used by HLL, just making this match Roe / other FV solvers
 	global <?=cell_t?> const * const cellBuf
 ) {
-	SETBOUNDS(numGhost,numGhost-1);
+	<?=SETBOUNDS?>(solver->numGhost, solver->numGhost-1);
 	
 	int const indexR = index;
 	real3 const xR = cellBuf[index].pos;
@@ -111,7 +119,7 @@ then ?>
 			<?=cons_parallelPropagate?><?=side?>(ppUL, UL, xL, .5 * dx);
 			<?=cons_parallelPropagate?><?=side?>(ppUR, UR, xR, -.5 * dx);
 
-			normal_t const n = normal_forSide<?=side?>(xInt);
+			<?=normal_t?> const n = normal_forSide<?=side?>(xInt);
 
 <? 
 if useFlux then 
@@ -146,7 +154,7 @@ if useFlux then
 <?
 end
 ?>
-			calcFluxForInterface(
+			<?=calcFluxForInterface?>(
 				flux,
 				solver,
 				ppUL,
@@ -186,9 +194,9 @@ end
 function FiniteVolumeSolver:refreshSolverProgram()
 	FiniteVolumeSolver.super.refreshSolverProgram(self)
 
-	self.calcFluxKernelObj = self.solverProgramObj:kernel'calcFlux'
+	self.calcFluxKernelObj = self.solverProgramObj:kernel(self.symbols.calcFlux)
 	
-	self.calcDerivFromFluxKernelObj = self.solverProgramObj:kernel{name='calcDerivFromFlux', domain=self.domainWithoutBorder}
+	self.calcDerivFromFluxKernelObj = self.solverProgramObj:kernel{name=self.symbols.calcDerivFromFlux, domain=self.domainWithoutBorder}
 	self.calcDerivFromFluxKernelObj.obj:setArg(0, self.solverBuf)
 	self.calcDerivFromFluxKernelObj.obj:setArg(2, self.fluxBuf)
 	self.calcDerivFromFluxKernelObj.obj:setArg(3, self.cellBuf)
@@ -262,7 +270,7 @@ function FiniteVolumeSolver:getModuleDepends_displayCode()
 
 	depends:append{
 		-- wave #
-		'normal_t',
+		self.coord.symbols.normal_t,
 		self.eqn.symbols.eigen_t,
 		self.eqn.symbols.eqn_waveCode_depends,
 		self.eqn.symbols.eigen_forInterface,
@@ -318,7 +326,7 @@ function FiniteVolumeSolver:addDisplayVars()
 	real3 xInt = x;
 	xInt.s<?=side?> -= .5 * solver->grid_dx.s<?=side?>;
 	<?=solver:getULRCode{bufName='buf', side=side}:gsub('\n', '\n\t')?>
-	normal_t n = normal_forSide<?=side?>(xInt);
+	<?=normal_t?> n = normal_forSide<?=side?>(xInt);
 	<?=eigen_t?> eig;
 	<?=eigen_forInterface?>(&eig, solver, UL, UR, xInt, n);
 ]], 	{
@@ -335,7 +343,7 @@ function FiniteVolumeSolver:addDisplayVars()
 			codePrefix = table{
 				getEigenCode{side=side},
 				self.eqn:template([[
-	normal_t n<?=side?> = normal_forSide<?=side?>(xInt);
+	<?=normal_t?> n<?=side?> = normal_forSide<?=side?>(xInt);
 <?=eqn:eigenWaveCodePrefix('n', '&eig', 'xInt')?>
 ]], 			{
 					side = side,
@@ -396,7 +404,7 @@ function FiniteVolumeSolver:addDisplayVars()
 			basis.ptr[j] = k == j ? 1 : 0;
 		}
 		
-		normal_t n = normal_forSide<?=side?>(xInt);
+		<?=normal_t?> n = normal_forSide<?=side?>(xInt);
 		<?=waves_t?> chars;
 		<?=eigen_leftTransform?>(&chars, solver, &eig, &basis, xInt, n);
 		<?=cons_t?> newbasis;
@@ -434,7 +442,7 @@ function FiniteVolumeSolver:addDisplayVars()
 					{name='0', code=table{
 						getEigenCode{side=side},
 						self.eqn:template([[
-	normal_t n<?=side?> = normal_forSide<?=side?>(x);
+	<?=normal_t?> n<?=side?> = normal_forSide<?=side?>(x);
 	<?=eqn:eigenWaveCodePrefix('n'..side, '&eig', 'xInt'):gsub('\n', '\n\t')?>
 	
 	value.vreal = 0;
@@ -446,7 +454,7 @@ function FiniteVolumeSolver:addDisplayVars()
 			basis.ptr[j] = k == j ? 1 : 0;
 		}
 
-		normal_t n = normal_forSide<?=side?>(xInt);
+		<?=normal_t?> n = normal_forSide<?=side?>(xInt);
 		<?=waves_t?> chars;
 		<?=eigen_leftTransform?>(&chars, solver, &eig, &basis, xInt, n);
 

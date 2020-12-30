@@ -103,14 +103,14 @@ end
 }
 
 //// MODULE_NAME: <?=fluxFromCons?>
-//// MODULE_DEPENDS: <?=solver_t?> <?=primFromCons?> normal_t
+//// MODULE_DEPENDS: <?=solver_t?> <?=primFromCons?> <?=normal_t?>
 
 #define <?=fluxFromCons?>(\
 	/*<?=cons_t?> * const */result,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */U,\
 	/*real3 const */pt,\
-	/*normal_t const */n\
+	/*<?=normal_t?> const */n\
 ) {\
 	<?=prim_t?> W;\
 	<?=primFromCons?>(&W, solver, U, pt);\
@@ -127,11 +127,11 @@ end
 
 // used by PLM
 #define <?=calcCellMinMaxEigenvalues?>(\
-	/*range_t * const */result,\
+	/*<?=range_t?> * const */result,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*global <?=cons_t?> const * const */U,\
 	/*real3 const */pt,\
-	/*normal_t const */n\
+	/*<?=normal_t?> const */n\
 ) {\
 	<?=prim_t?> W;\
 	<?=primFromCons?>(&W, solver, U, pt);\
@@ -150,7 +150,7 @@ end
 	/*<?=cons_t?> const * const */UL,\
 	/*<?=cons_t?> const * const */UR,\
 	/*real3 const */pt,\
-	/*normal_t const */n\
+	/*<?=normal_t?> const */n\
 ) {\
 	<?=prim_t?> WL;\
 	<?=primFromCons?>(&WL, solver, UL, pt);\
@@ -184,7 +184,7 @@ end
 	/*<?=eigen_t?> const * const */eig,\
 	/*<?=cons_t?> const * const */X_,\
 	/*real3 const */pt,\
-	/*normal_t const */n\
+	/*<?=normal_t?> const */n\
 ) { \
 	real3 const nL = normal_l1(n);\
 	real const nLen = normal_len(n);\
@@ -240,7 +240,7 @@ end
 	/*<?=eigen_t?> const * const */eig,\
 	/*<?=waves_t?> const * const */X_,\
 	/*real3 const */pt,\
-	/*normal_t const */n\
+	/*<?=normal_t?> const */n\
 ) {\
 	real3 const nU = normal_u1(n);\
 	real const nLen = normal_len(n);\
@@ -273,7 +273,7 @@ end
 	/*<?=eigen_t?> const * const */eig,\
 	/*<?=cons_t?> const * const */X_,\
 	/*real3 const */pt,\
-	/*normal_t const */n\
+	/*<?=normal_t?> const */n\
 ) {\
 	real3 const nL = normal_l1(n);\
 	real3 const nU = normal_u1(n);\

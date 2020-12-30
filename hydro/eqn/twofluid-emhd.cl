@@ -154,7 +154,11 @@ static inline real calc_<?=fluid?>_Cs(
 
 <? end ?>
 
-static inline real calc_EM_energy(constant <?=solver_t?>* solver, const global <?=cons_t?>* U, real3 x) {
+static inline real calc_EM_energy(
+	constant <?=solver_t?> const * const solver,
+	global <?=cons_t?> const * const U,
+	real3 const x
+) {
 	real const eps = solver->sqrt_eps * solver->sqrt_eps / unit_C2_s2_per_kg_m3;
 	real const mu = solver->sqrt_mu * solver->sqrt_mu / unit_kg_m_per_C2;
 	return .5 * (coordLenSq(U->D, x) / eps + coordLenSq(U->B, x) / mu);
@@ -348,14 +352,14 @@ end
 }
 
 //// MODULE_NAME: <?=fluxFromCons?>
-//// MODULE_DEPENDS: units normal_t <?=primFromCons?>
+//// MODULE_DEPENDS: units <?=normal_t?> <?=primFromCons?>
 
 #define <?=fluxFromCons?>(\
 	/*<?=cons_t?> * const */F,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */U,\
 	/*real3 const */pt,\
-	/*normal_t const */n\
+	/*<?=normal_t?> const */n\
 ) {\
 	<?=prim_t?> W;\
 	<?=primFromCons?>(&W, solver, U, pt);\
@@ -404,7 +408,7 @@ end --\
 	/*<?=cons_t?> const * const */UL,\
 	/*<?=cons_t?> const * const */UR,\
 	/*real3 const */pt,\
-	/*normal_t const */n\
+	/*<?=normal_t?> const */n\
 ) {\
 	<?=prim_t?> WL;\
 	<?=primFromCons?>(&WL, solver, UL, pt);\
@@ -446,7 +450,7 @@ end --\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */U,\
 	/*real3 const */pt,\
-	/*normal_t const */n\
+	/*<?=normal_t?> const */n\
 ) {\
 	<?=prim_t?> W;\
 	<?=primFromCons?>(&W, solver, U, pt);\
@@ -475,7 +479,7 @@ end --\
 	/*<?=eigen_t?> const * const */eig,\
 	/*<?=cons_t?> const * const */UX,\
 	/*real3 const */pt,\
-	/*normal_t const */n\
+	/*<?=normal_t?> const */n\
 ) { \
 	real const nLen = normal_len(n);\
 	real const nLenSq = nLen * nLen;\
@@ -676,7 +680,7 @@ end --\
 	/*<?=eigen_t?> const * const */eig,\
 	/*<?=waves_t?> const * const */UX,	/* numWaves = 16 */\
 	/*real3 const */pt,\
-	/*normal_t const */n\
+	/*<?=normal_t?> const */n\
 ) {\
 	real const eps = solver->sqrt_eps * solver->sqrt_eps / unit_C2_s2_per_kg_m3;\
 	real const mu = solver->sqrt_mu * solver->sqrt_mu / unit_kg_m_per_C2;\
@@ -853,7 +857,7 @@ static inline void <?=eigen_fluxTransform?>(
 	<?=eigen_t?> const * const eig,
 	<?=cons_t?> const * const UX,
 	real3 const x,
-	normal_t const n
+	<?=normal_t?> const n
 ) {
 	real const nLen = normal_len(n);
 	real const nLenSq = nLen * nLen;
@@ -950,7 +954,7 @@ kernel void <?=addSource?>(
 	global <?=cons_t?> const * const UBuf,
 	global <?=cell_t?> const * const cellBuf
 ) {
-	SETBOUNDS_NOGHOST();
+	<?=SETBOUNDS_NOGHOST?>();
 	global <?=cons_t?> * const deriv = derivBuf + index;
 	global <?=cons_t?> const * const U = UBuf + index;
 
@@ -1020,7 +1024,7 @@ kernel void <?=constrainU?>(
 	global <?=cons_t?> * const UBuf,
 	global <?=cell_t?> const * const cellBuf
 ) {
-	SETBOUNDS(0,0);
+	<?=SETBOUNDS?>(0,0);
 	global <?=cons_t?> * const U = UBuf + index;
 	real3 const x = cellBuf[index].pos;
 	<?=prim_t?> W;

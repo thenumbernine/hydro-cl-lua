@@ -145,7 +145,7 @@ function Wave:initCodeModule_fluxFromCons() end
 function Wave:getModuleDepends_waveCode()
 	return {
 		'units',
-		'normal_t',
+		self.solver.coord.symbols.normal_t,
 		self.symbols.eqn_common,	-- metric_alpha
 	}
 end

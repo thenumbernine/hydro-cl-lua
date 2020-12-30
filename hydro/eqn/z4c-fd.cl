@@ -160,16 +160,17 @@ void <?=applyInitCondCell?>(
 }
 
 //// MODULE_NAME: <?=initDerivs?>
-//// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> <?=cell_t?> SETBOUNDS numGhost
+//// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> <?=cell_t?> <?=SETBOUNDS?>
 
 //after popularing gammaBar_ll, use its finite-difference derivative to initialize connBar_u
 kernel void <?=initDerivs?>(
 	constant <?=solver_t?> const * const solver,
-	global <?=cons_t?> * const UBuf
+	global <?=cons_t?> * const UBuf,
+	global <?=cell_t?> const * const cellBuf;
 ) {
-	SETBOUNDS(numGhost,numGhost);
-	real3 x = cell_x(i);
-	global <?=cons_t?>* U = UBuf + index;
+	<?=SETBOUNDS?>(solver->numGhost, solver->numGhost);
+	real3 const x = cellBuf[index].pos;
+	global <?=cons_t?> * const U = UBuf + index;
 	
 <?=eqn:makePartial1'gammaBar_uu'?>
 
@@ -196,13 +197,13 @@ kernel void <?=initDerivs?>(
 //// MODULE_NAME: <?=constrainU?>
 
 kernel void <?=constrainU?>(
-	constant <?=solver_t?>* solver,
-	global <?=cons_t?>* UBuf,
-	const global <?=cell_t?>* cellBuf
+	constant <?=solver_t?> const * const solver,
+	global <?=cons_t?> * const UBuf,
+	global <?=cell_t?> const * const cellBuf
 ) {
-	SETBOUNDS(numGhost,numGhost);
-	real3 x = cellBuf[index].pos;
-	global <?=cons_t?>* U = UBuf + index;
+	<?=SETBOUNDS?>(solver->numGhost, solver->numGhost);
+	real3 const x = cellBuf[index].pos;
+	global <?=cons_t?> * const U = UBuf + index;
 
 <? 
 if eqn.guiVars.constrain_det_gammaBar_ll.value 
@@ -262,11 +263,11 @@ kernel void <?=calcDeriv?>(
 	global <?=cons_t?> const * const UBuf,
 	global <?=cell_t?> const * const cellBuf
 ) {
-	SETBOUNDS(numGhost,numGhost);
-	real3 x = cellBuf[index].pos;
-	global <?=cons_t?>* deriv = derivBuf + index;
+	<?=SETBOUNDS?>(solver->numGhost, solver->numGhost);
+	real3 const x = cellBuf[index].pos;
+	global <?=cons_t?> * const deriv = derivBuf + index;
 
-	const global <?=cons_t?>* U = UBuf + index;
+	global <?=cons_t?> const * const U = UBuf + index;
 
 <?=makePartial('alpha', 'real')?>		//partial_alpha_l[i] := alpha_,i
 <?=makePartial('chi', 'real')?>			//partial_chi_l[i] := chi_,i 
@@ -805,7 +806,7 @@ kernel void <?=addSource?>(
 	global <?=cell_t?> const * const cellBuf
 ) {
 <? if false then ?>
-	SETBOUNDS_NOGHOST();
+	<?=SETBOUNDS_NOGHOST?>();
 
 	global <?=cons_t?> const * const U = UBuf + index;
 

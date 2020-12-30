@@ -1,5 +1,5 @@
 //// MODULE_NAME: updateCTU
-//// MODULE_DEPENDS: <?=solver_t?> <?=cell_t?> <?=cons_t?> SETBOUNDS <?=cell_sqrt_det_g?> <?=solver_macros?>
+//// MODULE_DEPENDS: <?=solver_t?> <?=cell_t?> <?=cons_t?> <?=SETBOUNDS?> <?=cell_sqrt_det_g?> <?=solver_macros?>
 <? if solver.usePLM then ?>
 //// MODULE_DEPENDS: <?=consLR_t?>
 <? end ?>
@@ -15,7 +15,7 @@ kernel void updateCTU(
 	global <?=cons_t?> const * const fluxBuf,
 	real const dt
 ) {
-	SETBOUNDS(0,1);
+	<?=SETBOUNDS?>(0,1);
 	real3 const x = cellBuf[index].pos;
 <? if eqn.weightFluxByGridVolume then ?>
 	real const volume = cell_sqrt_det_g(solver, x);

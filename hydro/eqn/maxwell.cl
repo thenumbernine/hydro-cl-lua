@@ -89,7 +89,7 @@ void <?=applyInitCondCell?>(
 
 
 //// MODULE_NAME: <?=fluxFromCons?>
-//// MODULE_DEPENDS: <?=solver_t?> normal_t <?=cons_t?> <?=prim_t?> <?=eqn_common?>
+//// MODULE_DEPENDS: <?=solver_t?> <?=normal_t?> <?=cons_t?> <?=prim_t?> <?=eqn_common?>
 //eqn_common has calc_E, calc_H
 
 #define <?=fluxFromCons?>(\
@@ -97,7 +97,7 @@ void <?=applyInitCondCell?>(
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */U,\
 	/*real3 const */pt,\
-	/*normal_t const */n\
+	/*<?=normal_t?> const */n\
 ) {\
 	<?=vec3?> const E = calc_E(U);\
 	<?=vec3?> const H = calc_H(U);\
@@ -127,7 +127,7 @@ void <?=applyInitCondCell?>(
 	/*<?=cons_t?> const * const */UL,\
 	/*<?=cons_t?> const * const */UR,\
 	/*real3 const */x,\
-	/*normal_t const */n\
+	/*<?=normal_t?> const */n\
 ) {\
 	/* this will fail with tensor susceptibility */\
 	/* but it doesn't belong here -- this is only the scalar case */\
@@ -144,7 +144,7 @@ void <?=applyInitCondCell?>(
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */U,\
 	/*real3 const */x,\
-	/*normal_t const */n\
+	/*<?=normal_t?> const */n\
 ) {\
 	(eig)->sqrt_1_eps = U.sqrt_1_eps;\
 	(eig)->sqrt_1_mu = U.sqrt_1_mu:\
@@ -162,7 +162,7 @@ TODO update this for Einstein-Maxwell (take the metric into consideration
 	/*<?=eigen_t?> const * const */eig,\
 	/*<?=cons_t?> const * const */X,\
 	/*real3 const */x,\
-	/*normal_t const */n\
+	/*<?=normal_t?> const */n\
 ) {\
 <? if false then -- TODO this, which means changing ops to macros, and determining the global-ness of the input params ... ?>\
 	<?=scalar?> * const Yp = (<?=scalar?>*)(Y)->ptr;\
@@ -214,7 +214,7 @@ TODO update this for Einstein-Maxwell (take the metric into consideration
 	/*<?=eigen_t?> const * const */eig,\
 	/*<?=waves_t?> const * const */X,\
 	/*real3 const */x,\
-	/*normal_t const */n\
+	/*<?=normal_t?> const */n\
 ) {\
 <? if false then -- TODO this, which means changing ops to macros, and determining the global-ness of the input params ... ?>\
 	<?=scalar?> * const Yp = (<?=scalar?>*)(Y)->ptr;\
@@ -274,7 +274,7 @@ kernel void <?=addSource?>(
 	global <?=cons_t?> const * const UBuf,
 	global <?=cell_t?> const * const cellBuf
 ) {
-	SETBOUNDS_NOGHOST();
+	<?=SETBOUNDS_NOGHOST?>();
 	real3 const x = cellBuf[index].pos;
 	
 	global <?=cons_t?> * const deriv = derivBuf + index;

@@ -1,13 +1,13 @@
-//// MODULE_NAME: calcFluxForInterface
+//// MODULE_NAME: <?=calcFluxForInterface?>
 //// MODULE_DEPENDS: <?=solver_macros?> math <?=eigen_forInterface?> <?=eqn_waveCode_depends?> <?=fluxFromCons?>
 
-#define calcFluxForInterface(\
+#define <?=calcFluxForInterface?>(\
 	/*<?=cons_t?> * const */resultFlux,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */UL,\
 	/*<?=cons_t?> const * const */UR,\
 	/*real3 const */xInt,\
-	/*normal_t const */n\
+	/*<?=normal_t?> const */n\
 ) {\
 	<?=eigen_t?> eigInt;\
 	<?=eigen_forInterface?>(&eigInt, solver, UL, UR, xInt, n);\

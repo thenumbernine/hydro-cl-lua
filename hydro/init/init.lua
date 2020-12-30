@@ -85,19 +85,18 @@ end
 function InitCond:getBaseDepends(solver)
 	return {
 		-- if an InitCond provides codeprefix, it is for code it expects to reference from within 'applyInitCond()'
-		'initCond.codeprefix',
+		solver.eqn.symbols.initCond_codeprefix,
 		-- applyInitCond uses these:
 		solver.solver_t,
 		self.initCond_t,
 		solver.coord.cell_t,
-		'initCond.guiVars.compileTime',
+		solver.eqn.symbols.initCond_guiVars_compileTime,
 		'INDEX',
 		'INDEXV',
-		'OOB',
-		'SETBOUNDS',
-		'numGhost',
+		solver.symbols.OOB,
+		solver.symbols.SETBOUNDS,
 		-- enough use #if dim that i'll put this here:
-		solver.eqn.symbols.solver_macros,
+		solver.symbols.solver_macros,
 		-- initCond code is specified in terms of primitives, so if the eqn has prim<->cons then it will be needed
 		solver.eqn.symbols.consFromPrim,
 	}
@@ -112,14 +111,14 @@ function InitCond:initCodeModules(solver)
 	}
 
 	solver.modules:add{
-		name = 'initCond.guiVars.compileTime',
+		name = solver.eqn.symbols.initCond_guiVars_compileTime,
 		headercode = table.mapi(self.guiVars or {}, function(var,i,t) 
 			return (var.compileTime and var:getCode() or nil), #t+1
 		end):concat'\n',
 	}
 
 	solver.modules:add{
-		name = 'initCond.codeprefix',
+		name = solver.eqn.symbols.initCond_codeprefix,
 		depends = {
 			self.initCond_t,
 		},

@@ -7,12 +7,6 @@ local TwoFluidSelfGrav = class(SelfGrav)
 
 TwoFluidSelfGrav.name = 'twofluid_selfgrav'
 
-function TwoFluidSelfGrav:getModuleDepends_Poisson()
-	return table(TwoFluidSelfGrav.super.getModuleDepends_Poisson(self)):append{
-		'cell_x',
-	}
-end
-
 function TwoFluidSelfGrav:getPoissonDivCode()
 	return [[
 	source = 4. * M_PI * calc_rho_from_U(U)
@@ -46,8 +40,8 @@ kernel void <?=op.symbolPrefix?>_calcGravityDeriv(
 	global <?=cons_t?> const * const UBuf,
 	global <?=cell_t?> const * const cellBuf
 ) {
-	SETBOUNDS(numGhost,numGhost);
-	real3 const x = cell_x(i);
+	<?=SETBOUNDS?>(solver->numGhost, solver->numGhost);
+	real3 const x = cellBuf[index].pos;
 	
 	global <?=cons_t?> * const deriv = derivBuffer + index;
 	global <?=cons_t?> const * const U = UBuf + index;
@@ -72,7 +66,7 @@ kernel void <?=op.symbolPrefix?>_copyPotentialToReduce(
 	global real * const reduceBuf,
 	global <?=cons_t?> const * const UBuf
 ) {
-	SETBOUNDS(0,0);
+	<?=SETBOUNDS?>(0,0);
 	reduceBuf[index] = UBuf[index].<?=op.potentialField?>;
 }
 
@@ -82,7 +76,7 @@ kernel void <?=op.symbolPrefix?>_offsetPotential(
 	global <?=cons_t?> * const UBuf,
 	realparam const ePotMax
 ) {
-	SETBOUNDS(0,0);
+	<?=SETBOUNDS?>(0,0);
 	global <?=cons_t?>* U = UBuf + index;
 	U-><?=op.potentialField?> -= ePotMax;
 }

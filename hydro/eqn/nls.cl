@@ -1,16 +1,16 @@
 //// MODULE_NAME: <?=calcDT?>
 
 //// MODULE_NAME: <?=applyInitCond?>
-//// MODULE_DEPENDS: <?=solver_t?> <?=initCond_t?> <?=cons_t?> <?=cell_t?> SETBOUNDS
+//// MODULE_DEPENDS: <?=solver_t?> <?=initCond_t?> <?=cons_t?> <?=cell_t?> <?=SETBOUNDS?>
 
 kernel void <?=applyInitCond?>(
-	constant <?=solver_t?>* solver,
-	constant <?=initCond_t?>* initCond,
-	global <?=cons_t?>* UBuf,
-	const global <?=cell_t?>* cellBuf
+	constant <?=solver_t?> const * const solver,
+	constant <?=initCond_t?> const * const initCond,
+	global <?=cons_t?> * const UBuf,
+	global <?=cell_t?> const * const cellBuf
 ) {
-	SETBOUNDS(0,0);
-	real3 x = cellBuf[index].pos;
+	<?=SETBOUNDS?>(0,0);
+	real3 const x = cellBuf[index].pos;
 
 	real r = fabs(x.x);
 	cplx q = cplx_zero;
@@ -19,30 +19,30 @@ kernel void <?=applyInitCond?>(
 }
 
 //// MODULE_NAME: <?=addSource?>
-//// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> <?=cell_t?> SETBOUNDS_NOGHOST cell_x
+//// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> <?=cell_t?> <?=SETBOUNDS_NOGHOST?>
 
 kernel void <?=addSource?>(
-	constant <?=solver_t?>* solver,
-	global <?=cons_t?>* derivBuf,
-	const global <?=cons_t?>* UBuf,
-	const global <?=cell_t?>* cellBuf
+	constant <?=solver_t?> const * const solver,
+	global <?=cons_t?> * const derivBuf,
+	global <?=cons_t?> const * const UBuf,
+	global <?=cell_t?> const * const cellBuf
 ) {
-	SETBOUNDS_NOGHOST();
-	real3 x = cell_x(i);
+	<?=SETBOUNDS_NOGHOST?>();
+	real3 const x = cellBuf[index].pos;
 
-	global <?=cons_t?>* deriv = derivBuf + index;
-	const global <?=cons_t?>* U = UBuf + index;
+	global <?=cons_t?> * const deriv = derivBuf + index;
+	global <?=cons_t?> const * const U = UBuf + index;
 
 	//only 1D for now ...
-	real r = fabs(x.x);
-	const real dr = solver->grid_dx.x;
+	real const r = fabs(x.x);
+	real const dr = solver->grid_dx.x;
 	
-	cplx q_2L = U[-2].q;
-	cplx q_1L = U[-1].q;
-	cplx q = U[0].q;
-	cplx q_1R = U[1].q;
-	cplx q_2R = U[2].q;
-	cplx d2q_dx2 = cplx_real_mul(
+	cplx const q_2L = U[-2].q;
+	cplx const q_1L = U[-1].q;
+	cplx const q = U[0].q;
+	cplx const q_1R = U[1].q;
+	cplx const q_2R = U[2].q;
+	cplx const d2q_dx2 = cplx_real_mul(
 		cplx_add5(
 			cplx_neg(q_2L),
 			cplx_real_mul(q_1L, 16.),
@@ -50,15 +50,15 @@ kernel void <?=addSource?>(
 			cplx_real_mul(q_1R, 16.),
 			cplx_neg(q_2R)),
 		 1. / (12. * dr * dr));
-	cplx dq_dx = cplx_real_mul(
+	cplx const dq_dx = cplx_real_mul(
 		cplx_add4(
 			q_2L,
 			cplx_real_mul(q_1L, -8.),
 			cplx_real_mul(q_1R, 8.),
 			cplx_neg(q_2R)),
 		 1. / (12. * dr));
-	real q2 = cplx_lenSq(q);
-	real q4 = q2 * q2;
+	real const q2 = cplx_lenSq(q);
+	real const q4 = q2 * q2;
 	deriv->q = cplx_add(
 		deriv->q,
 		cplx_mul( 

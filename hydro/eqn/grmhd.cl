@@ -51,19 +51,19 @@ real calc_h(real rho, real P, real eInt) {
 	return (<?=cons_t?>){.D=D, .S=S, .tau=tau};
 }
 
-//// MODULE_NAME: applyInitCond
+//// MODULE_NAME: <?=applyInitCond?>
 
-kernel void applyInitCond(
-	constant <?=solver_t?>* solver,
-	constant <?=initCond_t?>* initCond,
-	global <?=cons_t?>* consBuf,
-	const global <?=coord.cell_t?>* cellBuf,
-	global <?=prim_t?>* primBuf
+kernel void <?=applyInitCond?>(
+	constant <?=solver_t?> const * const solver,
+	constant <?=initCond_t?> const * const initCond,
+	global <?=cons_t?> * const consBuf,
+	global <?=cell_t?> const * const cellBuf,
+	global <?=prim_t?> * const primBuf
 ) {
-	SETBOUNDS(0,0);
-	real3 x = cellBuf[index].pos;
-	real3 mids = real3_real_mul(real3_add(mins, maxs), .5);
-	bool lhs = x.x < mids.x
+	<?=SETBOUNDS?>(0,0);
+	real3 const x = cellBuf[index].pos;
+	real3 const mids = real3_real_mul(real3_add(mins, maxs), .5);
+	bool const lhs = x.x < mids.x
 #if dim > 1
 		&& x.y < mids.y
 #endif
@@ -71,6 +71,7 @@ kernel void applyInitCond(
 		&& x.z < mids.z
 #endif
 	;
+	
 	real rho = 0;
 	real3 v = real3_zero;
 	real P = 0;
@@ -93,10 +94,10 @@ kernel void applyInitCond(
 //// MODULE_NAME: fluxFromCons
 
 <?=cons_t?> fluxFromCons(
-	constant <?=solver_t?>* solver,
-	<?=cons_t?> U,
-	real3 x,
-	normal_t n
+	constant <?=solver_t?> const * const solver,
+	<?=cons_t?> const U,
+	real3 const x,
+	<?=normal_t?> const n
 ) {
 	real vi = W->v.s<?=side?>;
 	real vi_shift = vi - betaU.s<?=side?> / alpha;
@@ -174,9 +175,9 @@ void calcDTCell(
 
 #error calcEigenBasis has been removed, and eigen_t structs are now calculated inline ... soooo ... convert this to something compatible
 kernel void calcEigenBasis(
-	constant <?=solver_t?>* solver,
-	global real* waveBuf,
-	global <?=eigen_t?>* eigenBuf,
+	constant <?=solver_t?> const * const solver,
+	global real * const waveBuf,
+	global <?=eigen_t?> * const eigenBuf,
 	
 	//TODO 
 	//turn this into a LR extrapolation
@@ -184,10 +185,10 @@ kernel void calcEigenBasis(
 	//right now only primBuf is being used for getting neighbor values
 	//so SRHD should perform the PLM stuff on the primBuf instead of the UBUf?
 	// or do the PLM on the UBuf and do the cons->prim on the ULR edge values
-	const global <?=prim_t?>* primBuf	
+	global <?=prim_t?> const * const primBuf	
 ) {
-	SETBOUNDS(numGhost,numGhost-1);
-	real3 x = cell_x(i);
+	<?=SETBOUNDS?>(solver->numGhost, solver->numGhost - 1);
+	real3 x = cellBuf[index].pos;
 	
 	int indexR = index;
 	<?=prim_t?> primR = primBuf[indexR];
@@ -296,11 +297,11 @@ for _,field in ipairs(eqn.eigenVars) do
 //// MODULE_DEPENDS: <?=coord_sqrt_det_g?>
 
 void eigen_leftTransform(
-	constant <?=solver_t?>* solver,
-	real* Y,
-	const <?=eigen_t?>* eig,
-	const real* X_,
-	real3 x
+	constant <?=solver_t?> const * const solver,
+	real * const Y,
+	<?=eigen_t?> const * const eig,
+	real const * const X_,
+	real3 const x
 ) { 
 	//rotate incoming v's in X
 	//TODO do the same for gamma_ij
@@ -382,11 +383,11 @@ void eigen_leftTransform(
 //// MODULE_DEPENDS: <?=coord_sqrt_det_g?>
 
 void eigen_rightTransform(
-	constant <?=solver_t?>* solver,
-	real* Y,
-	const <?=eigen_t?>* eig,
-	const real* X,
-	real3 x
+	constant <?=solver_t?> const * const solver,
+	real * const Y,
+	<?=eigen_t?> const * const eig,
+	real const * const X,
+	real3 const x
 ) {
 	<?=prefix?>
 	sym3 gammaL = coord_g_ll(x);
@@ -433,11 +434,11 @@ void eigen_rightTransform(
 //// MODULE_NAME: eigen_fluxTransform
 
 void eigen_fluxTransform(
-	constant <?=solver_t?>* solver,
-	real* Y,
-	const <?=eigen_t?>* eig,
-	const real* X_,
-	real3 x
+	constant <?=solver_t?> const * const solver,
+	real * const Y,
+	<?=eigen_t?> const * const eig,
+	real const * const X_,
+	real3 const x
 ) {
 	//rotate incoming v's in x
 	<? if side==0 then ?>
@@ -461,12 +462,12 @@ void eigen_fluxTransform(
 //// MODULE_NAME: constrainU
 
 kernel void constrainU(
-	constant <?=solver_t?>* solver,
-	global <?=cons_t?>* UBuf
+	constant <?=solver_t?> const * const solver,
+	global <?=cons_t?> * const UBuf
 ) {
-	SETBOUNDS(0,0);
+	<?=SETBOUNDS?>(0,0);
 
-	global <?=cons_t?>* U = UBuf + index;
+	global <?=cons_t?> * const U = UBuf + index;
 	
 	U->D = max(U->D, (real)DMin);
 	U->tau = max(U->tau, (real)tauMin);
@@ -479,19 +480,19 @@ kernel void constrainU(
 
 //TODO update to include alphas, betas, and gammas
 kernel void updatePrims(
-	constant <?=solver_t?>* solver,
-	global <?=prim_t?>* primBuf,
-	const global <?=cons_t?>* UBuf
+	constant <?=solver_t?> const * const solver,
+	global <?=prim_t?> * const primBuf,
+	global <?=cons_t?> const * const UBuf
 ) {
-	SETBOUNDS(numGhost,numGhost-1);
-	real3 x = cell_x(i);
+	<?=SETBOUNDS?>(solver->numGhost, solver->numGhost - 1);
+	real3 const x = cellBuf[index].pos;
 
-	const global <?=cons_t?>* U = UBuf + index;
+	global <?=cons_t?> const * const U = UBuf + index;
 	real D = U->D;
 	real3 S = U->S;
 	real tau = U->tau;
 
-	global <?=prim_t?>* prim = primBuf + index;
+	global <?=prim_t?> * const prim = primBuf + index;
 	real3 v = prim->v;
 
 	real SLen = coordLen(S, x);

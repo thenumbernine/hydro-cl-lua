@@ -1,5 +1,5 @@
 //// MODULE_NAME: calcLR
-//// MODULE_DEPENDS: <?=consLR_t?> <?=solver_t?> <?=cons_t?> normal_t <?=cell_dx_i?>
+//// MODULE_DEPENDS: <?=consLR_t?> <?=solver_t?> <?=cons_t?> <?=normal_t?> <?=cell_dx_i?>
 
 // TODO incorporate parallel propagators
 
@@ -19,7 +19,7 @@ for side=0,solver.dim-1 do
 	/*real const */dt,\
 	/*real3 const */x,\
 	/*int4 const */i,\
-	/*normal_t const */n\
+	/*<?=normal_t?> const */n\
 ) {\
 	(result)->L = *(U);\
 	(result)->R = *(U);\
@@ -62,7 +62,7 @@ void calcCellLR_<?=side?>(
 	real const dt,
 	real3 const x,
 	int4 const i,
-	normal_t const n
+	<?=normal_t?> const n
 ) {
 	global <?=cons_t?> const * const UL = U - solver->stepsize.s<?=side?>;
 	global <?=cons_t?> const * const UR = U + solver->stepsize.s<?=side?>;
@@ -161,7 +161,7 @@ void calcCellLR_<?=side?>(
 	real const dt,
 	real3 const x,
 	int4 const i,
-	normal_t const n
+	<?=normal_t?> const n
 ) {
 	// extrapolate slopes in consered variable space
 	real dx = solver->grid_dx.s<?=side?>;
@@ -212,7 +212,7 @@ void calcCellLR_<?=side?>(
 	real const dt,
 	real3 const x,
 	int4 const i,
-	normal_t const n
+	<?=normal_t?> const n
 ) {
 	// extrapolate slopes in primitive space
 	real dx = solver->grid_dx.s<?=side?>;
@@ -305,7 +305,7 @@ void calcCellLR_<?=side?>(
 	real const dt,
 	real3 const x,
 	int4 const i,
-	normal_t const n
+	<?=normal_t?> const n
 ) {
 	//1) calc delta q's ... l r c (eqn 36)
 	const global <?=cons_t?>* UL = U - solver->stepsize.s<?=side?>;
@@ -448,7 +448,7 @@ void calcCellLR_<?=side?>(
 	real const dt,
 	real3 const x,
 	int4 const i,
-	normal_t const n
+	<?=normal_t?> const n
 ) {
 	real3 xL = x; xL.s<?=side?> -= solver->grid_dx.s<?=side?>;
 	real3 xR = x; xR.s<?=side?> += solver->grid_dx.s<?=side?>;
@@ -629,7 +629,7 @@ void calcCellLR_<?=side?>(
 	real const dt,
 	real3 const x,
 	int4 const i,
-	normal_t const n
+	<?=normal_t?> const n
 ) {
 	real3 xIntL = x; xIntL.s<?=side?> -= .5 * solver->grid_dx.s<?=side?>;
 	real3 xIntR = x; xIntR.s<?=side?> += .5 * solver->grid_dx.s<?=side?>;
@@ -729,7 +729,7 @@ void calcCellLR_<?=side?>(
 	real const dt,
 	real3 const x,
 	int4 const i,
-	normal_t const n
+	<?=normal_t?> const n
 ) {
 	real3 xL = x; xL.s<?=side?> -= solver->grid_dx.s<?=side?>;
 	real3 xR = x; xR.s<?=side?> += solver->grid_dx.s<?=side?>;
@@ -1006,7 +1006,7 @@ void calcCellLR_<?=side?>(
 
 	elseif solver.usePLM == 'plm-athena' then 
 
--- TODO correlate between calcCellLR's U access and SETBOUNDS of calcLR()
+-- TODO correlate between calcCellLR's U access and <?=SETBOUNDS?> of calcLR()
 -- to make sure there's no OOB reads
 ?>
 
@@ -1017,7 +1017,7 @@ void calcCellLR_<?=side?>(
 	real const dt,
 	real3 const x,
 	int4 const i,
-	normal_t const n
+	<?=normal_t?> const n
 ) {
 
 
@@ -1035,14 +1035,14 @@ kernel void calcLR(
 	global <?=cons_t?> const * const UBuf,
 	real const dt
 ) {
-	SETBOUNDS(1,1);
+	<?=SETBOUNDS?>(1,1);
 	global <?=cons_t?> const * const U = UBuf + index;
 	real3 const x = cellBuf[index].pos;
 
 	//TODO skip this lr stuff if we're doing piecewise-constant
 	//...and just use the original buffers
 	<? for side=0,solver.dim-1 do ?>{
-		normal_t const n = normal_forSide<?=side?>(x);
+		<?=normal_t?> const n = normal_forSide<?=side?>(x);
 		
 		//cell-centered index for a particular side...
 		int const indexForSide = <?=side?> + dim * index;

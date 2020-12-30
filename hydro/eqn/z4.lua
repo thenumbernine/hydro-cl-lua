@@ -284,7 +284,7 @@ momentum constraints
 ]], type='real3'}
 
 	vars:insert{name='alpha vs a_i', code=self:template[[
-	if (OOB(1,1)) {
+	if (<?=OOB?>(1,1)) {
 		value.vreal3 = real3_zero;
 	} else {
 		<? for i=1,solver.dim do
@@ -307,7 +307,7 @@ momentum constraints
 	-- d_kij = gamma_ij,k
 	for i,xi in ipairs(xNames) do
 		vars:insert{name='gamma_ij vs d_'..xi..'ij', code=self:template([[
-	if (OOB(1,1)) {
+	if (<?=OOB?>(1,1)) {
 		value.vsym3 = sym3_zero;
 	} else {
 		<? if i <= solver.dim then ?>

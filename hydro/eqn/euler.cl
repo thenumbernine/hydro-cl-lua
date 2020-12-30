@@ -188,14 +188,14 @@ end
 }
 
 //// MODULE_NAME: <?=fluxFromCons?>
-//// MODULE_DEPENDS: <?=solver_t?> <?=primFromCons?> normal_t
+//// MODULE_DEPENDS: <?=solver_t?> <?=primFromCons?> <?=normal_t?>
 
 #define <?=fluxFromCons?>(\
 	/*<?=cons_t?> * const */resultF,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */U,\
 	/*real3 const */x,\
-	/*normal_t const */n\
+	/*<?=normal_t?> const */n\
 ) {\
 	<?=prim_t?> W;\
 	<?=primFromCons?>(&W, solver, U, x);\
@@ -216,7 +216,7 @@ end
 // not used at the moment
 
 #define <?=calcCellMinMaxEigenvalues?>(\
-	/*range_t * const */result,\
+	/*<?=range_t?> * const */result,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*global <?=cons_t?> const * const */U,\
 	/*real3 const */pt,\
@@ -234,7 +234,7 @@ end
 }
 
 //// MODULE_NAME: <?=eigen_forCell?>
-//// MODULE_DEPENDS: normal_t <?=coord_lower?> <?=cons_t?> <?=prim_t?> <?=eigen_t?> <?=primFromCons?> <?=eqn_common?>
+//// MODULE_DEPENDS: <?=normal_t?> <?=coord_lower?> <?=cons_t?> <?=prim_t?> <?=eigen_t?> <?=primFromCons?> <?=eqn_common?>
 // eqn_common is for all the calc_* stuff
 
 // used by PLM
@@ -243,7 +243,7 @@ end
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */U,\
 	/*real3 const */pt,\
-	/*normal_t const */n\
+	/*<?=normal_t?> const */n\
 ) {\
 	<?=prim_t?> W;\
 	<?=primFromCons?>(&W, solver, U, pt);\
@@ -263,7 +263,7 @@ end
 }
 
 //// MODULE_NAME: <?=eigen_forInterface?>
-//// MODULE_DEPENDS: <?=primFromCons?> <?=eigen_t?> normal_t <?=coord_lower?>
+//// MODULE_DEPENDS: <?=primFromCons?> <?=eigen_t?> <?=normal_t?> <?=coord_lower?>
 
 //used by the mesh version
 #define <?=eigen_forInterface?>(\
@@ -272,7 +272,7 @@ end
 	/*<?=cons_t?> const * const */UL,\
 	/*<?=cons_t?> const * const */UR,\
 	/*real3 const */pt,\
-	/*normal_t const */n\
+	/*<?=normal_t?> const */n\
 ) {\
 	<?=prim_t?> WL;\
 	<?=primFromCons?>(&WL, solver, UL, pt);\
@@ -311,7 +311,7 @@ end
 }
 
 //// MODULE_NAME: <?=eigen_leftTransform?>
-//// MODULE_DEPENDS: <?=eigen_t?> normal_t
+//// MODULE_DEPENDS: <?=eigen_t?> <?=normal_t?>
 
 #define <?=eigen_leftTransform?>(\
 	/*<?=waves_t?> * const */result,\
@@ -319,7 +319,7 @@ end
 	/*<?=eigen_t?> const * const */eig,\
 	/*<?=cons_t?> const * const */X,\
 	/*real3 const */pt,\
-	/*normal_t */n\
+	/*<?=normal_t?> */n\
 ) {\
 	real3 const v_n = normal_vecDotNs(n, (eig)->v);\
 	real const nLen = normal_len(n);\
@@ -363,7 +363,7 @@ end
 }
 
 //// MODULE_NAME: <?=eigen_rightTransform?>
-//// MODULE_DEPENDS: <?=eigen_t?> normal_t
+//// MODULE_DEPENDS: <?=eigen_t?> <?=normal_t?>
 
 #define <?=eigen_rightTransform?>(\
 	/*<?=cons_t?> * const */result,\
@@ -371,7 +371,7 @@ end
 	/*<?=eigen_t?> const * const */eig,\
 	/*<?=waves_t?> const * const */X,\
 	/*real3 const */pt,\
-	/*normal_t const */n\
+	/*<?=normal_t?> const */n\
 ) {\
 	real3 const v_n = normal_vecDotNs(n, (eig)->v);\
 	real const nLen = normal_len(n);\
@@ -409,7 +409,7 @@ end
 }
 
 //// MODULE_NAME: <?=eigen_fluxTransform?>
-//// MODULE_DEPENDS: <?=eigen_t?> normal_t
+//// MODULE_DEPENDS: <?=eigen_t?> <?=normal_t?>
 // not used anymore.  was used by Roe, but I switched that to a <?=fluxFromCons?>.
 // is this needed anymore?
 // <?=fluxFromCons?> only matches <?=eigen_fluxTransform?> when the eig properties are derived from X_ 
@@ -420,7 +420,7 @@ end
 	/*<?=eigen_t?> const * const */eig,\
 	/*<?=cons_t?> const * const */X_,\
 	/*real3 const */x,\
-	/*normal_t const */n\
+	/*<?=normal_t?> const */n\
 ) {\
 	real3 const v_n = normal_vecDotNs(n, (eig).v);\
 	real const nLen = normal_len(n);\
@@ -467,7 +467,7 @@ end
 
 <? if false then -- TODO sort <?=addSource?> out. ?>
 //// MODULE_NAME: <?=addSource?>
-//// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> <?=cell_t?> SETBOUNDS_NOGHOST
+//// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> <?=cell_t?> <?=SETBOUNDS_NOGHOST?>
 
 kernel void <?=addSource?>(
 	constant <?=solver_t?> const * const solver,
@@ -475,7 +475,7 @@ kernel void <?=addSource?>(
 	global <?=cons_t?> const * const UBuf,
 	global <?=cell_t?> const * const cellBuf
 ) {
-	SETBOUNDS_NOGHOST();
+	<?=SETBOUNDS_NOGHOST?>();
 	real3 const x = cellBuf[index].pos;
 
 	global <?=cons_t?> * const deriv = derivBuf + index;
@@ -561,7 +561,7 @@ kernel void <?=constrainU?>(
 	global <?=cons_t?> * const UBuf,
 	global <?=cell_t?> const * const cellBuf
 ) {
-	SETBOUNDS(0,0);
+	<?=SETBOUNDS?>(0,0);
 	real3 const x = cellBuf[index].pos;
 
 	global <?=cons_t?> * const U = UBuf + index;

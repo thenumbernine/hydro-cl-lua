@@ -14,7 +14,7 @@ end
 	/*<?=cons_t?> const * const */UL,\
 	/*<?=cons_t?> const * const */UR,\
 	/*real3 const */pt,\
-	/*normal_t const */n\
+	/*<?=normal_t?> const */n\
 ) {\
 <? for i,subeqn in ipairs(eqn.eqns) do --\
 ?>	<?=subeqn.symbols.eigen_forInterface?>(\
@@ -37,7 +37,7 @@ end
 	/*<?=eigen_t?> const * const */eig,\
 	/*<?=cons_t?> const * const */X,\
 	/*real3 const */pt,\
-	/*normal_t */n\
+	/*<?=normal_t?> */n\
 ) {\
 <? --\
 for i,subeqn in ipairs(eqn.eqns) do --\
@@ -62,7 +62,7 @@ end --\
 	/*<?=eigen_t?> const * const */eig,\
 	/*<?=waves_t?> const * const */X,\
 	/*real3 const */pt,\
-	/*normal_t const */n\
+	/*<?=normal_t?> const */n\
 ) {\
 <? --\
 for i,subeqn in ipairs(eqn.eqns) do --\

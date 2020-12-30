@@ -103,7 +103,7 @@ function NavierStokesWilcox:initCodeModule_fluxFromCons() end
 
 function NavierStokesWilcox:getModuleDepends_waveCode() 
 	return {
-		'normal_t',
+		self.solver.coord.symbols.normal_t,
 		self.symbols.eqn_common,
 	}
 end
@@ -138,7 +138,7 @@ function NavierStokesWilcox:getDisplayVars()
 		--{name='Mach number', code='value.vreal = coordLen(W.vTilde, x) / calc_Cs(solver, &W);'},
 	}:append{self.gravOp and
 		{name='gravity', code=self:template[[
-	if (OOB(1,1)) {
+	if (<?=OOB?>(1,1)) {
 		value.vreal = 0.;
 	} else {
 		<? 

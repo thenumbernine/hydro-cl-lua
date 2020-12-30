@@ -265,7 +265,7 @@ function MHD:getDisplayVars()
 		vars:insert{
 			name='gravity', 
 			code=self:template[[
-	if (!OOB(1,1)) {
+	if (!<?=OOB?>(1,1)) {
 		value.vreal3 = <?=eqn.gravOp.symbolPrefix?>_calcGravityAccel(solver, U);
 	}
 ]], 
@@ -315,7 +315,7 @@ end
 
 function MHD:consWaveCodePrefix(n, U, x)
 	return self:template([[
-range_t lambda;
+<?=range_t?> lambda;
 <?=calcCellMinMaxEigenvalues?>(&lambda, solver, <?=U?>, <?=x?>, <?=n?>); 
 ]], {
 		n = n,

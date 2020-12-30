@@ -230,7 +230,7 @@ function ADM_BonaMasso_3D:initCodeModule_fluxFromCons() end
 
 function ADM_BonaMasso_3D:getModuleDepends_waveCode()
 	return {
-		'initCond.codeprefix',	-- calc_f
+		self.symbols.initCond_codeprefix,	-- calc_f
 	}
 end
 
@@ -238,7 +238,7 @@ function ADM_BonaMasso_3D:getModuleDepends_displayCode()
 	return {
 		self.symbols.calc_gamma_ll,
 		self.symbols.calc_gamma_uu,
-		'initCond.codeprefix',	-- calc_f
+		self.symbols.initCond_codeprefix,	-- calc_f
 	}
 end
 
@@ -294,7 +294,7 @@ momentum constraints
 ]], type='real3'}
 
 	vars:insert{name='alpha vs a_i', code=self:template[[
-	if (OOB(1,1)) {
+	if (<?=OOB?>(1,1)) {
 		value.vreal3 = real3_zero;
 	} else {
 		<? for i=1,solver.dim do
@@ -317,7 +317,7 @@ momentum constraints
 	-- d_kij = gamma_ij,k
 	for i,xi in ipairs(xNames) do
 		vars:insert{name='gamma_ij vs d_'..xi..'ij', code=self:template([[
-	if (OOB(1,1)) {
+	if (<?=OOB?>(1,1)) {
 		value.vsym3 = sym3_zero;
 	} else {
 		<? if i <= solver.dim then ?>

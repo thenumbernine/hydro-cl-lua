@@ -1,5 +1,5 @@
 //// MODULE_NAME: calcFluxAtCell
-//// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> <?=cell_t?> SETBOUNDS numGhost <?=solver_macros?> <?=fluxFromCons?>
+//// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> <?=cell_t?> <?=SETBOUNDS?> <?=solver_macros?> <?=fluxFromCons?>
 
 kernel void calcFluxAtCell(
 	constant <?=solver_t?> const * const solver,
@@ -7,7 +7,7 @@ kernel void calcFluxAtCell(
 	global <?=cons_t?> const * const UBuf,
 	global <?=cell_t?> const * const cellBuf
 ) {
-	SETBOUNDS(0,0);
+	<?=SETBOUNDS?>(0,0);
 	real3 const x = cellBuf[index].pos;
 	global <?=cons_t?> const * const U = UBuf + index;
 <? for side=0,solver.dim-1 do 
@@ -17,7 +17,7 @@ kernel void calcFluxAtCell(
 }
 
 //// MODULE_NAME: calcDerivFiniteDifference
-//// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> <?=cell_t?> SETBOUNDS <?=solver_macros?>
+//// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> <?=cell_t?> <?=SETBOUNDS?> <?=solver_macros?>
 
 kernel void calcDerivFiniteDifference(
 	constant <?=solver_t?> const * const solver,
@@ -25,7 +25,7 @@ kernel void calcDerivFiniteDifference(
 	global <?=cons_t?> const * const fluxBuf,
 	global <?=cell_t?> const * const cellBuf
 ) {
-	SETBOUNDS(numGhost,numGhost);
+	<?=SETBOUNDS?>(solver->numGhost, solver->numGhost);
 	
 	global <?=cons_t?> * const deriv = derivBuf + index;
 	global <?=cons_t?> const * const F = fluxBuf + dim * index;

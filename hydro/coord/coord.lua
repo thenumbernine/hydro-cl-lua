@@ -187,6 +187,7 @@ function CoordinateSystem:init(args)
 		'cartesianFromCoord',
 		'cartesianToCoord',
 		'coord_parallelPropagate',
+		'normal_t',
 	})
 
 	self.solver = assert(args.solver)
@@ -766,7 +767,7 @@ meshsolver needs to pass 'cellBuf'
 		dontUnion = true,
 		vars = {
 			{name='pos', type='real3'},	-- x1 x2 x3 input coordinates to the chart
---[[ should volume always be in cell_t?  or should we use macros that abstract it per-coord?  (same with cell_x?)
+--[[ should volume always be in cell_t?  or should we use macros that abstract it per-coord?
 			{name='volume', type='real'},	--volume of the cell
 --]]		
 		},
@@ -1076,8 +1077,6 @@ coord_dx[_for_coord]<?=side?>(pt) gives the length of the dx of the coordinate i
 cell_dx[_for_coord]<?=side?>(pt) gives the length of the dx of the cell, which is just coord_dx times the grid_dx
 solver->grid_dx is the size of each solver cell, in coordintes 
 
-but then we have these cell_x[_for_grid]<?=side?> functions which take an input of 'i'
-
 should I add these _for_coord _for_grid suffixes to specify what manfiold system the input parameter is? 
 
 --]]
@@ -1330,15 +1329,6 @@ end
 		structs = {self.cellStruct},
 		-- only generated for cl, not for ffi cdef
 		headercode = 'typedef '..self.cell_t..' cell_t;',
-	}
-
-	solver.modules:add{
-		name = 'cell_x',
-		depends = {
-			'INDEXV',
-			assert(self.cell_t),
-		},
-		headercode = '#define cell_x(i) (cellBuf[INDEXV(i)].pos)',
 	}
 
 	solver.modules:add{
@@ -1627,15 +1617,15 @@ maybe I will just do that up front?  save a frame basis & dual (that is orthonor
 though for now I'll just support Cartesian / identity metric
 --]]
 		depends:insert'real3x3'
-		typecode = template([[
+		typecode = self.solver.eqn:template[[
 typedef struct {
 	real3x3 n;
-} normal_t;
-]])
+} <?=normal_t?>;
+]]
 
-		code = template([[
+		code = self.solver.eqn:template[[
 #define normal_forFace(face) \
-	((normal_t){ \
+	((<?=normal_t?>){ \
 		.n = (real3x3){ \
 			.x = face->normal, \
 			.y = face->normal2, \
@@ -1672,9 +1662,7 @@ end
 		real3_real_mul(normal.n.y, v.y), \
 		real3_real_mul(normal.n.z, v.z))
 
-]],		{
-			xNames = xNames,
-		})	
+]]
 	else	-- not meshsolver
 
 		if require 'hydro.coord.cartesian'.is(self)
@@ -1684,18 +1672,18 @@ end
 			n_i = n^i = delta_ij for side j
 			|n| = 1
 			--]]
-			typecode = template([[
+			typecode = self.solver.eqn:template[[
 typedef struct {
 	int side;		//0, 1, 2
-} normal_t;		//nL = nU = normalBasisForSide (permutation of I), nLen = 1
-]])
+} <?=normal_t?>;		//nL = nU = normalBasisForSide (permutation of I), nLen = 1
+]]
 
 			-- this is overwhelmingly interface-based
 			-- with two exceptions: calcDT and some displayVars
-			code = template([[
+			code = self.solver.eqn:template[[
 <? for side=0,solver.dim-1 do ?>
 #define normal_forSide<?=side?>(x) \
-	((normal_t){ \
+	((<?=normal_t?>){ \
 		.side = <?=side?>, \
 	})
 <? end ?>
@@ -1741,12 +1729,7 @@ end
 		v.s[(3-n.side+1)%3], \
 		v.s[(3-n.side+2)%3]))
 
-]],			{
-				eqn = self,
-				solver = self.solver,
-				xNames = xNames,
-			})
-
+]]
 		elseif self.vectorComponent == 'cartesian' then
 
 			depends:insert'real3x3'
@@ -1756,19 +1739,19 @@ end
 			n_i = n^i = unit(u^i_,j) for side j
 			|n| = sqrt(n^i n_i) = 1 (since g_ij = g^ij = delta_ij)
 			--]]
-			typecode = template([[
+			typecode = self.solver.eqn:template[[
 typedef struct {
 	real3x3 n;		// nL = nU, both are orthonormal so nLen = 1
 	real len;
-} normal_t;
-]])
+} <?=normal_t?>;
+]]
 
 			-- this would call coord_cartesianFromCoord
 			-- which itself aligns with the coord_basisHolUnit
-			code = template([[
+			code = self.solver.eqn:template[[
 <? for side=0,solver.dim-1 do ?>
 #define normal_forSide<?=side?>(pt) \
-	((normal_t){ \
+	((<?=normal_t?>){ \
 		.n = (real3x3){ \
 			.x = coord_basisHolUnit<?=side?>(pt), \
 			.y = coord_basisHolUnit<?=(side+1)%3?>(pt), \
@@ -1810,14 +1793,7 @@ end
 		real3_real_mul(normal.n.x, v.x), \
 		real3_real_mul(normal.n.y, v.y), \
 		real3_real_mul(normal.n.z, v.z))
-
-
-]],			{
-				eqn = self,
-				solver = self.solver,
-				xNames = xNames,
-			})	
-		
+]]
 		elseif self.vectorComponent == 'holonomic' then
 
 			depends:insert'real3x3'
@@ -1829,18 +1805,18 @@ end
 			n^i = g^ik delta_kj
 			|n| = sqrt(n^i n_i) = sqrt(g^jj)
 			--]]
-			typecode = template([[
+			typecode = self.solver.eqn:template[[
 typedef struct {
 	int side;
 	real3x3 U;
 	real len;
-} normal_t;
-		]])
+} <?=normal_t?>;
+]]
 
-			code = template([[
+			code = self.solver.eqn:template[[
 <? for side=0,solver.dim-1 do ?>
 #define normal_forSide<?=side?>(x) \
-	((normal_t){ \
+	((<?=normal_t?>){ \
 		.side = <?=side?>, \
 		.U = _real3x3( \
 <? 
@@ -1901,13 +1877,7 @@ end
 		v.s[(3-n.side+1)%3], \
 		v.s[(3-n.side+2)%3]))
 
-
-]],			{
-				eqn = self,
-				solver = self.solver,
-				xNames = xNames
-			})
-
+]]
 		else
 			error'here'
 		end
@@ -1932,8 +1902,12 @@ end
 <? end ?>
 
 ]]
+	
+	-- TODO if you use multiple solvers that have differing vectorComponents
+	--  then this will cause a silent ffi error.  only the first normal_t will be defined.
+	-- solution: rename all the normal_t C types to <?=normal_t?>
 	self.solver.modules:add{
-		name = 'normal_t',
+		name = self.symbols.normal_t,
 		depends = depends,
 		typecode = typecode,
 		code = code,

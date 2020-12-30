@@ -102,13 +102,13 @@ function SelfGrav:getPoissonCode()
 	return self.solver.eqn:template([[
 kernel void <?=op.symbols.calcGravityDeriv?>(
 	constant <?=solver_t?> const * const solver,
-	global <?=cons_t?>* derivBuffer,
-	global const <?=cons_t?>* UBuf
+	global <?=cons_t?> * const derivBuffer,
+	global <?=cons_t?> const * const UBuf
 ) {
-	SETBOUNDS(numGhost,numGhost);
+	<?=SETBOUNDS?>(solver->numGhost, solver->numGhost);
 	
-	global <?=cons_t?>* deriv = derivBuffer + index;
-	const global <?=cons_t?>* U = UBuf + index;
+	global <?=cons_t?> * const deriv = derivBuffer + index;
+	global <?=cons_t?> const * const U = UBuf + index;
 
 	real3 accel_g = <?=op.symbols.calcGravityAccel?>(solver, U);
 
@@ -125,7 +125,7 @@ kernel void <?=op.symbolPrefix?>_copyPotentialToReduce(
 	global real* reduceBuf,
 	global const <?=cons_t?>* UBuf
 ) {
-	SETBOUNDS(0,0);
+	<?=SETBOUNDS?>(0,0);
 	reduceBuf[index] = UBuf[index].<?=op.potentialField?>;
 }
 
@@ -135,7 +135,7 @@ kernel void <?=op.symbolPrefix?>_offsetPotential(
 	global <?=cons_t?>* UBuf,
 	realparam ePotMax
 ) {
-	SETBOUNDS(0,0);
+	<?=SETBOUNDS?>(0,0);
 	global <?=cons_t?>* U = UBuf + index;
 	U-><?=op.potentialField?> -= ePotMax;
 }

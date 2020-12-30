@@ -10,12 +10,12 @@ static inline <?=cons_t?> consFromPrim(<?=prim_t?> W, real3 x) { return W; }
 //// MODULE_NAME: applyInitCond
 
 kernel void applyInitCond(
-	constant <?=solver_t?>* solver,
-	constant <?=initCond_t?>* initCond,
-	global <?=cons_t?>* UBuf,
-	const global <?=cell_t?>* cellBuf
+	constant <?=solver_t?> const * const solver,
+	constant <?=initCond_t?> const * const initCond,
+	global <?=cons_t?> * const UBuf,
+	global <?=cell_t?> const * const cellBuf
 ) {
-	SETBOUNDS(0,0);
+	<?=SETBOUNDS?>(0,0);
 	real3 x = cellBuf[index].pos;
 	real3 mids = real3_real_mul(real3_add(solver->mins, solver->maxs), .5);
 	bool lhs = x.x < mids.x
@@ -58,12 +58,12 @@ kernel void applyInitCond(
 
 //// MODULE_NAME: fluxFromCons
 
-#error this is out of date, should be made with normal_t, then moved to fluxFromCons
+#error this is out of date, should be made with <?=normal_t?>, then moved to fluxFromCons
 <?=cons_t?> fluxFromCons(
-	constant <?=solver_t?>* solver,
-	<?=cons_t?> U,
-	real3 x,
-	normal_t n<?=
+	constant <?=solver_t?> const * const solver,
+	<?=cons_t?> const U,
+	real3 const x,
+	<?=normal_t?> const n<?=
 	solver:getADMArgs()?>
 ) {
 	<?=solver:getADMVarCode()?>
@@ -99,7 +99,7 @@ kernel void applyInitCond(
 
 //// MODULE_NAME: fluxFromCons
 
-range_t calcCellMinMaxEigenvalues(
+<?=range_t?> calcCellMinMaxEigenvalues(
 	const global <?=cons_t?>* U,
 	real3 x<?=
 	solver:getADMArgs()?>
@@ -118,7 +118,7 @@ range_t calcCellMinMaxEigenvalues(
 	<? end ?>
 
 	real lambda = alpha * sqrt(detg_gUjj / (det_gamma3 * U->eps * U->mu));
-	return (range_t){-lambda, lambda};
+	return (<?=range_t?>){-lambda, lambda};
 }
 
 //// MODULE_NAME: calcEigenBasis
@@ -139,15 +139,15 @@ range_t calcCellMinMaxEigenvalues(
 
 #error calcEigenBasis has been removed, and eigen_t structs are now calculated inline ... soooo ... convert this to something compatible
 kernel void calcEigenBasis(
-	constant <?=solver_t?>* solver,
-	global <?=eigen_t?>* eigenBuf,
+	constant <?=solver_t?> const * const solver,
+	global <?=eigen_t?> * const eigenBuf,
 	const global <?=solver.getULRArg?><?=
 	solver:getADMArgs()?>
 ) {
-	SETBOUNDS(numGhost,numGhost-1);
-	real3 x = cell_x(i);
+	<?=SETBOUNDS?>(solver->numGhost, solver->numGhost - 1);
+	real3 const x = cellBuf[index].pos;
 	
-	int indexR = index;
+	int const indexR = index;
 	
 	<?=solver:getADMVarCode{suffix='R'} --[[ produce alphaR, betaR, gammaR at indexR ]] ?>
 	real det_gammaR = sym3_det(gammaR);
@@ -206,13 +206,13 @@ TODO update this for Einstein-Maxwell (take the metric into consideration
 */
 
 <?=waves_t?> eigen_leftTransform(
-	constant <?=solver_t?>* solver,
-	<?=eigen_t?> eig,
-	<?=cons_t?> UX,
-	real3 x
+	constant <?=solver_t?> const * const solver,
+	<?=eigen_t?> const eig,
+	<?=cons_t?> const UX,
+	real3 const x
 ) {
-	const real ise = sqrt_1_2 / sqrt(eig.eps);
-	const real isu = sqrt_1_2 / sqrt(eig.mu);
+	real const ise = sqrt_1_2 / sqrt(eig.eps);
+	real const isu = sqrt_1_2 / sqrt(eig.mu);
 
 	<?=waves_t?> UY;
 	real* X = UX.ptr;
@@ -251,13 +251,13 @@ TODO update this for Einstein-Maxwell (take the metric into consideration
 }
 
 <?=cons_t?> eigen_rightTransform(
-	constant <?=solver_t?>* solver,
-	<?=eigen_t?> eig,
-	<?=waves_t?> UX,
-	real3 x
+	constant <?=solver_t?> const * const solver,
+	<?=eigen_t?> const eig,
+	<?=waves_t?> const UX,
+	real3 const x
 ) {
-	const real se = sqrt_1_2 * sqrt(eig.eps * eig.detg_gUjj);
-	const real su = sqrt_1_2 * sqrt(eig.mu * eig.detg_gUjj);
+	real const se = sqrt_1_2 * sqrt(eig.eps * eig.detg_gUjj);
+	real const su = sqrt_1_2 * sqrt(eig.mu * eig.detg_gUjj);
 
 	<?=cons_t?> UY;
 	real* X = UX.ptr;
@@ -325,20 +325,20 @@ x,  y,  z, z,  y,  x
 //// MODULE_NAME: eigen_fluxTransform
 
 <?=cons_t?> eigen_fluxTransform(
-	constant <?=solver_t?>* solver,
-	<?=eigen_t?> eig,
-	<?=cons_t?> UX,
-	real3 x
+	constant <?=solver_t?> const * const solver,
+	<?=eigen_t?> const eig,
+	<?=cons_t?> const UX,
+	real3 const x
 ) {
 	//swap input dim x<->side
-	real3 D = UX.D;
-	real3 B = UX.B;
-	real ieps = 1. / eig.eps;
-	real imu = 1. / eig.mu;
+	real3 const D = UX.D;
+	real3 const B = UX.B;
+	real const ieps = 1. / eig.eps;
+	real const imu = 1. / eig.mu;
 
 	<?=cons_t?> UY;
-	real* X = UX.ptr;
-	real* Y = UY.ptr;
+	real const * const X = UX.ptr;
+	real * const Y = UY.ptr;
 
 	<? if side==0 then ?>
 	
@@ -374,16 +374,16 @@ x,  y,  z, z,  y,  x
 	return UY;
 }
 
-//// MODULE_NAME: addSource
+//// MODULE_NAME: <?=addSource?>
 
-kernel void addSource(
-	constant <?=solver_t?>* solver,
-	global <?=cons_t?>* derivBuf,
-	const global <?=cons_t?>* UBuf
+kernel void <?=addSource?>(
+	constant <?=solver_t?> const * const solver,
+	global <?=cons_t?> * const derivBuf,
+	global <?=cons_t?> const * const UBuf
 ) {
-	SETBOUNDS_NOGHOST();
-	global <?=cons_t?>* deriv = derivBuf + index;
-	const global <?=cons_t?>* U = UBuf + index;
+	<?=SETBOUNDS_NOGHOST?>();
+	global <?=cons_t?> * const deriv = derivBuf + index;
+	global <?=cons_t?> const * const U = UBuf + index;
 	deriv->D = real3_sub(deriv->D, real3_real_mul(U->D, 1. / U->eps * U->sigma));
 }
 
@@ -393,8 +393,8 @@ kernel void addSource(
 
 //TODO FINISHME
 <?=eigen_t?> eigen_forCell(
-	<?=cons_t?> U,
-	real3 x
+	<?=cons_t?> const U,
+	real3 const x
 ) {
 	<?=eigen_t?> eig;
 	eig.eps = U.eps;

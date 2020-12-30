@@ -55,8 +55,8 @@ if op.stopOnEpsilon then ?>,
 	global real * const reduceBuf<? 
 end ?>
 ) {
-	SETBOUNDS(0,0);
-	if (OOB(numGhost, numGhost)) {
+	<?=SETBOUNDS?>(0,0);
+	if (<?=OOB?>(solver->numGhost, solver->numGhost)) {
 		writeBuf[index] = UBuf[index].<?=op.potentialField?>;
 <? if op.stopOnEpsilon then	
 ?>		reduceBuf[index] = 0;

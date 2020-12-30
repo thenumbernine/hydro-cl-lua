@@ -96,7 +96,7 @@
 
 void <?=applyInitCondCell?>(
 	constant <?=solver_t?> const * const solver,
-	constant initCond_t const * const initCond,
+	constant <?=initCond_t?> const * const initCond,
 	global <?=cons_t?> * const U,
 	global <?=cell_t?> const * const cell
 ) {
@@ -133,7 +133,7 @@ end
 }
 
 //// MODULE_NAME: <?=calcRoeValues?>
-//// MODULE_DEPENDS: normal_t <?=primFromCons?> <?=roe_t?>
+//// MODULE_DEPENDS: <?=normal_t?> <?=primFromCons?> <?=roe_t?>
 
 // TODO find out where mu_0 goes in the code below
 
@@ -145,7 +145,7 @@ end
 	/*<?=cons_t?> const * const */UL, \
 	/*<?=cons_t?> const * const */UR,\
 	/*real3 const */pt,\
-	/*normal_t const */n\
+	/*<?=normal_t?> const */n\
 ) {\
 	/*  should I use Bx, or BxL/R, for calculating the PMag at the L and R states? */\
 	<?=prim_t?> WL;\
@@ -421,14 +421,14 @@ static inline real3 calc_CA(
 }
 
 //// MODULE_NAME: <?=fluxFromCons?>
-//// MODULE_DEPENDS: units <?=solver_t?> <?=cons_t?> <?=prim_t?> <?=primFromCons?> normal_t <?=coordLenSq?>
+//// MODULE_DEPENDS: units <?=solver_t?> <?=cons_t?> <?=prim_t?> <?=primFromCons?> <?=normal_t?> <?=coordLenSq?>
 
 #define <?=fluxFromCons?>(\
 	/*<?=cons_t?> * const */F,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */U,\
 	/*real3 const */pt,\
-	/*normal_t const */n\
+	/*<?=normal_t?> const */n\
 ) {\
 	<?=prim_t?> W;\
 	<?=primFromCons?>(&W, solver, U, pt);\
@@ -452,15 +452,15 @@ static inline real3 calc_CA(
 }
 
 //// MODULE_NAME: <?=calcCellMinMaxEigenvalues?>
-//// MODULE_DEPENDS: range_t <?=primFromCons?>
+//// MODULE_DEPENDS: <?=range_t?> <?=primFromCons?>
 
 //called from calcDT
 #define <?=calcCellMinMaxEigenvalues?>(\
-	/*range_t * const */result,\
+	/*<?=range_t?> * const */result,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */U,\
 	/*real3 const */pt,\
-	/*normal_t const */n\
+	/*<?=normal_t?> const */n\
 ) {\
 <? if false then ?>\
 	<?=prim_t?> W;\
@@ -485,7 +485,7 @@ static inline real3 calc_CA(
 	real Cf = sqrt(CfSq);\
 	real Cs = sqrt(max(CsSq, 0.));\
 	real v_n = normal_vecDotN1(n, v);\
-	return (range_t){.min=v_n - Cf, .max=v_n + Cf};\
+	return (<?=range_t?>){.min=v_n - Cf, .max=v_n + Cf};\
 <? else ?>\
 	<?=prim_t?> W;\
 	<?=primFromCons?>(&W, solver, U, pt);\
@@ -547,7 +547,7 @@ static inline real3 calc_CA(
 	/*<?=cons_t?> const * const */UL,\
 	/*<?=cons_t?> const * const */UR,\
 	/*real3 const */x,\
-	/*normal_t const */n\
+	/*<?=normal_t?> const */n\
 ) {\
 	<?=roe_t?> roe;\
 	<?=calcRoeValues?>(&roe, solver, UL, UR, x, n);\
@@ -563,7 +563,7 @@ static inline real3 calc_CA(
 	/*<?=eigen_t?> const * const */eig,\
 	/*<?=cons_t?> const * const */inputU,\
 	/*real3 const */pt,\
-	/*normal_t const */n\
+	/*<?=normal_t?> const */n\
 ) {\
 	/* rotate vector components to align with normal */\
 	real3 const Um = normal_vecDotNs(n, (inputU)->m);\
@@ -672,7 +672,7 @@ static inline real3 calc_CA(
 	/*<?=eigen_t?> const * const */eig,\
 	/*<?=waves_t?> const * const */input,\
 	/*real3 const */pt,\
-	/*normal_t const */n\
+	/*<?=normal_t?> const */n\
 ) {\
 	real const gamma = solver->heatCapacityRatio;\
 	real const gamma_1 = gamma - 1.;\
@@ -776,7 +776,7 @@ static inline real3 calc_CA(
 	/*<?=eigen_t?> const * const */eig,\
 	/*<?=cons_t?> const * const */inputU,\
 	/*real3 const */pt,\
-	/*normal_t const */n\
+	/*<?=normal_t?> const */n\
 ) {\
 	/* rotate vector components to align with normal */\
 	real3 const Um = normal_vecDotNs(n, (inputU)->m);\
@@ -850,7 +850,7 @@ static inline real3 calc_CA(
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */U,\
 	/*real3 const */pt,\
-	/*normal_t const */n\
+	/*<?=normal_t?> const */n\
 ) {\
 	<?=prim_t?> W;\
 	<?=primFromCons?>(&W, solver, U, pt);\
@@ -876,7 +876,7 @@ kernel void <?=addSource?>(
 	global <?=cons_t?> const * const UBuf,
 	global <?=cell_t?> const * const cellBuf
 ) {
-	SETBOUNDS_NOGHOST();
+	<?=SETBOUNDS_NOGHOST?>();
 	real3 const x = cellBuf[index].pos;
 	global <?=cons_t?> * const deriv = derivBuf + index;
 	global <?=cons_t?> const * const U = UBuf + index;
@@ -902,7 +902,7 @@ kernel void <?=constrainU?>(
 	global <?=cons_t?> * const UBuf,
 	global <?=cell_t?> const * const cellBuf
 ) {
-	SETBOUNDS(0,0);
+	<?=SETBOUNDS?>(0,0);
 	real3 const x = cellBuf[index].pos;
 	
 	global <?=cons_t?> * const U = UBuf + index;

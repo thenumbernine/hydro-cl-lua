@@ -38,14 +38,14 @@ end
 }
 
 //// MODULE_NAME: <?=fluxFromCons?>
-//// MODULE_DEPENDS: normal_t <?=solver_t?> <?=cons_t?>
+//// MODULE_DEPENDS: <?=normal_t?> <?=solver_t?> <?=cons_t?>
 
 #define <?=fluxFromCons?>(\
 	/*<?=cons_t?> * const */F,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */U,\
 	/*real3 const */pt,\
-	/*normal_t const */n\
+	/*<?=normal_t?> const */n\
 ) {\
 	real const c = solver->wavespeed;\
 	real3 const nL = normal_l1(n);\
@@ -91,7 +91,7 @@ end --\
 	/*<?=eigen_t?> const * const */eig,\
 	/*<?=cons_t?> const * const */X,\
 	/*real3 const */pt,\
-	/*normal_t const */n\
+	/*<?=normal_t?> const */n\
 ) {\
 	real * Yp = (Y)->ptr;\
 \
@@ -145,7 +145,7 @@ end --\
 	/*<?=eigen_t?> const * const */eig,\
 	/*<?=waves_t?> const * const */X,\
 	/*real3 const */pt,\
-	/*normal_t const */n\
+	/*<?=normal_t?> const */n\
 ) {\
 	real const * Xp = (X)->ptr;\
 	real const nLen = normal_len(n);\
@@ -192,7 +192,7 @@ kernel void <?=addSource?>(
 	global <?=cons_t?> const * const UBuf,
 	global <?=cell_t?> const * const cellBuf
 ) {
-	SETBOUNDS_NOGHOST();
+	<?=SETBOUNDS_NOGHOST?>();
 	real3 const x = cellBuf[index].pos;
 	
 	/* TODO add stress-energy influence here */

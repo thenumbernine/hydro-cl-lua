@@ -3,7 +3,7 @@ kernel void diffuse(
 	const global <?=cons_t?>* UBuf,
 	real dt
 ) {
-	SETBOUNDS_NOGHOST()
+	<?=SETBOUNDS_NOGHOST?>()
 
 	const real viscosity = .001;
 	const real alpha = dt * <?=clnumber(solver.numCells)?> * viscosity;
@@ -15,7 +15,7 @@ kernel void advect(
 	global <?=cons_t?>* UNextBuf,
 	const global <?=cons_t?>* UBuf
 ) {
-	SETBOUNDS_NOGHOST();
+	<?=SETBOUNDS_NOGHOST?>();
 #error finishme
 }
 
@@ -23,7 +23,7 @@ kernel void calcDiv(
 	global real* divBuf,
 	const global <?=cons_t?>* UBuf
 ) {
-	SETBOUNDS_NOGHOST();
+	<?=SETBOUNDS_NOGHOST?>();
 	const global <?=cons_t?>* U = UBuf + index;
 
 	real div = 0.;
@@ -39,7 +39,7 @@ kernel void diffusePressure(
 	global real* PBuf,
 	const global real* divBuf
 ) {
-	SETBOUNDS_NOGHOST();
+	<?=SETBOUNDS_NOGHOST?>();
 	global real* P = PBuf + index;
 	const global real* div = divBuf + index;
 	<? for side=0,solver.dim-1 do ?>{
@@ -51,7 +51,7 @@ kernel void project(
 	global <?=cons_t?>* UBuf,
 	const global real* PBuf
 ) {
-	SETBOUNDS_NOGHOST();
+	<?=SETBOUNDS_NOGHOST?>();
 	const global real* P = PBuf + index;
 	const <?=cons_t?>* U = UBuf + index;
 	<? for side=0,solver.dim-1 do ?>{

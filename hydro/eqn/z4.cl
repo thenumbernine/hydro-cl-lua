@@ -15,7 +15,7 @@ static inline sym3 <?=calc_gamma_uu?>(
 }
 
 //// MODULE_NAME: <?=applyInitCondCell?>
-//// MODULE_DEPENDS: numGhost <?=coordMap?> <?=coord_gHol_ll?> rescaleFromCoord/rescaleToCoord <?=solver_t?> <?=initCond_t?> <?=cons_t?> <?=cell_t?>
+//// MODULE_DEPENDS: <?=coordMap?> <?=coord_gHol_ll?> rescaleFromCoord/rescaleToCoord <?=solver_t?> <?=initCond_t?> <?=cons_t?> <?=cell_t?>
 
 <?
 if eqn.initCond.initAnalytical then
@@ -87,14 +87,14 @@ void <?=applyInitCondCell?>(
 }
 
 //// MODULE_NAME: <?=initDerivs?>
-//// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> <?=cell_t?> SETBOUNDS numGhost
+//// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> <?=cell_t?> <?=SETBOUNDS?>
 
 kernel void <?=initDerivs?>(
 	constant <?=solver_t?> const * const solver,
 	global <?=cons_t?> * const UBuf,
 	global <?=cell_t?> const * const cellBuf 
 ) {
-	SETBOUNDS(numGhost,numGhost);
+	<?=SETBOUNDS?>(solver->numGhost, solver->numGhost);
 	global <?=cons_t?> * const U = UBuf + index;
 	
 	real det_gamma = sym3_det(U->gamma_ll);
@@ -172,14 +172,14 @@ void <?=applyInitCondCell?>(
 }
 
 //// MODULE_NAME: <?=initDerivs?>
-//// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> <?=cell_t?> SETBOUNDS numGhost
+//// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> <?=cell_t?> <?=SETBOUNDS?>
 
 kernel void <?=initDerivs?>(
 	constant <?=solver_t?> const * const solver,
 	global <?=cons_t?> * const UBuf,
 	global <?=cell_t?> const * const cellBuf
 ) {
-	SETBOUNDS(numGhost,numGhost);
+	<?=SETBOUNDS?>(solver->numGhost, solver->numGhost);
 	global <?=cons_t?> * const U = UBuf + index;
 	
 	real const det_gamma = sym3_det(U->gamma_ll);
@@ -246,7 +246,7 @@ static inline void <?=setFlatSpace?>(
 }
 
 //// MODULE_NAME: <?=calcDTCell?>
-//// MODULE_DEPENDS: SETBOUNDS <?=cons_t?> initCond.codeprefix
+//// MODULE_DEPENDS: <?=SETBOUNDS?> <?=cons_t?> <?=initCond_codeprefix?>
 
 #define <?=calcDTCell?>(\
 	/*global real * const */dt,\
@@ -288,7 +288,7 @@ static inline void <?=setFlatSpace?>(
 }
 
 //// MODULE_NAME: <?=fluxFromCons?>
-//// MODULE_DEPENDS: <?=cons_t?> <?=solver_t?> normal_t rotate
+//// MODULE_DEPENDS: <?=cons_t?> <?=solver_t?> <?=normal_t?> rotate
 
 <? if solver.coord.vectorComponent == "cartesian" then ?>
 
@@ -387,7 +387,7 @@ static inline _3sym3 _3sym3_rotateTo(
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */U,\
 	/*real3 const */pt,\
-	/*normal_t const */n\
+	/*<?=normal_t?> const */n\
 ) {\
 	real const f_alpha = calc_f_alpha((U)->alpha);\
 \
@@ -569,7 +569,7 @@ end --\
 }
 
 //// MODULE_NAME: <?=eigen_forInterface?>
-//// MODULE_DEPENDS: <?=solver_t?> <?=eigen_t?> <?=cons_t?> normal_t initCond.codeprefix
+//// MODULE_DEPENDS: <?=solver_t?> <?=eigen_t?> <?=cons_t?> <?=normal_t?> <?=initCond_codeprefix?>
 // used by hll, roe, weno, plm ... anything that uses eigenvalues or eigenvector transforms
 
 //used for interface eigen basis
@@ -579,7 +579,7 @@ end --\
 	/*<?=cons_t?> const * const */UL,\
 	/*<?=cons_t?> const * const */UR,\
 	/*real3 const */pt,\
-	/*normal_t const */n\
+	/*<?=normal_t?> const */n\
 ) {\
 	(eig)->alpha = .5 * ((UL)->alpha + (UR)->alpha);\
 	(eig)->alpha_sqrt_f = sqrt(calc_f_alphaSq((eig)->alpha));\
@@ -614,14 +614,14 @@ end --\
 }
 
 //// MODULE_NAME: <?=calcCellMinMaxEigenvalues?>
-//// MODULE_DEPENDS: range_t normal_t cons_t initCond.codeprefix
+//// MODULE_DEPENDS: <?=range_t?> <?=normal_t?> cons_t <?=initCond_codeprefix?>
 // not used anymore, replaced in calcDT by eqn:consMinWaveCode/eqn:consMaxWaveCode eigenvalue inlining
 
 #define <?=calcCellMinMaxEigenvalues?>(\
-	/*range_t * const */result,\
+	/*<?=range_t?> * const */result,\
 	/*global <?=cons_t?> const * const */U,\
 	/*real3 const */pt,\
-	/*normal_t const */n\
+	/*<?=normal_t?> const */n\
 ) {\
 	real const det_gamma = sym3_det(U->gamma_ll);\
 \
@@ -658,7 +658,7 @@ end --\
 }
 
 //// MODULE_NAME: <?=eigen_forCell?>
-//// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> normal_t initCond.codeprefix
+//// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> <?=normal_t?> <?=initCond_codeprefix?>
 // used by plm
 
 //used by PLM, and by the default <?=fluxFromCons?> (used by hll, or roe when roeUseFluxFromCons is set)
@@ -667,7 +667,7 @@ end --\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */U,\
 	/*real3 const */pt,\
-	/*normal_t const */n\
+	/*<?=normal_t?> const */n\
 ) {\
 	(eig)->alpha = (U)->alpha;\
 	(eig)->alpha_sqrt_f = sqrt(calc_f_alphaSq((U)->alpha));\
@@ -697,7 +697,7 @@ end --\
 }
 
 //// MODULE_NAME: <?=eigen_leftTransform?>
-//// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> normal_t rotate initCond.codeprefix
+//// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> <?=normal_t?> rotate <?=initCond_codeprefix?>
 // used by roe, weno, some plm
 
 //TODO these were based no noZeroRowsInFlux==false (I think) so maybe/certainly they are out of date
@@ -707,7 +707,7 @@ end --\
 	/*<?=eigen_t?> const * const */eig,\
 	/*<?=cons_t?> const * const */inputU,\
 	/*real3 const */pt,\
-	/*normal_t const */n\
+	/*<?=normal_t?> const */n\
 ) {\
 	for (int i = 0; i < numWaves; ++i) {\
 		(result)->ptr[i] = 0./0.;\
@@ -774,7 +774,7 @@ end --\
 }
 
 //// MODULE_NAME: <?=eigen_rightTransform?>
-//// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> normal_t rotate initCond.codeprefix
+//// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> <?=normal_t?> rotate <?=initCond_codeprefix?>
 
 //TODO these were based no noZeroRowsInFlux==false (I think) so maybe/certainly they are out of date
 #define <?=eigen_rightTransform?>(\
@@ -783,7 +783,7 @@ end --\
 	/*<?=eigen_t?> const * const */eig,\
 	/*<?=waves_t?> const * const */input,\
 	/*real3 const */pt,\
-	/*normal_t const */n\
+	/*<?=normal_t?> const */n\
 ) {\
 	for (int j = 0; j < numStates; ++j) {\
 		(result)->ptr[j] = 0./0.;\
@@ -846,7 +846,7 @@ end --\
 }
 
 //// MODULE_NAME: <?=eigen_fluxTransform?>
-//// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> normal_t
+//// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> <?=normal_t?>
 // used by roe, some plm
 //so long as roeUseFluxFromCons isn't set for the roe solver, 
 // and fluxFromCons is provided/unused,
@@ -861,7 +861,7 @@ end --\
 	/*<?=eigen_t?> const * const */eig,\
 	/*<?=cons_t?> const * const */inputU,\
 	/*real3 const */pt,\
-	/*normal_t const */n\
+	/*<?=normal_t?> const */n\
 ) {\
 <? if false then ?>\
 	/* default */\
@@ -880,7 +880,7 @@ end --\
 }
 
 //// MODULE_NAME: <?=addSource?>
-//// MODULE_DEPENDS: <?=coordMapR?> <?=cell_t?> cell_x initCond.codeprefix
+//// MODULE_DEPENDS: <?=coordMapR?> <?=cell_t?> <?=initCond_codeprefix?>
 
 //TODO put these somewhere
 #define numberof(x)	(sizeof(x)/sizeof(x[0]))
@@ -893,11 +893,10 @@ static void applyKreissOligar(
 	global <?=cons_t?> const * const U,
 	global <?=cell_t?> const * const cell,
 	global <?=cons_t?> * const deriv,
-	real3 const x,
 	int const * const fields,
 	int const numFields
 ) {
-	real const r = coordMapR(x);
+	real const r = coordMapR(cell->pos);
 	//Kreiss-Oligar dissipation
 	real coeff = solver->dissipationCoeff;
 #if 0	// 2013 Baumgarte et al, section IIIB
@@ -964,7 +963,7 @@ kernel void <?=addSource?>(
 	global <?=cons_t?> const * const UBuf,
 	global <?=cell_t?> const * const cellBuf
 ) {
-	SETBOUNDS_NOGHOST();
+	<?=SETBOUNDS_NOGHOST?>();
 	global <?=cons_t?> const * const U = UBuf + index;
 	global <?=cons_t?> * const deriv = derivBuf + index;
 
@@ -3413,7 +3412,8 @@ end?>
 	int fields[numIntStates];
 	for (int i = 0; i < numberof(fields); ++i) fields[i] = i;
 	if (solver->dissipationCoeff != 0.) {
-		applyKreissOligar(solver, U, cellBuf + index, deriv, cell_x(i), fields, numberof(fields));
+		global <?=cell_t?> const * const cell = cellBuf + index;
+		applyKreissOligar(solver, U, cell, deriv, fields, numberof(fields));
 	}
 }
 
@@ -3425,7 +3425,7 @@ kernel void <?=constrainU?>(
 	global <?=cons_t?> * const UBuf,
 	global <?=cell_t?> const * const cellBuf
 ) {
-	SETBOUNDS(numGhost,numGhost);		
+	<?=SETBOUNDS?>(solver->numGhost, solver->numGhost);		
 	global <?=cons_t?> * const U = UBuf + index;
 	
 	real const det_gamma = sym3_det(U->gamma_ll);

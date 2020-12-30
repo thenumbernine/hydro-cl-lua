@@ -92,7 +92,7 @@ end
 }
 
 //// MODULE_NAME: <?=fluxFromCons?>
-//// MODULE_DEPENDS: <?=solver_t?> normal_t <?=cons_t?> <?=eqn_common?>
+//// MODULE_DEPENDS: <?=solver_t?> <?=normal_t?> <?=cons_t?> <?=eqn_common?>
 // eqn_common has metric_alpha
 
 // What's the difference between <?=eigen_fluxTransform?> and <?=fluxFromCons?>?
@@ -104,7 +104,7 @@ end
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */U,\
 	/*real3 const */pt,\
-	/*normal_t const */n\
+	/*<?=normal_t?> const */n\
 ) {\
 	real const alpha = metric_alpha(pt);\
 	real const beta_n = normal_vecDotN1(n, metric_beta_u(pt));\
@@ -163,11 +163,11 @@ end
 
 // used by PLM
 void <?=calcCellMinMaxEigenvalues?>(
-	range_t * const result,
+	<?=range_t?> * const result,
 	constant <?=solver_t?> const * const solver,
 	global <?=cons_t?> const * const U,
 	real3 const x,
-	normal_t const n
+	<?=normal_t?> const n
 ) {
 	real const alpha_nLen = metric_alpha(x) * normal_len(n);
 	real const beta_n = normal_vecDotN1(n, metric_beta_u(x));
@@ -196,7 +196,7 @@ void <?=calcCellMinMaxEigenvalues?>(
 	/*<?=eigen_t?> const * const */eig,\
 	/*<?=cons_t?> const * const */X,\
 	/*real3 const */x,\
-	/*normal_t const */n\
+	/*<?=normal_t?> const */n\
 ) { \
 	real const nLen = normal_len(n);\
 	real const invDenom = 1. / (nLen * nLen);\
@@ -233,7 +233,7 @@ void <?=calcCellMinMaxEigenvalues?>(
 	/*<?=eigen_t?> const * const */eig,\
 	/*<?=waves_t?> const * const */X_,\
 	/*real3 const */x,\
-	/*normal_t const */n\
+	/*<?=normal_t?> const */n\
 ) {\
 	<?=scalar?>* X = (<?=scalar?>*)(X_)->ptr;\
 	real nLen = normal_len(n);\
@@ -266,17 +266,17 @@ void <?=calcCellMinMaxEigenvalues?>(
 //// MODULE_NAME: <?=addSource?>
 
 kernel void <?=addSource?>(
-	constant <?=solver_t?>* solver,
-	global <?=cons_t?>* derivBuf,
-	const global <?=cons_t?>* UBuf,
-	const global <?=cell_t?>* cellBuf
+	constant <?=solver_t?> const * const solver,
+	global <?=cons_t?> * const derivBuf,
+	global <?=cons_t?> const * const UBuf,
+	global <?=cell_t?> const * const cellBuf
 ) {
 #if 0
-	SETBOUNDS_NOGHOST();
-	real3 x = cellBuf[index].pos;
+	<?=SETBOUNDS_NOGHOST?>();
+	real3 const x = cellBuf[index].pos;
 	
-	global <?=cons_t?>* deriv = derivBuf + index;
-	const global <?=cons_t?>* U = UBuf + index;
+	global <?=cons_t?> * const deriv = derivBuf + index;
+	global <?=cons_t?> const * const U = UBuf + index;
 	//TODO make use of this
 	//real c = solver->wavespeed / unit_m_per_s;
 

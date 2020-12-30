@@ -142,12 +142,12 @@ return function(cl)
 			self.eqn:template(({
 				['dt vs 2dt'] = [[
 kernel void compareUvsU2(
-	global <?=cons_t?>* U2Buf,
-	const global <?=cons_t?>* UBuf
+	global <?=cons_t?> * const U2Buf,
+	global <?=cons_t?> const * const UBuf
 ) {
-	SETBOUNDS(0,0);
-	global <?=cons_t?> *U2 = U2Buf + index;
-	const global <?=cons_t?> *U = UBuf + index;
+	<?=SETBOUNDS?>(0,0);
+	global <?=cons_t?> * const U2 = U2Buf + index;
+	global <?=cons_t?> const * const U = UBuf + index;
 	
 	//what to use to compare values ...
 	//if we combine all primitives, they'll have to be appropriately weighted ...
@@ -162,9 +162,9 @@ kernel void compareUvsU2(
 				gradient = [==[
 <? local clnumber = require 'cl.obj.number' ?>
 kernel void calcAMRError(
-	constant <?=solver_t?>* solver,	//parent node's solver_t
-	global real* amrErrorBuf,
-	const global <?=cons_t?>* UBuf		//parent node's UBuf
+	constant <?=solver_t?> const * const solver,	//parent node's solver_t
+	global real * const amrErrorBuf,
+	global <?=cons_t?> const * const UBuf		//parent node's UBuf
 ) {
 	int4 nodei = globalInt4();
 	if (nodei.x >= <?=solver.amr.ctx.parentSizeInFromSize.x?> || 
@@ -188,8 +188,8 @@ for nx=0,tonumber(solver.amr.ctx.nodeFromSize.x)-1 do
 		const int ny = <?=ny?>;
 		
 		int4 Ui = (int4)(
-			numGhost + nx + <?=solver.amr.ctx.nodeFromSize.x?> * nodei.x,
-			numGhost + ny + <?=solver.amr.ctx.nodeFromSize.y?> * nodei.y,
+			solver->numGhost + nx + <?=solver.amr.ctx.nodeFromSize.x?> * nodei.x,
+			solver->numGhost + ny + <?=solver.amr.ctx.nodeFromSize.y?> * nodei.y,
 			0,0);
 		
 		
@@ -237,9 +237,9 @@ kernel void initNodeFromRoot(
 	srci.x = i.x / <?= solver.amr.ctx.parentSizeInFromSize.x ?>;
 	srci.y = i.y / <?= solver.amr.ctx.parentSizeInFromSize.y ?>;
 
-	int srcIndex = numGhost + srci.x + from.x * <?= solver.amr.ctx.parentSizeInFromSize.x ?>
+	int srcIndex = solver->numGhost + srci.x + from.x * <?= solver.amr.ctx.parentSizeInFromSize.x ?>
 		+ gridSize_x * (
-			numGhost + srci.y + from.y * <?= solver.amr.ctx.parentSizeInFromSize.y ?>
+			solver->numGhost + srci.y + from.y * <?= solver.amr.ctx.parentSizeInFromSize.y ?>
 		);
 
 	//blitter srcU sized solver.amr.ctx.nodeFromSize (in a patch of size solver.gridSize)

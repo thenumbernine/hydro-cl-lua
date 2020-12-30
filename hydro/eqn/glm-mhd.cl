@@ -135,7 +135,7 @@ static inline real3 calc_CA(
 
 kernel void <?=applyInitCondCell?>(
 	constant <?=solver_t?> const * const solver,
-	constant initCond_t const * const initCond,
+	constant <?=initCond_t?> const * const initCond,
 	global <?=cons_t?> * const U,
 	global <?=cell_t?> const * const cell
 ) {
@@ -172,14 +172,14 @@ end
 }
 
 //// MODULE_NAME: <?=initDerivs?>
-//// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> <?=cell_t?> SETBOUNDS numGhost
+//// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> <?=cell_t?> <?=SETBOUNDS?>
 
 kernel void <?=initDerivs?>(
 	constant <?=solver_t?> const * const solver,
 	global <?=cons_t?> * const UBuf,
 	global <?=cell_t?> const * const cellBuf
 ) {
-	SETBOUNDS(numGhost,numGhost);
+	<?=SETBOUNDS?>(solver->numGhost, solver->numGhost);
 	real3 const x = cellBuf[index].pos;
 	global <?=cons_t?> * const U = UBuf + index;
 <? if require "hydro.solver.meshsolver".is(solver) then
@@ -207,7 +207,7 @@ kernel void <?=initDerivs?>(
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */U,\
 	/*real3 const */pt,\
-	/*normal_t const */n\
+	/*<?=normal_t?> const */n\
 ) {	\
 <? if false then ?>\
 	<?=prim_t?> W;\
@@ -300,7 +300,7 @@ kernel void <?=initDerivs?>(
 	/*<?=cons_t?> const * const */UL,\
 	/*<?=cons_t?> const * const */UR,\
 	/*real3 const */pt,\
-	/*normal_t const */n\
+	/*<?=normal_t?> const */n\
 ) {\
 	/*  should I use Bx, or BxL/R, for calculating the PMag at the L and R states? */\
 	<?=prim_t?> WL;\
@@ -341,14 +341,14 @@ kernel void <?=initDerivs?>(
 };
 
 //// MODULE_NAME: <?=fluxFromCons?>
-//// MODULE_DEPENDS: <?=solver_t?> <?=eigen_forCell?> normal_t
+//// MODULE_DEPENDS: <?=solver_t?> <?=eigen_forCell?> <?=normal_t?>
 
 #define <?=fluxFromCons?>(\
 	/*<?=cons_t?> * const */F,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */U,\
 	/*real3 const */pt,\
-	/*normal_t const */n\
+	/*<?=normal_t?> const */n\
 ) {\
 	<?=prim_t?> W;\
 	<?=primFromCons?>(&W, solver, U, pt);\
@@ -499,7 +499,7 @@ kernel void <?=initDerivs?>(
 	/*<?=cons_t?> const * const */UL,\
 	/*<?=cons_t?> const * const */UR,\
 	/*real3 const */x,\
-	/*normal_t const */n\
+	/*<?=normal_t?> const */n\
 ) {\
 	<?=roe_t?> roe;\
 	<?=calcRoeValues?>(&roe, solver, UL, UR, x, n);\
@@ -507,14 +507,14 @@ kernel void <?=initDerivs?>(
 }
 
 //// MODULE_NAME: <?=eigen_forCell?>
-//// MODULE_DEPENDS: <?=solver_t?> <?=primFromCons?> normal_t coordLenSq <?=eigen_forRoeAvgs?>
+//// MODULE_DEPENDS: <?=solver_t?> <?=primFromCons?> <?=normal_t?> coordLenSq <?=eigen_forRoeAvgs?>
 
 #define <?=eigen_forCell?>(\
 	/*<?=eigen_t?> * const */eig,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */U,\
 	/*real3 const */x,\
-	/*normal_t const */n\
+	/*<?=normal_t?> const */n\
 ) {\
 	<?=prim_t?> W;\
 	<?=primFromCons?>(&W, solver, U, x);\
@@ -540,7 +540,7 @@ kernel void <?=initDerivs?>(
 	/*<?=eigen_t?> const * const */eig,\
 	/*<?=cons_t?> const * const */inputU,\
 	/*real3 const */pt,\
-	/*normal_t const */n\
+	/*<?=normal_t?> const */n\
 ) {	\
 	/* rotate vector components to align with normal */\
 	real3 const Um = normal_vecDotNs(n, (inputU)->m);\
@@ -655,7 +655,7 @@ kernel void <?=initDerivs?>(
 	/*<?=eigen_t?> const * const */eig,\
 	/*<?=waves_t?> const * const */input,\
 	/*real3 const */pt,\
-	/*normal_t const */n\
+	/*<?=normal_t?> const */n\
 ) {\
 	real const gamma = solver->heatCapacityRatio;\
 	real const gamma_1 = gamma - 1.;\
@@ -763,7 +763,7 @@ kernel void <?=initDerivs?>(
 	/*<?=eigen_t?> const * const */eig,\
 	/*<?=cons_t?> const * const */inputU,\
 	/*real3 const * const */pt,\
-	/*normal_t const * const */n\
+	/*<?=normal_t?> const * const */n\
 ) {\
 	/* rotate vector components to align with normal */\
 	real3 const Um = normal_vecDotNs(n, (inputU)->m);\
@@ -830,7 +830,7 @@ kernel void <?=initDerivs?>(
 }
 
 //// MODULE_NAME: <?=addSource?>
-//// MODULE_DEPENDS: SETBOUNDS_NOGHOST
+//// MODULE_DEPENDS: <?=SETBOUNDS_NOGHOST?>
 
 kernel void <?=addSource?>(
 	constant <?=solver_t?> const * const solver,
@@ -838,7 +838,7 @@ kernel void <?=addSource?>(
 	global <?=cons_t?> const * const UBuf,
 	global <?=cell_t?> const * const cellBuf
 ) {
-	SETBOUNDS_NOGHOST();
+	<?=SETBOUNDS_NOGHOST?>();
 	real3 const x = cellBuf[index].pos;
 	
 	global <?=cons_t?> * const deriv = derivBuf + index;
@@ -911,7 +911,7 @@ kernel void <?=constrainU?>(
 	global <?=cons_t?> * const UBuf,
 	global <?=cell_t?> const * const cellBuf
 ) {
-	SETBOUNDS(0,0);
+	<?=SETBOUNDS?>(0,0);
 	real3 const x = cellBuf[index].pos;
 
 	global <?=cons_t?> * const U = UBuf + index;

@@ -34,7 +34,7 @@ kernel void <?=op.symbolPrefix?>_initPotential(
 	constant <?=solver_t?> const * const solver,
 	global <?=op:getPotBufType()?> * const UBuf
 ) {
-	SETBOUNDS(numGhost,numGhost);
+	<?=SETBOUNDS?>(solver->numGhost, solver->numGhost);
 	global <?=op:getPotBufType()?> * const U = UBuf + index;
 	<?=scalar?> source = <?=zero?>;
 <?=op:getPoissonDivCode() or ''?>
@@ -53,7 +53,7 @@ kernel void <?=op.symbolPrefix?>_copyWriteToPotentialNoGhost(
 	global <?=cons_t?> * const UBuf,
 	global real const * const writeBuf
 ) {
-	SETBOUNDS_NOGHOST();
+	<?=SETBOUNDS_NOGHOST?>();
 	UBuf[index].<?=op.potentialField?> = writeBuf[index];
 }
 
@@ -63,6 +63,6 @@ kernel void <?=op.symbolPrefix?>_setReduceToPotentialSquared(
 	global real * const reduceBuf,
 	global <?=cons_t?> const * const UBuf
 ) {
-	SETBOUNDS_NOGHOST();
+	<?=SETBOUNDS_NOGHOST?>();
 	reduceBuf[index] = <?=lenSq?>(UBuf[index].<?=op.potentialField?>);
 }
