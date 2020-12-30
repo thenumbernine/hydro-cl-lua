@@ -349,7 +349,7 @@ self.initArgs.cmds = nil		-- in choppedup
 self.initArgs.device = nil		-- in choppedup
 self.initArgs.id = nil			-- in choppedup
 -- also include # devices.  since, on the nvidia cluster, the binaries compiled for 1 device will segfault if they are loaded when using >1 device
-self.initArgs.numDevices = #self.app.env.devices
+self.initArgs.numDevices = #args.app.env.devices
 
 	time('SolverBase:init()', function()
 		self:initMeshVars(args)
