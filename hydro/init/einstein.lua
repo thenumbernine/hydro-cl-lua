@@ -1157,17 +1157,9 @@ TODO I now have a Bessel function routine in hydro/math.cl
 	const real t = 0.;
 	real theta = 2. * M_PI / initCond->d * (xc.x - t);
 	real H = 1. + initCond->A * sin(theta);
-#if 0
 	alpha = sqrt(H);
 	gamma_ll.xx = H;
 	K_ll.xx = -M_PI * initCond->A / initCond->d * cos(theta) / alpha;
-#else
-	alpha = 1.;
-	gamma_ll.xx = 1. + H;
-	gamma_ll.yy = 1. - H;
-	K_ll.xx = -M_PI * initCond->A / initCond->d * cos(theta) / alpha;
-	K_ll.yy = M_PI * initCond->A / initCond->d * cos(theta) / alpha;
-#endif
 ]]
 		end,
 	},
