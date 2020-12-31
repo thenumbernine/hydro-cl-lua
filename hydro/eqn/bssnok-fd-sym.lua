@@ -2121,7 +2121,7 @@ using gamma = gammaHat / W^6
 <?=eqn:makePartial1'beta_U'?>
 	real tr_partial_beta = real3x3_trace(partial_beta_ul);
 
-	real exp_4phi = 1. / calc_exp_neg4phi(U);
+	real exp_4phi = 1. / <?=calc_exp_neg4phi?>(U);
 
 <?=assign_sym3'gammaBar_ll'?>
 

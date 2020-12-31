@@ -290,7 +290,7 @@ function BSSNOKFiniteDifferenceEquation:getModuleDepends_displayCode()
 		'real3x3_partial_rescaleFromCoord_Ul',
 		'calc_partial_gammaBar_LLL',
 		'calc_connBar_ULL',
-		'mystery_C_U',
+		self.symbols.mystery_C_U,
 		'calc_connHat_LLL_and_ULL',
 		'calc_trBar_partial2_gammaBar_ll',
 		'calc_RBar_LL',
@@ -307,7 +307,7 @@ function BSSNOKFiniteDifferenceEquation:getDisplayVars()
 			name='volume', 
 			code = self:template[[
 	//|g| = exp(12 phi) |g_grid|
-	real exp_neg4phi = calc_exp_neg4phi(U);
+	real exp_neg4phi = <?=calc_exp_neg4phi?>(U);
 	real exp_12phi = 1. / (exp_neg4phi * exp_neg4phi * exp_neg4phi);
 	real det_gamma = exp_12phi * <?=calc_det_gammaHat?>(x);
 	value.vreal = U->alpha * det_gamma;
@@ -587,7 +587,7 @@ for i,xi in ipairs(xNames) do
 ?> + partial_beta_ul[<?=i-1?>].<?=xi?><?
 end ?>;
 
-	real exp_4phi = 1. / calc_exp_neg4phi(U);
+	real exp_4phi = 1. / <?=calc_exp_neg4phi?>(U);
 
 	//gamma_ij = exp(4 phi) gammaBar_ij
 	sym3 gamma_ll = sym3_real_mul(<?=calc_gammaBar_ll?>(U, x), exp_4phi);
@@ -774,7 +774,7 @@ end ?>;
 
 	_3sym3 connBar_ULL = calc_connBar_ULL(partial_gammaBar_LLL, gammaBar_UU);
 
-	real3 Delta_U = real3_sub(U->LambdaBar_U, mystery_C_U);
+	real3 Delta_U = real3_sub(U->LambdaBar_U, <?=mystery_C_U?>);
 
 	_3sym3 connHat_LLL, connHat_ULL;
 	calc_connHat_LLL_and_ULL(&connHat_LLL, &connHat_ULL, U, x);

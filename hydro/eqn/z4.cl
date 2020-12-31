@@ -15,7 +15,7 @@ static inline sym3 <?=calc_gamma_uu?>(
 }
 
 //// MODULE_NAME: <?=applyInitCondCell?>
-//// MODULE_DEPENDS: <?=coordMap?> <?=coord_gHol_ll?> rescaleFromCoord/rescaleToCoord <?=solver_t?> <?=initCond_t?> <?=cons_t?> <?=cell_t?>
+//// MODULE_DEPENDS: <?=coordMap?> <?=coord_gHol_ll?> <?=rescaleFromCoord_rescaleToCoord?> <?=solver_t?> <?=initCond_t?> <?=cons_t?> <?=cell_t?>
 
 <?
 if eqn.initCond.initAnalytical then

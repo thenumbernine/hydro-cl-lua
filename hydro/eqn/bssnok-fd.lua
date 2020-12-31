@@ -33,6 +33,11 @@ function BSSNOKFiniteDifferenceEquationBase:getSymbolFields()
 		'calc_gammaBar_LL',
 		'calc_gammaBar_uu',
 		'calc_gammaBar_UU',
+		'calc_exp_neg4phi',
+		'mystery_C_U',
+
+		-- placeholder for solver/bssnok-fd-pirk
+		'BSSNOK_PIRK',
 	}
 end
 
@@ -268,7 +273,7 @@ function BSSNOKFiniteDifferenceEquationBase:getDisplayVars()
 		{name='gammaBar_LL', code = self:template[[	value.vsym3 = <?=calc_gammaBar_LL?>(U, x);]], type='sym3'},
 		{name='gammaBar_UU', code = self:template[[	value.vsym3 = <?=calc_gammaBar_UU?>(U, x);]], type='sym3'},
 		{name='K_ll', code = self:template[[
-	real exp_4phi = 1. / calc_exp_neg4phi(U);
+	real exp_4phi = 1. / <?=calc_exp_neg4phi?>(U);
 	sym3 gammaBar_ll = <?=calc_gammaBar_ll?>(U, x);
 	value.vsym3 = sym3_real_mul(
 		sym3_add(
@@ -281,7 +286,7 @@ function BSSNOKFiniteDifferenceEquationBase:getDisplayVars()
 	value.vreal = sym3_det(<?=calc_gammaBar_ll?>(U, x)) - <?=calc_det_gammaBar?>(x);
 ]]},
 		{name='det gamma based on phi', code = self:template[[
-	real exp_neg4phi = calc_exp_neg4phi(U);
+	real exp_neg4phi = <?=calc_exp_neg4phi?>(U);
 	real exp_12phi = 1. / (exp_neg4phi * exp_neg4phi * exp_neg4phi);
 	real det_gamma = exp_12phi * <?=calc_det_gammaHat?>(x);
 	value.vreal = det_gamma;

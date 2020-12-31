@@ -36,7 +36,7 @@ end
 function BSSNOKFiniteDifferencePIRKSolver:initCodeModules()
 	BSSNOKFiniteDifferencePIRKSolver.super.initCodeModules(self)
 
-	self.solverModulesEnabled['BSSNOK-PIRK'] = true
+	self.solverModulesEnabled[self.eqn.symbols.BSSNOK_PIRK] = true
 end
 
 -- TODO sort of, make this a real integrator,

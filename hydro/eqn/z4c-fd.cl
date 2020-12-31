@@ -40,24 +40,24 @@ void <?=setFlatSpace?>(
 	U->M_u = real3_zero;
 }
 
-#define calc_exp_neg4phi(U) ((U)->chi)
+#define <?=calc_exp_neg4phi?>(U) ((U)->chi)
 
 //det(gamma_ij) = exp(12 phi) det(gammaBar_ij)
 //				= det(gammaHat_ij) / (exp(-4 phi)^3) 
 real calc_det_gamma_ll(global <?=cons_t?> const * const U, real3 const x) {
-	real const exp_neg4phi = calc_exp_neg4phi(U);
+	real const exp_neg4phi = <?=calc_exp_neg4phi?>(U);
 	return calc_det_gammaBar_ll(x) / (exp_neg4phi * exp_neg4phi * exp_neg4phi);
 }
 
 sym3 <?=calc_gamma_uu?>(global <?=cons_t?> const * const U, real3 const x) {
-	real const exp_neg4phi = calc_exp_neg4phi(U);
+	real const exp_neg4phi = <?=calc_exp_neg4phi?>(U);
 	sym3 const gamma_uu = sym3_real_mul(U->gammaBar_uu, exp_neg4phi);
 	return gamma_uu;
 }
 
 sym3 <?=calc_gamma_ll?>(global <?=cons_t?> const * const U, real3 const x) {
 	sym3 const gammaBar_ll = <?=calc_gammaBar_ll?>(U, x);
-	real const exp_4phi = 1. / calc_exp_neg4phi(U);
+	real const exp_4phi = 1. / <?=calc_exp_neg4phi?>(U);
 	sym3 const gamma_ll = sym3_real_mul(gammaBar_ll, exp_4phi);
 	return gamma_ll;
 }
@@ -292,7 +292,7 @@ end ?>;
 <?=eqn:makePartial2'epsilon_ll'?>		//partial2_epsilon_llll[kl].ij = epsilon_ij,kl = gammaBar_ij,kl for static grids
 <?=eqn:makePartial2'beta_u'?>		//partial2_beta_ull[jk].i = beta^i_,jk
 
-	real exp_neg4phi = calc_exp_neg4phi(U);
+	real exp_neg4phi = <?=calc_exp_neg4phi?>(U);
 	//TODO minimize using these 
 	real exp_4phi = 1. / exp_neg4phi;
 

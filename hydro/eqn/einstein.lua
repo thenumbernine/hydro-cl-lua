@@ -24,6 +24,12 @@ function EinsteinEquation:getSymbolFields()
 		'setFlatSpace',
 		'calc_gamma_ll',
 		'calc_gamma_uu',
+
+		-- placeholder for rescale[From/To]Coord_*
+		'rescaleFromCoord_rescaleToCoord',
+		'cplx3_rescaleFromCoord_cplx3_rescaleToCoord',
+		'_3sym3_rescaleFromCoord__3sym3_rescaleToCoord',
+		'sym3sym3_rescaleFromCoord_sym3sym3_rescaleToCoord',
 	}
 end
 

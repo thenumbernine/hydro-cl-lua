@@ -2,7 +2,7 @@
 //  specifically if they will ever be used with more than one einstein solver
 //  but then again, if you already have one solver for your spacetime, why would you need two?
 
-//// MODULE_NAME: rescaleFromCoord/rescaleToCoord
+//// MODULE_NAME: <?=rescaleFromCoord_rescaleToCoord?>
 //// MODULE_DEPENDS: <?=coord_dx_i?>
 // rescaling from/to diagonalization from the grid metric
 // used especially by the bssn solvers
@@ -67,8 +67,8 @@ sym3 sym3_rescaleToCoord_LL(sym3 a, real3 x) {
 
 #endif
 
-//// MODULE_NAME: cplx3_rescaleFromCoord/cplx3_rescaleToCoord
-//// MODULE_DEPENDS: cplx3 rescaleFromCoord/rescaleToCoord	
+//// MODULE_NAME: <?=cplx3_rescaleFromCoord_cplx3_rescaleToCoord?>
+//// MODULE_DEPENDS: cplx3 <?=rescaleFromCoord_rescaleToCoord?>	
 // only used by bssnok-fd-num with scalar field
 cplx3 cplx3_rescaleFromCoord_l(cplx3 v, real3 x) {
 	return cplx3_from_real3_real3(
@@ -76,9 +76,9 @@ cplx3 cplx3_rescaleFromCoord_l(cplx3 v, real3 x) {
 		real3_rescaleFromCoord_l(cplx3_im(v), x));
 }
 
-//// MODULE_NAME: _3sym3_rescaleFromCoord/_3sym3_rescaleToCoord
+//// MODULE_NAME: <?=_3sym3_rescaleFromCoord__3sym3_rescaleToCoord?>
 //// MODULE_DEPENDS: _3sym3
-// rescaleFromCoord/rescaleToCoord	// I could use this for sub-member rescaling
+// <?=rescaleFromCoord_rescaleToCoord?>	// I could use this for sub-member rescaling
 // ... but I just did it manually
 //// MODULE_DEPENDS: <?=coord_dx_i?>
 #if 1
@@ -146,9 +146,9 @@ _3sym3 _3sym3_rescaleToCoord_ULL(_3sym3 a, real3 x) {
 
 #endif
 
-//// MODULE_NAME: sym3sym3_rescaleFromCoord/sym3sym3_rescaleToCoord
+//// MODULE_NAME: <?=sym3sym3_rescaleFromCoord_sym3sym3_rescaleToCoord?>
 //// MODULE_DEPENDS: sym3sym3
-// rescaleFromCoord/rescaleToCoord	// I could use this for sub-member rescaling
+// <?=rescaleFromCoord_rescaleToCoord?>	// I could use this for sub-member rescaling
 // ... but I just did it manually
 //// MODULE_DEPENDS: <?=coord_dx_i?>
 // only used by bssnok-fd-sym

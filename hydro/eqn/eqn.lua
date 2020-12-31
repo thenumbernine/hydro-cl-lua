@@ -357,6 +357,7 @@ function Equation:getSymbolFields()
 		'initDerivs',
 		'addSource',
 		'constrainU',
+		'calcDeriv',		-- used by finite-difference solvers
 		
 		-- placeholder modules for dependencies
 		'eqn_guiVars_compileTime',	-- module of code for compile-time #defines of gui vars

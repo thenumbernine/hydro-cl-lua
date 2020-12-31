@@ -68,7 +68,7 @@ function GREMSeparateSolver:init(args)
 	global <?=gr.eqn.symbols.cons_t?> const * const <?=args.U?> = grUBuf + <?=args.index?>;
 	real <?=args.alpha?> = <?=args.U?>->alpha;
 	real3 <?=args.beta?> = <?=args.U?>->beta_u;
-	sym3 <?=args.gamma?> = sym3_real_mul(<?=args.U?>->gammaTilde_ll, 1. / calc_exp_neg4phi(<?=args.U?>));
+	sym3 <?=args.gamma?> = sym3_real_mul(<?=args.U?>->gammaTilde_ll, 1. / <?=calc_exp_neg4phi?>(<?=args.U?>));
 ]], {gr=gr, args=args})
 	end
 
@@ -169,7 +169,7 @@ kernel void computeGRStressEnergy(
 	global <?=gr.eqn.symbols.cons_t?> * const grU = grUBuf + index;
 	global <?=em.eqn.symbols.cons_t?> const * const emU = emUBuf + index;
 
-	real exp_neg4phi = calc_exp_neg4phi(grU);
+	real exp_neg4phi = <?=calc_exp_neg4phi?>(grU);
 	sym3 gamma_ll = sym3_real_mul(grU->gammaTilde_ll, 1. / exp_neg4phi);
 	sym3 gamma_uu = sym3_real_mul(grU->gammaTilde_uu, exp_neg4phi);
 	//g^ij = gamma^ij - beta^i beta^j / alpha^2

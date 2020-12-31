@@ -102,8 +102,8 @@ real <?=calc_det_gammaBar?>(real3 x) {
 	return det_gammaHat;
 }
 
-//// MODULE_NAME: calc_exp_neg4phi
-#define calc_exp_neg4phi(U) ((U)->W * (U)->W)
+//// MODULE_NAME: <?=calc_exp_neg4phi?>
+#define <?=calc_exp_neg4phi?>(U) ((U)->W * (U)->W)
 
 //// MODULE_NAME: <?=calc_gammaBar_uu?>
 //// MODULE_DEPENDS: <?=cons_t?> <?=calc_gammaBar_ll?> <?=calc_det_gammaBar?>
@@ -117,7 +117,7 @@ sym3 <?=calc_gammaBar_uu?>(global const <?=cons_t?>* U, real3 x) {
 }
 
 //// MODULE_NAME: <?=calc_gamma_ll?>
-//// MODULE_DEPENDS: <?=cons_t?> <?=calc_gammaBar_ll?> calc_exp_neg4phi
+//// MODULE_DEPENDS: <?=cons_t?> <?=calc_gammaBar_ll?> <?=calc_exp_neg4phi?>
 
 // also in parent
 sym3 <?=calc_gamma_ll?>(
@@ -125,18 +125,18 @@ sym3 <?=calc_gamma_ll?>(
 	real3 const x
 ) {
 	sym3 gammaBar_ll = <?=calc_gammaBar_ll?>(U, x);
-	real exp_4phi = 1. / calc_exp_neg4phi(U);
+	real exp_4phi = 1. / <?=calc_exp_neg4phi?>(U);
 	sym3 gamma_ll = sym3_real_mul(gammaBar_ll, exp_4phi);
 	return gamma_ll;
 }
 	
 //// MODULE_NAME: <?=calc_gamma_uu?>
-//// MODULE_DEPENDS: <?=cons_t?> <?=calc_gammaBar_ll?> calc_exp_neg4phi <?=calc_det_gammaBar?>
+//// MODULE_DEPENDS: <?=cons_t?> <?=calc_gammaBar_ll?> <?=calc_exp_neg4phi?> <?=calc_det_gammaBar?>
 // also in parent
 
 sym3 <?=calc_gamma_uu?>(global const <?=cons_t?>* U, real3 x) {
 	sym3 gammaBar_ll = <?=calc_gammaBar_ll?>(U, x);
-	real exp_4phi = 1. / calc_exp_neg4phi(U);
+	real exp_4phi = 1. / <?=calc_exp_neg4phi?>(U);
 	sym3 gamma_ll = sym3_real_mul(gammaBar_ll, exp_4phi);
 	real det_gamma = <?=calc_det_gammaBar?>(x) * exp_4phi * exp_4phi * exp_4phi;
 	sym3 gamma_uu = sym3_inv(gamma_ll, det_gamma); 
@@ -205,7 +205,7 @@ const int4 getUpwind(real3 v) {
 //TODO if we're calculating the constrains in the derivative
 // then we do save calculations / memory on the equations
 // but we also, for >FE integrators (which require multiple steps) are duplicating calculations
-kernel void calcDeriv(
+kernel void <?=calcDeriv?>(
 	constant <?=solver_t?> const * const solver,
 	global <?=cons_t?> * const derivBuf,
 	global <?=cons_t?> const * const UBuf,

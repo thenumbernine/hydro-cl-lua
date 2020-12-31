@@ -22,13 +22,13 @@ end
 function EinsteinFiniteDifferenceSolver:initCodeModules()
 	EinsteinFiniteDifferenceSolver.super.initCodeModules(self)
 
-	self.solverModulesEnabled['calcDeriv'] = true
+	self.solverModulesEnabled[self.eqn.symbols.calcDeriv] = true
 end
 
 function EinsteinFiniteDifferenceSolver:refreshSolverProgram()
 	EinsteinFiniteDifferenceSolver.super.refreshSolverProgram(self)
 	
-	self.calcDerivKernelObj = self.solverProgramObj:kernel'calcDeriv'
+	self.calcDerivKernelObj = self.solverProgramObj:kernel(self.eqn.symbols.calcDeriv)
 	self.calcDerivKernelObj.obj:setArg(0, self.solverBuf)
 	self.calcDerivKernelObj.obj:setArg(2, self.UBuf)
 	self.calcDerivKernelObj.obj:setArg(3, self.cellBuf)

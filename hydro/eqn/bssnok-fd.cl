@@ -68,7 +68,7 @@ sym3 <?=calc_gammaBar_UU?>(
 }
 
 //// MODULE_NAME: <?=calc_gammaBar_ll?>
-//// MODULE_DEPENDS: <?=cons_t?> <?=calc_gammaHat_ll?> rescaleFromCoord/rescaleToCoord
+//// MODULE_DEPENDS: <?=cons_t?> <?=calc_gammaHat_ll?> <?=rescaleFromCoord_rescaleToCoord?>
 
 //gammaBar_ll.ij := gammaBar_ij = gammaHat_ij + epsilon_ij = gammaHat_ij + epsilon_IJ e_i^I e_j^J
 sym3 <?=calc_gammaBar_ll?>(
@@ -94,9 +94,9 @@ real <?=calc_det_gammaBar?>(real3 const x) {
 	return det_gammaBar;
 }
 
-//// MODULE_NAME: calc_exp_neg4phi
+//// MODULE_NAME: <?=calc_exp_neg4phi?>
 
-#define calc_exp_neg4phi(U) ((U)->W * (U)->W)
+#define <?=calc_exp_neg4phi?>(U) ((U)->W * (U)->W)
 
 //// MODULE_NAME: <?=calc_gammaBar_uu?>
 //// MODULE_DEPENDS: <?=cons_t?> <?=calc_gammaBar_ll?> <?=calc_det_gammaBar?>
@@ -112,40 +112,40 @@ sym3 <?=calc_gammaBar_uu?>(
 }
 
 //// MODULE_NAME: <?=calc_gamma_ll?>
-//// MODULE_DEPENDS: <?=cons_t?> <?=calc_gammaBar_ll?> calc_exp_neg4phi
+//// MODULE_DEPENDS: <?=cons_t?> <?=calc_gammaBar_ll?> <?=calc_exp_neg4phi?>
 
 sym3 <?=calc_gamma_ll?>(
 	global <?=cons_t?> const * const U,
 	real3 const x
 ) {
 	sym3 gammaBar_ll = <?=calc_gammaBar_ll?>(U, x);
-	real exp_4phi = 1. / calc_exp_neg4phi(U);
+	real exp_4phi = 1. / <?=calc_exp_neg4phi?>(U);
 	sym3 gamma_ll = sym3_real_mul(gammaBar_ll, exp_4phi);
 	return gamma_ll;
 }
 
 //// MODULE_NAME: <?=calc_gamma_uu?>
-//// MODULE_DEPENDS: <?=cons_t?> <?=calc_gammaBar_ll?> calc_exp_neg4phi <?=calc_det_gammaBar?>
+//// MODULE_DEPENDS: <?=cons_t?> <?=calc_gammaBar_ll?> <?=calc_exp_neg4phi?> <?=calc_det_gammaBar?>
 
 sym3 <?=calc_gamma_uu?>(
 	global <?=cons_t?> const * const U,
 	real3 const x
 ) {
 	sym3 gammaBar_ll = <?=calc_gammaBar_ll?>(U, x);
-	real exp_4phi = 1. / calc_exp_neg4phi(U);
+	real exp_4phi = 1. / <?=calc_exp_neg4phi?>(U);
 	sym3 gamma_ll = sym3_real_mul(gammaBar_ll, exp_4phi);
 	real det_gamma = <?=calc_det_gammaBar?>(x) * exp_4phi * exp_4phi * exp_4phi;
 	sym3 gamma_uu = sym3_inv(gamma_ll, det_gamma); 
 	return gamma_uu;
 }
 
-//// MODULE_NAME: mystery_C_U
+//// MODULE_NAME: <?=mystery_C_U?>
 
 //TODO 2017 Ruchlin eqn. 8, what is C^i?
-#define mystery_C_U	real3_zero
+#define <?=mystery_C_U?>	real3_zero
 
 //// MODULE_NAME: <?=setFlatSpace?>
-//// MODULE_DEPENDS: mystery_C_U
+//// MODULE_DEPENDS: <?=mystery_C_U?>
 
 void <?=setFlatSpace?>(
 	constant <?=solver_t?> const * const solver,
@@ -161,7 +161,7 @@ void <?=setFlatSpace?>(
 
 	//LambdaBar^i = Delta^i + C^i = Delta^i_jk gammaBar^jk = (connBar^i_jk - connHat^i_jk) gammaBar^jk + C^i
 	//but when space is flat we have connBar^i_jk = connHat^i_jk and therefore Delta^i_jk = 0, Delta^i = 0, and LambdaBar^i = 0
-	U->LambdaBar_U = mystery_C_U;
+	U->LambdaBar_U = <?=mystery_C_U?>;
 
 <? if eqn.useShift == 'HyperbolicGammaDriver' then
 ?>	U->B_U = real3_zero;

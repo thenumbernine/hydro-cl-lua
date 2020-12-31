@@ -119,8 +119,8 @@ function Z4cFiniteDifferenceEquation:getDisplayVars()
 	vars:insert{name='det gammaBar - det gammaHat', code = self:template[[
 	value.vreal = sym3_det(<?=calc_gammaBar_ll?>(U, x)) - calc_det_gammaBar_ll(x);
 ]]}	-- for logarithmic displays
-	vars:insert{name='det gamma_ij based on phi', code=[[
-	real exp_neg4phi = calc_exp_neg4phi(U);
+	vars:insert{name='det gamma_ij based on phi', code = self:template[[
+	real exp_neg4phi = <?=calc_exp_neg4phi?>(U);
 	value.vreal = calc_det_gammaBar_ll(x) / (exp_neg4phi * exp_neg4phi * exp_neg4phi);
 ]]}
 	
@@ -153,7 +153,7 @@ Gamma^j_ij = (ln sqrt(g))_,i = .5 (ln g)_,i = .5 g_,i / g
 = -3 chi_,i / chi^4 / (chi^-3)
 = -3 chi_,i / chi
 --]]
-		{name='expansion', code=self:template([[
+		{name='expansion', code = self:template([[
 	<?=makePartial1('chi', 'real')?>
 	<?=makePartial1('alpha', 'real')?>
 	<?=makePartial1('beta_u', 'real3')?>
@@ -162,7 +162,7 @@ for i,xi in ipairs(xNames) do
 ?> + partial_beta_ul[<?=i-1?>].<?=xi?><?
 end ?>;
 
-	real exp_4phi = 1. / calc_exp_neg4phi(U);
+	real exp_4phi = 1. / <?=calc_exp_neg4phi?>(U);
 
 	//gamma_ij = exp(4 phi) gammaBar_ij
 	sym3 gamma_ll = sym3_real_mul(<?=calc_gammaBar_ll?>(U, x), exp_4phi);
@@ -194,9 +194,9 @@ end
 		
 		{name='f', code='value.vreal = calc_f(U->alpha);'},
 		{name='df/dalpha', code='value.vreal = calc_dalpha_f(U->alpha);'},
-		{name='gamma_ll', code=self:template[[
+		{name='gamma_ll', code = self:template[[
 	{
-		real exp_4phi = 1. / calc_exp_neg4phi(U);
+		real exp_4phi = 1. / <?=calc_exp_neg4phi?>(U);
 		sym3 gammaBar_ll = <?=calc_gammaBar_ll?>(U, x);
 		value.vsym3 = sym3_real_mul(gammaBar_ll, exp_4phi);
 	}
@@ -205,8 +205,8 @@ end
 		-- K_ij = exp(4 phi) ABar_ij + K/3 gamma_ij  
 		-- gamma_ij = exp(4 phi) gammaBar_ij
 		-- K_ij = exp(4 phi) (ABar_ij + K/3 gammaBar_ij)
-		{name='K_ll', code=self:template[[
-	real exp_4phi = 1. / calc_exp_neg4phi(U);
+		{name='K_ll', code = self:template[[
+	real exp_4phi = 1. / <?=calc_exp_neg4phi?>(U);
 	real K = U->KHat + 2. * U->Theta;
 	sym3 gammaBar_ll = <?=calc_gammaBar_ll?>(U, x);
 	value.vsym3 = sym3_real_mul(

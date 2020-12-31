@@ -43,7 +43,7 @@ static inline void <?=setFlatSpace?>(
 }
 
 //// MODULE_NAME: <?=applyInitCondCell?>
-//// MODULE_DEPENDS: <?=coordMap?> <?=coord_g_ll?> rescaleFromCoord/rescaleToCoord <?=initCond_t?>
+//// MODULE_DEPENDS: <?=coordMap?> <?=coord_g_ll?> <?=rescaleFromCoord_rescaleToCoord?> <?=initCond_t?>
 
 <?
 -- eqn.einstein compatability hack ...

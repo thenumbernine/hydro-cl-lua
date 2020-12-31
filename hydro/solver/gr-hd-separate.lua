@@ -79,7 +79,7 @@ function GRHDSeparateSolver:init(args)
 	//sym3 gammaHat_ll = coord_g_ll(x); // with x I get some redefinitions, without it I get some undefined x's...
 	sym3 gammaHat_ll = coord_g_ll(cellBuf[index].pos);
 	sym3 gammaBar_ll = sym3_add(gammaHat_ll, <?=args.U?>->epsilon_ll);
-	real exp_4phi = 1. / calc_exp_neg4phi(<?=args.U?>);
+	real exp_4phi = 1. / <?=calc_exp_neg4phi?>(<?=args.U?>);
 	sym3 <?=args.gamma?> = sym3_real_mul(gammaBar_ll, exp_4phi);
 ]], {gr=gr, args=args})
 	end
