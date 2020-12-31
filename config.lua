@@ -3,7 +3,7 @@ TODO one config per experiment (initial condition + config)
 and no more setting config values (boundary, etc) in the init cond file
 --]]
 
-local dim = cmdline.dim or 2
+local dim = cmdline.dim or 1
 local args = {
 	app = self, 
 	eqn = cmdline.eqn,
@@ -507,7 +507,7 @@ if cmdline.solver then self.solvers:insert(require('hydro.solver.'..cmdline.solv
 -- wave equation
 
 
---self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='wave'})))
+self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='wave'})))
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='wave'})))
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='rusanov', eqn='wave'})))
 --self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='wave', wenoMethod='1996 Jiang Shu', order=5})))

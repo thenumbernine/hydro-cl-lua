@@ -1,5 +1,5 @@
 //// MODULE_NAME: <?=calcDTCell?>
-//// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> <?=cell_t?> <?=<?=normal_t?>?> <?=eqn_waveCode_depends?> <?=SETBOUNDS?>
+//// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> <?=cell_t?> <?=normal_t?> <?=eqn_waveCode_depends?> <?=SETBOUNDS?>
 
 <? if not require "hydro.solver.meshsolver".is(solver) then ?>
 
@@ -48,7 +48,7 @@ then --\
 		global <?=face_t?> const * const face = faces + cellFaceIndexes[i + (cell)->faceOffset];\
 		real const dx = face->area;	/* face->cellDist? */\
 		if (dx > 1e-7 && face->cells.x != -1 && face->cells.y != -1) {\
-			<?=<?=normal_t?>?> const n = normal_forFace(face);\
+			<?=normal_t?> const n = normal_forFace(face);\
 			/* all sides? or only the most prominent side? */\
 			/* which should we pick eigenvalues from? */\
 			/* use cell-centered eigenvalues */\
