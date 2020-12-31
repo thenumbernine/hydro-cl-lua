@@ -11,7 +11,7 @@ local sinh = symmath.sinh
 local Tensor = symmath.Tensor
 
 local SphereLogRadial = class(CoordinateSystem)
-SphereLogRadial.name = 'sphere-sinh-radial'
+SphereLogRadial.name = 'sphere_sinh_radial'
 
 -- I was trying to hold off on this, thinking it would save something somewhere, because the subsequent conn calcs were slow
 -- but I don't need all them anyways (cue code module system)

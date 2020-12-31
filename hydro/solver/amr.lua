@@ -194,7 +194,7 @@ for nx=0,tonumber(solver.amr.ctx.nodeFromSize.x)-1 do
 		
 		
 		int Uindex = INDEXV(Ui);
-		const global <?=cons_t?>* U = UBuf + Uindex;
+		global <?=cons_t?> const * const U = UBuf + Uindex;
 				
 	//TODO this wasn't the exact formula ...
 	// and TODO make this modular.  some papers use velocity vector instead of density.  
@@ -216,8 +216,8 @@ end
 }
 
 kernel void initNodeFromRoot(
-	global <?=cons_t?>* childUBuf,
-	const global <?=cons_t?>* parentUBuf,
+	global <?=cons_t?> * const childUBuf,
+	global <?=cons_t?> const * const parentUBuf,
 	int4 from	//where in the child tree
 ) {
 	//'i' is the dest in the child node to write

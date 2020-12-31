@@ -78,14 +78,14 @@ end
 }
 
 void getEdgeStates(
-	<?=cons_t?>* UL,
-	<?=cons_t?>* UR,
-	const global <?=face_t?>* e,
-	const global <?=cons_t?>* UBuf,		//[numCells]
-	real restitution
+	<?=cons_t?> * const UL,
+	<?=cons_t?> * const UR,
+	global <?=face_t?> const * const e,
+	global <?=cons_t?> const * const UBuf,		//[numCells]
+	real const restitution
 ) {
-	int iL = e->cells.s0;
-	int iR = e->cells.s1;
+	int const iL = e->cells.s0;
+	int const iR = e->cells.s1;
 	if (iL != -1 && iR != -1) {
 		*UL = UBuf[iL];
 		*UR = UBuf[iR];
@@ -152,18 +152,18 @@ kernel void <?=calcDerivFromFlux?>(
 	global <?=face_t?> const * const faces,			//[numFaces]
 	global int const * const cellFaceIndexes	//[numCellFaceIndexes]
 ) {
-	int cellIndex = get_global_id(0);
+	int const cellIndex = get_global_id(0);
 	if (cellIndex >= get_global_size(0)) return;
 	
 	global <?=cell_t?> const * const cell = cells + cellIndex;
 	global <?=cons_t?> * const deriv = derivBuf + cellIndex;
 	
 	for (int i = 0; i < cell->faceCount; ++i) {
-		int ei = cellFaceIndexes[i + cell->faceOffset];
-		const global <?=face_t?>* e = faces + ei;
+		int const ei = cellFaceIndexes[i + cell->faceOffset];
+		global <?=face_t?> const * const e = faces + ei;
 		
-		const global <?=cons_t?>* flux = fluxBuf + ei;
-		real areaOverVolume = e->area / cell->volume;
+		global <?=cons_t?> const * const flux = fluxBuf + ei;
+		real const areaOverVolume = e->area / cell->volume;
 		
 		if (cellIndex == e->cells.s0) {
 //std::cout << " ... - " << *e << std::endl;

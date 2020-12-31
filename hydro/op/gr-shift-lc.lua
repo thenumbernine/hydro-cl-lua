@@ -19,14 +19,14 @@ function LagrangianCoordinateShift:initCodeModules(solver)
 		name = 'op.LagrangianCoordinateShift',
 		code = solver.eqn:template([[
 kernel void lagrangianCoordinateAdvect(
-	const <?=cons_t?>* dstUBuf,
-	const global <?=cons_t?>* UBuf,
+	<?=cons_t?> const * const dstUBuf,
+	global <?=cons_t?> const * const UBuf,
 	real dt
 ) {
 	<?=SETBOUNDS?>(solver->numGhost, solver->numGhost);
 	
 	// U[i] = U[i - beta * dt]
-	const global <?=cons_t?>* U = UBuf + index;
+	global <?=cons_t?> const * const U = UBuf + index;
 
 	real4 src = (real4)(
 <? 
@@ -52,30 +52,30 @@ end
 
 	global <?=cons_t?> *dstU = dstUBuf + index;
 <? if solver.dim == 1 then
-?>	const global <?=cons_t?> *srcUL = UBuf[INDEX(isrc.x, isrc.y, isrc.z)];
-	const global <?=cons_t?> *srcUR = UBuf[INDEX(isrc2.x, isrc.y, isrc.z)];
+?>	global <?=cons_t?> const * const srcUL = UBuf[INDEX(isrc.x, isrc.y, isrc.z)];
+	global <?=cons_t?> const * const srcUR = UBuf[INDEX(isrc2.x, isrc.y, isrc.z)];
 	for (int j = 0; j < numStates; ++j) {
 		dstU.ptr[j] = (1. - f.x) * srcUL->ptr[j] + f.x * srcUR->ptr[j];
 	}
 <? elseif solver.dim == 2 then
-?>	const global <?=cons_t?> *srcULL = UBuf[INDEX(isrc.x, isrc.y, isrc.z)];
-	const global <?=cons_t?> *srcULR = UBuf[INDEX(isrc.x, isrc2.y, isrc.z)];
-	const global <?=cons_t?> *srcURL = UBuf[INDEX(isrc2.x, isrc.y, isrc.z)];
-	const global <?=cons_t?> *srcURR = UBuf[INDEX(isrc2.x, isrc2.y, isrc.z)];
+?>	global <?=cons_t?> const * const srcULL = UBuf[INDEX(isrc.x, isrc.y, isrc.z)];
+	global <?=cons_t?> const * const srcULR = UBuf[INDEX(isrc.x, isrc2.y, isrc.z)];
+	global <?=cons_t?> const * const srcURL = UBuf[INDEX(isrc2.x, isrc.y, isrc.z)];
+	global <?=cons_t?> const * const srcURR = UBuf[INDEX(isrc2.x, isrc2.y, isrc.z)];
 	for (int j = 0; j < numStates; ++j) {
 		real UL = nf.x * srcULL->ptr[j] + f.x * srcURL->ptr[j];
 		real UR = nf.x * srcULR->ptr[j] + f.x * srcURR->ptr[j];
 		dstU.ptr[j] = (1. - f.y) * UL + f.y * UR;
 	}
 <? elseif solver.dim == 3 then
-?>	const global <?=cons_t?> *srcULLL = UBuf[INDEX(isrc.x, isrc.y, isrc.z)];
-	const global <?=cons_t?> *srcULRL = UBuf[INDEX(isrc.x, isrc2.y, isrc.z)];
-	const global <?=cons_t?> *srcURLL = UBuf[INDEX(isrc2.x, isrc.y, isrc.z)];
-	const global <?=cons_t?> *srcURRL = UBuf[INDEX(isrc2.x, isrc2.y, isrc.z)];
-	const global <?=cons_t?> *srcULLR = UBuf[INDEX(isrc.x, isrc.y, isrc2.z)];
-	const global <?=cons_t?> *srcULRR = UBuf[INDEX(isrc.x, isrc2.y, isrc2.z)];
-	const global <?=cons_t?> *srcURLR = UBuf[INDEX(isrc2.x, isrc.y, isrc2.z)];
-	const global <?=cons_t?> *srcURRR = UBuf[INDEX(isrc2.x, isrc2.y, isrc2.z)];
+?>	global <?=cons_t?> const * const srcULLL = UBuf[INDEX(isrc.x, isrc.y, isrc.z)];
+	global <?=cons_t?> const * const srcULRL = UBuf[INDEX(isrc.x, isrc2.y, isrc.z)];
+	global <?=cons_t?> const * const srcURLL = UBuf[INDEX(isrc2.x, isrc.y, isrc.z)];
+	global <?=cons_t?> const * const srcURRL = UBuf[INDEX(isrc2.x, isrc2.y, isrc.z)];
+	global <?=cons_t?> const * const srcULLR = UBuf[INDEX(isrc.x, isrc.y, isrc2.z)];
+	global <?=cons_t?> const * const srcULRR = UBuf[INDEX(isrc.x, isrc2.y, isrc2.z)];
+	global <?=cons_t?> const * const srcURLR = UBuf[INDEX(isrc2.x, isrc.y, isrc2.z)];
+	global <?=cons_t?> const * const srcURRR = UBuf[INDEX(isrc2.x, isrc2.y, isrc2.z)];
 	for (int j = 0; j < numStates; ++j) {
 		real ULL = nf.x * srcULLL->ptr[j] + f.x * srcURLL->ptr[j];
 		real ULR = nf.x * srcULLR->ptr[j] + f.x * srcURLR->ptr[j];

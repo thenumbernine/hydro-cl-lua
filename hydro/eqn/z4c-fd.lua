@@ -116,8 +116,8 @@ Z4cFiniteDifferenceEquation.predefinedDisplayVars = {
 function Z4cFiniteDifferenceEquation:getDisplayVars()	
 	local vars = Z4cFiniteDifferenceEquation.super.getDisplayVars(self)
 
-	vars:insert{name='det gammaBar - det gammaHat', code=[[
-	value.vreal = sym3_det(calc_gammaBar_ll(U, x)) - calc_det_gammaBar_ll(x);
+	vars:insert{name='det gammaBar - det gammaHat', code = self:template[[
+	value.vreal = sym3_det(<?=calc_gammaBar_ll?>(U, x)) - calc_det_gammaBar_ll(x);
 ]]}	-- for logarithmic displays
 	vars:insert{name='det gamma_ij based on phi', code=[[
 	real exp_neg4phi = calc_exp_neg4phi(U);
@@ -126,7 +126,7 @@ function Z4cFiniteDifferenceEquation:getDisplayVars()
 	
 	local derivOrder = 2 * self.solver.numGhost
 	vars:append{
-		{name='S', code='value.vreal = sym3_dot(U->S_ll, calc_gamma_uu(U, x));'},
+		{name='S', code='value.vreal = sym3_dot(U->S_ll, <?=calc_gamma_uu?>(U, x));'},
 		{name='volume', code='value.vreal = U->alpha * calc_det_gamma_ll(U, x);'},
 	
 --[[ expansion:
@@ -165,7 +165,7 @@ end ?>;
 	real exp_4phi = 1. / calc_exp_neg4phi(U);
 
 	//gamma_ij = exp(4 phi) gammaBar_ij
-	sym3 gamma_ll = sym3_real_mul(calc_gammaBar_ll(U, x), exp_4phi);
+	sym3 gamma_ll = sym3_real_mul(<?=calc_gammaBar_ll?>(U, x), exp_4phi);
 
 	//K = KHat + 2 Theta
 	real K = U->KHat + 2. * U->Theta;
@@ -194,10 +194,10 @@ end
 		
 		{name='f', code='value.vreal = calc_f(U->alpha);'},
 		{name='df/dalpha', code='value.vreal = calc_dalpha_f(U->alpha);'},
-		{name='gamma_ll', code=[[
+		{name='gamma_ll', code=self:template[[
 	{
 		real exp_4phi = 1. / calc_exp_neg4phi(U);
-		sym3 gammaBar_ll = calc_gammaBar_ll(U, x);
+		sym3 gammaBar_ll = <?=calc_gammaBar_ll?>(U, x);
 		value.vsym3 = sym3_real_mul(gammaBar_ll, exp_4phi);
 	}
 ]], type='sym3'},
@@ -205,10 +205,10 @@ end
 		-- K_ij = exp(4 phi) ABar_ij + K/3 gamma_ij  
 		-- gamma_ij = exp(4 phi) gammaBar_ij
 		-- K_ij = exp(4 phi) (ABar_ij + K/3 gammaBar_ij)
-		{name='K_ll', code=[[
+		{name='K_ll', code=self:template[[
 	real exp_4phi = 1. / calc_exp_neg4phi(U);
 	real K = U->KHat + 2. * U->Theta;
-	sym3 gammaBar_ll = calc_gammaBar_ll(U, x);
+	sym3 gammaBar_ll = <?=calc_gammaBar_ll?>(U, x);
 	value.vsym3 = sym3_real_mul(
 		sym3_add(
 			U->ABar_ll,
@@ -258,7 +258,7 @@ end
 	real _1_chi = 1. / U->chi;
 	
 	//gamma_ij = 1/chi gammaBar_ij
-	sym3 gammaBar_ll = calc_gammaBar_ll(U, x);
+	sym3 gammaBar_ll = <?=calc_gammaBar_ll?>(U, x);
 	sym3 gamma_ll = sym3_real_mul(gammaBar_ll, _1_chi);
 	
 	//gamma_ij,k = 1/chi gammaBar_ij,k - chi,k / chi^2 gammaBar_ij
@@ -278,7 +278,7 @@ end
 
 	real _1_alpha = 1. / U->alpha;
 
-	sym3 gamma_uu = calc_gamma_uu(U, x);
+	sym3 gamma_uu = <?=calc_gamma_uu?>(U, x);
 	real3 partial_alpha_u = sym3_real3_mul(gamma_uu, *(real3*)partial_alpha_l);		//alpha_,j gamma^ij = alpha^,i
 	real partial_alpha_dot_beta = real3_dot(U->beta_u, *(real3*)partial_alpha_l);	//beta^j alpha_,j
 

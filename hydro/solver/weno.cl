@@ -250,7 +250,7 @@ for side=0,solver.dim-1 do ?>{
 ?>
 
 <? 		for j=0,2*stencilSize-1 do
-?>		const global <?=cons_t?>* U<?=j?> = U + (<?=j - stencilSize?>) * solver->stepsize.s<?=side?>;
+?>		global <?=cons_t?> const * const U<?=j?> = U + (<?=j - stencilSize?>) * solver->stepsize.s<?=side?>;
 		<?=cons_t?> F<?=j?>;
 		<?=fluxFromCons?>(&F<?=j?>, solver, U<?=j?>, xInt, n);
 		<?=waves_t?> al<?=j?>;
@@ -323,8 +323,8 @@ for side=0,solver.dim-1 do ?>{
 <?		for j=0,2*stencilSize-1 do
 ?>
 		{
-			const global <?=cons_t?>* UL<?=j?> = U + <?=j - stencilSize?> * solver->stepsize.s<?=side?>;
-			const global <?=cons_t?>* UR<?=j?> = U + <?=j+1 - stencilSize?> * solver->stepsize.s<?=side?>;
+			global <?=cons_t?> const * const UL<?=j?> = U + <?=j - stencilSize?> * solver->stepsize.s<?=side?>;
+			global <?=cons_t?> const * const UR<?=j?> = U + <?=j+1 - stencilSize?> * solver->stepsize.s<?=side?>;
 			<?=eigen_t?> eig;
 			<?=eigen_forInterface?>(&eig, solver, UL, UR, xInt, n);
 

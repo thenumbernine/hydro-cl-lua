@@ -273,9 +273,9 @@ TODO update this for Einstein-Maxwell (take the metric into consideration
 
 kernel void <?=addSource?>(
 	constant <?=solver_t?> const * const solver,
-	global <?=cons_t?> const * const derivBuf,
-	const global <?=cons_t?>* UBuf,
-	const global <?=cell_t?>* cellBuf
+	global <?=cons_t?> * const derivBuf,
+	global <?=cons_t?> const * const UBuf,
+	global <?=cell_t?> const * const cellBuf
 ) {
 	<?=SETBOUNDS_NOGHOST?>();
 	real3 const x = cellBuf[index].pos;

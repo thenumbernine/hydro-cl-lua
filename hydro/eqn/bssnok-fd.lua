@@ -20,6 +20,22 @@ function BSSNOKFiniteDifferenceEquationBase:init(args)
 	BSSNOKFiniteDifferenceEquationBase.super.init(self, args)
 end
 
+function BSSNOKFiniteDifferenceEquationBase:getSymbolFields()
+	return BSSNOKFiniteDifferenceEquationBase.super.getSymbolFields(self):append{
+		'calc_det_gammaHat',
+		'calc_det_gammaBar',
+		'calc_det_gammaBarLL',
+		'calc_gammaHat_ll',
+		'calc_gammaHat_uu',
+		'calc_gammaHat_LL',
+		'calc_gammaHat_UU',
+		'calc_gammaBar_ll',
+		'calc_gammaBar_LL',
+		'calc_gammaBar_uu',
+		'calc_gammaBar_UU',
+	}
+end
+
 -- source: https://en.wikipedia.org/wiki/Finite_difference_coefficient 
 -- derivCoeffs[derivative][order] = {coeffs...}
 local derivCoeffs = {
@@ -159,7 +175,7 @@ function BSSNOKFiniteDifferenceEquationBase:initCodeModule_calcDTCell()
 		name = self.symbols.calcDTCell,
 		depends = table{
 			self.symbols.eqn_common,
-			self.coord.symbols.coord_sqrt_g_ll_ij,
+			self.solver.coord.symbols.coord_sqrt_g_ll_ij,
 			self.solver.symbols.SETBOUNDS,
 		}:append(
 			self.cflMethod == '2008 Alcubierre' and { 
@@ -220,6 +236,105 @@ function BSSNOKFiniteDifferenceEquationBase:getModuleDependsApplyInitCond()
 	return {
 		self.symbols.setFlatSpace,
 	}
+end
+
+function BSSNOKFiniteDifferenceEquationBase:getModuleDepends_displayCode()
+	return BSSNOKFiniteDifferenceEquationBase.super.getModuleDepends_displayCode(self):append{
+		self.symbols.initCond_codeprefix,	-- calc_f (used only in display vars)
+		self.symbols.calc_gammaHat_ll,
+		self.symbols.calc_gammaHat_uu,
+		self.symbols.calc_gammaBar_LL,
+		self.symbols.calc_gammaBar_ll,
+		self.symbols.calc_gammaBar_UU,
+		self.symbols.calc_gammaBar_uu,
+		self.symbols.calc_det_gammaHat,
+	}
+end
+
+function BSSNOKFiniteDifferenceEquationBase:getDisplayVars()
+	local vars = BSSNOKFiniteDifferenceEquationBase.super.getDisplayVars(self)
+
+	vars:append{
+		{name='f', code='value.vreal = calc_f(U->alpha);'},
+		{name='df/dalpha', code='value.vreal = calc_dalpha_f(U->alpha);'},
+		
+		{name='W-1', code=[[ value.vreal = U->W - 1.;]], type='real'},
+		{name='alpha-W', code=[[ value.vreal = U->alpha - U->W;]], type='real'},		-- this is the "pre-collapse" initial condition for SENR UIUC
+		
+		{name='gammaHat_ll', code = self:template[[	value.vsym3 = <?=calc_gammaHat_ll?>(x);]], type='sym3'},
+		{name='gammaHat_uu', code = self:template[[	value.vsym3 = <?=calc_gammaHat_uu?>(x);]], type='sym3'},
+		{name='gammaBar_ll', code = self:template[[	value.vsym3 = <?=calc_gammaBar_ll?>(U, x);]], type='sym3'},
+		{name='gammaBar_uu', code = self:template[[	value.vsym3 = <?=calc_gammaBar_uu?>(U, x);]], type='sym3'},
+		{name='gammaBar_LL', code = self:template[[	value.vsym3 = <?=calc_gammaBar_LL?>(U, x);]], type='sym3'},
+		{name='gammaBar_UU', code = self:template[[	value.vsym3 = <?=calc_gammaBar_UU?>(U, x);]], type='sym3'},
+		{name='K_ll', code = self:template[[
+	real exp_4phi = 1. / calc_exp_neg4phi(U);
+	sym3 gammaBar_ll = <?=calc_gammaBar_ll?>(U, x);
+	value.vsym3 = sym3_real_mul(
+		sym3_add(
+			sym3_rescaleToCoord_LL(U->ABar_LL, x),
+			sym3_real_mul(gammaBar_ll, U->K / 3.)
+		), exp_4phi);
+]], type='sym3'},
+
+		{name='det gammaBar - det gammaHat', code = self:template[[
+	value.vreal = sym3_det(<?=calc_gammaBar_ll?>(U, x)) - <?=calc_det_gammaBar?>(x);
+]]},
+		{name='det gamma based on phi', code = self:template[[
+	real exp_neg4phi = calc_exp_neg4phi(U);
+	real exp_12phi = 1. / (exp_neg4phi * exp_neg4phi * exp_neg4phi);
+	real det_gamma = exp_12phi * <?=calc_det_gammaHat?>(x);
+	value.vreal = det_gamma;
+]]},
+	}
+
+	return vars
+end
+
+function BSSNOKFiniteDifferenceEquationBase:createDisplayComponents()
+	BSSNOKFiniteDifferenceEquationBase.super.createDisplayComponents(self)
+	
+	local solver = self.solver
+	solver:addDisplayComponent('real3', {
+		onlyFor = 'U',
+		name = 'norm weighted gammaBar_IJ',
+		code = self:template[[
+	int index = INDEXV(i);
+	real3 x = cellBuf[index].pos;
+	global <?=cons_t?> const * const U = buf + index;
+	sym3 gammaBar_LL = <?=calc_gammaBar_LL?>(U, x);
+	value->vreal = real3_weightedLen(value->vreal3, gammaBar_LL);]],
+	})
+	solver:addDisplayComponent('real3', {
+		onlyFor = 'U',
+		name = 'norm weighted gammaBar_ij',
+		code = self:template[[
+	int index = INDEXV(i);
+	real3 x = cellBuf[index].pos;
+	global <?=cons_t?> const * const U = buf + index;
+	sym3 gammaBar_ll = <?=calc_gammaBar_ll?>(U, x);
+	value->vreal = real3_weightedLen(value->vreal3, gammaBar_ll);]],
+	})
+	solver:addDisplayComponent('sym3', {
+		onlyFor = 'U',
+		name = 'tr weighted gamma^IJ',
+		code = self:template[[
+	int index = INDEXV(i);
+	real3 x = cellBuf[index].pos;
+	global <?=cons_t?> const * const U = buf + index;
+	sym3 gamma_UU = sym3_rescaleFromCoord_uu(<?=calc_gamma_uu?>(U, x), x);
+	value->vreal = sym3_dot(value->vsym3, gamma_UU);]],
+	})
+	solver:addDisplayComponent('sym3', {
+		onlyFor = 'U',
+		name = 'tr weighted gammaBar^IJ',
+		code = self:template[[
+	int index = INDEXV(i);
+	real3 x = cellBuf[index].pos;
+	global <?=cons_t?> const * const U = buf + index;
+	sym3 gammaBar_UU = <?=calc_gammaBar_UU?>(U, x);
+	value->vreal = sym3_dot(value->vsym3, gammaBar_UU);]],
+	})
 end
 
 return BSSNOKFiniteDifferenceEquationBase 

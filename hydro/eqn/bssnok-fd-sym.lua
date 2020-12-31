@@ -1677,18 +1677,15 @@ for k in ('alpha0 W0 K0 beta0_U B0_U epsilon_LL ABar0_LL'):gmatch'%S+' do
 end
 
 		return self:template([[
-kernel void <?=applyInitCond?>(
+void <?=applyInitCondCell?>(
 	constant <?=solver_t?> const * const solver,
 	constant <?=initCond_t?> const * const initCond,
-	global <?=cons_t?> * const UBuf,
-	global <?=cell_t?> const * const cellBuf
+	global <?=cons_t?> * const U,
+	global <?=cell_t?> const * const cell
 ) {
-	<?=SETBOUNDS?>(solver->numGhost, solver->numGhost);
-	real3 const x = cellBuf[index].pos;
+	real3 const x = cell->pos;
 	real3 const xc = coordMap(x);
 	real3 const mids = real3_real_mul(real3_add(solver->mins, solver->maxs), .5);
-	
-	global <?=cons_t?> * const U = UBuf + index;
 
 <?=assignRepls(cos_xs)?>
 <?=assignRepls(sin_xs)?>
@@ -1726,15 +1723,13 @@ kernel void <?=applyInitCond?>(
 	-- TODO port these from sympy into symmath 
 	if initCond.useBSSNVars then
 		return self:template[=[
-kernel void <?=applyInitCond?>(
+void <?=applyInitCondCell?>(
 	constant <?=solver_t?> const * const solver,
 	constant <?=initCond_t?> const * const initCond,
-	global <?=cons_t?> * const UBuf,
-	global <?=cell_t?> const * const cellBuf
+	global <?=cons_t?> * const U,
+	global <?=cell_t?> const * const cell
 ) {
-	<?=SETBOUNDS?>(0,0);
-	global <?=cons_t?> * const U = UBuf + index;
-	real3 const x = cellBuf[index].pos;
+	real3 const x = cell->pos;
 
 	if (<?=OOB?>(solver->numGhost, solver->numGhost)) {
 		U->alpha = INFINITY;
@@ -1804,18 +1799,15 @@ kernel void <?=applyInitCond?>(
 	end
 
 	return self:template([=[
-kernel void <?=applyInitCond?>(
+void <?=applyInitCondCell?>(
 	constant <?=solver_t?> const * const solver,
 	constant <?=initCond_t?> const * const initCond,
-	global <?=cons_t?> * const UBuf,
-	global <?=cell_t?> const * const cellBuf
+	global <?=cons_t?> * const U,
+	global <?=cell_t?> const * const cell
 ) {
-	<?=SETBOUNDS?>(solver->numGhost, solver->numGhost);
-	real3 const x = cellBuf[index].pos;
+	real3 const x = cell->pos;
 	real3 const xc = coordMap(x);
 	real3 const mids = real3_real_mul(real3_add(solver->mins, solver->maxs), .5);
-	
-	global <?=cons_t?> * const U = UBuf + index;
 
 <?=assignRepls(cos_xs)?>
 <?=assignRepls(sin_xs)?>
@@ -1844,7 +1836,7 @@ kernel void <?=applyInitCond?>(
 	sym3 gamma_uu = sym3_inv(gamma_ll, det_gamma);
 	
 	//det(gammaBar_ij) == det(gammaHat_ij)
-	real det_gammaBar = calc_det_gammaBar(x); 
+	real det_gammaBar = <?=calc_det_gammaBar?>(x); 
 
 	//gammaBar_ij = e^(-4phi) gamma_ij
 	//real exp_neg4phi = exp(-4 * U->phi);
@@ -2011,52 +2003,18 @@ function BSSNOKFiniteDifferenceEquation:getDisplayVars()
 	local env = self:getEnv()
 
 	vars:append{
-		-- convenient trackvars:
-		{name='alpha-1', code=[[ value.vreal = U->alpha - 1.;]], type='real'},
-		{name='W-1', code=[[ value.vreal = U->W - 1.;]], type='real'},
-		
-		{name='gamma_ll', type='sym3', code = [[	value.vsym3 = calc_gamma_ll(U, x);]]},
-		{name='gamma_uu', type='sym3', code=[[	value.vsym3 = calc_gamma_uu(U, x);]]},
-		{name='gammaHat_ll', type='sym3', code=[[	value.vsym3 = calc_gammaHat_ll(x);]]},
-		{name='gammaHat_uu', type='sym3', code=[[	value.vsym3 = calc_gammaHat_uu(x);]]},
-		{name='gammaBar_ll', type='sym3', code=[[	value.vsym3 = calc_gammaBar_ll(U, x);]]},
-		{name='gammaBar_uu', type='sym3', code=[[	value.vsym3 = calc_gammaBar_uu(U, x);]]},
-		{name='gammaBar_LL', type='sym3', code=[[	value.vsym3 = calc_gammaBar_LL(U, x);]]},
-		{name='gammaBar_UU', type='sym3', code=[[ value.vsym3 = calc_gammaBar_UU(U, x);]]},
-		{name='K_ll', code=[[
-	real exp_4phi = 1. / calc_exp_neg4phi(U);
-	sym3 gammaBar_ll = calc_gammaBar_ll(U, x);
-	value.vsym3 = sym3_real_mul(
-		sym3_add(
-			sym3_rescaleToCoord_LL(U->ABar_LL, x),
-			sym3_real_mul(gammaBar_ll, U->K / 3.)
-		), exp_4phi);
-]], type='sym3'},
-
-		{name='det gammaBar - det gammaHat', code=[[
-	value.vreal = sym3_det(calc_gammaBar_ll(U, x)) - calc_det_gammaBar(x);
-]]},
-		{name='det gamma based on phi', code=template([[
-<?=assign'exp_neg4phi'?>
-	real exp_12phi = 1. / (exp_neg4phi * exp_neg4phi * exp_neg4phi);
-	real det_gamma = exp_12phi * calc_det_gammaHat(x);
-	value.vreal = det_gamma;
-]], env)},
-		
-		{name='S', code='value.vreal = sym3_dot(U->S_ll, calc_gamma_uu(U, x));'},
+		{name='S', code = self:template'value.vreal = sym3_dot(U->S_ll, <?=calc_gamma_uu?>(U, x));'},
 		
 		{
-			name='volume', 
-			code=template([[
+			name = 'volume', 
+			code = self:template([[
 	//|g| = exp(12 phi) |g_grid|
 <?=assign'exp_neg4phi'?>
 	real exp_12phi = 1. / (exp_neg4phi * exp_neg4phi * exp_neg4phi);
-	real det_gamma = exp_12phi * calc_det_gammaHat(x);
+	real det_gamma = exp_12phi * <?=calc_det_gammaHat?>(x);
 	value.vreal = U->alpha * det_gamma;
 ]], env),
 		},
-		{name='f', code='value.vreal = calc_f(U->alpha);'},
-		{name='df/dalpha', code='value.vreal = calc_dalpha_f(U->alpha);'},
 	
 		{
 			name = 'ABarSq_LL',

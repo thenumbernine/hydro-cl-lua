@@ -20,6 +20,7 @@ EinsteinEquation.initConds = table():append(
 
 function EinsteinEquation:getSymbolFields() 
 	return EinsteinEquation.super.getSymbolFields(self):append{
+		-- defined in subclasses:
 		'setFlatSpace',
 		'calc_gamma_ll',
 		'calc_gamma_uu',
@@ -74,11 +75,25 @@ function EinsteinEquation:createBoundaryOptions()
 end
 
 function EinsteinEquation:getModuleDepends_displayCode() 
-	return {
+	return EinsteinEquation.super.getModuleDepends_displayCode(self):append{
 		-- for the addDisplayComponents 
-		self.symbols.calc_gamma_ll,
-		self.symbols.calc_gamma_uu,
+		assert(self.symbols.calc_gamma_ll),
+		assert(self.symbols.calc_gamma_uu),
 	}
+end
+
+-- convenient trackvars:
+-- TODO generate these by expression in CL automatically
+function EinsteinEquation:getDisplayVars()
+	local vars = EinsteinEquation.super.getDisplayVars(self)
+	
+	vars:append{
+		{name='alpha-1', code=[[ value.vreal = U->alpha - 1.;]], type='real'},
+		{name='gamma_ll', code = self:template[[	value.vsym3 = <?=calc_gamma_ll?>(U, x);]], type='sym3'},
+		{name='gamma_uu', code = self:template[[	value.vsym3 = <?=calc_gamma_uu?>(U, x);]], type='sym3'},
+	}
+
+	return vars
 end
 
 -- any modules this code needs, add to solver module dependencies
@@ -88,7 +103,7 @@ function EinsteinEquation:createDisplayComponents()
 		onlyFor = 'U',
 		name = 'norm weighted gamma_ij',
 		code = self:template[[
-const global <?=cons_t?>* U = buf + index;
+global <?=cons_t?> const * const U = buf + index;
 sym3 gamma_ll = <?=calc_gamma_ll?>(U, x);
 value->vreal = real3_weightedLen(value->vreal3, gamma_ll);
 ]],
@@ -97,7 +112,7 @@ value->vreal = real3_weightedLen(value->vreal3, gamma_ll);
 		onlyFor = 'U',
 		name = 'norm weighted gamma^ij',
 		code = self:template[[
-const global <?=cons_t?>* U = buf + index;
+global <?=cons_t?> const * const U = buf + index;
 sym3 gamma_uu = <?=calc_gamma_uu?>(U, x);
 value->vreal = real3_weightedLen(value->vreal3, gamma_uu);
 ]],
@@ -106,7 +121,7 @@ value->vreal = real3_weightedLen(value->vreal3, gamma_uu);
 		onlyFor = 'U',
 		name = 'tr weighted gamma^ij',
 		code = self:template[[
-const global <?=cons_t?>* U = buf + index;
+global <?=cons_t?> const * const U = buf + index;
 sym3 gamma_uu = <?=calc_gamma_uu?>(U, x);
 value->vreal = sym3_dot(value->vsym3, gamma_uu);]],
 	})

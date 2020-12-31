@@ -7,18 +7,17 @@
 static inline <?=prim_t?> primFromCons(<?=cons_t?> U, real3 x) { return U; }
 static inline <?=cons_t?> consFromPrim(<?=prim_t?> W, real3 x) { return W; }
 
-//// MODULE_NAME: applyInitCond
+//// MODULE_NAME: <?=applyInitCondCell?>
 
-kernel void applyInitCond(
+void <?=applyInitCondCell?>(
 	constant <?=solver_t?> const * const solver,
 	constant <?=initCond_t?> const * const initCond,
-	global <?=cons_t?> * const UBuf,
-	global <?=cell_t?> const * const cellBuf
+	global <?=cons_t?> * const U,
+	global <?=cell_t?> const * const cell
 ) {
-	<?=SETBOUNDS?>(0,0);
-	real3 x = cellBuf[index].pos;
-	real3 mids = real3_real_mul(real3_add(solver->mins, solver->maxs), .5);
-	bool lhs = x.x < mids.x
+	real3 const x = cell->pos;
+	real3 const mids = real3_real_mul(real3_add(solver->mins, solver->maxs), .5);
+	bool const lhs = x.x < mids.x
 #if dim > 1
 		&& x.y < mids.y
 #endif
@@ -26,7 +25,6 @@ kernel void applyInitCond(
 		&& x.z < mids.z
 #endif
 	;
-	global <?=cons_t?>* U = UBuf + index;
 
 	//used
 	real3 D = real3_zero;
@@ -100,8 +98,8 @@ kernel void applyInitCond(
 //// MODULE_NAME: fluxFromCons
 
 <?=range_t?> calcCellMinMaxEigenvalues(
-	const global <?=cons_t?>* U,
-	real3 x<?=
+	global <?=cons_t?> const * const U,
+	real3 const x<?=
 	solver:getADMArgs()?>
 ) {
 	<?=solver:getADMVarCode()?>	
@@ -141,7 +139,7 @@ kernel void applyInitCond(
 kernel void calcEigenBasis(
 	constant <?=solver_t?> const * const solver,
 	global <?=eigen_t?> * const eigenBuf,
-	const global <?=solver.getULRArg?><?=
+	global const <?=solver.getULRArg?><?=
 	solver:getADMArgs()?>
 ) {
 	<?=SETBOUNDS?>(solver->numGhost, solver->numGhost - 1);

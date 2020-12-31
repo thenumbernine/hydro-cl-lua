@@ -206,7 +206,7 @@ kernel void <?=calcEigenBasis?>(
 	//right now only primBuf is being used for getting neighbor values
 	//so SRHD should perform the PLM stuff on the primBuf instead of the UBUf?
 	// or do the PLM on the UBuf and do the cons->prim on the ULR edge values
-	const global <?=cons_t?>* UBuf<?=
+	global <?=cons_t?> const * const UBuf<?=
 	solver:getADMArgs()?>
 ) {
 	<?=SETBOUNDS?>(solver->numGhost, solver->numGhost - 1);
@@ -531,8 +531,8 @@ kernel void <?=addSource?>(
 	solver:getADMArgs()?>
 ) {
 	<?=SETBOUNDS_NOGHOST?>();
-	global <?=cons_t?>* deriv = derivBuf + index;
-	const global <?=cons_t?>* U = UBuf + index;
+	global <?=cons_t?> * const deriv = derivBuf + index;
+	global <?=cons_t?> const * const U = UBuf + index;
 	<?=solver:getADMVarCode()?>
 }
 
@@ -565,7 +565,7 @@ kernel void <?=constrainU?>(
 	real det_gamma = sym3_det(gamma);
 	sym3 gammaU = sym3_inv(gamma, det_gamma);
 
-	const global <?=eqn.cons_only_t?>* U = &UBuf[index].cons;
+	global <?=eqn.cons_only_t?> const * const U = &UBuf[index].cons;
 	
 	U->D = max(U->D, (real)solver->DMin);
 	U->tau = max(U->tau, (real)solver->tauMin);

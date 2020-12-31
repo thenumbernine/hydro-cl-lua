@@ -43,22 +43,22 @@ local det_gammaHat = coord.request"coord_det_g"
 #define numberof(x)	(sizeof(x)/sizeof(x[0]))
 #define endof(x)	((x) + numberof(x))
 
-//// MODULE_NAME: calc_partial_det_gammaHat_l
-//// MODULE_DEPENDS: coord_partial_det_g
+//// MODULE_NAME: <?=calc_partial_det_gammaHat_l?>
+//// MODULE_DEPENDS: <?=coord_partial_det_g?>
 
-#define calc_partial_det_gammaHat_l coord_partial_det_g
+#define <?=calc_partial_det_gammaHat_l?> coord_partial_det_g
 
 //// MODULE_NAME: calc_partial_det_gammaHat_L
-//// MODULE_DEPENDS: calc_partial_det_gammaHat_l rescaleFromCoord/rescaleToCoord
+//// MODULE_DEPENDS: <?=calc_partial_det_gammaHat_l?> rescaleFromCoord/rescaleToCoord
 
 real3 calc_partial_det_gammaHat_L(real3 x) {
-	real3 partial_det_gammaHat_l = calc_partial_det_gammaHat_l(x);
+	real3 partial_det_gammaHat_l = <?=calc_partial_det_gammaHat_l?>(x);
 	real3 partial_det_gammaHat_L = real3_rescaleFromCoord_l(partial_det_gammaHat_l, x);
 	return partial_det_gammaHat_L;
 }
 
 //// MODULE_NAME: calc_partial2_det_gammaHat_ll
-//// MODULE_DEPENDS: coord_partial2_det_g
+//// MODULE_DEPENDS: <?=coord_partial2_det_g?>
 
 #define calc_partial2_det_gammaHat_ll coord_partial2_det_g
 
@@ -450,11 +450,11 @@ end
 //// MODULE_DEPENDS: rescaleFromCoord/rescaleToCoord
 
 static sym3 calc_trBar_partial2_gammaBar_ll(
-	const global <?=cons_t?>* U,
-	real3 x,
-	sym3 gammaBar_UU,
-	const sym3 partial_epsilon_LLl[3],
-	const sym3 partial2_epsilon_LLll[6]
+	global <?=cons_t?> const * const U,
+	real3 const x,
+	sym3 const gammaBar_UU,
+	sym3 const partial_epsilon_LLl[3],
+	sym3 const partial2_epsilon_LLll[6]
 ) {
 	//gives accuracy errors if I try to inline this
 	sym3 const gammaBar_uu = sym3_rescaleToCoord_UU(gammaBar_UU, x); 
@@ -498,8 +498,8 @@ static sym3 calc_trBar_partial2_gammaBar_ll(
 	return trBar_partial2_gammaBar_ll;
 }
 
-//// MODULE_NAME: <?=applyInitCond?>
-//// MODULE_DEPENDS: _3sym3 <?=coordMap?> calc_gammaHat_ll calc_det_gammaBar calc_det_gammaBarLL calc_partial_gammaBar_LLL calc_connBar_ULL calc_connHat_LLL_and_ULL
+//// MODULE_NAME: <?=applyInitCondCell?>
+//// MODULE_DEPENDS: _3sym3 <?=coordMap?> <?=calc_gammaHat_ll?> <?=calc_det_gammaBar?> <?=calc_det_gammaBarLL?> calc_partial_gammaBar_LLL calc_connBar_ULL calc_connHat_LLL_and_ULL
 
 // Should initCond provide a metric in cartesian, or in the background metric?
 // I'll say Cartesian for now, and then transform them using the rescaling.
@@ -515,21 +515,19 @@ if initCond.initAnalytical then
 ?>
 //// MODULE_DEPENDS: rescaleFromCoord/rescaleToCoord _3sym3_rescaleFromCoord/_3sym3_rescaleToCoord
 
-kernel void <?=applyInitCond?>(
+void <?=applyInitCondCell?>(
 	constant <?=solver_t?> const * const solver,
 	constant <?=initCond_t?> const * const initCond,
-	global <?=cons_t?> * const UBuf,
-	global <?=cell_t?> const * const cellBuf
+	global <?=cons_t?> * const U,
+	global <?=cell_t?> const * const cell
 ) {
 	<?=SETBOUNDS?>(solver->numGhost, solver->numGhost);
-	real3 const x = cellBuf[index].pos;
+	real3 const x = cell->pos;
 	real3 const xc = coordMap(x);
 	real3 const mids = real3_real_mul(real3_add(solver->mins, solver->maxs), .5);
 
 	//compile compat. the compile code uses 'pt' as the grid point.
 	real3 const pt = x;
-	
-	global <?=cons_t?> * const U = UBuf + index;
 
 	U->alpha = <?=eqn:compile(initCond.alpha0)?>;
 
@@ -547,7 +545,7 @@ kernel void <?=applyInitCond?>(
 <? end
 ?>	};
 
-	sym3 gammaHat_ll = calc_gammaHat_ll(x);
+	sym3 gammaHat_ll = <?=calc_gammaHat_ll?>(x);
 	real det_gammaHat = sym3_det(gammaHat_ll);
 	real det_gammaBar = det_gammaHat;
 	real det_gamma = sym3_det(gamma_ll);
@@ -662,15 +660,14 @@ end ?>
 
 <? elseif initCond.useBSSNVars then -- and not initCond.initAnalytical ?>
 
-kernel void <?=applyInitCond?>(
+void <?=applyInitCondCell?>(
 	constant <?=solver_t?> const * const solver,
 	constant <?=initCond_t?> const * const initCond,
-	global <?=cons_t?> * const UBuf,
-	global <?=cell_t?> const * const cellBuf
+	global <?=cons_t?> * const U,
+	global <?=cell_t?> const * const cell
 ) {
 	<?=SETBOUNDS?>(0,0);
-	global <?=cons_t?> * const U = UBuf + index;
-	real3 const x = cellBuf[index].pos;
+	real3 const x = cell->pos;
 
 	if (<?=OOB?>(solver->numGhost, solver->numGhost)) {
 		U->alpha = INFINITY;
@@ -742,23 +739,21 @@ kernel void <?=applyInitCond?>(
 -- if we're using a SENR init cond then init the components directly
 -- TODO port these from sympy into symmath 
 ?>
-//// MODULE_DEPENDS: rescaleFromCoord/rescaleToCoord calc_gammaBar_LL 
+//// MODULE_DEPENDS: rescaleFromCoord/rescaleToCoord <?=calc_gammaBar_LL?> 
 
-kernel void <?=applyInitCond?>(
+void <?=applyInitCondCell?>(
 	constant <?=solver_t?> const * const solver,
 	constant <?=initCond_t?> const * const initCond,
-	global <?=cons_t?> * const UBuf,
-	global <?=cell_t?> const * const cellBuf
+	global <?=cons_t?> * const U,
+	global <?=cell_t?> const * const cell
 ) {
 	<?=SETBOUNDS?>(solver->numGhost, solver->numGhost);
 
-	real3 const x = cellBuf[index].pos;
+	real3 const x = cell->pos;
 	real3 const xc = coordMap(x);
 	real3 const mids = real3_real_mul(real3_add(solver->mins, solver->maxs), .5);
-	
-	global <?=cons_t?> * const U = UBuf + index;
 
-	sym3 gammaHat_ll = calc_gammaHat_ll(x);
+	sym3 gammaHat_ll = <?=calc_gammaHat_ll?>(x);
 
 	//initCond will assume it is providing a metric in Cartesian
 	real alpha = 1.;
@@ -790,7 +785,7 @@ kernel void <?=applyInitCond?>(
 	sym3 gamma_uu = sym3_inv(gamma_ll, det_gamma);
 	
 	//det(gammaBar_ij) == det(gammaHat_ij)
-	real det_gammaBar = calc_det_gammaBar(x); 
+	real det_gammaBar = <?=calc_det_gammaBar?>(x); 
 
 	//gammaBar_ij = e^(-4phi) gamma_ij
 	//real exp_neg4phi = exp(-4 * U->phi);
@@ -839,8 +834,8 @@ kernel void <?=initDerivs?>(
 	real3 const x = cellBuf[index].pos;
 	global <?=cons_t?> * const U = UBuf + index;
 
-	sym3 gammaBar_LL = calc_gammaBar_LL(U, x);
-	real det_gammaBarLL = calc_det_gammaBarLL(x);
+	sym3 gammaBar_LL = <?=calc_gammaBar_LL?>(U, x);
+	real det_gammaBarLL = <?=calc_det_gammaBarLL?>(x);
 	sym3 gammaBar_UU = sym3_inv(gammaBar_LL, det_gammaBarLL);
 
 <?=eqn:makePartial1"epsilon_LL"?>
@@ -1536,7 +1531,7 @@ static real calc_PIRK_L3_K(
 }
 
 //// MODULE_NAME: calc_PIRK_L2_LambdaBar_U_times_W
-//// MODULE_DEPENDS: real3x3x3 calc_partial_connHat_Ulll_* sym3_add3 calc_det_gammaHat calc_partial_det_gammaHat_L calc_partial2_det_gammaHat_LL real3_add6
+//// MODULE_DEPENDS: real3x3x3 calc_partial_connHat_Ulll_* sym3_add3 <?=calc_det_gammaHat?> calc_partial_det_gammaHat_L calc_partial2_det_gammaHat_LL real3_add6
 
 //////////////////////////////// LambdaBar^I_,t //////////////////////////////// 
 
@@ -1640,7 +1635,7 @@ end
 	//SENR's formulas
 	//detg is the ratio of det(gammaBar_ij)/det(gammaHat_ij)
 
-	real det_gammaHat = calc_det_gammaHat(x);
+	real det_gammaHat = <?=calc_det_gammaHat?>(x);
 	real3 partial_det_gammaHat_L = calc_partial_det_gammaHat_L(x);
 	sym3 partial2_det_gammaHat_LL = calc_partial2_det_gammaHat_LL(x);
 	
@@ -2188,7 +2183,7 @@ static void calcDeriv_Pi(
 <? end	-- eqn.useScalarField ?>
 
 //// MODULE_NAME: calcDeriv
-//// MODULE_DEPENDS: calc_det_gammaBarLL calc_gammaBar_LL calc_exp_neg4phi calcDeriv_ABar_LL <?=solver_macros?> mystery_C_U <?=initCond_codeprefix?> applyKreissOligar getUpwind from3x3to6 calc_partial*_det_gammaHat_over_det_gammaHat_* calc_connHat_LLL_and_ULL calc_connBar_ULL calcDeriv_epsilon_LL calcDeriv_W calc_dt_LambdaBar_U_wo_partial_upwind_beta_LambdaBar calc_PIRK_L2_B_U calc_PIRK_L3_B_U calcDeriv_K calc_partial_gammaBar_LLL tracefree calc_RBar_LL calc_len_# calc_trBar_partial2_gammaBar_ll real3x3_partial_rescaleFromCoord_Ul eqn.macros
+//// MODULE_DEPENDS: <?=calc_det_gammaBarLL?> <?=calc_gammaBar_LL?> calc_exp_neg4phi calcDeriv_ABar_LL <?=solver_macros?> mystery_C_U <?=initCond_codeprefix?> applyKreissOligar getUpwind from3x3to6 calc_partial*_det_gammaHat_over_det_gammaHat_* calc_connHat_LLL_and_ULL calc_connBar_ULL calcDeriv_epsilon_LL calcDeriv_W calc_dt_LambdaBar_U_wo_partial_upwind_beta_LambdaBar calc_PIRK_L2_B_U calc_PIRK_L3_B_U calcDeriv_K calc_partial_gammaBar_LLL tracefree calc_RBar_LL calc_len_# calc_trBar_partial2_gammaBar_ll real3x3_partial_rescaleFromCoord_Ul eqn.macros
 /*
 -- calcDeriv_epsilon_LL:
 	'calc_partial_gammaBar_LLL',
@@ -2283,7 +2278,7 @@ kernel void calcDeriv(
 		real3_real_mul(partial_det_gammaHat_over_det_gammaHat_L, detg),
 		partial_detg_L);
 	
-	real const det_gammaBarLL = calc_det_gammaBarLL(x);
+	real const det_gammaBarLL = <?=calc_det_gammaBarLL?>(x);
 	real const det_gammaBar_over_det_gammaHat = det_gammaBarLL;
 	real const det_gammaHat_over_det_gammaBar = 1. / det_gammaBar_over_det_gammaHat;
 	real3 const partial_det_gammaBar_over_det_gammaBar_L = real3_real_mul(
@@ -2300,7 +2295,7 @@ kernel void calcDeriv(
 	//ran sim to t=100, only dif with the det grad was 2e-10 ratio of the alpha value at t=10. so these two match.
 	real tr_DBar_beta;
 	{	//also in K_,t, so don't calculate this twice
-		sym3 gammaBar_LL = calc_gammaBar_LL(U, x);
+		sym3 gammaBar_LL = <?=calc_gammaBar_LL?>(U, x);
 		sym3 gammaBar_UU = sym3_inv(gammaBar_LL, det_gammaBarLL);
 <?=eqn:makePartial1'epsilon_LL'?>	//partial_epsilon[k].ij := epsilon_ij,k = gammaBar_ij,k
 		_3sym3 partial_gammaBar_LLL = calc_partial_gammaBar_LLL(x, U->epsilon_LL, partial_epsilon_LLl);
@@ -2337,7 +2332,7 @@ kernel void calcDeriv(
 		partial_K_L = real3_rescaleFromCoord_l(partial_K_l, x);
 	}
 
-	sym3 gammaBar_LL = calc_gammaBar_LL(U, x);
+	sym3 gammaBar_LL = <?=calc_gammaBar_LL?>(U, x);
 	sym3 gammaBar_UU = sym3_inv(gammaBar_LL, det_gammaBarLL);
 
 	//exp(-4 phi)
@@ -3039,7 +3034,7 @@ kernel void <?=addSource?>(
 }
 
 //// MODULE_NAME: BSSNOK-PIRK
-//// MODULE_DEPENDS: <?=initCond_codeprefix?> getUpwind calc_partial*_det_gammaHat_over_det_gammaHat_* calc_det_gammaBarLL real3x3_partial_rescaleFromCoord_Ul calc_gammaBar_LL calcDeriv_epsilon_LL calcDeriv_W applyKreissOligar calc_connBar_ULL calc_connHat_LLL_and_ULL mystery_C_U calc_PIRK_L2_ABar_LL calc_PIRK_L2_K sym3_Lbeta_LL calc_PIRK_L3_ABar_LL calc_PIRK_L3_K calc_partial_ABar_LLL calc_PIRK_L2_LambdaBar_U_times_W calc_PIRK_L3_LambdaBar_U calc_PIRK_L2_B_U calc_dt_LambdaBar_U_wo_partial_upwind_beta_LambdaBar calc_PIRK_L3_B_U calc_exp_neg4phi
+//// MODULE_DEPENDS: <?=initCond_codeprefix?> getUpwind calc_partial*_det_gammaHat_over_det_gammaHat_* <?=calc_det_gammaBarLL?> real3x3_partial_rescaleFromCoord_Ul <?=calc_gammaBar_LL?> calcDeriv_epsilon_LL calcDeriv_W applyKreissOligar calc_connBar_ULL calc_connHat_LLL_and_ULL mystery_C_U calc_PIRK_L2_ABar_LL calc_PIRK_L2_K sym3_Lbeta_LL calc_PIRK_L3_ABar_LL calc_PIRK_L3_K calc_partial_ABar_LLL calc_PIRK_L2_LambdaBar_U_times_W calc_PIRK_L3_LambdaBar_U calc_PIRK_L2_B_U calc_dt_LambdaBar_U_wo_partial_upwind_beta_LambdaBar calc_PIRK_L3_B_U calc_exp_neg4phi
 
 kernel void copyWAlphaBeta(
 	constant <?=solver_t?> const * const solver,
@@ -3094,7 +3089,7 @@ kernel void calcDeriv_PIRK_L1_EpsilonWAlphaBeta(
 		real3_real_mul(partial_det_gammaHat_over_det_gammaHat_L, detg),
 		partial_detg_L);
 	
-	real det_gammaBarLL = calc_det_gammaBarLL(x);
+	real det_gammaBarLL = <?=calc_det_gammaBarLL?>(x);
 	real det_gammaBar_over_det_gammaHat = det_gammaBarLL;
 	real det_gammaHat_over_det_gammaBar = 1. / det_gammaBar_over_det_gammaHat;
 	real3 partial_det_gammaBar_over_det_gammaBar_L = real3_real_mul(
@@ -3115,7 +3110,7 @@ kernel void calcDeriv_PIRK_L1_EpsilonWAlphaBeta(
 	real tr_DBar_beta = tr_partial_beta + real3_dot(U->beta_U, partial_det_gammaBar_over_det_gammaBar_L) * .5;
 	
 	
-	sym3 gammaBar_LL = calc_gammaBar_LL(U, x);
+	sym3 gammaBar_LL = <?=calc_gammaBar_LL?>(U, x);
 	sym3 gammaBar_UU = sym3_inv(gammaBar_LL, det_gammaBarLL);
 
 	//////////////////////////////// epsilon_ij_,t //////////////////////////////// 
@@ -3226,9 +3221,9 @@ kernel void calcDeriv_PIRK_L2_ABarK(
 
 	real exp_neg4phi = calc_exp_neg4phi(U);
 	
-	real det_gammaBarLL = calc_det_gammaBarLL(x);
+	real det_gammaBarLL = <?=calc_det_gammaBarLL?>(x);
 	
-	sym3 gammaBar_LL = calc_gammaBar_LL(U, x);
+	sym3 gammaBar_LL = <?=calc_gammaBar_LL?>(U, x);
 	sym3 gammaBar_UU = sym3_inv(gammaBar_LL, det_gammaBarLL);
 	
 	real3 partial_phi_l_times_W = real3_real_mul(partial_W_l, -.5);
@@ -3296,9 +3291,9 @@ kernel void calcDeriv_PIRK_L3_ABarK(
 	global <?=cons_t?> * const deriv = derivBuf + index;
 	global <?=cons_t?> const * const U = UBuf + index;
 	
-	real det_gammaBarLL = calc_det_gammaBarLL(x);
+	real det_gammaBarLL = <?=calc_det_gammaBarLL?>(x);
 
-	sym3 gammaBar_LL = calc_gammaBar_LL(U, x);
+	sym3 gammaBar_LL = <?=calc_gammaBar_LL?>(U, x);
 	sym3 gammaBar_UU = sym3_inv(gammaBar_LL, det_gammaBarLL);
 
 	//ABar_ul.i.j := ABar^i_j = gammaBar^kl ABar_kj
@@ -3400,8 +3395,8 @@ kernel void calcDeriv_PIRK_L2_LambdaBar(
 <?=eqn:makePartial1"K"?>				//partial_K_l.i := K,i
 	real3 partial_K_L = real3_rescaleFromCoord_l(partial_K_l, x);
 
-	real det_gammaBarLL = calc_det_gammaBarLL(x);
-	sym3 gammaBar_LL = calc_gammaBar_LL(U, x);
+	real det_gammaBarLL = <?=calc_det_gammaBarLL?>(x);
+	sym3 gammaBar_LL = <?=calc_gammaBar_LL?>(U, x);
 	sym3 gammaBar_UU = sym3_inv(gammaBar_LL, det_gammaBarLL);
 
 <?=eqn:makePartial1"beta_U"?>		//partial_beta_Ul.j..i := beta^I_,j
@@ -3489,7 +3484,7 @@ kernel void calcDeriv_PIRK_L3_LambdaBar(
 		real3_real_mul(partial_det_gammaHat_over_det_gammaHat_L, detg),
 		partial_detg_L);
 	
-	real det_gammaBarLL = calc_det_gammaBarLL(x);
+	real det_gammaBarLL = <?=calc_det_gammaBarLL?>(x);
 	real det_gammaBar_over_det_gammaHat = det_gammaBarLL;
 	real det_gammaHat_over_det_gammaBar = 1. / det_gammaBar_over_det_gammaHat;
 	real3 partial_det_gammaBar_over_det_gammaBar_L = real3_real_mul(
@@ -3504,7 +3499,7 @@ kernel void calcDeriv_PIRK_L3_LambdaBar(
 	real tr_partial_beta = real3x3_trace(partial_beta_UL);
 
 
-	sym3 gammaBar_LL = calc_gammaBar_LL(U, x);
+	sym3 gammaBar_LL = <?=calc_gammaBar_LL?>(U, x);
 	sym3 gammaBar_UU = sym3_inv(gammaBar_LL, det_gammaBarLL);
 
 	_3sym3 connHat_LLL, connHat_ULL;
@@ -3577,8 +3572,8 @@ kernel void calcDeriv_PIRK_L2_B(
 <?=eqn:makePartial1"K"?>				//partial_K_l.i := K,i
 	real3 partial_K_L = real3_rescaleFromCoord_l(partial_K_l, x);
 	
-	real det_gammaBarLL = calc_det_gammaBarLL(x);
-	sym3 gammaBar_LL = calc_gammaBar_LL(U, x);
+	real det_gammaBarLL = <?=calc_det_gammaBarLL?>(x);
+	sym3 gammaBar_LL = <?=calc_gammaBar_LL?>(U, x);
 	sym3 gammaBar_UU = sym3_inv(gammaBar_LL, det_gammaBarLL);
 
 <?=eqn:makePartial1"beta_U"?>		//partial_beta_Ul.j..i := beta^I_,j

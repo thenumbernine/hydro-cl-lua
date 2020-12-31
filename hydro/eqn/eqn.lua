@@ -352,11 +352,11 @@ function Equation:getSymbolFields()
 		'calcDTCell',
 		
 		-- kernels:
-		'applyInitCond',	-- TODO don't uniquely identify this, only do the Cell version 
-		'calcDT',			-- TODO same
-		'initDerivs',		-- TODO same
-		'addSource',		-- TODO same
-		'constrainU',		-- TODO same
+		'applyInitCond',
+		'calcDT',
+		'initDerivs',
+		'addSource',
+		'constrainU',
 		
 		-- placeholder modules for dependencies
 		'eqn_guiVars_compileTime',	-- module of code for compile-time #defines of gui vars
@@ -820,7 +820,7 @@ end
 -- put your getDisplayVars code dependencies here
 -- called from solverbase
 function Equation:getModuleDepends_displayCode() 
-	return {
+	return table{
 		self.solver.symbols.SETBOUNDS,
 	}
 end

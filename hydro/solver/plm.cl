@@ -169,8 +169,8 @@ void calcCellLR_<?=side?>(
 	real3 xL = x; xL.s<?=side?> -= dx;
 	real3 xR = x; xR.s<?=side?> += dx;
 
-	const global <?=cons_t?>* UL = U - solver->stepsize.s<?=side?>;
-	const global <?=cons_t?>* UR = U + solver->stepsize.s<?=side?>;
+	global <?=cons_t?> const * const UL = U - solver->stepsize.s<?=side?>;
+	global <?=cons_t?> const * const UR = U + solver->stepsize.s<?=side?>;
 
 	result->L = *U;
 	result->R = *U;
@@ -220,8 +220,8 @@ void calcCellLR_<?=side?>(
 	real3 xL = x; xL.s<?=side?> -= dx;
 	real3 xR = x; xR.s<?=side?> += dx;
 
-	const global <?=cons_t?>* UL = U - solver->stepsize.s<?=side?>;
-	const global <?=cons_t?>* UR = U + solver->stepsize.s<?=side?>;
+	global <?=cons_t?> const * const UL = U - solver->stepsize.s<?=side?>;
+	global <?=cons_t?> const * const UR = U + solver->stepsize.s<?=side?>;
 
 	<?=prim_t?> W;
 	<?=primFromCons?>(&W, solver, U, x);
@@ -308,8 +308,8 @@ void calcCellLR_<?=side?>(
 	<?=normal_t?> const n
 ) {
 	//1) calc delta q's ... l r c (eqn 36)
-	const global <?=cons_t?>* UL = U - solver->stepsize.s<?=side?>;
-	const global <?=cons_t?>* UR = U + solver->stepsize.s<?=side?>;
+	global <?=cons_t?> const * const UL = U - solver->stepsize.s<?=side?>;
+	global <?=cons_t?> const * const UR = U + solver->stepsize.s<?=side?>;
 	<?=cons_t?> dUL, dUR, dUC;
 	for (int j = 0; j < numIntStates; ++j) {
 		dUL.ptr[j] = U->ptr[j] - UL->ptr[j];
@@ -456,8 +456,8 @@ void calcCellLR_<?=side?>(
 	real3 xIntL = x; xIntL.s<?=side?> -= .5 * solver->grid_dx.s<?=side?>;
 	real3 xIntR = x; xIntR.s<?=side?> += .5 * solver->grid_dx.s<?=side?>;
 	
-	const global <?=cons_t?>* UL = U - solver->stepsize.s<?=side?>;
-	const global <?=cons_t?>* UR = U + solver->stepsize.s<?=side?>;
+	global <?=cons_t?> const * const UL = U - solver->stepsize.s<?=side?>;
+	global <?=cons_t?> const * const UR = U + solver->stepsize.s<?=side?>;
 	
 	//1) calc delta q's ... l r c (eqn 36)
 	<?=prim_t?> W;

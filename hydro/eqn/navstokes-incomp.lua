@@ -13,17 +13,16 @@ NavierStokesDivFree.consVars = table{
 	{name='v', type='real3', units='m/s', variance='u'},
 }
 
--- hmm, if this is using euler.cl then how can we extend this for applyInitCond?
--- I might have to bring the getModuleCode_applyInitCond function back 
+-- hmm, if this is using euler.cl then how can we extend this for applyInitCondCell?
+-- I might have to bring the getModuleCode_applyInitCondCell function back 
 NavierStokesDivFree.initCondCode = [[
-kernel void applyInitCond(
+void applyInitCondCell(
 	constant <?=solver_t?> const * const solver,
 	constant <?=initCond_t?> const * const initCond,
-	global <?=cons_t?> * const UBuf,
-	global <?=cell_t?> const * const cellBuf
+	global <?=cons_t?> * const U,
+	global <?=cell_t?> const * const cell
 ) {
-	<?=SETBOUNDS?>(0,0);
-	real3 const x = cellBuf[index].pos;
+	real3 const x = cell->pos;
 	real3 const mids = real3_real_mul(real3_add(mins, maxs), .5);
 	bool const lhs = x.x < mids.x
 #if dim > 1
@@ -33,6 +32,7 @@ kernel void applyInitCond(
 		&& x.z < mids.z
 #endif
 	;
+	
 	real rho = 0;
 	real3 v = real3_zero;
 	
@@ -43,11 +43,10 @@ kernel void applyInitCond(
 
 	<?=code?>
 
-	<?=cons_t?> U = {
+	*U = (<?=cons_t?>){
 		.rho = rho,
 		.v = v,
 	};
-	UBuf[index] = U;
 }
 ]]
 

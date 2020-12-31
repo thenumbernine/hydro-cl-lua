@@ -735,7 +735,7 @@ local initConds = table{
 			EinsteinInitCond.init(self, solver, args)
 		end,
 		getInitCondCode = function(self, solver)
-			return [[
+			return solver.eqn:template[[
 	{
 		const real vz = .1;
 		const real M = 1.;
@@ -829,7 +829,7 @@ local initConds = table{
 			/ (M_plus_2_rB_toThe3*BB_toThe3);
 	
 		real det_gamma = sym3_det(gamma_ll);
-		real det_gammaBar = calc_det_gammaBar(x); 
+		real det_gammaBar = <?=calc_det_gammaBar?>(x); 
 		real exp_neg4phi = cbrt(det_gammaBar / det_gamma);
 
 		sym3 A_ll = sym3_real_mul(APhys00DD, 1. / exp_neg4phi);

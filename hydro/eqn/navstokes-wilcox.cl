@@ -134,24 +134,21 @@ static inline real calc_Cs(constant <?=solver_t?> const * const solver, <?=prim_
 	return sqrt((R_over_C_v + 1.) * (W)->PStar / (W)->rhoBar);
 }
 
-//// MODULE_NAME: <?=applyInitCond?>
+//// MODULE_NAME: <?=applyInitCondCell?>
 //// MODULE_DEPENDS: <?=cartesianToCoord?> <?=consFromPrim?>
 
-kernel void <?=applyInitCond?>(
+void <?=applyInitCondCell?>(
 	constant <?=solver_t?> const * const solver,
 	constant <?=initCond_t?> const * const initCond,
-	global <?=cons_t?> * const UBuf,
-	global <?=cell_t?> const * const cellBuf
+	global <?=cons_t?> * const U,
+	global <?=cell_t?> const * const cell
 ) {
-	<?=SETBOUNDS?>(0,0);
-	real3 const x = cellBuf[index].pos;
-	real3 mids = real3_real_mul(real3_add(solver->mins, solver->maxs), .5);
-	bool lhs = true
-<?
+	real3 const x = cell->pos;
+	real3 const mids = real3_real_mul(real3_add(solver->mins, solver->maxs), .5);
+	bool const lhs = true<?
 for i=1,solver.dim do
 	local xi = xNames[i]
-?>	&& x.<?=xi?> < mids.<?=xi?>
-<?
+?> && x.<?=xi?> < mids.<?=xi?><?
 end
 ?>;
 	

@@ -1,34 +1,34 @@
 kernel void diffuse(
-	global <?=cons_t?>* UNextBuf,
-	const global <?=cons_t?>* UBuf,
+	global <?=cons_t?> * const UNextBuf,
+	global <?=cons_t?> const * const UBuf,
 	real dt
 ) {
 	<?=SETBOUNDS_NOGHOST?>()
 
-	const real viscosity = .001;
-	const real alpha = dt * <?=clnumber(solver.numCells)?> * viscosity;
-	const real diag = (1. + 2. * dim * alpha);
+	real const viscosity = .001;
+	real const alpha = dt * <?=clnumber(solver.numCells)?> * viscosity;
+	real const diag = (1. + 2. * dim * alpha);
 	UNextBuf = (UBuf + source * dt + alpha * sumSkew) / diag;
 }
 
 kernel void advect(
-	global <?=cons_t?>* UNextBuf,
-	const global <?=cons_t?>* UBuf
+	global <?=cons_t?> * const UNextBuf,
+	global <?=cons_t?> const * const UBuf
 ) {
 	<?=SETBOUNDS_NOGHOST?>();
 #error finishme
 }
 
 kernel void calcDiv(
-	global real* divBuf,
-	const global <?=cons_t?>* UBuf
+	global real * const divBuf,
+	global <?=cons_t?> const * const UBuf
 ) {
 	<?=SETBOUNDS_NOGHOST?>();
-	const global <?=cons_t?>* U = UBuf + index;
+	global <?=cons_t?> const * const U = UBuf + index;
 
 	real div = 0.;
 	<? for side=0,solver.dim-1 do ?>{
-		const int side = <?=side?>;
+		int const side = <?=side?>;
 		div -= .5 * (U[solver->stepsize.s<?=side?>].v.s<?=side?>
 				- U[-solver->stepsize.s<?=side?>].v.s<?=side?>) / grid_dx<?=side?>;
 	}<? end ?>
@@ -36,24 +36,24 @@ kernel void calcDiv(
 }
 
 kernel void diffusePressure(
-	global real* PBuf,
-	const global real* divBuf
+	global real * const PBuf,
+	global real const * const divBuf
 ) {
 	<?=SETBOUNDS_NOGHOST?>();
 	global real* P = PBuf + index;
-	const global real* div = divBuf + index;
+	global real const * const div = divBuf + index;
 	<? for side=0,solver.dim-1 do ?>{
 		*P += .25 * (div[solver->stepsize.s<?=side?>] - div[-solver->stepsize.s<?=side?>]) / grid_dx<?=side?>;
 	}<? end ?>
 }
 
 kernel void project(
-	global <?=cons_t?>* UBuf,
-	const global real* PBuf
+	global <?=cons_t?> * const UBuf,
+	global real const * const PBuf
 ) {
 	<?=SETBOUNDS_NOGHOST?>();
-	const global real* P = PBuf + index;
-	const <?=cons_t?>* U = UBuf + index;
+	global real const * const P = PBuf + index;
+	<?=cons_t?> * const U = UBuf + index;
 	<? for side=0,solver.dim-1 do ?>{
 		U->v.s<?=side?> -= (P[solver->stepsize.s<?=side?>] - P[-solver->stepsize.s<?=side?>]) / grid_dx<?=side?>;
 	}<? end ?>

@@ -1,7 +1,7 @@
 //// MODULE_NAME: <?=eqn_common?>
 
 //gammaBar_ij = gammaHat_ij + epsilon_ij
-sym3 calc_gammaBar_ll(global <?=cons_t?> const * const U, real3 const x) {
+sym3 <?=calc_gammaBar_ll?>(global <?=cons_t?> const * const U, real3 const x) {
 	sym3 gammaHat_ll = coord_g_ll(x);
 	return sym3_add(gammaHat_ll, U->epsilon_ll);
 }
@@ -28,7 +28,7 @@ void <?=setFlatSpace?>(
 <? if eqn.useShift == 'HyperbolicGammaDriver' then
 ?>	U->B_u = real3_zero;
 <? end
-?>	sym3 gammaBar_ll = calc_gammaBar_ll(U, x);
+?>	sym3 gammaBar_ll = <?=calc_gammaBar_ll?>(U, x);
 	real det_gammaBar_ll = calc_det_gammaBar_ll(x);
 	U->gammaBar_uu = sym3_inv(gammaBar_ll, det_gammaBar_ll);
 
@@ -56,7 +56,7 @@ sym3 <?=calc_gamma_uu?>(global <?=cons_t?> const * const U, real3 const x) {
 }
 
 sym3 <?=calc_gamma_ll?>(global <?=cons_t?> const * const U, real3 const x) {
-	sym3 const gammaBar_ll = calc_gammaBar_ll(U, x);
+	sym3 const gammaBar_ll = <?=calc_gammaBar_ll?>(U, x);
 	real const exp_4phi = 1. / calc_exp_neg4phi(U);
 	sym3 const gamma_ll = sym3_real_mul(gammaBar_ll, exp_4phi);
 	return gamma_ll;
@@ -309,7 +309,7 @@ end ?>;
 <? end
 ?>	};
 
-	sym3 gammaBar_ll = calc_gammaBar_ll(U, x);
+	sym3 gammaBar_ll = <?=calc_gammaBar_ll?>(U, x);
 
 	//gamma_ij = exp(4 phi) gammaBar_ij
 	//only used in K_ll calculation for H constraint

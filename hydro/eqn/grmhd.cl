@@ -51,17 +51,16 @@ real calc_h(real rho, real P, real eInt) {
 	return (<?=cons_t?>){.D=D, .S=S, .tau=tau};
 }
 
-//// MODULE_NAME: <?=applyInitCond?>
+//// MODULE_NAME: <?=applyInitCondCell?>
 
-kernel void <?=applyInitCond?>(
+void <?=applyInitCondCell?>(
 	constant <?=solver_t?> const * const solver,
 	constant <?=initCond_t?> const * const initCond,
-	global <?=cons_t?> * const consBuf,
-	global <?=cell_t?> const * const cellBuf,
-	global <?=prim_t?> * const primBuf
+	global <?=cons_t?> * const cons,
+	global <?=cell_t?> const * const cell,
+	global <?=prim_t?> * const prim
 ) {
-	<?=SETBOUNDS?>(0,0);
-	real3 const x = cellBuf[index].pos;
+	real3 const x = cell->pos;
 	real3 const mids = real3_real_mul(real3_add(mins, maxs), .5);
 	bool const lhs = x.x < mids.x
 #if dim > 1
@@ -85,9 +84,8 @@ kernel void <?=applyInitCond?>(
 	real W = 1. / sqrt(1. - vSq);
 	real h = calc_h(rho, P, eInt);
 
-	<?=prim_t?> prim = {.rho=rho, .v=v, .eInt=eInt};
-	primBuf[index] = prim;
-	consBuf[index] = consFromPrim(prim, x);
+	*prim = (<?=prim_t?>){.rho=rho, .v=v, .eInt=eInt};
+	*cons = consFromPrim(*prim, x);
 }
 
 
@@ -165,8 +163,8 @@ void calcDTCell(
 //or does the eigenbasis need to be derived from the variables being transformed?
 //shoud I PLM the U's then converge the prims ... and therefore track the prims on edges as well?
 <?=eigen_t?> eigen_forCell(
-	const global <?=cons_t?>* U,
-	real3 x
+	global <?=cons_t?> const * const U,
+	real3 const x
 ) {
 	return (<?=eigen_t?>){};
 }
