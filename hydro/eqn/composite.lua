@@ -92,11 +92,11 @@ assert(#self.eqns > 0, "you need at least one entry in args.subeqns")
 			__index = solver,
 		})
 		eqn.initCond = {
-			initCodeModules = function(fakeInitCond, solver)
+			initCodeModules = function(fakeInitCond)
 			end,
 		}
-		eqn.initCond.getInitCondCode = function(fakeInitCond, solver)
-			return self.initCond:getInitCondCode(solver)
+		eqn.initCond.getInitCondCode = function(fakeInitCond)
+			return self.initCond:getInitCondCode()
 		end
 		
 		-- this is to prevent initCond_t from being re-added

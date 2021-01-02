@@ -5,7 +5,6 @@ local table = require 'ext.table'
 local range = require 'ext.range'
 local math = require 'ext.math'
 local clnumber = require 'cl.obj.number'
-local template = require 'template'
 local materials = require 'hydro.materials'
 local InitCond = require 'hydro.init.init'
 local real = require 'hydro.real'
@@ -35,19 +34,20 @@ local function RiemannProblem(initCond)
 		end
 	end
 	
-	initCond.init = function(self, solver, args)
+	initCond.init = function(self, args)
+		EulerInitCond.init(self, args)
 		if args then
 			self.overrideDim = args.dim
 		end
 	end
 	
-	initCond.getInitCondCode = function(self, solver)
+	initCond.getInitCondCode = function(self)
 		local function build(i)
 			return table.map(initCond[i], function(_,name,t)
 				return '\t\t'..name..' = initCond->'..getInitCondFieldName(i,name)..';', #t+1
 			end):concat'\n'
 		end
-		return template([[
+		return self.solver.eqn:template([[
 	bool lhsSod = true<?
 for i=1,overrideDim or solver.dim do
 	local xi = xNames[i]
@@ -61,9 +61,7 @@ end
 <?=build(2)?>
 	}
 ]], 		{
-				solver = solver,
 				build = build,
-				xNames = xNames,
 				overrideDim = self.overrideDim,
 			})
 	end
@@ -72,7 +70,8 @@ end
 	-- http://www.itam.nsc.ru/flowlib/SRC/sod.f
 	-- TODO it might be more efficient to hand this function the array, and have it return an array
 	-- or at least have it calculate certain values up front before iterating across all x's
-	initCond.exactSolution = function(solver, x, t)
+	initCond.exactSolution = function(self, x, t)
+		local solver = assert(self.solver)
 		local solverPtr = solver.solverPtr
 		local initCondPtr = solver.initCondPtr
 		-- TODO initial condition object to share these values with initialization
@@ -197,7 +196,8 @@ end
 end
 
 local function quadrantProblem(initCond)
-	initCond.getInitCondCode = function(self, solver)
+	initCond.getInitCondCode = function(self)
+		local solver = assert(self.solver)
 		-- [[ specific to 2002 Kurganov, Tadmor, "Solution of Two-Dimensional Riemann Problems for Gas Dynamics without Riemann Problem Solvers"
 		solver.cfl = .475
 		solver:setBoundaryMethods'freeflow'
@@ -208,7 +208,7 @@ local function quadrantProblem(initCond)
 				return k..'='..v..';', #t+1
 			end):concat' '
 		end
-		return template([[
+		return solver.eqn:template([[
 	bool xp = x.x > mids.x;
 	bool yp = x.y > mids.y;
 	if (yp) {
@@ -243,18 +243,19 @@ function SelfGravProblem:init(args)
 	self.getRadiusCode = args.getRadiusCode
 end
 
-function SelfGravProblem:getDepends(solver)
+function SelfGravProblem:getDepends()
 	return table{
-		solver.coord.symbols.coordMap,
+		self.solver.coord.symbols.coordMap,
 	}
 end
 
-function SelfGravProblem:getInitCondCode(initCond, solver)
+function SelfGravProblem:getInitCondCode(initCond)
+	local solver = assert(self.solver)
 	local args = self.args
 
 	solver.useGravity = true
 
-	return template([[
+	return solver.eqn:template([[
 	rho = .1;
 	P = 1;
 	//notice about initializing random velocity -- it isn't uniform about .5 so it will pull left
@@ -309,7 +310,7 @@ local function addMaxwellOscillatingBoundary(args)
 		if not args.fields then
 			return 
 				--oldxmin(args) .. 
-				template([[
+				solver.eqn:template([[
 <?
 	local epsSrc = 
 		(require 'hydro.eqn.twofluid-emhd-lingr'.is(eqn) 
@@ -324,13 +325,12 @@ local function addMaxwellOscillatingBoundary(args)
 	<?=U?>.D.<?=dir?> = <?=real_mul?>(
 		<?=mul?>(<?=epsSrc?>.sqrt_1_eps, <?=epsSrc?>.sqrt_1_eps),
 		<?=amplitude?> * sin(2. * M_PI * <?=frequency?> * t)); 
-]], 		table(solver.eqn:getEnv(), {
+]], 		{
 				U = U,
-				eqn = self.eqn,
 				frequency = clnumber(frequency),
 				amplitude = clnumber(amplitude),
 				dir = dir,
-			}))
+			})
 		else
 			return ''
 		end
@@ -387,10 +387,11 @@ local initConds = table{
 		solverVars = {
 			heatCapacityRatio = 7/5,
 		},
-		init = function(self, solver, args)
+		init = function(self, args)
+			EulerInitCond.init(self, args)
 			self.initCondArgs = args
 		end,
-		getInitCondCode = function(self, solver)
+		getInitCondCode = function(self)
 			local args = self.initCondArgs
 			if args then
 				local found
@@ -414,8 +415,8 @@ local initConds = table{
 	},
 	{
 		name = 'random',
-		getInitCondCode = function(self, solver)
-			solver.useGravity = true
+		getInitCondCode = function(self)
+			self.solver.useGravity = true
 			return [[
 	rho = U->rho + 1.;
 #if dim == 2
@@ -437,12 +438,12 @@ local initConds = table{
 		solverVars = {
 			heatCapacityRatio = 7/5,
 		},
-		getDepends = function(self, solver)
+		getDepends = function(self)
 			return table{
-				solver.coord.symbols.coordMap,
+				self.solver.coord.symbols.coordMap,
 			}
 		end,
-		getInitCondCode = function(self, solver)
+		getInitCondCode = function(self)
 			return [[
 	real3 xc = coordMap(x);
 	rho = 1. + xc.x;
@@ -465,13 +466,13 @@ local initConds = table{
 			{name = 'y0', value = -.5},
 			{name = 'z0', value = 0},
 		},
-		getDepends = function(self, solver)
+		getDepends = function(self)
 			return table{
-				solver.coord.symbols.coordMap,
+				self.solver.coord.symbols.coordMap,
 			}
 		end,
-		getInitCondCode = function(self, solver)
-			return template([[
+		getInitCondCode = function(self)
+			return self.solver.eqn:template([[
 	real3 xc = coordMap(x);
 	//real xSq = real3_lenSq(xc);
 	real xSq = real3_lenSq(real3_sub(xc, 
@@ -484,9 +485,9 @@ local initConds = table{
 	v.x = initCond->u0;
 	v.y = initCond->v0;
 	P = initCond->P0;
-]],		{
-			clnumber = clnumber,
-		})
+]],			{
+				clnumber = clnumber,
+			})
 		end,
 	},
 
@@ -494,13 +495,13 @@ local initConds = table{
 		-- boundary waves seem to mess with this, 
 		-- otherwise it looks like a wave equation solution
 		name = 'Bessel',
-		getDepends = function(self, solver)
+		getDepends = function(self)
 			return table{
-				solver.coord.symbols.coordMapR,
-				solver.coord.symbols.coordMap,
+				self.solver.coord.symbols.coordMapR,
+				self.solver.coord.symbols.coordMap,
 			}
 		end,
-		getInitCondCode = function(self, solver)
+		getInitCondCode = function(self)
 			return [[
 	real r = coordMapR(x);
 	real3 xc = coordMap(x);
@@ -537,12 +538,13 @@ local initConds = table{
 			{name = 'rho1', value = 3.2e-1},
 			{name = 'P0', value = 1},
 		},
-		getDepends = function(self, solver)
+		getDepends = function(self)
 			return table{
-				solver.coord.symbols.coordMap,
+				self.solver.coord.symbols.coordMap,
 			}
 		end,
-		getInitCondCode = function(self, solver)
+		getInitCondCode = function(self)
+			local solver = assert(self.solver)
 			solver:setBoundaryMethods{
 				xmin = 'periodic',
 				xmax = 'periodic',
@@ -567,7 +569,8 @@ local initConds = table{
 		end,
 		-- TODO combine this with above, use a parser / transpiler to convert between Lua and OpenCL, and just write one equation?
 		-- TODO TODO do this with all math everywhere, and analyze the dependency graph of variables and automatically slice out what GPU calculations should be buffered / automatically inline equations
-		exactSolution = function(solver, x, t)
+		exactSolution = function(self, x, t)
+			local solver = assert(self.solver)
 			local solverPtr = solver.solverPtr
 			local initCondPtr = solver.initCondPtr
 			local k0 = 2 * math.pi / (solverPtr.maxs.x - solverPtr.mins.x)
@@ -644,8 +647,8 @@ Test	ρ L		u L		    p L		 ρ R		u R		    p R
 		solverVars = {
 			heatCapacityRatio = 2,
 		},
-		getInitCondCode = function(self, solver)
-			return template([[
+		getInitCondCode = function(self)
+			return self.solver.eqn:template([[
 	lhs = true 
 <?
 for i=1,solver.dim do
@@ -676,7 +679,7 @@ end
 			{name = 'P1', value = 1e+3},
 		},
 	
-		getInitCondCode = function(self, solver)
+		getInitCondCode = function(self)
 			return [[
 	rho = initCond->rho0;
 	P = (i.x == solver->gridSize.x/2 && i.y == solver->gridSize.y/2 && i.z == solver->gridSize.z/2) ? initCond->P1 : initCond->P0;
@@ -694,7 +697,7 @@ end
 		solverVars = {
 			heatCapacityRatio = 5/3,
 		},
-		getInitCondCode = function(self, solver)
+		getInitCondCode = function(self)
 			-- TODO add boundary condition of exact solution
 			return [[
 	rho = 1.;
@@ -713,8 +716,8 @@ end
 		solverVars = {
 			heatCapacityRatio = 1.4,
 		},
-		getInitCondCode = function(self, solver)
-			solver:setBoundaryMethods'mirror'
+		getInitCondCode = function(self)
+			self.solver:setBoundaryMethods'mirror'
 			return [[
 	if (x.y < -1. - x.x) {
 		rho = .125;
@@ -761,8 +764,8 @@ end
 		solverVars = {
 			heatCapacityRatio = 5/3,
 		},
-		getInitCondCode = function(self, solver)
-			solver:setBoundaryMethods'periodic'
+		getInitCondCode = function(self)
+			self.solver:setBoundaryMethods'periodic'
 			return [[
 	const real B0 = 1./sqrt(4. * M_PI);
 	//rho = 25./(36.*M_PI);											//Athena i.c.
@@ -789,12 +792,12 @@ end
 		solverVars = {
 			heatCapacityRatio = 7/5,
 		},
-		getDepends = function(self, solver)
+		getDepends = function(self)
 			return table{
-				solver.coord.symbols.coordMap,
+				self.solver.coord.symbols.coordMap,
 			}
 		end,
-		getInitCondCode = function(self, solver)
+		getInitCondCode = function(self)
 			return [[
 	real3 xc = coordMap(x);
 	const real r0 = .1;
@@ -828,12 +831,12 @@ end
 
 	{
 		name = 'spinning magnetic fluid',
-		getDepends = function(self, solver)
+		getDepends = function(self)
 			return table{
-				solver.coord.symbols.coordMap,
+				self.solver.coord.symbols.coordMap,
 			}
 		end,
-		getInitCondCode = function(self, solver)
+		getInitCondCode = function(self)
 			return [[
 	real3 xc = coordMap(x);
 	rho = .1;
@@ -869,13 +872,13 @@ end
 
 	{
 		name = 'magnetic fluid',
-		getDepends = function(self, solver)
+		getDepends = function(self)
 			return table{
-				solver.coord.symbols.coordMap,
+				self.solver.coord.symbols.coordMap,
 			}
 		end,
-		getInitCondCode = function(self, solver)
-			solver.useGravity = true
+		getInitCondCode = function(self)
+			self.solver.useGravity = true
 			return [[
 	real3 xc = coordMap(x);
 	rho = .1;
@@ -902,8 +905,8 @@ end
 		},
 		mins = {-.5, -1.5, -1},
 		maxs = {.5, 1.5, 1},
-		getInitCondCode = function(self, solver)
-			return template([[
+		getInitCondCode = function(self)
+			return self.solver.eqn:template([[
 	rho = 1.;
 	v.x = 1.;
 	v.y = 1.;
@@ -926,8 +929,8 @@ end
 		},
 		mins = {-.5, -.25, -1},
 		maxs = {.5, .25, 1},
-		getInitCondCode = function(self, solver)
-			return template([[
+		getInitCondCode = function(self)
+			return self.solver.eqn:template([[
 	rho = 1.;
 	B.x = <?=clnumber(5 / math.sqrt(4 * math.pi))?>;
 	B.y = <?=clnumber(5 / math.sqrt(4 * math.pi))?>;
@@ -951,8 +954,8 @@ end
 		},
 		mins = {-1, -.5, -1},
 		maxs = {1, .5, 1},
-		getInitCondCode = function(self, solver)
-
+		getInitCondCode = function(self)
+			local solver = assert(self.solver)
 			local boundaryMethods = {}
 			for i,x in ipairs(xNames) do
 				for _,minmax in ipairs(minmxas) do
@@ -966,7 +969,7 @@ end
 			-- left boundary
 			boundaryMethods.xmin = function(args)
 				local U = 'buf['..args.index'j'..']'
-				return template([[
+				return solver.eqn:template([[
 	//TODO 'i'
 	//args.index provides this ... post-converted to an integer
 	//I need the vector now
@@ -983,13 +986,13 @@ end) then
 <? end	
 ?>	};
 	<?=U?> = consFromPrim(W, x);
-]], {U=U, eqn=solver.eqn, args=args})
+]], {U=U, args=args})
 			end
 
 			-- left boundary
 			boundaryMethods.ymin = function(args)
 				local U = 'buf['..args.index'j'..']'
-				return template([[
+				return solver.eqn:template([[
 	real3 const x = cellBuf[index].pos;
 	<?=prim_t?> W = {
 		.rho = 1.4598,
@@ -1003,7 +1006,7 @@ end) then
 <? end	
 ?>	};
 	<?=U?> = consFromPrim(W, x);
-]], {U=U, eqn=solver.eqn})
+]], {U=U})
 			end
 					
 			return [[
@@ -1020,9 +1023,9 @@ end) then
 		solverVars = {
 			heatCapacityRatio = 5/3,
 		},
-		getInitCondCode = function(self, solver)
+		getInitCondCode = function(self)
 			-- TODO dirichlet 
-			solver:setBoundaryMethods'freeflow'
+			self.solver:setBoundaryMethods'freeflow'
 			-- boundary: [-1, 1] x [-1, 1]
 			return [[
 	bool xp = x.x > mids.x;
@@ -1064,8 +1067,8 @@ end) then
 		name = '2002 Dedner Kelvin-Helmholtz',
 		mins = {0,-1,-1},
 		maxs = {1,1,1},
-		getInitCondCode = function(self, solver)
-			solver:setBoundaryMethods'periodic'
+		getInitCondCode = function(self)
+			self.solver:setBoundaryMethods'periodic'
 			return [[
 	rho = 1.;
 	v.x = 5. * (tanh(20. * (x.y + .5)) - (tanh(20. * (x.y - .5)) + 1.));
@@ -1082,12 +1085,12 @@ end) then
 	-- http://www.cfd-online.com/Wiki/Explosion_test_in_2-D
 	{
 		name = 'sphere',
-		getDepends = function(self, solver)
+		getDepends = function(self)
 			return table{
-				solver.coord.symbols.coordMap,
+				self.solver.coord.symbols.coordMap,
 			}
 		end,
-		getInitCondCode = function(self, solver)
+		getInitCondCode = function(self)
 			return [[
 	real3 xc = coordMap(x);
 	real rSq = real3_lenSq(xc);
@@ -1107,12 +1110,12 @@ end) then
 			{name = 'v', value = .5},
 			{name = 'D', value = 1},
 		},
-		getDepends = function(self, solver)
+		getDepends = function(self)
 			return table{
-				solver.coord.symbols.coordMap,
+				self.solver.coord.symbols.coordMap,
 			}
 		end,
-		getInitCondCode = function(self, solver)
+		getInitCondCode = function(self)
 			return [[
 	real3 xc = coordMap(x);
 	real r2 = sqrt(xc.x * xc.x + xc.y * xc.y);
@@ -1133,13 +1136,14 @@ end) then
 			{name = 'P', value = 1},
 			{name = 'inlet_v', value = .1},
 		},
-		getDepends = function(self, solver)
+		getDepends = function(self)
 			return table{
-				solver.coord.symbols.coordMap,
+				self.solver.coord.symbols.coordMap,
 			}
 		end,
-		getInitCondCode = function(self, solver)
-			
+		getInitCondCode = function(self)
+			local solver = assert(self.solver)
+
 			local ProblemBoundary = class(solver.Boundary)
 			
 			ProblemBoundary.name = 'cyclone problem boundary'
@@ -1206,12 +1210,12 @@ end) then
 
 	{
 		name = 'radial gaussian',
-		getDepends = function(self, solver)
+		getDepends = function(self)
 			return table{
-				solver.coord.symbols.coordMap,
+				self.solver.coord.symbols.coordMap,
 			}
 		end,
-		getInitCondCode = function(self, solver)
+		getInitCondCode = function(self)
 			return [[
 	const real gaussianCenter = 6;
 	const real sigma = 1;
@@ -1228,7 +1232,7 @@ end) then
 	
 	{
 		name = 'rarefaction wave',
-		getInitCondCode = function(self, solver)
+		getInitCondCode = function(self)
 			return [[
 	real delta = .1;
 	rho = 1;	// lhs ? .2 : .8;
@@ -1289,8 +1293,8 @@ end) then
 		solverVars = {
 			heatCapacityRatio = 4/3,
 		},
-		getInitCondCode = function(self, solver)
-			solver.cfl = .5	-- needs a slower cfl
+		getInitCondCode = function(self)
+			self.solver.cfl = .5	-- needs a slower cfl
 			return [[
 	rho = 1;
 	v.x = 1. - 1e-5;
@@ -1303,8 +1307,8 @@ end) then
 		solverVars = {
 			heatCapacityRatio = 5/3,
 		},
-		getInitCondCode = function(self, solver)
-			solver.cfl = .5	-- needs a slower cfl
+		getInitCondCode = function(self)
+			self.solver.cfl = .5	-- needs a slower cfl
 			return [[
 	rho = lhs ? 10 : 1;
 	P = (solver->heatCapacityRatio - 1.) * rho * (lhs ? 2 : 1e-6);
@@ -1316,8 +1320,8 @@ end) then
 		solverVars = {
 			heatCapacityRatio = 5/3,
 		},
-		getInitCondCode = function(self, solver)
-			solver.cfl = .5	-- needs a slower cfl
+		getInitCondCode = function(self)
+			self.solver.cfl = .5	-- needs a slower cfl
 			return [[
 	rho = 1;
 	P = lhs ? 1000 : .01;
@@ -1326,9 +1330,9 @@ end) then
 	},
 	{
 		name = 'relativistic blast wave interaction',
-		getInitCondCode = function(self, solver)
-			solver.cfl = .5	-- needs a slower cfl
-			return template([[
+		getInitCondCode = function(self)
+			self.solver.cfl = .5	-- needs a slower cfl
+			return self.solver.eqn:template([[
 	
 	bool wave1 = true
 <? for i=0,solver.dim-1 do ?>
@@ -1348,8 +1352,8 @@ end) then
 
 	{
 		name = 'Colella-Woodward',
-		getInitCondCode = function(self, solver)
-			solver:setBoundaryMethods'freeflow'
+		getInitCondCode = function(self)
+			self.solver:setBoundaryMethods'freeflow'
 			return [[
 	rho = 1;
 	if (x.x < -.4) {
@@ -1366,19 +1370,19 @@ end) then
 	-- derived from Athena Kelvin-Helmholtz I think
 	{
 		name = 'Kelvin-Helmholtz',
-		getDepends = function(self,solver)
+		getDepends = function(self)
 			return table{
-				solver.eqn.symbols.cartesianFromCoord,
+				self.solver.eqn.symbols.cartesianFromCoord,
 			}
 		end,
-		createInitStruct = function(self, solver)
-			EulerInitCond.createInitStruct(self, solver)
+		createInitStruct = function(self)
+			EulerInitCond.createInitStruct(self)
 
 			local moveAxis = 1
 			local sliceAxis = 2
 			
 			-- move around the cylinder
-			if require 'hydro.coord.cylinder'.is(solver.coord) then
+			if require 'hydro.coord.cylinder'.is(self.solver.coord) then
 				moveAxis = 2
 				sliceAxis = 1
 			end
@@ -1402,7 +1406,8 @@ end) then
 			}
 		end,
 
-		getInitCondCode = function(self, solver)	
+		getInitCondCode = function(self)
+			local solver = assert(self.solver)
 			local boundaryMethods = {}
 			for i,x in ipairs(xNames) do
 				for _,minmax in ipairs(minmaxs) do
@@ -1416,7 +1421,7 @@ end) then
 			end
 			solver:setBoundaryMethods(boundaryMethods)
 		
-			return template([[
+			return solver.eqn:template([[
 	real yq1 = solver->mins.<?=sliceAxis?> * .75 + solver->maxs.<?=sliceAxis?> * .25;
 	real yq2 = solver->mins.<?=sliceAxis?> * .25 + solver->maxs.<?=sliceAxis?> * .75;
 
@@ -1453,9 +1458,7 @@ end ?>
 	v.z += initCond->noiseAmplitude * 2. * (U->ptr[3] - .5);
 	P += initCond->noiseAmplitude * 2. * (U->ptr[4] - .5);
 ]],				{
-					solver = solver,
 					sliceAxis = self.guiVars.sliceAxis.options[self.guiVars.sliceAxis.value],
-					xNames = xNames,
 				}
 			)
 		end,
@@ -1467,7 +1470,8 @@ end ?>
 		name = 'Rayleigh-Taylor',
 		mins = {-3,-1,-1},
 		maxs = {3,1,1},
-		getInitCondCode = function(self, solver)	
+		getInitCondCode = function(self)
+			local solver = assert(self.solver)
 			local xmid = (solver.mins + solver.maxs) * .5
 			
 			-- triple the length along the interface dimension
@@ -1487,7 +1491,7 @@ end ?>
 			end
 			solver:setBoundaryMethods(boundaryMethods)
 		
-			return template([[
+			return solver.eqn:template([[
 	const real3 externalForce = _real3(0,1,0);
 	ePot = 0. <? 
 for side=0,solver.dim-1 do
@@ -1499,9 +1503,7 @@ end ?>;
 	rho = top ? 2 : 1;
 	P = 2.5 - rho * ePot;
 	// or maybe it is ... pressure = (gamma - 1) * density * (2.5 - potentialEnergy)
-]], {
-			solver = solver,
-		})
+]])
 		end,
 	},
 
@@ -1514,7 +1516,8 @@ end ?>;
 		solverVars = {
 			heatCapacityRatio = 7/5,
 		},
-		getInitCondCode = function(self, solver)
+		getInitCondCode = function(self)
+			local solver = assert(self.solver)
 			-- I am not correctly modeling the top boundary
 			solver:setBoundaryMethods{
 				xmin = 'freeflow',
@@ -1545,7 +1548,8 @@ end ?>;
 	-- http://www.cfd-online.com/Wiki/2-D_laminar/turbulent_driven_square_cavity_flow
 	{
 		name = 'square cavity',
-		getInitCondCode = function(self, solver)
+		getInitCondCode = function(self)
+			local solver = assert(self.solver)
 			solver:setBoundaryMethods{
 				xmin = 'mirror',
 				xmax = 'mirror',
@@ -1564,7 +1568,8 @@ end ?>;
 
 	{
 		name = 'shock bubble interaction',
-		getInitCondCode = function(self, solver)
+		getInitCondCode = function(self)
+			local solver = assert(self.solver)
 			solver:setBoundaryMethods'freeflow'
 			return [[
 	const real waveX = -.45;
@@ -1583,7 +1588,8 @@ end ?>;
 		name = 'Richmyer-Meshkov',
 		mins = {-2,0,0},
 		maxs = {6,1,1},
-		getInitCondCode = function(self, solver)
+		getInitCondCode = function(self)
+			local solver = assert(self.solver)
 			solver:setBoundaryMethods'freeflow'
 			
 			local theta = math.pi / 4
@@ -1591,7 +1597,7 @@ end ?>;
 			local betaInv = .5	-- .5 for magnetic field
 			local P0 = 1
 
-			return template([[
+			return solver.eqn:template([[
 	constant real P0 = <?=clnumber(P0)?>;
 	if (x.x < -.2) {
 		//TODO how do you calculate conditions for a particular mach speed shock wave? 
@@ -1634,7 +1640,8 @@ end ?>;
 		solverVars = {
 			heatCapacityRatio = 1.4,
 		},
-		getInitCondCode = function(self, solver)
+		getInitCondCode = function(self)
+			local solver = assert(self.solver)
 	         return [[
 	real3 c = real3_real_mul(x, .5);
 	real L = 1.0;
@@ -1659,7 +1666,8 @@ end ?>;
 		guiVars = {
 			{name = 'Bx', value = 4},
 		},
-		getInitCondCode = function(self, solver)
+		getInitCondCode = function(self)
+			local solver = assert(self.solver)
 			return [[
 	real r = coordMapR(x);
 	real r2 = r * r;
@@ -1673,9 +1681,10 @@ end ?>;
 
 	{
 		name = 'Mara KelvinHelmholtz',
-		getInitCondCode = function(self, solver)
+		getInitCondCode = function(self)
+			local solver = assert(self.solver)
 			solver:setBoundaryMethods'periodic'
-			return template[[
+			return solver.eqn:template[[
 	real3 c = real3_real_mul(x, .5);
 	rho = fabs(c.y) > 0.25 ? 1.0 : 2.0;
 	P = 2.5;
@@ -1699,7 +1708,8 @@ end ?>;
 			{name = 'U2', value = -0.5},
 			{name = 'w0', value = 0.01},
 		},
-		getInitCondCode = function(self, solver)
+		getInitCondCode = function(self)
+			local solver = assert(self.solver)
 			return [[
 	real3 c = real3_add(real3_real_mul(x, .5), _real3(.5, .5, .5));
 	const real rho1 = initCond->rho1;
@@ -1804,7 +1814,8 @@ end ?>;
 				
 				coulombConstant = constants.CoulombConstant_in_kg_m3_per_C2_s2,
 			},
-			getInitCondCode = function(self, solver)
+			getInitCondCode = function(self)
+				local solver = assert(self.solver)
 				local f = SelfGravProblem{
 					solver = solver,
 					sources={
@@ -1814,7 +1825,7 @@ end ?>;
 						},
 					},
 				}
-				return f:getInitCondCode(self, solver)
+				return f:getInitCondCode(self)
 			end
 		}
 	end)(),
@@ -1824,20 +1835,22 @@ end ?>;
 		-- hmm, what about spherical coordinates...
 		--mins = {-1,-1,-1},
 		--maxs = {1,1,1},
-		getInitCondCode = function(self, solver)
+		getInitCondCode = function(self)
+			local solver = assert(self.solver)
 			local f = SelfGravProblem{
 				solver = solver,
 				sources={
 					{center={0, 0, 0}, radius = .5},
 				},
 			}
-			return f:getInitCondCode(self, solver)
+			return f:getInitCondCode(self)
 		end
 	},
 
 	{
 		name = 'self-gravitation test 1 spinning',
-		getInitCondCode = function(self, solver)
+		getInitCondCode = function(self)
+			local solver = assert(self.solver)
 			local inside = [[
 	v.x = -2 * delta.y;
 	v.y = 2 * delta.x;
@@ -1859,13 +1872,13 @@ end ?>;
 						inside = inside,
 					},
 				},
-			}:getInitCondCode(self, solver)
+			}:getInitCondCode(self)
 		end,
 	},
 
 	{
 		name = 'self-gravitation test 2',
-		getInitCondCode = function(self, solver)
+		getInitCondCode = function(self)
 			return SelfGravProblem{ 
 				sources={
 					{
@@ -1877,15 +1890,15 @@ end ?>;
 						radius = .1,
 					},
 				},
-			}:getInitCondCode(self, solver)
+			}:getInitCondCode(self)
 		end,
 	},
 
 	{
 		-- TODO add tidal-locked rotations
 		name = 'self-gravitation test 2 orbiting',
-		getInitCondCode = function(self, solver)
-			return SelfGravProblem{ 
+		getInitCondCode = function(self)
+			return SelfGravProblem{
 				sources = {
 					{
 						center = {-.25, 0, 0},
@@ -1908,13 +1921,13 @@ end ?>;
 ]],
 					},
 				},
-			}:getInitCondCode(self, solver)
+			}:getInitCondCode(self)
 		end,
 	},
 	
 	{
 		name = 'self-gravitation test 4',
-		getInitCondCode = function(self, solver)
+		getInitCondCode = function(self)
 			return SelfGravProblem{
 				sources={
 					{center={.25, .25, 0}, radius = .1},
@@ -1922,13 +1935,13 @@ end ?>;
 					{center={.25, -.25, 0}, radius = .1},
 					{center={-.25, -.25, 0}, radius = .1},
 				},
-			}:getInitCondCode(self, solver)
+			}:getInitCondCode(self)
 		end,
 	},
 
 	{
 		name = 'self-gravitation soup',
-		getInitCondCode = function(self, solver)
+		getInitCondCode = function(self)
 			return [[
 	rho = .1 * U->rho + .1;
 	P = .1 * U->ETotal + .1;
@@ -1945,21 +1958,20 @@ end ?>;
 			--meter = constants.speedOfLight_in_m_per_s,
 			--speedOfLight = constants.speedOfLight_in_m_per_s,
 		},
-		getInitCondCode = function(self, solver)
-			return template([[
+		getInitCondCode = function(self)
+			return self.solver.eqn:template([[
 	D.x = <?=eqn.susc_t?>_from_real(lhs ? 1 : -1);
 	D.y = <?=eqn.susc_t?>_from_real(1);
 	B.y = <?=eqn.susc_t?>_from_real(-1);
 	B.z = <?=eqn.susc_t?>_from_real(lhs ? 1 : -1);
-]], 		{
-				eqn = solver.eqn,
-			})
+]])
 		end,
 	},
 
 	{
 		name = 'Maxwell empty waves',
-		getInitCondCode = function(self, solver)
+		getInitCondCode = function(self)
+			local solver = assert(self.solver)
 			addMaxwellOscillatingBoundary{
 				solver = solver,
 				side = xNames[solver.dim]..'max',
@@ -1973,33 +1985,33 @@ end ?>;
 
 	{
 		name = 'Maxwell scattering around cylinder',
-		getDepends = function(self, solver)
+		getDepends = function(self)
 			return table{
-				solver.coord.symbols.coordMap,
+				self.solver.coord.symbols.coordMap,
 			}
 		end,
-		getInitCondCode = function(self, solver)
+		getInitCondCode = function(self)
 			addMaxwellOscillatingBoundary{
-				solver = solver,
+				solver = self.solver,
 				side = 'xmin',
 				dir = 'x',
 				amplitude = 1,
 				period = 10,
 			}
-			return template([[
+			return self.solver.eqn:template[[
 	real3 xc = coordMap(x);
 	if (real3_lenSq(xc) < .2*.2) {
 		//2018 Balezin et al "Electromagnetic properties of the Great Pyramids..."
 		permittivity = <?=eqn.susc_t?>_from_cplx(_cplx(5., .1));
 	}
-]], solver.eqn:getEnv())
+]]
 		end,
 	},
 
 	{
 		name = 'Maxwell scattering around pyramid',
-		getCodePrefix = function(self, solver)
-			return template([[
+		getCodePrefix = function(self)
+			return self.solver.eqn:template([[
 <? 
 local table = require 'ext.table'
 
@@ -2045,17 +2057,15 @@ for _,pn in ipairs(obj) do
 <? end ?>
 	;
 }
-]], 		{
-				solver = solver,
-				clnumber = clnumber,
-			})
+]])
 		end,
-		getDepends = function(self, solver)
+		getDepends = function(self)
 			return table{
-				solver.coord.symbols.coordMap,
+				self.solver.coord.symbols.coordMap,
 			}
 		end,
-		getInitCondCode = function(self, solver)
+		getInitCondCode = function(self)
+			local solver = assert(self.solver)
 			-- hmm, choosing min or max doesn't matter, it always shows up on min...
 			addMaxwellOscillatingBoundary{
 				solver = solver,
@@ -2064,25 +2074,26 @@ for _,pn in ipairs(obj) do
 				amplitude = -1,
 				period = 10,
 			}
-			return template([[
+			return solver.eqn:template([[
 	real3 xc = coordMap(x);
 	xc = real3_real_mul(xc, 2.);
 	if (testTriangle(xc)) {
 		//2018 Balezin et al "Electromagnetic properties of the Great Pyramids..."
 		permittivity = <?=eqn.susc_t?>_from_cplx(_cplx(5., .1));
 	}
-]], solver.eqn:getEnv())
+]])
 		end,
 	},
 
 	{
 		name = 'Maxwell scattering around square',
-		getDepends = function(self, solver)
+		getDepends = function(self)
 			return table{
-				solver.coord.symbols.coordMap,
+				self.solver.coord.symbols.coordMap,
 			}
 		end,
-		getInitCondCode = function(self, solver)
+		getInitCondCode = function(self)
+			local solver = assert(self.solver)
 			-- hmm, choosing min or max doesn't matter, it always shows up on min...
 			addMaxwellOscillatingBoundary{
 				solver = solver,
@@ -2091,7 +2102,7 @@ for _,pn in ipairs(obj) do
 				amplitude = -1,
 				period = 10,
 			}
-			return template([[
+			return solver.eqn:template([[
 	real3 xc = coordMap(x);
 	xc = real3_real_mul(xc, 2.);
 	if (
@@ -2106,14 +2117,14 @@ end	?>
 		//2018 Balezin et al "Electromagnetic properties of the Great Pyramids..."
 		permittivity = <?=eqn.susc_t?>_from_cplx(_cplx(5., .1));
 	}
-]], solver.eqn:getEnv())
+]])
 		end,
 	},
 
 	{
 		name = 'Maxwell scattering around Koch snowflake',
-		getCodePrefix = function(self, solver)
-			return template([[
+		getCodePrefix = function(self)
+			return self.solver.eqn:template([[
 
 #define sqrt3 <?=clnumber(math.sqrt(3))?>
 
@@ -2176,16 +2187,15 @@ bool testTriangle(real3 xc) {
 		real3_dot(real3_sub(xc, p2), n2) < 0. &&
 		real3_dot(real3_sub(xc, p3), n3) < 0.);
 }
-]], 		{
-				clnumber = clnumber,
-			})
+]])
 		end,
-		getDepends = function(self, solver)
+		getDepends = function(self)
 			return table{
-				solver.coord.symbols.coordMap,
+				self.solver.coord.symbols.coordMap,
 			}
 		end,
-		getInitCondCode = function(self, solver)
+		getInitCondCode = function(self)
+			local solver = assert(self.solver)
 			addMaxwellOscillatingBoundary{
 				solver = solver,
 				side = xNames[solver.dim]..'max',
@@ -2213,7 +2223,7 @@ bool testTriangle(real3 xc) {
 				tungsten = 5.65e-8,
 			}:map(function(v) return v * Ohm_in_m end)		
 			
-			return template([[
+			return solver.eqn:template([[
 	real3 xc = coordMap(x);
 	xc = real3_real_mul(xc, 2.);
 	
@@ -2246,16 +2256,16 @@ bool testTriangle(real3 xc) {
 		permittivity = <?=eqn.susc_t?>_from_cplx(_cplx(5., .1));
 	}
 
-]], 		table({
-				clnumber = clnumber,
+]], 		{
 				resistivities = resistivities,
-			}, solver.eqn:getEnv()))
+			})
 		end,
 	},
 
 	{
 		name = 'Maxwell Lichtenberg',
-		getInitCondCode = function(self, solver)
+		getInitCondCode = function(self)
+			local solver = assert(self.solver)
 			local src = {math.floor(tonumber(solver.gridSize.x)*.75)}
 			local dst = {math.floor(tonumber(solver.gridSize.x)*.25)}
 			for j=2,solver.dim do
@@ -2303,9 +2313,10 @@ kernel void addExtraSource(
 				addExtraSourceKernelObj()
 			end
 		end,
-		resetState = function(self, solver)
+		resetState = function(self)
+			local solver = assert(self.solver)
 			-- super calls applyInitCondKernel ...
-			EulerInitCond.resetState(self, solver)
+			EulerInitCond.resetState(self)
 			-- and here I'm going to fill the permittivity 'eps' with random noise
 			-- ... and put a source + and - current 'sigma' at two points on the image
 			local ptr = ffi.cast(solver.eqn.symbols.cons_t..'*', solver.UBufObj:toCPU())
@@ -2318,7 +2329,8 @@ kernel void addExtraSource(
 
 	{
 		name = 'Maxwell wire',
-		getInitCondCode = function(self, solver)
+		getInitCondCode = function(self)
+			local solver = assert(self.solver)
 			addMaxwellOscillatingBoundary{solver=solver}
 			
 			local c = constants.speedOfLight_in_m_per_s
@@ -2339,7 +2351,7 @@ kernel void addExtraSource(
 				platinum = 1.06e-7,
 				tungsten = 5.65e-8,
 			}:map(function(v) return v * Ohm_in_m end)
-			return template([[
+			return solver.eqn:template([[
 	D.x = <?=eqn.susc_t?>_from_real(1.);
 	
 	//conductivity = <?=eqn.susc_t?>_from_real(<?=clnumber(1/resistivities.air)?>);
@@ -2351,11 +2363,9 @@ kernel void addExtraSource(
 		permittivity = <?=eqn.susc_t?>_from_cplx(_cplx(5., .1));
 #error TODO assign rhoCharge and J
 	}
-]], 		table({
-				solver = solver,
-				clnumber = clnumber,
+]], 		{
 				resistivities = resistivities,
-			}, solver.eqn:getEnv()))
+			})
 		end,
 	},
 
@@ -2369,12 +2379,10 @@ kernel void addExtraSource(
 			{name = 'x0', value = 2, compileTime=true},
 			{name = 'y0', value = 2, compileTime=true},
 		},
-		getInitCondCode = function(self, solver)
-			return template([[
+		getInitCondCode = function(self)
+			return self.solver.eqn:template[[
 	D.z = <?=eqn.susc_t?>_from_real( E0 * sin(m * M_PI * x.x / x0) * sin(n * M_PI * x.y / y0) );
-]], 		table({
-				solver = solver,
-			}, solver.eqn:getEnv()))
+]]
 		end,
 	},
 
@@ -2383,18 +2391,16 @@ kernel void addExtraSource(
 			{name = 'rhoCharge0', value = 1},
 		},
 		name = 'Maxwell charged particle',
-		getInitCondCode = function(self, solver)
-			return template([[
+		getInitCondCode = function(self)
+			return self.solver.eqn:template[[
 	rhoCharge = (i.x == solver->gridSize.x/2 && i.y == solver->gridSize.y/2 && i.z == solver->gridSize.z/2) ? initCond->rhoCharge0 : 0.;
-]], 		table({
-				solver = solver,
-			}, solver.eqn:getEnv()))
+]]
 		end,
 	},
 
 	{
 		name = '2017 Degris et al',
-		getInitCondCode = function(self, solver)
+		getInitCondCode = function(self)
 			return [[
 	rho = 1.;
 	P = 1.;
@@ -2414,9 +2420,9 @@ kernel void addExtraSource(
 	{	-- from https://www.youtube.com/watch?v=Fe_f_mQCY6g
 		-- doesn't have much description to it
 		name = 'that one mhd simulation from youtube',
-		getInitCondCode = function(self, solver)
+		getInitCondCode = function(self)
 			-- I am not correctly modeling the top boundary
-			solver:setBoundaryMethods{
+			self.solver:setBoundaryMethods{
 				xmin = 'periodic',
 				xmax = 'periodic',
 				ymin = 'mirror',
@@ -2440,12 +2446,12 @@ kernel void addExtraSource(
 			{name = 'v', value = .5},
 			{name = 'B', value = 1},
 		},
-		getDepends = function(self, solver)
+		getDepends = function(self)
 			return table{
-				solver.coord.symbols.coordMap,
+				self.solver.coord.symbols.coordMap,
 			}
 		end,
-		getInitCondCode = function(self, solver)
+		getInitCondCode = function(self)
 			return [[
 	real3 xc = coordMap(x);
 	real r = real3_len(xc);
@@ -2462,7 +2468,7 @@ kernel void addExtraSource(
 
 	{
 		name = 'two-fluid EMHD soliton ion',
-		getInitCondCode = function(self, solver)
+		getInitCondCode = function(self)
 			return [[
 	const real L = 12.;
 	rho = 1. + (real)exp((real)-25. * (real)fabs(x.x - L / (real)3.));
@@ -2471,7 +2477,7 @@ kernel void addExtraSource(
 	},
 	{
 		name = 'two-fluid EMHD soliton electron',
-		getInitCondCode = function(self, solver)
+		getInitCondCode = function(self)
 			return [[
 	const real L = 12.;
 	rho = 5. * (1. + (real)exp((real)-25. * (real)fabs(x.x - L / (real)3.)));
@@ -2480,11 +2486,8 @@ kernel void addExtraSource(
 	},
 	{
 		name = 'two-fluid EMHD soliton maxwell',
-		getInitCondCode = function(self, solver)
--- TODO			
-			return [[
-
-]]
+		getInitCondCode = function(self)
+			error("TODO")
 		end,
 	},
 }:mapi(function(cl)

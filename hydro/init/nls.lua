@@ -12,7 +12,8 @@ local initConds = table{
 		guiVars = {
 			{name='A', value=10},
 		},
-		getInitCondCode = function(self, solver)
+		getInitCondCode = function(self)
+			local solver = assert(self.solver)
 			-- TODO custom boundary.  rhs is set to zero.  lhs is U[-2] = U[2], U[-1] = U[1], and U[0] is not modified
 			solver:setBoundaryMethods'freeflow'
 			return [[
@@ -27,7 +28,8 @@ local initConds = table{
 		guiVars = {
 			{name='A', value=8},
 		},
-		getInitCondCode = function(self, solver)
+		getInitCondCode = function(self)
+			local solver = assert(self.solver)
 			solver:setBoundaryMethods'freeflow'
 			return [[
 	q = cplx_from_real(initCond->A * r * r * exp(-r * r));
@@ -42,7 +44,8 @@ local initConds = table{
 			{name='A', value=4},
 			{name='alpha', value=10},
 		},
-		getInitCondCode = function(self, solver)
+		getInitCondCode = function(self)
+			local solver = assert(self.solver)
 			solver:setBoundaryMethods'freeflow'
 			return [[
 	real magn = initCond->A * exp(-r * r);
@@ -74,7 +77,8 @@ local initConds = table{
 			{name='r0', value=2},
 			{name='sigma', value=.25},
 		},
-		getInitCondCode = function(self, solver)
+		getInitCondCode = function(self)
+			local solver = assert(self.solver)
 			return [[
 	real const rmin = solver->mins.x;
 	real const drmin = r - rmin;
@@ -89,7 +93,8 @@ local initConds = table{
 		mins = {.3, .3, .3}, 
 		maxs = {20.3, 20.3, 20.3},	
 		depends = {'Bessel'},
-		getInitCondCode = function(self, solver)
+		getInitCondCode = function(self)
+			local solver = assert(self.solver)
 			return [[
 	//q = cplx_from_real(BESSJ0(x.x));
 	// bessel deriv

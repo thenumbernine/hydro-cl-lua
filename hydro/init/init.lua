@@ -1,6 +1,5 @@
 local class = require 'ext.class'
 local table = require 'ext.table'
-local template = require 'template'
 local time = table.unpack(require 'hydro.util.time')
 local Struct = require 'hydro.code.struct'
 
@@ -12,14 +11,18 @@ TODO call it 'initCondVars'
 
 solverVars = any of the solver/equation's solver_t vars that the initial conditions wants to override
 
-getInitCondCode = function(self, solver) returns the OpenCL code for the initial conditions
+getInitCondCode = function(self) returns the OpenCL code for the initial conditions
 --]]
 
 local InitCond = class()
 
-function InitCond:createInitStruct(solver)
+function InitCond:init(args)
+	self.solver = assert(args.solver, "expected solver")
+end
+
+function InitCond:createInitStruct()
 	self.initStruct = Struct{
-		solver = solver,
+		solver = self.solver,
 		name = 'initCond_t',
 		dontUnion = true,
 	}
@@ -34,7 +37,7 @@ function InitCond:createInitStruct(solver)
 	end
 end
 
-function InitCond:finalizeInitStruct(solver)
+function InitCond:finalizeInitStruct()
 	-- if initCond_t is empty then allocating the initCondBuf will fail
 	-- solve this by:
 	-- a) not allocating it if initCond_t is empty
@@ -82,7 +85,8 @@ end
 
 -- these depends are added to the applyInitCond module in the eqn.initCodeModules function
 -- so are any in the initCond.depends table
-function InitCond:getBaseDepends(solver)
+function InitCond:getBaseDepends()
+	local solver = assert(self.solver)
 	return {
 		-- if an InitCond provides codeprefix, it is for code it expects to reference from within 'applyInitCond()'
 		solver.eqn.symbols.initCond_codeprefix,
@@ -102,7 +106,8 @@ function InitCond:getBaseDepends(solver)
 	}
 end
 
-function InitCond:initCodeModules(solver)
+function InitCond:initCodeModules()
+	local solver = assert(self.solver)
 	solver.modules:add{
 		name = self.initCond_t,
 		structs = {self.initStruct},
@@ -122,11 +127,12 @@ function InitCond:initCodeModules(solver)
 		depends = {
 			self.initCond_t,
 		},
-		code = self.getCodePrefix and self:getCodePrefix(solver) or nil,
+		code = self.getCodePrefix and self:getCodePrefix() or nil,
 	}
 end
 
-function InitCond:refreshInitStateProgram(solver)
+function InitCond:refreshInitStateProgram()
+	local solver = assert(self.solver)
 	local eqn = solver.eqn
 	
 	solver.initModulesEnabled[eqn.symbols.applyInitCond] = true
@@ -153,12 +159,13 @@ print('initCond modules: '..moduleNames:sort():concat', ')
 	end
 end
 
-function InitCond:getInitCondCode(solver)
+function InitCond:getInitCondCode()
 	return '//no code from InitCond:getInitCondCode() was provided'
 end
 
 -- called when the solver resets
-function InitCond:resetState(solver)
+function InitCond:resetState()
+	local solver = assert(self.solver)
 
 	-- how to give initCond access to rand()?
 	-- fill UBuf with random numbers before calling it

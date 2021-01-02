@@ -440,10 +440,12 @@ end
 function Equation:createInitState_createInitState()
 	-- first create the init state
 	assert(self.initConds, "expected Eqn.initConds")
-	self.initCond = self.initConds[self.solver.initCondIndex](self.solver, self.solver.initCondArgs)
+	self.initCond = self.initConds[self.solver.initCondIndex](table(self.solver.initCondArgs, {
+		solver = self.solver,
+	}))
 	assert(self.initCond, "couldn't find initCond "..self.solver.initCondIndex)
-	self.initCond:createInitStruct(self.solver)
-	self.initCond:finalizeInitStruct(self.solver)
+	self.initCond:createInitStruct()
+	self.initCond:finalizeInitStruct()
 end
 
 -- shorthand
@@ -483,11 +485,12 @@ function Equation:getEnv()
 		from3x3to6 = from3x3to6,
 		from6to3x3 = from6to3x3,
 		sym = sym,
+		clnumber = clnumber,
 	
 		-- really only used by applyInitCond
 		initCode = function() 
 			-- calls initCond:getInitCondCode
-			return self.initCond:getInitCondCode(solver)
+			return self.initCond:getInitCondCode()
 		end,
 	}
 
@@ -521,7 +524,7 @@ function Equation:initCodeModules()
 	-- This calls initCond:getCodePrefix, which adds to eqn.guiVars.
 	-- That means call this after eqn:createInitState (solverbase.lua:524 in :initObjs)
 	-- eqn:initCodeModules is called after ... hmm
-	self.initCond:initCodeModules(solver)
+	self.initCond:initCodeModules()
 
 	-- init primFromCons and consFromPrim
 	-- prim-cons should have access to all ... prefix stuff?
@@ -550,9 +553,9 @@ function Equation:initCodeModules()
 		onAdd = function(args)
 			-- special case for applyInitCondCell ...
 			if args.name == self.symbols.applyInitCondCell then
-				args.depends:append(self.initCond:getBaseDepends(solver))
+				args.depends:append(self.initCond:getBaseDepends())
 				if self.initCond.getDepends then
-					args.depends:append(self.initCond:getDepends(solver))
+					args.depends:append(self.initCond:getDepends())
 				end
 				-- only used by hydro/eqn/bssnok-fd.lua:
 				if self.getModuleDependsApplyInitCond then

@@ -7,7 +7,8 @@ local TwoFluidInitCond = class(InitCond)
 local initConds = table{
 	{
 		name = 'two-fluid Brio-Wu',
-		getInitCondCode = function(self, solver)
+		getInitCondCode = function(self)
+			local solver = assert(self.solver)
 			if solver.eqn.guiVars.heatCapacityRatio then	
 				solver.eqn.guiVars.heatCapacityRatio.value = 2
 			end
@@ -31,7 +32,8 @@ local initConds = table{
 		mins = {-4*math.pi, -2*math.pi, -1},
 		maxs = {4*math.pi, 2*math.pi, 1},
 		depends = {'sech'},
-		getInitCondCode = function(self, solver)
+		getInitCondCode = function(self)
+			local solver = assert(self.solver)
 			solver:setBoundaryMethods{
 				xmin = 'periodic',
 				xmax = 'periodic',

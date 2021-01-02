@@ -195,7 +195,7 @@ print()
 					if not uselin then
 						-- TODO this only compares the first value, while 'testAccuracy' cmdline option compares all (integratable variable) state values
 						exact = xs:map(function(x)
-							return (solver.eqn.initState.exactSolution(solver, x, solver.t))
+							return (solver.eqn.initState:exactSolution(x, solver.t))
 						end)
 					end
 					return xs, ys, exact, assert(err)

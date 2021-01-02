@@ -1,7 +1,6 @@
 local class = require 'ext.class'
 local table = require 'ext.table'
 local symmath = require 'symmath'
-local template = require 'template'
 local vec3d = require 'vec-ffi.vec3d'
 local clnumber = require 'cl.obj.number'
 local InitCond = require 'hydro.init.init'
@@ -13,7 +12,9 @@ local xNames = common.xNames
 
 local EinsteinInitCond = class(InitCond)
 
-function EinsteinInitCond:init(solver, args, ...)
+function EinsteinInitCond:init(args)
+	EinsteinInitCond.super.init(self, args)
+	
 	-- initialize analytical metric components to flat spacetime
 	-- you still have to set 'initAnalytical=true'
 	local Tensor = require 'symmath'.Tensor
@@ -47,14 +48,14 @@ function EinsteinInitCond:compileC(expr, name, vars)
 end
 
 -- this is used atm
-function EinsteinInitCond:getCodePrefix(solver)
+function EinsteinInitCond:getCodePrefix()
 	-- looks like all EFE solvers might need this
 	-- maybe I should put it in InitCond?
 
 	local alphaVar = symmath.var'alpha'
 	-- TODO each eqn must be stated as a guiVar of the solver
 	-- make a parent class or something for all Einstein field eqns
-	local fGuiVar = solver.eqn.guiVars.f_eqn
+	local fGuiVar = self.solver.eqn.guiVars.f_eqn
 	local fLuaCode = fGuiVar.options[fGuiVar.value]
 	
 	local f = assert(loadstring([[
@@ -166,7 +167,9 @@ error'here'
 	end):concat'\n'
 end
 
-function EinsteinInitCond:buildFCCode(solver, diff)
+-- TODO not called anymore
+function EinsteinInitCond:buildFCCode(diff)
+	local solver = assert(self.solver)
 	local alphaVar = symmath.var'alpha'
 	local fGuiVar = solver.eqn.guiVars.f_eqn
 	local fLuaCode = fGuiVar.options[fGuiVar.value]
@@ -188,7 +191,7 @@ local initConds = table{
 		-- flag for determining whether to initialize variables (esp the derivative variables) from analytical expressions, or whether to use finite difference via initDerivs
 		-- don't use initAnalytical, since not all eqn.einstein subclasses use it
 		--initAnalytical = true,
-		getInitCondCode = function(self, solver)
+		getInitCondCode = function(self)
 			return ''
 		end,
 	},
@@ -203,12 +206,13 @@ local initConds = table{
 			H
 			sigma
 		--]]
-		init = function(self, solver, args)
+		init = function(self, args)
 			self.initCondArgs = args
-			EinsteinInitCond.init(self, solver, args)
+			EinsteinInitCond.init(self, args)
 		end,
-		createInitStruct = function(self, solver)
-			EinsteinInitCond.createInitStruct(self, solver)
+		createInitStruct = function(self)
+			EinsteinInitCond.createInitStruct(self)
+			local solver = assert(self.solver)
 			local args = self.initCondArgs
 
 			local size = solver.maxs.x - solver.mins.x
@@ -229,11 +233,12 @@ local initConds = table{
 				{name = 'sigma', value = sigma},
 			}
 		end,
-		getInitCondCode = function(self, solver)
+		getInitCondCode = function(self)
+			local solver = assert(self.solver)
 			-- this has to make use of the coordinate metric
 			-- solver.coord.g
 			
-			return template([[
+			return solver.eqn:template([[
 	real3 center = coordMap(_real3(<?=clnumber(initCond.center[1])
 								?>, <?=clnumber(initCond.center[2])
 								?>, <?=clnumber(initCond.center[3])?>));
@@ -291,7 +296,7 @@ local initConds = table{
 			{name = 'A', value = .1},
 			{name = 'L', value = 1},
 		},
-		getInitCondCode = function(self, solver)
+		getInitCondCode = function(self)
 			return [[
 	real h = 1. - initCond->A * sin((2. * M_PI / initCond->L) * x.x);
 	alpha = sqrt(h);
@@ -311,9 +316,9 @@ local initConds = table{
 			{name = 'r0', value = 5},
 			{name = 'sigma', value = 1},
 		},
-		init = function(self, solver, args)
-			EinsteinInitCond.init(self, solver, args)
-			
+		init = function(self, args)
+			EinsteinInitCond.init(self, args)
+			local solver = assert(self.solver)	
 			local coord = solver.coord
 			assert(coord)
 
@@ -346,7 +351,8 @@ local initConds = table{
 			{name = 'r0', value = 5},
 			{name = 'sigma', value = 1},
 		},
-		getInitCondCode = function(self, solver)
+		getInitCondCode = function(self)
+			local solver = assert(self.solver)
 			assert(solver.eqn.useScalarField, "you need to enable 'useScalarField' in the eqn ctor args")
 			
 			local symmath = require 'symmath'
@@ -382,7 +388,7 @@ local initConds = table{
 				return code
 			end
 
-		return template([[
+			return solver.eqn:template([[
 	Phi = cplx_from_real(<?=compile(Phi)?>);
 	real3 re_Psi_l = _real3(
 		<?=compile(Psi[1])?>,
@@ -409,12 +415,12 @@ local initConds = table{
 			sigma = warp bubble thickness
 			speed = warp bubble speed
 		--]]
-		init = function(self, solver, args)
+		init = function(self, args)
 			self.initCondArgs = args
-			EinsteinInitCond.init(self, solver, args)
+			EinsteinInitCond.init(self, args)
 		end,
-		createInitStruct = function(self, solver)
-			EinsteinInitCond.createInitStruct(self, solver)
+		createInitStruct = function(self)
+			EinsteinInitCond.createInitStruct(self)
 			local args = self.initCondArgs
 
 			self:addGuiVars{
@@ -423,7 +429,7 @@ local initConds = table{
 				{name = 'speed', value = args and args.speed or .1},
 			}
 		end,
-		getInitCondCode = function(self, solver)
+		getInitCondCode = function(self)
 			return [[
 	real x_s = 0;	//speed * t
 	real v_s = initCond->speed;
@@ -458,16 +464,26 @@ local initConds = table{
 	},
 
 
+	-- 2009 Alic, Bona, Bona-Casas "Towards a gauge-polyvariant Numerical Relativity code"
+	{
+		name = 'black hole - isotropic - stuffed',
+		init = function(self, args)
+			error"finsihme"
+		end,
+		getInitCondCode = function(self)
+			error"finsihme"
+		end,
+	}
 	
 	-- 2009 Bona et al "Elements in Numerical Relativity ... " eqn 6.22-6.24
 	{	
 		name = 'black hole - Schwarzschild',
-		init = function(self, solver, args)
+		init = function(self, args)
 			self.initCondArgs = args
-			EinsteinInitCond.init(self, solver, args)
+			EinsteinInitCond.init(self, args)
 		end,
-		createInitStruct = function(self, solver)
-			EinsteinInitCond.createInitStruct(self, solver)
+		createInitStruct = function(self)
+			EinsteinInitCond.createInitStruct(self)
 			args = self.initCondArgs or {}
 				
 			-- TODO bodies
@@ -478,8 +494,8 @@ local initConds = table{
 				{name = 'z', value = args and args.z or 0},
 			}
 		end,
-		getInitCondCode = function(self, solver)
-			return template([[
+		getInitCondCode = function(self)
+			return self.solver.eqn:template([[
 	const real R = initCond->R;
 	real3 center = _real3(initCond->x, initCond->y, initCond->z);
 	real3 xrel = real3_sub(xc, center);
@@ -492,9 +508,7 @@ local initConds = table{
 	real psiToThe4 = psiSq * psiSq;
 	gamma_ll = sym3_real_mul(gamma_ll, psiToThe4);
 	alpha = 1. / psiSq;
-]], 	{
-			solver = solver,
-		})
+]]
 		end,
 	},
 	
@@ -518,8 +532,9 @@ local initConds = table{
 				S_u = angular momentum 
 				pos = separation
 		--]]
-		init = function(self, solver, args)
-			EinsteinInitCond.init(self, solver, args)
+		init = function(self, args)
+			EinsteinInitCond.init(self, args)
+			local solver = assert(self.solver)
 			
 			args = args or {}
 			
@@ -551,7 +566,8 @@ local initConds = table{
 			end
 			--]]
 		end,
-		getInitCondCode = function(self, solver)
+		getInitCondCode = function(self)
+			local solver = assert(self.solver)
 			--solver:setBoundaryMethods'fixed'
 			--solver:setBoundaryMethods'linear'
 
@@ -575,7 +591,7 @@ local initConds = table{
 			... or (for beta) just use 2015 Baumgarte's advice and initialize to beta=0 ... which I'm doing anyways
 
 			--]]
-			return template([[
+			return solver.eqn:template([[
 	//real sln_oneOverAlpha = 0.;
 	
 	real psi = 1.;
@@ -673,8 +689,9 @@ local initConds = table{
 		guiVars = {
 			{name = 'rs', value = .1},
 		},
-		init = function(self, solver, args)
-			EinsteinInitCond.init(self, solver, args)
+		init = function(self, args)
+			EinsteinInitCond.init(self, args)
+			local solver = assert(self.solver)
 			
 			local symmath = require 'symmath'
 			setfenv(1, setmetatable({}, {
@@ -703,9 +720,10 @@ local initConds = table{
 		guiVars = {
 			{name = 'rs', value = .1},
 		},
-		init = function(self, solver, args)
-			EinsteinInitCond.init(self, solver, args)
-			
+		init = function(self, args)
+			EinsteinInitCond.init(self, args)
+			local solver = assert(self.solver)
+
 			local symmath = require 'symmath'
 			setfenv(1, setmetatable({}, {
 				__index = function(t,k)
@@ -731,11 +749,11 @@ local initConds = table{
 	-- SENR's BoostedSchwarzschild initial data
 	{
 		name = 'black hole - boosted Schwarzschild',
-		init = function(self, solver)
-			EinsteinInitCond.init(self, solver, args)
+		init = function(self, args)
+			EinsteinInitCond.init(self, args)
 		end,
-		getInitCondCode = function(self, solver)
-			return solver.eqn:template[[
+		getInitCondCode = function(self)
+			return self.solver.eqn:template[[
 	{
 		const real vz = .1;
 		const real M = 1.;
@@ -842,8 +860,8 @@ local initConds = table{
 	{	-- initial data from SENR/NumPy jupyter notebooks:
 		-- https://hub.mybinder.org/user/zachetienne-nrpytutorial-a0u5aw7y/notebooks/Tutorial-ADM_Initial_Data-Brill-Lindquist.ipynb
 		name = 'black hole - Brill Lindquist',
-		init = function(self, solver)
-			EinsteinInitCond.init(self, solver, args)
+		init = function(self, args)
+			EinsteinInitCond.init(self, args)
 			
 			args = args or {}
 			local v = self.guiVars
@@ -856,8 +874,8 @@ local initConds = table{
 				},
 			}
 		end,
-		getInitCondCode = function(self, solver)
-			return template([[
+		getInitCondCode = function(self)
+			return self.solver.eqn:template([[
 <? local clnumber = require 'cl.obj.number' ?>	
 	real psi = 1.;
 	<? for _,body in ipairs(bodies) do ?>{
@@ -880,7 +898,7 @@ local initConds = table{
 		-- TODO make a way to provide BSSN variables rather than ADM variables
 		-- this way I don't have to worry about scaling and unscaling of the coordinate basis vectors
 		name = 'bleh',
-		getInitCondCode = function(self, solver)
+		getInitCondCode = function(self)
 			return [[
 	real bScale = 1.;
 	real bScale2 = bScale * bScale;
@@ -915,7 +933,7 @@ local initConds = table{
 			{name = 'bodyMass', value = .001},
 			{name = 'bodyRadius', value = .1},
 		},
-		getInitCondCode = function(self, solver)
+		getInitCondCode = function(self)
 			local bodies = table{
 				{
 					pos = {0,0,0},
@@ -924,7 +942,7 @@ local initConds = table{
 				}
 			}
 			
-			return template([[
+			return self.solver.eqn:template([[
 <? for _,body in ipairs(bodies) do
 ?>
 	real3 pos = _real3(<?=table.map(body.pos, clnumber):concat', '?>);
@@ -973,7 +991,7 @@ local initConds = table{
 	--[=[
 	{
 		name = 'stellar model 3',
-		getCodePrefix = function(self, solver)
+		getCodePrefix = function(self)
 			--[[
 			earth radius = 6.37101e+6 m
 			domain: 10x radius = 6.37101e+7 m
@@ -1014,12 +1032,13 @@ local initConds = table{
 	--]]
 	{
 		name = '1D black hole - wormhole form',
-		init = function(self, solver)
-			EinsteinInitCond.init(self, solver, args)
+		init = function(self, args)
+			EinsteinInitCond.init(self, args)
 			
-			solver.eqn:addGuiVar{name='m', value=1}
+			self.solver.eqn:addGuiVar{name='m', value=1}
 		end,
-		getCodePrefix = function(self, solver)
+		getCodePrefix = function(self)
+			local solver = assert(self.solver)
 			local m = self.guiVars.m.value
 		
 			-- TODO refreshCodePrefix ... except this is called by that ...
@@ -1104,9 +1123,9 @@ TODO I now have a Bessel function routine in hydro/math.cl
 --]]
 	{
 		name = 'Gowdy waves',
-		getCodePrefix = function(self, solver)
-			--solver.mins = vec3d(0,0,0)
-			--solver.maxs = vec3d(10,10,10)
+		getCodePrefix = function(self)
+			--self.solver.mins = vec3d(0,0,0)
+			--self.solver.maxs = vec3d(10,10,10)
 		end,
 	},
 
@@ -1117,12 +1136,12 @@ TODO I now have a Bessel function routine in hydro/math.cl
 		-- pick epsilon so epsilon^2 = 0
 		-- eqn 4.1: pick epsilon from -1e-10 / rho^2 to 1e=10 / rho^2
 		-- the SENR/NumPy uses an epsilon of .02
-		init = function(self, solver)
-			EinsteinInitCond.init(self, solver, args)
+		init = function(self, args)
+			EinsteinInitCond.init(self, args)
 			
-			solver.eqn:addGuiVar{name='epsilon', value=1e-10}
+			self.solver.eqn:addGuiVar{name='epsilon', value=1e-10}
 		end,
-		getInitCondCode = function(self, solver)
+		getInitCondCode = function(self)
 			return [[
 	alpha = 1. + initCond->epsilon * U.ptr[0];
 	for (int j = 0; j < 6; ++j) {
@@ -1140,8 +1159,8 @@ TODO I now have a Bessel function routine in hydro/math.cl
 	},
 	{
 		name = 'testbed - gauge wave',
-		createInitStruct = function(self, solver)
-			EinsteinInitCond.createInitStruct(self, solver)
+		createInitStruct = function(self)
+			EinsteinInitCond.createInitStruct(self)
 
 --			solver.mins = vec3d(-.5, -.5, -.5)
 --			solver.maxs = vec3d(-.5, -.5, -.5)
@@ -1152,7 +1171,7 @@ TODO I now have a Bessel function routine in hydro/math.cl
 			}
 --			self.guiVars.f.value = self.guiVars.f.options:find'1'	-- set f=1
 		end,
-		getInitCondCode = function(self, solver)
+		getInitCondCode = function(self)
 			return [[
 	const real t = 0.;
 	real theta = 2. * M_PI / initCond->d * (xc.x - t);
@@ -1165,8 +1184,8 @@ TODO I now have a Bessel function routine in hydro/math.cl
 	},
 	{
 		name = 'testbed - gauge wave - diagonal',
-		init = function(self, solver)
-			EinsteinInitCond.init(self, solver, args)
+		init = function(self, args)
+			EinsteinInitCond.init(self, args)
 			
 			error"finishme"
 		end,
@@ -1177,8 +1196,8 @@ TODO I now have a Bessel function routine in hydro/math.cl
 	--]]
 	{
 		name = 'testbed - linear wave',
-		createInitStruct = function(self, solver)
-			EinsteinInitCond.createInitStruct(self, solver)
+		createInitStruct = function(self)
+			EinsteinInitCond.createInitStruct(self)
 
 -- TODO changing the range upon init causes something to freeze up ...
 --			solver.mins = vec3d(-.5, -.5, -.5)
@@ -1189,7 +1208,7 @@ TODO I now have a Bessel function routine in hydro/math.cl
 				{name='d', value=1},
 			}
 		end,
-		getInitCondCode = function(self, solver)
+		getInitCondCode = function(self)
 			return [[
 	const real t = 0.;
 	real theta = 2. * M_PI / d * (xc.x - t);
@@ -1204,20 +1223,20 @@ TODO I now have a Bessel function routine in hydro/math.cl
 	},
 	{
 		name = 'testbed - linear wave - diagonal',
-		init = function(self, solver)
-			EinsteinInitCond.init(self, solver, args)
+		init = function(self, args)
+			EinsteinInitCond.init(self, args)
 			
 			error"finishme"
 		end,
 	},
 	{
 		name = 'testbed - Gowdy',
-		init = function(self, solver)
-			EinsteinInitCond.init(self, solver, args)
+		init = function(self, args)
+			EinsteinInitCond.init(self, args)
 			
 			error'finishme'
 		end,
-		getCodePrefix = function(self, solver, getCodes)
+		getCodePrefix = function(self)
 			local frac = symmath.frac
 			local xs = xNames:map(function(x) return symmath.var(x) end)
 			local x,y,z = xs:unpack()
@@ -1234,8 +1253,8 @@ TODO I now have a Bessel function routine in hydro/math.cl
 			local K = {-1/2 * t^(1/4) * symmath.exp(P-lambda/4) * (1 + t * dP_dt), 0, 0, -1/2 * t^(1/4) * symmath.exp(-P-lambda/4) * (1 - t * dP_dt), 0, 1/4*t^(-1/4) * symmath.exp(lambda/4) * (1/t - dlambda_dt)}
 			return initEinstein{
 				initCond = self,
-				solver = solver,
-				getCodes = getCodes,
+				solver = self.solver,
+				--getCodes = getCodes,	-- TODO where does this come from?
 				vars = xs,
 				alpha = alpha,
 				gamma = gamma,
