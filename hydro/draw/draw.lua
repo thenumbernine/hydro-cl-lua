@@ -62,7 +62,6 @@ vec4 getTex(vec3 texCoord) {
 }
 <? end ?>
 
-
 float logmap(float x) {
 	//const float epsilon = 1.;
 	//const float epsilon = 1e-7;

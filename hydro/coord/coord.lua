@@ -1414,7 +1414,7 @@ function CoordinateSystem:initCodeModule_coordMap()
 
 	solver.modules:add{
 		name = self.symbols.coord_basis_i,
-		depends = {'real3'},
+--		depends = {'real3'},	-- modules can't explicitly include 'real3' and be used with GLSL at the same time ...
 		code = function()
 			local eExt = self.compilePrintRequestTensor'eExt'
 			return eExt:mapi(function(eiCode,i)

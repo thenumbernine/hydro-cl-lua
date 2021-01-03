@@ -747,8 +747,6 @@ void <?=applyInitCondCell?>(
 	global <?=cons_t?> * const U,
 	global <?=cell_t?> const * const cell
 ) {
-	<?=SETBOUNDS?>(solver->numGhost, solver->numGhost);
-
 	real3 const x = cell->pos;
 	real3 const xc = coordMap(x);
 	real3 const mids = real3_real_mul(real3_add(solver->mins, solver->maxs), .5);

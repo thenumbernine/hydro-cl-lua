@@ -1609,15 +1609,17 @@ function HydroCLApp:updateGUI()
 				end			
 	
 				--ig.igCheckbox('vector field', self.enableVectorField)
-				if self.drawVectorArrows then
-					tooltip.numberTable('vector field scale', self.drawVectorArrows, 'scale')
-					--tooltip.sliderTable('vector field scale', self.drawVectorArrows, 'scale', 0, 100, nil, 10)
-					
-					tooltip.intTable('vector field step', self.drawVectorArrows, 'step')
-					self.drawVectorArrows.step = math.max(self.drawVectorArrows.step, 1)
-				end
-				if self.drawVectorLIC then
-					tooltip.intTable('LIC steps', self.drawVectorLIC, 'integralMaxIter')
+				for _,solver in ipairs(self.solvers) do
+					if solver.drawVectorArrows then
+						tooltip.numberTable('vector field scale', solver.drawVectorArrows, 'scale')
+						--tooltip.sliderTable('vector field scale', solver.drawVectorArrows, 'scale', 0, 100, nil, 10)
+						
+						tooltip.intTable('vector field step', solver.drawVectorArrows, 'step')
+						solver.drawVectorArrows.step = math.max(solver.drawVectorArrows.step, 1)
+					end
+					if solver.drawVectorLIC then
+						tooltip.intTable('LIC steps', solver.drawVectorLIC, 'integralMaxIter')
+					end
 				end
 				
 				ig.igPopID()

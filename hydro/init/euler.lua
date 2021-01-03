@@ -1548,19 +1548,45 @@ end ?>;
 	-- http://www.cfd-online.com/Wiki/2-D_laminar/turbulent_driven_square_cavity_flow
 	{
 		name = 'square cavity',
+		guiVars = {
+			{name='initVel', value=2, compileTime=true},
+		},
 		getInitCondCode = function(self)
 			local solver = assert(self.solver)
+	
 			solver:setBoundaryMethods{
 				xmin = 'mirror',
 				xmax = 'mirror',
 				ymin = 'mirror',
-				ymax = 'freeflow',	-- TODO none
+				
+				ymax = {
+					name = 'fixed',
+					args = {
+						fixedCode = function(self, args, dst)
+							return args.solver.eqn:template([[
+<?=prim_t?> W = {
+	.rho = 1.,
+	.P = 1.,
+	.v = _real3(initVel, 0., 0.),
+	.ePot = 0.,
+};
+<?=consFromPrim?>(buf + <?=dst?>, solver, &W, cellBuf[<?=dst?>].pos);
+]], 						{
+								args = args,
+								dst = dst,
+							}), {
+								args.solver.eqn.symbols.consFromPrim,
+								args.solver.eqn.symbols.initCond_guiVars_compileTime,
+							}
+						end,
+					},
+				},
+				
 				zmin = 'mirror',
 				zmax = 'mirror',
 			}
 			return [[
 	rho = 1;
-	v.x = x.y > .45 ? 1 : 0;
 	P = 1;
 ]]
 		end,

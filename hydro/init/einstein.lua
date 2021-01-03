@@ -464,17 +464,129 @@ local initConds = table{
 	},
 
 
-	-- 2009 Alic, Bona, Bona-Casas "Towards a gauge-polyvariant Numerical Relativity code"
+	--[[
+	2009 Alic, Bona, Bona-Casas "Towards a gauge-polyvariant Numerical Relativity code"
+	
+	isotropic 
+		K_ij = 0
+	cartesian:
+		γ_ij = (1 + m / (2 r))^4 δ_ij	-- eqn 31
+	spherical:
+		γ_ij = {1, r^2, (r sin(θ))^2}
+	stuffed:
+		m(r) = 4 r - 4 / M (r^2 + (M / 2 pi)^2 sin(2 pi r / M)^2) ... for r < M / 2:		-- eqn C.7
+
+
+	ADM decomposition:
+		ds^2 = -(α^2 - β^2) dt^2 + 2 β_i dt dx^i + γ_ij dx^i dx^j
+		
+		γ_ij (β^i dt + dx^i) (dt β^j + dx^j)
+		= β^2 dt^2 + 2 β_i dt dx^i + γ_ij dx^i dx^j
+
+		ds^2 = -α^2 dt^2 + γ_ij (β^i dt + dx^i) (dt β^j + dx^j)
+
+		n = n_u dx^u = -α dt
+
+		n^2 = α^2 dt^2
+		
+		ds^2 = -n^2 + γ_ij (β^i dt + dx^i) (dt β^j + dx^j)
+
+
+	matching ADM with the given coordinates:
+	there are no dt dx^i components, so β_i = 0 <=> β^i = 0
+	and we are left with:
+		ds^2 = -α^2 dt^2 + γ_ij dx^i dx^j
+
+
+	equating this with 2010 Muller "Catalog of Spacetimes" gives us ...
+	
+	cartesian isotropic coordiantes, section 2.2.4:
+		
+		ds^2 = -((1 - ρ_s/ρ) / (1 + ρ_s/ρ))^2 dt^2 + (1 + ρ_s/ρ)^4 (dx^2 + dy^2 + dz^2)
+		
+		g_tt = -((1 - ρ_s/ρ) / (1 + ρ_s/ρ))^2
+		g_ij = (1 + ρ_s/ρ)^4 δ_ij
+
+		2009 Alic's r = 2010 Muller's ρ
+		2009 Alic's m/2 = 2010 Muller's ρ_s
+	
+		based on 4-metric:
+			α = (1 - m/(2 r)) / (1 + m/(2 r))
+
+		however in 2009 Alic et al, α is initialized to:
+			α = α0 + ln (γ / γ0)	<- eqn 29
+		... but what is α0?
+
+		background spatial metrics:
+		γ^_ij = δ_ij
+
+	spherical isotropic coordinates, section 2.2.3:
+		
+		ds^2 = -((1 - ρ_s/ρ) / (1 + ρ_s/ρ))^2 dt^2 + (1 + ρ_s/ρ)^4 (dρ^2 + ρ^2 (dθ^2 + sin(θ)^2 dφ^2))
+		
+		g_tt = -((1 - ρ_s/ρ) / (1 + ρ_s/ρ))^2
+		so α is the same as cartesian isotropic
+
+		γ_ρρ = (1 + ρ_s/ρ)^4 
+		γ_θθ = (1 + ρ_s/ρ)^4 ρ^2
+		γ_φφ = (1 + ρ_s/ρ)^4 ρ^2 sin(θ)^2 dφ^2)
+
+
+		background spatial metrics:
+		γ^_rr = 1
+		γ^_θθ = r^2
+		γ^_φφ = (r sin(θ))^2
+
+	so ... how do we match up metrics?
+	if we're using isotropic coordinates -- spherical or cartesian -- then we can just multiply the background metric by (1 + ρ_s/ρ)^4
+
+	Schwarzschild coordinates, section 2.2.1:
+
+		ds^2 = -(1 - r_s/r) dt^2 + 1/(1 - r_s/r) dr^2 + r^2 (dθ^2 + sin(θ)^2 dφ^2)
+
+	don't forget you have to change the Z4 system to use background metric γ^_ij instead of just cartesian
+
+	if we are using the Schwarzschild form for the spherical metric then I guess only γ_rr gets set, and γ_θθ and γ_φφ are set to the background metric value
+	--]]
 	{
 		name = 'black hole - isotropic - stuffed',
-		init = function(self, args)
-			error"finsihme"
+
+		guiVars = {
+			{name = 'M', value = 1},
+		},
+
+		getDepends = function(self)
+			return {'sqr', self.solver.coord.symbols.coordMapR}
 		end,
-		getInitCondCode = function(self)
-			error"finsihme"
-		end,
-	}
 	
+		-- what do the eqns expect gamma_ij to be?
+		getInitCondCode = function(self)
+			return self.solver.eqn:template[[
+	real const r = coordMapR(x);
+	// this is grid r.  is that the same as isotropic spherical r?
+
+#if 0	// 2009 Alic et al eqn C.7
+	real const M = initCond->M;
+	real const m = 4 * r - 4 / M * (r * r + sqr(.5 * M / M_PI * sin(2 * M_PI * r / M)));
+#else
+	real const m = initCond->M;
+#endif
+
+	// 2009 Alic et al eqn 31
+	gamma_ll = sym3_real_mul(coord_g_ll(x), 1 + .5 * m / r);
+	
+#if 0	// 2009 Alic et al eqn 29
+	real const alpha0 = 1.;
+	real const gamma0 = 1.;
+	real const gamma = sqrt(coord_det_g(x));
+	alpha = alpha0 + log(gamma / gamma0);
+#else	// isotropic alpha = sqrt(-g_tt)
+	alpha = (1 - .5 * m / r) / (1 + .5 * m / r);
+#endif
+]]
+		end,
+	},
+
 	-- 2009 Bona et al "Elements in Numerical Relativity ... " eqn 6.22-6.24
 	{	
 		name = 'black hole - Schwarzschild',
@@ -495,7 +607,7 @@ local initConds = table{
 			}
 		end,
 		getInitCondCode = function(self)
-			return self.solver.eqn:template([[
+			return self.solver.eqn:template[[
 	const real R = initCond->R;
 	real3 center = _real3(initCond->x, initCond->y, initCond->z);
 	real3 xrel = real3_sub(xc, center);
@@ -511,8 +623,6 @@ local initConds = table{
 ]]
 		end,
 	},
-	
-	
 	
 	
 	{	-- Baumgarte & Shapiro, table 2.1, isotropic coordinates
@@ -539,6 +649,8 @@ local initConds = table{
 			args = args or {}
 			
 			local v = self.guiVars
+			
+			-- TODO make the default just M=1 <=> R=2 and no momentum or spin
 			self.bodies = args.bodies or {
 				{
 					R = .0001,

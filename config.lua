@@ -58,7 +58,7 @@ local args = {
 	--slopeLimiter = 'superbee',
 
 	-- this is functional without usePLM, but doing so falls back on the cell-centered buffer, which with the current useCTU code will update the same cell twice from different threads
-	--useCTU = true,
+	useCTU = true,
 	
 	-- [[ Cartesian
 	coord = 'cartesian',
@@ -88,7 +88,7 @@ local args = {
 			},
 			['Intel(R) OpenCL HD Graphics/Intel(R) Gen9 HD Graphics NEO'] = {
 				{4096,1,1},
-				{256,256,1},
+				{32,32,1},
 				
 				-- for 11th WENO (2010 Shen Zha) once we reduce size below 6,6 it breaks
 				-- so TODO something about boundary conditions on WENO or something ... maybe an error
@@ -233,7 +233,7 @@ local args = {
 	--initCond = 'Rayleigh-Taylor',	--FIXME ... get initial / static hydro potential working
 	--initCond = 'Colella-Woodward',
 	--initCond = 'double mach reflection',
-	--initCond = 'square cavity',
+	initCond = 'square cavity',
 	--initCond = 'shock bubble interaction',		-- with usePLM only works with prim or with athena
 	--initCond = 'Richmyer-Meshkov',
 	--initCond = 'radial gaussian',
@@ -354,7 +354,9 @@ local args = {
 	
 	
 	--initCond = 'black hole - isotropic',	-- this one has momentum and rotation and almost done with multiple sources.  TODO parameterize
-	
+
+	--initCond = 'black hole - isotropic - stuffed',
+
 	--initCond = 'black hole - SENR/NumPy',
 
 	--[[ single black hole, stationary
@@ -1044,9 +1046,10 @@ local args = {
 	--initCond = 'SENR Minkowski',
 	--initCond = 'gaussian perturbation',
 	--initCond = 'plane gauge wave',
-	initCond = 'SENR UIUC',
+	--initCond = 'SENR UIUC',
 	--initCond = 'SENR BrillLindquist',
 	--initCond = 'black hole - Schwarzschild',
+	initCond = 'black hole - isotropic - stuffed',	-- TODO FIXME
 	--[[
 	-- TODO since converting this to useBSSNVars, it doesn't work for cartesian anymore ...
 	initCond = 'black hole - isotropic',	-- this one has momentum and rotation and almost done with multiple sources.  TODO parameterize

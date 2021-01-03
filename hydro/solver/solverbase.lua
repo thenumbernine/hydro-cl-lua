@@ -2883,6 +2883,9 @@ function SolverBase:updateGUIEqnSpecific()
 		self:refreshEqnInitState()
 	end	
 --]]		
+	for _,var in ipairs(self.eqn.initCond.guiVars) do
+		var:updateGUI(self)
+	end
 	for _,var in ipairs(self.eqn.guiVars) do
 		var:updateGUI(self)
 	end

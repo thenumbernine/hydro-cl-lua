@@ -97,21 +97,23 @@ end
 --[[
 args:
 	boundary = boundary info
+	userPLM
+	useCTU
+	slopeLimiter
 --]]
 function GridSolver:initObjs(args)
-
 	-- [[ grab these before calling super, or else refreshGetULR will be initialized incorrectly at first
 	self.usePLM = args.usePLM
 	self.slopeLimiter = self.app.limiterNames:find(args.slopeLimiter) or 1
 	self.useCTU = args.useCTU
 	--]]
-
+	
 	GridSolver.super.initObjs(self, args)
 	
 	assert(not self.usePLM or self.fluxLimiter == 1, "are you sure you want to use flux and slope limiters at the same time?")
 	
 	self:createBoundaryOptions()
-
+	
 	self.boundaryMethods = {}
 	for i=1,3 do
 		for _,minmax in ipairs(minmaxs) do
@@ -657,7 +659,7 @@ function BoundaryMirror:getCode(args)
 		src = args.index(gridSizeSide..' - solver->numGhost - 1 - j')
 	end
 	local lines = table()
-	lines:insert('\t\t'..self:assignDstSrc(dst, src, args))
+	lines:insert(self:assignDstSrc(dst, src, args))
 	
 	-- reflectVars.mirror is going to hold, for each dimension, which components need to be mirrored
 	-- v.s[side-1] = -v.s[side-1]
@@ -673,12 +675,12 @@ function BoundaryMirror:getCode(args)
 		-- TODO let the ctor specify the vars, not this
 		--  so I can use this for things like the poisson solver
 		lines:insert(template([[
-		{
-			real3 const x = cellBuf[INDEX(<?=iv?>)].pos;
+{
+	real3 const x = cellBuf[INDEX(<?=iv?>)].pos;
 <? if args.minmax == 'min' then ?>
-			real3 n = coord_cartesianFromCoord(normalForSide<?=side-1?>, x);
+	real3 n = coord_cartesianFromCoord(normalForSide<?=side-1?>, x);
 <? else -- max ?>
-			real3 n = coord_cartesianFromCoord(real3_neg(normalForSide<?=side-1?>), x);
+	real3 n = coord_cartesianFromCoord(real3_neg(normalForSide<?=side-1?>), x);
 <? end ?>
 ]], 	{
 			args = args,
@@ -696,19 +698,19 @@ function BoundaryMirror:getCode(args)
 			or var.type == 'cplx3'
 			then
 				lines:insert(template([[
-			buf[<?=dst?>].<?=field?> = <?=vec3?>_sub(
-				buf[<?=dst?>].<?=field?>,
-				<?=vec3?>_<?=scalar?>_mul(
-					<?=vec3?>_from_real3(n),
-					<?=scalar?>_real_mul(
-						<?=vec3?>_real3_dot(
-							buf[<?=dst?>].<?=field?>,
-							n
-						), 
-						<?=restitution + 1?>
-					)
-				)
-			);
+	buf[<?=dst?>].<?=field?> = <?=vec3?>_sub(
+		buf[<?=dst?>].<?=field?>,
+		<?=vec3?>_<?=scalar?>_mul(
+			<?=vec3?>_from_real3(n),
+			<?=scalar?>_real_mul(
+				<?=vec3?>_real3_dot(
+					buf[<?=dst?>].<?=field?>,
+					n
+				), 
+				<?=restitution + 1?>
+			)
+		)
+	);
 ]], 			{
 					restitution = clnumber(self.restitution),
 					vec3 = var.type,
@@ -721,7 +723,7 @@ function BoundaryMirror:getCode(args)
 			end
 		end
 		lines:insert[[
-		}
+}
 ]]
 	else
 		lines:insert(self:reflectVars(args, dst, args.reflectVars.mirror, self.restitution))
@@ -730,20 +732,15 @@ function BoundaryMirror:getCode(args)
 end
 
 -- Dirichlet boundary conditions: constant values
--- TODO fixedCode needs to be provided ... but can't be provided easily from outside if it needs templated code from inside the class ...
--- for now lets just not include this in the options, and let child classes subclass it if they want
+-- fixedCode = function(boundary, args, dst) 
+--	returns code, list of dependency module names
 local BoundaryFixed = class(Boundary)
 BoundaryFixed.name = 'fixed'
-function BoundaryFixed:init(fixedCode)
+function BoundaryFixed:init(args)
 	-- fixed values to use
-	self.code = fixedCode or self.fixedCode
+	self.fixedCode = assert(args.fixedCode)
 end
 function BoundaryFixed:getCode(args)
-	local fixedCode = template(self.code, {
-		solver = args.solver,
-		eqn = args.solver.eqn,
-		args = args,
-	})
 	local dst
 	if args.minmax == 'min' then
 		dst = args.index'j'
@@ -751,15 +748,7 @@ function BoundaryFixed:getCode(args)
 		local gridSizeSide = 'solver->gridSize.'..xNames[args.side]
 		dst = args.index(gridSizeSide..' - solver->numGhost + j')
 	end
-	local lines = table()
-	if args.fields then
-		for _,field in ipairs(args.fields) do
-			lines:insert('buf['..dst..'].'..field..' = '..fixedCode..';')
-		end
-	else
-		lines:insert('buf['..dst..'] = '..fixedCode..';')
-	end
-	return lines:concat'\n'
+	return self:fixedCode(args, dst)
 end
 GridSolver.BoundaryFixed = BoundaryFixed 
 
@@ -974,22 +963,22 @@ function BoundaryCylinderRMin:getCode(args)
 	elseif solver.dim == 2 then	-- r, theta
 		dst = 'INDEX(j, i, 0)'
 		src = [[
-INDEX(
-	2 * solver->numGhost - 1 - j, 
-	(i - solver->numGhost + (solver->gridSize.y - 2 * solver->numGhost) / 2
-		+ (solver->gridSize.y - 2 * solver->numGhost))
-		% (solver->gridSize.y - 2 * solver->numGhost) + solver->numGhost,
-	0)
+	INDEX(
+		2 * solver->numGhost - 1 - j, 
+		(i - solver->numGhost + (solver->gridSize.y - 2 * solver->numGhost) / 2
+			+ (solver->gridSize.y - 2 * solver->numGhost))
+			% (solver->gridSize.y - 2 * solver->numGhost) + solver->numGhost,
+		0)
 ]]
 	elseif solver.dim == 3 then
 		dst = 'INDEX(j, i.x, i.y)'
 		src = [[
-INDEX(
-	2 * solver->numGhost - 1 - j, 
-	(i.x - solver->numGhost + (solver->gridSize.y - 2 * solver->numGhost) / 2
-		+ (solver->gridSize.y - 2 * solver->numGhost))
-		% (solver->gridSize.y - 2 * solver->numGhost) + solver->numGhost,
-	i.y)
+	INDEX(
+		2 * solver->numGhost - 1 - j, 
+		(i.x - solver->numGhost + (solver->gridSize.y - 2 * solver->numGhost) / 2
+			+ (solver->gridSize.y - 2 * solver->numGhost))
+			% (solver->gridSize.y - 2 * solver->numGhost) + solver->numGhost,
+		i.y)
 ]]
 	end
 	local lines = table()
@@ -1010,7 +999,7 @@ function GridSolver:createBoundaryOptions()
 		BoundaryNone,
 		BoundaryPeriodic,
 		BoundaryMirror,
-		--BoundaryFixed,
+		BoundaryFixed,
 		BoundaryFreeFlow,
 		BoundaryLinear,
 		BoundaryQuadratic,
@@ -1047,8 +1036,10 @@ function GridSolver:setBoundaryMethods(args)
 			local k = x..minmax
 			local name
 			if type(args) == 'string' then
+				-- set all sides to the same type of BC
 				name = args	
 			elseif type(args) == 'table' then
+				-- set each side separately
 				name = args[k]
 			else
 				error("don't know how to deal with these args") 
@@ -1060,10 +1051,9 @@ function GridSolver:setBoundaryMethods(args)
 			end
 			local boundaryClass = self.boundaryOptionForName[name]
 			if not boundaryClass then
-				io.stderr:write("unable to find boundary method "..tostring(name)
+				error("unable to find boundary method "..tostring(name)
 					..' ('..type(name)..')'
 					.." -- can't assign it to side "..k.."\n")
-				io.stderr:flush()
 			else
 				self.boundaryMethods[k] = boundaryClass(boundaryObjArgs)
 			end
@@ -1099,7 +1089,6 @@ function GridSolver:createBoundaryProgramAndKernel(args)
 		self.coord.symbols.cartesianFromCoord,
 		'normalForSide',
 	}
-	lines:insert(self.modules:getCodeAndHeader(moduleNames:unpack()))
 
 	local iFields = ({
 		nil,
@@ -1170,7 +1159,7 @@ end
 	for (int j = 0; j < solver->numGhost; ++j) {]]
 
 		for _,minmax in ipairs(minmaxs) do
-			lines:insert(args.methods[xNames[side]..minmax]:getCode({
+			local sideCode, sideDepends = args.methods[xNames[side]..minmax]:getCode({
 				
 				-- this is only used for the oscillating boundary to distinguish between the cons_t boundary and the potential boundary
 				fields = args.fields,
@@ -1183,7 +1172,11 @@ end
 				minmax = minmax,
 				reflectVars = args.reflectVars -- UBuf takes reflectVars from eqn
 					or {},						-- op/relaxation doesn't use reflectVars (should it?)
-			}))
+			})
+
+			moduleNames:append(sideDepends)
+			
+			lines:insert('\t\t'..sideCode:gsub('\n', '\n\t\t'))
 		end 
 
 lines:insert[[
@@ -1191,6 +1184,9 @@ lines:insert[[
 }
 ]]
 	end
+
+	-- last, add dependency code to the beginning
+	lines:insert(1, self.modules:getCodeAndHeader(moduleNames:unpack()))
 
 	local code = lines:concat'\n'
 	local boundaryProgramName = 'boundary'..(args.programNameSuffix or '')
