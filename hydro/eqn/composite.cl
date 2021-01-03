@@ -103,6 +103,45 @@ end --\
 <?=cons_t?> * const resultName = &resultName##base;\
 <? end ?>
 
+//// MODULE_NAME: <?=primFromCons?>
+//// MODULE_DEPENDS: <?=subeqnDepends'primFromCons'?>
+
+#define <?=primFromCons?>(\
+	/*<?=cons_t?> * const */W,\
+	/*constant <?=solver_t?> const * const */solver,\
+	/*<?=prim_t?> const * const*/U,\
+	/*real3 const */pt\
+) {\
+<? for i,subeqn in ipairs(eqn.eqns) do --\
+?>	<?=subeqn.symbols.primFromCons?>(\
+		&(W)-><?=subeqn.field?>,\
+		solver,\
+		&(U)-><?=subeqn.field?>,\
+		pt);\
+<? end --\
+?>\
+}
+
+
+//// MODULE_NAME: <?=consFromPrim?>
+//// MODULE_DEPENDS: <?=subeqnDepends'consFromPrim'?>
+
+#define <?=consFromPrim?>(\
+	/*<?=cons_t?> * const */U,\
+	/*constant <?=solver_t?> const * const */solver,\
+	/*<?=prim_t?> const * const*/W,\
+	/*real3 const */pt\
+) {\
+<? for i,subeqn in ipairs(eqn.eqns) do --\
+?>	<?=subeqn.symbols.consFromPrim?>(\
+		&(U)-><?=subeqn.field?>,\
+		solver,\
+		&(W)-><?=subeqn.field?>,\
+		pt);\
+<? end --\
+?>\
+}
+
 //// MODULE_NAME: <?=applyInitCondCell?>
 //// MODULE_DEPENDS: <?=solver_t?> <?=initCond_t?> <?=cons_t?> <?=cell_t?> <?=subeqnDepends'applyInitCondCell'?>
 

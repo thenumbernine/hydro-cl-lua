@@ -88,11 +88,19 @@ assert(#self.eqns > 0, "you need at least one entry in args.subeqns")
 				end,
 			},
 --]]
+			-- to fix the call into sub eqn initCodeModule_cons_prim_eigen_waves
+			sharedModulesEnabled = {},
+
 		}, {
 			__index = solver,
 		})
 		eqn.initCond = {
-			initCodeModules = function(fakeInitCond)
+			initCodeModules = function(fakeInitCond) end,
+			getDepends = function() 
+				return self.initCond.getDepends and self.initCond:getDepends() or nil
+			end,
+			getBaseDepends = function() 
+				return self.initCond:getBaseDepends()
 			end,
 		}
 		eqn.initCond.getInitCondCode = function(fakeInitCond)
@@ -100,9 +108,13 @@ assert(#self.eqns > 0, "you need at least one entry in args.subeqns")
 		end
 		
 		-- this is to prevent initCond_t from being re-added
-		eqn.createInitState_createInitState = function() end
+		eqn.createInitCond_createInitCond = function() end
 
---[[
+-- [[
+		-- can't add all of initCodeModules here, 
+		-- because it adds from solverCodeFile
+		-- and that adds from initCond
+		-- and initCond hasn't been created yet
 		--eqn:initCodeModules()
 		-- assign the cons_t, prim_t, and eigen_t to app
 		-- so that, when querying modules in the composite's cdefAllVarTypes, it looks in app's modules and finds them
@@ -196,7 +208,7 @@ function Composite:createInitState()
 --]]
 end
 
---[[
+-- [[
 function Composite:initCodeModules()
 	-- don't initCodeModule_cons_prim_eigen_waves because we already did that (for app.modules for cdefAll...)
 	for _,eqn in ipairs(self.eqns) do
@@ -215,6 +227,37 @@ function Composite:initCodeModule_cons_parallelPropagate() end
 function Composite:initCodeModule_fluxFromCons() end
 function Composite:initCodeModule_consFromPrim_primFromCons() end
 function Composite:initCodeModule_calcDTCell() end
+
+
+-- I need to add the 'onAdd' stuff for all sub-eqn solvers as well
+-- this makes the whole 'onAdd' seem like a bad idea...
+-- TODO maybe?  remove onAdd, manually insert the dependencies, and then remove this function
+function Composite:initCodeModule_solverCodeFile_onAdd(args)
+	local applyInitCondCellSymbols = table(
+	{
+		[self.symbols.applyInitCondCell] = true,
+	}, self.eqns:mapi(function(eqn)
+		return true, eqn.symbols.applyInitCondCell
+	end))
+
+	-- special case for applyInitCondCell ...
+	if applyInitCondCellSymbols[args.name] then
+		args.depends:append(self.initCond:getBaseDepends())
+		if self.initCond.getDepends then
+			args.depends:append(self.initCond:getDepends())
+		end
+		-- TODO here's the hack
+		-- initCond:getBaseDepends adds these from eqn
+		-- but now we want to add them for the sub-eqns as well
+		for _,eqn in ipairs(self.eqns) do
+			args.depends:insert(eqn.symbols.consFromPrim)
+		end
+		-- only used by hydro/eqn/bssnok-fd.lua:
+		if self.getModuleDependsApplyInitCond then
+			args.depends:append(self:getModuleDependsApplyInitCond())
+		end
+	end
+end
 
 --[[ TODO getDisplayVars
 -- but that means swapping out the 'U' var for a new 'U' var per each sub-eqn

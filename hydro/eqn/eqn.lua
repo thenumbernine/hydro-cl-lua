@@ -155,13 +155,21 @@ maybe I can wait to count scalars until after initCodeModules?
 no, they're needed for the integrator
 --]]
 
--- make sure all math types are cdef'd,
--- for sizeof's for calculating the union ptr size 
--- when we makeType the consStruct
--- we can't do this after makeType unless we also put it after initCodeModule
--- (but eqn:initCodeModule is called after the consStruct type is defined)	
+	--[[
+	make sure all math types are cdef'd,
+	for sizeof's for calculating the union ptr size 
+	when we makeType the consStruct
+	we can't do this after makeType unless we also put it after initCodeModule
+	(but eqn:initCodeModule is called after the consStruct type is defined)	
+	
+	here's a better idea ... only do this within initCodeModules
+	but that means you can't create the integrator until within solver's initCodeModules
+	or at least you can't set its # scalars / allocate its buffers
+	
+	but then why not also create eqn within solver's initCodeModules?
+	--]]
 	self:cdefAllVarTypes(solver, self.consStruct.vars)
-
+	
 	self.consStruct:makeType()	-- create consStruct.typename
 	-- TODO replace the cdef uniqueName with a unique eqn object name
 	self.symbols.cons_t = self.consStruct.typename
@@ -424,7 +432,7 @@ function Equation:createInitState()
 		self:addGuiVars(mt.guiVars)
 	end
 
-	self:createInitState_createInitState()
+	self:createInitCond_createInitCond()
 	
 	-- should ops add vars to initCond_t or solver_t?
 	-- or should there be a new eqn_t?
@@ -437,7 +445,7 @@ function Equation:createInitState()
 	end
 end
 
-function Equation:createInitState_createInitState()
+function Equation:createInitCond_createInitCond()
 	-- first create the init state
 	assert(self.initConds, "expected Eqn.initConds")
 	self.initCond = self.initConds[self.solver.initCondIndex](table(self.solver.initCondArgs, {
@@ -548,22 +556,7 @@ function Equation:initCodeModules()
 	self:initCodeModule_fluxFromCons()
 	self:initCodeModule_waveCode()
 
-	solver.modules:addFromMarkup{
-		code = self:template(file[self.solverCodeFile]),
-		onAdd = function(args)
-			-- special case for applyInitCondCell ...
-			if args.name == self.symbols.applyInitCondCell then
-				args.depends:append(self.initCond:getBaseDepends())
-				if self.initCond.getDepends then
-					args.depends:append(self.initCond:getDepends())
-				end
-				-- only used by hydro/eqn/bssnok-fd.lua:
-				if self.getModuleDependsApplyInitCond then
-					args.depends:append(self:getModuleDependsApplyInitCond())
-				end
-			end
-		end,
-	}
+	self:initCodeModule_solverCodeFile()
 
 	solver.modules:add{
 		name = self.symbols.applyInitCond,
@@ -809,6 +802,31 @@ function Equation:initCodeModule_fluxFromCons()
 }
 ]],
 	}
+end
+
+-- this is a mess, all because of eqn/composite
+function Equation:initCodeModule_solverCodeFile()
+	self.solver.modules:addFromMarkup{
+		code = self:template(file[self.solverCodeFile]),
+		onAdd = function(args)
+			self:initCodeModule_solverCodeFile_onAdd(args)
+		end,
+	}
+end
+
+function Equation:initCodeModule_solverCodeFile_onAdd(args)
+	-- special case for applyInitCondCell ...
+	if args.name == self.symbols.applyInitCondCell then
+		args.depends:append(self.initCond:getBaseDepends())
+		if self.initCond.getDepends then
+			args.depends:append(self.initCond:getDepends())
+		end
+		-- only used by hydro/eqn/bssnok-fd.lua:
+		-- TODO get rid of it
+		if self.getModuleDependsApplyInitCond then
+			args.depends:append(self:getModuleDependsApplyInitCond())
+		end
+	end
 end
 
 -- put your eigenWaveCode / consWaveCode dependencies here

@@ -1545,7 +1545,11 @@ end ?>;
 		end,
 	},
 
-	-- http://www.cfd-online.com/Wiki/2-D_laminar/turbulent_driven_square_cavity_flow
+	--[[
+	http://www.cfd-online.com/Wiki/2-D_laminar/turbulent_driven_square_cavity_flow
+	initVel=2 works, initVel=10 explodes
+	crashes for incompressible (maybe due to the b.c.)
+	--]]
 	{
 		name = 'square cavity',
 		guiVars = {
