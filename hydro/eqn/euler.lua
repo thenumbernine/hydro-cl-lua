@@ -240,7 +240,7 @@ function Euler:getDisplayVars()
 	}:append(self.gravOp and
 		{{name='gravity', code=self:template[[
 	if (!<?=OOB?>(1,1)) {
-		value.vreal3 = <?=eqn.gravOp.symbols.calcGravityAccel?>(solver, U);
+		<?=eqn.gravOp.symbols.calcGravityAccel?>(&value.vreal3, solver, U, x);
 	}
 ]], type='real3', units='m/s^2'}} or nil
 	)

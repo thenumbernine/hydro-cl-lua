@@ -112,7 +112,7 @@ local makePartial1 = function(...) return makePartials.makePartial1(derivOrder, 
 local makePartial2 = function(...) return makePartials.makePartial2(derivOrder, solver, ...) end
 ?>
 
-kernel void <?=op.symbolPrefix?>_solveMinimalDistortionEllipticShift(
+kernel void <?=op.symbols.solveMinimalDistortionEllipticShift?>(
 	constant <?=solver_t?> const * const solver,
 	global real * const writeBuf,
 	global <?=op:getPotBufType()?> const * const UBuf<?

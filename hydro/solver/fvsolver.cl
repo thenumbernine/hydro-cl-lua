@@ -89,7 +89,7 @@ if eqn.postComputeFluxCode then ?>
 					fluxR->ptr[j] * areaR
 					- fluxL->ptr[j] * areaL;
 			}
-<?=eqn.postComputeFluxCode?>
+<?=eqn:postComputeFluxCode()?>
 			for (int j = 0; j < numIntStates; ++j) {
 				deriv->ptr[j] -= flux.ptr[j];
 			}

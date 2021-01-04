@@ -3,7 +3,7 @@ local solver = op.solver
 local eqn = solver.eqn
 ?>
 
-kernel void <?=op.symbolPrefix?>_initPotential(
+kernel void <?=op.symbols.initPotential?>(
 	global <?=op:getPotBufType()?>* UBuf
 ) {
 	<?=SETBOUNDS?>(solver->numGhost, solver->numGhost);
@@ -15,7 +15,7 @@ kernel void <?=op.symbolPrefix?>_initPotential(
 	UBuf[index].<?=op.potentialField?> = real3_neg(betaLap_u);
 }
 
-kernel void <?=op.symbolPrefix?>_solveJacobi(
+kernel void <?=op.symbols.solveJacobi?>(
 	constant <?=solver_t?> const * const solver,
 	global <?=op:getPotBufType()?> * const UBuf
 ) {

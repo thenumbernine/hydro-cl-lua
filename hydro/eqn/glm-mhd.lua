@@ -201,9 +201,10 @@ function MHD:getModuleDepends_waveCode()
 end
 
 function MHD:getModuleDepends_displayCode() 
-	return {
+	return table(MHD.super.getModuleDepends_displayCode(self)):append{
 		self.symbols.eqn_common,
 		self.symbols.consFromPrim,
+		self.gravOp.symbols.calcGravityAccel,
 	}
 end
 
@@ -266,7 +267,7 @@ function MHD:getDisplayVars()
 			name='gravity', 
 			code=self:template[[
 	if (!<?=OOB?>(1,1)) {
-		value.vreal3 = <?=eqn.gravOp.symbolPrefix?>_calcGravityAccel(solver, U);
+		<?=eqn.gravOp.symbols.calcGravityAccel?>(&value.vreal3, solver, U, x);
 	}
 ]], 
 			type='real3', 

@@ -46,7 +46,7 @@ phi[x,k+1] = (f[x] - sum_i,j!=k (phi[x+e[i],k] / dx[i]^2))
 input is poisson source divergence, in 1/s^2
 output is potentialField, in m^2/s^2
 */
-kernel void <?=op.symbolPrefix?>_solveJacobi(
+kernel void <?=op.symbols.solveJacobi?>(
 	constant <?=solver_t?> const * const solver,
 	global real * const writeBuf,
 	global <?=op:getPotBufType()?> const * const UBuf,
@@ -183,7 +183,7 @@ end
 
 function PoissonJacobi:initCodeModules(solver)
 	PoissonJacobi.super.initCodeModules(self, solver)
-	local name = 'op.PoissonJacobi-'..self.symbolPrefix
+	local name = self.symbolPrefix..'PoissonJacobi'
 	solver.modules:add{
 		name = name,
 		depends = self:getModuleDepends_Poisson(),

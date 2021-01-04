@@ -1,5 +1,6 @@
 --[[
 helper function for ...
+expects obj.name to exist
 assigns a 'symbolPrefix' to the obj based on the obj's Lua ptr (in code.uid)
 then assigns a 'symbols' table with the prefix assigned to each
 --]]

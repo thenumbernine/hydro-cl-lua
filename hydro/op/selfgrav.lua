@@ -2,7 +2,6 @@ local ffi = require 'ffi'
 local ig = require 'ffi.imgui'
 local table = require 'ext.table'
 local class = require 'ext.class'
-local template = require 'template'
 local tooltip = require 'hydro.tooltip'
 local real = require 'hydro.real'	-- really 'realparam'
 
@@ -38,13 +37,17 @@ function SelfGrav:init(args)
 	args.linearSolver = cmdline.selfGravLinearSolver
 
 	SelfGrav.super.init(self, args)
-
-	require 'hydro.code.symbols'(self, {
-		'calcGravityAccel',
-		'calcGravityDeriv',
-	})
 	
 	self.solver[self.enableField] = not not self.solver[self.enableField]
+end
+
+function SelfGrav:getSymbolFields()
+	return SelfGrav.super.getSymbolFields(self):append{
+		'copyPotentialToReduce',
+		'offsetPotential',
+		'calcGravityAccel',
+		'calcGravityDeriv',
+	}
 end
 
 SelfGrav.guiVars = {
@@ -54,7 +57,7 @@ SelfGrav.guiVars = {
 -- params for hydro/op/poisson.cl 
 -- units of m^3/(kg*s^2) * kg/m^3 = 1/s^2
 function SelfGrav:getPoissonDivCode()
-	return template([[
+	return self.solver.eqn:template([[
 	source = 4. * M_PI * U->rho
 		* solver->gravitationalConstant / unit_m3_per_kg_s2;	//'G'
 ]], {op=self})
@@ -63,25 +66,25 @@ end
 function SelfGrav:initCodeModules(solver)
 	SelfGrav.super.initCodeModules(self, solver)
 
-	-- euler wants to use this function, so i need to guarantee its module order to be before euler's display code
 	solver.modules:add{
 		name = self.symbols.calcGravityAccel,
 		code = solver.eqn:template([[
-real3 <?=op.symbols.calcGravityAccel?>(
-	constant <?=solver_t?> const * const solver,
-	global <?=cons_t?> * const U
-) {
-	real3 accel_g = real3_zero;
-
-	<? for side=0,solver.dim-1 do ?>{
-		// m/s^2
-		accel_g.s<?=side?> = (
-			U[solver->stepsize.s<?=side?>].<?=op.potentialField?> 
-			- U[-solver->stepsize.s<?=side?>].<?=op.potentialField?>
-		) / (2. * solver->grid_dx.s<?=side?>);	//TODO grid coordinate influence?
-	}<? end ?>
-
-	return accel_g;
+#define <?=op.symbols.calcGravityAccel?>(\
+	/*real3 * const */accel_g,\
+	/*constant <?=solver_t?> const * const */solver,\
+	/*global <?=cons_t?> * const */U,\
+	/*real3 const */pt\
+) {\
+	*(accel_g) = real3_zero;\
+\
+	<? for side=0,solver.dim-1 do ?>{\
+		/* m/s^2 */\
+		/* TODO grid coordinate influence? */\
+		(accel_g)->s<?=side?> = (\
+			U[solver->stepsize.s<?=side?>].<?=op.potentialField?> \
+			- U[-solver->stepsize.s<?=side?>].<?=op.potentialField?>\
+		) / (2. * solver->grid_dx.s<?=side?>);\
+	}<? end ?>\
 }
 ]],
 		{
@@ -103,14 +106,17 @@ function SelfGrav:getPoissonCode()
 kernel void <?=op.symbols.calcGravityDeriv?>(
 	constant <?=solver_t?> const * const solver,
 	global <?=cons_t?> * const derivBuffer,
-	global <?=cons_t?> const * const UBuf
+	global <?=cons_t?> const * const UBuf,
+	global <?=cell_t?> const * const cellBuf
 ) {
 	<?=SETBOUNDS?>(solver->numGhost, solver->numGhost);
+	real3 const pt = cellBuf[index].pos;
 	
 	global <?=cons_t?> * const deriv = derivBuffer + index;
 	global <?=cons_t?> const * const U = UBuf + index;
 
-	real3 accel_g = <?=op.symbols.calcGravityAccel?>(solver, U);
+	real3 accel_g;
+	<?=op.symbols.calcGravityAccel?>(&accel_g, solver, U, pt);
 
 	// kg/(m^2 s) = kg/m^3 * m/s^2
 	deriv->m = real3_sub(deriv->m, real3_real_mul(accel_g, U->rho));
@@ -120,7 +126,7 @@ kernel void <?=op.symbols.calcGravityDeriv?>(
 }
 
 //TODO just use the display var kernels
-kernel void <?=op.symbolPrefix?>_copyPotentialToReduce(
+kernel void <?=op.symbols.copyPotentialToReduce?>(
 	constant <?=solver_t?> const * const solver,
 	global real* reduceBuf,
 	global const <?=cons_t?>* UBuf
@@ -130,7 +136,7 @@ kernel void <?=op.symbolPrefix?>_copyPotentialToReduce(
 }
 
 //keep potential energy negative
-kernel void <?=op.symbolPrefix?>_offsetPotential(
+kernel void <?=op.symbols.offsetPotential?>(
 	constant <?=solver_t?> const * const solver,
 	global <?=cons_t?>* UBuf,
 	realparam ePotMax
@@ -149,10 +155,11 @@ function SelfGrav:refreshSolverProgram()
 	self.calcGravityDerivKernelObj = solver.solverProgramObj:kernel(self.symbols.calcGravityDeriv)
 	self.calcGravityDerivKernelObj.obj:setArg(0, solver.solverBuf)
 	self.calcGravityDerivKernelObj.obj:setArg(2, solver.UBuf)
+	self.calcGravityDerivKernelObj.obj:setArg(3, solver.cellBuf)
 
 	--TODO just use the display var kernels?
-	self.copyPotentialToReduceKernelObj = solver.solverProgramObj:kernel(self.symbolPrefix..'_copyPotentialToReduce', solver.solverBuf, solver.reduceBuf, solver.UBuf)
-	self.offsetPotentialKernelObj = solver.solverProgramObj:kernel(self.symbolPrefix..'_offsetPotential', solver.solverBuf, solver.UBuf)
+	self.copyPotentialToReduceKernelObj = solver.solverProgramObj:kernel(self.symbols.copyPotentialToReduce, solver.solverBuf, solver.reduceBuf, solver.UBuf)
+	self.offsetPotentialKernelObj = solver.solverProgramObj:kernel(self.symbols.offsetPotential, solver.solverBuf, solver.UBuf)
 end
 
 

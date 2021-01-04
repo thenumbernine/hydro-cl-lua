@@ -44,9 +44,22 @@ function PoissonKrylov:init(args)
 	self.verbose = args.verbose
 	self.linearSolverType = args.linearSolver
 
-	-- matches hydro/op/relaxation.lua
-	local uid = require 'hydro.code.uid'(self)
-	self.symbolPrefix = self.name..'_'..uid
+	require 'hydro.code.symbols'(self, self:getSymbolFields())
+end
+
+function PoissonKrylov:getSymbolFields()
+	return table{
+		'mulWithoutBorder',
+		'square',
+		'linearFunc',
+		'copyVecToPotentialField',
+		'copyPotentialFieldToVecAndInitB',
+		-- shared with relaxation:
+		'initPotential',
+		'solveJacobi',
+		'copyWriteToPotentialNoGhost',
+		'setReduceToPotentialSquared',
+	}
 end
 
 function PoissonKrylov:initSolver()
@@ -90,7 +103,7 @@ function PoissonKrylov:initSolver()
 		}:unpack())
 
 	local mulWithoutBorderKernelObj = solver.domain:kernel{
-		name = self.symbolPrefix..'_mulWithoutBorder',
+		name = self.symbols.mulWithoutBorder,
 		header = codePrefix,
 		argsOut = {
 			{name='y', type=solver.app.real, obj=true},
@@ -110,7 +123,7 @@ function PoissonKrylov:initSolver()
 	}
 
 	local squareKernelObj = solver.domain:kernel{
-		name = self.symbolPrefix..'_square',
+		name = self.symbols.square,
 		header = codePrefix,
 		argsOut = {
 			{name = 'y', type=solver.app.real, obj=true},
@@ -191,7 +204,7 @@ function PoissonKrylov:initSolver()
 end
 
 local poissonKrylovCode = [[
-kernel void <?=op.symbolPrefix?>_linearFunc(
+kernel void <?=op.symbols.linearFunc?>(
 	constant <?=solver_t?> const * const solver,
 	global real * const Y,
 	global real const * const X,
@@ -235,15 +248,15 @@ kernel void <?=op.symbolPrefix?>_linearFunc(
 	Y[index] = sum;
 }
 
-kernel void <?=op.symbolPrefix?>_copyPotentialFieldToVecAndInitB(
-	constant <?=solver_t?>* solver,
-	global real* x,
-	global real* b,
-	global const <?=cons_t?>* UBuf
+kernel void <?=op.symbols.copyPotentialFieldToVecAndInitB?>(
+	constant <?=solver_t?> const * const solver,
+	global real * const x,
+	global real * const b,
+	global <?=cons_t?> const * const UBuf
 ) {
 	<?=SETBOUNDS?>(0, 0);
 	
-	global const <?=cons_t?>* U = UBuf + index;
+	global <?=cons_t?> const * const U = UBuf + index;
 	x[index] = U-><?=op.potentialField?>;
 	
 	real source = 0.;
@@ -251,7 +264,7 @@ kernel void <?=op.symbolPrefix?>_copyPotentialFieldToVecAndInitB(
 	b[index] = source;
 }
 
-kernel void <?=op.symbolPrefix?>_copyVecToPotentialField(
+kernel void <?=op.symbols.copyVecToPotentialField?>(
 	constant <?=solver_t?>* solver,
 	global <?=cons_t?>* UBuf,
 	global const real* x
@@ -287,10 +300,10 @@ end
 function PoissonKrylov:refreshSolverProgram()
 	local solver = self.solver
 	self:initSolver()
-	self.initPotentialKernelObj = solver.solverProgramObj:kernel(self.symbolPrefix..'_initPotential', solver.solverBuf, self:getPotBuf())
-	self.copyPotentialFieldToVecAndInitBKernelObj = solver.solverProgramObj:kernel(self.symbolPrefix..'_copyPotentialFieldToVecAndInitB', solver.solverBuf, assert(self.krylov_xObj.obj), self.krylov_bObj.obj, self:getPotBuf())
-	self.copyVecToPotentialFieldKernelObj = solver.solverProgramObj:kernel(self.symbolPrefix..'_copyVecToPotentialField', solver.solverBuf, self:getPotBuf(), self.krylov_xObj.obj)
-	self.poissonKrylovLinearFuncKernelObj = solver.solverProgramObj:kernel(self.symbolPrefix..'_linearFunc')
+	self.initPotentialKernelObj = solver.solverProgramObj:kernel(self.symbols.initPotential, solver.solverBuf, self:getPotBuf())
+	self.copyPotentialFieldToVecAndInitBKernelObj = solver.solverProgramObj:kernel(self.symbols.copyPotentialFieldToVecAndInitB, solver.solverBuf, assert(self.krylov_xObj.obj), self.krylov_bObj.obj, self:getPotBuf())
+	self.copyVecToPotentialFieldKernelObj = solver.solverProgramObj:kernel(self.symbols.copyVecToPotentialField, solver.solverBuf, self:getPotBuf(), self.krylov_xObj.obj)
+	self.poissonKrylovLinearFuncKernelObj = solver.solverProgramObj:kernel(self.symbols.linearFunc)
 end
 
 -- matches hydro/op/relaxation.lua

@@ -95,7 +95,8 @@ assert(#self.eqns > 0, "you need at least one entry in args.subeqns")
 			__index = solver,
 		})
 		eqn.initCond = {
-			initCodeModules = function(fakeInitCond) end,
+			initCodeModules = function(fakeInitCond)
+			end,
 			getDepends = function() 
 				return self.initCond.getDepends and self.initCond:getDepends() or nil
 			end,
@@ -271,6 +272,28 @@ function Composite:getModuleDepends_waveCode()
 		end):unpack()
 	)
 end
+
+--[[
+getEnv() ...
+for subeqn modules, they are built with the subeqn's getEnv
+however, for things like the code provided by initCond ...
+... it is built using solver.eqn:template, which directs here, to the composite solver
+
+TODO but what about overlapping symbols?  
+--] ]
+function Composite:getEnv()
+	local env = {}
+	for _,eqn in ipairs(self.eqns) do
+		for k,v in pairs(eqn:getEnv()) do
+			env[k] = v
+		end
+	end
+	for k,v in pairs(Composite.super.getEnv(self)) do
+		env[k] = v
+	end
+	return env
+end
+--]]
 
 -- TODO - prevent variable collisions - especially from multiple matching subeqns
 -- this might require some kind of namespace

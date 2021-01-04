@@ -250,7 +250,7 @@ function SelfGravProblem:getDepends()
 end
 
 function SelfGravProblem:getInitCondCode(initCond)
-	local solver = assert(self.solver)
+	local solver = assert(initCond.solver)
 	local args = self.args
 
 	solver.useGravity = true
@@ -1844,6 +1844,9 @@ end ?>;
 				
 				coulombConstant = constants.CoulombConstant_in_kg_m3_per_C2_s2,
 			},
+			getDepends = function(self)
+				return {self.solver.coord.symbols.coordMap}
+			end,
 			getInitCondCode = function(self)
 				local solver = assert(self.solver)
 				local f = SelfGravProblem{
@@ -1865,6 +1868,9 @@ end ?>;
 		-- hmm, what about spherical coordinates...
 		--mins = {-1,-1,-1},
 		--maxs = {1,1,1},
+		getDepends = function(self)
+			return {self.solver.coord.symbols.coordMap}
+		end,
 		getInitCondCode = function(self)
 			local solver = assert(self.solver)
 			local f = SelfGravProblem{
@@ -1879,6 +1885,9 @@ end ?>;
 
 	{
 		name = 'self-gravitation test 1 spinning',
+		getDepends = function(self)
+			return {self.solver.coord.symbols.coordMap}
+		end,
 		getInitCondCode = function(self)
 			local solver = assert(self.solver)
 			local inside = [[
@@ -1908,6 +1917,9 @@ end ?>;
 
 	{
 		name = 'self-gravitation test 2',
+		getDepends = function(self)
+			return {self.solver.coord.symbols.coordMap}
+		end,
 		getInitCondCode = function(self)
 			return SelfGravProblem{ 
 				sources={
@@ -1927,6 +1939,9 @@ end ?>;
 	{
 		-- TODO add tidal-locked rotations
 		name = 'self-gravitation test 2 orbiting',
+		getDepends = function(self)
+			return {self.solver.coord.symbols.coordMap}
+		end,
 		getInitCondCode = function(self)
 			return SelfGravProblem{
 				sources = {
@@ -1957,6 +1972,9 @@ end ?>;
 	
 	{
 		name = 'self-gravitation test 4',
+		getDepends = function(self)
+			return {self.solver.coord.symbols.coordMap}
+		end,
 		getInitCondCode = function(self)
 			return SelfGravProblem{
 				sources={
@@ -1990,10 +2008,10 @@ end ?>;
 		},
 		getInitCondCode = function(self)
 			return self.solver.eqn:template([[
-	D.x = <?=eqn.susc_t?>_from_real(lhs ? 1 : -1);
-	D.y = <?=eqn.susc_t?>_from_real(1);
-	B.y = <?=eqn.susc_t?>_from_real(-1);
-	B.z = <?=eqn.susc_t?>_from_real(lhs ? 1 : -1);
+	D.x = <?=scalar?>_from_real(lhs ? 1 : -1);
+	D.y = <?=scalar?>_from_real(1);
+	B.y = <?=scalar?>_from_real(-1);
+	B.z = <?=scalar?>_from_real(lhs ? 1 : -1);
 ]])
 		end,
 	},
@@ -2032,7 +2050,7 @@ end ?>;
 	real3 xc = coordMap(x);
 	if (real3_lenSq(xc) < .2*.2) {
 		//2018 Balezin et al "Electromagnetic properties of the Great Pyramids..."
-		permittivity = <?=eqn.susc_t?>_from_cplx(_cplx(5., .1));
+		permittivity = <?=susc_t?>_from_cplx(_cplx(5., .1));
 	}
 ]]
 		end,
@@ -2109,7 +2127,7 @@ for _,pn in ipairs(obj) do
 	xc = real3_real_mul(xc, 2.);
 	if (testTriangle(xc)) {
 		//2018 Balezin et al "Electromagnetic properties of the Great Pyramids..."
-		permittivity = <?=eqn.susc_t?>_from_cplx(_cplx(5., .1));
+		permittivity = <?=susc_t?>_from_cplx(_cplx(5., .1));
 	}
 ]])
 		end,
@@ -2145,7 +2163,7 @@ for _,pn in ipairs(obj) do
 end	?>
 	) {
 		//2018 Balezin et al "Electromagnetic properties of the Great Pyramids..."
-		permittivity = <?=eqn.susc_t?>_from_cplx(_cplx(5., .1));
+		permittivity = <?=susc_t?>_from_cplx(_cplx(5., .1));
 	}
 ]])
 		end,
@@ -2283,7 +2301,7 @@ bool testTriangle(real3 xc) {
 	) {
 		//conductivity = 0;
 		//conductivity = <?=clnumber(1/resistivities.copper)?>;
-		permittivity = <?=eqn.susc_t?>_from_cplx(_cplx(5., .1));
+		permittivity = <?=susc_t?>_from_cplx(_cplx(5., .1));
 	}
 
 ]], 		{
@@ -2382,15 +2400,15 @@ kernel void addExtraSource(
 				tungsten = 5.65e-8,
 			}:map(function(v) return v * Ohm_in_m end)
 			return solver.eqn:template([[
-	D.x = <?=eqn.susc_t?>_from_real(1.);
+	D.x = <?=scalar?>_from_real(1.);
 	
-	//conductivity = <?=eqn.susc_t?>_from_real(<?=clnumber(1/resistivities.air)?>);
+	//conductivity = <?=susc_t?>_from_real(<?=clnumber(1/resistivities.air)?>);
 	
 	real r2 = x.y * x.y<? if solver.dim == 3 then ?> + x.z * x.z<? end ?>;	
 	
 	if (r2 < .1*.1) {
-		//conductivity = <?=eqn.susc_t?>_from_real(<?=clnumber(1/resistivities.copper)?>);
-		permittivity = <?=eqn.susc_t?>_from_cplx(_cplx(5., .1));
+		//conductivity = <?=susc_t?>_from_real(<?=clnumber(1/resistivities.copper)?>);
+		permittivity = <?=susc_t?>_from_cplx(_cplx(5., .1));
 #error TODO assign rhoCharge and J
 	}
 ]], 		{
@@ -2411,7 +2429,7 @@ kernel void addExtraSource(
 		},
 		getInitCondCode = function(self)
 			return self.solver.eqn:template[[
-	D.z = <?=eqn.susc_t?>_from_real( E0 * sin(m * M_PI * x.x / x0) * sin(n * M_PI * x.y / y0) );
+	D.z = <?=scalar?>_from_real( E0 * sin(m * M_PI * x.x / x0) * sin(n * M_PI * x.y / y0) );
 ]]
 		end,
 	},

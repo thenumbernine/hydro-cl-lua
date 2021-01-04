@@ -27,6 +27,13 @@ return function(args)
 		self.chargeCode = args.chargeCode
 	end
 
+	function NoDiv:getSymbolFields()
+		return NoDiv.super.getSymbolFields(self):append{
+			'noDiv',
+			'copyPotentialToReduce',
+		}
+	end
+
 	--[[
 	template parameters forwarded back to getCode
 	solve del^2 psi = delta . B for psi
@@ -83,7 +90,7 @@ local scalar = op.scalar
 local sub = scalar..'_sub'
 local real_mul = scalar..'_real_mul'
 ?>
-kernel void <?=op.symbolPrefix?>_noDiv(
+kernel void <?=op.symbols.noDiv?>(
 	constant <?=solver_t?> const * const solver,
 	global <?=cons_t?> * const UBuf
 ) {
@@ -104,7 +111,7 @@ kernel void <?=op.symbolPrefix?>_noDiv(
 }
 
 //TODO just use the display var kernels
-kernel void <?=op.symbolPrefix?>_copyPotentialToReduce(
+kernel void <?=op.symbols.copyPotentialToReduce?>(
 	constant <?=solver_t?> const * const solver,
 	global real * const reduceBuf,
 	global <?=cons_t?> const * const UBuf
@@ -120,8 +127,8 @@ kernel void <?=op.symbolPrefix?>_copyPotentialToReduce(
 	function NoDiv:refreshSolverProgram()
 		NoDiv.super.refreshSolverProgram(self)
 		local solver = self.solver
-		self.noDivKernelObj = solver.solverProgramObj:kernel(self.symbolPrefix..'_noDiv', solver.solverBuf, solver.UBuf)
-		self.copyPotentialToReduceKernelObj = solver.solverProgramObj:kernel(self.symbolPrefix..'_copyPotentialToReduce', solver.solverBuf, solver.reduceBuf, solver.UBuf)
+		self.noDivKernelObj = solver.solverProgramObj:kernel(self.symbols.noDiv, solver.solverBuf, solver.UBuf)
+		self.copyPotentialToReduceKernelObj = solver.solverProgramObj:kernel(self.symbols.copyPotentialToReduce, solver.solverBuf, solver.reduceBuf, solver.UBuf)
 	end
 
 	function NoDiv:step(dt)

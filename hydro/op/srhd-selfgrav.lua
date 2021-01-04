@@ -1,6 +1,5 @@
 local class = require 'ext.class'
 local table = require 'ext.table'
-local template = require 'template'
 local ig = require 'ffi.imgui'
 local tooltip = require 'hydro.tooltip'
 
@@ -29,6 +28,15 @@ function SRHDSelfGrav:init(args)
 	self.solver[self.enableField] = not not self.solver[self.enableField]
 end
 
+function SRHDSelfGrav:getSymbolFields()
+	return SRHDSelfGrav.super.getSymbolFields(self):append{
+		'copyPotentialToReduce',
+		'offsetPotential',
+		'calcGravityAccel',
+		'calcGravityDeriv',
+	}
+end
+
 function SRHDSelfGrav:getModuleDepends_Poisson()
 	return table(SRHDSelfGrav.super.getModuleDepends_Poisson(self)):append{
 		'units',
@@ -37,7 +45,7 @@ end
 
 -- params for hydro/op/poisson.cl 
 function SRHDSelfGrav:getPoissonDivCode()
-	return template([[
+	return self.solver.eqn:template([[
 	source = 4. * M_PI * U->rho 
 		* solver->gravitationalConstant / unit_m3_per_kg_s2;
 ]], {
@@ -47,7 +55,7 @@ end
 
 function SRHDSelfGrav:getPoissonCode()
 	return self.solver.eqn:template([[
-kernel void <?=op.symbolPrefix?>_calcGravityDeriv(
+kernel void <?=op.symbols.calcGravityDeriv?>(
 	constant <?=solver_t?> const * const solver,
 	global <?=cons_t?> * const derivBuffer,
 	global <?=cons_t?> const * const UBuf
@@ -168,7 +176,7 @@ function SRHDSelfGrav:refreshSolverProgram()
 	SRHDSelfGrav.super.refreshSolverProgram(self)
 	
 	local solver = self.solver
-	self.calcGravityDerivKernelObj = solver.solverProgramObj:kernel(self.symbolPrefix..'_calcGravityDeriv')
+	self.calcGravityDerivKernelObj = solver.solverProgramObj:kernel(self.symbols.calcGravityDeriv)
 	self.calcGravityDerivKernelObj.obj:setArg(0, solver.solverBuf)
 	self.calcGravityDerivKernelObj.obj:setArg(2, solver.UBuf)
 end

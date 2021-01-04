@@ -26,7 +26,8 @@ local TwoFluidEMHD = class(Equation)
 local fluids = table{'ion', 'elec'}
 TwoFluidEMHD.fluids = fluids
 
-TwoFluidEMHD.postComputeFluxCode = [[
+function TwoFluidEMHD:postComputeFluxCode()
+	return self:template[[
 //// MODULE_DEPENDS: <?=coord_sqrt_det_g?> <?=coord_lower?>
 		//flux is computed raised via Levi-Civita upper
 		//so here we lower it
@@ -34,6 +35,7 @@ TwoFluidEMHD.postComputeFluxCode = [[
 		flux.D = real3_real_mul(coord_lower(flux.D, x), _1_sqrt_det_g);
 		flux.B = real3_real_mul(coord_lower(flux.B, x), _1_sqrt_det_g);
 ]]
+end
 
 TwoFluidEMHD.name = 'twofluid_emhd'
 
@@ -288,6 +290,12 @@ TwoFluidEMHD.predefinedDisplayVars = {
 	'U gravity',
 }
 
+function TwoFluidEMHD:getModuleDepends_displayCode()
+	return TwoFluidEMHD.super.getModuleDepends_displayCode(self):append{
+		self.gravOp.symbols.calcGravityAccel,
+	}
+end
+
 function TwoFluidEMHD:getDisplayVars()
 	local vars = TwoFluidEMHD.super.getDisplayVars(self)
 
@@ -349,7 +357,9 @@ function TwoFluidEMHD:getDisplayVars()
 		{
 			name = 'gravity',
 			code = self:template[[
-	if (!<?=OOB?>(1,1)) value.vreal3 = <?=eqn.gravOp.symbolPrefix?>_calcGravityAccel(solver, U, x);
+	if (!<?=OOB?>(1,1)) {
+		<?=eqn.gravOp.symbols.calcGravityAccel?>(&value.vreal3, solver, U, x);
+	}
 ]],
 			type='real3', 
 			units='m/s^2',

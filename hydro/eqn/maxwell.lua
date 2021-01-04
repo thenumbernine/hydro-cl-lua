@@ -85,7 +85,8 @@ function Maxwell:init(args)
 	Maxwell.super.init(self, args)
 
 -- [=[ TODO combine this into the flux and remove this variable from calcDerivFV
-	self.postComputeFluxCode = self:template[[
+	function self:postComputeFluxCode()
+		return self:template[[
 //// MODULE_DEPENDS: <?=coord_sqrt_det_g?> <?=eqn_common?>
 <? local vec3 = eqn.vec3 ?>
 		//TODO shouldn't I be transforming both the left and right fluxes by the metrics at their respective coordinates?
@@ -95,6 +96,7 @@ function Maxwell:init(args)
 		flux.D = <?=vec3?>_real_mul(eqn_coord_lower(flux.D, x), _1_sqrt_det_g);
 		flux.B = <?=vec3?>_real_mul(eqn_coord_lower(flux.B, x), _1_sqrt_det_g);
 ]]
+	end
 --]=]
 
 	local NoDiv = require 'hydro.op.nodiv'{

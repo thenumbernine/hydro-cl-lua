@@ -52,9 +52,7 @@ function Relaxation:init(args)
 	self.potentialField = args.potentialField
 	self.verbose = args.verbose
 
-	-- this assumes 'self.name' is the class name
-	local uid = require 'hydro.code.uid'(self)
-	self.symbolPrefix = self.name..'_'..uid
+	require 'hydro.code.symbols'(self, self:getSymbolFields())
 
 	self.writeBufObj = CLBuffer{
 		env = solver.app.env,
@@ -64,8 +62,17 @@ function Relaxation:init(args)
 	}
 end
 
+function Relaxation:getSymbolFields()
+	return table{
+		'initPotential',
+		'solveJacobi',
+		'copyWriteToPotentialNoGhost',
+		'setReduceToPotentialSquared',
+	}
+end
+
 function Relaxation:initCodeModules(solver)
-	local name = 'op.Relaxation-'..self.symbolPrefix
+	local name = self.symbolPrefix..'Relaxation'
 	solver.modules:add{
 		name = name,
 		depends = {
@@ -78,13 +85,15 @@ end
 
 function Relaxation:refreshSolverProgram()
 	local solver = self.solver
-	self.initPotentialKernelObj = solver.solverProgramObj:kernel(self.symbolPrefix..'_initPotential', solver.solverBuf, self:getPotBuf())
-	self.solveJacobiKernelObj = solver.solverProgramObj:kernel(self.symbolPrefix..'_solveJacobi', self.solver.solverBuf, self.writeBufObj, self:getPotBuf(), solver.cellBuf)
+	self.initPotentialKernelObj = solver.solverProgramObj:kernel(self.symbols.initPotential, solver.solverBuf, self:getPotBuf())
+	
+	-- TODO names?  this seems subclass-specific
+	self.solveJacobiKernelObj = solver.solverProgramObj:kernel(self.symbols.solveJacobi, self.solver.solverBuf, self.writeBufObj, self:getPotBuf(), solver.cellBuf)
 	if self.stopOnEpsilon then
 		self.solveJacobiKernelObj.obj:setArg(4, solver.reduceBuf)
 	end
 	self.copyWriteToPotentialNoGhostKernelObj = solver.solverProgramObj:kernel{
-		name = self.symbolPrefix..'_copyWriteToPotentialNoGhost',
+		name = self.symbols.copyWriteToPotentialNoGhost,
 		setArgs={
 			solver.solverBuf,
 			solver.UBuf,
@@ -94,7 +103,7 @@ function Relaxation:refreshSolverProgram()
 	}
 
 	self.setReduceToPotentialSquaredKernelObj = solver.solverProgramObj:kernel{
-		name=self.symbolPrefix..'_setReduceToPotentialSquared',
+		name=self.symbols.setReduceToPotentialSquared,
 		setArgs={
 			solver.solverBuf,
 			solver.reduceBuf,
@@ -114,7 +123,7 @@ function Relaxation:refreshBoundaryProgram()
 			type = self:getPotBufType(),
 			methods = solver.boundaryMethods,
 			fields = {self.potentialField},
-			programNameSuffix = '-'..self.symbolPrefix,
+			programNameSuffix = '_'..self.symbolPrefix,
 		}
 	for _,obj in ipairs(self.potentialBoundaryKernelObjs) do
 		obj.obj:setArg(1, self:getPotBuf())
