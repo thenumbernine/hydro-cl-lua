@@ -1448,7 +1448,8 @@ function HydroCLApp:updateGUI()
 
 		tooltip.checkboxTable('stack graphs', self, 'displayAllTogether')
 		ig.igSameLine()
-		
+	
+		-- TODO per-solver
 		tooltip.checkboxTable('bilinear textures', self, 'displayBilinearTextures')
 		ig.igSameLine()	
 
@@ -1467,6 +1468,7 @@ function HydroCLApp:updateGUI()
 			self.view = self.frustumView
 		end
 
+		-- TODO per-solver
 		for j=1,3 do
 			if ig.igRadioButtonBool(j..'D', self.displayDim == j) then
 				self.displayDim = j
@@ -1501,6 +1503,7 @@ function HydroCLApp:updateGUI()
 		tooltip.numberTable('fixed z', self, 'displayFixedZ')
 		ig.igPopID()
 
+		-- TODO per-solver
 		--[[ TODO replace this with trackball behavior
 		if tooltip.sliderTable('slice qw', self.displaySliceAngle, 'w', -1, 1) then
 			self.displaySliceAngle:normalize(self.displaySliceAngle)
@@ -1547,14 +1550,7 @@ function HydroCLApp:updateGUI()
 					tooltip.checkboxTable(name, self.display2DMethodsEnabled, name)
 				end
 				
-				if self.display2DMethodsEnabled.Graph 
-				and self.draw2DGraph
-				then
-					tooltip.intTable('graph step', self.draw2DGraph, 'step')
-				end
-				
 				ig.igPopID()
-			
 			elseif dim == 3 then
 				ig.igPushIDStr'3D'
 				
@@ -1562,38 +1558,6 @@ function HydroCLApp:updateGUI()
 					if i > 1 then ig.igSameLine() end
 					local name, func = next(method)
 					tooltip.checkboxTable(name, self.display3DMethodsEnabled, name)
-				end
-			
-				if self.display3DMethodsEnabled.Slices then
-					if useClipPlanes then
-						ig.igRadioButtonIntPtr("rotate camera", rotateClip, 0)
-						for i,clipInfo in ipairs(clipInfos) do
-							ig.igPushIDStr('clip '..i)
-							tooltip.checkbox('clip', clipInfo, 'enabled')
-							ig.igSameLine()
-							ig.igRadioButtonIntPtr('rotate', rotateClip, i)
-							ig.igSameLine()
-							if ig.igButton('reset') then
-								clipInfo.plane = makeDefaultPlane(i)
-							end
-							ig.igPopID()
-						end				
-					end					
-					
-					local draw3DSlice = self.draw3DSlice
-					if draw3DSlice then
-						tooltip.sliderTable('alpha', draw3DSlice, 'alpha', 0, 1)
-						tooltip.sliderTable('gamma', draw3DSlice, 'alphaGamma', 0, 1)
-						tooltip.checkboxTable('isobars', draw3DSlice, 'useIsos')
-						if draw3DSlice.useIsos then
-							tooltip.intTable('num isobars', draw3DSlice, 'numIsobars')
-						end
-						tooltip.checkboxTable('lighting', draw3DSlice, 'useLighting')
-						tooltip.checkboxTable('pointcloud', draw3DSlice, 'usePoints')
-						if not self.draw3DSlice.usePoints then
-							tooltip.intTable('num slices', draw3DSlice, 'numSlices')
-						end
-					end
 				end
 				
 				ig.igPopID()
@@ -1607,20 +1571,6 @@ function HydroCLApp:updateGUI()
 					local name, func = next(method)
 					tooltip.checkboxTable(name, self.displayVectorMethodsEnabled, name)
 				end			
-	
-				--ig.igCheckbox('vector field', self.enableVectorField)
-				for _,solver in ipairs(self.solvers) do
-					if solver.drawVectorArrows then
-						tooltip.numberTable('vector field scale', solver.drawVectorArrows, 'scale')
-						--tooltip.sliderTable('vector field scale', solver.drawVectorArrows, 'scale', 0, 100, nil, 10)
-						
-						tooltip.intTable('vector field step', solver.drawVectorArrows, 'step')
-						solver.drawVectorArrows.step = math.max(solver.drawVectorArrows.step, 1)
-					end
-					if solver.drawVectorLIC then
-						tooltip.intTable('LIC steps', solver.drawVectorLIC, 'integralMaxIter')
-					end
-				end
 				
 				ig.igPopID()
 			end

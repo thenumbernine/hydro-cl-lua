@@ -2974,9 +2974,79 @@ do
 	end
 
 	function SolverBase:updateGUIDisplay()
+		
+		do
+			local dim = self.app.displayDim
+			if dim == 2 then
+				ig.igPushIDStr'2D'
+				if self.app.display2DMethodsEnabled.Graph then 
+					local draw2DGraph = self.draw2DGraph 
+					if draw2DGraph then
+						tooltip.intTable('graph step', draw2DGraph, 'step')
+					end
+				end
+				ig.igPopID()
+			elseif dim == 3 then
+				ig.igPushIDStr'3D'
+				
+				if self.app.display3DMethodsEnabled.Slices then
+--[[ currently in app, currently disabled
+					if useClipPlanes then
+						ig.igRadioButtonIntPtr("rotate camera", rotateClip, 0)
+						for i,clipInfo in ipairs(clipInfos) do
+							ig.igPushIDStr('clip '..i)
+							tooltip.checkbox('clip', clipInfo, 'enabled')
+							ig.igSameLine()
+							ig.igRadioButtonIntPtr('rotate', rotateClip, i)
+							ig.igSameLine()
+							if ig.igButton('reset') then
+								clipInfo.plane = makeDefaultPlane(i)
+							end
+							ig.igPopID()
+						end
+					end
+--]]
+					local draw3DSlice = self.draw3DSlice
+					if draw3DSlice then
+						tooltip.sliderTable('alpha', draw3DSlice, 'alpha', 0, 1)
+						tooltip.sliderTable('gamma', draw3DSlice, 'alphaGamma', 0, 1)
+						tooltip.checkboxTable('isobars', draw3DSlice, 'useIsos')
+						if draw3DSlice.useIsos then
+							tooltip.intTable('num isobars', draw3DSlice, 'numIsobars')
+						end
+						tooltip.checkboxTable('lighting', draw3DSlice, 'useLighting')
+						tooltip.checkboxTable('pointcloud', draw3DSlice, 'usePoints')
+						if not self.draw3DSlice.usePoints then
+							tooltip.intTable('num slices', draw3DSlice, 'numSlices')
+						end
+					end
+				end
+				
+				ig.igPopID()
+			end
+			
+			do
+				ig.igPushIDStr'Vector'
+
+				--ig.igCheckbox('vector field', self.enableVectorField)
+				if self.drawVectorArrows then
+					tooltip.numberTable('vector field scale', self.drawVectorArrows, 'scale')
+					--tooltip.sliderTable('vector field scale', self.drawVectorArrows, 'scale', 0, 100, nil, 10)
+					
+					tooltip.intTable('vector field step', self.drawVectorArrows, 'step')
+					self.drawVectorArrows.step = math.max(self.drawVectorArrows.step, 1)
+				end
+				if self.drawVectorLIC then
+					tooltip.intTable('LIC steps', self.drawVectorLIC, 'integralMaxIter')
+				end
+				
+				ig.igPopID()
+			end
+		end
+
 		if self.guiDisplayFilterStr == nil then self.guiDisplayFilterStr = '' end
 		if self.guiDisplayFilterEnabledVars == nil then self.guiDisplayFilterEnabledVars = false end
-		local refresh 
+		local refresh
 			
 		tooltip.textTable('filter', self, 'guiDisplayFilterStr')
 		ig.igSameLine()
