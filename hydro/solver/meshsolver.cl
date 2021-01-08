@@ -1,14 +1,3 @@
-//// MODULE_NAME: INDEX
-//// MODULE_HEADER:
-
-#define INDEX(a,b,c)	((a) + solver->gridSize.x * ((b) + solver->gridSize.y * (c)))
-
-//// MODULE_NAME: INDEXV
-//// MODULE_DEPENDS: <?=solver_t?>
-//// MODULE_HEADER:
-
-#define INDEXV(i)		indexForInt4ForSize(i, solver->gridSize.x, solver->gridSize.y, solver->gridSize.z)
-
 //// MODULE_NAME: <?=OOB?>
 //// MODULE_HEADER:
 // this only test for bounds of valid mesh cell
@@ -35,8 +24,9 @@
 	if (<?=OOB?>(0,0)) return;
 
 //// MODULE_NAME: <?=calcFlux?>
-//// MODULE_DEPENDS: face_t <?=normal_t?> <?=calcFluxForInterface?> cell_t
+//// MODULE_DEPENDS: <?=face_t?> <?=normal_t?> <?=calcFluxForInterface?> <?=cell_t?>
 // boundary code, since meshsolver doesn't use gridsolver's boundary: 
+
 <?=cons_t?> reflectCons(
 	<?=cons_t?> U,
 	real3 n,
@@ -137,11 +127,11 @@ kernel void <?=calcFlux?>(
 	//TODO option to rotate to align fluxes?
 	// then you'd have to build a new normal_t based on the aligned (x-axis) normal.
 
-	*flux = <?=calcFluxForInterface?>(solver, UL, UR, x, n);
+	<?=calcFluxForInterface?>(flux, solver, &UL, &UR, x, n);
 }
 
 //// MODULE_NAME: <?=calcDerivFromFlux?>
-//// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> cell_t <?=solver_macros?> <?=SETBOUNDS_NOGHOST?>
+//// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> <?=cell_t?> <?=solver_macros?> <?=SETBOUNDS_NOGHOST?>
 
 kernel void <?=calcDerivFromFlux?>(
 	constant <?=solver_t?> const * const solver,

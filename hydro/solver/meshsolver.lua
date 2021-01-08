@@ -32,6 +32,13 @@ MeshSolver.numGhost = 0
 
 function MeshSolver:getSymbolFields()
 	return MeshSolver.super.getSymbolFields(self):append{
+		-- also in gridsolver:
+		'OOB',
+		'SETBOUNDS',
+		'SETBOUNDS_NOGHOST',
+		-- also in fvsolver:
+		'calcFlux',
+		'calcFluxForInterface',
 		'calcDerivFromFlux',
 	}
 end
@@ -399,11 +406,7 @@ function MeshSolver:initCodeModules()
 --]]
 
 	self.modules:addFromMarkup(
-		template(file['hydro/solver/meshsolver.cl'], {
-			solver = self,
-			eqn = self.eqn,
-			flux = self.flux,
-		})
+		self.eqn:template(file['hydro/solver/meshsolver.cl'])
 	)
 
 	self.solverModulesEnabled[self.symbols.calcFlux] = true

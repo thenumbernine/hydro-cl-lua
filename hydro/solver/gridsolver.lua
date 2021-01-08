@@ -48,6 +48,7 @@ function GridSolver:getSymbolFields()
 		'OOB',
 		'SETBOUNDS',
 		'SETBOUNDS_NOGHOST',
+		'updateCTU',
 	}
 end
 
@@ -350,7 +351,7 @@ typedef struct {
 
 	if self.useCTU then
 		self.modules:addFromMarkup(self.eqn:template(file['hydro/solver/ctu.cl']))
-		self.sharedModulesEnabled['updateCTU'] = true
+		self.sharedModulesEnabled[self.symbols.updateCTU] = true
 	end
 end
 
@@ -443,7 +444,7 @@ function GridSolver:refreshSolverProgram()
 		-- currently implemented in hydro/solver/roe.cl
 		-- not available for any other flux method
 		assert(self.fluxBuf)
-		self.updateCTUKernelObj = self.solverProgramObj:kernel'updateCTU'
+		self.updateCTUKernelObj = self.solverProgramObj:kernel(self.symbols.updateCTU)
 	end
 end
 

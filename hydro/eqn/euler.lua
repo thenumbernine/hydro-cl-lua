@@ -172,9 +172,11 @@ then --\
 end
 
 function Euler:getModuleDepends_displayCode() 
-	return table(Euler.super.getModuleDepends_displayCode(self)):append{
-		self.gravOp.symbols.calcGravityAccel,
-	}
+	return table(Euler.super.getModuleDepends_displayCode(self)):append(
+		self.gravOp and {
+			self.gravOp.symbols.calcGravityAccel,
+		} or nil
+	)
 end
 
 -- don't use default

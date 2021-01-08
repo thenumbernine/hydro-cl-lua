@@ -1,4 +1,4 @@
-//// MODULE_NAME: updateCTU
+//// MODULE_NAME: <?=updateCTU?>
 //// MODULE_DEPENDS: <?=solver_t?> <?=cell_t?> <?=cons_t?> <?=SETBOUNDS?> <?=cell_sqrt_det_g?> <?=solver_macros?>
 <? if solver.usePLM then ?>
 //// MODULE_DEPENDS: <?=consLR_t?>
@@ -8,7 +8,7 @@
 using the interface flux
 update the LR states by integrating dt/2 times the interface flux
 */
-kernel void updateCTU(
+kernel void <?=updateCTU?>(
 	constant <?=solver_t?> const * const solver,
 	global <?=cell_t?> const * const cellBuf,
 	global <?=solver.getULRArg?>,

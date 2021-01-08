@@ -1991,11 +1991,11 @@ end ?>;
 		name = 'self-gravitation soup',
 		getInitCondCode = function(self)
 			return [[
-	rho = .1 * U->rho + .1;
-	P = .1 * U->ETotal + .1;
-	v.x = .2 * U->m.x - .1;
-	v.y = .2 * U->m.y - .1;
-	v.z = .2 * U->m.z - .1;
+	rho = .1 * U->ptr[0] + .1;
+	v.x = .2 * U->ptr[1] - .1;
+	v.y = .2 * U->ptr[2] - .1;
+	v.z = .2 * U->ptr[3] - .1;
+	P = .1 * U->ptr[4] + .1;
 ]]
 		end,
 	},
