@@ -91,26 +91,26 @@ end
 		<?=cons_t?> FL;\
 		<?=fluxFromCons?>(&FL, solver, UL, xInt, n);\
 		<?=cons_t?> ULStar;\
-		ULStar.rho = UL->rho * (sL - vnL.x) / (sL - sStar);\
-	\
+		ULStar.rho = (UL)->rho * (sL - vnL.x) / (sL - sStar);\
+		\
 		real3 vStar = normal_vecFromNs(n, _real3(sStar, vnL.y, vnL.z));\
 		ULStar.m.x = ULStar.rho * vStar.x;\
 		ULStar.m.y = ULStar.rho * vStar.y;\
 		ULStar.m.z = ULStar.rho * vStar.z;\
 		\
 		ULStar.ETotal = ULStar.rho * (\
-			UL->ETotal / UL->rho\
+			(UL)->ETotal / (UL)->rho\
 			+ (sStar - vnL.x) \
-				* (sStar + WL.P / (UL->rho * (sL - vnL.x)))\
+				* (sStar + WL.P / ((UL)->rho * (sL - vnL.x)))\
 		);\
 		for (int i = 0; i < numStates; ++i) {\
-			flux->ptr[i] = FL.ptr[i] + sL * (ULStar.ptr[i] - UL->ptr[i]);\
+			flux->ptr[i] = FL.ptr[i] + sL * (ULStar.ptr[i] - (UL)->ptr[i]);\
 		}\
 	} else if (sStar <= 0. && 0. <= sR) {\
 		<?=cons_t?> FR;\
 		<?=fluxFromCons?>(&FR, solver, UR, xInt, n);\
 		<?=cons_t?> URStar;\
-		URStar.rho = UR->rho * (sR - vnR.x) / (sR - sStar);\
+		URStar.rho = (UR)->rho * (sR - vnR.x) / (sR - sStar);\
 		\
 		real3 vStar = normal_vecFromNs(n, _real3(sStar, vnR.y, vnR.z));\
 		URStar.m.x = URStar.rho * vStar.x;\
@@ -118,11 +118,11 @@ end
 		URStar.m.z = URStar.rho * vStar.z;\
 		\
 		URStar.ETotal = URStar.rho * (\
-			UR->ETotal / UR->rho\
+			(UR)->ETotal / (UR)->rho\
 			+ (sStar - vnR.x) \
-				* (sStar + WR.P / (UR->rho * (sR - vnR.x))));\
+				* (sStar + WR.P / ((UR)->rho * (sR - vnR.x))));\
 		for (int i = 0; i < numStates; ++i) {\
-			flux->ptr[i] = FR.ptr[i] + sR * (URStar.ptr[i] - UR->ptr[i]);\
+			flux->ptr[i] = FR.ptr[i] + sR * (URStar.ptr[i] - (UR)->ptr[i]);\
 		}\
 \
 <? elseif solver.flux.hllcMethod == 1 then ?>\
@@ -130,9 +130,9 @@ end
 	} else if (sL <= 0. && 0. <= sStar) {\
 		<?=cons_t?> FL;\
 		<?=fluxFromCons?>(&FL, solver, UL, xInt, n);\
-		flux->rho = (sStar * (sL * UL->rho - FL.rho)) / (sL - sStar);\
+		flux->rho = (sStar * (sL * (UL)->rho - FL.rho)) / (sL - sStar);\
 	\
-		real3 ULmn = normal_vecDotNs(n, UL->m);\
+		real3 ULmn = normal_vecDotNs(n, (UL)->m);\
 		real3 FLmn = normal_vecDotNs(n, FL.m);\
 		flux->m = normal_vecFromNs(n, _real3(\
 			(sStar * (sL * ULmn.x - FLmn.x) + sL * (WL.P + WL.rho * (sL - vnL.x) * (sStar - vnL.x))) / (sL - sStar),\
@@ -140,13 +140,13 @@ end
 			(sStar * (sL * ULmn.z - FLmn.z)) / (sL - sStar)\
 		));\
 		\
-		flux->ETotal = (sStar * (sL * UL->ETotal - FL.ETotal) + sL * (WL.P + WL.rho * (sL - vnL.x) * (sStar - vnL.x)) * sStar) / (sL - sStar);\
+		flux->ETotal = (sStar * (sL * (UL)->ETotal - FL.ETotal) + sL * (WL.P + WL.rho * (sL - vnL.x) * (sStar - vnL.x)) * sStar) / (sL - sStar);\
 	} else if (sStar <= 0. && 0. <= sR) {\
 		<?=cons_t?> FR;\
 		<?=fluxFromCons?>(&FR, solver, UR, xInt, n);\
-		flux->rho = (sStar * (sR * UR->rho - FR.rho)) / (sR - sStar);\
+		flux->rho = (sStar * (sR * (UR)->rho - FR.rho)) / (sR - sStar);\
 		\
-		real3 URmn = normal_vecDotNs(n, UR->m);\
+		real3 URmn = normal_vecDotNs(n, (UR)->m);\
 		real3 FRmn = normal_vecDotNs(n, FR.m);\
 		flux->m = normal_vecFromNs(n, _real3(\
 			(sStar * (sR * URmn.x - FRmn.x) + sR * (WR.P + WR.rho * (sR - vnR.x) * (sStar - vnR.x))) / (sR - sStar),\
@@ -154,7 +154,7 @@ end
 			(sStar * (sR * URmn.z - FRmn.z)) / (sR - sStar)\
 		));\
 \
-		flux->ETotal = (sStar * (sR * UR->ETotal - FR.ETotal) + sR * (WR.P + WR.rho * (sR - vnR.x) * (sStar - vnR.x)) * sStar) / (sR - sStar);\
+		flux->ETotal = (sStar * (sR * (UR)->ETotal - FR.ETotal) + sR * (WR.P + WR.rho * (sR - vnR.x) * (sStar - vnR.x)) * sStar) / (sR - sStar);\
 \
 <? elseif solver.flux.hllcMethod == 2 then ?>\
 \
@@ -167,9 +167,9 @@ end
 			+ WL.rho * (sL - vnL.x) * (sStar - vnL.x)\
 			+ WR.rho * (sR - vnR.x) * (sStar - vnR.x)\
 		);\
-		flux->rho = (sL * UL->rho - FL.rho) * sStar / (sL - sStar);\
+		flux->rho = (sL * (UL)->rho - FL.rho) * sStar / (sL - sStar);\
 		\
-		real3 ULmn = normal_vecDotNs(n, UL->m);\
+		real3 ULmn = normal_vecDotNs(n, (UL)->m);\
 		real3 FLmn = normal_vecDotNs(n, FL.m);\
 		flux->m = normal_vecFromNs(n, _real3(\
 			((sL * ULmn.x - FLmn.x) * sStar + sL * PLR) / (sL - sStar),\
@@ -177,14 +177,14 @@ end
 			sStar * (sL * ULmn.z - FLmn.z) / (sL - sStar)\
 		));\
 \
-		flux->ETotal = (sStar * (sL * UL->ETotal - FL.ETotal) + sL * PLR * sStar) / (sL - sStar);\
+		flux->ETotal = (sStar * (sL * (UL)->ETotal - FL.ETotal) + sL * PLR * sStar) / (sL - sStar);\
 	} else if (sStar <= 0. && 0. <= sR) {\
 		<?=cons_t?> FR;\
 		<?=fluxFromCons?>(&FR, solver, UR, xInt, n);\
 		real PLR = .5 * (WL.P + WR.P + WL.rho * (sL - vnL.x) * (sStar - vnL.x) + WR.rho * (sR - vnR.x) * (sStar - vnR.x));\
-		flux->rho = sStar * (sR * UR->rho - FR.rho) / (sR - sStar);\
+		flux->rho = sStar * (sR * (UR)->rho - FR.rho) / (sR - sStar);\
 		\
-		real3 URmn = normal_vecDotNs(n, UR->m);\
+		real3 URmn = normal_vecDotNs(n, (UR)->m);\
 		real3 FRmn = normal_vecDotNs(n, FR.m);\
 		flux->m = normal_vecFromNs(n, _real3(\
 			/*TODO why were these assigns here:?*/\
@@ -193,7 +193,7 @@ end
 			/*flux->m.z = */sStar * (sR * URmn.z - FRmn.z) / (sR - sStar)\
 		));\
 		\
-		flux->ETotal = (sStar * (sR * UR->ETotal - FR.ETotal) + sR * PLR * sStar) / (sR - sStar);\
+		flux->ETotal = (sStar * (sR * (UR)->ETotal - FR.ETotal) + sR * PLR * sStar) / (sR - sStar);\
 \
 <? end	--solver.flux.hllcMethod ?>\
 	\
@@ -206,7 +206,7 @@ end
 		<?=cons_t?> FR;\
 		<?=fluxFromCons?>(&FR, solver, UR, xInt, n);\
 		for (int j = 0; j < numIntStates; ++j) {\
-			flux->ptr[j] = (sR * FL.ptr[j] - sL * FR.ptr[j] + sL * sR * (UR->ptr[j] - UL->ptr[j])) / (sR - sL);\
+			flux->ptr[j] = (sR * FL.ptr[j] - sL * FR.ptr[j] + sL * sR * ((UR)->ptr[j] - (UL)->ptr[j])) / (sR - sL);\
 		}\
 <? end ?>\
 	}\

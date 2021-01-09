@@ -843,7 +843,7 @@ With hyperbolic gamma driver shift it has trouble.
 -- hydro-cl GridSolver without fluxLimiter runs 256x256 at 155 fps
 -- hydro-cl MeshSolver runs 50x50 at 2500 fps
 -- hydro-cl MeshSolver runs 256x256 at 70 fps (building the mesh took 4.5 minutes =P)
-self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='euler', mesh={type='quad2d', size={16, 16}}})))
+--self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='euler', mesh={type='quad2d', size={16, 16}}})))
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='euler', mesh={type='quad2d', triangulate=true, size={64, 64}}})))
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='euler', mesh={type='p2dfmt', meshfile='n0012_113-33.p2dfmt'}})))	-- TODO needs boundary conditions
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='euler', mesh={type='quad2dcbrt', size={64, 64}}})))
@@ -855,6 +855,9 @@ self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', e
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='euler', mesh={type='torus3d', size={16, 16, 16}}})))
 
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='euler', eqnArgs={incompressible=true}, mesh={type='image2d', extrude=1, image='blueprints/blueprint.png'}})))
+
+--self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='hll', eqn='euler', mesh={type='quad2d', size={64, 64}}})))
+self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='euler-hllc', eqn='euler', mesh={type='quad2d', size={64, 64}}})))
 
 -- polar, rmin=0, duplicated vtxs in the middle
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='euler', mesh={type='polar2d', size={8, 8}}})))
