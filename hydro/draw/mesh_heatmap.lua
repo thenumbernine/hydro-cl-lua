@@ -57,6 +57,7 @@ function DrawMeshHeatmap:showDisplayVar(var, varName, ar)
 		var.heatMapValueMax = valueMax
 	end
 
+
 	-- TODO move the var.heatmap at the top and the drawgradient at the bottom outside of the function
 	-- and then move this if-condition outside as well
 	-- and things will match up wit other draw routines still
@@ -65,32 +66,40 @@ function DrawMeshHeatmap:showDisplayVar(var, varName, ar)
 		gl.glEnable(gl.GL_DEPTH_TEST)
 	--	gl.glEnable(gl.GL_CULL_FACE)
 
-		local heatMap2DShader = solver.heatMap2DShader
-		heatMap2DShader:use()
+		local shader = solver.heatMap2DShader
+		shader:use()
 		
 		local gradientTex = app.gradientTex
 		gradientTex:bind(1)
 
+		self:setupDisplayVarShader(shader, var, valueMin, valueMax)
+
 		-- useCoordMap is missing from DrawMeshHeatmap
-		gl.glUniform1i(heatMap2DShader.uniforms.useLog.loc, 0)
-		gl.glUniform1f(heatMap2DShader.uniforms.valueMin.loc, valueMin)
-		gl.glUniform1f(heatMap2DShader.uniforms.valueMax.loc, valueMax)
+		if shader.uniforms.useLog then
+			gl.glUniform1i(shader.uniforms.useLog.loc, 0)
+		end
+		if shader.uniforms.valueMin then
+			gl.glUniform1f(shader.uniforms.valueMin.loc, valueMin)
+		end
+		if shader.uniforms.valueMax then
+			gl.glUniform1f(shader.uniforms.valueMax.loc, valueMax)
+		end
 		-- drawCellScale isn't present in GridSolver
-		gl.glUniform1f(heatMap2DShader.uniforms.drawCellScale.loc, solver.drawCellScale)
+		gl.glUniform1f(shader.uniforms.drawCellScale.loc, solver.drawCellScale)
 
 		-- this is only in DrawMeshHeatmap...
-		gl.glUniformMatrix4fv(heatMap2DShader.uniforms.modelViewProjectionMatrix.loc, 1, 0, app.view.modelViewProjectionMatrix.ptr)
+		gl.glUniformMatrix4fv(shader.uniforms.modelViewProjectionMatrix.loc, 1, 0, app.view.modelViewProjectionMatrix.ptr)
 		
 		gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
 		gl.glEnable(gl.GL_BLEND)
 
-		self:drawSolverWithVar(var, heatMap2DShader)
+		self:drawSolverWithVar(var, shader)
 
 		gl.glDisable(gl.GL_BLEND)
 
 		gradientTex:unbind(1)
 		gl.glActiveTexture(gl.GL_TEXTURE0)
-		heatMap2DShader:useNone()
+		shader:useNone()
 
 		gl.glDisable(gl.GL_DEPTH_TEST)
 	--	gl.glDisable(gl.GL_CULL_FACE)

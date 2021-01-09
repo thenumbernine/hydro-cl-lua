@@ -1,8 +1,8 @@
 #version 460
 
 <? 
-local varying = vertexShader and 'out'
-		or fragmentShader and 'in'
+local varying = vertexShader and "out"
+		or fragmentShader and "in"
 		or error("don't know what to set varying to")
 ?>
 
@@ -11,7 +11,9 @@ local varying = vertexShader and 'out'
 <?=draw:getModuleCodeGLSL(coordMapGLSL, coordMapInvGLSL)?>
 <?=draw:getCommonGLSLFragCode()?>
 
-<? if vertexShader then ?>
+<?
+if vertexShader then
+?>
 
 uniform float drawCellScale;
 
@@ -25,19 +27,18 @@ void main() {
 	cellindexv = cellindex;
 }
 
-<? end
-if fragmentShader then ?>
-
-<? 
-if require 'gl.tex2d'.is(solver.tex) then 
-	if solver.texSize.y == 1 then
+<?
+end
+if fragmentShader then 
+	if require "gl.tex2d".is(solver.tex) then 
+		if solver.texSize.y == 1 then
 ?>
 float getValue() {
 	float tc = (cellindexv + .5) / texSize.x;
 	return texture2D(tex, vec2(tc, .5)).r;
 }
 <?
-	else
+		else
 ?>
 float getValue() {
 	float i = cellindexv;
@@ -50,10 +51,10 @@ float getValue() {
 	return texture2D(tex, tc).r;
 }
 <? 
-	end
-elseif require 'gl.tex3d'.is(solver.tex) then 
+		end
+	elseif require "gl.tex3d".is(solver.tex) then 
 ?>
-function getValue() {
+float getValue() {
 	float i = cellindexv;
 	vec3 tc;
 	
@@ -62,7 +63,7 @@ function getValue() {
 	tc.x += .5;
 	tc.x /= texSize.x;
 	
-	tc.y = fmod(i, texSize.y);
+	tc.y = mod(i, texSize.y);
 	i -= tc.y;
 	tc.y += .5;
 	tc.y /= texSize.y;
@@ -71,9 +72,9 @@ function getValue() {
 	return texture3D(tex, tc).r;
 }
 <? 
-else
-	error("don't know how to handle your tex lua obj class")
-end 
+	else
+		error("don't know how to handle your tex lua obj class")
+	end 
 ?>
 
 out vec4 fragColor;
@@ -82,4 +83,6 @@ void main() {
 	float value = getValue();
 	fragColor = getGradientColor(value);
 }
-<? end ?>
+<?
+end
+?>
