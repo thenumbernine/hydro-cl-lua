@@ -1,8 +1,8 @@
 #version 460
 
 <?
-local varying = vertexShader and 'out'
-		or fragmentShader and 'in'
+local varying = vertexShader and "out"
+		or fragmentShader and "in"
 		or error("don't know what to set varying to")
 ?>
 
@@ -13,8 +13,18 @@ local varying = vertexShader and 'out'
 
 <?=varying?> vec4 color;
 
+//this is the arrow vertex
 attribute vec2 vtx;
-attribute vec3 gridCoord;	//in hydro/draw/draw.lua I said gridCoord was already half-off, but this is integers starting at 0
+
+//in hydro/draw/draw.lua I said gridCoord was already half-off, but this is integers starting at 0
+//for meshsolver this is the cell center
+attribute vec3 gridCoord;
+
+<? local isMeshSolver = require "hydro.solver.meshsolver".is(solver) ?>
+<? if isMeshSolver then ?>
+//needed for indexing texcoord in meshsolver
+attribute float cellindex;
+<? end ?>
 
 uniform float scale;
 
@@ -26,15 +36,67 @@ void main() {
 	// 4) map back from world coords to grid coords
 	// 5) map back from grid coords to texel coords
 	// ... seems redundant.
+
+<? 
+if not isMeshSolver then 
+?>
 	vec3 texCoord = (gridCoord + .5) / sizeWithoutBorder;
 	vec3 chartCoord = texToChartCoord(texCoord);
 	vec3 center = chartCoord;
+	
 	if (displayDim <= 1) chartCoord.y = displayFixed.x;
 	if (displayDim <= 2) chartCoord.z = displayFixed.y;
 	chartCoord = chartToWorldCoord(chartCoord);
 	chartCoord = quatRotate(displaySliceAngle, chartCoord);
 	chartCoord = worldToChartCoord(chartCoord);
 	texCoord = chartToTexCoord(chartCoord);
+<? 
+else 
+?>
+	vec3 center = gridCoord;
+	vec3 texCoord = vec3(0., 0., 0.);
+	
+	// matches getValue() in mesh_heatmap.shader
+<?	
+	if require "gl.tex2d".is(solver.tex) then 
+		if solver.texSize.y == 1 then
+?>
+	texCoord.x = (cellindex + .5) / texSize.x;
+<?
+		else
+?>
+	{
+		float i = cellindex;
+		texCoord.x = mod(i, texSize.x);
+		i -= texCoord.x;
+		texCoord.x += .5;
+		texCoord.x /= texSize.x;
+		texCoord.y = (i + .5) / texSize.y;
+	}
+<? 
+		end
+	elseif require "gl.tex3d".is(solver.tex) then 
+?>
+	{
+		float i = cellindex;
+		texCoord.x = mod(i, texSize.x);
+		i -= texCoord.x;
+		texCoord.x += .5;
+		texCoord.x /= texSize.x;
+		
+		texCoord.y = mod(i, texSize.y);
+		i -= texCoord.y;
+		texCoord.y += .5;
+		texCoord.y /= texSize.y;
+		
+		texCoord.z = (i + .5) / texSize.z;
+	}
+<? 
+	else
+		error("don't know how to handle your tex lua obj class")
+	end 
+end
+?>
 #if 0
 	if (texCoord.x < 0. || texCoord.x > 1.) discard;
 	if (displayDim > 1 && (texCoord.y < 0. || texCoord.y > 1.)) discard;
@@ -80,8 +142,12 @@ void main() {
 	color = texture1D(gradientTex, value);
 
 	//cartesian coords
+<? if not isMeshSolver then ?>	
 	vec3 v = chartToWorldCoord(center) + valuescale * (vtx.x * dir + vtx.y * tv);
-	
+<? else ?>
+	vec3 v = center + valuescale * (vtx.x * dir + vtx.y * tv);
+<? end ?>
+
 	gl_Position = modelViewProjectionMatrix * vec4(v, 1.);
 }
 

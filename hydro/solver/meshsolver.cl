@@ -27,44 +27,84 @@
 //// MODULE_DEPENDS: <?=face_t?> <?=normal_t?> <?=calcFluxForInterface?> <?=cell_t?>
 // boundary code, since meshsolver doesn't use gridsolver's boundary: 
 
-<?=cons_t?> reflectCons(
-	<?=cons_t?> U,
-	real3 n,
-	float restitution
-) {
-<?
--- matches BoundaryMirror:getCode for vectorComponent==cartesian
-for _,var in ipairs(eqn.consStruct.vars) do
-	if var.type == 'real' 
-	or var.type == 'cplx'
-	then
-		-- do nothing
-	elseif var.type == 'real3' 
-	or var.type == 'cplx3'
-	then
-		local field = var.name
-		local scalar = var.type == 'cplx3' and 'cplx' or 'real'
-		local vec3 = var.type
-?>
-	U.<?=field?> = <?=vec3?>_sub(
-		U.<?=field?>,
-		<?=vec3?>_<?=scalar?>_mul(
-			<?=vec3?>_from_real3(n),
-			<?=scalar?>_real_mul(
-				<?=vec3?>_real3_dot(
-					U.<?=field?>,
-					n
-				), 
-				restitution + 1.
-			)
-		)
-	);
-<?
-	else
-		error("need to support reflect() for type "..var.type)
-	end
-end
-?>	return U;
+#define reflectCons(\
+	/*<?=cons_t?> * const */result,\
+	/*<?=cons_t?> const * const */U,\
+	/*real3 */n,\
+	/*float */restitution\
+) {\
+	*result = *U;\
+<? --\
+-- matches BoundaryMirror:getCode for vectorComponent==cartesian --\
+for _,var in ipairs(eqn.consStruct.vars) do --\
+	if var.type == 'real'  --\
+	or var.type == 'cplx' --\
+	then --\
+		-- do nothing --\
+	elseif var.type == 'real3'  --\
+	or var.type == 'cplx3' --\
+	then --\
+		local field = var.name --\
+		local scalar = var.type == 'cplx3' and 'cplx' or 'real' --\
+		local vec3 = var.type --\
+?>\
+	result-><?=field?> = <?=vec3?>_sub(\
+		result-><?=field?>,\
+		<?=vec3?>_<?=scalar?>_mul(\
+			<?=vec3?>_from_real3(n),\
+			<?=scalar?>_real_mul(\
+				<?=vec3?>_real3_dot(\
+					result-><?=field?>,\
+					n\
+				),\
+				restitution + 1.\
+			)\
+		)\
+	);\
+<?--\
+	else--\
+		error("need to support reflectCons() for type "..var.type)--\
+	end--\
+end--\
+?>\
+}
+
+#define boundaryCons(\
+	/*<?=cons_t?> * const */result,\
+	/*<?=cons_t?> const * const */U,\
+	/*global <?=face_t?> const * const */e,\
+	/*float */restitution\
+) {\
+<? if false then -- reflect: m dot n = 0 ?>\
+	reflectCons(result, U, e->normal, 1.);\
+<? end ?>\
+<? if true then -- for [-1,1]^2 box with cylinder removed ?>\
+	if (real3_lenSq(e->pos) > .7*.7) {\
+		/*outside = freeflow */\
+		/**result = *U; */\
+		\
+		*result = *U;\
+		result->m = real3_real_mul(_real3(2,0,0), U->rho);\
+	} else {\
+		/* inside = reflect */\
+		/*reflectCons(result, U, e->normal, 1.); */\
+		\
+		*result = *U;\
+		result->m = real3_zero;\
+	}\
+<? end ?>\
+<? if false then -- for naca 0012 airfoil ?>\
+	if (real3_lenSq(e->pos) > 4.) {\
+		/* outside boundary: freeflow */\
+		*result = *U;\
+	} else {\
+		/* inside boundary: v=0 */\
+		/**result = *U;*/\
+		/*result->m = real3_zero;*/\
+		/* inside boundary: reflect */\
+		reflectCons(result, U, e->normal, 1.);\
+	}\
+<? end ?>\
 }
 
 void getEdgeStates(
@@ -81,12 +121,10 @@ void getEdgeStates(
 		*UR = UBuf[iR];
 	} else if (iL != -1) {
 		*UL = UBuf[iL];
-		//TODO  
-		*UR = reflectCons(*UL, e->normal, restitution);
+		boundaryCons(UR, UL, e, restitution);
 	} else if (iR != -1) {
 		*UR = UBuf[iR];
-		//TODO  
-		*UL = reflectCons(*UR, e->normal, restitution);
+		boundaryCons(UL, UR, e, restitution);
 	} else {	// both iL and iR are null ...
 		//error
 		for (int i = 0; i < numStates; ++i) {

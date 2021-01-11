@@ -1237,9 +1237,14 @@ end
 						and tcY >= 0 and tcY < 1
 						then
 							-- TODO this is going to include ghost cells...
-							local size = var.group.getBuffer().sizevec or solver.gridSize
-							local texX = math.floor(tcX * tonumber(size.x))
-							local texY = math.floor(tcY * tonumber(size.y))
+							local size
+							local texX = tcX
+							local texY = tcY
+							if require 'hydro.solver.meshsolver'.is(solver) then
+								size = var.group.getBuffer().sizevec or solver.gridSize
+								texX = math.floor(texX * tonumber(size.x))
+								texY = math.floor(texY * tonumber(size.y))
+							end
 							if self.useGLSharing then
 								print'FIXME'
 								--gl.glGetTexSubImage ... why isn't this in any OpenGL header?
@@ -1251,9 +1256,11 @@ end
 								local channels = vectorField and 3 or 1
 								local sep = ''
 								self.mouseCoordValue = self.mouseCoordValue .. tostring(texX)..','..tostring(texY)..': '
-								for j=0,channels-1 do
-									self.mouseCoordValue = self.mouseCoordValue .. sep .. fromreal(ptr[j + channels * (texX + size.x * texY)])
-									sep = ', '
+								if size then
+									for j=0,channels-1 do
+										self.mouseCoordValue = self.mouseCoordValue .. sep .. fromreal(ptr[j + channels * (texX + size.x * texY)])
+										sep = ', '
+									end
 								end
 								self.mouseCoordValue = self.mouseCoordValue .. '\n'
 							end

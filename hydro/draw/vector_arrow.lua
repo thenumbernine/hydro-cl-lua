@@ -89,7 +89,7 @@ function DrawVectorField:showDisplayVar(var, varName, ar, xmin, xmax, ymin, ymax
 				local c = solver.mesh.cells.v[ci]
 				for _,q in ipairs(arrow) do
 					pc[0].x = c.pos.x
-					pc[0].y = c.pox.y
+					pc[0].y = c.pos.y
 					pc[0].z = c.pos.z
 					pc = pc + 1
 					pv[0].x = q[1]
@@ -135,6 +135,7 @@ function DrawVectorField:showDisplayVar(var, varName, ar, xmin, xmax, ymin, ymax
 			attrs = {
 				vtx = solver.vectorArrowGLVtxArrayBuffer,
 				gridCoord = solver.vectorArrowGLCentersArrayBuffer,
+				cellindex = solver.glcellindexArrayBuffer,
 			},
 		}
 	end

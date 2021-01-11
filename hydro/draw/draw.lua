@@ -184,6 +184,7 @@ end
 function Draw:setupDisplayVarShader(shader, var, valueMin, valueMax)
 	local solver = self.solver
 	local app = solver.app
+	local isMeshSolver = require 'hydro.solver.meshsolver'.is(solver)
 
 	local uniforms = shader.uniforms
 	if uniforms.displayDim then
@@ -229,10 +230,18 @@ function Draw:setupDisplayVarShader(shader, var, valueMin, valueMax)
 		gl.glUniform3f(uniforms.texSize.loc, solver.texSize:unpack())
 	end
 	if uniforms.gridSize then
-		gl.glUniform3f(uniforms.gridSize.loc, solver.gridSize:unpack())
+		if not isMeshSolver then
+			gl.glUniform3f(uniforms.gridSize.loc, solver.gridSize:unpack())
+		else
+			gl.glUniform3f(uniforms.gridSize.loc, solver.texSize:unpack())
+		end
 	end
 	if uniforms.sizeWithoutBorder then
-		gl.glUniform3f(uniforms.sizeWithoutBorder.loc, solver.sizeWithoutBorder:unpack())
+		if not isMeshSolver then
+			gl.glUniform3f(uniforms.sizeWithoutBorder.loc, solver.sizeWithoutBorder:unpack())
+		else
+			gl.glUniform3f(uniforms.sizeWithoutBorder.loc, solver.texSize:unpack())
+		end
 	end
 	if uniforms.displaySliceAngle then
 		--gl.glUniform4fv(uniforms.displaySliceAngle.loc, 4, app.displaySliceAngle.s)

@@ -26,6 +26,8 @@ local toreal, fromreal = half.toreal, half.fromreal
 
 local MeshSolver = class(SolverBase)
 
+MeshSolver.name = 'meshsolver'
+
 -- for compat in some display stuff
 MeshSolver.numGhost = 0 
 
@@ -62,7 +64,7 @@ function MeshSolver:initMeshVars(args)
 	local fluxArgs = table(args.fluxArgs, {solver=self})
 	self.flux = fluxClass(fluxArgs)
 
-	self.boundaryRestitution = args.restitution or -1
+	self.boundaryRestitution = args.restitution or 1
 
 	MeshSolver.super.initMeshVars(self, args)
 

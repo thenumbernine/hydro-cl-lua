@@ -70,4 +70,7 @@ materials.Air.seaLevelPressure = 101325
 -- sea level 0' C, density is 1.2754 kg / m^3
 materials.Air.seaLevelDensity = 1.2754
 
+-- sqrt(gamma P / rho) = 333.8445024974 m/s
+materials.Air.speedOfSound = math.sqrt(materials.Air.heatCapacityRatio * materials.Air.seaLevelPressure / materials.Air.seaLevelDensity)
+
 return materials 
