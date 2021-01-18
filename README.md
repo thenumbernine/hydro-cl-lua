@@ -35,6 +35,8 @@ Now this project, lua-hydro-cl, pushes the middleman (C++) out completely.
 - https://github.com/thenumbernine/lua-matrix
 - https://github.com/thenumbernine/symmath-lua
 - https://github.com/thenumbernine/lua-opencl
+- https://github.com/thenumbernine/modules-lua
+- https://github.com/thenumbernine/solver-lua
 - https://github.com/thenumbernine/lua-ffi-bindings (OpenGL, SDL, cimgui, libpng)
 - https://github.com/thenumbernine/lua-image (if you want to take pictures/videos)
 - https://github.com/thenumbernine/lua-gl (if you want to use the graphic visualization)
@@ -42,7 +44,6 @@ Now this project, lua-hydro-cl, pushes the middleman (C++) out completely.
 - https://github.com/thenumbernine/lua-gui (if you want to use the graphic visualization)
 - https://github.com/thenumbernine/lua-gnuplot (used by some tests)
 - https://github.com/thenumbernine/lua-imguiapp (if you want to use the GUI)
-
 
 ### Features:
 - script-generated OpenCL GPGPU code regenerated on the fly as soon as you change GUI options

@@ -601,6 +601,7 @@ static inline real3 sym3_col(sym3 m, int side) {
 	} else if (side == 2) {
 		return sym3_z(m);
 	}
+	return _real3(0./0., 0./0., 0./0.);
 }
 
 static inline real sym3_trace(sym3 m) {

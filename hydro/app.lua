@@ -919,6 +919,7 @@ function HydroCLApp:requestExit(...)
 	if startTime then
 		local endTime = getTime()
 		print("duration: "..(endTime - startTime))
+		startTime = nil
 	end
 	HydroCLApp.super.requestExit(self, ...)
 end

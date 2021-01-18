@@ -96,6 +96,20 @@ local args = {
 				--{64,1,1},
 				{32,32,32},
 			},
+		
+			-- 5600M with device=gfx920 to work with gl_sharing:
+			['AMD Accelerated Parallel Processing/gfx902'] = {
+				{4096,1,1},
+				{256,256,1},
+				{32,32,32},
+			},
+
+			-- 5600M with device=gfx1010, which doesn't work with gl_sharing:
+			['AMD Accelerated Parallel Processing/gfx1010'] = {
+				{4096,1,1},
+				{256,256,1},
+				{32,32,32},
+			},
 		})[platAndDevicesNames]
 		-- default size options
 		or {
@@ -208,8 +222,8 @@ local args = {
 	
 	-- Euler / SRHD / MHD initial states:
 	
-	initCond = 'constant',
-	initCondArgs = {v={1,0}},
+	--initCond = 'constant',
+	--initCondArgs = {v={1,0}},
 	--initCondArgs = {v={1e-1,1e-1}},
 	
 	--initCond = 'random',
@@ -222,7 +236,7 @@ local args = {
 	--initCond = 'Bessel',
 	--initCond = 'cyclone',
 	
-	--initCond = 'Sod',
+	initCond = 'Sod',
 	--initCond = 'Sod with physical units',
 	--initCondArgs = {dim=cmdline.displayDim},
 	
@@ -500,7 +514,7 @@ local args = {
 	--initCond = 'Wave-FD Bessel',
 
 	-- multi-devices
-	multiSlices = {cmdline.multiSlices or 3, 1, 1},
+	multiSlices = {cmdline.multiSlices or 2, 1, 1},
 }
 
 
@@ -549,7 +563,7 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn
 -- compressible Euler equations
 
 
---self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
+self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
 
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct bounded'})))	-- this is the default hllCalcWaveMethod
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct'})))
@@ -860,7 +874,7 @@ With hyperbolic gamma driver shift it has trouble.
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='hll', eqn='euler', mesh={type='quad2d', size={64, 64}}})))
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='euler-hllc', eqn='euler', mesh={type='quad2d', size={64, 64}}})))
 
-self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='euler', mesh={type='quad2d_with_cylinder_removed', size={32, 32}}})))
+--self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='euler', mesh={type='quad2d_with_cylinder_removed', size={32, 32}}})))
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='euler', mesh={type='quad2d_with_cylinder_removed', size={64, 64}}})))
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='euler', mesh={type='quad2d_with_cylinder_removed', size={128, 128}}})))
 -- TODO hmm, crashed (and took a long time) to build 256x256

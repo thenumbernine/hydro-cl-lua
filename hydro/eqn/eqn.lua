@@ -575,7 +575,7 @@ kernel void <?=applyInitCond?>(
 ) {
 	<?=SETBOUNDS?>(0,0);
 	global <?=cons_t?> * const U = UBuf + index;
-	global <?=cons_t?> const * const cell = cellBuf + index;
+	global <?=cell_t?> const * const cell = cellBuf + index;
 	<?=applyInitCondCell?>(solver, initCond, U, cell);
 }
 ]],

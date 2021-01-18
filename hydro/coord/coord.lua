@@ -1703,10 +1703,6 @@ for j=1,3 do
 #define normal_u<?=j?><?=xi?>_over_len(n)	normal_u<?=j?><?=xi?>(n)
 <? 
 	end 
-?>
-#define normal_u<?=j?>(n) _real3(normal_u<?=j?>x(n), normal_u<?=j?>y(n), normal_u<?=j?>z(n))
-#define normal_l<?=j?>(n) _real3(normal_l<?=j?>x(n), normal_l<?=j?>y(n), normal_l<?=j?>z(n))
-<?
 end
 ?>
 
@@ -1887,18 +1883,18 @@ end
 
 	code = code .. template[[
 
-<? for side=1,3 do ?>
-#define normal_l<?=side?>(n) \
+<? for i=1,3 do ?>
+#define normal_l<?=i?>(n) \
 	(_real3( \
-		normal_l<?=side?>x(n), \
-		normal_l<?=side?>y(n), \
-		normal_l<?=side?>z(n)))
+		normal_l<?=i?>x(n), \
+		normal_l<?=i?>y(n), \
+		normal_l<?=i?>z(n)))
 
-#define normal_u<?=side?>(n) \
+#define normal_u<?=i?>(n) \
 	(_real3( \
-		normal_u<?=side?>x(n), \
-		normal_u<?=side?>y(n), \
-		normal_u<?=side?>z(n)))
+		normal_u<?=i?>x(n), \
+		normal_u<?=i?>y(n), \
+		normal_u<?=i?>z(n)))
 <? end ?>
 
 ]]

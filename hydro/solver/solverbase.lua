@@ -1299,7 +1299,7 @@ print('solver modules: '..moduleNames:sort():concat', ')
 	
 		if self.app.useGLSharing then
 			for _,group in ipairs(self.displayVarGroups) do
-				group.calcDisplayVarToTexKernelObj = self.solverProgramObj:kernel(var.toTexKernelName)
+				group.calcDisplayVarToTexKernelObj = self.solverProgramObj:kernel(group.toTexKernelName)
 				group.calcDisplayVarToTexKernelObj.obj:setArg(1, self.texCLMem)
 			end
 		end
@@ -1589,7 +1589,12 @@ end ?><?=group.extraArgs and #group.extraArgs > 0
 					lines:insert''
 				end
 			end	-- var
-	
+
+--[[
+TODO ok here's an issue:
+Sometimes group.bufferType is not cons_t, such as for the group of reduceBuf, in which case it is 'real'.
+But in this case we are still calling the same pickComponent() as UBuf, and its bufferType is going to differ.
+--]]
 			lines:insert(template([[
 	}
 	
@@ -1995,9 +2000,14 @@ function SolverBase:getPickComponentNameForGroup(group)
 	local name = 'pickComponent'
 	if group
 	and group.name	-- exclude the fake group created for default components
+--[[
 	and self.displayComponentFlatList:find(nil, function(component)
 		return component.onlyFor
 	end)
+--]]
+-- [[ if the type is UBuf's type then use the default
+	and group.bufferType ~= self.eqn.symbols.cons_t
+--]]
 	then 
 		name = name..'_'
 			-- TODO further sanitization?
