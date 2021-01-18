@@ -617,6 +617,7 @@ static inline sym3 sym3_swap(sym3 m, int side) {
 	} else if (side == 2) {
 		return _sym3(m.zz, m.yz, m.xz, m.yy, m.xy, m.xx);
 	}
+	return _sym3(0./0., 0./0., 0./0., 0./0., 0./0., 0./0.);
 }
 
 static inline sym3 sym3_swap0(sym3 m) { return m; }
