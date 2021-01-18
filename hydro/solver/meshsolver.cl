@@ -79,18 +79,18 @@ end--\
 	reflectCons(result, U, e->normal, 1.);\
 <? end ?>\
 <? if true then -- for [-1,1]^2 box with cylinder removed ?>\
+	*result = *U;\
 	if (real3_lenSq(e->pos) > .7*.7) {\
-		/*outside = freeflow */\
-		/**result = *U; */\
-		\
-		*result = *U;\
-		result->m = real3_real_mul(_real3(2,0,0), U->rho);\
+		/*if (e->pos.x <= -.95) */{\
+			/*outside = freeflow */\
+			/**result = *U; */\
+			result->m = real3_real_mul(_real3(.1,0,0), U->rho);\
+		}\
 	} else {\
 		/* inside = reflect */\
-		/*reflectCons(result, U, e->normal, 1.); */\
-		\
-		*result = *U;\
-		result->m = real3_zero;\
+		/*reflectCons(result, U, e->normal, 0.);*/\
+		reflectCons(result, U, e->normal, 1.); /* ghost U momentum is reflected from U's, s the velocity is zero (right?) */\
+		/*result->m = real3_zero;*/\
 	}\
 <? end ?>\
 <? if false then -- for naca 0012 airfoil ?>\
