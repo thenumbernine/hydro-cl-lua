@@ -175,7 +175,7 @@ end
 	real3 B = real3_zero;
 	real ePot = 0;
 	
-	<?=initCode()?>
+<?=initCode()?>
 	
 	<?=prim_t?> W = {
 		.rho = rho,

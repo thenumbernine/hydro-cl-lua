@@ -681,6 +681,7 @@ end
 	
 		getInitCondCode = function(self)
 			return [[
+	int4 const i = globalInt4();
 	rho = initCond->rho0;
 	P = (i.x == solver->gridSize.x/2 && i.y == solver->gridSize.y/2 && i.z == solver->gridSize.z/2) ? initCond->P1 : initCond->P0;
 ]]
@@ -795,6 +796,7 @@ end
 		getDepends = function(self)
 			return table{
 				self.solver.coord.symbols.coordMap,
+				self.solver.coord.symbols.cartesianFromCoord,
 			}
 		end,
 		getInitCondCode = function(self)
@@ -1372,7 +1374,7 @@ end) then
 		name = 'Kelvin-Helmholtz',
 		getDepends = function(self)
 			return table{
-				self.solver.eqn.symbols.cartesianFromCoord,
+				self.solver.coord.symbols.cartesianFromCoord,
 			}
 		end,
 		createInitStruct = function(self)
@@ -2441,6 +2443,7 @@ kernel void addExtraSource(
 		name = 'Maxwell charged particle',
 		getInitCondCode = function(self)
 			return self.solver.eqn:template[[
+	int4 const i = globalInt4();
 	rhoCharge = (i.x == solver->gridSize.x/2 && i.y == solver->gridSize.y/2 && i.z == solver->gridSize.z/2) ? initCond->rhoCharge0 : 0.;
 ]]
 		end,

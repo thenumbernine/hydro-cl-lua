@@ -97,19 +97,32 @@ local args = {
 				{32,32,32},
 			},
 		
-			-- 5600M with device=gfx920 to work with gl_sharing:
+			-- 5600M with device=gfx902 to work with gl_sharing:
 			['AMD Accelerated Parallel Processing/gfx902'] = {
 				{4096,1,1},
 				{256,256,1},
 				{32,32,32},
 			},
 
-			-- 5600M with device=gfx1010, which doesn't work with gl_sharing:
+			-- 5600M with device=gfx1010, which doesn't work with gl_sharing, but runs much faster:
 			['AMD Accelerated Parallel Processing/gfx1010'] = {
 				{4096,1,1},
 				{256,256,1},
 				{32,32,32},
 			},
+		
+			-- 5600M when I'm too lazy to only specify just one device.
+			-- it still just uses the first, which is the gfx1010
+			-- for 2D:
+			--	256x256 runs at about 270 fps
+			--	1500x1500 runs at about 20 fps
+			-- 4000x4000 uses 4362211620 bytes
+			-- from then on, any bigger tends to segfault somewhere after 'randomizing UBuf...' 
+			['AMD Accelerated Parallel Processing/gfx1010/gfx902'] = {
+				{4096,1,1},
+				{512,512,1},
+				{32,32,32},
+			},	
 		})[platAndDevicesNames]
 		-- default size options
 		or {
@@ -236,7 +249,7 @@ local args = {
 	--initCond = 'Bessel',
 	--initCond = 'cyclone',
 	
-	initCond = 'Sod',
+	--initCond = 'Sod',
 	--initCond = 'Sod with physical units',
 	--initCondArgs = {dim=cmdline.displayDim},
 	
@@ -249,7 +262,7 @@ local args = {
 	--initCond = 'Colella-Woodward',
 	--initCond = 'double mach reflection',
 	--initCond = 'square cavity',
-	--initCond = 'shock bubble interaction',		-- with usePLM only works with prim or with athena
+	initCond = 'shock bubble interaction',		-- with usePLM only works with prim or with athena
 	--initCond = 'Richmyer-Meshkov',
 	--initCond = 'radial gaussian',
 
@@ -563,7 +576,7 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn
 -- compressible Euler equations
 
 
---self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
+self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
 
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct bounded'})))	-- this is the default hllCalcWaveMethod
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct'})))
@@ -874,7 +887,7 @@ With hyperbolic gamma driver shift it has trouble.
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='hll', eqn='euler', mesh={type='quad2d', size={64, 64}}})))
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='euler-hllc', eqn='euler', mesh={type='quad2d', size={64, 64}}})))
 
-self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='euler', mesh={type='quad2d_with_cylinder_removed', size={32, 32}}})))
+--self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='euler', mesh={type='quad2d_with_cylinder_removed', size={32, 32}}})))
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='euler', mesh={type='quad2d_with_cylinder_removed', size={64, 64}}})))
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='euler', mesh={type='quad2d_with_cylinder_removed', size={128, 128}}})))
 -- TODO hmm, crashed (and took a long time) to build 256x256
