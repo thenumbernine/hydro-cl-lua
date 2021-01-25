@@ -1439,14 +1439,17 @@ for i=0,solver.dim-1 do
 	end	
 end ?>
 
+#if dim == 2
+#define perpAxis y
+#elif dim == 3
+#define perpAxis z
+#endif
+
 	real noise = (solver->maxs.x - solver->mins.x) * initCond->amplitude;
 	rho = inside * initCond->rhoInside + (1. - inside) * initCond->rhoOutside;
 	//v.x = cos(theta) * noise;
-#if dim == 2
-	v.y = sin(theta) * noise;
-#endif
-#if dim == 3
-	v.z = sin(theta) * noise;
+#if dim >= 2
+	v.perpAxis = sin(theta) * noise;
 #endif
 	v.moveAxis += inside * initCond->velInside + (1. - inside) * initCond->velOutside;
 	v = cartesianFromCoord(v, x);
@@ -1455,9 +1458,16 @@ end ?>
 	//U is initialized with random(), so use its values for unique random #s
 <? assert(solver.eqn.numStates >= 5); ?>
 	rho += initCond->noiseAmplitude * 2. * (U->ptr[0] - .5);
+#if 0	
 	v.x += initCond->noiseAmplitude * 2. * (U->ptr[1] - .5);
 	v.y += initCond->noiseAmplitude * 2. * (U->ptr[2] - .5);
 	v.z += initCond->noiseAmplitude * 2. * (U->ptr[3] - .5);
+#elif dim >= 2
+	real noisePhi = 2. * M_PI * U->ptr[1];
+	real noiseR = U->ptr[2];
+	v.moveAxis += initCond->noiseAmplitude * noiseR * cos(noisePhi);
+	v.perpAxis += initCond->noiseAmplitude * noiseR * sin(noisePhi);
+#endif
 	P += initCond->noiseAmplitude * 2. * (U->ptr[4] - .5);
 ]],				{
 					sliceAxis = self.guiVars.sliceAxis.options[self.guiVars.sliceAxis.value],

@@ -142,6 +142,18 @@
 	/*real3 const */x\
 )	(solver->heatCapacityRatio - 1.) * (/*EInt=*/(U)->ETotal - /*EKin=*/calc_EKin_fromCons(U, x))
 
+#define /*real*/ calc_eInt_from_cons(\
+	/*<?=cons_t?> const * const*/U,\
+	/*real3 const */x\
+) (((U)->ETotal - .5 * coordLenSq((U)->m, x) / (U)->rho) / (U)->rho - (U)->ePot)
+
+<? local materials = require "hydro.materials" ?>
+#define C_v				<?=("%.50f"):format(materials.Air.C_v)?>
+
+#define /*real*/ calc_T(\
+	/*<?=cons_t?> const * const*/U,\
+	/*real3 const */x\
+) (calc_eInt_from_cons(U, x) / C_v)
 
 //// MODULE_NAME: <?=applyInitCondCell?>
 //// MODULE_DEPENDS: <?=cartesianToCoord?>
@@ -465,7 +477,7 @@ end
 		0;\
 }
 
-<? if false then -- TODO sort <?=addSource?> out. ?>
+<? if true then -- TODO sort <?=addSource?> out. ?>
 //// MODULE_NAME: <?=addSource?>
 //// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> <?=cell_t?> <?=SETBOUNDS_NOGHOST?>
 
@@ -482,8 +494,8 @@ kernel void <?=addSource?>(
 	global <?=cons_t?> const * const U = UBuf + index;
 
 <? if false 
-and solver.coord.vectorComponent == 'anholonomic' 
-and require 'hydro.coord.cylinder'.is(solver.coord) 
+and solver.coord.vectorComponent == "anholonomic" 
+and require "hydro.coord.cylinder".is(solver.coord) 
 then ?>
 <? 	if true then -- 2009 Trangenstein, p.474, 1999 Toro, p.29, eqn.1.104, 1.105 ?>
 	<? for side=0,1 do ?>{
@@ -509,9 +521,9 @@ then ?>
 <?	end ?>
 <? end ?>
 
-<? do -- if not solver.coord.vectorComponent == 'anholonomic' then ?>
-<? if not (require 'hydro.coord.cartesian'.is(solver.coord) 
-		or solver.coord.vectorComponent == 'cartesian')
+<? do -- if not solver.coord.vectorComponent == "anholonomic" then ?>
+<? if not (require "hydro.coord.cartesian".is(solver.coord) 
+		or solver.coord.vectorComponent == "cartesian")
 then ?>
 //// MODULE_DEPENDS: <?=primFromCons?> <?=coord_conn_apply23?> <?=coord_conn_trace23?> <?=coord_conn_apply13?>
 /*
@@ -525,20 +537,20 @@ Maybe for an initial constant vel as large as sqrt(2) this fails, but it works o
 	<?=prim_t?> W;
 	<?=primFromCons?>(&W, solver, U, x);
 	
-	//- Conn^i_jk rho v^j v^k 
+	//- Γ^i_jk ρ v^j v^k 
 	deriv->m = real3_sub(deriv->m, coord_conn_apply23(W.v, U->m, x));	
 	
-	//- Conn^i_jk g^jk P
+	//- Γ^i_jk g^jk P
 	deriv->m = real3_sub(deriv->m, real3_real_mul(coord_conn_trace23(x), W.P));		
 	
-	//+ (gamma-1) rho v^k v^l Gamma_kjl g^ij
+	//+ (γ-1) ρ v^k v^l Γ_kjl g^ij
 	deriv->m = real3_add(deriv->m, real3_real_mul(coord_conn_apply13(W.v, U->m, x), (solver->heatCapacityRatio - 1.) ));	
 	
-	//- (gamma-1) rho v^j v^k v^l Gamma_jkl
+	//- (γ-1) ρ v^j v^k v^l Γ_jkl
 //	deriv->ETotal -= (solver->heatCapacityRatio - 1.) * coord_conn_apply123(W.v, W.v, U->m, x);	
 
 	//+ c_jk^k * Flux^Ij
-<? 	if false and solver.coord.vectorComponent == 'anholonomic' then ?>
+<? 	if false and solver.coord.vectorComponent == "anholonomic" then ?>
 	real3 const commTrace = coord_tr23_c(x);
 	<? for i=0,solver.dim-1 do ?>{
 		<?=cons_t?> flux;
@@ -549,7 +561,65 @@ Maybe for an initial constant vel as large as sqrt(2) this fails, but it works o
 	}<? end ?>
 <? 	end ?>
 <? end ?>
-<? end -- vectorComponent == 'anholonomic' ?>
+<? end -- vectorComponent == "anholonomic" ?>
+
+
+
+<?
+-- viscous terms as rhs.  work is in hydro/op/viscousflux.lua
+if eqn.addViscousSource then
+	-- only for grid solvers at the moment
+	-- notice that in the real world shear viscosity changes with temperature (which changes with internal energy, which changes with position and time)
+	-- so add more derivative terms?
+?>
+
+	real3 v = real3_real_mul(U->m, 1./U->rho);
+
+<? local function getV(offset) return "real3_real_mul(U["..offset.."].m, 1./U["..offset.."].rho)" end ?>
+<?=eqn:makePartial2(getV, "real3", "d2v")?>
+
+	real3 div_tau = real3_zero;		// tau^ij_,j
+	<? for i,xi in ipairs(xNames) do ?>
+		<? for j,xj in ipairs(xNames) do ?>
+			div_tau.<?=xi?> += <?=clnumber(eqn.shearViscosity)?> * (
+				d2v[<?=from3x3to6(j,j)-1?>].<?=xi?>
+				+ (1./3.) * d2v[<?=from3x3to6(i,j)-1?>].<?=xj?>
+			);
+		<? end ?>
+	<? end ?>
+
+//// MODULE_DEPENDS: real3x3
+<?=eqn:makePartial1(getV, "real3", "dv")?>
+	
+	real div_v = dv.x.x + dv.y.y + dv.z.z;
+
+	real tau_dot_dv = 0.;
+	<? for ij,xij in ipairs(symNames) do 
+		local i,j,xi,xj = from6to3x3(ij)
+	?>{
+		real tau_ij = dv.<?=xi?>.<?=xj?> + dv.<?=xj?>.<?=xj?>;
+	<? if i==j then ?>
+		tau_ij -= (2./3.) * div_v;
+	<? end ?>
+		tau_ij *= <?=clnumber(eqn.shearViscosity)?>;
+		tau_dot_dv += tau_ij * dv.<?=xi?>.<?=xj?>;
+	}<? end ?>
+
+	//q_i = -k T_,i
+	//q^i_;i = -(k T_,i g^ij)_;j = -g^ij (k T_;ij + k_,i T_,j) = -g^ij (k T_,ij - k T_,k Γ^k_ij + k_,i T_,j)
+	//for an ideal gas: T = eInt / Cv = (ETotal - 1/2 g^ij m_i m_j / ρ) / ρ / Cv
+//// MODULE_DEPENDS: <?=eqn_common?>
+// TODO calc_T's 'x' should vary with the offset
+<? local function getT(offset) return "calc_T(U + "..offset..", x)" end ?>
+<?=eqn:makePartial2(getT, "real", "d2T")?>
+
+	deriv->m = real3_add(deriv->m, div_tau);
+	deriv->ETotal += real3_dot(div_tau, v) + tau_dot_dv - <?=clnumber(eqn.heatConductivity)?> * sym3_trace(d2T);
+<?
+end	-- addViscousSource
+?>
+
+
 }
 <? end ?>
 

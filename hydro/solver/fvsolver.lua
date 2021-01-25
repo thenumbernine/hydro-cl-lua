@@ -51,7 +51,8 @@ function FiniteVolumeSolver:initCodeModules()
 
 	self:initCodeModule_calcFlux()
 end
-	
+
+-- overridden by weno subclass
 function FiniteVolumeSolver:initCodeModule_calcFlux()
 	self.modules:addFromMarkup{
 		code = self.eqn:template([[
@@ -60,7 +61,7 @@ function FiniteVolumeSolver:initCodeModule_calcFlux()
 // used by all gridsolvers.  the meshsolver alternative is in solver/meshsolver.lua
 
 <? 
-local useFlux = solver.fluxLimiter > 1 
+local useFluxLimiter = solver.fluxLimiter > 1 
 	and flux.usesFluxLimiter -- just flux/roe.lua right now
 ?>
 
@@ -122,7 +123,7 @@ then ?>
 			<?=normal_t?> const n = normal_forSide<?=side?>(xInt);
 
 <? 
-if useFlux then 
+if useFluxLimiter then 
 ?>			//this is used for the flux limiter
 			//should it be using the coordinate dx or the grid dx?
 			//real dt_dx = dt / cell_dx<?=side?>(xInt);
@@ -160,7 +161,7 @@ end
 				ppUL,
 				ppUR,
 				xInt,
-				n<? if useFlux then ?>,
+				n<? if useFluxLimiter then ?>,
 				dt_dx,
 				ppUL_L,
 				ppUL_R,
@@ -169,6 +170,16 @@ end
 				xIntL,
 				xIntR<? end ?>
 			);
+		
+			//while we're here how about other solvers that might want to modify the flux?  like adding the viscous flux to the update?
+			//or should the viscous flux only be added separately?  in case its eigenvalues change the euler flux enough to overstep the CFL or something
+<? 
+for _,op in ipairs(solver.ops) do
+	if op.addCalcFluxCode then
+?>			<?=op:addCalcFluxCode()?>
+<? 	end
+end
+?>
 		}
 	}<? end ?>
 }

@@ -493,7 +493,7 @@ function Equation:getEnv()
 		from3x3to6 = from3x3to6,
 		from6to3x3 = from6to3x3,
 		sym = sym,
-		clnumber = clnumber,
+		clnumber = require 'cl.obj.number',
 	
 		-- really only used by applyInitCond
 		initCode = function() 

@@ -230,7 +230,6 @@ function MHD:getDisplayVars()
 		{name='alfven velocity', code='value.vreal3 = calc_CA(solver, &U);', type='real3', units='m/s'},
 		{name='Mach number', code='value.vreal = coordLen(W.v, x) / calc_Cs(solver, &W);'},
 		{name='temperature', code=self:template[[
-<? local clnumber = require 'cl.obj.number' ?>
 <? local materials = require 'hydro.materials' ?>
 #define C_v				<?=('%.50f'):format(materials.Air.C_v)?>
 	value.vreal = calc_eInt(solver, &W) / C_v;

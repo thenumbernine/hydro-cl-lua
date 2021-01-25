@@ -1896,7 +1896,7 @@ static inline void calcDeriv_K(
 
 	/*
 	B&S 11.52
-	Alcubierre 2.8.12
+	2008 Alcubierre 2.8.12
 	K_,t = -gamma^ij D_i D_j alpha + alpha (ABar_ij ABar^ij + K^2 / 3) + 4 pi alpha (rho + S) + beta^i K_,i
 	2017 Ruchlin et al
 	K_,t = 
@@ -2224,15 +2224,16 @@ kernel void <?=calcDeriv?>(
 <?=eqn:makePartialUpwind"alpha"?>
 		real3 partial_alpha_L_upwind = real3_rescaleFromCoord_l(partial_alpha_l_upwind, x);
 
-		//Alcubierre 4.2.52 - Bona-Masso family of slicing
-		//Q = f(alpha) K
-		//d/dt alpha = -alpha^2 Q = alpha,t + alpha,i beta^i
-		//alpha_,t = -alpha^2 f(alpha) K + alpha_,i beta^i
-		//alpha_,t = -alpha^2 f(alpha) K + alpha_,i e^i_I beta^I
-		// for f(alpha) = 2/alpha
-		//alpha_,t = -2 alpha K + alpha_,i e^i_I beta^I
-		dt_alpha = -calc_f_alphaSq(U->alpha) * U->K
-			+ real3_dot(partial_alpha_L_upwind, U->beta_U);
+		/*
+		2008 Alcubierre 4.2.52 - Bona-Masso family of slicing
+		Q = f(alpha) K
+		d/dt alpha = -alpha^2 Q = alpha,t + alpha,i beta^i
+		alpha_,t = -alpha^2 f(alpha) K + alpha_,i beta^i
+		alpha_,t = -alpha^2 f(alpha) K + alpha_,i e^i_I beta^I
+		 for f(alpha) = 2/alpha
+		alpha_,t = -2 alpha K + alpha_,i e^i_I beta^I
+		*/
+		dt_alpha = -U->K * calc_f_alphaSq(U->alpha) + real3_dot(partial_alpha_L_upwind, U->beta_U);
 	}
 	
 	deriv->alpha += dt_alpha;
@@ -2955,7 +2956,14 @@ for ij,xij in ipairs(symNames) do
 //// MODULE_NAME: <?=addSource?>
 //// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> <?=cell_t?> <?=SETBOUNDS_NOGHOST?> <?=initCond_codeprefix?>
 
-//TODO combine with calcDeriv
+/*
+TODO combine with calcDeriv
+all this has in it is Phi and Psi for scalar field
+
+I guess one important distinction between addSource and calcDeriv is
+calcDeriv is replaced with the PIRK_L* derivative calculations
+while addSource is always added to the RHS of both PIRK and finite-difference solvers
+*/
 kernel void <?=addSource?>(
 	constant <?=solver_t?> const * const solver,
 	global <?=cons_t?> * const derivBuf,
@@ -2973,7 +2981,7 @@ kernel void <?=addSource?>(
 <?=eqn:makePartialUpwind"alpha"?>
 	real3 partial_alpha_L_upwind = real3_rescaleFromCoord_l(partial_alpha_l_upwind, x);
 
-	//Alcubierre 4.2.52 - Bona-Masso family of slicing
+	//2008 Alcubierre 4.2.52 - Bona-Masso family of slicing
 	//Q = f(alpha) K
 	//d/dt alpha = -alpha^2 Q = alpha,t + alpha,i beta^i
 	//alpha,t = -alpha^2 f(alpha) K + alpha,i beta^i
@@ -3148,7 +3156,7 @@ kernel void calcDeriv_PIRK_L1_EpsilonWAlphaBeta(
 <?=eqn:makePartialUpwind"alpha"?>
 	real3 partial_alpha_L_upwind = real3_rescaleFromCoord_l(partial_alpha_l_upwind, x);
 
-	//Alcubierre 4.2.52 - Bona-Masso family of slicing
+	//2008 Alcubierre 4.2.52 - Bona-Masso family of slicing
 	//Q = f(alpha) K
 	//d/dt alpha = -alpha^2 Q = alpha,t + alpha,i beta^i
 	//alpha,t = -alpha^2 f(alpha) K + alpha,i beta^i

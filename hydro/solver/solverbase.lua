@@ -1291,7 +1291,9 @@ print('solver modules: '..moduleNames:sort():concat', ')
 
 
 	for _,op in ipairs(self.ops) do
-		op:refreshSolverProgram()
+		if op.refreshSolverProgram then
+			op:refreshSolverProgram()
+		end
 	end
 
 	-- display stuff.  build these just in case trackvars is used.
@@ -1857,6 +1859,9 @@ function SolverBase:createDisplayComponents()
 		{name = 'x', code = 'value->vreal3 = _real3(value->vreal3.x,0,0);'},
 		{name = 'y', code = 'value->vreal3 = _real3(value->vreal3.y,0,0);'},
 		{name = 'z', code = 'value->vreal3 = _real3(value->vreal3.z,0,0);'},
+		{name = 'xy arg', code = 'value->vreal3 = _real3(atan2(value->vreal3.y, value->vreal3.x),0,0);'},
+		{name = 'yz arg', code = 'value->vreal3 = _real3(atan2(value->vreal3.z, value->vreal3.y),0,0);'},
+		{name = 'zx arg', code = 'value->vreal3 = _real3(atan2(value->vreal3.x, value->vreal3.z),0,0);'},
 	})
 	self:addDisplayComponents('sym3', {
 		{name = 'xx', code = 'value->vsym3 = _sym3(value->vsym3.xx,0,0,0,0,0);'},

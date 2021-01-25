@@ -14,6 +14,19 @@ what do I have to change to get it to match the manually create twofluid-emhd.lu
 	for {rho, v, P}
 	ion's scalars are {1, 1, 1/ionElectronMassRatio}
 	elec's scalars are {1/ionElectronMassRatio, 1, 5}
+
+	For each eqn I could wrap them and provide conversion code per-eqn.
+
+		initCondAssign = {
+			ion = [=[
+	P /= ionElectronMassRatio;
+]=],
+			elec = [=[
+	rho /= ionElectronMassRatio;
+	P *= 5.;
+]=],
+		}
+
 * ops (esp NoDiv and SelfGrav) need to work.
 * display vars applied per sub eqn would be nice.
 * addSource needs to be able to add extra terms:

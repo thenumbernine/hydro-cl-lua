@@ -40,20 +40,24 @@ function Euler:init(args)
 	end
 
 	Euler.super.init(self, args)
+	local solver = self.solver
 
-	if require 'hydro.solver.meshsolver'.is(self.solver) then
+	if require 'hydro.solver.meshsolver'.is(solver) then
 		print("not using ops (selfgrav, nodiv, etc) with mesh solvers yet")
 	else
 		local SelfGrav = require 'hydro.op.selfgrav'
-		self.gravOp = SelfGrav{solver = self.solver}
-		self.solver.ops:insert(self.gravOp)
+		self.gravOp = SelfGrav{solver = solver}
+		solver.ops:insert(self.gravOp)
 
 		if args.incompressible then
 			local NoDiv = require 'hydro.op.nodiv'{
 				poissonSolver = require 'hydro.op.poisson_jacobi',	-- krylov is having errors.  TODO bug in its boundary code?
 			}
-			self.solver.ops:insert(NoDiv{
-				solver = self.solver,
+			solver.ops:insert(NoDiv{
+				solver = solver,
+			
+				-- [=[ using div (m/rho) = 0, solve for div m:
+				-- TODO field as a read function, and just erad 
 				vectorField = 'm',
 				potentialField = 'mPot',
 			
@@ -69,8 +73,35 @@ function Euler:init(args)
 		source -= drho_dx * U->m.s<?=j?> / U->rho;
 	}<? end ?>
 ]],
+				--]=]
+				--[=[ reading via div(v), writing via div(m)
+				-- doesn't seem to be as stable as above
+				readVectorField = function(op,offset)
+					return 'real3_real_mul(U['..offset..'].m, 1./U['..offset..'].rho)'
+				end,
+				writeVectorField = function(op,dv)
+					return 'U->m = real3_sub(U->m, real3_real_mul('..dv..', 1./U->rho));'
+				end,
+				postWriteVectorField = function()
+				end,
+				potentialField = 'mPot',
+				--]=]
 			})
 		end
+	end
+
+	local materials = require 'hydro.materials'
+	
+	-- TODO make this a define or a solver var? right now I am inlining these directly
+	self.shearViscosity = args.shearViscosity or materials.Air.shearViscosity
+	self.heatConductivity = args.heatConductivity or materials.Air.heatConductivity
+
+	self.addViscousSource = args.addViscousSource
+
+	if args.addViscousFlux then
+		solver.ops:insert(require 'hydro.op.viscousflux'{
+			solver = solver,
+		})
 	end
 end
 
@@ -233,12 +264,7 @@ function Euler:getDisplayVars()
 		{name='hTotal', code='value.vreal = calc_hTotal(W.rho, W.P, U->ETotal);', units='m^2/s^2'},
 		{name='speed of sound', code='value.vreal = calc_Cs(solver, &W);', units='m/s'},
 		{name='Mach number', code='value.vreal = coordLen(W.v, x) / calc_Cs(solver, &W);'},
-		{name='temperature', code=self:template[[
-<? local clnumber = require 'cl.obj.number' ?>
-<? local materials = require 'hydro.materials' ?>
-#define C_v				<?=('%.50f'):format(materials.Air.C_v)?>
-	value.vreal = calc_eInt(solver, &W) / C_v;
-]], units='K'},
+		{name='temperature', code='value.vreal = calc_T(U, x);', units='K'},
 	}:append(self.gravOp and
 		{{name='gravity', code=self:template[[
 	if (!<?=OOB?>(1,1)) {

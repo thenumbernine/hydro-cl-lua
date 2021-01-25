@@ -18,10 +18,26 @@ return function(args)
 	NoDiv.chargeField = nil	-- nil means zero
 	NoDiv.chargeCode = nil
 
+	--[[
+	args:
+		scalar = scalar type, default 'real'
+		
+		vectorField = vector field name within UBuf 
+		optionally you can skip vectorField's use by setting 
+			readVectorField = function(offset) for returning code to read at offset from U pointer
+			writeVectorField = function(dv) for returning code to write at U ptr to offset vector field by 'dv'
+
+		potentialField = potential field name within UBuf
+	
+		chargeField = field of charge.  nil means zero.
+		chargeCode = optionally, code for generating charge field value.  TODO just use type(chargeField)=='function'
+	--]]
 	function NoDiv:init(args)
 		self.scalar = args.scalar
 		NoDiv.super.init(self, args)
 		self.vectorField = args.vectorField
+		self.readVectorField = args.readVectorField	 -- or default below
+		self.writeVectorField = args.writeVectorField	 -- or default below
 		self.potentialField = args.potentialField
 		self.chargeField = args.chargeField
 		self.chargeCode = args.chargeCode
@@ -32,6 +48,18 @@ return function(args)
 			'noDiv',
 			'copyPotentialToReduce',
 		}
+	end
+
+	function NoDiv:readVectorField(offset)
+		return 'U['..offset..'].'..self.vectorField
+	end
+
+	-- returns code that performs U->$v = U->$v - $dv
+	function NoDiv:writeVectorField(dv)
+		local scalar = self.scalar
+		local UField = 'U->'..self.vectorField
+		local sub = scalar..'3_sub'
+		return UField..' = '..sub..'('..UField..', '..dv..');'
 	end
 
 	--[[
@@ -55,8 +83,8 @@ for j=0,solver.dim-1 do
 			source,
 			<?=real_mul?>(
 				<?=sub?>(
-					U[solver->stepsize.s<?=j?>].<?=op.vectorField?>.s<?=j?>,
-					U[-solver->stepsize.s<?=j?>].<?=op.vectorField?>.s<?=j?>
+					(<?=op:readVectorField(' solver->stepsize.s'..j)?>).s<?=j?>,
+					(<?=op:readVectorField('-solver->stepsize.s'..j)?>).s<?=j?>
 				),
 				.5 / solver->grid_dx.s<?=j?>
 			)
@@ -96,18 +124,18 @@ kernel void <?=op.symbols.noDiv?>(
 ) {
 	<?=SETBOUNDS?>(solver->numGhost, solver->numGhost);
 	global <?=cons_t?> * const U = UBuf + index;
+
+	real3 dv = real3_zero;
 <? for j=0,solver.dim-1 do ?> 
-	U-><?=op.vectorField?>.s<?=j?> = 
+	dv.s<?=j?> = <?=real_mul?>(
 		<?=sub?>(
-			U-><?=op.vectorField?>.s<?=j?>,
-			<?=real_mul?>(
-				<?=sub?>(
-					U[solver->stepsize.s<?=j?>].<?=op.potentialField?>,
-					U[-solver->stepsize.s<?=j?>].<?=op.potentialField?>
-				), 1. / (2. * solver->grid_dx.s<?=j?>)
-			)
-		);
+			U[solver->stepsize.s<?=j?>].<?=op.potentialField?>,
+			U[-solver->stepsize.s<?=j?>].<?=op.potentialField?>
+		), 1. / (2. * solver->grid_dx.s<?=j?>)
+	);
 <? end ?>
+	
+	<?=op:writeVectorField'dv'?>
 }
 
 //TODO just use the display var kernels

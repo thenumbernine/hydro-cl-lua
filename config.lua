@@ -120,7 +120,7 @@ local args = {
 			-- from then on, any bigger tends to segfault somewhere after 'randomizing UBuf...' 
 			['AMD Accelerated Parallel Processing/gfx1010/gfx902'] = {
 				{4096,1,1},
-				{512,512,1},
+				{256,256,1},
 				{32,32,32},
 			},	
 		})[platAndDevicesNames]
@@ -132,12 +132,12 @@ local args = {
 		}
 	)[dim],
 	boundary = type(cmdline.boundary) == 'table' and cmdline.boundary or {
-		xmin = cmdline.boundary or 'freeflow',
-		xmax = cmdline.boundary or 'freeflow',
-		ymin = cmdline.boundary or 'freeflow',
-		ymax = cmdline.boundary or 'freeflow',
-		zmin = cmdline.boundary or 'freeflow',
-		zmax = cmdline.boundary or 'freeflow',
+		xmin = cmdline.boundary or 'mirror',
+		xmax = cmdline.boundary or 'mirror',
+		ymin = cmdline.boundary or 'mirror',
+		ymax = cmdline.boundary or 'mirror',
+		zmin = cmdline.boundary or 'mirror',
+		zmax = cmdline.boundary or 'mirror',
 	},
 	--]]
 	--[[ cylinder
@@ -249,7 +249,7 @@ local args = {
 	--initCond = 'Bessel',
 	--initCond = 'cyclone',
 	
-	--initCond = 'Sod',
+	initCond = 'Sod',
 	--initCond = 'Sod with physical units',
 	--initCondArgs = {dim=cmdline.displayDim},
 	
@@ -262,7 +262,7 @@ local args = {
 	--initCond = 'Colella-Woodward',
 	--initCond = 'double mach reflection',
 	--initCond = 'square cavity',
-	initCond = 'shock bubble interaction',		-- with usePLM only works with prim or with athena
+	--initCond = 'shock bubble interaction',		-- with usePLM only works with prim or with athena
 	--initCond = 'Richmyer-Meshkov',
 	--initCond = 'radial gaussian',
 
@@ -623,10 +623,16 @@ self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='euler', wenoMe
 --self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='euler', wenoMethod='1996 Jiang Shu', order=5, fluxMethod='Marquina'})))
 --]]
 
--- incompressible...
+-- incompressible
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler', eqnArgs={incompressible=true}})))
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', eqnArgs={incompressible=true}})))
 --self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='euler', eqnArgs={incompressible=true}, wenoMethod='2010 Shen Zha', order=5})))
+
+-- viscosity in source terms:
+--self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler', eqnArgs={addViscousSource=true}})))
+-- not yet finished:
+--self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler', eqnArgs={addViscousFlux=true}})))
+
 
 -- Navier-Stokes-Wilcox:
 -- TODO FIXME i think the eigen code isn't correct

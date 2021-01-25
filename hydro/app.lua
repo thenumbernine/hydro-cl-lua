@@ -614,6 +614,11 @@ function HydroCLApp:initGL(...)
 				})[i%2+1]
 			end):unpack()
 		--]]
+		--[[ blue
+			{0,0,0,.8},
+			{.5,.5,1,.8},
+			{1,1,1,.8},
+		--]]
 		}, false)
 		-- don't wrap the colors, but do use GL_REPEAT
 		self.gradientTex:setWrap{s = gl.GL_REPEAT}
@@ -718,9 +723,41 @@ end
 	end):sup() or 1
 end
 
+local primaryColors = {
+	{1,0,0},
+	{1,1,0},
+	{0,1,0},
+	{0,1,1},
+	{0,0,1},
+	{1,0,1},
+}
+
 function HydroCLApp:randomizeGradientTex()
 	local colors = range(math.random(2,10)):mapi(function()
+		--[[ bleh
 		return {math.random(), math.random(), math.random(), 0.8}
+		--]]
+		-- [[ based on hsv
+		local x = math.random() * #primaryColors	-- hue
+		local i = math.floor(x)
+		local f = x - i
+		local a = primaryColors[i+1]
+		local b = primaryColors[i%#primaryColors+1]
+		local c = vec3d(table.unpack(a)) * (1 - f) + vec3d(table.unpack(b)) * f
+		local g = c:dot(vec3d(.3, .6, .1))
+		local s = math.random()	-- saturation
+		s=1-s s=s*s*s s=1-s
+		c = c * s + vec3d(g,g,g) * (1 - s)
+		local l = math.random()
+		if l > .5 then
+			l = (l - .5) * 2
+			c = vec3d(1,1,1) * l + c * (1 - l)
+		else
+			l = l * 2
+			c = c * l + vec3d(0,0,0) * (1 - l)
+		end
+		return {c.x, c.y, c.z, 0.8}
+		--]]
 	end)
 	self.gradientTex = GLGradientTex(1024, colors, false)
 	-- don't wrap the colors, but do use GL_REPEAT

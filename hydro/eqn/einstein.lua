@@ -41,8 +41,8 @@ function EinsteinEquation:createInitState()
 			name = 'f_eqn',
 			options = {
 				'2/alpha',							-- 1+log slicing
-				'1 + 1/alpha^2', 					-- Alcubierre 10.2.24: "shock avoiding condition" for Toy 1+1 spacetimes 
-				'1', 								-- Alcubierre 4.2.50 - harmonic slicing
+				'1 + 1/alpha^2', 					-- 2008 Alcubierre 10.2.24: "shock avoiding condition" for Toy 1+1 spacetimes 
+				'1', 								-- 2008 Alcubierre 4.2.50 - harmonic slicing
 				'0', '.49', '.5', '1.5', '1.69',
 			}
 		},

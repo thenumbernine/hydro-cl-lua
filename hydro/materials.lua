@@ -73,4 +73,14 @@ materials.Air.seaLevelDensity = 1.2754
 -- sqrt(gamma P / rho) = 333.8445024974 m/s
 materials.Air.speedOfSound = math.sqrt(materials.Air.heatCapacityRatio * materials.Air.seaLevelPressure / materials.Air.seaLevelDensity)
 
+-- from https://en.wikipedia.org/wiki/Viscosity 
+-- at 25 C and 1 bar of pressure
+materials.Air.shearViscosity = 18.5e-6	-- Pa s = kg / (m s)
+	
+-- from https://en.wikipedia.org/wiki/List_of_thermal_conductivities 
+materials.Air.heatConductivity = 0.0235	-- W / (m K) = kg m / (s^3 K)
+
+-- from https://en.wikipedia.org/wiki/Viscosity 
+materials['Drinking water'].shearViscosity = 8.9e-4	-- Pa s = kg / (m s) ... at 25 C
+
 return materials 
