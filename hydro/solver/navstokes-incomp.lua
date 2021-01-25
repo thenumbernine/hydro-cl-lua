@@ -15,6 +15,7 @@ function NavierStokesIncompressible:createBuffers()
 end
 
 function NavierStokesIncompressible:getSolverCode()
+	error'TODO convert this to initCodeModules'
 	return table{
 		NavierStokesIncompressible.super.getSolverCode(self),
 		template(file['hydro/solver/navstokes-incomp.cl'], {solver=self, eqn=self.eqn}),

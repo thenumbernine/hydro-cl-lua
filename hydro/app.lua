@@ -733,7 +733,7 @@ local primaryColors = {
 }
 
 function HydroCLApp:randomizeGradientTex()
-	local colors = range(math.random(2,10)):mapi(function()
+	local colors = range(math.random(2,20)):mapi(function()
 		--[[ bleh
 		return {math.random(), math.random(), math.random(), 0.8}
 		--]]
@@ -1705,6 +1705,8 @@ function HydroCLApp:event(event, ...)
 					solver:resetState()
 				end
 				self.running = false
+			elseif event.key.keysym.sym == ('p'):byte() then
+				self:randomizeGradientTex()		
 			end
 		end
 	end

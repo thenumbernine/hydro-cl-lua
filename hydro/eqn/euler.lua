@@ -89,19 +89,31 @@ function Euler:init(args)
 		end
 	end
 
-	
-	self.addViscousSource = args.addViscousSource
-	if self.addViscousSource then
+	self.viscosity = args.viscosity
+	if self.viscosity then
 		local materials = require 'hydro.materials'
 		-- this just passes on to createInitState's addGuiVars
+		-- default value for air is 1e-5 or so
+		-- using .01 with Kelvin-Helmholtz is noticeable
+		-- using anything higher tends to explode with explicit update
 		self.shearViscosity = args.shearViscosity or materials.Air.shearViscosity
-		self.heatConductivity = args.heatConductivity or materials.Air.heatConductivity
-	end
-
-	if args.addViscousFlux then
-		solver.ops:insert(require 'hydro.op.viscousflux'{
-			solver = solver,
-		})
+		self.heatConductivity = args.heatConductivity or materials.Air.heatConductivity	
+		
+		if self.viscosity == 'rhs-explicit' then
+			solver.ops:insert(require 'hydro.op.viscous-explicit'{
+				solver = solver,
+			})
+		elseif self.viscosity == 'rhs-implicit' then
+			-- handle the integration with backward-euler integrator
+			-- TODO don't make a new module, instead just add the explicit update module but use int/be
+			solver.ops:insert(require 'hydro.op.viscous-implicit'{
+				solver = solver,
+			})
+		elseif self.viscosity == 'flux' then
+			solver.ops:insert(require 'hydro.op.viscous-flux'{
+				solver = solver,
+			})
+		end
 	end
 end
 
@@ -113,7 +125,7 @@ function Euler:createInitState()
 		{name='rhoMin', value=double and 1e-15 or 1e-7, units='kg/m^3'},
 		{name='PMin', value=double and 1e-15 or 1e-7, units='kg/(m*s^2)'},
 	}
-	if self.addViscousSource then
+	if self.viscosity then
 		self:addGuiVars{
 			{name='shearViscosity', value=assert(self.shearViscosity), units='kg/(m*s)'},
 			{name='heatConductivity', value=assert(self.heatConductivity), units='kg/(m*s^3*K)'},

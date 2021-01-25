@@ -136,6 +136,7 @@ return function(cl)
 	end
 
 	function cl:getSolverCode()
+		error'TODO convert this to initCodeModules'
 		return table{
 			cl.super.getSolverCode(self),
 		

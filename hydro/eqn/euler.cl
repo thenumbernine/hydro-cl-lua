@@ -481,7 +481,7 @@ end
 		0;\
 }
 
-<? if true then -- TODO sort <?=addSource?> out. ?>
+<? if false then -- TODO sort <?=addSource?> out. ?>
 //// MODULE_NAME: <?=addSource?>
 //// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> <?=cell_t?> <?=SETBOUNDS_NOGHOST?>
 
@@ -566,64 +566,6 @@ Maybe for an initial constant vel as large as sqrt(2) this fails, but it works o
 <? 	end ?>
 <? end ?>
 <? end -- vectorComponent == "anholonomic" ?>
-
-
-
-<?
--- viscous terms as rhs.  work is in hydro/op/viscousflux.lua
-if eqn.addViscousSource then
-	-- only for grid solvers at the moment
-	-- notice that in the real world shear viscosity changes with temperature (which changes with internal energy, which changes with position and time)
-	-- so add more derivative terms?
-?>
-
-	real3 v = calc_v(U);
-
-<? local function getV(offset) return "calc_v(U + "..offset..")" end ?>
-<?=eqn:makePartial2(getV, "real3", "d2v")?>
-
-	real3 div_tau = real3_zero;		// tau^ij_,j
-	<? for i,xi in ipairs(xNames) do ?>
-		<? for j,xj in ipairs(xNames) do ?>
-			div_tau.<?=xi?> += solver->shearViscosity * (
-				d2v[<?=from3x3to6(j,j)-1?>].<?=xi?>
-				+ (1./3.) * d2v[<?=from3x3to6(i,j)-1?>].<?=xj?>
-			);
-		<? end ?>
-	<? end ?>
-
-//// MODULE_DEPENDS: real3x3
-<?=eqn:makePartial1(getV, "real3", "dv")?>
-	
-	real div_v = dv.x.x + dv.y.y + dv.z.z;
-
-	real tau_dot_dv = 0.;
-	<? for ij,xij in ipairs(symNames) do 
-		local i,j,xi,xj = from6to3x3(ij)
-	?>{
-		real tau_ij = dv.<?=xi?>.<?=xj?> + dv.<?=xj?>.<?=xj?>;
-	<? if i==j then ?>
-		tau_ij -= (2./3.) * div_v;
-	<? end ?>
-		tau_ij *= solver->shearViscosity;
-		tau_dot_dv += tau_ij * dv.<?=xi?>.<?=xj?>;
-	}<? end ?>
-
-	//q_i = -k T_,i
-	//q^i_;i = -(k T_,i g^ij)_;j = -g^ij (k T_;ij + k_,i T_,j) = -g^ij (k T_,ij - k T_,k Γ^k_ij + k_,i T_,j)
-	//for an ideal gas: T = eInt / Cv = (ETotal - 1/2 g^ij m_i m_j / ρ) / ρ / Cv
-//// MODULE_DEPENDS: <?=eqn_common?>
-// TODO calc_T's 'x' should vary with the offset
-<? local function getT(offset) return "calc_T(U + "..offset..", x)" end ?>
-<?=eqn:makePartial2(getT, "real", "d2T")?>
-
-	deriv->m = real3_add(deriv->m, div_tau);
-	deriv->ETotal += real3_dot(div_tau, v) + tau_dot_dv - solver->heatConductivity * sym3_trace(d2T);
-<?
-end	-- addViscousSource
-?>
-
-
 }
 <? end ?>
 

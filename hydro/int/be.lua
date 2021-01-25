@@ -70,6 +70,7 @@ function BackwardEuler:init(solver, args)
 			solver.modules:getCodeAndHeader(solver.sharedModulesEnabled:keys():append{
 				solver.symbols.SETBOUNDS_NOGHOST,
 				solver.symbols.solver_macros,
+				assert(solver.solver_t),
 			}:unpack())
 			..[[
 <? local range = require 'ext.range' ?>

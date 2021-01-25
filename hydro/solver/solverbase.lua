@@ -683,7 +683,7 @@ self.modules = self.app.modules
 	self.sharedModulesEnabled = table()
 
 	self.modules:add{
-		name = self.solver_t,
+		name = assert(self.solver_t),
 		structs = {self.solverStruct},
 		-- only generated for cl, not for ffi cdef
 		headercode = 'typedef '..self.solver_t..' solver_t;',
@@ -1266,7 +1266,6 @@ function SolverBase:refreshSolverProgram()
 		local moduleNames = table(self.sharedModulesEnabled, self.solverModulesEnabled):keys()
 print('solver modules: '..moduleNames:sort():concat', ')
 		code = self.modules:getCodeAndHeader(moduleNames:unpack())
-		if self.getSolverCode then error("TODO turn this into code modules") end
 	end)
 
 	time('building solver program', function()
@@ -2858,7 +2857,7 @@ function SolverBase:updateGUIParams()
 
 	if self.allowAccum then
 		if tooltip.checkboxTable('accum', self, 'displayVarAccumFunc') then
-			self:refreshSolverProgram()	-- I guess getDisplayCode is now in getSolverCode
+			self:refreshSolverProgram()
 			self.cmds:enqueueFillBuffer{buffer=self.accumBuf, size=ffi.sizeof(self.app.real) * self.numCells * 3}
 		end
 	end

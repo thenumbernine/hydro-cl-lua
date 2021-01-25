@@ -517,6 +517,13 @@ function Equation:getEnv()
 		env[k] = v
 	end
 
+	-- add any op's symbols:
+	for _,op in ipairs(solver.ops) do
+		for k,v in pairs(op.symbols or {}) do
+			env[k] = v
+		end
+	end
+
 	return env
 end
 
