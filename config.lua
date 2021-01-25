@@ -628,10 +628,14 @@ self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='euler', wenoMe
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', eqnArgs={incompressible=true}})))
 --self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='euler', eqnArgs={incompressible=true}, wenoMethod='2010 Shen Zha', order=5})))
 
--- viscosity in source terms:
+-- viscosity in source terms as finite-different explicit update
+-- TODO this is numerically unstable.  how about an implicit update version?
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler', eqnArgs={addViscousSource=true}})))
 -- not yet finished:
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler', eqnArgs={addViscousFlux=true}})))
+
+-- incompressible + viscosity
+--self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler', eqnArgs={incompressible=true, addViscousSource=true}})))
 
 
 -- Navier-Stokes-Wilcox:

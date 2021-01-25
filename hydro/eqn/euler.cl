@@ -9,7 +9,7 @@
 	/*real3 const */x\
 ) {\
 	(resultW)->rho = (U)->rho;\
-	(resultW)->v = real3_real_mul((U)->m, 1./(U)->rho);\
+	(resultW)->v = calc_v(U);\
 	(resultW)->P = calc_P(solver, U, x);\
 	(resultW)->ePot = (U)->ePot;\
 }
@@ -154,6 +154,10 @@
 	/*<?=cons_t?> const * const*/U,\
 	/*real3 const */x\
 ) (calc_eInt_from_cons(U, x) / C_v)
+
+#define /*real3*/ calc_v(\
+	/*<?=cons_t?> const * const*/U\
+) (real3_real_mul((U)->m, 1. / (U)->rho))
 
 //// MODULE_NAME: <?=applyInitCondCell?>
 //// MODULE_DEPENDS: <?=cartesianToCoord?>
@@ -573,15 +577,15 @@ if eqn.addViscousSource then
 	-- so add more derivative terms?
 ?>
 
-	real3 v = real3_real_mul(U->m, 1./U->rho);
+	real3 v = calc_v(U);
 
-<? local function getV(offset) return "real3_real_mul(U["..offset.."].m, 1./U["..offset.."].rho)" end ?>
+<? local function getV(offset) return "calc_v(U + "..offset..")" end ?>
 <?=eqn:makePartial2(getV, "real3", "d2v")?>
 
 	real3 div_tau = real3_zero;		// tau^ij_,j
 	<? for i,xi in ipairs(xNames) do ?>
 		<? for j,xj in ipairs(xNames) do ?>
-			div_tau.<?=xi?> += <?=clnumber(eqn.shearViscosity)?> * (
+			div_tau.<?=xi?> += solver->shearViscosity * (
 				d2v[<?=from3x3to6(j,j)-1?>].<?=xi?>
 				+ (1./3.) * d2v[<?=from3x3to6(i,j)-1?>].<?=xj?>
 			);
@@ -601,7 +605,7 @@ if eqn.addViscousSource then
 	<? if i==j then ?>
 		tau_ij -= (2./3.) * div_v;
 	<? end ?>
-		tau_ij *= <?=clnumber(eqn.shearViscosity)?>;
+		tau_ij *= solver->shearViscosity;
 		tau_dot_dv += tau_ij * dv.<?=xi?>.<?=xj?>;
 	}<? end ?>
 
@@ -614,7 +618,7 @@ if eqn.addViscousSource then
 <?=eqn:makePartial2(getT, "real", "d2T")?>
 
 	deriv->m = real3_add(deriv->m, div_tau);
-	deriv->ETotal += real3_dot(div_tau, v) + tau_dot_dv - <?=clnumber(eqn.heatConductivity)?> * sym3_trace(d2T);
+	deriv->ETotal += real3_dot(div_tau, v) + tau_dot_dv - solver->heatConductivity * sym3_trace(d2T);
 <?
 end	-- addViscousSource
 ?>

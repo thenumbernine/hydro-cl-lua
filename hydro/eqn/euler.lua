@@ -75,12 +75,11 @@ function Euler:init(args)
 ]],
 				--]=]
 				--[=[ reading via div(v), writing via div(m)
-				-- doesn't seem to be as stable as above
 				readVectorField = function(op,offset)
-					return 'real3_real_mul(U['..offset..'].m, 1./U['..offset..'].rho)'
+					return 'calc_v(U + '..offset..')'
 				end,
 				writeVectorField = function(op,dv)
-					return 'U->m = real3_sub(U->m, real3_real_mul('..dv..', 1./U->rho));'
+					return 'U->m = real3_sub(U->m, real3_real_mul('..dv..', U->rho));'
 				end,
 				postWriteVectorField = function()
 				end,
@@ -90,13 +89,14 @@ function Euler:init(args)
 		end
 	end
 
-	local materials = require 'hydro.materials'
 	
-	-- TODO make this a define or a solver var? right now I am inlining these directly
-	self.shearViscosity = args.shearViscosity or materials.Air.shearViscosity
-	self.heatConductivity = args.heatConductivity or materials.Air.heatConductivity
-
 	self.addViscousSource = args.addViscousSource
+	if self.addViscousSource then
+		local materials = require 'hydro.materials'
+		-- this just passes on to createInitState's addGuiVars
+		self.shearViscosity = args.shearViscosity or materials.Air.shearViscosity
+		self.heatConductivity = args.heatConductivity or materials.Air.heatConductivity
+	end
 
 	if args.addViscousFlux then
 		solver.ops:insert(require 'hydro.op.viscousflux'{
@@ -113,6 +113,12 @@ function Euler:createInitState()
 		{name='rhoMin', value=double and 1e-15 or 1e-7, units='kg/m^3'},
 		{name='PMin', value=double and 1e-15 or 1e-7, units='kg/(m*s^2)'},
 	}
+	if self.addViscousSource then
+		self:addGuiVars{
+			{name='shearViscosity', value=assert(self.shearViscosity), units='kg/(m*s)'},
+			{name='heatConductivity', value=assert(self.heatConductivity), units='kg/(m*s^3*K)'},
+		}
+	end
 end
 
 -- this one calcs cell prims once and uses it for all sides
