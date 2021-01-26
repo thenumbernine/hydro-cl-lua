@@ -159,7 +159,7 @@ end
 	<?=prim_t?> WR;\
 	<?=primFromCons?>(&WR, solver, UR, pt);\
 	real const sqrtRhoR = sqrt((UR)->rho);\
-	real const const PMagR = .5 * coordLenSq((UR)->B, pt); real hTotalR = ((UR)->ETotal + WR.P + PMagR) / (UR)->rho;\
+	real const PMagR = .5 * coordLenSq((UR)->B, pt); real hTotalR = ((UR)->ETotal + WR.P + PMagR) / (UR)->rho;\
 	real3 const vR = normal_vecDotNs(n, WR.v);\
 	real3 const BR = normal_vecDotNs(n, WR.B);\
 \
@@ -415,7 +415,7 @@ static inline real calc_Cs(
 //CA has units m/s
 static inline real3 calc_CA(
 	constant <?=solver_t?> const * const solver,
-	<?=cons_t?> const * const U
+	global <?=cons_t?> const * const U
 ) {
 	return real3_real_mul(U->B, 1./sqrt(U->rho * solver->mu0 / unit_kg_m_per_C2));
 }
@@ -456,7 +456,7 @@ static inline real3 calc_CA(
 
 //called from calcDT
 #define <?=calcCellMinMaxEigenvalues?>(\
-	/*<?=range_t?> * const */result,\
+	/*range_t * const */result,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */U,\
 	/*real3 const */pt,\
@@ -485,7 +485,7 @@ static inline real3 calc_CA(
 	real Cf = sqrt(CfSq);\
 	real Cs = sqrt(max(CsSq, 0.));\
 	real v_n = normal_vecDotN1(n, v);\
-	return (<?=range_t?>){.min=v_n - Cf, .max=v_n + Cf};\
+	return (range_t){.min=v_n - Cf, .max=v_n + Cf};\
 <? else ?>\
 	<?=prim_t?> W;\
 	<?=primFromCons?>(&W, solver, U, pt);\

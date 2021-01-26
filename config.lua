@@ -120,7 +120,7 @@ local args = {
 			-- from then on, any bigger tends to segfault somewhere after 'randomizing UBuf...' 
 			['AMD Accelerated Parallel Processing/gfx1010/gfx902'] = {
 				{4096,1,1},
-				{256,256,1},
+				{64,64,1},
 				{32,32,32},
 			},	
 		})[platAndDevicesNames]
@@ -257,7 +257,7 @@ local args = {
 	--initCond = 'Sedov',
 	--initCond = 'Noh',
 	--initCond = 'implosion',
-	initCond = 'Kelvin-Helmholtz',
+	--initCond = 'Kelvin-Helmholtz',
 	--initCond = 'Rayleigh-Taylor',	--FIXME ... get initial / static hydro potential working
 	--initCond = 'Colella-Woodward',
 	--initCond = 'double mach reflection',
@@ -276,7 +276,7 @@ local args = {
 	
 	-- states for ideal MHD or two-fluid (not two-fluid-separate)
 	--initCond = 'Brio-Wu',
-	--initCond = 'Orszag-Tang',
+	initCond = 'Orszag-Tang',
 	--initCond = 'MHD rotor',
 	--initCond = 'spinning magnetic fluid',
 	--initCond = 'magnetic fluid',
@@ -624,7 +624,7 @@ self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='euler', wenoMe
 --]]
 
 -- incompressible
-self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler', eqnArgs={incompressible=true}})))
+--self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler', eqnArgs={incompressible=true}})))
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', eqnArgs={incompressible=true}})))
 --self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='euler', eqnArgs={incompressible=true}, wenoMethod='2010 Shen Zha', order=5})))
 
@@ -694,7 +694,7 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn
 --		and works fine with backwards Euler 
 -- when run alongside HD Roe solver, curves don't match (different heat capacity ratios?)
 --		but that could be because of issues with simultaneous solvers.
---self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='mhd'})))
+self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='mhd'})))
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='mhd'})))
 
 -- explodes with Orszag-Tang
@@ -896,6 +896,7 @@ With hyperbolic gamma driver shift it has trouble.
 
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='euler', eqnArgs={incompressible=true}, mesh={type='image2d', extrude=1, image='blueprints/blueprint.png'}})))
 
+--self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='euler', mesh={type='quad2d', size={64, 64}}})))
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='hll', eqn='euler', mesh={type='quad2d', size={64, 64}}})))
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='euler-hllc', eqn='euler', mesh={type='quad2d', size={64, 64}}})))
 
@@ -906,7 +907,7 @@ With hyperbolic gamma driver shift it has trouble.
 
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='euler', mesh={type='quad2d_with_box_removed', size={64, 64}}})))
 
--- unstructured+incompressible
+-- TODO unstructured+incompressible
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='euler', eqnArgs={incompressible=true}, mesh={type='quad2d_with_cylinder_removed', size={64, 64}}})))
 
 -- polar, rmin=0, duplicated vtxs in the middle

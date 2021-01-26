@@ -89,6 +89,7 @@ function Euler:init(args)
 				--]=]
 			})
 		else
+--[=[ still working on this ...			
 			-- TODO instead of separating this from NoDiv, just abstract the face iteration
 			-- but you still have to deal with extra buffers
 			-- and then there's the biggest can of worms:
@@ -97,8 +98,10 @@ function Euler:init(args)
 			local NoDivUnstructured = require'hydro.op.nodiv-unstructured'
 			solver.ops:insert(NoDivUnstructured{
 				solver = solver,
+				potentialField = 'mPot',
 				vectorField = 'm',
 			})
+--]=]	
 		end
 	end
 

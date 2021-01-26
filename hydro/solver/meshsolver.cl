@@ -85,12 +85,14 @@ end--\
 	if (real3_lenSq(e->pos) > .7*.7) {\
 		/*outside = freeflow */\
 		/**result = *U; */\
+<? if false then ?>\
 		real rho = 1.;\
-		real3 v = _real3(0.1,0,0);\
+		real3 v = _real3(-0.1, 0, 0);\
 		real P = 1.;\
 		result->rho = rho;\
 		result->m = real3_real_mul(v, rho);\
 		result->ETotal = P / (solver->heatCapacityRatio - 1.) + (.5 * coordLenSq(v, x) + U->ePot) * rho;\
+<? end ?>\
 	} else {\
 		/* inside = reflect */\
 		/*reflectCons(result, U, e->normal, -1);*/\

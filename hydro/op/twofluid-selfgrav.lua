@@ -7,13 +7,6 @@ local TwoFluidSelfGrav = class(SelfGrav)
 
 TwoFluidSelfGrav.name = 'twofluid_selfgrav'
 
-function TwoFluidSelfGrav:getSymbolFields()
-	return TwoFluidSelfGrav.super.getSymbolFields(self):append{
-		'copyPotentialToReduce',
-		'offsetPotential',
-	}
-end
-
 function TwoFluidSelfGrav:getPoissonDivCode()
 	return [[
 	source = 4. * M_PI * calc_rho_from_U(U)
@@ -22,15 +15,18 @@ function TwoFluidSelfGrav:getPoissonDivCode()
 end
 
 function TwoFluidSelfGrav:getPoissonCode()
-	return self.solver.eqn:template([[
-#define <?=op.symbols.calcGravityAccel?>(\
+	return [[
+
+//// MODULE_NAME: <?=calcGravityAccel?>
+
+#define <?=calcGravityAccel?>(\
 	/*real3 * const */accel_g,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*global <?=cons_t?> * const */U,\
 	/*real3 const */pt\
 ) {\
 	*(accel_g) = real3_zero;\
-	\
+\
 	<? for side=0,solver.dim-1 do ?>{\
 		/* m/s^2 */\
 		(accel_g)->s<?=side?> = (\
@@ -40,7 +36,10 @@ function TwoFluidSelfGrav:getPoissonCode()
 	}<? end ?>\
 }
 
-kernel void <?=op.symbols.calcGravityDeriv?>(
+//// MODULE_NAME: <?=calcGravityDeriv?>
+//// MODULE_DEPENDS: <?=calcGravityAccel?>
+
+kernel void <?=calcGravityDeriv?>(
 	constant <?=solver_t?> const * const solver,
 	global <?=cons_t?> * const derivBuffer,
 	global <?=cons_t?> const * const UBuf,
@@ -53,7 +52,7 @@ kernel void <?=op.symbols.calcGravityDeriv?>(
 	global <?=cons_t?> const * const U = UBuf + index;
 	
 	real3 accel_g;
-	<?=op.symbols.calcGravityAccel?>(&accel_g, solver, U, pt);
+	<?=calcGravityAccel?>(&accel_g, solver, U, pt);
 
 	// kg/(m^2 s) = kg/m^3 * m/s^2
 <? for _,fluid in ipairs(eqn.fluids) do	
@@ -67,8 +66,10 @@ kernel void <?=op.symbols.calcGravityDeriv?>(
 ?>
 }
 
+//// MODULE_NAME: <?=copyPotentialToReduce?>
+
 // this matches hydro/op/selfgrav.lua
-kernel void <?=op.symbols.copyPotentialToReduce?>(
+kernel void <?=copyPotentialToReduce?>(
 	constant <?=solver_t?> const * const solver,
 	global real * const reduceBuf,
 	global <?=cons_t?> const * const UBuf
@@ -77,8 +78,10 @@ kernel void <?=op.symbols.copyPotentialToReduce?>(
 	reduceBuf[index] = UBuf[index].<?=op.potentialField?>;
 }
 
+//// MODULE_NAME: <?=offsetPotential?>
+
 // this matches hydro/op/selfgrav.lua
-kernel void <?=op.symbols.offsetPotential?>(
+kernel void <?=offsetPotential?>(
 	constant <?=solver_t?> const * const solver,
 	global <?=cons_t?> * const UBuf,
 	realparam const ePotMax
@@ -88,7 +91,7 @@ kernel void <?=op.symbols.offsetPotential?>(
 	U-><?=op.potentialField?> -= ePotMax;
 }
 
-]], {op=self})
+]]
 end
 
 return TwoFluidSelfGrav 

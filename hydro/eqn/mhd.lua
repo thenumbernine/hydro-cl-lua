@@ -227,7 +227,7 @@ function MHD:getDisplayVars()
 		{name='HTotal', code='value.vreal = calc_HTotal(solver, &W, U->ETotal, x);', units='kg/(m*s^2)'},
 		{name='hTotal', code='value.vreal = calc_hTotal(solver, &W, U->ETotal, x);', units='m^2/s^2'},
 		{name='speed of sound', code='value.vreal = calc_Cs(solver, &W);', units='m/s'},
-		{name='alfven velocity', code='value.vreal3 = calc_CA(solver, &U);', type='real3', units='m/s'},
+		{name='alfven velocity', code='value.vreal3 = calc_CA(solver, U);', type='real3', units='m/s'},
 		{name='Mach number', code='value.vreal = coordLen(W.v, x) / calc_Cs(solver, &W);'},
 		{name='temperature', code=self:template[[
 <? local materials = require 'hydro.materials' ?>
@@ -296,7 +296,7 @@ end
 
 function MHD:consWaveCodePrefix(n, U, x)
 	return self:template([[
-<?=range_t?> lambda;
+range_t lambda;
 <?=calcCellMinMaxEigenvalues?>(&lambda, solver, <?=U?>, <?=x?>, <?=n?>); 
 ]], {
 		n = n,

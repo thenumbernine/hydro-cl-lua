@@ -77,6 +77,7 @@ local add = scalar..'_add'
 local sub = scalar..'_sub'
 local real_mul = scalar..'_real_mul'
 
+-- TODO don't recalc vL and vR
 for j=0,solver.dim-1 do
 ?>		source = <?=add?>(
 			source,
