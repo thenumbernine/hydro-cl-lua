@@ -5,7 +5,6 @@ local math = require 'ext.math'
 local ffi = require 'ffi'
 local ig = require 'ffi.imgui'
 local tooltip = require 'hydro.tooltip'
-local template = require 'template'
 local CLBuffer = require 'cl.obj.buffer'
 
 local half = require 'hydro.half'
@@ -49,16 +48,15 @@ end
 
 function PoissonKrylov:getSymbolFields()
 	return table{
-		'mulWithoutBorder',
-		'square',
+		'mulWithoutBorder',				-- not really used / in a separate program
+		'square',						-- not really used / in a separate program
 		'linearFunc',
 		'copyVecToPotentialField',
 		'copyPotentialFieldToVecAndInitB',
 		-- shared with relaxation:
-		'initPotential',
-		'solveJacobi',
-		'copyWriteToPotentialNoGhost',
-		'setReduceToPotentialSquared',
+		'initPotential',				-- this seems to be the only thing shared between poisson_jacobi and poisson_krylov
+		'copyWriteToPotentialNoGhost',	-- TODO MOVE.  in poisson.cl but specific to poisson_jacobi/relaxation
+		'setReduceToPotentialSquared',	-- TODO SAME
 	}
 end
 
@@ -99,6 +97,7 @@ function PoissonKrylov:initSolver()
 	local codePrefix = solver.modules:getHeader(
 		table(solver.sharedModulesEnabled:keys())
 		:append{
+			solver.solver_t,
 			solver.symbols.OOB,
 		}:unpack())
 
@@ -204,7 +203,11 @@ function PoissonKrylov:initSolver()
 end
 
 local poissonKrylovCode = [[
-kernel void <?=op.symbols.linearFunc?>(
+
+//// MODULE_NAME: <?=linearFunc?>
+//// MODULE_DEPENDS: <?=cell_dx_i?> <?=cell_sqrt_det_g?>
+
+kernel void <?=linearFunc?>(
 	constant <?=solver_t?> const * const solver,
 	global real * const Y,
 	global real const * const X,
@@ -248,7 +251,9 @@ kernel void <?=op.symbols.linearFunc?>(
 	Y[index] = sum;
 }
 
-kernel void <?=op.symbols.copyPotentialFieldToVecAndInitB?>(
+//// MODULE_NAME: <?=copyPotentialFieldToVecAndInitB?>
+
+kernel void <?=copyPotentialFieldToVecAndInitB?>(
 	constant <?=solver_t?> const * const solver,
 	global real * const x,
 	global real * const b,
@@ -264,7 +269,9 @@ kernel void <?=op.symbols.copyPotentialFieldToVecAndInitB?>(
 	b[index] = source;
 }
 
-kernel void <?=op.symbols.copyVecToPotentialField?>(
+//// MODULE_NAME: <?=copyVecToPotentialField?>
+
+kernel void <?=copyVecToPotentialField?>(
 	constant <?=solver_t?>* solver,
 	global <?=cons_t?>* UBuf,
 	global const real* x
@@ -274,27 +281,25 @@ kernel void <?=op.symbols.copyVecToPotentialField?>(
 }
 ]]
 
-function PoissonKrylov:getModuleDepends_Poisson()
-	return {
-		self.solver.coord.symbols.cell_sqrt_det_g,
-		self.solver.coord.symbols.cell_dx_i,
-	}
-end
-
-function PoissonKrylov:initCodeModules(solver)
-	solver.modules:add{
-		name ='op.PoissonKrylov',
-		depends = self:getModuleDepends_Poisson(),
+function PoissonKrylov:initCodeModules()
+	local solver = self.solver
+	solver.modules:addFromMarkup{
 		code = solver.eqn:template(
-			file['hydro/op/poisson.cl']..'\n'
-			..poissonKrylovCode,
-			{
+			table{
+				file['hydro/op/poisson.cl'],
+				poissonKrylovCode,
+				self:getPoissonCode(),
+			}:concat'\n',
+			table(self.symbols, {
 				op = self,
-			}
-		)..'\n'
-		..(self:getPoissonCode() or ''),
+			})
+		)
 	}
-	solver.solverModulesEnabled['op.PoissonKrylov'] = true
+	solver.solverModulesEnabled[self.symbols.initPotential] = true
+	solver.solverModulesEnabled[self.symbols.copyWriteToPotentialNoGhost] = true
+	solver.solverModulesEnabled[self.symbols.copyPotentialFieldToVecAndInitB] = true
+	solver.solverModulesEnabled[self.symbols.copyVecToPotentialField] = true
+	solver.solverModulesEnabled[self.symbols.linearFunc] = true
 end
 
 function PoissonKrylov:refreshSolverProgram()

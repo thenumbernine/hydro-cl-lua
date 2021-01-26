@@ -7,7 +7,6 @@ return function(args)
 	end
 
 	local class = require 'ext.class'
-	local template = require 'template'
 
 	local NoDiv = class(parentClass)
 	NoDiv.name = 'NoDiv'
@@ -25,7 +24,7 @@ return function(args)
 		vectorField = vector field name within UBuf 
 		optionally you can skip vectorField's use by setting 
 			readVectorField = function(offset) for returning code to read at offset from U pointer
-			writeVectorField = function(dv) for returning code to write at U ptr to offset vector field by 'dv'
+			writeVectorField = function(dv) for returning code to subtract from ptr 'U' the value 'dv'
 
 		potentialField = potential field name within UBuf
 	
@@ -112,13 +111,15 @@ end
 	so delta . B' = delta . B - delta . del^-2 delta . B = ...should be 0
 	--]]
 	function NoDiv:getPoissonCode()
-		return self.solver.eqn:template([[
+		-- to-be-templated by parent class
+		return [[
+//// MODULE_NAME: <?=noDiv?>
 <?
 local scalar = op.scalar
 local sub = scalar..'_sub'
 local real_mul = scalar..'_real_mul'
 ?>
-kernel void <?=op.symbols.noDiv?>(
+kernel void <?=noDiv?>(
 	constant <?=solver_t?> const * const solver,
 	global <?=cons_t?> * const UBuf
 ) {
@@ -138,8 +139,10 @@ kernel void <?=op.symbols.noDiv?>(
 	<?=op:writeVectorField'dv'?>
 }
 
+//// MODULE_NAME: <?=copyPotentialToReduce?>
+
 //TODO just use the display var kernels
-kernel void <?=op.symbols.copyPotentialToReduce?>(
+kernel void <?=copyPotentialToReduce?>(
 	constant <?=solver_t?> const * const solver,
 	global real * const reduceBuf,
 	global <?=cons_t?> const * const UBuf
@@ -147,9 +150,14 @@ kernel void <?=op.symbols.copyPotentialToReduce?>(
 	<?=SETBOUNDS?>(0,0);
 	reduceBuf[index] = UBuf[index].<?=op.potentialField?>;
 }
-]], 	{
-			op = self,
-		})
+]]
+	end
+
+	function NoDiv:initCodeModules()
+		NoDiv.super.initCodeModules(self)
+		local solver = self.solver
+		solver.solverModulesEnabled[self.symbols.noDiv] = true
+		solver.solverModulesEnabled[self.symbols.copyPotentialToReduce] = true
 	end
 
 	function NoDiv:refreshSolverProgram()

@@ -11,10 +11,11 @@ local real = require 'hydro.real'
 local LagrangianCoordinateShift = class()
 
 function LagrangianCoordinateShift:init(args)
-	self.solver = args.solver
+	self.solver = assert(args.solver)
 end
 
-function LagrangianCoordinateShift:initCodeModules(solver)
+function LagrangianCoordinateShift:initCodeModules()
+	local solver = self.solver
 	solver.modules:add{
 		name = 'op.LagrangianCoordinateShift',
 		code = solver.eqn:template([[

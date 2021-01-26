@@ -126,6 +126,7 @@ function DrawMeshHeatmap:display(varName, ar)
 	
 	gl.glEnable(gl.GL_DEPTH_TEST)
 
+	-- TODO move this somewhere to work with all display methods of meshsolver
 	if solver.showVertexes then
 		local mesh = solver.mesh
 		gl.glPointSize(3)
@@ -145,6 +146,7 @@ function DrawMeshHeatmap:display(varName, ar)
 		gl.glPointSize(1)
 	end
 
+	-- TODO move this somewhere to work with all display methods of meshsolver
 	if solver.showFaces then
 		local mesh = solver.mesh
 		
@@ -196,6 +198,7 @@ function DrawMeshHeatmap:display(varName, ar)
 --]=]
 	end
 
+	-- TODO move this somewhere to work with all display methods of meshsolver
 	if solver.showNormals then
 		local mesh = solver.mesh
 		gl.glBegin(gl.GL_LINES)
@@ -203,7 +206,7 @@ function DrawMeshHeatmap:display(varName, ar)
 			for fi=0,c.faceCount-1 do
 				local f = mesh.faces.v[mesh.cellFaceIndexes.v[fi + c.faceOffset]]
 				local pos = (f.pos - c.pos) * solver.drawCellScale + c.pos
-				local dx = .5 * math.sqrt(f.area) * solver.drawCellScale
+				local dx = .1 * math.sqrt(f.area) * solver.drawCellScale
 
 				gl.glColor3f(1,0,0)
 				gl.glVertex3d(pos:unpack())

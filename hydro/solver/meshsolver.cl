@@ -31,7 +31,7 @@
 	/*<?=cons_t?> * const */result,\
 	/*<?=cons_t?> const * const */U,\
 	/*real3 */n,\
-	/*float */restitution\
+	/*real const */restitution\
 ) {\
 	*result = *U;\
 <? --\
@@ -70,24 +70,30 @@ end--\
 }
 
 #define boundaryCons(\
+	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> * const */result,\
 	/*<?=cons_t?> const * const */U,\
 	/*global <?=face_t?> const * const */e,\
-	/*float */restitution\
+	/*real const */restitution\
 ) {\
 <? if false then -- reflect: m dot n = 0 ?>\
 	reflectCons(result, U, e->normal, 1.);\
 <? end ?>\
 <? if true then -- for [-1,1]^2 box with cylinder removed ?>\
 	*result = *U;\
+	real3 const x = e->pos;\
 	if (real3_lenSq(e->pos) > .7*.7) {\
-		/*if (e->pos.x <= -.95) */{\
-			/*outside = freeflow */\
-			/**result = *U; */\
-			result->m = real3_real_mul(_real3(.1,0,0), U->rho);\
-		}\
+		/*outside = freeflow */\
+		/**result = *U; */\
+		real rho = 1.;\
+		real3 v = _real3(0.1,0,0);\
+		real P = 1.;\
+		result->rho = rho;\
+		result->m = real3_real_mul(v, rho);\
+		result->ETotal = P / (solver->heatCapacityRatio - 1.) + (.5 * coordLenSq(v, x) + U->ePot) * rho;\
 	} else {\
 		/* inside = reflect */\
+		/*reflectCons(result, U, e->normal, -1);*/\
 		/*reflectCons(result, U, e->normal, 0.);*/\
 		reflectCons(result, U, e->normal, 1.); /* ghost U momentum is reflected from U's, s the velocity is zero (right?) */\
 		/*result->m = real3_zero;*/\
@@ -108,6 +114,7 @@ end--\
 }
 
 void getEdgeStates(
+	constant <?=solver_t?> const * const solver,
 	<?=cons_t?> * const UL,
 	<?=cons_t?> * const UR,
 	global <?=face_t?> const * const e,
@@ -121,10 +128,10 @@ void getEdgeStates(
 		*UR = UBuf[iR];
 	} else if (iL != -1) {
 		*UL = UBuf[iL];
-		boundaryCons(UR, UL, e, restitution);
+		boundaryCons(solver, UR, UL, e, restitution);
 	} else if (iR != -1) {
 		*UR = UBuf[iR];
-		boundaryCons(UL, UR, e, restitution);
+		boundaryCons(solver, UL, UR, e, restitution);
 	} else {	// both iL and iR are null ...
 		//error
 		for (int i = 0; i < numStates; ++i) {
@@ -160,7 +167,7 @@ kernel void <?=calcFlux?>(
 	<?=normal_t?> const n = normal_forFace(face);
 	
 	<?=cons_t?> UL, UR;	
-	getEdgeStates(&UL, &UR, face, UBuf, solver->boundaryRestitution);
+	getEdgeStates(solver, &UL, &UR, face, UBuf, solver->boundaryRestitution);
 
 	//TODO option to rotate to align fluxes?
 	// then you'd have to build a new normal_t based on the aligned (x-axis) normal.

@@ -730,7 +730,7 @@ real <?=fluxLimiter?>(real r) {
 	-- when building modules for ops, only add them to solverModulesEnabled, not sharedModulesEnabled, since init doesn't need them
 	for _,op in ipairs(self.ops) do
 		if op.initCodeModules then
-			op:initCodeModules(self)
+			op:initCodeModules()
 		end
 	end
 end

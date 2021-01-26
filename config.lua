@@ -62,9 +62,9 @@ local args = {
 	
 	-- [[ Cartesian
 	coord = 'cartesian',
-	coordArgs = {vectorComponent='holonomic'},		-- use the coordinate derivatives to represent our vector components (though they may not be normalized)
+	--coordArgs = {vectorComponent='holonomic'},		-- use the coordinate derivatives to represent our vector components (though they may not be normalized)
 	--coordArgs = {vectorComponent='anholonomic'},		-- use orthonormal basis to represent our vector components
-	--coordArgs = {vectorComponent='cartesian'},			-- use cartesian vector components 
+	coordArgs = {vectorComponent='cartesian'},			-- use cartesian vector components 
 	mins = cmdline.mins or {-1, -1, -1},
 	maxs = cmdline.maxs or {1, 1, 1},
 	
@@ -624,14 +624,14 @@ self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='euler', wenoMe
 --]]
 
 -- incompressible
---self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler', eqnArgs={incompressible=true}})))
+self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler', eqnArgs={incompressible=true}})))
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', eqnArgs={incompressible=true}})))
 --self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='euler', eqnArgs={incompressible=true}, wenoMethod='2010 Shen Zha', order=5})))
 
 -- viscosity in source terms as finite-different explicit update
 -- TODO this is numerically unstable.  how about an implicit update version?
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler', eqnArgs={viscosity='rhs-explicit'}})))
-self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler', eqnArgs={viscosity='rhs-implicit'}})))
+--self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler', eqnArgs={viscosity='rhs-implicit'}})))
 -- not yet finished:
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler', eqnArgs={viscosity='flux'}})))
 
@@ -670,7 +670,7 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='srhd'})))
 --self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='srhd', wenoMethod='2010 Shen Zha', order=5})))
 
--- srhd incompressible
+-- srhd incompressible.  TODO i guess i broke it.
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='srhd', eqnArgs={incompressible=true}})))
 
 
@@ -887,6 +887,7 @@ With hyperbolic gamma driver shift it has trouble.
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='euler', mesh={type='p2dfmt', meshfile='n0012_113-33.p2dfmt'}})))
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='euler', mesh={type='quad2dcbrt', size={64, 64}}})))
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='euler', mesh={type='quad2dcubed', size={64, 64}}})))
+--self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='euler', mesh={type='quad2dtwist', size={64, 64}}})))
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='euler', mesh={type='cylinder2d', size={64, 64}}})))
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='euler', mesh={type='cube3d', size={16, 16, 16}}})))
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='euler', mesh={type='cylinder3d', size={16, 16, 16}}})))
@@ -901,8 +902,12 @@ With hyperbolic gamma driver shift it has trouble.
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='euler', mesh={type='quad2d_with_cylinder_removed', size={32, 32}}})))
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='euler', mesh={type='quad2d_with_cylinder_removed', size={64, 64}}})))
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='euler', mesh={type='quad2d_with_cylinder_removed', size={128, 128}}})))
--- TODO hmm, crashed (and took a long time) to build 256x256
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='euler', mesh={type='quad2d_with_cylinder_removed', size={256, 256}}})))
+
+--self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='euler', mesh={type='quad2d_with_box_removed', size={64, 64}}})))
+
+-- unstructured+incompressible
+--self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='euler', eqnArgs={incompressible=true}, mesh={type='quad2d_with_cylinder_removed', size={64, 64}}})))
 
 -- polar, rmin=0, duplicated vtxs in the middle
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='euler', mesh={type='polar2d', size={8, 8}}})))

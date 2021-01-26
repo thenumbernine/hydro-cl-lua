@@ -1,7 +1,6 @@
 local class = require 'ext.class'
 local file = require 'ext.file'
 local table = require 'ext.table'
-local template = require 'template'
 local ig = require 'ffi.imgui'
 local ffi = require 'ffi'
 local tooltip = require 'hydro.tooltip'
@@ -71,16 +70,22 @@ function Relaxation:getSymbolFields()
 	}
 end
 
-function Relaxation:initCodeModules(solver)
-	local name = self.symbolPrefix..'Relaxation'
-	solver.modules:add{
-		name = name,
-		depends = {
-			solver.symbols.SETBOUNDS_NOGHOST,
-		},
-		code = solver.eqn:template(file[self.solverCodeFile], {op = self}),
+function Relaxation:initCodeModules()
+	local solver = self.solver
+	solver.modules:addFromMarkup{
+		code = solver.eqn:template(
+			file[self.solverCodeFile], 
+			table(self.symbols, {
+				op = self,
+			})
+		),
 	}
-	solver.solverModulesEnabled[name] = true
+	-- provided in poisson_jacobi and poisson_krylov's poisson.cl
+	solver.solverModulesEnabled[self.symbols.initPotential] = true
+	solver.solverModulesEnabled[self.symbols.copyWriteToPotentialNoGhost] = true
+	solver.solverModulesEnabled[self.symbols.setReduceToPotentialSquared] = true
+	-- provided in their extra code:
+	solver.solverModulesEnabled[self.symbols.solveJacobi] = true
 end
 
 function Relaxation:refreshSolverProgram()
@@ -92,6 +97,12 @@ function Relaxation:refreshSolverProgram()
 	if self.stopOnEpsilon then
 		self.solveJacobiKernelObj.obj:setArg(4, solver.reduceBuf)
 	end
+	
+	-- TODO if we are using this 'writeBufObj'
+	-- and this kernel has to copy to the potential field
+	-- then ... why store the potential field at all?
+	-- except maybe in cases where it is used elsewhere, like ePot <-> ETotal
+	-- but ... with noDiv, why store vPot at all?
 	self.copyWriteToPotentialNoGhostKernelObj = solver.solverProgramObj:kernel{
 		name = self.symbols.copyWriteToPotentialNoGhost,
 		setArgs={
@@ -103,13 +114,13 @@ function Relaxation:refreshSolverProgram()
 	}
 
 	self.setReduceToPotentialSquaredKernelObj = solver.solverProgramObj:kernel{
-		name=self.symbols.setReduceToPotentialSquared,
-		setArgs={
+		name = self.symbols.setReduceToPotentialSquared,
+		setArgs = {
 			solver.solverBuf,
 			solver.reduceBuf,
 			solver.UBuf,
 		},
-		domain=solver.domainWithoutBorder,
+		domain = solver.domainWithoutBorder,
 	}
 	
 	self.lastResidual = 0

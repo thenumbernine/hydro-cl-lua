@@ -95,13 +95,20 @@ function SRHD:init(args)
 		if args.incompressible then
 			local NoDiv = require 'hydro.op.nodiv'{
 				poissonSolver = require 'hydro.op.poisson_jacobi',	-- krylov is having errors.  TODO bug in its boundary code?
+				-- TODO TODO now jacobi is crashing as well.  seems I broke something.
 			}
 			self.solver.ops:insert(NoDiv{
 				solver = self.solver,
+				potentialField = 'SPot',	-- TODO don't store this
+				
+				codeDepends = {
+					assert(self.symbols.eqn_common),
+				},
+				
+			-- [=[ using 0 = div S = div (D^2 h v / ρ)
 				vectorField = 'S',
-				potentialField = 'SPot',
 			
-				-- S_i = ρ h W^2 v_i = D^2 h / ρ
+				-- S_i = ρ h W^2 v_i = D^2 h v_i / ρ
 				-- S_i,j = (D^2 h v_i / ρ)_,j
 				-- = (D^2 h / ρ)_,j v_i + (D^2 h / ρ) v_i,j
 				-- = (D^2 h / ρ)_,j v_i + (D^2 h / ρ) v_i,j = 0
@@ -120,6 +127,16 @@ function SRHD:init(args)
 		);
 	}<? end ?>
 ]],
+			--]=]
+			--[=[ reading via div v, writing via div S
+				readVectorField = function(op, offset)
+					local U = 'U['..offset..']'
+					return 'real3_real_mul('..U..'.S, '..U..'.D * '..U..'.D / '..U..'.rho * calc_h('..U..'.rho, calc_P(solver, '..U..'.rho, '..U..'.eInt), '..U..'.eInt))'
+				end,
+				writeVectorField = function(op, dv)
+					return 'U->S = real3_sub(U->S, real3_real_mul('..dv..', U->D * U->D / U->rho * calc_h(U->rho, calc_P(solver, U->rho, U->eInt), U->eInt)));'
+				end,
+			--]=]
 			})
 		end
 	end

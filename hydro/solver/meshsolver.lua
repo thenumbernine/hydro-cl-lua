@@ -7,6 +7,7 @@ https://turbmodels.larc.nasa.gov/naca0012_grids.html
 local ffi = require 'ffi'
 local class = require 'ext.class'
 local table = require 'ext.table'
+local math = require 'ext.math'
 local file = require 'ext.file'
 local vec3sz = require 'vec-ffi.vec3sz'
 local vec3f = require 'vec-ffi.vec3f'
@@ -52,10 +53,10 @@ NOTICE initCond is tied closely to grid mins/maxs...
 so how should meshfiles use init states?
 --]]
 function MeshSolver:initMeshVars(args)
-	self.showVertexes = false
-	self.showFaces = false
-	self.showNormals = false
-	self.showValues = true
+	self.showVertexes = cmdline.showVertexes or false
+	self.showFaces = cmdline.showFaces or false
+	self.showNormals = cmdline.showNormals or false
+	self.showValues = cmdline.showValues == nil and true or cmdline.showValues	-- default to true
 	self.drawCellScale = 1
 
 	-- TODO make this a param of gridsolver as well

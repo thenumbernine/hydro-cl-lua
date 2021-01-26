@@ -9,7 +9,8 @@ function GLM_MHD_UpdatePsi:init(args)
 	self.solver = assert(args.solver)
 end
 
-function GLM_MHD_UpdatePsi:initCodeModules(solver)
+function GLM_MHD_UpdatePsi:initCodeModules()
+	local solver = self.solver
 	solver.modules:add{
 		name = 'op.GLM_MHD_UpdatePsi',
 		depends = {

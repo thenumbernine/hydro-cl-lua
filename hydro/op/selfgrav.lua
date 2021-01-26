@@ -63,13 +63,12 @@ function SelfGrav:getPoissonDivCode()
 ]], {op=self})
 end
 
-function SelfGrav:initCodeModules(solver)
-	SelfGrav.super.initCodeModules(self, solver)
+function SelfGrav:getPoissonCode()
+	return [[
 
-	solver.modules:add{
-		name = self.symbols.calcGravityAccel,
-		code = solver.eqn:template([[
-#define <?=op.symbols.calcGravityAccel?>(\
+//// MODULE_NAME: <?=calcGravityAccel?>
+
+#define <?=calcGravityAccel?>(\
 	/*real3 * const */accel_g,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*global <?=cons_t?> * const */U,\
@@ -86,24 +85,11 @@ function SelfGrav:initCodeModules(solver)
 		) / (2. * solver->grid_dx.s<?=side?>);\
 	}<? end ?>\
 }
-]],
-		{
-			op = self,
-		}),
-	}
-end
 
-function SelfGrav:getModuleDepends_Poisson()
-	return table(SelfGrav.super.getModuleDepends_Poisson(self)):append{
-		'units',
-		'realparam',	-- used in offsetPotential
-		self.symbols.calcGravityAccel,
-	}
-end
+//// MODULE_NAME: <?=calcGravityDeriv?>
+//// MODULE_DEPENDS: units realparam <?=calcGravityAccel?>
 
-function SelfGrav:getPoissonCode()
-	return self.solver.eqn:template([[
-kernel void <?=op.symbols.calcGravityDeriv?>(
+kernel void <?=calcGravityDeriv?>(
 	constant <?=solver_t?> const * const solver,
 	global <?=cons_t?> * const derivBuffer,
 	global <?=cons_t?> const * const UBuf,
@@ -116,7 +102,7 @@ kernel void <?=op.symbols.calcGravityDeriv?>(
 	global <?=cons_t?> const * const U = UBuf + index;
 
 	real3 accel_g;
-	<?=op.symbols.calcGravityAccel?>(&accel_g, solver, U, pt);
+	<?=calcGravityAccel?>(&accel_g, solver, U, pt);
 
 	// kg/(m^2 s) = kg/m^3 * m/s^2
 	deriv->m = real3_sub(deriv->m, real3_real_mul(accel_g, U->rho));
@@ -125,8 +111,10 @@ kernel void <?=op.symbols.calcGravityDeriv?>(
 	deriv->ETotal -= real3_dot(U->m, accel_g);
 }
 
+//// MODULE_NAME: <?=copyPotentialToReduce?>
+
 //TODO just use the display var kernels
-kernel void <?=op.symbols.copyPotentialToReduce?>(
+kernel void <?=copyPotentialToReduce?>(
 	constant <?=solver_t?> const * const solver,
 	global real* reduceBuf,
 	global const <?=cons_t?>* UBuf
@@ -135,8 +123,10 @@ kernel void <?=op.symbols.copyPotentialToReduce?>(
 	reduceBuf[index] = UBuf[index].<?=op.potentialField?>;
 }
 
+//// MODULE_NAME: <?=offsetPotential?>
+
 //keep potential energy negative
-kernel void <?=op.symbols.offsetPotential?>(
+kernel void <?=offsetPotential?>(
 	constant <?=solver_t?> const * const solver,
 	global <?=cons_t?>* UBuf,
 	realparam ePotMax
@@ -145,7 +135,16 @@ kernel void <?=op.symbols.offsetPotential?>(
 	global <?=cons_t?>* U = UBuf + index;
 	U-><?=op.potentialField?> -= ePotMax;
 }
-]], {op=self})
+]]
+end
+
+function SelfGrav:initCodeModules()
+	SelfGrav.super.initCodeModules(self)
+	
+	local solver = self.solver
+	solver.solverModulesEnabled[self.symbols.calcGravityDeriv] = true
+	solver.solverModulesEnabled[self.symbols.copyPotentialToReduce] = true
+	solver.solverModulesEnabled[self.symbols.offsetPotential] = true
 end
 
 function SelfGrav:refreshSolverProgram()

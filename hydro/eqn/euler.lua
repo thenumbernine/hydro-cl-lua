@@ -43,23 +43,25 @@ function Euler:init(args)
 	local solver = self.solver
 
 	if require 'hydro.solver.meshsolver'.is(solver) then
-		print("not using ops (selfgrav, nodiv, etc) with mesh solvers yet")
+		print("not using selfgrav with mesh solvers yet")
 	else
 		local SelfGrav = require 'hydro.op.selfgrav'
 		self.gravOp = SelfGrav{solver = solver}
 		solver.ops:insert(self.gravOp)
+	end
 
-		if args.incompressible then
+	if args.incompressible then
+		if not require 'hydro.solver.meshsolver'.is(solver) then
 			local NoDiv = require 'hydro.op.nodiv'{
 				poissonSolver = require 'hydro.op.poisson_jacobi',	-- krylov is having errors.  TODO bug in its boundary code?
 			}
 			solver.ops:insert(NoDiv{
 				solver = solver,
+				potentialField = 'mPot',	-- TODO don't store this
 			
-				-- [=[ using div (m/rho) = 0, solve for div m:
+				--[=[ using div (m/rho) = 0, solve for div m:
 				-- TODO field as a read function, and just erad 
 				vectorField = 'm',
-				potentialField = 'mPot',
 			
 				-- div v = 0
 				-- div (m/ρ) = 0
@@ -74,17 +76,28 @@ function Euler:init(args)
 	}<? end ?>
 ]],
 				--]=]
-				--[=[ reading via div(v), writing via div(m)
+				-- [=[ reading via div(v), writing via div(m)
 				readVectorField = function(op,offset)
 					return 'calc_v(U + '..offset..')'
 				end,
 				writeVectorField = function(op,dv)
 					return 'U->m = real3_sub(U->m, real3_real_mul('..dv..', U->rho));'
 				end,
-				postWriteVectorField = function()
-				end,
-				potentialField = 'mPot',
+				codeDepends = {
+					assert(self.symbols.eqn_common),
+				},
 				--]=]
+			})
+		else
+			-- TODO instead of separating this from NoDiv, just abstract the face iteration
+			-- but you still have to deal with extra buffers
+			-- and then there's the biggest can of worms:
+			-- the # faces ~= (usually >=) the # cells
+			-- so our A x = b function will be overconstrained
+			local NoDivUnstructured = require'hydro.op.nodiv-unstructured'
+			solver.ops:insert(NoDivUnstructured{
+				solver = solver,
+				vectorField = 'm',
 			})
 		end
 	end

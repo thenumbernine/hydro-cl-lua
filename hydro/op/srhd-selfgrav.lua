@@ -30,16 +30,10 @@ end
 
 function SRHDSelfGrav:getSymbolFields()
 	return SRHDSelfGrav.super.getSymbolFields(self):append{
-		'copyPotentialToReduce',
-		'offsetPotential',
+		'copyPotentialToReduce',	-- TODO use this?
+		'offsetPotential',			-- TODO this too?
 		'calcGravityAccel',
 		'calcGravityDeriv',
-	}
-end
-
-function SRHDSelfGrav:getModuleDepends_Poisson()
-	return table(SRHDSelfGrav.super.getModuleDepends_Poisson(self)):append{
-		'units',
 	}
 end
 
@@ -54,8 +48,11 @@ function SRHDSelfGrav:getPoissonDivCode()
 end
 
 function SRHDSelfGrav:getPoissonCode()
-	return self.solver.eqn:template([[
-kernel void <?=op.symbols.calcGravityDeriv?>(
+	return [[
+//// MODULE_NAME: <?=calcGravityDeriv?>
+//// MODULE_DEPENDS: units
+
+kernel void <?=calcGravityDeriv?>(
 	constant <?=solver_t?> const * const solver,
 	global <?=cons_t?> * const derivBuffer,
 	global <?=cons_t?> const * const UBuf
@@ -166,10 +163,16 @@ kernel void <?=op.symbols.calcGravityDeriv?>(
 	deriv->tau -= U->rho * dW_dt * (2. * h * W - 1.);
 }
 
-]],
-	{
-		op = self,
-	})
+]]
+end
+
+function SRHDSelfGrav:initCodeModules()
+	SRHDSelfGrav.super.initCodeModules(self)
+
+	local solver = self.solver
+	solver.solverModulesEnabled[self.symbols.calcGravityDeriv] = true
+	--solver.solverModulesEnabled[self.symbols.copyPotentialToReduce] = true
+	--solver.solverModulesEnabled[self.symbols.offsetPotential] = true
 end
 
 function SRHDSelfGrav:refreshSolverProgram()
