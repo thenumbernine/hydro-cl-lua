@@ -24,7 +24,7 @@ kernel void updatePsi(
 	global <?=cell_t?> const * const cellBuf
 ) {
 	<?=SETBOUNDS?>(0,0);
-	real3 const const x = cellBuf[index].pos;
+	real3 const x = cellBuf[index].pos;
 
 	global <?=cons_t?> * const U = UBuf + index;
 	

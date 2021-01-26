@@ -197,7 +197,7 @@ kernel void <?=initDerivs?>(
 }
 
 //// MODULE_NAME: <?=calcCellMinMaxEigenvalues?>
-//// MODULE_DEPENDS: range_t <?=primFromCons?>
+//// MODULE_DEPENDS: <?=range_t?> <?=primFromCons?>
 
 // TODO find out where mu_0 goes in the code below
 
@@ -507,7 +507,7 @@ kernel void <?=initDerivs?>(
 }
 
 //// MODULE_NAME: <?=eigen_forCell?>
-//// MODULE_DEPENDS: <?=solver_t?> <?=primFromCons?> <?=normal_t?> coordLenSq <?=eigen_forRoeAvgs?>
+//// MODULE_DEPENDS: <?=solver_t?> <?=primFromCons?> <?=normal_t?> <?=coordLenSq?> <?=eigen_forRoeAvgs?>
 
 #define <?=eigen_forCell?>(\
 	/*<?=eigen_t?> * const */eig,\

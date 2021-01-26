@@ -315,7 +315,7 @@ end
 
 function MHD:consWaveCodePrefix(n, U, x)
 	return self:template([[
-<?=range_t?> lambda;
+range_t lambda;
 <?=calcCellMinMaxEigenvalues?>(&lambda, solver, <?=U?>, <?=x?>, <?=n?>); 
 ]], {
 		n = n,
