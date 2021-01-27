@@ -1132,7 +1132,7 @@ end) then
 	},
 	
 	{
-		name = 'cyclone',
+		name = 'jet',
 		getDepends = function(self)
 			return table{
 				self.solver.coord.symbols.coordMap,
@@ -1144,9 +1144,12 @@ end) then
 			-- add to solver, not self, so boundary can read them
 			-- TODO should we pass initCond to boundary?
 			self.solver.eqn:addGuiVars{
-				{name = 'init_rho', value = 1},
-				{name = 'init_P', value = 1},
+				{name = 'init_rho', value = .1},
+				{name = 'init_P', value = .1},
+				{name = 'init_inlet_rho', value = 1},
 				{name = 'init_inlet_v', value = .1},
+				{name = 'init_inlet_P', value = 1},
+				{name = 'inlet_r', value = .1},
 			}
 		end,
 		getInitCondCode = function(self)
@@ -1154,7 +1157,7 @@ end) then
 
 			local ProblemBoundary = class(solver.Boundary)
 			
-			ProblemBoundary.name = 'cyclone problem boundary'
+			ProblemBoundary.name = 'jet boundary'
 		
 			function ProblemBoundary:getCode(args)
 				local dst
@@ -1171,44 +1174,109 @@ end) then
 					end
 				else
 					lines:insert(solver.eqn:template([[
+<? local isSRHD = require 'hydro.eqn.srhd'.is(eqn) ?>
 {
 	real3 const x = cellBuf[<?=dst?>].pos;
 	real3 const xc = coordMap(x);
 	bool inlet = false;
 	if (xc.x > 0) {
-		real dy = xc.y - .5;
-		real dz = xc.z - .5;
+		real dy = xc.y;// - .5;
+		real dz = <?= solver.dim == 3 and 'xc.z - .5' or '0'?>;
 		real dyzSq = dy*dy + dz*dz;
-		inlet = dyzSq < .1*.1;
+		inlet = dyzSq < solver->inlet_r * solver->inlet_r;
 	}
-	<?=prim_t?> W = {.ptr={0}};
-	W.rho = solver->init_rho;
-	W.v = real3_zero;
-	W.P = solver->init_P;
-	W.ePot = 0;
+	<?=isSRHD and prim_only_t or prim_t?> prim = {.ptr={0}};
+
 	if (inlet) {
-		W.v = _real3(-solver->init_inlet_v, 0., 0.);
+		prim.rho = solver->init_inlet_rho;
+		prim.v = _real3(-solver->init_inlet_v, 0., 0.);
+<? if not isSRHD then ?>
+		prim.P = solver->init_inlet_P;
+		prim.ePot = 0;
+<? else ?>
+		prim.eInt = calc_eInt_from_P(solver, prim.rho, solver->init_inlet_P);
+<? end ?>
+
+
+<? if isSRHD then ?>
+		consFromPrimOnly(buf + <?=dst?>, solver, &prim, x);
+<? else ?>
+		<?=consFromPrim?>(buf + <?=dst?>, solver, &prim, x);
+<? end ?>
+
+	} else {
+
+		if (xc.x < 0) {
+//freeflow b.c.
+<?
+do
+	local dst, src
+	if args.minmax == 'min' then
+		dst = args.index'j'
+		src = args.index'solver->numGhost'
+	elseif args.minmax == 'max' then
+		local gridSizeSide = 'solver->gridSize.'..xNames[args.side]
+		dst = args.index(gridSizeSide..' - solver->numGhost + j')
+		src = args.index(gridSizeSide..' - solver->numGhost - 1')
+	end
+?>	<?=bc:assignDstSrc(dst, src, args)?>
+<?
+end
+?>
+		} else {
+
+//constant b.c.
+		prim.rho = solver->init_rho;
+		prim.v = real3_zero;
+<? if not isSRHD then ?>
+		prim.P = solver->init_P;
+		prim.ePot = 0;
+<? else ?>
+		prim.eInt = calc_eInt_from_P(solver, prim.rho, solver->init_P);
+<? end ?>
+	
+<? if isSRHD then ?>
+		consFromPrimOnly(buf + <?=dst?>, solver, &prim, x);
+<? else ?>
+		<?=consFromPrim?>(buf + <?=dst?>, solver, &prim, x);
+<? end ?>	
+		}	
 	}
-	<?=consFromPrim?>(buf + <?=dst?>, solver, &W, x);
+
 }
 ]], 				{
+						bc = self,
 						args = args,
 						dst = dst,
 						eqn = solver.eqn,
 					}))
 				end
-				return lines:concat'\n', {
+				local depends = table{
 					assert(solver.eqn.symbols.prim_t),
 					assert(solver.eqn.symbols.consFromPrim),
 					assert(solver.coord.symbols.coordMap),
 				}
+				if require 'hydro.eqn.srhd'.is(solver.eqn) then
+					depends:append{
+						assert(solver.eqn.symbols.eqn_common),
+					}
+				end
+
+				return lines:concat'\n', depends
 			end
 
 			local oldGetBoundaryProgramArgs = solver.getBoundaryProgramArgs
 			function solver:getBoundaryProgramArgs()
 				for _,xi in ipairs(xNames) do
 					for _,minmax in ipairs{'min', 'max'} do
-						self.boundaryMethods[xi..minmax] = ProblemBoundary()
+						local side = xi..minmax
+						if (solver.coord.name == 'cylinder' and side == 'xmin') 
+						or (solver.coord.name == 'spherical' and side ~= 'xmax')
+						then
+							-- don't replace
+						else
+							self.boundaryMethods[side] = ProblemBoundary()
+						end
 					end
 				end
 				local args = oldGetBoundaryProgramArgs(self)
@@ -1362,16 +1430,6 @@ end) then
 ]], 		{
 				solver = solver,
 			})
-		end,
-	},
-
-	{
-		'jet',	-- TODO find some paper that describes this and implement it
-		getInitCondCode = function(self)
-			return [[
-	rho = .1;
-	P = 1;
-]]
 		end,
 	},
 

@@ -3,7 +3,7 @@ TODO one config per experiment (initial condition + config)
 and no more setting config values (boundary, etc) in the init cond file
 --]]
 
-local dim = cmdline.dim or 3
+local dim = cmdline.dim or 2
 local args = {
 	app = self, 
 	eqn = cmdline.eqn,
@@ -58,7 +58,7 @@ local args = {
 	--slopeLimiter = 'superbee',
 
 	-- this is functional without usePLM, but doing so falls back on the cell-centered buffer, which with the current useCTU code will update the same cell twice from different threads
-	useCTU = true,
+	--useCTU = true,
 	
 	-- [[ Cartesian
 	coord = 'cartesian',
@@ -247,7 +247,7 @@ local args = {
 	--initCond = 'spiral',
 	--initCond = 'rarefaction wave',
 	--initCond = 'Bessel',
-	initCond = 'cyclone',
+	initCond = 'jet',
 	
 	--initCond = 'Sod',
 	--initCond = 'Sod with physical units',

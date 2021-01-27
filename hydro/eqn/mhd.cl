@@ -881,7 +881,11 @@ kernel void <?=addSource?>(
 	global <?=cons_t?> * const deriv = derivBuf + index;
 	global <?=cons_t?> const * const U = UBuf + index;
 
-<? if not require 'hydro.coord.cartesian'.is(solver.coord) then ?>
+<? 
+if not (
+	require "hydro.coord.cartesian".is(solver.coord) 
+	or solver.coord.vectorComponent == "cartesian"
+) then ?>
 	<?=prim_t?> W;
 	<?=primFromCons?>(&W, solver, U, x);
 	real const BSq = coordLenSq(U->B, x);
