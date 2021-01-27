@@ -1,7 +1,7 @@
-local ffi = require 'ffi'
 local ig = require 'ffi.imgui'
 local table = require 'ext.table'
 local class = require 'ext.class'
+local file = require 'ext.file'
 local tooltip = require 'hydro.tooltip'
 local real = require 'hydro.real'	-- really 'realparam'
 
@@ -64,78 +64,7 @@ function SelfGrav:getPoissonDivCode()
 end
 
 function SelfGrav:getPoissonCode()
-	return [[
-
-//// MODULE_NAME: <?=calcGravityAccel?>
-
-#define <?=calcGravityAccel?>(\
-	/*real3 * const */accel_g,\
-	/*constant <?=solver_t?> const * const */solver,\
-	/*global <?=cons_t?> * const */U,\
-	/*real3 const */pt\
-) {\
-	*(accel_g) = real3_zero;\
-\
-	<? for side=0,solver.dim-1 do ?>{\
-		/* m/s^2 */\
-		/* TODO grid coordinate influence? */\
-		(accel_g)->s<?=side?> = (\
-			U[solver->stepsize.s<?=side?>].<?=op.potentialField?> \
-			- U[-solver->stepsize.s<?=side?>].<?=op.potentialField?>\
-		) / (2. * solver->grid_dx.s<?=side?>);\
-	}<? end ?>\
-}
-
-//// MODULE_NAME: <?=calcGravityDeriv?>
-//// MODULE_DEPENDS: units realparam <?=calcGravityAccel?>
-
-kernel void <?=calcGravityDeriv?>(
-	constant <?=solver_t?> const * const solver,
-	global <?=cons_t?> * const derivBuffer,
-	global <?=cons_t?> const * const UBuf,
-	global <?=cell_t?> const * const cellBuf
-) {
-	<?=SETBOUNDS?>(solver->numGhost, solver->numGhost);
-	real3 const pt = cellBuf[index].pos;
-	
-	global <?=cons_t?> * const deriv = derivBuffer + index;
-	global <?=cons_t?> const * const U = UBuf + index;
-
-	real3 accel_g;
-	<?=calcGravityAccel?>(&accel_g, solver, U, pt);
-
-	// kg/(m^2 s) = kg/m^3 * m/s^2
-	deriv->m = real3_sub(deriv->m, real3_real_mul(accel_g, U->rho));
-	
-	// kg/(m s^2) = (kg m^2 / s) * m/s^2
-	deriv->ETotal -= real3_dot(U->m, accel_g);
-}
-
-//// MODULE_NAME: <?=copyPotentialToReduce?>
-
-//TODO just use the display var kernels
-kernel void <?=copyPotentialToReduce?>(
-	constant <?=solver_t?> const * const solver,
-	global real* reduceBuf,
-	global const <?=cons_t?>* UBuf
-) {
-	<?=SETBOUNDS?>(0,0);
-	reduceBuf[index] = UBuf[index].<?=op.potentialField?>;
-}
-
-//// MODULE_NAME: <?=offsetPotential?>
-
-//keep potential energy negative
-kernel void <?=offsetPotential?>(
-	constant <?=solver_t?> const * const solver,
-	global <?=cons_t?>* UBuf,
-	realparam ePotMax
-) {
-	<?=SETBOUNDS?>(0,0);
-	global <?=cons_t?>* U = UBuf + index;
-	U-><?=op.potentialField?> -= ePotMax;
-}
-]]
+	return file['hydro/op/selfgrav.cl']
 end
 
 function SelfGrav:initCodeModules()
