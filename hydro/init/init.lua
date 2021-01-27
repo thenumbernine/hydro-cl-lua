@@ -18,6 +18,7 @@ local InitCond = class()
 
 function InitCond:init(args)
 	self.solver = assert(args.solver, "expected solver")
+	self.args = args
 end
 
 function InitCond:createInitStruct()

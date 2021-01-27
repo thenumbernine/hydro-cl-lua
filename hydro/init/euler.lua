@@ -1133,14 +1133,20 @@ end) then
 	
 	{
 		name = 'cyclone',
-		guiVars = {
-			{name = 'rho', value = 1},
-			{name = 'P', value = 1},
-			{name = 'inlet_v', value = .1},
-		},
 		getDepends = function(self)
 			return table{
 				self.solver.coord.symbols.coordMap,
+			}
+		end,
+		init = function(self, args)
+			InitCond.init(self, args)
+
+			-- add to solver, not self, so boundary can read them
+			-- TODO should we pass initCond to boundary?
+			self.solver.eqn:addGuiVars{
+				{name = 'init_rho', value = 1},
+				{name = 'init_P', value = 1},
+				{name = 'init_inlet_v', value = .1},
 			}
 		end,
 		getInitCondCode = function(self)
@@ -1161,34 +1167,41 @@ end) then
 				local lines = table()
 				if args.fields then
 					for _,field in ipairs(args.fields) do
-						lines:insert('buf['..dst..'].'..field..' = '..field.type..'_zero;')
+						lines:insert('buf['..dst..'].'..field..' = 0.;')
 					end
 				else
 					lines:insert(solver.eqn:template([[
-	real3 const x = cellBuf[index].pos;
+{
+	real3 const x = cellBuf[<?=dst?>].pos;
 	real3 const xc = coordMap(x);
 	bool inlet = false;
 	if (xc.x > 0) {
 		real dy = xc.y - .5;
-		real dz = z - .5;
-		real dyz2 = dy*dy + dz*dy;
-		inlet = dyz2 < .1;
+		real dz = xc.z - .5;
+		real dyzSq = dy*dy + dz*dz;
+		inlet = dyzSq < .1*.1;
 	}
-	<?=cons_t?> W = {.ptr={0}}
-	W.rho = initCond->rho;
+	<?=prim_t?> W = {.ptr={0}};
+	W.rho = solver->init_rho;
 	W.v = real3_zero;
-	W.P = initCond->P;
+	W.P = solver->init_P;
 	W.ePot = 0;
 	if (inlet) {
-		W.v = real3(-initCond->inlet_v, 0., 0.);
+		W.v = _real3(-solver->init_inlet_v, 0., 0.);
 	}
-	buf[<?=dst?>] = <?=primFromCons?>(W);
+	<?=consFromPrim?>(buf + <?=dst?>, solver, &W, x);
+}
 ]], 				{
+						args = args,
 						dst = dst,
 						eqn = solver.eqn,
 					}))
 				end
-				return lines:concat'\n'		
+				return lines:concat'\n', {
+					assert(solver.eqn.symbols.prim_t),
+					assert(solver.eqn.symbols.consFromPrim),
+					assert(solver.coord.symbols.coordMap),
+				}
 			end
 
 			local oldGetBoundaryProgramArgs = solver.getBoundaryProgramArgs
@@ -1204,8 +1217,8 @@ end) then
 			end
 
 			return [[
-	rho = initCond->rho;
-	P = initCond->P;
+	rho = solver->init_rho;
+	P = solver->init_P;
 ]]
 		end,
 	},
@@ -1353,6 +1366,16 @@ end) then
 	},
 
 	{
+		'jet',	-- TODO find some paper that describes this and implement it
+		getInitCondCode = function(self)
+			return [[
+	rho = .1;
+	P = 1;
+]]
+		end,
+	},
+
+	{
 		name = 'Colella-Woodward',
 		getInitCondCode = function(self)
 			self.solver:setBoundaryMethods'freeflow'
@@ -1379,6 +1402,7 @@ end) then
 		end,
 		createInitStruct = function(self)
 			EulerInitCond.createInitStruct(self)
+			local args = self.args or {}
 
 			local moveAxis = 1
 			local sliceAxis = 2
@@ -1388,23 +1412,26 @@ end) then
 				moveAxis = 2
 				sliceAxis = 1
 			end
-			
+
+			moveAxis = args.moveAxis or moveAxis
+			sliceAxis = args.sliceAxis or sliceAxis
+
 			self:addGuiVars{
 				-- these are compileTime right now
 				-- also TODO initCond gui vars don't support compileTime yet
-				{name='moveAxis', type='combo', value=moveAxis, options={'x','y','z'}, compileTime=true},
-				{name='sliceAxis', type='combo', value=sliceAxis, options={'x','y','z'}, compileTime=true},
-				{name='rhoInside', value=2.},
-				{name='rhoOutside', value=1.},
-				{name='amplitude', value=1e-2},
+				{name = 'moveAxis', type = 'combo', value = moveAxis, options = {'x','y','z'}, compileTime = true},
+				{name = 'sliceAxis', type = 'combo', value = sliceAxis, options = {'x','y','z'}, compileTime = true},
+				{name = 'rhoInside', value = args.rhoInside or 2.},
+				{name = 'rhoOutside', value = args.rhoOutside or 1.},
+				{name = 'amplitude', value = args.amplitude or 1e-2},
 				-- not seeing much of a difference
-				{name='noiseAmplitude', value=1e-2},
-				{name='backgroundPressure', value=2.5},
-				{name='frequency', value=2.},
-				--{name='thickness', value=1e-7}
-				{name='thickness', value=.025},
-				{name='velInside', value=-.5},
-				{name='velOutside', value=.5},
+				{name = 'noiseAmplitude', value = args.noiseAmplitude or 1e-2},
+				{name = 'backgroundPressure', value = args.backgroundPressure or 2.5},
+				{name = 'frequency', value = args.frequency or 2.},
+				--{name = 'thickness', value = 1e-7}
+				{name = 'thickness', value = args.thickness or .025},
+				{name = 'velInside', value = args.velInside or -.5},
+				{name = 'velOutside', value = args.velOutside or .5},
 			}
 		end,
 
@@ -1887,6 +1914,9 @@ end ?>;
 			local solver = assert(self.solver)
 			local f = SelfGravProblem{
 				solver = solver,
+				getRadiusCode = function(source)
+					return '.5 - .01 * (U->ptr[0] - .5)'
+				end,			
 				sources={
 					{center={0, 0, 0}, radius = .5},
 				},
@@ -2011,6 +2041,32 @@ end ?>;
 ]]
 		end,
 	},
+
+	{
+		name = 'self-gravitation Jeans, right?',
+		getDepends = function(self)
+			return {self.solver.coord.symbols.coordMap}
+		end,
+		getInitCondCode = function(self)
+			return SelfGravProblem{
+				solver = solver,
+				getRadiusCode = function(source)
+					return '.5 - .02 * (U->ptr[0] - .5)'
+				end,			
+				sources = {
+					{center={0, 0, 0}, radius = .5, inside=[[
+	P = 1;
+	rho = .1;
+	if (distSq > .4 * .4) {
+		rho = 1.;
+	}
+]]},
+				},
+			}:getInitCondCode(self)
+		end,
+	},
+
+
 
 	{
 		name = 'Maxwell default',

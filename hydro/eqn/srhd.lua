@@ -97,7 +97,16 @@ function SRHD:init(args)
 				poissonSolver = require 'hydro.op.poisson_jacobi',	-- krylov is having errors.  TODO bug in its boundary code?
 				-- TODO TODO now jacobi is crashing as well.  seems I broke something.
 			}
-			self.solver.ops:insert(NoDiv{
+		
+			local SRHDNoDiv = class(NoDiv)
+--[[ srhd needs to refresh primitives after updating conservatives in the nodiv step
+-- unless you're doing the update-prim-and-recalc-cons method.  then no need.
+			function SRHDNoDiv:step(dt)
+				SRHDNoDiv.super.step(self, dt)
+				self.solver:constrainU()
+			end
+--]]
+			self.solver.ops:insert(SRHDNoDiv{
 				solver = self.solver,
 				potentialField = 'SPot',	-- TODO don't store this
 				
@@ -105,10 +114,12 @@ function SRHD:init(args)
 					assert(self.symbols.eqn_common),
 				},
 				
-			-- [=[ using 0 = div S = div (D^2 h v / ρ)
+			--[=[ using 0 = div S = div (D^2 h v / ρ)
 				vectorField = 'S',
 			
 				-- S_i = ρ h W^2 v_i = D^2 h v_i / ρ
+				-- v_i = S_i ρ / (D^2 h)
+				--
 				-- S_i,j = (D^2 h v_i / ρ)_,j
 				-- = (D^2 h / ρ)_,j v_i + (D^2 h / ρ) v_i,j
 				-- = (D^2 h / ρ)_,j v_i + (D^2 h / ρ) v_i,j = 0
@@ -128,13 +139,33 @@ function SRHD:init(args)
 	}<? end ?>
 ]],
 			--]=]
-			--[=[ reading via div v, writing via div S
-				readVectorField = function(op, offset)
-					local U = 'U['..offset..']'
-					return 'real3_real_mul('..U..'.S, '..U..'.D * '..U..'.D / '..U..'.rho * calc_h('..U..'.rho, calc_P(solver, '..U..'.rho, '..U..'.eInt), '..U..'.eInt))'
+			-- [=[ reading via div v, writing via div S
+				readVectorField = function(op, offset, j)
+					local function U(field) return 'U['..offset..'].'..field end
+					--return U('S.s'..j)..' * '..U'rho'..' / ('..U'D'..' * '..U'D'..' * calc_h('..U'rho'..', calc_P(solver, '..U'rho'..', '..U'eInt'..'), '..U'eInt'..'))'
+					--return U('v.s'..j)	-- div v = 0
+					return U'D'..' / '..U'rho'..' * '..U('v.s'..j)		-- div (W v) = ... W ... ?
 				end,
+				chargeCode = [[
+	source += U->D / U->rho;
+]],
 				writeVectorField = function(op, dv)
-					return 'U->S = real3_sub(U->S, real3_real_mul('..dv..', U->D * U->D / U->rho * calc_h(U->rho, calc_P(solver, U->rho, U->eInt), U->eInt)));'
+					return self:template([[
+#if 0	// adjust momentum, update velocity with 'constrainU' later
+	U->S = real3_sub(U->S, real3_real_mul(<?=dv?>, U->D * U->D / U->rho * calc_h(U->rho, calc_P(solver, U->rho, U->eInt), U->eInt)));
+#endif
+
+#if 1	// adjust velocity, update conservatives immediately
+//// MODULE_DEPENDS: <?=prim_only_t?> <?=eqn_common?>
+	<?=prim_only_t?> prim;
+	primOnlyFromCons(&prim, solver, U, pt);
+	//prim.v = real3_sub(prim.v, <?=dv?>);
+	prim.v = real3_sub(prim.v, real3_real_mul(<?=dv?>, U->rho / U->D));
+	consFromPrimOnly(U, solver, &prim, pt);
+#endif
+
+]], {dv=dv})
+					-- TODO adjust tau <-> ETotal as well (right?)
 				end,
 			--]=]
 			})

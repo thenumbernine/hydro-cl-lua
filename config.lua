@@ -3,7 +3,7 @@ TODO one config per experiment (initial condition + config)
 and no more setting config values (boundary, etc) in the init cond file
 --]]
 
-local dim = cmdline.dim or 2
+local dim = cmdline.dim or 3
 local args = {
 	app = self, 
 	eqn = cmdline.eqn,
@@ -58,9 +58,9 @@ local args = {
 	--slopeLimiter = 'superbee',
 
 	-- this is functional without usePLM, but doing so falls back on the cell-centered buffer, which with the current useCTU code will update the same cell twice from different threads
-	--useCTU = true,
+	useCTU = true,
 	
-	--[[ Cartesian
+	-- [[ Cartesian
 	coord = 'cartesian',
 	--coordArgs = {vectorComponent='holonomic'},		-- use the coordinate derivatives to represent our vector components (though they may not be normalized)
 	--coordArgs = {vectorComponent='anholonomic'},		-- use orthonormal basis to represent our vector components
@@ -121,7 +121,7 @@ local args = {
 			['AMD Accelerated Parallel Processing/gfx1010/gfx902'] = {
 				{4096,1,1},
 				{256,256,1},
-				{32,32,32},
+				{64,64,64},
 			},	
 		})[platAndDevicesNames]
 		-- default size options
@@ -140,7 +140,7 @@ local args = {
 		zmax = cmdline.boundary or 'mirror',
 	},
 	--]]
-	-- [[ cylinder
+	--[[ cylinder
 	coord = 'cylinder',
 		-- TODO doesn't work
 	--coordArgs = {vectorComponent='holonomic'},		-- use the coordinate derivatives to represent our vector components (though they may not be normalized)
@@ -247,7 +247,7 @@ local args = {
 	--initCond = 'spiral',
 	--initCond = 'rarefaction wave',
 	--initCond = 'Bessel',
-	--initCond = 'cyclone',
+	initCond = 'cyclone',
 	
 	--initCond = 'Sod',
 	--initCond = 'Sod with physical units',
@@ -312,12 +312,13 @@ local args = {
 
 	-- self-gravitation tests:
 	--initCond = 'self-gravitation - Earth',	-- validating units along with self-gravitation.
-	initCond = 'self-gravitation test 1',
+	--initCond = 'self-gravitation test 1',
 	--initCond = 'self-gravitation test 1 spinning',
 	--initCond = 'self-gravitation test 2',		--FIXME
 	--initCond = 'self-gravitation test 2 orbiting',
 	--initCond = 'self-gravitation test 4',
 	--initCond = 'self-gravitation soup',
+	--initCond = 'self-gravitation Jeans, right?',
 
 
 	-- those designed for SRHD / GRHD from Marti & Muller 1998:
@@ -626,6 +627,7 @@ self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='euler', wenoMe
 -- incompressible
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler', eqnArgs={incompressible=true}})))
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', eqnArgs={incompressible=true}})))
+--self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='euler-hllc', eqn='euler', eqnArgs={incompressible=true}})))
 --self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='euler', eqnArgs={incompressible=true}, wenoMethod='2010 Shen Zha', order=5})))
 
 -- viscosity in source terms as finite-different explicit update
@@ -637,6 +639,7 @@ self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='euler', wenoMe
 
 -- incompressible + viscosity
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler', eqnArgs={incompressible=true, viscosity='rhs-explicit'}})))
+--self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler', eqnArgs={incompressible=true, viscosity='rhs-implicit'}})))
 
 
 -- Navier-Stokes-Wilcox:
@@ -670,7 +673,7 @@ self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='euler', wenoMe
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='srhd'})))
 --self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='srhd', wenoMethod='2010 Shen Zha', order=5})))
 
--- srhd incompressible.  TODO i guess i broke it.
+-- srhd incompressible.  TODO explodes 
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='srhd', eqnArgs={incompressible=true}})))
 
 
