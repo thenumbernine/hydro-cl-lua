@@ -1133,8 +1133,8 @@ static void applyKreissOligar(
 
 	//described in 2008 Babiuc et al as Q = (-1)^r h^(2r-1) (D+)^r rho (D-)^r / 2^(2r)
 	//...for r=2... -sigma h^3 (D+)^2 rho (D-)^2 / 16 ... and rho=1, except rho=0 at borders maybe.
-	for (int *ip = fields; ip < endof(fields); ++ip) {
-		int i = *ip;
+	for (int const * ip = fields; ip < endof(fields); ++ip) {
+		int const i = *ip;
 		deriv->ptr[i] += coeff * (
 			  (
 				-20. * U->ptr[i]
