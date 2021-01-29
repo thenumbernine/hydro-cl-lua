@@ -180,7 +180,7 @@ function BSSNOKFiniteDifferenceEquationBase:initCodeModule_calcDTCell()
 		name = self.symbols.calcDTCell,
 		depends = table{
 			self.symbols.eqn_common,
-			self.solver.coord.symbols.coord_sqrt_g_ll_ij,
+			self.solver.coord.symbols.coord_sqrt_gHol_ll_ij,
 			self.solver.symbols.SETBOUNDS,
 		}:append(
 			self.cflMethod == '2008 Alcubierre' and { 
@@ -224,7 +224,7 @@ else
 		// and gammaBar_ij ~ gammaHat_ij 
 		// then the typical CFL equation: dt <= dx / lambda, lambda = alpha sqrt(gammaBar^ii)
 		// turns into the SENR code: dt <= sqrt(gammaHat_ii) * dx
-		real sqrt_gammaHat_ii = coord_sqrt_g_ll<?=side..side?>(x);
+		real sqrt_gammaHat_ii = coord_sqrt_gHol_ll<?=side..side?>(x);
 		real ds = sqrt_gammaHat_ii  * solver->grid_dx.s<?=side?>;
 		*(dt) = (real)min(*(dt), ds);
 <? 	else

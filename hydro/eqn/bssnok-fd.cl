@@ -1,17 +1,17 @@
 //// MODULE_NAME: <?=calc_gammaHat_ll?>
-//// MODULE_DEPENDS: <?=coord_g_ll?>
+//// MODULE_DEPENDS: <?=coord_gHol_ll?>
 
-#define <?=calc_gammaHat_ll?>	coord_g_ll
+#define <?=calc_gammaHat_ll?>	coord_gHol_ll
 
 //// MODULE_NAME: <?=calc_gammaHat_uu?>
-//// MODULE_DEPENDS: <?=coord_g_uu?>
+//// MODULE_DEPENDS: <?=coord_gHol_uu?>
 
-#define <?=calc_gammaHat_uu?> 	coord_g_uu
+#define <?=calc_gammaHat_uu?> 	coord_gHol_uu
 
 //// MODULE_NAME: <?=calc_det_gammaHat?>
-//// MODULE_DEPENDS: <?=coord_det_g?>
+//// MODULE_DEPENDS: <?=coord_det_gHol?>
 
-#define <?=calc_det_gammaHat?> 	coord_det_g
+#define <?=calc_det_gammaHat?> 	coord_det_gHol
 
 //// MODULE_NAME: <?=calc_gammaHat_LL?>
 

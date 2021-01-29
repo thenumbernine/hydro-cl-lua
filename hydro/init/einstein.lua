@@ -236,7 +236,7 @@ local initConds = table{
 		getInitCondCode = function(self)
 			local solver = assert(self.solver)
 			-- this has to make use of the coordinate metric
-			-- solver.coord.g
+			-- solver.coord.gHol
 			
 			return solver.eqn:template([[
 	real3 center = coordMap(_real3(<?=clnumber(initCond.center[1])

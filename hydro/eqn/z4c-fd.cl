@@ -2,14 +2,14 @@
 
 //gammaBar_ij = gammaHat_ij + epsilon_ij
 sym3 <?=calc_gammaBar_ll?>(global <?=cons_t?> const * const U, real3 const x) {
-	sym3 gammaHat_ll = coord_g_ll(x);
+	sym3 gammaHat_ll = coord_gHol_ll(x);
 	return sym3_add(gammaHat_ll, U->epsilon_ll);
 }
 
 //det(gammaBar_ij) = det(gammaHat_ij + epsilon_ij)
 //however det(gammaHat_ij) == det(gammaBar_ij) by the eqn just before (6) in 2017 Ruchlin
 real calc_det_gammaBar_ll(real3 const x) {
-	return coord_sqrt_det_g(x);
+	return coord_det_gHol(x);
 }
 
 void <?=setFlatSpace?>(
@@ -111,7 +111,7 @@ void <?=applyInitCondCell?>(
 	real alpha = 1.;
 	real3 beta_u = real3_zero;
 	
-	sym3 gammaHat_ll = coord_g_ll(x);
+	sym3 gammaHat_ll = coord_gHol_ll(x);
 	sym3 gamma_ll = gammaHat_ll;
 	
 	sym3 K_ll = sym3_zero;
@@ -188,7 +188,7 @@ kernel void <?=initDerivs?>(
 	
 	//Delta^i = gammaBar^jk Delta^i_jk = gammaBar^jk (connBar^i_jk - connHat^i_jk)
 	//= gammaBar^jk Delta^i_jk = connBar^i - connHat^i
-	_3sym3 connHat_ull = coord_conn_ull(x);
+	_3sym3 connHat_ull = coord_connHol_ull(x);
 	real3 connHat_u = _3sym3_sym3_dot23(connHat_ull, U->gammaBar_uu);
 	U->Delta_u = real3_sub(connBar_u, connHat_u);
 }
@@ -210,7 +210,7 @@ if eqn.guiVars.constrain_det_gammaBar_ll.value
 or eqn.guiVars.constrain_tr_ABar_ll.value 
 then 
 ?>
-	sym3 gammaHat_ll = coord_g_ll(x);
+	sym3 gammaHat_ll = coord_gHol_ll(x);
 	sym3 gammaBar_ll = sym3_add(gammaHat_ll, U->epsilon_ll);
 
 	/*
@@ -227,7 +227,7 @@ then
 	do so with gammaBar_ij := gammaBar_ij * ( det(gammaHat_ij) / det(gammaBar_ij) )^(1/3)
 	*/
 <? 	if eqn.guiVars.constrain_det_gammaBar_ll.value then ?>
-	real det_gammaHat_ll = coord_sqrt_det_g(x);
+	real det_gammaHat_ll = coord_det_gHol(x);
 	real det_gammaBar_ll = sym3_det(gammaBar_ll);
 	real rescaleMetric = cbrt(det_gammaHat_ll/det_gammaBar_ll);
 <? 		for ij,xij in ipairs(symNames) do

@@ -43,7 +43,7 @@ static inline void <?=setFlatSpace?>(
 }
 
 //// MODULE_NAME: <?=applyInitCondCell?>
-//// MODULE_DEPENDS: <?=coordMap?> <?=coord_g_ll?> <?=rescaleFromCoord_rescaleToCoord?> <?=initCond_t?>
+//// MODULE_DEPENDS: <?=coordMap?> <?=rescaleFromCoord_rescaleToCoord?> <?=initCond_t?>
 
 <?
 -- eqn.einstein compatability hack ...
@@ -158,6 +158,7 @@ end
 
 <? else	-- not eqn.initCond.useBSSNVars ?>
 
+//// MODULE_DEPENDS: <?=coord_g_ll?>
 void <?=applyInitCondCell?>(
 	constant <?=solver_t?> const * const solver,
 	constant <?=initCond_t?> const * const initCond,
@@ -170,7 +171,7 @@ void <?=applyInitCondCell?>(
 
 	real alpha = 1.;
 	real3 beta_u = real3_zero;
-	sym3 gamma_ll = coord_g_ll(x);
+	sym3 gamma_ll = coord_g_ll(x);	//init to vector basis metric, or to grid metric?  vector basis metric I guess
 	sym3 K_ll = sym3_zero;
 
 	//TODO more stress-energy vars 

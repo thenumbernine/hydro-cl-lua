@@ -31,8 +31,8 @@ local Tensor = require "symmath.Tensor"
 
 
 local lenExprs = coord.request"lenExprs"
-local Gamma_ull = coord.request"coord_conn_ull"
-local det_gammaHat = coord.request"coord_det_g"
+local connHat_ull = coord.request"coord_connHol_ull"
+local det_gammaHat = coord.request"coord_det_gHol"
 ?>
 
 //// MODULE_NAME: <?=eqn_common?>
@@ -44,9 +44,9 @@ local det_gammaHat = coord.request"coord_det_g"
 #define endof(x)	((x) + numberof(x))
 
 //// MODULE_NAME: <?=calc_partial_det_gammaHat_l?>
-//// MODULE_DEPENDS: <?=coord_partial_det_g?>
+//// MODULE_DEPENDS: <?=coord_partial_det_gHol?>
 
-#define <?=calc_partial_det_gammaHat_l?> coord_partial_det_g
+#define <?=calc_partial_det_gammaHat_l?> coord_partial_det_gHol
 
 //// MODULE_NAME: calc_partial_det_gammaHat_L
 //// MODULE_DEPENDS: <?=calc_partial_det_gammaHat_l?> <?=rescaleFromCoord_rescaleToCoord?>
@@ -58,9 +58,9 @@ real3 calc_partial_det_gammaHat_L(real3 x) {
 }
 
 //// MODULE_NAME: calc_partial2_det_gammaHat_ll
-//// MODULE_DEPENDS: <?=coord_partial2_det_g?>
+//// MODULE_DEPENDS: <?=coord_partial2_det_gHol?>
 
-#define calc_partial2_det_gammaHat_ll coord_partial2_det_g
+#define calc_partial2_det_gammaHat_ll coord_partial2_det_gHol
 
 //// MODULE_NAME: calc_partial2_det_gammaHat_LL
 //// MODULE_DEPENDS: calc_partial2_det_gammaHat_ll <?=rescaleFromCoord_rescaleToCoord?>
@@ -255,7 +255,7 @@ end ?>
 
 //calc_partial_connHat_Ulll_ijkl := e_i^I connHat^i_jk,l
 <? 
-local partial_connHat_ulll = Gamma_ull"^i_jk,l"():permute"^i_jkl"
+local partial_connHat_ulll = connHat_ull"^i_jk,l"():permute"^i_jkl"
 local partial_connHat_Ulll = Tensor("^I_jkl", function(i,j,k,l)
 	return (partial_connHat_ulll[i][j][k][l] * lenExprs[i])()
 end)
@@ -604,7 +604,7 @@ end ?>
 	real3 partial_det_gammaHat_l;
 <? 
 local partial_det_gammaHat_l = symmath.Tensor("_i", function(i)
-	return det_gammaHat:diff(solver.coord.coords[i])()
+	return det_gammaHat:diff(coord.coords[i])()
 end)
 for i,xi in ipairs(xNames) do
 ?>	partial_det_gammaHat_l.<?=xi?> = <?=eqn:compile(partial_det_gammaHat_l[i])?>;
@@ -1110,7 +1110,7 @@ static void applyKreissOligar(
 	coeff *= .5 * (erf((r - rKO) / wKO) + 1.);
 #endif
 
-<? if require "hydro.coord.sphere-sinh-radial".is(solver.coord) then ?>
+<? if require "hydro.coord.sphere-sinh-radial".is(coord) then ?>
 	real3 yR = _real3(cell->r, cell->pos.y, cell->pos.z);
 	global <?=cell_t?> const * const cellL0 = cell - solver->stepsize.x;
 	real3 yL0 = _real3(cellL0->r, cellL0->pos.y, cellL0->pos.z);

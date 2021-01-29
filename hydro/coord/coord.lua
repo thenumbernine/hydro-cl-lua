@@ -149,10 +149,7 @@ function CoordinateSystem:init(args)
 		'cell_area_i',
 		'cell_dx_i',
 		'cell_volume',
-		'cell_sqrt_det_g',
 		'coord_dx_i',
-		'coord_det_g',
-		'coord_sqrt_det_g',
 		'coord_lower',
 		'coord_raise',
 		'coordLenSq',
@@ -167,16 +164,7 @@ function CoordinateSystem:init(args)
 		'coord_conn_trace12',
 		'coord_conn_trace13',
 		'coord_conn_trace23',
-		'coord_partial_det_g',
-		'coord_partial2_det_g',
 		'coord_holBasisLen_i',
-		'coord_g_ll_ij',
-		'coord_g_uu_ij',
-		'coord_sqrt_g_uu_ij',
-		'coord_sqrt_g_ll_ij',
-		'coord_g_ll',
-		'coord_g_uu',
-		'coord_gHol_ll',
 		'coordMap',
 		'coordMapR',
 		'coordMapInv',
@@ -188,6 +176,27 @@ function CoordinateSystem:init(args)
 		'cartesianToCoord',
 		'coord_parallelPropagate',
 		'normal_t',
+		
+		'coord_g_ll',
+		'coord_g_ll_ij',
+		'coord_g_uu',
+		'coord_g_uu_ij',
+		'coord_sqrt_g_uu_ij',
+		'coord_sqrt_g_ll_ij',
+		'cell_sqrt_det_g',	-- seems that, when this is used, it would most often be used with gHol...
+		'coord_det_g',
+		'coord_sqrt_det_g',
+		'coord_partial_det_g',
+		'coord_partial2_det_g',
+		
+		'coord_gHol_ll',
+		'coord_gHol_uu',
+		'coord_det_gHol',
+		'coord_sqrt_gHol_ll_ij',
+		'coord_connHol_lll',
+		'coord_connHol_ull',
+		'coord_partial_det_gHol',
+		'coord_partial2_det_gHol',
 	})
 
 	self.solver = assert(args.solver)
@@ -213,6 +222,7 @@ assert(args.anholonomic == nil, "coord.anholonomic is deprecated.  instead you s
 	local vars = symmath.vars
 	local Matrix = symmath.Matrix
 	local Tensor = symmath.Tensor
+	local frac = symmath.frac
 
 	local eHolToE = self.eHolToE
 	if not eHolToE then
@@ -547,7 +557,7 @@ self.compilePrintRequestTensor = compilePrintRequestTensor
 		Gamma_lll['_abc'] = ((dg'_cab' + dg'_bac' - dg'_abc' + c'_abc' + c'_acb' - c'_bca') / 2)()
 		if self.verbose then
 			print'1st kind Christoffel:'
-			print(var'\\Gamma''_abc':eq(symmath.op.div(1,2)*(var'g''_ab,c' + var'g''_ac,b' - var'g''_bc,a' + var'c''_abc' + var'c''_acb' - var'c''_bca')):eq(Gamma_lll'_abc'()))
+			print(var'\\Gamma''_abc':eq(frac(1,2)*(var'g''_ab,c' + var'g''_ac,b' - var'g''_bc,a' + var'c''_abc' + var'c''_acb' - var'c''_bca')):eq(Gamma_lll'_abc'()))
 		end
 		return Gamma_lll
 	end
@@ -703,6 +713,66 @@ self.compilePrintRequestTensor = compilePrintRequestTensor
 		return volume
 	end
 
+	self.calc.gHolU = function()
+		local gHol = self.request'gHol'
+		return Tensor('^ab', table.unpack((Matrix.inverse(gHol))))
+	end
+
+	self.calc.coord_det_gHol = function()
+		local gHol = self.request'gHol'
+		return symmath.Matrix.determinant(gHol)
+	end
+
+	self.calc.sqrt_gHol = function()
+		local gHol = self.request'gHol'
+		return Tensor('_ab', function(a,b) return symmath.sqrt(gHol[a][b])() end)
+	end
+
+	self.calc.dgHol = function()
+		local dgHol = g'_ab,c'():permute'_cab'
+		if self.verbose then
+			print'holonomic metric partial:'
+			print(var'\\hat{g}''_ab,c':eq(dgHol'_cab'()))
+		end
+		return dgHol
+	end
+
+	self.calc.coord_connHol_lll = function()
+		local dgHol = self.request'dgHol'
+		local GammaHol_lll = (frac(1,2) * (dgHol'_cab' + dgHol'_bac' - dgHol'_abc'))():permute'_abc'
+		if self.verbose then
+			print'1st kind Christoffel of holonomic basis:'
+			print(var'\\hat{\\Gamma}''_abc':eq(frac(1,2)*(var'\\hat{g}''_ab,c' + var'\\hat{g}''_ac,b' - var'\\hat{g}''_bc,a')):eq(GammaHol_lll'_abc'()))
+		end
+		return GammaHol_lll
+	end
+
+	self.calc.coord_connHol_ull = function()
+		local gHolU = self.request'gHolU'
+		local GammaHol_lll = self.request'coord_connHol_lll'
+		local GammaHol_ull = (gHolU'^ad' * GammaHol_lll'_dbc')():permute'^a_bc'
+		if self.verbose then
+			print'connection:'
+			print(var'\\hat{\\Gamma}''^a_bc':eq(var'\\hat{g}''^ad' * var'\\hat{\\Gamma}''_dbc'):eq(GammaHol_ull'^a_bc'()))
+		end
+		return GammaHol_ull
+	end
+
+	-- gHol_,i
+	self.calc.coord_partial_det_gHol = function()
+		return Tensor('_a', function(a)
+			return coords[a]:applyDiff(self.request'coord_det_gHol')()
+		end)
+	end
+
+	-- gHol_,ij
+	self.calc.coord_partial2_det_gHol = function()
+		return self.request'coord_partial_det_gHol''_a,b'()
+	end
+
+
+
+
 	self.calc.g = function()
 		return g
 	end
@@ -731,7 +801,7 @@ self.compilePrintRequestTensor = compilePrintRequestTensor
 		return symmath.sqrt(self.request'coord_det_g')()
 	end
 
-	-- g_,i or gHol_,i?  which am I using? 
+	-- g_,i
 	self.calc.coord_partial_det_g = function()
 		return Tensor('_a', function(a)
 			return coords[a]:applyDiff(self.request'coord_det_g')()
@@ -1168,6 +1238,9 @@ end
 		{name='coord_conn_trace23',build=getCode_real3_to_real3},
 		{name='coord_partial_det_g', build=getCode_real3_to_real3},
 		{name='coord_partial2_det_g', build=getCode_real3_to_sym3},
+		{name='coord_det_gHol', build=getCode_real3_to_real},			-- metric determinant ... coord_det_gHol = volume^2
+		{name='coord_partial_det_gHol', build=getCode_real3_to_real3},
+		{name='coord_partial2_det_gHol', build=getCode_real3_to_sym3},
 	} do
 		local depends
 		if info.build == getCode_real3_to_3sym3 then
@@ -1235,6 +1308,13 @@ end
 				return addSym3Components('coord_sqrt_g_ll', self.compilePrintRequestTensor'sqrt_g')
 			end,
 		}
+	
+		solver.modules:add{
+			name = self.symbols.coord_sqrt_gHol_ll_ij,
+			code = function()
+				return addSym3Components('coord_sqrt_gHol_ll', self.compilePrintRequestTensor'sqrt_gHol')
+			end,
+		}
 	end
 
 	solver.modules:add{
@@ -1256,6 +1336,14 @@ end
 		depends = {'sym3'},
 		code = function()
 			return getCode_real3_to_sym3('coord_gHol_ll', self.compilePrintRequestTensor'gHol')
+		end,
+	}
+
+	solver.modules:add{
+		name = self.symbols.coord_gHol_uu,
+		depends = {'sym3'},
+		code = function()
+			return getCode_real3_to_sym3('coord_gHol_uu', self.compilePrintRequestTensor'gHolU')
 		end,
 	}
 
