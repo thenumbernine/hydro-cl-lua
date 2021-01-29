@@ -91,12 +91,13 @@ function BSSNOKFiniteDifferenceEquation:createInitState()
 		{name='constrain_tr_ABar', value=true, compileTime=true},
 		--{name='constrain_tr_ABar', value=false, compileTime=true},
 		
-		{name='calc_H_and_M', value=true, compileTime=true},
+		--{name='calc_H_and_M', value=true, compileTime=true},
+		{name='calc_H_and_M', value=false, compileTime=true},	-- AMD 5600M compiler crashes if it gets too big, and this code seems to be the tipping point
 		
 		-- 2013 Baumgarte et al, section IIIB
 		--{name='dissipationCoeff', value=.001/16},
-		{name='dissipationCoeff', value=cmdline.dissipationCoeff or .99},	-- matching SENR
-		--{name='dissipationCoeff', value=0},		-- this is working better than 0.99.  hmm...
+		{name='dissipationCoeff', value=cmdline.dissipationCoeff or .99},	-- value matching SENR.  runs until 12.09.
+		--{name='dissipationCoeff', value=0},		-- runs until 12.2275.  This is working better than 0.99.  hmm...
 		--{name='dissipationCoeff', value=-.99},	-- nope, this is worse, i must have my sign right
 		
 		{name='alphaMin', value=1e-3},
@@ -313,7 +314,9 @@ function BSSNOKFiniteDifferenceEquation:getDisplayVars()
 	value.vreal = U->alpha * det_gamma;
 ]],
 		},
-	
+	}
+
+	vars:append{
 		{
 			name = 'ABarSq_LL',
 			type = 'sym3',
@@ -324,6 +327,7 @@ function BSSNOKFiniteDifferenceEquation:getDisplayVars()
 	value.vsym3 = ABarSq_LL;
 ]],
 		},
+	}
 		
 --[=[	
 		{	-- gammaBar^ij DBar_i DBar_j phi
@@ -421,6 +425,8 @@ end
  		},
 --]=]
 
+
+	vars:append{
 		{
 			name = 'partial_phi_l',
 			type = 'real3',
@@ -430,7 +436,10 @@ end
 	value.vreal3 = partial_phi_l;
 ]],
 		},
+	}
 
+
+	vars:append{
 		{
 			name = 'partial_alpha_l',
 			type = 'real3',
@@ -439,6 +448,7 @@ end
 	value.vreal3 = partial_alpha_l;
 ]],
 		},
+	}
 
 --[=[
 		{
@@ -553,7 +563,6 @@ end
 ]],
 		},
 --]=]	
-	}
 
 --[=[
 --[[ expansion:
@@ -753,7 +762,7 @@ end ?>;
 		type = 'real3',
 	}
 --]=]
--- [=[	-- TODO think about storing this instead of recalculating it here?
+--[=[	-- TODO think about storing this instead of recalculating it here?
 	do
 		-- should be zero when gammaBar_ij = gammaHat_ij
 		vars:insert{
@@ -810,6 +819,7 @@ end ?>;
 ]],
 		}
 	end
+
 --]=]		
 --[=[		
 	vars:insert{

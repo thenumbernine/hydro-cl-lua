@@ -624,7 +624,7 @@ function SolverBase:initObjs(args)
 	self.integratorArgs = args.integratorArgs
 	self.integratorIndex = integratorNames:find(args.integrator) or 1
 
-	self.checkNaNs = self.checkNaNs
+	self.checkNaNs = self.checkNaNs or args.checkNaNs
 	self.useFixedDT = not not args.fixedDT
 	self.fixedDT = args.fixedDT or self.fixedDT or .001
 	self.cfl = args.cfl or .5	--/self.dim
@@ -937,6 +937,8 @@ function SolverBase:refreshCommonProgram()
 		-- In fact, all the display stuff is pretty specific to cartesian grids.
 		-- Not 100% though, since the MeshSolver stuff was working with it before I introduced the code module stuff.
 		self.symbols.SETBOUNDS_NOGHOST,
+		
+		self.symbols.SETBOUNDS,
 	}
 print('common modules: '..moduleNames:sort():concat', ')
 
@@ -989,6 +991,27 @@ for i=0,eqn.numIntStates-1 do
 <? 
 end
 ?>}
+
+<? if solver.checkNaNs then ?>
+kernel void findNaNs(
+	constant <?=solver_t?> const * const solver,
+	global real * const dst,
+	global <?=cons_t?> const * const src
+) {
+	
+<? if solver.checkNaNs == 'gpu-noghost' then ?>
+	<?=SETBOUNDS?>(solver->numGhost, solver->numGhost);
+<? else ?>
+	<?=SETBOUNDS?>(0, 0);
+<? end ?>
+
+	dst[index] = 0;
+<? for i=0,eqn.numStates-1 do
+?>	dst[index] += (real)(!isfinite(src[index].ptr[<?=i?>]));
+<? end ?>
+}
+<? end ?>
+
 ]]
 	}:concat'\n'
 
@@ -1008,6 +1031,10 @@ end
 	
 	self.squareKernelObj = self.commonProgramObj:kernel{name='square', domain=self.domainWithoutBorder}
 	self.squareKernelObj.obj:setArg(0, self.solverBuf)
+
+	if self.checkNaNs then
+		self.findNaNsKernelObj = self.commonProgramObj:kernel('findNaNs', self.solverBuf, self.reduceBuf)
+	end
 
 	-- TODO vectors won't reduce anymore unless the reduceMin is constructed with 3* the # of count
 	-- but this breaks reduce for scalars (it includes those extra zeros)
@@ -2464,45 +2491,47 @@ function SolverBase:update()
 	Because pauses will mess with the numbers, I'll only look at the last n many frames.
 	Maybe just the last 1.
 	--]]
-	local thisTime = getTime()
-	if not self.fpsSamples then
-		self.fpsIndex = 0
-		self.fpsSamples = table()
-	end
-	if self.lastFrameTime then
-		local tick = cmdline.tick or 1e-9
+	local thisTime = tonumber(getTime())
+	if not self.fpsSampleCount then self.fpsSampleCount = 0 end
+	if not self.lastFrameTime then self.lastFrameTime = thisTime end
+
+	local tick = cmdline.tick or 1e-9
+	
+	self.fpsSampleCount = self.fpsSampleCount + 1
+	
+	if (self.showFPS or cmdline.trackvars)
+	and thisTime - self.lastFrameTime >= tick
+	then 
 		local deltaTime = thisTime - self.lastFrameTime
-		local fps = 1 / deltaTime
-		self.fpsIndex = (self.fpsIndex % self.fpsNumSamples) + 1
-		self.fpsSamples[self.fpsIndex] = fps
-		self.fps = self.fpsSamples:sum() / #self.fpsSamples
-		if (self.showFPS or cmdline.trackvars)
-		and math.floor(thisTime / tick) ~= math.floor(self.lastFrameTime / tick) then 
-			--io.write(tostring(self), ' ')
-			local sep = ''
-			if self.showFPS then
-				io.write(sep, 'fps=', self.fps)
-				sep = '\t'
-			end
-			io.write(sep, 't=', self.t)
+		self.fps = self.fpsSampleCount / deltaTime
+
+		--io.write(tostring(self), ' ')
+		local sep = ''
+		if self.showFPS then
+			io.write(sep, 'fps=', self.fps)
 			sep = '\t'
-			if cmdline.trackvars then
-				local varnames = string.split(cmdline.trackvars, ','):map(string.trim)
-				if varnames:find'dt' then
-					io.write(sep, 'dt=', self.dt)
-				end
-				for _,varname in ipairs(varnames) do
-					if varname ~= 'dt' then
-						local var = assert(self.displayVarForName[varname], "couldn't find "..varname)
-						local ymin, ymax, yavg = self:calcDisplayVarRangeAndAvg(var)
-						io.write(sep, varname, '=[', ymin, ' ', yavg, ' ', ymax, ']')
-					end
+		end
+		io.write(sep, 't=', self.t)
+		sep = '\t'
+		if cmdline.trackvars then
+			local varnames = string.split(cmdline.trackvars, ','):map(string.trim)
+			if varnames:find'dt' then
+				io.write(sep, 'dt=', self.dt)
+			end
+			for _,varname in ipairs(varnames) do
+				if varname ~= 'dt' then
+					local var = assert(self.displayVarForName[varname], "couldn't find "..varname)
+					local ymin, ymax, yavg = self:calcDisplayVarRangeAndAvg(var)
+					io.write(sep, varname, '=[', ymin, ' ', yavg, ' ', ymax, ']')
 				end
 			end
-			print()
 		end
+		print()
+		
+		self.lastFrameTime = thisTime
+		self.fpsSampleCount = 0
 	end
-	self.lastFrameTime = thisTime
+
 
 	if self.checkNaNs then 
 		assert(self:checkFinite(self.UBufObj)) 
@@ -2634,16 +2663,38 @@ end
 -- expects buf to be of type cons_t, made up of numStates real variables
 function SolverBase:checkFinite(buf)
 	local vec3sz = require 'vec-ffi.vec3sz'
-	local ptrorig = buf:toCPU()
+	
 	local ptr0size = tonumber(ffi.sizeof(buf.type))
 	local realSize = tonumber(ffi.sizeof'real')
 	local ptrsPerReal = ptr0size / realSize
 	assert(ptrsPerReal == math.floor(ptrsPerReal))
-	-- don't free the original ptr too soon
-	local ptr = ffi.cast('real*', ptrorig)
 	local size = buf.count * ptrsPerReal
+	
+	if tostring(self.checkNaNs):sub(1,3) == 'gpu' then
+		assert(size == self.numCells * self.eqn.numStates)
+		-- right now findNaNs is hardcoded to numCells
+		-- and if you change that, make sure that it doesn't write past 'reduceBufObj' (which is numCells in size)
+		-- or ... allocate a bigger buffer
+		self.reduceBufObj:fill()
+		self.findNaNsKernelObj.obj:setArg(2, buf.obj)
+		self.findNaNsKernelObj()	-- convert buf into reduceBuf 0 or 1 if it is finite or not
+		local max = fromreal(self.reduceMax(nil, self.numCells))
+		
+		if max == 0 then return true end
+
+--[[ return false ... or ... only now, print out all entries
+		return false, 'found non-finite offsets and numbers'
+			..' at t='..self.t
+--]]
+	end
+
+	-- don't free the original ptr too soon
+	local ptrorig = buf:toCPU()
+	local ptr = ffi.cast('real*', ptrorig)
+	
 	local found
-	for i=0,size-1 do
+	local function callback(i)
+		assert(i >= 0 and i < size)
 		local x = tonumber(ptr[i])
 		if not math.isfinite(x) then
 			found = found or table()
@@ -2679,9 +2730,51 @@ function SolverBase:checkFinite(buf)
 			found:insert(ins)
 		end
 	end
+
+	if self.checkNaNs == 'noghost'	-- set to string via cmdline
+	and size == self.numCells * ptrsPerReal
+	and not require 'hydro.solver.meshsolver'.is(self)
+	then
+		if self.dim == 1 then
+			for i=tonumber(self.numGhost),tonumber(self.gridSize.x-self.numGhost-1) do
+				for e=0,ptrsPerReal-1 do
+					callback(e + ptrsPerReal * i)
+				end
+			end
+		elseif self.dim == 2 then
+			for i=tonumber(self.numGhost),tonumber(self.gridSize.x-self.numGhost-1) do
+				for j=tonumber(self.numGhost),tonumber(self.gridSize.y-self.numGhost-1) do
+					for e=0,ptrsPerReal-1 do
+						callback(e + ptrsPerReal * (i + self.gridSize.x * j))
+					end
+				end
+			end
+		elseif self.dim == 3 then
+			for i=tonumber(self.numGhost),tonumber(self.gridSize.x-self.numGhost-1) do
+				for j=tonumber(self.numGhost),tonumber(self.gridSize.y-self.numGhost-1) do
+					for k=tonumber(self.numGhost),tonumber(self.gridSize.z-self.numGhost-1) do
+						for e=0,ptrsPerReal-1 do
+							callback(e + ptrsPerReal * (i + self.gridSize.x * (j + self.gridSize.y * k)))
+						end
+					end
+				end
+			end		
+		else
+			error("here")
+		end
+	else
+		for i=0,size-1 do
+			callback(i)
+		end
+	end
+	
 	if not found then return true end
+
 --	self:printBuf(nil, ptr)
-	return false, 'found non-finite offsets and numbers: '..require 'ext.tolua'(found)..' at t='..self.t
+	return false, 'found non-finite offsets and numbers'
+		--..': '..require 'ext.tolua'(found)
+		..', first entry: '..require 'ext.tolua'(found[1])
+		..' at t='..self.t
 end
 
 function SolverBase:printBuf(buf, ptrorig, colsize, colmax)

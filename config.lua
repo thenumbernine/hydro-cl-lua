@@ -247,9 +247,9 @@ local args = {
 	--initCond = 'spiral',
 	--initCond = 'rarefaction wave',
 	--initCond = 'Bessel',
-	initCond = 'jet',
+	--initCond = 'jet',
 	
-	--initCond = 'Sod',
+	initCond = 'Sod',
 	--initCond = 'Sod with physical units',
 	--initCondArgs = {dim=cmdline.displayDim},
 	
@@ -577,7 +577,7 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn
 -- compressible Euler equations
 
 
-self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
+--self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
 
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct bounded'})))	-- this is the default hllCalcWaveMethod
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct'})))

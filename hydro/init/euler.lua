@@ -1145,11 +1145,11 @@ end) then
 			-- TODO should we pass initCond to boundary?
 			self.solver.eqn:addGuiVars{
 				{name = 'init_rho', value = .1},
-				{name = 'init_P', value = .1},
+				{name = 'init_P', value = 1},
 				{name = 'init_inlet_rho', value = 1},
-				{name = 'init_inlet_v', value = .1},
+				{name = 'init_inlet_v', value = .5},
 				{name = 'init_inlet_P', value = 1},
-				{name = 'inlet_r', value = .1},
+				{name = 'inlet_r', value = .02},
 			}
 		end,
 		getInitCondCode = function(self)
@@ -1179,7 +1179,7 @@ end) then
 	real3 const x = cellBuf[<?=dst?>].pos;
 	real3 const xc = coordMap(x);
 	bool inlet = false;
-	if (xc.x > 0) {
+	if (xc.x < 0) {
 		real dy = xc.y;// - .5;
 		real dz = <?= solver.dim == 3 and 'xc.z - .5' or '0'?>;
 		real dyzSq = dy*dy + dz*dz;
@@ -1189,7 +1189,7 @@ end) then
 
 	if (inlet) {
 		prim.rho = solver->init_inlet_rho;
-		prim.v = _real3(-solver->init_inlet_v, 0., 0.);
+		prim.v = _real3(solver->init_inlet_v, 0., 0.);
 <? if not isSRHD then ?>
 		prim.P = solver->init_inlet_P;
 		prim.ePot = 0;
@@ -1206,7 +1206,7 @@ end) then
 
 	} else {
 
-		if (xc.x < 0) {
+		if (xc.x > 0) {
 //freeflow b.c.
 <?
 do
@@ -1225,7 +1225,7 @@ end
 ?>
 		} else {
 
-//constant b.c.
+//constant b.c. around the inlet
 		prim.rho = solver->init_rho;
 		prim.v = real3_zero;
 <? if not isSRHD then ?>
@@ -1270,7 +1270,7 @@ end
 				for _,xi in ipairs(xNames) do
 					for _,minmax in ipairs{'min', 'max'} do
 						local side = xi..minmax
-						if (solver.coord.name == 'cylinder' and side == 'xmin') 
+						if (solver.coord.name == 'cylinder' and side ~= 'xmax') 
 						or (solver.coord.name == 'spherical' and side ~= 'xmax')
 						then
 							-- don't replace

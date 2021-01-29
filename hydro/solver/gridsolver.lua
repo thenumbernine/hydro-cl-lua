@@ -679,9 +679,9 @@ function BoundaryMirror:getCode(args)
 {
 	real3 const x = cellBuf[INDEX(<?=iv?>)].pos;
 <? if args.minmax == 'min' then ?>
-	real3 n = coord_cartesianFromCoord(normalForSide<?=side-1?>, x);
+	real3 const n = coord_cartesianFromCoord(normalForSide<?=side-1?>, x);
 <? else -- max ?>
-	real3 n = coord_cartesianFromCoord(real3_neg(normalForSide<?=side-1?>), x);
+	real3 const n = coord_cartesianFromCoord(real3_neg(normalForSide<?=side-1?>), x);
 <? end ?>
 ]], 	{
 			args = args,
