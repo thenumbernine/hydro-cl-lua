@@ -235,7 +235,7 @@ local args = {
 	
 	-- Euler / SRHD / MHD initial states:
 	
-	--initCond = 'constant',
+	initCond = 'constant',
 	--initCondArgs = {v={1,0}},
 	--initCondArgs = {v={1e-1,1e-1}},
 	
@@ -249,7 +249,7 @@ local args = {
 	--initCond = 'Bessel',
 	--initCond = 'jet',
 	
-	initCond = 'Sod',
+	--initCond = 'Sod',
 	--initCond = 'Sod with physical units',
 	--initCondArgs = {dim=cmdline.displayDim},
 	
@@ -569,7 +569,7 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn
 -- shallow water equations
 
 
---self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='shallow-water'})))
+self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='shallow-water'})))
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='shallow-water'})))
 --self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='shallow-water', wenoMethod='1996 Jiang Shu', order=5})))
 
@@ -1189,7 +1189,7 @@ local args = {
 	--integrator = cmdline.integrator or 'backward Euler',
 	--integrator = cmdline.integrator or 'backward Euler, CPU',	-- debugging.   seems that, for grid sizes too small, B.E. GPU fails.  i think because the reduce() gpu function isn't set up for lower bounds of buffer sizes.
 	--integratorArgs = {verbose=true},
-	cfl = .5,
+	cfl = cmdline.cfl or .5,
 
 	--[[
 	coord = 'cartesian',

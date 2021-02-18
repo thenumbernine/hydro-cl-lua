@@ -30,8 +30,8 @@ in curvilinear coords, cartesian basis:
 	- 
 
 --]]?>*/
-<? if solver.coord.vectorComponent == 'holonomic'
-or require 'hydro.coord.cartesian'.is(solver.coord)
+<? if solver.coord.vectorComponent == "holonomic"
+or require "hydro.coord.cartesian".is(solver.coord)
 then ?>
 	real const volume = 1.<?
 	for i=0,solver.dim-1 do
@@ -58,8 +58,8 @@ then ?>
 		//U^i_;t + F^ij_;j  = 0
 		//U^i_,t + F^ij_,j + Gamma^j_kj F^ik + Gamma^i1_kj F^i1^k + ... + Gamma^in_kj F^in^k = 0
 		//					(metric det gradient) 
-<? if solver.coord.vectorComponent == 'holonomic'
-or require 'hydro.coord.cartesian'.is(solver.coord)
+<? if solver.coord.vectorComponent == "holonomic"
+or require "hydro.coord.cartesian".is(solver.coord)
 then ?>
 		real areaL = 1.<?
 	for i=0,solver.dim-1 do

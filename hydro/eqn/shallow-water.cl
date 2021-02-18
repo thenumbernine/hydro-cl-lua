@@ -9,6 +9,7 @@
 ) {\
 	(result)->h = (U)->h;\
 	(result)->v = real3_real_mul((U)->m, 1. / (U)->h);\
+	(result)->depth = (U)->depth;\
 }
 
 //// MODULE_NAME: <?=consFromPrim?>
@@ -22,6 +23,7 @@
 ) {\
 	(result)->h = (W)->h;\
 	(result)->m = real3_real_mul((W)->v, (W)->h);\
+	(result)->depth = (W)->depth;\
 }
 
 //// MODULE_NAME: <?=apply_dU_dW?>
@@ -38,6 +40,7 @@
 	(result)->m = real3_add(\
 		real3_real_mul((WA)->v, (W)->h), \
 		real3_real_mul((W)->v, (WA)->h));\
+	(result)->depth = (W)->depth;\
 }
 
 //// MODULE_NAME: <?=apply_dW_dU?>
@@ -54,6 +57,7 @@
 	(result)->v = real3_sub(\
 		real3_real_mul((U)->m, 1. / (WA)->h),\
 		real3_real_mul((WA)->v, (U)->h / (WA)->h));\
+	(result)->depth = (U)->depth;\
 }
 
 //// MODULE_NAME: <?=eqn_common?>
@@ -98,6 +102,7 @@ end
 	<?=prim_t?> const W = {
 		.h = rho,
 		.v = cartesianToCoord(v, x),
+		.depth = 0.,
 	};
 	<?=consFromPrim?>(U, solver, &W, x);
 }
@@ -322,4 +327,74 @@ end
 	(result)->h = W.h;\
 	(result)->v = W.v;\
 	(result)->C = C;\
+}
+
+//// MODULE_NAME: <?=addSource?>
+
+kernel void <?=addSource?>(
+	constant <?=solver_t?> const * const solver,
+	global <?=cons_t?> * const derivBuf,
+	global <?=cons_t?> const * const UBuf,
+	global <?=cell_t?> const * const cellBuf
+) {
+	<?=SETBOUNDS_NOGHOST?>();
+	real3 const pt = cellBuf[index].pos;
+	
+	global <?=cons_t?> * const deriv = derivBuf + index;
+	global <?=cons_t?> const * const U = UBuf + index;
+	
+	<?=prim_t?> W;
+	<?=primFromCons?>(&W, solver, U, x);
+
+//// MODULE_DEPENDS: <?=cell_volume?>
+	//I'm treating conn as if it is fixed at the cell center.
+	//TODO instead: treat the cell values constant at center and integrate conn across the cell.
+	real const volume = cell_volume(pt);
+
+//// MODULE_DEPENDS: <?=coord_conn_apply23?>
+	//covariant derivative connection:
+	//integral -vol Γ^i_jk h v^j v^k dx^3
+	deriv->m = real3_sub(
+		deriv->m,
+		real3_real_mul(
+			coord_conn_apply23(W.v, U->m, pt),
+			volume
+		)
+	);
+	
+//// MODULE_DEPENDS: <?=coord_conn_trace23?>
+	//covariant derivative connection:
+	//integral -vol 1/2 g h^2 Γ^i_jk g^jk dx^3
+	deriv->m = real3_sub(
+		deriv->m,
+		real3_real_mul(
+			coord_conn_trace23(pt),
+			.5 * volume * solver->gravity * U->h * U->h
+		)
+	);
+
+// \partial_tilde{j} depth
+<?=eqn:makePartial1"depth"?>	
+
+//// MODULE_DEPENDS: <?=coord_holBasisLen_i?>
+	//e_j(depth) = {e_j}^\tilde{j} \partial_\tilde{j} (depth)
+	real3 const e_depth_l = _real3(
+		partial_depth_l.x / coord_holBasisLen0(pt),
+		partial_depth_l.y / coord_holBasisLen1(pt),	
+		partial_depth_l.z / coord_holBasisLen2(pt)
+	);
+
+//// MODULE_DEPENDS: <?=coord_raise?>
+	//g^ij e_j(depth)
+	real3 const e_depth_u = coord_raise(e_depth_l, pt);	
+
+	//source of shallow water equations:
+	//integral vol g h g^ij e_j(d) dx^3
+	deriv->m = real3_add(
+		deriv->m,
+		real3_real_mul(
+			e_depth_u,
+			volume * solver->gravity * U->h
+		)
+	);
 }

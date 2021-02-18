@@ -10,22 +10,54 @@ ShallowWater.roeUseFluxFromCons = true
 
 ShallowWater.initConds = require 'hydro.init.euler':getList()
 
+ShallowWater.numWaves = 4
+ShallowWater.numIntStates = 4	-- don't integrate depth.  instead read that from an image and keep it.
+-- TODO store it in cellBuf instead of UBuf, so derivs don't mess with it
+-- TODO same with all other non-integratable state-vars in all other equations.
 
 -- TODO primVars doesn't autogen displayVars, and therefore units doesn't matter
 ShallowWater.primVars = {
 	{name='h', type='real', units='m'},
 	{name='v', type='real3', units='m/s', variance='u'},	-- contravariant
+	{name='depth', type='real', units='m'},	-- TODO move to cellBuf
 }
 
 ShallowWater.consVars = {
 	{name='h', type='real', units='m'},
 	{name='m', type='real3', units='m^2/s', variance='u'},	-- contravariant
+	{name='depth', type='real', units='m'},	-- TODO move to cellBuf
 }
+
+function ShallowWater:init(args)
+	ShallowWater.super.init(self, args)
+	local solver = args.solver
+	
+	-- hmm, why don't we just call eqn:resetState if it's there?
+	solver.ops:insert{
+		resetState = function(self)
+			local Image = require 'image'
+			
+			-- 1-channel, 16-bit signed, negative = below sea level
+			local image = Image'bathymetry/world - pacific.tif'
+			
+			local ptr = solver.UBufObj:toCPU()
+			-- if it's a grid, read from image
+			-- if it's a mesh then ... ? sample
+			for j=0,tonumber(solver.gridSize.y)-1 do
+				for i=0,tonumber(solver.gridSize.x)-1 do
+					ptr[i + solver.gridSize.x * j].depth 
+						= tonumber(image.buffer[i + image.width * j])
+				end
+			end
+			solver.UBufObj:fromCPU(ptr)
+		end,
+	}
+end
 
 function ShallowWater:createInitState()
 	ShallowWater.super.createInitState(self)
 	self:addGuiVars{	
-		{name='gravity', value=1, units='m/s^2'},
+		{name='gravity', value=9.8, units='m/s^2'},
 	}
 end
 
