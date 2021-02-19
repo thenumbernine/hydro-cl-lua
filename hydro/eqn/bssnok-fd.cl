@@ -28,8 +28,8 @@ sym3 <?=calc_gammaBar_LL?>(
 	global <?=cons_t?> const * const U,
 	real3 const x
 ) {
-	sym3 gammaHat_LL = <?=calc_gammaHat_LL?>(x);
-	sym3 gammaBar_LL = sym3_add(gammaHat_LL, U->epsilon_LL);
+	sym3 const gammaHat_LL = <?=calc_gammaHat_LL?>(x);
+	sym3 const gammaBar_LL = sym3_add(gammaHat_LL, U->epsilon_LL);
 	return gammaBar_LL;
 }
 
@@ -61,9 +61,9 @@ sym3 <?=calc_gammaBar_UU?>(
 	global <?=cons_t?> const * const U,
 	real3 const x
 ) {
-	sym3 gammaBar_LL = <?=calc_gammaBar_LL?>(U, x);
-	real det_gammaBarLL = <?=calc_det_gammaBarLL?>(x);
-	sym3 gammaBar_UU = sym3_inv(gammaBar_LL, det_gammaBarLL);
+	sym3 const gammaBar_LL = <?=calc_gammaBar_LL?>(U, x);
+	real const det_gammaBarLL = <?=calc_det_gammaBarLL?>(x);
+	sym3 const gammaBar_UU = sym3_inv(gammaBar_LL, det_gammaBarLL);
 	return gammaBar_UU;
 }
 
@@ -75,9 +75,9 @@ sym3 <?=calc_gammaBar_ll?>(
 	global <?=cons_t?> const * const U,
 	real3 const x
 ) {
-	sym3 gammaHat_ll = <?=calc_gammaHat_ll?>(x);
-	sym3 epsilon_ll = sym3_rescaleToCoord_LL(U->epsilon_LL, x);
-	sym3 gammaBar_ll = sym3_add(gammaHat_ll, epsilon_ll);
+	sym3 const gammaHat_ll = <?=calc_gammaHat_ll?>(x);
+	sym3 const epsilon_ll = sym3_rescaleToCoord_LL(U->epsilon_LL, x);
+	sym3 const gammaBar_ll = sym3_add(gammaHat_ll, epsilon_ll);
 	return gammaBar_ll;
 }
 
@@ -88,9 +88,9 @@ sym3 <?=calc_gammaBar_ll?>(
 //...except sometimes, according to 2012 Baumgarte et al, last paragraph of II B
 real <?=calc_det_gammaBar?>(real3 const x) {
 	//TODO detg ...
-	real det_gammaHat = <?=calc_det_gammaHat?>(x);
-	real detg = 1.;
-	real det_gammaBar = det_gammaHat * detg;
+	real const det_gammaHat = <?=calc_det_gammaHat?>(x);
+	real const detg = 1.;
+	real const det_gammaBar = det_gammaHat * detg;
 	return det_gammaBar;
 }
 
@@ -105,9 +105,9 @@ sym3 <?=calc_gammaBar_uu?>(
 	global <?=cons_t?> const * const U,
 	real3 const x
 ) {
-	sym3 gammaBar_ll = <?=calc_gammaBar_ll?>(U, x);
-	real det_gammaBar = <?=calc_det_gammaBar?>(x);
-	sym3 gammaBar_uu = sym3_inv(gammaBar_ll, det_gammaBar);
+	sym3 const gammaBar_ll = <?=calc_gammaBar_ll?>(U, x);
+	real const det_gammaBar = <?=calc_det_gammaBar?>(x);
+	sym3 const gammaBar_uu = sym3_inv(gammaBar_ll, det_gammaBar);
 	return gammaBar_uu;
 }
 
@@ -118,9 +118,9 @@ sym3 <?=calc_gamma_ll?>(
 	global <?=cons_t?> const * const U,
 	real3 const x
 ) {
-	sym3 gammaBar_ll = <?=calc_gammaBar_ll?>(U, x);
-	real exp_4phi = 1. / <?=calc_exp_neg4phi?>(U);
-	sym3 gamma_ll = sym3_real_mul(gammaBar_ll, exp_4phi);
+	sym3 const gammaBar_ll = <?=calc_gammaBar_ll?>(U, x);
+	real const exp_4phi = 1. / <?=calc_exp_neg4phi?>(U);
+	sym3 const gamma_ll = sym3_real_mul(gammaBar_ll, exp_4phi);
 	return gamma_ll;
 }
 
@@ -131,11 +131,11 @@ sym3 <?=calc_gamma_uu?>(
 	global <?=cons_t?> const * const U,
 	real3 const x
 ) {
-	sym3 gammaBar_ll = <?=calc_gammaBar_ll?>(U, x);
-	real exp_4phi = 1. / <?=calc_exp_neg4phi?>(U);
-	sym3 gamma_ll = sym3_real_mul(gammaBar_ll, exp_4phi);
-	real det_gamma = <?=calc_det_gammaBar?>(x) * exp_4phi * exp_4phi * exp_4phi;
-	sym3 gamma_uu = sym3_inv(gamma_ll, det_gamma); 
+	sym3 const gammaBar_ll = <?=calc_gammaBar_ll?>(U, x);
+	real const exp_4phi = 1. / <?=calc_exp_neg4phi?>(U);
+	sym3 const gamma_ll = sym3_real_mul(gammaBar_ll, exp_4phi);
+	real const det_gamma = <?=calc_det_gammaBar?>(x) * exp_4phi * exp_4phi * exp_4phi;
+	sym3 const gamma_uu = sym3_inv(gamma_ll, det_gamma); 
 	return gamma_uu;
 }
 

@@ -28,30 +28,34 @@ ShallowWater.consVars = {
 	{name='depth', type='real', units='m'},	-- TODO move to cellBuf
 }
 
-function ShallowWater:init(args)
-	ShallowWater.super.init(self, args)
-	local solver = args.solver
+function ShallowWater:resetState()
+	local solver = self.solver
 	
-	-- hmm, why don't we just call eqn:resetState if it's there?
-	solver.ops:insert{
-		resetState = function(self)
-			local Image = require 'image'
-			
-			-- 1-channel, 16-bit signed, negative = below sea level
-			local image = Image'bathymetry/world - pacific.tif'
-			
-			local ptr = solver.UBufObj:toCPU()
-			-- if it's a grid, read from image
-			-- if it's a mesh then ... ? sample
-			for j=0,tonumber(solver.gridSize.y)-1 do
-				for i=0,tonumber(solver.gridSize.x)-1 do
-					ptr[i + solver.gridSize.x * j].depth 
-						= tonumber(image.buffer[i + image.width * j])
-				end
-			end
-			solver.UBufObj:fromCPU(ptr)
-		end,
-	}
+	-- if it's a grid, read from image
+	-- if it's a mesh then ... ? 
+	if require 'hydro.solver.meshsolver':isa(solver) 
+	or solver.dim ~= 2
+	then
+		print("ShallowWater only does depth images for 2D -- skipping")
+		return
+	end
+	
+	local Image = require 'image'
+
+	-- 1-channel, 16-bit signed, negative = below sea level
+	local image = Image'bathymetry/world - pacific.tif'
+		:resize(
+			tonumber(solver.sizeWithoutBorder.x),
+			tonumber(solver.sizeWithoutBorder.y))
+
+	local ptr = solver.UBufObj:toCPU()
+	for j=0,tonumber(solver.sizeWithoutBorder.y)-1 do
+		for i=0,tonumber(solver.sizeWithoutBorder.x)-1 do
+			ptr[i + solver.numGhost + solver.gridSize.x * (j + solver.numGhost)].depth 
+				= tonumber(image.buffer[i + image.width * j])
+		end
+	end
+	solver.UBufObj:fromCPU(ptr)
 end
 
 function ShallowWater:createInitState()

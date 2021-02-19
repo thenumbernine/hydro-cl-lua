@@ -1660,8 +1660,18 @@ function SolverBase:resetState()
 
 	self:applyInitCond()
 	self:boundary()
-	
-	self:resetOps()
+
+	if self.eqn.resetState then
+		self.eqn:resetState()
+		self:boundary()
+	end
+
+	for _,op in ipairs(self.ops) do
+		if op.resetState then
+			op:resetState()
+			self:boundary()
+		end
+	end
 
 	self:constrainU()
 end
@@ -1679,15 +1689,6 @@ function SolverBase:applyInitCond()
 	self.eqn.initCond:resetState(self)
 	if self.allowAccum then
 		self.cmds:enqueueFillBuffer{buffer=self.accumBuf, size=ffi.sizeof(self.app.real) * self.numCells * 3}
-	end
-end
-
-function SolverBase:resetOps()
-	for _,op in ipairs(self.ops) do
-		if op.resetState then
-			op:resetState()
-			self:boundary()
-		end
 	end
 end
 

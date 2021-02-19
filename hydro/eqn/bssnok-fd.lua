@@ -180,12 +180,15 @@ function BSSNOKFiniteDifferenceEquationBase:initCodeModule_calcDTCell()
 		name = self.symbols.calcDTCell,
 		depends = table{
 			self.symbols.eqn_common,
-			self.solver.coord.symbols.coord_sqrt_gHol_ll_ij,
-			self.solver.symbols.SETBOUNDS,
 		}:append(
-			self.cflMethod == '2008 Alcubierre' and { 
-				self.symbols.calc_gamma_uu,
-			} or nil
+			({
+				['2008 Alcubierre'] = { 
+					self.symbols.calc_gamma_uu,
+				},
+				['2017 Ruchlin et al, eqn 53'] = {
+					self.solver.coord.symbols.coord_sqrt_gHol_ll_ij,
+				},
+			})[self.cflMethod]
 		),
 		code = self:template[[
 void <?=calcDTCell?>(
