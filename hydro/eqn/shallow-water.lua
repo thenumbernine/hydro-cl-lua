@@ -26,14 +26,21 @@ ShallowWater.numIntStates = 4	-- don't integrate depth.  instead read that from 
 ShallowWater.primVars = {
 	{name='h', type='real', units='m'},						-- total height
 	{name='v', type='real3', units='m/s', variance='u'},	-- contravariant
-	{name='depth', type='real', units='m'},					-- bathymetry depth / resting height.  TODO move to cellBuf
 }
 
 ShallowWater.consVars = {
 	{name='h', type='real', units='m'},
 	{name='m', type='real3', units='m^2/s', variance='u'},	-- contravariant
-	{name='depth', type='real', units='m'},					-- TODO move to cellBuf
 }
+
+function ShallowWater:createCellStruct()
+	local solver = self.solver
+	local coord = solver.coord
+
+	-- add our cell depth value here.  no more storing it in non-integrated UBuf (wasting memory and slowing performance).
+	-- 'depth' = height-above-seafloor, in m, so sealevel values are negative
+	coord.cellStruct.vars:insert{name='depth', type='real'}
+end
 
 function ShallowWater:resetState()
 	local solver = self.solver
@@ -55,20 +62,22 @@ function ShallowWater:resetState()
 			tonumber(solver.sizeWithoutBorder.x),
 			tonumber(solver.sizeWithoutBorder.y))
 
-	local ptr = solver.UBufObj:toCPU()
+	local cpuU = solver.UBufObj:toCPU()
+	local cpuCell = solver.cellBufObj:toCPU()
 	for j=0,tonumber(solver.sizeWithoutBorder.y)-1 do
 		for i=0,tonumber(solver.sizeWithoutBorder.x)-1 do
 			local index = i + solver.numGhost + solver.gridSize.x * (j + solver.numGhost)
 			local d = tonumber(image.buffer[i + image.width * (image.height - 1 - j)])
 			-- in the image, bathymetry values are negative
 			-- throw away altitude values (for now?)
-			ptr[index].depth = d	-- bathymetry values are negative
+			cpuCell[index].depth = d	-- bathymetry values are negative
 			-- initialize to steady-state
-			ptr[index].h = math.max(0, -d)		-- total height is positive
-			-- cells are 'wet' where h > 0 -- and there they should be evolved
+			cpuU[index].h = math.max(0, -d)		-- total height is positive
+			-- cells are 'wet' where h > depth -- and there they should be evolved
 		end
 	end
-	solver.UBufObj:fromCPU(ptr)
+	solver.UBufObj:fromCPU(cpuU)
+	solver.cellBufObj:fromCPU(cpuCell)
 end
 
 function ShallowWater:createInitState()
@@ -105,7 +114,7 @@ ShallowWater.predefinedDisplayVars = {
 	'U h',
 	'U v',
 	'U v mag',
-	'U depth',
+	--'U depth',	-- TODO displayVar for cellBuf
 }
 --]=]
 

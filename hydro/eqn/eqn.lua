@@ -1185,17 +1185,17 @@ function Equation:fieldTypeForVar(varname)
 	return var.type
 end
 
-function Equation:makePartial1(field, fieldType, nameOverride)
+function Equation:makePartial1(field, fieldType, ...)
 	-- order = 4 = 2 * 2 = 2 * (3 - 1), so numGhost == 3
 	local derivOrder = 2 * (self.solver.numGhost - 1)
 	fieldType = fieldType or self:fieldTypeForVar(field)
-	return makePartials.makePartial1(derivOrder, self.solver, field, fieldType, nameOverride)
+	return makePartials.makePartial1(derivOrder, self.solver, field, fieldType, ...)
 end
 
-function Equation:makePartial2(field, fieldType, nameOverride)
+function Equation:makePartial2(field, fieldType, ...)
 	local derivOrder = 2 * (self.solver.numGhost - 1)
 	fieldType = fieldType or self:fieldTypeForVar(field)
-	return makePartials.makePartial2(derivOrder, self.solver, field, fieldType, nameOverride)
+	return makePartials.makePartial2(derivOrder, self.solver, field, fieldType, ...)
 end
 
 return Equation

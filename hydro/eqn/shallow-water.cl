@@ -9,7 +9,6 @@
 ) {\
 	(result)->h = (U)->h;\
 	(result)->v = real3_real_mul((U)->m, 1. / (U)->h);\
-	(result)->depth = (U)->depth;\
 }
 
 //// MODULE_NAME: <?=consFromPrim?>
@@ -23,7 +22,6 @@
 ) {\
 	(result)->h = (W)->h;\
 	(result)->m = real3_real_mul((W)->v, (W)->h);\
-	(result)->depth = (W)->depth;\
 }
 
 //// MODULE_NAME: <?=apply_dU_dW?>
@@ -40,7 +38,6 @@
 	(result)->m = real3_add(\
 		real3_real_mul((WA)->v, (W)->h), \
 		real3_real_mul((W)->v, (WA)->h));\
-	(result)->depth = (W)->depth;\
 }
 
 //// MODULE_NAME: <?=apply_dW_dU?>
@@ -57,7 +54,6 @@
 	(result)->v = real3_sub(\
 		real3_real_mul((U)->m, 1. / (WA)->h),\
 		real3_real_mul((WA)->v, (U)->h / (WA)->h));\
-	(result)->depth = (U)->depth;\
 }
 
 //// MODULE_NAME: <?=eqn_common?>
@@ -102,7 +98,6 @@ end
 	<?=prim_t?> const W = {
 		.h = rho,
 		.v = cartesianToCoord(v, x),
-		.depth = 0.,
 	};
 	<?=consFromPrim?>(U, solver, &W, x);
 }
@@ -338,10 +333,12 @@ kernel void <?=addSource?>(
 	global <?=cell_t?> const * const cellBuf
 ) {
 	<?=SETBOUNDS_NOGHOST?>();
-	real3 const pt = cellBuf[index].pos;
 	
 	global <?=cons_t?> * const deriv = derivBuf + index;
 	global <?=cons_t?> const * const U = UBuf + index;
+	global <?=cell_t?> const * const cell = cellBuf + index;
+	
+	real3 const pt = cell->pos;
 	
 	<?=prim_t?> W;
 	<?=primFromCons?>(&W, solver, U, x);
@@ -374,7 +371,12 @@ kernel void <?=addSource?>(
 	);
 
 // \partial_tilde{j} depth
-<?=eqn:makePartial1"depth"?>	
+<?=eqn:makePartial1(
+	"depth",	-- field
+	"real",		-- fieldType ... needs to be manually specified because we are pulling from a field not in consStruct, where the inferred types are checked
+	nil,		-- nameOverride
+	"cell"		-- srcName (cellBuf instead of UBuf)
+)?>
 
 //// MODULE_DEPENDS: <?=coord_holBasisLen_i?>
 	//e_j(depth) = {e_j}^\tilde{j} \partial_\tilde{j} (depth)

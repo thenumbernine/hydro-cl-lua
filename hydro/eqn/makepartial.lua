@@ -49,14 +49,15 @@ field = field of U buffer to use
 fieldType = type of field
 nameOverride = what name to use for the partial vars
 	default: partial_field_l
+srcName = which ptr to read offsets from, default is 'U'
 --]]
-local function makePartialRank1(deriv, order, solver, field, fieldType, nameOverride)
+local function makePartialRank1(deriv, order, solver, field, fieldType, nameOverride, srcName)
 	local xNames = common.xNames
 	local suffix = 'l'
 	if type(field) == 'string' and not field:find'_' then
 		suffix = '_' .. suffix
 	end
-	
+
 	local add, sub, real_mul, zero
 	if fieldType == 'real' then	--for readability, just inline the macros here
 		add = function(x,y,xt,yt)
@@ -79,9 +80,10 @@ local function makePartialRank1(deriv, order, solver, field, fieldType, nameOver
 		zero = fieldType..'_zero'
 	end
 
+	srcName = srcName or 'U'
 	local readField = 
 		type(field) == 'string'
-		and function(index) return 'U['..index..'].'..field end
+		and function(index) return srcName..'['..index..'].'..field end
 		or field
 
 	local name = nameOverride or ('partial_'..field..suffix)
@@ -130,7 +132,7 @@ local function makePartialRank1(deriv, order, solver, field, fieldType, nameOver
 	return lines:concat'\n'
 end
 
-local function makePartialRank2(deriv, order, solver, field, fieldType, nameOverride)
+local function makePartialRank2(deriv, order, solver, field, fieldType, nameOverride, srcName)
 	local xNames = common.xNames
 	local symNames = common.symNames
 	local from6to3x3 = common.from6to3x3
@@ -158,10 +160,11 @@ local function makePartialRank2(deriv, order, solver, field, fieldType, nameOver
 		real_mul = function(x,y) return fieldType..'_real_mul('..x..', '..y..')' end
 		zero = fieldType..'_zero'
 	end
-	
+
+	srcName = srcName or 'U'
 	local readField = 
 		type(field) == 'string'
-		and function(index) return 'U['..index..'].'..field end
+		and function(index) return srcName..'['..index..'].'..field end
 		or field
 
 	local name = nameOverride or ('partial2_'..field..suffix)
