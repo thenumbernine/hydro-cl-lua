@@ -109,14 +109,12 @@ ShallowWater.solverCodeFile = 'hydro/eqn/shallow-water.cl'
 
 ShallowWater.displayVarCodeUsesPrims = true
 
--- [=[
 ShallowWater.predefinedDisplayVars = {
 	'U h',
 	'U v',
 	'U v mag',
-	--'U depth',	-- TODO displayVar for cellBuf
+	'cell depth',
 }
---]=]
 
 function ShallowWater:getDisplayVars()
 	local vars = ShallowWater.super.getDisplayVars(self)

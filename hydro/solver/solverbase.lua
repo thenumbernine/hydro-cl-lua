@@ -1594,6 +1594,9 @@ end ?><?=group.extraArgs and #group.extraArgs > 0
 
 <?=group.codePrefix or ''
 ?>
+	
+	global <?=cell_t?> const * const cell = cellBuf + index;
+	
 	int vectorField = 0;
 	switch (displayVarIndex) {
 ]], 			table({
@@ -2224,6 +2227,13 @@ function SolverBase:addDisplayVars()
 		bufferType = 'real',
 		getBuffer = function() return self.reduceBuf end,
 		vars = {{name='0', code='value.vreal = buf[index];'}},
+	}
+
+	self:addDisplayVarGroup{
+		name = 'cell',
+		bufferField = 'cellBuf',
+		bufferType = self.coord.cell_t,
+		vars = self:createDisplayVarArgsForStructVars(self.coord.cellStruct.vars, 'cell')
 	}
 
 -- [[ use for debugging only for the time being
