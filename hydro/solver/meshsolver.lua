@@ -147,6 +147,26 @@ function MeshSolver:initObjs(args)
 	end
 end
 
+function MeshSolver:createCellStruct()
+	-- here's the mesh-specific stuff
+	self.coord.cellStruct.vars:append{
+-- [[			
+		{name='volume', type='real'},	--volume of the cell
+--]]			
+		{name='faceOffset', type='int'},
+		{name='faceCount', type='int'},
+		{name='vtxOffset', type='int'},
+		{name='vtxCount', type='int'},
+	}
+
+	-- here is the mesh-specific face_t fields
+	self.coord.faceStruct.vars:append{
+		{type='vec2i_t', name='cells'},	--indexes of cells
+		{type='int', name='vtxOffset'},
+		{type='int', name='vtxCount'},
+	}
+end
+
 function MeshSolver:createSolverBuf()
 	MeshSolver.super.createSolverBuf(self)
 

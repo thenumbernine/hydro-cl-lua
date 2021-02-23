@@ -384,17 +384,22 @@ kernel void <?=addSource?>(
 		partial_depth_l.z / coord_holBasisLen2(pt)
 	);
 
+	//2011 Berger, eqn 1
 //// MODULE_DEPENDS: <?=coord_raise?>
 	//g^ij e_j(depth)
 	real3 const e_depth_u = coord_raise(e_depth_l, pt);	
 
 	//source of shallow water equations:
 	//integral vol g h g^ij e_j(d) dx^3
-	deriv->m = real3_add(
+	deriv->m = real3_sub(
 		deriv->m,
 		real3_real_mul(
 			e_depth_u,
 			volume * solver->gravity * U->h
 		)
 	);
+	
+	//2011 Berger, eqn 3
+	real const drag = solver->gravity * solver->Manning * solver->Manning * coordLen(U->m, pt) * pow(U->h, -8./3.);	//|u|/h^(5/3) = |m|*h^(-8/3)
+	deriv->m = real3_sub(deriv->m, U->m);
 }

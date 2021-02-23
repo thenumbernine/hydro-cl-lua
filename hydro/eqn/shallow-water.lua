@@ -1,3 +1,10 @@
+--[[
+based off of:
+	2011 Berger et al - The GeoClaw software for depth-averaged flows with adaptive refinement
+with help from:
+	2016 Titov et al - Development of MOST for Real-Time Tsunami Forecasting
+	https://en.wikipedia.org/wiki/Shallow_water_equations
+--]]
 local class = require 'ext.class'
 local table = require 'ext.table'
 local Equation = require 'hydro.eqn.eqn'
@@ -17,15 +24,15 @@ ShallowWater.numIntStates = 4	-- don't integrate depth.  instead read that from 
 
 -- TODO primVars doesn't autogen displayVars, and therefore units doesn't matter
 ShallowWater.primVars = {
-	{name='h', type='real', units='m'},
+	{name='h', type='real', units='m'},						-- total height
 	{name='v', type='real3', units='m/s', variance='u'},	-- contravariant
-	{name='depth', type='real', units='m'},	-- TODO move to cellBuf
+	{name='depth', type='real', units='m'},					-- bathymetry depth / resting height.  TODO move to cellBuf
 }
 
 ShallowWater.consVars = {
 	{name='h', type='real', units='m'},
 	{name='m', type='real3', units='m^2/s', variance='u'},	-- contravariant
-	{name='depth', type='real', units='m'},	-- TODO move to cellBuf
+	{name='depth', type='real', units='m'},					-- TODO move to cellBuf
 }
 
 function ShallowWater:resetState()
@@ -51,8 +58,14 @@ function ShallowWater:resetState()
 	local ptr = solver.UBufObj:toCPU()
 	for j=0,tonumber(solver.sizeWithoutBorder.y)-1 do
 		for i=0,tonumber(solver.sizeWithoutBorder.x)-1 do
-			ptr[i + solver.numGhost + solver.gridSize.x * (j + solver.numGhost)].depth 
-				= tonumber(image.buffer[i + image.width * j])
+			local index = i + solver.numGhost + solver.gridSize.x * (j + solver.numGhost)
+			local d = tonumber(image.buffer[i + image.width * (image.height - 1 - j)])
+			-- in the image, bathymetry values are negative
+			-- throw away altitude values (for now?)
+			ptr[index].depth = d	-- bathymetry values are negative
+			-- initialize to steady-state
+			ptr[index].h = math.max(0, -d)		-- total height is positive
+			-- cells are 'wet' where h > 0 -- and there they should be evolved
 		end
 	end
 	solver.UBufObj:fromCPU(ptr)
@@ -62,6 +75,7 @@ function ShallowWater:createInitState()
 	ShallowWater.super.createInitState(self)
 	self:addGuiVars{	
 		{name='gravity', value=9.8, units='m/s^2'},
+		{name='Manning', value=0.025},	-- 2011 Berger eqn 3, Manning coefficient
 	}
 end
 
@@ -91,9 +105,7 @@ ShallowWater.predefinedDisplayVars = {
 	'U h',
 	'U v',
 	'U v mag',
-	'U v x',
-	'U v y',
-	'U v z',
+	'U depth',
 }
 --]=]
 
@@ -172,5 +184,18 @@ function ShallowWater:consWaveCode(n, U, x, waveIndex)
 end
 
 ShallowWater.eigenWaveCode = ShallowWater.consWaveCode
+
+--[[
+try to do the wet/try interface stuff here
+if the height of a cell is negative then set the left/right flux to zero, thus skipping integration on this cell
+... but there is no UBuf argument of calcDerivFromFlux
+this is another reason to put the static / non-integrated / shallow water depth values into cellBuf
+all static values should go into cellBuf
+--]]
+function ShallowWater:postComputeFluxCode()
+	return [[
+	//if (U->
+]]
+end
 
 return ShallowWater

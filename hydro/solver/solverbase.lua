@@ -360,7 +360,7 @@ self.initArgs.numDevices = #args.app.env.devices
 		self:initCodeModules()
 		self:initCodeModuleDisplay()
 		self:initCDefs()
-		self:postInit()
+		self:postInit()	--> refreshGridSize -> createBuffers
 	end)
 end
 
@@ -593,6 +593,14 @@ function SolverBase:createCoord(args)
 	end
 end
 
+-- this is called back from within coord creation *BEFORE* it is finished (and assigned)
+-- hmm, here is a dilemma, eqn has not yet been created, but I would like eqn to be able to populate cells in this.
+-- so that means ... delay this until after eqn has been created (which is also after solver.coord has been assigned)
+-- and also delay use of any cellBuf's until after that point.
+function SolverBase:createCellStruct(coord)
+
+end
+
 function SolverBase:initCLDomainVars(args)
 
 -- despite the name, this doesn't have anything to do with the grid size ...
@@ -662,6 +670,34 @@ function SolverBase:initObjs(args)
 	-- TODO if initCond is supposed to be modular then this would have to be created after initCond is changed
 	self.initCond_t = self.eqn.initCond.initStruct.typename
 	self.initCondPtr = ffi.new(self.initCond_t)
+
+
+
+	-- [[
+	-- This code should go after all objs are created -- so they can each call their own callbacks to modify this
+	-- and it should go before the next call, which is initCodeModules, which requires the finalizeCellStruct to be called
+
+	-- this creates coord.cellStruct and coord.faceStruct, but doesn't yet create the types until coord:finalizeCellStruct()
+	self.coord:createCellStruct()
+
+	-- moving the solver-specific changes to cell_t into this function:
+	-- especially MeshSolver uses this to add mesh fields to cell_t
+	if self.createCellStruct then
+		self:createCellStruct()
+	end
+
+	if self.eqn.createCellStruct then
+		self.eqn:createCellStruct()
+	end
+	
+	for _,op in ipairs(self.ops) do
+		if op.createCellStruct then
+			op:createCellStruct()
+		end
+	end
+
+	self.coord:finalizeCellStruct()
+	--]]
 end
 
 -- collect *all* modules from all sub-objects

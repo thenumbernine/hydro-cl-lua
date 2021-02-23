@@ -1142,27 +1142,20 @@ self.compilePrintRequestTensor = compilePrintRequestTensor
 		srcname = 'coord_sqrt_gHol_ll',
 		define = true,
 	}
-
-
-	self:createCellStruct()
-	
-	self.cellStruct:makeType()
-	self.cell_t = self.cellStruct.typename
-	
-	self.faceStruct:makeType()
-	self.face_t = self.faceStruct.typename
 end
 
+-- called after coord creation, before finalize creates the type.  between, other objects can modify it.
 function CoordinateSystem:createCellStruct()
---[[
-ok here's a dilemma ...
-gridSolver has cellBuf that holds cell pos and any other aux vars used for cell calculations
-meshsolver has cellBuf that holds cell pos and mesh info
-meshsolver needs to pass 'cellBuf'
-
---]]
+	local solver = self.solver
+	
+	--[[
+	ok here's a dilemma ...
+	gridSolver has cellBuf that holds cell pos and any other aux vars used for cell calculations
+	meshsolver has cellBuf that holds cell pos and mesh info
+	meshsolver needs to pass 'cellBuf'
+	--]]
 	self.cellStruct = Struct{
-		solver = self.solver,
+		solver = solver,
 		name = 'cell_t',
 		dontUnion = true,
 		vars = {
@@ -1172,27 +1165,14 @@ meshsolver needs to pass 'cellBuf'
 --]]		
 		},
 	}
-	
-	-- here's the mesh-specific stuff
-	if require 'hydro.solver.meshsolver'.is(assert(self.solver)) then
-		self.cellStruct.vars:append{
--- [[			
-			{name='volume', type='real'},	--volume of the cell
---]]			
-			{name='faceOffset', type='int'},
-			{name='faceCount', type='int'},
-			{name='vtxOffset', type='int'},
-			{name='vtxCount', type='int'},
-		}
-	end
 
-
+	-- MeshSolver mesh generation statistics:
 	-- cartesian code takes ~20 seconds to compile
 	-- cylindrical code takes ~60 seconds.
 	-- the only main difference in the code is the # of normal computations ... and at that, directly calling cos() and sin()
 	-- I'm going to see if reducing the trig calls helps but giving gridsolvers their own faceBuf
 	self.faceStruct = Struct{
-		solver = self.solver,
+		solver = solver,
 		name = 'face_t',
 		dontUnion = true,
 		vars = {
@@ -1204,15 +1184,14 @@ meshsolver needs to pass 'cellBuf'
 			{type='real', name='cellDist'},	--dist between cell centers along 'normal'
 		},
 	}
+end
 
-	-- here is the mesh-specific face_t fields
-	if require 'hydro.solver.meshsolver'.is(assert(self.solver)) then
-		self.faceStruct.vars:append{
-			{type='vec2i_t', name='cells'},	--indexes of cells
-			{type='int', name='vtxOffset'},
-			{type='int', name='vtxCount'},
-		}
-	end
+function CoordinateSystem:finalizeCellStruct()
+	self.cellStruct:makeType()
+	self.cell_t = self.cellStruct.typename
+	
+	self.faceStruct:makeType()
+	self.face_t = self.faceStruct.typename
 end
 
 function CoordinateSystem:fillGridCellBuf(cellsCPU)
@@ -1594,7 +1573,10 @@ function CoordinateSystem:initCodeModules()
 		local buildsAndExprNames = table()
 		for _,info in ipairs(infos) do
 			if not info.result then
-				print("can't add module for "..moduleName.." which is missing its calc result")
+				--print("can't add module for "..moduleName.." which is missing its calc result")
+				-- should I warn here?  clutters the output
+				-- or should I warn if someone tries to add the module when it's not there?  I guess that's already happening as an error.
+				-- or should I just make 'real' the default return type and generate all modules?
 			else
 				local name = info.field or moduleName
 				local buildNameParts = table{'real3','to', info.result}
