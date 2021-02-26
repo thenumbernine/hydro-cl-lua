@@ -60,7 +60,7 @@ function Euler:init(args)
 				potentialField = 'mPot',	-- TODO don't store this
 			
 				--[=[ using div (m/rho) = 0, solve for div m:
-				-- TODO field as a read function, and just erad 
+				-- TODO field as a read function, and just read 
 				vectorField = 'm',
 			
 				-- div v = 0

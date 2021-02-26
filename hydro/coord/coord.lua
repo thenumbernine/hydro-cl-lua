@@ -205,6 +205,7 @@ function CoordinateSystem:init(args)
 		'cell_dx_i',
 		'cell_volume',
 		'cell_sqrt_det_g',	-- seems that, when this is used, it would most often be used with gHol...
+		'cell_calcAvg_withPt',
 	})
 
 	local solver = assert(args.solver)
@@ -820,6 +821,30 @@ self.compilePrintRequestTensor = compilePrintRequestTensor
 		end,
 	}
 
+	-- this is a 2-point tensor though
+	-- TODO just use self.eToEHol?
+	self.calc.eToEHol = {
+		build = function()
+			local lenExprs = self.request"coord_dx"
+			local e = Tensor("_i^I", 
+				{lenExprs[1], 0, 0},
+				{0, lenExprs[2], 0},
+				{0, 0, lenExprs[3]})
+			return e
+		end,
+	}
+
+	self.calc.eHolToE = {
+		build = function()
+			local lenExprs = self.request"coord_dx"
+			local eInv = Tensor("^i_I", 
+				{1/lenExprs[1], 0, 0},
+				{0, 1/lenExprs[2], 0},
+				{0, 0, 1/lenExprs[3]})
+			return eInv 
+		end,
+	}
+
 	local integralGridDx = range(dim):mapi(function(i)
 		return symmath.var('solver->grid_dx.'..xNames[i])
 	end)
@@ -1077,6 +1102,11 @@ self.compilePrintRequestTensor = compilePrintRequestTensor
 			return coord_sqrt_det_g
 		end,
 		result = 'real',
+
+		-- TODO this  macro had a solver arg, but the other #define's (like cell_dx#) didn't
+		-- sooo ... how to specify when to use each?
+		define = 'with solver arg',	-- because it uses solver->grid_dx vars
+		
 		depends = {solver.solver_t},	-- if you use integralGridDx
 	}
 --]]
@@ -1391,6 +1421,16 @@ end
 	})
 end
 
+-- ugly hack, TODO, just use one interface for all
+getCode.real3_to_real_defineWithSolver = function(name, code)
+	return template([[
+#define <?=name?>(solver, pt) (<?=code?>)
+]], {
+		name = name,
+		code = code,
+	})
+end
+
 --]=====]
 -- [=====[ as functions:
 
@@ -1583,7 +1623,9 @@ function CoordinateSystem:initCodeModules()
 				if info.args then
 					buildNameParts:insert(2, info.args)
 				end
-				if info.define then
+				if info.define == 'with solver arg' then
+					buildNameParts:insert'defineWithSolver'
+				elseif info.define then
 					buildNameParts:insert'define'
 				end
 				local buildName = buildNameParts:concat'_'
@@ -1688,6 +1730,25 @@ function CoordinateSystem:initCodeModules()
 		structs = {self.faceStruct},
 		-- only generated for cl, not for ffi cdef
 		headercode = 'typedef '..self.face_t..' face_t;',
+	}
+
+	solver.modules:add{
+		name = self.symbols.cell_calcAvg_withPt,
+		depends = {self.cell_t},
+		code = function()
+print("WARNING - haven't finished implementing this")
+			return self.solver.eqn:template[[
+#define cell_calcAvg_withPt(\
+	/*<?=cell_t?> * const */resultCell,\
+	/*<?=cell_t?> const * const */cellL,\
+	/*<?=cell_t?> const * const */cellR,\
+	/*real3 const */pt\
+) {\
+	/* TODO average any other fields here .... */\
+	resultCell->pos = pt;\
+}
+]]
+		end,
 	}
 end
 

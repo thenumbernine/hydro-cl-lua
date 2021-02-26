@@ -321,26 +321,26 @@ end
 //// MODULE_DEPENDS: units <?=normal_t?>
 
 #define <?=fluxFromCons?>(\
-	/*<?=cons_t?> const * const */F,\
+	/*<?=cons_t?> const * const */resultFlux,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */U,\
-	/*real3 const */pt,\
+	/*<?=cell_t?> const * const */cell,\
 	/*<?=normal_t?> const */n\
 ) {\
 	<?=prim_t?> W;\
-	<?=primFromCons?>(&W, solver, U, pt);\
+	<?=primFromCons?>(&W, solver, U, (cell)->pos);\
 \
 <? --\
 for _,fluid in ipairs(fluids) do --\
 ?>	real <?=fluid?>_vj = normal_vecDotN1(n, W.<?=fluid?>_v);\
 	real <?=fluid?>_HTotal = (U)-><?=fluid?>_ETotal + W.<?=fluid?>_P;\
 \
-	(F)-><?=fluid?>_rho = normal_vecDotN1(n, (U)-><?=fluid?>_m);\
-	(F)-><?=fluid?>_m = real3_real_mul((U)-><?=fluid?>_m, <?=fluid?>_vj);\
+	(resultFlux)-><?=fluid?>_rho = normal_vecDotN1(n, (U)-><?=fluid?>_m);\
+	(resultFlux)-><?=fluid?>_m = real3_real_mul((U)-><?=fluid?>_m, <?=fluid?>_vj);\
 <? 	for i,xi in ipairs(xNames) do --\
-?>	(F)-><?=fluid?>_m.<?=xi?> += normal_u1<?=xi?>(n) * W.<?=fluid?>_P;\
+?>	(resultFlux)-><?=fluid?>_m.<?=xi?> += normal_u1<?=xi?>(n) * W.<?=fluid?>_P;\
 <? 	end --\
-?>	(F)-><?=fluid?>_ETotal = <?=fluid?>_HTotal * <?=fluid?>_vj;\
+?>	(resultFlux)-><?=fluid?>_ETotal = <?=fluid?>_HTotal * <?=fluid?>_vj;\
 <? --\
 end --\
 ?>\
@@ -359,34 +359,36 @@ end --\
 		real3 const E = real3_real_mul((U)->D<?=suffix?>, 1. / eps<?=suffix?>);\
 		real3 const H = real3_real_mul((U)->B<?=suffix?>, 1. / mu<?=suffix?>);\
 		if (n.side == 0) {\
-			(F)->D<?=suffix?> = _real3((U)->phi<?=suffix?> * solver->divPhiWavespeed<?=suffix?> / unit_m_per_s, H.z, -H.y);\
-			(F)->B<?=suffix?> = _real3((U)->psi<?=suffix?> * solver->divPsiWavespeed<?=suffix?> / unit_m_per_s, -E.z, E.y);\
+			(resultFlux)->D<?=suffix?> = _real3((U)->phi<?=suffix?> * solver->divPhiWavespeed<?=suffix?> / unit_m_per_s, H.z, -H.y);\
+			(resultFlux)->B<?=suffix?> = _real3((U)->psi<?=suffix?> * solver->divPsiWavespeed<?=suffix?> / unit_m_per_s, -E.z, E.y);\
 		} else if (n.side == 1) {\
-			(F)->D<?=suffix?> = _real3(-H.z, (U)->phi<?=suffix?> * solver->divPhiWavespeed<?=suffix?> / unit_m_per_s, H.x);\
-			(F)->B<?=suffix?> = _real3(E.z, (U)->psi<?=suffix?> * solver->divPsiWavespeed<?=suffix?> / unit_m_per_s, -E.x);\
+			(resultFlux)->D<?=suffix?> = _real3(-H.z, (U)->phi<?=suffix?> * solver->divPhiWavespeed<?=suffix?> / unit_m_per_s, H.x);\
+			(resultFlux)->B<?=suffix?> = _real3(E.z, (U)->psi<?=suffix?> * solver->divPsiWavespeed<?=suffix?> / unit_m_per_s, -E.x);\
 		} else if (n.side == 2) {\
-			(F)->D<?=suffix?> = _real3(H.y, -H.x, (U)->phi<?=suffix?> * solver->divPhiWavespeed<?=suffix?> / unit_m_per_s);\
-			(F)->B<?=suffix?> = _real3(-E.y, E.x, (U)->psi<?=suffix?> * solver->divPsiWavespeed<?=suffix?> / unit_m_per_s);\
+			(resultFlux)->D<?=suffix?> = _real3(H.y, -H.x, (U)->phi<?=suffix?> * solver->divPhiWavespeed<?=suffix?> / unit_m_per_s);\
+			(resultFlux)->B<?=suffix?> = _real3(-E.y, E.x, (U)->psi<?=suffix?> * solver->divPsiWavespeed<?=suffix?> / unit_m_per_s);\
 		}\
-		(F)->phi<?=suffix?> = normal_vecDotN1(n, (U)->D<?=suffix?>) * solver->divPhiWavespeed<?=suffix?> / unit_m_per_s;\
-		(F)->psi<?=suffix?> = normal_vecDotN1(n, (U)->B<?=suffix?>) * solver->divPsiWavespeed<?=suffix?> / unit_m_per_s;\
+		(resultFlux)->phi<?=suffix?> = normal_vecDotN1(n, (U)->D<?=suffix?>) * solver->divPhiWavespeed<?=suffix?> / unit_m_per_s;\
+		(resultFlux)->psi<?=suffix?> = normal_vecDotN1(n, (U)->B<?=suffix?>) * solver->divPsiWavespeed<?=suffix?> / unit_m_per_s;\
 	}<? end ?>\
 }
 
 //// MODULE_NAME: <?=eigen_forInterface?>
 
 #define <?=eigen_forInterface?>(\
-	/*<?=eigen_t?> * const */eig,\
+	/*<?=eigen_t?> * const */resultEig,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */UL,\
 	/*<?=cons_t?> const * const */UR,\
+	/*<?=cell_t?> const * const */cellL,\
+	/*<?=cell_t?> const * const */cellR,\
 	/*real3 const */pt,\
 	/*<?=normal_t?> const */n\
 ) {\
 	<?=prim_t?> WL;\
-	<?=primFromCons?>(&WL, solver, UL, pt);\
+	<?=primFromCons?>(&WL, solver, UL, (cellL)->pos);\
 	<?=prim_t?> WR;\
-	<?=primFromCons?>(&WR, solver, UR, pt);\
+	<?=primFromCons?>(&WR, solver, UR, (cellR)->pos);\
 \
 <? for _,fluid in ipairs(fluids) do ?>\
 \
@@ -401,17 +403,17 @@ end --\
 	real const <?=fluid?>_invDenom = 1./(<?=fluid?>_sqrtRhoL + <?=fluid?>_sqrtRhoR);\
 \
 	/* Roe-averaged */\
-	(eig)-><?=fluid?>_rho = <?=fluid?>_sqrtRhoL * <?=fluid?>_sqrtRhoR;\
-	(eig)-><?=fluid?>_v = real3_add(\
+	(resultEig)-><?=fluid?>_rho = <?=fluid?>_sqrtRhoL * <?=fluid?>_sqrtRhoR;\
+	(resultEig)-><?=fluid?>_v = real3_add(\
 			real3_real_mul(<?=fluid?>_vL, <?=fluid?>_sqrtRhoL * <?=fluid?>_invDenom),\
 			real3_real_mul(<?=fluid?>_vR, <?=fluid?>_sqrtRhoR * <?=fluid?>_invDenom));\
-	(eig)-><?=fluid?>_hTotal = <?=fluid?>_invDenom * (<?=fluid?>_sqrtRhoL * <?=fluid?>_hTotalL + <?=fluid?>_sqrtRhoR * <?=fluid?>_hTotalR);\
+	(resultEig)-><?=fluid?>_hTotal = <?=fluid?>_invDenom * (<?=fluid?>_sqrtRhoL * <?=fluid?>_hTotalL + <?=fluid?>_sqrtRhoR * <?=fluid?>_hTotalR);\
 \
 	/* derived: */\
-	(eig)-><?=fluid?>_vSq = coordLenSq((eig)-><?=fluid?>_v, pt);\
-	real const <?=fluid?>_eKin = .5 * (eig)-><?=fluid?>_vSq;\
-	real const <?=fluid?>_CsSq = (solver->heatCapacityRatio - 1.) * ((eig)-><?=fluid?>_hTotal - <?=fluid?>_eKin);\
-	(eig)-><?=fluid?>_Cs = sqrt(<?=fluid?>_CsSq);\
+	(resultEig)-><?=fluid?>_vSq = coordLenSq((resultEig)-><?=fluid?>_v, pt);\
+	real const <?=fluid?>_eKin = .5 * (resultEig)-><?=fluid?>_vSq;\
+	real const <?=fluid?>_CsSq = (solver->heatCapacityRatio - 1.) * ((resultEig)-><?=fluid?>_hTotal - <?=fluid?>_eKin);\
+	(resultEig)-><?=fluid?>_Cs = sqrt(<?=fluid?>_CsSq);\
 \
 <? end ?>\
 }
@@ -419,22 +421,22 @@ end --\
 //// MODULE_NAME: <?=eigen_forCell?>
 
 #define <?=eigen_forCell?>(\
-	/*<?=eigen_t?> * const */eig, \
+	/*<?=eigen_t?> * const */resultEig, \
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */U,\
-	/*real3 const */pt,\
+	/*<?=cell_t?> const * const */cell,\
 	/*<?=normal_t?> const */n\
 ) {\
 	<?=prim_t?> W;\
-	<?=primFromCons?>(&W, solver, U, pt);\
+	<?=primFromCons?>(&W, solver, U, (cell)->pos);\
 <? for _,fluid in ipairs(fluids) do ?>\
-	(eig)-><?=fluid?>_rho = W.<?=fluid?>_rho;\
-	(eig)-><?=fluid?>_v = W.<?=fluid?>_v;\
-	(eig)-><?=fluid?>_vSq = coordLenSq(W.<?=fluid?>_v, pt);\
-	real const <?=fluid?>_eKin = .5 * (eig)-><?=fluid?>_vSq;\
-	(eig)-><?=fluid?>_hTotal = calc_hTotal(solver, W.<?=fluid?>_rho, W.<?=fluid?>_P, (U)-><?=fluid?>_ETotal);\
-	real const <?=fluid?>_CsSq = (solver->heatCapacityRatio - 1.) * ((eig)-><?=fluid?>_hTotal - <?=fluid?>_eKin);\
-	(eig)-><?=fluid?>_Cs = sqrt(<?=fluid?>_CsSq);\
+	(resultEig)-><?=fluid?>_rho = W.<?=fluid?>_rho;\
+	(resultEig)-><?=fluid?>_v = W.<?=fluid?>_v;\
+	(resultEig)-><?=fluid?>_vSq = coordLenSq(W.<?=fluid?>_v, (cell)->pos);\
+	real const <?=fluid?>_eKin = .5 * (resultEig)-><?=fluid?>_vSq;\
+	(resultEig)-><?=fluid?>_hTotal = calc_hTotal(solver, W.<?=fluid?>_rho, W.<?=fluid?>_P, (U)-><?=fluid?>_ETotal);\
+	real const <?=fluid?>_CsSq = (solver->heatCapacityRatio - 1.) * ((resultEig)-><?=fluid?>_hTotal - <?=fluid?>_eKin);\
+	(resultEig)-><?=fluid?>_Cs = sqrt(<?=fluid?>_CsSq);\
 <? end ?>\
 }
 
@@ -449,8 +451,6 @@ end --\
 	/*real3 const */pt,\
 	/*<?=normal_t?> const */n\
 ) {\
-	real* X = UX.ptr;\
-\
 	real const nLen = normal_len(n);\
 	real const nLenSq = nLen * nLen;\
 	real const inv_nLen = 1. / nLen;\
@@ -800,7 +800,7 @@ end --\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=eigen_t?> const * const */eig,\
 	/*<?=cons_t?> const * const */UX,\
-	/*real3 const */pt,\
+	/*<?=cell_t?> const * const */cell,\
 	/*<?=normal_t?> const */n\
 ) {\
 	real const nLen = normal_len(n);\
@@ -808,7 +808,7 @@ end --\
 \
 	/* g^ij for fixed j=side */\
 <? for _,fluid in ipairs(fluids) do ?>\
-	real3 const <?=fluid?>_vL = coord_lower(<?=fluid?>_v, pt);\
+	real3 const <?=fluid?>_vL = coord_lower(<?=fluid?>_v, (cell)->pos);\
 	real const <?=fluid?>_v_n = normal_vecDotN1(n, <?=fluid?>_v);\
 <? end ?>\
 \

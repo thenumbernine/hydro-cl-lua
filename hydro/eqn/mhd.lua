@@ -117,8 +117,10 @@ function MHD:init(args)
 			}
 			self.solver.ops:insert(NoDiv{
 				solver = self.solver,
-				vectorField = 'm',
 				potentialField = 'mPot',
+				
+				--[=[ using div (m/rho) = 0, solve for div m:
+				vectorField = 'm',
 			
 				-- div v = 0
 				-- div (m/ρ) = 0
@@ -132,6 +134,37 @@ function MHD:init(args)
 		source -= drho_dx * U->m.s<?=j?> / U->rho;
 	}<? end ?>
 ]],
+				--]=]
+				-- [=[ reading via div(v), writing via div(m)
+				readVectorField = function(op,offset,j)
+					local function U(field) return 'U['..offset..'].'..field end
+					return U('m.s'..j)..' / '..U'rho'
+				end,
+				writeVectorField = function(op,dv)
+					return self:template([[
+#if 0	// just adjust velocity
+	U->m = real3_sub(U->m, real3_real_mul(<?=dv?>, U->rho));
+#endif
+
+#if 0	// adjust ETotal as well
+	U->ETotal -= .5 * U->rho * coordLenSq(U->m, pt);
+	U->m = real3_sub(U->m, real3_real_mul(<?=dv?>, U->rho));
+	U->ETotal += .5 * U->rho * coordLenSq(U->m, pt);
+#endif
+
+#if 1 	// recalculate cons
+//// MODULE_DEPENDS: <?=primFromCons?> <?=consFromPrim?>
+	<?=prim_t?> W;
+	<?=primFromCons?>(&W, solver, U, pt);
+	W.v = real3_sub(W.v, <?=dv?>);
+	<?=consFromPrim?>(U, solver, &W, pt);
+#endif
+]], {dv=dv})
+				end,
+				codeDepends = {
+					assert(self.symbols.eqn_common),
+				},
+				--]=]		
 			})
 		end
 	end

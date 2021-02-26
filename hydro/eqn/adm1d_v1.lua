@@ -41,21 +41,20 @@ function ADM_BonaMasso_1D_2008Alcubierre:initCodeModule_fluxFromCons()
 		},
 		code = self:template[[
 
-<?=cons_t?> fluxFromCons(
-	constant <?=solver_t?> const * const solver,
-	<?=cons_t?> const U,
-	real3 const x,
-	<?=normal_t?> const n
-) {
-	real const f = calc_f(U.alpha);
-	real const alpha_over_sqrt_gamma_xx = U.alpha / sqrt(U.gamma_xx);
-	return (<?=cons_t?>){
-		.alpha = 0,
-		.gamma_xx = 0,
-		.a_x = U.KTilde * f * alpha_over_sqrt_gamma_xx,
-		.D_g = U.KTilde * 2. * alpha_over_sqrt_gamma_xx,
-		.KTilde = U.a_x * alpha_over_sqrt_gamma_xx,
-	};
+#define fluxFromCons(\
+	/*<?=cons_t?> * const */resultF,\
+	/*constant <?=solver_t?> const * const */solver,\
+	/*<?=cons_t?> const * const */U,\
+	/*<?=cell_t?> const * const */cell,\
+	/*<?=normal_t?> const */n\
+) {\
+	real const f = calc_f(U.alpha);\
+	real const alpha_over_sqrt_gamma_xx = U.alpha / sqrt(U.gamma_xx);\
+	(resultF)->alpha = 0;\
+	(resultF)->gamma_xx = 0;\
+	(resultF)->a_x = U.KTilde * f * alpha_over_sqrt_gamma_xx;\
+	(resultF)->D_g = U.KTilde * 2. * alpha_over_sqrt_gamma_xx;\
+	(resultF)->KTilde = U.a_x * alpha_over_sqrt_gamma_xx;\
 }
 
 ]],

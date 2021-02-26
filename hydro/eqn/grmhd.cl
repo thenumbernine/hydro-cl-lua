@@ -89,24 +89,23 @@ void <?=applyInitCondCell?>(
 }
 
 
-//// MODULE_NAME: fluxFromCons
+//// MODULE_NAME: <?=fluxFromCons?>
 
-<?=cons_t?> fluxFromCons(
+void <?=fluxFromCons?>(
+	<?=cons_t?> * const resultF,
 	constant <?=solver_t?> const * const solver,
 	<?=cons_t?> const U,
-	real3 const x,
+	<?=cell_t?> const * const cell,
 	<?=normal_t?> const n
 ) {
 	real vi = W->v.s<?=side?>;
 	real vi_shift = vi - betaU.s<?=side?> / alpha;
 
-	//2008 Font eqn 34
-	<?=cons_t?> F;
-	F.D = U->D * vi_shift;
-	F.S = real3_real_mul(U->S, vi_shift);
-	F.S.s<?=side?> += W->p;
-	F.tau = U->tau * vi_shift + p * vi;
-	return F;
+	/* 2008 Font eqn 34 */
+	(resultF)->D = U->D * vi_shift;
+	(resultF)->S = real3_real_mul(U->S, vi_shift);
+	(resultF)->S.s<?=side?> += W->p;
+	(resultF)->tau = U->tau * vi_shift + p * vi;
 }
 
 //// MODULE_NAME: calcDTCell
@@ -154,7 +153,7 @@ void calcDTCell(
 	dtBuf[index] = dt; 
 }
 
-//// MODULE_NAME: eigen_forCell
+//// MODULE_NAME: <?=eigen_forCell?>
 
 //used by PLM
 //TODO SRHD PLM needs to do this:
@@ -162,12 +161,13 @@ void calcDTCell(
 //2) have a new kernel for calc consLR from primLR, since calcDeltaUEig and calcFlux both need this
 //or does the eigenbasis need to be derived from the variables being transformed?
 //shoud I PLM the U's then converge the prims ... and therefore track the prims on edges as well?
-<?=eigen_t?> eigen_forCell(
-	global <?=cons_t?> const * const U,
-	real3 const x
-) {
-	return (<?=eigen_t?>){};
-}
+#define <?=eigen_forCell?>(\
+	/*<?=eigen_t?> * const */resultEig,\
+	/*constant <?=solver_t?> const * const */solver,\
+	/*<?=cons_t?> const * const */U,\
+	/*<?=cell_t?> const * const */cell,\
+	/*real3 const */n\
+)
 
 //// MODULE_NAME: calcEigenBasis
 

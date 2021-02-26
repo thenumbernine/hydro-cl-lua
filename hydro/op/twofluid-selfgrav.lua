@@ -18,6 +18,7 @@ function TwoFluidSelfGrav:getPoissonCode()
 	return [[
 
 //// MODULE_NAME: <?=calcGravityAccel?>
+//// MODULE_DEPENDS: <?=cell_dx_i?>
 
 #define <?=calcGravityAccel?>(\
 	/*real3 * const */accel_g,\
@@ -79,6 +80,7 @@ kernel void <?=copyPotentialToReduce?>(
 }
 
 //// MODULE_NAME: <?=offsetPotential?>
+//// MODULE_DEPENDS: realparam
 
 // this matches hydro/op/selfgrav.lua
 kernel void <?=offsetPotential?>(

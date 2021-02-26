@@ -97,11 +97,11 @@ end
 	/*<?=cons_t?> * const */resultFlux,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */U,\
-	/*real3 const */pt,\
+	/*<?=cell_t?> const * const */cell,\
 	/*<?=normal_t?> const */n\
 ) {\
-	real const alpha = metric_alpha(pt);\
-	real const beta_n = normal_vecDotN1(n, metric_beta_u(pt));\
+	real const alpha = metric_alpha((cell)->pos);\
+	real const beta_n = normal_vecDotN1(n, metric_beta_u((cell)->pos));\
 	\
 	real3 const nL = normal_l1(n);\
 	real3 const nU = normal_u1(n);\
@@ -172,13 +172,28 @@ void <?=calcCellMinMaxEigenvalues?>(
 //// MODULE_NAME: <?=eigen_forInterface?>
 //// MODULE_DEPENDS: <?=eigen_t?>
 
-#define <?=eigen_forInterface?>(resultEig, solver, UL, UR, x, n) \
+#define <?=eigen_forInterface?>(\
+	/*<?=eigen_t?> * const */resultEig,\
+	/*constant <?=solver_t?> const * const */solver,\
+	/*<?=cons_t?> const * const */UL,\
+	/*<?=cons_t?> const * const */UR,\
+	/*<?=cell_t?> const * const */cellL,\
+	/*<?=cell_t?> const * const */cellR,\
+	/*real3 const */pt,\
+	/*<?=normal_t?> const */n\
+) \
 	*(resultEig) = (<?=eigen_t?>){}
 
 //// MODULE_NAME: <?=eigen_forCell?>
 //// MODULE_DEPENDS: <?=eigen_t?>
 
-#define <?=eigen_forCell?>(resultEig, solver, U, x, n) \
+#define <?=eigen_forCell?>(\
+	/*<?=eigen_t?> * const */resultEig,\
+	/*constant <?=solver_t?> const * const */solver,\
+	/*<?=cons_t?> const * const */U,\
+	/*<?=cell_t?> const * const */cell,\
+	/*real3 const */n\
+) \
 	*(resultEig) = (<?=eigen_t?>){};
 
 //// MODULE_NAME: <?=eigen_leftTransform?>
@@ -254,7 +269,15 @@ void <?=calcCellMinMaxEigenvalues?>(
 
 // by default in hydro/eqn/eqn.lua, <?=fluxFromCons?> is defined by <?=eigen_fluxTransform?>
 // but since eig is empty, we can define <?=eigen_fluxTransform?> with <?=fluxFromCons?>
-#define <?=eigen_fluxTransform?>(resultFlux, solver, eig, X, x, n) <?=fluxFromCons?>(resultFlux, solver, X, x, n)
+#define <?=eigen_fluxTransform?>(\
+	/*<?=cons_t?> * const */resultFlux,\
+	/*constant <?=solver_t?> const * const */solver,\
+	/*<?=eigen_t?> const * const */eig,\
+	/*<?=cons_t?> const * const */X_,\
+	/*<?=cell_t?> const * const */cell,\
+	/*<?=normal_t?> const */n\
+)\
+	<?=fluxFromCons?>(resultFlux, solver, X_, cell, n)
 
 // TODO only if metric ~= ident and coord ~= cartesian 
 

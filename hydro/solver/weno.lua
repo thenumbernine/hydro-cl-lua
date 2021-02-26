@@ -38,7 +38,7 @@ WENO.wenoMethod = '1996 Jiang Shu'	-- (WENO-JS)
 
 WENO.fluxMethod = 'Lax-Friedrichs'
 --WENO.fluxMethod = 'Marquina'
---WENO.fluxMethod = 'Roe'	-- isn't as accurate
+--WENO.fluxMethod = 'Roe'	-- isn't as accurate ... and has an error? FIXME?
 
 WENO.coeffs = {
 	-- [r] of table 1 of 1996 Jiang, Shu

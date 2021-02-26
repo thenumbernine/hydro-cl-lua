@@ -64,7 +64,9 @@ kernel void <?=initDerivs?>(
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */UL,\
 	/*<?=cons_t?> const * const */UR,\
-	/*real3 const */x,\
+	/*<?=cell_t?> const * const */cellL,\
+	/*<?=cell_t?> const * const */cellR,\
+	/*real3 const */pt,\
 	/*<?=normal_t?> const */n\
 ) {\
 	(eig)->alpha = .5 * ((UL)->alpha + (UR)->alpha);\
@@ -80,7 +82,7 @@ kernel void <?=initDerivs?>(
 	/*<?=eigen_t?> const * const */eig,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */U,\
-	/*real3 const */x,\
+	/*<?=cell_t?> const * const */cell,\
 	/*<?=normal_t?> const */n\
 ) {\
 	(eig)->alpha = (U)->alpha;\
@@ -129,7 +131,7 @@ kernel void <?=initDerivs?>(
 	/*constant <?=solver_t?> * const */solver,\
 	/*<?=eigen_t?> const * const */eig,\
 	/*<?=cons_t?> const * const */x,\
-	/*real3 const */pt,\
+	/*<?=cell_t?> const * const */cell,\
 	/*<?=normal_t?> const */n\
 ) {\
 	real const f = (eig)->sqrt_f * (eig)->sqrt_f;\

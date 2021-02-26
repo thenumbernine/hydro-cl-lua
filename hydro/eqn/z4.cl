@@ -383,10 +383,10 @@ static inline _3sym3 _3sym3_rotateTo(
 <? end ?>
 
 #define <?=fluxFromCons?>(\
-	/*<?=cons_t?> * const */F,\
+	/*<?=cons_t?> * const */resultFlux,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */U,\
-	/*real3 const */pt,\
+	/*<?=cell_t?> const * const */cell,\
 	/*<?=normal_t?> const */n\
 ) {\
 	real const f_alpha = calc_f_alpha((U)->alpha);\
@@ -453,7 +453,7 @@ end --\
 	sym3 const gamma_uu = sym3_inv(gamma_ll, det_gamma);\
 \
 	for (int i = 0; i < numStates; ++i) {\
-		(F)->ptr[i] = 0./0.;\
+		(resultFlux)->ptr[i] = 0./0.;\
 	}\
 \
 	/*  BEGIN CUT from numerical-relativity-codegen/flux_matrix_output/z4_noZeroRows.html */\
@@ -473,64 +473,64 @@ end --\
 	real const tmp128 = gamma_uu.xz * gamma_uu.yy;\
 	real const tmp129 = gamma_uu.xy * gamma_uu.zz;\
 	real const tmp132 = gamma_uu.xz * gamma_uu.yz;\
-	(F)->alpha = 0.;\
-	(F)->gamma_ll.xx = 0.;\
-	(F)->gamma_ll.xy = 0.;\
-	(F)->gamma_ll.xz = 0.;\
-	(F)->gamma_ll.yy = 0.;\
-	(F)->gamma_ll.yz = 0.;\
-	(F)->gamma_ll.zz = 0.;\
-	(F)->a_l.x = f_alpha * (tmp6 + tmp7 + K_ll.xx * gamma_uu.xx + tmp4 - 2. * Theta + 2. * tmp2 + 2. * tmp1);\
-	(F)->a_l.y = 0.;\
-	(F)->a_l.z = 0.;\
-	(F)->d_lll.x.xx = K_ll.xx * alpha;\
-	(F)->d_lll.x.xy = K_ll.xy * alpha;\
-	(F)->d_lll.x.xz = K_ll.xz * alpha;\
-	(F)->d_lll.x.yy = K_ll.yy * alpha;\
-	(F)->d_lll.x.yz = K_ll.yz * alpha;\
-	(F)->d_lll.x.zz = K_ll.zz * alpha;\
-	(F)->d_lll.y.xx = 0.;\
-	(F)->d_lll.y.xy = 0.;\
-	(F)->d_lll.y.xz = 0.;\
-	(F)->d_lll.y.yy = 0.;\
-	(F)->d_lll.y.yz = 0.;\
-	(F)->d_lll.y.zz = 0.;\
-	(F)->d_lll.z.xx = 0.;\
-	(F)->d_lll.z.xy = 0.;\
-	(F)->d_lll.z.xz = 0.;\
-	(F)->d_lll.z.yy = 0.;\
-	(F)->d_lll.z.yz = 0.;\
-	(F)->d_lll.z.zz = 0.;\
-	(F)->K_ll.xx = -alpha * (2. * d_lll.z.xz * gamma_uu.zz + 2. * d_lll.z.xy * gamma_uu.yz + d_lll.z.xx * gamma_uu.xz + 2. * d_lll.y.xz * gamma_uu.yz + 2. * d_lll.y.xy * gamma_uu.yy + d_lll.y.xx * gamma_uu.xy + 2. * Z_l.x - a_l.x - d_lll.x.yy * gamma_uu.yy - 2. * d_lll.x.yz * gamma_uu.yz - d_lll.x.zz * gamma_uu.zz);\
-	(F)->K_ll.xy = (-alpha * (2. * d_lll.z.yz * gamma_uu.zz + 2. * d_lll.z.yy * gamma_uu.yz + 2. * d_lll.y.yz * gamma_uu.yz + 2. * d_lll.y.yy * gamma_uu.yy + 2. * d_lll.x.yz * gamma_uu.xz + 2. * d_lll.x.yy * gamma_uu.xy + 2. * Z_l.y - a_l.y)) / 2.;\
-	(F)->K_ll.xz = (-alpha * (2. * d_lll.z.zz * gamma_uu.zz + 2. * d_lll.z.yz * gamma_uu.yz + 2. * d_lll.y.zz * gamma_uu.yz + 2. * d_lll.y.yz * gamma_uu.yy + 2. * d_lll.x.zz * gamma_uu.xz + 2. * d_lll.x.yz * gamma_uu.xy + 2. * Z_l.z - a_l.z)) / 2.;\
-	(F)->K_ll.yy = alpha * (d_lll.z.yy * gamma_uu.xz + d_lll.y.yy * gamma_uu.xy + d_lll.x.yy * gamma_uu.xx);\
-	(F)->K_ll.yz = alpha * (d_lll.z.yz * gamma_uu.xz + d_lll.y.yz * gamma_uu.xy + d_lll.x.yz * gamma_uu.xx);\
-	(F)->K_ll.zz = alpha * (d_lll.z.zz * gamma_uu.xz + d_lll.y.zz * gamma_uu.xy + d_lll.x.zz * gamma_uu.xx);\
-	(F)->Theta = -alpha * (d_lll.z.yz * tmp129 - d_lll.z.yz * tmp132 + d_lll.z.yy * tmp125 - d_lll.z.yy * tmp128 + d_lll.z.xz * tmp113 - d_lll.z.xz * tmp116 + d_lll.z.xy * tmp107 - d_lll.z.xy * tmp111 + d_lll.y.zz * tmp132 + d_lll.y.yz * tmp128 - d_lll.y.zz * tmp129 + d_lll.y.xz * tmp107 - d_lll.y.xz * tmp111 - d_lll.y.yz * tmp125 + d_lll.y.xy * tmp103 - d_lll.y.xy * tmp106 + d_lll.x.zz * tmp116 + 2. * d_lll.x.yz * tmp111 - d_lll.x.zz * tmp113 + d_lll.x.yy * tmp106 - 2. * d_lll.x.yz * tmp107 + Z_l.z * gamma_uu.xz - d_lll.x.yy * tmp103 + Z_l.y * gamma_uu.xy + Z_l.x * gamma_uu.xx);\
-	(F)->Z_l.x = alpha * (tmp1 + tmp2 + tmp6 + tmp4 + tmp7 - Theta);\
-	(F)->Z_l.y = -alpha * (K_ll.yz * gamma_uu.xz + K_ll.yy * gamma_uu.xy + K_ll.xy * gamma_uu.xx);\
-	(F)->Z_l.z = -alpha * (K_ll.zz * gamma_uu.xz + K_ll.yz * gamma_uu.xy + K_ll.xz * gamma_uu.xx);	\
+	(resultFlux)->alpha = 0.;\
+	(resultFlux)->gamma_ll.xx = 0.;\
+	(resultFlux)->gamma_ll.xy = 0.;\
+	(resultFlux)->gamma_ll.xz = 0.;\
+	(resultFlux)->gamma_ll.yy = 0.;\
+	(resultFlux)->gamma_ll.yz = 0.;\
+	(resultFlux)->gamma_ll.zz = 0.;\
+	(resultFlux)->a_l.x = f_alpha * (tmp6 + tmp7 + K_ll.xx * gamma_uu.xx + tmp4 - 2. * Theta + 2. * tmp2 + 2. * tmp1);\
+	(resultFlux)->a_l.y = 0.;\
+	(resultFlux)->a_l.z = 0.;\
+	(resultFlux)->d_lll.x.xx = K_ll.xx * alpha;\
+	(resultFlux)->d_lll.x.xy = K_ll.xy * alpha;\
+	(resultFlux)->d_lll.x.xz = K_ll.xz * alpha;\
+	(resultFlux)->d_lll.x.yy = K_ll.yy * alpha;\
+	(resultFlux)->d_lll.x.yz = K_ll.yz * alpha;\
+	(resultFlux)->d_lll.x.zz = K_ll.zz * alpha;\
+	(resultFlux)->d_lll.y.xx = 0.;\
+	(resultFlux)->d_lll.y.xy = 0.;\
+	(resultFlux)->d_lll.y.xz = 0.;\
+	(resultFlux)->d_lll.y.yy = 0.;\
+	(resultFlux)->d_lll.y.yz = 0.;\
+	(resultFlux)->d_lll.y.zz = 0.;\
+	(resultFlux)->d_lll.z.xx = 0.;\
+	(resultFlux)->d_lll.z.xy = 0.;\
+	(resultFlux)->d_lll.z.xz = 0.;\
+	(resultFlux)->d_lll.z.yy = 0.;\
+	(resultFlux)->d_lll.z.yz = 0.;\
+	(resultFlux)->d_lll.z.zz = 0.;\
+	(resultFlux)->K_ll.xx = -alpha * (2. * d_lll.z.xz * gamma_uu.zz + 2. * d_lll.z.xy * gamma_uu.yz + d_lll.z.xx * gamma_uu.xz + 2. * d_lll.y.xz * gamma_uu.yz + 2. * d_lll.y.xy * gamma_uu.yy + d_lll.y.xx * gamma_uu.xy + 2. * Z_l.x - a_l.x - d_lll.x.yy * gamma_uu.yy - 2. * d_lll.x.yz * gamma_uu.yz - d_lll.x.zz * gamma_uu.zz);\
+	(resultFlux)->K_ll.xy = (-alpha * (2. * d_lll.z.yz * gamma_uu.zz + 2. * d_lll.z.yy * gamma_uu.yz + 2. * d_lll.y.yz * gamma_uu.yz + 2. * d_lll.y.yy * gamma_uu.yy + 2. * d_lll.x.yz * gamma_uu.xz + 2. * d_lll.x.yy * gamma_uu.xy + 2. * Z_l.y - a_l.y)) / 2.;\
+	(resultFlux)->K_ll.xz = (-alpha * (2. * d_lll.z.zz * gamma_uu.zz + 2. * d_lll.z.yz * gamma_uu.yz + 2. * d_lll.y.zz * gamma_uu.yz + 2. * d_lll.y.yz * gamma_uu.yy + 2. * d_lll.x.zz * gamma_uu.xz + 2. * d_lll.x.yz * gamma_uu.xy + 2. * Z_l.z - a_l.z)) / 2.;\
+	(resultFlux)->K_ll.yy = alpha * (d_lll.z.yy * gamma_uu.xz + d_lll.y.yy * gamma_uu.xy + d_lll.x.yy * gamma_uu.xx);\
+	(resultFlux)->K_ll.yz = alpha * (d_lll.z.yz * gamma_uu.xz + d_lll.y.yz * gamma_uu.xy + d_lll.x.yz * gamma_uu.xx);\
+	(resultFlux)->K_ll.zz = alpha * (d_lll.z.zz * gamma_uu.xz + d_lll.y.zz * gamma_uu.xy + d_lll.x.zz * gamma_uu.xx);\
+	(resultFlux)->Theta = -alpha * (d_lll.z.yz * tmp129 - d_lll.z.yz * tmp132 + d_lll.z.yy * tmp125 - d_lll.z.yy * tmp128 + d_lll.z.xz * tmp113 - d_lll.z.xz * tmp116 + d_lll.z.xy * tmp107 - d_lll.z.xy * tmp111 + d_lll.y.zz * tmp132 + d_lll.y.yz * tmp128 - d_lll.y.zz * tmp129 + d_lll.y.xz * tmp107 - d_lll.y.xz * tmp111 - d_lll.y.yz * tmp125 + d_lll.y.xy * tmp103 - d_lll.y.xy * tmp106 + d_lll.x.zz * tmp116 + 2. * d_lll.x.yz * tmp111 - d_lll.x.zz * tmp113 + d_lll.x.yy * tmp106 - 2. * d_lll.x.yz * tmp107 + Z_l.z * gamma_uu.xz - d_lll.x.yy * tmp103 + Z_l.y * gamma_uu.xy + Z_l.x * gamma_uu.xx);\
+	(resultFlux)->Z_l.x = alpha * (tmp1 + tmp2 + tmp6 + tmp4 + tmp7 - Theta);\
+	(resultFlux)->Z_l.y = -alpha * (K_ll.yz * gamma_uu.xz + K_ll.yy * gamma_uu.xy + K_ll.xy * gamma_uu.xx);\
+	(resultFlux)->Z_l.z = -alpha * (K_ll.zz * gamma_uu.xz + K_ll.yz * gamma_uu.xy + K_ll.xz * gamma_uu.xx);	\
 	/*  END CUT */\
 \
 <? if solver.coord.vectorComponent == "cartesian" then ?>\
 \
-	(F)->Z_l = real3_rotateFrom((F)->Z_l, n_l);\
-	(F)->a_l = real3_rotateFrom((F)->a_l, n_l);\
-	(F)->gamma_ll = sym3_rotateFrom((F)->gamma_ll, n_l);\
-	(F)->K_ll = sym3_rotateFrom((F)->K_ll, n_l);\
-	(F)->d_lll = _3sym3_rotateFrom((F)->d_lll, n_l);\
+	(resultFlux)->Z_l = real3_rotateFrom((resultFlux)->Z_l, n_l);\
+	(resultFlux)->a_l = real3_rotateFrom((resultFlux)->a_l, n_l);\
+	(resultFlux)->gamma_ll = sym3_rotateFrom((resultFlux)->gamma_ll, n_l);\
+	(resultFlux)->K_ll = sym3_rotateFrom((resultFlux)->K_ll, n_l);\
+	(resultFlux)->d_lll = _3sym3_rotateFrom((resultFlux)->d_lll, n_l);\
 \
 <? else ?>\
 \
 	if (false) {}\
 	<? for side=0,solver.dim-1 do ?>\
 	else if (n.side == <?=side?>) {\
-		(F)->Z_l = real3_swap<?=side?>((F)->Z_l);\
-		(F)->a_l = real3_swap<?=side?>((F)->a_l);\
-		(F)->gamma_ll = sym3_swap<?=side?>((F)->gamma_ll);\
-		(F)->K_ll = sym3_swap<?=side?>((F)->K_ll);\
-		(F)->d_lll = _3sym3_swap<?=side?>((F)->d_lll);\
+		(resultFlux)->Z_l = real3_swap<?=side?>((resultFlux)->Z_l);\
+		(resultFlux)->a_l = real3_swap<?=side?>((resultFlux)->a_l);\
+		(resultFlux)->gamma_ll = sym3_swap<?=side?>((resultFlux)->gamma_ll);\
+		(resultFlux)->K_ll = sym3_swap<?=side?>((resultFlux)->K_ll);\
+		(resultFlux)->d_lll = _3sym3_swap<?=side?>((resultFlux)->d_lll);\
 	}\
 	<? end ?>\
 	else {\
@@ -558,11 +558,11 @@ end --\
 <? --\
 if eqn.useShift ~= "none" then --\
 ?>	/* beta^i_,t = 0 + source terms */\
-	(F)->beta_u = real3_zero;\
+	(resultFlux)->beta_u = real3_zero;\
 <?	if self.useShift == "MinimalDistortionElliptic" --\
 	or self.useShift == "MinimalDistortionEllipticEvolve" --\
 	then --\
-?>	(F)->betaLap_u = real3_zero;\
+?>	(resultFlux)->betaLap_u = real3_zero;\
 <?	end --\
 end --\
 ?>\
@@ -574,19 +574,21 @@ end --\
 
 //used for interface eigen basis
 #define <?=eigen_forInterface?>(\
-	/*<?=eigen_t?> * const */eig,\
+	/*<?=eigen_t?> * const */resultEig,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */UL,\
 	/*<?=cons_t?> const * const */UR,\
+	/*<?=cell_t?> const * const */cellL,\
+	/*<?=cell_t?> const * const */cellR,\
 	/*real3 const */pt,\
 	/*<?=normal_t?> const */n\
 ) {\
-	(eig)->alpha = .5 * ((UL)->alpha + (UR)->alpha);\
-	(eig)->alpha_sqrt_f = sqrt(calc_f_alphaSq((eig)->alpha));\
+	(resultEig)->alpha = .5 * ((UL)->alpha + (UR)->alpha);\
+	(resultEig)->alpha_sqrt_f = sqrt(calc_f_alphaSq((resultEig)->alpha));\
 \
 	sym3 const avg_gamma = sym3_real_mul(sym3_add((UL)->gamma_ll, (UR)->gamma_ll), .5);\
 	real const det_avg_gamma = sym3_det(avg_gamma);\
-	(eig)->gamma_uu = sym3_inv(avg_gamma, det_avg_gamma);\
+	(resultEig)->gamma_uu = sym3_inv(avg_gamma, det_avg_gamma);\
 \
 <? if solver.coord.vectorComponent == "cartesian" then ?>\
 /*  I'm using .side for holonomic(coordinate) and anholonomic(orthonormal) */\
@@ -594,22 +596,22 @@ end --\
 /* and I haven't derived the flux in arbitrary-normal form, just in x-axis form (and i swap x<->y or z to calculate their fluxes) */\
 /* so here I'm going to just wing it */\
 	real3 const n_l = normal_l1(n);\
-	real gammaUnn = real3_weightedLenSq(n_l, (eig)->gamma_uu);\
+	real gammaUnn = real3_weightedLenSq(n_l, (resultEig)->gamma_uu);\
 <? else ?>\
 	real gammaUnn = 0./0.;\
 	if (n.side == 0) {\
-		gammaUnn = (eig)->gamma_uu.xx;\
+		gammaUnn = (resultEig)->gamma_uu.xx;\
 	} else if (n.side == 1) {\
-		gammaUnn = (eig)->gamma_uu.yy;\
+		gammaUnn = (resultEig)->gamma_uu.yy;\
 	} else if (n.side == 2) {\
-		gammaUnn = (eig)->gamma_uu.zz;\
+		gammaUnn = (resultEig)->gamma_uu.zz;\
 	}\
 <? end ?>\
 \
-	(eig)->sqrt_gammaUnn = sqrt(gammaUnn);\
+	(resultEig)->sqrt_gammaUnn = sqrt(gammaUnn);\
 \
 <? if eqn.useShift ~= "none" then ?>\
-	(eig)->beta_u = real3_real_mul(real3_add((UL)->beta_u, (UR)->beta_u), .5);\
+	(resultEig)->beta_u = real3_real_mul(real3_add((UL)->beta_u, (UR)->beta_u), .5);\
 <? end ?>\
 }
 
@@ -663,36 +665,36 @@ end --\
 
 //used by PLM, and by the default <?=fluxFromCons?> (used by hll, or roe when roeUseFluxFromCons is set)
 #define <?=eigen_forCell?>(\
-	/*<?=eigen_t?> * const */eig,\
+	/*<?=eigen_t?> * const */resultEig,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */U,\
-	/*real3 const */pt,\
+	/*<?=cell_t?> const * const */cell,\
 	/*<?=normal_t?> const */n\
 ) {\
-	(eig)->alpha = (U)->alpha;\
-	(eig)->alpha_sqrt_f = sqrt(calc_f_alphaSq((U)->alpha));\
+	(resultEig)->alpha = (U)->alpha;\
+	(resultEig)->alpha_sqrt_f = sqrt(calc_f_alphaSq((U)->alpha));\
 \
 	real const det_gamma = sym3_det((U)->gamma_ll);\
-	(eig)->gamma_uu = sym3_inv((U)->gamma_ll, det_gamma);\
+	(resultEig)->gamma_uu = sym3_inv((U)->gamma_ll, det_gamma);\
 \
 <? if solver.coord.vectorComponent == "cartesian" then ?>\
 	real3 const n_l = normal_l1(n);\
-	real const gammaUnn = real3_weightedLenSq(n_l, (eig)->gamma_uu);\
+	real const gammaUnn = real3_weightedLenSq(n_l, (resultEig)->gamma_uu);\
 <? else ?>\
 	real gammaUnn = 0./0.;\
 	if (n.side == 0) {\
-		gammaUnn = (eig)->gamma_uu.xx;\
+		gammaUnn = (resultEig)->gamma_uu.xx;\
 	} else if (n.side == 1) {\
-		gammaUnn = (eig)->gamma_uu.yy;\
+		gammaUnn = (resultEig)->gamma_uu.yy;\
 	} else if (n.side == 2) {\
-		gammaUnn = (eig)->gamma_uu.zz;\
+		gammaUnn = (resultEig)->gamma_uu.zz;\
 	}\
 <? end ?>\
 \
-	(eig)->sqrt_gammaUnn = sqrt(gammaUnn);\
+	(resultEig)->sqrt_gammaUnn = sqrt(gammaUnn);\
 \
 	<? if eqn.useShift ~= "none" then ?>\
-	(eig)->beta_u = (U)->beta_u;\
+	(resultEig)->beta_u = (U)->beta_u;\
 	<? end ?>\
 }
 
@@ -856,25 +858,25 @@ end --\
 //...however fluxFromCons is not provided by this eqn.	
 
 #define <?=eigen_fluxTransform?>(\
-	/*<?=cons_t?> * const */result,\
+	/*<?=cons_t?> * const */resultFlux,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=eigen_t?> const * const */eig,\
 	/*<?=cons_t?> const * const */inputU,\
-	/*real3 const */pt,\
+	/*<?=cell_t?> const * const */cell,\
 	/*<?=normal_t?> const */n\
 ) {\
 <? if false then ?>\
 	/* default */\
 	<?=waves_t?> waves;\
 	<?=eigen_leftTransform?>(&waves, solver, eig, inputU, x, n);\
-	<?=eqn:eigenWaveCodePrefix("n", "eig", "x")?>\
+	<?=eqn:eigenWaveCodePrefix("n", "eig", "(cell)->pos")?>\
 <? 	for j=0,eqn.numWaves-1 do --\
-?>	waves.ptr[<?=j?>] *= <?=eqn:eigenWaveCode("n", "eig", "x", j)?>;\
+?>	waves.ptr[<?=j?>] *= <?=eqn:eigenWaveCode("n", "eig", "(cell)->pos", j)?>;\
 <? 	end --\
-?>	<?=eigen_rightTransform?>(result, solver, eig, waves, x, n);\
+?>	<?=eigen_rightTransform?>(resultFlux, solver, eig, waves, (cell)->pos, n);\
 <? else ?>\
 	for (int j = 0; j < numStates; ++j) {\
-		(result)->ptr[j] = 0./0.;\
+		(resultFlux)->ptr[j] = 0./0.;\
 	}\
 <? end ?>\
 }

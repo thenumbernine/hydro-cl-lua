@@ -140,18 +140,18 @@ end
 
 //used by PLM
 #define <?=eigen_forCell?>(\
-	/*<?=eigen_t?> * const */eig,\
+	/*<?=eigen_t?> * const */resultEig,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */U,\
-	/*real3 const */pt,\
+	/*<?=cell_t?> const * const */cell,\
 	/*<?=normal_t?> const */n\
 ) {\
-	(eig)->alpha = U.alpha;\
-	(eig)->sqrt_f = sqrt(calc_f(U.alpha));\
-	(eig)->gamma_ll = U.gamma_ll;\
+	(resultEig)->alpha = U.alpha;\
+	(resultEig)->sqrt_f = sqrt(calc_f(U.alpha));\
+	(resultEig)->gamma_ll = U.gamma_ll;\
 	real const det_gamma = sym3_det(U.gamma_ll);\
-	(eig)->gamma_uu = sym3_inv(U.gamma_ll, det_gamma);\
-	(eig)->sqrt_gammaUjj = _real3(sqrt((eig)->gamma_uu.xx), sqrt((eig)->gamma_uu.yy), sqrt((eig)->gamma_uu.zz));\
+	(resultEig)->gamma_uu = sym3_inv(U.gamma_ll, det_gamma);\
+	(resultEig)->sqrt_gammaUjj = _real3(sqrt((resultEig)->gamma_uu.xx), sqrt((resultEig)->gamma_uu.yy), sqrt((resultEig)->gamma_uu.zz));\
 }
 
 //// MODULE_NAME: <?=calcCellMinMaxEigenvalues?>
@@ -189,10 +189,12 @@ end
 //// MODULE_DEPENDS: <?=initCond_codeprefix?>
 
 #define <?=eigen_forInterface?>(\
-	/*<?=eigen_t?> * const */eig,\
+	/*<?=eigen_t?> * const */resultEig,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */UL,\
 	/*<?=cons_t?> const * const */UR,\
+	/*<?=cell_t?> const * const */cellL,\
+	/*<?=cell_t?> const * const */cellR,\
 	/*real3 const */pt,\
 	/*<?=normal_t?> const */n\
 ) {\
@@ -206,10 +208,10 @@ end
 		.zz = .5 * ((UL)->gamma_ll.zz + (UR)->gamma_ll.zz),\
 	};\
 	real const det_avg_gamma = sym3_det(avg_gamma);\
-	(eig)->alpha = alpha;\
-	(eig)->sqrt_f = sqrt(calc_f(alpha));\
-	(eig)->gamma_uu = sym3_inv(avg_gamma, det_avg_gamma);\
-	(eig)->sqrt_gammaUjj = _real3(sqrt((eig)->gamma_uu.xx), sqrt((eig)->gamma_uu.yy), sqrt((eig)->gamma_uu.zz));\
+	(resultEig)->alpha = alpha;\
+	(resultEig)->sqrt_f = sqrt(calc_f(alpha));\
+	(resultEig)->gamma_uu = sym3_inv(avg_gamma, det_avg_gamma);\
+	(resultEig)->sqrt_gammaUjj = _real3(sqrt((resultEig)->gamma_uu.xx), sqrt((resultEig)->gamma_uu.yy), sqrt((resultEig)->gamma_uu.zz));\
 }
 
 //// MODULE_NAME: <?=eigen_leftTransform?>
@@ -1376,15 +1378,15 @@ end
 //notice this paper uses the decomposition alpha A = R Lambda L
 // so this computation is for alpha A
 #define <?=eigen_fluxTransform?>(\
-	/*<?=cons_t?> * const */results,\
+	/*<?=cons_t?> * const */resultFlux,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=eigen_t?> const * const */eig,\
 	/*<?=cons_t?> const * const */input,\
-	/*real3 const */pt,\
+	/*<?=cell_t?> const * const */cell,\
 	/*<?=normal_t?> const */n\
 ) {\
 	for (int i = 0; i < numStates; ++i) {\
-		(results)->ptr[i] = 0;\
+		(resultFlux)->ptr[i] = 0;\
 	}\
 \
 	/* input */\
@@ -1405,34 +1407,34 @@ end
 	/* TODO this still needs to know what vars are going into it */\
 	/* so it can use the correctly swapped vars */\
 \
-	(results)->ptr[0] = f * (gamma_uu.xx * (input)->ptr[21] \
+	(resultFlux)->ptr[0] = f * (gamma_uu.xx * (input)->ptr[21] \
 		+ 2. * gamma_uu.xy * (input)->ptr[22] \
 		+ 2. * gamma_uu.xz * (input)->ptr[23] \
 		+ gamma_uu.yy * (input)->ptr[24] \
 		+ 2. * gamma_uu.yz * (input)->ptr[25] \
 		+ gamma_uu.zz * (input)->ptr[26] \
 		- m * (input)->ptr[27]);\
-	(results)->ptr[1] = 0.;\
-	(results)->ptr[2] = 0.;\
-	(results)->ptr[3] = (input)->ptr[21];\
-	(results)->ptr[4] = (input)->ptr[22];\
-	(results)->ptr[5] = (input)->ptr[23];\
-	(results)->ptr[6] = (input)->ptr[24];\
-	(results)->ptr[7] = (input)->ptr[25];\
-	(results)->ptr[8] = (input)->ptr[26];\
-	(results)->ptr[9] = 0.;\
-	(results)->ptr[10] = 0.;\
-	(results)->ptr[11] = 0.;\
-	(results)->ptr[12] = 0.;\
-	(results)->ptr[13] = 0.;\
-	(results)->ptr[14] = 0.;\
-	(results)->ptr[15] = 0.;\
-	(results)->ptr[16] = 0.;\
-	(results)->ptr[17] = 0.;\
-	(results)->ptr[18] = 0.;\
-	(results)->ptr[19] = 0.;\
-	(results)->ptr[20] = 0.;\
-	(results)->ptr[21] = \
+	(resultFlux)->ptr[1] = 0.;\
+	(resultFlux)->ptr[2] = 0.;\
+	(resultFlux)->ptr[3] = (input)->ptr[21];\
+	(resultFlux)->ptr[4] = (input)->ptr[22];\
+	(resultFlux)->ptr[5] = (input)->ptr[23];\
+	(resultFlux)->ptr[6] = (input)->ptr[24];\
+	(resultFlux)->ptr[7] = (input)->ptr[25];\
+	(resultFlux)->ptr[8] = (input)->ptr[26];\
+	(resultFlux)->ptr[9] = 0.;\
+	(resultFlux)->ptr[10] = 0.;\
+	(resultFlux)->ptr[11] = 0.;\
+	(resultFlux)->ptr[12] = 0.;\
+	(resultFlux)->ptr[13] = 0.;\
+	(resultFlux)->ptr[14] = 0.;\
+	(resultFlux)->ptr[15] = 0.;\
+	(resultFlux)->ptr[16] = 0.;\
+	(resultFlux)->ptr[17] = 0.;\
+	(resultFlux)->ptr[18] = 0.;\
+	(resultFlux)->ptr[19] = 0.;\
+	(resultFlux)->ptr[20] = 0.;\
+	(resultFlux)->ptr[21] = \
 		-(gamma_uu.yy * (input)->ptr[10] \
 		- gamma_uu.yy * (input)->ptr[6] \
 		+ gamma_uu.yz * (input)->ptr[11] \
@@ -1442,7 +1444,7 @@ end
 		- gamma_uu.zz * (input)->ptr[8] \
 		- (input)->ptr[0] \
 		+ 2. * (input)->ptr[28]);\
-	(results)->ptr[22] = (2. * gamma_uu.xy * (input)->ptr[10] \
+	(resultFlux)->ptr[22] = (2. * gamma_uu.xy * (input)->ptr[10] \
 		- 2. * gamma_uu.xy * (input)->ptr[6] \
 		+ gamma_uu.xz * (input)->ptr[11] \
 		+ gamma_uu.xz * (input)->ptr[16] \
@@ -1453,7 +1455,7 @@ end
 		- gamma_uu.zz * (input)->ptr[19] \
 		+ (input)->ptr[1] \
 		- 2. * (input)->ptr[29]) / 2.;\
-	(results)->ptr[23] = (gamma_uu.xy * (input)->ptr[11] \
+	(resultFlux)->ptr[23] = (gamma_uu.xy * (input)->ptr[11] \
 		+ gamma_uu.xy * (input)->ptr[16] \
 		- 2. * gamma_uu.xy * (input)->ptr[7] \
 		+ 2. * gamma_uu.xz * (input)->ptr[17] \
@@ -1464,12 +1466,12 @@ end
 		+ gamma_uu.yz * (input)->ptr[19] \
 		+ (input)->ptr[2] \
 		- 2. * (input)->ptr[30]) / 2.;\
-	(results)->ptr[24] = \
+	(resultFlux)->ptr[24] = \
 		-(gamma_uu.xx * (input)->ptr[10] \
 		- gamma_uu.xx * (input)->ptr[6] \
 		+ gamma_uu.xz * (input)->ptr[13] \
 		- gamma_uu.xz * (input)->ptr[18]);\
-	(results)->ptr[25] = (\
+	(resultFlux)->ptr[25] = (\
 		-(gamma_uu.xx * (input)->ptr[11] \
 		+ gamma_uu.xx * (input)->ptr[16] \
 		- 2. * gamma_uu.xx * (input)->ptr[7] \
@@ -1477,12 +1479,12 @@ end
 		+ gamma_uu.xy * (input)->ptr[18] \
 		+ gamma_uu.xz * (input)->ptr[14] \
 		- gamma_uu.xz * (input)->ptr[19])) / 2.;\
-	(results)->ptr[26] = \
+	(resultFlux)->ptr[26] = \
 		-(gamma_uu.xx * (input)->ptr[17] \
 		- gamma_uu.xx * (input)->ptr[8] \
 		- gamma_uu.xy * (input)->ptr[14] \
 		+ gamma_uu.xy * (input)->ptr[19]);\
-	(results)->ptr[27] = \
+	(resultFlux)->ptr[27] = \
 		-(gamma_uu.xx * gamma_uu.yy * (input)->ptr[10] \
 		- gamma_uu.xx * gamma_uu.yy * (input)->ptr[6] \
 		+ gamma_uu.xx * gamma_uu.yz * (input)->ptr[11] \
@@ -1508,17 +1510,17 @@ end
 		- gamma_uu.xz * gamma_uu.xz * (input)->ptr[17] \
 		+ gamma_uu.xz * (input)->ptr[30] \
 		+ gamma_uu.xz * gamma_uu.xz * (input)->ptr[8]);\
-	(results)->ptr[28] = gamma_uu.xy * (input)->ptr[22] \
+	(resultFlux)->ptr[28] = gamma_uu.xy * (input)->ptr[22] \
 		+ gamma_uu.xz * (input)->ptr[23] \
 		+ gamma_uu.yy * (input)->ptr[24] \
 		+ 2. * gamma_uu.yz * (input)->ptr[25] \
 		+ gamma_uu.zz * (input)->ptr[26] \
 		- (input)->ptr[27];\
-	(results)->ptr[29] = \
+	(resultFlux)->ptr[29] = \
 		-(gamma_uu.xx * (input)->ptr[22] \
 		+ gamma_uu.xy * (input)->ptr[24] \
 		+ gamma_uu.xz * (input)->ptr[25]);\
-	(results)->ptr[30] = \
+	(resultFlux)->ptr[30] = \
 		-(gamma_uu.xx * (input)->ptr[23] \
 		+ gamma_uu.xy * (input)->ptr[25] \
 		+ gamma_uu.xz * (input)->ptr[26]);\

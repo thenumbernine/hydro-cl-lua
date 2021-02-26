@@ -1,5 +1,5 @@
 //// MODULE_NAME: weno_l/r
-//// MODULE_DEPENDS: sqr <?=normal_t?> <?=fluxFromCons?> <?=eigen_forInterface?> <?=eigen_leftTransform?> <?=eigen_rightTransform?> <?=eqn_waveCode_depends?> <?=waves_t?>
+//// MODULE_DEPENDS: sqr <?=normal_t?> <?=eigen_leftTransform?> <?=eigen_rightTransform?> <?=eqn_waveCode_depends?> <?=waves_t?>
 
 <? 
 local clnumber = require "cl.obj.number"
@@ -109,7 +109,8 @@ end
 ?>
 
 //// MODULE_NAME: calcCellFlux
-//// MODULE_DEPENDS: <?=fluxFromCons?> <?=normal_t?>
+//// MODULE_DEPENDS: <?=normal_t?>
+//// MODULE_DEPENDS: <?=fluxFromCons?>
 
 kernel void calcCellFlux(
 	constant <?=solver_t?> const * const solver,
@@ -119,17 +120,18 @@ kernel void calcCellFlux(
 ) {
 	<?=SETBOUNDS?>(0,0);
 	global <?=cons_t?> const * const U = UBuf + index;
+	global <?=cell_t?> const * const cell = cellBuf + index;
 	<? for side=0,solver.dim-1 do ?>{
-		real3 xInt = cellBuf[index].pos;
+		real3 xInt = cell->pos;
 		xInt.s<?=side?> -= .5 * solver->grid_dx.s<?=side?>;
 		<?=normal_t?> const n = normal_forSide<?=side?>(xInt);
 		global <?=cons_t?> const * const F = fluxCellBuf + <?=side?> + dim * index;
-		<?=fluxFromCons?>(F, solver, U, xInt, n);
+		<?=fluxFromCons?>(F, solver, cell, n);	// xInt or cell->pos?  U is based on cell->pos, but the dest flux is xInt
 	}<? end ?>
 }
 
 //// MODULE_NAME: <?=calcFlux?>
-//// MODULE_DEPENDS: <?=normal_t?> weno_l/r <?=fluxFromCons?> <?=eigen_forInterface?> <?=eigen_leftTransform?> <?=eigen_rightTransform?> <?=eqn_waveCode_depends?>
+//// MODULE_DEPENDS: <?=normal_t?> weno_l/r <?=eigen_leftTransform?> <?=eigen_rightTransform?> <?=eqn_waveCode_depends?>
 
 kernel void <?=calcFlux?>(
 	constant <?=solver_t?> const * const solver,
@@ -141,6 +143,7 @@ kernel void <?=calcFlux?>(
 	
 	real3 const xR = cellBuf[index].pos;
 	global <?=cons_t?> const * const U = UBuf + index;
+	global <?=cell_t?> const * const cell = cellBuf + index;
 	<?
 for side=0,solver.dim-1 do ?>{
 		int const side = <?=side?>;	
@@ -154,6 +157,9 @@ for side=0,solver.dim-1 do ?>{
 		global <?=cons_t?> const * const UL = UBuf + indexL;
 		global <?=cons_t?> const * const UR = UBuf + indexR;
 #endif
+		
+		global <?=cell_t?> const * const cellL = cellBuf + indexL;
+		global <?=cell_t?> const * const cellR = cellBuf + indexR;
 
 		real3 xInt = xR;
 		xInt.s<?=side?> -= .5 * solver->grid_dx.s<?=side?>;
@@ -168,8 +174,9 @@ for side=0,solver.dim-1 do ?>{
 	if solver.fluxMethod == "Lax-Friedrichs" then
 
 ?>
+//// MODULE_DEPENDS: <?=eigen_forInterface?>
 		<?=eigen_t?> eig;
-		<?=eigen_forInterface?>(&eig, solver, UL, UR, xInt, n);
+		<?=eigen_forInterface?>(&eig, solver, UL, UR, cellL, cellR, xInt, n);
 		real maxAbsLambda = 0.;
 		for (int j = 0; j < <?=2*stencilSize?>; ++j) {
 			global <?=cons_t?> const * const Uj = U + (j - <?=stencilSize?>) * solver->stepsize.s<?=side?>;
@@ -186,10 +193,13 @@ for side=0,solver.dim-1 do ?>{
 <? 	
 		for j=0,2*stencilSize-1 do
 ?>		
-		global <?=cons_t?> const * const U<?=j?> = U + <?=j - stencilSize?> * solver->stepsize.s<?=side?>;
+		int const offset<?=j?> = <?=j - stencilSize?> * solver->stepsize.s<?=side?>;
+		global <?=cons_t?> const * const U<?=j?> = U + offset<?=j?>;
+		global <?=cell_t?> const * const cell<?=j?> = cell + offset<?=j?>;
 		//<?=cons_t?> F<?=j?> = fluxCellBuf[<?=side?> + dim * (index + <?=j - stencilSize?> * solver->stepsize.s<?=side?>)];
+//// MODULE_DEPENDS: <?=fluxFromCons?>
 		<?=cons_t?> F<?=j?>;
-		<?=fluxFromCons?>(&F<?=j?>, solver, U<?=j?>, xInt, n);
+		<?=fluxFromCons?>(&F<?=j?>, solver, U<?=j?>, cell<?=j?>, n);
 <?
 			if j < 2*stencilSize-1 then
 ?>		<?=cons_t?> fp<?=j?>;
@@ -230,11 +240,11 @@ for side=0,solver.dim-1 do ?>{
 	elseif solver.fluxMethod == "Marquina" then
 
 ?>
-//// MODULE_DEPENDS: eigen_forCell
+//// MODULE_DEPENDS: <?=eigen_forCell?>
 		<?=eigen_t?> eigL;
-		eigen_forCell(&eigL, solver, UL, xInt, n);
+		<?=eigen_forCell?>(&eigL, solver, UL, cellL, n);
 		<?=eigen_t?> eigR;
-		eigen_forCell(&eigR, solver, UR, xInt, n);
+		<?=eigen_forCell?>(&eigR, solver, UR, cellR, n);
 
 		real lambdaL[<?=eqn.numWaves?>];
 		real lambdaR[<?=eqn.numWaves?>];
@@ -249,10 +259,13 @@ for side=0,solver.dim-1 do ?>{
 <?		end
 ?>
 
-<? 		for j=0,2*stencilSize-1 do
-?>		global <?=cons_t?> const * const U<?=j?> = U + (<?=j - stencilSize?>) * solver->stepsize.s<?=side?>;
+<? 		for j=0,2*stencilSize-2 do
+?>		int const offset<?=j?> = (<?=j - stencilSize?>) * solver->stepsize.s<?=side?>;
+		global <?=cons_t?> const * const U<?=j?> = U + offset<?=j?>;
+		global <?=cell_t?> const * const cell<?=j?> = cell + offset<?=j?>;
+//// MODULE_DEPENDS: <?=fluxFromCons?>
 		<?=cons_t?> F<?=j?>;
-		<?=fluxFromCons?>(&F<?=j?>, solver, U<?=j?>, xInt, n);
+		<?=fluxFromCons?>(&F<?=j?>, solver, U<?=j?>, cell<?=j?>, n);
 		<?=waves_t?> al<?=j?>;
 		<?=eigen_leftTransform?>(&al<?=j?>, solver, &eigL, U<?=j?>, xInt, n);
 		<?=waves_t?> ar<?=j?>;
@@ -269,12 +282,12 @@ for side=0,solver.dim-1 do ?>{
 <? 
 		for k=0,eqn.numWaves-1 do 
 ?>		if (lambdaL[<?=k?>] > 0.0 && lambdaR[<?=k?>] > 0.0) {
-<?			for j=0,2*stencilSize-1 do
+<?			for j=0,2*stencilSize-2 do
 ?>			afp[<?=j?>].ptr[<?=k?>] = afl<?=j?>.ptr[<?=k?>];
 			afm[<?=j?>].ptr[<?=k?>] = 0;
 <?			end
 ?>		} else if (lambdaL[<?=k?>] < 0.0 && lambdaR[<?=k?>] < 0.0) {
-<?			for j=0,2*stencilSize-1 do
+<?			for j=0,2*stencilSize-2 do
 ?>			afp[<?=j?>].ptr[<?=k?>] = 0;
 			afm[<?=j?>].ptr[<?=k?>] = afr<?=j?>.ptr[<?=k?>];
 <?			end
@@ -289,7 +302,7 @@ for side=0,solver.dim-1 do ?>{
 				a = lambdaR[<?=k?>];
 				absa = absLambdaR;
 			}
-<?			for j=0,2*stencilSize-1 do
+<?			for j=0,2*stencilSize-2 do
 ?>			afp[<?=j?>].ptr[<?=k?>] = .5 * (afl<?=j?>.ptr[<?=k?>] + absa * al<?=j?>.ptr[<?=k?>]);
 			afm[<?=j?>].ptr[<?=k?>] = .5 * (afr<?=j?>.ptr[<?=k?>] - absa * ar<?=j?>.ptr[<?=k?>]);
 <?			end
@@ -317,29 +330,40 @@ for side=0,solver.dim-1 do ?>{
 		-- but this means making it a function of the lua parameters, like flux limiter.
 		-- and a flux limiter means +1 to the numGhost
 ?>
-//// MODULE_DEPENDS: <?=eigen_leftTransform?> <?=eigen_rightTransform?>
+//// MODULE_DEPENDS: <?=eigen_leftTransform?> <?=eigen_rightTransform?> <?=eigen_forInterface?>
+		
+		<?=eigen_t?> eig;
+		<?=eigen_forInterface?>(&eig, solver, UL, UR, cellL, cellR, xInt, n);
 
 		<?=waves_t?> afp[<?=2*stencilSize-1?>], afm[<?=2*stencilSize-1?>];
-<?		for j=0,2*stencilSize-1 do
+<?		for j=0,2*stencilSize-2 do
 ?>
 		{
-			global <?=cons_t?> const * const UL<?=j?> = U + <?=j - stencilSize?> * solver->stepsize.s<?=side?>;
-			global <?=cons_t?> const * const UR<?=j?> = U + <?=j+1 - stencilSize?> * solver->stepsize.s<?=side?>;
-			<?=eigen_t?> eig;
-			<?=eigen_forInterface?>(&eig, solver, UL, UR, xInt, n);
+			int const offsetL<?=j?> = <?=j - stencilSize?> * solver->stepsize.s<?=side?>;
+			int const offsetR<?=j?> = <?=j+1 - stencilSize?> * solver->stepsize.s<?=side?>;
+
+			global <?=cons_t?> const * const UL<?=j?> = U + offsetL<?=j?>;
+			global <?=cons_t?> const * const UR<?=j?> = U + offsetR<?=j?>;
+			
+			global <?=cell_t?> const * const cellL<?=j?> = cell + offsetL<?=j?>;
+			global <?=cell_t?> const * const cellR<?=j?> = cell + offsetR<?=j?>;
+
+			//should we only use a single 'eig'?  seems errors pop up when I use the 'eig' at each interface along the stencil
+			//<?=eigen_t?> eig;
+			//<?=eigen_forInterface?>(&eig, solver, UL, UR, cellL, cellR, xInt, n);
 
 			<?=eqn:eigenWaveCodePrefix("n", "&eig", "xInt")?>
 
 			<?=cons_t?> UAvg;
 			for (int k = 0; k < numIntStates; ++k) {
-				UAvg.ptr[k] = .5 * (UL->ptr[k] + UR->ptr[k]);
+				UAvg.ptr[k] = .5 * (UL<?=j?>->ptr[k] + UR<?=j?>->ptr[k]);
 			}
 			<?=eigen_leftTransform?>(afp + <?=j?>, solver, &eig, &UAvg, xInt, n);
 			afm[<?=j?>] = afp[<?=j?>];
 
 			<?=cons_t?> deltaU;
 			for (int k = 0; k < numStates; ++k) {
-				deltaU.ptr[k] = UR->ptr[k] - UL->ptr[k];
+				deltaU.ptr[k] = UR<?=j?>->ptr[k] - UL<?=j?>->ptr[k];
 			}
 			
 			<?=waves_t?> deltaUEig;
@@ -368,8 +392,6 @@ for side=0,solver.dim-1 do ?>{
 			waf.ptr[j] = wafp.ptr[j] + wafm.ptr[j];
 		}
 	
-		<?=eigen_t?> eig;
-		<?=eigen_forInterface?>(&eig, solver, UL, UR, xInt, n);
 		<?=eigen_rightTransform?>(flux, solver, &eig, &waf, xInt, n);
 <?
 	

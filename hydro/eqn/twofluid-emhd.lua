@@ -270,6 +270,7 @@ function TwoFluidEMHD:getEnv()
 	env.real_mul = scalar..'_real_mul'
 	env.sqrt = scalar..'_sqrt'
 	env.abs = scalar..'_abs'
+	env.fluids = self.fluids
 	return env
 end
 
@@ -358,7 +359,7 @@ function TwoFluidEMHD:getDisplayVars()
 			name = 'gravity',
 			code = self:template[[
 	if (!<?=OOB?>(1,1)) {
-		<?=eqn.gravOp.symbols.calcGravityAccel?>(&value.vreal3, solver, U, x);
+		<?=calcGravityAccel?>(&value.vreal3, solver, U, x);
 	}
 ]],
 			type='real3', 

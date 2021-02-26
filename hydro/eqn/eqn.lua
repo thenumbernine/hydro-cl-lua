@@ -577,7 +577,7 @@ function Equation:initCodeModules()
 kernel void <?=applyInitCond?>(
 	constant <?=solver_t?> const * const solver,
 	constant <?=initCond_t?> const * const initCond,
-	global <?=cons_t?>* UBuf,
+	global <?=cons_t?> * const UBuf,
 	global <?=cell_t?> const * const cellBuf
 ) {
 	<?=SETBOUNDS?>(0,0);
@@ -800,12 +800,12 @@ function Equation:initCodeModule_fluxFromCons()
 	/*<?=cons_t?> const * const */flux,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */U,\
-	/*real3 const */x,\
+	/*<?=cell_t?> const * const */cell,\
 	/*<?=normal_t?> const */n\
 ) {\
 	<?=eigen_t?> eig;\
-	<?=eigen_forCell?>(&eig, solver, U, x, n)\
-	<?=eigen_fluxTransform?>(flux, solver, &eig, U, x, n);\
+	<?=eigen_forCell?>(&eig, solver, U, cell, n)\
+	<?=eigen_fluxTransform?>(flux, solver, &eig, U, cell, n);\
 }
 ]],
 	}
@@ -851,6 +851,7 @@ end
 function Equation:getModuleDepends_displayCode() 
 	return table{
 		self.solver.symbols.SETBOUNDS,
+		self.symbols.primFromCons,	-- getDisplayVarCodePrefix
 	}
 end
 

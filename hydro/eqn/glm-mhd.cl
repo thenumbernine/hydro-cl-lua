@@ -347,14 +347,14 @@ kernel void <?=initDerivs?>(
 	/*<?=cons_t?> * const */F,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */U,\
-	/*real3 const */pt,\
+	/*<?=cell_t?> const * const */cell,\
 	/*<?=normal_t?> const */n\
 ) {\
 	<?=prim_t?> W;\
-	<?=primFromCons?>(&W, solver, U, pt);\
+	<?=primFromCons?>(&W, solver, U, (cell)->pos);\
 	real const vj = normal_vecDotN1(n, W.v);\
 	real const Bj = normal_vecDotN1(n, W.B);\
-	real const BSq = coordLenSq(W.B, pt);\
+	real const BSq = coordLenSq(W.B, (cell)->pos);\
 	real const BDotV = real3_dot(W.B, W.v);\
 	real const PMag = .5 * BSq / (solver->mu0 / unit_kg_m_per_C2);\
 	real const PTotal = W.P + PMag;\
@@ -365,7 +365,7 @@ kernel void <?=initDerivs?>(
 	real Ch = 0;\
 	<? for side=0,solver.dim-1 do ?>{\
 		<?=eigen_t?> eig;\
-		<?=eigen_forCell?>(&eig, solver, U, pt, normal_fromSide<?=side?>(pt));\
+		<?=eigen_forCell?>(&eig, solver, U, cell, normal_fromSide<?=side?>((cell)->pos));\
 		Ch = max(Ch, eig.Ch);\
 	}<? end ?>\
 <? else ?>\
@@ -498,12 +498,14 @@ kernel void <?=initDerivs?>(
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */UL,\
 	/*<?=cons_t?> const * const */UR,\
-	/*real3 const */x,\
+	/*<?=cell_t?> const * const */cellL,\
+	/*<?=cell_t?> const * const */cellR,\
+	/*real3 const */pt,\
 	/*<?=normal_t?> const */n\
 ) {\
 	<?=roe_t?> roe;\
-	<?=calcRoeValues?>(&roe, solver, UL, UR, x, n);\
-	<?=eigen_forRoeAvgs?>(eig, solver, &roe, x);\
+	<?=calcRoeValues?>(&roe, solver, UL, UR, pt, n);\
+	<?=eigen_forRoeAvgs?>(eig, solver, &roe, pt);\
 }
 
 //// MODULE_NAME: <?=eigen_forCell?>
@@ -513,12 +515,12 @@ kernel void <?=initDerivs?>(
 	/*<?=eigen_t?> * const */eig,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */U,\
-	/*real3 const */x,\
+	/*<?=cell_t?> const * const */cell,\
 	/*<?=normal_t?> const */n\
 ) {\
 	<?=prim_t?> W;\
-	<?=primFromCons?>(&W, solver, U, x);\
-	real const PMag = .5 * coordLenSq(W.B, x);\
+	<?=primFromCons?>(&W, solver, U, (cell)->pos);\
+	real const PMag = .5 * coordLenSq(W.B, (cell)->pos);\
 	real const hTotal = ((U)->ETotal + W.P + PMag) / W.rho;\
 	<?=roe_t?> roe = {\
 		.rho = W.rho,\
@@ -528,7 +530,7 @@ kernel void <?=initDerivs?>(
 		.X = 0,\
 		.Y = 1,\
 	};\
-	<?=eigen_forRoeAvgs?>(eig, solver, &roe, x);\
+	<?=eigen_forRoeAvgs?>(eig, solver, &roe, (cell)->pos);\
 }
 
 //// MODULE_NAME: <?=eigen_leftTransform?>
@@ -762,7 +764,7 @@ kernel void <?=initDerivs?>(
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=eigen_t?> const * const */eig,\
 	/*<?=cons_t?> const * const */inputU,\
-	/*real3 const * const */pt,\
+	/*<?=cell_t?> const * const */cell,\
 	/*<?=normal_t?> const * const */n\
 ) {\
 	/* rotate vector components to align with normal */\
@@ -780,7 +782,7 @@ kernel void <?=initDerivs?>(
 \
 	real const _1_rho = 1. / rho;\
 <? print("you can't use coordLenSq (which uses g_ij) after rotating coordinates") ?>\
-	real const vSq = coordLenSq(v, pt);\
+	real const vSq = coordLenSq(v, (cell)->pos);\
 	real const BDotV = real3_dot(B,v);\
 \
 	/*  dF/dU */\

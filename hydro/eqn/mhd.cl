@@ -424,31 +424,31 @@ static inline real3 calc_CA(
 //// MODULE_DEPENDS: units <?=solver_t?> <?=cons_t?> <?=prim_t?> <?=primFromCons?> <?=normal_t?> <?=coordLenSq?>
 
 #define <?=fluxFromCons?>(\
-	/*<?=cons_t?> * const */F,\
+	/*<?=cons_t?> * const */resultF,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */U,\
-	/*real3 const */pt,\
+	/*<?=cell_t?> const * const */cell,\
 	/*<?=normal_t?> const */n\
 ) {\
 	<?=prim_t?> W;\
-	<?=primFromCons?>(&W, solver, U, pt);\
+	<?=primFromCons?>(&W, solver, U, (cell)->pos);\
 	real vj = normal_vecDotN1(n, W.v);\
 	real Bj = normal_vecDotN1(n, W.B);\
-	real BSq = coordLenSq(W.B, pt);\
+	real BSq = coordLenSq(W.B, (cell)->pos);\
 	real BDotV = real3_dot(W.B, W.v);\
 	real PMag = .5 * BSq / (solver->mu0 / unit_kg_m_per_C2);\
 	real PTotal = W.P + PMag;\
 	real HTotal = (U)->ETotal + PTotal;\
 \
-	(F)->rho = normal_vecDotN1(n, (U)->m);\
-	(F)->m = real3_sub(real3_real_mul((U)->m, vj), real3_real_mul((U)->B, Bj / (solver->mu0 / unit_kg_m_per_C2)));\
-	(F)->m.x += PTotal * normal_u1x(n);\
-	(F)->m.y += PTotal * normal_u1y(n);\
-	(F)->m.z += PTotal * normal_u1z(n);\
-	(F)->B = real3_sub(real3_real_mul((U)->B, vj), real3_real_mul(W.v, Bj));\
-	(F)->ETotal = HTotal * vj - BDotV * Bj / (solver->mu0 / unit_kg_m_per_C2);\
-	(F)->psi = 0;\
-	(F)->ePot = 0;\
+	(resultF)->rho = normal_vecDotN1(n, (U)->m);\
+	(resultF)->m = real3_sub(real3_real_mul((U)->m, vj), real3_real_mul((U)->B, Bj / (solver->mu0 / unit_kg_m_per_C2)));\
+	(resultF)->m.x += PTotal * normal_u1x(n);\
+	(resultF)->m.y += PTotal * normal_u1y(n);\
+	(resultF)->m.z += PTotal * normal_u1z(n);\
+	(resultF)->B = real3_sub(real3_real_mul((U)->B, vj), real3_real_mul(W.v, Bj));\
+	(resultF)->ETotal = HTotal * vj - BDotV * Bj / (solver->mu0 / unit_kg_m_per_C2);\
+	(resultF)->psi = 0;\
+	(resultF)->ePot = 0;\
 }
 
 //// MODULE_NAME: <?=calcCellMinMaxEigenvalues?>
@@ -542,16 +542,18 @@ static inline real3 calc_CA(
 //// MODULE_DEPENDS: <?=roe_t?> <?=calcRoeValues?> <?=eigen_forRoeAvgs?>
 
 #define <?=eigen_forInterface?>(\
-	/*<?=eigen_t?> * const */eig,\
+	/*<?=eigen_t?> * const */resultEig,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */UL,\
 	/*<?=cons_t?> const * const */UR,\
-	/*real3 const */x,\
+	/*<?=cell_t?> const * const */cellL,\
+	/*<?=cell_t?> const * const */cellR,\
+	/*real3 const */pt,\
 	/*<?=normal_t?> const */n\
 ) {\
 	<?=roe_t?> roe;\
-	<?=calcRoeValues?>(&roe, solver, UL, UR, x, n);\
-	<?=eigen_forRoeAvgs?>(eig, solver, &roe, x);\
+	<?=calcRoeValues?>(&roe, solver, UL, UR, pt, n);\
+	<?=eigen_forRoeAvgs?>(resultEig, solver, &roe, pt);\
 }
 
 //// MODULE_NAME: <?=eigen_leftTransform?>
@@ -775,7 +777,7 @@ static inline real3 calc_CA(
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=eigen_t?> const * const */eig,\
 	/*<?=cons_t?> const * const */inputU,\
-	/*real3 const */pt,\
+	/*<?=cell_t?> const * const */cell,\
 	/*<?=normal_t?> const */n\
 ) {\
 	/* rotate vector components to align with normal */\
@@ -793,7 +795,7 @@ static inline real3 calc_CA(
 \
 	real const _1_rho = 1. / rho;\
 <? print("you can't use coordLenSq (which uses g_ij) after rotating coordinates") ?>\
-	real const vSq = coordLenSq(v, pt);\
+	real const vSq = coordLenSq(v, (cell)->pos);\
 	real const BDotV = real3_dot(B,v);\
 \
 	/*  dF/dU */\
@@ -846,15 +848,15 @@ static inline real3 calc_CA(
 //// MODULE_DEPENDS: <?=roe_t?> <?=primFromCons?>
 
 #define <?=eigen_forCell?>(\
-	/*<?=eigen_t?> * const */eig,\
+	/*<?=eigen_t?> * const */resultEig,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */U,\
-	/*real3 const */pt,\
+	/*<?=cell_t?> const * const */cell,\
 	/*<?=normal_t?> const */n\
 ) {\
 	<?=prim_t?> W;\
-	<?=primFromCons?>(&W, solver, U, pt);\
-	real PMag = .5 * coordLenSq(W.B, pt);\
+	<?=primFromCons?>(&W, solver, U, (cell)->pos);\
+	real PMag = .5 * coordLenSq(W.B, (cell)->pos);\
 	real hTotal = ((U)->ETotal + W.P + PMag) / W.rho;\
 	<?=roe_t?> roe = {\
 		.rho = W.rho,\
@@ -864,7 +866,7 @@ static inline real3 calc_CA(
 		.X = 0,\
 		.Y = 1,\
 	};\
-	<?=eigen_forRoeAvgs?>(eig, solver, &roe, pt);\
+	<?=eigen_forRoeAvgs?>(resultEig, solver, &roe, (cell)->pos);\
 }
 
 //// MODULE_NAME: <?=addSource?>

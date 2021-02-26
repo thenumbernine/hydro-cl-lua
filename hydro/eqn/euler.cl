@@ -210,11 +210,11 @@ end
 	/*<?=cons_t?> * const */resultF,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */U,\
-	/*real3 const */x,\
+	/*<?=cell_t?> const * const */cell,\
 	/*<?=normal_t?> const */n\
 ) {\
 	<?=prim_t?> W;\
-	<?=primFromCons?>(&W, solver, U, x);\
+	<?=primFromCons?>(&W, solver, U, (cell)->pos);\
 	real const v_n = normal_vecDotN1(n, W.v);\
 	(resultF)->rho = (U)->rho * v_n;\
 	(resultF)->m = real3_add(\
@@ -255,27 +255,27 @@ end
 
 // used by PLM
 #define <?=eigen_forCell?>(\
-	/*<?=eigen_t?> * const */resultEig,\
+	/*<?=eigen_t?> * const */result,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */U,\
-	/*real3 const */pt,\
+	/*<?=cell_t?> const * const */cell,\
 	/*<?=normal_t?> const */n\
 ) {\
 	<?=prim_t?> W;\
-	<?=primFromCons?>(&W, solver, U, pt);\
-	real3 const vL = coord_lower(W.v, pt);\
+	<?=primFromCons?>(&W, solver, U, (cell)->pos);\
+	real3 const vL = coord_lower(W.v, (cell)->pos);\
 	real const vSq = real3_dot(W.v, vL);\
 	real const v_n = normal_vecDotN1(n, W.v);\
 	real const eKin = .5 * vSq;\
 	real const hTotal = calc_hTotal(W.rho, W.P, (U)->ETotal);\
 	real const CsSq = (solver->heatCapacityRatio - 1.) * (hTotal - eKin);\
 	real const Cs = sqrt(CsSq);\
-	(resultEig)->rho = W.rho;\
-	(resultEig)->v = W.v;\
-	(resultEig)->vSq = vSq;\
-	(resultEig)->vL = vL;\
-	(resultEig)->hTotal = hTotal;\
-	(resultEig)->Cs = Cs;\
+	(result)->rho = W.rho;\
+	(result)->v = W.v;\
+	(result)->vSq = vSq;\
+	(result)->vL = vL;\
+	(result)->hTotal = hTotal;\
+	(result)->Cs = Cs;\
 }
 
 //// MODULE_NAME: <?=eigen_forInterface?>
@@ -283,21 +283,23 @@ end
 
 //used by the mesh version
 #define <?=eigen_forInterface?>(\
-	/*<?=eigen_t?> * const */resultEig,\
+	/*<?=eigen_t?> * const */result,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */UL,\
 	/*<?=cons_t?> const * const */UR,\
+	/*<?=cell_t?> const * const */cellL,\
+	/*<?=cell_t?> const * const */cellR,\
 	/*real3 const */pt,\
 	/*<?=normal_t?> const */n\
 ) {\
 	<?=prim_t?> WL;\
-	<?=primFromCons?>(&WL, solver, UL, pt);\
+	<?=primFromCons?>(&WL, solver, UL, (cellL)->pos);\
 	real const sqrtRhoL = sqrt(WL.rho);\
 	real3 const vLeft = WL.v;\
 	real const hTotalL = calc_hTotal(WL.rho, WL.P, (UL)->ETotal);\
 \
 	<?=prim_t?> WR;\
-	<?=primFromCons?>(&WR, solver, UR, pt);\
+	<?=primFromCons?>(&WR, solver, UR, (cellR)->pos);\
 	real const sqrtRhoR = sqrt(WR.rho);\
 	real3 const vR = WR.v;\
 	real const hTotalR = calc_hTotal(WR.rho, WR.P, (UR)->ETotal);\
@@ -318,12 +320,12 @@ end
 	real const CsSq = (solver->heatCapacityRatio - 1.) * (hTotal - eKin);\
 	real const Cs = sqrt(CsSq);\
 \
-	(resultEig)->rho = rho;\
-	(resultEig)->v = v;\
-	(resultEig)->vSq = vSq;\
-	(resultEig)->vL = vLower;\
-	(resultEig)->hTotal = hTotal;\
-	(resultEig)->Cs = Cs;\
+	(result)->rho = rho;\
+	(result)->v = v;\
+	(result)->vSq = vSq;\
+	(result)->vL = vLower;\
+	(result)->hTotal = hTotal;\
+	(result)->Cs = Cs;\
 }
 
 //// MODULE_NAME: <?=eigen_leftTransform?>
@@ -426,8 +428,7 @@ end
 
 //// MODULE_NAME: <?=eigen_fluxTransform?>
 //// MODULE_DEPENDS: <?=eigen_t?> <?=normal_t?>
-// not used anymore.  was used by Roe, but I switched that to a <?=fluxFromCons?>.
-// is this needed anymore?
+// Not used anymore.  was used by Roe, but I switched that to a <?=fluxFromCons?>.
 // <?=fluxFromCons?> only matches <?=eigen_fluxTransform?> when the eig properties are derived from X_ 
 
 #define <?=eigen_fluxTransform?>(\
@@ -435,7 +436,7 @@ end
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=eigen_t?> const * const */eig,\
 	/*<?=cons_t?> const * const */X_,\
-	/*real3 const */x,\
+	/*<?=cell_t?> const * const */cell,\
 	/*<?=normal_t?> const */n\
 ) {\
 	real3 const v_n = normal_vecDotNs(n, (eig).v);\
@@ -492,10 +493,11 @@ kernel void <?=addSource?>(
 	global <?=cell_t?> const * const cellBuf
 ) {
 	<?=SETBOUNDS_NOGHOST?>();
-	real3 const x = cellBuf[index].pos;
 
 	global <?=cons_t?> * const deriv = derivBuf + index;
 	global <?=cons_t?> const * const U = UBuf + index;
+	global <?=cell_t?> const * const cell = cellBuf + index;
+	real3 const x = cell->pos;
 
 <? if false 
 and solver.coord.vectorComponent == "anholonomic" 
@@ -516,7 +518,7 @@ then ?>
 <?	end ?>
 <?	if false then -- 1999 Toro p.28 eqn.1.102, 1.103 ?>
 	<?=cons_t?> F;
-	fluxFromConsForSide0(&F, solver, U, x);
+	fluxFromCons(&F, solver, U, cell, normal_forSide0(x));
 	deriv->rho -= F.rho / x.x;
 	deriv->m.x -= F.m.x / x.x;
 	deriv->m.y -= F.m.y / x.x;

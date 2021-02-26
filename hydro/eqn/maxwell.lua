@@ -150,6 +150,12 @@ function Maxwell:getEnv()
 	return env
 end
 
+function Maxwell:getModuleDepends_displayCode() 
+	return table(Maxwell.super.getModuleDepends_displayCode(self)):append{
+		self.symbols.eqn_common,
+	}
+end
+
 Maxwell.predefinedDisplayVars = {
 	'U D',
 	'U div D',

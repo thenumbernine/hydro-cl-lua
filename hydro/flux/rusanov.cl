@@ -6,11 +6,13 @@
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */UL,\
 	/*<?=cons_t?> const * const */UR,\
+	/*<?=cell_t?> const * const */cellL,\
+	/*<?=cell_t?> const * const */cellR,\
 	/*real3 const */xInt,\
 	/*<?=normal_t?> const */n\
 ) {\
 	<?=eigen_t?> eigInt;\
-	<?=eigen_forInterface?>(&eigInt, solver, UL, UR, xInt, n);\
+	<?=eigen_forInterface?>(&eigInt, solver, UL, UR, cellL, cellR, xInt, n);\
 <?=eqn:eigenWaveCodePrefix("n", "&eigInt", "xInt"):gsub("\n", "\\\n")?>\
 \
 	real lambdaMax;\
@@ -23,9 +25,9 @@
 	end --\
 ?>\
 	<?=cons_t?> FL;\
-	<?=fluxFromCons?>(&FL, solver, UL, xInt, n);\
+	<?=fluxFromCons?>(&FL, solver, UL, cellL, n);\
 	<?=cons_t?> FR;\
-	<?=fluxFromCons?>(&FR, solver, UR, xInt, n);\
+	<?=fluxFromCons?>(&FR, solver, UR, cellR, n);\
 	for (int j = 0; j < numIntStates; ++j) {\
 		(resultFlux)->ptr[j] = .5 * (FL.ptr[j] + FR.ptr[j] - lambdaMax * ((UR)->ptr[j] - (UL)->ptr[j]));\
 	}\

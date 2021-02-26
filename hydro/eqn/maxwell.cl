@@ -93,30 +93,30 @@ void <?=applyInitCondCell?>(
 //eqn_common has calc_E, calc_H
 
 #define <?=fluxFromCons?>(\
-	/*<?=cons_t?> * const */F,\
+	/*<?=cons_t?> * const */resultF,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */U,\
-	/*real3 const */pt,\
+	/*<?=cell_t?> const * const */cell,\
 	/*<?=normal_t?> const */n\
 ) {\
 	<?=vec3?> const E = calc_E(U);\
 	<?=vec3?> const H = calc_H(U);\
 	if (n.side == 0) {\
-		(F)->D = _<?=vec3?>(<?=zero?>, H.z, <?=neg?>(H.y));\
-		(F)->B = _<?=vec3?>(<?=zero?>, <?=neg?>(E.z), E.y);\
+		(resultF)->D = _<?=vec3?>(<?=zero?>, H.z, <?=neg?>(H.y));\
+		(resultF)->B = _<?=vec3?>(<?=zero?>, <?=neg?>(E.z), E.y);\
 	} else if (n.side == 1) {\
-		(F)->D = _<?=vec3?>(<?=neg?>(H.z), <?=zero?>, H.x);\
-		(F)->B = _<?=vec3?>(E.z, <?=zero?>, <?=neg?>(E.x));\
+		(resultF)->D = _<?=vec3?>(<?=neg?>(H.z), <?=zero?>, H.x);\
+		(resultF)->B = _<?=vec3?>(E.z, <?=zero?>, <?=neg?>(E.x));\
 	} else if (n.side == 2) {\
-		(F)->D = _<?=vec3?>(H.y, <?=neg?>(H.x), <?=zero?>);\
-		(F)->B = _<?=vec3?>(<?=neg?>(E.y), E.x, <?=zero?>);\
+		(resultF)->D = _<?=vec3?>(H.y, <?=neg?>(H.x), <?=zero?>);\
+		(resultF)->B = _<?=vec3?>(<?=neg?>(E.y), E.x, <?=zero?>);\
 	}\
-	(F)->phi = <?=zero?>;\
-	(F)->psi = <?=zero?>;\
-	(F)->D = <?=vec3?>_zero;\
-	(F)->rhoCharge = <?=zero?>;\
-	(F)->sqrt_1_eps = <?=susc_t?>_zero;\
-	(F)->sqrt_1_mu = <?=susc_t?>_zero;\
+	(resultF)->phi = <?=zero?>;\
+	(resultF)->psi = <?=zero?>;\
+	(resultF)->D = <?=vec3?>_zero;\
+	(resultF)->rhoCharge = <?=zero?>;\
+	(resultF)->sqrt_1_eps = <?=susc_t?>_zero;\
+	(resultF)->sqrt_1_mu = <?=susc_t?>_zero;\
 }
 
 //// MODULE_NAME: <?=eigen_forInterface?>
@@ -126,7 +126,9 @@ void <?=applyInitCondCell?>(
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */UL,\
 	/*<?=cons_t?> const * const */UR,\
-	/*real3 const */x,\
+	/*<?=cell_t?> const * const */cellL,\
+	/*<?=cell_t?> const * const */cellR,\
+	/*real3 const */pt,\
 	/*<?=normal_t?> const */n\
 ) {\
 	/* this will fail with tensor susceptibility */\
@@ -143,7 +145,7 @@ void <?=applyInitCondCell?>(
 	/*<?=eigen_t?> * const */eig,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */U,\
-	/*real3 const */x,\
+	/*<?=cell_t?> const * const */cell,\
 	/*<?=normal_t?> const */n\
 ) {\
 	(eig)->sqrt_1_eps = U.sqrt_1_eps;\
@@ -263,10 +265,18 @@ TODO update this for Einstein-Maxwell (take the metric into consideration
 
 //// MODULE_NAME: <?=eigen_fluxTransform?>
 
-#define <?=eigen_fluxTransform?>(result, solver, eig, X, x, n)	<?=fluxFromCons?>(result, solver, X, x, n)
+#define <?=eigen_fluxTransform?>(\
+	/*<?=cons_t?> * const */result,\
+	/*constant <?=solver_t?> const * const */solver,\
+	/*<?=eigen_t?> const * const */eig,\
+	/*<?=cons_t?> const * const */X_,\
+	/*<?=cell_t?> const * const */cell,\
+	/*<?=normal_t?> const */n\
+)\
+	<?=fluxFromCons?>(result, solver, X_, cell, n)
 
 //// MODULE_NAME: <?=addSource?>
-//// MODULE_DEPENDS: <?=coord_sqrt_det_g?> <?=eqn_common?> <?=fluxFromCons?>
+//// MODULE_DEPENDS: <?=coord_sqrt_det_g?> <?=eqn_common?> 
 
 kernel void <?=addSource?>(
 	constant <?=solver_t?> const * const solver,
@@ -275,10 +285,11 @@ kernel void <?=addSource?>(
 	global <?=cell_t?> const * const cellBuf
 ) {
 	<?=SETBOUNDS_NOGHOST?>();
-	real3 const x = cellBuf[index].pos;
 	
 	global <?=cons_t?> * const deriv = derivBuf + index;
 	global <?=cons_t?> const * const U = UBuf + index;
+	global <?=cell_t?> const * const cell = cellBuf + index;
+	real3 const x = cell->pos;
 
 	/* TODO J = J_f + J_b = J_f + J_P + J_M = J_f + dP/dt + curl M */
 	deriv->D = <?=vec3?>_sub(deriv->D, U->J);
@@ -311,7 +322,8 @@ kernel void <?=addSource?>(
 	<? for j=0,solver.dim-1 do 
 		local xj = xNames[j+1] ?>{
 		<?=cons_t?> flux;
-		<?=fluxFromCons?>(&flux, solver, U, x, normal_forSide<?=j?>(x));
+//// MODULE_DEPENDS: <?=fluxFromCons?>
+		<?=fluxFromCons?>(&flux, solver, U, cell, normal_forSide<?=j?>(x));
 		flux.D = <?=vec3?>_real_mul(eqn_coord_lower(flux.D, x), _1_sqrt_det_g);
 		flux.B = <?=vec3?>_real_mul(eqn_coord_lower(flux.B, x), _1_sqrt_det_g);
 		deriv->D.<?=xj?> = <?=sub?>(deriv->D.<?=xj?>, <?=vec3?>_dot(flux.D, grad_1_mu));

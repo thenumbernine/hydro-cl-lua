@@ -20,18 +20,24 @@ local useFlux = solver.fluxLimiter > 1
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */UL,\
 	/*<?=cons_t?> const * const */UR,\
+	/*<?=cell_t?> const * const */cellL,\
+	/*<?=cell_t?> const * const */cellR,\
 	/*real3 const */xInt,\
 	/*<?=normal_t?> const */n<? if useFlux then ?>,\
 	/*realparam const */dt_dx,\
 	/*<?=cons_t?> const * const */UL_L,\
 	/*<?=cons_t?> const * const */UL_R,\
+	/*<?=cell_t?> const * const */cellL_L,\
+	/*<?=cell_t?> const * const */cellL_R,\
+	/*real3 const */xIntL,\
 	/*<?=cons_t?> const * const */UR_L,\
 	/*<?=cons_t?> const * const */UR_R,\
-	/*real3 const */xIntL,\
+	/*<?=cell_t?> const * const */cellR_L,\
+	/*<?=cell_t?> const * const */cellR_R,\
 	/*real3 const */xIntR<? end ?>\
 ) {\
 	<?=eigen_t?> eig;\
-	<?=eigen_forInterface?>(&eig, solver, UL, UR, xInt, n);\
+	<?=eigen_forInterface?>(&eig, solver, UL, UR, cellL, cellR, xInt, n);\
 \
 <?=eqn:eigenWaveCodePrefix("n", "&eig", "xInt"):gsub("\n", "\\\n")?>\
 \
@@ -62,9 +68,9 @@ local useFlux = solver.fluxLimiter > 1
 	<?=eigen_leftTransform?>(&deltaUEig, solver, &eig, &deltaU, xInt, n);\
 <? 	if useFlux then ?>\
 	<?=eigen_t?> eigL;\
-	<?=eigen_forInterface?>(&eigL, solver, UL_L, UR_L, xInt, n);\
+	<?=eigen_forInterface?>(&eigL, solver, UL_L, UR_L, cellL_L, cellR_L, xIntL, n);\
 	<?=eigen_t?> eigR;\
-	<?=eigen_forInterface?>(&eigR, solver, UL_R, UR_R, xInt, n);\
+	<?=eigen_forInterface?>(&eigR, solver, UL_R, UR_R, cellL_R, cellR_R, xIntR, n);\
 	<?=waves_t?> deltaUEigL;\
 	<?=eigen_leftTransform?>(&deltaUEigL, solver, &eigL, &deltaUL, xIntL, n);\
 	<?=waves_t?> deltaUEigR;\
@@ -111,9 +117,9 @@ local useFlux = solver.fluxLimiter > 1
 -- while eigen_fluxTransform would use the intermediate state to create the flux vector --\
 ?>\
 	<?=cons_t?> FL;\
-	<?=fluxFromCons?>(&FL, solver, UL, xInt, n);\
+	<?=fluxFromCons?>(&FL, solver, UL, cellL, n);\
 	<?=cons_t?> FR;\
-	<?=fluxFromCons?>(&FR, solver, UR, xInt, n);\
+	<?=fluxFromCons?>(&FR, solver, UR, cellR, n);\
 \
 	for (int j = 0; j < numIntStates; ++j) {\
 		(resultFlux)->ptr[j] += .5 * (FL.ptr[j] + FR.ptr[j]);\

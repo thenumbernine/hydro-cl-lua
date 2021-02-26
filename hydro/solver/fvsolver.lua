@@ -57,7 +57,7 @@ function FiniteVolumeSolver:initCodeModule_calcFlux()
 	self.modules:addFromMarkup{
 		code = self.eqn:template([[
 //// MODULE_NAME: <?=calcFlux?>
-//// MODULE_DEPENDS: <?=calcFluxForInterface?> <?=cons_parallelPropagate?> <?=normal_t?>
+//// MODULE_DEPENDS: <?=normal_t?>
 // used by all gridsolvers.  the meshsolver alternative is in solver/meshsolver.lua
 
 <? 
@@ -75,7 +75,7 @@ kernel void <?=calcFlux?>(
 	<?=SETBOUNDS?>(solver->numGhost, solver->numGhost-1);
 	
 	int const indexR = index;
-	real3 const xR = cellBuf[index].pos;
+	global <?=cell_t?> const * const cellR = cellBuf + index;
 	
 	<? for side=0,solver.dim-1 do ?>{
 		int const side = <?=side?>;	
@@ -83,10 +83,9 @@ kernel void <?=calcFlux?>(
 		real const dx = solver->grid_dx.s<?=side?>;
 
 		int const indexL = index - solver->stepsize.s<?=side?>;
-		real3 xL = xR;
-		xL.s<?=side?> -= dx;
+		global <?=cell_t?> const * const cellL = cellBuf + indexL;
 
-		real3 xInt = xR;
+		real3 xInt = cellR->pos;
 		xInt.s<?=side?> -= .5 * dx;
 
 		int const indexInt = side + dim * index;
@@ -117,8 +116,9 @@ then ?>
 
 			//the single act of removing the copy of the U's from global to local memory
 			// increases the framerate from 78 to 127
-			<?=cons_parallelPropagate?><?=side?>(ppUL, UL, xL, .5 * dx);
-			<?=cons_parallelPropagate?><?=side?>(ppUR, UR, xR, -.5 * dx);
+//// MODULE_DEPENDS: <?=cons_parallelPropagate?>
+			<?=cons_parallelPropagate?><?=side?>(ppUL, UL, cellL->pos, .5 * dx);
+			<?=cons_parallelPropagate?><?=side?>(ppUR, UR, cellR->pos, -.5 * dx);
 
 			<?=normal_t?> const n = normal_forSide<?=side?>(xInt);
 
@@ -147,27 +147,38 @@ if useFluxLimiter then
 			<?=solver:getULRCode{indexL = 'indexL2', indexR = 'indexL', suffix='_L'}:gsub('\n', '\n\t\t\t')?>
 			<?=solver:getULRCode{indexL = 'indexR', indexR = 'indexR2', suffix='_R'}:gsub('\n', '\n\t\t\t')?>
 
+//// MODULE_DEPENDS: <?=cons_parallelPropagate?>
 			<?=cons_parallelPropagate?><?=side?>(ppUL_L, UL_L, xIntL, 1.5 * dx);		//xIntL2?
 			<?=cons_parallelPropagate?><?=side?>(ppUL_R, UL_R, xIntL, .5 * dx);
 			<?=cons_parallelPropagate?><?=side?>(ppUR_L, UR_L, xIntR, -.5 * dx);
-			<?=cons_parallelPropagate?><?=side?>(ppUR_R, UR_R, xIntR, -1.5 * dx);	// xIntR2?
+			<?=cons_parallelPropagate?><?=side?>(ppUR_R, UR_R, xIntR, -1.5 * dx);		//xIntR2?
+
+			global <?=cell_t?> const * const cellR2 = cellBuf + indexR2;
+			global <?=cell_t?> const * const cellL2 = cellBuf + indexL2;
 
 <?
 end
 ?>
+//// MODULE_DEPENDS: <?=calcFluxForInterface?>
 			<?=calcFluxForInterface?>(
 				flux,
 				solver,
 				ppUL,
 				ppUR,
+				cellL,
+				cellR,
 				xInt,
 				n<? if useFluxLimiter then ?>,
 				dt_dx,
 				ppUL_L,
 				ppUL_R,
+				cellL2,
+				cellL,
+				xIntL,
 				ppUR_L,
 				ppUR_R,
-				xIntL,
+				cellR,
+				cellR2,
 				xIntR<? end ?>
 			);
 		
@@ -294,6 +305,7 @@ function FiniteVolumeSolver:getModuleDepends_displayCode()
 		depends:append{
 			self.eqn.symbols.eigen_leftTransform,
 			self.eqn.symbols.eigen_rightTransform,
+			self.coord.cell_calcAvg_withPt,
 		}
 	
 		-- and only if the two of them plus this is defined is the flux error display var used:
@@ -334,12 +346,17 @@ function FiniteVolumeSolver:addDisplayVars()
 		return self.eqn:template([[
 	int indexR = index;
 	int indexL = index - solver->stepsize.s<?=side?>;
+	global <?=cell_t?> const * const cellL = cellBuf + indexL;
+	global <?=cell_t?> const * const cellR = cellBuf + indexR;
+
+	/* TODO this isn't always used by normal_forSide or eigen_forInterface ... */
 	real3 xInt = x;
 	xInt.s<?=side?> -= .5 * solver->grid_dx.s<?=side?>;
+	
 	<?=solver:getULRCode{bufName='buf', side=side}:gsub('\n', '\n\t')?>
 	<?=normal_t?> n = normal_forSide<?=side?>(xInt);
 	<?=eigen_t?> eig;
-	<?=eigen_forInterface?>(&eig, solver, UL, UR, xInt, n);
+	<?=eigen_forInterface?>(&eig, solver, UL, UR, cellL, cellR, xInt, n);
 ]], 	{
 			side = args.side,
 		})
@@ -466,6 +483,7 @@ function FiniteVolumeSolver:addDisplayVars()
 		}
 
 		<?=normal_t?> n = normal_forSide<?=side?>(xInt);
+		
 		<?=waves_t?> chars;
 		<?=eigen_leftTransform?>(&chars, solver, &eig, &basis, xInt, n);
 
@@ -487,9 +505,12 @@ function FiniteVolumeSolver:addDisplayVars()
 		}
 #endif
 
+		<?=cell_t?> cellAvg;
+		<?=cell_calcAvg_withPt?>(&cellAvg, cellL, cellR, xInt);
+
 		//once again, only needs to be numIntStates
 		<?=cons_t?> transformed;
-		<?=eigen_fluxTransform?>(&transformed, solver, &eig, &basis, xInt, n);
+		<?=eigen_fluxTransform?>(&transformed, solver, &eig, &basis, &cellAvg, n);
 		
 		for (int j = 0; j < numIntStates; ++j) {
 			value.vreal += fabs(newtransformed.ptr[j] - transformed.ptr[j]);

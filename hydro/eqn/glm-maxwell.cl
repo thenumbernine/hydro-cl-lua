@@ -7,7 +7,7 @@
 
 <? if scalar == "real" then ?>
 
-#define eqn_coordLenSq <?=coordLenSq?>
+#define eqn_coordLenSq coordLenSq
 #define eqn_cartesianToCoord cartesianToCoord
 #define eqn_coord_lower coord_lower
 
@@ -89,32 +89,32 @@ kernel void <?=applyInitCondCell?>(
 //// MODULE_DEPENDS: <?=normal_t?> units <?=solver_t?> <?=cons_t?> <?=eqn_common?>
 
 #define <?=fluxFromCons?>(\
-	/*<?=cons_t?> * const */F,\
+	/*<?=cons_t?> * const */resultFlux,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */U,\
-	/*real3 const */pt,\
+	/*<?=cell_t?> const * const */cell,\
 	/*<?=normal_t?> const */n\
 ) {\
 	<?=vec3?> const E = calc_E(U);\
 	<?=vec3?> const H = calc_H(U);\
 	if (n.side == 0) {\
-		(F)->D = _<?=vec3?>(<?=real_mul?>((U)->phi, solver->divPhiWavespeed / unit_m_per_s),  H.z, <?=neg?>(H.y));\
-		(F)->B = _<?=vec3?>(<?=real_mul?>((U)->psi, solver->divPsiWavespeed / unit_m_per_s), <?=neg?>(E.z),  E.y);\
+		(resultFlux)->D = _<?=vec3?>(<?=real_mul?>((U)->phi, solver->divPhiWavespeed / unit_m_per_s),  H.z, <?=neg?>(H.y));\
+		(resultFlux)->B = _<?=vec3?>(<?=real_mul?>((U)->psi, solver->divPsiWavespeed / unit_m_per_s), <?=neg?>(E.z),  E.y);\
 	} else if (n.side == 1) {\
-		(F)->D = _<?=vec3?>(<?=neg?>(H.z), <?=real_mul?>((U)->phi, solver->divPhiWavespeed / unit_m_per_s),  H.x);\
-		(F)->B = _<?=vec3?>( E.z, <?=real_mul?>((U)->psi, solver->divPsiWavespeed / unit_m_per_s), <?=neg?>(E.x));\
+		(resultFlux)->D = _<?=vec3?>(<?=neg?>(H.z), <?=real_mul?>((U)->phi, solver->divPhiWavespeed / unit_m_per_s),  H.x);\
+		(resultFlux)->B = _<?=vec3?>( E.z, <?=real_mul?>((U)->psi, solver->divPsiWavespeed / unit_m_per_s), <?=neg?>(E.x));\
 	} else if (n.side == 2) {\
-		(F)->D = _<?=vec3?>( H.y, <?=neg?>(H.x), <?=real_mul?>((U)->phi, solver->divPhiWavespeed / unit_m_per_s));\
-		(F)->B = _<?=vec3?>(<?=neg?>(E.y),  E.x, <?=real_mul?>((U)->psi, solver->divPsiWavespeed / unit_m_per_s));\
+		(resultFlux)->D = _<?=vec3?>( H.y, <?=neg?>(H.x), <?=real_mul?>((U)->phi, solver->divPhiWavespeed / unit_m_per_s));\
+		(resultFlux)->B = _<?=vec3?>(<?=neg?>(E.y),  E.x, <?=real_mul?>((U)->psi, solver->divPsiWavespeed / unit_m_per_s));\
 	}\
 	real const D_n = normal_vecDotN1(n, (U)->D);\
 	real const B_n = normal_vecDotN1(n, (U)->B);\
-	(F)->phi = <?=real_mul?>(D_n, solver->divPhiWavespeed / unit_m_per_s);\
-	(F)->psi = <?=real_mul?>(B_n, solver->divPsiWavespeed / unit_m_per_s);\
-	(F)->sigma = <?=zero?>;\
-	(F)->rhoCharge = <?=zero?>;\
-	(F)->sqrt_1_eps = <?=susc_t?>_zero;\
-	(F)->sqrt_1_mu = <?=susc_t?>_zero;\
+	(resultFlux)->phi = <?=real_mul?>(D_n, solver->divPhiWavespeed / unit_m_per_s);\
+	(resultFlux)->psi = <?=real_mul?>(B_n, solver->divPsiWavespeed / unit_m_per_s);\
+	(resultFlux)->sigma = <?=zero?>;\
+	(resultFlux)->rhoCharge = <?=zero?>;\
+	(resultFlux)->sqrt_1_eps = <?=susc_t?>_zero;\
+	(resultFlux)->sqrt_1_mu = <?=susc_t?>_zero;\
 }
 
 
@@ -125,6 +125,8 @@ kernel void <?=applyInitCondCell?>(
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */UL,\
 	/*<?=cons_t?> const * const */UR,\
+	/*<?=cell_t?> const * const */cellL,\
+	/*<?=cell_t?> const * const */cellR,\
 	/*real3 const */pt,\
 	/*<?=normal_t?> const */n\
 ) {\
@@ -142,7 +144,7 @@ kernel void <?=applyInitCondCell?>(
 	/*<?=eigen_t?> * const */eig,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */U,\
-	/*real3 const */pt,\
+	/*<?=cell_t?> const * const */cell,\
 	/*<?=normal_t?> const */n\
 ) {\
 	(eig)->sqrt_1_eps = (U)->sqrt_1_eps;\
@@ -265,11 +267,21 @@ TODO update this for Einstein-Maxwell (take the metric into consideration
 }
 
 //// MODULE_NAME: <?=eigen_fluxTransform?>
+//// MODULE_DEPENDS: <?=fluxFromCons?> 
 
-#define <?=eigen_fluxTransform?>(Y, solver, eig, X, x, n) <?=fluxFromCons?>(Y, solver, X, x, n)
+#error need to do this one now
+#define <?=eigen_fluxTransform?>(\
+	/*<?=cons_t?> * const */result,\
+	/*constant <?=solver_t?> const * const */solver,\
+	/*<?=eigen_t?> const * const */eig,\
+	/*<?=cons_t?> const * const */X_,\
+	/*<?=cell_t?> const * const */cell,\
+	/*<?=normal_t?> const */n\
+) \
+	<?=fluxFromCons?>(Y, solver, X, cell, n)
 
 //// MODULE_NAME: <?=addSource?>
-//// MODULE_DEPENDS: <?=coord_sqrt_det_g?> <?=fluxFromCons?> <?=SETBOUNDS_NOGHOST?>
+//// MODULE_DEPENDS: <?=SETBOUNDS_NOGHOST?>
 
 kernel void <?=addSource?>(
 	constant <?=solver_t?> const * const solver,
@@ -278,10 +290,11 @@ kernel void <?=addSource?>(
 	global <?=cell_t?> const * const cellBuf
 ) {
 	<?=SETBOUNDS_NOGHOST?>();
-	real3 const x = cellBuf[index].pos;
 	
 	global <?=cons_t?> * const deriv = derivBuf + index;
 	global <?=cons_t?> const * const U = UBuf + index;
+	global <?=cell_t?> const * const cell = cellBuf + index;
+	real3 const x = cell->pos;
 
 	/* TODO J = J_f + J_b = J_f + J_P + J_M = J_f + dP/dt + curl M */
 	// TODO TODO should it be D -= D / eps * sigma?  or D -= D * sigma, since it is originally E -= E * sigma, right?
@@ -317,11 +330,13 @@ kernel void <?=addSource?>(
 		), 1. / solver->grid_dx.s<?=j?>);
 	<? end ?>
 	
-	real _1_sqrt_det_g = 1. / coord_sqrt_det_g(x);
+//// MODULE_DEPENDS: <?=coord_sqrt_det_g?>
+	real const _1_sqrt_det_g = 1. / coord_sqrt_det_g(x);
 	<? for j=0,solver.dim-1 do 
 		local xj = xNames[j+1] ?>{
 		<?=cons_t?> flux;
-		<?=fluxFromCons?>(&flux, solver, U, x, normal_forSide<?=j?>(x));
+//// MODULE_DEPENDS: <?=fluxFromCons?>		
+		<?=fluxFromCons?>(&flux, solver, U, cell, normal_forSide<?=j?>(x));
 		flux.D = <?=vec3?>_real_mul(eqn_coord_lower(flux.D, x), _1_sqrt_det_g);
 		flux.B = <?=vec3?>_real_mul(eqn_coord_lower(flux.B, x), _1_sqrt_det_g);
 		deriv->D.<?=xj?> = <?=sub?>(deriv->D.<?=xj?>, <?=vec3?>_dot(flux.D, grad_1_mu));

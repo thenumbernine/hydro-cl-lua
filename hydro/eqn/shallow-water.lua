@@ -13,6 +13,13 @@ local Equation = require 'hydro.eqn.eqn'
 local ShallowWater = class(Equation)
 ShallowWater.name = 'shallow_water'
 
+
+-- whether to insert the 'depth' field into the cell_t or the cons_t structure
+-- inserting it into cons_t means more wasted memory and computations
+-- inserting it into cell_t means making the code a bit more flexible 
+ShallowWater.depthInCell = true
+
+
 ShallowWater.roeUseFluxFromCons = true
 
 ShallowWater.initConds = require 'hydro.init.euler':getList()
@@ -33,13 +40,22 @@ ShallowWater.consVars = {
 	{name='m', type='real3', units='m^2/s', variance='u'},	-- contravariant
 }
 
-function ShallowWater:createCellStruct()
-	local solver = self.solver
-	local coord = solver.coord
+if not ShallowWater.depthInCell then
+	-- 'depth' in UBuf:
+	table.insert(ShallowWater.primVars, {name='depth', type='real', units='m'})
+	table.insert(ShallowWater.consVars, {name='depth', type='real', units='m'})
+end
 
+
+
+if ShallowWater.depthInCell then
+	-- 'depth' in cellBuf:
 	-- add our cell depth value here.  no more storing it in non-integrated UBuf (wasting memory and slowing performance).
 	-- 'depth' = height-above-seafloor, in m, so sealevel values are negative
-	coord.cellStruct.vars:insert{name='depth', type='real'}
+	-- but in order to complete this, I need to pass cellL and cellR into the eigen_forInterface function ...
+	function ShallowWater:createCellStruct()
+		self.solver.coord.cellStruct.vars:insert{name='depth', type='real'}
+	end
 end
 
 function ShallowWater:resetState()
@@ -63,28 +79,38 @@ function ShallowWater:resetState()
 			tonumber(solver.sizeWithoutBorder.y))
 
 	local cpuU = solver.UBufObj:toCPU()
-	local cpuCell = solver.cellBufObj:toCPU()
+	local cpuCell
+	if ShallowWater.depthInCell then
+		cpuCell = solver.cellBufObj:toCPU()
+	end
 	for j=0,tonumber(solver.sizeWithoutBorder.y)-1 do
 		for i=0,tonumber(solver.sizeWithoutBorder.x)-1 do
 			local index = i + solver.numGhost + solver.gridSize.x * (j + solver.numGhost)
 			local d = tonumber(image.buffer[i + image.width * (image.height - 1 - j)])
 			-- in the image, bathymetry values are negative
 			-- throw away altitude values (for now?)
-			cpuCell[index].depth = d	-- bathymetry values are negative
+			if ShallowWater.depthInCell then
+				cpuCell[index].depth = d	-- bathymetry values are negative
+			else
+				cpuU[index].depth = d	-- bathymetry values are negative
+			end
 			-- initialize to steady-state
+			-- this happens *after* applyInitCond, so we have to modify the UBuf 'h' values here
 			cpuU[index].h = math.max(0, -d)		-- total height is positive
 			-- cells are 'wet' where h > depth -- and there they should be evolved
 		end
 	end
 	solver.UBufObj:fromCPU(cpuU)
-	solver.cellBufObj:fromCPU(cpuCell)
+	if ShallowWater.depthInCell then
+		solver.cellBufObj:fromCPU(cpuCell)
+	end
 end
 
 function ShallowWater:createInitState()
 	ShallowWater.super.createInitState(self)
 	self:addGuiVars{	
 		{name='gravity', value=9.8, units='m/s^2'},
-		{name='Manning', value=0.025},	-- 2011 Berger eqn 3, Manning coefficient
+		{name='Manning', value=0.025},	-- 2011 Berger eqn 3, Manning coefficient, used for velocity drag in source term
 	}
 end
 
@@ -113,7 +139,7 @@ ShallowWater.predefinedDisplayVars = {
 	'U h',
 	'U v',
 	'U v mag',
-	'cell depth',
+	ShallowWater.depthInCel and 'cell depth' or 'U depth',
 }
 
 function ShallowWater:getDisplayVars()
@@ -147,6 +173,10 @@ ShallowWater.eigenVars = table{
 	-- Roe-averaged vars
 	{name='h', type='real', units='kg/m^3'},
 	{name='v', type='real3', units='m/s'},
+
+	-- TODO do we need this here if it is in cellBuf already?
+	{name='depth', type='real', units='m'},
+	
 	-- derived vars
 	{name='C', type='real', units='m/s'},
 }
@@ -155,6 +185,12 @@ function ShallowWater:eigenWaveCodePrefix(n, eig, x)
 	return self:template([[
 real C_nLen = <?=eig?>->C * normal_len(<?=n?>);
 real v_n = normal_vecDotN1(<?=n?>, <?=eig?>->v);
+
+if (<?=eig?>->h <= 1.) {
+	C_nLen = 0.;
+	v_n = 0.;
+}
+
 ]], {
 		eig = '('..eig..')',
 		x = x,
@@ -171,6 +207,12 @@ real C_nLen = calc_C(solver, <?=U?>) * normal_len(<?=n?>);
 <?=primFromCons?>(&W, solver, <?=U?>, <?=x?>);
 <? end 
 ?>real v_n = normal_vecDotN1(n, <?=W?>.v);
+
+if (<?=U?>->h <= 1.) {
+	C_nLen = 0.;
+	v_n = 0.;
+}
+
 ]], {
 		n = n,
 		U = '('..U..')',
@@ -191,18 +233,5 @@ function ShallowWater:consWaveCode(n, U, x, waveIndex)
 end
 
 ShallowWater.eigenWaveCode = ShallowWater.consWaveCode
-
---[[
-try to do the wet/try interface stuff here
-if the height of a cell is negative then set the left/right flux to zero, thus skipping integration on this cell
-... but there is no UBuf argument of calcDerivFromFlux
-this is another reason to put the static / non-integrated / shallow water depth values into cellBuf
-all static values should go into cellBuf
---]]
-function ShallowWater:postComputeFluxCode()
-	return [[
-	//if (U->
-]]
-end
 
 return ShallowWater

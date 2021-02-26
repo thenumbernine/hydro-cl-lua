@@ -9,6 +9,9 @@
 ) {\
 	(result)->h = (U)->h;\
 	(result)->v = real3_real_mul((U)->m, 1. / (U)->h);\
+<? if not eqn.depthInCell then ?>\
+	(result)->depth = (U)->depth;\
+<? end ?>\
 }
 
 //// MODULE_NAME: <?=consFromPrim?>
@@ -22,6 +25,9 @@
 ) {\
 	(result)->h = (W)->h;\
 	(result)->m = real3_real_mul((W)->v, (W)->h);\
+<? if not eqn.depthInCell then ?>\
+	(result)->depth = (W)->depth;\
+<? end ?>\
 }
 
 //// MODULE_NAME: <?=apply_dU_dW?>
@@ -38,6 +44,9 @@
 	(result)->m = real3_add(\
 		real3_real_mul((WA)->v, (W)->h), \
 		real3_real_mul((W)->v, (WA)->h));\
+<? if not eqn.depthInCell then ?>\
+	(result)->depth = (W)->depth;\
+<? end ?>\
 }
 
 //// MODULE_NAME: <?=apply_dW_dU?>
@@ -54,6 +63,9 @@
 	(result)->v = real3_sub(\
 		real3_real_mul((U)->m, 1. / (WA)->h),\
 		real3_real_mul((WA)->v, (U)->h / (WA)->h));\
+<? if not eqn.depthInCell then ?>\
+	(result)->depth = (U)->depth;\
+<? end ?>
 }
 
 //// MODULE_NAME: <?=eqn_common?>
@@ -109,11 +121,11 @@ end
 	/*<?=cons_t?> * const */result,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */U,\
-	/*real3 const */pt,\
+	/*<?=cell_t?> const * const */cell,\
 	/*<?=normal_t?> const */n\
 ) {\
 	<?=prim_t?> W;\
-	<?=primFromCons?>(&W, solver, U, pt);\
+	<?=primFromCons?>(&W, solver, U, (cell)->pos);\
 	real const v_n = normal_vecDotN1(n, W.v);\
 	real3 const nU = normal_u1(n);\
 	(result)->h = (U)->h * v_n,\
@@ -145,34 +157,41 @@ end
 //// MODULE_NAME: <?=eigen_forInterface?>
 
 #define <?=eigen_forInterface?>(\
-	/*<?=eigen_t?> * const */result,\
+	/*<?=eigen_t?> * const */resultEig,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */UL,\
 	/*<?=cons_t?> const * const */UR,\
+	/*<?=cell_t?> const * const */cellL,\
+	/*<?=cell_t?> const * const */cellR,\
 	/*real3 const */pt,\
 	/*<?=normal_t?> const */n\
 ) {\
 	<?=prim_t?> WL;\
-	<?=primFromCons?>(&WL, solver, UL, pt);\
+	<?=primFromCons?>(&WL, solver, UL, (cellL)->pos);\
 	real const sqrtHL = sqrt(WL.h);\
 	real3 const vL = WL.v;\
 	\
 	<?=prim_t?> WR;\
-	<?=primFromCons?>(&WR, solver, UR, pt);\
+	<?=primFromCons?>(&WR, solver, UR, (cellR)->pos);\
 	real const sqrtHR = sqrt(WR.h);\
 	real3 const vR = WR.v;\
 	\
 	real const invDenom = 1. / (sqrtHL + sqrtHR);\
 	\
 	/*Roe-averaged:*/\
-	(result)->h = sqrtHL * sqrtHR;\
-	(result)->v = real3_add(\
+	(resultEig)->h = sqrtHL * sqrtHR;\
+	(resultEig)->v = real3_add(\
 		real3_real_mul(vL, sqrtHL * invDenom),\
 		real3_real_mul(vR, sqrtHR * invDenom));\
-\
+<? if not eqn.depthInCell then ?>\
+	(resultEig)->depth = .5 * ((UR)->depth + (UL)->depth);\
+<? else ?>\
+	(resultEig)->depth = .5 * ((cellR)->depth + (cellL)->depth);\
+<? end ?>\
+	\
 	/*derived:*/\
-	real const CSq = solver->gravity * (result)->h;\
-	(result)->C = sqrt(CSq);\
+	real const CSq = solver->gravity * (resultEig)->h;\
+	(resultEig)->C = sqrt(CSq);\
 }
 
 //// MODULE_NAME: <?=eigen_leftTransform?>
@@ -268,11 +287,11 @@ end
 //// MODULE_NAME: <?=eigen_fluxTransform?>
 
 #define <?=eigen_fluxTransform?>(\
-	/*<?=cons_t?> * const */result,\
+	/*<?=cons_t?> * const */resultFlux,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=eigen_t?> const * const */eig,\
 	/*<?=cons_t?> const * const */X_,\
-	/*real3 const */pt,\
+	/*<?=cell_t?> const * const */cell,\
 	/*<?=normal_t?> const */n\
 ) {\
 	real3 const nL = normal_l1(n);\
@@ -281,24 +300,24 @@ end
 	real3 const v_ns = normal_vecDotNs(n, (eig)->v);\
 	real const v_n = v_ns.x;\
 \
-	(result)->ptr[0] = \
+	(resultFlux)->ptr[0] = \
 		(X_)->ptr[1] * nL.x \
 		+ (X_)->ptr[2] * nL.y \
 		+ (X_)->ptr[3] * nL.z;\
 		\
-	(result)->ptr[1] = \
+	(resultFlux)->ptr[1] = \
 		(X_)->ptr[0] * (CSq * nU.x - (eig)->v.x * v_n)\
 		+ (X_)->ptr[1] * ((eig)->v.x * nL.x + v_n)\
 		+ (X_)->ptr[2] * ((eig)->v.x * nL.y)\
 		+ (X_)->ptr[3] * ((eig)->v.x * nL.z);\
 		\
-	(result)->ptr[2] = \
+	(resultFlux)->ptr[2] = \
 		(X_)->ptr[0] * (CSq * nU.y - (eig)->v.y * v_n)\
 		+ (X_)->ptr[1] * ((eig)->v.y * nL.x)\
 		+ (X_)->ptr[2] * ((eig)->v.y * nL.y + v_n)\
 		+ (X_)->ptr[3] * ((eig)->v.y * nL.z);\
 		\
-	(result)->ptr[3] = \
+	(resultFlux)->ptr[3] = \
 		(X_)->ptr[0] * (CSq * nU.z - (eig)->v.z * v_n)\
 		+ (X_)->ptr[1] * ((eig)->v.z * nL.x)\
 		+ (X_)->ptr[2] * ((eig)->v.z * nL.y)\
@@ -309,21 +328,22 @@ end
 
 // used by PLM
 #define <?=eigen_forCell?>(\
-	/*<?=eigen_t?> * const */result,\
+	/*<?=eigen_t?> * const */resultEig,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */U,\
-	/*real3 const */pt,\
+	/*<?=cell_t?> const * const */cell,\
 	/*real3 const */n\
 ) {\
 	<?=prim_t?> W;\
-	<?=primFromCons?>(&W, solver, U, pt);\
+	<?=primFromCons?>(&W, solver, U, (cell)->pos);\
 	real const CSq = solver->gravity * (U)->h;\
 	real const C = sqrt(CSq);\
-	(result)->h = W.h;\
-	(result)->v = W.v;\
-	(result)->C = C;\
+	(resultEig)->h = W.h;\
+	(resultEig)->v = W.v;\
+	(resultEig)->C = C;\
 }
 
+<? if false then ?>
 //// MODULE_NAME: <?=addSource?>
 
 kernel void <?=addSource?>(
@@ -373,9 +393,9 @@ kernel void <?=addSource?>(
 // \partial_tilde{j} depth
 <?=eqn:makePartial1(
 	"depth",	-- field
-	"real",		-- fieldType ... needs to be manually specified because we are pulling from a field not in consStruct, where the inferred types are checked
+	"real",		-- fieldType ... needs to be manually specified if we are pulling from a field that is not in consStruct, where the inferred types are checked
 	nil,		-- nameOverride
-	"cell"		-- srcName (cellBuf instead of UBuf)
+	eqn.depthInCell and "cell" or nil		-- srcName (cellBuf instead of UBuf)
 )?>
 
 //// MODULE_DEPENDS: <?=coord_holBasisLen_i?>
@@ -405,3 +425,4 @@ kernel void <?=addSource?>(
 	real const drag = solver->gravity * solver->Manning * solver->Manning * coordLen(U->m, pt) * pow(U->h, -8./3.);	//|u|/h^(5/3) = |m|*h^(-8/3)
 	deriv->m = real3_sub(deriv->m, U->m);
 }
+<? end ?>

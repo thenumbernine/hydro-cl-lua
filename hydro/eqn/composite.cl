@@ -5,6 +5,7 @@ local function subeqnDepends(symbol)
 	end):concat' '
 end
 ?>
+
 //// MODULE_NAME: <?=eigen_forInterface?>
 //// MODULE_DEPENDS: <?=subeqnDepends'eigen_forInterface'?>
 
@@ -13,6 +14,8 @@ end
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */UL,\
 	/*<?=cons_t?> const * const */UR,\
+	/*<?=cell_t?> const * const */cellL,\
+	/*<?=cell_t?> const * const */cellR,\
 	/*real3 const */pt,\
 	/*<?=normal_t?> const */n\
 ) {\
@@ -22,7 +25,30 @@ end
 		solver,\
 		&(UL)-><?=subeqn.field?>,\
 		&(UR)-><?=subeqn.field?>,\
+		cellL,\
+		cellR,\
 		pt,\
+		n)\
+<? end --\
+?>\
+}
+
+//// MODULE_NAME: <?=eigen_forCell?>
+//// MODULE_DEPENDS: <?=subeqnDepends'eigen_forCell'?>
+
+#define <?=eigen_forCell?>(\
+	/*<?=eigen_t?> * const */resultEig,\
+	/*constant <?=solver_t?> const * const */solver,\
+	/*<?=cons_t?> const * const */U,\
+	/*<?=cell_t?> const * const */cell,\
+	/*<?=normal_t?> const */n\
+) {\
+<? for i,subeqn in ipairs(eqn.eqns) do --\
+?>	<?=subeqn.symbols.eigen_forCell?>(\
+		&(resultEig)-><?=subeqn.field?>,\
+		solver,\
+		&(U)-><?=subeqn.field?>,\
+		cell,\
 		n)\
 <? end --\
 ?>\

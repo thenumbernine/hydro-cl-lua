@@ -249,7 +249,7 @@ end
 	/*<?=cons_t?> const * const */F,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */U,\
-	/*real3 const */pt,\
+	/*<?=cell_t?> const * const */cell,\
 	/*<?=normal_t?> const */n\
 ) {\
 	real const f_alpha = calc_f_alpha((U)->alpha);\
@@ -353,10 +353,12 @@ end
 	/*<?=eigen_t?> * const */eig,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */U,\
-	/*real3 const */pt,\
+	/*<?=cell_t?> const * const */cell,\
 \
 	/* This is interesting, because <?=normal_t?> varies based on our vector components. */\
 	/* However in my GR solvers the components are irrespective of the grid -- instead they are based on the metric of the state variables. */\
+	/* This is reconciled with the idea of the background metric / gammaHat_ij which bssnok-fd uses, however ADM3D is still based on a Cartesian background, so */\
+	/* TODO make adm3d to be based on an arbitrary background metric */\
 	/*<?=normal_t?> const */n\
 ) {\
 	(eig)->alpha = (U)->alpha;\
@@ -365,9 +367,9 @@ end
 	(eig)->gamma_uu = sym3_inv((U)->gamma_ll, det_gamma);\
 	(eig)->sqrt_gammaUjj = _real3(sqrt((eig)->gamma_uu.xx), sqrt((eig)->gamma_uu.yy), sqrt((eig)->gamma_uu.zz));\
 \
-	<? if eqn.useShift ~= "none" then ?>\
+<? if eqn.useShift ~= "none" then ?>\
 	(eig)->beta_u = (U)->beta_u;\
-	<? end ?>\
+<? end ?>\
 }
 
 //// MODULE_NAME: <?=calcCellMinMaxEigenvalues?>
@@ -417,6 +419,8 @@ end
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */UL,\
 	/*<?=cons_t?> const * const */UR,\
+	/*<?=cell_t?> const * const */cellL,\
+	/*<?=cell_t?> const * const */cellR,\
 	/*real3 const */pt,\
 	/*<?=normal_t?> const */n\
 ) {\
@@ -1321,7 +1325,7 @@ end
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=eigen_t?> const * const */eig,\
 	/*<?=cons_t?> const * const */inputU,\
-	/*real3 const */pt,\
+	/*<?=cell_t?> const * const */cell,\
 	/*<?=normal_t?> const */n\
 ) {\
 <? if not eqn.noZeroRowsInFlux then ?>\
@@ -1331,7 +1335,7 @@ end
 	/*  TODO use that static function for the calc waves as well */\
 	\
 	<?=waves_t?> waves;\
-	<?=eigen_leftTransform?>(&waves, solver, eig, inputU, pt);\
+	<?=eigen_leftTransform?>(&waves, solver, eig, inputU, (cell)->pos);\
 \
 	<?=eqn:eigenWaveCodePrefix(n, "eig", "x")?>\
 \
@@ -1339,7 +1343,7 @@ end
 ?>	waves.ptr[<?=j?>] *= <?=eqn:eigenWaveCode(n, "eig", "x", j)?>;\
 <? end --\
 ?>\
-	<?=eigen_rightTransform?>(result, solver, eig, &waves, pt);\
+	<?=eigen_rightTransform?>(result, solver, eig, &waves, (cell)->pos);\
 \
 <? else -- noZeroRowsInFlux ?>\
 <? if false then 	-- by-hand ?>\

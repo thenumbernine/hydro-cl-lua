@@ -8,10 +8,10 @@ kernel void calcFluxAtCell(
 	global <?=cell_t?> const * const cellBuf
 ) {
 	<?=SETBOUNDS?>(0,0);
-	real3 const x = cellBuf[index].pos;
 	global <?=cons_t?> const * const U = UBuf + index;
+	global <?=cell_t?> const * const cell = cellBuf + index;
 <? for side=0,solver.dim-1 do 
-?>	<?=fluxFromCons?>(fluxBuf + <?=side?> + dim * index, solver, U, x, normal_forSide<?=side?>(x));
+?>	<?=fluxFromCons?>(fluxBuf + <?=side?> + dim * index, solver, U, cell, normal_forSide<?=side?>(cell->pos));
 <? end
 ?>
 }

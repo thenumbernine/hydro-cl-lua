@@ -24,7 +24,7 @@
 	if (<?=OOB?>(0,0)) return;
 
 //// MODULE_NAME: <?=calcFlux?>
-//// MODULE_DEPENDS: <?=face_t?> <?=normal_t?> <?=calcFluxForInterface?> <?=cell_t?>
+//// MODULE_DEPENDS: <?=face_t?> <?=normal_t?> <?=cell_t?>
 // boundary code, since meshsolver doesn't use gridsolver's boundary: 
 
 #define reflectCons(\
@@ -174,7 +174,9 @@ kernel void <?=calcFlux?>(
 	//TODO option to rotate to align fluxes?
 	// then you'd have to build a new normal_t based on the aligned (x-axis) normal.
 
-	<?=calcFluxForInterface?>(flux, solver, &UL, &UR, x, n);
+#error calcFluxForInterface now needs cell parameters, but mesh edges don't have two cells, sooo ... time to implement an averaging function for cell values
+//// MODULE_DEPENDS: <?=calcFluxForInterface?>
+	<?=calcFluxForInterface?>(flux, solver, &UL, &UR, cellL, cellR, x, n);
 }
 
 //// MODULE_NAME: <?=calcDerivFromFlux?>

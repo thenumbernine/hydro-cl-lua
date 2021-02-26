@@ -151,16 +151,16 @@ void <?=applyInitCondCell?>(
 //// MODULE_DEPENDS: <?=normal_t?> <?=solver_t?> <?=cons_t?> <?=eqn_common?>
 
 #define <?=fluxFromCons?>(\
-	/*<?=cons_t?> * const */result,\
+	/*<?=cons_t?> * const */resultFlux,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */U,\
-	/*real3 const */x,\
+	/*<?=cell_t?> const * const */cell,\
 	/*<?=normal_t?> const */n\
 ) {\
 	real const v_n = normal_vecDotN1(n, (U)->v);\
 	real const P = calc_P(solver, (U)->rho, (U)->eInt);\
-	(result)->D = (U)->D * v_n;\
-	(result)->S = real3_add(\
+	(resultFlux)->D = (U)->D * v_n;\
+	(resultFlux)->S = real3_add(\
 		real3_real_mul((U)->S, v_n),\
 		_real3(\
 			normal_u1x(n) * P,\
@@ -168,11 +168,11 @@ void <?=applyInitCondCell?>(
 			normal_u1z(n) * P\
 		)\
 	);\
-	(result)->tau = (U)->tau * v_n + P * v_n;\
-	(result)->rho = 0;\
-	(result)->v = real3_zero;\
-	(result)->eInt = 0;\
-	(result)->ePot = 0;\
+	(resultFlux)->tau = (U)->tau * v_n + P * v_n;\
+	(resultFlux)->rho = 0;\
+	(resultFlux)->v = real3_zero;\
+	(resultFlux)->eInt = 0;\
+	(resultFlux)->ePot = 0;\
 }
 
 //// MODULE_NAME: <?=calcDTCell?>
@@ -219,7 +219,9 @@ void <?=applyInitCondCell?>(
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */UL,\
 	/*<?=cons_t?> const * const */UR,\
-	/*real3 const */xInt,\
+	/*<?=cell_t?> const * const */cellL,\
+	/*<?=cell_t?> const * const */cellR,\
+	/*real3 const */pt,\
 	/*<?=normal_t?> const */n\
 ) {\
 <? if true then -- arithmetic averaging ?>\
@@ -240,7 +242,7 @@ void <?=applyInitCondCell?>(
 	real const eInt = avg.eInt;\
 \
 	/* TODO NOTE if you're swapping vector components, you have to swap metric components too  */\
-	real3 const vL = coord_lower(v, xInt);\
+	real3 const vL = coord_lower(v, pt);\
 	real const vSq = real3_dot(v, vL);\
 	real const oneOverW2 = 1. - vSq;\
 	real const oneOverW = sqrt(oneOverW2);\
@@ -297,10 +299,10 @@ void <?=applyInitCondCell?>(
 	/*<?=eigen_t?> * const */eig,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */U,\
-	/*real3 const */x,\
+	/*<?=cell_t?> const * const */cell,\
 	/*<?=normal_t?> const */n\
 )\
-	(<?=eigen_forInterface?>(eig, solver, U, U, x, n))
+	(<?=eigen_forInterface?>(eig, solver, U, U, (cell)->pos, n))
 
 <? -- create code to initialize local vars of all the eig vars
 local eigVarCode = require "ext.table".map(eqn.eigenVars, function(var)
@@ -450,7 +452,7 @@ end):concat()
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=eigen_t?> const * const */eig,\
 	/*<?=cons_t?> const * const */X_,\
-	/*real3 const */x,\
+	/*<?=cell_t?> const * const */cell,\
 	/*<?=normal_t?> const */n\
 ) {\
 <? if false then ?>\
@@ -463,12 +465,12 @@ end):concat()
 	X.S = normal_vecFromNs(n, X.S);\
 <? else ?>\
 	/* default */\
-	<?=eigen_leftTransform?>(&waves, solver, eig, X_, x, n);\
-	<?=eqn:eigenWaveCodePrefix("n", "eig", "x")?>\
+	<?=eigen_leftTransform?>(&waves, solver, eig, X_, (cell)->pos, n);\
+	<?=eqn:eigenWaveCodePrefix("n", "eig", "(cell)->pos")?>\
 <? for j=0,eqn.numWaves-1 do --\
-?>	waves.ptr[<?=j?>] *= <?=eqn:eigenWaveCode("n", "eig", "x", j)?>;\
+?>	waves.ptr[<?=j?>] *= <?=eqn:eigenWaveCode("n", "eig", "(cell)->pos", j)?>;\
 <? end --\
-?>	<?=eigen_rightTransform?>(result, solver, eig, waves, x, n);\
+?>	<?=eigen_rightTransform?>(result, solver, eig, waves, (cell)->pos, n);\
 <? end ?>\
 }
 

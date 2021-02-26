@@ -48,7 +48,7 @@ kernel void <?=calcDTCell?>(
 <? end -- mesh solver ?>
 
 //// MODULE_NAME: EulerBurgers.solver
-//// MODULE_DEPENDS: <?=SETBOUNDS?> <?=fluxLimiter?> <?=primFromCons?> <?=eigen_forInterface?>
+//// MODULE_DEPENDS: <?=SETBOUNDS?> <?=fluxLimiter?> <?=primFromCons?>
 
 kernel void calcIntVel(
 	constant <?=solver_t?> const * const solver,
@@ -94,6 +94,7 @@ kernel void <?=calcFlux?>(
 
 	<? for side=0,solver.dim-1 do ?>{
 		int const side = <?=side?>;
+//// MODULE_DEPENDS: <?=cell_dx_i?>
 		real const dt_dx = dt / cell_dx<?=side?>(i);
 		
 		int const indexL = index - solver->stepsize.s<?=side?>;

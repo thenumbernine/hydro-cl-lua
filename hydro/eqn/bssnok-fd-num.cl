@@ -49,15 +49,8 @@ local partial_connHat_ulll = connHat_ull"^i_jk,l"():permute"^i_jkl"
 
 local delta_ul = Tensor("^i_j", function(i,j) return i==j and 1 or 0 end)
 
-local e = Tensor("_i^I", 
-	{lenExprs[1], 0, 0},
-	{0, lenExprs[2], 0},
-	{0, 0, lenExprs[3]})
-
-local eInv = Tensor("^i_I", 
-	{1/lenExprs[1], 0, 0},
-	{0, 1/lenExprs[2], 0},
-	{0, 0, 1/lenExprs[3]})
+local e = coord.request"eToEHol"
+local eInv = coord.request"eHolToE"
 ?>
 
 //// MODULE_NAME: <?=eqn_common?>
