@@ -120,7 +120,7 @@ local args = {
 			-- from then on, any bigger tends to segfault somewhere after 'randomizing UBuf...' 
 			['AMD Accelerated Parallel Processing/gfx1010/gfx902'] = {
 				{4096,1,1},
-				{256,256,1},
+				{32,32,1},
 				{64,64,64},
 			},	
 		})[platAndDevicesNames]
@@ -249,7 +249,7 @@ local args = {
 	--initCond = 'Bessel',
 	--initCond = 'jet',
 	
-	--initCond = 'Sod',
+	initCond = 'Sod',
 	--initCond = 'Sod with physical units',
 	--initCondArgs = {dim=cmdline.displayDim},
 	
@@ -275,7 +275,7 @@ local args = {
 	--initCond = 'configuration 6',
 	
 	-- states for ideal MHD or two-fluid (not two-fluid-separate)
-	initCond = 'Brio-Wu',
+	--initCond = 'Brio-Wu',
 	--initCond = 'Orszag-Tang',
 	--initCond = 'MHD rotor',
 	--initCond = 'spinning magnetic fluid',
@@ -749,15 +749,14 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn
 -- ...which means, with the Maxwell equations waves propagating at the speed of light, that it goes very slow
 -- TODO: I suppose I could make this work with my integrator by (1) removing the maxwell terms from the integration variable list and (2) providing a separate operator that updates them implicitly
 -- TODO still needs PLM support
--- TODO I broke roe, gotta fix it
-self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='twofluid-emhd'})))
+--self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='twofluid-emhd'})))
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='twofluid-emhd'})))
 --self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='twofluid-emhd', wenoMethod='1996 Jiang Shu', order=9})))	-- exploded...
 --self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='twofluid-emhd', wenoMethod='2010 Shen Zha', order=5})))
 
 
 -- here's another one: two-fluid emhd with de Donder gauge linearized general relativity
---self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='twofluid-emhd-lingr'})))
+self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='twofluid-emhd-lingr'})))
 --self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='twofluid-emhd-lingr', wenoMethod='1996 Jiang Shu', order=5})))
 --self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='twofluid-emhd-lingr', wenoMethod='2010 Shen Zha', order=7})))
 

@@ -42,7 +42,7 @@ cplx3 eqn_coord_lower(cplx3 v, real3 x) {
 //// MODULE_NAME: <?=applyInitCondCell?>
 //// MODULE_DEPENDS: <?=eqn_common?>
 
-kernel void <?=applyInitCondCell?>(
+void <?=applyInitCondCell?>(
 	constant <?=solver_t?> const * const solver,
 	constant <?=initCond_t?> const * const initCond,
 	global <?=cons_t?> * const U,

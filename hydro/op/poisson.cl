@@ -1,3 +1,5 @@
+//// MODULE_NAME: hydro/op/poisson.cl-comments
+
 /*
 rho is a Dirac delta function
 

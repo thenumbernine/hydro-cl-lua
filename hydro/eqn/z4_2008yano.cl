@@ -36,7 +36,7 @@ void <?=setFlatSpace?>(
 //// MODULE_NAME: <?=applyInitCondCell?>
 //// MODULE_DEPENDS: <?=SETBOUNDS?> <?=coordMap?> <?=setFlatSpace?>
 
-kernel void <?=applyInitCondCell?>(
+void <?=applyInitCondCell?>(
 	constant <?=solver_t?> const * const solver,
 	constant <?=initCond_t?> const * const initCond,
 	global <?=cons_t?> * const U,

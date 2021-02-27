@@ -16,7 +16,7 @@ void <?=setFlatSpace?>(
 //// MODULE_NAME: <?=applyInitCondCell?>
 //// MODULE_DEPENDS: sym3 <?=coordMap?>
 
-kernel void <?=applyInitCondCell?>(
+void <?=applyInitCondCell?>(
 	constant <?=solver_t?> const * const solver,
 	constant <?=initCond_t?> const * const initCond,
 	global <?=cons_t?> * const U,

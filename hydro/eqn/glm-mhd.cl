@@ -133,7 +133,7 @@ static inline real3 calc_CA(
 //// MODULE_NAME: <?=applyInitCondCell?>
 //// MODULE_DEPENDS: <?=cartesianToCoord?>
 
-kernel void <?=applyInitCondCell?>(
+void <?=applyInitCondCell?>(
 	constant <?=solver_t?> const * const solver,
 	constant <?=initCond_t?> const * const initCond,
 	global <?=cons_t?> * const U,

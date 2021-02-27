@@ -67,7 +67,7 @@ TwoFluidEMHD.consVars = table{
 	{name='phi', type='real', units='C/m^2'},							-- div D potential
 	{name='psi', type='real', units='kg/(C*s)'},						-- div B potential
 
-	--extra	
+	--extra, used for selfgrav
 	{name='ePot', type='real', units='m^2/s^2'},
 }
 
@@ -339,36 +339,21 @@ function TwoFluidEMHD:getDisplayVars()
 	vars:append{
 		{
 			name = 'EField',
-			code = self:template[[	value.vreal3 = calc_EField(solver, U);]],
+			code = 'value.vreal3 = calc_EField(solver, U);',
 			type = 'real3',
 			units = '(kg*m)/(C*s)',
 		},
 		{
 			name = 'HField',
-			code = self:template[[	value.vreal3 = calc_HField(solver, U);]],
+			code = 'value.vreal3 = calc_HField(solver, U);',
 			type = 'real3',
 			units = 'C/(m*s)',
 		},
 		{
-			name = 'SField',
-			code = self:template[[	value.vreal3 = real3_cross(calc_EField(solver, U), calc_HField(solver, U));]], 
+			name = 'SField',	-- S Poynting, not S entropy
+			code = 'value.vreal3 = calc_SField(solver, U);', 
 			type = 'real3',
 			units = 'kg/s^3',
-		},
-		{
-			name = 'gravity',
-			code = self:template[[
-	if (!<?=OOB?>(1,1)) {
-		<?=calcGravityAccel?>(&value.vreal3, solver, U, x);
-	}
-]],
-			type='real3', 
-			units='m/s^2',
-		},
-		{
-			name = 'EPot',
-			code = 'value.vreal = calc_rho_from_U(U) * U->ePot;', 
-			units='kg/(m*s^2)',
 		},
 		{
 			name = 'EM energy',
@@ -382,6 +367,24 @@ function TwoFluidEMHD:getDisplayVars()
 			B = 'kg/(C*m*s)',
 		})[field]}
 	end))
+	
+	vars:append{
+		{
+			name = 'EPot',
+			code = 'value.vreal = calc_rho_from_U(U) * U->ePot;', 
+			units='kg/(m*s^2)',
+		},
+		{
+			name = 'gravity',
+			code = self:template[[
+	if (!<?=OOB?>(1,1)) {
+		<?=calcGravityAccel?>(&value.vreal3, solver, U, x);
+	}
+]],
+			type='real3', 
+			units='m/s^2',
+		},
+	}
 
 	return vars
 end
