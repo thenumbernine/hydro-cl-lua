@@ -1,7 +1,7 @@
 //// MODULE_NAME: <?=calcDTCell?>
 //// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> <?=cell_t?> <?=normal_t?> <?=eqn_waveCode_depends?> <?=SETBOUNDS?>
 
-<? if not require "hydro.solver.meshsolver".is(solver) then ?>
+<? if not require "hydro.solver.meshsolver":isa(solver) then ?>
 
 #define <?=calcDTCell?>(\
 	/*real * const */dt,\
@@ -13,7 +13,7 @@
 	<? for side=0,solver.dim-1 do ?>{\
 <? --\
 if solver.coord.vectorComponent == "holonomic" --\
-or require "hydro.coord.cartesian".is(solver.coord) --\
+or require "hydro.coord.cartesian":isa(solver.coord) --\
 then --\
 ?>		real const dx = solver->grid_dx.s<?=side?>;\
 <? else --\

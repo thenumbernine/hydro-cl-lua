@@ -85,7 +85,7 @@ function SRHD:init(args)
 	self.symbols.cons_only_t = self.consOnlyStruct.typename
 	self.symbols.prim_only_t = self.primOnlyStruct.typename
 
-	if require 'hydro.solver.meshsolver'.is(self.solver) then
+	if require 'hydro.solver.meshsolver':isa(self.solver) then
 		print("not using ops (selfgrav, nodiv, etc) with mesh solvers yet")
 	else
 		local SRHDSelfGrav = require 'hydro.op.srhd-selfgrav'

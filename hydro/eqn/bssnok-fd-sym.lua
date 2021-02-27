@@ -172,7 +172,7 @@ function BSSNOKFiniteDifferenceEquation:getEnv()
 		local idnum = 1
 		local function convertSingle(arg)
 			local s = tostring(arg)
-			if symmath.Expression.is(arg) then
+			if symmath.Expression:isa(arg) then
 				local carToCoord = {
 					x = coordNames[1],
 					y = coordNames[2],
@@ -254,7 +254,7 @@ function BSSNOKFiniteDifferenceEquation:getEnv()
 			-- (unless a subsequent assignment is nil)
 			-- but otherwise, subsequent assignments don't call __newindex
 			-- unless the vlues are read/written to a separate table
-			if symmath.Expression.is(v) then
+			if symmath.Expression:isa(v) then
 				recordedAssignments:insert(k)
 			end
 			rawset(t,k,v)
@@ -307,7 +307,7 @@ function BSSNOKFiniteDifferenceEquation:getEnv()
 			if with == nil then error("couldn't find "..name) end
 		end
 		if type(with) == 'number' then with = symmath.Constant(with) end
-		assert(symmath.Expression.is(with), "not an expression")
+		assert(symmath.Expression:isa(with), "not an expression")
 		return '\treal '..name..' = '..compile(with)..';'
 	end
 	
@@ -489,10 +489,10 @@ assert(env.assignRepls)
 	-- TODO fix this in symmath
 	local oldFactorDivision = symmath.factorDivision
 	function symmath.factorDivision(expr, ...)
-		if Tensor.is(expr) then
+		if Tensor:isa(expr) then
 			return Tensor(expr.variance, function(...)
 				local x = oldFactorDivision(expr[{...}]())
-				if symmath.op.add.is(x) then
+				if symmath.op.add:isa(x) then
 					for i=1,#x do
 						x[i] = x[i]()
 					end
@@ -501,7 +501,7 @@ assert(env.assignRepls)
 			end)
 		else
 			local x = oldFactorDivision(expr)
-			if symmath.op.add.is(x) then
+			if symmath.op.add:isa(x) then
 				for i=1,#x do
 					x[i] = x[i]()
 				end

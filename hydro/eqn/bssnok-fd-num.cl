@@ -227,7 +227,7 @@ for J,xJ in ipairs(xNames) do
 ?>	partial_T_UL.<?=xJ?>.<?=xI?> = 
 		partial_T_Ul.<?=xJ?>.<?=xI?> / calc_len_<?=xJ?>(pt)
 <?		for M,xM in ipairs(xNames) do
-			if not Constant.is(bleh[I][J][M], 0) then
+			if not Constant:isa(bleh[I][J][M], 0) then
 ?>		+ T_U.<?=xM?> * (<?=eqn:compile(bleh[I][J][M])?>)
 <? 			end
 		end
@@ -1167,7 +1167,7 @@ static void applyKreissOligar(
 #endif
 
 	real3 dy = solver->grid_dx;
-<? if require "hydro.coord.sphere-sinh-radial".is(coord) then ?>
+<? if require "hydro.coord.sphere-sinh-radial":isa(coord) then ?>
 	real3 const yR = _real3(cell->r, cell->pos.y, cell->pos.z);
 <? for i=1,solver.dim do
 	local xi = xNames[i]

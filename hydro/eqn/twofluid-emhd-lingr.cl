@@ -1081,6 +1081,10 @@ kernel void <?=addSource?>(
 	
 	deriv->elec_ETotal -= elecChargeMassRatio / unit_C_per_kg * real3_dot(U->D, U->elec_m) / eps + real3_dot(elecGravForce, U->elec_m) / U->elec_rho;
 
+	/*
+	C/(m^2 s) = kg/(m^2*s) * C/kg
+	C/(m^2 s) = C/(m^2*s)
+	*/
 	real3 J;
 	J.x = (U->ion_m.x * solver->ionChargeMassRatio + U->elec_m.x * elecChargeMassRatio) / unit_C_per_kg;
 	J.y = (U->ion_m.y * solver->ionChargeMassRatio + U->elec_m.y * elecChargeMassRatio) / unit_C_per_kg;
@@ -1124,7 +1128,7 @@ kernel void <?=addSource?>(
 	deriv->phi_g += T_00_over_c2 * solver->divPhiWavespeed_g / unit_m_per_s;
 
 
-<? if not require "hydro.coord.cartesian".is(solver.coord) then ?>
+<? if not require "hydro.coord.cartesian":isa(solver.coord) then ?>
 	/* connection coefficient source terms of covariant derivative w/contravariant velocity vectors in a holonomic coordinate system */
 	<?=prim_t?> W;
 	<?=primFromCons?>(&W, solver, U, x);

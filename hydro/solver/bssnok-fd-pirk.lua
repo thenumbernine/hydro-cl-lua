@@ -136,7 +136,7 @@ function BSSNOKFiniteDifferencePIRKSolver:refreshSolverProgram()
 	self.copyWAlphaBetaKernelObj = self.solverProgramObj:kernel'copyWAlphaBeta'
 	self.copyLambdaBarKernelObj = self.solverProgramObj:kernel'copyLambdaBar'
 	
-	if require 'hydro.eqn.bssnok-fd-senr'.is(assert(self.eqn)) then
+	if require 'hydro.eqn.bssnok-fd-senr':isa(assert(self.eqn)) then
 		-- to calc or to store detg
 		-- TODO constrainU ?  
 		-- but we don't need all of constrainU's functions. 
@@ -548,7 +548,7 @@ end
 	-- I also don't want to calculate RBar_IJ, H, M^I
 	-- I just want to update det(gammaBar_IJ)=1 and ABar^I_I=0
 
-	assert(FakeIntegrator.is(self.integrator))
+	assert(FakeIntegrator:isa(self.integrator))
 
 	-- this just tests nans.  it would call integrator:integrate() but that is set to nothing.
 	BSSNOKFiniteDifferencePIRKSolver.super.step(self, dt)

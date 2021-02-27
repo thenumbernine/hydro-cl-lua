@@ -958,7 +958,7 @@ kernel void <?=addSource?>(
 	/* source of phi is the charge */
 	deriv->phi += eps * (U->ion_rho * solver->ionChargeMassRatio + U->elec_rho * elecChargeMassRatio) / unit_C_per_kg * solver->divPhiWavespeed / unit_m_per_s;
 
-<? if not require "hydro.coord.cartesian".is(solver.coord) then ?>
+<? if not require "hydro.coord.cartesian":isa(solver.coord) then ?>
 	/* connection coefficient source terms of covariant derivative w/contravariant velocity vectors in a holonomic coordinate system */
 	<?=prim_t?> W;
 	<?=primFromCons?>(&W, solver, U, x);

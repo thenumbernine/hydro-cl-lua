@@ -50,7 +50,7 @@ function DrawVectorField:showDisplayVar(var, varName, ar, xmin, xmax, ymin, ymax
 	
 	solver:calcDisplayVarToTex(var)
 
-	local isMeshSolver = require 'hydro.solver.meshsolver'.is(solver)
+	local isMeshSolver = require 'hydro.solver.meshsolver':isa(solver)
 	
 	local step = self.step
 	local arrowCount

@@ -98,7 +98,7 @@ function MHD:init(args)
 	end
 
 	local solver = assert(args.solver)
-	if require 'hydro.solver.meshsolver'.is(solver) then
+	if require 'hydro.solver.meshsolver':isa(solver) then
 		print("not divergence with mesh solvers yet")
 		-- these don't work with mesh solver
 		self.use2002DednerEqn24 = false
@@ -114,7 +114,7 @@ function MHD:init(args)
 	local UpdatePsi = require 'hydro.op.glm-mhd-update-psi'
 	solver.ops:insert(UpdatePsi{solver=solver})
 	
-	if require 'hydro.solver.meshsolver'.is(solver) then
+	if require 'hydro.solver.meshsolver':isa(solver) then
 		print("not using ops (selfgrav, nodiv, etc) with mesh solvers yet")
 	else
 		local SelfGrav = require 'hydro.op.selfgrav'

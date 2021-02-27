@@ -42,7 +42,7 @@ function Euler:init(args)
 	Euler.super.init(self, args)
 	local solver = self.solver
 
-	if require 'hydro.solver.meshsolver'.is(solver) then
+	if require 'hydro.solver.meshsolver':isa(solver) then
 		print("not using selfgrav with mesh solvers yet")
 	else
 		local SelfGrav = require 'hydro.op.selfgrav'
@@ -51,7 +51,7 @@ function Euler:init(args)
 	end
 
 	if args.incompressible then
-		if not require 'hydro.solver.meshsolver'.is(solver) then
+		if not require 'hydro.solver.meshsolver':isa(solver) then
 			local NoDiv = require 'hydro.op.nodiv'{
 				poissonSolver = require 'hydro.op.poisson_jacobi',	-- krylov is having errors.  TODO bug in its boundary code?
 			}
@@ -185,7 +185,7 @@ function Euler:initCodeModule_calcDTCell()
 			self.symbols.eqn_guiVars_compileTime,
 		},
 		code = self:template[[
-<? if require 'hydro.solver.gridsolver'.is(solver) then ?>
+<? if require 'hydro.solver.gridsolver':isa(solver) then ?>
 
 #define <?=calcDTCell?>(\
 	/*real * const */dt,\
@@ -200,7 +200,7 @@ function Euler:initCodeModule_calcDTCell()
 	<? for side=0,solver.dim-1 do ?>{\
 <? --\
 if solver.coord.vectorComponent == 'cartesian' --\
-and not require 'hydro.coord.cartesian'.is(solver.coord) --\
+and not require 'hydro.coord.cartesian':isa(solver.coord) --\
 then --\
 ?>		real const dx = cell_dx<?=side?>(x);\
 <? else --\

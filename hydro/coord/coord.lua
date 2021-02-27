@@ -261,7 +261,7 @@ assert(args.anholonomic == nil, "coord.anholonomic is deprecated.  instead you s
 						return x:diff(baseCoords[j])
 					end)
 					local result = Matrix:lambda({1,dim}, function(_,j) 
-						if symmath.Array.is(eHolToE[i][j]) then
+						if symmath.Array:isa(eHolToE[i][j]) then
 							io.stderr:write('eHolToE:\n'..eHolToE..'\n')
 							io.stderr:write('eHolToE['..i..']['..j..']:\n'..eHolToE[i][j]..'\n')
 							error'invalid eHolToE'
@@ -270,9 +270,9 @@ assert(args.anholonomic == nil, "coord.anholonomic is deprecated.  instead you s
 					end) 
 						* xPartial
 					result = result()
-					assert(symmath.Matrix.is(result))
+					assert(symmath.Matrix:isa(result))
 					result = result[1][1]
-					assert(symmath.Expression.is(result) and not symmath.Array.is(result))
+					assert(symmath.Expression:isa(result) and not symmath.Array:isa(result))
 					return result
 				end
 				nonCoords[i] = nonCoord
@@ -438,11 +438,11 @@ self.printNonZero = printNonZero
 
 	--compile a tensor of expressions to a nested table of codes
 	local function compileTensor(expr)
-		if symmath.Array.is(expr) then
+		if symmath.Array:isa(expr) then
 			return table.mapi(expr, function(expri) 
 				return compileTensor(expri)
 			end)
-		elseif symmath.Expression.is(expr) then
+		elseif symmath.Expression:isa(expr) then
 			return self:compile(expr)
 		elseif type(expr) == 'number' then
 			return clnumber(expr)
@@ -1280,8 +1280,8 @@ function CoordinateSystem:compile(expr)
 
 	-- replace pow(x, .5) with sqrt(x)
 	expr = expr:map(function(x)
-		if symmath.op.pow.is(x)
-		and const.is(x[2])
+		if symmath.op.pow:isa(x)
+		and const:isa(x[2])
 		and x[2].value == .5
 		then
 			return symmath.sqrt(x[1])
@@ -1656,9 +1656,9 @@ function CoordinateSystem:initCodeModules()
 	self:initCodeModule_coordMap()
 
 	-- parallel propagate code
-	if require 'hydro.solver.fvsolver'.is(solver) 
+	if require 'hydro.solver.fvsolver':isa(solver) 
 	-- TODO only if it's a mesh solver using a flux integrator ... which is currently all mesh solvers
-	or require 'hydro.solver.meshsolver'.is(solver) 
+	or require 'hydro.solver.meshsolver':isa(solver) 
 	then
 		local lines = table()
 		
@@ -1670,7 +1670,7 @@ function CoordinateSystem:initCodeModules()
 		-- if we're using a cartesian basis then no need to transport anything
 		-- ... (? except maybe the flux differential across the cell, done in curvilinear coordinates ?)
 		if self.vectorComponent == 'cartesian' 
-		or require 'hydro.coord.cartesian'.is(self)
+		or require 'hydro.coord.cartesian':isa(self)
 		then
 			-- general case for a fixed global orthonormal basi:
 			lines:insert(template([[
@@ -1856,9 +1856,9 @@ function CoordinateSystem:initCodeModule_coordMap()
 			xNames = xNames,
 		}
 		if self.vectorComponent == 'cartesian' 
-		or require 'hydro.coord.cartesian'.is(coord)
+		or require 'hydro.coord.cartesian':isa(coord)
 		then
-			if not require 'hydro.coord.cartesian'.is(coord) then
+			if not require 'hydro.coord.cartesian':isa(coord) then
 				
 				depends:insert(self.symbols.coord_basisHolUnit_i)
 				tolines:insert(template([[
@@ -1900,7 +1900,7 @@ real3 coord_cartesianFromCoord(real3 u, real3 pt) {
 }
 ]], env))
 
-			else	-- cartesian.is(coord)
+			else	-- cartesian:isa(coord)
 				fromlines:insert[[
 #define coord_cartesianFromCoord(u, pt) (u)
 ]]
@@ -2019,7 +2019,7 @@ How to organize this?
 function CoordinateSystem:initCodeModule_normal()
 	local typecode, code
 	local depends = table()
-	if require 'hydro.solver.meshsolver'.is(self.solver) then
+	if require 'hydro.solver.meshsolver':isa(self.solver) then
 --[[
 mesh vertexes are provided in Cartesian coordinates
 so their normals are as well
@@ -2078,7 +2078,7 @@ end
 ]]
 	else	-- not meshsolver
 
-		if require 'hydro.coord.cartesian'.is(self)
+		if require 'hydro.coord.cartesian':isa(self)
 		or self.vectorComponent == 'anholonomic'
 		then
 			--[[

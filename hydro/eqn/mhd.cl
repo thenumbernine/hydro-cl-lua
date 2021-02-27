@@ -885,7 +885,7 @@ kernel void <?=addSource?>(
 
 <? 
 if not (
-	require "hydro.coord.cartesian".is(solver.coord) 
+	require "hydro.coord.cartesian":isa(solver.coord) 
 	or solver.coord.vectorComponent == "cartesian"
 ) then ?>
 	<?=prim_t?> W;

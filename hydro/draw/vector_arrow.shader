@@ -20,7 +20,7 @@ attribute vec2 vtx;
 //for meshsolver this is the cell center
 attribute vec3 gridCoord;
 
-<? local isMeshSolver = require "hydro.solver.meshsolver".is(solver) ?>
+<? local isMeshSolver = require "hydro.solver.meshsolver":isa(solver) ?>
 <? if isMeshSolver then ?>
 //needed for indexing texcoord in meshsolver
 attribute float cellindex;
@@ -58,7 +58,7 @@ else
 	
 	// matches getValue() in mesh_heatmap.shader
 <?	
-	if require "gl.tex2d".is(solver.tex) then 
+	if require "gl.tex2d":isa(solver.tex) then 
 		if solver.texSize.y == 1 then
 ?>
 	texCoord.x = (cellindex + .5) / texSize.x;
@@ -75,7 +75,7 @@ else
 	}
 <? 
 		end
-	elseif require "gl.tex3d".is(solver.tex) then 
+	elseif require "gl.tex3d":isa(solver.tex) then 
 ?>
 	{
 		float i = cellindex;

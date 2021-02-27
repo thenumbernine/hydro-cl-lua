@@ -178,7 +178,7 @@ function DrawVectorLIC:display(varName, ar, graph_xmin, graph_xmax, graph_ymin, 
 			
 	-- NOTICE overlays of multiple solvers won't be helpful.  It'll just draw over the last solver.
 	-- I've got to rethink the visualization
-	if not require 'hydro.solver.meshsolver'.is(solver) then
+	if not require 'hydro.solver.meshsolver':isa(solver) then
 		local var = solver.displayVarForName[varName]
 		if var and var.enabled then
 			self:prepareShader()

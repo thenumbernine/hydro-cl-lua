@@ -49,7 +49,7 @@ local real_mul = scalar..'_real_mul'
 ?>
 
 <? 
-if true -- require 'hydro.coord.cartesian'.is(solver.coord) 
+if true -- require 'hydro.coord.cartesian':isa(solver.coord) 
 then 
 ?>
 	<?=scalar?> skewSum = <?=scalar?>_zero;

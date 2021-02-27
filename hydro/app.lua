@@ -359,7 +359,7 @@ well draw1d is still a giant mess wrt this.
 
 function HydroCLApp:display2D_Heatmap(solvers, ...)
 	for _,solver in ipairs(solvers) do
-		if require 'hydro.solver.meshsolver'.is(solver) then
+		if require 'hydro.solver.meshsolver':isa(solver) then
 			solver.drawMeshHeatmap = solver.drawMeshHeatmap or require 'hydro.draw.mesh_heatmap'(solver)
 			solver.drawMeshHeatmap:display(...)
 		else	-- gridsolver
@@ -699,7 +699,7 @@ void main() {
 			local solver = self.solvers[1]
 			if solver.dim == 2 
 			and self.display_useCoordMap 
-			and CartesianCoord.is(solver.coord)
+			and CartesianCoord:isa(solver.coord)
 			then
 				local orthoSize = 1
 				for j=1,solver.dim do
@@ -1238,7 +1238,7 @@ end
 		-- in all these above :display...() methods, they exclude meshsolvers
 		-- so this is just for mesh ...
 		for _,solver in ipairs(self.solvers) do
-			--if require 'hydro.solver.meshsolver'.is(solver) then
+			--if require 'hydro.solver.meshsolver':isa(solver) then
 			if solver.display then	
 				solver:display(varName, ar) 
 			end
@@ -1261,7 +1261,7 @@ end
 					-- translate the mouse coords to texture coords
 					-- and read the texel at the mouse position
 					if self.display_useCoordMap 
-						and not CartesianCoord.is(solver.coord)
+						and not CartesianCoord:isa(solver.coord)
 					then
 						--print'FIXME'
 						-- run coords through inverse
@@ -1278,7 +1278,7 @@ end
 							local size
 							local texX = tcX
 							local texY = tcY
-							if require 'hydro.solver.meshsolver'.is(solver) then
+							if require 'hydro.solver.meshsolver':isa(solver) then
 								size = var.group.getBuffer().sizevec or solver.gridSize
 								texX = math.floor(texX * tonumber(size.x))
 								texY = math.floor(texY * tonumber(size.y))

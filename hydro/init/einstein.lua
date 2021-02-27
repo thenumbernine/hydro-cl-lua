@@ -28,7 +28,7 @@ end
 
 function EinsteinInitCond:compileC(expr, name, vars)
 	assert(type(expr) == 'table', "expected table, found "..type(expr))
-	if symmath.Expression.is(expr) then 
+	if symmath.Expression:isa(expr) then 
 		expr = expr()
 		
 		print('compiling '..name..':')
@@ -119,7 +119,7 @@ local function initEinstein(args)
 				expr = table.map(expr, toExpr)
 			end
 			-- simplify?
-			if symmath.Expression.is(expr) then
+			if symmath.Expression:isa(expr) then
 				expr = expr()
 			end
 		end

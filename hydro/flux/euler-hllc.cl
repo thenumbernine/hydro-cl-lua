@@ -5,7 +5,7 @@
 //http://math.lanl.gov/~shenli/publications/hllc_mhd.pdf
 //2012 Toro, "The HLLC Riemann Solver" presentation: http://marian.fsik.cvut.cz/~bodnar/PragueSum_2012/Toro_2-HLLC-RiemannSolver.pdf
 <?
-if not require "hydro.eqn.euler".is(solver.eqn) then 
+if not require "hydro.eqn.euler":isa(solver.eqn) then 
 	error("euler-hllc only works with euler eqn") 
 end
 ?>

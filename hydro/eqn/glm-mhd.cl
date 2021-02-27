@@ -182,7 +182,7 @@ kernel void <?=initDerivs?>(
 	<?=SETBOUNDS?>(solver->numGhost, solver->numGhost);
 	real3 const x = cellBuf[index].pos;
 	global <?=cons_t?> * const U = UBuf + index;
-<? if require "hydro.solver.meshsolver".is(solver) then
+<? if require "hydro.solver.meshsolver":isa(solver) then
 ?>	U->psi = 0.;
 <? else
 ?>	U->psi = .5 * (0.

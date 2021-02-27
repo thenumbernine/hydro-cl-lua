@@ -29,7 +29,7 @@ Draw3DSlice.numSlices = 255
 function Draw3DSlice:showDisplayVar(var, varName, ar, xmin, xmax, ymin, ymax, useLog)
 	local solver = self.solver
 	local app = solver.app
-	if require 'hydro.solver.meshsolver'.is(solver) then return end
+	if require 'hydro.solver.meshsolver':isa(solver) then return end
 
 	app.view:setup(ar)
 
@@ -112,8 +112,8 @@ function Draw3DSlice:showDisplayVar(var, varName, ar, xmin, xmax, ymin, ymax, us
 
 		-- hack for picking order of axis for non-Cartesian
 		if app.display_useCoordMap
-		and (require 'hydro.coord.sphere'.is(solver.coord) 
-			or require 'hydro.coord.sphere-sinh-radial'.is(solver.coord))
+		and (require 'hydro.coord.sphere':isa(solver.coord) 
+			or require 'hydro.coord.sphere-sinh-radial':isa(solver.coord))
 		then
 			fwddir = 1
 			jmin, jmax, jdir = 0, n, 1
@@ -134,7 +134,7 @@ function Draw3DSlice:showDisplayVar(var, varName, ar, xmin, xmax, ymin, ymax, us
 				fwddir == 3 and jdir or 0)
 		end
 
-		if CartesianCoordinateSystem.is(solver.coord) then
+		if CartesianCoordinateSystem:isa(solver.coord) then
 			-- [[	single quad
 			gl.glBegin(gl.GL_QUADS)
 			for j=jmin,jmax,jdir do

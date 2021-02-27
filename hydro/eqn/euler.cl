@@ -501,7 +501,7 @@ kernel void <?=addSource?>(
 
 <? if false 
 and solver.coord.vectorComponent == "anholonomic" 
-and require "hydro.coord.cylinder".is(solver.coord) 
+and require "hydro.coord.cylinder":isa(solver.coord) 
 then ?>
 <? 	if true then -- 2009 Trangenstein, p.474, 1999 Toro, p.29, eqn.1.104, 1.105 ?>
 	<? for side=0,1 do ?>{
@@ -528,7 +528,7 @@ then ?>
 <? end ?>
 
 <? do -- if not solver.coord.vectorComponent == "anholonomic" then ?>
-<? if not (require "hydro.coord.cartesian".is(solver.coord) 
+<? if not (require "hydro.coord.cartesian":isa(solver.coord) 
 		or solver.coord.vectorComponent == "cartesian")
 then ?>
 //// MODULE_DEPENDS: <?=primFromCons?> <?=coord_conn_apply23?> <?=coord_conn_trace23?> <?=coord_conn_apply13?>

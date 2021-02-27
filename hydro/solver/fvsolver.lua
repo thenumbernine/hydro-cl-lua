@@ -129,7 +129,7 @@ if useFluxLimiter then
 			//real dt_dx = dt / cell_dx<?=side?>(xInt);
 <? 
 	if solver.coord.vectorComponent == 'cartesian' 
-	and not require 'hydro.coord.cartesian'.is(solver.coord)
+	and not require 'hydro.coord.cartesian':isa(solver.coord)
 	then 
 ?>			real const dt_dx = dt / cell_dx<?=side?>(xInt);
 <? 	else 

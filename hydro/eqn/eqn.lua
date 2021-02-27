@@ -601,9 +601,9 @@ function Equation:initCodeModule_cons_parallelPropagate()
 	--
 	-- TODO hmm, can't add the module unless it's being used
 	--  because some that don't use it (bssnok-fd) use custom suffixes on var names
-	if require 'hydro.solver.fvsolver'.is(solver) 
+	if require 'hydro.solver.fvsolver':isa(solver) 
 	-- TODO only if it's a mesh solver using a flux integrator ... which is currently all mesh solvers
-	or require 'hydro.solver.meshsolver'.is(solver) 
+	or require 'hydro.solver.meshsolver':isa(solver) 
 	then
 		local degreeForType = {
 			real = 0,
@@ -655,7 +655,7 @@ In the event that a transformation is necessary, then a temp var is created, and
 			code = self:template([[<? 
 for side=0,solver.dim-1 do
 	if coord.vectorComponent == 'cartesian'
-	or require 'hydro.coord.cartesian'.is(coord) 
+	or require 'hydro.coord.cartesian':isa(coord) 
 	then
 ?>#define <?=cons_parallelPropagate?><?=side?>(resultName, U, pt, dx)\
 	global <?=cons_t?> const * const resultName = U;
@@ -874,7 +874,7 @@ end
 -- that could be done in GLSL using the dx operators ... maybe I'll look into that later ...
 -- TODO use the automatic arbitrary finite difference generator in bssnok
 function Equation:createDivDisplayVar(args)
-	if require 'hydro.solver.meshsolver'.is(self.solver) then return end
+	if require 'hydro.solver.meshsolver':isa(self.solver) then return end
 	
 	local field = assert(args.field)
 	local getField = args.getField
@@ -914,7 +914,7 @@ end
 -- = [v.z,y - v.y,z; v.x,z - v.z,x; v.y,x - v.x,y]
 -- TODO use the automatic arbitrary finite difference generator in bssnok
 function Equation:createCurlDisplayVar(args)
-	if require 'hydro.solver.meshsolver'.is(self.solver) then return end
+	if require 'hydro.solver.meshsolver':isa(self.solver) then return end
 
 	local field = assert(args.field)
 	local getField = args.getField
@@ -1033,7 +1033,7 @@ kernel void <?=calcDT?>(
 	global real * const dtBuf,
 	global <?=cons_t?> const * const UBuf,
 	global <?=cell_t?> const * const cellBuf<?
-if require "hydro.solver.meshsolver".is(solver) then 
+if require "hydro.solver.meshsolver":isa(solver) then 
 ?>,
 	global <?=face_t?> const * const faces,
 	global int const * const cellFaceIndexes<?
@@ -1058,7 +1058,7 @@ end
 		solver,
 		U,
 		cell<?
-if require "hydro.solver.meshsolver".is(solver) then 
+if require "hydro.solver.meshsolver":isa(solver) then 
 ?>,
 		faces,
 		cellFaceIndexes<?

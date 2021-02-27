@@ -49,7 +49,7 @@ uniform vec4 displaySliceAngle;
 
 <? 
 -- if solver.dim < 3 then -- doesn't consider meshsolver
-if require 'gl.tex2d'.is(solver.tex) then -- does
+if require 'gl.tex2d':isa(solver.tex) then -- does
 ?>
 uniform sampler2D tex;
 vec4 getTex(vec3 texCoord) {
@@ -184,7 +184,7 @@ end
 function Draw:setupDisplayVarShader(shader, var, valueMin, valueMax)
 	local solver = self.solver
 	local app = solver.app
-	local isMeshSolver = require 'hydro.solver.meshsolver'.is(solver)
+	local isMeshSolver = require 'hydro.solver.meshsolver':isa(solver)
 
 	local uniforms = shader.uniforms
 	if uniforms.displayDim then

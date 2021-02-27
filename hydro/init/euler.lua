@@ -313,9 +313,9 @@ local function addMaxwellOscillatingBoundary(args)
 				solver.eqn:template([[
 <?
 	local epsSrc = 
-		(require 'hydro.eqn.twofluid-emhd-lingr'.is(eqn) 
-			or require 'hydro.eqn.glm-maxwell'.is(eqn)
-			or require 'hydro.eqn.maxwell'.is(eqn)
+		(require 'hydro.eqn.twofluid-emhd-lingr':isa(eqn) 
+			or require 'hydro.eqn.glm-maxwell':isa(eqn)
+			or require 'hydro.eqn.maxwell':isa(eqn)
 		)
 		and U or 'solver'
 ?>
@@ -1174,7 +1174,7 @@ end) then
 					end
 				else
 					lines:insert(solver.eqn:template([[
-<? local isSRHD = require 'hydro.eqn.srhd'.is(eqn) ?>
+<? local isSRHD = require 'hydro.eqn.srhd':isa(eqn) ?>
 {
 	real3 const x = cellBuf[<?=dst?>].pos;
 	real3 const xc = coordMap(x);
@@ -1256,7 +1256,7 @@ end
 					assert(solver.eqn.symbols.consFromPrim),
 					assert(solver.coord.symbols.coordMap),
 				}
-				if require 'hydro.eqn.srhd'.is(solver.eqn) then
+				if require 'hydro.eqn.srhd':isa(solver.eqn) then
 					depends:append{
 						assert(solver.eqn.symbols.eqn_common),
 					}
@@ -1466,7 +1466,7 @@ end
 			local sliceAxis = 2
 			
 			-- move around the cylinder
-			if require 'hydro.coord.cylinder'.is(self.solver.coord) then
+			if require 'hydro.coord.cylinder':isa(self.solver.coord) then
 				moveAxis = 2
 				sliceAxis = 1
 			end
@@ -1499,7 +1499,7 @@ end
 			for i,x in ipairs(xNames) do
 				for _,minmax in ipairs(minmaxs) do
 					boundaryMethods[x..minmax] = 'periodic'
-					if require 'hydro.coord.cylinder'.is(solver.coord) 
+					if require 'hydro.coord.cylinder':isa(solver.coord) 
 					and i == 1
 					then
 						boundaryMethods[x..minmax] = 'mirror'

@@ -585,7 +585,7 @@ end
 function SolverBase:createCoord(args)
 	-- not sure where to put this, but it must precede MeshSolver:initMeshVars
 	-- also I'm pretty sure CoordinateSystem:init() doesn't require anything from SolverBase, only the later member functions
-	if require 'hydro.coord.coord'.is(args.coord) then
+	if require 'hydro.coord.coord':isa(args.coord) then
 		self.coord = args.coord	-- ptr copy expected by AMR
 		self.coord.solver = self
 	else
@@ -1570,7 +1570,7 @@ kernel void <?=kernelName?>(
 	int const displayVarIndex,
 	int const component,
 	global <?=cell_t?> const * const cellBuf<? 
-if require 'hydro.solver.meshsolver'.is(solver) then
+if require 'hydro.solver.meshsolver':isa(solver) then
 ?>,
 	global <?=solver.coord.face_t?> const * const faces	//[numFaces]<?
 end ?><?=group.extraArgs and #group.extraArgs > 0
@@ -1578,7 +1578,7 @@ end ?><?=group.extraArgs and #group.extraArgs > 0
 		or '' ?>
 ) {
 	<?=SETBOUNDS?>(0,0);
-<? if not require 'hydro.solver.meshsolver'.is(solver) then 
+<? if not require 'hydro.solver.meshsolver':isa(solver) then 
 ?>	int4 dsti = i;
 	int dstindex = index;
 	real3 x = cellBuf[index].pos;
@@ -1745,7 +1745,7 @@ local m, s, kg, C, K = ...
 return ]]..units), "failed to compile unit expression "..units)(m, s, kg, C, K)
 	expr = expr()
 	expr = expr:map(function(ex)
-		if symmath.op.pow.is(ex) then
+		if symmath.op.pow:isa(ex) then
 			local power = ex[2].value
 			assert(type(power) == 'number')
 			if power == math.floor(power) and power > 0 then
@@ -2780,7 +2780,7 @@ function SolverBase:checkFinite(buf)
 
 	if self.checkNaNs == 'noghost'	-- set to string via cmdline
 	and size == self.numCells * ptrsPerReal
-	and not require 'hydro.solver.meshsolver'.is(self)
+	and not require 'hydro.solver.meshsolver':isa(self)
 	then
 		if self.dim == 1 then
 			for i=tonumber(self.numGhost),tonumber(self.gridSize.x-self.numGhost-1) do
@@ -3308,7 +3308,7 @@ function SolverBase:checkStructSizes()
 	local varcount = 0
 	for _,typeinfo in ipairs(typeinfos) do
 		varcount = varcount + 1
-		if Struct.is(typeinfo) then
+		if Struct:isa(typeinfo) then
 			varcount = varcount + #typeinfo.vars
 		end
 	end

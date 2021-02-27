@@ -30,7 +30,7 @@ void main() {
 <?
 end
 if fragmentShader then 
-	if require "gl.tex2d".is(solver.tex) then 
+	if require "gl.tex2d":isa(solver.tex) then 
 		if solver.texSize.y == 1 then
 ?>
 float getValue() {
@@ -52,7 +52,7 @@ float getValue() {
 }
 <? 
 		end
-	elseif require "gl.tex3d".is(solver.tex) then 
+	elseif require "gl.tex3d":isa(solver.tex) then 
 ?>
 float getValue() {
 	float i = cellindexv;

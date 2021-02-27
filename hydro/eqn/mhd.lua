@@ -96,7 +96,7 @@ function MHD:init(args)
 	self.roeStruct:makeType()
 	self.symbols.roe_t = self.roeStruct.typename
 
-	if require 'hydro.solver.meshsolver'.is(solver) then
+	if require 'hydro.solver.meshsolver':isa(solver) then
 		print("not using ops (selfgrav, nodiv, etc) with mesh solvers yet")
 	else
 		if solver.dim > 1 then

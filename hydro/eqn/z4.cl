@@ -911,7 +911,7 @@ static void applyKreissOligar(
 	coeff *= .5 * (erf((r - rKO) / wKO) + 1.);
 #endif
 
-<? if require "hydro.coord.sphere-sinh-radial".is(solver.coord) then ?>
+<? if require "hydro.coord.sphere-sinh-radial":isa(coord) then ?>
 	real3 const yR = _real3(cell->r, cell->pos.y, cell->pos.z);
 	global <?=cell_t?> const * const cellL0 = cell - solver->stepsize.x;
 	real3 const yL0 = _real3(cellL0->r, cellL0->pos.y, cellL0->pos.z);

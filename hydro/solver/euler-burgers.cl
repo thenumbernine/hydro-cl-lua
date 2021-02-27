@@ -1,7 +1,7 @@
 //// MODULE_NAME: <?=calcDTCell?>
 //// MODULE_DEPENDS: <?=solver_t?> <?=primFromCons?> <?=eqn_guiVars_compileTime?>
 
-<? if require "hydro.solver.gridsolver".is(solver) then ?>
+<? if require "hydro.solver.gridsolver":isa(solver) then ?>
 
 kernel void <?=calcDTCell?>(
 	global real * const dt,

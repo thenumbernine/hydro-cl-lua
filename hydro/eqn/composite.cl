@@ -191,7 +191,7 @@ void <?=applyInitCondCell?>(
 //// MODULE_NAME: <?=calcDTCell?>
 //// MODULE_DEPENDS: <?=solver_t?> <?=initCond_t?> <?=cons_t?> <?=cell_t?> <?=subeqnDepends'calcDTCell'?>
 
-<? if require "hydro.solver.meshsolver".is(solver) then
+<? if require "hydro.solver.meshsolver":isa(solver) then
 ?>
 //// MODULE_DEPENDS: <?=face_t?>
 <? end
@@ -202,7 +202,7 @@ void <?=applyInitCondCell?>(
 	/*constant <?=solver_t?> const * const */solver,\
 	/*global <?=cons_t?> const * const */U,\
 	/*global <?=cell_t?> const * const */cell<? --\
-if require "hydro.solver.meshsolver".is(solver) then --\
+if require "hydro.solver.meshsolver":isa(solver) then --\
 ?>,\
 	/*global <?=face_t?> const * const */faces,\
 	/*global int const * const */cellFaceIndexes<? --\
@@ -215,7 +215,7 @@ end --\
 		solver,\
 		&(U)-><?=subeqn.field?>,\
 		cell<? --\
-if require "hydro.solver.meshsolver".is(solver) then --\
+if require "hydro.solver.meshsolver":isa(solver) then --\
 ?>,\
 		faces,\
 		cellFaceIndexes<? --\

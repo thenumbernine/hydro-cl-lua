@@ -783,7 +783,7 @@ kernel void <?=addSource?>(
 	global <?=cons_t?> * const deriv = derivBuf + index;
 	global <?=cons_t?> const * const U = UBuf + index;
 
-<? if not require "hydro.coord.cartesian".is(solver.coord) then ?>
+<? if not require "hydro.coord.cartesian":isa(solver.coord) then ?>
 	/* connection coefficient source terms of covariant derivative w/contravariant velocity vectors in a holonomic coordinate system */
 	<?=prim_t?> W;
 	<?=primFromCons?>(&W, solver, U, x);

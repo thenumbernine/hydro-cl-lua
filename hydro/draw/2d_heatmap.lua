@@ -39,7 +39,7 @@ end
 function Draw2DHeatmap:showDisplayVar(var, varName, ar, xmin, xmax, ymin, ymax)
 	local solver = self.solver
 	local app = solver.app
-	if require 'hydro.solver.meshsolver'.is(solver) then return end
+	if require 'hydro.solver.meshsolver':isa(solver) then return end
 	
 	-- TODO allow a fixed, manual colormap range
 	-- NOTICE with AMR this will only get from the root node

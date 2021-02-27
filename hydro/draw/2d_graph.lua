@@ -107,7 +107,7 @@ function Draw2DGraph:display(varName, ar, graph_xmin, graph_xmax, graph_ymin, gr
 	gl.glColor3f(1,1,1)
 	gl.glEnable(gl.GL_DEPTH_TEST)
 
-	if not require 'hydro.solver.meshsolver'.is(solver) then
+	if not require 'hydro.solver.meshsolver':isa(solver) then
 		local var = solver.displayVarForName[varName]
 		if var and var.enabled then
 			self:prepareShader()
