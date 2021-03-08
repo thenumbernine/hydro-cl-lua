@@ -32,9 +32,9 @@ local args = {
 	-- with Kelvin-Helmholts, this will explode even at .5/(dim=2), but runs safe for .3/(dim=2)
 	cfl = cmdline.cfl or .3/dim,
 	
-	--fluxLimiter = cmdline.fluxLimiter or 'superbee',
+	fluxLimiter = cmdline.fluxLimiter or 'superbee',
 	--fluxLimiter = 'monotized central',
-	fluxLimiter = 'donor cell',
+	--fluxLimiter = 'donor cell',
 	
 	-- piecewise-linear slope limiter
 	-- TODO rename this to 'calcLR' or something
@@ -119,7 +119,7 @@ local args = {
 			-- 4000x4000 uses 4362211620 bytes
 			-- from then on, any bigger tends to segfault somewhere after 'randomizing UBuf...' 
 			['AMD Accelerated Parallel Processing/gfx1010/gfx902'] = {
-				{4096,1,1},
+				{256,1,1},
 				{256,256,1},
 				{64,64,64},
 			},	

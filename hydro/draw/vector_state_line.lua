@@ -98,7 +98,7 @@ function DrawVectorStateLine:display(varName, ar, ...)
 	local app = solver.app
 	app.view:setup(ar)
 
-	gl.glColor3f(.1, .1, .1)
+	gl.glColor3f(.5, .5, .5)
 	gl.glBegin(gl.GL_LINES)
 	local max = 10 	-- TODO max of solver mins/maxs
 	gl.glVertex3f(max,0,0)
