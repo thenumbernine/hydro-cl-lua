@@ -1745,7 +1745,7 @@ print("WARNING - haven't finished implementing this")
 	/*real3 const */pt\
 ) {\
 	/* TODO average any other fields here .... */\
-	resultCell->pos = pt;\
+	(resultCell)->pos = pt;\
 }
 ]]
 		end,

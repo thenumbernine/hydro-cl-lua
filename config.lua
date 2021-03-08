@@ -3,7 +3,7 @@ TODO one config per experiment (initial condition + config)
 and no more setting config values (boundary, etc) in the init cond file
 --]]
 
-local dim = cmdline.dim or 2
+local dim = cmdline.dim or 1
 local args = {
 	app = self, 
 	eqn = cmdline.eqn,
@@ -32,9 +32,9 @@ local args = {
 	-- with Kelvin-Helmholts, this will explode even at .5/(dim=2), but runs safe for .3/(dim=2)
 	cfl = cmdline.cfl or .3/dim,
 	
-	fluxLimiter = cmdline.fluxLimiter or 'superbee',
+	--fluxLimiter = cmdline.fluxLimiter or 'superbee',
 	--fluxLimiter = 'monotized central',
-	--fluxLimiter = 'donor cell',
+	fluxLimiter = 'donor cell',
 	
 	-- piecewise-linear slope limiter
 	-- TODO rename this to 'calcLR' or something
@@ -120,7 +120,7 @@ local args = {
 			-- from then on, any bigger tends to segfault somewhere after 'randomizing UBuf...' 
 			['AMD Accelerated Parallel Processing/gfx1010/gfx902'] = {
 				{4096,1,1},
-				{32,32,1},
+				{256,256,1},
 				{64,64,64},
 			},	
 		})[platAndDevicesNames]
@@ -132,12 +132,12 @@ local args = {
 		}
 	)[dim],
 	boundary = type(cmdline.boundary) == 'table' and cmdline.boundary or {
-		xmin = cmdline.boundary or 'mirror',
-		xmax = cmdline.boundary or 'mirror',
-		ymin = cmdline.boundary or 'mirror',
-		ymax = cmdline.boundary or 'mirror',
-		zmin = cmdline.boundary or 'mirror',
-		zmax = cmdline.boundary or 'mirror',
+		xmin = cmdline.boundary or 'freeflow',
+		xmax = cmdline.boundary or 'freeflow',
+		ymin = cmdline.boundary or 'freeflow',
+		ymax = cmdline.boundary or 'freeflow',
+		zmin = cmdline.boundary or 'freeflow',
+		zmax = cmdline.boundary or 'freeflow',
 	},
 	--]]
 	--[[ cylinder
@@ -319,6 +319,13 @@ local args = {
 	--initCond = 'self-gravitation test 4',
 	--initCond = 'self-gravitation soup',
 	--initCond = 'self-gravitation Jeans, right?',
+
+	
+	--initCond = 'shallow water constant',
+	--initCond = 'shallow water problem B',
+	--initCond = 'shallow water problem C',
+	--initCond = 'shallow water parabola',
+	--initCond = '2003 Rogers',
 
 
 	-- those designed for SRHD / GRHD from Marti & Muller 1998:
@@ -572,12 +579,13 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='shallow-water'})))
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='shallow-water'})))
 --self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='shallow-water', wenoMethod='1996 Jiang Shu', order=5})))
+--self.solvers:insert(require 'hydro.solver.fdsolver'(table(args, {eqn='shallow-water'})))
 
 
 -- compressible Euler equations
 
 
---self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
+self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
 
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct bounded'})))	-- this is the default hllCalcWaveMethod
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct'})))
@@ -756,7 +764,7 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn
 
 
 -- here's another one: two-fluid emhd with de Donder gauge linearized general relativity
-self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='twofluid-emhd-lingr'})))
+--self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='twofluid-emhd-lingr'})))
 --self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='twofluid-emhd-lingr', wenoMethod='1996 Jiang Shu', order=5})))
 --self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='twofluid-emhd-lingr', wenoMethod='2010 Shen Zha', order=7})))
 

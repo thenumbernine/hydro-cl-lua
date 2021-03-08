@@ -1743,7 +1743,7 @@ function SolverBase:convertToSIUnitsCode(units)
 	local expr = assert(load([[
 local m, s, kg, C, K = ...
 return ]]..units), "failed to compile unit expression "..units)(m, s, kg, C, K)
-	expr = expr()
+	expr = symmath.clone(expr)()
 	expr = expr:map(function(ex)
 		if symmath.op.pow:isa(ex) then
 			local power = ex[2].value

@@ -13,14 +13,53 @@ local Equation = require 'hydro.eqn.eqn'
 local ShallowWater = class(Equation)
 ShallowWater.name = 'shallow_water'
 
+--[[
+This replaces the h^2 with (h^2 - 2 h H) in the flux.
+In turn it also causes the wave to change from c = sqrt(g h) to c = sqrt(g (h - H)).
+So setting this to 'true' causes 'depth' to be used within the wave code, which I can't calculate well,
+so that means if this is true then you must set depthInCell to false - for now.
+--]]
+ShallowWater.extraTermInFlux = false
 
--- whether to insert the 'depth' field into the cell_t or the cons_t structure
--- inserting it into cons_t means more wasted memory and computations
--- inserting it into cell_t means making the code a bit more flexible 
+--[[
+Whether to insert the 'depth' field into the cell_t or the cons_t structure.
+Inserting it into cons_t means more wasted memory and computations.
+Inserting it into cell_t means making the code a bit more flexible.
+
+Ok so I changed the flux to go from h^2 to (h^2 - 2 h H).
+When you do that, the waves go from c = sqrt(g h) to c = sqrt(g (h - H))
+And when you have 'depth' in the wavefunction, you need to add the cell avg to 'calcFluxForInterface' and 'eigen_forInterface'.
+So until you do that, or remove depth from the waves, this must be false.
+--]]
 ShallowWater.depthInCell = true
 
+if ShallowWater.extraTermInFlux and ShallowWater.depthInCell then
+	error("some of the eigen calcs don't have access to cell, so this won't work")
+end
 
+--[[
+TODO
+when Roe uses fluxFromCons then *only* the mv flux is 1/2 what it should be
+also HLL (which uses fluxFromCons) *only* mv flux is 1/2 what it should be
+So what's wrong with fluxFromCons?
+Sure enough, if I remove it and replace it with the R*Lambda*L transform, things work fine.
+And it looks like it works fine when I remove the 1/2 from the F->m term (BUT IT SHOULD BE THERE).
+So what's wrong?
+
+So keep this at 'true' for correct flux values (right?)
+But doesn't ==true's math depend on the incorrect assumption that dF/dU * U = F?
+Why does ==false produce bad values here?
+--]]
 ShallowWater.roeUseFluxFromCons = true
+
+--[[
+debugging:
+Using the default (parent class) version, which falls back on R*Lambda*L, gives the correct flux.
+So it looks like wherever the fluxFromCons() function is used, it is incorrect.
+But wait, why would I use fluxFromCons (which is F(U)) in place of fluxTransform (which is a simplification of dF/dx = dF/dU dU/dx) ?
+I went and put an error in the parent class function, so never set this to true.
+--]]
+ShallowWater.useDefaultFluxFromCons = false
 
 ShallowWater.initConds = require 'hydro.init.euler':getList()
 
@@ -45,9 +84,6 @@ if not ShallowWater.depthInCell then
 	table.insert(ShallowWater.primVars, {name='depth', type='real', units='m'})
 	table.insert(ShallowWater.consVars, {name='depth', type='real', units='m'})
 end
-
-
-
 if ShallowWater.depthInCell then
 	-- 'depth' in cellBuf:
 	-- add our cell depth value here.  no more storing it in non-integrated UBuf (wasting memory and slowing performance).
@@ -58,9 +94,25 @@ if ShallowWater.depthInCell then
 	end
 end
 
+function ShallowWater:getEnv()
+	local env = table(ShallowWater.super.getEnv(self))
+	env.getDepthSource = function(U, cell)
+		U = U or 'U'
+		cell = cell or 'cell'
+		return self.depthInCell and cell or U
+	end
+	env.getDepth = function(U, cell)
+		return '('..env.getDepthSource(U, cell)..')->depth'
+	end
+	return env
+end
+
 function ShallowWater:resetState()
 	local solver = self.solver
-	
+
+	-- TODO in absense of 'readFromImage', how about providing this info in the init/euler? or init/shallow-water?
+	-- TODO and for that, if eqn can (now) add custom fields to cell_t, shouldn't applyInitCond also be allowed to write to cellBuf?
+
 	-- if it's a grid, read from image
 	-- if it's a mesh then ... ? 
 	if require 'hydro.solver.meshsolver':isa(solver) 
@@ -69,10 +121,11 @@ function ShallowWater:resetState()
 		print("ShallowWater only does depth images for 2D -- skipping")
 		return
 	end
-	
+
 	local Image = require 'image'
 
 	-- 1-channel, 16-bit signed, negative = below sea level
+	-- 4320x2160
 	local image = Image'bathymetry/world - pacific.tif'
 		:resize(
 			tonumber(solver.sizeWithoutBorder.x),
@@ -86,7 +139,9 @@ function ShallowWater:resetState()
 	for j=0,tonumber(solver.sizeWithoutBorder.y)-1 do
 		for i=0,tonumber(solver.sizeWithoutBorder.x)-1 do
 			local index = i + solver.numGhost + solver.gridSize.x * (j + solver.numGhost)
-			local d = tonumber(image.buffer[i + image.width * (image.height - 1 - j)])
+			
+			local d = -tonumber(image.buffer[i + image.width * (image.height - 1 - j)])
+			
 			-- in the image, bathymetry values are negative
 			-- throw away altitude values (for now?)
 			if ShallowWater.depthInCell then
@@ -96,7 +151,7 @@ function ShallowWater:resetState()
 			end
 			-- initialize to steady-state
 			-- this happens *after* applyInitCond, so we have to modify the UBuf 'h' values here
-			cpuU[index].h = math.max(0, -d)		-- total height is positive
+			cpuU[index].h = math.max(0, d)		-- total height is positive
 			-- cells are 'wet' where h > depth -- and there they should be evolved
 		end
 	end
@@ -109,13 +164,22 @@ end
 function ShallowWater:createInitState()
 	ShallowWater.super.createInitState(self)
 	self:addGuiVars{	
-		{name='gravity', value=9.8, units='m/s^2'},
+		{name='water_D', value=0, units='m'},	-- maximum depth.  completely trivial, only influence height values.
+		
+		--{name='gravity', value=9.8, units='m/s^2'},
+		{name='gravity', value=1, units='m/s^2'},
+		
 		{name='Manning', value=0.025},	-- 2011 Berger eqn 3, Manning coefficient, used for velocity drag in source term
 	}
 end
 
 -- don't use default
-function ShallowWater:initCodeModule_fluxFromCons() end
+if not ShallowWater.useDefaultFluxFromCons then
+	function ShallowWater:initCodeModule_fluxFromCons() 
+	end
+end
+
+-- don't use default
 function ShallowWater:initCodeModule_consFromPrim_primFromCons() end
 
 function ShallowWater:getModuleDepends_waveCode()
@@ -126,7 +190,7 @@ function ShallowWater:getModuleDepends_waveCode()
 end
 
 function ShallowWater:getModuleDepends_displayCode()
-	return {
+	return table(ShallowWater.super.getModuleDepends_displayCode(self)):append{
 		self.symbols.eqn_common,
 	}
 end
@@ -135,19 +199,47 @@ ShallowWater.solverCodeFile = 'hydro/eqn/shallow-water.cl'
 
 ShallowWater.displayVarCodeUsesPrims = true
 
+--[[
 ShallowWater.predefinedDisplayVars = {
 	'U h',
-	'U v',
-	'U v mag',
-	ShallowWater.depthInCel and 'cell depth' or 'U depth',
+	--'U h+B',
+	--'U v',
+	--'U v mag',
+	--ShallowWater.depthInCell and 'cell depth' or 'U depth',
+	--'U B',	-- this will show the sea floor height above the maximum depth
+	'U m x',
+
+	'deriv h',
+	'deriv m x',
+	'flux x 0',
+	'flux x 1',
 }
+--]]
+-- [[
+ShallowWater.predefinedDisplayVars = {
+	'U h',
+	'U h+B',
+	'U B',
+}
+--]]
 
 function ShallowWater:getDisplayVars()
 	local vars = ShallowWater.super.getDisplayVars(self)
-	
+
 	vars:append{
 		{name='v', code='value.vreal3 = W.v;', type='real3', units='m/s'},
 		{name='wavespeed', code='value.vreal = calc_C(solver, U);', units='m/s'},
+		-- D(x) = maximum depth = constant
+		-- H(x) = cell->depth = displacement of seafloor below resting depth.
+		-- D(x) = H(x) + B(x)
+		-- B(x) + h(x) = wave height above maximum depth
+		-- h(x) - H(x) = wave height above resting depth
+		-- h(x) - H(x) + D(x) = wave height above maximum depth
+		{name='h+B', code = self:template'value.vreal = solver->water_D + U->h - <?=getDepth()?>;', units='m'},
+		-- so everything is at rest when h(x) == H(x)
+		
+		-- B(x) = D(x) - H(x) = height of seafloor above maximum depth
+		{name='B', code = self:template'value.vreal = solver->water_D - <?=getDepth()?>;', units='m'},
 	}
 
 	vars:insert(self:createDivDisplayVar{
@@ -174,33 +266,50 @@ ShallowWater.eigenVars = table{
 	{name='h', type='real', units='kg/m^3'},
 	{name='v', type='real3', units='m/s'},
 
-	-- TODO do we need this here if it is in cellBuf already?
-	{name='depth', type='real', units='m'},
 	
 	-- derived vars
 	{name='C', type='real', units='m/s'},
 }
+if not ShallowWater.depthInCell then
+	-- we don't need this here if it is in cellBuf already
+	-- but we do if it's not in cellBuf
+	ShallowWater.eigenVars:insert{name='depth', type='real', units='m'}
+end
+
+local heightEpsilon = 0
 
 function ShallowWater:eigenWaveCodePrefix(n, eig, x)
 	return self:template([[
-real C_nLen = <?=eig?>->C * normal_len(<?=n?>);
+real const CSq = solver->gravity * (<?=eig?>->h 
+<? if eqn.extraTermInFlux then ?>
+	- <?=getDepth(eig, 'cell')?>
+<? end ?>
+);
+real const C = sqrt(CSq);
+real C_nLen = C * normal_len(<?=n?>);
 real v_n = normal_vecDotN1(<?=n?>, <?=eig?>->v);
 
-if (<?=eig?>->h <= 1.) {
+if (C <= <?=clnumber(heightEpsilon)?>) {
 	C_nLen = 0.;
 	v_n = 0.;
 }
-
 ]], {
 		eig = '('..eig..')',
 		x = x,
 		n = n,
+		heightEpsilon = heightEpsilon,
 	})
 end
 
 function ShallowWater:consWaveCodePrefix(n, U, x, W)
 	return self:template([[
-real C_nLen = calc_C(solver, <?=U?>) * normal_len(<?=n?>);
+real const CSq = solver->gravity * (<?=U?>->h 
+<? if eqn.extraTermInFlux then ?>
+	- <?=getDepth(U, 'cell')?>
+<? end ?>
+);
+real const C = sqrt(CSq);
+real C_nLen = C * normal_len(<?=n?>);
 <? if not W then 
 	W = 'W'
 ?><?=prim_t?> W;
@@ -208,16 +317,16 @@ real C_nLen = calc_C(solver, <?=U?>) * normal_len(<?=n?>);
 <? end 
 ?>real v_n = normal_vecDotN1(n, <?=W?>.v);
 
-if (<?=U?>->h <= 1.) {
+if (C <= <?=clnumber(heightEpsilon)?>) {
 	C_nLen = 0.;
 	v_n = 0.;
 }
-
 ]], {
 		n = n,
 		U = '('..U..')',
 		x = x,
 		W = W and '('..W..')' or nil,
+		heightEpsilon = heightEpsilon,
 	})
 end
 

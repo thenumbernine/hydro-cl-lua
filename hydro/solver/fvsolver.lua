@@ -305,7 +305,7 @@ function FiniteVolumeSolver:getModuleDepends_displayCode()
 		depends:append{
 			self.eqn.symbols.eigen_leftTransform,
 			self.eqn.symbols.eigen_rightTransform,
-			self.coord.cell_calcAvg_withPt,
+			self.coord.symbols.cell_calcAvg_withPt,
 		}
 	
 		-- and only if the two of them plus this is defined is the flux error display var used:
@@ -506,7 +506,7 @@ function FiniteVolumeSolver:addDisplayVars()
 #endif
 
 		<?=cell_t?> cellAvg;
-		<?=cell_calcAvg_withPt?>(&cellAvg, cellL, cellR, xInt);
+		cell_calcAvg_withPt(&cellAvg, cellL, cellR, xInt);
 
 		//once again, only needs to be numIntStates
 		<?=cons_t?> transformed;

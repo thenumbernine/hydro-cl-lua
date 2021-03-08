@@ -305,11 +305,12 @@ end
 --HydroCLApp.drawVectorLICNoiseSize = 256
 HydroCLApp.drawVectorLICNoiseSize = 1024
 
--- only option is draw1D
-function HydroCLApp:display1D(solvers, ...)
-	for _,solver in ipairs(solvers) do
-		solver.draw1D = solver.draw1D or require 'hydro.draw.1d_graph'(solver)
-		solver.draw1D:display(...)
+function HydroCLApp:display1D(...)
+	for _,method in ipairs(self.display1DMethods) do
+		local name, func = next(method)
+		if self.display1DMethodsEnabled[name] then
+			func(self, ...)
+		end
 	end
 end
 
@@ -356,6 +357,13 @@ but then, what about overlapping graphs?
 
 well draw1d is still a giant mess wrt this.
 --]]
+
+function HydroCLApp:display1D_Graph(solvers, ...)
+	for _,solver in ipairs(solvers) do
+		solver.draw1DGraph = solver.draw1DGraph or require 'hydro.draw.1d_graph'(solver)
+		solver.draw1DGraph:display(...)
+	end
+end
 
 function HydroCLApp:display2D_Heatmap(solvers, ...)
 	for _,solver in ipairs(solvers) do
@@ -411,6 +419,13 @@ function HydroCLApp:displayVector_LIC(solvers, ...)
 	end
 end
 
+function HydroCLApp:displayVector_StateLine(solvers, ...)
+	for _,solver in ipairs(solvers) do
+		solver.drawVectorStateLine = solver.drawVectorStateLine or require 'hydro.draw.vector_state_line'(solver)
+		solver.drawVectorStateLine:display(...)
+	end
+end
+
 --[[
 called from initGL
 only called if sys ~= console
@@ -433,6 +448,10 @@ function HydroCLApp:initDraw()
 		assert(#cmdline.displaySlice == 4, "don't know how to handle this cmdline.displaySlice")
 		self.displaySliceAngle:fromAngleAxis(table.unpack(cmdline.displaySlice))
 	end
+	
+	self.display1DMethods = table{
+		{Graph = HydroCLApp.display1D_Graph},
+	}
 
 	self.display2DMethods = table{
 		{Heatmap = HydroCLApp.display2D_Heatmap},
@@ -448,6 +467,7 @@ function HydroCLApp:initDraw()
 	self.displayVectorMethods = table{
 		{Arrows = HydroCLApp.displayVector_Arrows},
 		{LIC = HydroCLApp.displayVector_LIC},
+		{StateLine = HydroCLApp.displayVector_StateLine},
 	}
 end
 
@@ -670,6 +690,10 @@ void main() {
 		end
 
 		-- todo reorganize me
+		self.display1DMethodsEnabled = self.display1DMethods:mapi(function(method, index)
+			local name, func = next(method)
+			return index == 1, name
+		end)
 		self.display2DMethodsEnabled = self.display2DMethods:mapi(function(method, index)
 			local name, func = next(method)
 			return index == 1, name
@@ -683,6 +707,7 @@ void main() {
 			local enabled = index == 2	-- LIC
 			-- cmdline arrows overrides the default from LIC to arrows
 			if cmdline.arrows then enabled = index == 1 end
+			if cmdline.display_stateline then enabled = index == 3 end
 			return enabled, name
 		end)
 
@@ -1586,25 +1611,29 @@ function HydroCLApp:updateGUI()
 		
 		do
 			local dim = self.displayDim
-			if dim == 2 then
+			if dim == 1 then
+				ig.igPushIDStr'1D'
+				for i,method in ipairs(self.display1DMethods) do
+					if i > 1 then ig.igSameLine() end
+					local name, func = next(method)
+					tooltip.checkboxTable(name, self.display1DMethodsEnabled, name)
+				end
+				ig.igPopID()
+			elseif dim == 2 then
 				ig.igPushIDStr'2D'
-				
 				for i,method in ipairs(self.display2DMethods) do
 					if i > 1 then ig.igSameLine() end
 					local name, func = next(method)
 					tooltip.checkboxTable(name, self.display2DMethodsEnabled, name)
 				end
-				
 				ig.igPopID()
 			elseif dim == 3 then
 				ig.igPushIDStr'3D'
-				
 				for i,method in ipairs(self.display3DMethods) do
 					if i > 1 then ig.igSameLine() end
 					local name, func = next(method)
 					tooltip.checkboxTable(name, self.display3DMethodsEnabled, name)
 				end
-				
 				ig.igPopID()
 			end
 			

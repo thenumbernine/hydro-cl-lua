@@ -342,6 +342,14 @@ function Euler:getDisplayVars()
 		units = '1/s',
 	} or nil)
 
+	-- special for 1d_state_line
+	vars:insert{
+		name = 'state line',
+		type = 'real3',
+		units = '1',
+		code = 'value.vreal3 = _real3(W.rho, W.v.x, W.P);',
+	}
+
 	return vars
 end
 

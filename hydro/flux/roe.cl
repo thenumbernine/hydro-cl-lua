@@ -114,7 +114,11 @@ local useFlux = solver.fluxLimiter > 1
 <? if eqn.roeUseFluxFromCons then  --\
 -- TODO hmm, fluxFromCons vs eigen_fluxTransform using the 'eig' structure --\
 -- fluxFromCons is using the left and right states to create their flux jacobian transform - applied to the left and right states to make the left and right flux vector --\
+-- which is F(U) --\
 -- while eigen_fluxTransform would use the intermediate state to create the flux vector --\
+-- which is dF/dU * dU/dx --\
+-- It turns out dF/dU * U = F *ONLY FOR* the Euler fluid equations, and this is why lots of literature assumes it is true for all equations (when it's not).--\
+-- But that means roeUseFluxFromCons==true's option is the correct one, but not ==false? --\
 ?>\
 	<?=cons_t?> FL;\
 	<?=fluxFromCons?>(&FL, solver, UL, cellL, n);\

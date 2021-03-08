@@ -578,11 +578,11 @@ kernel void <?=applyInitCond?>(
 	constant <?=solver_t?> const * const solver,
 	constant <?=initCond_t?> const * const initCond,
 	global <?=cons_t?> * const UBuf,
-	global <?=cell_t?> const * const cellBuf
+	global <?=cell_t?> * const cellBuf
 ) {
 	<?=SETBOUNDS?>(0,0);
 	global <?=cons_t?> * const U = UBuf + index;
-	global <?=cell_t?> const * const cell = cellBuf + index;
+	global <?=cell_t?> * const cell = cellBuf + index;
 	<?=applyInitCondCell?>(solver, initCond, U, cell);
 }
 ]],
@@ -786,6 +786,12 @@ function Equation:initCodeModule_cons_prim_eigen_waves()
 end
 
 function Equation:initCodeModule_fluxFromCons()
+	error[[
+But isn't this dF/dx = dF/dU * dU/dx ?  and not F?
+Yes, however only for Euler fluid equations it happens to be true that dF/dU * U = F.
+Not true for all equations.  Therefore this implementation should *NOT* be used in general.
+Even though it is used throughout the  math involved in Roe schemes for Euler fluid equations.
+]]
 	self.solver.modules:add{
 		name = self.symbols.fluxFromCons,
 		depends = {

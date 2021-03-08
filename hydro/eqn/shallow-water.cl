@@ -84,7 +84,7 @@ void <?=applyInitCondCell?>(
 	constant <?=solver_t?> const * const solver,
 	constant <?=initCond_t?> const * const initCond,
 	global <?=cons_t?> * const U,
-	global <?=cell_t?> const * const cell
+	global <?=cell_t?> * const cell
 ) {
 	real3 const x = cell->pos;
 	
@@ -104,19 +104,26 @@ end
 	real3 D = real3_zero;
 	real3 B = real3_zero;
 	real ePot = 0;
+	//specific to shallow water problems:
+	real depth = 0;	//same as 'water_H'
 
 	<?=initCode()?>
 
-	<?=prim_t?> const W = {
+	<?=prim_t?> W = {
 		.h = rho,
 		.v = cartesianToCoord(v, x),
 	};
+
+	<?=getDepth("&W", "cell")?> = depth;
+	
 	<?=consFromPrim?>(U, solver, &W, x);
 }
 
+<? if not eqn.useDefaultFluxFromCons then ?>
 //// MODULE_NAME: <?=fluxFromCons?>
 //// MODULE_DEPENDS: <?=solver_t?> <?=primFromCons?> <?=normal_t?>
 
+/* TODO why is there an error when I include the 1/2 in the F->m term? */
 #define <?=fluxFromCons?>(\
 	/*<?=cons_t?> * const */result,\
 	/*constant <?=solver_t?> const * const */solver,\
@@ -131,9 +138,14 @@ end
 	(result)->h = (U)->h * v_n,\
 	(result)->m = real3_add(\
 		real3_real_mul((U)->m, v_n),	/*h v^i v_n*/\
-		real3_real_mul(nU, .5 * solver->gravity * (U)->h * (U)->h)	/*.5 g h^2 n^i*/\
+		real3_real_mul(nU, .5 * solver->gravity * (U)->h * ((U)->h\
+<? if eqn.extraTermInFlux then ?>\
+			- 2. * <?=getDepth("U", "cell")?>\
+<? end ?>\
+		))	/*.5 g h^2 n^i*/\
 	);\
 }
+<? end -- not eqn.useDefaultFluxFromCons ?>
 
 //// MODULE_NAME: <?=calcCellMinMaxEigenvalues?>
 
@@ -170,158 +182,30 @@ end
 	<?=primFromCons?>(&WL, solver, UL, (cellL)->pos);\
 	real const sqrtHL = sqrt(WL.h);\
 	real3 const vL = WL.v;\
-	\
+\
 	<?=prim_t?> WR;\
 	<?=primFromCons?>(&WR, solver, UR, (cellR)->pos);\
 	real const sqrtHR = sqrt(WR.h);\
 	real3 const vR = WR.v;\
-	\
+\
 	real const invDenom = 1. / (sqrtHL + sqrtHR);\
-	\
+\
 	/*Roe-averaged:*/\
-	(resultEig)->h = sqrtHL * sqrtHR;\
+\
+	/*(resultEig)->h = sqrtHL * sqrtHR;*/\
+	(resultEig)->h = .5 * ((UL)->h + (UR)->h);\
+\
 	(resultEig)->v = real3_add(\
 		real3_real_mul(vL, sqrtHL * invDenom),\
 		real3_real_mul(vR, sqrtHR * invDenom));\
 <? if not eqn.depthInCell then ?>\
-	(resultEig)->depth = .5 * ((UR)->depth + (UL)->depth);\
-<? else ?>\
-	(resultEig)->depth = .5 * ((cellR)->depth + (cellL)->depth);\
+	(resultEig)->depth = .5 * (<?=getDepth("UR","cellR")?> + <?=getDepth("UL","cellL")?>);\
 <? end ?>\
-	\
+\
 	/*derived:*/\
+\
 	real const CSq = solver->gravity * (resultEig)->h;\
 	(resultEig)->C = sqrt(CSq);\
-}
-
-//// MODULE_NAME: <?=eigen_leftTransform?>
-//// MODULE_DEPENDS: <?=waves_t?>
-
-#define <?=eigen_leftTransform?>(\
-	/*<?=waves_t?> * const */result,\
-	/*constant <?=solver_t?> const * const */solver,\
-	/*<?=eigen_t?> const * const */eig,\
-	/*<?=cons_t?> const * const */X_,\
-	/*real3 const */pt,\
-	/*<?=normal_t?> const */n\
-) { \
-	real3 const nL = normal_l1(n);\
-	real const nLen = normal_len(n);\
-	real const nLenSq = nLen * nLen;\
-	real3 const v_ns = normal_vecDotNs(n, (eig)->v);\
-	real const v_n = v_ns.x;\
-	real3 const n2U = normal_u2(n);\
-	real3 const n3U = normal_u3(n);\
-\
-	/*\
-	TODO double-check that this is the correct 3D generalization...\
-	 seems strange to have an upper dot an upper\
-	*/\
-	real const vU_dot_n2U = real3_dot((eig)->v, n2U);\
-	real const vU_dot_n3U = real3_dot((eig)->v, n3U);\
-\
-	real const C_nLen = (eig)->C * nLen;\
-	real const denom = 2. * (eig)->h * nLenSq;\
-	real const invDenom = 1. / denom;\
-\
-	(result)->ptr[0] = (\
-			  (X_)->ptr[0] * (-C_nLen - v_n) \
-			+ (X_)->ptr[1] * nL.x \
-			+ (X_)->ptr[2] * nL.y \
-			+ (X_)->ptr[3] * nL.z\
-		) * invDenom;\
-	(result)->ptr[1] = (\
-			  (X_)->ptr[0] * -vU_dot_n2U \
-			+ (X_)->ptr[1] * n2U.x \
-			+ (X_)->ptr[2] * n2U.y \
-			+ (X_)->ptr[3] * n2U.z\
-		) * 2. * invDenom;\
-	(result)->ptr[2] = (\
-			  (X_)->ptr[0] * -vU_dot_n3U \
-			+ (X_)->ptr[1] * n3U.x \
-			+ (X_)->ptr[2] * n3U.y \
-			+ (X_)->ptr[3] * n3U.z\
-		) * 2. * invDenom;\
-	(result)->ptr[3] = (\
-			  (X_)->ptr[0] * (C_nLen - v_n) \
-			+ (X_)->ptr[1] * nL.x \
-			+ (X_)->ptr[2] * nL.y \
-			+ (X_)->ptr[3] * nL.z\
-		) * invDenom;\
-}
-
-//// MODULE_NAME: <?=eigen_rightTransform?>
-//// MODULE_DEPENDS: <?=waves_t?>
-
-#define <?=eigen_rightTransform?>(\
-	/*<?=cons_t?> * const */result,\
-	/*constant <?=solver_t?> const * const */solver,\
-	/*<?=eigen_t?> const * const */eig,\
-	/*<?=waves_t?> const * const */X_,\
-	/*real3 const */pt,\
-	/*<?=normal_t?> const */n\
-) {\
-	real3 const nU = normal_u1(n);\
-	real const nLen = normal_len(n);\
-	real const invC = 1. / (eig)->C;\
-\
-	(result)->ptr[0] = \
-		nLen * (eig)->h * invC * ((X_)->ptr[3] - (X_)->ptr[0]);\
-		\
-	(result)->ptr[1] = \
-		((X_)->ptr[0] + (X_)->ptr[3]) * (eig)->h * nU.x \
-		+ ((X_)->ptr[3] - (X_)->ptr[0]) * (nLen * (eig)->h * invC * (eig)->v.x)\
-		+ (eig)->h * ((X_)->ptr[1] * normal_l2x(n) + (X_)->ptr[2] * normal_l3x(n));\
-		\
-	(result)->ptr[2] = \
-		((X_)->ptr[0] + (X_)->ptr[3]) * (eig)->h * nU.y\
-		+ ((X_)->ptr[3] - (X_)->ptr[0]) * (nLen * (eig)->h * invC * (eig)->v.y)\
-		+ (eig)->h * ((X_)->ptr[1] * normal_l2y(n) + (X_)->ptr[2] * normal_l3y(n));\
-\
-	(result)->ptr[3] = \
-		((X_)->ptr[0] + (X_)->ptr[3]) * (eig)->h * nU.z\
-		+ ((X_)->ptr[3] - (X_)->ptr[0]) * (nLen * (eig)->h * invC * (eig)->v.z)\
-		+ (eig)->h * ((X_)->ptr[1] * normal_l2z(n) + (X_)->ptr[2] * normal_l3z(n));\
-}
-
-//// MODULE_NAME: <?=eigen_fluxTransform?>
-
-#define <?=eigen_fluxTransform?>(\
-	/*<?=cons_t?> * const */resultFlux,\
-	/*constant <?=solver_t?> const * const */solver,\
-	/*<?=eigen_t?> const * const */eig,\
-	/*<?=cons_t?> const * const */X_,\
-	/*<?=cell_t?> const * const */cell,\
-	/*<?=normal_t?> const */n\
-) {\
-	real3 const nL = normal_l1(n);\
-	real3 const nU = normal_u1(n);\
-	real const CSq = (eig)->C * (eig)->C;\
-	real3 const v_ns = normal_vecDotNs(n, (eig)->v);\
-	real const v_n = v_ns.x;\
-\
-	(resultFlux)->ptr[0] = \
-		(X_)->ptr[1] * nL.x \
-		+ (X_)->ptr[2] * nL.y \
-		+ (X_)->ptr[3] * nL.z;\
-		\
-	(resultFlux)->ptr[1] = \
-		(X_)->ptr[0] * (CSq * nU.x - (eig)->v.x * v_n)\
-		+ (X_)->ptr[1] * ((eig)->v.x * nL.x + v_n)\
-		+ (X_)->ptr[2] * ((eig)->v.x * nL.y)\
-		+ (X_)->ptr[3] * ((eig)->v.x * nL.z);\
-		\
-	(resultFlux)->ptr[2] = \
-		(X_)->ptr[0] * (CSq * nU.y - (eig)->v.y * v_n)\
-		+ (X_)->ptr[1] * ((eig)->v.y * nL.x)\
-		+ (X_)->ptr[2] * ((eig)->v.y * nL.y + v_n)\
-		+ (X_)->ptr[3] * ((eig)->v.y * nL.z);\
-		\
-	(resultFlux)->ptr[3] = \
-		(X_)->ptr[0] * (CSq * nU.z - (eig)->v.z * v_n)\
-		+ (X_)->ptr[1] * ((eig)->v.z * nL.x)\
-		+ (X_)->ptr[2] * ((eig)->v.z * nL.y)\
-		+ (X_)->ptr[3] * ((eig)->v.z * nL.z + v_n);\
 }
 
 //// MODULE_NAME: <?=eigen_forCell?>
@@ -343,7 +227,94 @@ end
 	(resultEig)->C = C;\
 }
 
-<? if false then ?>
+//// MODULE_NAME: <?=eigen_leftTransform?>
+//// MODULE_DEPENDS: <?=waves_t?>
+
+#define <?=eigen_leftTransform?>(\
+	/*<?=waves_t?> * const */result,\
+	/*constant <?=solver_t?> const * const */solver,\
+	/*<?=eigen_t?> const * const */eig,\
+	/*<?=cons_t?> const * const */X,\
+	/*real3 const */pt,\
+	/*<?=normal_t?> const */n\
+) { \
+	real3 const nL = normal_l1(n);\
+	real3 const n2L = normal_l2(n);\
+	real3 const n3L = normal_l3(n);\
+	real const nLen = normal_len(n);\
+	real const v_n = normal_vecDotN1(n, (eig)->v);\
+\
+	real const invDenom = 1. / (2. * (eig)->h * nLen * nLen);\
+\
+	real const tmp1 = nLen * (X)->ptr[0];\
+	real const tmp2 = (eig)->C * tmp1;\
+	real const tmp3 = nL.x * (X)->ptr[1];\
+	real const tmp5 = nL.y * (X)->ptr[2];\
+	real const tmp7 = nL.z * (X)->ptr[3];\
+	real const tmp8 = v_n * (X)->ptr[0];\
+	real const tmp12 = (eig)->v.x * (X)->ptr[0];\
+	real const tmp13 = (eig)->v.y * (X)->ptr[0];\
+	real const tmp14 = (eig)->v.z * (X)->ptr[0];\
+	(result)->ptr[0] = invDenom * -(tmp8 + tmp2 - tmp3 - tmp5 - tmp7);\
+	(result)->ptr[1] = invDenom * -2. * (n2L.z * tmp14 - n2L.x * (X)->ptr[1] - n2L.y * (X)->ptr[2] - n2L.z * (X)->ptr[3] + n2L.y * tmp13 + n2L.x * tmp12);\
+	(result)->ptr[2] = invDenom * -2. * (n3L.z * tmp14 - n3L.x * (X)->ptr[1] - n3L.y * (X)->ptr[2] - n3L.z * (X)->ptr[3] + n3L.y * tmp13 + n3L.x * tmp12);\
+	(result)->ptr[3] = invDenom * -(tmp8 - tmp2 - tmp3 - tmp5 - tmp7);\
+}
+
+//// MODULE_NAME: <?=eigen_rightTransform?>
+//// MODULE_DEPENDS: <?=waves_t?>
+
+#define <?=eigen_rightTransform?>(\
+	/*<?=cons_t?> * const */result,\
+	/*constant <?=solver_t?> const * const */solver,\
+	/*<?=eigen_t?> const * const */eig,\
+	/*<?=waves_t?> const * const */X,\
+	/*real3 const */pt,\
+	/*<?=normal_t?> const */n\
+) {\
+	real3 const nU = normal_u1(n);\
+	real3 const n2U = normal_u2(n);\
+	real3 const n3U = normal_u3(n);\
+	real const nLen = normal_len(n);\
+\
+	real const invDenom = 1. / (eig)->C;\
+\
+	real const tmp5 = (eig)->C * (X)->ptr[0];\
+	real const tmp6 = nLen * (X)->ptr[0];\
+	real const tmp9 = (eig)->C * (X)->ptr[1];\
+	real const tmp10 = (eig)->C * (X)->ptr[2];\
+	real const tmp11 = (eig)->C * (X)->ptr[3];\
+	real const tmp12 = nLen * (X)->ptr[3];\
+	real const tmp22 = invDenom * (eig)->h;\
+	(result)->ptr[0] = invDenom * -nLen * (eig)->h * ((X)->ptr[0] - (X)->ptr[3]);\
+	(result)->ptr[1] = tmp22 * ((eig)->v.x * tmp12 + nU.x * tmp11 + n3U.x * tmp10 + n2U.x * tmp9 + nU.x * tmp5 - (eig)->v.x * tmp6);\
+	(result)->ptr[2] = tmp22 * ((eig)->v.y * tmp12 + nU.y * tmp11 + n3U.y * tmp10 + n2U.y * tmp9 + nU.y * tmp5 - (eig)->v.y * tmp6);\
+	(result)->ptr[3] = tmp22 * ((eig)->v.z * tmp12 + nU.z * tmp11 + n3U.z * tmp10 + n2U.z * tmp9 + nU.z * tmp5 - (eig)->v.z * tmp6);\
+}
+
+//// MODULE_NAME: <?=eigen_fluxTransform?>
+
+#define <?=eigen_fluxTransform?>(\
+	/*<?=cons_t?> * const */result,\
+	/*constant <?=solver_t?> const * const */solver,\
+	/*<?=eigen_t?> const * const */eig,\
+	/*<?=cons_t?> const * const */X,\
+	/*<?=cell_t?> const * const */cell,\
+	/*<?=normal_t?> const */n\
+) {\
+	real3 const nL = normal_l1(n);\
+	real3 const nU = normal_u1(n);\
+	real const v_n = normal_vecDotN1(n, (eig)->v);\
+\
+	real const tmp5 = v_n * (X)->ptr[0];\
+	real const tmp6 = (eig)->h * (X)->ptr[0];\
+	real const tmp7 = solver->gravity * tmp6;\
+	(result)->ptr[0] = nL.z * (X)->ptr[3] + nL.y * (X)->ptr[2] + nL.x * (X)->ptr[1];\
+	(result)->ptr[1] = -((eig)->v.x * tmp5 - nU.x * tmp7 - nL.x * (eig)->v.x * (X)->ptr[1] - v_n * (X)->ptr[1] - nL.y * (eig)->v.x * (X)->ptr[2] - nL.z * (eig)->v.x * (X)->ptr[3]);\
+	(result)->ptr[2] = -((eig)->v.y * tmp5 - nU.y * tmp7 - nL.x * (eig)->v.y * (X)->ptr[1] - nL.y * (eig)->v.y * (X)->ptr[2] - v_n * (X)->ptr[2] - nL.z * (eig)->v.y * (X)->ptr[3]);\
+	(result)->ptr[3] = -((eig)->v.z * tmp5 - nU.z * tmp7 - nL.x * (eig)->v.z * (X)->ptr[1] - nL.y * (eig)->v.z * (X)->ptr[2] - nL.z * (eig)->v.z * (X)->ptr[3] - v_n * (X)->ptr[3]);\
+}
+
 //// MODULE_NAME: <?=addSource?>
 
 kernel void <?=addSource?>(
@@ -368,6 +339,7 @@ kernel void <?=addSource?>(
 	//TODO instead: treat the cell values constant at center and integrate conn across the cell.
 	real const volume = cell_volume(pt);
 
+#if 0
 //// MODULE_DEPENDS: <?=coord_conn_apply23?>
 	//covariant derivative connection:
 	//integral -vol Γ^i_jk h v^j v^k dx^3
@@ -389,13 +361,14 @@ kernel void <?=addSource?>(
 			.5 * volume * solver->gravity * U->h * U->h
 		)
 	);
-
+#endif
+#if 1
 // \partial_tilde{j} depth
 <?=eqn:makePartial1(
-	"depth",	-- field
-	"real",		-- fieldType ... needs to be manually specified if we are pulling from a field that is not in consStruct, where the inferred types are checked
-	nil,		-- nameOverride
-	eqn.depthInCell and "cell" or nil		-- srcName (cellBuf instead of UBuf)
+	"depth",			-- field
+	"real",				-- fieldType ... needs to be manually specified if we are pulling from a field that is not in consStruct, where the inferred types are checked
+	nil,				-- nameOverride
+	getDepthSource()	-- srcName (cellBuf instead of UBuf)
 )?>
 
 //// MODULE_DEPENDS: <?=coord_holBasisLen_i?>
@@ -406,6 +379,11 @@ kernel void <?=addSource?>(
 		partial_depth_l.z / coord_holBasisLen2(pt)
 	);
 
+	//negate changes in h due to differences in water from resting depth?
+	//h += v^j nabla_j H
+	//deriv->h += real3_dot(U->m, e_depth_l) / U->h;
+	//but then again, this should only happen proportional to the velocity, when at zero shouldn't change the height
+
 	//2011 Berger, eqn 1
 //// MODULE_DEPENDS: <?=coord_raise?>
 	//g^ij e_j(depth)
@@ -413,16 +391,18 @@ kernel void <?=addSource?>(
 
 	//source of shallow water equations:
 	//integral vol g h g^ij e_j(d) dx^3
-	deriv->m = real3_sub(
+	// this value needs to match whatever is generated by the flux update of d/dt h when H varies in order for constant-(h-H) to be a steady-state.
+	deriv->m = real3_add(
 		deriv->m,
 		real3_real_mul(
 			e_depth_u,
-			volume * solver->gravity * U->h
+			solver->gravity * U->h
 		)
 	);
-	
+#endif
+#if 0
 	//2011 Berger, eqn 3
 	real const drag = solver->gravity * solver->Manning * solver->Manning * coordLen(U->m, pt) * pow(U->h, -8./3.);	//|u|/h^(5/3) = |m|*h^(-8/3)
 	deriv->m = real3_sub(deriv->m, U->m);
+#endif
 }
-<? end ?>

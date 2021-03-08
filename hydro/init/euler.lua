@@ -2665,6 +2665,214 @@ kernel void addExtraSource(
 			error("TODO")
 		end,
 	},
+
+	--1999 Hudson - "Numerical Techniques for the Shallow Water Equations"
+	{
+		name = 'shallow water constant',
+		solverVars = {
+			water_D = .5,
+		},
+		getInitCondCode = function(self)
+			return [[
+	real const s = .5 * (x.x + 1.);
+
+	//this is bathymetry depth
+	real water_B = 0.;
+#if 1
+	if (.4 <= s && s <= .6) {
+		water_B = (1./8.) * (cos(10. * M_PI * (s - .5)) + 1.);
+	}
+#else
+/*	
+	with g = 1, D = 0, with source disabled:
+	
+	hll: mx,t : 0.05 -> 0.045	<- this is the correct flux value 
+	when roeUseFluxFromCons==false:
+	roe: mx,t : 0.1 -> 0.09		<- this is doubled, due to dF/dU * U doubling the g h^2 term compared to F's 1/2 g h^2
+	when roeUseFluxFromCons==true:	<- this is the correct flux value
+	hll: mx,t : 0.05 -> 0.045
+
+	hll: Fh : .0000105 -> .00000905
+	roe: Fh : .0000105 -> .00000905
+
+	hll: Fmx : 0.5 -> 0.405
+	when roeUseFluxFromCons==false:
+	roe: Fmx : 1 -> 0.81
+
+... why is the roe derivative half of the hll derivative?
+is it always , in all cases?
+
+what should this be?
+g = 1
+U = [h, hv]
+F = [hv, hv^2 + .5 g h^2]
+dF/dx = [
+	(v) dh/dx + (h) dv/dx,
+	(v^2 + g h) dh/dx + (h v) dv/dx
+]
+h = 1 - .1 s, s in [0,1], s = .5 (x + 1)
+v = 0
+U = [1 - .1 s, 0]
+F = [0, .5 (1 - .1 s)^2]
+	= [0, .5  to .405]
+dF/dx = [0, .1 g (1 - .1 s)]
+	  = [0, .1  - .01 s]
+	  = from .1 to .09
+So roe is giving dF/dx, hll is giving F 
+Why do I get the feeling that in some places I'm using F in place of dF/dx ?
+Turns out this mixup is used throughout literature
+because it just so happens that, for the Euler fluid equations, dF/dU * U = F, so everyone assumes it's true.
+Probably because the U terms within dF/dU happen to be linear?  
+Whereas for the shallow-water equation one term is quadratic (which makes the 1/2 disappear in the derivative).
+
+So new question, which is correct?
+Do we want 'calcFluxForInterface' to calculate F, which fvsolver then linearly approximates as dF/dx ~ (FR-FL)/(xR-xL)?
+Or likewise by the divergence theorem that int div F dV = int F dot n dS? 
+In both cases it looks like F is wanted, not dF/dU.
+*/
+	water_B = .1 * s;
+#endif
+
+	real const water_H = solver->water_D - water_B;
+	depth = water_H;
+	
+	// this is wave height for shallow water equations:
+	real const water_h = 1. - water_B;
+	
+	//here's our placeholder variable I call 'rho' just for compat with euler fluid equation code
+	rho = water_h;
+]]
+		end,
+	},
+
+	--1999 Hudson - "Numerical Techniques for the Shallow Water Equations"
+	-- problem B
+	{
+		name = 'shallow water problem B',
+		solverVars = {
+			water_D = .5,
+		},
+		getInitCondCode = function(self)
+			return [[
+	real const s = x.x * .5 + .5;
+
+	//this is bathymetry depth
+	real water_B = 0.;
+	if (.4 <= s && s <= .6) {
+		water_B = (1./8.) * (cos(10. * M_PI * (s - .5)) + 1.);
+	}
+
+	real const water_H = solver->water_D - water_B;
+	depth = water_H;
+	
+	// this is wave height for shallow water equations:
+	real water_h;
+	if (s < .5) {
+		water_h = 1 - water_B;
+	} else {
+		water_h = .5 - water_B;
+	}
+	//here's our placeholder variable I call 'rho' just for compat with euler fluid equation code
+	rho = water_h;
+]]
+		end,
+	},
+
+	--1999 Hudson - "Numerical Techniques for the Shallow Water Equations"
+	-- problem C
+	{
+		name = 'shallow water problem C',
+		solverVars = {
+			water_D = .5,
+		},
+		getInitCondCode = function(self)
+			return [[
+	real const s = (x.x - solver->initCondMins.x) / (solver->initCondMaxs.x - solver->initCondMins.x);
+
+	//this is bathymetry depth
+	real water_B = 0.;
+	if (.4 <= s && s <= .6) {
+		water_B = (1./8.) * (cos(10. * M_PI * (s - .5)) + 1.);
+	}
+
+	real const water_H = solver->water_D - water_B;
+	depth = water_H;
+	
+	// this is wave height for shallow water equations:
+	real water_h;
+	if (s < .1) {
+		water_h = 1. - water_B;
+	} else if (s < .2) {
+		water_h = 1.2 - water_B;
+	} else {
+		water_h = 1. - water_B;
+	}
+
+	//here's our placeholder variable I call 'rho' just for compat with euler fluid equation code
+	rho = water_h;
+]]
+		end,
+	},
+
+	{
+		name = 'shallow water parabola',
+		getInitCondCode = function(self)
+			return [[
+	real const s = (x.x - solver->initCondMins.x) / (solver->initCondMaxs.x - solver->initCondMins.x);
+
+	//this is bathymetry depth
+	real const water_B = 2. * x.x * x.x - 1.;
+
+	real const water_H = solver->water_D - water_B;
+	depth = water_H;
+	
+	// this is wave height for shallow water equations:
+	real water_h;
+	if (s < .1) {
+		water_h = -water_B;
+	} else if (s < .2) {
+		water_h = .2 - water_B;
+	} else {
+		water_h = -water_B;
+	}
+
+	if (water_h < water_H) water_h = water_H;
+	if (water_h < 0) water_h = 0;
+
+	//here's our placeholder variable I call 'rho' just for compat with euler fluid equation code
+	rho = water_h;
+]]
+		end,
+	},
+
+
+	-- 2003 Rogers et al "Mathematical balancing of flux gradient and source terms prior to using Roe's approximate Riemann solver"
+	-- section 4.2.3
+	-- TODO boundary condition with inflow of 0.18 m^2 / s (after renomralizing my domain from [-1,1] to [0,25])
+	-- and then depth at right boundary is 0.33 m 
+	-- ... what's the depth at left boundary?
+	-- Figure 4.c looks like it's constant acceleration across the grid of 0.18 m/s^2 (m^2/s a typo?)
+	-- still, what's the left boundary depth?
+	{
+		name = '2003 Rogers',
+		getInitCondCode = function(self)
+			return [[
+	real const s = (x.x - solver->initCondMins.x) / (solver->initCondMaxs.x - solver->initCondMins.x);
+	
+	if (8./25. < s && s < 12./25.) {
+		water_B = 0.05 * (s - 10./25.) * (s - 10./25.);
+	} else {
+		water_B = 0.2;
+	}
+
+	real const water_H = solver->water_D - water_B;
+	depth = water_H;
+
+	rho = -water_B;
+]]
+		end,
+	},
+
 }:mapi(function(cl)
 	return class(EulerInitCond, cl)
 end)
