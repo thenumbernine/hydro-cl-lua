@@ -3,7 +3,7 @@ TODO one config per experiment (initial condition + config)
 and no more setting config values (boundary, etc) in the init cond file
 --]]
 
-local dim = cmdline.dim or 1
+local dim = cmdline.dim or 3
 local args = {
 	app = self, 
 	eqn = cmdline.eqn,
@@ -121,7 +121,7 @@ local args = {
 			['AMD Accelerated Parallel Processing/gfx1010/gfx902'] = {
 				{256,1,1},
 				{256,256,1},
-				{64,64,64},
+				{32,32,32},
 			},	
 		})[platAndDevicesNames]
 		-- default size options

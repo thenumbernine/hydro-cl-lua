@@ -347,7 +347,7 @@ function Euler:getDisplayVars()
 		name = 'state line',
 		type = 'real3',
 		units = '1',
-		code = 'value.vreal3 = _real3(W.rho, W.v.x, W.P);',
+		code = 'value.vreal3 = _real3(W.rho, coordLen(W.v, x) * sign(W.v.x), W.P);',
 	}
 
 	return vars
