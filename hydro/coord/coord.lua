@@ -919,7 +919,7 @@ self.compilePrintRequestTensor = compilePrintRequestTensor
 			return volume
 		end,
 		result = 'real',
-		define = true,	-- anything that references integraGridDx needs to be #define, or needs to add a solver param
+		define = 'with solver arg',	-- anything that references integraGridDx needs to be #define, or needs to add a solver param
 	}
 
 	self.calc.coord_sqrt_gHol_ll = {

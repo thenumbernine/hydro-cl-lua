@@ -205,7 +205,7 @@ end
 local poissonKrylovCode = [[
 
 //// MODULE_NAME: <?=linearFunc?>
-//// MODULE_DEPENDS: <?=cell_dx_i?> <?=cell_sqrt_det_g?>
+//// MODULE_DEPENDS: <?=cell_dx_i?> <?=cell_volume?>
 
 kernel void <?=linearFunc?>(
 	constant <?=solver_t?> const * const solver,
@@ -228,12 +228,12 @@ kernel void <?=linearFunc?>(
 	real3 volL, volR;
 <? for j=0,solver.dim-1 do 
 ?>	xInt.s<?=j?> = x.s<?=j?> - .5 * solver->grid_dx.s<?=j?>;
-	volL.s<?=j?> = cell_sqrt_det_g(solver, xInt);
+	volL.s<?=j?> = cell_volume(solver, xInt);
 	xInt.s<?=j?> = x.s<?=j?> + .5 * solver->grid_dx.s<?=j?>;
-	volR.s<?=j?> = cell_sqrt_det_g(solver, xInt);
+	volR.s<?=j?> = cell_volume(solver, xInt);
 	xInt.s<?=j?> = x.s<?=j?>;
 <? end 
-?>	real volAtX = cell_sqrt_det_g(solver, x);
+?>	real volAtX = cell_volume(solver, x);
 
 	real sum = (0.
 <? for j=0,solver.dim-1 do ?>

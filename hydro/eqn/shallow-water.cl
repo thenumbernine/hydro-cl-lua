@@ -337,7 +337,7 @@ kernel void <?=addSource?>(
 //// MODULE_DEPENDS: <?=cell_volume?>
 	//I'm treating conn as if it is fixed at the cell center.
 	//TODO instead: treat the cell values constant at center and integrate conn across the cell.
-	real const volume = cell_volume(pt);
+	real const volume = cell_volume(solver, pt);
 
 #if 0
 //// MODULE_DEPENDS: <?=coord_conn_apply23?>

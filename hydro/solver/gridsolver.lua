@@ -253,7 +253,7 @@ naming conventions ...
 	- the Cartesian length of the holonomic basis vectors is given by coord_dx?(x).  
 		This is like cell_dx? except not scaled by grid_dx?
 		This is just the change in embedded wrt the change in coordinate, not wrt the change in grid
-	- cell_volume(x) gives the volume between indexes at the coordinate x
+	- cell_volume() gives the volume between indexes at the coordinate x
 	- the Cartesian length of a vector in coordinate space is given by coordLen and coordLenSq
 * the embedded Cartesian space ... idk what letters I should use for this.  
 	Some literature uses r^i or u^i vs coordinate space x^a.

@@ -10,7 +10,7 @@ local real_mul = scalar.."_real_mul"
 ?>
 
 //// MODULE_NAME: <?=solveJacobi?>
-//// MODULE_DEPENDS: <?=cell_sqrt_det_g?> <?=cell_dx_i?> <?=table.concat(op.codeDepends or {}, ' ')?>
+//// MODULE_DEPENDS: <?=cell_volume?> <?=cell_dx_i?> <?=table.concat(op.codeDepends or {}, ' ')?>
 /*
 called every Jacobi method iteration
 
@@ -67,12 +67,12 @@ end ?>
 	real3 volL, volR;
 <? for j=0,solver.dim-1 do 
 ?>	xInt.s<?=j?> = x.s<?=j?> - .5 * solver->grid_dx.s<?=j?>;
-	volL.s<?=j?> = cell_sqrt_det_g(solver, xInt);
+	volL.s<?=j?> = cell_volume(solver, xInt);
 	xInt.s<?=j?> = x.s<?=j?> + .5 * solver->grid_dx.s<?=j?>;
-	volR.s<?=j?> = cell_sqrt_det_g(solver, xInt);
+	volR.s<?=j?> = cell_volume(solver, xInt);
 	xInt.s<?=j?> = x.s<?=j?>;
 <? end 
-?>	real const volAtX = cell_sqrt_det_g(solver, x);
+?>	real const volAtX = cell_volume(solver, x);
 
 <? 
 --[=[

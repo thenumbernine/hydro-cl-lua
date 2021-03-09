@@ -40,7 +40,7 @@ then ?>
 ?>;
 <? else ?>
 //// MODULE_DEPENDS: <?=cell_volume?> 
-	real const volume = cell_volume(x);
+	real const volume = cell_volume(solver, x);
 <? end ?>
 
 	<? for side=0,solver.dim-1 do ?>{
