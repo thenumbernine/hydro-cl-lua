@@ -1,7 +1,10 @@
 //// MODULE_NAME: <?=eqn_common?>
 //// MODULE_DEPENDS: <?=coordLenSq?> <?=cons_only_t?> <?=prim_only_t?>
 
-//pressure function for ideal gas
+/*
+pressure function for ideal gas
+P = (γ-1) ρ eInt 
+*/
 #define calc_P(\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*real const */rho,\
@@ -9,7 +12,12 @@
 )\
 	((solver->heatCapacityRatio - 1.) * (rho) * (eInt))
 
-//chi in most papers
+/*
+χ = dP/dρ in most papers
+P = (γ-1) ρ eInt 
+dP/dρ = (γ-1) eInt 
+χ = (γ-1) eInt 
+*/
 #define calc_dP_drho(\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*real const */rho,\
@@ -17,13 +25,14 @@
 )\
 	((solver->heatCapacityRatio - 1.) * (eInt))
 
-//kappa in most papers
-#define calc_dP_deInt(\
-	/*constant <?=solver_t?> const * const */solver,\
-	/*real const */rho,\
-	/*real const */eInt\
+/*
+κ = dP/deInt in most papers
+κTilde = κ/ρ
+*/
+#define calc_dP_deInt_over_rho(\
+	/*constant <?=solver_t?> const * const */solver\
 )\
-	((solver->heatCapacityRatio - 1.) * (rho))
+	(solver->heatCapacityRatio - 1.)
 
 #define calc_eInt_from_P(\
 	/*constant <?=solver_t?> const * const */solver,\
@@ -32,12 +41,51 @@
 )\
 	((P) / ((solver->heatCapacityRatio - 1.) * (rho)))
 
+/*
+h = 1 + eInt + P / ρ
+ P = (γ-1) ρ eInt 
+h = 1 + eInt + ((γ-1) ρ eInt) / ρ 
+h = 1 + eInt + (γ-1) eInt
+h = 1 + γ eInt
+*/
 #define calc_h(\
-	/*real const */rho,\
-	/*real const */P,\
+	/*constant <?=solver_t?> const * const */solver,\
 	/*real const */eInt\
 )\
-	(1. + (eInt) + (P) / (rho))
+	(1. + solver->heatCapacityRatio * (eInt))
+
+/*
+just after 2008 Font eqn 107: 
+h cs^2 = χ + P / ρ^2 κ = dp/dρ + p / ρ^2 dp/deInt 
+ = (γ-1) eInt + P/ρ^2 (γ-1) ρ  for an ideal gas 
+ = (γ-1) (eInt + P/ρ) 
+ = 1/ρ ( (γ-1) ρ eInt + (γ-1) P ) 
+ = 1/ρ ( P + (γ-1) P) 
+ = γ P / ρ 
+... but keep going ... 
+cs^2 = γ P / (h ρ) 
+ h = 1 + eInt + P / ρ 
+cs^2 = γ P / (ρ (1 + eInt + P / ρ)) 
+cs^2 = γ P / (P + ρ (1 + eInt)) 
+cs^2 = γ / ( (P + ρ (1 + eInt)) / P ) 
+cs^2 = γ / (1 + ρ (1 + eInt) / P) 
+ P = (γ-1) ρ eInt 
+cs^2 = γ / (1 + ρ (1 + eInt) / ((γ-1) ρ eInt) ) 
+cs^2 = γ / (1 + (1 + 1 / eInt) / (γ-1) ) 
+wow, when you simplify all those Cs variables, everything cancels out except eInt ...
+*/
+#define calc_CsSq(\
+	/* constant <?=solver_t?> const * const */solver,\
+	/*real const */eInt\
+)\
+	(solver->heatCapacityRatio / (1. + (1. + 1. / (eInt) ) / (solver->heatCapacityRatio - 1.)))
+
+#define calc_Cs(\
+	/* constant <?=solver_t?> const * const */solver,\
+	/*real const */eInt\
+)\
+	(sqrt(calc_CsSq(solver, eInt)))
+
 
 #define consFromPrimOnly(\
 	/*<?=cons_t?> * const */result,\
@@ -49,17 +97,17 @@
 	real const WSq = 1. / (1. - vSq);\
 	real const W = sqrt(WSq);\
 	real const P = calc_P(solver, (prim)->rho, (prim)->eInt);\
-	real const h = calc_h((prim)->rho, P, (prim)->eInt);\
+	real const h = calc_h(solver, (prim)->eInt);\
 \
 	/* 2008 Font, eqn 40-42: */\
 \
-	/* rest-mass density = J^0 = rho u^0 */\
+	/* rest-mass density = J^0 = ρ u^0 */\
 	(result)->D = (prim)->rho * W;	\
 \
-	/* momentum = T^0i = rho h u^0 u^i + P g^0i */\
+	/* momentum = T^0i = ρ h u^0 u^i + P g^0i */\
 	(result)->S = real3_real_mul((prim)->v, (prim)->rho * h * WSq);\
 \
-	/* energy = T^00 = rho h u^0 u^0 + P g^00 */\
+	/* energy = T^00 = ρ h u^0 u^0 + P g^00 */\
 	(result)->tau = (prim)->rho * h * WSq - (result)->D - P;\
 \
 	(result)->rho = (prim)->rho;\
@@ -80,17 +128,17 @@
 	real const WSq = 1. / (1. - vSq);\
 	real const W = sqrt(WSq);\
 	real const P = calc_P(solver, (U)->rho, (U)->eInt);\
-	real const h = calc_h((U)->rho, P, (U)->eInt);\
+	real const h = calc_h(solver, (U)->eInt);\
 \
 	/* 2008 Font, eqn 40-42: */\
 \
-	/* rest-mass density = J^0 = rho u^0 */\
+	/* rest-mass density = J^0 = ρ u^0 */\
 	(result)->D = (U)->rho * W;	\
 \
-	/* momentum = T^0i = rho h u^0 u^i + P g^0i */\
+	/* momentum = T^0i = ρ h u^0 u^i + P g^0i */\
 	(result)->S = real3_real_mul((U)->v, (U)->rho * h * WSq);\
 \
-	/* energy = T^00 = rho h u^0 u^0 + P g^00 */\
+	/* energy = T^00 = ρ h u^0 u^0 + P g^00 */\
 	(result)->tau = (U)->rho * h * WSq - (result)->D - P;\
 }
 
@@ -186,12 +234,9 @@ void <?=applyInitCondCell?>(
 	/*global <?=cell_t?> const * const */cell\
 ) {\
 	real3 const x = cell->pos;\
-	real const rho = (U)->rho;\
 	real const eInt = (U)->eInt;\
 	real const vSq = coordLenSq((U)->v, x);\
-	real const P = calc_P(solver, rho, eInt);\
-	real const h = calc_h(rho, P, eInt);\
-	real const csSq = solver->heatCapacityRatio * P / (rho * h);\
+	real const csSq = calc_CsSq(solver, eInt);\
 	real const cs = sqrt(csSq);\
 	<? for side=0,solver.dim-1 do ?>{\
 		<?=normal_t?> const n = normal_forSide<?=side?>(x);\
@@ -231,7 +276,7 @@ void <?=applyInitCondCell?>(
 		.eInt = .5 * ((UL)->eInt + (UR)->eInt),\
 	};\
 <? -- else -- Roe-averaging, Font 2008 eqn 38 ?>\
-	/*  weight by k = sqrt(sqrt(g) rho h) */\
+	/*  weight by k = sqrt(sqrt(g) ρ h) */\
 <? end ?>\
 \
 	/*  rotate avg.v into n */\
@@ -247,21 +292,13 @@ void <?=applyInitCondCell?>(
 	real const oneOverW2 = 1. - vSq;\
 	real const oneOverW = sqrt(oneOverW2);\
 	real const W = 1. / oneOverW;\
-	real const W2 = 1. / oneOverW2;\
-	real const P = (solver->heatCapacityRatio - 1.) * rho * eInt;\
-	real const h = 1. + eInt + P / rho;\
+	/*real const W2 = 1. / oneOverW2;*/\
+	/*real const P = calc_P(solver, rho, eInt);*/\
+	/*real const hW = h * W;*/\
+	real const h = calc_h(solver, eInt);\
 \
-	real const hW = h * W;\
-\
-	/* just after 2008 Font eqn 107: */\
-	/* h cs^2 = chi + P / rho^2 kappa = dp/drho + p / rho^2 dp/deInt */\
-	/*  = (gamma-1) eInt + P/rho^2 (gamma-1) rho  for an ideal gas */\
-	/*  = (gamma-1) (eInt + P/rho) */\
-	/*  = 1/rho ( (gamma-1) rho eInt + (gamma-1) P ) */\
-	/*  = 1/rho ( P + (gamma-1) P) */\
-	/*  = gamma P / rho */\
 	real const vxSq = v.x * v.x;\
-	real const csSq = solver->heatCapacityRatio * P / (rho * h);\
+	real const csSq = calc_CsSq(solver, eInt);\
 	real const cs = sqrt(csSq);\
 \
 	real const discr = sqrt((1. - vSq) * ((1. - vSq * csSq) - vxSq * (1. - csSq)));\
@@ -280,8 +317,9 @@ void <?=applyInitCondCell?>(
 	real const CMinus = vL.x - VMinus;	/* 2008 Font eqn 112 */\
 	real const CPlus = vL.x - VPlus;	/* 2008 Font eqn 112 */\
 \
-	real const kappa = calc_dP_deInt(solver, rho, eInt);	/* 2008 Font note just after eqn 107 */\
-	real const kappaTilde = kappa / rho;	/* 2008 Font eqn 112.   */\
+	/* κ = dP/deInt = d/deInt ( (γ-1) ρ eInt ) = (γ-1) ρ -- 2008 Font note just after eqn 107 */\
+	/* ~κ = κ / ρ = γ-1  -- 2008 Font eqn 112 */\
+	real const kappaTilde = calc_dP_deInt_over_rho(solver);\
 	/* used by evL and evR */\
 	real const Kappa = kappaTilde / (kappaTilde - csSq);	/* 2008 Font eqn 112.   */\
 	/* Kappa = h;	/ * approx for ideal gas */\
@@ -556,16 +594,16 @@ kernel void <?=addSource?>(
 	real const P = calc_P(solver, U->rho, U->eInt);
 	real3 const Ftau = real3_sub(U->S, real3_real_mul(U->v, U->D));
 
-	/* - Conn^i_jk S^j v^k  */
+	/* - Γ^i_jk S^j v^k  */
 	deriv->S = real3_sub(deriv->S, coord_conn_apply23(U->S, U->v, x));	
 	
-	/* - Conn^i_jk g^jk P */
+	/* - Γ^i_jk g^jk P */
 	deriv->S = real3_sub(deriv->S, real3_real_mul(coord_conn_trace23(x), P));
 	
-	/* + (gamma-1) rho v^k v^l Gamma_kjl g^ij */
+	/* + (γ-1) ρ v^k v^l Γ_kjl g^ij */
 	deriv->S = real3_add(deriv->S, real3_real_mul(coord_conn_apply13(U->v, U->S, x), (solver->heatCapacityRatio - 1.) ));	
 	
-	/* - (gamma-1) rho v^j v^k v^l Gamma_jkl */
+	/* - (γ-1) ρ v^j v^k v^l Γ_jkl */
 /* 	deriv->ETotal -= (solver->heatCapacityRatio - 1.) * coord_conn_apply123(U->v, U->v, U->S, x);	 */
 <? end ?>
 }

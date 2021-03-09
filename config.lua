@@ -3,7 +3,7 @@ TODO one config per experiment (initial condition + config)
 and no more setting config values (boundary, etc) in the init cond file
 --]]
 
-local dim = cmdline.dim or 3
+local dim = cmdline.dim or 2
 local args = {
 	app = self, 
 	eqn = cmdline.eqn,
@@ -249,7 +249,7 @@ local args = {
 	--initCond = 'Bessel',
 	--initCond = 'jet',
 	
-	initCond = 'Sod',
+	--initCond = 'Sod',
 	--initCond = 'Sod with physical units',
 	--initCondArgs = {dim=cmdline.displayDim},
 	
@@ -311,7 +311,7 @@ local args = {
 
 
 	-- self-gravitation tests:
-	--initCond = 'self-gravitation - Earth',	-- validating units along with self-gravitation.
+	initCond = 'self-gravitation - Earth',	-- validating units along with self-gravitation.
 	--initCond = 'self-gravitation test 1',
 	--initCond = 'self-gravitation test 1 spinning',
 	--initCond = 'self-gravitation test 2',		--FIXME
@@ -585,7 +585,7 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn
 -- compressible Euler equations
 
 
-self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
+--self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
 
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct bounded'})))	-- this is the default hllCalcWaveMethod
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct'})))
@@ -675,7 +675,7 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn
 -- 	at 256x256 fails with F.E, RK2, RK2-non-TVD., RK3-TVD, RK4, RK4-TVD, RK4-non-TVD 
 --    but works with RK2-Heun, RK2-Ralston, RK2-TVD, RK3, RK4-3/8ths
 -- Kelvin-Helmholtz works for all borderes freeflow, float precision, 256x256, superbee flux limiter
---self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='srhd'})))
+self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='srhd'})))
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='srhd'})))
 --self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='srhd', wenoMethod='2010 Shen Zha', order=5})))
 

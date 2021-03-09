@@ -1736,7 +1736,7 @@ function CoordinateSystem:initCodeModules()
 		name = self.symbols.cell_calcAvg_withPt,
 		depends = {self.cell_t},
 		code = function()
-print("WARNING - haven't finished implementing this")
+print("WARNING - haven't finished implementing cell_calcAvg_withPt")
 			return self.solver.eqn:template[[
 #define cell_calcAvg_withPt(\
 	/*<?=cell_t?> * const */resultCell,\

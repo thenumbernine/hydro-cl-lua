@@ -5,7 +5,7 @@ Marti 1998
 Font "Numerical Hydrodynamics and Magnetohydrodynamics in General Relativity" 2008 
 
 honestly I developed a Marti & Muller SRHD solver
-then I bumped it up to GRHD by incorporating (fixed) alphas betas and gammas
+then I bumped it up to GRHD by incorporating (fixed) α's β's and γ's
 and then I thought "why not keep the old SRHD solver around"
 so viola, here it is.
 --]]
@@ -24,6 +24,7 @@ SRHD.numWaves = 5
 SRHD.numIntStates = 5
 
 -- TODO if we enable this we get NANs when waves hit the border.  Bug in the srhd boundary prim calculations?
+-- but if we don't ... well ... it isn't technically correct
 --SRHD.roeUseFluxFromCons = true
 
 SRHD.initConds = require 'hydro.init.euler':getList()
@@ -36,7 +37,7 @@ function SRHD:init(args)
 
 	2003 Marti & Muller show the state variables as D, S^i, tau ... for SRHD
 	...but the GRHD folks use D, S_i, tau ...
-	maybe Marti & Muller were lazy with notation since the metric is eta = diag(-1,1,1,1) and raising/lowering spatial doesn't matter ... ?
+	maybe Marti & Muller were lazy with notation since the metric is η = diag(-1,1,1,1) and raising/lowering spatial doesn't matter ... ?
 
 	I used to keep the prim_only_t and cons_only_t as separate structs within separate,
 	but that doesn't mesh well with the code that automatically determines signs of reflections at boundaries,
@@ -130,11 +131,11 @@ function SRHD:init(args)
 		global const <?=cons_t?>* Ujm = U - solver->stepsize.s<?=j?>;
 		global const <?=cons_t?>* Ujp = U + solver->stepsize.s<?=j?>;
 		real d_rho_h_WSq_over_dx = (
-			Ujp->D * Ujp->D / Ujp->rho * calc_h(Ujp->rho, calc_P(solver, Ujp->rho, Ujp->eInt), Ujp->eInt)
-			- Ujm->D * Ujm->D / Ujm->rho * calc_h(Ujm->rho, calc_P(solver, Ujm->rho, Ujm->eInt), Ujm->eInt)
+			Ujp->D * Ujp->D / Ujp->rho * calc_h(solver, Ujp->eInt)
+			- Ujm->D * Ujm->D / Ujm->rho * calc_h(solver, Ujm->eInt)
 		) * (.5 / solver->grid_dx.s<?=j?>);
 		source -= d_rho_h_WSq_over_dx * U->S.s<?=j?> / (
-			U->D * U->D / U->rho * calc_h(U->rho, calc_P(solver, U->rho, U->eInt), U->eInt)
+			U->D * U->D / U->rho * calc_h(solver, U->eInt)
 		);
 	}<? end ?>
 ]],
@@ -142,7 +143,7 @@ function SRHD:init(args)
 			-- [=[ reading via div v, writing via div S
 				readVectorField = function(op, offset, j)
 					local function U(field) return 'U['..offset..'].'..field end
-					--return U('S.s'..j)..' * '..U'rho'..' / ('..U'D'..' * '..U'D'..' * calc_h('..U'rho'..', calc_P(solver, '..U'rho'..', '..U'eInt'..'), '..U'eInt'..'))'
+					--return U('S.s'..j)..' * '..U'rho'..' / ('..U'D'..' * '..U'D'..' * calc_h(solver, '..U'eInt'..'))'
 					--return U('v.s'..j)	-- div v = 0
 					return U'D'..' / '..U'rho'..' * '..U('v.s'..j)		-- div (W v) = ... W ... ?
 				end,
@@ -152,7 +153,7 @@ function SRHD:init(args)
 				writeVectorField = function(op, dv)
 					return self:template([[
 #if 0	// adjust momentum, update velocity with 'constrainU' later
-	U->S = real3_sub(U->S, real3_real_mul(<?=dv?>, U->D * U->D / U->rho * calc_h(U->rho, calc_P(solver, U->rho, U->eInt), U->eInt)));
+	U->S = real3_sub(U->S, real3_real_mul(<?=dv?>, U->D * U->D / U->rho * calc_h(solver, U->eInt)));
 #endif
 
 #if 1	// adjust velocity, update conservatives immediately
@@ -237,9 +238,17 @@ function SRHD:initCodeModules()
 	}
 end
 
+function SRHD:getModuleDepends_displayCode() 
+	return table(SRHD.super.getModuleDepends_displayCode(self)):append(
+		self.gravOp and {
+			self.gravOp.symbols.calcGravityAccel,
+		} or nil
+	)
+end
+
 -- don't use default
-function SRHD:initCodeModule_calcDTCell() end
 function SRHD:initCodeModule_fluxFromCons() end
+function SRHD:initCodeModule_calcDTCell() end
 
 SRHD.solverCodeFile = 'hydro/eqn/srhd.cl'
 
@@ -258,9 +267,24 @@ function SRHD:getDisplayVars()
 		{name='W based on v', code='value.vreal = 1. / sqrt(1. - coordLenSq(U->v, x));'},
 		
 		{name='P', code='value.vreal = calc_P(solver, U->rho, U->eInt);'},
-		{name='h', code='value.vreal = calc_h(U->rho, calc_P(solver, U->rho, U->eInt), U->eInt);'},
 		
-		{name='ePot', code='value.vreal = U->ePot;'},
+		{name='EPot', code='value.vreal = U->rho * U->ePot;'},
+		
+		-- is this true for relativistic fluids?
+		{name='S', code='value.vreal = calc_P(solver, U->rho, U->eInt) / pow(U->rho, (real)solver->heatCapacityRatio);'},
+		
+		{name='H', code='value.vreal = U->rho * calc_h(solver, U->eInt);', units='kg/(m*s^2)'},
+		{name='h', code='value.vreal = calc_h(solver, U->eInt);'},
+		
+		{name='speed of sound', code='value.vreal = calc_Cs(solver, U->eInt);', units='m/s'},
+		{name='Mach number', code='value.vreal = coordLen(U->v, x) / calc_Cs(solver, U->eInt);'},
+
+		-- is this true for relativistic fluids?
+		{name='temperature', code=self:template[[
+<? local materials = require "hydro.materials" ?>
+#define C_v				<?=("%.50f"):format(materials.Air.C_v)?>
+value.vreal = U->eInt / C_v;
+]], units='K'},
 		
 		{name='primitive reconstruction error', code=self:template[[
 	//prim have just been reconstructed from cons
@@ -282,8 +306,35 @@ function SRHD:getDisplayVars()
 ]]		},
 	}
 
+	if self.gravOp then
+		vars:insert{
+			name = 'gravity',
+			units = 'm/s^2',
+			type = 'real3',
+			code = self:template[[
+	if (!<?=OOB?>(1,1)) {
+		real W, dW_dt;
+		real3 u, du_dt;
+		<?=calcGravityAccel?>(&W, &u, &dW_dt, &du_dt, solver, U);
+		value.vreal3 = du_dt;
+	} else {
+		value.vreal3 = real3_zero;
+	}
+]],
+		}
+	end
+
+
 	vars:insert(self:createDivDisplayVar{field='v', units='1/s'} or nil)
 	vars:insert(self:createCurlDisplayVar{field='v', units='1/s'} or nil)
+
+	-- special for 1d_state_line
+	vars:insert{
+		name = 'state line',
+		type = 'real3',
+		units = '1',
+		code = 'value.vreal3 = _real3(U->rho, coordLen(U->v, x) * sign(U->v.x), calc_P(solver, U->rho, U->eInt));',
+	}
 
 	return vars
 end
@@ -327,9 +378,7 @@ function SRHD:consWaveCodePrefix(n, U, x)
 real const eInt = <?=U?>->eInt;
 
 real const vSq = coordLenSq(<?=U?>->v, <?=x?>);
-real const P = calc_P(solver, <?=U?>->rho, eInt);
-real const h = calc_h(<?=U?>->rho, P, eInt);
-real const csSq = solver->heatCapacityRatio * P / (<?=U?>->rho * h);
+real const csSq = calc_CsSq(solver, eInt);
 real const cs = sqrt(csSq);
 
 /* for the particular direction */
