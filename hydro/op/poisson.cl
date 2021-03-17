@@ -1,4 +1,4 @@
-//// MODULE_NAME: hydro/op/poisson.cl-comments
+//// MODULE_NAME: <?=op.symbolPrefix?>comments
 
 /*
 rho is a Dirac delta function

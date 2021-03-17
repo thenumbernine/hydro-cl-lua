@@ -5,6 +5,10 @@ This is General Relativity with weak field approximation, de-Donder gauge, and a
 but unlike the twofluid_plasma_lingr file, this is without the h_ab,tt = 0 approximation, therefore it is not a gravito-electromagnetism model.
 Also it is only valid as cartesian vector components.
 
+Actually same with twofluid-emhd-lingr's derivation -- only Cartesian -- but people still take it and recast the laplacian into non-Cartesian coordinates (is that still valid?)
+
+TODO call this wave-gr instead of lin-gr?  because this is different from the GEM which assumes h_ab,tt = 0
+
 This means when the metric perturbation tensors are inserted into the Einstein field equations they become the 10 wave equations:
 
 h_ab,tt - h_ab,ii = 16 pi (T_ab + 1/2 g_ab (T_tt - T_ii))

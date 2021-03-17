@@ -18,12 +18,15 @@ Euler.numIntStates = 5	-- don't bother integrate ePot
 
 Euler.initConds = require 'hydro.init.euler':getList()
 
-function Euler:init(args)
+function Euler:buildVars(args)
 	-- TODO primVars doesn't autogen displayVars, and therefore units doesn't matter
 	self.primVars = table{
 		{name='rho', type='real', units='kg/m^3'},
 		{name='v', type='real3', units='m/s', variance='u'},			-- contravariant
 		{name='P', type='real', units='kg/(m*s^2)'},
+		
+		-- used dynamically by op/selfgrav, but optionally can be initialized statically for constant/background potential energy
+		-- TODO in the static case, merge into cell_t to save memory & flops?
 		{name='ePot', type='real', units='m^2/s^2'},
 	}
 
@@ -38,10 +41,10 @@ function Euler:init(args)
 		self.consVars:insert{name='mPot', type='real', units='kg/(m*s)'}
 		self.primVars:insert{name='mPot', type='real', units='kg/(m*s)'}
 	end
+end
 
-	Euler.super.init(self, args)
+function Euler:buildSelfGrav()
 	local solver = self.solver
-
 	if require 'hydro.solver.meshsolver':isa(solver) then
 		print("not using selfgrav with mesh solvers yet")
 	else
@@ -49,6 +52,15 @@ function Euler:init(args)
 		self.gravOp = SelfGrav{solver = solver}
 		solver.ops:insert(self.gravOp)
 	end
+end
+
+function Euler:init(args)
+	self:buildVars(args)
+
+	Euler.super.init(self, args)
+	local solver = self.solver
+
+	self:buildSelfGrav()
 
 	if args.incompressible then
 		if not require 'hydro.solver.meshsolver':isa(solver) then

@@ -1147,7 +1147,7 @@ end) then
 				{name = 'init_rho', value = .1},
 				{name = 'init_P', value = 1},
 				{name = 'init_inlet_rho', value = 1},
-				{name = 'init_inlet_v', value = .5},
+				{name = 'init_inlet_v', value = .1},
 				{name = 'init_inlet_P', value = 1},
 				{name = 'inlet_r', value = .02},
 			}

@@ -48,6 +48,7 @@ end
 
 function PoissonKrylov:getSymbolFields()
 	return table{
+		'comments',
 		'mulWithoutBorder',				-- not really used / in a separate program
 		'square',						-- not really used / in a separate program
 		'linearFunc',

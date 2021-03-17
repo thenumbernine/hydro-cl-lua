@@ -63,6 +63,7 @@ end
 
 function Relaxation:getSymbolFields()
 	return table{
+		'comments',
 		'initPotential',
 		'solveJacobi',
 		'copyWriteToPotentialNoGhost',
