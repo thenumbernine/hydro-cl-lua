@@ -84,7 +84,7 @@ function Maxwell:init(args)
 
 	Maxwell.super.init(self, args)
 
--- [=[ TODO combine this into the flux and remove this variable from calcDerivFV
+--[=[ TODO combine this into the flux and remove this variable from calcDerivFV
 	function self:postComputeFluxCode()
 		return self:template[[
 //// MODULE_DEPENDS: <?=coord_sqrt_det_g?> <?=eqn_common?>
@@ -92,7 +92,7 @@ function Maxwell:init(args)
 		//TODO shouldn't I be transforming both the left and right fluxes by the metrics at their respective coordinates?
 		//flux is computed raised via Levi-Civita upper
 		//so here we lower it
-		real _1_sqrt_det_g = 1. / coord_sqrt_det_g(x);
+		real const _1_sqrt_det_g = 1. / coord_sqrt_det_g(x);
 		flux.D = <?=vec3?>_real_mul(eqn_coord_lower(flux.D, x), _1_sqrt_det_g);
 		flux.B = <?=vec3?>_real_mul(eqn_coord_lower(flux.B, x), _1_sqrt_det_g);
 ]]
@@ -156,6 +156,12 @@ function Maxwell:getModuleDepends_displayCode()
 	}
 end
 
+function Maxwell:getModuleDepends_waveCode() 
+	return table(Maxwell.super.getModuleDepends_waveCode(self)):append{
+		self.solver.coord.symbols.coord_sqrt_det_g,
+	}
+end
+
 Maxwell.predefinedDisplayVars = {
 	'U D',
 	'U div D',
@@ -205,8 +211,9 @@ function Maxwell:eigenWaveCodePrefix(n, eig, x, waveIndex)
 -- [=[
 	local env = self:getEnv()
 	local code = self:template(
-		[[<?=mul?>(<?=eig?>->sqrt_1_eps, <?=eig?>->sqrt_1_mu)]],
+		[[<?=mul?>(<?=mul?>(<?=eig?>->sqrt_1_eps, <?=eig?>->sqrt_1_mu), 1./coord_sqrt_det_g(<?=x?>))]],
 		{
+			x = '('..x..')',
 			eig = '('..eig..')',
 		}
 	)
@@ -239,8 +246,9 @@ end
 function Maxwell:consWaveCodePrefix(n, U, x, waveIndex)
 	local env = self:getEnv()
 	local code = self:template(
-		[[<?=mul?>(<?=U?>->sqrt_1_eps, <?=U?>->sqrt_1_mu)]],
+		[[<?=mul?>(<?=mul?>(<?=U?>->sqrt_1_eps, <?=U?>->sqrt_1_mu), 1./coord_sqrt_det_g(<?=x?>))]],
 		{
+			x = '('..x..')',
 			U = '('..U..')',
 		}
 	)

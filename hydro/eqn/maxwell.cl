@@ -101,16 +101,20 @@ void <?=applyInitCondCell?>(
 ) {\
 	<?=vec3?> const E = calc_E(U);\
 	<?=vec3?> const H = calc_H(U);\
-	if (n.side == 0) {\
-		(resultF)->D = _<?=vec3?>(<?=zero?>, H.z, <?=neg?>(H.y));\
-		(resultF)->B = _<?=vec3?>(<?=zero?>, <?=neg?>(E.z), E.y);\
-	} else if (n.side == 1) {\
-		(resultF)->D = _<?=vec3?>(<?=neg?>(H.z), <?=zero?>, H.x);\
-		(resultF)->B = _<?=vec3?>(E.z, <?=zero?>, <?=neg?>(E.x));\
-	} else if (n.side == 2) {\
-		(resultF)->D = _<?=vec3?>(H.y, <?=neg?>(H.x), <?=zero?>);\
-		(resultF)->B = _<?=vec3?>(<?=neg?>(E.y), E.x, <?=zero?>);\
-	}\
+\
+	real const nx = normal_l1x(n);\
+	real const ny = normal_l1y(n);\
+	real const nz = normal_l1z(n);\
+\
+	(resultF)->D.x = H.y * nz - H.z * ny;	/* F_D^i = -eps^ijk n_j H_k */\
+	(resultF)->B.x = E.z * ny - E.y * nz;	/* F_B^i = +eps^ijk n_j B_k */\
+\
+	(resultF)->D.y = H.z * nx - H.x * nz;\
+	(resultF)->B.y = E.x * nz - E.z * nx;\
+\
+	(resultF)->D.z = H.x * ny - H.y * nx;\
+	(resultF)->B.z = E.y * nx - E.x * ny;\
+\
 	(resultF)->phi = <?=zero?>;\
 	(resultF)->psi = <?=zero?>;\
 	(resultF)->D = <?=vec3?>_zero;\
@@ -163,48 +167,60 @@ TODO update this for Einstein-Maxwell (take the metric into consideration
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=eigen_t?> const * const */eig,\
 	/*<?=cons_t?> const * const */X,\
-	/*real3 const */x,\
+	/*real3 const */pt,\
 	/*<?=normal_t?> const */n\
 ) {\
-<? if false then -- TODO this, which means changing ops to macros, and determining the global-ness of the input params ... ?>\
-	<?=scalar?> * const Yp = (<?=scalar?>*)(Y)->ptr;\
-	<?=scalar?> const * const Xp = (<?=scalar?>*)(X)->ptr;\
-<? end ?>\
+	/* TODO add extra macro params for globa/not-global and cast pointers to 'scalar' ... */\
+	/* ... and replace all operations with macros based on 'scalar' */\
 \
-	<?=susc_t?> const sqrt_1_eps = (eig)->sqrt_1_eps;					/* (m^3 kg)^.5/(C s) */\
-	<?=susc_t?> const sqrt_eps = <?=susc_t?>_inv(sqrt_1_eps);			/* (C s)/(m^3 kg)^.5 */\
-	<?=susc_t?> const sqrt_1_mu = (eig)->sqrt_1_mu;						/* C/(kg m)^.5 */\
-	<?=susc_t?> const sqrt_mu = <?=susc_t?>_inv(sqrt_1_mu);			/* (kg m)^.5/C */\
-	<?=susc_t?> const v_p = <?=susc_t?>_mul(sqrt_1_eps, sqrt_1_mu);	/* m/s */\
+	real3 const n_l = normal_l1(n);\
+	real3 const n2_l = normal_l2(n);\
+	real3 const n3_l = normal_l3(n);\
 \
-	if (n.side == 0) {\
-\
-		(Y)->ptr[0] = ((((X)->ptr[2] * sqrt_mu) + ((X)->ptr[4] * sqrt_eps)) / (sqrt_mu * sqrt_2 * sqrt_eps));\
-		(Y)->ptr[1] = ((((X)->ptr[1] * sqrt_mu) - ((X)->ptr[5] * sqrt_eps)) / (-(sqrt_mu * sqrt_2 * sqrt_eps)));\
-		(Y)->ptr[2] = (sqrt_2 * (X)->ptr[0]);\
-		(Y)->ptr[3] = (sqrt_2 * (X)->ptr[3]);\
-		(Y)->ptr[4] = ((-(((X)->ptr[2] * sqrt_mu) - ((X)->ptr[4] * sqrt_eps))) / (sqrt_mu * sqrt_eps * sqrt_2));\
-		(Y)->ptr[5] = ((((X)->ptr[1] * sqrt_mu) + ((X)->ptr[5] * sqrt_eps)) / (sqrt_mu * sqrt_eps * sqrt_2));\
-\
-	} else if (n.side == 1) {\
-\
-		(Y)->ptr[0] = ((((X)->ptr[2] * sqrt_mu) - ((X)->ptr[3] * sqrt_eps)) / (-(sqrt_mu * sqrt_2 * sqrt_eps)));\
-		(Y)->ptr[1] = ((((X)->ptr[0] * sqrt_mu) + ((X)->ptr[5] * sqrt_eps)) / (sqrt_mu * sqrt_2 * sqrt_eps));\
-		(Y)->ptr[2] = (sqrt_2 * (X)->ptr[1]);\
-		(Y)->ptr[3] = (sqrt_2 * (X)->ptr[4]);\
-		(Y)->ptr[4] = ((((X)->ptr[2] * sqrt_mu) + ((X)->ptr[3] * sqrt_eps)) / (sqrt_mu * sqrt_eps * sqrt_2));\
-		(Y)->ptr[5] = ((-(((X)->ptr[0] * sqrt_mu) - ((X)->ptr[5] * sqrt_eps))) / (sqrt_mu * sqrt_eps * sqrt_2));\
-\
-	} else if (n.side == 2) {\
-\
-		(Y)->ptr[0] = ((((X)->ptr[1] * sqrt_mu) + ((X)->ptr[3] * sqrt_eps)) / (sqrt_mu * sqrt_2 * sqrt_eps));\
-		(Y)->ptr[1] = ((((X)->ptr[0] * sqrt_mu) - ((X)->ptr[4] * sqrt_eps)) / (-(sqrt_mu * sqrt_2 * sqrt_eps)));\
-		(Y)->ptr[2] = (sqrt_2 * (X)->ptr[2]);\
-		(Y)->ptr[3] = (sqrt_2 * (X)->ptr[5]);\
-		(Y)->ptr[4] = ((-(((X)->ptr[1] * sqrt_mu) - ((X)->ptr[3] * sqrt_eps))) / (sqrt_mu * sqrt_eps * sqrt_2));\
-		(Y)->ptr[5] = ((((X)->ptr[0] * sqrt_mu) + ((X)->ptr[4] * sqrt_eps)) / (sqrt_mu * sqrt_eps * sqrt_2));\
-\
-	}\
+	real const tmp1 = 1. / 2.;\
+	real const tmp2 = n3_l.y * (X)->ptr[5];\
+	real const tmp4 = n2_l.y * (X)->ptr[4];\
+	real const tmp6 = n_l.y * (X)->ptr[3];\
+	real const tmp7 = 1. / (eig)->sqrt_1_mu;\
+	real const tmp8 = n3_l.z * (X)->ptr[2];\
+	real const tmp9 = tmp7 * tmp8;\
+	real const tmp11 = (eig)->sqrt_1_eps * tmp9;\
+	real const tmp13 = n2_l.z * (X)->ptr[1];\
+	real const tmp14 = tmp13 * tmp7;\
+	real const tmp16 = (eig)->sqrt_1_eps * tmp14;\
+	real const tmp18 = n_l.z * (X)->ptr[0];\
+	real const tmp19 = tmp18 * tmp7;\
+	real const tmp21 = (eig)->sqrt_1_eps * tmp19;\
+	real const tmp22 = tmp16 * tmp1;\
+	real const tmp23 = tmp21 * tmp1;\
+	real const tmp24 = tmp11 * tmp1;\
+	real const tmp26 = tmp6 * tmp1;\
+	real const tmp28 = tmp4 * tmp1;\
+	real const tmp30 = tmp1 * tmp2;\
+	real const tmp33 = n_l.y * (X)->ptr[0];\
+	real const tmp34 = tmp33 * tmp7;\
+	real const tmp36 = (eig)->sqrt_1_eps * tmp34;\
+	real const tmp37 = tmp36 * tmp1;\
+	real const tmp39 = n2_l.y * (X)->ptr[1];\
+	real const tmp40 = tmp39 * tmp7;\
+	real const tmp42 = (eig)->sqrt_1_eps * tmp40;\
+	real const tmp44 = tmp42 * tmp1;\
+	real const tmp46 = n3_l.y * (X)->ptr[2];\
+	real const tmp47 = tmp46 * tmp7;\
+	real const tmp49 = (eig)->sqrt_1_eps * tmp47;\
+	real const tmp51 = tmp49 * tmp1;\
+	real const tmp53 = n_l.z * (X)->ptr[3];\
+	real const tmp55 = n2_l.z * (X)->ptr[4];\
+	real const tmp57 = n3_l.z * (X)->ptr[5];\
+	real const tmp58 = tmp55 * tmp1;\
+	real const tmp59 = tmp57 * tmp1;\
+	real const tmp60 = tmp53 * tmp1;\
+	(Y)->ptr[0] = tmp30 + tmp28 + tmp26 + tmp24 + tmp22 + tmp23;\
+	(Y)->ptr[1] = tmp60 + tmp58 + tmp59 + -tmp37 - tmp44 - tmp51;\
+	(Y)->ptr[2] = n3_l.x * (X)->ptr[2] + n2_l.x * (X)->ptr[1] + n_l.x * (X)->ptr[0];\
+	(Y)->ptr[3] = n3_l.x * (X)->ptr[5] + n2_l.x * (X)->ptr[4] + n_l.x * (X)->ptr[3];\
+	(Y)->ptr[4] = tmp30 + tmp28 + tmp26 - tmp24 - tmp22 - tmp23;\
+	(Y)->ptr[5] = tmp59 + tmp58 + tmp60 + tmp51 + tmp44 + tmp37;\
 }
 
 //// MODULE_NAME: <?=eigen_rightTransform?>
@@ -215,48 +231,21 @@ TODO update this for Einstein-Maxwell (take the metric into consideration
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=eigen_t?> const * const */eig,\
 	/*<?=waves_t?> const * const */X,\
-	/*real3 const */x,\
+	/*real3 const */pt,\
 	/*<?=normal_t?> const */n\
 ) {\
-<? if false then -- TODO this, which means changing ops to macros, and determining the global-ness of the input params ... ?>\
-	<?=scalar?> * const Yp = (<?=scalar?>*)(Y)->ptr;\
-	<?=scalar?> const * const Xp = (<?=scalar?>*)(X)->ptr;\
-<? end ?>\
 \
-	<?=susc_t?> const sqrt_1_eps = (eig)->sqrt_1_eps;					/* (m^3 kg)^.5/(C s) */\
-	<?=susc_t?> const sqrt_eps = <?=susc_t?>_inv(sqrt_1_eps);			/* (C s)/(m^3 kg)^.5 */\
-	<?=susc_t?> const sqrt_1_mu = (eig)->sqrt_1_mu;						/* C/(kg m)^.5 */\
-	<?=susc_t?> const sqrt_mu = <?=susc_t?>_inv(sqrt_1_mu);			/* (kg m)^.5/C */\
-	<?=susc_t?> const v_p = <?=susc_t?>_mul(sqrt_1_eps, sqrt_1_mu);	/* m/s */\
+	real3 const n_l = normal_l1(n);\
+	real3 const n2_l = normal_l2(n);\
+	real3 const n3_l = normal_l3(n);\
 \
-	if (n.side == 0) {\
-\
-		(Y)->ptr[0] = ((X)->ptr[2] / sqrt_2);\
-		(Y)->ptr[1] = ((-(sqrt_eps * ((X)->ptr[1] - (X)->ptr[5]))) / sqrt_2);\
-		(Y)->ptr[2] = ((sqrt_eps * ((X)->ptr[0] - (X)->ptr[4])) / sqrt_2);\
-		(Y)->ptr[3] = ((X)->ptr[3] / sqrt_2);\
-		(Y)->ptr[4] = ((sqrt_mu * ((X)->ptr[0] + (X)->ptr[4])) / sqrt_2);\
-		(Y)->ptr[5] = ((sqrt_mu * ((X)->ptr[1] + (X)->ptr[5])) / sqrt_2);\
-\
-	} else if (n.side == 1) {\
-\
-		(Y)->ptr[0] = ((sqrt_eps * ((X)->ptr[1] - (X)->ptr[5])) / sqrt_2);\
-		(Y)->ptr[1] = ((X)->ptr[2] / sqrt_2);\
-		(Y)->ptr[2] = ((-(sqrt_eps * ((X)->ptr[0] - (X)->ptr[4]))) / sqrt_2);\
-		(Y)->ptr[3] = ((sqrt_mu * ((X)->ptr[0] + (X)->ptr[4])) / sqrt_2);\
-		(Y)->ptr[4] = ((X)->ptr[3] / sqrt_2);\
-		(Y)->ptr[5] = ((sqrt_mu * ((X)->ptr[1] + (X)->ptr[5])) / sqrt_2);\
-\
-	} else if (n.side == 2) {\
-\
-		(Y)->ptr[0] = ((-(sqrt_eps * ((X)->ptr[1] - (X)->ptr[5]))) / sqrt_2);\
-		(Y)->ptr[1] = ((sqrt_eps * ((X)->ptr[0] - (X)->ptr[4])) / sqrt_2);\
-		(Y)->ptr[2] = ((X)->ptr[2] / sqrt_2);\
-		(Y)->ptr[3] = ((sqrt_mu * ((X)->ptr[0] + (X)->ptr[4])) / sqrt_2);\
-		(Y)->ptr[4] = ((sqrt_mu * ((X)->ptr[1] + (X)->ptr[5])) / sqrt_2);\
-		(Y)->ptr[5] = ((X)->ptr[3] / sqrt_2);\
-\
-	}\
+	real const tmp1 = 1. / (eig)->sqrt_1_eps;\
+	(Y)->ptr[0] = (eig)->sqrt_1_mu * tmp1 * n_l.z * (X)->ptr[0] + (eig)->sqrt_1_mu * tmp1 * n_l.y * (X)->ptr[5] - (eig)->sqrt_1_mu * tmp1 * n_l.z * (X)->ptr[4] - (eig)->sqrt_1_mu * tmp1 * n_l.y * (X)->ptr[1] + n_l.x * (X)->ptr[2];\
+	(Y)->ptr[1] = (eig)->sqrt_1_mu * tmp1 * n2_l.z * (X)->ptr[0] + (eig)->sqrt_1_mu * tmp1 * n2_l.y * (X)->ptr[5] - (eig)->sqrt_1_mu * tmp1 * n2_l.z * (X)->ptr[4] - (eig)->sqrt_1_mu * tmp1 * n2_l.y * (X)->ptr[1] + n2_l.x * (X)->ptr[2];\
+	(Y)->ptr[2] = (eig)->sqrt_1_mu * tmp1 * n3_l.z * (X)->ptr[0] + (eig)->sqrt_1_mu * tmp1 * n3_l.y * (X)->ptr[5] - (eig)->sqrt_1_mu * tmp1 * n3_l.z * (X)->ptr[4] - (eig)->sqrt_1_mu * tmp1 * n3_l.y * (X)->ptr[1] + n3_l.x * (X)->ptr[2];\
+	(Y)->ptr[3] = n_l.z * (X)->ptr[5] + n_l.y * (X)->ptr[4] + n_l.x * (X)->ptr[3] + n_l.z * (X)->ptr[1] + n_l.y * (X)->ptr[0];\
+	(Y)->ptr[4] = n2_l.z * (X)->ptr[5] + n2_l.y * (X)->ptr[4] + n2_l.x * (X)->ptr[3] + n2_l.z * (X)->ptr[1] + n2_l.y * (X)->ptr[0];\
+	(Y)->ptr[5] = n3_l.z * (X)->ptr[5] + n3_l.y * (X)->ptr[4] + n3_l.x * (X)->ptr[3] + n3_l.z * (X)->ptr[1] + n3_l.y * (X)->ptr[0];\
 \
 	for (int i = numWaves; i < numStates; ++i) {\
 		(Y)->ptr[i] = 0;\
