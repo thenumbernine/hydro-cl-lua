@@ -11,6 +11,9 @@ local Euler = require 'hydro.eqn.euler'
 
 local EulerLinGR = class(Euler)
 
+EulerLinGR.numWaves = nil
+EulerLinGR.numIntStates = nil
+
 EulerLinGR.name = 'euler_lingr'
 
 EulerLinGR.solverCodeFile = 'hydro/eqn/euler-lingr.cl'
@@ -119,7 +122,7 @@ function EulerLinGR:eigenWaveCode(n, eig, x, waveIndex)
 			'solver->speedOfLight / unit_m_per_s',
 			'solver->divPsiWavespeed_g / unit_m_per_s',
 			'solver->divPhiWavespeed_g / unit_m_per_s',
-		})[waveIndex - 5 - 8 + 1]
+		})[waveIndex - 5 + 1]
 	end
 	error('got a bad waveIndex: '..waveIndex)
 end
