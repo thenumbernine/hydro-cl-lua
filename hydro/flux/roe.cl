@@ -119,6 +119,12 @@ local useFlux = solver.fluxLimiter > 1
 -- which is dF/dU * dU/dx --\
 -- It turns out dF/dU * U = F *ONLY FOR* the Euler fluid equations, and this is why lots of literature assumes it is true for all equations (when it's not).--\
 -- But that means roeUseFluxFromCons==true's option is the correct one, but not ==false? --\
+-- But Dullemond eqn 6.56 says that the FL and FR come from R Lambda L U = dF/dU * U calculations ... --\
+-- ... which are *ONLY* equal to F in the case of the Euler fluid equations, and systems with linear flux jacobians, (NOT shallow-water). --\
+-- So that would mean this part is wrong. --\
+-- But maybe the description in Dullemond and other sources is wrong. --\
+-- Because this value itself is diff'd across the cell, so it is a 'dF', so you wouldn't want to compute a second 'd' of it via R Lambda L, because that would give you 'd dF'. --\
+-- so roeUseFluxFromCons==true is good. --\
 ?>\
 	<?=cons_t?> FL;\
 	<?=fluxFromCons?>(&FL, solver, UL, cellL, n);\

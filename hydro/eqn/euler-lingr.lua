@@ -48,7 +48,6 @@ function EulerLinGR:createInitState()
 		{name='divPsiWavespeed_g', value=speedOfLight, units='m/s'},
 		{name='divPhiWavespeed_g', value=speedOfLight, units='m/s'},
 		{name='speedOfLight', value=speedOfLight, units='m/s'},
-		
 		{name='sqrt_G', value=math.sqrt(gravitationalConstant), units='(m^3/(kg*s^2))^.5'},
 	})
 end
@@ -137,10 +136,7 @@ function EulerLinGR:consWaveCodePrefix(n, U, x)
 
 <?if true then  -- using the EM wavespeed ?>
 real consWaveCode_lambdaMax = max(
-		max(
-			max(solver->divPsiWavespeed, solver->divPhiWavespeed),
-			max(solver->divPsiWavespeed_g, solver->divPhiWavespeed_g)
-		),
+		max(solver->divPsiWavespeed_g, solver->divPhiWavespeed_g),
 		solver->speedOfLight
 	) / unit_m_per_s;
 <? else -- ignoring it ?>

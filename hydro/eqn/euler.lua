@@ -195,6 +195,7 @@ function Euler:initCodeModule_calcDTCell()
 			self.solver.coord.symbols.normal_t,
 			self.symbols.primFromCons,
 			self.symbols.eqn_guiVars_compileTime,
+			self.solver.coord.symbols.cell_dx_i,
 		},
 		code = self:template[[
 <? if require 'hydro.solver.gridsolver':isa(solver) then ?>
