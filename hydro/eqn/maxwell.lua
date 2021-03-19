@@ -200,7 +200,7 @@ function Maxwell:getDisplayVars()
 	return vars
 end
 
-function Maxwell:eigenWaveCodePrefix(n, eig, x, waveIndex)
+function Maxwell:eigenWaveCodePrefix(n, eig, pt, waveIndex)
 --[=[
 	return self:template([[
 	<?=scalar?> v_p_abs = <?=mul?>(<?=eig?>->sqrt_1_eps, <?=eig?>->sqrt_1_mu);
@@ -211,9 +211,9 @@ function Maxwell:eigenWaveCodePrefix(n, eig, x, waveIndex)
 -- [=[
 	local env = self:getEnv()
 	local code = self:template(
-		[[<?=mul?>(<?=mul?>(<?=eig?>->sqrt_1_eps, <?=eig?>->sqrt_1_mu), 1./coord_sqrt_det_g(<?=x?>))]],
+		[[<?=mul?>(<?=mul?>(<?=eig?>->sqrt_1_eps, <?=eig?>->sqrt_1_mu), 1./coord_sqrt_det_g(<?=pt?>))]],
 		{
-			x = '('..x..')',
+			pt = '('..pt..')',
 			eig = '('..eig..')',
 		}
 	)
@@ -224,7 +224,7 @@ function Maxwell:eigenWaveCodePrefix(n, eig, x, waveIndex)
 --]=]
 end
 
-function Maxwell:eigenWaveCode(n, eig, x, waveIndex)
+function Maxwell:eigenWaveCode(n, eig, pt, waveIndex)
 	waveIndex = math.floor(waveIndex / self.numRealsInScalar)
 	return ({
 		'-'..self.symbolPrefix..'v_p_abs',
@@ -236,20 +236,20 @@ function Maxwell:eigenWaveCode(n, eig, x, waveIndex)
 	})[waveIndex+1] or error('got a bad waveIndex: '..waveIndex)
 end
 
-function Maxwell:eigenMaxWaveCode(n, eig, x)
+function Maxwell:eigenMaxWaveCode(n, eig, pt)
 	return self.symbolPrefix..'v_p_abs'
 end
-function Maxwell:eigenMinWaveCode(n, eig, x)
-	return '-'..self:eigenMaxWaveCode(n, eig, x)
+function Maxwell:eigenMinWaveCode(n, eig, pt)
+	return '-'..self:eigenMaxWaveCode(n, eig, pt)
 end
 
-function Maxwell:consWaveCodePrefix(n, U, x, waveIndex)
+function Maxwell:consWaveCodePrefix(n, U, pt, waveIndex)
 	local env = self:getEnv()
 	local code = self:template(
-		[[<?=mul?>(<?=mul?>(<?=U?>->sqrt_1_eps, <?=U?>->sqrt_1_mu), 1./coord_sqrt_det_g(<?=x?>))]],
+		[[<?=mul?>(<?=mul?>(<?=U?>->sqrt_1_eps, <?=U?>->sqrt_1_mu), 1./coord_sqrt_det_g(<?=pt?>))]],
 		{
-			x = '('..x..')',
 			U = '('..U..')',
+			pt = '('..pt..')',
 		}
 	)
 	if self.scalar == 'cplx' then
@@ -259,11 +259,11 @@ function Maxwell:consWaveCodePrefix(n, U, x, waveIndex)
 end
 Maxwell.consWaveCode = Maxwell.eigenWaveCode
 
-function Maxwell:consMaxWaveCode(n, U, x)
+function Maxwell:consMaxWaveCode(n, U, pt)
 	return 'v_p_abs'
 end
-function Maxwell:consMinWaveCode(n, U, x)
-	return '-'..self:consMaxWaveCode(n, U, x)
+function Maxwell:consMinWaveCode(n, U, pt)
+	return '-'..self:consMaxWaveCode(n, U, pt)
 end
 
 return Maxwell

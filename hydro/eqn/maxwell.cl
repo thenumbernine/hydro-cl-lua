@@ -93,7 +93,7 @@ void <?=applyInitCondCell?>(
 //eqn_common has calc_E, calc_H
 
 #define <?=fluxFromCons?>(\
-	/*<?=cons_t?> * const */resultF,\
+	/*<?=cons_t?> * const */resultFlux,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */U,\
 	/*<?=cell_t?> const * const */cell,\
@@ -106,21 +106,21 @@ void <?=applyInitCondCell?>(
 	real const ny = normal_l1y(n);\
 	real const nz = normal_l1z(n);\
 \
-	(resultF)->D.x = H.y * nz - H.z * ny;	/* F_D^i = -eps^ijk n_j H_k */\
-	(resultF)->B.x = E.z * ny - E.y * nz;	/* F_B^i = +eps^ijk n_j B_k */\
+	(resultFlux)->D.x = H.y * nz - H.z * ny;	/* F_D^i = -eps^ijk n_j H_k */\
+	(resultFlux)->B.x = E.z * ny - E.y * nz;	/* F_B^i = +eps^ijk n_j B_k */\
 \
-	(resultF)->D.y = H.z * nx - H.x * nz;\
-	(resultF)->B.y = E.x * nz - E.z * nx;\
+	(resultFlux)->D.y = H.z * nx - H.x * nz;\
+	(resultFlux)->B.y = E.x * nz - E.z * nx;\
 \
-	(resultF)->D.z = H.x * ny - H.y * nx;\
-	(resultF)->B.z = E.y * nx - E.x * ny;\
+	(resultFlux)->D.z = H.x * ny - H.y * nx;\
+	(resultFlux)->B.z = E.y * nx - E.x * ny;\
 \
-	(resultF)->phi = <?=zero?>;\
-	(resultF)->psi = <?=zero?>;\
-	(resultF)->D = <?=vec3?>_zero;\
-	(resultF)->rhoCharge = <?=zero?>;\
-	(resultF)->sqrt_1_eps = <?=susc_t?>_zero;\
-	(resultF)->sqrt_1_mu = <?=susc_t?>_zero;\
+	(resultFlux)->phi = <?=zero?>;\
+	(resultFlux)->psi = <?=zero?>;\
+	(resultFlux)->D = <?=vec3?>_zero;\
+	(resultFlux)->rhoCharge = <?=zero?>;\
+	(resultFlux)->sqrt_1_eps = <?=susc_t?>_zero;\
+	(resultFlux)->sqrt_1_mu = <?=susc_t?>_zero;\
 }
 
 //// MODULE_NAME: <?=eigen_forInterface?>

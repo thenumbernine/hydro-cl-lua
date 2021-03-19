@@ -97,16 +97,20 @@ void <?=applyInitCondCell?>(
 ) {\
 	<?=vec3?> const E = calc_E(U);\
 	<?=vec3?> const H = calc_H(U);\
-	if (n.side == 0) {\
-		(resultFlux)->D = _<?=vec3?>(<?=real_mul?>((U)->phi, solver->divPhiWavespeed / unit_m_per_s),  H.z, <?=neg?>(H.y));\
-		(resultFlux)->B = _<?=vec3?>(<?=real_mul?>((U)->psi, solver->divPsiWavespeed / unit_m_per_s), <?=neg?>(E.z),  E.y);\
-	} else if (n.side == 1) {\
-		(resultFlux)->D = _<?=vec3?>(<?=neg?>(H.z), <?=real_mul?>((U)->phi, solver->divPhiWavespeed / unit_m_per_s),  H.x);\
-		(resultFlux)->B = _<?=vec3?>( E.z, <?=real_mul?>((U)->psi, solver->divPsiWavespeed / unit_m_per_s), <?=neg?>(E.x));\
-	} else if (n.side == 2) {\
-		(resultFlux)->D = _<?=vec3?>( H.y, <?=neg?>(H.x), <?=real_mul?>((U)->phi, solver->divPhiWavespeed / unit_m_per_s));\
-		(resultFlux)->B = _<?=vec3?>(<?=neg?>(E.y),  E.x, <?=real_mul?>((U)->psi, solver->divPsiWavespeed / unit_m_per_s));\
-	}\
+\
+	real const nx = normal_l1x(n);\
+	real const ny = normal_l1y(n);\
+	real const nz = normal_l1z(n);\
+\
+	(resultFlux)->D.x = H.y * nz - H.z * ny + nx * (U)->phi * solver->divPhiWavespeed / unit_m_per_s;	/* F_D^i = -eps^ijk n_j H_k */\
+	(resultFlux)->B.x = E.z * ny - E.y * nz + nx * (U)->psi * solver->divPsiWavespeed / unit_m_per_s;	/* F_B^i = +eps^ijk n_j B_k */\
+\
+	(resultFlux)->D.y = H.z * nx - H.x * nz + ny * (U)->phi * solver->divPhiWavespeed / unit_m_per_s;\
+	(resultFlux)->B.y = E.x * nz - E.z * nx + ny * (U)->psi * solver->divPsiWavespeed / unit_m_per_s;\
+\
+	(resultFlux)->D.z = H.x * ny - H.y * nx + nz * (U)->phi * solver->divPhiWavespeed / unit_m_per_s;\
+	(resultFlux)->B.z = E.y * nx - E.x * ny + nz * (U)->psi * solver->divPsiWavespeed / unit_m_per_s;\
+\
 	real const D_n = normal_vecDotN1(n, (U)->D);\
 	real const B_n = normal_vecDotN1(n, (U)->B);\
 	(resultFlux)->phi = <?=real_mul?>(D_n, solver->divPhiWavespeed / unit_m_per_s);\
@@ -165,48 +169,78 @@ TODO update this for Einstein-Maxwell (take the metric into consideration
 	/*real3 const */pt,\
 	/*<?=normal_t?> const */n\
 ) {\
-	<?=susc_t?> const sqrt_1_eps = (eig)->sqrt_1_eps;					/* (m^3 kg)^.5/(C s) */\
-	<?=susc_t?> const sqrt_eps = <?=susc_t?>_inv(sqrt_1_eps);			/* (C s)/(m^3 kg)^.5 */\
-	<?=susc_t?> const sqrt_1_mu = (eig)->sqrt_1_mu;						/* C/(kg m)^.5 */\
-	<?=susc_t?> const sqrt_mu = <?=susc_t?>_inv(sqrt_1_mu);			/* (kg m)^.5/C */\
-	<?=susc_t?> const v_p = <?=susc_t?>_mul(sqrt_1_eps, sqrt_1_mu);	/* m/s */\
+	real3 const n_l = normal_l1(n);\
+	real3 const n2_l = normal_l2(n);\
+	real3 const n3_l = normal_l3(n);\
 \
-	if (n.side == 0) {\
-\
-		(Y)->ptr[0] = ((X)->ptr[6] - (X)->ptr[0]) * sqrt_eps * sqrt_1_2;					/* (C^2 s)/(m^3.5 kg^.5) */\
-		(Y)->ptr[1] = ((X)->ptr[7] - (X)->ptr[3]) * sqrt_eps * sqrt_1_2;					/* kg^.5/m^1.5 */\
-		(Y)->ptr[2] = ((X)->ptr[4] * sqrt_eps + (X)->ptr[2] * sqrt_mu) * v_p * sqrt_1_2;	/* kg^.5/(m^.5 s)  */\
-		(Y)->ptr[3] = ((X)->ptr[5] * sqrt_eps - (X)->ptr[1] * sqrt_mu) * v_p * sqrt_1_2;	/* kg^.5/(m^.5 s)  */\
-		(Y)->ptr[4] = ((X)->ptr[4] * sqrt_eps - (X)->ptr[2] * sqrt_mu) * v_p * sqrt_1_2;	/* kg^.5/(m^.5 s)  */\
-		(Y)->ptr[5] = ((X)->ptr[5] * sqrt_eps + (X)->ptr[1] * sqrt_mu) * v_p * sqrt_1_2;	/* kg^.5/(m^.5 s)  */\
-		(Y)->ptr[6] = ((X)->ptr[0] + (X)->ptr[6]) * sqrt_eps * sqrt_1_2;					/* (C^2 s)/(m^3.5 kg^.5) */\
-		(Y)->ptr[7] = ((X)->ptr[3] + (X)->ptr[7]) * sqrt_eps * sqrt_1_2;					/* kg^.5/m^1.5 */\
-\
-	} else if (n.side == 1) {\
-\
-		/* same units as x dir */\
-		(Y)->ptr[0] = ((X)->ptr[6] - (X)->ptr[1]) * sqrt_eps * sqrt_1_2;\
-		(Y)->ptr[1] = ((X)->ptr[7] - (X)->ptr[4]) * sqrt_eps * sqrt_1_2;\
-		(Y)->ptr[2] = ((X)->ptr[3] * sqrt_eps - (X)->ptr[2] * sqrt_mu) * v_p * sqrt_1_2;\
-		(Y)->ptr[3] = ((X)->ptr[5] * sqrt_eps + (X)->ptr[0] * sqrt_mu) * v_p * sqrt_1_2;\
-		(Y)->ptr[4] = ((X)->ptr[3] * sqrt_eps + (X)->ptr[2] * sqrt_mu) * v_p * sqrt_1_2;\
-		(Y)->ptr[5] = ((X)->ptr[5] * sqrt_eps - (X)->ptr[0] * sqrt_mu) * v_p * sqrt_1_2;\
-		(Y)->ptr[6] = ((X)->ptr[1] + (X)->ptr[6]) * sqrt_eps * sqrt_1_2;\
-		(Y)->ptr[7] = ((X)->ptr[4] + (X)->ptr[7]) * sqrt_eps * sqrt_1_2;\
-\
-	} else if (n.side == 2) {\
-	\
-		/* same units as x dir */\
-		(Y)->ptr[0] = ((X)->ptr[6] - (X)->ptr[2]) * sqrt_eps * sqrt_1_2;\
-		(Y)->ptr[1] = ((X)->ptr[7] - (X)->ptr[5]) * sqrt_eps * sqrt_1_2;\
-		(Y)->ptr[2] = ((X)->ptr[3] * sqrt_eps + (X)->ptr[1] * sqrt_mu) * v_p * sqrt_1_2;\
-		(Y)->ptr[3] = ((X)->ptr[4] * sqrt_eps - (X)->ptr[0] * sqrt_mu) * v_p * sqrt_1_2;\
-		(Y)->ptr[4] = ((X)->ptr[3] * sqrt_eps - (X)->ptr[1] * sqrt_mu) * v_p * sqrt_1_2;\
-		(Y)->ptr[5] = ((X)->ptr[4] * sqrt_eps + (X)->ptr[0] * sqrt_mu) * v_p * sqrt_1_2;\
-		(Y)->ptr[6] = ((X)->ptr[2] + (X)->ptr[6]) * sqrt_eps * sqrt_1_2;\
-		(Y)->ptr[7] = ((X)->ptr[5] + (X)->ptr[7]) * sqrt_eps * sqrt_1_2;\
-\
-	}\
+	real const tmp1 = 1. / (eig)->sqrt_1_eps;\
+	real const tmp2 = n_l.x * (X)->ptr[0];\
+	real const tmp3 = 1. / 2.;\
+	real const tmp4 = tmp1 * tmp2;\
+	real const tmp5 = tmp3 * tmp4;\
+	real const tmp7 = n2_l.x * (X)->ptr[1];\
+	real const tmp9 = tmp7 * tmp1;\
+	real const tmp11 = tmp9 * tmp3;\
+	real const tmp13 = n3_l.x * (X)->ptr[2];\
+	real const tmp15 = tmp13 * tmp1;\
+	real const tmp17 = tmp15 * tmp3;\
+	real const tmp20 = (X)->ptr[6] * tmp1;\
+	real const tmp22 = tmp20 * tmp3;\
+	real const tmp24 = n_l.x * (X)->ptr[3];\
+	real const tmp26 = tmp24 * tmp1;\
+	real const tmp27 = tmp26 * tmp3;\
+	real const tmp29 = n2_l.x * (X)->ptr[4];\
+	real const tmp31 = tmp29 * tmp1;\
+	real const tmp33 = tmp31 * tmp3;\
+	real const tmp35 = n3_l.x * (X)->ptr[5];\
+	real const tmp37 = tmp35 * tmp1;\
+	real const tmp39 = tmp37 * tmp3;\
+	real const tmp42 = (X)->ptr[7] * tmp1;\
+	real const tmp44 = tmp42 * tmp3;\
+	real const tmp45 = n3_l.y * (X)->ptr[5];\
+	real const tmp47 = (eig)->sqrt_1_mu * tmp45;\
+	real const tmp48 = n2_l.y * (X)->ptr[4];\
+	real const tmp50 = (eig)->sqrt_1_mu * tmp48;\
+	real const tmp51 = n_l.y * (X)->ptr[3];\
+	real const tmp53 = (eig)->sqrt_1_mu * tmp51;\
+	real const tmp54 = n3_l.z * (X)->ptr[2];\
+	real const tmp56 = (eig)->sqrt_1_eps * tmp54;\
+	real const tmp57 = n2_l.z * (X)->ptr[1];\
+	real const tmp59 = (eig)->sqrt_1_eps * tmp57;\
+	real const tmp60 = n_l.z * (X)->ptr[0];\
+	real const tmp62 = (eig)->sqrt_1_eps * tmp60;\
+	real const tmp63 = tmp59 * tmp3;\
+	real const tmp64 = tmp62 * tmp3;\
+	real const tmp65 = tmp56 * tmp3;\
+	real const tmp67 = tmp53 * tmp3;\
+	real const tmp69 = tmp50 * tmp3;\
+	real const tmp71 = tmp47 * tmp3;\
+	real const tmp73 = n_l.y * (X)->ptr[0];\
+	real const tmp75 = (eig)->sqrt_1_eps * tmp73;\
+	real const tmp76 = tmp75 * tmp3;\
+	real const tmp77 = n2_l.y * (X)->ptr[1];\
+	real const tmp79 = (eig)->sqrt_1_eps * tmp77;\
+	real const tmp81 = tmp79 * tmp3;\
+	real const tmp82 = n3_l.y * (X)->ptr[2];\
+	real const tmp84 = (eig)->sqrt_1_eps * tmp82;\
+	real const tmp86 = tmp84 * tmp3;\
+	real const tmp87 = n_l.z * (X)->ptr[3];\
+	real const tmp89 = (eig)->sqrt_1_mu * tmp87;\
+	real const tmp90 = n2_l.z * (X)->ptr[4];\
+	real const tmp92 = (eig)->sqrt_1_mu * tmp90;\
+	real const tmp93 = n3_l.z * (X)->ptr[5];\
+	real const tmp95 = (eig)->sqrt_1_mu * tmp93;\
+	real const tmp96 = tmp92 * tmp3;\
+	real const tmp97 = tmp95 * tmp3;\
+	real const tmp98 = tmp89 * tmp3;\
+	(Y)->ptr[0] = tmp22 + -tmp5 - tmp11 - tmp17;\
+	(Y)->ptr[1] = tmp44 + -tmp27 - tmp33 - tmp39;\
+	(Y)->ptr[2] = tmp71 + tmp69 + tmp67 + tmp65 + tmp63 + tmp64;\
+	(Y)->ptr[3] = tmp98 + tmp96 + tmp97 + -tmp76 - tmp81 - tmp86;\
+	(Y)->ptr[4] = tmp67 + tmp69 + tmp71 + -tmp64 - tmp63 - tmp65;\
+	(Y)->ptr[5] = tmp97 + tmp96 + tmp98 + tmp86 + tmp81 + tmp76;\
+	(Y)->ptr[6] = tmp22 + tmp17 + tmp11 + tmp5;\
+	(Y)->ptr[7] = tmp44 + tmp39 + tmp33 + tmp27;\
 }
 
 //// MODULE_NAME: <?=eigen_rightTransform?>
@@ -220,46 +254,20 @@ TODO update this for Einstein-Maxwell (take the metric into consideration
 	/*real3 const */pt,\
 	/*<?=normal_t?> const */n\
 ) {\
-	<?=scalar?> const sqrt_1_eps = (eig)->sqrt_1_eps;\
-	<?=scalar?> const sqrt_1_mu = (eig)->sqrt_1_mu;\
-	<?=scalar?> const sqrt_eps = <?=inv?>((eig)->sqrt_1_eps);\
-	<?=scalar?> const sqrt_mu = <?=inv?>((eig)->sqrt_1_mu);\
-	<?=scalar?> const sqrt_2 = <?=inv?>(sqrt_1_2);\
+	real3 const n_l = normal_l1(n);\
+	real3 const n2_l = normal_l2(n);\
+	real3 const n3_l = normal_l3(n);\
 \
-	if (n.side == 0) {\
-\
-		(Y)->ptr[0] = ((-((X)->ptr[0] - (X)->ptr[6])) / (sqrt_2 * sqrt_eps));\
-		(Y)->ptr[1] = ((-(sqrt_eps * ((X)->ptr[3] - (X)->ptr[5]))) / sqrt_2);\
-		(Y)->ptr[2] = ((sqrt_eps * ((X)->ptr[2] - (X)->ptr[4])) / sqrt_2);\
-		(Y)->ptr[3] = ((-((X)->ptr[1] - (X)->ptr[7])) / (sqrt_2 * sqrt_eps));\
-		(Y)->ptr[4] = ((sqrt_mu * ((X)->ptr[2] + (X)->ptr[4])) / sqrt_2);\
-		(Y)->ptr[5] = ((sqrt_mu * ((X)->ptr[3] + (X)->ptr[5])) / sqrt_2);\
-		(Y)->ptr[6] = (((X)->ptr[0] + (X)->ptr[6]) / (sqrt_2 * sqrt_eps));\
-		(Y)->ptr[7] = (((X)->ptr[1] + (X)->ptr[7]) / (sqrt_2 * sqrt_eps));\
-\
-	} else if (n.side == 1) {\
-\
-		(Y)->ptr[0] = ((sqrt_eps * ((X)->ptr[3] - (X)->ptr[5])) / sqrt_2);\
-		(Y)->ptr[1] = ((-((X)->ptr[0] - (X)->ptr[6])) / (sqrt_2 * sqrt_eps));\
-		(Y)->ptr[2] = ((-(sqrt_eps * ((X)->ptr[2] - (X)->ptr[4]))) / sqrt_2);\
-		(Y)->ptr[3] = ((sqrt_mu * ((X)->ptr[2] + (X)->ptr[4])) / sqrt_2);\
-		(Y)->ptr[4] = ((-((X)->ptr[1] - (X)->ptr[7])) / (sqrt_2 * sqrt_eps));\
-		(Y)->ptr[5] = ((sqrt_mu * ((X)->ptr[3] + (X)->ptr[5])) / sqrt_2);\
-		(Y)->ptr[6] = (((X)->ptr[0] + (X)->ptr[6]) / (sqrt_2 * sqrt_eps));\
-		(Y)->ptr[7] = (((X)->ptr[1] + (X)->ptr[7]) / (sqrt_2 * sqrt_eps));\
-\
-	} else if (n.side == 2) {\
-\
-		(Y)->ptr[0] = ((-(sqrt_eps * ((X)->ptr[3] - (X)->ptr[5]))) / sqrt_2);\
-		(Y)->ptr[1] = ((sqrt_eps * ((X)->ptr[2] - (X)->ptr[4])) / sqrt_2);\
-		(Y)->ptr[2] = ((-((X)->ptr[0] - (X)->ptr[6])) / (sqrt_2 * sqrt_eps));\
-		(Y)->ptr[3] = ((sqrt_mu * ((X)->ptr[2] + (X)->ptr[4])) / sqrt_2);\
-		(Y)->ptr[4] = ((sqrt_mu * ((X)->ptr[3] + (X)->ptr[5])) / sqrt_2);\
-		(Y)->ptr[5] = ((-((X)->ptr[1] - (X)->ptr[7])) / (sqrt_2 * sqrt_eps));\
-		(Y)->ptr[6] = (((X)->ptr[0] + (X)->ptr[6]) / (sqrt_2 * sqrt_eps));\
-		(Y)->ptr[7] = (((X)->ptr[1] + (X)->ptr[7]) / (sqrt_2 * sqrt_eps));\
-\
-	}\
+	real const tmp3 = 1. / (eig)->sqrt_1_eps;\
+	real const tmp67 = 1. / (eig)->sqrt_1_mu;\
+	(Y)->ptr[0] = (eig)->sqrt_1_eps * n_l.x * (X)->ptr[6] + tmp3 * n_l.y * (X)->ptr[5] + tmp3 * n_l.z * (X)->ptr[2] - tmp3 * n_l.y * (X)->ptr[3] - tmp3 * n_l.z * (X)->ptr[4] + -(eig)->sqrt_1_eps * n_l.x * (X)->ptr[0];\
+	(Y)->ptr[1] = (eig)->sqrt_1_eps * n2_l.x * (X)->ptr[6] + tmp3 * n2_l.y * (X)->ptr[5] + tmp3 * n2_l.z * (X)->ptr[2] - tmp3 * n2_l.y * (X)->ptr[3] - tmp3 * n2_l.z * (X)->ptr[4] + -(eig)->sqrt_1_eps * n2_l.x * (X)->ptr[0];\
+	(Y)->ptr[2] = (eig)->sqrt_1_eps * n3_l.x * (X)->ptr[6] + tmp3 * n3_l.y * (X)->ptr[5] + tmp3 * n3_l.z * (X)->ptr[2] - tmp3 * n3_l.y * (X)->ptr[3] - tmp3 * n3_l.z * (X)->ptr[4] + -(eig)->sqrt_1_eps * n3_l.x * (X)->ptr[0];\
+	(Y)->ptr[3] = tmp67 * n_l.z * (X)->ptr[5] + tmp67 * n_l.y * (X)->ptr[4] + tmp67 * n_l.z * (X)->ptr[3] + tmp67 * n_l.y * (X)->ptr[2] + (eig)->sqrt_1_eps * n_l.x * (X)->ptr[7] + -(eig)->sqrt_1_eps * n_l.x * (X)->ptr[1];\
+	(Y)->ptr[4] = tmp67 * n2_l.z * (X)->ptr[5] + tmp67 * n2_l.y * (X)->ptr[4] + tmp67 * n2_l.z * (X)->ptr[3] + tmp67 * n2_l.y * (X)->ptr[2] + (eig)->sqrt_1_eps * n2_l.x * (X)->ptr[7] + -(eig)->sqrt_1_eps * n2_l.x * (X)->ptr[1];\
+	(Y)->ptr[5] = tmp67 * n3_l.z * (X)->ptr[5] + tmp67 * n3_l.y * (X)->ptr[4] + tmp67 * n3_l.z * (X)->ptr[3] + tmp67 * n3_l.y * (X)->ptr[2] + (eig)->sqrt_1_eps * n3_l.x * (X)->ptr[7] + -(eig)->sqrt_1_eps * n3_l.x * (X)->ptr[1];\
+	(Y)->ptr[6] = (eig)->sqrt_1_eps * (X)->ptr[6] + (eig)->sqrt_1_eps * (X)->ptr[0];\
+	(Y)->ptr[7] = (eig)->sqrt_1_eps * (X)->ptr[7] + (eig)->sqrt_1_eps * (X)->ptr[1];\
 \
 	for (int i = <?=eqn.numWaves?>; i < <?=eqn.numStates?>; ++i) {\
 		(Y)->ptr[i] = 0;\

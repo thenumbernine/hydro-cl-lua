@@ -32,7 +32,7 @@ GLM_Maxwell.initConds = require 'hydro.init.euler':getList()
 
 function GLM_Maxwell:init(args)
 	self.scalar = 'real'
-	--self.scalar = 'cplx'
+	--self.scalar = 'cplx'	-- I broke this
 	
 	self.vec3 = self.scalar..'3'
 	self.mat3x3 = self.scalar..'3x3'
@@ -181,7 +181,7 @@ function GLM_Maxwell:getDisplayVars()
 	return vars
 end
 
-function GLM_Maxwell:eigenWaveCodePrefix(n, eig, x, waveIndex)
+function GLM_Maxwell:eigenWaveCodePrefix(n, eig, pt, waveIndex)
 --[=[
 	return self:template([[
 	<?=scalar?> v_p_abs = <?=mul?>((<?=eig?>)->sqrt_1_eps, (<?=eig?>)->sqrt_1_mu);
@@ -192,9 +192,10 @@ function GLM_Maxwell:eigenWaveCodePrefix(n, eig, x, waveIndex)
 -- [=[
 	local env = self:getEnv()
 	local code = self:template(
-		[[<?=mul?>((<?=eig?>)->sqrt_1_eps, (<?=eig?>)->sqrt_1_mu)]],
+		[[<?=mul?>(<?=mul?>((<?=eig?>)->sqrt_1_eps, (<?=eig?>)->sqrt_1_mu), 1./coord_sqrt_det_g(<?=pt?>))]],
 		{
 			eig = '('..eig..')',
+			pt = '('..pt..')',
 		}
 	)
 	if self.scalar == 'cplx' then
@@ -206,7 +207,7 @@ end
 
 -- to use this, I really need cplx multiplications everywhere it is used
 -- which is in the roe solver and hll solver
-function GLM_Maxwell:eigenWaveCode(n, eig, x, waveIndex)
+function GLM_Maxwell:eigenWaveCode(n, eig, pt, waveIndex)
 	waveIndex = math.floor(waveIndex / self.numRealsInScalar)
 	return ({
 		'-solver->divPhiWavespeed / unit_m_per_s',
@@ -220,20 +221,21 @@ function GLM_Maxwell:eigenWaveCode(n, eig, x, waveIndex)
 	})[waveIndex+1] or error('got a bad waveIndex: '..waveIndex)
 end
 
-function GLM_Maxwell:eigenMaxWaveCode(n, eig, x)
+function GLM_Maxwell:eigenMaxWaveCode(n, eig, pt)
 	return 'max(max(solver->divPsiWavespeed / unit_m_per_s, solver->divPhiWavespeed / unit_m_per_s), v_p_abs)'
 end
-function GLM_Maxwell:eigenMinWaveCode(n, eig, x)
-	return '-'..self:eigenMaxWaveCode(n, eig, x)
+function GLM_Maxwell:eigenMinWaveCode(n, eig, pt)
+	return '-'..self:eigenMaxWaveCode(n, eig, pt)
 end
 
 
-function GLM_Maxwell:consWaveCodePrefix(n, U, x, waveIndex) 
+function GLM_Maxwell:consWaveCodePrefix(n, U, pt, waveIndex) 
 	local env = self:getEnv()
 	local code = self:template(
-		[[<?=mul?>((<?=U?>)->sqrt_1_eps, (<?=U?>)->sqrt_1_mu)]],
+		[[<?=mul?>(<?=mul?>((<?=U?>)->sqrt_1_eps, (<?=U?>)->sqrt_1_mu), 1./coord_sqrt_det_g(<?=pt?>))]],
 		{
 			U = '('..U..')',
+			pt = '('..pt..')',
 		}
 	)
 	if self.scalar == 'cplx' then
@@ -243,11 +245,11 @@ function GLM_Maxwell:consWaveCodePrefix(n, U, x, waveIndex)
 end
 GLM_Maxwell.consWaveCode = GLM_Maxwell.eigenWaveCode
 
-function GLM_Maxwell:consMaxWaveCode(n, U, x)
+function GLM_Maxwell:consMaxWaveCode(n, U, pt)
 	return 'max(max(solver->divPsiWavespeed, solver->divPhiWavespeed), v_p_abs)'
 end
-function GLM_Maxwell:consMinWaveCode(n, U, x)
-	return '-'..self:consMaxWaveCode(n, U, x)
+function GLM_Maxwell:consMinWaveCode(n, U, pt)
+	return '-'..self:consMaxWaveCode(n, U, pt)
 end
 
 
