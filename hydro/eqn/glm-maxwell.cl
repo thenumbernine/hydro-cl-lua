@@ -277,7 +277,7 @@ TODO update this for Einstein-Maxwell (take the metric into consideration
 //// MODULE_NAME: <?=eigen_fluxTransform?>
 //// MODULE_DEPENDS: <?=fluxFromCons?> 
 
-#error need to do this one now
+#error need to do this one now.  dF/dU * U != U ... it is just a coincidence of Euler fluid equations.
 #define <?=eigen_fluxTransform?>(\
 	/*<?=cons_t?> * const */result,\
 	/*constant <?=solver_t?> const * const */solver,\

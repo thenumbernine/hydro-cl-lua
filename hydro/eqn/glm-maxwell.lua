@@ -64,6 +64,7 @@ function GLM_Maxwell:init(args)
 
 	GLM_Maxwell.super.init(self, args)
 
+--[=[ same as eqn/maxwell.lua
 	function self:postComputeFluxCode()
 		return self:template[[
 //// MODULE_DEPENDS: <?=coord_sqrt_det_g?> <?=eqn_common?>
@@ -76,6 +77,7 @@ function GLM_Maxwell:init(args)
 		flux.B = <?=vec3?>_real_mul(eqn_coord_lower(flux.B, x), _1_sqrt_det_g);
 ]]
 	end
+--]=]
 end
 
 function GLM_Maxwell:getSymbolFields()

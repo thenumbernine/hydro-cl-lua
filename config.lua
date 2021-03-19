@@ -244,7 +244,7 @@ local args = {
 	--initCond = 'gaussian',
 	--initCond = 'advect wave',
 	--initCond = 'sphere',
-	--initCond = 'spiral',
+	initCond = 'spiral',
 	--initCond = 'rarefaction wave',
 	--initCond = 'Bessel',
 	--initCond = 'jet',
@@ -337,7 +337,7 @@ local args = {
 
 
 	-- Maxwell: (doesn't work when run for euler, due to eqn env requirements)
-	initCond = 'Maxwell default',
+	--initCond = 'Maxwell default',
 	--initCond = 'Maxwell empty waves',
 	--initCond = 'Maxwell scattering around cylinder',
 	--initCond = 'Maxwell scattering around pyramid',
@@ -666,7 +666,7 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn
 -- compressible Euler fluid equations + de-Donder gauge linearized GR
 
 
---self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler-lingr'})))
+self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler-lingr'})))
 
 
 -- special relativistic compressible hydrodynamics
@@ -743,7 +743,7 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn
 -- GLM Maxwell
 
 
-self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='glm-maxwell'})))
+--self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='glm-maxwell'})))
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='glm-maxwell'})))
 --self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='glm-maxwell', wenoMethod='2010 Shen Zha', order=7})))
 --self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='glm-maxwell', wenoMethod='2010 Shen Zha', order=13})))
