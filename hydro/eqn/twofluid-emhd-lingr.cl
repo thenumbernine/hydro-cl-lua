@@ -153,6 +153,7 @@ static inline real calc_<?=fluid?>_Cs(
 
 <? end ?>
 
+//units are kg/(m*s^2)
 static inline real calc_EM_energy(
 	constant <?=solver_t?> const * const solver,
 	global <?=cons_t?> const * const U,

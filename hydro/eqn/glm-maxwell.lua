@@ -146,9 +146,11 @@ end
 
 GLM_Maxwell.predefinedDisplayVars = {
 	'U D',
+	'U D z',
 	'U div D',
 	'U phi',
 	'U B',
+	'U B z',
 	'U div B',
 	'U psi',
 }
@@ -181,6 +183,12 @@ function GLM_Maxwell:getDisplayVars()
 	vars:insert(self:createCurlDisplayVar{field='B', scalar=env.scalar, units='kg/(C*m*s)'} or nil)
 
 	return vars
+end
+
+function GLM_Maxwell:getModuleDepends_waveCode()
+	return table(GLM_Maxwell.super.getModuleDepends_waveCode(self)):append{
+		self.solver.coord.symbols.coord_sqrt_det_g,
+	}
 end
 
 function GLM_Maxwell:eigenWaveCodePrefix(n, eig, pt, waveIndex)

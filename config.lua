@@ -60,7 +60,7 @@ local args = {
 	-- this is functional without usePLM, but doing so falls back on the cell-centered buffer, which with the current useCTU code will update the same cell twice from different threads
 	--useCTU = true,
 	
-	--[[ Cartesian
+	-- [[ Cartesian
 	coord = 'cartesian',
 	--coordArgs = {vectorComponent='holonomic'},		-- use the coordinate derivatives to represent our vector components (though they may not be normalized)
 	--coordArgs = {vectorComponent='anholonomic'},		-- use orthonormal basis to represent our vector components
@@ -140,7 +140,7 @@ local args = {
 		zmax = cmdline.boundary or 'freeflow',
 	},
 	--]]
-	-- [[ cylinder
+	--[[ cylinder
 	coord = 'cylinder',
 		-- TODO doesn't work
 	--coordArgs = {vectorComponent='holonomic'},		-- use the coordinate derivatives to represent our vector components (though they may not be normalized)
@@ -244,7 +244,7 @@ local args = {
 	--initCond = 'gaussian',
 	--initCond = 'advect wave',
 	--initCond = 'sphere',
-	initCond = 'spiral',
+	--initCond = 'spiral',
 	--initCond = 'rarefaction wave',
 	--initCond = 'Bessel',
 	--initCond = 'jet',
@@ -311,7 +311,7 @@ local args = {
 
 
 	-- self-gravitation tests:
-	--initCond = 'self-gravitation - Earth',	-- validating units along with self-gravitation.
+	initCond = 'self-gravitation - Earth',	-- validating units along with self-gravitation.
 	--initCond = 'self-gravitation test 1',
 	--initCond = 'self-gravitation test 1 spinning',
 	--initCond = 'self-gravitation test 2',		--FIXME
@@ -337,7 +337,8 @@ local args = {
 
 
 	-- Maxwell: (doesn't work when run for euler, due to eqn env requirements)
-	--initCond = 'Maxwell default',
+	--initCond = 'Maxwell default',	-- arbitrary test to make sure it doesn't explode
+	--initCond = 'Maxwell constant',
 	--initCond = 'Maxwell empty waves',
 	--initCond = 'Maxwell scattering around cylinder',
 	--initCond = 'Maxwell scattering around pyramid',

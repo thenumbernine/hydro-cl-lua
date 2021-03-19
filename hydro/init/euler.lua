@@ -368,7 +368,7 @@ local function addMaxwellOscillatingBoundary(args)
 	function solver:boundary()
 assert(self.t)
 		for _,obj in ipairs(self.boundaryKernelObjs) do
-			obj.obj:setArg(2, real(self.t))
+			obj.obj:setArg(3, real(self.t))
 		end
 		oldBoundary(self)
 	end
@@ -2141,6 +2141,46 @@ end ?>;
 ]])
 		end,
 	},
+
+	-- now that I think about it, this is dumb, because the derivative will be zero.
+	-- oscillating boundary is much better.
+	{
+		name = 'Maxwell constant',
+		guiVars = {
+			{name = 'Dx', value = 1},
+			{name = 'Dy', value = 0},
+			{name = 'Dz', value = 0},
+			{name = 'Bx', value = 1},
+			{name = 'By', value = 0},
+			{name = 'Bz', value = 0},
+		},
+		getInitCondCode = function(self)
+			return self.solver.eqn:template([[
+	D.x = <?=scalar?>_from_real(initCond->Dx);
+	D.y = <?=scalar?>_from_real(initCond->Dy);
+	D.z = <?=scalar?>_from_real(initCond->Dz);
+	B.x = <?=scalar?>_from_real(initCond->Bx);
+	B.y = <?=scalar?>_from_real(initCond->By);
+	B.z = <?=scalar?>_from_real(initCond->Bz);
+]])
+		end,
+	},
+
+	{
+		name = 'Maxwell empty waves',
+		getInitCondCode = function(self)
+			local solver = assert(self.solver)
+			addMaxwellOscillatingBoundary{
+				solver = solver,
+				side = xNames[solver.dim]..'max',
+				dir = xNames[solver.dim],
+				amplitude = 1,
+				period = 10,
+			}
+			return ''
+		end,
+	},
+
 
 	{
 		name = 'Maxwell empty waves',

@@ -260,6 +260,7 @@ my current convention is this:
 #define unit_m_per_s			(unit_m / unit_s)
 #define unit_m2_per_s2			(unit_m2 / unit_s2)
 #define unit_m3_per_kg_s2		(unit_m3 / (unit_kg * unit_s2))
+#define unit_kg_per_m			(unit_kg / unit_m)
 #define unit_kg_per_m3			(unit_kg / unit_m3)
 #define unit_kg_per_m2_s		(unit_kg / (unit_m2 * unit_s))
 #define unit_kg_per_m_s2		(unit_kg / (unit_m * unit_s2))

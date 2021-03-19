@@ -25,13 +25,13 @@
 
 #define /*real*/ calc_eKin(\
 	/*<?=prim_t?> const * const */W,\
-	/*real3 const */x\
-)	(.5 * coordLenSq((W)->v, x))
+	/*real3 const */pt\
+)	(.5 * coordLenSq((W)->v, pt))
 
 #define /*real*/ calc_EKin(\
 	/*<?=prim_t?> const * const */W,\
-	/*real3 const */x\
-) 	((W)->rho * calc_eKin(W, x))
+	/*real3 const */pt\
+) 	((W)->rho * calc_eKin(W, pt))
 
 #define /*real*/ calc_EInt(\
 	/*constant <?=solver_t?> const * const */solver,\
@@ -45,14 +45,14 @@
 
 #define /*real*/ calc_EKin_fromCons(\
 	/*<?=cons_t?> const * const*/U,\
-	/*real3 const */x\
-)	(.5 * coordLenSq((U)->m, x) / (U)->rho)
+	/*real3 const */pt\
+)	(.5 * coordLenSq((U)->m, pt) / (U)->rho)
 
 #define /*real*/ calc_ETotal(\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=prim_t?> const * const */W,\
-	/*real3 const */x\
-) 	(calc_EKin(W, x) + calc_EInt(solver, W))
+	/*real3 const */pt\
+) 	(calc_EKin(W, pt) + calc_EInt(solver, W))
 
 #define /*real*/ calc_Cs(\
 	/*constant <?=solver_t?> const * const */solver,\
@@ -62,21 +62,21 @@
 #define /*real*/ calc_P(\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const*/U,\
-	/*real3 const */x\
-)	(solver->heatCapacityRatio - 1.) * (/*EInt=*/(U)->ETotal - /*EKin=*/calc_EKin_fromCons(U, x))
+	/*real3 const */pt\
+)	(solver->heatCapacityRatio - 1.) * (/*EInt=*/(U)->ETotal - /*EKin=*/calc_EKin_fromCons(U, pt))
 
 #define /*real*/ calc_eInt_from_cons(\
 	/*<?=cons_t?> const * const*/U,\
-	/*real3 const */x\
-) (((U)->ETotal - .5 * coordLenSq((U)->m, x) / (U)->rho) / (U)->rho)
+	/*real3 const */pt\
+) (((U)->ETotal - .5 * coordLenSq((U)->m, pt) / (U)->rho) / (U)->rho)
 
 <? local materials = require "hydro.materials" ?>
 #define C_v				<?=("%.50f"):format(materials.Air.C_v)?>
 
 #define /*real*/ calc_T(\
 	/*<?=cons_t?> const * const*/U,\
-	/*real3 const */x\
-) (calc_eInt_from_cons(U, x) / C_v)
+	/*real3 const */pt\
+) (calc_eInt_from_cons(U, pt) / C_v)
 
 #define /*real3*/ calc_v(\
 	/*<?=cons_t?> const * const*/U\
@@ -84,18 +84,52 @@
 
 //// MODULE_DEPENDS: units
 
-// rho * (E + v * B) has units kg/(m^2 s^2)
-// so this isn't a force, it's a kg-times-force
-real3 calcGravForce(
+#define /*real3*/ calc_EgField(\
+	/*constant <?=solver_t?> const * const */solver,\
+	/*global <?=cons_t?> const * const */U\
+)\
+	(real3_real_mul((U)->D_g, 4. * M_PI * solver->gravitationalConstant / unit_m3_per_kg_s2))
+
+#define /*real3*/ calc_HgField(\
+	/*constant <?=solver_t?> const * const */solver,\
+	/*global <?=cons_t?> const * const */U\
+)\
+	(real3_real_mul((U)->B_g, solver->speedOfLight * solver->speedOfLight / (4. * M_PI * solver->gravitationalConstant) / unit_kg_per_m))
+
+#define /*real3*/ calc_SgField(\
+	/*constant <?=solver_t?> const * const */solver,\
+	/*global <?=cons_t?> const * const */U\
+)\
+	(real3_cross(calc_EgField(solver, U), calc_HgField(solver, U)))
+
+//units are kg/(m*s^2)
+static inline real calc_GEM_energy(
 	constant <?=solver_t?> const * const solver,
 	global <?=cons_t?> const * const U,
 	real3 const x
 ) {
-	real const eps_g = 1. / (4. * M_PI * (solver->sqrt_G * solver->sqrt_G / unit_m3_per_kg_s2));
+	real const G = solver->gravitationalConstant / unit_m3_per_kg_s2;
+	real const _1_eps_g = 4. * M_PI * G;
+	real const speedOfLightSq = solver->speedOfLight * solver->speedOfLight / unit_m2_per_s2;
+	real const _1_mu_g = speedOfLightSq / _1_eps_g;
+
+	return .5 * (coordLenSq(U->D_g, x) * _1_eps_g + coordLenSq(U->B_g, x) * _1_mu_g);
+}
+
+//rho * (E + v * B) has units kg/(m^2 s^2)
+//so this is a force-per-volume
+//divide by rho to get m/s^2 acceleration
+real3 calcGravityForcePerVolume(
+	constant <?=solver_t?> const * const solver,
+	global <?=cons_t?> const * const U,
+	real3 const pt
+) {
+	real const G = solver->gravitationalConstant / unit_m3_per_kg_s2;
+	real const _1_eps_g = 4. * M_PI * G;
 	return _real3(
-		U->rho * U->D_g.x / eps_g + 4. * (U->m.y * U->B_g.z - U->m.z * U->B_g.y),
-		U->rho * U->D_g.y / eps_g + 4. * (U->m.z * U->B_g.x - U->m.x * U->B_g.z),
-		U->rho * U->D_g.z / eps_g + 4. * (U->m.x * U->B_g.y - U->m.y * U->B_g.x));
+		U->rho * U->D_g.x * _1_eps_g + U->m.y * U->B_g.z - U->m.z * U->B_g.y,
+		U->rho * U->D_g.y * _1_eps_g + U->m.z * U->B_g.x - U->m.x * U->B_g.z,
+		U->rho * U->D_g.z * _1_eps_g + U->m.x * U->B_g.y - U->m.y * U->B_g.x);
 }
 
 //// MODULE_NAME: <?=primFromCons?>
@@ -106,11 +140,11 @@ real3 calcGravForce(
 	/*<?=prim_t?> * const */resultW,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const*/U,\
-	/*real3 const */x\
+	/*real3 const */pt\
 ) {\
 	(resultW)->rho = (U)->rho;\
 	(resultW)->v = calc_v(U);\
-	(resultW)->P = calc_P(solver, U, x);\
+	(resultW)->P = calc_P(solver, U, pt);\
 	(resultW)->D_g = (U)->D_g;\
 	(resultW)->B_g = (U)->B_g;\
 	(resultW)->psi_g = (U)->psi_g;\
@@ -257,15 +291,15 @@ end
 	real const eps = solver->sqrt_eps * solver->sqrt_eps / unit_C2_s2_per_kg_m3;\
 	real const mu = solver->sqrt_mu * solver->sqrt_mu / unit_kg_m_per_C2;\
 \
-	real const G = solver->sqrt_G * solver->sqrt_G / unit_m3_per_kg_s2;\
+	real const G = solver->gravitationalConstant / unit_m3_per_kg_s2;\
+	real const _1_eps_g = 4. * M_PI * G;\
 	real const speedOfLightSq = solver->speedOfLight * solver->speedOfLight / unit_m2_per_s2;\
-	real const eps_g = 1. / (4. * M_PI * G);\
-	real const mu_g = 1. / (eps_g * speedOfLightSq);\
+	real const _1_mu_g = speedOfLightSq / _1_eps_g;\
 \
 	/* taken from glm-maxwell instead of the 2014 Abgrall, Kumar */\
 	/*  then replace D = epsilon E and phi' -> epsilon phi */\
-	real3 const E = real3_real_mul((U)->D_g, 1. / eps_g);\
-	real3 const H = real3_real_mul((U)->B_g, 1. / mu_g);\
+	real3 const E_g = real3_real_mul((U)->D_g, _1_eps_g);\
+	real3 const H_g = real3_real_mul((U)->B_g, _1_mu_g);\
 \
 	real const nx = normal_l1x(n);\
 	real const ny = normal_l1y(n);\
@@ -400,19 +434,16 @@ end
 	/*<?=normal_t?> */n\
 ) {\
 	real3 const v_n = normal_vecDotNs(n, (eig)->v);\
-	real const nLen = normal_len(n);\
-	real const inv_nLen = 1. / nLen;\
+	real const inv_nLen = 1. / normal_len(n);\
 	real const denom = 2. * (eig)->Cs * (eig)->Cs;\
 	real const invDenom = 1. / denom;\
 	real const gamma_1 = solver->heatCapacityRatio - 1.;\
 \
-	real const G = solver->sqrt_G * solver->sqrt_G / unit_m3_per_kg_s2;\
-	real const speedOfLightSq = solver->speedOfLight * solver->speedOfLight / unit_m2_per_s2;\
-	real const eps_g = 1. / (4. * M_PI * G);\
-	real const mu_g = 1. / (eps_g * speedOfLightSq);\
-\
-	real const sqrt_eps_g = sqrt(eps_g);	/* TODO sqrt units */\
-	real const sqrt_mu_g = sqrt(mu_g);\
+	real const G = solver->gravitationalConstant / unit_m3_per_kg_s2;\
+	real const _1_eps_g = 4. * M_PI * G;\
+	real const sqrt_1_eps_g = sqrt(_1_eps_g);\
+	real const sqrt_1_mu_g = solver->speedOfLight / sqrt_1_eps_g;\
+	real const _1_mu_g = sqrt_1_mu_g * sqrt_1_mu_g;\
 \
 	(Y)->ptr[0] = (\
 			(X)->ptr[0] * (.5 * gamma_1 * (eig)->vSq + (eig)->Cs * v_n.x * inv_nLen)\
@@ -447,9 +478,6 @@ end
 			+ (X)->ptr[3] * (-gamma_1 * (eig)->vL.z + (eig)->Cs * normal_l1z_over_len(n))\
 			+ (X)->ptr[4] * gamma_1\
 		) * invDenom;\
-\
-	real const sqrt_1_eps_g = 1. / sqrt_eps_g;\
-	real const sqrt_1_mu_g = 1. / sqrt_mu_g;\
 \
 	real3 const n_l = normal_l1(n);\
 	real3 const n2_l = normal_l2(n);\
@@ -537,15 +565,13 @@ end
 	/*<?=normal_t?> const */n\
 ) {\
 	real3 const v_n = normal_vecDotNs(n, (eig)->v);\
-	real const nLen = normal_len(n);\
-	real const inv_nLen = 1. / nLen;\
+	real const inv_nLen = 1. / normal_len(n);\
 \
-	real const G = solver->sqrt_G * solver->sqrt_G / unit_m3_per_kg_s2;\
-	real const speedOfLightSq = solver->speedOfLight * solver->speedOfLight / unit_m2_per_s2;\
-	real const eps_g = 1. / (4. * M_PI * G);\
-	real const mu_g = 1. / (eps_g * speedOfLightSq);\
-	real const sqrt_eps_g = sqrt(eps_g);	/*  TODO sqrt units */\
-	real const sqrt_mu_g = sqrt(mu_g);\
+	real const G = solver->gravitationalConstant / unit_m3_per_kg_s2;\
+	real const _1_eps_g = 4. * M_PI * G;\
+	real const sqrt_1_eps_g = sqrt(_1_eps_g);\
+	real const sqrt_mu_g = sqrt_1_eps_g / solver->speedOfLight;\
+	real const sqrt_eps_g = 1. / sqrt_1_eps_g;\
 \
 	(Y)->ptr[0] =\
 		(X)->ptr[0]\
@@ -576,9 +602,6 @@ end
 		+ (X)->ptr[3] * v_n.z\
 		+ (X)->ptr[4] * ((eig)->hTotal + (eig)->Cs * v_n.x * inv_nLen);\
 \
-	real const sqrt_1_eps_g = 1. / sqrt_eps_g;\
-	real const sqrt_1_mu_g = 1. / sqrt_mu_g;\
-\
 	real3 const n_l = normal_l1(n);\
 	real3 const n2_l = normal_l2(n);\
 	real3 const n3_l = normal_l3(n);\
@@ -608,7 +631,6 @@ end
 	/*<?=normal_t?> const */n\
 ) {\
 	real3 const v_n = normal_vecDotNs(n, (eig).v);\
-	real const nLen = normal_len(n);\
 	const real gamma = solver->heatCapacityRatio;\
 	const real gamma_1 = gamma - 1.;\
 	const real gamma_2 = gamma - 2.;\
@@ -646,28 +668,31 @@ end
 		+ (X)->ptr[3] * (normal_l1z(n) * (eig).hTotal - gamma_1 * v_n.x * (eig).vL.z)\
 		+ (X)->ptr[4] * gamma * v_n.x;\
 \
-	(resultFlux)->ptr[5] =\
-		0;\
-\
-	real const G = solver->sqrt_G * solver->sqrt_G / unit_m3_per_kg_s2;\
+	real const G = solver->gravitationalConstant / unit_m3_per_kg_s2;\
 	real const speedOfLightSq = solver->speedOfLight * solver->speedOfLight / unit_m2_per_s2;\
-	real const eps_g = 1. / (4. * M_PI * G);\
-	real const mu_g = 1. / (eps_g * speedOfLightSq);\
+	real const _1_eps_g = 4. * M_PI * G;\
+	real const _1_mu_g = speedOfLightSq / _1_eps_g;\
 \
-	real3 const E_g = real3_real_mul((X)->D_g, 1. / eps_g);\
-	real3 const H_g = real3_real_mul((X)->B_g, 1. / mu_g);\
-	if (n.side == 0) {\
-		(resultFlux)->D_g = _real3(solver->divPhiWavespeed_g / unit_m_per_s * (X)->phi_g, H_g.z, -H_g.y);\
-		(resultFlux)->B_g = _real3(solver->divPsiWavespeed_g / unit_m_per_s * (X)->psi_g, -E_g.z, E_g.y);\
-	} else if (n.side == 1) {\
-		(resultFlux)->D_g = _real3(-H_g.z, solver->divPhiWavespeed_g / unit_m_per_s * (X)->phi_g, H_g.x);\
-		(resultFlux)->B_g = _real3(E_g.z, solver->divPsiWavespeed_g / unit_m_per_s * (X)->psi_g, -E_g.x);\
-	} else if (n.side == 2) {\
-		(resultFlux)->D_g = _real3(H_g.y, -H_g.x, solver->divPhiWavespeed_g / unit_m_per_s * (X)->phi_g);\
-		(resultFlux)->B_g = _real3(-E_g.y, E_g.x, solver->divPsiWavespeed_g / unit_m_per_s * (X)->psi_g);\
-	}\
-	(resultFlux)->phi_g = solver->divPhiWavespeed_g / unit_m_per_s * normal_vecDotN1(n, E_g);\
-	(resultFlux)->psi_g = solver->divPsiWavespeed_g / unit_m_per_s * normal_vecDotN1(n, H_g);\
+	real3 const E_g = real3_real_mul((X)->D_g, _1_eps_g);\
+	real3 const H_g = real3_real_mul((X)->B_g, _1_mu_g);\
+\
+	real const nx = normal_l1x(n);\
+	real const ny = normal_l1y(n);\
+	real const nz = normal_l1z(n);\
+\
+	(resultFlux)->D_g.x = H_g.y * nz - H_g.z * ny + nx * (U)->phi_g * solver->divPhiWavespeed_g / unit_m_per_s;	/* F_D^i = -eps^ijk n_j H_k */\
+	(resultFlux)->B_g.x = E_g.z * ny - E_g.y * nz + nx * (U)->psi_g * solver->divPsiWavespeed_g / unit_m_per_s;	/* F_B^i = +eps^ijk n_j B_k */\
+\
+	(resultFlux)->D_g.y = H_g.z * nx - H_g.x * nz + ny * (U)->phi_g * solver->divPhiWavespeed_g / unit_m_per_s;\
+	(resultFlux)->B_g.y = E_g.x * nz - E_g.z * nx + ny * (U)->psi_g * solver->divPsiWavespeed_g / unit_m_per_s;\
+\
+	(resultFlux)->D_g.z = H_g.x * ny - H_g.y * nx + nz * (U)->phi_g * solver->divPhiWavespeed_g / unit_m_per_s;\
+	(resultFlux)->B_g.z = E_g.y * nx - E_g.x * ny + nz * (U)->psi_g * solver->divPsiWavespeed_g / unit_m_per_s;\
+\
+	real const D_n = normal_vecDotN1(n, (U)->D_g);\
+	real const B_n = normal_vecDotN1(n, (U)->B_g);\
+	(resultFlux)->phi_g = <?=real_mul?>(D_n, solver->divPhiWavespeed_g / unit_m_per_s);\
+	(resultFlux)->psi_g = <?=real_mul?>(B_n, solver->divPsiWavespeed_g / unit_m_per_s);\
 }
 
 //// MODULE_NAME: <?=addSource?>
@@ -757,35 +782,40 @@ Maybe for an initial constant vel as large as sqrt(2) this fails, but it works o
 <? end -- vectorComponent == "anholonomic" ?>
 
 
-	real const G = solver->sqrt_G * solver->sqrt_G / unit_m3_per_kg_s2;
-	real const speedOfLightSq = solver->speedOfLight * solver->speedOfLight / unit_m2_per_s2;
-	real const eps_g = 1. / (4. * M_PI * G);
-	real const mu_g = 1. / (eps_g * speedOfLightSq);
+//	real const G = solver->gravitationalConstant / unit_m3_per_kg_s2;
+//	real const _1_eps_g = 4. * M_PI * G;
+//	real const speedOfLightSq = solver->speedOfLight * solver->speedOfLight / unit_m2_per_s2;
+//	real const mu_g = _1_eps_g / speedOfLightSq;
 
 //// MODULE_DEPENDS: <?=eqn_common?>
-	real3 const gravForce = calcGravForce(solver, U, x);
+	real3 const gravityForce = calcGravityForcePerVolume(solver, U, x);
 	
-	deriv->m = real3_add(deriv->m, gravForce);
+	deriv->m = real3_add(deriv->m, gravityForce);
 
 	/* source of D_g is J_g is the momentum + Poynting vector */
 	real3 J_g = real3_zero;
 	/*  I'm symmetrizing the stress-energy */
 		/* matter */
-	J_g.x -= U->m.x;
+	J_g.x -= U->m.x;	/* [m] = kg/(m^2*s) */
 	J_g.y -= U->m.y;
 	J_g.z -= U->m.z;
-	
-	deriv->D_g.x -= J_g.x;
+
+	/* D_g's units: kg/m^2 */
+	deriv->D_g.x -= J_g.x;	/* int [J_g] dt = kg/m^2 */
 	deriv->D_g.y -= J_g.y;
 	deriv->D_g.z -= J_g.z;
 
 	/*  source of phi_g is T_00 is rho + .5 (D^2 + B^2) */
 	real const T_00_over_c2 = 0
 		/* matter */
-		+ U->rho
+		+ U->rho	/* kg/m^3 */
 	;
 	
-	deriv->phi_g += T_00_over_c2 * solver->divPhiWavespeed_g / unit_m_per_s;
+	deriv->phi_g += 							/* = kg/(m^2*s) */
+		T_00_over_c2 								/* kg/m^3 */
+		* solver->divPhiWavespeed_g / unit_m_per_s	/* m/s */
+	;	/* and the deriv is d/dt, so it is integrated by seconds */
+	/* after integrating the derivative wrt t it becomes in units of kg/m^2, which is phi_g's units */
 }
 
 //// MODULE_NAME: <?=constrainU?>
