@@ -484,62 +484,59 @@ end
 	real3 const n3_l = normal_l3(n);\
 \
 	real const tmp1 = 1. / sqrt_1_eps_g;\
-	real const tmp2 = n_l.x * (X)->ptr[5+0];\
+	real const tmp2 = tmp1 * n_l.x;\
 	real const tmp3 = 1. / 2.;\
-	real const tmp4 = tmp1 * tmp2;\
+	real const tmp4 = (X)->ptr[5+0] * tmp2;\
 	real const tmp5 = tmp3 * tmp4;\
-	real const tmp7 = n2_l.x * (X)->ptr[5+1];\
-	real const tmp9 = tmp7 * tmp1;\
+	real const tmp7 = n_l.y * tmp1;\
+	real const tmp9 = (X)->ptr[5+1] * tmp7;\
 	real const tmp11 = tmp9 * tmp3;\
-	real const tmp13 = n3_l.x * (X)->ptr[5+2];\
-	real const tmp15 = tmp13 * tmp1;\
+	real const tmp13 = n_l.z * tmp1;\
+	real const tmp15 = (X)->ptr[5+2] * tmp13;\
 	real const tmp17 = tmp15 * tmp3;\
 	real const tmp20 = (X)->ptr[5+6] * tmp1;\
 	real const tmp22 = tmp20 * tmp3;\
-	real const tmp24 = n_l.x * (X)->ptr[5+3];\
-	real const tmp26 = tmp24 * tmp1;\
+	real const tmp26 = (X)->ptr[5+3] * tmp2;\
 	real const tmp27 = tmp26 * tmp3;\
-	real const tmp29 = n2_l.x * (X)->ptr[5+4];\
-	real const tmp31 = tmp29 * tmp1;\
+	real const tmp31 = (X)->ptr[5+4] * tmp7;\
 	real const tmp33 = tmp31 * tmp3;\
-	real const tmp35 = n3_l.x * (X)->ptr[5+5];\
-	real const tmp37 = tmp35 * tmp1;\
+	real const tmp37 = (X)->ptr[5+5] * tmp13;\
 	real const tmp39 = tmp37 * tmp3;\
 	real const tmp42 = (X)->ptr[5+7] * tmp1;\
 	real const tmp44 = tmp42 * tmp3;\
-	real const tmp45 = n3_l.y * (X)->ptr[5+5];\
-	real const tmp47 = sqrt_1_mu_g * tmp45;\
-	real const tmp48 = n2_l.y * (X)->ptr[5+4];\
-	real const tmp50 = sqrt_1_mu_g * tmp48;\
-	real const tmp51 = n_l.y * (X)->ptr[5+3];\
-	real const tmp53 = sqrt_1_mu_g * tmp51;\
-	real const tmp54 = n3_l.z * (X)->ptr[5+2];\
-	real const tmp56 = sqrt_1_eps_g * tmp54;\
-	real const tmp57 = n2_l.z * (X)->ptr[5+1];\
-	real const tmp59 = sqrt_1_eps_g * tmp57;\
-	real const tmp60 = n_l.z * (X)->ptr[5+0];\
-	real const tmp62 = sqrt_1_eps_g * tmp60;\
+	real const tmp45 = sqrt_1_mu_g * n2_l.z;\
+	real const tmp47 = (X)->ptr[5+5] * tmp45;\
+	real const tmp48 = sqrt_1_mu_g * n2_l.y;\
+	real const tmp50 = (X)->ptr[5+4] * tmp48;\
+	real const tmp51 = sqrt_1_mu_g * n2_l.x;\
+	real const tmp53 = (X)->ptr[5+3] * tmp51;\
+	real const tmp54 = sqrt_1_eps_g * n3_l.z;\
+	real const tmp56 = (X)->ptr[5+2] * tmp54;\
+	real const tmp57 = sqrt_1_eps_g * n3_l.y;\
+	real const tmp59 = (X)->ptr[5+1] * tmp57;\
+	real const tmp60 = sqrt_1_eps_g * n3_l.x;\
+	real const tmp62 = (X)->ptr[5+0] * tmp60;\
 	real const tmp63 = tmp59 * tmp3;\
 	real const tmp64 = tmp62 * tmp3;\
 	real const tmp65 = tmp56 * tmp3;\
 	real const tmp67 = tmp53 * tmp3;\
 	real const tmp69 = tmp50 * tmp3;\
 	real const tmp71 = tmp47 * tmp3;\
-	real const tmp73 = n_l.y * (X)->ptr[5+0];\
-	real const tmp75 = sqrt_1_eps_g * tmp73;\
+	real const tmp73 = sqrt_1_eps_g * n2_l.x;\
+	real const tmp75 = (X)->ptr[5+0] * tmp73;\
 	real const tmp76 = tmp75 * tmp3;\
-	real const tmp77 = n2_l.y * (X)->ptr[5+1];\
-	real const tmp79 = sqrt_1_eps_g * tmp77;\
+	real const tmp77 = sqrt_1_eps_g * n2_l.y;\
+	real const tmp79 = (X)->ptr[5+1] * tmp77;\
 	real const tmp81 = tmp79 * tmp3;\
-	real const tmp82 = n3_l.y * (X)->ptr[5+2];\
-	real const tmp84 = sqrt_1_eps_g * tmp82;\
+	real const tmp82 = sqrt_1_eps_g * n2_l.z;\
+	real const tmp84 = (X)->ptr[5+2] * tmp82;\
 	real const tmp86 = tmp84 * tmp3;\
-	real const tmp87 = n_l.z * (X)->ptr[5+3];\
-	real const tmp89 = sqrt_1_mu_g * tmp87;\
-	real const tmp90 = n2_l.z * (X)->ptr[5+4];\
-	real const tmp92 = sqrt_1_mu_g * tmp90;\
-	real const tmp93 = n3_l.z * (X)->ptr[5+5];\
-	real const tmp95 = sqrt_1_mu_g * tmp93;\
+	real const tmp87 = sqrt_1_mu_g * n3_l.x;\
+	real const tmp89 = (X)->ptr[5+3] * tmp87;\
+	real const tmp90 = sqrt_1_mu_g * n3_l.y;\
+	real const tmp92 = (X)->ptr[5+4] * tmp90;\
+	real const tmp93 = sqrt_1_mu_g * n3_l.z;\
+	real const tmp95 = (X)->ptr[5+5] * tmp93;\
 	real const tmp96 = tmp92 * tmp3;\
 	real const tmp97 = tmp95 * tmp3;\
 	real const tmp98 = tmp89 * tmp3;\
@@ -570,8 +567,7 @@ end
 	real const G = solver->gravitationalConstant / unit_m3_per_kg_s2;\
 	real const _1_eps_g = 4. * M_PI * G;\
 	real const sqrt_1_eps_g = sqrt(_1_eps_g);\
-	real const sqrt_mu_g = sqrt_1_eps_g / solver->speedOfLight;\
-	real const sqrt_eps_g = 1. / sqrt_1_eps_g;\
+	real const sqrt_1_mu_g = solver->speedOfLight / sqrt_1_eps_g;\
 \
 	(Y)->ptr[0] =\
 		(X)->ptr[0]\
@@ -606,14 +602,31 @@ end
 	real3 const n2_l = normal_l2(n);\
 	real3 const n3_l = normal_l3(n);\
 \
-	(Y)->ptr[5+0] = sqrt_1_eps_g * n_l.x * (X)->ptr[5+6] + sqrt_eps_g * n_l.y * (X)->ptr[5+5] + sqrt_eps_g * n_l.z * (X)->ptr[5+2] - sqrt_eps_g * n_l.y * (X)->ptr[5+3] - sqrt_eps_g * n_l.z * (X)->ptr[5+4] + -sqrt_1_eps_g * n_l.x * (X)->ptr[5+0];\
-	(Y)->ptr[5+1] = sqrt_1_eps_g * n2_l.x * (X)->ptr[5+6] + sqrt_eps_g * n2_l.y * (X)->ptr[5+5] + sqrt_eps_g * n2_l.z * (X)->ptr[5+2] - sqrt_eps_g * n2_l.y * (X)->ptr[5+3] - sqrt_eps_g * n2_l.z * (X)->ptr[5+4] + -sqrt_1_eps_g * n2_l.x * (X)->ptr[5+0];\
-	(Y)->ptr[5+2] = sqrt_1_eps_g * n3_l.x * (X)->ptr[5+6] + sqrt_eps_g * n3_l.y * (X)->ptr[5+5] + sqrt_eps_g * n3_l.z * (X)->ptr[5+2] - sqrt_eps_g * n3_l.y * (X)->ptr[5+3] - sqrt_eps_g * n3_l.z * (X)->ptr[5+4] + -sqrt_1_eps_g * n3_l.x * (X)->ptr[5+0];\
-	(Y)->ptr[5+3] = sqrt_mu_g * n_l.z * (X)->ptr[5+5] + sqrt_mu_g * n_l.y * (X)->ptr[5+4] + sqrt_mu_g * n_l.z * (X)->ptr[5+3] + sqrt_mu_g * n_l.y * (X)->ptr[5+2] + sqrt_1_eps_g * n_l.x * (X)->ptr[5+7] + -sqrt_1_eps_g * n_l.x * (X)->ptr[5+1];\
-	(Y)->ptr[5+4] = sqrt_mu_g * n2_l.z * (X)->ptr[5+5] + sqrt_mu_g * n2_l.y * (X)->ptr[5+4] + sqrt_mu_g * n2_l.z * (X)->ptr[5+3] + sqrt_mu_g * n2_l.y * (X)->ptr[5+2] + sqrt_1_eps_g * n2_l.x * (X)->ptr[5+7] + -sqrt_1_eps_g * n2_l.x * (X)->ptr[5+1];\
-	(Y)->ptr[5+5] = sqrt_mu_g * n3_l.z * (X)->ptr[5+5] + sqrt_mu_g * n3_l.y * (X)->ptr[5+4] + sqrt_mu_g * n3_l.z * (X)->ptr[5+3] + sqrt_mu_g * n3_l.y * (X)->ptr[5+2] + sqrt_1_eps_g * n3_l.x * (X)->ptr[5+7] + -sqrt_1_eps_g * n3_l.x * (X)->ptr[5+1];\
-	(Y)->ptr[5+6] = sqrt_1_eps_g * (X)->ptr[5+6] + sqrt_1_eps_g * (X)->ptr[5+0];\
-	(Y)->ptr[5+7] = sqrt_1_eps_g * (X)->ptr[5+7] + sqrt_1_eps_g * (X)->ptr[5+1];\
+	real const tmp1 = sqrt_1_eps_g * n_l.x;\
+	real const tmp3 = 1. / sqrt_1_eps_g;\
+	real const tmp4 = tmp3 * n3_l.x;\
+	real const tmp6 = n2_l.x * tmp3;\
+	real const tmp22 = sqrt_1_eps_g * n_l.y;\
+	real const tmp25 = n3_l.y * tmp3;\
+	real const tmp27 = n2_l.y * tmp3;\
+	real const tmp43 = sqrt_1_eps_g * n_l.z;\
+	real const tmp46 = n3_l.z * tmp3;\
+	real const tmp48 = n2_l.z * tmp3;\
+	real const tmp66 = 1. / sqrt_1_mu_g;\
+	real const tmp67 = tmp66 * n2_l.x;\
+	real const tmp69 = n3_l.x * tmp66;\
+	real const tmp88 = n2_l.y * tmp66;\
+	real const tmp90 = n3_l.y * tmp66;\
+	real const tmp109 = n2_l.z * tmp66;\
+	real const tmp111 = n3_l.z * tmp66;\
+	(Y)->ptr[5+0] = (X)->ptr[5+6] * tmp1 + (X)->ptr[5+5] * tmp6 + (X)->ptr[5+2] * tmp4 - (X)->ptr[5+3] * tmp6 - (X)->ptr[5+4] * tmp4 + -(X)->ptr[5+0] * tmp1;\
+	(Y)->ptr[5+1] = (X)->ptr[5+6] * tmp22 + (X)->ptr[5+5] * tmp27 + (X)->ptr[5+2] * tmp25 - (X)->ptr[5+3] * tmp27 - (X)->ptr[5+4] * tmp25 + -(X)->ptr[5+0] * tmp22;\
+	(Y)->ptr[5+2] = (X)->ptr[5+6] * tmp43 + (X)->ptr[5+5] * tmp48 + (X)->ptr[5+2] * tmp46 - (X)->ptr[5+3] * tmp48 - (X)->ptr[5+4] * tmp46 + -(X)->ptr[5+0] * tmp43;\
+	(Y)->ptr[5+3] = (X)->ptr[5+7] * tmp1 + (X)->ptr[5+5] * tmp69 + (X)->ptr[5+4] * tmp67 + (X)->ptr[5+3] * tmp69 + (X)->ptr[5+2] * tmp67 + -(X)->ptr[5+1] * tmp1;\
+	(Y)->ptr[5+4] = (X)->ptr[5+7] * tmp22 + (X)->ptr[5+5] * tmp90 + (X)->ptr[5+4] * tmp88 + (X)->ptr[5+3] * tmp90 + (X)->ptr[5+2] * tmp88 + -(X)->ptr[5+1] * tmp22;\
+	(Y)->ptr[5+5] = (X)->ptr[5+7] * tmp43 + (X)->ptr[5+5] * tmp111 + (X)->ptr[5+4] * tmp109 + (X)->ptr[5+3] * tmp111 + (X)->ptr[5+2] * tmp109 + -(X)->ptr[5+1] * tmp43;\
+	(Y)->ptr[5+6] = (X)->ptr[5+6] * sqrt_1_eps_g + (X)->ptr[5+0] * sqrt_1_eps_g;\
+	(Y)->ptr[5+7] = (X)->ptr[5+7] * sqrt_1_eps_g + (X)->ptr[5+1] * sqrt_1_eps_g;\
 }
 
 //// MODULE_NAME: <?=eigen_fluxTransform?>
@@ -810,8 +823,8 @@ Maybe for an initial constant vel as large as sqrt(2) this fails, but it works o
 		/* matter */
 		+ U->rho	/* kg/m^3 */
 	;
-	
-	deriv->phi_g += 							/* = kg/(m^2*s) */
+
+	deriv->phi_g -= 							/* = kg/(m^2*s) */
 		T_00_over_c2 								/* kg/m^3 */
 		* solver->divPhiWavespeed_g / unit_m_per_s	/* m/s */
 	;	/* and the deriv is d/dt, so it is integrated by seconds */

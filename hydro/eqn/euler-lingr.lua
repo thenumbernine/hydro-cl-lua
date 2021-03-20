@@ -89,9 +89,12 @@ EulerLinGR.solverCodeFile = 'hydro/eqn/euler-lingr.cl'
 EulerLinGR.predefinedDisplayVars = {
 	'U rho',
 	'U v',
+	'U v z',
 	'U P',
 	'U D_g',
 	'U B_g',
+	'U E_g',
+	'U E_g z',
 	'U phi_g',
 	'U psi_g',
 }

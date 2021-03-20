@@ -164,9 +164,11 @@ end
 
 Maxwell.predefinedDisplayVars = {
 	'U D',
+	'U D z',
 	'U div D',
 	'U phi',
 	'U B',
+	'U B z',
 	'U div B',
 	'U psi',
 }
