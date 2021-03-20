@@ -9,8 +9,8 @@
 	/*real3 const */x\
 ) {\
 	(resultW)->rho = (U)->rho;\
-	(resultW)->v = calc_v(U);\
-	(resultW)->P = calc_P(solver, U, x);\
+	(resultW)->v = <?=calc_v?>(U);\
+	(resultW)->P = <?=calc_P?>(solver, U, x);\
 	(resultW)->ePot = (U)->ePot;\
 }
 
@@ -26,7 +26,7 @@
 ) {\
 	(result)->rho = (W)->rho;\
 	(result)->m = real3_real_mul((W)->v, (W)->rho);\
-	(result)->ETotal = calc_ETotal(solver, W, pt);\
+	(result)->ETotal = <?=calc_ETotal?>(solver, W, pt);\
 	(result)->ePot = (W)->ePot;\
 }
 
@@ -78,71 +78,71 @@
 //// MODULE_NAME: <?=eqn_common?>
 //// MODULE_DEPENDS: <?=coordLenSq?> <?=cons_t?> <?=prim_t?> <?=waves_t?> <?=eigen_t?> <?=eqn_guiVars_compileTime?>
 
-#define /*real*/ calc_H(\
+#define /*real*/ <?=calc_H?>(\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*real const */P\
 )	((P) * (solver->heatCapacityRatio / (solver->heatCapacityRatio - 1.)))
 
-#define /*real*/ calc_h(\
+#define /*real*/ <?=calc_h?>(\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*real const */rho,\
 	/*real const */P\
-)	(calc_H(solver, P) / (rho))
+)	(<?=calc_H?>(solver, P) / (rho))
 
-#define /*real*/ calc_HTotal(\
+#define /*real*/ <?=calc_HTotal?>(\
 	/*real const */P,\
 	/*real const */ETotal\
 )	((P) + (ETotal))
 
-#define /*real*/ calc_hTotal(\
+#define /*real*/ <?=calc_hTotal?>(\
 	/*real const */rho,\
 	/*real const */P,\
 	/*real const */ETotal\
-)	(calc_HTotal(P, ETotal) / (rho))
+)	(<?=calc_HTotal?>(P, ETotal) / (rho))
 
-#define /*real*/ calc_eKin(\
+#define /*real*/ <?=calc_eKin?>(\
 	/*<?=prim_t?> const * const */W,\
 	/*real3 const */x\
 )	(.5 * coordLenSq((W)->v, x))
 
-#define /*real*/ calc_EKin(\
+#define /*real*/ <?=calc_EKin?>(\
 	/*<?=prim_t?> const * const */W,\
 	/*real3 const */x\
-) 	((W)->rho * calc_eKin(W, x))
+) 	((W)->rho * <?=calc_eKin?>(W, x))
 
-#define /*real*/ calc_EInt(\
+#define /*real*/ <?=calc_EInt?>(\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=prim_t?> const * const */W\
 ) 	((W)->P / (solver->heatCapacityRatio - 1.))
 
-#define /*real*/ calc_eInt(\
+#define /*real*/ <?=calc_eInt?>(\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=prim_t?> const * const */W\
-)	(calc_EInt(solver, W) / (W)->rho)
+)	(<?=calc_EInt?>(solver, W) / (W)->rho)
 
-#define /*real*/ calc_EKin_fromCons(\
+#define /*real*/ <?=calc_EKin_fromCons?>(\
 	/*<?=cons_t?> const * const*/U,\
 	/*real3 const */x\
 )	(.5 * coordLenSq((U)->m, x) / (U)->rho)
 
-#define /*real*/ calc_ETotal(\
+#define /*real*/ <?=calc_ETotal?>(\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=prim_t?> const * const */W,\
 	/*real3 const */x\
-) 	(calc_EKin(W, x) + calc_EInt(solver, W))
+) 	(<?=calc_EKin?>(W, x) + <?=calc_EInt?>(solver, W))
 
-#define /*real*/ calc_Cs(\
+#define /*real*/ <?=calc_Cs?>(\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=prim_t?> const * const */W\
 ) 	(sqrt(solver->heatCapacityRatio * (W)->P / (W)->rho))
 
-#define /*real*/ calc_P(\
+#define /*real*/ <?=calc_P?>(\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const*/U,\
 	/*real3 const */x\
-)	(solver->heatCapacityRatio - 1.) * (/*EInt=*/(U)->ETotal - /*EKin=*/calc_EKin_fromCons(U, x))
+)	(solver->heatCapacityRatio - 1.) * (/*EInt=*/(U)->ETotal - /*EKin=*/<?=calc_EKin_fromCons?>(U, x))
 
-#define /*real*/ calc_eInt_from_cons(\
+#define /*real*/ <?=calc_eInt_fromCons?>(\
 	/*<?=cons_t?> const * const*/U,\
 	/*real3 const */x\
 ) (((U)->ETotal - .5 * coordLenSq((U)->m, x) / (U)->rho) / (U)->rho - (U)->ePot)
@@ -150,12 +150,12 @@
 <? local materials = require "hydro.materials" ?>
 #define C_v				<?=("%.50f"):format(materials.Air.C_v)?>
 
-#define /*real*/ calc_T(\
+#define /*real*/ <?=calc_T?>(\
 	/*<?=cons_t?> const * const*/U,\
 	/*real3 const */x\
-) (calc_eInt_from_cons(U, x) / C_v)
+) (<?=calc_eInt_fromCons?>(U, x) / C_v)
 
-#define /*real3*/ calc_v(\
+#define /*real3*/ <?=calc_v?>(\
 	/*<?=cons_t?> const * const*/U\
 ) (real3_real_mul((U)->m, 1. / (U)->rho))
 
@@ -243,7 +243,7 @@ end
 	<?=prim_t?> W;\
 	<?=primFromCons?>(&W, solver, U, pt);\
 	real const v_n = real3_dot(W.v, nL.x);\
-	real const Cs = calc_Cs(solver, &W);\
+	real const Cs = <?=calc_Cs?>(solver, &W);\
 	real const Cs_nLen = Cs * nLen;\
 	(result)->min = v_n - Cs_nLen; \
 	(result)->max = v_n + Cs_nLen;\
@@ -267,7 +267,7 @@ end
 	real const vSq = real3_dot(W.v, vL);\
 	real const v_n = normal_vecDotN1(n, W.v);\
 	real const eKin = .5 * vSq;\
-	real const hTotal = calc_hTotal(W.rho, W.P, (U)->ETotal);\
+	real const hTotal = <?=calc_hTotal?>(W.rho, W.P, (U)->ETotal);\
 	real const CsSq = (solver->heatCapacityRatio - 1.) * (hTotal - eKin);\
 	real const Cs = sqrt(CsSq);\
 	(result)->rho = W.rho;\
@@ -296,13 +296,13 @@ end
 	<?=primFromCons?>(&WL, solver, UL, (cellL)->pos);\
 	real const sqrtRhoL = sqrt(WL.rho);\
 	real3 const vLeft = WL.v;\
-	real const hTotalL = calc_hTotal(WL.rho, WL.P, (UL)->ETotal);\
+	real const hTotalL = <?=calc_hTotal?>(WL.rho, WL.P, (UL)->ETotal);\
 \
 	<?=prim_t?> WR;\
 	<?=primFromCons?>(&WR, solver, UR, (cellR)->pos);\
 	real const sqrtRhoR = sqrt(WR.rho);\
 	real3 const vR = WR.v;\
-	real const hTotalR = calc_hTotal(WR.rho, WR.P, (UR)->ETotal);\
+	real const hTotalR = <?=calc_hTotal?>(WR.rho, WR.P, (UR)->ETotal);\
 \
 	real const invDenom = 1./(sqrtRhoL + sqrtRhoR);\
 \
@@ -510,8 +510,8 @@ then ?>
 		
 		global <?=cons_t?> const * const UL = U - solver->stepsize.s<?=side?>;
 		global <?=cons_t?> const * const UR = U + solver->stepsize.s<?=side?>;
-		real const PL = calc_P(solver, UL, xL);
-		real const PR = calc_P(solver, UR, xR);
+		real const PL = <?=calc_P?>(solver, UL, xL);
+		real const PR = <?=calc_P?>(solver, UR, xR);
 	
 		deriv->m.s<?=side?> -= (PR - PL) / (2. * solver->grid_dx.s<?=side?>);
 	}<? end ?>

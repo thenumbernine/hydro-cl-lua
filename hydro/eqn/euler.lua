@@ -18,6 +18,26 @@ Euler.numIntStates = 5	-- don't bother integrate ePot
 
 Euler.initConds = require 'hydro.init.euler':getList()
 
+function Euler:getSymbolFields()
+	return table(Euler.super.getSymbolFields(self)):append{
+		'calc_H',
+		'calc_h',
+		'calc_HTotal',
+		'calc_hTotal',
+		'calc_eKin',
+		'calc_EKin',
+		'calc_eInt',
+		'calc_EInt',
+		'calc_eInt_fromCons',
+		'calc_EKin_fromCons',
+		'calc_ETotal',
+		'calc_Cs',
+		'calc_P',
+		'calc_T',
+		'calc_v',
+	}
+end
+
 function Euler:buildVars(args)
 	-- TODO primVars doesn't autogen displayVars, and therefore units doesn't matter
 	self.primVars = table{
@@ -208,7 +228,7 @@ function Euler:initCodeModule_calcDTCell()
 ) {\
 	<?=prim_t?> W;\
 	<?=primFromCons?>(&W, solver, U, (cell)->pos);\
-	real const Cs = calc_Cs(solver, &W);\
+	real const Cs = <?=calc_Cs?>(solver, &W);\
 	<? for side=0,solver.dim-1 do ?>{\
 <? --\
 if solver.coord.vectorComponent == 'cartesian' --\
@@ -315,20 +335,20 @@ function Euler:getDisplayVars()
 		-- should SI unit displays be auto generated as well?
 		{name='v', code='value.vreal3 = W.v;', type='real3', units='m/s'},
 		{name='P', code='value.vreal = W.P;', units='kg/(m*s^2)'},
-		{name='eInt', code='value.vreal = calc_eInt(solver, &W);', units='m^2/s^2'},
-		{name='eKin', code='value.vreal = calc_eKin(&W, x);', units='m^2/s^2'},
+		{name='eInt', code=self:template'value.vreal = <?=calc_eInt?>(solver, &W);', units='m^2/s^2'},
+		{name='eKin', code=self:template'value.vreal = <?=calc_eKin?>(&W, x);', units='m^2/s^2'},
 		{name='eTotal', code='value.vreal = U->ETotal / W.rho;', units='m^2/s^2'},
-		{name='EInt', code='value.vreal = calc_EInt(solver, &W);', units='kg/(m*s^2)'},
-		{name='EKin', code='value.vreal = calc_EKin(&W, x);', units='kg/(m*s^2)'},
+		{name='EInt', code=self:template'value.vreal = <?=calc_EInt?>(solver, &W);', units='kg/(m*s^2)'},
+		{name='EKin', code=self:template'value.vreal = <?=calc_EKin?>(&W, x);', units='kg/(m*s^2)'},
 		{name='EPot', code='value.vreal = U->rho * U->ePot;', units='kg/(m*s^2)'},
 		{name='S', code='value.vreal = W.P / pow(W.rho, (real)solver->heatCapacityRatio);'},
-		{name='H', code='value.vreal = calc_H(solver, W.P);', units='kg/(m*s^2)'},
-		{name='h', code='value.vreal = calc_h(solver, W.rho, W.P);', units='m^2/s^2'},
-		{name='HTotal', code='value.vreal = calc_HTotal(W.P, U->ETotal);', units='kg/(m*s^2)'},
-		{name='hTotal', code='value.vreal = calc_hTotal(W.rho, W.P, U->ETotal);', units='m^2/s^2'},
-		{name='speed of sound', code='value.vreal = calc_Cs(solver, &W);', units='m/s'},
-		{name='Mach number', code='value.vreal = coordLen(W.v, x) / calc_Cs(solver, &W);'},
-		{name='temperature', code='value.vreal = calc_T(U, x);', units='K'},
+		{name='H', code=self:template'value.vreal = <?=calc_H?>(solver, W.P);', units='kg/(m*s^2)'},
+		{name='h', code=self:template'value.vreal = <?=calc_h?>(solver, W.rho, W.P);', units='m^2/s^2'},
+		{name='HTotal', code=self:template'value.vreal = <?=calc_HTotal?>(W.P, U->ETotal);', units='kg/(m*s^2)'},
+		{name='hTotal', code=self:template'value.vreal = <?=calc_hTotal?>(W.rho, W.P, U->ETotal);', units='m^2/s^2'},
+		{name='speed of sound', code=self:template'value.vreal = <?=calc_Cs?>(solver, &W);', units='m/s'},
+		{name='Mach number', code=self:template'value.vreal = coordLen(W.v, x) / <?=calc_Cs?>(solver, &W);'},
+		{name='temperature', code=self:template'value.vreal = <?=calc_T?>(U, x);', units='K'},
 	}:append(self.gravOp and
 		{{name='gravity', code=self:template[[
 	if (!<?=OOB?>(1,1)) {
@@ -394,7 +414,7 @@ function Euler:consWaveCodePrefix(n, U, x)
 	return self:template([[
 <?=prim_t?> W;
 <?=primFromCons?>(&W, solver, <?=U?>, <?=x?>);
-real const <?=eqn.symbolPrefix?>Cs_nLen = calc_Cs(solver, &W) * normal_len(<?=n?>);
+real const <?=eqn.symbolPrefix?>Cs_nLen = <?=calc_Cs?>(solver, &W) * normal_len(<?=n?>);
 real const <?=eqn.symbolPrefix?>v_n = normal_vecDotN1(<?=n?>, W.v);
 ]], {
 		U = '('..U..')',

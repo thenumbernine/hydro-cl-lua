@@ -297,44 +297,64 @@ end
 
 -- TODO - prevent variable collisions - especially from multiple matching subeqns
 -- this might require some kind of namespace
-function Composite:eigenWaveCodePrefix(n, eig, x)
+function Composite:eigenWaveCodePrefix(n, eig, pt)
 	return self.eqns:mapi(function(eqn,i)
-		return eqn:eigenWaveCodePrefix(n, '&('..eig..')->'..eqn.field, x)
+		return eqn:eigenWaveCodePrefix(n, '&('..eig..')->'..eqn.field, pt)
 	end):concat'\n'
 end
 
-function Composite:eigenWaveCode(n, eig, x, waveIndex)
+function Composite:eigenWaveCode(n, eig, pt, waveIndex)
 	local origWaveIndex = waveIndex
 	for i,eqn in ipairs(self.eqns) do
 		if waveIndex >= 0 and waveIndex < eqn.numWaves then
-			return eqn:eigenWaveCode(n, '&('..eig..')->'..eqn.field, x, waveIndex)
+			return eqn:eigenWaveCode(n, '&('..eig..')->'..eqn.field, pt, waveIndex)
 		end
 		waveIndex = waveIndex - eqn.numWaves
 	end
 	error("couldn't find waveIndex "..origWaveIndex.." in any sub-eqns")
+end
+
+function Composite:combineWaveCode(func, n, src, pt)
+	local code
+	for i,eqn in ipairs(self.eqns) do
+		local eqnCode = eqn:eigenMinWaveCode(n, '&('..src..')->'..eqn.field, pt)
+		if not code then
+			code = eqnCode 
+		else
+			-- I hope min isn't a macro ...
+			code = func..'('..code..', '..eqnCode..')'
+		end
+	end
+end
+function Composite:eigenMinWaveCode(n, eig, pt)
+	return self:combineWaveCode('min', n, eig, pt)
+end
+function Composite:eigenMaxWaveCode(n, eig, pt)
+	return self:combineWaveCode('max', n, eig, pt)
 end
 
 -- TODO same as eigenWaveCodePrefix
-function Composite:consWaveCodePrefix(n, U, x)
+function Composite:consWaveCodePrefix(n, U, pt)
 	return self.eqns:mapi(function(eqn,i)
-		return eqn:consWaveCodePrefix(n, '&('..U..')->'..eqn.field, x)
+		return eqn:consWaveCodePrefix(n, '&('..U..')->'..eqn.field, pt)
 	end):concat'\n'
 end
 
-function Composite:consWaveCode(n, U, x, waveIndex)
+function Composite:consWaveCode(n, U, pt, waveIndex)
 	local origWaveIndex = waveIndex
 	for i,eqn in ipairs(self.eqns) do
 		if waveIndex >= 0 and waveIndex < eqn.numWaves then
-			return eqn:consWaveCode(n, '&('..U..')->'..eqn.field, x, waveIndex)
+			return eqn:consWaveCode(n, '&('..U..')->'..eqn.field, pt, waveIndex)
 		end
 		waveIndex = waveIndex - eqn.numWaves
 	end
 	error("couldn't find waveIndex "..origWaveIndex.." in any sub-eqns")
 end
-
--- TODO eigenMinWaveCode
--- TODO eigenMaxWaveCode
--- TODO consMinWaveCode
--- TODO consMaxWaveCode
+function Composite:consMinWaveCode(n, U, pt)
+	return self:combineWaveCode('min', n, U, pt)
+end
+function Composite:consMaxWaveCode(n, U, pt)
+	return self:combineWaveCode('max', n, U, pt)
+end
 
 return Composite
