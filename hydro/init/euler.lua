@@ -1927,9 +1927,30 @@ end ?>;
 		local coordRadius = .5
 		return {
 			name = 'self-gravitation - Earth',
+			
 			-- TODO what about spherical coordinates
-			mins = {-2*coordRadius, -2*coordRadius, -2*coordRadius}, 
-			maxs = {2*coordRadius, 2*coordRadius, 2*coordRadius}, 
+			mins = function(self)
+				local solver = assert(self.solver)
+				local coord = assert(solver.coord)
+				if require 'hydro.coord.cylinder':isa(coord) then
+					return {0, 0, -1}
+				end
+				if require 'hydro.coord.sphere':isa(coord) then
+					return {0, 0, -math.pi}
+				end
+				return {-2*coordRadius, -2*coordRadius, -2*coordRadius}
+			end,
+			maxs = function(self)
+				local solver = assert(self.solver)
+				local coord = assert(solver.coord)
+				if require 'hydro.coord.cylinder':isa(coord) then
+					return {2*coordRadius, 2*math.pi, 1}
+				end
+				if require 'hydro.coord.sphere':isa(coord) then
+					return {2*coordRadius, math.pi, math.pi}
+				end
+				return {2*coordRadius, 2*coordRadius, 2*coordRadius}
+			end,
 			solverVars = {
 				meter = constants.EarthRadius_in_m / coordRadius,	-- radius .5, grid = 2 M_Earth, so the sphere is M_Earth size
 				

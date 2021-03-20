@@ -92,11 +92,16 @@ EulerLinGR.predefinedDisplayVars = {
 	'U v z',
 	'U P',
 	'U D_g',
+	'U D_g z',
 	'U B_g',
+	'U B_g z',
 	'U E_g',
 	'U E_g z',
 	'U phi_g',
 	'U psi_g',
+	'U v cross B_g',
+	'U v cross B_g z',
+	'U GEM energy',
 }
 
 function EulerLinGR:getDisplayVars()

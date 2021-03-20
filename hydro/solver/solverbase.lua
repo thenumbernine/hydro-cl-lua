@@ -1256,13 +1256,17 @@ function SolverBase:refreshEqnInitState()
 	-- TODO do a proper refresh so mins/maxs can be properly refreshed
 	local initCond = self.eqn.initCond
 	if initCond.mins then 
-		self.mins = vec3d(unpack(initCond.mins)) 
+		local mins = initCond.mins
+		if type(mins) == 'function' then mins = assert(mins(initCond)) end
+		self.mins = vec3d(unpack(mins)) 
 		for j=1,3 do
 			self.solverPtr.mins.s[j-1] = toreal(self.mins.s[j-1])
 		end
 	end
 	if initCond.maxs then 
-		self.maxs = vec3d(unpack(initCond.maxs)) 
+		local maxs = initCond.maxs
+		if type(maxs) == 'function' then maxs = assert(maxs(initCond)) end
+		self.maxs = vec3d(unpack(maxs)) 
 		for j=1,3 do
 			self.solverPtr.maxs.s[j-1] = toreal(self.maxs.s[j-1])
 		end

@@ -1630,7 +1630,13 @@ function CoordinateSystem:initCodeModules()
 				end
 				local buildName = buildNameParts:concat'_'
 				local build = assert(getCode[buildName])
-				depends:insert(info.result)
+				-- don't include anything that's typedef'd by app
+				-- otherwise it will screw up the separation between C, CL, and GL
+				if info.result ~= 'real'
+				and info.result ~= 'real3'
+				then
+					depends:insert(info.result)
+				end
 				if info.depends then
 					depends:append(info.depends)
 				end

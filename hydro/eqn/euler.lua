@@ -33,7 +33,7 @@ function Euler:buildVars(args)
 	self.consVars = table{
 		{name='rho', type='real', units='kg/m^3'},
 		{name='m', type='real3', units='kg/(m^2*s)', variance='u'},	-- contravariant
-		{name='ETotal', type='real', units='kg/(m*s^2)'},
+		{name='ETotal', type='real', units='kg/(m*s^2)'},	-- per volume.  energy units are kg m^2 / s^2, but energy per volume is kg / (m s^2)
 		{name='ePot', type='real', units='m^2/s^2'},
 	}
 

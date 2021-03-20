@@ -102,7 +102,7 @@
 )\
 	(real3_cross(calc_EgField(solver, U), calc_HgField(solver, U)))
 
-//units are kg/(m*s^2)
+//units are energy-per-volume: kg/(m*s^2)
 static inline real calc_GEM_energy(
 	constant <?=solver_t?> const * const solver,
 	global <?=cons_t?> const * const U,
