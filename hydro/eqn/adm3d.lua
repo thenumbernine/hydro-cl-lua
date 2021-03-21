@@ -362,69 +362,66 @@ momentum constraints
 	return vars
 end
 
-function ADM_BonaMasso_3D:eigenWaveCodePrefix(n, eig, x, waveIndex)
+function ADM_BonaMasso_3D:eigenWaveCodePrefix(args)
 	return self:template([[
 real sqrt_gammaUjj = 0./0.;
 if (<?=n?>.side == 0) {
-	sqrt_gammaUjj = <?=eig?>->sqrt_gammaUjj.x;
+	sqrt_gammaUjj = (<?=eig?>)->sqrt_gammaUjj.x;
 } else if (<?=n?>.side == 1) {
-	sqrt_gammaUjj = <?=eig?>->sqrt_gammaUjj.y;
+	sqrt_gammaUjj = (<?=eig?>)->sqrt_gammaUjj.y;
 } else if (<?=n?>.side == 2) {
-	sqrt_gammaUjj = <?=eig?>->sqrt_gammaUjj.z;
+	sqrt_gammaUjj = (<?=eig?>)->sqrt_gammaUjj.z;
 }
-real const eig_lambdaLight = sqrt_gammaUjj * <?=eig?>->alpha;
-real const eig_lambdaGauge = sqrt_gammaUjj * <?=eig?>->alpha_sqrt_f;
-]], {
-		eig = '('..eig..')',
-		n = n,
-	})
+real const eig_lambdaLight = sqrt_gammaUjj * (<?=eig?>)->alpha;
+real const eig_lambdaGauge = sqrt_gammaUjj * (<?=eig?>)->alpha_sqrt_f;
+]], args)
 end
 
-function ADM_BonaMasso_3D:eigenWaveCode(n, eig, x, waveIndex)
+function ADM_BonaMasso_3D:eigenWaveCode(args)
 	-- TODO find out if -- if we use the lagrangian coordinate shift operation -- do we still need to offset the eigenvalues by -beta^i?
 	local shiftingLambdas = self.useShift ~= 'none'
 		--and self.useShift ~= 'LagrangianCoordinates'
 
 	local betaUi
 	if self.useShift ~= 'none' then
-		betaUi = '('..eig..').beta_u.s['..n..'.side]'
+		betaUi = '('..args.eig..').beta_u.s['..args.n..'.side]'
 	else
 		betaUi = '0'
 	end
 
 	if not self.noZeroRowsInFlux then
-		if waveIndex == 0 then
+		if args.waveIndex == 0 then
 			return '-'..betaUi..' - eig_lambdaGauge'
-		elseif waveIndex >= 1 and waveIndex <= 5 then
+		elseif args.waveIndex >= 1 and args.waveIndex <= 5 then
 			return '-'..betaUi..' - eig_lambdaLight'
-		elseif waveIndex >= 6 and waveIndex <= 23 then
+		elseif args.waveIndex >= 6 and args.waveIndex <= 23 then
 			return '-'..betaUi
-		elseif waveIndex >= 24 and waveIndex <= 28 then
+		elseif args.waveIndex >= 24 and args.waveIndex <= 28 then
 			return '-'..betaUi..' + eig_lambdaLight'
-		elseif waveIndex == 29 then
+		elseif args.waveIndex == 29 then
 			return '-'..betaUi..' + eig_lambdaGauge'
 		end
 	else	-- noZeroRowsInFlux 
 		-- noZeroRowsInFlux implies useShift == 'none'
-		if waveIndex == 0 then
+		if args.waveIndex == 0 then
 			return '-'..betaUi..' - eig_lambdaGauge'
-		elseif waveIndex >= 1 and waveIndex <= 5 then
+		elseif args.waveIndex >= 1 and args.waveIndex <= 5 then
 			return '-'..betaUi..' - eig_lambdaLight'
-		elseif waveIndex == 6 then
+		elseif args.waveIndex == 6 then
 			return '-'..betaUi
-		elseif waveIndex >= 7 and waveIndex <= 11 then
+		elseif args.waveIndex >= 7 and args.waveIndex <= 11 then
 			return '-'..betaUi..' + eig_lambdaLight'
-		elseif waveIndex == 12 then
+		elseif args.waveIndex == 12 then
 			return '-'..betaUi..' + eig_lambdaGauge'
 		end
 	end
 	error'got a bad waveIndex'
 end
 
-function ADM_BonaMasso_3D:consWaveCodePrefix(n, U, x, waveIndex)
+function ADM_BonaMasso_3D:consWaveCodePrefix(args)
 	return self:template([[
-real const det_gamma = sym3_det(<?=U?>->gamma_ll);
-sym3 const gamma_uu = sym3_inv(<?=U?>->gamma_ll, det_gamma);
+real const det_gamma = sym3_det((<?=U?>)->gamma_ll);
+sym3 const gamma_uu = sym3_inv((<?=U?>)->gamma_ll, det_gamma);
 real sqrt_gammaUjj = 0./0.;
 if (<?=n?>.side == 0) {
 	sqrt_gammaUjj = sqrt(gamma_uu.xx);
@@ -433,14 +430,17 @@ if (<?=n?>.side == 0) {
 } else if (<?=n?>.side == 2) {
 	sqrt_gammaUjj = sqrt(gamma_uu.zz);
 }
-real const eig_lambdaLight = <?=U?>->alpha * sqrt_gammaUjj;
-real const f_alphaSq = calc_f_alphaSq(<?=U?>->alpha);
+real const eig_lambdaLight = (<?=U?>)->alpha * sqrt_gammaUjj;
+real const f_alphaSq = calc_f_alphaSq((<?=U?>)->alpha);
 real const eig_lambdaGauge = sqrt_gammaUjj * sqrt(f_alphaSq);
-]], {
-		U = '('..U..')',
-		n = n,
-	})
+]], args)
 end
-ADM_BonaMasso_3D.consWaveCode = ADM_BonaMasso_3D.eigenWaveCode
+
+function ADM_BonaMasso_3D:consWaveCode(args)
+	args = setmetatable(table(args), nil)
+	args.U = args.eig
+	args.eig = nil
+	return self:eigenWaveCode(args)
+end
 
 return ADM_BonaMasso_3D

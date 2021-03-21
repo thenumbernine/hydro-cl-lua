@@ -28,44 +28,35 @@ ADM_BonaMasso_1D_2008Alcubierre.guiVars = {
 	{name='D_g_convCoeff', value=10},
 }
 
---[=[ enable this out if you enable the fluxFromCons above
+-- [=[ enable this out if you enable the fluxFromCons above
 -- the PLM version that uses this crashes
 -- so maybe there's something wrong with this
 function ADM_BonaMasso_1D_2008Alcubierre:initCodeModule_fluxFromCons() 
-	self.solver.modules:add{
-		name = 'fluxFromCons',
-		depends = {
-			'solver_t',
-			'cons_t',
-			self.symbols.eqn_common,	-- calc_f ... or is it initCond_codeprefix?
-		},
+	self.solver.modules:addFromMarkup{
 		code = self:template[[
-
-#define fluxFromCons(\
-	/*<?=cons_t?> * const */resultF,\
+//// MODULE_NAME: <?=fluxFromCons?>
+//// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?>
+#define <?=fluxFromCons?>(\
+	/*<?=cons_t?> * const */resultFlux,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */U,\
 	/*<?=cell_t?> const * const */cell,\
 	/*<?=normal_t?> const */n\
 ) {\
-	real const f = calc_f(U.alpha);\
-	real const alpha_over_sqrt_gamma_xx = U.alpha / sqrt(U.gamma_xx);\
-	(resultF)->alpha = 0;\
-	(resultF)->gamma_xx = 0;\
-	(resultF)->a_x = U.KTilde * f * alpha_over_sqrt_gamma_xx;\
-	(resultF)->D_g = U.KTilde * 2. * alpha_over_sqrt_gamma_xx;\
-	(resultF)->KTilde = U.a_x * alpha_over_sqrt_gamma_xx;\
+//// MODULE_DEPENDS: <?=initCond_codeprefix?>
+	real const f = calc_f((U)->alpha);\
+	real const alpha_over_sqrt_gamma_xx = (U)->alpha / sqrt((U)->gamma_xx);\
+	(resultFlux)->alpha = 0;\
+	(resultFlux)->gamma_xx = 0;\
+	(resultFlux)->a_x = (U)->KTilde * f * alpha_over_sqrt_gamma_xx;\
+	(resultFlux)->D_g = (U)->KTilde * 2. * alpha_over_sqrt_gamma_xx;\
+	(resultFlux)->KTilde = (U)->a_x * alpha_over_sqrt_gamma_xx;\
 }
 
 ]],
 	}
 end
 --]=]
-
--- don't use eqn.einstein, which says calc_gamma_ll and calc_gamma_uu
-function ADM_BonaMasso_1D_2008Alcubierre:getModuleDepends_displayCode() 
-	return {}
-end
 
 -- don't use eqn.einstein:
 function ADM_BonaMasso_1D_2008Alcubierre:createDisplayComponents() end
@@ -87,7 +78,7 @@ function ADM_BonaMasso_1D_2008Alcubierre:getDisplayVars()
 		{name='expansion', code='value.vreal = -U->KTilde / sqrt(U->gamma_xx);'},
 		{name='gravity mag', code='value.vreal = -U->alpha * U->alpha * U->a_x / U->gamma_xx;'},
 	
-		{name='alpha vs a_x', code=[[
+		{name='alpha vs a_x', code=self:template[[
 	if (<?=OOB?>(1,1)) {
 		value.vreal = 0.;
 	} else {
@@ -96,7 +87,7 @@ function ADM_BonaMasso_1D_2008Alcubierre:getDisplayVars()
 	}
 ]]},
 
-		{name='gamma_xx vs D_g', code=[[
+		{name='gamma_xx vs D_g', code=self:template[[
 	if (<?=OOB?>(1,1)) {
 		value.vreal = 0.;
 	} else {
@@ -116,9 +107,7 @@ ADM_BonaMasso_1D_2008Alcubierre.eigenVars = {
 function ADM_BonaMasso_1D_2008Alcubierre:eigenWaveCodePrefix(args)
 	return self:template([[
 real const eig_lambda = (<?=eig?>)->alpha * (<?=eig?>)->sqrt_f / (<?=eig?>)->sqrt_gamma_xx;
-]], {
-		args,
-	})
+]], args)
 end
 
 function ADM_BonaMasso_1D_2008Alcubierre:eigenWaveCode(args)

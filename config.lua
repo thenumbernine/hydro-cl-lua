@@ -249,7 +249,7 @@ local args = {
 	--initCond = 'Bessel',
 	--initCond = 'jet',
 	
-	initCond = 'Sod',
+	--initCond = 'Sod',
 	--initCond = 'Sod with physical units',
 	--initCondArgs = {dim=cmdline.displayDim},
 	
@@ -363,7 +363,7 @@ local args = {
 
 	-- Einstein
 	--initCond = 'Minkowski',
-	--initCond = 'gaussian perturbation',
+	initCond = 'gaussian perturbation',
 	--initCond = 'plane gauge wave',
 
 
@@ -586,7 +586,7 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn
 -- compressible Euler equations
 
 
-self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
+--self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
 
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct bounded'})))	-- this is the default hllCalcWaveMethod
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct'})))
@@ -788,7 +788,7 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn
 
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='adm1d_v1'})))
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='adm1d_v2'})))
---self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='adm3d'})))
+self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='adm3d'})))
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='adm3d', eqnArgs={noZeroRowsInFlux=false}})))
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='adm3d', eqnArgs={useShift='MinimalDistortionElliptic'}})))	-- TODO finish me
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='adm3d', eqnArgs={useShift='MinimalDistortionEllipticEvolve'}})))	-- TODO finish me

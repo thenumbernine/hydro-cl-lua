@@ -375,6 +375,7 @@ function SolverBase:getSymbolFields()
 		-- TODO put these' symbol generation in solver?
 		'solver_macros',
 		'solver_displayCode',
+		'solver_realDisplayCode',
 		'fluxLimiter',
 		'range_t',
 	}
@@ -776,15 +777,27 @@ end
 -- I can get around this if I go back to the previous functionality of only testing what dependencies are listed in the math module
 --  but this won't work well with moving any math dependencies closer to the kernel functions
 function SolverBase:initCodeModuleDisplay()
-	self:createDisplayVars()	-- depends on self.eqn
+	-- depends on self.eqn
+	self:createDisplayVars()
 
-	-- this depends on :createDisplayVars()
+	-- separate by 1 indirection
+	-- so that when solver_displayCode calls :getDisplayCode(),
+	--  the getModuleDepends_displayCode() has already been flagged for use
 	self.modules:add{
 		name = self.symbols.solver_displayCode,
 		depends = self:getModuleDepends_displayCode(),
+	}
+	-- make sure to flag it so 'isModuleUsed' can see it, for constructing displayValue_t
+	self.solverModulesEnabled[self.symbols.solver_displayCode] = true
+
+	-- this depends on :createDisplayVars()
+	self.modules:add{
+		name = self.symbols.solver_realDisplayCode,
+		depends = {self.symbols.solver_displayCode},
+		-- this call consturcts displayValue_t
 		code = self:getDisplayCode(),
 	}
-	self.solverModulesEnabled[self.symbols.solver_displayCode] = true
+	self.solverModulesEnabled[self.symbols.solver_realDisplayCode] = true
 end
 
 function SolverBase:getModuleDepends_displayCode()

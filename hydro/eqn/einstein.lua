@@ -83,6 +83,7 @@ end
 function EinsteinEquation:getModuleDepends_displayCode() 
 	return EinsteinEquation.super.getModuleDepends_displayCode(self):append{
 		-- for the addDisplayComponents 
+		'sym3',
 		assert(self.symbols.calc_gamma_ll),
 		assert(self.symbols.calc_gamma_uu),
 	}

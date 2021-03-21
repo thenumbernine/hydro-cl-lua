@@ -1,3 +1,17 @@
+//// MODULE_NAME: <?=calc_gamma_ll?>
+
+#define /*sym3*/ <?=calc_gamma_ll?>(\
+	/*<?=cons_t?> const * const */U,\
+	/*real3 const */pt\
+) _sym3((U)->gamma_xx, 0, 0, 1, 0, 1)
+
+//// MODULE_NAME: <?=calc_gamma_uu?>
+
+#define /*sym3*/ <?=calc_gamma_uu?>(\
+	/*<?=cons_t?> const * const */U,\
+	/*real3 const */pt\
+) _sym3(1. / (U)->gamma_xx, 0, 0, 1, 0, 1)
+
 //// MODULE_NAME: <?=setFlatSpace?>
 //// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?>
 
