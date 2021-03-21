@@ -113,33 +113,31 @@ ADM_BonaMasso_1D_2008Alcubierre.eigenVars = {
 	{name='sqrt_f', type='real'},
 }
 
-function ADM_BonaMasso_1D_2008Alcubierre:eigenWaveCodePrefix(n, eig, x, waveIndex)
+function ADM_BonaMasso_1D_2008Alcubierre:eigenWaveCodePrefix(args)
 	return self:template([[
-real const eig_lambda = <?=eig?>->alpha * <?=eig?>->sqrt_f / <?=eig?>->sqrt_gamma_xx;
+real const eig_lambda = (<?=eig?>)->alpha * (<?=eig?>)->sqrt_f / (<?=eig?>)->sqrt_gamma_xx;
 ]], {
-		eig = '('..eig..')',
+		args,
 	})
 end
 
-function ADM_BonaMasso_1D_2008Alcubierre:eigenWaveCode(n, eig, x, waveIndex)
-	if waveIndex == 0 then
+function ADM_BonaMasso_1D_2008Alcubierre:eigenWaveCode(args)
+	if args.waveIndex == 0 then
 		return '-eig_lambda'
-	elseif waveIndex == 1 then
+	elseif args.waveIndex == 1 then
 		return '0'
-	elseif waveIndex == 2 then
+	elseif args.waveIndex == 2 then
 		return 'eig_lambda'
 	else
 		error'got a bad waveIndex'
 	end
 end
 
-function ADM_BonaMasso_1D_2008Alcubierre:consWaveCodePrefix(n, U, x, waveIndex)
+function ADM_BonaMasso_1D_2008Alcubierre:consWaveCodePrefix(args)
 	return self:template([[
-real const alphaSq_f = calc_f_alphaSq(<?=U?>->alpha);
-real const eig_lambda = sqrt(alphaSq_f / <?=U?>->gamma_xx);
-]], {
-		U = '('..U..')',
-	})
+real const alphaSq_f = calc_f_alphaSq((<?=U?>)->alpha);
+real const eig_lambda = sqrt(alphaSq_f / (<?=U?>)->gamma_xx);
+]], args)
 end
 
 ADM_BonaMasso_1D_2008Alcubierre.consWaveCode = ADM_BonaMasso_1D_2008Alcubierre.eigenWaveCode

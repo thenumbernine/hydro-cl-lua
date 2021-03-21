@@ -1,71 +1,77 @@
 //// MODULE_NAME: <?=eqn_common?>
 //// MODULE_DEPENDS: <?=coordLenSq?> <?=cons_t?> <?=prim_t?> <?=waves_t?> <?=eigen_t?> <?=eqn_guiVars_compileTime?>
 
-#define /*real*/ calc_H(\
+#define /*real*/ <?=calc_H?>(\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*real const */P\
 )	((P) * (solver->heatCapacityRatio / (solver->heatCapacityRatio - 1.)))
 
-#define /*real*/ calc_h(\
+#define /*real*/ <?=calc_h?>(\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*real const */rho,\
 	/*real const */P\
-)	(calc_H(solver, P) / (rho))
+)	(<?=calc_H?>(solver, P) / (rho))
 
-#define /*real*/ calc_HTotal(\
+#define /*real*/ <?=calc_HTotal?>(\
 	/*real const */P,\
 	/*real const */ETotal\
 )	((P) + (ETotal))
 
-#define /*real*/ calc_hTotal(\
+#define /*real*/ <?=calc_hTotal?>(\
 	/*real const */rho,\
 	/*real const */P,\
 	/*real const */ETotal\
-)	(calc_HTotal(P, ETotal) / (rho))
+)	(<?=calc_HTotal?>(P, ETotal) / (rho))
 
-#define /*real*/ calc_eKin(\
+#define /*real*/ <?=calc_eKin?>(\
 	/*<?=prim_t?> const * const */W,\
 	/*real3 const */pt\
 )	(.5 * coordLenSq((W)->v, pt))
 
-#define /*real*/ calc_EKin(\
+#define /*real*/ <?=calc_EKin?>(\
 	/*<?=prim_t?> const * const */W,\
 	/*real3 const */pt\
-) 	((W)->rho * calc_eKin(W, pt))
+) 	((W)->rho * <?=calc_eKin?>(W, pt))
 
-#define /*real*/ calc_EInt(\
+#define /*real*/ <?=calc_EInt?>(\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=prim_t?> const * const */W\
 ) 	((W)->P / (solver->heatCapacityRatio - 1.))
 
-#define /*real*/ calc_eInt(\
+#define /*real*/ <?=calc_eInt?>(\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=prim_t?> const * const */W\
-)	(calc_EInt(solver, W) / (W)->rho)
+)	(<?=calc_EInt?>(solver, W) / (W)->rho)
 
-#define /*real*/ calc_EKin_fromCons(\
+#define /*real*/ <?=calc_EKin_fromCons?>(\
 	/*<?=cons_t?> const * const*/U,\
 	/*real3 const */pt\
 )	(.5 * coordLenSq((U)->m, pt) / (U)->rho)
 
-#define /*real*/ calc_ETotal(\
+#define /*real*/ <?=calc_ETotal?>(\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=prim_t?> const * const */W,\
 	/*real3 const */pt\
-) 	(calc_EKin(W, pt) + calc_EInt(solver, W))
+) 	(<?=calc_EKin?>(W, pt) + <?=calc_EInt?>(solver, W))
 
-#define /*real*/ calc_Cs(\
+#define /*real*/ <?=calc_Cs?>(\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=prim_t?> const * const */W\
 ) 	(sqrt(solver->heatCapacityRatio * (W)->P / (W)->rho))
 
-#define /*real*/ calc_P(\
+#define /*real*/ <?=calc_P?>(\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const*/U,\
 	/*real3 const */pt\
-)	(solver->heatCapacityRatio - 1.) * (/*EInt=*/(U)->ETotal - /*EKin=*/calc_EKin_fromCons(U, pt))
+)	(solver->heatCapacityRatio - 1.) * (/*EInt=*/(U)->ETotal - /*EKin=*/<?=calc_EKin_fromCons?>(U, pt))
 
-#define /*real*/ calc_eInt_from_cons(\
+#define /*real*/ <?=calc_Cs_fromCons?>(\
+	/*constant <?=solver_t?> const * const */solver,\
+	/*<?=cons_t?> const * const */U,\
+	/*real3 const */pt\
+) 	(sqrt(solver->heatCapacityRatio * <?=calc_P?>(solver, U, pt) / (U)->rho))
+
+#define /*real*/ <?=calc_eInt_fromCons?>(\
 	/*<?=cons_t?> const * const*/U,\
 	/*real3 const */pt\
 ) (((U)->ETotal - .5 * coordLenSq((U)->m, pt) / (U)->rho) / (U)->rho)
@@ -73,12 +79,12 @@
 <? local materials = require "hydro.materials" ?>
 #define C_v				<?=("%.50f"):format(materials.Air.C_v)?>
 
-#define /*real*/ calc_T(\
+#define /*real*/ <?=calc_T?>(\
 	/*<?=cons_t?> const * const*/U,\
 	/*real3 const */pt\
-) (calc_eInt_from_cons(U, pt) / C_v)
+) (<?=calc_eInt_fromCons?>(U, pt) / C_v)
 
-#define /*real3*/ calc_v(\
+#define /*real3*/ <?=calc_v?>(\
 	/*<?=cons_t?> const * const*/U\
 ) (real3_real_mul((U)->m, 1. / (U)->rho))
 
@@ -143,8 +149,8 @@ real3 calcGravityForcePerVolume(
 	/*real3 const */pt\
 ) {\
 	(resultW)->rho = (U)->rho;\
-	(resultW)->v = calc_v(U);\
-	(resultW)->P = calc_P(solver, U, pt);\
+	(resultW)->v = <?=calc_v?>(U);\
+	(resultW)->P = <?=calc_P?>(solver, U, pt);\
 	(resultW)->D_g = (U)->D_g;\
 	(resultW)->B_g = (U)->B_g;\
 	(resultW)->psi_g = (U)->psi_g;\
@@ -163,7 +169,7 @@ real3 calcGravityForcePerVolume(
 ) {\
 	(resultU)->rho = (W)->rho;\
 	(resultU)->m = real3_real_mul((W)->v, (W)->rho);\
-	(resultU)->ETotal = calc_ETotal(solver, W, pt);\
+	(resultU)->ETotal = <?=calc_ETotal?>(solver, W, pt);\
 	(resultU)->D_g = (W)->D_g;\
 	(resultU)->B_g = (W)->B_g;\
 	(resultU)->psi_g = (W)->psi_g;\
@@ -337,7 +343,7 @@ end
 	<?=prim_t?> W;\
 	<?=primFromCons?>(&W, solver, U, pt);\
 	real const v_n = real3_dot(W.v, nL.x);\
-	real const Cs = calc_Cs(solver, &W);\
+	real const Cs = <?=calc_Cs?>(solver, &W);\
 	real const Cs_nLen = Cs * nLen;\
 	(result)->min = v_n - Cs_nLen; \
 	(result)->max = v_n + Cs_nLen;\
@@ -361,7 +367,7 @@ end
 	real const vSq = real3_dot(W.v, vL);\
 	real const v_n = normal_vecDotN1(n, W.v);\
 	real const eKin = .5 * vSq;\
-	real const hTotal = calc_hTotal(W.rho, W.P, (U)->ETotal);\
+	real const hTotal = <?=calc_hTotal?>(W.rho, W.P, (U)->ETotal);\
 	real const CsSq = (solver->heatCapacityRatio - 1.) * (hTotal - eKin);\
 	real const Cs = sqrt(CsSq);\
 	(result)->rho = W.rho;\
@@ -390,13 +396,13 @@ end
 	<?=primFromCons?>(&WL, solver, UL, (cellL)->pos);\
 	real const sqrtRhoL = sqrt(WL.rho);\
 	real3 const vLeft = WL.v;\
-	real const hTotalL = calc_hTotal(WL.rho, WL.P, (UL)->ETotal);\
+	real const hTotalL = <?=calc_hTotal?>(WL.rho, WL.P, (UL)->ETotal);\
 \
 	<?=prim_t?> WR;\
 	<?=primFromCons?>(&WR, solver, UR, (cellR)->pos);\
 	real const sqrtRhoR = sqrt(WR.rho);\
 	real3 const vR = WR.v;\
-	real const hTotalR = calc_hTotal(WR.rho, WR.P, (UR)->ETotal);\
+	real const hTotalR = <?=calc_hTotal?>(WR.rho, WR.P, (UR)->ETotal);\
 \
 	real const invDenom = 1./(sqrtRhoL + sqrtRhoR);\
 \
@@ -735,8 +741,8 @@ then ?>
 		
 		global <?=cons_t?> const * const UL = U - solver->stepsize.s<?=side?>;
 		global <?=cons_t?> const * const UR = U + solver->stepsize.s<?=side?>;
-		real const PL = calc_P(solver, UL, xL);
-		real const PR = calc_P(solver, UR, xR);
+		real const PL = <?=calc_P?>(solver, UL, xL);
+		real const PR = <?=calc_P?>(solver, UR, xR);
 	
 		deriv->m.s<?=side?> -= (PR - PL) / (2. * solver->grid_dx.s<?=side?>);
 	}<? end ?>

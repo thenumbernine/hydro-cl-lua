@@ -142,6 +142,12 @@
 	/*real3 const */x\
 )	(solver->heatCapacityRatio - 1.) * (/*EInt=*/(U)->ETotal - /*EKin=*/<?=calc_EKin_fromCons?>(U, x))
 
+#define /*real*/ <?=calc_Cs_fromCons?>(\
+	/*constant <?=solver_t?> const * const */solver,\
+	/*<?=cons_t?> const * const */U,\
+	/*real3 const */pt\
+) 	(sqrt(solver->heatCapacityRatio * <?=calc_P?>(solver, U, pt) / (U)->rho))
+
 #define /*real*/ <?=calc_eInt_fromCons?>(\
 	/*<?=cons_t?> const * const*/U,\
 	/*real3 const */x\

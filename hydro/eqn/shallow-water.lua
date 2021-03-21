@@ -276,32 +276,63 @@ if not ShallowWater.depthInCell then
 	ShallowWater.eigenVars:insert{name='depth', type='real', units='m'}
 end
 
-local heightEpsilon = 0
+ShallowWater.heightEpsilon = 0
 
-function ShallowWater:eigenWaveCodePrefix(n, eig, x)
+function ShallowWater:eigenWaveCodePrefix(args)
 	return self:template([[
-real const CSq = solver->gravity * (<?=eig?>->h 
+real const CSq = solver->gravity * ((<?=eig?>)->h 
 <? if eqn.extraTermInFlux then ?>
 	- <?=getDepth(eig, 'cell')?>
 <? end ?>
 );
 real const C = sqrt(CSq);
 real C_nLen = C * normal_len(<?=n?>);
-real v_n = normal_vecDotN1(<?=n?>, <?=eig?>->v);
+real v_n = normal_vecDotN1(<?=n?>, (<?=eig?>)->v);
 
-if (C <= <?=clnumber(heightEpsilon)?>) {
+if (C <= <?=clnumber(eqn.heightEpsilon)?>) {
 	C_nLen = 0.;
 	v_n = 0.;
 }
-]], {
-		eig = '('..eig..')',
-		x = x,
-		n = n,
-		heightEpsilon = heightEpsilon,
-	})
+]], args)
 end
 
-function ShallowWater:consWaveCodePrefix(n, U, x, W)
+function ShallowWater:eigenWaveCode(args)
+	if args.waveIndex == 0 then
+		return 'v_n - C_nLen'
+	elseif args.waveIndex >= 1 and args.waveIndex <= 2 then
+		return 'v_n'
+	elseif args.waveIndex == 3 then
+		return 'v_n + C_nLen'
+	end
+	error'got a bad waveIndex'
+end
+
+function ShallowWater:consWaveCodePrefix(args)
+	return self:template([[
+real const CSq = solver->gravity * ((<?=U?>)->h 
+<? if eqn.extraTermInFlux then ?>
+	- <?=getDepth(U, 'cell')?>
+<? end ?>
+);
+real const C = sqrt(CSq);
+real C_nLen = C * normal_len(<?=n?>);
+<?=prim_t?> W;
+<?=primFromCons?>(&W, solver, <?=U?>, <?=pt?>);
+real v_n = normal_vecDotN1(<?=n?>, W.v);
+
+if (C <= <?=clnumber(eqn.heightEpsilon)?>) {
+	C_nLen = 0.;
+	v_n = 0.;
+}
+]], args)
+end
+
+ShallowWater.consWaveCode = ShallowWater.eigenWaveCode
+
+--ShallowWater.eigenWaveCodeMinMax uses default
+--ShallowWater.consWaveCodeMinMax uses default
+
+function ShallowWater:consWaveCodeMinMaxAllSidesPrefix(args)
 	return self:template([[
 real const CSq = solver->gravity * (<?=U?>->h 
 <? if eqn.extraTermInFlux then ?>
@@ -309,38 +340,27 @@ real const CSq = solver->gravity * (<?=U?>->h
 <? end ?>
 );
 real const C = sqrt(CSq);
-real C_nLen = C * normal_len(<?=n?>);
-<? if not W then 
-	W = 'W'
-?><?=prim_t?> W;
-<?=primFromCons?>(&W, solver, <?=U?>, <?=x?>);
-<? end 
-?>real v_n = normal_vecDotN1(n, <?=W?>.v);
+<?=prim_t?> W;
+<?=primFromCons?>(&W, solver, <?=U?>, <?=pt?>);
+]], args)
+end
 
-if (C <= <?=clnumber(heightEpsilon)?>) {
+function ShallowWater:consWaveCodeMinMaxAllSides(args)
+	return self:template([[
+real C_nLen = C * normal_len(<?=n?>);
+real v_n = normal_vecDotN1(<?=n?>, W.v);
+
+if (C <= <?=clnumber(eqn.heightEpsilon)?>) {
 	C_nLen = 0.;
 	v_n = 0.;
 }
-]], {
-		n = n,
-		U = '('..U..')',
-		x = x,
-		W = W and '('..W..')' or nil,
-		heightEpsilon = heightEpsilon,
-	})
-end
 
-function ShallowWater:consWaveCode(n, U, x, waveIndex)
-	if waveIndex == 0 then
-		return '(v_n - C_nLen)'
-	elseif waveIndex >= 1 and waveIndex <= 2 then
-		return 'v_n'
-	elseif waveIndex == 3 then
-		return '(v_n + C_nLen)'
-	end
-	error'got a bad waveIndex'
+<?=eqn:waveCodeAssignMinMax(
+	declare, resultMin, resultMax,
+	'v_n - C_nLen',
+	'v_n + C_nLen'
+)?>
+]], args)
 end
-
-ShallowWater.eigenWaveCode = ShallowWater.consWaveCode
 
 return ShallowWater

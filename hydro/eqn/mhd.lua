@@ -314,8 +314,9 @@ function MHD:getDisplayVars()
 	return vars
 end
 
-function MHD:eigenWaveCode(n, eig, x, waveIndex)
-	eig = '('..eig..')'
+function MHD:eigenWaveCode(args)
+	args = setmetatable(table(args), nil)
+	local eig = '('..args.eig..')'
 	return ({
 		eig..'->v.x - '..eig..'->Cf',
 		eig..'->v.x - '..eig..'->CAx',
@@ -324,26 +325,20 @@ function MHD:eigenWaveCode(n, eig, x, waveIndex)
 		eig..'->v.x + '..eig..'->Cs',
 		eig..'->v.x + '..eig..'->CAx',
 		eig..'->v.x + '..eig..'->Cf',
-	})[waveIndex+1] or error("got a bad waveIndex")
+	})[args.waveIndex+1] or error("got a bad waveIndex")
 end
 
-function MHD:consWaveCodePrefix(n, U, x)
+-- TODO consWaveCode[Prefix] for plm
+
+function MHD:consWaveCodeMinMax(args)
 	return self:template([[
 range_t lambda;
-<?=calcCellMinMaxEigenvalues?>(&lambda, solver, <?=U?>, <?=x?>, <?=n?>); 
-]], {
-		n = n,
-		U = '('..U..')',
-		x = x,
-	})
+<?=calcCellMinMaxEigenvalues?>(&lambda, solver, <?=U?>, <?=pt?>, <?=n?>); 
+<?=eqn:waveCodeAssignMinMax(declare, resultMin, resultMax, 'lambda.min', 'lambda.max')?>
+]], args)
 end
 
-function MHD:consMinWaveCode(side, U, x)
-	return 'lambda.min'
-end
-
-function MHD:consMaxWaveCode(side, U, x)
-	return 'lambda.max'
-end
+-- since there is no prefix code
+MHD.consWaveCodeMinMaxAllSides = MHD.consWaveCodeMinMax
 
 return MHD

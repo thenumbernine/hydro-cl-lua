@@ -213,16 +213,16 @@ kernel void <?=calcEigenBasis?>(
 ) {
 	<?=SETBOUNDS?>(solver->numGhost, solver->numGhost - 1);
 	
-	int indexR = index;
+	int const indexR = index;
 	<?=prim_t?> primR = UBuf[indexR].prim;
 	
 	<?=solver:getADMVarCode{suffix='R'} --[[ produce alphaR, betaR, gammaR at indexR ]] ?>
 	
 	//for (int side = 0; side < dim; ++side) {
 	<? for side=0,solver.dim-1 do ?>{
-		const int side = <?=side?>;
+		int const side = <?=side?>;
 		
-		int indexL = index - solver->stepsize.s<?=side?>;
+		int const indexL = index - solver->stepsize.s<?=side?>;
 		<?=prim_t?> primL = UBuf[indexL].prim;
 	
 		<?=solver:getADMVarCode{suffix='L'} --[[ produce alphaL, betaL, gammaL at indexL ]] ?>

@@ -39,8 +39,8 @@ end
 function EulerLinGR:createInitState()
 	EulerLinGR.super.createInitState(self)
 	
-	local speedOfLight = 299792458
-	local gravitationalConstant = 6.67408e-11
+	local speedOfLight = 1	--299792458
+	local gravitationalConstant = 1	--6.67408e-11
 	
 	self:addGuiVars(table{
 		{name='divPsiWavespeed_g', value=speedOfLight, units='m/s'},
@@ -154,7 +154,6 @@ function EulerLinGR:getDisplayVars()
 		}
 	end))
 
-
 	vars:append{
 		{
 			name = 'gravity',
@@ -198,43 +197,22 @@ eigenVars:append{
 }
 EulerLinGR.eigenVars = eigenVars
 
-function EulerLinGR:eigenWaveCodePrefix(n, eig, pt)
+function EulerLinGR:eigenWaveCodePrefix(args)
 	return self:template([[
-real const Cs_nLen = <?=eig?>->Cs * normal_len(n);
-real const v_n = normal_vecDotN1(n, <?=eig?>->v);
-
-real waveCode_lambdaMax = max(
-		max(solver->divPsiWavespeed_g, solver->divPhiWavespeed_g),
-		solver->speedOfLight
-	) / unit_m_per_s;
-real waveCode_lambdaMin = -waveCode_lambdaMax;
-waveCode_lambdaMin = min(waveCode_lambdaMin, v_n - Cs_nLen);
-waveCode_lambdaMax = max(waveCode_lambdaMax, v_n + Cs_nLen);
-]], {
-		pt = pt,
-		eig = '('..eig..')',
-		n = n,
-	})
+real const Cs_nLen = (<?=eig?>)->Cs * normal_len(n);
+real const v_n = normal_vecDotN1(n, (<?=eig?>)->v);
+]], args)
 end
 
--- TODO instead of an expression (which requires pre-calc of vars, which requires extra vars to be stored when not needed)
--- how about an arg for the result?
-function EulerLinGR:eigenMinWaveCode(n, eig, pt)
-	return 'waveCode_lambdaMin'
-end
-function EulerLinGR:eigenMaxWaveCode(n, eig, pt)
-	return 'waveCode_lambdaMax'
-end
-
-function EulerLinGR:eigenWaveCode(n, eig, pt, waveIndex)
-	if waveIndex == 0 then
+function EulerLinGR:eigenWaveCode(args)
+	if args.waveIndex == 0 then
 		return 'v_n - Cs_nLen'
-	elseif waveIndex >= 1 and waveIndex <= 3 then
+	elseif args.waveIndex >= 1 and args.waveIndex <= 3 then
 		return 'v_n'
-	elseif waveIndex == 4 then
+	elseif args.waveIndex == 4 then
 		return 'v_n + Cs_nLen'
 	end
-	if waveIndex >= 5 and waveIndex < 5+8 then
+	if args.waveIndex >= 5 and args.waveIndex < 5+8 then
 		return ({
 			'-solver->divPhiWavespeed_g / unit_m_per_s',
 			'-solver->divPsiWavespeed_g / unit_m_per_s',
@@ -244,42 +222,81 @@ function EulerLinGR:eigenWaveCode(n, eig, pt, waveIndex)
 			'solver->speedOfLight / unit_m_per_s',
 			'solver->divPsiWavespeed_g / unit_m_per_s',
 			'solver->divPhiWavespeed_g / unit_m_per_s',
-		})[waveIndex - 5 + 1]
+		})[args.waveIndex - 5 + 1]
 	end
-	error('got a bad waveIndex: '..waveIndex)
+	error('got a bad waveIndex: '..args.waveIndex)
 end
 
 --TODO timestep restriction
 -- 2014 Abgrall, Kumar eqn 2.25
 -- dt < sqrt( E_alpha,i / rho_alpha,i) * |lHat_r,alpha| sqrt(2) / |E_i + v_alpha,i x B_i|
-function EulerLinGR:consWaveCodePrefix(n, U, pt)
+function EulerLinGR:consWaveCodePrefix(args)
 	return self:template([[
-<?=prim_t?> W;
-<?=primFromCons?>(&W, solver, <?=U?>, <?=pt?>);
+real const Cs_nLen = <?=calc_Cs_fromCons?>(solver, <?=U?>, <?=pt?>) * normal_len(n);
+real const v_n = normal_vecDotN1(n, (<?=U?>)->m) / (<?=U?>)->rho;
+]], args)
+end
 
-real const Cs = calc_Cs(solver, &W);
-real const Cs_nLen = Cs * normal_len(n);
-real const v_n = normal_vecDotN1(n, W.v);
+-- you can do this so long as no code uses U/eig ... if it does then you have to reassign args
+EulerLinGR.consWaveCode = EulerLinGR.eigenWaveCode
 
-real waveCode_lambdaMax = max(
+function EulerLinGR:eigenWaveCodeMinMax(args)
+	return self:template([[
+real const Cs_nLen = (<?=eig?>)->Cs * normal_len(n);
+real const v_n = normal_vecDotN1(n, (<?=eig?>)->v);
+
+real const waveCode_lambdaMax = max(
 		max(solver->divPsiWavespeed_g, solver->divPhiWavespeed_g),
 		solver->speedOfLight
 	) / unit_m_per_s;
-real waveCode_lambdaMin = -waveCode_lambdaMax;
-waveCode_lambdaMin = min(waveCode_lambdaMin, v_n - Cs_nLen);
-waveCode_lambdaMax = max(waveCode_lambdaMax, v_n + Cs_nLen);
-]], {
-		n = n,
-		U = '('..U..')',
-		pt = pt,
-	})
+
+<?=eqn:waveCodeAssignMinMax(
+	declare, resultMin, resultMax,
+	'min(-waveCode_lambdaMax, v_n - Cs_nLen)',
+	'max( waveCode_lambdaMax, v_n + Cs_nLen)'
+)?>
+]], args)
 end
 
-function EulerLinGR:consMinWaveCode(n, U, pt)
-	return 'waveCode_lambdaMin'
+function EulerLinGR:consWaveCodeMinMax(args)
+	return self:template([[
+real const Cs_nLen = <?=calc_Cs_fromCons?>(solver, <?=U?>, <?=pt?>) * normal_len(n);
+real const v_n = normal_vecDotN1(n, (<?=U?>)->m) / (<?=U?>)->rho;
+
+real const waveCode_lambdaMax = max(
+		max(solver->divPsiWavespeed_g, solver->divPhiWavespeed_g),
+		solver->speedOfLight
+	) / unit_m_per_s;
+
+<?=eqn:waveCodeAssignMinMax(
+	declare, resultMin, resultMax,
+	'min(-waveCode_lambdaMax, v_n - Cs_nLen)',
+	'max( waveCode_lambdaMax, v_n + Cs_nLen)'
+)?>
+]], args)
 end
-function EulerLinGR:consMaxWaveCode(n, U, pt)
-	return 'waveCode_lambdaMax'
+
+function EulerLinGR:consWaveCodeMinMaxAllSidesPrefix(args)
+	return self:template([[
+real const Cs = <?=calc_Cs_fromCons?>(solver, <?=U?>, <?=pt?>);\
+real const waveCode_lambdaMax = max(
+		max(solver->divPsiWavespeed_g, solver->divPhiWavespeed_g),
+		solver->speedOfLight
+	) / unit_m_per_s;
+]],	args)
+end
+
+function EulerLinGR:consWaveCodeMinMaxAllSides(args)
+	return self:template([[
+real const Cs_nLen = Cs * normal_len(<?=n?>);
+real const v_n = normal_vecDotN1(<?=n?>, (<?=U?>)->m) / (<?=U?>)->rho;
+
+<?=eqn:waveCodeAssignMinMax(
+	declare, resultMin, resultMax,
+	'min(-waveCode_lambdaMax, v_n - Cs_nLen)',
+	'max( waveCode_lambdaMax, v_n + Cs_nLen)'
+)?>
+]], args)
 end
 
 return EulerLinGR

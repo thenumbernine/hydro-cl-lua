@@ -297,27 +297,76 @@ end
 
 -- TODO - prevent variable collisions - especially from multiple matching subeqns
 -- this might require some kind of namespace
-function Composite:eigenWaveCodePrefix(n, eig, pt)
+function Composite:eigenWaveCodePrefix(args)
 	return self.eqns:mapi(function(eqn,i)
-		return eqn:eigenWaveCodePrefix(n, '&('..eig..')->'..eqn.field, pt)
+		local args = setmetatable(table(args), nil)
+		args.eig = '&('..args.eig..')->'..eqn.field
+		return eqn:eigenWaveCodePrefix(args)
 	end):concat'\n'
 end
 
-function Composite:eigenWaveCode(n, eig, pt, waveIndex)
-	local origWaveIndex = waveIndex
+function Composite:eigenWaveCode(args)
+	local waveIndex = assert(args.waveIndex)
 	for i,eqn in ipairs(self.eqns) do
 		if waveIndex >= 0 and waveIndex < eqn.numWaves then
-			return eqn:eigenWaveCode(n, '&('..eig..')->'..eqn.field, pt, waveIndex)
+			local args = setmetatable(table(args), nil)
+			args.eig = '&('..args.eig..')->'..eqn.field
+			args.waveIndex = waveIndex
+			return eqn:eigenWaveCode(args)
 		end
 		waveIndex = waveIndex - eqn.numWaves
 	end
-	error("couldn't find waveIndex "..origWaveIndex.." in any sub-eqns")
+	error("couldn't find waveIndex "..args.waveIndex.." in any sub-eqns")
 end
 
+function Composite:eigenWaveCodeMinMax(args)
+	--[[
+	TODO
+	declare always, set names to temp vars, then for the final result determine if/went to declare
+	--]]
+	error'fixme'
+end
+
+-- TODO same as eigenWaveCodePrefix
+function Composite:consWaveCodePrefix(args)
+	return self.eqns:mapi(function(eqn,i)
+		local args = setmetatable(table(args), nil)
+		args.U = '&('..args.U..')->'..eqn.field
+		return eqn:consWaveCodePrefix(args)
+	end):concat'\n'
+end
+
+function Composite:consWaveCode(args)
+	local waveIndex = assert(args.waveIndex)
+	for i,eqn in ipairs(self.eqns) do
+		if waveIndex >= 0 and waveIndex < eqn.numWaves then
+			local args = setmetatable(table(args), nil)
+			args.U = '&('..args.U..')->'..eqn.field
+			args.waveIndex = waveIndex
+			return eqn:consWaveCode(args)
+		end
+		waveIndex = waveIndex - eqn.numWaves
+	end
+	error("couldn't find waveIndex "..args.waveIndex.." in any sub-eqns")
+end
+
+function Composite:consWaveCodeMinMax(args)
+	error'fixme'
+	-- TODO same as eigenWaveCodeMinMax
+end
+
+function Equation:consWaveCodeMinMaxAllSidesPrefix(args)
+	error'fixme'
+end
+function Equation:consWaveCodeMinMaxAllSides(args)
+	error'fixme'
+end
+
+--[[
 function Composite:combineWaveCode(func, n, src, pt)
 	local code
 	for i,eqn in ipairs(self.eqns) do
-		local eqnCode = eqn:eigenMinWaveCode(n, '&('..src..')->'..eqn.field, pt)
+		local eqnCode = eqn:something(n, '&('..src..')->'..eqn.field, pt)
 		if not code then
 			code = eqnCode 
 		else
@@ -326,35 +375,6 @@ function Composite:combineWaveCode(func, n, src, pt)
 		end
 	end
 end
-function Composite:eigenMinWaveCode(n, eig, pt)
-	return self:combineWaveCode('min', n, eig, pt)
-end
-function Composite:eigenMaxWaveCode(n, eig, pt)
-	return self:combineWaveCode('max', n, eig, pt)
-end
-
--- TODO same as eigenWaveCodePrefix
-function Composite:consWaveCodePrefix(n, U, pt)
-	return self.eqns:mapi(function(eqn,i)
-		return eqn:consWaveCodePrefix(n, '&('..U..')->'..eqn.field, pt)
-	end):concat'\n'
-end
-
-function Composite:consWaveCode(n, U, pt, waveIndex)
-	local origWaveIndex = waveIndex
-	for i,eqn in ipairs(self.eqns) do
-		if waveIndex >= 0 and waveIndex < eqn.numWaves then
-			return eqn:consWaveCode(n, '&('..U..')->'..eqn.field, pt, waveIndex)
-		end
-		waveIndex = waveIndex - eqn.numWaves
-	end
-	error("couldn't find waveIndex "..origWaveIndex.." in any sub-eqns")
-end
-function Composite:consMinWaveCode(n, U, pt)
-	return self:combineWaveCode('min', n, U, pt)
-end
-function Composite:consMaxWaveCode(n, U, pt)
-	return self:combineWaveCode('max', n, U, pt)
-end
+--]]
 
 return Composite

@@ -18,10 +18,14 @@
 	*/\
 	<?=eigen_t?> eigInt;\
 	<?=eigen_forInterface?>(&eigInt, solver, UL, UR, cellL, cellR, xInt, n);\
-\
-	<?=eqn:eigenWaveCodePrefix("n", "&eigInt", "xInt"):gsub("\n", "\\\n")?>\
-	real const lambdaIntMin = <?=eqn:eigenMinWaveCode("n", "&eigInt", "xInt")?>;\
-	real const lambdaIntMax = <?=eqn:eigenMaxWaveCode("n", "&eigInt", "xInt")?>;\
+	<?=eqn:eigenWaveCodeMinMax{ --\
+		n = "n", --\
+		eig = "&eigInt", --\
+		pt = "xInt", --\
+		resultMin = "lambdaIntMin", --\
+		resultMax = "lambdaIntMax", --\
+		declare = true, --\
+	}:gsub("\\*\n", "\\\n\t")?>\
 \
 <? if solver.flux.hllCalcWaveMethod == "Davis direct" then ?>\
 	real const sL = lambdaIntMin;\
@@ -32,14 +36,22 @@
 \
 	real lambdaLMin;\
 	{\
-		<?=eqn:consWaveCodePrefix("n", "UL", "xInt"):gsub("\n", "\\\n")?>\
-		lambdaLMin = <?=eqn:consMinWaveCode("n", "UL", "xInt")?>;\
+		<?=eqn:consWaveCodeMinMax{ --\
+			n = "n", --\
+			U = "UL", --\
+			pt = "(cellL)->pos", --\
+			resultMin = "lambdaLMin", --\
+		}:gsub("\\*\n", "\\\n\t\t")?>;\
 	}\
 \
 	real lambdaRMax;\
 	{\
-		<?=eqn:consWaveCodePrefix("n", "UR", "xInt"):gsub("\n", "\\\n")?>\
-		lambdaRMax = <?=eqn:consMaxWaveCode("n", "UR", "xInt")?>;\
+		<?=eqn:consWaveCodeMinMax{ --\
+			n = "n", --\
+			U = "UR", --\
+			pt = "(cellR)->pos", --\
+			resultMax = "lambdaRMax", --\
+		}:gsub("\\*\n", "\\\n\t\t")?>;\
 	}\
 \
 	real const sL = min(lambdaLMin, lambdaIntMin);\

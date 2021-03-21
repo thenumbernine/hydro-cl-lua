@@ -1957,10 +1957,14 @@ end ?>;
 				-- 4/3 pi r^3 rho = m <=> rho = 3 m / (4 pi r^3)
 				kilogram = constants.EarthMass_in_kg * 3 / (4 * math.pi * coordRadius^3),
 		
-				-- in units of m^3/(kg s^2)
+				speedOfLight = constants.speedOfLight_in_m_per_s,
 				gravitationalConstant = constants.gravitationalConstant_in_m3_per_kg_s2,
-				
 				coulombConstant = constants.CoulombConstant_in_kg_m3_per_C2_s2,
+				
+				-- what if the var doesn't exist?
+				-- this exists in euler-lingr and twofluid-emhd-lingr
+				divPsiWavespeed_g = constants.speedOfLight_in_m_per_s,
+				divPhiWavespeed_g = constants.speedOfLight_in_m_per_s,
 			},
 			getDepends = function(self)
 				return {self.solver.coord.symbols.coordMap}

@@ -39,7 +39,11 @@ local useFlux = solver.fluxLimiter > 1
 	<?=eigen_t?> eig;\
 	<?=eigen_forInterface?>(&eig, solver, UL, UR, cellL, cellR, xInt, n);\
 \
-<?=eqn:eigenWaveCodePrefix("n", "&eig", "xInt"):gsub("\n", "\\\n")?>\
+	<?=eqn:eigenWaveCodePrefix{ --\
+		n = "n", --\
+		eig = "&eig", --\
+		pt = "xInt", --\
+	}:gsub("\\*\n", "\\\n\t")?>\
 \
 	<?=waves_t?> fluxEig;\
 <? if not eqn.roeUseFluxFromCons then --\
@@ -78,8 +82,13 @@ local useFlux = solver.fluxLimiter > 1
 <? 	end ?>\
 \
 	<? for j=0,eqn.numWaves-1 do ?>{\
-		const int j = <?=j?>;\
-		real lambda = <?=eqn:eigenWaveCode("n", "&eig", "xInt", j)?>;\
+		int const j = <?=j?>;\
+		real const lambda = <?=eqn:eigenWaveCode{ --\
+			n = "n", --\
+			eig = "&eig", --\
+			pt = "xInt", --\
+			waveIndex = j, --\
+		}:gsub("\\*\n", "\\\n\t\t")?>;\
 \
 <? if not eqn.roeUseFluxFromCons then --\
 ?>		fluxEig.ptr[j] *= lambda;\

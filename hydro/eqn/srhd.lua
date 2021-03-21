@@ -23,9 +23,7 @@ SRHD.name = 'SRHD'
 SRHD.numWaves = 5
 SRHD.numIntStates = 5
 
--- TODO if we enable this we get NANs when waves hit the border.  Bug in the srhd boundary prim calculations?
--- but if we don't ... well ... it isn't technically correct
---SRHD.roeUseFluxFromCons = true
+SRHD.roeUseFluxFromCons = true
 
 SRHD.initConds = require 'hydro.init.euler':getList()
 
@@ -356,14 +354,14 @@ SRHD.eigenVars = {
 	{name='lambdaMax', type='real'},
 }
 
-function SRHD:eigenWaveCode(n, eig, x, waveIndex)
-	if waveIndex == 0 then
-		return '('..eig..')->lambdaMin'
-	elseif waveIndex >= 1 and waveIndex <= 3 then
+function SRHD:eigenWaveCode(args)
+	if args.waveIndex == 0 then
+		return '('..args.eig..')->lambdaMin'
+	elseif args.waveIndex >= 1 and args.waveIndex <= 3 then
 		-- v.x because v has been rotated so x points along the normal
-		return '('..eig..')->v.x'
-	elseif waveIndex == 4 then
-		return '('..eig..')->lambdaMax'
+		return '('..args.eig..')->v.x'
+	elseif args.waveIndex == 4 then
+		return '('..args.eig..')->lambdaMax'
 	else
 		error'got a bad waveIndex'
 	end
@@ -372,17 +370,16 @@ end
 -- used by HLL
 -- extra params provided by calcDT, or calculated here if not provided (just like in Euler)
 -- but then I just explicitly wrote out the calcDT, so the extra parameters just aren't used anymore.
-function SRHD:consWaveCodePrefix(n, U, x)
-	U = '('..U..')'
+function SRHD:consWaveCodePrefix(args)
 	return self:template([[	
-real const eInt = <?=U?>->eInt;
+real const eInt = (<?=U?>)->eInt;
 
-real const vSq = coordLenSq(<?=U?>->v, <?=x?>);
+real const vSq = coordLenSq((<?=U?>)->v, <?=pt?>);
 real const csSq = calc_CsSq(solver, eInt);
 real const cs = sqrt(csSq);
 
 /* for the particular direction */
-real const vi = normal_vecDotN1(n, <?=U?>->v);
+real const vi = normal_vecDotN1(<?=n?>, (<?=U?>)->v);
 real const viSq = vi * vi;
 
 /*  Marti 1998 eqn 19 */
@@ -392,24 +389,52 @@ real const discr = sqrt((1. - vSq) * (1. - vSq * csSq - viSq * (1. - csSq)));
 real const _srhd_lambdaMin = (vi * (1. - csSq) - cs * discr) / (1. - vSq * csSq);
 real const _srhd_lambdaMax = (vi * (1. - csSq) + cs * discr) / (1. - vSq * csSq);
 /*  v.x because v has been rotated so x points along the normal */
-real const v_n = <?=U?>->v.x;
-]], {
-		n = n,
-		U = U,
-		x = x,
-	})
+real const v_n = (<?=U?>)->v.x;
+]], args)
 end
 
-function SRHD:consWaveCode(n, U, x, waveIndex)
-	if waveIndex == 0 then
+function SRHD:consWaveCode(args)
+	if args.waveIndex == 0 then
 		return '_srhd_lambdaMin'
-	elseif waveIndex >= 1 and waveIndex <= 3 then
+	elseif args.waveIndex >= 1 and args.waveIndex <= 3 then
 		return 'v_x'
-	elseif waveIndex == 4 then
+	elseif args.waveIndex == 4 then
 		return '_srhd_lambdaMax'
 	else
 		error'got a bad waveIndex'
 	end
+end
+
+--SRHD.eigenWaveCodeMinMax uses default
+--SRHD.consWaveCodeMinMax uses default
+
+function SRHD:consWaveCodeMinMaxAllSidesPrefix(args)
+	return self:template([[
+real const eInt = (<?=U?>)->eInt;
+real const vSq = coordLenSq((<?=U?>)->v, <?=pt?>);
+real const csSq = calc_CsSq(solver, eInt);
+real const cs = sqrt(csSq);
+]], args)
+end
+
+function SRHD:consWaveCodeMinMaxAllSides(args)
+	return self:template([[
+/* for the particular direction */\
+real const vi = normal_vecDotN1(<?=n?>, (<?=U?>)->v);\
+real const viSq = vi * vi;\
+\
+/*  Marti 1998 eqn 19 */\
+/*  also Marti & Muller 2008 eqn 68 */\
+/*  also Font 2008 eqn 106 */\
+real const discr = sqrt((1. - vSq) * (1. - vSq * csSq - viSq * (1. - csSq)));\
+real const lambdaMin = (vi * (1. - csSq) - cs * discr) / (1. - vSq * csSq);\
+real const lambdaMax = (vi * (1. - csSq) + cs * discr) / (1. - vSq * csSq);\
+
+<?=eqn:waveCodeAssignMinMax(
+	declare, resultMin, resultMax,
+	'lambdaMin', 'lambdaMax'
+)?>
+]], args)
 end
 
 return SRHD

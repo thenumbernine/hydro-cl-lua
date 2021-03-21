@@ -29,6 +29,9 @@ I found this was especially useful in providing with the ideal MHD and using in 
 which, when using evR . lambda . evL, developed numerical errors that the flux didn't.
 
 I think other equations were better performing without this, like Euler.
+
+TODO looks like dF/dU * U = F only for euler equations,
+so which is correct in general? set this accordingly.
 --]]
 Equation.roeUseFluxFromCons = nil
 
@@ -119,6 +122,11 @@ function Equation:init(args)
 	local solver = assert(args.solver)
 	self.solver = solver
 	local app = solver.app
+
+	-- TODO should I do this?  what about eqns that build prim/consStruct (as they should be doing instead) ?
+	--self.primVars = self.primVars or table()
+	--self.consVars = self.consVars or table()
+	self:buildVars(args)
 	
 	-- build consStruct and primStruct from self.consVars and .primVars (then erase them -- don't use them anymore)
 	-- TODO think of a better way for the eqn to pass this info along, maybe a callback instead of a field?
@@ -376,6 +384,9 @@ function Equation:getSymbolFields()
 		'initCond_guiVars_compileTime',
 		'initCond_codeprefix',
 	}
+end
+
+function Equation:buildVars()
 end
 
 function Equation:cdefAllVarTypes(solver, vars)
@@ -992,34 +1003,145 @@ function Equation:getEigenDisplayVars()
 	return self.solver:createDisplayVarArgsForStructVars(self.eigenVars, '(&eig)')
 end
 
-function Equation:eigenWaveCodePrefix(n, eig, x)
+function Equation:waveCodeAssignMinMax(declare, resultMin, resultMax, minCode, maxCode)
+	args = setmetatable(table(args), nil)
+	if declare == true then declare = 'real const ' end
+	if not declare then declare = '' end
+	args.declare = declare
+	args.resultMin = resultMin
+	args.resultMax = resultMax
+	args.minCode = minCode
+	args.maxCode = maxCode
+	return self:template([[
+<? if resultMin then ?><?=declare?><?=resultMin?> = <?=minCode?>;<? end ?>
+<? if resultMax then ?><?=declare?><?=resultMax?> = <?=maxCode?>;<? end ?>
+]], args)
+end
+
+--[[
+this is for getting specific wave #s from eigen_t
+returns code for multiple statements.
+args:
+	n = normal_t
+	eig = eigen_t
+	pt = real3
+--]]
+function Equation:eigenWaveCodePrefix(args)
 	return ''
 end
-function Equation:eigenWaveCode(n, eig, x, waveIndex)
+
+--[[
+returns code of an expression, so no multi-stmts.
+args:
+	n = normal_t
+	eig = eigen_t
+	pt = real3
+	waveIndex = # (0 to numWaves-1)
+--]]
+function Equation:eigenWaveCode(args)
 	return '\n#error :eigenWaveCode() not implemented'
 end
 
-function Equation:consWaveCodePrefix(n, U, x)
-	return '\n#error :consWaveCodePrefix() not implemented'
+--[[
+this is for getting specific wave #s from cons_t
+returns code for multiple statements.
+args:
+	n = normal_t
+	U = cons_t
+	pt = real3
+--]]
+function Equation:consWaveCodePrefix(args)
+	return ''
 end
-function Equation:consWaveCode(n, U, x)
+
+--[[
+returns code of an expression, so no multi-stmts.
+args:
+	n = normal_t
+	U = cons_t
+	pt = real3
+--]]
+function Equation:consWaveCode(args)
 	return '\n#error :consWaveCode() not implemented'
 end
 
--- default implementation -- the first is the min and the last is the max
--- however some don't do this, like GLM
-function Equation:eigenMinWaveCode(n, eig, x)
-	return self:eigenWaveCode(n, eig, x, 0)
+
+--[[
+returns multiple statements.
+no prefix call required.
+args:
+	eig = eigen_t object
+	n = normal_t object
+	pt = real3 of position
+	resultMin = (optional) name of min var
+	resultMax = (optional) name of max var
+	declare = true to declare variables
+--]]
+function Equation:eigenWaveCodeMinMax(args)
+	args = setmetatable(table(args), nil)
+	args.args = args
+	return self:eigenWaveCodePrefix(args)..'\n'
+	..self:template([[
+<? local table = require 'ext.table' 
+?><?=eqn:waveCodeAssignMinMax(
+	declare, resultMin, resultMax,
+	eqn:eigenWaveCode(setmetatable(table(args, {waveIndex=0}), nil)),
+	eqn:eigenWaveCode(setmetatable(table(args, {waveIndex=eqn.numWaves-1}), nil))
+)?>
+]], args)
 end
-function Equation:eigenMaxWaveCode(n, eig, x)
-	return self:eigenWaveCode(n, eig, x, self.numWaves-1)
+
+--[[
+returns code for multiple statements.
+there is no prerequisite 'Prefix' call to this.
+why? because no multiple subsequent calls are intended, unlike the 'AllSides' or the default wave code, and because this is returning multiple statements (unlike the default wave code that has Prefix do multiple statements and the cons/eigenWaveCode call produce expressios).
+args:
+	U = cons_t variable name
+	n = normal_t variable name
+	pt = real3 position, in chart coordinates
+	resultMin = (optional) name of min lambda var to store
+	resultMax = (optional) name of max lambda var to store
+	declare = true to declare the variables
+--]]
+function Equation:consWaveCodeMinMax(args)
+	args = setmetatable(table(args), nil)
+	args.args = args
+	return self:consWaveCodePrefix(args)..'\n'
+	..self:template([[
+<? local table = require 'ext.table' 
+?><?=eqn:waveCodeAssignMinMax(
+	declare, resultMin, resultMax,
+	eqn:consWaveCode(setmetatable(table(args, {waveIndex=0}), nil)),
+	eqn:consWaveCode(setmetatable(table(args, {waveIndex=eqn.numWaves-1}), nil))
+)?>
+]], args)
 end
-function Equation:consMinWaveCode(n, U, x)
-	return self:consWaveCode(n, U, x, 0)
+
+--[[
+this is for getting min/max from cons_t for multiple normal_t's
+returns code for multiple statements.
+args:
+	U = cons_t
+	pt = real3
+--]]
+function Equation:consWaveCodeMinMaxAllSidesPrefix(args)
+	return ''
 end
-function Equation:consMaxWaveCode(n, U, x)
-	return self:consWaveCode(n, U, x, self.numWaves-1)
+
+--[[
+returns code for multiple statements.
+args:
+	U = cons_t variable name
+	n = normal_t variable name
+	pt = real3 position, in chart coordinates
+	resultMin = name of min lambda var to store
+	resultMax = name of max lambda var to store
+	declare = true to declare the variables
+--]]
+function Equation:consWaveCodeMinMaxAllSides(args)
+	return self:consWaveCodeMinMax(args)
 end
+
 
 -- By default calcDT is taken from hydro/eqn/cl/calcDT.cl
 -- Override to provide your own.

@@ -193,7 +193,7 @@ based on vector 'v'
 to compute upwind differencing from.
 Same thing as (int4)sgn(v)
 */
-const int4 getUpwind(real3 v) {
+int4 const getUpwind(real3 v) {
 	return (int4)(
 		v.x >= 0 ? 1 : -1,
 		v.y >= 0 ? 1 : -1,

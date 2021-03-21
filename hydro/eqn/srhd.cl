@@ -504,9 +504,9 @@ end):concat()
 <? else ?>\
 	/* default */\
 	<?=eigen_leftTransform?>(&waves, solver, eig, X_, (cell)->pos, n);\
-	<?=eqn:eigenWaveCodePrefix("n", "eig", "(cell)->pos")?>\
+	<?=eqn:eigenWaveCodePrefix{n="n", eig="&eig", pt="(cell)->pos"}?>\
 <? for j=0,eqn.numWaves-1 do --\
-?>	waves.ptr[<?=j?>] *= <?=eqn:eigenWaveCode("n", "eig", "(cell)->pos", j)?>;\
+?>	waves.ptr[<?=j?>] *= <?=eqn:eigenWaveCode{n="n", eig="&eig", pt="(cell)->pos", waveIndex=j}?>;\
 <? end --\
 ?>	<?=eigen_rightTransform?>(result, solver, eig, waves, (cell)->pos, n);\
 <? end ?>\

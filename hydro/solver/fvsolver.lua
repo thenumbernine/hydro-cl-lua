@@ -372,14 +372,23 @@ function FiniteVolumeSolver:addDisplayVars()
 				getEigenCode{side=side},
 				self.eqn:template([[
 	<?=normal_t?> n<?=side?> = normal_forSide<?=side?>(xInt);
-<?=eqn:eigenWaveCodePrefix('n', '&eig', 'xInt')?>
+	<?=eqn:eigenWaveCodePrefix{
+		n = 'n',
+		eig = '&eig',
+		pt = 'xInt',
+	}:gsub('\n', '\n\t')?>
 ]], 			{
 					side = side,
 				}),
 			}:concat'\n',
 			vars = range(0, self.eqn.numWaves-1):map(function(i)
 				return {name=tostring(i), code=self.eqn:template([[
-	value.vreal = <?=eqn:eigenWaveCode('n'..side, '&eig', 'xInt', i)?>;
+	value.vreal = <?=eqn:eigenWaveCode{
+		n = 'n'..side,
+		eig = '&eig',
+		pt = 'xInt',
+		waveIndex = i,
+	}?>;
 ]], 			{
 					side = side,
 					i = i,
@@ -471,7 +480,11 @@ function FiniteVolumeSolver:addDisplayVars()
 						getEigenCode{side=side},
 						self.eqn:template([[
 	<?=normal_t?> n<?=side?> = normal_forSide<?=side?>(x);
-	<?=eqn:eigenWaveCodePrefix('n'..side, '&eig', 'xInt'):gsub('\n', '\n\t')?>
+	<?=eqn:eigenWaveCodePrefix{
+		n = 'n'..side,
+		eig = '&eig',
+		pt = 'xInt',
+	}:gsub('\n', '\n\t')?>
 	
 	value.vreal = 0;
 	for (int k = 0; k < numIntStates; ++k) {
@@ -489,7 +502,12 @@ function FiniteVolumeSolver:addDisplayVars()
 
 		<?=waves_t?> charScaled;
 		<? for j=0,eqn.numWaves-1 do ?>{
-			real lambda_j = <?=eqn:eigenWaveCode('n'..side, '&eig', 'xInt', j)?>;
+			real const lambda_j = <?=eqn:eigenWaveCode{
+				n = 'n'..side,
+				eig = '&eig',
+				pt = 'xInt',
+				waveIndex = j,
+			}:gsub('\n', '\n\t\t')?>;
 			charScaled.ptr[<?=j?>] = chars.ptr[<?=j?>] * lambda_j;
 		}<? end ?>
 	

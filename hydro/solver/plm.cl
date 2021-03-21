@@ -375,14 +375,23 @@ void calcCellLR_<?=side?>(
 	real dx = cell_dx<?=side?>(cell->pos);
 	real dt_dx = dt / dx;
 
-	<?=eqn:eigenWaveCodePrefix("n", "&eig", "cell->pos")?>
+	<?=eqn:eigenWaveCodePrefix{
+		n = "n",
+		eig = "&eig",
+		pt = "cell->pos",
+	}:gsub("\n", "\n\t")?>
 
 	// slopes in characteristic space
 	<?=waves_t?> aL;
 	<?=waves_t?> aR;
 	<? for j=0,eqn.numWaves-1 do ?>{
-		const int j = <?=j?>;
-		real wave_j = <?=eqn:eigenWaveCode("n", "&eig", "cell->pos", j)?>;
+		int const j = <?=j?>;
+		real const wave_j = <?=eqn:eigenWaveCode{
+			n = "n",
+			eig = "&eig",
+			pt = "cell->pos",
+			waveIndex = j,
+		}:gsub("\n", "\n\t\t")?>;
 		aL.ptr[j] = wave_j < 0 ? 0 : dUMEig.ptr[j] * .5 * (1. - wave_j * dt_dx);
 		aR.ptr[j] = wave_j > 0 ? 0 : dUMEig.ptr[j] * .5 * (1. + wave_j * dt_dx);
 	}<? end ?>
@@ -522,7 +531,11 @@ void calcCellLR_<?=side?>(
 	real dx = cell_dx<?=side?>(cell->pos);
 	real dt_dx = dt / dx;
 
-	<?=eqn:eigenWaveCodePrefix("n", "&eig", "cell->pos")?>
+	<?=eqn:eigenWaveCodePrefix{
+		n = "n",
+		eig = "&eig",
+		pt = "cell->pos",
+	}:gsub("\n", "\n\t")?>
 
 <? 	
 		if solver.usePLM == "plm-eig-prim" then 
@@ -534,8 +547,13 @@ void calcCellLR_<?=side?>(
 	// calculate left and right slopes in characteristic space
 	<?=waves_t?> aL, aR;
 	<? for j=0,eqn.numWaves-1 do ?>{
-		const int j = <?=j?>;
-		real wave_j = <?=eqn:eigenWaveCode(side, "&eig", "cell->pos", j)?>;
+		int const j = <?=j?>;
+		real const wave_j = <?=eqn:eigenWaveCode{
+			n = "n",
+			eig = "&eig",
+			pt = "cell->pos",
+			waveIndex = j,
+		}:gsub("\n", "\n\t\t")?>;
 		aL.ptr[j] = wave_j < 0 ? 0 : dWMEig.ptr[j] * .5 * (1. - wave_j * dt_dx);
 		aR.ptr[j] = wave_j > 0 ? 0 : dWMEig.ptr[j] * .5 * (1. + wave_j * dt_dx);
 	}<? end ?>
@@ -568,10 +586,21 @@ void calcCellLR_<?=side?>(
 	//with reference state
 
 	//min and max waves
-	//TODO use calcCellMinMaxEigenvalues ... except based on <?=eigen_t?>
-	// so something like calcEigenMinMaxWaves ... 
-	real waveMin = min((real)0., <?=eqn:eigenWaveCode("n", "&eig", "cell->pos", 0)?>);
-	real waveMax = max((real)0., <?=eqn:eigenWaveCode("n", "&eig", "cell->pos", eqn.numWaves-1)?>);
+	//TODO use eigenWaveCodeMinMax ... 
+	// but the same vars have been declared in eigenWaveCodePrefix above ...
+	// so which is worse? 5 min() calcs or 1 sqrt() ?
+	real waveMin, waveMax;
+	{
+		<?=eqn:eigenWaveCodeMinMax{
+			n = "n",
+			eig = "&eig",
+			pt = "cell->pos",
+			resultMin = "waveMin",
+			resultMax = "waveMax",
+		}:gsub("\n", "\n\t\t")?>
+	}
+	waveMin = min(0., waveMin);
+	waveMax = max(0., waveMax);
 
 	//limited slope in primitive variable space
 	<?=eigen_rightTransform?>(&tmp, solver, &eig, &dWMEig, cell->pos, n);
@@ -591,8 +620,13 @@ void calcCellLR_<?=side?>(
 	// calculate left and right slopes in characteristic space
 	<?=waves_t?> aL, aR;
 	<? for j=0,eqn.numWaves-1 do ?>{
-		const int j = <?=j?>;
-		real wave_j = <?=eqn:eigenWaveCode(side, "&eig", "cell->pos", j)?>;
+		int const j = <?=j?>;
+		real const wave_j = <?=eqn:eigenWaveCode{
+			n = "n",
+			eig = "&eig",
+			pt = "cell->pos",
+			waveIndex = j,
+		}:gsub("\n", "\n\t\t")?>;
 		aL.ptr[j] = wave_j < 0 ? 0 : (dWMEig.ptr[j] * dt_dx * (waveMax - wave_j));
 		aR.ptr[j] = wave_j > 0 ? 0 : (dWMEig.ptr[j] * dt_dx * (waveMin - wave_j));
 	}<? end ?>
@@ -909,9 +943,18 @@ void calcCellLR_<?=side?>(
 	real lambdaMin = INFINITY;
 	real lambdaMax = -INFINITY;
 	{
-		<?=eqn:eigenWaveCodePrefix("n", "&eig", "cell->pos")?>
+		<?=eqn:eigenWaveCodePrefix{
+			n = "n",
+			eig = "&eig",
+			pt = "cell->pos",
+		}:gsub("\n", "\n\t\t")?>
 		<? for j=0,eqn.numWaves-1 do ?>{
-			real lambda_j = <?=eqn:eigenWaveCode("n", "U", "cell->pos", j)?>;
+			real const lambda_j = <?=eqn:eigenWaveCode{
+				n = "n",
+				eig = "&eig",	-- TODO once again this was set to U when the prefix was based on eig ...
+				"cell->pos",
+				waveIndex = j,
+			}:gsub("\n", "\n\t\t\t")?>;
 			lambdaMin = min(lambdaMin, lambda_j);
 			lambdaMax = min(lambdaMax, lambda_j);
 			lambda.ptr[<?=j?>] = lambda_j;

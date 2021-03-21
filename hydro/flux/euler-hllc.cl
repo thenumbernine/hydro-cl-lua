@@ -37,14 +37,18 @@ end
 	*/\
 	<?=eigen_t?> eigInt;\
 	<?=eigen_forInterface?>(&eigInt, solver, UL, UR, cellL, cellR, xInt, n);\
-	\
+\
 	real lambdaIntMin, lambdaIntMax;\
 	{\
-		<?=eqn:eigenWaveCodePrefix("n", "&eigInt", "xInt"):gsub("\n", "\\\n\t\t")?>\
-		lambdaIntMin = <?=eqn:eigenMinWaveCode("n", "&eigInt", "xInt")?>;\
-		lambdaIntMax = <?=eqn:eigenMaxWaveCode("n", "&eigInt", "xInt")?>;\
+		<?=eqn:eigenWaveCodeMinMax{ --\
+			n = "n", --\
+			eig = "&eigInt", --\
+			pt = "xInt", --\
+			resultMin = "lambdaIntMin", --\
+			resultMax = "lambdaIntMax", --\
+		}:gsub("\\*\n", "\\\n\t\t")?>\
 	}\
-	\
+\
 <? 	if solver.flux.hllCalcWaveMethod == "Davis direct" then ?>\
 	real sL = lambdaIntMin;\
 	real sR = lambdaIntMax;\
@@ -52,30 +56,49 @@ end
 <? 	if solver.flux.hllCalcWaveMethod == "Davis direct bounded" then ?>\
 	real lambdaLMin;\
 	{\
-		<?=eqn:consWaveCodePrefix("n", "UL", "xInt"):gsub("\n", "\n\t\t"):gsub("\n", "\\\n\t\t")?>\
-		lambdaLMin = <?=eqn:consMinWaveCode("n", "UL", "xInt")?>;\
+		<?=eqn:consWaveCodeMinMax{ --\
+			n = "n", --\
+			U = "UL", --\
+			pt = "(cellL)->pos", --\
+			resultMin = "lambdaLMin", --\
+		}:gsub("\\*\n", "\\\n\t\t")?>\
 	}\
 \
 	real lambdaRMax;\
 	{\
-		<?=eqn:consWaveCodePrefix("n", "UR", "xInt"):gsub("\n", "\\\n\t\t")?>\
-		lambdaRMax = <?=eqn:consMaxWaveCode("n", "UR", "xInt")?>;\
+		<?=eqn:consWaveCodeMinMax{ --\
+			n = "n", --\
+			U = "UR", --\
+			pt = "(cellR)->pos", --\
+			resultMax = "lambdaRMax", --\
+		}:gsub("\\*\n", "\\\n\t\t")?>\
 	}\
-	\
+\
 	real const sL = min(lambdaLMin, lambdaIntMin);\
 	real const sR = max(lambdaRMax, lambdaIntMax);\
 <? 	end ?>\
 <? else ?> /* don't use interface waves.  looks no different than above, soo ... why even use interface state waves? */\
-	real sLMin, sLMax, sRMin, sRMax;\
+\
+	real sLMin, sLMax;\
 	{\
-		<?=eqn:consWaveCodePrefix(0, "UL", "xL"):gsub("\n", "\\\n\t\t")?>\
-		sLMin = <?=eqn:consMinWaveCode(0, "UL", "xL")?>;\
-		sLMax = <?=eqn:consMaxWaveCode(0, "UL", "xL")?>;\
+		<?=eqn:consWaveCodeMinMax{ --\
+			n = "n", --\
+			U = "UL", --\
+			pt = "(cellL)->pos", --\
+			resultMin = "sLMin", --\
+			resultMax = "sLMax", --\
+		}:gsub("\\*\n", "\\\n\t\t")?>\
 	}\
+\
+	real sRMin, sRMax;\
 	{\
-		<?=eqn:consWaveCodePrefix(0, "UR", "xR"):gsub("\n", "\\\n\t\t")?>\
-		sRMin = <?=eqn:consMinWaveCode(0, "UR", "xR")?>;\
-		sRMax = <?=eqn:consMaxWaveCode(0, "UR", "xR")?>;\
+		<?=eqn:consWaveCodeMinMax{ --\
+			n = "n", --\
+			U = "UR", --\
+			pt = "(cellR)->pos", --\
+			resultMin = "sRMin", --\
+			resultMax = "sRMax", --\
+		}:gsub("\\*\n", "\\\n\t\t")?>\
 	}\
 	real const sL = min(sLMin, sRMin);\
 	real const sR = max(sLMax, sRMax);\

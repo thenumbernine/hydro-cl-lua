@@ -188,14 +188,14 @@ kernel void calcEigenBasis(
 	<?=SETBOUNDS?>(solver->numGhost, solver->numGhost - 1);
 	real3 x = cellBuf[index].pos;
 	
-	int indexR = index;
+	int const indexR = index;
 	<?=prim_t?> primR = primBuf[indexR];
 	
 	//for (int side = 0; side < dim; ++side) {
 	<? for side=0,solver.dim-1 do ?>{
-		const int side = <?=side?>;
+		int const side = <?=side?>;
 		
-		int indexL = index - solver->stepsize.s<?=side?>;
+		int const indexL = index - solver->stepsize.s<?=side?>;
 		<?=prim_t?> primL = primBuf[indexL];
 		
 		real3 xInt = x;

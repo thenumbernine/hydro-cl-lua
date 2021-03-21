@@ -9,6 +9,10 @@
 	/*global <?=cons_t?> const * const */U,\
 	/*global <?=cell_t?> const * const */cell\
 ) {\
+	<?=eqn:consWaveCodeMinMaxAllSidesPrefix{ --\
+		U = "U", --\
+		pt = "(cell)->pos", --\
+	}:gsub("\\*\n", "\\\n\t")?>\
 	<? for side=0,solver.dim-1 do ?>{\
 <? --\
 if solver.coord.vectorComponent == "holonomic" --\
@@ -21,9 +25,14 @@ then --\
 ?>		if (dx > 1e-7) {\
 			<?=normal_t?> const n = normal_forSide<?=side?>((cell)->pos);\
 			/* use cell-centered eigenvalues */\
-			<?=eqn:consWaveCodePrefix("n", "U", "(cell)->pos"):gsub("\n", "\\\n\t\t\t")?>\
-			real const lambdaMin = <?=eqn:consMinWaveCode("n", "U", "(cell)->pos")?>;\
-			real const lambdaMax = <?=eqn:consMaxWaveCode("n", "U", "(cell)->pos")?>;\
+			<?=eqn:consWaveCodeMinMaxAllSides{ --\
+				n = "n", --\
+				U = "U", --\
+				pt = "(cell)->pos", --\
+				resultMin = "lambdaMin", --\
+				resultMax = "lambdaMax", --\
+				declare = true, --\
+			}:gsub("\\*\n", "\\\n\t\t\t")?>\
 			real absLambdaMax = max(fabs(lambdaMin), fabs(lambdaMax));\
 			absLambdaMax = max((real)1e-9, absLambdaMax);\
 			*(dt) = (real)min(*(dt), dx / absLambdaMax);\
@@ -42,6 +51,10 @@ then --\
 	/*global <?=face_t?> const * const */faces,		/* [numFaces] */\
 	/*global int const * const */cellFaceIndexes	/* [numCellFaceIndexes] */\
 ) {\
+	<?=eqn:consWaveCodeMinMaxAllSidesPrefix{ --\
+		U = "U", --\
+		pt = "(cell)->pos", --\
+	}:gsub("\\*\n", "\\\n\t")?>\
 	for (int i = 0; i < (cell)->faceCount; ++i) {\
 		global <?=face_t?> const * const face = faces + cellFaceIndexes[i + (cell)->faceOffset];\
 		real const dx = face->area;	/* face->cellDist? */\
@@ -50,9 +63,14 @@ then --\
 			/* all sides? or only the most prominent side? */\
 			/* which should we pick eigenvalues from? */\
 			/* use cell-centered eigenvalues */\
-			<?=eqn:consWaveCodePrefix("n", "U", "(cell)->pos"):gsub("\n", "\\\n\t\t\t")?>\
-			real const lambdaMin = <?=eqn:consMinWaveCode("n", "U", "(cell)->pos")?>;\
-			real const lambdaMax = <?=eqn:consMaxWaveCode("n", "U", "(cell)->pos")?>;\
+			<?=eqn:consWaveCodeMinMaxAllSides{ --\
+				n = "n", --\
+				U = "U", --\
+				pt = "(cell)->pos", --\
+				resultMin = "lambdaMin", --\
+				resultMax = "lambdaMax", --\
+				declare = true, --\
+			}:gsub("\\*\n", "\\\n\t\t\t")?>\
 			real absLambdaMax = max(fabs(lambdaMin), fabs(lambdaMax));\
 			absLambdaMax = max((real)1e-9, absLambdaMax);\
 			*(dt) = (real)min(*(dt), dx / absLambdaMax);\

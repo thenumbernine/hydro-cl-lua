@@ -14,69 +14,13 @@ Euler.name = 'euler'
 Euler.numWaves = 5
 Euler.numIntStates = 5	-- don't bother integrate ePot
 
+-- turns out for Euler equations, dF/dU * U = F
+-- BUT THIS ISN'T TRUE FOR ALL EQUATIONS
 --Euler.roeUseFluxFromCons = true
 
 Euler.initConds = require 'hydro.init.euler':getList()
 
-function Euler:getSymbolFields()
-	return table(Euler.super.getSymbolFields(self)):append{
-		'calc_H',
-		'calc_h',
-		'calc_HTotal',
-		'calc_hTotal',
-		'calc_eKin',
-		'calc_EKin',
-		'calc_eInt',
-		'calc_EInt',
-		'calc_eInt_fromCons',
-		'calc_EKin_fromCons',
-		'calc_ETotal',
-		'calc_Cs',
-		'calc_P',
-		'calc_T',
-		'calc_v',
-	}
-end
-
-function Euler:buildVars(args)
-	-- TODO primVars doesn't autogen displayVars, and therefore units doesn't matter
-	self.primVars = table{
-		{name='rho', type='real', units='kg/m^3'},
-		{name='v', type='real3', units='m/s', variance='u'},			-- contravariant
-		{name='P', type='real', units='kg/(m*s^2)'},
-		
-		-- used dynamically by op/selfgrav, but optionally can be initialized statically for constant/background potential energy
-		-- TODO in the static case, merge into cell_t to save memory & flops?
-		{name='ePot', type='real', units='m^2/s^2'},
-	}
-
-	self.consVars = table{
-		{name='rho', type='real', units='kg/m^3'},
-		{name='m', type='real3', units='kg/(m^2*s)', variance='u'},	-- contravariant
-		{name='ETotal', type='real', units='kg/(m*s^2)'},	-- per volume.  energy units are kg m^2 / s^2, but energy per volume is kg / (m s^2)
-		{name='ePot', type='real', units='m^2/s^2'},
-	}
-
-	if args.incompressible then
-		self.consVars:insert{name='mPot', type='real', units='kg/(m*s)'}
-		self.primVars:insert{name='mPot', type='real', units='kg/(m*s)'}
-	end
-end
-
-function Euler:buildSelfGrav()
-	local solver = self.solver
-	if require 'hydro.solver.meshsolver':isa(solver) then
-		print("not using selfgrav with mesh solvers yet")
-	else
-		local SelfGrav = require 'hydro.op.selfgrav'
-		self.gravOp = SelfGrav{solver = solver}
-		solver.ops:insert(self.gravOp)
-	end
-end
-
 function Euler:init(args)
-	self:buildVars(args)
-
 	Euler.super.init(self, args)
 	local solver = self.solver
 
@@ -184,6 +128,71 @@ function Euler:init(args)
 	end
 end
 
+function Euler:getSymbolFields()
+	return table(Euler.super.getSymbolFields(self)):append{
+		'calc_H',
+		'calc_h',
+		'calc_HTotal',
+		'calc_hTotal',
+		'calc_eKin',
+		'calc_EKin',
+		'calc_eInt',
+		'calc_EInt',
+		'calc_eInt_fromCons',
+		'calc_EKin_fromCons',
+		'calc_ETotal',
+		'calc_Cs',
+		'calc_Cs_fromCons',
+		'calc_P',
+		'calc_T',
+		'calc_v',
+	}
+end
+
+function Euler:buildVars(args)
+	-- this has turned very ugly
+	-- since some eqns have no prim_t and have it typedef'd to cons_t
+	-- and that is determined by primVars==nil
+	-- that means we can't assign a default empty primVars and 
+	-- have to check for primVars' existence
+	self.primVars = self.primVars or table()
+	self.consVars = self.consVars or table()
+	
+	-- TODO primVars doesn't autogen displayVars, and therefore units doesn't matter
+	self.primVars:append{
+		{name='rho', type='real', units='kg/m^3'},
+		{name='v', type='real3', units='m/s', variance='u'},			-- contravariant
+		{name='P', type='real', units='kg/(m*s^2)'},
+		
+		-- used dynamically by op/selfgrav, but optionally can be initialized statically for constant/background potential energy
+		-- TODO in the static case, merge into cell_t to save memory & flops?
+		{name='ePot', type='real', units='m^2/s^2'},
+	}
+
+	self.consVars:append{
+		{name='rho', type='real', units='kg/m^3'},
+		{name='m', type='real3', units='kg/(m^2*s)', variance='u'},	-- contravariant
+		{name='ETotal', type='real', units='kg/(m*s^2)'},	-- per volume.  energy units are kg m^2 / s^2, but energy per volume is kg / (m s^2)
+		{name='ePot', type='real', units='m^2/s^2'},
+	}
+
+	if args.incompressible then
+		self.consVars:insert{name='mPot', type='real', units='kg/(m*s)'}
+		self.primVars:insert{name='mPot', type='real', units='kg/(m*s)'}
+	end
+end
+
+function Euler:buildSelfGrav()
+	local solver = self.solver
+	if require 'hydro.solver.meshsolver':isa(solver) then
+		print("not using selfgrav with mesh solvers yet")
+	else
+		local SelfGrav = require 'hydro.op.selfgrav'
+		self.gravOp = SelfGrav{solver = solver}
+		solver.ops:insert(self.gravOp)
+	end
+end
+
 function Euler:createInitState()
 	Euler.super.createInitState(self)
 	local double = false --solver.app.real == 'double'
@@ -200,90 +209,13 @@ function Euler:createInitState()
 	end
 end
 
--- this one calcs cell prims once and uses it for all sides
--- it is put here instead of in hydro/eqn/euler.cl so euler-burgers can override it
--- TODO move the sqrt() out of the loop altogether?
--- TODO allow module overriding in the markup somehow?
 function Euler:initCodeModule_calcDTCell()
-	local solver = self.solver
-	solver.modules:add{
-		name = self.symbols.calcDTCell,
-		depends = table{
-			self.solver.symbols.OOB,
-			self.solver.symbols.SETBOUNDS,
-			self.solver.solver_t,
-			self.solver.coord.symbols.normal_t,
-			self.symbols.primFromCons,
-			self.symbols.eqn_guiVars_compileTime,
-			self.solver.coord.symbols.cell_dx_i,
-		},
-		code = self:template[[
-<? if require 'hydro.solver.gridsolver':isa(solver) then ?>
-
-#define <?=calcDTCell?>(\
-	/*real * const */dt,\
-	/*constant <?=solver_t?> const * const */solver,\
-	/*global <?=cons_t?> const * const */U,\
-	/*global <?=cell_t?> const * const */cell\
-) {\
-	<?=prim_t?> W;\
-	<?=primFromCons?>(&W, solver, U, (cell)->pos);\
-	real const Cs = <?=calc_Cs?>(solver, &W);\
-	<? for side=0,solver.dim-1 do ?>{\
-<? --\
-if solver.coord.vectorComponent == 'cartesian' --\
-and not require 'hydro.coord.cartesian':isa(solver.coord) --\
-then --\
-?>		real const dx = cell_dx<?=side?>((cell)->pos);\
-<? else --\
-?>		real const dx = solver->grid_dx.s<?=side?>;\
-<? end --\
-?>\
-		if (dx > 1e-7) {\
-			/* use cell-centered eigenvalues */\
-			real const v_n = normal_vecDotN1(normal_forSide<?=side?>((cell)->pos), W.v);\
-			real const lambdaMin = v_n - Cs;\
-			real const lambdaMax = v_n + Cs;\
-			real absLambdaMax = max(fabs(lambdaMin), fabs(lambdaMax));\
-			absLambdaMax = max((real)1e-9, absLambdaMax);\
-			/* TODO this should be based on coord + vectorComponent */\
-			/* non-cartesian coord + cartesian component uses |u(x+dx)-u(x)| */\
-			*(dt) = (real)min(*(dt), dx / absLambdaMax);\
-		}\
-	}<? end ?>\
-}
-
-<? else -- mesh solver ?>
-
-#define <?=calcDTCell?>(\
-	/*real * const */dt,\
-	/*constant <?=solver_t?> const * const */solver,\
-	/*global <?=cons_t?> const * const */U,\
-	/*global <?=cell_t?> const * const */cell,\
-	/*global <?=face_t?> const * const */faces,		/* [numFaces] */\
-	/*global int const * const */cellFaceIndexes	/* [numCellFaceIndexes] */\
-) {\
-	for (int i = 0; i < cell->faceCount; ++i) {\
-		global <?=face_t?> const * const face = faces + cellFaceIndexes[i + cell->faceOffset];\
-		real dx = face->area;\
-		if (dx > 1e-7 && face->cells.x != -1 && face->cells.y != -1) {\
-			/* all sides? or only the most prominent side? */\
-			/* which should we pick eigenvalues from? */\
-			/* use cell-centered eigenvalues */\
-			<?=normal_t?> n = normal_forFace(face);\
-			<?=eqn:consWaveCodePrefix('n', 'U', '(cell)->pos'):gsub('\n', '\\\n\t\t\t')?>\
-			real lambdaMin = <?=eqn:consMinWaveCode('n', 'U', '(cell)->pos')?>;\
-			real lambdaMax = <?=eqn:consMaxWaveCode('n', 'U', '(cell)->pos')?>;\
-			real absLambdaMax = max(fabs(lambdaMin), fabs(lambdaMax));\
-			absLambdaMax = max((real)1e-9, absLambdaMax);\
-			*(dt) = (real)min(*(dt), dx / absLambdaMax);\
-		}\
-	}\
-}
-
-<? end -- mesh vs grid solver ?>
-]],
-	}
+	-- ugly hack to insert more dependent modules
+	local file = require 'ext.file'
+	self.solver.modules:addFromMarkup(self:template(file['hydro/eqn/cl/calcDT.cl']
+	..self:template[[
+//// MODULE_DEPENDS: <?=primFromCons?>
+]]))
 end
 
 function Euler:getModuleDepends_displayCode() 
@@ -397,45 +329,68 @@ Euler.eigenVars = table{
 	{name='vL', type='real3', units='m/s'},
 }
 
-function Euler:eigenWaveCodePrefix(n, eig, x)
+function Euler:eigenWaveCodePrefix(args)
 	return self:template([[
-real const <?=eqn.symbolPrefix?>Cs_nLen = normal_len(<?=n?>) * <?=eig?>->Cs;
-real const <?=eqn.symbolPrefix?>v_n = normal_vecDotN1(<?=n?>, <?=eig?>->v);
-]],	{
-		eig = '('..eig..')',
-		x = x,
-		n = n,
-	})
+real const Cs_nLen = normal_len(<?=n?>) * (<?=eig?>)->Cs;
+real const v_n = normal_vecDotN1(<?=n?>, (<?=eig?>)->v);
+]],	args)
 end
 
--- W is an extra param specific to Euler's calcDT in this case
--- but then I just explicitly wrote out the calcDT, so the extra parameters just aren't used anymore.
-function Euler:consWaveCodePrefix(n, U, x)
-	return self:template([[
-<?=prim_t?> W;
-<?=primFromCons?>(&W, solver, <?=U?>, <?=x?>);
-real const <?=eqn.symbolPrefix?>Cs_nLen = <?=calc_Cs?>(solver, &W) * normal_len(<?=n?>);
-real const <?=eqn.symbolPrefix?>v_n = normal_vecDotN1(<?=n?>, W.v);
-]], {
-		U = '('..U..')',
-		n = n,
-		x = x,
-	})
-end
-
-function Euler:consWaveCode(n, U, x, waveIndex)
-	if waveIndex == 0 then
-		return self:template'(<?=eqn.symbolPrefix?>v_n - <?=eqn.symbolPrefix?>Cs_nLen)'
-	elseif waveIndex >= 1 and waveIndex <= 3 then
-		return self:template'<?=eqn.symbolPrefix?>v_n'
-	elseif waveIndex == 4 then
-		return self:template'(<?=eqn.symbolPrefix?>v_n + <?=eqn.symbolPrefix?>Cs_nLen)'
+function Euler:eigenWaveCode(args)
+	if args.waveIndex == 0 then
+		return self:template'v_n - Cs_nLen'
+	elseif args.waveIndex >= 1 and args.waveIndex <= 3 then
+		return self:template'v_n'
+	elseif args.waveIndex == 4 then
+		return self:template'v_n + Cs_nLen'
 	end
 	error'got a bad waveIndex'
 end
 
+-- W is an extra param specific to Euler's calcDT in this case
+-- but then I just explicitly wrote out the calcDT, so the extra parameters just aren't used anymore.
+function Euler:consWaveCodePrefix(args)
+	return self:template([[
+real const Cs_nLen = <?=calc_Cs_fromCons?>(solver, <?=U?>, <?=pt?>) * normal_len(<?=n?>);
+real const v_n = normal_vecDotN1(<?=n?>, (<?=U?>)->m) / (<?=U?>)->rho;
+]], args)
+end
+
 -- as long as U or eig isn't used, we can use this for both implementations
-Euler.eigenWaveCode = Euler.consWaveCode
+Euler.consWaveCode = Euler.eigenWaveCode
+
+--Euler.eigenWaveCodeMinMax uses default
+--Euler.consWaveCodeMinMax uses default
+
+-- alright, thanks to eqn/euler you now have to always call this before the for-loop along sides of cells in calcDT
+-- ok so this goes before consMin/MaxWaveCode
+function Euler:consWaveCodeMinMaxAllSidesPrefix(args)
+	return self:template([[
+real const Cs = <?=calc_Cs_fromCons?>(solver, <?=U?>, <?=pt?>);\
+]],	args)
+end
+
+--[[
+set resultMin or resultMax to store the resulting min / max in either
+you have to call 'consWaveCodeMinMaxAllSidesPrefix' before you call this
+but you don't have to call 'consWaveCodePrefix'
+should this function create the vars or assign the vars?
+I'll go with create so it can create them const.
+
+so in calcDT this is used with the allsides prefix.
+but in hll flux this is used with one specific side.
+--]]
+function Euler:consWaveCodeMinMaxAllSides(args)
+	return self:template([[
+real const Cs_nLen = Cs * normal_len(<?=n?>);
+real const v_n = normal_vecDotN1(<?=n?>, (<?=U?>)->m) / (<?=U?>)->rho;
+<?=eqn:waveCodeAssignMinMax(
+	declare, resultMin, resultMax,
+	'v_n - Cs_nLen',
+	'v_n + Cs_nLen'
+)?>
+]], args)
+end
 
 return Euler
 

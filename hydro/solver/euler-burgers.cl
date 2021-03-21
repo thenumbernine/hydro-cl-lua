@@ -12,7 +12,7 @@ kernel void <?=calcDTCell?>(
 	real3 const x = cell->pos;
 	<?=prim_t?> W;
 	<?=primFromCons?>(&W, solver, U, x);
-	real const Cs = calc_Cs(solver, &W);
+	real const Cs = <?=calc_Cs?>(solver, &W);
 
 <? for side=0,solver.dim-1 do 
 ?>	*(dt) = min(*(dt), (real)solver->grid_dx.s<?=side?> / (Cs + fabs(W.v.s<?=side?>)));
@@ -34,7 +34,7 @@ kernel void <?=calcDTCell?>(
 	
 	<?=prim_t?> W;
 	<?=primFromCons?>(&W, solver, U, x);
-	real const Cs = calc_Cs(solver, &W);
+	real const Cs = <?=calc_Cs?>(solver, &W);
 
 	for (int i = 0; i < cell->faceCount; ++i) {
 		global <?=face_t?> const * const face = faceBuf + cellFaceIndexes[i + cell->faceOffset];

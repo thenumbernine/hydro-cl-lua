@@ -181,12 +181,16 @@ for side=0,solver.dim-1 do ?>{
 		for (int j = 0; j < <?=2*stencilSize?>; ++j) {
 			global <?=cons_t?> const * const Uj = U + (j - <?=stencilSize?>) * solver->stepsize.s<?=side?>;
 			
-			<?=eqn:consWaveCodePrefix("n", "Uj", "xInt"):gsub("\n", "\n\t\t")?>
+			<?=eqn:consWaveCodeMinMax{
+				n = "n",
+				U = "Uj",
+				pt = "xInt",
+				resultMin = "lambdaMin",
+				resultMax = "lambdaMax",
+				declare = true,
+			}:gsub("\n", "\n\t\t\t")?>
 			
-			real const lambdaMin = <?=eqn:consMinWaveCode("n", "Uj", "xInt")?>;
 			maxAbsLambda = max(maxAbsLambda, fabs(lambdaMin));
-			
-			real const lambdaMax = <?=eqn:consMaxWaveCode("n", "Uj", "xInt")?>;
 			maxAbsLambda = max(maxAbsLambda, fabs(lambdaMax));
 		}
 
@@ -250,10 +254,19 @@ for side=0,solver.dim-1 do ?>{
 		real lambdaR[<?=eqn.numWaves?>];
 <? 		for _,lr in ipairs{"L", "R"} do
 ?>		{
-		<?=eqn:eigenWaveCodePrefix("n", "&eig"..lr, "xInt"):gsub("\n", "\n\t\t")?>
+		<?=eqn:eigenWaveCodePrefix{
+			n = "n",
+			eig = "&eig"..lr,
+			pt = "xInt",
+		}:gsub("\n", "\n\t\t")?>
 <? 		
 			for k=0,eqn.numWaves-1 do 
-?>			lambda<?=lr?>[<?=k?>] = <?=eqn:eigenWaveCode("n", "U"..lr, "xInt", k)?>;
+?>			lambda<?=lr?>[<?=k?>] = <?=eqn:eigenWaveCode{
+				n = "n",
+				eig = "&eig"..lr,	-- TODO this was 'U', but the CodePrefix was &eig ... so ... which is it?
+				pt = "xInt",
+				waveIndex = k,
+			}:gsub("\n", "\n\t\t\t")?>;
 <?			end
 ?>		}
 <?		end
@@ -352,7 +365,11 @@ for side=0,solver.dim-1 do ?>{
 			//<?=eigen_t?> eig;
 			//<?=eigen_forInterface?>(&eig, solver, UL, UR, cellL, cellR, xInt, n);
 
-			<?=eqn:eigenWaveCodePrefix("n", "&eig", "xInt")?>
+			<?=eqn:eigenWaveCodePrefix{
+				n = "n",
+				eig = "&eig",
+				pt = "xInt",
+			}:gsub("\n", "\n\t\t\t")?>
 
 			<?=cons_t?> UAvg;
 			for (int k = 0; k < numIntStates; ++k) {
@@ -370,8 +387,13 @@ for side=0,solver.dim-1 do ?>{
 			<?=eigen_leftTransform?>(&deltaUEig, solver, &eig, &deltaU, xInt, n);
 
 			<? for k=0,eqn.numWaves-1 do ?>{
-				const int k = <?=k?>;
-				real lambda = <?=eqn:eigenWaveCode("n", "&eig", "xInt", k)?>;
+				int const k = <?=k?>;
+				real const lambda = <?=eqn:eigenWaveCode{
+					n = "n",
+					eig = "&eig",
+					pt = "xInt",
+					waveIndex = k,
+				}:gsub("\n", "\n\t\t\t\t")?>;
 				real lambdaPlus = max(lambda, 0.);
 				real lambdaMinus = min(lambda, 0.);
 

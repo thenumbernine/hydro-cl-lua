@@ -154,9 +154,9 @@ kernel void calcEigenBasis(
 	real det_gammaR3 = det_gammaR * det_gammaR2;
 
 	<? for side=0,solver.dim-1 do ?>{
-		const int side = <?=side?>;
+		int const side = <?=side?>;
 		
-		int indexL = index - solver->stepsize.s<?=side?>;
+		int const indexL = index - solver->stepsize.s<?=side?>;
 		
 		<?=solver:getULRCode()?>
 		
@@ -165,7 +165,7 @@ kernel void calcEigenBasis(
 		real det_gammaL2 = det_gammaL * det_gammaL;
 		real det_gammaL3 = det_gammaL * det_gammaL2;
 		
-		int indexInt = side + dim * index;	
+		int const indexInt = side + dim * index;	
 		real3 xInt = x;
 		xInt.s<?=side?> -= .5 * solver->grid_dx.s<?=side?>;
 		

@@ -202,70 +202,48 @@ function Maxwell:getDisplayVars()
 	return vars
 end
 
-function Maxwell:eigenWaveCodePrefix(n, eig, pt, waveIndex)
+function Maxwell:eigenWaveCodePrefix(args)
 --[=[
 	return self:template([[
-	<?=scalar?> v_p_abs = <?=mul?>(<?=eig?>->sqrt_1_eps, <?=eig?>->sqrt_1_mu);
-]], {
-		eig = '('..eig..')',
-	})
+	<?=scalar?> v_p_abs = <?=mul?>((<?=eig?>)->sqrt_1_eps, (<?=eig?>)->sqrt_1_mu);
+]], args)
 --]=]
 -- [=[
-	local env = self:getEnv()
 	local code = self:template(
-		[[<?=mul?>(<?=mul?>(<?=eig?>->sqrt_1_eps, <?=eig?>->sqrt_1_mu), 1./coord_sqrt_det_g(<?=pt?>))]],
-		{
-			pt = '('..pt..')',
-			eig = '('..eig..')',
-		}
+		[[<?=mul?>(<?=mul?>((<?=eig?>)->sqrt_1_eps, (<?=eig?>)->sqrt_1_mu), 1./coord_sqrt_det_g(<?=pt?>))]],
+		args
 	)
 	if self.scalar == 'cplx' then
+		local env = self:getEnv()
 		code = env.abs..'('..code..')'
 	end
-	return 'real const '..self.symbolPrefix..'v_p_abs = '..code..';'
+	return 'real const v_p_abs = '..code..';'
 --]=]
 end
 
-function Maxwell:eigenWaveCode(n, eig, pt, waveIndex)
-	waveIndex = math.floor(waveIndex / self.numRealsInScalar)
+function Maxwell:eigenWaveCode(args)
+	local waveIndex = math.floor(args.waveIndex / self.numRealsInScalar)
 	return ({
-		'-'..self.symbolPrefix..'v_p_abs',
-		'-'..self.symbolPrefix..'v_p_abs',
+		'-v_p_abs',
+		'-v_p_abs',
 		'0',
 		'0',
-		self.symbolPrefix..'v_p_abs',
-		self.symbolPrefix..'v_p_abs',
+		'v_p_abs',
+		'v_p_abs',
 	})[waveIndex+1] or error('got a bad waveIndex: '..waveIndex)
 end
 
-function Maxwell:eigenMaxWaveCode(n, eig, pt)
-	return self.symbolPrefix..'v_p_abs'
-end
-function Maxwell:eigenMinWaveCode(n, eig, pt)
-	return '-'..self:eigenMaxWaveCode(n, eig, pt)
-end
-
-function Maxwell:consWaveCodePrefix(n, U, pt, waveIndex)
-	local env = self:getEnv()
+function Maxwell:consWaveCodePrefix(args)
 	local code = self:template(
-		[[<?=mul?>(<?=mul?>(<?=U?>->sqrt_1_eps, <?=U?>->sqrt_1_mu), 1./coord_sqrt_det_g(<?=pt?>))]],
-		{
-			U = '('..U..')',
-			pt = '('..pt..')',
-		}
+		[[<?=mul?>(<?=mul?>((<?=U?>)->sqrt_1_eps, (<?=U?>)->sqrt_1_mu), 1./coord_sqrt_det_g(<?=pt?>))]],
+		args
 	)
 	if self.scalar == 'cplx' then
+		local env = self:getEnv()
 		code = env.abs..'('..code..')'
 	end
 	return 'real const v_p_abs = '..code..';'
 end
 Maxwell.consWaveCode = Maxwell.eigenWaveCode
-
-function Maxwell:consMaxWaveCode(n, U, pt)
-	return 'v_p_abs'
-end
-function Maxwell:consMinWaveCode(n, U, pt)
-	return '-'..self:consMaxWaveCode(n, U, pt)
-end
 
 return Maxwell
