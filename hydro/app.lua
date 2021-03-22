@@ -616,7 +616,10 @@ function HydroCLApp:initGL(...)
 		-- When it comes to separate variables, they usually look better apart.
 		self.displayAllTogether = cmdline.stackGraphs or false --self.solvers[1] and self.solvers[1].dim > 1 or false
 
-		self.displayBilinearTextures = true
+		self.displayBilinearTextures = cmdline.displayBilinearTextures
+		if self.displayBilinearTextures == nil then
+			self.displayBilinearTextures = true
+		end
 
 		self.gradientTex = GLGradientTex(1024, {
 		-- [[ white, rainbow, black
@@ -686,8 +689,8 @@ void main() {
 			if not pcall(function()
 				gl.glGenerateMipmap(gl.GL_TEXTURE_2D) 
 			end) then
-				gl.glTexParameteri(fonttex.target, gl.GL_TEXTURE_MIN_FILTER, gl.GL_NEAREST)
-				gl.glTexParameteri(fonttex.target, gl.GL_TEXTURE_MAG_FILTER, gl.GL_LINEAR) 
+				fonttex:setParameter(gl.GL_TEXTURE_MIN_FILTER, gl.GL_NEAREST)
+				fonttex:setParameter(gl.GL_TEXTURE_MAG_FILTER, gl.GL_LINEAR) 
 			end
 			self.font = Font{tex = fonttex}
 		end
@@ -1284,12 +1287,12 @@ end
 			
 			self.mouseCoordValue = ''
 			for i,solver in ipairs(displaySolvers) do 
-			local var = solver.displayVarForName[varName]
+				local var = solver.displayVarForName[varName]
 				if var and var.enabled then
 					-- translate the mouse coords to texture coords
 					-- and read the texel at the mouse position
 					if self.display_useCoordMap 
-						and not CartesianCoord:isa(solver.coord)
+					and not CartesianCoord:isa(solver.coord)
 					then
 						--print'FIXME'
 						-- run coords through inverse
@@ -1298,6 +1301,7 @@ end
 						--local tcY = (self.mouseCoord[2] - solver.mins.y) / (solver.maxs.y - solver.mins.y)
 						local tcX = (self.mouseCoord[1] + 1) * .5
 						local tcY = (self.mouseCoord[2] + 1) * .5
+						local tcZ = math.clamp(tonumber((self.displayFixedZ - solver.mins.z) / (solver.maxs.z - solver.mins.z)), 0, 1)
 						-- TODO something equivalent for 3D ... somehow ...
 						if tcX >= 0 and tcX < 1
 						and tcY >= 0 and tcY < 1
@@ -1306,25 +1310,41 @@ end
 							local size
 							local texX = tcX
 							local texY = tcY
-							if require 'hydro.solver.meshsolver':isa(solver) then
+							local texZ = tcZ	-- displayFixedX, remapped from coordinate to texture space
+							do -- if require 'hydro.solver.meshsolver':isa(solver) then
 								size = var.group.getBuffer().sizevec or solver.gridSize
+								
+								-- TODO now that I am allowing that slicing stuff, now I have to incorporate those transforms here
+								-- esp if displayDim==2 but the solver dim==3
 								texX = math.floor(texX * tonumber(size.x))
 								texY = math.floor(texY * tonumber(size.y))
+								texZ = math.floor(texZ * tonumber(size.z))
 							end
 							if self.useGLSharing then
 								print'FIXME'
 								--gl.glGetTexSubImage ... why isn't this in any OpenGL header?
 							else
+								local component = solver.displayComponentFlatList[var.component]
+								local vectorField = solver:isVarTypeAVectorField(component.type)
+								local unitScale = solver:convertToSIUnitsCode(var.units).func()
+								-- do I have to recalculate it here?
+								solver:calcDisplayVarToTex(var)
+								
 								-- ... if we know we're always copying intermediately to reduceBuf then we can use that instead
 								-- in fact, we can even use the CPU intermediate buffer
 									-- right now I'm copying halfs from cl to gl as-is, so calcDisplayVarToTexPtr will have half data for half and float data otherwise
 								local ptr = ffi.cast(self.real == 'half' and 'real*' or 'float*', solver.calcDisplayVarToTexPtr)
 								local channels = vectorField and 3 or 1
 								local sep = ''
-								self.mouseCoordValue = self.mouseCoordValue .. tostring(texX)..','..tostring(texY)..': '
+								self.mouseCoordValue = self.mouseCoordValue 
+									.. tostring(texX)
+									..','..tostring(texY)
+									..': '
 								if size then
 									for j=0,channels-1 do
-										self.mouseCoordValue = self.mouseCoordValue .. sep .. fromreal(ptr[j + channels * (texX + size.x * texY)])
+										local v = fromreal(ptr[j + channels * (texX + size.x * (texY + size.y * texZ))])
+										v = v * unitScale
+										self.mouseCoordValue = self.mouseCoordValue .. sep .. ('%.3f'):format(v)
 										sep = ', '
 									end
 								end

@@ -241,12 +241,20 @@ end
 function SelfGravProblem:init(args)
 	self.args = args
 	self.getRadiusCode = args.getRadiusCode
+	self.outside = outside
 end
 
 function SelfGravProblem:getDepends()
 	return table{
 		self.solver.coord.symbols.coordMap,
 	}
+end
+
+function SelfGravProblem:outside()
+	return [[
+	rho = .1;
+	P = 1;
+]]
 end
 
 function SelfGravProblem:getInitCondCode(initCond)
@@ -256,8 +264,7 @@ function SelfGravProblem:getInitCondCode(initCond)
 	solver.useGravity = true
 
 	return solver.eqn:template([[
-	rho = .1;
-	P = 1;
+	<?=self:outside()?>
 	//notice about initializing random velocity -- it isn't uniform about .5 so it will pull left
 	//v.x = .2 * (U->m.x - .5);	//U is initialized to random()
 	//v.y = .2 * (U->m.y - .5);
@@ -1981,6 +1988,85 @@ end ?>;
 					},
 				}
 				return f:getInitCondCode(self)
+			end
+		}
+	end)(),
+
+	-- 2021 Ludwig "Galactic rotation curve and dark matter according to gravitomagnetism"
+	(function()
+		local coordRadius = .5
+		return {
+			name = 'self-gravitation - Earth',
+			
+			-- TODO what about spherical coordinates
+			mins = function(self)
+				local solver = assert(self.solver)
+				local coord = assert(solver.coord)
+				if require 'hydro.coord.cylinder':isa(coord) then
+					return {0, 0, -1}
+				end
+				if require 'hydro.coord.sphere':isa(coord) then
+					return {0, 0, -math.pi}
+				end
+				return {-2*coordRadius, -2*coordRadius, -2*coordRadius}
+			end,
+			maxs = function(self)
+				local solver = assert(self.solver)
+				local coord = assert(solver.coord)
+				if require 'hydro.coord.cylinder':isa(coord) then
+					return {2*coordRadius, 2*math.pi, 1}
+				end
+				if require 'hydro.coord.sphere':isa(coord) then
+					return {2*coordRadius, math.pi, math.pi}
+				end
+				return {2*coordRadius, 2*coordRadius, 2*coordRadius}
+			end,
+			-- try for NGC 1560 parameters
+			initCondVars = {
+				{name = 'A', value = '1', units='m'},
+				{name = 'B', value = '1', units='m'},
+				{name = 'M', value = '1', units='kg'},
+			},
+			solverVars = {
+				meter = constants.EarthRadius_in_m / coordRadius,	-- radius .5, grid = 2 M_Earth, so the sphere is M_Earth size
+				
+				-- 4/3 pi r^3 rho = m <=> rho = 3 m / (4 pi r^3)
+				kilogram = constants.EarthMass_in_kg * 3 / (4 * math.pi * coordRadius^3),
+		
+				speedOfLight = constants.speedOfLight_in_m_per_s,
+				gravitationalConstant = constants.gravitationalConstant_in_m3_per_kg_s2,
+				coulombConstant = constants.CoulombConstant_in_kg_m3_per_C2_s2,
+				
+				-- what if the var doesn't exist?
+				-- this exists in euler-lingr and twofluid-emhd-lingr
+				divPsiWavespeed_g = constants.speedOfLight_in_m_per_s,
+				divPhiWavespeed_g = constants.speedOfLight_in_m_per_s,
+			},
+			getDepends = function(self)
+				return {self.solver.coord.symbols.coordMap}
+			end,
+			getInitCondCode = function(self)
+				return self.solver.eqn:template[[
+	real3 const xc = coordMap(x);
+	real const RSq = real3_lenSq(xc);
+	real const R = sqrt(RSq);
+	real const A = intiCond->A / unit_m;
+	real const B = intiCond->B / unit_m;
+	real const BSq = B*B;
+	real const M = initCond->M / unit_kg;
+	real const Z = xc.z;
+	real const ZSq = Z*Z;
+	real const BZLen = sqrt(BSq + ZSq);
+	real const A_plus_BZLen = A + BZLen;
+	real const A_plus_BZLen_sq = A_plus_BZLen * A_plus_BZLen;
+	-- 2021 Ludwig eqn C.1
+	rho = (M * B * B) / (4. * M_PI) * (
+		A * RSq + (A + 3. * BZLen) * A_plus_BZLen_sq
+	) / (
+		pow(RSq + A_plus_BZLen_sq, 5./2.) 
+		* BZLen * BZLen * BZLen
+	);
+]]
 			end
 		}
 	end)(),

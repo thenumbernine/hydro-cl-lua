@@ -39,7 +39,6 @@ function Draw3DSlice:showDisplayVar(var, varName, ar, xmin, xmax, ymin, ymax, us
 		end
 	end
 	
-	
 	local valueMin, valueMax
 	if var.heatMapFixedRange then
 		valueMin = var.heatMapValueMin
@@ -58,11 +57,7 @@ function Draw3DSlice:showDisplayVar(var, varName, ar, xmin, xmax, ymin, ymax, us
 	shader:use()
 	local tex = solver:getTex(var)
 	tex:bind(0)
-	if app.displayBilinearTextures then
-		gl.glTexParameteri(gl.GL_TEXTURE_3D, gl.GL_TEXTURE_MAG_FILTER, gl.GL_LINEAR)
-	else
-		gl.glTexParameteri(gl.GL_TEXTURE_3D, gl.GL_TEXTURE_MAG_FILTER, gl.GL_NEAREST)
-	end
+	tex:setParameter(gl.GL_TEXTURE_MAG_FILTER, app.displayBilinearTextures and gl.GL_LINEAR or gl.GL_NEAREST)
 	
 	app.gradientTex:bind(1)
 	

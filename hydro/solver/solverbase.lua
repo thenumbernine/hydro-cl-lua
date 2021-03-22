@@ -2953,8 +2953,8 @@ function SolverBase:calcDisplayVarToTex(var, componentIndex)
 				destPtr[i] = ptr[i]
 			end
 		end
-		tex:bind()
 		
+		tex:bind()
 		-- use texSize because meshsolver dim isn't reliable
 		if self.texSize.z == 1 then
 			gl.glTexSubImage2D(gl.GL_TEXTURE_2D, 0, 0, 0, sizevec.x, sizevec.y, format, gltype, destPtr)

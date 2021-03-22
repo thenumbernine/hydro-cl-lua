@@ -14,11 +14,7 @@ function DrawMeshHeatmap:drawSolverWithVar(var, heatMap2DShader)
 
 	local tex = solver:getTex()
 	tex:bind(0)
-	if app.displayBilinearTextures then
-		gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MAG_FILTER, gl.GL_LINEAR)
-	else
-		gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MAG_FILTER, gl.GL_NEAREST)
-	end
+	tex:setParameter(gl.GL_TEXTURE_MAG_FILTER, app.displayBilinearTextures and gl.GL_LINEAR or gl.GL_NEAREST)
 
 --[[ 110 fps: glVertexAttrib prim calls
 	gl.glBegin(gl.GL_TRIANGLES)

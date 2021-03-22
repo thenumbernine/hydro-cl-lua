@@ -25,11 +25,7 @@ var.solver = solver
 	local tex = solver:getTex(var)
 	tex:bind(0)
 	self.noiseTex:bind(2)
-	if app.displayBilinearTextures then
-		gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MAG_FILTER, gl.GL_LINEAR)
-	else
-		gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MAG_FILTER, gl.GL_NEAREST)
-	end
+	tex:setParameter(gl.GL_TEXTURE_MAG_FILTER, app.displayBilinearTextures and gl.GL_LINEAR or gl.GL_NEAREST)
 
 	gl.glBegin(gl.GL_QUADS)
 	gl.glVertex2d(xmin, ymin)

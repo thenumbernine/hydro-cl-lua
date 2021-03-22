@@ -186,11 +186,11 @@ if solver.checkNaNs then assert(solver:checkFinite(derivBufObj)) end
 	linearSolverArgs.b = self.krylov_bObj
 	linearSolverArgs.A = function(UNext, U)
 		local dUdt = self.krylov_dUdtObj
-		-- [[ evolve based on U(t) ... so this is solving GMRES against an unchanging matrix, i.e. static linear solver.
+		--[[ evolve based on U(t) ... so this is solving GMRES against an unchanging matrix, i.e. static linear solver.
 		-- this is stable, but not backward-Euler
 		calc_dU_dt(dUdt, self.krylov_bObj)
 		--]]
-		--[[ evolve based on U(t+dt) ... this is a correct backward-Euler solver
+		-- [[ evolve based on U(t+dt) ... this is a correct backward-Euler solver
 		-- doesn't seem to be stable.
 		calc_dU_dt(dUdt, U)
 		--]]
