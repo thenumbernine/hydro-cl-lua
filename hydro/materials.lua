@@ -83,4 +83,10 @@ materials.Air.heatConductivity = 0.0235	-- W / (m K) = kg m / (s^3 K)
 -- from https://en.wikipedia.org/wiki/Viscosity 
 materials['Drinking water'].shearViscosity = 8.9e-4	-- Pa s = kg / (m s) ... at 25 C
 
-return materials 
+-- https://github.com/Bowserinator/Periodic-Table-JSON 
+materials.Lead.seaLevelDensity = 11.34e+3	-- kg/m^3 ... as a solid.  what about as a gas / plasma? at higher temps?
+materials.Lead.boilingPoint = 2022			-- K
+materials.Mercury.seaLevelDensity = 11.34e+3-- kg/m^3
+materials.Mercury.boilingPoint = 629.88		-- K
+
+return materials

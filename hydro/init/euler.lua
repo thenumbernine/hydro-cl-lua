@@ -42,13 +42,9 @@ local function RiemannProblem(initCond)
 	
 	function initCond:init(args)
 		EulerInitCond.init(self, args)
+	
 		if args then
 			self.overrideDim = args.dim
-		end
-
-		self.solverVars = self.solverVars or {}
-		for k,v in pairs(args.solverVars or {}) do
-			self.solverVars[k] = v
 		end
 	end
 	

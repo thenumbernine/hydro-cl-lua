@@ -38,4 +38,7 @@ units.kg_in_m = units.gravitationalConstant_in_m3_per_kg_s2 / (units.speedOfLigh
 	--1 = c m/s  <-> c m = 1 s
 units.m_in_s = units.speedOfLight_in_m_per_s
 
+-- this isn't a ratio, it's a constant:
+units.K_to_C_offset = 273.15
+
 return units

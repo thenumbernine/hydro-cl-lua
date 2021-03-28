@@ -247,7 +247,32 @@ local args = {
 	--initCond = 'gaussian',
 	--initCond = 'advect wave',
 	--initCond = 'sphere',
+	
 	initCond = 'spiral',
+	-- [[ spiral with physically correct units, with 1 graph unit = 1 meter, and 1 simulation second = 1 second
+	-- use this with euler-lingr + cylinder w/ r in [.5, 1], z in [-.25, .25]
+	initCondArgs = (function()
+		local constants = require 'hydro.constants'
+		local materials = require 'hydro.materials'
+		return {solverVars={
+			
+			-- scale time down so that speedOfLight / units_m_per_s = 1 ... so second ~ 1/3e+8 ~ 3.33e-9
+			second = 1 / constants.speedOfLight_in_m_per_s,	
+			
+			speedOfLight = constants.speedOfLight_in_m_per_s, -- ... speedOfLight = 3e+8 / (1/(1/3e+8)) = 1
+			divPsiWavespeed_g = constants.speedOfLight_in_m_per_s,
+			divPhiWavespeed_g = constants.speedOfLight_in_m_per_s,
+			
+			-- 1 / units_m3_per_kg_s2 = second * second * kilogram / meter^3 ... so G ~ 6.67e-11 * 1e-17 ~ 6.67e-28
+			gravitationalConstant = constants.gravitationalConstant_in_m3_per_kg_s2,
+			
+			-- change this so that rho=1 corresponds to the density of ... lead? mercury?
+			kilogram = materials.Mercury.seaLevelDensity,
+			kelvin = constants.K_to_C_offset + 12,	--materials.Mercury.boilingPoint,
+		}}
+	end)(),
+	--]]
+
 	--initCond = 'rarefaction wave',
 	--initCond = 'Bessel',
 	--initCond = 'jet',

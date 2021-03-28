@@ -16,9 +16,21 @@ getInitCondCode = function(self) returns the OpenCL code for the initial conditi
 
 local InitCond = class()
 
+--[[
+for now it depends on the initCond
+but how about I make some stanard overrides?
+
+args:
+	solverVars = solverVars to override, overriding initCond and of course overriding solver
+--]]
 function InitCond:init(args)
 	self.solver = assert(args.solver, "expected solver")
 	self.args = args
+
+	self.solverVars = self.solverVars or {}
+	for k,v in pairs(args and args.solverVars or {}) do
+		self.solverVars[k] = v
+	end
 end
 
 function InitCond:createInitStruct()
