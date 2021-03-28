@@ -104,72 +104,33 @@ function Draw3DSlice:showDisplayVar(var, varName, ar, xmin, xmax, ymin, ymax, us
 		local fwddir
 		local jmin, jmax, jdir
 
+		fwddir = select(2, table{fwd:unpack()}:map(math.abs):sup())
 
-		-- hack for picking order of axis for non-Cartesian
-		if app.display_useCoordMap
-		and (require 'hydro.coord.sphere':isa(solver.coord) 
-			or require 'hydro.coord.sphere-sinh-radial':isa(solver.coord))
-		then
-			fwddir = 1
+		if fwd.s[fwddir-1] < 0 then
 			jmin, jmax, jdir = 0, n, 1
-			gl.glUniform3f(uniforms.normal.loc, (-fwd):unpack())
 		else
+			jmin, jmax, jdir = n, 0, -1
+		end
 		
-			fwddir = select(2, table{fwd:unpack()}:map(math.abs):sup())
+		gl.glUniform3f(uniforms.normal.loc, 
+			fwddir == 1 and jdir or 0, 
+			fwddir == 2 and jdir or 0, 
+			fwddir == 3 and jdir or 0)
 
-			if fwd.s[fwddir-1] < 0 then
-				jmin, jmax, jdir = 0, n, 1
-			else
-				jmin, jmax, jdir = n, 0, -1
-			end
-			
-			gl.glUniform3f(uniforms.normal.loc, 
-				fwddir == 1 and jdir or 0, 
-				fwddir == 2 and jdir or 0, 
-				fwddir == 3 and jdir or 0)
-		end
-
-		if CartesianCoordinateSystem:isa(solver.coord) then
-			-- [[	single quad
-			gl.glBegin(gl.GL_QUADS)
-			for j=jmin,jmax,jdir do
-				local f = j/n
-				for _,vtx in ipairs(vertexesInQuad) do
-					if fwddir == 1 then
-						gl.glVertex3f(f, vtx[1], vtx[2])
-					elseif fwddir == 2 then
-						gl.glVertex3f(vtx[1], f, vtx[2])
-					elseif fwddir == 3 then
-						gl.glVertex3f(vtx[1], vtx[2], f)
-					end
+		gl.glBegin(gl.GL_QUADS)
+		for j=jmin,jmax,jdir do
+			local f = j/n
+			for _,vtx in ipairs(vertexesInQuad) do
+				if fwddir == 1 then
+					gl.glVertex3f(f, vtx[1], vtx[2])
+				elseif fwddir == 2 then
+					gl.glVertex3f(vtx[1], f, vtx[2])
+				elseif fwddir == 3 then
+					gl.glVertex3f(vtx[1], vtx[2], f)
 				end
 			end
-			gl.glEnd()
-			--]]
-		else
-			-- [[	use a grid, so curved coordinates can be seen
-			for j=jmin,jmax,jdir do
-				local f = j/n
-				local xres = 20
-				local yres = 20
-				for ybase=1,yres-1 do
-					gl.glBegin(gl.GL_TRIANGLE_STRIP)
-					for x=1,xres do
-						for y=ybase,ybase+1 do
-							if fwddir == 1 then
-								gl.glVertex3f(f, x/xres, y/yres)
-							elseif fwddir == 2 then
-								gl.glVertex3f(x/xres, f, y/yres)
-							elseif fwddir == 3 then
-								gl.glVertex3f(x/xres, y/yres, f)
-							end
-						end
-					end
-					gl.glEnd()
-				end
-			end
-			--]]
 		end
+		gl.glEnd()
 	
 		gl.glDisable(gl.GL_BLEND)
 	end

@@ -22,10 +22,12 @@ local varying = vertexShader and 'out'
 attribute vec4 vertex;
 
 void main() {
-	texCoord = vertex.xyz;
-	
 	vec4 x = vertex;
-	x.xyz = texToWorldCoord(x.xyz);
+
+	//map from [0,1]^3 to [cartesianMin, cartesianMax]
+	x.xyz = x.xyz * (cartesianMax - cartesianMin) + cartesianMin;
+	texCoord = x.xyz;
+
 <? if useClipPlanes then ?>
 	pos = x.xyz;
 <? end ?>
@@ -67,10 +69,13 @@ end
 	vec3 tc = texCoord;
 	if (displayDim <= 1) tc.y = displayFixed.x;
 	if (displayDim <= 2) tc.z = displayFixed.y;
-	tc = texToWorldCoord(tc);
 	tc = quatRotate(displaySliceAngle, tc);
-	tc = worldToTexCoord(tc);
+	tc = worldToTexCoord(tc);	//inverse map from world coord to chart coord, then to tex coords
 	tc = texToNoGhostCoord(tc);	//getting rid of the ghost cells
+	
+	if (tc.x < 0 || tc.x > 1 || 
+		tc.y < 0 || tc.y > 1 || 
+		tc.z < 0 || tc.z > 1) discard;
 
 	float value = getVoxelValue(tc);
 	

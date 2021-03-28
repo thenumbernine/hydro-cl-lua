@@ -1290,6 +1290,46 @@ function SolverBase:refreshEqnInitState()
 
 	-- while we're here, write all gui vars to the solver_t
 	self:copyGuiVarsToBufs()
+
+
+-- [[
+	-- get the symbolic function for the x, y, z
+	-- and find its range for a domain of the solverMins/solverMaxs
+	local range = require 'ext.range'
+	local symmath = require 'symmath'
+	local var = symmath.var
+	local u,v,w = table.unpack(self.coord.baseCoords)
+	local chart = self.coord.chart()
+	local domains = range(3):mapi(function(i)
+		return symmath.set.RealDomain(
+			tonumber(self.mins.s[i-1]),
+			tonumber(self.maxs.s[i-1]), 
+			true, true)
+	end)
+
+	-- find chart[1]'s range for domain 
+	chart = chart
+		:replace(u, var('tmpU', nil, nil, domains[1]))
+		:replace(v, var('tmpV', nil, nil, domains[2]))
+		:replace(w, var('tmpW', nil, nil, domains[3]))
+
+	local ranges = range(3):mapi(function(i)
+		return chart[i]:getRealDomain()
+	end)
+
+	self.cartesianMin = vec3d(
+		ranges[1][1].start,
+		ranges[2][1].start,
+		ranges[3][1].start
+	)
+	self.cartesianMax = vec3d(
+		table.last(ranges[1]).finish,
+		table.last(ranges[2]).finish,
+		table.last(ranges[3]).finish
+	)
+	print(self.cartesianMin)
+	print(self.cartesianMax)
+--]]
 end
 
 function SolverBase:refreshSolverBufMinsMaxs()
