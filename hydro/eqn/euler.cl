@@ -3,15 +3,24 @@
 // eqn_common is for all the calc_* stuff
 
 #define <?=primFromCons?>(\
-	/*<?=prim_t?> * const */resultW,\
+	/*<?=prim_t?> * const */result,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const*/U,\
 	/*real3 const */x\
 ) {\
-	(resultW)->rho = (U)->rho;\
-	(resultW)->v = <?=calc_v?>(U);\
-	(resultW)->P = <?=calc_P?>(solver, U, x);\
-	(resultW)->ePot = (U)->ePot;\
+	if ((U)->rho < solver->rhoMin) {\
+		(result)->rho = 0.;\
+		(result)->v = real3_zero;\
+		(result)->P = 0.;\
+	} else {\
+		(result)->rho = (U)->rho;\
+		(result)->v = <?=calc_v?>(U);\
+		(result)->P = <?=calc_P?>(solver, U, x);\
+	}\
+	(result)->rho = (U)->rho;\
+	(result)->v = <?=calc_v?>(U);\
+	(result)->P = <?=calc_P?>(solver, U, x);\
+	(result)->ePot = (U)->ePot;\
 }
 
 //// MODULE_NAME: <?=consFromPrim?>
@@ -65,13 +74,18 @@
 ) {\
 	real3 const WA_vL = coord_lower((WA)->v, x);\
 	(result)->rho = (U)->rho;\
-	(result)->v = real3_sub(\
-		real3_real_mul((U)->m, 1. / (WA)->rho),\
-		real3_real_mul((WA)->v, (U)->rho / (WA)->rho));\
-	(result)->P = (solver->heatCapacityRatio - 1.) * (\
-		.5 * real3_dot((WA)->v, WA_vL) * (U)->rho \
-		- real3_dot((U)->m, WA_vL)\
-		+ (U)->ETotal);\
+	if ((U)->rho < solver->rhoMin) {\
+		(result)->v = real3_zero;\
+		(result)->P = 0.;\
+	} else {\
+		(result)->v = real3_sub(\
+			real3_real_mul((U)->m, 1. / (WA)->rho),\
+			real3_real_mul((WA)->v, (U)->rho / (WA)->rho));\
+		(result)->P = (solver->heatCapacityRatio - 1.) * (\
+			.5 * real3_dot((WA)->v, WA_vL) * (U)->rho \
+			- real3_dot((U)->m, WA_vL)\
+			+ (U)->ETotal);\
+	}\
 	(result)->ePot = (U)->ePot;\
 }
 
@@ -121,9 +135,10 @@
 )	(<?=calc_EInt?>(solver, W) / (W)->rho)
 
 #define /*real*/ <?=calc_EKin_fromCons?>(\
+	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const*/U,\
 	/*real3 const */x\
-)	(.5 * coordLenSq((U)->m, x) / (U)->rho)
+)	((U)->rho < solver->rhoMin ? 0. : (.5 * coordLenSq((U)->m, x) / (U)->rho))
 
 #define /*real*/ <?=calc_ETotal?>(\
 	/*constant <?=solver_t?> const * const */solver,\
@@ -131,22 +146,31 @@
 	/*real3 const */x\
 ) 	(<?=calc_EKin?>(W, x) + <?=calc_EInt?>(solver, W))
 
-#define /*real*/ <?=calc_Cs?>(\
-	/*constant <?=solver_t?> const * const */solver,\
-	/*<?=prim_t?> const * const */W\
-) 	(sqrt(solver->heatCapacityRatio * (W)->P / (W)->rho))
-
 #define /*real*/ <?=calc_P?>(\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const*/U,\
 	/*real3 const */x\
-)	(solver->heatCapacityRatio - 1.) * (/*EInt=*/(U)->ETotal - /*EKin=*/<?=calc_EKin_fromCons?>(U, x))
+)	((U)->rho < solver->rhoMin ? 0. : ((solver->heatCapacityRatio - 1.) * (/*EInt=*/(U)->ETotal - /*EKin=*/<?=calc_EKin_fromCons?>(solver, U, x))))
 
-#define /*real*/ <?=calc_Cs_fromCons?>(\
-	/*constant <?=solver_t?> const * const */solver,\
-	/*<?=cons_t?> const * const */U,\
-	/*real3 const */pt\
-) 	(sqrt(solver->heatCapacityRatio * <?=calc_P?>(solver, U, pt) / (U)->rho))
+real <?=calc_Cs?>(
+	constant <?=solver_t?> const * const solver,
+	<?=prim_t?> const * const W
+) {
+	if ((W)->P <= solver->PMin) return 0.;
+	if ((W)->rho < solver->rhoMin) return INFINITY;
+	return sqrt(solver->heatCapacityRatio * (W)->P / (W)->rho);
+}
+
+real <?=calc_Cs_fromCons?>(
+	constant <?=solver_t?> const * const solver,
+	global <?=cons_t?> const * const U,
+	real3 const pt
+) {
+	real const P = <?=calc_P?>(solver, U, pt);
+	if (P <= solver->PMin) return 0.;
+	if ((U)->rho < solver->rhoMin) return INFINITY;
+	return sqrt(solver->heatCapacityRatio * P / (U)->rho);
+}
 
 #define /*real*/ <?=calc_eInt_fromCons?>(\
 	/*<?=cons_t?> const * const*/U,\
@@ -298,40 +322,79 @@ end
 	/*real3 const */pt,\
 	/*<?=normal_t?> const */n\
 ) {\
-	<?=prim_t?> WL;\
-	<?=primFromCons?>(&WL, solver, UL, (cellL)->pos);\
-	real const sqrtRhoL = sqrt(WL.rho);\
-	real3 const vLeft = WL.v;\
-	real const hTotalL = <?=calc_hTotal?>(WL.rho, WL.P, (UL)->ETotal);\
+	real const rhoEpsilon = 1e-5;\
 \
-	<?=prim_t?> WR;\
-	<?=primFromCons?>(&WR, solver, UR, (cellR)->pos);\
-	real const sqrtRhoR = sqrt(WR.rho);\
-	real3 const vR = WR.v;\
-	real const hTotalR = <?=calc_hTotal?>(WR.rho, WR.P, (UR)->ETotal);\
+	if ((UL)->rho < rhoEpsilon && (UR)->rho < rhoEpsilon) {\
+		/* left and right are both vacuum: */\
+		(result)->rho = 0.;\
+		(result)->v = real3_zero;\
+		(result)->vSq = 0.;\
+		(result)->vL = real3_zero;\
+		(result)->hTotal = 0;\
+		(result)->Cs = 0;\
+	} else {\
+		if ((UL)->rho < rhoEpsilon) {\
+			/* left is vacuum: */\
+			<?=prim_t?> WR;\
+			<?=primFromCons?>(&WR, solver, UR, (cellR)->pos);\
+			(result)->rho = (UR)->rho;\
+			(result)->v = WR.v;\
+			(result)->vL = coord_lower(WR.v, pt);\
+			(result)->vSq = real3_dot(WR.v, (result)->vL);\
+			(result)->hTotal = <?=calc_hTotal?>(WR.rho, WR.P, (UR)->ETotal);\
+			(result)->Cs = <?=calc_Cs?>(solver, &WR);\
+		} else if ((UR)->rho < rhoEpsilon) {\
+			/* right is vacuum: */\
+			<?=prim_t?> WL;\
+			<?=primFromCons?>(&WL, solver, UL, (cellL)->pos);\
+			(result)->rho = (UL)->rho;\
+			(result)->v = WL.v;\
+			(result)->vL = coord_lower(WL.v, pt);\
+			(result)->vSq = real3_dot(WL.v, (result)->vL);\
+			(result)->hTotal = <?=calc_hTotal?>(WL.rho, WL.P, (UL)->ETotal);\
+			(result)->Cs = <?=calc_Cs?>(solver, &WL);\
+		} else {\
+			<?=prim_t?> WL;\
+			<?=primFromCons?>(&WL, solver, UL, (cellL)->pos);\
+			real const sqrtRhoL = sqrt(WL.rho);\
+			real3 const vLeft = WL.v;\
+			real const hTotalL = <?=calc_hTotal?>(WL.rho, WL.P, (UL)->ETotal);\
 \
-	real const invDenom = 1./(sqrtRhoL + sqrtRhoR);\
+			<?=prim_t?> WR;\
+			<?=primFromCons?>(&WR, solver, UR, (cellR)->pos);\
+			real const sqrtRhoR = sqrt(WR.rho);\
+			real3 const vR = WR.v;\
+			real const hTotalR = <?=calc_hTotal?>(WR.rho, WR.P, (UR)->ETotal);\
 \
-	/*Roe-averaged*/\
-	real const rho = sqrtRhoL * sqrtRhoR;\
-	real3 const v = real3_add(\
-			real3_real_mul(vLeft, sqrtRhoL * invDenom),\
-			real3_real_mul(vR, sqrtRhoR * invDenom));\
-	real const hTotal = invDenom * (sqrtRhoL * hTotalL + sqrtRhoR * hTotalR);\
+			real const invDenom = 1./(sqrtRhoL + sqrtRhoR);\
 \
-	/*derived:*/\
-	real3 const vLower = coord_lower(v, pt);\
-	real const vSq = real3_dot(v, vLower);\
-	real const eKin = .5 * vSq;\
-	real const CsSq = (solver->heatCapacityRatio - 1.) * (hTotal - eKin);\
-	real const Cs = sqrt(CsSq);\
+			/*Roe-averaged*/\
+			(result)->rho = sqrtRhoL * sqrtRhoR;\
+			real3 const v = real3_add(\
+					real3_real_mul(vLeft, sqrtRhoL * invDenom),\
+					real3_real_mul(vR, sqrtRhoR * invDenom));\
+			real const hTotal = invDenom * (sqrtRhoL * hTotalL + sqrtRhoR * hTotalR);\
 \
-	(result)->rho = rho;\
-	(result)->v = v;\
-	(result)->vSq = vSq;\
-	(result)->vL = vLower;\
-	(result)->hTotal = hTotal;\
-	(result)->Cs = Cs;\
+			/*derived:*/\
+			real3 const vLower = coord_lower(v, pt);\
+			real const vSq = real3_dot(v, vLower);\
+			real const eKin = .5 * vSq;\
+			real const h = hTotal - eKin;\
+			/* TODO verify hTotal = 1/2 v^2 + Cs^2 / (gamma-1) */\
+			if (h < rhoEpsilon) {\
+				(result)->hTotal = eKin;\
+				(result)->Cs = 0.;\
+			} else {\
+				(result)->hTotal = hTotal;\
+				real const CsSq = h < rhoEpsilon ? 0. : (solver->heatCapacityRatio - 1.) * h;\
+				(result)->Cs = sqrt(CsSq);\
+			}\
+\
+			(result)->v = v;\
+			(result)->vSq = vSq;\
+			(result)->vL = vLower;\
+		}\
+	}\
 }
 
 //// MODULE_NAME: <?=eigen_leftTransform?>
@@ -345,45 +408,53 @@ end
 	/*real3 const */pt,\
 	/*<?=normal_t?> */n\
 ) {\
-	real3 const v_n = normal_vecDotNs(n, (eig)->v);\
-	real const nLen = normal_len(n);\
-	real const inv_nLen = 1. / nLen;\
-	real const denom = 2. * (eig)->Cs * (eig)->Cs;\
-	real const invDenom = 1. / denom;\
-	real const gamma_1 = solver->heatCapacityRatio - 1.;\
-	(result)->ptr[0] = (\
-			(X)->ptr[0] * (.5 * gamma_1 * (eig)->vSq + (eig)->Cs * v_n.x * inv_nLen)\
-			+ (X)->ptr[1] * (-gamma_1 * (eig)->vL.x - (eig)->Cs * normal_l1x_over_len(n))\
-			+ (X)->ptr[2] * (-gamma_1 * (eig)->vL.y - (eig)->Cs * normal_l1y_over_len(n))\
-			+ (X)->ptr[3] * (-gamma_1 * (eig)->vL.z - (eig)->Cs * normal_l1z_over_len(n))\
-			+ (X)->ptr[4] * gamma_1\
-		) * invDenom;\
-	(result)->ptr[1] =\
-		(\
-			(X)->ptr[0] * (denom - gamma_1 * (eig)->vSq)\
-			+ (X)->ptr[1] * 2. * gamma_1 * (eig)->vL.x\
-			+ (X)->ptr[2] * 2. * gamma_1 * (eig)->vL.y\
-			+ (X)->ptr[3] * 2. * gamma_1 * (eig)->vL.z\
-			+ (X)->ptr[4] * -2. * gamma_1\
-		) * invDenom;\
-	(result)->ptr[2] =\
-		(X)->ptr[0] * -v_n.y\
-		+ (X)->ptr[1] * normal_l2x(n)\
-		+ (X)->ptr[2] * normal_l2y(n)\
-		+ (X)->ptr[3] * normal_l2z(n);\
-	(result)->ptr[3] =\
-		(X)->ptr[0] * -v_n.z\
-		+ (X)->ptr[1] * normal_l3x(n)\
-		+ (X)->ptr[2] * normal_l3y(n)\
-		+ (X)->ptr[3] * normal_l3z(n);\
-	(result)->ptr[4] =\
-		(\
-			(X)->ptr[0] * (.5 * gamma_1 * (eig)->vSq - (eig)->Cs * v_n.x * inv_nLen)\
-			+ (X)->ptr[1] * (-gamma_1 * (eig)->vL.x + (eig)->Cs * normal_l1x_over_len(n))\
-			+ (X)->ptr[2] * (-gamma_1 * (eig)->vL.y + (eig)->Cs * normal_l1y_over_len(n))\
-			+ (X)->ptr[3] * (-gamma_1 * (eig)->vL.z + (eig)->Cs * normal_l1z_over_len(n))\
-			+ (X)->ptr[4] * gamma_1\
-		) * invDenom;\
+	if ((eig)->rho < solver->rhoMin) {\
+		(result)->ptr[0] = (X)->ptr[0];\
+		(result)->ptr[1] = (X)->ptr[1];\
+		(result)->ptr[2] = (X)->ptr[2];\
+		(result)->ptr[3] = (X)->ptr[3];\
+		(result)->ptr[4] = (X)->ptr[4];\
+	} else {\
+		real3 const v_n = normal_vecDotNs(n, (eig)->v);\
+		real const nLen = normal_len(n);\
+		real const inv_nLen = 1. / nLen;\
+		real const denom = 2. * (eig)->Cs * (eig)->Cs;\
+		real const invDenom = 1. / denom;\
+		real const gamma_1 = solver->heatCapacityRatio - 1.;\
+		(result)->ptr[0] = (\
+				(X)->ptr[0] * (.5 * gamma_1 * (eig)->vSq + (eig)->Cs * v_n.x * inv_nLen)\
+				+ (X)->ptr[1] * (-gamma_1 * (eig)->vL.x - (eig)->Cs * normal_l1x_over_len(n))\
+				+ (X)->ptr[2] * (-gamma_1 * (eig)->vL.y - (eig)->Cs * normal_l1y_over_len(n))\
+				+ (X)->ptr[3] * (-gamma_1 * (eig)->vL.z - (eig)->Cs * normal_l1z_over_len(n))\
+				+ (X)->ptr[4] * gamma_1\
+			) * invDenom;\
+		(result)->ptr[1] =\
+			(\
+				(X)->ptr[0] * (denom - gamma_1 * (eig)->vSq)\
+				+ (X)->ptr[1] * 2. * gamma_1 * (eig)->vL.x\
+				+ (X)->ptr[2] * 2. * gamma_1 * (eig)->vL.y\
+				+ (X)->ptr[3] * 2. * gamma_1 * (eig)->vL.z\
+				+ (X)->ptr[4] * -2. * gamma_1\
+			) * invDenom;\
+		(result)->ptr[2] =\
+			(X)->ptr[0] * -v_n.y\
+			+ (X)->ptr[1] * normal_l2x(n)\
+			+ (X)->ptr[2] * normal_l2y(n)\
+			+ (X)->ptr[3] * normal_l2z(n);\
+		(result)->ptr[3] =\
+			(X)->ptr[0] * -v_n.z\
+			+ (X)->ptr[1] * normal_l3x(n)\
+			+ (X)->ptr[2] * normal_l3y(n)\
+			+ (X)->ptr[3] * normal_l3z(n);\
+		(result)->ptr[4] =\
+			(\
+				(X)->ptr[0] * (.5 * gamma_1 * (eig)->vSq - (eig)->Cs * v_n.x * inv_nLen)\
+				+ (X)->ptr[1] * (-gamma_1 * (eig)->vL.x + (eig)->Cs * normal_l1x_over_len(n))\
+				+ (X)->ptr[2] * (-gamma_1 * (eig)->vL.y + (eig)->Cs * normal_l1y_over_len(n))\
+				+ (X)->ptr[3] * (-gamma_1 * (eig)->vL.z + (eig)->Cs * normal_l1z_over_len(n))\
+				+ (X)->ptr[4] * gamma_1\
+			) * invDenom;\
+	}\
 }
 
 //// MODULE_NAME: <?=eigen_rightTransform?>
@@ -397,37 +468,45 @@ end
 	/*real3 const */pt,\
 	/*<?=normal_t?> const */n\
 ) {\
-	real3 const v_n = normal_vecDotNs(n, (eig)->v);\
-	real const nLen = normal_len(n);\
-	real const inv_nLen = 1. / nLen;\
-	(result)->ptr[0] =\
-		(X)->ptr[0]\
-		+ (X)->ptr[1]\
-		+ (X)->ptr[4];\
-	(result)->ptr[1] =\
-		(X)->ptr[0] * ((eig)->v.x - (eig)->Cs * normal_u1x_over_len(n))\
-		+ (X)->ptr[1] * (eig)->v.x\
-		+ (X)->ptr[2] * normal_u2x(n)\
-		+ (X)->ptr[3] * normal_u3x(n)\
-		+ (X)->ptr[4] * ((eig)->v.x + (eig)->Cs * normal_u1x_over_len(n));\
-	(result)->ptr[2] =\
-		(X)->ptr[0] * ((eig)->v.y - (eig)->Cs * normal_u1y_over_len(n))\
-		+ (X)->ptr[1] * (eig)->v.y\
-		+ (X)->ptr[2] * normal_u2y(n)\
-		+ (X)->ptr[3] * normal_u3y(n)\
-		+ (X)->ptr[4] * ((eig)->v.y + (eig)->Cs * normal_u1y_over_len(n));\
-	(result)->ptr[3] =\
-		(X)->ptr[0] * ((eig)->v.z - (eig)->Cs * normal_u1z_over_len(n))\
-		+ (X)->ptr[1] * (eig)->v.z\
-		+ (X)->ptr[2] * normal_u2z(n)\
-		+ (X)->ptr[3] * normal_u3z(n)\
-		+ (X)->ptr[4] * ((eig)->v.z + (eig)->Cs * normal_u1z_over_len(n));\
-	(result)->ptr[4] =\
-		(X)->ptr[0] * ((eig)->hTotal - (eig)->Cs * v_n.x * inv_nLen)\
-		+ (X)->ptr[1] * .5 * (eig)->vSq\
-		+ (X)->ptr[2] * v_n.y\
-		+ (X)->ptr[3] * v_n.z\
-		+ (X)->ptr[4] * ((eig)->hTotal + (eig)->Cs * v_n.x * inv_nLen);\
+	if ((eig)->rho < solver->rhoMin) {\
+		(result)->ptr[0] = (X)->ptr[0];\
+		(result)->ptr[1] = (X)->ptr[1];\
+		(result)->ptr[2] = (X)->ptr[2];\
+		(result)->ptr[3] = (X)->ptr[3];\
+		(result)->ptr[4] = (X)->ptr[4];\
+	} else {\
+		real3 const v_n = normal_vecDotNs(n, (eig)->v);\
+		real const nLen = normal_len(n);\
+		real const inv_nLen = 1. / nLen;\
+		(result)->ptr[0] =\
+			(X)->ptr[0]\
+			+ (X)->ptr[1]\
+			+ (X)->ptr[4];\
+		(result)->ptr[1] =\
+			(X)->ptr[0] * ((eig)->v.x - (eig)->Cs * normal_u1x_over_len(n))\
+			+ (X)->ptr[1] * (eig)->v.x\
+			+ (X)->ptr[2] * normal_u2x(n)\
+			+ (X)->ptr[3] * normal_u3x(n)\
+			+ (X)->ptr[4] * ((eig)->v.x + (eig)->Cs * normal_u1x_over_len(n));\
+		(result)->ptr[2] =\
+			(X)->ptr[0] * ((eig)->v.y - (eig)->Cs * normal_u1y_over_len(n))\
+			+ (X)->ptr[1] * (eig)->v.y\
+			+ (X)->ptr[2] * normal_u2y(n)\
+			+ (X)->ptr[3] * normal_u3y(n)\
+			+ (X)->ptr[4] * ((eig)->v.y + (eig)->Cs * normal_u1y_over_len(n));\
+		(result)->ptr[3] =\
+			(X)->ptr[0] * ((eig)->v.z - (eig)->Cs * normal_u1z_over_len(n))\
+			+ (X)->ptr[1] * (eig)->v.z\
+			+ (X)->ptr[2] * normal_u2z(n)\
+			+ (X)->ptr[3] * normal_u3z(n)\
+			+ (X)->ptr[4] * ((eig)->v.z + (eig)->Cs * normal_u1z_over_len(n));\
+		(result)->ptr[4] =\
+			(X)->ptr[0] * ((eig)->hTotal - (eig)->Cs * v_n.x * inv_nLen)\
+			+ (X)->ptr[1] * .5 * (eig)->vSq\
+			+ (X)->ptr[2] * v_n.y\
+			+ (X)->ptr[3] * v_n.z\
+			+ (X)->ptr[4] * ((eig)->hTotal + (eig)->Cs * v_n.x * inv_nLen);\
+	}\
 	(result)->ptr[5] =\
 		0;\
 }
@@ -441,48 +520,56 @@ end
 	/*<?=cons_t?> * const */resultFlux,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=eigen_t?> const * const */eig,\
-	/*<?=cons_t?> const * const */X_,\
+	/*<?=cons_t?> const * const */X,\
 	/*<?=cell_t?> const * const */cell,\
 	/*<?=normal_t?> const */n\
 ) {\
-	real3 const v_n = normal_vecDotNs(n, (eig).v);\
-	real const nLen = normal_len(n);\
-	const real gamma = solver->heatCapacityRatio;\
-	const real gamma_1 = gamma - 1.;\
-	const real gamma_2 = gamma - 2.;\
-\
-	(resultFlux)->ptr[0] =\
-		(X_)->ptr[1] * normal_l1x(n)\
-		+ (X_)->ptr[2] * normal_l1y(n)\
-		+ (X_)->ptr[3] * normal_l1z(n);\
-\
-	(resultFlux)->ptr[1] =\
-		(X_)->ptr[0] * (-v_n.x * (eig).v.x + gamma_1 * .5 * (eig).vSq * normal_u1x(n))\
-		+ (X_)->ptr[1] * ((eig).v.x * normal_l1x(n) - gamma_2 * normal_u1x(n) * (eig).vL.x + v_n.x)\
-		+ (X_)->ptr[2] * ((eig).v.x * normal_l1y(n) - gamma_2 * normal_u1x(n) * (eig).vL.y)\
-		+ (X_)->ptr[3] * ((eig).v.x * normal_l1z(n) - gamma_2 * normal_u1x(n) * (eig).vL.z)\
-		+ (X_)->ptr[4] * gamma_1 * normal_u1x(n);\
-\
-	(resultFlux)->ptr[2] =\
-		(X_)->ptr[0] * (-v_n.x * (eig).v.y + gamma_1 * .5 * (eig).vSq * normal_u1y(n))\
-		+ (X_)->ptr[1] * ((eig).v.y * normal_l1x(n) - gamma_2 * normal_u1y(n) * (eig).vL.x)\
-		+ (X_)->ptr[2] * ((eig).v.y * normal_l1y(n) - gamma_2 * normal_u1y(n) * (eig).vL.y + v_n.x)\
-		+ (X_)->ptr[3] * ((eig).v.y * normal_l1z(n) - gamma_2 * normal_u1y(n) * (eig).vL.z)\
-		+ (X_)->ptr[4] * gamma_1 * normal_u1y(n);\
-\
-	(resultFlux)->ptr[3] =\
-		(X_)->ptr[0] * (-v_n.x * (eig).v.z + gamma_1 * .5 * (eig).vSq * normal_u1z(n))\
-		+ (X_)->ptr[1] * ((eig).v.z * normal_l1x(n) - gamma_2 * normal_u1z(n) * (eig).vL.x)\
-		+ (X_)->ptr[2] * ((eig).v.z * normal_l1y(n) - gamma_2 * normal_u1z(n) * (eig).vL.y)\
-		+ (X_)->ptr[3] * ((eig).v.z * normal_l1z(n) - gamma_2 * normal_u1z(n) * (eig).vL.z + v_n.x)\
-		+ (X_)->ptr[4] * gamma_1 * normal_u1z(n);\
-\
-	(resultFlux)->ptr[4] =\
-		(X_)->ptr[0] * v_n.x * (.5 * gamma_1 * (eig).vSq - (eig).hTotal)\
-		+ (X_)->ptr[1] * (normal_l1x(n) * (eig).hTotal - gamma_1 * v_n.x * (eig).vL.x)\
-		+ (X_)->ptr[2] * (normal_l1y(n) * (eig).hTotal - gamma_1 * v_n.x * (eig).vL.y)\
-		+ (X_)->ptr[3] * (normal_l1z(n) * (eig).hTotal - gamma_1 * v_n.x * (eig).vL.z)\
-		+ (X_)->ptr[4] * gamma * v_n.x;\
+	if ((eig)->rho < solver->rhoMin) {\
+		(resultFlux)->ptr[0] = (X)->ptr[0];\
+		(resultFlux)->ptr[1] = (X)->ptr[1];\
+		(resultFlux)->ptr[2] = (X)->ptr[2];\
+		(resultFlux)->ptr[3] = (X)->ptr[3];\
+		(resultFlux)->ptr[4] = (X)->ptr[4];\
+	} else {\
+		real3 const v_n = normal_vecDotNs(n, (eig).v);\
+		real const nLen = normal_len(n);\
+		const real gamma = solver->heatCapacityRatio;\
+		const real gamma_1 = gamma - 1.;\
+		const real gamma_2 = gamma - 2.;\
+	\
+		(resultFlux)->ptr[0] =\
+			(X)->ptr[1] * normal_l1x(n)\
+			+ (X)->ptr[2] * normal_l1y(n)\
+			+ (X)->ptr[3] * normal_l1z(n);\
+	\
+		(resultFlux)->ptr[1] =\
+			(X)->ptr[0] * (-v_n.x * (eig).v.x + gamma_1 * .5 * (eig).vSq * normal_u1x(n))\
+			+ (X)->ptr[1] * ((eig).v.x * normal_l1x(n) - gamma_2 * normal_u1x(n) * (eig).vL.x + v_n.x)\
+			+ (X)->ptr[2] * ((eig).v.x * normal_l1y(n) - gamma_2 * normal_u1x(n) * (eig).vL.y)\
+			+ (X)->ptr[3] * ((eig).v.x * normal_l1z(n) - gamma_2 * normal_u1x(n) * (eig).vL.z)\
+			+ (X)->ptr[4] * gamma_1 * normal_u1x(n);\
+	\
+		(resultFlux)->ptr[2] =\
+			(X)->ptr[0] * (-v_n.x * (eig).v.y + gamma_1 * .5 * (eig).vSq * normal_u1y(n))\
+			+ (X)->ptr[1] * ((eig).v.y * normal_l1x(n) - gamma_2 * normal_u1y(n) * (eig).vL.x)\
+			+ (X)->ptr[2] * ((eig).v.y * normal_l1y(n) - gamma_2 * normal_u1y(n) * (eig).vL.y + v_n.x)\
+			+ (X)->ptr[3] * ((eig).v.y * normal_l1z(n) - gamma_2 * normal_u1y(n) * (eig).vL.z)\
+			+ (X)->ptr[4] * gamma_1 * normal_u1y(n);\
+	\
+		(resultFlux)->ptr[3] =\
+			(X)->ptr[0] * (-v_n.x * (eig).v.z + gamma_1 * .5 * (eig).vSq * normal_u1z(n))\
+			+ (X)->ptr[1] * ((eig).v.z * normal_l1x(n) - gamma_2 * normal_u1z(n) * (eig).vL.x)\
+			+ (X)->ptr[2] * ((eig).v.z * normal_l1y(n) - gamma_2 * normal_u1z(n) * (eig).vL.y)\
+			+ (X)->ptr[3] * ((eig).v.z * normal_l1z(n) - gamma_2 * normal_u1z(n) * (eig).vL.z + v_n.x)\
+			+ (X)->ptr[4] * gamma_1 * normal_u1z(n);\
+	\
+		(resultFlux)->ptr[4] =\
+			(X)->ptr[0] * v_n.x * (.5 * gamma_1 * (eig).vSq - (eig).hTotal)\
+			+ (X)->ptr[1] * (normal_l1x(n) * (eig).hTotal - gamma_1 * v_n.x * (eig).vL.x)\
+			+ (X)->ptr[2] * (normal_l1y(n) * (eig).hTotal - gamma_1 * v_n.x * (eig).vL.y)\
+			+ (X)->ptr[3] * (normal_l1z(n) * (eig).hTotal - gamma_1 * v_n.x * (eig).vL.z)\
+			+ (X)->ptr[4] * gamma * v_n.x;\
+	}\
 \
 	(resultFlux)->ptr[5] =\
 		0;\
@@ -577,6 +664,7 @@ Maybe for an initial constant vel as large as sqrt(2) this fails, but it works o
 }
 <? end ?>
 
+<? if false then ?>
 //// MODULE_NAME: <?=constrainU?>
 //// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> <?=cell_t?> <?=primFromCons?> <?=consFromPrim?>
 
@@ -597,3 +685,4 @@ kernel void <?=constrainU?>(
 
 	<?=consFromPrim?>(U, solver, &W, x);
 }
+<? end ?>

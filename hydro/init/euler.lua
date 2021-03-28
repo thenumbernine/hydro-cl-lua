@@ -23,25 +23,36 @@ local function RiemannProblem(initCond)
 		local suffix = ({'L','R'})[i]
 		return varname:gsub('%.','')..suffix
 	end
-
-	initCond.guiVars = initCond.guiVars or {}
-	for i,WLR in ipairs(initCond) do
-		for name, value in pairs(WLR) do
-			table.insert(initCond.guiVars, {
-				name = getInitCondFieldName(i,name),
-				value = value,
-			})
+	
+	function initCond:createInitStruct()
+		EulerInitCond.createInitStruct(self)
+	
+		for i,WLR in ipairs(initCond) do
+			for prefix, value in pairs(WLR) do
+				local name = getInitCondFieldName(i,prefix)
+				self:addGuiVar{
+					name = name,
+					value = 
+						self.args[name] 	-- use the value specified in initCondArgs = {...},
+						or value			-- use the value specified in the RiemannProblem{...} default,
+				}
+			end
 		end
 	end
 	
-	initCond.init = function(self, args)
+	function initCond:init(args)
 		EulerInitCond.init(self, args)
 		if args then
 			self.overrideDim = args.dim
 		end
+
+		self.solverVars = self.solverVars or {}
+		for k,v in pairs(args.solverVars or {}) do
+			self.solverVars[k] = v
+		end
 	end
 	
-	initCond.getInitCondCode = function(self)
+	function initCond:getInitCondCode()
 		local function build(i)
 			return table.map(initCond[i], function(_,name,t)
 				return '\t\t'..name..' = initCond->'..getInitCondFieldName(i,name)..';', #t+1
@@ -70,7 +81,7 @@ end
 	-- http://www.itam.nsc.ru/flowlib/SRC/sod.f
 	-- TODO it might be more efficient to hand this function the array, and have it return an array
 	-- or at least have it calculate certain values up front before iterating across all x's
-	initCond.exactSolution = function(self, x, t)
+	function initCond:exactSolution(x, t)
 		local solver = assert(self.solver)
 		local solverPtr = solver.solverPtr
 		local initCondPtr = solver.initCondPtr
@@ -271,13 +282,13 @@ function SelfGravProblem:getInitCondCode(initCond)
 	//v.z = .2 * (U->m.z - .5);
 	
 	<? for i,source in ipairs(sources) do ?>{
-		real3 xc = coordMap(x);
-		real3 delta = real3_sub(xc, _real3(
+		real3 const xc = coordMap(x);
+		real3 const delta = real3_sub(xc, _real3(
 			<?=clnumber(source.center[1])?>,
 			<?=clnumber(source.center[2])?>,
 			<?=clnumber(source.center[3])?>));
-		real distSq = real3_lenSq(delta);
-		real radius = <?=self:getRadiusCode(source)?>;
+		real const distSq = real3_lenSq(delta);
+		real const radius = <?=self:getRadiusCode(source)?>;
 		if (distSq < radius * radius) {
 			<?=source.inside or 'rho = P = 1;'?>
 		}
@@ -606,36 +617,6 @@ local initConds = table{
 			heatCapacityRatio = 5/3,
 		},
 	},
-
--- [[ real-world vars ... which are a few orders higher, and therefore screw up the backward-euler solver
--- 		which means, todo, redo the backward euler error metric so it is independent of magnitude ... ?   seems I removed that for another numerical error reason.
-	RiemannProblem{
-		name = 'Sod with physical units',
-		{
-			rho = 8 * materials.Air.seaLevelDensity,	-- kg / m^3
-			P = 10 * materials.Air.seaLevelPressure,	-- Pa = N / m^2 = kg / (m s^2)
-		},
-		{
-			rho = materials.Air.seaLevelDensity,
-			P = materials.Air.seaLevelPressure,
-		},
-		solverVars = {
-			heatCapacityRatio = assert(materials.Air.heatCapacityRatio),
-		},
-	},
---]]
---[[
-some various initial conditions from 2012 Toro "The HLLC Riemann Solver" http://marian.fsik.cvut.cz/~bodnar/PragueSum_2012/Toro_2-HLLC-RiemannSolver.pdf 
-Test	ρ L		u L		    p L		 ρ R		u R		    p R		   	
-1		1.0		0.75		1.0		 0.125		0.0		    0.1		
-2		1.0		-2.0		0.4		 1.0		2.0		    0.4		
-3		1.0		0.0		    1000.0	 1.0		0.0		    0.01		     
-4		5.99924	19.5975		460.894	 5.99242	-6.19633	46.0950				    	
-5		1.0		-19.59745	1000.0	 1.0		-19.59745	0.01			    	
-6		1.4		0.0		    1.0		 1.0		0.0		    1.0		
-7		1.4		0.1		    1.0		 1.0		0.1		    1.0		
---]]
-
 
 	{	-- just like Brio-Wu, but centered instead of to one side
 		name = 'rectangle',
@@ -1932,6 +1913,22 @@ end ?>;
 
 	(function()
 		local coordRadius = .5
+		
+		-- radius .5, grid = 2 M_Earth, so the sphere is M_Earth size
+		local meter = constants.EarthRadius_in_m / coordRadius
+	
+		-- With this, setting rho=1 will cause the total mass of the grid to be the mass of the Earth.
+		-- 4/3 pi r^3 rho = m <=> rho = 3 m / (4 pi r^3)
+		local kilogram = constants.EarthMass_in_kg * 3 / (4 * math.pi * coordRadius^3)
+
+		-- keep the speed of light at 1?
+		--local second = meter / constants.speedOfLight_in_m_per_s
+		-- but this puts our simulation's 1 unit of time at 0.05 seconds, so the simulation runs slow.  20x slower than if we just kept second at its default.
+		-- so how about speeding it up?
+		local second = 60*60*24
+		--local second = 1
+		--local second = nil
+
 		return {
 			name = 'self-gravitation - Earth',
 			
@@ -1940,7 +1937,7 @@ end ?>;
 				local solver = assert(self.solver)
 				local coord = assert(solver.coord)
 				if require 'hydro.coord.cylinder':isa(coord) then
-					return {0, 0, -1}
+					return {0, 0, -2*coordRadius}
 				end
 				if require 'hydro.coord.sphere':isa(coord) then
 					return {0, 0, -math.pi}
@@ -1951,7 +1948,7 @@ end ?>;
 				local solver = assert(self.solver)
 				local coord = assert(solver.coord)
 				if require 'hydro.coord.cylinder':isa(coord) then
-					return {2*coordRadius, 2*math.pi, 1}
+					return {2*coordRadius, 2*math.pi, 2*coordRadius}
 				end
 				if require 'hydro.coord.sphere':isa(coord) then
 					return {2*coordRadius, math.pi, math.pi}
@@ -1959,11 +1956,10 @@ end ?>;
 				return {2*coordRadius, 2*coordRadius, 2*coordRadius}
 			end,
 			solverVars = {
-				meter = constants.EarthRadius_in_m / coordRadius,	-- radius .5, grid = 2 M_Earth, so the sphere is M_Earth size
+				meter = meter,
+				kilogram = kilogram,
+				second = second,
 				
-				-- 4/3 pi r^3 rho = m <=> rho = 3 m / (4 pi r^3)
-				kilogram = constants.EarthMass_in_kg * 3 / (4 * math.pi * coordRadius^3),
-		
 				speedOfLight = constants.speedOfLight_in_m_per_s,
 				gravitationalConstant = constants.gravitationalConstant_in_m3_per_kg_s2,
 				coulombConstant = constants.CoulombConstant_in_kg_m3_per_C2_s2,
@@ -1974,29 +1970,131 @@ end ?>;
 				divPhiWavespeed_g = constants.speedOfLight_in_m_per_s,
 			},
 			getDepends = function(self)
-				return {self.solver.coord.symbols.coordMap}
+				return {
+					self.solver.coord.symbols.coordMap,
+					self.solver.coord.symbols.coordMapR,
+				}
 			end,
 			getInitCondCode = function(self)
-				local solver = assert(self.solver)
-				local f = SelfGravProblem{
-					solver = solver,
-					sources={
-						{
-							center={0, 0, 0}, 
-							radius = coordRadius,
-						},
-					},
-				}
-				return f:getInitCondCode(self)
+				return self.solver.eqn:template([[
+	real3 const xc = coordMap(x);
+	real const r = coordMapR(x);
+	real const rSq = r * r;
+	real const R = <?=clnumber(coordRadius)?>;
+	if (rSq < R * R) {
+		rho = 1.;
+	} else {
+		rho = 1e-3;
+	}
+	P = 1.;
+
+	real const omegaLen_in_1_day = 1.;
+	// 1 rev / 1 sidereal day * 1 sidereal day / 86164.0905 second
+	real const omegaLen_in_1_s = omegaLen_in_1_day / 86164.0905;
+	// units of 1/s
+	real3 const omega = _real3(0, 0, omegaLen_in_1_s);
+	
+	// v = omega cross x (in Cartesian coordinates)
+	v = real3_cross(omega, xc);
+]], 			{
+					coordRadius = coordRadius,
+				})
 			end
 		}
 	end)(),
 
 	-- 2021 Ludwig "Galactic rotation curve and dark matter according to gravitomagnetism"
+	--[[
+	-- just before eqn D.12
+	L_sun = 3.828e+26 -- [W]
+
+	parsec_in_m = 648000 / M_PI * 149597870700
+	kpc = 1e+3 * parsec_in_m
+	
+	-- section 7:
+	mu_0 = 22.27
+	alpha_eff = 116.5		-- effective half-angle in arcseconds
+	r_eff = 1.69 			-- [kpc]
+	alpha_0 = 140.3
+	r_0 = 2.04 				-- [kpc] = used for calculating normalized mass density profile
+							-- r_0 and alpha_0 should be related by r_0 = d (pi / (180 * 3600)) * alpha_0
+	s_0 = 0.360
+	b_1 = 0.00245			-- b_s ? coefficients of Sersec profile for flux density
+	b_2 = 0.0000344
+	b_3 = -1.41e-7
+	b_4 = -4.05e-10
+	d_2 = -3.22e-6
+	d_3 = -1.11e-9
+	d_4 = 5.73e-11
+	alpha_e = 353.0
+	s_e = 0.874
+	M_s = -15.3			-- absolute magnitude .. in what units? unitless?
+	L_s = 1.02e+8		-- [L_sun] = partial radiatn flux
+	m_d = 12.1			-- = apparent magnitude ... in what units?
+	r_max = 12.2 		-- [kpc] = maximum galactic radius
+	l = 3
+	r_s = 1.46e-6		-- [kpc]
+	a = 7.19 			-- [kpc]
+	b = 0.567 			-- [kpc]
+	r_max = 12.2 		-- [kpc]
+	l_beta = 8.29		-- [kpc]
+	M = 1.52e+10		-- [M_sun]
+	lambda = 0.134
+	rho_0 = 3.31e-20	-- [kg/m^3]
+	Upsilon = 150 		-- [Upsilon_sun] = total mass-to-light ratio
+
+	-- eqn D.11
+	mu(alpha) = mu_0 + 
+		0 <= alpha and alpha <= alpha_0 and
+			5 / (2 * log(10)) * pow(alpha / alpha_1, 1 / s_1)
+		or
+			5 / (2 * log(10)) * pow(alpha_0 / alpha_1, 1 / s_1) * (1 - s_2 / s_1 + s_2 / s_1 * pow(alpha / alpha_0, 1 / s_2))
+
+	-- eqn D.19
+	s(alpha) = log(alpha / alpha_eff) / log(2 * log(10) / 5 * (mu(alpha) - mu_0))	
+	-- Does this mean that s_0 = s(0) ? and s_1 = s(1), s_2 = s(2) ?
+
+	-- What is alpha_1 ?
+	-- After D.11, the alpha_1 for NGC 1560 is defined as ...
+	alpha_1 = 99.05 -- [arcsec]
+	-- ... but ... this is in the appendix.  NGC 1560 is defined in section 7.  
+	-- So what is the alpha_1 of the other galaxies in the paper?
+	-- Also in the appendix D paragraph on variables for NGC 1560, it lists ...
+	-- mu_0 = 22.28, alpha_0 = 61.46 arcsec, s_1 = 0.435, s_2 = 1.144.
+	-- Why don't these match section 7's variables on NGC 1560?
+	
+	-- just after eqn D.12:
+	r_1 = d * (M_PI / (180 * 3600)) * alpha_1
+
+	-- eqn D.12
+	rhoNormalized(r, 0) = 10^(-.4 * (mu(r) - mu_0))
+	-- or defined as ...
+	if r <= r_0 then
+		rhoNormalized = exp(-pow(r/r_1, 1/s_1))
+	else
+		rhoNormalized = exp(-pow(r_0/r_1, 1/s_1) * (1 - s_2/s_1 + s_2/s_1 * pow(r/r_0, 1/s_2)))
+	end
+	-- What units is this equation?
+	-- What is s_1 and s_2?  Related to s_0 or s_e?  
+	-- Or defined in Appendix D's info on NGC 1560, a paragraph where other vars listed for NGC 1560 don't match section 7's vars of NGC 1560.
+
+	-- eqn C.4
+	rho = rhoNormalized * R_0 * R_0 * R_0 * rho_0
+	
+	-- what is R_0 ? 
+	-- from inline before 4.5 and from inline before C.3
+	-- why is R_0 = 1 kpc?  esp when the flux function uses R_0 as a cutoff.
+	R_0 = 1 -- [kpc] 
+	
+	-- what is rho_0 ?
+	
+	--]]
 	(function()
-		local coordRadius = .5
+		local coordRadius = .5	-- where in the [-1,1] unit cube to put the boundary of r=1 of whatever units you use
+		local ngc1560_a = 7.19 * 1e+3 * constants.pc_in_m	-- semi-major axis
+		local ngc1560_b = 0.567 * 1e+3 * constants.pc_in_m	-- semi-minor axis
 		return {
-			name = 'self-gravitation - Earth',
+			name = 'self-gravitation - NGC 1560',
 			
 			-- TODO what about spherical coordinates
 			mins = function(self)
@@ -2022,16 +2120,16 @@ end ?>;
 				return {2*coordRadius, 2*coordRadius, 2*coordRadius}
 			end,
 			-- try for NGC 1560 parameters
-			initCondVars = {
-				{name = 'A', value = '1', units='m'},
-				{name = 'B', value = '1', units='m'},
-				{name = 'M', value = '1', units='kg'},
+			guiVars = {
+				{name = 'a', value = ngc1560_a, constants='m'},
+				{name = 'b', value = ngc1560_b, constants='m'},
+				{name = 'M', value = 1.52e+10 * constants.SolarMass_in_kg, constants='kg'},
 			},
 			solverVars = {
-				meter = constants.EarthRadius_in_m / coordRadius,	-- radius .5, grid = 2 M_Earth, so the sphere is M_Earth size
+				meter = ngc1560_a / coordRadius,	-- radius .5, grid = 2 M_Earth, so the sphere is M_Earth size
 				
-				-- 4/3 pi r^3 rho = m <=> rho = 3 m / (4 pi r^3)
-				kilogram = constants.EarthMass_in_kg * 3 / (4 * math.pi * coordRadius^3),
+				-- 4/3 pi a b^2 rho = M <=> rho = 3 M / (4 pi a b^2)
+				--kilogram = constants.EarthMass_in_kg * 3 / (4 * math.pi * coordRadius^3),
 		
 				speedOfLight = constants.speedOfLight_in_m_per_s,
 				gravitationalConstant = constants.gravitationalConstant_in_m3_per_kg_s2,
@@ -2045,27 +2143,46 @@ end ?>;
 			getDepends = function(self)
 				return {self.solver.coord.symbols.coordMap}
 			end,
+			-- Now assuming A, B, R, Z in eqn C.1 are in units of [m], 
+			-- and M is in units of [kg]
+			-- then rho is in units of [kg/m^3], which is what a density should be.
+			-- But when we get to the normalized-rho def in C.4, we get the result in [a]^5/[a]^8
+			-- for whatever units a,b,r,z are in.  
+			-- I'm guessing unitless as well, but then what is their relation (in m) with A,B,R,Z? 
+			-- After eqn 4.5 it says r = R/R_0 and z = Z/R_0.
+			-- It doesn't look like a or b are ever defined, but I'm assuming it is done the same way?
 			getInitCondCode = function(self)
 				return self.solver.eqn:template[[
+	// 2021 Ludwig eqn C.1 ... the non-normalized density function
 	real3 const xc = coordMap(x);
-	real const RSq = real3_lenSq(xc);
-	real const R = sqrt(RSq);
-	real const A = intiCond->A / unit_m;
-	real const B = intiCond->B / unit_m;
-	real const BSq = B*B;
+	real const rSq = real3_lenSq(xc);
+	real const a = initCond->a / unit_m;
+	real const b = initCond->b / unit_m;
+	real const bSq = b*b;
 	real const M = initCond->M / unit_kg;
-	real const Z = xc.z;
-	real const ZSq = Z*Z;
-	real const BZLen = sqrt(BSq + ZSq);
-	real const A_plus_BZLen = A + BZLen;
-	real const A_plus_BZLen_sq = A_plus_BZLen * A_plus_BZLen;
-	-- 2021 Ludwig eqn C.1
-	rho = (M * B * B) / (4. * M_PI) * (
-		A * RSq + (A + 3. * BZLen) * A_plus_BZLen_sq
-	) / (
-		pow(RSq + A_plus_BZLen_sq, 5./2.) 
-		* BZLen * BZLen * BZLen
-	);
+	real const z = xc.z;
+	real const zSq = z*z;
+	real const bzLenSq = bSq + zSq;
+	real const bzLen = sqrt(bzLenSq);
+	real const a_plus_bzLen = a + bzLen;
+	real const a_plus_bzLen_sq = a_plus_bzLen * a_plus_bzLen;
+	real const rSq_plus__a_plus_bzLen_sq = rSq + a_plus_bzLen_sq;
+	if (bzLenSq >= 0. && rSq_plus__a_plus_bzLen_sq >= 0.) {
+		real const tmp = sqrt(rSq_plus__a_plus_bzLen_sq );
+		rho = M / (4. * M_PI 
+//			* R_0 * R_0 * R_0 * rho_0		// don't use normalized units
+		) * (
+			b * b * 
+			a * rSq + (a + 3. * bzLen) * a_plus_bzLen_sq
+		) / (
+			tmp * tmp * tmp * tmp * tmp 
+			* bzLen * bzLen * bzLen
+		);
+	} else {
+		rho = 1e-5;
+	}
+	// zero pressure
+	P = 1e-5;
 ]]
 			end
 		}

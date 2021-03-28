@@ -14,10 +14,6 @@ Euler.name = 'euler'
 Euler.numWaves = 5
 Euler.numIntStates = 5	-- don't bother integrate ePot
 
--- turns out for Euler equations, dF/dU * U = F
--- BUT THIS ISN'T TRUE FOR ALL EQUATIONS
---Euler.roeUseFluxFromCons = true
-
 Euler.initConds = require 'hydro.init.euler':getList()
 
 function Euler:init(args)
@@ -352,7 +348,7 @@ end
 function Euler:consWaveCodePrefix(args)
 	return self:template([[
 real const Cs_nLen = <?=calc_Cs_fromCons?>(solver, <?=U?>, <?=pt?>) * normal_len(<?=n?>);
-real const v_n = normal_vecDotN1(<?=n?>, (<?=U?>)->m) / (<?=U?>)->rho;
+real const v_n = (<?=U?>)->rho < solver->rhoMin ? 0. : normal_vecDotN1(<?=n?>, (<?=U?>)->m) / (<?=U?>)->rho;
 ]], args)
 end
 
@@ -383,7 +379,7 @@ but in hll flux this is used with one specific side.
 function Euler:consWaveCodeMinMaxAllSides(args)
 	return self:template([[
 real const Cs_nLen = Cs * normal_len(<?=n?>);
-real const v_n = normal_vecDotN1(<?=n?>, (<?=U?>)->m) / (<?=U?>)->rho;
+real const v_n = (<?=U?>)->rho < solver->rhoMin ? 0. : normal_vecDotN1(<?=n?>, (<?=U?>)->m) / (<?=U?>)->rho;
 <?=eqn:waveCodeAssignMinMax(
 	declare, resultMin, resultMax,
 	'v_n - Cs_nLen',

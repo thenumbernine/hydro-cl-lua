@@ -21,41 +21,56 @@ local function mappack(f, ...)
 	return f(...), mappack(f, select(2, ...))
 end
 
+local meshfaceStruct, meshface_t 
+local meshcellStruct, meshcell_t
+local function allocateTypes(solver)
+	if meshfaceStruct then return end
+	-- stripped-down version of face_t and cell_t to build with mesh
+	-- before the solver defines any custom entries in face_t or cell_t
+	-- [=[ look in coord's cellStruct def for these fields
+	meshfaceStruct = Struct{
+		dontMakeUniqueName = true,	--with this set, solver isn't needed
+		name = 'meshface_t',
+		dontUnion = true,
+		vars = {
+			-- all solvers:
+			{type='real3', name='pos'},		--center.  realN.
+			{type='real3', name='normal'},	--normal pointing from first to second
+			{type='real3', name='normal2'},	--orthonormal basis around normal
+			{type='real3', name='normal3'},
+			{type='real', name='area'},		--edge length / surface area
+			{type='real', name='cellDist'},	--dist between cell centers along 'normal'
+			-- meshsolver-specific:
+			{type='vec2i_t', name='cells'},	--indexes of cells
+			{type='int', name='vtxOffset'},
+			{type='int', name='vtxCount'},
+		},
+	}
+	meshfaceStruct:makeType()
+	meshface_t = meshfaceStruct.metatype
 
---[=[ look in coord's cellStruct def for these fields
-local face_t = Struct{
-	name = 'face_t',
-	dontUnion = true,
-	vars = {
-		{type='real3', name='pos'},		--center.  realN.
-		{type='real3', name='normal'},	--normal pointing from first to second
-		{type='real3', name='normal2'},	--orthonormal basis around normal
-		{type='real3', name='normal3'},
-		{type='real', name='area'},		--edge length / surface area
-		{type='real', name='cellDist'},	--dist between cell centers along 'normal'
-		{type='vec2i_t', name='cells'},	--indexes of cells
-		{type='int', name='vtxOffset'},
-		{type='int', name='vtxCount'},
-	},
-}
+	meshcellStruct = Struct{
+		dontMakeUniqueName = true,	--with this set, solver isn't needed
+		name = 'meshcell_t',
+		dontUnion = true,
+		vars = {
+			-- all solvers:
+			{type='real3', name='pos'},		--center.  technically could be a 'realN'
+			-- meshsolver-specific:
+			{type='real', name='volume'},	--volume of the cell
+			{type='int', name='faceOffset'},
+			{type='int', name='faceCount'},
+			{type='int', name='vtxOffset'},
+			{type='int', name='vtxCount'},
+		},
+	}
+	meshcellStruct:makeType()
+	meshcell_t = meshcellStruct.metatype
+	--]=]
+end
 
-local cell_t = Struct{
-	name = 'cell_t',
-	dontUnion = true,
-	vars = {
-		{type='real3', name='pos'},		--center.  technically could be a 'realN'
-		{type='real', name='volume'},	--volume of the cell
-		{type='int', name='faceOffset'},
-		{type='int', name='faceCount'},
-		{type='int', name='vtxOffset'},
-		{type='int', name='vtxCount'},
-	},
-}
---]=]
-
-
-local function new_face_t(solver)
-	local face = solver.coord.faceStruct.metatype()
+local function new_meshface_t(solver)
+	local face = meshface_t()
 	face.pos:set(0,0,0)
 	face.normal:set(0,0,0)
 	face.normal2:set(0,0,0)
@@ -68,8 +83,8 @@ local function new_face_t(solver)
 	return face
 end
 
-local function new_cell_t(solver)
-	local cell = solver.coord.cellStruct.metatype()
+local function new_meshcell_t(solver)
+	local cell = meshcell_t()
 	cell.pos:set(0,0,0)
 	cell.faceOffset = 0
 	cell.faceCount = 0
@@ -79,15 +94,20 @@ local function new_cell_t(solver)
 end
 
 
-
 local Mesh = class()
 
 function Mesh:init(solver)
+	allocateTypes(solver)
+	
 	self.solver = solver
 
 	self.vtxs = vector'real3'
-	self.faces = vector(solver.coord.face_t)
-	self.cells = vector(solver.coord.cell_t)
+	-- face_t and cell_t haven't been fully defined
+	-- so how about here instead we fill in a temporary structure with minimal info,
+	-- then let the solver fully define these structs / any custom vars,
+	-- and then copy the minimal structs over into the full structs?
+	self.faces = vector'meshface_t'
+	self.cells = vector'meshcell_t'
 	self.cellFaceIndexes = vector'int'
 	self.cellVtxIndexes = vector'int'
 	self.faceVtxIndexes = vector'int'
@@ -317,7 +337,7 @@ function Mesh:addFaceForVtxs(...)
 
 	local fi = #self.faces
 	
-	self.faces:push_back(new_face_t(self.solver))
+	self.faces:push_back(new_meshface_t(self.solver))
 	local f = self.faces:back()
 	
 	f.vtxOffset = #self.faceVtxIndexes
@@ -415,7 +435,7 @@ Mesh.times = {}
 function Mesh:addCell(vis)
 local startTime = getTime()	
 	local ci = #self.cells
-	self.cells:push_back(new_cell_t(self.solver))
+	self.cells:push_back(new_meshcell_t(self.solver))
 	local c = self.cells:back()
 Mesh.times['creating cell'] = (Mesh.times['creating cell'] or 0) + getTime() - startTime
 

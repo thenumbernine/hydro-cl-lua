@@ -1335,20 +1335,32 @@ end
 									-- right now I'm copying halfs from cl to gl as-is, so calcDisplayVarToTexPtr will have half data for half and float data otherwise
 								local ptr = ffi.cast(self.real == 'half' and 'real*' or 'float*', solver.calcDisplayVarToTexPtr)
 								local channels = vectorField and 3 or 1
-								local sep = ''
 								self.mouseCoordValue = self.mouseCoordValue 
-									.. tostring(texX)
+									.. 'int: '..tostring(texX)
 									..','..tostring(texY)
-									..': '
+									..'\n'
 								if size then
+									self.mouseCoordValue = self.mouseCoordValue 
+										..'raw value: '
+									local sep = ''
+									for j=0,channels-1 do
+										local v = fromreal(ptr[j + channels * (texX + size.x * (texY + size.y * texZ))])
+										self.mouseCoordValue = self.mouseCoordValue .. sep .. ('%.3f'):format(v)
+										sep = ', '
+									end
+									self.mouseCoordValue = self.mouseCoordValue 
+										..'\n'
+										..'unit value: '
+									sep = ''
 									for j=0,channels-1 do
 										local v = fromreal(ptr[j + channels * (texX + size.x * (texY + size.y * texZ))])
 										v = v * unitScale
 										self.mouseCoordValue = self.mouseCoordValue .. sep .. ('%.3f'):format(v)
 										sep = ', '
-									end
+									end							
+									self.mouseCoordValue = self.mouseCoordValue 
+										..'\n'
 								end
-								self.mouseCoordValue = self.mouseCoordValue .. '\n'
 							end
 						end
 					end

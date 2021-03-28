@@ -294,9 +294,6 @@ end
 	real const HTotal = (U)->ETotal + W.P;\
 	(resultFlux)->ETotal = HTotal * v_n;\
 \
-	real const eps = solver->sqrt_eps * solver->sqrt_eps / unit_C2_s2_per_kg_m3;\
-	real const mu = solver->sqrt_mu * solver->sqrt_mu / unit_kg_m_per_C2;\
-\
 	real const G = solver->gravitationalConstant / unit_m3_per_kg_s2;\
 	real const _1_eps_g = 4. * M_PI * G;\
 	real const speedOfLightSq = solver->speedOfLight * solver->speedOfLight / unit_m2_per_s2;\
@@ -307,23 +304,26 @@ end
 	real3 const E_g = real3_real_mul((U)->D_g, _1_eps_g);\
 	real3 const H_g = real3_real_mul((U)->B_g, _1_mu_g);\
 \
+	real const divPhiWavespeed_g = solver->divPhiWavespeed_g / unit_m_per_s;\
+	real const divPsiWavespeed_g = solver->divPsiWavespeed_g / unit_m_per_s;\
+\
 	real const nx = normal_l1x(n);\
 	real const ny = normal_l1y(n);\
 	real const nz = normal_l1z(n);\
 \
-	(resultFlux)->D_g.x = H_g.y * nz - H_g.z * ny + nx * (U)->phi_g * solver->divPhiWavespeed_g / unit_m_per_s;	/* F_D^i = -eps^ijk n_j H_k */\
-	(resultFlux)->B_g.x = E_g.z * ny - E_g.y * nz + nx * (U)->psi_g * solver->divPsiWavespeed_g / unit_m_per_s;	/* F_B^i = +eps^ijk n_j B_k */\
+	(resultFlux)->D_g.x = H_g.y * nz - H_g.z * ny + nx * (U)->phi_g * divPhiWavespeed_g;	/* F_D^i = -eps^ijk n_j H_k */\
+	(resultFlux)->B_g.x = E_g.z * ny - E_g.y * nz + nx * (U)->psi_g * divPsiWavespeed_g;	/* F_B^i = +eps^ijk n_j B_k */\
 \
-	(resultFlux)->D_g.y = H_g.z * nx - H_g.x * nz + ny * (U)->phi_g * solver->divPhiWavespeed_g / unit_m_per_s;\
-	(resultFlux)->B_g.y = E_g.x * nz - E_g.z * nx + ny * (U)->psi_g * solver->divPsiWavespeed_g / unit_m_per_s;\
+	(resultFlux)->D_g.y = H_g.z * nx - H_g.x * nz + ny * (U)->phi_g * divPhiWavespeed_g;\
+	(resultFlux)->B_g.y = E_g.x * nz - E_g.z * nx + ny * (U)->psi_g * divPsiWavespeed_g;\
 \
-	(resultFlux)->D_g.z = H_g.x * ny - H_g.y * nx + nz * (U)->phi_g * solver->divPhiWavespeed_g / unit_m_per_s;\
-	(resultFlux)->B_g.z = E_g.y * nx - E_g.x * ny + nz * (U)->psi_g * solver->divPsiWavespeed_g / unit_m_per_s;\
+	(resultFlux)->D_g.z = H_g.x * ny - H_g.y * nx + nz * (U)->phi_g * divPhiWavespeed_g;\
+	(resultFlux)->B_g.z = E_g.y * nx - E_g.x * ny + nz * (U)->psi_g * divPsiWavespeed_g;\
 \
 	real const D_n = normal_vecDotN1(n, (U)->D_g);\
 	real const B_n = normal_vecDotN1(n, (U)->B_g);\
-	(resultFlux)->phi_g = <?=real_mul?>(D_n, solver->divPhiWavespeed_g / unit_m_per_s);\
-	(resultFlux)->psi_g = <?=real_mul?>(B_n, solver->divPsiWavespeed_g / unit_m_per_s);\
+	(resultFlux)->phi_g = D_n * divPhiWavespeed_g;\
+	(resultFlux)->psi_g = B_n * divPsiWavespeed_g;\
 }
 
 //// MODULE_NAME: <?=calcCellMinMaxEigenvalues?>
@@ -710,8 +710,8 @@ end
 \
 	real const D_n = normal_vecDotN1(n, (U)->D_g);\
 	real const B_n = normal_vecDotN1(n, (U)->B_g);\
-	(resultFlux)->phi_g = <?=real_mul?>(D_n, solver->divPhiWavespeed_g / unit_m_per_s);\
-	(resultFlux)->psi_g = <?=real_mul?>(B_n, solver->divPsiWavespeed_g / unit_m_per_s);\
+	(resultFlux)->phi_g = D_n * solver->divPhiWavespeed_g / unit_m_per_s;\
+	(resultFlux)->psi_g = B_n * solver->divPsiWavespeed_g / unit_m_per_s;\
 }
 
 //// MODULE_NAME: <?=addSource?>

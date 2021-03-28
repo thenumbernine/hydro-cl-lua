@@ -33,7 +33,7 @@
 	/*real3 */n,\
 	/*real const */restitution\
 ) {\
-	*result = *U;\
+	*(result) = *(U);\
 <? --\
 -- matches BoundaryMirror:getCode for vectorComponent==cartesian --\
 for _,var in ipairs(eqn.consStruct.vars) do --\
@@ -48,13 +48,13 @@ for _,var in ipairs(eqn.consStruct.vars) do --\
 		local scalar = var.type == 'cplx3' and 'cplx' or 'real' --\
 		local vec3 = var.type --\
 ?>\
-	result-><?=field?> = <?=vec3?>_sub(\
-		result-><?=field?>,\
+	(result)-><?=field?> = <?=vec3?>_sub(\
+		(result)-><?=field?>,\
 		<?=vec3?>_<?=scalar?>_mul(\
 			<?=vec3?>_from_real3(n),\
 			<?=scalar?>_real_mul(\
 				<?=vec3?>_real3_dot(\
-					result-><?=field?>,\
+					(result)-><?=field?>,\
 					n\
 				),\
 				restitution + 1.\
@@ -80,66 +80,39 @@ end--\
 	reflectCons(result, U, e->normal, 1.);\
 <? end ?>\
 <? if true then -- for [-1,1]^2 box with cylinder removed ?>\
-	*result = *U;\
+	*(result) = *(U);\
 	real3 const x = e->pos;\
 	if (real3_lenSq(e->pos) > .7*.7) {\
 		/*outside = freeflow */\
-		/**result = *U; */\
+		/**(result) = *(U); */\
 <? if false then ?>\
 		real rho = 1.;\
 		real3 v = _real3(-0.1, 0, 0);\
 		real P = 1.;\
-		result->rho = rho;\
-		result->m = real3_real_mul(v, rho);\
-		result->ETotal = P / (solver->heatCapacityRatio - 1.) + (.5 * coordLenSq(v, x) + U->ePot) * rho;\
+		(result)->rho = rho;\
+		(result)->m = real3_real_mul(v, rho);\
+		(result)->ETotal = P / (solver->heatCapacityRatio - 1.) + (.5 * coordLenSq(v, x) + (U)->ePot) * rho;\
 <? end ?>\
 	} else {\
 		/* inside = reflect */\
 		/*reflectCons(result, U, e->normal, -1);*/\
 		/*reflectCons(result, U, e->normal, 0.);*/\
 		reflectCons(result, U, e->normal, 1.); /* ghost U momentum is reflected from U's, s the velocity is zero (right?) */\
-		/*result->m = real3_zero;*/\
+		/*(result)->m = real3_zero;*/\
 	}\
 <? end ?>\
 <? if false then -- for naca 0012 airfoil ?>\
 	if (real3_lenSq(e->pos) > 4.) {\
 		/* outside boundary: freeflow */\
-		*result = *U;\
+		*(result) = *(U);\
 	} else {\
 		/* inside boundary: v=0 */\
-		/**result = *U;*/\
-		/*result->m = real3_zero;*/\
+		/**(result) = *(U);*/\
+		/*(result)->m = real3_zero;*/\
 		/* inside boundary: reflect */\
 		reflectCons(result, U, e->normal, 1.);\
 	}\
 <? end ?>\
-}
-
-void getEdgeStates(
-	constant <?=solver_t?> const * const solver,
-	<?=cons_t?> * const UL,
-	<?=cons_t?> * const UR,
-	global <?=face_t?> const * const e,
-	global <?=cons_t?> const * const UBuf,		//[numCells]
-	real const restitution
-) {
-	int const iL = e->cells.s0;
-	int const iR = e->cells.s1;
-	if (iL != -1 && iR != -1) {
-		*UL = UBuf[iL];
-		*UR = UBuf[iR];
-	} else if (iL != -1) {
-		*UL = UBuf[iL];
-		boundaryCons(solver, UR, UL, e, restitution);
-	} else if (iR != -1) {
-		*UR = UBuf[iR];
-		boundaryCons(solver, UL, UR, e, restitution);
-	} else {	// both iL and iR are null ...
-		//error
-		for (int i = 0; i < numStates; ++i) {
-			UL->ptr[i] = UR->ptr[i] = 0./0.;
-		}
-	}
 }
 
 kernel void <?=calcFlux?>(
@@ -148,8 +121,8 @@ kernel void <?=calcFlux?>(
 	global <?=cons_t?> const * const UBuf,
 	realparam const dt,
 //mesh-specific parameters:	
-	global <?=cell_t?> const * const cells,			//[numCells]
-	global <?=face_t?> const * const faces,			//[numFaces]
+	global <?=cell_t?> const * const cellBuf,			//[numCells]
+	global <?=face_t?> const * const faceBuf,			//[numFaces]
 	global int const * const cellFaceIndexes	//[numCellFaceIndexes]
 ) {
 	int faceIndex = get_global_id(0);
@@ -157,7 +130,7 @@ kernel void <?=calcFlux?>(
 	
 	global <?=cons_t?> * const flux = fluxBuf + faceIndex;
 	
-	global <?=face_t?> const * const face = faces + faceIndex;
+	global <?=face_t?> const * const face = faceBuf + faceIndex;
 	if (face->area <= 1e-7) {
 		for (int j = 0; j < numStates; ++j) {
 			flux->ptr[j] = 0;
@@ -167,16 +140,39 @@ kernel void <?=calcFlux?>(
 
 	real3 const x = face->pos;
 	<?=normal_t?> const n = normal_forFace(face);
-	
+
+	<?=cell_t?> cellL, cellR;
 	<?=cons_t?> UL, UR;	
-	getEdgeStates(solver, &UL, &UR, face, UBuf, solver->boundaryRestitution);
+	//getEdgeStates(solver, &UL, &UR, face, UBuf, solver->boundaryRestitution);
+	{
+		int const iL = face->cells.s0;
+		int const iR = face->cells.s1;
+		if (iL != -1 && iR != -1) {
+			UL = UBuf[iL];
+			UR = UBuf[iR];
+			cellL = cellBuf[iL];
+			cellR = cellBuf[iR];
+		} else if (iL != -1) {
+			UL = UBuf[iL];
+			cellL = cellR = cellBuf[iL];
+			boundaryCons(solver, &UR, &UL, face, solver->boundaryRestitution);
+		} else if (iR != -1) {
+			UR = UBuf[iR];
+			cellL = cellR = cellBuf[iR];
+			boundaryCons(solver, &UL, &UR, face, solver->boundaryRestitution);
+		} else {	// both iL and iR are null ...
+			//error
+			for (int i = 0; i < numStates; ++i) {
+				UL.ptr[i] = UR.ptr[i] = 0./0.;
+			}
+		}
+	}
 
 	//TODO option to rotate to align fluxes?
 	// then you'd have to build a new normal_t based on the aligned (x-axis) normal.
 
-#error calcFluxForInterface now needs cell parameters, but mesh edges don't have two cells, sooo ... time to implement an averaging function for cell values
 //// MODULE_DEPENDS: <?=calcFluxForInterface?>
-	<?=calcFluxForInterface?>(flux, solver, &UL, &UR, cellL, cellR, x, n);
+	<?=calcFluxForInterface?>(flux, solver, &UL, &UR, &cellL, &cellR, x, n);
 }
 
 //// MODULE_NAME: <?=calcDerivFromFlux?>
@@ -187,30 +183,30 @@ kernel void <?=calcDerivFromFlux?>(
 	global <?=cons_t?> * const derivBuf,
 	global <?=cons_t?> const * const fluxBuf,
 //mesh-specific parameters:	
-	global <?=cell_t?> const * const cells,			//[numCells]
-	global <?=face_t?> const * const faces,			//[numFaces]
+	global <?=cell_t?> const * const cellBuf,			//[numCells]
+	global <?=face_t?> const * const faceBuf,			//[numFaces]
 	global int const * const cellFaceIndexes	//[numCellFaceIndexes]
 ) {
 	int const cellIndex = get_global_id(0);
 	if (cellIndex >= get_global_size(0)) return;
 	
-	global <?=cell_t?> const * const cell = cells + cellIndex;
+	global <?=cell_t?> const * const cell = cellBuf + cellIndex;
 	global <?=cons_t?> * const deriv = derivBuf + cellIndex;
 	
 	for (int i = 0; i < cell->faceCount; ++i) {
-		int const ei = cellFaceIndexes[i + cell->faceOffset];
-		global <?=face_t?> const * const e = faces + ei;
+		int const faceIndex = cellFaceIndexes[i + cell->faceOffset];
+		global <?=face_t?> const * const face = faceBuf + faceIndex;
 		
-		global <?=cons_t?> const * const flux = fluxBuf + ei;
-		real const areaOverVolume = e->area / cell->volume;
+		global <?=cons_t?> const * const flux = fluxBuf + faceIndex;
+		real const areaOverVolume = face->area / cell->volume;
 		
-		if (cellIndex == e->cells.s0) {
-//std::cout << " ... - " << *e << std::endl;
+		if (cellIndex == face->cells.s0) {
+//std::cout << " ... - " << *face << std::endl;
 			for (int j = 0; j < numIntStates; ++j) {
 				deriv->ptr[j] -= flux->ptr[j] * areaOverVolume;
 			}
 		} else {
-//std::cout << " ... + " << *e << std::endl;
+//std::cout << " ... + " << *face << std::endl;
 			for (int j = 0; j < numIntStates; ++j) {
 				deriv->ptr[j] += flux->ptr[j] * areaOverVolume;
 			}

@@ -126,6 +126,19 @@ end
 		self.mindx = math.min(self.mindx, f.cellDist)
 	end
 
+--[[
+big problem
+in gridsolver, these vars are dependent on the grid size
+but in mesh solver they are dependent on the mesh
+however the mesh is dependent on the face_t etc types
+and those types are defined in initCodeModules
+so what do I do?
+
+is it safe to postpone declaring numCells until just before postInit is called, when buffers are allocated?
+no, because numCells determines maxWorkGroupSize, which is needed by getSizePropsForWorkGroupSize,
+	and I think eventually by the initCodeModule stuff (esp the init_dx stuff in gridsolver)
+--]]
+
 	-- TODO put these in solver_t
 	self.numCells = assert(self.mesh.numCells, "did your MeshFactory remember to call :calcAux()?")
 	self.numFaces = assert(self.mesh.numFaces, "did your MeshFactory remember to call :calcAux()?")
@@ -136,6 +149,10 @@ end
 
 	-- no longer is dim * numCells the number of interfaces -- it is now dependent on the mesh
 	-- maybe I should rename this to numFaces?
+end
+
+function MeshSolver:postInit()
+	MeshSolver.super.postInit(self)
 end
 
 function MeshSolver:initObjs(args)
@@ -340,11 +357,43 @@ function MeshSolver:createBuffers()
 
 	self:clalloc('vtxBuf', 'real3', self.numVtxs)
 	self:clalloc('cellBuf', self.coord.cell_t, self.numCells)
-	self:clalloc('facesBuf', self.coord.face_t, self.numFaces)
+	self:clalloc('faceBuf', self.coord.face_t, self.numFaces)
 	self:clalloc('cellFaceIndexesBuf', 'int', self.numCellFaceIndexes)
 	
 	-- specific to FiniteVolumeSolver
 	self:clalloc('fluxBuf', self.eqn.symbols.cons_t, self.numFaces)
+
+-- [[
+	-- here or somewhere before 
+	-- convert the mesh faces and cells from meshface_t, meshcell_t
+	-- to face_t and cell_t
+	-- hmm, but if any custom fields are included, I'll bet the subclass will want to populate those ...
+	local mesh = self.mesh
+	local faces = vector(self.coord.face_t, self.numFaces)
+	for i=0,self.numFaces-1 do
+		faces.v[i].pos = mesh.faces.v[i].pos
+		faces.v[i].normal = mesh.faces.v[i].normal
+		faces.v[i].normal2 = mesh.faces.v[i].normal2
+		faces.v[i].normal3 = mesh.faces.v[i].normal3
+		faces.v[i].area = mesh.faces.v[i].area
+		faces.v[i].cellDist = mesh.faces.v[i].cellDist
+		faces.v[i].cells = mesh.faces.v[i].cells
+		faces.v[i].vtxOffset = mesh.faces.v[i].vtxOffset
+		faces.v[i].vtxCount = mesh.faces.v[i].vtxCount
+	end
+	mesh.faces = faces
+	
+	local cells = vector(self.coord.cell_t, self.numCells)
+	for i=0,self.numCells-1 do
+		cells.v[i].pos = mesh.cells.v[i].pos
+		cells.v[i].volume = mesh.cells.v[i].volume
+		cells.v[i].faceOffset = mesh.cells.v[i].faceOffset
+		cells.v[i].faceCount = mesh.cells.v[i].faceCount
+		cells.v[i].vtxOffset = mesh.cells.v[i].vtxOffset
+		cells.v[i].vtxCount = mesh.cells.v[i].vtxCount
+	end
+	mesh.cells = cells
+--]]
 end
 
 function MeshSolver:finalizeCLAllocs()
@@ -352,7 +401,7 @@ function MeshSolver:finalizeCLAllocs()
 
 	self.vtxBufObj:fromCPU(self.mesh.vtxs.v)
 	self.cellBufObj:fromCPU(self.mesh.cells.v)
-	self.facesBufObj:fromCPU(self.mesh.faces.v)
+	self.faceBufObj:fromCPU(self.mesh.faces.v)
 	self.cellFaceIndexesBufObj:fromCPU(self.mesh.cellFaceIndexes.v)
 	self.cmds:finish()
 end
@@ -397,14 +446,14 @@ function MeshSolver:refreshSolverProgram()
 	self.calcFluxKernelObj.obj:setArg(1, self.fluxBuf)
 	self.calcFluxKernelObj.obj:setArg(2, self.UBuf)
 	self.calcFluxKernelObj.obj:setArg(4, self.cellBuf)
-	self.calcFluxKernelObj.obj:setArg(5, self.facesBuf)
+	self.calcFluxKernelObj.obj:setArg(5, self.faceBuf)
 	self.calcFluxKernelObj.obj:setArg(6, self.cellFaceIndexesBuf)
 
 	self.calcDerivFromFluxKernelObj = self.solverProgramObj:kernel(self.symbols.calcDerivFromFlux)
 	self.calcDerivFromFluxKernelObj.obj:setArg(0, self.solverBuf)
 	self.calcDerivFromFluxKernelObj.obj:setArg(2, self.fluxBuf)
 	self.calcDerivFromFluxKernelObj.obj:setArg(3, self.cellBuf)
-	self.calcDerivFromFluxKernelObj.obj:setArg(4, self.facesBuf)
+	self.calcDerivFromFluxKernelObj.obj:setArg(4, self.faceBuf)
 	self.calcDerivFromFluxKernelObj.obj:setArg(5, self.cellFaceIndexesBuf)
 end
 
@@ -440,14 +489,14 @@ function MeshSolver:refreshCalcDTKernel()
 	-- TODO combine these, and offset one into the other?
 	-- because I'm going to need more than just these...
 	self.calcDTKernelObj.obj:setArg(3, self.cellBuf)
-	self.calcDTKernelObj.obj:setArg(4, self.facesBuf)
+	self.calcDTKernelObj.obj:setArg(4, self.faceBuf)
 	self.calcDTKernelObj.obj:setArg(5, self.cellFaceIndexesBuf)
 end
 
 function MeshSolver:calcDT()
 	if not self.useFixedDT then
 		self.calcDTKernelObj.obj:setArg(3, self.cellBuf)
-		self.calcDTKernelObj.obj:setArg(4, self.facesBuf)
+		self.calcDTKernelObj.obj:setArg(4, self.faceBuf)
 		self.calcDTKernelObj.obj:setArg(5, self.cellFaceIndexesBuf)
 	end
 	return MeshSolver.super.calcDT(self)
@@ -481,7 +530,7 @@ MeshSolver.DisplayVar = MeshSolverDisplayVar
 
 function MeshSolverDisplayVar:setArgs(kernel)
 	MeshSolverDisplayVar.super.setArgs(self, kernel)
-	kernel:setArg(6, self.solver.facesBuf)
+	kernel:setArg(6, self.solver.faceBuf)
 end
 
 function MeshSolver:updateGUIParams()

@@ -16,6 +16,11 @@ EulerLinGR.numIntStates = nil
 
 EulerLinGR.name = 'euler_lingr'
 
+-- Hmm, setting this to 'true' destroys us ... causes the magnitude of E_g to explode by 1e+16 ... why is using the flux bad?
+-- Fwiw, both Euler and Maxwell equations hold true the homogeneity property: dF/dU * U = F
+-- which means this flag shouldn't change the results.
+EulerLinGR.roeUseFluxFromCons = false
+
 function EulerLinGR:buildVars(args)
 	EulerLinGR.super.buildVars(self, args)
 	for _,t in ipairs{self.primVars, self.consVars} do
@@ -97,6 +102,7 @@ EulerLinGR.predefinedDisplayVars = {
 	'U B_g z',
 	'U E_g',
 	'U E_g z',
+	'U E_g mag',
 	'U phi_g',
 	'U psi_g',
 	'U v cross B_g',

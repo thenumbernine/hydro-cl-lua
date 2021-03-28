@@ -32,8 +32,16 @@ I think other equations were better performing without this, like Euler.
 
 TODO looks like dF/dU * U = F only for euler equations,
 so which is correct in general? set this accordingly.
+
+Well, setting this to true uses 'F' as it is.
+Setting this to false uses dF/dW * U = F ... which is only true for Euler
+Which means in general this should be set to 'true'.
+The averaged flux will always be correct
+but in the Roe scheme, the extra derivation is the wave propagated along the eigenvectors.
+So in that case, is the propagated wave a dU, which would be correct: dF/dU * dU = dF.
+Or do we have to find a new eigenfunction not of the flux Jacobian?
 --]]
-Equation.roeUseFluxFromCons = nil
+Equation.roeUseFluxFromCons = true
 
 -- singleton
 Equation.parityVarsGetters = table{
@@ -797,35 +805,7 @@ function Equation:initCodeModule_cons_prim_eigen_waves()
 end
 
 function Equation:initCodeModule_fluxFromCons()
-	error[[
-But isn't this dF/dx = dF/dU * dU/dx ?  and not F?
-Yes, however only for Euler fluid equations it happens to be true that dF/dU * U = F.
-Not true for all equations.  Therefore this implementation should *NOT* be used in general.
-Even though it is used throughout the  math involved in Roe schemes for Euler fluid equations.
-]]
-	self.solver.modules:add{
-		name = self.symbols.fluxFromCons,
-		depends = {
-			self.solver.solver_t,
-			self.symbols.cons_t,
-			self.symbols.eigen_fluxTransform,
-			self.symbols.eigen_forCell,
-			self.solver.coord.symbols.normal_t,
-		},
-		code = self:template[[
-#define <?=fluxFromCons?>(\
-	/*<?=cons_t?> const * const */flux,\
-	/*constant <?=solver_t?> const * const */solver,\
-	/*<?=cons_t?> const * const */U,\
-	/*<?=cell_t?> const * const */cell,\
-	/*<?=normal_t?> const */n\
-) {\
-	<?=eigen_t?> eig;\
-	<?=eigen_forCell?>(&eig, solver, U, cell, n)\
-	<?=eigen_fluxTransform?>(flux, solver, &eig, U, cell, n);\
-}
-]],
-	}
+	error'Equation:initCodeModule_fluxFromCons not implemented'
 end
 
 -- this is a mess, all because of eqn/composite
