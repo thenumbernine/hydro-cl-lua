@@ -86,11 +86,15 @@ function Draw2DHeatmap:display(varName, ar, graph_xmin, graph_xmax, graph_ymin, 
 	local solver = self.solver
 	local app = solver.app
 	app.view:setup(ar)
-	
+
+	local xmin, xmax, ymin, ymax
 	if app.view.getOrthoBounds then
 		xmin, xmax, ymin, ymax = app.view:getOrthoBounds(ar)
 	else
-		xmin, xmax, ymin, ymax = graph_xmin, graph_xmax, graph_ymin, graph_ymax
+		xmin = solver.cartesianMin.x
+		ymin = solver.cartesianMin.y
+		xmax = solver.cartesianMax.x
+		ymax = solver.cartesianMax.y
 	end
 
 --	gl.glEnable(gl.GL_DEPTH_TEST)

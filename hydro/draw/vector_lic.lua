@@ -10,6 +10,10 @@ local DrawVectorLIC = class(Draw)
 
 DrawVectorLIC.integralMaxIter = 10
 
+--[[
+the xmin/xmax/ymin/ymax passed as arguments is the one shared with all graphs
+but for LIC, we just need the cartesian range
+--]]
 function DrawVectorLIC:drawSolverWithVar(var, shader, xmin, xmax, ymin, ymax)
 	local solver = self.solver
 	local app = solver.app
@@ -131,11 +135,15 @@ function DrawVectorLIC:display(varName, ar, graph_xmin, graph_xmax, graph_ymin, 
 	local app = solver.app
 
 	app.view:setup(ar)
-	
+
+	local xmin, xmax, ymin, ymax
 	if app.view.getOrthoBounds then
 		xmin, xmax, ymin, ymax = app.view:getOrthoBounds(ar)
 	else
-		xmin, xmax, ymin, ymax = graph_xmin, graph_xmax, graph_ymin, graph_ymax
+		xmin = solver.cartesianMin.x
+		ymin = solver.cartesianMin.y
+		xmax = solver.cartesianMax.x
+		ymax = solver.cartesianMax.y
 	end
 
 --	gl.glEnable(gl.GL_DEPTH_TEST)
