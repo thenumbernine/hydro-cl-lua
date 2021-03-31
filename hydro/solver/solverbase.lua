@@ -1295,11 +1295,30 @@ function SolverBase:refreshEqnInitState()
 -- [[
 	-- get the symbolic function for the x, y, z
 	-- and find its range for a domain of the solverMins/solverMaxs
+	local coord = self.coord
 	local range = require 'ext.range'
 	local symmath = require 'symmath'
 	local var = symmath.var
-	local u,v,w = table.unpack(self.coord.baseCoords)
-	local chart = self.coord.chart()
+	local u,v,w = table.unpack(coord.baseCoords)
+	local chart = coord.chart()
+	for i=1,#chart do
+--print'before replace'
+--print(chart[i])
+		chart[i] = coord:applyReplVars(chart[i])
+-- This is what applyReplVars is for, right?
+-- but I wanted to keep these as code, and use CL #define's to replace their values
+-- so they could be changed at runtime without regenerating the code
+-- just with a kernel recompile.
+-- so TODO if I change them to be based on applyReplVars instead then I don't need this extra code
+-- or TODO otherwise I can just put these repls somewhere else ... ? idk
+		chart[i] = coord:applyReplDefines(chart[i])
+--print'after replcae'
+--print(chart[i])
+	end
+
+-- ok for sphere-sinh-radial, at this point after replacement, we still have vars for AMPL and SINHW
+-- and I wrote those to be macros
+
 	local domains = range(3):mapi(function(i)
 		return symmath.set.RealDomain(
 			tonumber(self.mins.s[i-1]),
@@ -1327,8 +1346,11 @@ function SolverBase:refreshEqnInitState()
 		table.last(ranges[2]).finish,
 		table.last(ranges[3]).finish
 	)
-	print(self.cartesianMin)
-	print(self.cartesianMax)
+	if self.app.verbose then
+		print('cartesianMin = '..self.cartesianMin)
+		print('cartesianMin = '..self.cartesianMax)
+	end
+
 --]]
 end
 
@@ -1338,8 +1360,8 @@ function SolverBase:refreshSolverBufMinsMaxs()
 		self.solverPtr.maxs.s[j-1] = toreal(self.maxs.s[j-1])
 	end
 	if self.app.verbose then
-		print('mins = '..fromreal(self.solverPtr.mins.x)..', '..fromreal(self.solverPtr.mins.y)..', '..fromreal(self.solverPtr.mins.z))
-		print('maxs = '..fromreal(self.solverPtr.maxs.x)..', '..fromreal(self.solverPtr.maxs.y)..', '..fromreal(self.solverPtr.maxs.z))
+		print('coord min = '..fromreal(self.solverPtr.mins.x)..', '..fromreal(self.solverPtr.mins.y)..', '..fromreal(self.solverPtr.mins.z))
+		print('coord max = '..fromreal(self.solverPtr.maxs.x)..', '..fromreal(self.solverPtr.maxs.y)..', '..fromreal(self.solverPtr.maxs.z))
 	end
 end
 

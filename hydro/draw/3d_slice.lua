@@ -33,8 +33,8 @@ function Draw3DSlice:showDisplayVar(var, varName, ar, xmin, xmax, ymin, ymax, us
 
 	app.view:setup(ar)
 
-	if useClipPlanes then
-		for i,clipInfo in ipairs(clipInfos) do
+	if app.useClipPlanes then
+		for i,clipInfo in ipairs(app.clipInfos) do
 			gl.glClipPlane(gl.GL_CLIP_PLANE0+i-1, clipInfo.plane.s)
 		end
 	end
@@ -69,8 +69,8 @@ function Draw3DSlice:showDisplayVar(var, varName, ar, xmin, xmax, ymin, ymax, us
 	gl.glUniform1f(uniforms.numIsobars.loc, self.numIsobars)
 	gl.glUniform1i(uniforms.useLighting.loc, self.useLighting)
 
-	if useClipPlanes then
-		for i,info in ipairs(clipInfos) do
+	if app.useClipPlanes then
+		for i,info in ipairs(app.clipInfos) do
 			gl.glUniform1i(uniforms['clipEnabled'..i].loc, info.enabled and 1 or 0)
 		end
 	end
@@ -155,7 +155,8 @@ end
 function Draw3DSlice:prepareShader()
 	local solver = self.solver
 	if solver.volumeSliceShader then return end 
-	
+	local app = solver.app
+
 	local volumeSliceCode = assert(file['hydro/draw/3d_slice.shader'])
 	
 	solver.volumeSliceShader = solver.GLProgram{
@@ -168,7 +169,7 @@ function Draw3DSlice:prepareShader()
 			draw = self,
 			fragmentShader = true,
 			-- TODO move this from app, or make it a field of app?
-			clipInfos = useClipPlanes and clipInfos or nil,
+			clipInfos = app.useClipPlanes and app.clipInfos or nil,
 		}),
 		uniforms = {
 			volTex = 0,

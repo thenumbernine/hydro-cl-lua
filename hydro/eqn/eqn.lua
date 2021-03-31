@@ -805,7 +805,7 @@ function Equation:initCodeModule_cons_prim_eigen_waves()
 end
 
 function Equation:initCodeModule_fluxFromCons()
-	error'Equation:initCodeModule_fluxFromCons not implemented'
+--	error'Equation:initCodeModule_fluxFromCons not implemented'
 end
 
 -- this is a mess, all because of eqn/composite

@@ -8,8 +8,7 @@ local varying = vertexShader and 'out'
 
 <?=varying?> vec3 texCoord;	//[0,1]^n
 
-<? local useClipPlanes = false ?>
-<? if useClipPlanes then ?>
+<? if app.useClipPlanes then ?>
 <?=varying?> vec3 pos;		//positive after coordinate mapping, before view transform
 <? end ?>
 
@@ -28,7 +27,7 @@ void main() {
 	x.xyz = x.xyz * (cartesianMax - cartesianMin) + cartesianMin;
 	texCoord = x.xyz;
 
-<? if useClipPlanes then ?>
+<? if app.useClipPlanes then ?>
 	pos = x.xyz;
 <? end ?>
 	gl_Position = modelViewProjectionMatrix * x;
@@ -46,8 +45,8 @@ uniform bool useIsos;
 uniform float numIsobars;
 
 uniform vec3 normal;
-<? if useClipPlanes then ?>
-<? for i,clipInfo in ipairs(clipInfos) do
+<? if app.useClipPlanes then ?>
+<? for i,clipInfo in ipairs(app.clipInfos) do
 ?>uniform bool clipEnabled<?=i?>;
 <? end
 ?>
@@ -58,9 +57,9 @@ float getVoxelValue(vec3 tc) {
 }
 
 void main() {
-<? if useClipPlanes then ?>
+<? if app.useClipPlanes then ?>
 	vec4 worldPos = gl_ModelViewMatrix * vec4(pos, 1.);
-<? for i,clipInfo in ipairs(clipInfos) do
+<? for i,clipInfo in ipairs(app.clipInfos) do
 ?>	if (clipEnabled<?=i?> && dot(worldPos, gl_ClipPlane[<?=i-1?>]) < 0.) discard;
 <? end
 end

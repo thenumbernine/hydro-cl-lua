@@ -1915,15 +1915,18 @@ end ?>;
 	
 		-- With this, setting rho=1 will cause the total mass of the grid to be the mass of the Earth.
 		-- 4/3 pi r^3 rho = m <=> rho = 3 m / (4 pi r^3)
-		local kilogram = constants.EarthMass_in_kg * 3 / (4 * math.pi * coordRadius^3)
+		local sphereCoordVolume = (4/3) * math.pi * coordRadius * coordRadius * coordRadius
+		local kilogram = constants.EarthMass_in_kg / sphereCoordVolume
 
 		-- keep the speed of light at 1?
 		--local second = meter / constants.speedOfLight_in_m_per_s
 		-- but this puts our simulation's 1 unit of time at 0.05 seconds, so the simulation runs slow.  20x slower than if we just kept second at its default.
 		-- so how about speeding it up?
-		local second = 60*60*24
-		--local second = 1
-		--local second = nil
+		-- speedOfLight / (meter / second) = 1 
+		-- second = meter / speedOfLight
+		local second = 1		-- converges steady enough
+		--local second = 60*60*24
+		--local second = meter / constants.speedOfLight_in_m_per_s	-- converges slow, oscillates a bit
 
 		return {
 			name = 'self-gravitation - Earth',
@@ -1957,13 +1960,11 @@ end ?>;
 				second = second,
 				
 				speedOfLight = constants.speedOfLight_in_m_per_s,
-				gravitationalConstant = constants.gravitationalConstant_in_m3_per_kg_s2,
-				coulombConstant = constants.CoulombConstant_in_kg_m3_per_C2_s2,
-				
-				-- what if the var doesn't exist?
-				-- this exists in euler-lingr and twofluid-emhd-lingr
 				divPsiWavespeed_g = constants.speedOfLight_in_m_per_s,
 				divPhiWavespeed_g = constants.speedOfLight_in_m_per_s,
+				
+				gravitationalConstant = constants.gravitationalConstant_in_m3_per_kg_s2,
+				coulombConstant = constants.CoulombConstant_in_kg_m3_per_C2_s2,
 			},
 			getDepends = function(self)
 				return {
@@ -2082,13 +2083,38 @@ end ?>;
 	-- why is R_0 = 1 kpc?  esp when the flux function uses R_0 as a cutoff.
 	R_0 = 1 -- [kpc] 
 	
-	-- what is rho_0 ?
+	-- what is rho_0?  is (somewhere) rho(0,0) at the center of the function.
 	
+	maybe the multiple b_i's are from 1975 Miyamoto, Nagai eqn A1
+	where you just evaluate the equation over and over again wich each b_i and sum the functions up?
+	but in that case it looks like the multiple b's come with multiple a's and M's?
+
 	--]]
 	(function()
-		local coordRadius = .5	-- where in the [-1,1] unit cube to put the boundary of r=1 of whatever units you use
-		local ngc1560_a = 7.19 * 1e+3 * constants.pc_in_m	-- semi-major axis
-		local ngc1560_b = 0.567 * 1e+3 * constants.pc_in_m	-- semi-minor axis
+		-- where in the [-1,1] unit cube to put the boundary of r=1 of whatever units you use
+		-- ... for a sphere ... and this is an ellipsoid
+		local coordRadius = .5	
+		
+		local ngc1560_a = 7.19 * 1e+3 * constants.pc_in_m		-- semi-major axis
+		local ngc1560_b = 0.567 * 1e+3 * constants.pc_in_m		-- semi-minor axis
+		local ngc1560_M = 1.52e+10 * constants.SolarMass_in_kg	-- total mass
+		
+		-- coordinate radius of each axis (used for volume calc)
+		local coordRadius_a = coordRadius * (ngc1560_a / ngc1560_a)
+		local coordRadius_b = coordRadius * (ngc1560_b / ngc1560_a)
+		
+		-- radius .5, grid = 2 * ngc1560_a, so the ellipsoid is ngc1560
+		local meter = ngc1560_a / coordRadius
+
+		-- ellipsoid volume in meters: 
+
+		-- With this, setting rho=1 will cause the total mass of the grid to be the mass of the galaxy.
+		-- 4/3 pi a b^2 rho = M <=> rho = 3 M / (4 pi a b^2)
+		local ellipsoidCoordVolume = (4/3) * math.pi * coordRadius_a * coordRadius_b * coordRadius_b
+		local kilogram = ngc1560_M / ellipsoidCoordVolume
+
+		local second = 1
+		
 		return {
 			name = 'self-gravitation - NGC 1560',
 			
@@ -2115,26 +2141,22 @@ end ?>;
 				end
 				return {2*coordRadius, 2*coordRadius, 2*coordRadius}
 			end,
-			-- try for NGC 1560 parameters
 			guiVars = {
-				{name = 'a', value = ngc1560_a, constants='m'},
-				{name = 'b', value = ngc1560_b, constants='m'},
-				{name = 'M', value = 1.52e+10 * constants.SolarMass_in_kg, constants='kg'},
+				{name = 'a', value = ngc1560_a, units='m'},
+				{name = 'b', value = ngc1560_b, units='m'},
+				{name = 'M', value = ngc1560_M, units='kg'},
 			},
 			solverVars = {
-				meter = ngc1560_a / coordRadius,	-- radius .5, grid = 2 M_Earth, so the sphere is M_Earth size
-				
-				-- 4/3 pi a b^2 rho = M <=> rho = 3 M / (4 pi a b^2)
-				--kilogram = constants.EarthMass_in_kg * 3 / (4 * math.pi * coordRadius^3),
+				meter = meter,
+				kilogram = kilogram,
+				second = second,
 		
 				speedOfLight = constants.speedOfLight_in_m_per_s,
-				gravitationalConstant = constants.gravitationalConstant_in_m3_per_kg_s2,
-				coulombConstant = constants.CoulombConstant_in_kg_m3_per_C2_s2,
-				
-				-- what if the var doesn't exist?
-				-- this exists in euler-lingr and twofluid-emhd-lingr
 				divPsiWavespeed_g = constants.speedOfLight_in_m_per_s,
 				divPhiWavespeed_g = constants.speedOfLight_in_m_per_s,
+				
+				gravitationalConstant = constants.gravitationalConstant_in_m3_per_kg_s2,
+				coulombConstant = constants.CoulombConstant_in_kg_m3_per_C2_s2,
 			},
 			getDepends = function(self)
 				return {self.solver.coord.symbols.coordMap}
@@ -2167,18 +2189,16 @@ end ?>;
 		real const tmp = sqrt(rSq_plus__a_plus_bzLen_sq );
 		rho = M / (4. * M_PI 
 //			* R_0 * R_0 * R_0 * rho_0		// don't use normalized units
-		) * (
-			b * b * 
-			a * rSq + (a + 3. * bzLen) * a_plus_bzLen_sq
-		) / (
+		) * bSq * (a * rSq + (a + 3. * bzLen) * a_plus_bzLen_sq)
+		/ (
 			tmp * tmp * tmp * tmp * tmp 
 			* bzLen * bzLen * bzLen
 		);
 	} else {
-		rho = 1e-5;
+		rho = 1e-3;
 	}
 	// zero pressure
-	P = 1e-5;
+	P = 1e-3;
 ]]
 			end
 		}

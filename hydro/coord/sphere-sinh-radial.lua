@@ -75,6 +75,16 @@ function SphereLogRadial:init(args)
 		r:eq(r_for_rho),
 	}
 
+	-- alright, this is a mess, but
+	-- 'repls' is the table of replacements when generating code
+	-- this table is for #define stuff inside the code
+	-- and it's separate so the code can use macros instead of having to inline constants
+	-- it stores pairs of expr + getters, so the field values can be dynamically changed
+	self.replDefines = table{
+		{self.amplitude_var, function() return self.amplitude end},
+		{self.sinh_w_var, function() return self.sinh_w end},
+	}
+
 	if cmdline.coordVerbose then
 		print(r:eq(r_for_rho))
 	end
@@ -171,10 +181,9 @@ real3 coordMapInv(real3 pt) {
 -- and if I replace it with var'r' ...
 -- ... then will coord:compile use coord.repls to replace that with r_for_rho?
 --		coord:compile(coord.rho_for_r:replace(coord.baseCoords[1], require 'symmath'.var'r'))
-		require 'symmath.export.C'(coord.rho_for_r
-			:replace(coord.amplitude_var, coord.amplitude)
-			:replace(coord.sinh_w_var, coord.sinh_w)
-			:replace(coord.baseCoords[1], require 'symmath'.var'r')
+		require 'symmath.export.C'(
+			coord:applyReplDefines(coord.rho_for_r)
+				:replace(coord.baseCoords[1], require 'symmath'.var'r')
 		)
 	?>;
 	
@@ -317,9 +326,7 @@ function SphereLogRadial:fillGridCellBuf(cellsCPU)
 	local rho, theta, phi = self.baseCoords:unpack()
 	local calcR = symmath.export.Lua:toFunc{
 		output = {
-			self.vars.r
-				:replace(self.amplitude_var, self.amplitude)
-				:replace(self.sinh_w_var, self.sinh_w)
+			self:applyReplDefines(self.vars.r),
 		},
 		input = {{rho=rho}, {theta=theta}, {phi=phi}},
 	}

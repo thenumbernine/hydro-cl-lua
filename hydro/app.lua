@@ -285,22 +285,18 @@ local ]]..keys:concat', '..[[ = ...
 )
 end
 
-local useClipPlanes
-if useClipPlanes then
--- TODO put all the display3D_slices stuff in its own file
-local rotateClip = ffi.new('int[1]', 0)
-local function makeDefaultPlane(i)
-	assert(i >= 1 and i <= 4)
-	local plane = vec4d(0,0,0,0)
-	plane.s[math.min(i,3)-1] = -1
-	return plane
-end
-local clipInfos = range(4):mapi(function(i)
-	return {
-		enabled = i == 3,
-		plane = makeDefaultPlane(i),
-	}
-end)
+HydroCLApp.useClipPlanes = false
+if HydroCLApp.useClipPlanes then
+	-- TODO put all the display3D_slices stuff in its own file
+	HydroCLApp.rotateClip = ffi.new('int[1]', 0)
+	HydroCLApp.clipInfos = range(4):mapi(function(i)
+		local plane = vec4d(0,0,0,0)
+		plane.s[math.min(i,3)-1] = -1	
+		return {
+			enabled = i == 3,
+			plane = plane,
+		}
+	end)
 end
 
 

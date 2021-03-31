@@ -211,6 +211,7 @@ function CoordinateSystem:init(args)
 	local solver = assert(args.solver)
 	self.solver = solver
 	self.repls = self.repls or table()
+	self.replDefines = self.replDefines or table()
 
 	local symmath = require 'symmath'
 	local const = symmath.Constant
@@ -1266,6 +1267,15 @@ end
 function CoordinateSystem:applyReplVars(expr)
 	for _,repl in ipairs(self.repls) do
 		expr = expr:subst(repl)
+	end
+	return expr
+end
+
+function CoordinateSystem:applyReplDefines(expr)
+	for _,kv in ipairs(self.replDefines) do
+		local find, getter = table.unpack(kv)
+		local repl = assert(getter(), "getter didn't produce a value")
+		expr = expr:replace(find, repl)
 	end
 	return expr
 end

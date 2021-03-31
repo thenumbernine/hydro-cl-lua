@@ -60,7 +60,7 @@ local args = {
 	-- this is functional without usePLM, but doing so falls back on the cell-centered buffer, which with the current useCTU code will update the same cell twice from different threads
 	--useCTU = true,
 	
-	--[[ Cartesian
+	-- [[ Cartesian
 	coord = 'cartesian',
 	--coordArgs = {vectorComponent='holonomic'},		-- use the coordinate derivatives to represent our vector components (though they may not be normalized)
 	--coordArgs = {vectorComponent='anholonomic'},		-- use orthonormal basis to represent our vector components
@@ -140,14 +140,14 @@ local args = {
 		zmax = cmdline.boundary or 'freeflow',
 	},
 	--]]
-	-- [[ cylinder
+	--[[ cylinder
 	coord = 'cylinder',
 		-- TODO doesn't work
 	--coordArgs = {vectorComponent='holonomic'},		-- use the coordinate derivatives to represent our vector components (though they may not be normalized)
 		-- TODO doesn't work for rmin=0
 	--coordArgs = {vectorComponent='anholonomic'},		-- use orthonormal basis to represent our vector components.
 	coordArgs = {vectorComponent='cartesian'},			-- use cartesian vector components 
-	mins = cmdline.mins or {.5, 0, -.25},
+	mins = cmdline.mins or {0, 0, -.25},
 	maxs = cmdline.maxs or {1, 2*math.pi, .25},			-- TODO bake the 2π into the coordinate chart so this matches grid/cylinder.  Technically θ→2πθ means it isn't the standard θ variable.  I did this for UI convenience with CFDMesh.
 	gridSize = ({
 		{128, 1, 1},	-- 1D
@@ -158,11 +158,11 @@ local args = {
 		-- r
 		-- notice, this boundary is designed with cylindrical components in mind, so it will fail with vectorComponent==cartesian 
 		--xmin=cmdline.boundary or 'freeflow',		
-		--xmin=cmdline.boundary or 'cylinderRMin',	-- use this when rmin=0
-		xmin=cmdline.boundary or 'mirror',
+		xmin=cmdline.boundary or 'cylinderRMin',	-- use this when rmin=0
+		--xmin=cmdline.boundary or 'mirror',
 		--xmin=cmdline.boundary or {name='mirror', args={restitution=0}},
-		--xmax=cmdline.boundary or 'freeflow',
-		xmax=cmdline.boundary or 'mirror',
+		xmax=cmdline.boundary or 'freeflow',
+		--xmax=cmdline.boundary or 'mirror',
 		--xmax=cmdline.boundary or {name='mirror', args={restitution=0}},
 		
 		-- θ
@@ -172,10 +172,10 @@ local args = {
 		-- z
 		--zmin=cmdline.boundary or {name='mirror', args={restitution=0}},
 		--zmax=cmdline.boundary or {name='mirror', args={restitution=0}},
-		--zmin=cmdline.boundary or 'freeflow',
-		--zmax=cmdline.boundary or 'freeflow',
-		zmin=cmdline.boundary or 'mirror',
-		zmax=cmdline.boundary or 'mirror',
+		zmin=cmdline.boundary or 'freeflow',
+		zmax=cmdline.boundary or 'freeflow',
+		--zmin=cmdline.boundary or 'mirror',
+		--zmax=cmdline.boundary or 'mirror',
 	},
 	--]]
 	--[[ Sphere: r, θ, φ 
@@ -248,9 +248,11 @@ local args = {
 	--initCond = 'advect wave',
 	--initCond = 'sphere',
 	
-	initCond = 'spiral',
-	-- [[ spiral with physically correct units, with 1 graph unit = 1 meter, and 1 simulation second = 1 second
+	--initCond = 'spiral',
+	--[[ spiral with physically correct units, with 1 graph unit = 1 meter, and 1 simulation second = 1 second
 	-- use this with euler-lingr + cylinder w/ r in [.5, 1], z in [-.25, .25]
+	-- TODO instead of enforcing the boundary constraint, simulate across the full r=[0,1] domain and only impose a boundary on the fluid
+	-- so that the GEM field can propagate outside the fluid
 	initCondArgs = (function()
 		local constants = require 'hydro.constants'
 		local materials = require 'hydro.materials'
@@ -369,8 +371,8 @@ local args = {
 
 
 	-- self-gravitation tests:
-	--initCond = 'self-gravitation - Earth',	-- validating units along with self-gravitation.
-	--initCond = 'self-gravitation - NGC 1560',
+	initCond = 'self-gravitation - Earth',	-- validating units along with self-gravitation.
+	--initCond = 'self-gravitation - NGC 1560',	-- TODO still needs velocity
 	--initCond = 'self-gravitation test 1',
 	--initCond = 'self-gravitation test 1 spinning',
 	--initCond = 'self-gravitation test 2',		--FIXME
@@ -726,7 +728,7 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn
 -- compressible Euler fluid equations + de-Donder gauge linearized GR
 
 
-self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler-lingr'})))
+--self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler-lingr'})))
 
 
 -- special relativistic compressible hydrodynamics
@@ -1438,8 +1440,8 @@ local args = {
 		
 	--initCond = 'Minkowski',
 	--initCond = 'SENR Minkowski',
-	initCond = 'SENR UIUC',					-- bssnok-fd-num explodes because H diverges at t=13 ... when partial_phi_l diverges at the same rate ... because of its r=0 value?
-	--initCond = 'SENR BrillLindquist',
+	--initCond = 'SENR UIUC',					-- single black hole. bssnok-fd-num explodes because H diverges at t=13 ... when partial_phi_l diverges at the same rate ... because of its r=0 value?
+	initCond = 'SENR BrillLindquist',			-- two merging head-on.
 	--initCond = 'SENR BoostedSchwarzschild',
 	--initCond = 'SENR StaticTrumpet',
 	
