@@ -2,6 +2,8 @@
 TODO one config per experiment (initial condition + config)
 and no more setting config values (boundary, etc) in the init cond file
 --]]
+local constants = require 'hydro.constants'
+local materials = require 'hydro.materials'
 
 local dim = cmdline.dim or 3
 local args = {
@@ -147,8 +149,8 @@ local args = {
 		-- TODO doesn't work for rmin=0
 	--coordArgs = {vectorComponent='anholonomic'},		-- use orthonormal basis to represent our vector components.
 	coordArgs = {vectorComponent='cartesian'},			-- use cartesian vector components 
-	mins = cmdline.mins or {0, 0, -.25},
-	maxs = cmdline.maxs or {1, 2*math.pi, .25},			-- TODO bake the 2π into the coordinate chart so this matches grid/cylinder.  Technically θ→2πθ means it isn't the standard θ variable.  I did this for UI convenience with CFDMesh.
+	mins = cmdline.mins or {0, 0, -.5},
+	maxs = cmdline.maxs or {1, 2*math.pi, .5},			-- TODO bake the 2π into the coordinate chart so this matches grid/cylinder.  Technically θ→2πθ means it isn't the standard θ variable.  I did this for UI convenience with CFDMesh.
 	gridSize = ({
 		{128, 1, 1},	-- 1D
 		{64, 64, 1},	-- 2D
@@ -253,11 +255,8 @@ local args = {
 	-- use this with euler-lingr + cylinder w/ r in [.5, 1], z in [-.25, .25]
 	-- TODO instead of enforcing the boundary constraint, simulate across the full r=[0,1] domain and only impose a boundary on the fluid
 	-- so that the GEM field can propagate outside the fluid
-	initCondArgs = (function()
-		local constants = require 'hydro.constants'
-		local materials = require 'hydro.materials'
-		return {solverVars={
-			
+	initCondArgs = {
+		solverVars={
 			-- scale time down so that speedOfLight / units_m_per_s = 1 ... so second ~ 1/3e+8 ~ 3.33e-9
 			second = 1 / constants.speedOfLight_in_m_per_s,	
 			
@@ -271,8 +270,12 @@ local args = {
 			-- change this so that rho=1 corresponds to the density of ... lead? mercury?
 			kilogram = materials.Mercury.seaLevelDensity,
 			kelvin = constants.K_to_C_offset + 12,	--materials.Mercury.boilingPoint,
-		}}
-	end)(),
+		},
+
+		-- with second=1, much higher than 1e-3*speedOfLight_in_m_per_s and we numerically explode
+		-- so change second= higher to get it more stable
+		v = constants.speedOfLight_in_m_per_s,
+	},
 	--]]
 
 	--initCond = 'rarefaction wave',
@@ -728,7 +731,7 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn
 -- compressible Euler fluid equations + de-Donder gauge linearized GR
 
 
---self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler-lingr'})))
+self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler-lingr'})))
 
 
 -- special relativistic compressible hydrodynamics
@@ -1013,7 +1016,7 @@ With hyperbolic gamma driver shift it has trouble.
 
 
 --[[ 1.25 degree angle of attack, mach 0.8, sea level pressure and density
-local Air = require 'hydro.materials'.Air
+local Air = materials.Air
 --local theta = 0
 local theta = math.rad(1.25)
 --local machSpeed = 0.8
@@ -1373,12 +1376,12 @@ local args = {
 		
 		-- N x 2 x 2:
 		--{32, 2, 2},		-- SENR sphere-sinh-radial uses this by default
-		--{80, 80, 2},		-- this works well for BrillLindquist sphere-sinh-radial when viewing the xz slice
+		{80, 80, 2},		-- this works well for BrillLindquist sphere-sinh-radial when viewing the xz slice
 		--{128, 2, 2},
 		--{128, 32, 2},
 		--{400, 64, 2},
 		
-		{200, 2, 2},
+		--{200, 2, 2},
 	
 		-- 80N x 40N x 2N
 		--{160, 80, 4},

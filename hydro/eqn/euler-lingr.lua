@@ -160,32 +160,73 @@ function EulerLinGR:getDisplayVars()
 		}
 	end))
 
-	vars:append{
-		{
-			name = 'gravity',
-			type = 'real3',
-			units = 'm/s^2',
-			code = self:template[[
-	value.vreal3 = real3_real_mul(calcGravityForcePerVolume(solver, U, x), 1. / U->rho);
+	vars:insert{
+		name = 'gravity',
+		type = 'real3',
+		units = 'm/s^2',
+		code = self:template[[
+value.vreal3 = real3_real_mul(calcGravityForcePerVolume(solver, U, x), 1. / U->rho);
 ]],
-		},
+	}
 		
-		-- how do I recreate ePot?
-		-- d/dt E_g = chi phi_g / eps_g
-		-- [m/s^3] = [m/s] [m/s^2]
-		-- d/dx^i ePot = E_g^i
-		-- so ePot = int (chi phi_g / eps_g) dx^i dt
-		{
-			name = 'phi_g / eps_g',
-			units = 'm/s^2',
-			code = self:template[[
-	real const G = solver->gravitationalConstant / unit_m3_per_kg_s2;
-	real const _1_eps_g = 4. * M_PI * G;
-	value.vreal = U->phi_g * _1_eps_g;
+	-- how do I recreate ePot?
+	-- d/dt E_g = chi phi_g / eps_g
+	-- [m/s^3] = [m/s] [m/s^2]
+	-- d/dx^i ePot = E_g^i
+	-- so ePot = int (chi phi_g / eps_g) dx^i dt
+	vars:insert{
+		name = 'phi_g / eps_g',
+		units = 'm/s^2',
+		code = self:template[[
+real const G = solver->gravitationalConstant / unit_m3_per_kg_s2;
+real const _1_eps_g = 4. * M_PI * G;
+value.vreal = U->phi_g * _1_eps_g;
 ]],
-		},
 	}
 
+	-- add h_ab display based on phi and A
+	
+	vars:insert{
+		name = 'h_tt',
+		code = self:template[[
+real const c = solver->speedOfLight / unit_m_per_s;
+real const h_tt = -1. + 2 * U->phi_g / (c*c);
+value.vreal = h_tt;
+]],
+	}
+
+	vars:insert{
+		name = 'h_tt',
+		code = self:template[[
+real const c = solver->speedOfLight / unit_m_per_s;
+real const h_tt = 1. + 2 * U->phi_g / (c*c);
+value.vreal = h_tt;
+]],
+	}
+
+	--[[
+	[R] = [G_uv] = 1/m^2
+	[G] = m^3/(kg*s^2) = m/kg * m^2/s^2
+	[c] = m/s
+	[G/c^4] = s^2/(kg*m)
+	[G_uv] = [8 pi G/c^4 T_uv] = 1/m^2
+	so [T_uv] * s^2/(kg*m) = 1/m^2
+	so [T_uv] = kg/(m*s^2) ... which is J / m^3 = energy / volume
+	so T_ab = rho c^2 + P
+	and [T_00] = kg/m^3 m^2/s^2 = kg/(m*s^2)
+
+	Δ A_i = 4 pi G T_0i / c^3
+	T_0i = 
+	A_i = 4 pi G / c^3 Δ^-1 T_0i
+	
+	T_00 = c^2 ρ 
+	Δ Φ = -4 π G T_00 / c^2 = -4 π G ρ
+	∇.Φ = E
+	∇.E = -4 π G ρ
+	B = ∇ × A
+	∇.B = Ψ = 0
+	Δ B = ∇ Ψ = 0
+	--]]
 	return vars
 end
 

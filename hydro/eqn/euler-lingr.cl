@@ -715,7 +715,7 @@ end
 }
 
 //// MODULE_NAME: <?=addSource?>
-//// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> <?=cell_t?> <?=SETBOUNDS_NOGHOST?>
+//// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> <?=cell_t?> <?=SETBOUNDS_NOGHOST?> <?=primFromCons?>
 
 kernel void <?=addSource?>(
 	constant <?=solver_t?> const * const solver,
@@ -729,6 +729,9 @@ kernel void <?=addSource?>(
 	global <?=cons_t?> const * const U = UBuf + index;
 	global <?=cell_t?> const * const cell = cellBuf + index;
 	real3 const x = cell->pos;
+	
+	<?=prim_t?> W;
+	<?=primFromCons?>(&W, solver, U, x);
 
 <? if false 
 and solver.coord.vectorComponent == "anholonomic" 
@@ -771,8 +774,6 @@ That means that the volume gradient in calcDerivFV is causing nonzero velocities
 Maybe for an initial constant vel as large as sqrt(2) this fails, but it works only for small perturbations?
 */
 	//connection coefficient source terms of covariant derivative w/contravariant velocity vectors in a holonomic coordinate system
-	<?=prim_t?> W;
-	<?=primFromCons?>(&W, solver, U, x);
 	
 	//- Γ^i_jk ρ v^j v^k 
 	deriv->m = real3_sub(deriv->m, coord_conn_apply23(W.v, U->m, x));	
@@ -803,34 +804,46 @@ Maybe for an initial constant vel as large as sqrt(2) this fails, but it works o
 
 //	real const G = solver->gravitationalConstant / unit_m3_per_kg_s2;
 //	real const _1_eps_g = 4. * M_PI * G;
-//	real const speedOfLightSq = solver->speedOfLight * solver->speedOfLight / unit_m2_per_s2;
 //	real const mu_g = _1_eps_g / speedOfLightSq;
+	real const speedOfLightSq = solver->speedOfLight * solver->speedOfLight / unit_m2_per_s2;
 
 //// MODULE_DEPENDS: <?=eqn_common?>
 	real3 const gravityForce = calcGravityForcePerVolume(solver, U, x);
 	
 	deriv->m = real3_add(deriv->m, gravityForce);
 
+	// u is unitless, ~= [1, v/c]
+	//T_ab = (c^2 rho + P) u_a u_b + P g_ab
+	//T_00 = c^2 rho + P
+	//T_0i = (c rho + P/c) v_i 
+	//T_ij = (c^2 rho + P) v_i v_j + P delta_ij
+
+	// J_i = 1/c T_0i = (rho + P/c^2) v_i
+	// [T_0i] = kg/(m*s^2)
+	// [J_i] = kg/(m^2*s)
+
+	real const rho_plus_P_over_c2 = 0.
+		/* matter */
+		+ U->rho					/* kg/m^3 */
+		+ W.P / speedOfLightSq 	/* kg/m^3 */
+	;
+
 	/* source of D_g is J_g is the momentum + Poynting vector */
 	real3 J_g = real3_zero;
 	/*  I'm symmetrizing the stress-energy */
 		/* matter */
-	J_g.x -= U->m.x;	/* [m] = kg/(m^2*s) */
-	J_g.y -= U->m.y;
-	J_g.z -= U->m.z;
-
+	J_g.x += W.v.x * rho_plus_P_over_c2;	/* [m] = kg/(m^2*s) */
+	J_g.y += W.v.y * rho_plus_P_over_c2;
+	J_g.z += W.v.z * rho_plus_P_over_c2;
+	
 	/* D_g's units: kg/m^2 */
-	deriv->D_g.x -= J_g.x;	/* int [J_g] dt = kg/m^2 */
-	deriv->D_g.y -= J_g.y;
-	deriv->D_g.z -= J_g.z;
-
+	deriv->D_g.x += J_g.x;	/* int [J_g] dt = kg/m^2 */
+	deriv->D_g.y += J_g.y;
+	deriv->D_g.z += J_g.z;
+	
 	/*  source of phi_g is T_00 is rho + .5 (D^2 + B^2) */
-	real const T_00_over_c2 = 0
-		/* matter */
-		+ U->rho	/* kg/m^3 */
-	;
-
-	deriv->phi_g -= 							/* = kg/(m^2*s) */
+	real const T_00_over_c2 = rho_plus_P_over_c2;
+	deriv->phi_g -= 								/* = kg/(m^2*s) */
 		T_00_over_c2 								/* kg/m^3 */
 		* solver->divPhiWavespeed_g / unit_m_per_s	/* m/s */
 	;	/* and the deriv is d/dt, so it is integrated by seconds */

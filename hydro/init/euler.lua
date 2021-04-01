@@ -401,12 +401,8 @@ local initConds = table{
 		solverVars = {
 			heatCapacityRatio = 7/5,
 		},
-		init = function(self, args)
-			EulerInitCond.init(self, args)
-			self.initCondArgs = args
-		end,
 		getInitCondCode = function(self)
-			local args = self.initCondArgs
+			local args = self.args
 			if args then
 				local found
 				if args.rho then self.guiVars.rho0.value = args.rho found = true end
@@ -1090,12 +1086,19 @@ end) then
 
 	{
 		name = 'spiral',
-		guiVars = {
-			{name = 'rho', value = 1},
-			{name = 'P', value = 1},
-			{name = 'v', value = .5},
-			{name = 'D', value = 1},
-		},
+		createInitStruct = function(self)
+			EulerInitCond.createInitStruct(self)
+			local args = self.args
+			self:addGuiVars{
+				{name = 'torusGreaterRadius', value = .5},
+				{name = 'torusLesserRadius', value = .1},	-- unitless, i.e. coordinate units
+				{name = 'rhoInside', value = 1},
+				{name = 'rhoOutside', value = 1e-3},
+				{name = 'P', value = 1},
+				{name = 'v', value = args.v or .5, units = 'm'},
+				{name = 'D', value = 1, units = 'C/m^2'},
+			}
+		end,
 		getDepends = function(self)
 			return table{
 				self.solver.coord.symbols.coordMap,
@@ -1103,14 +1106,17 @@ end) then
 		end,
 		getInitCondCode = function(self)
 			return [[
-	real3 xc = coordMap(x);
-	real r2 = sqrt(xc.x * xc.x + xc.y * xc.y);
+	real3 const xc = coordMap(x);
+	real const r2 = sqrt(xc.x * xc.x + xc.y * xc.y);
+	real const dr2 = r2 - initCond->torusGreaterRadius;
+	real const tr = sqrt(xc.z * xc.z + dr2 * dr2);		//change this to L1 norm for square toroid
+	bool const inside = tr < initCond->torusLesserRadius;
 	P = initCond->P;
-	rho = initCond->rho;
-	v.x = -xc.y * initCond->v / r2;
-	v.y = xc.x * initCond->v / r2;
-	D.x = -xc.y * initCond->D / r2;
-	D.y = xc.x * initCond->D / r2;
+	rho = inside ? initCond->rhoInside : initCond->rhoOutside;
+	v.x = -xc.y / r2 * initCond->v / unit_m_per_s;
+	v.y =  xc.x / r2 * initCond->v / unit_m_per_s;
+	D.x = -xc.y / r2 * initCond->D / unit_C_per_m2;
+	D.y =  xc.x / r2 * initCond->D / unit_C_per_m2;
 ]]
 		end,
 	},
@@ -2142,9 +2148,9 @@ end ?>;
 				return {2*coordRadius, 2*coordRadius, 2*coordRadius}
 			end,
 			guiVars = {
-				{name = 'a', value = ngc1560_a, units='m'},
-				{name = 'b', value = ngc1560_b, units='m'},
-				{name = 'M', value = ngc1560_M, units='kg'},
+				{name = 'a', value = ngc1560_a, units = 'm'},
+				{name = 'b', value = ngc1560_b, units = 'm'},
+				{name = 'M', value = ngc1560_M, units = 'kg'},
 			},
 			solverVars = {
 				meter = meter,

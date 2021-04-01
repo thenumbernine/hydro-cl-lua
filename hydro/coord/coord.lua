@@ -210,7 +210,14 @@ function CoordinateSystem:init(args)
 
 	local solver = assert(args.solver)
 	self.solver = solver
+	
+	-- these are for replacing one expression with another
+	-- it's useful for simplifying calculations, especially complex ones involving derivatives.  just perform the derivatives separately and replace them later.
 	self.repls = self.repls or table()
+	
+	-- these are for replacing values, especially dynamic values.
+	-- compile your expressions with variables matching #defines in CL code.
+	-- then, if you want to evaluate them, you can use this, but it isn't done as often as using 'repls'.
 	self.replDefines = self.replDefines or table()
 
 	local symmath = require 'symmath'
