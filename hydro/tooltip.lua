@@ -15,7 +15,7 @@ end
 
 local function makeWrapTooltip(f)
 	return function(name, ...)
-		ig.igPushIDStr(name)
+		ig.igPushID_Str(name)
 		local result = f('', ...)
 		hoverTooltip(name)
 		ig.igPopID()
@@ -24,7 +24,7 @@ local function makeWrapTooltip(f)
 end
 
 local function tooltipLabel(label, str)
-	ig.igPushIDStr(label)
+	ig.igPushID_Str(label)
 	ig.igText(str)
 	hoverTooltip(label)
 	ig.igPopID()
