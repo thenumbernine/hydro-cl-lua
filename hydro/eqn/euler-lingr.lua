@@ -94,19 +94,18 @@ EulerLinGR.solverCodeFile = 'hydro/eqn/euler-lingr.cl'
 EulerLinGR.predefinedDisplayVars = {
 	'U rho',
 	'U v',
-	'U v z',
+	'U v mag',
 	'U P',
 	'U D_g',
-	'U D_g z',
+	'U D_g mag',
 	'U B_g',
-	'U B_g z',
+	'U B_g mag',
 	'U E_g',
-	'U E_g z',
 	'U E_g mag',
 	'U phi_g',
 	'U psi_g',
 	'U v cross B_g',
-	'U v cross B_g z',
+	'U v cross B_g mag',
 	'U GEM energy',
 }
 

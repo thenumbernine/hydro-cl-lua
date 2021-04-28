@@ -278,7 +278,7 @@ end
 
 function GREMSeparateSolver:updateGUI()
 	for i,solver in ipairs(self.solvers) do
-		ig.igPushID_Str('subsolver '..i)
+		ig.igPushIDStr('subsolver '..i)
 		if ig.igCollapsingHeader('sub-solver '..solver.name..':') then
 			solver:updateGUI()
 		end

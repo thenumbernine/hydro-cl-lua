@@ -1090,8 +1090,8 @@ end) then
 			EulerInitCond.createInitStruct(self)
 			local args = self.args
 			self:addGuiVars{
-				{name = 'torusGreaterRadius', value = .5},
-				{name = 'torusLesserRadius', value = .1},	-- unitless, i.e. coordinate units
+				{name = 'torusGreaterRadius', value = args.torusGreaterRadius or .5},
+				{name = 'torusLesserRadius', value = args.torusLesserRadius or .1},	-- unitless, i.e. coordinate units
 				{name = 'rhoInside', value = 1},
 				{name = 'rhoOutside', value = 1e-3},
 				{name = 'P', value = 1},

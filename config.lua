@@ -149,8 +149,8 @@ local args = {
 		-- TODO doesn't work for rmin=0
 	--coordArgs = {vectorComponent='anholonomic'},		-- use orthonormal basis to represent our vector components.
 	coordArgs = {vectorComponent='cartesian'},			-- use cartesian vector components 
-	mins = cmdline.mins or {0, 0, -.5},
-	maxs = cmdline.maxs or {1, 2*math.pi, .5},			-- TODO bake the 2π into the coordinate chart so this matches grid/cylinder.  Technically θ→2πθ means it isn't the standard θ variable.  I did this for UI convenience with CFDMesh.
+	mins = cmdline.mins or {0, 0, -1},
+	maxs = cmdline.maxs or {1, 2*math.pi, 1},			-- TODO bake the 2π into the coordinate chart so this matches grid/cylinder.  Technically θ→2πθ means it isn't the standard θ variable.  I did this for UI convenience with CFDMesh.
 	gridSize = ({
 		{128, 1, 1},	-- 1D
 		{64, 64, 1},	-- 2D
@@ -225,6 +225,30 @@ local args = {
 	},
 	--]]
 
+	--[[ cylinder as toroid
+	coord = 'cylinder',
+	coordArgs = {vectorComponent='cartesian'},
+	mins = cmdline.mins or {.5, 0, -.25},
+	maxs = cmdline.maxs or {1, 2*math.pi, .25},			-- TODO bake the 2π into the coordinate chart so this matches grid/cylinder.  Technically θ→2πθ means it isn't the standard θ variable.  I did this for UI convenience with CFDMesh.
+	gridSize = ({
+		{128, 1, 1},	-- 1D
+		{64, 64, 1},	-- 2D
+		{32, 32, 32},	-- 3D
+	})[dim],
+	boundary = type(cmdline.boundary) == 'table' and cmdline.boundary or {
+		-- r
+		xmin=cmdline.boundary or 'mirror',
+		xmax=cmdline.boundary or 'mirror',
+		-- θ
+		ymin=cmdline.boundary or 'periodic',
+		ymax=cmdline.boundary or 'periodic',
+		-- z
+		zmin=cmdline.boundary or 'mirror',
+		zmax=cmdline.boundary or 'mirror',
+	},
+	--]]
+
+
 	--useGravity = true,
 
 	-- TODO separate initConds for each class of equation
@@ -251,6 +275,7 @@ local args = {
 	--initCond = 'sphere',
 	
 	--initCond = 'spiral',
+	--initCondArgs = {torusGreaterRadius = .75, torusLesserRadius = .5},
 	--[[ spiral with physically correct units, with 1 graph unit = 1 meter, and 1 simulation second = 1 second
 	-- use this with euler-lingr + cylinder w/ r in [.5, 1], z in [-.25, .25]
 	-- TODO instead of enforcing the boundary constraint, simulate across the full r=[0,1] domain and only impose a boundary on the fluid
@@ -974,6 +999,7 @@ With hyperbolic gamma driver shift it has trouble.
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='euler', mesh={type='sphere3d', size={16, 16, 16}}})))
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='euler', mesh={type='torus3d', size={16, 16, 16}}})))
 
+--self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='euler', mesh={type='image2d', extrude=1, image='blueprints/blueprint.png'}})))
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='euler', eqnArgs={incompressible=true}, mesh={type='image2d', extrude=1, image='blueprints/blueprint.png'}})))
 
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='euler', mesh={type='quad2d', size={64, 64}}})))
@@ -1023,15 +1049,33 @@ local theta = math.rad(1.25)
 --local machSpeed = 0.95
 --local machSpeed = 1
 local machSpeed = 2
-self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='euler', mesh={type='p2dfmt', meshfile='n0012_113-33.p2dfmt'}, 
+local kg = 1
+local m = 1
+local s = 1
+--local s = 10
+--local s = 100
+self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {
+	--flux = 'roe',
+	flux = 'hll',
+	eqn = 'euler',
+	mesh = {
+		type = 'p2dfmt',
+		meshfile = 'n0012_113-33.p2dfmt'
+	},
 	initCond = 'constant',
 	initCondArgs = {
-		rho = Air.seaLevelDensity,	-- 1.2754 kg/m^3
-		v = {
-			math.cos(theta) * Air.speedOfSound * machSpeed,
-			math.sin(theta) * Air.speedOfSound * machSpeed,
+		solverVars = {
+			meter = m,
+			second = s,
+			kilogram = kg,
 		},
-		P = Air.seaLevelPressure,	-- 101325 Pa
+		rho = Air.seaLevelDensity / (kg/m^3),	-- 1.2754 kg/m^3
+		v = {
+			math.cos(theta) * Air.speedOfSound * machSpeed / (m/s),
+			math.sin(theta) * Air.speedOfSound * machSpeed / (m/s),
+		},
+		P = Air.seaLevelPressure / (kg/(m*s^2)),	-- 101325 (Pa = kg/(m s^2))
+		-- so if we want to reduce this to 1, we can scale down seconds ...
 	},
 })))
 --]]

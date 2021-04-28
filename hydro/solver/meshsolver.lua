@@ -323,32 +323,39 @@ function MeshSolver:createBuffers()
 
 	-- set texSize before calling super
 	if app.targetSystem ~= 'console' then
+--print('numCells', self.numCells)		
 		local maxTex2DSize = vec3sz(
 			self.device:getInfo'CL_DEVICE_IMAGE2D_MAX_WIDTH',
 			self.device:getInfo'CL_DEVICE_IMAGE2D_MAX_HEIGHT',
 			1)
+--print('maxTex2DSize', maxTex2DSize)	
 		local maxTex3DSize = vec3sz(
 			self.device:getInfo'CL_DEVICE_IMAGE3D_MAX_WIDTH',
 			self.device:getInfo'CL_DEVICE_IMAGE3D_MAX_HEIGHT',
 			self.device:getInfo'CL_DEVICE_IMAGE3D_MAX_DEPTH')
+--print('maxTex3DSize', maxTex3DSize)		
 		self.texSize = vec3sz()
 		-- TODO if texSize >= max gl size then overflow into the next dim
 		if self.numCells <= maxTex2DSize.x then
+--print('using 1D texture')			
 			self.texSize = vec3sz(self.numCells, 1, 1)
 		else
 			local sx = math.min(math.ceil(math.sqrt(self.numCells)), tonumber(maxTex2DSize.x))
 			local sy = math.ceil(self.numCells / tonumber(self.texSize.x))
 			if sx <= maxTex2DSize.x and sy <= maxTex2DSize.y then
+--print('using 2D texture')			
 				self.texSize = vec3sz(sx, sy, 1)
 			else
-				local sz = math.min(math.ceil(math.cbrt(self.numCells)), maxTexSize3D.z)
+				local sz = math.min(math.ceil(math.cbrt(self.numCells)), tonumber(maxTex3DSize.z))
 				local sxy = math.ceil(self.numCells / sz)
-				local sy = math.min(math.ceil(math.sqrt(sxy)), maxTexSize3D.y)
+				local sy = math.min(math.ceil(math.sqrt(sxy)), tonumber(maxTex3DSize.y))
 				local sx = math.ceil(sxy / sy)
-				if sx >= maxTexSize3D.x then
+				if sx <= maxTex3DSize.x then
+--print('using 3D texture')			
+					self.texSize = vec3sz(sx, sy, sz)
+				else
 					error("couldn't fit cell buffer into texture.  max 2d size " .. maxTex2DSize .. ", max 3d size " .. maxTex3DSize)
 				end
-				self.texSize = vec3sz(sx, sy, sz)
 			end
 		end
 	end

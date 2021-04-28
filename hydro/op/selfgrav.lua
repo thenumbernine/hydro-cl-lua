@@ -107,7 +107,7 @@ end
 
 function SelfGrav:updateGUI()
 	SelfGrav.super.updateGUI(self)
-	ig.igPushID_Str'SelfGrav behavior'
+	ig.igPushIDStr'SelfGrav behavior'
 	tooltip.checkboxTable('use gravity', self.solver, self.enableField)
 	ig.igPopID()
 end

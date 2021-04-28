@@ -72,7 +72,7 @@ end
 
 function SRHDSelfGrav:updateGUI()
 	SRHDSelfGrav.super.updateGUI(self)
-	ig.igPushID_Str'SRHDSelfGrav behavior'
+	ig.igPushIDStr'SRHDSelfGrav behavior'
 	tooltip.checkboxTable('use gravity', self.solver, self.enableField)
 	ig.igPopID()
 end

@@ -192,7 +192,7 @@ function Relaxation:potentialBoundary()
 end
 
 function Relaxation:updateGUI()
-	ig.igPushID_Str(self.symbolPrefix..' solver')
+	ig.igPushIDStr(self.symbolPrefix..' solver')
 	-- TODO name from 'field' / 'enableField', though those aren't properties of Relaxation
 	if ig.igCollapsingHeader(self.name..' solver') then
 		if tooltip.checkboxTable('stop on epsilon', self, 'stopOnEpsilon') then

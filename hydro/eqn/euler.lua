@@ -347,7 +347,9 @@ end
 -- but then I just explicitly wrote out the calcDT, so the extra parameters just aren't used anymore.
 function Euler:consWaveCodePrefix(args)
 	return self:template([[
-real const Cs_nLen = <?=calc_Cs_fromCons?>(solver, <?=U?>, <?=pt?>) * normal_len(<?=n?>);
+real Cs_nLen;
+<?=calc_Cs_fromCons?>(&Cs_nLen, solver, <?=U?>, <?=pt?>);
+Cs_nLen *= normal_len(<?=n?>);
 real const v_n = (<?=U?>)->rho < solver->rhoMin ? 0. : normal_vecDotN1(<?=n?>, (<?=U?>)->m) / (<?=U?>)->rho;
 ]], args)
 end
@@ -362,7 +364,8 @@ Euler.consWaveCode = Euler.eigenWaveCode
 -- ok so this goes before consMin/MaxWaveCode
 function Euler:consWaveCodeMinMaxAllSidesPrefix(args)
 	return self:template([[
-real const Cs = <?=calc_Cs_fromCons?>(solver, <?=U?>, <?=pt?>);\
+real Cs;
+<?=calc_Cs_fromCons?>(&Cs, solver, <?=U?>, <?=pt?>);\
 ]],	args)
 end
 

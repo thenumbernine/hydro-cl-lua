@@ -79,7 +79,7 @@ end--\
 <? if false then -- reflect: m dot n = 0 ?>\
 	reflectCons(result, U, e->normal, 1.);\
 <? end ?>\
-<? if true then -- for [-1,1]^2 box with cylinder removed ?>\
+<? if false then -- for [-1,1]^2 box with cylinder removed ?>\
 	*(result) = *(U);\
 	real3 const x = e->pos;\
 	if (real3_lenSq(e->pos) > .7*.7) {\
@@ -101,16 +101,16 @@ end--\
 		/*(result)->m = real3_zero;*/\
 	}\
 <? end ?>\
-<? if false then -- for naca 0012 airfoil ?>\
+<? if true then -- for naca 0012 airfoil ?>\
 	if (real3_lenSq(e->pos) > 4.) {\
 		/* outside boundary: freeflow */\
 		*(result) = *(U);\
 	} else {\
 		/* inside boundary: v=0 */\
-		/**(result) = *(U);*/\
-		/*(result)->m = real3_zero;*/\
+		*(result) = *(U);\
+		(result)->m = real3_zero;\
 		/* inside boundary: reflect */\
-		reflectCons(result, U, e->normal, 1.);\
+		/*reflectCons(result, U, e->normal, 1.);*/\
 	}\
 <? end ?>\
 }

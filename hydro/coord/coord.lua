@@ -1661,17 +1661,22 @@ function CoordinateSystem:initCodeModules()
 			end
 		end	
 		if #buildsAndExprNames > 0 then
-			solver.modules:add{
-				name = self.symbols[moduleName] or error("failed to find symbol for coord-depend "..moduleName),
-				depends = depends,
-				code = function()
-					return buildsAndExprNames:mapi(function(buildAndName)
-						local build = buildAndName.build
-						local name = buildAndName.name
-						return build(name, self.compilePrintRequestTensor(name))
-					end):concat'\n'
-				end,
-			}
+			xpcall(function()
+				solver.modules:add{
+					name = self.symbols[moduleName] or error("failed to find symbol for coord-depend "..moduleName),
+					depends = depends,
+					code = function()
+						return buildsAndExprNames:mapi(function(buildAndName)
+							local build = buildAndName.build
+							local name = buildAndName.name
+							return build(name, self.compilePrintRequestTensor(name))
+						end):concat'\n'
+					end,
+				}
+			end, function(err)
+				io.stderr:write('failed for module: '..moduleName..'\n'..err..'\n'..debug.traceback())
+				os.exit(1)
+			end)
 		end
 	end
 

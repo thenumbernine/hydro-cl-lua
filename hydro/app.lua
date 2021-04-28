@@ -1580,7 +1580,7 @@ function HydroCLApp:updateGUI()
 		
 		--tooltip.sliderTable('fixed y', self, 'displayFixedY', -10, 10)
 		--tooltip.sliderTable('fixed z', self, 'displayFixedZ', -10, 10)
-		ig.igPushID_Str'fixed y zoom'
+		ig.igPushIDStr'fixed y zoom'
 		if ig.igButton'+' then
 			self.displayFixedY = self.displayFixedY + .1
 		end
@@ -1592,7 +1592,7 @@ function HydroCLApp:updateGUI()
 		tooltip.numberTable('fixed y', self, 'displayFixedY')
 		ig.igPopID()
 		
-		ig.igPushID_Str'fixed z zoom'
+		ig.igPushIDStr'fixed z zoom'
 		if ig.igButton'+' then
 			self.displayFixedZ = self.displayFixedZ + .1
 		end
@@ -1643,7 +1643,7 @@ function HydroCLApp:updateGUI()
 		do
 			local dim = self.displayDim
 			if dim == 1 then
-				ig.igPushID_Str'1D'
+				ig.igPushIDStr'1D'
 				for i,method in ipairs(self.display1DMethods) do
 					if i > 1 then ig.igSameLine() end
 					local name, func = next(method)
@@ -1651,7 +1651,7 @@ function HydroCLApp:updateGUI()
 				end
 				ig.igPopID()
 			elseif dim == 2 then
-				ig.igPushID_Str'2D'
+				ig.igPushIDStr'2D'
 				for i,method in ipairs(self.display2DMethods) do
 					if i > 1 then ig.igSameLine() end
 					local name, func = next(method)
@@ -1659,7 +1659,7 @@ function HydroCLApp:updateGUI()
 				end
 				ig.igPopID()
 			elseif dim == 3 then
-				ig.igPushID_Str'3D'
+				ig.igPushIDStr'3D'
 				for i,method in ipairs(self.display3DMethods) do
 					if i > 1 then ig.igSameLine() end
 					local name, func = next(method)
@@ -1669,7 +1669,7 @@ function HydroCLApp:updateGUI()
 			end
 			
 			do
-				ig.igPushID_Str'Vector'
+				ig.igPushIDStr'Vector'
 
 				for i,method in ipairs(self.displayVectorMethods) do
 					if i > 1 then ig.igSameLine() end
@@ -1683,7 +1683,7 @@ function HydroCLApp:updateGUI()
 	end
 	
 	for i,solver in ipairs(self.solvers) do
-		ig.igPushID_Str('solver '..i)
+		ig.igPushIDStr('solver '..i)
 		if ig.igCollapsingHeader(solver.name) then
 			-- TODO new window for each
 			solver:updateGUI()

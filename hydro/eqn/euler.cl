@@ -161,15 +161,20 @@ real <?=calc_Cs?>(
 	return sqrt(solver->heatCapacityRatio * (W)->P / (W)->rho);
 }
 
-real <?=calc_Cs_fromCons?>(
-	constant <?=solver_t?> const * const solver,
-	global <?=cons_t?> const * const U,
-	real3 const pt
-) {
-	real const P = <?=calc_P?>(solver, U, pt);
-	if (P <= solver->PMin) return 0.;
-	if ((U)->rho < solver->rhoMin) return INFINITY;
-	return sqrt(solver->heatCapacityRatio * P / (U)->rho);
+#define <?=calc_Cs_fromCons?>(\
+	/*real * const */result,\
+	/*constant <?=solver_t?> const * const */solver,\
+	/*<?=cons_t?> const * const */U,\
+	/*real3 const */pt\
+) {\
+	real const P = <?=calc_P?>(solver, U, pt);\
+	if (P <= solver->PMin) {\
+		*(result) = 0.;\
+	} else if ((U)->rho < solver->rhoMin) {\
+		*(result) = INFINITY;\
+	} else {\
+		*(result) = sqrt(solver->heatCapacityRatio * P / (U)->rho);\
+	}\
 }
 
 #define /*real*/ <?=calc_eInt_fromCons?>(\

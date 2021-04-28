@@ -3093,7 +3093,7 @@ function SolverBase:updateGUIParams()
 	-- I think I'll display my GMRES # steps to converge / epsilon error ...
 	if self.integrator.updateGUI then
 		ig.igSameLine()
-		ig.igPushID_Str'integrator'
+		ig.igPushIDStr'integrator'
 		if ig.igCollapsingHeader':' then
 			self.integrator:updateGUI()
 		end
@@ -3132,7 +3132,7 @@ end
 do
 	local function handle(self, var, title)
 		local anyChanged = false
-		ig.igPushID_Str(title)
+		ig.igPushIDStr(title)
 
 		var.enabled = not not var.enabled
 		local enableChanged = tooltip.checkboxTable('enabled', var, 'enabled') 
@@ -3216,7 +3216,7 @@ do
 		do
 			local dim = self.app.displayDim
 			if dim == 2 then
-				ig.igPushID_Str'2D'
+				ig.igPushIDStr'2D'
 				if self.app.display2DMethodsEnabled.Graph then 
 					local draw2DGraph = self.draw2DGraph 
 					if draw2DGraph then
@@ -3225,14 +3225,14 @@ do
 				end
 				ig.igPopID()
 			elseif dim == 3 then
-				ig.igPushID_Str'3D'
+				ig.igPushIDStr'3D'
 				
 				if self.app.display3DMethodsEnabled.Slices then
 --[[ currently in app, currently disabled
 					if useClipPlanes then
 						ig.igRadioButtonIntPtr("rotate camera", rotateClip, 0)
 						for i,clipInfo in ipairs(clipInfos) do
-							ig.igPushID_Str('clip '..i)
+							ig.igPushIDStr('clip '..i)
 							tooltip.checkbox('clip', clipInfo, 'enabled')
 							ig.igSameLine()
 							ig.igRadioButtonIntPtr('rotate', rotateClip, i)
@@ -3264,7 +3264,7 @@ do
 			end
 			
 			do
-				ig.igPushID_Str'Vector'
+				ig.igPushIDStr'Vector'
 
 				--ig.igCheckbox('vector field', self.enableVectorField)
 				if self.drawVectorArrows then
@@ -3291,7 +3291,7 @@ do
 		tooltip.checkboxTable('filter enabled', self, 'guiDisplayFilterEnabledVars')
 		
 		for i,displayVarGroup in ipairs(self.displayVarGroups) do
-			ig.igPushID_Str('display '..i)
+			ig.igPushIDStr('display '..i)
 			if ig.igCollapsingHeader(displayVarGroup.name) then
 				for i=1,#fields do
 					all[fields[i]] = defaults[i]
