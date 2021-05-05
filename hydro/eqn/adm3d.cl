@@ -3248,14 +3248,14 @@ for ij,xij in ipairs(symNames) do
 ?>	+ .5 * (	// 1/2 d_kij,l
 		U[solver->stepsize.<?=xl?>].d_lll.<?=xk?>.<?=xij?>
 		- U[-solver->stepsize.<?=xl?>].d_lll.<?=xk?>.<?=xij?>
-	) / (2. * solver->grid_dx.<?=xl?>);
+	) / (2. * solver->grid_dx.<?=xl?>)
 <?
 		end
 		if k <= solver.dim then
 ?>	+ .5 * (
 		U[solver->stepsize.<?=xk?>].d_lll.<?=xl?>.<?=xij?>
 		- U[-solver->stepsize.<?=xk?>].d_lll.<?=xl?>.<?=xij?>
-	) / (2. * solver->grid_dx.<?=xk?>);
+	) / (2. * solver->grid_dx.<?=xk?>)
 <?		end
 ?>	;
 <?	end

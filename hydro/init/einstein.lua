@@ -556,7 +556,11 @@ local initConds = table{
 		},
 
 		getDepends = function(self)
-			return {'sqr', self.solver.coord.symbols.coordMapR}
+			return {
+				'sqr',
+				self.solver.coord.symbols.coordMapR,
+				self.solver.coord.symbols.coord_g_ll,
+			}
 		end,
 	
 		-- what do the eqns expect gamma_ij to be?

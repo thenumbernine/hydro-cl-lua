@@ -337,81 +337,59 @@ momentum constraints
 	return vars
 end
 
-function Z4_2004Bona:eigenWaveCodePrefix(n, eig, x, waveIndex)
+function Z4_2004Bona:eigenWaveCodePrefix(args)
 	return self:template([[
-real const eig_lambdaLight = <?=eig?>->sqrt_gammaUnn * <?=eig?>->alpha;
-real const eig_lambdaGauge = <?=eig?>->sqrt_gammaUnn * <?=eig?>->alpha_sqrt_f;
-]], {
-		eig = '('..eig..')',
-		n = n,
-	})
+real const eig_lambdaLight = (<?=eig?>)->sqrt_gammaUnn * (<?=eig?>)->alpha;
+real const eig_lambdaGauge = (<?=eig?>)->sqrt_gammaUnn * (<?=eig?>)->alpha_sqrt_f;
+<? if eqn.useShift ~= 'none' then ?>
+real const betaUi = normal_vecDotN1(<?=n?>, (<?=eig?>)->beta_u);
+<? end ?>
+]], args)
 end
 
-function Z4_2004Bona:eigenWaveCode(n, eig, x, waveIndex)
+function Z4_2004Bona:eigenWaveCode(args)
 	-- TODO find out if -- if we use the lagrangian coordinate shift operation -- do we still need to offset the eigenvalues by -beta^i?
 	--local shiftingLambdas = self.useShift ~= 'none'
 	--and self.useShift ~= 'LagrangianCoordinates'
 
-	local betaUi
-	if self.useShift ~= 'none' then
-		betaUi = '('..eig..').beta_u.s['..n..'.side]'
-	else
-		betaUi = '0'
-	end
+	local betaUi = self.useShift ~= 'none' and 'betaUi' or '0'
 
 	if not self.noZeroRowsInFlux then
-		if waveIndex == 0 then
+		if args.waveIndex == 0 then
 			return '-'..betaUi..' - eig_lambdaGauge'
-		elseif waveIndex >= 1 and waveIndex <= 6 then
+		elseif args.waveIndex >= 1 and args.waveIndex <= 6 then
 			return '-'..betaUi..' - eig_lambdaLight'
-		elseif waveIndex >= 7 and waveIndex <= 23 then
+		elseif args.waveIndex >= 7 and args.waveIndex <= 23 then
 			return '-'..betaUi
-		elseif waveIndex >= 24 and waveIndex <= 29 then
+		elseif args.waveIndex >= 24 and args.waveIndex <= 29 then
 			return '-'..betaUi..' + eig_lambdaLight'
-		elseif waveIndex == 30 then
+		elseif args.waveIndex == 30 then
 			return '-'..betaUi..' + eig_lambdaGauge'
 		end
 	else	-- noZeroRowsInFlux 
 		-- noZeroRowsInFlux implies useShift == 'none'
-		if waveIndex == 0 then
+		if args.waveIndex == 0 then
 			return '-'..betaUi..' - eig_lambdaGauge'
-		elseif waveIndex >= 1 and waveIndex <= 6 then
+		elseif args.waveIndex >= 1 and args.waveIndex <= 6 then
 			return '-'..betaUi..' - eig_lambdaLight'
-		elseif waveIndex >= 7 and waveIndex <= 9 then
+		elseif args.waveIndex >= 7 and args.waveIndex <= 9 then
 			return '-'..betaUi
-		elseif waveIndex >= 10 and waveIndex <= 15 then
+		elseif args.waveIndex >= 10 and args.waveIndex <= 15 then
 			return '-'..betaUi..' + eig_lambdaLight'
-		elseif waveIndex == 16 then
+		elseif args.waveIndex == 16 then
 			return '-'..betaUi..' + eig_lambdaGauge'
 		end
 	end
 	error'got a bad waveIndex'
 end
 
-function Z4_2004Bona:eigenWaveMinCode(n, eig, x)
-	local betaUi
-	if self.useShift ~= 'none' then
-		betaUi = '('..eig..').beta_u.s['..n..'.side]'
-	else
-		betaUi = '0'
-	end
-	return 'min(0., min(-'..betaUi..' - eig_lambdaGauge, -'..betaUi..' - eig_lambdaLight))'
-end
+Z4_2004Bona.consWaveCode = Z4_2004Bona.eigenWaveCode
+-- Z4_2004Bona.eigenWaveCodeMinMax -- use default
 
-function Z4_2004Bona:eigenWaveMaxCode(n, eig, x)
-	local betaUi
-	if self.useShift ~= 'none' then
-		betaUi = '('..eig..').beta_u.s['..n..'.side]'
-	else
-		betaUi = '0'
-	end
-	return 'max(0., max(-'..betaUi..' + eig_lambdaGauge, -'..betaUi..' + eig_lambdaLight))'
-end
-
-function Z4_2004Bona:consWaveCodePrefix(n, U, x, waveIndex)
+function Z4_2004Bona:consWaveCodePrefix(args)
 	return self:template([[
-real const det_gamma = sym3_det(<?=U?>->gamma_ll);
-sym3 const gamma_uu = sym3_inv(<?=U?>->gamma_ll, det_gamma);
+real const det_gamma = sym3_det((<?=U?>)->gamma_ll);
+sym3 const gamma_uu = sym3_inv((<?=U?>)->gamma_ll, det_gamma);
 
 <? if solver.coord.vectorComponent == 'cartesian' then ?>
 real3 const n_l = normal_l1(n);
@@ -428,14 +406,14 @@ if (n.side == 0) {
 <? end ?>
 
 real const sqrt_gammaUnn = sqrt(gammaUnn);
-real const eig_lambdaLight = sqrt_gammaUnn * <?=U?>->alpha;
-real const alpha_sqrt_f = sqrt(calc_f_alphaSq(<?=U?>->alpha));
+real const eig_lambdaLight = sqrt_gammaUnn * (<?=U?>)->alpha;
+real const alpha_sqrt_f = sqrt(calc_f_alphaSq((<?=U?>)->alpha));
 real const eig_lambdaGauge = sqrt_gammaUnn * alpha_sqrt_f;
-]], {
-		U = '('..U..')',
-		n = n,
-	})
+]], args)
 end
-Z4_2004Bona.consWaveCode = Z4_2004Bona.eigenWaveCode
+
+-- Z4_2004Bona.consWaveCodeMinMax uses default
+-- Z4_2004Bona.consWaveCodeMinMaxAllSidesPrefix uses default
+-- Z4_2004Bona.consWaveCodeMinMaxAllSides uses default
 
 return Z4_2004Bona

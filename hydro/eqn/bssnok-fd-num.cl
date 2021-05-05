@@ -55,11 +55,7 @@ local eInv = coord.request"eHolToE"
 
 //// MODULE_NAME: <?=eqn_common?>
 // only here to appease eqn/bssnok-fd.lua whose calcDTCell module adds eqn_common, which exists in its other subclasses
-//// MODULE_NAME: eqn.macros
-
-//do I have these defined somewhere else?
-#define numberof(x)	(sizeof(x)/sizeof(x[0]))
-#define endof(x)	((x) + numberof(x))
+//// MODULE_NAME: eqn.macros 
 
 //// MODULE_NAME: <?=calc_partial_det_gammaHat_l?>
 //// MODULE_DEPENDS: <?=coord_partial_det_gHol_l?>
@@ -3276,7 +3272,7 @@ advect shift field:	+ β^i_,j β^j
 }<? end -- useSENRShiftAndCoDerivs ?>
 
 
-//// MODULE_DEPENDS: applyKreissOligar
+//// MODULE_DEPENDS: applyKreissOligar numberof
 	// Kreiss-Oligar dissipation:
 	int fields[numIntStates];
 	for (int i = 0; i < numberof(fields); ++i) fields[i] = i;
@@ -3839,7 +3835,7 @@ advect shift:	+ beta^i_,j beta^j
 <? end	-- eqn.useShift ?>
 
 
-//// MODULE_DEPENDS: applyKreissOligar	
+//// MODULE_DEPENDS: applyKreissOligar numberof
 	// Kreiss-Oligar dissipation:
 	int fields[] = {0, 1, 3, 4, 5, 12, 13, 14, 15, 16, 17};	//TODO derive this from eqn.consVars, or ptr offsets / sizeof(real), rather than hardcoding here
 	applyKreissOligar(solver, U, cell, deriv, x, fields, numberof(fields));
@@ -4022,7 +4018,7 @@ kernel void calcDeriv_PIRK_L3_ABarK(
 <? end	-- useLBetaWithPIRK ?>
 
 	
-//// MODULE_DEPENDS: applyKreissOligar	
+//// MODULE_DEPENDS: applyKreissOligar numberof
 	// Kreiss-Oligar dissipation:
 	int fields[] = {2, 18, 19, 20, 21, 22, 23};	//TODO derive this from eqn.consVars, or ptr offsets / sizeof(real), rather than hardcoding here
 	applyKreissOligar(solver, U, cell, deriv, x, fields, numberof(fields));
@@ -4197,7 +4193,7 @@ kernel void calcDeriv_PIRK_L3_LambdaBar(
 <? end	-- useLBetaWithPIRK ?>
 
 
-//// MODULE_DEPENDS: applyKreissOligar	
+//// MODULE_DEPENDS: applyKreissOligar numberof
 	// Kreiss-Oligar dissipation:
 	int fields[] = {9, 10, 11};	//TODO derive this from eqn.consVars, or ptr offsets / sizeof(real), rather than hardcoding here
 	applyKreissOligar(solver, U, cell, deriv, x, fields, numberof(fields));
@@ -4354,7 +4350,7 @@ kernel void calcDeriv_PIRK_L3_B(
 <? end	-- useLBetaWithPIRK ?>
 
 
-//// MODULE_DEPENDS: applyKreissOligar	
+//// MODULE_DEPENDS: applyKreissOligar numberof
 	// Kreiss-Oligar dissipation:
 	int fields[] = {6, 7, 8};	//TODO derive this from eqn.consVars, or ptr offsets / sizeof(real), rather than hardcoding here
 	applyKreissOligar(solver, U, cell, deriv, x, fields, numberof(fields));

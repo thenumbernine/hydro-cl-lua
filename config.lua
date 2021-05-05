@@ -308,7 +308,7 @@ local args = {
 	--initCond = 'jet',
 	
 
-	initCond = 'Sod',
+	--initCond = 'Sod',
 	--initCondArgs = {dim=cmdline.displayDim},
 	--[[ real-world vars for Sod ... which are a few orders higher, and therefore screw up the backward-euler solver
 	-- 		which means, todo, redo the backward euler error metric so it is independent of magnitude ... ?   seems I removed that for another numerical error reason.
@@ -675,7 +675,7 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn
 -- compressible Euler equations
 
 
-self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
+--self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
 
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct bounded'})))	-- this is the default hllCalcWaveMethod
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct'})))
@@ -1247,14 +1247,14 @@ local args = {
 	},
 	--]]
 
-	--initCond = 'Minkowski',
-	--initCond = 'SENR Minkowski',
+	--initCond = 'Minkowski',				-- hmm, explodes with 2009Alic-z4
+	--initCond = 'SENR Minkowski',			-- stable with 2009Alic-z4
 	--initCond = 'gaussian perturbation',
 	--initCond = 'plane gauge wave',
-	--initCond = 'SENR UIUC',
+	initCond = 'SENR UIUC',					-- 2009Alic-z4 runs until t=43
 	--initCond = 'SENR BrillLindquist',
 	--initCond = 'black hole - Schwarzschild',
-	initCond = 'black hole - isotropic - stuffed',	-- TODO FIXME
+	--initCond = 'black hole - isotropic - stuffed',	-- TODO FIXME
 	--[[
 	-- TODO since converting this to useBSSNVars, it doesn't work for cartesian anymore ...
 	initCond = 'black hole - isotropic',	-- this one has momentum and rotation and almost done with multiple sources.  TODO parameterize

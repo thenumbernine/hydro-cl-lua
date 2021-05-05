@@ -593,6 +593,19 @@ function HydroCLApp:initGL(...)
 			name = 'INDEXV',
 			headercode = '#define INDEXV(i)		indexForInt4ForSize(i, solver->gridSize.x, solver->gridSize.y, solver->gridSize.z)',
 		}
+
+		-- add defs.h?
+
+		self.modules:add{
+			name = 'numberof',
+			headercode = '#define numberof(x)	(sizeof(x)/sizeof(x[0]))',
+		}
+	
+		self.modules:add{
+			name = 'endof',
+			depends = {'numberof'},
+			headercode = '#define endof(x)	((x) + numberof(x))',
+		}
 	end
 
 
@@ -1561,17 +1574,17 @@ function HydroCLApp:updateGUI()
 		tooltip.checkboxTable('show coords', self, 'showMouseCoords')
 		
 
-		if ig.igRadioButton_Bool('ortho', self.view == self.orthoView) then
+		if ig.igRadioButtonBool('ortho', self.view == self.orthoView) then
 			self.view = self.orthoView
 		end
 		ig.igSameLine()
-		if ig.igRadioButton_Bool('frustum', self.view == self.frustumView) then
+		if ig.igRadioButtonBool('frustum', self.view == self.frustumView) then
 			self.view = self.frustumView
 		end
 
 		-- TODO per-solver
 		for j=1,3 do
-			if ig.igRadioButton_Bool(j..'D', self.displayDim == j) then
+			if ig.igRadioButtonBool(j..'D', self.displayDim == j) then
 				self.displayDim = j
 			end
 			if j < 3 then ig.igSameLine() end

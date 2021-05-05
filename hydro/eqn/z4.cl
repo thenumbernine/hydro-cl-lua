@@ -881,12 +881,8 @@ end --\
 <? end ?>\
 }
 
-//// MODULE_NAME: <?=addSource?>
-//// MODULE_DEPENDS: <?=coordMapR?> <?=cell_t?> <?=initCond_codeprefix?>
-
-//TODO put these somewhere
-#define numberof(x)	(sizeof(x)/sizeof(x[0]))
-#define endof(x)	((x) + numberof(x))
+//// MODULE_NAME: applyKreissOligar
+//// MODULE_DEPENDS: <?=coordMapR?>
 
 // TODO this is finite-difference KO
 // but the 2009 Alic paper says to use finite-volume KO
@@ -934,7 +930,8 @@ static void applyKreissOligar(
 
 	//described in 2008 Babiuc et al as Q = (-1)^r h^(2r-1) (D+)^r rho (D-)^r / 2^(2r)
 	//...for r=2... -sigma h^3 (D+)^2 rho (D-)^2 / 16 ... and rho=1, except rho=0 at borders maybe.
-	for (int const * ip = fields; ip < endof(fields); ++ip) {
+	int const * const endOfFields = fields + numFields;
+	for (int const * ip = fields; ip < endOfFields; ++ip) {
 		int const i = *ip;
 		deriv->ptr[i] += coeff * (
 			  (
@@ -958,6 +955,10 @@ static void applyKreissOligar(
 		) * (1. / 64.);
 	}
 }
+
+//// MODULE_NAME: <?=addSource?>
+//// MODULE_DEPENDS: <?=cell_t?> <?=initCond_codeprefix?>
+
 
 kernel void <?=addSource?>(
 	constant <?=solver_t?> const * const solver,
@@ -3410,6 +3411,7 @@ end?>
 		<? end ?>
 	}
 
+//// MODULE_DEPENDS: applyKreissOligar numberof
 	// Kreiss-Oligar dissipation:
 	int fields[numIntStates];
 	for (int i = 0; i < numberof(fields); ++i) fields[i] = i;
@@ -3475,14 +3477,14 @@ for ij,xij in ipairs(symNames) do
 ?>	+ .5 * (	// 1/2 d_kij,l
 		U[solver->stepsize.<?=xl?>].d_lll.<?=xk?>.<?=xij?>
 		- U[-solver->stepsize.<?=xl?>].d_lll.<?=xk?>.<?=xij?>
-	) / (2. * solver->grid_dx.<?=xl?>);
+	) / (2. * solver->grid_dx.<?=xl?>)
 <?
 		end
 		if k <= solver.dim then
 ?>	+ .5 * (
 		U[solver->stepsize.<?=xk?>].d_lll.<?=xl?>.<?=xij?>
 		- U[-solver->stepsize.<?=xk?>].d_lll.<?=xl?>.<?=xij?>
-	) / (2. * solver->grid_dx.<?=xk?>);
+	) / (2. * solver->grid_dx.<?=xk?>)
 <?		end
 ?>	;
 <?	end

@@ -69,6 +69,7 @@ end--\
 ?>\
 }
 
+//TODO how to make this modular?  have the config provide the code?
 #define boundaryCons(\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> * const */result,\
@@ -79,13 +80,13 @@ end--\
 <? if false then -- reflect: m dot n = 0 ?>\
 	reflectCons(result, U, e->normal, 1.);\
 <? end ?>\
-<? if false then -- for [-1,1]^2 box with cylinder removed ?>\
+<? if true then -- for [-1,1]^2 box with cylinder removed ?>\
 	*(result) = *(U);\
 	real3 const x = e->pos;\
 	if (real3_lenSq(e->pos) > .7*.7) {\
 		/*outside = freeflow */\
 		/**(result) = *(U); */\
-<? if false then ?>\
+<? if true then ?>\
 		real rho = 1.;\
 		real3 v = _real3(-0.1, 0, 0);\
 		real P = 1.;\
@@ -101,7 +102,7 @@ end--\
 		/*(result)->m = real3_zero;*/\
 	}\
 <? end ?>\
-<? if true then -- for naca 0012 airfoil ?>\
+<? if false then -- for naca 0012 airfoil ?>\
 	if (real3_lenSq(e->pos) > 4.) {\
 		/* outside boundary: freeflow */\
 		*(result) = *(U);\
