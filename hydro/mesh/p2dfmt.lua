@@ -2,7 +2,7 @@ local class = require 'ext.class'
 local table = require 'ext.table'
 local string = require 'ext.string'
 local file = require 'ext.file'
-local vector = require 'hydro.util.vector'
+local vector = require 'ffi.cpp.vector'
 local Mesh = require 'hydro.mesh.mesh'
 local MeshFactory = require 'hydro.mesh.factory'
 

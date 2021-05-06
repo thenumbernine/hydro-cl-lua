@@ -4,7 +4,7 @@ local class = require 'ext.class'
 local vec3f = require 'vec-ffi.vec3f'
 local file = require 'ext.file'
 local matrix_ffi = require 'matrix.ffi'
-local vector = require 'hydro.util.vector'
+local vector = require 'ffi.cpp.vector'
 local Draw = require 'hydro.draw.draw'
 
 

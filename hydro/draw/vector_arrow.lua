@@ -8,7 +8,7 @@ local glreport = require 'gl.report'
 local GLVertexArray = require 'gl.vertexarray'
 local GLArrayBuffer = require 'gl.arraybuffer'
 local GLAttribute = require 'gl.attribute'
-local vector = require 'hydro.util.vector'
+local vector = require 'ffi.cpp.vector'
 local Draw = require 'hydro.draw.draw'
 
 
