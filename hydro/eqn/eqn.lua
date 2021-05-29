@@ -1040,6 +1040,7 @@ args:
 	n = normal_t
 	U = cons_t
 	pt = real3
+	waveIndex = # (0 to numWaves-1)
 --]]
 function Equation:consWaveCode(args)
 	return '\n#error :consWaveCode() not implemented'

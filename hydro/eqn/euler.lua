@@ -327,18 +327,18 @@ Euler.eigenVars = table{
 
 function Euler:eigenWaveCodePrefix(args)
 	return self:template([[
-real const Cs_nLen = normal_len(<?=n?>) * (<?=eig?>)->Cs;
-real const v_n = normal_vecDotN1(<?=n?>, (<?=eig?>)->v);
+real const <?=eqn.symbolPrefix?>Cs_nLen = normal_len(<?=n?>) * (<?=eig?>)->Cs;
+real const <?=eqn.symbolPrefix?>v_n = normal_vecDotN1(<?=n?>, (<?=eig?>)->v);
 ]],	args)
 end
 
 function Euler:eigenWaveCode(args)
 	if args.waveIndex == 0 then
-		return self:template'v_n - Cs_nLen'
+		return self:template'<?=eqn.symbolPrefix?>v_n - <?=eqn.symbolPrefix?>Cs_nLen'
 	elseif args.waveIndex >= 1 and args.waveIndex <= 3 then
-		return self:template'v_n'
+		return self:template'<?=eqn.symbolPrefix?>v_n'
 	elseif args.waveIndex == 4 then
-		return self:template'v_n + Cs_nLen'
+		return self:template'<?=eqn.symbolPrefix?>v_n + <?=eqn.symbolPrefix?>Cs_nLen'
 	end
 	error'got a bad waveIndex'
 end
@@ -347,10 +347,10 @@ end
 -- but then I just explicitly wrote out the calcDT, so the extra parameters just aren't used anymore.
 function Euler:consWaveCodePrefix(args)
 	return self:template([[
-real Cs_nLen;
-<?=calc_Cs_fromCons?>(&Cs_nLen, solver, <?=U?>, <?=pt?>);
-Cs_nLen *= normal_len(<?=n?>);
-real const v_n = (<?=U?>)->rho < solver->rhoMin ? 0. : normal_vecDotN1(<?=n?>, (<?=U?>)->m) / (<?=U?>)->rho;
+real <?=eqn.symbolPrefix?>Cs_nLen;
+<?=calc_Cs_fromCons?>(&<?=eqn.symbolPrefix?>Cs_nLen, solver, <?=U?>, <?=pt?>);
+<?=eqn.symbolPrefix?>Cs_nLen *= normal_len(<?=n?>);
+real const <?=eqn.symbolPrefix?>v_n = (<?=U?>)->rho < solver->rhoMin ? 0. : normal_vecDotN1(<?=n?>, (<?=U?>)->m) / (<?=U?>)->rho;
 ]], args)
 end
 
@@ -364,8 +364,8 @@ Euler.consWaveCode = Euler.eigenWaveCode
 -- ok so this goes before consMin/MaxWaveCode
 function Euler:consWaveCodeMinMaxAllSidesPrefix(args)
 	return self:template([[
-real Cs;
-<?=calc_Cs_fromCons?>(&Cs, solver, <?=U?>, <?=pt?>);\
+real <?=eqn.symbolPrefix?>Cs;
+<?=calc_Cs_fromCons?>(&<?=eqn.symbolPrefix?>Cs, solver, <?=U?>, <?=pt?>);\
 ]],	args)
 end
 
@@ -381,12 +381,12 @@ but in hll flux this is used with one specific side.
 --]]
 function Euler:consWaveCodeMinMaxAllSides(args)
 	return self:template([[
-real const Cs_nLen = Cs * normal_len(<?=n?>);
-real const v_n = (<?=U?>)->rho < solver->rhoMin ? 0. : normal_vecDotN1(<?=n?>, (<?=U?>)->m) / (<?=U?>)->rho;
+real const <?=eqn.symbolPrefix?>Cs_nLen = <?=eqn.symbolPrefix?>Cs * normal_len(<?=n?>);
+real const <?=eqn.symbolPrefix?>v_n = (<?=U?>)->rho < solver->rhoMin ? 0. : normal_vecDotN1(<?=n?>, (<?=U?>)->m) / (<?=U?>)->rho;
 <?=eqn:waveCodeAssignMinMax(
 	declare, resultMin, resultMax,
-	'v_n - Cs_nLen',
-	'v_n + Cs_nLen'
+	eqn.symbolPrefix..'v_n - '..eqn.symbolPrefix..'Cs_nLen',
+	eqn.symbolPrefix..'v_n + '..eqn.symbolPrefix..'Cs_nLen'
 )?>
 ]], args)
 end

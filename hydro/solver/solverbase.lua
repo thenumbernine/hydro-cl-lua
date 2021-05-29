@@ -1320,7 +1320,7 @@ function SolverBase:refreshEqnInitState()
 -- and I wrote those to be macros
 
 	local domains = range(3):mapi(function(i)
-		return symmath.set.RealDomain(
+		return symmath.set.RealSubset(
 			tonumber(self.mins.s[i-1]),
 			tonumber(self.maxs.s[i-1]), 
 			true, true)
@@ -1333,7 +1333,7 @@ function SolverBase:refreshEqnInitState()
 		:replace(w, var('tmpW', nil, nil, domains[3]))
 
 	local ranges = range(3):mapi(function(i)
-		return chart[i]:getRealDomain()
+		return chart[i]:getRealRange()
 	end)
 
 	self.cartesianMin = vec3d(

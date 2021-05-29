@@ -363,7 +363,7 @@ local args = {
 	--initCond = 'configuration 6',
 	
 	-- states for ideal MHD or two-fluid (not two-fluid-separate)
-	--initCond = 'Brio-Wu',
+	initCond = 'Brio-Wu',
 	--initCond = 'Orszag-Tang',
 	--initCond = 'MHD rotor',
 	--initCond = 'spinning magnetic fluid',
@@ -742,6 +742,7 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn
 -- TODO FIXME i think the eigen code isn't correct
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='navstokes-wilcox'})))
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='navstokes-wilcox', eqnArgs={incompressible=true}})))
+--self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='navstokes-wilcox'})))
 
 
 -- compressible Euler equations - Burgers solver
@@ -1105,7 +1106,7 @@ self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {
 -- multiple w/ matching cons_t & prim_t
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='composite', eqnArgs={subeqns={'maxwell', 'maxwell'}}})))
 -- multiple w/ separate, distinct & matching cons_t & prim_t
---self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='composite', eqnArgs={subeqns={'euler', 'maxwell'}}})))
+self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='composite', eqnArgs={subeqns={'euler', 'maxwell'}}})))
 -- two fluid plasma eventually
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='composite', eqnArgs={subeqns={'euler', 'euler', 'maxwell'}}})))
 

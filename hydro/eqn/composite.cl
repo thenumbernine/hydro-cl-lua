@@ -129,6 +129,29 @@ end --\
 <?=cons_t?> * const resultName = &resultName##base;\
 <? end ?>
 
+
+//// MODULE_NAME: <?=fluxFromCons?>
+//// MODULE_DEPENDS: <?=subeqnDepends'fluxFromCons'?>
+
+#define <?=fluxFromCons?>(\
+	/*<?=cons_t?> * const */resultF,\
+	/*constant <?=solver_t?> const * const */solver,\
+	/*<?=cons_t?> const * const*/U,\
+	/*<?=cell_t?> const * const */cell,\
+	/*<?=normal_t?> const */n\
+) {\
+<? for i,subeqn in ipairs(eqn.eqns) do --\
+?>	<?=subeqn.symbols.fluxFromCons?>(\
+		&(resultF)-><?=subeqn.field?>,\
+		solver,\
+		&(U)-><?=subeqn.field?>,\
+		cell,\
+		n);\
+<? end --\
+?>\
+}
+
+
 //// MODULE_NAME: <?=primFromCons?>
 //// MODULE_DEPENDS: <?=subeqnDepends'primFromCons'?>
 

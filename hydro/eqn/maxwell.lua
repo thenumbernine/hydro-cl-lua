@@ -217,19 +217,19 @@ function Maxwell:eigenWaveCodePrefix(args)
 		local env = self:getEnv()
 		code = env.abs..'('..code..')'
 	end
-	return 'real const v_p_abs = '..code..';'
+	return 'real const '..self.symbolPrefix..'v_p_abs = '..code..';'
 --]=]
 end
 
 function Maxwell:eigenWaveCode(args)
 	local waveIndex = math.floor(args.waveIndex / self.numRealsInScalar)
 	return ({
-		'-v_p_abs',
-		'-v_p_abs',
+		'-'..self.symbolPrefix..'v_p_abs',
+		'-'..self.symbolPrefix..'v_p_abs',
 		'0',
 		'0',
-		'v_p_abs',
-		'v_p_abs',
+		self.symbolPrefix..'v_p_abs',
+		self.symbolPrefix..'v_p_abs',
 	})[waveIndex+1] or error('got a bad waveIndex: '..waveIndex)
 end
 
@@ -242,7 +242,7 @@ function Maxwell:consWaveCodePrefix(args)
 		local env = self:getEnv()
 		code = env.abs..'('..code..')'
 	end
-	return 'real const v_p_abs = '..code..';'
+	return 'real const '..self.symbolPrefix..'v_p_abs = '..code..';'
 end
 Maxwell.consWaveCode = Maxwell.eigenWaveCode
 
