@@ -1106,6 +1106,7 @@ self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {
 -- multiple w/ matching cons_t & prim_t
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='composite', eqnArgs={subeqns={'maxwell', 'maxwell'}}})))
 -- multiple w/ separate, distinct & matching cons_t & prim_t
+-- TODO FIXME getting memory alignment errors, even though the structs in 'checkStructSizes' say they line up.
 self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='composite', eqnArgs={subeqns={'euler', 'maxwell'}}})))
 -- two fluid plasma eventually
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='composite', eqnArgs={subeqns={'euler', 'euler', 'maxwell'}}})))

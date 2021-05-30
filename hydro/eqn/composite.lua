@@ -1,7 +1,5 @@
 local table = require 'ext.table'
 local class = require 'ext.class'
-local file = require 'ext.file'
-local Struct = require 'hydro.code.struct'
 local Equation = require 'hydro.eqn.eqn'
 
 local Composite = class(Equation)
@@ -305,84 +303,55 @@ function Composite:combineWaveCode(func, fields, args)
 	end):concat'\n'
 end
 
+function Composite:combineWaveIndexCode(func, fields, args)
+	local waveIndex = assert(args.waveIndex)
+	for i,eqn in ipairs(self.eqns) do
+		if waveIndex >= 0 and waveIndex < eqn.numWaves then
+			local args = setmetatable(table(args), nil)
+			for _,field in ipairs(fields) do
+				args[field] = '&('..args[field]..')->'..eqn.field
+			end
+			args.waveIndex = waveIndex
+			return eqn[func](eqn, args)
+		end
+		waveIndex = waveIndex - eqn.numWaves
+	end
+	error("couldn't find waveIndex "..args.waveIndex.." in any sub-eqns")
+end
+
 
 -- make sure your subseqns use their namespaces to prevent variable collisions 
 -- otherwise you'll get errors of variables being redeclared
-function Composite:eigenWaveCodePrefix(args)
-	return self.eqns:mapi(function(eqn,i)
-		local args = setmetatable(table(args), nil)
-		args.eig = '&('..args.eig..')->'..eqn.field
-		return eqn:eigenWaveCodePrefix(args)
-	end):concat'\n'
+function Composite:eigenWaveCodePrefix(...)
+	return self:combineWaveCode('eigenWaveCodePrefix', {'eig'}, ...)
 end
 
-function Composite:eigenWaveCode(args)
-	local waveIndex = assert(args.waveIndex)
-	for i,eqn in ipairs(self.eqns) do
-		if waveIndex >= 0 and waveIndex < eqn.numWaves then
-			local args = setmetatable(table(args), nil)
-			args.eig = '&('..args.eig..')->'..eqn.field
-			args.waveIndex = waveIndex
-			return eqn:eigenWaveCode(args)
-		end
-		waveIndex = waveIndex - eqn.numWaves
-	end
-	error("couldn't find waveIndex "..args.waveIndex.." in any sub-eqns")
+function Composite:eigenWaveCode(...)
+	return self:combineWaveIndexCode('eigenWaveCode', {'eig'}, ...)
 end
 
--- TODO same as eigenWaveCodePrefix
-function Composite:consWaveCodePrefix(args)
-	return self.eqns:mapi(function(eqn,i)
-		local args = setmetatable(table(args), nil)
-		args.U = '&('..args.U..')->'..eqn.field
-		return eqn:consWaveCodePrefix(args)
-	end):concat'\n'
+function Composite:consWaveCodePrefix(...)
+	return self:combineWaveCode('consWaveCodePrefix', {'U'}, ...)
 end
 
-function Composite:consWaveCode(args)
-	local waveIndex = assert(args.waveIndex)
-	for i,eqn in ipairs(self.eqns) do
-		if waveIndex >= 0 and waveIndex < eqn.numWaves then
-			local args = setmetatable(table(args), nil)
-			args.U = '&('..args.U..')->'..eqn.field
-			args.waveIndex = waveIndex
-			return eqn:consWaveCode(args)
-		end
-		waveIndex = waveIndex - eqn.numWaves
-	end
-	error("couldn't find waveIndex "..args.waveIndex.." in any sub-eqns")
+function Composite:consWaveCode(...)
+	return self:combineWaveIndexCode('consWaveCode', {'U'}, ...)
 end
 
-function Composite:eigenWaveCodeMinMax(args)
-	return self.eqns:mapi(function(eqn,i)
-		local args = setmetatable(table(args), nil)
-		args.eig = '&('..args.eig..')->'..eqn.field
-		return eqn:eigenWaveCodeMinMax(args)
-	end):concat'\n'
+function Composite:eigenWaveCodeMinMax(...)
+	return self:combineWaveCode('eigenWaveCodeMinMax', {'eig'}, ...)
 end
 
-function Composite:consWaveCodeMinMax(args)
-	return self.eqns:mapi(function(eqn,i)
-		local args = setmetatable(table(args), nil)
-		args.U = '&('..args.U..')->'..eqn.field
-		return eqn:consWaveCodeMinMax(args)
-	end):concat'\n'
+function Composite:consWaveCodeMinMax(...)
+	return self:combineWaveIndexCode('consWaveCodeMinMax', {'U'}, ...)
 end
 
-function Composite:consWaveCodeMinMaxAllSidesPrefix(args)
-	return self.eqns:mapi(function(eqn,i)
-		local args = setmetatable(table(args), nil)
-		args.U = '&('..args.U..')->'..eqn.field
-		return eqn:consWaveCodeMinMaxAllSidesPrefix(args)
-	end):concat'\n'
+function Composite:consWaveCodeMinMaxAllSidesPrefix(...)
+	return self:combineWaveIndexCode('consWaveCodeMinMaxAllSidesPrefix', {'U'}, ...)
 end
 
-function Composite:consWaveCodeMinMaxAllSides(args)
-	return self.eqns:mapi(function(eqn,i)
-		local args = setmetatable(table(args), nil)
-		args.U = '&('..args.U..')->'..eqn.field
-		return eqn:consWaveCodeMinMaxAllSides(args)
-	end):concat'\n'
+function Composite:consWaveCodeMinMaxAllSides(...)
+	return self:combineWaveIndexCode('consWaveCodeMinMaxAllSides', {'U'}, ...)
 end
 
 return Composite
