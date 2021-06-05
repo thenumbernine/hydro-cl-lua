@@ -1594,6 +1594,25 @@ end ?>;
 		end,
 	},
 
+	{
+		name = 'Taylor-Green',
+		getDepends = function(self)
+			return {
+				self.solver.coord.symbols.coordMap,
+			}
+		end,	
+		getInitCondCode = function(self)
+			return [[
+	real3 const xc = coordMap(x);
+	real const ux = xc.x * 2. * M_PI;
+	real const uy = xc.y * 2. * M_PI;
+	rho = 1.;
+	v.x = sin(ux) * cos(uy);
+	v.y = -cos(ux) * sin(uy);
+	P = 100. / solver->heatCapacityRatio + .25 * (cos(2. * ux) + cos(2. * uy));
+]]
+		end,
+	},
 
 	--http://www.astro.virginia.edu/VITA/ATHENA/dmr.html
 	{

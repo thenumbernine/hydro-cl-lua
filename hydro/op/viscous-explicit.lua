@@ -40,9 +40,9 @@ kernel void <?=viscousExplicitUpdate?>(
 	global <?=cons_t?> const * const U = UBuf + index;
 	real3 const x = cellBuf[index].pos;
 
-	real3 v = calc_v(U);
+	real3 v = <?=calc_v?>(U);
 
-<? local function getV(offset) return "calc_v(U + "..offset..")" end ?>
+<? local function getV(offset) return eqn.symbols.calc_v.."(U + "..offset..")" end ?>
 <?=eqn:makePartial2(getV, "real3", "d2v")?>
 
 	real3 div_tau = real3_zero;		// tau^ij_,j
@@ -78,7 +78,7 @@ kernel void <?=viscousExplicitUpdate?>(
 
 //// MODULE_DEPENDS: <?=eqn_common?>
 // TODO calc_T's 'x' should vary with the offset
-<? local function getT(offset) return "calc_T(U + "..offset..", x)" end ?>
+<? local function getT(offset) return eqn.symbols.calc_T.."(U + "..offset..", x)" end ?>
 <?=eqn:makePartial2(getT, "real", "d2T")?>
 
 	deriv->m = real3_add(deriv->m, div_tau);

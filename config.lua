@@ -134,12 +134,12 @@ local args = {
 		}
 	)[dim],
 	boundary = type(cmdline.boundary) == 'table' and cmdline.boundary or {
-		xmin = cmdline.boundary or 'freeflow',
-		xmax = cmdline.boundary or 'freeflow',
-		ymin = cmdline.boundary or 'freeflow',
-		ymax = cmdline.boundary or 'freeflow',
-		zmin = cmdline.boundary or 'freeflow',
-		zmax = cmdline.boundary or 'freeflow',
+		xmin = cmdline.boundary or 'periodic',
+		xmax = cmdline.boundary or 'periodic',
+		ymin = cmdline.boundary or 'periodic',
+		ymax = cmdline.boundary or 'periodic',
+		zmin = cmdline.boundary or 'periodic',
+		zmax = cmdline.boundary or 'periodic',
 	},
 	--]]
 	--[[ cylinder
@@ -347,6 +347,7 @@ local args = {
 	--initCond = 'implosion',
 	--initCond = 'Kelvin-Helmholtz',
 	--initCond = 'Rayleigh-Taylor',	--FIXME ... get initial / static hydro potential working
+	initCond = 'Taylor-Green',	-- should only work with viscosity
 	--initCond = 'Colella-Woodward',
 	--initCond = 'double mach reflection',
 	--initCond = 'square cavity',
@@ -363,7 +364,7 @@ local args = {
 	--initCond = 'configuration 6',
 	
 	-- states for ideal MHD or two-fluid (not two-fluid-separate)
-	initCond = 'Brio-Wu',
+	--initCond = 'Brio-Wu',
 	--initCond = 'Orszag-Tang',
 	--initCond = 'MHD rotor',
 	--initCond = 'spinning magnetic fluid',
@@ -734,7 +735,7 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler', eqnArgs={viscosity='flux'}})))
 
 -- incompressible + viscosity
---self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler', eqnArgs={incompressible=true, viscosity='rhs-explicit'}})))
+self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler', eqnArgs={incompressible=true, viscosity='rhs-explicit'}})))
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler', eqnArgs={incompressible=true, viscosity='rhs-implicit'}})))
 
 
@@ -1107,7 +1108,7 @@ self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='composite', eqnArgs={subeqns={'maxwell', 'maxwell'}}})))
 -- multiple w/ separate, distinct & matching cons_t & prim_t
 -- TODO FIXME getting memory alignment errors, even though the structs in 'checkStructSizes' say they line up.
-self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='composite', eqnArgs={subeqns={'euler', 'maxwell'}}})))
+--self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='composite', eqnArgs={subeqns={'euler', 'maxwell'}}})))
 -- two fluid plasma eventually
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='composite', eqnArgs={subeqns={'euler', 'euler', 'maxwell'}}})))
 
