@@ -1067,6 +1067,17 @@ end) then
 	-- http://www.cfd-online.com/Wiki/Explosion_test_in_2-D
 	{
 		name = 'sphere',
+		createInitStruct = function(self)
+			EulerInitCond.createInitStruct(self)
+			local args = self.args
+			self:addGuiVars{
+				{name = 'radius', value = args.radius or .5},
+				{name = 'rhoInside', value = args.rhoInside or 1},
+				{name = 'PInside', value = args.rhoInside or 1},
+				{name = 'rhoOutside', value = args.rhoOutside or .01},
+				{name = 'POutside', value = args.rhoOutside or .01},
+			}
+		end,
 		getDepends = function(self)
 			return table{
 				self.solver.coord.symbols.coordMap,
@@ -1074,12 +1085,12 @@ end) then
 		end,
 		getInitCondCode = function(self)
 			return [[
-	real3 xc = coordMap(x);
-	real rSq = real3_lenSq(xc);
-	const real R = .2;
-	bool inside = rSq < R*R;
-	rho = inside ? 1 : .1;
-	P = inside ? 1 : .1;
+	real3 const xc = coordMap(x);
+	real const rSq = real3_lenSq(xc);
+	real const radius = initCond->radius;
+	bool const inside = rSq < radius*radius;
+	rho = inside ? initCond->rhoInside : initCond->rhoOutside;
+	P = inside ? initCond->PInside : initCond->POutside;
 ]]
 		end,
 	},

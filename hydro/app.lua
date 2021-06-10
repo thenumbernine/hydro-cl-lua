@@ -915,7 +915,9 @@ HydroCLApp.screenshotExts = {'png', 'bmp', 'jpeg', 'tiff', 'fits', 'tga', 'ppm'}
 -- dropdown index
 HydroCLApp.screenshotExtIndex = 1
 
-function HydroCLApp:screenshot()
+-- saving a screenshot of whatever the window buffer is, including colorbar and grid, excluding imgui 
+
+function HydroCLApp:getScreenShotFilename()
 	local ext = self.screenshotExts[self.screenshotExtIndex]
 
 	-- TODO only once upon init?
@@ -935,7 +937,12 @@ function HydroCLApp:screenshot()
 
 	local fn = ('screenshots/'..self.screenshotDir..'/%05d.'..ext):format(self.screenshotIndex)
 	self.screenshotIndex = self.screenshotIndex + 1
-	self:screenshotToFile(fn)
+
+	return fn
+end
+
+function HydroCLApp:screenshot()
+	self:screenshotToFile(self:getScreenShotFilename())
 end
 
 function HydroCLApp:screenshotToFile(fn)
@@ -966,6 +973,86 @@ function HydroCLApp:screenshotToFile(fn)
 		self.ssflipped.buffer[3+4*i] = 255
 	end
 	self.ssflipped:save(fn)
+end
+
+-- save the visual buffers with their palettes
+-- what about 1D? what about vector fields?
+-- I guess this is why screenshotting the buffer is a good default behavior
+
+function HydroCLApp:saveHeatMapBufferImages()
+	local pushRunning = self.running
+	self.running = false
+	local pushDrawGradientLegend = self.drawGradientLegend
+	self.drawGradientLegend = function() end
+	local pushUpdateGUI = self.super.update
+	self.super.update = function() end
+	local pushFont = self.font
+	self.font = nil
+
+	local FBO = require 'gl.fbo'
+	local fbo = FBO()
+	for _,solver in ipairs(self.solvers) do
+		local tex = solver.tex
+		local cl = tex.class
+		assert(not tex.depth) 	-- i don't have ssimg big enough for glgetteximage of texture_3d yet...
+		-- TODO store this if you want to use this for streaming
+		local fbotex = cl{
+			width = tex.width,
+			height = tex.height,
+			depth = tex.depth,
+			internalFormat = gl.GL_RGBA32F,
+			format = gl.GL_RGB,
+			type = gl.GL_UNSIGNED_BYTE,
+			minFilter = gl.GL_NEAREST,
+			magFilter = gl.GL_LINEAR,
+			wrap = {s=gl.GL_REPEAT, t=gl.GL_REPEAT, r=gl.GL_REPEAT},
+		}
+		
+		local pushSize = self.size
+		self.size = function(self) return tex.width, tex.height end
+
+		fbo:setColorAttachment(0, fbotex)
+		fbo:bind()
+				
+		gl.glViewport(0, 0, tex.width, tex.height)
+		-- TODO instead of pushing and popping
+		-- just separate out this function
+		self:update()
+	
+
+		local Image = require 'image'
+		local w, h = tex.width, tex.height
+		-- using 3 channels had some alignment problems ... there's a bug to fix somewhere, maybe in the png write function?
+		local ssimg = Image(w, h, 4, 'unsigned char')
+		local ssflipped = Image(w, h, 4, 'unsigned char')
+		--gl.glGetTexImage(tex.target, 0, gl.GL_RGBA, gl.GL_UNSIGNED_BYTE, ssimg.buffer) 
+		gl.glReadPixels(0, 0, w, h, gl.GL_RGBA, gl.GL_UNSIGNED_BYTE, ssimg.buffer) 
+		-- reverse rows ...
+		-- TODO maybe ... for all projection matrix setups, have them check a screenshot flag and automatically flip?
+		for y=0,h-1 do
+			ffi.copy(
+				ssflipped.buffer + (h-y-1) * w * 4,
+				ssimg.buffer + y * w * 4,
+				w * 4)
+		end
+		-- full alpha
+		for i=0,w*h-1 do
+			ssflipped.buffer[3+4*i] = 255
+		end
+
+		-- TODO prefix for solver and for buffer name?
+		local fn = self:getScreenShotFilename()
+		ssflipped:save(fn)
+
+		fbo:unbind()
+	
+		self.size = pushSize
+	end
+	
+	self.running = pushRunning
+	self.drawGradientLegend = pushDrawGradientLegend 
+	self.super.update = pushUpdateGUI
+	self.font = pushFont
 end
 
 local mouse = Mouse and Mouse() or nil
@@ -1551,6 +1638,11 @@ function HydroCLApp:updateGUI()
 
 		if ig.igButton'Screenshot' then
 			self:screenshot()
+		end
+		ig.igSameLine()
+
+		if ig.igButton'S.S. HiRes' then
+			self:saveHeatMapBufferImages()
 		end
 		ig.igSameLine()
 
