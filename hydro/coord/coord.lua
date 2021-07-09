@@ -859,8 +859,8 @@ self.compilePrintRequestTensor = compilePrintRequestTensor
 	local integralArgs = table()
 	for i=1,dim do
 		local u = self.baseCoords[i]
-		integralArgs:insert(u - .5 * integralGridDx[i])
-		integralArgs:insert(u + .5 * integralGridDx[i])
+		integralArgs:insert(u - frac(1,2) * integralGridDx[i])
+		integralArgs:insert(u + frac(1,2) * integralGridDx[i])
 	end
 
 	-- area of the side in each direction
@@ -911,17 +911,32 @@ self.compilePrintRequestTensor = compilePrintRequestTensor
 				print(volumeSq)
 				error'these should be the same'
 			end
+			
+			-- replace the long variable names with math symbols
+			local fixVerbose
+			if self.verbose then
+				fixVerbose = function(expr)
+					return expr
+						:replace(integralGridDx[1], var'\\Delta x_1')
+						:replace(integralGridDx[2], var'\\Delta x_2')
+						:replace(integralGridDx[3], var'\\Delta x_3')
+				end
+			end
 			for j=1,dim do
 				local u = self.baseCoords[j]
 				local uL, uR = integralArgs[2*j-1], integralArgs[2*j]
---print('volume was', volume)
---print('integrating', u, 'from', uL, 'to', uR)
+				if self.verbose then
+					print('volume was', fixVerbose(volume))
+					print('integrating', u, 'from', fixVerbose(uL), 'to', fixVerbose(uR))
+				end
 				volume = self:applyReplVars(volume)	-- just because of sphere-sinh-radial, insert repls beforehand
 				volume = volume:integrate(u, uL, uR)()
---print('volume is now', volume)
+				if self.verbose then
+					print('volume is now', fixVerbose(volume))
+				end
 			end
 			if self.verbose then
-				print(var'volume':eq(volume))
+				print(var'volume':eq(fixVerbose(volume)))
 				print(var'gHolDet':eq(gHolDet))
 			end
 			return volume

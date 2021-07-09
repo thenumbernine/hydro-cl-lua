@@ -507,6 +507,7 @@ local initConds = table{
 		name = 'Bessel',
 		getDepends = function(self)
 			return table{
+				'Bessel',
 				self.solver.coord.symbols.coordMapR,
 				self.solver.coord.symbols.coordMap,
 			}
