@@ -329,8 +329,23 @@ assert(args.anholonomic == nil, "coord.anholonomic is deprecated.  instead you s
 
 	local u = self.chart()
 	if self.verbose then
-		print'coordinate chart:'
-		print(var'u''^I':eq(u'^I'()))
+		print()
+		print'point on chart, in embedded coordinates:'
+		print(
+			var'P':eq(
+				var'P''^I' * var'e''_I'
+			):eq(
+				-- hmm, Tensor tostring puts one forms as cols regardless of indexing (should it? maybe I should do rows for lower indexes?)
+				-- while Matrix doesn't show indexes
+				Matrix(
+					u'^I'() 
+				) * Matrix{
+					var'e''_x',
+					var'e''_y',
+					var'e''_z'
+				}:T()
+			)
+		)
 		print()
 	end
 
@@ -345,8 +360,32 @@ assert(args.anholonomic == nil, "coord.anholonomic is deprecated.  instead you s
 		e['_u^I'] = u'^I_,u'()
 	end
 	if self.verbose then
-		print'embedded:'
-		print(var'e''_u^I':eq(var'u''^I_,u'):eq(e'_u^I'()))
+		print(var'e''_I'..'= embedded basis')
+		print(var'e'' _\\tilde{u}'..'$= \\partial_{\\tilde{u}} =$ chart holonomic coordinate basis')
+		print(var'e'' _\\hat{u}'..'= chart anholonomic orthonormal basis')
+		print()
+		print'chart basis, in terms of embedded basis:'
+		print()
+		print(
+			var'e'' _\\hat{u}'
+			:eq(
+				var'e'' _\\hat{u} ^I'
+				* var'e''_I'
+			):eq(
+				--var'P'' ^I _,\\hat{u}'
+				var[[e_{\hat{u}}( P^I )]]
+				* var'e''_I'
+			):eq(
+				e'_u^I'()
+				* Tensor('_I', function(I)
+					return var'e'(' _'..embedded[I].name)
+				end)
+			):eq(
+				Tensor('_u', function(u)
+					return var'e'(' _'..coords[u].name)
+				end)
+			)
+		)
 		print()
 	end
 
@@ -355,16 +394,64 @@ assert(args.anholonomic == nil, "coord.anholonomic is deprecated.  instead you s
 	-- I will need the basis and metric of the holonomic version as well
 	local eHol
 	if self.vectorComponent == 'holonomic' then
+		print'using holonomic coordinates, so the chart basis operator is equal to the partial derivative operator'
 		eHol = e
 	else
+		print'using non-holonomic, so separately evaluating our chart holonomic basis (for stuff like the volume element etc)'
+		print()
 		eHol = Tensor('_u^I', function(a,I)
 			return u[I]:diff(baseCoords[a])()
 		end)
-		if self.verbose then
-			print'holonomic embedded:'
-			print(var'e''_u^I':eq(var'u''^I_,u'):eq(eHol'_u^I'()))
-			print(var'eHol''_i^j':eq(eHolToE))
-		end
+		print()
+	end
+	if self.verbose then
+		print'chart holonomic basis, in terms of embedded basis:'
+		print()
+		print(
+			var'e'' _\\tilde{u}'
+			:eq(
+				var'e'' _\\tilde{u} ^I'
+				* var'e''_I'
+			):eq(
+				--var'P'' ^I _,\\tilde{u}'
+				var[[e_{\tilde{u}}( P^I )]]
+				* var'e''_I'
+			):eq(
+				eHol' _\\tilde{u} ^I'()
+				* Tensor('_I', function(I)
+					return var'e'(' _'..embedded[I].name)
+				end)
+			):eq(
+				Tensor(' _\\tilde{u}', function(u)
+					return var'e'(' _'..baseCoords[u].name)
+				end)
+			)
+		)
+		print()
+		
+		print'transform from chart holonomic basis to chart anholonomic orthonormal basis:'
+		print()
+		print(var'e'' _\\hat{u} ^\\tilde{v}':eq(eHolToE))
+		print()
+	
+		print'such that'
+		print()
+		print(
+			var'e'' _\\hat{u}'
+			:eq(
+				var'e'' _\\hat{u} ^\\tilde{v}'
+				* var'e'' _\\tilde{v} ^I'
+				* var'e'' _I'
+			):eq(
+				-- eHolToE is a matrix, so ..
+				Tensor(' _\\hat{u} ^\\tilde{v}', table.unpack(eHolToE))
+				* eHol' _\\tilde{v} ^I'()
+				* Tensor('_I', function(I)
+					return var'e'(' _'..embedded[I].name)
+				end)
+			)
+		)
+		print()
 	end
 
 	-- commutation coefficients
@@ -374,9 +461,10 @@ assert(args.anholonomic == nil, "coord.anholonomic is deprecated.  instead you s
 			print'connection coefficients:'
 			print(var'c''_uv^w' * var'e''_w','$=[ e_u, e_v ]$')
 		end
+		local zeta = var('\\zeta', baseCoords)
+		local dzeta = table.mapi(baseCoords, function(uk) return zeta:diff(uk) end)
 		for i,ui in ipairs(coords) do
 			for j,uj in ipairs(coords) do
-				local zeta = var('\\zeta', baseCoords)
 				local diff = ui:applyDiff(uj:applyDiff(zeta)) - uj:applyDiff(ui:applyDiff(zeta))
 				local diffEval = diff()
 				if diffEval ~= const(0) then
@@ -387,11 +475,7 @@ assert(args.anholonomic == nil, "coord.anholonomic is deprecated.  instead you s
 					if self.verbose then
 						print('factor division',diff)
 					end
-					local dpsi = table.mapi(baseCoords, function(uk) return zeta:diff(uk) end)
-					if self.verbose then
-						print('dpsi', dpsi:unpack())
-					end
-					local A,b = symmath.factorLinearSystem({diff}, dpsi)
+					local A,b = symmath.factorLinearSystem({diff}, dzeta)
 					-- now extract zeta:diff(uk)
 					-- and divide by e_k to get the correct coefficient
 					-- TODO this assumes that e_a is only a function of partial_a
@@ -400,7 +484,7 @@ assert(args.anholonomic == nil, "coord.anholonomic is deprecated.  instead you s
 					-- TODO put this somewhere else so everyone can use it
 					assert(b[1][1] == const(0))
 					for k,uk in ipairs(coords) do
-						local coeff = (A[1][k] * dpsi[k] / uk:applyDiff(zeta))()
+						local coeff = (A[1][k] * dzeta[k] / uk:applyDiff(zeta))()
 						-- assert dphi is nowhere in coeff ...
 						c[i][j][k] = coeff 
 					end
@@ -410,13 +494,25 @@ assert(args.anholonomic == nil, "coord.anholonomic is deprecated.  instead you s
 	end
 	if self.verbose then
 		print'commutation:'
+		print()
 		print(var'c''_uv^w':eq(c'_uv^w'()))
+		print()
 	end
 
 	local g = (e'_u^I' * e'_v^J' * eta'_IJ')()
 	if self.verbose then
-		print'metric:'
-		print(var'g''_uv':eq(var'e''_u^I' * var'e''_v^J' * var'\\eta''_IJ'):eq(g'_uv'()))
+		print'(possibly anholonomic) metric:'
+		print()
+		print(
+			var'g'' _\\hat{u} _\\hat{v}':eq(
+				var'e'' _\\hat{u} ^I' 
+				* var'e'' _\\hat{v} ^J' 
+				* var'\\eta''_IJ'
+			):eq(
+				g' _\\hat{u} _\\hat{v}'()
+			)
+		)
+		print()
 	end
 	Tensor.metric(g)
 	
@@ -432,7 +528,7 @@ assert(args.anholonomic == nil, "coord.anholonomic is deprecated.  instead you s
 		local codetype = type(code)
 		if codetype == 'string' then
 			if code ~= '0.' then
-				print(name..' = '..code)
+				print(name..' = <pre style="display:inline">'..code..'</pre>')
 			end
 		elseif codetype == 'table' then
 			for i=1,#code do
@@ -500,6 +596,7 @@ self.compilePrintRequestTensor = compilePrintRequestTensor
 	--]]
 
 	-- u is used to project the grid for displaying
+	-- TODO rename to P, right, that's a convention of sorts, right?
 	self.calc.u = {
 		build = function()
 			return u
@@ -790,7 +887,17 @@ self.compilePrintRequestTensor = compilePrintRequestTensor
 				local gHol = (eHol'_u^I' * eHol'_v^J' * eta'_IJ')()
 				if self.verbose then
 					print'holonomic metric:'
-					print(var'gHol''_uv':eq(var'eHol''_u^I' * var'eHol''_v^J' * var'\\eta''_IJ'):eq(gHol'_uv'()))
+					print()
+					print(
+						var'g'' _\\tilde{u} _\\tilde{v}':eq(
+							var'e'' _\\tilde{u} ^I' 
+							* var'e'' _\\tilde{v} ^J' 
+							* var'\\eta''_IJ'
+						):eq(
+							gHol'_uv'()
+						)
+					)
+					print()
 				end
 				return gHol
 			end
@@ -863,6 +970,18 @@ self.compilePrintRequestTensor = compilePrintRequestTensor
 		integralArgs:insert(u + frac(1,2) * integralGridDx[i])
 	end
 
+	-- replace the long variable names with math symbols
+	if self.verbose then
+		function self.fixVerbose(expr)
+			return expr
+				:replace(integralGridDx[1], var'\\Delta x_1')
+				:replace(integralGridDx[2], var'\\Delta x_2')
+				:replace(integralGridDx[3], var'\\Delta x_3')
+		end
+	else
+		function self.fixVerbose(...) return ... end
+	end
+
 	-- area of the side in each direction
 	self.calc.cell_area = {
 		build = function()
@@ -912,31 +1031,21 @@ self.compilePrintRequestTensor = compilePrintRequestTensor
 				error'these should be the same'
 			end
 			
-			-- replace the long variable names with math symbols
-			local fixVerbose
-			if self.verbose then
-				fixVerbose = function(expr)
-					return expr
-						:replace(integralGridDx[1], var'\\Delta x_1')
-						:replace(integralGridDx[2], var'\\Delta x_2')
-						:replace(integralGridDx[3], var'\\Delta x_3')
-				end
-			end
 			for j=1,dim do
 				local u = self.baseCoords[j]
 				local uL, uR = integralArgs[2*j-1], integralArgs[2*j]
 				if self.verbose then
-					print('volume was', fixVerbose(volume))
-					print('integrating', u, 'from', fixVerbose(uL), 'to', fixVerbose(uR))
+					print('volume was', self.fixVerbose(volume))
+					print('integrating', u, 'from', self.fixVerbose(uL), 'to', self.fixVerbose(uR))
 				end
 				volume = self:applyReplVars(volume)	-- just because of sphere-sinh-radial, insert repls beforehand
 				volume = volume:integrate(u, uL, uR)()
 				if self.verbose then
-					print('volume is now', fixVerbose(volume))
+					print('volume is now', self.fixVerbose(volume))
 				end
 			end
 			if self.verbose then
-				print(var'volume':eq(fixVerbose(volume)))
+				print(var'volume':eq(self.fixVerbose(volume)))
 				print(var'gHolDet':eq(gHolDet))
 			end
 			return volume
@@ -1324,7 +1433,7 @@ function CoordinateSystem:compile(expr)
 		expr = expr:replace(coord, symmath.var('pt.'..xNames[i]))
 	end
 	if self.verbose then
-		print('compiling\n', expr..'\n')
+		print('compiling\n', self.fixVerbose(expr)..'\n')
 	end
 	local code = symmath.export.C(expr)
 
