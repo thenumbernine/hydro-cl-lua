@@ -1,10 +1,9 @@
-local dim = 3
 local args = {
 	app = self, 
-	dim = dim,
+	dim = 3,
 	
 	integrator = 'forward Euler',	
-	cfl = .3/dim,
+	cfl = assert(tonumber(cmdline.cfl)),
 	fluxLimiter = 'superbee',
 
 	initCond = 'self-gravitation - Earth',	-- validating units along with self-gravitation.
@@ -16,7 +15,6 @@ if cmdline.coord == 'cartesian' then
 		mins = cmdline.mins or {-1, -1, -1},
 		maxs = cmdline.maxs or {1, 1, 1},
 		
-		gridSize = {32,32,32},
 		boundary = {
 			xmin = 'freeflow',
 			xmax = 'freeflow',
@@ -29,11 +27,8 @@ if cmdline.coord == 'cartesian' then
 elseif cmdline.coord == 'cylinder' then
 	args = table(args, {
 		coord = 'cylinder',
-		--coordArgs = {vectorComponent='anholonomic'},	
-		coordArgs = {vectorComponent='cartesian'},	
 		mins = cmdline.mins or {0, 0, -1},
 		maxs = cmdline.maxs or {1, 2*math.pi, 1},
-		gridSize = {32, 32, 32},
 		boundary = {
 			-- r
 			xmin='cylinderRMin',	-- use this when rmin=0
@@ -51,15 +46,9 @@ elseif cmdline.coord == 'cylinder' then
 elseif cmdline.coord == 'sphere' then
 	args = table(args, {
 		coord = 'sphere',
-		--coordArgs = {vectorComponent='anholonomic'},
-		coordArgs = {vectorComponent='cartesian'},
 		mins = cmdline.mins or {0, 0, -math.pi},
 		maxs = cmdline.maxs or {8, math.pi, math.pi},
-		gridSize = ({
-			{160, 1, 1}, -- 1D
-			{32, 32, 1}, -- 2D
-			{16, 16, 16}, -- 3D
-		})[dim],
+		
 		boundary = {
 			xmin='sphereRMin',
 			xmax='freeflow',
@@ -72,4 +61,12 @@ elseif cmdline.coord == 'sphere' then
 else
 	error("can't handle coord=="..require 'ext.tolua'(coord))
 end
+
+args.coordArgs = args.coordArgs or {}
+args.coordArgs.vectorComponent = assert(cmdline.vectorComponent)
+
+args.gridSize = assert(cmdline.gridSize)
+assert(#args.gridSize == 3)
+for i=1,3 do assert(type(args.gridSize[i]) == 'number') end
+
 self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler-lingr'})))
