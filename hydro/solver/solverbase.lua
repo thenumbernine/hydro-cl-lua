@@ -2653,6 +2653,12 @@ function SolverBase:update()
 				if varname ~= 'dt' then
 					local var = assert(self.displayVarForName[varname], "couldn't find "..varname)
 					local ymin, ymax, yavg = self:calcDisplayVarRangeAndAvg(var)
+					if var.showInUnits and var.units then
+						local unitScale = self:convertToSIUnitsCode(var.units).func()
+						ymin = ymin * unitScale
+						yavg = yavg * unitScale
+						ymax = ymax * unitScale
+					end
 					io.write(sep, varname, '=[', ymin, ' ', yavg, ' ', ymax, ']')
 				end
 			end

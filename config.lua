@@ -62,7 +62,7 @@ local args = {
 	-- this is functional without usePLM, but doing so falls back on the cell-centered buffer, which with the current useCTU code will update the same cell twice from different threads
 	--useCTU = true,
 	
-	--[[ Cartesian
+	-- [[ Cartesian
 	coord = 'cartesian',
 	--coordArgs = {vectorComponent='holonomic'},		-- use the coordinate derivatives to represent our vector components (though they may not be normalized)
 	--coordArgs = {vectorComponent='anholonomic'},		-- use orthonormal basis to represent our vector components
@@ -148,6 +148,7 @@ local args = {
 	--coordArgs = {vectorComponent='holonomic'},		-- use the coordinate derivatives to represent our vector components (though they may not be normalized)
 		-- TODO doesn't work for rmin=0
 	--coordArgs = {vectorComponent='anholonomic'},		-- use orthonormal basis to represent our vector components.
+		-- TODO works but does curvilinear boundaries support cartesian vector components?
 	coordArgs = {vectorComponent='cartesian'},			-- use cartesian vector components 
 	mins = cmdline.mins or {0, 0, -1},
 	maxs = cmdline.maxs or {1, 2*math.pi, 1},			-- TODO bake the 2π into the coordinate chart so this matches grid/cylinder.  Technically θ→2πθ means it isn't the standard θ variable.  I did this for UI convenience with CFDMesh.
@@ -180,7 +181,7 @@ local args = {
 		--zmax=cmdline.boundary or 'mirror',
 	},
 	--]]
-	-- [[ Sphere: r, θ, φ 
+	--[[ Sphere: r, θ, φ 
 	coord = 'sphere',
 	--coordArgs = {volumeDim = 3},	-- use higher dimension volume, even if the grid is only 1D to 3D
 	--coordArgs = {vectorComponent='holonomic'},
