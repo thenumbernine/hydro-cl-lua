@@ -495,13 +495,13 @@ assert(args.anholonomic == nil, "coord.anholonomic is deprecated.  instead you s
 	if self.verbose then
 		print'commutation:'
 		print()
-		print(var'c''_uv^w':eq(c'_uv^w'()))
+		print(var'c'' _\\hat{u} _\\hat{v} ^\\hat{w}':eq(c' _\\hat{u} _\\hat{v} ^\\hat{w}'()))
 		print()
 	end
 
 	local g = (e'_u^I' * e'_v^J' * eta'_IJ')()
 	if self.verbose then
-		print'(possibly anholonomic) metric:'
+		print'metric:'	-- anholonomic if requested
 		print()
 		print(
 			var'g'' _\\hat{u} _\\hat{v}':eq(
@@ -775,8 +775,10 @@ self.compilePrintRequestTensor = compilePrintRequestTensor
 			local g = self.request'coord_g_ll'
 			local dg = g'_ab,c'():permute'_cab'
 			if self.verbose then
-				print'metric partial:'
-				print(var'g''_ab,c':eq(dg'_cab'()))
+				print()
+				print'metric partial:'	-- anholonomic if requested
+				print(var'g'' _\\hat{a} _\\hat{b} _,\\hat{c}':eq(dg' _\\hat{c} _\\hat{a} _\\hat{b}'()))
+				print()
 			end
 			return dg
 		end,
@@ -789,8 +791,19 @@ self.compilePrintRequestTensor = compilePrintRequestTensor
 			local dg = self.request'coord_partial_g_lll'
 			local Gamma_lll = ((dg'_cab' + dg'_bac' - dg'_abc' + c'_abc' + c'_acb' - c'_bca') / 2)():permute'_abc'
 			if self.verbose then
-				print'1st kind Christoffel:'
-				print(var'\\Gamma''_abc':eq(frac(1,2)*(var'g''_ab,c' + var'g''_ac,b' - var'g''_bc,a' + var'c''_abc' + var'c''_acb' - var'c''_bca')):eq(Gamma_lll'_abc'()))
+				print'1st kind Christoffel:'	-- anholonomic if requested
+				print(
+					var'\\Gamma'' _\\hat{a} _\\hat{b} _\\hat{c}':eq(
+						frac(1,2)*(
+							var'g'' _\\hat{a} _\\hat{b} _,\\hat{c}' 
+							+ var'g'' _\\hat{a} _\\hat{c} _,\\hat{b}' 
+							- var'g'' _\\hat{b} _\\hat{c} _,\\hat{a}' 
+							+ var'c'' _\\hat{a} _\\hat{b} _\\hat{c}' 
+							+ var'c'' _\\hat{a} _\\hat{c} _\\hat{b}' 
+							- var'c'' _\\hat{b} _\\hat{c} _\\hat{a}'
+						)
+					):eq(Gamma_lll' _\\hat{a} _\\hat{b} _\\hat{c}'())
+				)
 			end
 			return Gamma_lll
 		end,
@@ -803,8 +816,11 @@ self.compilePrintRequestTensor = compilePrintRequestTensor
 			local Gamma_lll = self.request'coord_conn_lll'
 			local Gamma_ull = (g'^ad' * Gamma_lll'_dbc')():permute'^a_bc'
 			if self.verbose then
-				print'connection:'
-				print(var'\\Gamma''^a_bc':eq(var'g''^ad' * var'\\Gamma''_dbc'):eq(Gamma_ull'^a_bc'()))
+				print'connection:'	-- anholonomic if requested
+				print(var'\\Gamma'' ^\\hat{a} _\\hat{b} _\\hat{c}':eq(
+					var'g'' ^\\hat{a} ^\\hat{d}' 
+					* var'\\Gamma'' _\\hat{d} _\\hat{b} _\\hat{c}'
+				):eq(Gamma_ull' ^\\hat{a} _\\hat{b} _\\hat{c}'()))
 			end
 			return Gamma_ull
 		end,
@@ -886,6 +902,7 @@ self.compilePrintRequestTensor = compilePrintRequestTensor
 			else
 				local gHol = (eHol'_u^I' * eHol'_v^J' * eta'_IJ')()
 				if self.verbose then
+					print()
 					print'holonomic metric:'
 					print()
 					print(
@@ -1005,7 +1022,7 @@ self.compilePrintRequestTensor = compilePrintRequestTensor
 				end
 
 				if self.verbose then
-					print(var'area'('_'..i):eq(area))
+					print(var'area'('_'..i):eq(self.fixVerbose(area)))
 				end
 
 				-- TODO add in extra code function parameters
@@ -1024,10 +1041,10 @@ self.compilePrintRequestTensor = compilePrintRequestTensor
 			local volumeSq = (volume^2)()
 			local gHolDet = self.request'coord_det_gHol'
 			if volumeSq ~= gHolDet then
-				print('gHolDet')
-				print(gHolDet)
-				print('volumeSq')
-				print(volumeSq)
+				print('$det(g_{\\tilde{u}\\tilde{v}} =$', gHolDet)
+				print()
+				print('$vol^2 =$', volumeSq)
+				print()
 				error'these should be the same'
 			end
 			
@@ -1036,17 +1053,23 @@ self.compilePrintRequestTensor = compilePrintRequestTensor
 				local uL, uR = integralArgs[2*j-1], integralArgs[2*j]
 				if self.verbose then
 					print('volume was', self.fixVerbose(volume))
+					print()
 					print('integrating', u, 'from', self.fixVerbose(uL), 'to', self.fixVerbose(uR))
+					print()
 				end
 				volume = self:applyReplVars(volume)	-- just because of sphere-sinh-radial, insert repls beforehand
 				volume = volume:integrate(u, uL, uR)()
 				if self.verbose then
 					print('volume is now', self.fixVerbose(volume))
+				print()
 				end
 			end
 			if self.verbose then
-				print(var'volume':eq(self.fixVerbose(volume)))
-				print(var'gHolDet':eq(gHolDet))
+				print()
+				print(var'vol':eq(self.fixVerbose(volume)))
+				print()
+				print(var'det(g_{\\tilde{u}\\tilde{v}})':eq(gHolDet))
+				print()
 			end
 			return volume
 		end,
@@ -1067,8 +1090,15 @@ self.compilePrintRequestTensor = compilePrintRequestTensor
 			local gHol = self.request'coord_gHol_ll'
 			local dgHol = gHol'_ab,c'():permute'_cab'
 			if self.verbose then
+				print()
 				print'holonomic metric partial:'
-				print(var'\\hat{g}''_ab,c':eq(dgHol'_cab'()))
+				print()
+				print(
+					var'g'' _\\tilde{a} _\\tilde{b} _,\\tilde{c}':eq(
+						dgHol' _\\tilde{c} _\\tilde{a} _\\tilde{b}'()
+					)
+				)
+				print()
 			end
 			return dgHol
 		end,
@@ -1080,8 +1110,15 @@ self.compilePrintRequestTensor = compilePrintRequestTensor
 			local dgHol = self.request'coord_partial_gHol_lll'
 			local GammaHol_lll = (frac(1,2) * (dgHol'_cab' + dgHol'_bac' - dgHol'_abc'))():permute'_abc'
 			if self.verbose then
+				print()
 				print'1st kind Christoffel of holonomic basis:'
-				print(var'\\hat{\\Gamma}''_abc':eq(frac(1,2)*(var'\\hat{g}''_ab,c' + var'\\hat{g}''_ac,b' - var'\\hat{g}''_bc,a')):eq(GammaHol_lll'_abc'()))
+				print()
+				print(var'\\Gamma'' _\\tilde{a} _\\tilde{b} _\\tilde{c}':eq(
+					frac(1,2)*(var''' _\\tilde{a} _\\tilde{b} _,\\tilde{c}' 
+					+ var'g'' _\\tilde{a} _\\tilde{c} _,\\tilde{b}' 
+					- var'g'' _\\tilde{b} _\\tilde{c} _,\\tilde{a}')
+				):eq(GammaHol_lll' _\\tilde{a} _\\tilde{b} _\\tilde{c}'()))
+				print()
 			end
 			return GammaHol_lll
 		end,
@@ -1094,8 +1131,18 @@ self.compilePrintRequestTensor = compilePrintRequestTensor
 			local GammaHol_lll = self.request'coord_connHol_lll'
 			local GammaHol_ull = (gHolU'^ad' * GammaHol_lll'_dbc')():permute'^a_bc'
 			if self.verbose then
+				print()
 				print'connection:'
-				print(var'\\hat{\\Gamma}''^a_bc':eq(var'\\hat{g}''^ad' * var'\\hat{\\Gamma}''_dbc'):eq(GammaHol_ull'^a_bc'()))
+				print()
+				print(
+					var'\\Gamma'' ^\\tilde{a} _\\tilde{b} _\\tilde{c}':eq(
+						var'g'' ^\\tilde{a} ^\\tilde{d}' 
+						* var'\\Gamma'' _\\tilde{d} _\\tilde{b} _\\tilde{c}'
+					):eq(
+						GammaHol_ull' ^\\tilde{a} _\\tilde{b} _\\tilde{c}'()
+					)
+				)
+				print()
 			end
 			return GammaHol_ull
 		end,
@@ -1429,11 +1476,12 @@ function CoordinateSystem:compile(expr)
 		end
 	end)
 
-	for i,coord in ipairs(self.baseCoords) do
-		expr = expr:replace(coord, symmath.var('pt.'..xNames[i]))
-	end
+	-- print before replacing base-coordinates
 	if self.verbose then
 		print('compiling\n', self.fixVerbose(expr)..'\n')
+	end
+	for i,coord in ipairs(self.baseCoords) do
+		expr = expr:replace(coord, symmath.var('pt.'..xNames[i]))
 	end
 	local code = symmath.export.C(expr)
 
@@ -2171,7 +2219,20 @@ How to organize this?
 function CoordinateSystem:initCodeModule_normal()
 	local typecode, code
 	local depends = table()
+	if self.verbose then
+		print[[
+normals:<br>
+$n^i =$ i'th normal, along the i'th coordinate basis.<br>
+$(n^i)_\\hat{j}$ = i'th basis direction, j'th component.<br>
+]]
+	end
 	if require 'hydro.solver.meshsolver':isa(self.solver) then
+		if self.verbose then
+			print[[
+mesh-based normals are assuming a cartesian coordinate system, and assumed to be normalized:<br>
+$(n^i)_k (n^j)^k = g^{ij} = \delta^{ij}$<br>
+]]
+		end
 --[[
 mesh vertexes are provided in Cartesian coordinates
 so their normals are as well
@@ -2233,13 +2294,21 @@ end
 		if require 'hydro.coord.cartesian':isa(self)
 		or self.vectorComponent == 'anholonomic'
 		then
+			if self.verbose then
+				print[[
+anholonomic normals are coordinate-aligned but orthonormalized by the locally-Cartesian basis:<br>
+$(n^i)^k (n^j)^l g_{kl} = g^{ij} = \delta^{ij}$, for anholonomic (orthonormal) basis.<br>
+$(n^i)_j = (n^i)^j = \delta^{ij}$.<br>
+]]
+			end
+		
 			--[[
 			n_i = n^i = delta_ij for side j
 			|n| = 1
 			--]]
 			typecode = self.solver.eqn:template[[
 typedef struct {
-	int side;		//0, 1, 2
+	int side;			//0, 1, 2
 } <?=normal_t?>;		//nL = nU = normalBasisForSide (permutation of I), nLen = 1
 ]]
 
@@ -2292,7 +2361,15 @@ end
 
 ]]
 		elseif self.vectorComponent == 'cartesian' then
-
+			if self.verbose then
+				print[[
+cartesian-component normals:<br>
+$n_i = e_i$<br>
+$(n_i)_j = e_{ij}$<br>
+$(n_i)^j = {e_i}^j$<br>
+$n_i \cdot n_j = (n_i)_k (n_j)^l = \delta_{ij}$<br>
+]]
+			end
 			depends:insert'real3x3'
 			depends:insert(self.symbols.coord_basisHolUnit_i)
 
@@ -2356,7 +2433,16 @@ end
 		real3_real_mul(normal.n.z, v.z))
 ]]
 		elseif self.vectorComponent == 'holonomic' then
-
+			if self.verbose then
+				print[[
+cartesian normals are aligned to the embedding cartesian coordinate space:<br>
+$n_i = e_i$<br>
+$(n_i)_j = \delta_{ij}$<br>
+$(n_i)^j = g^{jk} \delta_{ik}$<br>
+$(n_i)^k (n_j)^l = g^{km} \delta_{mi} g^{ln} \delta_{nj}$<br>
+]]
+			end
+			
 			depends:insert'real3x3'
 			depends:insert(self.symbols.coord_g_uu_ij)
 			depends:insert(self.symbols.coord_sqrt_g_uu_ij)
