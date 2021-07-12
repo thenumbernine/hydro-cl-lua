@@ -149,14 +149,14 @@ function Z4_2004Bona:init(args)
 	if self.useStressEnergyTerms then
 		self.consVars:append{
 			--stress-energy variables:
-			{name='rho', type='real'},					--1: n_a n_b T^ab
-			{name='S_u', type='real3'},				--3: -gamma^ij n_a T_aj
-			{name='S_ll', type='sym3'},				--6: gamma_i^c gamma_j^d T_cd
+			{name='rho', type='real'},			--1: n_a n_b T^ab
+			{name='S_u', type='real3'},			--3: -gamma^ij n_a T_aj
+			{name='S_ll', type='sym3'},			--6: gamma_i^c gamma_j^d T_cd
 		}								
 	end
 	self.consVars:append{
 		--constraints:              
-		{name='H', type='real'},					--1
+		{name='H', type='real'},				--1
 		{name='M_u', type='real3'},				--3
 	}
 
