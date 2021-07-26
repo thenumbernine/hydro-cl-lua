@@ -210,45 +210,34 @@ end
 	/*real3 const */pt,\
 	/*<?=normal_t?> */n\
 ) {\
-	real3 const v_n = normal_vecDotNs(n, (eig)->v);\
 	real const nLen = normal_len(n);\
-	real const inv_nLen = 1. / nLen;\
-	real const denom = 2. * (eig)->Cs * (eig)->Cs;\
-	real const invDenom = 1. / denom;\
-	real const gamma_1 = solver->heatCapacityRatio - 1.;\
+	real const nLenSq = normal_lenSq(n);\
+	real const CsSq = (eig)->Cs * (eig)->Cs;\
 	(result)->ptr[0] = (\
-			(X)->ptr[0] * (.5 * gamma_1 * (eig)->vSq + (eig)->Cs * v_n.x * inv_nLen)\
-			+ (X)->ptr[1] * (-gamma_1 * (eig)->vL.x - (eig)->Cs * normal_l1x_over_len(n))\
-			+ (X)->ptr[2] * (-gamma_1 * (eig)->vL.y - (eig)->Cs * normal_l1y_over_len(n))\
-			+ (X)->ptr[3] * (-gamma_1 * (eig)->vL.z - (eig)->Cs * normal_l1z_over_len(n))\
-			+ (X)->ptr[4] * gamma_1\
-		) * invDenom;\
+			  (X)->ptr[1] * -(eig)->rho * normal_l1x_over_len(n)\
+			+ (X)->ptr[2] * -(eig)->rho * normal_l1y_over_len(n)\
+			+ (X)->ptr[3] * -(eig)->rho * normal_l1z_over_len(n)\
+			+ (X)->ptr[4] / (eig)->Cs\
+		) * .5 / ((eig)->Cs * nLen);\
 	(result)->ptr[1] =\
-		(\
-			(X)->ptr[0] * (denom - gamma_1 * (eig)->vSq)\
-			+ (X)->ptr[1] * 2. * gamma_1 * (eig)->vL.x\
-			+ (X)->ptr[2] * 2. * gamma_1 * (eig)->vL.y\
-			+ (X)->ptr[3] * 2. * gamma_1 * (eig)->vL.z\
-			+ (X)->ptr[4] * -2. * gamma_1\
-		) * invDenom;\
-	(result)->ptr[2] =\
-		(X)->ptr[0] * -v_n.y\
-		+ (X)->ptr[1] * normal_l2x(n)\
-		+ (X)->ptr[2] * normal_l2y(n)\
-		+ (X)->ptr[3] * normal_l2z(n);\
-	(result)->ptr[3] =\
-		(X)->ptr[0] * -v_n.z\
-		+ (X)->ptr[1] * normal_l3x(n)\
-		+ (X)->ptr[2] * normal_l3y(n)\
-		+ (X)->ptr[3] * normal_l3z(n);\
-	(result)->ptr[4] =\
-		(\
-			(X)->ptr[0] * (.5 * gamma_1 * (eig)->vSq - (eig)->Cs * v_n.x * inv_nLen)\
-			+ (X)->ptr[1] * (-gamma_1 * (eig)->vL.x + (eig)->Cs * normal_l1x_over_len(n))\
-			+ (X)->ptr[2] * (-gamma_1 * (eig)->vL.y + (eig)->Cs * normal_l1y_over_len(n))\
-			+ (X)->ptr[3] * (-gamma_1 * (eig)->vL.z + (eig)->Cs * normal_l1z_over_len(n))\
-			+ (X)->ptr[4] * gamma_1\
-		) * invDenom;\
+			  (X)->ptr[0]\
+			+ (X)->ptr[4] * -1. / CsSq;\
+	(result)->ptr[2] =(\
+			  (X)->ptr[1] * -(nLenSq - normal_l1y(n) * normal_u1y(n)) / normal_l1x(n)\
+			+ (X)->ptr[2] * normal_u1y(n) / normal_l1x(n)\
+			+ (X)->ptr[3] * -normal_l1z(n)\
+		) * (eig)->rho / nLenSq;\
+	(result)->ptr[3] =(\
+			  (X)->ptr[1] * -normal_u1z(n)\
+			+ (X)->ptr[2] * -normal_l1y(n) * normal_u1z(n) / normal_l1x(n)\
+			+ (X)->ptr[3] * (nLenSq - normal_l1z(n) * normal_u1z(n)) / normal_l1x(n)\
+		) * (eig)->rho / nLenSq;\
+	(result)->ptr[4] =(\
+			  (X)->ptr[1] * (eig)->rho * normal_l1x_over_len(n)\
+			+ (X)->ptr[2] * (eig)->rho * normal_l1y_over_len(n)\
+			+ (X)->ptr[3] * (eig)->rho * normal_l1z_over_len(n)\
+			+ (X)->ptr[4] / (eig)->Cs\
+		) * .5 / ((eig)->Cs * nLen);\
 }
 
 //// MODULE_NAME: <?=eigen_rightTransform?>
@@ -262,91 +251,41 @@ end
 	/*real3 const */pt,\
 	/*<?=normal_t?> const */n\
 ) {\
-	real3 const v_n = normal_vecDotNs(n, (eig)->v);\
 	real const nLen = normal_len(n);\
-	real const inv_nLen = 1. / nLen;\
+	real const invRho = 1. / (eig)->rho;\
 	(result)->ptr[0] =\
-		(X)->ptr[0]\
+		  (X)->ptr[0] * nLen\
 		+ (X)->ptr[1]\
-		+ (X)->ptr[4];\
-	(result)->ptr[1] =\
-		(X)->ptr[0] * ((eig)->v.x - (eig)->Cs * normal_u1x_over_len(n))\
-		+ (X)->ptr[1] * (eig)->v.x\
-		+ (X)->ptr[2] * normal_u2x(n)\
-		+ (X)->ptr[3] * normal_u3x(n)\
-		+ (X)->ptr[4] * ((eig)->v.x + (eig)->Cs * normal_u1x_over_len(n));\
-	(result)->ptr[2] =\
-		(X)->ptr[0] * ((eig)->v.y - (eig)->Cs * normal_u1y_over_len(n))\
-		+ (X)->ptr[1] * (eig)->v.y\
-		+ (X)->ptr[2] * normal_u2y(n)\
-		+ (X)->ptr[3] * normal_u3y(n)\
-		+ (X)->ptr[4] * ((eig)->v.y + (eig)->Cs * normal_u1y_over_len(n));\
-	(result)->ptr[3] =\
-		(X)->ptr[0] * ((eig)->v.z - (eig)->Cs * normal_u1z_over_len(n))\
-		+ (X)->ptr[1] * (eig)->v.z\
-		+ (X)->ptr[2] * normal_u2z(n)\
-		+ (X)->ptr[3] * normal_u3z(n)\
-		+ (X)->ptr[4] * ((eig)->v.z + (eig)->Cs * normal_u1z_over_len(n));\
-	(result)->ptr[4] =\
-		(X)->ptr[0] * ((eig)->hTotal - (eig)->Cs * v_n.x * inv_nLen)\
-		+ (X)->ptr[1] * .5 * (eig)->vSq\
-		+ (X)->ptr[2] * v_n.y\
-		+ (X)->ptr[3] * v_n.z\
-		+ (X)->ptr[4] * ((eig)->hTotal + (eig)->Cs * v_n.x * inv_nLen);\
+		+ (X)->ptr[4] * nLen;\
+	(result)->ptr[1] =(\
+		  (X)->ptr[0] * -(eig)->Cs * normal_u1x(n)\
+		+ (X)->ptr[2] * -normal_l1y(n)\
+		+ (X)->ptr[3] * -normal_l1z(n)\
+		+ (X)->ptr[4] * (eig)->Cs * normal_u1x(n)\
+	) * invRho;\
+	(result)->ptr[2] =(\
+		  (X)->ptr[0] * -(eig)->Cs * normal_u1y(n)\
+		+ (X)->ptr[2] * normal_l1x(n)\
+		+ (X)->ptr[4] * (eig)->Cs * normal_u1y(n)\
+	) * invRho;\
+	(result)->ptr[3] =(\
+		  (X)->ptr[0] * -(eig)->Cs * normal_u1z(n)\
+		+ (X)->ptr[3] * normal_l1x(n)\
+		+ (X)->ptr[4] * (eig)->Cs * normal_u1z(n)\
+	) * invRho;\
+	(result)->ptr[4] =(\
+		  (X)->ptr[0]\
+		+ (X)->ptr[4]\
+	) * nLen * (eig)->Cs * (eig)->Cs;\
 }
 
 //// MODULE_NAME: <?=eigen_fluxTransform?>
 //// MODULE_DEPENDS: <?=eigen_t?> <?=normal_t?>
 // Not used anymore.  was used by Roe, but I switched that to a <?=fluxFromCons?>.
 // <?=fluxFromCons?> only matches <?=eigen_fluxTransform?> when the eig properties are derived from X_ 
+// TODO keep including it?  is all of the Roe solver based on the idea that F = dF/dU * U = R * Lambda * L * U?  I think so.
+//  in that case ... this can't work anyways.
 
-#define <?=eigen_fluxTransform?>(\
-	/*<?=cons_t?> * const */resultFlux,\
-	/*constant <?=solver_t?> const * const */solver,\
-	/*<?=eigen_t?> const * const */eig,\
-	/*<?=cons_t?> const * const */X,\
-	/*<?=cell_t?> const * const */cell,\
-	/*<?=normal_t?> const */n\
-) {\
-	real3 const v_n = normal_vecDotNs(n, (eig).v);\
-	real const nLen = normal_len(n);\
-	const real gamma = solver->heatCapacityRatio;\
-	const real gamma_1 = gamma - 1.;\
-	const real gamma_2 = gamma - 2.;\
-\
-	(resultFlux)->ptr[0] =\
-		(X)->ptr[1] * normal_l1x(n)\
-		+ (X)->ptr[2] * normal_l1y(n)\
-		+ (X)->ptr[3] * normal_l1z(n);\
-\
-	(resultFlux)->ptr[1] =\
-		(X)->ptr[0] * (-v_n.x * (eig).v.x + gamma_1 * .5 * (eig).vSq * normal_u1x(n))\
-		+ (X)->ptr[1] * ((eig).v.x * normal_l1x(n) - gamma_2 * normal_u1x(n) * (eig).vL.x + v_n.x)\
-		+ (X)->ptr[2] * ((eig).v.x * normal_l1y(n) - gamma_2 * normal_u1x(n) * (eig).vL.y)\
-		+ (X)->ptr[3] * ((eig).v.x * normal_l1z(n) - gamma_2 * normal_u1x(n) * (eig).vL.z)\
-		+ (X)->ptr[4] * gamma_1 * normal_u1x(n);\
-\
-	(resultFlux)->ptr[2] =\
-		(X)->ptr[0] * (-v_n.x * (eig).v.y + gamma_1 * .5 * (eig).vSq * normal_u1y(n))\
-		+ (X)->ptr[1] * ((eig).v.y * normal_l1x(n) - gamma_2 * normal_u1y(n) * (eig).vL.x)\
-		+ (X)->ptr[2] * ((eig).v.y * normal_l1y(n) - gamma_2 * normal_u1y(n) * (eig).vL.y + v_n.x)\
-		+ (X)->ptr[3] * ((eig).v.y * normal_l1z(n) - gamma_2 * normal_u1y(n) * (eig).vL.z)\
-		+ (X)->ptr[4] * gamma_1 * normal_u1y(n);\
-\
-	(resultFlux)->ptr[3] =\
-		(X)->ptr[0] * (-v_n.x * (eig).v.z + gamma_1 * .5 * (eig).vSq * normal_u1z(n))\
-		+ (X)->ptr[1] * ((eig).v.z * normal_l1x(n) - gamma_2 * normal_u1z(n) * (eig).vL.x)\
-		+ (X)->ptr[2] * ((eig).v.z * normal_l1y(n) - gamma_2 * normal_u1z(n) * (eig).vL.y)\
-		+ (X)->ptr[3] * ((eig).v.z * normal_l1z(n) - gamma_2 * normal_u1z(n) * (eig).vL.z + v_n.x)\
-		+ (X)->ptr[4] * gamma_1 * normal_u1z(n);\
-\
-	(resultFlux)->ptr[4] =\
-		(X)->ptr[0] * v_n.x * (.5 * gamma_1 * (eig).vSq - (eig).hTotal)\
-		+ (X)->ptr[1] * (normal_l1x(n) * (eig).hTotal - gamma_1 * v_n.x * (eig).vL.x)\
-		+ (X)->ptr[2] * (normal_l1y(n) * (eig).hTotal - gamma_1 * v_n.x * (eig).vL.y)\
-		+ (X)->ptr[3] * (normal_l1z(n) * (eig).hTotal - gamma_1 * v_n.x * (eig).vL.z)\
-		+ (X)->ptr[4] * gamma * v_n.x;\
-}
 
 <? if false then -- TODO sort <?=addSource?> out. ?>
 //// MODULE_NAME: <?=addSource?>
