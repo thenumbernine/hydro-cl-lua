@@ -3507,6 +3507,7 @@ end
 			end
 		end
 	end
+	print('done')
 	os.exit()
 end
 --]]

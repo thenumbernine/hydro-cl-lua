@@ -33,12 +33,12 @@ if require 'gl.tex2d':isa(solver.tex) then -- does
 ?>
 uniform sampler2D tex;
 vec4 getTex(vec3 texCoord) {
-	return texture2D(tex, texCoord.xy);
+	return texture(tex, texCoord.xy);
 }
 <? else ?>
 uniform sampler3D tex;
 vec4 getTex(vec3 texCoord) {
-	return texture3D(tex, texCoord);
+	return texture(tex, texCoord);
 }
 <? end ?>
 
@@ -81,7 +81,7 @@ float getGradientTexCoord(float frac) {
 vec4 getGradientColor(float value) {
 	float frac = getGradientFrac(value);
 	float tc = getGradientTexCoord(frac);
-	return texture1D(gradientTex, tc);
+	return texture(gradientTex, tc);
 }
 
 

@@ -294,8 +294,8 @@ function MeshSolver:initDraw()
 uniform float drawCellScale;
 uniform mat4 modelViewProjectionMatrix;
 
-attribute vec3 vtx;
-attribute vec3 vtxcenter;
+in vec3 vtx;
+in vec3 vtxcenter;
 
 void main() {
 	vec3 v = (vtx - vtxcenter) * drawCellScale + vtxcenter;

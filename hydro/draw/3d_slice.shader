@@ -18,7 +18,7 @@ local varying = vertexShader and 'out'
 <? if vertexShader then ?>
 
 //in tex coords
-attribute vec4 vertex;
+in vec4 vertex;
 
 void main() {
 	vec4 x = vertex;
@@ -80,7 +80,7 @@ end
 	
 	float frac = getGradientFrac(value);
 	float gradTC = getGradientTexCoord(frac);
-	vec4 voxelColor = texture1D(gradientTex, gradTC);
+	vec4 voxelColor = texture(gradientTex, gradTC);
 
 	//don't bother with the gamma factor if we're using isobars
 	if (useIsos) {

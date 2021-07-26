@@ -304,6 +304,12 @@ assert(args.anholonomic == nil, "coord.anholonomic is deprecated.  instead you s
 
 	local flatMetric = Matrix:lambda({dim, dim}, function(i,j) return i==j and 1 or 0 end)
 	local embedded = self.embedded
+	
+	if self.verbose then
+		print('flatMetric:')
+		print(flatMetric)
+		print('embedded:', table.mapi(embedded, tostring):concat', ')
+	end
 
 	Tensor.coords{
 		{variables=coords},
