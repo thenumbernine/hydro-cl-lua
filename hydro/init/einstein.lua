@@ -305,7 +305,89 @@ local initConds = table{
 ]]
 		end,
 	},
-	
+
+--[[ gravitational plane wave
+in chart {u,v,y,z} for u=(t-x)/sqrt(2), v=(t+x)/sqrt(2)
+form of g_ab = f du^2 - 2 du dv + dy^2 + dz^2
+for f = a (y^2 - z^2) - 2 b y z
+and a = a(u), b = b(u)
+for ij in {v,y,z}
+β_i = {1, 0, 0}			by g_0i = β_i
+γ_ij = diag{0,1,1}  	by g_ij = γ_ij ... is not invertible, so I guess γ^ij is arbitrary?
+	or does a non-invertible γ_ij imply that {u,v,y,z} can't be used as a coordinate system for ADM decomposition?
+γ^ij = diag{0,1,1} also? 
+since g^ij = γ^ij - β^i β^j / α^2, this could still be non-singular if β^i = {√f, 0, 0} ... chicken-and-egg ...
+--]]
+	{	
+		name = 'gravitational plane wave uvyz',
+		getInitCondCode = function(self)
+			return [[
+	alpha = 
+]]
+		end,
+	},
+
+--[[
+gravitational plane wave
+in chart {t,x,y,z}
+form of g_ab = (f/2 - 1) dt^2 - f dt dx + (f/2 + 1) dx^2 + dy^2 + dz^2
+g^ab = -(f/2 + 1) e_t^2 - f e_t e_x + (1 - f/2) e_x^2 + e_y^2 + e_z^2
+
+for ij in {x,y,z}
+
+g_ij = γ_ij
+=> γ_ij = diag{ f/2 + 1, 1, 1} 
+=> γ^ij = diag{ 2/(f + 2), 1, 1}
+
+g_0i = β_i
+=> β_i = {-f/2, 0, 0}
+=> β^i = { -f/(f+2), 0, 0 }
+
+g^00 = -1/α^2
+=> -1/α^2 = -(f/2 + 1)
+=> 1/α^2 = f/2 + 1
+=> α^2 = 2/(f + 2)
+=> α = √(2/(f + 2))
+
+g_00 = -α^2 + β_i β^i
+=> f/2 - 1 = -2/(f + 2) + f^2 / (2*(f + 2))
+=> f/2 - 1 = f/2 - 1
+CHECK
+
+g^0i = β^i / α^2
+=> {-f/2, 0, 0} = {-f/(f + 2), 0, 0} * (f + 2)/2
+=> {-f/2, 0, 0} = {-f/2, 0, 0} 
+CHECK
+
+g^ij = γ^ij - β^i β^j / α^2
+=> diag{-f/2+1, 1, 1} = diag{ 2/(2 + f), 1, 1} - { -f/(f+2), 0, 0 } ⊗ { -f/(f+2), 0, 0 } * (f + 2)/2
+=> diag{-f/2+1, 1, 1} = diag{ 2/(2 + f), 1, 1} - diag{ f^2/(2*(f+2)), 0, 0}
+=> diag{-f/2+1, 1, 1} = diag{ 2/(2 + f), 1, 1} - diag{ f^2/(2*(f+2)), 0, 0}
+=> diag{-f/2+1, 1, 1} = diag{ -f/2+1, 1, 1}
+CHECK
+
+what if I transforms this from tx back to uv?
+
+--]]
+	{	
+		name = 'gravitational plane wave txyz',
+		getInitCondCode = function(self)
+			return [[
+	//f = a(u) * (y^2 - z^2) - 2 * b(u) * y * z, for u = (t+x)/sqrt(2)
+	real const t = 0.;
+	real const u = (t - x.x) * <?=math.sqrt(.5)?>;
+	real const a = 1.;
+	real const b = 1.;
+	real const f = a * (x.y * x.y - x.z * x.z) - 2. * b * x.y * x.z;
+
+	real const gamma_xx = (f + 2.) / 2.;
+	alpha = sqrt(1. / gamma_xx);
+	beta_u = _real3(-f/(f + 2.), 0., 0.);
+	gamma_ll = _sym3(gamma_xx, 0., 0., 1., 0., 1.);
+]]
+		end,
+	},
+
 	-- from 2011 Alcubierre, Mendez "Formulations of the 3+1 evolution equations in curvilinear coordinates"
 	-- Appendix A, eqns 7.1 - 7.5
 	{

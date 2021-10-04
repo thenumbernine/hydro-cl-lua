@@ -164,7 +164,7 @@ function BSSNOKFiniteDifferenceEquation:getEnv()
 		symmath.tostring = symmath.export.MathJax
 		symmath.tostring.useCommaDerivative = true
 
-		coords = Tensor.coords()[1].variables
+		coords = self.solver.coord.symchart.coords
 		local coordNames = table.mapi(coords, function(coord) return coord.name end)
 
 		outfile = assert(io.open(symdir..'/math.html', 'w'))

@@ -247,24 +247,26 @@ assert(args.anholonomic == nil, "coord.anholonomic is deprecated.  instead you s
 		eHolToE = Matrix.identity(3)
 	end
 
+	local tangentSpaceOperators
 	local baseCoords = self.baseCoords
 	if self.vectorComponent == 'holonomic' then
 		self.coords = table(baseCoords)
 	elseif self.vectorComponent == 'anholonomic' then
-		-- TODO this is why symmath needs CAS function objects
-		-- and instead of overriding :applyDiff, just make operators a CAS function object
+		tangentSpaceOperators = table()
 		local nonCoords = table()
 		local nonCoordLinExpr = (eHolToE * Matrix(baseCoords):T())()
 		for i=1,3 do
 			local baseCoord = baseCoords[i]
 			-- the non-coordinate = the coordinate, so use the original variable 
 			if nonCoordLinExpr[i] == baseCoord then
-			-- the non-coordinate ~= the coordinate, so make a new non-coord var and modify its 'applyDiff' function
 				nonCoords[i] = baseCoord
+				tangentSpaceOperators[i] = function(x) return x:diff(baseCoord)() end 
+			
+			-- the non-coordinate ~= the coordinate, so make a new non-coord var
 			else
-				local nonCoord = symmath.var('\\hat{'..baseCoord.name..'}')
-				nonCoord.base = baseCoord
-				function nonCoord:applyDiff(x)
+				nonCoords[i] = symmath.var('\\hat{'..baseCoord.name..'}')
+				
+				tangentSpaceOperators[i] = function(x)
 					local xPartial = symmath.Matrix:lambda({dim, 1}, function(j,_)
 						return x:diff(baseCoords[j])
 					end)
@@ -283,7 +285,6 @@ assert(args.anholonomic == nil, "coord.anholonomic is deprecated.  instead you s
 					assert(symmath.Expression:isa(result) and not symmath.Array:isa(result))
 					return result
 				end
-				nonCoords[i] = nonCoord
 			end
 		end
 		self.coords = nonCoords
@@ -311,9 +312,17 @@ assert(args.anholonomic == nil, "coord.anholonomic is deprecated.  instead you s
 		print('embedded:', table.mapi(embedded, tostring):concat', ')
 	end
 
-	Tensor.coords{
-		{variables=coords},
-		{variables=embedded, symbols='IJKLMN', metric=flatMetric},
+	self.manifold = Tensor.Manifold()
+	self.symchart = manifold:Chart{
+		{
+			coords = coords,
+			tangentSpaceOperators = tangentSpaceOperators,
+		},
+		{
+			coords = embedded,
+			symbols = 'IJKLMN',
+			metric = function() return flatMetric end,
+		},
 	}
 
 	--[[
@@ -461,41 +470,11 @@ assert(args.anholonomic == nil, "coord.anholonomic is deprecated.  instead you s
 	end
 
 	-- commutation coefficients
-	local c = Tensor'_ab^c'
+	local c = self.symchart.commutation
 	if self.vectorComponent == 'anholonomic' then
 		if self.verbose then
 			print'connection coefficients:'
 			print(var'c''_uv^w' * var'e''_w','$=[ e_u, e_v ]$')
-		end
-		local zeta = var('\\zeta', baseCoords)
-		local dzeta = table.mapi(baseCoords, function(uk) return zeta:diff(uk) end)
-		for i,ui in ipairs(coords) do
-			for j,uj in ipairs(coords) do
-				local diff = ui:applyDiff(uj:applyDiff(zeta)) - uj:applyDiff(ui:applyDiff(zeta))
-				local diffEval = diff()
-				if diffEval ~= const(0) then
-					if self.verbose then
-						print('$[',ui.name,',',uj.name,'] =$',diff:eq(diffEval))
-					end
-					diff = diff()
-					if self.verbose then
-						print('factor division',diff)
-					end
-					local A,b = symmath.factorLinearSystem({diff}, dzeta)
-					-- now extract zeta:diff(uk)
-					-- and divide by e_k to get the correct coefficient
-					-- TODO this assumes that e_a is only a function of partial_a
-					-- if e_a is a linear combination of e_a^b partial_b then you can work it out to find
-					-- c_ab^d = (e^-1)_c^d (e_a^r e_b^c_,r - e_b^r e_a^c_,r)
-					-- TODO put this somewhere else so everyone can use it
-					assert(b[1][1] == const(0))
-					for k,uk in ipairs(coords) do
-						local coeff = (A[1][k] * dzeta[k] / uk:applyDiff(zeta))()
-						-- assert dphi is nowhere in coeff ...
-						c[i][j][k] = coeff 
-					end
-				end
-			end
 		end
 	end
 	if self.verbose then
@@ -714,7 +693,7 @@ self.compilePrintRequestTensor = compilePrintRequestTensor
 	self.calc.coord_partial_det_g = {
 		build = function()
 			return Tensor('_a', function(a)
-				return coords[a]:applyDiff(self.request'coord_det_g')()
+				return self.symchart.tangentSpaceOperators[a](self.request'coord_det_g')()
 			end)
 		end,
 		result = 'real3',
@@ -1169,7 +1148,7 @@ self.compilePrintRequestTensor = compilePrintRequestTensor
 	self.calc.coord_partial_det_gHol_l = {
 		build = function()
 			return Tensor('_a', function(a)
-				return coords[a]:applyDiff(self.request'coord_det_gHol')()
+				return self.symchart.tangentSpaceOperators[a](self.request'coord_det_gHol')()
 			end)
 		end,
 		result = 'real3',
