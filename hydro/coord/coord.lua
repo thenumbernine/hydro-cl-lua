@@ -313,16 +313,14 @@ assert(args.anholonomic == nil, "coord.anholonomic is deprecated.  instead you s
 	end
 
 	self.manifold = Tensor.Manifold()
-	self.symchart = manifold:Chart{
-		{
-			coords = coords,
-			tangentSpaceOperators = tangentSpaceOperators,
-		},
-		{
-			coords = embedded,
-			symbols = 'IJKLMN',
-			metric = function() return flatMetric end,
-		},
+	self.symchart = self.manifold:Chart{
+		coords = coords,
+		tangentSpaceOperators = tangentSpaceOperators,
+	}
+	self.symEmbeddedChart = self.manifold:Chart{
+		coords = embedded,
+		symbols = 'IJKLMN',
+		metric = function() return flatMetric end,
 	}
 
 	--[[
@@ -499,7 +497,7 @@ assert(args.anholonomic == nil, "coord.anholonomic is deprecated.  instead you s
 		)
 		print()
 	end
-	Tensor.metric(g)
+	self.symchart:setMetric(g)
 	
 	
 	-- code generation

@@ -540,7 +540,7 @@ time('building symbolic math env', function()
 		-- otherwise using e or eu incorrectly will result in extra operations
 
 	printbr'gammaHat_ll'
-		gammaHat_ll = solver.coord:applyReplVars(Tensor.metric().metric)
+		gammaHat_ll = solver.coord:applyReplVars(solver.coord.symchart.metric)
 	printbr(gammaHat_ll)
 	printbr'e'
 		e = solver.coord:applyReplVars(Tensor('_i^I', function(i,j)
@@ -1648,7 +1648,7 @@ error'move the code gen to the cl file module'
 		local gamma0_ll = initCond.gamma0_ll
 		local K0_ll = initCond.K0_ll
 
-		local gammaHat_ll = Tensor.metric().metric
+		local gammaHat_ll = self.solver.coord.symchart.metric
 		local det_gammaHat = Matrix.determinant(gammaHat_ll)
 		local det_gammaBar = det_gammaHat 	-- TODO make this constraint a function
 		local det_gamma0 = Matrix.determinant(gamma0_ll)

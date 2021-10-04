@@ -20,7 +20,7 @@ function EinsteinInitCond:init(args)
 	local Tensor = require 'symmath'.Tensor
 	self.alpha0 = 1
 	self.beta0_u = Tensor'^i'
-	self.gamma0_ll = Tensor.metric().metric
+	self.gamma0_ll = self.solver.coord.symchart.metric
 	self.K0_ll = Tensor'_ij'
 	
 	--EinsteinInitCond.super.init(self, args, ...)
