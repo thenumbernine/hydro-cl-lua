@@ -331,7 +331,7 @@ void calcCellLR_<?=side?>(
 
 	//calc eigen values and vectors at cell center
 	<?=eigen_t?> eig;
-	<?=eigen_forCell?>(&eig, solver, U, cell->pos, n);
+	<?=eigen_forCell?>(&eig, solver, U, cell, n);
 		
 	<?=waves_t?> dULEig;
 	<?=eigen_leftTransform?>(&dULEig, solver, &eig, &dUL, xIntL, normal_forSide<?=side?>(xIntL));
@@ -682,7 +682,7 @@ void calcCellLR_<?=side?>(
 
 	//calc eigen values and vectors at cell center
 	<?=eigen_t?> eig;
-	<?=eigen_forCell?>(&eig, solver, U, cell->pos, n);
+	<?=eigen_forCell?>(&eig, solver, U, cell, n);
 
 	real const dx = cell_dx<?=side?>(cell->pos);
 	real const dt_dx = dt / dx;
