@@ -1057,9 +1057,10 @@ With hyperbolic gamma driver shift it has trouble.
 -- [[ 1.25 degree angle of attack, mach 0.8, sea level pressure and density
 -- might be trying to reproduce the "I Do Like CFD" OssanWorld.com edu2d "case_steady_airfoil"
 local Air = materials.Air
---local theta = 0
-local theta = math.rad(1.25)
-local machSpeed = 0.8
+local theta = 0
+--local theta = math.rad(1.25)
+local machSpeed = 0.3
+--local machSpeed = 0.8
 --local machSpeed = 0.95
 --local machSpeed = 1
 --local machSpeed = 1.2
@@ -1080,7 +1081,61 @@ self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {
 	--flux = 'hll',
 	eqn = 'euler',
 	--mesh = {type = 'p2dfmt', meshfile = 'n0012_113-33.p2dfmt'},
-	mesh = {type = 'edu2dgrid', meshfile = 'airfoil.grid'},
+	mesh = {
+		type = 'edu2dgrid',
+		meshfile = 'cylinder.grid',
+		--meshfile = 'airfoil.grid',
+		boundary = {
+			{	-- slip_wall
+				name='mirror',
+				args={restitution=0},
+			},
+			{	-- freestream
+				name = 'fixed', 
+				args = {
+					fixedCode = function(self, args, dst)
+						local solver = args.solver
+						return solver.eqn:template([[
+{
+	<?=prim_t?> W;	//force entire state to initial state
+	W.rho = 1;
+	W.P = 1;
+	W.v.x = <?=math.cos(math.rad(1.25))?>;
+	W.v.y = <?=math.sin(math.rad(1.25))?>;
+	W.v.z = 0;
+	W.ePot = 0;
+	<?=consFromPrim?>(<?=dst?>, solver, &W, <?=face?>->pos);
+}
+]], args),
+						-- 2nd return is list of required modules
+						{solver.eqn.symbols.consFromPrim}
+					end,
+				}
+			},
+		},
+		{
+			-- "outflow_subsonic", used with the cylinder test
+			name = 'fixed', 
+			args = {
+				fixedCode = function(self, args, dst)
+					local solver = args.solver
+					return solver.eqn:template([[
+{
+	<?=prim_t?> W;
+	<?=primFromCons?>(&W, solver, <?=src?>, <?=face?>->pos);
+	W.P = <?=1/gamma?>;	//force pressure to initial pressure
+	<?=consFromPrim?>(<?=dst?>, solver, &W, <?=face?>->pos);
+}
+]], table(args, {gamma=gamma}):setmetatable(nil)),
+					-- 2nd return is list of required modules
+					{
+						solver.eqn.symbols.consFromPrim,
+						solver.eqn.symbols.primFromCons,
+					}
+				end,
+			},
+		},
+	},
 	initCond = 'constant',
 	initCondArgs = {
 		solverVars = {

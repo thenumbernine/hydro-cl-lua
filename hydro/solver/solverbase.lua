@@ -333,24 +333,33 @@ so that SolverBase:init can run stuff after all child classes have initialized
 --]]
 function SolverBase:init(args)
 
-self.initArgs = table(args)	-- save for later	
+-- save for later	
+-- right now this is only used for serialization of the config of the solver,
+-- which used to be used for caching binaries for fast compiling
+-- but now that the code/obj names have their mem locs in them, the serialize str is dif every time
+-- so i need to fix that
+-- adn i need to fix this
+self.initArgsForSerialization = table(args)
 -- remove/replace object references
-self.initArgs.app = nil
-self.initArgs.solver = getmetatable(self).name	-- not in initArgs but is unique	
-if self.initArgs.subsolverClass then
-	self.initArgs.subsolverClass = self.initArgs.subsolverClass.name
+self.initArgsForSerialization.app = nil
+self.initArgsForSerialization.solver = getmetatable(self).name	-- not in initArgsForSerialization but is unique	
+if self.initArgsForSerialization.subsolverClass then
+	self.initArgsForSerialization.subsolverClass = self.initArgsForSerialization.subsolverClass.name
 end
 -- remove compile-time variables
-self.initArgs.fixedDT = nil
-self.initArgs.cfl = nil
-self.initArgs.mins = nil
-self.initArgs.maxs = nil
-self.initArgs.gridSize = nil	
-self.initArgs.cmds = nil		-- in choppedup
-self.initArgs.device = nil		-- in choppedup
-self.initArgs.id = nil			-- in choppedup
+self.initArgsForSerialization.fixedDT = nil
+self.initArgsForSerialization.cfl = nil
+self.initArgsForSerialization.mins = nil
+self.initArgsForSerialization.maxs = nil
+self.initArgsForSerialization.gridSize = nil	
+self.initArgsForSerialization.cmds = nil		-- in choppedup
+self.initArgsForSerialization.device = nil		-- in choppedup
+self.initArgsForSerialization.id = nil			-- in choppedup
 -- also include # devices.  since, on the nvidia cluster, the binaries compiled for 1 device will segfault if they are loaded when using >1 device
-self.initArgs.numDevices = #args.app.env.devices
+self.initArgsForSerialization.numDevices = #args.app.env.devices
+-- hmm, this is defeating the whole purpose of this, ...
+-- but thanks to some function serialization in BoundaryFixed ... i'm getting rid of boundary as well
+self.initArgsForSerialization.mesh = nil
 
 	time('SolverBase:init()', function()
 		require 'hydro.code.symbols'(self, self:getSymbolFields())	-- make unique symbols
@@ -404,12 +413,12 @@ function SolverBase:getIdent()
 	}
 --]]
 -- [[ until then, trust the init args to be serialized already (and not objects ... which can be accepted as init args in some cases)
-	--return require 'ext.tolua'(self.initArgs, {indent=false})
+	--return require 'ext.tolua'(self.initArgsForSerialization, {indent=false})
 	-- here's how tests/test-order does it:
 	-- (this is causing errors, because i think these filenames are coming out too long, because they include stuff that test-order didn't
 	-- 	such as boundary condition info, eqn args, etc ... these need to be shortened)
-	assert(self.initArgs)
-	local serStr = require 'ext.tolua'(self.initArgs)
+	assert(self.initArgsForSerialization)
+	local serStr = require 'ext.tolua'(self.initArgsForSerialization)
 	local destName = serStr:match('^{(.*)}$')
 	assert(destName, "we must have got a circular reference in:\n"..serStr)
 	destName = destName 

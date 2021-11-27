@@ -355,6 +355,7 @@ function Mesh:addFaceForVtxs(...)
 	local n = select('#', ...)
 	fi = #self.faces
 	
+	-- this is crashing for cylinder mesh for some reason
 	self.faces:push_back(new_meshface_t(self.solver))
 	local f = self.faces:back()
 	
@@ -470,6 +471,7 @@ Mesh.times['adding vtx indexes'] = (Mesh.times['adding vtx indexes'] or 0) + get
 	c.faceOffset = #self.cellFaceIndexes
 	if self.solver.dim == 2 then
 -- [[ this block takes up 95% of the time of this whole function
+-- and now it's crashing
 local startTime = getTime()	
 		--face is a 1-form
 		for i=1,n do

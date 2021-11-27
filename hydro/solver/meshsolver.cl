@@ -52,7 +52,7 @@ end
 		end
 	end
 ?>
-<?=code?>
+		<?=code:gsub("\n", "\n\t\t")?>
 <? end 
 if #solver.boundaryMethods > 0 then
 ?>

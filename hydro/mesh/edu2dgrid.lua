@@ -39,7 +39,6 @@ function Edu2DGridMeshFactory:createMesh(solver)
 		local x, y = lineToNums(ls:remove(1), 2)
 		mesh.vtxs.v[i-1] = mesh.real3(x,y,0)
 	end
-
 	for i=1,numTris do
 		local a,b,c = lineToNums(ls:remove(1), 3)
 		mesh:addCell(vector('int',{a-1,b-1,c-1}))
@@ -51,15 +50,15 @@ function Edu2DGridMeshFactory:createMesh(solver)
 
 	local numBoundaryMethods = lineToNums(ls:remove(1), 1)
 
-	local numBoundCells = {}
+	local numBoundVtxs = {}
 	for i=1,numBoundaryMethods do
-		numBoundCells[i] = lineToNums(ls:remove(1), 1)
+		numBoundVtxs[i] = lineToNums(ls:remove(1), 1)
 	end
 
 	-- hmm, ossanworld's edu2d .grid format stores boundary info as lists of vtxs
 	for boundaryMethodIndex=1,numBoundaryMethods do
 		local prevvi
-		for j=1,numBoundCells[boundaryMethodIndex] do
+		for j=1,numBoundVtxs[boundaryMethodIndex] do
 			local vi = lineToNums(ls:remove(1), 1)
 			if not(1 <= vi and vi <= #mesh.vtxs) then
 				error("got an oob index for the vertex of our boundary class "..tostring(vi).." on line "..(n-#ls))
@@ -69,6 +68,7 @@ function Edu2DGridMeshFactory:createMesh(solver)
 				local fi = mesh:findFaceForVtxs(prevvi, vi)
 				assert(fi, "failed to find a face between vertexes "..prevvi.." and "..vi)
 				-- find the face from prevvi to vi
+print("setting face "..fi.." of vtxs "..prevvi..','..vi.." to boundary index "..boundaryMethodIndex)
 				mesh.faces.v[fi].boundaryMethodIndex = boundaryMethodIndex
 			end
 			prevvi = vi
@@ -80,45 +80,6 @@ function Edu2DGridMeshFactory:createMesh(solver)
 	mesh:calcAux()
 	
 	return mesh
-end
-
--- this is a hack for now
--- meshfactory was supposed to be done after creating the mesh
--- but I didn't create the boundaryoptions until long after finishing the mesh (in meshsolver)
--- so insteda it has to stick around to create the boundary objects as well
-function Edu2DGridMeshFactory:createBoundaryMethods(solver)
-	-- 2) read the .bc file
-	-- TODO
-	-- for airfoil.bc it is 
-	-- 1	slip_wall	!airfoil
-	-- 2	freestream	!farfield
-
-	-- until then, just hardcode the airfoil.bc file here ...
-	
-	solver.boundaryMethods[1] = solver.boundaryOptionForName.mirror{restitution=0}
-	solver.boundaryMethods[2] = solver.boundaryOptionForName.fixed{
-		-- TODO make sure this matches the initCond
-		-- better yet, specify this in the initCond
-		fixedCode = function(self, args, dst)
-			local solver = args.solver
-			return solver.eqn:template([[
-{
-	<?=prim_t?> W;
-	W.rho = 1;
-	W.P = 1;
-	W.v.x = <?=math.cos(math.rad(1.25))?>;
-	W.v.y = <?=math.sin(math.rad(1.25))?>;
-	W.v.z = 0;
-	W.ePot = 0;
-	<?=consFromPrim?>(<?=dst?>, solver, &W, <?=face?>->pos);
-}
-]], {
-		dst = dst,
-		face = args.face,
-	}),
-			{solver.eqn.symbols.consFromPrim}
-		end,
-	}
 end
 
 return Edu2DGridMeshFactory 

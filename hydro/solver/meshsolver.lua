@@ -106,6 +106,9 @@ for k,v in pairs(self.mesh.times) do
 end
 --os.exit()
 
+	-- here's our boundary ctor info hack:
+	self.boundaryArgs = args.mesh.boundary
+
 	-- ok now convert from lua tables to arrays
 	-- or do this in mesh:calcAux() ?
 
@@ -151,10 +154,6 @@ no, because numCells determines maxWorkGroupSize, which is needed by getSizeProp
 
 	-- no longer is dim * numCells the number of interfaces -- it is now dependent on the mesh
 	-- maybe I should rename this to numFaces?
-
--- TODO UNRAVEL / FIXME
--- save this for later til after boundary methods are created
-self.meshFactory = meshFactory
 end
 
 function MeshSolver:postInit()
@@ -170,9 +169,23 @@ function MeshSolver:initObjs(args)
 	end
 
 	self.boundaryMethods = {}
-	self.meshFactory:createBoundaryMethods(self)
-	-- and now we're done with meshFactory
-	self.meshFactory = nil
+	for key,boundary in ipairs(self.boundaryArgs or {}) do
+		local name, boundaryObjArgs
+		if type(boundary) == 'string' then
+			name = boundary
+		elseif type(boundary) == 'table' then
+			name = boundary.name
+			boundaryObjArgs = boundary.args
+		else
+			error("unknown boundary ctor: "..tostring(boundary))
+		end
+		local boundaryClass = assert(self.boundaryOptionForName[name], "failed to find boundary method named "..name)
+		
+		-- 'key' should be a 1-based integer ...
+		self.boundaryMethods[key] = boundaryClass(boundaryObjArgs)
+	end
+	-- and now we're done with self.boundaryArgs
+	self.boundaryArgs = nil
 end
 
 function MeshSolver:createCellStruct()
