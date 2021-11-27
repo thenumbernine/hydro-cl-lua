@@ -16,6 +16,8 @@ local ig = require 'ffi.imgui'
 local gl = require 'gl'
 local glreport = require 'gl.report'
 local tooltip = require 'hydro.tooltip'
+local template = require 'template'
+local clnumber = require 'cl.obj.number'
 local SolverBase = require 'hydro.solver.solverbase'
 local time, getTime = table.unpack(require 'hydro.util.time')
 local real = require 'hydro.real'
@@ -149,6 +151,10 @@ no, because numCells determines maxWorkGroupSize, which is needed by getSizeProp
 
 	-- no longer is dim * numCells the number of interfaces -- it is now dependent on the mesh
 	-- maybe I should rename this to numFaces?
+
+-- TODO UNRAVEL / FIXME
+-- save this for later til after boundary methods are created
+self.meshFactory = meshFactory
 end
 
 function MeshSolver:postInit()
@@ -162,18 +168,23 @@ function MeshSolver:initObjs(args)
 		print("overriding and removing fluxLimiter=="..self.fluxLimiter.." for meshsolver")
 		self.fluxLimiter = 1
 	end
+
+	self.boundaryMethods = {}
+	self.meshFactory:createBoundaryMethods(self)
+	-- and now we're done with meshFactory
+	self.meshFactory = nil
 end
 
 function MeshSolver:createCellStruct()
 	-- here's the mesh-specific stuff
 	self.coord.cellStruct.vars:append{
 -- [[			
-		{name='volume', type='real'},	--volume of the cell
+		{type='real', name='volume'},	--volume of the cell
 --]]			
-		{name='faceOffset', type='int'},
-		{name='faceCount', type='int'},
-		{name='vtxOffset', type='int'},
-		{name='vtxCount', type='int'},
+		{type='int', name='faceOffset'},
+		{type='int', name='faceCount'},
+		{type='int', name='vtxOffset'},
+		{type='int', name='vtxCount'},
 	}
 
 	-- here is the mesh-specific face_t fields
@@ -181,6 +192,131 @@ function MeshSolver:createCellStruct()
 		{type='vec2i_t', name='cells'},	--indexes of cells
 		{type='int', name='vtxOffset'},
 		{type='int', name='vtxCount'},
+		{type='int', name='boundaryMethodIndex'},
+	}
+end
+
+
+-- MeshSolver Boundary
+-- similar to GridSolver Boundary except GridSolver uses the grid for things like periodic/linear/quadratic cell lookup
+-- this is all dependenton the mesh / cell / face structs
+
+
+local Boundary = class()
+MeshSolver.Boundary = Boundary
+function Boundary:assignDstSrc(dst, src, args)
+	local lines = table()
+	if args.fields then
+		for _,field in ipairs(args.fields) do
+			lines:insert('('..dst..')->'..field..' = ('..src..')->'..field..';')
+		end
+	else
+		lines:insert('*('..dst..') = *('..src..');')
+	end
+	return lines:concat'\n'
+end
+
+local BoundaryNone = class(Boundary)
+BoundaryNone.name = 'none'
+function BoundaryNone:getCode(args)
+	return ''
+end
+
+-- here is where BoundaryPeriodic would normally go
+-- but 'periodic' is not so clear for unstructured grids
+-- so we'd need some kind of "read from arbitrary neighbor cell"
+
+local BoundaryMirror = class(Boundary)
+BoundaryMirror.name = 'mirror'
+function BoundaryMirror:init(args)
+	if args then
+		self.restitution = args.restitution
+	end
+end
+function BoundaryMirror:getCode(args)
+	local dst = assert(args.dst)
+	local src = assert(args.src)
+
+	local lines = table()
+	
+	lines:insert(self:assignDstSrc(dst, src, args))
+	
+	local solver = args.solver
+	local eqn = solver.eqn
+	
+	lines:insert(template([[
+{
+	real3 const x = (<?=face?>)->pos;
+	real3 const n = (<?=face?>)->normal;	// TODO pos vs neg?
+]], {
+		face = assert(args.face),
+	}))
+	for _,var in ipairs(eqn.consStruct.vars) do
+		if var.type == 'real' 
+		or var.type == 'cplx'
+		then
+			-- do nothing
+		elseif var.type == 'real3' 
+		or var.type == 'cplx3'
+		then
+			-- TODO looks very similar to the reflect code in meshsolver
+			lines:insert(template([[
+	(<?=dst?>)-><?=field?> = <?=vec3?>_sub(
+		(<?=dst?>)-><?=field?>,
+		<?=vec3?>_<?=scalar?>_mul(
+			<?=vec3?>_from_real3(n),
+			<?=scalar?>_real_mul(
+				<?=vec3?>_real3_dot(
+					(<?=dst?>)-><?=field?>,
+					n
+				), 
+				<?=restitution + 1?>
+			)
+		)
+	);
+]], 		{
+				restitution = clnumber(self.restitution),
+				vec3 = var.type,
+				scalar = var.type == 'cplx3' and 'cplx' or 'real',
+				field = var.name,
+				dst = dst,
+			}))
+		else
+			error("need to support reflect() for type "..var.type)
+		end
+	end
+	lines:insert[[
+}
+]]
+	return lines:concat'\n'
+end
+
+local BoundaryFixed = class(Boundary)
+BoundaryFixed.name = 'fixed'
+function BoundaryFixed:init(args)
+	-- fixed values to use
+	self.fixedCode = assert(args.fixedCode)
+end
+function BoundaryFixed:getCode(args)
+	local dst = assert(args.dst)
+	return self:fixedCode(args, dst)
+end
+MeshSolver.BoundaryFixed = BoundaryFixed 
+
+local BoundaryFreeFlow = class(Boundary)
+BoundaryFreeFlow.name = 'freeflow'
+function BoundaryFreeFlow:getCode(args)
+	local dst = assert(args.dst)
+	local src = assert(args.src)
+	return self:assignDstSrc(dst, src, args)
+end
+
+function MeshSolver:createBoundaryOptions()
+	self:addBoundaryOptions{
+		BoundaryNone,
+		BoundaryMirror,
+		BoundaryFixed,
+		BoundaryFreeFlow,
 	}
 end
 
@@ -387,6 +523,7 @@ function MeshSolver:createBuffers()
 		faces.v[i].cells = mesh.faces.v[i].cells
 		faces.v[i].vtxOffset = mesh.faces.v[i].vtxOffset
 		faces.v[i].vtxCount = mesh.faces.v[i].vtxCount
+		faces.v[i].boundaryMethodIndex = mesh.faces.v[i].boundaryMethodIndex
 	end
 	mesh.faces = faces
 	

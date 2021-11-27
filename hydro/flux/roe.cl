@@ -10,7 +10,7 @@
 // Roe solver:
 
 <? 
-local useFlux = solver.fluxLimiter > 1 
+local useFluxLimiter = solver.fluxLimiter > 1 
 	and flux.usesFluxLimiter -- just flux/roe.lua right now
 ?>
 
@@ -23,7 +23,7 @@ local useFlux = solver.fluxLimiter > 1
 	/*<?=cell_t?> const * const */cellL,\
 	/*<?=cell_t?> const * const */cellR,\
 	/*real3 const */xInt,\
-	/*<?=normal_t?> const */n<? if useFlux then ?>,\
+	/*<?=normal_t?> const */n<? if useFluxLimiter then ?>,\
 	/*realparam const */dt_dx,\
 	/*<?=cons_t?> const * const */UL_L,\
 	/*<?=cons_t?> const * const */UL_R,\
@@ -56,13 +56,13 @@ local useFlux = solver.fluxLimiter > 1
 <? end --\
 ?>\
 	<?=cons_t?> deltaU;\
-<? if useFlux then  --\
+<? if useFluxLimiter then  --\
 ?>	<?=cons_t?> deltaUL, deltaUR;\
 <? end  --\
 ?>\
 	for (int j = 0; j < numStates; ++j) {\
 		deltaU.ptr[j] = (UR)->ptr[j] - (UL)->ptr[j];\
-<? if useFlux then  --\
+<? if useFluxLimiter then  --\
 ?>		deltaUL.ptr[j] = (UR_L)->ptr[j] - (UL_L)->ptr[j];\
 		deltaUR.ptr[j] = (UR_R)->ptr[j] - (UL_R)->ptr[j];\
 <? end  --\
@@ -70,7 +70,7 @@ local useFlux = solver.fluxLimiter > 1
 \
 	<?=waves_t?> deltaUEig;\
 	<?=eigen_leftTransform?>(&deltaUEig, solver, &eig, &deltaU, xInt, n);\
-<? 	if useFlux then ?>\
+<? 	if useFluxLimiter then ?>\
 	<?=eigen_t?> eigL;\
 	<?=eigen_forInterface?>(&eigL, solver, UL_L, UR_L, cellL_L, cellR_L, xIntL, n);\
 	<?=eigen_t?> eigR;\
@@ -97,7 +97,7 @@ local useFlux = solver.fluxLimiter > 1
 <? end --\
 ?>		real sgnLambda = lambda >= 0 ? 1 : -1;\
 \
-<? if useFlux then --\
+<? if useFluxLimiter then --\
 ?>		real rEig;\
 		if (deltaUEig.ptr[j] == 0) {\
 			rEig = 0;\
@@ -112,7 +112,7 @@ local useFlux = solver.fluxLimiter > 1
 <? end --\
 ?>\
 		fluxEig.ptr[j] -= .5 * lambda * deltaUEig.ptr[j] * (sgnLambda\
-<? if useFlux then  --\
+<? if useFluxLimiter then  --\
 ?>			+ phi * (lambda * (dt_dx) - sgnLambda)\
 <? end  --\
 ?>		);\

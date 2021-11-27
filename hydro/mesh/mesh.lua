@@ -44,6 +44,7 @@ local function allocateTypes(solver)
 			{type='vec2i_t', name='cells'},	--indexes of cells
 			{type='int', name='vtxOffset'},
 			{type='int', name='vtxCount'},
+			{type='int', name='boundaryMethodIndex'},	-- 1-based boundary class.  0 == not a boundary.
 		},
 	}
 	meshfaceStruct:makeType()
@@ -80,6 +81,7 @@ local function new_meshface_t(solver)
 	face.cells:set(-1, -1)
 	face.vtxOffset = 0
 	face.vtxCount = 0
+	face.boundaryMethodIndex = 0
 	return face
 end
 
@@ -285,10 +287,14 @@ local function polyhedronCOM(volume, faces)
 	return com / volume
 end
 
+--[[
+find a face whose vertexes are the specified indexes
+returns nil if none is found
 
--- ... values are 0-based vertex indexes
--- returns a 0-based index
-function Mesh:addFaceForVtxs(...)
+... values are 0-based vertex indexes
+returns a 0-based index
+--]]
+function Mesh:findFaceForVtxs(...)
 	local n = select('#', ...)
 		
 	if self.solver.dim == 2 then
@@ -334,8 +340,20 @@ function Mesh:addFaceForVtxs(...)
 			end
 		end
 	end
+end
 
-	local fi = #self.faces
+--[[
+find a face or create a new face
+
+... values are 0-based vertex indexes
+returns a 0-based index
+--]]
+function Mesh:addFaceForVtxs(...)
+	local fi = self:findFaceForVtxs(...)
+	if fi then return fi end
+
+	local n = select('#', ...)
+	fi = #self.faces
 	
 	self.faces:push_back(new_meshface_t(self.solver))
 	local f = self.faces:back()

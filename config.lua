@@ -154,7 +154,7 @@ local args = {
 	maxs = cmdline.maxs or {1, 2*math.pi, 1},			-- TODO bake the 2π into the coordinate chart so this matches grid/cylinder.  Technically θ→2πθ means it isn't the standard θ variable.  I did this for UI convenience with CFDMesh.
 	gridSize = ({
 		{128, 1, 1},	-- 1D
-		{64, 64, 1},	-- 2D
+		{64, 256, 1},	-- 2D
 		{32, 32, 32},	-- 3D
 	})[dim],
 	boundary = type(cmdline.boundary) == 'table' and cmdline.boundary or {
@@ -164,8 +164,8 @@ local args = {
 		xmin=cmdline.boundary or 'cylinderRMin',	-- use this when rmin=0
 		--xmin=cmdline.boundary or 'mirror',
 		--xmin=cmdline.boundary or {name='mirror', args={restitution=0}},
-		xmax=cmdline.boundary or 'freeflow',
-		--xmax=cmdline.boundary or 'mirror',
+		--xmax=cmdline.boundary or 'freeflow',
+		xmax=cmdline.boundary or 'mirror',
 		--xmax=cmdline.boundary or {name='mirror', args={restitution=0}},
 		
 		-- θ
@@ -185,14 +185,14 @@ local args = {
 	coord = 'sphere',
 	--coordArgs = {volumeDim = 3},	-- use higher dimension volume, even if the grid is only 1D to 3D
 	--coordArgs = {vectorComponent='holonomic'},
-	coordArgs = {vectorComponent='anholonomic'},
-	--coordArgs = {vectorComponent='cartesian'},
+	--coordArgs = {vectorComponent='anholonomic'},
+	coordArgs = {vectorComponent='cartesian'},
 	mins = cmdline.mins or {0, 0, -math.pi},
-	maxs = cmdline.maxs or {8, math.pi, math.pi},
+	maxs = cmdline.maxs or {1, math.pi, math.pi},
 	gridSize = ({
 		{160, 1, 1}, -- 1D
 		{32, 32, 1}, -- 2D
-		{16, 16, 16}, -- 3D
+		{32, 32, 32}, -- 3D
 	})[dim],
 	boundary = type(cmdline.boundary) == 'table' and cmdline.boundary or {
 		xmin=cmdline.boundary or 'sphereRMin',
@@ -404,6 +404,7 @@ local args = {
 	-- self-gravitation tests:
 	--initCond = 'self-gravitation - Earth',	-- validating units along with self-gravitation.
 	--initCond = 'self-gravitation - NGC 1560',	-- TODO still needs velocity
+	--initCond = 'self-gravitation - NGC 3198',
 	--initCond = 'self-gravitation test 1',
 	--initCond = 'self-gravitation test 1 spinning',
 	--initCond = 'self-gravitation test 2',		--FIXME
@@ -678,7 +679,7 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn
 -- compressible Euler equations
 
 
-self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
+--self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
 
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct bounded'})))	-- this is the default hllCalcWaveMethod
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct'})))
@@ -997,7 +998,7 @@ With hyperbolic gamma driver shift it has trouble.
 -- hydro-cl GridSolver without fluxLimiter runs 256x256 at 155 fps
 -- hydro-cl MeshSolver runs 50x50 at 2500 fps
 -- hydro-cl MeshSolver runs 256x256 at 70 fps (building the mesh took 4.5 minutes =P)
---self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='euler', mesh={type='quad2d', size={16, 16}}})))
+self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='euler', mesh={type='quad2d', size={16, 16}}})))
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='euler', mesh={type='quad2d', triangulate=true, size={64, 64}}})))
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='euler', mesh={type='p2dfmt', meshfile='n0012_113-33.p2dfmt'}})))
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='euler', mesh={type='quad2dcbrt', size={64, 64}}})))
@@ -1015,6 +1016,8 @@ With hyperbolic gamma driver shift it has trouble.
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='euler', mesh={type='quad2d', size={64, 64}}})))
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='hll', eqn='euler', mesh={type='quad2d', size={64, 64}}})))
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='euler-hllc', eqn='euler', mesh={type='quad2d', size={64, 64}}})))
+
+--self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='hll', eqn='euler', mesh={type='quad2d_with_cylinder_removed', size={32, 32}}})))
 
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='euler', mesh={type='quad2d_with_cylinder_removed', size={32, 32}}})))
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='euler', mesh={type='quad2d_with_cylinder_removed', size={64, 64}}})))
@@ -1052,26 +1055,26 @@ With hyperbolic gamma driver shift it has trouble.
 
 
 --[[ 1.25 degree angle of attack, mach 0.8, sea level pressure and density
+-- might be trying to reproduce the "I Do Like CFD" OssanWorld.com edu2d "case_steady_airfoil"
 local Air = materials.Air
 --local theta = 0
 local theta = math.rad(1.25)
---local machSpeed = 0.8
+local machSpeed = 0.8
 --local machSpeed = 0.95
 --local machSpeed = 1
-local machSpeed = 2
+--local machSpeed = 1.2
+--local machSpeed = 2
 local kg = 1
 local m = 1
 local s = 1
 --local s = 10
 --local s = 100
 self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {
-	--flux = 'roe',
-	flux = 'hll',
+	flux = 'roe',
+	--flux = 'hll',
 	eqn = 'euler',
-	mesh = {
-		type = 'p2dfmt',
-		meshfile = 'n0012_113-33.p2dfmt'
-	},
+	--mesh = {type = 'p2dfmt', meshfile = 'n0012_113-33.p2dfmt'},
+	mesh = {type = 'edu2dgrid', meshfile = 'airfoil.grid'},
 	initCond = 'constant',
 	initCondArgs = {
 		solverVars = {
@@ -1087,6 +1090,19 @@ self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {
 		P = Air.seaLevelPressure / (kg/(m*s^2)),	-- 101325 (Pa = kg/(m s^2))
 		-- so if we want to reduce this to 1, we can scale down seconds ...
 	},
+	restitution = 1,
+	-- [=[
+	--cfl = 1,
+	cfl = 0.9,
+	--integrator = 'forward Euler',
+	integrator = 'Runge-Kutta 2, TVD',
+	--integrator = 'Runge-Kutta 4',
+	--]=]
+	--[=[	-- not yet working with meshsolver
+	cfl = 4,
+	--integrator = 'backward Euler',
+	--integrator = 'backward Euler, CPU',
+	--]=]
 })))
 --]]
 

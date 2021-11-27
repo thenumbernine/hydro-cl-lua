@@ -97,7 +97,7 @@ function Wave:initCodeModules()
 	local var = symmath.var
 	local vars = symmath.vars
 	local fromlua = require 'ext.fromlua'
-	local coords = Tensor.coords()[1].variables
+	local coords = self.solver.coord.symchart.coords
 	local t = var't'
 	self.metric = {
 		coords = coords,

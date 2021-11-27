@@ -4,7 +4,7 @@ local vec3i = require 'vec-ffi.vec3i'
 local vec3d = require 'vec-ffi.vec3d'
 local vector = require 'ffi.cpp.vector'
 local Mesh = require 'hydro.mesh.mesh'
-local MeshSolver = require 'hydro.mesh.factory'
+local MeshFactory = require 'hydro.mesh.factory'
 
 local Quad2DMeshFactory = class(MeshFactory)
 

@@ -27,6 +27,35 @@
 //// MODULE_DEPENDS: <?=face_t?> <?=normal_t?> <?=cell_t?>
 // boundary code, since meshsolver doesn't use gridsolver's boundary: 
 
+void boundaryCons(
+	constant <?=solver_t?> const * const solver,
+	<?=cons_t?> * const result,
+	<?=cons_t?> const * const U,
+	global <?=face_t?> const * const e
+) {
+<? for boundaryMethodIndex,boundaryMethod in ipairs(solver.boundaryMethods) do ?>
+	<? 
+if boundaryMethodIndex > 1 then 
+	?>} else <?
+end
+	?>if (e->boundaryMethodIndex == <?=boundaryMethodIndex?>) {
+		<?=boundaryMethod:getCode{
+			solver = solver,
+			dst = "result",
+			src = "U",
+			face = "e",
+		}?>
+<? end 
+if #solver.boundaryMethods > 0 then
+?>
+	}
+<? end
+?>
+}
+
+
+#if 0	// the old meshsolver boundary code
+
 #define reflectCons(\
 	/*<?=cons_t?> * const */result,\
 	/*<?=cons_t?> const * const */U,\
@@ -69,52 +98,62 @@ end--\
 ?>\
 }
 
-//TODO how to make this modular?  have the config provide the code?
-#define boundaryCons(\
-	/*constant <?=solver_t?> const * const */solver,\
-	/*<?=cons_t?> * const */result,\
-	/*<?=cons_t?> const * const */U,\
-	/*global <?=face_t?> const * const */e,\
-	/*real const */restitution\
-) {\
-<? if false then -- reflect: m dot n = 0 ?>\
-	reflectCons(result, U, e->normal, 1.);\
-<? end ?>\
-<? if true then -- for [-1,1]^2 box with cylinder removed ?>\
-	*(result) = *(U);\
-	real3 const x = e->pos;\
-	if (real3_lenSq(e->pos) > .7*.7) {\
-		/*outside = freeflow */\
-		/**(result) = *(U); */\
-<? if true then ?>\
-		real rho = 1.;\
-		real3 v = _real3(-0.1, 0, 0);\
-		real P = 1.;\
-		(result)->rho = rho;\
-		(result)->m = real3_real_mul(v, rho);\
-		(result)->ETotal = P / (solver->heatCapacityRatio - 1.) + (.5 * coordLenSq(v, x) + (U)->ePot) * rho;\
-<? end ?>\
-	} else {\
-		/* inside = reflect */\
-		/*reflectCons(result, U, e->normal, -1);*/\
-		/*reflectCons(result, U, e->normal, 0.);*/\
-		reflectCons(result, U, e->normal, 1.); /* ghost U momentum is reflected from U's, s the velocity is zero (right?) */\
-		/*(result)->m = real3_zero;*/\
-	}\
-<? end ?>\
-<? if false then -- for naca 0012 airfoil ?>\
-	if (real3_lenSq(e->pos) > 4.) {\
-		/* outside boundary: freeflow */\
-		*(result) = *(U);\
-	} else {\
-		/* inside boundary: v=0 */\
-		*(result) = *(U);\
-		(result)->m = real3_zero;\
-		/* inside boundary: reflect */\
-		/*reflectCons(result, U, e->normal, 1.);*/\
-	}\
-<? end ?>\
-}
+
+<? if false then ?>
+	real3 const x = e->pos;
+<? if false then -- reflect: m dot n = 0 ?>
+	reflectCons(result, U, e->normal, 1.);
+<? end ?>
+<? if false then -- for [-1,1]^2 box with cylinder removed ?>
+	*(result) = *(U);
+	if (real3_lenSq(e->pos) > .7*.7) {
+		/*outside = freeflow */
+		/**(result) = *(U); */
+<? 	if true then ?>
+		real rho = 1.;
+		real3 v = _real3(-0.1, 0, 0);
+		real P = 1.;
+		(result)->rho = rho;
+		(result)->m = real3_real_mul(v, rho);
+		(result)->ETotal = P / (solver->heatCapacityRatio - 1.) + (.5 * coordLenSq(v, x) + (U)->ePot) * rho;
+<? 	end ?>
+	} else {
+		/* inside = reflect */
+		/*reflectCons(result, U, e->normal, -1);*/
+		/*reflectCons(result, U, e->normal, 0.);*/
+		reflectCons(result, U, e->normal, 1.); /* ghost U momentum is reflected from U's, s the velocity is zero (right?) */
+		/*(result)->m = real3_zero;*/
+	}
+<? end ?>
+<? if true then -- for naca 0012 airfoil ?>
+	if (real3_lenSq(e->pos) > 4.) {
+<? if false then -- freeflow? ?>
+		/* outside boundary: freeflow */
+		*(result) = *(U);
+<? end ?>
+<? if true then -- match the init cond ... ?>
+<? local Air = require 'hydro.materials'.Air ?>
+<? local machSpeed = 0.8 ?>
+<? local theta = math.rad(1.25) ?>
+		prim_t W;
+		W.rho = <?=clnumber(Air.seaLevelDensity)?> / unit_kg_per_m3;
+		W.v.x = <?=clnumber(math.cos(theta) * machSpeed * Air.speedOfSound)?> / unit_m_per_s;
+		W.v.y = <?=clnumber(math.sin(theta) * machSpeed * Air.speedOfSound)?> / unit_m_per_s;
+		W.v.z = 0.;
+		W.P = <?=clnumber(Air.seaLevelPressure)?> / unit_kg_per_m_s2;
+		<?=consFromPrim?>(result, solver, &W, x);
+<? end ?>
+	} else {
+		/* inside boundary: v=0 */
+		*(result) = *(U);
+		/*(result)->m = real3_zero;*/
+		/* inside boundary: reflect */
+		reflectCons(result, U, e->normal, solver->boundaryRestitution);
+	}
+<? end ?>
+<? end ?>
+#endif
+
 
 kernel void <?=calcFlux?>(
 	constant <?=solver_t?> const * const solver,
@@ -128,9 +167,12 @@ kernel void <?=calcFlux?>(
 ) {
 	int faceIndex = get_global_id(0);
 	if (faceIndex >= get_global_size(0)) return;
-	
+
 	global <?=cons_t?> * const flux = fluxBuf + faceIndex;
-	
+for (int j = 0; j < numStates; ++j) {
+	flux->ptr[j] = 0;
+}
+
 	global <?=face_t?> const * const face = faceBuf + faceIndex;
 	if (face->area <= 1e-7) {
 		for (int j = 0; j < numStates; ++j) {
@@ -156,11 +198,11 @@ kernel void <?=calcFlux?>(
 		} else if (iL != -1) {
 			UL = UBuf[iL];
 			cellL = cellR = cellBuf[iL];
-			boundaryCons(solver, &UR, &UL, face, solver->boundaryRestitution);
+			boundaryCons(solver, &UR, &UL, face);
 		} else if (iR != -1) {
 			UR = UBuf[iR];
 			cellL = cellR = cellBuf[iR];
-			boundaryCons(solver, &UL, &UR, face, solver->boundaryRestitution);
+			boundaryCons(solver, &UL, &UR, face);
 		} else {	// both iL and iR are null ...
 			//error
 			for (int i = 0; i < numStates; ++i) {

@@ -699,7 +699,34 @@ function SolverBase:initObjs(args)
 
 	self.coord:finalizeCellStruct()
 	--]]
+
+	-- [[ init boundary stuff
+	self.boundaryOptions = table()
+	self.boundaryOptionNames = table()
+	self.boundaryOptionForName = {}
+
+	-- This is either in GridSolver of MeshSolver
+	-- each has dif Boundary objs, one for structured grids, another for the mesh/face/cell structs
+	self:createBoundaryOptions()
+	
+	if self.eqn.createBoundaryOptions then
+		self.eqn:createBoundaryOptions()
+	end
+	--]]
 end
+
+function SolverBase:addBoundaryOptions(args)
+	for _,arg in ipairs(args) do
+		self:addBoundaryOption(arg)
+	end
+end
+
+function SolverBase:addBoundaryOption(boundaryClass)
+	self.boundaryOptions:insert(assert(boundaryClass))
+	self.boundaryOptionNames:insert(assert(boundaryClass.name))
+	self.boundaryOptionForName[boundaryClass.name] = boundaryClass
+end
+
 
 -- collect *all* modules from all sub-objects
 -- do this after objs are created and before codegen

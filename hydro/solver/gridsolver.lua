@@ -112,9 +112,8 @@ function GridSolver:initObjs(args)
 	GridSolver.super.initObjs(self, args)
 	
 	assert(not self.usePLM or self.fluxLimiter == 1, "are you sure you want to use flux and slope limiters at the same time?")
-	
-	self:createBoundaryOptions()
-	
+
+	-- TODO instead of boundaryMethods.xmin .xmax ... how about [1] ... [6] ? 
 	self.boundaryMethods = {}
 	for i=1,3 do
 		for _,minmax in ipairs(minmaxs) do
@@ -558,6 +557,7 @@ GridSolver.DisplayVar_U = DisplayVar
 local Boundary = class()
 GridSolver.Boundary = Boundary
 
+-- reflection, but only when the normal is coordinate-aligned
 function Boundary:reflectVars(args, dst, varnames, restitution)
 	restitution = restitution or 1
 	local lines = table()
@@ -698,14 +698,15 @@ function BoundaryMirror:getCode(args)
 			elseif var.type == 'real3' 
 			or var.type == 'cplx3'
 			then
+				-- TODO looks very similar to the reflect code in meshsolver
 				lines:insert(template([[
-	buf[<?=dst?>].<?=field?> = <?=vec3?>_sub(
-		buf[<?=dst?>].<?=field?>,
+	<?=result?>-><?=field?> = <?=vec3?>_sub(
+		<?=result?>-><?=field?>,
 		<?=vec3?>_<?=scalar?>_mul(
 			<?=vec3?>_from_real3(n),
 			<?=scalar?>_real_mul(
 				<?=vec3?>_real3_dot(
-					buf[<?=dst?>].<?=field?>,
+					<?=result?>-><?=field?>,
 					n
 				), 
 				<?=restitution + 1?>
@@ -717,7 +718,7 @@ function BoundaryMirror:getCode(args)
 					vec3 = var.type,
 					scalar = var.type == 'cplx3' and 'cplx' or 'real',
 					field = var.name,
-					dst = dst,
+					result = '(buf + '..dst..')',
 				}))
 			else
 				error("need to support reflect() for type "..var.type)
@@ -992,10 +993,6 @@ end
 -- boundaryOptions is a table of classes
 --]]
 function GridSolver:createBoundaryOptions()
-	self.boundaryOptions = table()
-	self.boundaryOptionNames = table()
-	self.boundaryOptionForName = {}
-	
 	self:addBoundaryOptions{
 		BoundaryNone,
 		BoundaryPeriodic,
@@ -1004,24 +1001,11 @@ function GridSolver:createBoundaryOptions()
 		BoundaryFreeFlow,
 		BoundaryLinear,
 		BoundaryQuadratic,
+		-- specific to coordinate chart grids, where vector components flip as you cross coordinate symmetry boundaries
 		BoundarySphereRMin,
 		BoundarySphereTheta,
 		BoundaryCylinderRMin,
 	}
-
-	if self.eqn.createBoundaryOptions then
-		self.eqn:createBoundaryOptions()
-	end
-end
-function GridSolver:addBoundaryOptions(args)
-	for _,arg in ipairs(args) do
-		self:addBoundaryOption(arg)
-	end
-end
-function GridSolver:addBoundaryOption(boundaryClass)
-	self.boundaryOptions:insert(assert(boundaryClass))
-	self.boundaryOptionNames:insert(assert(boundaryClass.name))
-	self.boundaryOptionForName[boundaryClass.name] = boundaryClass
 end
 
 --[[

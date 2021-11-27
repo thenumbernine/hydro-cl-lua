@@ -14,7 +14,42 @@ local common = require 'hydro.common'
 local xNames = common.xNames
 local minmaxs = common.minmaxs
 
+
 local EulerInitCond = class(InitCond)
+
+--[[
+create mins/maxs functions that are conditional on the solver.coord
+but constrained within the unit bounds of 'size'
+
+TODO use the same techinque that the 3D volumizer uses
+--]]
+local function createMinsMaxs(coordRadius)
+	return 
+		-- mins
+		function(self)
+			local solver = assert(self.solver)
+			local coord = assert(solver.coord)
+			if require 'hydro.coord.cylinder':isa(coord) then
+				return {0, 0, -2*coordRadius}
+			end
+			if require 'hydro.coord.sphere':isa(coord) then
+				return {0, 0, -math.pi}
+			end
+			return {-2*coordRadius, -2*coordRadius, -2*coordRadius}
+		end, 
+		-- maxs
+		function(self)
+			local solver = assert(self.solver)
+			local coord = assert(solver.coord)
+			if require 'hydro.coord.cylinder':isa(coord) then
+				return {2*coordRadius, 2*math.pi, 2*coordRadius}
+			end
+			if require 'hydro.coord.sphere':isa(coord) then
+				return {2*coordRadius, math.pi, math.pi}
+			end
+			return {2*coordRadius, 2*coordRadius, 2*coordRadius}
+		end
+end
 
 local function RiemannProblem(initCond)
 	local WL, WR = initCond[1], initCond[2]
@@ -628,23 +663,28 @@ local initConds = table{
 		solverVars = {
 			heatCapacityRatio = 2,
 		},
+		getDepends = function(self)
+			return table{
+				self.solver.coord.symbols.coordMap,
+			}
+		end,
 		getInitCondCode = function(self)
 			return self.solver.eqn:template([[
-	lhs = true 
+	real3 const xc = coordMap(x);
+	bool const inside = true 
 <?
 for i=1,solver.dim do
 	local xi = xNames[i]
-?> 		&& x.<?=xi?> > .75 * solver->mins.<?=xi?> + .25 * solver->maxs.<?=xi?>
-		&& x.<?=xi?> < .25 * solver->mins.<?=xi?> + .75 * solver->maxs.<?=xi?>
+?> 		&& xc.<?=xi?> > -.5 && xc.<?=xi?> < .5
 <?
 end
 ?>;
 	
-	rho = lhs ? initCond->rhoL : initCond->rhoR;
-	P = lhs ? initCond->PL : initCond->PR;
-	B.x = lhs ? initCond->BxL : initCond->BxR;
-	B.y = lhs ? initCond->ByL : initCond->ByR;
-	B.z = lhs ? initCond->BzL : initCond->BzR;
+	rho = inside ? initCond->rhoL : initCond->rhoR;
+	P = inside ? initCond->PL : initCond->PR;
+	B.x = inside ? initCond->BxL : initCond->BxR;
+	B.y = inside ? initCond->ByL : initCond->ByR;
+	B.z = inside ? initCond->BzL : initCond->BzR;
 ]], 	{
 			solver = solver,
 			xNames = xNames,
@@ -1965,32 +2005,12 @@ end ?>;
 		--local second = 60*60*24
 		--local second = meter / constants.speedOfLight_in_m_per_s	-- converges slow, oscillates a bit
 
+		local mins, maxs = createMinsMaxs(coordRadius)
 		return {
 			name = 'self-gravitation - Earth',
 			
-			-- TODO what about spherical coordinates
-			mins = function(self)
-				local solver = assert(self.solver)
-				local coord = assert(solver.coord)
-				if require 'hydro.coord.cylinder':isa(coord) then
-					return {0, 0, -2*coordRadius}
-				end
-				if require 'hydro.coord.sphere':isa(coord) then
-					return {0, 0, -math.pi}
-				end
-				return {-2*coordRadius, -2*coordRadius, -2*coordRadius}
-			end,
-			maxs = function(self)
-				local solver = assert(self.solver)
-				local coord = assert(solver.coord)
-				if require 'hydro.coord.cylinder':isa(coord) then
-					return {2*coordRadius, 2*math.pi, 2*coordRadius}
-				end
-				if require 'hydro.coord.sphere':isa(coord) then
-					return {2*coordRadius, math.pi, math.pi}
-				end
-				return {2*coordRadius, 2*coordRadius, 2*coordRadius}
-			end,
+			mins = mins,
+			maxs = maxs,
 			solverVars = {
 				meter = meter,
 				kilogram = kilogram,
@@ -2152,32 +2172,13 @@ end ?>;
 
 		local second = 1
 		
+		local mins, maxs = createMinsMaxs(coordRadius)
+		
 		return {
 			name = 'self-gravitation - NGC 1560',
 			
-			-- TODO what about spherical coordinates
-			mins = function(self)
-				local solver = assert(self.solver)
-				local coord = assert(solver.coord)
-				if require 'hydro.coord.cylinder':isa(coord) then
-					return {0, 0, -1}
-				end
-				if require 'hydro.coord.sphere':isa(coord) then
-					return {0, 0, -math.pi}
-				end
-				return {-2*coordRadius, -2*coordRadius, -2*coordRadius}
-			end,
-			maxs = function(self)
-				local solver = assert(self.solver)
-				local coord = assert(solver.coord)
-				if require 'hydro.coord.cylinder':isa(coord) then
-					return {2*coordRadius, 2*math.pi, 1}
-				end
-				if require 'hydro.coord.sphere':isa(coord) then
-					return {2*coordRadius, math.pi, math.pi}
-				end
-				return {2*coordRadius, 2*coordRadius, 2*coordRadius}
-			end,
+			mins = mins,
+			maxs = maxs,
 			guiVars = {
 				{name = 'a', value = ngc1560_a, units = 'm'},
 				{name = 'b', value = ngc1560_b, units = 'm'},
@@ -2198,14 +2199,22 @@ end ?>;
 			getDepends = function(self)
 				return {self.solver.coord.symbols.coordMap}
 			end,
-			-- Now assuming A, B, R, Z in eqn C.1 are in units of [m], 
-			-- and M is in units of [kg]
-			-- then rho is in units of [kg/m^3], which is what a density should be.
-			-- But when we get to the normalized-rho def in C.4, we get the result in [a]^5/[a]^8
-			-- for whatever units a,b,r,z are in.  
-			-- I'm guessing unitless as well, but then what is their relation (in m) with A,B,R,Z? 
-			-- After eqn 4.5 it says r = R/R_0 and z = Z/R_0.
-			-- It doesn't look like a or b are ever defined, but I'm assuming it is done the same way?
+			--[[
+			Now assuming A, B, R, Z in eqn C.1 are in units of [m], 
+			and M is in units of [kg]
+			then rho is in units of [kg/m^3], which is what a density should be.
+			But when we get to the normalized-rho def in C.4, we get the result in [a]^5/[a]^8
+			for whatever units a,b,r,z are in.  
+			I'm guessing unitless as well, but then what is their relation (in m) with A,B,R,Z? 
+			After eqn 4.5 it says r = R/R_0 and z = Z/R_0.
+			It doesn't look like a or b are ever defined, but I'm assuming it is done the same way?
+			
+			Ok further update: This paper is a mess.  the a,b,lambda are all defined in two places, Section 7 and Appendix D, sometimes contradicting.
+			The two sections describe two different profiles of NGC 1560, and some graphs of one model require parameters of the other ... mess of a paper.
+			Nowhere is the velocity profile function mentioned.
+			It's probably in one of the cited papers, I haven't found the right one yet.
+			I have found more complete info between 2021 Ludwig and its cited paper 2006 Cooperstock et al for NGC 3198, so maybe I'll move on to that ...
+			--]]
 			getInitCondCode = function(self)
 				return self.solver.eqn:template[[
 	// 2021 Ludwig eqn C.1 ... the non-normalized density function
@@ -2237,7 +2246,151 @@ end ?>;
 	// zero pressure
 	P = 1e-3;
 ]]
-			end
+			end,
+		}
+	end)(),
+
+	(function()
+		
+		local coordRadius = .5	
+		local ngc1560_a = 7.19 * 1e+3 * constants.pc_in_m
+		local ngc1560_b = 0.567 * 1e+3 * constants.pc_in_m
+		local ngc1560_M = 1.52e+10 * constants.SolarMass_in_kg
+		local coordRadius_a = coordRadius * (ngc1560_a / ngc1560_a)
+		local coordRadius_b = coordRadius * (ngc1560_b / ngc1560_a)
+		local meter = ngc1560_a / coordRadius
+		local ellipsoidCoordVolume = (4/3) * math.pi * coordRadius_a * coordRadius_b * coordRadius_b
+		local kilogram = ngc1560_M / ellipsoidCoordVolume
+		local second = 1
+		local mins, maxs = createMinsMaxs(coordRadius)
+		return {
+			name = 'self-gravitation - NGC 3198',
+			mins = mins,
+			maxs = maxs,
+			guiVars = {
+				{name = 'a', value = ngc1560_a, units = 'm'},
+				{name = 'b', value = ngc1560_b, units = 'm'},
+				{name = 'M', value = ngc1560_M, units = 'kg'},
+			},
+			solverVars = {
+				meter = meter,
+				kilogram = kilogram,
+				second = second,
+		
+				speedOfLight = constants.speedOfLight_in_m_per_s,
+				divPsiWavespeed_g = constants.speedOfLight_in_m_per_s,
+				divPhiWavespeed_g = constants.speedOfLight_in_m_per_s,
+				
+				gravitationalConstant = constants.gravitationalConstant_in_m3_per_kg_s2,
+				coulombConstant = constants.CoulombConstant_in_kg_m3_per_C2_s2,
+			},
+			getDepends = function(self)
+				return {self.solver.coord.symbols.coordMap, 'Bessel'}
+			end,
+			
+			getInitCondCode = function(self)
+				return self.solver.eqn:template[[
+	real r = coordMapR(x);
+	real3 xc = coordMap(x);
+
+<?
+local m_in_pc = 648000 / math.pi * 149597870700
+?>
+	real r_in_kpc = r * <?=1/m_in_pc?>;
+
+	-- velocity from 2006 Cooperstock et al to fit 1989 Begeman
+	real vmag = 0
+<?
+	for _,coeff in ipairs{
+		{0.00093352334660, 0.07515079869},
+		{0.00020761839560, 0.17250244090},
+		{0.00022878035710, 0.27042899730},
+		{0.00009325578799, 0.3684854512},
+		{0.00007945062639, 0.4665911784},
+		{0.00006081834319, 0.5647207491},
+		{0.00003242780880, 0.6628636447},
+		{0.00003006457058, 0.7610147353},
+		{0.00001687931928, 0.8591712228},
+		{0.00003651365250, 0.9573314522},
+	} do
+		real neg_Cn_kn, kn = table.unpack(coeff)
+?>			+ <?=neg_Cn_kn?> * BESSJ1(<?=kn?> * r_in_kpc)
+<?	end
+?>;	
+	v = real3_mul(
+		_real3(-xc.y / r, xc.x / r, 0.),
+		vmag * initCond->speedOfLight / unit_m_per_s);
+
+
+	// TODO init GEM potential from 2021 Ludwig once you figure out the graph
+
+
+	// normrho(r,z=0) for 2021 Ludwig eqn 8.4.b
+	
+	real Y = 1;
+	real kspiral = 0.1;
+	real rspiral = 4.0;
+	real d = 9200.0;		// kpc
+	
+	real alpha0 = 154.0;
+	real alphae = 316.8;
+	real reff = 1.0;
+	real se = 1.49;
+	
+	real b1 = 0.050231295947568;	// (from 0.0499)
+	real b2 = -0.000433;
+	real b3 = 5.86e-08;
+	real b4 = 3.29e-09;
+	real b5 = -1.06e-11;
+	real b6 = 1.52e-13;
+	real b7 = 2.9e-15;
+	real b8 = -1.75e-17;
+	
+	real d2 = 1.9517551593474e-05;	// (from 1.81e-05)
+	real d3 = -4.96e-07;
+	real d4 = 1.85e-09;
+	real d5 = 1.07e-11;
+	real d6 = 2.04e-14;
+	real d7 = -1.75e-16;
+	real d8 = -1.2e-18;
+
+	int YOrder = 4;
+	for (int i = 0; i <= YOrder; ++i) {
+		real theta = 2 * M_PI * (real)i * kspiral;
+		real ri = rspiral * exp(theta);
+		real yi = y0 * exp(theta * v);
+		real dr = r - ri;
+		real gammaisq = gammai * gammai;
+		Y = Y + (yi * gammai / M_PI) / (dr * dr + gammaisq);
+	}
+
+	real alpha = (180 * 3600 / M_PI) * r / d;
+	
+	real s = 0.;
+	if (alpha <= alpha0) {
+		for (int i=8; i >= 1; --i) {
+			s = s + _G['b'..i];
+			s = s * alpha;
+		}
+		s = s + s0;
+	} else if (alpha <= alphae) {
+		local dalpha = alphae - alpha
+		for (int i = 8; i >= 2; --i) {
+			s = s + _G['d'..i];
+			s = s * dalpha;
+		}
+		s = s * dalpha + se
+	} else {
+		s = se;
+	}
+
+	rho = Y * exp(-pow(r / reff, 1. / s));
+
+
+	// TODO GALACTIC PRESSURE
+]]
+			end,
+
 		}
 	end)(),
 

@@ -131,7 +131,9 @@ if useFluxLimiter then
 	if solver.coord.vectorComponent == 'cartesian' 
 	and not require 'hydro.coord.cartesian':isa(solver.coord)
 	then 
-?>			real const dt_dx = dt / cell_dx<?=side?>(xInt);
+?>
+//// MODULE_DEPENDS: <?=cell_dx_i?>			
+			real const dt_dx = dt / cell_dx<?=side?>(xInt);
 <? 	else 
 ?>			real const dt_dx = dt / dx;
 <? 	end

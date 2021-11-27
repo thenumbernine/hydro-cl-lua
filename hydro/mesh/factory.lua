@@ -1,3 +1,9 @@
 local class = require 'ext.class'
+
 local MeshFactory = class()
-return MeshFactory 
+
+-- default do nothing:
+function MeshFactory:createBoundaryMethods(solver)
+end
+
+return MeshFactory
