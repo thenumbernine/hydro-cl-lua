@@ -709,12 +709,12 @@ function BoundaryMirror:getCode(args)
 					<?=result?>-><?=field?>,
 					n
 				), 
-				<?=restitution + 1?>
+				<?=restitutionPlusOne?>
 			)
 		)
 	);
 ]], 			{
-					restitution = clnumber(self.restitution),
+					restitutionPlusOne = clnumber(self.restitution + 1),
 					vec3 = var.type,
 					scalar = var.type == 'cplx3' and 'cplx' or 'real',
 					field = var.name,

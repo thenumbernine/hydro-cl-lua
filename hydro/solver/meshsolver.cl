@@ -39,18 +39,28 @@ if boundaryMethodIndex > 1 then
 	?>} else <?
 end
 	?>if (e->boundaryMethodIndex == <?=boundaryMethodIndex?>) {
-		<?=boundaryMethod:getCode{
+<? 
+	local code, depends = boundaryMethod:getCode{
 			solver = solver,
 			dst = "result",
 			src = "U",
 			face = "e",
-		}?>
+		}
+	if depends then
+		for _,module in ipairs(depends) do
+			solver.solverModulesEnabled[module] = true
+		end
+	end
+?>
+<?=code?>
 <? end 
 if #solver.boundaryMethods > 0 then
 ?>
+	} else <? 
+end
+	?>{
+		*(result) = *(U);	//default = freeflow?
 	}
-<? end
-?>
 }
 
 

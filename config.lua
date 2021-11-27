@@ -998,7 +998,7 @@ With hyperbolic gamma driver shift it has trouble.
 -- hydro-cl GridSolver without fluxLimiter runs 256x256 at 155 fps
 -- hydro-cl MeshSolver runs 50x50 at 2500 fps
 -- hydro-cl MeshSolver runs 256x256 at 70 fps (building the mesh took 4.5 minutes =P)
-self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='euler', mesh={type='quad2d', size={16, 16}}})))
+--self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='euler', mesh={type='quad2d', size={16, 16}}})))
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='euler', mesh={type='quad2d', triangulate=true, size={64, 64}}})))
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='euler', mesh={type='p2dfmt', meshfile='n0012_113-33.p2dfmt'}})))
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='euler', mesh={type='quad2dcbrt', size={64, 64}}})))
@@ -1054,7 +1054,7 @@ self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', e
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='euler-lingr', mesh={type='cylinder3d', size={8, 8, 8}, mins={.5, 0, -.25}, maxs={1, 1, .25}}})))
 
 
---[[ 1.25 degree angle of attack, mach 0.8, sea level pressure and density
+-- [[ 1.25 degree angle of attack, mach 0.8, sea level pressure and density
 -- might be trying to reproduce the "I Do Like CFD" OssanWorld.com edu2d "case_steady_airfoil"
 local Air = materials.Air
 --local theta = 0
@@ -1069,6 +1069,12 @@ local m = 1
 local s = 1
 --local s = 10
 --local s = 100
+--[[
+local gamma = materials.Air.heatCapacityRatio
+--]]
+-- [[ used in edu2d
+local gamma = 1.4
+--]]
 self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {
 	flux = 'roe',
 	--flux = 'hll',
@@ -1081,13 +1087,27 @@ self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {
 			meter = m,
 			second = s,
 			kilogram = kg,
+			heatCapacityRatio = gamma,
 		},
+		--[[ using real units:
 		rho = Air.seaLevelDensity / (kg/m^3),	-- 1.2754 kg/m^3
 		v = {
 			math.cos(theta) * Air.speedOfSound * machSpeed / (m/s),
 			math.sin(theta) * Air.speedOfSound * machSpeed / (m/s),
+			0
 		},
 		P = Air.seaLevelPressure / (kg/(m*s^2)),	-- 101325 (Pa = kg/(m s^2))
+		--]]
+		-- [[ using normalized/fake units from edu2d:
+		rho = 1,
+		v = {
+			-- edu2d_module_ccfv_data_soln.f90, line 189 ... why is M_inf=0.8 used directly, and not M_inf * sqrt(gamma * P / rho) ?
+			math.cos(theta) * machSpeed / (m/s),
+			math.sin(theta) * machSpeed / (m/s),
+			0
+		},	
+		P = 1 / gamma,
+		--]]
 		-- so if we want to reduce this to 1, we can scale down seconds ...
 	},
 	restitution = 1,

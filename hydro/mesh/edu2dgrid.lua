@@ -96,7 +96,29 @@ function Edu2DGridMeshFactory:createBoundaryMethods(solver)
 	-- until then, just hardcode the airfoil.bc file here ...
 	
 	solver.boundaryMethods[1] = solver.boundaryOptionForName.mirror{restitution=0}
-	solver.boundaryMethods[2] = solver.boundaryOptionForName.freeflow()
+	solver.boundaryMethods[2] = solver.boundaryOptionForName.fixed{
+		-- TODO make sure this matches the initCond
+		-- better yet, specify this in the initCond
+		fixedCode = function(self, args, dst)
+			local solver = args.solver
+			return solver.eqn:template([[
+{
+	<?=prim_t?> W;
+	W.rho = 1;
+	W.P = 1;
+	W.v.x = <?=math.cos(math.rad(1.25))?>;
+	W.v.y = <?=math.sin(math.rad(1.25))?>;
+	W.v.z = 0;
+	W.ePot = 0;
+	<?=consFromPrim?>(<?=dst?>, solver, &W, <?=face?>->pos);
+}
+]], {
+		dst = dst,
+		face = args.face,
+	}),
+			{solver.eqn.symbols.consFromPrim}
+		end,
+	}
 end
 
 return Edu2DGridMeshFactory 

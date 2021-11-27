@@ -228,6 +228,7 @@ end
 
 local BoundaryMirror = class(Boundary)
 BoundaryMirror.name = 'mirror'
+BoundaryMirror.restitution = 1
 function BoundaryMirror:init(args)
 	if args then
 		self.restitution = args.restitution
@@ -270,12 +271,12 @@ function BoundaryMirror:getCode(args)
 					(<?=dst?>)-><?=field?>,
 					n
 				), 
-				<?=restitution + 1?>
+				<?=restitutionPlusOne?>
 			)
 		)
 	);
 ]], 		{
-				restitution = clnumber(self.restitution),
+				restitutionPlusOne = clnumber(self.restitution + 1),
 				vec3 = var.type,
 				scalar = var.type == 'cplx3' and 'cplx' or 'real',
 				field = var.name,
