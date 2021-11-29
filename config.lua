@@ -1054,13 +1054,12 @@ With hyperbolic gamma driver shift it has trouble.
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='euler-lingr', mesh={type='cylinder3d', size={8, 8, 8}, mins={.5, 0, -.25}, maxs={1, 1, .25}}})))
 
 
--- [[ 1.25 degree angle of attack, mach 0.8, sea level pressure and density
+-- [=[ 1.25 degree angle of attack, mach 0.8, sea level pressure and density
 -- might be trying to reproduce the "I Do Like CFD" OssanWorld.com edu2d "case_steady_airfoil"
-local Air = materials.Air
-local theta = 0
---local theta = math.rad(1.25)
-local machSpeed = 0.3
---local machSpeed = 0.8
+local theta = 0					-- cylinder uses 0
+--local theta = math.rad(1.25)	-- naca airfoil uses 1.25
+local machSpeed = 0.3			-- cylinder uses 0.3
+--local machSpeed = 0.8			-- naca airfoil uses 0.8
 --local machSpeed = 0.95
 --local machSpeed = 1
 --local machSpeed = 1.2
@@ -1070,11 +1069,19 @@ local m = 1
 local s = 1
 --local s = 10
 --local s = 100
---[[
+--[[ using real units ...
+local Air = materials.Air
 local gamma = materials.Air.heatCapacityRatio
+local rho0 = Air.seaLevelDensity / (kg/m^3)		-- 1.2754 kg/m^3
+local v0 = Air.speedOfSound * machSpeed / (m/s)
+local P0 = Air.seaLevelPressure / (kg/(m*s^2))	-- 101325 (Pa = kg/(m s^2))
 --]]
 -- [[ used in edu2d
+-- edu2d_module_ccfv_data_soln.f90, line 189 ... why is M_inf=0.8 used directly, and not M_inf * sqrt(gamma * P / rho) ?
 local gamma = 1.4
+local rho0 = 1
+local v0 = machSpeed / (m/s)
+local P0 = 1 / gamma
 --]]
 self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {
 	flux = 'roe',
@@ -1098,15 +1105,20 @@ self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {
 						return solver.eqn:template([[
 {
 	<?=prim_t?> W;	//force entire state to initial state
-	W.rho = 1;
-	W.P = 1;
-	W.v.x = <?=math.cos(math.rad(1.25))?>;
-	W.v.y = <?=math.sin(math.rad(1.25))?>;
+	W.rho = <?=rho0?>;
+	W.P = <?=P0?>;
+	W.v.x = <?=math.cos(theta) * v0?>;
+	W.v.y = <?=math.sin(theta) * v0?>;
 	W.v.z = 0;
 	W.ePot = 0;
 	<?=consFromPrim?>(<?=dst?>, solver, &W, <?=face?>->pos);
 }
-]], args),
+]], table(args, {
+	rho0 = rho0,
+	v0 = v0,
+	P0 = P0,
+	theta = theta,
+}):setmetatable(nil)),
 						-- 2nd return is list of required modules
 						{solver.eqn.symbols.consFromPrim}
 					end,
@@ -1123,10 +1135,10 @@ self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {
 {
 	<?=prim_t?> W;
 	<?=primFromCons?>(&W, solver, <?=src?>, <?=face?>->pos);
-	W.P = <?=1/gamma?>;	//force pressure to initial pressure
+	W.P = <?=P0?>;	//force pressure to initial pressure
 	<?=consFromPrim?>(<?=dst?>, solver, &W, <?=face?>->pos);
 }
-]], table(args, {gamma=gamma}):setmetatable(nil)),
+]], table(args, {P0=P0}):setmetatable(nil)),
 					-- 2nd return is list of required modules
 					{
 						solver.eqn.symbols.consFromPrim,
@@ -1144,42 +1156,29 @@ self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {
 			kilogram = kg,
 			heatCapacityRatio = gamma,
 		},
-		--[[ using real units:
-		rho = Air.seaLevelDensity / (kg/m^3),	-- 1.2754 kg/m^3
+		rho = rho0,
 		v = {
-			math.cos(theta) * Air.speedOfSound * machSpeed / (m/s),
-			math.sin(theta) * Air.speedOfSound * machSpeed / (m/s),
-			0
-		},
-		P = Air.seaLevelPressure / (kg/(m*s^2)),	-- 101325 (Pa = kg/(m s^2))
-		--]]
-		-- [[ using normalized/fake units from edu2d:
-		rho = 1,
-		v = {
-			-- edu2d_module_ccfv_data_soln.f90, line 189 ... why is M_inf=0.8 used directly, and not M_inf * sqrt(gamma * P / rho) ?
-			math.cos(theta) * machSpeed / (m/s),
-			math.sin(theta) * machSpeed / (m/s),
+			math.cos(theta) * v0,
+			math.sin(theta) * v0,
 			0
 		},	
-		P = 1 / gamma,
-		--]]
+		P = P0,
 		-- so if we want to reduce this to 1, we can scale down seconds ...
 	},
-	restitution = 1,
-	-- [=[
+	-- [[
 	--cfl = 1,
 	cfl = 0.9,
 	--integrator = 'forward Euler',
 	integrator = 'Runge-Kutta 2, TVD',
 	--integrator = 'Runge-Kutta 4',
-	--]=]
-	--[=[	-- not yet working with meshsolver
+	--]]
+	--[[	-- not yet working with meshsolver
 	cfl = 4,
 	--integrator = 'backward Euler',
 	--integrator = 'backward Euler, CPU',
-	--]=]
+	--]]
 })))
---]]
+--]=]
 
 -- NEXT BIG TODO
 -- * make meshsolver and gridsolver separate options

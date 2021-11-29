@@ -63,108 +63,6 @@ end
 	}
 }
 
-
-#if 0	// the old meshsolver boundary code
-
-#define reflectCons(\
-	/*<?=cons_t?> * const */result,\
-	/*<?=cons_t?> const * const */U,\
-	/*real3 */n,\
-	/*real const */restitution\
-) {\
-	*(result) = *(U);\
-<? --\
--- matches BoundaryMirror:getCode for vectorComponent==cartesian --\
-for _,var in ipairs(eqn.consStruct.vars) do --\
-	if var.type == 'real'  --\
-	or var.type == 'cplx' --\
-	then --\
-		-- do nothing --\
-	elseif var.type == 'real3'  --\
-	or var.type == 'cplx3' --\
-	then --\
-		local field = var.name --\
-		local scalar = var.type == 'cplx3' and 'cplx' or 'real' --\
-		local vec3 = var.type --\
-?>\
-	(result)-><?=field?> = <?=vec3?>_sub(\
-		(result)-><?=field?>,\
-		<?=vec3?>_<?=scalar?>_mul(\
-			<?=vec3?>_from_real3(n),\
-			<?=scalar?>_real_mul(\
-				<?=vec3?>_real3_dot(\
-					(result)-><?=field?>,\
-					n\
-				),\
-				restitution + 1.\
-			)\
-		)\
-	);\
-<?--\
-	else--\
-		error("need to support reflectCons() for type "..var.type)--\
-	end--\
-end--\
-?>\
-}
-
-
-<? if false then ?>
-	real3 const x = e->pos;
-<? if false then -- reflect: m dot n = 0 ?>
-	reflectCons(result, U, e->normal, 1.);
-<? end ?>
-<? if false then -- for [-1,1]^2 box with cylinder removed ?>
-	*(result) = *(U);
-	if (real3_lenSq(e->pos) > .7*.7) {
-		/*outside = freeflow */
-		/**(result) = *(U); */
-<? 	if true then ?>
-		real rho = 1.;
-		real3 v = _real3(-0.1, 0, 0);
-		real P = 1.;
-		(result)->rho = rho;
-		(result)->m = real3_real_mul(v, rho);
-		(result)->ETotal = P / (solver->heatCapacityRatio - 1.) + (.5 * coordLenSq(v, x) + (U)->ePot) * rho;
-<? 	end ?>
-	} else {
-		/* inside = reflect */
-		/*reflectCons(result, U, e->normal, -1);*/
-		/*reflectCons(result, U, e->normal, 0.);*/
-		reflectCons(result, U, e->normal, 1.); /* ghost U momentum is reflected from U's, s the velocity is zero (right?) */
-		/*(result)->m = real3_zero;*/
-	}
-<? end ?>
-<? if true then -- for naca 0012 airfoil ?>
-	if (real3_lenSq(e->pos) > 4.) {
-<? if false then -- freeflow? ?>
-		/* outside boundary: freeflow */
-		*(result) = *(U);
-<? end ?>
-<? if true then -- match the init cond ... ?>
-<? local Air = require 'hydro.materials'.Air ?>
-<? local machSpeed = 0.8 ?>
-<? local theta = math.rad(1.25) ?>
-		prim_t W;
-		W.rho = <?=clnumber(Air.seaLevelDensity)?> / unit_kg_per_m3;
-		W.v.x = <?=clnumber(math.cos(theta) * machSpeed * Air.speedOfSound)?> / unit_m_per_s;
-		W.v.y = <?=clnumber(math.sin(theta) * machSpeed * Air.speedOfSound)?> / unit_m_per_s;
-		W.v.z = 0.;
-		W.P = <?=clnumber(Air.seaLevelPressure)?> / unit_kg_per_m_s2;
-		<?=consFromPrim?>(result, solver, &W, x);
-<? end ?>
-	} else {
-		/* inside boundary: v=0 */
-		*(result) = *(U);
-		/*(result)->m = real3_zero;*/
-		/* inside boundary: reflect */
-		reflectCons(result, U, e->normal, solver->boundaryRestitution);
-	}
-<? end ?>
-<? end ?>
-#endif
-
-
 kernel void <?=calcFlux?>(
 	constant <?=solver_t?> const * const solver,
 	global <?=cons_t?> * const fluxBuf,
@@ -196,7 +94,7 @@ for (int j = 0; j < numStates; ++j) {
 
 	<?=cell_t?> cellL, cellR;
 	<?=cons_t?> UL, UR;	
-	//getEdgeStates(solver, &UL, &UR, face, UBuf, solver->boundaryRestitution);
+	//getEdgeStates(solver, &UL, &UR, face, UBuf);
 	{
 		int const iL = face->cells.s0;
 		int const iR = face->cells.s1;
