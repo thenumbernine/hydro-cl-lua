@@ -68,7 +68,6 @@ function Edu2DGridMeshFactory:createMesh(solver)
 				local fi = mesh:findFaceForVtxs(prevvi, vi)
 				assert(fi, "failed to find a face between vertexes "..prevvi.." and "..vi)
 				-- find the face from prevvi to vi
-print("setting face "..fi.." of vtxs "..prevvi..','..vi.." to boundary index "..boundaryMethodIndex)
 				mesh.faces.v[fi].boundaryMethodIndex = boundaryMethodIndex
 			end
 			prevvi = vi

@@ -60,7 +60,7 @@ local args = {
 	--slopeLimiter = 'superbee',
 
 	-- this is functional without usePLM, but doing so falls back on the cell-centered buffer, which with the current useCTU code will update the same cell twice from different threads
-	--useCTU = true,
+	useCTU = true,
 	
 	-- [[ Cartesian
 	coord = 'cartesian',
@@ -122,7 +122,7 @@ local args = {
 			-- from then on, any bigger tends to segfault somewhere after 'randomizing UBuf...' 
 			['AMD Accelerated Parallel Processing/gfx1010/gfx902'] = {
 				{256,1,1},
-				{128,128,1},
+				{256,256,1},
 				{32,32,32},
 			},	
 		})[platAndDevicesNames]
@@ -310,7 +310,7 @@ local args = {
 	--initCond = 'jet',
 	
 
-	initCond = 'Sod',
+	--initCond = 'Sod',
 	--initCondArgs = {dim=cmdline.displayDim},
 	--[[ real-world vars for Sod ... which are a few orders higher, and therefore screw up the backward-euler solver
 	-- 		which means, todo, redo the backward euler error metric so it is independent of magnitude ... ?   seems I removed that for another numerical error reason.
@@ -347,7 +347,7 @@ local args = {
 	--initCond = 'Sedov',
 	--initCond = 'Noh',
 	--initCond = 'implosion',
-	--initCond = 'Kelvin-Helmholtz',
+	initCond = 'Kelvin-Helmholtz',
 	--initCond = 'Rayleigh-Taylor',	--FIXME ... get initial / static hydro potential working
 	--initCond = 'Taylor-Green',	-- should only work with viscosity
 	--initCond = 'Colella-Woodward',
@@ -1056,10 +1056,10 @@ With hyperbolic gamma driver shift it has trouble.
 
 -- [=[ 1.25 degree angle of attack, mach 0.8, sea level pressure and density
 -- might be trying to reproduce the "I Do Like CFD" OssanWorld.com edu2d "case_steady_airfoil"
-local theta = 0					-- cylinder uses 0
---local theta = math.rad(1.25)	-- naca airfoil uses 1.25
-local machSpeed = 0.3			-- cylinder uses 0.3
---local machSpeed = 0.8			-- naca airfoil uses 0.8
+--local theta = 0					-- cylinder uses 0
+local theta = math.rad(1.25)	-- naca airfoil uses 1.25
+--local machSpeed = 0.3			-- cylinder uses 0.3
+local machSpeed = 0.8			-- naca airfoil uses 0.8
 --local machSpeed = 0.95
 --local machSpeed = 1
 --local machSpeed = 1.2
@@ -1090,8 +1090,8 @@ self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {
 	--mesh = {type = 'p2dfmt', meshfile = 'n0012_113-33.p2dfmt'},
 	mesh = {
 		type = 'edu2dgrid',
-		meshfile = 'cylinder.grid',
-		--meshfile = 'airfoil.grid',
+		--meshfile = 'cylinder.grid',
+		meshfile = 'airfoil.grid',
 		boundary = {
 			{	-- slip_wall
 				name='mirror',

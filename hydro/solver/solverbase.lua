@@ -2683,7 +2683,7 @@ function SolverBase:update()
 		if cmdline.trackvars then
 			local varnames = string.split(cmdline.trackvars, ','):map(string.trim)
 			if varnames:find'dt' then
-				io.write(sep, 'dt=', self.dt)
+				io.write(sep, 'dt=', self.dt or 0)	-- the first frame it won't be there ... unless I move this ...
 			end
 			for _,varname in ipairs(varnames) do
 				if varname ~= 'dt' then

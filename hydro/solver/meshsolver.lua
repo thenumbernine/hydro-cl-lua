@@ -36,6 +36,8 @@ MeshSolver.numGhost = 0
 
 function MeshSolver:getSymbolFields()
 	return MeshSolver.super.getSymbolFields(self):append{
+		'boundaryCons',
+		'getEdgeStates',
 		-- also in gridsolver:
 		'OOB',
 		'SETBOUNDS',

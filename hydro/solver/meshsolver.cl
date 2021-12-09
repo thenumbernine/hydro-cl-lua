@@ -23,11 +23,11 @@
 	int4 i = (int4)(index,0,0,0); \
 	if (<?=OOB?>(0,0)) return;
 
-//// MODULE_NAME: <?=calcFlux?>
+//// MODULE_NAME: <?=boundaryCons?>
 //// MODULE_DEPENDS: <?=face_t?> <?=normal_t?> <?=cell_t?>
 // boundary code, since meshsolver doesn't use gridsolver's boundary: 
 
-void boundaryCons(
+void <?=boundaryCons?>(
 	constant <?=solver_t?> const * const solver,
 	<?=cons_t?> * const result,
 	<?=cons_t?> const * const U,
@@ -63,6 +63,44 @@ end
 	}
 }
 
+//// MODULE_NAME: <?=getEdgeStates?>
+//// MODULE_DEPENDS: <?=boundaryCons?>
+
+#define getEdgeStates(\
+	/*constant <?=solver_t?> const * const */solver,\
+	/*<?=cons_t?> * const */UL,\
+	/*<?=cons_t?> * const */UR,\
+	/*<?=cell_t?> * const & */cellL,\
+	/*<?=cell_t?> * const & */cellR,\
+	/*global <?=face_t?> const * const */face,\
+	/*global <?=cons_t?> const * const */UBuf\
+) {\
+	int const iL = (face)->cells.s0;\
+	int const iR = (face)->cells.s1;\
+	if (iL != -1 && iR != -1) {\
+		*(UL) = UBuf[iL];\
+		*(UR) = UBuf[iR];\
+		cellL = cellBuf[iL];\
+		cellR = cellBuf[iR];\
+	} else if (iL != -1) {\
+		*(UL) = UBuf[iL];\
+		cellL = cellR = cellBuf[iL];\
+		<?=boundaryCons?>(solver, UR, UL, face);\
+	} else if (iR != -1) {\
+		*(UR) = UBuf[iR];\
+		cellL = cellR = cellBuf[iR];\
+		<?=boundaryCons?>(solver, UL, UR, face);\
+	} else {	/* both iL and iR are null ... */\
+		/*error*/\
+		for (int i = 0; i < numStates; ++i) {\
+			(UL)->ptr[i] = (UR)->ptr[i] = 0./0.;\
+		}\
+	}\
+}
+
+//// MODULE_NAME: <?=calcFlux?>
+//// MODULE_DEPENDS: <?=getEdgeStates?> <?=face_t?> <?=normal_t?> <?=cell_t?>
+
 kernel void <?=calcFlux?>(
 	constant <?=solver_t?> const * const solver,
 	global <?=cons_t?> * const fluxBuf,
@@ -94,30 +132,7 @@ for (int j = 0; j < numStates; ++j) {
 
 	<?=cell_t?> cellL, cellR;
 	<?=cons_t?> UL, UR;	
-	//getEdgeStates(solver, &UL, &UR, face, UBuf);
-	{
-		int const iL = face->cells.s0;
-		int const iR = face->cells.s1;
-		if (iL != -1 && iR != -1) {
-			UL = UBuf[iL];
-			UR = UBuf[iR];
-			cellL = cellBuf[iL];
-			cellR = cellBuf[iR];
-		} else if (iL != -1) {
-			UL = UBuf[iL];
-			cellL = cellR = cellBuf[iL];
-			boundaryCons(solver, &UR, &UL, face);
-		} else if (iR != -1) {
-			UR = UBuf[iR];
-			cellL = cellR = cellBuf[iR];
-			boundaryCons(solver, &UL, &UR, face);
-		} else {	// both iL and iR are null ...
-			//error
-			for (int i = 0; i < numStates; ++i) {
-				UL.ptr[i] = UR.ptr[i] = 0./0.;
-			}
-		}
-	}
+	getEdgeStates(solver, &UL, &UR, cellL, cellR, face, UBuf);
 
 	//TODO option to rotate to align fluxes?
 	// then you'd have to build a new normal_t based on the aligned (x-axis) normal.
