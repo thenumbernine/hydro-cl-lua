@@ -437,7 +437,7 @@ real const eig_lambdaGauge = sqrt_gammaUjj * sqrt(f_alphaSq);
 end
 
 function ADM_BonaMasso_3D:consWaveCode(args)
-	args = setmetatable(table(args), nil)
+	args = table(args):setmetatable(nil)
 	args.U = args.eig
 	args.eig = nil
 	return self:eigenWaveCode(args)

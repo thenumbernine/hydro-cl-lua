@@ -984,7 +984,7 @@ function Equation:getEigenDisplayVars()
 end
 
 function Equation:waveCodeAssignMinMax(declare, resultMin, resultMax, minCode, maxCode)
-	args = setmetatable(table(args), nil)
+	args = table(args):setmetatable(nil)
 	if declare == true then declare = 'real const ' end
 	if not declare then declare = '' end
 	args.declare = declare
@@ -1059,15 +1059,15 @@ args:
 	declare = true to declare variables
 --]]
 function Equation:eigenWaveCodeMinMax(args)
-	args = setmetatable(table(args), nil)
+	args = table(args):setmetatable(nil)
 	args.args = args
 	return self:eigenWaveCodePrefix(args)..'\n'
 	..self:template([[
 <? local table = require 'ext.table' 
 ?><?=eqn:waveCodeAssignMinMax(
 	declare, resultMin, resultMax,
-	eqn:eigenWaveCode(setmetatable(table(args, {waveIndex=0}), nil)),
-	eqn:eigenWaveCode(setmetatable(table(args, {waveIndex=eqn.numWaves-1}), nil))
+	eqn:eigenWaveCode(table(args, {waveIndex=0}):setmetatable(nil)),
+	eqn:eigenWaveCode(table(args, {waveIndex=eqn.numWaves-1}):setmetatable(nil))
 )?>
 ]], args)
 end
@@ -1085,15 +1085,15 @@ args:
 	declare = true to declare the variables
 --]]
 function Equation:consWaveCodeMinMax(args)
-	args = setmetatable(table(args), nil)
+	args = table(args):setmetatable(nil)
 	args.args = args
 	return self:consWaveCodePrefix(args)..'\n'
 	..self:template([[
 <? local table = require 'ext.table' 
 ?><?=eqn:waveCodeAssignMinMax(
 	declare, resultMin, resultMax,
-	eqn:consWaveCode(setmetatable(table(args, {waveIndex=0}), nil)),
-	eqn:consWaveCode(setmetatable(table(args, {waveIndex=eqn.numWaves-1}), nil))
+	eqn:consWaveCode(table(args, {waveIndex=0}):setmetatable(nil)),
+	eqn:consWaveCode(table(args, {waveIndex=eqn.numWaves-1}):setmetatable(nil))
 )?>
 ]], args)
 end

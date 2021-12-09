@@ -295,7 +295,7 @@ end
 
 function Composite:combineWaveCode(func, fields, args)
 	return self.eqns:mapi(function(eqn,i)
-		local args = setmetatable(table(args), nil)
+		local args = table(args):setmetatable(nil)
 		for _,field in ipairs(fields) do
 			args[field] = '&('..args[field]..')->'..eqn.field
 		end
@@ -307,7 +307,7 @@ function Composite:combineWaveIndexCode(func, fields, args)
 	local waveIndex = assert(args.waveIndex)
 	for i,eqn in ipairs(self.eqns) do
 		if waveIndex >= 0 and waveIndex < eqn.numWaves then
-			local args = setmetatable(table(args), nil)
+			local args = table(args):setmetatable(nil)
 			for _,field in ipairs(fields) do
 				args[field] = '&('..args[field]..')->'..eqn.field
 			end

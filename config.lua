@@ -1120,7 +1120,7 @@ self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {
 	theta = theta,
 }):setmetatable(nil)),
 						-- 2nd return is list of required modules
-						{solver.eqn.symbols.consFromPrim}
+						{assert(solver.eqn.symbols.consFromPrim)}
 					end,
 				}
 			},
@@ -1141,7 +1141,7 @@ self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {
 ]], table(args, {P0=P0}):setmetatable(nil)),
 					-- 2nd return is list of required modules
 					{
-						solver.eqn.symbols.consFromPrim,
+						assert(solver.eqn.symbols.consFromPrim),
 						solver.eqn.symbols.primFromCons,
 					}
 				end,

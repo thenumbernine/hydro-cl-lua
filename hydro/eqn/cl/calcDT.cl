@@ -61,6 +61,17 @@ then --\
 <? else -- meshsolver ?>
 //// MODULE_DEPENDS: <?=face_t?>
 
+<? 
+-- set to false to use cell-centered U for lambda for dt
+-- set to true to use face-averaged U for lambda for dt
+-- TODO do this option for the gridsolver above as well
+local calcDTFromFaceU = true 
+?>
+
+<? if calcDTFromFaceU then ?>
+//// MODULE_DEPENDS: <?=getEdgeStates?> <?=eigen_forInterface?>
+<? end ?>
+
 #define <?=calcDTCell?>(\
 	/*real * const */dt,\
 	/*constant <?=solver_t?> const * const */solver,\
@@ -70,10 +81,14 @@ then --\
 	/*global int const * const */cellFaceIndexes	/* [numCellFaceIndexes] */\
 ) {\
 	if (cell->volume > 1e-7) {\
+<? if not calcDTFromFaceU then -- cell-centered lambdas ?>\
 		<?=eqn:consWaveCodeMinMaxAllSidesPrefix{ --\
 			U = "U", --\
 			pt = "(cell)->pos", --\
 		}:gsub("\\*\n", "\\\n\t")?>\
+<? else -- face-centered lambdas ?>\
+		/* eqn:eigenWaveCodeMinMax doesn't use a prefix (right?) */\
+<? end ?>\
 		for (int i = 0; i < (cell)->faceCount; ++i) {\
 			global <?=face_t?> const * const face = faces + cellFaceIndexes[i + (cell)->faceOffset];\
 			if (face->area > 1e-7) {\
@@ -82,6 +97,7 @@ then --\
 					/* all sides? or only the most prominent side? */\
 					/* which should we pick eigenvalues from? */\
 					/* use cell-centered eigenvalues */\
+<? if not calcDTFromFaceU then -- cell-centered lambdas ?>\
 					<?=eqn:consWaveCodeMinMaxAllSides{ --\
 						n = "n", --\
 						U = "U", --\
@@ -89,10 +105,26 @@ then --\
 						resultMin = "lambdaMin", --\
 						resultMax = "lambdaMax", --\
 						declare = true, --\
-					}:gsub("\\*\n", "\\\n\t\t\t")?>\
+					}:gsub("\\*\n", "\\\n\t\t\t\t\t")?>\
+<? else -- face-centered lambdas ?>\
+					/* copied from meshsolver.cl's calcFlux() ... */\
+					<?=cell_t?> cellL, cellR;\
+					<?=cons_t?> UL, UR;\
+					<?=getEdgeStates?>(solver, &UL, &UR, cellL, cellR, face, UBuf);\
+					<?=eigen_t?> eig;\
+					<?=eigen_forInterface?>(&eig, solver, &UL, &UR, &cellL, &cellR, face->pos, n);\
+					<?=eqn:eigenWaveCodeMinMax{ --\
+						eig = "&eig", --\
+						n = "n", --\
+						pt = "face->pos", --\
+						resultMin = "lambdaMin", --\
+						resultMax = "lambdaMax", --\
+						declare = true, --\
+					}:gsub("\\*\n", "\\\n\t\t\t\t\t")?>\
+<? end ?>\
 					real absLambdaMax = max(fabs(lambdaMin), fabs(lambdaMax));\
 					absLambdaMax = max((real)1e-9, absLambdaMax);\
-					*(dt) = (real)min(*(dt), cell->volume / (face->area * absLambdaMax));\
+					*(dt) = (real)min(*(dt), (cell)->volume / (face->area * absLambdaMax));\
 				}\
 			}\
 		}\

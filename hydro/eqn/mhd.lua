@@ -315,7 +315,7 @@ function MHD:getDisplayVars()
 end
 
 function MHD:eigenWaveCode(args)
-	args = setmetatable(table(args), nil)
+	args = table(args):setmetatable(nil)
 	local eig = '('..args.eig..')'
 	return ({
 		eig..'->v.x - '..eig..'->Cf',

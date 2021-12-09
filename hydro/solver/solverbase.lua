@@ -2471,7 +2471,7 @@ function SolverBase:finalizeDisplayVars()
 				-- TODO ... but the kernel names haven't been assigned yet ...
 				-- so I have to do this after they are assigned, which is after refreshSolverProgram
 				-- or I can flag the copied vars and have refreshSolverProgram not make duplicate names for them
-				local dupvar = setmetatable(table(var), getmetatable(var))
+				local dupvar = table(var):setmetatable(getmetatable(var))
 				dupvar.component = component.globalIndex
 				if not originalVarForGroup then
 					originalVarForGroup = dupvar

@@ -47,10 +47,8 @@ end
 			face = "e",
 		}
 	if depends then
-		for _,module in ipairs(depends) do
-			solver.solverModulesEnabled[module] = true
-		end
-	end
+?>//// MODULE_DEPENDS: <?=table.concat(depends, ' ')?>
+<?	end
 ?>
 		<?=code:gsub("\n", "\n\t\t")?>
 <? end 
@@ -66,7 +64,7 @@ end
 //// MODULE_NAME: <?=getEdgeStates?>
 //// MODULE_DEPENDS: <?=boundaryCons?>
 
-#define getEdgeStates(\
+#define <?=getEdgeStates?>(\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> * const */UL,\
 	/*<?=cons_t?> * const */UR,\
@@ -115,6 +113,8 @@ kernel void <?=calcFlux?>(
 	if (faceIndex >= get_global_size(0)) return;
 
 	global <?=cons_t?> * const flux = fluxBuf + faceIndex;
+
+//TODO keep this here, or move it somewhere else?
 for (int j = 0; j < numStates; ++j) {
 	flux->ptr[j] = 0;
 }
@@ -127,18 +127,17 @@ for (int j = 0; j < numStates; ++j) {
 		return;
 	}
 
-	real3 const x = face->pos;
-	<?=normal_t?> const n = normal_forFace(face);
-
+	//TODO: cell_t or cell_t*?
 	<?=cell_t?> cellL, cellR;
 	<?=cons_t?> UL, UR;	
-	getEdgeStates(solver, &UL, &UR, cellL, cellR, face, UBuf);
+	<?=getEdgeStates?>(solver, &UL, &UR, cellL, cellR, face, UBuf);
 
 	//TODO option to rotate to align fluxes?
 	// then you'd have to build a new normal_t based on the aligned (x-axis) normal.
 
 //// MODULE_DEPENDS: <?=calcFluxForInterface?>
-	<?=calcFluxForInterface?>(flux, solver, &UL, &UR, &cellL, &cellR, x, n);
+	<?=normal_t?> const n = normal_forFace(face);
+	<?=calcFluxForInterface?>(flux, solver, &UL, &UR, &cellL, &cellR, face->pos, n);
 }
 
 //// MODULE_NAME: <?=calcDerivFromFlux?>
