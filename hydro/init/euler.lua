@@ -2296,10 +2296,10 @@ end ?>;
 <?
 local m_in_pc = 648000 / math.pi * 149597870700
 ?>
-	real r_in_kpc = r * <?=1/m_in_pc?>;
+	real const r_in_kpc = r * <?=1/m_in_pc?>;
 
 	-- velocity from 2006 Cooperstock et al to fit 1989 Begeman
-	real vmag = 0
+	real const vmag = 0
 <?
 	for _,coeff in ipairs{
 		{0.00093352334660, 0.07515079869},
@@ -2327,59 +2327,63 @@ local m_in_pc = 648000 / math.pi * 149597870700
 
 	// normrho(r,z=0) for 2021 Ludwig eqn 8.4.b
 	
-	real Y = 1;
-	real kspiral = 0.1;
-	real rspiral = 4.0;
-	real d = 9200.0;		// kpc
+	real const kspiral = 0.1;
+	real const rspiral = 4.0;
+	real const d = 9200.0;		// kpc
 	
-	real alpha0 = 154.0;
-	real alphae = 316.8;
-	real reff = 1.0;
-	real se = 1.49;
-	
-	real b1 = 0.050231295947568;	// (from 0.0499)
-	real b2 = -0.000433;
-	real b3 = 5.86e-08;
-	real b4 = 3.29e-09;
-	real b5 = -1.06e-11;
-	real b6 = 1.52e-13;
-	real b7 = 2.9e-15;
-	real b8 = -1.75e-17;
-	
-	real d2 = 1.9517551593474e-05;	// (from 1.81e-05)
-	real d3 = -4.96e-07;
-	real d4 = 1.85e-09;
-	real d5 = 1.07e-11;
-	real d6 = 2.04e-14;
-	real d7 = -1.75e-16;
-	real d8 = -1.2e-18;
+	real const alpha0 = 154.0;
+	real const alphae = 316.8;
+	real const reff = 1.0;
+	real const se = 1.49;
 
-	int YOrder = 4;
-	for (int i = 0; i <= YOrder; ++i) {
-		real theta = 2 * M_PI * (real)i * kspiral;
-		real ri = rspiral * exp(theta);
-		real yi = y0 * exp(theta * v);
-		real dr = r - ri;
-		real gammaisq = gammai * gammai;
-		Y = Y + (yi * gammai / M_PI) / (dr * dr + gammaisq);
-	}
+<? 
+local b = {
+	0.050231295947568,	-- (from 0.0499)
+	-0.000433,
+	5.86e-08,
+	3.29e-09,
+	-1.06e-11,
+	1.52e-13,
+	2.9e-15,
+	-1.75e-17,
+}
+local d = 
+	1.9517551593474e-05,	-- (from 1.81e-05)
+	-4.96e-07,
+	1.85e-09,
+	1.07e-11,
+	2.04e-14,
+	-1.75e-16,
+	-1.2e-18,
+}
+?>
+	
+	real Y = 1;
+	<? for i=0,4 do ?>{
+		real const theta = 2 * M_PI * (real)i * kspiral;
+		real const ri = rspiral * exp(theta);
+		real const yi = y0 * exp(theta * v);
+		real const dr = r - ri;
+		real const gammaisq = gammai * gammai;
+		Y += (yi * gammai / M_PI) / (dr * dr + gammaisq);
+	}<? end ?>
 
 	real alpha = (180 * 3600 / M_PI) * r / d;
 	
 	real s = 0.;
 	if (alpha <= alpha0) {
-		for (int i=8; i >= 1; --i) {
-			s = s + _G['b'..i];
-			s = s * alpha;
-		}
-		s = s + s0;
+<? for i=8,1,-1 do ?>
+		s += <?=clnumber(b[i])?>;
+		s *= alpha;
+<? end ?>
+		s += s0;
 	} else if (alpha <= alphae) {
-		local dalpha = alphae - alpha
-		for (int i = 8; i >= 2; --i) {
-			s = s + _G['d'..i];
-			s = s * dalpha;
-		}
-		s = s * dalpha + se
+		real const dalpha = alphae - alpha
+<? for i=8,1,-1 do ?>
+		s += <?=clnumber(d[i])?>;
+		s *= dalpha;
+<? end ?>
+		s *= dalpha + se
 	} else {
 		s = se;
 	}
