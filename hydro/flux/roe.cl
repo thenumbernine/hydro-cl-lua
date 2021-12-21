@@ -81,14 +81,30 @@ local useFluxLimiter = solver.fluxLimiter > 1
 	<?=eigen_leftTransform?>(&deltaUEigR, solver, &eigR, &deltaUR, xIntR, n);\
 <? 	end ?>\
 \
+<? --\
+local lambdaConst = 'const' --\
+if flux.useEntropyFluxFix then --\
+	lambdaConst = '' --\
+?>	real const speedOfSound = eig.Cs; /*This is Euler-specific, so TODO abstract this.*/\
+	real const lambdaLimitingFactor = <?=clnumber(flux.entropyFluxFixLimitingFactor)?>;\
+<? end -- flux.useEntropyFluxFix ?>\
+\
 	<? for j=0,eqn.numWaves-1 do ?>{\
 		int const j = <?=j?>;\
-		real const lambda = <?=eqn:eigenWaveCode{ --\
+		real <?=lambdaConst?> lambda = <?=eqn:eigenWaveCode{ --\
 			n = "n", --\
 			eig = "&eig", --\
 			pt = "xInt", --\
 			waveIndex = j, --\
 		}:gsub("\\*\n", "\\\n\t\t")?>;\
+\
+<? if flux.useEntropyFluxFix then ?>\
+/* So, here is where the Hartan entropy fix goes.*/\
+/* Is it used everywhere the lambdas are used, or only in the Roe flux use of lambdas?*/\
+/* Should it go before or after the flux limiter? */\
+		real const dws = lambdaLimitingFactor * speedOfSound;\
+		if (fabs(lambda) < dws) lambda = sign(lambda) * .5 * (lambda * lambda / dws + dws);\
+<? end -- flux.useEntropyFluxFix ?>\
 \
 <? if not eqn.roeUseFluxFromCons then --\
 ?>		fluxEig.ptr[j] *= lambda;\

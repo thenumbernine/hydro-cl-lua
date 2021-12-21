@@ -66,7 +66,7 @@ function MeshSolver:initMeshVars(args)
 	-- TODO make this a param of gridsolver as well
 	local fluxName = assert(args.flux, "expected flux")
 	local fluxClass = require('hydro.flux.'..fluxName)
-	local fluxArgs = table(args.fluxArgs, {solver=self})
+	local fluxArgs = table(args.fluxArgs, {solver=self}):setmetatable(nil)
 	self.flux = fluxClass(fluxArgs)
 
 	MeshSolver.super.initMeshVars(self, args)

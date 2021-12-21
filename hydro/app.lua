@@ -2,7 +2,7 @@
 command-line variables:
 	clcpu = (in run.lua, preceding this) use experimental cl-cpu CL-to-C OpenCL wrapper
 	(config file cmdline override options:)
-		solver = 
+		solver =
 		eqn =
 		integrator =
 		fixedDT =
@@ -15,7 +15,7 @@ command-line variables:
 		mins =
 		maxs =
 		multiSlices =
-	float = set to true to use 32 bit float instead of 64 
+	float = set to true to use 32 bit float instead of 64
 	half = set to true to use 16 bit float instead of 64
 	cpu = set to use CPU instead of GPU
 	sys = subsystem to run under.  options are 'imguiapp', 'glapp', 'console'
@@ -27,10 +27,11 @@ command-line variables:
 	createAnimation = set to start off creating an animation / framedump
 	exitTime = start the app running, and exit it after the simulation reaches this time
 	saveOnExit = filename to save all solvers (appending _1 _2 for multiple solvers) before quitting
+	stopTime = stop running once this time is reached.
 	maxiter = max # of iterations to run the application for
 	verbose = output extra stuff
 
-	run = start the simulation running.  Setting 'exitTime' or 'sys=console' also starts the simulation running.
+	run = start the simulation running.  Setting 'exitTime' or 'stopTime' or 'sys=console' also starts the simulation running.
 
 	showfps = print the updates/second to console
 	trackvars = comma-separated list of variable names to print to the console every FPS print
@@ -42,7 +43,7 @@ command-line variables:
 
 	coordVerbose = output extra info from coord/coord.lua
 
-	display_useCoordMap = set this gui option 
+	display_useCoordMap = set this gui option
 	showMouseCoords = whether to show mouse coords.  default is true.
 	displayDim = override dimension of display (useful for displaying 3D simulations as 1D graphs)
 
@@ -170,19 +171,19 @@ end
 -- TODO unless we are still returning a class, in which case this should all be moved into the class's :init() code ... and then we change is-a with has-a, until init() is done, then we swap it back with is-a
 local ig, tooltip
 local baseSystems = {
-	{imguiapp = function() 
+	{imguiapp = function()
 		ig = require 'ffi.imgui'
 		tooltip  = require 'hydro.tooltip'
-		return require 'imguiapp' 
+		return require 'imguiapp'
 	end},
-	{glapp = function() 
+	{glapp = function()
 		
 		package.loaded['ffi.imgui'] = {disabled=true}
 		package.loaded.tooltip = {disabled=true}
 		ig = require 'ffi.imgui'
 		tooltip  = require 'hydro.tooltip'
 		
-		return require 'glapp' 
+		return require 'glapp'
 	end},
 	{console = function()
 		
@@ -291,7 +292,7 @@ if HydroCLApp.useClipPlanes then
 	HydroCLApp.rotateClip = ffi.new('int[1]', 0)
 	HydroCLApp.clipInfos = range(4):mapi(function(i)
 		local plane = vec4d(0,0,0,0)
-		plane.s[math.min(i,3)-1] = -1	
+		plane.s[math.min(i,3)-1] = -1
 		return {
 			enabled = i == 3,
 			plane = plane,
@@ -495,11 +496,11 @@ local function printState(solver)
 end
 --]]
 
--- always called by glapp, even if sys=console 
--- ... in that case a dummy subsys is provided above that calls initGL 
+-- always called by glapp, even if sys=console
+-- ... in that case a dummy subsys is provided above that calls initGL
 function HydroCLApp:initGL(...)
 	if HydroCLApp.super
-	and HydroCLApp.super.initGL 
+	and HydroCLApp.super.initGL
 	then
 		HydroCLApp.super.initGL(self, ...)
 	end
@@ -512,7 +513,7 @@ function HydroCLApp:initGL(...)
 		sdl.SDL_GL_SetSwapInterval(1)
 	end
 
-	-- This used to be on by default, 
+	-- This used to be on by default,
 	-- but for now the 'calcDisplayVarToTex' code has grown out of hand and now doubles the compile times
 	-- and I can't perceive a performance difference with or without it,
 	-- so I will keep this disabled for now.
@@ -554,11 +555,13 @@ function HydroCLApp:initGL(...)
 	}:mapi(function(x) return x:getName() end):concat'/'
 
 	self.exitTime = cmdline.exitTime
-	if self.exitTime 
-	or cmdline.run 
+	self.stopTime = cmdline.stopTime
+	if self.exitTime
+	or self.stopTime
+	or cmdline.run
 	or self.targetSystem == 'console'
-	then 
-		self.running = true 
+	then
+		self.running = true
 	end
 
 	self.createAnimation = cmdline.createAnimation
@@ -631,7 +634,7 @@ function HydroCLApp:initGL(...)
 		end
 
 		self.gradientTex = GLGradientTex(1024, {
-		-- [[ white, rainbow, black
+		--[[ white, rainbow, black
 	--		{0,0,0,.5},	-- black ... ? maybe I shouldn't be using black...
 			{0,0,1,.8},	-- blue
 			{0,1,1,.8},	-- cyan
@@ -641,7 +644,7 @@ function HydroCLApp:initGL(...)
 			{1,0,0,.8},	-- red
 			{1,1,1,.8},	-- white
 		--]]
-		--[[ stripes 
+		--[[ stripes
 			range(32):mapi(function(i)
 				return ({
 					{0,0,0,0},
@@ -654,6 +657,10 @@ function HydroCLApp:initGL(...)
 			{.5,.5,1,.8},
 			{1,1,1,.8},
 		--]]
+		-- [[ red grey blue - like paraview
+			{0x3c/0xff, 0x4e/0xff, 0xc2/0xff, 1},
+			{0xdd/0xff, 0xdd/0xff, 0xdd/0xff, 1},
+			{0xb4/0xff, 0x04/0xff, 0x26/0xff, 1},
 		}, false)
 		-- don't wrap the colors, but do use GL_REPEAT
 		self.gradientTex:setWrap{s = gl.GL_REPEAT}
@@ -696,10 +703,10 @@ void main() {
 				magFilter = gl.GL_LINEAR,
 			}
 			if not pcall(function()
-				gl.glGenerateMipmap(gl.GL_TEXTURE_2D) 
+				gl.glGenerateMipmap(gl.GL_TEXTURE_2D)
 			end) then
 				fonttex:setParameter(gl.GL_TEXTURE_MIN_FILTER, gl.GL_NEAREST)
-				fonttex:setParameter(gl.GL_TEXTURE_MAG_FILTER, gl.GL_LINEAR) 
+				fonttex:setParameter(gl.GL_TEXTURE_MAG_FILTER, gl.GL_LINEAR)
 			end
 			self.font = Font{tex = fonttex}
 		end
@@ -737,8 +744,8 @@ void main() {
 
 		if #self.solvers > 0 then
 			local solver = self.solvers[1]
-			if solver.dim == 2 
-			and self.display_useCoordMap 
+			if solver.dim == 2
+			and self.display_useCoordMap
 			and CartesianCoord:isa(solver.coord)
 			then
 				local orthoSize = 1
@@ -808,7 +815,7 @@ end
 rendering:
 graph variables - many - 1D and 2D ... and hypercoordinates in 3D?
 heatmap variable - 2D only
-volumetric variable - 3D only 
+volumetric variable - 3D only
 point cloud? i.e. cheap volumetric?
 slices? another cheap volumetric?
 --]]
@@ -843,7 +850,7 @@ function Display:init(args)
 	self.maxs = vec3d(1,1,1)
 	
 	--[[
-	var name, does it contribute to the graph space autoscale range? 
+	var name, does it contribute to the graph space autoscale range?
 	--]]
 	self.graphVars = table()
 	
@@ -870,7 +877,7 @@ function dumpFile:update(app, t)
 		-- don't change any vars while outputting or else your rows won't match your header
 		f:write'#t'
 		
-		for _,solver in ipairs(app.solvers) do 
+		for _,solver in ipairs(app.solvers) do
 			--[[ display variables:
 			for _,var in ipairs(solver.displayVars) do
 				if var.enabled then
@@ -889,7 +896,7 @@ function dumpFile:update(app, t)
 	end
 	
 	f:write(t)
-	for _,solver in ipairs(app.solvers) do 
+	for _,solver in ipairs(app.solvers) do
 		--[[ display variables:
 		for _,var in ipairs(solver.displayVars) do
 			if var.enabled then
@@ -915,7 +922,7 @@ HydroCLApp.screenshotExts = {'png', 'bmp', 'jpeg', 'tiff', 'fits', 'tga', 'ppm'}
 -- dropdown index
 HydroCLApp.screenshotExtIndex = 1
 
--- saving a screenshot of whatever the window buffer is, including colorbar and grid, excluding imgui 
+-- saving a screenshot of whatever the window buffer is, including colorbar and grid, excluding imgui
 
 function HydroCLApp:getScreenShotFilename()
 	local ext = self.screenshotExts[self.screenshotExtIndex]
@@ -959,7 +966,7 @@ function HydroCLApp:screenshotToFile(fn)
 		self.ssimg = Image(w, h, 4, 'unsigned char')
 		self.ssflipped = Image(w, h, 4, 'unsigned char')
 	end
-	gl.glReadPixels(0, 0, w, h, gl.GL_RGBA, gl.GL_UNSIGNED_BYTE, self.ssimg.buffer) 
+	gl.glReadPixels(0, 0, w, h, gl.GL_RGBA, gl.GL_UNSIGNED_BYTE, self.ssimg.buffer)
 	-- reverse rows ...
 	-- TODO maybe ... for all projection matrix setups, have them check a screenshot flag and automatically flip?
 	for y=0,h-1 do
@@ -1025,8 +1032,8 @@ function HydroCLApp:saveHeatMapBufferImages()
 		-- using 3 channels had some alignment problems ... there's a bug to fix somewhere, maybe in the png write function?
 		local ssimg = Image(w, h, 4, 'unsigned char')
 		local ssflipped = Image(w, h, 4, 'unsigned char')
-		--gl.glGetTexImage(tex.target, 0, gl.GL_RGBA, gl.GL_UNSIGNED_BYTE, ssimg.buffer) 
-		gl.glReadPixels(0, 0, w, h, gl.GL_RGBA, gl.GL_UNSIGNED_BYTE, ssimg.buffer) 
+		--gl.glGetTexImage(tex.target, 0, gl.GL_RGBA, gl.GL_UNSIGNED_BYTE, ssimg.buffer)
+		gl.glReadPixels(0, 0, w, h, gl.GL_RGBA, gl.GL_UNSIGNED_BYTE, ssimg.buffer)
 		-- reverse rows ...
 		-- TODO maybe ... for all projection matrix setups, have them check a screenshot flag and automatically flip?
 		for y=0,h-1 do
@@ -1050,7 +1057,7 @@ function HydroCLApp:saveHeatMapBufferImages()
 	end
 	
 	self.running = pushRunning
-	self.drawGradientLegend = pushDrawGradientLegend 
+	self.drawGradientLegend = pushDrawGradientLegend
 	self.super.update = pushUpdateGUI
 	self.font = pushFont
 end
@@ -1097,7 +1104,7 @@ function HydroCLApp:update(...)
 		mouse:update()
 	end
 	if self.running then
-		if self.running == 'step' then 
+		if self.running == 'step' then
 			print('performing single step...')
 			self.running = false
 		end
@@ -1106,7 +1113,7 @@ function HydroCLApp:update(...)
 		local oldestSolver = self.solvers:inf(function(a,b)
 			return a.t < b.t
 		end)
-		if oldestSolver then 
+		if oldestSolver then
 			-- check before :update(), in case we want to exit at t=0
 			if self.exitTime and oldestSolver.t >= self.exitTime then
 				-- save on exit?
@@ -1121,11 +1128,14 @@ function HydroCLApp:update(...)
 
 				self:requestExit()
 				return
-			end		
+			end
+			if self.stopTime and oldestSolver.t >= self.stopTime then
+				self.running = false
+			end
 if cmdline.printBufs then
 	print(('t = %f'):format(oldestSolver.t))
-end			
-			oldestSolver:update() 
+end
+			oldestSolver:update()
 
 if cmdline.printBufs then
 	print()
@@ -1144,7 +1154,7 @@ end
 			-- or - if dumpFile is enabled - should we re-search-out the oldest solver and use its time?
 			dumpFile:update(self, oldestSolver.t)
 		end
-	else	
+	else
 		-- clear all 'lastFrameTime's of solvers so the rough fps calcs don't get messed with
 		for _,solver in ipairs(self.solvers) do
 			solver.lastFrameTime = nil
@@ -1220,7 +1230,7 @@ end
 			local var = solver.displayVarForName[varName]
 			
 			if var and var.enabled
-			--and solver.visiblePtr and solver.visiblePtr[0] 
+			--and solver.visiblePtr and solver.visiblePtr[0]
 			then
 				useLog = var.useLog
 				local component = solver.displayComponentFlatList[var.component]
@@ -1329,7 +1339,7 @@ end
 				end
 			end
 		end
-		if self.showMouseCoords 
+		if self.showMouseCoords
 		and mouseOverThisGraph
 		and self.displayDim == 2	-- displaySolvers[1].dim == 2
 		then
@@ -1366,15 +1376,15 @@ end
 		-- so this is just for mesh ...
 		for _,solver in ipairs(self.solvers) do
 			--if require 'hydro.solver.meshsolver':isa(solver) then
-			if solver.display then	
-				solver:display(varName, ar) 
+			if solver.display then
+				solver:display(varName, ar)
 			end
 		end
 	
 
 		-- TODO make this custom per-display-method
 		-- (that would also let us do one less tex bind/unbind)
-		if mouseOverThisGraph 
+		if mouseOverThisGraph
 		and self.showMouseCoords
 		and self.displayDim == 2
 		then
@@ -1382,12 +1392,12 @@ end
 			local toreal, fromreal = half.toreal, half.fromreal
 			
 			self.mouseCoordValue = ''
-			for i,solver in ipairs(displaySolvers) do 
+			for i,solver in ipairs(displaySolvers) do
 				local var = solver.displayVarForName[varName]
 				if var and var.enabled then
 					-- translate the mouse coords to texture coords
 					-- and read the texel at the mouse position
-					if self.display_useCoordMap 
+					if self.display_useCoordMap
 					and not CartesianCoord:isa(solver.coord)
 					then
 						--print'FIXME'
@@ -1431,12 +1441,12 @@ end
 									-- right now I'm copying halfs from cl to gl as-is, so calcDisplayVarToTexPtr will have half data for half and float data otherwise
 								local ptr = ffi.cast(self.real == 'half' and 'real*' or 'float*', solver.calcDisplayVarToTexPtr)
 								local channels = vectorField and 3 or 1
-								self.mouseCoordValue = self.mouseCoordValue 
+								self.mouseCoordValue = self.mouseCoordValue
 									.. 'int: '..tostring(texX)
 									..','..tostring(texY)
 									..'\n'
 								if size then
-									self.mouseCoordValue = self.mouseCoordValue 
+									self.mouseCoordValue = self.mouseCoordValue
 										..'raw value: '
 									local sep = ''
 									for j=0,channels-1 do
@@ -1444,7 +1454,7 @@ end
 										self.mouseCoordValue = self.mouseCoordValue .. sep .. ('%.3f'):format(v)
 										sep = ', '
 									end
-									self.mouseCoordValue = self.mouseCoordValue 
+									self.mouseCoordValue = self.mouseCoordValue
 										..'\n'
 										..'unit value: '
 									sep = ''
@@ -1453,8 +1463,8 @@ end
 										v = v * unitScale
 										self.mouseCoordValue = self.mouseCoordValue .. sep .. ('%.3f'):format(v)
 										sep = ', '
-									end							
-									self.mouseCoordValue = self.mouseCoordValue 
+									end
+									self.mouseCoordValue = self.mouseCoordValue
 										..'\n'
 								end
 							end
@@ -1509,15 +1519,15 @@ end
 	end
 
 	-- screenshot before gui
-	if self.createAnimation then 
-		self:screenshot() 
+	if self.createAnimation then
+		self:screenshot()
 		if self.createAnimation == 'once' then
 			self.createAnimation = nil
 		end
 	end
 
 	if HydroCLApp.super
-	and HydroCLApp.super.update 
+	and HydroCLApp.super.update
 	then
 		HydroCLApp.super.update(self, ...)
 	end
@@ -1597,7 +1607,7 @@ function HydroCLApp:drawGradientLegend(solver, var, varName, ar, valueMin, value
 	end
 end
 
-HydroCLApp.display_useCoordMap = cmdline.display_useCoordMap 
+HydroCLApp.display_useCoordMap = cmdline.display_useCoordMap
 if HydroCLApp.display_useCoordMap == nil then HydroCLApp.display_useCoordMap = true end
 		
 HydroCLApp.displayFixedY = 0
@@ -1623,14 +1633,14 @@ function HydroCLApp:updateGUI()
 		
 		if ig.igButton'Save' then
 			local savePrefix = os.date('%Y.%m.%d-%H.%M.%S')
-			-- save as cfits 
+			-- save as cfits
 			for i,solver in ipairs(self.solvers) do
 				solver:save(savePrefix..'_'..tostring(i))
 			end
 		end
 		
 		if ig.igButton'Randomize Palette' then
-			self:randomizeGradientTex()		
+			self:randomizeGradientTex()
 		end
 
 		-- dump min/max(/avg?) of displayvars to a .txt file
@@ -1657,11 +1667,11 @@ function HydroCLApp:updateGUI()
 	
 		-- TODO per-solver
 		tooltip.checkboxTable('bilinear textures', self, 'displayBilinearTextures')
-		ig.igSameLine()	
+		ig.igSameLine()
 
 		-- for 2D heatmap only atm
 		tooltip.checkboxTable('display with coord map', self, 'display_useCoordMap')
-		ig.igSameLine()	
+		ig.igSameLine()
 		
 		tooltip.checkboxTable('show coords', self, 'showMouseCoords')
 		
@@ -1780,7 +1790,7 @@ function HydroCLApp:updateGUI()
 					if i > 1 then ig.igSameLine() end
 					local name, func = next(method)
 					tooltip.checkboxTable(name, self.displayVectorMethodsEnabled, name)
-				end			
+				end
 				
 				ig.igPopID()
 			end
@@ -1871,7 +1881,7 @@ function HydroCLApp:event(event, ...)
 				end
 				self.running = false
 			elseif event.key.keysym.sym == ('p'):byte() then
-				self:randomizeGradientTex()		
+				self:randomizeGradientTex()
 			end
 		end
 	end

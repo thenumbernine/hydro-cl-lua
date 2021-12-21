@@ -15,6 +15,10 @@ local Struct = require 'hydro.code.struct'
 local time, getTime = table.unpack(require 'hydro.util.time')
 
 
+--local faceAreaEpsilon = 1e-7
+local faceAreaEpsilon = 0
+
+
 -- map a parameter pack using the function in the first argument
 local function mappack(f, ...)
 	if select('#', ...) == 0 then return end
@@ -380,7 +384,9 @@ function Mesh:addFaceForVtxs(...)
 		f.area = deltaLen
 		--TODO calculate normal correctly for n=3
 		-- however now we would have to consider extrinsic curvature
-		f.normal = self.real3(deltaY / deltaLen, -deltaX / deltaLen, 0)
+		-- TODO I set this as d=cellb-cella to FIX a bug in the NACA 0012 airfoil edu2d mesh.
+		-- So don't change this without verifying that it works.
+		f.normal = self.real3(-deltaY / deltaLen, deltaX / deltaLen, 0)
 	elseif self.solver.dim == 3 then
 		for i=0,n-1 do
 			local i2 = (i+1)%n
@@ -513,7 +519,7 @@ local startTime = getTime()
 				
 				--if face area is zero then don't add it to cell's faces
 				-- and don't use it later for determining cell's volume
-				if f.area <= 1e-7 then
+				if f.area <= faceAreaEpsilon then
 				else
 					self.cellFaceIndexes:push_back(fi)
 
@@ -550,10 +556,14 @@ function Mesh:calcAux()
 		if a ~= -1 and b ~= -1 then
 			local cella = self.cells.v[a]
 			local cellb = self.cells.v[b]
-			local dx = cella.pos.x - cellb.pos.x
-			local dy = cella.pos.y - cellb.pos.y
-			local dz = cella.pos.z - cellb.pos.z
-			if f.area <= 1e-7 then
+			-- TODO I set this as d=cellb-cella to FIX a bug in the NACA 0012 airfoil edu2d mesh.
+			-- So don't change this without verifying that it works.
+			-- I know the edu2d code jumps through  more hoops to determine normal direction.
+			-- Does this normal direction run in all meshes? Or should I also jump through those extra hoops?
+			local dx = cellb.pos.x - cella.pos.x
+			local dy = cellb.pos.y - cella.pos.y
+			local dz = cellb.pos.z - cella.pos.z
+			if f.area <= faceAreaEpsilon then
 				f.normal = vec3d(dx,dy,dz):normalize()
 			end
 			local nDotDelta = f.normal.x * dx + f.normal.y * dy + f.normal.z * dz
@@ -581,7 +591,7 @@ function Mesh:calcAux()
 			local dx = cella.pos.x - f.pos.x
 			local dy = cella.pos.y - f.pos.y
 			local dz = cella.pos.z - f.pos.z
-			if f.area <= 1e-7 then
+			if f.area <= faceAreaEpsilon then
 				f.normal = vec3d(dx,dy,dz):normalize()
 			end
 			f.cellDist = math.sqrt(dx*dx + dy*dy + dz*dz) * 2

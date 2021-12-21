@@ -1,3 +1,16 @@
+<? 
+-- set to false to use cell-centered U for lambda for dt
+-- set to true to use face-averaged U for lambda for dt
+-- TODO do this option for the gridsolver above as well
+local calcDTFromFaceU = true 
+
+-- TODO put all the epsilons in one place?
+--local faceAreaEpsilon = 1e-7
+--local cellVolumeEpsilon = 1e-7
+local faceAreaEpsilon = 0
+local cellVolumeEpsilon = 0
+?>
+
 /*
 I'm using from Dullemond:
 dt = cfl*min(dx / (|lambdaMax| - |lambdaMin| + epsilon)
@@ -40,7 +53,7 @@ then --\
 <? else --\
 ?>		real const dx = cell_dx<?=side?>((cell)->pos);\
 <? end --\
-?>		if (dx > 1e-7) {\
+?>		if (dx > <?=clnumber(faceAreaEpsilon)?>) {\
 			<?=normal_t?> const n = normal_forSide<?=side?>((cell)->pos);\
 			/* use cell-centered eigenvalues */\
 			<?=eqn:consWaveCodeMinMaxAllSides{ --\
@@ -61,13 +74,6 @@ then --\
 <? else -- meshsolver ?>
 //// MODULE_DEPENDS: <?=face_t?>
 
-<? 
--- set to false to use cell-centered U for lambda for dt
--- set to true to use face-averaged U for lambda for dt
--- TODO do this option for the gridsolver above as well
-local calcDTFromFaceU = true 
-?>
-
 <? if calcDTFromFaceU then ?>
 //// MODULE_DEPENDS: <?=getEdgeStates?> <?=eigen_forInterface?>
 <? end ?>
@@ -80,7 +86,7 @@ local calcDTFromFaceU = true
 	/*global <?=face_t?> const * const */faces,		/* [numFaces] */\
 	/*global int const * const */cellFaceIndexes	/* [numCellFaceIndexes] */\
 ) {\
-	if (cell->volume > 1e-7) {\
+	if (cell->volume > <?=clnumber(cellVolumeEpsilon)?>) {\
 <? if not calcDTFromFaceU then -- cell-centered lambdas ?>\
 		<?=eqn:consWaveCodeMinMaxAllSidesPrefix{ --\
 			U = "U", --\
@@ -91,7 +97,7 @@ local calcDTFromFaceU = true
 <? end ?>\
 		for (int i = 0; i < (cell)->faceCount; ++i) {\
 			global <?=face_t?> const * const face = faces + cellFaceIndexes[i + (cell)->faceOffset];\
-			if (face->area > 1e-7) {\
+			if (face->area > <?=clnumber(faceAreaEpsilon)?>) {\
 				if (face->cells.x != -1 && face->cells.y != -1) {\
 					<?=normal_t?> const n = normal_forFace(face);\
 					/* all sides? or only the most prominent side? */\

@@ -27,7 +27,7 @@ function FiniteVolumeSolver:getSymbolFields()
 end
 
 function FiniteVolumeSolver:initObjs(args)
-	FiniteVolumeSolver.super.initObjs(self, args)	
+	FiniteVolumeSolver.super.initObjs(self, args)
 	self:createFlux(args.flux, args.fluxArgs)
 end
 
@@ -60,8 +60,8 @@ function FiniteVolumeSolver:initCodeModule_calcFlux()
 //// MODULE_DEPENDS: <?=normal_t?>
 // used by all gridsolvers.  the meshsolver alternative is in solver/meshsolver.lua
 
-<? 
-local useFluxLimiter = solver.fluxLimiter > 1 
+<?
+local useFluxLimiter = solver.fluxLimiter > 1
 	and flux.usesFluxLimiter -- just flux/roe.lua right now
 ?>
 
@@ -78,7 +78,7 @@ kernel void <?=calcFlux?>(
 	global <?=cell_t?> const * const cellR = cellBuf + index;
 	
 	<? for side=0,solver.dim-1 do ?>{
-		int const side = <?=side?>;	
+		int const side = <?=side?>;
 
 		real const dx = solver->grid_dx.s<?=side?>;
 
@@ -92,7 +92,7 @@ kernel void <?=calcFlux?>(
 		global <?=cons_t?> * const flux = fluxBuf + indexInt;
 
 
-<? if solver.coord.vectorComponent == 'cartesian' 
+<? if solver.coord.vectorComponent == 'cartesian'
 	or solver.coord.vectorComponent == 'anholonomic'
 then ?>
 //// MODULE_DEPENDS: <?=cell_area_i?>
@@ -122,19 +122,19 @@ then ?>
 
 			<?=normal_t?> const n = normal_forSide<?=side?>(xInt);
 
-<? 
-if useFluxLimiter then 
+<?
+if useFluxLimiter then
 ?>			//this is used for the flux limiter
 			//should it be using the coordinate dx or the grid dx?
 			//real dt_dx = dt / cell_dx<?=side?>(xInt);
-<? 
-	if solver.coord.vectorComponent == 'cartesian' 
+<?
+	if solver.coord.vectorComponent == 'cartesian'
 	and not require 'hydro.coord.cartesian':isa(solver.coord)
-	then 
+	then
 ?>
-//// MODULE_DEPENDS: <?=cell_dx_i?>			
+//// MODULE_DEPENDS: <?=cell_dx_i?>
 			real const dt_dx = dt / cell_dx<?=side?>(xInt);
-<? 	else 
+<? 	else
 ?>			real const dt_dx = dt / dx;
 <? 	end
 ?>
@@ -186,7 +186,7 @@ end
 		
 			//while we're here how about other solvers that might want to modify the flux?  like adding the viscous flux to the update?
 			//or should the viscous flux only be added separately?  in case its eigenvalues change the euler flux enough to overstep the CFL or something
-<? 
+<?
 for _,op in ipairs(solver.ops) do
 	if op.addCalcFluxCode then
 ?>			<?=op:addCalcFluxCode()?>
@@ -206,7 +206,7 @@ end
 function FiniteVolumeSolver:createFlux(fluxName, fluxArgs)
 	assert(fluxName, "expected flux")
 	local fluxClass = require('hydro.flux.'..fluxName)
-	fluxArgs = table(fluxArgs, {solver=self})
+	fluxArgs = table(fluxArgs, {solver=self}):setmetatable(nil)
 	self.flux = fluxClass(fluxArgs)
 end
 
@@ -328,7 +328,7 @@ function FiniteVolumeSolver:addDisplayVars()
 	for side=0,self.dim-1 do
 		local xj = xNames[side+1]
 		self:addDisplayVarGroup{
-			name = 'flux '..xj, 
+			name = 'flux '..xj,
 			bufferField = 'fluxBuf',
 			bufferType = self.eqn.symbols.cons_t,
 			codePrefix = self.eqn:template([[
@@ -433,8 +433,8 @@ function FiniteVolumeSolver:addDisplayVars()
 						self.eqn:template([[
 	value.vreal = 0;
 	//the flux transform is F v = R Lambda L v, I = R L
-	//but if numWaves < numIntStates then certain v will map to the nullspace 
-	//so to test orthogonality for only numWaves dimensions, I will verify that Qinv Q v = v 
+	//but if numWaves < numIntStates then certain v will map to the nullspace
+	//so to test orthogonality for only numWaves dimensions, I will verify that Qinv Q v = v
 	//I = L R
 	//Also note (courtesy of Trangenstein) consider summing across outer products of basis vectors to fulfill rank
 	for (int k = 0; k < numWaves; ++k) {

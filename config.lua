@@ -7,11 +7,11 @@ local materials = require 'hydro.materials'
 
 local dim = cmdline.dim or 2
 local args = {
-	app = self, 
+	app = self,
 	eqn = cmdline.eqn,
 	dim = dim,
 	
-	integrator = cmdline.integrator or 'forward Euler',	
+	integrator = cmdline.integrator or 'forward Euler',
 	--integrator = 'Iterative Crank-Nicolson',
 	--integrator = 'Runge-Kutta 2',
 	--integrator = 'Runge-Kutta 2 Heun',
@@ -62,11 +62,11 @@ local args = {
 	-- this is functional without usePLM, but doing so falls back on the cell-centered buffer, which with the current useCTU code will update the same cell twice from different threads
 	useCTU = true,
 	
-	-- [[ Cartesian
+	--[[ Cartesian
 	coord = 'cartesian',
 	--coordArgs = {vectorComponent='holonomic'},		-- use the coordinate derivatives to represent our vector components (though they may not be normalized)
 	--coordArgs = {vectorComponent='anholonomic'},		-- use orthonormal basis to represent our vector components
-	coordArgs = {vectorComponent='cartesian'},			-- use cartesian vector components 
+	coordArgs = {vectorComponent='cartesian'},			-- use cartesian vector components
 	mins = cmdline.mins or {-1, -1, -1},
 	maxs = cmdline.maxs or {1, 1, 1},
 	
@@ -119,12 +119,12 @@ local args = {
 			--	256x256 runs at about 270 fps
 			--	1500x1500 runs at about 20 fps
 			-- 4000x4000 uses 4362211620 bytes
-			-- from then on, any bigger tends to segfault somewhere after 'randomizing UBuf...' 
+			-- from then on, any bigger tends to segfault somewhere after 'randomizing UBuf...'
 			['AMD Accelerated Parallel Processing/gfx1010/gfx902'] = {
 				{256,1,1},
 				{256,256,1},
 				{32,32,32},
-			},	
+			},
 		})[platAndDevicesNames]
 		-- default size options
 		or {
@@ -149,7 +149,7 @@ local args = {
 		-- TODO doesn't work for rmin=0
 	--coordArgs = {vectorComponent='anholonomic'},		-- use orthonormal basis to represent our vector components.
 		-- TODO works but does curvilinear boundaries support cartesian vector components?
-	coordArgs = {vectorComponent='cartesian'},			-- use cartesian vector components 
+	coordArgs = {vectorComponent='cartesian'},			-- use cartesian vector components
 	mins = cmdline.mins or {0, 0, -1},
 	maxs = cmdline.maxs or {1, 2*math.pi, 1},			-- TODO bake the 2π into the coordinate chart so this matches grid/cylinder.  Technically θ→2πθ means it isn't the standard θ variable.  I did this for UI convenience with CFDMesh.
 	gridSize = ({
@@ -159,8 +159,8 @@ local args = {
 	})[dim],
 	boundary = type(cmdline.boundary) == 'table' and cmdline.boundary or {
 		-- r
-		-- notice, this boundary is designed with cylindrical components in mind, so it will fail with vectorComponent==cartesian 
-		--xmin=cmdline.boundary or 'freeflow',		
+		-- notice, this boundary is designed with cylindrical components in mind, so it will fail with vectorComponent==cartesian
+		--xmin=cmdline.boundary or 'freeflow',
 		xmin=cmdline.boundary or 'cylinderRMin',	-- use this when rmin=0
 		--xmin=cmdline.boundary or 'mirror',
 		--xmin=cmdline.boundary or {name='mirror', args={restitution=0}},
@@ -181,7 +181,7 @@ local args = {
 		--zmax=cmdline.boundary or 'mirror',
 	},
 	--]]
-	--[[ Sphere: r, θ, φ 
+	--[[ Sphere: r, θ, φ
 	coord = 'sphere',
 	--coordArgs = {volumeDim = 3},	-- use higher dimension volume, even if the grid is only 1D to 3D
 	--coordArgs = {vectorComponent='holonomic'},
@@ -226,7 +226,7 @@ local args = {
 	},
 	--]]
 
-	--[[ cylinder as toroid
+	-- [[ cylinder as toroid
 	coord = 'cylinder',
 	coordArgs = {vectorComponent='cartesian'},
 	mins = cmdline.mins or {.5, 0, -.25},
@@ -276,7 +276,7 @@ local args = {
 	
 	--initCond = 'sphere',
 	
-	--initCond = 'spiral',
+	initCond = 'spiral',
 	--initCondArgs = {torusGreaterRadius = .75, torusLesserRadius = .5},
 	--[[ spiral with physically correct units, with 1 graph unit = 1 meter, and 1 simulation second = 1 second
 	-- use this with euler-lingr + cylinder w/ r in [.5, 1], z in [-.25, .25]
@@ -285,7 +285,7 @@ local args = {
 	initCondArgs = {
 		solverVars={
 			-- scale time down so that speedOfLight / units_m_per_s = 1 ... so second ~ 1/3e+8 ~ 3.33e-9
-			second = 1 / constants.speedOfLight_in_m_per_s,	
+			second = 1 / constants.speedOfLight_in_m_per_s,
 			
 			speedOfLight = constants.speedOfLight_in_m_per_s, -- ... speedOfLight = 3e+8 / (1/(1/3e+8)) = 1
 			divPsiWavespeed_g = constants.speedOfLight_in_m_per_s,
@@ -325,15 +325,15 @@ local args = {
 	},
 	--]]
 	--[[
-	some various initial conditions from 2012 Toro "The HLLC Riemann Solver" http://marian.fsik.cvut.cz/~bodnar/PragueSum_2012/Toro_2-HLLC-RiemannSolver.pdf 
-	Test	ρ L		u L		    p L		 ρ R		u R		    p R		   	
-	1		1.0		0.75		1.0		 0.125		0.0		    0.1		
-	2		1.0		-2.0		0.4		 1.0		2.0		    0.4		
-	3		1.0		0.0		    1000.0	 1.0		0.0		    0.01		     
-	4		5.99924	19.5975		460.894	 5.99242	-6.19633	46.0950				    	
-	5		1.0		-19.59745	1000.0	 1.0		-19.59745	0.01			    	
-	6		1.4		0.0		    1.0		 1.0		0.0		    1.0		
-	7		1.4		0.1		    1.0		 1.0		0.1		    1.0		
+	some various initial conditions from 2012 Toro "The HLLC Riemann Solver" http://marian.fsik.cvut.cz/~bodnar/PragueSum_2012/Toro_2-HLLC-RiemannSolver.pdf
+	Test	ρ L		u L		    p L		 ρ R		u R		    p R
+	1		1.0		0.75		1.0		 0.125		0.0		    0.1
+	2		1.0		-2.0		0.4		 1.0		2.0		    0.4
+	3		1.0		0.0		    1000.0	 1.0		0.0		    0.01
+	4		5.99924	19.5975		460.894	 5.99242	-6.19633	46.0950
+	5		1.0		-19.59745	1000.0	 1.0		-19.59745	0.01
+	6		1.4		0.0		    1.0		 1.0		0.0		    1.0
+	7		1.4		0.1		    1.0		 1.0		0.1		    1.0
 	--]]
 	--[[ Sod vacuum test:
 	initCondArgs = {
@@ -347,7 +347,7 @@ local args = {
 	--initCond = 'Sedov',
 	--initCond = 'Noh',
 	--initCond = 'implosion',
-	initCond = 'Kelvin-Helmholtz',
+	--initCond = 'Kelvin-Helmholtz',
 	--initCond = 'Rayleigh-Taylor',	--FIXME ... get initial / static hydro potential working
 	--initCond = 'Taylor-Green',	-- should only work with viscosity
 	--initCond = 'Colella-Woodward',
@@ -425,7 +425,7 @@ local args = {
 	--initCond = 'relativistic shock reflection',			-- FIXME.  these initial conditions are constant =P
 	--initCond = 'relativistic blast wave test problem 1',
 	--initCond = 'relativistic blast wave test problem 2',
-	--initCond = 'relativistic blast wave interaction',		-- in 2D this only works with no limiter / lots of dissipation 
+	--initCond = 'relativistic blast wave interaction',		-- in 2D this only works with no limiter / lots of dissipation
 
 
 
@@ -442,7 +442,7 @@ local args = {
 	--initCond = 'Maxwell charged particle',
 
 	-- hmm, I think I need a fluid solver for this, not just a Maxwell solver ...
-	--initCond = 'Maxwell Lichtenberg',	
+	--initCond = 'Maxwell Lichtenberg',
 
 	-- Maxwell+HD
 	--initCond = 'two-fluid emhd modified Brio-Wu',
@@ -477,7 +477,7 @@ local args = {
 	--initCondArgs = {R=.5, sigma=8, speed=10},		-- super-luminal 10x
 	--  size=64x64 solver=roe eqn=adm3d int=fe flux-limiter=superbee ... eventually explodes
 	--  size=64x64 solver=roe eqn=bssnok int=be flux-limiter=superbee ... eventually explodes as well
-	--  size=128x128 solver=hll eqn=adm3d int=fe flux-limiter=superbee ... runs for a really long time 
+	--  size=128x128 solver=hll eqn=adm3d int=fe flux-limiter=superbee ... runs for a really long time
 
 	
 	--initCond = 'black hole - Schwarzschild',
@@ -514,9 +514,9 @@ local args = {
 		},
 	},
 	--]]
-	--[[ single black hole 
+	--[[ single black hole
 	-- from 2006 Brugmann et al - "Calibration of a Moving Puncture Simulation" (though I'm not using moving puncture method)
-	-- set to 1/10th the scale 
+	-- set to 1/10th the scale
 	initCondArgs = {
 		bodies = {
 			{
@@ -568,7 +568,7 @@ local args = {
 	},
 	--]]
 
-	--[[ binary black hole, head-on collision 
+	--[[ binary black hole, head-on collision
 	initCondArgs = {
 		bodies = {
 			{
@@ -652,8 +652,8 @@ if cmdline.solver then self.solvers:insert(require('hydro.solver.'..cmdline.solv
 
 --[[ Acoustic black hole.  for use with cylinder grid?
 args.eqnArgs = args.eqnArgs or {}
--- for 2012 Visser A.B. metric, 
-args.eqnArgs.alpha = '1' 
+-- for 2012 Visser A.B. metric,
+args.eqnArgs.alpha = '1'
 -- v0 = e_rHat * A/r + e_phiHat * B/r
 -- event horizon = |A|/c
 -- ergoregion = sqrt(A^2 + B^2)/c
@@ -711,7 +711,7 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn
 --self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='euler', wenoMethod='2008 Borges', order=11})))
 --self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='euler', wenoMethod='2010 Shen Zha', order=11})))
 
--- hmm, 2D Sod 64x64 RK4 fails at just past 1 second ... 
+-- hmm, 2D Sod 64x64 RK4 fails at just past 1 second ...
 --self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='euler', wenoMethod='1996 Jiang Shu', order=13})))
 --self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='euler', wenoMethod='2008 Borges', order=13})))
 --self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='euler', wenoMethod='2010 Shen Zha', order=13})))
@@ -779,7 +779,7 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn
 -- 	256x256 double fails with F.E., RK2-Heun, RK2-Ralston, RK2-TVD, RK3, RK4-3/8ths,
 -- rel blast wave 1 doesn't work in 64x64. with superbee flux lim
 -- rel blast wave 2 with superbee flux lim, Roe solver, works at 64x64 with forward euler
--- 	at 256x256 fails with F.E, RK2, RK2-non-TVD., RK3-TVD, RK4, RK4-TVD, RK4-non-TVD 
+-- 	at 256x256 fails with F.E, RK2, RK2-non-TVD., RK3-TVD, RK4, RK4-TVD, RK4-non-TVD
 --    but works with RK2-Heun, RK2-Ralston, RK2-TVD, RK3, RK4-3/8ths
 -- Kelvin-Helmholtz works for all borderes freeflow, float precision, 256x256, superbee flux limiter
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='srhd'})))
@@ -794,7 +794,7 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn
 
 -- TODO TODO this is a long way out of date
 -- TODO remove calcEigenBasis from hydro/eqn/grhd.cl
--- this is the solver with plug-ins for ADM metric, 
+-- this is the solver with plug-ins for ADM metric,
 -- yet doesn't come coupled with any other solver, so it will act just like a srhd solver
 --self.solvers:insert(require 'hydro.solver.grhd-fvsolver'(table(args, {flux='roe'})))
 
@@ -802,12 +802,12 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn
 -- ideal magnetohydrodynamics
 
 
--- with superbee flux lim:  
+-- with superbee flux lim:
 -- Brio-Wu works in 1D at 256, works in 2D at 64x64 in a 1D profile in the x and y directions.
 -- Orszag-Tang with forward Euler integrator fails at 64x64 around .7 or .8
 -- 		but works with 'Runge-Kutta 4, TVD' integrator at 64x64
 -- 		RK4-TVD fails at 256x256 at just after t=.5
---		and works fine with backwards Euler 
+--		and works fine with backwards Euler
 -- when run alongside HD Roe solver, curves don't match (different heat capacity ratios?)
 --		but that could be because of issues with simultaneous solvers.
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='mhd'})))
@@ -896,7 +896,7 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='adm3d', eqnArgs={useShift='HarmonicShiftCondition-FiniteDifference'}})))	-- breaks, even with b.e. integrator
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='adm3d', eqnArgs={useShift='LagrangianCoordinates'}})))	-- TODO finish me
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='z4_2008yano'})))
--- TODO fix the left/right transform.  until then, this only works with hll 
+-- TODO fix the left/right transform.  until then, this only works with hll
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='z4'})))
 
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='adm1d_v1'})))
@@ -917,14 +917,14 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn
 
 
 --[[
-bssnok is working in 1D-3D Cartesian for RK4 
+bssnok is working in 1D-3D Cartesian for RK4
 diverging for non-Cartesian
 for spherical, Minkowski init cond, dim=1, gridSize=256, no dissipation, numGhost=2 <=> derivOrder=4, cfl=.4
-for RK4 integrator, 1D, range [0, 8] 
+for RK4 integrator, 1D, range [0, 8]
 	runs indefinitely
 for 2D, [40,40] grid, hyperbolic gamma driver shift,
-	using the 2017 Ruchlin cfl condition 
-		ran until |H|>1 at 0.18491652961003 	
+	using the 2017 Ruchlin cfl condition
+		ran until |H|>1 at 0.18491652961003
 	using the 2008 Alcubierre Hyperbolic Formalism chapter's equations for speed-of-light (alpha sqrt(gamma^ii)):
 	using cfl=.2
 		runs until |H|>1 at t=3.0379149106647
@@ -1056,14 +1056,14 @@ With hyperbolic gamma driver shift it has trouble.
 
 -- [=[ 1.25 degree angle of attack, mach 0.8, sea level pressure and density
 -- might be trying to reproduce the "I Do Like CFD" OssanWorld.com edu2d "case_steady_airfoil"
---local theta = 0					-- cylinder uses 0
-local theta = math.rad(1.25)	-- naca airfoil uses 1.25
+local theta = 0					-- cylinder uses 0
+--local theta = math.rad(1.25)	-- naca airfoil uses 1.25
 --local machSpeed = 0.3			-- cylinder uses 0.3
-local machSpeed = 0.8			-- naca airfoil uses 0.8
+--local machSpeed = 0.8			-- naca airfoil uses 0.8
 --local machSpeed = 0.95
 --local machSpeed = 1
 --local machSpeed = 1.2
---local machSpeed = 2
+local machSpeed = 2
 local kg = 1
 local m = 1
 local s = 1
@@ -1086,6 +1086,8 @@ local P0 = 1 / gamma
 self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {
 	flux = 'roe',
 	--flux = 'hll',
+	fluxArgs = {useEntropyFluxFix = true},
+	fluxLimiter = 'donor cell',
 	eqn = 'euler',
 	--mesh = {type = 'p2dfmt', meshfile = 'n0012_113-33.p2dfmt'},
 	mesh = {
@@ -1098,7 +1100,7 @@ self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {
 				args={restitution=0},
 			},
 			{	-- freestream
-				name = 'fixed', 
+				name = 'fixed',
 				args = {
 					fixedCode = function(self, args, dst)
 						local solver = args.solver
@@ -1127,7 +1129,7 @@ self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {
 		},
 		{
 			-- "outflow_subsonic", used with the cylinder test
-			name = 'fixed', 
+			name = 'fixed',
 			args = {
 				fixedCode = function(self, args, dst)
 					local solver = args.solver
@@ -1160,14 +1162,20 @@ self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {
 		v = {
 			math.cos(theta) * v0,
 			math.sin(theta) * v0,
-			0
-		},	
+			0,
+		},
 		P = P0,
 		-- so if we want to reduce this to 1, we can scale down seconds ...
 	},
 	-- [[
 	--cfl = 1,
-	cfl = 0.9,
+	--cfl = 0.9,	-- I think this is what "I do like CFD" uses ... maybe ... they have an extra 0.5 in the denom tho, makes me think 1.8 is their cfl ... and they also evaluate it for "steady" on a per-cell basis
+	--cfl = 1.8,	-- the "/ 0.5" in "I do like cfd" ... wouldn't that be the same as x2? not exactly...
+	--cfl = .45,
+	-- the first unsteady dt of airfoil in edu2d is 2.8647764373497124E-004 (with their CFL=0.9) ... let's see what cfl I need to use with my implementation of face-based cfl to reproduce this ...
+	-- with my implementation (without a 0.5 in the denom ... is that there because dim = 2?  i thought it was divide-by-dim, not multiply-by-dim ...) and cfl=1 we get a dt=0.00036828253563196 
+	-- that means to get the same dt, we should use cfl=0.77787463704567
+	cfl = 0.77787463704567,	-- produces dt=0.00028647764373497  ... how do our two cfl equations relate? they are not linear, so matching the first dt won't match all future dt's ... though they are close to one another ....
 	--integrator = 'forward Euler',
 	integrator = 'Runge-Kutta 2, TVD',
 	--integrator = 'Runge-Kutta 4',
@@ -1185,7 +1193,7 @@ self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {
 -- * make grid coordinate chart separate of vector component coordinate chart
 -- so in the end, the user can choose the geometry: mesh (w/coordinate mapping) vs grid
 --		The only dif between grid and mesh solver is that grid has easy n'th order finite difference stencils, thanks to its parameterization
--- 		I can unify this with mesh if I store per-cell the d/dx^i(x + j*dx^i) in the i'th face direction to the j'th step.  
+-- 		I can unify this with mesh if I store per-cell the d/dx^i(x + j*dx^i) in the i'th face direction to the j'th step.
 --		Then I could rewrite the current higher order PLM/WENO stuff for the MeshSolver
 -- in fact, the biggest difference between mesh and grid solver is the n'th spatial derivative calculations, so if this can be abstracted then the two can be combined
 
@@ -1284,9 +1292,9 @@ local args = {
 	coordArgs = {
 		-- TODO sort this out
 		-- TODO do I have mem write / unwritten vars in "holonomic"?  cuz there seem to be errors that persist past reset()
-		-- TODO move cell_area and cell_volume calcs into cell_t fields 
+		-- TODO move cell_area and cell_volume calcs into cell_t fields
 		--vectorComponent = 'cartesian',
-		vectorComponent = 'anholonomic',	-- ... these settings also influence the finite volume area/volume calculations (in terms of the vector components) ... 
+		vectorComponent = 'anholonomic',	-- ... these settings also influence the finite volume area/volume calculations (in terms of the vector components) ...
 		--vectorComponent = 'holonomic',	-- our tensor components are holonomic ... except the partial / 1st order state variables, like a_k, d_kij
 		
 		-- [==[ the paper uses this remapping parameters (eqn 32):
@@ -1397,9 +1405,9 @@ local dim = 3
 local args = {
 	app = self,
 	
-	eqn = 'bssnok-fd-num', 
-	--eqn = 'bssnok-fd-sym', 
-	--eqn = 'bssnok-fd-senr', 
+	eqn = 'bssnok-fd-num',
+	--eqn = 'bssnok-fd-sym',
+	--eqn = 'bssnok-fd-senr',
 	
 	eqnArgs = {
 		--useShift = 'none',
@@ -1474,7 +1482,7 @@ local args = {
 		-- 80N x 40N x 2N
 		--{160, 80, 4},
 	
-		-- Brill-Lindquist head-on merger:2017 Ruchlin, Etienne, section 3, 2 paragraphs after eqn 70: 
+		-- Brill-Lindquist head-on merger:2017 Ruchlin, Etienne, section 3, 2 paragraphs after eqn 70:
 		--{400, 64, 2},
 	
 		-- 2015 Baumgarte et al, head-on collision: 128N, 48N, 2
@@ -1531,7 +1539,7 @@ local args = {
 		-- 80N x 40N x 2N
 		--{160, 80, 4},
 	
-		-- Brill-Lindquist head-on merger:2017 Ruchlin, Etienne, section 3, 2 paragraphs after eqn 70: 
+		-- Brill-Lindquist head-on merger:2017 Ruchlin, Etienne, section 3, 2 paragraphs after eqn 70:
 		--{400, 64, 2},
 	
 		-- 2015 Baumgarte et al, head-on collision: 128N, 48N, 2
@@ -1556,9 +1564,9 @@ local args = {
 	--]]
 
 
-	--initCond = 'Minkowski',	-- TODO sphere-sinh-radial 
+	--initCond = 'Minkowski',	-- TODO sphere-sinh-radial
 	
-	-- TODO look up Teukolsky Phys Rev 26 745 1982 
+	-- TODO look up Teukolsky Phys Rev 26 745 1982
 	--initCond = 'pure gauge wave',
 	--initCond = 'scalar field',
 	

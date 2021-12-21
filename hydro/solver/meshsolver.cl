@@ -1,3 +1,8 @@
+<?
+--local faceAreaEpsilon = 1e-7
+local faceAreaEpsilon = 0
+
+?>
 //// MODULE_NAME: <?=OOB?>
 //// MODULE_HEADER:
 // this only test for bounds of valid mesh cell
@@ -12,7 +17,7 @@
 	int index = get_global_id(0); \
 	int4 i = (int4)(index,0,0,0);	\
 	if (<?=OOB?>(0,0)) return;
-	
+
 //// MODULE_NAME: <?=SETBOUNDS_NOGHOST?>
 //// MODULE_DEPENDS: <?=OOB?>
 //// MODULE_HEADER:
@@ -25,7 +30,7 @@
 
 //// MODULE_NAME: <?=boundaryCons?>
 //// MODULE_DEPENDS: <?=face_t?> <?=normal_t?> <?=cell_t?>
-// boundary code, since meshsolver doesn't use gridsolver's boundary: 
+// boundary code, since meshsolver doesn't use gridsolver's boundary:
 
 void <?=boundaryCons?>(
 	constant <?=solver_t?> const * const solver,
@@ -34,12 +39,12 @@ void <?=boundaryCons?>(
 	global <?=face_t?> const * const e
 ) {
 <? for boundaryMethodIndex,boundaryMethod in ipairs(solver.boundaryMethods) do ?>
-	<? 
-if boundaryMethodIndex > 1 then 
+	<?
+if boundaryMethodIndex > 1 then
 	?>} else <?
 end
 	?>if (e->boundaryMethodIndex == <?=boundaryMethodIndex?>) {
-<? 
+<?
 	local code, depends = boundaryMethod:getCode{
 			solver = solver,
 			dst = "result",
@@ -51,10 +56,10 @@ end
 <?	end
 ?>
 		<?=code:gsub("\n", "\n\t\t")?>
-<? end 
+<? end
 if #solver.boundaryMethods > 0 then
 ?>
-	} else <? 
+	} else <?
 end
 	?>{
 		*(result) = *(U);	//default = freeflow?
@@ -104,7 +109,7 @@ kernel void <?=calcFlux?>(
 	global <?=cons_t?> * const fluxBuf,
 	global <?=cons_t?> const * const UBuf,
 	realparam const dt,
-//mesh-specific parameters:	
+//mesh-specific parameters:
 	global <?=cell_t?> const * const cellBuf,			//[numCells]
 	global <?=face_t?> const * const faceBuf,			//[numFaces]
 	global int const * const cellFaceIndexes	//[numCellFaceIndexes]
@@ -120,7 +125,7 @@ for (int j = 0; j < numStates; ++j) {
 }
 
 	global <?=face_t?> const * const face = faceBuf + faceIndex;
-	if (face->area <= 1e-7) {
+	if (face->area <= <?=clnumber(faceAreaEpsilon)?>) {
 		for (int j = 0; j < numStates; ++j) {
 			flux->ptr[j] = 0;
 		}
@@ -129,7 +134,7 @@ for (int j = 0; j < numStates; ++j) {
 
 	//TODO: cell_t or cell_t*?
 	<?=cell_t?> cellL, cellR;
-	<?=cons_t?> UL, UR;	
+	<?=cons_t?> UL, UR;
 	<?=getEdgeStates?>(solver, &UL, &UR, cellL, cellR, face, UBuf);
 
 	//TODO option to rotate to align fluxes?
@@ -147,7 +152,7 @@ kernel void <?=calcDerivFromFlux?>(
 	constant <?=solver_t?> const * const solver,
 	global <?=cons_t?> * const derivBuf,
 	global <?=cons_t?> const * const fluxBuf,
-//mesh-specific parameters:	
+//mesh-specific parameters:
 	global <?=cell_t?> const * const cellBuf,			//[numCells]
 	global <?=face_t?> const * const faceBuf,			//[numFaces]
 	global int const * const cellFaceIndexes	//[numCellFaceIndexes]
