@@ -1153,6 +1153,7 @@ end) then
 		end,
 		getDepends = function(self)
 			return table{
+				'units',
 				self.solver.coord.symbols.coordMap,
 			}
 		end,
@@ -2243,8 +2244,10 @@ end ?>;
 	} else {
 		rho = 1e-3;
 	}
-	// zero pressure
-	P = 1e-3;
+	
+	// RAM pressure?
+	P = rho * real3_dot(v, v);
+	P = max(P, 1e-7);	//but really, is there any harm in P=0 with the Euler equations?
 ]]
 			end,
 		}
@@ -2392,6 +2395,9 @@ local d =
 
 
 	// TODO GALACTIC PRESSURE
+	// RAM pressure?
+	P = rho * real3_dot(v, v);
+	P = max(P, 1e-7);	//but really, is there any harm in P=0 with the Euler equations?
 ]]
 			end,
 

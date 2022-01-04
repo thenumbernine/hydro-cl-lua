@@ -5,7 +5,7 @@ and no more setting config values (boundary, etc) in the init cond file
 local constants = require 'hydro.constants'
 local materials = require 'hydro.materials'
 
-local dim = cmdline.dim or 2
+local dim = cmdline.dim or 1
 local args = {
 	app = self,
 	eqn = cmdline.eqn,
@@ -62,7 +62,7 @@ local args = {
 	-- this is functional without usePLM, but doing so falls back on the cell-centered buffer, which with the current useCTU code will update the same cell twice from different threads
 	useCTU = true,
 	
-	--[[ Cartesian
+	-- [[ Cartesian
 	coord = 'cartesian',
 	--coordArgs = {vectorComponent='holonomic'},		-- use the coordinate derivatives to represent our vector components (though they may not be normalized)
 	--coordArgs = {vectorComponent='anholonomic'},		-- use orthonormal basis to represent our vector components
@@ -226,7 +226,7 @@ local args = {
 	},
 	--]]
 
-	-- [[ cylinder as toroid
+	--[[ cylinder as toroid
 	coord = 'cylinder',
 	coordArgs = {vectorComponent='cartesian'},
 	mins = cmdline.mins or {.5, 0, -.25},
@@ -276,7 +276,7 @@ local args = {
 	
 	--initCond = 'sphere',
 	
-	initCond = 'spiral',
+	--initCond = 'spiral',
 	--initCondArgs = {torusGreaterRadius = .75, torusLesserRadius = .5},
 	--[[ spiral with physically correct units, with 1 graph unit = 1 meter, and 1 simulation second = 1 second
 	-- use this with euler-lingr + cylinder w/ r in [.5, 1], z in [-.25, .25]
@@ -310,7 +310,7 @@ local args = {
 	--initCond = 'jet',
 	
 
-	--initCond = 'Sod',
+	initCond = 'Sod',
 	--initCondArgs = {dim=cmdline.displayDim},
 	--[[ real-world vars for Sod ... which are a few orders higher, and therefore screw up the backward-euler solver
 	-- 		which means, todo, redo the backward euler error metric so it is independent of magnitude ... ?   seems I removed that for another numerical error reason.
@@ -679,7 +679,7 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn
 -- compressible Euler equations
 
 
---self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
+self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
 
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct bounded'})))	-- this is the default hllCalcWaveMethod
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct'})))
@@ -1054,7 +1054,7 @@ With hyperbolic gamma driver shift it has trouble.
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='euler-lingr', mesh={type='cylinder3d', size={8, 8, 8}, mins={.5, 0, -.25}, maxs={1, 1, .25}}})))
 
 
--- [=[ 1.25 degree angle of attack, mach 0.8, sea level pressure and density
+--[=[ 1.25 degree angle of attack, mach 0.8, sea level pressure and density
 -- might be trying to reproduce the "I Do Like CFD" OssanWorld.com edu2d "case_steady_airfoil"
 local theta = 0					-- cylinder uses 0
 --local theta = math.rad(1.25)	-- naca airfoil uses 1.25

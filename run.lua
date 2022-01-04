@@ -3,7 +3,7 @@
 for i=1,#arg do
 	if arg[i] == 'clcpu' then
 		-- use my own CPU driver
-		package.loaded['ffi.OpenCL'] = require 'cl-cpu'
+		require 'cl-cpu.setup'
 		break
 	end
 end

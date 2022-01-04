@@ -14,7 +14,7 @@ local Relaxation = class()
 
 Relaxation.name = 'relaxation'
 
--- scalar type of our vectors -- real or cplx 
+-- scalar type of our vectors -- real or cplx
 -- TODO can be inferred from the type
 Relaxation.scalar = 'real'
 
@@ -32,15 +32,15 @@ Relaxation.solverCodeFile = nil
 
 -- type of the buffer holding the potential field
 -- TODO can this be inferred? not at the moment, because SolverBase:clalloc is not accepting type info, and passing 'real' to the cl lib
-function Relaxation:getPotBufType() 
+function Relaxation:getPotBufType()
 	--return self.solver.UBufObj.type
 	-- should be the same:
 	return self.solver.eqn.symbols.cons_t
 end
 
 -- buffer holding the potential field
-function Relaxation:getPotBuf() 
-	return self.solver.UBuf 
+function Relaxation:getPotBuf()
+	return self.solver.UBuf
 end
 
 
@@ -75,7 +75,7 @@ function Relaxation:initCodeModules()
 	local solver = self.solver
 	solver.modules:addFromMarkup{
 		code = solver.eqn:template(
-			file[self.solverCodeFile], 
+			file[self.solverCodeFile],
 			table(self.symbols, {
 				op = self,
 			})
@@ -169,7 +169,7 @@ function Relaxation:relax()
 
 		if self.stopOnEpsilon then
 			local residual = math.sqrt(solver.reduceSum() / tonumber(solver.volumeWithoutBorder))
-			local lastResidual = self.lastResidual	
+			local lastResidual = self.lastResidual
 			self.lastResidual = residual
 			if self.verbose then
 				self.setReduceToPotentialSquaredKernelObj()
