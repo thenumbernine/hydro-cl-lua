@@ -5,7 +5,7 @@ and no more setting config values (boundary, etc) in the init cond file
 local constants = require 'hydro.constants'
 local materials = require 'hydro.materials'
 
-local dim = cmdline.dim or 3
+local dim = cmdline.dim or 2
 local args = {
 	app = self,
 	eqn = cmdline.eqn,
@@ -62,7 +62,7 @@ local args = {
 	-- this is functional without usePLM, but doing so falls back on the cell-centered buffer, which with the current useCTU code will update the same cell twice from different threads
 	useCTU = true,
 	
-	--[[ Cartesian
+	-- [[ Cartesian
 	coord = 'cartesian',
 	--coordArgs = {vectorComponent='holonomic'},		-- use the coordinate derivatives to represent our vector components (though they may not be normalized)
 	--coordArgs = {vectorComponent='anholonomic'},		-- use orthonormal basis to represent our vector components
@@ -134,15 +134,15 @@ local args = {
 		}
 	)[dim],
 	boundary = type(cmdline.boundary) == 'table' and cmdline.boundary or {
-		xmin = cmdline.boundary or 'periodic',
-		xmax = cmdline.boundary or 'periodic',
-		ymin = cmdline.boundary or 'periodic',
-		ymax = cmdline.boundary or 'periodic',
-		zmin = cmdline.boundary or 'periodic',
-		zmax = cmdline.boundary or 'periodic',
+		xmin = cmdline.boundary or 'freeflow',
+		xmax = cmdline.boundary or 'freeflow',
+		ymin = cmdline.boundary or 'freeflow',
+		ymax = cmdline.boundary or 'freeflow',
+		zmin = cmdline.boundary or 'freeflow',
+		zmax = cmdline.boundary or 'freeflow',
 	},
 	--]]
-	-- [[ cylinder
+	--[[ cylinder
 	coord = 'cylinder',
 		-- TODO doesn't work
 	--coordArgs = {vectorComponent='holonomic'},		-- use the coordinate derivatives to represent our vector components (though they may not be normalized)
@@ -309,7 +309,7 @@ local args = {
 	--initCond = 'jet',
 	
 
-	--initCond = 'Sod',
+	initCond = 'Sod',
 	--initCondArgs = {dim=cmdline.displayDim},
 	--[[ real-world vars for Sod ... which are a few orders higher, and therefore screw up the backward-euler solver
 	-- 		which means, todo, redo the backward euler error metric so it is independent of magnitude ... ?   seems I removed that for another numerical error reason.
@@ -403,7 +403,7 @@ local args = {
 	-- self-gravitation tests:
 	--initCond = 'self-gravitation - Earth',	-- validating units along with self-gravitation.
 	--initCond = 'self-gravitation - NGC 1560',	-- TODO still needs velocity
-	initCond = 'self-gravitation - NGC 3198',
+	--initCond = 'self-gravitation - NGC 3198',
 	--initCond = 'self-gravitation test 1',
 	--initCond = 'self-gravitation test 1 spinning',
 	--initCond = 'self-gravitation test 2',		--FIXME
@@ -678,7 +678,7 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn
 -- compressible Euler equations
 
 
---self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
+self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
 
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct bounded'})))	-- this is the default hllCalcWaveMethod
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct'})))
@@ -766,7 +766,7 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn
 -- compressible Euler fluid equations + de-Donder gauge linearized GR
 
 
-self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler-lingr'})))
+--self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler-lingr'})))
 
 
 -- special relativistic compressible hydrodynamics
