@@ -1,17 +1,5 @@
-<? 
--- set to false to use cell-centered U for lambda for dt
--- set to true to use face-averaged U for lambda for dt
--- TODO do this option for the gridsolver above as well
-local calcDTFromFaceU = true 
-
--- TODO put all the epsilons in one place?
---local faceAreaEpsilon = 1e-7
---local cellVolumeEpsilon = 1e-7
-local faceAreaEpsilon = 0
-local cellVolumeEpsilon = 0
-?>
-
-/*
+<?
+--[[
 I'm using from Dullemond:
 dt = cfl*min(dx / (|lambdaMax| - |lambdaMin| + epsilon)
 for cartesian grid: dx = grid_dx
@@ -21,14 +9,27 @@ for mesh: dx = faceArea (should I use cellDist? volume? etc?)
 but "I Do Like CFD" uses for mesh:
 dt = cfl*min(dx/(.5*wsn))
 dx = cell.volume
-edu2d_module_ccfv_residual.f90: compute_residual: it mentions "wsn = the sum of (max_wave_speed)*(face length))" 
+edu2d_module_ccfv_residual.f90: compute_residual: it mentions "wsn = the sum of (max_wave_speed)*(face length))"
 	calls interface_flux:
 	in edu2d_module_flux.f90: "wsn = maximum wave speed (eigenvalue)"
 		interface_flux code: wsn = abs(qn) + a = |v_n| + cs = |lambdaMax|
-		this is then returned as the varaible 'wave_speed' 
+		this is then returned as the varaible 'wave_speed'
 		and then wsn(cellIndex) = sum of face[i]'s area * face[i] flux max wavespeed
-*/
+--]]
 
+
+-- set to false to use cell-centered U for lambda for dt
+-- set to true to use face-averaged U for lambda for dt
+-- TODO do this option for the gridsolver above as well
+local calcDTFromFaceU = true
+
+-- TODO put all the epsilons in one place?
+--local faceAreaEpsilon = 1e-7
+--local cellVolumeEpsilon = 1e-7
+local faceAreaEpsilon = 0
+local cellVolumeEpsilon = 0
+
+?>
 //// MODULE_NAME: <?=calcDTCell?>
 //// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> <?=cell_t?> <?=normal_t?> <?=eqn_waveCode_depends?> <?=SETBOUNDS?> <?=cell_dx_i?>
 
