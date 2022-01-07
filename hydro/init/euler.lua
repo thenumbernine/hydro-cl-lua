@@ -24,7 +24,7 @@ but constrained within the unit bounds of 'size'
 TODO use the same techinque that the 3D volumizer uses
 --]]
 local function createMinsMaxs(coordRadius)
-	return 
+	return
 		-- mins
 		function(self)
 			local solver = assert(self.solver)
@@ -36,7 +36,7 @@ local function createMinsMaxs(coordRadius)
 				return {0, 0, -math.pi}
 			end
 			return {-2*coordRadius, -2*coordRadius, -2*coordRadius}
-		end, 
+		end,
 		-- maxs
 		function(self)
 			local solver = assert(self.solver)
@@ -67,7 +67,7 @@ local function RiemannProblem(initCond)
 				local name = getInitCondFieldName(i,prefix)
 				self:addGuiVar{
 					name = name,
-					value = 
+					value =
 						self.args[name] 	-- use the value specified in initCondArgs = {...},
 						or value			-- use the value specified in the RiemannProblem{...} default,
 				}
@@ -140,7 +140,7 @@ end
 			local symmath = require 'symmath'
 			local P3, PL, PR, CsL, CsR, gamma = symmath.vars('P3', 'PL', 'PR', 'CsL', 'CsR', 'gamma')
 			local f = -2*CsL*(1 - (P3/PL)^((-1 + gamma)/(2*gamma)))/(CsR*(-1 + gamma)) + (-1 + P3/PR)*((1 - muSq)/(gamma*(muSq + P3/PR)))^.5
-			local df_dP3 = f:diff(P3)()	
+			local df_dP3 = f:diff(P3)()
 			local vars = {P3, PL, PR, CsL, CsR, gamma}
 			local f_func, f_code = f:compile(vars)
 			local df_dP3_func, df_dP3_code = df_dP3:compile(vars)
@@ -155,13 +155,13 @@ end
 				local dP3 = -f_func(P3) / df_dP3_func(P3)
 				--]=]
 				-- [=[ using inlining
-				local f = ((((-2 * CsL) * (1 - ((P3 / PL) ^ ((-1 + gamma) / (2 * gamma))))) / (CsR * (-1 + gamma))) + ((-1 + (P3 / PR)) * ((0.75 / (gamma * (0.25 + (P3 / PR)))) ^ 0.5))) 
-				local df_dP3 = ((-((((((1.5 * math.sqrt(0.75) * CsR * PR * (gamma ^ 1.5)) - ((0.75 ^ 1.5) * CsR * PR * math.sqrt(gamma))) - ((0.75 ^ 1.5) * CsR * (gamma ^ 2.5) * PR)) - (0.5 * P3 * math.sqrt(0.75) * CsR * math.sqrt(gamma))) - (0.5 * P3 * math.sqrt(0.75) * CsR * (gamma ^ 2.5))) + (((P3 * math.sqrt(0.75) * CsR * (gamma ^ 1.5)) - (0.25 * (PL ^ ((1 - gamma) / (2 * gamma))) * CsL * (P3 ^ (((-1) - gamma) / (2 * gamma))) * (PR ^ 1.5) * math.sqrt((P3 + (0.25 * PR))))) - ((PL ^ ((1 - gamma) / (2 * gamma))) * CsL * (P3 ^ ((-(1 - gamma)) / (2 * gamma))) * math.sqrt(PR) * math.sqrt((P3 + (0.25 * PR))))) + (0.5 * (PL ^ ((1 - gamma) / (2 * gamma))) * CsL * (P3 ^ (((-1) - gamma) / (2 * gamma))) * (PR ^ 1.5) * gamma * math.sqrt((P3 + (0.25 * PR)))) + (((2 * (PL ^ ((1 - gamma) / (2 * gamma))) * CsL * (P3 ^ ((-(1 - gamma)) / (2 * gamma))) * math.sqrt(PR) * gamma * math.sqrt((P3 + (0.25 * PR)))) - (0.25 * (PL ^ ((1 - gamma) / (2 * gamma))) * CsL * (P3 ^ (((-1) - gamma) / (2 * gamma))) * (gamma ^ 2) * (PR ^ 1.5) * math.sqrt((P3 + (0.25 * PR))))) - ((PL ^ ((1 - gamma) / (2 * gamma))) * CsL * (P3 ^ ((-(1 - gamma)) / (2 * gamma))) * (gamma ^ 2) * math.sqrt(PR) * math.sqrt((P3 + (0.25 * PR))))))) / (math.sqrt(PR) * CsR * ((P3 + (0.25 * PR)) ^ 1.5) * gamma * ((1 - (2 * gamma)) + (gamma ^ 2)))) 
+				local f = ((((-2 * CsL) * (1 - ((P3 / PL) ^ ((-1 + gamma) / (2 * gamma))))) / (CsR * (-1 + gamma))) + ((-1 + (P3 / PR)) * ((0.75 / (gamma * (0.25 + (P3 / PR)))) ^ 0.5)))
+				local df_dP3 = ((-((((((1.5 * math.sqrt(0.75) * CsR * PR * (gamma ^ 1.5)) - ((0.75 ^ 1.5) * CsR * PR * math.sqrt(gamma))) - ((0.75 ^ 1.5) * CsR * (gamma ^ 2.5) * PR)) - (0.5 * P3 * math.sqrt(0.75) * CsR * math.sqrt(gamma))) - (0.5 * P3 * math.sqrt(0.75) * CsR * (gamma ^ 2.5))) + (((P3 * math.sqrt(0.75) * CsR * (gamma ^ 1.5)) - (0.25 * (PL ^ ((1 - gamma) / (2 * gamma))) * CsL * (P3 ^ (((-1) - gamma) / (2 * gamma))) * (PR ^ 1.5) * math.sqrt((P3 + (0.25 * PR))))) - ((PL ^ ((1 - gamma) / (2 * gamma))) * CsL * (P3 ^ ((-(1 - gamma)) / (2 * gamma))) * math.sqrt(PR) * math.sqrt((P3 + (0.25 * PR))))) + (0.5 * (PL ^ ((1 - gamma) / (2 * gamma))) * CsL * (P3 ^ (((-1) - gamma) / (2 * gamma))) * (PR ^ 1.5) * gamma * math.sqrt((P3 + (0.25 * PR)))) + (((2 * (PL ^ ((1 - gamma) / (2 * gamma))) * CsL * (P3 ^ ((-(1 - gamma)) / (2 * gamma))) * math.sqrt(PR) * gamma * math.sqrt((P3 + (0.25 * PR)))) - (0.25 * (PL ^ ((1 - gamma) / (2 * gamma))) * CsL * (P3 ^ (((-1) - gamma) / (2 * gamma))) * (gamma ^ 2) * (PR ^ 1.5) * math.sqrt((P3 + (0.25 * PR))))) - ((PL ^ ((1 - gamma) / (2 * gamma))) * CsL * (P3 ^ ((-(1 - gamma)) / (2 * gamma))) * (gamma ^ 2) * math.sqrt(PR) * math.sqrt((P3 + (0.25 * PR))))))) / (math.sqrt(PR) * CsR * ((P3 + (0.25 * PR)) ^ 1.5) * gamma * ((1 - (2 * gamma)) + (gamma ^ 2))))
 				local dP3 = -f / df_dP3
 				--]=]
 				if math.abs(dP3) <= epsilon then break end
 				if not math.isfinite(dP3) then error('delta is not finite! '..tostring(dP3)) end
-				P3 = P3 + dP3 
+				P3 = P3 + dP3
 			end
 			return P3
 		end
@@ -181,7 +181,7 @@ end
 
 	
 		-- between regions 1 and 2
-		local s1 = -CsL	
+		local s1 = -CsL
 
 		-- between regions 2 and 3
 		-- http://www.itam.nsc.ru/flowlib/SRC/sod.f
@@ -357,12 +357,12 @@ local function addMaxwellOscillatingBoundary(args)
 		
 		-- TODO put the old code here
 		if not args.fields then
-			return 
-				--oldxmin(args) .. 
+			return
+				--oldxmin(args) ..
 				solver.eqn:template([[
 <?
-	local epsSrc = 
-		(require 'hydro.eqn.twofluid-emhd-lingr':isa(eqn) 
+	local epsSrc =
+		(require 'hydro.eqn.twofluid-emhd-lingr':isa(eqn)
 			or require 'hydro.eqn.glm-maxwell':isa(eqn)
 			or require 'hydro.eqn.maxwell':isa(eqn)
 		)
@@ -373,7 +373,7 @@ local function addMaxwellOscillatingBoundary(args)
 	<?=U?>.D = <?=vec3?>_zero;
 	<?=U?>.D.<?=dir?> = <?=real_mul?>(
 		<?=mul?>(<?=epsSrc?>.sqrt_1_eps, <?=epsSrc?>.sqrt_1_eps),
-		<?=amplitude?> * sin(2. * M_PI * <?=frequency?> * t)); 
+		<?=amplitude?> * sin(2. * M_PI * <?=frequency?> * t));
 ]], 		{
 				U = U,
 				frequency = clnumber(frequency),
@@ -398,7 +398,7 @@ local function addMaxwellOscillatingBoundary(args)
 		
 		local args = oldGetBoundaryProgramArgs(self)
 		
-		-- same as super 
+		-- same as super
 		-- except with extraAgs
 		-- and using boundaryMethods instead of self.boundaryMethods
 		-- (which I leave alone so Poisson can deal with it)
@@ -432,7 +432,7 @@ local initConds = table{
 			{name='vy0', value=0},
 			{name='vz0', value=0},
 			{name='P0', value=1},
-		},	
+		},
 		solverVars = {
 			heatCapacityRatio = 7/5,
 		},
@@ -442,12 +442,12 @@ local initConds = table{
 				local found
 				if args.rho then self.guiVars.rho0.value = args.rho found = true end
 				if args.P then self.guiVars.P0.value = args.P found = true end
-				if args.v then 
+				if args.v then
 					if args.v[1] then self.guiVars.vx0.value = args.v[1] found = true end
 					if args.v[2] then self.guiVars.vy0.value = args.v[2] found = true end
 					if args.v[3] then self.guiVars.vz0.value = args.v[3] found = true end
 				end
-			end	
+			end
 		
 			return [[
 	rho = initCond->rho0;
@@ -520,10 +520,10 @@ local initConds = table{
 			return self.solver.eqn:template([[
 	real3 xc = coordMap(x);
 	//real xSq = real3_lenSq(xc);
-	real xSq = real3_lenSq(real3_sub(xc, 
+	real xSq = real3_lenSq(real3_sub(xc,
 		_real3(
 			initCond->x0,
-			initCond->y0, 
+			initCond->y0,
 			initCond->z0
 		)));
 	rho = (initCond->rho1 - initCond->rho0) * exp(-xSq / (initCond->sigma*initCond->sigma)) + initCond->rho0;
@@ -537,7 +537,7 @@ local initConds = table{
 	},
 
 	{
-		-- boundary waves seem to mess with this, 
+		-- boundary waves seem to mess with this,
 		-- otherwise it looks like a wave equation solution
 		name = 'Bessel',
 		getDepends = function(self)
@@ -626,7 +626,7 @@ local initConds = table{
 			local mz = 0
 			local P = 1
 			-- hmm, only good with cartesian geometry
-			local mSq = mx * mx + my * my + mz * mz 
+			local mSq = mx * mx + my * my + mz * mz
 			local EKin = .5 * mSq  / rho
 			local EInt = P / (solverPtr.heatCapacityRatio - 1)
 			local ETotal = EKin + EInt
@@ -671,7 +671,7 @@ local initConds = table{
 		getInitCondCode = function(self)
 			return self.solver.eqn:template([[
 	real3 const xc = coordMap(x);
-	bool const inside = true 
+	bool const inside = true
 <?
 for i=1,solver.dim do
 	local xi = xNames[i]
@@ -688,7 +688,7 @@ end
 ]], 	{
 			solver = solver,
 			xNames = xNames,
-		}) 
+		})
 		end,
 	},
 
@@ -715,7 +715,7 @@ end
 --[[ I don't think this is setting correctly.  cell pos is still [-1,1]^n
 		mins = {0,0,0},
 		maxs = {1,1,1},
---]]		
+--]]
 		solverVars = {
 			heatCapacityRatio = 5/3,
 		},
@@ -804,8 +804,8 @@ end
 		end,
 	},
 	
-	-- http://plutocode.ph.unito.it/Doxygen/Test_Problems/_m_h_d_2_rotor_2init_8c.html 
-	-- http://flash.uchicago.edu/~jbgallag/2012/flash4_ug/node34.html#SECTION08123000000000000000 
+	-- http://plutocode.ph.unito.it/Doxygen/Test_Problems/_m_h_d_2_rotor_2init_8c.html
+	-- http://flash.uchicago.edu/~jbgallag/2012/flash4_ug/node34.html#SECTION08123000000000000000
 	-- https://arxiv.org/pdf/0908.4362.pdf lists the following:
 	--	omega = 2, P = 1, gamma = 7/5
 	-- 	omega = 1, P = .5, gamma = 5/3
@@ -825,7 +825,7 @@ end
 	real3 xc = coordMap(x);
 	const real r0 = .1;
 	const real r1 = .115;
-	const real omega = 2.; 
+	const real omega = 2.;
 	real r = sqrt(xc.x * xc.x + xc.y * xc.y);
 	real vPhi = 0.;
 	if (r <= r0) {
@@ -879,7 +879,7 @@ end
 		rho = P = 1.;
 		v = real3_real_mul(eHat_theta, .1);
 #if 0
-		B = real3_add(v, 
+		B = real3_add(v,
 			real3_add(
 				real3_real_mul(eHat_r, -x.z),
 				real3_real_mul(eHat_z, coord_R)
@@ -1006,7 +1006,7 @@ end
 	return next(var) == 'psi'
 end) then
 ?>		.psi = 0.,
-<? end	
+<? end
 ?>	};
 	<?=U?> = consFromPrim(W, x);
 ]], {U=U, args=args})
@@ -1026,7 +1026,7 @@ end) then
 	return next(var) == 'psi'
 end) then
 ?>		.psi = 0.,
-<? end	
+<? end
 ?>	};
 	<?=U?> = consFromPrim(W, x);
 ]], {U=U})
@@ -1047,7 +1047,7 @@ end) then
 			heatCapacityRatio = 5/3,
 		},
 		getInitCondCode = function(self)
-			-- TODO dirichlet 
+			-- TODO dirichlet
 			self.solver:setBoundaryMethods'freeflow'
 			-- boundary: [-1, 1] x [-1, 1]
 			return [[
@@ -1281,8 +1281,8 @@ end
 		consFromPrimOnly(buf + <?=dst?>, solver, &prim, x);
 <? else ?>
 		<?=consFromPrim?>(buf + <?=dst?>, solver, &prim, x);
-<? end ?>	
-		}	
+<? end ?>
+		}
 	}
 
 }
@@ -1312,7 +1312,7 @@ end
 				for _,xi in ipairs(xNames) do
 					for _,minmax in ipairs{'min', 'max'} do
 						local side = xi..minmax
-						if (solver.coord.name == 'cylinder' and side ~= 'xmax') 
+						if (solver.coord.name == 'cylinder' and side ~= 'xmax')
 						or (solver.coord.name == 'spherical' and side ~= 'xmax')
 						then
 							-- don't replace
@@ -1348,7 +1348,7 @@ end
 	real3 xc = coordMap(x);
 	real r = real3_len(xc);
 	real delta = (r - gaussianCenter) / sigma;
-	real deltaSq = delta * delta; 
+	real deltaSq = delta * delta;
 	rho = .1 + exp(-deltaSq);
 	P = rho;
 ]]
@@ -1541,7 +1541,7 @@ end
 			for i,x in ipairs(xNames) do
 				for _,minmax in ipairs(minmaxs) do
 					boundaryMethods[x..minmax] = 'periodic'
-					if require 'hydro.coord.cylinder':isa(solver.coord) 
+					if require 'hydro.coord.cylinder':isa(solver.coord)
 					and i == 1
 					then
 						boundaryMethods[x..minmax] = 'mirror'
@@ -1559,11 +1559,11 @@ end
 
 	real theta = initCond->frequency * 2. * M_PI;
 <?
-for i=0,solver.dim-1 do 
+for i=0,solver.dim-1 do
 	if xNames[i+1] ~= sliceAxis then
 ?>	theta *= (x.s<?=i?> - solver->mins.s<?=i?>) / (solver->maxs.s<?=i?> - solver->mins.s<?=i?>);
-<? 
-	end	
+<?
+	end
 end ?>
 
 #if dim == 2
@@ -1585,7 +1585,7 @@ end ?>
 	//U is initialized with random(), so use its values for unique random #s
 <? assert(solver.eqn.numStates >= 5); ?>
 	rho += initCond->noiseAmplitude * 2. * (U->ptr[0] - .5);
-#if 0	
+#if 0
 	v.x += initCond->noiseAmplitude * 2. * (U->ptr[1] - .5);
 	v.y += initCond->noiseAmplitude * 2. * (U->ptr[2] - .5);
 	v.z += initCond->noiseAmplitude * 2. * (U->ptr[3] - .5);
@@ -1604,7 +1604,7 @@ end ?>
 	},
 
 	-- http://www.astro.princeton.edu/~jstone/Athena/tests/rt/rt.html
-	-- TODO fixme 
+	-- TODO fixme
 	{
 		name = 'Rayleigh-Taylor',
 		mins = {-3,-1,-1},
@@ -1632,7 +1632,7 @@ end ?>
 		
 			return solver.eqn:template([[
 	const real3 externalForce = _real3(0,1,0);
-	ePot = 0. <? 
+	ePot = 0. <?
 for side=0,solver.dim-1 do
 ?> + (x.s<?=side?> - solver->mins.s<?=side?>) * externalForce.s<?=side?><?
 end ?>;
@@ -1652,7 +1652,7 @@ end ?>;
 			return {
 				self.solver.coord.symbols.coordMap,
 			}
-		end,	
+		end,
 		getInitCondCode = function(self)
 			return [[
 	real3 const xc = coordMap(x);
@@ -1788,8 +1788,8 @@ end ?>;
 			return solver.eqn:template([[
 	constant real P0 = <?=clnumber(P0)?>;
 	if (x.x < -.2) {
-		//TODO how do you calculate conditions for a particular mach speed shock wave? 
-		//constant real gamma = heatCapacityRatio;		
+		//TODO how do you calculate conditions for a particular mach speed shock wave?
+		//constant real gamma = heatCapacityRatio;
 		//constant real M = 2;
 		//rho = (gamma + 1) / (gamma - 1) * M*M / (M*M + 2);
 		//P = P0 * (2 * gamma * M*M * (gamma - 1)) / ((gamma + 1) * (gamma + 1));
@@ -1876,7 +1876,7 @@ end ?>;
 	real3 c = real3_real_mul(x, .5);
 	rho = fabs(c.y) > 0.25 ? 1.0 : 2.0;
 	P = 2.5;
-	//U is initialized with [0,1] random values	
+	//U is initialized with [0,1] random values
 <? assert(solver.eqn.numStates >= 2); ?>
 	v.x = 0.02*(U->ptr[0] - 0.5) + fabs(c.y) > 0.25 ? -.5 : .5;
 	v.y = 0.02*(U->ptr[1] - 0.5);
@@ -1959,27 +1959,27 @@ end ?>;
 	RiemannProblem{
 		name = 'Mara RMHDShocktube1',
 		{rho=1.000, P=1.000, ['v.x']=0.000, ['v.y']=0.0, ['v.z']=0.0, ['B.x']=0.5, ['B.y']=1.0, ['B.z']=0.0},
-		{rho=0.125, P=0.100, ['v.x']=0.000, ['v.y']=0.0, ['v.z']=0.0, ['B.x']=0.5, ['B.y']=-1.0, ['B.z']= 0.0 }}, 
+		{rho=0.125, P=0.100, ['v.x']=0.000, ['v.y']=0.0, ['v.z']=0.0, ['B.x']=0.5, ['B.y']=-1.0, ['B.z']= 0.0 }},
 	RiemannProblem{
 		name = 'Mara RMHDShocktube2',
 		{rho=1.080, P=0.950, ['v.x']=0.400, ['v.y']=0.3, ['v.z']=0.2, ['B.x']=2.0, ['B.y']=0.3, ['B.z']=0.3},
-		{rho=1.000, P=1.000, ['v.x']=-0.450, ['v.y']=-0.2, ['v.z']=0.2, ['B.x']=2.5, ['B.y']=-0.7, ['B.z']= 0.5 }}, 
+		{rho=1.000, P=1.000, ['v.x']=-0.450, ['v.y']=-0.2, ['v.z']=0.2, ['B.x']=2.5, ['B.y']=-0.7, ['B.z']= 0.5 }},
 	RiemannProblem{
 		name = 'Mara RMHDShocktube3',
 		{rho=1.000, P=0.100, ['v.x']=0.999, ['v.y']=0.0, ['v.z']=0.0, ['B.x']=10.0, ['B.y']=0.7, ['B.z']=0.7},
-		{rho=1.000, P=0.100, ['v.x']=-0.999, ['v.y']=0.0, ['v.z']=0.0, ['B.x']=10.0, ['B.y']=-0.7, ['B.z']=-0.7 }}, 
+		{rho=1.000, P=0.100, ['v.x']=-0.999, ['v.y']=0.0, ['v.z']=0.0, ['B.x']=10.0, ['B.y']=-0.7, ['B.z']=-0.7 }},
 	RiemannProblem{
 		name = 'Mara RMHDShocktube4',
 		{rho=1.000, P=5.000, ['v.x']=0.000, ['v.y']=0.3, ['v.z']=0.4, ['B.x']=1.0, ['B.y']=6.0, ['B.z']=2.0},
-		{rho=0.900, P=5.300, ['v.x']=0.000, ['v.y']=0.0, ['v.z']=0.0, ['B.x']=1.0, ['B.y']=5.0, ['B.z']= 2.0 }}, 
+		{rho=0.900, P=5.300, ['v.x']=0.000, ['v.y']=0.0, ['v.z']=0.0, ['B.x']=1.0, ['B.y']=5.0, ['B.z']= 2.0 }},
 	RiemannProblem{
 		name = 'Mara RMHDContactWave',
 		{rho=10.0, P=1.0, ['v.x']=0.0, ['v.y']=0.7, ['v.z']=0.2, ['B.x']=5.0, ['B.y']=1.0, ['B.z']=0.5},
-		{rho=1.0, P=1.0, ['v.x']=0.0, ['v.y']=0.7, ['v.z']=0.2, ['B.x']=5.0, ['B.y']=1.0, ['B.z']= 0.5 }}, 
+		{rho=1.0, P=1.0, ['v.x']=0.0, ['v.y']=0.7, ['v.z']=0.2, ['B.x']=5.0, ['B.y']=1.0, ['B.z']= 0.5 }},
 	RiemannProblem{
 		name = 'Mara RMHDRotationalWave',
 		{rho=1, P=1, ['v.x']=0.400000, ['v.y']=-0.300000, ['v.z']=0.500000, ['B.x']=2.4, ['B.y']=1.00, ['B.z']=-1.600000},
-		{rho=1, P=1, ['v.x']=0.377347, ['v.y']=-0.482389, ['v.z']=0.424190, ['B.x']=2.4, ['B.y']=-0.10, ['B.z']=-2.178213 }}, 
+		{rho=1, P=1, ['v.x']=0.377347, ['v.y']=-0.482389, ['v.z']=0.424190, ['B.x']=2.4, ['B.y']=-0.10, ['B.z']=-2.178213 }},
 
 
 	-- gravity potential test - equilibrium - Rayleigh-Taylor ... or is it Jeans? (still has an shock wave ... need to fix initial conditions?)
@@ -1999,7 +1999,7 @@ end ?>;
 		--local second = meter / constants.speedOfLight_in_m_per_s
 		-- but this puts our simulation's 1 unit of time at 0.05 seconds, so the simulation runs slow.  20x slower than if we just kept second at its default.
 		-- so how about speeding it up?
-		-- speedOfLight / (meter / second) = 1 
+		-- speedOfLight / (meter / second) = 1
 		-- second = meter / speedOfLight
 		local second = 1		-- converges steady enough
 		--local second = 60*60*24
@@ -2098,20 +2098,20 @@ end ?>;
 	Upsilon = 150 		-- [Upsilon_sun] = total mass-to-light ratio
 
 	-- eqn D.11
-	mu(alpha) = mu_0 + 
+	mu(alpha) = mu_0 +
 		0 <= alpha and alpha <= alpha_0 and
 			5 / (2 * log(10)) * pow(alpha / alpha_1, 1 / s_1)
 		or
 			5 / (2 * log(10)) * pow(alpha_0 / alpha_1, 1 / s_1) * (1 - s_2 / s_1 + s_2 / s_1 * pow(alpha / alpha_0, 1 / s_2))
 
 	-- eqn D.19
-	s(alpha) = log(alpha / alpha_eff) / log(2 * log(10) / 5 * (mu(alpha) - mu_0))	
+	s(alpha) = log(alpha / alpha_eff) / log(2 * log(10) / 5 * (mu(alpha) - mu_0))
 	-- Does this mean that s_0 = s(0) ? and s_1 = s(1), s_2 = s(2) ?
 
 	-- What is alpha_1 ?
 	-- After D.11, the alpha_1 for NGC 1560 is defined as ...
 	alpha_1 = 99.05 -- [arcsec]
-	-- ... but ... this is in the appendix.  NGC 1560 is defined in section 7.  
+	-- ... but ... this is in the appendix.  NGC 1560 is defined in section 7.
 	-- So what is the alpha_1 of the other galaxies in the paper?
 	-- Also in the appendix D paragraph on variables for NGC 1560, it lists ...
 	-- mu_0 = 22.28, alpha_0 = 61.46 arcsec, s_1 = 0.435, s_2 = 1.144.
@@ -2129,16 +2129,16 @@ end ?>;
 		rhoNormalized = exp(-pow(r_0/r_1, 1/s_1) * (1 - s_2/s_1 + s_2/s_1 * pow(r/r_0, 1/s_2)))
 	end
 	-- What units is this equation?
-	-- What is s_1 and s_2?  Related to s_0 or s_e?  
+	-- What is s_1 and s_2?  Related to s_0 or s_e?
 	-- Or defined in Appendix D's info on NGC 1560, a paragraph where other vars listed for NGC 1560 don't match section 7's vars of NGC 1560.
 
 	-- eqn C.4
 	rho = rhoNormalized * R_0 * R_0 * R_0 * rho_0
 	
-	-- what is R_0 ? 
+	-- what is R_0 ?
 	-- from inline before 4.5 and from inline before C.3
 	-- why is R_0 = 1 kpc?  esp when the flux function uses R_0 as a cutoff.
-	R_0 = 1 -- [kpc] 
+	R_0 = 1 -- [kpc]
 	
 	-- what is rho_0?  is (somewhere) rho(0,0) at the center of the function.
 	
@@ -2150,7 +2150,7 @@ end ?>;
 	(function()
 		-- where in the [-1,1] unit cube to put the boundary of r=1 of whatever units you use
 		-- ... for a sphere ... and this is an ellipsoid
-		local coordRadius = .5	
+		local coordRadius = .5
 		
 		local ngc1560_a = 7.19 * 1e+3 * constants.pc_in_m		-- semi-major axis
 		local ngc1560_b = 0.567 * 1e+3 * constants.pc_in_m		-- semi-minor axis
@@ -2163,7 +2163,7 @@ end ?>;
 		-- radius .5, grid = 2 * ngc1560_a, so the ellipsoid is ngc1560
 		local meter = ngc1560_a / coordRadius
 
-		-- ellipsoid volume in meters: 
+		-- ellipsoid volume in meters:
 
 		-- With this, setting rho=1 will cause the total mass of the grid to be the mass of the galaxy.
 		-- 4/3 pi a b^2 rho = M <=> rho = 3 M / (4 pi a b^2)
@@ -2200,12 +2200,12 @@ end ?>;
 				return {self.solver.coord.symbols.coordMap}
 			end,
 			--[[
-			Now assuming A, B, R, Z in eqn C.1 are in units of [m], 
+			Now assuming A, B, R, Z in eqn C.1 are in units of [m],
 			and M is in units of [kg]
 			then rho is in units of [kg/m^3], which is what a density should be.
 			But when we get to the normalized-rho def in C.4, we get the result in [a]^5/[a]^8
-			for whatever units a,b,r,z are in.  
-			I'm guessing unitless as well, but then what is their relation (in m) with A,B,R,Z? 
+			for whatever units a,b,r,z are in.
+			I'm guessing unitless as well, but then what is their relation (in m) with A,B,R,Z?
 			After eqn 4.5 it says r = R/R_0 and z = Z/R_0.
 			It doesn't look like a or b are ever defined, but I'm assuming it is done the same way?
 			
@@ -2219,7 +2219,7 @@ end ?>;
 				return self.solver.eqn:template[[
 	// 2021 Ludwig eqn C.1 ... the non-normalized density function
 	real3 const xc = coordMap(x);
-	real const rSq = real3_lenSq(xc);
+	real const rSq = xc.x*xc.x + xc.y*xc.y;	//cylindrical 'r'
 	real const a = initCond->a / unit_m;
 	real const b = initCond->b / unit_m;
 	real const bSq = b*b;
@@ -2233,11 +2233,11 @@ end ?>;
 	real const rSq_plus__a_plus_bzLen_sq = rSq + a_plus_bzLen_sq;
 	if (bzLenSq >= 0. && rSq_plus__a_plus_bzLen_sq >= 0.) {
 		real const tmp = sqrt(rSq_plus__a_plus_bzLen_sq );
-		rho = M / (4. * M_PI 
+		rho = M / (4. * M_PI
 //			* R_0 * R_0 * R_0 * rho_0		// don't use normalized units
 		) * bSq * (a * rSq + (a + 3. * bzLen) * a_plus_bzLen_sq)
 		/ (
-			tmp * tmp * tmp * tmp * tmp 
+			tmp * tmp * tmp * tmp * tmp
 			* bzLen * bzLen * bzLen
 		);
 	} else {
@@ -2252,7 +2252,7 @@ end ?>;
 
 	(function()
 		
-		local coordRadius = .5	
+		local coordRadius = .5
 		local ngc1560_a = 7.19 * 1e+3 * constants.pc_in_m
 		local ngc1560_b = 0.567 * 1e+3 * constants.pc_in_m
 		local ngc1560_M = 1.52e+10 * constants.SolarMass_in_kg
@@ -2285,21 +2285,26 @@ end ?>;
 				coulombConstant = constants.CoulombConstant_in_kg_m3_per_C2_s2,
 			},
 			getDepends = function(self)
-				return {self.solver.coord.symbols.coordMap, 'Bessel'}
+				return table{
+					'Bessel',
+					self.solver.coord.symbols.coordMapR,
+					self.solver.coord.symbols.coordMap,
+				}
 			end,
-			
 			getInitCondCode = function(self)
 				return self.solver.eqn:template[[
-	real r = coordMapR(x);
-	real3 xc = coordMap(x);
+	real3 const xc = coordMap(x);
+	real const rSq = xc.x*xc.x + xc.y*xc.y;	//cylindrical 'r'
+	real const r = sqrt(rSq);
+	real const z = xc.z;
 
 <?
 local m_in_pc = 648000 / math.pi * 149597870700
 ?>
 	real const r_in_kpc = r * <?=1/m_in_pc?>;
 
-	-- velocity from 2006 Cooperstock et al to fit 1989 Begeman
-	real const vmag = 0
+	// velocity from 2006 Cooperstock et al to fit 1989 Begeman
+	real const vmag_per_c = 0
 <?
 	for _,coeff in ipairs{
 		{0.00093352334660, 0.07515079869},
@@ -2313,30 +2318,32 @@ local m_in_pc = 648000 / math.pi * 149597870700
 		{0.00001687931928, 0.8591712228},
 		{0.00003651365250, 0.9573314522},
 	} do
-		real neg_Cn_kn, kn = table.unpack(coeff)
+		local neg_Cn_kn, kn = table.unpack(coeff)
 ?>			+ <?=neg_Cn_kn?> * BESSJ1(<?=kn?> * r_in_kpc)
 <?	end
-?>;	
-	v = real3_mul(
-		_real3(-xc.y / r, xc.x / r, 0.),
-		vmag * initCond->speedOfLight / unit_m_per_s);
-
+?>;
+	real const vmag = vmag_per_c * solver->speedOfLight / unit_m_per_s;
+	v = real3_real_mul(_real3(-xc.y, xc.x, 0.), vmag / r);
 
 	// TODO init GEM potential from 2021 Ludwig once you figure out the graph
 
 
 	// normrho(r,z=0) for 2021 Ludwig eqn 8.4.b
 	
-	real const kspiral = 0.1;
 	real const rspiral = 4.0;
+	real const kspiral = 0.1;
+	real const gamma0 = 0.95;
+	real const gammai = gamma0;
+	real const y0 = 8.0;
+	
 	real const d = 9200.0;		// kpc
 	
 	real const alpha0 = 154.0;
-	real const alphae = 316.8;
-	real const reff = 1.0;
-	real const se = 1.49;
+	real const reff = 1.00;
+	real const r0 = 6.87;
+	real const s0 = 0.586;
 
-<? 
+<?
 local b = {
 	0.050231295947568,	-- (from 0.0499)
 	-0.000433,
@@ -2347,7 +2354,8 @@ local b = {
 	2.9e-15,
 	-1.75e-17,
 }
-local d = 
+local d = {
+	nil,					-- d1 doesn't exist
 	1.9517551593474e-05,	-- (from 1.81e-05)
 	-4.96e-07,
 	1.85e-09,
@@ -2358,11 +2366,14 @@ local d =
 }
 ?>
 	
+	real const alphae = 316.8;
+	real const se = 1.49;
+	
 	real Y = 1;
 	<? for i=0,4 do ?>{
-		real const theta = 2 * M_PI * (real)i * kspiral;
+		real const theta = 2 * M_PI * <?=clnumber(i)?> * kspiral;
 		real const ri = rspiral * exp(theta);
-		real const yi = y0 * exp(theta * v);
+		real const yi = y0 * exp(theta * vmag);
 		real const dr = r - ri;
 		real const gammaisq = gammai * gammai;
 		Y += (yi * gammai / M_PI) / (dr * dr + gammaisq);
@@ -2378,12 +2389,12 @@ local d =
 <? end ?>
 		s += s0;
 	} else if (alpha <= alphae) {
-		real const dalpha = alphae - alpha
-<? for i=8,1,-1 do ?>
+		real const dalpha = alphae - alpha;
+<? for i=8,2,-1 do ?>
 		s += <?=clnumber(d[i])?>;
 		s *= dalpha;
 <? end ?>
-		s *= dalpha + se
+		s *= dalpha + se;
 	} else {
 		s = se;
 	}
@@ -2412,7 +2423,7 @@ local d =
 				solver = solver,
 				getRadiusCode = function(source)
 					return '.5 - .01 * (U->ptr[0] - .5)'
-				end,			
+				end,
 				sources={
 					{center={0, 0, 0}, radius = .5},
 				},
@@ -2443,7 +2454,7 @@ local d =
 				end,
 				sources={
 					{
-						center={0, 0, 0}, 
+						center={0, 0, 0},
 						radius = .2,
 						-- srhd solver requires the max velocity not to exceed 1 ...
 						inside = inside,
@@ -2459,7 +2470,7 @@ local d =
 			return {self.solver.coord.symbols.coordMap}
 		end,
 		getInitCondCode = function(self)
-			return SelfGravProblem{ 
+			return SelfGravProblem{
 				sources={
 					{
 						center = {-.25, 0, 0},
@@ -2548,7 +2559,7 @@ local d =
 				solver = solver,
 				getRadiusCode = function(source)
 					return '.5 - .02 * (U->ptr[0] - .5)'
-				end,			
+				end,
 				sources = {
 					{center={0, 0, 0}, radius = .5, inside=[[
 	P = 1;
@@ -2664,7 +2675,7 @@ local d =
 		name = 'Maxwell scattering around pyramid',
 		getCodePrefix = function(self)
 			return self.solver.eqn:template([[
-<? 
+<?
 local table = require 'ext.table'
 
 local objs = table()
@@ -2697,8 +2708,8 @@ end
 bool testTriangle(real3 xc) {
 	return false
 <? for _,obj in ipairs(objs) do ?>
-		|| (true 
-<? 
+		|| (true
+<?
 for _,pn in ipairs(obj) do
 	local p = table(pn.p):map(clnumber):concat', '
 	local n = table(pn.n):map(clnumber):concat', '
@@ -2763,7 +2774,7 @@ for _,pn in ipairs(obj) do
 		&& xc.y > -.5 && xc.y < .5
 <? 	if solver.dim > 2 then ?>
 		&& xc.z > -.5 && xc.z < .5
-<? 	end 
+<? 	end
 end	?>
 	) {
 		//2018 Balezin et al "Electromagnetic properties of the Great Pyramids..."
@@ -2873,7 +2884,7 @@ bool testTriangle(real3 xc) {
 				silver = 1.59e-8,
 				platinum = 1.06e-7,
 				tungsten = 5.65e-8,
-			}:map(function(v) return v * Ohm_in_m end)		
+			}:map(function(v) return v * Ohm_in_m end)
 			
 			return solver.eqn:template([[
 	real3 xc = coordMap(x);
@@ -2885,7 +2896,7 @@ bool testTriangle(real3 xc) {
 		|| testTriangle(xc)
 
 <? for i=1,3 do ?>
-		|| testTriangle( branch<?=i?>(xc) )	
+		|| testTriangle( branch<?=i?>(xc) )
 <? end ?>
 
 <? for i=1,3 do ?>
@@ -2950,7 +2961,7 @@ kernel void addExtraSource(
 			}
 			addExtraSourceProgramObj:compile()
 			local addExtraSourceKernelObj = addExtraSourceProgramObj:kernel{
-				name = 'addExtraSource', 
+				name = 'addExtraSource',
 				argsOut = {solver.UBufObj},
 				domain = solver.app.env:domain{dim=1, size=1},
 			}
@@ -3008,7 +3019,7 @@ kernel void addExtraSource(
 	
 	//conductivity = <?=susc_t?>_from_real(<?=clnumber(1/resistivities.air)?>);
 	
-	real r2 = x.y * x.y<? if solver.dim == 3 then ?> + x.z * x.z<? end ?>;	
+	real r2 = x.y * x.y<? if solver.dim == 3 then ?> + x.z * x.z<? end ?>;
 	
 	if (r2 < .1*.1) {
 		//conductivity = <?=susc_t?>_from_real(<?=clnumber(1/resistivities.copper)?>);
@@ -3063,7 +3074,7 @@ kernel void addExtraSource(
 		B.x = -2. * (x.x + .8);
 	} else if (x.x <= .6) {
 		B.x = exp(-.5 * (x.x / .11) * (x.x / .11));
-	} else { 
+	} else {
 		B.x = .5;
 	}
 ]]
@@ -3161,10 +3172,10 @@ kernel void addExtraSource(
 		water_B = (1./8.) * (cos(10. * M_PI * (s - .5)) + 1.);
 	}
 #else
-/*	
+/*
 	with g = 1, D = 0, with source disabled:
 	
-	hll: mx,t : 0.05 -> 0.045	<- this is the correct flux value 
+	hll: mx,t : 0.05 -> 0.045	<- this is the correct flux value
 	when roeUseFluxFromCons==false:
 	roe: mx,t : 0.1 -> 0.09		<- this is doubled, due to dF/dU * U doubling the g h^2 term compared to F's 1/2 g h^2
 	when roeUseFluxFromCons==true:	<- this is the correct flux value
@@ -3196,16 +3207,16 @@ F = [0, .5 (1 - .1 s)^2]
 dF/dx = [0, .1 g (1 - .1 s)]
 	  = [0, .1  - .01 s]
 	  = from .1 to .09
-So roe is giving dF/dx, hll is giving F 
+So roe is giving dF/dx, hll is giving F
 Why do I get the feeling that in some places I'm using F in place of dF/dx ?
 Turns out this mixup is used throughout literature
 because it just so happens that, for the Euler fluid equations, dF/dU * U = F, so everyone assumes it's true.
-Probably because the U terms within dF/dU happen to be linear?  
+Probably because the U terms within dF/dU happen to be linear?
 Whereas for the shallow-water equation one term is quadratic (which makes the 1/2 disappear in the derivative).
 
 So new question, which is correct?
 Do we want 'calcFluxForInterface' to calculate F, which fvsolver then linearly approximates as dF/dx ~ (FR-FL)/(xR-xL)?
-Or likewise by the divergence theorem that int div F dV = int F dot n dS? 
+Or likewise by the divergence theorem that int div F dV = int F dot n dS?
 In both cases it looks like F is wanted, not dF/dU.
 */
 	water_B = .1 * s;
@@ -3327,7 +3338,7 @@ In both cases it looks like F is wanted, not dF/dU.
 	-- 2003 Rogers et al "Mathematical balancing of flux gradient and source terms prior to using Roe's approximate Riemann solver"
 	-- section 4.2.3
 	-- TODO boundary condition with inflow of 0.18 m^2 / s (after renomralizing my domain from [-1,1] to [0,25])
-	-- and then depth at right boundary is 0.33 m 
+	-- and then depth at right boundary is 0.33 m
 	-- ... what's the depth at left boundary?
 	-- Figure 4.c looks like it's constant acceleration across the grid of 0.18 m/s^2 (m^2/s a typo?)
 	-- still, what's the left boundary depth?
@@ -3359,4 +3370,4 @@ function EulerInitCond:getList()
 	return initConds
 end
 
-return EulerInitCond 
+return EulerInitCond

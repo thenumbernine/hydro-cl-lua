@@ -5,7 +5,7 @@ and no more setting config values (boundary, etc) in the init cond file
 local constants = require 'hydro.constants'
 local materials = require 'hydro.materials'
 
-local dim = cmdline.dim or 2
+local dim = cmdline.dim or 3
 local args = {
 	app = self,
 	eqn = cmdline.eqn,
@@ -142,7 +142,7 @@ local args = {
 		zmax = cmdline.boundary or 'periodic',
 	},
 	--]]
-	--[[ cylinder
+	-- [[ cylinder
 	coord = 'cylinder',
 		-- TODO doesn't work
 	--coordArgs = {vectorComponent='holonomic'},		-- use the coordinate derivatives to represent our vector components (though they may not be normalized)
@@ -225,8 +225,7 @@ local args = {
 		zmax=cmdline.boundary or 'mirror',
 	},
 	--]]
-
-	-- [[ cylinder as toroid
+	--[[ cylinder as toroid
 	coord = 'cylinder',
 	coordArgs = {vectorComponent='cartesian'},
 	mins = cmdline.mins or {.5, 0, -.25},
@@ -276,7 +275,7 @@ local args = {
 	
 	--initCond = 'sphere',
 	
-	initCond = 'spiral',
+	--initCond = 'spiral',
 	--initCondArgs = {torusGreaterRadius = .75, torusLesserRadius = .5},
 	--[[ spiral with physically correct units, with 1 graph unit = 1 meter, and 1 simulation second = 1 second
 	-- use this with euler-lingr + cylinder w/ r in [.5, 1], z in [-.25, .25]
@@ -404,7 +403,7 @@ local args = {
 	-- self-gravitation tests:
 	--initCond = 'self-gravitation - Earth',	-- validating units along with self-gravitation.
 	--initCond = 'self-gravitation - NGC 1560',	-- TODO still needs velocity
-	--initCond = 'self-gravitation - NGC 3198',
+	initCond = 'self-gravitation - NGC 3198',
 	--initCond = 'self-gravitation test 1',
 	--initCond = 'self-gravitation test 1 spinning',
 	--initCond = 'self-gravitation test 2',		--FIXME
@@ -767,7 +766,7 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn
 -- compressible Euler fluid equations + de-Donder gauge linearized GR
 
 
---self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler-lingr'})))
+self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler-lingr'})))
 
 
 -- special relativistic compressible hydrodynamics
@@ -1017,6 +1016,8 @@ With hyperbolic gamma driver shift it has trouble.
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='hll', eqn='euler', mesh={type='quad2d', size={64, 64}}})))
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='euler-hllc', eqn='euler', mesh={type='quad2d', size={64, 64}}})))
 
+-- TODO add boundary classes:
+
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='hll', eqn='euler', mesh={type='quad2d_with_cylinder_removed', size={32, 32}}})))
 
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='euler', mesh={type='quad2d_with_cylinder_removed', size={32, 32}}})))
@@ -1054,16 +1055,16 @@ With hyperbolic gamma driver shift it has trouble.
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='euler-lingr', mesh={type='cylinder3d', size={8, 8, 8}, mins={.5, 0, -.25}, maxs={1, 1, .25}}})))
 
 
--- [=[ 1.25 degree angle of attack, mach 0.8, sea level pressure and density
+--[=[ 1.25 degree angle of attack, mach 0.8, sea level pressure and density
 -- might be trying to reproduce the "I Do Like CFD" OssanWorld.com edu2d "case_steady_airfoil"
-local theta = 0					-- cylinder uses 0
---local theta = math.rad(1.25)	-- naca airfoil uses 1.25
+--local theta = 0					-- cylinder uses 0
+local theta = math.rad(1.25)	-- naca airfoil uses 1.25
 --local machSpeed = 0.3			-- cylinder uses 0.3
---local machSpeed = 0.8			-- naca airfoil uses 0.8
+local machSpeed = 0.8			-- naca airfoil uses 0.8
 --local machSpeed = 0.95
 --local machSpeed = 1
 --local machSpeed = 1.2
-local machSpeed = 2
+--local machSpeed = 2
 local kg = 1
 local m = 1
 local s = 1
@@ -1089,11 +1090,16 @@ self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {
 	fluxArgs = {useEntropyFluxFix = true},
 	fluxLimiter = 'donor cell',
 	eqn = 'euler',
-	--mesh = {type = 'p2dfmt', meshfile = 'n0012_113-33.p2dfmt'},
 	mesh = {
+		--[[
+		type = 'p2dfmt',	-- hmm, I don't know that p2dfmt has distinct boundary classes
+		meshfile = 'n0012_113-33.p2dfmt',
+		--]]
+		-- [[
 		type = 'edu2dgrid',
 		--meshfile = 'cylinder.grid',
 		meshfile = 'airfoil.grid',
+		--]]
 		boundary = {
 			{	-- slip_wall
 				name='mirror',
@@ -1175,7 +1181,7 @@ self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {
 	-- the first unsteady dt of airfoil in edu2d is 2.8647764373497124E-004 (with their CFL=0.9) ... let's see what cfl I need to use with my implementation of face-based cfl to reproduce this ...
 	-- with my implementation (without a 0.5 in the denom ... is that there because dim = 2?  i thought it was divide-by-dim, not multiply-by-dim ...) and cfl=1 we get a dt=0.00036828253563196 
 	-- that means to get the same dt, we should use cfl=0.77787463704567
-	cfl = 0.77787463704567,	-- produces dt=0.00028647764373497  ... how do our two cfl equations relate? they are not linear, so matching the first dt won't match all future dt's ... though they are close to one another ....
+	cfl = 0.77787463704567,	-- produces dt=0.00028647764373497
 	--integrator = 'forward Euler',
 	integrator = 'Runge-Kutta 2, TVD',
 	--integrator = 'Runge-Kutta 4',
