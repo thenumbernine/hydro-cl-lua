@@ -30,7 +30,9 @@ display:
 	sys = subsystem to run under.  options are 'imguiapp', 'glapp', 'console'
 	vsync = set to enable vsync and slow down the simulation
 	createAnimation = set to start off creating an animation / framedump
-	createAnimationUseHiRes = save at the buffer resolution instead of the window resolution
+	screenshotUseHiRes = save at the buffer resolution instead of the window resolution
+	animationSaveEvery = save every N frames.
+
 	displayvars = comma-separated predefined display vars to use
 	
 	display_useCoordMap = set this gui option
@@ -591,13 +593,16 @@ function HydroCLApp:initGL(...)
 	then
 		self.running = true
 	end
+	
+	self.frameIndex = 0
 
 	self.createAnimation = cmdline.createAnimation
+	self.animationSaveEvery = cmdline.animationSaveEvery
 	
 	-- ok TODO clean this system up a bit because ...
 	-- false = use screenshot of the current display window
-	-- true = save the contents of the solver's gl tex with values mapped through the current palette in gradientTex 
-	self.createAnimationUseHiRes = not not cmdline.createAnimationUseHiRes 
+	-- true = save the contents of the solver's gl tex with values mapped through the current palette in gradientTex
+	self.screenshotUseHiRes = not not cmdline.screenshotUseHiRes
 
 	self.useGLSharing = self.env.useGLSharing
 	self.ctx = self.env.ctx
@@ -846,7 +851,7 @@ HydroCLApp.predefinedPalettes = table{
 			rgb(0xe56b5d),	-- red
 			rgb(0xf89441),	-- orange
 			rgb(0xfdc328),	-- orange
-			rgb(0xf0f921),	-- yellow		
+			rgb(0xf0f921),	-- yellow
 		},
 	},
 	{
@@ -886,7 +891,7 @@ HydroCLApp.predefinedPaletteIndexForName = HydroCLApp.predefinedPaletteNames:map
 HydroCLApp.predefinedPaletteIndex = cmdline.palette and HydroCLApp.predefinedPaletteIndexForName[cmdline.palette] or 1
 
 function HydroCLApp:setGradientTexColors(colors)
-	self.gradientTex = GLGradientTex(1024, colors, false)	-- false = don't wrap the colors... 
+	self.gradientTex = GLGradientTex(1024, colors, false)	-- false = don't wrap the colors...
 	self.gradientTex:setWrap{s = gl.GL_REPEAT}	-- ...but do use GL_REPEAT
 end
 
@@ -1656,10 +1661,14 @@ end
 
 	-- screenshot before gui
 	if self.createAnimation then
-		if self.createAnimationUseHiRes then
-			self:saveHeatMapBufferImages()
-		else
-			self:screenshot()
+		if not self.animationSaveEvery
+		or self.frameIndex % self.animationSaveEvery == 0
+		then
+			if self.screenshotUseHiRes then
+				self:saveHeatMapBufferImages()
+			else
+				self:screenshot()
+			end
 		end
 		
 		if self.createAnimation == 'once' then
@@ -1692,6 +1701,10 @@ end
 			pushVarNamesEnabled = nil
 		end
 	end
+
+	-- inc frameIndex last so we always save the first frame
+	-- TODO also use this in the :screenshot() function?
+	self.frameIndex = self.frameIndex + 1
 end
 
 -- helper function for all draw classes:
@@ -1797,7 +1810,7 @@ function HydroCLApp:updateGUI()
 		end
 		ig.igSameLine()
 
-		tooltip.checkboxTable('screenshot hires', self, 'createAnimationUseHiRes')
+		tooltip.checkboxTable('screenshot hires', self, 'screenshotUseHiRes')
 		ig.igSameLine()
 
 		tooltip.comboTable('screenshot ext', self, 'screenshotExtIndex', self.screenshotExts)
