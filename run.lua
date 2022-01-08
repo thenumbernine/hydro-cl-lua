@@ -14,6 +14,9 @@ for i=1,#arg do
 	if arg[i] == 'trace' then
 		useTrace = true
 	end
+	if arg[i] == 'nojit' then
+		jit.off(true, true)
+	end
 end
 
 if useTrace  then

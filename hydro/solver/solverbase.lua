@@ -1230,7 +1230,7 @@ function SolverBase:createBuffers()
 	self:clalloc('reduceBuf', app.real, self.numCells * 3)
 	self:clalloc('reduceSwapBuf', app.real, math.ceil(self.numCells * 3 / self.localSize1d))
 	self.reduceResultPtr = ffi.new'real[1]'
-	self.reduceResultPtr[0] = require 'hydro.half'.toreal(0)
+	self.reduceResultPtr[0] = toreal(0)
 
 	-- as big as reduceBuf, because it is a replacement for reduceBuf
 	-- ... though I don't accum on vector fields yet, so it doesn't need the x3 really
@@ -1267,6 +1267,13 @@ function SolverBase:createBuffers()
 		
 		local CLImageGL = require 'cl.imagegl'
 		if app.useGLSharing then
+			--[[ on AMD:
+			0 gives CL_INVALID_VALUE
+			CL_MEM_READ_ONLY gives CL_MEM_OBJECT_ALLOCATION_FAILURE
+			CL_MEM_WRITE_ONLY gives CL_MEM_OBJECT_ALLOCATION_FAILURE
+			CL_MEM_READ_WRITE gives CL_MEM_OBJECT_ALLOCATION_FAILURE
+			so ... ?
+			--]]
 			self.texCLMem = CLImageGL{context=app.ctx, tex=self.tex, write=true}
 		else
 			-- use texSize:volume() so the glTexSubImage can use the whole buffer, in the event of meshsolver where texSize:volume can be > numCells
