@@ -3,7 +3,7 @@
 
 /*
 pressure function for ideal gas
-P = (γ-1) ρ eInt 
+P = (γ-1) ρ eInt
 */
 #define calc_P(\
 	/*constant <?=solver_t?> const * const */solver,\
@@ -14,9 +14,9 @@ P = (γ-1) ρ eInt
 
 /*
 χ = dP/dρ in most papers
-P = (γ-1) ρ eInt 
-dP/dρ = (γ-1) eInt 
-χ = (γ-1) eInt 
+P = (γ-1) ρ eInt
+dP/dρ = (γ-1) eInt
+χ = (γ-1) eInt
 */
 #define calc_dP_drho(\
 	/*constant <?=solver_t?> const * const */solver,\
@@ -43,8 +43,8 @@ dP/dρ = (γ-1) eInt
 
 /*
 h = 1 + eInt + P / ρ
- P = (γ-1) ρ eInt 
-h = 1 + eInt + ((γ-1) ρ eInt) / ρ 
+ P = (γ-1) ρ eInt
+h = 1 + eInt + ((γ-1) ρ eInt) / ρ
 h = 1 + eInt + (γ-1) eInt
 h = 1 + γ eInt
 */
@@ -55,23 +55,23 @@ h = 1 + γ eInt
 	(1. + solver->heatCapacityRatio * (eInt))
 
 /*
-just after 2008 Font eqn 107: 
-h cs^2 = χ + P / ρ^2 κ = dp/dρ + p / ρ^2 dp/deInt 
- = (γ-1) eInt + P/ρ^2 (γ-1) ρ  for an ideal gas 
- = (γ-1) (eInt + P/ρ) 
- = 1/ρ ( (γ-1) ρ eInt + (γ-1) P ) 
- = 1/ρ ( P + (γ-1) P) 
- = γ P / ρ 
-... but keep going ... 
-cs^2 = γ P / (h ρ) 
- h = 1 + eInt + P / ρ 
-cs^2 = γ P / (ρ (1 + eInt + P / ρ)) 
-cs^2 = γ P / (P + ρ (1 + eInt)) 
-cs^2 = γ / ( (P + ρ (1 + eInt)) / P ) 
-cs^2 = γ / (1 + ρ (1 + eInt) / P) 
- P = (γ-1) ρ eInt 
-cs^2 = γ / (1 + ρ (1 + eInt) / ((γ-1) ρ eInt) ) 
-cs^2 = γ / (1 + (1 + 1 / eInt) / (γ-1) ) 
+just after 2008 Font eqn 107:
+h cs^2 = χ + P / ρ^2 κ = dp/dρ + p / ρ^2 dp/deInt
+ = (γ-1) eInt + P/ρ^2 (γ-1) ρ  for an ideal gas
+ = (γ-1) (eInt + P/ρ)
+ = 1/ρ ( (γ-1) ρ eInt + (γ-1) P )
+ = 1/ρ ( P + (γ-1) P)
+ = γ P / ρ
+... but keep going ...
+cs^2 = γ P / (h ρ)
+ h = 1 + eInt + P / ρ
+cs^2 = γ P / (ρ (1 + eInt + P / ρ))
+cs^2 = γ P / (P + ρ (1 + eInt))
+cs^2 = γ / ( (P + ρ (1 + eInt)) / P )
+cs^2 = γ / (1 + ρ (1 + eInt) / P)
+ P = (γ-1) ρ eInt
+cs^2 = γ / (1 + ρ (1 + eInt) / ((γ-1) ρ eInt) )
+cs^2 = γ / (1 + (1 + 1 / eInt) / (γ-1) )
 wow, when you simplify all those Cs variables, everything cancels out except eInt ...
 */
 #define calc_CsSq(\
@@ -575,6 +575,7 @@ kernel void <?=constrainU?>(
 }
 
 //// MODULE_NAME: <?=addSource?>
+//// MODULE_DEPENDS: <?=eqn_common?>
 
 kernel void <?=addSource?>(
 	constant <?=solver_t?> const * const solver,
@@ -589,19 +590,21 @@ kernel void <?=addSource?>(
 	global <?=cons_t?> const * const U = UBuf + index;
 
 <? if not require "hydro.coord.cartesian":isa(solver.coord) then ?>
+//// MODULE_DEPENDS: <?=coord_conn_apply23?> <?=coord_conn_trace23?> <?=coord_conn_apply13?>
+	
 	/* connection coefficient source terms of covariant derivative w/contravariant velocity vectors in a holonomic coordinate system */
 	/* TODO calculate this according to SRHD flux.  I'm winging it right now. */
 	real const P = calc_P(solver, U->rho, U->eInt);
 	real3 const Ftau = real3_sub(U->S, real3_real_mul(U->v, U->D));
 
 	/* - Γ^i_jk S^j v^k  */
-	deriv->S = real3_sub(deriv->S, coord_conn_apply23(U->S, U->v, x));	
+	deriv->S = real3_sub(deriv->S, coord_conn_apply23(U->S, U->v, x));
 	
 	/* - Γ^i_jk g^jk P */
 	deriv->S = real3_sub(deriv->S, real3_real_mul(coord_conn_trace23(x), P));
 	
 	/* + (γ-1) ρ v^k v^l Γ_kjl g^ij */
-	deriv->S = real3_add(deriv->S, real3_real_mul(coord_conn_apply13(U->v, U->S, x), (solver->heatCapacityRatio - 1.) ));	
+	deriv->S = real3_add(deriv->S, real3_real_mul(coord_conn_apply13(U->v, U->S, x), (solver->heatCapacityRatio - 1.) ));
 	
 	/* - (γ-1) ρ v^j v^k v^l Γ_jkl */
 /* 	deriv->ETotal -= (solver->heatCapacityRatio - 1.) * coord_conn_apply123(U->v, U->v, U->S, x);	 */

@@ -116,6 +116,10 @@ do
 	cmdline = table(require 'ext.cmdline'(table.unpack(arg)), cmdline)
 end
 
+if cmdline.srand then
+	math.randomseed(os.time())
+end
+
 if cmdline.verbose then
 	print('cmdline: '..require'ext.tolua'(cmdline))
 end
@@ -1066,12 +1070,12 @@ local mouse = Mouse and Mouse() or nil
 
 local function canHandleMouse()
 	if not mouse then return false end
-	if rawget(ig, 'disabled') then return false end
+	if rawget(ig, 'disabled') then return true end
 	return not ig.igGetIO()[0].WantCaptureMouse
 end
 
 local function canHandleKeyboard()
-	if rawget(ig, 'disabled') then return false end
+	if rawget(ig, 'disabled') then return true end
 	return not ig.igGetIO()[0].WantCaptureKeyboard
 end
 

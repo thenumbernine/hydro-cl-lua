@@ -5,7 +5,7 @@ and no more setting config values (boundary, etc) in the init cond file
 local constants = require 'hydro.constants'
 local materials = require 'hydro.materials'
 
-local dim = cmdline.dim or 2
+local dim = cmdline.dim or 1
 local args = {
 	app = self,
 	eqn = cmdline.eqn,
@@ -62,7 +62,7 @@ local args = {
 	-- this is functional without usePLM, but doing so falls back on the cell-centered buffer, which with the current useCTU code will update the same cell twice from different threads
 	useCTU = true,
 	
-	-- [[ Cartesian
+	--[[ Cartesian
 	coord = 'cartesian',
 	--coordArgs = {vectorComponent='holonomic'},		-- use the coordinate derivatives to represent our vector components (though they may not be normalized)
 	--coordArgs = {vectorComponent='anholonomic'},		-- use orthonormal basis to represent our vector components
@@ -125,6 +125,13 @@ local args = {
 				{256,256,1},
 				{32,32,32},
 			},
+		
+			-- and on linux ...
+			['AMD Accelerated Parallel Processing/gfx1010:xnack-/gfx902:xnack-'] = {
+				{256,1,1},
+				{256,256,1},
+				{48,48,48},
+			}
 		})[platAndDevicesNames]
 		-- default size options
 		or {
@@ -134,12 +141,12 @@ local args = {
 		}
 	)[dim],
 	boundary = type(cmdline.boundary) == 'table' and cmdline.boundary or {
-		xmin = cmdline.boundary or 'freeflow',
-		xmax = cmdline.boundary or 'freeflow',
-		ymin = cmdline.boundary or 'freeflow',
-		ymax = cmdline.boundary or 'freeflow',
-		zmin = cmdline.boundary or 'freeflow',
-		zmax = cmdline.boundary or 'freeflow',
+		xmin = cmdline.boundary or 'mirror',
+		xmax = cmdline.boundary or 'mirror',
+		ymin = cmdline.boundary or 'mirror',
+		ymax = cmdline.boundary or 'mirror',
+		zmin = cmdline.boundary or 'mirror',
+		zmax = cmdline.boundary or 'mirror',
 	},
 	--]]
 	--[[ cylinder
@@ -181,7 +188,7 @@ local args = {
 		--zmax=cmdline.boundary or 'mirror',
 	},
 	--]]
-	--[[ Sphere: r, θ, φ
+	-- [[ Sphere: r, θ, φ
 	coord = 'sphere',
 	--coordArgs = {volumeDim = 3},	-- use higher dimension volume, even if the grid is only 1D to 3D
 	--coordArgs = {vectorComponent='holonomic'},
@@ -1179,7 +1186,7 @@ self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {
 	--cfl = 1.8,	-- the "/ 0.5" in "I do like cfd" ... wouldn't that be the same as x2? not exactly...
 	--cfl = .45,
 	-- the first unsteady dt of airfoil in edu2d is 2.8647764373497124E-004 (with their CFL=0.9) ... let's see what cfl I need to use with my implementation of face-based cfl to reproduce this ...
-	-- with my implementation (without a 0.5 in the denom ... is that there because dim = 2?  i thought it was divide-by-dim, not multiply-by-dim ...) and cfl=1 we get a dt=0.00036828253563196 
+	-- with my implementation (without a 0.5 in the denom ... is that there because dim = 2?  i thought it was divide-by-dim, not multiply-by-dim ...) and cfl=1 we get a dt=0.00036828253563196
 	-- that means to get the same dt, we should use cfl=0.77787463704567
 	cfl = 0.77787463704567,	-- produces dt=0.00028647764373497
 	--integrator = 'forward Euler',
