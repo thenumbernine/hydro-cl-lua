@@ -1,5 +1,5 @@
 //// MODULE_NAME: <?=updateCTU?>
-//// MODULE_DEPENDS: <?=solver_t?> <?=cell_t?> <?=cons_t?> <?=SETBOUNDS?> <?=cell_volume?> <?=solver_macros?>
+//// MODULE_DEPENDS: <?=solver_t?> <?=cell_t?> <?=cons_t?> <?=SETBOUNDS?> <?=cell_volume?> <?=solver_macros?> realparam
 <? if solver.usePLM then ?>
 //// MODULE_DEPENDS: <?=consLR_t?>
 <? end ?>
@@ -13,7 +13,7 @@ kernel void <?=updateCTU?>(
 	global <?=cell_t?> const * const cellBuf,
 	global <?=solver.getULRArg?>,
 	global <?=cons_t?> const * const fluxBuf,
-	real const dt
+	realparam const dt
 ) {
 	<?=SETBOUNDS?>(0,1);
 	real3 const x = cellBuf[index].pos;
