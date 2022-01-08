@@ -1229,7 +1229,8 @@ function SolverBase:createBuffers()
 	-- on non-GL-sharing cards.
 	self:clalloc('reduceBuf', app.real, self.numCells * 3)
 	self:clalloc('reduceSwapBuf', app.real, math.ceil(self.numCells * 3 / self.localSize1d))
-	self.reduceResultPtr = ffi.new('real[1]', 0)
+	self.reduceResultPtr = ffi.new'real[1]'
+	self.reduceResultPtr[0] = require 'hydro.half'.toreal(0)
 
 	-- as big as reduceBuf, because it is a replacement for reduceBuf
 	-- ... though I don't accum on vector fields yet, so it doesn't need the x3 really

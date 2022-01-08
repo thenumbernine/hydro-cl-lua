@@ -120,6 +120,7 @@ local range = require 'ext.range'
 local template = require 'template'
 local clnumber = require 'cl.obj.number'
 local Struct = require 'hydro.code.struct'
+local half = require 'hydro.half'
 
 local common = require 'hydro.common'
 local xNames = common.xNames
@@ -1413,9 +1414,9 @@ function CoordinateSystem:fillGridCellBuf(cellsCPU)
 				local u = solver.dim >= 1
 					and ((i + .5 - solver.numGhost) / (tonumber(solver.gridSize.x) - 2 * solver.numGhost) * (solver.maxs.x - solver.mins.x) + solver.mins.x)
 					or (.5 * (solver.maxs.x + solver.mins.x))
-				cellsCPU[index].pos.x = u
-				cellsCPU[index].pos.y = v
-				cellsCPU[index].pos.z = w
+				cellsCPU[index].pos.x = half.toreal(u)
+				cellsCPU[index].pos.y = half.toreal(v)
+				cellsCPU[index].pos.z = half.toreal(w)
 --[[				
 				cellsCPU[index].volume = calcVolume(u,v,w)
 --]]				
