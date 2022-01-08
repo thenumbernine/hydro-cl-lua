@@ -72,7 +72,7 @@ local args = {
 	maxs = cmdline.maxs or {1, 1, 1},
 	
 	-- 256^2 = 2^16 = 2 * 32^3
-	gridSize = (
+	gridSize = cmdline.gridSize or (
 		({ 	-- size options based on OpenCL vendor ...
 			['NVIDIA CUDA/GeForce GTX 1080 Ti'] = {
 				{256,1,1},
@@ -219,11 +219,7 @@ local args = {
 	-- hmm, right now sphere's variables change per-dimension used ...
 	mins = cmdline.mins or {0, 0, 0},
 	maxs = cmdline.maxs or {2*math.pi, 2*math.pi, 1},
-	gridSize = {
-		cmdline.gridSize or 16,
-		cmdline.gridSize or 16,
-		cmdline.gridSize or 16,
-	},
+	gridSize = cmdline.gridSize or {16,16,16},
 	boundary = type(cmdline.boundary) == 'table' and cmdline.boundary or {
 		xmin=cmdline.boundary or 'periodic',
 		xmax=cmdline.boundary or 'periodic',
