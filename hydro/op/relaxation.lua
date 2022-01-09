@@ -168,12 +168,12 @@ function Relaxation:relax()
 		self:potentialBoundary()
 
 		if self.stopOnEpsilon then
-			local residual = math.sqrt(solver.reduceSum() / tonumber(solver.volumeWithoutBorder))
+			local residual = math.sqrt(fromreal(solver.reduceSum()) / tonumber(solver.volumeWithoutBorder))
 			local lastResidual = self.lastResidual
 			self.lastResidual = residual
 			if self.verbose then
 				self.setReduceToPotentialSquaredKernelObj()
-				local xNorm = math.sqrt(solver.reduceSum() / tonumber(solver.volumeWithoutBorder))
+				local xNorm = math.sqrt(fromreal(solver.reduceSum()) / tonumber(solver.volumeWithoutBorder))
 				self.copyPotentialToReduceKernelObj()
 				local xmin = fromreal(solver.reduceMin())
 				self.copyPotentialToReduceKernelObj()

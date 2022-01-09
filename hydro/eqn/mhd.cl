@@ -915,8 +915,8 @@ kernel void <?=constrainU?>(
 	<?=prim_t?> W;
 	<?=primFromCons?>(&W, solver, U, x);
 
-	W.rho = max(W.rho, 1e-7);
-	W.P = max(W.P, 1e-7);
+	W.rho = max(W.rho, (real)1e-7);
+	W.P = max(W.P, (real)1e-7);
 
 	<?=consFromPrim?>(U, solver, &W, x);
 }

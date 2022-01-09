@@ -34,8 +34,8 @@ display:
 	animationSaveEvery = save every N frames.
 
 	displayvars = comma-separated predefined display vars to use
-	
 	display_useCoordMap = set this gui option
+	display_fixedRange = whether to initialize display vars with a fixed range (of [0,1])
 	showMouseCoords = whether to show mouse coords.  default is true.
 	
 	displayDim = override dimension of display (useful for displaying 3D simulations as 1D graphs)

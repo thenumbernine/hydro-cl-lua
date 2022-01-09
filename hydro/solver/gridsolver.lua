@@ -421,6 +421,9 @@ function GridSolver:createBuffers()
 	-- define self.texSize before calling super
 	if app.targetSystem ~= 'console' then
 		self.texSize = vec3sz(self.gridSize)
+		if self.app.verbose then
+			print('texSize = '..self.texSize)
+		end
 	end
 
 	GridSolver.super.createBuffers(self)
