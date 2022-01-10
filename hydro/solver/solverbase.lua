@@ -3070,14 +3070,14 @@ function SolverBase:calcDisplayVarToTex(var, componentIndex)
 				destPtr[i] = ptr[i]
 			end
 		end
-		
+
 		tex:bind()
 		-- use texSize because meshsolver dim isn't reliable
 		if self.texSize.z == 1 then
-			gl.glTexSubImage2D(gl.GL_TEXTURE_2D, 0, 0, 0, sizevec.x, sizevec.y, format, gltype, destPtr)
+			gl.glTexSubImage2D(tex.target, 0, 0, 0, sizevec.x, sizevec.y, format, gltype, destPtr)
 		else
 			for z=0,tex.depth-1 do
-				gl.glTexSubImage3D(gl.GL_TEXTURE_3D, 0, 0, 0, z, sizevec.x, sizevec.y, 1, format, gltype, destPtr + channels * sizevec.x * sizevec.y * z)
+				gl.glTexSubImage3D(tex.target, 0, 0, 0, z, sizevec.x, sizevec.y, 1, format, gltype, destPtr + channels * sizevec.x * sizevec.y * z)
 			end
 		end
 		tex:unbind()

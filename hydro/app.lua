@@ -611,6 +611,9 @@ function HydroCLApp:initGL(...)
 	--half cannot be a kernel param, so this is a proxy type
 	self.realparam = self.real == 'half' and 'float' or self.real
 
+	-- half-precision with odd sizes is messing up otherwise
+	gl.glPixelStorei(gl.GL_PACK_ALIGNMENT, 1)
+	gl.glPixelStorei(gl.GL_UNPACK_ALIGNMENT, 1)
 
 	-- init the module system ...
 	do
