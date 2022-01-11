@@ -120,7 +120,7 @@ local range = require 'ext.range'
 local template = require 'template'
 local clnumber = require 'cl.obj.number'
 local Struct = require 'hydro.code.struct'
-local half = require 'hydro.half'
+local half = require 'cl.obj.half'
 
 local common = require 'hydro.common'
 local xNames = common.xNames

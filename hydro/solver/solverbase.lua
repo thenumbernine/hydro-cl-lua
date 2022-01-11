@@ -223,7 +223,7 @@ local from3x3to6 = common.from3x3to6
 local from6to3x3 = common.from6to3x3
 local sym = common.sym
 
-local half = require 'hydro.half'
+local half = require 'cl.obj.half'
 local toreal, fromreal = half.toreal, half.fromreal
 
 

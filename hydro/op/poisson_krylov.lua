@@ -7,7 +7,7 @@ local ig = require 'ffi.imgui'
 local tooltip = require 'hydro.tooltip'
 local CLBuffer = require 'cl.obj.buffer'
 
-local half = require 'hydro.half'
+local half = require 'cl.obj.half'
 local toreal, fromreal = half.toreal, half.fromreal
 
 

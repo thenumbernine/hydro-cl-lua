@@ -1532,7 +1532,7 @@ end
 		and self.showMouseCoords
 		and self.displayDim == 2
 		then
-			local half = require 'hydro.half'
+			local half = require 'cl.obj.half'
 			local toreal, fromreal = half.toreal, half.fromreal
 			
 			self.mouseCoordValue = ''

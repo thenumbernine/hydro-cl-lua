@@ -23,7 +23,7 @@ local time, getTime = table.unpack(require 'hydro.util.time')
 local real = require 'hydro.real'
 local vector = require 'ffi.cpp.vector'
 
-local half = require 'hydro.half'
+local half = require 'cl.obj.half'
 local toreal, fromreal = half.toreal, half.fromreal
 
 

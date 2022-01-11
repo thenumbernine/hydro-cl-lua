@@ -5,7 +5,7 @@ local file = require 'ext.file'
 local tooltip = require 'hydro.tooltip'
 local real = require 'hydro.real'	-- really 'realparam'
 
-local half = require 'hydro.half'
+local half = require 'cl.obj.half'
 local toreal, fromreal = half.toreal, half.fromreal
 
 
