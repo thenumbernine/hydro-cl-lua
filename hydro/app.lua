@@ -780,6 +780,7 @@ end
 	end):sup() or 1
 end
 
+
 -- ok technically this is 32-bit tbgr, msb to lsb.  t for transparency instead of a for alpha.
 local function rgb(x)
 	local b = bit.band(0xff, x)
@@ -789,103 +790,20 @@ local function rgb(x)
 	return {r/0xff, g/0xff, b/0xff, 1-o/0xff}
 end
 
-HydroCLApp.predefinedPalettes = table{
-	{
-		name = 'white-rainbow-black',
-		colors = {
-	--		{0,0,0,.5},	-- black ... ? maybe I shouldn't be using black...
-			{0,0,1,.8},	-- blue
-			{0,1,1,.8},	-- cyan
-			{0,1,0,.8},	-- green
-			{1,1,0,.8},	-- yellow
-			{1,.5,0,.8},	-- orange
-			{1,0,0,.8},	-- red
-			{1,1,1,.8},	-- white
-		},
-	},
-	{
-		name = 'stripes',
-		colors = range(32):mapi(function(i)
-			return ({
-				{0,0,0,0},
-				{1,1,1,1},
-			})[i%2+1]
-		end),
-	},
-	{
-		name = 'blue',
-		colors = {
-			{0,0,0,.8},
-			{.5,.5,1,.8},
-			{1,1,1,.8},
-		},
-	},
-	{
-		name = 'paraview-red-grey-blue',
-		colors = {
-			rgb(0x3c4ec2),
-			rgb(0xdddddd),
-			rgb(0xb40426),
-		},
-	},
-	-- some from here: http://www.gnuplotting.org/tag/palette/
-	{
-		name = 'viridis',
-		colors = {
-			rgb(0x440154),	-- dark purple
-			rgb(0x472c7a),	-- purple
-			rgb(0x3b518b),	-- blue
-			rgb(0x2c718e),	-- blue
-			rgb(0x21908d),	-- blue-green
-			rgb(0x27ad81),	-- green
-			rgb(0x5cc863),	-- green
-			rgb(0xaadc32),	-- lime green
-			rgb(0xfde725),	-- yellow
-		},
-	},
-	{
-		name = 'plasma',
-		colors = {
-			rgb(0x0c0887),	-- blue
-			rgb(0x4b03a1),	-- purple-blue
-			rgb(0x7d03a8),	-- purple
-			rgb(0xa82296),	-- purple
-			rgb(0xcb4679),	-- magenta
-			rgb(0xe56b5d),	-- red
-			rgb(0xf89441),	-- orange
-			rgb(0xfdc328),	-- orange
-			rgb(0xf0f921),	-- yellow
-		},
-	},
-	{
-		name = 'magma',
-		colors = {
-			rgb(0x000004),	-- black
-			rgb(0x1c1044),	-- dark blue
-			rgb(0x4f127b),	-- dark purple
-			rgb(0x812581),	-- purple
-			rgb(0xb5367a),	-- magenta
-			rgb(0xe55964),	-- light red
-			rgb(0xfb8761),	-- orange
-			rgb(0xfec287),	-- light orange
-			rgb(0xfbfdbf),	-- light yellow
-		},
-	},
-	{
-		name = 'inferno',
-		colors = {
-			rgb(0x000004),	-- black
-			rgb(0x1f0c48),	-- dark purple
-			rgb(0x550f6d),	-- dark purple
-			rgb(0x88226a),	-- purple
-			rgb(0xa83655),	-- red-magenta
-			rgb(0xe35933),	-- red
-			rgb(0xf9950a),	-- orange
-			rgb(0xf8c932),	-- yellow-orange
-			rgb(0xfcffa4),	-- light yellow
-		},
-	},
-}
+HydroCLApp.predefinedPalettes = require 'hydro.draw.palette'
+
+for _,pal in ipairs(HydroCLApp.predefinedPalettes) do
+	for i=1,#pal.colors do
+		local color = pal.colors[i]
+		if type(color) == 'string' then
+			color = color
+				:gsub('^#', '0x')	-- replace a # prefix on the string with a 0x prefix ...
+			local value = tonumber(color)
+			assert(value, "failed to decode color "..color)
+			pal.colors[i] = rgb(value)
+		end
+	end
+end
 
 HydroCLApp.predefinedPaletteNames = HydroCLApp.predefinedPalettes:mapi(function(palette) return palette.name end)
 
