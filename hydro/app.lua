@@ -23,7 +23,6 @@ hardware/opencl:
 	cpu = set to use CPU instead of GPU
 	platform = name or numeric index of which OpenCL platform to use.  see clinfo utility (or my cl/tests/info.lua script) for identifying platforms.
 	device = name or numeric index of which OpenCL device to use.
-	clcpu = (in run.lua, preceding this) use experimental cl-cpu CL-to-C OpenCL wrapper
 	useGLSharing = set to false to disable GL sharing.  automatically false if sys=console.
 
 display:
@@ -74,7 +73,6 @@ debugging:
 	checkStructSizes = verify that ffi and OpenCL are using matching struct sizes
 
 	trace = insert a debug hook to print out where we are every so often.
-	fullcallstack = output a full call stack (in my 'fullcallstack-lua' repo) in case it's too long for default Lua
 
 integrator parameters:
 	intVerbose = output extra info from int/*.lua
