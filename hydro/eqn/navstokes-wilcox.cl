@@ -134,6 +134,23 @@ static inline real calc_Cs(constant <?=solver_t?> const * const solver, <?=prim_
 	return sqrt((R_over_C_v + 1.) * (W)->PStar / (W)->rhoBar);
 }
 
+static inline real calc_Cs_fromCons(
+	constant <?=solver_t?> const * const solver,
+	global <?=cons_t?> const * const U,
+	real3 const pt
+) {
+	// in order to calculate PStar, you have to calculate over half the primitive values
+	real3 const vTilde = real3_real_mul((U)->rhoBar_vTilde, 1. / (U)->rhoBar);
+	real const vTildeSq = coordLenSq(vTilde, pt);
+	real const rhoBar_eIntTilde = (U)->rhoBar_eTotalTilde - .5 * (U)->rhoBar * vTildeSq - (U)->rhoBar_k;
+	real const rhoBar_TTilde = rhoBar_eIntTilde / solver->C_v;
+	real const PBar = rhoBar_TTilde * solver->gasConstant;
+	real const PStar = PBar + 2./3. * (U)->rhoBar_k;
+
+	return sqrt(
+		(R_over_C_v + 1.) * PStar / (U)->rhoBar);
+}
+
 //// MODULE_NAME: <?=applyInitCondCell?>
 //// MODULE_DEPENDS: <?=cartesianToCoord?> <?=consFromPrim?>
 
@@ -171,7 +188,7 @@ end
 		.omega = 0,
 		.ePot = ePot,
 	};
-	<?=consFromPrim?>(UBuf + index, solver, &W, x);
+	<?=consFromPrim?>(U, solver, &W, x);
 }
 
 //// MODULE_NAME: <?=fluxFromCons?>
@@ -201,7 +218,7 @@ end
 <? for side=0,2 do --\
 ?>	else if (n.side == <?=side?>) {\
 <? for i=0,2 do --\
-?>	(resultFlux)->rhoBar_vTilde.s<?=i?> += coord_g_uu<?=i?><?=side?>((cell)->pos) * W.PStar;\
+?>	(resultFlux)->rhoBar_vTilde.s<?=i?> += coord_g_uu<?=i<side and i..side or side..i?>((cell)->pos) * W.PStar;\
 <? end --\
 ?>	}\
 <? end --\
@@ -344,7 +361,7 @@ for side=0,2 do
 
 	local gUdef = "\treal3 gUj = _real3(\n"
 	for i=0,2 do
-		gUdef = gUdef .. "\t\tcoord_g_uu"..side..i.."(pt)"..(i<2 and "," or "").."\n"
+		gUdef = gUdef .. "\t\tcoord_g_uu"..(i < side and i..side or side..i).."(pt)"..(i<2 and "," or "").."\n"
 	end
 	gUdef = gUdef .. "\t);\n"
 	prefix = gUdef .. prefix

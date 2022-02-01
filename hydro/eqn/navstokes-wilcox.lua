@@ -163,7 +163,7 @@ for side=solver.dim,2 do ?>
 			return U..'->rhoBar_vTilde.s'..j..' / '..U..'->rhoBar'
 		end,
 		units = 'kg/(m^3*s)',
-	})
+	} or nil)
 
 	vars:insert(self:createCurlDisplayVar{
 		field = 'vTilde',
@@ -171,7 +171,7 @@ for side=solver.dim,2 do ?>
 			return U..'->rhoBar_vTilde.s'..j..' / '..U..'->rhoBar'
 		end,
 		units = 'm/s^2',
-	})
+	} or nil)
 
 
 	return vars
@@ -189,31 +189,15 @@ NavierStokesWilcox.eigenVars = table{
 	{name='Cs', type='real'},
 }
 
-function NavierStokesWilcox:eigenWaveCodePrefix(n, eig, x)
+function NavierStokesWilcox:eigenWaveCodePrefix(args)
 	return self:template([[
-real Cs_nLen = <?=eig?>->Cs * normal_len(<?=n?>);
-real v_n = normal_vecDotN1(<?=n?>, <?=eig?>->vTilde);
-]], {
-		n = n,
-		eig = '('..eig..')',
-		x = x,
-	})
+real Cs_nLen = (<?=eig?>)->Cs * normal_len(<?=n?>);
+real v_n = normal_vecDotN1(<?=n?>, (<?=eig?>)->vTilde);
+]], args)
 end
 
-function NavierStokesWilcox:consWaveCodePrefix(n, U, x)
-	return self:template([[
-prim_t W;
-<?=primFromCons?>(&W, solver, <?=U?>, <?=x?>);
-real Cs_nLen = calc_Cs(solver, &W) * normal_len(<?=n?>);
-real v_n = normal_vecDotN1(<?=n?>, W.vTilde);
-]], {
-		n = n,
-		U = '('..U..')',
-		x = x,
-	})
-end
-
-function NavierStokesWilcox:consWaveCode(n, eig, x, waveIndex)
+function NavierStokesWilcox:eigenWaveCode(args)
+	local waveIndex = args.waveIndex
 	if waveIndex == 0 then
 		return '(v_n - Cs_nLen)'
 	elseif waveIndex >= 1 and waveIndex <= 5 then
@@ -224,6 +208,34 @@ function NavierStokesWilcox:consWaveCode(n, eig, x, waveIndex)
 	error'got a bad waveIndex'
 end
 
-NavierStokesWilcox.eigenWaveCode = NavierStokesWilcox.consWaveCode
+
+function NavierStokesWilcox:consWaveCodePrefix(args)
+	return self:template([[
+prim_t W;
+<?=primFromCons?>(&W, solver, <?=U?>, <?=pt?>);
+real Cs_nLen = calc_Cs(solver, &W) * normal_len(<?=n?>);
+real v_n = normal_vecDotN1(<?=n?>, W.vTilde);
+]], args)
+end
+
+NavierStokesWilcox.consWaveCode = NavierStokesWilcox.eigenWaveCode
+
+function NavierStokesWilcox:consWaveCodeMinMaxAllSidesPrefix(args)
+	return self:template([[
+real Cs = calc_Cs_fromCons(solver, <?=U?>, <?=pt?>);\
+]],	args)
+end
+
+function NavierStokesWilcox:consWaveCodeMinMaxAllSides(args)
+	return self:template([[
+real const Cs_nLen = Cs * normal_len(<?=n?>);
+real const v_n = normal_vecDotN1(<?=n?>, (<?=U?>)->rhoBar_vTilde) / (<?=U?>)->rhoBar;
+<?=eqn:waveCodeAssignMinMax(
+	declare, resultMin, resultMax,
+	'v_n - Cs_nLen',
+	'v_n + Cs_nLen'
+)?>
+]], args)
+end
 
 return NavierStokesWilcox
