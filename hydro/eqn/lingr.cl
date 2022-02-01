@@ -27,9 +27,9 @@ end
 
 <? if eqn.usePressure then
 ?>	U->Pi_tt = P;
-<? else		
+<? else
 ?>	U->Pi_tt = rho;
-<? end		
+<? end
 ?>	U->Pi_ti = real3_zero;
 	U->Pi_ij = sym3_zero;
 	U->Psi_ttk = cartesianToCoord(v, x);

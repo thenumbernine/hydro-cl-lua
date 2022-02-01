@@ -313,7 +313,7 @@ local args = {
 	--initCond = 'jet',
 	
 
-	--initCond = 'Sod',
+	initCond = 'Sod',
 	--initCondArgs = {dim=cmdline.displayDim},
 	--[[ real-world vars for Sod ... which are a few orders higher, and therefore screw up the backward-euler solver
 	-- 		which means, todo, redo the backward euler error metric so it is independent of magnitude ... ?   seems I removed that for another numerical error reason.
@@ -459,7 +459,7 @@ local args = {
 
 	-- Einstein
 	--initCond = 'Minkowski',
-	initCond = 'gaussian perturbation',
+	--initCond = 'gaussian perturbation',
 	--initCond = 'plane gauge wave',
 
 
@@ -882,7 +882,7 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn
 -- de Donder gauge + weak field limit + cartesian components, as a wave equation (+ TODO fluid as well)
 -- TODO RENAME.  the twofluid lingr is gravitoelectromagnetism, which is a ,tt=0 approximation
 --  while this is not.  it is a wave equation.
---self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='lingr'})))
+self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='lingr'})))
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='lingr'})))
 
 
@@ -891,7 +891,7 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn
 
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='adm1d_v1'})))
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='adm1d_v2'})))
-self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='adm3d'})))
+--self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='adm3d'})))
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='adm3d', eqnArgs={noZeroRowsInFlux=false}})))
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='adm3d', eqnArgs={useShift='MinimalDistortionElliptic'}})))	-- TODO finish me
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='adm3d', eqnArgs={useShift='MinimalDistortionEllipticEvolve'}})))	-- TODO finish me

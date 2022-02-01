@@ -650,7 +650,11 @@ static inline real real3_weightedLen(real3 a, sym3 m) {
 //specified in row-order, like you would a C array
 #define _real3x3(xx,xy,xz,yx,yy,yz,zx,zy,zz) ((real3x3){.x=_real3(xx,xy,xz), .y=_real3(yx,yy,yz), .z=_real3(zx,zy,zz)})
 
-#define real3x3_zero ((real3x3){.v={real3_zero, real3_zero, real3_zero}})
+// failing in AMD OpenCL LLVM
+//LLVM ERROR: Cannot select: 0x55ab0ec9b418: i32 = GlobalAddress<[3 x %union.vec3d_t] addrspace(5)* @constinit> 0
+//#define real3x3_zero ((real3x3){.v={real3_zero, real3_zero, real3_zero}})
+//instead:
+#define real3x3_zero ((real3x3){.x=real3_zero, .y=real3_zero, .z=real3_zero})
 
 static inline real3x3 real3x3_add(real3x3 a, real3x3 b);
 static inline real3x3 real3_real3_outer(real3 a, real3 b);
