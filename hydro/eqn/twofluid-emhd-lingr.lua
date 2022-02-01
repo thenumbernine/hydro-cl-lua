@@ -344,20 +344,17 @@ end
 
 TwoFluidEMHDDeDonderGaugeLinearizedGR.eigenVars = eigenVars
 
-function TwoFluidEMHDDeDonderGaugeLinearizedGR:eigenWaveCodePrefix(n, eig, x)
+function TwoFluidEMHDDeDonderGaugeLinearizedGR:eigenWaveCodePrefix(args)
 	return self:template([[
 <? for i,fluid in ipairs(fluids) do ?>
-real const <?=fluid?>_Cs_nLen = <?=eig?>-><?=fluid?>_Cs * normal_len(n);
-real const <?=fluid?>_v_n = normal_vecDotN1(n, <?=eig?>-><?=fluid?>_v);
+real const <?=fluid?>_Cs_nLen = (<?=eig?>)-><?=fluid?>_Cs * normal_len(<?=n?>);
+real const <?=fluid?>_v_n = normal_vecDotN1(<?=n?>, (<?=eig?>)-><?=fluid?>_v);
 <? end ?>
-]], {
-		x = x,
-		eig = '('..eig..')',
-		n = n,
-	})
+]], args)
 end
 
-function TwoFluidEMHDDeDonderGaugeLinearizedGR:eigenWaveCode(n, eig, x, waveIndex)
+function TwoFluidEMHDDeDonderGaugeLinearizedGR:eigenWaveCode(args)
+	local waveIndex = args.waveIndex
 	for i,fluid in ipairs(self.fluids) do
 		if waveIndex == 0 + 5 * (i-1) then
 			return self:template('<?=fluid?>_v_n - <?=fluid?>_Cs_nLen', {fluid=fluid})
@@ -397,13 +394,36 @@ function TwoFluidEMHDDeDonderGaugeLinearizedGR:eigenWaveCode(n, eig, x, waveInde
 	error('got a bad waveIndex: '..waveIndex)
 end
 
+function TwoFluidEMHDDeDonderGaugeLinearizedGR:consWaveCodePrefix(args)
+	return self:template([[
+<? for i,fluid in ipairs(fluids) do ?>
+real const <?=fluid?>_Cs_nLen = calc_<?=fluid?>_Cs_fromCons(solver, <?=U?>, <?=pt?>) * normal_len(<?=n?>);
+real const <?=fluid?>_v_n = normal_vecDotN1(<?=n?>, (<?=U?>)-><?=fluid?>_m) / (<?=U?>)-><?=fluid?>_rho;
+<? end ?>
+]], args)
+end
+
+-- as long as U or eig isn't used, we can use this for both implementations
+TwoFluidEMHDDeDonderGaugeLinearizedGR.consWaveCode = TwoFluidEMHDDeDonderGaugeLinearizedGR.eigenWaveCode
+
 --TODO timestep restriction
 -- 2014 Abgrall, Kumar eqn 2.25
 -- dt < sqrt( E_alpha,i / rho_alpha,i) * |lHat_r,alpha| sqrt(2) / |E_i + v_alpha,i x B_i|
-function TwoFluidEMHDDeDonderGaugeLinearizedGR:consWaveCodePrefix(n, U, x)
+function TwoFluidEMHDDeDonderGaugeLinearizedGR:consWaveCodeMinMaxAllSidesPrefix(args)
 	return self:template([[
 <?=prim_t?> W;
-<?=primFromCons?>(&W, solver, <?=U?>, <?=x?>);
+<?=primFromCons?>(&W, solver, <?=U?>, <?=pt?>);
+
+<? for _,fluid in ipairs(fluids) do
+?>real const <?=fluid?>_Cs = calc_<?=fluid?>_Cs(solver, &W);
+<? end
+?>
+]], args)
+end
+
+function TwoFluidEMHDDeDonderGaugeLinearizedGR:consWaveCodeMinMaxAllSides(args)
+	return self:template([[
+real const nLen = normal_len(<?=n?>);
 
 <?if true then  -- using the EM wavespeed ?>
 real consWaveCode_lambdaMax = max(
@@ -420,25 +440,16 @@ real consWaveCode_lambdaMax = INFINITY;
 real consWaveCode_lambdaMin = -consWaveCode_lambdaMax;
 
 <? for _,fluid in ipairs(fluids) do ?>
-real const <?=fluid?>_Cs = calc_<?=fluid?>_Cs(solver, &W);
-real const <?=fluid?>_Cs_nLen = <?=fluid?>_Cs * normal_len(n);
-consWaveCode_lambdaMin = min(consWaveCode_lambdaMin, normal_vecDotN1(n, W.<?=fluid?>_v) - <?=fluid?>_Cs_nLen);
-consWaveCode_lambdaMax = max(consWaveCode_lambdaMax, normal_vecDotN1(n, W.<?=fluid?>_v) + <?=fluid?>_Cs_nLen);
+real const <?=fluid?>_Cs_nLen = <?=fluid?>_Cs * nLen;
+consWaveCode_lambdaMin = min(consWaveCode_lambdaMin, normal_vecDotN1(<?=n?>, W.<?=fluid?>_v) - <?=fluid?>_Cs_nLen);
+consWaveCode_lambdaMax = max(consWaveCode_lambdaMax, normal_vecDotN1(<?=n?>, W.<?=fluid?>_v) + <?=fluid?>_Cs_nLen);
 <? end ?>
 
-]], {
-		n = n,
-		U = '('..U..')',
-		x = x,
-	})
-end
-
-function TwoFluidEMHDDeDonderGaugeLinearizedGR:consMinWaveCode(n, U, x)
-	return 'consWaveCode_lambdaMin'
-end
-
-function TwoFluidEMHDDeDonderGaugeLinearizedGR:consMaxWaveCode(n, U, x)
-	return 'consWaveCode_lambdaMax'
+<?=eqn:waveCodeAssignMinMax(
+	declare, resultMin, resultMax,
+	'consWaveCode_lambdaMin',
+	'consWaveCode_lambdaMax')?>
+]], args)
 end
 
 return TwoFluidEMHDDeDonderGaugeLinearizedGR
