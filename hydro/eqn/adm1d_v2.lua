@@ -112,6 +112,19 @@ function ADM_BonaMasso_1D_1997Alcubierre:createDisplayComponents() end
 
 ADM_BonaMasso_1D_1997Alcubierre.solverCodeFile = 'hydro/eqn/adm1d_v2.cl'
 
+ADM_BonaMasso_1D_1997Alcubierre.predefinedDisplayVars = {
+	'U alpha',
+	'U gamma_xx',
+	'U a_x',
+	'U d_xxx',
+	'U K_xx',
+	'U K',
+	-- TODO H constraint
+	'U volume',
+	'U alpha vs a_x',
+	'U gamma_xx vs D_g',
+}
+
 function ADM_BonaMasso_1D_1997Alcubierre:getDisplayVars()
 	return ADM_BonaMasso_1D_1997Alcubierre.super.getDisplayVars(self):append{
 		-- adm1d_v1 cons vars:

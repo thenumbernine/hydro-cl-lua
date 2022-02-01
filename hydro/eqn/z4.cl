@@ -869,9 +869,9 @@ end --\
 	/* default */\
 	<?=waves_t?> waves;\
 	<?=eigen_leftTransform?>(&waves, solver, eig, inputU, x, n);\
-	<?=eqn:eigenWaveCodePrefix("n", "eig", "(cell)->pos")?>\
+	<?=eqn:eigenWaveCodePrefix{n="n", eig="eig", pt="(cell)->pos"}?>\
 <? 	for j=0,eqn.numWaves-1 do --\
-?>	waves.ptr[<?=j?>] *= <?=eqn:eigenWaveCode("n", "eig", "(cell)->pos", j)?>;\
+?>	waves.ptr[<?=j?>] *= <?=eqn:eigenWaveCode{n="n", eig="eig", pt="(cell)->pos", waveIndex=j}?>;\
 <? 	end --\
 ?>	<?=eigen_rightTransform?>(resultFlux, solver, eig, waves, (cell)->pos, n);\
 <? else ?>\

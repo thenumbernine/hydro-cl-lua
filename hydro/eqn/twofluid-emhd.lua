@@ -405,21 +405,17 @@ end
 
 TwoFluidEMHD.eigenVars = eigenVars
 
-function TwoFluidEMHD:eigenWaveCodePrefix(n, eig, x)
+function TwoFluidEMHD:eigenWaveCodePrefix(args)
 	return self:template([[
-<? for i,fluid in ipairs(eqn.fluids) do ?>
-real const <?=fluid?>_Cs_nLen = <?=eig?>-><?=fluid?>_Cs * normal_len(<?=n?>);
-real const <?=fluid?>_v_n = normal_vecDotN1(n, <?=eig?>-><?=fluid?>_v);
+<? for i,fluid in ipairs(fluids) do ?>
+real const <?=fluid?>_Cs_nLen = (<?=eig?>)-><?=fluid?>_Cs * normal_len(<?=n?>);
+real const <?=fluid?>_v_n = normal_vecDotN1(<?=n?>, (<?=eig?>)-><?=fluid?>_v);
 <? end ?>
-]], {
-		x = x,
-		eig = '('..eig..')',
-		fluids = self.fluids,
-		n = n,
-	})
+]], args)
 end
 
-function TwoFluidEMHD:eigenWaveCode(n, eig, x, waveIndex)
+function TwoFluidEMHD:eigenWaveCode(args)
+	local waveIndex = args.waveIndex
 	for i,fluid in ipairs(self.fluids) do
 		if waveIndex == 0 + 5 * (i-1) then
 			return self:template('<?=fluid?>_v_n - <?=fluid?>_Cs_nLen', {fluid=fluid})
@@ -447,13 +443,25 @@ function TwoFluidEMHD:eigenWaveCode(n, eig, x, waveIndex)
 	error('got a bad waveIndex: '..waveIndex)
 end
 
+function TwoFluidEMHD:consWaveCodePrefix(args)
+	return self:template([[
+<? for i,fluid in ipairs(fluids) do ?>
+real const <?=fluid?>_Cs_nLen = calc_<?=fluid?>_Cs_fromCons(solver, <?=U?>, <?=pt?>) * normal_len(<?=n?>);
+real const <?=fluid?>_v_n = normal_vecDotN1(<?=n?>, (<?=eig?>)-><?=fluid?>_v);
+<? end ?>
+]], args)
+end
+
+-- as long as U or eig isn't used, we can use this for both implementations
+TwoFluidEMHD.consWaveCode = TwoFluidEMHD.eigenWaveCode
+
 --TODO timestep restriction
 -- 2014 Abgrall, Kumar eqn 2.25
 -- dt < sqrt( E_alpha,i / rho_alpha,i) * |lHat_r,alpha| sqrt(2) / |E_i + v_alpha,i x B_i|
-function TwoFluidEMHD:consWaveCodePrefix(n, U, x)
+function TwoFluidEMHD:consWaveCodeMinMaxAllSidesPrefix(args)
 	return self:template([[
 <?=prim_t?> W;
-<?=primFromCons?>(&W, solver, <?=U?>, <?=x?>);
+<?=primFromCons?>(&W, solver, <?=U?>, <?=pt?>);
 
 <? if eqn.implicitEMIntegration then 	--ignoring EM wavespeed	?>	
 real consWaveCode_lambdaMax = -INFINITY;
@@ -472,23 +480,24 @@ real consWaveCode_lambdaMin = -consWaveCode_lambdaMax;
 <? for _,fluid in ipairs(eqn.fluids) do
 ?>	real <?=fluid?>_Cs = calc_<?=fluid?>_Cs(solver, &W);
 real <?=fluid?>_Cs_nLen = <?=fluid?>_Cs * normal_len(<?=n?>);
-consWaveCode_lambdaMin = min(consWaveCode_lambdaMin, normal_vecDotN1(n, W.<?=fluid?>_v) - <?=fluid?>_Cs_nLen);
-consWaveCode_lambdaMax = max(consWaveCode_lambdaMax, normal_vecDotN1(n, W.<?=fluid?>_v) + <?=fluid?>_Cs_nLen);
+consWaveCode_lambdaMin = min(consWaveCode_lambdaMin, normal_vecDotN1(<?=n?>, W.<?=fluid?>_v) - <?=fluid?>_Cs_nLen);
+consWaveCode_lambdaMax = max(consWaveCode_lambdaMax, normal_vecDotN1(<?=n?>, W.<?=fluid?>_v) + <?=fluid?>_Cs_nLen);
 <? end
 ?>
 
-]], {
-		n = n,
-		U = '('..U..')',
-		x = x,
-	})
+<?=eqn:waveCodeAssignMinMax(
+	declare, resultMin, resultMax,
+	'consWaveCode_lambdaMin',
+	'consWaveCode_lambdaMax')?>
+]], args)
 end
 
-function TwoFluidEMHD:consMinWaveCode(n, U, x)
+
+function TwoFluidEMHD:consMinWaveCode(n, U, pt)
 	return 'consWaveCode_lambdaMin'
 end
 
-function TwoFluidEMHD:consMaxWaveCode(n, U, x)
+function TwoFluidEMHD:consMaxWaveCode(n, U, pt)
 	return 'consWaveCode_lambdaMax'
 end
 

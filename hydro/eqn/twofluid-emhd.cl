@@ -114,16 +114,16 @@ static inline real calc_EPot_from_W(
 
 static inline real calc_<?=fluid?>_eKin(
 	<?=prim_t?> const * const W,
-	real3 const x
+	real3 const pt
 ) {
-	return .5 * coordLenSq((W)-><?=fluid?>_v, x);
+	return .5 * coordLenSq((W)-><?=fluid?>_v, pt);
 }
 
 static inline real calc_<?=fluid?>_EKin(
 	<?=prim_t?> const * const W,
-	real3 const x
+	real3 const pt
 ) {
-	return (W)-><?=fluid?>_rho * calc_<?=fluid?>_eKin(W, x);
+	return (W)-><?=fluid?>_rho * calc_<?=fluid?>_eKin(W, pt);
 }
 
 static inline real calc_<?=fluid?>_EInt(
@@ -140,19 +140,17 @@ static inline real calc_<?=fluid?>_eInt(
 	return calc_<?=fluid?>_EInt(solver, W) / (W)-><?=fluid?>_rho;
 }
 
-static inline real calc_<?=fluid?>_EKin_fromCons(
-	global <?=cons_t?> const * const U,
-	real3 const x
-) {
-	return .5 * coordLenSq((U)-><?=fluid?>_m, x) / (U)-><?=fluid?>_rho;
-}
+#define /*real*/ calc_<?=fluid?>_EKin_fromCons(\
+	/*<?=cons_t?> const * const */U,\
+	/*real3 const */pt\
+)	(.5 * coordLenSq((U)-><?=fluid?>_m, pt) / (U)-><?=fluid?>_rho)
 
 static inline real calc_<?=fluid?>_ETotal(
 	constant <?=solver_t?> const * const solver,
 	<?=prim_t?> const * const W,
-	real3 const x
+	real3 const pt
 ) {
-	return calc_<?=fluid?>_EKin(W, x) + calc_<?=fluid?>_EInt(solver, W);
+	return calc_<?=fluid?>_EKin(W, pt) + calc_<?=fluid?>_EInt(solver, W);
 }
 
 static inline real calc_<?=fluid?>_Cs(
@@ -162,16 +160,34 @@ static inline real calc_<?=fluid?>_Cs(
 	return sqrt(solver->heatCapacityRatio * (W)-><?=fluid?>_P / (W)-><?=fluid?>_rho);
 }
 
+static inline real calc_<?=fluid?>_P(
+	constant <?=solver_t?> const * const solver,
+	<?=cons_t?> const * const U,
+	real3 const pt
+) {
+	return (solver->heatCapacityRatio - 1.) * (/*EInt=*/(U)-><?=fluid?>_ETotal  - /*EKin=*/calc_<?=fluid?>_EKin_fromCons(U, pt));
+}
+
+static inline real calc_<?=fluid?>_Cs_fromCons(
+	constant <?=solver_t?> const * const solver,
+	<?=cons_t?> const * const U,
+	real3 const pt
+) {
+	return sqrt(solver->heatCapacityRatio 
+		* calc_<?=fluid?>_P(solver, U, pt)
+		/ (U)-><?=fluid?>_rho);
+}
+
 <? end ?>
 
 static inline real calc_EM_energy(
 	constant <?=solver_t?> const * const solver,
 	global <?=cons_t?> const * const U,
-	real3 const x
+	real3 const pt
 ) {
 	real const eps = solver->sqrt_eps * solver->sqrt_eps / unit_C2_s2_per_kg_m3;
 	real const mu = solver->sqrt_mu * solver->sqrt_mu / unit_kg_m_per_C2;
-	return .5 * (coordLenSq(U->D, x) / eps + coordLenSq(U->B, x) / mu);
+	return .5 * (coordLenSq(U->D, pt) / eps + coordLenSq(U->B, pt) / mu);
 }
 
 //// MODULE_NAME: <?=primFromCons?>

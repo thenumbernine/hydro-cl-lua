@@ -1125,6 +1125,7 @@ kernel void findNaNs(
 	-- but this breaks reduce for scalars (it includes those extra zeros)
 	-- which makes calcDT fail
 	self.reduceMin = self.app.env:reduce{
+		secondPassInCPU = cmdline.secondPassInCPU,
 		count = self.numCells,
 		op = function(x,y) return 'min('..x..', '..y..')' end,
 		initValue = 'INFINITY',
@@ -1133,6 +1134,7 @@ kernel void findNaNs(
 		result = self.reduceResultPtr,
 	}
 	self.reduceMax = self.app.env:reduce{
+		secondPassInCPU = cmdline.secondPassInCPU,
 		count = self.numCells,
 		op = function(x,y) return 'max('..x..', '..y..')' end,
 		initValue = '-INFINITY',
@@ -1141,6 +1143,7 @@ kernel void findNaNs(
 		result = self.reduceResultPtr,
 	}
 	self.reduceSum = self.app.env:reduce{
+		secondPassInCPU = cmdline.secondPassInCPU,
 		count = self.numCells,
 		op = function(x,y) return x..' + '..y end,
 		initValue = '0.',
@@ -1172,7 +1175,9 @@ end
 
 function SolverBase:finalizeCLAllocs()
 	for _,info in ipairs(self.buffers) do
-print(require 'ext.tolua'(info))
+		if self.app.verbose then
+			print(require 'ext.tolua'(info))
+		end
 		local name = info.name
 		local ctype = info.type
 		local count = info.count

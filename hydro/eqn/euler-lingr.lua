@@ -245,8 +245,8 @@ EulerLinGR.eigenVars = eigenVars
 
 function EulerLinGR:eigenWaveCodePrefix(args)
 	return self:template([[
-real const Cs_nLen = (<?=eig?>)->Cs * normal_len(n);
-real const v_n = normal_vecDotN1(n, (<?=eig?>)->v);
+real const Cs_nLen = (<?=eig?>)->Cs * normal_len(<?=n?>);
+real const v_n = normal_vecDotN1(<?=n?>, (<?=eig?>)->v);
 ]], args)
 end
 
@@ -278,8 +278,8 @@ end
 -- dt < sqrt( E_alpha,i / rho_alpha,i) * |lHat_r,alpha| sqrt(2) / |E_i + v_alpha,i x B_i|
 function EulerLinGR:consWaveCodePrefix(args)
 	return self:template([[
-real const Cs_nLen = <?=calc_Cs_fromCons?>(solver, <?=U?>, <?=pt?>) * normal_len(n);
-real const v_n = normal_vecDotN1(n, (<?=U?>)->m) / (<?=U?>)->rho;
+real const Cs_nLen = <?=calc_Cs_fromCons?>(solver, <?=U?>, <?=pt?>) * normal_len(<?=n?>);
+real const v_n = normal_vecDotN1(<?=n?>, (<?=U?>)->m) / (<?=U?>)->rho;
 ]], args)
 end
 
@@ -288,8 +288,8 @@ EulerLinGR.consWaveCode = EulerLinGR.eigenWaveCode
 
 function EulerLinGR:eigenWaveCodeMinMax(args)
 	return self:template([[
-real const Cs_nLen = (<?=eig?>)->Cs * normal_len(n);
-real const v_n = normal_vecDotN1(n, (<?=eig?>)->v);
+real const Cs_nLen = (<?=eig?>)->Cs * normal_len(<?=n?>);
+real const v_n = normal_vecDotN1(<?=n?>, (<?=eig?>)->v);
 
 real const waveCode_lambdaMax = max(
 		max(solver->divPsiWavespeed_g, solver->divPhiWavespeed_g),
@@ -306,8 +306,8 @@ end
 
 function EulerLinGR:consWaveCodeMinMax(args)
 	return self:template([[
-real const Cs_nLen = <?=calc_Cs_fromCons?>(solver, <?=U?>, <?=pt?>) * normal_len(n);
-real const v_n = normal_vecDotN1(n, (<?=U?>)->m) / (<?=U?>)->rho;
+real const Cs_nLen = <?=calc_Cs_fromCons?>(solver, <?=U?>, <?=pt?>) * normal_len(<?=n?>);
+real const v_n = normal_vecDotN1(<?=n?>, (<?=U?>)->m) / (<?=U?>)->rho;
 
 real const waveCode_lambdaMax = max(
 		max(solver->divPsiWavespeed_g, solver->divPhiWavespeed_g),

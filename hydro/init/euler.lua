@@ -2190,10 +2190,13 @@ end ?>;
 				kilogram = kilogram,
 				second = second,
 		
+				-- mind you these will only work if you're using:
+				-- 	eqn=euler-lingr
+				-- otherwise, these won't be solver_t vars,
+				-- and you'll get an error that they're not found
 				speedOfLight = constants.speedOfLight_in_m_per_s,
 				divPsiWavespeed_g = constants.speedOfLight_in_m_per_s,
 				divPhiWavespeed_g = constants.speedOfLight_in_m_per_s,
-				
 				gravitationalConstant = constants.gravitationalConstant_in_m3_per_kg_s2,
 				coulombConstant = constants.CoulombConstant_in_kg_m3_per_C2_s2,
 			},
@@ -2247,7 +2250,7 @@ end ?>;
 	
 	// ram pressure?
 	P = rho * real3_dot(v, v);
-	P = max(P, 1e-7);	//but really, is there any harm in P=0 with the Euler equations?
+	//P = max(P, 1e-7);	//but really, is there any harm in P=0 with the Euler equations?
 ]]
 			end,
 		}
@@ -2279,11 +2282,14 @@ end ?>;
 				meter = meter,
 				kilogram = kilogram,
 				second = second,
-		
+	
+				-- mind you these will only work if you're using:
+				-- 	eqn=euler-lingr
+				-- otherwise, these won't be solver_t vars,
+				-- and you'll get an error that they're not found
 				speedOfLight = constants.speedOfLight_in_m_per_s,
 				divPsiWavespeed_g = constants.speedOfLight_in_m_per_s,
 				divPhiWavespeed_g = constants.speedOfLight_in_m_per_s,
-				
 				gravitationalConstant = constants.gravitationalConstant_in_m3_per_kg_s2,
 				coulombConstant = constants.CoulombConstant_in_kg_m3_per_C2_s2,
 			},
@@ -2305,6 +2311,7 @@ end ?>;
 local m_in_pc = 648000 / math.pi * 149597870700
 ?>
 	real const r_in_kpc = r * <?=1/m_in_pc?>;
+	real const z_in_kpc = z * <?=1/m_in_pc?>;
 
 	// velocity from 2006 Cooperstock et al to fit 1989 Begeman
 	real const vmag_per_c = 0
@@ -2404,11 +2411,67 @@ local d = {
 
 	rho = Y * exp(-pow(r / reff, 1. / s));
 
+	real delta_for_r = 0.;	// m
+<?
+-- piecewise quadratic control points
+local pts = {
+	{0					,	7.1493036342864			},
+	{4.8861861861862	,	6.7384253718743			},
+	{6.852952952953		,	6.361204928482			},
+	{8.8197197197197	,	5.8907000621838			},
+	{9.8031031031031	,	5.6296706252255			},
+	{10.786486486486	,	5.3571550559966			},
+	{11.76986986987		,	5.0775983990215			},
+	{12.999099099099	,	4.7247306823609			},
+	{13.982482482482	,	4.444299392457			},
+	{14.965865865866	,	4.1688493246293			},
+	{15.949249249249	,	3.9006182904375			},
+	{17.916016016016	,	3.3908327257272			},
+	{19.882782782783	,	2.918292334253			},
+	{21.84954954955		,	2.4781486437422			},
+	{23.816316316316	,	2.0600568093525			},
+	{25.783083083083	,	1.6481068418665			},
+	{27.74984984985		,	1.214040418122			},
+	{28.733233233233	,	0.96898392138409		},
+	{29.716616616617	,	0.67271150250128		},
+	{30.454154154154	,	0.34095094607551		},
+	{30.7				,	0.095697556491137		},
+}
+for i=1,#pts-1,2 do
+?>	<? if i > 1 then ?>} else <? end ?>if (r_in_kpc < <?=clnumber(pts[i+2][1])?>) {
+<?
+	local x1, y1 = table.unpack(pts[i])
+	local x2, y2 = table.unpack(pts[i+1])
+	local x3, y3 = table.unpack(pts[i+2])
+	local x0 = x1
+	x3 = x3 - x0
+	x2 = x2 - x0
+	x1 = x1 - x0
+	-- https://math.stackexchange.com/a/680695/206369
+	local a = (x1 * (y3 - y2) + x2 * (y1 - y3) + x3 * (y2 - y1)) / ((x1 - x2) * (x1 - x3) * (x2 - x3))
+	local b = (y2 - y1) / (x2 - x1) - a * (x1 + x2)
+	local c = y1 - a * x1 * x1 - b * x1
+?>		delta_for_r = <?=clnumber(c)?> + (r_in_kpc - <?=clnumber(x0)?>) * (<?=clnumber(b)?> + (r_in_kpc - <?=clnumber(x0)?>) * <?=clnumber(a)?>);
+<?
+end
+?>	} else {
+		// width for out of bounds r
+		delta_for_r = 0.;
+	}
 
+	// eqn 6.2: rho(r,z) = rho(r,0) * exp(-z^2 / (2 delta(r)^2 )
+	// delta(r) is ... a mess to calculate
+	// how about approximating it?
+	real const z_delta_ratio = z_in_kpc / delta_for_r;
+	real const zinfl = exp(-.5 * z_delta_ratio * z_delta_ratio);
+	rho *= zinfl;
+
+	
 	// TODO GALACTIC PRESSURE
 	// ram pressure?
 	P = rho * real3_dot(v, v);
-	P = max(P, 1e-7);	//but really, is there any harm in P=0 with the Euler equations?
+	//P = max(P, 1e-7);	//but really, is there any harm in P=0 with the Euler equations?
+	//P *= zinfl;
 ]]
 			end,
 

@@ -246,7 +246,7 @@ end
 //// MODULE_DEPENDS: rotate <?=cons_t?> <?=solver_t?> <?=normal_t?> rotate <?=initCond_codeprefix?>
 
 #define <?=fluxFromCons?>(\
-	/*<?=cons_t?> const * const */F,\
+	/*<?=cons_t?> * const */F,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */U,\
 	/*<?=cell_t?> const * const */cell,\
@@ -300,49 +300,6 @@ end
 		(F)->d_lll = _3sym3_swap<?=side?>((F)->d_lll);\
 	}\
 	<? end ?>\
-}
-
-//// MODULE_NAME: <?=calcDTCell?>
-//// MODULE_DEPENDS: <?=SETBOUNDS?> <?=initCond_codeprefix?> <?=eqn_guiVars_compileTime?>
-
-#define <?=calcDTCell?>(\
-	/*global real * const */dt,\
-	/*constant <?=solver_t?> const * const */solver,\
-	/*global <?=cons_t?> const * const */U,\
-	/*global <?=cell_t?> const * const */cell\
-) {\
-	/* the only advantage of this calcDTCell over the default is that here this sqrt(f) and det(gamma_ij) is only called once */\
-	real const f_alphaSq = calc_f_alphaSq(U->alpha);\
-	real const det_gamma = sym3_det(U->gamma_ll);\
-	real const alpha_sqrt_f = sqrt(f_alphaSq);\
-	\
-	<? for side=0,solver.dim-1 do ?>{\
-		\
-		<? if side==0 then ?>\
-		real const gammaUjj = (U->gamma_ll.yy * U->gamma_ll.zz - U->gamma_ll.yz * U->gamma_ll.yz) / det_gamma;\
-		<? elseif side==1 then ?>\
-		real const gammaUjj = (U->gamma_ll.xx * U->gamma_ll.zz - U->gamma_ll.xz * U->gamma_ll.xz) / det_gamma;\
-		<? elseif side==2 then ?>\
-		real const gammaUjj = (U->gamma_ll.xx * U->gamma_ll.yy - U->gamma_ll.xy * U->gamma_ll.xy) / det_gamma;\
-		<? end ?>	\
-		real const sqrt_gammaUjj = sqrt(gammaUjj);\
-		real const lambdaLight = sqrt_gammaUjj * U->alpha;\
-		real const lambdaGauge = sqrt_gammaUjj * alpha_sqrt_f;\
-		\
-		real const lambda = (real)max(lambdaGauge, lambdaLight);\
-		\
-		<? if eqn.useShift ~= "none" then ?>\
-		real const betaUi = U->beta_u.s<?=side?>;\
-		<? else ?>\
-		real const betaUi = 0.;\
-		<? end ?>\
-		\
-		real const lambdaMin = (real)min((real)0., -betaUi - lambda);\
-		real const lambdaMax = (real)max((real)0., -betaUi + lambda);\
-		real absLambdaMax = max(fabs(lambdaMin), fabs(lambdaMax));\
-		absLambdaMax = max((real)1e-9, absLambdaMax);\
-		*(dt) = (real)min(*(dt), solver->grid_dx.s<?=side?> / absLambdaMax);\
-	}<? end ?>\
 }
 
 //// MODULE_NAME: <?=eigen_forCell?>
@@ -1337,10 +1294,10 @@ end
 	<?=waves_t?> waves;\
 	<?=eigen_leftTransform?>(&waves, solver, eig, inputU, (cell)->pos);\
 \
-	<?=eqn:eigenWaveCodePrefix(n, "eig", "x")?>\
+	<?=eqn:eigenWaveCodePrefix{n=n, eig="eig", pt="x"}?>\
 \
 <? for j=0,eqn.numWaves-1 do --\
-?>	waves.ptr[<?=j?>] *= <?=eqn:eigenWaveCode(n, "eig", "x", j)?>;\
+?>	waves.ptr[<?=j?>] *= <?=eqn:eigenWaveCode{n=n, eig="eig", pt="x", waveIndex=j}?>;\
 <? end --\
 ?>\
 	<?=eigen_rightTransform?>(result, solver, eig, &waves, (cell)->pos);\

@@ -225,7 +225,6 @@ function ADM_BonaMasso_3D:createInitState()
 end
 
 -- don't use default
-function ADM_BonaMasso_3D:initCodeModule_calcDTCell() end
 function ADM_BonaMasso_3D:initCodeModule_fluxFromCons() end
 
 function ADM_BonaMasso_3D:getModuleDepends_waveCode()
@@ -247,9 +246,11 @@ ADM_BonaMasso_3D.solverCodeFile = 'hydro/eqn/adm3d.cl'
 ADM_BonaMasso_3D.predefinedDisplayVars = {
 	'U alpha',
 	'U gamma_ll x x',
+	'U a_l x',
 	'U d_lll x x x',
 	'U K_ll x x',
 	'U V_l x',
+	'U K_ll tr weighted gamma^ij',	-- same as K = K^i_i = K_ij gamma^ij
 	'U H',
 	'U volume',
 	'U f',
@@ -441,6 +442,44 @@ function ADM_BonaMasso_3D:consWaveCode(args)
 	args.U = args.eig
 	args.eig = nil
 	return self:eigenWaveCode(args)
+end
+
+function ADM_BonaMasso_3D:consWaveCodeMinMaxAllSidesPrefix(args)
+	return self:template([[
+real const f_alphaSq = calc_f_alphaSq((<?=U?>)->alpha);
+real const det_gamma = sym3_det((<?=U?>)->gamma_ll);
+real const alpha_sqrt_f = sqrt(f_alphaSq);
+]], args)
+end
+
+--//// MODULE_DEPENDS: <?=SETBOUNDS?> <?=initCond_codeprefix?> <?=eqn_guiVars_compileTime?>
+function ADM_BonaMasso_3D:consWaveCodeMinMaxAllSides(args)
+	return self:template([[
+real gammaUjj = 0./0.;
+if ((<?=n?>).side == 0) {
+	gammaUjj = (U->gamma_ll.yy * U->gamma_ll.zz - U->gamma_ll.yz * U->gamma_ll.yz) / det_gamma;
+} else if ((<?=n?>).side == 1) {
+	gammaUjj = (U->gamma_ll.xx * U->gamma_ll.zz - U->gamma_ll.xz * U->gamma_ll.xz) / det_gamma;
+} else if ((<?=n?>).side == 2) {
+	gammaUjj = (U->gamma_ll.xx * U->gamma_ll.yy - U->gamma_ll.xy * U->gamma_ll.xy) / det_gamma;
+}
+real const sqrt_gammaUjj = sqrt(gammaUjj);
+real const lambdaLight = sqrt_gammaUjj * U->alpha;
+real const lambdaGauge = sqrt_gammaUjj * alpha_sqrt_f;
+
+real const lambda = (real)max(lambdaGauge, lambdaLight);
+
+<? if eqn.useShift ~= "none" then ?>
+real const betaUi = U->beta_u.s<?=side?>;
+<? else ?>
+real const betaUi = 0.;
+<? end ?>
+
+<?=eqn:waveCodeAssignMinMax(
+	declare, resultMin, resultMax,
+	'(real)min((real)0., -betaUi - lambda);',
+	'(real)max((real)0., -betaUi + lambda);')?>
+]], args)
 end
 
 return ADM_BonaMasso_3D

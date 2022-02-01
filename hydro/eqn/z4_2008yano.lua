@@ -21,6 +21,10 @@ local sym = common.sym
 local Z4_2008Yano = class(EinsteinEqn)
 Z4_2008Yano.name = 'z4_2008yano'
 
+-- TODO keep this as 'true' and instead implement 'fluxFromCons'
+-- because with this disabled the roe flux assumes dF/dU * U = F (right?)
+Z4_2008Yano.roeUseFluxFromCons = false
+
 function Z4_2008Yano:init(args)
 	
 	local fluxVars = table{
@@ -65,8 +69,10 @@ Z4_2008Yano.solverCodeFile = 'hydro/eqn/z4_2008yano.cl'
 Z4_2008Yano.predefinedDisplayVars = {
 	'U alpha',
 	'U gamma_ll x x',
+	'U a_l x',
 	'U d_lll_x x x',
 	'U K_ll x x',
+	'U K_ll tr weighted gamma^ij',
 	'U Theta',
 	'U Z_l x',
 	'U H',
@@ -119,25 +125,22 @@ Z4_2008Yano.eigenVars = table{
 	{name='sqrt_gammaUjj', type='real3'},
 }
 
-function Z4_2008Yano:eigenWaveCodePrefix(n, eig, x, waveIndex)
+function Z4_2008Yano:eigenWaveCodePrefix(args)
 	return template([[
-	real eig_lambdaLight = <?=eig?>->alpha * <?=eig?>->sqrt_gammaUjj.s[n.side];
-	real eig_lambdaGauge = eig_lambdaLight * <?=eig?>->sqrt_f;
-]], {
-		eig = '('..eig..')',
-		side = side,
-		n = n,
-	})
+real const eig_lambdaLight = (<?=eig?>)->alpha * (<?=eig?>)->sqrt_gammaUjj.s[(<?=n?>).side];
+real const eig_lambdaGauge = eig_lambdaLight * (<?=eig?>)->sqrt_f;
+]], args)
 end
 
-function Z4_2008Yano:eigenWaveCode(n, eig, x, waveIndex)
+function Z4_2008Yano:eigenWaveCode(args)
 	local betaUi
 	if self.useShift then
-		betaUi = '('..eig..')->beta_u.s[n.side]'
+		betaUi = '('..args.eig..')->beta_u.s[('..args.n..').side]'
 	else
 		betaUi = '0'
 	end
 
+	local waveIndex = args.waveIndex
 	if waveIndex == 0 then
 		return '-'..betaUi..' - eig_lambdaGauge'
 	elseif waveIndex >= 1 and waveIndex <= 6 then
@@ -152,24 +155,21 @@ function Z4_2008Yano:eigenWaveCode(n, eig, x, waveIndex)
 	error'got a bad waveIndex'
 end
 
-function Z4_2008Yano:consWaveCodePrefix(n, U, x, waveIndex)
+function Z4_2008Yano:consWaveCodePrefix(args)
 	return template([[
-	real det_gamma = sym3_det(<?=U?>->gamma_ll);
-	sym3 gamma_uu = sym3_inv(<?=U?>->gamma_ll, det_gamma);
-	real eig_lambdaLight;
-	if (n.side == 0) {
-		eig_lambdaLight = <?=U?>->alpha * sqrt(gamma_uu.xx);
-	} else if (n.side == 1) {
-		eig_lambdaLight = <?=U?>->alpha * sqrt(gamma_uu.yy);
-	} else if (n.side == 2) {
-		eig_lambdaLight = <?=U?>->alpha * sqrt(gamma_uu.zz);
-	}
-	real f = calc_f(<?=U?>->alpha);
-	real eig_lambdaGauge = eig_lambdaLight * sqrt(f);
-]], {
-		U = '('..U..')',
-		n = n,
-	})
+real const det_gamma = sym3_det((<?=U?>)->gamma_ll);
+sym3 const gamma_uu = sym3_inv((<?=U?>)->gamma_ll, det_gamma);
+real eig_lambdaLight = 0./0.;
+if ((<?=n?>).side == 0) {
+	eig_lambdaLight = (<?=U?>)->alpha * sqrt(gamma_uu.xx);
+} else if ((<?=n?>).side == 1) {
+	eig_lambdaLight = (<?=U?>)->alpha * sqrt(gamma_uu.yy);
+} else if ((<?=n?>).side == 2) {
+	eig_lambdaLight = (<?=U?>)->alpha * sqrt(gamma_uu.zz);
+}
+real const f = calc_f((<?=U?>)->alpha);
+real eig_lambdaGauge = eig_lambdaLight * sqrt(f);
+]], args)
 end
 Z4_2008Yano.consWaveCode = Z4_2008Yano.eigenWaveCode
 

@@ -143,6 +143,7 @@ function PoissonKrylov:initSolver()
 	local numRealsWithoutBorder = volumeWithoutBorder
 
 	local sum = solver.app.env:reduce{
+		secondPassInCPU = cmdline.secondPassInCPU,
 		count = numreals,
 		op = function(x,y) return x..' + '..y end,
 	}

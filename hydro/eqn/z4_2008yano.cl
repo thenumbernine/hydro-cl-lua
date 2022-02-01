@@ -1390,18 +1390,18 @@ end
 	}\
 \
 	/* input */\
-	real3 a_l = real3_swap((input)->a_l, n.side);							/* 0-2 */\
-	_3sym3 d_lll = _3sym3_swap((input)->d_lll, n.side);					/* 3-20 */\
-	sym3 K_ll = sym3_swap((input)->K_ll, n.side);							/* 21-26 */\
-	real Theta = (input)->Theta;											/* 27 */\
-	real3 Z_l = real3_swap((input)->Z_l, n.side);							/* 28-30 */\
+	real3 a_l = real3_swap((input)->a_l, n.side);			/* 0-2 */\
+	_3sym3 d_lll = _3sym3_swap((input)->d_lll, n.side);		/* 3-20 */\
+	sym3 K_ll = sym3_swap((input)->K_ll, n.side);			/* 21-26 */\
+	real Theta = (input)->Theta;							/* 27 */\
+	real3 Z_l = real3_swap((input)->Z_l, n.side);			/* 28-30 */\
 \
 	sym3 gamma_ll = sym3_swap((eig)->gamma_ll, n.side);\
 	sym3 gamma_uu = sym3_swap((eig)->gamma_uu, n.side);\
-	\
+\
 	real sqrt_f = (eig)->sqrt_f;\
 	real f = sqrt_f * sqrt_f;\
-	\
+\
 	real m = solver->m;\
 \
 	/* TODO this still needs to know what vars are going into it */\

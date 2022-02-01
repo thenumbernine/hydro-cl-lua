@@ -34,7 +34,7 @@ TODO looks like dF/dU * U = F only for euler equations,
 so which is correct in general? set this accordingly.
 
 Well, setting this to true uses 'F' as it is.
-Setting this to false uses dF/dW * U = F ... which is only true for Euler
+Setting this to false uses dF/dU * U = F ... which is only true for Euler
 Which means in general this should be set to 'true'.
 The averaged flux will always be correct
 but in the Roe scheme, the extra derivation is the wave propagated along the eigenvectors.
