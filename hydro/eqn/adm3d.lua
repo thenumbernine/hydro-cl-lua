@@ -1,5 +1,5 @@
 --[[
-Based on Alcubierre 2008 "Introduction to 3+1 Numerical Relativity" on the chapter on hyperbolic formalisms. 
+Based on Alcubierre 2008 "Introduction to 3+1 Numerical Relativity" on the chapter on hyperbolic formalisms.
 The first Bona-Masso formalism.
 --]]
 
@@ -16,6 +16,11 @@ local xNames = common.xNames
 local ADM_BonaMasso_3D = class(EinsteinEqn)
 ADM_BonaMasso_3D.name = 'ADM_BonaMasso_3D'
 
+-- TODO this should be 'true',
+-- 'true' uses 'fluxfromCons', which is failing
+-- 'false' uses the assumption dF/dU * U = F, which works, but may not be correct for these equations
+ADM_BonaMasso_3D.roeUseFluxFromCons = false
+
 --[[
 args:
 noZeroRowsInFlux = true by default.
@@ -27,7 +32,7 @@ useShift
 	
 	useShift = 'MinimalDistortionElliptic' -- minimal distortion elliptic via Poisson relaxation.  Alcubierre's book, eqn 4.3.14 and 4.3.15
 	
-	useShift = 'MinimalDistortionEllipticEvolve' -- minimal distortion elliptic via evolution.  eqn 10 of 1996 Balakrishna et al "Coordinate Conditions and their Implementations in 3D Numerical Relativity" 
+	useShift = 'MinimalDistortionEllipticEvolve' -- minimal distortion elliptic via evolution.  eqn 10 of 1996 Balakrishna et al "Coordinate Conditions and their Implementations in 3D Numerical Relativity"
 
 	useShift = '2005 Bona / 2008 Yano'
 	-- 2008 Yano et al, from 2005 Bona et al "Geometrically Motivated..."
@@ -50,9 +55,9 @@ useShift
 	4) Lagrangian coordinates
 	and this should be a separate variable, separate of the shift gauge
 
-	so 
+	so
 	one variable for what beta^i_,t is
-	another variable for how to 
+	another variable for how to
 	--]=]
 --]]
 function ADM_BonaMasso_3D:init(args)
@@ -81,13 +86,13 @@ function ADM_BonaMasso_3D:init(args)
 	This question is split into a) and b):
 	a) How are the source-only variables iterated wrt beta^i?
 	options:
-	1) put the Lie derivative terms into the source side of these variables 
+	1) put the Lie derivative terms into the source side of these variables
 	2) give them -beta^i eigenvalues?  this is the equivalent of rewriting the hyperbolic vars associated with these (a_i,d_kij) back into first-derivative 0th order vars (alpha, gamma_ij)
 
 	b) How are the flux variables iterated wrt beta^i?
 	options:
-	1) this would be solved by offsetting the eigenvalues 
-		with the offset eigenvalues, 
+	1) this would be solved by offsetting the eigenvalues
+		with the offset eigenvalues,
 		the hyperbolic state vars' contributions get incorporated into the flux,
 		but there are still some shift-based terms that end up in the source ...
 		... so the shift is split between the flux and source ...
@@ -102,8 +107,8 @@ function ADM_BonaMasso_3D:init(args)
 	if self.useShift ~= 'none' then
 		self.consVars:insert{name='beta_u', type='real3'}
 
-		if self.useShift == 'MinimalDistortionElliptic' 
-		or self.useShift == 'MinimalDistortionEllipticEvolve' 
+		if self.useShift == 'MinimalDistortionElliptic'
+		or self.useShift == 'MinimalDistortionEllipticEvolve'
 		then
 			self.consVars:insert{name='betaLap_u', type='real3'}
 		end
@@ -149,13 +154,13 @@ function ADM_BonaMasso_3D:init(args)
 			{name='rho', type='real'},					--1: n_a n_b T^ab
 			{name='S_u', type='real3'},				--3: -gamma^ij n_a T_aj
 			{name='S_ll', type='sym3'},				--6: gamma_i^c gamma_j^d T_cd
-		}								
+		}
 	end
 	self.consVars:append{
-		--constraints:              
+		--constraints:
 		{name='H', type='real'},					--1
 		{name='M_u', type='real3'},				--3
-		-- TODO stress constraint as well?  
+		-- TODO stress constraint as well?
 	}
 
 	self.eigenVars = table{
@@ -172,7 +177,7 @@ function ADM_BonaMasso_3D:init(args)
 	end
 
 	
-	-- build stuff around consVars	
+	-- build stuff around consVars
 	ADM_BonaMasso_3D.super.init(self, args)
 
 
@@ -280,7 +285,7 @@ and n_a = -alpha t_,a (B&S eqns 2.19, 2.22, 2.24)
 momentum constraints
 --]]
 		{H = [[
-	.5 * 
+	.5 *
 ]]		},
 --]=]
 	}
@@ -302,7 +307,7 @@ momentum constraints
 			local xi = xNames[i]
 		?>{
 			real partial_i_log_alpha = (
-				log(U[solver->stepsize.<?=xi?>].alpha) 
+				log(U[solver->stepsize.<?=xi?>].alpha)
 				- log(U[-solver->stepsize.<?=xi?>].alpha)
 			) / (2. * solver->grid_dx.s<?=i-1?>);
 			value.vreal3.<?=xi?> = fabs(partial_i_log_alpha - U->a_l.<?=xi?>);
@@ -324,9 +329,9 @@ momentum constraints
 		<? if i <= solver.dim then ?>
 		sym3 partial_i_gamma_ll = sym3_real_mul(
 			sym3_sub(
-				U[solver->stepsize.<?=xi?>].gamma_ll, 
+				U[solver->stepsize.<?=xi?>].gamma_ll,
 				U[-solver->stepsize.<?=xi?>].gamma_ll
-			), 
+			),
 			1. / (2. * solver->grid_dx.s<?=i-1?>)
 		);
 		<? else ?>
@@ -334,7 +339,7 @@ momentum constraints
 		<? end ?>
 		value.vsym3 = sym3_sub(sym3_real_mul(partial_i_gamma_ll, .5), U->d_lll.<?=xi?>);
 		value.vsym3 = (sym3){<?
-	for jk,xjk in ipairs(symNames) do 
+	for jk,xjk in ipairs(symNames) do
 ?>			.<?=xjk?> = fabs(value.vsym3.<?=xjk?>),
 <?	end
 ?>		};
@@ -402,7 +407,7 @@ function ADM_BonaMasso_3D:eigenWaveCode(args)
 		elseif args.waveIndex == 29 then
 			return '-'..betaUi..' + eig_lambdaGauge'
 		end
-	else	-- noZeroRowsInFlux 
+	else	-- noZeroRowsInFlux
 		-- noZeroRowsInFlux implies useShift == 'none'
 		if args.waveIndex == 0 then
 			return '-'..betaUi..' - eig_lambdaGauge'
