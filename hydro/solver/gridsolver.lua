@@ -49,6 +49,8 @@ function GridSolver:getSymbolFields()
 		'SETBOUNDS',
 		'SETBOUNDS_NOGHOST',
 		'updateCTU',
+		'slopeLimiter',
+		'calcLR',
 	}
 end
 
@@ -316,14 +318,12 @@ functionality (and abstraction):
 
 	if self.usePLM then
 		self.modules:add{
-			name = 'slopeLimiter',
-			code = template([[
-real slopeLimiter(real r) {
+			name = self.symbols.slopeLimiter,
+			code = self.eqn:template[[
+real <?=slopeLimiter?>(real r) {
 	<?=solver.app.limiters[solver.slopeLimiter].code?>
 }
-]],			{
-				solver = self,
-			}),
+]],
 		}
 		
 		self.modules:add{
@@ -345,7 +345,7 @@ typedef struct {
 		}
 
 		self.modules:addFromMarkup(self.eqn:template(file['hydro/solver/plm.cl']))
-		self.solverModulesEnabled['calcLR'] = true
+		self.solverModulesEnabled[self.symbols.calcLR] = true
 	end
 
 	if self.useCTU then
@@ -440,7 +440,7 @@ function GridSolver:refreshSolverProgram()
 	GridSolver.super.refreshSolverProgram(self)
 
 	if self.usePLM then
-		self.calcLRKernelObj = self.solverProgramObj:kernel'calcLR'
+		self.calcLRKernelObj = self.solverProgramObj:kernel(self.symbols.calcLR)
 	end
 	if self.useCTU then
 		-- currently implemented in hydro/solver/roe.cl

@@ -1,4 +1,4 @@
-//// MODULE_NAME: calcLR
+//// MODULE_NAME: <?=calcLR?>
 //// MODULE_DEPENDS: <?=consLR_t?> <?=solver_t?> <?=cons_t?> <?=normal_t?> <?=cell_dx_i?>
 
 // TODO incorporate parallel propagators
@@ -108,8 +108,8 @@ for sgn b >= 0:
 */
 #if 1
 		real r = dUR == 0 ? 0 : (dUL / dUR);
-//// MODULE_DEPENDS: slopeLimiter
-		real phi = slopeLimiter(r);	//works good with minmod, bad with superbee
+//// MODULE_DEPENDS: <?=slopeLimiter?>
+		real phi = <?=slopeLimiter?>(r);	//works good with minmod, bad with superbee
 		real sigma = phi * dUR;
 #else	//isn't as accurate anyways
 		real sigma = minmod(minmod(fabs(dUL), 
@@ -184,8 +184,8 @@ void calcCellLR_<?=side?>(
 		real dUR = UR->ptr[j] - U->ptr[j];
 		real dUL = U->ptr[j] - UL->ptr[j];
 		real r = dUR == 0 ? 0 : (dUL / dUR);
-//// MODULE_DEPENDS: slopeLimiter
-		real phi = slopeLimiter(r);	//works good with minmod, bad with superbee
+//// MODULE_DEPENDS: <?=slopeLimiter?>
+		real phi = <?=slopeLimiter?>(r);	//works good with minmod, bad with superbee
 		real sigma = phi * dUR;
 		result->L.ptr[j] -= .5 * sigma;
 		result->R.ptr[j] += .5 * sigma;
@@ -243,8 +243,8 @@ void calcCellLR_<?=side?>(
 		real dWR = WR.ptr[j] - W.ptr[j];
 		real dWL = W.ptr[j] - WL.ptr[j];
 		real r = dWR == 0 ? 0 : (dWL / dWR);
-//// MODULE_DEPENDS: slopeLimiter
-		real phi = slopeLimiter(r);
+//// MODULE_DEPENDS: <?=slopeLimiter?>
+		real phi = <?=slopeLimiter?>(r);
 		real sigma = phi * dWR;
 		nWL.ptr[j] -= .5 * sigma;
 		nWR.ptr[j] += .5 * sigma;
@@ -349,8 +349,8 @@ void calcCellLR_<?=side?>(
 <? if false then ?>
 #if 0
 		real r = dUREig.ptr[j] == 0 ? 0 : (dULEig.ptr[j] / dUREig.ptr[j]);
-//// MODULE_DEPENDS: slopeLimiter
-		real phi = slopeLimiter(r);
+//// MODULE_DEPENDS: <?=slopeLimiter?>
+		real phi = <?=slopeLimiter?>(r);
 		real sigma = phi * dUREig.ptr[j];
 		dUMEig.ptr[j] = sigma;
 
@@ -358,8 +358,8 @@ void calcCellLR_<?=side?>(
 <? end ?>
 
 //This one is symmetric, unlike the above center-slope-based methods.
-// It also takes into account the center slope, unlike the slopeLimiter() options.
-// However it is fixed to minmod and does not use the modular slopeLimiter() option.
+// It also takes into account the center slope, unlike the <?=slopeLimiter?>() options.
+// However it is fixed to minmod and does not use the modular <?=slopeLimiter?>() option.
 #if 1	
 		//dUMEig.ptr[j] = minmod(minmod(2. * dULEig.ptr[j], 2. * dUREig.ptr[j]), dUCEig.ptr[j]);
 		dUMEig.ptr[j] = dULEig.ptr[j] * dUREig.ptr[j] < 0 ? 0 : (
@@ -1058,7 +1058,7 @@ void calcCellLR_<?=side?>(
 
 	elseif solver.usePLM == 'plm-athena' then 
 
--- TODO correlate between calcCellLR's U access and <?=SETBOUNDS?> of calcLR()
+-- TODO correlate between calcCellLR's U access and <?=SETBOUNDS?> of <?=calcLR?>()
 -- to make sure there's no OOB reads
 ?>
 
@@ -1080,7 +1080,7 @@ void calcCellLR_<?=side?>(
 end
 ?>
 
-kernel void calcLR(
+kernel void <?=calcLR?>(
 	constant <?=solver_t?> const * const solver,
 	global <?=cell_t?> const * const cellBuf,
 	global <?=consLR_t?> * const ULRBuf,
