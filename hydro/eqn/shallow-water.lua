@@ -126,10 +126,11 @@ function ShallowWater:resetState()
 
 	-- 1-channel, 16-bit signed, negative = below sea level
 	-- 4320x2160
-	local image = Image'bathymetry/world - pacific.tif'
-		:resize(
-			tonumber(solver.sizeWithoutBorder.x),
-			tonumber(solver.sizeWithoutBorder.y))
+	local filename = 'bathymetry/world - pacific.tif'
+	local image = Image(filename)
+	image = image:resize(
+		tonumber(solver.sizeWithoutBorder.x),
+		tonumber(solver.sizeWithoutBorder.y))
 
 	local cpuU = solver.UBufObj:toCPU()
 	local cpuCell

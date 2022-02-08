@@ -30,8 +30,8 @@ which, when using evR . lambda . evL, developed numerical errors that the flux d
 
 I think other equations were better performing without this, like Euler.
 
-TODO looks like dF/dU * U = F only for euler equations,
-so which is correct in general? set this accordingly.
+if this is true then the equation must have the Homogeneity property (2009 Toro book, proposition 3.4)
+dF/dU * U = F
 
 Well, setting this to true uses 'F' as it is.
 Setting this to false uses dF/dU * U = F ... which is only true for Euler
@@ -40,6 +40,7 @@ The averaged flux will always be correct
 but in the Roe scheme, the extra derivation is the wave propagated along the eigenvectors.
 So in that case, is the propagated wave a dU, which would be correct: dF/dU * dU = dF.
 Or do we have to find a new eigenfunction not of the flux Jacobian?
+
 --]]
 Equation.roeUseFluxFromCons = true
 

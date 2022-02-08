@@ -62,7 +62,13 @@ args:
 --]]
 function GridSolver:initMeshVars(args)
 	GridSolver.super.initMeshVars(self, args)
-
+	
+	-- where does this go ...
+	self.numGhost = args.numGhost
+	if self.verbose then
+		print('numGhost = '..self.numGhost)
+	end
+	
 	-- same as equations
 	-- but let equations/init conds add to the solver vars (as gui vars)
 	-- then we can edit them without recompiling the kernels

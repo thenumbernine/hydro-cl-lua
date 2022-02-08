@@ -500,17 +500,21 @@ local initConds = table{
 	-- 2017 Zingale section 7.9.3
 	{
 		name = 'gaussian',
-		guiVars = {
-			{name = 'rho0', value = 1e-3},
-			{name = 'rho1', value = 1},
-			{name = 'sigma', value = .1},
-			{name = 'u0', value = 0},
-			{name = 'v0', value = 0},
-			{name = 'P0', value = 1e-6},
-			{name = 'x0', value = -.5},
-			{name = 'y0', value = -.5},
-			{name = 'z0', value = 0},
-		},
+		createInitStruct = function(self)
+			EulerInitCond.createInitStruct(self)
+			local args = self.args or {}
+			self:addGuiVars{
+				{name = 'rho0', value = args.rho0 or 1e-3},
+				{name = 'rho1', value = args.rho1 or 1},
+				{name = 'sigma', value = args.sigma or .1},
+				{name = 'u0', value = args.u0 or 0},
+				{name = 'v0', value = args.v0 or 0},
+				{name = 'P0', value = args.P0 or 1e-6},
+				{name = 'x0', value = args.x0 or -.5},
+				{name = 'y0', value = args.y0 or -.5},
+				{name = 'z0', value = args.z0 or 0},
+			}
+		end,
 		getDepends = function(self)
 			return table{
 				self.solver.coord.symbols.coordMap,
@@ -1496,11 +1500,6 @@ end
 	-- derived from Athena Kelvin-Helmholtz I think
 	{
 		name = 'Kelvin-Helmholtz',
-		getDepends = function(self)
-			return table{
-				self.solver.coord.symbols.cartesianFromCoord,
-			}
-		end,
 		createInitStruct = function(self)
 			EulerInitCond.createInitStruct(self)
 			local args = self.args or {}
@@ -1535,7 +1534,11 @@ end
 				{name = 'velOutside', value = args.velOutside or .5},
 			}
 		end,
-
+		getDepends = function(self)
+			return table{
+				self.solver.coord.symbols.cartesianFromCoord,
+			}
+		end,
 		getInitCondCode = function(self)
 			local solver = assert(self.solver)
 			local boundaryMethods = {}

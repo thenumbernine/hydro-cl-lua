@@ -9,7 +9,7 @@ Euler.name = 'euler'
 -- ePot is the 6th param
 -- which means it's now in the derivBuf, but it is always zero
 -- so TODO a new variable for deriv size vs cons_t size?
---Euler.numStates = 6	
+--Euler.numStates = 6
 
 Euler.numWaves = 5
 Euler.numIntStates = 5	-- don't bother integrate ePot
@@ -32,13 +32,13 @@ function Euler:init(args)
 				potentialField = 'mPot',	-- TODO don't store this
 			
 				--[=[ using div (m/rho) = 0, solve for div m:
-				-- TODO field as a read function, and just read 
+				-- TODO field as a read function, and just read
 				vectorField = 'm',
 			
 				-- div v = 0
 				-- div (m/ρ) = 0
 				-- 1/ρ div m - 1/ρ^2 m dot grad ρ = 0
-				-- div m = (m dot grad ρ)/ρ 
+				-- div m = (m dot grad ρ)/ρ
 				chargeCode = self:template[[
 	<? for j=0,solver.dim-1 do ?>{
 		global <?=cons_t?> const * const Ujm = U - solver->stepsize.s<?=j?>;
@@ -80,7 +80,7 @@ function Euler:init(args)
 				--]=]
 			})
 		else
---[=[ still working on this ...			
+--[=[ still working on this ...
 			-- TODO instead of separating this from NoDiv, just abstract the face iteration
 			-- but you still have to deal with extra buffers
 			-- and then there's the biggest can of worms:
@@ -92,7 +92,7 @@ function Euler:init(args)
 				potentialField = 'mPot',
 				vectorField = 'm',
 			})
---]=]	
+--]=]
 		end
 	end
 
@@ -104,8 +104,8 @@ function Euler:init(args)
 		-- using .01 with Kelvin-Helmholtz is noticeable
 		-- using anything higher tends to explode with explicit update
 		self.shearViscosity = args.shearViscosity or materials.Air.shearViscosity
-		self.heatConductivity = args.heatConductivity or materials.Air.heatConductivity	
-		
+		self.heatConductivity = args.heatConductivity or materials.Air.heatConductivity
+
 		if self.viscosity == 'rhs-explicit' then
 			solver.ops:insert(require 'hydro.op.viscous-explicit'{
 				solver = solver,
@@ -120,6 +120,8 @@ function Euler:init(args)
 			solver.ops:insert(require 'hydro.op.viscous-flux'{
 				solver = solver,
 			})
+		else
+			error("got an unknown viscosity method: "..self.viscosity)
 		end
 	end
 end
@@ -149,7 +151,7 @@ function Euler:buildVars(args)
 	-- this has turned very ugly
 	-- since some eqns have no prim_t and have it typedef'd to cons_t
 	-- and that is determined by primVars==nil
-	-- that means we can't assign a default empty primVars and 
+	-- that means we can't assign a default empty primVars and
 	-- have to check for primVars' existence
 	self.primVars = self.primVars or table()
 	self.consVars = self.consVars or table()
@@ -192,7 +194,7 @@ end
 function Euler:createInitState()
 	Euler.super.createInitState(self)
 	local double = false --solver.app.real == 'double'
-	self:addGuiVars{	
+	self:addGuiVars{
 		{name='heatCapacityRatio', value=7/5},				-- unitless
 		{name='rhoMin', value=double and 1e-15 or 1e-7, units='kg/m^3'},
 		{name='PMin', value=double and 1e-15 or 1e-7, units='kg/(m*s^2)'},
@@ -214,7 +216,7 @@ function Euler:initCodeModule_calcDTCell()
 ]]))
 end
 
-function Euler:getModuleDepends_displayCode() 
+function Euler:getModuleDepends_displayCode()
 	return table(Euler.super.getModuleDepends_displayCode(self)):append(
 		self.gravOp and {
 			self.gravOp.symbols.calcGravityAccel,
@@ -246,7 +248,7 @@ Euler.predefinedDisplayVars = {
 	'U v y',
 	'U v z',
 --]]
---[[	
+--[[
 	'U ePot',
 	'U EPot',
 	'U gravity',
@@ -288,7 +290,7 @@ function Euler:getDisplayVars()
 	)
 
 	vars:insert(self:createDivDisplayVar{
-		field = 'v', 
+		field = 'v',
 		getField = function(U, j)
 			return U..'->m.s'..j..' / '..U..'->rho'
 		end,
@@ -399,8 +401,8 @@ scratch work:
 P V = n R T = m R_spec T
 ideal gas EOS: P V_m = R T
 T = T_C + 273.15' C
-R = gas constant = 8.314459848 J / (mol K) 
-R_spec = 287.058 J / (kg K) for dry air 
+R = gas constant = 8.314459848 J / (mol K)
+R_spec = 287.058 J / (kg K) for dry air
 R_spec = R / M = k_B / m
 M = molar mass
 k_B = Boltzmann constant = 1.3806485279e-23 J / K
@@ -421,8 +423,8 @@ P = ρ (C_p - C_v) e_int / C_v = ρ (C_p / C_v - 1) e_int
 
 using some real-world numbers ...
 P = (gamma - 1) ρ e_int
-101325 kg / (m s^2) = (C_p - C_v) / C_v (1.2754 kg / m^3) C_v T 
-101325 kg / (m s^2) = (1006 - 717.1) J / (kg K) (1.2754 kg / m^3) T 
+101325 kg / (m s^2) = (C_p - C_v) / C_v (1.2754 kg / m^3) C_v T
+101325 kg / (m s^2) = (1006 - 717.1) J / (kg K) (1.2754 kg / m^3) T
 T = 274.99364522457 K
 T = 1.8436452245715 C ... should be
 --]]

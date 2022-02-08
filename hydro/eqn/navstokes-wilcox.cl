@@ -203,17 +203,17 @@ end
 ) {\
 	<?=prim_t?> W;\
 	<?=primFromCons?>(&W, solver, U, (cell)->pos);\
-	real const vTilde_j = W.vTilde.s[n.side];\
+	real const vTilde_n = normal_vecDotN1(n, W.vTilde);\
 	\
 	/* this is the flux term used, but is it technically called 'HTotal' ? */\
 	/* 'HTotal' = rhoBar (1/2 vTilde^2 + (1 - 2/3/gamma_1) k) + 1/gamma_1 PStar ... + PStar */\
 	/* 'HTotal' = rhoBar (1/2 vTilde^2 + (1 - 2/3 C_v/R) k) + (1 + C_v/R) PStar */\
 	/* 'hTotal' = 1/2 vTilde^2 + (1 - 2/3 C_v/R) k + (1 + C_v/R) PStar / rhoBar */\
 	real const HTotal = (U)->rhoBar_eTotalTilde + W.PStar;\
-	\
+\
 	(resultFlux)->rhoBar = (U)->rhoBar_vTilde.s[n.side];\
-	(resultFlux)->rhoBar_vTilde = real3_real_mul((U)->rhoBar_vTilde, vTilde_j);\
-	\
+	(resultFlux)->rhoBar_vTilde = real3_real_mul((U)->rhoBar_vTilde, vTilde_n);\
+\
 	if (false) {}\
 <? for side=0,2 do --\
 ?>	else if (n.side == <?=side?>) {\
@@ -222,9 +222,9 @@ end
 <? end --\
 ?>	}\
 <? end --\
-?>	(resultFlux)->rhoBar_eTotalTilde = HTotal * vTilde_j;\
-	(resultFlux)->rhoBar_k = 0;\
-	(resultFlux)->rhoBar_omega = 0;\
+?>	(resultFlux)->rhoBar_eTotalTilde = HTotal * vTilde_n;\
+	(resultFlux)->rhoBar_k = (U)->rhoBar_k * vTilde_n;\
+	(resultFlux)->rhoBar_omega = (U)->rhoBar_omega * vTilde_n;\
 	(resultFlux)->ePot = 0;\
 }
 

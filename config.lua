@@ -5,7 +5,7 @@ and no more setting config values (boundary, etc) in the init cond file
 local constants = require 'hydro.constants'
 local materials = require 'hydro.materials'
 
-local dim = cmdline.dim or 1
+local dim = cmdline.dim or 2
 local args = {
 	app = self,
 	eqn = cmdline.eqn,
@@ -45,8 +45,8 @@ local args = {
 	--									-- -184 = no plm, monotized central flux limiter
 	--usePLM = 'piecewise-constant',	-- -84		degenerate case.  don't use this, instead just disable usePLM, or else this will allocate more memory / run more functions.
 	--usePLM = 'plm-cons',				-- -190
-	usePLM = 'plm-cons-alone',		-- -177
-	--usePLM = 'plm-prim-alone',		-- -175
+	--usePLM = 'plm-cons-alone',		-- -177
+	usePLM = 'plm-prim-alone',		-- -175
 	--usePLM = 'plm-eig',				-- -88		\
 	--usePLM = 'plm-eig-prim',			-- -88		 - these have less sharp shock wave in Sod than the non-eig ones
 	--usePLM = 'plm-eig-prim-ref',		-- -28 		/
@@ -61,7 +61,7 @@ local args = {
 
 	-- this is functional without usePLM, but doing so falls back on the cell-centered buffer, which with the current useCTU code will update the same cell twice from different threads
 	-- TODO this seems to introduce more diagonal waves for SRHD
-	--useCTU = true,
+	useCTU = true,
 	
 	-- [[ Cartesian
 	coord = 'cartesian',
@@ -142,12 +142,12 @@ local args = {
 		}
 	)[dim],
 	boundary = type(cmdline.boundary) == 'table' and cmdline.boundary or {
-		xmin = cmdline.boundary or 'mirror',
-		xmax = cmdline.boundary or 'mirror',
-		ymin = cmdline.boundary or 'mirror',
-		ymax = cmdline.boundary or 'mirror',
-		zmin = cmdline.boundary or 'mirror',
-		zmax = cmdline.boundary or 'mirror',
+		xmin = cmdline.boundary or 'periodic',
+		xmax = cmdline.boundary or 'periodic',
+		ymin = cmdline.boundary or 'periodic',
+		ymax = cmdline.boundary or 'periodic',
+		zmin = cmdline.boundary or 'periodic',
+		zmax = cmdline.boundary or 'periodic',
 	},
 	--]]
 	--[[ cylinder
@@ -274,8 +274,17 @@ local args = {
 	
 	--initCond = 'random',
 	--initCond = 'linear',
-	--initCond = 'gaussian',
 	--initCond = 'advect wave',
+	initCond = 'gaussian',
+	-- [[
+	initCondArgs = {
+		rho0 = 1,
+		rho1 = 3,
+		P0 = 1,
+		u0 = 1,
+		v0 = 1,
+	},
+	--]]
 	
 	--initCond = 'sphere',
 	
@@ -313,7 +322,7 @@ local args = {
 	--initCond = 'jet',
 	
 
-	initCond = 'Sod',
+	--initCond = 'Sod',
 	--initCondArgs = {dim=cmdline.displayDim},
 	--[[ real-world vars for Sod ... which are a few orders higher, and therefore screw up the backward-euler solver
 	-- 		which means, todo, redo the backward euler error metric so it is independent of magnitude ... ?   seems I removed that for another numerical error reason.
@@ -350,7 +359,15 @@ local args = {
 	--initCond = 'Sedov',
 	--initCond = 'Noh',
 	--initCond = 'implosion',
+	
 	--initCond = 'Kelvin-Helmholtz',
+	--[[
+	initCondArgs = {
+		noiseAmplitude = 1e-5,
+		thickness = 1e-5,
+	},
+	--]]
+	
 	--initCond = 'Rayleigh-Taylor',	--FIXME ... get initial / static hydro potential working
 	--initCond = 'Taylor-Green',	-- should only work with viscosity
 	--initCond = 'Colella-Woodward',
@@ -673,10 +690,28 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn
 -- shallow water equations
 
 
---self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='shallow-water'})))
+--self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='shallow-water', cfl=.01})))
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='shallow-water'})))
 --self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='shallow-water', wenoMethod='1996 Jiang Shu', order=5})))
 --self.solvers:insert(require 'hydro.solver.fdsolver'(table(args, {eqn='shallow-water'})))
+
+--[[ keep my configuration for the 2D world shallow water simulation in one place
+-- roe seems to have less waves than hll
+-- RK2 TVD seems to dissipate waves more than FE.  RK4 TVD even better.
+-- and the bathymetry file is 4320x2160
+self.solvers:insert(require 'hydro.solver.weno'(table(args, {
+	eqn = 'shallow-water',
+	dim = 2,
+	integrator = 'Runge-Kutta 4, TVD',
+	wenoMethod = '1996 Jiang Shu',
+	order = 5,
+	coord = 'cartesian',
+	coordArgs = {vectorComponent='cartesian'},
+	mins = {-180, -90, -1},
+	maxs = {180, 90, 1},
+	gridSize = {432, 216},
+})))
+--]]
 
 
 -- compressible Euler equations
@@ -684,16 +719,16 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn
 
 self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
 
-self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct bounded'})))	-- this is the default hllCalcWaveMethod
-self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct'})))
+--self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct bounded'})))	-- this is the default hllCalcWaveMethod
+--self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct'})))
 
-self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='rusanov', eqn='euler'})))
+--self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='rusanov', eqn='euler'})))
 
 --self.solvers:insert(require 'hydro.solver.fdsolver'(table(args, {eqn='euler'})))
 
-self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='euler-hllc', eqn='euler', fluxArgs={hllcMethod=0}})))
-self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='euler-hllc', eqn='euler', fluxArgs={hllcMethod=1}})))
-self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='euler-hllc', eqn='euler', fluxArgs={hllcMethod=2}})))
+--self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='euler-hllc', eqn='euler', fluxArgs={hllcMethod=0}})))
+--self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='euler-hllc', eqn='euler', fluxArgs={hllcMethod=1}})))
+--self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='euler-hllc', eqn='euler', fluxArgs={hllcMethod=2}})))
 
 -- NOTICE, these are very accurate with RK4, etc., but incur oscillations with Forward-Euler
 -- TODO weno doesn't seem to work with self-gravitation
@@ -744,6 +779,18 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='euler-hll
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler', eqnArgs={incompressible=true, viscosity='rhs-explicit'}})))
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler', eqnArgs={incompressible=true, viscosity='rhs-implicit'}})))
 
+--[[ messing with viscosity settings
+self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {
+	flux = 'roe',
+	eqn = 'euler',
+	eqnArgs = {
+		--incompressible = true,
+		viscosity = 'rhs-explicit',
+		shearViscosity = .001,
+		heatConductivity = .02,
+	}
+})))
+--]]
 
 -- compressible Euler equations, based on primitive vars
 -- only works with eigensystem-based solvers (since idk how to solve the flux vector of the primitive system)

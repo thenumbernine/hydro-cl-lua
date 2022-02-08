@@ -396,7 +396,8 @@ kernel void <?=addSource?>(
 		deriv->m,
 		real3_real_mul(
 			e_depth_u,
-			solver->gravity * U->h
+			solver->gravity 
+			* U->h	// cell->depth
 		)
 	);
 #endif
