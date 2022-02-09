@@ -62,7 +62,7 @@ local args = {
 	-- this is functional without usePLM, but doing so falls back on the cell-centered buffer, which with the current useCTU code will update the same cell twice from different threads
 	-- TODO this seems to introduce more diagonal waves for SRHD
 	useCTU = true,
-	
+
 	-- [[ Cartesian
 	coord = 'cartesian',
 	--coordArgs = {vectorComponent='holonomic'},		-- use the coordinate derivatives to represent our vector components (though they may not be normalized)

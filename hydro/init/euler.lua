@@ -497,7 +497,7 @@ local initConds = table{
 		end,
 	},
 	
-	-- 2017 Zingale section 7.9.3
+	-- 2017 Zingale "Introduction to Computational Astrophysics" section 7.9.3
 	{
 		name = 'gaussian',
 		createInitStruct = function(self)

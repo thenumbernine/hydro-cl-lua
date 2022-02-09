@@ -247,7 +247,7 @@ if self.checkNaNs then assert(self:checkFinite(self.fluxBufObj)) end
 if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
 if self.checkNaNs then assert(self:checkFinite(derivBufObj)) end
 
--- [=[ this is from the 2017 Zingale book
+-- [=[ this is from the 2017 Zingale "Introduction to Computational Astrophysics"
 	if self.useCTU then
 if self.checkNaNs then assert(self:checkFinite(derivBufObj)) end
 		-- if we're using CTU then ...

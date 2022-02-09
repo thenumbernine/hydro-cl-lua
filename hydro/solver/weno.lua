@@ -421,7 +421,7 @@ function WENO:calcDeriv(derivBufObj, dt)
 --	self.calcFluxKernelObj.obj:setArg(4, self.fluxCellBuf)
 	self.calcFluxKernelObj()
 
--- [=[ this is from the 2017 Zingale book
+-- [=[ this is from the 2017 Zingale "Introduction to Computational Astrophysics"
 	if self.useCTU then
 		self:boundary()
 		-- if we're using CTU then ...
