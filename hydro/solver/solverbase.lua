@@ -342,39 +342,45 @@ TODO TODO put this in its own function: ":createIdentSerializationTable" or some
 --]]
 function SolverBase:init(args)
 
--- save for later
--- right now this is only used for serialization of the config of the solver,
--- which used to be used for caching binaries for fast compiling
--- but now that the code/obj names have their mem locs in them, the serialize str is dif every time
--- so i need to fix that
--- adn i need to fix this
-self.initArgsForSerialization = table(args)
--- remove/replace object references
-self.initArgsForSerialization.app = nil
-self.initArgsForSerialization.solver = getmetatable(self).name	-- not in initArgsForSerialization but is unique
-if self.initArgsForSerialization.subsolverClass then
-	self.initArgsForSerialization.subsolverClass = self.initArgsForSerialization.subsolverClass.name
-end
--- remove compile-time variables
-self.initArgsForSerialization.fixedDT = nil
-self.initArgsForSerialization.cfl = nil
-self.initArgsForSerialization.mins = nil
-self.initArgsForSerialization.maxs = nil
-self.initArgsForSerialization.gridSize = nil
-self.initArgsForSerialization.cmds = nil		-- in choppedup
-self.initArgsForSerialization.device = nil		-- in choppedup
-self.initArgsForSerialization.id = nil			-- in choppedup
--- also include # devices.  since, on the nvidia cluster, the binaries compiled for 1 device will segfault if they are loaded when using >1 device
-self.initArgsForSerialization.numDevices = #args.app.env.devices
--- hmm, this is defeating the whole purpose of this, ...
--- but thanks to some function serialization in BoundaryFixed ... i'm getting rid of boundary as well
-self.initArgsForSerialization.mesh = nil
+
+-- [[ save this for later
+	-- right now this is only used for serialization of the config of the solver,
+	-- which used to be used for caching binaries for fast compiling
+	-- but now that the code/obj names have their mem locs in them, the serialize str is dif every time
+	-- so i need to fix that
+	-- adn i need to fix this
+	self.initArgsForSerialization = table(args)
+	-- remove/replace object references
+	self.initArgsForSerialization.app = nil
+	self.initArgsForSerialization.solver = getmetatable(self).name	-- not in initArgsForSerialization but is unique
+	if self.initArgsForSerialization.subsolverClass then
+		self.initArgsForSerialization.subsolverClass = self.initArgsForSerialization.subsolverClass.name
+	end
+	-- remove compile-time variables
+	self.initArgsForSerialization.fixedDT = nil
+	self.initArgsForSerialization.cfl = nil
+	self.initArgsForSerialization.mins = nil
+	self.initArgsForSerialization.maxs = nil
+	self.initArgsForSerialization.gridSize = nil
+	self.initArgsForSerialization.cmds = nil		-- in choppedup
+	self.initArgsForSerialization.device = nil		-- in choppedup
+	self.initArgsForSerialization.id = nil			-- in choppedup
+	-- also include # devices.  since, on the nvidia cluster, the binaries compiled for 1 device will segfault if they are loaded when using >1 device
+	self.initArgsForSerialization.numDevices = #args.app.env.devices
+	-- hmm, this is defeating the whole purpose of this, ...
+	-- but thanks to some function serialization in BoundaryFixed ... i'm getting rid of boundary as well
+	self.initArgsForSerialization.mesh = nil
+--]]
+
 
 	time('SolverBase:init()', function()
 		require 'hydro.code.symbols'(self, self:getSymbolFields())	-- make unique symbols
 		self:initMeshVars(args)
 		self:initCLDomainVars(args)
 		self:initObjs(args)
+		
+
+
 		self:initCodeModules()
 		self:initCodeModuleDisplay()
 		self:initCDefs()
@@ -427,6 +433,30 @@ function SolverBase:getIdent()
 	-- (this is causing errors, because i think these filenames are coming out too long, because they include stuff that test-order didn't
 	-- 	such as boundary condition info, eqn args, etc ... these need to be shortened)
 	assert(self.initArgsForSerialization)
+-- [=[ make sure there's no objects that are cdata, make sure there's no loops
+	do
+		local allTables = {}
+		local function checkForLoops(o)
+			for k,v in pairs(o) do
+				if type(v) == 'cdata' then
+					error("initArgsForSerialization field "..k.." is cdata")
+				end
+				if type(k) == 'cdata' then
+					error("initArgsForSerialization key "..k.." is cdata ... you are really in trouble")
+				end
+				if allTables[v] then
+					error("found a loop in the initArgsForSerialization ... field "..k.." ... try (a) replacing the field with an equally-unique string/table, or (b) removing loops")
+				end
+				if type(v) == 'table' then
+					checkForLoops(v)
+				end
+			end
+		end
+		assert(type(self.initArgsForSerialization) == 'table')
+		allTables[self.initArgsForSerialization] = true
+		checkForLoops(self.initArgsForSerialization)
+	end
+--]=]
 	local serStr = require 'ext.tolua'(self.initArgsForSerialization)
 	local destName = serStr:match('^{(.*)}$')
 	assert(destName, "we must have got a circular reference in:\n"..serStr)
@@ -562,6 +592,7 @@ function SolverBase:initMeshVars(args)
 	
 	function Program:compile(args)
 		args = args or {}
+		args.verbose = solver.app.verbose
 		args.buildOptions = '-w'	-- show warnings
 		local results = Program.super.compile(self, args)
 		assert(self.obj, "there must have been an error in your error handler")	-- otherwise it would have thrown an error
@@ -2184,7 +2215,13 @@ function SolverBase:finalizeDisplayComponents()
 	-- build a 1-based enum of all components
 	self.displayComponentFlatList = table()
 	self.displayComponentNames = table()
+--[[ I could do this, but key order is arbitrary, and cache doesn't like that ...
 	for basetype,components in pairs(self.displayComponents) do
+--]]
+-- [[ ... so I do this instead
+	for _,basetype in ipairs(table.keys(self.displayComponents):sort()) do
+		local components = self.displayComponents[basetype]
+--]]
 		for _,component in ipairs(components) do
 			self.displayComponentFlatList:insert(component)
 			-- TODO one name per gruop and only show that list to the dropdown

@@ -63,7 +63,13 @@ local function RiemannProblem(initCond)
 		EulerInitCond.createInitStruct(self)
 	
 		for i,WLR in ipairs(initCond) do
+			--[[ you could just use pairs ... but then field order is arbitrary ... and then code gen can differ ... and caching is impaired ...
 			for prefix, value in pairs(WLR) do
+			--]]
+			-- [[ so instead ....
+			for _,prefix in ipairs(table.keys(WLR):sort()) do
+				local value = WLR[prefix]
+			--]]
 				local name = getInitCondFieldName(i,prefix)
 				self:addGuiVar{
 					name = name,
@@ -85,7 +91,12 @@ local function RiemannProblem(initCond)
 	
 	function initCond:getInitCondCode()
 		local function build(i)
+--[[ fixin gcache order ...
 			return table.map(initCond[i], function(_,name,t)
+--]]
+-- [[
+			return table.keys(initCond[i]):sort():mapi(function(name,_,t)
+--]]
 				return '\t\t'..name..' = initCond->'..getInitCondFieldName(i,name)..';', #t+1
 			end):concat'\n'
 		end

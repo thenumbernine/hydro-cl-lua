@@ -112,8 +112,6 @@ Now this project, lua-hydro-cl, pushes the middleman (C++) out completely.
 - Also, right now I am performing the PLM slope extrapolation in a separate kernel.  Not for WENO.  Combining kernels seems to run faster.  Maybe I should just inline the PLM stuff into the same kernel?
 - Cram as much into a single kernel as possible.  More inlining, more redundant calculations.  This seems to run faster than separate solvers and separate buffers.  Best would be a way to automate the inlining.
 - BUGS:
-	- the cache used to cache things and reuse binaries based on code comparison (codegen is *much* faster than compiling), but ever since I made the kernel names based on memory locations, it generates new code every time
-	- the cache id used to be unique, but now it's not unique enough
 	- the names of dif solvers in the gui used to include the flux name, but not anymore
 
 ### Sources:
