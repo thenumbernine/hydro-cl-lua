@@ -408,15 +408,21 @@ assert(args.anholonomic == nil, "coord.anholonomic is deprecated.  instead you s
 	-- I will need the basis and metric of the holonomic version as well
 	local eHol
 	if self.vectorComponent == 'holonomic' then
-		print'using holonomic coordinates, so the chart basis operator is equal to the partial derivative operator'
+		if self.verbose then
+			print'using holonomic coordinates, so the chart basis operator is equal to the partial derivative operator'
+		end
 		eHol = e
 	else
-		print'using non-holonomic, so separately evaluating our chart holonomic basis (for stuff like the volume element etc)'
-		print()
+		if self.verbose then
+			print'using non-holonomic, so separately evaluating our chart holonomic basis (for stuff like the volume element etc)'
+			print()
+		end
 		eHol = Tensor('_u^I', function(a,I)
 			return u[I]:diff(baseCoords[a])()
 		end)
-		print()
+		if self.verbose then
+			print()
+		end
 	end
 	if self.verbose then
 		print'chart holonomic basis, in terms of embedded basis:'

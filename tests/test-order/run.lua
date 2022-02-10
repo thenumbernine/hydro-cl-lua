@@ -20,6 +20,7 @@ local math = require 'ext.math'
 local file = require 'ext.file'
 local string = require 'ext.string'
 local io = require 'ext.io'
+local os = require 'ext.os'
 local matrix = require 'matrix'
 local gnuplot = require 'gnuplot'
 local unistd = require 'ffi.c.unistd'
@@ -30,7 +31,7 @@ ffi.C.free(rundirp)
 
 -- in case it's needed
 local resultsDir = 'results'
-os.execute('mkdir "'..rundir..'/'..resultsDir..'"')
+os.mkdir(rundir..'/'..resultsDir)
 
 -- from here on the require's expect us to be in the hydro-cl directory
 -- I should change this, and prefix all hydro-cl's require()s with 'hydro-cl', so it is require()able from other projects
@@ -203,6 +204,7 @@ print()
 
 				-- some hack trickery: reset the cache names for the opencl prefixes
 				-- TODO a better fix would be to just get the live resizing working again
+				-- or TODO TODO a better better one would be running the App as a separate process, so the typenames wouldn't differ per cl code, and caching would work fine
 				for i=1,math.huge do
 					local found
 					local function try(name) 
@@ -332,6 +334,8 @@ gnuplot(
 
 -- [[ plot error histories
 do
+	local graphdir = rundir..'/graphs '..problemName
+	os.mkdir(graphdir)
 	local data = table.append(testdatas:map(function(testdata)
 		return table.append(sizes:map(function(size)
 			local sizedata = testdata.size[size]
@@ -353,7 +357,7 @@ do
 		end)
 	end):unpack())
 	gnuplot(table({
-		output = rundir..'/error-history.svg',
+		output = graphdir..'/error-history.svg',
 		terminal = 'svg size 4000,3000 background rgb "white"',
 		style = 'data linespoints',
 		log = 'xy',
@@ -368,7 +372,7 @@ do
 	-- using# = 1 + (graphIndex-1) + #sizes * (sizeIndex-1)
 	-- compare all graphs of highest resolution
 	gnuplot(table({
-		output = rundir..'/error-history-size='..sizes:last()..'.svg',
+		output = graphdir..'/error-history-size='..sizes:last()..'.svg',
 		terminal = 'svg size 2000,1500 background rgb "white"',
 		style = 'data linespoints',
 		log = 'xy',
@@ -380,7 +384,7 @@ do
 	-- compare each graph's different sizes
 	for i=1,#usings,#sizes do
 		gnuplot(table({
-			output = rundir..'/error-history-using='..usings[i].title..'.svg',
+			output = graphdir..'/error-history-using='..usings[i].title..'.svg',
 			terminal = 'svg size 2000,1500 background rgb "white"',
 			style = 'data linespoints',
 			log = 'xy',

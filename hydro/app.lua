@@ -1969,8 +1969,21 @@ function HydroCLApp:event(event, ...)
 	end
 end
 
--- this was a function of its own, but i want it to be per-App (rather than per-Lua)
--- so I'm merging it with App...
+--[[
+this was a function of its own, but i want it to be per-App (rather than per-Lua)
+so I'm merging it with App...
+
+for unique names I'm using two systems:
+1) for code, used for caching cl binaries, where the object uid is used
+2) for types, used for ffi.cdef (which can't redefine types), using this incrementing suffix, 
+
+now because of constraint #2, if you run the same program twice within the same script, 
+you will get two different cache files in #1 ...
+
+which makes me think that I should just say "FOR THE SAKE OF LUAJIT FFI TYPEDEFS, DON'T RUN THE SAME SIMULATION TWICE IN THE SAME PROCESS, UNLESS YOU WANT THE CL BINARY CACHE TO BREAK"
+
+in fact, when running long-term tests (like test-order), I'm even getting "table overflow" errors ... that probably pertain to all the unique names that I'm keeping track of
+--]]
 function HydroCLApp:uniqueName(name)
 	self.allnames = self.allnames or {}
 	-- don't use the base name because I'm using the base name in my typedefs per-source file

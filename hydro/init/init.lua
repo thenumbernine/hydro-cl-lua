@@ -158,7 +158,9 @@ function InitCond:refreshInitStateProgram()
 	local initCondCode
 	time('generating init state code', function()
 		local moduleNames = table(solver.sharedModulesEnabled, solver.initModulesEnabled):keys()
-print('initCond modules: '..moduleNames:sort():concat', ')
+		if solver.app.verbose then
+			print('initCond modules: '..moduleNames:sort():concat', ')
+		end
 		initCondCode = solver.modules:getCodeAndHeader(moduleNames:unpack())
 	end)
 	

@@ -487,7 +487,10 @@ function SolverBase:getIdent()
 			--return string.char(ch)
 			return ('%02x'):format(ch)
 		end):concat()
-	print("solver using ident "..self.ident.." from config str "..configStr)
+	if self.app.verbose then
+		print('ident config str: '..configStr)
+	end
+	print("cache identifier: "..self.ident)
 --]=]
 --]]
 
@@ -907,7 +910,9 @@ function SolverBase:initCDefs()
 			[self.eqn.symbols.prim_t] = true,
 		}
 	):keys()
-print("ffi.cdef'ing: "..moduleNames:concat', ')
+	if self.app.verbose then
+		print("ffi.cdef'ing: "..moduleNames:concat', ')
+	end
 	require 'hydro.code.safecdef'(self.modules:getTypeHeader(moduleNames:unpack()))
 end
 
@@ -1065,7 +1070,9 @@ function SolverBase:refreshCommonProgram()
 		
 		self.symbols.SETBOUNDS,
 	}
-print('common modules: '..moduleNames:sort():concat', ')
+	if self.app.verbose then
+		print('common modules: '..moduleNames:sort():concat', ')
+	end
 
 	local commonCode = table{
 		-- just header, no function calls needed
@@ -1495,7 +1502,9 @@ function SolverBase:refreshSolverProgram()
 	local code
 	time('generating solver code', function()
 		local moduleNames = table(self.sharedModulesEnabled, self.solverModulesEnabled):keys()
-print('solver modules: '..moduleNames:sort():concat', ')
+		if self.app.verbose then
+			print('solver modules: '..moduleNames:sort():concat', ')
+		end
 		code = self.modules:getCodeAndHeader(moduleNames:unpack())
 	end)
 
