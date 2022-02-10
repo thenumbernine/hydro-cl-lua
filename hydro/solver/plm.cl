@@ -1040,9 +1040,9 @@ void calcCellLR_<?=side?>(
 	<?=cons_t?> U_r_i;
 	<?=eigen_rightTransform?>(&U_r_i, solver, &eig, &beta_xm, cell->pos, n);
 
-	<?=cons_t?> W_l_ip1;
+	<?=prim_t?> W_l_ip1;
 	<?=apply_dW_dU?>(&W_l_ip1, solver, &W_i, &U_l_ip1, cell->pos);
-	<?=cons_t?> W_r_i;
+	<?=prim_t?> W_r_i;
 	<?=apply_dW_dU?>(&W_r_i, solver, &W_i, &U_r_i, cell->pos);
 
 	for (int j = 0; j < numStates; ++j) {

@@ -11,7 +11,7 @@ local args = {
 	eqn = cmdline.eqn,
 	dim = dim,
 	
-	integrator = cmdline.integrator or 'forward Euler',
+	--integrator = cmdline.integrator or 'forward Euler',
 	--integrator = 'Iterative Crank-Nicolson',
 	--integrator = 'Runge-Kutta 2',
 	--integrator = 'Runge-Kutta 2 Heun',
@@ -22,7 +22,7 @@ local args = {
 	--integrator = 'Runge-Kutta 2, TVD',
 	--integrator = 'Runge-Kutta 2, non-TVD',
 	--integrator = 'Runge-Kutta 3, TVD',
-	--integrator = 'Runge-Kutta 4, TVD',
+	integrator = 'Runge-Kutta 4, TVD',
 	--integrator = 'Runge-Kutta 4, non-TVD',
 	--integrator = 'backward Euler',	-- The epsilon on this is very sensitive.  Too small and it never converges.  Too large and it stops convergence too soon.
 	--integrator = 'backward Euler, CPU',
@@ -46,13 +46,13 @@ local args = {
 	--usePLM = 'piecewise-constant',	-- -84		degenerate case.  don't use this, instead just disable usePLM, or else this will allocate more memory / run more functions.
 	--usePLM = 'plm-cons',				-- -190
 	--usePLM = 'plm-cons-alone',		-- -177
-	usePLM = 'plm-prim-alone',		-- -175
+	--usePLM = 'plm-prim-alone',		-- -175
 	--usePLM = 'plm-eig',				-- -88		\
 	--usePLM = 'plm-eig-prim',			-- -88		 - these have less sharp shock wave in Sod than the non-eig ones
 	--usePLM = 'plm-eig-prim-ref',		-- -28 		/
 	--usePLM = 'plm-athena',			-- -40		based on Athena.  most accurate from 1D sod tests atm
 	--usePLM = 'ppm-wip',				-- 			FIXME one more attempt to figure out all the PLM stuff, based on 2017 Zingale
-	--usePLM = 'weno',					-- 			TODO make WENO one of these 'usePLM' methods. rename it to 'construct LR state method' or something.  then we can use CTU with WENO.
+	--usePLM = 'weno',					-- 			TODO make WENO one of these 'usePLM' methods. rename it to 'construct LR state method' or something.  then use CTU with WENO.  or can we, since even the CTU method should use the re-linear-projection ... i should just have these separate plm methods as separate functions ...
 	
 	-- only enabled for certain usePLM methods
 	slopeLimiter = 'minmod',
@@ -275,8 +275,8 @@ local args = {
 	--initCond = 'random',
 	--initCond = 'linear',
 	--initCond = 'advect wave',
-	initCond = 'gaussian',
-	-- [[
+	--initCond = 'gaussian',
+	--[[
 	initCondArgs = {
 		rho0 = 1,
 		rho1 = 3,
@@ -405,7 +405,7 @@ local args = {
 	-- Mara initital conditions
 	--initCond = 'Mara IsentropicPulse',
 	--initCond = 'Mara Explosion',
-	--initCond = 'Mara KelvinHelmholtz',
+	initCond = 'Mara KelvinHelmholtz',
 	--initCond = 'Mara SmoothKelvinHelmholtz',
 	--initCond = 'Mara Shocktube1',
 	--initCond = 'Mara Shocktube2',
@@ -717,7 +717,7 @@ self.solvers:insert(require 'hydro.solver.weno'(table(args, {
 -- compressible Euler equations
 
 
-self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
+--self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
 
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct bounded'})))	-- this is the default hllCalcWaveMethod
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct'})))
@@ -762,6 +762,8 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn
 --self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='euler', wenoMethod='1996 Jiang Shu', order=5, fluxMethod='Roe'})))
 -- FIXME: Marquina is broken:
 --self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='euler', wenoMethod='1996 Jiang Shu', order=5, fluxMethod='Marquina'})))
+
+self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='euler', wenoMethod='2010 Shen Zha', order=5, fluxMethod='Roe'})))
 
 -- incompressible
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler', eqnArgs={incompressible=true}})))

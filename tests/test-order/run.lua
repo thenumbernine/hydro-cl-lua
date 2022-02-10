@@ -71,8 +71,8 @@ problems['advect wave'] = {
 	configurations = outer(
 		{
 			{
-				eqn='euler',
-				initState = 'advect wave',
+				eqn = 'euler',
+				initCond = 'advect wave',
 			}
 		},
 			-- final error at n=1024 on the right:
@@ -90,8 +90,8 @@ problems.Sod = {
 	configurations = outer(
 		{
 			{
-				eqn='euler',
-				initState = 'Sod',
+				eqn = 'euler',
+				initCond = 'Sod',
 			}
 		},
 			-- final error at n=1024 on the right:
@@ -195,7 +195,7 @@ print()
 					if not uselin then
 						-- TODO this only compares the first value, while 'testAccuracy' cmdline option compares all (integratable variable) state values
 						exact = xs:map(function(x)
-							return (solver.eqn.initState:exactSolution(x, solver.t))
+							return (solver.eqn.initCond:exactSolution(x, solver.t))
 						end)
 					end
 					return xs, ys, exact, assert(err)
@@ -334,8 +334,13 @@ do
 	local data = table.append(testdatas:map(function(testdata)
 		return table.append(sizes:map(function(size)
 			local sizedata = testdata.size[size]
+			local tdata = table(sizedata.ts)
+			-- throw away any OOB integration steps
+			for i=1,#tdata do
+				if tdata[i] > 2*problem.duration then tdata[i] = math.nan end
+			end
 			return {
-				sizedata.ts,
+				tdata,
 				sizedata.errorsForTime,
 			}
 		end):unpack())
@@ -348,13 +353,15 @@ do
 	end):unpack())
 	gnuplot(table({
 		output = rundir..'/error-history.png',
-		terminal = 'png size 2400,1400',
+		terminal = 'png size 4000,3000',
 		style = 'data linespoints',
 		log = 'xy',
 		xlabel = 'time',
 		ylabel = 'L1 error',
-		key = 'left Left reverse',
+		nokey = true,	-- can't seem to make the legend small enough to fit them all
+		--key = 'left Left reverse samplen 2 spacing .5 font ",8"',
 		data = data,
 	}, usings))
+	-- TODO more practical would be to just produce a bunch of collections, like 10 or 20 at a time
 end
 --]]

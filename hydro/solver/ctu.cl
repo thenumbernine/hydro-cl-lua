@@ -85,11 +85,11 @@ for side=0,solver.dim-1 do
 		updateFields:insert"ULR->L"
 		updateFields:insert"ULR->R"
 	elseif solver.getULRBufType == eqn.symbols.cons_t then
+		-- imporatnt detail about running non-PLM with CTU...
+		-- (you shouldn't but who am I to stop you)
+		-- the PLM version will not update the UBuf ... so after correcting the flux, the subsequent UBuf integration step will be applied to the original UBuf
+		-- however the non-PLM version *will* update the UBuf, so the new UBuf won't only contribute to the adjusted flux, but it will also contribute to the next UBuf integration, and will probably add to the error
 ?>		global <?=cons_t?> * const U = UBuf + index;
-	-- imporatnt detail about running non-PLM with CTU...
-	-- (you shouldn't but who am I to stop you)
-	-- the PLM version will not update the UBuf ... so after correcting the flux, the subsequent UBuf integration step will be applied to the original UBuf
-	-- however the non-PLM version *will* update the UBuf, so the new UBuf won't only contribute to the adjusted flux, but it will also contribute to the next UBuf integration, and will probably add to the error
 <?
 		updateFields:insert"(*U)"
 	else

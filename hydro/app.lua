@@ -610,8 +610,10 @@ function HydroCLApp:initGL(...)
 	self.realparam = self.real == 'half' and 'float' or self.real
 
 	-- half-precision with odd sizes is messing up otherwise
-	gl.glPixelStorei(gl.GL_PACK_ALIGNMENT, 1)
-	gl.glPixelStorei(gl.GL_UNPACK_ALIGNMENT, 1)
+	if self.targetSystem ~= 'console' then
+		gl.glPixelStorei(gl.GL_PACK_ALIGNMENT, 1)
+		gl.glPixelStorei(gl.GL_UNPACK_ALIGNMENT, 1)
+	end
 
 	-- init the module system ...
 	do

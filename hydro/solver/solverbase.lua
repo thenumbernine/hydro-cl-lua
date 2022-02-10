@@ -330,6 +330,15 @@ args:
 
 TODO this should be 'final' i.e. no child inherits it
 so that SolverBase:init can run stuff after all child classes have initialized
+
+TODO TODO put this in its own function: ":createIdentSerializationTable" or something and call it from :init
+* have each class build it *only* from the same values that the class accepts as ctor arguments
+* make sure the objects it gets are all either tables or strings
+* no table circular references (tolua can enforce this)
+* if you do come across an object, just call its own :createIdentSerializationTable() or whatever it's called, and add that into the str ser table
+* if you add an extra arg in then you'll get two cache entries for the same solver.
+* if you leave an arg out then you'll get recompilation for the same solver
+* otehrwise that should restore cl bin cache functionality
 --]]
 function SolverBase:init(args)
 

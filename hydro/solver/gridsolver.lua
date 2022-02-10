@@ -63,12 +63,6 @@ args:
 function GridSolver:initMeshVars(args)
 	GridSolver.super.initMeshVars(self, args)
 	
-	-- where does this go ...
-	self.numGhost = args.numGhost
-	if self.verbose then
-		print('numGhost = '..self.numGhost)
-	end
-	
 	-- same as equations
 	-- but let equations/init conds add to the solver vars (as gui vars)
 	-- then we can edit them without recompiling the kernels
@@ -1325,17 +1319,18 @@ local function compareL1(ptr, n, ...)
 end
 
 function GridSolver:calcExactError(numStates)
-	numStates = numStates or self.eqn.numIntStates
-	local exact = assert(self.eqn.initCond.exactSolution, "can't test accuracy of a configuration that has no exact solution")
-	local ptr = ffi.cast(self.eqn.symbols.cons_t..'*', self.UBufObj:toCPU())
+	local eqn = self.eqn
+	local initCond = eqn.initCond
+	numStates = numStates or eqn.numIntStates
+	assert(initCond.exactSolution, "can't test accuracy of a configuration that has no exact solution")
+	local ptr = ffi.cast(eqn.symbols.cons_t..'*', self.UBufObj:toCPU())
 	assert(self.dim == 1)
-	local n = self.gridSize.x
 	local ghost = self.numGhost
 	local err = 0
 	for i=ghost+1,tonumber(self.gridSize.x)-2*ghost do
 		--local x = self.xs[i+ghost]
 		local x = fromreal(self.solverPtr.mins.x) + fromreal(self.solverPtr.grid_dx.x) * (i - ghost - .5)
-		err = err + compareL1(ptr[i-1].ptr, numStates, exact(self, x, self.t))
+		err = err + compareL1(ptr[i-1].ptr, numStates, initCond:exactSolution(x, self.t))
 	end
 	err = err / (numStates * (tonumber(self.gridSize.x) - 2 * ghost))
 	return err, ptr
