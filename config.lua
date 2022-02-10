@@ -44,7 +44,7 @@ local args = {
 	--									-- -191 = no plm, superbee flux limiter
 	--									-- -184 = no plm, monotized central flux limiter
 	--usePLM = 'piecewise-constant',	-- -84		degenerate case.  don't use this, instead just disable usePLM, or else this will allocate more memory / run more functions.
-	usePLM = 'plm-cons',				-- -190
+	--usePLM = 'plm-cons',				-- -190
 	--usePLM = 'plm-cons-alone',		-- -177
 	--usePLM = 'plm-prim-alone',		-- -175
 	--usePLM = 'plm-eig',				-- -88		\
@@ -275,8 +275,8 @@ local args = {
 	--initCond = 'random',
 	--initCond = 'linear',
 	--initCond = 'advect wave',
-	--initCond = 'advect gaussian',
-	--[[
+	initCond = 'advect gaussian',
+	--[[ 2D test case
 	initCondArgs = {
 		rho0 = 1,
 		rho1 = 3,
@@ -285,7 +285,20 @@ local args = {
 		v0 = 1,
 	},
 	--]]
-	
+	-- [[ 1D test case
+	initCondArgs = {
+		rho0 = 1,
+		rho1 = 3,
+		P0 = 1,
+		u0 = 1,
+		v0 = 0,
+		x0 = -.5,
+		y0 = 0,
+		z0 = 0,
+	},
+	--]]
+
+
 	--initCond = 'sphere',
 	
 	--initCond = 'spiral',
@@ -322,7 +335,7 @@ local args = {
 	--initCond = 'jet',
 	
 
-	initCond = 'Sod',
+	--initCond = 'Sod',
 	--initCondArgs = {dim=cmdline.displayDim},
 	--[[ real-world vars for Sod ... which are a few orders higher, and therefore screw up the backward-euler solver
 	-- 		which means, todo, redo the backward euler error metric so it is independent of magnitude ... ?   seems I removed that for another numerical error reason.

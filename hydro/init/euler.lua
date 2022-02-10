@@ -549,6 +549,29 @@ local initConds = table{
 				clnumber = clnumber,
 			})
 		end,
+		-- TODO getInitCondCode should be this exact same expression but for t=0
+		-- so how about providing the init cond as a symmath code
+		-- and just compiling it for CL for the init cond kernel
+		-- and compile it to lua for here
+		exactSolution = function(self, x, t)
+			local solver = assert(self.solver)
+			local solverPtr = solver.solverPtr
+			local initCondPtr = solver.initCondPtr
+			local vx = initCondPtr.u0
+			local vy = initCondPtr.v0
+			local vz = 0
+			-- TODO this is just for 1D ... do 2D too
+			-- but while you're at it, exactSolution and testAccuracy are hardcoded for just 1D as well
+			local dx = x - initCondPtr.x0 - vx * t
+			local xSq = dx * dx
+			local rho = (initCondPtr.rho1 - initCondPtr.rho0) * math.exp(-xSq / (initCondPtr.sigma*initCondPtr.sigma)) + initCondPtr.rho0
+			local P = initCondPtr.P0
+			-- TODO what about metric? only good with cartesian geometry
+			local EKin = .5 * rho * (vx * vx + vy * vy + vz * vz)
+			local EInt = P / (solverPtr.heatCapacityRatio - 1)
+			local ETotal = EKin + EInt
+			return rho, rho * vx, rho * vy, rho * vz, ETotal
+		end,
 	},
 
 	{
@@ -640,7 +663,7 @@ local initConds = table{
 			local my = 0
 			local mz = 0
 			local P = 1
-			-- hmm, only good with cartesian geometry
+			-- TODO what about metric? only good with cartesian geometry
 			local mSq = mx * mx + my * my + mz * mz
 			local EKin = .5 * mSq  / rho
 			local EInt = P / (solverPtr.heatCapacityRatio - 1)
