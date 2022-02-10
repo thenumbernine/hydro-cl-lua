@@ -275,7 +275,7 @@ local args = {
 	--initCond = 'random',
 	--initCond = 'linear',
 	--initCond = 'advect wave',
-	--initCond = 'gaussian',
+	--initCond = 'advect gaussian',
 	--[[
 	initCondArgs = {
 		rho0 = 1,

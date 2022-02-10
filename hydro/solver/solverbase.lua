@@ -294,7 +294,7 @@ SolverBase.useCLLinkLibraries = false
 	time('compiling math program', function()
 		self.mathUnlinkedObj = self.Program{
 			name = 'math',
-			code = self.modules:getCodeAndHeader(self.sharedModulesEnabled:keys():unpack()),
+			code = self.modules:getCodeAndHeader(self.sharedModulesEnabled:keys():sort():unpack()),
 		}
 		self.mathUnlinkedObj:compile{
 			dontLink = true,
@@ -909,7 +909,7 @@ function SolverBase:initCDefs()
 			[self.eqn.symbols.cons_t] = true,
 			[self.eqn.symbols.prim_t] = true,
 		}
-	):keys()
+	):keys():sort()
 	if self.app.verbose then
 		print("ffi.cdef'ing: "..moduleNames:concat', ')
 	end
@@ -3484,7 +3484,7 @@ function SolverBase:checkStructSizes()
 		self.sharedModulesEnabled,
 		self.solverModulesEnabled,
 		self.initModulesEnabled
-	):keys()
+	):keys():sort()
 	for _,module in ipairs(self.modules:getDependentModules(moduleNames:unpack())) do
 		for _,struct in ipairs(module.structs) do
 			--print('checking for struct '..struct.typename..' from module '..module.name)
@@ -3512,7 +3512,7 @@ function SolverBase:checkStructSizes()
 	local resultPtr = ffi.new('size_t[?]', varcount)
 	local resultBuf = self.app.env:buffer{name='result', type='size_t', count=varcount, data=resultPtr}
 
-print('shared modules: '..moduleNames:sort():concat', ')
+print('shared modules: '..moduleNames:concat', ')
 	local codePrefix = self.modules:getTypeHeader(moduleNames:unpack())
 
 --[=[

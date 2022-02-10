@@ -67,7 +67,7 @@ function BackwardEuler:init(solver, args)
 	local copyBufferWithOrWithoutGhostProgram = solver.Program{
 		name = 'int-be',
 		code = solver.eqn:template(
-			solver.modules:getCodeAndHeader(solver.sharedModulesEnabled:keys():append{
+			solver.modules:getCodeAndHeader(solver.sharedModulesEnabled:keys():sort():append{
 				solver.symbols.SETBOUNDS_NOGHOST,
 				solver.symbols.solver_macros,
 				assert(solver.solver_t),

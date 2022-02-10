@@ -510,7 +510,7 @@ local initConds = table{
 	
 	-- 2017 Zingale "Introduction to Computational Astrophysics" section 7.9.3
 	{
-		name = 'gaussian',
+		name = 'advect gaussian',
 		createInitStruct = function(self)
 			EulerInitCond.createInitStruct(self)
 			local args = self.args or {}
@@ -3026,7 +3026,7 @@ bool testTriangle(real3 xc) {
 			local addExtraSourceProgramObj = solver.Program{
 				name = 'addExtraSource',
 				code = table{
-					solver.modules:getCodeAndHeader(solver.sharedModulesEnabled:keys():unpack()),
+					solver.modules:getCodeAndHeader(solver.sharedModulesEnabled:keys():sort():unpack()),
 					solver.eqn:template([[
 //single cell domain
 kernel void addExtraSource(
