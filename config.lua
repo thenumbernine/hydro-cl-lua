@@ -11,13 +11,13 @@ local args = {
 	eqn = cmdline.eqn,
 	dim = dim,
 	
-	integrator = cmdline.integrator or 'forward Euler',
+	--integrator = cmdline.integrator or 'forward Euler',
 	--integrator = 'Iterative Crank-Nicolson',
 	--integrator = 'Runge-Kutta 2',
 	--integrator = 'Runge-Kutta 2 Heun',
 	--integrator = 'Runge-Kutta 2 Ralston',
 	--integrator = 'Runge-Kutta 3',
-	--integrator = 'Runge-Kutta 4',
+	integrator = 'Runge-Kutta 4',
 	--integrator = 'Runge-Kutta 4, 3/8ths rule',
 	--integrator = 'Runge-Kutta 2, TVD',
 	--integrator = 'Runge-Kutta 2, non-TVD',
@@ -34,9 +34,9 @@ local args = {
 	-- with Kelvin-Helmholts, this will explode even at .5/(dim=2), but runs safe for .3/(dim=2)
 	cfl = cmdline.cfl or .3/dim,
 	
-	--fluxLimiter = cmdline.fluxLimiter or 'superbee',
+	fluxLimiter = cmdline.fluxLimiter or 'superbee',
 	--fluxLimiter = 'monotized central',
-	fluxLimiter = 'donor cell',
+	--fluxLimiter = 'donor cell',
 	
 	-- piecewise-linear slope limiter
 	-- TODO rename this to 'calcLR' or something
@@ -130,24 +130,24 @@ local args = {
 			-- and on linux ...
 			['AMD Accelerated Parallel Processing/gfx1010:xnack-/gfx902:xnack-'] = {
 				{256,1,1},
-				{256,256,1},
+				{1024,1024,1},
 				{48,48,48},
 			}
 		})[platAndDevicesNames]
 		-- default size options
 		or {
-			{256,1,1},
+			{1024,1,1},
 			{256,256,1},
 			{32,32,32},
 		}
 	)[dim],
 	boundary = type(cmdline.boundary) == 'table' and cmdline.boundary or {
-		xmin = cmdline.boundary or 'freeflow',
-		xmax = cmdline.boundary or 'freeflow',
-		ymin = cmdline.boundary or 'freeflow',
-		ymax = cmdline.boundary or 'freeflow',
-		zmin = cmdline.boundary or 'freeflow',
-		zmax = cmdline.boundary or 'freeflow',
+		xmin = cmdline.boundary or 'periodic',
+		xmax = cmdline.boundary or 'periodic',
+		ymin = cmdline.boundary or 'periodic',
+		ymax = cmdline.boundary or 'periodic',
+		zmin = cmdline.boundary or 'periodic',
+		zmax = cmdline.boundary or 'periodic',
 	},
 	--]]
 	--[[ cylinder
@@ -274,8 +274,8 @@ local args = {
 	
 	--initCond = 'random',
 	--initCond = 'linear',
-	--initCond = 'advect wave',
-	initCond = 'advect gaussian',
+	initCond = 'advect wave',
+	--initCond = 'advect gaussian',
 	--[[ 2D test case
 	initCondArgs = {
 		rho0 = 1,
@@ -285,12 +285,12 @@ local args = {
 		v0 = 1,
 	},
 	--]]
-	-- [[ 1D test case
+	--[[ 1D test case
 	initCondArgs = {
 		rho0 = 1,
 		rho1 = 3,
 		P0 = 1,
-		u0 = 1,
+		u0 = .1,
 		v0 = 0,
 		x0 = -.5,
 		y0 = 0,
@@ -730,7 +730,7 @@ self.solvers:insert(require 'hydro.solver.weno'(table(args, {
 -- compressible Euler equations
 
 
-self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
+--self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
 
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct bounded'})))	-- this is the default hllCalcWaveMethod
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct'})))
@@ -764,7 +764,7 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn
 
 -- hmm, 2D Sod 64x64 RK4 fails at just past 1 second ...
 --self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='euler', wenoMethod='1996 Jiang Shu', order=13})))
---self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='euler', wenoMethod='2008 Borges', order=13})))
+self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='euler', wenoMethod='2008 Borges', order=13})))
 --self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='euler', wenoMethod='2010 Shen Zha', order=13})))
 
 -- blows up.  maybe I need an implicit RK scheme...

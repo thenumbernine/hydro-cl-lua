@@ -529,9 +529,11 @@ function GridSolver:applyInitCond()
 	-- and does so by asking the coord obj
 	-- because coord objects can specify arbitrary fields
 	-- (such as x,y,z, r, remapped-r, etc)
-	local cellsCPU = ffi.new(self.coord.cell_t..'[?]', self.numCells)
-	self.coord:fillGridCellBuf(cellsCPU)
-	self.cellBufObj:fromCPU(cellsCPU)
+	-- TODO how about making this mimic meshsolver?
+	-- and then make the only difference be finite difference operators
+	self.cellCpuBuf = ffi.new(self.coord.cell_t..'[?]', self.numCells)
+	self.coord:fillGridCellBuf(self.cellCpuBuf)
+	self.cellBufObj:fromCPU(self.cellCpuBuf)
 
 	GridSolver.super.applyInitCond(self)
 end
@@ -1323,17 +1325,30 @@ function GridSolver:calcExactError(numStates)
 	local initCond = eqn.initCond
 	numStates = numStates or eqn.numIntStates
 	assert(initCond.exactSolution, "can't test accuracy of a configuration that has no exact solution")
-	local ptr = ffi.cast(eqn.symbols.cons_t..'*', self.UBufObj:toCPU())
-	assert(self.dim == 1)
+	-- TODO doesn't this risk some mem leaks?  does cast still lose refcounts?
+	-- looks like so far no one is using this so I wouldn't know
+	local UCpuBuf = ffi.cast(eqn.symbols.cons_t..'*', self.UBufObj:toCPU())
 	local ghost = self.numGhost
+	local imin, imax = ghost,tonumber(self.gridSize.x)-2*ghost-1
+	local jmin, jmax = ghost,tonumber(self.gridSize.y)-2*ghost-1
+	if self.dim < 2 then jmin, jmax = 0, 0 end
+	local kmin, kmax = ghost,tonumber(self.gridSize.z)-2*ghost-1
+	if self.dim < 3 then kmin, kmax = 0, 0 end
+	assert(self.cellCpuBuf)
+	self.cellBufObj:fromCPU(self.cellCpuBuf)
 	local err = 0
-	for i=ghost+1,tonumber(self.gridSize.x)-2*ghost do
-		--local x = self.xs[i+ghost]
-		local x = fromreal(self.solverPtr.mins.x) + fromreal(self.solverPtr.grid_dx.x) * (i - ghost - .5)
-		err = err + compareL1(ptr[i-1].ptr, numStates, initCond:exactSolution(x, self.t))
+	for i=imin,imax do
+		for j=jmin,jmax do
+			for k=kmin,kmax do
+				local index = i + self.solverPtr.stepsize.x * j + self.solverPtr.stepsize.y * k
+				local cell = self.cellCpuBuf[index]
+				local U = UCpuBuf[index]
+				err = err + compareL1(U.ptr, numStates, initCond:exactSolution(self.t, cell.pos:unpack()))
+			end
+		end
 	end
-	err = err / (numStates * (tonumber(self.gridSize.x) - 2 * ghost))
-	return err, ptr
+	err = err / (numStates * tonumber(self.sizeWithoutBorder:volume()))
+	return err, UCpuBuf
 end
 
 function GridSolver:updateGUIParams()	

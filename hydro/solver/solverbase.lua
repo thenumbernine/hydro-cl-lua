@@ -1329,6 +1329,9 @@ function SolverBase:createBuffers()
 			self.texCLMem = CLImageGL{context=app.ctx, tex=self.tex, write=true}
 		else
 			-- use texSize:volume() so the glTexSubImage can use the whole buffer, in the event of meshsolver where texSize:volume can be > numCells
+			if self.app.verbose then
+				print('allocating gpu-cpu display copy buffer of '..app.real..'['..(self.texSize:volume() * 3)..']')
+			end
 			self.calcDisplayVarToTexPtr = ffi.new(app.real..'[?]', self.texSize:volume() * 3)
 		end
 	end

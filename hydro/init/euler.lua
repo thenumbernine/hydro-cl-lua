@@ -123,7 +123,7 @@ end
 	-- http://www.itam.nsc.ru/flowlib/SRC/sod.f
 	-- TODO it might be more efficient to hand this function the array, and have it return an array
 	-- or at least have it calculate certain values up front before iterating across all x's
-	function initCond:exactSolution(x, t)
+	function initCond:exactSolution(t, x, y, z)
 		local solver = assert(self.solver)
 		local solverPtr = solver.solverPtr
 		local initCondPtr = solver.initCondPtr
@@ -553,7 +553,7 @@ local initConds = table{
 		-- so how about providing the init cond as a symmath code
 		-- and just compiling it for CL for the init cond kernel
 		-- and compile it to lua for here
-		exactSolution = function(self, x, t)
+		exactSolution = function(self, t, x, y, z)
 			local solver = assert(self.solver)
 			local solverPtr = solver.solverPtr
 			local initCondPtr = solver.initCondPtr
@@ -653,7 +653,7 @@ local initConds = table{
 		end,
 		-- TODO combine this with above, use a parser / transpiler to convert between Lua and OpenCL, and just write one equation?
 		-- TODO TODO do this with all math everywhere, and analyze the dependency graph of variables and automatically slice out what GPU calculations should be buffered / automatically inline equations
-		exactSolution = function(self, x, t)
+		exactSolution = function(self, t, x, y, z)
 			local solver = assert(self.solver)
 			local solverPtr = solver.solverPtr
 			local initCondPtr = solver.initCondPtr

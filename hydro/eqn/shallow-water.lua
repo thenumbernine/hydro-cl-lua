@@ -133,9 +133,10 @@ function ShallowWater:resetState()
 		tonumber(solver.sizeWithoutBorder.y))
 
 	local cpuU = solver.UBufObj:toCPU()
-	local cpuCell
+	-- cellCpuBuf should already be allocated in applyInitCond
+	assert(self.cellCpuBuf)
 	if ShallowWater.depthInCell then
-		cpuCell = solver.cellBufObj:toCPU()
+		solver.cellBufObj:toCPU(self.cellCpuBuf)
 	end
 	for j=0,tonumber(solver.sizeWithoutBorder.y)-1 do
 		for i=0,tonumber(solver.sizeWithoutBorder.x)-1 do
@@ -146,7 +147,7 @@ function ShallowWater:resetState()
 			-- in the image, bathymetry values are negative
 			-- throw away altitude values (for now?)
 			if ShallowWater.depthInCell then
-				cpuCell[index].depth = d	-- bathymetry values are negative
+				self.cellCpuBuf[index].depth = d	-- bathymetry values are negative
 			else
 				cpuU[index].depth = d	-- bathymetry values are negative
 			end
@@ -158,7 +159,7 @@ function ShallowWater:resetState()
 	end
 	solver.UBufObj:fromCPU(cpuU)
 	if ShallowWater.depthInCell then
-		solver.cellBufObj:fromCPU(cpuCell)
+		solver.cellBufObj:fromCPU(self.cellCpuBuf)
 	end
 end
 

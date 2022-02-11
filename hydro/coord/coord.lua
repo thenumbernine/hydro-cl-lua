@@ -120,7 +120,9 @@ local range = require 'ext.range'
 local template = require 'template'
 local clnumber = require 'cl.obj.number'
 local Struct = require 'hydro.code.struct'
+
 local half = require 'cl.obj.half'
+local fromreal, toreal = half.fromreal, half.toreal
 
 local common = require 'hydro.common'
 local xNames = common.xNames
@@ -1393,7 +1395,7 @@ function CoordinateSystem:finalizeCellStruct()
 	self.face_t = self.faceStruct.typename
 end
 
-function CoordinateSystem:fillGridCellBuf(cellsCPU)
+function CoordinateSystem:fillGridCellBuf(cellCpuBuf)
 	local solver = self.solver
 
 --[[ TODO replace 'solver->' with 'solver.solverPtr.'
@@ -1420,11 +1422,11 @@ function CoordinateSystem:fillGridCellBuf(cellsCPU)
 				local u = solver.dim >= 1
 					and ((i + .5 - solver.numGhost) / (tonumber(solver.gridSize.x) - 2 * solver.numGhost) * (solver.maxs.x - solver.mins.x) + solver.mins.x)
 					or (.5 * (solver.maxs.x + solver.mins.x))
-				cellsCPU[index].pos.x = half.toreal(u)
-				cellsCPU[index].pos.y = half.toreal(v)
-				cellsCPU[index].pos.z = half.toreal(w)
+				cellCpuBuf[index].pos.x = toreal(u)
+				cellCpuBuf[index].pos.y = toreal(v)
+				cellCpuBuf[index].pos.z = toreal(w)
 --[[				
-				cellsCPU[index].volume = calcVolume(u,v,w)
+				cellCpuBuf[index].volume = calcVolume(u,v,w)
 --]]				
 				index = index + 1
 			end
