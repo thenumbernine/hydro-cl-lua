@@ -5,6 +5,7 @@ local table = require 'ext.table'
 local range = require 'ext.range'
 local math = require 'ext.math'
 local clnumber = require 'cl.obj.number'
+local symmath = require 'symmath'
 local materials = require 'hydro.materials'
 local InitCond = require 'hydro.init.init'
 local real = require 'hydro.real'
@@ -148,7 +149,6 @@ end
 			-- or maybe I'm passing in a cdata that is a number, and luajit is not agreeing with some implicit conversion to a Lua number somewhere?  I don't know...
 			-- so to fix this, I'll just print out the code and inline it myself
 			--[=[ using symmath-compiled functions
-			local symmath = require 'symmath'
 			local P3, PL, PR, CsL, CsR, gamma = symmath.vars('P3', 'PL', 'PR', 'CsL', 'CsR', 'gamma')
 			local f = -2*CsL*(1 - (P3/PL)^((-1 + gamma)/(2*gamma)))/(CsR*(-1 + gamma)) + (-1 + P3/PR)*((1 - muSq)/(gamma*(muSq + P3/PR)))^.5
 			local df_dP3 = f:diff(P3)()
@@ -450,11 +450,12 @@ local function makeEulerExact(args)
 		v.symvar:nameForExporter('Lua', 'initCondPtr.'..v.name)
 	end
 
-	local symmath = require 'symmath'
-
 	local initCond = {}
 	
 	initCond.name = assert(args.name)
+	initCond.mins = args.mins
+	initCond.maxs = args.maxs
+	initCond.solverVars = args.solverVars
 	
 	function initCond:createInitStruct()
 		EulerInitCond.createInitStruct(self)
@@ -489,7 +490,7 @@ local function makeEulerExact(args)
 		}
 
 	function initCond:getInitCondCode()
-		if args.setupBoundary then args.setupBoundary(self) end
+		if args.setBoundary then args.setBoundary(self) end
 		return clcode
 	end
 
@@ -597,8 +598,9 @@ local initConds = table{
 	
 	-- 2017 Zingale "Introduction to Computational Astrophysics" section 7.9.3
 	(function()
-		local symmath = require 'symmath'
-		
+		-- TODO this can be traditional 'guivars' ...
+		-- ... then in EulerExactInitCond, generate the associated symvar's
+		-- ... then provide a 'makeExpressions' function
 		-- provide configurable args + default values here
 		local guivars = table{
 			{name = 'rho0', value = 1e-3},
@@ -612,7 +614,7 @@ local initConds = table{
 			{name = 'y0', value = -.5},
 			{name = 'z0', value = 0},
 		}
-		-- for now this is a necessary step... then in makeExactEuler the export-specific names are given to it
+		-- for now this is a necessary step... then in makeEulerExact the export-specific names are given to it
 		for _,v in ipairs(guivars) do
 			v.symvar = symmath.var(v.name)
 		end
@@ -673,6 +675,7 @@ local initConds = table{
 
 
 	(function()
+--[=[		
 		return {
 			name = 'advect wave',
 			mins = {0,0,0},
@@ -731,6 +734,57 @@ P = initCond->P0;
 				return rho, mx, my, mz, ETotal
 			end,
 		}
+--]=]
+-- [=[
+		local guivars = table{
+			{name = 'rho0', value = 1},
+			{name = 'rho1', value = 3.2e-1},
+			{name = 'v0x', value = 1},
+			{name = 'P0', value = 1},
+		}
+		for _,v in ipairs(guivars) do
+			v.symvar = symmath.var(v.name)
+		end
+		local rho0, rho1, v0x, P0 = guivars:mapi(function(v) return v.symvar end):unpack()
+		local t, x, y, z = symmath.vars('t', 'x', 'y', 'z')
+	
+		local xmin = symmath.var'xmin'
+		xmin:nameForExporter('C', 'solver->mins.x')
+		xmin:nameForExporter('Lua', 'solver->mins.x')
+		
+		local xmax = symmath.var'xmax'
+		xmax:nameForExporter('C', 'solver->maxs.x')
+		xmax:nameForExporter('Lua', 'solver->maxs.x')
+		
+		local k0 = 2 * symmath.pi / (xmax - xmin)
+		local rhoExpr = rho0 + rho1 * symmath.sin(k0 * (x - xmin - v0x * t))
+		local vxExpr = v0x
+		local vyExpr = symmath.clone(0)
+		local vzExpr = symmath.clone(0)
+		local PExpr = P0
+
+		return makeEulerExact{
+			name = 'advect wave',
+			mins = {0,0,0},
+			maxs = {1,1,1},
+			solverVars = {
+				heatCapacityRatio = 7/5,
+			},
+			setBoundary = function(self)
+				self.solver:setBoundaryMethods{
+					xmin = 'periodic',
+					xmax = 'periodic',
+					ymin = 'periodic',
+					ymax = 'periodic',
+					zmin = 'periodic',
+					zmax = 'periodic',
+				}
+			end,
+			guivars = guivars,
+			txvars = {t, x, y, z},
+			primExprs = {rhoExpr, vxExpr, vyExpr, vzExpr, PExpr},
+		}
+--]=]		
 	end)(),
 
 	-- test case vars
