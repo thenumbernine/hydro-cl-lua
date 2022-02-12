@@ -142,12 +142,12 @@ local args = {
 		}
 	)[dim],
 	boundary = type(cmdline.boundary) == 'table' and cmdline.boundary or {
-		xmin = cmdline.boundary or 'periodic',
-		xmax = cmdline.boundary or 'periodic',
-		ymin = cmdline.boundary or 'periodic',
-		ymax = cmdline.boundary or 'periodic',
-		zmin = cmdline.boundary or 'periodic',
-		zmax = cmdline.boundary or 'periodic',
+		xmin = cmdline.boundary or 'freeflow',
+		xmax = cmdline.boundary or 'freeflow',
+		ymin = cmdline.boundary or 'freeflow',
+		ymax = cmdline.boundary or 'freeflow',
+		zmin = cmdline.boundary or 'freeflow',
+		zmax = cmdline.boundary or 'freeflow',
 	},
 	--]]
 	--[[ cylinder

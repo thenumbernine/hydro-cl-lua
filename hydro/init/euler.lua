@@ -681,7 +681,7 @@ local initConds = table{
 		solverVars = {
 			heatCapacityRatio = 7/5,
 		},
-		setBoundary = function(self)
+		getInitCondCode = function(self)
 			self.solver:setBoundaryMethods{
 				xmin = 'periodic',
 				xmax = 'periodic',
@@ -690,6 +690,7 @@ local initConds = table{
 				zmin = 'periodic',
 				zmax = 'periodic',
 			}
+			return EulerAnalytical.getInitCondCode(self)
 		end,
 		getPrimExprs = function(self)
 			local rho0, rho1, v0x, P0 = self.guiVars:mapi(function(v) return v.symvar end):unpack()
