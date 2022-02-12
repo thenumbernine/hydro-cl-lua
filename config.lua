@@ -11,13 +11,13 @@ local args = {
 	eqn = cmdline.eqn,
 	dim = dim,
 	
-	--integrator = cmdline.integrator or 'forward Euler',
+	integrator = cmdline.integrator or 'forward Euler',
 	--integrator = 'Iterative Crank-Nicolson',
 	--integrator = 'Runge-Kutta 2',
 	--integrator = 'Runge-Kutta 2 Heun',
 	--integrator = 'Runge-Kutta 2 Ralston',
 	--integrator = 'Runge-Kutta 3',
-	integrator = 'Runge-Kutta 4',
+	--integrator = 'Runge-Kutta 4',
 	--integrator = 'Runge-Kutta 4, 3/8ths rule',
 	--integrator = 'Runge-Kutta 2, TVD',
 	--integrator = 'Runge-Kutta 2, non-TVD',
@@ -36,7 +36,7 @@ local args = {
 	
 	fluxLimiter = cmdline.fluxLimiter or 'superbee',
 	--fluxLimiter = 'monotized central',
-	--fluxLimiter = 'donor cell',
+	--fluxLimiter = 'donor cell',		-- same as turning fluxlimiter off ... you have to turn fluxlimiter off to use plm
 	
 	-- piecewise-linear slope limiter
 	-- TODO rename this to 'calcLR' or something
@@ -130,7 +130,7 @@ local args = {
 			-- and on linux ...
 			['AMD Accelerated Parallel Processing/gfx1010:xnack-/gfx902:xnack-'] = {
 				{256,1,1},
-				{1024,1024,1},
+				{512,512,1},
 				{48,48,48},
 			}
 		})[platAndDevicesNames]
@@ -276,15 +276,6 @@ local args = {
 	--initCond = 'linear',
 	initCond = 'advect wave',
 	--initCond = 'advect gaussian',
-	--[[ 2D test case
-	initCondArgs = {
-		rho0 = 1,
-		rho1 = 3,
-		P0 = 1,
-		u0 = 1,
-		v0 = 1,
-	},
-	--]]
 	--[[ 1D test case
 	initCondArgs = {
 		rho0 = 1,
@@ -295,6 +286,15 @@ local args = {
 		x0 = -.5,
 		y0 = 0,
 		z0 = 0,
+	},
+	--]]
+	--[[ 2D test case
+	initCondArgs = {
+		rho0 = 1,
+		rho1 = 3,
+		P0 = 1,
+		u0 = 1,
+		v0 = 1,
 	},
 	--]]
 
@@ -730,7 +730,7 @@ self.solvers:insert(require 'hydro.solver.weno'(table(args, {
 -- compressible Euler equations
 
 
---self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
+self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
 
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct bounded'})))	-- this is the default hllCalcWaveMethod
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct'})))
@@ -764,7 +764,7 @@ self.solvers:insert(require 'hydro.solver.weno'(table(args, {
 
 -- hmm, 2D Sod 64x64 RK4 fails at just past 1 second ...
 --self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='euler', wenoMethod='1996 Jiang Shu', order=13})))
-self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='euler', wenoMethod='2008 Borges', order=13})))
+--self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='euler', wenoMethod='2008 Borges', order=13})))
 --self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='euler', wenoMethod='2010 Shen Zha', order=13})))
 
 -- blows up.  maybe I need an implicit RK scheme...
@@ -1668,9 +1668,9 @@ local args = {
 	--]]
 		
 	--initCond = 'Minkowski',
-	--initCond = 'SENR Minkowski',
+	initCond = 'SENR Minkowski',
 	--initCond = 'SENR UIUC',					-- single black hole. bssnok-fd-num explodes because H diverges at t=13 ... when partial_phi_l diverges at the same rate ... because of its r=0 value?
-	initCond = 'SENR BrillLindquist',			-- two merging head-on.
+	--initCond = 'SENR BrillLindquist',			-- two merging head-on.
 	--initCond = 'SENR BoostedSchwarzschild',
 	--initCond = 'SENR StaticTrumpet',
 	

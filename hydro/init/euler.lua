@@ -434,6 +434,93 @@ assert(self.t)
 	end
 end
 
+
+local function makeEulerExact(args)
+	assert(args)
+	local guivars = args.guivars
+	
+	local t, x, y, z = table.unpack(args.txvars)
+	t:nameForExporter('C', '0')	-- only in the cl init cond, set t=0 ...
+	-- assume the xyz symmath vars are supposed to be in cartesian coordinates
+	for _,v in ipairs{x, y, z} do
+		v:nameForExporter('C', 'xc.'..v.name)
+	end
+	for _,v in ipairs(guivars) do
+		v.symvar:nameForExporter('C', 'initCond->'..v.name)
+		v.symvar:nameForExporter('Lua', 'initCondPtr.'..v.name)
+	end
+
+	local symmath = require 'symmath'
+
+	local initCond = {}
+	
+	initCond.name = assert(args.name)
+	
+	function initCond:createInitStruct()
+		EulerInitCond.createInitStruct(self)
+		local args = self.args or {}
+		for _,v in ipairs(guivars) do
+			v.value = args[v.name] or v.value	-- allow initCond args overriding
+			self:addGuiVar(v)
+		end
+	end
+	
+	function initCond:getDepends()
+		return table{
+			self.solver.coord.symbols.coordMap,
+		}
+	end
+	
+	local rhoExpr, vxExpr, vyExpr, vzExpr, PExpr = table.unpack(args.primExprs)
+
+	local output = {
+		{['rho'] = rhoExpr},
+		{['v.x'] = vxExpr},
+		{['v.y'] = vyExpr},
+		{['v.z'] = vzExpr},
+		{['P'] = PExpr},
+	}
+
+	local clcode = 'real3 const xc = coordMap(x);\n'
+		..'real const t = 0.;\n'
+		..symmath.export.C:toCode{
+			assignOnly = true,
+			output = output,
+		}
+
+	function initCond:getInitCondCode()
+		if args.setupBoundary then args.setupBoundary(self) end
+		return clcode
+	end
+
+	local heatCapacityRatio = symmath.var'heatCapacityRatio'
+	heatCapacityRatio:nameForExporter('Lua', 'solverPtr.heatCapacityRatio')
+	local luaFuncOutput = {
+		{['rho'] = rhoExpr},
+		{['mx'] = rhoExpr * vxExpr},
+		{['my'] = rhoExpr * vyExpr},
+		{['mz'] = rhoExpr * vzExpr},
+		{['ETotal'] = PExpr / (heatCapacityRatio - 1)
+			+ 0.5 * rhoExpr * (vxExpr^2 + vyExpr^2 + vzExpr^2)
+		},
+	}
+
+	local luafunc = symmath.export.Lua:toFunc{
+		input = {symmath.var'solverPtr', symmath.var'initCondPtr', t, x, y, z},
+		output = luaFuncOutput,
+	}
+
+	function initCond:exactSolution(t, x, y, z)
+		local solver = assert(self.solver)
+		local solverPtr = solver.solverPtr
+		local initCondPtr = solver.initCondPtr
+		return luafunc(solverPtr, initCondPtr, t, x, y, z)
+	end
+
+	return initCond
+end
+
+
 local initConds = table{
 	{
 		name = 'constant',
@@ -509,70 +596,47 @@ local initConds = table{
 	},
 	
 	-- 2017 Zingale "Introduction to Computational Astrophysics" section 7.9.3
-	{
-		name = 'advect gaussian',
-		createInitStruct = function(self)
-			EulerInitCond.createInitStruct(self)
-			local args = self.args or {}
-			self:addGuiVars{
-				{name = 'rho0', value = args.rho0 or 1e-3},
-				{name = 'rho1', value = args.rho1 or 1},
-				{name = 'sigma', value = args.sigma or .1},
-				{name = 'u0', value = args.u0 or 0},
-				{name = 'v0', value = args.v0 or 0},
-				{name = 'P0', value = args.P0 or 1e-6},
-				{name = 'x0', value = args.x0 or -.5},
-				{name = 'y0', value = args.y0 or -.5},
-				{name = 'z0', value = args.z0 or 0},
-			}
-		end,
-		getDepends = function(self)
-			return table{
-				self.solver.coord.symbols.coordMap,
-			}
-		end,
-		getInitCondCode = function(self)
-			return self.solver.eqn:template([[
-	real3 xc = coordMap(x);
-	//real xSq = real3_lenSq(xc);
-	real xSq = real3_lenSq(real3_sub(xc,
-		_real3(
-			initCond->x0,
-			initCond->y0,
-			initCond->z0
-		)));
-	rho = (initCond->rho1 - initCond->rho0) * exp(-xSq / (initCond->sigma*initCond->sigma)) + initCond->rho0;
-	v.x = initCond->u0;
-	v.y = initCond->v0;
-	P = initCond->P0;
-]],			{
-				clnumber = clnumber,
-			})
-		end,
-		-- TODO getInitCondCode should be this exact same expression but for t=0
-		-- so how about providing the init cond as a symmath code
-		-- and just compiling it for CL for the init cond kernel
-		-- and compile it to lua for here
-		exactSolution = function(self, t, x, y, z)
-			local solver = assert(self.solver)
-			local solverPtr = solver.solverPtr
-			local initCondPtr = solver.initCondPtr
-			local vx = initCondPtr.u0
-			local vy = initCondPtr.v0
-			local vz = 0
-			-- TODO this is just for 1D ... do 2D too
-			-- but while you're at it, exactSolution and testAccuracy are hardcoded for just 1D as well
-			local dx = x - initCondPtr.x0 - vx * t
-			local xSq = dx * dx
-			local rho = (initCondPtr.rho1 - initCondPtr.rho0) * math.exp(-xSq / (initCondPtr.sigma*initCondPtr.sigma)) + initCondPtr.rho0
-			local P = initCondPtr.P0
-			-- TODO what about metric? only good with cartesian geometry
-			local EKin = .5 * rho * (vx * vx + vy * vy + vz * vz)
-			local EInt = P / (solverPtr.heatCapacityRatio - 1)
-			local ETotal = EKin + EInt
-			return rho, rho * vx, rho * vy, rho * vz, ETotal
-		end,
-	},
+	(function()
+		local symmath = require 'symmath'
+		
+		-- provide configurable args + default values here
+		local guivars = table{
+			{name = 'rho0', value = 1e-3},
+			{name = 'rho1', value = 1},
+			{name = 'sigma', value = .1},
+			{name = 'u0', value = 0},
+			{name = 'v0', value = 0},
+			{name = 'w0', value = 0},
+			{name = 'P0', value = 1e-6},
+			{name = 'x0', value = -.5},
+			{name = 'y0', value = -.5},
+			{name = 'z0', value = 0},
+		}
+		-- for now this is a necessary step... then in makeExactEuler the export-specific names are given to it
+		for _,v in ipairs(guivars) do
+			v.symvar = symmath.var(v.name)
+		end
+		local rho0, rho1, sigma, u0, v0, w0, P0, x0, y0, z0 = guivars:mapi(function(v) return v.symvar end):unpack()
+		local t, x, y, z = symmath.vars('t', 'x', 'y', 'z')
+
+		local dx = x - x0 - u0 * t
+		local dy = y - y0 - v0 * t
+		local dz = z - z0 - w0 * t
+		local xSq = dx^2 + dy^2 + dz^2
+		
+		local rhoExpr = (rho1 - rho0) * symmath.exp(-xSq / sigma^2) + rho0
+		local vxExpr = u0
+		local vyExpr = v0
+		local vzExpr = w0
+		local PExpr = P0
+
+		return makeEulerExact{
+			name = 'advect gaussian',
+			guivars = guivars,
+			txvars = {t, x, y, z},
+			primExprs = {rhoExpr, vxExpr, vyExpr, vzExpr, PExpr},
+		}
+	end)(),
 
 	{
 		-- boundary waves seem to mess with this,
@@ -608,69 +672,66 @@ local initConds = table{
 
 
 
-	{
-		name = 'advect wave',
-		mins = {0,0,0},
-		maxs = {1,1,1},
-		solverVars = {
-			heatCapacityRatio = 7/5,
-		},
-		guiVars = {
-			{name = 'v0x', value = 1},
-			{name = 'v0y', value = 0},
-			{name = 'rho0', value = 1},
-			{name = 'rho1', value = 3.2e-1},
-			{name = 'P0', value = 1},
-		},
-		getDepends = function(self)
-			return table{
-				self.solver.coord.symbols.coordMap,
-			}
-		end,
-		getInitCondCode = function(self)
-			local solver = assert(self.solver)
-			solver:setBoundaryMethods{
-				xmin = 'periodic',
-				xmax = 'periodic',
-				ymin = 'periodic',
-				ymax = 'periodic',
-				zmin = 'periodic',
-				zmax = 'periodic',
-			}
-			return [[
-	real3 xc = coordMap(x);
-	real xmin = solver->mins.x;
-	real xmax = solver->maxs.x;
-	real width = xmax - xmin;
-	real k0 = 2. * M_PI / width;
-	rho = initCond->rho0 + initCond->rho1 * sin(k0 * (xc.x - xmin));
-	v.x = initCond->v0x;
-	v.y = initCond->v0y;
-	v.z = 0;
-	P = initCond->P0;
-	ePot = 0;
+	(function()
+		return {
+			name = 'advect wave',
+			mins = {0,0,0},
+			maxs = {1,1,1},
+			solverVars = {
+				heatCapacityRatio = 7/5,
+			},
+			guiVars = {
+				{name = 'v0x', value = 1},
+				{name = 'rho0', value = 1},
+				{name = 'rho1', value = 3.2e-1},
+				{name = 'P0', value = 1},
+			},
+			getDepends = function(self)
+				return table{
+					self.solver.coord.symbols.coordMap,
+				}
+			end,
+			getInitCondCode = function(self)
+				local solver = assert(self.solver)
+				solver:setBoundaryMethods{
+					xmin = 'periodic',
+					xmax = 'periodic',
+					ymin = 'periodic',
+					ymax = 'periodic',
+					zmin = 'periodic',
+					zmax = 'periodic',
+				}
+				return [[
+real3 xc = coordMap(x);
+real k0 = 2. * M_PI / (solver->maxs.x - solver->mins.x);
+rho = initCond->rho0 + initCond->rho1 * sin(k0 * (xc.x - solver->mins.x));
+v.x = initCond->v0x;
+v.y = 0;
+v.z = 0;
+P = initCond->P0;
 ]]
-		end,
-		-- TODO combine this with above, use a parser / transpiler to convert between Lua and OpenCL, and just write one equation?
-		-- TODO TODO do this with all math everywhere, and analyze the dependency graph of variables and automatically slice out what GPU calculations should be buffered / automatically inline equations
-		exactSolution = function(self, t, x, y, z)
-			local solver = assert(self.solver)
-			local solverPtr = solver.solverPtr
-			local initCondPtr = solver.initCondPtr
-			local k0 = 2 * math.pi / (solverPtr.maxs.x - solverPtr.mins.x)
-			local rho = initCondPtr.rho0 + initCondPtr.rho1 * math.sin(k0 * (x - t))
-			local mx = 1 * rho
-			local my = 0
-			local mz = 0
-			local P = 1
-			-- TODO what about metric? only good with cartesian geometry
-			local mSq = mx * mx + my * my + mz * mz
-			local EKin = .5 * mSq  / rho
-			local EInt = P / (solverPtr.heatCapacityRatio - 1)
-			local ETotal = EKin + EInt
-			return rho, mx, my, mz, ETotal
-		end,
-	},
+			end,
+			-- TODO combine this with above, use a parser / transpiler to convert between Lua and OpenCL, and just write one equation?
+			-- TODO TODO do this with all math everywhere, and analyze the dependency graph of variables and automatically slice out what GPU calculations should be buffered / automatically inline equations
+			exactSolution = function(self, t, x, y, z)
+				local solver = assert(self.solver)
+				local solverPtr = solver.solverPtr
+				local initCondPtr = solver.initCondPtr
+				local k0 = 2 * math.pi / (solverPtr.maxs.x - solverPtr.mins.x)
+				local rho = initCondPtr.rho0 + initCondPtr.rho1 * math.sin(k0 * (x - solverPtr.mins.x - initCondPtr.v0x * t))
+				local mx = initCondPtr.v0x * rho
+				local my = 0
+				local mz = 0
+				local P = 1
+				-- TODO what about metric? only good with cartesian geometry
+				local mSq = mx * mx + my * my + mz * mz
+				local EKin = .5 * mSq  / rho
+				local EInt = P / (solverPtr.heatCapacityRatio - 1)
+				local ETotal = EKin + EInt
+				return rho, mx, my, mz, ETotal
+			end,
+		}
+	end)(),
 
 	-- test case vars
 	RiemannProblem{
