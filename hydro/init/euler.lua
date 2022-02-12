@@ -435,44 +435,50 @@ assert(self.t)
 end
 
 
-local function makeEulerExact(args)
-	assert(args)
-	local guivars = args.guivars
+local EulerAnalytical = class(EulerInitCond)
+
+function EulerAnalytical:createInitStruct()
+	local args = self.args or {}
+	for _,v in ipairs(self.guiVars) do
+		v.value = args[v.name] or v.value	-- allow initCond args overriding
+	end
+	EulerAnalytical.super.createInitStruct(self)
+end
+
+function EulerAnalytical:finalizeInitStruct()
+	-- createInitStruct will overwrite self.guiVars ...
+	EulerAnalytical.super.finalizeInitStruct(self)
+	-- ... so here is where we should add the symvars
+	for _,v in ipairs(self.guiVars) do
+		v.symvar = symmath.var(v.name)
+	end
+end
+
+-- ok now where to do the building of the expressions?
+-- how bout in getInitCondCode?
+
+function EulerAnalytical:getDepends()
+	return {
+		self.solver.coord.symbols.coordMap,
+	}
+end
+
+function EulerAnalytical:getInitCondCode()
+	local t, x, y, z = symmath.vars('t', 'x', 'y', 'z')
+	self.txVars = table{t,x,y,z}
 	
-	local t, x, y, z = table.unpack(args.txvars)
 	t:nameForExporter('C', '0')	-- only in the cl init cond, set t=0 ...
 	-- assume the xyz symmath vars are supposed to be in cartesian coordinates
 	for _,v in ipairs{x, y, z} do
 		v:nameForExporter('C', 'xc.'..v.name)
 	end
-	for _,v in ipairs(guivars) do
+	for _,v in ipairs(self.guiVars) do
 		v.symvar:nameForExporter('C', 'initCond->'..v.name)
 		v.symvar:nameForExporter('Lua', 'initCondPtr.'..v.name)
 	end
 
-	local initCond = {}
-	
-	initCond.name = assert(args.name)
-	initCond.mins = args.mins
-	initCond.maxs = args.maxs
-	initCond.solverVars = args.solverVars
-	
-	function initCond:createInitStruct()
-		EulerInitCond.createInitStruct(self)
-		local args = self.args or {}
-		for _,v in ipairs(guivars) do
-			v.value = args[v.name] or v.value	-- allow initCond args overriding
-			self:addGuiVar(v)
-		end
-	end
-	
-	function initCond:getDepends()
-		return table{
-			self.solver.coord.symbols.coordMap,
-		}
-	end
-	
-	local rhoExpr, vxExpr, vyExpr, vzExpr, PExpr = table.unpack(args.primExprs)
+	self.primExprs = table{self:getPrimExprs()}
+	local rhoExpr, vxExpr, vyExpr, vzExpr, PExpr = self.primExprs:unpack()
 
 	local output = {
 		{['rho'] = rhoExpr},
@@ -489,10 +495,9 @@ local function makeEulerExact(args)
 			output = output,
 		}
 
-	function initCond:getInitCondCode()
-		if args.setBoundary then args.setBoundary(self) end
-		return clcode
-	end
+	-- [[ while we're here, generate the exact solution function
+	-- TODO likewise the clcode and exact solution can both be generated elsewhere 
+	-- and clcode just returned here
 
 	local heatCapacityRatio = symmath.var'heatCapacityRatio'
 	heatCapacityRatio:nameForExporter('Lua', 'solverPtr.heatCapacityRatio')
@@ -511,14 +516,15 @@ local function makeEulerExact(args)
 		output = luaFuncOutput,
 	}
 
-	function initCond:exactSolution(t, x, y, z)
+	function self:exactSolution(t, x, y, z)
 		local solver = assert(self.solver)
 		local solverPtr = solver.solverPtr
 		local initCondPtr = solver.initCondPtr
 		return luafunc(solverPtr, initCondPtr, t, x, y, z)
 	end
+	--]]
 
-	return initCond
+	return clcode
 end
 
 
@@ -597,12 +603,9 @@ local initConds = table{
 	},
 	
 	-- 2017 Zingale "Introduction to Computational Astrophysics" section 7.9.3
-	(function()
-		-- TODO this can be traditional 'guivars' ...
-		-- ... then in EulerExactInitCond, generate the associated symvar's
-		-- ... then provide a 'makeExpressions' function
-		-- provide configurable args + default values here
-		local guivars = table{
+	class(EulerAnalytical, {
+		name = 'advect gaussian',
+		guiVars = {
 			{name = 'rho0', value = 1e-3},
 			{name = 'rho1', value = 1},
 			{name = 'sigma', value = .1},
@@ -612,33 +615,26 @@ local initConds = table{
 			{name = 'P0', value = 1e-6},
 			{name = 'x0', value = -.5},
 			{name = 'y0', value = -.5},
-			{name = 'z0', value = 0},
-		}
-		-- for now this is a necessary step... then in makeEulerExact the export-specific names are given to it
-		for _,v in ipairs(guivars) do
-			v.symvar = symmath.var(v.name)
-		end
-		local rho0, rho1, sigma, u0, v0, w0, P0, x0, y0, z0 = guivars:mapi(function(v) return v.symvar end):unpack()
-		local t, x, y, z = symmath.vars('t', 'x', 'y', 'z')
+			{name = 'z0', value = 0},	
+		},
+		getPrimExprs = function(self)
+			local rho0, rho1, sigma, u0, v0, w0, P0, x0, y0, z0 = self.guiVars:mapi(function(v) return v.symvar end):unpack()
+			local t, x, y, z = self.txVars:unpack()
 
-		local dx = x - x0 - u0 * t
-		local dy = y - y0 - v0 * t
-		local dz = z - z0 - w0 * t
-		local xSq = dx^2 + dy^2 + dz^2
-		
-		local rhoExpr = (rho1 - rho0) * symmath.exp(-xSq / sigma^2) + rho0
-		local vxExpr = u0
-		local vyExpr = v0
-		local vzExpr = w0
-		local PExpr = P0
+			local dx = x - x0 - u0 * t
+			local dy = y - y0 - v0 * t
+			local dz = z - z0 - w0 * t
+			local xSq = dx^2 + dy^2 + dz^2
+			
+			local rhoExpr = (rho1 - rho0) * symmath.exp(-xSq / sigma^2) + rho0
+			local vxExpr = u0
+			local vyExpr = v0
+			local vzExpr = w0
+			local PExpr = P0
 
-		return makeEulerExact{
-			name = 'advect gaussian',
-			guivars = guivars,
-			txvars = {t, x, y, z},
-			primExprs = {rhoExpr, vxExpr, vyExpr, vzExpr, PExpr},
-		}
-	end)(),
+			return rhoExpr, vxExpr, vyExpr, vzExpr, PExpr
+		end,
+	}),
 
 	{
 		-- boundary waves seem to mess with this,
@@ -672,120 +668,51 @@ local initConds = table{
 		end,
 	},
 
-
-
-	(function()
---[=[		
-		return {
-			name = 'advect wave',
-			mins = {0,0,0},
-			maxs = {1,1,1},
-			solverVars = {
-				heatCapacityRatio = 7/5,
-			},
-			guiVars = {
-				{name = 'v0x', value = 1},
-				{name = 'rho0', value = 1},
-				{name = 'rho1', value = 3.2e-1},
-				{name = 'P0', value = 1},
-			},
-			getDepends = function(self)
-				return table{
-					self.solver.coord.symbols.coordMap,
-				}
-			end,
-			getInitCondCode = function(self)
-				local solver = assert(self.solver)
-				solver:setBoundaryMethods{
-					xmin = 'periodic',
-					xmax = 'periodic',
-					ymin = 'periodic',
-					ymax = 'periodic',
-					zmin = 'periodic',
-					zmax = 'periodic',
-				}
-				return [[
-real3 xc = coordMap(x);
-real k0 = 2. * M_PI / (solver->maxs.x - solver->mins.x);
-rho = initCond->rho0 + initCond->rho1 * sin(k0 * (xc.x - solver->mins.x));
-v.x = initCond->v0x;
-v.y = 0;
-v.z = 0;
-P = initCond->P0;
-]]
-			end,
-			-- TODO combine this with above, use a parser / transpiler to convert between Lua and OpenCL, and just write one equation?
-			-- TODO TODO do this with all math everywhere, and analyze the dependency graph of variables and automatically slice out what GPU calculations should be buffered / automatically inline equations
-			exactSolution = function(self, t, x, y, z)
-				local solver = assert(self.solver)
-				local solverPtr = solver.solverPtr
-				local initCondPtr = solver.initCondPtr
-				local k0 = 2 * math.pi / (solverPtr.maxs.x - solverPtr.mins.x)
-				local rho = initCondPtr.rho0 + initCondPtr.rho1 * math.sin(k0 * (x - solverPtr.mins.x - initCondPtr.v0x * t))
-				local mx = initCondPtr.v0x * rho
-				local my = 0
-				local mz = 0
-				local P = 1
-				-- TODO what about metric? only good with cartesian geometry
-				local mSq = mx * mx + my * my + mz * mz
-				local EKin = .5 * mSq  / rho
-				local EInt = P / (solverPtr.heatCapacityRatio - 1)
-				local ETotal = EKin + EInt
-				return rho, mx, my, mz, ETotal
-			end,
-		}
---]=]
--- [=[
-		local guivars = table{
+	class(EulerAnalytical, {
+		name = 'advect wave',
+		mins = {0,0,0},
+		maxs = {1,1,1},
+		guiVars = {
 			{name = 'rho0', value = 1},
 			{name = 'rho1', value = 3.2e-1},
 			{name = 'v0x', value = 1},
 			{name = 'P0', value = 1},
-		}
-		for _,v in ipairs(guivars) do
-			v.symvar = symmath.var(v.name)
-		end
-		local rho0, rho1, v0x, P0 = guivars:mapi(function(v) return v.symvar end):unpack()
-		local t, x, y, z = symmath.vars('t', 'x', 'y', 'z')
-	
-		local xmin = symmath.var'xmin'
-		xmin:nameForExporter('C', 'solver->mins.x')
-		xmin:nameForExporter('Lua', 'solver->mins.x')
+		},
+		solverVars = {
+			heatCapacityRatio = 7/5,
+		},
+		setBoundary = function(self)
+			self.solver:setBoundaryMethods{
+				xmin = 'periodic',
+				xmax = 'periodic',
+				ymin = 'periodic',
+				ymax = 'periodic',
+				zmin = 'periodic',
+				zmax = 'periodic',
+			}
+		end,
+		getPrimExprs = function(self)
+			local rho0, rho1, v0x, P0 = self.guiVars:mapi(function(v) return v.symvar end):unpack()
+			local t, x, y, z = self.txVars:unpack()
 		
-		local xmax = symmath.var'xmax'
-		xmax:nameForExporter('C', 'solver->maxs.x')
-		xmax:nameForExporter('Lua', 'solver->maxs.x')
+			local xmin = symmath.var'xmin'
+			xmin:nameForExporter('C', 'solver->mins.x')
+			xmin:nameForExporter('Lua', 'solverPtr.mins.x')
+			
+			local xmax = symmath.var'xmax'
+			xmax:nameForExporter('C', 'solver->maxs.x')
+			xmax:nameForExporter('Lua', 'solverPtr.maxs.x')
+			
+			local k0 = 2 * symmath.pi / (xmax - xmin)
+			local rhoExpr = rho0 + rho1 * symmath.sin(k0 * (x - xmin - v0x * t))
+			local vxExpr = v0x
+			local vyExpr = symmath.clone(0)
+			local vzExpr = symmath.clone(0)
+			local PExpr = P0
 		
-		local k0 = 2 * symmath.pi / (xmax - xmin)
-		local rhoExpr = rho0 + rho1 * symmath.sin(k0 * (x - xmin - v0x * t))
-		local vxExpr = v0x
-		local vyExpr = symmath.clone(0)
-		local vzExpr = symmath.clone(0)
-		local PExpr = P0
-
-		return makeEulerExact{
-			name = 'advect wave',
-			mins = {0,0,0},
-			maxs = {1,1,1},
-			solverVars = {
-				heatCapacityRatio = 7/5,
-			},
-			setBoundary = function(self)
-				self.solver:setBoundaryMethods{
-					xmin = 'periodic',
-					xmax = 'periodic',
-					ymin = 'periodic',
-					ymax = 'periodic',
-					zmin = 'periodic',
-					zmax = 'periodic',
-				}
-			end,
-			guivars = guivars,
-			txvars = {t, x, y, z},
-			primExprs = {rhoExpr, vxExpr, vyExpr, vzExpr, PExpr},
-		}
---]=]		
-	end)(),
+			return rhoExpr, vxExpr, vyExpr, vzExpr, PExpr
+		end,
+	}),
 
 	-- test case vars
 	RiemannProblem{
@@ -3584,6 +3511,9 @@ In both cases it looks like F is wanted, not dF/dU.
 	},
 
 }:mapi(function(cl)
+	if EulerInitCond:isa(cl) then
+		return class(cl)
+	end
 	return class(EulerInitCond, cl)
 end)
 
