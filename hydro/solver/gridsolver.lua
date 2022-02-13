@@ -409,6 +409,8 @@ function GridSolver:refreshSolverBufMinsMaxs()
 	end
 	if self.app.verbose then
 		print('grid_dx = '..fromreal(self.solverPtr.grid_dx.x)..', '..fromreal(self.solverPtr.grid_dx.y)..', '..fromreal(self.solverPtr.grid_dx.z))
+		print('mins = '..fromreal(self.solverPtr.mins.x)..', '..fromreal(self.solverPtr.mins.y)..', '..fromreal(self.solverPtr.mins.z))
+		print('maxs = '..fromreal(self.solverPtr.maxs.x)..', '..fromreal(self.solverPtr.maxs.y)..', '..fromreal(self.solverPtr.maxs.z))
 		print('initCondMins = '..fromreal(self.solverPtr.initCondMins.x)..', '..fromreal(self.solverPtr.initCondMins.y)..', '..fromreal(self.solverPtr.initCondMins.z))
 		print('initCondMaxs = '..fromreal(self.solverPtr.initCondMaxs.x)..', '..fromreal(self.solverPtr.initCondMaxs.y)..', '..fromreal(self.solverPtr.initCondMaxs.z))
 	end

@@ -454,15 +454,14 @@ function EulerAnalytical:finalizeInitStruct()
 	end
 end
 
--- ok now where to do the building of the expressions?
--- how bout in getInitCondCode?
-
 function EulerAnalytical:getDepends()
 	return {
 		self.solver.coord.symbols.coordMap,
 	}
 end
 
+-- ok now where to do the building of the expressions?
+-- how bout in getInitCondCode?
 function EulerAnalytical:getInitCondCode()
 	local t, x, y, z = symmath.vars('t', 'x', 'y', 'z')
 	self.txVars = table{t,x,y,z}
@@ -617,6 +616,10 @@ local initConds = table{
 			{name = 'y0', value = -.5},
 			{name = 'z0', value = 0},	
 		},
+		getInitCondCode = function(self)
+			self.solver:setBoundaryMethods'periodic'
+			return EulerAnalytical.getInitCondCode(self)
+		end,
 		getPrimExprs = function(self)
 			local rho0, rho1, sigma, u0, v0, w0, P0, x0, y0, z0 = self.guiVars:mapi(function(v) return v.symvar end):unpack()
 			local t, x, y, z = self.txVars:unpack()
@@ -682,14 +685,7 @@ local initConds = table{
 			heatCapacityRatio = 7/5,
 		},
 		getInitCondCode = function(self)
-			self.solver:setBoundaryMethods{
-				xmin = 'periodic',
-				xmax = 'periodic',
-				ymin = 'periodic',
-				ymax = 'periodic',
-				zmin = 'periodic',
-				zmax = 'periodic',
-			}
+			self.solver:setBoundaryMethods'periodic'
 			return EulerAnalytical.getInitCondCode(self)
 		end,
 		getPrimExprs = function(self)
@@ -3305,6 +3301,8 @@ kernel void addExtraSource(
 	},
 
 	--1999 Hudson - "Numerical Techniques for the Shallow Water Equations"
+	-- TODO ... this looks like problem B ... but I have problem B below ... hmm ...
+	-- the second half looks dif tho ... where is it from?
 	{
 		name = 'shallow water constant',
 		solverVars = {
@@ -3316,7 +3314,7 @@ kernel void addExtraSource(
 
 	//this is bathymetry depth
 	real water_B = 0.;
-#if 1
+#if 0
 	if (.4 <= s && s <= .6) {
 		water_B = (1./8.) * (cos(10. * M_PI * (s - .5)) + 1.);
 	}
@@ -3382,17 +3380,46 @@ In both cases it looks like F is wanted, not dF/dU.
 ]]
 		end,
 	},
-
+	
 	--1999 Hudson - "Numerical Techniques for the Shallow Water Equations"
-	-- problem B
+	-- problem A
 	{
-		name = 'shallow water problem B',
+		name = 'shallow water problem A',
+		mins = {0,0,0},
+		maxs = {1,1,1},
 		solverVars = {
 			water_D = .5,
 		},
 		getInitCondCode = function(self)
 			return [[
-	real const s = x.x * .5 + .5;
+	real const s = (x.x - solver->initCondMins.x) / (solver->initCondMaxs.x - solver->initCondMins.x);
+	
+	real water_B = 0;	//page4: "This is due to the riverbed being of constant depth..."
+
+	real const phi0 = 0.5;	//only really specified on page 5, not said to be all phi0's, not said why ...
+	real water_h;
+	if (s < .5) {
+		water_h = 1. - water_B;
+	} else {
+		water_h = phi0 - water_B;
+	}
+	rho = water_h;
+]]
+		end,
+	},
+
+	--1999 Hudson - "Numerical Techniques for the Shallow Water Equations"
+	-- problem B
+	{
+		name = 'shallow water problem B',
+		mins = {0,0,0},
+		maxs = {1,1,1},
+		solverVars = {
+			water_D = .5,
+		},
+		getInitCondCode = function(self)
+			return [[
+	real const s = (x.x - solver->initCondMins.x) / (solver->initCondMaxs.x - solver->initCondMins.x);
 
 	//this is bathymetry depth
 	real water_B = 0.;
@@ -3405,10 +3432,11 @@ In both cases it looks like F is wanted, not dF/dU.
 	
 	// this is wave height for shallow water equations:
 	real water_h;
+	real const phi0 = .5;
 	if (s < .5) {
 		water_h = 1 - water_B;
 	} else {
-		water_h = .5 - water_B;
+		water_h = phi0 - water_B;
 	}
 	//here's our placeholder variable I call 'rho' just for compat with euler fluid equation code
 	rho = water_h;

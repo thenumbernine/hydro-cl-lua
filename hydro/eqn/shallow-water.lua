@@ -52,15 +52,6 @@ Why does ==false produce bad values here?
 --]]
 ShallowWater.roeUseFluxFromCons = true
 
---[[
-debugging:
-Using the default (parent class) version, which falls back on R*Lambda*L, gives the correct flux.
-So it looks like wherever the fluxFromCons() function is used, it is incorrect.
-But wait, why would I use fluxFromCons (which is F(U)) in place of fluxTransform (which is a simplification of dF/dx = dF/dU dU/dx) ?
-I went and put an error in the parent class function, so never set this to true.
---]]
-ShallowWater.useDefaultFluxFromCons = false
-
 ShallowWater.initConds = require 'hydro.init.euler':getList()
 
 ShallowWater.numWaves = 4
@@ -176,12 +167,6 @@ function ShallowWater:createInitState()
 end
 
 -- don't use default
-if not ShallowWater.useDefaultFluxFromCons then
-	function ShallowWater:initCodeModule_fluxFromCons() 
-	end
-end
-
--- don't use default
 function ShallowWater:initCodeModule_consFromPrim_primFromCons() end
 
 function ShallowWater:getModuleDepends_waveCode()
@@ -222,6 +207,7 @@ ShallowWater.predefinedDisplayVars = {
 	'U h',
 	'U h+B',
 	'U B',
+	'U v x',
 }
 --]]
 

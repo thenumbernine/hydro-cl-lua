@@ -119,11 +119,9 @@ end
 	<?=consFromPrim?>(U, solver, &W, x);
 }
 
-<? if not eqn.useDefaultFluxFromCons then ?>
 //// MODULE_NAME: <?=fluxFromCons?>
 //// MODULE_DEPENDS: <?=solver_t?> <?=primFromCons?> <?=normal_t?>
 
-/* TODO why is there an error when I include the 1/2 in the F->m term? */
 #define <?=fluxFromCons?>(\
 	/*<?=cons_t?> * const */result,\
 	/*constant <?=solver_t?> const * const */solver,\
@@ -145,7 +143,6 @@ end
 		))	/*.5 g h^2 n^i*/\
 	);\
 }
-<? end -- not eqn.useDefaultFluxFromCons ?>
 
 //// MODULE_NAME: <?=calcCellMinMaxEigenvalues?>
 
@@ -244,21 +241,23 @@ end
 	real const nLen = normal_len(n);\
 	real const v_n = normal_vecDotN1(n, (eig)->v);\
 \
-	real const invDenom = 1. / (2. * (eig)->h * nLen * nLen);\
-\
-	real const tmp1 = nLen * (X)->ptr[0];\
-	real const tmp2 = (eig)->C * tmp1;\
-	real const tmp3 = nL.x * (X)->ptr[1];\
-	real const tmp5 = nL.y * (X)->ptr[2];\
-	real const tmp7 = nL.z * (X)->ptr[3];\
-	real const tmp8 = v_n * (X)->ptr[0];\
-	real const tmp12 = (eig)->v.x * (X)->ptr[0];\
-	real const tmp13 = (eig)->v.y * (X)->ptr[0];\
-	real const tmp14 = (eig)->v.z * (X)->ptr[0];\
-	(result)->ptr[0] = invDenom * -(tmp8 + tmp2 - tmp3 - tmp5 - tmp7);\
-	(result)->ptr[1] = invDenom * -2. * (n2L.z * tmp14 - n2L.x * (X)->ptr[1] - n2L.y * (X)->ptr[2] - n2L.z * (X)->ptr[3] + n2L.y * tmp13 + n2L.x * tmp12);\
-	(result)->ptr[2] = invDenom * -2. * (n3L.z * tmp14 - n3L.x * (X)->ptr[1] - n3L.y * (X)->ptr[2] - n3L.z * (X)->ptr[3] + n3L.y * tmp13 + n3L.x * tmp12);\
-	(result)->ptr[3] = invDenom * -(tmp8 - tmp2 - tmp3 - tmp5 - tmp7);\
+	real const invDenom = 1. / (2. * nLen * (eig)->h * (eig)->C);\
+	real const tmp1 = (eig)->C * (X)->ptr[0];\
+	real const tmp2 = nLen * tmp1;\
+	real const tmp3 = v_n * (X)->ptr[0];\
+	real const tmp5 = -tmp3;\
+	real const tmp6 = nL.z * (X)->ptr[3];\
+	real const tmp8 = nL.y * (X)->ptr[2];\
+	real const tmp10 = nL.x * (X)->ptr[1];\
+	real const tmp13 = (eig)->v.x * (X)->ptr[0];\
+	real const tmp15 = (eig)->v.y * (X)->ptr[0];\
+	real const tmp17 = (eig)->v.z * (X)->ptr[0];\
+	real const tmp29 = nLen * (eig)->C;\
+	real const tmp31 = invDenom * tmp29;\
+	(result)->ptr[0] = invDenom * (tmp10 + tmp8 + tmp6 + tmp5 + -tmp2);\
+	(result)->ptr[1] = 2. * tmp31 * (n2L.x * (X)->ptr[1] + n2L.y * (X)->ptr[2] + n2L.z * (X)->ptr[3] + -n2L.x * tmp13 + -n2L.z * tmp17 + -n2L.y * tmp15);\
+	(result)->ptr[2] = 2. * tmp31 * (n3L.x * (X)->ptr[1] + n3L.y * (X)->ptr[2] + n3L.z * (X)->ptr[3] + -n3L.x * tmp13 + -n3L.z * tmp17 + -n3L.y * tmp15);\
+	(result)->ptr[3] = invDenom * (tmp10 + tmp8 + tmp6 + tmp2 + tmp5);\
 }
 
 //// MODULE_NAME: <?=eigen_rightTransform?>
@@ -276,20 +275,39 @@ end
 	real3 const n2U = normal_u2(n);\
 	real3 const n3U = normal_u3(n);\
 	real const nLen = normal_len(n);\
+	real const n2Len = normal_len(n); /* TODO */\
+	real const n3Len = normal_len(n); /* TODO */\
 \
 	real const invDenom = 1. / (eig)->C;\
-\
-	real const tmp5 = (eig)->C * (X)->ptr[0];\
-	real const tmp6 = nLen * (X)->ptr[0];\
-	real const tmp9 = (eig)->C * (X)->ptr[1];\
-	real const tmp10 = (eig)->C * (X)->ptr[2];\
-	real const tmp11 = (eig)->C * (X)->ptr[3];\
-	real const tmp12 = nLen * (X)->ptr[3];\
-	real const tmp22 = invDenom * (eig)->h;\
-	(result)->ptr[0] = invDenom * -nLen * (eig)->h * ((X)->ptr[0] - (X)->ptr[3]);\
-	(result)->ptr[1] = tmp22 * ((eig)->v.x * tmp12 + nU.x * tmp11 + n3U.x * tmp10 + n2U.x * tmp9 + nU.x * tmp5 - (eig)->v.x * tmp6);\
-	(result)->ptr[2] = tmp22 * ((eig)->v.y * tmp12 + nU.y * tmp11 + n3U.y * tmp10 + n2U.y * tmp9 + nU.y * tmp5 - (eig)->v.y * tmp6);\
-	(result)->ptr[3] = tmp22 * ((eig)->v.z * tmp12 + nU.z * tmp11 + n3U.z * tmp10 + n2U.z * tmp9 + nU.z * tmp5 - (eig)->v.z * tmp6);\
+	real const tmp5 = n3Len * n3Len;\
+	real const tmp6 = n2Len * n2Len;\
+	real const tmp7 = tmp5 * (X)->ptr[0];\
+	real const tmp8 = (eig)->C * (eig)->C;\
+	real const tmp9 = tmp6 * tmp7;\
+	real const tmp10 = tmp8 * tmp9;\
+	real const tmp13 = (X)->ptr[3] * tmp5;\
+	real const tmp15 = tmp13 * tmp6;\
+	real const tmp16 = tmp15 * tmp8;\
+	real const tmp17 = (eig)->C * (X)->ptr[0];\
+	real const tmp19 = nLen * tmp17;\
+	real const tmp21 = tmp19 * tmp5;\
+	real const tmp22 = tmp21 * tmp6;\
+	real const tmp24 = (eig)->C * (X)->ptr[1];\
+	real const tmp26 = nLen * tmp24;\
+	real const tmp27 = tmp26 * tmp5;\
+	real const tmp28 = (eig)->C * (X)->ptr[2];\
+	real const tmp30 = nLen * tmp28;\
+	real const tmp31 = tmp30 * tmp6;\
+	real const tmp32 = (eig)->C * (X)->ptr[3];\
+	real const tmp34 = nLen * tmp32;\
+	real const tmp36 = tmp34 * tmp5;\
+	real const tmp37 = tmp36 * tmp6;\
+	real const tmp51 = nLen * tmp5;\
+	real const tmp53 = tmp51 * tmp6;\
+	(result)->ptr[0] = invDenom * ((X)->ptr[3] + -(X)->ptr[0]) * (eig)->h * (eig)->C;\
+	(result)->ptr[1] = invDenom * ((eig)->h * (nU.x * tmp10 + nU.x * tmp16 + -(eig)->v.x * tmp22 + n2U.x * tmp27 + (eig)->v.x * tmp37 + n3U.x * tmp31)) / tmp53;\
+	(result)->ptr[2] = invDenom * ((eig)->h * (nU.y * tmp10 + nU.y * tmp16 + -(eig)->v.y * tmp22 + n2U.y * tmp27 + (eig)->v.y * tmp37 + n3U.y * tmp31)) / tmp53;\
+	(result)->ptr[3] = invDenom * ((eig)->h * (nU.z * tmp10 + nU.z * tmp16 + -(eig)->v.z * tmp22 + n2U.z * tmp27 + (eig)->v.z * tmp37 + n3U.z * tmp31)) / tmp53;\
 }
 
 //// MODULE_NAME: <?=eigen_fluxTransform?>
@@ -306,16 +324,17 @@ end
 	real3 const nU = normal_u1(n);\
 	real const v_n = normal_vecDotN1(n, (eig)->v);\
 \
-	real const tmp5 = v_n * (X)->ptr[0];\
-	real const tmp6 = (eig)->h * (X)->ptr[0];\
-	real const tmp7 = solver->gravity * tmp6;\
-	(result)->ptr[0] = nL.z * (X)->ptr[3] + nL.y * (X)->ptr[2] + nL.x * (X)->ptr[1];\
-	(result)->ptr[1] = -((eig)->v.x * tmp5 - nU.x * tmp7 - nL.x * (eig)->v.x * (X)->ptr[1] - v_n * (X)->ptr[1] - nL.y * (eig)->v.x * (X)->ptr[2] - nL.z * (eig)->v.x * (X)->ptr[3]);\
-	(result)->ptr[2] = -((eig)->v.y * tmp5 - nU.y * tmp7 - nL.x * (eig)->v.y * (X)->ptr[1] - nL.y * (eig)->v.y * (X)->ptr[2] - v_n * (X)->ptr[2] - nL.z * (eig)->v.y * (X)->ptr[3]);\
-	(result)->ptr[3] = -((eig)->v.z * tmp5 - nU.z * tmp7 - nL.x * (eig)->v.z * (X)->ptr[1] - nL.y * (eig)->v.z * (X)->ptr[2] - nL.z * (eig)->v.z * (X)->ptr[3] - v_n * (X)->ptr[3]);\
+	real const tmp8 = (eig)->h * (X)->ptr[0];\
+	real const tmp9 = solver->gravity * tmp8;\
+	real const tmp10 = v_n * (X)->ptr[0];\
+	(result)->ptr[0] = nL.x * (X)->ptr[1] + nL.z * (X)->ptr[3] + nL.y * (X)->ptr[2];\
+	(result)->ptr[1] = nL.x * (eig)->v.x * (X)->ptr[1] + v_n * (X)->ptr[1] + nL.y * (eig)->v.x * (X)->ptr[2] + nL.z * (eig)->v.x * (X)->ptr[3] + -(eig)->v.x * tmp10 + nU.x * tmp9;\
+	(result)->ptr[2] = nL.x * (eig)->v.y * (X)->ptr[1] + nL.y * (eig)->v.y * (X)->ptr[2] + v_n * (X)->ptr[2] + nL.z * (eig)->v.y * (X)->ptr[3] + -(eig)->v.y * tmp10 + nU.y * tmp9;\
+	(result)->ptr[3] = nL.x * (eig)->v.z * (X)->ptr[1] + nL.y * (eig)->v.z * (X)->ptr[2] + v_n * (X)->ptr[3] + nL.z * (eig)->v.z * (X)->ptr[3] + -(eig)->v.z * tmp10 + nU.z * tmp9;\
 }
 
 //// MODULE_NAME: <?=addSource?>
+//// MODULE_DEPENDS: <?=primFromCons?>
 
 kernel void <?=addSource?>(
 	constant <?=solver_t?> const * const solver,
@@ -363,6 +382,13 @@ kernel void <?=addSource?>(
 	);
 #endif
 #if 1
+
+// this should work out to be 1/(2 dx) = 1000/2 = 500  for gridsize=1000 ...
+// but coefficients too high are causing our source to cause our steady-state h+B to have a dip in it instead of constant
+// lowering the value seems to raise the steady state ... 
+// about 350 is about even ...
+// too low and the steady state duplicates the B(x) 
+#if 1
 // \partial_tilde{j} depth
 <?=eqn:makePartial1(
 	"depth",			-- field
@@ -370,6 +396,16 @@ kernel void <?=addSource?>(
 	nil,				-- nameOverride
 	getDepthSource()	-- srcName (cellBuf instead of UBuf)
 )?>
+#else	//manually trying to find the coefficient that gives us a flat h+B steady state
+	real3 partial_depth_l;
+	partial_depth_l.x = (
+		cell[1].depth 
+		- cell[-1].depth
+	) * 400.;
+	partial_depth_l.y = 0.;
+	partial_depth_l.z = 0.;
+#endif
+
 
 //// MODULE_DEPENDS: <?=coord_holBasisLen_i?>
 	//e_j(depth) = {e_j}^\tilde{j} \partial_\tilde{j} (depth)
