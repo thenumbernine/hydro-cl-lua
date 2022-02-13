@@ -1370,18 +1370,20 @@ function SolverBase:refreshEqnInitState()
 	if initCond.mins then
 		local mins = initCond.mins
 		if type(mins) == 'function' then mins = assert(mins(initCond)) end
-		self.mins = vec3d(unpack(mins))
+		self.mins = vec3d(table.unpack(mins))
 		for j=1,3 do
 			self.solverPtr.mins.s[j-1] = toreal(self.mins.s[j-1])
 		end
+		self.initCondMins = vec3d(self.mins:unpack())
 	end
 	if initCond.maxs then
 		local maxs = initCond.maxs
 		if type(maxs) == 'function' then maxs = assert(maxs(initCond)) end
-		self.maxs = vec3d(unpack(maxs))
+		self.maxs = vec3d(table.unpack(maxs))
 		for j=1,3 do
 			self.solverPtr.maxs.s[j-1] = toreal(self.maxs.s[j-1])
 		end
+		self.initCondMaxs = vec3d(self.maxs:unpack())
 	end
 
 	-- there's a lot of overlap between this and the solverBuf creation...
