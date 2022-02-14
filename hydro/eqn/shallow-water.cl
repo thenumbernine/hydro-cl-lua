@@ -129,11 +129,10 @@ end
 	/*<?=cell_t?> const * const */cell,\
 	/*<?=normal_t?> const */n\
 ) {\
-	<?=prim_t?> W;\
-	<?=primFromCons?>(&W, solver, U, (cell)->pos);\
-	real const v_n = normal_vecDotN1(n, W.v);\
+	real const m_n = normal_vecDotN1(n, (U)->m);\
+	real const v_n = m_n / (U)->h;\
 	real3 const nU = normal_u1(n);\
-	(result)->h = (U)->h * v_n,\
+	(result)->h = m_n, /* h v^i */\
 	(result)->m = real3_add(\
 		real3_real_mul((U)->m, v_n),	/*h v^i v_n*/\
 		real3_real_mul(nU, .5 * solver->gravity * (U)->h * ((U)->h\
@@ -358,7 +357,7 @@ kernel void <?=addSource?>(
 	//TODO instead: treat the cell values constant at center and integrate conn across the cell.
 	real const volume = cell_volume(solver, pt);
 
-#if 0
+<? if false then ?>
 //// MODULE_DEPENDS: <?=coord_conn_apply23?>
 	//covariant derivative connection:
 	//integral -vol Γ^i_jk h v^j v^k dx^3
@@ -380,15 +379,9 @@ kernel void <?=addSource?>(
 			.5 * volume * solver->gravity * U->h * U->h
 		)
 	);
-#endif
-#if 1
+<? end ?>
+<? if true then ?>
 
-// this should work out to be 1/(2 dx) = 1000/2 = 500  for gridsize=1000 ...
-// but coefficients too high are causing our source to cause our steady-state h+B to have a dip in it instead of constant
-// lowering the value seems to raise the steady state ... 
-// about 350 is about even ...
-// too low and the steady state duplicates the B(x) 
-#if 1
 // \partial_tilde{j} depth
 <?=eqn:makePartial1(
 	"depth",			-- field
@@ -396,16 +389,6 @@ kernel void <?=addSource?>(
 	nil,				-- nameOverride
 	getDepthSource()	-- srcName (cellBuf instead of UBuf)
 )?>
-#else	//manually trying to find the coefficient that gives us a flat h+B steady state
-	real3 partial_depth_l;
-	partial_depth_l.x = (
-		cell[1].depth 
-		- cell[-1].depth
-	) * 400.;
-	partial_depth_l.y = 0.;
-	partial_depth_l.z = 0.;
-#endif
-
 
 //// MODULE_DEPENDS: <?=coord_holBasisLen_i?>
 	//e_j(depth) = {e_j}^\tilde{j} \partial_\tilde{j} (depth)
@@ -420,6 +403,16 @@ kernel void <?=addSource?>(
 	//deriv->h += real3_dot(U->m, e_depth_l) / U->h;
 	//but then again, this should only happen proportional to the velocity, when at zero shouldn't change the height
 
+<? if false then ?>
+	// diffusion? 
+	// of the difference of the height and the sea floor? 
+	// what can save this simulation?
+//// MODULE_DEPENDS: sym3
+<?=eqn:makePartial2'h'?>
+<?=eqn:makePartial2("depth", "real", nil, getDepthSource())?>
+	deriv->h -= .0002 * (partial2_h_ll.xx - partial2_depth_ll.xx);
+<? end ?>
+
 	//2011 Berger, eqn 1
 //// MODULE_DEPENDS: <?=coord_raise?>
 	//g^ij e_j(depth)
@@ -433,13 +426,14 @@ kernel void <?=addSource?>(
 		real3_real_mul(
 			e_depth_u,
 			solver->gravity 
-			* U->h	// cell->depth
+			* U->h // cell->depth
 		)
 	);
-#endif
-#if 0
+<? end ?>
+<? if false then ?>
+//// MODULE_DEPENDS: <?=coordLen?>
 	//2011 Berger, eqn 3
 	real const drag = solver->gravity * solver->Manning * solver->Manning * coordLen(U->m, pt) * pow(U->h, -8./3.);	//|u|/h^(5/3) = |m|*h^(-8/3)
 	deriv->m = real3_sub(deriv->m, U->m);
-#endif
+<? end ?>
 }

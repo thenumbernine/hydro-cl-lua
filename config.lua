@@ -275,8 +275,8 @@ local args = {
 	--initCond = 'random',
 	--initCond = 'linear',
 	--initCond = 'advect wave',
-	--initCond = 'advect gaussian',
-	--[[ 1D test case
+	initCond = 'advect gaussian',	-- TODO fix the default case
+	-- [[ 1D test case
 	initCondArgs = {
 		rho0 = 1,
 		rho1 = 3,
@@ -449,7 +449,8 @@ local args = {
 	
 	--initCond = 'shallow water constant',
 	--initCond = 'shallow water problem A',	-- boundary: v = reflect, h = freeflow
-	initCond = 'shallow water problem B',	-- boundary: v = reflect, h = freeflow
+	--initCond = 'shallow water problem B',	-- boundary: v = reflect, h = freeflow
+	--initCondArgs = {phi0 = 1},
 	--initCond = 'shallow water problem C',	-- boundary = freeflow
 	--TODO initCond = 'shallow water problem D',	-- lhs boundary = fixed, rhs boundary = freeflow
 	--initCond = 'shallow water parabola',
@@ -705,7 +706,7 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn
 -- shallow water equations
 
 
-self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='shallow-water'})))
+--self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='shallow-water'})))
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='shallow-water'})))
 --self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='shallow-water', wenoMethod='1996 Jiang Shu', order=5})))
 --self.solvers:insert(require 'hydro.solver.fdsolver'(table(args, {eqn='shallow-water'})))
@@ -732,7 +733,7 @@ self.solvers:insert(require 'hydro.solver.weno'(table(args, {
 -- compressible Euler equations
 
 
---self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
+self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
 
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct bounded'})))	-- this is the default hllCalcWaveMethod
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct'})))

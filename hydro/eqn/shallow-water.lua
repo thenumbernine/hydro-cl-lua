@@ -322,7 +322,7 @@ ShallowWater.consWaveCode = ShallowWater.eigenWaveCode
 
 function ShallowWater:consWaveCodeMinMaxAllSidesPrefix(args)
 	return self:template([[
-real const CSq = solver->gravity * (<?=U?>->h 
+real const CSq = solver->gravity * ((<?=U?>)->h 
 <? if eqn.extraTermInFlux then ?>
 	- <?=getDepth(U, 'cell')?>
 <? end ?>

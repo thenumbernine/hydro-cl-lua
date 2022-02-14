@@ -23,6 +23,7 @@ but how about I make some stanard overrides?
 
 args:
 	solverVars = solverVars to override, overriding initCond and of course overriding solver
+	... etc = any args that match any initCond guiVars will automatically override the initCond guiVar value
 --]]
 function InitCond:init(args)
 	self.solver = assert(args.solver, "expected solver")
@@ -73,6 +74,17 @@ function InitCond:addGuiVars(args)
 end
 
 function InitCond:addGuiVar(args)
+	args = table(args)
+	-- ok 'args' is the guivar/initcondvar args ...
+	-- and 'self.args' is the InitCond ctor args ...
+	-- HERE: allow the InitCond ctor args to override any guiVars
+	if self.args 
+	and self.args
+	and self.args[args.name] ~= nil
+	then
+		args.value = self.args[args.name]
+	end
+
 	local vartype = args.type
 	if not vartype then
 		vartype = type(args.value)

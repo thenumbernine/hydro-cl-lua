@@ -437,14 +437,6 @@ end
 
 local EulerAnalytical = class(EulerInitCond)
 
-function EulerAnalytical:createInitStruct()
-	local args = self.args or {}
-	for _,v in ipairs(self.guiVars) do
-		v.value = args[v.name] or v.value	-- allow initCond args overriding
-	end
-	EulerAnalytical.super.createInitStruct(self)
-end
-
 function EulerAnalytical:finalizeInitStruct()
 	-- createInitStruct will overwrite self.guiVars ...
 	EulerAnalytical.super.finalizeInitStruct(self)
@@ -3414,6 +3406,9 @@ In both cases it looks like F is wanted, not dF/dU.
 		name = 'shallow water problem B',
 		mins = {0,0,0},
 		maxs = {1,1,1},
+		guiVars = {
+			{name = 'phi0', value = .5},
+		},
 		solverVars = {
 			water_D = .5,
 		},
@@ -3432,11 +3427,10 @@ In both cases it looks like F is wanted, not dF/dU.
 	
 	// this is wave height for shallow water equations:
 	real water_h;
-	real const phi0 = .5;
 	if (s < .5) {
 		water_h = 1 - water_B;
 	} else {
-		water_h = phi0 - water_B;
+		water_h = initCond->phi0 - water_B;
 	}
 	//here's our placeholder variable I call 'rho' just for compat with euler fluid equation code
 	rho = water_h;
