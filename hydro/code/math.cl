@@ -497,10 +497,6 @@ static inline real3 sym3_y(sym3 m);
 static inline real3 sym3_z(sym3 m);
 static inline real3 sym3_col(sym3 m, int side);
 static inline real sym3_trace(sym3 m);
-static inline sym3 sym3_swap(sym3 m, int side);
-static inline sym3 sym3_swap0(sym3 m);
-static inline sym3 sym3_swap1(sym3 m);
-static inline sym3 sym3_swap2(sym3 m);
 static inline real real3_weightedDot(real3 a, real3 b, sym3 m);
 static inline real real3_weightedLenSq(real3 a, sym3 m);
 static inline real real3_weightedLen(real3 a, sym3 m);
@@ -609,6 +605,62 @@ static inline real sym3_trace(sym3 m) {
 	return m.xx + m.yy + m.zz;
 }
 
+//weighted inner product using 'm'
+static inline real real3_weightedDot(real3 a, real3 b, sym3 m) {
+	return real3_dot(a, sym3_real3_mul(m, b));
+}
+
+static inline real real3_weightedLenSq(real3 a, sym3 m) {
+	return real3_weightedDot(a, a, m);
+}
+
+static inline real real3_weightedLen(real3 a, sym3 m) {
+	return sqrt(real3_weightedLenSq(a, m));
+}
+
+//// MODULE_NAME: sym3_rotate
+//// MODULE_DEPENDS: rotate
+//// MODULE_HEADER:
+
+static inline sym3 sym3_rotateFrom(sym3 const m, real3 const n);
+static inline sym3 sym3_rotateTo(sym3 const m, real3 const n);
+static inline sym3 sym3_swap(sym3 m, int side);
+static inline sym3 sym3_swap0(sym3 m);
+static inline sym3 sym3_swap1(sym3 m);
+static inline sym3 sym3_swap2(sym3 m);
+
+//// MODULE_CODE:
+
+static inline sym3 sym3_rotateFrom(
+	sym3 const m,
+	real3 const n
+) {
+	real3x3 t = real3x3_from_sym3(m);
+	t.x = real3_rotateFrom(t.x, n);
+	t.y = real3_rotateFrom(t.y, n);
+	t.z = real3_rotateFrom(t.z, n);
+	t = real3x3_transpose(t);
+	t.x = real3_rotateFrom(t.x, n);
+	t.y = real3_rotateFrom(t.y, n);
+	t.z = real3_rotateFrom(t.z, n);
+	return sym3_from_real3x3(t);
+}
+
+static inline sym3 sym3_rotateTo(
+	sym3 const m,
+	real3 const n
+) {
+	real3x3 t = real3x3_from_sym3(m);
+	t.x = real3_rotateTo(t.x, n);
+	t.y = real3_rotateTo(t.y, n);
+	t.z = real3_rotateTo(t.z, n);
+	t = real3x3_transpose(t);
+	t.x = real3_rotateTo(t.x, n);
+	t.y = real3_rotateTo(t.y, n);
+	t.z = real3_rotateTo(t.z, n);
+	return sym3_from_real3x3(t);
+}
+
 //for swapping dimensions between x and 012
 static inline sym3 sym3_swap(sym3 m, int side) {
 	if (side == 0) {
@@ -624,19 +676,6 @@ static inline sym3 sym3_swap(sym3 m, int side) {
 static inline sym3 sym3_swap0(sym3 m) { return m; }
 static inline sym3 sym3_swap1(sym3 m) { return _sym3(m.yy, m.xy, m.yz, m.xx, m.xz, m.zz); }
 static inline sym3 sym3_swap2(sym3 m) { return _sym3(m.zz, m.yz, m.xz, m.yy, m.xy, m.xx); }
-
-//weighted inner product using 'm'
-static inline real real3_weightedDot(real3 a, real3 b, sym3 m) {
-	return real3_dot(a, sym3_real3_mul(m, b));
-}
-
-static inline real real3_weightedLenSq(real3 a, sym3 m) {
-	return real3_weightedDot(a, a, m);
-}
-
-static inline real real3_weightedLen(real3 a, sym3 m) {
-	return sqrt(real3_weightedLenSq(a, m));
-}
 
 //// MODULE_NAME: real3x3
 //// MODULE_DEPENDS: real3 sym3
@@ -938,7 +977,6 @@ static inline real3 sym3_3sym3_dot12(sym3 a, _3sym3 b);
 static inline sym3 real3_3sym3_dot1(real3 a, _3sym3 b);
 static inline real3 _3sym3_tr12(_3sym3 a);
 static inline real3x3 real3_3sym3_dot2(real3 a, _3sym3 b);
-static inline _3sym3 _3sym3_swap(_3sym3 m, int side);
 
 //// MODULE_CODE:
 
@@ -1045,6 +1083,69 @@ static inline real3x3 real3_3sym3_dot2(real3 a, _3sym3 b) {
 ?>		},
 <? end
 ?>	};
+}
+
+//// MODULE_NAME: _3sym3_rotate
+//// MODULE_HEADER:
+
+static inline _3sym3 _3sym3_rotateFrom(_3sym3 const m, real3 const n);
+static inline _3sym3 _3sym3_rotateTo(_3sym3 const m, real3 const n);
+static inline _3sym3 _3sym3_swap(_3sym3 m, int side);
+
+//// MODULE_CODE:
+
+static inline _3sym3 _3sym3_rotateFrom(
+	_3sym3 const m,
+	real3 const n
+) {
+	real3x3x3 t = real3x3x3_from__3sym3(m);
+	real3 tmp;
+<?	local is = require "ext.table"()
+	for e=1,3 do
+		for i,xi in ipairs(xNames) do
+			is[e] = xi
+			for j,xj in ipairs(xNames) do
+				is[e%3+1] = xj
+				for k,xk in ipairs(xNames) do
+					is[(e+1)%3+1] = xk
+?>	tmp.<?=xk?> = t.<?=is:concat"."?>;
+<?				end
+?>	tmp = real3_rotateFrom(tmp, n);
+<?				for k,xk in ipairs(xNames) do
+					is[(e+1)%3+1] = xk
+?>	t.<?=is:concat"."?> = tmp.<?=xk?>;
+<?				end
+			end
+		end
+	end
+?>	return _3sym3_from_real3x3x3(t);
+}
+
+static inline _3sym3 _3sym3_rotateTo(
+	_3sym3 const m,
+	real3 const n
+) {
+	real3x3x3 t = real3x3x3_from__3sym3(m);
+	real3 tmp;
+<?	local is = require "ext.table"()
+	for e=1,3 do
+		for i,xi in ipairs(xNames) do
+			is[e] = xi
+			for j,xj in ipairs(xNames) do
+				is[e%3+1] = xj
+				for k,xk in ipairs(xNames) do
+					is[(e+1)%3+1] = xk
+?>	tmp.<?=xk?> = t.<?=is:concat"."?>;
+<?				end
+?>	tmp = real3_rotateTo(tmp, n);
+<?				for k,xk in ipairs(xNames) do
+					is[(e+1)%3+1] = xk
+?>	t.<?=is:concat"."?> = tmp.<?=xk?>;
+<?				end
+			end
+		end
+	end
+?>	return _3sym3_from_real3x3x3(t);
 }
 
 static inline _3sym3 _3sym3_swap(_3sym3 m, int side) {

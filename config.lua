@@ -733,7 +733,7 @@ self.solvers:insert(require 'hydro.solver.weno'(table(args, {
 -- compressible Euler equations
 
 
-self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
+--self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
 
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct bounded'})))	-- this is the default hllCalcWaveMethod
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct'})))
@@ -1432,11 +1432,11 @@ local args = {
 	},
 	--]]
 
-	--initCond = 'Minkowski',				-- hmm, explodes with 2009Alic-z4
+	initCond = 'Minkowski',				-- hmm, explodes with 2009Alic-z4
 	--initCond = 'SENR Minkowski',			-- stable with 2009Alic-z4
 	--initCond = 'gaussian perturbation',
 	--initCond = 'plane gauge wave',
-	initCond = 'SENR UIUC',					-- 2009Alic-z4 runs until t=43
+	--initCond = 'SENR UIUC',					-- 2009Alic-z4 runs until t=43
 	--initCond = 'SENR BrillLindquist',
 	--initCond = 'black hole - Schwarzschild',
 	--initCond = 'black hole - isotropic - stuffed',	-- TODO FIXME
@@ -1461,6 +1461,9 @@ if cmdline['2009Alic-adm'] then
 end
 if cmdline['2009Alic-z4'] then
 	self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {eqn='z4'})))
+end
+if cmdline['2009Alic-z4_2008yano'] then
+	self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {eqn='z4_2008yano'})))
 end
 if cmdline['2009Alic-bssnok-fd-senr'] then
 	self.solvers:insert(require 'hydro.solver.bssnok-fd'(table(args, {eqn='bssnok-fd-senr'})))
