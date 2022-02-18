@@ -998,6 +998,16 @@ Next question: Should we create a unique context for each sub-solver?
 	Will that just introduce more complexities with having to copy GPU data between different contexts? (in the GL world, copying between contexts is a headache)
 --]]
 function SolverBase:refreshSolverBuf()
+--[[ bssnok-fd-senr is crashing here even though all the sizes seem to match up
+print('self.solverPtr', self.solverPtr)	
+	assert(not rawequal(self.solverPtr, nil))
+print('ffi.sizeof(self.solverPtr)', ffi.sizeof(self.solverPtr))
+print('self.solverBuf.type', self.solverBuf.type)
+print('ffi.sizeof(self.solverBuf.type)', ffi.sizeof(self.solverBuf.type))
+print('self.solverBuf.count', self.solverBuf.count)
+print('ffi.sizeof(self.solverBuf.type) * self.solverBuf.count', ffi.sizeof(self.solverBuf.type) * self.solverBuf.count)
+	assert(ffi.sizeof(self.solverBuf.type) * self.solverBuf.count == ffi.sizeof(self.solverPtr))
+--]]	
 	self.solverBuf:fromCPU(self.solverPtr)
 end
 
@@ -1016,7 +1026,7 @@ function SolverBase:copyGuiVarsToBufs()
 			end
 		end
 	end
-	self:refreshSolverBuf()
+	self:refreshSolverBuf()		-- solver=bssnok-fd, eqn=bssnok-fd-senr ... crashes here - can't access GPU memory
 
 	-- copy initCondBuf vars
 	for _,var in ipairs(self.eqn.initCond.guiVars) do
@@ -1914,7 +1924,7 @@ function SolverBase:applyInitCond()
 end
 
 function SolverBase:convertToSIUnitsCode(units)
-
+	units = units or '1'
 	self.unitCodeCache = self.unitCodeCache or {}
 	if self.unitCodeCache[units] then
 		return self.unitCodeCache[units]
