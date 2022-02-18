@@ -64,13 +64,16 @@ local checkboxTable = makeTableAccess('bool', wrap.checkbox)
 local intTable = makeTableAccess('int', wrap.int)
 local sliderTable = makeTableAccess('float', wrap.slider)
 
+local buf = ffi.new'char[256]'
+
 -- unlike others, this is a bit more than simple ffi primitive read/write
 -- because imgui's float formatting isn't very flexible
 -- also not 'tableFloat' because of the higher accuracy of double/string than float/string serializing
-local buf = ffi.new'char[256]'
 local function numberTable(title, t, k, ...)
-	local s = tostring(t[k])
-	ffi.copy(buf, s, ffi.sizeof(buf))
+	local src = tostring(t[k])
+	local len = math.min(ffi.sizeof(buf)-1, #src)
+	ffi.copy(buf, src, len)
+	buf[len] = 0
 	-- TODO maybe ig.ImGuiInputTextFlags_EnterReturnsTrue
 	if wrap.text(title, buf, ffi.sizeof(buf), ...) then
 		local s = ffi.string(buf, ffi.sizeof(buf))
@@ -97,14 +100,13 @@ assert(type(t[k]) == 'number')
 end
 
 -- TODO dynamic sized buffer?
-local str = ffi.new'char[256]'
 local function textTable(title, t, k, ...)
 	local src = tostring(t[k])
-	local len = math.min(ffi.sizeof(str)-1, #src)
-	ffi.copy(str, src, len)
-	str[len] = 0
-	if wrap.text(title, str, ffi.sizeof(str), ...) then
-		t[k] = ffi.string(str)
+	local len = math.min(ffi.sizeof(buf)-1, #src)
+	ffi.copy(buf, src, len)
+	buf[len] = 0
+	if wrap.text(title, buf, ffi.sizeof(buf), ...) then
+		t[k] = ffi.string(buf)
 		return true
 	end
 end
