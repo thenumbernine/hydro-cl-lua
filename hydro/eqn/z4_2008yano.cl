@@ -1105,7 +1105,7 @@ b^l_k,t 	+ (-β^i b^l_i)_,k									*/	\
 }
 
 //// MODULE_NAME: <?=eigen_rightTransform?>
-//// MODULE_DEPENDS: sym3_rotate
+//// MODULE_DEPENDS: _3sym3_rotate sym3_rotate
 
 #define <?=eigen_rightTransform?>(\
 	/*<?=cons_t?> * const */resultU,\
@@ -1634,7 +1634,7 @@ b^l_k,t 	+ (-β^i b^l_i)_,k									*/	\
 }
 
 //// MODULE_NAME: <?=eigen_fluxTransform?>
-//// MODULE_DEPENDS: sym3_rotate
+//// MODULE_DEPENDS: _3sym3_rotate sym3_rotate
 
 //notice this paper uses the decomposition alpha A = R Lambda L
 // so this computation is for alpha A

@@ -243,7 +243,7 @@ end
 <? end	-- eqn.initCond.useBSSNVars ?>
 
 //// MODULE_NAME: <?=fluxFromCons?>
-//// MODULE_DEPENDS: rotate <?=cons_t?> <?=solver_t?> <?=normal_t?> rotate <?=initCond_codeprefix?>
+//// MODULE_DEPENDS: rotate <?=cons_t?> <?=solver_t?> <?=normal_t?> sym3_rotate _3sym3_rotate <?=initCond_codeprefix?>
 
 #define <?=fluxFromCons?>(\
 	/*<?=cons_t?> * const */F,\
@@ -397,6 +397,7 @@ end
 }
 
 //// MODULE_NAME: <?=eigen_leftTransform?>
+//// MODULE_DEPENDS: sym3_rotate _3sym3_rotate
 
 #define <?=eigen_leftTransform?>(\
 	/*<?=waves_t?> * const */result,\
