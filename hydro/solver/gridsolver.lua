@@ -863,7 +863,7 @@ function BoundarySphereRMin:getCode(args)
 	
 	assert(args.side == 1 and args.minmax == 'min', "you should only use this boundary condition for rmin with spherical coordinates")
 	assert(require 'hydro.coord.sphere':isa(solver.coord)
-		or require 'hydro.coord.sphere-sinh-radial':isa(solver.coord), "you should only use this boundary condition for rmin with spherical coordinates")
+		or require 'hydro.coord.sphere_sinh_radial':isa(solver.coord), "you should only use this boundary condition for rmin with spherical coordinates")
 	--assert(solver.maxs.y - solver.mins.y == 2*math.pi)
 	--assert(solver.boundaryMethods.ymin == 'periodic' and solver.boundaryMethods.ymax == 'periodic')
 
@@ -906,7 +906,7 @@ function BoundarySphereTheta:getCode(args)
 
 	assert(args.side == 2, "you should only use this boundary condition for θmin/θmax with spherical coordinates")
 	assert(require 'hydro.coord.sphere':isa(solver.coord)
-		or require 'hydro.coord.sphere-sinh-radial':isa(solver.coord), "you should only use this boundary condition for θmin/θmax with spherical coordinates")
+		or require 'hydro.coord.sphere_sinh_radial':isa(solver.coord), "you should only use this boundary condition for θmin/θmax with spherical coordinates")
 
 	local src, dst
 	if args.minmax == 'min' then

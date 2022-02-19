@@ -1008,7 +1008,7 @@ self.compilePrintRequestTensor = compilePrintRequestTensor
 					if j ~= i then
 						local u = self.baseCoords[j]
 						local uL, uR = integralArgs[2*j-1], integralArgs[2*j]
-						area = self:applyReplVars(area)	-- just because of sphere-sinh-radial, insert repls beforehand
+						area = self:applyReplVars(area)	-- just because of sphere_sinh_radial, insert repls beforehand
 						area = area:integrate(u, uL, uR)()
 					end
 				end
@@ -1049,7 +1049,7 @@ self.compilePrintRequestTensor = compilePrintRequestTensor
 					print('integrating', u, 'from', self.fixVerbose(uL), 'to', self.fixVerbose(uR))
 					print()
 				end
-				volume = self:applyReplVars(volume)	-- just because of sphere-sinh-radial, insert repls beforehand
+				volume = self:applyReplVars(volume)	-- just because of sphere_sinh_radial, insert repls beforehand
 				volume = volume:integrate(u, uL, uR)()
 				if self.verbose then
 					print('volume is now', self.fixVerbose(volume))

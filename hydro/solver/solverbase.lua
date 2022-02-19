@@ -25,7 +25,7 @@ SolverBase:init
 				self.dim = ...
 			
 				-- hmm, meshsolver needs this before the numCells etc vars
-				-- but coord.sphere-sinh-radial needs this after .maxs is finalized, after getInitCondCode() is called
+				-- but coord.sphere_sinh_radial needs this after .maxs is finalized, after getInitCondCode() is called
 				self.coord = ...		<- this object creation is wedged between the other mesh vars because meshsolver needs it early
 				
 				self.device = ...
@@ -1430,7 +1430,7 @@ function SolverBase:refreshEqnInitState()
 --print(chart[i])
 	end
 
--- ok for sphere-sinh-radial, at this point after replacement, we still have vars for AMPL and SINHW
+-- ok for sphere_sinh_radial, at this point after replacement, we still have vars for AMPL and SINHW
 -- and I wrote those to be macros
 
 	local domains = range(3):mapi(function(i)

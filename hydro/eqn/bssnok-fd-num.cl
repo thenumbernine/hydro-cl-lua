@@ -1172,7 +1172,7 @@ static void applyKreissOligar(
 #endif
 
 	real3 dy = solver->grid_dx;
-<? if require "hydro.coord.sphere-sinh-radial":isa(coord) then ?>
+<? if require "hydro.coord.sphere_sinh_radial":isa(coord) then ?>
 	real3 const yR = _real3(cell->r, cell->pos.y, cell->pos.z);
 <? for i=1,solver.dim do
 	local xi = xNames[i]

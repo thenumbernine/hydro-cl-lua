@@ -1366,7 +1366,7 @@ local args = {
 	},
 	--]]
 	-- [[
-	coord = 'sphere-sinh-radial',
+	coord = 'sphere_sinh_radial',
 	coordArgs = {
 		-- TODO sort this out
 		-- TODO do I have mem write / unwritten vars in "holonomic"?  cuz there seem to be errors that persist past reset()
@@ -1408,8 +1408,8 @@ local args = {
 		zmax='periodic',
 	},
 	--]]
-	--[[ sphere-sinh-radial but with SENR parameters ... for SENR init conds
-	coord = 'sphere-sinh-radial',
+	--[[ sphere_sinh_radial but with SENR parameters ... for SENR init conds
+	coord = 'sphere_sinh_radial',
 	coordArgs = {
 		vectorComponent = 'cartesian',
 		--vectorComponent = 'holonomic',
@@ -1590,7 +1590,7 @@ local args = {
 	},
 	--]]
 	-- [[
-	coord = 'sphere-sinh-radial',
+	coord = 'sphere_sinh_radial',
 	coordArgs = {
 		--vectorComponent = 'holonomic',
 		vectorComponent = 'anholonomic',
@@ -1610,8 +1610,8 @@ local args = {
 		{64, 16, 1},
 		
 		-- N x 2 x 2:
-		{32, 2, 2},		-- SENR sphere-sinh-radial uses this by default
-		--{80, 80, 2},		-- this works well for BrillLindquist sphere-sinh-radial when viewing the xz slice
+		{32, 2, 2},		-- SENR sphere_sinh_radial uses this by default
+		--{80, 80, 2},		-- this works well for BrillLindquist sphere_sinh_radial when viewing the xz slice
 		--{128, 2, 2},
 		--{128, 32, 2},
 		--{400, 64, 2},
@@ -1646,7 +1646,7 @@ local args = {
 	--]]
 
 
-	--initCond = 'Minkowski',	-- TODO sphere-sinh-radial
+	--initCond = 'Minkowski',	-- TODO sphere_sinh_radial
 	
 	-- TODO look up Teukolsky Phys Rev 26 745 1982
 	--initCond = 'pure gauge wave',
