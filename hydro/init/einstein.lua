@@ -245,10 +245,10 @@ local initConds = table{
 	real3 d = real3_sub(xc, center);
 	real s = real3_lenSq(d);
 
-	const real H = initCond->H;
-	const real sigma = initCond->sigma;
-	const real sigma2 = sigma * sigma;
-	const real sigma4 = sigma2 * sigma2;
+	real const H = initCond->H;
+	real const sigma = initCond->sigma;
+	real const sigma2 = sigma * sigma;
+	real const sigma4 = sigma2 * sigma2;
 	real h = H * exp(-s / sigma2);
 
 	//h,i = (H exp(-(x-xc)^2 / sigma^2)),i
@@ -694,7 +694,7 @@ what if I transforms this from tx back to uv?
 		end,
 		getInitCondCode = function(self)
 			return self.solver.eqn:template[[
-	const real R = initCond->R;
+	real const R = initCond->R;
 	real3 center = _real3(initCond->x, initCond->y, initCond->z);
 	real3 xrel = real3_sub(xc, center);
 
@@ -795,7 +795,7 @@ what if I transforms this from tx back to uv?
 	real psi = 1.;
 	real alpha_num = 1.;
 	<? for _,body in ipairs(bodies) do ?>{
-		const real R = <?=clnumber(body.R)?>;
+		real const R = <?=clnumber(body.R)?>;
 		real3 pos = _real3(<?=table(body.pos):mapi(clnumber):concat', '?>);
 		real3 xrel = real3_sub(xc, pos);
 		real r = real3_len(xrel);
@@ -953,11 +953,11 @@ what if I transforms this from tx back to uv?
 		getInitCondCode = function(self)
 			return self.solver.eqn:template[[
 	{
-		const real vz = .1;
-		const real M = 1.;
-		const real xB = 0.;
-		const real yB = 0.;
-		const real zB = 0.;
+		real const vz = .1;
+		real const M = 1.;
+		real const xB = 0.;
+		real const yB = 0.;
+		real const zB = 0.;
 		real vzsq = vz * vz;
 		real vz_toThe4 = vzsq * vzsq;
 		real LF = 1. / sqrt(1. - vzsq);
@@ -1077,7 +1077,7 @@ what if I transforms this from tx back to uv?
 <? local clnumber = require 'cl.obj.number' ?>	
 	real psi = 1.;
 	<? for _,body in ipairs(bodies) do ?>{
-		const real R = <?=clnumber(body.R)?>;
+		real const R = <?=clnumber(body.R)?>;
 		real3 pos = _real3(<?=clnumber(body.pos[1])?>, <?=clnumber(body.pos[2])?>, <?=clnumber(body.pos[3])?>);
 		real3 xrel = real3_sub(xc, pos);
 		real r = real3_len(xrel);
@@ -1371,7 +1371,7 @@ TODO I now have a Bessel function routine in hydro/math.cl
 		end,
 		getInitCondCode = function(self)
 			return [[
-	const real t = 0.;
+	real const t = 0.;
 	real theta = 2. * M_PI / initCond->d * (xc.x - t);
 	real H = 1. + initCond->A * sin(theta);
 	alpha = sqrt(H);
@@ -1408,7 +1408,7 @@ TODO I now have a Bessel function routine in hydro/math.cl
 		end,
 		getInitCondCode = function(self)
 			return [[
-	const real t = 0.;
+	real const t = 0.;
 	real theta = 2. * M_PI / d * (xc.x - t);
 	real b = initCond->A * sin(theta);
 	gamma_ll.yy += b;

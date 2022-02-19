@@ -210,11 +210,11 @@ function SphereLogRadial:getParallelPropagatorCode()
 <? if coord.vectorComponent == 'holonomic' then ?>
 
 real3 coord_parallelPropagateU0(real3 v, real3 x, real dx) {
-	const real w = <?=clnumber(coord.sinh_w)?>;
-	real rhoL = x.x;
-	real rhoR = x.x + dx;
-	real coshLR = cosh(rhoL/w) / cosh(rhoR/w);
-	real sinhLR = sinh(rhoL/w) / sinh(rhoR/w);
+	real const w = <?=clnumber(coord.sinh_w)?>;
+	real const rhoL = x.x;
+	real const rhoR = x.x + dx;
+	real const coshLR = cosh(rhoL/w) / cosh(rhoR/w);
+	real const sinhLR = sinh(rhoL/w) / sinh(rhoR/w);
 	v.x *= coshLR;
 	v.y *= sinhLR;
 	v.z *= sinhLR;
@@ -222,11 +222,11 @@ real3 coord_parallelPropagateU0(real3 v, real3 x, real dx) {
 }
 
 real3 coord_parallelPropagateL0(real3 v, real3 x, real dx) {
-	const real w = <?=clnumber(coord.sinh_w)?>;
-	real rhoL = x.x;
-	real rhoR = x.x + dx;
-	real coshRL = cosh(rhoR/w) / cosh(rhoL/w);
-	real sinhRL = sinh(rhoR/w) / sinh(rhoL/w);
+	real const w = <?=clnumber(coord.sinh_w)?>;
+	real const rhoL = x.x;
+	real const rhoR = x.x + dx;
+	real const coshRL = cosh(rhoR/w) / cosh(rhoL/w);
+	real const sinhRL = sinh(rhoR/w) / sinh(rhoL/w);
 	v.x *= coshRL;
 	v.y *= sinhRL;
 	v.z *= sinhRL;
@@ -234,11 +234,11 @@ real3 coord_parallelPropagateL0(real3 v, real3 x, real dx) {
 }
 
 real3 coord_parallelPropagateU1(real3 v, real3 x, real dx) {
-	const real w = <?=clnumber(coord.sinh_w)?>;
-	real rho = v.x;
-	real thetaL = x.y;
-	real thetaR = x.y + dx;
-	real s = w * sinh(rho/w) / cosh(rho/w);
+	real const w = <?=clnumber(coord.sinh_w)?>;
+	real const rho = v.x;
+	real const thetaL = x.y;
+	real const thetaR = x.y + dx;
+	real const s = w * sinh(rho/w) / cosh(rho/w);
 	v.y *= s;
 	v = real3_rotateZ(v, -dx);
 	v.y /= s;
@@ -247,11 +247,11 @@ real3 coord_parallelPropagateU1(real3 v, real3 x, real dx) {
 }
 
 real3 coord_parallelPropagateL1(real3 v, real3 x, real dx) {
-	const real w = <?=clnumber(coord.sinh_w)?>;
-	real rho = v.x;
-	real thetaL = x.y;
-	real thetaR = x.y + dx;
-	real s = w * sinh(rho/w) / cosh(rho/w);
+	real const w = <?=clnumber(coord.sinh_w)?>;
+	real const rho = v.x;
+	real const thetaL = x.y;
+	real const thetaR = x.y + dx;
+	real const s = w * sinh(rho/w) / cosh(rho/w);
 	v.y /= s;
 	v = real3_rotateZ(v, -dx);
 	v.y *= s;
@@ -261,12 +261,12 @@ real3 coord_parallelPropagateL1(real3 v, real3 x, real dx) {
 
 // TODO here ... fix these
 real3 coord_parallelPropagateU2(real3 v, real3 x, real dx) {
-	const real w = <?=clnumber(coord.sinh_w)?>;
-	real rho = x.x;
-	real s = w * sinh(rho/w) / cosh(rho/w);
-	real theta = x.y;
-	real sinTheta = sin(theta);
-	real sSinTheta = s * sinTheta;
+	real const w = <?=clnumber(coord.sinh_w)?>;
+	real const rho = x.x;
+	real const s = w * sinh(rho/w) / cosh(rho/w);
+	real const theta = x.y;
+	real const sinTheta = sin(theta);
+	real const sSinTheta = s * sinTheta;
 	v.y *= s;
 	v.z *= sSinTheta;
 	v = real3_rotateZ(v, theta);
@@ -278,12 +278,12 @@ real3 coord_parallelPropagateU2(real3 v, real3 x, real dx) {
 }
 
 real3 coord_parallelPropagateL2(real3 v, real3 x, real dx) {
-	const real w = <?=clnumber(coord.sinh_w)?>;
-	real rho = x.x;
-	real s = w * sinh(rho/w) / cosh(rho/w);
-	real theta = x.y;
-	real sinTheta = sin(theta);
-	real sSinTheta = s * sinTheta;
+	real const w = <?=clnumber(coord.sinh_w)?>;
+	real const rho = x.x;
+	real const s = w * sinh(rho/w) / cosh(rho/w);
+	real const theta = x.y;
+	real const sinTheta = sin(theta);
+	real const sSinTheta = s * sinTheta;
 	v.y /= s;
 	v.z /= sSinTheta;
 	v = real3_rotateZ(v, theta);

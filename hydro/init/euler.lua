@@ -853,7 +853,7 @@ end
 		getInitCondCode = function(self)
 			self.solver:setBoundaryMethods'periodic'
 			return [[
-	const real B0 = 1./sqrt(4. * M_PI);
+	real const B0 = 1./sqrt(4. * M_PI);
 	//rho = 25./(36.*M_PI);											//Athena i.c.
 	rho = solver->heatCapacityRatio * solver->heatCapacityRatio;	//CSUN i.c.
 	v.x = -sin(2. * M_PI * (x.y * .5 + .5));
@@ -887,9 +887,9 @@ end
 		getInitCondCode = function(self)
 			return [[
 	real3 xc = coordMap(x);
-	const real r0 = .1;
-	const real r1 = .115;
-	const real omega = 2.;
+	real const r0 = .1;
+	real const r1 = .115;
+	real const omega = 2.;
 	real r = sqrt(xc.x * xc.x + xc.y * xc.y);
 	real vPhi = 0.;
 	if (r <= r0) {
@@ -1407,8 +1407,8 @@ end
 		end,
 		getInitCondCode = function(self)
 			return [[
-	const real gaussianCenter = 6;
-	const real sigma = 1;
+	real const gaussianCenter = 6;
+	real const sigma = 1;
 
 	real3 xc = coordMap(x);
 	real r = real3_len(xc);
@@ -1695,7 +1695,7 @@ end ?>
 			solver:setBoundaryMethods(boundaryMethods)
 		
 			return solver.eqn:template([[
-	const real3 externalForce = _real3(0,1,0);
+	real3 const externalForce = _real3(0,1,0);
 	ePot = 0. <?
 for side=0,solver.dim-1 do
 ?> + (x.s<?=side?> - solver->mins.s<?=side?>) * externalForce.s<?=side?><?
@@ -1824,7 +1824,7 @@ end ?>;
 			local solver = assert(self.solver)
 			solver:setBoundaryMethods'freeflow'
 			return [[
-	const real waveX = -.45;
+	real const waveX = -.45;
 	real3 bubbleCenter = real3_zero;
 	real bubbleRadius = .2;
 	real3 delta = real3_sub(x, bubbleCenter);
@@ -1964,12 +1964,12 @@ end ?>;
 			local solver = assert(self.solver)
 			return [[
 	real3 c = real3_add(real3_real_mul(x, .5), _real3(.5, .5, .5));
-	const real rho1 = initCond->rho1;
-	const real rho2 = initCond->rho2;
-	const real L = initCond->L;
-	const real U1 = initCond->U1;
-	const real U2 = initCond->U2;
-	const real w0 = initCond->w0;
+	real const rho1 = initCond->rho1;
+	real const rho2 = initCond->rho2;
+	real const L = initCond->L;
+	real const U1 = initCond->U1;
+	real const U2 = initCond->U2;
+	real const w0 = initCond->w0;
 	if (c.y < 0.25) {
 		rho = rho1 - 0.5*(rho1-rho2)*exp( (c.y - 0.25)/L);
 		v.x = U1 - 0.5*( U1 - U2 )*exp( (c.y - 0.25)/L);
@@ -3266,7 +3266,7 @@ kernel void addExtraSource(
 		name = 'two-fluid EMHD soliton ion',
 		getInitCondCode = function(self)
 			return [[
-	const real L = 12.;
+	real const L = 12.;
 	rho = 1. + (real)exp((real)-25. * (real)fabs(x.x - L / (real)3.));
 ]]
 		end,
@@ -3275,7 +3275,7 @@ kernel void addExtraSource(
 		name = 'two-fluid EMHD soliton electron',
 		getInitCondCode = function(self)
 			return [[
-	const real L = 12.;
+	real const L = 12.;
 	rho = 5. * (1. + (real)exp((real)-25. * (real)fabs(x.x - L / (real)3.)));
 ]]
 		end,

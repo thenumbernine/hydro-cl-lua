@@ -274,9 +274,9 @@ kernel void <?=copyPotentialFieldToVecAndInitB?>(
 //// MODULE_NAME: <?=copyVecToPotentialField?>
 
 kernel void <?=copyVecToPotentialField?>(
-	constant <?=solver_t?>* solver,
-	global <?=cons_t?>* UBuf,
-	global const real* x
+	constant <?=solver_t?> const * const solver,
+	global <?=cons_t?> * const UBuf,
+	global real const * const x
 ) {
 	<?=SETBOUNDS?>(0, 0);
 	UBuf[index].<?=op.potentialField?> = x[index];

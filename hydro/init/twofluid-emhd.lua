@@ -47,12 +47,12 @@ local initConds = table{
 			-- c = 10 B_0 (B_0 = Alfven speed)
 			-- gyroradius of ion, Debye length, light speed, all are 1
 			return [[
-	const real L_x = 8. * M_PI;	//should correspond with the boundary
-	const real L_y = 4. * M_PI;	//should correspond with the boundary
-	const real lambda = .5;
-	const real B_0 = 1.;
-	const real n_0 = 1.;
-	const real phi_0 = B_0 / 10.;
+	real const L_x = 8. * M_PI;	//should correspond with the boundary
+	real const L_y = 4. * M_PI;	//should correspond with the boundary
+	real const lambda = .5;
+	real const B_0 = 1.;
+	real const n_0 = 1.;
+	real const phi_0 = B_0 / 10.;
 	B.x = B_0 * tanh(x.y / lambda);
 	real phi = phi_0 * cos(2. * M_PI * x.x / L_x) * cos(2. * M_PI * x.y / L_y);
 	real dphi_dx = -2. * M_PI * phi_0 / L_x * sin(2. * M_PI / L_x * x.x) * cos(2. * M_PI / L_y * x.y);

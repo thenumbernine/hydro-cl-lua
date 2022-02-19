@@ -106,7 +106,7 @@ then
 <? end 
 ?>	skewSum = <?=real_mul?>(skewSum, 1. / volAtX);
 
-	const real diag = (0.
+	real const diag = (0.
 <? for j=0,solver.dim-1 do 
 ?>		- (volR.s<?=j?> + volL.s<?=j?>) / (dx<?=j?> * dx<?=j?>)
 <? end 

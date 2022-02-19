@@ -538,9 +538,9 @@ end
 	} else {\
 		real3 const v_n = normal_vecDotNs(n, (eig).v);\
 		real const nLen = normal_len(n);\
-		const real gamma = solver->heatCapacityRatio;\
-		const real gamma_1 = gamma - 1.;\
-		const real gamma_2 = gamma - 2.;\
+		real const gamma = solver->heatCapacityRatio;\
+		real const gamma_1 = gamma - 1.;\
+		real const gamma_2 = gamma - 2.;\
 	\
 		(resultFlux)->ptr[0] =\
 			(X)->ptr[1] * normal_l1x(n)\

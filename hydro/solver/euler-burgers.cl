@@ -156,7 +156,7 @@ kernel void computePressure(
 			- UL->m.s<?=side?> / UL->rho;
 		dvSqSum += dv * dv;
 	}<? end ?>
-	const real zeta = 2.;
+	real const zeta = 2.;
 	P += .25 * zeta * zeta * U->rho * dvSqSum;
 <? end
 ?>	PBuf[index] = P;

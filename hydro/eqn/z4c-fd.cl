@@ -248,7 +248,7 @@ end
 ?>
 
 	//TODO 'if constrain chi...'
-	const real chiMin = 1e-3;
+	real const chiMin = 1e-3;
 	U->chi = max(U->chi, chiMin);
 
 	//makes the spinning black hole simulations look ugly
@@ -465,8 +465,8 @@ end
 	
 	real S = sym3_dot(U->S_ll, gamma_uu);
 
-	const real kappa1 = 1.;
-	const real kappa2 = 0.;
+	real const kappa1 = 1.;
+	real const kappa2 = 0.;
 	//2011 Cao eqn 14
 	//KHat_,t = -gamma^ij D_i D_j alpha 
 	//			+ alpha (ABar_ij ABar^ij + 1/3 (KBar + 2 Theta)^2
@@ -691,7 +691,7 @@ end
 	//B&S 4.83 
 	//beta^i_,t = 3/4 B^i (Rezolla says 3/4 alpha B^i, 2006 Campanelli says B^i but absorbs 3/4 into B^i)
 	//B^i_,t = connBar^i_,t - eta B^i ... maybe + beta^j B^i_,j (Rezolla says - beta^j B^i_,j)
-	const real eta = 0.;
+	real const eta = 0.;
 	deriv->beta_u = real3_add(deriv->beta_u,
 		real3_real_mul(U->B_u, 3./4. * U->alpha));
 

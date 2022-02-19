@@ -365,13 +365,6 @@ function SolverBase:init(args)
 	self.initArgsForSerialization.cmds = nil		-- in choppedup
 	self.initArgsForSerialization.device = nil		-- in choppedup
 	self.initArgsForSerialization.id = nil			-- in choppedup
--- ok this is only when you use the cmdline to specify the solver -- then the cmdline is dumped into the solver args --
--- and you have to remove all the non-solver-specific cmdline vars
-	self.initArgsForSerialization.sys = nil
-	self.initArgsForSerialization.verbose = nil
-	self.initArgsForSerialization.exitTime = nil
-	self.initArgsForSerialization.tick = nil
-	self.initArgsForSerialization.trackvars = nil
 -- also include # devices.  since, on the nvidia cluster, the binaries compiled for 1 device will segfault if they are loaded when using >1 device
 	self.initArgsForSerialization.numDevices = #args.app.env.devices
 	-- hmm, this is defeating the whole purpose of this, ...

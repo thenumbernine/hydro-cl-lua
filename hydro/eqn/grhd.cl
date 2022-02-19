@@ -135,7 +135,7 @@ void <?=calcDTCell?>(
 		real vUiSq = vUi * vUi;
 		
 		//Font 2008 eqn 106
-		const real betaUi = beta.s<?=side?>;
+		real const betaUi = beta.s<?=side?>;
 		real discr = sqrt((1. - vSq) * (gammaU.xx * (1. - vSq * csSq) - vUiSq * (1. - csSq)));
 		real lambdaMin = (vUi * (1. - csSq) - cs * discr) * alpha / (1. - vSq * csSq) - betaUi;
 		real lambdaMax = (vUi * (1. - csSq) + cs * discr) * alpha / (1. - vSq * csSq) - betaUi;
@@ -303,7 +303,7 @@ kernel void <?=calcEigenBasis?>(
 		real cs = sqrt(csSq);
 
 		//Font 2008 eqn 106 -- matches calcDTCell
-		const real betaUi = beta.s<?=side?>;
+		real const betaUi = beta.s<?=side?>;
 		real discr = sqrt((1. - vSq) * (gammaU.xx * (1. - vSq * csSq) - vUxSq * (1. - csSq)));
 		real lambdaMin = (vU.x * (1. - csSq) - cs * discr) * alpha / (1. - vSq * csSq) - betaUi;
 		real lambdaMax = (vU.x * (1. - csSq) + cs * discr) * alpha / (1. - vSq * csSq) - betaUi;

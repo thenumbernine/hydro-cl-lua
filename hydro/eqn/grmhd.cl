@@ -2,8 +2,8 @@
 
 //I'm going to fix metric coordinates at first
 //then later the transition to the evolved metric will be easier
-constant const real alpha = 1;
-constant const real3 betaU = real3_zero;
+constant real const alpha = 1;
+constant real3 const betaU = real3_zero;
 
 //pressure function for ideal gas
 real calc_P(real rho, real eInt) {
@@ -123,28 +123,28 @@ void calcDTCell(
 
 	<?=prim_only_t?> primOnly;
 	primOnlyFromCons(&primOnly, solver, U, x);
-	real rho = prim.rho;
-	real eInt = prim.eInt;
-	real vSq = coordLenSq(prim.v, x);
-	real P = calc_P(rho, eInt);
-	real h = calc_h(rho, P, eInt);
-	real csSq = heatCapacityRatio * P / (rho * h);
-	real cs = sqrt(csSq);
+	real const rho = prim.rho;
+	real const eInt = prim.eInt;
+	real const vSq = coordLenSq(prim.v, x);
+	real const P = calc_P(rho, eInt);
+	real const h = calc_h(rho, P, eInt);
+	real const csSq = heatCapacityRatio * P / (rho * h);
+	real const cs = sqrt(csSq);
 	
 	real dt = INFINITY;
 	//for (int side = 0; side < dim; ++side) {
 	<? for side=0,solver.dim-1 do ?>{
 		//for the particular direction
-		real vi = prim.v.s<?=side?>;
-		real viSq = vi * vi;
+		real const vi = prim.v.s<?=side?>;
+		real const viSq = vi * vi;
 		
 		// Marti 1998 eqn 19
 		// also Marti & Muller 2008 eqn 68
 		// also Font 2008 eqn 106
-		const real betaUi = betaU.s<?=side?>;
-		real discr = sqrt((1. - vSq) * (gammaU.xx * (1. - vSq * csSq) - viSq * (1. - csSq)));
-		real lambdaMin = (vi * (1. - csSq) - cs * discr) / (1. - vSq * csSq) * alpha - betaUi;
-		real lambdaMax = (vi * (1. - csSq) + cs * discr) / (1. - vSq * csSq) * alpha - betaUi;
+		real const betaUi = betaU.s<?=side?>;
+		real const discr = sqrt((1. - vSq) * (gammaU.xx * (1. - vSq * csSq) - viSq * (1. - csSq)));
+		real const lambdaMin = (vi * (1. - csSq) - cs * discr) / (1. - vSq * csSq) * alpha - betaUi;
+		real const lambdaMax = (vi * (1. - csSq) + cs * discr) / (1. - vSq * csSq) * alpha - betaUi;
 		real absLambdaMax = max(fabs(lambdaMin), fabs(lambdaMax));
 		absLambdaMax = max((real)1e-9, absLambdaMax);
 		dt = (real)min(dt, solver->grid_dx.s<?=side?> / absLambdaMax);
@@ -186,7 +186,7 @@ kernel void calcEigenBasis(
 	global <?=prim_t?> const * const primBuf	
 ) {
 	<?=SETBOUNDS?>(solver->numGhost, solver->numGhost - 1);
-	real3 x = cellBuf[index].pos;
+	real3 const x = cellBuf[index].pos;
 	
 	int const indexR = index;
 	<?=prim_t?> primR = primBuf[indexR];
@@ -196,7 +196,7 @@ kernel void calcEigenBasis(
 		int const side = <?=side?>;
 		
 		int const indexL = index - solver->stepsize.s<?=side?>;
-		<?=prim_t?> primL = primBuf[indexL];
+		<?=prim_t?> const primL = primBuf[indexL];
 		
 		real3 xInt = x;
 		xInt.s<?=side?> -= .5 * solver->grid_dx.s<?=side?>;
@@ -211,9 +211,9 @@ kernel void calcEigenBasis(
 <? -- else -- Roe-averaging, Font 2008 eqn 38 ?>
 <? end ?>
 
-		real rho = avg.rho;
-		real3 v = avg.v;
-		real eInt = avg.eInt;
+		real const rho = avg.rho;
+		real3 const v = avg.v;
+		real const eInt = avg.eInt;
 	
 		<? if side == 1 then ?>
 		v = _real3(v.y, -v.x, v.z);	// -90' rotation to put the y axis contents into the x axis
@@ -223,16 +223,16 @@ kernel void calcEigenBasis(
 
 //TODO NOTE if you're swapping vector components, you have to swap metric components too 
 
-		real3 vL = coord_lower(v, xInt);
-		real vSq = real3_dot(v, vL);
-		real oneOverW2 = 1. - vSq;
-		real oneOverW = sqrt(oneOverW2);
-		real W = 1. / oneOverW;
-		real W2 = 1. / oneOverW2;
-		real P = (heatCapacityRatio - 1.) * rho * eInt;
-		real h = 1. + eInt + P / rho;
+		real3 const vL = coord_lower(v, xInt);
+		real const vSq = real3_dot(v, vL);
+		real const oneOverW2 = 1. - vSq;
+		real const oneOverW = sqrt(oneOverW2);
+		real const W = 1. / oneOverW;
+		real const W2 = 1. / oneOverW2;
+		real const P = (heatCapacityRatio - 1.) * rho * eInt;
+		real const h = 1. + eInt + P / rho;
 
-		real hW = h * W;
+		real const hW = h * W;
 
 		//just after 2008 Font eqn 107:
 		//h cs^2 = chi + P / rho^2 kappa = dp/drho + p / rho^2 dp/deInt
@@ -241,14 +241,14 @@ kernel void calcEigenBasis(
 		// = 1/rho ( (gamma-1) rho eInt + (gamma-1) P )
 		// = 1/rho ( P + (gamma-1) P)
 		// = gamma P / rho
-		real vxSq = v.x * v.x;
-		real csSq = heatCapacityRatio * P / (rho * h);
-		real cs = sqrt(csSq);
+		real const vxSq = v.x * v.x;
+		real const csSq = heatCapacityRatio * P / (rho * h);
+		real const cs = sqrt(csSq);
 
-		const real betaUi = betaU.s<?=side?>;
-		real discr = sqrt((1. - vSq) * ((1. - vSq * csSq) - vxSq * (1. - csSq)));
-		real lambdaMin = (v.x * (1. - csSq) - cs * discr) / (1. - vSq * csSq) * alpha * alpha - betaUi;
-		real lambdaMax = (v.x * (1. - csSq) + cs * discr) / (1. - vSq * csSq) * alpha * alpha - betaUi;
+		real const betaUi = betaU.s<?=side?>;
+		real const discr = sqrt((1. - vSq) * ((1. - vSq * csSq) - vxSq * (1. - csSq)));
+		real const lambdaMin = (v.x * (1. - csSq) - cs * discr) / (1. - vSq * csSq) * alpha * alpha - betaUi;
+		real const lambdaMax = (v.x * (1. - csSq) + cs * discr) / (1. - vSq * csSq) * alpha * alpha - betaUi;
 
 		int indexInt = side + dim * index;	
 		global real* wave = waveBuf + numWaves * indexInt;
@@ -258,28 +258,28 @@ kernel void calcEigenBasis(
 		wave[3] = v.x * alpha - betaUi;
 		wave[4] = lambdaMax;
 
-		real LambdaMin = (lambdaMin + betaUi) / alpha;	//2008 Font eqn 114
-		real LambdaMax = (lambdaMax + betaUi) / alpha;	//2008 Font eqn 114
+		real const LambdaMin = (lambdaMin + betaUi) / alpha;	//2008 Font eqn 114
+		real const LambdaMax = (lambdaMax + betaUi) / alpha;	//2008 Font eqn 114
 		
 		//used by evL and evR
-		real ATildeMinus = (gammaU.xx - vxSq) / (gammaU.xx - v.x * LambdaMin);	//2008 Font eqn 113
-		real ATildePlus  = (gammaU.xx - vxSq) / (gammaU.xx - v.x * LambdaMax);	//2008 Font eqn 113
+		real const ATildeMinus = (gammaU.xx - vxSq) / (gammaU.xx - v.x * LambdaMin);	//2008 Font eqn 113
+		real const ATildePlus  = (gammaU.xx - vxSq) / (gammaU.xx - v.x * LambdaMax);	//2008 Font eqn 113
 		
 		//used by evL
-		real VMinus = (v.x - LambdaMin) / (gammaU.xx - v.x * LambdaMin);	//2008 Font eqn 113
-		real VPlus = (v.x - LambdaMax) / (gammaU.xx - v.x * LambdaMax);	//2008 Font eqn 113
+		real const VMinus = (v.x - LambdaMin) / (gammaU.xx - v.x * LambdaMin);	//2008 Font eqn 113
+		real const VPlus = (v.x - LambdaMax) / (gammaU.xx - v.x * LambdaMax);	//2008 Font eqn 113
 	
 		//used by evL and evR
-		real CMinus = vL.x - VMinus;	//2008 Font eqn 112
-		real CPlus = vL.x - VPlus;	//2008 Font eqn 112
+		real const CMinus = vL.x - VMinus;	//2008 Font eqn 112
+		real const CPlus = vL.x - VPlus;	//2008 Font eqn 112
 
-		real kappa = calc_dP_deInt(rho, eInt);	//2008 Font note just after eqn 107
-		real kappaTilde = kappa / rho;	//2008 Font eqn 112.  
+		real const kappa = calc_dP_deInt(rho, eInt);	//2008 Font note just after eqn 107
+		real const kappaTilde = kappa / rho;	//2008 Font eqn 112.  
 		//used by evL and evR
-		real Kappa = kappaTilde / (kappaTilde - csSq);	//2008 Font eqn 112.  
+		real const Kappa = kappaTilde / (kappaTilde - csSq);	//2008 Font eqn 112.  
 		//Kappa = h;	//approx for ideal gas
 		
-		global <?=eigen_t?>* eig = eigenBuf + indexInt;	
+		global <?=eigen_t?> * const eig = eigenBuf + indexInt;	
 
 <?
 for _,field in ipairs(eqn.eigenVars) do
@@ -312,21 +312,21 @@ void eigen_leftTransform(
 	<? end ?>
 
 	<?=prefix?>
-	real gammaDet = coord_sqrt_det_g(solver, x);
-	sym3 gammaL = coord_g_ll(x);
-	sym3 gammaU = coord_g_uu(x);
+	real const gammaDet = coord_sqrt_det_g(solver, x);
+	sym3 const gammaL = coord_g_ll(x);
+	sym3 const gammaU = coord_g_uu(x);
 
-	real3 vL = coord_lower(v, x);
-	real vxSq = v.x * v.x;
-	real hSq = h * h;
-	real hW = h * W;
-	real W2 = W * W;
+	real3 const vL = coord_lower(v, x);
+	real const vxSq = v.x * v.x;
+	real const hSq = h * h;
+	real const hW = h * W;
+	real const W2 = W * W;
 
-	real gamma_gammaUxx = gammaDet * gammaU.xx;
-	real gamma_gammaUxy = gammaDet * gammaU.xy;
-	real gamma_gammaUxz = gammaDet * gammaU.xz;
-	real xi = gammaDet * (gammaU.xx - vxSq);//2008 Font eqn 121
-	real Delta = hSq * hW * (Kappa - 1.) * (CPlus - CMinus) * xi;	//2008 Font eqn 121
+	real const gamma_gammaUxx = gammaDet * gammaU.xx;
+	real const gamma_gammaUxy = gammaDet * gammaU.xy;
+	real const gamma_gammaUxz = gammaDet * gammaU.xz;
+	real const xi = gammaDet * (gammaU.xx - vxSq);//2008 Font eqn 121
+	real const Delta = hSq * hW * (Kappa - 1.) * (CPlus - CMinus) * xi;	//2008 Font eqn 121
 	
 	//min row	2008 Font eqn 118
 	real scale;
@@ -388,11 +388,11 @@ void eigen_rightTransform(
 	real3 const x
 ) {
 	<?=prefix?>
-	sym3 gammaL = coord_g_ll(x);
+	sym3 const gammaL = coord_g_ll(x);
 	
-	real3 vL = coord_lower(v, x);
-	real hW = h * W;
-	real W2 = W * W;
+	real3 const vL = coord_lower(v, x);
+	real const hW = h * W;
+	real const W2 = W * W;
 
 	//2008 Font eqns 108-111
 	Y[0] = X[0]
@@ -423,7 +423,7 @@ void eigen_rightTransform(
 	
 	//rotate outgoing y's x's into side
 	<? if side ~= 0 then ?>
-	real tmp = Y[1];
+	real const tmp = Y[1];
 	Y[1] = -Y[1+<?=side?>];
 	Y[1+<?=side?>] = tmp;
 	<? end ?>
@@ -451,7 +451,7 @@ void eigen_fluxTransform(
 
 	//rotate outgoing y's x's into side
 	<? if side ~= 0 then ?>
-	real tmp = Y[1];
+	real const tmp = Y[1];
 	Y[1] = Y[1+<?=side?>];
 	Y[1+<?=side?>] = tmp;
 	<? end ?>
@@ -486,31 +486,31 @@ kernel void updatePrims(
 	real3 const x = cellBuf[index].pos;
 
 	global <?=cons_t?> const * const U = UBuf + index;
-	real D = U->D;
-	real3 S = U->S;
-	real tau = U->tau;
+	real const D = U->D;
+	real3 const S = U->S;
+	real const tau = U->tau;
 
 	global <?=prim_t?> * const prim = primBuf + index;
 	real3 v = prim->v;
 
-	real SLen = coordLen(S, x);
-	real PMin = max(SLen - tau - D + SLen * solvePrimVelEpsilon, solvePrimPMinEpsilon);
+	real const SLen = coordLen(S, x);
+	real const PMin = max(SLen - tau - D + SLen * solvePrimVelEpsilon, solvePrimPMinEpsilon);
 	real PMax = (heatCapacityRatio - 1.) * tau;
 	PMax = max(PMax, PMin);
 	real P = .5 * (PMin + PMax);
 
 	for (int iter = 0; iter < solvePrimMaxIter; ++iter) {
-		real vLen = SLen / (tau + D + P);
+		real const vLen = SLen / (tau + D + P);
 		real vSq = vLen * vLen;
 		real W = 1. / sqrt(1. - vSq);
 		real eInt = (tau + D * (1. - W) + P * (1. - W*W)) / (D * W);
 		real rho = D / W;
-		real f = (heatCapacityRatio - 1.) * rho * eInt - P;
-		real csSq = (heatCapacityRatio - 1.) * (tau + D * (1. - W) + P) / (tau + D + P);
-		real df_dP = vSq * csSq - 1.;
+		real const f = (heatCapacityRatio - 1.) * rho * eInt - P;
+		real const csSq = (heatCapacityRatio - 1.) * (tau + D * (1. - W) + P) / (tau + D + P);
+		real const df_dP = vSq * csSq - 1.;
 		real newP = P - f / df_dP;
 		newP = max(newP, PMin);
-		real PError = fabs(1. - newP / P);
+		real const PError = fabs(1. - newP / P);
 		P = newP;
 		if (PError < solvePrimStopEpsilon) {
 			v = real3_real_mul(S, 1. / (tau + D + P));

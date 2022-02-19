@@ -4,13 +4,15 @@ command-line variables:
 solver parameters:
 	(config file cmdline override options:)
 		solver =
-		eqn =
+		solverArgs = 
+			eqn =
+			flux =
+		gridSize =
 		integrator =
+		fluxLimiter =
 		fixedDT =
 		cfl =
-		fluxLimiter =
 		dim =
-		gridSize =
 		boundary =
 		initCond =
 		mins =
@@ -50,7 +52,7 @@ display:
 
 	windowsize = override the window size for sys=glapp or sys=imguiapp.  set to either "windowsize={w,h}" or for square windows, "windowsize=size"
 
-	"palette=palette name" = pick the predefined palette to use
+	palette=(palette name) = pick the predefined palette to use
 
 simulation execution:
 	run = start the simulation running.  Setting 'exitTime' or 'stopTime' or 'sys=console' also starts the simulation running.

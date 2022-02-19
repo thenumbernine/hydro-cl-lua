@@ -669,7 +669,7 @@ local args = {
 }
 
 
-if cmdline.solver then self.solvers:insert(require('hydro.solver.'..cmdline.solver)(table(args, cmdline))) return end
+if cmdline.solver then self.solvers:insert(require('hydro.solver.'..cmdline.solver)(table(args, cmdline.solverArgs))) return end
 
 
 -- wave equation

@@ -316,7 +316,7 @@ e^i_I (T_M e_i^M)_,j e^j_J
 = (T_I,j + T_I f^i f_i,j) e^j_J
 = (T_I,j + T_I f_i,j / f_i) / f_j delta^j_J
 */
-real3x3 real3x3_partial_rescaleFromCoord_Ll(real3 T_L, const real3 partial_T_Ll[3], real3 x) {
+real3x3 real3x3_partial_rescaleFromCoord_Ll(real3 T_L, real3 const partial_T_Ll[3], real3 x) {
 	real3x3 partial_T_LL;
 <? for i,xi in ipairs(xNames) do
 	for j,xj in ipairs(xNames) do
@@ -3146,8 +3146,8 @@ or even the ∂_0 ΛBar^i then we can re-add the needed terms later
 	//Gamma-driver
 	//B&S 4.82
 	//beta^i_,t = k LambdaBar^i_,t + eta LambdaBar^i
-	//const real k = 3. / 4.;
-	//const real eta = 1.;	//1.;	// 1 / (2 M), for total mass M
+	//real const k = 3. / 4.;
+	//real const eta = 1.;	//1.;	// 1 / (2 M), for total mass M
 	real3 const dt_beta_U = real3_add(
 		real3_real_mul(dt_LambdaBar_U_wo_partial_upwind_beta_LambdaBar, solver->dt_beta_U_k),
 		real3_real_mul(U->LambdaBar_U, solver->dt_beta_U_eta));
