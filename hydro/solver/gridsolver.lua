@@ -309,7 +309,7 @@ functionality (and abstraction):
 #define <?=SETBOUNDS_NOGHOST?>() \
 	int4 i = globalInt4(); \
 	if (<?=OOB?>(0, 2 * solver->numGhost)) return; \
-	i += (int4)(]]..range(4):map(function(i) 
+	i += (int4)(]]..range(4):mapi(function(i) 
 		return i <= self.dim and 'solver->numGhost' or '0' 
 	end):concat','..[[); \
 	int index = INDEXV(i);

@@ -102,7 +102,7 @@ local initConds = table{
 ]]
 		end,
 	},
-}:map(function(cl)
+}:mapi(function(cl)
 	return class(NLSInitCond, cl)
 end)
 

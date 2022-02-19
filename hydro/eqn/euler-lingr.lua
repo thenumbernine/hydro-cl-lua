@@ -148,7 +148,7 @@ function EulerLinGR:getDisplayVars()
 			units = 'm/s^2',
 			code = 'value.vreal3 = real3_cross(W.v, U->B_g);',
 		},
-	}:append(table{'D_g','B_g'}:map(function(field,i)
+	}:append(table{'D_g','B_g'}:mapi(function(field)
 		local field = assert( ({D_g='D_g', B_g='B_g'})[field] )
 		return self:createDivDisplayVar{
 			field = field,

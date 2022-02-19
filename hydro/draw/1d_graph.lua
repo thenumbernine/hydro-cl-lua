@@ -33,7 +33,7 @@ function Draw1D:showDisplayVar(var)
 	-- 3D displays -- ???
 	if app.displayDim == 3 then
 		io.stderr:write'Why are you using a graph shader to display 3D data?  Use a 3D display instead.\n'
-		do return end
+		return
 	end
 
 

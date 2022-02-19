@@ -18,7 +18,7 @@ end
 
 local function lineToNums(l, n)
 	assert(l, "expected newline")
-	local t = {string.split(string.trim(l), '%s+'):map(function(l) return tonumber(l) end):unpack()}
+	local t = {string.split(string.trim(l), '%s+'):mapi(function(l) return tonumber(l) end):unpack()}
 	assert(#t == n, "expected "..n.." cols")
 	return table.unpack(t)
 end

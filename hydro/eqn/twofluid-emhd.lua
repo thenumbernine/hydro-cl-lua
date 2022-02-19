@@ -183,7 +183,7 @@ function TwoFluidEMHD:createInitState()
 		{name='sqrt_mu', value=math.sqrt(vacuumPermittivity), units='(kg m)^.5/C'},
 		{name='sqrt_eps', value=math.sqrt(vacuumPermeability), units='(C*s)/(kg*m^3)^.5'},
 	
-	}:append(self.fluids:map(function(fluid)
+	}:append(self.fluids:mapi(function(fluid)
 		return table{
 			{name='min_'..fluid..'_rho', value=1e-4},
 			{name='min_'..fluid..'_P', value=1e-4},
@@ -360,7 +360,7 @@ function TwoFluidEMHD:getDisplayVars()
 			code = 'value.vreal = calc_EM_energy(solver, U, x);',
 			units = 'kg/(m*s^2)'
 		},
-	}:append(table{'D', 'B'}:map(function(field, i)
+	}:append(table{'D', 'B'}:mapi(function(field)
 		local field = assert( ({D='D', B='B'})[field] )
 		return self:createDivDisplayVar{field=field, units=({
 			D = 'C/m^3',

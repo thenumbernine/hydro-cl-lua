@@ -337,7 +337,7 @@ function FiniteVolumeSolver:addDisplayVars()
 ]],			{
 				side = side,
 			}),
-			vars = range(0,self.eqn.numIntStates-1):map(function(i)
+			vars = range(0,self.eqn.numIntStates-1):mapi(function(i)
 				return {name=tostring(i), code='value.vreal = flux->ptr['..i..'];'}
 			end),
 		}
@@ -383,7 +383,7 @@ function FiniteVolumeSolver:addDisplayVars()
 					side = side,
 				}),
 			}:concat'\n',
-			vars = range(0, self.eqn.numWaves-1):map(function(i)
+			vars = range(0, self.eqn.numWaves-1):mapi(function(i)
 				return {name=tostring(i), code=self.eqn:template([[
 	value.vreal = <?=eqn:eigenWaveCode{
 		n = 'n'..side,

@@ -35,7 +35,7 @@ function Draw2DGraph:showDisplayVar(var)
 
 	if app.displayDim == 3 then
 		io.stderr:write'Why are you using a graph shader to display 3D data?  Use a 3D display instead.\n'
-		do return end
+		return
 	end
 
 

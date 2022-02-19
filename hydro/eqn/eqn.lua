@@ -404,7 +404,7 @@ function Equation:cdefAllVarTypes(solver, vars)
 		solver.app.modules:getTypeHeader(
 			table.mapi(vars, function(var,i,t)
 				return true, var.type
-			end):keys():unpack()
+			end):keys():sort():unpack()
 		)
 	)
 end

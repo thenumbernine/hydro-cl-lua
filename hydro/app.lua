@@ -305,7 +305,7 @@ function HydroCLApp:setup(args)
 	args.self = self
 	args.cmdline = cmdline
 	args.table = table
-	local keys = table.keys(args)
+	local keys = table.keys(args):sort()
 	local cfgfile = cmdline.config or 'config.lua'
 	assert(load([[
 local ]]..keys:concat', '..[[ = ...

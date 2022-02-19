@@ -178,7 +178,7 @@ function Relaxation:relax()
 				local xmin = fromreal(solver.reduceMin())
 				self.copyPotentialToReduceKernelObj()
 				local xmax = fromreal(solver.reduceMax())
-				io.stderr:write(table{i-1, residual, xNorm, xmin, xmax}:map(tostring):concat'\t','\n')
+				io.stderr:write(table{i-1, residual, xNorm, xmin, xmax}:mapi(tostring):concat'\t','\n')
 			end
 			
 			-- TODO compare residual

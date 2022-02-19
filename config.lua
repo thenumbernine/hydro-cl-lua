@@ -1610,8 +1610,8 @@ local args = {
 		{64, 16, 1},
 		
 		-- N x 2 x 2:
-		--{32, 2, 2},		-- SENR sphere-sinh-radial uses this by default
-		{80, 80, 2},		-- this works well for BrillLindquist sphere-sinh-radial when viewing the xz slice
+		{32, 2, 2},		-- SENR sphere-sinh-radial uses this by default
+		--{80, 80, 2},		-- this works well for BrillLindquist sphere-sinh-radial when viewing the xz slice
 		--{128, 2, 2},
 		--{128, 32, 2},
 		--{400, 64, 2},

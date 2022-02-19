@@ -183,7 +183,7 @@ function PoissonKrylov:initSolver()
 					size = ffi.sizeof(solver.app.real) * numreals,
 				}
 				local xmax = fromreal(solver.reduceMax())
-				io.stderr:write(table{iter, residual, xNorm, xmin, xmax}:map(tostring):concat'\t','\n')
+				io.stderr:write(table{iter, residual, xNorm, xmin, xmax}:mapi(tostring):concat'\t','\n')
 			end
 			if math.abs(residual) < self.stopEpsilon then
 				return true

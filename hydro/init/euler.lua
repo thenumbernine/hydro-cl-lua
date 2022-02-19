@@ -92,12 +92,7 @@ local function RiemannProblem(initCond)
 	
 	function initCond:getInitCondCode()
 		local function build(i)
---[[ fixin gcache order ...
-			return table.map(initCond[i], function(_,name,t)
---]]
--- [[
 			return table.keys(initCond[i]):sort():mapi(function(name,_,t)
---]]
 				return '\t\t'..name..' = initCond->'..getInitCondFieldName(i,name)..';', #t+1
 			end):concat'\n'
 		end
@@ -257,8 +252,8 @@ local function quadrantProblem(initCond)
 		--]]
 		local function build(i)
 			local q = initCond[i]
-			return table.map(q, function(v,k,t)
-				return k..'='..v..';', #t+1
+			return table.keys(q):sort():mapi(function(k)
+				return k..'='..q[k]..';'
 			end):concat' '
 		end
 		return solver.eqn:template([[
@@ -2848,8 +2843,8 @@ bool testTriangle(real3 xc) {
 		|| (true
 <?
 for _,pn in ipairs(obj) do
-	local p = table(pn.p):map(clnumber):concat', '
-	local n = table(pn.n):map(clnumber):concat', '
+	local p = table(pn.p):mapi(clnumber):concat', '
+	local n = table(pn.n):mapi(clnumber):concat', '
 ?>
 			&& real3_dot(real3_sub(xc, _real3(<?=p?>)), _real3(<?=n?>)) < 0.
 <? end ?>
@@ -3021,7 +3016,7 @@ bool testTriangle(real3 xc) {
 				silver = 1.59e-8,
 				platinum = 1.06e-7,
 				tungsten = 5.65e-8,
-			}:map(function(v) return v * Ohm_in_m end)
+			}:mapi(function(v) return v * Ohm_in_m end)
 			
 			return solver.eqn:template([[
 	real3 xc = coordMap(x);
@@ -3080,7 +3075,7 @@ bool testTriangle(real3 xc) {
 			local addExtraSourceProgramObj = solver.Program{
 				name = 'addExtraSource',
 				code = table{
-					solver.modules:getCodeAndHeader(solver.sharedModulesEnabled:keys():sort():unpack()),
+					solver.modules:getCodeAndHeader(solver.sharedModulesEnabled:keys():unpack()),
 					solver.eqn:template([[
 //single cell domain
 kernel void addExtraSource(
@@ -3150,7 +3145,7 @@ kernel void addExtraSource(
 				silver = 1.59e-8,
 				platinum = 1.06e-7,
 				tungsten = 5.65e-8,
-			}:map(function(v) return v * Ohm_in_m end)
+			}:mapi(function(v) return v * Ohm_in_m end)
 			return solver.eqn:template([[
 	D.x = <?=scalar?>_from_real(1.);
 	

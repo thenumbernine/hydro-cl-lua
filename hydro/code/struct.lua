@@ -165,7 +165,7 @@ function Struct:makeType()
 	end)
 	if not status then error(err) end
 
-	local sizeOfFields = table.map(struct.vars, function(field)
+	local sizeOfFields = table.mapi(struct.vars, function(field)
 		local name = field.name
 		local ctype = field.type
 		return ffi.sizeof(ctype)

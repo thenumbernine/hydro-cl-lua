@@ -177,7 +177,7 @@ function TwoFluidEMHDDeDonderGaugeLinearizedGR:createInitState()
 		
 		{name='sqrt_G', value=math.sqrt(gravitationalConstant), units='(m^3/(kg*s^2))^.5'},
 	
-	}:append(self.fluids:map(function(fluid)
+	}:append(self.fluids:mapi(function(fluid)
 		return table{
 			{name='min_'..fluid..'_rho', value=1e-4},
 			{name='min_'..fluid..'_P', value=1e-4},
@@ -299,7 +299,7 @@ function TwoFluidEMHDDeDonderGaugeLinearizedGR:getDisplayVars()
 			code = 'value.vreal = calc_EM_energy(solver, U, x);',
 			units = 'kg/(m*s^2)'
 		},
-	}:append(table{'D','B'}:map(function(field,i)
+	}:append(table{'D','B'}:mapi(function(field)
 		local field = assert( ({D='D', B='B'})[field] )
 		return self:createDivDisplayVar{
 			field = field,

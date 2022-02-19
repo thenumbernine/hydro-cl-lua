@@ -241,7 +241,7 @@ end
 
 
 local integrators = require 'hydro.int.all'
-local integratorNames = integrators:map(function(integrator) return integrator.name end)
+local integratorNames = integrators:mapi(function(integrator) return integrator.name end)
 
 
 local SolverBase = class()
@@ -294,7 +294,7 @@ SolverBase.useCLLinkLibraries = false
 	time('compiling math program', function()
 		self.mathUnlinkedObj = self.Program{
 			name = 'math',
-			code = self.modules:getCodeAndHeader(self.sharedModulesEnabled:keys():sort():unpack()),
+			code = self.modules:getCodeAndHeader(self.sharedModulesEnabled:keys():unpack()),
 		}
 		self.mathUnlinkedObj:compile{
 			dontLink = true,
@@ -356,7 +356,7 @@ function SolverBase:init(args)
 	if self.initArgsForSerialization.subsolverClass then
 		self.initArgsForSerialization.subsolverClass = self.initArgsForSerialization.subsolverClass.name
 	end
-	-- remove compile-time variables
+	-- remove runtime variables
 	self.initArgsForSerialization.fixedDT = nil
 	self.initArgsForSerialization.cfl = nil
 	self.initArgsForSerialization.mins = nil
@@ -365,21 +365,25 @@ function SolverBase:init(args)
 	self.initArgsForSerialization.cmds = nil		-- in choppedup
 	self.initArgsForSerialization.device = nil		-- in choppedup
 	self.initArgsForSerialization.id = nil			-- in choppedup
-	-- also include # devices.  since, on the nvidia cluster, the binaries compiled for 1 device will segfault if they are loaded when using >1 device
+-- ok this is only when you use the cmdline to specify the solver -- then the cmdline is dumped into the solver args --
+-- and you have to remove all the non-solver-specific cmdline vars
+	self.initArgsForSerialization.sys = nil
+	self.initArgsForSerialization.verbose = nil
+	self.initArgsForSerialization.exitTime = nil
+	self.initArgsForSerialization.tick = nil
+	self.initArgsForSerialization.trackvars = nil
+-- also include # devices.  since, on the nvidia cluster, the binaries compiled for 1 device will segfault if they are loaded when using >1 device
 	self.initArgsForSerialization.numDevices = #args.app.env.devices
 	-- hmm, this is defeating the whole purpose of this, ...
 	-- but thanks to some function serialization in BoundaryFixed ... i'm getting rid of boundary as well
 	self.initArgsForSerialization.mesh = nil
 --]]
 
-
 	time('SolverBase:init()', function()
 		require 'hydro.code.symbols'(self, self:getSymbolFields())	-- make unique symbols
 		self:initMeshVars(args)
 		self:initCLDomainVars(args)
 		self:initObjs(args)
-		
-
 
 		self:initCodeModules()
 		self:initCodeModuleDisplay()
@@ -909,7 +913,7 @@ function SolverBase:initCDefs()
 			[self.eqn.symbols.cons_t] = true,
 			[self.eqn.symbols.prim_t] = true,
 		}
-	):keys():sort()
+	):keys()
 	if self.app.verbose then
 		print("ffi.cdef'ing: "..moduleNames:concat', ')
 	end
@@ -1081,9 +1085,8 @@ function SolverBase:refreshCommonProgram()
 		self.symbols.SETBOUNDS,
 	}
 	if self.app.verbose then
-		print('common modules: '..moduleNames:sort():concat', ')
+		print('common modules: '..moduleNames:concat', ')
 	end
-
 	local commonCode = table{
 		-- just header, no function calls needed
 		self.modules:getHeader(moduleNames:unpack()),
@@ -1340,7 +1343,7 @@ function SolverBase:createBuffers()
 		else
 			-- use texSize:volume() so the glTexSubImage can use the whole buffer, in the event of meshsolver where texSize:volume can be > numCells
 			if self.app.verbose then
-				print('allocating gpu-cpu display copy buffer of '..app.real..'['..(self.texSize:volume() * 3)..']')
+				print('allocating gpu-cpu display copy buffer of '..app.real..'['..tonumber(self.texSize:volume() * 3)..']')
 			end
 			self.calcDisplayVarToTexPtr = ffi.new(app.real..'[?]', self.texSize:volume() * 3)
 		end
@@ -1518,7 +1521,7 @@ function SolverBase:refreshSolverProgram()
 	time('generating solver code', function()
 		local moduleNames = table(self.sharedModulesEnabled, self.solverModulesEnabled):keys()
 		if self.app.verbose then
-			print('solver modules: '..moduleNames:sort():concat', ')
+			print('solver modules: '..moduleNames:concat', ')
 		end
 		code = self.modules:getCodeAndHeader(moduleNames:unpack())
 	end)
@@ -2573,7 +2576,7 @@ function SolverBase:finalizeDisplayVars()
 	end
 
 	-- make lookup by name
-	self.displayVarForName = self.displayVars:map(function(var)
+	self.displayVarForName = self.displayVars:mapi(function(var)
 		return var, var.name
 	end)
 
@@ -2764,7 +2767,7 @@ function SolverBase:update()
 		io.write(sep, 't=', self.t)
 		sep = '\t'
 		if cmdline.trackvars then
-			local varnames = string.split(cmdline.trackvars, ','):map(string.trim)
+			local varnames = string.split(cmdline.trackvars, ','):mapi(string.trim)
 			if varnames:find'dt' then
 				io.write(sep, 'dt=', self.dt or 0)	-- the first frame it won't be there ... unless I move this ...
 			end

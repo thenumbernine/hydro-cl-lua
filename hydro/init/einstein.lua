@@ -73,9 +73,9 @@ return ]]..fLuaCode))(alphaVar, symmath)
 	codes.alpha_dalpha_f = self:compileC((alphaVar * dalpha_f)(), 'alpha_dalpha_f', {alphaVar})
 	codes.alphaSq_dalpha_f = self:compileC((alphaVar^2 * dalpha_f)(), 'alphaSq_dalpha_f', {alphaVar})
 
-	return codes:map(function(code,name,t)
-		return 'real calc_'..name..'(real alpha) {\n\t'..code..'\n\treturn out1;\n}', #t+1
-	end):concat'\n'		
+	return codes:keys():sort():mapi(function(name)
+		return 'real calc_'..name..'(real alpha) {\n\t'..codes[name]..'\n\treturn out1;\n}'
+	end):concat'\n'
 end
 
 -- TODO this is not in use yet
@@ -162,8 +162,8 @@ return ]]..fLuaCode))(alphaVar, symmath)
 	codes.dalpha_f = args.initCond:compileC(dalpha_f, 'dalpha_f', {alphaVar})
 
 error'here'
-	return table.map(codes, function(code,name,t)
-		return 'real calc_'..name..'(real alpha) {\n\t'..code..'\n\treturn out1;\n}', #t+1
+	return codes:keys():sort():mapi(function(name)
+		return 'real calc_'..name..'(real alpha) {\n\t'..codes[name]..'\n\treturn out1;\n}'
 	end):concat'\n'
 end
 
@@ -1143,7 +1143,7 @@ what if I transforms this from tx back to uv?
 			return self.solver.eqn:template([[
 <? for _,body in ipairs(bodies) do
 ?>
-	real3 pos = _real3(<?=table.map(body.pos, clnumber):concat', '?>);
+	real3 pos = _real3(<?=table.mapi(body.pos, clnumber):concat', '?>);
 	real3 ofs = real3_sub(xc, pos);
 	
 	real r = real3_len(ofs);
@@ -1254,7 +1254,7 @@ what if I transforms this from tx back to uv?
 			--local xNames = table{'eta', 'theta', 'phi'}
 			-- TODO mapping to isotropic coordinates?
 			-- or separate models or automatic transforms between isotropic and spherical?
-			local xs = xNames:map(function(x) return symmath.var(x) end)
+			local xs = xNames:mapi(function(x) return symmath.var(x) end)
 			
 			-- [[ using eta as a coord
 			local eta, theta, phi = xs:unpack()
@@ -1436,7 +1436,7 @@ TODO I now have a Bessel function routine in hydro/math.cl
 		end,
 		getCodePrefix = function(self)
 			local frac = symmath.frac
-			local xs = xNames:map(function(x) return symmath.var(x) end)
+			local xs = xNames:mapi(function(x) return symmath.var(x) end)
 			local x,y,z = xs:unpack()
 			local t = 0
 			--[[ general solution

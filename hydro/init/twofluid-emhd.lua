@@ -73,7 +73,7 @@ local initConds = table{
 		end,
 	},
 
-}:map(function(cl)
+}:mapi(function(cl)
 	return class(TwoFluidInitCond, cl)
 end)
 

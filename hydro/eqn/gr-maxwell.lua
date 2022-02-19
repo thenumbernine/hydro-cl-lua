@@ -80,7 +80,7 @@ function GRMaxwell:getDisplayVars()
 
 	}
 	--[=[ div E and div B ... TODO redo this with metric (gamma) influence 
-	:append(table{'E','B'}:map(function(var,i)
+	:append(table{'E','B'}:mapi(function(var)
 		local field = assert( ({D='D', B='B'})[var] )
 		return {name='div '..var, code=self:template([[
 	value.vreal = .5 * (0.

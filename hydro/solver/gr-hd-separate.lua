@@ -43,7 +43,7 @@ function GRHDSeparateSolver:init(args)
 		HydroSolver.super.createCodePrefix(self)
 		
 		self.codePrefix = table{
-			self.modules:getCodeAndHeader(self.sharedModulesEnabled:keys():sort():unpack()),
+			self.modules:getCodeAndHeader(self.sharedModulesEnabled:keys():unpack()),
 			gr.eqn:getTypeCode(),
 			
 			-- this is for calc_exp_neg4phi
@@ -120,7 +120,7 @@ io.stderr:write'WARNING!!! make sure gr.UBuf is initialized first!\n'
 		self.hydro,
 	}
 	
-	self.displayVars = table():append(self.solvers:map(function(solver) return solver.displayVars end):unpack())
+	self.displayVars = table():append(self.solvers:mapi(function(solver) return solver.displayVars end):unpack())
 	
 	-- make names unique so that stupid 1D var name-matching code doesn't complain
 	self.solverForDisplayVars = table()
@@ -133,7 +133,7 @@ io.stderr:write'WARNING!!! make sure gr.UBuf is initialized first!\n'
 	end
 
 	-- make a lookup of all vars
-	self.displayVarForName = self.displayVars:map(function(var)
+	self.displayVarForName = self.displayVars:mapi(function(var)
 		return var, var.name
 	end)
 
@@ -150,9 +150,9 @@ io.stderr:write'WARNING!!! make sure gr.UBuf is initialized first!\n'
 
 	self.coord = self.hydro.coord
 	self.eqn = {
-		numStates = self.solvers:map(function(solver) return solver.eqn.numStates end):sum(),
-		numIntStates = self.solvers:map(function(solver) return solver.eqn.numIntStates end):sum(),
-		numWaves = self.solvers:map(function(solver) return solver.eqn.numWaves end):sum(),
+		numStates = self.solvers:mapi(function(solver) return solver.eqn.numStates end):sum(),
+		numIntStates = self.solvers:mapi(function(solver) return solver.eqn.numIntStates end):sum(),
+		numWaves = self.solvers:mapi(function(solver) return solver.eqn.numWaves end):sum(),
 	}
 
 	-- call this after we've assigned 'self' all its fields
@@ -171,7 +171,7 @@ function GRHDSeparateSolver:createCalcStressEnergyKernel()
 	require 'hydro.solver.gridsolver'.createCodePrefix(self)
 
 	local lines = table{
-		self.modules:getCodeAndHeader(self.sharedModulesEnabled:keys():sort():unpack()),
+		self.modules:getCodeAndHeader(self.sharedModulesEnabled:keys():unpack()),
 		self.gr.eqn:getTypeCode(),
 		self.hydro.eqn:getTypeCode(),
 		template([[
@@ -262,7 +262,7 @@ function GRHDSeparateSolver:replaceSourceKernels()
 --[=[ instead of copying vars from nr to grhd, I've integrated the nr code directly to the grhd solver
 	
 	local lines = table{
-		self.modules:getCodeAndHeader(self.sharedModulesEnabled:keys():sort():unpack()),
+		self.modules:getCodeAndHeader(self.sharedModulesEnabled:keys():unpack()),
 		self.gr.eqn:getTypeCode(),
 		self.hydro.eqn:getTypeCode(),
 		template([[
@@ -299,7 +299,7 @@ end
 function GRHDSeparateSolver:callAll(name, ...)
 	local args = setmetatable({...}, table)
 	args.n = select('#',...)
-	return self.solvers:map(function(solver)
+	return self.solvers:mapi(function(solver)
 		return solver[name](solver, args:unpack(1, args.n))
 	end):unpack()
 end

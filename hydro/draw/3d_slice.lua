@@ -104,7 +104,7 @@ function Draw3DSlice:showDisplayVar(var, varName, ar, xmin, xmax, ymin, ymax, us
 		local fwddir
 		local jmin, jmax, jdir
 
-		fwddir = select(2, table{fwd:unpack()}:map(math.abs):sup())
+		fwddir = select(2, table{fwd:unpack()}:mapi(math.abs):sup())
 
 		if fwd.s[fwddir-1] < 0 then
 			jmin, jmax, jdir = 0, n, 1

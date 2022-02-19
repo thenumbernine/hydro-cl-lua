@@ -111,7 +111,7 @@ io.stderr:write'WARNING!!! make sure gr.UBuf is initialized first!\n'
 		self.em,
 	}
 	
-	self.displayVars = table():append(self.solvers:map(function(solver) return solver.displayVars end):unpack())
+	self.displayVars = table():append(self.solvers:mapi(function(solver) return solver.displayVars end):unpack())
 	
 	-- make names unique so that stupid 1D var name-matching code doesn't complain
 	self.solverForDisplayVars = table()
@@ -136,9 +136,9 @@ io.stderr:write'WARNING!!! make sure gr.UBuf is initialized first!\n'
 
 	self.coord = self.em.coord
 	self.eqn = {
-		numStates = self.solvers:map(function(solver) return solver.eqn.numStates end):sum(),
-		numIntStates = self.solvers:map(function(solver) return solver.eqn.numIntStates end):sum(),
-		numWaves = self.solvers:map(function(solver) return solver.eqn.numWaves end):sum(),
+		numStates = self.solvers:mapi(function(solver) return solver.eqn.numStates end):sum(),
+		numIntStates = self.solvers:mapi(function(solver) return solver.eqn.numIntStates end):sum(),
+		numWaves = self.solvers:mapi(function(solver) return solver.eqn.numWaves end):sum(),
 	}
 
 	-- call this after we've assigned 'self' all its fields
@@ -221,7 +221,7 @@ end
 function GREMSeparateSolver:callAll(name, ...)
 	local args = setmetatable({...}, table)
 	args.n = select('#',...)
-	return self.solvers:map(function(solver)
+	return self.solvers:mapi(function(solver)
 		return solver[name](solver, args:unpack(1, args.n))
 	end):unpack()
 end
