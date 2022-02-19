@@ -1,4 +1,13 @@
 <? 
+-- symmath simplify is going slow ...
+-- TODO restore these afterwards in case you want to run multiple solvers
+local symmath = require "symmath"
+symmath.op.div:pushRule'Prune/conjOfSqrtInDenom'
+symmath.op.div:pushRule'Factor/polydiv'
+symmath.op.pow.wildcardMatches = nil
+symmath.matchMulUnknownSubstitution = false
+
+
 -- integrates whatsoever.
 local useCalcDeriv = true
 local useCalcDeriv_alpha = false

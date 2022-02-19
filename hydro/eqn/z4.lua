@@ -1,6 +1,42 @@
 --[[
 based on whatever my numerical_relativity_codegen z4 is based on, which is probably a Bona-Masso paper,
 probably 2004 Bona et al "A symmetry-breaking mechanism for the Z4 general-covariant evolution system"
+
+ok for 2009Alic-z4 SENR UIUC i'm getting a spike at t=43 for spherical, t=83 for sphere-sinh ...
+	offending parties:
+	spikes in the following variables ...
+	gamma_xz
+	d_xxx
+	d_xxz
+	d_xzz
+	d_xij delta^ij
+	|d_xxi|
+	|d_xzi|
+	|d_xxi|_gamma
+	|d_xzi|_gamma
+	d_xij gamma^ij
+	K_xx
+	K_xz
+	K_zz
+	|K_ij|
+	K_ii
+	|K_xi|
+	|K_zi|
+	|K_xi|_gamma
+	|K_zi|_gamma
+	K = K_ij gamma^ij
+	Theta ... has a kink in it at the offending location
+	Z_x
+	Z_z
+	|Z_i| has oscillations ... which peak at this location ...
+	|Z_i|_gamma same
+	H has a measurable peak here ... 
+	M_u looks like nonsense
+	expansion
+	|gravity_i| has a peak here
+	|gravity_i|_gamma
+	gravity_x
+
 --]]
 
 local class = require 'ext.class'
@@ -240,7 +276,7 @@ Z4_2004Bona.predefinedDisplayVars = {
 	'U H',
 	'U M_u mag',
 	'U volume',
-	'U f',
+	'U f*alpha',
 }
 
 function Z4_2004Bona:getDisplayVars()
@@ -249,7 +285,10 @@ function Z4_2004Bona:getDisplayVars()
 	vars:append{
 		{name='volume', code='value.vreal = U->alpha * sqrt(sym3_det(U->gamma_ll));'},
 		{name='f', code='value.vreal = calc_f(U->alpha);'},
+		{name='f*alpha', code='value.vreal = calc_f_alpha(U->alpha);'},
+		{name='f*alpha^2', code='value.vreal = calc_f_alphaSq(U->alpha);'},
 		{name='df/dalpha', code='value.vreal = calc_dalpha_f(U->alpha);'},
+		{name='alpha^2*df/dalpha', code='value.vreal = calc_alphaSq_dalpha_f(U->alpha);'},
 		
 		-- is expansion really just -K?
 		{name='expansion', code=[[

@@ -1,3 +1,8 @@
+<?
+local useConstrainU = true -- constrains alpha to alphamin and calcs H and M^i
+local useAddSource = true
+local useKreissOligarDissipation = true	-- depends on useAddSource 
+?>
 //// MODULE_NAME: <?=calc_gamma_ll?>
 
 #define <?=calc_gamma_ll?>(U, x)	((U)->gamma_ll)
@@ -802,65 +807,48 @@ static void applyKreissOligar(
 	int const * const fields,
 	int const numFields
 ) {
-	real const r = coordMapR(cell->pos);
 	//Kreiss-Oligar dissipation
-	real coeff = solver->dissipationCoeff;
 #if 0	// 2013 Baumgarte et al, section IIIB
-	coeff /= dt;
+	real const coeff = solver->dissipationCoeff / dt;
 #elif 1	// 2017 Ruchlin et al eqn 44
+	real const r = coordMapR(cell->pos);
 	// all params > 0
 	real const rKO = 2.;		//rKO/M = 2
 	real const wKO = .17;		//wKO/M = .17
 	//epsKO0 = .99 doubles as my 'dissipationCoeff' var
-	coeff *= .5 * (erf((r - rKO) / wKO) + 1.);
+	real const coeff = .5 * (erf((r - rKO) / wKO) + 1.) * solver->dissipationCoeff;
 #endif
 
+	real3 dy = solver->grid_dx;
 <? if require "hydro.coord.sphere-sinh-radial":isa(coord) then ?>
 	real3 const yR = _real3(cell->r, cell->pos.y, cell->pos.z);
-	global <?=cell_t?> const * const cellL0 = cell - solver->stepsize.x;
-	real3 const yL0 = _real3(cellL0->r, cellL0->pos.y, cellL0->pos.z);
-	global <?=cell_t?> const * const cellL1 = cell - solver->stepsize.y;
-	real3 const yL1 = _real3(cellL1->r, cellL1->pos.y, cellL1->pos.z);
-	global <?=cell_t?> const * const cellL2 = cell - solver->stepsize.z;
-	real3 const yL2 = _real3(cellL2->r, cellL2->pos.y, cellL2->pos.z);
-	real3 const dySq = _real3(
-		real3_lenSq(real3_sub(yR, yL0)),
-		real3_lenSq(real3_sub(yR, yL1)),
-		real3_lenSq(real3_sub(yR, yL2)));
-<? else ?>
-	real3 const dySq = _real3(
-		solver->grid_dx.x * solver->grid_dx.x,
-		solver->grid_dx.y * solver->grid_dx.y,
-		solver->grid_dx.z * solver->grid_dx.z);
+<? for i=1,solver.dim do
+	local xi = xNames[i]
+?>{
+	global <?=cell_t?> const * const cellL = cell - solver->stepsize.<?=xi?>;
+	real3 const yL = _real3(cellL->r, cellL->pos.y, cellL->pos.z);
+	dy.<?=xi?> = real3_len(real3_sub(yR, yL));
+}<? end ?>
 <? end ?>
-	
-	real3 const _1_dySq = _real3(1./dySq.x, 1./dySq.y, 1./dySq.z);
+
+	real3 const _1_dy = _real3(1./dy.x, 1./dy.y, 1./dy.z);
 
 	//described in 2008 Babiuc et al as Q = (-1)^r h^(2r-1) (D+)^r rho (D-)^r / 2^(2r)
 	//...for r=2... -sigma h^3 (D+)^2 rho (D-)^2 / 16 ... and rho=1, except rho=0 at borders maybe.
 	int const * const endOfFields = fields + numFields;
 	for (int const * ip = fields; ip < endOfFields; ++ip) {
 		int const i = *ip;
-		deriv->ptr[i] += coeff * (
-			  (
+		deriv->ptr[i] += coeff * (0.
+<? for j=1,solver.dim do
+	local xj = xNames[j]
+?>			+ (
 				-20. * U->ptr[i]
-				+ 15. * (U[1 * solver->stepsize.x].ptr[i] + U[-1 * solver->stepsize.x].ptr[i])
-				+ -6. * (U[2 * solver->stepsize.x].ptr[i] + U[-2 * solver->stepsize.x].ptr[i])
-				+ U[3 * solver->stepsize.x].ptr[i] + U[-3 * solver->stepsize.x].ptr[i]
-			) * _1_dySq.x
-			+ (
-				-20. * U->ptr[i]
-				+ 15. * (U[1 * solver->stepsize.y].ptr[i] + U[-1 * solver->stepsize.y].ptr[i])
-				+ -6. * (U[2 * solver->stepsize.y].ptr[i] + U[-2 * solver->stepsize.y].ptr[i])
-				+ U[3 * solver->stepsize.y].ptr[i] + U[-3 * solver->stepsize.y].ptr[i]
-			) * _1_dySq.y
-			+ (
-				-20. * U->ptr[i]
-				+ 15. * (U[1 * solver->stepsize.z].ptr[i] + U[-1 * solver->stepsize.z].ptr[i])
-				+ -6. * (U[2 * solver->stepsize.z].ptr[i] + U[-2 * solver->stepsize.z].ptr[i])
-				+ U[3 * solver->stepsize.z].ptr[i] + U[-3 * solver->stepsize.z].ptr[i]
-			) * _1_dySq.z
-		) * (1. / 64.);
+				+ 15. * (U[1 * solver->stepsize.<?=xj?>].ptr[i] + U[-1 * solver->stepsize.<?=xj?>].ptr[i])
+				+ -6. * (U[2 * solver->stepsize.<?=xj?>].ptr[i] + U[-2 * solver->stepsize.<?=xj?>].ptr[i])
+				+ U[3 * solver->stepsize.<?=xj?>].ptr[i] + U[-3 * solver->stepsize.<?=xj?>].ptr[i]
+			) * _1_dy.<?=xj?>
+<? end
+?>		) * (1. / 64.);
 	}
 }
 
@@ -874,6 +862,7 @@ kernel void <?=addSource?>(
 	global <?=cons_t?> const * const UBuf,
 	global <?=cell_t?> const * const cellBuf
 ) {
+<? if useAddSource then ?>	
 	<?=SETBOUNDS_NOGHOST?>();
 	global <?=cons_t?> const * const U = UBuf + index;
 	global <?=cons_t?> * const deriv = derivBuf + index;
@@ -3286,8 +3275,7 @@ end?>
 	//turns out if you "if conv != 0" all these then skipping decay explodes soon in simulation steps, but time grows quickly, so it dies at a high t value 
 
 	// a_x = log(alpha)_,x <=> a_x += eta (log(alpha)_,x - a_x)
-	if (solver->a_convCoeff != 0.) 
-	{
+	if (solver->a_convCoeff != 0.) {
 		<? for i,xi in ipairs(xNames) do ?>{
 			<? if i <= solver.dim then ?>
 			real partial_i_log_alpha = (
@@ -3302,8 +3290,7 @@ end?>
 	}
 
 	// d_xxx = .5 gamma_xx,x <=> d_xxx += eta (.5 gamma_xx,x - d_xxx)
-	if (solver->d_convCoeff != 0.) 
-	{
+	if (solver->d_convCoeff != 0.) {
 		<? for i,xi in ipairs(xNames) do 
 			for jk,xjk in ipairs(symNames) do ?>{
 				<? if i <= solver.dim then ?>
@@ -3319,14 +3306,16 @@ end?>
 		<? end ?>
 	}
 
+<? if useKreissOligarDissipation then ?>
 //// MODULE_DEPENDS: applyKreissOligar numberof
 	// Kreiss-Oligar dissipation:
-	int fields[numIntStates];
-	for (int i = 0; i < numberof(fields); ++i) fields[i] = i;
 	if (solver->dissipationCoeff != 0.) {
+		int fields[numIntStates] = {<?=require "ext.range"(0,eqn.numIntStates-1):concat", "?>};
 		global <?=cell_t?> const * const cell = cellBuf + index;
 		applyKreissOligar(solver, U, cell, deriv, fields, numberof(fields));
 	}
+<? end -- useKreissOligarDissipation ?>
+<? end -- useAddSource ?>
 }
 
 //// MODULE_NAME: <?=constrainU?>
@@ -3337,6 +3326,7 @@ kernel void <?=constrainU?>(
 	global <?=cons_t?> * const UBuf,
 	global <?=cell_t?> const * const cellBuf
 ) {
+<? if useConstrainU then ?>	
 	<?=SETBOUNDS?>(solver->numGhost, solver->numGhost);		
 	global <?=cons_t?> * const U = UBuf + index;
 	
@@ -3490,4 +3480,5 @@ end ?>;
 ?>
 
 	U->alpha = max(U->alpha, solver->alphaMin);
+<? end -- useConstrainU ?>
 }

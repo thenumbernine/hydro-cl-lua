@@ -1314,6 +1314,8 @@ local args = {
 	dim = dim,
 	cfl = .5/dim,			-- no mention of cfl or timestep ...
 	fluxLimiter = cmdline.fluxLimiter or 'donor cell',	-- I didn't read much into what kind of flux/slope limiter was used
+	--fluxLimiter = cmdline.fluxLimiter or 'minmod',
+	--fluxLimiter = cmdline.fluxLimiter or 'Lax-Wendroff',
 	--fluxLimiter = cmdline.fluxLimiter or 'superbee',
 
 	--[[
@@ -1334,7 +1336,7 @@ local args = {
 		zmax = 'quadratic',
 	},
 	--]]
-	-- [[
+	--[[
 	coord = 'sphere',
 	coordArgs = {
 		--vectorComponent = 'holonomic',	-- TODO this is techically the case, but there may be bugs in this.
@@ -1363,7 +1365,7 @@ local args = {
 		zmax='periodic',
 	},
 	--]]
-	--[[
+	-- [[
 	coord = 'sphere-sinh-radial',
 	coordArgs = {
 		-- TODO sort this out
@@ -1432,11 +1434,11 @@ local args = {
 	},
 	--]]
 
-	initCond = 'Minkowski',				-- hmm, explodes with 2009Alic-z4
+	--initCond = 'Minkowski',				-- hmm, explodes with 2009Alic-z4
 	--initCond = 'SENR Minkowski',			-- stable with 2009Alic-z4
 	--initCond = 'gaussian perturbation',
 	--initCond = 'plane gauge wave',
-	--initCond = 'SENR UIUC',					-- 2009Alic-z4 runs until t=43
+	initCond = 'SENR UIUC',					-- 2009Alic-z4 runs in spherical until t=43, runs in sinh-spherical until t=83
 	--initCond = 'SENR BrillLindquist',
 	--initCond = 'black hole - Schwarzschild',
 	--initCond = 'black hole - isotropic - stuffed',	-- TODO FIXME
@@ -1454,6 +1456,7 @@ local args = {
 	--]]
 
 	flux = 'hll',
+	--flux = 'rusanov',
 }
 -- comparing hll solvers
 if cmdline['2009Alic-adm'] then
@@ -1674,8 +1677,8 @@ local args = {
 	--]]
 		
 	--initCond = 'Minkowski',
-	initCond = 'SENR Minkowski',
-	--initCond = 'SENR UIUC',					-- single black hole. bssnok-fd-num explodes because H diverges at t=13 ... when partial_phi_l diverges at the same rate ... because of its r=0 value?
+	--initCond = 'SENR Minkowski',
+	initCond = 'SENR UIUC',					-- single black hole. bssnok-fd-num explodes because H diverges at t=13 ... when partial_phi_l diverges at the same rate ... because of its r=0 value?
 	--initCond = 'SENR BrillLindquist',			-- two merging head-on.
 	--initCond = 'SENR BoostedSchwarzschild',
 	--initCond = 'SENR StaticTrumpet',
