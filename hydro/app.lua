@@ -58,6 +58,7 @@ simulation execution:
 	run = start the simulation running.  Setting 'exitTime' or 'stopTime' or 'sys=console' also starts the simulation running.
 	exitTime = start the app running, and exit it after the simulation reaches this time
 	saveOnExit = filename to save all solvers (appending _1 _2 for multiple solvers) before quitting
+	plotOnExit = enable or set to 'true' to have a plot popup upon exit.  set it to a filename string to save the plot to that file.
 	stopTime = stop running once this time is reached.
 	maxiter = max # of iterations to run the application for
 	checknans = stop if a NaN or infinity is found
@@ -1192,6 +1193,35 @@ function HydroCLApp:update(...)
 								'_'..i
 							)))
 					end
+				end
+				if cmdline.plotOnExit then
+					local string = require 'ext.string'
+					local varnames = string.split(cmdline.trackvars, ','):mapi(string.trim)
+					varnames:removeObject'dt'
+					-- plot any track vars we got
+					-- 3*#varnames+1 cols per solver
+					-- the first is the solver's t
+					-- then every 3 is min, avg, max
+					local cols = table()
+					local usings = table()
+					for _,solver in ipairs(self.solvers) do
+						cols:insert(solver.plotsOnExit.t)
+						local ti = #cols
+						for _,varname in ipairs(varnames) do
+							for _,suffix in ipairs{'min', 'avg', 'max'} do
+								cols:insert(solver.plotsOnExit[varname..' '..suffix])
+								local title = solver.name..' '..varname..' '..suffix
+								-- fix gnuplot formatting
+								title = title:gsub('_', ' ')
+								usings:insert{using=ti..':'..#cols, title=title}
+							end
+						end
+					end
+					require 'gnuplot'(table({
+						persist = true,
+						style = 'data lines',
+						data = cols,
+					}, usings))
 				end
 
 				self:requestExit()

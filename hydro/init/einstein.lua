@@ -31,8 +31,10 @@ function EinsteinInitCond:compileC(expr, name, vars)
 	if symmath.Expression:isa(expr) then 
 		expr = expr()
 		
-		print('compiling '..name..':')
-		print(expr)
+		if self.solver.app.verbose then
+			print('compiling '..name..':')
+			print(expr)
+		end
 		local code = symmath.export.C:toCode{
 			output = {expr},
 			input = vars,
@@ -41,7 +43,9 @@ function EinsteinInitCond:compileC(expr, name, vars)
 		-- ugh...
 		code = code:gsub('sqrt%(', '(real)sqrt((real)')
 		
-		print(code)
+		if self.solver.app.verbose then
+			print(code)
+		end
 		return code
 	end
 	return table.map(expr, function(v,k) return self:compileC(v,k,vars) end), name

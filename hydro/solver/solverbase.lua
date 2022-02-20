@@ -2748,6 +2748,14 @@ function SolverBase:update()
 	if (self.showFPS or cmdline.trackvars)
 	and thisTime - self.lastFrameTime >= tick
 	then
+		local plotsOnExit = self.plotsOnExit
+		if cmdline.plotOnExit then
+			if not plotsOnExit then
+				plotsOnExit = table()
+				self.plotsOnExit = plotsOnExit
+			end
+		end
+
 		local deltaTime = thisTime - self.lastFrameTime
 		self.fps = self.fpsSampleCount / deltaTime
 
@@ -2760,6 +2768,10 @@ function SolverBase:update()
 		io.write(sep, 't=', self.t)
 		sep = '\t'
 		if cmdline.trackvars then
+			if cmdline.plotOnExit then
+				plotsOnExit.t = plotsOnExit.t or table()
+				plotsOnExit.t:insert(self.t)
+			end
 			local varnames = string.split(cmdline.trackvars, ','):mapi(string.trim)
 			if varnames:find'dt' then
 				io.write(sep, 'dt=', self.dt or 0)	-- the first frame it won't be there ... unless I move this ...
@@ -2775,6 +2787,18 @@ function SolverBase:update()
 						ymax = ymax * unitScale
 					end
 					io.write(sep, varname, '=[', ymin, ' ', yavg, ' ', ymax, ']')
+				
+					if cmdline.plotOnExit then
+						local key = varname..' min'
+						plotsOnExit[key] = plotsOnExit[key] or table()
+						plotsOnExit[key]:insert(ymin)
+						local key = varname..' avg'
+						plotsOnExit[key] = plotsOnExit[key] or table()
+						plotsOnExit[key]:insert(yavg)
+						local key = varname..' max'
+						plotsOnExit[key] = plotsOnExit[key] or table()
+						plotsOnExit[key]:insert(ymax)
+					end
 				end
 			end
 		end
