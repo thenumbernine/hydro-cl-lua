@@ -2687,7 +2687,8 @@ static void calcDeriv_Pi(
 
 
 <? if useSENRShiftAndCoDerivs then ?>
-<?=eqn:template(file["hydro/eqn/bssnok-fd-num-inject-senr.cl"])?>
+<?=require "hydro.eqn.bssnok-fd-senr".templateForSENRCLFile(eqn, "eqn/bssnok-fd-num-inject-senr-calc_RBar_LL")?>
+<?=require "hydro.eqn.bssnok-fd-senr".templateForSENRCLFile(eqn, "eqn/bssnok-fd-num-inject-senr-calc_detg")?>
 <? end -- useSENRShiftAndCoDerivs ?>
 
 
@@ -3267,7 +3268,7 @@ advect shift field:	+ β^i_,j β^j
 
 
 <? if useSENRShiftAndCoDerivs then ?>{
-	<?=eqn:template(file["hydro/eqn/bssnok-fd-num-inject-senr-calcDeriv.cl"], {
+	<?=require "hydro.eqn.bssnok-fd-senr".templateForSENRCLFile(eqn, "eqn/bssnok-fd-num-inject-senr-calcDeriv", {
 		-- TODO how to forward the local env into the inline?
 		-- until then, just forward the local vars that I use
 		useCalcDeriv_alpha = useCalcDeriv_alpha,
