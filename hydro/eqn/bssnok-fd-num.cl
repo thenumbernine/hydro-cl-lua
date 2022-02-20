@@ -3269,15 +3269,14 @@ advect shift field:	+ β^i_,j β^j
 
 <? if useSENRShiftAndCoDerivs then ?>{
 	<?=require "hydro.eqn.bssnok-fd-senr".templateForSENRCLFile(eqn, "eqn/bssnok-fd-num-inject-senr-calcDeriv", {
-		-- TODO how to forward the local env into the inline?
-		-- until then, just forward the local vars that I use
-		useCalcDeriv_alpha = useCalcDeriv_alpha,
-		useCalcDeriv_W = useCalcDeriv_W,
-		useCalcDeriv_K = useCalcDeriv_K,
-		useCalcDeriv_epsilon_LL = useCalcDeriv_epsilon_LL,
-		useCalcDeriv_ABar_LL = useCalcDeriv_ABar_LL,
-		useCalcDeriv_LambdaBar_U = useCalcDeriv_LambdaBar_U,
-		useCalcDeriv_beta_U = useCalcDeriv_beta_U,
+		-- The senr cl file will disable variables that are enabled for this file
+		excludeCalcDeriv_alpha = useCalcDeriv_alpha,
+		excludeCalcDeriv_W = useCalcDeriv_W,
+		excludeCalcDeriv_K = useCalcDeriv_K,
+		excludeCalcDeriv_epsilon_LL = useCalcDeriv_epsilon_LL,
+		excludeCalcDeriv_ABar_LL = useCalcDeriv_ABar_LL,
+		excludeCalcDeriv_LambdaBar_U = useCalcDeriv_LambdaBar_U,
+		excludeCalcDeriv_beta_U = useCalcDeriv_beta_U,
 	})?>
 }<? end -- useSENRShiftAndCoDerivs ?>
 
