@@ -396,7 +396,6 @@ function SolverBase:getSymbolFields()
 		-- TODO put these' symbol generation in solver?
 		'solver_macros',
 		'solver_displayCode',
-		'solver_realDisplayCode',
 		'fluxLimiter',
 		'range_t',
 	}
@@ -856,40 +855,14 @@ function SolverBase:initCodeModuleDisplay()
 	-- depends on self.eqn
 	self:createDisplayVars()
 
-	-- separate by 1 indirection
-	-- so that when solver_displayCode calls :getDisplayCode(),
-	--  the getModuleDepends_displayCode() has already been flagged for use
-	self.modules:add{
-		name = self.symbols.solver_displayCode,
-		depends = self:getModuleDepends_displayCode(),
-	}
-	-- make sure to flag it so 'isModuleUsed' can see it, for constructing displayValue_t
-	self.solverModulesEnabled[self.symbols.solver_displayCode] = true
-
 	-- this depends on :createDisplayVars()
 	self.modules:addFromMarkup(table{
-		'//// MODULE_NAME: '..self.symbols.solver_realDisplayCode,
+		'//// MODULE_NAME: '..self.symbols.solver_displayCode,
 		'//// MODULE_DEPENDS: '..self.symbols.solver_displayCode,
 		-- this call consturcts displayValue_t
 		self:getDisplayCode(),
 	}:concat'\n')
-	self.solverModulesEnabled[self.symbols.solver_realDisplayCode] = true
-end
-
-function SolverBase:getModuleDepends_displayCode()
-	local depends = table()
-
-	-- add in any real3 pickComponent code dependencies here
-	if self:isModuleUsed'real3' then
-		depends:insert(self.coord.symbols.coordLen)
-	end
-	
-	-- add in any sym3 pickComponent code dependencies here
-	if self:isModuleUsed'sym3' then
-		depends:insert(self.coord.symbols.coord_g_ll)
-	end
-
-	return depends
+	self.solverModulesEnabled[self.symbols.solver_displayCode] = true
 end
 
 -- TODO if you want to define ffi ctype metatable then put them all in one spot here
@@ -2114,7 +2087,10 @@ function SolverBase:createDisplayComponents()
 	self:addDisplayComponents('real3', {
 		{name = 'default', type = 'real3', magn='mag'},
 		{name = 'mag', code = 'value->vreal3 = _real3(real3_len(value->vreal3),0,0);'},
-		{name = 'mag metric', code = 'value->vreal3 = _real3(coordLen(value->vreal3, x),0,0);'},
+		{name = 'mag metric', code = self.eqn:template[[
+//// MODULE_DEPENDS: <?=coordLen?>
+value->vreal3 = _real3(coordLen(value->vreal3, x),0,0);
+]]},
 		{name = 'x', code = 'value->vreal3 = _real3(value->vreal3.x,0,0);'},
 		{name = 'y', code = 'value->vreal3 = _real3(value->vreal3.y,0,0);'},
 		{name = 'z', code = 'value->vreal3 = _real3(value->vreal3.z,0,0);'},
@@ -2139,9 +2115,18 @@ function SolverBase:createDisplayComponents()
 		{name = 'x mag', code = 'value->vsym3 = _sym3(real3_len(sym3_x(value->vsym3)), 0,0,0,0,0);'},
 		{name = 'y mag', code = 'value->vsym3 = _sym3(real3_len(sym3_y(value->vsym3)), 0,0,0,0,0);'},
 		{name = 'z mag', code = 'value->vsym3 = _sym3(real3_len(sym3_z(value->vsym3)), 0,0,0,0,0);'},
-		{name = 'x mag metric', code = 'value->vsym3 = _sym3(coordLen(sym3_x(value->vsym3), x), 0,0,0,0,0);'},
-		{name = 'y mag metric', code = 'value->vsym3 = _sym3(coordLen(sym3_y(value->vsym3), x), 0,0,0,0,0);'},
-		{name = 'z mag metric', code = 'value->vsym3 = _sym3(coordLen(sym3_z(value->vsym3), x), 0,0,0,0,0);'},
+		{name = 'x mag metric', code = self.eqn:template[[
+//// MODULE_DEPENDS: <?=coordLen?>
+value->vsym3 = _sym3(coordLen(sym3_x(value->vsym3), x), 0,0,0,0,0);
+]]},
+		{name = 'y mag metric', code = self.eqn:template[[
+//// MODULE_DEPENDS: <?=coordLen?>
+value->vsym3 = _sym3(coordLen(sym3_y(value->vsym3), x), 0,0,0,0,0);
+]]},
+		{name = 'z mag metric', code = self.eqn:template[[
+//// MODULE_DEPENDS: <?=coordLen?>
+value->vsym3 = _sym3(coordLen(sym3_z(value->vsym3), x), 0,0,0,0,0);
+]]},
 	})
 	self:addDisplayComponents('cplx', {
 		{name = 'default', type='cplx', magn='abs'},
@@ -2152,7 +2137,10 @@ function SolverBase:createDisplayComponents()
 	})
 	self:addDisplayComponents('cplx3', {
 		{name = 'mag', code = 'value->vcplx3 = _cplx3(cplx_from_real(cplx3_len(value->vcplx3)), cplx_zero, cplx_zero);'},
-		{name = 'mag metric', code = 'value->vcplx3 = _cplx3(cplx_from_real(cplx3_weightedLenSq(value->vcplx3, coord_g_ll(x))), cplx_zero, cplx_zero);'},
+		{name = 'mag metric', code = self.eqn:template[[
+//// MODULE_DEPENDS: <?=coord_g_ll?>
+value->vcplx3 = _cplx3(cplx_from_real(cplx3_weightedLenSq(value->vcplx3, coord_g_ll(x))), cplx_zero, cplx_zero);
+]]},
 
 		{name = 'x', code='value->vcplx3 = _cplx3(value->vcplx3.x, cplx_zero, cplx_zero);', type='cplx', magn='x abs'},
 		{name = 'x abs', code = 'value->vcplx3 = _cplx3(cplx_from_real(cplx_abs(value->vcplx3.x)), cplx_zero, cplx_zero);'},
@@ -2175,10 +2163,16 @@ function SolverBase:createDisplayComponents()
 		
 		{name = 're', code = 'value->vreal3 = cplx3_re(value->vcplx3); *(real3*)(value+3) = real3_zero;', type = 'real3', magn='re mag'},
 		{name = 're mag', code = 'value->vcplx3 = _cplx3(cplx_from_real(real3_len(cplx3_re(value->vcplx3))), cplx_zero, cplx_zero);'},
-		{name = 're mag metric', code = 'value->vcplx3 = _cplx3(cplx_from_real(coordLen(cplx3_re(value->vcplx3), x)), cplx_zero, cplx_zero);'},
+		{name = 're mag metric', code = self.eqn:template[[
+//// MODULE_DEPENDS: <?=coordLen?>
+value->vcplx3 = _cplx3(cplx_from_real(coordLen(cplx3_re(value->vcplx3), x)), cplx_zero, cplx_zero);
+]]},
 		{name = 'im', code = 'value->vreal3 = cplx3_im(value->vcplx3); *(real3*)(value+3) = real3_zero;', type = 'real3', magn='im mag'},
 		{name = 'im mag', code = 'value->vcplx3 = _cplx3(cplx_from_real(real3_len(cplx3_im(value->vcplx3))), cplx_zero, cplx_zero);'},
-		{name = 'im mag metric', code = 'value->vcplx3 = _cplx3(cplx_from_real(coordLen(cplx3_im(value->vcplx3), x)), cplx_zero, cplx_zero);'},
+		{name = 'im mag metric', code = self.eqn:template[[
+//// MODULE_DEPENDS: <?=coordLen?>
+value->vcplx3 = _cplx3(cplx_from_real(coordLen(cplx3_im(value->vcplx3), x)), cplx_zero, cplx_zero);
+]]},
 	})
 	self:addDisplayComponents('real3x3', {
 		{name = 'xx', code = 'value->vreal3x3 = _real3x3(value->vreal3x3.x.x, 0,0,0,0,0,0,0,0);'},
@@ -2195,7 +2189,10 @@ function SolverBase:createDisplayComponents()
 		
 		{name = 'norm', code = 'value->vreal3x3 = _real3x3(sqrt(real3x3_dot(value->vreal3x3, value->vreal3x3)), 0,0,0,0,0,0,0,0);'},
 		{name = 'tr', code = 'value->vreal3x3 = _real3x3(real3x3_trace(value->vreal3x3), 0,0,0,0,0,0,0,0);'},
-		{name = 'tr metric', code = 'value->vreal3x3 = _real3x3(real3x3_sym3_dot(value->vreal3x3, coord_g_ll(x)), 0,0,0,0,0,0,0,0);'},
+		{name = 'tr metric', code = self.eqn:template[[
+//// MODULE_DEPENDS: <?=coord_g_ll?>
+value->vreal3x3 = _real3x3(real3x3_sym3_dot(value->vreal3x3, coord_g_ll(x)), 0,0,0,0,0,0,0,0);
+]]},
 		
 		{name = 'x', code = 'value->vreal3 = value->vreal3x3.x; value->vreal3x3.y = real3_zero; value->vreal3x3.z = real3_zero;', type = 'real3', magn='x mag'},
 		{name = 'y', code = 'value->vreal3 = value->vreal3x3.y; value->vreal3x3.y = real3_zero; value->vreal3x3.z = real3_zero;', type = 'real3', magn='y mag'},
@@ -2203,9 +2200,18 @@ function SolverBase:createDisplayComponents()
 		{name = 'x mag', code = 'value->vreal3 = _real3(real3_len(value->vreal3x3.x), 0,0); value->vreal3x3.y = real3_zero; value->vreal3x3.z = real3_zero;'},
 		{name = 'y mag', code = 'value->vreal3 = _real3(real3_len(value->vreal3x3.y), 0,0); value->vreal3x3.y = real3_zero; value->vreal3x3.z = real3_zero;'},
 		{name = 'z mag', code = 'value->vreal3 = _real3(real3_len(value->vreal3x3.z), 0,0); value->vreal3x3.y = real3_zero; value->vreal3x3.z = real3_zero;'},
-		{name = 'x mag metrc', code = 'value->vreal3 = _real3(coordLen(value->vreal3x3.x, x), 0,0); value->vreal3x3.y = real3_zero; value->vreal3x3.z = real3_zero;'},
-		{name = 'y mag metrc', code = 'value->vreal3 = _real3(coordLen(value->vreal3x3.y, x), 0,0); value->vreal3x3.y = real3_zero; value->vreal3x3.z = real3_zero;'},
-		{name = 'z mag metrc', code = 'value->vreal3 = _real3(coordLen(value->vreal3x3.z, x), 0,0); value->vreal3x3.y = real3_zero; value->vreal3x3.z = real3_zero;'},
+		{name = 'x mag metrc', code = self.eqn:template[[
+//// MODULE_DEPENDS: <?=coordLen?>
+value->vreal3 = _real3(coordLen(value->vreal3x3.x, x), 0,0); value->vreal3x3.y = real3_zero; value->vreal3x3.z = real3_zero;
+]]},
+		{name = 'y mag metrc', code = self.eqn:template[[
+//// MODULE_DEPENDS: <?=coordLen?>
+value->vreal3 = _real3(coordLen(value->vreal3x3.y, x), 0,0); value->vreal3x3.y = real3_zero; value->vreal3x3.z = real3_zero;
+]]},
+		{name = 'z mag metrc', code = self.eqn:template[[
+//// MODULE_DEPENDS: <?=coordLen?>
+value->vreal3 = _real3(coordLen(value->vreal3x3.z, x), 0,0); value->vreal3x3.y = real3_zero; value->vreal3x3.z = real3_zero;
+]]},
 		
 		{name = 'T x', code = 'value->vreal3 = _real3(value->vreal3x3.x.x, value->vreal3x3.y.x, value->vreal3x3.z.x); value->vreal3x3.y = real3_zero; value->vreal3x3.z = real3_zero;', type = 'real3', magn='T x mag'},
 		{name = 'T y', code = 'value->vreal3 = _real3(value->vreal3x3.x.y, value->vreal3x3.y.y, value->vreal3x3.z.y); value->vreal3x3.y = real3_zero; value->vreal3x3.z = real3_zero;', type = 'real3', magn='T y mag'},
@@ -2213,9 +2219,18 @@ function SolverBase:createDisplayComponents()
 		{name = 'T x mag', code = 'value->vreal3 = _real3(real3_len(_real3(value->vreal3x3.x.x, value->vreal3x3.y.x, value->vreal3x3.z.x)), 0,0); value->vreal3x3.y = real3_zero; value->vreal3x3.z = real3_zero;'},
 		{name = 'T y mag', code = 'value->vreal3 = _real3(real3_len(_real3(value->vreal3x3.x.y, value->vreal3x3.y.y, value->vreal3x3.z.y)), 0,0); value->vreal3x3.y = real3_zero; value->vreal3x3.z = real3_zero;'},
 		{name = 'T z mag', code = 'value->vreal3 = _real3(real3_len(_real3(value->vreal3x3.x.z, value->vreal3x3.y.z, value->vreal3x3.z.z)), 0,0); value->vreal3x3.y = real3_zero; value->vreal3x3.z = real3_zero;'},
-		{name = 'T x mag metric', code = 'value->vreal3 = _real3(coordLen(_real3(value->vreal3x3.x.x, value->vreal3x3.y.x, value->vreal3x3.z.x), x), 0,0); value->vreal3x3.y = real3_zero; value->vreal3x3.z = real3_zero;'},
-		{name = 'T y mag metric', code = 'value->vreal3 = _real3(coordLen(_real3(value->vreal3x3.x.y, value->vreal3x3.y.y, value->vreal3x3.z.y), x), 0,0); value->vreal3x3.y = real3_zero; value->vreal3x3.z = real3_zero;'},
-		{name = 'T z mag metric', code = 'value->vreal3 = _real3(coordLen(_real3(value->vreal3x3.x.z, value->vreal3x3.y.z, value->vreal3x3.z.z), x), 0,0); value->vreal3x3.y = real3_zero; value->vreal3x3.z = real3_zero;'},
+		{name = 'T x mag metric', code = self.eqn:template[[
+//// MODULE_DEPENDS: <?=coordLen?>
+value->vreal3 = _real3(coordLen(_real3(value->vreal3x3.x.x, value->vreal3x3.y.x, value->vreal3x3.z.x), x), 0,0); value->vreal3x3.y = real3_zero; value->vreal3x3.z = real3_zero;
+]]},
+		{name = 'T y mag metric', code = self.eqn:template[[
+//// MODULE_DEPENDS: <?=coordLen?>
+value->vreal3 = _real3(coordLen(_real3(value->vreal3x3.x.y, value->vreal3x3.y.y, value->vreal3x3.z.y), x), 0,0); value->vreal3x3.y = real3_zero; value->vreal3x3.z = real3_zero;
+]]},
+		{name = 'T z mag metric', code = self.eqn:template[[
+//// MODULE_DEPENDS: <?=coordLen?>
+value->vreal3 = _real3(coordLen(_real3(value->vreal3x3.x.z, value->vreal3x3.y.z, value->vreal3x3.z.z), x), 0,0); value->vreal3x3.y = real3_zero; value->vreal3x3.z = real3_zero;
+]]},
 	})
 
 end
