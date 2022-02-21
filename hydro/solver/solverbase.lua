@@ -858,7 +858,6 @@ function SolverBase:initCodeModuleDisplay()
 	-- this depends on :createDisplayVars()
 	self.modules:addFromMarkup(table{
 		'//// MODULE_NAME: '..self.symbols.solver_displayCode,
-		'//// MODULE_DEPENDS: '..self.symbols.solver_displayCode,
 		-- this call consturcts displayValue_t
 		self:getDisplayCode(),
 	}:concat'\n')
