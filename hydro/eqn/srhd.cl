@@ -349,7 +349,7 @@ end):concat()
 ?>
 
 //// MODULE_NAME: <?=eigen_leftTransform?>
-//// MODULE_DEPENDS: <?=waves_t?>
+//// MODULE_DEPENDS: <?=waves_t?> <?=eigen_t?>
 
 #define <?=eigen_leftTransform?>(\
 	/*<?=waves_t?> * const */result,\
@@ -429,7 +429,7 @@ end):concat()
 }
 
 //// MODULE_NAME: <?=eigen_rightTransform?>
-//// MODULE_DEPENDS: <?=waves_t?>
+//// MODULE_DEPENDS: <?=waves_t?> <?=eigen_t?>
 
 #define <?=eigen_rightTransform?>(\
 	/*<?=cons_t?> * const */result,\
@@ -484,6 +484,7 @@ end):concat()
 }
 
 //// MODULE_NAME: <?=eigen_fluxTransform?>
+//// MODULE_DEPENDS: <?=eigen_t?>
 
 #define <?=eigen_fluxTransform?>(\
 	/*<?=cons_t?> * const */result,\

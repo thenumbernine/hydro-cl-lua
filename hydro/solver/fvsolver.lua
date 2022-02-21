@@ -288,40 +288,6 @@ if self.checkNaNs then assert(self:checkFinite(derivBufObj)) end
 
 end
 
-
-function FiniteVolumeSolver:getModuleDepends_displayCode()
-	local depends = table(FiniteVolumeSolver.super.getModuleDepends_displayCode(self))
-
-	depends:append{
-		-- wave #
-		self.coord.symbols.normal_t,
-		self.eqn.symbols.eigen_t,
-		self.eqn.symbols.eqn_waveCode_depends,
-		self.eqn.symbols.eigen_forInterface,
-	}
-
-	-- only if these symbols are defined is the ortho error display vars included, which themselves need these:
-	if self:isModuleUsed(self.eqn.symbols.eigen_leftTransform)
-	and self:isModuleUsed(self.eqn.symbols.eigen_rightTransform)
-	then
-		depends:append{
-			self.eqn.symbols.eigen_leftTransform,
-			self.eqn.symbols.eigen_rightTransform,
-			self.coord.symbols.cell_calcAvg_withPt,
-		}
-	
-		-- and only if the two of them plus this is defined is the flux error display var used:
-
-		if self:isModuleUsed(self.eqn.symbols.eigen_fluxTransform) then
-			depends:append{
-				self.eqn.symbols.eigen_fluxTransform,
-			}
-		end
-	end
-
-	return depends
-end
-
 function FiniteVolumeSolver:addDisplayVars()
 	FiniteVolumeSolver.super.addDisplayVars(self)
 
@@ -332,8 +298,8 @@ function FiniteVolumeSolver:addDisplayVars()
 			bufferField = 'fluxBuf',
 			bufferType = self.eqn.symbols.cons_t,
 			codePrefix = self.eqn:template([[
-	int const indexInt = <?=side?> + dim * index;
-	global <?=cons_t?> const * const flux = buf + indexInt;
+int const indexInt = <?=side?> + dim * index;
+global <?=cons_t?> const * const flux = buf + indexInt;
 ]],			{
 				side = side,
 			}),
@@ -346,19 +312,20 @@ function FiniteVolumeSolver:addDisplayVars()
 	-- code for getting the interface eigensystem variables
 	local function getEigenCode(args)
 		return self.eqn:template([[
-	int indexR = index;
-	int indexL = index - solver->stepsize.s<?=side?>;
-	global <?=cell_t?> const * const cellL = cellBuf + indexL;
-	global <?=cell_t?> const * const cellR = cellBuf + indexR;
+int indexR = index;
+int indexL = index - solver->stepsize.s<?=side?>;
+global <?=cell_t?> const * const cellL = cellBuf + indexL;
+global <?=cell_t?> const * const cellR = cellBuf + indexR;
 
-	/* TODO this isn't always used by normal_forSide or eigen_forInterface ... */
-	real3 xInt = x;
-	xInt.s<?=side?> -= .5 * solver->grid_dx.s<?=side?>;
-	
-	<?=solver:getULRCode{bufName='buf', side=side}:gsub('\n', '\n\t')?>
-	<?=normal_t?> n = normal_forSide<?=side?>(xInt);
-	<?=eigen_t?> eig;
-	<?=eigen_forInterface?>(&eig, solver, UL, UR, cellL, cellR, xInt, n);
+/* TODO this isn't always used by normal_forSide or eigen_forInterface ... */
+real3 xInt = x;
+xInt.s<?=side?> -= .5 * solver->grid_dx.s<?=side?>;
+
+<?=solver:getULRCode{bufName='buf', side=side}:gsub('\n', '\n\t')?>
+//// MODULE_DEPENDS: <?=eigen_forInterface?>
+<?=normal_t?> n = normal_forSide<?=side?>(xInt);
+<?=eigen_t?> eig;
+<?=eigen_forInterface?>(&eig, solver, UL, UR, cellL, cellR, xInt, n);
 ]], 	{
 			side = args.side,
 		})
@@ -373,24 +340,27 @@ function FiniteVolumeSolver:addDisplayVars()
 			codePrefix = table{
 				getEigenCode{side=side},
 				self.eqn:template([[
-	<?=normal_t?> n<?=side?> = normal_forSide<?=side?>(xInt);
-	<?=eqn:eigenWaveCodePrefix{
-		n = 'n',
-		eig = '&eig',
-		pt = 'xInt',
-	}:gsub('\n', '\n\t')?>
+//// MODULE_DEPENDS: <?=normal_t?>
+<?=normal_t?> n<?=side?> = normal_forSide<?=side?>(xInt);
+//// MODULE_DEPENDS: <?=eqn_waveCode_depends?>
+<?=eqn:eigenWaveCodePrefix{
+	n = 'n',
+	eig = '&eig',
+	pt = 'xInt',
+}:gsub('\n', '\n\t')?>
 ]], 			{
 					side = side,
 				}),
 			}:concat'\n',
 			vars = range(0, self.eqn.numWaves-1):mapi(function(i)
 				return {name=tostring(i), code=self.eqn:template([[
-	value.vreal = <?=eqn:eigenWaveCode{
-		n = 'n'..side,
-		eig = '&eig',
-		pt = 'xInt',
-		waveIndex = i,
-	}?>;
+//// MODULE_DEPENDS: <?=eqn_waveCode_depends?>
+value.vreal = <?=eqn:eigenWaveCode{
+	n = 'n'..side,
+	eig = '&eig',
+	pt = 'xInt',
+	waveIndex = i,
+}?>;
 ]], 			{
 					side = side,
 					i = i,
@@ -431,28 +401,29 @@ function FiniteVolumeSolver:addDisplayVars()
 					{name='0', code=table{
 						getEigenCode{side=side},
 						self.eqn:template([[
-	value.vreal = 0;
-	//the flux transform is F v = R Lambda L v, I = R L
-	//but if numWaves < numIntStates then certain v will map to the nullspace
-	//so to test orthogonality for only numWaves dimensions, I will verify that Qinv Q v = v
-	//I = L R
-	//Also note (courtesy of Trangenstein) consider summing across outer products of basis vectors to fulfill rank
-	for (int k = 0; k < numWaves; ++k) {
-		<?=cons_t?> basis;
-		for (int j = 0; j < numStates; ++j) {
-			basis.ptr[j] = k == j ? 1 : 0;
-		}
-		
-		<?=normal_t?> n = normal_forSide<?=side?>(xInt);
-		<?=waves_t?> chars;
-		<?=eigen_leftTransform?>(&chars, solver, &eig, &basis, xInt, n);
-		<?=cons_t?> newbasis;
-		<?=eigen_rightTransform?>(&newbasis, solver, &eig, &chars, xInt, n);
-	
-		for (int j = 0; j < numStates; ++j) {
-			value.vreal += fabs(newbasis.ptr[j] - basis.ptr[j]);
-		}
+value.vreal = 0;
+//the flux transform is F v = R Lambda L v, I = R L
+//but if numWaves < numIntStates then certain v will map to the nullspace
+//so to test orthogonality for only numWaves dimensions, I will verify that Qinv Q v = v
+//I = L R
+//Also note (courtesy of Trangenstein) consider summing across outer products of basis vectors to fulfill rank
+for (int k = 0; k < numWaves; ++k) {
+	<?=cons_t?> basis;
+	for (int j = 0; j < numStates; ++j) {
+		basis.ptr[j] = k == j ? 1 : 0;
 	}
+	
+//// MODULE_DEPENDS: <?=eigen_leftTransform?> <?=eigen_rightTransform?>
+	<?=normal_t?> n = normal_forSide<?=side?>(xInt);
+	<?=waves_t?> chars;
+	<?=eigen_leftTransform?>(&chars, solver, &eig, &basis, xInt, n);
+	<?=cons_t?> newbasis;
+	<?=eigen_rightTransform?>(&newbasis, solver, &eig, &chars, xInt, n);
+
+	for (int j = 0; j < numStates; ++j) {
+		value.vreal += fabs(newbasis.ptr[j] - basis.ptr[j]);
+	}
+}
 ]], 						{
 								side = side,
 							}),
@@ -481,61 +452,62 @@ function FiniteVolumeSolver:addDisplayVars()
 					{name='0', code=table{
 						getEigenCode{side=side},
 						self.eqn:template([[
-	<?=normal_t?> n<?=side?> = normal_forSide<?=side?>(x);
-	<?=eqn:eigenWaveCodePrefix{
-		n = 'n'..side,
-		eig = '&eig',
-		pt = 'xInt',
-	}:gsub('\n', '\n\t')?>
-	
-	value.vreal = 0;
-	for (int k = 0; k < numIntStates; ++k) {
-		//This only needs to be numIntStates in size, but just in case the left/right transforms are reaching past that memory boundary ...
-		//Then again, how do I know what the non-integrated states should be?  Defaulting to zero is a bad idea.
-		<?=cons_t?> basis;
-		for (int j = 0; j < numStates; ++j) {
-			basis.ptr[j] = k == j ? 1 : 0;
-		}
+//// MODULE_DEPENDS: <?=eqn_waveCode_depends?> <?=eigen_leftTransform?> <?=eigen_rightTransform?> <?=eigen_fluxTransform?> <?=cell_calcAvg_withPt?>
+<?=normal_t?> n<?=side?> = normal_forSide<?=side?>(x);
+<?=eqn:eigenWaveCodePrefix{
+	n = 'n'..side,
+	eig = '&eig',
+	pt = 'xInt',
+}:gsub('\n', '\n\t')?>
 
-		<?=normal_t?> n = normal_forSide<?=side?>(xInt);
-		
-		<?=waves_t?> chars;
-		<?=eigen_leftTransform?>(&chars, solver, &eig, &basis, xInt, n);
+value.vreal = 0;
+for (int k = 0; k < numIntStates; ++k) {
+	//This only needs to be numIntStates in size, but just in case the left/right transforms are reaching past that memory boundary ...
+	//Then again, how do I know what the non-integrated states should be?  Defaulting to zero is a bad idea.
+	<?=cons_t?> basis;
+	for (int j = 0; j < numStates; ++j) {
+		basis.ptr[j] = k == j ? 1 : 0;
+	}
 
-		<?=waves_t?> charScaled;
-		<? for j=0,eqn.numWaves-1 do ?>{
-			real const lambda_j = <?=eqn:eigenWaveCode{
-				n = 'n'..side,
-				eig = '&eig',
-				pt = 'xInt',
-				waveIndex = j,
-			}:gsub('\n', '\n\t\t')?>;
-			charScaled.ptr[<?=j?>] = chars.ptr[<?=j?>] * lambda_j;
-		}<? end ?>
+	<?=normal_t?> n = normal_forSide<?=side?>(xInt);
 	
-		//once again, only needs to be numIntStates
-		<?=cons_t?> newtransformed;
-		<?=eigen_rightTransform?>(&newtransformed, solver, &eig, &charScaled, xInt, n);
+	<?=waves_t?> chars;
+	<?=eigen_leftTransform?>(&chars, solver, &eig, &basis, xInt, n);
+
+	<?=waves_t?> charScaled;
+	<? for j=0,eqn.numWaves-1 do ?>{
+		real const lambda_j = <?=eqn:eigenWaveCode{
+			n = 'n'..side,
+			eig = '&eig',
+			pt = 'xInt',
+			waveIndex = j,
+		}:gsub('\n', '\n\t\t')?>;
+		charScaled.ptr[<?=j?>] = chars.ptr[<?=j?>] * lambda_j;
+	}<? end ?>
+
+	//once again, only needs to be numIntStates
+	<?=cons_t?> newtransformed;
+	<?=eigen_rightTransform?>(&newtransformed, solver, &eig, &charScaled, xInt, n);
 
 #if 1
-		//this shouldn't need to be reset here
-		// but it will if leftTransform does anything destructive
-		for (int j = 0; j < numStates; ++j) {
-			basis.ptr[j] = k == j ? 1 : 0;
-		}
+	//this shouldn't need to be reset here
+	// but it will if leftTransform does anything destructive
+	for (int j = 0; j < numStates; ++j) {
+		basis.ptr[j] = k == j ? 1 : 0;
+	}
 #endif
 
-		<?=cell_t?> cellAvg;
-		cell_calcAvg_withPt(&cellAvg, cellL, cellR, xInt);
+	<?=cell_t?> cellAvg;
+	cell_calcAvg_withPt(&cellAvg, cellL, cellR, xInt);
 
-		//once again, only needs to be numIntStates
-		<?=cons_t?> transformed;
-		<?=eigen_fluxTransform?>(&transformed, solver, &eig, &basis, &cellAvg, n);
-		
-		for (int j = 0; j < numIntStates; ++j) {
-			value.vreal += fabs(newtransformed.ptr[j] - transformed.ptr[j]);
-		}
+	//once again, only needs to be numIntStates
+	<?=cons_t?> transformed;
+	<?=eigen_fluxTransform?>(&transformed, solver, &eig, &basis, &cellAvg, n);
+	
+	for (int j = 0; j < numIntStates; ++j) {
+		value.vreal += fabs(newtransformed.ptr[j] - transformed.ptr[j]);
 	}
+}
 ]], 						{
 								side = side,
 							}),

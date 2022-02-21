@@ -370,7 +370,7 @@ end
 ?>
 
 //// MODULE_NAME: <?=eigen_leftTransform?>
-//// MODULE_DEPENDS: <?=coord_g_uu?> <?=coord_g_uu_ij?> <?=coord_sqrt_g_uu_ij?> <?=coord_lower?> <?=waves_t?> 
+//// MODULE_DEPENDS: <?=waves_t?> <?=eigen_t?> <?=coord_g_uu?> <?=coord_g_uu_ij?> <?=coord_sqrt_g_uu_ij?> <?=coord_lower?>
 
 #define <?=eigen_leftTransform?>(\
 	/*<?=waves_t?> * const */result,\
@@ -519,7 +519,7 @@ end
 }
 
 //// MODULE_NAME: <?=eigen_rightTransform?>
-//// MODULE_DEPENDS: <?=coord_g_uu?> <?=coord_g_uu_ij?> <?=coord_sqrt_g_uu_ij?> <?=coord_lower?> <?=waves_t?> 
+//// MODULE_DEPENDS: <?=waves_t?> <?=eigen_t?> <?=coord_g_uu?> <?=coord_g_uu_ij?> <?=coord_sqrt_g_uu_ij?> <?=coord_lower?>
 
 #define <?=eigen_rightTransform?>(\
 	/*<?=cons_t?> const * const */result,\
@@ -635,6 +635,7 @@ end
 }
 
 //// MODULE_NAME: <?=eigen_fluxTransform?>
+//// MODULE_DEPENDS: <?=eigen_t?>
 
 static inline void <?=eigen_fluxTransform?>(
 	<?=cons_t?> const * const result,
