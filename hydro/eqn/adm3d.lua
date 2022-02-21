@@ -238,14 +238,6 @@ function ADM_BonaMasso_3D:getModuleDepends_waveCode()
 	}
 end
 
-function ADM_BonaMasso_3D:getModuleDepends_displayCode()
-	return {
-		self.symbols.calc_gamma_ll,
-		self.symbols.calc_gamma_uu,
-		self.symbols.initCond_codeprefix,	-- calc_f
-	}
-end
-
 ADM_BonaMasso_3D.solverCodeFile = 'hydro/eqn/adm3d.cl'
 
 ADM_BonaMasso_3D.predefinedDisplayVars = {
@@ -266,8 +258,14 @@ function ADM_BonaMasso_3D:getDisplayVars()
 
 	vars:append{
 		{name='volume', code='value.vreal = U->alpha * sqrt(sym3_det(U->gamma_ll));'},
-		{name='f', code='value.vreal = calc_f(U->alpha);'},
-		{name='df/dalpha', code='value.vreal = calc_dalpha_f(U->alpha);'},
+		{name='f', code=self:template[[
+//// MODULE_DEPENDS: <?=initCond_codeprefix?>
+value.vreal = calc_f(U->alpha);
+]]},
+		{name='df/dalpha', code=self:template[[
+//// MODULE_DEPENDS: <?=initCond_codeprefix?>
+value.vreal = calc_dalpha_f(U->alpha);
+]]},
 		{name='expansion', code=[[
 	real det_gamma = sym3_det(U->gamma_ll);
 	sym3 gamma_uu = sym3_inv(U->gamma_ll, det_gamma);

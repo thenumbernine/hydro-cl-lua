@@ -82,8 +82,8 @@ local eInv = coord.request"eHolToE"
 //// MODULE_DEPENDS: <?=calc_partial_det_gammaHat_l?> <?=rescaleFromCoord_rescaleToCoord?>
 
 real3 calc_partial_det_gammaHat_L(real3 x) {
-	real3 partial_det_gammaHat_l = <?=calc_partial_det_gammaHat_l?>(x);
-	real3 partial_det_gammaHat_L = real3_rescaleFromCoord_l(partial_det_gammaHat_l, x);
+	real3 const partial_det_gammaHat_l = <?=calc_partial_det_gammaHat_l?>(x);
+	real3 const partial_det_gammaHat_L = real3_rescaleFromCoord_l(partial_det_gammaHat_l, x);
 	return partial_det_gammaHat_L;
 }
 
@@ -1464,11 +1464,11 @@ static void calcDeriv_W(
 	real const tr_DBar_beta
 ) {
 <?=eqn:makePartialUpwind"W"?>
-	real3 partial_W_L_upwind = real3_rescaleFromCoord_l(partial_W_l_upwind, x);
+	real3 const partial_W_L_upwind = real3_rescaleFromCoord_l(partial_W_l_upwind, x);
 
-	real Lbeta_W = real3_dot(partial_W_L_upwind, U->beta_U);
+	real const Lbeta_W = real3_dot(partial_W_L_upwind, U->beta_U);
 
-	real L2_W = (1. / 3.) * U->W * (U->alpha * U->K - tr_DBar_beta);
+	real const L2_W = (1. / 3.) * U->W * (U->alpha * U->K - tr_DBar_beta);
 
 	/*
 	2017 Ruchlin et al eqn 11c
@@ -2590,34 +2590,34 @@ static void calcDeriv_Pi(
 	real3 const partial_W_l
 ) {
 
-	cplx3 Psi_L = cplx3_from_real3_real3(
+	cplx3 const Psi_L = cplx3_from_real3_real3(
 		real3_rescaleFromCoord_l(cplx3_re(U->Psi_l), x),
 		real3_rescaleFromCoord_l(cplx3_im(U->Psi_l), x));
 
 <?=eqn:makePartial1"Psi_l"?>
-	cplx3x3 partial_Psi_LL = cplx3x3_partial_rescaleFromCoord_Ll(U->Psi_l, partial_Psi_ll, x);
+	cplx3x3 const partial_Psi_LL = cplx3x3_partial_rescaleFromCoord_Ll(U->Psi_l, partial_Psi_ll, x);
 	
-	real exp_neg4phi = <?=calc_exp_neg4phi?>(U);
-	sym3 gamma_uu = sym3_real_mul(*gammaBar_uu, exp_neg4phi);
-	sym3 gamma_UU = sym3_rescaleFromCoord_uu(gamma_uu, x);
+	real const exp_neg4phi = <?=calc_exp_neg4phi?>(U);
+	sym3 const gamma_uu = sym3_real_mul(*gammaBar_uu, exp_neg4phi);
+	sym3 const gamma_UU = sym3_rescaleFromCoord_uu(gamma_uu, x);
 
 	/*
 	4conn^t = -1/alpha^3 (alpha_,t - beta^m alpha_,m + alpha^2 K)
 	*/
-	real _4conn_t = (
+	real const _4conn_t = (
 		(dt_alpha - real3_dot(U->beta_U, *partial_alpha_L)) / (U->alpha * U->alpha)
 		+ U->K) / U->alpha;
 	
-	_3sym3 connHat_ull = _3sym3_rescaleToCoord_ULL(connHat_ULL, x);
+	_3sym3 const connHat_ull = _3sym3_rescaleToCoord_ULL(connHat_ULL, x);
 
 	/*
 	Delta^i_jk = connBar^i_jk - connHat^i_jk
 	Delta^i = Delta^i_jk gammaBar^jk = connBar^i - connHat^i_jk gammaBar^jk
 	connBar^i = Delta^i + connHat^i_jk gammaBar^jk
 	*/
-	real3 connHat_u = _3sym3_sym3_dot23(connHat_ull, *gammaBar_uu);
-	real3 connHat_U = real3_rescaleFromCoord_u(connHat_u, x); 
-	real3 connBar_U = real3_add(*Delta_U, connHat_U);
+	real3 const connHat_u = _3sym3_sym3_dot23(connHat_ull, *gammaBar_uu);
+	real3 const connHat_U = real3_rescaleFromCoord_u(connHat_u, x); 
+	real3 const connBar_U = real3_add(*Delta_U, connHat_U);
 
 	/*
 	2008 Alcubierre eqn 2.8.15
@@ -2625,7 +2625,7 @@ static void calcDeriv_Pi(
 	= exp(-4 phi) connBar^i - 2 gamma^ij phi_,j
 	= W^2 connBar^i + gamma^ij W_,j / W
 	*/
-	real3 conn_u = real3_add(
+	real3 const conn_u = real3_add(
 		real3_real_mul(
 			connBar_U,
 			exp_neg4phi
@@ -2635,16 +2635,16 @@ static void calcDeriv_Pi(
 			1. / U->W
 		)
 	);
-	real3 conn_U = real3_rescaleFromCoord_u(conn_u, x); 
+	real3 const conn_U = real3_rescaleFromCoord_u(conn_u, x); 
 	
-	real3 partial_alpha_U = sym3_real3_mul(gamma_UU, *partial_alpha_L);
+	real3 const partial_alpha_U = sym3_real3_mul(gamma_UU, *partial_alpha_L);
 
 	/*
 	4conn^i = 3conn^i 
 		+ 1/alpha^3 beta^i (alpha_,t - beta^m alpha_,m + alpha^2 K) 
 		- 1/alpha^2 (beta^i_,t - beta^m beta^i_,m + alpha alpha_,j gamma^ij)
 	*/
-	real3 _4conn_i_U = real3_add5(
+	real3 const _4conn_i_U = real3_add5(
 		conn_U,
 		real3_real_mul(U->beta_U, ((dt_alpha - real3_dot(U->beta_U, *partial_alpha_L)) / (U->alpha * U->alpha) + U->K) / U->alpha),
 		real3_real_mul(*dt_beta_U, -1. / (U->alpha * U->alpha)),
@@ -2734,7 +2734,7 @@ kernel void <?=calcDeriv?>(
 	real dt_alpha;
 	{
 <?=eqn:makePartialUpwind"alpha"?>
-		real3 partial_alpha_L_upwind = real3_rescaleFromCoord_l(partial_alpha_l_upwind, x);
+		real3 const partial_alpha_L_upwind = real3_rescaleFromCoord_l(partial_alpha_l_upwind, x);
 
 		/*
 		2008 Alcubierre 4.2.52 - Bona-Masso family of slicing
@@ -2756,7 +2756,7 @@ kernel void <?=calcDeriv?>(
 
 <?=eqn:makePartial1"beta_U"?>		//partial_beta_Ul.j..i := beta^I_,j
 <?=eqn:makePartial1"W"?>			//partial_W_l.i := W_,i 
-	real3 partial_W_L = real3_rescaleFromCoord_l(partial_W_l, x);
+	real3 const partial_W_L = real3_rescaleFromCoord_l(partial_W_l, x);
 
 //// MODULE_DEPENDS: calc_partial*_det_gammaHat_over_det_gammaHat_* 
 	/*
@@ -2881,8 +2881,8 @@ end
 	real3 const partial_K_L = real3_rescaleFromCoord_l(partial_K_l, x);
 
 //// MODULE_DEPENDS: <?=calc_gammaBar_LL?> 
-	sym3 gammaBar_LL = <?=calc_gammaBar_LL?>(U, x);
-	sym3 gammaBar_UU = sym3_inv(gammaBar_LL, det_gammaBarLL);
+	sym3 const gammaBar_LL = <?=calc_gammaBar_LL?>(U, x);
+	sym3 const gammaBar_UU = sym3_inv(gammaBar_LL, det_gammaBarLL);
 
 //// MODULE_DEPENDS: <?=calc_exp_neg4phi?> 
 	real const exp_neg4phi = <?=calc_exp_neg4phi?>(U);
@@ -3629,26 +3629,26 @@ kernel void <?=addSource?>(
 
 <? if eqn.useScalarField then ?>
 <?=eqn:makePartialUpwind"alpha"?>
-	real3 partial_alpha_L_upwind = real3_rescaleFromCoord_l(partial_alpha_l_upwind, x);
+	real3 const partial_alpha_L_upwind = real3_rescaleFromCoord_l(partial_alpha_l_upwind, x);
 
 	//2008 Alcubierre 4.2.52 - Bona-Masso family of slicing
 	//Q = f(alpha) K
 	//d/dt alpha = -alpha^2 Q = alpha,t + alpha,i beta^i
 	//alpha,t = -alpha^2 f(alpha) K + alpha,i beta^i
-	real dt_alpha = -calc_f_alphaSq(U->alpha) * U->K
+	real const dt_alpha = -calc_f_alphaSq(U->alpha) * U->K
 		+ real3_dot(partial_alpha_L_upwind, U->beta_U);
 	
 
 <?=eqn:makePartial1"alpha"?>			//partial_alpha_l[i] := alpha_,i
 	
-	real3 partial_alpha_u = sym3_real3_mul(
+	real3 const partial_alpha_u = sym3_real3_mul(
 		gamma_uu,
 		*(real3*)partial_alpha_l
 	);
 
-	real Phi_lenSq = cplx_lenSq(U->Phi);
-	real dV_dPhiSq = solver->scalar_mu * solver->scalar_mu + solver->lambda * Phi_lenSq;
-	real phi_source = U->Phi * dV_dPhiSq;
+	real const Phi_lenSq = cplx_lenSq(U->Phi);
+	real const dV_dPhiSq = solver->scalar_mu * solver->scalar_mu + solver->lambda * Phi_lenSq;
+	real const phi_source = U->Phi * dV_dPhiSq;
 
 	/*	
 	\Pi (
@@ -3676,7 +3676,7 @@ kernel void <?=addSource?>(
 	);
 
 <?=eqn:makePartialUpwind"beta_U"?>
-	real3x3 partial_beta_ul = real3x3_partial_rescaleToCoord_Ul(U->beta_U, partial_beta_Ul, x);
+	real3x3 const partial_beta_ul = real3x3_partial_rescaleToCoord_Ul(U->beta_U, partial_beta_Ul, x);
 	
 	//\alpha_{,i} \Pi + {\beta^k}_{,i} \Psi_k
 	deriv->Psi_l = real3_add(deriv->Psi_l,
@@ -3804,16 +3804,16 @@ kernel void calcDeriv_PIRK_L1_EpsilonWAlphaBeta(
 	//////////////////////////////// alpha_,t //////////////////////////////// 
 
 <?=eqn:makePartial1"alpha"?>			//partial_alpha_l[i] := alpha_,i
-	real3 partial_alpha_L = real3_rescaleFromCoord_l(partial_alpha_l, x);
+	real3 const partial_alpha_L = real3_rescaleFromCoord_l(partial_alpha_l, x);
 
 <?=eqn:makePartialUpwind"alpha"?>
-	real3 partial_alpha_L_upwind = real3_rescaleFromCoord_l(partial_alpha_l_upwind, x);
+	real3 const partial_alpha_L_upwind = real3_rescaleFromCoord_l(partial_alpha_l_upwind, x);
 
 	//2008 Alcubierre 4.2.52 - Bona-Masso family of slicing
 	//Q = f(alpha) K
 	//d/dt alpha = -alpha^2 Q = alpha,t + alpha,i beta^i
 	//alpha,t = -alpha^2 f(alpha) K + alpha,i beta^i
-	real dt_alpha = -calc_f_alphaSq(U->alpha) * U->K
+	real const dt_alpha = -calc_f_alphaSq(U->alpha) * U->K
 		+ real3_dot(partial_alpha_L_upwind, U->beta_U);
 	
 	deriv->alpha = dt_alpha;
@@ -3822,7 +3822,7 @@ kernel void calcDeriv_PIRK_L1_EpsilonWAlphaBeta(
 
 <? if eqn.useShift == "GammaDriver" then ?>
 	
-	real3 dt_LambdaBar_U = real3_add(
+	real3 const dt_LambdaBar_U = real3_add(
 		dt_LambdaBar_U_wo_partial_upwind_beta_LambdaBar,
 		real3x3_real3_mul(partial_LambdaBar_UL_upwind, U->beta_U));
 	
@@ -3840,7 +3840,7 @@ kernel void calcDeriv_PIRK_L1_EpsilonWAlphaBeta(
 
 	//SENR's 'shiftadvect':
 	//advecting the shift vector: beta^i_,j beta^j
-	real3 partial_beta_times_beta_upwind = real3x3_real3_mul(partial_beta_UL_upwind, U->beta_U);
+	real3 const partial_beta_times_beta_upwind = real3x3_real3_mul(partial_beta_UL_upwind, U->beta_U);
 
 	/*
 	hyperbolic Gamma driver 

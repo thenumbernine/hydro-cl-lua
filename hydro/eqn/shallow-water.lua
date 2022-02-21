@@ -176,12 +176,6 @@ function ShallowWater:getModuleDepends_waveCode()
 	}
 end
 
-function ShallowWater:getModuleDepends_displayCode()
-	return table(ShallowWater.super.getModuleDepends_displayCode(self)):append{
-		self.symbols.eqn_common,
-	}
-end
-
 ShallowWater.solverCodeFile = 'hydro/eqn/shallow-water.cl'
 
 ShallowWater.displayVarCodeUsesPrims = true
@@ -216,7 +210,10 @@ function ShallowWater:getDisplayVars()
 
 	vars:append{
 		{name='v', code='value.vreal3 = W.v;', type='real3', units='m/s'},
-		{name='wavespeed', code='value.vreal = calc_C(solver, U);', units='m/s'},
+		{name='wavespeed', code=self:template[[
+//// MODULE_DEPENDS: <?=eqn_common?>
+value.vreal = calc_C(solver, U);
+]], units='m/s'},
 		-- D(x) = maximum depth = constant
 		-- H(x) = cell->depth = displacement of seafloor below resting depth.
 		-- D(x) = H(x) + B(x)

@@ -877,7 +877,7 @@ function SolverBase:initCodeModuleDisplay()
 end
 
 function SolverBase:getModuleDepends_displayCode()
-	local depends = table(self.eqn:getModuleDepends_displayCode())
+	local depends = table()
 
 	-- add in any real3 pickComponent code dependencies here
 	if self:isModuleUsed'real3' then

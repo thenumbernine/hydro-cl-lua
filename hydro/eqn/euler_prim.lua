@@ -67,14 +67,6 @@ function Euler:initCodeModule_calcDTCell()
 ]]))
 end
 
---[[
-function Euler:getModuleDepends_displayCode() 
-	return table(Euler.super.getModuleDepends_displayCode(self)):append{
-		self.symbols.eqn_common,
-	}
-end
---]]
-
 Euler.solverCodeFile = 'hydro/eqn/euler_prim.cl'
 
 -- [=[

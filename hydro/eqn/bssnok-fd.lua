@@ -246,53 +246,99 @@ function BSSNOKFiniteDifferenceEquationBase:getModuleDependsApplyInitCond()
 	}
 end
 
-function BSSNOKFiniteDifferenceEquationBase:getModuleDepends_displayCode()
-	return BSSNOKFiniteDifferenceEquationBase.super.getModuleDepends_displayCode(self):append{
-		self.symbols.initCond_codeprefix,	-- calc_f (used only in display vars)
-		self.symbols.calc_gammaHat_ll,
-		self.symbols.calc_gammaHat_uu,
-		self.symbols.calc_gammaBar_LL,
-		self.symbols.calc_gammaBar_ll,
-		self.symbols.calc_gammaBar_UU,
-		self.symbols.calc_gammaBar_uu,
-		self.symbols.calc_det_gammaHat,
-	}
-end
-
 function BSSNOKFiniteDifferenceEquationBase:getDisplayVars()
 	local vars = BSSNOKFiniteDifferenceEquationBase.super.getDisplayVars(self)
 
 	vars:append{
-		{name='f', code='value.vreal = calc_f(U->alpha);'},
-		{name='df/dalpha', code='value.vreal = calc_dalpha_f(U->alpha);'},
+		{
+			name = 'f',
+			code = self:template[[
+//// MODULE_DEPENDS: <?=initCond_codeprefix?>
+value.vreal = calc_f(U->alpha);
+]],
+		},
+		{
+			name = 'df/dalpha',
+			code = self:template[[
+//// MODULE_DEPENDS: <?=initCond_codeprefix?>
+value.vreal = calc_dalpha_f(U->alpha);
+]],
+		},
 		
-		{name='W-1', code=[[ value.vreal = U->W - 1.;]], type='real'},
-		{name='alpha-W', code=[[ value.vreal = U->alpha - U->W;]], type='real'},		-- this is the "pre-collapse" initial condition for SENR UIUC
+		{name='W-1', code=[[value.vreal = U->W - 1.;]], type='real'},
+		{name='alpha-W', code=[[value.vreal = U->alpha - U->W;]], type='real'},		-- this is the "pre-collapse" initial condition for SENR UIUC
 		
-		{name='gammaHat_ll', code = self:template[[	value.vsym3 = <?=calc_gammaHat_ll?>(x);]], type='sym3'},
-		{name='gammaHat_uu', code = self:template[[	value.vsym3 = <?=calc_gammaHat_uu?>(x);]], type='sym3'},
-		{name='gammaBar_ll', code = self:template[[	value.vsym3 = <?=calc_gammaBar_ll?>(U, x);]], type='sym3'},
-		{name='gammaBar_uu', code = self:template[[	value.vsym3 = <?=calc_gammaBar_uu?>(U, x);]], type='sym3'},
-		{name='gammaBar_LL', code = self:template[[	value.vsym3 = <?=calc_gammaBar_LL?>(U, x);]], type='sym3'},
-		{name='gammaBar_UU', code = self:template[[	value.vsym3 = <?=calc_gammaBar_UU?>(U, x);]], type='sym3'},
-		{name='K_ll', code = self:template[[
-	real exp_4phi = 1. / <?=calc_exp_neg4phi?>(U);
-	sym3 gammaBar_ll = <?=calc_gammaBar_ll?>(U, x);
-	value.vsym3 = sym3_real_mul(
-		sym3_add(
-			sym3_rescaleToCoord_LL(U->ABar_LL, x),
-			sym3_real_mul(gammaBar_ll, U->K / 3.)
-		), exp_4phi);
-]], type='sym3'},
+		{
+			name = 'gammaHat_ll',
+			code = self:template[[
+//// MODULE_DEPENDS: <?=calc_gammaHat_ll?>
+value.vsym3 = <?=calc_gammaHat_ll?>(x);
+]],
+			type = 'sym3',
+		},
+		{
+			name = 'gammaHat_uu',
+			code = self:template[[
+//// MODULE_DEPENDS: <?=calc_gammaHat_uu?>
+value.vsym3 = <?=calc_gammaHat_uu?>(x);
+]],
+			type = 'sym3',
+		},
+		{
+			name = 'gammaBar_ll',
+			code = self:template[[
+//// MODULE_DEPENDS: <?=calc_gammaBar_ll?>
+value.vsym3 = <?=calc_gammaBar_ll?>(U, x);
+]],
+			type = 'sym3',
+		},
+		{
+			name = 'gammaBar_uu',
+			code = self:template[[
+//// MODULE_DEPENDS: <?=calc_gammaBar_uu?>
+value.vsym3 = <?=calc_gammaBar_uu?>(U, x);
+]],
+			type = 'sym3',
+		},
+		{
+			name = 'gammaBar_LL',
+			code = self:template[[
+//// MODULE_DEPENDS: <?=calc_gammaBar_LL?>
+value.vsym3 = <?=calc_gammaBar_LL?>(U, x);
+]],
+			type = 'sym3',
+		},
+		{
+			name = 'gammaBar_UU',
+			code = self:template[[
+//// MODULE_DEPENDS: <?=calc_gammaBar_UU?>
+value.vsym3 = <?=calc_gammaBar_UU?>(U, x);
+]],
+			type = 'sym3',
+		},
+		{
+			name = 'K_ll',
+			code = self:template[[
+real exp_4phi = 1. / <?=calc_exp_neg4phi?>(U);
+sym3 gammaBar_ll = <?=calc_gammaBar_ll?>(U, x);
+value.vsym3 = sym3_real_mul(
+	sym3_add(
+		sym3_rescaleToCoord_LL(U->ABar_LL, x),
+		sym3_real_mul(gammaBar_ll, U->K / 3.)
+	), exp_4phi);
+]],
+			type = 'sym3',
+		},
 
 		{name='det gammaBar - det gammaHat', code = self:template[[
-	value.vreal = sym3_det(<?=calc_gammaBar_ll?>(U, x)) - <?=calc_det_gammaBar?>(x);
+value.vreal = sym3_det(<?=calc_gammaBar_ll?>(U, x)) - <?=calc_det_gammaBar?>(x);
 ]]},
 		{name='det gamma based on phi', code = self:template[[
-	real exp_neg4phi = <?=calc_exp_neg4phi?>(U);
-	real exp_12phi = 1. / (exp_neg4phi * exp_neg4phi * exp_neg4phi);
-	real det_gamma = exp_12phi * <?=calc_det_gammaHat?>(x);
-	value.vreal = det_gamma;
+real exp_neg4phi = <?=calc_exp_neg4phi?>(U);
+real exp_12phi = 1. / (exp_neg4phi * exp_neg4phi * exp_neg4phi);
+//// MODULE_DEPENDS: <?=calc_det_gammaHat?>	
+real det_gamma = exp_12phi * <?=calc_det_gammaHat?>(x);
+value.vreal = det_gamma;
 ]]},
 	}
 

@@ -844,22 +844,14 @@ function Equation:initCodeModule_waveCode()
 	}
 end
 
--- put your getDisplayVars code dependencies here
--- called from solverbase
-function Equation:getModuleDepends_displayCode() 
-	return table{
-		self.solver.symbols.SETBOUNDS,
-		self.symbols.primFromCons,	-- getDisplayVarCodePrefix
-	}
-end
-
 Equation.displayVarCodeUsesPrims = false
 function Equation:getDisplayVarCodePrefix()
 	return self:template[[
-	global <?=cons_t?> const * const U = buf + index;
+global <?=cons_t?> const * const U = buf + index;
 <? if eqn.displayVarCodeUsesPrims then 
-?>	<?=prim_t?> W;
-	<?=primFromCons?>(&W, solver, U, x);
+?><?=prim_t?> W;
+//// MODULE_DEPENDS: <?=primFromCons?>
+<?=primFromCons?>(&W, solver, U, x);
 <? end 
 ?>]]
 end

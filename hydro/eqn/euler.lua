@@ -216,14 +216,6 @@ function Euler:initCodeModule_calcDTCell()
 ]]))
 end
 
-function Euler:getModuleDepends_displayCode()
-	return table(Euler.super.getModuleDepends_displayCode(self)):append(
-		self.gravOp and {
-			self.gravOp.symbols.calcGravityAccel,
-		} or nil
-	)
-end
-
 -- don't use default
 function Euler:initCodeModule_fluxFromCons() end
 function Euler:initCodeModule_consFromPrim_primFromCons() end
@@ -281,11 +273,12 @@ function Euler:getDisplayVars()
 		{name='temperature', code=self:template'value.vreal = <?=calc_T?>(U, x);', units='K'},
 	}:append(self.gravOp and
 		{{name='gravity', code=self:template[[
-	if (!<?=OOB?>(1,1)) {
-		<?=eqn.gravOp.symbols.calcGravityAccel?>(&value.vreal3, solver, U, x);
-	} else {
-		value.vreal3 = real3_zero;
-	}
+if (!<?=OOB?>(1,1)) {
+//// MODULE_DEPENDS: <?=eqn.gravOp.symbols.calcGravityAccel?>
+	<?=eqn.gravOp.symbols.calcGravityAccel?>(&value.vreal3, solver, U, x);
+} else {
+	value.vreal3 = real3_zero;
+}
 ]], type='real3', units='m/s^2'}} or nil
 	)
 

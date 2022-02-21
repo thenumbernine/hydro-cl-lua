@@ -108,12 +108,6 @@ function NavierStokesWilcox:getModuleDepends_waveCode()
 	}
 end
 
-function NavierStokesWilcox:getModuleDepends_displayCode() 
-	return {
-		self.symbols.eqn_common,
-	}
-end
-
 NavierStokesWilcox.solverCodeFile = 'hydro/eqn/navstokes-wilcox.cl'
 
 NavierStokesWilcox.displayVarCodeUsesPrims = true
@@ -123,19 +117,53 @@ function NavierStokesWilcox:getDisplayVars()
 	vars:append{
 		{name='vTilde', code='value.vreal3 = W.vTilde;', type='real3'},
 		{name='PStar', code='value.vreal = W.PStar;'},
-		{name='eIntTilde', code='value.vreal = calc_eIntTilde(solver, &W);'},
-		{name='eKinTilde', code='value.vreal = calc_eKinTilde(&W, x);'},
+		{name='eIntTilde', code = self:template[[
+//// MODULE_DEPENDS: <?=eqn_common?>
+value.vreal = calc_eIntTilde(solver, &W);
+]]},
+		{name='eKinTilde', code = self:template[[
+//// MODULE_DEPENDS: <?=eqn_common?>
+value.vreal = calc_eKinTilde(&W, x);
+]]},
 		{name='eTotalTilde', code='value.vreal = U->rhoBar_eTotalTilde / W.rhoBar;'},
-		{name='EIntTilde', code='value.vreal = calc_EIntTilde(solver, &W);'},
-		{name='EKinTilde', code='value.vreal = calc_EKinTilde(&W, x);'},
+		{name='EIntTilde', code = self:template[[
+//// MODULE_DEPENDS: <?=eqn_common?>
+value.vreal = calc_EIntTilde(solver, &W);
+]]},
+		{name='EKinTilde', code = self:template[[
+//// MODULE_DEPENDS: <?=eqn_common?>
+value.vreal = calc_EKinTilde(&W, x);
+]]},
 		{name='EPot', code='value.vreal = U->rhoBar * U->ePot;'},
 		{name='S', code='value.vreal = W.PStar / pow(W.rhoBar, R_over_C_v + 1. );'},
-		--{name='H', code='value.vreal = calc_H(W.PStar);'},
-		--{name='h', code='value.vreal = calc_h(W.rhoBar, W.PStar);'},
-		--{name='HTotal', code='value.vreal = calc_HTotal(W.PStar, U->rhoBar_eTotalTilde);'},
-		--{name='hTotal', code='value.vreal = calc_hTotal(W.rhoBar, W.PStar, U->rhoBar_eTotalTilde);'},
-		{name='Speed of Sound', code='value.vreal = calc_Cs(solver, &W);'},
-		--{name='Mach number', code='value.vreal = coordLen(W.vTilde, x) / calc_Cs(solver, &W);'},
+--[=[	
+		{name='H', code = self:template[[
+//// MODULE_DEPENDS: <?=eqn_common?>
+value.vreal = calc_H(W.PStar);
+]]},
+		{name='h', code = self:template[[
+//// MODULE_DEPENDS: <?=eqn_common?>
+value.vreal = calc_h(W.rhoBar, W.PStar);
+]]},
+		{name='HTotal', code = self:template[[
+//// MODULE_DEPENDS: <?=eqn_common?>
+value.vreal = calc_HTotal(W.PStar, U->rhoBar_eTotalTilde);
+]]},
+		{name='hTotal', code = self:template[[
+//// MODULE_DEPENDS: <?=eqn_common?>
+value.vreal = calc_hTotal(W.rhoBar, W.PStar, U->rhoBar_eTotalTilde);
+]]},
+--]=]	
+		{name='Speed of Sound', code = self:template[[
+//// MODULE_DEPENDS: <?=eqn_common?>
+value.vreal = calc_Cs(solver, &W);
+]]},
+--[=[	
+		{name='Mach number', code = self:template[[
+//// MODULE_DEPENDS: <?=eqn_common?>
+value.vreal = coordLen(W.vTilde, x) / calc_Cs(solver, &W);
+]]},
+--]=]
 	}:append{self.gravOp and
 		{name='gravity', code=self:template[[
 	if (<?=OOB?>(1,1)) {
@@ -154,7 +182,10 @@ for side=solver.dim,2 do ?>
 	}
 ]], type='real3'} or nil
 	}:append{
-		{name='temp', code='value.vreal = calc_eIntTilde(solver, &W) / solver->C_v;'},
+		{name='temp', code = self:template[[
+//// MODULE_DEPENDS: <?=eqn_common?>
+value.vreal = calc_eIntTilde(solver, &W) / solver->C_v;
+]]},
 	}
 
 	vars:insert(self:createDivDisplayVar{

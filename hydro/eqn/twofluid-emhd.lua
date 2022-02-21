@@ -291,12 +291,6 @@ TwoFluidEMHD.predefinedDisplayVars = {
 	'U gravity',
 }
 
-function TwoFluidEMHD:getModuleDepends_displayCode()
-	return TwoFluidEMHD.super.getModuleDepends_displayCode(self):append{
-		self.gravOp.symbols.calcGravityAccel,
-	}
-end
-
 function TwoFluidEMHD:getDisplayVars()
 	local vars = TwoFluidEMHD.super.getDisplayVars(self)
 
@@ -377,9 +371,10 @@ function TwoFluidEMHD:getDisplayVars()
 		{
 			name = 'gravity',
 			code = self:template[[
-	if (!<?=OOB?>(1,1)) {
-		<?=calcGravityAccel?>(&value.vreal3, solver, U, x);
-	}
+if (!<?=OOB?>(1,1)) {
+//// MODULE_DEPENDS: <?=calcGravityAccel?>
+	<?=calcGravityAccel?>(&value.vreal3, solver, U, x);
+}
 ]],
 			type='real3', 
 			units='m/s^2',

@@ -150,12 +150,6 @@ function Maxwell:getEnv()
 	return env
 end
 
-function Maxwell:getModuleDepends_displayCode() 
-	return table(Maxwell.super.getModuleDepends_displayCode(self)):append{
-		self.symbols.eqn_common,
-	}
-end
-
 function Maxwell:getModuleDepends_waveCode() 
 	return table(Maxwell.super.getModuleDepends_waveCode(self)):append{
 		self.solver.coord.symbols.coord_sqrt_det_g,
@@ -177,17 +171,27 @@ function Maxwell:getDisplayVars()
 	local env = self:getEnv()
 	local vars = Maxwell.super.getDisplayVars(self)
 	vars:append{ 
-		{name='E', code=self:template[[	value.v<?=vec3?> = calc_E(U);]], type=env.vec3, units='(kg*m)/(C*s)'},
-		{name='H', code=self:template[[	value.v<?=vec3?> = calc_H(U);]], type=env.vec3, units='C/(m*s)'},
-		{name='S', code=self:template[[	value.v<?=vec3?> = <?=vec3?>_cross(calc_E(U), calc_H(U));]], type=env.vec3, units='kg/s^3'},
+		{name='E', code=self:template[[
+//// MODULE_DEPENDS: <?=eqn_common?>
+value.v<?=vec3?> = calc_E(U);
+]], type=env.vec3, units='(kg*m)/(C*s)'},
+		{name='H', code=self:template[[
+//// MODULE_DEPENDS: <?=eqn_common?>
+value.v<?=vec3?> = calc_H(U);
+]], type=env.vec3, units='C/(m*s)'},
+		{name='S', code=self:template[[
+//// MODULE_DEPENDS: <?=eqn_common?>
+value.v<?=vec3?> = <?=vec3?>_cross(calc_E(U), calc_H(U));
+]], type=env.vec3, units='kg/s^3'},
 		{
 			name='energy', code=self:template[[
-	<?=susc_t?> _1_eps = <?=susc_t?>_mul(U->sqrt_1_eps, U->sqrt_1_eps);
-	<?=susc_t?> _1_mu = <?=susc_t?>_mul(U->sqrt_1_mu, U->sqrt_1_mu);
-	value.vreal = <?=real_mul?>(<?=add?>(
-		<?=scalar?>_<?=susc_t?>_mul(eqn_coordLenSq(U->D, x), _1_eps),
-		<?=scalar?>_<?=susc_t?>_mul(eqn_coordLenSq(calc_H(U), x), _1_mu)
-	), .5);
+//// MODULE_DEPENDS: <?=eqn_common?>
+<?=susc_t?> _1_eps = <?=susc_t?>_mul(U->sqrt_1_eps, U->sqrt_1_eps);
+<?=susc_t?> _1_mu = <?=susc_t?>_mul(U->sqrt_1_mu, U->sqrt_1_mu);
+value.vreal = <?=real_mul?>(<?=add?>(
+	<?=scalar?>_<?=susc_t?>_mul(eqn_coordLenSq(U->D, x), _1_eps),
+	<?=scalar?>_<?=susc_t?>_mul(eqn_coordLenSq(calc_H(U), x), _1_mu)
+), .5);
 ]],
 			type = scalar,
 			units = 'kg/(m*s^2)',

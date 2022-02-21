@@ -236,14 +236,6 @@ function SRHD:initCodeModules()
 	}
 end
 
-function SRHD:getModuleDepends_displayCode() 
-	return table(SRHD.super.getModuleDepends_displayCode(self)):append(
-		self.gravOp and {
-			self.gravOp.symbols.calcGravityAccel,
-		} or nil
-	)
-end
-
 -- don't use default
 function SRHD:initCodeModule_fluxFromCons() end
 function SRHD:initCodeModule_calcDTCell() end
@@ -285,22 +277,22 @@ value.vreal = U->eInt / C_v;
 ]], units='K'},
 		
 		{name='primitive reconstruction error', code=self:template[[
-	//prim have just been reconstructed from cons
-	//so reconstruct cons from prims again and calculate the difference
-	{
-		<?=cons_only_t?> U2;
-		consOnlyFromPrim(&U2, solver, U, x);
-		value.vreal = 0;
-		for (int j = 0; j < numIntStates; ++j) {
-			value.vreal += fabs(U->ptr[j] - U2.ptr[j]);
-		}
+//prim have just been reconstructed from cons
+//so reconstruct cons from prims again and calculate the difference
+{
+	<?=cons_only_t?> U2;
+	consOnlyFromPrim(&U2, solver, U, x);
+	value.vreal = 0;
+	for (int j = 0; j < numIntStates; ++j) {
+		value.vreal += fabs(U->ptr[j] - U2.ptr[j]);
 	}
+}
 ]]
 		},
 		{name='W error', code=[[
-	real W1 = U->D / U->rho;
-	real W2 = 1. / sqrt(1. - coordLenSq(U->v, x));
-	value.vreal = fabs(W1 - W2);
+real W1 = U->D / U->rho;
+real W2 = 1. / sqrt(1. - coordLenSq(U->v, x));
+value.vreal = fabs(W1 - W2);
 ]]		},
 	}
 
@@ -310,14 +302,15 @@ value.vreal = U->eInt / C_v;
 			units = 'm/s^2',
 			type = 'real3',
 			code = self:template[[
-	if (!<?=OOB?>(1,1)) {
-		real W, dW_dt;
-		real3 u, du_dt;
-		<?=calcGravityAccel?>(&W, &u, &dW_dt, &du_dt, solver, U);
-		value.vreal3 = du_dt;
-	} else {
-		value.vreal3 = real3_zero;
-	}
+if (!<?=OOB?>(1,1)) {
+	real W, dW_dt;
+	real3 u, du_dt;
+//// MODULE_DEPENDS: <?=calcGravityAccel?>
+	<?=calcGravityAccel?>(&W, &u, &dW_dt, &du_dt, solver, U);
+	value.vreal3 = du_dt;
+} else {
+	value.vreal3 = real3_zero;
+}
 ]],
 		}
 	end

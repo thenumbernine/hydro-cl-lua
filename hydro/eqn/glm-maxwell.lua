@@ -137,13 +137,6 @@ function GLM_Maxwell:getEnv()
 	return env
 end
 
-function GLM_Maxwell:getModuleDepends_displayCode() 
-	return table(GLM_Maxwell.super.getModuleDepends_displayCode(self)):append{
-		self.symbols.eqn_common,
-	}
-end
-
-
 GLM_Maxwell.predefinedDisplayVars = {
 	'U D',
 	'U D z',
