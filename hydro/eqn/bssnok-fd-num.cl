@@ -8,36 +8,43 @@ symmath.op.pow.wildcardMatches = nil
 symmath.matchMulUnknownSubstitution = false
 
 
--- integrates whatsoever.
+-- do any integration whatsoever?
 local useCalcDeriv = true
-local useCalcDeriv_alpha = false
-local useCalcDeriv_W = false
-local useCalcDeriv_K = false
-local useCalcDeriv_epsilon_LL = false	-- with epsilon_IJ enabled, after 2 iterations, LambdaBar^I fails
-local useCalcDeriv_ABar_LL = false
-local useCalcDeriv_LambdaBar_U = false	-- FIXME
-local useCalcDeriv_beta_U = false		-- FIXME (B_U specifically)
--- useScalarField components:
+
+-- eqn.useScalarField components:
 local useCalcDeriv_Phi = true
 local useCalcDeriv_Psi = true
 local useCalcDeriv_Pi = true
+
 -- scalar field source terms?
 local coupleTandPhi = true
+
 -- PIRK:
 local useLBetaWithPIRK = true
 
 -- constrains det gammaBar_ij = det gammaHat_ij, ABar^i_i = 0, and calculates H and M^i ... if the associated flags are set
 local useConstrainU = false
 
--- Does the scalar field source terms (TODO put them in calcDeriv, since for f.d. calcDeriv() and addSource() are really the same.)
+-- Does the scalar field source terms (Right now this is only the scalar field terms, since I don't know what PIRK steps they should be put into)
 local useAddSource = true
 
 -- Does Kreiss-Oligar dissipation (in the calcDeriv function)
 local useKreissOligarDissipation = false
 
-
 local useSENRShiftAndCoDerivs = true -- insert senr's derivative code in to see how things work
-local file = require "ext.file"
+
+local io = require "ext.io"
+
+
+-- for now these are toggleable -- if you specify useSENRShiftAndCoDerivs then the components of this that are disabled will be enabled in the SENR derivs
+local useCalcDeriv_alpha = false		-- working for UIUC RK4
+local useCalcDeriv_W = false			-- TODO FIXME for UIUC RK4
+local useCalcDeriv_K = false			-- TODO FIXME for UIUC RK4
+local useCalcDeriv_epsilon_LL = false	-- TODO FIXME for UIUC RK4	-- with epsilon_IJ enabled, after 2 iterations, LambdaBar^I fails
+local useCalcDeriv_ABar_LL = false		-- TODO FIXME for UIUC RK4
+local useCalcDeriv_LambdaBar_U = false	-- FIXME never was working
+local useCalcDeriv_beta_U = false		-- FIXME never was working (B_U specifically)
+
 
 -- symmath
 local Tensor = require "symmath.Tensor"
@@ -896,8 +903,8 @@ kernel void <?=initDerivs?>(
 	real det_gammaBarLL = <?=calc_det_gammaBarLL?>(x);
 	sym3 gammaBar_UU = sym3_inv(gammaBar_LL, det_gammaBarLL);
 
-//// MODULE_DEPENDS: calc_partial_gammaBar_LLL 
 <?=eqn:makePartial1"epsilon_LL"?>
+//// MODULE_DEPENDS: calc_partial_gammaBar_LLL 
 	_3sym3 partial_gammaBar_LLL = calc_partial_gammaBar_LLL(x, U->epsilon_LL, partial_epsilon_LLl);
 
 //// MODULE_DEPENDS: calc_connBar_ULL
@@ -1481,7 +1488,7 @@ so
 }
 
 //// MODULE_NAME: calc_PIRK_L2_ABar_LL
-//// MODULE_DEPENDS: sym3_add4 <?=rescaleFromCoord_rescaleToCoord?> real3x3_partial_rescaleFromCoord_Ul calc_RBar_LL tracefree sym3_add3 calc_trBar_partial2_gammaBar_ll
+//// MODULE_DEPENDS: sym3_add4 <?=rescaleFromCoord_rescaleToCoord?> real3x3_partial_rescaleFromCoord_Ul calc_RBar_LL tracefree sym3_add3
 
 //////////////////////////////// A_IJ,t //////////////////////////////// 
 
@@ -1517,6 +1524,7 @@ static sym3 calc_PIRK_L2_ABar_LL(
 ) {
 <?=eqn:makePartial2"epsilon_LL"?>
 
+//// MODULE_DEPENDS: calc_trBar_partial2_gammaBar_ll
 	sym3 trBar_partial2_gammaBar_ll = calc_trBar_partial2_gammaBar_ll(
 		U, 
 		x, 
@@ -2687,8 +2695,7 @@ static void calcDeriv_Pi(
 
 
 <? if useSENRShiftAndCoDerivs then ?>
-<?=require "hydro.eqn.bssnok-fd-senr".templateForSENRCLFile(eqn, "eqn/bssnok-fd-num-inject-senr-calc_RBar_LL")?>
-<?=require "hydro.eqn.bssnok-fd-senr".templateForSENRCLFile(eqn, "eqn/bssnok-fd-num-inject-senr-calc_detg")?>
+<?=eqn:template(assert(io.readfile("hydro/eqn/bssnok-fd-num-inject-senr.cl")))?>
 <? end -- useSENRShiftAndCoDerivs ?>
 
 
@@ -2899,7 +2906,7 @@ end
 	sym3 const ABar_UU = real3x3_sym3_to_sym3_mul(ABar_UL, gammaBar_UU);	//ABar^IJ = ABar^I_K gammaBar^KJ
 
 
-<? if useCalcDeriv_K then ?>
+<? if useCalcDeriv_K or useCalcDeriv_ABar_LL then ?>
 
 #if 0
 	sym3 gammaBar_uu = sym3_rescaleToCoord_UU(gammaBar_UU, x);
@@ -2909,7 +2916,9 @@ end
 	sym3 const gammaBar_ll = sym3_rescaleToCoord_LL(gammaBar_LL, x);
 	sym3 const gammaBar_uu = sym3_inv(gammaBar_ll, det_gammaBar);
 #endif	
-	
+
+<? end ?>
+<? if useCalcDeriv_K then ?>
 	/*
 	gammaBar_ij = exp(-4 phi) gamma_ij
 	gammaBar^ij = exp(4 phi) gamma^ij
@@ -3268,7 +3277,7 @@ advect shift field:	+ β^i_,j β^j
 
 
 <? if useSENRShiftAndCoDerivs then ?>{
-	<?=require "hydro.eqn.bssnok-fd-senr".templateForSENRCLFile(eqn, "eqn/bssnok-fd-num-inject-senr-calcDeriv", {
+	<?=eqn:template(assert(io.readfile("hydro/eqn/bssnok-fd-num-inject-senr-calcDeriv.cl")), {
 		-- The senr cl file will disable variables that are enabled for this file
 		excludeCalcDeriv_alpha = useCalcDeriv_alpha,
 		excludeCalcDeriv_W = useCalcDeriv_W,
@@ -3292,7 +3301,7 @@ advect shift field:	+ β^i_,j β^j
 
 
 //// MODULE_NAME: <?=constrainU?>
-//// MODULE_DEPENDS: <?=mystery_C_U?> calc_partial_ABar_LLL tracefree calc_RBar_LL <?=calc_exp_neg4phi?> calc_partial_gammaBar_LLL calc_connHat_LLL_and_ULL
+//// MODULE_DEPENDS: <?=mystery_C_U?> calc_partial_ABar_LLL tracefree calc_RBar_LL <?=calc_exp_neg4phi?> calc_connHat_LLL_and_ULL
 
 kernel void <?=constrainU?>(
 	constant <?=solver_t?> const * const solver,
@@ -3426,7 +3435,7 @@ for ij,xij in ipairs(symNames) do
 <?	end
 ?>
 
-<? end -- useScalarField and coupleTandPhi ?>
+<? end -- eqn.useScalarField and coupleTandPhi ?>
 
 	// update H and M values
 <? if eqn.guiVars.calc_H_and_M and eqn.guiVars.calc_H_and_M.value then ?>
@@ -3448,6 +3457,7 @@ for ij,xij in ipairs(symNames) do
 	//partial_epsilon[k].ij := epsilon_ij,k = gammaBar_ij,k
 <?=eqn:makePartial1"epsilon_LL"?>	
 	
+//// MODULE_DEPENDS: calc_partial_gammaBar_LLL
 	_3sym3 partial_gammaBar_LLL = calc_partial_gammaBar_LLL(x, U->epsilon_LL, partial_epsilon_LLl);
 
 //// MODULE_DEPENDS: calc_connBar_ULL
@@ -3478,6 +3488,7 @@ for ij,xij in ipairs(symNames) do
 
 <?=eqn:makePartial2"epsilon_LL"?>
 
+//// MODULE_DEPENDS: calc_trBar_partial2_gammaBar_ll
 	sym3 trBar_partial2_gammaBar_ll = calc_trBar_partial2_gammaBar_ll(
 		U, 
 		x, 
@@ -3616,7 +3627,7 @@ kernel void <?=addSource?>(
 	global <?=cell_t?> const * const cell = cellBuf + index;
 	real3 const x = cell->pos;
 
-<? if useScalarField then ?>
+<? if eqn.useScalarField then ?>
 <?=eqn:makePartialUpwind"alpha"?>
 	real3 partial_alpha_L_upwind = real3_rescaleFromCoord_l(partial_alpha_l_upwind, x);
 
@@ -3674,7 +3685,7 @@ kernel void <?=addSource?>(
 	);
 
 
-<? end -- useScalarField ?>
+<? end -- eqn.useScalarField ?>
 <? end -- useAddSource ?>
 }
 
@@ -3850,7 +3861,7 @@ advect shift:	+ beta^i_,j beta^j
 	applyKreissOligar(solver, U, cell, deriv, x, fields, numberof(fields));
 }
 
-//// MODULE_DEPENDS: <?=calc_exp_neg4phi?> calc_connHat_LLL_and_ULL <?=mystery_C_U?> calc_PIRK_L2_ABar_LL calc_PIRK_L2_K
+//// MODULE_DEPENDS: <?=calc_exp_neg4phi?> calc_connHat_LLL_and_ULL <?=mystery_C_U?> calc_PIRK_L2_K
 
 // ABar_IJ, K
 kernel void calcDeriv_PIRK_L2_ABarK(
@@ -3881,17 +3892,21 @@ kernel void calcDeriv_PIRK_L2_ABarK(
 	real3 const partial_W_L = real3_rescaleFromCoord_l(partial_W_l, x);
 	
 <?=eqn:makePartial1"epsilon_LL"?>
-	_3sym3 partial_gammaBar_LLL = calc_partial_gammaBar_LLL(x, U->epsilon_LL, partial_epsilon_LLl);
+//// MODULE_DEPENDS: calc_partial_gammaBar_LLL
+	_3sym3 const partial_gammaBar_LLL = calc_partial_gammaBar_LLL(x, U->epsilon_LL, partial_epsilon_LLl);
 
 //// MODULE_DEPENDS: calc_connBar_ULL 
-	_3sym3 connBar_ULL = calc_connBar_ULL(partial_gammaBar_LLL, gammaBar_UU);
+	_3sym3 const connBar_ULL = calc_connBar_ULL(partial_gammaBar_LLL, gammaBar_UU);
 	
 	_3sym3 connHat_LLL, connHat_ULL;
 	calc_connHat_LLL_and_ULL(&connHat_LLL, &connHat_ULL, U, x);
 	
-	_3sym3 Delta_ULL = _3sym3_sub(connBar_ULL, connHat_ULL);
+	_3sym3 const Delta_ULL = _3sym3_sub(connBar_ULL, connHat_ULL);
 	
-	real3 Delta_U = real3_sub(U->LambdaBar_U, <?=mystery_C_U?>);
+	real3 const Delta_U = real3_sub(U->LambdaBar_U, <?=mystery_C_U?>);
+
+	sym3 const gammaBar_uu = sym3_rescaleToCoord_UU(gammaBar_UU, x);
+	sym3 const gammaBar_ll = sym3_rescaleToCoord_LL(gammaBar_LL, x);
 
 	sym3 DBar2_alpha_LL;
 	{
@@ -3903,6 +3918,7 @@ kernel void calcDeriv_PIRK_L2_ABarK(
 		DBar2_alpha_LL = sym3_sub(partial2_alpha_LL, real3_3sym3_dot1(partial_alpha_L, connBar_ULL));
 	}
 
+//// MODULE_DEPENDS: calc_PIRK_L2_ABar_LL
 	deriv->ABar_LL = calc_PIRK_L2_ABar_LL(
 		solver,
 		U,
@@ -3917,8 +3933,12 @@ kernel void calcDeriv_PIRK_L2_ABarK(
 		&Delta_ULL,
 		&Delta_U,
 		&connHat_ULL,
-		&partial_gammaBar_LLL
+		&partial_gammaBar_LLL,
+		&gammaBar_ll,
+		&gammaBar_uu
 	);
+	
+	sym3 const DBar2_alpha_ll = sym3_rescaleFromCoord_ll(DBar2_alpha_LL, x);
 
 	deriv->K = calc_PIRK_L2_K(
 		U,
@@ -3985,6 +4005,8 @@ kernel void calcDeriv_PIRK_L3_ABarK(
 	tr_DBar_beta := beta^j_,j + beta^j gammaBar_,j / (2 gammaBar)
 	*/
 	real tr_DBar_beta = tr_partial_beta + real3_dot(U->beta_U, partial_det_gammaBar_over_det_gammaBar_L) * .5;
+	
+	sym3 const gammaBar_uu = sym3_rescaleToCoord_UU(gammaBar_UU, x);
 
 	//2013 Baumgarte et al eqn B2
 //// MODULE_DEPENDS: calc_PIRK_L3_ABar_LL
@@ -4067,6 +4089,7 @@ kernel void calcDeriv_PIRK_L2_LambdaBar(
 	calc_connHat_LLL_and_ULL(&connHat_LLL, &connHat_ULL, U, x);
 
 <?=eqn:makePartial1"epsilon_LL"?>
+//// MODULE_DEPENDS: calc_partial_gammaBar_LLL
 	_3sym3 partial_gammaBar_LLL = calc_partial_gammaBar_LLL(x, U->epsilon_LL, partial_epsilon_LLl);
 
 //// MODULE_DEPENDS: calc_connBar_ULL 
@@ -4097,6 +4120,10 @@ kernel void calcDeriv_PIRK_L2_LambdaBar(
 	
 	//ABar^ij := ABar^i_k gammaBar^kj
 	sym3 const ABar_UU = real3x3_sym3_to_sym3_mul(ABar_UL, gammaBar_UU);	//ABar^IJ = ABar^I_K gammaBar^KJ
+	
+	sym3 const gammaBar_uu = sym3_rescaleToCoord_UU(gammaBar_UU, x);
+	
+	real3 const partial_W_L = real3_rescaleFromCoord_l(partial_W_l, x);
 
 //// MODULE_DEPENDS: calc_PIRK_L2_LambdaBar_U
 	deriv->LambdaBar_U = calc_PIRK_L2_LambdaBar_U(
@@ -4159,6 +4186,7 @@ kernel void calcDeriv_PIRK_L3_LambdaBar(
 	calc_connHat_LLL_and_ULL(&connHat_LLL, &connHat_ULL, U, x);
 
 <?=eqn:makePartial1"epsilon_LL"?>
+//// MODULE_DEPENDS: calc_partial_gammaBar_LLL
 	_3sym3 partial_gammaBar_LLL = calc_partial_gammaBar_LLL(x, U->epsilon_LL, partial_epsilon_LLl);
 
 //// MODULE_DEPENDS: calc_connBar_ULL 
@@ -4246,6 +4274,7 @@ kernel void calcDeriv_PIRK_L2_B(
 	calc_connHat_LLL_and_ULL(&connHat_LLL, &connHat_ULL, U, x);
 
 <?=eqn:makePartial1"epsilon_LL"?>
+//// MODULE_DEPENDS: calc_partial_gammaBar_LLL
 	_3sym3 partial_gammaBar_LLL = calc_partial_gammaBar_LLL(x, U->epsilon_LL, partial_epsilon_LLl);
 	
 //// MODULE_DEPENDS: calc_connBar_ULL 
@@ -4293,6 +4322,8 @@ kernel void calcDeriv_PIRK_L2_B(
 	
 	//ABar^ij := ABar^i_k gammaBar^kj
 	sym3 ABar_UU = real3x3_sym3_to_sym3_mul(ABar_UL, gammaBar_UU);	//ABar^IJ = ABar^I_K gammaBar^KJ
+	
+	sym3 const gammaBar_uu = sym3_rescaleToCoord_UU(gammaBar_UU, x);
 
 //// MODULE_DEPENDS: calc_dt_LambdaBar_U_wo_partial_upwind_beta_LambdaBar
 	real3 dt_LambdaBar_U_wo_partial_upwind_beta_LambdaBar 

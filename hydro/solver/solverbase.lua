@@ -867,12 +867,12 @@ function SolverBase:initCodeModuleDisplay()
 	self.solverModulesEnabled[self.symbols.solver_displayCode] = true
 
 	-- this depends on :createDisplayVars()
-	self.modules:add{
-		name = self.symbols.solver_realDisplayCode,
-		depends = {self.symbols.solver_displayCode},
+	self.modules:addFromMarkup(table{
+		'//// MODULE_NAME: '..self.symbols.solver_realDisplayCode,
+		'//// MODULE_DEPENDS: '..self.symbols.solver_displayCode,
 		-- this call consturcts displayValue_t
-		code = self:getDisplayCode(),
-	}
+		self:getDisplayCode(),
+	}:concat'\n')
 	self.solverModulesEnabled[self.symbols.solver_realDisplayCode] = true
 end
 
@@ -1867,7 +1867,12 @@ But in this case we are still calling the same pickComponent() as UBuf, and its 
 	end	-- texVsBuf
 
 	local code = lines:concat'\n'
-	
+
+	-- in the off chance that any MODULE_* cmds were in there, align them back with the lhs
+	code = string.split(code, '\n'):mapi(function(l)
+		return (l:gsub('^%s*//// MODULE_', '//// MODULE_'))
+	end):concat'\n'
+
 	return code
 end
 
