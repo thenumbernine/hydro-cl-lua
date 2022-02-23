@@ -101,13 +101,6 @@ end
 function NavierStokesWilcox:initCodeModule_consFromPrim_primFromCons() end
 function NavierStokesWilcox:initCodeModule_fluxFromCons() end
 
-function NavierStokesWilcox:getModuleDepends_waveCode() 
-	return {
-		self.solver.coord.symbols.normal_t,
-		self.symbols.eqn_common,
-	}
-end
-
 NavierStokesWilcox.solverCodeFile = 'hydro/eqn/navstokes-wilcox.cl'
 
 NavierStokesWilcox.displayVarCodeUsesPrims = true

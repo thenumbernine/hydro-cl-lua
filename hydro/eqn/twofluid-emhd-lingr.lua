@@ -185,15 +185,6 @@ function TwoFluidEMHDDeDonderGaugeLinearizedGR:createInitState()
 	end):unpack()))
 end
 
-function TwoFluidEMHDDeDonderGaugeLinearizedGR:getModuleDepends_waveCode()
-	return {
-		'units',
-		self.symbols.coord_lower,
-		self.symbols.eqn_common,
-		self.symbols.primFromCons,
-	}
-end
-
 -- don't use default
 function TwoFluidEMHDDeDonderGaugeLinearizedGR:initCodeModule_fluxFromCons() end
 function TwoFluidEMHDDeDonderGaugeLinearizedGR:initCodeModule_consFromPrim_primFromCons() end

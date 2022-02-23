@@ -212,12 +212,6 @@ end
 function MHD:initCodeModule_fluxFromCons() end
 function MHD:initCodeModule_consFromPrim_primFromCons() end
 
-function MHD:getModuleDepends_waveCode() 
-	return {
-		self.symbols.calcCellMinMaxEigenvalues,
-	}
-end
-
 MHD.solverCodeFile = 'hydro/eqn/mhd.cl'
 
 MHD.displayVarCodeUsesPrims = true

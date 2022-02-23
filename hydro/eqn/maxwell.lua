@@ -150,12 +150,6 @@ function Maxwell:getEnv()
 	return env
 end
 
-function Maxwell:getModuleDepends_waveCode() 
-	return table(Maxwell.super.getModuleDepends_waveCode(self)):append{
-		self.solver.coord.symbols.coord_sqrt_det_g,
-	}
-end
-
 Maxwell.predefinedDisplayVars = {
 	'U D',
 	'U D z',

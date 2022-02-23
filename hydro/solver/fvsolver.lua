@@ -342,7 +342,6 @@ xInt.s<?=side?> -= .5 * solver->grid_dx.s<?=side?>;
 				self.eqn:template([[
 //// MODULE_DEPENDS: <?=normal_t?>
 <?=normal_t?> n<?=side?> = normal_forSide<?=side?>(xInt);
-//// MODULE_DEPENDS: <?=eqn_waveCode_depends?>
 <?=eqn:eigenWaveCodePrefix{
 	n = 'n',
 	eig = '&eig',
@@ -354,7 +353,6 @@ xInt.s<?=side?> -= .5 * solver->grid_dx.s<?=side?>;
 			}:concat'\n',
 			vars = range(0, self.eqn.numWaves-1):mapi(function(i)
 				return {name=tostring(i), code=self.eqn:template([[
-//// MODULE_DEPENDS: <?=eqn_waveCode_depends?>
 value.vreal = <?=eqn:eigenWaveCode{
 	n = 'n'..side,
 	eig = '&eig',
@@ -452,7 +450,7 @@ for (int k = 0; k < numWaves; ++k) {
 					{name='0', code=table{
 						getEigenCode{side=side},
 						self.eqn:template([[
-//// MODULE_DEPENDS: <?=eqn_waveCode_depends?> <?=eigen_leftTransform?> <?=eigen_rightTransform?> <?=eigen_fluxTransform?> <?=cell_calcAvg_withPt?>
+//// MODULE_DEPENDS: <?=eigen_leftTransform?> <?=eigen_rightTransform?> <?=eigen_fluxTransform?> <?=cell_calcAvg_withPt?>
 <?=normal_t?> n<?=side?> = normal_forSide<?=side?>(x);
 <?=eqn:eigenWaveCodePrefix{
 	n = 'n'..side,

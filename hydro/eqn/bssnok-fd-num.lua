@@ -122,19 +122,6 @@ end
 
 BSSNOKFiniteDifferenceEquation.solverCodeFile = 'hydro/eqn/bssnok-fd-num.cl'
 
---[[
-function BSSNOKFiniteDifferenceEquation:getModuleDepends_waveCode() 
-	return {
-		'_3sym3',
-		--'calc_partial_det_gammaHat_L',	-- used by LambdaBar^I_,t
-		--'calc_partial2_det_gammaHat_LL',	-- used by LambdaBar^I_,t
-		--'real3x3x3',
-		--'coordMapR',
-		-- for display code: (actually most this is only for display code)
-	}
-end
---]]
-
 BSSNOKFiniteDifferenceEquation.predefinedDisplayVars = {
 -- [=[
 	'U alpha',

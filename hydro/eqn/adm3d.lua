@@ -232,12 +232,6 @@ end
 -- don't use default
 function ADM_BonaMasso_3D:initCodeModule_fluxFromCons() end
 
-function ADM_BonaMasso_3D:getModuleDepends_waveCode()
-	return {
-		self.symbols.initCond_codeprefix,	-- calc_f
-	}
-end
-
 ADM_BonaMasso_3D.solverCodeFile = 'hydro/eqn/adm3d.cl'
 
 ADM_BonaMasso_3D.predefinedDisplayVars = {

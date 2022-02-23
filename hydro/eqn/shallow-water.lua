@@ -169,13 +169,6 @@ end
 -- don't use default
 function ShallowWater:initCodeModule_consFromPrim_primFromCons() end
 
-function ShallowWater:getModuleDepends_waveCode()
-	return {
-		self.symbols.eqn_common,
-		self.symbols.primFromCons,
-	}
-end
-
 ShallowWater.solverCodeFile = 'hydro/eqn/shallow-water.cl'
 
 ShallowWater.displayVarCodeUsesPrims = true

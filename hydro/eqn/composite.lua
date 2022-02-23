@@ -263,14 +263,6 @@ end
 -- (and each other temporary var defined in 'getDisplayVarCodePrefix' for that matter?
 --]]
 
-function Composite:getModuleDepends_waveCode()
-	return table():append(
-		self.eqns:mapi(function(eqn)
-			return eqn:getModuleDepends_waveCode()
-		end):unpack()
-	)
-end
-
 --[[
 getEnv() ...
 for subeqn modules, they are built with the subeqn's getEnv

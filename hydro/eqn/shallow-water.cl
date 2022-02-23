@@ -163,6 +163,7 @@ end
 }
 
 //// MODULE_NAME: <?=eigen_forInterface?>
+//// MODULE_DEPENDS: <?=eigen_t?>
 
 #define <?=eigen_forInterface?>(\
 	/*<?=eigen_t?> * const */resultEig,\
@@ -205,6 +206,7 @@ end
 }
 
 //// MODULE_NAME: <?=eigen_forCell?>
+//// MODULE_DEPENDS: <?=eigen_t?>
 
 // used by PLM
 #define <?=eigen_forCell?>(\

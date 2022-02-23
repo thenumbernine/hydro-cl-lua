@@ -148,14 +148,6 @@ Wave.solverCodeFile = 'hydro/eqn/wave.cl'
 -- don't use default
 function Wave:initCodeModule_fluxFromCons() end
 
-function Wave:getModuleDepends_waveCode()
-	return {
-		'units',
-		self.solver.coord.symbols.normal_t,
-		self.symbols.eqn_common,	-- metric_alpha
-	}
-end
-
 function Wave:eigenWaveCodePrefix(args)
 	return self:template([[
 real const wavespeed = solver->wavespeed / unit_m_per_s;

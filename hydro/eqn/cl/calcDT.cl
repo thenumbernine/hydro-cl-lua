@@ -31,7 +31,7 @@ local cellVolumeEpsilon = 0
 
 ?>
 //// MODULE_NAME: <?=calcDTCell?>
-//// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> <?=cell_t?> <?=normal_t?> <?=eqn_waveCode_depends?> <?=SETBOUNDS?> <?=cell_dx_i?>
+//// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> <?=cell_t?> <?=normal_t?> <?=SETBOUNDS?> <?=cell_dx_i?>
 
 <? if not require "hydro.solver.meshsolver":isa(solver) then ?>
 

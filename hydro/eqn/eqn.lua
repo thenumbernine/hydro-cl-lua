@@ -386,7 +386,6 @@ function Equation:getSymbolFields()
 		
 		-- placeholder modules for dependencies
 		'eqn_guiVars_compileTime',	-- module of code for compile-time #defines of gui vars
-		'eqn_waveCode_depends',		-- module of dependencies used by the eigen/cons wave code
 		'eqn_common',				-- module of functions that are commonly used ... not required.
 	
 		-- placeholder, used by initCond
@@ -581,7 +580,6 @@ function Equation:initCodeModules()
 	self:initCodeModule_calcDT()
 
 	self:initCodeModule_fluxFromCons()
-	self:initCodeModule_waveCode()
 
 	self:initCodeModule_solverCodeFile()
 
@@ -832,16 +830,6 @@ function Equation:initCodeModule_solverCodeFile_onAdd(args)
 			args.depends:append(self:getModuleDependsApplyInitCond())
 		end
 	end
-end
-
--- put your eigenWaveCode / consWaveCode dependencies here
-function Equation:getModuleDepends_waveCode() end
-
-function Equation:initCodeModule_waveCode()
-	self.solver.modules:add{
-		name = self.symbols.eqn_waveCode_depends,
-		depends = self:getModuleDepends_waveCode(),
-	}
 end
 
 Equation.displayVarCodeUsesPrims = false

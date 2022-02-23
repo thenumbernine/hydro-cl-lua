@@ -195,14 +195,6 @@ end
 function TwoFluidEMHD:initCodeModule_fluxFromCons() end
 function TwoFluidEMHD:initCodeModule_consFromPrim_primFromCons() end
 
-function TwoFluidEMHD:getModuleDepends_waveCode()
-	return {
-		'units',
-		self.symbols.primFromCons,
-		self.symbols.coord_lower,
-	}
-end
-
 --[=[
 function TwoFluidEMHD:initCodeModule_calcDTCell()
 	self.solver.modules:add{

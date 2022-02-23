@@ -178,12 +178,6 @@ function GLM_Maxwell:getDisplayVars()
 	return vars
 end
 
-function GLM_Maxwell:getModuleDepends_waveCode()
-	return table(GLM_Maxwell.super.getModuleDepends_waveCode(self)):append{
-		self.solver.coord.symbols.coord_sqrt_det_g,
-	}
-end
-
 function GLM_Maxwell:eigenWaveCodePrefix(args)
 --[=[
 	return self:template([[

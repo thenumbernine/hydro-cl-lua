@@ -1,5 +1,5 @@
 //// MODULE_NAME: weno_l/r
-//// MODULE_DEPENDS: sqr <?=normal_t?> <?=eigen_leftTransform?> <?=eigen_rightTransform?> <?=eqn_waveCode_depends?> <?=waves_t?>
+//// MODULE_DEPENDS: sqr <?=normal_t?> <?=eigen_leftTransform?> <?=eigen_rightTransform?> <?=waves_t?>
 
 <? 
 local clnumber = require "cl.obj.number"
@@ -131,7 +131,7 @@ kernel void calcCellFlux(
 }
 
 //// MODULE_NAME: <?=calcFlux?>
-//// MODULE_DEPENDS: <?=normal_t?> weno_l/r <?=eigen_leftTransform?> <?=eigen_rightTransform?> <?=eqn_waveCode_depends?>
+//// MODULE_DEPENDS: <?=normal_t?> weno_l/r <?=eigen_leftTransform?> <?=eigen_rightTransform?>
 
 kernel void <?=calcFlux?>(
 	constant <?=solver_t?> const * const solver,
