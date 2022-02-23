@@ -1760,33 +1760,10 @@ static inline void getPerpendicularBasis3x3(
 #define normalBasisForSide1 _real3x3(0,1,0, 0,0,1, 1,0,0)
 #define normalBasisForSide2 _real3x3(0,0,1, 1,0,0, 0,1,0)
 
-//// MODULE_NAME: sinh
-// this is for GLSL esp which doesn't have these defs
-
-static inline real sinh(real /*GLSL can't handle: const*/ x) {
-	real ex = exp(x);
-	return .5 * (ex - 1. / ex);
-}
-
-//// MODULE_NAME: cosh
-// this is for GLSL esp which doesn't have these defs
-
-static inline real cosh(real /*GLSL can't handle: const*/ x) {
-	real ex = exp(x);
-	return .5 * (ex + 1. / ex);
-}
-
 //// MODULE_NAME: sech
 
 static inline real sech(real const x) {
 	return 2. / (exp(x) + exp(-x));
-}
-
-//// MODULE_NAME: asinh
-// this is for GLSL esp which doesn't have these defs
-
-static inline real asinh(real/*GLSL can't handle: const*/ x) {
-	return log(x + sqrt(x*x + 1.));
 }
 
 //// MODULE_NAME: min3
