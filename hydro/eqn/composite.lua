@@ -251,10 +251,6 @@ function Composite:initCodeModule_solverCodeFile_onAdd(args)
 		for _,eqn in ipairs(self.eqns) do
 			args.depends:insert(eqn.symbols.consFromPrim)
 		end
-		-- only used by hydro/eqn/bssnok-fd.lua:
-		if self.getModuleDependsApplyInitCond then
-			args.depends:append(self:getModuleDependsApplyInitCond())
-		end
 	end
 end
 

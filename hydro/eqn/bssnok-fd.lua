@@ -240,12 +240,6 @@ end
 	}
 end
 
-function BSSNOKFiniteDifferenceEquationBase:getModuleDependsApplyInitCond()
-	return {
-		self.symbols.setFlatSpace,
-	}
-end
-
 function BSSNOKFiniteDifferenceEquationBase:getDisplayVars()
 	local vars = BSSNOKFiniteDifferenceEquationBase.super.getDisplayVars(self)
 

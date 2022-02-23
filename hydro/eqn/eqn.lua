@@ -820,14 +820,11 @@ end
 function Equation:initCodeModule_solverCodeFile_onAdd(args)
 	-- special case for applyInitCondCell ...
 	if args.name == self.symbols.applyInitCondCell then
+		-- insert into the depends the initCond object's getBaseDepends
 		args.depends:append(self.initCond:getBaseDepends())
+		-- insert into it the initCond object's getDepends
 		if self.initCond.getDepends then
 			args.depends:append(self.initCond:getDepends())
-		end
-		-- only used by hydro/eqn/bssnok-fd.lua:
-		-- TODO get rid of it
-		if self.getModuleDependsApplyInitCond then
-			args.depends:append(self:getModuleDependsApplyInitCond())
 		end
 	end
 end
