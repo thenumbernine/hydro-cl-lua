@@ -111,32 +111,18 @@ function SphereLogRadial:init(args)
 end
 
 function SphereLogRadial:getModuleDepends_coordMap() 
-	return {self.solver.eqn.symbols.eqn_guiVars_compileTime}
+	return {
+		self.solver.eqn.symbols.eqn_guiVars_compileTime,	-- for AMPL and SINHW
+	}
 end
 
--- TODO only for GLSL, depend on 'sinh'
--- I could put '#ifdef GLSL' around the sinh and cosh modules, but what about asinh which C needs as well?
--- I could put a 'glsl_code' option for each module, and give them to the sinh,cosh,acosh, but ... same question?
--- I could add them as glslModulesEnabled[] ... but what would guarantee the order of code generation?
--- I could add/remove sinh from coordMap's depends or code before/after adding it to the GLSL ... kind of ugly and very specific to sphere_sinh_radial only
--- ... see this is a good argument for replacing the 'depends' system with a code gen execution and an 'include' function with 'pragma once' ability
---		then coordMap for sphere_sinh_radial could have code that said "if included from glsl then include sinh end"
---		also you can put the compile() symbolic codegen into the same code doing the include's of dependencies
--- 		so to do this, get rid of 'depends', replace 'code', 'header', 'typecode' strings with functions, and give them an 'include' function that pulls in from other modules by their name
--- for now I'll just make a separate 'coordMapGLSL' just like 'coordMap' but with the GLSL depends
 function SphereLogRadial:getModuleDepends_coordMapGLSL() 
 	return {
-		'sinh',
-		-- This is in sharedModules ... so should sharedModules be included in all GLSL modules?
-		-- until I decide, I'll just put this entry for GLSL here:
 		self.solver.eqn.symbols.eqn_guiVars_compileTime,	-- for AMPL and SINHW
 	}
 end
 function SphereLogRadial:getModuleDepends_coordMapInvGLSL() 
 	return {
-		'sinh',
-		'cosh',
-		'asinh',
 		self.solver.eqn.symbols.eqn_guiVars_compileTime,	-- for AMPL and SINHW
 	}
 end

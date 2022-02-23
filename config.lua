@@ -8,8 +8,9 @@ local materials = require 'hydro.materials'
 local dim = cmdline.dim or 1
 local args = {
 	app = self,
-	eqn = cmdline.eqn,
 	dim = dim,
+	eqn = cmdline.eqn,
+	flux = cmdline.flux,
 	
 	integrator = cmdline.integrator or 'forward Euler',
 	--integrator = 'Iterative Crank-Nicolson',

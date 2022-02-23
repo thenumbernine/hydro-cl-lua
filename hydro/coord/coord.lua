@@ -1950,7 +1950,31 @@ function CoordinateSystem:getModuleDepends_coordMapInv()
 end
 
 function CoordinateSystem:getModuleDepends_coordMapGLSL() 
-	return self:getModuleDepends_coordMap()
+	-- search for any functions in the expression
+	-- and auto-insert them into getModuleDepends_coordMap
+	-- then for those functions in cl but not glsl, 
+	-- insert those there
+
+	local glslDeps = table()
+	do
+		-- this is the expression initCodeModule_coordMap uses
+		local symmath = require 'symmath'
+		local expr = self.request'u'
+		for _,f in ipairs{
+			-- here are functions builtin for cl but not glsl
+			symmath.sinh,
+			symmath.cosh,
+			symmath.asinh,
+		} do
+			if expr:findLambda(function(x)
+				return f:isa(x)
+			end) then
+				glslDeps:insert(f.name)
+			end
+		end
+	end
+
+	return table(self:getModuleDepends_coordMap()):append(glslDeps)
 end
 function CoordinateSystem:getModuleDepends_coordMapInvGLSL() 
 	return self:getModuleDepends_coordMapInv()

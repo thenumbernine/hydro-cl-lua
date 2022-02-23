@@ -1769,7 +1769,7 @@ static inline real sinh(real /*GLSL can't handle: const*/ x) {
 }
 
 //// MODULE_NAME: cosh
-// also for GLSL
+// this is for GLSL esp which doesn't have these defs
 
 static inline real cosh(real /*GLSL can't handle: const*/ x) {
 	real ex = exp(x);
@@ -1783,6 +1783,7 @@ static inline real sech(real const x) {
 }
 
 //// MODULE_NAME: asinh
+// this is for GLSL esp which doesn't have these defs
 
 static inline real asinh(real/*GLSL can't handle: const*/ x) {
 	return log(x + sqrt(x*x + 1.));
