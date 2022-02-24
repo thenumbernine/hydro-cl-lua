@@ -23,7 +23,7 @@ local coupleTandPhi = true
 local useLBetaWithPIRK = true
 
 -- constrains det gammaBar_ij = det gammaHat_ij, ABar^i_i = 0, and calculates H and M^i ... if the associated flags are set
-local useConstrainU = false
+local useConstrainU = true
 
 -- Does the scalar field source terms (Right now this is only the scalar field terms, since I don't know what PIRK steps they should be put into)
 local useAddSource = true
@@ -3512,6 +3512,8 @@ for ij,xij in ipairs(symNames) do
 	//RBar := RBar_ij gammaBar^ij
 	real RBar = sym3_dot(gammaBar_UU, RBar_LL);
 	
+	real3 const partial_W_L = real3_rescaleFromCoord_l(partial_W_l, x);
+
 	//tr_DBar2_phi := gammaBar^ij DBar_i DBar_j phi = gammaBar^ij phi_,ij - connBar^k phi_,k
 	real tr_DBar2_phi_times_WSq = 
 		sym3_dot(
@@ -3599,7 +3601,7 @@ for ij,xij in ipairs(symNames) do
 	//2017 Ruchlin et al, eqn 47
 	//M^i = exp(-4 phi) (DHat_j ABar^ij + 2 ABar^k(i Delta^j)_jk + 6 ABar^ij phi_,j - 2/3 gammaBar^ij K_,j)
 #endif
-<? end	-- calc_H_and_M ?>
+<? end	-- eqn.guiVars.calc_H_and_M ?>
 <? end	-- useConstrainU ?>
 }
 

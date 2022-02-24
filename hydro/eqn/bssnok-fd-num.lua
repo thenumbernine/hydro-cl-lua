@@ -85,14 +85,14 @@ end
 function BSSNOKFiniteDifferenceEquation:createInitState()
 	BSSNOKFiniteDifferenceEquation.super.createInitState(self)
 	self:addGuiVars{
-		{name='constrain_det_gammaBar', value=true, compileTime=true},
-		--{name='constrain_det_gammaBar', value=false, compileTime=true},
+		--{name='constrain_det_gammaBar', value=true, compileTime=true},
+		{name='constrain_det_gammaBar', value=false, compileTime=true},
 
-		{name='constrain_tr_ABar', value=true, compileTime=true},
-		--{name='constrain_tr_ABar', value=false, compileTime=true},
+		--{name='constrain_tr_ABar', value=true, compileTime=true},
+		{name='constrain_tr_ABar', value=false, compileTime=true},
 		
-		--{name='calc_H_and_M', value=true, compileTime=true},
-		{name='calc_H_and_M', value=false, compileTime=true},	-- AMD 5600M compiler crashes if it gets too big, and this code seems to be the tipping point
+		{name='calc_H_and_M', value=true, compileTime=true},
+		--{name='calc_H_and_M', value=false, compileTime=true},
 		
 		-- 2013 Baumgarte et al, section IIIB
 		--{name='dissipationCoeff', value=.001/16},

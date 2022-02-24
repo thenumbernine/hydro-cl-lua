@@ -223,6 +223,9 @@ local from3x3to6 = common.from3x3to6
 local from6to3x3 = common.from6to3x3
 local sym = common.sym
 
+-- TODO call this 'torealparam' instead?
+local real = require 'hydro.real'
+
 local half = require 'cl.obj.half'
 local toreal, fromreal = half.toreal, half.fromreal
 
@@ -1089,17 +1092,19 @@ for i=0,eqn.numIntStates-1 do
 end
 ?>}
 
-kernel void square(
+// whereas the multAddInto and multAdd operate on cons_t,
+// this operates on a buffer of reals.
+// and this should only operate on non-ghost cells.
+kernel void subtractAndSquare(
 	constant <?=solver_t?> const * const solver,
-	global <?=cons_t?> * const a
+	global real * const a,
+	realparam const mu
 ) {
 	<?=SETBOUNDS_NOGHOST?>();
-<?	-- numStates or numIntStates?
-for i=0,eqn.numIntStates-1 do
-?>	a[index].ptr[<?=i?>] *= a[index].ptr[<?=i?>];
-<?
-end
-?>}
+	global real * const ai = a + index;
+	*ai -= mu;
+	*ai *= *ai;
+}
 
 <? if solver.checkNaNs then ?>
 kernel void findNaNs(
@@ -1138,8 +1143,8 @@ kernel void findNaNs(
 	self.multAddIntoKernelObj = self.commonProgramObj:kernel{name='multAddInto', domain=self.domainWithoutBorder}
 	self.multAddIntoKernelObj.obj:setArg(0, self.solverBuf)
 	
-	self.squareKernelObj = self.commonProgramObj:kernel{name='square', domain=self.domainWithoutBorder}
-	self.squareKernelObj.obj:setArg(0, self.solverBuf)
+	self.subtractAndSquareKernelObj = self.commonProgramObj:kernel{name='subtractAndSquare', domain=self.domainWithoutBorder}
+	self.subtractAndSquareKernelObj.obj:setArg(0, self.solverBuf)
 
 	if self.checkNaNs then
 		self.findNaNsKernelObj = self.commonProgramObj:kernel('findNaNs', self.solverBuf, self.reduceBuf)
@@ -1728,8 +1733,17 @@ kernel void <?=kernelName?>(
 	global <?=group.bufferType?> const * const buf,
 	int const displayVarIndex,
 	int const component,
-	global <?=cell_t?> const * const cellBuf<?
+	global <?=cell_t?> const * const cellBuf,
+	
+	// this is an ugly ugly hack, 
+	// because calculating avg and stddev use a buffer that includes ghost cells
+	// so unless I zero the border, it'll skew the averages
+	// but in fact the only reason i'm not zeroing the border is for the display i think?
+	// which sounds like a stupid reason anyways ... i should just use gl wrap
+	int zeroBorder
+<?
 if require 'hydro.solver.meshsolver':isa(solver) then
+-- TODO is anyone even using this?  faces? or extraArgs?
 ?>,
 	global <?=solver.coord.face_t?> const * const faces	//[numFaces]<?
 end ?><?=group.extraArgs and #group.extraArgs > 0
@@ -1739,7 +1753,8 @@ end ?><?=group.extraArgs and #group.extraArgs > 0
 //// MODULE_DEPENDS: <?=SETBOUNDS?>
 	<?=SETBOUNDS?>(0,0);
 <? if not require 'hydro.solver.meshsolver':isa(solver) then
-?>	int4 dsti = i;
+?>	bool const oob = <?=OOB?>(solver->numGhost, solver->numGhost);
+	int4 dsti = i;
 	int dstindex = index;
 	real3 x = cellBuf[index].pos;
 <? for j=0,solver.dim-1 do
@@ -1747,18 +1762,19 @@ end ?><?=group.extraArgs and #group.extraArgs > 0
 <? end
 ?>	index = INDEXV(i);
 <? else	-- mesh
-?>	int dstindex = index;
+?>	bool const oob = false;
+	int dstindex = index;
 	real3 x = cellBuf[index].pos;
 <? end 		-- mesh vs grid
 ?>	displayValue_t value = {.ptr={0}};
 
-<?=group.codePrefix or ''
+<?=addTab(group.codePrefix or '')
 ?>
-	
 	global <?=cell_t?> const * const cell = cellBuf + index;
-	
+
 	int vectorField = 0;
-	switch (displayVarIndex) {
+	if (!(zeroBorder && oob)) {
+		switch (displayVarIndex) {
 ]], 			table({
 					group = group,
 					kernelName = ({
@@ -1771,6 +1787,7 @@ end ?><?=group.extraArgs and #group.extraArgs > 0
 						Tex = 'write_only '..(self.dim == 3 and 'image3d_t' or 'image2d_t')..' tex',
 						Buffer = 'global real* dest',
 					})[texVsBuf] or error'here',
+					addTab = addTab,
 				}, args)
 			))
 
@@ -1807,12 +1824,12 @@ end ?><?=group.extraArgs and #group.extraArgs > 0
 							addTab = addTab,
 						}
 						lines:insert(template([[
-<?=addTab(addTab(addTab(var.code)))
-?>			vectorField = <?=solver:isVarTypeAVectorField(var.type) and '1' or '0'?>;
+<?=addTab(addTab(addTab(addTab(var.code))))
+?>				vectorField = <?=solver:isVarTypeAVectorField(var.type) and '1' or '0'?>;
 ]], env))
 					end
-					lines:insert'			break;'
-					lines:insert'		}'
+					lines:insert'				break;'
+					lines:insert'			}'
 					lines:insert''
 				end
 			end	-- var
@@ -1823,9 +1840,9 @@ Sometimes group.bufferType is not cons_t, such as for the group of reduceBuf, in
 But in this case we are still calling the same pickComponent() as UBuf, and its bufferType is going to differ.
 --]]
 			lines:insert(template([[
+		}
+		<?=solver:getPickComponentNameForGroup(group)?>(solver, buf, component, &vectorField, &value, i, index, cellBuf);
 	}
-	
-	<?=solver:getPickComponentNameForGroup(group)?>(solver, buf, component, &vectorField, &value, i, index, cellBuf);
 	
 	END_DISPLAYFUNC_<?=texVsBuf:upper()?>()
 }
@@ -2620,15 +2637,31 @@ function SolverBase:createDisplayVars()
 	self:finalizeDisplayVars()
 end
 
--- used by the display code to dynamically adjust ranges
--- this returns raw values, not scaled by units
+--[[
+used by the display code to dynamically adjust ranges
+this returns raw values, not scaled by units
+
+TODO 
+this uses calcDisplayVarToBuffer
+which is also used by the display code
+but the display code makes room for ghost cells for some reason, 
+i forget why, something to do with textures and border wrapping arguments
+
+however when it comes to min/max, we don't need ghost cells ...
+and when it comes to average and stddev, the ghost cells skew the results
+--]]
 function SolverBase:calcDisplayVarRange(var, componentIndex)
 	componentIndex = componentIndex or var.component
 	if var.lastTime == self.t then
 		return var.lastMin, var.lastMax
 	end
 	var.lastTime = self.t
-	
+	-- invalidate any values associated with the lastTime
+	var.lastMin = nil
+	var.lastMax = nil
+	var.lastAvg = nil
+	var.lastStdDev = nil
+
 	var:setToBufferArgs(componentIndex)
 
 	local channels = 1
@@ -2675,7 +2708,6 @@ else
 --print('reduce min',min,'max',max,'volume',volume,'name',var.name,'channels',channels)
 	var.lastMin = min
 	var.lastMax = max
-	var.lastAvg = nil	-- invalidate
 
 	return min, max
 end
@@ -2687,37 +2719,63 @@ function SolverBase:calcDisplayVarRangeAndAvg(var, componentIndex)
 	componentIndex = componentIndex or var.component
 
 	if var.lastTime ~= self.t then
-		--don't set lastTime yet -- instead let calcDisplayVarRange update and do this:
-		-- var.lastTime = self.t
-
 		-- this will update lastTime if necessary
 		self:calcDisplayVarRange(var, componentIndex)
 		-- displayVarGroup has already set up the appropriate args
 	end
 
 	if not var.lastAvg then
+		-- TODO the display var is being recalc'd a few times for min/max/avg/stddev?
+		-- would it be better to cache and save it?
+		-- I'm really not sure ... which is more expensive? 
+		-- memory or the few calcs each displayvar requires?
+		self:calcDisplayVarToBuffer(var, componentIndex, true)
+
 		-- duplicated in calcDisplayVarRange
 		local size = self.numCells
+		-- size is including the border for reduce, but the contents are all zeroes, so they won't affect the average
+		-- very ugly I know.  I should change this so the reduce buf doesn't cover ghost cells
+		-- or at least doesn't during the calc display var stuff
+		-- (maybe other ops like grav potential do use reduceBuf and need border?)
+		local sizeForAvg = self.volumeWithoutBorder	
 		local sizevec = var.group.getBuffer().sizevec
 		if sizevec then
 			size = tonumber(sizevec:volume())
+			sizeForAvg = size
 		end
-
-		self:calcDisplayVarToBuffer(var, componentIndex)
-		
-		-- [[ avg
-		local lastAvg = fromreal(self.reduceSum(nil, size)) / tonumber(size)
-		var.lastAvg = lastAvg
-		--]]
-		--[[ rms
-		self.squareKernelObj(self.solverBuf, fromreal(self.reduceBuf))
-		var.lastAvg = math.sqrt(fromreal(self.reduceSum(nil, size)) / tonumber(size))
-		--]]
+		-- TODO this is also averagging in the ghost cells ... hmm ....
+		var.lastAvg = fromreal(self.reduceSum(nil, size)) / sizeForAvg
 	end
 
 	return var.lastMin, var.lastMax, var.lastAvg
 end
 
+function SolverBase:calcDisplayVarRangeAndAvgAndStdDev(var, componentIndex)
+	componentIndex = componentIndex or var.component
+
+	if var.lastTime ~= self.t then
+		-- this will update lastTime if necessary
+		self:calcDisplayVarRangeAndAvg(var, componentIndex)
+	end
+
+	if not var.lastStdDev then
+		assert(var.lastAvg)
+		self:calcDisplayVarToBuffer(var, componentIndex, true)
+		self.subtractAndSquareKernelObj(self.solverBuf, self.reduceBuf, real(var.lastAvg))
+		
+		-- duplicated in calcDisplayVarRange
+		local size = self.numCells
+		local sizeForAvg = self.volumeWithoutBorder	
+		local sizevec = var.group.getBuffer().sizevec
+		if sizevec then
+			size = tonumber(sizevec:volume())
+			sizeForAvg = size
+		end
+		var.lastStdDev = math.sqrt(fromreal(self.reduceSum(nil, size)) / sizeForAvg)
+	end
+	
+	return var.lastMin, var.lastMax, var.lastAvg, var.lastStdDev
+end
 
 -------------------------------------------------------------------------------
 --                              gui                                          --
@@ -2798,14 +2856,15 @@ function SolverBase:update()
 			for _,varname in ipairs(varnames) do
 				if varname ~= 'dt' then
 					local var = assert(self.displayVarForName[varname], "couldn't find "..varname)
-					local ymin, ymax, yavg = self:calcDisplayVarRangeAndAvg(var)
+					local ymin, ymax, yavg, ystddev = self:calcDisplayVarRangeAndAvgAndStdDev(var)
 					if var.showInUnits and var.units then
 						local unitScale = self:convertToSIUnitsCode(var.units).func()
 						ymin = ymin * unitScale
 						yavg = yavg * unitScale
 						ymax = ymax * unitScale
+						ystddev = ystddev * unitScale
 					end
-					io.write(sep, varname, '=[', ymin, ' ', yavg, ' ', ymax, ']')
+					io.write(sep, varname, '=[', ymin, ' ', yavg, ' ±', ystddev, ' ', ymax, ']')
 				
 					if cmdline.plotOnExit then
 						local key = varname..' min'
@@ -2814,6 +2873,9 @@ function SolverBase:update()
 						local key = varname..' avg'
 						plotsOnExit[key] = plotsOnExit[key] or table()
 						plotsOnExit[key]:insert(yavg)
+						local key = varname..' stddev'
+						plotsOnExit[key] = plotsOnExit[key] or table()
+						plotsOnExit[key]:insert(ystddev)
 						local key = varname..' max'
 						plotsOnExit[key] = plotsOnExit[key] or table()
 						plotsOnExit[key]:insert(ymax)
@@ -3200,7 +3262,7 @@ function SolverBase:calcDisplayVarToTex(var, componentIndex)
 end
 
 -- this is abstracted because accumBuf might want to be used ...
-function SolverBase:calcDisplayVarToBuffer(var, componentIndex)
+function SolverBase:calcDisplayVarToBuffer(var, componentIndex, zeroBorder)
 	componentIndex = componentIndex or var.component
 	local component = self.displayComponentFlatList[componentIndex]
 	local vectorField = self:isVarTypeAVectorField(component.type)
@@ -3221,6 +3283,7 @@ function SolverBase:calcDisplayVarToBuffer(var, componentIndex)
 	var.group.calcDisplayVarToBufferKernelObj.obj:setArg(3, int(var.displayVarIndex))
 	var.group.calcDisplayVarToBufferKernelObj.obj:setArg(4, int(componentIndex))
 	var.group.calcDisplayVarToBufferKernelObj.obj:setArg(5, self.cellBuf)
+	var.group.calcDisplayVarToBufferKernelObj.obj:setArg(6, int(zeroBorder and 1 or 0))
 	var.group.calcDisplayVarToBufferKernelObj()
 	if self.displayVarAccumFunc then
 		self.cmds:enqueueCopyBuffer{src=self.reduceBuf, dst=self.accumBuf, size=ffi.sizeof(self.app.real) * volume * channels}
