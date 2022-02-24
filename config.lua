@@ -5,7 +5,7 @@ and no more setting config values (boundary, etc) in the init cond file
 local constants = require 'hydro.constants'
 local materials = require 'hydro.materials'
 
-local dim = cmdline.dim or 1
+local dim = cmdline.dim or 3
 local args = {
 	app = self,
 	dim = dim,
@@ -56,7 +56,7 @@ local args = {
 	--usePLM = 'weno',					-- 			TODO make WENO one of these 'usePLM' methods. rename it to 'construct LR state method' or something.  then use CTU with WENO.  or can we, since even the CTU method should use the re-linear-projection ... i should just have these separate plm methods as separate functions ...
 	
 	-- only enabled for certain usePLM methods
-	slopeLimiter = 'minmod',
+	--slopeLimiter = 'minmod',
 	--slopeLimiter = 'monotized central',
 	--slopeLimiter = 'superbee',
 
@@ -131,7 +131,7 @@ local args = {
 			-- and on linux ...
 			['AMD Accelerated Parallel Processing/gfx1010:xnack-/gfx902:xnack-'] = {
 				{256,1,1},
-				{512,512,1},
+				{256,256,1},
 				{48,48,48},
 			}
 		})[platAndDevicesNames]
@@ -276,8 +276,8 @@ local args = {
 	--initCond = 'random',
 	--initCond = 'linear',
 	--initCond = 'advect wave',
-	initCond = 'advect gaussian',	-- TODO fix the default case
-	-- [[ 1D test case
+	--initCond = 'advect gaussian',	-- TODO fix the default case
+	--[[ 1D test case
 	initCondArgs = {
 		rho0 = 1,
 		rho1 = 3,
@@ -438,7 +438,7 @@ local args = {
 	-- self-gravitation tests:
 	--initCond = 'self-gravitation - Earth',	-- validating units along with self-gravitation.
 	--initCond = 'self-gravitation - NGC 1560',	-- TODO still needs velocity
-	--initCond = 'self-gravitation - NGC 3198',
+	initCond = 'self-gravitation - NGC 3198',
 	--initCond = 'self-gravitation test 1',
 	--initCond = 'self-gravitation test 1 spinning',
 	--initCond = 'self-gravitation test 2',		--FIXME
@@ -837,7 +837,7 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {
 -- compressible Euler fluid equations + de-Donder gauge linearized GR
 
 
---self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler-lingr'})))
+self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler-lingr'})))
 
 
 -- special relativistic compressible hydrodynamics

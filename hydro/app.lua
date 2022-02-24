@@ -1195,6 +1195,10 @@ function HydroCLApp:update(...)
 					end
 				end
 				if cmdline.plotOnExit then
+					-- fix gnuplot formatting
+					local function fixtitle(s)
+						return (s:gsub('_', ' '))
+					end
 					local string = require 'ext.string'
 					local varnames = string.split(cmdline.trackvars, ','):mapi(string.trim)
 					varnames:removeObject'dt'
@@ -1208,13 +1212,30 @@ function HydroCLApp:update(...)
 						cols:insert(solver.plotsOnExit.t)
 						local ti = #cols
 						for _,varname in ipairs(varnames) do
-							for _,suffix in ipairs{'min', 'avg', 'max'} do
+							local suffixes = {'avg', 'min', 'max', 'stddev'}
+							local colbase = #cols
+							-- these should match 'suffixes' for index when inserting into cols
+							local colavg = colbase + 1
+							local colmin = colbase + 2
+							local colmax = colbase + 3
+							local colstddev = colbase + 4
+							for _,suffix in ipairs(suffixes) do
 								cols:insert(solver.plotsOnExit[varname..' '..suffix])
-								local title = solver.name..' '..varname..' '..suffix
-								-- fix gnuplot formatting
-								title = title:gsub('_', ' ')
-								usings:insert{using=ti..':'..#cols, title=title}
 							end
+							usings:insert{using=ti..':'..colavg, title=fixtitle(solver.name..' '..varname..' avg')}
+							-- [[ plot each separately
+							usings:insert{using=ti..':'..colmax, title=fixtitle(solver.name..' '..varname..' max')}
+							usings:insert{using=ti..':'..colmin, title=fixtitle(solver.name..' '..varname..' min')}
+							--]]
+							-- hmm, I am maybe thinking calculating the stddev isn't useful ...
+							--[[ plot avg +- stddev ... can extend past min/max ...
+							usings:insert{using=ti..':($'..colavg..'+$'..colstddev..')', title=fixtitle(solver.name..' '..varname..' avg+stddev')}
+							usings:insert{using=ti..':($'..colavg..'-$'..colstddev..')', title=fixtitle(solver.name..' '..varname..' avg-stddev')}
+							--]]
+							-- hmm, for skewed data, boxplot / candlesticks doesn't look good
+							--[[ plot all as a boxplot
+							usings:insert{using=ti..':($'..colavg..'-$'..colstddev..'):'..colmin..':'..colmax..':($'..colavg..'+$'..colstddev..')', title=fixtitle(solver.name..' '..varname), with='candlesticks whiskerbars'}
+							--]]
 						end
 					end
 					require 'gnuplot'(table({

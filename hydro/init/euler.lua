@@ -2322,14 +2322,15 @@ end ?>;
 	(function()
 		
 		local coordRadius = .5
-		local ngc1560_a = 7.19 * 1e+3 * constants.pc_in_m
-		local ngc1560_b = 0.567 * 1e+3 * constants.pc_in_m
-		local ngc1560_M = 1.52e+10 * constants.SolarMass_in_kg
-		local coordRadius_a = coordRadius * (ngc1560_a / ngc1560_a)
-		local coordRadius_b = coordRadius * (ngc1560_b / ngc1560_a)
-		local meter = ngc1560_a / coordRadius
+		local ngc3198_rmax = 31.7 * 1e+3 * constants.pc_in_m
+		local ngc3198_a = 9.10 * 1e+3 * constants.pc_in_m
+		local ngc3198_b = 2.64 * 1e+3 * constants.pc_in_m
+		local ngc3198_M = 1.25e+11 * constants.SolarMass_in_kg
+		local coordRadius_a = coordRadius * (ngc3198_a / ngc3198_a)
+		local coordRadius_b = coordRadius * (ngc3198_b / ngc3198_a)
+		local meter = ngc3198_rmax / coordRadius
 		local ellipsoidCoordVolume = (4/3) * math.pi * coordRadius_a * coordRadius_b * coordRadius_b
-		local kilogram = ngc1560_M / ellipsoidCoordVolume
+		local kilogram = ngc3198_M / ellipsoidCoordVolume
 		local second = 1
 		local mins, maxs = createMinsMaxs(coordRadius)
 		return {
@@ -2337,9 +2338,9 @@ end ?>;
 			mins = mins,
 			maxs = maxs,
 			guiVars = {
-				{name = 'a', value = ngc1560_a, units = 'm'},
-				{name = 'b', value = ngc1560_b, units = 'm'},
-				{name = 'M', value = ngc1560_M, units = 'kg'},
+				{name = 'a', value = ngc3198_a, units = 'm'},
+				{name = 'b', value = ngc3198_b, units = 'm'},
+				{name = 'M', value = ngc3198_M, units = 'kg'},
 			},
 			solverVars = {
 				meter = meter,
@@ -2364,17 +2365,14 @@ end ?>;
 				}
 			end,
 			getInitCondCode = function(self)
-				return self.solver.eqn:template[[
+				return self.solver.eqn:template([[
 	real3 const xc = coordMap(x);
 	real const rSq = xc.x*xc.x + xc.y*xc.y;	//cylindrical 'r'
 	real const r = sqrt(rSq);
 	real const z = xc.z;
 
-<?
-local m_in_pc = 648000 / math.pi * 149597870700
-?>
-	real const r_in_kpc = r * <?=1/m_in_pc?>;
-	real const z_in_kpc = z * <?=1/m_in_pc?>;
+	real const r_in_kpc = r * <?=clnumber(meter / (1e+3 * constants.pc_in_m))?>;
+	real const z_in_kpc = z * <?=clnumber(meter / (1e+3 * constants.pc_in_m))?>;
 
 	// velocity from 2006 Cooperstock et al to fit 1989 Begeman
 	real const vmag_per_c = 0
@@ -2394,7 +2392,8 @@ local m_in_pc = 648000 / math.pi * 149597870700
 		local neg_Cn_kn, kn = table.unpack(coeff)
 ?>			+ <?=neg_Cn_kn?> * BESSJ1(<?=kn?> * r_in_kpc)
 <?	end
-?>;
+?>	;
+	
 	real const vmag = vmag_per_c * solver->speedOfLight / unit_m_per_s;
 	v = real3_real_mul(_real3(-xc.y, xc.x, 0.), vmag / r);
 
@@ -2474,7 +2473,9 @@ local d = {
 
 	rho = Y * exp(-pow(r / reff, 1. / s));
 
-	real delta_for_r = 0.;	// m
+	// eqn 6.2: rho(r,z) = rho(r,0) * exp(-z^2 / (2 delta(r)^2 )
+	// delta(r) is ... a mess to calculate
+	// how about approximating it?
 <?
 -- piecewise quadratic control points
 local pts = {
@@ -2514,20 +2515,17 @@ for i=1,#pts-1,2 do
 	local a = (x1 * (y3 - y2) + x2 * (y1 - y3) + x3 * (y2 - y1)) / ((x1 - x2) * (x1 - x3) * (x2 - x3))
 	local b = (y2 - y1) / (x2 - x1) - a * (x1 + x2)
 	local c = y1 - a * x1 * x1 - b * x1
-?>		delta_for_r = <?=clnumber(c)?> + (r_in_kpc - <?=clnumber(x0)?>) * (<?=clnumber(b)?> + (r_in_kpc - <?=clnumber(x0)?>) * <?=clnumber(a)?>);
+?>		real const delta_for_r = <?=clnumber(c)?> + (r_in_kpc - <?=clnumber(x0)?>) * (<?=clnumber(b)?> + (r_in_kpc - <?=clnumber(x0)?>) * <?=clnumber(a)?>);
+		real const z_delta_ratio = z_in_kpc / delta_for_r;
+		real const zinfl = exp(-.5 * z_delta_ratio * z_delta_ratio);
+		rho *= zinfl;
 <?
 end
-?>	} else {
-		// width for out of bounds r
-		delta_for_r = 0.;
+?>	
+	} else {
+		// out of bounds density
+		rho = 1e-3;
 	}
-
-	// eqn 6.2: rho(r,z) = rho(r,0) * exp(-z^2 / (2 delta(r)^2 )
-	// delta(r) is ... a mess to calculate
-	// how about approximating it?
-	real const z_delta_ratio = z_in_kpc / delta_for_r;
-	real const zinfl = exp(-.5 * z_delta_ratio * z_delta_ratio);
-	rho *= zinfl;
 
 	
 	// TODO GALACTIC PRESSURE
@@ -2535,7 +2533,10 @@ end
 	P = rho * real3_dot(v, v);
 	//P = max(P, 1e-7);	//but really, is there any harm in P=0 with the Euler equations?
 	//P *= zinfl;
-]]
+]],				{
+					constants = constants,
+					meter = meter,
+				})
 			end,
 
 		}
