@@ -2,7 +2,7 @@
 local table = require "ext.table"
 ?>
 //// MODULE_NAME: <?=updateCTU?>
-//// MODULE_DEPENDS: <?=solver_t?> <?=cell_t?> <?=cons_t?> <?=SETBOUNDS?> <?=cell_volume?> <?=solver_macros?> realparam
+//// MODULE_DEPENDS: <?=solver_t?> <?=cell_t?> <?=cons_t?> <?=SETBOUNDS?> <?=solver_macros?> realparam
 <? if solver.usePLM then ?>
 //// MODULE_DEPENDS: <?=consLR_t?> <?=normal_t?> <?=fluxFromCons?>
 <? end ?>
@@ -25,7 +25,7 @@ kernel void <?=updateCTU?>(
 	global <?=cell_t?> const * const cell = cellBuf + index;
 	real3 const x = cell->pos;
 <? if eqn.weightFluxByGridVolume then ?>
-	real const volume = cell_volume(solver, x);
+	real const volume = cell->volume;
 <? else ?>
 	real const volume = 1.<? for i=0,solver.dim-1 do ?> * solver->grid_dx.s<?=i?><? end ?>;
 <? end ?>
@@ -48,12 +48,14 @@ for side=0,solver.dim-1 do
 ?>
 	real3 xIntL<?=side?> = x;
 	xIntL<?=side?>.s<?=side?> -= .5 * solver->grid_dx.s<?=side?>;
-	real const volume_intL<?=side?> = cell_volume(solver, xIntL<?=side?>);
+	// TODO instead of volume_intL as the avg between two cell volumes, and then divide by dx to get the face, instead, just store the face.
+	real const volume_intL<?=side?> = .5 * (cell->volume + cell[-solver->stepsize.s<?=side?>].volume);
 	real const areaL<?=side?> = volume_intL<?=side?> / solver->grid_dx.s<?=side?>;
 
 	real3 xIntR<?=side?> = x;
 	xIntR<?=side?>.s<?=side?> += .5 * solver->grid_dx.s<?=side?>;
-	real const volume_intR<?=side?> = cell_volume(solver, xIntR<?=side?>);
+	// TODO instead of volume_intL as the avg between two cell volumes, and then divide by dx to get the face, instead, just store the face.
+	real const volume_intR<?=side?> = .5 * (cell->volume + cell[solver->stepsize.s<?=side?>].volume);
 	real const areaR<?=side?> = volume_intR<?=side?> / solver->grid_dx.s<?=side?>;
 <?
 	else

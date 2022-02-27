@@ -1360,10 +1360,8 @@ function CoordinateSystem:createCellStruct()
 		name = 'cell_t',
 		dontUnion = true,
 		vars = {
-			{name='pos', type='real3'},	-- x1 x2 x3 input coordinates to the chart
---[[ should volume always be in cell_t?  or should we use macros that abstract it per-coord?
-			{name='volume', type='real'},	--volume of the cell
---]]		
+			{name='pos', type='real3'},		-- x1 x2 x3 input coordinates to the chart
+			{name='volume', type='real'},	-- volume of the cell
 		},
 	}
 
@@ -1395,17 +1393,23 @@ function CoordinateSystem:finalizeCellStruct()
 	self.face_t = self.faceStruct.typename
 end
 
+-- TODO this as a CL kernel?
 function CoordinateSystem:fillGridCellBuf(cellCpuBuf)
 	local solver = self.solver
 
---[[ TODO replace 'solver->' with 'solver.solverPtr.'
+-- [[ here replace 'solver->' with 'solver.solverPtr.'
 	local symmath = require 'symmath'
+	local var = symmath.var
 	local u, v, w = self.baseCoords:unpack()
 	local calcVolume = assert(symmath.export.Lua:toFunc{
 		output = {
-			self.request'cell_volume',
+			self.request'cell_volume'
+				:replace(var'solver->grid_dx.x', var'solver.solverPtr.grid_dx.x')
+				:replace(var'solver->grid_dx.y', var'solver.solverPtr.grid_dx.y')
+				:replace(var'solver->grid_dx.z', var'solver.solverPtr.grid_dx.z')
+			,
 		},
-		input = {{u=u}, {v=v}, {w=w}},
+		input = {{u=u}, {v=v}, {w=w}, var'solver'},
 	})
 --]]
 
@@ -1425,9 +1429,7 @@ function CoordinateSystem:fillGridCellBuf(cellCpuBuf)
 				cellCpuBuf[index].pos.x = toreal(u)
 				cellCpuBuf[index].pos.y = toreal(v)
 				cellCpuBuf[index].pos.z = toreal(w)
---[[				
-				cellCpuBuf[index].volume = calcVolume(u,v,w)
---]]				
+				cellCpuBuf[index].volume = calcVolume(u,v,w, solver)
 				index = index + 1
 			end
 		end

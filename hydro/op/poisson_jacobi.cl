@@ -10,7 +10,7 @@ local real_mul = scalar.."_real_mul"
 ?>
 
 //// MODULE_NAME: <?=solveJacobi?>
-//// MODULE_DEPENDS: <?=cell_volume?> <?=cell_dx_i?> <?=table.concat(op.codeDepends or {}, ' ')?>
+//// MODULE_DEPENDS: <?=cell_dx_i?> <?=table.concat(op.codeDepends or {}, ' ')?>
 /*
 called every Jacobi method iteration
 
@@ -53,8 +53,8 @@ end ?>
 <? end
 ?>		return;
 	}
-	
-	real3 const x = cellBuf[index].pos;
+	global <?=cell_t?> const * const cell = cellBuf + index;
+	real3 const x = cell->pos;
 
 	global <?=op:getPotBufType()?> const * const U = UBuf + index;
 
@@ -67,12 +67,16 @@ end ?>
 	real3 volL, volR;
 <? for j=0,solver.dim-1 do 
 ?>	xInt.s<?=j?> = x.s<?=j?> - .5 * solver->grid_dx.s<?=j?>;
-	volL.s<?=j?> = cell_volume(solver, xInt);
+	// TODO instead of volume_intL as the avg between two cell volumes, and then divide by dx to get the face, instead, just store the face.
+	real const volume_intL<?=j?> = .5 * (cell->volume + cell[-solver->stepsize.s<?=j?>].volume);
+	volL.s<?=j?> = volume_intL<?=j?>;
 	xInt.s<?=j?> = x.s<?=j?> + .5 * solver->grid_dx.s<?=j?>;
-	volR.s<?=j?> = cell_volume(solver, xInt);
+	// TODO instead of volume_intL as the avg between two cell volumes, and then divide by dx to get the face, instead, just store the face.
+	real const volume_intR<?=j?> = .5 * (cell->volume + cell[solver->stepsize.s<?=j?>].volume);
+	volR.s<?=j?> = volume_intR<?=j?>;
 	xInt.s<?=j?> = x.s<?=j?>;
 <? end 
-?>	real const volAtX = cell_volume(solver, x);
+?>	real const volAtX = cell->volume;
 
 <? 
 --[=[

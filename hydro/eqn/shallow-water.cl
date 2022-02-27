@@ -355,10 +355,9 @@ kernel void <?=addSource?>(
 	<?=prim_t?> W;
 	<?=primFromCons?>(&W, solver, U, x);
 
-//// MODULE_DEPENDS: <?=cell_volume?>
 	//I'm treating conn as if it is fixed at the cell center.
 	//TODO instead: treat the cell values constant at center and integrate conn across the cell.
-	real const volume = cell_volume(solver, pt);
+	real const volume = cell->volume;
 
 <? if false then ?>
 //// MODULE_DEPENDS: <?=coord_conn_apply23?>

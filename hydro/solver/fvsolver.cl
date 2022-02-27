@@ -11,7 +11,8 @@ kernel void <?=calcDerivFromFlux?>(
 ) {
 	<?=SETBOUNDS_NOGHOST?>();
 	global <?=cons_t?> * const deriv = derivBuf + index;
-	real3 const x = cellBuf[index].pos;
+	global <?=cell_t?> const * const cell = cellBuf + index;
+	real3 const x = cell->pos;
 
 /*<?--[[
 volume vs area ...
@@ -39,8 +40,7 @@ then ?>
 	end
 ?>;
 <? else ?>
-//// MODULE_DEPENDS: <?=cell_volume?> 
-	real const volume = cell_volume(solver, x);
+	real const volume = cell->volume;
 <? end ?>
 
 	<? for side=0,solver.dim-1 do ?>{

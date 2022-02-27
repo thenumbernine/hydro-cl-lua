@@ -207,7 +207,7 @@ end
 local poissonKrylovCode = [[
 
 //// MODULE_NAME: <?=linearFunc?>
-//// MODULE_DEPENDS: <?=cell_dx_i?> <?=cell_volume?>
+//// MODULE_DEPENDS: <?=cell_dx_i?>
 
 kernel void <?=linearFunc?>(
 	constant <?=solver_t?> const * const solver,
@@ -220,7 +220,8 @@ kernel void <?=linearFunc?>(
 		Y[index] = 0.;
 		return;
 	}
-	real3 const x = cellBuf[index].pos;
+	global <?=cell_t?> const * const cell = cellBuf + index;
+	real3 const x = cell->pos;
 
 <? for j=0,solver.dim-1 do ?>
 	real dx<?=j?> = cell_dx<?=j?>(x);
@@ -230,12 +231,16 @@ kernel void <?=linearFunc?>(
 	real3 volL, volR;
 <? for j=0,solver.dim-1 do 
 ?>	xInt.s<?=j?> = x.s<?=j?> - .5 * solver->grid_dx.s<?=j?>;
-	volL.s<?=j?> = cell_volume(solver, xInt);
+	// TODO instead of volume_intL as the avg between two cell volumes, and then divide by dx to get the face, instead, just store the face.
+	real const volume_intL<?=j?> = .5 * (cell->volume + cell[-solver->stepsize.s<?=j?>].volume);
+	volL.s<?=j?> = volume_intL<?=j?>;
 	xInt.s<?=j?> = x.s<?=j?> + .5 * solver->grid_dx.s<?=j?>;
-	volR.s<?=j?> = cell_volume(solver, xInt);
+	// TODO instead of volume_intL as the avg between two cell volumes, and then divide by dx to get the face, instead, just store the face.
+	real const volume_intR<?=j?> = .5 * (cell->volume + cell[solver->stepsize.s<?=j?>].volume);
+	volR.s<?=j?> = volume_intR<?=j?>;
 	xInt.s<?=j?> = x.s<?=j?>;
 <? end 
-?>	real volAtX = cell_volume(solver, x);
+?>	real volAtX = cell->volume;
 
 	real sum = (0.
 <? for j=0,solver.dim-1 do ?>

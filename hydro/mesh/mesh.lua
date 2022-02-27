@@ -61,8 +61,8 @@ local function allocateTypes(solver)
 		vars = {
 			-- all solvers:
 			{type='real3', name='pos'},		--center.  technically could be a 'realN'
-			-- meshsolver-specific:
 			{type='real', name='volume'},	--volume of the cell
+			-- meshsolver-specific:
 			{type='int', name='faceOffset'},
 			{type='int', name='faceCount'},
 			{type='int', name='vtxOffset'},

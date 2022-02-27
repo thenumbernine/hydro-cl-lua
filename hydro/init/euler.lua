@@ -2524,12 +2524,27 @@ end
 ?>	
 	} else {
 		// out of bounds density
-		rho = 1e-3;
+		rho = 0.;
 	}
 
+	//ok now assume rho is in [0,1] ... so scale velocity by rho/rhomax
+	// but in reality (also in the paper) the graph of normrho is only [0,1] for the data sample points
+	// for the Ludwig function fitting it is about [0, 1.3]
+	real const normrhomax = 1.3587387933273;	//sup of numerics graph of normrho(r)
+	v = real3_real_mul(v, rho / normrhomax);		// assuming rho is normalized at this point
+
+	//then inc rho past some min value (since I don't handle vacuum cells atm)
+	real const rhomin = 1e-4;	// this is numeric / used to avoid vacuum
+	rho += rhomin;
+
+	// at this point I'm assuming the normalized units are close enough
+	// but we can be certain:
+	real const rho0 = 6.54e-21;	// in kg/m^3 ... this is from Ludwig 2021 after eqn 8.5
+	rho *= rho0 / unit_kg_per_m3;
+	// hmm, after this rho is about [0,10] in the simulation units ... which means my estimation of unit_kg above based on the galactic properties is about 10x off ...
+
 	
-	// TODO GALACTIC PRESSURE
-	// ram pressure?
+	// galactic pressure ... ram pressure?
 	P = rho * real3_dot(v, v);
 	//P = max(P, 1e-7);	//but really, is there any harm in P=0 with the Euler equations?
 	//P *= zinfl;
