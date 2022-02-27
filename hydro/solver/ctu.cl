@@ -21,7 +21,7 @@ kernel void <?=updateCTU?>(
 	global <?=cons_t?> const * const fluxBuf,
 	realparam const dt
 ) {
-	<?=SETBOUNDS?>(0,1);
+	<?=SETBOUNDS?>(1,1);	//this was (0,1) so it could run across interfaces, but looks like i need (1,1) for cell->volume interface access, unless TODO I change the volume LR into face area 
 	global <?=cell_t?> const * const cell = cellBuf + index;
 	real3 const x = cell->pos;
 <? if eqn.weightFluxByGridVolume then ?>

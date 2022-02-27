@@ -1401,15 +1401,17 @@ function CoordinateSystem:fillGridCellBuf(cellCpuBuf)
 	local symmath = require 'symmath'
 	local var = symmath.var
 	local u, v, w = self.baseCoords:unpack()
+	-- TODO instead of passing each function as an arg,
+	--  how about adding stuff to the loadstring env in symmath.export.Lua:toFunc ?
 	local calcVolume = assert(symmath.export.Lua:toFunc{
 		output = {
 			self.request'cell_volume'
-				:replace(var'solver->grid_dx.x', var'solver.solverPtr.grid_dx.x')
-				:replace(var'solver->grid_dx.y', var'solver.solverPtr.grid_dx.y')
-				:replace(var'solver->grid_dx.z', var'solver.solverPtr.grid_dx.z')
+				:replace(var'solver->grid_dx.x', var'fromreal(solver.solverPtr.grid_dx.x)')
+				:replace(var'solver->grid_dx.y', var'fromreal(solver.solverPtr.grid_dx.y)')
+				:replace(var'solver->grid_dx.z', var'fromreal(solver.solverPtr.grid_dx.z)')
 			,
 		},
-		input = {{u=u}, {v=v}, {w=w}, var'solver'},
+		input = {{u=u}, {v=v}, {w=w}, var'solver', var'fromreal'},
 	})
 --]]
 
@@ -1429,7 +1431,7 @@ function CoordinateSystem:fillGridCellBuf(cellCpuBuf)
 				cellCpuBuf[index].pos.x = toreal(u)
 				cellCpuBuf[index].pos.y = toreal(v)
 				cellCpuBuf[index].pos.z = toreal(w)
-				cellCpuBuf[index].volume = calcVolume(u,v,w, solver)
+				cellCpuBuf[index].volume = toreal(calcVolume(u,v,w, solver, fromreal))
 				index = index + 1
 			end
 		end
