@@ -37,6 +37,8 @@ ok for 2009Alic-z4 SENR UIUC i'm getting a spike at t=43 for spherical, t=83 for
 	|gravity_i|_gamma
 	gravity_x
 
+... annnd did it just go away when i started caching the cell volume?
+
 --]]
 
 local class = require 'ext.class'
