@@ -27,6 +27,8 @@ Z4_2008Yano.roeUseFluxFromCons = false
 
 function Z4_2008Yano:init(args)
 	
+	self.useShift = args.useShift or 'none'
+	
 	local fluxVars = table{
 		{name='a_l', type='real3'},		-- 3:  0-2
 		{name='d_lll', type='_3sym3'},	-- 18: 3-20
@@ -134,7 +136,7 @@ end
 
 function Z4_2008Yano:eigenWaveCode(args)
 	local betaUi
-	if self.useShift then
+	if self.useShift ~= 'none' then
 		betaUi = '('..args.eig..')->beta_u.s[('..args.n..').side]'
 	else
 		betaUi = '0'

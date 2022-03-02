@@ -19,9 +19,6 @@ static inline sym3 <?=calc_gamma_uu?>(
 	return gamma_uu;
 }
 
-//// MODULE_NAME: <?=applyInitCondCell?>
-//// MODULE_DEPENDS: <?=coordMap?> <?=coord_gHol_ll?> <?=rescaleFromCoord_rescaleToCoord?> <?=solver_t?> <?=initCond_t?> <?=cons_t?> <?=cell_t?>
-
 <?
 if eqn.initCond.initAnalytical then
 	error("TODO - can't handle analytical initial conditions yet")
@@ -29,6 +26,9 @@ end
 ?>
 
 <? if eqn.initCond.useBSSNVars then ?>
+
+//// MODULE_NAME: <?=applyInitCondCell?>
+//// MODULE_DEPENDS: <?=coordMap?> <?=coord_gHol_ll?> <?=solver_t?> <?=initCond_t?> <?=cons_t?> <?=cell_t?>
 
 void <?=applyInitCondCell?>(
 	constant <?=solver_t?> const * const solver,
@@ -60,6 +60,7 @@ void <?=applyInitCondCell?>(
 
 	U->alpha = alpha;
 
+//// MODULE_DEPENDS: <?=rescaleFromCoord_rescaleToCoord?>
 	// gammaHat_IJ = delta_IJ
 	// gamma_ij = e_i^I e_j^J (epsilon_IJ + gammaHat_IJ) / W^2
 	sym3 gammaBar_LL = sym3_add(epsilon_LL, sym3_ident);
@@ -132,6 +133,9 @@ end
 }
 
 <? else	-- not eqn.initCond.useBSSNVars ?>
+
+//// MODULE_NAME: <?=applyInitCondCell?>
+//// MODULE_DEPENDS: <?=coordMap?> <?=coord_gHol_ll?> <?=solver_t?> <?=initCond_t?> <?=cons_t?> <?=cell_t?>
 
 void <?=applyInitCondCell?>(
 	constant <?=solver_t?> const * const solver,

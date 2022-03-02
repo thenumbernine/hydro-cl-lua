@@ -33,6 +33,121 @@ void <?=setFlatSpace?>(
 	U->Z_l = real3_zero;
 }
 
+<?
+if eqn.initCond.initAnalytical then
+	error("TODO - can't handle analytical initial conditions yet")
+end
+?>
+
+<? if eqn.initCond.useBSSNVars then ?>
+
+//// MODULE_NAME: <?=applyInitCondCell?>
+//// MODULE_DEPENDS: <?=SETBOUNDS?> <?=coordMap?> <?=setFlatSpace?>
+
+void <?=applyInitCondCell?>(
+	constant <?=solver_t?> const * const solver,
+	constant <?=initCond_t?> const * const initCond,
+	global <?=cons_t?> * const U,
+	global <?=cell_t?> const * const cell
+) {
+	real3 const x = cell->pos;
+	real3 const xc = coordMap(x);
+	real3 const mids = real3_real_mul(real3_add(solver->mins, solver->maxs), .5);
+
+	real alpha = 1.;
+	real W = 1.;
+	real K = 0.;
+	real3 LambdaBar_U = real3_zero;
+	real3 beta_U = real3_zero;
+	real3 B_U = real3_zero;
+	sym3 epsilon_LL = sym3_zero;
+	sym3 ABar_LL = sym3_zero;
+
+	real rho = 0.;
+
+	<?=initCode()?>
+
+	//for (int i = 0; i < numStates; ++i) {
+	//	U->ptr[i] = 0.;
+	//}
+	*U = (<?=cons_t?>){.ptr={ 0. / 0. }};
+
+	U->alpha = alpha;
+
+//// MODULE_DEPENDS: <?=rescaleFromCoord_rescaleToCoord?>
+	// gammaHat_IJ = delta_IJ
+	// gamma_ij = e_i^I e_j^J (epsilon_IJ + gammaHat_IJ) / W^2
+	sym3 gammaBar_LL = sym3_add(epsilon_LL, sym3_ident);
+	sym3 gamma_LL = sym3_real_mul(gammaBar_LL, 1. / (W*W));
+	U->gamma_ll = sym3_rescaleToCoord_LL(gamma_LL, x);
+	
+	// K_ij = e_i^I e_j^J (ABar_IJ + gammaBar_IJ K/3) / W^2
+	U->K_ll = sym3_rescaleToCoord_LL(
+		sym3_add(
+			sym3_real_mul(ABar_LL, 1. / (W*W)),
+			sym3_real_mul(gamma_LL, K / 3.)
+		), x);
+
+	U->Theta = 0.;
+	U->Z_l = real3_zero;
+
+<? if eqn.useShift ~= "none" then
+?>	U->beta_u = real3_rescaleFromCoord_U(beta_U);
+<? end -- TODO support for hyperbolic gamma driver, so we can read B_U
+?>
+
+<? if eqn.useStressEnergyTerms then ?>
+	U->rho = rho;
+	U->S_u = real3_zero;
+	U->S_ll = sym3_zero;
+<? end ?>
+	
+	U->H = 0;
+	U->M_u = real3_zero;
+}
+
+//// MODULE_NAME: <?=initDerivs?>
+//// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> <?=cell_t?> <?=SETBOUNDS?>
+
+kernel void <?=initDerivs?>(
+	constant <?=solver_t?> const * const solver,
+	global <?=cons_t?> * const UBuf,
+	global <?=cell_t?> const * const cellBuf 
+) {
+	<?=SETBOUNDS?>(solver->numGhost, solver->numGhost);
+	global <?=cons_t?> * const U = UBuf + index;
+	
+	real det_gamma = sym3_det(U->gamma_ll);
+	sym3 const gamma_uu = sym3_inv(U->gamma_ll, det_gamma);
+
+<? 
+for i=1,solver.dim do 
+	local xi = xNames[i]
+?>
+	U->a_l.<?=xi?> = (
+		log(U[solver->stepsize.<?=xi?>].alpha) 
+		- log(U[-solver->stepsize.<?=xi?>].alpha)
+	) / (2. * solver->grid_dx.s<?=i-1?>);
+	<? for jk,xjk in ipairs(symNames) do ?>
+	U->d_lll.<?=xi?>.<?=xjk?> = .5 * (
+		U[solver->stepsize.<?=xi?>].gamma_ll.<?=xjk?> 
+		- U[-solver->stepsize.<?=xi?>].gamma_ll.<?=xjk?>
+	) / (2. * solver->grid_dx.s<?=i-1?>);
+	<? end ?>
+<? 
+end 
+for i=solver.dim+1,3 do
+	local xi = xNames[i]
+?>
+	U->a_l.<?=xi?> = 0;
+	U->d_lll.<?=xi?> = sym3_zero;
+<?
+end
+?>
+}
+
+<? else	-- not eqn.initCond.useBSSNVars ?>
+
 //// MODULE_NAME: <?=applyInitCondCell?>
 //// MODULE_DEPENDS: <?=SETBOUNDS?> <?=coordMap?> <?=setFlatSpace?>
 
@@ -98,6 +213,8 @@ for i=solver.dim+1,3 do
 end
 ?>
 }
+
+<? end	-- eqn.initCond.useBSSNVars ?>
 
 //// MODULE_NAME: <?=calcDTCell?>
 //// MODULE_DEPENDS: <?=SETBOUNDS?> <?=initCond_codeprefix?>
@@ -378,7 +495,7 @@ end ?>\
 	(resultFlux)->Z_l = real3_real_mul(K_ul.x, (U)->alpha);\
 	(resultFlux)->Z_l.x += (U)->alpha * (K - (U)->Theta);\
 \
-<? if eqn.useShift then ?>/*									\
+<? if eqn.useShift ~= "none" then ?>/*									\
 flux without shift:												\
 b^l_k,t 	+ (-α^2 γ^il (2 γ^jm d_mji - γ^jm d_ijm - a_i))_,k	\
 																\
@@ -397,7 +514,7 @@ b^l_k,t 	+ (-β^i b^l_i)_,k									*/	\
 }
 
 //// MODULE_NAME: <?=eigen_forCell?>
-//// MODULE_DEPENDS: <?=initCond_codeprefix?>
+//// MODULE_DEPENDS: <?=initCond_codeprefix?> <?=eigen_t?>
 
 //used by PLM
 #define <?=eigen_forCell?>(\
@@ -447,7 +564,7 @@ b^l_k,t 	+ (-β^i b^l_i)_,k									*/	\
 }
 
 //// MODULE_NAME: <?=eigen_forInterface?>
-//// MODULE_DEPENDS: <?=initCond_codeprefix?>
+//// MODULE_DEPENDS: <?=initCond_codeprefix?> <?=eigen_t?>
 
 #define <?=eigen_forInterface?>(\
 	/*<?=eigen_t?> * const */resultEig,\
