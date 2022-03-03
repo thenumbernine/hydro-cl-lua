@@ -215,7 +215,7 @@ function InitCond:resetState()
 		solver:printBuf(solver.UBufObj)
 	end
 	
-	if solver:hasModule(solver.eqn.symbols.initDerivs) then
+	if solver.initDerivsKernelObj then
 		solver:boundary()
 		solver.initDerivsKernelObj()
 	end
@@ -224,6 +224,16 @@ function InitCond:resetState()
 	if cmdline.printBufs then
 		print('post-boundary init UBuf:')
 		solver:printBuf(solver.UBufObj)
+	end
+	
+	if solver.constrainUKernelObj then
+		-- this calls constrainUKernelObj
+		-- and then calls :boundary()
+		solver:constrainU()	
+		if cmdline.printBufs then
+			print('post-constrainU init UBuf:')
+			solver:printBuf(solver.UBufObj)
+		end
 	end
 end
 

@@ -188,6 +188,14 @@ return ]]..fLuaCode))(alphaVar, symmath)
 	return fCCode
 end
 
+-- hmm ... should this go in InitCond?
+function EinsteinInitCond:resetState()
+	local solver = assert(self.solver)
+	solver.applyInitCondKernelObj()
+	solver:boundary()
+	solver:constrainU()
+end
+
 local initConds = table{
 	
 	{

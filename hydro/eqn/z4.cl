@@ -63,8 +63,8 @@ void <?=applyInitCondCell?>(
 //// MODULE_DEPENDS: <?=rescaleFromCoord_rescaleToCoord?>
 	// gammaHat_IJ = delta_IJ
 	// gamma_ij = e_i^I e_j^J (epsilon_IJ + gammaHat_IJ) / W^2
-	sym3 gammaBar_LL = sym3_add(epsilon_LL, sym3_ident);
-	sym3 gamma_LL = sym3_real_mul(gammaBar_LL, 1. / (W*W));
+	sym3 const gammaBar_LL = sym3_add(epsilon_LL, sym3_ident);
+	sym3 const gamma_LL = sym3_real_mul(gammaBar_LL, 1. / (W*W));
 	U->gamma_ll = sym3_rescaleToCoord_LL(gamma_LL, x);
 	
 	// K_ij = e_i^I e_j^J (ABar_IJ + gammaBar_IJ K/3) / W^2
@@ -149,7 +149,9 @@ void <?=applyInitCondCell?>(
 
 	real alpha = 1.;
 	real3 beta_u = real3_zero;
+
 	sym3 gamma_ll = coord_gHol_ll(x);
+
 	sym3 K_ll = sym3_zero;
 
 	//TODO more stress-energy vars 
@@ -162,6 +164,7 @@ void <?=applyInitCondCell?>(
 	U->alpha = alpha;
 	U->gamma_ll = gamma_ll;
 	U->K_ll = K_ll;
+	
 	U->Theta = 0.;
 	U->Z_l = real3_zero;
 
