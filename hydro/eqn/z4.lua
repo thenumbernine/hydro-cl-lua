@@ -395,15 +395,15 @@ real const det_gamma = sym3_det((<?=U?>)->gamma_ll);
 sym3 const gamma_uu = sym3_inv((<?=U?>)->gamma_ll, det_gamma);
 
 <? if solver.coord.vectorComponent == 'cartesian' then ?>
-real3 const n_l = normal_l1(n);
+real3 const n_l = normal_l1(<?=n?>);
 real const gammaUnn = real3_weightedLenSq(n_l, gamma_uu);
 <? else ?>
 real gammaUnn = 0./0.;
-if (n.side == 0) {
+if ((<?=n?>).side == 0) {
 	gammaUnn = gamma_uu.xx;
-} else if (n.side == 1) {
+} else if ((<?=n?>).side == 1) {
 	gammaUnn = gamma_uu.yy;
-} else if (n.side == 2) {
+} else if ((<?=n?>).side == 2) {
 	gammaUnn = gamma_uu.zz;
 }
 <? end ?>

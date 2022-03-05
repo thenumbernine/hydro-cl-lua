@@ -2488,7 +2488,10 @@ typedef struct {
 <? 
 for j=0,2 do
 	for i=0,2 do 
-?>			coord_g_uu<?=(side+j)%3?><?=i?>(x)<?=i+3*j < 8 and ',' or ''?> \
+		local k = (side + j) % 3
+		local m, n = k, i
+		if m > n then m, n = n, m end
+?>			coord_g_uu<?=m..n?>(x)<?=i+3*j < 8 and ',' or ''?> \
 <? 
 	end
 end 

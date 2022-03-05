@@ -5,7 +5,6 @@ Based on 2008 Yano et al "Flux Vector Splitting..."
 local class = require 'ext.class'
 local table = require 'ext.table'
 local file = require 'ext.file'
-local template = require 'template'
 local symmath = require 'symmath'
 local EinsteinEqn = require 'hydro.eqn.einstein'
 local Struct = require 'hydro.code.struct'
@@ -88,6 +87,11 @@ function Z4_2008Yano:getDisplayVars()
 	vars:append{
 		{name='volume', code='value.vreal = U->alpha * sqrt(sym3_det(U->gamma_ll));'},
 		{name='f', code='value.vreal = calc_f(U->alpha);'},
+		{name='f*alpha', code='value.vreal = calc_f_alpha(U->alpha);'},
+		{name='f*alpha^2', code='value.vreal = calc_f_alphaSq(U->alpha);'},
+		{name='df/dalpha', code='value.vreal = calc_dalpha_f(U->alpha);'},
+		{name='alpha^2*df/dalpha', code='value.vreal = calc_alphaSq_dalpha_f(U->alpha);'},
+		
 		{name='expansion', code=[[
 	real det_gamma = sym3_det(U->gamma_ll);
 	sym3 gamma_uu = sym3_inv(U->gamma_ll, det_gamma);
@@ -121,16 +125,16 @@ end
 
 Z4_2008Yano.eigenVars = table{
 	{name='alpha', type='real'},
-	{name='sqrt_f', type='real'},
+	{name='alpha_sqrt_f', type='real'},
 	{name='gamma_ll', type='sym3'},
 	{name='gamma_uu', type='sym3'},
-	{name='sqrt_gammaUjj', type='real3'},
+	{name='sqrt_gammaUnn', type='real'},
 }
 
 function Z4_2008Yano:eigenWaveCodePrefix(args)
-	return template([[
-real const eig_lambdaLight = (<?=eig?>)->alpha * (<?=eig?>)->sqrt_gammaUjj.s[(<?=n?>).side];
-real const eig_lambdaGauge = eig_lambdaLight * (<?=eig?>)->sqrt_f;
+	return self:template([[
+real const eig_lambdaLight = (<?=eig?>)->sqrt_gammaUnn * (<?=eig?>)->alpha;
+real const eig_lambdaGauge = (<?=eig?>)->sqrt_gammaUnn * (<?=eig?>)->alpha_sqrt_f;
 ]], args)
 end
 
@@ -158,19 +162,28 @@ function Z4_2008Yano:eigenWaveCode(args)
 end
 
 function Z4_2008Yano:consWaveCodePrefix(args)
-	return template([[
+	return self:template([[
 real const det_gamma = sym3_det((<?=U?>)->gamma_ll);
 sym3 const gamma_uu = sym3_inv((<?=U?>)->gamma_ll, det_gamma);
-real eig_lambdaLight = 0./0.;
+
+<? if solver.coord.vectorComponent == 'cartesian' then ?>
+real3 const n_l = normal_l1(<?=n?>);
+real const gammaUnn = real3_weightedLenSq(n_l, gamma_uu);
+<? else ?>
+real gammaUnn = 0./0.;
 if ((<?=n?>).side == 0) {
-	eig_lambdaLight = (<?=U?>)->alpha * sqrt(gamma_uu.xx);
+	gammaUnn = gamma_uu.xx;
 } else if ((<?=n?>).side == 1) {
-	eig_lambdaLight = (<?=U?>)->alpha * sqrt(gamma_uu.yy);
+	gammaUnn = gamma_uu.yy;
 } else if ((<?=n?>).side == 2) {
-	eig_lambdaLight = (<?=U?>)->alpha * sqrt(gamma_uu.zz);
+	gammaUnn = gamma_uu.zz;
 }
-real const f = calc_f((<?=U?>)->alpha);
-real eig_lambdaGauge = eig_lambdaLight * sqrt(f);
+<? end ?>
+
+real const sqrt_gammaUnn = sqrt(gammaUnn);
+real const eig_lambdaLight = sqrt_gammaUnn * (<?=U?>)->alpha;
+real const alpha_sqrt_f = sqrt(calc_f_alphaSq((<?=U?>)->alpha));
+real const eig_lambdaGauge = sqrt_gammaUnn * alpha_sqrt_f;
 ]], args)
 end
 Z4_2008Yano.consWaveCode = Z4_2008Yano.eigenWaveCode

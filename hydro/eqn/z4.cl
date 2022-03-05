@@ -164,7 +164,13 @@ void <?=applyInitCondCell?>(
 	U->alpha = alpha;
 	U->gamma_ll = gamma_ll;
 	U->K_ll = K_ll;
-	
+
+	//Z_u n^u = 0
+	//Theta = alpha n_u Z^u = alpha Z^u
+	//for n_a = (-alpha, 0)
+	//n^a_l = (1/alpha, -beta^i/alpha)
+	//(Z_t - Z_i beta^i) / alpha = Theta ... = ?
+	//Z^t n_t + Z^i n_i = -alpha Z^t = Theta
 	U->Theta = 0.;
 	U->Z_l = real3_zero;
 
@@ -211,8 +217,8 @@ for i=1,solver.dim do
 		- U[-solver->stepsize.<?=xi?>].gamma_ll.<?=xjk?>
 	) / (2. * solver->grid_dx.s<?=i-1?>);
 	<? end ?>
-<? 
-end 
+<?
+end
 for i=solver.dim+1,3 do
 	local xi = xNames[i]
 ?>
@@ -516,7 +522,7 @@ end --\
 /* and I haven't derived the flux in arbitrary-normal form, just in x-axis form (and i swap x<->y or z to calculate their fluxes) */\
 /* so here I'm going to just wing it */\
 	real3 const n_l = normal_l1(n);\
-	real gammaUnn = real3_weightedLenSq(n_l, (resultEig)->gamma_uu);\
+	real const gammaUnn = real3_weightedLenSq(n_l, (resultEig)->gamma_uu);\
 <? else ?>\
 	real gammaUnn = 0./0.;\
 	if (n.side == 0) {\
@@ -545,34 +551,34 @@ end --\
 	/*real3 const */pt,\
 	/*<?=normal_t?> const */n\
 ) {\
-	real const det_gamma = sym3_det(U->gamma_ll);\
+	real const det_gamma = sym3_det((U)->gamma_ll);\
 \
 <? if solver.coord.vectorComponent == "cartesian" then ?>\
-	sym3 const gamma_uu = sym3_inv(U->gamma_ll, det_gamma);\
+	sym3 const gamma_uu = sym3_inv((U)->gamma_ll, det_gamma);\
 	real3 const n_l = normal_l1(n);\
 	real const gammaUnn = real3_weightedLenSq(n_l, gamma_uu);\
 <? else ?>\
 	real gammaUnn = 0./0.;\
 	if (n.side == 0) {\
-		gammaUnn = (U->gamma_ll.yy * U->gamma_ll.zz - U->gamma_ll.yz * U->gamma_ll.yz) / det_gamma;\
+		gammaUnn = ((U)->gamma_ll.yy * (U)->gamma_ll.zz - (U)->gamma_ll.yz * (U)->gamma_ll.yz) / det_gamma;\
 	} else if (n.side == 1) {\
-		gammaUnn = (U->gamma_ll.xx * U->gamma_ll.zz - U->gamma_ll.xz * U->gamma_ll.xz) / det_gamma;\
+		gammaUnn = ((U)->gamma_ll.xx * (U)->gamma_ll.zz - (U)->gamma_ll.xz * (U)->gamma_ll.xz) / det_gamma;\
 	} else if (n.side == 2) {\
-		gammaUnn = (U->gamma_ll.xx * U->gamma_ll.yy - U->gamma_ll.xy * U->gamma_ll.xy) / det_gamma;\
+		gammaUnn = ((U)->gamma_ll.xx * (U)->gamma_ll.yy - (U)->gamma_ll.xy * (U)->gamma_ll.xy) / det_gamma;\
 	}\
 <? end ?>\
 	real const sqrt_gammaUnn = sqrt(gammaUnn);\
-	real const lambdaLight = U->alpha * sqrt_gammaUnn;\
+	real const lambdaLight = (U)->alpha * sqrt_gammaUnn;\
 \
-	real const f_alphaSq = calc_f_alphaSq(U->alpha);\
+	real const f_alphaSq = calc_f_alphaSq((U)->alpha);\
 	real const lambdaGauge = sqrt(f_alphaSq) * sqrt_gammaUnn;\
 \
 	real lambdaMax = max(lambdaGauge, lambdaLight);\
 	real lambdaMin = -lambdaMin;\
 \
 	<? if eqn.useShift ~= "none" then ?>\
-	lambdaMin -= normal_vecDotN1(n, U->beta_u);\
-	lambdaMax -= normal_vecDotN1(n, U->beta_u);\
+	lambdaMin -= normal_vecDotN1(n, (U)->beta_u);\
+	lambdaMax -= normal_vecDotN1(n, (U)->beta_u);\
 	<? end ?>\
 \
 	(result)->min = lambdaMin;\
@@ -581,7 +587,6 @@ end --\
 
 //// MODULE_NAME: <?=eigen_forCell?>
 //// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> <?=normal_t?> <?=initCond_codeprefix?>
-// used by plm
 
 //used by PLM, and by the default <?=fluxFromCons?> (used by hll, or roe when roeUseFluxFromCons is set)
 #define <?=eigen_forCell?>(\
@@ -598,6 +603,10 @@ end --\
 	(resultEig)->gamma_uu = sym3_inv((U)->gamma_ll, det_gamma);\
 \
 <? if solver.coord.vectorComponent == "cartesian" then ?>\
+/*  I'm using .side for holonomic(coordinate) and anholonomic(orthonormal) */\
+/* but for cartesian vector componets there is no .side, just .n, which is covariant iirc */\
+/* and I haven't derived the flux in arbitrary-normal form, just in x-axis form (and i swap x<->y or z to calculate their fluxes) */\
+/* so here I'm going to just wing it */\
 	real3 const n_l = normal_l1(n);\
 	real const gammaUnn = real3_weightedLenSq(n_l, (resultEig)->gamma_uu);\
 <? else ?>\
@@ -911,28 +920,28 @@ kernel void <?=addSource?>(
 <? end 
 ?>	};
 
-	//d_l = d_i = d_ij^j
+	/* d_l = d_i = d_ij^j */
 	real3 d_l = real3x3x3_tr23(d_llu);
 	
-	real3 d_u = sym3_real3_mul(gamma_uu, d_l);
-	real3 e_u = sym3_real3_mul(gamma_uu, e_l);
-	real3 Z_u = sym3_real3_mul(gamma_uu, U->Z_l);
+	real3 const d_u = sym3_real3_mul(gamma_uu, d_l);
+	real3 const e_u = sym3_real3_mul(gamma_uu, e_l);
+	real3 const Z_u = sym3_real3_mul(gamma_uu, U->Z_l);
 
-	//d_luu = d_i^jk = gamma^jl d_il^k
-	_3sym3 d_luu = (_3sym3){
+	/* d_luu = d_i^jk = gamma^jl d_il^k */
+	_3sym3 const d_luu = (_3sym3){
 <? for i,xi in ipairs(xNames) do		
 ?>		.<?=xi?> = sym3_real3x3_to_sym3_mul(gamma_uu, d_llu.<?=xi?>),
 <? end
 ?>	};
 
-	//alpha_,t = shift terms - alpha^2 f (K - m Theta)
-	real f_alphaSq = calc_f_alphaSq(U->alpha);
+	/* alpha_,t = shift terms - alpha^2 f (gamma^ij K_ij - m Theta) */
+	real const f_alphaSq = calc_f_alphaSq(U->alpha);
 	deriv->alpha += -f_alphaSq * (trK - solver->m * U->Theta);
 	
-	//gamma_ij,t = shift terms - 2 alpha K_ij
+	/* gamma_ij,t = shift terms - 2 alpha K_ij */
 	deriv->gamma_ll = sym3_add(deriv->gamma_ll, sym3_real_mul(U->K_ll, -2. * U->alpha));
 
-	//2005 Bona et al A.1
+	/* 2005 Bona et al A.1 */
 <? for ij,xij in ipairs(symNames) do
 	local i,j = from6to3x3(ij)
 	local xi = xNames[i]
@@ -957,7 +966,7 @@ kernel void <?=addSource?>(
 <? end
 ?>
 
-	//2005 Bona et al A.2
+	/* 2005 Bona et al A.2 */
 <? for i,xi in ipairs(xNames) do
 ?>	deriv->Z_l.<?=xi?> += U->alpha * (
 		U->a_l.<?=xi?> * (trK - 2. * U->Theta)
@@ -972,7 +981,7 @@ kernel void <?=addSource?>(
 	) - 8 * M_PI * U->alpha * S_l.<?=xi?>;
 <? end 
 ?>
-	//2005 Bona et al A.3
+	/* 2005 Bona et al A.3 */
 	deriv->Theta += U->alpha * .5 * ( trK * (trK - 2. * U->Theta)
 <? 
 for k,xk in ipairs(xNames) do 
@@ -986,6 +995,7 @@ for k,xk in ipairs(xNames) do
 	end
 end?>
 	) - 8. * M_PI * U->alpha * rho;
+
 #else	//code-generated
 
 	real const alpha = U->alpha;
