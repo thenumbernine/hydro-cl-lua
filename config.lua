@@ -374,7 +374,7 @@ local args = {
 	--initCond = 'Noh',
 	--initCond = 'implosion',
 	
-	--initCond = 'Kelvin-Helmholtz',
+	initCond = 'Kelvin-Helmholtz',
 	--[[
 	initCondArgs = {
 		noiseAmplitude = 1e-5,
@@ -385,7 +385,7 @@ local args = {
 	--initCond = 'Rayleigh-Taylor',	--FIXME ... get initial / static hydro potential working
 	--initCond = 'Taylor-Green',	-- should only work with viscosity
 	--initCond = 'Colella-Woodward',
-	initCond = 'double mach reflection',
+	--initCond = 'double mach reflection',
 	--initCond = 'square cavity',
 	--initCond = 'shock bubble interaction',		-- with usePLM only works with prim or with athena
 	--initCond = 'Richmyer-Meshkov',
