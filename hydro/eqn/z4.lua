@@ -29,7 +29,7 @@ useShift
 	
 	useShift = 'MinimalDistortionElliptic' -- minimal distortion elliptic via Poisson relaxation.  Alcubierre's book, eqn 4.3.14 and 4.3.15
 	
-	useShift = 'MinimalDistortionEllipticEvolve' -- minimal distortion elliptic via evolution.  eqn 10 of 1996 Balakrishna et al "Coordinate Conditions and their Implementations in 3D Numerical Relativity" 
+	useShift = 'MinimalDistortionEllipticEvolve' -- minimal distortion elliptic via evolution.  eqn 10 of 1996 Balakrishna et al "Coordinate Conditions and their Implementations in 3D Numerical Relativity"
 
 	useShift = '2005 Bona / 2008 Yano'
 	-- 2008 Yano et al, from 2005 Bona et al "Geometrically Motivated..."
@@ -52,9 +52,9 @@ useShift
 	4) Lagrangian coordinates
 	and this should be a separate variable, separate of the shift gauge
 
-	so 
+	so
 	one variable for what beta^i_,t is
-	another variable for how to 
+	another variable for how to
 	--]=]
 --]]
 function Z4_2004Bona:init(args)
@@ -84,13 +84,13 @@ function Z4_2004Bona:init(args)
 	This question is split into a) and b):
 	a) How are the source-only variables iterated wrt beta^i?
 	options:
-	1) put the Lie derivative terms into the source side of these variables 
+	1) put the Lie derivative terms into the source side of these variables
 	2) give them -beta^i eigenvalues?  this is the equivalent of rewriting the hyperbolic vars associated with these (a_i,d_kij) back into first-derivative 0th order vars (alpha, gamma_ij)
 
 	b) How are the flux variables iterated wrt beta^i?
 	options:
-	1) this would be solved by offsetting the eigenvalues 
-		with the offset eigenvalues, 
+	1) this would be solved by offsetting the eigenvalues
+		with the offset eigenvalues,
 		the hyperbolic state vars' contributions get incorporated into the flux,
 		but there are still some shift-based terms that end up in the source ...
 		... so the shift is split between the flux and source ...
@@ -105,8 +105,8 @@ function Z4_2004Bona:init(args)
 	if self.useShift ~= 'none' then
 		self.consVars:insert{name='beta_u', type='real3'}
 
-		if self.useShift == 'MinimalDistortionElliptic' 
-		or self.useShift == 'MinimalDistortionEllipticEvolve' 
+		if self.useShift == 'MinimalDistortionElliptic'
+		or self.useShift == 'MinimalDistortionEllipticEvolve'
 		then
 			self.consVars:insert{name='betaLap_u', type='real3'}
 		end
@@ -152,10 +152,10 @@ function Z4_2004Bona:init(args)
 			{name='rho', type='real'},			--1: n_a n_b T^ab
 			{name='S_u', type='real3'},			--3: -gamma^ij n_a T_aj
 			{name='S_ll', type='sym3'},			--6: gamma_i^c gamma_j^d T_cd
-		}								
+		}
 	end
 	self.consVars:append{
-		--constraints:              
+		--constraints:
 		{name='H', type='real'},				--1
 		{name='M_u', type='real3'},				--3
 	}
@@ -175,7 +175,7 @@ function Z4_2004Bona:init(args)
 	end
 
 
-	-- build stuff around consVars	
+	-- build stuff around consVars
 	Z4_2004Bona.super.init(self, args)
 
 
@@ -186,6 +186,14 @@ function Z4_2004Bona:init(args)
 		local LagrangianCoordinateShift = require 'hydro.op.gr-shift-lc'
 		self.solver.ops:insert(LagrangianCoordinateShift{solver=self.solver})
 	end
+end
+
+function Z4_2004Bona:getSymbolFields()
+	return Z4_2004Bona.super.getSymbolFields(self):append{
+		'initDeriv_numeric_and_useBSSNVars',
+		'calc_a_l_from_U',
+		'calc_d_lll_from_U',
+	}
 end
 
 function Z4_2004Bona:createInitState()
@@ -225,7 +233,7 @@ Z4_2004Bona.predefinedDisplayVars = {
 	'U K_ll x x',
 	'U Theta',
 	'U Z_l x',
---]]	
+--]]
 -- [[ for all dirs
 	'U gamma_ll norm',
 	'U a_l mag',
@@ -272,7 +280,7 @@ and n_a = -alpha t_,a (B&S eqns 2.19, 2.22, 2.24)
 momentum constraints
 --]]
 		{H = [[
-	.5 * 
+	.5 *
 ]]		},
 --]=]
 	}
@@ -316,9 +324,9 @@ momentum constraints
 		<? if i <= solver.dim then ?>
 		sym3 di_gamma_jk = sym3_real_mul(
 			sym3_sub(
-				U[solver->stepsize.<?=xi?>].gamma_ll, 
+				U[solver->stepsize.<?=xi?>].gamma_ll,
 				U[-solver->stepsize.<?=xi?>].gamma_ll
-			), 
+			),
 			.5 / (2. * solver->grid_dx.s<?=i-1?>)
 		);
 		<? else ?>
@@ -326,7 +334,7 @@ momentum constraints
 		<? end ?>
 		value.vsym3 = sym3_sub(di_gamma_jk, sym3_real_mul(U->d_lll.<?=xi?>, 2.));
 		value.vsym3 = (sym3){<?
-	for jk,xjk in ipairs(symNames) do 
+	for jk,xjk in ipairs(symNames) do
 ?>			.<?=xjk?> = fabs(value.vsym3.<?=xjk?>),
 <?	end
 ?>		};
@@ -369,7 +377,7 @@ function Z4_2004Bona:eigenWaveCode(args)
 		elseif args.waveIndex == 30 then
 			return '-'..betaUi..' + eig_lambdaGauge'
 		end
-	else	-- noZeroRowsInFlux 
+	else	-- noZeroRowsInFlux
 		-- noZeroRowsInFlux implies useShift == 'none'
 		if args.waveIndex == 0 then
 			return '-'..betaUi..' - eig_lambdaGauge'

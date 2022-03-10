@@ -1,7 +1,7 @@
 <?
 local useConstrainU = true -- constrains alpha to alphamin and calcs H and M^i
 local useAddSource = true
-local useKreissOligarDissipation = true	-- depends on useAddSource 
+local useKreissOligarDissipation = true	-- depends on useAddSource
 ?>
 //// MODULE_NAME: <?=calc_gamma_ll?>
 
@@ -17,6 +17,84 @@ static inline sym3 <?=calc_gamma_uu?>(
 	real const det_gamma = sym3_det(U->gamma_ll);
 	sym3 const gamma_uu = sym3_inv(U->gamma_ll, det_gamma);
 	return gamma_uu;
+}
+
+//// MODULE_NAME: <?=calc_a_l_from_U?>
+//// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?>
+
+real3 <?=calc_a_l_from_U?>(
+	constant <?=solver_t?> const * const solver,
+	global <?=cons_t?> const * const U
+) {
+	real3 a_l;
+<?
+for i=1,solver.dim do
+	local xi = xNames[i]
+?>	{
+		global <?=cons_t?> const * const UL = U - solver->stepsize.<?=xi?>;
+		global <?=cons_t?> const * const UR = U + solver->stepsize.<?=xi?>;
+		a_l.<?=xi?> = (log(UR->alpha) - log(UL->alpha)) / (2. * solver->grid_dx.s<?=i-1?>);
+	}
+<?
+end
+for i=solver.dim+1,3 do
+	local xi = xNames[i]
+?>	a_l.<?=xi?> = 0;
+<?
+end
+?>
+	return a_l;
+}
+
+//// MODULE_NAME: <?=calc_d_lll_from_U?>
+//// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> <?=cell_t?>
+
+_3sym3 <?=calc_d_lll_from_U?>(
+	constant <?=solver_t?> const * const solver,
+	global <?=cons_t?> * const U,
+	global <?=cell_t?> const * const cellBuf
+) {
+	_3sym3 d_lll;
+<?
+for i=1,solver.dim do
+	local xi = xNames[i]
+?>	{
+		global <?=cons_t?> const * const UL = U - solver->stepsize.<?=xi?>;
+		global <?=cons_t?> const * const UR = U + solver->stepsize.<?=xi?>;
+		// needed for dHat_lll
+		//global <?=cell_t?> const * const cellL = cell - solver->stepsize.<?=xi?>;
+		//global <?=cell_t?> const * const cellR = cell + solver->stepsize.<?=xi?>;
+<? 		for jk,xjk in ipairs(symNames) do
+?>		d_lll.<?=xi?>.<?=xjk?> = .5 * (UR->gamma_ll.<?=xjk?> - UL->gamma_ll.<?=xjk?>) / (2. * solver->grid_dx.s<?=i-1?>);
+<? end
+?>	}
+<?
+end
+for i=solver.dim+1,3 do
+	local xi = xNames[i]
+?>	d_lll.<?=xi?> = sym3_zero;
+<?
+end
+?>
+	return d_lll;
+}
+
+//// MODULE_NAME: <?=initDeriv_numeric_and_useBSSNVars?>
+//// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> <?=cell_t?> <?=SETBOUNDS?>
+
+kernel void <?=initDerivs?>(
+	constant <?=solver_t?> const * const solver,
+	global <?=cons_t?> * const UBuf,
+	global <?=cell_t?> const * const cellBuf
+) {
+	<?=SETBOUNDS?>(solver->numGhost, solver->numGhost);
+	global <?=cons_t?> * const U = UBuf + index;
+	global <?=cell_t?> const * const cell = cellBuf + index;
+
+//// MODULE_DEPENDS: <?=calc_a_l_from_U?>
+	U->a_l = <?=calc_a_l_from_U?>(solver, U);
+//// MODULE_DEPENDS: <?=calc_d_lll_from_U?>
+	U->d_lll = <?=calc_d_lll_from_U?>(solver, U, cell);
 }
 
 <?
@@ -93,44 +171,7 @@ void <?=applyInitCondCell?>(
 }
 
 //// MODULE_NAME: <?=initDerivs?>
-//// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> <?=cell_t?> <?=SETBOUNDS?>
-
-kernel void <?=initDerivs?>(
-	constant <?=solver_t?> const * const solver,
-	global <?=cons_t?> * const UBuf,
-	global <?=cell_t?> const * const cellBuf 
-) {
-	<?=SETBOUNDS?>(solver->numGhost, solver->numGhost);
-	global <?=cons_t?> * const U = UBuf + index;
-	
-	real det_gamma = sym3_det(U->gamma_ll);
-	sym3 const gamma_uu = sym3_inv(U->gamma_ll, det_gamma);
-
-<? 
-for i=1,solver.dim do 
-	local xi = xNames[i]
-?>
-	U->a_l.<?=xi?> = (
-		log(U[solver->stepsize.<?=xi?>].alpha) 
-		- log(U[-solver->stepsize.<?=xi?>].alpha)
-	) / (2. * solver->grid_dx.s<?=i-1?>);
-	<? for jk,xjk in ipairs(symNames) do ?>
-	U->d_lll.<?=xi?>.<?=xjk?> = .5 * (
-		U[solver->stepsize.<?=xi?>].gamma_ll.<?=xjk?> 
-		- U[-solver->stepsize.<?=xi?>].gamma_ll.<?=xjk?>
-	) / (2. * solver->grid_dx.s<?=i-1?>);
-	<? end ?>
-<? 
-end 
-for i=solver.dim+1,3 do
-	local xi = xNames[i]
-?>
-	U->a_l.<?=xi?> = 0;
-	U->d_lll.<?=xi?> = sym3_zero;
-<?
-end
-?>
-}
+//// MODULE_DEPENDS: <?=initDeriv_numeric_and_useBSSNVars?>
 
 <? else	-- not eqn.initCond.useBSSNVars ?>
 
@@ -154,7 +195,7 @@ void <?=applyInitCondCell?>(
 
 	sym3 K_ll = sym3_zero;
 
-	//TODO more stress-energy vars 
+	//TODO more stress-energy vars
 	real rho = 0.;
 
 	<?=initCode()?>
@@ -190,44 +231,7 @@ void <?=applyInitCondCell?>(
 }
 
 //// MODULE_NAME: <?=initDerivs?>
-//// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> <?=cell_t?> <?=SETBOUNDS?>
-
-kernel void <?=initDerivs?>(
-	constant <?=solver_t?> const * const solver,
-	global <?=cons_t?> * const UBuf,
-	global <?=cell_t?> const * const cellBuf
-) {
-	<?=SETBOUNDS?>(solver->numGhost, solver->numGhost);
-	global <?=cons_t?> * const U = UBuf + index;
-	
-	real const det_gamma = sym3_det(U->gamma_ll);
-	sym3 const gamma_uu = sym3_inv(U->gamma_ll, det_gamma);
-
-<? 
-for i=1,solver.dim do 
-	local xi = xNames[i]
-?>
-	U->a_l.<?=xi?> = (
-		log(U[solver->stepsize.<?=xi?>].alpha) 
-		- log(U[-solver->stepsize.<?=xi?>].alpha)
-	) / (2. * solver->grid_dx.s<?=i-1?>);
-	<? for jk,xjk in ipairs(symNames) do ?>
-	U->d_lll.<?=xi?>.<?=xjk?> = .5 * (
-		U[solver->stepsize.<?=xi?>].gamma_ll.<?=xjk?> 
-		- U[-solver->stepsize.<?=xi?>].gamma_ll.<?=xjk?>
-	) / (2. * solver->grid_dx.s<?=i-1?>);
-	<? end ?>
-<?
-end
-for i=solver.dim+1,3 do
-	local xi = xNames[i]
-?>
-	U->a_l.<?=xi?> = 0;
-	U->d_lll.<?=xi?> = sym3_zero;
-<?
-end
-?>
-}
+//// MODULE_DEPENDS: <?=initDeriv_numeric_and_useBSSNVars?>
 
 <? end	-- eqn.initCond.useBSSNVars ?>
 
@@ -248,10 +252,10 @@ static inline void <?=setFlatSpace?>(
 	(U)->K_ll = sym3_zero;
 	(U)->Theta = 0.;
 	(U)->Z_l = real3_zero;
-<? if eqn.useShift ~= "none" then 
+<? if eqn.useShift ~= "none" then
 ?>	(U)->beta_u = real3_zero;
-<? end 
-?>	
+<? end
+?>
 <? if eqn.useStressEnergyTerms then ?>
 	//what to do with the constraint vars and the source vars?
 	(U)->rho = 0;
@@ -1003,12 +1007,12 @@ end --\
 //// MODULE_NAME: <?=eigen_fluxTransform?>
 //// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> <?=normal_t?>
 // used by roe, some plm
-//so long as roeUseFluxFromCons isn't set for the roe solver, 
+//so long as roeUseFluxFromCons isn't set for the roe solver,
 // and fluxFromCons is provided/unused,
 // eigen_fluxTransform isn't needed.
 // but some solvers do use a boilerplate right(lambda(left(U)))
 //however if you want to use the HLL solver then fluxFromCons is needed
-//...however fluxFromCons is not provided by this eqn.	
+//...however fluxFromCons is not provided by this eqn.
 
 #define <?=eigen_fluxTransform?>(\
 	/*<?=cons_t?> * const */resultFlux,\
@@ -1102,10 +1106,11 @@ kernel void <?=addSource?>(
 	global <?=cons_t?> const * const UBuf,
 	global <?=cell_t?> const * const cellBuf
 ) {
-<? if useAddSource then ?>	
+<? if useAddSource then ?>
 	<?=SETBOUNDS_NOGHOST?>();
 	global <?=cons_t?> const * const U = UBuf + index;
 	global <?=cons_t?> * const deriv = derivBuf + index;
+	global <?=cell_t?> const * const cell = cellBuf + index;
 
 	real const det_gamma = sym3_det(U->gamma_ll);
 	sym3 const gamma_uu = sym3_inv(U->gamma_ll, det_gamma);
@@ -1133,7 +1138,7 @@ kernel void <?=addSource?>(
 
 	//conn^k_ij = d_ij^k + d_ji^k - d^k_ij
 	_3sym3 conn_ull = {
-<? for k,xk in ipairs(xNames) do 
+<? for k,xk in ipairs(xNames) do
 ?>		.<?=xk?> = (sym3){
 <?	for ij,xij in ipairs(symNames) do
 		local i,j = from6to3x3(ij)
@@ -1141,7 +1146,7 @@ kernel void <?=addSource?>(
 ?>			.<?=xij?> = d_llu.<?=xi?>.<?=xj?>.<?=xk?> + d_llu.<?=xj?>.<?=xi?>.<?=xk?> - d_ull.<?=xk?>.<?=xij?>,
 <? end
 ?>		},
-<? end 
+<? end
 ?>	};
 
 	/* d_l = d_i = d_ij^j */
@@ -1153,7 +1158,7 @@ kernel void <?=addSource?>(
 
 	/* d_luu = d_i^jk = gamma^jl d_il^k */
 	_3sym3 const d_luu = (_3sym3){
-<? for i,xi in ipairs(xNames) do		
+<? for i,xi in ipairs(xNames) do
 ?>		.<?=xi?> = sym3_real3x3_to_sym3_mul(gamma_uu, d_llu.<?=xi?>),
 <? end
 ?>	};
@@ -1203,13 +1208,13 @@ kernel void <?=addSource?>(
 	end
 ?>
 	) - 8 * M_PI * U->alpha * S_l.<?=xi?>;
-<? end 
+<? end
 ?>
 	/* 2005 Bona et al A.3 */
 	deriv->Theta += U->alpha * .5 * ( trK * (trK - 2. * U->Theta)
-<? 
-for k,xk in ipairs(xNames) do 
-?>		+ 2. * U->a_l.<?=xk?> * (d_u.<?=xk?> - e_u.<?=xk?> - 2. * Z_u.<?=xk?>) 
+<?
+for k,xk in ipairs(xNames) do
+?>		+ 2. * U->a_l.<?=xk?> * (d_u.<?=xk?> - e_u.<?=xk?> - 2. * Z_u.<?=xk?>)
 		- d_u.<?=xk?> * (d_l.<?=xk?> - 2. * U->Z_l.<?=xk?>)
 <?	for r,xr in ipairs(xNames) do
 ?>		- K_ul.<?=xk?>.<?=xr?> * K_ul.<?=xr?>.<?=xk?>
@@ -1236,8 +1241,8 @@ end?>
 	//df/dalpha = -2 / alpha^2
 	//df/dalpha alpha = -2 / alpha
 	//df/dalpha alpha^2 = -2
-	real const f_alpha = calc_f_alpha(alpha);	
-	real const f_alphaSq = calc_f_alphaSq(alpha);	
+	real const f_alpha = calc_f_alpha(alpha);
+	real const f_alphaSq = calc_f_alphaSq(alpha);
 	real const alphaSq_dalpha_f = calc_alphaSq_dalpha_f(alpha);
 
 	//TODO:
@@ -3513,46 +3518,35 @@ end?>
 #endif
 //decay for 1st deriv hyperbolic state vars constraints:
 
-	//turns out if you "if conv != 0" all these then skipping decay explodes soon in simulation steps, but time grows quickly, so it dies at a high t value 
+	//turns out if you "if conv != 0" all these then skipping decay explodes soon in simulation steps, but time grows quickly, so it dies at a high t value
 
+//// MODULE_DEPENDS: <?=calc_a_l_from_U?>
 	// a_x = log(alpha)_,x <=> a_x += eta (log(alpha)_,x - a_x)
 	if (solver->a_convCoeff != 0.) {
-		<? for i,xi in ipairs(xNames) do ?>{
-			<? if i <= solver.dim then ?>
-			real partial_i_log_alpha = (
-				log(U[solver->stepsize.<?=xi?>].alpha) 
-				- log(U[-solver->stepsize.<?=xi?>].alpha)
-			) / (2. * solver->grid_dx.<?=xi?>);
-			<? else ?>
-			real partial_i_log_alpha = 0.;
-			<? end ?>
-			deriv->a_l.<?=xi?> += solver->a_convCoeff * (partial_i_log_alpha - U->a_l.<?=xi?>);
-		}<? end ?>	
-	}
+		real3 const target_a_l = <?=calc_a_l_from_U?>(solver, U);
+<?
+for i,xi in ipairs(xNames) do
+?>		deriv->a_l.<?=xi?> += solver->a_convCoeff * (target_a_l.<?=xi?> - U->a_l.<?=xi?>);
+<? end
+?>	}
 
+//// MODULE_DEPENDS: <?=calc_d_lll_from_U?>
 	// d_xxx = .5 gamma_xx,x <=> d_xxx += eta (.5 gamma_xx,x - d_xxx)
 	if (solver->d_convCoeff != 0.) {
-		<? for i,xi in ipairs(xNames) do 
-			for jk,xjk in ipairs(symNames) do ?>{
-				<? if i <= solver.dim then ?>
-			real partial_i_gamma_jk = (
-				U[solver->stepsize.<?=xi?>].gamma_ll.<?=xjk?> 
-				- U[-solver->stepsize.<?=xi?>].gamma_ll.<?=xjk?>
-			) / (2. * solver->grid_dx.<?=xi?>);
-				<? else ?>
-			real partial_i_gamma_jk = 0;
-				<? end ?>
-			deriv->d_lll.<?=xi?>.<?=xjk?> += solver->d_convCoeff * (.5 * partial_i_gamma_jk - U->d_lll.<?=xi?>.<?=xjk?>);
-		}<? end ?>
-		<? end ?>
-	}
+		_3sym3 const target_d_lll = <?=calc_d_lll_from_U?>(solver, U, cell);
+<?
+for i,xi in ipairs(xNames) do
+	for jk,xjk in ipairs(symNames) do
+?>		deriv->d_lll.<?=xi?>.<?=xjk?> += solver->d_convCoeff * (target_d_lll.<?=xi?>.<?=xjk?> - U->d_lll.<?=xi?>.<?=xjk?>);
+<? 	end
+end
+?>	}
 
 <? if useKreissOligarDissipation then ?>
 //// MODULE_DEPENDS: applyKreissOligar numberof
 	// Kreiss-Oligar dissipation:
 	if (solver->dissipationCoeff != 0.) {
 		int fields[numIntStates] = {<?=require "ext.range"(0,eqn.numIntStates-1):concat", "?>};
-		global <?=cell_t?> const * const cell = cellBuf + index;
 		applyKreissOligar(solver, U, cell, deriv, fields, numberof(fields));
 	}
 <? end -- useKreissOligarDissipation ?>
@@ -3567,8 +3561,8 @@ kernel void <?=constrainU?>(
 	global <?=cons_t?> * const UBuf,
 	global <?=cell_t?> const * const cellBuf
 ) {
-<? if useConstrainU then ?>	
-	<?=SETBOUNDS?>(solver->numGhost, solver->numGhost);		
+<? if useConstrainU then ?>
+	<?=SETBOUNDS?>(solver->numGhost, solver->numGhost);
 	global <?=cons_t?> * const U = UBuf + index;
 	
 	real const det_gamma = sym3_det(U->gamma_ll);
@@ -3576,7 +3570,7 @@ kernel void <?=constrainU?>(
 
 	real3x3 const K_ul = sym3_sym3_mul(gamma_uu, U->K_ll);			//K^i_j
 	real const tr_K = real3x3_trace(K_ul);							//K^k_k
-	sym3 const KSq_ll = sym3_real3x3_to_sym3_mul(U->K_ll, K_ul);		//KSq_ij = K_ik K^k_j	
+	sym3 const KSq_ll = sym3_real3x3_to_sym3_mul(U->K_ll, K_ul);		//KSq_ij = K_ik K^k_j
 	sym3 const K_uu = real3x3_sym3_to_sym3_mul(K_ul, gamma_uu);			//K^ij
 
 	//d_llu = d_ij^k = d_ijl * gamma^lk
@@ -3590,7 +3584,7 @@ kernel void <?=constrainU?>(
 
 	//conn^k_ij = d_ij^k + d_ji^k - d^k_ij
 	_3sym3 const conn_ull = {
-<? for k,xk in ipairs(xNames) do 
+<? for k,xk in ipairs(xNames) do
 ?>		.<?=xk?> = (sym3){
 <?	for ij,xij in ipairs(symNames) do
 		local i,j = from6to3x3(ij)
@@ -3598,16 +3592,16 @@ kernel void <?=constrainU?>(
 ?>			.<?=xij?> = d_llu.<?=xi?>.<?=xj?>.<?=xk?> + d_llu.<?=xj?>.<?=xi?>.<?=xk?> - d_ull.<?=xk?>.<?=xij?>,
 <? end
 ?>		},
-<? end 
+<? end
 ?>	};
 	
 	//d_l.i = d_i = d_ij^j
 	real3 const d_l = real3x3x3_tr23(d_llu);
 
 	//partial_d_lll.ij.kl = d_kij,l = d_(k|(ij),|l)
-	//so this object's indexes are rearranged compared to the papers 
+	//so this object's indexes are rearranged compared to the papers
 	sym3sym3 partial_d_llll;
-<? 
+<?
 for ij,xij in ipairs(symNames) do
 	for kl,xkl in ipairs(symNames) do
 		local k,l,xk,xl = from6to3x3(kl)
@@ -3633,14 +3627,14 @@ end
 	// R_ll.ij := R_ij
 	//	= gamma^kl (-gamma_ij,kl - gamma_kl,ij + gamma_ik,jl + gamma_jl,ik)
 	//		+ conn^k_ij (d_k - 2 e_k)
-	//		- 2 d^l_ki d^k_lj 
-	//		+ 2 d^l_ki d_lj^k 
+	//		- 2 d^l_ki d^k_lj
+	//		+ 2 d^l_ki d_lj^k
 	//		+ d_il^k d_jk^l
 	sym3 const R_ll = (sym3){
 <? for ij,xij in ipairs(symNames) do
 	local i,j,xi,xj = from6to3x3(ij)
 ?>		.<?=xij?> = 0.
-<? 	for k,xk in ipairs(xNames) do 
+<? 	for k,xk in ipairs(xNames) do
 ?>			+ conn_ull.<?=xk?>.<?=xij?> * (d_l.<?=xk?> - 2. * e_l.<?=xk?>)
 <?		for l,xl in ipairs(xNames) do
 ?>			+ 2. * d_ull.<?=xl?>.<?=sym(k,i)?> * (d_llu.<?=xl?>.<?=xj?>.<?=xk?> - d_ull.<?=xk?>.<?=sym(l,j)?>)
@@ -3659,43 +3653,43 @@ end
 
 	//scaled down by 1/8 to match B&S BSSNOK equations ... maybe I'll scale theirs up by 8 ...
 	//B&S eqn 2.125 ... divded by two
-	//Alcubierre eqn 2.5.9, also Alcubierre 2.4.10 divided by two 
+	//Alcubierre eqn 2.5.9, also Alcubierre 2.4.10 divided by two
 	//H = 1/2 (R + K^2 - K_ij K^ij) - 8 pi rho
 	real const R = sym3_dot(R_ll, gamma_uu);
 	real const tr_KSq = sym3_dot(KSq_ll, gamma_uu);
-	U->H = .5 * (R + tr_K * tr_K - tr_KSq) <? 
+	U->H = .5 * (R + tr_K * tr_K - tr_KSq) <?
 if eqn.useStressEnergyTerms then ?>
-	- 8. * M_PI * U->rho <? 
+	- 8. * M_PI * U->rho <?
 end ?>;
 
-<?=eqn:makePartial1"K_ll"?>	
+<?=eqn:makePartial1"K_ll"?>
 
 	/*
 	momentum constraint
 	Alcubierre eqn 2.4.11
-	M^i = K^ij_;j 
-		- gamma^ij K_,j 
+	M^i = K^ij_;j
+		- gamma^ij K_,j
 		- 8 pi S^i
 	M^i = gamma^im gamma^jn (
-			K_mn,j 
-			- conn^k_mj K_kn 
+			K_mn,j
+			- conn^k_mj K_kn
 			- conn^k_nj K_mk
-		) 
+		)
 		- gamma^ij (gamma^mn_,j K_mn + gamma^mn K_mn,j)
 		- 8 pi S^i
 	M^i = gamma^ij (
 			gamma^mn (
-				K_jn,m 
+				K_jn,m
 				- K_mn,j
-				- conn^k_jm K_kn 
+				- conn^k_jm K_kn
 				- conn^k_nm K_jk
-			) 
-			+ 2 d_jmn K^mn 
+			)
+			+ 2 d_jmn K^mn
 		)
 		- 8 pi S^i
 	*/
-<? for i,xi in ipairs(xNames) do 
-?>	U->M_u.<?=xi?> = 
+<? for i,xi in ipairs(xNames) do
+?>	U->M_u.<?=xi?> =
 <?	for j,xj in ipairs(xNames) do
 		for m,xm in ipairs(xNames) do
 			for n,xn in ipairs(xNames) do
@@ -3706,7 +3700,7 @@ end ?>;
 <?				for k,xk in ipairs(xNames) do
 ?>				- conn_ull.<?=xk?>.<?=sym(j,m)?> * U->K_ll.<?=sym(k,n)?>
 				- conn_ull.<?=xk?>.<?=sym(n,m)?> * U->K_ll.<?=sym(j,k)?>
-<?				end			
+<?				end
 ?>			)
 			+ 2. * U->d_lll.<?=xj?>.<?=sym(m,n)?> * K_uu.<?=sym(m,n)?>
 		)
