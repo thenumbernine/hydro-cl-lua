@@ -619,7 +619,7 @@ static inline real real3_weightedLen(real3 a, sym3 m) {
 }
 
 //// MODULE_NAME: sym3_rotate
-//// MODULE_DEPENDS: rotate
+//// MODULE_DEPENDS: sym3 rotate
 //// MODULE_HEADER:
 
 static inline sym3 sym3_rotateFrom(sym3 const m, real3 const n);
@@ -695,6 +695,7 @@ static inline sym3 sym3_swap2(sym3 m) { return _sym3(m.zz, m.yz, m.xz, m.yy, m.x
 //instead:
 #define real3x3_zero ((real3x3){.x=real3_zero, .y=real3_zero, .z=real3_zero})
 
+static inline real3x3 real3x3_from_real3x3(real3x3 x);
 static inline real3x3 real3x3_add(real3x3 a, real3x3 b);
 static inline real3x3 real3_real3_outer(real3 a, real3 b);
 static inline real real3x3_dot(real3x3 a, real3x3 b);
@@ -716,6 +717,8 @@ static inline real real3x3_det(real3x3 m);
 static inline real3x3 real3x3_inv(real3x3 m);
 
 //// MODULE_CODE:
+
+static inline real3x3 real3x3_from_real3x3(real3x3 x) { return x; }
 
 static inline real3x3 real3x3_add(real3x3 a, real3x3 b) {
 	return (real3x3){
@@ -944,6 +947,74 @@ for i=0,2 do
 ?>		},
 <? end
 ?>	};
+}
+
+//// MODULE_NAME: real3x3_rotate
+//// MODULE_DEPENDS: real3x3 rotate
+//// MODULE_HEADER:
+
+static inline real3x3 real3x3_rotateFrom(real3x3 const m, real3 const n);
+static inline real3x3 real3x3_rotateTo(real3x3 const m, real3 const n);
+static inline real3x3 real3x3_swap(real3x3 m, int side);
+static inline real3x3 real3x3_swap0(real3x3 m);
+static inline real3x3 real3x3_swap1(real3x3 m);
+static inline real3x3 real3x3_swap2(real3x3 m);
+
+//// MODULE_CODE:
+
+static inline real3x3 real3x3_rotateFrom(
+	real3x3 t,
+	real3 const n
+) {
+	t.x = real3_rotateFrom(t.x, n);
+	t.y = real3_rotateFrom(t.y, n);
+	t.z = real3_rotateFrom(t.z, n);
+	t = real3x3_transpose(t);
+	t.x = real3_rotateFrom(t.x, n);
+	t.y = real3_rotateFrom(t.y, n);
+	t.z = real3_rotateFrom(t.z, n);
+	return t;
+}
+
+static inline real3x3 real3x3_rotateTo(
+	real3x3 t,
+	real3 const n
+) {
+	t.x = real3_rotateTo(t.x, n);
+	t.y = real3_rotateTo(t.y, n);
+	t.z = real3_rotateTo(t.z, n);
+	t = real3x3_transpose(t);
+	t.x = real3_rotateTo(t.x, n);
+	t.y = real3_rotateTo(t.y, n);
+	t.z = real3_rotateTo(t.z, n);
+	return t;
+}
+
+//for swapping dimensions between x and 012
+static inline real3x3 real3x3_swap0(real3x3 m) { 
+	return m;
+}
+static inline real3x3 real3x3_swap1(real3x3 m) {
+	return _real3x3(
+		m.y.y, m.y.x, m.y.z,
+		m.x.y, m.x.x, m.x.z,
+		m.z.y, m.z.x, m.z.z);
+}
+static inline real3x3 real3x3_swap2(real3x3 m) {
+	return _real3x3(
+		m.z.z, m.z.y, m.z.x,
+		m.y.z, m.y.y, m.y.x,
+		m.x.z, m.x.y, m.x.x);
+}
+static inline real3x3 real3x3_swap(real3x3 m, int side) {
+	if (side == 0) {
+		return real3x3_swap0(m);
+	} else if (side == 1) {
+		return real3x3_swap1(m);
+	} else if (side == 2) {
+		return real3x3_swap2(m);
+	}
+	return _real3x3(0./0., 0./0., 0./0., 0./0., 0./0., 0./0., 0./0., 0./0., 0./0.);
 }
 
 //// MODULE_NAME: _3sym3

@@ -32,12 +32,16 @@ useShift
 	useShift = 'MinimalDistortionEllipticEvolve' -- minimal distortion elliptic via evolution.  eqn 10 of 1996 Balakrishna et al "Coordinate Conditions and their Implementations in 3D Numerical Relativity"
 
 	useShift = '2005 Bona / 2008 Yano'
-	-- 2008 Yano et al, from 2005 Bona et al "Geometrically Motivated..."
+	-- 2008 Yano et al, from 2005 Bona et al "Geometrically Motivated..." or "to convert the minimal distortion elliptic equations into time-dependent parabolic equations by means of the Hamilton-Jacobi method"
 	-- 2005 Bona mentions a few, but 2008 Yano picks the first one from the 2005 Bona paper.
+	I'm not sure what to call this one ... it's the one in 
+	2005 Bona et al, section B.1, "to convert the minimal distortion elliptic equations into time-dependent parabolic equations by means of the Hamilton-Jacobi method"
+	TODO is this the same as "MinimalDistortionEllipticEvolve" ?
 
 	useShift = 'HarmonicShiftCondition-FiniteDifference'
 	-- 2008 Alcubierre 4.3.37
 	-- I see some problems in the warp bubble test ...
+	-- wait is this the same as "2005 Bona / 2008 Yano" ?
 
 	useShift = 'LagrangianCoordinates'
 	--[=[
@@ -109,6 +113,8 @@ function Z4_2004Bona:init(args)
 		or self.useShift == 'MinimalDistortionEllipticEvolve'
 		then
 			self.consVars:insert{name='betaLap_u', type='real3'}
+		elseif self.useShift == '2005 Bona / 2008 Yano' then
+			self.consVars:insert{name='b_ul', type='real3x3'}
 		end
 	end
 

@@ -10,8 +10,8 @@ local makePartials = require 'hydro.eqn.makepartial'
 local common = require 'hydro.common'
 local xNames = common.xNames
 local symNames = common.symNames
-local from3x3to6 = common.from3x3to6 
-local from6to3x3 = common.from6to3x3 
+local from3x3to6 = common.from3x3to6
+local from6to3x3 = common.from6to3x3
 local sym = common.sym
 
 
@@ -63,7 +63,7 @@ Equation.parityVarsGetters = table{
 				parityVars:insert(field..'.'..xi..'.re')
 				parityVars:insert(field..'.'..xi..'.im')
 			end
-		end	
+		end
 	end,
 	sym3 = function(sign, parityVars, field)
 		for ij,xij in ipairs(symNames) do
@@ -80,7 +80,7 @@ Equation.parityVarsGetters = table{
 					parityVars:insert(field..'.'..xi..'.'..xj)
 				end
 			end
-		end	
+		end
 	end,
 	_3sym3 = function(sign, parityVars, field)
 		for k,xk in ipairs(xNames) do
@@ -89,7 +89,7 @@ Equation.parityVarsGetters = table{
 				if sign[i] * sign[j] * sign[k] == -1 then
 					parityVars:insert(field..'.'..xk..'.'..xij)
 				end
-			end		
+			end
 		end
 	end,
 }
@@ -152,16 +152,16 @@ function Equation:init(args)
 how to handle cdefs and subeqns wrt counting number of reals ...
 
 solver init:
-- build sub-objs 
+- build sub-objs
 	- including eqn
-		- count scalars to determine # init states 
+		- count scalars to determine # init states
 			- early cdef of field types ... real, real3, sym3, etc
 - build code modules
 - cdef all required types: solver_t, cons_t, prim_t, etc
 
 solver w composite eqn init:
-- build sub-objs ... 
-	- including eqn 
+- build sub-objs ...
+	- including eqn
 		- including its sub-eqns
 			- count scalars
 				- early cdef of all field types
@@ -174,10 +174,10 @@ no, they're needed for the integrator
 
 	--[[
 	make sure all math types are cdef'd,
-	for sizeof's for calculating the union ptr size 
+	for sizeof's for calculating the union ptr size
 	when we makeType the consStruct
 	we can't do this after makeType unless we also put it after initCodeModule
-	(but eqn:initCodeModule is called after the consStruct type is defined)	
+	(but eqn:initCodeModule is called after the consStruct type is defined)
 	
 	here's a better idea ... only do this within initCodeModules
 	but that means you can't create the integrator until within solver's initCodeModules
@@ -244,8 +244,8 @@ no, they're needed for the integrator
 
 	if not self.eigenVars then
 		self.eigenStruct = Struct{
-			solver = solver, 
-			name = 'eigen_t', 
+			solver = solver,
+			name = 'eigen_t',
 			dontUnion = true,
 			vars = {
 				{name='unused', type='char'},
@@ -273,7 +273,7 @@ no, they're needed for the integrator
 		end
 	end
 	
-	if not self.numStates then 
+	if not self.numStates then
 		self.numStates = numReals
 		if not self.numStates then
 			error("you either need to define numStates or consVars or consStruct")
@@ -284,7 +284,7 @@ no, they're needed for the integrator
 		end
 	end
 	-- default # waves is the # of states
-	if not self.numWaves then self.numWaves = self.numStates end 
+	if not self.numWaves then self.numWaves = self.numStates end
 	
 	-- how many states are integratable
 	-- (put static states at the end of your cons_t structures)
@@ -325,7 +325,7 @@ no, they're needed for the integrator
 		self:getParityVars(-1, 1, -1),
 		{},
 		{},
-	} 
+	}
 
 	-- theta min/max, for spherical coordinates
 	self.reflectVars.sphereTheta = self.reflectVars.sphereTheta or {
@@ -503,10 +503,10 @@ function Equation:getEnv()
 		cell_t = assert(coord.cell_t),
 		face_t = assert(coord.face_t),
 		
-		-- macro numbers 
+		-- macro numbers
 		numWaves = self.numWaves,
 
-		-- common 
+		-- common
 		xNames = xNames,
 		symNames = symNames,
 		from3x3to6 = from3x3to6,
@@ -515,7 +515,7 @@ function Equation:getEnv()
 		clnumber = require 'cl.obj.number',
 	
 		-- really only used by applyInitCond
-		initCode = function() 
+		initCode = function()
 			-- calls initCond:getInitCondCode
 			return self.initCond:getInitCondCode()
 		end,
@@ -569,7 +569,7 @@ function Equation:initCodeModules()
 	-- the runtime ones are stored in solver_t
 	solver.modules:add{
 		name = self.symbols.eqn_guiVars_compileTime,
-		headercode = table.mapi(self.guiVars or {}, function(var,i,t) 
+		headercode = table.mapi(self.guiVars or {}, function(var,i,t)
 			return (var.compileTime and var:getCode() or nil), #t+1
 		end):concat'\n',
 	}
@@ -612,16 +612,16 @@ function Equation:initCodeModule_cons_parallelPropagate()
 
 	-- only require this if we're a fvsolver
 
-	-- parallel propagate autogen code 
+	-- parallel propagate autogen code
 	-- only used for finite-volume solvers
 	-- also NOTICE there seems to be a bug where the CL compiler stalls when compiling the parallel-propagate code with bssnok-fd
 	-- so hopefully the module system can help that out
 	--
 	-- TODO hmm, can't add the module unless it's being used
 	--  because some that don't use it (bssnok-fd) use custom suffixes on var names
-	if require 'hydro.solver.fvsolver':isa(solver) 
+	if require 'hydro.solver.fvsolver':isa(solver)
 	-- TODO only if it's a mesh solver using a flux integrator ... which is currently all mesh solvers
-	or require 'hydro.solver.meshsolver':isa(solver) 
+	or require 'hydro.solver.meshsolver':isa(solver)
 	then
 		local degreeForType = {
 			real = 0,
@@ -645,12 +645,12 @@ function Equation:initCodeModule_cons_parallelPropagate()
 			end
 		end
 
---[[			
+--[[
 cons_parallelPropagate is a macro
 First argument is the name of the resulting local var
 that will hold a ptr to the results.
 
-In the event that propagation is identity, a pointer with name 'resultName' pointing to the original variable is created. 
+In the event that propagation is identity, a pointer with name 'resultName' pointing to the original variable is created.
 
 In the event that a transformation is necessary, then a temp var is created, and 'resultName' points to it.
 --]]
@@ -670,10 +670,10 @@ In the event that a transformation is necessary, then a temp var is created, and
 					return degreeForType[var.type] == 3
 				end) and {'real3x3x3'} or nil
 			),
-			code = self:template([[<? 
+			code = self:template([[<?
 for side=0,solver.dim-1 do
 	if coord.vectorComponent == 'cartesian'
-	or require 'hydro.coord.cartesian':isa(coord) 
+	or require 'hydro.coord.cartesian':isa(coord)
 	then
 ?>#define <?=cons_parallelPropagate?><?=side?>(resultName, U, pt, dx)\
 	global <?=cons_t?> const * const resultName = U;
@@ -709,6 +709,19 @@ for side=0,solver.dim-1 do
 					t.x = coord_parallelPropagateL<?=side?>(t.x, pt, dx);\
 					t.y = coord_parallelPropagateL<?=side?>(t.y, pt, dx);\
 					t.z = coord_parallelPropagateL<?=side?>(t.z, pt, dx);\
+					resultName##base.<?=var.name?> = <?=var.type?>_from_real3x3(t);\
+				}\
+<?			elseif variance == 'ul' then
+?>				{\
+					real3x3 t = real3x3_from_<?=var.type?>(resultName##base.<?=var.name?>);\
+					t.x = coord_parallelPropagateU<?=side?>(t.x, pt, dx);\
+					t.y = coord_parallelPropagateU<?=side?>(t.y, pt, dx);\
+					t.z = coord_parallelPropagateU<?=side?>(t.z, pt, dx);\
+					t = real3x3_transpose(t);\
+					t.x = coord_parallelPropagateL<?=side?>(t.x, pt, dx);\
+					t.y = coord_parallelPropagateL<?=side?>(t.y, pt, dx);\
+					t.z = coord_parallelPropagateL<?=side?>(t.z, pt, dx);\
+					t = real3x3_transpose(t);\
 					resultName##base.<?=var.name?> = <?=var.type?>_from_real3x3(t);\
 				}\
 <?			elseif variance == 'lll' then
@@ -833,11 +846,11 @@ Equation.displayVarCodeUsesPrims = false
 function Equation:getDisplayVarCodePrefix()
 	return self:template[[
 global <?=cons_t?> const * const U = buf + index;
-<? if eqn.displayVarCodeUsesPrims then 
+<? if eqn.displayVarCodeUsesPrims then
 ?><?=prim_t?> W;
 //// MODULE_DEPENDS: <?=primFromCons?>
 <?=primFromCons?>(&W, solver, U, x);
-<? end 
+<? end
 ?>]]
 end
 
@@ -857,7 +870,7 @@ function Equation:createDivDisplayVar(args)
 	local units = args.units
 	
 	return {
-		name = 'div '..field, 
+		name = 'div '..field,
 		code = self:template([[
 	if (<?=OOB?>(1,1)) {
 		value.v<?=scalar?> = 0./0.;
@@ -876,11 +889,11 @@ function Equation:createDivDisplayVar(args)
 	}
 ]], 	{
 			getField = getField or function(U, j)
-				return U..'->'..field..'.s'..j	
+				return U..'->'..field..'.s'..j
 			end,
 			scalar = scalar,
 		}),
-		type = scalar, 
+		type = scalar,
 		units = units,
 	}
 end
@@ -948,7 +961,7 @@ function Equation:createCurlDisplayVar(args)
 	}<? end ?>
 ]], 			{
 					v = v,
-				}), 
+				}),
 			type = 'real3',
 			units = units,
 		}
@@ -1041,7 +1054,7 @@ function Equation:eigenWaveCodeMinMax(args)
 	args.args = args
 	return self:eigenWaveCodePrefix(args)..'\n'
 	..self:template([[
-<? local table = require 'ext.table' 
+<? local table = require 'ext.table'
 ?><?=eqn:waveCodeAssignMinMax(
 	declare, resultMin, resultMax,
 	eqn:eigenWaveCode(table(args, {waveIndex=0}):setmetatable(nil)),
@@ -1067,7 +1080,7 @@ function Equation:consWaveCodeMinMax(args)
 	args.args = args
 	return self:consWaveCodePrefix(args)..'\n'
 	..self:template([[
-<? local table = require 'ext.table' 
+<? local table = require 'ext.table'
 ?><?=eqn:waveCodeAssignMinMax(
 	declare, resultMin, resultMax,
 	eqn:consWaveCode(table(args, {waveIndex=0}):setmetatable(nil)),
@@ -1120,7 +1133,7 @@ kernel void <?=calcDT?>(
 	global real * const dtBuf,
 	global <?=cons_t?> const * const UBuf,
 	global <?=cell_t?> const * const cellBuf<?
-if require "hydro.solver.meshsolver":isa(solver) then 
+if require "hydro.solver.meshsolver":isa(solver) then
 ?>,
 	global <?=face_t?> const * const faces,
 	global int const * const cellFaceIndexes<?
@@ -1145,7 +1158,7 @@ end
 		solver,
 		U,
 		cell<?
-if require "hydro.solver.meshsolver":isa(solver) then 
+if require "hydro.solver.meshsolver":isa(solver) then
 ?>,
 		faces,
 		cellFaceIndexes<?
@@ -1161,7 +1174,7 @@ end
 Default code for the following:
 	primFromCons
 	consFromPrim
-	apply_dU_dW : prim_t -> cons_t 
+	apply_dU_dW : prim_t -> cons_t
 	apply_dW_dU : cons_t -> prim_t
 
 The default assumes prim_t == cons_t and this transformation is identity
@@ -1178,10 +1191,10 @@ function Equation:initCodeModule_consFromPrim_primFromCons()
 void <?=primFromCons?>(
 	<?=prim_t?> * const W,
 	constant <?=solver_t?> const * const solver,
-	<?=cons_t?> const * const U, 
+	<?=cons_t?> const * const U,
 	real3 const x
-) { 
-	return U; 
+) {
+	return U;
 }
 */
 ]],
@@ -1200,10 +1213,10 @@ void <?=primFromCons?>(
 void <?=consFromPrim?>(
 	<?=cons_t?> * const U,
 	constant <?=solver_t?> const * const solver,
-	<?=prim_t?> const * const W, 
+	<?=prim_t?> const * const W,
 	real3 const x
-) { 
-	return W; 
+) {
+	return W;
 }
 */
 ]],
@@ -1225,11 +1238,11 @@ returns output vector
 void <?=apply_dU_dW?>(
 	<?=cons_t?> * const result,
 	constant <?=solver_t?> const * const solver,
-	<?=prim_t?> const * const WA, 
-	<?=prim_t?> const * const W, 
+	<?=prim_t?> const * const WA,
+	<?=prim_t?> const * const W,
 	real3 const x
-) { 
-	return W; 
+) {
+	return W;
 }
 */
 ]],
@@ -1251,11 +1264,11 @@ returns output vector
 void <?=apply_dW_dU?>(
 	<?=prim_t?> const * W,
 	constant <?=solver_t?> const * const solver,
-	<?=prim_t?> const * const WA, 
+	<?=prim_t?> const * const WA,
 	<?=cons_t?> const * const U,
 	real3 const x
-) { 
-	return U; 
+) {
+	return U;
 }
 */
 ]],
