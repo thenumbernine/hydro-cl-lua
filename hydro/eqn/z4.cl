@@ -142,7 +142,7 @@ kernel void <?=initDerivs?>(
 	_3sym3 const dHat_lll = _3sym3_zero;
 	_3sym3 const d_lll = <?=calcFromGrad_d_lll?>(solver, U, cell);
 	U->dDelta_lll = _3sym3_sub(d_lll, dHat_lll);
-<? if eqn.useShift == "2005 Bona / 2008 Yano" then ?>
+<? if eqn.consStruct.vars:find(nil, function(var) return var.name == "b_ul" end) then ?>
 //// MODULE_DEPENDS: <?=calcFromGrad_b_ul?>
 	U->b_ul = <?=calcFromGrad_b_ul?>(solver, U);
 <? end ?>
@@ -206,18 +206,22 @@ void <?=applyInitCondCell?>(
 	U->Theta = 0.;
 	U->Z_l = real3_zero;
 
-<? 
-if eqn.useShift ~= "none" then
+<? if eqn.consStruct.vars:find(nil, function(var) return var.name == "beta_u" end) then 
 ?>	U->beta_u = real3_rescaleToCoord_U(beta_U, x);
-<?	if eqn.useShift == "MinimalDistortionElliptic"
-	or eqn.useShift == "MinimalDistortionEllipticEvolve"
-	then
+<? end
+if eqn.consStruct.vars:find(nil, function(var) return var.name == "betaLap_u" end) then 
 ?>	U->betaLap_u = real3_zero;
-<?	elseif eqn.useShift == "2005 Bona / 2008 Yano" then
-?>	U->b_ul = real3x3_zero;		//TODO init b_ul ... as the partial ... hmm ... need numeric for this? 
-<?	end
-end -- TODO support for hyperbolic gamma driver, so we can read B_U
+<? end
+if eqn.consStruct.vars:find(nil, function(var) return var.name == "B_u" end) then 
+?>	U->B_u = real3_zero;
+<? end
 ?>
+/*<?--[[
+b_ul is initialized in initDerivs, beta_u is initialized in the bssn vars
+NOTICE LambdaBar_U isn't used
+it is defined as _Λ^i = ΔΓ^i = ΔΓ^i_jk _γ^jk = (_Γ^i_jk - ^Γ^i_jk) _γ^jk
+where _γ_ij is the conformal metric, _Γ^i_jk is the conformal connection, ^Γ^i_jk is the background (grid) metric connection
+--]]?>*/
 
 <? if eqn.useStressEnergyTerms then ?>
 	U->rho = rho;
@@ -274,17 +278,15 @@ void <?=applyInitCondCell?>(
 	U->Theta = 0.;
 	U->Z_l = real3_zero;
 
-<? 
-if eqn.useShift ~= "none" then
+<? if eqn.consStruct.vars:find(nil, function(var) return var.name == "beta_u" end) then 
 ?>	U->beta_u = beta_u;
-<?	if eqn.useShift == "MinimalDistortionElliptic"
-	or eqn.useShift == "MinimalDistortionEllipticEvolve"
-	then
+<? end
+if eqn.consStruct.vars:find(nil, function(var) return var.name == "betaLap_u" end) then 
 ?>	U->betaLap_u = real3_zero;
-<?	elseif eqn.useShift == "2005 Bona / 2008 Yano" then
-?>	U->b_ul = real3x3_zero;
-<?	end
-end
+<? end
+if eqn.consStruct.vars:find(nil, function(var) return var.name == "B_u" end) then 
+?>	U->B_u = real3_zero;
+<? end
 ?>
 
 <? if eqn.useStressEnergyTerms then ?>
@@ -317,17 +319,21 @@ static inline void <?=setFlatSpace?>(
 	(U)->K_ll = sym3_zero;
 	(U)->Theta = 0.;
 	(U)->Z_l = real3_zero;
-<? if eqn.useShift ~= "none" then
-?>	(U)->beta_u = real3_zero;
-<?	if eqn.useShift == "MinimalDistortionElliptic"
-	or eqn.useShift == "MinimalDistortionEllipticEvolve"
-	then
+
+<? if eqn.consStruct.vars:find(nil, function(var) return var.name == "beta_u" end) then 
+?>	(U)->beta_u = beta_u;
+<? end
+if eqn.consStruct.vars:find(nil, function(var) return var.name == "betaLap_u" end) then 
 ?>	(U)->betaLap_u = real3_zero;
-<?	elseif eqn.useShift == "2005 Bona / 2008 Yano" then
+<? end
+if eqn.consStruct.vars:find(nil, function(var) return var.name == "B_u" end) then 
+?>	(U)->B_u = real3_zero;
+<? end
+if eqn.consStruct.vars:find(nil, function(var) return var.name == "b_ul" end) then 
 ?>	(U)->b_ul = real3x3_zero;
-<?	end
-end
+<? end
 ?>
+
 <? if eqn.useStressEnergyTerms then ?>
 	//what to do with the constraint vars and the source vars?
 	(U)->rho = 0;
@@ -546,6 +552,9 @@ end --\
 	real3x3 const K_ul = sym3_sym3_mul(gamma_uu, K_ll);\
 	real const tr_K = real3x3_trace(K_ul);\
 	sym3 const dHat_t_ll = sym3_zero;\
+	/* used by shift only: */\
+	real3 const a_u = sym3_real3_mul(gamma_uu, a_l);\
+	sym3 const b_ll = sym3_real3x3_to_sym3_mul(gamma_ll, b_ul);\
 	/* BEGIN CUT from symmath/tests/output/Z4.html */\
 	{\
 		(resultFlux)->alpha = 0.;\
@@ -587,18 +596,18 @@ end --\
 		(resultFlux)->Z_l.y = -K_ul.x.y * alpha;\
 		(resultFlux)->Z_l.z = -K_ul.x.z * alpha;\
 	}\
-	<? if useShift == "2005 Bona / 2008 Yano" then ?>\
+	<? if eqn.useShift == "2005 Bona / 2008 Yano" then ?>\
 	{\
 		real const tmp1 = alpha * alpha;\
 		(resultFlux)->a_l.x += -beta_u.x * a_l.x;\
 		(resultFlux)->a_l.y += -beta_u.x * a_l.y;\
 		(resultFlux)->a_l.z += -beta_u.x * a_l.z;\
-		(resultFlux)->dDelta_lll.x.xx += -b_ll.x.x + -beta_u.x * d_lll.x.xx + beta_u.y * dDelta_lll.y.xx + -beta_u.y * d_lll.y.xx + -beta_u.z * d_lll.z.xx + beta_u.z * dDelta_lll.z.xx;\
-		(resultFlux)->dDelta_lll.x.xy += (-b_ll.x.y + -b_ll.y.x + -2. * beta_u.x * d_lll.x.xy + 2. * beta_u.y * dDelta_lll.y.xy + -2. * beta_u.y * d_lll.y.xy + -2. * beta_u.z * d_lll.z.xy + 2. * beta_u.z * dDelta_lll.z.xy) / 2.;\
-		(resultFlux)->dDelta_lll.x.xz += (-b_ll.x.z + -b_ll.z.x + -2. * beta_u.x * d_lll.x.xz + 2. * beta_u.y * dDelta_lll.y.xz + -2. * beta_u.y * d_lll.y.xz + -2. * beta_u.z * d_lll.z.xz + 2. * beta_u.z * dDelta_lll.z.xz) / 2.;\
-		(resultFlux)->dDelta_lll.x.yy += -b_ll.y.y + -beta_u.x * d_lll.x.yy + beta_u.y * dDelta_lll.y.yy + -beta_u.y * d_lll.y.yy + -beta_u.z * d_lll.z.yy + beta_u.z * dDelta_lll.z.yy;\
-		(resultFlux)->dDelta_lll.x.yz += (-b_ll.y.z + -b_ll.z.y + -2. * beta_u.x * d_lll.x.yz + 2. * beta_u.y * dDelta_lll.y.yz + -2. * beta_u.y * d_lll.y.yz + -2. * beta_u.z * d_lll.z.yz + 2. * beta_u.z * dDelta_lll.z.yz) / 2.;\
-		(resultFlux)->dDelta_lll.x.zz += -b_ll.z.z + -beta_u.x * d_lll.x.zz + beta_u.y * dDelta_lll.y.zz + -beta_u.y * d_lll.y.zz + -beta_u.z * d_lll.z.zz + beta_u.z * dDelta_lll.z.zz;\
+		(resultFlux)->dDelta_lll.x.xx += -b_ll.xx + -beta_u.x * d_lll.x.xx + beta_u.y * dDelta_lll.y.xx + -beta_u.y * d_lll.y.xx + -beta_u.z * d_lll.z.xx + beta_u.z * dDelta_lll.z.xx;\
+		(resultFlux)->dDelta_lll.x.xy += (-b_ll.xy + -b_ll.xy + -2. * beta_u.x * d_lll.x.xy + 2. * beta_u.y * dDelta_lll.y.xy + -2. * beta_u.y * d_lll.y.xy + -2. * beta_u.z * d_lll.z.xy + 2. * beta_u.z * dDelta_lll.z.xy) / 2.;\
+		(resultFlux)->dDelta_lll.x.xz += (-b_ll.xz + -b_ll.xz + -2. * beta_u.x * d_lll.x.xz + 2. * beta_u.y * dDelta_lll.y.xz + -2. * beta_u.y * d_lll.y.xz + -2. * beta_u.z * d_lll.z.xz + 2. * beta_u.z * dDelta_lll.z.xz) / 2.;\
+		(resultFlux)->dDelta_lll.x.yy += -b_ll.yy + -beta_u.x * d_lll.x.yy + beta_u.y * dDelta_lll.y.yy + -beta_u.y * d_lll.y.yy + -beta_u.z * d_lll.z.yy + beta_u.z * dDelta_lll.z.yy;\
+		(resultFlux)->dDelta_lll.x.yz += (-b_ll.yz + -b_ll.yz + -2. * beta_u.x * d_lll.x.yz + 2. * beta_u.y * dDelta_lll.y.yz + -2. * beta_u.y * d_lll.y.yz + -2. * beta_u.z * d_lll.z.yz + 2. * beta_u.z * dDelta_lll.z.yz) / 2.;\
+		(resultFlux)->dDelta_lll.x.zz += -b_ll.zz + -beta_u.x * d_lll.x.zz + beta_u.y * dDelta_lll.y.zz + -beta_u.y * d_lll.y.zz + -beta_u.z * d_lll.z.zz + beta_u.z * dDelta_lll.z.zz;\
 		(resultFlux)->dDelta_lll.y.xx += -beta_u.x * dDelta_lll.y.xx;\
 		(resultFlux)->dDelta_lll.y.xy += -beta_u.x * dDelta_lll.y.xy;\
 		(resultFlux)->dDelta_lll.y.xz += -beta_u.x * dDelta_lll.y.xz;\
@@ -634,7 +643,7 @@ end --\
 		(resultFlux)->b_ul.z.y = 0.;\
 		(resultFlux)->b_ul.z.z = 0.;\
 	}\
-	<? end ?>/* useShift == "2005 Bona / 2008 Yano" */\
+	<? end ?>/* eqn.useShift == "2005 Bona / 2008 Yano" */\
 	/* END CUT */\
 <? end ?>\
 \
@@ -1299,7 +1308,7 @@ end
 <? end
 ?>
 
-<? end -- useShift == "2005 Bona / 2008 Yano" ?>
+<? end -- eqn.useShift == "2005 Bona / 2008 Yano" ?>
 
 
 <? end ?>

@@ -47,7 +47,7 @@ useShift
 	2008 Yano eqn 16-17:
 	β^i_,t = -α Q^i 
 	β^i_,t = β^k β^i_,k + α^2 γ^ki (γ^jm γ_jk,m - 1/2 γ_,k / γ - α_,k / α))
-	β^i_,t = β^k β^i_,k + α^2 γ^ki (2 e_k - d_k - a_k))
+	β^i_,t = β^k β^i_,k + α^2 (2 e^i - d^i - a^i))
 
 	useShift = 'HarmonicShiftCondition-FiniteDifference'
 	-- 2008 Alcubierre 4.3.37
@@ -144,6 +144,9 @@ function Z4_2004Bona:init(args)
 		then
 			self.consVars:insert{name='betaLap_u', type='real3'}
 		elseif self.useShift == '2005 Bona / 2008 Yano' then
+			self.consVars:insert{name='b_ul', type='real3x3'}
+		elseif self.useShift == 'HyperbolicGammaDriver' then
+			self.consVars:insert{name='B_u', type='real3'}
 			self.consVars:insert{name='b_ul', type='real3x3'}
 		end
 	end
@@ -387,7 +390,7 @@ if (<?=OOB?>(1,1)) {
 		}
 	end
 
-	if self.useShift ~= 'none' then
+	if self.consStruct.vars:find(nil, function(var) return var.name == 'b_ul' end) then
 		for i,xi in ipairs(xNames) do
 			vars:insert{
 				name = 'beta^j_,'..xi..' vs b^j_'..xi,
