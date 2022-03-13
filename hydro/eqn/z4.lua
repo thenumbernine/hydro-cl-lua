@@ -27,21 +27,51 @@ useShift
 	
 	useShift = 'none'
 	
-	useShift = 'MinimalDistortionElliptic' -- minimal distortion elliptic via Poisson relaxation.  Alcubierre's book, eqn 4.3.14 and 4.3.15
-	
-	useShift = 'MinimalDistortionEllipticEvolve' -- minimal distortion elliptic via evolution.  eqn 10 of 1996 Balakrishna et al "Coordinate Conditions and their Implementations in 3D Numerical Relativity"
+	-- minimal distortion elliptic via Poisson relaxation.  
+	-- Alcubierre's book, eqn 4.3.14 and 4.3.15
+	useShift = 'MinimalDistortionElliptic'
+	β^i_;j^;j + 1/3 β^j_;j^;i + R^i_j β^j = 2 (α (K^ij - 1/3 K γ_ij))_;j
+
+	-- minimal distortion elliptic via evolution.  
+	-- eqn 10 of 1996 Balakrishna et al "Coordinate Conditions and their Implementations in 3D Numerical Relativity"
+	useShift = 'MinimalDistortionEllipticEvolve' 
+	β^i_,t = ε (β_i^;j_;j + 1/3 β_j^;j_;i + R^j_i β_j + (2 α (K_ij - 1/3 K γ_ij))^;j)
 
 	useShift = '2005 Bona / 2008 Yano'
-	-- 2008 Yano et al, from 2005 Bona et al "Geometrically Motivated..." or "to convert the minimal distortion elliptic equations into time-dependent parabolic equations by means of the Hamilton-Jacobi method"
+	-- 2008 Yano et al "Flux-Vector-Splitting..." eqn 16-17
+	-- 2005 Bona et al "Geometrically Motivated..." says "to convert the minimal distortion elliptic equations into time-dependent parabolic equations by means of the Hamilton-Jacobi method"
 	-- 2005 Bona mentions a few, but 2008 Yano picks the first one from the 2005 Bona paper.
 	I'm not sure what to call this one ... it's the one in 
 	2005 Bona et al, section B.1, "to convert the minimal distortion elliptic equations into time-dependent parabolic equations by means of the Hamilton-Jacobi method"
 	TODO is this the same as "MinimalDistortionEllipticEvolve" ?
+	2008 Yano eqn 16-17:
+	β^i_,t = -α Q^i 
+	β^i_,t = β^k β^i_,k + α^2 γ^ki (γ^jm γ_jk,m - 1/2 γ_,k / γ - α_,k / α))
+	β^i_,t = β^k β^i_,k + α^2 γ^ki (2 e_k - d_k - a_k))
 
 	useShift = 'HarmonicShiftCondition-FiniteDifference'
 	-- 2008 Alcubierre 4.3.37
 	-- I see some problems in the warp bubble test ...
 	-- wait is this the same as "2005 Bona / 2008 Yano" ?
+	β^i_,t = β^j β^i_,j - α α^,i + α^2 Γ^i + β^i / α (α_,t - β^j α_,j + α^2 K)
+
+	useShift = 'GammaDriver'
+	-- Baumgarte & Shapiro's book, eqn 4.82
+	β^i_,t = k _Λ^i_,t + η _Λ^i
+	k = 3/4
+	η = 1 or 1/(2 M), for total mass M
+	-- 2008 Alcubierre's book, eqn 4.3.33 4.3.34
+	β^i_,t - β^i_,j β^j = B^i
+	B^i_,t - B^i_,j β^j = α^2 ξ (~Γ^i_,t - ~Γ^i_,j β^j) - η B^i
+	... 
+	
+	useShift = 'HyperbolicGammaDriver'
+	2017 Ruchlin, Etienne, Baumgarte - "SENR-NRPy- Numerical Relativity in Singular Curvilinear Coordinate Systems"
+	eqn 14.a: β^i_,t = B^i
+	eqn 14.b: B^i_,t - B^i_,j β^j = 3/4 _Λ^i_,t - 3/4 _Λ^i_,j β^j - η B^i
+	eqn 11.e: _Λ^i_,t - _Λ^i_,j β^j + _Λ^j β^i_,j = γ^jk ^D_j ^D_k β^i + 2/3 ΔΓ^i (_D_j β^j) + 1/3 _D^i _D_j β^j - 2 _A^ij (α_,j - 6 φ_,j) + 2 _A^jk ΔΓ^i_jk - 4/3 α _γ^ij K_,j
+	...
+	2008 Alcubierre's book:
 
 	useShift = 'LagrangianCoordinates'
 	--[=[
@@ -66,7 +96,7 @@ function Z4_2004Bona:init(args)
 
 	local fluxVars = table{
 		{name='a_l', type='real3'},
-		{name='d_lll', type='_3sym3'},
+		{name='dDelta_lll', type='_3sym3'},
 		{name='K_ll', type='sym3'},
 		{name='Theta', type='real'},
 		{name='Z_l', type='real3'},
@@ -196,9 +226,11 @@ end
 
 function Z4_2004Bona:getSymbolFields()
 	return Z4_2004Bona.super.getSymbolFields(self):append{
+		'calc_d_lll',			-- from U->dDelta_ijk and dHat(cell->pos)_ijk
 		'initDeriv_numeric_and_useBSSNVars',
-		'calc_a_l_from_U',
-		'calc_d_lll_from_U',
+		'calcFromGrad_a_l',
+		'calcFromGrad_d_lll',	-- finite difference from grid
+		'calcFromGrad_b_ul',
 	}
 end
 
@@ -260,7 +292,18 @@ Z4_2004Bona.predefinedDisplayVars = {
 function Z4_2004Bona:getDisplayVars()
 	local vars = Z4_2004Bona.super.getDisplayVars(self)
 
-	vars:append{
+	vars
+	:append(xNames:mapi(function(xi,i)
+		return {
+			name = 'd_lll '..xi,
+			type = 'sym3',
+			code = self:template([[
+//// MODULE_DEPENDS: <?=calc_d_lll?>
+value.vsym3 = <?=calc_d_lll?>(U, cell->pos).<?=xi?>;
+]], {xi=xi})
+		}
+	end))
+	:append{
 		{name='volume', code='value.vreal = U->alpha * sqrt(sym3_det(U->gamma_ll));'},
 		{name='f', code='value.vreal = calc_f(U->alpha);'},
 		{name='f*alpha', code='value.vreal = calc_f_alpha(U->alpha);'},
@@ -295,60 +338,78 @@ momentum constraints
 	-- gravity with shift is much more complex
 	-- TODO add shift influence (which is lengthy)
 	vars:insert{name='gravity', code=[[
-	real det_gamma = sym3_det(U->gamma_ll);
-	sym3 gamma_uu = sym3_inv(U->gamma_ll, det_gamma);
-	value.vreal3 = real3_real_mul(sym3_real3_mul(gamma_uu, U->a_l), -U->alpha * U->alpha);
+real det_gamma = sym3_det(U->gamma_ll);
+sym3 gamma_uu = sym3_inv(U->gamma_ll, det_gamma);
+value.vreal3 = real3_real_mul(sym3_real3_mul(gamma_uu, U->a_l), -U->alpha * U->alpha);
 ]], type='real3'}
 
-	vars:insert{name='alpha vs a_i', code=self:template[[
-	if (<?=OOB?>(1,1)) {
-		value.vreal3 = real3_zero;
-	} else {
-		<? for i=1,solver.dim do
-			local xi = xNames[i]
-		?>{
-			real di_log_alpha = (
-				log(U[solver->stepsize.<?=xi?>].alpha)
-				- log(U[-solver->stepsize.<?=xi?>].alpha)
-			) / (2. * solver->grid_dx.s<?=i-1?>);
-			value.vreal3.<?=xi?> = fabs(di_log_alpha - U->a_l.<?=xi?>);
-		}<? end ?>
-		<? for i=solver.dim+1,3 do
-			local xi = xNames[i]
-		?>{
-			value.vreal3.<?=xi?> = 0;
-		}<? end ?>
-	}
-]], type='real3'}
+	-- a_i = log(alpha)_,i
+	vars:insert{
+		name = 'alpha vs a_i',
+		type = 'real3',
+		code = self:template[[
+if (<?=OOB?>(1,1)) {
+	value.vreal3 = real3_zero;
+} else {
+//// MODULE_DEPENDS: <?=calcFromGrad_a_l?>
+	real3 const target_a_l = <?=calcFromGrad_a_l?>(solver, U);
+	value.vreal3 = (real3){
+<? for i,xi in ipairs(xNames) do
+?>		.<?=xi?> = fabs(target_a_l.<?=xi?> - U->a_l.<?=xi?>),
+<? end
+?>	};
+}
+]]}
 
-	-- d_kij = gamma_ij,k
+	-- d_kij = 1/2 gamma_ij,k
 	for i,xi in ipairs(xNames) do
-		vars:insert{name='gamma_ij vs d_'..xi..'ij', code=self:template([[
-	if (<?=OOB?>(1,1)) {
-		value.vsym3 = sym3_zero;
-	} else {
-		<? if i <= solver.dim then ?>
-		sym3 di_gamma_jk = sym3_real_mul(
-			sym3_sub(
-				U[solver->stepsize.<?=xi?>].gamma_ll,
-				U[-solver->stepsize.<?=xi?>].gamma_ll
-			),
-			.5 / (2. * solver->grid_dx.s<?=i-1?>)
-		);
-		<? else ?>
-		sym3 di_gamma_jk = sym3_zero;
-		<? end ?>
-		value.vsym3 = sym3_sub(di_gamma_jk, sym3_real_mul(U->d_lll.<?=xi?>, 2.));
-		value.vsym3 = (sym3){<?
-	for jk,xjk in ipairs(symNames) do
-?>			.<?=xjk?> = fabs(value.vsym3.<?=xjk?>),
-<?	end
-?>		};
-	}
-]], {
-	i = i,
-	xi = xi,
-}), type='sym3'}
+		vars:insert{
+			name = 'gamma_ij vs d_'..xi..'ij',
+			type = 'sym3',
+			code = self:template([[
+if (<?=OOB?>(1,1)) {
+	value.vsym3 = sym3_zero;
+} else {
+//// MODULE_DEPENDS: <?=calcFromGrad_d_lll?>
+	_3sym3 const target_d_lll = <?=calcFromGrad_d_lll?>(solver, U, cell);
+//// MODULE_DEPENDS: <?=calc_d_lll?>
+	_3sym3 const d_lll = <?=calc_d_lll?>(U, cell->pos);
+	value.vsym3 = (sym3){
+<? for jk,xjk in ipairs(symNames) do
+?>		.<?=xjk?> = fabs(target_d_lll.<?=xi?>.<?=xjk?> - d_lll.<?=xi?>.<?=xjk?>),
+<? end
+?>	};
+}
+]], 		{
+				i = i,
+				xi = xi,
+			})
+		}
+	end
+
+	if self.useShift ~= 'none' then
+		for i,xi in ipairs(xNames) do
+			vars:insert{
+				name = 'beta^j_,'..xi..' vs b^j_'..xi,
+				type = 'real3',
+				code = self:template([[
+if (<?=OOB?>(1,1)) {
+	value.vreal3 = real3_zero;
+} else {
+//// MODULE_DEPENDS: <?=calcFromGrad_b_ul?>
+	real3x3 const target_b_ul = <?=calcFromGrad_b_ul?>(solver, U);
+	value.vreal3 = (real3){
+<? for j,xj in ipairs(xNames) do
+?>		.<?=xj?> = fabs(target_b_ul.<?=xi?>.<?=xj?> - U->b_ul.<?=xi?>.<?=xj?>),
+<? end
+?>	};
+}
+]],				{
+					i = i,
+					xi = xi,
+				}),
+			}
+		end
 	end
 
 	return vars

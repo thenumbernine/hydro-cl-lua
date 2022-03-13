@@ -1614,8 +1614,8 @@ local args = {
 		{64, 16, 1},
 		
 		-- N x 2 x 2:
-		{32, 2, 2},		-- SENR sphere_sinh_radial uses this by default
-		--{80, 80, 2},		-- this works well for BrillLindquist sphere_sinh_radial when viewing the xz slice
+		--{32, 2, 2},		-- SENR sphere_sinh_radial uses this by default
+		{80, 80, 2},		-- this works well for BrillLindquist sphere_sinh_radial when viewing the xz slice
 		--{128, 2, 2},
 		--{128, 32, 2},
 		--{400, 64, 2},
@@ -1682,8 +1682,8 @@ local args = {
 		
 	--initCond = 'Minkowski',
 	--initCond = 'SENR Minkowski',
-	initCond = 'SENR UIUC',					-- single black hole. bssnok-fd-num explodes because H diverges at t=13 ... when partial_phi_l diverges at the same rate ... because of its r=0 value?
-	--initCond = 'SENR BrillLindquist',			-- two merging head-on.
+	--initCond = 'SENR UIUC',					-- single black hole. bssnok-fd-num explodes because H diverges at t=13 ... when partial_phi_l diverges at the same rate ... because of its r=0 value?
+	initCond = 'SENR BrillLindquist',			-- two merging head-on.
 	--initCond = 'SENR BoostedSchwarzschild',
 	--initCond = 'SENR StaticTrumpet',
 	
@@ -1722,5 +1722,8 @@ if cmdline['adm3d-hll'] then
 end
 if cmdline['z4-hll'] then
 	self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='z4'})))
+end
+if cmdline['z4-hll-withShift'] then
+	self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='z4', eqnArgs={useShift='2005 Bona / 2008 Yano'}})))
 end
 --]=]
