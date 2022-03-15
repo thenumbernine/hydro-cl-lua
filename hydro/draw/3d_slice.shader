@@ -8,8 +8,7 @@ local varying = vertexShader and 'out'
 
 <?=varying?> vec3 texCoord;	//[0,1]^n
 
-<? local useClipPlanes = false ?>
-<? if useClipPlanes then ?>
+<? if app.useClipPlanes then ?>
 <?=varying?> vec3 pos;		//positive after coordinate mapping, before view transform
 <? end ?>
 
@@ -19,14 +18,16 @@ local varying = vertexShader and 'out'
 <? if vertexShader then ?>
 
 //in tex coords
-attribute vec4 vertex;
+in vec4 vertex;
 
 void main() {
-	texCoord = vertex.xyz;
-	
 	vec4 x = vertex;
-	x.xyz = texToWorldCoord(x.xyz);
-<? if useClipPlanes then ?>
+
+	//map from [0,1]^3 to [cartesianMin, cartesianMax]
+	x.xyz = x.xyz * (cartesianMax - cartesianMin) + cartesianMin;
+	texCoord = x.xyz;
+
+<? if app.useClipPlanes then ?>
 	pos = x.xyz;
 <? end ?>
 	gl_Position = modelViewProjectionMatrix * x;
@@ -44,8 +45,8 @@ uniform bool useIsos;
 uniform float numIsobars;
 
 uniform vec3 normal;
-<? if useClipPlanes then ?>
-<? for i,clipInfo in ipairs(clipInfos) do
+<? if app.useClipPlanes then ?>
+<? for i,clipInfo in ipairs(app.clipInfos) do
 ?>uniform bool clipEnabled<?=i?>;
 <? end
 ?>
@@ -56,9 +57,9 @@ float getVoxelValue(vec3 tc) {
 }
 
 void main() {
-<? if useClipPlanes then ?>
+<? if app.useClipPlanes then ?>
 	vec4 worldPos = gl_ModelViewMatrix * vec4(pos, 1.);
-<? for i,clipInfo in ipairs(clipInfos) do
+<? for i,clipInfo in ipairs(app.clipInfos) do
 ?>	if (clipEnabled<?=i?> && dot(worldPos, gl_ClipPlane[<?=i-1?>]) < 0.) discard;
 <? end
 end
@@ -67,16 +68,19 @@ end
 	vec3 tc = texCoord;
 	if (displayDim <= 1) tc.y = displayFixed.x;
 	if (displayDim <= 2) tc.z = displayFixed.y;
-	tc = texToWorldCoord(tc);
 	tc = quatRotate(displaySliceAngle, tc);
-	tc = worldToTexCoord(tc);
+	tc = worldToTexCoord(tc);	//inverse map from world coord to chart coord, then to tex coords
 	tc = texToNoGhostCoord(tc);	//getting rid of the ghost cells
+	
+	if (tc.x < 0 || tc.x > 1 || 
+		tc.y < 0 || tc.y > 1 || 
+		tc.z < 0 || tc.z > 1) discard;
 
 	float value = getVoxelValue(tc);
 	
 	float frac = getGradientFrac(value);
 	float gradTC = getGradientTexCoord(frac);
-	vec4 voxelColor = texture1D(gradientTex, gradTC);
+	vec4 voxelColor = texture(gradientTex, gradTC);
 
 	//don't bother with the gamma factor if we're using isobars
 	if (useIsos) {

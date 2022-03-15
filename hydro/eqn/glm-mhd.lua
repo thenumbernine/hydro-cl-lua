@@ -98,7 +98,7 @@ function MHD:init(args)
 	end
 
 	local solver = assert(args.solver)
-	if require 'hydro.solver.meshsolver'.is(solver) then
+	if require 'hydro.solver.meshsolver':isa(solver) then
 		print("not divergence with mesh solvers yet")
 		-- these don't work with mesh solver
 		self.use2002DednerEqn24 = false
@@ -114,7 +114,7 @@ function MHD:init(args)
 	local UpdatePsi = require 'hydro.op.glm-mhd-update-psi'
 	solver.ops:insert(UpdatePsi{solver=solver})
 	
-	if require 'hydro.solver.meshsolver'.is(solver) then
+	if require 'hydro.solver.meshsolver':isa(solver) then
 		print("not using ops (selfgrav, nodiv, etc) with mesh solvers yet")
 	else
 		local SelfGrav = require 'hydro.op.selfgrav'
@@ -127,8 +127,10 @@ function MHD:init(args)
 			}
 			self.solver.ops:insert(NoDiv{
 				solver = self.solver,
-				vectorField = 'm',
 				potentialField = 'mPot',
+				
+				--[=[ using div (m/rho) = 0, solve for div m:
+				vectorField = 'm',
 			
 				-- div v = 0
 				-- div (m/ρ) = 0
@@ -142,6 +144,37 @@ function MHD:init(args)
 		source -= drho_dx * U->m.s<?=j?> / U->rho;
 	}<? end ?>
 ]],
+				--]=]
+				-- [=[ reading via div(v), writing via div(m)
+				readVectorField = function(op,offset,j)
+					local function U(field) return 'U['..offset..'].'..field end
+					return U('m.s'..j)..' / '..U'rho'
+				end,
+				writeVectorField = function(op,dv)
+					return self:template([[
+#if 0	// just adjust velocity
+	U->m = real3_sub(U->m, real3_real_mul(<?=dv?>, U->rho));
+#endif
+
+#if 0	// adjust ETotal as well
+	U->ETotal -= .5 * U->rho * coordLenSq(U->m, pt);
+	U->m = real3_sub(U->m, real3_real_mul(<?=dv?>, U->rho));
+	U->ETotal += .5 * U->rho * coordLenSq(U->m, pt);
+#endif
+
+#if 1 	// recalculate cons
+//// MODULE_DEPENDS: <?=primFromCons?> <?=consFromPrim?>
+	<?=prim_t?> W;
+	<?=primFromCons?>(&W, solver, U, pt);
+	W.v = real3_sub(W.v, <?=dv?>);
+	<?=consFromPrim?>(U, solver, &W, pt);
+#endif
+]], {dv=dv})
+				end,
+				codeDepends = {
+					assert(self.symbols.eqn_common),
+				},
+				--]=]
 			})
 		end
 	end
@@ -194,20 +227,6 @@ end
 function MHD:initCodeModule_fluxFromCons() end
 function MHD:initCodeModule_consFromPrim_primFromCons() end
 
-function MHD:getModuleDepends_waveCode() 
-	return {
-		self.symbols.calcCellMinMaxEigenvalues,
-	}
-end
-
-function MHD:getModuleDepends_displayCode() 
-	return table(MHD.super.getModuleDepends_displayCode(self)):append{
-		self.symbols.eqn_common,
-		self.symbols.consFromPrim,
-		self.gravOp.symbols.calcGravityAccel,
-	}
-end
-
 MHD.solverCodeFile = 'hydro/eqn/glm-mhd.cl'
 
 MHD.displayVarCodeUsesPrims = true
@@ -226,39 +245,85 @@ function MHD:getDisplayVars()
 	vars:append{
 		{name='v', code='value.vreal3 = W.v;', type='real3', units='m/s'},
 		{name='P', code='value.vreal = W.P;', units='kg/(m*s^2)'},
-		{name='PMag', code='value.vreal = calc_PMag(solver, &W, x);', units='kg/(m*s^2)'},
-		{name='PTotal', code='value.vreal = W.P + calc_PMag(solver, &W, x);', units='kg/(m*s^2)'},
-		{name='eInt', code='value.vreal = calc_eInt(solver, &W);', units='m^2/s^2'},
-		{name='EInt', code='value.vreal = calc_EInt(solver, &W);', units='kg/(m*s^2)'},
-		{name='eKin', code='value.vreal = calc_eKin(&W, x);', units='m^2/s^2'},
-		{name='EKin', code='value.vreal = calc_EKin(&W, x);', units='kg/(m*s^2)'},
-		{name='eHydro', code='value.vreal = calc_eHydro(solver, &W, x);', units='m^2/s^2'},
-		{name='EHydro', code='value.vreal = calc_EHydro(solver, &W, x);', units='kg/(m*s^2)'},
-		{name='EM energy', code='value.vreal = calc_EM_energy(solver, &W, x);', units='kg/(m*s^2)'},
+		{name='PMag', code = self:template[[
+//// MODULE_DEPENDS: <?=eqn_common?>
+value.vreal = calc_PMag(solver, &W, x);
+]], units='kg/(m*s^2)'},
+		{name='PTotal', code = self:template[[
+//// MODULE_DEPENDS: <?=eqn_common?>
+value.vreal = W.P + calc_PMag(solver, &W, x);
+]], units='kg/(m*s^2)'},
+		{name='eInt', code = self:template[[
+//// MODULE_DEPENDS: <?=eqn_common?>
+value.vreal = calc_eInt(solver, &W);
+]], units='m^2/s^2'},
+		{name='EInt', code = self:template[[
+//// MODULE_DEPENDS: <?=eqn_common?>
+value.vreal = calc_EInt(solver, &W);
+]], units='kg/(m*s^2)'},
+		{name='eKin', code = self:template[[
+//// MODULE_DEPENDS: <?=eqn_common?>
+value.vreal = calc_eKin(&W, x);
+]], units='m^2/s^2'},
+		{name='EKin', code = self:template[[
+//// MODULE_DEPENDS: <?=eqn_common?>
+value.vreal = calc_EKin(&W, x);
+]], units='kg/(m*s^2)'},
+		{name='eHydro', code = self:template[[
+//// MODULE_DEPENDS: <?=eqn_common?>
+value.vreal = calc_eHydro(solver, &W, x);
+]], units='m^2/s^2'},
+		{name='EHydro', code = self:template[[
+//// MODULE_DEPENDS: <?=eqn_common?>
+value.vreal = calc_EHydro(solver, &W, x);
+]], units='kg/(m*s^2)'},
+		{name='EM energy', code = self:template[[
+//// MODULE_DEPENDS: <?=eqn_common?>
+value.vreal = calc_EM_energy(solver, &W, x);
+]], units='kg/(m*s^2)'},
 		{name='eTotal', code='value.vreal = U->ETotal / W.rho;', units='m^2/s^2'},
 		{name='S', code='value.vreal = W.P / pow(W.rho, (real)solver->heatCapacityRatio);'},
 		{name='H', code='value.vreal = calc_H(solver, W.P);', units='kg/(m*s^2)'},
-		{name='h', code='value.vreal = calc_H(solver, W.P) / W.rho;', units='m^2/s^2'},
-		{name='HTotal', code='value.vreal = calc_HTotal(solver, &W, U->ETotal, x);', units='kg/(m*s^2)'},
-		{name='hTotal', code='value.vreal = calc_hTotal(solver, &W, U->ETotal, x);', units='m^2/s^2'},
-		{name='speed of sound', code='value.vreal = calc_Cs(solver, &W);', units='m/s'},
-		{name='alfven velocity', code='value.vreal3 = calc_CA(solver, U);', type='real3', units='m/s'},
-		{name='Mach number', code='value.vreal = coordLen(W.v, x) / calc_Cs(solver, &W);'},
+		{name='h', code = self:template[[
+//// MODULE_DEPENDS: <?=eqn_common?>
+value.vreal = calc_H(solver, W.P) / W.rho;
+]], units='m^2/s^2'},
+		{name='HTotal', code = self:template[[
+//// MODULE_DEPENDS: <?=eqn_common?>
+value.vreal = calc_HTotal(solver, &W, U->ETotal, x);
+]], units='kg/(m*s^2)'},
+		{name='hTotal', code = self:template[[
+//// MODULE_DEPENDS: <?=eqn_common?>
+value.vreal = calc_hTotal(solver, &W, U->ETotal, x);
+]], units='m^2/s^2'},
+		{name='speed of sound', code = self:template[[
+//// MODULE_DEPENDS: <?=eqn_common?>
+value.vreal = calc_Cs(solver, &W);
+]], units='m/s'},
+		{name='alfven velocity', code = self:template[[
+//// MODULE_DEPENDS: <?=eqn_common?>
+value.vreal3 = calc_CA(solver, U);
+]], type='real3', units='m/s'},
+		{name='Mach number', code = self:template[[
+//// MODULE_DEPENDS: <?=eqn_common?>
+value.vreal = coordLen(W.v, x) / calc_Cs(solver, &W);
+]]},
 		{name='temperature', code=self:template[[
-<? local clnumber = require 'cl.obj.number' ?>
 <? local materials = require 'hydro.materials' ?>
 #define C_v				<?=('%.50f'):format(materials.Air.C_v)?>
+//// MODULE_DEPENDS: <?=eqn_common?>
 	value.vreal = calc_eInt(solver, &W) / C_v;
 ]], units='K'},
 		{name='primitive reconstruction error', code=self:template[[
-	//prim have just been reconstructed from cons
-	//so reconstruct cons from prims again and calculate the difference
-	<?=cons_t?> U2;
-	<?=consFromPrim?>(&U2, solver, &W, x);
-	value.vreal = 0;
-	for (int j = 0; j < numIntStates; ++j) {
-		value.vreal += fabs(U->ptr[j] - U2.ptr[j]);
-	}
+//prim have just been reconstructed from cons
+//so reconstruct cons from prims again and calculate the difference
+<?=cons_t?> U2;
+//// MODULE_DEPENDS: <?=consFromPrim?>
+<?=consFromPrim?>(&U2, solver, &W, x);
+value.vreal = 0;
+for (int j = 0; j < numIntStates; ++j) {
+	value.vreal += fabs(U->ptr[j] - U2.ptr[j]);
+}
 ]]},
 	}
 	
@@ -266,9 +331,10 @@ function MHD:getDisplayVars()
 		vars:insert{
 			name='gravity', 
 			code=self:template[[
-	if (!<?=OOB?>(1,1)) {
-		<?=eqn.gravOp.symbols.calcGravityAccel?>(&value.vreal3, solver, U, x);
-	}
+if (!<?=OOB?>(1,1)) {
+//// MODULE_DEPENDS: <?=eqn.gravOp.symbols.calcGravityAccel?>
+	<?=eqn.gravOp.symbols.calcGravityAccel?>(&value.vreal3, solver, U, x);
+}
 ]], 
 			type='real3', 
 			units='m/s^2',
@@ -297,8 +363,8 @@ function MHD:getDisplayVars()
 	return vars
 end
 
-function MHD:eigenWaveCode(n, eig, x, waveIndex)
-	eig = '('..eig..')'
+function MHD:eigenWaveCode(args)
+	local eig = '('..args.eig..')'
 	return ({
 		eig..'->v.x - '..eig..'->Cf',
 		eig..'->v.x - '..eig..'->CAx',
@@ -311,26 +377,20 @@ function MHD:eigenWaveCode(n, eig, x, waveIndex)
 		--#warning there's a few PLM routines that expect eigenvalues to be ordered ... so replace them with a eigen_calcMinMaxWaves
 		'-'..eig..'->Ch',
 		eig..'->Ch',
-	})[waveIndex+1] or error("got a bad waveIndex")
+	})[args.waveIndex+1] or error("got a bad waveIndex")
 end
 
-function MHD:consWaveCodePrefix(n, U, x)
+-- TODO consWaveCode[Prefix] for plm
+
+function MHD:consWaveCodeMinMax(args)
 	return self:template([[
-<?=range_t?> lambda;
-<?=calcCellMinMaxEigenvalues?>(&lambda, solver, <?=U?>, <?=x?>, <?=n?>); 
-]], {
-		n = n,
-		U = '('..U..')',
-		x = x,
-	})
+range_t lambda;
+<?=calcCellMinMaxEigenvalues?>(&lambda, solver, <?=U?>, <?=pt?>, <?=n?>); 
+<?=eqn:waveCodeAssignMinMax(declare, resultMin, resultMax, 'lambda.min', 'lambda.max')?>
+]], args)
 end
 
-function MHD:consMinWaveCode(n, U, x)
-	return 'lambda.min'
-end
-
-function MHD:consMaxWaveCode(n, U, x)
-	return 'lambda.max'
-end
+-- since there is no prefix code
+MHD.consWaveCodeMinMaxAllSides = MHD.consWaveCodeMinMax
 
 return MHD

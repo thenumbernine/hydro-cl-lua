@@ -25,7 +25,7 @@ SolverBase:init
 				self.dim = ...
 			
 				-- hmm, meshsolver needs this before the numCells etc vars
-				-- but coord.sphere-sinh-radial needs this after .maxs is finalized, after getInitCondCode() is called
+				-- but coord.sphere_sinh_radial needs this after .maxs is finalized, after getInitCondCode() is called
 				self.coord = ...		<- this object creation is wedged between the other mesh vars because meshsolver needs it early
 				
 				self.device = ...
@@ -34,7 +34,7 @@ SolverBase:init
 				self.ops = ...
 				self.solverStruct = ...
 				self.solverStruct.vars:append(...)
-			self.solverStruct.vars:append(...)	
+			self.solverStruct.vars:append(...)
 			self.mins = ...
 			self.maxs = ...
 			self.initCondMins = ...
@@ -107,7 +107,7 @@ SolverBase:init
 		SolverBase:getDisplayCode
 			self.displayVarGroups[i].vars[j].toTexKernelName = ...
 
---------- here is where the ffi.cdef is called --------- 
+--------- here is where the ffi.cdef is called ---------
 
 	SolverBase:initCDefs
 	
@@ -127,7 +127,7 @@ SolverBase:init
 			SolverBase:refreshEqnInitState
 				self.eqn.guiVars[k] = ...
 
---------- here is where the code header is created --------- 
+--------- here is where the code header is created ---------
 				
 				GridSolver:refreshCodePrefix
 					SolverBase:refreshCodePrefix
@@ -136,7 +136,7 @@ SolverBase:init
 						SolverBase:refreshInitStateProgram
 							self.eqn.initCond:refreshInitStateProgram
 								
---------- here's the last place where the grid mins/maxs can be changed --------- 
+--------- here's the last place where the grid mins/maxs can be changed ---------
 
 								self.eqn:getInitCondCode
 						
@@ -223,7 +223,10 @@ local from3x3to6 = common.from3x3to6
 local from6to3x3 = common.from6to3x3
 local sym = common.sym
 
-local half = require 'hydro.half'
+-- TODO call this 'torealparam' instead?
+local real = require 'hydro.real'
+
+local half = require 'cl.obj.half'
 local toreal, fromreal = half.toreal, half.fromreal
 
 
@@ -241,7 +244,7 @@ end
 
 
 local integrators = require 'hydro.int.all'
-local integratorNames = integrators:map(function(integrator) return integrator.name end)
+local integratorNames = integrators:mapi(function(integrator) return integrator.name end)
 
 
 local SolverBase = class()
@@ -266,7 +269,7 @@ SolverBase.structForType = {}
 SolverBase.useCLLinkLibraries = false
 -- for reference on how it was being used:
 
-	if self.useCLLinkLibraries then 
+	if self.useCLLinkLibraries then
 		time('compiling common program', function()
 			self.commonUnlinkedObj = self.Program{name='common', code=commonCode}
 			self.commonUnlinkedObj:compile{dontLink=true}
@@ -274,7 +277,7 @@ SolverBase.useCLLinkLibraries = false
 		time('linking common program', function()
 			self.commonProgramObj = self.Program{
 				programs = {
-					self.mathUnlinkedObj, 
+					self.mathUnlinkedObj,
 					self.commonUnlinkedObj,
 				},
 			}
@@ -330,37 +333,58 @@ args:
 
 TODO this should be 'final' i.e. no child inherits it
 so that SolverBase:init can run stuff after all child classes have initialized
+
+TODO TODO put this in its own function: ":createIdentSerializationTable" or something and call it from :init
+* have each class build it *only* from the same values that the class accepts as ctor arguments
+* make sure the objects it gets are all either tables or strings
+* no table circular references (tolua can enforce this)
+* if you do come across an object, just call its own :createIdentSerializationTable() or whatever it's called, and add that into the str ser table
+* if you add an extra arg in then you'll get two cache entries for the same solver.
+* if you leave an arg out then you'll get recompilation for the same solver
+* otehrwise that should restore cl bin cache functionality
 --]]
 function SolverBase:init(args)
 
-self.initArgs = table(args)	-- save for later	
--- remove/replace object references
-self.initArgs.app = nil
-self.initArgs.solver = getmetatable(self).name	-- not in initArgs but is unique	
-if self.initArgs.subsolverClass then
-	self.initArgs.subsolverClass = self.initArgs.subsolverClass.name
-end
--- remove compile-time variables
-self.initArgs.fixedDT = nil
-self.initArgs.cfl = nil
-self.initArgs.mins = nil
-self.initArgs.maxs = nil
-self.initArgs.gridSize = nil	
-self.initArgs.cmds = nil		-- in choppedup
-self.initArgs.device = nil		-- in choppedup
-self.initArgs.id = nil			-- in choppedup
+
+-- [[ save this for later
+	-- right now this is only used for serialization of the config of the solver,
+	-- which used to be used for caching binaries for fast compiling
+	-- but now that the code/obj names have their mem locs in them, the serialize str is dif every time
+	-- so i need to fix that
+	-- adn i need to fix this
+	self.initArgsForSerialization = table(args)
+	-- remove/replace object references
+	self.initArgsForSerialization.app = nil
+	self.initArgsForSerialization.solver = getmetatable(self).name	-- not in initArgsForSerialization but is unique
+	if self.initArgsForSerialization.subsolverClass then
+		self.initArgsForSerialization.subsolverClass = self.initArgsForSerialization.subsolverClass.name
+	end
+	-- remove runtime variables
+	self.initArgsForSerialization.fixedDT = nil
+	self.initArgsForSerialization.cfl = nil
+	self.initArgsForSerialization.mins = nil
+	self.initArgsForSerialization.maxs = nil
+	self.initArgsForSerialization.gridSize = nil
+	self.initArgsForSerialization.cmds = nil		-- in choppedup
+	self.initArgsForSerialization.device = nil		-- in choppedup
+	self.initArgsForSerialization.id = nil			-- in choppedup
 -- also include # devices.  since, on the nvidia cluster, the binaries compiled for 1 device will segfault if they are loaded when using >1 device
-self.initArgs.numDevices = #args.app.env.devices
+	self.initArgsForSerialization.numDevices = #args.app.env.devices
+	-- hmm, this is defeating the whole purpose of this, ...
+	-- but thanks to some function serialization in BoundaryFixed ... i'm getting rid of boundary as well
+	self.initArgsForSerialization.mesh = nil
+--]]
 
 	time('SolverBase:init()', function()
 		require 'hydro.code.symbols'(self, self:getSymbolFields())	-- make unique symbols
 		self:initMeshVars(args)
 		self:initCLDomainVars(args)
 		self:initObjs(args)
+
 		self:initCodeModules()
 		self:initCodeModuleDisplay()
 		self:initCDefs()
-		self:postInit()
+		self:postInit()	--> refreshGridSize -> createBuffers
 	end)
 end
 
@@ -394,7 +418,7 @@ function SolverBase:getIdent()
 	end
 	self.ident = tostring(self.uniqueIndex)
 --]]
---[[ TODO derive this from the solver's state	
+--[[ TODO derive this from the solver's state
 	self.ident = require 'ext.tolua'{
 		solver = getmetatable(self).name,	-- TODO ensure this matches the require('hydro/solver/$name')
 		eqn = self.eqn.name,				-- TODO ensure this matches the require('hydro/eqn/$name')
@@ -403,19 +427,43 @@ function SolverBase:getIdent()
 	}
 --]]
 -- [[ until then, trust the init args to be serialized already (and not objects ... which can be accepted as init args in some cases)
-	--return require 'ext.tolua'(self.initArgs, {indent=false})
+	--return require 'ext.tolua'(self.initArgsForSerialization, {indent=false})
 	-- here's how tests/test-order does it:
 	-- (this is causing errors, because i think these filenames are coming out too long, because they include stuff that test-order didn't
 	-- 	such as boundary condition info, eqn args, etc ... these need to be shortened)
-	assert(self.initArgs)
-	local serStr = require 'ext.tolua'(self.initArgs)
+	assert(self.initArgsForSerialization)
+-- [=[ make sure there's no objects that are cdata, make sure there's no loops
+	do
+		local allTables = {}
+		local function checkForLoops(o)
+			for k,v in pairs(o) do
+				if type(v) == 'cdata' then
+					error("initArgsForSerialization field "..k.." is cdata")
+				end
+				if type(k) == 'cdata' then
+					error("initArgsForSerialization key "..k.." is cdata ... you are really in trouble")
+				end
+				if allTables[v] then
+					error("found a loop in the initArgsForSerialization ... field "..k.." ... try (a) replacing the field with an equally-unique string/table, or (b) removing loops")
+				end
+				if type(v) == 'table' then
+					checkForLoops(v)
+				end
+			end
+		end
+		assert(type(self.initArgsForSerialization) == 'table')
+		allTables[self.initArgsForSerialization] = true
+		checkForLoops(self.initArgsForSerialization)
+	end
+--]=]
+	local serStr = require 'ext.tolua'(self.initArgsForSerialization)
 	local destName = serStr:match('^{(.*)}$')
 	assert(destName, "we must have got a circular reference in:\n"..serStr)
-	destName = destName 
+	destName = destName
 		:gsub('%s+', ' ')
 		:gsub('"', '')
 	destName = string.trim(destName)
-	-- 
+	--
 	local configStr = destName
 		:gsub('/', '')
 		:gsub('{', '(')
@@ -430,15 +478,18 @@ function SolverBase:getIdent()
 	local chs = require 'ext.range'(len):mapi(function() return 0 end)
 	for i=1,#configStr do
 		local j = (i-1)%len+1
-		chs[j] = bit.bxor(chs[j], configStr:sub(i,i):byte()) 
+		chs[j] = bit.bxor(chs[j], configStr:sub(i,i):byte())
 	end
 	self.ident = chs
 		:sub(1, math.min(len, #configStr))
-		:mapi(function(ch) 
+		:mapi(function(ch)
 			--return string.char(ch)
 			return ('%02x'):format(ch)
 		end):concat()
-	print("solver using ident "..self.ident.." from config str "..configStr)
+	if self.app.verbose then
+		print('ident config str: '..configStr)
+	end
+	print("cache identifier: "..self.ident)
 --]=]
 --]]
 
@@ -487,7 +538,7 @@ function SolverBase:initMeshVars(args)
 		{name='mins', type='real3'},
 		{name='maxs', type='real3'},
 	--]]
-	-- [[ the mins/maxs, or the super-solver's mins/maxs.  only needed because of the composite solvers. 
+	-- [[ the mins/maxs, or the super-solver's mins/maxs.  only needed because of the composite solvers.
 		{name='initCondMins', type='real3'},
 		{name='initCondMaxs', type='real3'},
 	--]]
@@ -498,7 +549,7 @@ function SolverBase:initMeshVars(args)
 	
 	local solver = self
 	
-	-- my kernel objs are going to need workgroup info based on domain.size-2*noGhost as well as domain.size ... 
+	-- my kernel objs are going to need workgroup info based on domain.size-2*noGhost as well as domain.size ...
 	-- ...and rather than require an extra argument, I think I'll just take advantage of a closure
 	local Program = class(require 'cl.obj.program')
 
@@ -518,7 +569,7 @@ function SolverBase:initMeshVars(args)
 		local binfn = bindir..'/'..args.name..'.bin'
 		
 		-- caching binaries, which doesn't write unless the program successfully compiles
-		if not cmdline.usecachedcode then 
+		if not cmdline.usecachedcode then
 			if args.name then
 				if useCache then
 					args.cacheFileCL = clfn
@@ -543,12 +594,13 @@ function SolverBase:initMeshVars(args)
 	
 	function Program:compile(args)
 		args = args or {}
+		args.verbose = solver.app.verbose
 		args.buildOptions = '-w'	-- show warnings
 		local results = Program.super.compile(self, args)
 		assert(self.obj, "there must have been an error in your error handler")	-- otherwise it would have thrown an error
 		do--if self.obj then	-- did compile
 			print((self.name and self.name..' ' or '')..'log:')
-			-- TODO log per device ...			
+			-- TODO log per device ...
 			print(string.trim(self.obj:getLog(solver.device)))
 		end
 		-- if we are using cached code then manually write binaries
@@ -578,19 +630,27 @@ function SolverBase:initMeshVars(args)
 
 			GLProgram.super.init(self, ...)
 		end
-		self.GLProgram = GLProgram 
+		self.GLProgram = GLProgram
 	end
 end
 
 function SolverBase:createCoord(args)
 	-- not sure where to put this, but it must precede MeshSolver:initMeshVars
 	-- also I'm pretty sure CoordinateSystem:init() doesn't require anything from SolverBase, only the later member functions
-	if require 'hydro.coord.coord'.is(args.coord) then
+	if require 'hydro.coord.coord':isa(args.coord) then
 		self.coord = args.coord	-- ptr copy expected by AMR
 		self.coord.solver = self
 	else
 		self.coord = require('hydro.coord.'..(args.coord or 'cartesian'))(table({solver=self}, args.coordArgs))
 	end
+end
+
+-- this is called back from within coord creation *BEFORE* it is finished (and assigned)
+-- hmm, here is a dilemma, eqn has not yet been created, but I would like eqn to be able to populate cells in this.
+-- so that means ... delay this until after eqn has been created (which is also after solver.coord has been assigned)
+-- and also delay use of any cellBuf's until after that point.
+function SolverBase:createCellStruct(coord)
+
 end
 
 function SolverBase:initCLDomainVars(args)
@@ -624,7 +684,7 @@ function SolverBase:initObjs(args)
 	self.integratorArgs = args.integratorArgs
 	self.integratorIndex = integratorNames:find(args.integrator) or 1
 
-	self.checkNaNs = self.checkNaNs
+	self.checkNaNs = self.checkNaNs or args.checkNaNs
 	self.useFixedDT = not not args.fixedDT
 	self.fixedDT = args.fixedDT or self.fixedDT or .001
 	self.cfl = args.cfl or .5	--/self.dim
@@ -645,7 +705,7 @@ function SolverBase:initObjs(args)
 
 	-- do this before any call to createBuffers
 	-- make sure it's done after createEqn (for the solver_t struct to be filled out by the eqn)
-	-- actually this has to go after self.eqn:createInitState, 
+	-- actually this has to go after self.eqn:createInitState,
 	--  which is called in refreshEqnInitState
 	--  which is called in refreshGridSize
 	--  which is called in postInit
@@ -662,7 +722,62 @@ function SolverBase:initObjs(args)
 	-- TODO if initCond is supposed to be modular then this would have to be created after initCond is changed
 	self.initCond_t = self.eqn.initCond.initStruct.typename
 	self.initCondPtr = ffi.new(self.initCond_t)
+
+
+
+	-- [[
+	-- This code should go after all objs are created -- so they can each call their own callbacks to modify this
+	-- and it should go before the next call, which is initCodeModules, which requires the finalizeCellStruct to be called
+
+	-- this creates coord.cellStruct and coord.faceStruct, but doesn't yet create the types until coord:finalizeCellStruct()
+	self.coord:createCellStruct()
+
+	-- moving the solver-specific changes to cell_t into this function:
+	-- especially MeshSolver uses this to add mesh fields to cell_t
+	if self.createCellStruct then
+		self:createCellStruct()
+	end
+
+	if self.eqn.createCellStruct then
+		self.eqn:createCellStruct()
+	end
+	
+	for _,op in ipairs(self.ops) do
+		if op.createCellStruct then
+			op:createCellStruct()
+		end
+	end
+
+	self.coord:finalizeCellStruct()
+	--]]
+
+	-- [[ init boundary stuff
+	self.boundaryOptions = table()
+	self.boundaryOptionNames = table()
+	self.boundaryOptionForName = {}
+
+	-- This is either in GridSolver of MeshSolver
+	-- each has dif Boundary objs, one for structured grids, another for the mesh/face/cell structs
+	self:createBoundaryOptions()
+	
+	if self.eqn.createBoundaryOptions then
+		self.eqn:createBoundaryOptions()
+	end
+	--]]
 end
+
+function SolverBase:addBoundaryOptions(args)
+	for _,arg in ipairs(args) do
+		self:addBoundaryOption(arg)
+	end
+end
+
+function SolverBase:addBoundaryOption(boundaryClass)
+	self.boundaryOptions:insert(assert(boundaryClass))
+	self.boundaryOptionNames:insert(assert(boundaryClass.name))
+	self.boundaryOptionForName[boundaryClass.name] = boundaryClass
+end
+
 
 -- collect *all* modules from all sub-objects
 -- do this after objs are created and before codegen
@@ -683,7 +798,7 @@ self.modules = self.app.modules
 	self.sharedModulesEnabled = table()
 
 	self.modules:add{
-		name = self.solver_t,
+		name = assert(self.solver_t),
 		structs = {self.solverStruct},
 		-- only generated for cl, not for ffi cdef
 		headercode = 'typedef '..self.solver_t..' solver_t;',
@@ -730,7 +845,7 @@ real <?=fluxLimiter?>(real r) {
 	-- when building modules for ops, only add them to solverModulesEnabled, not sharedModulesEnabled, since init doesn't need them
 	for _,op in ipairs(self.ops) do
 		if op.initCodeModules then
-			op:initCodeModules(self)
+			op:initCodeModules()
 		end
 	end
 end
@@ -740,37 +855,21 @@ end
 -- I can get around this if I go back to the previous functionality of only testing what dependencies are listed in the math module
 --  but this won't work well with moving any math dependencies closer to the kernel functions
 function SolverBase:initCodeModuleDisplay()
-	self:createDisplayVars()	-- depends on self.eqn
+	-- depends on self.eqn
+	self:createDisplayVars()
 
 	-- this depends on :createDisplayVars()
-	self.modules:add{
-		name = self.symbols.solver_displayCode,
-		depends = self:getModuleDepends_displayCode(),
-		code = self:getDisplayCode(),
-	}
+	self.modules:addFromMarkup(
+		'//// MODULE_NAME: '..self.symbols.solver_displayCode..'\n'
+		..self:getDisplayCode()			-- this call constructs displayValue_t
+	)
 	self.solverModulesEnabled[self.symbols.solver_displayCode] = true
 end
 
-function SolverBase:getModuleDepends_displayCode()
-	local depends = table(self.eqn:getModuleDepends_displayCode())
-
-	-- add in any real3 pickComponent code dependencies here
-	if self:isModuleUsed'real3' then
-		depends:insert(self.coord.symbols.coordLen)
-	end
-	
-	-- add in any sym3 pickComponent code dependencies here
-	if self:isModuleUsed'sym3' then
-		depends:insert(self.coord.symbols.coord_g_ll)
-	end
-
-	return depends 
-end
-
 -- TODO if you want to define ffi ctype metatable then put them all in one spot here
--- TODO TODO since i'm switching to the modules, 
+-- TODO TODO since i'm switching to the modules,
 -- and since eqn's init's ffi calls need the ctypes of the fields defined up-front in order to use them (like counting scalars in cons_t),
--- how about instead I call cdef() immediately upon request? 
+-- how about instead I call cdef() immediately upon request?
 -- and then just get of this function completely.
 function SolverBase:initCDefs()
 	local moduleNames = table(
@@ -782,7 +881,9 @@ function SolverBase:initCDefs()
 			[self.eqn.symbols.prim_t] = true,
 		}
 	):keys()
-print("ffi.cdef'ing: "..moduleNames:concat', ')
+	if self.app.verbose then
+		print("ffi.cdef'ing: "..moduleNames:concat', ')
+	end
 	require 'hydro.code.safecdef'(self.modules:getTypeHeader(moduleNames:unpack()))
 end
 
@@ -808,11 +909,11 @@ end
 function SolverBase:postInit()
 	time('SolverBase:postInit()', function()
 		self:refreshGridSize()		-- depends on createDisplayVars
-		-- refreshGridSize calls refreshCodePrefix 
+		-- refreshGridSize calls refreshCodePrefix
 		-- ... calls refreshEqnInitState
-		-- ... calls refreshSolverProgram 
+		-- ... calls refreshSolverProgram
 		-- ... which needs display vars
-		-- TODO get rid of this 'refresh' stuff.  
+		-- TODO get rid of this 'refresh' stuff.
 		-- it was designed for callbacks when changing grid resolution, integrator, etc while the simulation was live.
 		-- doing this now is unreasonable, considering how solver_t is tightly wound with initCond, eqn, and the scheme
 
@@ -852,7 +953,7 @@ however in some forums people complain of a similar thing with nvidia under clEn
 	https://stackoverflow.com/questions/34943647/c-opencl-return-cl-out-of-resources
 To supplicant a similar clEnqueueReadBuffer problem, the solution is "just wait a few seconds for NVIDIA to settle its jimmies.  I tried waiting 30 seconds, no difference, so it is a state problem.
 Another cause of this error on NVIDIA seems to be writing OOB ... which shouldn't be the case here, solverPtr, solverBuf, and solver_t are all the same size.
-It seems to always happen in the same place, and only after several writes to the same buffer. 
+It seems to always happen in the same place, and only after several writes to the same buffer.
 So my attempted fix: to minimize all writes to the solverBuf until just before the simulation starts.
 
 Turns out that's not the problem.
@@ -868,6 +969,16 @@ Next question: Should we create a unique context for each sub-solver?
 	Will that just introduce more complexities with having to copy GPU data between different contexts? (in the GL world, copying between contexts is a headache)
 --]]
 function SolverBase:refreshSolverBuf()
+--[[ bssnok-fd-senr is crashing here even though all the sizes seem to match up
+print('self.solverPtr', self.solverPtr)	
+	assert(not rawequal(self.solverPtr, nil))
+print('ffi.sizeof(self.solverPtr)', ffi.sizeof(self.solverPtr))
+print('self.solverBuf.type', self.solverBuf.type)
+print('ffi.sizeof(self.solverBuf.type)', ffi.sizeof(self.solverBuf.type))
+print('self.solverBuf.count', self.solverBuf.count)
+print('ffi.sizeof(self.solverBuf.type) * self.solverBuf.count', ffi.sizeof(self.solverBuf.type) * self.solverBuf.count)
+	assert(ffi.sizeof(self.solverBuf.type) * self.solverBuf.count == ffi.sizeof(self.solverPtr))
+--]]	
 	self.solverBuf:fromCPU(self.solverPtr)
 end
 
@@ -886,7 +997,7 @@ function SolverBase:copyGuiVarsToBufs()
 			end
 		end
 	end
-	self:refreshSolverBuf()
+	self:refreshSolverBuf()		-- solver=bssnok-fd, eqn=bssnok-fd-senr ... crashes here - can't access GPU memory
 
 	-- copy initCondBuf vars
 	for _,var in ipairs(self.eqn.initCond.guiVars) do
@@ -933,13 +1044,16 @@ function SolverBase:refreshCommonProgram()
 		self.solver_t,
 		self.eqn.symbols.cons_t,
 		
-		-- This is in GridSolver, a subclass.  
+		-- This is in GridSolver, a subclass.
 		-- In fact, all the display stuff is pretty specific to cartesian grids.
 		-- Not 100% though, since the MeshSolver stuff was working with it before I introduced the code module stuff.
 		self.symbols.SETBOUNDS_NOGHOST,
+		
+		self.symbols.SETBOUNDS,
 	}
-print('common modules: '..moduleNames:sort():concat', ')
-
+	if self.app.verbose then
+		print('common modules: '..moduleNames:concat', ')
+	end
 	local commonCode = table{
 		-- just header, no function calls needed
 		self.modules:getHeader(moduleNames:unpack()),
@@ -951,10 +1065,10 @@ kernel void multAddInto(
 	realparam const c
 ) {
 	<?=SETBOUNDS_NOGHOST?>();
-<? 
+<?
 for i=0,eqn.numIntStates-1 do
 ?>	a[index].ptr[<?=i?>] += b[index].ptr[<?=i?>] * c;
-<? 
+<?
 end
 ?>}
 
@@ -966,7 +1080,7 @@ kernel void multAdd(
 	realparam const d
 ) {
 	<?=SETBOUNDS_NOGHOST?>();
-<? 
+<?
 -- hmm, I only need numIntStates integrated
 -- but the remaining variables I need initialized at least
 -- and in RK, the U's are initialized to zero ...
@@ -974,21 +1088,44 @@ kernel void multAdd(
 -- Another thought, if I'm scaling *everything* in the struct, then just use reals and scale up the kernel size by numReals
 for i=0,eqn.numIntStates-1 do
 ?>	a[index].ptr[<?=i?>] = b[index].ptr[<?=i?>] + c[index].ptr[<?=i?>] * d;
-<? 
+<?
 end
 ?>}
 
-kernel void square(
+// whereas the multAddInto and multAdd operate on cons_t,
+// this operates on a buffer of reals.
+// and this should only operate on non-ghost cells.
+kernel void subtractAndSquare(
 	constant <?=solver_t?> const * const solver,
-	global <?=cons_t?> * const a
+	global real * const a,
+	realparam const mu
 ) {
 	<?=SETBOUNDS_NOGHOST?>();
-<?	-- numStates or numIntStates?
-for i=0,eqn.numIntStates-1 do
-?>	a[index].ptr[<?=i?>] *= a[index].ptr[<?=i?>];
-<? 
-end
-?>}
+	global real * const ai = a + index;
+	*ai -= mu;
+	*ai *= *ai;
+}
+
+<? if solver.checkNaNs then ?>
+kernel void findNaNs(
+	constant <?=solver_t?> const * const solver,
+	global real * const dst,
+	global <?=cons_t?> const * const src
+) {
+	
+<? if solver.checkNaNs == 'gpu-noghost' then ?>
+	<?=SETBOUNDS?>(solver->numGhost, solver->numGhost);
+<? else ?>
+	<?=SETBOUNDS?>(0, 0);
+<? end ?>
+
+	dst[index] = 0;
+<? for i=0,eqn.numStates-1 do
+?>	dst[index] += (real)(!isfinite(src[index].ptr[<?=i?>]));
+<? end ?>
+}
+<? end ?>
+
 ]]
 	}:concat'\n'
 
@@ -1006,13 +1143,18 @@ end
 	self.multAddIntoKernelObj = self.commonProgramObj:kernel{name='multAddInto', domain=self.domainWithoutBorder}
 	self.multAddIntoKernelObj.obj:setArg(0, self.solverBuf)
 	
-	self.squareKernelObj = self.commonProgramObj:kernel{name='square', domain=self.domainWithoutBorder}
-	self.squareKernelObj.obj:setArg(0, self.solverBuf)
+	self.subtractAndSquareKernelObj = self.commonProgramObj:kernel{name='subtractAndSquare', domain=self.domainWithoutBorder}
+	self.subtractAndSquareKernelObj.obj:setArg(0, self.solverBuf)
+
+	if self.checkNaNs then
+		self.findNaNsKernelObj = self.commonProgramObj:kernel('findNaNs', self.solverBuf, self.reduceBuf)
+	end
 
 	-- TODO vectors won't reduce anymore unless the reduceMin is constructed with 3* the # of count
 	-- but this breaks reduce for scalars (it includes those extra zeros)
 	-- which makes calcDT fail
 	self.reduceMin = self.app.env:reduce{
+		secondPassInCPU = cmdline.secondPassInCPU,
 		count = self.numCells,
 		op = function(x,y) return 'min('..x..', '..y..')' end,
 		initValue = 'INFINITY',
@@ -1021,6 +1163,7 @@ end
 		result = self.reduceResultPtr,
 	}
 	self.reduceMax = self.app.env:reduce{
+		secondPassInCPU = cmdline.secondPassInCPU,
 		count = self.numCells,
 		op = function(x,y) return 'max('..x..', '..y..')' end,
 		initValue = '-INFINITY',
@@ -1029,6 +1172,7 @@ end
 		result = self.reduceResultPtr,
 	}
 	self.reduceSum = self.app.env:reduce{
+		secondPassInCPU = cmdline.secondPassInCPU,
 		count = self.numCells,
 		op = function(x,y) return x..' + '..y end,
 		initValue = '0.',
@@ -1060,7 +1204,9 @@ end
 
 function SolverBase:finalizeCLAllocs()
 	for _,info in ipairs(self.buffers) do
-print(require 'ext.tolua'(info))
+		if self.app.verbose then
+			print(require 'ext.tolua'(info))
+		end
 		local name = info.name
 		local ctype = info.type
 		local count = info.count
@@ -1117,7 +1263,8 @@ function SolverBase:createBuffers()
 	-- on non-GL-sharing cards.
 	self:clalloc('reduceBuf', app.real, self.numCells * 3)
 	self:clalloc('reduceSwapBuf', app.real, math.ceil(self.numCells * 3 / self.localSize1d))
-	self.reduceResultPtr = ffi.new('real[1]', 0)
+	self.reduceResultPtr = ffi.new'real[1]'
+	self.reduceResultPtr[0] = toreal(0)
 
 	-- as big as reduceBuf, because it is a replacement for reduceBuf
 	-- ... though I don't accum on vector fields yet, so it doesn't need the x3 really
@@ -1130,7 +1277,7 @@ function SolverBase:createBuffers()
 	if app.targetSystem ~= 'console' then
 		assert(self.texSize, "you forgot to define solver.texSize for the CL/GL interop buffers")
 
-		-- hmm, notice I'm still keeping the numGhost border on my texture 
+		-- hmm, notice I'm still keeping the numGhost border on my texture
 		-- if I remove the border altogether then I get wrap-around
 		-- maybe I should just keep a border of 1?
 		-- for now i'll leave it as it is
@@ -1154,15 +1301,25 @@ function SolverBase:createBuffers()
 		
 		local CLImageGL = require 'cl.imagegl'
 		if app.useGLSharing then
+			--[[ on AMD:
+			0 gives CL_INVALID_VALUE
+			CL_MEM_READ_ONLY gives CL_MEM_OBJECT_ALLOCATION_FAILURE
+			CL_MEM_WRITE_ONLY gives CL_MEM_OBJECT_ALLOCATION_FAILURE
+			CL_MEM_READ_WRITE gives CL_MEM_OBJECT_ALLOCATION_FAILURE
+			so ... ?
+			--]]
 			self.texCLMem = CLImageGL{context=app.ctx, tex=self.tex, write=true}
 		else
 			-- use texSize:volume() so the glTexSubImage can use the whole buffer, in the event of meshsolver where texSize:volume can be > numCells
+			if self.app.verbose then
+				print('allocating gpu-cpu display copy buffer of '..app.real..'['..tonumber(self.texSize:volume() * 3)..']')
+			end
 			self.calcDisplayVarToTexPtr = ffi.new(app.real..'[?]', self.texSize:volume() * 3)
 		end
 	end
 end
 
-function SolverBase:getTex(var) 
+function SolverBase:getTex(var)
 	return self.tex
 end
 
@@ -1192,24 +1349,92 @@ function SolverBase:refreshEqnInitState()
 	-- bounds don't get set until getInitCondCode() is called, but code prefix needs them ...
 	-- TODO do a proper refresh so mins/maxs can be properly refreshed
 	local initCond = self.eqn.initCond
-	if initCond.mins then 
-		self.mins = vec3d(unpack(initCond.mins)) 
+	if initCond.mins then
+		local mins = initCond.mins
+		if type(mins) == 'function' then mins = assert(mins(initCond)) end
+		self.mins = vec3d(table.unpack(mins))
 		for j=1,3 do
 			self.solverPtr.mins.s[j-1] = toreal(self.mins.s[j-1])
 		end
+		self.initCondMins = vec3d(self.mins:unpack())
 	end
-	if initCond.maxs then 
-		self.maxs = vec3d(unpack(initCond.maxs)) 
+	if initCond.maxs then
+		local maxs = initCond.maxs
+		if type(maxs) == 'function' then maxs = assert(maxs(initCond)) end
+		self.maxs = vec3d(table.unpack(maxs))
 		for j=1,3 do
 			self.solverPtr.maxs.s[j-1] = toreal(self.maxs.s[j-1])
 		end
+		self.initCondMaxs = vec3d(self.maxs:unpack())
 	end
 
-	-- there's a lot of overlap between this and the solverBuf creation... 
+	-- there's a lot of overlap between this and the solverBuf creation...
 	self:refreshSolverBufMinsMaxs()
 
 	-- while we're here, write all gui vars to the solver_t
 	self:copyGuiVarsToBufs()
+
+
+-- [[
+	-- get the symbolic function for the x, y, z
+	-- and find its range for a domain of the solverMins/solverMaxs
+	local coord = self.coord
+	local range = require 'ext.range'
+	local symmath = require 'symmath'
+	local var = symmath.var
+	local u,v,w = table.unpack(coord.baseCoords)
+	local chart = coord.chart()
+	for i=1,#chart do
+--print'before replace'
+--print(chart[i])
+		chart[i] = coord:applyReplVars(chart[i])
+-- This is what applyReplVars is for, right?
+-- but I wanted to keep these as code, and use CL #define's to replace their values
+-- so they could be changed at runtime without regenerating the code
+-- just with a kernel recompile.
+-- so TODO if I change them to be based on applyReplVars instead then I don't need this extra code
+-- or TODO otherwise I can just put these repls somewhere else ... ? idk
+		chart[i] = coord:applyReplDefines(chart[i])
+--print'after replcae'
+--print(chart[i])
+	end
+
+-- ok for sphere_sinh_radial, at this point after replacement, we still have vars for AMPL and SINHW
+-- and I wrote those to be macros
+
+	local domains = range(3):mapi(function(i)
+		return symmath.set.RealSubset(
+			tonumber(self.mins.s[i-1]),
+			tonumber(self.maxs.s[i-1]),
+			true, true)
+	end)
+
+	-- find chart[1]'s range for domain
+	chart = chart
+		:replace(u, var('tmpU', nil, nil, domains[1]))
+		:replace(v, var('tmpV', nil, nil, domains[2]))
+		:replace(w, var('tmpW', nil, nil, domains[3]))
+
+	local ranges = range(3):mapi(function(i)
+		return chart[i]:getRealRange()
+	end)
+
+	self.cartesianMin = vec3d(
+		ranges[1][1].start,
+		ranges[2][1].start,
+		ranges[3][1].start
+	)
+	self.cartesianMax = vec3d(
+		table.last(ranges[1]).finish,
+		table.last(ranges[2]).finish,
+		table.last(ranges[3]).finish
+	)
+	if self.app.verbose then
+		print('cartesianMin = '..self.cartesianMin)
+		print('cartesianMin = '..self.cartesianMax)
+	end
+
+--]]
 end
 
 function SolverBase:refreshSolverBufMinsMaxs()
@@ -1218,8 +1443,8 @@ function SolverBase:refreshSolverBufMinsMaxs()
 		self.solverPtr.maxs.s[j-1] = toreal(self.maxs.s[j-1])
 	end
 	if self.app.verbose then
-		print('mins = '..fromreal(self.solverPtr.mins.x)..', '..fromreal(self.solverPtr.mins.y)..', '..fromreal(self.solverPtr.mins.z))
-		print('maxs = '..fromreal(self.solverPtr.maxs.x)..', '..fromreal(self.solverPtr.maxs.y)..', '..fromreal(self.solverPtr.maxs.z))
+		print('coord min = '..fromreal(self.solverPtr.mins.x)..', '..fromreal(self.solverPtr.mins.y)..', '..fromreal(self.solverPtr.mins.z))
+		print('coord max = '..fromreal(self.solverPtr.maxs.x)..', '..fromreal(self.solverPtr.maxs.y)..', '..fromreal(self.solverPtr.maxs.z))
 	end
 end
 
@@ -1236,7 +1461,7 @@ function SolverBase:refreshCodePrefix()
 	self:refreshIntegrator()	-- depends on eqn & gridSize ... & ffi.cdef cons_t
 	self:refreshInitStateProgram()
 	self:refreshSolverProgram()	-- depends on createDisplayVars
---[[ 
+--[[
 TODO here -- refresh init state
 but what does that look like for mesh solvers?
 where should the initial state be stored?
@@ -1264,9 +1489,10 @@ function SolverBase:refreshSolverProgram()
 	local code
 	time('generating solver code', function()
 		local moduleNames = table(self.sharedModulesEnabled, self.solverModulesEnabled):keys()
-print('solver modules: '..moduleNames:sort():concat', ')
+		if self.app.verbose then
+			print('solver modules: '..moduleNames:concat', ')
+		end
 		code = self.modules:getCodeAndHeader(moduleNames:unpack())
-		if self.getSolverCode then error("TODO turn this into code modules") end
 	end)
 
 	time('building solver program', function()
@@ -1291,7 +1517,9 @@ print('solver modules: '..moduleNames:sort():concat', ')
 
 
 	for _,op in ipairs(self.ops) do
-		op:refreshSolverProgram()
+		if op.refreshSolverProgram then
+			op:refreshSolverProgram()
+		end
 	end
 
 	-- display stuff.  build these just in case trackvars is used.
@@ -1394,7 +1622,7 @@ typedef union {
 ?>	if (vectorField) {\
 		((global real3*)dest)[dstindex] = value.vreal3;\
 	} else\
-<? end --\	
+<? end --\
 ?>	{\
 		dest[dstindex] = value.vreal;\
 	}
@@ -1423,9 +1651,9 @@ static inline void <?=name?>(
 ) {
 	real3 const x = cellBuf[index].pos;
 	switch (component) {
-<? 
+<?
 for i,component in ipairs(solver.displayComponentFlatList) do
-	if not component.onlyFor 
+	if not component.onlyFor
 	or (group.name == component.onlyFor)
 	then
 		if solver:isModuleUsed(component.base) then
@@ -1435,7 +1663,7 @@ for i,component in ipairs(solver.displayComponentFlatList) do
 			*vectorField = <?= solver:isVarTypeAVectorField(component.type) and '1' or '0' ?>;
 			break;
 		}
-<? 
+<?
 		end
 	end
 end
@@ -1457,7 +1685,7 @@ end
 -- (this means adding in extra params for display: the offset and the struct size)
 	
 	for _,ctype in ipairs{'real', 'real3', 'sym3', 'cplx', 'cplx3', 'real3x3'} do
-		for _, texVsBuf in ipairs{'Tex', 'Buffer'} do	
+		for _, texVsBuf in ipairs{'Tex', 'Buffer'} do
 			local tempvar = {
 				code = template([[
 	*(<?=ctype?>*)value = *(global const <?=ctype?> *)((global const byte*)buf + index * structSize + structOffset);
@@ -1505,33 +1733,48 @@ kernel void <?=kernelName?>(
 	global <?=group.bufferType?> const * const buf,
 	int const displayVarIndex,
 	int const component,
-	global <?=cell_t?> const * const cellBuf<? 
-if require 'hydro.solver.meshsolver'.is(solver) then
+	global <?=cell_t?> const * const cellBuf,
+	
+	// this is an ugly ugly hack, 
+	// because calculating avg and stddev use a buffer that includes ghost cells
+	// so unless I zero the border, it'll skew the averages
+	// but in fact the only reason i'm not zeroing the border is for the display i think?
+	// which sounds like a stupid reason anyways ... i should just use gl wrap
+	int zeroBorder
+<?
+if require 'hydro.solver.meshsolver':isa(solver) then
+-- TODO is anyone even using this?  faces? or extraArgs?
 ?>,
 	global <?=solver.coord.face_t?> const * const faces	//[numFaces]<?
 end ?><?=group.extraArgs and #group.extraArgs > 0
 		and ',\n\t'..table.concat(group.extraArgs, ',\n\t')
 		or '' ?>
 ) {
+//// MODULE_DEPENDS: <?=SETBOUNDS?>
 	<?=SETBOUNDS?>(0,0);
-<? if not require 'hydro.solver.meshsolver'.is(solver) then 
-?>	int4 dsti = i;
+<? if not require 'hydro.solver.meshsolver':isa(solver) then
+?>	bool const oob = <?=OOB?>(solver->numGhost, solver->numGhost);
+	int4 dsti = i;
 	int dstindex = index;
 	real3 x = cellBuf[index].pos;
-<? for j=0,solver.dim-1 do 
+<? for j=0,solver.dim-1 do
 ?>	i.s<?=j?> = clamp(i.s<?=j?>, solver->numGhost, solver->gridSize.s<?=j?> - solver->numGhost - 1);
 <? end
 ?>	index = INDEXV(i);
-<? else	-- mesh 
-?>	int dstindex = index;
+<? else	-- mesh
+?>	bool const oob = false;
+	int dstindex = index;
 	real3 x = cellBuf[index].pos;
-<? end 		-- mesh vs grid 
+<? end 		-- mesh vs grid
 ?>	displayValue_t value = {.ptr={0}};
 
-<?=group.codePrefix or ''
+<?=addTab(group.codePrefix or '')
 ?>
+	global <?=cell_t?> const * const cell = cellBuf + index;
+
 	int vectorField = 0;
-	switch (displayVarIndex) {
+	if (!(zeroBorder && oob)) {
+		switch (displayVarIndex) {
 ]], 			table({
 					group = group,
 					kernelName = ({
@@ -1539,11 +1782,12 @@ end ?><?=group.extraArgs and #group.extraArgs > 0
 						Buffer = group.toBufferKernelName,
 					})[texVsBuf] or error'here',
 					outputArg = ({
-						-- nvidia needed 'write_only', but I don't want to write only -- I want to accumulate and do other operations 
+						-- nvidia needed 'write_only', but I don't want to write only -- I want to accumulate and do other operations
 						-- TODO if I do accumulate, then I will need to ensure the buffer is initialized to zero ...
 						Tex = 'write_only '..(self.dim == 3 and 'image3d_t' or 'image2d_t')..' tex',
 						Buffer = 'global real* dest',
 					})[texVsBuf] or error'here',
+					addTab = addTab,
 				}, args)
 			))
 
@@ -1580,12 +1824,12 @@ end ?><?=group.extraArgs and #group.extraArgs > 0
 							addTab = addTab,
 						}
 						lines:insert(template([[
-<?=addTab(addTab(addTab(var.code)))
-?>			vectorField = <?=solver:isVarTypeAVectorField(var.type) and '1' or '0'?>;
+<?=addTab(addTab(addTab(addTab(var.code))))
+?>				vectorField = <?=solver:isVarTypeAVectorField(var.type) and '1' or '0'?>;
 ]], env))
 					end
-					lines:insert'			break;'
-					lines:insert'		}'
+					lines:insert'				break;'
+					lines:insert'			}'
 					lines:insert''
 				end
 			end	-- var
@@ -1596,9 +1840,9 @@ Sometimes group.bufferType is not cons_t, such as for the group of reduceBuf, in
 But in this case we are still calling the same pickComponent() as UBuf, and its bufferType is going to differ.
 --]]
 			lines:insert(template([[
+		}
+		<?=solver:getPickComponentNameForGroup(group)?>(solver, buf, component, &vectorField, &value, i, index, cellBuf);
 	}
-	
-	<?=solver:getPickComponentNameForGroup(group)?>(solver, buf, component, &vectorField, &value, i, index, cellBuf);
 	
 	END_DISPLAYFUNC_<?=texVsBuf:upper()?>()
 }
@@ -1612,7 +1856,12 @@ But in this case we are still calling the same pickComponent() as UBuf, and its 
 	end	-- texVsBuf
 
 	local code = lines:concat'\n'
-	
+
+	-- in the off chance that any MODULE_* cmds were in there, align them back with the lhs
+	code = string.split(code, '\n'):mapi(function(l)
+		return (l:gsub('^%s*//// MODULE_', '//// MODULE_'))
+	end):concat'\n'
+
 	return code
 end
 
@@ -1632,8 +1881,18 @@ function SolverBase:resetState()
 
 	self:applyInitCond()
 	self:boundary()
-	
-	self:resetOps()
+
+	if self.eqn.resetState then
+		self.eqn:resetState()
+		self:boundary()
+	end
+
+	for _,op in ipairs(self.ops) do
+		if op.resetState then
+			op:resetState()
+			self:boundary()
+		end
+	end
 
 	self:constrainU()
 end
@@ -1654,19 +1913,10 @@ function SolverBase:applyInitCond()
 	end
 end
 
-function SolverBase:resetOps()
-	for _,op in ipairs(self.ops) do
-		if op.resetState then
-			op:resetState()
-			self:boundary()
-		end
-	end
-end
-
 function SolverBase:convertToSIUnitsCode(units)
-
+	units = units or '1'
 	self.unitCodeCache = self.unitCodeCache or {}
-	if self.unitCodeCache[units] then 
+	if self.unitCodeCache[units] then
 		return self.unitCodeCache[units]
 	end
 	local symmath = require 'symmath'
@@ -1675,9 +1925,9 @@ function SolverBase:convertToSIUnitsCode(units)
 	local expr = assert(load([[
 local m, s, kg, C, K = ...
 return ]]..units), "failed to compile unit expression "..units)(m, s, kg, C, K)
-	expr = expr()
+	expr = symmath.clone(expr)()
 	expr = expr:map(function(ex)
-		if symmath.op.pow.is(ex) then
+		if symmath.op.pow:isa(ex) then
 			local power = ex[2].value
 			assert(type(power) == 'number')
 			if power == math.floor(power) and power > 0 then
@@ -1690,7 +1940,7 @@ return ]]..units), "failed to compile unit expression "..units)(m, s, kg, C, K)
 	local Ccode = symmath.export.C:toCode{
 		output = {expr},
 		input = {
-			{__solver_meter = m}, 
+			{__solver_meter = m},
 			{__solver_second = s},
 			{__solver_kilogram = kg},
 			{__solver_coulomb = C},
@@ -1853,10 +2103,16 @@ function SolverBase:createDisplayComponents()
 	self:addDisplayComponents('real3', {
 		{name = 'default', type = 'real3', magn='mag'},
 		{name = 'mag', code = 'value->vreal3 = _real3(real3_len(value->vreal3),0,0);'},
-		{name = 'mag metric', code = 'value->vreal3 = _real3(coordLen(value->vreal3, x),0,0);'},
+		{name = 'mag metric', code = self.eqn:template[[
+//// MODULE_DEPENDS: <?=coordLen?>
+value->vreal3 = _real3(coordLen(value->vreal3, x),0,0);
+]]},
 		{name = 'x', code = 'value->vreal3 = _real3(value->vreal3.x,0,0);'},
 		{name = 'y', code = 'value->vreal3 = _real3(value->vreal3.y,0,0);'},
 		{name = 'z', code = 'value->vreal3 = _real3(value->vreal3.z,0,0);'},
+		{name = 'xy arg', code = 'value->vreal3 = _real3(atan2(value->vreal3.y, value->vreal3.x),0,0);'},
+		{name = 'yz arg', code = 'value->vreal3 = _real3(atan2(value->vreal3.z, value->vreal3.y),0,0);'},
+		{name = 'zx arg', code = 'value->vreal3 = _real3(atan2(value->vreal3.x, value->vreal3.z),0,0);'},
 	})
 	self:addDisplayComponents('sym3', {
 		{name = 'xx', code = 'value->vsym3 = _sym3(value->vsym3.xx,0,0,0,0,0);'},
@@ -1875,9 +2131,18 @@ function SolverBase:createDisplayComponents()
 		{name = 'x mag', code = 'value->vsym3 = _sym3(real3_len(sym3_x(value->vsym3)), 0,0,0,0,0);'},
 		{name = 'y mag', code = 'value->vsym3 = _sym3(real3_len(sym3_y(value->vsym3)), 0,0,0,0,0);'},
 		{name = 'z mag', code = 'value->vsym3 = _sym3(real3_len(sym3_z(value->vsym3)), 0,0,0,0,0);'},
-		{name = 'x mag metric', code = 'value->vsym3 = _sym3(coordLen(sym3_x(value->vsym3), x), 0,0,0,0,0);'},
-		{name = 'y mag metric', code = 'value->vsym3 = _sym3(coordLen(sym3_y(value->vsym3), x), 0,0,0,0,0);'},
-		{name = 'z mag metric', code = 'value->vsym3 = _sym3(coordLen(sym3_z(value->vsym3), x), 0,0,0,0,0);'},
+		{name = 'x mag metric', code = self.eqn:template[[
+//// MODULE_DEPENDS: <?=coordLen?>
+value->vsym3 = _sym3(coordLen(sym3_x(value->vsym3), x), 0,0,0,0,0);
+]]},
+		{name = 'y mag metric', code = self.eqn:template[[
+//// MODULE_DEPENDS: <?=coordLen?>
+value->vsym3 = _sym3(coordLen(sym3_y(value->vsym3), x), 0,0,0,0,0);
+]]},
+		{name = 'z mag metric', code = self.eqn:template[[
+//// MODULE_DEPENDS: <?=coordLen?>
+value->vsym3 = _sym3(coordLen(sym3_z(value->vsym3), x), 0,0,0,0,0);
+]]},
 	})
 	self:addDisplayComponents('cplx', {
 		{name = 'default', type='cplx', magn='abs'},
@@ -1888,7 +2153,10 @@ function SolverBase:createDisplayComponents()
 	})
 	self:addDisplayComponents('cplx3', {
 		{name = 'mag', code = 'value->vcplx3 = _cplx3(cplx_from_real(cplx3_len(value->vcplx3)), cplx_zero, cplx_zero);'},
-		{name = 'mag metric', code = 'value->vcplx3 = _cplx3(cplx_from_real(cplx3_weightedLenSq(value->vcplx3, coord_g_ll(x))), cplx_zero, cplx_zero);'},
+		{name = 'mag metric', code = self.eqn:template[[
+//// MODULE_DEPENDS: <?=coord_g_ll?>
+value->vcplx3 = _cplx3(cplx_from_real(cplx3_weightedLenSq(value->vcplx3, coord_g_ll(x))), cplx_zero, cplx_zero);
+]]},
 
 		{name = 'x', code='value->vcplx3 = _cplx3(value->vcplx3.x, cplx_zero, cplx_zero);', type='cplx', magn='x abs'},
 		{name = 'x abs', code = 'value->vcplx3 = _cplx3(cplx_from_real(cplx_abs(value->vcplx3.x)), cplx_zero, cplx_zero);'},
@@ -1911,10 +2179,16 @@ function SolverBase:createDisplayComponents()
 		
 		{name = 're', code = 'value->vreal3 = cplx3_re(value->vcplx3); *(real3*)(value+3) = real3_zero;', type = 'real3', magn='re mag'},
 		{name = 're mag', code = 'value->vcplx3 = _cplx3(cplx_from_real(real3_len(cplx3_re(value->vcplx3))), cplx_zero, cplx_zero);'},
-		{name = 're mag metric', code = 'value->vcplx3 = _cplx3(cplx_from_real(coordLen(cplx3_re(value->vcplx3), x)), cplx_zero, cplx_zero);'},
+		{name = 're mag metric', code = self.eqn:template[[
+//// MODULE_DEPENDS: <?=coordLen?>
+value->vcplx3 = _cplx3(cplx_from_real(coordLen(cplx3_re(value->vcplx3), x)), cplx_zero, cplx_zero);
+]]},
 		{name = 'im', code = 'value->vreal3 = cplx3_im(value->vcplx3); *(real3*)(value+3) = real3_zero;', type = 'real3', magn='im mag'},
 		{name = 'im mag', code = 'value->vcplx3 = _cplx3(cplx_from_real(real3_len(cplx3_im(value->vcplx3))), cplx_zero, cplx_zero);'},
-		{name = 'im mag metric', code = 'value->vcplx3 = _cplx3(cplx_from_real(coordLen(cplx3_im(value->vcplx3), x)), cplx_zero, cplx_zero);'},
+		{name = 'im mag metric', code = self.eqn:template[[
+//// MODULE_DEPENDS: <?=coordLen?>
+value->vcplx3 = _cplx3(cplx_from_real(coordLen(cplx3_im(value->vcplx3), x)), cplx_zero, cplx_zero);
+]]},
 	})
 	self:addDisplayComponents('real3x3', {
 		{name = 'xx', code = 'value->vreal3x3 = _real3x3(value->vreal3x3.x.x, 0,0,0,0,0,0,0,0);'},
@@ -1931,7 +2205,10 @@ function SolverBase:createDisplayComponents()
 		
 		{name = 'norm', code = 'value->vreal3x3 = _real3x3(sqrt(real3x3_dot(value->vreal3x3, value->vreal3x3)), 0,0,0,0,0,0,0,0);'},
 		{name = 'tr', code = 'value->vreal3x3 = _real3x3(real3x3_trace(value->vreal3x3), 0,0,0,0,0,0,0,0);'},
-		{name = 'tr metric', code = 'value->vreal3x3 = _real3x3(real3x3_sym3_dot(value->vreal3x3, coord_g_ll(x)), 0,0,0,0,0,0,0,0);'},
+		{name = 'tr metric', code = self.eqn:template[[
+//// MODULE_DEPENDS: <?=coord_g_ll?>
+value->vreal3x3 = _real3x3(real3x3_sym3_dot(value->vreal3x3, coord_g_ll(x)), 0,0,0,0,0,0,0,0);
+]]},
 		
 		{name = 'x', code = 'value->vreal3 = value->vreal3x3.x; value->vreal3x3.y = real3_zero; value->vreal3x3.z = real3_zero;', type = 'real3', magn='x mag'},
 		{name = 'y', code = 'value->vreal3 = value->vreal3x3.y; value->vreal3x3.y = real3_zero; value->vreal3x3.z = real3_zero;', type = 'real3', magn='y mag'},
@@ -1939,9 +2216,18 @@ function SolverBase:createDisplayComponents()
 		{name = 'x mag', code = 'value->vreal3 = _real3(real3_len(value->vreal3x3.x), 0,0); value->vreal3x3.y = real3_zero; value->vreal3x3.z = real3_zero;'},
 		{name = 'y mag', code = 'value->vreal3 = _real3(real3_len(value->vreal3x3.y), 0,0); value->vreal3x3.y = real3_zero; value->vreal3x3.z = real3_zero;'},
 		{name = 'z mag', code = 'value->vreal3 = _real3(real3_len(value->vreal3x3.z), 0,0); value->vreal3x3.y = real3_zero; value->vreal3x3.z = real3_zero;'},
-		{name = 'x mag metrc', code = 'value->vreal3 = _real3(coordLen(value->vreal3x3.x, x), 0,0); value->vreal3x3.y = real3_zero; value->vreal3x3.z = real3_zero;'},
-		{name = 'y mag metrc', code = 'value->vreal3 = _real3(coordLen(value->vreal3x3.y, x), 0,0); value->vreal3x3.y = real3_zero; value->vreal3x3.z = real3_zero;'},
-		{name = 'z mag metrc', code = 'value->vreal3 = _real3(coordLen(value->vreal3x3.z, x), 0,0); value->vreal3x3.y = real3_zero; value->vreal3x3.z = real3_zero;'},
+		{name = 'x mag metrc', code = self.eqn:template[[
+//// MODULE_DEPENDS: <?=coordLen?>
+value->vreal3 = _real3(coordLen(value->vreal3x3.x, x), 0,0); value->vreal3x3.y = real3_zero; value->vreal3x3.z = real3_zero;
+]]},
+		{name = 'y mag metrc', code = self.eqn:template[[
+//// MODULE_DEPENDS: <?=coordLen?>
+value->vreal3 = _real3(coordLen(value->vreal3x3.y, x), 0,0); value->vreal3x3.y = real3_zero; value->vreal3x3.z = real3_zero;
+]]},
+		{name = 'z mag metrc', code = self.eqn:template[[
+//// MODULE_DEPENDS: <?=coordLen?>
+value->vreal3 = _real3(coordLen(value->vreal3x3.z, x), 0,0); value->vreal3x3.y = real3_zero; value->vreal3x3.z = real3_zero;
+]]},
 		
 		{name = 'T x', code = 'value->vreal3 = _real3(value->vreal3x3.x.x, value->vreal3x3.y.x, value->vreal3x3.z.x); value->vreal3x3.y = real3_zero; value->vreal3x3.z = real3_zero;', type = 'real3', magn='T x mag'},
 		{name = 'T y', code = 'value->vreal3 = _real3(value->vreal3x3.x.y, value->vreal3x3.y.y, value->vreal3x3.z.y); value->vreal3x3.y = real3_zero; value->vreal3x3.z = real3_zero;', type = 'real3', magn='T y mag'},
@@ -1949,9 +2235,18 @@ function SolverBase:createDisplayComponents()
 		{name = 'T x mag', code = 'value->vreal3 = _real3(real3_len(_real3(value->vreal3x3.x.x, value->vreal3x3.y.x, value->vreal3x3.z.x)), 0,0); value->vreal3x3.y = real3_zero; value->vreal3x3.z = real3_zero;'},
 		{name = 'T y mag', code = 'value->vreal3 = _real3(real3_len(_real3(value->vreal3x3.x.y, value->vreal3x3.y.y, value->vreal3x3.z.y)), 0,0); value->vreal3x3.y = real3_zero; value->vreal3x3.z = real3_zero;'},
 		{name = 'T z mag', code = 'value->vreal3 = _real3(real3_len(_real3(value->vreal3x3.x.z, value->vreal3x3.y.z, value->vreal3x3.z.z)), 0,0); value->vreal3x3.y = real3_zero; value->vreal3x3.z = real3_zero;'},
-		{name = 'T x mag metric', code = 'value->vreal3 = _real3(coordLen(_real3(value->vreal3x3.x.x, value->vreal3x3.y.x, value->vreal3x3.z.x), x), 0,0); value->vreal3x3.y = real3_zero; value->vreal3x3.z = real3_zero;'},
-		{name = 'T y mag metric', code = 'value->vreal3 = _real3(coordLen(_real3(value->vreal3x3.x.y, value->vreal3x3.y.y, value->vreal3x3.z.y), x), 0,0); value->vreal3x3.y = real3_zero; value->vreal3x3.z = real3_zero;'},
-		{name = 'T z mag metric', code = 'value->vreal3 = _real3(coordLen(_real3(value->vreal3x3.x.z, value->vreal3x3.y.z, value->vreal3x3.z.z), x), 0,0); value->vreal3x3.y = real3_zero; value->vreal3x3.z = real3_zero;'},
+		{name = 'T x mag metric', code = self.eqn:template[[
+//// MODULE_DEPENDS: <?=coordLen?>
+value->vreal3 = _real3(coordLen(_real3(value->vreal3x3.x.x, value->vreal3x3.y.x, value->vreal3x3.z.x), x), 0,0); value->vreal3x3.y = real3_zero; value->vreal3x3.z = real3_zero;
+]]},
+		{name = 'T y mag metric', code = self.eqn:template[[
+//// MODULE_DEPENDS: <?=coordLen?>
+value->vreal3 = _real3(coordLen(_real3(value->vreal3x3.x.y, value->vreal3x3.y.y, value->vreal3x3.z.y), x), 0,0); value->vreal3x3.y = real3_zero; value->vreal3x3.z = real3_zero;
+]]},
+		{name = 'T z mag metric', code = self.eqn:template[[
+//// MODULE_DEPENDS: <?=coordLen?>
+value->vreal3 = _real3(coordLen(_real3(value->vreal3x3.x.z, value->vreal3x3.y.z, value->vreal3x3.z.z), x), 0,0); value->vreal3x3.y = real3_zero; value->vreal3x3.z = real3_zero;
+]]},
 	})
 
 end
@@ -1976,7 +2271,13 @@ function SolverBase:finalizeDisplayComponents()
 	-- build a 1-based enum of all components
 	self.displayComponentFlatList = table()
 	self.displayComponentNames = table()
+--[[ I could do this, but key order is arbitrary, and cache doesn't like that ...
 	for basetype,components in pairs(self.displayComponents) do
+--]]
+-- [[ ... so I do this instead
+	for _,basetype in ipairs(table.keys(self.displayComponents):sort()) do
+		local components = self.displayComponents[basetype]
+--]]
 		for _,component in ipairs(components) do
 			self.displayComponentFlatList:insert(component)
 			-- TODO one name per gruop and only show that list to the dropdown
@@ -1992,7 +2293,7 @@ function SolverBase:finalizeDisplayComponents()
 				local _, magn = components:find(nil, function(component2) return component2.name == component.magn end)
 				assert(magn, "couldn't find magn component "..component.magn)
 				component.magn = magn.globalIndex
-			end	
+			end
 		end
 	end
 end
@@ -2008,7 +2309,7 @@ function SolverBase:getPickComponentNameForGroup(group)
 -- [[ if the type is UBuf's type then use the default
 	and group.bufferType ~= self.eqn.symbols.cons_t
 --]]
-	then 
+	then
 		name = name..'_'
 			-- TODO further sanitization?
 			..group.name:gsub(' ', '_')
@@ -2152,17 +2453,29 @@ function SolverBase:addDisplayVars()
 	-- might contain nonsense :-p
 	-- TODO it also might contain vector components
 	self:addDisplayVarGroup{
-		name = 'reduce', 
+		name = 'reduce',
 		bufferType = 'real',
 		getBuffer = function() return self.reduceBuf end,
 		vars = {{name='0', code='value.vreal = buf[index];'}},
+	}
+
+	self:addDisplayVarGroup{
+		name = 'cell',
+		bufferField = 'cellBuf',
+		bufferType = self.coord.cell_t,
+		vars = self:createDisplayVarArgsForStructVars(
+			self.coord.cellStruct.vars:filter(function(var)
+				return not (var.type == 'int')
+			end),
+			'cell'
+		)
 	}
 
 -- [[ use for debugging only for the time being
 	-- TODO make this flexible for our integrator
 	-- if I put this here then integrator isn't created yet
 	-- but if I put this after integrator then display variable init has already happened
-	-- also TODO - either only use the UBuf's state variables, 
+	-- also TODO - either only use the UBuf's state variables,
 	-- or don't regen all the display var code somehow and just bind derivbuf to the ubuf functions
 	do	--if self.integrator.derivBufObj then
 		local args = self:getUBufDisplayVarsArgs()
@@ -2171,7 +2484,7 @@ function SolverBase:addDisplayVars()
 			name = 'deriv',
 			codePrefix = args.codePrefix,
 			bufferType = args.bufferType,
-			getBuffer = function() 
+			getBuffer = function()
 				local int = self.integrator
 				-- Euler's deriv buffer
 				if int.derivBufObj then return int.derivBufObj.obj end
@@ -2235,7 +2548,7 @@ function SolverBase:createDisplayVarArgsForStructVars(structVars, ptrName, nameP
 		else
 			results:insert{
 				name = (namePrefix and (namePrefix..' ') or '')..var.name,
-				code = 'value.v' .. var.type .. ' = ' .. ptrName .. var.name .. ';', 
+				code = 'value.v' .. var.type .. ' = ' .. ptrName .. var.name .. ';',
 				type = var.type,
 				units = var.units,
 				
@@ -2246,7 +2559,7 @@ function SolverBase:createDisplayVarArgsForStructVars(structVars, ptrName, nameP
 			}
 		end
 	end
-	return results	
+	return results
 end
 
 
@@ -2273,7 +2586,7 @@ function SolverBase:finalizeDisplayVars()
 				-- TODO ... but the kernel names haven't been assigned yet ...
 				-- so I have to do this after they are assigned, which is after refreshSolverProgram
 				-- or I can flag the copied vars and have refreshSolverProgram not make duplicate names for them
-				local dupvar = setmetatable(table(var), getmetatable(var))
+				local dupvar = table(var):setmetatable(getmetatable(var))
 				dupvar.component = component.globalIndex
 				if not originalVarForGroup then
 					originalVarForGroup = dupvar
@@ -2292,7 +2605,7 @@ function SolverBase:finalizeDisplayVars()
 	end
 
 	-- make lookup by name
-	self.displayVarForName = self.displayVars:map(function(var)
+	self.displayVarForName = self.displayVars:mapi(function(var)
 		return var, var.name
 	end)
 
@@ -2320,19 +2633,35 @@ function SolverBase:createDisplayVars()
 	self:finalizeDisplayComponents()
 
 	self.displayVarGroups = table()
-	self:addDisplayVars()		
+	self:addDisplayVars()
 	self:finalizeDisplayVars()
 end
 
--- used by the display code to dynamically adjust ranges
--- this returns raw values, not scaled by units
+--[[
+used by the display code to dynamically adjust ranges
+this returns raw values, not scaled by units
+
+TODO 
+this uses calcDisplayVarToBuffer
+which is also used by the display code
+but the display code makes room for ghost cells for some reason, 
+i forget why, something to do with textures and border wrapping arguments
+
+however when it comes to min/max, we don't need ghost cells ...
+and when it comes to average and stddev, the ghost cells skew the results
+--]]
 function SolverBase:calcDisplayVarRange(var, componentIndex)
 	componentIndex = componentIndex or var.component
-	if var.lastTime == self.t then		
+	if var.lastTime == self.t then
 		return var.lastMin, var.lastMax
 	end
 	var.lastTime = self.t
-	
+	-- invalidate any values associated with the lastTime
+	var.lastMin = nil
+	var.lastMax = nil
+	var.lastAvg = nil
+	var.lastStdDev = nil
+
 	var:setToBufferArgs(componentIndex)
 
 	local channels = 1
@@ -2379,7 +2708,6 @@ else
 --print('reduce min',min,'max',max,'volume',volume,'name',var.name,'channels',channels)
 	var.lastMin = min
 	var.lastMax = max
-	var.lastAvg = nil	-- invalidate
 
 	return min, max
 end
@@ -2391,37 +2719,63 @@ function SolverBase:calcDisplayVarRangeAndAvg(var, componentIndex)
 	componentIndex = componentIndex or var.component
 
 	if var.lastTime ~= self.t then
-		--don't set lastTime yet -- instead let calcDisplayVarRange update and do this:
-		-- var.lastTime = self.t
-
 		-- this will update lastTime if necessary
 		self:calcDisplayVarRange(var, componentIndex)
 		-- displayVarGroup has already set up the appropriate args
 	end
 
 	if not var.lastAvg then
+		-- TODO the display var is being recalc'd a few times for min/max/avg/stddev?
+		-- would it be better to cache and save it?
+		-- I'm really not sure ... which is more expensive? 
+		-- memory or the few calcs each displayvar requires?
+		self:calcDisplayVarToBuffer(var, componentIndex, true)
+
 		-- duplicated in calcDisplayVarRange
 		local size = self.numCells
+		-- size is including the border for reduce, but the contents are all zeroes, so they won't affect the average
+		-- very ugly I know.  I should change this so the reduce buf doesn't cover ghost cells
+		-- or at least doesn't during the calc display var stuff
+		-- (maybe other ops like grav potential do use reduceBuf and need border?)
+		local sizeForAvg = self.volumeWithoutBorder	
 		local sizevec = var.group.getBuffer().sizevec
 		if sizevec then
 			size = tonumber(sizevec:volume())
+			sizeForAvg = size
 		end
-
-		self:calcDisplayVarToBuffer(var, componentIndex)
-		
-		-- [[ avg
-		local lastAvg = self.reduceSum(nil, size) / tonumber(size)
-		var.lastAvg = fromreal(lastAvg)
-		--]]
-		--[[ rms
-		self.squareKernelObj(self.solverBuf, fromreal(self.reduceBuf))
-		var.lastAvg = math.sqrt(self.reduceSum(nil, size) / tonumber(size))
-		--]]
+		-- TODO this is also averagging in the ghost cells ... hmm ....
+		var.lastAvg = fromreal(self.reduceSum(nil, size)) / sizeForAvg
 	end
 
 	return var.lastMin, var.lastMax, var.lastAvg
 end
 
+function SolverBase:calcDisplayVarRangeAndAvgAndStdDev(var, componentIndex)
+	componentIndex = componentIndex or var.component
+
+	if var.lastTime ~= self.t then
+		-- this will update lastTime if necessary
+		self:calcDisplayVarRangeAndAvg(var, componentIndex)
+	end
+
+	if not var.lastStdDev then
+		assert(var.lastAvg)
+		self:calcDisplayVarToBuffer(var, componentIndex, true)
+		self.subtractAndSquareKernelObj(self.solverBuf, self.reduceBuf, real(var.lastAvg))
+		
+		-- duplicated in calcDisplayVarRange
+		local size = self.numCells
+		local sizeForAvg = self.volumeWithoutBorder	
+		local sizevec = var.group.getBuffer().sizevec
+		if sizevec then
+			size = tonumber(sizevec:volume())
+			sizeForAvg = size
+		end
+		var.lastStdDev = math.sqrt(fromreal(self.reduceSum(nil, size)) / sizeForAvg)
+	end
+	
+	return var.lastMin, var.lastMax, var.lastAvg, var.lastStdDev
+end
 
 -------------------------------------------------------------------------------
 --                              gui                                          --
@@ -2460,48 +2814,84 @@ function SolverBase:update()
 	Because pauses will mess with the numbers, I'll only look at the last n many frames.
 	Maybe just the last 1.
 	--]]
-	local thisTime = getTime()
-	if not self.fpsSamples then
-		self.fpsIndex = 0
-		self.fpsSamples = table()
-	end
-	if self.lastFrameTime then
-		local tick = cmdline.tick or 1e-9
-		local deltaTime = thisTime - self.lastFrameTime
-		local fps = 1 / deltaTime
-		self.fpsIndex = (self.fpsIndex % self.fpsNumSamples) + 1
-		self.fpsSamples[self.fpsIndex] = fps
-		self.fps = self.fpsSamples:sum() / #self.fpsSamples
-		if (self.showFPS or cmdline.trackvars)
-		and math.floor(thisTime / tick) ~= math.floor(self.lastFrameTime / tick) then 
-			--io.write(tostring(self), ' ')
-			local sep = ''
-			if self.showFPS then
-				io.write(sep, 'fps=', self.fps)
-				sep = '\t'
+	local thisTime = tonumber(getTime())
+	if not self.fpsSampleCount then self.fpsSampleCount = 0 end
+	if not self.lastFrameTime then self.lastFrameTime = thisTime end
+
+	local tick = cmdline.tick or 1e-9
+	
+	self.fpsSampleCount = self.fpsSampleCount + 1
+	
+	if (self.showFPS or cmdline.trackvars)
+	and thisTime - self.lastFrameTime >= tick
+	then
+		local plotsOnExit = self.plotsOnExit
+		if cmdline.plotOnExit then
+			if not plotsOnExit then
+				plotsOnExit = table()
+				self.plotsOnExit = plotsOnExit
 			end
-			io.write(sep, 't=', self.t)
+		end
+
+		local deltaTime = thisTime - self.lastFrameTime
+		self.fps = self.fpsSampleCount / deltaTime
+
+		--io.write(tostring(self), ' ')
+		local sep = ''
+		if self.showFPS then
+			io.write(sep, 'fps=', self.fps)
 			sep = '\t'
-			if cmdline.trackvars then
-				local varnames = string.split(cmdline.trackvars, ','):map(string.trim)
-				if varnames:find'dt' then
-					io.write(sep, 'dt=', self.dt)
-				end
-				for _,varname in ipairs(varnames) do
-					if varname ~= 'dt' then
-						local var = assert(self.displayVarForName[varname], "couldn't find "..varname)
-						local ymin, ymax, yavg = self:calcDisplayVarRangeAndAvg(var)
-						io.write(sep, varname, '=[', ymin, ' ', yavg, ' ', ymax, ']')
+		end
+		io.write(sep, 't=', self.t)
+		sep = '\t'
+		if cmdline.trackvars then
+			if cmdline.plotOnExit then
+				plotsOnExit.t = plotsOnExit.t or table()
+				plotsOnExit.t:insert(self.t)
+			end
+			local varnames = string.split(cmdline.trackvars, ','):mapi(string.trim)
+			if varnames:find'dt' then
+				io.write(sep, 'dt=', self.dt or 0)	-- the first frame it won't be there ... unless I move this ...
+			end
+			for _,varname in ipairs(varnames) do
+				if varname ~= 'dt' then
+					local var = assert(self.displayVarForName[varname], "couldn't find "..varname)
+					local ymin, ymax, yavg, ystddev = self:calcDisplayVarRangeAndAvgAndStdDev(var)
+					if var.showInUnits and var.units then
+						local unitScale = self:convertToSIUnitsCode(var.units).func()
+						ymin = ymin * unitScale
+						yavg = yavg * unitScale
+						ymax = ymax * unitScale
+						ystddev = ystddev * unitScale
+					end
+					io.write(sep, varname, '=[', ymin, ' ', yavg, ' ±', ystddev, ' ', ymax, ']')
+				
+					if cmdline.plotOnExit then
+						local key = varname..' min'
+						plotsOnExit[key] = plotsOnExit[key] or table()
+						plotsOnExit[key]:insert(ymin)
+						local key = varname..' avg'
+						plotsOnExit[key] = plotsOnExit[key] or table()
+						plotsOnExit[key]:insert(yavg)
+						local key = varname..' stddev'
+						plotsOnExit[key] = plotsOnExit[key] or table()
+						plotsOnExit[key]:insert(ystddev)
+						local key = varname..' max'
+						plotsOnExit[key] = plotsOnExit[key] or table()
+						plotsOnExit[key]:insert(ymax)
 					end
 				end
 			end
-			print()
 		end
+		print()
+		
+		self.lastFrameTime = thisTime
+		self.fpsSampleCount = 0
 	end
-	self.lastFrameTime = thisTime
 
-	if self.checkNaNs then 
-		assert(self:checkFinite(self.UBufObj)) 
+
+	if self.checkNaNs then
+		assert(self:checkFinite(self.UBufObj))
 	end
 
 	-- [[ stop condition: '|U H| > 1'
@@ -2611,7 +3001,7 @@ if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
 		end
 	end)
 
-	-- I moved the constrainU() and boundary() functions from here to be within the integrator, 
+	-- I moved the constrainU() and boundary() functions from here to be within the integrator,
 	-- so that each sub-step that the RK integrator performs can apply these and be physically correct states.
 
 	if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
@@ -2630,16 +3020,38 @@ end
 -- expects buf to be of type cons_t, made up of numStates real variables
 function SolverBase:checkFinite(buf)
 	local vec3sz = require 'vec-ffi.vec3sz'
-	local ptrorig = buf:toCPU()
+	
 	local ptr0size = tonumber(ffi.sizeof(buf.type))
 	local realSize = tonumber(ffi.sizeof'real')
 	local ptrsPerReal = ptr0size / realSize
 	assert(ptrsPerReal == math.floor(ptrsPerReal))
-	-- don't free the original ptr too soon
-	local ptr = ffi.cast('real*', ptrorig)
 	local size = buf.count * ptrsPerReal
+	
+	if tostring(self.checkNaNs):sub(1,3) == 'gpu' then
+		assert(size == self.numCells * self.eqn.numStates)
+		-- right now findNaNs is hardcoded to numCells
+		-- and if you change that, make sure that it doesn't write past 'reduceBufObj' (which is numCells in size)
+		-- or ... allocate a bigger buffer
+		self.reduceBufObj:fill()
+		self.findNaNsKernelObj.obj:setArg(2, buf.obj)
+		self.findNaNsKernelObj()	-- convert buf into reduceBuf 0 or 1 if it is finite or not
+		local max = fromreal(self.reduceMax(nil, self.numCells))
+		
+		if max == 0 then return true end
+
+--[[ return false ... or ... only now, print out all entries
+		return false, 'found non-finite offsets and numbers'
+			..' at t='..self.t
+--]]
+	end
+
+	-- don't free the original ptr too soon
+	local ptrorig = buf:toCPU()
+	local ptr = ffi.cast('real*', ptrorig)
+	
 	local found
-	for i=0,size-1 do
+	local function callback(i)
+		assert(i >= 0 and i < size)
 		local x = tonumber(ptr[i])
 		if not math.isfinite(x) then
 			found = found or table()
@@ -2675,9 +3087,51 @@ function SolverBase:checkFinite(buf)
 			found:insert(ins)
 		end
 	end
+
+	if self.checkNaNs == 'noghost'	-- set to string via cmdline
+	and size == self.numCells * ptrsPerReal
+	and not require 'hydro.solver.meshsolver':isa(self)
+	then
+		if self.dim == 1 then
+			for i=tonumber(self.numGhost),tonumber(self.gridSize.x-self.numGhost-1) do
+				for e=0,ptrsPerReal-1 do
+					callback(e + ptrsPerReal * i)
+				end
+			end
+		elseif self.dim == 2 then
+			for i=tonumber(self.numGhost),tonumber(self.gridSize.x-self.numGhost-1) do
+				for j=tonumber(self.numGhost),tonumber(self.gridSize.y-self.numGhost-1) do
+					for e=0,ptrsPerReal-1 do
+						callback(e + ptrsPerReal * (i + self.gridSize.x * j))
+					end
+				end
+			end
+		elseif self.dim == 3 then
+			for i=tonumber(self.numGhost),tonumber(self.gridSize.x-self.numGhost-1) do
+				for j=tonumber(self.numGhost),tonumber(self.gridSize.y-self.numGhost-1) do
+					for k=tonumber(self.numGhost),tonumber(self.gridSize.z-self.numGhost-1) do
+						for e=0,ptrsPerReal-1 do
+							callback(e + ptrsPerReal * (i + self.gridSize.x * (j + self.gridSize.y * k)))
+						end
+					end
+				end
+			end
+		else
+			error("here")
+		end
+	else
+		for i=0,size-1 do
+			callback(i)
+		end
+	end
+	
 	if not found then return true end
+
 --	self:printBuf(nil, ptr)
-	return false, 'found non-finite offsets and numbers: '..require 'ext.tolua'(found)..' at t='..self.t
+	return false, 'found non-finite offsets and numbers'
+		--..': '..require 'ext.tolua'(found)
+		..', first entry: '..require 'ext.tolua'(found[1])
+		..' at t='..self.t
 end
 
 function SolverBase:printBuf(buf, ptrorig, colsize, colmax)
@@ -2722,7 +3176,7 @@ function SolverBase:printBuf(buf, ptrorig, colsize, colmax)
 				if self.app.real == 'half' then
 					io.write(('/0x%x'):format(ptr[j + realsPerCell * i].i))
 				end
-			end 
+			end
 			print()
 		end
 	else
@@ -2733,8 +3187,8 @@ function SolverBase:printBuf(buf, ptrorig, colsize, colmax)
 				io.write((' '):rep(maxdigitlen-#tostring(i)), i,':')
 			end
 			io.write(' ', ('%f'):format(ptr[i]))
-			if i % colsize == colsize-1 then 
-				print() 
+			if i % colsize == colsize-1 then
+				print()
 			end
 		end
 		if size % colsize ~= 0 then print() end
@@ -2762,7 +3216,7 @@ function SolverBase:calcDisplayVarToTex(var, componentIndex)
 		self.cmds:finish()
 	else
 		-- download to CPU then upload with glTexSubImage2D
-		-- calcDisplayVarToTexPtr is sized without ghost cells 
+		-- calcDisplayVarToTexPtr is sized without ghost cells
 		-- so is the GL texture
 		local ptr = self.calcDisplayVarToTexPtr
 		local tex = self.tex
@@ -2792,14 +3246,14 @@ function SolverBase:calcDisplayVarToTex(var, componentIndex)
 				destPtr[i] = ptr[i]
 			end
 		end
+
 		tex:bind()
-		
 		-- use texSize because meshsolver dim isn't reliable
 		if self.texSize.z == 1 then
-			gl.glTexSubImage2D(gl.GL_TEXTURE_2D, 0, 0, 0, sizevec.x, sizevec.y, format, gltype, destPtr)
+			gl.glTexSubImage2D(tex.target, 0, 0, 0, sizevec.x, sizevec.y, format, gltype, destPtr)
 		else
 			for z=0,tex.depth-1 do
-				gl.glTexSubImage3D(gl.GL_TEXTURE_3D, 0, 0, 0, z, sizevec.x, sizevec.y, 1, format, gltype, destPtr + channels * sizevec.x * sizevec.y * z)
+				gl.glTexSubImage3D(tex.target, 0, 0, 0, z, sizevec.x, sizevec.y, 1, format, gltype, destPtr + channels * sizevec.x * sizevec.y * z)
 			end
 		end
 		tex:unbind()
@@ -2808,7 +3262,7 @@ function SolverBase:calcDisplayVarToTex(var, componentIndex)
 end
 
 -- this is abstracted because accumBuf might want to be used ...
-function SolverBase:calcDisplayVarToBuffer(var, componentIndex)
+function SolverBase:calcDisplayVarToBuffer(var, componentIndex, zeroBorder)
 	componentIndex = componentIndex or var.component
 	local component = self.displayComponentFlatList[componentIndex]
 	local vectorField = self:isVarTypeAVectorField(component.type)
@@ -2829,6 +3283,7 @@ function SolverBase:calcDisplayVarToBuffer(var, componentIndex)
 	var.group.calcDisplayVarToBufferKernelObj.obj:setArg(3, int(var.displayVarIndex))
 	var.group.calcDisplayVarToBufferKernelObj.obj:setArg(4, int(componentIndex))
 	var.group.calcDisplayVarToBufferKernelObj.obj:setArg(5, self.cellBuf)
+	var.group.calcDisplayVarToBufferKernelObj.obj:setArg(6, int(zeroBorder and 1 or 0))
 	var.group.calcDisplayVarToBufferKernelObj()
 	if self.displayVarAccumFunc then
 		self.cmds:enqueueCopyBuffer{src=self.reduceBuf, dst=self.accumBuf, size=ffi.sizeof(self.app.real) * volume * channels}
@@ -2853,7 +3308,7 @@ function SolverBase:updateGUIParams()
 
 	if self.allowAccum then
 		if tooltip.checkboxTable('accum', self, 'displayVarAccumFunc') then
-			self:refreshSolverProgram()	-- I guess getDisplayCode is now in getSolverCode
+			self:refreshSolverProgram()
 			self.cmds:enqueueFillBuffer{buffer=self.accumBuf, size=ffi.sizeof(self.app.real) * self.numCells * 3}
 		end
 	end
@@ -2891,8 +3346,8 @@ function SolverBase:updateGUIEqnSpecific()
 		-- TODO hmm ... the whole point of making a separate initCondProgram was to be able to refresh it without rebuilding all of the solver ...
 		-- TODO try again once initCond_t is separated from solver_t
 		self:refreshEqnInitState()
-	end	
---]]		
+	end
+--]]
 	for _,var in ipairs(self.eqn.initCond.guiVars) do
 		var:updateGUI(self)
 	end
@@ -2907,14 +3362,14 @@ do
 		ig.igPushIDStr(title)
 
 		var.enabled = not not var.enabled
-		local enableChanged = tooltip.checkboxTable('enabled', var, 'enabled') 
+		local enableChanged = tooltip.checkboxTable('enabled', var, 'enabled')
 		anyChanged = anyChanged or enableChanged
 		ig.igSameLine()
 		
 		anyChanged = anyChanged or tooltip.checkboxTable('log', var, 'useLog')
 		ig.igSameLine()
 
-		anyChanged = anyChanged or tooltip.checkboxTable('units', var, 'showInUnits') 
+		anyChanged = anyChanged or tooltip.checkboxTable('units', var, 'showInUnits')
 		ig.igSameLine()
 
 		anyChanged = anyChanged or tooltip.checkboxTable('fixed range', var, 'heatMapFixedRange')
@@ -2989,8 +3444,8 @@ do
 			local dim = self.app.displayDim
 			if dim == 2 then
 				ig.igPushIDStr'2D'
-				if self.app.display2DMethodsEnabled.Graph then 
-					local draw2DGraph = self.draw2DGraph 
+				if self.app.display2DMethodsEnabled.Graph then
+					local draw2DGraph = self.draw2DGraph
 					if draw2DGraph then
 						tooltip.intTable('graph step', draw2DGraph, 'step')
 					end
@@ -3146,12 +3601,12 @@ function SolverBase:checkStructSizes()
 		self.sharedModulesEnabled,
 		self.solverModulesEnabled,
 		self.initModulesEnabled
-	):keys()
+	):keys():sort()
 	for _,module in ipairs(self.modules:getDependentModules(moduleNames:unpack())) do
 		for _,struct in ipairs(module.structs) do
 			--print('checking for struct '..struct.typename..' from module '..module.name)
 			if not typeinfos:find(struct)
-			and not typeinfos:find(struct.typename) 
+			and not typeinfos:find(struct.typename)
 			then
 				print('adding struct '..struct.typename..' from module '..module.name)
 				typeinfos:insert(struct)
@@ -3164,7 +3619,7 @@ function SolverBase:checkStructSizes()
 	local varcount = 0
 	for _,typeinfo in ipairs(typeinfos) do
 		varcount = varcount + 1
-		if Struct.is(typeinfo) then
+		if Struct:isa(typeinfo) then
 			varcount = varcount + #typeinfo.vars
 		end
 	end
@@ -3174,7 +3629,7 @@ function SolverBase:checkStructSizes()
 	local resultPtr = ffi.new('size_t[?]', varcount)
 	local resultBuf = self.app.env:buffer{name='result', type='size_t', count=varcount, data=resultPtr}
 
-print('shared modules: '..moduleNames:sort():concat', ')
+print('shared modules: '..moduleNames:concat', ')
 	local codePrefix = self.modules:getTypeHeader(moduleNames:unpack())
 
 --[=[
@@ -3189,31 +3644,31 @@ kernel void checkStructSizes(
 
 #define offsetof __builtin_offsetof
 
-<? 
+<?
 local index = 0
-for i,typeinfo in ipairs(typeinfos) do 
+for i,typeinfo in ipairs(typeinfos) do
 	local typename
 	if type(typeinfo) == 'string' then
 ?>	result[<?=index?>] = sizeof(<?=typeinfo?>);
-<? 
+<?
 		index = index + 1
 	else
 ?>	result[<?=index?>] = sizeof(<?=typeinfo.typename?>);
-<? 
+<?
 		index = index + 1
 		for _,var in ipairs(typeinfo.vars) do
 ?>	result[<?=index?>] = offsetof(<?=typeinfo.typename?>, <?=var.name?>);
-<? 		
+<?
 			index = index + 1
 		end
 	end
-end 
+end
 ?>
 
 }
 ]], 	{
 			typeinfos = typeinfos,
-		})	
+		})
 		}:concat'\n',
 	}
 	testStructProgramObj:compile()
@@ -3227,25 +3682,25 @@ end
 		body = template([[
 #define offsetof __builtin_offsetof
 
-<? 
+<?
 local index = 0
-for i,typeinfo in ipairs(typeinfos) do 
+for i,typeinfo in ipairs(typeinfos) do
 	local typename
 	if type(typeinfo) == 'string' then
 ?>	result[<?=index?>] = sizeof(<?=typeinfo?>);
-<? 
+<?
 		index = index + 1
 	else
 ?>	result[<?=index?>] = sizeof(<?=typeinfo.typename?>);
-<? 
+<?
 		index = index + 1
 		for _,var in ipairs(typeinfo.vars) do
 ?>	result[<?=index?>] = offsetof(<?=typeinfo.typename?>, <?=var.name?>);
-<? 		
+<?
 			index = index + 1
 		end
 	end
-end 
+end
 ?>
 ]], 	{
 			typeinfos = typeinfos,
@@ -3273,6 +3728,7 @@ end
 			end
 		end
 	end
+	print('done')
 	os.exit()
 end
 --]]

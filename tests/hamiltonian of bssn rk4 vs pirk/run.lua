@@ -35,7 +35,7 @@ local cfg = {
 	
 	-- [[
 	coord = 'sphere',
-	--coord = 'sphere-sinh-radial',
+	--coord = 'sphere_sinh_radial',
 	mins = {0, 0, -math.pi},
 	maxs = {16, math.pi, math.pi},
 	gridSize = assert(({

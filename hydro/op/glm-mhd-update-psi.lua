@@ -9,7 +9,8 @@ function GLM_MHD_UpdatePsi:init(args)
 	self.solver = assert(args.solver)
 end
 
-function GLM_MHD_UpdatePsi:initCodeModules(solver)
+function GLM_MHD_UpdatePsi:initCodeModules()
+	local solver = self.solver
 	solver.modules:add{
 		name = 'op.GLM_MHD_UpdatePsi',
 		depends = {
@@ -23,15 +24,16 @@ kernel void updatePsi(
 	global <?=cell_t?> const * const cellBuf
 ) {
 	<?=SETBOUNDS?>(0,0);
-	real3 const const x = cellBuf[index].pos;
 
 	global <?=cons_t?> * const U = UBuf + index;
+	global <?=cell_t?> const * const cell = cellBuf + index;
 	
 	//TODO don't need the whole eigen here, just the Ch	
 <? if not eqn.useFixedCh then ?>
 	real Ch = 0;
 	<? for side=0,solver.dim-1 do ?>{
-		<?=eigen_t?> eig = eigen_forCell_<?=side?>(solver, *U, x);
+		<?=eigen_t?> eig;
+		<?=eigen_forCell?>(&eig, solver, U, cell, normal_fromSide<?=side?>(cell->pos));
 		Ch = max(Ch, eig.Ch);
 	}<? end ?>
 <? else ?>

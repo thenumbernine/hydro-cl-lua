@@ -49,7 +49,7 @@ void main() {
 	float value = getVoxelValue(p);
 	float frac = getGradientFrac(value);
 	float gradTC = getGradientTexCoord(frac);
-	vec4 voxelColor = texture1D(gradientTex, gradTC);
+	vec4 voxelColor = texture(gradientTex, gradTC);
 	
 	voxelColor.a = alpha;// * min(1., mod(value * 4., 3.));
 	voxelColor.a *= min(1., length(voxelColor.rgb));
@@ -73,7 +73,7 @@ void main() {
 		value = getVoxelValue(p);
 		frac = getGradientFrac(value);
 		gradTC = getGradientTexCoord(frac);
-		voxelColor = texture1D(gradientTex, gradTC);
+		voxelColor = texture(gradientTex, gradTC);
 		//voxelColor.a /= min(1., length(voxelColor.rgb));
 
 		//don't bother with the gamma factor if we're using isobars

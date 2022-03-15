@@ -4,7 +4,7 @@ local class = require 'ext.class'
 local file = require 'ext.file'
 local vec3f = require 'vec-ffi.vec3f'
 local gl = require 'ffi.OpenGL'
-local vector = require 'hydro.util.vector'
+local vector = require 'ffi.cpp.vector'
 local Draw = require 'hydro.draw.draw'
 
 
@@ -35,7 +35,7 @@ function Draw2DGraph:showDisplayVar(var)
 
 	if app.displayDim == 3 then
 		io.stderr:write'Why are you using a graph shader to display 3D data?  Use a 3D display instead.\n'
-		do return end
+		return
 	end
 
 
@@ -107,7 +107,7 @@ function Draw2DGraph:display(varName, ar, graph_xmin, graph_xmax, graph_ymin, gr
 	gl.glColor3f(1,1,1)
 	gl.glEnable(gl.GL_DEPTH_TEST)
 
-	if not require 'hydro.solver.meshsolver'.is(solver) then
+	if not require 'hydro.solver.meshsolver':isa(solver) then
 		local var = solver.displayVarForName[varName]
 		if var and var.enabled then
 			self:prepareShader()

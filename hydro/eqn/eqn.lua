@@ -10,8 +10,8 @@ local makePartials = require 'hydro.eqn.makepartial'
 local common = require 'hydro.common'
 local xNames = common.xNames
 local symNames = common.symNames
-local from3x3to6 = common.from3x3to6 
-local from6to3x3 = common.from6to3x3 
+local from3x3to6 = common.from3x3to6
+local from6to3x3 = common.from6to3x3
 local sym = common.sym
 
 
@@ -29,8 +29,20 @@ I found this was especially useful in providing with the ideal MHD and using in 
 which, when using evR . lambda . evL, developed numerical errors that the flux didn't.
 
 I think other equations were better performing without this, like Euler.
+
+if this is true then the equation must have the Homogeneity property (2009 Toro book, proposition 3.4)
+dF/dU * U = F
+
+Well, setting this to true uses 'F' as it is.
+Setting this to false uses dF/dU * U = F ... which is only true for Euler
+Which means in general this should be set to 'true'.
+The averaged flux will always be correct
+but in the Roe scheme, the extra derivation is the wave propagated along the eigenvectors.
+So in that case, is the propagated wave a dU, which would be correct: dF/dU * dU = dF.
+Or do we have to find a new eigenfunction not of the flux Jacobian?
+
 --]]
-Equation.roeUseFluxFromCons = nil
+Equation.roeUseFluxFromCons = true
 
 -- singleton
 Equation.parityVarsGetters = table{
@@ -51,7 +63,7 @@ Equation.parityVarsGetters = table{
 				parityVars:insert(field..'.'..xi..'.re')
 				parityVars:insert(field..'.'..xi..'.im')
 			end
-		end	
+		end
 	end,
 	sym3 = function(sign, parityVars, field)
 		for ij,xij in ipairs(symNames) do
@@ -68,7 +80,7 @@ Equation.parityVarsGetters = table{
 					parityVars:insert(field..'.'..xi..'.'..xj)
 				end
 			end
-		end	
+		end
 	end,
 	_3sym3 = function(sign, parityVars, field)
 		for k,xk in ipairs(xNames) do
@@ -77,7 +89,7 @@ Equation.parityVarsGetters = table{
 				if sign[i] * sign[j] * sign[k] == -1 then
 					parityVars:insert(field..'.'..xk..'.'..xij)
 				end
-			end		
+			end
 		end
 	end,
 }
@@ -119,6 +131,11 @@ function Equation:init(args)
 	local solver = assert(args.solver)
 	self.solver = solver
 	local app = solver.app
+
+	-- TODO should I do this?  what about eqns that build prim/consStruct (as they should be doing instead) ?
+	--self.primVars = self.primVars or table()
+	--self.consVars = self.consVars or table()
+	self:buildVars(args)
 	
 	-- build consStruct and primStruct from self.consVars and .primVars (then erase them -- don't use them anymore)
 	-- TODO think of a better way for the eqn to pass this info along, maybe a callback instead of a field?
@@ -135,16 +152,16 @@ function Equation:init(args)
 how to handle cdefs and subeqns wrt counting number of reals ...
 
 solver init:
-- build sub-objs 
+- build sub-objs
 	- including eqn
-		- count scalars to determine # init states 
+		- count scalars to determine # init states
 			- early cdef of field types ... real, real3, sym3, etc
 - build code modules
 - cdef all required types: solver_t, cons_t, prim_t, etc
 
 solver w composite eqn init:
-- build sub-objs ... 
-	- including eqn 
+- build sub-objs ...
+	- including eqn
 		- including its sub-eqns
 			- count scalars
 				- early cdef of all field types
@@ -157,10 +174,10 @@ no, they're needed for the integrator
 
 	--[[
 	make sure all math types are cdef'd,
-	for sizeof's for calculating the union ptr size 
+	for sizeof's for calculating the union ptr size
 	when we makeType the consStruct
 	we can't do this after makeType unless we also put it after initCodeModule
-	(but eqn:initCodeModule is called after the consStruct type is defined)	
+	(but eqn:initCodeModule is called after the consStruct type is defined)
 	
 	here's a better idea ... only do this within initCodeModules
 	but that means you can't create the integrator until within solver's initCodeModules
@@ -227,8 +244,8 @@ no, they're needed for the integrator
 
 	if not self.eigenVars then
 		self.eigenStruct = Struct{
-			solver = solver, 
-			name = 'eigen_t', 
+			solver = solver,
+			name = 'eigen_t',
 			dontUnion = true,
 			vars = {
 				{name='unused', type='char'},
@@ -256,7 +273,7 @@ no, they're needed for the integrator
 		end
 	end
 	
-	if not self.numStates then 
+	if not self.numStates then
 		self.numStates = numReals
 		if not self.numStates then
 			error("you either need to define numStates or consVars or consStruct")
@@ -267,7 +284,7 @@ no, they're needed for the integrator
 		end
 	end
 	-- default # waves is the # of states
-	if not self.numWaves then self.numWaves = self.numStates end 
+	if not self.numWaves then self.numWaves = self.numStates end
 	
 	-- how many states are integratable
 	-- (put static states at the end of your cons_t structures)
@@ -308,7 +325,7 @@ no, they're needed for the integrator
 		self:getParityVars(-1, 1, -1),
 		{},
 		{},
-	} 
+	}
 
 	-- theta min/max, for spherical coordinates
 	self.reflectVars.sphereTheta = self.reflectVars.sphereTheta or {
@@ -369,7 +386,6 @@ function Equation:getSymbolFields()
 		
 		-- placeholder modules for dependencies
 		'eqn_guiVars_compileTime',	-- module of code for compile-time #defines of gui vars
-		'eqn_waveCode_depends',		-- module of dependencies used by the eigen/cons wave code
 		'eqn_common',				-- module of functions that are commonly used ... not required.
 	
 		-- placeholder, used by initCond
@@ -378,13 +394,16 @@ function Equation:getSymbolFields()
 	}
 end
 
+function Equation:buildVars()
+end
+
 function Equation:cdefAllVarTypes(solver, vars)
 	-- TODO not just math, but also cons_t
 	require 'hydro.code.safecdef'(
 		solver.app.modules:getTypeHeader(
 			table.mapi(vars, function(var,i,t)
 				return true, var.type
-			end):keys():unpack()
+			end):keys():sort():unpack()
 		)
 	)
 end
@@ -484,19 +503,19 @@ function Equation:getEnv()
 		cell_t = assert(coord.cell_t),
 		face_t = assert(coord.face_t),
 		
-		-- macro numbers 
+		-- macro numbers
 		numWaves = self.numWaves,
 
-		-- common 
+		-- common
 		xNames = xNames,
 		symNames = symNames,
 		from3x3to6 = from3x3to6,
 		from6to3x3 = from6to3x3,
 		sym = sym,
-		clnumber = clnumber,
+		clnumber = require 'cl.obj.number',
 	
 		-- really only used by applyInitCond
-		initCode = function() 
+		initCode = function()
 			-- calls initCond:getInitCondCode
 			return self.initCond:getInitCondCode()
 		end,
@@ -515,6 +534,13 @@ function Equation:getEnv()
 	-- add solver's symbols
 	for k,v in pairs(solver.symbols) do
 		env[k] = v
+	end
+
+	-- add any op's symbols:
+	for _,op in ipairs(solver.ops) do
+		for k,v in pairs(op.symbols or {}) do
+			env[k] = v
+		end
 	end
 
 	return env
@@ -543,7 +569,7 @@ function Equation:initCodeModules()
 	-- the runtime ones are stored in solver_t
 	solver.modules:add{
 		name = self.symbols.eqn_guiVars_compileTime,
-		headercode = table.mapi(self.guiVars or {}, function(var,i,t) 
+		headercode = table.mapi(self.guiVars or {}, function(var,i,t)
 			return (var.compileTime and var:getCode() or nil), #t+1
 		end):concat'\n',
 	}
@@ -554,7 +580,6 @@ function Equation:initCodeModules()
 	self:initCodeModule_calcDT()
 
 	self:initCodeModule_fluxFromCons()
-	self:initCodeModule_waveCode()
 
 	self:initCodeModule_solverCodeFile()
 
@@ -570,12 +595,12 @@ function Equation:initCodeModules()
 kernel void <?=applyInitCond?>(
 	constant <?=solver_t?> const * const solver,
 	constant <?=initCond_t?> const * const initCond,
-	global <?=cons_t?>* UBuf,
-	global <?=cell_t?> const * const cellBuf
+	global <?=cons_t?> * const UBuf,
+	global <?=cell_t?> * const cellBuf
 ) {
 	<?=SETBOUNDS?>(0,0);
 	global <?=cons_t?> * const U = UBuf + index;
-	global <?=cell_t?> const * const cell = cellBuf + index;
+	global <?=cell_t?> * const cell = cellBuf + index;
 	<?=applyInitCondCell?>(solver, initCond, U, cell);
 }
 ]],
@@ -587,16 +612,16 @@ function Equation:initCodeModule_cons_parallelPropagate()
 
 	-- only require this if we're a fvsolver
 
-	-- parallel propagate autogen code 
+	-- parallel propagate autogen code
 	-- only used for finite-volume solvers
 	-- also NOTICE there seems to be a bug where the CL compiler stalls when compiling the parallel-propagate code with bssnok-fd
 	-- so hopefully the module system can help that out
 	--
 	-- TODO hmm, can't add the module unless it's being used
 	--  because some that don't use it (bssnok-fd) use custom suffixes on var names
-	if require 'hydro.solver.fvsolver'.is(solver) 
+	if require 'hydro.solver.fvsolver':isa(solver)
 	-- TODO only if it's a mesh solver using a flux integrator ... which is currently all mesh solvers
-	or require 'hydro.solver.meshsolver'.is(solver) 
+	or require 'hydro.solver.meshsolver':isa(solver)
 	then
 		local degreeForType = {
 			real = 0,
@@ -620,12 +645,12 @@ function Equation:initCodeModule_cons_parallelPropagate()
 			end
 		end
 
---[[			
+--[[
 cons_parallelPropagate is a macro
 First argument is the name of the resulting local var
 that will hold a ptr to the results.
 
-In the event that propagation is identity, a pointer with name 'resultName' pointing to the original variable is created. 
+In the event that propagation is identity, a pointer with name 'resultName' pointing to the original variable is created.
 
 In the event that a transformation is necessary, then a temp var is created, and 'resultName' points to it.
 --]]
@@ -645,10 +670,10 @@ In the event that a transformation is necessary, then a temp var is created, and
 					return degreeForType[var.type] == 3
 				end) and {'real3x3x3'} or nil
 			),
-			code = self:template([[<? 
+			code = self:template([[<?
 for side=0,solver.dim-1 do
 	if coord.vectorComponent == 'cartesian'
-	or require 'hydro.coord.cartesian'.is(coord) 
+	or require 'hydro.coord.cartesian':isa(coord)
 	then
 ?>#define <?=cons_parallelPropagate?><?=side?>(resultName, U, pt, dx)\
 	global <?=cons_t?> const * const resultName = U;
@@ -684,6 +709,19 @@ for side=0,solver.dim-1 do
 					t.x = coord_parallelPropagateL<?=side?>(t.x, pt, dx);\
 					t.y = coord_parallelPropagateL<?=side?>(t.y, pt, dx);\
 					t.z = coord_parallelPropagateL<?=side?>(t.z, pt, dx);\
+					resultName##base.<?=var.name?> = <?=var.type?>_from_real3x3(t);\
+				}\
+<?			elseif variance == 'ul' then
+?>				{\
+					real3x3 t = real3x3_from_<?=var.type?>(resultName##base.<?=var.name?>);\
+					t.x = coord_parallelPropagateU<?=side?>(t.x, pt, dx);\
+					t.y = coord_parallelPropagateU<?=side?>(t.y, pt, dx);\
+					t.z = coord_parallelPropagateU<?=side?>(t.z, pt, dx);\
+					t = real3x3_transpose(t);\
+					t.x = coord_parallelPropagateL<?=side?>(t.x, pt, dx);\
+					t.y = coord_parallelPropagateL<?=side?>(t.y, pt, dx);\
+					t.z = coord_parallelPropagateL<?=side?>(t.z, pt, dx);\
+					t = real3x3_transpose(t);\
 					resultName##base.<?=var.name?> = <?=var.type?>_from_real3x3(t);\
 				}\
 <?			elseif variance == 'lll' then
@@ -779,29 +817,7 @@ function Equation:initCodeModule_cons_prim_eigen_waves()
 end
 
 function Equation:initCodeModule_fluxFromCons()
-	self.solver.modules:add{
-		name = self.symbols.fluxFromCons,
-		depends = {
-			self.solver.solver_t,
-			self.symbols.cons_t,
-			self.symbols.eigen_fluxTransform,
-			self.symbols.eigen_forCell,
-			self.solver.coord.symbols.normal_t,
-		},
-		code = self:template[[
-#define <?=fluxFromCons?>(\
-	/*<?=cons_t?> const * const */flux,\
-	/*constant <?=solver_t?> const * const */solver,\
-	/*<?=cons_t?> const * const */U,\
-	/*real3 const */x,\
-	/*<?=normal_t?> const */n\
-) {\
-	<?=eigen_t?> eig;\
-	<?=eigen_forCell?>(&eig, solver, U, x, n)\
-	<?=eigen_fluxTransform?>(flux, solver, &eig, U, x, n);\
-}
-]],
-	}
+--	error'Equation:initCodeModule_fluxFromCons not implemented'
 end
 
 -- this is a mess, all because of eqn/composite
@@ -817,44 +833,24 @@ end
 function Equation:initCodeModule_solverCodeFile_onAdd(args)
 	-- special case for applyInitCondCell ...
 	if args.name == self.symbols.applyInitCondCell then
+		-- insert into the depends the initCond object's getBaseDepends
 		args.depends:append(self.initCond:getBaseDepends())
+		-- insert into it the initCond object's getDepends
 		if self.initCond.getDepends then
 			args.depends:append(self.initCond:getDepends())
 		end
-		-- only used by hydro/eqn/bssnok-fd.lua:
-		-- TODO get rid of it
-		if self.getModuleDependsApplyInitCond then
-			args.depends:append(self:getModuleDependsApplyInitCond())
-		end
 	end
-end
-
--- put your eigenWaveCode / consWaveCode dependencies here
-function Equation:getModuleDepends_waveCode() end
-
-function Equation:initCodeModule_waveCode()
-	self.solver.modules:add{
-		name = self.symbols.eqn_waveCode_depends,
-		depends = self:getModuleDepends_waveCode(),
-	}
-end
-
--- put your getDisplayVars code dependencies here
--- called from solverbase
-function Equation:getModuleDepends_displayCode() 
-	return table{
-		self.solver.symbols.SETBOUNDS,
-	}
 end
 
 Equation.displayVarCodeUsesPrims = false
 function Equation:getDisplayVarCodePrefix()
 	return self:template[[
-	global <?=cons_t?> const * const U = buf + index;
-<? if eqn.displayVarCodeUsesPrims then 
-?>	<?=prim_t?> W;
-	<?=primFromCons?>(&W, solver, U, x);
-<? end 
+global <?=cons_t?> const * const U = buf + index;
+<? if eqn.displayVarCodeUsesPrims then
+?><?=prim_t?> W;
+//// MODULE_DEPENDS: <?=primFromCons?>
+<?=primFromCons?>(&W, solver, U, x);
+<? end
 ?>]]
 end
 
@@ -866,7 +862,7 @@ end
 -- that could be done in GLSL using the dx operators ... maybe I'll look into that later ...
 -- TODO use the automatic arbitrary finite difference generator in bssnok
 function Equation:createDivDisplayVar(args)
-	if require 'hydro.solver.meshsolver'.is(self.solver) then return end
+	if require 'hydro.solver.meshsolver':isa(self.solver) then return end
 	
 	local field = assert(args.field)
 	local getField = args.getField
@@ -874,7 +870,7 @@ function Equation:createDivDisplayVar(args)
 	local units = args.units
 	
 	return {
-		name = 'div '..field, 
+		name = 'div '..field,
 		code = self:template([[
 	if (<?=OOB?>(1,1)) {
 		value.v<?=scalar?> = 0./0.;
@@ -893,11 +889,11 @@ function Equation:createDivDisplayVar(args)
 	}
 ]], 	{
 			getField = getField or function(U, j)
-				return U..'->'..field..'.s'..j	
+				return U..'->'..field..'.s'..j
 			end,
 			scalar = scalar,
 		}),
-		type = scalar, 
+		type = scalar,
 		units = units,
 	}
 end
@@ -906,7 +902,7 @@ end
 -- = [v.z,y - v.y,z; v.x,z - v.z,x; v.y,x - v.x,y]
 -- TODO use the automatic arbitrary finite difference generator in bssnok
 function Equation:createCurlDisplayVar(args)
-	if require 'hydro.solver.meshsolver'.is(self.solver) then return end
+	if require 'hydro.solver.meshsolver':isa(self.solver) then return end
 
 	local field = assert(args.field)
 	local getField = args.getField
@@ -965,7 +961,7 @@ function Equation:createCurlDisplayVar(args)
 	}<? end ?>
 ]], 			{
 					v = v,
-				}), 
+				}),
 			type = 'real3',
 			units = units,
 		}
@@ -978,34 +974,146 @@ function Equation:getEigenDisplayVars()
 	return self.solver:createDisplayVarArgsForStructVars(self.eigenVars, '(&eig)')
 end
 
-function Equation:eigenWaveCodePrefix(n, eig, x)
+function Equation:waveCodeAssignMinMax(declare, resultMin, resultMax, minCode, maxCode)
+	args = table(args):setmetatable(nil)
+	if declare == true then declare = 'real const ' end
+	if not declare then declare = '' end
+	args.declare = declare
+	args.resultMin = resultMin
+	args.resultMax = resultMax
+	args.minCode = minCode
+	args.maxCode = maxCode
+	return self:template([[
+<? if resultMin then ?><?=declare?><?=resultMin?> = <?=minCode?>;<? end ?>
+<? if resultMax then ?><?=declare?><?=resultMax?> = <?=maxCode?>;<? end ?>
+]], args)
+end
+
+--[[
+this is for getting specific wave #s from eigen_t
+returns code for multiple statements.
+args:
+	n = normal_t
+	eig = eigen_t
+	pt = real3
+--]]
+function Equation:eigenWaveCodePrefix(args)
 	return ''
 end
-function Equation:eigenWaveCode(n, eig, x, waveIndex)
+
+--[[
+returns code of an expression, so no multi-stmts.
+args:
+	n = normal_t
+	eig = eigen_t
+	pt = real3
+	waveIndex = # (0 to numWaves-1)
+--]]
+function Equation:eigenWaveCode(args)
 	return '\n#error :eigenWaveCode() not implemented'
 end
 
-function Equation:consWaveCodePrefix(n, U, x)
-	return '\n#error :consWaveCodePrefix() not implemented'
+--[[
+this is for getting specific wave #s from cons_t
+returns code for multiple statements.
+args:
+	n = normal_t
+	U = cons_t
+	pt = real3
+--]]
+function Equation:consWaveCodePrefix(args)
+	return ''
 end
-function Equation:consWaveCode(n, U, x)
+
+--[[
+returns code of an expression, so no multi-stmts.
+args:
+	n = normal_t
+	U = cons_t
+	pt = real3
+	waveIndex = # (0 to numWaves-1)
+--]]
+function Equation:consWaveCode(args)
 	return '\n#error :consWaveCode() not implemented'
 end
 
--- default implementation -- the first is the min and the last is the max
--- however some don't do this, like GLM
-function Equation:eigenMinWaveCode(n, eig, x)
-	return self:eigenWaveCode(n, eig, x, 0)
+
+--[[
+returns multiple statements.
+no prefix call required.
+args:
+	eig = eigen_t object
+	n = normal_t object
+	pt = real3 of position
+	resultMin = (optional) name of min var
+	resultMax = (optional) name of max var
+	declare = true to declare variables
+--]]
+function Equation:eigenWaveCodeMinMax(args)
+	args = table(args):setmetatable(nil)
+	args.args = args
+	return self:eigenWaveCodePrefix(args)..'\n'
+	..self:template([[
+<? local table = require 'ext.table'
+?><?=eqn:waveCodeAssignMinMax(
+	declare, resultMin, resultMax,
+	eqn:eigenWaveCode(table(args, {waveIndex=0}):setmetatable(nil)),
+	eqn:eigenWaveCode(table(args, {waveIndex=eqn.numWaves-1}):setmetatable(nil))
+)?>
+]], args)
 end
-function Equation:eigenMaxWaveCode(n, eig, x)
-	return self:eigenWaveCode(n, eig, x, self.numWaves-1)
+
+--[[
+returns code for multiple statements.
+there is no prerequisite 'Prefix' call to this.
+why? because no multiple subsequent calls are intended, unlike the 'AllSides' or the default wave code, and because this is returning multiple statements (unlike the default wave code that has Prefix do multiple statements and the cons/eigenWaveCode call produce expressios).
+args:
+	U = cons_t variable name
+	n = normal_t variable name
+	pt = real3 position, in chart coordinates
+	resultMin = (optional) name of min lambda var to store
+	resultMax = (optional) name of max lambda var to store
+	declare = true to declare the variables
+--]]
+function Equation:consWaveCodeMinMax(args)
+	args = table(args):setmetatable(nil)
+	args.args = args
+	return self:consWaveCodePrefix(args)..'\n'
+	..self:template([[
+<? local table = require 'ext.table'
+?><?=eqn:waveCodeAssignMinMax(
+	declare, resultMin, resultMax,
+	eqn:consWaveCode(table(args, {waveIndex=0}):setmetatable(nil)),
+	eqn:consWaveCode(table(args, {waveIndex=eqn.numWaves-1}):setmetatable(nil))
+)?>
+]], args)
 end
-function Equation:consMinWaveCode(n, U, x)
-	return self:consWaveCode(n, U, x, 0)
+
+--[[
+this is for getting min/max from cons_t for multiple normal_t's
+returns code for multiple statements.
+args:
+	U = cons_t
+	pt = real3
+--]]
+function Equation:consWaveCodeMinMaxAllSidesPrefix(args)
+	return ''
 end
-function Equation:consMaxWaveCode(n, U, x)
-	return self:consWaveCode(n, U, x, self.numWaves-1)
+
+--[[
+returns code for multiple statements.
+args:
+	U = cons_t variable name
+	n = normal_t variable name
+	pt = real3 position, in chart coordinates
+	resultMin = name of min lambda var to store
+	resultMax = name of max lambda var to store
+	declare = true to declare the variables
+--]]
+function Equation:consWaveCodeMinMaxAllSides(args)
+	return self:consWaveCodeMinMax(args)
 end
+
 
 -- By default calcDT is taken from hydro/eqn/cl/calcDT.cl
 -- Override to provide your own.
@@ -1025,7 +1133,7 @@ kernel void <?=calcDT?>(
 	global real * const dtBuf,
 	global <?=cons_t?> const * const UBuf,
 	global <?=cell_t?> const * const cellBuf<?
-if require "hydro.solver.meshsolver".is(solver) then 
+if require "hydro.solver.meshsolver":isa(solver) then
 ?>,
 	global <?=face_t?> const * const faces,
 	global int const * const cellFaceIndexes<?
@@ -1050,7 +1158,7 @@ end
 		solver,
 		U,
 		cell<?
-if require "hydro.solver.meshsolver".is(solver) then 
+if require "hydro.solver.meshsolver":isa(solver) then
 ?>,
 		faces,
 		cellFaceIndexes<?
@@ -1066,7 +1174,7 @@ end
 Default code for the following:
 	primFromCons
 	consFromPrim
-	apply_dU_dW : prim_t -> cons_t 
+	apply_dU_dW : prim_t -> cons_t
 	apply_dW_dU : cons_t -> prim_t
 
 The default assumes prim_t == cons_t and this transformation is identity
@@ -1083,10 +1191,10 @@ function Equation:initCodeModule_consFromPrim_primFromCons()
 void <?=primFromCons?>(
 	<?=prim_t?> * const W,
 	constant <?=solver_t?> const * const solver,
-	<?=cons_t?> const * const U, 
+	<?=cons_t?> const * const U,
 	real3 const x
-) { 
-	return U; 
+) {
+	return U;
 }
 */
 ]],
@@ -1105,10 +1213,10 @@ void <?=primFromCons?>(
 void <?=consFromPrim?>(
 	<?=cons_t?> * const U,
 	constant <?=solver_t?> const * const solver,
-	<?=prim_t?> const * const W, 
+	<?=prim_t?> const * const W,
 	real3 const x
-) { 
-	return W; 
+) {
+	return W;
 }
 */
 ]],
@@ -1130,11 +1238,11 @@ returns output vector
 void <?=apply_dU_dW?>(
 	<?=cons_t?> * const result,
 	constant <?=solver_t?> const * const solver,
-	<?=prim_t?> const * const WA, 
-	<?=prim_t?> const * const W, 
+	<?=prim_t?> const * const WA,
+	<?=prim_t?> const * const W,
 	real3 const x
-) { 
-	return W; 
+) {
+	return W;
 }
 */
 ]],
@@ -1156,11 +1264,11 @@ returns output vector
 void <?=apply_dW_dU?>(
 	<?=prim_t?> const * W,
 	constant <?=solver_t?> const * const solver,
-	<?=prim_t?> const * const WA, 
+	<?=prim_t?> const * const WA,
 	<?=cons_t?> const * const U,
 	real3 const x
-) { 
-	return U; 
+) {
+	return U;
 }
 */
 ]],
@@ -1178,17 +1286,17 @@ function Equation:fieldTypeForVar(varname)
 	return var.type
 end
 
-function Equation:makePartial1(field, fieldType, nameOverride)
+function Equation:makePartial1(field, fieldType, ...)
 	-- order = 4 = 2 * 2 = 2 * (3 - 1), so numGhost == 3
 	local derivOrder = 2 * (self.solver.numGhost - 1)
 	fieldType = fieldType or self:fieldTypeForVar(field)
-	return makePartials.makePartial1(derivOrder, self.solver, field, fieldType, nameOverride)
+	return makePartials.makePartial1(derivOrder, self.solver, field, fieldType, ...)
 end
 
-function Equation:makePartial2(field, fieldType, nameOverride)
+function Equation:makePartial2(field, fieldType, ...)
 	local derivOrder = 2 * (self.solver.numGhost - 1)
 	fieldType = fieldType or self:fieldTypeForVar(field)
-	return makePartials.makePartial2(derivOrder, self.solver, field, fieldType, nameOverride)
+	return makePartials.makePartial2(derivOrder, self.solver, field, fieldType, ...)
 end
 
 return Equation

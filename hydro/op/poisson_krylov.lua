@@ -5,10 +5,9 @@ local math = require 'ext.math'
 local ffi = require 'ffi'
 local ig = require 'ffi.imgui'
 local tooltip = require 'hydro.tooltip'
-local template = require 'template'
 local CLBuffer = require 'cl.obj.buffer'
 
-local half = require 'hydro.half'
+local half = require 'cl.obj.half'
 local toreal, fromreal = half.toreal, half.fromreal
 
 
@@ -49,16 +48,16 @@ end
 
 function PoissonKrylov:getSymbolFields()
 	return table{
-		'mulWithoutBorder',
-		'square',
+		'comments',
+		'mulWithoutBorder',				-- not really used / in a separate program
+		'square',						-- not really used / in a separate program
 		'linearFunc',
 		'copyVecToPotentialField',
 		'copyPotentialFieldToVecAndInitB',
 		-- shared with relaxation:
-		'initPotential',
-		'solveJacobi',
-		'copyWriteToPotentialNoGhost',
-		'setReduceToPotentialSquared',
+		'initPotential',				-- this seems to be the only thing shared between poisson_jacobi and poisson_krylov
+		'copyWriteToPotentialNoGhost',	-- TODO MOVE.  in poisson.cl but specific to poisson_jacobi/relaxation
+		'setReduceToPotentialSquared',	-- TODO SAME
 	}
 end
 
@@ -99,6 +98,7 @@ function PoissonKrylov:initSolver()
 	local codePrefix = solver.modules:getHeader(
 		table(solver.sharedModulesEnabled:keys())
 		:append{
+			solver.solver_t,
 			solver.symbols.OOB,
 		}:unpack())
 
@@ -143,6 +143,7 @@ function PoissonKrylov:initSolver()
 	local numRealsWithoutBorder = volumeWithoutBorder
 
 	local sum = solver.app.env:reduce{
+		secondPassInCPU = cmdline.secondPassInCPU,
 		count = numreals,
 		op = function(x,y) return x..' + '..y end,
 	}
@@ -182,7 +183,7 @@ function PoissonKrylov:initSolver()
 					size = ffi.sizeof(solver.app.real) * numreals,
 				}
 				local xmax = fromreal(solver.reduceMax())
-				io.stderr:write(table{iter, residual, xNorm, xmin, xmax}:map(tostring):concat'\t','\n')
+				io.stderr:write(table{iter, residual, xNorm, xmin, xmax}:mapi(tostring):concat'\t','\n')
 			end
 			if math.abs(residual) < self.stopEpsilon then
 				return true
@@ -204,7 +205,11 @@ function PoissonKrylov:initSolver()
 end
 
 local poissonKrylovCode = [[
-kernel void <?=op.symbols.linearFunc?>(
+
+//// MODULE_NAME: <?=linearFunc?>
+//// MODULE_DEPENDS: <?=cell_dx_i?>
+
+kernel void <?=linearFunc?>(
 	constant <?=solver_t?> const * const solver,
 	global real * const Y,
 	global real const * const X,
@@ -215,7 +220,8 @@ kernel void <?=op.symbols.linearFunc?>(
 		Y[index] = 0.;
 		return;
 	}
-	real3 const x = cellBuf[index].pos;
+	global <?=cell_t?> const * const cell = cellBuf + index;
+	real3 const x = cell->pos;
 
 <? for j=0,solver.dim-1 do ?>
 	real dx<?=j?> = cell_dx<?=j?>(x);
@@ -225,12 +231,16 @@ kernel void <?=op.symbols.linearFunc?>(
 	real3 volL, volR;
 <? for j=0,solver.dim-1 do 
 ?>	xInt.s<?=j?> = x.s<?=j?> - .5 * solver->grid_dx.s<?=j?>;
-	volL.s<?=j?> = cell_sqrt_det_g(solver, xInt);
+	// TODO instead of volume_intL as the avg between two cell volumes, and then divide by dx to get the face, instead, just store the face.
+	real const volume_intL<?=j?> = .5 * (cell->volume + cell[-solver->stepsize.s<?=j?>].volume);
+	volL.s<?=j?> = volume_intL<?=j?>;
 	xInt.s<?=j?> = x.s<?=j?> + .5 * solver->grid_dx.s<?=j?>;
-	volR.s<?=j?> = cell_sqrt_det_g(solver, xInt);
+	// TODO instead of volume_intL as the avg between two cell volumes, and then divide by dx to get the face, instead, just store the face.
+	real const volume_intR<?=j?> = .5 * (cell->volume + cell[solver->stepsize.s<?=j?>].volume);
+	volR.s<?=j?> = volume_intR<?=j?>;
 	xInt.s<?=j?> = x.s<?=j?>;
 <? end 
-?>	real volAtX = cell_sqrt_det_g(solver, x);
+?>	real volAtX = cell->volume;
 
 	real sum = (0.
 <? for j=0,solver.dim-1 do ?>
@@ -248,7 +258,9 @@ kernel void <?=op.symbols.linearFunc?>(
 	Y[index] = sum;
 }
 
-kernel void <?=op.symbols.copyPotentialFieldToVecAndInitB?>(
+//// MODULE_NAME: <?=copyPotentialFieldToVecAndInitB?>
+
+kernel void <?=copyPotentialFieldToVecAndInitB?>(
 	constant <?=solver_t?> const * const solver,
 	global real * const x,
 	global real * const b,
@@ -264,37 +276,37 @@ kernel void <?=op.symbols.copyPotentialFieldToVecAndInitB?>(
 	b[index] = source;
 }
 
-kernel void <?=op.symbols.copyVecToPotentialField?>(
-	constant <?=solver_t?>* solver,
-	global <?=cons_t?>* UBuf,
-	global const real* x
+//// MODULE_NAME: <?=copyVecToPotentialField?>
+
+kernel void <?=copyVecToPotentialField?>(
+	constant <?=solver_t?> const * const solver,
+	global <?=cons_t?> * const UBuf,
+	global real const * const x
 ) {
 	<?=SETBOUNDS?>(0, 0);
 	UBuf[index].<?=op.potentialField?> = x[index];
 }
 ]]
 
-function PoissonKrylov:getModuleDepends_Poisson()
-	return {
-		self.solver.coord.symbols.cell_sqrt_det_g,
-		self.solver.coord.symbols.cell_dx_i,
-	}
-end
-
-function PoissonKrylov:initCodeModules(solver)
-	solver.modules:add{
-		name ='op.PoissonKrylov',
-		depends = self:getModuleDepends_Poisson(),
+function PoissonKrylov:initCodeModules()
+	local solver = self.solver
+	solver.modules:addFromMarkup{
 		code = solver.eqn:template(
-			file['hydro/op/poisson.cl']..'\n'
-			..poissonKrylovCode,
-			{
+			table{
+				file['hydro/op/poisson.cl'],
+				poissonKrylovCode,
+				self:getPoissonCode(),
+			}:concat'\n',
+			table(self.symbols, {
 				op = self,
-			}
-		)..'\n'
-		..(self:getPoissonCode() or ''),
+			})
+		)
 	}
-	solver.solverModulesEnabled['op.PoissonKrylov'] = true
+	solver.solverModulesEnabled[self.symbols.initPotential] = true
+	solver.solverModulesEnabled[self.symbols.copyWriteToPotentialNoGhost] = true
+	solver.solverModulesEnabled[self.symbols.copyPotentialFieldToVecAndInitB] = true
+	solver.solverModulesEnabled[self.symbols.copyVecToPotentialField] = true
+	solver.solverModulesEnabled[self.symbols.linearFunc] = true
 end
 
 function PoissonKrylov:refreshSolverProgram()

@@ -36,18 +36,6 @@ function Wave:init(args)
 	
 	self.numStates = 4 * self.numRealsInScalar
 
-	if self.usePressure then
-		self.consVars = table{
-			{name='Pi', type=self.scalar, units='kg/(m*s^3)'},
-			{name='Psi_l', type=self.vec3, units='kg/(m^2*s^2)'},
-		}
-	else
-		self.consVars = table{
-			{name='Pi', type=self.scalar, units='kg/(m^3*s)'},
-			{name='Psi_l', type=self.vec3, units='kg/(m^4)'},
-		}
-	end
-
 	local suffix = self.scalar == 'real' and '' or ' re'
 	self.predefinedDisplayVars = {
 		'U Pi'..suffix,
@@ -64,6 +52,24 @@ function Wave:init(args)
 	self.init_f = args.f
 
 	Wave.super.init(self, args)
+end
+
+function Wave:buildVars()
+	Wave.super.buildVars(self)
+	
+	self.consVars = self.consVars or table()
+
+	if self.usePressure then
+		self.consVars:append{
+			{name='Pi', type=self.scalar, units='kg/(m*s^3)'},
+			{name='Psi_l', type=self.vec3, units='kg/(m^2*s^2)'},
+		}
+	else
+		self.consVars:append{
+			{name='Pi', type=self.scalar, units='kg/(m^3*s)'},
+			{name='Psi_l', type=self.vec3, units='kg/(m^4)'},
+		}
+	end
 end
 
 function Wave:compile(expr)
@@ -91,7 +97,7 @@ function Wave:initCodeModules()
 	local var = symmath.var
 	local vars = symmath.vars
 	local fromlua = require 'ext.fromlua'
-	local coords = Tensor.coords()[1].variables
+	local coords = self.solver.coord.symchart.coords
 	local t = var't'
 	self.metric = {
 		coords = coords,
@@ -142,31 +148,16 @@ Wave.solverCodeFile = 'hydro/eqn/wave.cl'
 -- don't use default
 function Wave:initCodeModule_fluxFromCons() end
 
-function Wave:getModuleDepends_waveCode()
-	return {
-		'units',
-		self.solver.coord.symbols.normal_t,
-		self.symbols.eqn_common,	-- metric_alpha
-	}
-end
-
-function Wave:eigenWaveCodePrefix(n, eig, x)
+function Wave:eigenWaveCodePrefix(args)
 	return self:template([[
-real wavespeed = solver->wavespeed / unit_m_per_s;
-real alpha_nLen = metric_alpha(<?=x?>) * normal_len(n);
-real beta_n = normal_vecDotN1(<?=n?>, metric_beta_u(<?=x?>));
-]], {
-		n = n,
-		x = x,
-	})
+real const wavespeed = solver->wavespeed / unit_m_per_s;
+real const alpha_nLen = metric_alpha(<?=pt?>) * normal_len(n);
+real const beta_n = normal_vecDotN1(<?=n?>, metric_beta_u(<?=pt?>));
+]], args)
 end
 
-function Wave:consWaveCodePrefix(n, U, x)
-	return self:eigenWaveCodePrefix(n, nil, x)
-end
-
-function Wave:consWaveCode(n, U, x, waveIndex)
-	waveIndex = math.floor(waveIndex / self.numRealsInScalar)
+function Wave:eigenWaveCode(args)
+	local waveIndex = math.floor(args.waveIndex / self.numRealsInScalar)
 	if waveIndex == 0 then
 		return 'wavespeed * (-beta_n - alpha_nLen)' 
 	elseif waveIndex == 1 or waveIndex == 2 then
@@ -177,6 +168,41 @@ function Wave:consWaveCode(n, U, x, waveIndex)
 	error'got a bad waveIndex'
 end
 
-Wave.eigenWaveCode = Wave.consWaveCode
+-- safe so long as eigenWaveCode[Prefix] doesn't use args.eig
+Wave.consWaveCodePrefix = Wave.eigenWaveCodePrefix
+Wave.consWaveCode = Wave.eigenWaveCode
+
+function Wave:eigenWaveCodeMinMax(args)
+	return self:eigenWaveCodePrefix(args)
+	..self:template([[
+<?=eqn:waveCodeAssignMinMax(
+	declare, resultMin, resultMax,
+	'wavespeed * (-beta_n - alpha_nLen)',
+	'wavespeed * (-beta_n + alpha_nLen)'
+)?>
+]], args)
+end
+
+-- safe so long as eigenWaveCode[Prefix] doesn't use args.eig
+Wave.consWaveCodeMinMax = Wave.eigenWaveCodeMinMax
+
+function Wave:consWaveCodeMinMaxAllSidesPrefix(args)
+	return self:template([[
+real const wavespeed = solver->wavespeed / unit_m_per_s;
+real const alpha = metric_alpha(<?=pt?>);
+]], args)
+end
+
+function Wave:consWaveCodeMinMaxAllSides(args)
+	return self:template([[
+real const alpha_nLen = alpha * normal_len(n);
+real const beta_n = normal_vecDotN1(<?=n?>, metric_beta_u(<?=pt?>));
+<?=eqn:waveCodeAssignMinMax(
+	declare, resultMin, resultMax,
+	'wavespeed * (-beta_n - alpha_nLen)',
+	'wavespeed * (-beta_n + alpha_nLen)'
+)?>
+]], args)
+end
 
 return Wave

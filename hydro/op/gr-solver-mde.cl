@@ -49,7 +49,7 @@ local real_mul = scalar..'_real_mul'
 ?>
 
 <? 
-if true -- require 'hydro.coord.cartesian'.is(solver.coord) 
+if true -- require 'hydro.coord.cartesian':isa(solver.coord) 
 then 
 ?>
 	<?=scalar?> skewSum = <?=scalar?>_zero;
@@ -61,7 +61,7 @@ then
 <? end ?>
 	skewSum = <?=real_mul?>(skewSum, 1. / volAtX);
 
-	const real diag = (0.
+	real const diag = (0.
 <? for j=0,solver.dim-1 do ?>
 		- (volR.s<?=j?> + volL.s<?=j?>) / (dx<?=j?> * dx<?=j?>)
 <? end ?>

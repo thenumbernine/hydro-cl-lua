@@ -11,7 +11,8 @@ kernel void <?=calcDerivFromFlux?>(
 ) {
 	<?=SETBOUNDS_NOGHOST?>();
 	global <?=cons_t?> * const deriv = derivBuf + index;
-	real3 const x = cellBuf[index].pos;
+	global <?=cell_t?> const * const cell = cellBuf + index;
+	real3 const x = cell->pos;
 
 /*<?--[[
 volume vs area ...
@@ -30,8 +31,8 @@ in curvilinear coords, cartesian basis:
 	- 
 
 --]]?>*/
-<? if solver.coord.vectorComponent == 'holonomic'
-or require 'hydro.coord.cartesian'.is(solver.coord)
+<? if solver.coord.vectorComponent == "holonomic"
+or require "hydro.coord.cartesian":isa(solver.coord)
 then ?>
 	real const volume = 1.<?
 	for i=0,solver.dim-1 do
@@ -39,8 +40,7 @@ then ?>
 	end
 ?>;
 <? else ?>
-//// MODULE_DEPENDS: <?=cell_volume?> 
-	real const volume = cell_volume(x);
+	real const volume = cell->volume;
 <? end ?>
 
 	<? for side=0,solver.dim-1 do ?>{
@@ -58,8 +58,8 @@ then ?>
 		//U^i_;t + F^ij_;j  = 0
 		//U^i_,t + F^ij_,j + Gamma^j_kj F^ik + Gamma^i1_kj F^i1^k + ... + Gamma^in_kj F^in^k = 0
 		//					(metric det gradient) 
-<? if solver.coord.vectorComponent == 'holonomic'
-or require 'hydro.coord.cartesian'.is(solver.coord)
+<? if solver.coord.vectorComponent == "holonomic"
+or require "hydro.coord.cartesian":isa(solver.coord)
 then ?>
 		real areaL = 1.<?
 	for i=0,solver.dim-1 do

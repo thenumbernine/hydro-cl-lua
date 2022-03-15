@@ -1,14 +1,14 @@
 //// MODULE_NAME: <?=applyInitCondCell?>
 //// MODULE_DEPENDS: <?=cartesianToCoord?>
 
-kernel void <?=applyInitCondCell?>(
+void <?=applyInitCondCell?>(
 	constant <?=solver_t?> const * const solver,
 	constant <?=initCond_t?> const * const initCond,
 	global <?=cons_t?> * const U,
 	global <?=cell_t?> const * const cell
 ) {
 	real3 const x = cell->pos;
-	real3 const mids = real3_real_mul(real3_add(solver->mins, solver->maxs), .5);
+	real3 const mids = real3_real_mul(real3_add(solver->initCondMins, solver->initCondMaxs), .5);
 	bool const lhs = true<?
 for i=1,solver.dim do
 	local xi = xNames[i]
@@ -27,9 +27,9 @@ end
 
 <? if eqn.usePressure then
 ?>	U->Pi_tt = P;
-<? else		
+<? else
 ?>	U->Pi_tt = rho;
-<? end		
+<? end
 ?>	U->Pi_ti = real3_zero;
 	U->Pi_ij = sym3_zero;
 	U->Psi_ttk = cartesianToCoord(v, x);
@@ -41,10 +41,10 @@ end
 //// MODULE_DEPENDS: <?=normal_t?> <?=solver_t?> <?=cons_t?>
 
 #define <?=fluxFromCons?>(\
-	/*<?=cons_t?> * const */F,\
+	/*<?=cons_t?> * const */resultF,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */U,\
-	/*real3 const */pt,\
+	/*<?=cell_t?> const * const */cell,\
 	/*<?=normal_t?> const */n\
 ) {\
 	real const c = solver->wavespeed;\
@@ -61,11 +61,11 @@ for _,fields in ipairs{ --\
 	for _,xab in ipairs(xabs) do --\
 ?>\
 	/* F^Pi_ab = -c Psi_ab,k n^k */\
-	(F)-><?=Pi?><?=xab?> = -c * ((U)-><?=Psi?>.x<?=xab?> * nU.x + (U)-><?=Psi?>.y<?=xab?> * nU.y + (U)-><?=Psi?>.z<?=xab?> * nU.z);\
+	(resultF)-><?=Pi?><?=xab?> = -c * ((U)-><?=Psi?>.x<?=xab?> * nU.x + (U)-><?=Psi?>.y<?=xab?> * nU.y + (U)-><?=Psi?>.z<?=xab?> * nU.z);\
 \
 	/* F^{Psi_ab,k} = -c (Pi_ab n_k) */\
 <? 		for k,xk in ipairs(xNames) do --\
-?>	(F)-><?=Psi?>.<?=xk?><?=xab?> = -c * ((U)-><?=Pi?><?=xab?> * nL.<?=xk?>);\
+?>	(resultF)-><?=Psi?>.<?=xk?><?=xab?> = -c * ((U)-><?=Pi?><?=xab?> * nL.<?=xk?>);\
 <? 		end --\
 	end --\
 end --\
@@ -75,12 +75,27 @@ end --\
 //// MODULE_NAME: <?=eigen_forInterface?>
 //// MODULE_DEPENDS: <?=eigen_t?>
 
-#define <?=eigen_forInterface?>(eig, solver, UL, UR, x, n)
+#define <?=eigen_forInterface?>(\
+	/*<?=eigen_t?> * const */resultEig,\
+	/*constant <?=solver_t?> const * const */solver,\
+	/*<?=cons_t?> const * const */UL,\
+	/*<?=cons_t?> const * const */UR,\
+	/*<?=cell_t?> const * const */cellL,\
+	/*<?=cell_t?> const * const */cellR,\
+	/*real3 const */pt,\
+	/*<?=normal_t?> const */n\
+)
 
 //// MODULE_NAME: <?=eigen_forCell?>
 //// MODULE_DEPENDS: <?=eigen_t?>
 
-#define <?=eigen_forCell?>(eig, solver, U, x, n)
+#define <?=eigen_forCell?>(\
+	/*<?=eigen_t?> * const */result,\
+	/*constant <?=solver_t?> const * const */solver,\
+	/*<?=cons_t?> const * const */U,\
+	/*<?=cell_t?> const * const */cell,\
+	/*real3 const */n\
+)
 
 //// MODULE_NAME: <?=eigen_leftTransform?>
 //// MODULE_DEPENDS: <?=eigen_t?> <?=waves_t?>
@@ -182,7 +197,15 @@ end --\
 
 // by default in hydro/eqn/eqn.lua, <?=fluxFromCons?> is defined by <?=eigen_fluxTransform?>
 // but since eig is empty, we can define <?=eigen_fluxTransform?> with <?=fluxFromCons?>
-#define <?=eigen_fluxTransform?>(Y, solver, eig, X, x, n) <?=fluxFromCons?>(Y, solver, X, x, n)
+#define <?=eigen_fluxTransform?>(\
+	/*<?=cons_t?> * const */result,\
+	/*constant <?=solver_t?> const * const */solver,\
+	/*<?=eigen_t?> const * const */eig,\
+	/*<?=cons_t?> const * const */X_,\
+	/*<?=cell_t?> const * const */cell,\
+	/*<?=normal_t?> const */n\
+)\
+	<?=fluxFromCons?>(result, solver, X_, cell, n)
 
 //// MODULE_NAME: <?=addSource?>
 

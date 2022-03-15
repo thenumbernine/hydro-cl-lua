@@ -5,7 +5,7 @@ local class = require 'ext.class'
 local vec3f = require 'vec-ffi.vec3f'
 local file = require 'ext.file'
 local matrix_ffi = require 'matrix.ffi'
-local vector = require 'hydro.util.vector'
+local vector = require 'ffi.cpp.vector'
 local Draw = require 'hydro.draw.draw'
 
 
@@ -33,7 +33,7 @@ function Draw1D:showDisplayVar(var)
 	-- 3D displays -- ???
 	if app.displayDim == 3 then
 		io.stderr:write'Why are you using a graph shader to display 3D data?  Use a 3D display instead.\n'
-		do return end
+		return
 	end
 
 

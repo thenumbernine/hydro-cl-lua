@@ -2,6 +2,7 @@ local class = require 'ext.class'
 local table = require 'ext.table'
 local time = table.unpack(require 'hydro.util.time')
 local Struct = require 'hydro.code.struct'
+local half = require 'cl.obj.half'
 
 --[[
 name = name of the initial condition
@@ -16,8 +17,22 @@ getInitCondCode = function(self) returns the OpenCL code for the initial conditi
 
 local InitCond = class()
 
+--[[
+for now it depends on the initCond
+but how about I make some stanard overrides?
+
+args:
+	solverVars = solverVars to override, overriding initCond and of course overriding solver
+	... etc = any args that match any initCond guiVars will automatically override the initCond guiVar value
+--]]
 function InitCond:init(args)
 	self.solver = assert(args.solver, "expected solver")
+	self.args = args
+
+	self.solverVars = self.solverVars or {}
+	for k,v in pairs(args and args.solverVars or {}) do
+		self.solverVars[k] = v
+	end
 end
 
 function InitCond:createInitStruct()
@@ -59,6 +74,17 @@ function InitCond:addGuiVars(args)
 end
 
 function InitCond:addGuiVar(args)
+	args = table(args)
+	-- ok 'args' is the guivar/initcondvar args ...
+	-- and 'self.args' is the InitCond ctor args ...
+	-- HERE: allow the InitCond ctor args to override any guiVars
+	if self.args 
+	and self.args
+	and self.args[args.name] ~= nil
+	then
+		args.value = self.args[args.name]
+	end
+
 	local vartype = args.type
 	if not vartype then
 		vartype = type(args.value)
@@ -74,7 +100,7 @@ function InitCond:addGuiVar(args)
 	self.guiVars:insert(var)
 	self.guiVars[var.name] = var
 
-	if not args.compileTime then 
+	if not args.compileTime then
 		self.initStruct.vars:insert{
 			name = var.name,
 			type = var.ctype,
@@ -117,7 +143,7 @@ function InitCond:initCodeModules()
 
 	solver.modules:add{
 		name = solver.eqn.symbols.initCond_guiVars_compileTime,
-		headercode = table.mapi(self.guiVars or {}, function(var,i,t) 
+		headercode = table.mapi(self.guiVars or {}, function(var,i,t)
 			return (var.compileTime and var:getCode() or nil), #t+1
 		end):concat'\n',
 	}
@@ -134,16 +160,19 @@ end
 function InitCond:refreshInitStateProgram()
 	local solver = assert(self.solver)
 	local eqn = solver.eqn
-	
+
+	solver.initModulesEnabled.units = true		-- I think this is safe to assume
 	solver.initModulesEnabled[eqn.symbols.applyInitCond] = true
 	if solver:hasModule(eqn.symbols.initDerivs) then
 		solver.initModulesEnabled[eqn.symbols.initDerivs] = true
 	end
 
-	local initCondCode 
+	local initCondCode
 	time('generating init state code', function()
 		local moduleNames = table(solver.sharedModulesEnabled, solver.initModulesEnabled):keys()
-print('initCond modules: '..moduleNames:sort():concat', ')
+		if solver.app.verbose then
+			print('initCond modules: '..moduleNames:concat', ')
+		end
 		initCondCode = solver.modules:getCodeAndHeader(moduleNames:unpack())
 	end)
 	
@@ -173,7 +202,7 @@ function InitCond:resetState()
 		local ptr = solver.UBufObj:toCPU()
 		for i=0,solver.numCells-1 do
 			for j=0,solver.eqn.numStates-1 do
-				ptr[i].ptr[j] = math.random()
+				ptr[i].ptr[j] = half.toreal(math.random())
 			end
 		end
 		solver.UBufObj:fromCPU(ptr)
@@ -186,7 +215,7 @@ function InitCond:resetState()
 		solver:printBuf(solver.UBufObj)
 	end
 	
-	if solver:hasModule(solver.eqn.symbols.initDerivs) then
+	if solver.initDerivsKernelObj then
 		solver:boundary()
 		solver.initDerivsKernelObj()
 	end
@@ -195,6 +224,16 @@ function InitCond:resetState()
 	if cmdline.printBufs then
 		print('post-boundary init UBuf:')
 		solver:printBuf(solver.UBufObj)
+	end
+	
+	if solver.constrainUKernelObj then
+		-- this calls constrainUKernelObj
+		-- and then calls :boundary()
+		solver:constrainU()	
+		if cmdline.printBufs then
+			print('post-constrainU init UBuf:')
+			solver:printBuf(solver.UBufObj)
+		end
 	end
 end
 

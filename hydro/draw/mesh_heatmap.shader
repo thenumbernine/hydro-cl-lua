@@ -17,9 +17,9 @@ if vertexShader then
 
 uniform float drawCellScale;
 
-attribute vec3 vtx;
-attribute vec3 vtxcenter;
-attribute float cellindex;
+in vec3 vtx;
+in vec3 vtxcenter;
+in float cellindex;
 
 void main() {
 	vec3 v = (vtx - vtxcenter) * drawCellScale + vtxcenter;
@@ -30,12 +30,12 @@ void main() {
 <?
 end
 if fragmentShader then 
-	if require "gl.tex2d".is(solver.tex) then 
+	if require "gl.tex2d":isa(solver.tex) then 
 		if solver.texSize.y == 1 then
 ?>
 float getValue() {
 	float tc = (cellindexv + .5) / texSize.x;
-	return texture2D(tex, vec2(tc, .5)).r;
+	return texture(tex, vec2(tc, .5)).r;
 }
 <?
 		else
@@ -48,11 +48,11 @@ float getValue() {
 	tc.x += .5;
 	tc.x /= texSize.x;
 	tc.y = (i + .5) / texSize.y;
-	return texture2D(tex, tc).r;
+	return texture(tex, tc).r;
 }
 <? 
 		end
-	elseif require "gl.tex3d".is(solver.tex) then 
+	elseif require "gl.tex3d":isa(solver.tex) then 
 ?>
 float getValue() {
 	float i = cellindexv;
@@ -69,7 +69,7 @@ float getValue() {
 	tc.y /= texSize.y;
 	
 	tc.z = (i + .5) / texSize.z;
-	return texture3D(tex, tc).r;
+	return texture(tex, tc).r;
 }
 <? 
 	else

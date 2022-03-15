@@ -20,6 +20,7 @@ local math = require 'ext.math'
 local file = require 'ext.file'
 local string = require 'ext.string'
 local io = require 'ext.io'
+local os = require 'ext.os'
 local matrix = require 'matrix'
 local gnuplot = require 'gnuplot'
 local unistd = require 'ffi.c.unistd'
@@ -30,7 +31,7 @@ ffi.C.free(rundirp)
 
 -- in case it's needed
 local resultsDir = 'results'
-os.execute('mkdir "'..rundir..'/'..resultsDir..'"')
+os.mkdir(rundir..'/'..resultsDir)
 
 -- from here on the require's expect us to be in the hydro-cl directory
 -- I should change this, and prefix all hydro-cl's require()s with 'hydro-cl', so it is require()able from other projects
@@ -71,8 +72,8 @@ problems['advect wave'] = {
 	configurations = outer(
 		{
 			{
-				eqn='euler',
-				initState = 'advect wave',
+				eqn = 'euler',
+				initCond = 'advect wave',
 			}
 		},
 			-- final error at n=1024 on the right:
@@ -90,8 +91,8 @@ problems.Sod = {
 	configurations = outer(
 		{
 			{
-				eqn='euler',
-				initState = 'Sod',
+				eqn = 'euler',
+				initCond = 'Sod',
 			}
 		},
 			-- final error at n=1024 on the right:
@@ -195,7 +196,7 @@ print()
 					if not uselin then
 						-- TODO this only compares the first value, while 'testAccuracy' cmdline option compares all (integratable variable) state values
 						exact = xs:map(function(x)
-							return (solver.eqn.initState:exactSolution(x, solver.t))
+							return (solver.eqn.initCond:exactSolution(solver.t, x, 0, 0))
 						end)
 					end
 					return xs, ys, exact, assert(err)
@@ -203,6 +204,7 @@ print()
 
 				-- some hack trickery: reset the cache names for the opencl prefixes
 				-- TODO a better fix would be to just get the live resizing working again
+				-- or TODO TODO a better better one would be running the App as a separate process, so the typenames wouldn't differ per cl code, and caching would work fine
 				for i=1,math.huge do
 					local found
 					local function try(name) 
@@ -282,7 +284,8 @@ print()
 
 			if plotCompare then -- plotting immediately
 				gnuplot{
-					output = rundir..'/compare-graphs.png',
+					output = rundir..'/compare-graphs.svg',
+					terminal = 'svg size 2000,1500 background rgb "white"',
 					style = 'data lines',
 					data = {xs, ys, exact},
 					{using = '1:2', title=''..size},
@@ -312,13 +315,13 @@ if cmdline.time then return end
 -- [[ plot errors per grid dx
 gnuplot(
 	table({
-		output = rundir..'/'..resultsDir..'/results '..problemName..'.png',
-		terminal = 'png size 2400,1400',
+		output = rundir..'/'..resultsDir..'/results '..problemName..'.svg',
+		terminal = 'svg size 4000,3000 background rgb "white"',
 		style = 'data linespoints',
 		log = 'xy',
 		xlabel = 'dx',
 		ylabel = 'L1 error',
-		key = 'left Left reverse',
+		key = 'left Left reverse samplen 2 spacing .9',
 		data = table{
 			sizes:map(function(x) return 2/x end),	-- this assumes the domain is -1,1
 		}:append(errorsForConfig),
@@ -331,11 +334,18 @@ gnuplot(
 
 -- [[ plot error histories
 do
+	local graphdir = rundir..'/graphs '..problemName
+	os.mkdir(graphdir)
 	local data = table.append(testdatas:map(function(testdata)
 		return table.append(sizes:map(function(size)
 			local sizedata = testdata.size[size]
+			local tdata = table(sizedata.ts)
+			-- throw away any OOB integration steps
+			for i=1,#tdata do
+				if tdata[i] > 2*problem.duration then tdata[i] = math.nan end
+			end
 			return {
-				sizedata.ts,
+				tdata,
 				sizedata.errorsForTime,
 			}
 		end):unpack())
@@ -347,14 +357,43 @@ do
 		end)
 	end):unpack())
 	gnuplot(table({
-		output = rundir..'/error-history.png',
-		terminal = 'png size 2400,1400',
+		output = graphdir..'/error-history.svg',
+		terminal = 'svg size 4000,3000 background rgb "white"',
+		style = 'data linespoints',
+		log = 'xy',
+		xlabel = 'time',
+		ylabel = 'L1 error',
+		nokey = true,	-- can't seem to make the legend small enough to fit them all
+		--key = 'left Left reverse samplen 2 spacing .9',
+		data = data,
+	}, usings))
+	
+	-- [[ more practical would be to just produce a bunch of collections, like 10 or 20 at a time
+	-- using# = 1 + (graphIndex-1) + #sizes * (sizeIndex-1)
+	-- compare all graphs of highest resolution
+	gnuplot(table({
+		output = graphdir..'/error-history-size='..sizes:last()..'.svg',
+		terminal = 'svg size 2000,1500 background rgb "white"',
 		style = 'data linespoints',
 		log = 'xy',
 		xlabel = 'time',
 		ylabel = 'L1 error',
 		key = 'left Left reverse',
 		data = data,
-	}, usings))
+	}, range(#sizes,#usings,#sizes):mapi(function(i) return usings[i] end)))
+	-- compare each graph's different sizes
+	for i=1,#usings,#sizes do
+		gnuplot(table({
+			output = graphdir..'/error-history-using='..usings[i].title..'.svg',
+			terminal = 'svg size 2000,1500 background rgb "white"',
+			style = 'data linespoints',
+			log = 'xy',
+			xlabel = 'time',
+			ylabel = 'L1 error',
+			key = 'left Left reverse',
+			data = data,
+		}, usings:sub(i,i+#sizes-1)))
+	end
+	--]]
 end
 --]]

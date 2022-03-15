@@ -1,7 +1,5 @@
 local table = require 'ext.table'
 local class = require 'ext.class'
-local file = require 'ext.file'
-local Struct = require 'hydro.code.struct'
 local Equation = require 'hydro.eqn.eqn'
 
 local Composite = class(Equation)
@@ -253,10 +251,6 @@ function Composite:initCodeModule_solverCodeFile_onAdd(args)
 		for _,eqn in ipairs(self.eqns) do
 			args.depends:insert(eqn.symbols.consFromPrim)
 		end
-		-- only used by hydro/eqn/bssnok-fd.lua:
-		if self.getModuleDependsApplyInitCond then
-			args.depends:append(self:getModuleDependsApplyInitCond())
-		end
 	end
 end
 
@@ -264,14 +258,6 @@ end
 -- but that means swapping out the 'U' var for a new 'U' var per each sub-eqn
 -- (and each other temporary var defined in 'getDisplayVarCodePrefix' for that matter?
 --]]
-
-function Composite:getModuleDepends_waveCode()
-	return table():append(
-		self.eqns:mapi(function(eqn)
-			return eqn:getModuleDepends_waveCode()
-		end):unpack()
-	)
-end
 
 --[[
 getEnv() ...
@@ -295,46 +281,65 @@ function Composite:getEnv()
 end
 --]]
 
--- TODO - prevent variable collisions - especially from multiple matching subeqns
--- this might require some kind of namespace
-function Composite:eigenWaveCodePrefix(n, eig, x)
+function Composite:combineWaveCode(func, fields, args)
 	return self.eqns:mapi(function(eqn,i)
-		return eqn:eigenWaveCodePrefix(n, '&('..eig..')->'..eqn.field, x)
+		local args = table(args):setmetatable(nil)
+		for _,field in ipairs(fields) do
+			args[field] = '&('..args[field]..')->'..eqn.field
+		end
+		return eqn[func](eqn, args)
 	end):concat'\n'
 end
 
-function Composite:eigenWaveCode(n, eig, x, waveIndex)
-	local origWaveIndex = waveIndex
+function Composite:combineWaveIndexCode(func, fields, args)
+	local waveIndex = assert(args.waveIndex)
 	for i,eqn in ipairs(self.eqns) do
 		if waveIndex >= 0 and waveIndex < eqn.numWaves then
-			return eqn:eigenWaveCode(n, '&('..eig..')->'..eqn.field, x, waveIndex)
+			local args = table(args):setmetatable(nil)
+			for _,field in ipairs(fields) do
+				args[field] = '&('..args[field]..')->'..eqn.field
+			end
+			args.waveIndex = waveIndex
+			return eqn[func](eqn, args)
 		end
 		waveIndex = waveIndex - eqn.numWaves
 	end
-	error("couldn't find waveIndex "..origWaveIndex.." in any sub-eqns")
+	error("couldn't find waveIndex "..args.waveIndex.." in any sub-eqns")
 end
 
--- TODO same as eigenWaveCodePrefix
-function Composite:consWaveCodePrefix(n, U, x)
-	return self.eqns:mapi(function(eqn,i)
-		return eqn:consWaveCodePrefix(n, '&('..U..')->'..eqn.field, x)
-	end):concat'\n'
+
+-- make sure your subseqns use their namespaces to prevent variable collisions 
+-- otherwise you'll get errors of variables being redeclared
+function Composite:eigenWaveCodePrefix(...)
+	return self:combineWaveCode('eigenWaveCodePrefix', {'eig'}, ...)
 end
 
-function Composite:consWaveCode(n, U, x, waveIndex)
-	local origWaveIndex = waveIndex
-	for i,eqn in ipairs(self.eqns) do
-		if waveIndex >= 0 and waveIndex < eqn.numWaves then
-			return eqn:consWaveCode(n, '&('..U..')->'..eqn.field, x, waveIndex)
-		end
-		waveIndex = waveIndex - eqn.numWaves
-	end
-	error("couldn't find waveIndex "..origWaveIndex.." in any sub-eqns")
+function Composite:eigenWaveCode(...)
+	return self:combineWaveIndexCode('eigenWaveCode', {'eig'}, ...)
 end
 
--- TODO eigenMinWaveCode
--- TODO eigenMaxWaveCode
--- TODO consMinWaveCode
--- TODO consMaxWaveCode
+function Composite:consWaveCodePrefix(...)
+	return self:combineWaveCode('consWaveCodePrefix', {'U'}, ...)
+end
+
+function Composite:consWaveCode(...)
+	return self:combineWaveIndexCode('consWaveCode', {'U'}, ...)
+end
+
+function Composite:eigenWaveCodeMinMax(...)
+	return self:combineWaveCode('eigenWaveCodeMinMax', {'eig'}, ...)
+end
+
+function Composite:consWaveCodeMinMax(...)
+	return self:combineWaveIndexCode('consWaveCodeMinMax', {'U'}, ...)
+end
+
+function Composite:consWaveCodeMinMaxAllSidesPrefix(...)
+	return self:combineWaveIndexCode('consWaveCodeMinMaxAllSidesPrefix', {'U'}, ...)
+end
+
+function Composite:consWaveCodeMinMaxAllSides(...)
+	return self:combineWaveIndexCode('consWaveCodeMinMaxAllSides', {'U'}, ...)
+end
 
 return Composite

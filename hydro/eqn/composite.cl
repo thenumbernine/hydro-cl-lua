@@ -5,6 +5,7 @@ local function subeqnDepends(symbol)
 	end):concat' '
 end
 ?>
+
 //// MODULE_NAME: <?=eigen_forInterface?>
 //// MODULE_DEPENDS: <?=subeqnDepends'eigen_forInterface'?>
 
@@ -13,6 +14,8 @@ end
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */UL,\
 	/*<?=cons_t?> const * const */UR,\
+	/*<?=cell_t?> const * const */cellL,\
+	/*<?=cell_t?> const * const */cellR,\
 	/*real3 const */pt,\
 	/*<?=normal_t?> const */n\
 ) {\
@@ -22,7 +25,30 @@ end
 		solver,\
 		&(UL)-><?=subeqn.field?>,\
 		&(UR)-><?=subeqn.field?>,\
+		cellL,\
+		cellR,\
 		pt,\
+		n)\
+<? end --\
+?>\
+}
+
+//// MODULE_NAME: <?=eigen_forCell?>
+//// MODULE_DEPENDS: <?=subeqnDepends'eigen_forCell'?>
+
+#define <?=eigen_forCell?>(\
+	/*<?=eigen_t?> * const */resultEig,\
+	/*constant <?=solver_t?> const * const */solver,\
+	/*<?=cons_t?> const * const */U,\
+	/*<?=cell_t?> const * const */cell,\
+	/*<?=normal_t?> const */n\
+) {\
+<? for i,subeqn in ipairs(eqn.eqns) do --\
+?>	<?=subeqn.symbols.eigen_forCell?>(\
+		&(resultEig)-><?=subeqn.field?>,\
+		solver,\
+		&(U)-><?=subeqn.field?>,\
+		cell,\
 		n)\
 <? end --\
 ?>\
@@ -103,6 +129,29 @@ end --\
 <?=cons_t?> * const resultName = &resultName##base;\
 <? end ?>
 
+
+//// MODULE_NAME: <?=fluxFromCons?>
+//// MODULE_DEPENDS: <?=subeqnDepends'fluxFromCons'?>
+
+#define <?=fluxFromCons?>(\
+	/*<?=cons_t?> * const */resultF,\
+	/*constant <?=solver_t?> const * const */solver,\
+	/*<?=cons_t?> const * const*/U,\
+	/*<?=cell_t?> const * const */cell,\
+	/*<?=normal_t?> const */n\
+) {\
+<? for i,subeqn in ipairs(eqn.eqns) do --\
+?>	<?=subeqn.symbols.fluxFromCons?>(\
+		&(resultF)-><?=subeqn.field?>,\
+		solver,\
+		&(U)-><?=subeqn.field?>,\
+		cell,\
+		n);\
+<? end --\
+?>\
+}
+
+
 //// MODULE_NAME: <?=primFromCons?>
 //// MODULE_DEPENDS: <?=subeqnDepends'primFromCons'?>
 
@@ -165,7 +214,7 @@ void <?=applyInitCondCell?>(
 //// MODULE_NAME: <?=calcDTCell?>
 //// MODULE_DEPENDS: <?=solver_t?> <?=initCond_t?> <?=cons_t?> <?=cell_t?> <?=subeqnDepends'calcDTCell'?>
 
-<? if require "hydro.solver.meshsolver".is(solver) then
+<? if require "hydro.solver.meshsolver":isa(solver) then
 ?>
 //// MODULE_DEPENDS: <?=face_t?>
 <? end
@@ -176,7 +225,7 @@ void <?=applyInitCondCell?>(
 	/*constant <?=solver_t?> const * const */solver,\
 	/*global <?=cons_t?> const * const */U,\
 	/*global <?=cell_t?> const * const */cell<? --\
-if require "hydro.solver.meshsolver".is(solver) then --\
+if require "hydro.solver.meshsolver":isa(solver) then --\
 ?>,\
 	/*global <?=face_t?> const * const */faces,\
 	/*global int const * const */cellFaceIndexes<? --\
@@ -189,7 +238,7 @@ end --\
 		solver,\
 		&(U)-><?=subeqn.field?>,\
 		cell<? --\
-if require "hydro.solver.meshsolver".is(solver) then --\
+if require "hydro.solver.meshsolver":isa(solver) then --\
 ?>,\
 		faces,\
 		cellFaceIndexes<? --\

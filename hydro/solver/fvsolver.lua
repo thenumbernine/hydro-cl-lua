@@ -27,7 +27,7 @@ function FiniteVolumeSolver:getSymbolFields()
 end
 
 function FiniteVolumeSolver:initObjs(args)
-	FiniteVolumeSolver.super.initObjs(self, args)	
+	FiniteVolumeSolver.super.initObjs(self, args)
 	self:createFlux(args.flux, args.fluxArgs)
 end
 
@@ -51,16 +51,17 @@ function FiniteVolumeSolver:initCodeModules()
 
 	self:initCodeModule_calcFlux()
 end
-	
+
+-- overridden by weno subclass
 function FiniteVolumeSolver:initCodeModule_calcFlux()
 	self.modules:addFromMarkup{
 		code = self.eqn:template([[
 //// MODULE_NAME: <?=calcFlux?>
-//// MODULE_DEPENDS: <?=calcFluxForInterface?> <?=cons_parallelPropagate?> <?=normal_t?>
+//// MODULE_DEPENDS: <?=normal_t?>
 // used by all gridsolvers.  the meshsolver alternative is in solver/meshsolver.lua
 
-<? 
-local useFlux = solver.fluxLimiter > 1 
+<?
+local useFluxLimiter = solver.fluxLimiter > 1
 	and flux.usesFluxLimiter -- just flux/roe.lua right now
 ?>
 
@@ -74,25 +75,24 @@ kernel void <?=calcFlux?>(
 	<?=SETBOUNDS?>(solver->numGhost, solver->numGhost-1);
 	
 	int const indexR = index;
-	real3 const xR = cellBuf[index].pos;
+	global <?=cell_t?> const * const cellR = cellBuf + index;
 	
 	<? for side=0,solver.dim-1 do ?>{
-		int const side = <?=side?>;	
+		int const side = <?=side?>;
 
 		real const dx = solver->grid_dx.s<?=side?>;
 
 		int const indexL = index - solver->stepsize.s<?=side?>;
-		real3 xL = xR;
-		xL.s<?=side?> -= dx;
+		global <?=cell_t?> const * const cellL = cellBuf + indexL;
 
-		real3 xInt = xR;
+		real3 xInt = cellR->pos;
 		xInt.s<?=side?> -= .5 * dx;
 
 		int const indexInt = side + dim * index;
 		global <?=cons_t?> * const flux = fluxBuf + indexInt;
 
 
-<? if solver.coord.vectorComponent == 'cartesian' 
+<? if solver.coord.vectorComponent == 'cartesian'
 	or solver.coord.vectorComponent == 'anholonomic'
 then ?>
 //// MODULE_DEPENDS: <?=cell_area_i?>
@@ -116,22 +116,25 @@ then ?>
 
 			//the single act of removing the copy of the U's from global to local memory
 			// increases the framerate from 78 to 127
-			<?=cons_parallelPropagate?><?=side?>(ppUL, UL, xL, .5 * dx);
-			<?=cons_parallelPropagate?><?=side?>(ppUR, UR, xR, -.5 * dx);
+//// MODULE_DEPENDS: <?=cons_parallelPropagate?>
+			<?=cons_parallelPropagate?><?=side?>(ppUL, UL, cellL->pos, .5 * dx);
+			<?=cons_parallelPropagate?><?=side?>(ppUR, UR, cellR->pos, -.5 * dx);
 
 			<?=normal_t?> const n = normal_forSide<?=side?>(xInt);
 
-<? 
-if useFlux then 
+<?
+if useFluxLimiter then
 ?>			//this is used for the flux limiter
 			//should it be using the coordinate dx or the grid dx?
 			//real dt_dx = dt / cell_dx<?=side?>(xInt);
-<? 
-	if solver.coord.vectorComponent == 'cartesian' 
-	and not require 'hydro.coord.cartesian'.is(solver.coord)
-	then 
-?>			real const dt_dx = dt / cell_dx<?=side?>(xInt);
-<? 	else 
+<?
+	if solver.coord.vectorComponent == 'cartesian'
+	and not require 'hydro.coord.cartesian':isa(solver.coord)
+	then
+?>
+//// MODULE_DEPENDS: <?=cell_dx_i?>
+			real const dt_dx = dt / cell_dx<?=side?>(xInt);
+<? 	else
 ?>			real const dt_dx = dt / dx;
 <? 	end
 ?>
@@ -146,29 +149,50 @@ if useFlux then
 			<?=solver:getULRCode{indexL = 'indexL2', indexR = 'indexL', suffix='_L'}:gsub('\n', '\n\t\t\t')?>
 			<?=solver:getULRCode{indexL = 'indexR', indexR = 'indexR2', suffix='_R'}:gsub('\n', '\n\t\t\t')?>
 
+//// MODULE_DEPENDS: <?=cons_parallelPropagate?>
 			<?=cons_parallelPropagate?><?=side?>(ppUL_L, UL_L, xIntL, 1.5 * dx);		//xIntL2?
 			<?=cons_parallelPropagate?><?=side?>(ppUL_R, UL_R, xIntL, .5 * dx);
 			<?=cons_parallelPropagate?><?=side?>(ppUR_L, UR_L, xIntR, -.5 * dx);
-			<?=cons_parallelPropagate?><?=side?>(ppUR_R, UR_R, xIntR, -1.5 * dx);	// xIntR2?
+			<?=cons_parallelPropagate?><?=side?>(ppUR_R, UR_R, xIntR, -1.5 * dx);		//xIntR2?
+
+			global <?=cell_t?> const * const cellR2 = cellBuf + indexR2;
+			global <?=cell_t?> const * const cellL2 = cellBuf + indexL2;
 
 <?
 end
 ?>
+//// MODULE_DEPENDS: <?=calcFluxForInterface?>
 			<?=calcFluxForInterface?>(
 				flux,
 				solver,
 				ppUL,
 				ppUR,
+				cellL,
+				cellR,
 				xInt,
-				n<? if useFlux then ?>,
+				n<? if useFluxLimiter then ?>,
 				dt_dx,
 				ppUL_L,
 				ppUL_R,
+				cellL2,
+				cellL,
+				xIntL,
 				ppUR_L,
 				ppUR_R,
-				xIntL,
+				cellR,
+				cellR2,
 				xIntR<? end ?>
 			);
+		
+			//while we're here how about other solvers that might want to modify the flux?  like adding the viscous flux to the update?
+			//or should the viscous flux only be added separately?  in case its eigenvalues change the euler flux enough to overstep the CFL or something
+<?
+for _,op in ipairs(solver.ops) do
+	if op.addCalcFluxCode then
+?>			<?=op:addCalcFluxCode()?>
+<? 	end
+end
+?>
 		}
 	}<? end ?>
 }
@@ -182,7 +206,7 @@ end
 function FiniteVolumeSolver:createFlux(fluxName, fluxArgs)
 	assert(fluxName, "expected flux")
 	local fluxClass = require('hydro.flux.'..fluxName)
-	fluxArgs = table(fluxArgs, {solver=self})
+	fluxArgs = table(fluxArgs, {solver=self}):setmetatable(nil)
 	self.flux = fluxClass(fluxArgs)
 end
 
@@ -223,7 +247,7 @@ if self.checkNaNs then assert(self:checkFinite(self.fluxBufObj)) end
 if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
 if self.checkNaNs then assert(self:checkFinite(derivBufObj)) end
 
--- [=[ this is from the 2017 Zingale book
+-- [=[ this is from the 2017 Zingale "Introduction to Computational Astrophysics"
 	if self.useCTU then
 if self.checkNaNs then assert(self:checkFinite(derivBufObj)) end
 		-- if we're using CTU then ...
@@ -264,55 +288,22 @@ if self.checkNaNs then assert(self:checkFinite(derivBufObj)) end
 
 end
 
-
-function FiniteVolumeSolver:getModuleDepends_displayCode()
-	local depends = table(FiniteVolumeSolver.super.getModuleDepends_displayCode(self))
-
-	depends:append{
-		-- wave #
-		self.coord.symbols.normal_t,
-		self.eqn.symbols.eigen_t,
-		self.eqn.symbols.eqn_waveCode_depends,
-		self.eqn.symbols.eigen_forInterface,
-	}
-
-	-- only if these symbols are defined is the ortho error display vars included, which themselves need these:
-	if self:isModuleUsed(self.eqn.symbols.eigen_leftTransform)
-	and self:isModuleUsed(self.eqn.symbols.eigen_rightTransform)
-	then
-		depends:append{
-			self.eqn.symbols.eigen_leftTransform,
-			self.eqn.symbols.eigen_rightTransform,
-		}
-	
-		-- and only if the two of them plus this is defined is the flux error display var used:
-
-		if self:isModuleUsed(self.eqn.symbols.eigen_fluxTransform) then
-			depends:append{
-				self.eqn.symbols.eigen_fluxTransform,
-			}
-		end
-	end
-
-	return depends
-end
-
 function FiniteVolumeSolver:addDisplayVars()
 	FiniteVolumeSolver.super.addDisplayVars(self)
 
 	for side=0,self.dim-1 do
 		local xj = xNames[side+1]
 		self:addDisplayVarGroup{
-			name = 'flux '..xj, 
+			name = 'flux '..xj,
 			bufferField = 'fluxBuf',
 			bufferType = self.eqn.symbols.cons_t,
 			codePrefix = self.eqn:template([[
-	int const indexInt = <?=side?> + dim * index;
-	global <?=cons_t?> const * const flux = buf + indexInt;
+int const indexInt = <?=side?> + dim * index;
+global <?=cons_t?> const * const flux = buf + indexInt;
 ]],			{
 				side = side,
 			}),
-			vars = range(0,self.eqn.numIntStates-1):map(function(i)
+			vars = range(0,self.eqn.numIntStates-1):mapi(function(i)
 				return {name=tostring(i), code='value.vreal = flux->ptr['..i..'];'}
 			end),
 		}
@@ -321,14 +312,20 @@ function FiniteVolumeSolver:addDisplayVars()
 	-- code for getting the interface eigensystem variables
 	local function getEigenCode(args)
 		return self.eqn:template([[
-	int indexR = index;
-	int indexL = index - solver->stepsize.s<?=side?>;
-	real3 xInt = x;
-	xInt.s<?=side?> -= .5 * solver->grid_dx.s<?=side?>;
-	<?=solver:getULRCode{bufName='buf', side=side}:gsub('\n', '\n\t')?>
-	<?=normal_t?> n = normal_forSide<?=side?>(xInt);
-	<?=eigen_t?> eig;
-	<?=eigen_forInterface?>(&eig, solver, UL, UR, xInt, n);
+int indexR = index;
+int indexL = index - solver->stepsize.s<?=side?>;
+global <?=cell_t?> const * const cellL = cellBuf + indexL;
+global <?=cell_t?> const * const cellR = cellBuf + indexR;
+
+/* TODO this isn't always used by normal_forSide or eigen_forInterface ... */
+real3 xInt = x;
+xInt.s<?=side?> -= .5 * solver->grid_dx.s<?=side?>;
+
+<?=solver:getULRCode{bufName='buf', side=side}:gsub('\n', '\n\t')?>
+//// MODULE_DEPENDS: <?=eigen_forInterface?>
+<?=normal_t?> n = normal_forSide<?=side?>(xInt);
+<?=eigen_t?> eig;
+<?=eigen_forInterface?>(&eig, solver, UL, UR, cellL, cellR, xInt, n);
 ]], 	{
 			side = args.side,
 		})
@@ -343,15 +340,25 @@ function FiniteVolumeSolver:addDisplayVars()
 			codePrefix = table{
 				getEigenCode{side=side},
 				self.eqn:template([[
-	<?=normal_t?> n<?=side?> = normal_forSide<?=side?>(xInt);
-<?=eqn:eigenWaveCodePrefix('n', '&eig', 'xInt')?>
+//// MODULE_DEPENDS: <?=normal_t?>
+<?=normal_t?> n<?=side?> = normal_forSide<?=side?>(xInt);
+<?=eqn:eigenWaveCodePrefix{
+	n = 'n',
+	eig = '&eig',
+	pt = 'xInt',
+}:gsub('\n', '\n\t')?>
 ]], 			{
 					side = side,
 				}),
 			}:concat'\n',
-			vars = range(0, self.eqn.numWaves-1):map(function(i)
+			vars = range(0, self.eqn.numWaves-1):mapi(function(i)
 				return {name=tostring(i), code=self.eqn:template([[
-	value.vreal = <?=eqn:eigenWaveCode('n'..side, '&eig', 'xInt', i)?>;
+value.vreal = <?=eqn:eigenWaveCode{
+	n = 'n'..side,
+	eig = '&eig',
+	pt = 'xInt',
+	waveIndex = i,
+}?>;
 ]], 			{
 					side = side,
 					i = i,
@@ -392,28 +399,29 @@ function FiniteVolumeSolver:addDisplayVars()
 					{name='0', code=table{
 						getEigenCode{side=side},
 						self.eqn:template([[
-	value.vreal = 0;
-	//the flux transform is F v = R Lambda L v, I = R L
-	//but if numWaves < numIntStates then certain v will map to the nullspace 
-	//so to test orthogonality for only numWaves dimensions, I will verify that Qinv Q v = v 
-	//I = L R
-	//Also note (courtesy of Trangenstein) consider summing across outer products of basis vectors to fulfill rank
-	for (int k = 0; k < numWaves; ++k) {
-		<?=cons_t?> basis;
-		for (int j = 0; j < numStates; ++j) {
-			basis.ptr[j] = k == j ? 1 : 0;
-		}
-		
-		<?=normal_t?> n = normal_forSide<?=side?>(xInt);
-		<?=waves_t?> chars;
-		<?=eigen_leftTransform?>(&chars, solver, &eig, &basis, xInt, n);
-		<?=cons_t?> newbasis;
-		<?=eigen_rightTransform?>(&newbasis, solver, &eig, &chars, xInt, n);
-	
-		for (int j = 0; j < numStates; ++j) {
-			value.vreal += fabs(newbasis.ptr[j] - basis.ptr[j]);
-		}
+value.vreal = 0;
+//the flux transform is F v = R Lambda L v, I = R L
+//but if numWaves < numIntStates then certain v will map to the nullspace
+//so to test orthogonality for only numWaves dimensions, I will verify that Qinv Q v = v
+//I = L R
+//Also note (courtesy of Trangenstein) consider summing across outer products of basis vectors to fulfill rank
+for (int k = 0; k < numWaves; ++k) {
+	<?=cons_t?> basis;
+	for (int j = 0; j < numStates; ++j) {
+		basis.ptr[j] = k == j ? 1 : 0;
 	}
+	
+//// MODULE_DEPENDS: <?=eigen_leftTransform?> <?=eigen_rightTransform?>
+	<?=normal_t?> n = normal_forSide<?=side?>(xInt);
+	<?=waves_t?> chars;
+	<?=eigen_leftTransform?>(&chars, solver, &eig, &basis, xInt, n);
+	<?=cons_t?> newbasis;
+	<?=eigen_rightTransform?>(&newbasis, solver, &eig, &chars, xInt, n);
+
+	for (int j = 0; j < numStates; ++j) {
+		value.vreal += fabs(newbasis.ptr[j] - basis.ptr[j]);
+	}
+}
 ]], 						{
 								side = side,
 							}),
@@ -442,48 +450,62 @@ function FiniteVolumeSolver:addDisplayVars()
 					{name='0', code=table{
 						getEigenCode{side=side},
 						self.eqn:template([[
-	<?=normal_t?> n<?=side?> = normal_forSide<?=side?>(x);
-	<?=eqn:eigenWaveCodePrefix('n'..side, '&eig', 'xInt'):gsub('\n', '\n\t')?>
-	
-	value.vreal = 0;
-	for (int k = 0; k < numIntStates; ++k) {
-		//This only needs to be numIntStates in size, but just in case the left/right transforms are reaching past that memory boundary ...
-		//Then again, how do I know what the non-integrated states should be?  Defaulting to zero is a bad idea.
-		<?=cons_t?> basis;
-		for (int j = 0; j < numStates; ++j) {
-			basis.ptr[j] = k == j ? 1 : 0;
-		}
+//// MODULE_DEPENDS: <?=eigen_leftTransform?> <?=eigen_rightTransform?> <?=eigen_fluxTransform?> <?=cell_calcAvg_withPt?>
+<?=normal_t?> n<?=side?> = normal_forSide<?=side?>(x);
+<?=eqn:eigenWaveCodePrefix{
+	n = 'n'..side,
+	eig = '&eig',
+	pt = 'xInt',
+}:gsub('\n', '\n\t')?>
 
-		<?=normal_t?> n = normal_forSide<?=side?>(xInt);
-		<?=waves_t?> chars;
-		<?=eigen_leftTransform?>(&chars, solver, &eig, &basis, xInt, n);
+value.vreal = 0;
+for (int k = 0; k < numIntStates; ++k) {
+	//This only needs to be numIntStates in size, but just in case the left/right transforms are reaching past that memory boundary ...
+	//Then again, how do I know what the non-integrated states should be?  Defaulting to zero is a bad idea.
+	<?=cons_t?> basis;
+	for (int j = 0; j < numStates; ++j) {
+		basis.ptr[j] = k == j ? 1 : 0;
+	}
 
-		<?=waves_t?> charScaled;
-		<? for j=0,eqn.numWaves-1 do ?>{
-			real lambda_j = <?=eqn:eigenWaveCode('n'..side, '&eig', 'xInt', j)?>;
-			charScaled.ptr[<?=j?>] = chars.ptr[<?=j?>] * lambda_j;
-		}<? end ?>
+	<?=normal_t?> n = normal_forSide<?=side?>(xInt);
 	
-		//once again, only needs to be numIntStates
-		<?=cons_t?> newtransformed;
-		<?=eigen_rightTransform?>(&newtransformed, solver, &eig, &charScaled, xInt, n);
+	<?=waves_t?> chars;
+	<?=eigen_leftTransform?>(&chars, solver, &eig, &basis, xInt, n);
+
+	<?=waves_t?> charScaled;
+	<? for j=0,eqn.numWaves-1 do ?>{
+		real const lambda_j = <?=eqn:eigenWaveCode{
+			n = 'n'..side,
+			eig = '&eig',
+			pt = 'xInt',
+			waveIndex = j,
+		}:gsub('\n', '\n\t\t')?>;
+		charScaled.ptr[<?=j?>] = chars.ptr[<?=j?>] * lambda_j;
+	}<? end ?>
+
+	//once again, only needs to be numIntStates
+	<?=cons_t?> newtransformed;
+	<?=eigen_rightTransform?>(&newtransformed, solver, &eig, &charScaled, xInt, n);
 
 #if 1
-		//this shouldn't need to be reset here
-		// but it will if leftTransform does anything destructive
-		for (int j = 0; j < numStates; ++j) {
-			basis.ptr[j] = k == j ? 1 : 0;
-		}
+	//this shouldn't need to be reset here
+	// but it will if leftTransform does anything destructive
+	for (int j = 0; j < numStates; ++j) {
+		basis.ptr[j] = k == j ? 1 : 0;
+	}
 #endif
 
-		//once again, only needs to be numIntStates
-		<?=cons_t?> transformed;
-		<?=eigen_fluxTransform?>(&transformed, solver, &eig, &basis, xInt, n);
-		
-		for (int j = 0; j < numIntStates; ++j) {
-			value.vreal += fabs(newtransformed.ptr[j] - transformed.ptr[j]);
-		}
+	<?=cell_t?> cellAvg;
+	cell_calcAvg_withPt(&cellAvg, cellL, cellR, xInt);
+
+	//once again, only needs to be numIntStates
+	<?=cons_t?> transformed;
+	<?=eigen_fluxTransform?>(&transformed, solver, &eig, &basis, &cellAvg, n);
+	
+	for (int j = 0; j < numIntStates; ++j) {
+		value.vreal += fabs(newtransformed.ptr[j] - transformed.ptr[j]);
 	}
+}
 ]], 						{
 								side = side,
 							}),

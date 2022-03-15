@@ -111,6 +111,8 @@ Now this project, lua-hydro-cl, pushes the middleman (C++) out completely.
 - Right now I'm implementing weno similar to the 1996 Jiang Shu paper: 1) calc interface flux, 2) weno reconstruct interface flux 3) finite volume integrate.  There are alternative uses of WENO (using PLM or flux-limiters to find the initial interface flux values, using WENO on left and right states and then applying a flux (HLL, Roe, etc), etc).  Try these out?
 - Also, right now I am performing the PLM slope extrapolation in a separate kernel.  Not for WENO.  Combining kernels seems to run faster.  Maybe I should just inline the PLM stuff into the same kernel?
 - Cram as much into a single kernel as possible.  More inlining, more redundant calculations.  This seems to run faster than separate solvers and separate buffers.  Best would be a way to automate the inlining.
+- BUGS:
+	- the names of dif solvers in the gui used to include the flux name, but not anymore
 
 ### Sources:
 
@@ -169,7 +171,4 @@ Now this project, lua-hydro-cl, pushes the middleman (C++) out completely.
 	* https://github.com/jzrake/Mara for weno5 examples
 	* https://github.com/wme7/WENO7-Z/blob/master/WENO7ZresAdv1d.m for weno7 examples
 	* https://github.com/python-hydro/hydro_examples/blob/master/compressible/weno_coefficients.py for weno7-13 coefficients
-
-Intel OpenCL Ubuntu bugs I'm seeing:
-- non-static functions in large programs are crashing.  I've declared all non-kernel functions as 'static inline' and that stops the compiler from crashing.
-- assigning unions of arrays and structs by their arrays is occasionally crashing.  example, (real3){.s={a, b, c}} fails but (real3){.x=a, .y=b, .z=c} seems to fix things.
+* and lots of others listed in comments, you might have to grep to find them all

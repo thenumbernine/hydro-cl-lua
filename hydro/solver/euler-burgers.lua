@@ -99,7 +99,7 @@ function EulerBurgers:addDisplayVars()
 			codePrefix = [[
 	int const indexInt = ]]..(j-1)..[[ + dim * index;
 ]],
-			vars = range(0,self.dim-1):map(function(i)
+			vars = range(0,self.dim-1):mapi(function(i)
 				return {name=xj..'_'..i, code='value.vreal = buf['..i..' + indexInt];'}
 			end),
 		}

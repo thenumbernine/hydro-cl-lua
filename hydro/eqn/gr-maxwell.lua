@@ -5,7 +5,6 @@ based on 2009 Alcubierre et al charged black holes
 local class = require 'ext.class'
 local table = require 'ext.table'
 local file = require 'ext.file'
-local clnumber = require 'cl.obj.number'
 local Equation = require 'hydro.eqn.eqn'
 
 local GRMaxwell = class(Equation)
@@ -81,7 +80,7 @@ function GRMaxwell:getDisplayVars()
 
 	}
 	--[=[ div E and div B ... TODO redo this with metric (gamma) influence 
-	:append(table{'E','B'}:map(function(var,i)
+	:append(table{'E','B'}:mapi(function(var)
 		local field = assert( ({D='D', B='B'})[var] )
 		return {name='div '..var, code=self:template([[
 	value.vreal = .5 * (0.
@@ -108,13 +107,14 @@ GRMaxwell.eigenVars = table{
 	{name='lambda', type='real'},
 }
 
-function GRMaxwell:eigenWaveCode(side, eig, x, waveIndex)
+function GRMaxwell:eigenWaveCode(args)
+	local waveIndex = args.waveIndex
 	if waveIndex == 0 or waveIndex == 1 then
-		return '-'..eig..'.lambda'
+		return '-('..args.eig..').lambda'
 	elseif waveIndex == 2 or waveIndex == 3 then
 		return '0'
 	elseif waveIndex == 4 or waveIndex == 5 then
-		return eig..'.lambda'
+		return '('..args.eig..').lambda'
 	else
 		error'got a bad waveIndex'
 	end

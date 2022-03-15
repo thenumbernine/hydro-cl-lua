@@ -1,5 +1,5 @@
 --[[
-Based on Alcubierre 2008 "Introduction to 3+1 Numerical Relativity" on the chapter on hyperbolic formalisms. 
+Based on Alcubierre 2008 "Introduction to 3+1 Numerical Relativity" on the chapter on hyperbolic formalisms.
 The first Bona-Masso formalism.
 --]]
 
@@ -16,6 +16,11 @@ local xNames = common.xNames
 local ADM_BonaMasso_3D = class(EinsteinEqn)
 ADM_BonaMasso_3D.name = 'ADM_BonaMasso_3D'
 
+-- TODO this should be 'true',
+-- 'true' uses 'fluxfromCons', which is failing
+-- 'false' uses the assumption dF/dU * U = F, which works, but may not be correct for these equations
+ADM_BonaMasso_3D.roeUseFluxFromCons = false
+
 --[[
 args:
 noZeroRowsInFlux = true by default.
@@ -27,7 +32,7 @@ useShift
 	
 	useShift = 'MinimalDistortionElliptic' -- minimal distortion elliptic via Poisson relaxation.  Alcubierre's book, eqn 4.3.14 and 4.3.15
 	
-	useShift = 'MinimalDistortionEllipticEvolve' -- minimal distortion elliptic via evolution.  eqn 10 of 1996 Balakrishna et al "Coordinate Conditions and their Implementations in 3D Numerical Relativity" 
+	useShift = 'MinimalDistortionEllipticEvolve' -- minimal distortion elliptic via evolution.  eqn 10 of 1996 Balakrishna et al "Coordinate Conditions and their Implementations in 3D Numerical Relativity"
 
 	useShift = '2005 Bona / 2008 Yano'
 	-- 2008 Yano et al, from 2005 Bona et al "Geometrically Motivated..."
@@ -50,9 +55,9 @@ useShift
 	4) Lagrangian coordinates
 	and this should be a separate variable, separate of the shift gauge
 
-	so 
+	so
 	one variable for what beta^i_,t is
-	another variable for how to 
+	another variable for how to
 	--]=]
 --]]
 function ADM_BonaMasso_3D:init(args)
@@ -81,13 +86,13 @@ function ADM_BonaMasso_3D:init(args)
 	This question is split into a) and b):
 	a) How are the source-only variables iterated wrt beta^i?
 	options:
-	1) put the Lie derivative terms into the source side of these variables 
+	1) put the Lie derivative terms into the source side of these variables
 	2) give them -beta^i eigenvalues?  this is the equivalent of rewriting the hyperbolic vars associated with these (a_i,d_kij) back into first-derivative 0th order vars (alpha, gamma_ij)
 
 	b) How are the flux variables iterated wrt beta^i?
 	options:
-	1) this would be solved by offsetting the eigenvalues 
-		with the offset eigenvalues, 
+	1) this would be solved by offsetting the eigenvalues
+		with the offset eigenvalues,
 		the hyperbolic state vars' contributions get incorporated into the flux,
 		but there are still some shift-based terms that end up in the source ...
 		... so the shift is split between the flux and source ...
@@ -102,8 +107,8 @@ function ADM_BonaMasso_3D:init(args)
 	if self.useShift ~= 'none' then
 		self.consVars:insert{name='beta_u', type='real3'}
 
-		if self.useShift == 'MinimalDistortionElliptic' 
-		or self.useShift == 'MinimalDistortionEllipticEvolve' 
+		if self.useShift == 'MinimalDistortionElliptic'
+		or self.useShift == 'MinimalDistortionEllipticEvolve'
 		then
 			self.consVars:insert{name='betaLap_u', type='real3'}
 		end
@@ -149,13 +154,13 @@ function ADM_BonaMasso_3D:init(args)
 			{name='rho', type='real'},					--1: n_a n_b T^ab
 			{name='S_u', type='real3'},				--3: -gamma^ij n_a T_aj
 			{name='S_ll', type='sym3'},				--6: gamma_i^c gamma_j^d T_cd
-		}								
+		}
 	end
 	self.consVars:append{
-		--constraints:              
+		--constraints:
 		{name='H', type='real'},					--1
 		{name='M_u', type='real3'},				--3
-		-- TODO stress constraint as well?  
+		-- TODO stress constraint as well?
 	}
 
 	self.eigenVars = table{
@@ -172,7 +177,7 @@ function ADM_BonaMasso_3D:init(args)
 	end
 
 	
-	-- build stuff around consVars	
+	-- build stuff around consVars
 	ADM_BonaMasso_3D.super.init(self, args)
 
 
@@ -225,31 +230,18 @@ function ADM_BonaMasso_3D:createInitState()
 end
 
 -- don't use default
-function ADM_BonaMasso_3D:initCodeModule_calcDTCell() end
 function ADM_BonaMasso_3D:initCodeModule_fluxFromCons() end
-
-function ADM_BonaMasso_3D:getModuleDepends_waveCode()
-	return {
-		self.symbols.initCond_codeprefix,	-- calc_f
-	}
-end
-
-function ADM_BonaMasso_3D:getModuleDepends_displayCode()
-	return {
-		self.symbols.calc_gamma_ll,
-		self.symbols.calc_gamma_uu,
-		self.symbols.initCond_codeprefix,	-- calc_f
-	}
-end
 
 ADM_BonaMasso_3D.solverCodeFile = 'hydro/eqn/adm3d.cl'
 
 ADM_BonaMasso_3D.predefinedDisplayVars = {
 	'U alpha',
 	'U gamma_ll x x',
+	'U a_l x',
 	'U d_lll x x x',
 	'U K_ll x x',
 	'U V_l x',
+	'U K_ll tr weighted gamma^ij',	-- same as K = K^i_i = K_ij gamma^ij
 	'U H',
 	'U volume',
 	'U f',
@@ -260,8 +252,14 @@ function ADM_BonaMasso_3D:getDisplayVars()
 
 	vars:append{
 		{name='volume', code='value.vreal = U->alpha * sqrt(sym3_det(U->gamma_ll));'},
-		{name='f', code='value.vreal = calc_f(U->alpha);'},
-		{name='df/dalpha', code='value.vreal = calc_dalpha_f(U->alpha);'},
+		{name='f', code=self:template[[
+//// MODULE_DEPENDS: <?=initCond_codeprefix?>
+value.vreal = calc_f(U->alpha);
+]]},
+		{name='df/dalpha', code=self:template[[
+//// MODULE_DEPENDS: <?=initCond_codeprefix?>
+value.vreal = calc_dalpha_f(U->alpha);
+]]},
 		{name='expansion', code=[[
 	real det_gamma = sym3_det(U->gamma_ll);
 	sym3 gamma_uu = sym3_inv(U->gamma_ll, det_gamma);
@@ -279,7 +277,7 @@ and n_a = -alpha t_,a (B&S eqns 2.19, 2.22, 2.24)
 momentum constraints
 --]]
 		{H = [[
-	.5 * 
+	.5 *
 ]]		},
 --]=]
 	}
@@ -301,7 +299,7 @@ momentum constraints
 			local xi = xNames[i]
 		?>{
 			real partial_i_log_alpha = (
-				log(U[solver->stepsize.<?=xi?>].alpha) 
+				log(U[solver->stepsize.<?=xi?>].alpha)
 				- log(U[-solver->stepsize.<?=xi?>].alpha)
 			) / (2. * solver->grid_dx.s<?=i-1?>);
 			value.vreal3.<?=xi?> = fabs(partial_i_log_alpha - U->a_l.<?=xi?>);
@@ -323,9 +321,9 @@ momentum constraints
 		<? if i <= solver.dim then ?>
 		sym3 partial_i_gamma_ll = sym3_real_mul(
 			sym3_sub(
-				U[solver->stepsize.<?=xi?>].gamma_ll, 
+				U[solver->stepsize.<?=xi?>].gamma_ll,
 				U[-solver->stepsize.<?=xi?>].gamma_ll
-			), 
+			),
 			1. / (2. * solver->grid_dx.s<?=i-1?>)
 		);
 		<? else ?>
@@ -333,7 +331,7 @@ momentum constraints
 		<? end ?>
 		value.vsym3 = sym3_sub(sym3_real_mul(partial_i_gamma_ll, .5), U->d_lll.<?=xi?>);
 		value.vsym3 = (sym3){<?
-	for jk,xjk in ipairs(symNames) do 
+	for jk,xjk in ipairs(symNames) do
 ?>			.<?=xjk?> = fabs(value.vsym3.<?=xjk?>),
 <?	end
 ?>		};
@@ -362,69 +360,66 @@ momentum constraints
 	return vars
 end
 
-function ADM_BonaMasso_3D:eigenWaveCodePrefix(n, eig, x, waveIndex)
+function ADM_BonaMasso_3D:eigenWaveCodePrefix(args)
 	return self:template([[
 real sqrt_gammaUjj = 0./0.;
 if (<?=n?>.side == 0) {
-	sqrt_gammaUjj = <?=eig?>->sqrt_gammaUjj.x;
+	sqrt_gammaUjj = (<?=eig?>)->sqrt_gammaUjj.x;
 } else if (<?=n?>.side == 1) {
-	sqrt_gammaUjj = <?=eig?>->sqrt_gammaUjj.y;
+	sqrt_gammaUjj = (<?=eig?>)->sqrt_gammaUjj.y;
 } else if (<?=n?>.side == 2) {
-	sqrt_gammaUjj = <?=eig?>->sqrt_gammaUjj.z;
+	sqrt_gammaUjj = (<?=eig?>)->sqrt_gammaUjj.z;
 }
-real const eig_lambdaLight = sqrt_gammaUjj * <?=eig?>->alpha;
-real const eig_lambdaGauge = sqrt_gammaUjj * <?=eig?>->alpha_sqrt_f;
-]], {
-		eig = '('..eig..')',
-		n = n,
-	})
+real const eig_lambdaLight = sqrt_gammaUjj * (<?=eig?>)->alpha;
+real const eig_lambdaGauge = sqrt_gammaUjj * (<?=eig?>)->alpha_sqrt_f;
+]], args)
 end
 
-function ADM_BonaMasso_3D:eigenWaveCode(n, eig, x, waveIndex)
+function ADM_BonaMasso_3D:eigenWaveCode(args)
 	-- TODO find out if -- if we use the lagrangian coordinate shift operation -- do we still need to offset the eigenvalues by -beta^i?
 	local shiftingLambdas = self.useShift ~= 'none'
 		--and self.useShift ~= 'LagrangianCoordinates'
 
 	local betaUi
 	if self.useShift ~= 'none' then
-		betaUi = '('..eig..').beta_u.s['..n..'.side]'
+		betaUi = '('..args.eig..').beta_u.s['..args.n..'.side]'
 	else
 		betaUi = '0'
 	end
 
 	if not self.noZeroRowsInFlux then
-		if waveIndex == 0 then
+		if args.waveIndex == 0 then
 			return '-'..betaUi..' - eig_lambdaGauge'
-		elseif waveIndex >= 1 and waveIndex <= 5 then
+		elseif args.waveIndex >= 1 and args.waveIndex <= 5 then
 			return '-'..betaUi..' - eig_lambdaLight'
-		elseif waveIndex >= 6 and waveIndex <= 23 then
+		elseif args.waveIndex >= 6 and args.waveIndex <= 23 then
 			return '-'..betaUi
-		elseif waveIndex >= 24 and waveIndex <= 28 then
+		elseif args.waveIndex >= 24 and args.waveIndex <= 28 then
 			return '-'..betaUi..' + eig_lambdaLight'
-		elseif waveIndex == 29 then
+		elseif args.waveIndex == 29 then
 			return '-'..betaUi..' + eig_lambdaGauge'
 		end
-	else	-- noZeroRowsInFlux 
+	else	-- noZeroRowsInFlux
 		-- noZeroRowsInFlux implies useShift == 'none'
-		if waveIndex == 0 then
+		if args.waveIndex == 0 then
 			return '-'..betaUi..' - eig_lambdaGauge'
-		elseif waveIndex >= 1 and waveIndex <= 5 then
+		elseif args.waveIndex >= 1 and args.waveIndex <= 5 then
 			return '-'..betaUi..' - eig_lambdaLight'
-		elseif waveIndex == 6 then
+		elseif args.waveIndex == 6 then
 			return '-'..betaUi
-		elseif waveIndex >= 7 and waveIndex <= 11 then
+		elseif args.waveIndex >= 7 and args.waveIndex <= 11 then
 			return '-'..betaUi..' + eig_lambdaLight'
-		elseif waveIndex == 12 then
+		elseif args.waveIndex == 12 then
 			return '-'..betaUi..' + eig_lambdaGauge'
 		end
 	end
 	error'got a bad waveIndex'
 end
 
-function ADM_BonaMasso_3D:consWaveCodePrefix(n, U, x, waveIndex)
+function ADM_BonaMasso_3D:consWaveCodePrefix(args)
 	return self:template([[
-real const det_gamma = sym3_det(<?=U?>->gamma_ll);
-sym3 const gamma_uu = sym3_inv(<?=U?>->gamma_ll, det_gamma);
+real const det_gamma = sym3_det((<?=U?>)->gamma_ll);
+sym3 const gamma_uu = sym3_inv((<?=U?>)->gamma_ll, det_gamma);
 real sqrt_gammaUjj = 0./0.;
 if (<?=n?>.side == 0) {
 	sqrt_gammaUjj = sqrt(gamma_uu.xx);
@@ -433,14 +428,55 @@ if (<?=n?>.side == 0) {
 } else if (<?=n?>.side == 2) {
 	sqrt_gammaUjj = sqrt(gamma_uu.zz);
 }
-real const eig_lambdaLight = <?=U?>->alpha * sqrt_gammaUjj;
-real const f_alphaSq = calc_f_alphaSq(<?=U?>->alpha);
+real const eig_lambdaLight = (<?=U?>)->alpha * sqrt_gammaUjj;
+real const f_alphaSq = calc_f_alphaSq((<?=U?>)->alpha);
 real const eig_lambdaGauge = sqrt_gammaUjj * sqrt(f_alphaSq);
-]], {
-		U = '('..U..')',
-		n = n,
-	})
+]], args)
 end
-ADM_BonaMasso_3D.consWaveCode = ADM_BonaMasso_3D.eigenWaveCode
+
+function ADM_BonaMasso_3D:consWaveCode(args)
+	args = table(args):setmetatable(nil)
+	args.U = args.eig
+	args.eig = nil
+	return self:eigenWaveCode(args)
+end
+
+function ADM_BonaMasso_3D:consWaveCodeMinMaxAllSidesPrefix(args)
+	return self:template([[
+real const f_alphaSq = calc_f_alphaSq((<?=U?>)->alpha);
+real const det_gamma = sym3_det((<?=U?>)->gamma_ll);
+real const alpha_sqrt_f = sqrt(f_alphaSq);
+]], args)
+end
+
+--//// MODULE_DEPENDS: <?=SETBOUNDS?> <?=initCond_codeprefix?> <?=eqn_guiVars_compileTime?>
+function ADM_BonaMasso_3D:consWaveCodeMinMaxAllSides(args)
+	return self:template([[
+real gammaUjj = 0./0.;
+if ((<?=n?>).side == 0) {
+	gammaUjj = (U->gamma_ll.yy * U->gamma_ll.zz - U->gamma_ll.yz * U->gamma_ll.yz) / det_gamma;
+} else if ((<?=n?>).side == 1) {
+	gammaUjj = (U->gamma_ll.xx * U->gamma_ll.zz - U->gamma_ll.xz * U->gamma_ll.xz) / det_gamma;
+} else if ((<?=n?>).side == 2) {
+	gammaUjj = (U->gamma_ll.xx * U->gamma_ll.yy - U->gamma_ll.xy * U->gamma_ll.xy) / det_gamma;
+}
+real const sqrt_gammaUjj = sqrt(gammaUjj);
+real const lambdaLight = sqrt_gammaUjj * U->alpha;
+real const lambdaGauge = sqrt_gammaUjj * alpha_sqrt_f;
+
+real const lambda = (real)max(lambdaGauge, lambdaLight);
+
+<? if eqn.useShift ~= "none" then ?>
+real const betaUi = U->beta_u.s<?=side?>;
+<? else ?>
+real const betaUi = 0.;
+<? end ?>
+
+<?=eqn:waveCodeAssignMinMax(
+	declare, resultMin, resultMax,
+	'(real)min((real)0., -betaUi - lambda);',
+	'(real)max((real)0., -betaUi + lambda);')?>
+]], args)
+end
 
 return ADM_BonaMasso_3D

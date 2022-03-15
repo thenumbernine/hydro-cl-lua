@@ -32,7 +32,7 @@ GLM_Maxwell.initConds = require 'hydro.init.euler':getList()
 
 function GLM_Maxwell:init(args)
 	self.scalar = 'real'
-	--self.scalar = 'cplx'
+	--self.scalar = 'cplx'	-- I broke this
 	
 	self.vec3 = self.scalar..'3'
 	self.mat3x3 = self.scalar..'3x3'
@@ -64,6 +64,7 @@ function GLM_Maxwell:init(args)
 
 	GLM_Maxwell.super.init(self, args)
 
+--[=[ same as eqn/maxwell.lua
 	function self:postComputeFluxCode()
 		return self:template[[
 //// MODULE_DEPENDS: <?=coord_sqrt_det_g?> <?=eqn_common?>
@@ -76,6 +77,7 @@ function GLM_Maxwell:init(args)
 		flux.B = <?=vec3?>_real_mul(eqn_coord_lower(flux.B, x), _1_sqrt_det_g);
 ]]
 	end
+--]=]
 end
 
 function GLM_Maxwell:getSymbolFields()
@@ -137,9 +139,11 @@ end
 
 GLM_Maxwell.predefinedDisplayVars = {
 	'U D',
+	'U D z',
 	'U div D',
 	'U phi',
 	'U B',
+	'U B z',
 	'U div B',
 	'U psi',
 }
@@ -174,33 +178,29 @@ function GLM_Maxwell:getDisplayVars()
 	return vars
 end
 
-function GLM_Maxwell:eigenWaveCodePrefix(n, eig, x, waveIndex)
+function GLM_Maxwell:eigenWaveCodePrefix(args)
 --[=[
 	return self:template([[
 	<?=scalar?> v_p_abs = <?=mul?>((<?=eig?>)->sqrt_1_eps, (<?=eig?>)->sqrt_1_mu);
-]], {
-		eig = '('..eig..')',
-	})
+]], args)
 --]=]
 -- [=[
-	local env = self:getEnv()
 	local code = self:template(
-		[[<?=mul?>((<?=eig?>)->sqrt_1_eps, (<?=eig?>)->sqrt_1_mu)]],
-		{
-			eig = '('..eig..')',
-		}
+		[[<?=mul?>(<?=mul?>((<?=eig?>)->sqrt_1_eps, (<?=eig?>)->sqrt_1_mu), 1./coord_sqrt_det_g(<?=pt?>))]],
+		args
 	)
 	if self.scalar == 'cplx' then
+		local env = self:getEnv()
 		code = env.abs..'('..code..')'
 	end
-	return 'real v_p_abs = '..code..';'
+	return 'real const v_p_abs = '..code..';'
 --]=]
 end
 
 -- to use this, I really need cplx multiplications everywhere it is used
 -- which is in the roe solver and hll solver
-function GLM_Maxwell:eigenWaveCode(n, eig, x, waveIndex)
-	waveIndex = math.floor(waveIndex / self.numRealsInScalar)
+function GLM_Maxwell:eigenWaveCode(args)
+	waveIndex = math.floor(args.waveIndex / self.numRealsInScalar)
 	return ({
 		'-solver->divPhiWavespeed / unit_m_per_s',
 		'-solver->divPsiWavespeed / unit_m_per_s',
@@ -213,35 +213,35 @@ function GLM_Maxwell:eigenWaveCode(n, eig, x, waveIndex)
 	})[waveIndex+1] or error('got a bad waveIndex: '..waveIndex)
 end
 
-function GLM_Maxwell:eigenMaxWaveCode(n, eig, x)
-	return 'max(max(solver->divPsiWavespeed / unit_m_per_s, solver->divPhiWavespeed / unit_m_per_s), v_p_abs)'
-end
-function GLM_Maxwell:eigenMinWaveCode(n, eig, x)
-	return '-'..self:eigenMaxWaveCode(n, eig, x)
-end
-
-
-function GLM_Maxwell:consWaveCodePrefix(n, U, x, waveIndex) 
-	local env = self:getEnv()
+function GLM_Maxwell:consWaveCodePrefix(args)
 	local code = self:template(
-		[[<?=mul?>((<?=U?>)->sqrt_1_eps, (<?=U?>)->sqrt_1_mu)]],
-		{
-			U = '('..U..')',
-		}
+		[[<?=mul?>(<?=mul?>((<?=U?>)->sqrt_1_eps, (<?=U?>)->sqrt_1_mu), 1./coord_sqrt_det_g(<?=pt?>))]],
+		args
 	)
 	if self.scalar == 'cplx' then
+		local env = self:getEnv()
 		code = env.abs..'('..code..')'
 	end
-	return 'real v_p_abs = '..code..';'
+	return 'real const v_p_abs = '..code..';'
 end
 GLM_Maxwell.consWaveCode = GLM_Maxwell.eigenWaveCode
 
-function GLM_Maxwell:consMaxWaveCode(n, U, x)
-	return 'max(max(solver->divPsiWavespeed, solver->divPhiWavespeed), v_p_abs)'
-end
-function GLM_Maxwell:consMinWaveCode(n, U, x)
-	return '-'..self:consMaxWaveCode(n, U, x)
+function GLM_Maxwell:eigenWaveCodeMinMax(args)
+	return self:eigenWaveCodePrefix(args)..'\n'
+	..self:template([[
+real const wave_lambdaMax = max(max(solver->divPsiWavespeed / unit_m_per_s, solver->divPhiWavespeed / unit_m_per_s), v_p_abs);
+<?=eqn:waveCodeAssignMinMax(declare, resultMin, resultMax, 'wave_lambdaMax', '-wave_lambdaMax')?>
+]], args)
 end
 
+function GLM_Maxwell:consWaveCodeMinMax(args)
+	return self:consWaveCodePrefix(args)..'\n'
+	..self:template([[
+real const wave_lambdaMax = max(max(solver->divPsiWavespeed / unit_m_per_s, solver->divPhiWavespeed / unit_m_per_s), v_p_abs);
+<?=eqn:waveCodeAssignMinMax(declare, resultMin, resultMax, 'wave_lambdaMax', '-wave_lambdaMax')?>
+]], args)
+end
+
+GLM_Maxwell.consWaveCodeMinMaxAllSides = GLM_Maxwell.consWaveCodeMinMax
 
 return GLM_Maxwell

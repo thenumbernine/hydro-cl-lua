@@ -19,7 +19,9 @@ function GuiVar:refresh(value, solver)
 	if self.compileTime then
 		solver:refreshCodePrefix()
 	else
+		-- TODO hmm, which are in solver, and which are in initCond?
 		solver.solverPtr[self.name] = self.value
+		--solver.initCondPtr[self.name] = self.value
 		solver:refreshSolverBuf()
 	end
 end

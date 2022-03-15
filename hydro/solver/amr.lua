@@ -136,6 +136,7 @@ return function(cl)
 	end
 
 	function cl:getSolverCode()
+		error'TODO convert this to initCodeModules'
 		return table{
 			cl.super.getSolverCode(self),
 		
@@ -184,8 +185,8 @@ kernel void calcAMRError(
 for nx=0,tonumber(solver.amr.ctx.nodeFromSize.x)-1 do
 	for ny=0,tonumber(solver.amr.ctx.nodeFromSize.y)-1 do
 ?>{
-		const int nx = <?=nx?>;
-		const int ny = <?=ny?>;
+		int const nx = <?=nx?>;
+		int const ny = <?=ny?>;
 		
 		int4 Ui = (int4)(
 			solver->numGhost + nx + <?=solver.amr.ctx.nodeFromSize.x?> * nodei.x,

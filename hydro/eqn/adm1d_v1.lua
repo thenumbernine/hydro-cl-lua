@@ -28,34 +28,29 @@ ADM_BonaMasso_1D_2008Alcubierre.guiVars = {
 	{name='D_g_convCoeff', value=10},
 }
 
---[=[ enable this out if you enable the fluxFromCons above
+-- [=[ enable this out if you enable the fluxFromCons above
 -- the PLM version that uses this crashes
 -- so maybe there's something wrong with this
 function ADM_BonaMasso_1D_2008Alcubierre:initCodeModule_fluxFromCons() 
-	self.solver.modules:add{
-		name = 'fluxFromCons',
-		depends = {
-			'solver_t',
-			'cons_t',
-			self.symbols.eqn_common,	-- calc_f ... or is it initCond_codeprefix?
-		},
+	self.solver.modules:addFromMarkup{
 		code = self:template[[
-
-<?=cons_t?> fluxFromCons(
-	constant <?=solver_t?> const * const solver,
-	<?=cons_t?> const U,
-	real3 const x,
-	<?=normal_t?> const n
-) {
-	real const f = calc_f(U.alpha);
-	real const alpha_over_sqrt_gamma_xx = U.alpha / sqrt(U.gamma_xx);
-	return (<?=cons_t?>){
-		.alpha = 0,
-		.gamma_xx = 0,
-		.a_x = U.KTilde * f * alpha_over_sqrt_gamma_xx,
-		.D_g = U.KTilde * 2. * alpha_over_sqrt_gamma_xx,
-		.KTilde = U.a_x * alpha_over_sqrt_gamma_xx,
-	};
+//// MODULE_NAME: <?=fluxFromCons?>
+//// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?>
+#define <?=fluxFromCons?>(\
+	/*<?=cons_t?> * const */resultFlux,\
+	/*constant <?=solver_t?> const * const */solver,\
+	/*<?=cons_t?> const * const */U,\
+	/*<?=cell_t?> const * const */cell,\
+	/*<?=normal_t?> const */n\
+) {\
+//// MODULE_DEPENDS: <?=initCond_codeprefix?>
+	real const f = calc_f((U)->alpha);\
+	real const alpha_over_sqrt_gamma_xx = (U)->alpha / sqrt((U)->gamma_xx);\
+	(resultFlux)->alpha = 0;\
+	(resultFlux)->gamma_xx = 0;\
+	(resultFlux)->a_x = (U)->KTilde * f * alpha_over_sqrt_gamma_xx;\
+	(resultFlux)->D_g = (U)->KTilde * 2. * alpha_over_sqrt_gamma_xx;\
+	(resultFlux)->KTilde = (U)->a_x * alpha_over_sqrt_gamma_xx;\
 }
 
 ]],
@@ -63,15 +58,24 @@ function ADM_BonaMasso_1D_2008Alcubierre:initCodeModule_fluxFromCons()
 end
 --]=]
 
--- don't use eqn.einstein, which says calc_gamma_ll and calc_gamma_uu
-function ADM_BonaMasso_1D_2008Alcubierre:getModuleDepends_displayCode() 
-	return {}
-end
-
 -- don't use eqn.einstein:
 function ADM_BonaMasso_1D_2008Alcubierre:createDisplayComponents() end
 
 ADM_BonaMasso_1D_2008Alcubierre.solverCodeFile = 'hydro/eqn/adm1d_v1.cl'
+
+ADM_BonaMasso_1D_2008Alcubierre.predefinedDisplayVars = {
+	'U alpha',
+	'U gamma_xx',
+	'U a_x',
+	'U d_xxx',
+	'U K_xx',
+	'U K',
+	-- TODO H constraint
+	'U volume',
+	'U alpha vs a_x',
+	'U gamma_xx vs D_g',
+	'U f',
+}
 
 function ADM_BonaMasso_1D_2008Alcubierre:getDisplayVars()
 	return ADM_BonaMasso_1D_2008Alcubierre.super.getDisplayVars(self):append{
@@ -88,7 +92,7 @@ function ADM_BonaMasso_1D_2008Alcubierre:getDisplayVars()
 		{name='expansion', code='value.vreal = -U->KTilde / sqrt(U->gamma_xx);'},
 		{name='gravity mag', code='value.vreal = -U->alpha * U->alpha * U->a_x / U->gamma_xx;'},
 	
-		{name='alpha vs a_x', code=[[
+		{name='alpha vs a_x', code=self:template[[
 	if (<?=OOB?>(1,1)) {
 		value.vreal = 0.;
 	} else {
@@ -97,7 +101,7 @@ function ADM_BonaMasso_1D_2008Alcubierre:getDisplayVars()
 	}
 ]]},
 
-		{name='gamma_xx vs D_g', code=[[
+		{name='gamma_xx vs D_g', code=self:template[[
 	if (<?=OOB?>(1,1)) {
 		value.vreal = 0.;
 	} else {
@@ -114,33 +118,29 @@ ADM_BonaMasso_1D_2008Alcubierre.eigenVars = {
 	{name='sqrt_f', type='real'},
 }
 
-function ADM_BonaMasso_1D_2008Alcubierre:eigenWaveCodePrefix(n, eig, x, waveIndex)
+function ADM_BonaMasso_1D_2008Alcubierre:eigenWaveCodePrefix(args)
 	return self:template([[
-real const eig_lambda = <?=eig?>->alpha * <?=eig?>->sqrt_f / <?=eig?>->sqrt_gamma_xx;
-]], {
-		eig = '('..eig..')',
-	})
+real const eig_lambda = (<?=eig?>)->alpha * (<?=eig?>)->sqrt_f / (<?=eig?>)->sqrt_gamma_xx;
+]], args)
 end
 
-function ADM_BonaMasso_1D_2008Alcubierre:eigenWaveCode(n, eig, x, waveIndex)
-	if waveIndex == 0 then
+function ADM_BonaMasso_1D_2008Alcubierre:eigenWaveCode(args)
+	if args.waveIndex == 0 then
 		return '-eig_lambda'
-	elseif waveIndex == 1 then
+	elseif args.waveIndex == 1 then
 		return '0'
-	elseif waveIndex == 2 then
+	elseif args.waveIndex == 2 then
 		return 'eig_lambda'
 	else
 		error'got a bad waveIndex'
 	end
 end
 
-function ADM_BonaMasso_1D_2008Alcubierre:consWaveCodePrefix(n, U, x, waveIndex)
+function ADM_BonaMasso_1D_2008Alcubierre:consWaveCodePrefix(args)
 	return self:template([[
-real const alphaSq_f = calc_f_alphaSq(<?=U?>->alpha);
-real const eig_lambda = sqrt(alphaSq_f / <?=U?>->gamma_xx);
-]], {
-		U = '('..U..')',
-	})
+real const alphaSq_f = calc_f_alphaSq((<?=U?>)->alpha);
+real const eig_lambda = sqrt(alphaSq_f / (<?=U?>)->gamma_xx);
+]], args)
 end
 
 ADM_BonaMasso_1D_2008Alcubierre.consWaveCode = ADM_BonaMasso_1D_2008Alcubierre.eigenWaveCode

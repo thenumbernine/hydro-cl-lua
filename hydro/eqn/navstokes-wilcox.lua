@@ -47,7 +47,7 @@ function NavierStokesWilcox:init(args)
 	NavierStokesWilcox.super.init(self, args)
 
 
-	if require 'hydro.solver.meshsolver'.is(self.solver) then
+	if require 'hydro.solver.meshsolver':isa(self.solver) then
 		print("not using selfgrav with mesh solvers yet")
 	else
 --[[ might have to change the selfgrav terms ...
@@ -101,19 +101,6 @@ end
 function NavierStokesWilcox:initCodeModule_consFromPrim_primFromCons() end
 function NavierStokesWilcox:initCodeModule_fluxFromCons() end
 
-function NavierStokesWilcox:getModuleDepends_waveCode() 
-	return {
-		self.solver.coord.symbols.normal_t,
-		self.symbols.eqn_common,
-	}
-end
-
-function NavierStokesWilcox:getModuleDepends_displayCode() 
-	return {
-		self.symbols.eqn_common,
-	}
-end
-
 NavierStokesWilcox.solverCodeFile = 'hydro/eqn/navstokes-wilcox.cl'
 
 NavierStokesWilcox.displayVarCodeUsesPrims = true
@@ -123,19 +110,53 @@ function NavierStokesWilcox:getDisplayVars()
 	vars:append{
 		{name='vTilde', code='value.vreal3 = W.vTilde;', type='real3'},
 		{name='PStar', code='value.vreal = W.PStar;'},
-		{name='eIntTilde', code='value.vreal = calc_eIntTilde(solver, &W);'},
-		{name='eKinTilde', code='value.vreal = calc_eKinTilde(&W, x);'},
+		{name='eIntTilde', code = self:template[[
+//// MODULE_DEPENDS: <?=eqn_common?>
+value.vreal = calc_eIntTilde(solver, &W);
+]]},
+		{name='eKinTilde', code = self:template[[
+//// MODULE_DEPENDS: <?=eqn_common?>
+value.vreal = calc_eKinTilde(&W, x);
+]]},
 		{name='eTotalTilde', code='value.vreal = U->rhoBar_eTotalTilde / W.rhoBar;'},
-		{name='EIntTilde', code='value.vreal = calc_EIntTilde(solver, &W);'},
-		{name='EKinTilde', code='value.vreal = calc_EKinTilde(&W, x);'},
+		{name='EIntTilde', code = self:template[[
+//// MODULE_DEPENDS: <?=eqn_common?>
+value.vreal = calc_EIntTilde(solver, &W);
+]]},
+		{name='EKinTilde', code = self:template[[
+//// MODULE_DEPENDS: <?=eqn_common?>
+value.vreal = calc_EKinTilde(&W, x);
+]]},
 		{name='EPot', code='value.vreal = U->rhoBar * U->ePot;'},
 		{name='S', code='value.vreal = W.PStar / pow(W.rhoBar, R_over_C_v + 1. );'},
-		--{name='H', code='value.vreal = calc_H(W.PStar);'},
-		--{name='h', code='value.vreal = calc_h(W.rhoBar, W.PStar);'},
-		--{name='HTotal', code='value.vreal = calc_HTotal(W.PStar, U->rhoBar_eTotalTilde);'},
-		--{name='hTotal', code='value.vreal = calc_hTotal(W.rhoBar, W.PStar, U->rhoBar_eTotalTilde);'},
-		{name='Speed of Sound', code='value.vreal = calc_Cs(solver, &W);'},
-		--{name='Mach number', code='value.vreal = coordLen(W.vTilde, x) / calc_Cs(solver, &W);'},
+--[=[	
+		{name='H', code = self:template[[
+//// MODULE_DEPENDS: <?=eqn_common?>
+value.vreal = calc_H(W.PStar);
+]]},
+		{name='h', code = self:template[[
+//// MODULE_DEPENDS: <?=eqn_common?>
+value.vreal = calc_h(W.rhoBar, W.PStar);
+]]},
+		{name='HTotal', code = self:template[[
+//// MODULE_DEPENDS: <?=eqn_common?>
+value.vreal = calc_HTotal(W.PStar, U->rhoBar_eTotalTilde);
+]]},
+		{name='hTotal', code = self:template[[
+//// MODULE_DEPENDS: <?=eqn_common?>
+value.vreal = calc_hTotal(W.rhoBar, W.PStar, U->rhoBar_eTotalTilde);
+]]},
+--]=]	
+		{name='Speed of Sound', code = self:template[[
+//// MODULE_DEPENDS: <?=eqn_common?>
+value.vreal = calc_Cs(solver, &W);
+]]},
+--[=[	
+		{name='Mach number', code = self:template[[
+//// MODULE_DEPENDS: <?=eqn_common?>
+value.vreal = coordLen(W.vTilde, x) / calc_Cs(solver, &W);
+]]},
+--]=]
 	}:append{self.gravOp and
 		{name='gravity', code=self:template[[
 	if (<?=OOB?>(1,1)) {
@@ -154,7 +175,10 @@ for side=solver.dim,2 do ?>
 	}
 ]], type='real3'} or nil
 	}:append{
-		{name='temp', code='value.vreal = calc_eIntTilde(solver, &W) / solver->C_v;'},
+		{name='temp', code = self:template[[
+//// MODULE_DEPENDS: <?=eqn_common?>
+value.vreal = calc_eIntTilde(solver, &W) / solver->C_v;
+]]},
 	}
 
 	vars:insert(self:createDivDisplayVar{
@@ -163,7 +187,7 @@ for side=solver.dim,2 do ?>
 			return U..'->rhoBar_vTilde.s'..j..' / '..U..'->rhoBar'
 		end,
 		units = 'kg/(m^3*s)',
-	})
+	} or nil)
 
 	vars:insert(self:createCurlDisplayVar{
 		field = 'vTilde',
@@ -171,7 +195,7 @@ for side=solver.dim,2 do ?>
 			return U..'->rhoBar_vTilde.s'..j..' / '..U..'->rhoBar'
 		end,
 		units = 'm/s^2',
-	})
+	} or nil)
 
 
 	return vars
@@ -189,31 +213,15 @@ NavierStokesWilcox.eigenVars = table{
 	{name='Cs', type='real'},
 }
 
-function NavierStokesWilcox:eigenWaveCodePrefix(n, eig, x)
+function NavierStokesWilcox:eigenWaveCodePrefix(args)
 	return self:template([[
-real Cs_nLen = <?=eig?>->Cs * normal_len(<?=n?>);
-real v_n = normal_vecDotN1(<?=n?>, <?=eig?>->vTilde);
-]], {
-		n = n,
-		eig = '('..eig..')',
-		x = x,
-	})
+real Cs_nLen = (<?=eig?>)->Cs * normal_len(<?=n?>);
+real v_n = normal_vecDotN1(<?=n?>, (<?=eig?>)->vTilde);
+]], args)
 end
 
-function NavierStokesWilcox:consWaveCodePrefix(n, U, x)
-	return self:template([[
-prim_t W;
-<?=primFromCons?>(&W, solver, <?=U?>, <?=x?>);
-real Cs_nLen = calc_Cs(solver, &W) * normal_len(<?=n?>);
-real v_n = normal_vecDotN1(<?=n?>, W.vTilde);
-]], {
-		n = n,
-		U = '('..U..')',
-		x = x,
-	})
-end
-
-function NavierStokesWilcox:consWaveCode(n, eig, x, waveIndex)
+function NavierStokesWilcox:eigenWaveCode(args)
+	local waveIndex = args.waveIndex
 	if waveIndex == 0 then
 		return '(v_n - Cs_nLen)'
 	elseif waveIndex >= 1 and waveIndex <= 5 then
@@ -224,6 +232,34 @@ function NavierStokesWilcox:consWaveCode(n, eig, x, waveIndex)
 	error'got a bad waveIndex'
 end
 
-NavierStokesWilcox.eigenWaveCode = NavierStokesWilcox.consWaveCode
+
+function NavierStokesWilcox:consWaveCodePrefix(args)
+	return self:template([[
+prim_t W;
+<?=primFromCons?>(&W, solver, <?=U?>, <?=pt?>);
+real Cs_nLen = calc_Cs(solver, &W) * normal_len(<?=n?>);
+real v_n = normal_vecDotN1(<?=n?>, W.vTilde);
+]], args)
+end
+
+NavierStokesWilcox.consWaveCode = NavierStokesWilcox.eigenWaveCode
+
+function NavierStokesWilcox:consWaveCodeMinMaxAllSidesPrefix(args)
+	return self:template([[
+real Cs = calc_Cs_fromCons(solver, <?=U?>, <?=pt?>);\
+]],	args)
+end
+
+function NavierStokesWilcox:consWaveCodeMinMaxAllSides(args)
+	return self:template([[
+real const Cs_nLen = Cs * normal_len(<?=n?>);
+real const v_n = normal_vecDotN1(<?=n?>, (<?=U?>)->rhoBar_vTilde) / (<?=U?>)->rhoBar;
+<?=eqn:waveCodeAssignMinMax(
+	declare, resultMin, resultMax,
+	'v_n - Cs_nLen',
+	'v_n + Cs_nLen'
+)?>
+]], args)
+end
 
 return NavierStokesWilcox

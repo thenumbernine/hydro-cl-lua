@@ -38,7 +38,7 @@ WENO.wenoMethod = '1996 Jiang Shu'	-- (WENO-JS)
 
 WENO.fluxMethod = 'Lax-Friedrichs'
 --WENO.fluxMethod = 'Marquina'
---WENO.fluxMethod = 'Roe'	-- isn't as accurate
+--WENO.fluxMethod = 'Roe'	-- isn't as accurate ... and has an error? FIXME?
 
 WENO.coeffs = {
 	-- [r] of table 1 of 1996 Jiang, Shu
@@ -421,7 +421,7 @@ function WENO:calcDeriv(derivBufObj, dt)
 --	self.calcFluxKernelObj.obj:setArg(4, self.fluxCellBuf)
 	self.calcFluxKernelObj()
 
--- [=[ this is from the 2017 Zingale book
+-- [=[ this is from the 2017 Zingale "Introduction to Computational Astrophysics"
 	if self.useCTU then
 		self:boundary()
 		-- if we're using CTU then ...

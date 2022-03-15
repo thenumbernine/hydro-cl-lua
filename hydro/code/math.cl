@@ -260,6 +260,7 @@ my current convention is this:
 #define unit_m_per_s			(unit_m / unit_s)
 #define unit_m2_per_s2			(unit_m2 / unit_s2)
 #define unit_m3_per_kg_s2		(unit_m3 / (unit_kg * unit_s2))
+#define unit_kg_per_m			(unit_kg / unit_m)
 #define unit_kg_per_m3			(unit_kg / unit_m3)
 #define unit_kg_per_m2_s		(unit_kg / (unit_m2 * unit_s))
 #define unit_kg_per_m_s2		(unit_kg / (unit_m * unit_s2))
@@ -496,10 +497,6 @@ static inline real3 sym3_y(sym3 m);
 static inline real3 sym3_z(sym3 m);
 static inline real3 sym3_col(sym3 m, int side);
 static inline real sym3_trace(sym3 m);
-static inline sym3 sym3_swap(sym3 m, int side);
-static inline sym3 sym3_swap0(sym3 m);
-static inline sym3 sym3_swap1(sym3 m);
-static inline sym3 sym3_swap2(sym3 m);
 static inline real real3_weightedDot(real3 a, real3 b, sym3 m);
 static inline real real3_weightedLenSq(real3 a, sym3 m);
 static inline real real3_weightedLen(real3 a, sym3 m);
@@ -608,6 +605,62 @@ static inline real sym3_trace(sym3 m) {
 	return m.xx + m.yy + m.zz;
 }
 
+//weighted inner product using 'm'
+static inline real real3_weightedDot(real3 a, real3 b, sym3 m) {
+	return real3_dot(a, sym3_real3_mul(m, b));
+}
+
+static inline real real3_weightedLenSq(real3 a, sym3 m) {
+	return real3_weightedDot(a, a, m);
+}
+
+static inline real real3_weightedLen(real3 a, sym3 m) {
+	return sqrt(real3_weightedLenSq(a, m));
+}
+
+//// MODULE_NAME: sym3_rotate
+//// MODULE_DEPENDS: sym3 rotate
+//// MODULE_HEADER:
+
+static inline sym3 sym3_rotateFrom(sym3 const m, real3 const n);
+static inline sym3 sym3_rotateTo(sym3 const m, real3 const n);
+static inline sym3 sym3_swap(sym3 m, int side);
+static inline sym3 sym3_swap0(sym3 m);
+static inline sym3 sym3_swap1(sym3 m);
+static inline sym3 sym3_swap2(sym3 m);
+
+//// MODULE_CODE:
+
+static inline sym3 sym3_rotateFrom(
+	sym3 const m,
+	real3 const n
+) {
+	real3x3 t = real3x3_from_sym3(m);
+	t.x = real3_rotateFrom(t.x, n);
+	t.y = real3_rotateFrom(t.y, n);
+	t.z = real3_rotateFrom(t.z, n);
+	t = real3x3_transpose(t);
+	t.x = real3_rotateFrom(t.x, n);
+	t.y = real3_rotateFrom(t.y, n);
+	t.z = real3_rotateFrom(t.z, n);
+	return sym3_from_real3x3(t);
+}
+
+static inline sym3 sym3_rotateTo(
+	sym3 const m,
+	real3 const n
+) {
+	real3x3 t = real3x3_from_sym3(m);
+	t.x = real3_rotateTo(t.x, n);
+	t.y = real3_rotateTo(t.y, n);
+	t.z = real3_rotateTo(t.z, n);
+	t = real3x3_transpose(t);
+	t.x = real3_rotateTo(t.x, n);
+	t.y = real3_rotateTo(t.y, n);
+	t.z = real3_rotateTo(t.z, n);
+	return sym3_from_real3x3(t);
+}
+
 //for swapping dimensions between x and 012
 static inline sym3 sym3_swap(sym3 m, int side) {
 	if (side == 0) {
@@ -624,19 +677,6 @@ static inline sym3 sym3_swap0(sym3 m) { return m; }
 static inline sym3 sym3_swap1(sym3 m) { return _sym3(m.yy, m.xy, m.yz, m.xx, m.xz, m.zz); }
 static inline sym3 sym3_swap2(sym3 m) { return _sym3(m.zz, m.yz, m.xz, m.yy, m.xy, m.xx); }
 
-//weighted inner product using 'm'
-static inline real real3_weightedDot(real3 a, real3 b, sym3 m) {
-	return real3_dot(a, sym3_real3_mul(m, b));
-}
-
-static inline real real3_weightedLenSq(real3 a, sym3 m) {
-	return real3_weightedDot(a, a, m);
-}
-
-static inline real real3_weightedLen(real3 a, sym3 m) {
-	return sqrt(real3_weightedLenSq(a, m));
-}
-
 //// MODULE_NAME: real3x3
 //// MODULE_DEPENDS: real3 sym3
 //// MODULE_TYPE:
@@ -649,8 +689,13 @@ static inline real real3_weightedLen(real3 a, sym3 m) {
 //specified in row-order, like you would a C array
 #define _real3x3(xx,xy,xz,yx,yy,yz,zx,zy,zz) ((real3x3){.x=_real3(xx,xy,xz), .y=_real3(yx,yy,yz), .z=_real3(zx,zy,zz)})
 
-#define real3x3_zero ((real3x3){.v={real3_zero, real3_zero, real3_zero}})
+// failing in AMD OpenCL LLVM
+//LLVM ERROR: Cannot select: 0x55ab0ec9b418: i32 = GlobalAddress<[3 x %union.vec3d_t] addrspace(5)* @constinit> 0
+//#define real3x3_zero ((real3x3){.v={real3_zero, real3_zero, real3_zero}})
+//instead:
+#define real3x3_zero ((real3x3){.x=real3_zero, .y=real3_zero, .z=real3_zero})
 
+static inline real3x3 real3x3_from_real3x3(real3x3 x);
 static inline real3x3 real3x3_add(real3x3 a, real3x3 b);
 static inline real3x3 real3_real3_outer(real3 a, real3 b);
 static inline real real3x3_dot(real3x3 a, real3x3 b);
@@ -672,6 +717,8 @@ static inline real real3x3_det(real3x3 m);
 static inline real3x3 real3x3_inv(real3x3 m);
 
 //// MODULE_CODE:
+
+static inline real3x3 real3x3_from_real3x3(real3x3 x) { return x; }
 
 static inline real3x3 real3x3_add(real3x3 a, real3x3 b) {
 	return (real3x3){
@@ -902,6 +949,74 @@ for i=0,2 do
 ?>	};
 }
 
+//// MODULE_NAME: real3x3_rotate
+//// MODULE_DEPENDS: real3x3 rotate
+//// MODULE_HEADER:
+
+static inline real3x3 real3x3_rotateFrom(real3x3 const m, real3 const n);
+static inline real3x3 real3x3_rotateTo(real3x3 const m, real3 const n);
+static inline real3x3 real3x3_swap(real3x3 m, int side);
+static inline real3x3 real3x3_swap0(real3x3 m);
+static inline real3x3 real3x3_swap1(real3x3 m);
+static inline real3x3 real3x3_swap2(real3x3 m);
+
+//// MODULE_CODE:
+
+static inline real3x3 real3x3_rotateFrom(
+	real3x3 t,
+	real3 const n
+) {
+	t.x = real3_rotateFrom(t.x, n);
+	t.y = real3_rotateFrom(t.y, n);
+	t.z = real3_rotateFrom(t.z, n);
+	t = real3x3_transpose(t);
+	t.x = real3_rotateFrom(t.x, n);
+	t.y = real3_rotateFrom(t.y, n);
+	t.z = real3_rotateFrom(t.z, n);
+	return t;
+}
+
+static inline real3x3 real3x3_rotateTo(
+	real3x3 t,
+	real3 const n
+) {
+	t.x = real3_rotateTo(t.x, n);
+	t.y = real3_rotateTo(t.y, n);
+	t.z = real3_rotateTo(t.z, n);
+	t = real3x3_transpose(t);
+	t.x = real3_rotateTo(t.x, n);
+	t.y = real3_rotateTo(t.y, n);
+	t.z = real3_rotateTo(t.z, n);
+	return t;
+}
+
+//for swapping dimensions between x and 012
+static inline real3x3 real3x3_swap0(real3x3 m) { 
+	return m;
+}
+static inline real3x3 real3x3_swap1(real3x3 m) {
+	return _real3x3(
+		m.y.y, m.y.x, m.y.z,
+		m.x.y, m.x.x, m.x.z,
+		m.z.y, m.z.x, m.z.z);
+}
+static inline real3x3 real3x3_swap2(real3x3 m) {
+	return _real3x3(
+		m.z.z, m.z.y, m.z.x,
+		m.y.z, m.y.y, m.y.x,
+		m.x.z, m.x.y, m.x.x);
+}
+static inline real3x3 real3x3_swap(real3x3 m, int side) {
+	if (side == 0) {
+		return real3x3_swap0(m);
+	} else if (side == 1) {
+		return real3x3_swap1(m);
+	} else if (side == 2) {
+		return real3x3_swap2(m);
+	}
+	return _real3x3(0./0., 0./0., 0./0., 0./0., 0./0., 0./0., 0./0., 0./0., 0./0.);
+}
+
 //// MODULE_NAME: _3sym3
 //// MODULE_DEPENDS: sym3 real3x3
 //// MODULE_TYPE:
@@ -933,7 +1048,6 @@ static inline real3 sym3_3sym3_dot12(sym3 a, _3sym3 b);
 static inline sym3 real3_3sym3_dot1(real3 a, _3sym3 b);
 static inline real3 _3sym3_tr12(_3sym3 a);
 static inline real3x3 real3_3sym3_dot2(real3 a, _3sym3 b);
-static inline _3sym3 _3sym3_swap(_3sym3 m, int side);
 
 //// MODULE_CODE:
 
@@ -1040,6 +1154,69 @@ static inline real3x3 real3_3sym3_dot2(real3 a, _3sym3 b) {
 ?>		},
 <? end
 ?>	};
+}
+
+//// MODULE_NAME: _3sym3_rotate
+//// MODULE_HEADER:
+
+static inline _3sym3 _3sym3_rotateFrom(_3sym3 const m, real3 const n);
+static inline _3sym3 _3sym3_rotateTo(_3sym3 const m, real3 const n);
+static inline _3sym3 _3sym3_swap(_3sym3 m, int side);
+
+//// MODULE_CODE:
+
+static inline _3sym3 _3sym3_rotateFrom(
+	_3sym3 const m,
+	real3 const n
+) {
+	real3x3x3 t = real3x3x3_from__3sym3(m);
+	real3 tmp;
+<?	local is = require "ext.table"()
+	for e=1,3 do
+		for i,xi in ipairs(xNames) do
+			is[e] = xi
+			for j,xj in ipairs(xNames) do
+				is[e%3+1] = xj
+				for k,xk in ipairs(xNames) do
+					is[(e+1)%3+1] = xk
+?>	tmp.<?=xk?> = t.<?=is:concat"."?>;
+<?				end
+?>	tmp = real3_rotateFrom(tmp, n);
+<?				for k,xk in ipairs(xNames) do
+					is[(e+1)%3+1] = xk
+?>	t.<?=is:concat"."?> = tmp.<?=xk?>;
+<?				end
+			end
+		end
+	end
+?>	return _3sym3_from_real3x3x3(t);
+}
+
+static inline _3sym3 _3sym3_rotateTo(
+	_3sym3 const m,
+	real3 const n
+) {
+	real3x3x3 t = real3x3x3_from__3sym3(m);
+	real3 tmp;
+<?	local is = require "ext.table"()
+	for e=1,3 do
+		for i,xi in ipairs(xNames) do
+			is[e] = xi
+			for j,xj in ipairs(xNames) do
+				is[e%3+1] = xj
+				for k,xk in ipairs(xNames) do
+					is[(e+1)%3+1] = xk
+?>	tmp.<?=xk?> = t.<?=is:concat"."?>;
+<?				end
+?>	tmp = real3_rotateTo(tmp, n);
+<?				for k,xk in ipairs(xNames) do
+					is[(e+1)%3+1] = xk
+?>	t.<?=is:concat"."?> = tmp.<?=xk?>;
+<?				end
+			end
+		end
+	end
+?>	return _3sym3_from_real3x3x3(t);
 }
 
 static inline _3sym3 _3sym3_swap(_3sym3 m, int side) {
@@ -1574,7 +1751,7 @@ static inline real BESSJ1(real const X) {
 	C.W.CLENSHAW, NATIONAL PHYSICAL LABORATORY MATHEMATICAL TABLES,
 	VOL.5, 1962.
 	***********************************************************************/
-	const real
+	real const
 		P1=1.0, P2=0.183105E-2, P3=-0.3516396496E-4, P4=0.2457520174E-5,
 		P5=-0.240337019E-6,  P6=0.636619772,
 		Q1= 0.04687499995, Q2=-0.2002690873E-3, Q3=0.8449199096E-5,
@@ -1584,18 +1761,18 @@ static inline real BESSJ1(real const X) {
 		S1=144725228442.0, S2=2300535178.0, S3=18583304.74,
 		S4=99447.43394,    S5=376.9991397,  S6=1.0;
 
-	real AX = fabs(X);
+	real const AX = fabs(X);
 	if (AX < 8.0) {
-		real Y = X*X;
-		real FR = R1+Y*(R2+Y*(R3+Y*(R4+Y*(R5+Y*R6))));
-		real FS = S1+Y*(S2+Y*(S3+Y*(S4+Y*(S5+Y*S6))));
+		real const Y = X*X;
+		real const FR = R1+Y*(R2+Y*(R3+Y*(R4+Y*(R5+Y*R6))));
+		real const FS = S1+Y*(S2+Y*(S3+Y*(S4+Y*(S5+Y*S6))));
 		return X*(FR/FS);
 	} else {
-		real Z = 8.0/AX;
-		real Y = Z*Z;
-		real XX = AX-2.35619491;
-		real FP = P1+Y*(P2+Y*(P3+Y*(P4+Y*P5)));
-		real FQ = Q1+Y*(Q2+Y*(Q3+Y*(Q4+Y*Q5)));
+		real const Z = 8.0/AX;
+		real const Y = Z*Z;
+		real const XX = AX-2.35619491;
+		real const FP = P1+Y*(P2+Y*(P3+Y*(P4+Y*P5)));
+		real const FQ = Q1+Y*(Q2+Y*(Q3+Y*(Q4+Y*Q5)));
 		return sqrt(P6/AX)*(cos(XX)*FP-Z*sin(XX)*FQ)*Sign(S6,X);
 	}
 }
@@ -1654,32 +1831,10 @@ static inline void getPerpendicularBasis3x3(
 #define normalBasisForSide1 _real3x3(0,1,0, 0,0,1, 1,0,0)
 #define normalBasisForSide2 _real3x3(0,0,1, 1,0,0, 0,1,0)
 
-//// MODULE_NAME: sinh
-// this is for GLSL esp which doesn't have these defs
-
-static inline real sinh(real /*GLSL can't handle: const*/ x) {
-	real ex = exp(x);
-	return .5 * (ex - 1. / ex);
-}
-
-//// MODULE_NAME: cosh
-// also for GLSL
-
-static inline real cosh(real /*GLSL can't handle: const*/ x) {
-	real ex = exp(x);
-	return .5 * (ex + 1. / ex);
-}
-
 //// MODULE_NAME: sech
 
 static inline real sech(real const x) {
 	return 2. / (exp(x) + exp(-x));
-}
-
-//// MODULE_NAME: asinh
-
-static inline real asinh(real/*GLSL can't handle: const*/ x) {
-	return log(x + sqrt(x*x + 1.));
 }
 
 //// MODULE_NAME: min3

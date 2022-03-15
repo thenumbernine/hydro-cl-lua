@@ -84,7 +84,7 @@ function Maxwell:init(args)
 
 	Maxwell.super.init(self, args)
 
--- [=[ TODO combine this into the flux and remove this variable from calcDerivFV
+--[=[ TODO combine this into the flux and remove this variable from calcDerivFV
 	function self:postComputeFluxCode()
 		return self:template[[
 //// MODULE_DEPENDS: <?=coord_sqrt_det_g?> <?=eqn_common?>
@@ -92,7 +92,7 @@ function Maxwell:init(args)
 		//TODO shouldn't I be transforming both the left and right fluxes by the metrics at their respective coordinates?
 		//flux is computed raised via Levi-Civita upper
 		//so here we lower it
-		real _1_sqrt_det_g = 1. / coord_sqrt_det_g(x);
+		real const _1_sqrt_det_g = 1. / coord_sqrt_det_g(x);
 		flux.D = <?=vec3?>_real_mul(eqn_coord_lower(flux.D, x), _1_sqrt_det_g);
 		flux.B = <?=vec3?>_real_mul(eqn_coord_lower(flux.B, x), _1_sqrt_det_g);
 ]]
@@ -152,9 +152,11 @@ end
 
 Maxwell.predefinedDisplayVars = {
 	'U D',
+	'U D z',
 	'U div D',
 	'U phi',
 	'U B',
+	'U B z',
 	'U div B',
 	'U psi',
 }
@@ -163,17 +165,27 @@ function Maxwell:getDisplayVars()
 	local env = self:getEnv()
 	local vars = Maxwell.super.getDisplayVars(self)
 	vars:append{ 
-		{name='E', code=self:template[[	value.v<?=vec3?> = calc_E(U);]], type=env.vec3, units='(kg*m)/(C*s)'},
-		{name='H', code=self:template[[	value.v<?=vec3?> = calc_H(U);]], type=env.vec3, units='C/(m*s)'},
-		{name='S', code=self:template[[	value.v<?=vec3?> = <?=vec3?>_cross(calc_E(U), calc_H(U));]], type=env.vec3, units='kg/s^3'},
+		{name='E', code=self:template[[
+//// MODULE_DEPENDS: <?=eqn_common?>
+value.v<?=vec3?> = calc_E(U);
+]], type=env.vec3, units='(kg*m)/(C*s)'},
+		{name='H', code=self:template[[
+//// MODULE_DEPENDS: <?=eqn_common?>
+value.v<?=vec3?> = calc_H(U);
+]], type=env.vec3, units='C/(m*s)'},
+		{name='S', code=self:template[[
+//// MODULE_DEPENDS: <?=eqn_common?>
+value.v<?=vec3?> = <?=vec3?>_cross(calc_E(U), calc_H(U));
+]], type=env.vec3, units='kg/s^3'},
 		{
 			name='energy', code=self:template[[
-	<?=susc_t?> _1_eps = <?=susc_t?>_mul(U->sqrt_1_eps, U->sqrt_1_eps);
-	<?=susc_t?> _1_mu = <?=susc_t?>_mul(U->sqrt_1_mu, U->sqrt_1_mu);
-	value.vreal = <?=real_mul?>(<?=add?>(
-		<?=scalar?>_<?=susc_t?>_mul(eqn_coordLenSq(U->D, x), _1_eps),
-		<?=scalar?>_<?=susc_t?>_mul(eqn_coordLenSq(calc_H(U), x), _1_mu)
-	), .5);
+//// MODULE_DEPENDS: <?=eqn_common?>
+<?=susc_t?> _1_eps = <?=susc_t?>_mul(U->sqrt_1_eps, U->sqrt_1_eps);
+<?=susc_t?> _1_mu = <?=susc_t?>_mul(U->sqrt_1_mu, U->sqrt_1_mu);
+value.vreal = <?=real_mul?>(<?=add?>(
+	<?=scalar?>_<?=susc_t?>_mul(eqn_coordLenSq(U->D, x), _1_eps),
+	<?=scalar?>_<?=susc_t?>_mul(eqn_coordLenSq(calc_H(U), x), _1_mu)
+), .5);
 ]],
 			type = scalar,
 			units = 'kg/(m*s^2)',
@@ -188,31 +200,27 @@ function Maxwell:getDisplayVars()
 	return vars
 end
 
-function Maxwell:eigenWaveCodePrefix(n, eig, x, waveIndex)
+function Maxwell:eigenWaveCodePrefix(args)
 --[=[
 	return self:template([[
-	<?=scalar?> v_p_abs = <?=mul?>(<?=eig?>->sqrt_1_eps, <?=eig?>->sqrt_1_mu);
-]], {
-		eig = '('..eig..')',
-	})
+	<?=scalar?> v_p_abs = <?=mul?>((<?=eig?>)->sqrt_1_eps, (<?=eig?>)->sqrt_1_mu);
+]], args)
 --]=]
 -- [=[
-	local env = self:getEnv()
 	local code = self:template(
-		[[<?=mul?>(<?=eig?>->sqrt_1_eps, <?=eig?>->sqrt_1_mu)]],
-		{
-			eig = '('..eig..')',
-		}
+		[[<?=mul?>(<?=mul?>((<?=eig?>)->sqrt_1_eps, (<?=eig?>)->sqrt_1_mu), 1./coord_sqrt_det_g(<?=pt?>))]],
+		args
 	)
 	if self.scalar == 'cplx' then
+		local env = self:getEnv()
 		code = env.abs..'('..code..')'
 	end
 	return 'real const '..self.symbolPrefix..'v_p_abs = '..code..';'
 --]=]
 end
 
-function Maxwell:eigenWaveCode(n, eig, x, waveIndex)
-	waveIndex = math.floor(waveIndex / self.numRealsInScalar)
+function Maxwell:eigenWaveCode(args)
+	local waveIndex = math.floor(args.waveIndex / self.numRealsInScalar)
 	return ({
 		'-'..self.symbolPrefix..'v_p_abs',
 		'-'..self.symbolPrefix..'v_p_abs',
@@ -223,33 +231,17 @@ function Maxwell:eigenWaveCode(n, eig, x, waveIndex)
 	})[waveIndex+1] or error('got a bad waveIndex: '..waveIndex)
 end
 
-function Maxwell:eigenMaxWaveCode(n, eig, x)
-	return self.symbolPrefix..'v_p_abs'
-end
-function Maxwell:eigenMinWaveCode(n, eig, x)
-	return '-'..self:eigenMaxWaveCode(n, eig, x)
-end
-
-function Maxwell:consWaveCodePrefix(n, U, x, waveIndex)
-	local env = self:getEnv()
+function Maxwell:consWaveCodePrefix(args)
 	local code = self:template(
-		[[<?=mul?>(<?=U?>->sqrt_1_eps, <?=U?>->sqrt_1_mu)]],
-		{
-			U = '('..U..')',
-		}
+		[[<?=mul?>(<?=mul?>((<?=U?>)->sqrt_1_eps, (<?=U?>)->sqrt_1_mu), 1./coord_sqrt_det_g(<?=pt?>))]],
+		args
 	)
 	if self.scalar == 'cplx' then
+		local env = self:getEnv()
 		code = env.abs..'('..code..')'
 	end
-	return 'real const v_p_abs = '..code..';'
+	return 'real const '..self.symbolPrefix..'v_p_abs = '..code..';'
 end
 Maxwell.consWaveCode = Maxwell.eigenWaveCode
-
-function Maxwell:consMaxWaveCode(n, U, x)
-	return 'v_p_abs'
-end
-function Maxwell:consMinWaveCode(n, U, x)
-	return '-'..self:consMaxWaveCode(n, U, x)
-end
 
 return Maxwell

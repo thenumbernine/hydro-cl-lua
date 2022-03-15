@@ -29,16 +29,15 @@ Draw3DSlice.numSlices = 255
 function Draw3DSlice:showDisplayVar(var, varName, ar, xmin, xmax, ymin, ymax, useLog)
 	local solver = self.solver
 	local app = solver.app
-	if require 'hydro.solver.meshsolver'.is(solver) then return end
+	if require 'hydro.solver.meshsolver':isa(solver) then return end
 
 	app.view:setup(ar)
 
-	if useClipPlanes then
-		for i,clipInfo in ipairs(clipInfos) do
+	if app.useClipPlanes then
+		for i,clipInfo in ipairs(app.clipInfos) do
 			gl.glClipPlane(gl.GL_CLIP_PLANE0+i-1, clipInfo.plane.s)
 		end
 	end
-	
 	
 	local valueMin, valueMax
 	if var.heatMapFixedRange then
@@ -58,11 +57,7 @@ function Draw3DSlice:showDisplayVar(var, varName, ar, xmin, xmax, ymin, ymax, us
 	shader:use()
 	local tex = solver:getTex(var)
 	tex:bind(0)
-	if app.displayBilinearTextures then
-		gl.glTexParameteri(gl.GL_TEXTURE_3D, gl.GL_TEXTURE_MAG_FILTER, gl.GL_LINEAR)
-	else
-		gl.glTexParameteri(gl.GL_TEXTURE_3D, gl.GL_TEXTURE_MAG_FILTER, gl.GL_NEAREST)
-	end
+	tex:setParameter(gl.GL_TEXTURE_MAG_FILTER, app.displayBilinearTextures and gl.GL_LINEAR or gl.GL_NEAREST)
 	
 	app.gradientTex:bind(1)
 	
@@ -74,8 +69,8 @@ function Draw3DSlice:showDisplayVar(var, varName, ar, xmin, xmax, ymin, ymax, us
 	gl.glUniform1f(uniforms.numIsobars.loc, self.numIsobars)
 	gl.glUniform1i(uniforms.useLighting.loc, self.useLighting)
 
-	if useClipPlanes then
-		for i,info in ipairs(clipInfos) do
+	if app.useClipPlanes then
+		for i,info in ipairs(app.clipInfos) do
 			gl.glUniform1i(uniforms['clipEnabled'..i].loc, info.enabled and 1 or 0)
 		end
 	end
@@ -109,72 +104,33 @@ function Draw3DSlice:showDisplayVar(var, varName, ar, xmin, xmax, ymin, ymax, us
 		local fwddir
 		local jmin, jmax, jdir
 
+		fwddir = select(2, table{fwd:unpack()}:mapi(math.abs):sup())
 
-		-- hack for picking order of axis for non-Cartesian
-		if app.display_useCoordMap
-		and (require 'hydro.coord.sphere'.is(solver.coord) 
-			or require 'hydro.coord.sphere-sinh-radial'.is(solver.coord))
-		then
-			fwddir = 1
+		if fwd.s[fwddir-1] < 0 then
 			jmin, jmax, jdir = 0, n, 1
-			gl.glUniform3f(uniforms.normal.loc, (-fwd):unpack())
 		else
+			jmin, jmax, jdir = n, 0, -1
+		end
 		
-			fwddir = select(2, table{fwd:unpack()}:map(math.abs):sup())
+		gl.glUniform3f(uniforms.normal.loc, 
+			fwddir == 1 and jdir or 0, 
+			fwddir == 2 and jdir or 0, 
+			fwddir == 3 and jdir or 0)
 
-			if fwd.s[fwddir-1] < 0 then
-				jmin, jmax, jdir = 0, n, 1
-			else
-				jmin, jmax, jdir = n, 0, -1
-			end
-			
-			gl.glUniform3f(uniforms.normal.loc, 
-				fwddir == 1 and jdir or 0, 
-				fwddir == 2 and jdir or 0, 
-				fwddir == 3 and jdir or 0)
-		end
-
-		if CartesianCoordinateSystem.is(solver.coord) then
-			-- [[	single quad
-			gl.glBegin(gl.GL_QUADS)
-			for j=jmin,jmax,jdir do
-				local f = j/n
-				for _,vtx in ipairs(vertexesInQuad) do
-					if fwddir == 1 then
-						gl.glVertex3f(f, vtx[1], vtx[2])
-					elseif fwddir == 2 then
-						gl.glVertex3f(vtx[1], f, vtx[2])
-					elseif fwddir == 3 then
-						gl.glVertex3f(vtx[1], vtx[2], f)
-					end
+		gl.glBegin(gl.GL_QUADS)
+		for j=jmin,jmax,jdir do
+			local f = j/n
+			for _,vtx in ipairs(vertexesInQuad) do
+				if fwddir == 1 then
+					gl.glVertex3f(f, vtx[1], vtx[2])
+				elseif fwddir == 2 then
+					gl.glVertex3f(vtx[1], f, vtx[2])
+				elseif fwddir == 3 then
+					gl.glVertex3f(vtx[1], vtx[2], f)
 				end
 			end
-			gl.glEnd()
-			--]]
-		else
-			-- [[	use a grid, so curved coordinates can be seen
-			for j=jmin,jmax,jdir do
-				local f = j/n
-				local xres = 20
-				local yres = 20
-				for ybase=1,yres-1 do
-					gl.glBegin(gl.GL_TRIANGLE_STRIP)
-					for x=1,xres do
-						for y=ybase,ybase+1 do
-							if fwddir == 1 then
-								gl.glVertex3f(f, x/xres, y/yres)
-							elseif fwddir == 2 then
-								gl.glVertex3f(x/xres, f, y/yres)
-							elseif fwddir == 3 then
-								gl.glVertex3f(x/xres, y/yres, f)
-							end
-						end
-					end
-					gl.glEnd()
-				end
-			end
-			--]]
 		end
+		gl.glEnd()
 	
 		gl.glDisable(gl.GL_BLEND)
 	end
@@ -199,7 +155,8 @@ end
 function Draw3DSlice:prepareShader()
 	local solver = self.solver
 	if solver.volumeSliceShader then return end 
-	
+	local app = solver.app
+
 	local volumeSliceCode = assert(file['hydro/draw/3d_slice.shader'])
 	
 	solver.volumeSliceShader = solver.GLProgram{
@@ -212,7 +169,7 @@ function Draw3DSlice:prepareShader()
 			draw = self,
 			fragmentShader = true,
 			-- TODO move this from app, or make it a field of app?
-			clipInfos = useClipPlanes and clipInfos or nil,
+			clipInfos = app.useClipPlanes and app.clipInfos or nil,
 		}),
 		uniforms = {
 			volTex = 0,

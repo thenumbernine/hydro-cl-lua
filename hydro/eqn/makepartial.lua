@@ -44,15 +44,20 @@ local derivCoeffs = {
 order = order of the finite difference
 solver = solver
 field = field of U buffer to use
+	optionally field can be function(offset) as a getter for the field at that offset of the U pointer
+	if you use field as a function, be sure to provide nameOverride
 fieldType = type of field
 nameOverride = what name to use for the partial vars
 	default: partial_field_l
+srcName = which ptr to read offsets from, default is 'U'
 --]]
-local function makePartialRank1(deriv, order, solver, field, fieldType, nameOverride)
+local function makePartialRank1(deriv, order, solver, field, fieldType, nameOverride, srcName)
 	local xNames = common.xNames
 	local suffix = 'l'
-	if not field:find'_' then suffix = '_' .. suffix end
-	
+	if type(field) == 'string' and not field:find'_' then
+		suffix = '_' .. suffix
+	end
+
 	local add, sub, real_mul, zero
 	if fieldType == 'real' then	--for readability, just inline the macros here
 		add = function(x,y,xt,yt)
@@ -74,7 +79,13 @@ local function makePartialRank1(deriv, order, solver, field, fieldType, nameOver
 		real_mul = function(x,y) return fieldType..'_real_mul('..x..', '..y..')' end
 		zero = fieldType..'_zero'
 	end
-	
+
+	srcName = srcName or 'U'
+	local readField = 
+		type(field) == 'string'
+		and function(index) return srcName..'['..index..'].'..field end
+		or field
+
 	local name = nameOverride or ('partial_'..field..suffix)
 	local d1coeffs = assert(derivCoeffs[deriv][order], "couldn't find d/dx^"..deriv.." coefficients of order "..order)
 	local lines = table()
@@ -103,8 +114,8 @@ local function makePartialRank1(deriv, order, solver, field, fieldType, nameOver
 		local expr, exprtype = zero, 'value'
 		if i <= solver.dim then
 			for j,coeff in ipairs(d1coeffs) do
-				local UR = 'U['..j..' * solver->stepsize.'..xi..'].'..field
-				local UL = 'U[-'..j..' * solver->stepsize.'..xi..'].'..field
+				local UR = readField(j..' * solver->stepsize.'..xi)
+				local UL = readField('-'..j..' * solver->stepsize.'..xi)
 				
 				local subexpr, subexprtype = sub(UR, UL, 'value', 'value')
 				local mulexpr, mulexprtype = real_mul(subexpr, clnumber(coeff), subexprtype, 'value')
@@ -121,12 +132,12 @@ local function makePartialRank1(deriv, order, solver, field, fieldType, nameOver
 	return lines:concat'\n'
 end
 
-local function makePartialRank2(deriv, order, solver, field, fieldType, nameOverride)
+local function makePartialRank2(deriv, order, solver, field, fieldType, nameOverride, srcName)
 	local xNames = common.xNames
 	local symNames = common.symNames
 	local from6to3x3 = common.from6to3x3
 	local suffix = 'll'
-	if not field:find'_' then suffix = '_' .. suffix end
+	if type(field) == 'string' and not field:find'_' then suffix = '_' .. suffix end
 	
 	local add, sub, real_mul, zero
 	if fieldType == 'real' then	--for readability, just inline the macros here
@@ -150,6 +161,12 @@ local function makePartialRank2(deriv, order, solver, field, fieldType, nameOver
 		zero = fieldType..'_zero'
 	end
 
+	srcName = srcName or 'U'
+	local readField = 
+		type(field) == 'string'
+		and function(index) return srcName..'['..index..'].'..field end
+		or field
+
 	local name = nameOverride or ('partial2_'..field..suffix)
 	local d1coeffs = assert(derivCoeffs[deriv/2][order], "couldn't find d/dx^"..(deriv/2).." coefficients of order "..order)
 	local d2coeffs = assert(derivCoeffs[deriv][order], "couldn't find d/dx^"..deriv.." coefficients of order "..order)
@@ -171,10 +188,10 @@ local function makePartialRank2(deriv, order, solver, field, fieldType, nameOver
 		if i > solver.dim or j > solver.dim then
 			lines:insert('\t'..nameij..' = '..zero..';')
 		elseif i == j then
-			local expr, exprtype = real_mul('U->'..field, d2coeffs[0], 'value', 'value')
+			local expr, exprtype = real_mul(readField'0', d2coeffs[0], 'value', 'value')
 			for k,coeff in ipairs(d2coeffs) do
-				local UR = 'U['..k..' * solver->stepsize.'..xi..'].'..field
-				local UL = 'U[-'..k..' * solver->stepsize.'..xi..'].'..field
+				local UR = readField(k..' * solver->stepsize.'..xi)
+				local UL = readField('-'..k..' * solver->stepsize.'..xi)
 				local addexpr, addexprtype = add(UR, UL, 'value', 'value')
 				local mulexpr, mulexprtype = real_mul(addexpr, clnumber(coeff), addexprtype)
 				expr, exprtype = add(expr, mulexpr, exprtype, mulexprtype)
@@ -189,10 +206,10 @@ local function makePartialRank2(deriv, order, solver, field, fieldType, nameOver
 			local expr, exprtype = zero, 'value'
 			for k,coeff_k in ipairs(d1coeffs) do
 				for l,coeff_l in ipairs(d1coeffs) do
-					local URR = 'U['..k..' * solver->stepsize.'..xi..' + '..l..' * solver->stepsize.'..xj..'].'..field
-					local ULL = 'U[-'..k..' * solver->stepsize.'..xi..' - '..l..' * solver->stepsize.'..xj..'].'..field
-					local ULR = 'U[-'..k..' * solver->stepsize.'..xi..' + '..l..' * solver->stepsize.'..xj..'].'..field
-					local URL = 'U['..k..' * solver->stepsize.'..xi..' - '..l..' * solver->stepsize.'..xj..'].'..field
+					local URR = readField(k..' * solver->stepsize.'..xi..' + '..l..' * solver->stepsize.'..xj)
+					local ULL = readField('-'..k..' * solver->stepsize.'..xi..' - '..l..' * solver->stepsize.'..xj)
+					local ULR = readField('-'..k..' * solver->stepsize.'..xi..' + '..l..' * solver->stepsize.'..xj)
+					local URL = readField(k..' * solver->stepsize.'..xi..' - '..l..' * solver->stepsize.'..xj)
 					local addRRLLexpr, addRRLLtype = add(URR, ULL)
 					local addLRRLexpr, addLRRLtype = add(ULR, URL)
 					local subexpr, subexprtype = sub(addRRLLexpr, addLRRLexpr, addRRLLtype, addLRRLtype)

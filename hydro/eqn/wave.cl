@@ -15,46 +15,40 @@ TODO make this configurable somehow
 or make it modular enough to merge with BSSNOK
 */
 
-static inline real metric_alpha(real3 const pt) { 
-	return <?=eqn:compile(eqn.metric.alpha)?>; 
-}
+#define /*real */metric_alpha(/*real3 const */pt) \
+	(<?=eqn:compile(eqn.metric.alpha)?>)
 
-static inline real3 metric_beta_u(real3 const pt) { 
-	return (real3){
-<? for i,xi in ipairs(xNames) do
-?>		.<?=xi?> = <?=eqn:compile(eqn.metric.beta_u[i])?>,
-<? end
-?>	};
-}
+#define /*real3 */metric_beta_u(/*real3 const */pt) \
+	((real3){\
+<? for i,xi in ipairs(xNames) do --\
+?>		.<?=xi?> = <?=eqn:compile(eqn.metric.beta_u[i])?>,\
+<? end --\
+?>	})
 
-static inline real metric_K(real3 const pt) { 
-	return <?=eqn:compile(eqn.metric.K)?>;
-}
+#define /*real */metric_K(/*real3 const */pt) \
+	(<?=eqn:compile(eqn.metric.K)?>)
 
-static inline real metric_f(real3 const pt) { 
-	return <?=eqn:compile(eqn.metric.f)?>;
-}
+#define /*real */metric_f(/*real3 const */pt) \
+	(<?=eqn:compile(eqn.metric.f)?>)
 
-static inline real3 metric_partial_alpha_l(real3 const pt) { 
-	return (real3){
-<? for i,xi in ipairs(xNames) do
-?>		.<?=xi?> = <?=eqn:compile(eqn.metric.alpha:diff(eqn.metric.coords[i])())?>,
-<? end
-?>	};
-}
+#define /*real3 */metric_partial_alpha_l(/*real3 const */pt) \
+	((real3){\
+<? for i,xi in ipairs(xNames) do --\
+?>		.<?=xi?> = <?=eqn:compile(eqn.metric.alpha:diff(eqn.metric.coords[i])())?>,\
+<? end --\
+?>	})
 
 //partial_beta_ul[i][j] = beta^i_,j
-static inline real3x3 metric_partial_beta_ul(real3 const pt) { 
-	return (real3x3){
-<? for i,xi in ipairs(xNames) do
-?>		.<?=xi?> = (real3){
-<?	for j,xj in ipairs(xNames) do
-?>			.<?=xj?> = <?=eqn:compile(eqn.metric.beta_u[i]:diff(eqn.metric.coords[j])())?>,
-<?	end
-?>		},
-<?	end
-?>	};
-}
+#define /*real3x3 */metric_partial_beta_ul(/*real3 const */pt) \
+	((real3x3){\
+<? for i,xi in ipairs(xNames) do --\
+?>		.<?=xi?> = (real3){\
+<?	for j,xj in ipairs(xNames) do --\
+?>			.<?=xj?> = <?=eqn:compile(eqn.metric.beta_u[i]:diff(eqn.metric.coords[j])())?>,\
+<?	end --\
+?>		},\
+<?	end --\
+?>	})
 
 //// MODULE_NAME: <?=applyInitCondCell?>
 //// MODULE_DEPENDS: <?=cartesianToCoord?>
@@ -103,11 +97,11 @@ end
 	/*<?=cons_t?> * const */resultFlux,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */U,\
-	/*real3 const */pt,\
+	/*<?=cell_t?> const * const */cell,\
 	/*<?=normal_t?> const */n\
 ) {\
-	real const alpha = metric_alpha(pt);\
-	real const beta_n = normal_vecDotN1(n, metric_beta_u(pt));\
+	real const alpha = metric_alpha((cell)->pos);\
+	real const beta_n = normal_vecDotN1(n, metric_beta_u((cell)->pos));\
 	\
 	real3 const nL = normal_l1(n);\
 	real3 const nU = normal_u1(n);\
@@ -178,13 +172,28 @@ void <?=calcCellMinMaxEigenvalues?>(
 //// MODULE_NAME: <?=eigen_forInterface?>
 //// MODULE_DEPENDS: <?=eigen_t?>
 
-#define <?=eigen_forInterface?>(resultEig, solver, UL, UR, x, n) \
+#define <?=eigen_forInterface?>(\
+	/*<?=eigen_t?> * const */resultEig,\
+	/*constant <?=solver_t?> const * const */solver,\
+	/*<?=cons_t?> const * const */UL,\
+	/*<?=cons_t?> const * const */UR,\
+	/*<?=cell_t?> const * const */cellL,\
+	/*<?=cell_t?> const * const */cellR,\
+	/*real3 const */pt,\
+	/*<?=normal_t?> const */n\
+) \
 	*(resultEig) = (<?=eigen_t?>){}
 
 //// MODULE_NAME: <?=eigen_forCell?>
 //// MODULE_DEPENDS: <?=eigen_t?>
 
-#define <?=eigen_forCell?>(resultEig, solver, U, x, n) \
+#define <?=eigen_forCell?>(\
+	/*<?=eigen_t?> * const */resultEig,\
+	/*constant <?=solver_t?> const * const */solver,\
+	/*<?=cons_t?> const * const */U,\
+	/*<?=cell_t?> const * const */cell,\
+	/*real3 const */n\
+) \
 	*(resultEig) = (<?=eigen_t?>){};
 
 //// MODULE_NAME: <?=eigen_leftTransform?>
@@ -260,10 +269,20 @@ void <?=calcCellMinMaxEigenvalues?>(
 
 // by default in hydro/eqn/eqn.lua, <?=fluxFromCons?> is defined by <?=eigen_fluxTransform?>
 // but since eig is empty, we can define <?=eigen_fluxTransform?> with <?=fluxFromCons?>
-#define <?=eigen_fluxTransform?>(resultFlux, solver, eig, X, x, n) <?=fluxFromCons?>(resultFlux, solver, X, x, n)
+#define <?=eigen_fluxTransform?>(\
+	/*<?=cons_t?> * const */resultFlux,\
+	/*constant <?=solver_t?> const * const */solver,\
+	/*<?=eigen_t?> const * const */eig,\
+	/*<?=cons_t?> const * const */X_,\
+	/*<?=cell_t?> const * const */cell,\
+	/*<?=normal_t?> const */n\
+)\
+	<?=fluxFromCons?>(resultFlux, solver, X_, cell, n)
 
-<? if false then ?>
+// TODO only if metric ~= ident and coord ~= cartesian 
+
 //// MODULE_NAME: <?=addSource?>
+//// MODULE_DEPENDS: <?=eqn_common?> <?=coord_raise?> <?=coord_connHol_trace23?>
 
 kernel void <?=addSource?>(
 	constant <?=solver_t?> const * const solver,
@@ -271,23 +290,22 @@ kernel void <?=addSource?>(
 	global <?=cons_t?> const * const UBuf,
 	global <?=cell_t?> const * const cellBuf
 ) {
-#if 0
 	<?=SETBOUNDS_NOGHOST?>();
-	real3 const x = cellBuf[index].pos;
+	real3 const pt = cellBuf[index].pos;
 	
 	global <?=cons_t?> * const deriv = derivBuf + index;
 	global <?=cons_t?> const * const U = UBuf + index;
 	//TODO make use of this
-	//real c = solver->wavespeed / unit_m_per_s;
+	//real const c = solver->wavespeed / unit_m_per_s;
 
-	real alpha = metric_alpha(x);
-	real K = metric_K(x);
-	real3x3 partial_beta_ul = metric_partial_beta_ul(x);
-	real3 partial_alpha_l = metric_partial_alpha_l(x);
-	real3 conn23 = coord_conn_trace23(x);
-	real f = metric_f(x);
+	real const alpha = metric_alpha(pt);
+	real const K = metric_K(pt);
+	real3x3 const partial_beta_ul = metric_partial_beta_ul(pt);
+	real3 const partial_alpha_l = metric_partial_alpha_l(pt);
+	real3 const conn23 = coord_connHol_trace23(pt);
+	real const f = metric_f(pt);
 
-	real3 Psi_u = coord_raise(U->Psi_l, x);
+	real3 const Psi_u = coord_raise(U->Psi_l, pt);
 
 	deriv->Pi += 
 		real3_dot(partial_alpha_l, Psi_u)
@@ -305,5 +323,3 @@ kernel void <?=addSource?>(
 		real3_real_mul(partial_alpha_l, U->Pi)
 	);
 }
-#endif
-<? end ?>

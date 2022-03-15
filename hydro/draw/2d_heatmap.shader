@@ -15,7 +15,7 @@ local varying = vertexShader and 'out'
 
 <? if vertexShader then ?>
 
-attribute vec4 vertex;
+in vec4 vertex;
 
 void main() {
 	vec4 v = vertex;

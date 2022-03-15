@@ -5,6 +5,8 @@ local Quad2DMeshFactory = require 'hydro.mesh.quad2d'
 
 local Image2DMeshFactory = class(Quad2DMeshFactory)
 
+Image2DMeshFactory.name = 'image2d'
+
 function Image2DMeshFactory:init(args)
 	self.image = Image(assert(args.image, "expected image"))
 

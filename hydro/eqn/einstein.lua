@@ -41,8 +41,8 @@ function EinsteinEquation:createInitState()
 			name = 'f_eqn',
 			options = {
 				'2/alpha',							-- 1+log slicing
-				'1 + 1/alpha^2', 					-- Alcubierre 10.2.24: "shock avoiding condition" for Toy 1+1 spacetimes 
-				'1', 								-- Alcubierre 4.2.50 - harmonic slicing
+				'1 + 1/alpha^2', 					-- 2008 Alcubierre 10.2.24: "shock avoiding condition" for Toy 1+1 spacetimes 
+				'1', 								-- 2008 Alcubierre 4.2.50 - harmonic slicing
 				'0', '.49', '.5', '1.5', '1.69',
 			}
 		},
@@ -80,14 +80,6 @@ function EinsteinEquation:createBoundaryOptions()
 	self.solver:addBoundaryOption(BoundaryFixed)
 end
 
-function EinsteinEquation:getModuleDepends_displayCode() 
-	return EinsteinEquation.super.getModuleDepends_displayCode(self):append{
-		-- for the addDisplayComponents 
-		assert(self.symbols.calc_gamma_ll),
-		assert(self.symbols.calc_gamma_uu),
-	}
-end
-
 -- convenient trackvars:
 -- TODO generate these by expression in CL automatically
 function EinsteinEquation:getDisplayVars()
@@ -95,8 +87,22 @@ function EinsteinEquation:getDisplayVars()
 	
 	vars:append{
 		{name='alpha-1', code=[[ value.vreal = U->alpha - 1.;]], type='real'},
-		{name='gamma_ll', code = self:template[[	value.vsym3 = <?=calc_gamma_ll?>(U, x);]], type='sym3'},
-		{name='gamma_uu', code = self:template[[	value.vsym3 = <?=calc_gamma_uu?>(U, x);]], type='sym3'},
+		{
+			name = 'gamma_ll',
+			code = self:template[[
+//// MODULE_DEPENDS: <?=calc_gamma_ll?>
+value.vsym3 = <?=calc_gamma_ll?>(U, x);
+]],
+			type = 'sym3',
+		},
+		{
+			name = 'gamma_uu',
+			code = self:template[[
+//// MODULE_DEPENDS: <?=calc_gamma_uu?>
+value.vsym3 = <?=calc_gamma_uu?>(U, x);
+]],
+			type = 'sym3',
+		},
 	}
 
 	return vars

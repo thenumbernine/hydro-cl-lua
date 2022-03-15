@@ -7,12 +7,16 @@ local math = require 'ext.math'
 local table = require 'ext.table'
 local range = require 'ext.range'
 local vec2i = require 'vec-ffi.vec2i'
-local vector = require 'hydro.util.vector'
+local vector = require 'ffi.cpp.vector'
 -- one of these is bound to be real3, right?
 local vec3f = require 'vec-ffi.vec3f'
 local vec3d = require 'vec-ffi.vec3d'
 local Struct = require 'hydro.code.struct'
 local time, getTime = table.unpack(require 'hydro.util.time')
+
+
+--local faceAreaEpsilon = 1e-7
+local faceAreaEpsilon = 0
 
 
 -- map a parameter pack using the function in the first argument
@@ -21,41 +25,57 @@ local function mappack(f, ...)
 	return f(...), mappack(f, select(2, ...))
 end
 
+local meshfaceStruct, meshface_t 
+local meshcellStruct, meshcell_t
+local function allocateTypes(solver)
+	if meshfaceStruct then return end
+	-- stripped-down version of face_t and cell_t to build with mesh
+	-- before the solver defines any custom entries in face_t or cell_t
+	-- [=[ look in coord's cellStruct def for these fields
+	meshfaceStruct = Struct{
+		dontMakeUniqueName = true,	--with this set, solver isn't needed
+		name = 'meshface_t',
+		dontUnion = true,
+		vars = {
+			-- all solvers:
+			{type='real3', name='pos'},		--center.  realN.
+			{type='real3', name='normal'},	--normal pointing from first to second
+			{type='real3', name='normal2'},	--orthonormal basis around normal
+			{type='real3', name='normal3'},
+			{type='real', name='area'},		--edge length / surface area
+			{type='real', name='cellDist'},	--dist between cell centers along 'normal'
+			-- meshsolver-specific:
+			{type='vec2i_t', name='cells'},	--indexes of cells
+			{type='int', name='vtxOffset'},
+			{type='int', name='vtxCount'},
+			{type='int', name='boundaryMethodIndex'},	-- 1-based boundary class.  0 == not a boundary.
+		},
+	}
+	meshfaceStruct:makeType()
+	meshface_t = meshfaceStruct.metatype
 
---[=[ look in coord's cellStruct def for these fields
-local face_t = Struct{
-	name = 'face_t',
-	dontUnion = true,
-	vars = {
-		{type='real3', name='pos'},		--center.  realN.
-		{type='real3', name='normal'},	--normal pointing from first to second
-		{type='real3', name='normal2'},	--orthonormal basis around normal
-		{type='real3', name='normal3'},
-		{type='real', name='area'},		--edge length / surface area
-		{type='real', name='cellDist'},	--dist between cell centers along 'normal'
-		{type='vec2i_t', name='cells'},	--indexes of cells
-		{type='int', name='vtxOffset'},
-		{type='int', name='vtxCount'},
-	},
-}
+	meshcellStruct = Struct{
+		dontMakeUniqueName = true,	--with this set, solver isn't needed
+		name = 'meshcell_t',
+		dontUnion = true,
+		vars = {
+			-- all solvers:
+			{type='real3', name='pos'},		--center.  technically could be a 'realN'
+			{type='real', name='volume'},	--volume of the cell
+			-- meshsolver-specific:
+			{type='int', name='faceOffset'},
+			{type='int', name='faceCount'},
+			{type='int', name='vtxOffset'},
+			{type='int', name='vtxCount'},
+		},
+	}
+	meshcellStruct:makeType()
+	meshcell_t = meshcellStruct.metatype
+	--]=]
+end
 
-local cell_t = Struct{
-	name = 'cell_t',
-	dontUnion = true,
-	vars = {
-		{type='real3', name='pos'},		--center.  technically could be a 'realN'
-		{type='real', name='volume'},	--volume of the cell
-		{type='int', name='faceOffset'},
-		{type='int', name='faceCount'},
-		{type='int', name='vtxOffset'},
-		{type='int', name='vtxCount'},
-	},
-}
---]=]
-
-
-local function new_face_t(solver)
-	local face = solver.coord.faceStruct.metatype()
+local function new_meshface_t(solver)
+	local face = meshface_t()
 	face.pos:set(0,0,0)
 	face.normal:set(0,0,0)
 	face.normal2:set(0,0,0)
@@ -65,11 +85,12 @@ local function new_face_t(solver)
 	face.cells:set(-1, -1)
 	face.vtxOffset = 0
 	face.vtxCount = 0
+	face.boundaryMethodIndex = 0
 	return face
 end
 
-local function new_cell_t(solver)
-	local cell = solver.coord.cellStruct.metatype()
+local function new_meshcell_t(solver)
+	local cell = meshcell_t()
 	cell.pos:set(0,0,0)
 	cell.faceOffset = 0
 	cell.faceCount = 0
@@ -79,15 +100,20 @@ local function new_cell_t(solver)
 end
 
 
-
 local Mesh = class()
 
 function Mesh:init(solver)
+	allocateTypes(solver)
+	
 	self.solver = solver
 
 	self.vtxs = vector'real3'
-	self.faces = vector(solver.coord.face_t)
-	self.cells = vector(solver.coord.cell_t)
+	-- face_t and cell_t haven't been fully defined
+	-- so how about here instead we fill in a temporary structure with minimal info,
+	-- then let the solver fully define these structs / any custom vars,
+	-- and then copy the minimal structs over into the full structs?
+	self.faces = vector'meshface_t'
+	self.cells = vector'meshcell_t'
 	self.cellFaceIndexes = vector'int'
 	self.cellVtxIndexes = vector'int'
 	self.faceVtxIndexes = vector'int'
@@ -265,10 +291,14 @@ local function polyhedronCOM(volume, faces)
 	return com / volume
 end
 
+--[[
+find a face whose vertexes are the specified indexes
+returns nil if none is found
 
--- ... values are 0-based vertex indexes
--- returns a 0-based index
-function Mesh:addFaceForVtxs(...)
+... values are 0-based vertex indexes
+returns a 0-based index
+--]]
+function Mesh:findFaceForVtxs(...)
 	local n = select('#', ...)
 		
 	if self.solver.dim == 2 then
@@ -314,10 +344,23 @@ function Mesh:addFaceForVtxs(...)
 			end
 		end
 	end
+end
 
-	local fi = #self.faces
+--[[
+find a face or create a new face
+
+... values are 0-based vertex indexes
+returns a 0-based index
+--]]
+function Mesh:addFaceForVtxs(...)
+	local fi = self:findFaceForVtxs(...)
+	if fi then return fi end
+
+	local n = select('#', ...)
+	fi = #self.faces
 	
-	self.faces:push_back(new_face_t(self.solver))
+	-- this is crashing for cylinder mesh for some reason
+	self.faces:push_back(new_meshface_t(self.solver))
 	local f = self.faces:back()
 	
 	f.vtxOffset = #self.faceVtxIndexes
@@ -341,7 +384,9 @@ function Mesh:addFaceForVtxs(...)
 		f.area = deltaLen
 		--TODO calculate normal correctly for n=3
 		-- however now we would have to consider extrinsic curvature
-		f.normal = self.real3(deltaY / deltaLen, -deltaX / deltaLen, 0)
+		-- TODO I set this as d=cellb-cella to FIX a bug in the NACA 0012 airfoil edu2d mesh.
+		-- So don't change this without verifying that it works.
+		f.normal = self.real3(-deltaY / deltaLen, deltaX / deltaLen, 0)
 	elseif self.solver.dim == 3 then
 		for i=0,n-1 do
 			local i2 = (i+1)%n
@@ -415,7 +460,7 @@ Mesh.times = {}
 function Mesh:addCell(vis)
 local startTime = getTime()	
 	local ci = #self.cells
-	self.cells:push_back(new_cell_t(self.solver))
+	self.cells:push_back(new_meshcell_t(self.solver))
 	local c = self.cells:back()
 Mesh.times['creating cell'] = (Mesh.times['creating cell'] or 0) + getTime() - startTime
 
@@ -432,6 +477,7 @@ Mesh.times['adding vtx indexes'] = (Mesh.times['adding vtx indexes'] or 0) + get
 	c.faceOffset = #self.cellFaceIndexes
 	if self.solver.dim == 2 then
 -- [[ this block takes up 95% of the time of this whole function
+-- and now it's crashing
 local startTime = getTime()	
 		--face is a 1-form
 		for i=1,n do
@@ -473,7 +519,7 @@ local startTime = getTime()
 				
 				--if face area is zero then don't add it to cell's faces
 				-- and don't use it later for determining cell's volume
-				if f.area <= 1e-7 then
+				if f.area <= faceAreaEpsilon then
 				else
 					self.cellFaceIndexes:push_back(fi)
 
@@ -510,10 +556,14 @@ function Mesh:calcAux()
 		if a ~= -1 and b ~= -1 then
 			local cella = self.cells.v[a]
 			local cellb = self.cells.v[b]
-			local dx = cella.pos.x - cellb.pos.x
-			local dy = cella.pos.y - cellb.pos.y
-			local dz = cella.pos.z - cellb.pos.z
-			if f.area <= 1e-7 then
+			-- TODO I set this as d=cellb-cella to FIX a bug in the NACA 0012 airfoil edu2d mesh.
+			-- So don't change this without verifying that it works.
+			-- I know the edu2d code jumps through  more hoops to determine normal direction.
+			-- Does this normal direction run in all meshes? Or should I also jump through those extra hoops?
+			local dx = cellb.pos.x - cella.pos.x
+			local dy = cellb.pos.y - cella.pos.y
+			local dz = cellb.pos.z - cella.pos.z
+			if f.area <= faceAreaEpsilon then
 				f.normal = vec3d(dx,dy,dz):normalize()
 			end
 			local nDotDelta = f.normal.x * dx + f.normal.y * dy + f.normal.z * dz
@@ -541,7 +591,7 @@ function Mesh:calcAux()
 			local dx = cella.pos.x - f.pos.x
 			local dy = cella.pos.y - f.pos.y
 			local dz = cella.pos.z - f.pos.z
-			if f.area <= 1e-7 then
+			if f.area <= faceAreaEpsilon then
 				f.normal = vec3d(dx,dy,dz):normalize()
 			end
 			f.cellDist = math.sqrt(dx*dx + dy*dy + dz*dz) * 2

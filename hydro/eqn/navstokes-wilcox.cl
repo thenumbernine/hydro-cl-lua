@@ -134,6 +134,23 @@ static inline real calc_Cs(constant <?=solver_t?> const * const solver, <?=prim_
 	return sqrt((R_over_C_v + 1.) * (W)->PStar / (W)->rhoBar);
 }
 
+static inline real calc_Cs_fromCons(
+	constant <?=solver_t?> const * const solver,
+	global <?=cons_t?> const * const U,
+	real3 const pt
+) {
+	// in order to calculate PStar, you have to calculate over half the primitive values
+	real3 const vTilde = real3_real_mul((U)->rhoBar_vTilde, 1. / (U)->rhoBar);
+	real const vTildeSq = coordLenSq(vTilde, pt);
+	real const rhoBar_eIntTilde = (U)->rhoBar_eTotalTilde - .5 * (U)->rhoBar * vTildeSq - (U)->rhoBar_k;
+	real const rhoBar_TTilde = rhoBar_eIntTilde / solver->C_v;
+	real const PBar = rhoBar_TTilde * solver->gasConstant;
+	real const PStar = PBar + 2./3. * (U)->rhoBar_k;
+
+	return sqrt(
+		(R_over_C_v + 1.) * PStar / (U)->rhoBar);
+}
+
 //// MODULE_NAME: <?=applyInitCondCell?>
 //// MODULE_DEPENDS: <?=cartesianToCoord?> <?=consFromPrim?>
 
@@ -171,7 +188,7 @@ end
 		.omega = 0,
 		.ePot = ePot,
 	};
-	<?=consFromPrim?>(UBuf + index, solver, &W, x);
+	<?=consFromPrim?>(U, solver, &W, x);
 }
 
 //// MODULE_NAME: <?=fluxFromCons?>
@@ -181,33 +198,33 @@ end
 	/*<?=cons_t?> * const */resultFlux,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */U,\
-	/*real3 const */x,\
+	/*<?=cell_t?> const * const */cell,\
 	/*<?=normal_t?> const */n\
 ) {\
 	<?=prim_t?> W;\
-	<?=primFromCons?>(&W, solver, U, x);\
-	real const vTilde_j = W.vTilde.s[n.side];\
+	<?=primFromCons?>(&W, solver, U, (cell)->pos);\
+	real const vTilde_n = normal_vecDotN1(n, W.vTilde);\
 	\
 	/* this is the flux term used, but is it technically called 'HTotal' ? */\
 	/* 'HTotal' = rhoBar (1/2 vTilde^2 + (1 - 2/3/gamma_1) k) + 1/gamma_1 PStar ... + PStar */\
 	/* 'HTotal' = rhoBar (1/2 vTilde^2 + (1 - 2/3 C_v/R) k) + (1 + C_v/R) PStar */\
 	/* 'hTotal' = 1/2 vTilde^2 + (1 - 2/3 C_v/R) k + (1 + C_v/R) PStar / rhoBar */\
 	real const HTotal = (U)->rhoBar_eTotalTilde + W.PStar;\
-	\
+\
 	(resultFlux)->rhoBar = (U)->rhoBar_vTilde.s[n.side];\
-	(resultFlux)->rhoBar_vTilde = real3_real_mul((U)->rhoBar_vTilde, vTilde_j);\
-	\
+	(resultFlux)->rhoBar_vTilde = real3_real_mul((U)->rhoBar_vTilde, vTilde_n);\
+\
 	if (false) {}\
 <? for side=0,2 do --\
 ?>	else if (n.side == <?=side?>) {\
 <? for i=0,2 do --\
-?>	(resultFlux)->rhoBar_vTilde.s<?=i?> += coord_g_uu<?=i?><?=side?>(x) * W.PStar;\
+?>	(resultFlux)->rhoBar_vTilde.s<?=i?> += coord_g_uu<?=i<side and i..side or side..i?>((cell)->pos) * W.PStar;\
 <? end --\
 ?>	}\
 <? end --\
-?>	(resultFlux)->rhoBar_eTotalTilde = HTotal * vTilde_j;\
-	(resultFlux)->rhoBar_k = 0;\
-	(resultFlux)->rhoBar_omega = 0;\
+?>	(resultFlux)->rhoBar_eTotalTilde = HTotal * vTilde_n;\
+	(resultFlux)->rhoBar_k = (U)->rhoBar_k * vTilde_n;\
+	(resultFlux)->rhoBar_omega = (U)->rhoBar_omega * vTilde_n;\
 	(resultFlux)->ePot = 0;\
 }
 
@@ -238,15 +255,17 @@ end
 //// MODULE_DEPENDS: <?=primFromCons?>
 
 #define <?=eigen_forInterface?>(\
-	/*<?=eigen_t?> * const */result,\
+	/*<?=eigen_t?> * const */resultEig,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */UL,\
 	/*<?=cons_t?> const * const */UR,\
-	/*real3 const */x,\
+	/*<?=cell_t?> const * const */cellL,\
+	/*<?=cell_t?> const * const */cellR,\
+	/*real3 const */pt,\
 	/*<?=normal_t?> const */n\
 ) {\
 	<?=prim_t?> WL;\
-	<?=primFromCons?>(&WL, solver, UL, x);\
+	<?=primFromCons?>(&WL, solver, UL, (cellL)->pos);\
 	real const sqrtRhoL = sqrt(WL.rhoBar);\
 	real3 const vTildeL = WL.vTilde;\
 	real const hTotalL = (WL.PStar + (UL)->rhoBar_eTotalTilde) / (UL)->rhoBar - (UL)->ePot;\
@@ -254,7 +273,7 @@ end
 	real const omegaL = WL.omega;\
 \
 	<?=prim_t?> WR;\
-	<?=primFromCons?>(&WR, solver, UR, x);\
+	<?=primFromCons?>(&WR, solver, UR, (cellR)->pos);\
 	real const sqrtRhoR = sqrt(WR.rhoBar);\
 	real3 const vTildeR = WR.vTilde;\
 	real const hTotalR = (WR.PStar + (UR)->rhoBar_eTotalTilde) / (UR)->rhoBar - (UR)->ePot;\
@@ -264,19 +283,19 @@ end
 	real const invDenom = 1./(sqrtRhoL + sqrtRhoR);\
 	\
 	/* Roe-averaged */\
-	(result)->rhoBar = sqrtRhoL * sqrtRhoR;\
-	(result)->vTilde = real3_add(\
+	(resultEig)->rhoBar = sqrtRhoL * sqrtRhoR;\
+	(resultEig)->vTilde = real3_add(\
 		real3_real_mul(vTildeL, sqrtRhoL * invDenom),\
 		real3_real_mul(vTildeR, sqrtRhoR * invDenom));\
-	(result)->hTotal = invDenom * (sqrtRhoL * hTotalL + sqrtRhoR * hTotalR);\
+	(resultEig)->hTotal = invDenom * (sqrtRhoL * hTotalL + sqrtRhoR * hTotalR);\
 	/* I'm making this part up: */\
-	(result)->k = invDenom * (sqrtRhoL * kL + sqrtRhoR * kR);\
-	(result)->omega = invDenom * (sqrtRhoL * omegaL + sqrtRhoR * omegaR);\
+	(resultEig)->k = invDenom * (sqrtRhoL * kL + sqrtRhoR * kR);\
+	(resultEig)->omega = invDenom * (sqrtRhoL * omegaL + sqrtRhoR * omegaR);\
 \
 	/* derived: */\
-	(result)->vTildeSq = coordLenSq((result)->vTilde, x);\
-	\
-/*	\
+	(resultEig)->vTildeSq = coordLenSq((resultEig)->vTilde, pt);\
+\
+/*\
 rhoBar eIntTilde = rhoBar eTotalTilde - 1/2 rhoBar vTilde^2 - rhoBar k - rhoBar ePot\
 rhoBar TTilde C_v = rhoBar eIntTilde\
 rhoBar TTilde = 1/C_v ( rhoBar eTotalTilde - 1/2 rhoBar vTilde^2 - rhoBar k - rhoBar ePot )\
@@ -290,10 +309,10 @@ rhoBar eTotalTilde = rhoBar (hTotalTilde + ePot) - PStar\
 \
 Cs^2 = (R/C_v+1) PStar / rhoBar\
 Cs^2 = R/C_v (hTotalTilde - 1/2 vTilde^2 - (1 - 2/3 C_v/R) k)\
-*/	\
-	real const eKinTilde = .5 * (result)->vTildeSq;\
-	real const CsSq = R_over_C_v * ((result)->hTotal - eKinTilde - (result)->k) + 2./3. * (result)->k;\
-	(result)->Cs = sqrt(CsSq);\
+*/\
+	real const eKinTilde = .5 * (resultEig)->vTildeSq;\
+	real const CsSq = R_over_C_v * ((resultEig)->hTotal - eKinTilde - (resultEig)->k) + 2./3. * (resultEig)->k;\
+	(resultEig)->Cs = sqrt(CsSq);\
 }
 
 <?
@@ -342,7 +361,7 @@ for side=0,2 do
 
 	local gUdef = "\treal3 gUj = _real3(\n"
 	for i=0,2 do
-		gUdef = gUdef .. "\t\tcoord_g_uu"..side..i.."(pt)"..(i<2 and "," or "").."\n"
+		gUdef = gUdef .. "\t\tcoord_g_uu"..(i < side and i..side or side..i).."(pt)"..(i<2 and "," or "").."\n"
 	end
 	gUdef = gUdef .. "\t);\n"
 	prefix = gUdef .. prefix
@@ -351,7 +370,7 @@ end
 ?>
 
 //// MODULE_NAME: <?=eigen_leftTransform?>
-//// MODULE_DEPENDS: <?=coord_g_uu?> <?=coord_g_uu_ij?> <?=coord_sqrt_g_uu_ij?> <?=coord_lower?> <?=waves_t?> 
+//// MODULE_DEPENDS: <?=waves_t?> <?=eigen_t?> <?=coord_g_uu?> <?=coord_g_uu_ij?> <?=coord_sqrt_g_uu_ij?> <?=coord_lower?>
 
 #define <?=eigen_leftTransform?>(\
 	/*<?=waves_t?> * const */result,\
@@ -500,7 +519,7 @@ end
 }
 
 //// MODULE_NAME: <?=eigen_rightTransform?>
-//// MODULE_DEPENDS: <?=coord_g_uu?> <?=coord_g_uu_ij?> <?=coord_sqrt_g_uu_ij?> <?=coord_lower?> <?=waves_t?> 
+//// MODULE_DEPENDS: <?=waves_t?> <?=eigen_t?> <?=coord_g_uu?> <?=coord_g_uu_ij?> <?=coord_sqrt_g_uu_ij?> <?=coord_lower?>
 
 #define <?=eigen_rightTransform?>(\
 	/*<?=cons_t?> const * const */result,\
@@ -616,13 +635,14 @@ end
 }
 
 //// MODULE_NAME: <?=eigen_fluxTransform?>
+//// MODULE_DEPENDS: <?=eigen_t?>
 
 static inline void <?=eigen_fluxTransform?>(
 	<?=cons_t?> const * const result,
 	constant <?=solver_t?> const * const solver,
 	<?=eigen_t?> eig,
 	<?=cons_t?> X,
-	real3 pt,
+	<?=cell_t?> const * const cell,
 	<?=normal_t?> n
 ) {
 	if (n.side == 0) {
@@ -748,23 +768,23 @@ static inline void <?=eigen_fluxTransform?>(
 // used by PLM
 
 #define <?=eigen_forCell?>(\
-	/*<?=eigen_t?> const * const */result,\
+	/*<?=eigen_t?> const * const */resultEig,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */U,\
-	/*real3 const */pt,\
+	/*<?=cell_t?> const * const */cell,\
 	/*<?=normal_t?> const */n\
 ) {\
 	<?=prim_t?> W;\
-	<?=primFromCons?>(&W, solver, U, pt);\
-	(result)->rhoBar = W.rhoBar;\
-	(result)->vTilde = W.vTilde;\
-	(result)->k = W.k;\
-	(result)->omega = W.omega;\
-	(result)->vTildeSq = coordLenSq(W.vTilde, pt);\
-	(result)->hTotal = (W.PStar + (U)->rhoBar_eTotalTilde) / (U)->rhoBar - (U)->ePot;\
-	real const eKinTilde = .5 * (result)->vTildeSq;\
-	real const CsSq = R_over_C_v * ((result)->hTotal - eKinTilde) + 2./3. * W.k;\
-	(result)->Cs = sqrt(CsSq);\
+	<?=primFromCons?>(&W, solver, U, (cell)->pos);\
+	(resultEig)->rhoBar = W.rhoBar;\
+	(resultEig)->vTilde = W.vTilde;\
+	(resultEig)->k = W.k;\
+	(resultEig)->omega = W.omega;\
+	(resultEig)->vTildeSq = coordLenSq(W.vTilde, (cell)->pos);\
+	(resultEig)->hTotal = (W.PStar + (U)->rhoBar_eTotalTilde) / (U)->rhoBar - (U)->ePot;\
+	real const eKinTilde = .5 * (resultEig)->vTildeSq;\
+	real const CsSq = R_over_C_v * ((resultEig)->hTotal - eKinTilde) + 2./3. * W.k;\
+	(resultEig)->Cs = sqrt(CsSq);\
 }
 
 //// MODULE_NAME: <?=addSource?>
@@ -781,7 +801,7 @@ kernel void <?=addSource?>(
 	global <?=cons_t?> * const deriv = derivBuf + index;
 	global <?=cons_t?> const * const U = UBuf + index;
 
-<? if not require "hydro.coord.cartesian".is(solver.coord) then ?>
+<? if not require "hydro.coord.cartesian":isa(solver.coord) then ?>
 	/* connection coefficient source terms of covariant derivative w/contravariant velocity vectors in a holonomic coordinate system */
 	<?=prim_t?> W;
 	<?=primFromCons?>(&W, solver, U, x);

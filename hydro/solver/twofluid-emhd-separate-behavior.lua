@@ -72,7 +72,7 @@ local function TwoFluidEMHDBehavior(parent)
 			self.maxwell,
 		}
 		
-		self.displayVars = table():append(self.solvers:map(function(solver) return solver.displayVars end):unpack())
+		self.displayVars = table():append(self.solvers:mapi(function(solver) return solver.displayVars end):unpack())
 		
 		-- make names unique so that stupid 1D var name-matching code doesn't complain
 		self.solverForDisplayVars = table()
@@ -95,7 +95,7 @@ local function TwoFluidEMHDBehavior(parent)
 		-- only used by createCodePrefix
 		self.coord = self.ion.coord
 		self.eqn = {
-			numStates = self.solvers:map(function(solver) return solver.eqn.numStates end):sum(),
+			numStates = self.solvers:mapi(function(solver) return solver.eqn.numStates end):sum(),
 			numIntStates = 0,	-- hmm, nothing should be using this anyways ...
 			numWaves = 0,	-- nor this ..
 			getTypeCode = function()
@@ -193,7 +193,7 @@ local function TwoFluidEMHDBehavior(parent)
 
 		local lines = table{
 			'// TwoFluidEMHDSeparateBehavior:replaceSourceKernels() end',
-			self.modules:getCodeAndHeader(self.sharedModulesEnabled:keys():unpack()),
+			self.modules:getCodeAndHeader(self.sharedModulesEnabled:keys():sort():unpack()),
 --			self.eqn:getTypeCode(),
 
 			'#define eps0 '..clnumber(eps0),
@@ -283,7 +283,7 @@ kernel void addSource_maxwell(
 	function templateClass:callAll(name, ...)
 		local args = setmetatable({...}, table)
 		args.n = select('#',...)
-		return self.solvers:map(function(solver)
+		return self.solvers:mapi(function(solver)
 			return solver[name](solver, args:unpack(1, args.n))
 		end):unpack()
 	end

@@ -31,10 +31,13 @@ then CLBuffer update fromCPU:
 local Struct = class()
 
 function Struct:init(args)
-	self.app = assert(assert(args.solver).app)
 	self.name = assert(args.name)
 	self.vars = table(args.vars)
 	self.dontUnion = args.dontUnion
+	self.dontMakeUniqueName = args.dontMakeUniqueName
+	if not self.dontMakeUniqueName then
+		self.app = assert(assert(args.solver).app)
+	end
 end
 
 -- TODO make this static
@@ -63,7 +66,6 @@ function Struct:makeType()
 	-- if it matches any, use the old typecode, typename, and metatype
 	-- otherwise generate a new one
 
-	local app = assert(self.app)
 	local codeWithoutTypename = self:getTypeCodeWithoutTypeName()
 
 -- new issue with multi-solvers and modules
@@ -71,6 +73,7 @@ function Struct:makeType()
 -- which I can't communicate just yet
 -- so in the mean time, I'll just disable this for now
 --[=[
+	local app = assert(self.app)
 	app.typeInfoForCode = app.typeInfoForCode or {}
 	local info = app.typeInfoForCode[codeWithoutTypename]
 	if info then
@@ -97,7 +100,11 @@ function Struct:makeType()
 
 	-- TODO no more uniqueName and typename ~= name .. instead force names to be unique
 	-- and make them unique before passing them in by appending the lua object uid or something
-	self.typename = app:uniqueName(self.name)
+	if self.dontMakeUniqueName then
+		self.typename = self.name
+	else
+		self.typename = assert(self.app):uniqueName(self.name)
+	end
 	do
 		local typecode = codeWithoutTypename .. ' ' .. self.typename .. ';'
 		if self.typecode then
@@ -158,7 +165,7 @@ function Struct:makeType()
 	end)
 	if not status then error(err) end
 
-	local sizeOfFields = table.map(struct.vars, function(field)
+	local sizeOfFields = table.mapi(struct.vars, function(field)
 		local name = field.name
 		local ctype = field.type
 		return ffi.sizeof(ctype)

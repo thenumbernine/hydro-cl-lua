@@ -164,7 +164,7 @@ function BSSNOKFiniteDifferenceEquation:getEnv()
 		symmath.tostring = symmath.export.MathJax
 		symmath.tostring.useCommaDerivative = true
 
-		coords = Tensor.coords()[1].variables
+		coords = self.solver.coord.symchart.coords
 		local coordNames = table.mapi(coords, function(coord) return coord.name end)
 
 		outfile = assert(io.open(symdir..'/math.html', 'w'))
@@ -172,7 +172,7 @@ function BSSNOKFiniteDifferenceEquation:getEnv()
 		local idnum = 1
 		local function convertSingle(arg)
 			local s = tostring(arg)
-			if symmath.Expression.is(arg) then
+			if symmath.Expression:isa(arg) then
 				local carToCoord = {
 					x = coordNames[1],
 					y = coordNames[2],
@@ -254,7 +254,7 @@ function BSSNOKFiniteDifferenceEquation:getEnv()
 			-- (unless a subsequent assignment is nil)
 			-- but otherwise, subsequent assignments don't call __newindex
 			-- unless the vlues are read/written to a separate table
-			if symmath.Expression.is(v) then
+			if symmath.Expression:isa(v) then
 				recordedAssignments:insert(k)
 			end
 			rawset(t,k,v)
@@ -307,7 +307,7 @@ function BSSNOKFiniteDifferenceEquation:getEnv()
 			if with == nil then error("couldn't find "..name) end
 		end
 		if type(with) == 'number' then with = symmath.Constant(with) end
-		assert(symmath.Expression.is(with), "not an expression")
+		assert(symmath.Expression:isa(with), "not an expression")
 		return '\treal '..name..' = '..compile(with)..';'
 	end
 	
@@ -489,10 +489,10 @@ assert(env.assignRepls)
 	-- TODO fix this in symmath
 	local oldFactorDivision = symmath.factorDivision
 	function symmath.factorDivision(expr, ...)
-		if Tensor.is(expr) then
+		if Tensor:isa(expr) then
 			return Tensor(expr.variance, function(...)
 				local x = oldFactorDivision(expr[{...}]())
-				if symmath.op.add.is(x) then
+				if symmath.op.add:isa(x) then
 					for i=1,#x do
 						x[i] = x[i]()
 					end
@@ -501,7 +501,7 @@ assert(env.assignRepls)
 			end)
 		else
 			local x = oldFactorDivision(expr)
-			if symmath.op.add.is(x) then
+			if symmath.op.add:isa(x) then
 				for i=1,#x do
 					x[i] = x[i]()
 				end
@@ -540,7 +540,7 @@ time('building symbolic math env', function()
 		-- otherwise using e or eu incorrectly will result in extra operations
 
 	printbr'gammaHat_ll'
-		gammaHat_ll = solver.coord:applyReplVars(Tensor.metric().metric)
+		gammaHat_ll = solver.coord:applyReplVars(solver.coord.symchart.metric)
 	printbr(gammaHat_ll)
 	printbr'e'
 		e = solver.coord:applyReplVars(Tensor('_i^I', function(i,j)
@@ -1648,7 +1648,7 @@ error'move the code gen to the cl file module'
 		local gamma0_ll = initCond.gamma0_ll
 		local K0_ll = initCond.K0_ll
 
-		local gammaHat_ll = Tensor.metric().metric
+		local gammaHat_ll = self.solver.coord.symchart.metric
 		local det_gammaHat = Matrix.determinant(gammaHat_ll)
 		local det_gammaBar = det_gammaHat 	-- TODO make this constraint a function
 		local det_gamma0 = Matrix.determinant(gamma0_ll)

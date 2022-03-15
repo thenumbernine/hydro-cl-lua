@@ -67,7 +67,7 @@ TwoFluidEMHD.consVars = table{
 	{name='phi', type='real', units='C/m^2'},							-- div D potential
 	{name='psi', type='real', units='kg/(C*s)'},						-- div B potential
 
-	--extra	
+	--extra, used for selfgrav
 	{name='ePot', type='real', units='m^2/s^2'},
 }
 
@@ -183,7 +183,7 @@ function TwoFluidEMHD:createInitState()
 		{name='sqrt_mu', value=math.sqrt(vacuumPermittivity), units='(kg m)^.5/C'},
 		{name='sqrt_eps', value=math.sqrt(vacuumPermeability), units='(C*s)/(kg*m^3)^.5'},
 	
-	}:append(self.fluids:map(function(fluid)
+	}:append(self.fluids:mapi(function(fluid)
 		return table{
 			{name='min_'..fluid..'_rho', value=1e-4},
 			{name='min_'..fluid..'_P', value=1e-4},
@@ -194,14 +194,6 @@ end
 -- don't use default
 function TwoFluidEMHD:initCodeModule_fluxFromCons() end
 function TwoFluidEMHD:initCodeModule_consFromPrim_primFromCons() end
-
-function TwoFluidEMHD:getModuleDepends_waveCode()
-	return {
-		'units',
-		self.symbols.primFromCons,
-		self.symbols.coord_lower,
-	}
-end
 
 --[=[
 function TwoFluidEMHD:initCodeModule_calcDTCell()
@@ -270,6 +262,7 @@ function TwoFluidEMHD:getEnv()
 	env.real_mul = scalar..'_real_mul'
 	env.sqrt = scalar..'_sqrt'
 	env.abs = scalar..'_abs'
+	env.fluids = self.fluids
 	return env
 end
 
@@ -289,12 +282,6 @@ TwoFluidEMHD.predefinedDisplayVars = {
 	'U ePot',
 	'U gravity',
 }
-
-function TwoFluidEMHD:getModuleDepends_displayCode()
-	return TwoFluidEMHD.super.getModuleDepends_displayCode(self):append{
-		self.gravOp.symbols.calcGravityAccel,
-	}
-end
 
 function TwoFluidEMHD:getDisplayVars()
 	local vars = TwoFluidEMHD.super.getDisplayVars(self)
@@ -338,49 +325,53 @@ function TwoFluidEMHD:getDisplayVars()
 	vars:append{
 		{
 			name = 'EField',
-			code = self:template[[	value.vreal3 = calc_EField(solver, U);]],
+			code = 'value.vreal3 = calc_EField(solver, U);',
 			type = 'real3',
 			units = '(kg*m)/(C*s)',
 		},
 		{
 			name = 'HField',
-			code = self:template[[	value.vreal3 = calc_HField(solver, U);]],
+			code = 'value.vreal3 = calc_HField(solver, U);',
 			type = 'real3',
 			units = 'C/(m*s)',
 		},
 		{
-			name = 'SField',
-			code = self:template[[	value.vreal3 = real3_cross(calc_EField(solver, U), calc_HField(solver, U));]], 
+			name = 'SField',	-- S Poynting, not S entropy
+			code = 'value.vreal3 = calc_SField(solver, U);', 
 			type = 'real3',
 			units = 'kg/s^3',
-		},
-		{
-			name = 'gravity',
-			code = self:template[[
-	if (!<?=OOB?>(1,1)) {
-		<?=eqn.gravOp.symbols.calcGravityAccel?>(&value.vreal3, solver, U, x);
-	}
-]],
-			type='real3', 
-			units='m/s^2',
-		},
-		{
-			name = 'EPot',
-			code = 'value.vreal = calc_rho_from_U(U) * U->ePot;', 
-			units='kg/(m*s^2)',
 		},
 		{
 			name = 'EM energy',
 			code = 'value.vreal = calc_EM_energy(solver, U, x);',
 			units = 'kg/(m*s^2)'
 		},
-	}:append(table{'D', 'B'}:map(function(field, i)
+	}:append(table{'D', 'B'}:mapi(function(field)
 		local field = assert( ({D='D', B='B'})[field] )
 		return self:createDivDisplayVar{field=field, units=({
 			D = 'C/m^3',
 			B = 'kg/(C*m*s)',
 		})[field]}
 	end))
+	
+	vars:append{
+		{
+			name = 'EPot',
+			code = 'value.vreal = calc_rho_from_U(U) * U->ePot;', 
+			units='kg/(m*s^2)',
+		},
+		{
+			name = 'gravity',
+			code = self:template[[
+if (!<?=OOB?>(1,1)) {
+//// MODULE_DEPENDS: <?=calcGravityAccel?>
+	<?=calcGravityAccel?>(&value.vreal3, solver, U, x);
+}
+]],
+			type='real3', 
+			units='m/s^2',
+		},
+	}
 
 	return vars
 end
@@ -401,21 +392,17 @@ end
 
 TwoFluidEMHD.eigenVars = eigenVars
 
-function TwoFluidEMHD:eigenWaveCodePrefix(n, eig, x)
+function TwoFluidEMHD:eigenWaveCodePrefix(args)
 	return self:template([[
-<? for i,fluid in ipairs(eqn.fluids) do ?>
-real const <?=fluid?>_Cs_nLen = <?=eig?>-><?=fluid?>_Cs * normal_len(<?=n?>);
-real const <?=fluid?>_v_n = normal_vecDotN1(n, <?=eig?>-><?=fluid?>_v);
+<? for i,fluid in ipairs(fluids) do ?>
+real const <?=fluid?>_Cs_nLen = (<?=eig?>)-><?=fluid?>_Cs * normal_len(<?=n?>);
+real const <?=fluid?>_v_n = normal_vecDotN1(<?=n?>, (<?=eig?>)-><?=fluid?>_v);
 <? end ?>
-]], {
-		x = x,
-		eig = '('..eig..')',
-		fluids = self.fluids,
-		n = n,
-	})
+]], args)
 end
 
-function TwoFluidEMHD:eigenWaveCode(n, eig, x, waveIndex)
+function TwoFluidEMHD:eigenWaveCode(args)
+	local waveIndex = args.waveIndex
 	for i,fluid in ipairs(self.fluids) do
 		if waveIndex == 0 + 5 * (i-1) then
 			return self:template('<?=fluid?>_v_n - <?=fluid?>_Cs_nLen', {fluid=fluid})
@@ -443,13 +430,35 @@ function TwoFluidEMHD:eigenWaveCode(n, eig, x, waveIndex)
 	error('got a bad waveIndex: '..waveIndex)
 end
 
+function TwoFluidEMHD:consWaveCodePrefix(args)
+	return self:template([[
+<? for i,fluid in ipairs(fluids) do ?>
+real const <?=fluid?>_Cs_nLen = calc_<?=fluid?>_Cs_fromCons(solver, <?=U?>, <?=pt?>) * normal_len(<?=n?>);
+real const <?=fluid?>_v_n = normal_vecDotN1(<?=n?>, (<?=U?>)-><?=fluid?>_m) / (<?=U?>)-><?=fluid?>_v;
+<? end ?>
+]], args)
+end
+
+-- as long as U or eig isn't used, we can use this for both implementations
+TwoFluidEMHD.consWaveCode = TwoFluidEMHD.eigenWaveCode
+
 --TODO timestep restriction
 -- 2014 Abgrall, Kumar eqn 2.25
 -- dt < sqrt( E_alpha,i / rho_alpha,i) * |lHat_r,alpha| sqrt(2) / |E_i + v_alpha,i x B_i|
-function TwoFluidEMHD:consWaveCodePrefix(n, U, x)
+function TwoFluidEMHD:consWaveCodeMinMaxAllSidesPrefix(args)
 	return self:template([[
 <?=prim_t?> W;
-<?=primFromCons?>(&W, solver, <?=U?>, <?=x?>);
+<?=primFromCons?>(&W, solver, <?=U?>, <?=pt?>);
+
+<? for _,fluid in ipairs(eqn.fluids) do
+?>real const <?=fluid?>_Cs = calc_<?=fluid?>_Cs(solver, &W);
+<? end
+?>]], args)
+end
+
+function TwoFluidEMHD:consWaveCodeMinMaxAllSides(args)
+	return self:template([[
+real const nLen = normal_len(<?=n?>);
 
 <? if eqn.implicitEMIntegration then 	--ignoring EM wavespeed	?>	
 real consWaveCode_lambdaMax = -INFINITY;
@@ -466,26 +475,17 @@ real consWaveCode_lambdaMax = max(
 real consWaveCode_lambdaMin = -consWaveCode_lambdaMax;
 
 <? for _,fluid in ipairs(eqn.fluids) do
-?>	real <?=fluid?>_Cs = calc_<?=fluid?>_Cs(solver, &W);
-real <?=fluid?>_Cs_nLen = <?=fluid?>_Cs * normal_len(<?=n?>);
-consWaveCode_lambdaMin = min(consWaveCode_lambdaMin, normal_vecDotN1(n, W.<?=fluid?>_v) - <?=fluid?>_Cs_nLen);
-consWaveCode_lambdaMax = max(consWaveCode_lambdaMax, normal_vecDotN1(n, W.<?=fluid?>_v) + <?=fluid?>_Cs_nLen);
+?>real const <?=fluid?>_Cs_nLen = <?=fluid?>_Cs * nLen;
+consWaveCode_lambdaMin = min(consWaveCode_lambdaMin, normal_vecDotN1(<?=n?>, W.<?=fluid?>_v) - <?=fluid?>_Cs_nLen);
+consWaveCode_lambdaMax = max(consWaveCode_lambdaMax, normal_vecDotN1(<?=n?>, W.<?=fluid?>_v) + <?=fluid?>_Cs_nLen);
 <? end
 ?>
 
-]], {
-		n = n,
-		U = '('..U..')',
-		x = x,
-	})
-end
-
-function TwoFluidEMHD:consMinWaveCode(n, U, x)
-	return 'consWaveCode_lambdaMin'
-end
-
-function TwoFluidEMHD:consMaxWaveCode(n, U, x)
-	return 'consWaveCode_lambdaMax'
+<?=eqn:waveCodeAssignMinMax(
+	declare, resultMin, resultMax,
+	'consWaveCode_lambdaMin',
+	'consWaveCode_lambdaMax')?>
+]], args)
 end
 
 return TwoFluidEMHD

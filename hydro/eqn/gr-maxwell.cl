@@ -54,13 +54,13 @@ void <?=applyInitCondCell?>(
 }
 
 
-//// MODULE_NAME: fluxFromCons
+//// MODULE_NAME: <?=fluxFromCons?>
 
-#error this is out of date, should be made with <?=normal_t?>, then moved to fluxFromCons
-<?=cons_t?> fluxFromCons(
+#error this is out of date, should be made with <?=normal_t?>, and should probably get rid of getADMArgs() somehow
+<?=cons_t?> <?=fluxFromCons?>(
 	constant <?=solver_t?> const * const solver,
 	<?=cons_t?> const U,
-	real3 const x,
+	<?=cell_t?> const * const cell,
 	<?=normal_t?> const n<?=
 	solver:getADMArgs()?>
 ) {
@@ -95,9 +95,9 @@ void <?=applyInitCondCell?>(
 	};
 }
 
-//// MODULE_NAME: fluxFromCons
+//// MODULE_NAME: <?=calcCellMinMaxEigenvalues?>
 
-<?=range_t?> calcCellMinMaxEigenvalues(
+<?=range_t?> <?=calcCellMinMaxEigenvalues?>(
 	global <?=cons_t?> const * const U,
 	real3 const x<?=
 	solver:getADMArgs()?>
@@ -123,17 +123,18 @@ void <?=applyInitCondCell?>(
 
 //TODO HLL needs eigen_forInterface 
 //but it would have to pass the extra ADM args into it
-/*
-<? for side=0,solver.dim-1 do ?>
-<?=eigen_t?> eigen_forInterface(
-	<?=cons_t?> UL,
-	<?=cons_t?> UR,
-	real3 x,
-	real3 n
-) {
-}
-<? end ?>
-*/
+#if 0
+#define eigen_forInterface(\
+	/*<?=eigen_t?> * const */resultEig,\
+	/*constant <?=solver_t?> const * const */solver,\
+	/*<?=cons_t?> const * const */UL,\
+	/*<?=cons_t?> const * const */UR,\
+	/*<?=cell_t?> const * const */cellL,\
+	/*<?=cell_t?> const * const */cellR,\
+	/*real3 const */pt,\
+	/*<?=normal_t?> const */n\
+)
+#endif
 
 #error calcEigenBasis has been removed, and eigen_t structs are now calculated inline ... soooo ... convert this to something compatible
 kernel void calcEigenBasis(
@@ -153,9 +154,9 @@ kernel void calcEigenBasis(
 	real det_gammaR3 = det_gammaR * det_gammaR2;
 
 	<? for side=0,solver.dim-1 do ?>{
-		const int side = <?=side?>;
+		int const side = <?=side?>;
 		
-		int indexL = index - solver->stepsize.s<?=side?>;
+		int const indexL = index - solver->stepsize.s<?=side?>;
 		
 		<?=solver:getULRCode()?>
 		
@@ -164,12 +165,12 @@ kernel void calcEigenBasis(
 		real det_gammaL2 = det_gammaL * det_gammaL;
 		real det_gammaL3 = det_gammaL * det_gammaL2;
 		
-		int indexInt = side + dim * index;	
+		int const indexInt = side + dim * index;	
 		real3 xInt = x;
 		xInt.s<?=side?> -= .5 * solver->grid_dx.s<?=side?>;
 		
 		global <?=eigen_t?>* eig = eigenBuf + indexInt;
-		//*eig = eigen_forInterface(*UL, *UR, xInt, normalForSide<?=side?>());
+		//*eig = eigen_forInterface(eig, solver, UL, UR, cellL, cellR, xInt, normalForSide<?=side?>());
 		eig->eps = .5 * (UL->eps + UR->eps);
 		eig->mu = .5 * (UL->mu + UR->mu);
 		real alpha = .5 * (alphaL + alphaR);
@@ -320,13 +321,15 @@ x,  y,  z, z,  y,  x
 	return UY;
 }
 
-//// MODULE_NAME: eigen_fluxTransform
+//// MODULE_NAME: <?=eigen_fluxTransform?>
 
-<?=cons_t?> eigen_fluxTransform(
+void <?=eigen_fluxTransform?>(
+	<?=cons_t?> * const result,
 	constant <?=solver_t?> const * const solver,
 	<?=eigen_t?> const eig,
 	<?=cons_t?> const UX,
-	real3 const x
+	<?=cell_t?> const * const cell,
+	<?=normal_t?> const n
 ) {
 	//swap input dim x<->side
 	real3 const D = UX.D;
@@ -334,9 +337,8 @@ x,  y,  z, z,  y,  x
 	real const ieps = 1. / eig.eps;
 	real const imu = 1. / eig.mu;
 
-	<?=cons_t?> UY;
 	real const * const X = UX.ptr;
-	real * const Y = UY.ptr;
+	real * const Y = result->ptr;
 
 	<? if side==0 then ?>
 	
@@ -368,8 +370,6 @@ x,  y,  z, z,  y,  x
 	<? end ?>
 
 	Y[6] = 0.;
-
-	return UY;
 }
 
 //// MODULE_NAME: <?=addSource?>
@@ -385,18 +385,18 @@ kernel void <?=addSource?>(
 	deriv->D = real3_sub(deriv->D, real3_real_mul(U->D, 1. / U->eps * U->sigma));
 }
 
-//// MODULE_NAME: eigen_forCell
+//// MODULE_NAME: <?=eigen_forCell?>
 
 //used by PLM
 
-//TODO FINISHME
-<?=eigen_t?> eigen_forCell(
-	<?=cons_t?> const U,
-	real3 const x
-) {
-	<?=eigen_t?> eig;
-	eig.eps = U.eps;
-	eig.mu = U.mu;
-	//eig.lambda = eig.alpha / sqrt(eig.detg_gUjj / (det_gamma3 * eig.eps * eig.mu));
-	return eig;
+#define <?=eigen_forCell?>(\
+	/*<?=eigen_t?> * const */result,\
+	/*constant <?=solver_t?> const * const */solver,\
+	/*<?=cons_t?> const * const */U,\
+	/*<?=cell_t?> const * const */cell,\
+	/*real3 const */n\
+) {\
+	(result)->eps = U.eps;\
+	(result)->mu = U.mu;\
+	/*(result)->lambda = (result)->alpha / sqrt((result)->detg_gUjj / (det_gamma3 * (result)->eps * (result)->mu));*/\
 }

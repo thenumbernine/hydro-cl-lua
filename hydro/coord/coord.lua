@@ -121,6 +121,9 @@ local template = require 'template'
 local clnumber = require 'cl.obj.number'
 local Struct = require 'hydro.code.struct'
 
+local half = require 'cl.obj.half'
+local fromreal, toreal = half.fromreal, half.toreal
+
 local common = require 'hydro.common'
 local xNames = common.xNames
 local symNames = common.symNames
@@ -146,37 +149,12 @@ args:
 function CoordinateSystem:init(args)
 	-- put all unique code module names here
 	require 'hydro.code.symbols'(self, {
-		'cell_area_i',
-		'cell_dx_i',
-		'cell_volume',
-		'cell_sqrt_det_g',
 		'coord_dx_i',
-		'coord_det_g',
-		'coord_sqrt_det_g',
 		'coord_lower',
 		'coord_raise',
 		'coordLenSq',
 		'coordLen',
-		'coord_tr23_c',
-		'coord_conn_lll',
-		'coord_conn_ull',
-		'coord_conn_apply12',
-		'coord_conn_apply13',
-		'coord_conn_apply23',
-		'coord_conn_apply123',
-		'coord_conn_trace12',
-		'coord_conn_trace13',
-		'coord_conn_trace23',
-		'coord_partial_det_g',
-		'coord_partial2_det_g',
 		'coord_holBasisLen_i',
-		'coord_g_ll_ij',
-		'coord_g_uu_ij',
-		'coord_sqrt_g_uu_ij',
-		'coord_sqrt_g_ll_ij',
-		'coord_g_ll',
-		'coord_g_uu',
-		'coord_gHol_ll',
 		'coordMap',
 		'coordMapR',
 		'coordMapInv',
@@ -188,10 +166,62 @@ function CoordinateSystem:init(args)
 		'cartesianToCoord',
 		'coord_parallelPropagate',
 		'normal_t',
+		
+		'coord_tr23_c',
+		
+		'coord_g_ll',
+		'coord_g_ll_ij',
+		'coord_g_uu',
+		'coord_g_uu_ij',
+		'coord_sqrt_g_uu',
+		'coord_sqrt_g_uu_ij',
+		'coord_sqrt_g_ll',
+		'coord_sqrt_g_ll_ij',
+		'coord_det_g',
+		'coord_sqrt_det_g',
+		'coord_partial_det_g',
+		'coord_partial2_det_g',
+		'coord_partial_g_lll',
+		'coord_conn_lll',
+		'coord_conn_ull',
+		'coord_conn_apply12',
+		'coord_conn_apply13',
+		'coord_conn_apply23',
+		'coord_conn_apply123',
+		'coord_conn_trace12',
+		'coord_conn_trace13',
+		'coord_conn_trace23',
+
+		'coord_gHol_ll',
+		'coord_gHol_uu',
+		'coord_det_gHol',
+		'coord_sqrt_gHol_ll',
+		'coord_sqrt_gHol_ll_ij',
+		'coord_partial_det_gHol_l',
+		'coord_partial2_det_gHol_ll',
+		'coord_partial_gHol_lll',
+		'coord_connHol_lll',
+		'coord_connHol_ull',
+		'coord_connHol_trace23',
+		
+		'cell_area_i',
+		'cell_dx_i',
+		'cell_volume',
+		'cell_sqrt_det_g',	-- seems that, when this is used, it would most often be used with gHol...
+		'cell_calcAvg_withPt',
 	})
 
-	self.solver = assert(args.solver)
+	local solver = assert(args.solver)
+	self.solver = solver
+	
+	-- these are for replacing one expression with another
+	-- it's useful for simplifying calculations, especially complex ones involving derivatives.  just perform the derivatives separately and replace them later.
 	self.repls = self.repls or table()
+	
+	-- these are for replacing values, especially dynamic values.
+	-- compile your expressions with variables matching #defines in CL code.
+	-- then, if you want to evaluate them, you can use this, but it isn't done as often as using 'repls'.
+	self.replDefines = self.replDefines or table()
 
 	local symmath = require 'symmath'
 	local const = symmath.Constant
@@ -213,35 +243,38 @@ assert(args.anholonomic == nil, "coord.anholonomic is deprecated.  instead you s
 	local vars = symmath.vars
 	local Matrix = symmath.Matrix
 	local Tensor = symmath.Tensor
+	local frac = symmath.frac
 
 	local eHolToE = self.eHolToE
 	if not eHolToE then
 		eHolToE = Matrix.identity(3)
 	end
 
+	local tangentSpaceOperators
 	local baseCoords = self.baseCoords
 	if self.vectorComponent == 'holonomic' then
 		self.coords = table(baseCoords)
 	elseif self.vectorComponent == 'anholonomic' then
-		-- TODO this is why symmath needs CAS function objects
-		-- and instead of overriding :applyDiff, just make operators a CAS function object
+		tangentSpaceOperators = table()
 		local nonCoords = table()
 		local nonCoordLinExpr = (eHolToE * Matrix(baseCoords):T())()
 		for i=1,3 do
 			local baseCoord = baseCoords[i]
 			-- the non-coordinate = the coordinate, so use the original variable 
 			if nonCoordLinExpr[i] == baseCoord then
-			-- the non-coordinate ~= the coordinate, so make a new non-coord var and modify its 'applyDiff' function
 				nonCoords[i] = baseCoord
+				tangentSpaceOperators[i] = function(x) return x:diff(baseCoord)() end 
+			
+			-- the non-coordinate ~= the coordinate, so make a new non-coord var
 			else
-				local nonCoord = symmath.var('\\hat{'..baseCoord.name..'}')
-				nonCoord.base = baseCoord
-				function nonCoord:applyDiff(x)
+				nonCoords[i] = symmath.var('\\hat{'..baseCoord.name..'}')
+				
+				tangentSpaceOperators[i] = function(x)
 					local xPartial = symmath.Matrix:lambda({dim, 1}, function(j,_)
 						return x:diff(baseCoords[j])
 					end)
 					local result = Matrix:lambda({1,dim}, function(_,j) 
-						if symmath.Array.is(eHolToE[i][j]) then
+						if symmath.Array:isa(eHolToE[i][j]) then
 							io.stderr:write('eHolToE:\n'..eHolToE..'\n')
 							io.stderr:write('eHolToE['..i..']['..j..']:\n'..eHolToE[i][j]..'\n')
 							error'invalid eHolToE'
@@ -250,12 +283,11 @@ assert(args.anholonomic == nil, "coord.anholonomic is deprecated.  instead you s
 					end) 
 						* xPartial
 					result = result()
-					assert(symmath.Matrix.is(result))
+					assert(symmath.Matrix:isa(result))
 					result = result[1][1]
-					assert(symmath.Expression.is(result) and not symmath.Array.is(result))
+					assert(symmath.Expression:isa(result) and not symmath.Array:isa(result))
 					return result
 				end
-				nonCoords[i] = nonCoord
 			end
 		end
 		self.coords = nonCoords
@@ -276,10 +308,22 @@ assert(args.anholonomic == nil, "coord.anholonomic is deprecated.  instead you s
 
 	local flatMetric = Matrix:lambda({dim, dim}, function(i,j) return i==j and 1 or 0 end)
 	local embedded = self.embedded
+	
+	if self.verbose then
+		print('flatMetric:')
+		print(flatMetric)
+		print('embedded:', table.mapi(embedded, tostring):concat', ')
+	end
 
-	Tensor.coords{
-		{variables=coords},
-		{variables=embedded, symbols='IJKLMN', metric=flatMetric},
+	self.manifold = Tensor.Manifold()
+	self.symchart = self.manifold:Chart{
+		coords = coords,
+		tangentSpaceOperators = tangentSpaceOperators,
+	}
+	self.symEmbeddedChart = self.manifold:Chart{
+		coords = embedded,
+		symbols = 'IJKLMN',
+		metric = function() return flatMetric end,
 	}
 
 	--[[
@@ -301,8 +345,23 @@ assert(args.anholonomic == nil, "coord.anholonomic is deprecated.  instead you s
 
 	local u = self.chart()
 	if self.verbose then
-		print'coordinate chart:'
-		print(var'u''^I':eq(u'^I'()))
+		print()
+		print'point on chart, in embedded coordinates:'
+		print(
+			var'P':eq(
+				var'P''^I' * var'e''_I'
+			):eq(
+				-- hmm, Tensor tostring puts one forms as cols regardless of indexing (should it? maybe I should do rows for lower indexes?)
+				-- while Matrix doesn't show indexes
+				Matrix(
+					u'^I'() 
+				) * Matrix{
+					var'e''_x',
+					var'e''_y',
+					var'e''_z'
+				}:T()
+			)
+		)
 		print()
 	end
 
@@ -317,8 +376,32 @@ assert(args.anholonomic == nil, "coord.anholonomic is deprecated.  instead you s
 		e['_u^I'] = u'^I_,u'()
 	end
 	if self.verbose then
-		print'embedded:'
-		print(var'e''_u^I':eq(var'u''^I_,u'):eq(e'_u^I'()))
+		print(var'e''_I'..'= embedded basis')
+		print(var'e'' _\\tilde{u}'..'$= \\partial_{\\tilde{u}} =$ chart holonomic coordinate basis')
+		print(var'e'' _\\hat{u}'..'= chart anholonomic orthonormal basis')
+		print()
+		print'chart basis, in terms of embedded basis:'
+		print()
+		print(
+			var'e'' _\\hat{u}'
+			:eq(
+				var'e'' _\\hat{u} ^I'
+				* var'e''_I'
+			):eq(
+				--var'P'' ^I _,\\hat{u}'
+				var[[e_{\hat{u}}( P^I )]]
+				* var'e''_I'
+			):eq(
+				e'_u^I'()
+				* Tensor('_I', function(I)
+					return var'e'(' _'..embedded[I].name)
+				end)
+			):eq(
+				Tensor('_u', function(u)
+					return var'e'(' _'..coords[u].name)
+				end)
+			)
+		)
 		print()
 	end
 
@@ -327,70 +410,103 @@ assert(args.anholonomic == nil, "coord.anholonomic is deprecated.  instead you s
 	-- I will need the basis and metric of the holonomic version as well
 	local eHol
 	if self.vectorComponent == 'holonomic' then
+		if self.verbose then
+			print'using holonomic coordinates, so the chart basis operator is equal to the partial derivative operator'
+		end
 		eHol = e
 	else
+		if self.verbose then
+			print'using non-holonomic, so separately evaluating our chart holonomic basis (for stuff like the volume element etc)'
+			print()
+		end
 		eHol = Tensor('_u^I', function(a,I)
 			return u[I]:diff(baseCoords[a])()
 		end)
 		if self.verbose then
-			print'holonomic embedded:'
-			print(var'e''_u^I':eq(var'u''^I_,u'):eq(eHol'_u^I'()))
-			print(var'eHol''_i^j':eq(eHolToE))
+			print()
 		end
+	end
+	if self.verbose then
+		print'chart holonomic basis, in terms of embedded basis:'
+		print()
+		print(
+			var'e'' _\\tilde{u}'
+			:eq(
+				var'e'' _\\tilde{u} ^I'
+				* var'e''_I'
+			):eq(
+				--var'P'' ^I _,\\tilde{u}'
+				var[[e_{\tilde{u}}( P^I )]]
+				* var'e''_I'
+			):eq(
+				eHol' _\\tilde{u} ^I'()
+				* Tensor('_I', function(I)
+					return var'e'(' _'..embedded[I].name)
+				end)
+			):eq(
+				Tensor(' _\\tilde{u}', function(u)
+					return var'e'(' _'..baseCoords[u].name)
+				end)
+			)
+		)
+		print()
+		
+		print'transform from chart holonomic basis to chart anholonomic orthonormal basis:'
+		print()
+		print(var'e'' _\\hat{u} ^\\tilde{v}':eq(eHolToE))
+		print()
+	
+		print'such that'
+		print()
+		print(
+			var'e'' _\\hat{u}'
+			:eq(
+				var'e'' _\\hat{u} ^\\tilde{v}'
+				* var'e'' _\\tilde{v} ^I'
+				* var'e'' _I'
+			):eq(
+				-- eHolToE is a matrix, so ..
+				Tensor(' _\\hat{u} ^\\tilde{v}', table.unpack(eHolToE))
+				* eHol' _\\tilde{v} ^I'()
+				* Tensor('_I', function(I)
+					return var'e'(' _'..embedded[I].name)
+				end)
+			)
+		)
+		print()
 	end
 
 	-- commutation coefficients
-	local c = Tensor'_ab^c'
+	local c = self.symchart.commutation
 	if self.vectorComponent == 'anholonomic' then
 		if self.verbose then
 			print'connection coefficients:'
 			print(var'c''_uv^w' * var'e''_w','$=[ e_u, e_v ]$')
 		end
-		for i,ui in ipairs(coords) do
-			for j,uj in ipairs(coords) do
-				local zeta = var('\\zeta', baseCoords)
-				local diff = ui:applyDiff(uj:applyDiff(zeta)) - uj:applyDiff(ui:applyDiff(zeta))
-				local diffEval = diff()
-				if diffEval ~= const(0) then
-					if self.verbose then
-						print('$[',ui.name,',',uj.name,'] =$',diff:eq(diffEval))
-					end
-					diff = diff()
-					if self.verbose then
-						print('factor division',diff)
-					end
-					local dpsi = table.mapi(baseCoords, function(uk) return zeta:diff(uk) end)
-					if self.verbose then
-						print('dpsi', dpsi:unpack())
-					end
-					local A,b = symmath.factorLinearSystem({diff}, dpsi)
-					-- now extract zeta:diff(uk)
-					-- and divide by e_k to get the correct coefficient
-					-- TODO this assumes that e_a is only a function of partial_a
-					-- if e_a is a linear combination of e_a^b partial_b then you can work it out to find
-					-- c_ab^d = (e^-1)_c^d (e_a^r e_b^c_,r - e_b^r e_a^c_,r)
-					-- TODO put this somewhere else so everyone can use it
-					assert(b[1][1] == const(0))
-					for k,uk in ipairs(coords) do
-						local coeff = (A[1][k] * dpsi[k] / uk:applyDiff(zeta))()
-						-- assert dphi is nowhere in coeff ...
-						c[i][j][k] = coeff 
-					end
-				end
-			end
-		end
 	end
 	if self.verbose then
 		print'commutation:'
-		print(var'c''_uv^w':eq(c'_uv^w'()))
+		print()
+		print(var'c'' _\\hat{u} _\\hat{v} ^\\hat{w}':eq(c' _\\hat{u} _\\hat{v} ^\\hat{w}'()))
+		print()
 	end
 
 	local g = (e'_u^I' * e'_v^J' * eta'_IJ')()
 	if self.verbose then
-		print'metric:'
-		print(var'g''_uv':eq(var'e''_u^I' * var'e''_v^J' * var'\\eta''_IJ'):eq(g'_uv'()))
+		print'metric:'	-- anholonomic if requested
+		print()
+		print(
+			var'g'' _\\hat{u} _\\hat{v}':eq(
+				var'e'' _\\hat{u} ^I' 
+				* var'e'' _\\hat{v} ^J' 
+				* var'\\eta''_IJ'
+			):eq(
+				g' _\\hat{u} _\\hat{v}'()
+			)
+		)
+		print()
 	end
-	Tensor.metric(g)
+	self.symchart:setMetric(g)
 	
 	
 	-- code generation
@@ -404,7 +520,7 @@ assert(args.anholonomic == nil, "coord.anholonomic is deprecated.  instead you s
 		local codetype = type(code)
 		if codetype == 'string' then
 			if code ~= '0.' then
-				print(name..' = '..code)
+				print(name..' = <pre style="display:inline">'..code..'</pre>')
 			end
 		elseif codetype == 'table' then
 			for i=1,#code do
@@ -418,11 +534,11 @@ self.printNonZero = printNonZero
 
 	--compile a tensor of expressions to a nested table of codes
 	local function compileTensor(expr)
-		if symmath.Array.is(expr) then
+		if symmath.Array:isa(expr) then
 			return table.mapi(expr, function(expri) 
 				return compileTensor(expri)
 			end)
-		elseif symmath.Expression.is(expr) then
+		elseif symmath.Expression:isa(expr) then
 			return self:compile(expr)
 		elseif type(expr) == 'number' then
 			return clnumber(expr)
@@ -448,7 +564,7 @@ self.compilePrintRequestTensor = compilePrintRequestTensor
 	self.calc = {}
 	self.request = function(name)
 		if not self.cached[name] then 
-			local build = self.calc[name]
+			local build = self.calc[name].build
 			if not build then
 				error("requested calculation of '"..name.."' but couldn't find it")
 			end
@@ -457,179 +573,401 @@ self.compilePrintRequestTensor = compilePrintRequestTensor
 		return self.cached[name]
 	end
 
+	--[[
+	self.calc[moduleName] = {
+		many = true,
+		{
+			field = (optional) key to self.request(), and also the name of the generated function. default is moduleName.
+			build = function that generates / returns the Expression
+			result = result type / used for depends.
+			args = (optional) input args of generated function.
+			define = (optional) use #define in code def instead of function
+		},
+	}
+	or don't set many=true and just have a single entry
+	--]]
 
 	-- u is used to project the grid for displaying
-	self.calc.u = function()
-		return u
-	end
+	-- TODO rename to P, right, that's a convention of sorts, right?
+	self.calc.u = {
+		build = function()
+			return u
+		end,
+	}
 
 	-- extend 'e' to full R3 
 	-- TODO should I do this from the start?
 	-- just provide the full R3 coordinates, and make no 'eExt' struct?
-	self.calc.eExt = function()
-		return symmath.Array:lambda({dim, dim}, function(i,j)
-			return e[i][j] or const(0)
-		end)
-	end
+	self.calc.eExt = {
+		build = function()
+			return symmath.Array:lambda({dim, dim}, function(i,j)
+				return e[i][j] or const(0)
+			end)
+		end,
+	}
 
-	self.calc.eHolLen = function()
-		return range(#eHol):mapi(function(i)
-			return symmath.sqrt(
-				range(#eHol):mapi(function(j)
-					return eHol[i][j]^2
-				end):sum()
-			)()
-		end)
-	end
+	self.calc.coord_holBasisLen = {
+		build = function()
+			return range(#eHol):mapi(function(i)
+				return symmath.sqrt(
+					range(#eHol):mapi(function(j)
+						return eHol[i][j]^2
+					end):sum()
+				)()
+			end)
+		end,
+	}
 
-	self.calc.eHolUnitExt = function()
-		local eHolLen = self.request'eHolLen'
-		return symmath.Array:lambda({dim, dim}, function(i,j)
-			return (eHol[i][j] / eHolLen[i])()
-		end)
-	end
+	self.calc.eHolUnitExt = {
+		build = function()
+			local eHolLen = self.request'coord_holBasisLen'
+			return symmath.Array:lambda({dim, dim}, function(i,j)
+				return (eHol[i][j] / eHolLen[i])()
+			end)
+		end,
+	}
 
-	self.calc.eExtLen = function()
-		return self.request'eExt':mapi(function(ei,i)
-			return symmath.sqrt(ei:mapi(function(x) return x^2 end):sum())()
-		end)
-	end
-	
-	self.calc.eExitUnit = function()
-		local eExtLen = self.request'eExtLen'
-		return eExt:mapi(function(ei,i)
-			return ei:mapi(function(eij) return (eij/eExtLen[i])() end)
-		end)
-	end
+	self.calc.eExtLen = {
+		build = function()
+			return self.request'eExt':mapi(function(ei,i)
+				return symmath.sqrt(ei:mapi(function(x) return x^2 end):sum())()
+			end)
+		end,
+	}
+
+	self.calc.eExitUnit = {
+		build = function()
+			local eExtLen = self.request'eExtLen'
+			return eExt:mapi(function(ei,i)
+				return ei:mapi(function(eij) return (eij/eExtLen[i])() end)
+			end)
+		end,
+	}
+
+	-- g_ij
+	self.calc.coord_g_ll = {
+		build = function()
+			return g
+		end,
+		result = 'sym3',
+	}
+
+	-- g^ij
+	self.calc.coord_g_uu = {
+		build = function()
+			local g = self.request'coord_g_ll'
+			return Tensor('^ab', table.unpack((Matrix.inverse(g))))
+		end,
+		result = 'sym3',
+	}
+
+	-- sqrt(g^ij)
+	self.calc.coord_sqrt_g_uu = {
+		build = function()
+			local gU = self.request'coord_g_uu'
+			return Tensor('^ab', function(a,b) return symmath.sqrt(gU[a][b])() end)
+		end,
+		result = 'sym3',
+	}
+
+	-- sqrt(g_ij)
+	self.calc.coord_sqrt_g_ll = {
+		build = function()
+			local g = self.request'coord_g_ll'
+			return Tensor('_ab', function(a,b) return symmath.sqrt(g[a][b])() end)
+		end,
+		result = 'sym3',
+	}
+
+	-- det(g_ij)
+	self.calc.coord_det_g = {
+		build = function()
+			local g = self.request'coord_g_ll'
+			return symmath.Matrix.determinant(g)
+		end,
+		result = 'real',
+	}
+
+	-- sqrt(det(g_ij))
+	self.calc.coord_sqrt_det_g = {
+		build = function()
+			return symmath.sqrt(self.request'coord_det_g')()
+		end,
+		result = 'real',
+	}
+
+	-- det(g)_,i
+	self.calc.coord_partial_det_g = {
+		build = function()
+			return Tensor('_a', function(a)
+				return self.symchart.tangentSpaceOperators[a](self.request'coord_det_g')()
+			end)
+		end,
+		result = 'real3',
+	}
+
+	-- det(g)_,ij
+	self.calc.coord_partial2_det_g = {
+		build = function()
+			return self.request'coord_partial_det_g''_a,b'()
+		end,
+		result = 'sym3',
+	}
 
 	-- v^k v_k
-	self.calc.coordLenSq = function()
-		return (paramU'^a' * paramU'_a')()
-	end
+	self.calc.coordLenSq = {
+		build = function()
+			return (paramU'^a' * paramU'_a')()
+		end,
+		args = 'real3',
+		result = 'real',
+	}
 
 	-- v^k v_k
-	self.calc.coordLen = function()
-		return symmath.sqrt(self.request'coordLenSq')()
-	end
+	self.calc.coordLen = {
+		build = function()
+			return symmath.sqrt(self.request'coordLenSq')()
+		end,
+		args = 'real3',
+		result = 'real',
+	}
 
 	-- v^k -> v_k
-	self.calc.coord_lower = function()
-		return paramU'_a'()
-	end
+	self.calc.coord_lower = {
+		build = function()
+			return paramU'_a'()
+		end,
+		args = 'real3',
+		result = 'real3',
+	}
 
 	-- v^k -> v_k
-	self.calc.coord_raise = function()
-		return paramU'_a'()
-	end
+	self.calc.coord_raise = {
+		build = function()
+			return paramU'_a'()
+		end,
+		args = 'real3',
+		result = 'real3',
+	}
 
 	-- c_ab^b
-	self.calc.coord_tr23_c = function()
-		local tr23_c = c'_ab^b'()
-		if self.verbose then
-			print(var'c''_ab^b':eq(tr23_c))
-		end
-		return tr23_c
-	end
+	self.calc.coord_tr23_c = {
+		build = function()
+			local tr23_c = c'_ab^b'()
+			if self.verbose then
+				print(var'c''_ab^b':eq(tr23_c))
+			end
+			return tr23_c
+		end,
+		result = 'real3',
+	}
 
-	self.calc.dg = function()
-		local dg = Tensor'_cab'
-		dg['_cab'] = g'_ab,c'()
-		if self.verbose then
-			print'metric partial:'
-			print(var'g''_ab,c':eq(dg'_cab'()))
-		end
-		return dg
-	end
+	self.calc.coord_partial_g_lll = {
+		build = function()
+			local g = self.request'coord_g_ll'
+			local dg = g'_ab,c'():permute'_cab'
+			if self.verbose then
+				print()
+				print'metric partial:'	-- anholonomic if requested
+				print(var'g'' _\\hat{a} _\\hat{b} _,\\hat{c}':eq(dg' _\\hat{c} _\\hat{a} _\\hat{b}'()))
+				print()
+			end
+			return dg
+		end,
+		result = '_3sym3',
+	}
 
-	self.calc.coord_conn_lll = function()
-		local dg = self.request'dg'
-		local Gamma_lll = Tensor'_abc'
-		Gamma_lll['_abc'] = ((dg'_cab' + dg'_bac' - dg'_abc' + c'_abc' + c'_acb' - c'_bca') / 2)()
-		if self.verbose then
-			print'1st kind Christoffel:'
-			print(var'\\Gamma''_abc':eq(symmath.op.div(1,2)*(var'g''_ab,c' + var'g''_ac,b' - var'g''_bc,a' + var'c''_abc' + var'c''_acb' - var'c''_bca')):eq(Gamma_lll'_abc'()))
-		end
-		return Gamma_lll
-	end
+	-- Levi-Civita unique metric-cancelling torsion-free connection for a basis that is a linear transform of a coordinate basis
+	self.calc.coord_conn_lll = {
+		build = function()
+			local dg = self.request'coord_partial_g_lll'
+			local Gamma_lll = ((dg'_cab' + dg'_bac' - dg'_abc' + c'_abc' + c'_acb' - c'_bca') / 2)():permute'_abc'
+			if self.verbose then
+				print'1st kind Christoffel:'	-- anholonomic if requested
+				print(
+					var'\\Gamma'' _\\hat{a} _\\hat{b} _\\hat{c}':eq(
+						frac(1,2)*(
+							var'g'' _\\hat{a} _\\hat{b} _,\\hat{c}' 
+							+ var'g'' _\\hat{a} _\\hat{c} _,\\hat{b}' 
+							- var'g'' _\\hat{b} _\\hat{c} _,\\hat{a}' 
+							+ var'c'' _\\hat{a} _\\hat{b} _\\hat{c}' 
+							+ var'c'' _\\hat{a} _\\hat{c} _\\hat{b}' 
+							- var'c'' _\\hat{b} _\\hat{c} _\\hat{a}'
+						)
+					):eq(Gamma_lll' _\\hat{a} _\\hat{b} _\\hat{c}'())
+				)
+			end
+			return Gamma_lll
+		end,
+		result = '_3sym3',
+	}
 
-	self.calc.coord_conn_ull = function()
-		local Gamma_lll = self.request'coord_conn_lll'
-		local Gamma_ull = Tensor'^a_bc'
-		Gamma_ull['^a_bc'] = Gamma_lll'^a_bc'()
-		if self.verbose then
-			print'connection:'
-			print(var'\\Gamma''^a_bc':eq(var'g''^ad' * var'\\Gamma''_dbc'):eq(Gamma_ull'^a_bc'()))
-		end
-		return Gamma_ull
-	end
+	self.calc.coord_conn_ull = {
+		build = function()
+			--local g = self.request'coord_g_ll'
+			local Gamma_lll = self.request'coord_conn_lll'
+			local Gamma_ull = (g'^ad' * Gamma_lll'_dbc')():permute'^a_bc'
+			if self.verbose then
+				print'connection:'	-- anholonomic if requested
+				print(var'\\Gamma'' ^\\hat{a} _\\hat{b} _\\hat{c}':eq(
+					var'g'' ^\\hat{a} ^\\hat{d}' 
+					* var'\\Gamma'' _\\hat{d} _\\hat{b} _\\hat{c}'
+				):eq(Gamma_ull' ^\\hat{a} _\\hat{b} _\\hat{c}'()))
+			end
+			return Gamma_ull
+		end,
+		result = '_3sym3',
+	}
 
 	-- u^j v^k Conn_jk^i(x)
-	self.calc.coord_conn_apply12 = function()
-		local Gamma_lll = self.request'coord_conn_lll'
-		return (paramU'^b' * paramV'^c' * Gamma_lll'_bc^a')()
-	end
+	self.calc.coord_conn_apply12 = {
+		build = function()
+			local Gamma_lll = self.request'coord_conn_lll'
+			return (paramU'^b' * paramV'^c' * Gamma_lll'_bc^a')()
+		end,
+		args = 'real3_real3',
+		result = 'real3',
+	}
 
 	-- u^j v^k Conn_j^i_k(x)
-	self.calc.coord_conn_apply13 = function()
-		local Gamma_lll = self.request'coord_conn_lll'
-		return (paramU'^b' * paramV'^c' * Gamma_lll'_b^a_c')()
-	end
+	self.calc.coord_conn_apply13 = {
+		build = function()
+			local Gamma_lll = self.request'coord_conn_lll'
+			return (paramU'^b' * paramV'^c' * Gamma_lll'_b^a_c')()
+		end,
+		args = 'real3_real3',
+		result = 'real3',
+	}
 
 	-- Conn^i_jk(x) u^j v^k
-	self.calc.coord_conn_apply23 = function()
-		local Gamma_ull = self.request'coord_conn_ull'
-		return (Gamma_ull'^a_bc' * paramU'^b' * paramV'^c')()
-	end
+	self.calc.coord_conn_apply23 = {
+		build = function()
+			local Gamma_ull = self.request'coord_conn_ull'
+			return (Gamma_ull'^a_bc' * paramU'^b' * paramV'^c')()
+		end,
+		args = 'real3_real3',
+		result = 'real3',
+	}
 
 	-- u^i v^j b^k Conn_ijk(x)
-	self.calc.coord_conn_apply123 = function()
-		local Gamma_lll = self.request'coord_conn_lll'
-		return (paramU'^a' * paramV'^b' * paramW'^c' * Gamma_lll'_abc')()
-	end
+	self.calc.coord_conn_apply123 = {
+		build = function()
+			local Gamma_lll = self.request'coord_conn_lll'
+			return (paramU'^a' * paramV'^b' * paramW'^c' * Gamma_lll'_abc')()
+		end,
+		args = 'real3_real3_real3',
+		result = 'real',
+	}
 
-	-- sqrt(g)_,i / sqrt(g) - c_ij^j = Conn^j_ji
-	self.calc.coord_conn_trace12 = function()
-		local Gamma_ull = self.request'coord_conn_ull'
-		return (Gamma_ull'^b_ba')()
-	end
+	-- sqrt(g)_,i / sqrt(g) - c_ij^j = Conn^j_ij - c_ij^j = Conn^j_ji
+	self.calc.coord_conn_trace12 = {
+		build = function()
+			local Gamma_ull = self.request'coord_conn_ull'
+			return (Gamma_ull'^b_ba')()
+		end,
+		result = 'real3',
+	}
 
 	-- sqrt(g)_,i / sqrt(g) = Conn^j_ij
-	self.calc.coord_conn_trace13 = function()
-		local Gamma_ull = self.request'coord_conn_ull'
-		return Gamma_ull'^b_ab'()
-	end
+	self.calc.coord_conn_trace13 = {
+		build = function()
+			local Gamma_ull = self.request'coord_conn_ull'
+			return Gamma_ull'^b_ab'()
+		end,
+		result = 'real3',
+	}
 
 	-- Conn^i = Conn^i_jk g^jk
-	self.calc.coord_conn_trace23 = function()
-		local Gamma_ull = self.request'coord_conn_ull'
-		return (Gamma_ull'^a_b^b')()
-	end
+	self.calc.coord_conn_trace23 = {
+		build = function()
+			local gU = self.request'coord_g_uu'
+			local Gamma_ull = self.request'coord_conn_ull'
+			return (Gamma_ull'^a_bc' * gU'^bc')()
+		end,
+		result = 'real3',
+	}
 
-	self.calc.gHol = function() 
-		if self.vectorComponent == 'holonomic' then
-			return g
-		else
-			local gHol = (eHol'_u^I' * eHol'_v^J' * eta'_IJ')()
-			if self.verbose then
-				print'holonomic metric:'
-				print(var'gHol''_uv':eq(var'eHol''_u^I' * var'eHol''_v^J' * var'\\eta''_IJ'):eq(gHol'_uv'()))
+	self.calc.coord_gHol_ll = {
+		build = function() 
+			if self.vectorComponent == 'holonomic' then
+				return g
+			else
+				local gHol = (eHol'_u^I' * eHol'_v^J' * eta'_IJ')()
+				if self.verbose then
+					print()
+					print'holonomic metric:'
+					print()
+					print(
+						var'g'' _\\tilde{u} _\\tilde{v}':eq(
+							var'e'' _\\tilde{u} ^I' 
+							* var'e'' _\\tilde{v} ^J' 
+							* var'\\eta''_IJ'
+						):eq(
+							gHol'_uv'()
+						)
+					)
+					print()
+				end
+				return gHol
 			end
-			return gHol
-		end
-	end
+		end,
+		result = 'sym3',
+	}
+
+	self.calc.coord_gHol_uu = {
+		build = function()
+			local gHol = self.request'coord_gHol_ll'
+			return Tensor('^ab', table.unpack((Matrix.inverse(gHol))))
+		end,
+		result = 'sym3',
+	}
+
+	self.calc.coord_det_gHol = {
+		build = function()
+			local gHol = self.request'coord_gHol_ll'
+			return symmath.Matrix.determinant(gHol)
+		end,
+		result = 'real',
+	}
 
 	-- not really a tensor.
 	-- dx is the change across the grid
 	-- therefore it is based on the holonomic metric
-	self.calc.lenExprs = function()
-		local gHol = self.request'gHol'
-		return Tensor('_i', function(i)
-			local dir = Tensor('^a', function(a) return a==i and 1 or 0 end)
-			local lenSqExpr = (dir'^a' * dir'^b' * gHol'_ab')()
-			local lenExpr = symmath.sqrt(lenSqExpr)()
-			return lenExpr
-		end)
-	end
+	self.calc.coord_dx = {
+		build = function()
+			local gHol = self.request'coord_gHol_ll'
+			return Tensor('_i', function(i)
+				local dir = Tensor('^a', function(a) return a==i and 1 or 0 end)
+				local lenSqExpr = (dir'^a' * dir'^b' * gHol'_ab')()
+				local lenExpr = symmath.sqrt(lenSqExpr)()
+				return lenExpr
+			end)
+		end,
+	}
+
+	-- this is a 2-point tensor though
+	-- TODO just use self.eToEHol?
+	self.calc.eToEHol = {
+		build = function()
+			local lenExprs = self.request"coord_dx"
+			local e = Tensor("_i^I", 
+				{lenExprs[1], 0, 0},
+				{0, lenExprs[2], 0},
+				{0, 0, lenExprs[3]})
+			return e
+		end,
+	}
+
+	self.calc.eHolToE = {
+		build = function()
+			local lenExprs = self.request"coord_dx"
+			local eInv = Tensor("^i_I", 
+				{1/lenExprs[1], 0, 0},
+				{0, 1/lenExprs[2], 0},
+				{0, 0, 1/lenExprs[3]})
+			return eInv 
+		end,
+	}
 
 	local integralGridDx = range(dim):mapi(function(i)
 		return symmath.var('solver->grid_dx.'..xNames[i])
@@ -637,162 +975,403 @@ self.compilePrintRequestTensor = compilePrintRequestTensor
 	local integralArgs = table()
 	for i=1,dim do
 		local u = self.baseCoords[i]
-		integralArgs:insert(u - .5 * integralGridDx[i])
-		integralArgs:insert(u + .5 * integralGridDx[i])
+		integralArgs:insert(u - frac(1,2) * integralGridDx[i])
+		integralArgs:insert(u + frac(1,2) * integralGridDx[i])
+	end
+
+	-- replace the long variable names with math symbols
+	if self.verbose then
+		function self.fixVerbose(expr)
+			return expr
+				:replace(integralGridDx[1], var'\\Delta x_1')
+				:replace(integralGridDx[2], var'\\Delta x_2')
+				:replace(integralGridDx[3], var'\\Delta x_3')
+		end
+	else
+		function self.fixVerbose(...) return ... end
 	end
 
 	-- area of the side in each direction
-	self.calc.coord_area_exprs = function()
-		local lenExprs = self.request'lenExprs'
-		return symmath.Array:lambda({dim}, function(i)
-			local area = const(1)
-			for j=1,dim do
-				if j ~= i then
-					area = area * lenExprs[j]
+	self.calc.cell_area = {
+		build = function()
+			local lenExprs = self.request'coord_dx'
+			return symmath.Array:lambda({dim}, function(i)
+				local area = const(1)
+				for j=1,dim do
+					if j ~= i then
+						area = area * lenExprs[j]
+					end
 				end
-			end
-			area = area()
+				area = area()
 
-			for j=1,dim do
-				if j ~= i then
-					local u = self.baseCoords[j]
-					local uL, uR = integralArgs[2*j-1], integralArgs[2*j]
-					area = self:applyReplVars(area)	-- just because of sphere-sinh-radial, insert repls beforehand
-					area = area:integrate(u, uL, uR)()
+				for j=1,dim do
+					if j ~= i then
+						local u = self.baseCoords[j]
+						local uL, uR = integralArgs[2*j-1], integralArgs[2*j]
+						area = self:applyReplVars(area)	-- just because of sphere_sinh_radial, insert repls beforehand
+						area = area:integrate(u, uL, uR)()
+					end
 				end
-			end
 
-			if self.verbose then
-				print(var'area'('_'..i):eq(area))
-			end
+				if self.verbose then
+					print(var'area'('_'..i):eq(self.fixVerbose(area)))
+				end
 
-			-- TODO add in extra code function parameters
-			return area
-		end)
-	end
-
-	self.calc.volume = function()
-		local gHol = self.request'gHol'
-		local lenExprs = self.request'lenExprs'
-		local volume = const(1)
-		for j=1,dim do
-			volume = volume * lenExprs[j]
-		end
-		local volumeSq = (volume^2)()
-		local gHolDet = Matrix.determinant(gHol)()
-		if volumeSq ~= gHolDet then
-			print('gHolDet')
-			print(gHolDet)
-			print('volumeSq')
-			print(volumeSq)
-			error'these should be the same'
-		end
-		for j=1,dim do
-			local u = self.baseCoords[j]
-			local uL, uR = integralArgs[2*j-1], integralArgs[2*j]
---print('volume was', volume)
---print('integrating', u, 'from', uL, 'to', uR)
-			volume = self:applyReplVars(volume)	-- just because of sphere-sinh-radial, insert repls beforehand
-			volume = volume:integrate(u, uL, uR)()
---print('volume is now', volume)
-		end
-		if self.verbose then
-			print(var'volume':eq(volume))
-			print(var'gHolDet':eq(gHolDet))
-		end
-		return volume
-	end
-
-	self.calc.g = function()
-		return g
-	end
-
-	self.calc.gU = function()
-		local g = self.request'g'
-		return Tensor('^ab', table.unpack((Matrix.inverse(g))))
-	end
-
-	self.calc.sqrt_gU = function()
-		local gU = self.request'gU'
-		return Tensor('^ab', function(a,b) return symmath.sqrt(gU[a][b])() end)
-	end
-
-	self.calc.sqrt_g = function()
-		local g = self.request'g'
-		return Tensor('_ab', function(a,b) return symmath.sqrt(g[a][b])() end)
-	end
-
-	self.calc.coord_det_g = function()
-		local g = self.request'g'
-		return symmath.Matrix.determinant(g)
-	end
-
-	self.calc.coord_sqrt_det_g = function()
-		return symmath.sqrt(self.request'coord_det_g')()
-	end
-
-	-- g_,i or gHol_,i?  which am I using? 
-	self.calc.coord_partial_det_g = function()
-		return Tensor('_a', function(a)
-			return coords[a]:applyDiff(self.request'coord_det_g')()
-		end)
-	end
-
-	-- g_,ij
-	self.calc.coord_partial2_det_g = function()
-		return self.request'coord_partial_det_g''_a,b'()
-	end
-
-
-	self:createCellStruct()
-	
-	self.cellStruct:makeType()
-	self.cell_t = self.cellStruct.typename
-	
-	self.faceStruct:makeType()
-	self.face_t = self.faceStruct.typename
-end
-
-function CoordinateSystem:createCellStruct()
---[[
-ok here's a dilemma ...
-gridSolver has cellBuf that holds cell pos and any other aux vars used for cell calculations
-meshsolver has cellBuf that holds cell pos and mesh info
-meshsolver needs to pass 'cellBuf'
-
---]]
-	self.cellStruct = Struct{
-		solver = self.solver,
-		name = 'cell_t',
-		dontUnion = true,
-		vars = {
-			{name='pos', type='real3'},	-- x1 x2 x3 input coordinates to the chart
---[[ should volume always be in cell_t?  or should we use macros that abstract it per-coord?
-			{name='volume', type='real'},	--volume of the cell
---]]		
-		},
+				-- TODO add in extra code function parameters
+				return area
+			end)
+		end,
 	}
-	
-	-- here's the mesh-specific stuff
-	if require 'hydro.solver.meshsolver'.is(assert(self.solver)) then
-		self.cellStruct.vars:append{
--- [[			
-			{name='volume', type='real'},	--volume of the cell
---]]			
-			{name='faceOffset', type='int'},
-			{name='faceCount', type='int'},
-			{name='vtxOffset', type='int'},
-			{name='vtxCount', type='int'},
+
+	self.calc.cell_volume = {
+		build = function()
+			local lenExprs = self.request'coord_dx'
+			local volume = const(1)
+			for j=1,dim do
+				volume = volume * lenExprs[j]
+			end
+			local volumeSq = (volume^2)()
+			local gHolDet = self.request'coord_det_gHol'
+			if volumeSq ~= gHolDet then
+				print('$det(g_{\\tilde{u}\\tilde{v}} =$', gHolDet)
+				print()
+				print('$vol^2 =$', volumeSq)
+				print()
+				error'these should be the same'
+			end
+			
+			for j=1,dim do
+				local u = self.baseCoords[j]
+				local uL, uR = integralArgs[2*j-1], integralArgs[2*j]
+				if self.verbose then
+					print('volume was', self.fixVerbose(volume))
+					print()
+					print('integrating', u, 'from', self.fixVerbose(uL), 'to', self.fixVerbose(uR))
+					print()
+				end
+				volume = self:applyReplVars(volume)	-- just because of sphere_sinh_radial, insert repls beforehand
+				volume = volume:integrate(u, uL, uR)()
+				if self.verbose then
+					print('volume is now', self.fixVerbose(volume))
+				print()
+				end
+			end
+			if self.verbose then
+				print()
+				print(var'vol':eq(self.fixVerbose(volume)))
+				print()
+				print(var'det(g_{\\tilde{u}\\tilde{v}})':eq(gHolDet))
+				print()
+			end
+			return volume
+		end,
+		result = 'real',
+		define = 'with solver arg',	-- anything that references integraGridDx needs to be #define, or needs to add a solver param
+	}
+
+	self.calc.coord_sqrt_gHol_ll = {
+		build = function()
+			local gHol = self.request'coord_gHol_ll'
+			return Tensor('_ab', function(a,b) return symmath.sqrt(gHol[a][b])() end)
+		end,
+		result = 'sym3',
+	}
+
+	self.calc.coord_partial_gHol_lll = {
+		build = function()
+			local gHol = self.request'coord_gHol_ll'
+			local dgHol = gHol'_ab,c'():permute'_cab'
+			if self.verbose then
+				print()
+				print'holonomic metric partial:'
+				print()
+				print(
+					var'g'' _\\tilde{a} _\\tilde{b} _,\\tilde{c}':eq(
+						dgHol' _\\tilde{c} _\\tilde{a} _\\tilde{b}'()
+					)
+				)
+				print()
+			end
+			return dgHol
+		end,
+		result = '_3sym3',
+	}
+
+	self.calc.coord_connHol_lll = {
+		build = function()
+			local dgHol = self.request'coord_partial_gHol_lll'
+			local GammaHol_lll = (frac(1,2) * (dgHol'_cab' + dgHol'_bac' - dgHol'_abc'))():permute'_abc'
+			if self.verbose then
+				print()
+				print'1st kind Christoffel of holonomic basis:'
+				print()
+				print(var'\\Gamma'' _\\tilde{a} _\\tilde{b} _\\tilde{c}':eq(
+					frac(1,2)*(var''' _\\tilde{a} _\\tilde{b} _,\\tilde{c}' 
+					+ var'g'' _\\tilde{a} _\\tilde{c} _,\\tilde{b}' 
+					- var'g'' _\\tilde{b} _\\tilde{c} _,\\tilde{a}')
+				):eq(GammaHol_lll' _\\tilde{a} _\\tilde{b} _\\tilde{c}'()))
+				print()
+			end
+			return GammaHol_lll
+		end,
+		result = '_3sym3',
+	}
+
+	self.calc.coord_connHol_ull = {
+		build = function()
+			local gHolU = self.request'coord_gHol_uu'
+			local GammaHol_lll = self.request'coord_connHol_lll'
+			local GammaHol_ull = (gHolU'^ad' * GammaHol_lll'_dbc')():permute'^a_bc'
+			if self.verbose then
+				print()
+				print'connection:'
+				print()
+				print(
+					var'\\Gamma'' ^\\tilde{a} _\\tilde{b} _\\tilde{c}':eq(
+						var'g'' ^\\tilde{a} ^\\tilde{d}' 
+						* var'\\Gamma'' _\\tilde{d} _\\tilde{b} _\\tilde{c}'
+					):eq(
+						GammaHol_ull' ^\\tilde{a} _\\tilde{b} _\\tilde{c}'()
+					)
+				)
+				print()
+			end
+			return GammaHol_ull
+		end,
+		result = '_3sym3',
+	}
+
+	-- ConnHol^i = ConnHol^i_jk gHol^jk
+	self.calc.coord_connHol_trace23 = {
+		build = function()
+			local gHolU = self.request'coord_gHol_uu'
+			local GammaHol_ull = self.request'coord_connHol_ull'
+			return (GammaHol_ull'^a_bc' * gHolU'^bc')()
+		end,
+		result = 'real3',
+	}
+
+	-- gHol_,i
+	self.calc.coord_partial_det_gHol_l = {
+		build = function()
+			return Tensor('_a', function(a)
+				return self.symchart.tangentSpaceOperators[a](self.request'coord_det_gHol')()
+			end)
+		end,
+		result = 'real3',
+	}
+
+	-- gHol_,ij
+	self.calc.coord_partial2_det_gHol_ll = {
+		build = function()
+			return self.request'coord_partial_det_gHol_l''_a,b'()
+		end,
+		result = 'sym3',
+	}
+
+
+	--[[
+	args:
+		srcname = model to start with, whose build() produces a real3 object
+		subprefix = modules to make for each individual component of it
+			default = srcname (it appends 0,1,2 onto the submodules)
+		dstname = module to make to quick-include all the submodules
+			default = srcname..'_i'
+		define = true/false whether to use #define or functions
+	--]]
+	local function addReal3Components(args)
+		local srcname = assert(args.srcname)
+		local prefix = args.subprefix or srcname
+		local dstname = args.dstname or srcname..'_i'
+
+		-- put the individual elements into requests of their own, for codegen request's sake
+		for i=1,dim do
+			self.calc[prefix..(i-1)] = {
+				build = function()
+					local t = self.request(srcname)
+					local elem = t[i]
+					-- TODO assert elem is Expression but not Array?
+					return elem
+				end,
+			}
+		end
+
+		self.calc[dstname] = table(
+			{many = true},
+			range(dim):mapi(function(i)
+				local field = prefix..(i-1)
+				return {
+					field = field,	-- function name & request tensor name
+					build = function()
+						return self.request(field)
+					end,
+					result = 'real',
+					define = args.define,
+					-- TODO also the defines should go in headercode, not code
+				}
+			end)
+		)
+	end
+
+	-- put all 'coord_dx#'s into one module called 'coord_dx_i'	
+	-- put the individual elements of 'coord_dx' request into requests called 'coord_dx#'
+	-- dx0, dx1, ...
+	-- this is the change in cartesian wrt the change in grid
+	-- this is also the normalization factor for the anholonomic ( ... is it?)
+	addReal3Components{
+		srcname = 'coord_dx',
+		define = true,
+	}
+
+	-- put individual 'cell_area' into their distinct requests
+	-- area0, area1, ...
+	-- area_i = integral of u_j, j!=i of product of dx_j, j!=i
+	addReal3Components{
+		srcname = 'cell_area',
+		define = true,
+	}
+
+	addReal3Components{
+		srcname = 'coord_holBasisLen',
+	}
+
+-- [[
+	-- scale coord_dx by the solver->grid_dx var to get cell_dx:
+	-- TODO use the 'e' and 'eHol' tensors?  then just make this a tensor product?
+	--  and then we could use the 'addReal3Components' to build these all at once?
+	for i=1,dim do
+		self.calc['cell_dx'..(i-1)] = {
+			build = function()
+				return self.request('coord_dx'..(i-1)) * integralGridDx[i]
+			end,
 		}
 	end
 
+	self.calc.cell_dx_i = table(
+		{many=true},
+		range(dim):mapi(function(i)
+			return {
+				field = 'cell_dx'..(i-1),
+				build = function()
+					return self.request('cell_dx'..(i-1))
+				end,
+				result = 'real',
+				define = true,
+			}
+		end)
+	)
+--]]
 
+-- [[
+	-- volume of a cell = volume element times grid dx's 
+	self.calc.cell_sqrt_det_g = {
+		build = function()
+			local coord_sqrt_det_g = self.request'coord_sqrt_det_g'
+			for i=1,dim do
+				coord_sqrt_det_g = coord_sqrt_det_g * integralGridDx[i]
+			end
+			return coord_sqrt_det_g
+		end,
+		result = 'real',
+
+		-- TODO this  macro had a solver arg, but the other #define's (like cell_dx#) didn't
+		-- sooo ... how to specify when to use each?
+		define = 'with solver arg',	-- because it uses solver->grid_dx vars
+		
+		depends = {solver.solver_t},	-- if you use integralGridDx
+	}
+--]]
+
+	
+	local function addSym3Components(args)
+		local srcname = assert(args.srcname)
+		local prefix = args.subprefix or srcname
+		local dstname = args.dstname or srcname..'_ij'
+		
+		for ij,xij in ipairs(symNames) do -- dim is fixed at 3 so just use symNames?
+			local i,j = from6to3x3(ij)
+			self.calc[prefix..(i-1)..(j-1)] = {
+				build = function()
+					local t = self.request(srcname)
+					local elem = t[i][j]
+					-- TODO assert elem is Expression but not Array?
+					return elem
+				end,
+			}
+		end
+	
+		self.calc[dstname] = table(
+			{many = true},
+			range(dim*(dim+1)/2):mapi(function(ij)
+				local i,j = from6to3x3(ij)
+				local field = prefix..(i-1)..(j-1)
+				return {
+					field = field,
+					build = function()
+						return self.request(field)
+					end,
+					result = 'real',
+					define = args.define,
+					-- TODO also the defines should go in headercode, not code
+				}
+			end)
+		)
+	end
+
+	addSym3Components{
+		srcname = 'coord_g_ll',
+		define = true,
+	}
+	
+	addSym3Components{
+		srcname = 'coord_g_uu',
+		define = true,
+	}
+	
+	addSym3Components{
+		srcname = 'coord_sqrt_g_ll',
+		define = true,
+	}
+	
+	-- curvilinear grid normals use sqrt(g^ii), as it is the metric-weighted coordinate normal magnitude
+	addSym3Components{
+		srcname = 'coord_sqrt_g_uu',
+		define = true,
+	}
+	
+	addSym3Components{
+		srcname = 'coord_sqrt_gHol_ll',
+		define = true,
+	}
+end
+
+-- called after coord creation, before finalize creates the type.  between, other objects can modify it.
+function CoordinateSystem:createCellStruct()
+	local solver = self.solver
+	
+	--[[
+	ok here's a dilemma ...
+	gridSolver has cellBuf that holds cell pos and any other aux vars used for cell calculations
+	meshsolver has cellBuf that holds cell pos and mesh info
+	meshsolver needs to pass 'cellBuf'
+	--]]
+	self.cellStruct = Struct{
+		solver = solver,
+		name = 'cell_t',
+		dontUnion = true,
+		vars = {
+			{name='pos', type='real3'},		-- x1 x2 x3 input coordinates to the chart
+			{name='volume', type='real'},	-- volume of the cell
+		},
+	}
+
+	-- MeshSolver mesh generation statistics:
 	-- cartesian code takes ~20 seconds to compile
 	-- cylindrical code takes ~60 seconds.
 	-- the only main difference in the code is the # of normal computations ... and at that, directly calling cos() and sin()
 	-- I'm going to see if reducing the trig calls helps but giving gridsolvers their own faceBuf
 	self.faceStruct = Struct{
-		solver = self.solver,
+		solver = solver,
 		name = 'face_t',
 		dontUnion = true,
 		vars = {
@@ -804,28 +1383,35 @@ meshsolver needs to pass 'cellBuf'
 			{type='real', name='cellDist'},	--dist between cell centers along 'normal'
 		},
 	}
-
-	-- here is the mesh-specific face_t fields
-	if require 'hydro.solver.meshsolver'.is(assert(self.solver)) then
-		self.faceStruct.vars:append{
-			{type='vec2i_t', name='cells'},	--indexes of cells
-			{type='int', name='vtxOffset'},
-			{type='int', name='vtxCount'},
-		}
-	end
 end
 
-function CoordinateSystem:fillGridCellBuf(cellsCPU)
+function CoordinateSystem:finalizeCellStruct()
+	self.cellStruct:makeType()
+	self.cell_t = self.cellStruct.typename
+	
+	self.faceStruct:makeType()
+	self.face_t = self.faceStruct.typename
+end
+
+-- TODO this as a CL kernel?
+function CoordinateSystem:fillGridCellBuf(cellCpuBuf)
 	local solver = self.solver
 
---[[ TODO replace 'solver->' with 'solver.solverPtr.'
+-- [[ here replace 'solver->' with 'solver.solverPtr.'
 	local symmath = require 'symmath'
+	local var = symmath.var
 	local u, v, w = self.baseCoords:unpack()
+	-- TODO instead of passing each function as an arg,
+	--  how about adding stuff to the loadstring env in symmath.export.Lua:toFunc ?
 	local calcVolume = assert(symmath.export.Lua:toFunc{
 		output = {
-			self.request'volume',
+			self.request'cell_volume'
+				:replace(var'solver->grid_dx.x', var'fromreal(solver.solverPtr.grid_dx.x)')
+				:replace(var'solver->grid_dx.y', var'fromreal(solver.solverPtr.grid_dx.y)')
+				:replace(var'solver->grid_dx.z', var'fromreal(solver.solverPtr.grid_dx.z)')
+			,
 		},
-		input = {{u=u}, {v=v}, {w=w}},
+		input = {{u=u}, {v=v}, {w=w}, var'solver', var'fromreal'},
 	})
 --]]
 
@@ -842,12 +1428,10 @@ function CoordinateSystem:fillGridCellBuf(cellsCPU)
 				local u = solver.dim >= 1
 					and ((i + .5 - solver.numGhost) / (tonumber(solver.gridSize.x) - 2 * solver.numGhost) * (solver.maxs.x - solver.mins.x) + solver.mins.x)
 					or (.5 * (solver.maxs.x + solver.mins.x))
-				cellsCPU[index].pos.x = u
-				cellsCPU[index].pos.y = v
-				cellsCPU[index].pos.z = w
---[[				
-				cellsCPU[index].volume = calcVolume(u,v,w)
---]]				
+				cellCpuBuf[index].pos.x = toreal(u)
+				cellCpuBuf[index].pos.y = toreal(v)
+				cellCpuBuf[index].pos.z = toreal(w)
+				cellCpuBuf[index].volume = toreal(calcVolume(u,v,w, solver, fromreal))
 				index = index + 1
 			end
 		end
@@ -857,6 +1441,15 @@ end
 function CoordinateSystem:applyReplVars(expr)
 	for _,repl in ipairs(self.repls) do
 		expr = expr:subst(repl)
+	end
+	return expr
+end
+
+function CoordinateSystem:applyReplDefines(expr)
+	for _,kv in ipairs(self.replDefines) do
+		local find, getter = table.unpack(kv)
+		local repl = assert(getter(), "getter didn't produce a value")
+		expr = expr:replace(find, repl)
 	end
 	return expr
 end
@@ -871,29 +1464,162 @@ function CoordinateSystem:compile(expr)
 
 	-- replace pow(x, .5) with sqrt(x)
 	expr = expr:map(function(x)
-		if symmath.op.pow.is(x)
-		and const.is(x[2])
+		if symmath.op.pow:isa(x)
+		and const:isa(x[2])
 		and x[2].value == .5
 		then
 			return symmath.sqrt(x[1])
 		end
 	end)
 
+	-- print before replacing base-coordinates
+	if self.verbose then
+		print('compiling\n', self.fixVerbose(expr)..'\n')
+	end
 	for i,coord in ipairs(self.baseCoords) do
 		expr = expr:replace(coord, symmath.var('pt.'..xNames[i]))
-	end
-	if self.verbose then
-		print('compiling\n', expr..'\n')
 	end
 	local code = symmath.export.C(expr)
 
 	return code
 end
 
+-- code building functions
+local getCode = {}
 
-local xs = table{'x', 'y', 'z'}
+-- [=====[ as defines.  warning, some of the code calling these functions has some algebra in the arguments (looking at you GLSL code)
+-- so in that case, defines can't work until you rewrite the calling code.
+-- but lets keep this around as an option for now ...
 
-local function getCode_real3_to_real(name, code)
+getCode.real3_to_real_define = function(name, code)
+	return template([[
+#define <?=name?>(pt) (<?=code?>)
+]], {
+		name = name,
+		code = code,
+	})
+end
+
+-- f(x) where x is a point in the coordinate chart
+getCode.real3_to_real3_define = function(name, exprs)
+	return template([[
+#define <?=name?>(pt) \
+	(_real3( \
+<? for i=1,3 do
+?>		<?=exprs[i] or '0.'?><?=i==3 and '' or ','?> \
+<? end
+?>	))
+]], {
+		name = name,
+		exprs = exprs,
+	})
+end
+
+-- f(v,x) where x is a point on the coordinate chart and v is most likely a tensor
+getCode.real3_real3_to_real_define = function(name, expr)
+	return template([[
+#define <?=name?>(u, pt) (<?=expr?>)
+]], {
+		name = name,
+		expr = expr,
+	})
+end
+
+getCode.real3_real3_to_real3_define = function(name, exprs)
+	return template([[
+#define <?=name?>(u, pt) \
+	(_real3( \
+<? for i=1,3 do
+?>		<?=exprs[i] or '0.'?><?=i==3 and '' or ','?> \
+<? end
+?>	))
+]], {
+		name = name,
+		exprs = exprs,
+	})
+end
+
+getCode.real3_real3_real3_real3_to_real_define = function(name, expr)
+	return template([[
+#define <?=name?>(u, v, w, pt) (<?=expr?>)
+]], {
+		name = name,
+		expr = expr,
+	})
+end
+
+getCode.real3_real3_real3_to_real3_define = function(name, exprs)
+	return template([[
+#define <?=name?>(u, v, pt) \
+	(_real3( \
+<? for i=1,3 do
+?>		<?=exprs[i] or '0.'?><?=i==3 and '' or ','?> \
+<? end
+?>	))
+]], {
+		name = name,
+		exprs = exprs,
+	})
+end
+
+
+getCode.real3_to_sym3_define = function(name, exprs)
+	return template([[
+#define <?=name?>(pt) \
+	((sym3){ \
+<? for ij,xij in ipairs(symNames) do
+	local i,j = from6to3x3(ij)
+?>		.<?=xij?> = <?=exprs[i] and exprs[i][j] and exprs[i][j] or '0.'?>, \
+<? end
+?>	})
+]], {
+		symNames = symNames,
+		from6to3x3 = from6to3x3,
+		name = name,
+		exprs = exprs,
+	})
+end
+
+-- symmetric on 2nd & 3rd indexes
+getCode.real3_to__3sym3_define = function(name, exprs)
+	return template([[
+#define <?=name?>(pt) \
+	((_3sym3){ \
+<?
+for i,xi in ipairs(xNames) do
+?>	.<?=xi?> = { \
+<?	for jk,xjk in ipairs(symNames) do
+		local j,k = from6to3x3(jk)
+?>		.<?=xjk?> = <?=exprs[i] and exprs[i][j] and exprs[i][j][k]
+			and exprs[i][j][k] or '0.'?>, \
+<?	end	
+?>	}, \
+<?
+end
+?>	})
+]], {
+		name = name,
+		exprs = exprs,
+		xNames = xNames,
+		symNames = symNames,
+		from6to3x3 = from6to3x3,
+	})
+end
+
+-- ugly hack, TODO, just use one interface for all
+getCode.real3_to_real_defineWithSolver = function(name, code)
+	return template([[
+#define <?=name?>(solver, pt) (<?=code?>)
+]], {
+		name = name,
+		code = code,
+	})
+end
+
+--]=====]
+-- [=====[ as functions:
+
+getCode.real3_to_real = function(name, code)
 	return template([[
 static inline real <?=name?>(real3 pt) {
 	return <?=code?>;
@@ -904,7 +1630,7 @@ static inline real <?=name?>(real3 pt) {
 end
 
 -- f(x) where x is a point in the coordinate chart
-local function getCode_real3_to_real3(name, exprs)
+getCode.real3_to_real3 = function(name, exprs)
 	return template([[
 static inline real3 <?=name?>(real3 pt) {
 	return _real3(
@@ -920,7 +1646,7 @@ static inline real3 <?=name?>(real3 pt) {
 end
 
 -- f(v,x) where x is a point on the coordinate chart and v is most likely a tensor
-local function getCode_real3_real3_to_real(name, expr)
+getCode.real3_real3_to_real = function(name, expr)
 	return template([[
 static inline real <?=name?>(real3 u, real3 pt) {
 	return <?=expr?>;
@@ -930,7 +1656,7 @@ static inline real <?=name?>(real3 u, real3 pt) {
 	})
 end
 
-local function getCode_real3_real3_to_real3(name, exprs)
+getCode.real3_real3_to_real3 = function(name, exprs)
 	return template([[
 static inline real3 <?=name?>(real3 u, real3 pt) {
 	return _real3(
@@ -945,7 +1671,7 @@ static inline real3 <?=name?>(real3 u, real3 pt) {
 	})
 end
 
-local function getCode_real3_real3_real3_to_real(name, expr)
+getCode.real3_real3_real3_real3_to_real = function(name, expr)
 	return template([[
 static inline real <?=name?>(real3 u, real3 v, real3 w, real3 pt) {
 	return <?=expr?>;
@@ -955,7 +1681,7 @@ static inline real <?=name?>(real3 u, real3 v, real3 w, real3 pt) {
 	})
 end
 
-local function getCode_real3_real3_real3_to_real3(name, exprs)
+getCode.real3_real3_real3_to_real3 = function(name, exprs)
 	return template([[
 static inline real3 <?=name?>(real3 u, real3 v, real3 pt) {
 	return _real3(
@@ -971,32 +1697,31 @@ static inline real3 <?=name?>(real3 u, real3 v, real3 pt) {
 end
 
 
-local function getCode_real3_to_sym3(name, exprs)
+getCode.real3_to_sym3 = function(name, exprs)
 	return template([[
 sym3 <?=name?>(real3 pt) {
 	return (sym3){
-<? for i=1,3 do
-	for j=i,3 do
-?>		.<?=xs[i]..xs[j]?> = <?=exprs[i] and exprs[i][j] 
-			and exprs[i][j] or '0.'?>,
-<?	end
-end
+<? for ij,xij in ipairs(symNames) do
+	local i,j,xi,xj = from6to3x3(ij)
+?>		.<?=xij?> = <?=exprs[i] and exprs[i][j] and exprs[i][j] or '0.'?>,
+<? end
 ?>	};
 }]], {
-		xs = xs,
+		symNames = symNames,
+		from6to3x3 = from6to3x3,
 		name = name,
 		exprs = exprs,
 	})
 end
 
 -- symmetric on 2nd & 3rd indexes
-local function getCode_real3_to_3sym3(name, exprs)
+getCode.real3_to__3sym3 = function(name, exprs)
 	return template([[
 _3sym3 <?=name?>(real3 pt) {
 	return (_3sym3){
 <? 
-for i=1,3 do
-?>	.<?=xs[i]?> = {
+for i,xi in ipairs(xNames) do
+?>	.<?=xi?> = {
 <?	for jk,xjk in ipairs(symNames) do
 		local j,k = from6to3x3(jk)
 ?>		.<?=xjk?> = <?=exprs[i] and exprs[i][j] and exprs[i][j][k]
@@ -1007,16 +1732,16 @@ for i=1,3 do
 end
 ?>	};
 }]], {
-		xs = xs,
 		name = name,
 		exprs = exprs,
+		xNames = xNames,
 		symNames = symNames,
 		from6to3x3 = from6to3x3,
 	})
 end
 
 -- this is my exception to the rule, which accepts a pointer
-local function getCode_real3_to_3sym3x3(name, exprs)
+getCode.real3_to_3sym3x3 = function(name, exprs)
 	return template([[
 void <?=name?>(_3sym3 a[3], real3 pt) {
 <?
@@ -1037,7 +1762,6 @@ end
 end
 ?>}
 ]], {
-		xs = xs,
 		name = name,
 		exprs = exprs,
 		symNames = symNames,
@@ -1045,26 +1769,8 @@ end
 	})
 end
 
--- symmetric on 1st & 2nd and on 3rd & 4th
-local function getCode_real3_to_sym3sym3(name, exprs)
-	return template([[
-sym3sym3 <?=name?>(real3 pt) {
-	return (sym3sym3){
-<? for kl,xkl in ipairs(symNames) do
-?>		.<?=xkl?> = (sym3){
-<?	for ij,xij in ipairs(symNames) do
-?>			.<?=xij?> = <?=exprs[i] and exprs[i][j] and exprs[i][j][k] and exprs[i][j][k][l] or '0.'?>,
-<?	end
-?>		},
-<? end
-?>	};
-}]], {
-		xs = xs,
-		name = name,
-		exprs = exprs,
-		symNames = symNames,
-	})
-end
+--]=====]
+
 
 --[[
 ok standardizing these macros ...
@@ -1086,185 +1792,69 @@ function CoordinateSystem:initCodeModules()
 	local dim = 3
 	local solver = self.solver	
 
-	-- dx0, dx1, ...
-	-- this is the change in cartesian wrt the change in grid
-	-- this is also the normalization factor for the anholonomic ( ... is it?)
-	solver.modules:add{
-		name = self.symbols.coord_dx_i,
-		headercode = function()
-			local lenExprs = self.compilePrintRequestTensor'lenExprs'
-			return range(dim):mapi(function(i)
-				local code = lenExprs[i]
-				return '#define coord_dx'..(i-1)..'(pt) ('..code..')'
-			end):concat'\n'
-		end,
-	}
-
-	-- area0, area1, ...
-	-- area_i = integral of u_j, j!=i of product of dx_j, j!=i
-	solver.modules:add{
-		name = self.symbols.cell_area_i,
-		headercode = function()
-			local cell_area_codes = self.compilePrintRequestTensor'coord_area_exprs'
-			return range(dim):mapi(function(i)
-				local code = cell_area_codes[i]
-				return '#define cell_area'..(i-1)..'(pt) ('..code..')'
-			end):concat'\n'
-		end,
-	}
-	
-	solver.modules:add{
-		name = self.symbols.cell_volume,
-		headercode = function()
-			return '#define cell_volume(pt) ('..self.compilePrintRequestTensor'volume'..')'
-		end,
-	}
-
-	-- volume of a cell = volume element times grid dx's 
-	solver.modules:add{
-		name = self.symbols.cell_sqrt_det_g,
-		depends = {
-			self.symbols.coord_sqrt_det_g,
-		},
-		code = solver.eqn:template[[
-static inline real cell_sqrt_det_g(constant <?=solver_t?> const * const solver, real3 const x) {
-	return coord_sqrt_det_g(x)<?
-for i=1,solver.dim do
-?> * solver->grid_dx.<?=xNames[i]?><?
-end
-?>;
-}
-]],
-	}
-	
-
-	solver.modules:add{
-		name = self.symbols.cell_dx_i,
-		depends = {
-			solver.solver_t,
-			self.symbols.coord_dx_i,
-		},
-		headercode = range(dim):mapi(function(i)
-			return '#define cell_dx'..(i-1)..'(pt) (coord_dx'..(i-1)..'(pt) * solver->grid_dx.s'..(i-1)..')'
-		end):concat'\n',
-	}
-
-	for _, info in ipairs{
-		{name='coord_det_g', build=getCode_real3_to_real},			-- metric determinant ... coord_det_g = volume^2 for holonomic basis
-		{name='coord_sqrt_det_g', build=getCode_real3_to_real},		-- coord_sqrt_det_g ... volume for holonomic basis
-		{name='coord_lower', build=getCode_real3_real3_to_real3},
-		{name='coord_raise', build=getCode_real3_real3_to_real3},
-		{name='coordLenSq', build=getCode_real3_real3_to_real},		-- coord len code: l(v) = v^i v^j g_ij
-		{name='coordLen', build=getCode_real3_real3_to_real},
-		{name='coord_tr23_c', build=getCode_real3_to_real3},
-		{name='coord_conn_lll', build=getCode_real3_to_3sym3},
-		{name='coord_conn_ull', build=getCode_real3_to_3sym3},
-		{name='coord_conn_apply12', build=getCode_real3_real3_real3_to_real3},
-		{name='coord_conn_apply13', build=getCode_real3_real3_real3_to_real3},
-		{name='coord_conn_apply23', build=getCode_real3_real3_real3_to_real3},
-		{name='coord_conn_apply123', build=getCode_real3_real3_real3_to_real},
-		{name='coord_conn_trace12', build=getCode_real3_to_real3},
-		{name='coord_conn_trace13', build=getCode_real3_to_real3},
-		{name='coord_conn_trace23',build=getCode_real3_to_real3},
-		{name='coord_partial_det_g', build=getCode_real3_to_real3},
-		{name='coord_partial2_det_g', build=getCode_real3_to_sym3},
-	} do
-		local depends
-		if info.build == getCode_real3_to_3sym3 then
-			depends = (depends or table()):append{'_3sym3'}
-		end
-		solver.modules:add{
-			name = self.symbols[info.name] or error("failed to find symbol for coord-depend "..info.name),
-			depends = depends,
-			code = function()
-				return info.build(info.name, self.compilePrintRequestTensor(info.name))
-			end,
-		}
-	end
-	
-	solver.modules:add{
-		name = self.symbols.coord_holBasisLen_i,
-		code = function()
-			local eHolLen = self.compilePrintRequestTensor'eHolLen'
-			return range(dim):mapi(function(i)
-				return getCode_real3_to_real('coord_holBasisLen'..(i-1), eHolLen[i])
-			end):concat'\n'
-		end,
-	}
-
-	do
-		local function addSym3Components(name, codes)
-			local lines = table()
-			for i=1,3 do
-				for j=i,3 do
-					local code = (codes[i] and codes[i][j] or clnumber(i==j and 1 or 0))
-					lines:insert('#define '..name..(i-1)..(j-1)..'(pt) '..code)
-					if i ~= j then
-						lines:insert('#define '..name..(j-1)..(i-1)..'(pt) '..code)
-					end
+	for moduleName,infos in pairs(self.calc) do
+		if not infos.many then infos = {infos} end
+		local depends = table()
+		local buildsAndExprNames = table()
+		for _,info in ipairs(infos) do
+			if not info.result then
+				--print("can't add module for "..moduleName.." which is missing its calc result")
+				-- should I warn here?  clutters the output
+				-- or should I warn if someone tries to add the module when it's not there?  I guess that's already happening as an error.
+				-- or should I just make 'real' the default return type and generate all modules?
+			else
+				local name = info.field or moduleName
+				local buildNameParts = table{'real3','to', info.result}
+				if info.args then
+					buildNameParts:insert(2, info.args)
 				end
+				if info.define == 'with solver arg' then
+					buildNameParts:insert'defineWithSolver'
+				elseif info.define then
+					buildNameParts:insert'define'
+				end
+				local buildName = buildNameParts:concat'_'
+				local build = assert(getCode[buildName])
+				-- don't include anything that's typedef'd by app
+				-- otherwise it will screw up the separation between C, CL, and GL
+				if info.result ~= 'real'
+				and info.result ~= 'real3'
+				then
+					depends:insert(info.result)
+				end
+				if info.depends then
+					depends:append(info.depends)
+				end
+				buildsAndExprNames:insert{build=build, name=name}
 			end
-			return lines:concat'\n'
+		end	
+		if #buildsAndExprNames > 0 then
+			xpcall(function()
+				solver.modules:add{
+					name = self.symbols[moduleName] or error("failed to find symbol for coord-depend "..moduleName),
+					depends = depends,
+					code = function()
+						return buildsAndExprNames:mapi(function(buildAndName)
+							local build = buildAndName.build
+							local name = buildAndName.name
+							return build(name, self.compilePrintRequestTensor(name))
+						end):concat'\n'
+					end,
+				}
+			end, function(err)
+				io.stderr:write('failed for module: '..moduleName..'\n'..err..'\n'..debug.traceback())
+				os.exit(1)
+			end)
 		end
-
-		solver.modules:add{
-			name = self.symbols.coord_g_ll_ij,
-			code = function()
-				return addSym3Components('coord_g_ll', self.compilePrintRequestTensor'g')
-			end,
-		}
-
-		solver.modules:add{
-			name = self.symbols.coord_g_uu_ij,
-			code = function()
-				return addSym3Components('coord_g_uu', self.compilePrintRequestTensor'gU')
-			end,
-		}
-		
-		-- curvilinear grid normals use sqrt(g^ii), as it is the metric-weighted coordinate normal magnitude
-		solver.modules:add{
-			name = self.symbols.coord_sqrt_g_uu_ij,
-			code = function()
-				return addSym3Components('coord_sqrt_g_uu', self.compilePrintRequestTensor'sqrt_gU')
-			end,
-		}
-	
-		solver.modules:add{
-			name = self.symbols.coord_sqrt_g_ll_ij,
-			code = function()
-				return addSym3Components('coord_sqrt_g_ll', self.compilePrintRequestTensor'sqrt_g')
-			end,
-		}
 	end
 
-	solver.modules:add{
-		name = self.symbols.coord_g_ll,
-		depends = {'sym3'},
-		code = function()
-			return getCode_real3_to_sym3('coord_g_ll', self.compilePrintRequestTensor'g')
-		end,
-	}
-
-	solver.modules:add{
-		name = self.symbols.coord_g_uu,
-		depends = {'sym3'},
-		code = getCode_real3_to_sym3('coord_g_uu', self.compilePrintRequestTensor'gU'),
-	}
-
-	solver.modules:add{
-		name = self.symbols.coord_gHol_ll,
-		depends = {'sym3'},
-		code = function()
-			return getCode_real3_to_sym3('coord_gHol_ll', self.compilePrintRequestTensor'gHol')
-		end,
-	}
 
 	self:initCodeModule_coordMap()
 
 	-- parallel propagate code
-	if require 'hydro.solver.fvsolver'.is(solver) 
+	if require 'hydro.solver.fvsolver':isa(solver) 
 	-- TODO only if it's a mesh solver using a flux integrator ... which is currently all mesh solvers
-	or require 'hydro.solver.meshsolver'.is(solver) 
+	or require 'hydro.solver.meshsolver':isa(solver) 
 	then
 		local lines = table()
 		
@@ -1276,7 +1866,7 @@ end
 		-- if we're using a cartesian basis then no need to transport anything
 		-- ... (? except maybe the flux differential across the cell, done in curvilinear coordinates ?)
 		if self.vectorComponent == 'cartesian' 
-		or require 'hydro.coord.cartesian'.is(self)
+		or require 'hydro.coord.cartesian':isa(self)
 		then
 			-- general case for a fixed global orthonormal basi:
 			lines:insert(template([[
@@ -1337,6 +1927,25 @@ end
 		-- only generated for cl, not for ffi cdef
 		headercode = 'typedef '..self.face_t..' face_t;',
 	}
+
+	solver.modules:add{
+		name = self.symbols.cell_calcAvg_withPt,
+		depends = {self.cell_t},
+		code = function()
+print("WARNING - haven't finished implementing cell_calcAvg_withPt")
+			return self.solver.eqn:template[[
+#define cell_calcAvg_withPt(\
+	/*<?=cell_t?> * const */resultCell,\
+	/*<?=cell_t?> const * const */cellL,\
+	/*<?=cell_t?> const * const */cellR,\
+	/*real3 const */pt\
+) {\
+	/* TODO average any other fields here .... */\
+	(resultCell)->pos = pt;\
+}
+]]
+		end,
+	}
 end
 
 function CoordinateSystem:getModuleDepends_coordMap() 
@@ -1345,7 +1954,30 @@ function CoordinateSystem:getModuleDepends_coordMapInv()
 end
 
 function CoordinateSystem:getModuleDepends_coordMapGLSL() 
-	return self:getModuleDepends_coordMap()
+--[[
+	-- search for any functions in the expression
+	-- and auto-insert them into getModuleDepends_coordMap
+	-- then for those functions in cl but not glsl, 
+	-- insert those there
+
+	local glslDeps = table()
+	do
+		-- this is the expression initCodeModule_coordMap uses
+		local symmath = require 'symmath'
+		local expr = self.request'u'
+		for _,f in ipairs{
+			-- here are functions builtin for cl but not glsl
+			...
+		} do
+			if expr:findLambda(function(x)
+				return f:isa(x)
+			end) then
+				glslDeps:insert(f.name)
+			end
+		end
+	end
+--]]
+	return table(self:getModuleDepends_coordMap()):append(glslDeps)
 end
 function CoordinateSystem:getModuleDepends_coordMapInvGLSL() 
 	return self:getModuleDepends_coordMapInv()
@@ -1361,7 +1993,7 @@ function CoordinateSystem:initCodeModule_coordMap()
 	-- TODO make this a macro based on cellBuf[index]
 	-- and make it custom per coord system (just like the cellBuf fields are)
 	local uCode = self.compilePrintRequestTensor'u'
-	local code_coordMap = getCode_real3_to_real3('coordMap', range(3):mapi(function(i) 
+	local code_coordMap = getCode.real3_to_real3('coordMap', range(3):mapi(function(i) 
 		return uCode[i] or 'pt.'..xNames[i] 
 	end))
 	
@@ -1377,7 +2009,7 @@ function CoordinateSystem:initCodeModule_coordMap()
 	solver.modules:add{
 		name = self.symbols.coordMapR,
 		code = function()
-			return getCode_real3_to_real('coordMapR', self:compile(self.vars.r))
+			return getCode.real3_to_real('coordMapR', self:compile(self.vars.r))
 		end,
 	}
 
@@ -1418,7 +2050,7 @@ function CoordinateSystem:initCodeModule_coordMap()
 		code = function()
 			local eExt = self.compilePrintRequestTensor'eExt'
 			return eExt:mapi(function(eiCode,i)
-				return getCode_real3_to_real3('coordBasis'..(i-1), eiCode)
+				return getCode.real3_to_real3('coordBasis'..(i-1), eiCode)
 			end):concat'\n'
 		end,
 	}
@@ -1428,7 +2060,7 @@ function CoordinateSystem:initCodeModule_coordMap()
 		code = function()
 			local eHolUnitCode = self.compilePrintRequestTensor'eHolUnitExt'
 			return eHolUnitCode:mapi(function(eHolUnitiCode,i)
-				return getCode_real3_to_real3('coord_basisHolUnit'..(i-1), eHolUnitiCode)
+				return getCode.real3_to_real3('coord_basisHolUnit'..(i-1), eHolUnitiCode)
 			end):concat'\n'
 		end,
 	}
@@ -1443,9 +2075,9 @@ function CoordinateSystem:initCodeModule_coordMap()
 			xNames = xNames,
 		}
 		if self.vectorComponent == 'cartesian' 
-		or require 'hydro.coord.cartesian'.is(coord)
+		or require 'hydro.coord.cartesian':isa(coord)
 		then
-			if not require 'hydro.coord.cartesian'.is(coord) then
+			if not require 'hydro.coord.cartesian':isa(coord) then
 				
 				depends:insert(self.symbols.coord_basisHolUnit_i)
 				tolines:insert(template([[
@@ -1487,7 +2119,7 @@ real3 coord_cartesianFromCoord(real3 u, real3 pt) {
 }
 ]], env))
 
-			else	-- cartesian.is(coord)
+			else	-- cartesian:isa(coord)
 				fromlines:insert[[
 #define coord_cartesianFromCoord(u, pt) (u)
 ]]
@@ -1606,7 +2238,20 @@ How to organize this?
 function CoordinateSystem:initCodeModule_normal()
 	local typecode, code
 	local depends = table()
-	if require 'hydro.solver.meshsolver'.is(self.solver) then
+	if self.verbose then
+		print[[
+normals:<br>
+$n^i =$ i'th normal, along the i'th coordinate basis.<br>
+$(n^i)_\\hat{j}$ = i'th basis direction, j'th component.<br>
+]]
+	end
+	if require 'hydro.solver.meshsolver':isa(self.solver) then
+		if self.verbose then
+			print[[
+mesh-based normals are assuming a cartesian coordinate system, and assumed to be normalized:<br>
+$(n^i)_k (n^j)^k = g^{ij} = \delta^{ij}$<br>
+]]
+		end
 --[[
 mesh vertexes are provided in Cartesian coordinates
 so their normals are as well
@@ -1665,16 +2310,24 @@ end
 ]]
 	else	-- not meshsolver
 
-		if require 'hydro.coord.cartesian'.is(self)
+		if require 'hydro.coord.cartesian':isa(self)
 		or self.vectorComponent == 'anholonomic'
 		then
+			if self.verbose then
+				print[[
+anholonomic normals are coordinate-aligned but orthonormalized by the locally-Cartesian basis:<br>
+$(n^i)^k (n^j)^l g_{kl} = g^{ij} = \delta^{ij}$, for anholonomic (orthonormal) basis.<br>
+$(n^i)_j = (n^i)^j = \delta^{ij}$.<br>
+]]
+			end
+		
 			--[[
 			n_i = n^i = delta_ij for side j
 			|n| = 1
 			--]]
 			typecode = self.solver.eqn:template[[
 typedef struct {
-	int side;		//0, 1, 2
+	int side;			//0, 1, 2
 } <?=normal_t?>;		//nL = nU = normalBasisForSide (permutation of I), nLen = 1
 ]]
 
@@ -1727,7 +2380,15 @@ end
 
 ]]
 		elseif self.vectorComponent == 'cartesian' then
-
+			if self.verbose then
+				print[[
+cartesian-component normals:<br>
+$n_i = e_i$<br>
+$(n_i)_j = e_{ij}$<br>
+$(n_i)^j = {e_i}^j$<br>
+$n_i \cdot n_j = (n_i)_k (n_j)^l = \delta_{ij}$<br>
+]]
+			end
 			depends:insert'real3x3'
 			depends:insert(self.symbols.coord_basisHolUnit_i)
 
@@ -1791,7 +2452,16 @@ end
 		real3_real_mul(normal.n.z, v.z))
 ]]
 		elseif self.vectorComponent == 'holonomic' then
-
+			if self.verbose then
+				print[[
+cartesian normals are aligned to the embedding cartesian coordinate space:<br>
+$n_i = e_i$<br>
+$(n_i)_j = \delta_{ij}$<br>
+$(n_i)^j = g^{jk} \delta_{ik}$<br>
+$(n_i)^k (n_j)^l = g^{km} \delta_{mi} g^{ln} \delta_{nj}$<br>
+]]
+			end
+			
 			depends:insert'real3x3'
 			depends:insert(self.symbols.coord_g_uu_ij)
 			depends:insert(self.symbols.coord_sqrt_g_uu_ij)
@@ -1818,7 +2488,10 @@ typedef struct {
 <? 
 for j=0,2 do
 	for i=0,2 do 
-?>			coord_g_uu<?=(side+j)%3?><?=i?>(x)<?=i+3*j < 8 and ',' or ''?> \
+		local k = (side + j) % 3
+		local m, n = k, i
+		if m > n then m, n = n, m end
+?>			coord_g_uu<?=m..n?>(x)<?=i+3*j < 8 and ',' or ''?> \
 <? 
 	end
 end 

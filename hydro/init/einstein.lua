@@ -20,7 +20,7 @@ function EinsteinInitCond:init(args)
 	local Tensor = require 'symmath'.Tensor
 	self.alpha0 = 1
 	self.beta0_u = Tensor'^i'
-	self.gamma0_ll = Tensor.metric().metric
+	self.gamma0_ll = self.solver.coord.symchart.metric
 	self.K0_ll = Tensor'_ij'
 	
 	--EinsteinInitCond.super.init(self, args, ...)
@@ -28,11 +28,13 @@ end
 
 function EinsteinInitCond:compileC(expr, name, vars)
 	assert(type(expr) == 'table', "expected table, found "..type(expr))
-	if symmath.Expression.is(expr) then 
+	if symmath.Expression:isa(expr) then 
 		expr = expr()
 		
-		print('compiling '..name..':')
-		print(expr)
+		if self.solver.app.verbose then
+			print('compiling '..name..':')
+			print(expr)
+		end
 		local code = symmath.export.C:toCode{
 			output = {expr},
 			input = vars,
@@ -41,7 +43,9 @@ function EinsteinInitCond:compileC(expr, name, vars)
 		-- ugh...
 		code = code:gsub('sqrt%(', '(real)sqrt((real)')
 		
-		print(code)
+		if self.solver.app.verbose then
+			print(code)
+		end
 		return code
 	end
 	return table.map(expr, function(v,k) return self:compileC(v,k,vars) end), name
@@ -73,9 +77,9 @@ return ]]..fLuaCode))(alphaVar, symmath)
 	codes.alpha_dalpha_f = self:compileC((alphaVar * dalpha_f)(), 'alpha_dalpha_f', {alphaVar})
 	codes.alphaSq_dalpha_f = self:compileC((alphaVar^2 * dalpha_f)(), 'alphaSq_dalpha_f', {alphaVar})
 
-	return codes:map(function(code,name,t)
-		return 'real calc_'..name..'(real alpha) {\n\t'..code..'\n\treturn out1;\n}', #t+1
-	end):concat'\n'		
+	return codes:keys():sort():mapi(function(name)
+		return 'real calc_'..name..'(real alpha) {\n\t'..codes[name]..'\n\treturn out1;\n}'
+	end):concat'\n'
 end
 
 -- TODO this is not in use yet
@@ -119,7 +123,7 @@ local function initEinstein(args)
 				expr = table.map(expr, toExpr)
 			end
 			-- simplify?
-			if symmath.Expression.is(expr) then
+			if symmath.Expression:isa(expr) then
 				expr = expr()
 			end
 		end
@@ -162,8 +166,8 @@ return ]]..fLuaCode))(alphaVar, symmath)
 	codes.dalpha_f = args.initCond:compileC(dalpha_f, 'dalpha_f', {alphaVar})
 
 error'here'
-	return table.map(codes, function(code,name,t)
-		return 'real calc_'..name..'(real alpha) {\n\t'..code..'\n\treturn out1;\n}', #t+1
+	return codes:keys():sort():mapi(function(name)
+		return 'real calc_'..name..'(real alpha) {\n\t'..codes[name]..'\n\treturn out1;\n}'
 	end):concat'\n'
 end
 
@@ -182,6 +186,14 @@ return ]]..fLuaCode))(alphaVar, symmath)
 	local fCCode = self:compileC(f, 'f', {alphaVar})
 
 	return fCCode
+end
+
+-- hmm ... should this go in InitCond?
+function EinsteinInitCond:resetState()
+	local solver = assert(self.solver)
+	solver.applyInitCondKernelObj()
+	solver:boundary()
+	solver:constrainU()
 end
 
 local initConds = table{
@@ -236,7 +248,7 @@ local initConds = table{
 		getInitCondCode = function(self)
 			local solver = assert(self.solver)
 			-- this has to make use of the coordinate metric
-			-- solver.coord.g
+			-- solver.coord.gHol
 			
 			return solver.eqn:template([[
 	real3 center = coordMap(_real3(<?=clnumber(initCond.center[1])
@@ -245,10 +257,10 @@ local initConds = table{
 	real3 d = real3_sub(xc, center);
 	real s = real3_lenSq(d);
 
-	const real H = initCond->H;
-	const real sigma = initCond->sigma;
-	const real sigma2 = sigma * sigma;
-	const real sigma4 = sigma2 * sigma2;
+	real const H = initCond->H;
+	real const sigma = initCond->sigma;
+	real const sigma2 = sigma * sigma;
+	real const sigma4 = sigma2 * sigma2;
 	real h = H * exp(-s / sigma2);
 
 	//h,i = (H exp(-(x-xc)^2 / sigma^2)),i
@@ -305,7 +317,89 @@ local initConds = table{
 ]]
 		end,
 	},
-	
+
+--[[ gravitational plane wave
+in chart {u,v,y,z} for u=(t-x)/sqrt(2), v=(t+x)/sqrt(2)
+form of g_ab = f du^2 - 2 du dv + dy^2 + dz^2
+for f = a (y^2 - z^2) - 2 b y z
+and a = a(u), b = b(u)
+for ij in {v,y,z}
+β_i = {1, 0, 0}			by g_0i = β_i
+γ_ij = diag{0,1,1}  	by g_ij = γ_ij ... is not invertible, so I guess γ^ij is arbitrary?
+	or does a non-invertible γ_ij imply that {u,v,y,z} can't be used as a coordinate system for ADM decomposition?
+γ^ij = diag{0,1,1} also? 
+since g^ij = γ^ij - β^i β^j / α^2, this could still be non-singular if β^i = {√f, 0, 0} ... chicken-and-egg ...
+--]]
+	{	
+		name = 'gravitational plane wave uvyz',
+		getInitCondCode = function(self)
+			return [[
+	alpha = 
+]]
+		end,
+	},
+
+--[[
+gravitational plane wave
+in chart {t,x,y,z}
+form of g_ab = (f/2 - 1) dt^2 - f dt dx + (f/2 + 1) dx^2 + dy^2 + dz^2
+g^ab = -(f/2 + 1) e_t^2 - f e_t e_x + (1 - f/2) e_x^2 + e_y^2 + e_z^2
+
+for ij in {x,y,z}
+
+g_ij = γ_ij
+=> γ_ij = diag{ f/2 + 1, 1, 1} 
+=> γ^ij = diag{ 2/(f + 2), 1, 1}
+
+g_0i = β_i
+=> β_i = {-f/2, 0, 0}
+=> β^i = { -f/(f+2), 0, 0 }
+
+g^00 = -1/α^2
+=> -1/α^2 = -(f/2 + 1)
+=> 1/α^2 = f/2 + 1
+=> α^2 = 2/(f + 2)
+=> α = √(2/(f + 2))
+
+g_00 = -α^2 + β_i β^i
+=> f/2 - 1 = -2/(f + 2) + f^2 / (2*(f + 2))
+=> f/2 - 1 = f/2 - 1
+CHECK
+
+g^0i = β^i / α^2
+=> {-f/2, 0, 0} = {-f/(f + 2), 0, 0} * (f + 2)/2
+=> {-f/2, 0, 0} = {-f/2, 0, 0} 
+CHECK
+
+g^ij = γ^ij - β^i β^j / α^2
+=> diag{-f/2+1, 1, 1} = diag{ 2/(2 + f), 1, 1} - { -f/(f+2), 0, 0 } ⊗ { -f/(f+2), 0, 0 } * (f + 2)/2
+=> diag{-f/2+1, 1, 1} = diag{ 2/(2 + f), 1, 1} - diag{ f^2/(2*(f+2)), 0, 0}
+=> diag{-f/2+1, 1, 1} = diag{ 2/(2 + f), 1, 1} - diag{ f^2/(2*(f+2)), 0, 0}
+=> diag{-f/2+1, 1, 1} = diag{ -f/2+1, 1, 1}
+CHECK
+
+what if I transforms this from tx back to uv?
+
+--]]
+	{	
+		name = 'gravitational plane wave txyz',
+		getInitCondCode = function(self)
+			return [[
+	//f = a(u) * (y^2 - z^2) - 2 * b(u) * y * z, for u = (t+x)/sqrt(2)
+	real const t = 0.;
+	real const u = (t - x.x) * <?=math.sqrt(.5)?>;
+	real const a = 1.;
+	real const b = 1.;
+	real const f = a * (x.y * x.y - x.z * x.z) - 2. * b * x.y * x.z;
+
+	real const gamma_xx = (f + 2.) / 2.;
+	alpha = sqrt(1. / gamma_xx);
+	beta_u = _real3(-f/(f + 2.), 0., 0.);
+	gamma_ll = _sym3(gamma_xx, 0., 0., 1., 0., 1.);
+]]
+		end,
+	},
+
 	-- from 2011 Alcubierre, Mendez "Formulations of the 3+1 evolution equations in curvilinear coordinates"
 	-- Appendix A, eqns 7.1 - 7.5
 	{
@@ -556,7 +650,11 @@ local initConds = table{
 		},
 
 		getDepends = function(self)
-			return {'sqr', self.solver.coord.symbols.coordMapR}
+			return {
+				'sqr',
+				self.solver.coord.symbols.coordMapR,
+				self.solver.coord.symbols.coord_g_ll,
+			}
 		end,
 	
 		-- what do the eqns expect gamma_ij to be?
@@ -608,7 +706,7 @@ local initConds = table{
 		end,
 		getInitCondCode = function(self)
 			return self.solver.eqn:template[[
-	const real R = initCond->R;
+	real const R = initCond->R;
 	real3 center = _real3(initCond->x, initCond->y, initCond->z);
 	real3 xrel = real3_sub(xc, center);
 
@@ -709,7 +807,7 @@ local initConds = table{
 	real psi = 1.;
 	real alpha_num = 1.;
 	<? for _,body in ipairs(bodies) do ?>{
-		const real R = <?=clnumber(body.R)?>;
+		real const R = <?=clnumber(body.R)?>;
 		real3 pos = _real3(<?=table(body.pos):mapi(clnumber):concat', '?>);
 		real3 xrel = real3_sub(xc, pos);
 		real r = real3_len(xrel);
@@ -867,11 +965,11 @@ local initConds = table{
 		getInitCondCode = function(self)
 			return self.solver.eqn:template[[
 	{
-		const real vz = .1;
-		const real M = 1.;
-		const real xB = 0.;
-		const real yB = 0.;
-		const real zB = 0.;
+		real const vz = .1;
+		real const M = 1.;
+		real const xB = 0.;
+		real const yB = 0.;
+		real const zB = 0.;
 		real vzsq = vz * vz;
 		real vz_toThe4 = vzsq * vzsq;
 		real LF = 1. / sqrt(1. - vzsq);
@@ -991,7 +1089,7 @@ local initConds = table{
 <? local clnumber = require 'cl.obj.number' ?>	
 	real psi = 1.;
 	<? for _,body in ipairs(bodies) do ?>{
-		const real R = <?=clnumber(body.R)?>;
+		real const R = <?=clnumber(body.R)?>;
 		real3 pos = _real3(<?=clnumber(body.pos[1])?>, <?=clnumber(body.pos[2])?>, <?=clnumber(body.pos[3])?>);
 		real3 xrel = real3_sub(xc, pos);
 		real r = real3_len(xrel);
@@ -1057,7 +1155,7 @@ local initConds = table{
 			return self.solver.eqn:template([[
 <? for _,body in ipairs(bodies) do
 ?>
-	real3 pos = _real3(<?=table.map(body.pos, clnumber):concat', '?>);
+	real3 pos = _real3(<?=table.mapi(body.pos, clnumber):concat', '?>);
 	real3 ofs = real3_sub(xc, pos);
 	
 	real r = real3_len(ofs);
@@ -1168,7 +1266,7 @@ local initConds = table{
 			--local xNames = table{'eta', 'theta', 'phi'}
 			-- TODO mapping to isotropic coordinates?
 			-- or separate models or automatic transforms between isotropic and spherical?
-			local xs = xNames:map(function(x) return symmath.var(x) end)
+			local xs = xNames:mapi(function(x) return symmath.var(x) end)
 			
 			-- [[ using eta as a coord
 			local eta, theta, phi = xs:unpack()
@@ -1285,7 +1383,7 @@ TODO I now have a Bessel function routine in hydro/math.cl
 		end,
 		getInitCondCode = function(self)
 			return [[
-	const real t = 0.;
+	real const t = 0.;
 	real theta = 2. * M_PI / initCond->d * (xc.x - t);
 	real H = 1. + initCond->A * sin(theta);
 	alpha = sqrt(H);
@@ -1322,7 +1420,7 @@ TODO I now have a Bessel function routine in hydro/math.cl
 		end,
 		getInitCondCode = function(self)
 			return [[
-	const real t = 0.;
+	real const t = 0.;
 	real theta = 2. * M_PI / d * (xc.x - t);
 	real b = initCond->A * sin(theta);
 	gamma_ll.yy += b;
@@ -1350,7 +1448,7 @@ TODO I now have a Bessel function routine in hydro/math.cl
 		end,
 		getCodePrefix = function(self)
 			local frac = symmath.frac
-			local xs = xNames:map(function(x) return symmath.var(x) end)
+			local xs = xNames:mapi(function(x) return symmath.var(x) end)
 			local x,y,z = xs:unpack()
 			local t = 0
 			--[[ general solution

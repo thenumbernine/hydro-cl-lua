@@ -36,12 +36,6 @@ WaveFDEqn.solverCodeFile = 'hydro/eqn/wave-fd.cl'
 function WaveFDEqn:initCodeModule_calcDT() end
 function WaveFDEqn:initCodeModule_calcDTCell() end
 
-function WaveFDEqn:getModuleDepends_displayCode()
-	return table(WaveFDEqn.super.getModuleDepends_displayCode(self)):append{
-		'Bessel'	-- BESSJ0 in display vars
-	}
-end
-
 -- the default display-all is broken since i switched to the pick-component option
 WaveFDEqn.predefinedDisplayVars = {
 	'U psi re',
@@ -57,7 +51,10 @@ WaveFDEqn.predefinedDisplayVars = {
 function WaveFDEqn:getDisplayVars()
 	local vars = WaveFDEqn.super.getDisplayVars(self)
 	vars:append{
-		{name='J0', code='value.vreal = BESSJ0(x.x) * cos(t);', units='kg/(m^3)'},
+		{name='J0', code=[[
+//// MODULE_DEPENDS: Bessel
+value.vreal = BESSJ0(x.x) * cos(t);
+]], units='kg/(m^3)'},
 	}
 	return vars
 end

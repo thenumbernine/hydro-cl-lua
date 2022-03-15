@@ -10,6 +10,10 @@ local DrawVectorLIC = class(Draw)
 
 DrawVectorLIC.integralMaxIter = 10
 
+--[[
+the xmin/xmax/ymin/ymax passed as arguments is the one shared with all graphs
+but for LIC, we just need the cartesian range
+--]]
 function DrawVectorLIC:drawSolverWithVar(var, shader, xmin, xmax, ymin, ymax)
 	local solver = self.solver
 	local app = solver.app
@@ -25,11 +29,7 @@ var.solver = solver
 	local tex = solver:getTex(var)
 	tex:bind(0)
 	self.noiseTex:bind(2)
-	if app.displayBilinearTextures then
-		gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MAG_FILTER, gl.GL_LINEAR)
-	else
-		gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MAG_FILTER, gl.GL_NEAREST)
-	end
+	tex:setParameter(gl.GL_TEXTURE_MAG_FILTER, app.displayBilinearTextures and gl.GL_LINEAR or gl.GL_NEAREST)
 
 	gl.glBegin(gl.GL_QUADS)
 	gl.glVertex2d(xmin, ymin)
@@ -135,11 +135,15 @@ function DrawVectorLIC:display(varName, ar, graph_xmin, graph_xmax, graph_ymin, 
 	local app = solver.app
 
 	app.view:setup(ar)
-	
+
+	local xmin, xmax, ymin, ymax
 	if app.view.getOrthoBounds then
 		xmin, xmax, ymin, ymax = app.view:getOrthoBounds(ar)
 	else
-		xmin, xmax, ymin, ymax = graph_xmin, graph_xmax, graph_ymin, graph_ymax
+		xmin = solver.cartesianMin.x
+		ymin = solver.cartesianMin.y
+		xmax = solver.cartesianMax.x
+		ymax = solver.cartesianMax.y
 	end
 
 --	gl.glEnable(gl.GL_DEPTH_TEST)
@@ -178,7 +182,7 @@ function DrawVectorLIC:display(varName, ar, graph_xmin, graph_xmax, graph_ymin, 
 			
 	-- NOTICE overlays of multiple solvers won't be helpful.  It'll just draw over the last solver.
 	-- I've got to rethink the visualization
-	if not require 'hydro.solver.meshsolver'.is(solver) then
+	if not require 'hydro.solver.meshsolver':isa(solver) then
 		local var = solver.displayVarForName[varName]
 		if var and var.enabled then
 			self:prepareShader()

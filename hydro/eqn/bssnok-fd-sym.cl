@@ -3,7 +3,7 @@
 sym3 <?=calc_gammaHat_ll?>(real3 x) {
 <?=assignRepls(cos_xs)?>
 <?=assignRepls(sin_xs)?>
-<?=assign_sym3'gammaHat_ll'?>
+<?=assign_sym3"gammaHat_ll"?>
 	return gammaHat_ll;
 }
 
@@ -12,7 +12,7 @@ sym3 <?=calc_gammaHat_ll?>(real3 x) {
 sym3 <?=calc_gammaHat_uu?>(real3 x) {
 <?=assignRepls(cos_xs)?>
 <?=assignRepls(sin_xs)?>
-<?=assign_sym3'gammaHat_uu'?>
+<?=assign_sym3"gammaHat_uu"?>
 	return gammaHat_uu;
 }
 
@@ -21,7 +21,7 @@ sym3 <?=calc_gammaHat_uu?>(real3 x) {
 real <?=calc_det_gammaHat?>(real3 x) {
 <?=assignRepls(cos_xs)?>
 <?=assignRepls(sin_xs)?>
-<?=assign'det_gammaHat'?>
+<?=assign"det_gammaHat"?>
 	return det_gammaHat;
 }
 
@@ -39,7 +39,7 @@ real <?=calc_det_gammaHat?>(real3 x) {
 sym3 <?=calc_gammaBar_LL?>(global const <?=cons_t?>* U, real3 x) {
 <?=assignRepls(cos_xs)?>
 <?=assignRepls(sin_xs)?>
-<?=assign_sym3'gammaBar_LL'?>
+<?=assign_sym3"gammaBar_LL"?>
 	return gammaBar_LL;
 }
 
@@ -59,7 +59,7 @@ TODO detg ... unless we want to change the constraint
 real <?=calc_det_gammaBarLL?>(global const <?=cons_t?>* U, ral3 x) {
 <?=assignRepls(cos_xs)?>
 <?=assignRepls(sin_xs)?>
-<?=assign'det_gammaBar_over_det_gammaHat'?>
+<?=assign"det_gammaBar_over_det_gammaHat"?>
 	return det_gammaBar_over_det_gammaHat;
 }
 #else	//use the constraint
@@ -72,8 +72,8 @@ real <?=calc_det_gammaBarLL?>(global const <?=cons_t?>* U, ral3 x) {
 sym3 <?=calc_gammaBar_UU?>(global const <?=cons_t?>* U, real3 x) {
 <?=assignRepls(cos_xs)?>
 <?=assignRepls(sin_xs)?>
-<? -- assign'det_gammaBar_over_det_gammaHat'?>
-<?=assign_sym3'gammaBar_UU'?>
+<? -- assign"det_gammaBar_over_det_gammaHat"?>
+<?=assign_sym3"gammaBar_UU"?>
 	return gammaBar_UU;
 }
 
@@ -84,7 +84,7 @@ sym3 <?=calc_gammaBar_UU?>(global const <?=cons_t?>* U, real3 x) {
 sym3 <?=calc_gammaBar_ll?>(global const <?=cons_t?>* U, real3 x) {
 <?=assignRepls(cos_xs)?>
 <?=assignRepls(sin_xs)?>
-<?=assign_sym3'gammaBar_ll'?>
+<?=assign_sym3"gammaBar_ll"?>
 	return gammaBar_ll;
 }
 
@@ -193,7 +193,7 @@ based on vector 'v'
 to compute upwind differencing from.
 Same thing as (int4)sgn(v)
 */
-const int4 getUpwind(real3 v) {
+int4 const getUpwind(real3 v) {
 	return (int4)(
 		v.x >= 0 ? 1 : -1,
 		v.y >= 0 ? 1 : -1,
@@ -220,22 +220,22 @@ kernel void <?=calcDeriv?>(
 <?=assignRepls(cos_xs)?>
 <?=assignRepls(sin_xs)?>
 
-<?=eqn:makePartial1'alpha'?>			//partial_alpha_l.i := alpha_,i
-<?=eqn:makePartial1'beta_U'?>			//partial_beta_Ul.j.I := beta^I_,j
-<?=eqn:makePartial1'epsilon_LL'?>		//partial_epsilon_LLl[k].IJ := epsilon_IJ,k
-<?=eqn:makePartial1'W'?>				//partial_W_l.i := W_,i 
-<?=eqn:makePartial1'K'?>				//partial_K_l.i := K,i
-<?=eqn:makePartial1'ABar_LL'?>		//partial_ABar_LLl[k].IJ = ABar_IJ,k
-<?=eqn:makePartial1'LambdaBar_U'?>	//partial_LambdaBar_Ul.j.I := LambdaBar^I_,j
-<?=eqn:makePartial2'alpha'?>			//partial2_alpha_ll.ij := alpha_,ij
-<?=eqn:makePartial2'beta_U'?>		//partial2_beta_Ull[jk].I = beta^I_,jk
-<?=eqn:makePartial2'W'?>				//partial2_W_ll.ij := W_,ij
+<?=eqn:makePartial1"alpha"?>			//partial_alpha_l.i := alpha_,i
+<?=eqn:makePartial1"beta_U"?>			//partial_beta_Ul.j.I := beta^I_,j
+<?=eqn:makePartial1"epsilon_LL"?>		//partial_epsilon_LLl[k].IJ := epsilon_IJ,k
+<?=eqn:makePartial1"W"?>				//partial_W_l.i := W_,i 
+<?=eqn:makePartial1"K"?>				//partial_K_l.i := K,i
+<?=eqn:makePartial1"ABar_LL"?>		//partial_ABar_LLl[k].IJ = ABar_IJ,k
+<?=eqn:makePartial1"LambdaBar_U"?>	//partial_LambdaBar_Ul.j.I := LambdaBar^I_,j
+<?=eqn:makePartial2"alpha"?>			//partial2_alpha_ll.ij := alpha_,ij
+<?=eqn:makePartial2"beta_U"?>		//partial2_beta_Ull[jk].I = beta^I_,jk
+<?=eqn:makePartial2"W"?>				//partial2_W_ll.ij := W_,ij
 	//partial_B[i] := B^i_,t
-<? if eqn.useShift == 'HyperbolicGammaDriver' then ?>
-<?=eqn:makePartial1'B_U'?>			//partial_B_Ul.j.I := B^I_,j
+<? if eqn.useShift == "HyperbolicGammaDriver" then ?>
+<?=eqn:makePartial1"B_U"?>			//partial_B_Ul.j.I := B^I_,j
 <? end ?>
 
-<?=assign_sym3'gammaHat_ll'?>
+<?=assign_sym3"gammaHat_ll"?>
 
 	/*
 	Etienne's SENR Mathematica notebook has '*  detg'...
@@ -256,66 +256,66 @@ kernel void <?=calcDeriv?>(
 	
 	TODO detg ...
 	*/
-<? -- assign'det_gammaBar_over_det_gammaHat'?>
+<? -- assign"det_gammaBar_over_det_gammaHat"?>
 
 
 	//////////////////////////////// alpha_,t //////////////////////////////// 
 
-<?=eqn:makePartialUpwind'alpha'?>
-<?=assign'dt_alpha'?>
+<?=eqn:makePartialUpwind"alpha"?>
+<?=assign"dt_alpha"?>
 	deriv->alpha += dt_alpha;
 	
 	//////////////////////////////// W_,t //////////////////////////////// 
 
-<?=eqn:makePartialUpwind'W'?>
-<?=assign_real3'partial_det_gammaBar_over_det_gammaHat_l'?>
-<?=assign'dt_W'?>
+<?=eqn:makePartialUpwind"W"?>
+<?=assign_real3"partial_det_gammaBar_over_det_gammaHat_l"?>
+<?=assign"dt_W"?>
 	deriv->W += dt_W;
 
 	//////////////////////////////// K_,t //////////////////////////////// 
 	
-<?=eqn:makePartialUpwind'K'?>
-<?=assign'dt_K'?>
+<?=eqn:makePartialUpwind"K"?>
+<?=assign"dt_K"?>
 	deriv->K += dt_K;
 
 	//////////////////////////////// epsilon_ij,t //////////////////////////////// 
 
-<?=eqn:makePartialUpwind'epsilon_LL'?>
-<?=assign_sym3'dt_epsilon_LL'?>
+<?=eqn:makePartialUpwind"epsilon_LL"?>
+<?=assign_sym3"dt_epsilon_LL"?>
 	deriv->epsilon_LL = sym3_add(deriv->epsilon_LL, dt_epsilon_LL);
 
 	//////////////////////////////// ABar_ij,t //////////////////////////////// 
 
-<?=eqn:makePartial2'epsilon_LL'?>
-<?=eqn:makePartialUpwind'ABar_LL'?>
+<?=eqn:makePartial2"epsilon_LL"?>
+<?=eqn:makePartialUpwind"ABar_LL"?>
 
-<?=assign_sym3'Delta_LLL'?>
+<?=assign_sym3"Delta_LLL"?>
 
-<?=assign_sym3'dt_ABar_LL'?>
+<?=assign_sym3"dt_ABar_LL"?>
 	deriv->ABar_LL = sym3_add(deriv->ABar_LL, dt_ABar_LL);
 
 	//////////////////////////////// LambdaBar^i_,t //////////////////////////////// 
 
-<?=eqn:makePartialUpwind'LambdaBar_U'?>
-<?=assign_real3'dt_LambdaBar_U'?>
+<?=eqn:makePartialUpwind"LambdaBar_U"?>
+<?=assign_real3"dt_LambdaBar_U"?>
 	deriv->LambdaBar_U = real3_add(deriv->LambdaBar_U, dt_LambdaBar_U);
 
 	//////////////////////////////// beta^i_,t and B^i_,t //////////////////////////////// 
 
-<? if eqn.useShift == 'GammaDriver' then ?>
+<? if eqn.useShift == "GammaDriver" then ?>
 
-	const real k = 3. / 4.;
-<?=assign_real3'dt_beta_U_GammaDriver'?>
+	real const k = 3. / 4.;
+<?=assign_real3"dt_beta_U_GammaDriver"?>
 	deriv->beta_U = real3_add(deriv->beta_U, dt_beta_U_GammaDriver);
 
-<? elseif eqn.useShift == 'HyperbolicGammaDriver' then ?>
+<? elseif eqn.useShift == "HyperbolicGammaDriver" then ?>
 
-<?=eqn:makePartialUpwind'beta_U'?>
-<?=assign_real3'dt_beta_U_HyperbolicGammaDriver'?>
+<?=eqn:makePartialUpwind"beta_U"?>
+<?=assign_real3"dt_beta_U_HyperbolicGammaDriver"?>
 	deriv->beta_U = real3_add(deriv->beta_U, dt_beta_U_HyperbolicGammaDriver);
 
-<?=eqn:makePartialUpwind'B_U'?>
-<?=assign_real3'dt_B_U_HyperbolicGammaDriver'?>
+<?=eqn:makePartialUpwind"B_U"?>
+<?=assign_real3"dt_B_U_HyperbolicGammaDriver"?>
 	deriv->B_U = real3_add(deriv->B_U, dt_B_U_HyperbolicGammaDriver);
 
 <? end	-- eqn.useShift ?>
@@ -340,7 +340,7 @@ or eqn.guiVars.constrain_tr_ABar.value
 then 
 ?>
 
-<?=assign'det_gammaBar_over_det_gammaHat'?>
+<?=assign"det_gammaBar_over_det_gammaHat"?>
 	
 	/*
 	we need to force det(gammaBar_ij) = det(gammaHat_ij)
@@ -351,13 +351,13 @@ then
 	= det(gammaHat_ij)
 	*/
 <?	if eqn.guiVars.constrain_det_gammaBar.value then ?>
-<?=assign_sym3'gammaBar_ll'?>
+<?=assign_sym3"gammaBar_ll"?>
 	real rescaleMetric = cbrt(1. / det_gammaBar_over_det_gammaHat);
 <? 		for ij,xij in ipairs(symNames) do
 ?>	gammaBar_ll.<?=xij?> *= rescaleMetric;
 <? 		end ?>
 
-<?=assign_sym3'gammaHat_ll'?>
+<?=assign_sym3"gammaHat_ll"?>
 	sym3 epsilon_ll = sym3_sub(gammaBar_ll, gammaHat_ll);
 	U->epsilon_LL = sym3_rescaleFromCoord_ll(epsilon_ll, x);
 <?	end	-- constrain_det_gammaBar ?>
@@ -365,14 +365,14 @@ then
 	//in Buchman's paper it says he doesn't do this
 	//and in the new arbitrary-coord formalism, there is a tr ABar_ij term
 <? if eqn.guiVars.constrain_tr_ABar.value then ?>
-<?=assign_sym3'gammaBar_LL'?>
-<?=assign_sym3'gammaBar_UU'?>
+<?=assign_sym3"gammaBar_LL"?>
+<?=assign_sym3"gammaBar_UU"?>
 	U->ABar_LL = tracefree(U->ABar_LL, gammaBar_LL, gammaBar_UU);
 <? end	-- constrain_tr_ABar ?>
 
 <? else -- constrain_det_gammaBar or constrain_tr_ABar ?>
 
-<? -- assign'det_gammaBar_over_det_gammaHat'?>
+<? -- assign"det_gammaBar_over_det_gammaHat"?>
 	
 <? end -- constrain_det_gammaBar or constrain_tr_ABar ?>
 
@@ -382,21 +382,21 @@ then
 <? if eqn.guiVars.calc_H_and_M and eqn.guiVars.calc_H_and_M.value then ?>
 
 //TODO these need to be pre-scaled back to coordinates before computing the weighted finite difference
-<?=eqn:makePartial1'ABar_LL'?>			//partial_ABar_LLl[k].IJ = ABar_IJ,k
-<?=eqn:makePartial1'alpha'?>			//partial_alpha_l.i := alpha_,i
-<?=eqn:makePartial1'K'?>				//partial_K_l.i := K_,i
-<?=eqn:makePartial1'W'?>				//partial_W_l.i := phi_,i 
-<?=eqn:makePartial1'LambdaBar_U'?>		//partial_LambdaBar_Ul.j.I := LambdaBar^I_,j
-<?=eqn:makePartial2'W'?>				//partial2_W_ll.ij := phi_,ij
-<?=eqn:makePartial1'epsilon_LL'?>	//partial_epsilon[k].ij := epsilon_ij,k = gammaBar_ij,k
-<?=eqn:makePartial2'epsilon_LL'?>
+<?=eqn:makePartial1"ABar_LL"?>			//partial_ABar_LLl[k].IJ = ABar_IJ,k
+<?=eqn:makePartial1"alpha"?>			//partial_alpha_l.i := alpha_,i
+<?=eqn:makePartial1"K"?>				//partial_K_l.i := K_,i
+<?=eqn:makePartial1"W"?>				//partial_W_l.i := phi_,i 
+<?=eqn:makePartial1"LambdaBar_U"?>		//partial_LambdaBar_Ul.j.I := LambdaBar^I_,j
+<?=eqn:makePartial2"W"?>				//partial2_W_ll.ij := phi_,ij
+<?=eqn:makePartial1"epsilon_LL"?>	//partial_epsilon[k].ij := epsilon_ij,k = gammaBar_ij,k
+<?=eqn:makePartial2"epsilon_LL"?>
 
-<?=assign_3sym3'connBar_LLL'?>
+<?=assign_3sym3"connBar_LLL"?>
 
-<?=assign'H_def'?>
+<?=assign"H_def"?>
 	U->H = H_def;
 
-<?=assign_real3'M_U_def'?>
+<?=assign_real3"M_U_def"?>
 	U->M_U = M_U_def;
 
 <? end	-- calc_H_and_M ?>
@@ -420,7 +420,7 @@ kernel void addSource(
 		//described in 2008 Babiuc et al as Q = (-1)^r h^(2r-1) (D+)^r rho (D-)^r / 2^(2r)
 		//...for r=2... -sigma h^3 (D+)^2 rho (D-)^2 / 16 ... and rho=1, except rho=0 at borders maybe.
 		for (int i = 0; i < numIntStates; ++i) {
-<?=require 'hydro.eqn.makepartial'.makePartialRank1(4, 4, solver, 'ptr[i]', 'real', 'partial4_Ui_ll')?>
+<?=require "hydro.eqn.makepartial".makePartialRank1(4, 4, solver, "ptr[i]", "real", "partial4_Ui_ll")?>
 		real lap = 0<?
 for j,xj in ipairs(xNames) do
 ?> + partial4_Ui_ll.<?=xj?><?

@@ -5,7 +5,7 @@ Marti 1998
 Font "Numerical Hydrodynamics and Magnetohydrodynamics in General Relativity" 2008 
 
 honestly I developed a Marti & Muller SRHD solver
-then I bumped it up to GRHD by incorporating (fixed) alphas betas and gammas
+then I bumped it up to GRHD by incorporating (fixed) α's β's and γ's
 and then I thought "why not keep the old SRHD solver around"
 so viola, here it is.
 --]]
@@ -23,8 +23,7 @@ SRHD.name = 'SRHD'
 SRHD.numWaves = 5
 SRHD.numIntStates = 5
 
--- TODO if we enable this we get NANs when waves hit the border.  Bug in the srhd boundary prim calculations?
---SRHD.roeUseFluxFromCons = true
+SRHD.roeUseFluxFromCons = true
 
 SRHD.initConds = require 'hydro.init.euler':getList()
 
@@ -36,7 +35,7 @@ function SRHD:init(args)
 
 	2003 Marti & Muller show the state variables as D, S^i, tau ... for SRHD
 	...but the GRHD folks use D, S_i, tau ...
-	maybe Marti & Muller were lazy with notation since the metric is eta = diag(-1,1,1,1) and raising/lowering spatial doesn't matter ... ?
+	maybe Marti & Muller were lazy with notation since the metric is η = diag(-1,1,1,1) and raising/lowering spatial doesn't matter ... ?
 
 	I used to keep the prim_only_t and cons_only_t as separate structs within separate,
 	but that doesn't mesh well with the code that automatically determines signs of reflections at boundaries,
@@ -85,7 +84,7 @@ function SRHD:init(args)
 	self.symbols.cons_only_t = self.consOnlyStruct.typename
 	self.symbols.prim_only_t = self.primOnlyStruct.typename
 
-	if require 'hydro.solver.meshsolver'.is(self.solver) then
+	if require 'hydro.solver.meshsolver':isa(self.solver) then
 		print("not using ops (selfgrav, nodiv, etc) with mesh solvers yet")
 	else
 		local SRHDSelfGrav = require 'hydro.op.srhd-selfgrav'
@@ -95,13 +94,31 @@ function SRHD:init(args)
 		if args.incompressible then
 			local NoDiv = require 'hydro.op.nodiv'{
 				poissonSolver = require 'hydro.op.poisson_jacobi',	-- krylov is having errors.  TODO bug in its boundary code?
+				-- TODO TODO now jacobi is crashing as well.  seems I broke something.
 			}
-			self.solver.ops:insert(NoDiv{
+		
+			local SRHDNoDiv = class(NoDiv)
+--[[ srhd needs to refresh primitives after updating conservatives in the nodiv step
+-- unless you're doing the update-prim-and-recalc-cons method.  then no need.
+			function SRHDNoDiv:step(dt)
+				SRHDNoDiv.super.step(self, dt)
+				self.solver:constrainU()
+			end
+--]]
+			self.solver.ops:insert(SRHDNoDiv{
 				solver = self.solver,
+				potentialField = 'SPot',	-- TODO don't store this
+				
+				codeDepends = {
+					assert(self.symbols.eqn_common),
+				},
+				
+			--[=[ using 0 = div S = div (D^2 h v / ρ)
 				vectorField = 'S',
-				potentialField = 'SPot',
 			
-				-- S_i = ρ h W^2 v_i = D^2 h / ρ
+				-- S_i = ρ h W^2 v_i = D^2 h v_i / ρ
+				-- v_i = S_i ρ / (D^2 h)
+				--
 				-- S_i,j = (D^2 h v_i / ρ)_,j
 				-- = (D^2 h / ρ)_,j v_i + (D^2 h / ρ) v_i,j
 				-- = (D^2 h / ρ)_,j v_i + (D^2 h / ρ) v_i,j = 0
@@ -112,14 +129,44 @@ function SRHD:init(args)
 		global const <?=cons_t?>* Ujm = U - solver->stepsize.s<?=j?>;
 		global const <?=cons_t?>* Ujp = U + solver->stepsize.s<?=j?>;
 		real d_rho_h_WSq_over_dx = (
-			Ujp->D * Ujp->D / Ujp->rho * calc_h(Ujp->rho, calc_P(solver, Ujp->rho, Ujp->eInt), Ujp->eInt)
-			- Ujm->D * Ujm->D / Ujm->rho * calc_h(Ujm->rho, calc_P(solver, Ujm->rho, Ujm->eInt), Ujm->eInt)
+			Ujp->D * Ujp->D / Ujp->rho * calc_h(solver, Ujp->eInt)
+			- Ujm->D * Ujm->D / Ujm->rho * calc_h(solver, Ujm->eInt)
 		) * (.5 / solver->grid_dx.s<?=j?>);
 		source -= d_rho_h_WSq_over_dx * U->S.s<?=j?> / (
-			U->D * U->D / U->rho * calc_h(U->rho, calc_P(solver, U->rho, U->eInt), U->eInt)
+			U->D * U->D / U->rho * calc_h(solver, U->eInt)
 		);
 	}<? end ?>
 ]],
+			--]=]
+			-- [=[ reading via div v, writing via div S
+				readVectorField = function(op, offset, j)
+					local function U(field) return 'U['..offset..'].'..field end
+					--return U('S.s'..j)..' * '..U'rho'..' / ('..U'D'..' * '..U'D'..' * calc_h(solver, '..U'eInt'..'))'
+					--return U('v.s'..j)	-- div v = 0
+					return U'D'..' / '..U'rho'..' * '..U('v.s'..j)		-- div (W v) = ... W ... ?
+				end,
+				chargeCode = [[
+	source += U->D / U->rho;
+]],
+				writeVectorField = function(op, dv)
+					return self:template([[
+#if 0	// adjust momentum, update velocity with 'constrainU' later
+	U->S = real3_sub(U->S, real3_real_mul(<?=dv?>, U->D * U->D / U->rho * calc_h(solver, U->eInt)));
+#endif
+
+#if 1	// adjust velocity, update conservatives immediately
+//// MODULE_DEPENDS: <?=prim_only_t?> <?=eqn_common?>
+	<?=prim_only_t?> prim;
+	primOnlyFromCons(&prim, solver, U, pt);
+	//prim.v = real3_sub(prim.v, <?=dv?>);
+	prim.v = real3_sub(prim.v, real3_real_mul(<?=dv?>, U->rho / U->D));
+	consFromPrimOnly(U, solver, &prim, pt);
+#endif
+
+]], {dv=dv})
+					-- TODO adjust tau <-> ETotal as well (right?)
+				end,
+			--]=]
 			})
 		end
 	end
@@ -190,8 +237,8 @@ function SRHD:initCodeModules()
 end
 
 -- don't use default
-function SRHD:initCodeModule_calcDTCell() end
 function SRHD:initCodeModule_fluxFromCons() end
+function SRHD:initCodeModule_calcDTCell() end
 
 SRHD.solverCodeFile = 'hydro/eqn/srhd.cl'
 
@@ -210,32 +257,75 @@ function SRHD:getDisplayVars()
 		{name='W based on v', code='value.vreal = 1. / sqrt(1. - coordLenSq(U->v, x));'},
 		
 		{name='P', code='value.vreal = calc_P(solver, U->rho, U->eInt);'},
-		{name='h', code='value.vreal = calc_h(U->rho, calc_P(solver, U->rho, U->eInt), U->eInt);'},
 		
-		{name='ePot', code='value.vreal = U->ePot;'},
+		{name='EPot', code='value.vreal = U->rho * U->ePot;'},
+		
+		-- is this true for relativistic fluids?
+		{name='S', code='value.vreal = calc_P(solver, U->rho, U->eInt) / pow(U->rho, (real)solver->heatCapacityRatio);'},
+		
+		{name='H', code='value.vreal = U->rho * calc_h(solver, U->eInt);', units='kg/(m*s^2)'},
+		{name='h', code='value.vreal = calc_h(solver, U->eInt);'},
+		
+		{name='speed of sound', code='value.vreal = calc_Cs(solver, U->eInt);', units='m/s'},
+		{name='Mach number', code='value.vreal = coordLen(U->v, x) / calc_Cs(solver, U->eInt);'},
+
+		-- is this true for relativistic fluids?
+		{name='temperature', code=self:template[[
+<? local materials = require "hydro.materials" ?>
+#define C_v				<?=("%.50f"):format(materials.Air.C_v)?>
+value.vreal = U->eInt / C_v;
+]], units='K'},
 		
 		{name='primitive reconstruction error', code=self:template[[
-	//prim have just been reconstructed from cons
-	//so reconstruct cons from prims again and calculate the difference
-	{
-		<?=cons_only_t?> U2;
-		consOnlyFromPrim(&U2, solver, U, x);
-		value.vreal = 0;
-		for (int j = 0; j < numIntStates; ++j) {
-			value.vreal += fabs(U->ptr[j] - U2.ptr[j]);
-		}
+//prim have just been reconstructed from cons
+//so reconstruct cons from prims again and calculate the difference
+{
+	<?=cons_only_t?> U2;
+	consOnlyFromPrim(&U2, solver, U, x);
+	value.vreal = 0;
+	for (int j = 0; j < numIntStates; ++j) {
+		value.vreal += fabs(U->ptr[j] - U2.ptr[j]);
 	}
+}
 ]]
 		},
 		{name='W error', code=[[
-	real W1 = U->D / U->rho;
-	real W2 = 1. / sqrt(1. - coordLenSq(U->v, x));
-	value.vreal = fabs(W1 - W2);
+real W1 = U->D / U->rho;
+real W2 = 1. / sqrt(1. - coordLenSq(U->v, x));
+value.vreal = fabs(W1 - W2);
 ]]		},
 	}
 
+	if self.gravOp then
+		vars:insert{
+			name = 'gravity',
+			units = 'm/s^2',
+			type = 'real3',
+			code = self:template[[
+if (!<?=OOB?>(1,1)) {
+	real W, dW_dt;
+	real3 u, du_dt;
+//// MODULE_DEPENDS: <?=calcGravityAccel?>
+	<?=calcGravityAccel?>(&W, &u, &dW_dt, &du_dt, solver, U);
+	value.vreal3 = du_dt;
+} else {
+	value.vreal3 = real3_zero;
+}
+]],
+		}
+	end
+
+
 	vars:insert(self:createDivDisplayVar{field='v', units='1/s'} or nil)
 	vars:insert(self:createCurlDisplayVar{field='v', units='1/s'} or nil)
+
+	-- special for 1d_state_line
+	vars:insert{
+		name = 'state line',
+		type = 'real3',
+		units = '1',
+		code = 'value.vreal3 = _real3(U->rho, coordLen(U->v, x) * sign(U->v.x), calc_P(solver, U->rho, U->eInt));',
+	}
 
 	return vars
 end
@@ -257,14 +347,14 @@ SRHD.eigenVars = {
 	{name='lambdaMax', type='real'},
 }
 
-function SRHD:eigenWaveCode(n, eig, x, waveIndex)
-	if waveIndex == 0 then
-		return '('..eig..')->lambdaMin'
-	elseif waveIndex >= 1 and waveIndex <= 3 then
+function SRHD:eigenWaveCode(args)
+	if args.waveIndex == 0 then
+		return '('..args.eig..')->lambdaMin'
+	elseif args.waveIndex >= 1 and args.waveIndex <= 3 then
 		-- v.x because v has been rotated so x points along the normal
-		return '('..eig..')->v.x'
-	elseif waveIndex == 4 then
-		return '('..eig..')->lambdaMax'
+		return '('..args.eig..')->v.x'
+	elseif args.waveIndex == 4 then
+		return '('..args.eig..')->lambdaMax'
 	else
 		error'got a bad waveIndex'
 	end
@@ -273,19 +363,16 @@ end
 -- used by HLL
 -- extra params provided by calcDT, or calculated here if not provided (just like in Euler)
 -- but then I just explicitly wrote out the calcDT, so the extra parameters just aren't used anymore.
-function SRHD:consWaveCodePrefix(n, U, x)
-	U = '('..U..')'
+function SRHD:consWaveCodePrefix(args)
 	return self:template([[	
-real const eInt = <?=U?>->eInt;
+real const eInt = (<?=U?>)->eInt;
 
-real const vSq = coordLenSq(<?=U?>->v, <?=x?>);
-real const P = calc_P(solver, <?=U?>->rho, eInt);
-real const h = calc_h(<?=U?>->rho, P, eInt);
-real const csSq = solver->heatCapacityRatio * P / (<?=U?>->rho * h);
+real const vSq = coordLenSq((<?=U?>)->v, <?=pt?>);
+real const csSq = calc_CsSq(solver, eInt);
 real const cs = sqrt(csSq);
 
 /* for the particular direction */
-real const vi = normal_vecDotN1(n, <?=U?>->v);
+real const vi = normal_vecDotN1(<?=n?>, (<?=U?>)->v);
 real const viSq = vi * vi;
 
 /*  Marti 1998 eqn 19 */
@@ -295,24 +382,52 @@ real const discr = sqrt((1. - vSq) * (1. - vSq * csSq - viSq * (1. - csSq)));
 real const _srhd_lambdaMin = (vi * (1. - csSq) - cs * discr) / (1. - vSq * csSq);
 real const _srhd_lambdaMax = (vi * (1. - csSq) + cs * discr) / (1. - vSq * csSq);
 /*  v.x because v has been rotated so x points along the normal */
-real const v_n = <?=U?>->v.x;
-]], {
-		n = n,
-		U = U,
-		x = x,
-	})
+real const v_n = (<?=U?>)->v.x;
+]], args)
 end
 
-function SRHD:consWaveCode(n, U, x, waveIndex)
-	if waveIndex == 0 then
+function SRHD:consWaveCode(args)
+	if args.waveIndex == 0 then
 		return '_srhd_lambdaMin'
-	elseif waveIndex >= 1 and waveIndex <= 3 then
+	elseif args.waveIndex >= 1 and args.waveIndex <= 3 then
 		return 'v_x'
-	elseif waveIndex == 4 then
+	elseif args.waveIndex == 4 then
 		return '_srhd_lambdaMax'
 	else
 		error'got a bad waveIndex'
 	end
+end
+
+--SRHD.eigenWaveCodeMinMax uses default
+--SRHD.consWaveCodeMinMax uses default
+
+function SRHD:consWaveCodeMinMaxAllSidesPrefix(args)
+	return self:template([[
+real const eInt = (<?=U?>)->eInt;
+real const vSq = coordLenSq((<?=U?>)->v, <?=pt?>);
+real const csSq = calc_CsSq(solver, eInt);
+real const cs = sqrt(csSq);
+]], args)
+end
+
+function SRHD:consWaveCodeMinMaxAllSides(args)
+	return self:template([[
+/* for the particular direction */\
+real const vi = normal_vecDotN1(<?=n?>, (<?=U?>)->v);\
+real const viSq = vi * vi;\
+\
+/*  Marti 1998 eqn 19 */\
+/*  also Marti & Muller 2008 eqn 68 */\
+/*  also Font 2008 eqn 106 */\
+real const discr = sqrt((1. - vSq) * (1. - vSq * csSq - viSq * (1. - csSq)));\
+real const lambdaMin = (vi * (1. - csSq) - cs * discr) / (1. - vSq * csSq);\
+real const lambdaMax = (vi * (1. - csSq) + cs * discr) / (1. - vSq * csSq);\
+
+<?=eqn:waveCodeAssignMinMax(
+	declare, resultMin, resultMax,
+	'lambdaMin', 'lambdaMax'
+)?>
+]], args)
 end
 
 return SRHD

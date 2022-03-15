@@ -135,7 +135,7 @@ void <?=calcDTCell?>(
 		real vUiSq = vUi * vUi;
 		
 		//Font 2008 eqn 106
-		const real betaUi = beta.s<?=side?>;
+		real const betaUi = beta.s<?=side?>;
 		real discr = sqrt((1. - vSq) * (gammaU.xx * (1. - vSq * csSq) - vUiSq * (1. - csSq)));
 		real lambdaMin = (vUi * (1. - csSq) - cs * discr) * alpha / (1. - vSq * csSq) - betaUi;
 		real lambdaMax = (vUi * (1. - csSq) + cs * discr) * alpha / (1. - vSq * csSq) - betaUi;
@@ -151,6 +151,7 @@ void <?=calcDTCell?>(
 <?=cons_t?> <?=fluxFromCons?>(
 	constant <?=solver_t?> const * const solver,
 	<?=cons_t?> const U,
+	<?=cell_t?> const * const cell,
 	<?=normal_t?> const n,<?=
 	solver:getADMArgs()?>
 ) {
@@ -186,12 +187,13 @@ void <?=calcDTCell?>(
 //2) have a new kernel for calc consLR from primLR, since calcDeltaUEig and calcFlux both need this
 //or does the eigenbasis need to be derived from the variables being transformed?
 //shoud I PLM the U's then converge the prims ... and therefore track the prims on edges as well?
-<?=eigen_t?> <?=eigen_forCell?>(
-	global <?=cons_t?> const * const U,
-	real3 const x
-) {
-	return (<?=eigen_t?>){};
-}
+#define <?=eigen_forCell?>(\
+	/*<?=eigen_t?> * const */resultEig,\
+	/*constant <?=solver_t?> const * const */solver,\
+	/*<?=cons_t?> const * const */U,\
+	/*<?=cell_t?> const * const */cell,\
+	/*real3 const */n\
+)
 
 //// MODULE_NAME: <?=calcEigenBasis?>
 
@@ -211,16 +213,16 @@ kernel void <?=calcEigenBasis?>(
 ) {
 	<?=SETBOUNDS?>(solver->numGhost, solver->numGhost - 1);
 	
-	int indexR = index;
+	int const indexR = index;
 	<?=prim_t?> primR = UBuf[indexR].prim;
 	
 	<?=solver:getADMVarCode{suffix='R'} --[[ produce alphaR, betaR, gammaR at indexR ]] ?>
 	
 	//for (int side = 0; side < dim; ++side) {
 	<? for side=0,solver.dim-1 do ?>{
-		const int side = <?=side?>;
+		int const side = <?=side?>;
 		
-		int indexL = index - solver->stepsize.s<?=side?>;
+		int const indexL = index - solver->stepsize.s<?=side?>;
 		<?=prim_t?> primL = UBuf[indexL].prim;
 	
 		<?=solver:getADMVarCode{suffix='L'} --[[ produce alphaL, betaL, gammaL at indexL ]] ?>
@@ -301,7 +303,7 @@ kernel void <?=calcEigenBasis?>(
 		real cs = sqrt(csSq);
 
 		//Font 2008 eqn 106 -- matches calcDTCell
-		const real betaUi = beta.s<?=side?>;
+		real const betaUi = beta.s<?=side?>;
 		real discr = sqrt((1. - vSq) * (gammaU.xx * (1. - vSq * csSq) - vUxSq * (1. - csSq)));
 		real lambdaMin = (vU.x * (1. - csSq) - cs * discr) * alpha / (1. - vSq * csSq) - betaUi;
 		real lambdaMax = (vU.x * (1. - csSq) + cs * discr) * alpha / (1. - vSq * csSq) - betaUi;
@@ -347,14 +349,13 @@ end):concat()
 
 //// MODULE_NAME: <?=eigen_leftTransform?>
 
-<?=waves_t?> <?=eigen_leftTransform?>(
+void <?=eigen_leftTransform?>(
+	<?=waves_t?> * const Y,
 	constant <?=solver_t?> const * const solver,
 	<?=eigen_t?> const eig,
 	<?=cons_t?> const X_,
 	real3 const x
 ) { 
-	<?=waves_t?> Y;
-
 	//rotate incoming v's in X
 	//this should match calcEigenBasis
 	//eig.beta and eig.gamma should already be rotated
@@ -368,25 +369,25 @@ end):concat()
 	
 	<?=prefix?>
 	
-	real det_gamma = sym3_det(gamma);
-	sym3 gammaU = sym3_inv(gamma, det_gamma);
+	real const det_gamma = sym3_det(gamma);
+	sym3 const gammaU = sym3_inv(gamma, det_gamma);
 
-	real vUxSq = vU.x * vU.x;
-	real hSq = h * h;
-	real hW = h * W;
-	real W2 = W * W;
+	real const vUxSq = vU.x * vU.x;
+	real const hSq = h * h;
+	real const hW = h * W;
+	real const W2 = W * W;
 
-	real gamma_gammaUxx = det_gamma * gammaU.xx;
-	real gamma_gammaUxy = det_gamma * gammaU.xy;
-	real gamma_gammaUxz = det_gamma * gammaU.xz;
-	real xi = det_gamma * (gammaU.xx - vUxSq);//2008 Font eqn 121
-	real Delta = hSq * hW * (Kappa - 1.) * (CPlus - CMinus) * xi;	//2008 Font eqn 121
+	real const gamma_gammaUxx = det_gamma * gammaU.xx;
+	real const gamma_gammaUxy = det_gamma * gammaU.xy;
+	real const gamma_gammaUxz = det_gamma * gammaU.xz;
+	real const xi = det_gamma * (gammaU.xx - vUxSq);//2008 Font eqn 121
+	real const Delta = hSq * hW * (Kappa - 1.) * (CPlus - CMinus) * xi;	//2008 Font eqn 121
 	
 	//min row	2008 Font eqn 118
 	real scale;
 	scale = hSq / Delta;
 	real l5minus = (1 - Kappa) * (-det_gamma * vU.x + VPlus * (W2 * xi - gamma_gammaUxx)) - Kappa * W2 * VPlus * xi;
-	Y.ptr[0] = (
+	Y->ptr[0] = (
 		X.ptr[0] * (hW * VPlus * xi + l5minus)
 		+ X.ptr[1] * (gamma_gammaUxx * (1 - Kappa * ATildePlus) + (2. * Kappa - 1.) * VPlus * (W2 * vU.x * xi - gamma_gammaUxx * vU.x))
 		+ X.ptr[2] * (gamma_gammaUxy * (1 - Kappa * ATildePlus) + (2. * Kappa - 1.) * VPlus * (W2 * vU.y * xi - gamma_gammaUxy * vU.x))
@@ -395,7 +396,7 @@ end):concat()
 	) * scale;
 	//mid normal row	2008 Font eqn 115
 	scale = W / (Kappa - 1.);
-	Y.ptr[1] = (
+	Y->ptr[1] = (
 		X.ptr[0] * (h - W) 
 		+ X.ptr[1] * (W * vU.x) 
 		+ X.ptr[2] * (W * vU.y) 
@@ -404,7 +405,7 @@ end):concat()
 	) * scale;
 	//mid tangent A row	2008 Font eqn 116
 	scale = 1. / (h * xi);
-	Y.ptr[2] = (
+	Y->ptr[2] = (
 		X.ptr[0] * (-gamma.zz * vL.y + gamma.yz * vL.z) 
 		+ X.ptr[1] * vU.x * (gamma.zz * vL.y - gamma.yz * vL.z)
 		+ X.ptr[2] * (gamma.zz * (1. - vL.x * vU.x) + gamma.xz * vL.z * vU.x)
@@ -412,7 +413,7 @@ end):concat()
 		+ X.ptr[4] * (-gamma.zz * vL.y + gamma.yz * vL.z)
 	) * scale;
 	//mid tangent B row	2008 Font eqn 117
-	Y.ptr[3] = (
+	Y->ptr[3] = (
 		X.ptr[0] * (-gamma.yy * vL.z + gamma.yz * vL.y)
 		+ X.ptr[1] * vU.x * (gamma.yy * vL.z - gamma.yz * vL.y)
 		+ X.ptr[2] * (-gamma.yz * (1. - vL.x * vU.x) - gamma.xy * vL.z * vU.x)
@@ -421,77 +422,73 @@ end):concat()
 	) * scale;
 	//max row	2008 Font eqn 118
 	scale = -hSq / Delta;
-	real l5plus = (1 - Kappa) * (-det_gamma * vU.x + VMinus * (W2 * xi - gamma_gammaUxx)) - Kappa * W2 * VMinus * xi;
-	Y.ptr[4] = (
+	real const l5plus = (1 - Kappa) * (-det_gamma * vU.x + VMinus * (W2 * xi - gamma_gammaUxx)) - Kappa * W2 * VMinus * xi;
+	Y->ptr[4] = (
 		X.ptr[0] * (h * W * VMinus * xi + l5plus)
 		+ X.ptr[1] * (gamma_gammaUxx * (1 - Kappa * ATildeMinus) + (2. * Kappa - 1.) * VMinus * (W2 * vU.x * xi - gamma_gammaUxx * vU.x))
 		+ X.ptr[2] * (gamma_gammaUxy * (1 - Kappa * ATildeMinus) + (2. * Kappa - 1.) * VMinus * (W2 * vU.y * xi - gamma_gammaUxy * vU.x))
 		+ X.ptr[3] * (gamma_gammaUxz * (1 - Kappa * ATildeMinus) + (2. * Kappa - 1.) * VMinus * (W2 * vU.z * xi - gamma_gammaUxz * vU.x))
 		+ X.ptr[4] * l5plus
 	) * scale;
-	
-	return Y;
 }
 
 //// MODULE_NAME: <?=eigen_rightTransform?>
 
-<?=cons_t?> <?=eigen_rightTransform?>(
+void <?=eigen_rightTransform?>(
+	<?=cons_t?> * const Y,
 	constant <?=solver_t?> const * const solver,
 	<?=eigen_t?> const eig,
 	<?=waves_t?> const X,
-	real3 const x
+	real3 const x,
+	normal_t const n
 ) {
 	<?=prefix?>
 	
 	real hW = h * W;
 	real W2 = W * W;
 
-	<?=cons_t?> Y;
-
 	//2008 Font eqns 108-111
-	Y.ptr[0] = X.ptr[0]
+	Y->ptr[0] = X.ptr[0]
 		+ X.ptr[1] * (Kappa / hW)
 		+ X.ptr[2] * (W * vL.y)
 		+ X.ptr[3] * (W * vL.z)
 		+ X.ptr[4];
-	Y.ptr[1] = X.ptr[0] * (hW * CMinus)
+	Y->ptr[1] = X.ptr[0] * (hW * CMinus)
 		+ X.ptr[1] * (vL.x)
 		+ X.ptr[2] * (h * (gamma.xy + 2. * W2 * vL.y * vL.x))
 		+ X.ptr[3] * (h * (gamma.xz + 2. * W2 * vL.x * vL.z))
 		+ X.ptr[4] * (hW * CPlus);
-	Y.ptr[2] = X.ptr[0] * (hW * vL.y)
+	Y->ptr[2] = X.ptr[0] * (hW * vL.y)
 		+ X.ptr[1] * (vL.y)
 		+ X.ptr[2] * (h * (gamma.yy + 2. * W2 * vL.y * vL.y))
 		+ X.ptr[3] * (h * (gamma.yz + 2. * W2 * vL.y * vL.z))
 		+ X.ptr[4] * (hW * vL.y);
-	Y.ptr[3] = X.ptr[0] * (hW * vL.z)
+	Y->ptr[3] = X.ptr[0] * (hW * vL.z)
 		+ X.ptr[1] * (vL.z)
 		+ X.ptr[2] * (h * (gamma.yz + 2. * W2 * vL.y * vL.z))
 		+ X.ptr[3] * (h * (gamma.zz + 2. * W2 * vL.z * vL.z))
 		+ X.ptr[4] * (hW * vL.z);
-	Y.ptr[4] =X.ptr[0] * (hW * ATildeMinus - 1.)
+	Y->ptr[4] =X.ptr[0] * (hW * ATildeMinus - 1.)
 		+ X.ptr[1] * (1. - Kappa / hW)
 		+ X.ptr[2] * (W * vL.y * (2. * hW - 1.))
 		+ X.ptr[3] * (W * vL.z * (2. * hW - 1.))
 		+ X.ptr[4] * (hW * ATildePlus - 1.);
 	
 	//rotate outgoing y's x's into side
-	<? if side ~= 0 then ?>
-	real tmp = Y.ptr[1];
-	Y.ptr[1] = -Y.ptr[1+<?=side?>];
-	Y.ptr[1+<?=side?>] = tmp;
-	<? end ?>
-
-	return Y;
+	real const tmp = Y->ptr[1];
+	Y->ptr[1] = -Y->ptr[1+n->side];
+	Y->ptr[1+n->side] = tmp;
 }
 
 //// MODULE_NAME: <?=eigen_fluxTransform?>
 
-<?=cons_t?> <?=eigen_fluxTransform?>(
+void <?=eigen_fluxTransform?>(
+	<?=cons_t?> * const result,
 	constant <?=solver_t?> const * const solver,
 	<?=eigen_t?> const eig,
 	<?=cons_t?> const X_,
-	real3 const x
+	<?=cell_t?> const * const cell,
+	<?=normal_t?> const n
 ) {
 #if 0
 	//rotate incoming v's in x
@@ -513,12 +510,13 @@ end):concat()
 	<? end ?>
 #else
 	//default
-	<?=waves_t?> waves = eigen_leftTransform_<?=side?>(solver, eig, X_, x);
-	<?=eqn:eigenWaveCodePrefix(side, 'eig', 'x')?>
+	<?=waves_t?> waves;
+	<?=eigen_leftTransform?>(&waves, solver, eig, X_, (cell)->pos, n);
+	<?=eqn:eigenWaveCodePrefix("n", "eig", "(cell)->pos")?>
 <? for j=0,eqn.numWaves-1 do 
-?>	waves.ptr[<?=j?>] *= <?=eqn:eigenWaveCode(side, 'eig', 'x', j)?>;
+?>	waves.ptr[<?=j?>] *= <?=eqn:eigenWaveCode("n", "eig", "(cell)->pos", j)?>;
 <? end 
-?>	return eigen_rightTransform_<?=side?>(solver, eig, waves, x);
+?>	eigen_rightTransform(result, solver, eig, waves, (cell)->pos, n);
 #endif
 }
 

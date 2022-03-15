@@ -1,10 +1,16 @@
+<?
+local table = require "ext.table"
+?>
 //// MODULE_NAME: <?=updateCTU?>
-//// MODULE_DEPENDS: <?=solver_t?> <?=cell_t?> <?=cons_t?> <?=SETBOUNDS?> <?=cell_sqrt_det_g?> <?=solver_macros?>
+//// MODULE_DEPENDS: <?=solver_t?> <?=cell_t?> <?=cons_t?> <?=SETBOUNDS?> <?=solver_macros?> realparam
 <? if solver.usePLM then ?>
-//// MODULE_DEPENDS: <?=consLR_t?>
+//// MODULE_DEPENDS: <?=consLR_t?> <?=normal_t?> <?=fluxFromCons?>
 <? end ?>
 
 /*
+2017 Zingale "Introduction to Computational Astrophysics"
+also 1990 Collela "Multidimensional Upwind Methods for Hyperbolic Conservation Laws"
+also Mara
 using the interface flux
 update the LR states by integrating dt/2 times the interface flux
 */
@@ -13,73 +19,126 @@ kernel void <?=updateCTU?>(
 	global <?=cell_t?> const * const cellBuf,
 	global <?=solver.getULRArg?>,
 	global <?=cons_t?> const * const fluxBuf,
-	real const dt
+	realparam const dt
 ) {
-	<?=SETBOUNDS?>(0,1);
-	real3 const x = cellBuf[index].pos;
+	<?=SETBOUNDS?>(1,1);	//this was (0,1) so it could run across interfaces, but looks like i need (1,1) for cell->volume interface access, unless TODO I change the volume LR into face area 
+	global <?=cell_t?> const * const cell = cellBuf + index;
+	real3 const x = cell->pos;
 <? if eqn.weightFluxByGridVolume then ?>
-	real const volume = cell_sqrt_det_g(solver, x);
+	real const volume = cell->volume;
 <? else ?>
 	real const volume = 1.<? for i=0,solver.dim-1 do ?> * solver->grid_dx.s<?=i?><? end ?>;
 <? end ?>
+	real const invVolume = 1. / volume;
+
+	//these are the inter-cell fluxes, computed from the previously calculated calcLR states
+<? for side=0,solver.dim-1 do
+?>	int const indexIntL<?=side?> = <?=side?> + dim * index;
+	global <?=cons_t?> const * const fluxL<?=side?> = fluxBuf + indexIntL<?=side?>;
+	
+	int const indexIntR<?=side?> = indexIntL<?=side?> + dim * solver->stepsize.s<?=side?>;
+	global <?=cons_t?> const * const fluxR<?=side?> = fluxBuf + indexIntR<?=side?>;
+<? end
+?>
+
+	// calculate and save the cell side areas for fv update
+<?
+for side=0,solver.dim-1 do
+	if eqn.weightFluxByGridVolume then
+?>
+	real3 xIntL<?=side?> = x;
+	xIntL<?=side?>.s<?=side?> -= .5 * solver->grid_dx.s<?=side?>;
+	// TODO instead of volume_intL as the avg between two cell volumes, and then divide by dx to get the face, instead, just store the face.
+	real const volume_intL<?=side?> = .5 * (cell->volume + cell[-solver->stepsize.s<?=side?>].volume);
+	real const areaL<?=side?> = volume_intL<?=side?> / solver->grid_dx.s<?=side?>;
+
+	real3 xIntR<?=side?> = x;
+	xIntR<?=side?>.s<?=side?> += .5 * solver->grid_dx.s<?=side?>;
+	// TODO instead of volume_intL as the avg between two cell volumes, and then divide by dx to get the face, instead, just store the face.
+	real const volume_intR<?=side?> = .5 * (cell->volume + cell[solver->stepsize.s<?=side?>].volume);
+	real const areaR<?=side?> = volume_intR<?=side?> / solver->grid_dx.s<?=side?>;
+<?
+	else
+?>
+	real const areaL<?=side?> = 1.<? for i=0,solver.dim-1 do if i ~= side then ?> * solver->grid_dx.s<?=i?><? end end ?>;
+	real const areaR<?=side?> = 1.<? for i=0,solver.dim-1 do if i ~= side then ?> * solver->grid_dx.s<?=i?><? end end ?>;
+<?
+	end
+end
+?>
 
 	<?
 for side=0,solver.dim-1 do
-	?>{
-		int const side = <?=side?>;
+	?>{		// correct along direction <?=side?>
+<?
+	local updateFields = table()
+	if solver.getULRBufType == eqn.symbols.consLR_t then
+?>
+		//these are the cell left and right edge states (from calcLR)'s fluxes
+		int const indexForSide = <?=side?> + dim * index;
+		global <?=consLR_t?> * const ULR = ULRBuf + indexForSide;
 		
-		int const indexIntL = side + dim * index;
-		global <?=cons_t?> const * const fluxL = fluxBuf + indexIntL;
-		
-		int const indexIntR = indexIntL + dim * solver->stepsize.s<?=side?>;
-		global <?=cons_t?> const * const fluxR = fluxBuf + indexIntR;
-		
-<? if eqn.weightFluxByGridVolume then ?>
-		real3 xIntL = x;
-		xIntL.s<?=side?> -= .5 * solver->grid_dx.s<?=side?>;
-		real const volume_intL = cell_sqrt_det_g(solver, xIntL);
-		real const areaL = volume_intL / solver->grid_dx.s<?=side?>;
-	
-		real3 xIntR = x;
-		xIntR.s<?=side?> += .5 * solver->grid_dx.s<?=side?>;
-		real const volume_intR = cell_sqrt_det_g(solver, xIntR);
-		real const areaR = volume_intR / solver->grid_dx.s<?=side?>;
-<? else ?>
-		real const areaL = 1.<? for i=0,solver.dim-1 do if i ~= side then ?> * solver->grid_dx.s<?=i?><? end end ?>;
-		real const areaR = 1.<? for i=0,solver.dim-1 do if i ~= side then ?> * solver->grid_dx.s<?=i?><? end end ?>;
-<? end ?>
+		//calc flux from ULR state here before modifying ULR
+		<?=cons_t?> fluxCellL, fluxCellR;
+		<?=normal_t?> n = normal_forSide<?=side?>(x);
+		<?=fluxFromCons?>(&fluxCellL, solver, &ULR->L, cell, n);
+		<?=fluxFromCons?>(&fluxCellR, solver, &ULR->R, cell, n);
+<?
+		updateFields:insert"ULR->L"
+		updateFields:insert"ULR->R"
+	elseif solver.getULRBufType == eqn.symbols.cons_t then
+		-- imporatnt detail about running non-PLM with CTU...
+		-- (you shouldn't but who am I to stop you)
+		-- the PLM version will not update the UBuf ... so after correcting the flux, the subsequent UBuf integration step will be applied to the original UBuf
+		-- however the non-PLM version *will* update the UBuf, so the new UBuf won't only contribute to the adjusted flux, but it will also contribute to the next UBuf integration, and will probably add to the error
+?>		global <?=cons_t?> * const U = UBuf + index;
+<?
+		updateFields:insert"(*U)"
+	else
+		error("can't handle getULRBufType "..tostring(solver.getULRBufType))
+	end
+?>
 
-		<?
-	for side2=0,solver.dim-1 do
-		if side2 ~= side then
-		?>{
-<? if solver.getULRArg == consLR_t.."* ULRBuf" then
-?>			int const indexForSide = side + dim * index;
-			global <?=consLR_t?> * const ULR = ULRBuf + indexForSide;
+		for (int j = 0; j < numIntStates; ++j) {
+<?	for side2=0,solver.dim-1 do
+		-- for non-PLM, i.e. constant slope, since the state is constant across the sell, the flux dif across the cell is zero, so just skip this side
+		if not (
+			side == side2
+			and solver.getULRBufType == eqn.symbols.cons_t
+		) then
+			local fluxL, fluxR	-- code for source of fluxL/fluxR.  for side==side2 this is F(ULR), for otherwise it is intercell flux
+			if side2 == side then
+				-- by here we must be using ULRBuf ...
+				fluxL = "fluxCellL"
+				fluxR = "fluxCellR"
+			else
+				fluxL = "(*fluxL"..side2..")"
+				fluxR = "(*fluxR"..side2..")"
+			end
 
-			for (int j = 0; j < numIntStates; ++j) {
-				real const dF_dx = (
-					fluxR->ptr[j] * areaR
-					- fluxL->ptr[j] * areaL
-				) / volume;
-
-				ULR->L.ptr[j] -= .5 * dt * dF_dx;
-				ULR->R.ptr[j] -= .5 * dt * dF_dx;
-			}
-<? elseif solver.getULRArg == cons_t.."* UBuf" then
-?>			global <?=cons_t?> * const U = UBuf + index;
-
-			for (int j = 0; j < numIntStates; ++j) {
-				real const dF_dx = (
-					fluxR->ptr[j] * areaR
-					- fluxL->ptr[j] * areaL
-				) / volume;
-				U->ptr[j] -= .5 * dt * dF_dx;
-			}
-<? else error("can't handle getULRArg "..tostring(solver.getULRArg)) end
-?>		}<?
+			local dF_dx = "dF_dx"..side2
+?>
+			real const <?=dF_dx?> = (
+				<?=fluxR?>.ptr[j] * areaR<?=side2?>
+				- <?=fluxL?>.ptr[j] * areaL<?=side2?>
+			) * invVolume;
+<?
+			for _,updateField in ipairs(updateFields) do
+?>			<?=updateField?>.ptr[j] -= .5 * dt * <?=dF_dx?>;
+<?
+			end
 		end
-	end ?>
+	end
+?>		}
 	}<?
 end ?>
 }
+
+<?
+--[[
+TODO alternatively, if you want to do the CTU in primitive space instead of conserved:
+(a) when adjusting U, read from cell-centered U, write to ULR ... the L and R states will match, but they will differ per-dir
+(b) re-run calcLR, but this time accept ULRBuf as the input instead of UBuf 
+but to do this I'd have to pass in the UBuf here even when writing to ULRBuf
+--]]
+?>

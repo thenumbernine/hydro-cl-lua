@@ -19,7 +19,7 @@ local varying = vertexShader and "out"
 
 <? if vertexShader then ?>
 
-attribute vec4 vertex;
+in vec4 vertex;
 
 void main() {
 	vec4 v = vertex;
@@ -52,7 +52,7 @@ void main() {
 #endif
 
 <? local ds = 1/solver.app.drawVectorLICNoiseSize ?>
-	float licMag = texture2D(noiseTex, chartToNoGhostCoord(chartCoord).xy).r;
+	float licMag = texture(noiseTex, chartToNoGhostCoord(chartCoord).xy).r;
 	float totalWeight = 1.;
 	<? for dir=-1,1,2 do ?>{
 		vec3 pos = chartCoord;
@@ -88,7 +88,7 @@ void main() {
 			
 			float f = float(iter + 1) / float(integralMaxIter+1);
 			float weight = smoothstep(1., 0., f);
-			licMag += texture2D(noiseTex, chartToNoGhostCoord(pos).xy).r * weight;
+			licMag += texture(noiseTex, chartToNoGhostCoord(pos).xy).r * weight;
 			totalWeight += weight;
 			last_dPos_ds = dPos_ds;
 		}

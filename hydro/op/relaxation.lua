@@ -1,13 +1,12 @@
 local class = require 'ext.class'
 local file = require 'ext.file'
 local table = require 'ext.table'
-local template = require 'template'
 local ig = require 'ffi.imgui'
 local ffi = require 'ffi'
 local tooltip = require 'hydro.tooltip'
 local CLBuffer = require 'cl.obj.buffer'
 
-local half = require 'hydro.half'
+local half = require 'cl.obj.half'
 local toreal, fromreal = half.toreal, half.fromreal
 
 
@@ -15,7 +14,7 @@ local Relaxation = class()
 
 Relaxation.name = 'relaxation'
 
--- scalar type of our vectors -- real or cplx 
+-- scalar type of our vectors -- real or cplx
 -- TODO can be inferred from the type
 Relaxation.scalar = 'real'
 
@@ -33,15 +32,15 @@ Relaxation.solverCodeFile = nil
 
 -- type of the buffer holding the potential field
 -- TODO can this be inferred? not at the moment, because SolverBase:clalloc is not accepting type info, and passing 'real' to the cl lib
-function Relaxation:getPotBufType() 
+function Relaxation:getPotBufType()
 	--return self.solver.UBufObj.type
 	-- should be the same:
 	return self.solver.eqn.symbols.cons_t
 end
 
 -- buffer holding the potential field
-function Relaxation:getPotBuf() 
-	return self.solver.UBuf 
+function Relaxation:getPotBuf()
+	return self.solver.UBuf
 end
 
 
@@ -64,6 +63,7 @@ end
 
 function Relaxation:getSymbolFields()
 	return table{
+		'comments',
 		'initPotential',
 		'solveJacobi',
 		'copyWriteToPotentialNoGhost',
@@ -71,16 +71,22 @@ function Relaxation:getSymbolFields()
 	}
 end
 
-function Relaxation:initCodeModules(solver)
-	local name = self.symbolPrefix..'Relaxation'
-	solver.modules:add{
-		name = name,
-		depends = {
-			solver.symbols.SETBOUNDS_NOGHOST,
-		},
-		code = solver.eqn:template(file[self.solverCodeFile], {op = self}),
+function Relaxation:initCodeModules()
+	local solver = self.solver
+	solver.modules:addFromMarkup{
+		code = solver.eqn:template(
+			file[self.solverCodeFile],
+			table(self.symbols, {
+				op = self,
+			})
+		),
 	}
-	solver.solverModulesEnabled[name] = true
+	-- provided in poisson_jacobi and poisson_krylov's poisson.cl
+	solver.solverModulesEnabled[self.symbols.initPotential] = true
+	solver.solverModulesEnabled[self.symbols.copyWriteToPotentialNoGhost] = true
+	solver.solverModulesEnabled[self.symbols.setReduceToPotentialSquared] = true
+	-- provided in their extra code:
+	solver.solverModulesEnabled[self.symbols.solveJacobi] = true
 end
 
 function Relaxation:refreshSolverProgram()
@@ -92,6 +98,12 @@ function Relaxation:refreshSolverProgram()
 	if self.stopOnEpsilon then
 		self.solveJacobiKernelObj.obj:setArg(4, solver.reduceBuf)
 	end
+	
+	-- TODO if we are using this 'writeBufObj'
+	-- and this kernel has to copy to the potential field
+	-- then ... why store the potential field at all?
+	-- except maybe in cases where it is used elsewhere, like ePot <-> ETotal
+	-- but ... with noDiv, why store vPot at all?
 	self.copyWriteToPotentialNoGhostKernelObj = solver.solverProgramObj:kernel{
 		name = self.symbols.copyWriteToPotentialNoGhost,
 		setArgs={
@@ -103,13 +115,13 @@ function Relaxation:refreshSolverProgram()
 	}
 
 	self.setReduceToPotentialSquaredKernelObj = solver.solverProgramObj:kernel{
-		name=self.symbols.setReduceToPotentialSquared,
-		setArgs={
+		name = self.symbols.setReduceToPotentialSquared,
+		setArgs = {
 			solver.solverBuf,
 			solver.reduceBuf,
 			solver.UBuf,
 		},
-		domain=solver.domainWithoutBorder,
+		domain = solver.domainWithoutBorder,
 	}
 	
 	self.lastResidual = 0
@@ -156,17 +168,17 @@ function Relaxation:relax()
 		self:potentialBoundary()
 
 		if self.stopOnEpsilon then
-			local residual = math.sqrt(solver.reduceSum() / tonumber(solver.volumeWithoutBorder))
-			local lastResidual = self.lastResidual	
+			local residual = math.sqrt(fromreal(solver.reduceSum()) / tonumber(solver.volumeWithoutBorder))
+			local lastResidual = self.lastResidual
 			self.lastResidual = residual
 			if self.verbose then
 				self.setReduceToPotentialSquaredKernelObj()
-				local xNorm = math.sqrt(solver.reduceSum() / tonumber(solver.volumeWithoutBorder))
+				local xNorm = math.sqrt(fromreal(solver.reduceSum()) / tonumber(solver.volumeWithoutBorder))
 				self.copyPotentialToReduceKernelObj()
 				local xmin = fromreal(solver.reduceMin())
 				self.copyPotentialToReduceKernelObj()
 				local xmax = fromreal(solver.reduceMax())
-				io.stderr:write(table{i-1, residual, xNorm, xmin, xmax}:map(tostring):concat'\t','\n')
+				io.stderr:write(table{i-1, residual, xNorm, xmin, xmax}:mapi(tostring):concat'\t','\n')
 			end
 			
 			-- TODO compare residual

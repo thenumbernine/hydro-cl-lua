@@ -14,16 +14,16 @@ local varying = vertexShader and "out"
 <?=varying?> vec4 color;
 
 //this is the arrow vertex
-attribute vec2 vtx;
+in vec2 vtx;
 
 //in hydro/draw/draw.lua I said gridCoord was already half-off, but this is integers starting at 0
 //for meshsolver this is the cell center
-attribute vec3 gridCoord;
+in vec3 gridCoord;
 
-<? local isMeshSolver = require "hydro.solver.meshsolver".is(solver) ?>
+<? local isMeshSolver = require "hydro.solver.meshsolver":isa(solver) ?>
 <? if isMeshSolver then ?>
 //needed for indexing texcoord in meshsolver
-attribute float cellindex;
+in float cellindex;
 <? end ?>
 
 uniform float scale;
@@ -58,7 +58,7 @@ else
 	
 	// matches getValue() in mesh_heatmap.shader
 <?	
-	if require "gl.tex2d".is(solver.tex) then 
+	if require "gl.tex2d":isa(solver.tex) then 
 		if solver.texSize.y == 1 then
 ?>
 	texCoord.x = (cellindex + .5) / texSize.x;
@@ -75,7 +75,7 @@ else
 	}
 <? 
 		end
-	elseif require "gl.tex3d".is(solver.tex) then 
+	elseif require "gl.tex3d":isa(solver.tex) then 
 ?>
 	{
 		float i = cellindex;
@@ -139,7 +139,7 @@ end
 //TODO make this a flag, whether to normalize vectors or not? 
 	float valuescale = scale;// * clamp(value, 0., 1.);
 	value = getGradientTexCoord(value);
-	color = texture1D(gradientTex, value);
+	color = texture(gradientTex, value);
 
 	//cartesian coords
 <? if not isMeshSolver then ?>	

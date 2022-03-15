@@ -7,6 +7,7 @@ https://turbmodels.larc.nasa.gov/naca0012_grids.html
 local ffi = require 'ffi'
 local class = require 'ext.class'
 local table = require 'ext.table'
+local math = require 'ext.math'
 local file = require 'ext.file'
 local vec3sz = require 'vec-ffi.vec3sz'
 local vec3f = require 'vec-ffi.vec3f'
@@ -15,12 +16,14 @@ local ig = require 'ffi.imgui'
 local gl = require 'gl'
 local glreport = require 'gl.report'
 local tooltip = require 'hydro.tooltip'
+local template = require 'template'
+local clnumber = require 'cl.obj.number'
 local SolverBase = require 'hydro.solver.solverbase'
 local time, getTime = table.unpack(require 'hydro.util.time')
 local real = require 'hydro.real'
-local vector = require 'hydro.util.vector'
+local vector = require 'ffi.cpp.vector'
 
-local half = require 'hydro.half'
+local half = require 'cl.obj.half'
 local toreal, fromreal = half.toreal, half.fromreal
 
 
@@ -33,6 +36,8 @@ MeshSolver.numGhost = 0
 
 function MeshSolver:getSymbolFields()
 	return MeshSolver.super.getSymbolFields(self):append{
+		'boundaryCons',
+		'getEdgeStates',
 		-- also in gridsolver:
 		'OOB',
 		'SETBOUNDS',
@@ -52,19 +57,17 @@ NOTICE initCond is tied closely to grid mins/maxs...
 so how should meshfiles use init states?
 --]]
 function MeshSolver:initMeshVars(args)
-	self.showVertexes = false
-	self.showFaces = false
-	self.showNormals = false
-	self.showValues = true
+	self.showVertexes = cmdline.showVertexes or false
+	self.showFaces = cmdline.showFaces or false
+	self.showNormals = cmdline.showNormals or false
+	self.showValues = cmdline.showValues == nil and true or cmdline.showValues	-- default to true
 	self.drawCellScale = 1
 
 	-- TODO make this a param of gridsolver as well
 	local fluxName = assert(args.flux, "expected flux")
 	local fluxClass = require('hydro.flux.'..fluxName)
-	local fluxArgs = table(args.fluxArgs, {solver=self})
+	local fluxArgs = table(args.fluxArgs, {solver=self}):setmetatable(nil)
 	self.flux = fluxClass(fluxArgs)
-
-	self.boundaryRestitution = args.restitution or 1
 
 	MeshSolver.super.initMeshVars(self, args)
 
@@ -76,7 +79,6 @@ function MeshSolver:initMeshVars(args)
 	self.solverStruct.vars:append{
 		{name='gridSize', type='int4'},
 		{name='stepsize', type='int4'},
-		{name='boundaryRestitution', type='real'},
 	}
 
 	local meshType = assert(args.mesh.type, "expected mesh type")
@@ -103,6 +105,9 @@ for k,v in pairs(self.mesh.times) do
 end
 --os.exit()
 
+	-- here's our boundary ctor info hack:
+	self.boundaryArgs = args.mesh.boundary
+
 	-- ok now convert from lua tables to arrays
 	-- or do this in mesh:calcAux() ?
 
@@ -125,6 +130,19 @@ end
 		self.mindx = math.min(self.mindx, f.cellDist)
 	end
 
+--[[
+big problem
+in gridsolver, these vars are dependent on the grid size
+but in mesh solver they are dependent on the mesh
+however the mesh is dependent on the face_t etc types
+and those types are defined in initCodeModules
+so what do I do?
+
+is it safe to postpone declaring numCells until just before postInit is called, when buffers are allocated?
+no, because numCells determines maxWorkGroupSize, which is needed by getSizePropsForWorkGroupSize,
+	and I think eventually by the initCodeModule stuff (esp the init_dx stuff in gridsolver)
+--]]
+
 	-- TODO put these in solver_t
 	self.numCells = assert(self.mesh.numCells, "did your MeshFactory remember to call :calcAux()?")
 	self.numFaces = assert(self.mesh.numFaces, "did your MeshFactory remember to call :calcAux()?")
@@ -137,6 +155,10 @@ end
 	-- maybe I should rename this to numFaces?
 end
 
+function MeshSolver:postInit()
+	MeshSolver.super.postInit(self)
+end
+
 function MeshSolver:initObjs(args)
 	MeshSolver.super.initObjs(self, args)
 
@@ -144,6 +166,171 @@ function MeshSolver:initObjs(args)
 		print("overriding and removing fluxLimiter=="..self.fluxLimiter.." for meshsolver")
 		self.fluxLimiter = 1
 	end
+
+	self.boundaryMethods = {}
+	for key,boundary in ipairs(self.boundaryArgs or {}) do
+		local name, boundaryObjArgs
+		if type(boundary) == 'string' then
+			name = boundary
+		elseif type(boundary) == 'table' then
+			name = boundary.name
+			boundaryObjArgs = boundary.args
+		else
+			error("unknown boundary ctor: "..tostring(boundary))
+		end
+		local boundaryClass = assert(self.boundaryOptionForName[name], "failed to find boundary method named "..name)
+		
+		-- 'key' should be a 1-based integer ...
+		self.boundaryMethods[key] = boundaryClass(boundaryObjArgs)
+	end
+	-- and now we're done with self.boundaryArgs
+	self.boundaryArgs = nil
+end
+
+function MeshSolver:createCellStruct()
+	-- here's the mesh-specific stuff
+	self.coord.cellStruct.vars:append{
+-- [[			
+		{type='real', name='volume'},	--volume of the cell
+--]]			
+		{type='int', name='faceOffset'},
+		{type='int', name='faceCount'},
+		{type='int', name='vtxOffset'},
+		{type='int', name='vtxCount'},
+	}
+
+	-- here is the mesh-specific face_t fields
+	self.coord.faceStruct.vars:append{
+		{type='vec2i_t', name='cells'},	--indexes of cells
+		{type='int', name='vtxOffset'},
+		{type='int', name='vtxCount'},
+		{type='int', name='boundaryMethodIndex'},
+	}
+end
+
+
+-- MeshSolver Boundary
+-- similar to GridSolver Boundary except GridSolver uses the grid for things like periodic/linear/quadratic cell lookup
+-- this is all dependenton the mesh / cell / face structs
+
+
+local Boundary = class()
+MeshSolver.Boundary = Boundary
+function Boundary:assignDstSrc(dst, src, args)
+	local lines = table()
+	if args.fields then
+		for _,field in ipairs(args.fields) do
+			lines:insert('('..dst..')->'..field..' = ('..src..')->'..field..';')
+		end
+	else
+		lines:insert('*('..dst..') = *('..src..');')
+	end
+	return lines:concat'\n'
+end
+
+local BoundaryNone = class(Boundary)
+BoundaryNone.name = 'none'
+function BoundaryNone:getCode(args)
+	return ''
+end
+
+-- here is where BoundaryPeriodic would normally go
+-- but 'periodic' is not so clear for unstructured grids
+-- so we'd need some kind of "read from arbitrary neighbor cell"
+
+local BoundaryMirror = class(Boundary)
+BoundaryMirror.name = 'mirror'
+BoundaryMirror.restitution = 1
+function BoundaryMirror:init(args)
+	if args then
+		self.restitution = args.restitution
+	end
+end
+function BoundaryMirror:getCode(args)
+	local dst = assert(args.dst)
+	local src = assert(args.src)
+
+	local lines = table()
+	
+	lines:insert(self:assignDstSrc(dst, src, args))
+	
+	local solver = args.solver
+	local eqn = solver.eqn
+	
+	lines:insert(template([[
+{
+	real3 const x = (<?=face?>)->pos;
+	real3 const n = (<?=face?>)->normal;	// TODO pos vs neg?
+]], {
+		face = assert(args.face),
+	}))
+	for _,var in ipairs(eqn.consStruct.vars) do
+		if var.type == 'real' 
+		or var.type == 'cplx'
+		then
+			-- do nothing
+		elseif var.type == 'real3' 
+		or var.type == 'cplx3'
+		then
+			-- TODO looks very similar to the reflect code in meshsolver
+			lines:insert(template([[
+	(<?=dst?>)-><?=field?> = <?=vec3?>_sub(
+		(<?=dst?>)-><?=field?>,
+		<?=vec3?>_<?=scalar?>_mul(
+			<?=vec3?>_from_real3(n),
+			<?=scalar?>_real_mul(
+				<?=vec3?>_real3_dot(
+					(<?=dst?>)-><?=field?>,
+					n
+				), 
+				<?=restitutionPlusOne?>
+			)
+		)
+	);
+]], 		{
+				restitutionPlusOne = clnumber(self.restitution + 1),
+				vec3 = var.type,
+				scalar = var.type == 'cplx3' and 'cplx' or 'real',
+				field = var.name,
+				dst = dst,
+			}))
+		else
+			error("need to support reflect() for type "..var.type)
+		end
+	end
+	lines:insert[[
+}
+]]
+	return lines:concat'\n'
+end
+
+local BoundaryFixed = class(Boundary)
+BoundaryFixed.name = 'fixed'
+function BoundaryFixed:init(args)
+	-- fixed values to use
+	self.fixedCode = assert(args.fixedCode)
+end
+function BoundaryFixed:getCode(args)
+	local dst = assert(args.dst)
+	return self:fixedCode(args, dst)
+end
+MeshSolver.BoundaryFixed = BoundaryFixed 
+
+local BoundaryFreeFlow = class(Boundary)
+BoundaryFreeFlow.name = 'freeflow'
+function BoundaryFreeFlow:getCode(args)
+	local dst = assert(args.dst)
+	local src = assert(args.src)
+	return self:assignDstSrc(dst, src, args)
+end
+
+function MeshSolver:createBoundaryOptions()
+	self:addBoundaryOptions{
+		BoundaryNone,
+		BoundaryMirror,
+		BoundaryFixed,
+		BoundaryFreeFlow,
+	}
 end
 
 function MeshSolver:createSolverBuf()
@@ -159,8 +346,6 @@ function MeshSolver:createSolverBuf()
 	self.solverPtr.stepsize.y = self.solverPtr.gridSize.x
 	self.solverPtr.stepsize.z = self.solverPtr.gridSize.x * self.solverPtr.gridSize.y
 	self.solverPtr.stepsize.w = self.solverPtr.gridSize.x * self.solverPtr.gridSize.y * self.solverPtr.gridSize.z
-	
-	self.solverPtr.boundaryRestitution = self.boundaryRestitution
 
 	-- while we're here, write all gui vars to the solver_t
 	for _,var in ipairs(self.eqn.guiVars) do
@@ -256,8 +441,8 @@ function MeshSolver:initDraw()
 uniform float drawCellScale;
 uniform mat4 modelViewProjectionMatrix;
 
-attribute vec3 vtx;
-attribute vec3 vtxcenter;
+in vec3 vtx;
+in vec3 vtxcenter;
 
 void main() {
 	vec3 v = (vtx - vtxcenter) * drawCellScale + vtxcenter;
@@ -285,32 +470,39 @@ function MeshSolver:createBuffers()
 
 	-- set texSize before calling super
 	if app.targetSystem ~= 'console' then
+--print('numCells', self.numCells)		
 		local maxTex2DSize = vec3sz(
 			self.device:getInfo'CL_DEVICE_IMAGE2D_MAX_WIDTH',
 			self.device:getInfo'CL_DEVICE_IMAGE2D_MAX_HEIGHT',
 			1)
+--print('maxTex2DSize', maxTex2DSize)	
 		local maxTex3DSize = vec3sz(
 			self.device:getInfo'CL_DEVICE_IMAGE3D_MAX_WIDTH',
 			self.device:getInfo'CL_DEVICE_IMAGE3D_MAX_HEIGHT',
 			self.device:getInfo'CL_DEVICE_IMAGE3D_MAX_DEPTH')
+--print('maxTex3DSize', maxTex3DSize)		
 		self.texSize = vec3sz()
 		-- TODO if texSize >= max gl size then overflow into the next dim
 		if self.numCells <= maxTex2DSize.x then
+--print('using 1D texture')			
 			self.texSize = vec3sz(self.numCells, 1, 1)
 		else
 			local sx = math.min(math.ceil(math.sqrt(self.numCells)), tonumber(maxTex2DSize.x))
 			local sy = math.ceil(self.numCells / tonumber(self.texSize.x))
 			if sx <= maxTex2DSize.x and sy <= maxTex2DSize.y then
+--print('using 2D texture')			
 				self.texSize = vec3sz(sx, sy, 1)
 			else
-				local sz = math.min(math.ceil(math.cbrt(self.numCells)), maxTexSize3D.z)
+				local sz = math.min(math.ceil(math.cbrt(self.numCells)), tonumber(maxTex3DSize.z))
 				local sxy = math.ceil(self.numCells / sz)
-				local sy = math.min(math.ceil(math.sqrt(sxy)), maxTexSize3D.y)
+				local sy = math.min(math.ceil(math.sqrt(sxy)), tonumber(maxTex3DSize.y))
 				local sx = math.ceil(sxy / sy)
-				if sx >= maxTexSize3D.x then
+				if sx <= maxTex3DSize.x then
+--print('using 3D texture')			
+					self.texSize = vec3sz(sx, sy, sz)
+				else
 					error("couldn't fit cell buffer into texture.  max 2d size " .. maxTex2DSize .. ", max 3d size " .. maxTex3DSize)
 				end
-				self.texSize = vec3sz(sx, sy, sz)
 			end
 		end
 	end
@@ -319,11 +511,44 @@ function MeshSolver:createBuffers()
 
 	self:clalloc('vtxBuf', 'real3', self.numVtxs)
 	self:clalloc('cellBuf', self.coord.cell_t, self.numCells)
-	self:clalloc('facesBuf', self.coord.face_t, self.numFaces)
+	self:clalloc('faceBuf', self.coord.face_t, self.numFaces)
 	self:clalloc('cellFaceIndexesBuf', 'int', self.numCellFaceIndexes)
 	
 	-- specific to FiniteVolumeSolver
 	self:clalloc('fluxBuf', self.eqn.symbols.cons_t, self.numFaces)
+
+-- [[
+	-- here or somewhere before 
+	-- convert the mesh faces and cells from meshface_t, meshcell_t
+	-- to face_t and cell_t
+	-- hmm, but if any custom fields are included, I'll bet the subclass will want to populate those ...
+	local mesh = self.mesh
+	local faces = vector(self.coord.face_t, self.numFaces)
+	for i=0,self.numFaces-1 do
+		faces.v[i].pos = mesh.faces.v[i].pos
+		faces.v[i].normal = mesh.faces.v[i].normal
+		faces.v[i].normal2 = mesh.faces.v[i].normal2
+		faces.v[i].normal3 = mesh.faces.v[i].normal3
+		faces.v[i].area = mesh.faces.v[i].area
+		faces.v[i].cellDist = mesh.faces.v[i].cellDist
+		faces.v[i].cells = mesh.faces.v[i].cells
+		faces.v[i].vtxOffset = mesh.faces.v[i].vtxOffset
+		faces.v[i].vtxCount = mesh.faces.v[i].vtxCount
+		faces.v[i].boundaryMethodIndex = mesh.faces.v[i].boundaryMethodIndex
+	end
+	mesh.faces = faces
+	
+	local cells = vector(self.coord.cell_t, self.numCells)
+	for i=0,self.numCells-1 do
+		cells.v[i].pos = mesh.cells.v[i].pos
+		cells.v[i].volume = mesh.cells.v[i].volume
+		cells.v[i].faceOffset = mesh.cells.v[i].faceOffset
+		cells.v[i].faceCount = mesh.cells.v[i].faceCount
+		cells.v[i].vtxOffset = mesh.cells.v[i].vtxOffset
+		cells.v[i].vtxCount = mesh.cells.v[i].vtxCount
+	end
+	mesh.cells = cells
+--]]
 end
 
 function MeshSolver:finalizeCLAllocs()
@@ -331,7 +556,7 @@ function MeshSolver:finalizeCLAllocs()
 
 	self.vtxBufObj:fromCPU(self.mesh.vtxs.v)
 	self.cellBufObj:fromCPU(self.mesh.cells.v)
-	self.facesBufObj:fromCPU(self.mesh.faces.v)
+	self.faceBufObj:fromCPU(self.mesh.faces.v)
 	self.cellFaceIndexesBufObj:fromCPU(self.mesh.cellFaceIndexes.v)
 	self.cmds:finish()
 end
@@ -376,14 +601,14 @@ function MeshSolver:refreshSolverProgram()
 	self.calcFluxKernelObj.obj:setArg(1, self.fluxBuf)
 	self.calcFluxKernelObj.obj:setArg(2, self.UBuf)
 	self.calcFluxKernelObj.obj:setArg(4, self.cellBuf)
-	self.calcFluxKernelObj.obj:setArg(5, self.facesBuf)
+	self.calcFluxKernelObj.obj:setArg(5, self.faceBuf)
 	self.calcFluxKernelObj.obj:setArg(6, self.cellFaceIndexesBuf)
 
 	self.calcDerivFromFluxKernelObj = self.solverProgramObj:kernel(self.symbols.calcDerivFromFlux)
 	self.calcDerivFromFluxKernelObj.obj:setArg(0, self.solverBuf)
 	self.calcDerivFromFluxKernelObj.obj:setArg(2, self.fluxBuf)
 	self.calcDerivFromFluxKernelObj.obj:setArg(3, self.cellBuf)
-	self.calcDerivFromFluxKernelObj.obj:setArg(4, self.facesBuf)
+	self.calcDerivFromFluxKernelObj.obj:setArg(4, self.faceBuf)
 	self.calcDerivFromFluxKernelObj.obj:setArg(5, self.cellFaceIndexesBuf)
 end
 
@@ -419,14 +644,14 @@ function MeshSolver:refreshCalcDTKernel()
 	-- TODO combine these, and offset one into the other?
 	-- because I'm going to need more than just these...
 	self.calcDTKernelObj.obj:setArg(3, self.cellBuf)
-	self.calcDTKernelObj.obj:setArg(4, self.facesBuf)
+	self.calcDTKernelObj.obj:setArg(4, self.faceBuf)
 	self.calcDTKernelObj.obj:setArg(5, self.cellFaceIndexesBuf)
 end
 
 function MeshSolver:calcDT()
 	if not self.useFixedDT then
 		self.calcDTKernelObj.obj:setArg(3, self.cellBuf)
-		self.calcDTKernelObj.obj:setArg(4, self.facesBuf)
+		self.calcDTKernelObj.obj:setArg(4, self.faceBuf)
 		self.calcDTKernelObj.obj:setArg(5, self.cellFaceIndexesBuf)
 	end
 	return MeshSolver.super.calcDT(self)
@@ -460,7 +685,7 @@ MeshSolver.DisplayVar = MeshSolverDisplayVar
 
 function MeshSolverDisplayVar:setArgs(kernel)
 	MeshSolverDisplayVar.super.setArgs(self, kernel)
-	kernel:setArg(6, self.solver.facesBuf)
+	kernel:setArg(6, self.solver.faceBuf)
 end
 
 function MeshSolver:updateGUIParams()

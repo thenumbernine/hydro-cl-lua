@@ -18,7 +18,7 @@ local time, getTime = table.unpack(require 'hydro.util.time')
 local SolverBase = require 'hydro.solver.solverbase'
 local Struct = require 'hydro.code.struct'
 
-local half = require 'hydro.half'
+local half = require 'cl.obj.half'
 local toreal, fromreal = half.toreal, half.fromreal
 
 
@@ -49,6 +49,8 @@ function GridSolver:getSymbolFields()
 		'SETBOUNDS',
 		'SETBOUNDS_NOGHOST',
 		'updateCTU',
+		'slopeLimiter',
+		'calcLR',
 	}
 end
 
@@ -60,7 +62,7 @@ args:
 --]]
 function GridSolver:initMeshVars(args)
 	GridSolver.super.initMeshVars(self, args)
-
+	
 	-- same as equations
 	-- but let equations/init conds add to the solver vars (as gui vars)
 	-- then we can edit them without recompiling the kernels
@@ -112,9 +114,8 @@ function GridSolver:initObjs(args)
 	GridSolver.super.initObjs(self, args)
 	
 	assert(not self.usePLM or self.fluxLimiter == 1, "are you sure you want to use flux and slope limiters at the same time?")
-	
-	self:createBoundaryOptions()
-	
+
+	-- TODO instead of boundaryMethods.xmin .xmax ... how about [1] ... [6] ? 
 	self.boundaryMethods = {}
 	for i=1,3 do
 		for _,minmax in ipairs(minmaxs) do
@@ -253,7 +254,7 @@ naming conventions ...
 	- the Cartesian length of the holonomic basis vectors is given by coord_dx?(x).  
 		This is like cell_dx? except not scaled by grid_dx?
 		This is just the change in embedded wrt the change in coordinate, not wrt the change in grid
-	- cell_volume(x) gives the volume between indexes at the coordinate x
+	- cellBuf[index].volume gives the volume between indexes at the coordinate x
 	- the Cartesian length of a vector in coordinate space is given by coordLen and coordLenSq
 * the embedded Cartesian space ... idk what letters I should use for this.  
 	Some literature uses r^i or u^i vs coordinate space x^a.
@@ -308,7 +309,7 @@ functionality (and abstraction):
 #define <?=SETBOUNDS_NOGHOST?>() \
 	int4 i = globalInt4(); \
 	if (<?=OOB?>(0, 2 * solver->numGhost)) return; \
-	i += (int4)(]]..range(4):map(function(i) 
+	i += (int4)(]]..range(4):mapi(function(i) 
 		return i <= self.dim and 'solver->numGhost' or '0' 
 	end):concat','..[[); \
 	int index = INDEXV(i);
@@ -317,14 +318,12 @@ functionality (and abstraction):
 
 	if self.usePLM then
 		self.modules:add{
-			name = 'slopeLimiter',
-			code = template([[
-real slopeLimiter(real r) {
+			name = self.symbols.slopeLimiter,
+			code = self.eqn:template[[
+real <?=slopeLimiter?>(real r) {
 	<?=solver.app.limiters[solver.slopeLimiter].code?>
 }
-]],			{
-				solver = self,
-			}),
+]],
 		}
 		
 		self.modules:add{
@@ -346,7 +345,7 @@ typedef struct {
 		}
 
 		self.modules:addFromMarkup(self.eqn:template(file['hydro/solver/plm.cl']))
-		self.solverModulesEnabled['calcLR'] = true
+		self.solverModulesEnabled[self.symbols.calcLR] = true
 	end
 
 	if self.useCTU then
@@ -410,6 +409,8 @@ function GridSolver:refreshSolverBufMinsMaxs()
 	end
 	if self.app.verbose then
 		print('grid_dx = '..fromreal(self.solverPtr.grid_dx.x)..', '..fromreal(self.solverPtr.grid_dx.y)..', '..fromreal(self.solverPtr.grid_dx.z))
+		print('mins = '..fromreal(self.solverPtr.mins.x)..', '..fromreal(self.solverPtr.mins.y)..', '..fromreal(self.solverPtr.mins.z))
+		print('maxs = '..fromreal(self.solverPtr.maxs.x)..', '..fromreal(self.solverPtr.maxs.y)..', '..fromreal(self.solverPtr.maxs.z))
 		print('initCondMins = '..fromreal(self.solverPtr.initCondMins.x)..', '..fromreal(self.solverPtr.initCondMins.y)..', '..fromreal(self.solverPtr.initCondMins.z))
 		print('initCondMaxs = '..fromreal(self.solverPtr.initCondMaxs.x)..', '..fromreal(self.solverPtr.initCondMaxs.y)..', '..fromreal(self.solverPtr.initCondMaxs.z))
 	end
@@ -422,6 +423,9 @@ function GridSolver:createBuffers()
 	-- define self.texSize before calling super
 	if app.targetSystem ~= 'console' then
 		self.texSize = vec3sz(self.gridSize)
+		if self.app.verbose then
+			print('texSize = '..self.texSize)
+		end
 	end
 
 	GridSolver.super.createBuffers(self)
@@ -438,7 +442,7 @@ function GridSolver:refreshSolverProgram()
 	GridSolver.super.refreshSolverProgram(self)
 
 	if self.usePLM then
-		self.calcLRKernelObj = self.solverProgramObj:kernel'calcLR'
+		self.calcLRKernelObj = self.solverProgramObj:kernel(self.symbols.calcLR)
 	end
 	if self.useCTU then
 		-- currently implemented in hydro/solver/roe.cl
@@ -527,9 +531,11 @@ function GridSolver:applyInitCond()
 	-- and does so by asking the coord obj
 	-- because coord objects can specify arbitrary fields
 	-- (such as x,y,z, r, remapped-r, etc)
-	local cellsCPU = ffi.new(self.coord.cell_t..'[?]', self.numCells)
-	self.coord:fillGridCellBuf(cellsCPU)
-	self.cellBufObj:fromCPU(cellsCPU)
+	-- TODO how about making this mimic meshsolver?
+	-- and then make the only difference be finite difference operators
+	self.cellCpuBuf = ffi.new(self.coord.cell_t..'[?]', self.numCells)
+	self.coord:fillGridCellBuf(self.cellCpuBuf)
+	self.cellBufObj:fromCPU(self.cellCpuBuf)
 
 	GridSolver.super.applyInitCond(self)
 end
@@ -558,6 +564,7 @@ GridSolver.DisplayVar_U = DisplayVar
 local Boundary = class()
 GridSolver.Boundary = Boundary
 
+-- reflection, but only when the normal is coordinate-aligned
 function Boundary:reflectVars(args, dst, varnames, restitution)
 	restitution = restitution or 1
 	local lines = table()
@@ -668,7 +675,7 @@ function BoundaryMirror:getCode(args)
 	local solver = args.solver
 	local eqn = solver.eqn
 	if solver.coord.vectorComponent == 'cartesian' 
-	and not require 'hydro.coord.cartesian'.is(solver.coord)
+	and not require 'hydro.coord.cartesian':isa(solver.coord)
 	then
 		-- v = v - n (v dot n)
 		-- v^i = v^i - n^i (v^j n_j) (1 + restitution)
@@ -679,9 +686,9 @@ function BoundaryMirror:getCode(args)
 {
 	real3 const x = cellBuf[INDEX(<?=iv?>)].pos;
 <? if args.minmax == 'min' then ?>
-	real3 n = coord_cartesianFromCoord(normalForSide<?=side-1?>, x);
+	real3 const n = coord_cartesianFromCoord(normalForSide<?=side-1?>, x);
 <? else -- max ?>
-	real3 n = coord_cartesianFromCoord(real3_neg(normalForSide<?=side-1?>), x);
+	real3 const n = coord_cartesianFromCoord(real3_neg(normalForSide<?=side-1?>), x);
 <? end ?>
 ]], 	{
 			args = args,
@@ -698,26 +705,27 @@ function BoundaryMirror:getCode(args)
 			elseif var.type == 'real3' 
 			or var.type == 'cplx3'
 			then
+				-- TODO looks very similar to the reflect code in meshsolver
 				lines:insert(template([[
-	buf[<?=dst?>].<?=field?> = <?=vec3?>_sub(
-		buf[<?=dst?>].<?=field?>,
+	<?=result?>-><?=field?> = <?=vec3?>_sub(
+		<?=result?>-><?=field?>,
 		<?=vec3?>_<?=scalar?>_mul(
 			<?=vec3?>_from_real3(n),
 			<?=scalar?>_real_mul(
 				<?=vec3?>_real3_dot(
-					buf[<?=dst?>].<?=field?>,
+					<?=result?>-><?=field?>,
 					n
 				), 
-				<?=restitution + 1?>
+				<?=restitutionPlusOne?>
 			)
 		)
 	);
 ]], 			{
-					restitution = clnumber(self.restitution),
+					restitutionPlusOne = clnumber(self.restitution + 1),
 					vec3 = var.type,
 					scalar = var.type == 'cplx3' and 'cplx' or 'real',
 					field = var.name,
-					dst = dst,
+					result = '(buf + '..dst..')',
 				}))
 			else
 				error("need to support reflect() for type "..var.type)
@@ -854,8 +862,8 @@ function BoundarySphereRMin:getCode(args)
 	local solver = args.solver
 	
 	assert(args.side == 1 and args.minmax == 'min', "you should only use this boundary condition for rmin with spherical coordinates")
-	assert(require 'hydro.coord.sphere'.is(solver.coord)
-		or require 'hydro.coord.sphere-sinh-radial'.is(solver.coord), "you should only use this boundary condition for rmin with spherical coordinates")
+	assert(require 'hydro.coord.sphere':isa(solver.coord)
+		or require 'hydro.coord.sphere_sinh_radial':isa(solver.coord), "you should only use this boundary condition for rmin with spherical coordinates")
 	--assert(solver.maxs.y - solver.mins.y == 2*math.pi)
 	--assert(solver.boundaryMethods.ymin == 'periodic' and solver.boundaryMethods.ymax == 'periodic')
 
@@ -897,8 +905,8 @@ function BoundarySphereTheta:getCode(args)
 	local solver = args.solver
 
 	assert(args.side == 2, "you should only use this boundary condition for θmin/θmax with spherical coordinates")
-	assert(require 'hydro.coord.sphere'.is(solver.coord)
-		or require 'hydro.coord.sphere-sinh-radial'.is(solver.coord), "you should only use this boundary condition for θmin/θmax with spherical coordinates")
+	assert(require 'hydro.coord.sphere':isa(solver.coord)
+		or require 'hydro.coord.sphere_sinh_radial':isa(solver.coord), "you should only use this boundary condition for θmin/θmax with spherical coordinates")
 
 	local src, dst
 	if args.minmax == 'min' then
@@ -953,7 +961,7 @@ function BoundaryCylinderRMin:getCode(args)
 	local solver = args.solver
 	
 	assert(args.side == 1 and args.minmax == 'min', "you should only use this boundary condition for rmin with cylinderical coordinates")
-	assert(require 'hydro.coord.cylinder'.is(solver.coord), "you should only use this boundary condition for rmin with cylinderical coordinates")
+	assert(require 'hydro.coord.cylinder':isa(solver.coord), "you should only use this boundary condition for rmin with cylinderical coordinates")
 	--assert(solver.maxs.y - solver.mins.y == 2*math.pi)
 	--assert(solver.boundaryMethods.ymin == 'periodic' and solver.boundaryMethods.ymax == 'periodic')
 
@@ -992,10 +1000,6 @@ end
 -- boundaryOptions is a table of classes
 --]]
 function GridSolver:createBoundaryOptions()
-	self.boundaryOptions = table()
-	self.boundaryOptionNames = table()
-	self.boundaryOptionForName = {}
-	
 	self:addBoundaryOptions{
 		BoundaryNone,
 		BoundaryPeriodic,
@@ -1004,24 +1008,11 @@ function GridSolver:createBoundaryOptions()
 		BoundaryFreeFlow,
 		BoundaryLinear,
 		BoundaryQuadratic,
+		-- specific to coordinate chart grids, where vector components flip as you cross coordinate symmetry boundaries
 		BoundarySphereRMin,
 		BoundarySphereTheta,
 		BoundaryCylinderRMin,
 	}
-
-	if self.eqn.createBoundaryOptions then
-		self.eqn:createBoundaryOptions()
-	end
-end
-function GridSolver:addBoundaryOptions(args)
-	for _,arg in ipairs(args) do
-		self:addBoundaryOption(arg)
-	end
-end
-function GridSolver:addBoundaryOption(boundaryClass)
-	self.boundaryOptions:insert(assert(boundaryClass))
-	self.boundaryOptionNames:insert(assert(boundaryClass.name))
-	self.boundaryOptionForName[boundaryClass.name] = boundaryClass
 end
 
 --[[
@@ -1332,20 +1323,34 @@ local function compareL1(ptr, n, ...)
 end
 
 function GridSolver:calcExactError(numStates)
-	numStates = numStates or self.eqn.numIntStates
-	local exact = assert(self.eqn.initCond.exactSolution, "can't test accuracy of a configuration that has no exact solution")
-	local ptr = ffi.cast(self.eqn.symbols.cons_t..'*', self.UBufObj:toCPU())
-	assert(self.dim == 1)
-	local n = self.gridSize.x
+	local eqn = self.eqn
+	local initCond = eqn.initCond
+	numStates = numStates or eqn.numIntStates
+	assert(initCond.exactSolution, "can't test accuracy of a configuration that has no exact solution")
+	-- TODO doesn't this risk some mem leaks?  does cast still lose refcounts?
+	-- looks like so far no one is using this so I wouldn't know
+	local UCpuBuf = ffi.cast(eqn.symbols.cons_t..'*', self.UBufObj:toCPU())
 	local ghost = self.numGhost
+	local imin, imax = ghost,tonumber(self.gridSize.x)-2*ghost-1
+	local jmin, jmax = ghost,tonumber(self.gridSize.y)-2*ghost-1
+	if self.dim < 2 then jmin, jmax = 0, 0 end
+	local kmin, kmax = ghost,tonumber(self.gridSize.z)-2*ghost-1
+	if self.dim < 3 then kmin, kmax = 0, 0 end
+	assert(self.cellCpuBuf)
+	self.cellBufObj:fromCPU(self.cellCpuBuf)
 	local err = 0
-	for i=ghost+1,tonumber(self.gridSize.x)-2*ghost do
-		--local x = self.xs[i+ghost]
-		local x = fromreal(self.solverPtr.mins.x) + fromreal(self.solverPtr.grid_dx.x) * (i - ghost - .5)
-		err = err + compareL1(ptr[i-1].ptr, numStates, exact(self, x, self.t))
+	for i=imin,imax do
+		for j=jmin,jmax do
+			for k=kmin,kmax do
+				local index = i + self.solverPtr.stepsize.x * j + self.solverPtr.stepsize.y * k
+				local cell = self.cellCpuBuf[index]
+				local U = UCpuBuf[index]
+				err = err + compareL1(U.ptr, numStates, initCond:exactSolution(self.t, cell.pos:unpack()))
+			end
+		end
 	end
-	err = err / (numStates * (tonumber(self.gridSize.x) - 2 * ghost))
-	return err, ptr
+	err = err / (numStates * tonumber(self.sizeWithoutBorder:volume()))
+	return err, UCpuBuf
 end
 
 function GridSolver:updateGUIParams()	

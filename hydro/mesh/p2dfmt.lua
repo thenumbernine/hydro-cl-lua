@@ -2,7 +2,7 @@ local class = require 'ext.class'
 local table = require 'ext.table'
 local string = require 'ext.string'
 local file = require 'ext.file'
-local vector = require 'hydro.util.vector'
+local vector = require 'ffi.cpp.vector'
 local Mesh = require 'hydro.mesh.mesh'
 local MeshFactory = require 'hydro.mesh.factory'
 
@@ -21,8 +21,8 @@ function P2DFMTMeshFactory:createMesh(solver)
 	local fn = 'grids/'..self.meshfile
 	local ls = string.split(assert(string.trim(file[fn], "failed to open "..fn)), '\n')
 	local first = ls:remove(1)
-	local m, n = string.split(string.trim(ls:remove(1)), '%s+'):map(function(l) return tonumber(l) end):unpack()
-	local x = string.split(string.trim(ls:concat()), '%s+'):map(function(l) return tonumber(l) end)
+	local m, n = string.split(string.trim(ls:remove(1)), '%s+'):mapi(function(l) return tonumber(l) end):unpack()
+	local x = string.split(string.trim(ls:concat()), '%s+'):mapi(function(l) return tonumber(l) end)
 	assert(#x == 2*m*n)
 	-- [[
 	local us = x:sub(1,m*n)

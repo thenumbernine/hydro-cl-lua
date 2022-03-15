@@ -1,11 +1,11 @@
 //// MODULE_NAME: <?=calcFluxForInterface?>
-//// MODULE_DEPENDS: <?=solver_macros?> math <?=eigen_forInterface?> <?=eqn_waveCode_depends?> <?=fluxFromCons?>
+//// MODULE_DEPENDS: <?=solver_macros?> math <?=eigen_forInterface?> <?=fluxFromCons?>
 
 //HLLC based on
 //http://math.lanl.gov/~shenli/publications/hllc_mhd.pdf
 //2012 Toro, "The HLLC Riemann Solver" presentation: http://marian.fsik.cvut.cz/~bodnar/PragueSum_2012/Toro_2-HLLC-RiemannSolver.pdf
 <?
-if not require "hydro.eqn.euler".is(solver.eqn) then 
+if not require "hydro.eqn.euler":isa(solver.eqn) then 
 	error("euler-hllc only works with euler eqn") 
 end
 ?>
@@ -16,29 +16,39 @@ end
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */UL,\
 	/*<?=cons_t?> const * const */UR,\
+	/*<?=cell_t?> const * const */cellL,\
+	/*<?=cell_t?> const * const */cellR,\
 	/*real3 const */xInt,\
 	/*<?=normal_t?> const */n\
 ) {\
 	<?=prim_t?> WL;\
-	<?=primFromCons?>(&WL, solver, UL, xInt);\
+	<?=primFromCons?>(&WL, solver, UL, (cellL)->pos);\
 	<?=prim_t?> WR;\
-	<?=primFromCons?>(&WR, solver, UR, xInt);\
+	<?=primFromCons?>(&WR, solver, UR, (cellR)->pos);\
 \
 <? if true then ?> /* use interface waves? */\
 	/*\
 	get min/max lambdas of UL, UR, and interface U (based on Roe averaging)\
 	TODO this in a more computationally efficient way\
+	\
+	This still needs the 'xInt' arg because some things (eig parameters derived from the averaged parameters, glm-mhd's calcRoeValues, navstokes-wilcox, twofluid-emhd & -lingr, etc) use it, and why recalculate it?\
+	But mind you not everyone uses the xInt, so it shouldn't always be calculated right?\
+	This is where fully-analytical implementations are handy (like BSSN is becoming).\
 	*/\
 	<?=eigen_t?> eigInt;\
-	<?=eigen_forInterface?>(&eigInt, solver, UL, UR, xInt, n);\
-	\
+	<?=eigen_forInterface?>(&eigInt, solver, UL, UR, cellL, cellR, xInt, n);\
+\
 	real lambdaIntMin, lambdaIntMax;\
 	{\
-		<?=eqn:eigenWaveCodePrefix("n", "&eigInt", "xInt"):gsub("\n", "\\\n\t\t")?>\
-		lambdaIntMin = <?=eqn:eigenMinWaveCode("n", "&eigInt", "xInt")?>;\
-		lambdaIntMax = <?=eqn:eigenMaxWaveCode("n", "&eigInt", "xInt")?>;\
+		<?=eqn:eigenWaveCodeMinMax{ --\
+			n = "n", --\
+			eig = "&eigInt", --\
+			pt = "xInt", --\
+			resultMin = "lambdaIntMin", --\
+			resultMax = "lambdaIntMax", --\
+		}:gsub("\\*\n", "\\\n\t\t")?>\
 	}\
-	\
+\
 <? 	if solver.flux.hllCalcWaveMethod == "Davis direct" then ?>\
 	real sL = lambdaIntMin;\
 	real sR = lambdaIntMax;\
@@ -46,30 +56,49 @@ end
 <? 	if solver.flux.hllCalcWaveMethod == "Davis direct bounded" then ?>\
 	real lambdaLMin;\
 	{\
-		<?=eqn:consWaveCodePrefix("n", "UL", "xInt"):gsub("\n", "\n\t\t"):gsub("\n", "\\\n\t\t")?>\
-		lambdaLMin = <?=eqn:consMinWaveCode("n", "UL", "xInt")?>;\
+		<?=eqn:consWaveCodeMinMax{ --\
+			n = "n", --\
+			U = "UL", --\
+			pt = "(cellL)->pos", --\
+			resultMin = "lambdaLMin", --\
+		}:gsub("\\*\n", "\\\n\t\t")?>\
 	}\
 \
 	real lambdaRMax;\
 	{\
-		<?=eqn:consWaveCodePrefix("n", "UR", "xInt"):gsub("\n", "\\\n\t\t")?>\
-		lambdaRMax = <?=eqn:consMaxWaveCode("n", "UR", "xInt")?>;\
+		<?=eqn:consWaveCodeMinMax{ --\
+			n = "n", --\
+			U = "UR", --\
+			pt = "(cellR)->pos", --\
+			resultMax = "lambdaRMax", --\
+		}:gsub("\\*\n", "\\\n\t\t")?>\
 	}\
-	\
+\
 	real const sL = min(lambdaLMin, lambdaIntMin);\
 	real const sR = max(lambdaRMax, lambdaIntMax);\
 <? 	end ?>\
 <? else ?> /* don't use interface waves.  looks no different than above, soo ... why even use interface state waves? */\
-	real sLMin, sLMax, sRMin, sRMax;\
+\
+	real sLMin, sLMax;\
 	{\
-		<?=eqn:consWaveCodePrefix(0, "UL", "xL"):gsub("\n", "\\\n\t\t")?>\
-		sLMin = <?=eqn:consMinWaveCode(0, "UL", "xL")?>;\
-		sLMax = <?=eqn:consMaxWaveCode(0, "UL", "xL")?>;\
+		<?=eqn:consWaveCodeMinMax{ --\
+			n = "n", --\
+			U = "UL", --\
+			pt = "(cellL)->pos", --\
+			resultMin = "sLMin", --\
+			resultMax = "sLMax", --\
+		}:gsub("\\*\n", "\\\n\t\t")?>\
 	}\
+\
+	real sRMin, sRMax;\
 	{\
-		<?=eqn:consWaveCodePrefix(0, "UR", "xR"):gsub("\n", "\\\n\t\t")?>\
-		sRMin = <?=eqn:consMinWaveCode(0, "UR", "xR")?>;\
-		sRMax = <?=eqn:consMaxWaveCode(0, "UR", "xR")?>;\
+		<?=eqn:consWaveCodeMinMax{ --\
+			n = "n", --\
+			U = "UR", --\
+			pt = "(cellR)->pos", --\
+			resultMin = "sRMin", --\
+			resultMax = "sRMax", --\
+		}:gsub("\\*\n", "\\\n\t\t")?>\
 	}\
 	real const sL = min(sLMin, sRMin);\
 	real const sR = max(sLMax, sRMax);\
@@ -84,12 +113,12 @@ end
 		/ (WR.rho * (sR - vnR.x) - WL.rho * (sL - vnL.x));\
 \
 	if (0 <= sL) {\
-		<?=fluxFromCons?>(flux, solver, UL, xInt, n);\
+		<?=fluxFromCons?>(flux, solver, UL, cellL, n);\
 <? if solver.flux.hllcMethod == 0 then ?>\
 	\
 	} else if (sL <= 0. && 0. <= sStar) {\
 		<?=cons_t?> FL;\
-		<?=fluxFromCons?>(&FL, solver, UL, xInt, n);\
+		<?=fluxFromCons?>(&FL, solver, UL, cellL, n);\
 		<?=cons_t?> ULStar;\
 		ULStar.rho = (UL)->rho * (sL - vnL.x) / (sL - sStar);\
 		\
@@ -108,7 +137,7 @@ end
 		}\
 	} else if (sStar <= 0. && 0. <= sR) {\
 		<?=cons_t?> FR;\
-		<?=fluxFromCons?>(&FR, solver, UR, xInt, n);\
+		<?=fluxFromCons?>(&FR, solver, UR, cellR, n);\
 		<?=cons_t?> URStar;\
 		URStar.rho = (UR)->rho * (sR - vnR.x) / (sR - sStar);\
 		\
@@ -129,7 +158,7 @@ end
 \
 	} else if (sL <= 0. && 0. <= sStar) {\
 		<?=cons_t?> FL;\
-		<?=fluxFromCons?>(&FL, solver, UL, xInt, n);\
+		<?=fluxFromCons?>(&FL, solver, UL, cellL, n);\
 		flux->rho = (sStar * (sL * (UL)->rho - FL.rho)) / (sL - sStar);\
 	\
 		real3 ULmn = normal_vecDotNs(n, (UL)->m);\
@@ -143,7 +172,7 @@ end
 		flux->ETotal = (sStar * (sL * (UL)->ETotal - FL.ETotal) + sL * (WL.P + WL.rho * (sL - vnL.x) * (sStar - vnL.x)) * sStar) / (sL - sStar);\
 	} else if (sStar <= 0. && 0. <= sR) {\
 		<?=cons_t?> FR;\
-		<?=fluxFromCons?>(&FR, solver, UR, xInt, n);\
+		<?=fluxFromCons?>(&FR, solver, UR, cellR, n);\
 		flux->rho = (sStar * (sR * (UR)->rho - FR.rho)) / (sR - sStar);\
 		\
 		real3 URmn = normal_vecDotNs(n, (UR)->m);\
@@ -160,7 +189,7 @@ end
 \
 	} else if (sL <= 0. && 0. <= sStar) {\
 		<?=cons_t?> FL;\
-		<?=fluxFromCons?>(&FL, solver, UL, xInt, n);\
+		<?=fluxFromCons?>(&FL, solver, UL, cellL, n);\
 		real PLR = .5 * (\
 			WL.P\
 			+ WR.P\
@@ -180,7 +209,7 @@ end
 		flux->ETotal = (sStar * (sL * (UL)->ETotal - FL.ETotal) + sL * PLR * sStar) / (sL - sStar);\
 	} else if (sStar <= 0. && 0. <= sR) {\
 		<?=cons_t?> FR;\
-		<?=fluxFromCons?>(&FR, solver, UR, xInt, n);\
+		<?=fluxFromCons?>(&FR, solver, UR, cellR, n);\
 		real PLR = .5 * (WL.P + WR.P + WL.rho * (sL - vnL.x) * (sStar - vnL.x) + WR.rho * (sR - vnR.x) * (sStar - vnR.x));\
 		flux->rho = sStar * (sR * (UR)->rho - FR.rho) / (sR - sStar);\
 		\
@@ -198,13 +227,13 @@ end
 <? end	--solver.flux.hllcMethod ?>\
 	\
 	} else if (sR <= 0) {\
-		<?=fluxFromCons?>(flux, solver, UR, xInt, n);\
+		<?=fluxFromCons?>(flux, solver, UR, cellR, n);\
 <? if true then ?>	/*why is this here? for when sStar is not between sL and sR*/\
 	} else if (sL <= 0 && 0 <= sR) {\
 		<?=cons_t?> FL;\
-		<?=fluxFromCons?>(&FL, solver, UL, xInt, n);\
+		<?=fluxFromCons?>(&FL, solver, UL, cellL, n);\
 		<?=cons_t?> FR;\
-		<?=fluxFromCons?>(&FR, solver, UR, xInt, n);\
+		<?=fluxFromCons?>(&FR, solver, UR, cellR, n);\
 		for (int j = 0; j < numIntStates; ++j) {\
 			flux->ptr[j] = (sR * FL.ptr[j] - sL * FR.ptr[j] + sL * sR * ((UR)->ptr[j] - (UL)->ptr[j])) / (sR - sL);\
 		}\

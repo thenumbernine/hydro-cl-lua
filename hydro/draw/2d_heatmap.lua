@@ -18,11 +18,7 @@ var.solver = solver
 
 	local tex = solver:getTex(var)
 	tex:bind(0)
-	if app.displayBilinearTextures then
-		gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MAG_FILTER, gl.GL_LINEAR)
-	else
-		gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MAG_FILTER, gl.GL_NEAREST)
-	end
+	tex:setParameter(gl.GL_TEXTURE_MAG_FILTER, app.displayBilinearTextures and gl.GL_LINEAR or gl.GL_NEAREST)
 
 	gl.glBegin(gl.GL_QUADS)
 	gl.glVertex2d(xmin, ymin)
@@ -39,7 +35,7 @@ end
 function Draw2DHeatmap:showDisplayVar(var, varName, ar, xmin, xmax, ymin, ymax)
 	local solver = self.solver
 	local app = solver.app
-	if require 'hydro.solver.meshsolver'.is(solver) then return end
+	if require 'hydro.solver.meshsolver':isa(solver) then return end
 	
 	-- TODO allow a fixed, manual colormap range
 	-- NOTICE with AMR this will only get from the root node
@@ -90,11 +86,15 @@ function Draw2DHeatmap:display(varName, ar, graph_xmin, graph_xmax, graph_ymin, 
 	local solver = self.solver
 	local app = solver.app
 	app.view:setup(ar)
-	
+
+	local xmin, xmax, ymin, ymax
 	if app.view.getOrthoBounds then
 		xmin, xmax, ymin, ymax = app.view:getOrthoBounds(ar)
 	else
-		xmin, xmax, ymin, ymax = graph_xmin, graph_xmax, graph_ymin, graph_ymax
+		xmin = solver.cartesianMin.x
+		ymin = solver.cartesianMin.y
+		xmax = solver.cartesianMax.x
+		ymax = solver.cartesianMax.y
 	end
 
 --	gl.glEnable(gl.GL_DEPTH_TEST)

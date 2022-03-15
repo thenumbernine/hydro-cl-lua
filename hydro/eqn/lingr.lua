@@ -1,9 +1,13 @@
 --[[
-See my "Einstein Equations, Weak Field, De-Donder Gauge" worksheet for a start of this.  or just look at gravito-electromagnetics. 
+See my "Einstein Equations, Weak Field, De-Donder Gauge" worksheet for a start of this.  or just look at gravito-electromagnetics.
 
-This is General Relativity with weak field approximation, de-Donder gauge, and a cartesian metric (like the twofluid_plasma_lingr file), 
+This is General Relativity with weak field approximation, de-Donder gauge, and a cartesian metric (like the twofluid_plasma_lingr file),
 but unlike the twofluid_plasma_lingr file, this is without the h_ab,tt = 0 approximation, therefore it is not a gravito-electromagnetism model.
 Also it is only valid as cartesian vector components.
+
+Actually same with twofluid-emhd-lingr's derivation -- only Cartesian -- but people still take it and recast the laplacian into non-Cartesian coordinates (is that still valid?)
+
+TODO call this wave-gr instead of lin-gr?  because this is different from the GEM which assumes h_ab,tt = 0
 
 This means when the metric perturbation tensors are inserted into the Einstein field equations they become the 10 wave equations:
 
@@ -71,32 +75,28 @@ LinGR.solverCodeFile = 'hydro/eqn/lingr.cl'
 -- don't use default
 function LinGR:initCodeModule_fluxFromCons() end
 
-function LinGR:eigenWaveCodePrefix(n, eig, x)
+function LinGR:eigenWaveCodePrefix(args)
 	return self:template([[
 real wavespeed = solver->wavespeed / unit_m_per_s;
-real nLen = normal_len(n);
-]], {
-		n = n,
-		x = x,
-	})
+real nLen = normal_len(<?=n?>);
+]], args)
 end
 
-function LinGR:consWaveCodePrefix(n, U, x)
-	return self:eigenWaveCodePrefix(n, nil, x)
-end
+-- safe to do as long as eigenWaveCodePrefix doesn't use "eig"
+LinGR.consWaveCodePrefix = LinGR.eigenWaveCodePrefix
 
-function LinGR:consWaveCode(n, U, x, waveIndex)
+function LinGR:consWaveCode(args)
+	local waveIndex = args.waveIndex
 	waveIndex = waveIndex % 4
 	if waveIndex == 0 then
-		return '-wavespeed * nLen' 
+		return '-wavespeed * nLen'
 	elseif waveIndex == 1 or waveIndex == 2 then
 		return '0.'
 	elseif waveIndex == 3 then
-		return 'wavespeed * nLen' 
+		return 'wavespeed * nLen'
 	end
 	error'got a bad waveIndex'
 end
-
 LinGR.eigenWaveCode = LinGR.consWaveCode
 
-return LinGR 
+return LinGR

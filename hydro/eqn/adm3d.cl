@@ -43,7 +43,7 @@ static inline void <?=setFlatSpace?>(
 }
 
 //// MODULE_NAME: <?=applyInitCondCell?>
-//// MODULE_DEPENDS: <?=coordMap?> <?=coord_g_ll?> <?=rescaleFromCoord_rescaleToCoord?> <?=initCond_t?>
+//// MODULE_DEPENDS: <?=coordMap?> <?=rescaleFromCoord_rescaleToCoord?> <?=initCond_t?>
 
 <?
 -- eqn.einstein compatability hack ...
@@ -158,6 +158,7 @@ end
 
 <? else	-- not eqn.initCond.useBSSNVars ?>
 
+//// MODULE_DEPENDS: <?=coord_g_ll?>
 void <?=applyInitCondCell?>(
 	constant <?=solver_t?> const * const solver,
 	constant <?=initCond_t?> const * const initCond,
@@ -170,7 +171,7 @@ void <?=applyInitCondCell?>(
 
 	real alpha = 1.;
 	real3 beta_u = real3_zero;
-	sym3 gamma_ll = coord_g_ll(x);
+	sym3 gamma_ll = coord_g_ll(x);	//init to vector basis metric, or to grid metric?  vector basis metric I guess
 	sym3 K_ll = sym3_zero;
 
 	//TODO more stress-energy vars 
@@ -242,13 +243,13 @@ end
 <? end	-- eqn.initCond.useBSSNVars ?>
 
 //// MODULE_NAME: <?=fluxFromCons?>
-//// MODULE_DEPENDS: rotate <?=cons_t?> <?=solver_t?> <?=normal_t?> rotate <?=initCond_codeprefix?>
+//// MODULE_DEPENDS: rotate <?=cons_t?> <?=solver_t?> <?=normal_t?> sym3_rotate _3sym3_rotate <?=initCond_codeprefix?>
 
 #define <?=fluxFromCons?>(\
-	/*<?=cons_t?> const * const */F,\
+	/*<?=cons_t?> * const */F,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */U,\
-	/*real3 const */pt,\
+	/*<?=cell_t?> const * const */cell,\
 	/*<?=normal_t?> const */n\
 ) {\
 	real const f_alpha = calc_f_alpha((U)->alpha);\
@@ -301,49 +302,6 @@ end
 	<? end ?>\
 }
 
-//// MODULE_NAME: <?=calcDTCell?>
-//// MODULE_DEPENDS: <?=SETBOUNDS?> <?=initCond_codeprefix?> <?=eqn_guiVars_compileTime?>
-
-#define <?=calcDTCell?>(\
-	/*global real * const */dt,\
-	/*constant <?=solver_t?> const * const */solver,\
-	/*global <?=cons_t?> const * const */U,\
-	/*global <?=cell_t?> const * const */cell\
-) {\
-	/* the only advantage of this calcDTCell over the default is that here this sqrt(f) and det(gamma_ij) is only called once */\
-	real const f_alphaSq = calc_f_alphaSq(U->alpha);\
-	real const det_gamma = sym3_det(U->gamma_ll);\
-	real const alpha_sqrt_f = sqrt(f_alphaSq);\
-	\
-	<? for side=0,solver.dim-1 do ?>{\
-		\
-		<? if side==0 then ?>\
-		real const gammaUjj = (U->gamma_ll.yy * U->gamma_ll.zz - U->gamma_ll.yz * U->gamma_ll.yz) / det_gamma;\
-		<? elseif side==1 then ?>\
-		real const gammaUjj = (U->gamma_ll.xx * U->gamma_ll.zz - U->gamma_ll.xz * U->gamma_ll.xz) / det_gamma;\
-		<? elseif side==2 then ?>\
-		real const gammaUjj = (U->gamma_ll.xx * U->gamma_ll.yy - U->gamma_ll.xy * U->gamma_ll.xy) / det_gamma;\
-		<? end ?>	\
-		real const sqrt_gammaUjj = sqrt(gammaUjj);\
-		real const lambdaLight = sqrt_gammaUjj * U->alpha;\
-		real const lambdaGauge = sqrt_gammaUjj * alpha_sqrt_f;\
-		\
-		real const lambda = (real)max(lambdaGauge, lambdaLight);\
-		\
-		<? if eqn.useShift ~= "none" then ?>\
-		real const betaUi = U->beta_u.s<?=side?>;\
-		<? else ?>\
-		real const betaUi = 0.;\
-		<? end ?>\
-		\
-		real const lambdaMin = (real)min((real)0., -betaUi - lambda);\
-		real const lambdaMax = (real)max((real)0., -betaUi + lambda);\
-		real absLambdaMax = max(fabs(lambdaMin), fabs(lambdaMax));\
-		absLambdaMax = max((real)1e-9, absLambdaMax);\
-		*(dt) = (real)min(*(dt), solver->grid_dx.s<?=side?> / absLambdaMax);\
-	}<? end ?>\
-}
-
 //// MODULE_NAME: <?=eigen_forCell?>
 //// MODULE_DEPENDS: <?=initCond_codeprefix?>
 
@@ -352,10 +310,12 @@ end
 	/*<?=eigen_t?> * const */eig,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */U,\
-	/*real3 const */pt,\
+	/*<?=cell_t?> const * const */cell,\
 \
 	/* This is interesting, because <?=normal_t?> varies based on our vector components. */\
 	/* However in my GR solvers the components are irrespective of the grid -- instead they are based on the metric of the state variables. */\
+	/* This is reconciled with the idea of the background metric / gammaHat_ij which bssnok-fd uses, however ADM3D is still based on a Cartesian background, so */\
+	/* TODO make adm3d to be based on an arbitrary background metric */\
 	/*<?=normal_t?> const */n\
 ) {\
 	(eig)->alpha = (U)->alpha;\
@@ -364,9 +324,9 @@ end
 	(eig)->gamma_uu = sym3_inv((U)->gamma_ll, det_gamma);\
 	(eig)->sqrt_gammaUjj = _real3(sqrt((eig)->gamma_uu.xx), sqrt((eig)->gamma_uu.yy), sqrt((eig)->gamma_uu.zz));\
 \
-	<? if eqn.useShift ~= "none" then ?>\
+<? if eqn.useShift ~= "none" then ?>\
 	(eig)->beta_u = (U)->beta_u;\
-	<? end ?>\
+<? end ?>\
 }
 
 //// MODULE_NAME: <?=calcCellMinMaxEigenvalues?>
@@ -416,6 +376,8 @@ end
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */UL,\
 	/*<?=cons_t?> const * const */UR,\
+	/*<?=cell_t?> const * const */cellL,\
+	/*<?=cell_t?> const * const */cellR,\
 	/*real3 const */pt,\
 	/*<?=normal_t?> const */n\
 ) {\
@@ -435,6 +397,7 @@ end
 }
 
 //// MODULE_NAME: <?=eigen_leftTransform?>
+//// MODULE_DEPENDS: sym3_rotate _3sym3_rotate
 
 #define <?=eigen_leftTransform?>(\
 	/*<?=waves_t?> * const */result,\
@@ -1320,7 +1283,7 @@ end
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=eigen_t?> const * const */eig,\
 	/*<?=cons_t?> const * const */inputU,\
-	/*real3 const */pt,\
+	/*<?=cell_t?> const * const */cell,\
 	/*<?=normal_t?> const */n\
 ) {\
 <? if not eqn.noZeroRowsInFlux then ?>\
@@ -1330,15 +1293,15 @@ end
 	/*  TODO use that static function for the calc waves as well */\
 	\
 	<?=waves_t?> waves;\
-	<?=eigen_leftTransform?>(&waves, solver, eig, inputU, pt);\
+	<?=eigen_leftTransform?>(&waves, solver, eig, inputU, (cell)->pos);\
 \
-	<?=eqn:eigenWaveCodePrefix(n, "eig", "x")?>\
+	<?=eqn:eigenWaveCodePrefix{n=n, eig="eig", pt="x"}?>\
 \
 <? for j=0,eqn.numWaves-1 do --\
-?>	waves.ptr[<?=j?>] *= <?=eqn:eigenWaveCode(n, "eig", "x", j)?>;\
+?>	waves.ptr[<?=j?>] *= <?=eqn:eigenWaveCode{n=n, eig="eig", pt="x", waveIndex=j}?>;\
 <? end --\
 ?>\
-	<?=eigen_rightTransform?>(result, solver, eig, &waves, pt);\
+	<?=eigen_rightTransform?>(result, solver, eig, &waves, (cell)->pos);\
 \
 <? else -- noZeroRowsInFlux ?>\
 <? if false then 	-- by-hand ?>\
@@ -3243,14 +3206,14 @@ for ij,xij in ipairs(symNames) do
 ?>	+ .5 * (	// 1/2 d_kij,l
 		U[solver->stepsize.<?=xl?>].d_lll.<?=xk?>.<?=xij?>
 		- U[-solver->stepsize.<?=xl?>].d_lll.<?=xk?>.<?=xij?>
-	) / (2. * solver->grid_dx.<?=xl?>);
+	) / (2. * solver->grid_dx.<?=xl?>)
 <?
 		end
 		if k <= solver.dim then
 ?>	+ .5 * (
 		U[solver->stepsize.<?=xk?>].d_lll.<?=xl?>.<?=xij?>
 		- U[-solver->stepsize.<?=xk?>].d_lll.<?=xl?>.<?=xij?>
-	) / (2. * solver->grid_dx.<?=xk?>);
+	) / (2. * solver->grid_dx.<?=xk?>)
 <?		end
 ?>	;
 <?	end

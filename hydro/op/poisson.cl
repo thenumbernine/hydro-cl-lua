@@ -1,3 +1,5 @@
+//// MODULE_NAME: <?=op.symbolPrefix?>comments
+
 /*
 rho is a Dirac delta function
 
@@ -19,27 +21,30 @@ discrete evaluation:
 */
 <?
 local scalar = op.scalar 
-local neg = scalar..'_neg'
-local zero = scalar..'_zero'
-local lenSq = scalar..'_lenSq'
+local neg = scalar.."_neg"
+local zero = scalar.."_zero"
+local lenSq = scalar.."_lenSq"
 ?>
 
+
+//// MODULE_NAME: <?=initPotential?>
+//// MODULE_DEPENDS: <?=table.concat(op.codeDepends or {}, ' ')?>
 /*
 used by hydro/op/poisson_krylov.lua and hydro/op/relaxation.lua
 initialize the relaxation solver field 
 this is only called upon solver reset
 each iteration uses the previous iteration's results as the starting point
 */
-kernel void <?=op.symbols.initPotential?>(
+kernel void <?=initPotential?>(
 	constant <?=solver_t?> const * const solver,
 	global <?=op:getPotBufType()?> * const UBuf
 ) {
 	<?=SETBOUNDS?>(solver->numGhost, solver->numGhost);
 	global <?=op:getPotBufType()?> * const U = UBuf + index;
 	<?=scalar?> source = <?=zero?>;
-<?=op:getPoissonDivCode() or ''?>
+<?=op:getPoissonDivCode() or ""?>
 	
-<? if cmdline.selfGravInitPotential == '+' then
+<? if cmdline.selfGravInitPotential == "+" then
 ?>	UBuf[index].<?=op.potentialField?> = source;
 <? else
 ?>	UBuf[index].<?=op.potentialField?> = <?=neg?>(source);
@@ -47,8 +52,10 @@ kernel void <?=op.symbols.initPotential?>(
 ?>
 }
 
+//// MODULE_NAME: <?=copyWriteToPotentialNoGhost?>
+//// MODULE_DEPENDS: <?=SETBOUNDS_NOGHOST?>
 //used by hydro/op/relaxation.lua
-kernel void <?=op.symbols.copyWriteToPotentialNoGhost?>(
+kernel void <?=copyWriteToPotentialNoGhost?>(
 	constant <?=solver_t?> const * const solver,
 	global <?=cons_t?> * const UBuf,
 	global real const * const writeBuf
@@ -57,8 +64,10 @@ kernel void <?=op.symbols.copyWriteToPotentialNoGhost?>(
 	UBuf[index].<?=op.potentialField?> = writeBuf[index];
 }
 
+//// MODULE_NAME: <?=setReduceToPotentialSquared?>
+//// MODULE_DEPENDS: <?=SETBOUNDS_NOGHOST?>
 //used by hydro/op/relaxation.lua
-kernel void <?=op.symbols.setReduceToPotentialSquared?>(
+kernel void <?=setReduceToPotentialSquared?>(
 	constant <?=solver_t?> const * const solver,
 	global real * const reduceBuf,
 	global <?=cons_t?> const * const UBuf

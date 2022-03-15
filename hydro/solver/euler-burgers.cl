@@ -1,7 +1,7 @@
 //// MODULE_NAME: <?=calcDTCell?>
 //// MODULE_DEPENDS: <?=solver_t?> <?=primFromCons?> <?=eqn_guiVars_compileTime?>
 
-<? if require "hydro.solver.gridsolver".is(solver) then ?>
+<? if require "hydro.solver.gridsolver":isa(solver) then ?>
 
 kernel void <?=calcDTCell?>(
 	global real * const dt,
@@ -12,7 +12,7 @@ kernel void <?=calcDTCell?>(
 	real3 const x = cell->pos;
 	<?=prim_t?> W;
 	<?=primFromCons?>(&W, solver, U, x);
-	real const Cs = calc_Cs(solver, &W);
+	real const Cs = <?=calc_Cs?>(solver, &W);
 
 <? for side=0,solver.dim-1 do 
 ?>	*(dt) = min(*(dt), (real)solver->grid_dx.s<?=side?> / (Cs + fabs(W.v.s<?=side?>)));
@@ -34,7 +34,7 @@ kernel void <?=calcDTCell?>(
 	
 	<?=prim_t?> W;
 	<?=primFromCons?>(&W, solver, U, x);
-	real const Cs = calc_Cs(solver, &W);
+	real const Cs = <?=calc_Cs?>(solver, &W);
 
 	for (int i = 0; i < cell->faceCount; ++i) {
 		global <?=face_t?> const * const face = faceBuf + cellFaceIndexes[i + cell->faceOffset];
@@ -48,7 +48,7 @@ kernel void <?=calcDTCell?>(
 <? end -- mesh solver ?>
 
 //// MODULE_NAME: EulerBurgers.solver
-//// MODULE_DEPENDS: <?=SETBOUNDS?> <?=fluxLimiter?> <?=primFromCons?> <?=eigen_forInterface?>
+//// MODULE_DEPENDS: <?=SETBOUNDS?> <?=fluxLimiter?> <?=primFromCons?>
 
 kernel void calcIntVel(
 	constant <?=solver_t?> const * const solver,
@@ -94,6 +94,7 @@ kernel void <?=calcFlux?>(
 
 	<? for side=0,solver.dim-1 do ?>{
 		int const side = <?=side?>;
+//// MODULE_DEPENDS: <?=cell_dx_i?>
 		real const dt_dx = dt / cell_dx<?=side?>(i);
 		
 		int const indexL = index - solver->stepsize.s<?=side?>;
@@ -155,7 +156,7 @@ kernel void computePressure(
 			- UL->m.s<?=side?> / UL->rho;
 		dvSqSum += dv * dv;
 	}<? end ?>
-	const real zeta = 2.;
+	real const zeta = 2.;
 	P += .25 * zeta * zeta * U->rho * dvSqSum;
 <? end
 ?>	PBuf[index] = P;

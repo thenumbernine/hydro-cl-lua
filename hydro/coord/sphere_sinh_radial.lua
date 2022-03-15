@@ -75,6 +75,16 @@ function SphereLogRadial:init(args)
 		r:eq(r_for_rho),
 	}
 
+	-- alright, this is a mess, but
+	-- 'repls' is the table of replacements when generating code
+	-- this table is for #define stuff inside the code
+	-- and it's separate so the code can use macros instead of having to inline constants
+	-- it stores pairs of expr + getters, so the field values can be dynamically changed
+	self.replDefines = table{
+		{self.amplitude_var, function() return self.amplitude end},
+		{self.sinh_w_var, function() return self.sinh_w end},
+	}
+
 	if cmdline.coordVerbose then
 		print(r:eq(r_for_rho))
 	end
@@ -101,32 +111,18 @@ function SphereLogRadial:init(args)
 end
 
 function SphereLogRadial:getModuleDepends_coordMap() 
-	return {self.solver.eqn.symbols.eqn_guiVars_compileTime}
+	return {
+		self.solver.eqn.symbols.eqn_guiVars_compileTime,	-- for AMPL and SINHW
+	}
 end
 
--- TODO only for GLSL, depend on 'sinh'
--- I could put '#ifdef GLSL' around the sinh and cosh modules, but what about asinh which C needs as well?
--- I could put a 'glsl_code' option for each module, and give them to the sinh,cosh,acosh, but ... same question?
--- I could add them as glslModulesEnabled[] ... but what would guarantee the order of code generation?
--- I could add/remove sinh from coordMap's depends or code before/after adding it to the GLSL ... kind of ugly and very specific to sphere-sinh-radial only
--- ... see this is a good argument for replacing the 'depends' system with a code gen execution and an 'include' function with 'pragma once' ability
---		then coordMap for sphere-sinh-radial could have code that said "if included from glsl then include sinh end"
---		also you can put the compile() symbolic codegen into the same code doing the include's of dependencies
--- 		so to do this, get rid of 'depends', replace 'code', 'header', 'typecode' strings with functions, and give them an 'include' function that pulls in from other modules by their name
--- for now I'll just make a separate 'coordMapGLSL' just like 'coordMap' but with the GLSL depends
 function SphereLogRadial:getModuleDepends_coordMapGLSL() 
 	return {
-		'sinh',
-		-- This is in sharedModules ... so should sharedModules be included in all GLSL modules?
-		-- until I decide, I'll just put this entry for GLSL here:
 		self.solver.eqn.symbols.eqn_guiVars_compileTime,	-- for AMPL and SINHW
 	}
 end
 function SphereLogRadial:getModuleDepends_coordMapInvGLSL() 
 	return {
-		'sinh',
-		'cosh',
-		'asinh',
 		self.solver.eqn.symbols.eqn_guiVars_compileTime,	-- for AMPL and SINHW
 	}
 end
@@ -171,10 +167,9 @@ real3 coordMapInv(real3 pt) {
 -- and if I replace it with var'r' ...
 -- ... then will coord:compile use coord.repls to replace that with r_for_rho?
 --		coord:compile(coord.rho_for_r:replace(coord.baseCoords[1], require 'symmath'.var'r'))
-		require 'symmath.export.C'(coord.rho_for_r
-			:replace(coord.amplitude_var, coord.amplitude)
-			:replace(coord.sinh_w_var, coord.sinh_w)
-			:replace(coord.baseCoords[1], require 'symmath'.var'r')
+		require 'symmath.export.C'(
+			coord:applyReplDefines(coord.rho_for_r)
+				:replace(coord.baseCoords[1], require 'symmath'.var'r')
 		)
 	?>;
 	
@@ -201,11 +196,11 @@ function SphereLogRadial:getParallelPropagatorCode()
 <? if coord.vectorComponent == 'holonomic' then ?>
 
 real3 coord_parallelPropagateU0(real3 v, real3 x, real dx) {
-	const real w = <?=clnumber(coord.sinh_w)?>;
-	real rhoL = x.x;
-	real rhoR = x.x + dx;
-	real coshLR = cosh(rhoL/w) / cosh(rhoR/w);
-	real sinhLR = sinh(rhoL/w) / sinh(rhoR/w);
+	real const w = <?=clnumber(coord.sinh_w)?>;
+	real const rhoL = x.x;
+	real const rhoR = x.x + dx;
+	real const coshLR = cosh(rhoL/w) / cosh(rhoR/w);
+	real const sinhLR = sinh(rhoL/w) / sinh(rhoR/w);
 	v.x *= coshLR;
 	v.y *= sinhLR;
 	v.z *= sinhLR;
@@ -213,11 +208,11 @@ real3 coord_parallelPropagateU0(real3 v, real3 x, real dx) {
 }
 
 real3 coord_parallelPropagateL0(real3 v, real3 x, real dx) {
-	const real w = <?=clnumber(coord.sinh_w)?>;
-	real rhoL = x.x;
-	real rhoR = x.x + dx;
-	real coshRL = cosh(rhoR/w) / cosh(rhoL/w);
-	real sinhRL = sinh(rhoR/w) / sinh(rhoL/w);
+	real const w = <?=clnumber(coord.sinh_w)?>;
+	real const rhoL = x.x;
+	real const rhoR = x.x + dx;
+	real const coshRL = cosh(rhoR/w) / cosh(rhoL/w);
+	real const sinhRL = sinh(rhoR/w) / sinh(rhoL/w);
 	v.x *= coshRL;
 	v.y *= sinhRL;
 	v.z *= sinhRL;
@@ -225,11 +220,11 @@ real3 coord_parallelPropagateL0(real3 v, real3 x, real dx) {
 }
 
 real3 coord_parallelPropagateU1(real3 v, real3 x, real dx) {
-	const real w = <?=clnumber(coord.sinh_w)?>;
-	real rho = v.x;
-	real thetaL = x.y;
-	real thetaR = x.y + dx;
-	real s = w * sinh(rho/w) / cosh(rho/w);
+	real const w = <?=clnumber(coord.sinh_w)?>;
+	real const rho = v.x;
+	real const thetaL = x.y;
+	real const thetaR = x.y + dx;
+	real const s = w * sinh(rho/w) / cosh(rho/w);
 	v.y *= s;
 	v = real3_rotateZ(v, -dx);
 	v.y /= s;
@@ -238,11 +233,11 @@ real3 coord_parallelPropagateU1(real3 v, real3 x, real dx) {
 }
 
 real3 coord_parallelPropagateL1(real3 v, real3 x, real dx) {
-	const real w = <?=clnumber(coord.sinh_w)?>;
-	real rho = v.x;
-	real thetaL = x.y;
-	real thetaR = x.y + dx;
-	real s = w * sinh(rho/w) / cosh(rho/w);
+	real const w = <?=clnumber(coord.sinh_w)?>;
+	real const rho = v.x;
+	real const thetaL = x.y;
+	real const thetaR = x.y + dx;
+	real const s = w * sinh(rho/w) / cosh(rho/w);
 	v.y /= s;
 	v = real3_rotateZ(v, -dx);
 	v.y *= s;
@@ -252,12 +247,12 @@ real3 coord_parallelPropagateL1(real3 v, real3 x, real dx) {
 
 // TODO here ... fix these
 real3 coord_parallelPropagateU2(real3 v, real3 x, real dx) {
-	const real w = <?=clnumber(coord.sinh_w)?>;
-	real rho = x.x;
-	real s = w * sinh(rho/w) / cosh(rho/w);
-	real theta = x.y;
-	real sinTheta = sin(theta);
-	real sSinTheta = s * sinTheta;
+	real const w = <?=clnumber(coord.sinh_w)?>;
+	real const rho = x.x;
+	real const s = w * sinh(rho/w) / cosh(rho/w);
+	real const theta = x.y;
+	real const sinTheta = sin(theta);
+	real const sSinTheta = s * sinTheta;
 	v.y *= s;
 	v.z *= sSinTheta;
 	v = real3_rotateZ(v, theta);
@@ -269,12 +264,12 @@ real3 coord_parallelPropagateU2(real3 v, real3 x, real dx) {
 }
 
 real3 coord_parallelPropagateL2(real3 v, real3 x, real dx) {
-	const real w = <?=clnumber(coord.sinh_w)?>;
-	real rho = x.x;
-	real s = w * sinh(rho/w) / cosh(rho/w);
-	real theta = x.y;
-	real sinTheta = sin(theta);
-	real sSinTheta = s * sinTheta;
+	real const w = <?=clnumber(coord.sinh_w)?>;
+	real const rho = x.x;
+	real const s = w * sinh(rho/w) / cosh(rho/w);
+	real const theta = x.y;
+	real const sinTheta = sin(theta);
+	real const sSinTheta = s * sinTheta;
 	v.y /= s;
 	v.z /= sSinTheta;
 	v = real3_rotateZ(v, theta);
@@ -317,9 +312,7 @@ function SphereLogRadial:fillGridCellBuf(cellsCPU)
 	local rho, theta, phi = self.baseCoords:unpack()
 	local calcR = symmath.export.Lua:toFunc{
 		output = {
-			self.vars.r
-				:replace(self.amplitude_var, self.amplitude)
-				:replace(self.sinh_w_var, self.sinh_w)
+			self:applyReplDefines(self.vars.r),
 		},
 		input = {{rho=rho}, {theta=theta}, {phi=phi}},
 	}
