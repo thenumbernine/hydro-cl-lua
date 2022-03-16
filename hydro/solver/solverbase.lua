@@ -3320,7 +3320,7 @@ function SolverBase:updateGUIParams()
 	-- I think I'll display my GMRES # steps to converge / epsilon error ...
 	if self.integrator.updateGUI then
 		ig.igSameLine()
-		ig.igPushIDStr'integrator'
+		ig.igPushID_Str'integrator'
 		if ig.igCollapsingHeader':' then
 			self.integrator:updateGUI()
 		end
@@ -3329,7 +3329,7 @@ function SolverBase:updateGUIParams()
 	
 	for i,op in ipairs(self.ops) do
 		if op.updateGUI then
-			ig.igPushIDInt(i)
+			ig.igPushID_Int(i)
 			op:updateGUI()
 			ig.igPopID()
 		end
@@ -3359,7 +3359,7 @@ end
 do
 	local function handle(self, var, title)
 		local anyChanged = false
-		ig.igPushIDStr(title)
+		ig.igPushID_Str(title)
 
 		var.enabled = not not var.enabled
 		local enableChanged = tooltip.checkboxTable('enabled', var, 'enabled')
@@ -3443,7 +3443,7 @@ do
 		do
 			local dim = self.app.displayDim
 			if dim == 2 then
-				ig.igPushIDStr'2D'
+				ig.igPushID_Str'2D'
 				if self.app.display2DMethodsEnabled.Graph then
 					local draw2DGraph = self.draw2DGraph
 					if draw2DGraph then
@@ -3452,14 +3452,14 @@ do
 				end
 				ig.igPopID()
 			elseif dim == 3 then
-				ig.igPushIDStr'3D'
+				ig.igPushID_Str'3D'
 				
 				if self.app.display3DMethodsEnabled.Slices then
 --[[ currently in app, currently disabled
 					if useClipPlanes then
 						ig.igRadioButtonIntPtr("rotate camera", rotateClip, 0)
 						for i,clipInfo in ipairs(clipInfos) do
-							ig.igPushIDStr('clip '..i)
+							ig.igPushID_Str('clip '..i)
 							tooltip.checkbox('clip', clipInfo, 'enabled')
 							ig.igSameLine()
 							ig.igRadioButtonIntPtr('rotate', rotateClip, i)
@@ -3491,7 +3491,7 @@ do
 			end
 			
 			do
-				ig.igPushIDStr'Vector'
+				ig.igPushID_Str'Vector'
 
 				--ig.igCheckbox('vector field', self.enableVectorField)
 				if self.drawVectorArrows then
@@ -3518,7 +3518,7 @@ do
 		tooltip.checkboxTable('filter enabled', self, 'guiDisplayFilterEnabledVars')
 		
 		for i,displayVarGroup in ipairs(self.displayVarGroups) do
-			ig.igPushIDStr('display '..i)
+			ig.igPushID_Str('display '..i)
 			if ig.igCollapsingHeader(displayVarGroup.name) then
 				for i=1,#fields do
 					all[fields[i]] = defaults[i]

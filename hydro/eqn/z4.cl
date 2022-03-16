@@ -552,9 +552,10 @@ end --\
 	real3x3 const K_ul = sym3_sym3_mul(gamma_uu, K_ll);\
 	real const tr_K = real3x3_trace(K_ul);\
 	sym3 const dHat_t_ll = sym3_zero;\
-	/* used by shift only: */\
+<? 	if eqn.useShift == "2005 Bona / 2008 Yano" then ?>\
 	real3 const a_u = sym3_real3_mul(gamma_uu, a_l);\
 	sym3 const b_ll = sym3_real3x3_to_sym3_mul(gamma_ll, b_ul);\
+<? 	end ?>\
 	/* BEGIN CUT from symmath/tests/output/Z4.html */\
 	{\
 		(resultFlux)->alpha = 0.;\

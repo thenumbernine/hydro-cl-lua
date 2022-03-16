@@ -367,7 +367,7 @@ end
 
 -- similar to hydro/op/relaxation.lua
 function PoissonKrylov:updateGUI()
-	ig.igPushIDStr(self.symbolPrefix..' solver')
+	ig.igPushID_Str(self.symbolPrefix..' solver')
 	-- TODO name from 'field' / 'enableField', though those aren't properties of PoissonKrylov
 	if ig.igCollapsingHeader'PoissonKrylov solver' then
 		tooltip.numberTable('Krylov epsilon', self.linearSolver.args, 'epsilon')
