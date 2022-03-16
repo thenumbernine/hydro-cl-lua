@@ -823,7 +823,7 @@ end
 -- this is a mess, all because of eqn/composite
 function Equation:initCodeModule_solverCodeFile()
 	self.solver.modules:addFromMarkup{
-		code = self:template(file[self.solverCodeFile]),
+		code = self:template(assert(file[self.solverCodeFile])),
 		onAdd = function(args)
 			self:initCodeModule_solverCodeFile_onAdd(args)
 		end,

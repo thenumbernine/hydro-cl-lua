@@ -564,7 +564,7 @@ self.compilePrintRequestTensor = compilePrintRequestTensor
 	self.calc = {}
 	self.request = function(name)
 		if not self.cached[name] then 
-			local build = self.calc[name].build
+			local build = assert(self.calc[name], "couldn't find coord.calc["..('%q'):format(name).."]").build
 			if not build then
 				error("requested calculation of '"..name.."' but couldn't find it")
 			end
