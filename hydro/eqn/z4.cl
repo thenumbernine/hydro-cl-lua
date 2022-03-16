@@ -1919,6 +1919,19 @@ for i,xi in ipairs(xNames) do
 end
 ?>	}
 
+<? if eqn.consStruct.vars:find(nil, function(var) return var.name == "b_ul" end) then ?>
+	// b_ul.j.i = beta_u.j,i <=> b_ul.j.i += eta (beta_u.j,i - b_ul.j.i)
+	if (solver->b_convCoeff != 0.) {
+		real3x3 const target_b_ul = <?=calcFromGrad_b_ul?>(solver, U);
+<?
+for i,xi in ipairs(xNames) do
+	for j,xj in ipairs(xNames) do
+?>		deriv->b_ul.<?=xi?>.<?=xj?> += solver->b_convCoeff * (target_b_ul.<?=xj?>.<?=xi?> - U->b_ul.<?=xj?>.<?=xi?>)
+<?	end
+end
+?>	}
+<? end ?>
+
 <? if useKreissOligarDissipation then ?>
 //// MODULE_DEPENDS: applyKreissOligar numberof
 	// Kreiss-Oligar dissipation:

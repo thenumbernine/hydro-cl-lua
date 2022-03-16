@@ -254,10 +254,14 @@ function Z4_2004Bona:createInitState()
 	
 		--{name='alphaMin', value=1e-7},
 		{name='alphaMin', value=-math.huge},
-	
+
+
+		-- TODO add shift option
+		-- but that means moving the consVars construction to the :init()
+		-- so until then, just add shift vars no matter what ...
+		-- convergence between finite-difference of 1/2 gamma_ij,k and d_kij
+		{name='b_convCoeff', value=0},
 	}
-	-- TODO add shift option
-	-- but that means moving the consVars construction to the :init()
 end
 
 -- don't use default

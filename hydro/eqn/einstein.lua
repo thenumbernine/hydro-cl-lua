@@ -12,11 +12,13 @@ local xNames = common.xNames
 
 local EinsteinEquation = class(Equation)
 
-EinsteinEquation.initConds = table():append(
-	require 'hydro.init.senr':getList()
-):append(
-	require 'hydro.init.einstein':getList()
-)
+EinsteinEquation.initConds = table(require 'hydro.init.einstein':getList())
+do
+	local success, initConds = pcall(require, 'hydro.init.senr')
+	if success then
+		EinsteinEquation.initConds:append(initConds:getList())
+	end
+end
 
 function EinsteinEquation:getSymbolFields() 
 	return EinsteinEquation.super.getSymbolFields(self):append{

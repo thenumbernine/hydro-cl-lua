@@ -678,18 +678,32 @@ function SolverBase:initObjs(args)
 
 	self.name = self.eqn.name..' '..self.name
 
-	self.initCondIndex = table.find(self.eqn.initCondNames, args.initCond) or 1
+	self.initCondIndex = table.find(self.eqn.initCondNames, args.initCond)
+	if not self.initCondIndex then
+		assert(#self.eqn.initCondNames > 0, "couldn't find initCond "..('%q'):format(tostring(args.initCond)).." ... and there are no initConds to search.")
+		self.initCondIndex = 1
+		print("!!!!! couldn't find initCond "..('%q'):format(tostring(args.initCond)).." so falling back on initCond "..('%q'):format(tostring(self.eqn.initCondNames[self.initCondIndex])).." !!!!!")
+	end
 	self.initCondArgs = args.initCondArgs
 
 	self.integratorArgs = args.integratorArgs
-	self.integratorIndex = integratorNames:find(args.integrator) or 1
+	self.integratorIndex = integratorNames:find(args.integrator)
+	if not self.integratorIndex then
+		assert(#integratorNames > 0, "couldn't find integrator "..('%q'):format(tostring(args.integrator)).." ... and there are no integrators to search.")
+		self.integratorIndex = 1
+		print("!!!!! couldn't find integrator "..('%q'):format(tostring(args.integrator)).." so falling back on integrator "..('%q'):format(tostring(integratorNames[self.integratorIndex])).." !!!!!")
+	end
 
 	self.checkNaNs = self.checkNaNs or args.checkNaNs
 	self.useFixedDT = not not args.fixedDT
 	self.fixedDT = args.fixedDT or self.fixedDT or .001
 	self.cfl = args.cfl or .5	--/self.dim
-	self.fluxLimiter = self.app.limiterNames:find(args.fluxLimiter) or 1
-
+	self.fluxLimiter = self.app.limiterNames:find(args.fluxLimiter)
+	if not self.fluxLimiter then
+		assert(#self.app.limiterNames > 0, "couldn't find fluxLimiter "..('%q'):format(tostring(args.fluxLimiter)).." ... and there are no limiters to search.")
+		self.fluxLimiter = 1
+		print("!!!! couldn't find fluxLimiter "..('%q'):format(tostring(args.fluxLimiter)).." so falling back on limiter "..('%q'):format(tostring(self.app.limiterNames[self.fluxLimiter])).." !!!!!")
+	end
 
 	-- this influences refreshInitStateProgram()
 	self.eqn:createInitState()
