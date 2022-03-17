@@ -3,34 +3,57 @@ local useConstrainU = true -- constrains alpha to alphamin and calcs H and M^i
 local useAddSource = true
 local useKreissOligarDissipation = true	-- depends on useAddSource
 ?>
-//// MODULE_NAME: <?=calc_gamma_ll?>
 
-#define <?=calc_gamma_ll?>(U, x)	((U)->gamma_ll)
+//// MODULE_NAME: <?=calc_gammaHat_ll?>
+//// MODULE_DEPENDS: sym3
 
-//// MODULE_NAME: <?=calc_gamma_uu?>
-//// MODULE_DEPENDS: <?=cons_t?>
-
-static inline sym3 <?=calc_gamma_uu?>(
-	global <?=cons_t?> const * const U,
-	real3 const pt
-) {
-	real const det_gamma = sym3_det(U->gamma_ll);
-	sym3 const gamma_uu = sym3_inv(U->gamma_ll, det_gamma);
-	return gamma_uu;
+static inline sym3 <?=calc_gammaHat_ll?>(real3 const pt) {
+<? if false then -- get background grid separation working
+?>
+//// MODULE_DEPENDS: <?=coord_gHol_ll?>
+	return coord_gHol_ll(pt);
+<? else ?>
+	return sym3_zero;
+<? end ?>
 }
 
 //// MODULE_NAME: <?=calcFromPt_dHat_lll?>
 //// MODULE_DEPENDS: _3sym3
 
-static inline _3sym3 <?=calcFromPt_dHat_lll?>(
-	real3 const pt
-) {
-<? if false then ?>
+static inline _3sym3 <?=calcFromPt_dHat_lll?>(real3 const pt) {
+<? if false then 	-- get background grid separation working?
+?>
 //// MODULE_DEPENDS: <?=coord_partial_gHol_lll?>
 	return _3sym3_real_mul(coord_partial_gHol_lll(pt), .5);
 <? else ?>
 	return _3sym3_zero;
 <? end ?>
+}
+
+//// MODULE_NAME: <?=calc_gamma_ll?>
+//// MODULE_DEPENDS: <?=cons_t?> <?=calc_gammaHat_ll?>
+
+#define /*sym3*/ <?=calc_gamma_ll?>(\
+	/*global <?=cons_t?> const * const */U,\
+	/*real3 const */pt\
+) (\
+	sym3_add(\
+		(U)->gammaDelta_ll,\
+		<?=calc_gammaHat_ll?>(pt)\
+	)\
+)
+
+//// MODULE_NAME: <?=calc_gamma_uu?>
+//// MODULE_DEPENDS: <?=cons_t?> <?=calc_gamma_ll?>
+
+static inline sym3 <?=calc_gamma_uu?>(
+	global <?=cons_t?> const * const U,
+	real3 const pt
+) {
+	sym3 const gamma_ll = <?=calc_gamma_ll?>(U, pt);
+	real const det_gamma = sym3_det(gamma_ll);
+	sym3 const gamma_uu = sym3_inv(gamma_ll, det_gamma);
+	return gamma_uu;
 }
 
 //// MODULE_NAME: <?=calc_d_lll?>
@@ -86,14 +109,15 @@ _3sym3 <?=calcFromGrad_d_lll?>(
 for i=1,solver.dim do
 	local xi = xNames[i]
 ?>	{
+//// MODULE_DEPENDS: <?=calc_gamma_ll?>		
 		global <?=cons_t?> const * const UL = U - solver->stepsize.<?=xi?>;
 		global <?=cons_t?> const * const UR = U + solver->stepsize.<?=xi?>;
-		// needed for dHat_lll
-		// or instead of U->gamma_ll, make/use calcFromU_gamma_ll
-		//global <?=cell_t?> const * const cellL = cell - solver->stepsize.<?=xi?>;
-		//global <?=cell_t?> const * const cellR = cell + solver->stepsize.<?=xi?>;
+		global <?=cell_t?> const * const cellL = cell - solver->stepsize.<?=xi?>;
+		global <?=cell_t?> const * const cellR = cell + solver->stepsize.<?=xi?>;
+		sym3 const gammaR_ll = <?=calc_gamma_ll?>(UR, cellR->pos);
+		sym3 const gammaL_ll = <?=calc_gamma_ll?>(UL, cellL->pos);
 <? 	for jk,xjk in ipairs(symNames) do
-?>		d_lll.<?=xi?>.<?=xjk?> = .5 * (UR->gamma_ll.<?=xjk?> - UL->gamma_ll.<?=xjk?>) / (2. * solver->grid_dx.s<?=i-1?>);
+?>		d_lll.<?=xi?>.<?=xjk?> = .5 * (gammaR_ll.<?=xjk?> - gammaL_ll.<?=xjk?>) / (2. * solver->grid_dx.s<?=i-1?>);
 <? 	end
 ?>	}
 <?
@@ -153,11 +177,17 @@ kernel void <?=initDerivs?>(
 
 //// MODULE_DEPENDS: <?=calcFromGrad_a_l?>
 	U->a_l = <?=calcFromGrad_a_l?>(solver, U);
+
+	//d_kij = 1/2 γ_ij,k
+	//Δd_kij + ^d_kij = 1/2 (Δγ_ij,k + ^γ_ij,k)
+	//^d_kij = 1/2 ^γ_ij,k
+	// => Δd_kij = 1/2 Δγ_ij,k
 //// MODULE_DEPENDS: <?=calcFromPt_dHat_lll?>
 	_3sym3 const dHat_lll = <?=calcFromPt_dHat_lll?>(cell->pos);
 //// MODULE_DEPENDS: <?=calcFromGrad_d_lll?>
 	_3sym3 const d_lll = <?=calcFromGrad_d_lll?>(solver, U, cell);
 	U->dDelta_lll = _3sym3_sub(d_lll, dHat_lll);
+
 <? if eqn.consStruct.vars:find(nil, function(var) return var.name == "b_ul" end) then ?>
 //// MODULE_DEPENDS: <?=calcFromGrad_b_ul?>
 	U->b_ul = <?=calcFromGrad_b_ul?>(solver, U);
@@ -173,7 +203,7 @@ end
 <? if eqn.initCond.useBSSNVars then ?>
 
 //// MODULE_NAME: <?=applyInitCondCell?>
-//// MODULE_DEPENDS: <?=coordMap?> <?=coord_gHol_ll?> <?=solver_t?> <?=initCond_t?> <?=cons_t?> <?=cell_t?>
+//// MODULE_DEPENDS: <?=solver_t?> <?=initCond_t?> <?=cons_t?> <?=cell_t?>
 
 void <?=applyInitCondCell?>(
 	constant <?=solver_t?> const * const solver,
@@ -182,6 +212,7 @@ void <?=applyInitCondCell?>(
 	global <?=cell_t?> const * const cell
 ) {
 	real3 const x = cell->pos;
+//// MODULE_DEPENDS: <?=coordMap?> 
 	real3 const xc = coordMap(x);
 	real3 const mids = real3_real_mul(real3_add(solver->mins, solver->maxs), .5);
 
@@ -206,13 +237,16 @@ void <?=applyInitCondCell?>(
 	U->alpha = alpha;
 
 //// MODULE_DEPENDS: <?=rescaleFromCoord_rescaleToCoord?>
-	// gammaHat_IJ = delta_IJ
-	// gamma_ij = e_i^I e_j^J (epsilon_IJ + gammaHat_IJ) / W^2
+	// ^γ_IJ = δ_IJ
+	// γ_ij = e_i^I e_j^J (ε_IJ + ^γ_IJ) / W^2
 	sym3 const gammaBar_LL = sym3_add(epsilon_LL, sym3_ident);
 	sym3 const gamma_LL = sym3_real_mul(gammaBar_LL, 1. / (W*W));
-	U->gamma_ll = sym3_rescaleToCoord_LL(gamma_LL, x);
-	
-	// K_ij = e_i^I e_j^J (ABar_IJ + gammaBar_IJ K/3) / W^2
+	sym3 const gamma_ll = sym3_rescaleToCoord_LL(gamma_LL, x);
+//// MODULE_DEPENDS: <?=calc_gammaHat_ll?>
+	sym3 const gammaHat_ll = <?=calc_gammaHat_ll?>(x);
+	U->gammaDelta_ll = sym3_sub(gamma_ll, gammaHat_ll);
+
+	// K_ij = e_i^I e_j^J (_A_IJ + _γ_IJ K/3) / W^2
 	U->K_ll = sym3_rescaleToCoord_LL(
 		sym3_add(
 			sym3_real_mul(ABar_LL, 1. / (W*W)),
@@ -255,7 +289,7 @@ where _γ_ij is the conformal metric, _Γ^i_jk is the conformal connection, ^Γ^
 <? else	-- not eqn.initCond.useBSSNVars ?>
 
 //// MODULE_NAME: <?=applyInitCondCell?>
-//// MODULE_DEPENDS: <?=coordMap?> <?=coord_gHol_ll?> <?=solver_t?> <?=initCond_t?> <?=cons_t?> <?=cell_t?>
+//// MODULE_DEPENDS: <?=solver_t?> <?=initCond_t?> <?=cons_t?> <?=cell_t?>
 
 void <?=applyInitCondCell?>(
 	constant <?=solver_t?> const * const solver,
@@ -264,12 +298,13 @@ void <?=applyInitCondCell?>(
 	global <?=cell_t?> const * const cell
 ) {
 	real3 const x = cell->pos;
+//// MODULE_DEPENDS: <?=coordMap?>
 	real3 const xc = coordMap(x);
 	real3 const mids = real3_real_mul(real3_add(solver->mins, solver->maxs), .5);
 
 	real alpha = 1.;
 	real3 beta_u = real3_zero;
-
+//// MODULE_DEPENDS: <?=coord_gHol_ll?>
 	sym3 gamma_ll = coord_gHol_ll(x);
 
 	sym3 K_ll = sym3_zero;
@@ -282,15 +317,19 @@ void <?=applyInitCondCell?>(
 	*U = (<?=cons_t?>){.ptr={ 0. / 0. }};
 	
 	U->alpha = alpha;
-	U->gamma_ll = gamma_ll;
+	
+//// MODULE_DEPENDS: <?=calc_gammaHat_ll?>
+	sym3 const gammaHat_ll = <?=calc_gammaHat_ll?>(x);
+	U->gammaDelta_ll = sym3_sub(gamma_ll, gammaHat_ll);
+	
 	U->K_ll = K_ll;
 
 	//Z_u n^u = 0
-	//Theta = alpha n_u Z^u = alpha Z^u
-	//for n_a = (-alpha, 0)
-	//n^a_l = (1/alpha, -beta^i/alpha)
-	//(Z_t - Z_i beta^i) / alpha = Theta ... = ?
-	//Z^t n_t + Z^i n_i = -alpha Z^t = Theta
+	//Θ = α n_u Z^u = α Z^u
+	//for n_a = (-α, 0)
+	//n^a_l = (1/α, -β^i/α)
+	//(Z_t - Z_i β^i) / α = Θ ... = ?
+	//Z^t n_t + Z^i n_i = -α Z^t = Θ
 	U->Theta = 0.;
 	U->Z_l = real3_zero;
 
@@ -329,7 +368,14 @@ static inline void <?=setFlatSpace?>(
 	real3 const x
 ) {
 	(U)->alpha = 1.;
-	(U)->gamma_ll = sym3_ident;
+
+// irl this should be zero, but for now gammaHat_ll is set to zero so it does have a diff
+//// MODULE_DEPENDS: <?=coord_gHol_ll?>
+	sym3 const gamma_ll = coord_gHol_ll(x);
+//// MODULE_DEPENDS: <?=calc_gammaHat_ll?>
+	sym3 const gammaHat_ll = <?=calc_gammaHat_ll?>(x);
+	U->gammaDelta_ll = sym3_sub(gamma_ll, gammaHat_ll);
+	
 	(U)->a_l = real3_zero;
 	(U)->dDelta_lll = _3sym3_zero;
 	(U)->K_ll = sym3_zero;
@@ -363,6 +409,7 @@ if eqn.consStruct.vars:find(nil, function(var) return var.name == "b_ul" end) th
 
 //// MODULE_NAME: <?=calcDTCell?>
 //// MODULE_DEPENDS: <?=SETBOUNDS?> <?=cons_t?> <?=initCond_codeprefix?>
+//// MODULE_DEPENDS: <?=calc_gamma_ll?>
 
 #define <?=calcDTCell?>(\
 	/*global real * const */dt,\
@@ -372,17 +419,18 @@ if eqn.consStruct.vars:find(nil, function(var) return var.name == "b_ul" end) th
 ) {\
 	/* the only advantage of this calcDT over the default is that here this sqrt(f) and det(gamma_ij) is only called once */\
 	real const f_alphaSq = calc_f_alphaSq(U->alpha);\
-	real const det_gamma = sym3_det(U->gamma_ll);\
+	sym3 const gamma_ll = <?=calc_gamma_ll?>(U, (cell)->pos);\
+	real const det_gamma = sym3_det(gamma_ll);\
 	real const alpha_sqrt_f = sqrt(f_alphaSq);\
 \
 	<? for side=0,solver.dim-1 do ?>{\
 \
 		<? if side == 0 then ?>\
-		real const gammaUjj = (U->gamma_ll.yy * U->gamma_ll.zz - U->gamma_ll.yz * U->gamma_ll.yz) / det_gamma;\
+		real const gammaUjj = (gamma_ll.yy * gamma_ll.zz - gamma_ll.yz * gamma_ll.yz) / det_gamma;\
 		<? elseif side == 1 then ?>\
-		real const gammaUjj = (U->gamma_ll.xx * U->gamma_ll.zz - U->gamma_ll.xz * U->gamma_ll.xz) / det_gamma;\
+		real const gammaUjj = (gamma_ll.xx * gamma_ll.zz - gamma_ll.xz * gamma_ll.xz) / det_gamma;\
 		<? elseif side == 2 then ?>\
-		real const gammaUjj = (U->gamma_ll.xx * U->gamma_ll.yy - U->gamma_ll.xy * U->gamma_ll.xy) / det_gamma;\
+		real const gammaUjj = (gamma_ll.xx * gamma_ll.yy - gamma_ll.xy * gamma_ll.xy) / det_gamma;\
 		<? end ?>	\
 		real const sqrt_gammaUjj = sqrt(gammaUjj);\
 		real const lambdaLight = sqrt_gammaUjj * U->alpha;\
@@ -406,6 +454,7 @@ if eqn.consStruct.vars:find(nil, function(var) return var.name == "b_ul" end) th
 //// MODULE_NAME: <?=fluxFromCons?>
 //// MODULE_DEPENDS: <?=cons_t?> <?=solver_t?> <?=normal_t?> rotate sym3_rotate real3x3_rotate _3sym3_rotate
 //// MODULE_DEPENDS: <?=calcFromPt_dHat_lll?>
+//// MODULE_DEPENDS: <?=calc_gamma_ll?>
 
 #define <?=fluxFromCons?>(\
 	/*<?=cons_t?> * const */resultFlux,\
@@ -416,14 +465,14 @@ if eqn.consStruct.vars:find(nil, function(var) return var.name == "b_ul" end) th
 ) {\
 	real const f_alpha = calc_f_alpha((U)->alpha);\
 \
-	real const det_gamma = sym3_det((U)->gamma_ll);\
+	sym3 gamma_ll = <?=calc_gamma_ll?>(U, (cell)->pos);\
+	real const det_gamma = sym3_det(gamma_ll);\
 \
 	real alpha = (U)->alpha;\
 	real Theta = (U)->Theta;\
 \
 	real3 Z_l = (U)->Z_l;\
 	real3 a_l = (U)->a_l;\
-	sym3 gamma_ll = (U)->gamma_ll;\
 	sym3 K_ll = (U)->K_ll;\
 	_3sym3 dDelta_lll = (U)->dDelta_lll;\
 	_3sym3 dHat_lll = <?=calcFromPt_dHat_lll?>((cell)->pos);\
@@ -519,12 +568,12 @@ end --\
 	real const tmp129 = gamma_uu.xy * gamma_uu.zz;\
 	real const tmp132 = gamma_uu.xz * gamma_uu.yz;\
 	(resultFlux)->alpha = 0.;\
-	(resultFlux)->gamma_ll.xx = 0.;\
-	(resultFlux)->gamma_ll.xy = 0.;\
-	(resultFlux)->gamma_ll.xz = 0.;\
-	(resultFlux)->gamma_ll.yy = 0.;\
-	(resultFlux)->gamma_ll.yz = 0.;\
-	(resultFlux)->gamma_ll.zz = 0.;\
+	(resultFlux)->gammaDelta_ll.xx = 0.;\
+	(resultFlux)->gammaDelta_ll.xy = 0.;\
+	(resultFlux)->gammaDelta_ll.xz = 0.;\
+	(resultFlux)->gammaDelta_ll.yy = 0.;\
+	(resultFlux)->gammaDelta_ll.yz = 0.;\
+	(resultFlux)->gammaDelta_ll.zz = 0.;\
 	(resultFlux)->a_l.x = f_alpha * (tmp6 + tmp7 + K_ll.xx * gamma_uu.xx + tmp4 - 2. * Theta + 2. * tmp2 + 2. * tmp1);\
 	(resultFlux)->a_l.y = 0.;\
 	(resultFlux)->a_l.z = 0.;\
@@ -576,12 +625,12 @@ end --\
 	/* BEGIN CUT from symmath/tests/output/Z4.html */\
 	{\
 		(resultFlux)->alpha = 0.;\
-		(resultFlux)->gamma_ll.xx = 0.;\
-		(resultFlux)->gamma_ll.xy = 0.;\
-		(resultFlux)->gamma_ll.xz = 0.;\
-		(resultFlux)->gamma_ll.yy = 0.;\
-		(resultFlux)->gamma_ll.yz = 0.;\
-		(resultFlux)->gamma_ll.zz = 0.;\
+		(resultFlux)->gammaDelta_ll.xx = 0.;\
+		(resultFlux)->gammaDelta_ll.xy = 0.;\
+		(resultFlux)->gammaDelta_ll.xz = 0.;\
+		(resultFlux)->gammaDelta_ll.yy = 0.;\
+		(resultFlux)->gammaDelta_ll.yz = 0.;\
+		(resultFlux)->gammaDelta_ll.zz = 0.;\
 		(resultFlux)->a_l.x = f_alpha * (tr_K + -2. * Theta);\
 		(resultFlux)->a_l.y = 0.;\
 		(resultFlux)->a_l.z = 0.;\
@@ -669,7 +718,7 @@ end --\
 \
 	(resultFlux)->Z_l = real3_rotateFrom((resultFlux)->Z_l, n_l);\
 	(resultFlux)->a_l = real3_rotateFrom((resultFlux)->a_l, n_l);\
-	(resultFlux)->gamma_ll = sym3_rotateFrom((resultFlux)->gamma_ll, n_l);\
+	(resultFlux)->gammaDelta_ll = sym3_rotateFrom((resultFlux)->gammaDelta_ll, n_l);\
 	(resultFlux)->K_ll = sym3_rotateFrom((resultFlux)->K_ll, n_l);\
 	(resultFlux)->dDelta_lll = _3sym3_rotateFrom((resultFlux)->dDelta_lll, n_l);\
 <? if eqn.useShift ~= "none" then --\
@@ -687,7 +736,7 @@ end --\
 	else if (n.side == <?=side?>) {\
 		(resultFlux)->Z_l = real3_swap<?=side?>((resultFlux)->Z_l);\
 		(resultFlux)->a_l = real3_swap<?=side?>((resultFlux)->a_l);\
-		(resultFlux)->gamma_ll = sym3_swap<?=side?>((resultFlux)->gamma_ll);\
+		(resultFlux)->gammaDelta_ll = sym3_swap<?=side?>((resultFlux)->gammaDelta_ll);\
 		(resultFlux)->K_ll = sym3_swap<?=side?>((resultFlux)->K_ll);\
 		(resultFlux)->dDelta_lll = _3sym3_swap<?=side?>((resultFlux)->dDelta_lll);\
 <? if eqn.useShift ~= "none" then --\
@@ -738,9 +787,10 @@ end --\
 
 //// MODULE_NAME: <?=eigen_forInterface?>
 //// MODULE_DEPENDS: <?=solver_t?> <?=eigen_t?> <?=cons_t?> <?=normal_t?> <?=initCond_codeprefix?>
+//// MODULE_DEPENDS: <?=calc_gamma_ll?>
 // used by hll, roe, weno, plm ... anything that uses eigenvalues or eigenvector transforms
-
 //used for interface eigen basis
+
 #define <?=eigen_forInterface?>(\
 	/*<?=eigen_t?> * const */resultEig,\
 	/*constant <?=solver_t?> const * const */solver,\
@@ -754,7 +804,9 @@ end --\
 	(resultEig)->alpha = .5 * ((UL)->alpha + (UR)->alpha);\
 	(resultEig)->alpha_sqrt_f = sqrt(calc_f_alphaSq((resultEig)->alpha));\
 \
-	sym3 const avg_gamma = sym3_real_mul(sym3_add((UL)->gamma_ll, (UR)->gamma_ll), .5);\
+	sym3 const gammaR_ll = <?=calc_gamma_ll?>(UR, (cellR)->pos);\
+	sym3 const gammaL_ll = <?=calc_gamma_ll?>(UL, (cellL)->pos);\
+	sym3 const avg_gamma = sym3_real_mul(sym3_add(gammaL_ll, gammaR_ll), .5);\
 	real const det_avg_gamma = sym3_det(avg_gamma);\
 	(resultEig)->gamma_uu = sym3_inv(avg_gamma, det_avg_gamma);\
 \
@@ -785,6 +837,7 @@ end --\
 
 //// MODULE_NAME: <?=calcCellMinMaxEigenvalues?>
 //// MODULE_DEPENDS: <?=range_t?> <?=normal_t?> cons_t <?=initCond_codeprefix?>
+//// MODULE_DEPENDS: <?=calc_gamma_ll?>
 // not used anymore, replaced in calcDT by eqn:consMinWaveCode/eqn:consMaxWaveCode eigenvalue inlining
 
 #define <?=calcCellMinMaxEigenvalues?>(\
@@ -793,20 +846,21 @@ end --\
 	/*real3 const */pt,\
 	/*<?=normal_t?> const */n\
 ) {\
-	real const det_gamma = sym3_det((U)->gamma_ll);\
+	sym3 const gamma_ll = <?=calc_gamma_ll?>(U, pt);\
+	real const det_gamma = sym3_det(gamma_ll);\
 \
 <? if solver.coord.vectorComponent == "cartesian" then ?>\
-	sym3 const gamma_uu = sym3_inv((U)->gamma_ll, det_gamma);\
+	sym3 const gamma_uu = sym3_inv(gamma_ll, det_gamma);\
 	real3 const n_l = normal_l1(n);\
 	real const gammaUnn = real3_weightedLenSq(n_l, gamma_uu);\
 <? else ?>\
 	real gammaUnn = 0./0.;\
 	if (n.side == 0) {\
-		gammaUnn = ((U)->gamma_ll.yy * (U)->gamma_ll.zz - (U)->gamma_ll.yz * (U)->gamma_ll.yz) / det_gamma;\
+		gammaUnn = (gamma_ll.yy * gamma_ll.zz - gamma_ll.yz * gamma_ll.yz) / det_gamma;\
 	} else if (n.side == 1) {\
-		gammaUnn = ((U)->gamma_ll.xx * (U)->gamma_ll.zz - (U)->gamma_ll.xz * (U)->gamma_ll.xz) / det_gamma;\
+		gammaUnn = (gamma_ll.xx * gamma_ll.zz - gamma_ll.xz * gamma_ll.xz) / det_gamma;\
 	} else if (n.side == 2) {\
-		gammaUnn = ((U)->gamma_ll.xx * (U)->gamma_ll.yy - (U)->gamma_ll.xy * (U)->gamma_ll.xy) / det_gamma;\
+		gammaUnn = (gamma_ll.xx * gamma_ll.yy - gamma_ll.xy * gamma_ll.xy) / det_gamma;\
 	}\
 <? end ?>\
 	real const sqrt_gammaUnn = sqrt(gammaUnn);\
@@ -829,6 +883,7 @@ end --\
 
 //// MODULE_NAME: <?=eigen_forCell?>
 //// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> <?=normal_t?> <?=initCond_codeprefix?>
+//// MODULE_DEPENDS: <?=calc_gamma_ll?>
 
 //used by PLM, and by the default <?=fluxFromCons?> (used by hll, or roe when roeUseFluxFromCons is set)
 #define <?=eigen_forCell?>(\
@@ -841,8 +896,9 @@ end --\
 	(resultEig)->alpha = (U)->alpha;\
 	(resultEig)->alpha_sqrt_f = sqrt(calc_f_alphaSq((U)->alpha));\
 \
-	real const det_gamma = sym3_det((U)->gamma_ll);\
-	(resultEig)->gamma_uu = sym3_inv((U)->gamma_ll, det_gamma);\
+	sym3 const gamma_ll = <?=calc_gamma_ll?>(U, pt);\
+	real const det_gamma = sym3_det(gamma_ll);\
+	(resultEig)->gamma_uu = sym3_inv(gamma_ll, det_gamma);\
 \
 <? if solver.coord.vectorComponent == "cartesian" then ?>\
 /*  I'm using .side for holonomic(coordinate) and anholonomic(orthonormal) */\
@@ -905,8 +961,8 @@ end --\
 	real const sqrt_f = (eig)->alpha_sqrt_f / (eig)->alpha;\
 	real const f = sqrt_f * sqrt_f;\
 	/*  from 2004 Bona et al, "A symmetry breaking..." eqn A.20 */\
-	/*  mind you the 'm' in that form is for alpha_,t = -alpha^2 (f K - m Theta) */\
-	/*  while in more modern Z4 papers it is alpha_,t = -alpha^2 f (K - m Theta) */\
+	/*  mind you the 'm' in that form is for α_,t = -α^2 (f K - m Θ) */\
+	/*  while in more modern Z4 papers it is α_,t = -α^2 f (K - m Θ) */\
 	/*  the difference means that this eigendecomposition is probably incorrect. */\
 	real const lambda_1 = (2. - solver->m) / (f - 1);\
 	real const lambda_2 = (2. * f - solver->m) / (f - 1);\
@@ -1091,8 +1147,8 @@ static void applyKreissOligar(
 
 	real3 const _1_dy = _real3(1./dy.x, 1./dy.y, 1./dy.z);
 
-	//described in 2008 Babiuc et al as Q = (-1)^r h^(2r-1) (D+)^r rho (D-)^r / 2^(2r)
-	//...for r=2... -sigma h^3 (D+)^2 rho (D-)^2 / 16 ... and rho=1, except rho=0 at borders maybe.
+	//described in 2008 Babiuc et al as Q = (-1)^r h^(2r-1) (D+)^r ρ (D-)^r / 2^(2r)
+	//...for r=2... -σ h^3 (D+)^2 ρ (D-)^2 / 16 ... and ρ=1, except ρ=0 at borders maybe.
 	int const * const endOfFields = fields + numFields;
 	for (int const * ip = fields; ip < endOfFields; ++ip) {
 		int const i = *ip;
@@ -1126,8 +1182,10 @@ kernel void <?=addSource?>(
 	global <?=cons_t?> * const deriv = derivBuf + index;
 	global <?=cell_t?> const * const cell = cellBuf + index;
 
-	real const det_gamma = sym3_det(U->gamma_ll);
-	sym3 const gamma_uu = sym3_inv(U->gamma_ll, det_gamma);
+//// MODULE_DEPENDS: <?=calc_gamma_ll?>
+	sym3 const gamma_ll = <?=calc_gamma_ll?>(U, cell->pos);
+	real const det_gamma = sym3_det(gamma_ll);
+	sym3 const gamma_uu = sym3_inv(gamma_ll, det_gamma);
 
 	real3 const S_l = real3_zero;
 	sym3 const S_ll = sym3_zero;
@@ -1145,16 +1203,16 @@ kernel void <?=addSource?>(
 //// MODULE_DEPENDS: <?=calc_d_lll?>
 	_3sym3 const d_lll = <?=calc_d_lll?>(U, cell->pos);
 
-	//d_llu = d_ij^k = d_ijl * gamma^lk
+	//d_llu = d_ij^k = d_ijl * γ^lk
 	real3x3x3 const d_llu = _3sym3_sym3_mul(d_lll, gamma_uu);
 	
-	//d_ull = d^i_jk = gamma^il d_ljk
+	//d_ull = d^i_jk = γ^il d_ljk
 	_3sym3 const d_ull = sym3_3sym3_mul(gamma_uu, d_lll);
 	
 	//e_l = e_i = d^j_ji
 	real3 const e_l = _3sym3_tr12(d_ull);
 
-	//conn^k_ij = d_ij^k + d_ji^k - d^k_ij
+	//Γ^k_ij = d_ij^k + d_ji^k - d^k_ij
 	_3sym3 const conn_ull = {
 <? for k,xk in ipairs(xNames) do
 ?>		.<?=xk?> = (sym3){
@@ -1173,19 +1231,27 @@ kernel void <?=addSource?>(
 	real3 const e_u = sym3_real3_mul(gamma_uu, e_l);
 	real3 const Z_u = sym3_real3_mul(gamma_uu, U->Z_l);
 
-	/* d_luu = d_i^jk = gamma^jl d_il^k */
+	/* d_luu = d_i^jk = γ^jl d_il^k */
 	_3sym3 const d_luu = (_3sym3){
 <? for i,xi in ipairs(xNames) do
 ?>		.<?=xi?> = sym3_real3x3_to_sym3_mul(gamma_uu, d_llu.<?=xi?>),
 <? end
 ?>	};
 
-	/* alpha_,t = shift terms - alpha^2 f (gamma^ij K_ij - m Theta) */
+	/* α_,t = shift terms - α^2 f (γ^ij K_ij - m Θ) */
 	real const f_alphaSq = calc_f_alphaSq(U->alpha);
 	deriv->alpha += -f_alphaSq * (trK - solver->m * U->Theta);
 	
-	/* gamma_ij,t = shift terms - 2 alpha K_ij */
-	deriv->gamma_ll = sym3_add(deriv->gamma_ll, sym3_real_mul(U->K_ll, -2. * U->alpha));
+	/* γ_ij,t = shift terms - 2 α K_ij */
+	/* Δγ_ij,t = shift terms - 2 α K_ij - ^γ_ij,t */
+	sym3 const dt_gammaHat_ll = sym3_zero;
+	deriv->gammaDelta_ll = sym3_add(
+		deriv->gammaDelta_ll, 
+		sym3_add(
+			sym3_real_mul(U->K_ll, -2. * U->alpha),
+			sym3_neg(dt_gammaHat_ll)
+		)
+	);
 
 	/* 2005 Bona et al A.1 */
 <? for ij,xij in ipairs(symNames) do
@@ -1206,7 +1272,7 @@ kernel void <?=addSource?>(
 		- conn_ull.<?=xk?>.<?=sym(l,j)?> * conn_ull.<?=xl?>.<?=sym(k,i)?>
 <?		end
 	end
-?> - 8. * M_PI * (S_ll.<?=xij?> - .5 * U->gamma_ll.<?=xij?> * (S - rho)));
+?> - 8. * M_PI * (S_ll.<?=xij?> - .5 * gamma_ll.<?=xij?> * (S - rho)));
 <? end
 ?>
 
@@ -1246,16 +1312,16 @@ end?>
 	real const tr_b = real3x3_trace(U->b_ul);
 	real3 const a_u = sym3_real3_mul(gamma_uu, U->a_l);
 
-	/* alpha_,t += beta^i alpha a_i */
+	/* α_,t += β^i α a_i */
 <? for k,xk in ipairs(xNames) do
 ?>	deriv->alpha += U->alpha * real3_dot(U->a_l, U->beta_u);
 <? end
 ?>
 
 	sym3 const dHat_t_ll = sym3_zero;\
-	real3x3 const b_ll = sym3_real3x3_mul(U->gamma_ll, U->b_ul);
+	real3x3 const b_ll = sym3_real3x3_mul(gamma_ll, U->b_ul);
 
-	/* gamma_ij += 2 beta^k d_kij + b_ij + b_ji */
+	/* γ_ij += 2 β^k d_kij + b_ij + b_ji */
 <? for ij,xij in ipairs(symNames) do
 	local i,j,xi,xj = from6to3x3(ij)
 ?>	deriv->gamma_ll.<?=xij?> += 0.
@@ -1305,22 +1371,25 @@ end
 <? end
 ?>
 
+	/* Θ_,t += b^m_m Θ */
 	deriv->Theta += -tr_b * U->Theta;
 
+	/* Z_k,t += b^m_k Z_m - b^m_m Z_k */
 <? for k,xk in ipairs(xNames) do
 ?>	deriv->Z_l.<?=xk?> += 0.
 		- tr_b * U->Z_l.<?=xk?>
-<? 	for l,xl in ipairs(xNames) do
-?>		+ U->Z_l.<?=xl?> * U->b_ul.<?=xl?>.<?=xk?>
+<? 	for m,xm in ipairs(xNames) do
+?>		+ U->Z_l.<?=xm?> * U->b_ul.<?=xm?>.<?=xk?>
 <? 	end
 ?>	;
 <? end
 ?>
 
+	/* β^l,t += α^2 (2 e^l - d^l - a^l) + β^m b^l_m */
 <? for l,xl in ipairs(xNames) do
 ?>	deriv->beta_u.<?=xl?> += U->alpha * U->alpha * (2. * e_u.<?=xl?> - d_u.<?=xl?> - a_u.<?=xl?>)
-<?	for k,xk in ipairs(xNames) do
-?>		+ U->beta_u.<?=xk?> * U->b_ul.<?=xl?>.<?=xk?>
+<?	for m,xm in ipairs(xNames) do
+?>		+ U->beta_u.<?=xm?> * U->b_ul.<?=xl?>.<?=xm?>
 <?	end
 ?>	;
 <? end
@@ -1337,22 +1406,21 @@ end
 	real const Theta = U->Theta;
 	real3 const Z_l = U->Z_l;
 	real3 const a_l = U->a_l;
-	sym3 const gamma_ll = U->gamma_ll;
 	sym3 const K_ll = U->K_ll;
 
-	//for 1 + log(alpha) slicing:
-	//f = 2 / alpha
-	//f alpha = 2
-	//df/dalpha = -2 / alpha^2
-	//df/dalpha alpha = -2 / alpha
-	//df/dalpha alpha^2 = -2
+	//for 1 + log(α) slicing:
+	//f = 2 / α
+	//f α = 2
+	//∂f/∂α = -2 / α^2
+	//∂f/∂α α = -2 / α
+	//∂f/∂α α^2 = -2
 	real const f_alpha = calc_f_alpha(alpha);
 	real const f_alphaSq = calc_f_alphaSq(alpha);
 	real const alphaSq_dalpha_f = calc_alphaSq_dalpha_f(alpha);
 
 	//TODO:
-	//alpha_,t = f alpha^2 ( ... )
-	//a_k,t = f alpha ( ... ) + ...
+	//α_,t = f α^2 ( ... )
+	//a_k,t = f α ( ... ) + ...
 	//
 	//  BEGIN CUT from numerical-relativity-codegen/flux_matrix_output/z4_noZeroRows.html
 	real const tmp1 = K_ll.xy * gamma_uu.xy;
@@ -1814,12 +1882,12 @@ end
 	real const tmp7343 = Z_l.y * gamma_uu.yz;
 	real const tmp7345 = Z_l.z * gamma_uu.zz;
 	deriv->alpha += -f_alphaSq * (tmp8 + tmp4 - 2. * Theta + 2. * tmp3 + 2. * tmp2 + 2. * tmp1 + K_ll.xx * gamma_uu.xx);
-	deriv->gamma_ll.xx += -2. * K_ll.xx * alpha;
-	deriv->gamma_ll.xy += -2. * K_ll.xy * alpha;
-	deriv->gamma_ll.xz += -2. * K_ll.xz * alpha;
-	deriv->gamma_ll.yy += -2. * K_ll.yy * alpha;
-	deriv->gamma_ll.yz += -2. * K_ll.yz * alpha;
-	deriv->gamma_ll.zz += -2. * K_ll.zz * alpha;
+	deriv->gammaDelta_ll.xx += -2. * K_ll.xx * alpha;
+	deriv->gammaDelta_ll.xy += -2. * K_ll.xy * alpha;
+	deriv->gammaDelta_ll.xz += -2. * K_ll.xz * alpha;
+	deriv->gammaDelta_ll.yy += -2. * K_ll.yy * alpha;
+	deriv->gammaDelta_ll.yz += -2. * K_ll.yz * alpha;
+	deriv->gammaDelta_ll.zz += -2. * K_ll.zz * alpha;
 	deriv->a_l.x += -alphaSq_dalpha_f * ( K_ll.zz * a_l.x * gamma_uu.zz - 2. * Theta * a_l.x + 2. * K_ll.yz * a_l.x * gamma_uu.yz + K_ll.yy * a_l.x * gamma_uu.yy + 2. * K_ll.xz * a_l.x * gamma_uu.xz + 2. * K_ll.xy * a_l.x * gamma_uu.xy + K_ll.xx * a_l.x * gamma_uu.xx) - f_alpha * ( - 2. * K_ll.zz * d_lll.x.xx * tmp67 - 4. * K_ll.zz * d_lll.x.xy * tmp128 - 4. * K_ll.zz * d_lll.x.xz * tmp189 - 2. * K_ll.zz * d_lll.x.yy * tmp230 - 4. * K_ll.zz * d_lll.x.yz * tmp291 - 2. * K_ll.zz * d_lll.x.zz * tmp332 - 2. * Theta * a_l.x + K_ll.zz * a_l.x * gamma_uu.zz - 4. * K_ll.yz * d_lll.x.xx * tmp61 - 4. * K_ll.yz * d_lll.x.xy * tmp116 - 4. * K_ll.yz * d_lll.x.xy * tmp122 - 4. * K_ll.yz * d_lll.x.xz * tmp177 - 4. * K_ll.yz * d_lll.x.xz * tmp128 - 4. * K_ll.yz * d_lll.x.yy * tmp224 - 4. * K_ll.yz * d_lll.x.yz * tmp279 - 4. * K_ll.yz * d_lll.x.yz * tmp230 - 4. * K_ll.yz * d_lll.x.zz * tmp291 + 2. * K_ll.yz * a_l.x * gamma_uu.yz - 2. * K_ll.yy * d_lll.x.xx * tmp55 - 4. * K_ll.yy * d_lll.x.xy * tmp110 - 4. * K_ll.yy * d_lll.x.xz * tmp116 - 2. * K_ll.yy * d_lll.x.yy * tmp218 - 4. * K_ll.yy * d_lll.x.yz * tmp224 - 2. * K_ll.yy * d_lll.x.zz * tmp230 + K_ll.yy * a_l.x * gamma_uu.yy - 4. * K_ll.xz * d_lll.x.xx * tmp49 - 4. * K_ll.xz * d_lll.x.xy * tmp98 - 4. * K_ll.xz * d_lll.x.xy * tmp61 - 4. * K_ll.xz * d_lll.x.xz * tmp159 - 4. * K_ll.xz * d_lll.x.xz * tmp67 - 4. * K_ll.xz * d_lll.x.yy * tmp116 - 4. * K_ll.xz * d_lll.x.yz * tmp177 - 4. * K_ll.xz * d_lll.x.yz * tmp128 - 4. * K_ll.xz * d_lll.x.zz * tmp189 + 2. * K_ll.xz * a_l.x * gamma_uu.xz - 4. * K_ll.xy * d_lll.x.xx * tmp43 - 4. * K_ll.xy * d_lll.x.xy * tmp86 - 4. * K_ll.xy * d_lll.x.xy * tmp55 - 4. * K_ll.xy * d_lll.x.xz * tmp98 - 4. * K_ll.xy * d_lll.x.xz * tmp61 - 4. * K_ll.xy * d_lll.x.yy * tmp110 - 4. * K_ll.xy * d_lll.x.yz * tmp116 - 4. * K_ll.xy * d_lll.x.yz * tmp122 - 4. * K_ll.xy * d_lll.x.zz * tmp128 + 2. * K_ll.xy * a_l.x * gamma_uu.xy - 2. * K_ll.xx * d_lll.x.xx * tmp37 - 4. * K_ll.xx * d_lll.x.xy * tmp43 - 4. * K_ll.xx * d_lll.x.xz * tmp49 - 2. * K_ll.xx * d_lll.x.yy * tmp55 - 4. * K_ll.xx * d_lll.x.yz * tmp61 - 2. * K_ll.xx * d_lll.x.zz * tmp67 + K_ll.xx * a_l.x * gamma_uu.xx);
 	deriv->a_l.y += -alphaSq_dalpha_f * ( K_ll.zz * a_l.y * gamma_uu.zz - 2. * Theta * a_l.y + 2. * K_ll.yz * a_l.y * gamma_uu.yz + K_ll.yy * a_l.y * gamma_uu.yy + 2. * K_ll.xz * a_l.y * gamma_uu.xz + 2. * K_ll.xy * a_l.y * gamma_uu.xy + K_ll.xx * a_l.y * gamma_uu.xx) - f_alpha * ( - 2. * K_ll.zz * d_lll.y.xx * tmp67 - 4. * K_ll.zz * d_lll.y.xy * tmp128 - 4. * K_ll.zz * d_lll.y.xz * tmp189 - 2. * K_ll.zz * d_lll.y.yy * tmp230 - 4. * K_ll.zz * d_lll.y.yz * tmp291 - 2. * K_ll.zz * d_lll.y.zz * tmp332 - 2. * Theta * a_l.y + K_ll.zz * a_l.y * gamma_uu.zz - 4. * K_ll.yz * d_lll.y.xx * tmp61 - 4. * K_ll.yz * d_lll.y.xy * tmp116 - 4. * K_ll.yz * d_lll.y.xy * tmp122 - 4. * K_ll.yz * d_lll.y.xz * tmp177 - 4. * K_ll.yz * d_lll.y.xz * tmp128 - 4. * K_ll.yz * d_lll.y.yy * tmp224 - 4. * K_ll.yz * d_lll.y.yz * tmp279 - 4. * K_ll.yz * d_lll.y.yz * tmp230 - 4. * K_ll.yz * d_lll.y.zz * tmp291 + 2. * K_ll.yz * a_l.y * gamma_uu.yz - 2. * K_ll.yy * d_lll.y.xx * tmp55 - 4. * K_ll.yy * d_lll.y.xy * tmp110 - 4. * K_ll.yy * d_lll.y.xz * tmp116 - 2. * K_ll.yy * d_lll.y.yy * tmp218 - 4. * K_ll.yy * d_lll.y.yz * tmp224 - 2. * K_ll.yy * d_lll.y.zz * tmp230 + K_ll.yy * a_l.y * gamma_uu.yy - 4. * K_ll.xz * d_lll.y.xx * tmp49 - 4. * K_ll.xz * d_lll.y.xy * tmp98 - 4. * K_ll.xz * d_lll.y.xy * tmp61 - 4. * K_ll.xz * d_lll.y.xz * tmp159 - 4. * K_ll.xz * d_lll.y.xz * tmp67 - 4. * K_ll.xz * d_lll.y.yy * tmp116 - 4. * K_ll.xz * d_lll.y.yz * tmp177 - 4. * K_ll.xz * d_lll.y.yz * tmp128 - 4. * K_ll.xz * d_lll.y.zz * tmp189 + 2. * K_ll.xz * a_l.y * gamma_uu.xz - 4. * K_ll.xy * d_lll.y.xx * tmp43 - 4. * K_ll.xy * d_lll.y.xy * tmp86 - 4. * K_ll.xy * d_lll.y.xy * tmp55 - 4. * K_ll.xy * d_lll.y.xz * tmp98 - 4. * K_ll.xy * d_lll.y.xz * tmp61 - 4. * K_ll.xy * d_lll.y.yy * tmp110 - 4. * K_ll.xy * d_lll.y.yz * tmp116 - 4. * K_ll.xy * d_lll.y.yz * tmp122 - 4. * K_ll.xy * d_lll.y.zz * tmp128 + 2. * K_ll.xy * a_l.y * gamma_uu.xy - 2. * K_ll.xx * d_lll.y.xx * tmp37 - 4. * K_ll.xx * d_lll.y.xy * tmp43 - 4. * K_ll.xx * d_lll.y.xz * tmp49 - 2. * K_ll.xx * d_lll.y.yy * tmp55 - 4. * K_ll.xx * d_lll.y.yz * tmp61 - 2. * K_ll.xx * d_lll.y.zz * tmp67 + K_ll.xx * a_l.y * gamma_uu.xx);
 	deriv->a_l.z += -alphaSq_dalpha_f * ( K_ll.zz * a_l.z * gamma_uu.zz - 2. * Theta * a_l.z + 2. * K_ll.yz * a_l.z * gamma_uu.yz + K_ll.yy * a_l.z * gamma_uu.yy + 2. * K_ll.xz * a_l.z * gamma_uu.xz + 2. * K_ll.xy * a_l.z * gamma_uu.xy + K_ll.xx * a_l.z * gamma_uu.xx) - f_alpha * ( - 2. * K_ll.zz * d_lll.z.xx * tmp67 - 4. * K_ll.zz * d_lll.z.xy * tmp128 - 4. * K_ll.zz * d_lll.z.xz * tmp189 - 2. * K_ll.zz * d_lll.z.yy * tmp230 - 4. * K_ll.zz * d_lll.z.yz * tmp291 - 2. * K_ll.zz * d_lll.z.zz * tmp332 - 2. * Theta * a_l.z + K_ll.zz * a_l.z * gamma_uu.zz - 4. * K_ll.yz * d_lll.z.xx * tmp61 - 4. * K_ll.yz * d_lll.z.xy * tmp116 - 4. * K_ll.yz * d_lll.z.xy * tmp122 - 4. * K_ll.yz * d_lll.z.xz * tmp177 - 4. * K_ll.yz * d_lll.z.xz * tmp128 - 4. * K_ll.yz * d_lll.z.yy * tmp224 - 4. * K_ll.yz * d_lll.z.yz * tmp279 - 4. * K_ll.yz * d_lll.z.yz * tmp230 - 4. * K_ll.yz * d_lll.z.zz * tmp291 + 2. * K_ll.yz * a_l.z * gamma_uu.yz - 2. * K_ll.yy * d_lll.z.xx * tmp55 - 4. * K_ll.yy * d_lll.z.xy * tmp110 - 4. * K_ll.yy * d_lll.z.xz * tmp116 - 2. * K_ll.yy * d_lll.z.yy * tmp218 - 4. * K_ll.yy * d_lll.z.yz * tmp224 - 2. * K_ll.yy * d_lll.z.zz * tmp230 + K_ll.yy * a_l.z * gamma_uu.yy - 4. * K_ll.xz * d_lll.z.xx * tmp49 - 4. * K_ll.xz * d_lll.z.xy * tmp98 - 4. * K_ll.xz * d_lll.z.xy * tmp61 - 4. * K_ll.xz * d_lll.z.xz * tmp159 - 4. * K_ll.xz * d_lll.z.xz * tmp67 - 4. * K_ll.xz * d_lll.z.yy * tmp116 - 4. * K_ll.xz * d_lll.z.yz * tmp177 - 4. * K_ll.xz * d_lll.z.yz * tmp128 - 4. * K_ll.xz * d_lll.z.zz * tmp189 + 2. * K_ll.xz * a_l.z * gamma_uu.xz - 4. * K_ll.xy * d_lll.z.xx * tmp43 - 4. * K_ll.xy * d_lll.z.xy * tmp86 - 4. * K_ll.xy * d_lll.z.xy * tmp55 - 4. * K_ll.xy * d_lll.z.xz * tmp98 - 4. * K_ll.xy * d_lll.z.xz * tmp61 - 4. * K_ll.xy * d_lll.z.yy * tmp110 - 4. * K_ll.xy * d_lll.z.yz * tmp116 - 4. * K_ll.xy * d_lll.z.yz * tmp122 - 4. * K_ll.xy * d_lll.z.zz * tmp128 + 2. * K_ll.xy * a_l.z * gamma_uu.xy - 2. * K_ll.xx * d_lll.z.xx * tmp37 - 4. * K_ll.xx * d_lll.z.xy * tmp43 - 4. * K_ll.xx * d_lll.z.xz * tmp49 - 2. * K_ll.xx * d_lll.z.yy * tmp55 - 4. * K_ll.xx * d_lll.z.yz * tmp61 - 2. * K_ll.xx * d_lll.z.zz * tmp67 + K_ll.xx * a_l.z * gamma_uu.xx);
@@ -1915,7 +1983,7 @@ end
 	//turns out if you "if conv != 0" all these then skipping decay explodes soon in simulation steps, but time grows quickly, so it dies at a high t value
 
 //// MODULE_DEPENDS: <?=calcFromGrad_a_l?>
-	// a_x = log(alpha)_,x <=> a_x += eta (log(alpha)_,x - a_x)
+	// a_x = log(α)_,x <=> a_x += η (log(α)_,x - a_x)
 	if (solver->a_convCoeff != 0.) {
 		real3 const target_a_l = <?=calcFromGrad_a_l?>(solver, U);
 <?
@@ -1925,7 +1993,7 @@ for i,xi in ipairs(xNames) do
 ?>	}
 
 //// MODULE_DEPENDS: <?=calcFromGrad_d_lll?>
-	// d_xxx = .5 gamma_xx,x <=> d_xxx += eta (.5 gamma_xx,x - d_xxx)
+	// d_xxx = .5 γ_xx,x <=> d_xxx += η (.5 γ_xx,x - d_xxx)
 	if (solver->d_convCoeff != 0.) {
 		_3sym3 const target_d_lll = <?=calcFromGrad_d_lll?>(solver, U, cell);
 <?
@@ -1937,7 +2005,7 @@ end
 ?>	}
 
 <? if eqn.consStruct.vars:find(nil, function(var) return var.name == "b_ul" end) then ?>
-	// b_ul.j.i = beta_u.j,i <=> b_ul.j.i += eta (beta_u.j,i - b_ul.j.i)
+	// b_ul.j.i = beta_u.j,i <=> b_ul.j.i += η (β_u.j,i - b_ul.j.i)
 	if (solver->b_convCoeff != 0.) {
 		real3x3 const target_b_ul = <?=calcFromGrad_b_ul?>(solver, U);
 <?
@@ -1972,9 +2040,11 @@ kernel void <?=constrainU?>(
 	<?=SETBOUNDS?>(solver->numGhost, solver->numGhost);
 	global <?=cons_t?> * const U = UBuf + index;
 	global <?=cell_t?> const * const cell = cellBuf + index;
-	
-	real const det_gamma = sym3_det(U->gamma_ll);
-	sym3 const gamma_uu = sym3_inv(U->gamma_ll, det_gamma);
+
+//// MODULE_DEPENDS: <?=calc_gamma_ll?>
+	sym3 const gamma_ll = <?=calc_gamma_ll?>(U, cell->pos);
+	real const det_gamma = sym3_det(gamma_ll);
+	sym3 const gamma_uu = sym3_inv(gamma_ll, det_gamma);
 
 	real3x3 const K_ul = sym3_sym3_mul(gamma_uu, U->K_ll);			//K^i_j
 	real const tr_K = real3x3_trace(K_ul);							//K^k_k
@@ -1984,16 +2054,16 @@ kernel void <?=constrainU?>(
 //// MODULE_DEPENDS: <?=calc_d_lll?>
 	_3sym3 const d_lll = <?=calc_d_lll?>(U, cell->pos);
 	
-	//d_llu = d_ij^k = d_ijl * gamma^lk
+	//d_llu = d_ij^k = d_ijl * γ^lk
 	real3x3x3 const d_llu = _3sym3_sym3_mul(d_lll, gamma_uu);
 	
-	//d_ull = d^i_jk = gamma^il d_ljk
+	//d_ull = d^i_jk = γ^il d_ljk
 	_3sym3 const d_ull = sym3_3sym3_mul(gamma_uu, d_lll);
 
 	//e_i = d^j_ji
 	real3 const e_l = _3sym3_tr12(d_ull);
 
-	//conn^k_ij = d_ij^k + d_ji^k - d^k_ij
+	//Γ^k_ij = d_ij^k + d_ji^k - d^k_ij
 	_3sym3 const conn_ull = {
 <? for k,xk in ipairs(xNames) do
 ?>		.<?=xk?> = (sym3){
@@ -2037,8 +2107,8 @@ for k=1,solver.dim do	-- beyond dim and the finite-difference will be zero
 end ?>
 
 	// R_ll.ij := R_ij
-	//	= gamma^kl (-gamma_ij,kl - gamma_kl,ij + gamma_ik,jl + gamma_jl,ik)
-	//		+ conn^k_ij (d_k - 2 e_k)
+	//	= γ^kl (-γ_ij,kl - γ_kl,ij + γ_ik,jl + γ_jl,ik)
+	//		+ Γ^k_ij (d_k - 2 e_k)
 	//		- 2 d^l_ki d^k_lj
 	//		+ 2 d^l_ki d_lj^k
 	//		+ d_il^k d_jk^l
@@ -2066,7 +2136,7 @@ end ?>
 	//scaled down by 1/8 to match B&S BSSNOK equations ... maybe I'll scale theirs up by 8 ...
 	//B&S eqn 2.125 ... divded by two
 	//Alcubierre eqn 2.5.9, also Alcubierre 2.4.10 divided by two
-	//H = 1/2 (R + K^2 - K_ij K^ij) - 8 pi rho
+	//H = 1/2 (R + K^2 - K_ij K^ij) - 8 π ρ
 	real const R = sym3_dot(R_ll, gamma_uu);
 	real const tr_KSq = sym3_dot(KSq_ll, gamma_uu);
 	U->H = .5 * (R + tr_K * tr_K - tr_KSq) <?
@@ -2080,25 +2150,25 @@ end ?>;
 	momentum constraint
 	Alcubierre eqn 2.4.11
 	M^i = K^ij_;j
-		- gamma^ij K_,j
-		- 8 pi S^i
-	M^i = gamma^im gamma^jn (
+		- γ^ij K_,j
+		- 8 π S^i
+	M^i = γ^im γ^jn (
 			K_mn,j
-			- conn^k_mj K_kn
-			- conn^k_nj K_mk
+			- Γ^k_mj K_kn
+			- Γ^k_nj K_mk
 		)
-		- gamma^ij (gamma^mn_,j K_mn + gamma^mn K_mn,j)
-		- 8 pi S^i
-	M^i = gamma^ij (
-			gamma^mn (
+		- γ^ij (γ^mn_,j K_mn + γ^mn K_mn,j)
+		- 8 π S^i
+	M^i = γ^ij (
+			γ^mn (
 				K_jn,m
 				- K_mn,j
-				- conn^k_jm K_kn
-				- conn^k_nm K_jk
+				- Γ^k_jm K_kn
+				- Γ^k_nm K_jk
 			)
 			+ 2 d_jmn K^mn
 		)
-		- 8 pi S^i
+		- 8 π S^i
 	*/
 <? for i,xi in ipairs(xNames) do
 ?>	U->M_u.<?=xi?> =

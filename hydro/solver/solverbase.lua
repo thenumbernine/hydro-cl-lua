@@ -1871,7 +1871,7 @@ But in this case we are still calling the same pickComponent() as UBuf, and its 
 
 	local code = lines:concat'\n'
 
-	-- in the off chance that any MODULE_* cmds were in there, align them back with the lhs
+	-- in case any MODULE_* cmds were in there, align them back with the lhs
 	code = string.split(code, '\n'):mapi(function(l)
 		return (l:gsub('^%s*//// MODULE_', '//// MODULE_'))
 	end):concat'\n'

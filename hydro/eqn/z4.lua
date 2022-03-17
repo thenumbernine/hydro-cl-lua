@@ -1,6 +1,9 @@
 --[[
 based on whatever my numerical_relativity_codegen z4 is based on, which is probably a Bona-Masso paper,
 probably 2004 Bona et al "A symmetry-breaking mechanism for the Z4 general-covariant evolution system"
+and then 2005 Bona et al "Geometrically Motivated ..."
+and then some 2008 Yano et al
+and then my symmath/tests/Z4.lua ... which is trying to do the same thing but grid-background-indepdendent
 --]]
 
 local class = require 'ext.class'
@@ -78,8 +81,8 @@ useShift
 	Step backwards along shift vector and advect the state
 	Idk how accurate this is ...
 	Hmm, even if I implement the Lie derivative as Lagrangian coordinate advection
-	I'll still be responsible for setting some beta^i_,t gauge
-	so for the L_beta Lie derivative, we have some options:
+	I'll still be responsible for setting some β^i_,t gauge
+	so for the L_β Lie derivative, we have some options:
 	1) none (for no-shift)
 	2) finite difference
 	3) finite volume / absorb into the eigensystem
@@ -87,7 +90,7 @@ useShift
 	and this should be a separate variable, separate of the shift gauge
 
 	so
-	one variable for what beta^i_,t is
+	one variable for what β^i_,t is
 	another variable for how to
 	--]=]
 --]]
@@ -104,24 +107,24 @@ function Z4_2004Bona:init(args)
 
 	self.consVars = table{
 		{name='alpha', type='real'},
-		{name='gamma_ll', type='sym3'},
+		{name='gammaDelta_ll', type='sym3'},
 	}:append(fluxVars)
 
 
 	--[[
 	how are shift conditions impmlemented?
-	options for determining beta^i:
+	options for determining β^i:
 	1) by solving a constraint equation (minimal distortion elliptic solves it with a numerical Poisson solver)
 	2) by solving an initial value problem
 
-	Once beta^i is determined, how are the variables iterated?
+	Once β^i is determined, how are the variables iterated?
 	This question is split into a) and b):
-	a) How are the source-only variables iterated wrt beta^i?
+	a) How are the source-only variables iterated wrt β^i?
 	options:
 	1) put the Lie derivative terms into the source side of these variables
-	2) give them -beta^i eigenvalues?  this is the equivalent of rewriting the hyperbolic vars associated with these (a_i,d_kij) back into first-derivative 0th order vars (alpha, gamma_ij)
+	2) give them -β^i eigenvalues?  this is the equivalent of rewriting the hyperbolic vars associated with these (a_i,d_kij) back into first-derivative 0th order vars (α, γ_ij)
 
-	b) How are the flux variables iterated wrt beta^i?
+	b) How are the flux variables iterated wrt β^i?
 	options:
 	1) this would be solved by offsetting the eigenvalues
 		with the offset eigenvalues,
@@ -133,7 +136,7 @@ function Z4_2004Bona:init(args)
 
 	self.useShift = args.useShift or 'none'
 	
-	-- set to false to disable rho, S_i, S^ij
+	-- set to false to disable ρ, S_i, S^ij
 	self.useStressEnergyTerms = true
 
 	if self.useShift ~= 'none' then
@@ -164,18 +167,18 @@ function Z4_2004Bona:init(args)
 		self.noZeroRowsInFlux = args.noZeroRowsInFlux
 	end
 
-	-- NOTE this doesn't work when using shift ... because then all the eigenvalues are -beta^i, so none of them are zero (except the source-only alpha, beta^i, gamma_ij)
+	-- NOTE this doesn't work when using shift ... because then all the eigenvalues are -β^i, so none of them are zero (except the source-only α, β^i, γ_ij)
 	-- with the exception of the lagrangian shift.  if we split that operator out then we can first solve the non-shifted system, then second advect it by the shift vector ...
 	--if self.useShift ~= 'none' then
 	--	self.noZeroRowsInFlux = false
 	--end
 
 	if not self.noZeroRowsInFlux then
-		-- skip alpha and gamma
+		-- skip α and γ_ij
 		self.numWaves = Struct.countScalars{vars=fluxVars}
 		assert(self.numWaves == 31)
 	else
-		-- Z4 has a_x, d_xij, K_ij, Theta, Z_i ...
+		-- Z4 has a_x, d_xij, K_ij, Θ, Z_i ...
 		-- which is 17 waves
 		self.numWaves = 17
 	end
@@ -189,8 +192,8 @@ function Z4_2004Bona:init(args)
 		self.consVars:append{
 			--stress-energy variables:
 			{name='rho', type='real'},			--1: n_a n_b T^ab
-			{name='S_u', type='real3'},			--3: -gamma^ij n_a T_aj
-			{name='S_ll', type='sym3'},			--6: gamma_i^c gamma_j^d T_cd
+			{name='S_u', type='real3'},			--3: -γ^ij n_a T_aj
+			{name='S_ll', type='sym3'},			--6: γ_i^c γ_j^d T_cd
 		}
 	end
 	self.consVars:append{
@@ -204,11 +207,11 @@ function Z4_2004Bona:init(args)
 		{name='alpha_sqrt_f', type='real'},
 		{name='gamma_ll', type='sym3'},
 		{name='gamma_uu', type='sym3'},
-		-- sqrt(n_i n_j gamma^ij) needs to be cached, otherwise the Intel kernel stalls (for seconds on end)
+		-- sqrt(n_i n_j γ^ij) needs to be cached, otherwise the Intel kernel stalls (for seconds on end)
 		{name='sqrt_gammaUnn', type='real'},
 	}
 
-	-- hmm, only certain shift methods actually use beta_u ...
+	-- hmm, only certain shift methods actually use β^i ...
 	if self.useShift ~= 'none' then
 		self.eigenVars:insert{name='beta_u', type='real3'}
 	end
@@ -230,8 +233,9 @@ end
 function Z4_2004Bona:getSymbolFields()
 	return Z4_2004Bona.super.getSymbolFields(self):append{
 		'initDeriv_numeric_and_useBSSNVars',
-		'calc_d_lll',			-- from U->dDelta_ijk and dHat(cell->pos)_ijk
-		'calcFromPt_dHat_lll',	-- calc dHat_kij = 1/2 gammaHat_ij,k = grid metric (hol.) derivative
+		'calc_d_lll',			-- from U->dDelta_ijk and ^d(pt)_ijk
+		'calc_gammaHat_ll',		-- calc ^γ_ij = grid metric (hol.) derivative ... also in common with bssnok-fd-*
+		'calcFromPt_dHat_lll',	-- calc ^d_kij = 1/2 ^γ_ij,k
 		'calcFromGrad_a_l',
 		'calcFromGrad_d_lll',	-- finite difference from grid
 		'calcFromGrad_b_ul',
@@ -245,10 +249,10 @@ function Z4_2004Bona:createInitState()
 		-- from 2004 Bona et al, "A symmetry breaking..." eqn A.20
 		{name='m', value=2},
 	
-		-- convergence between finite-difference of alpha,i and alpha a_i
+		-- convergence between finite-difference of log(α)_,i and a_i
 		{name='a_convCoeff', value=0},
 		
-		-- convergence between finite-difference of 1/2 gamma_ij,k and d_kij
+		-- convergence between finite-difference of 1/2 γ_ij,k and d_kij
 		{name='d_convCoeff', value=0},
 
 		{name='dissipationCoeff', value=cmdline.dissipationCoeff or 0},
@@ -260,7 +264,7 @@ function Z4_2004Bona:createInitState()
 		-- TODO add shift option
 		-- but that means moving the consVars construction to the :init()
 		-- so until then, just add shift vars no matter what ...
-		-- convergence between finite-difference of 1/2 gamma_ij,k and d_kij
+		-- convergence between finite-difference of 1/2 γ_ij,k and d_kij
 		{name='b_convCoeff', value=0},
 	}
 end
@@ -312,7 +316,22 @@ value.vsym3 = <?=calc_d_lll?>(U, cell->pos).<?=xi?>;
 		}
 	end))
 	:append{
-		{name='volume', code='value.vreal = U->alpha * sqrt(sym3_det(U->gamma_ll));'},
+		{
+			name = 'gamma_ll',
+			type = 'sym3',
+			code = self:template[[
+//// MODULE_DEPENDS: <?=calc_gamma_ll?>
+value.vsym3 = <?=calc_gamma_ll?>(U, cell->pos);
+]],
+		},
+		{
+			name = 'volume',
+			code = self:template[[
+//// MODULE_DEPENDS: <?=calc_gamma_ll?>
+sym3 const gamma_ll = <?=calc_gamma_ll?>(U, cell->pos);
+value.vreal = U->alpha * sqrt(sym3_det(gamma_ll));
+]],
+		},
 		{name='f', code='value.vreal = calc_f(U->alpha);'},
 		{name='f*alpha', code='value.vreal = calc_f_alpha(U->alpha);'},
 		{name='f*alpha^2', code='value.vreal = calc_f_alphaSq(U->alpha);'},
@@ -320,19 +339,24 @@ value.vsym3 = <?=calc_d_lll?>(U, cell->pos).<?=xi?>;
 		{name='alpha^2*df/dalpha', code='value.vreal = calc_alphaSq_dalpha_f(U->alpha);'},
 		
 		-- is expansion really just -K?
-		{name='expansion', code=[[
-	real det_gamma = sym3_det(U->gamma_ll);
-	sym3 gamma_uu = sym3_inv(U->gamma_ll, det_gamma);
-	value.vreal = -sym3_dot(gamma_uu, U->K_ll);
-]]		},
+		{
+			name = 'expansion',
+			code = self:template[[
+//// MODULE_DEPENDS: <?=calc_gamma_ll?>
+sym3 const gamma_ll = <?=calc_gamma_ll?>(U, cell->pos);
+real const det_gamma = sym3_det(gamma_ll);
+sym3 const gamma_uu = sym3_inv(gamma_ll, det_gamma);
+value.vreal = -sym3_dot(gamma_uu, U->K_ll);
+]],
+		},
 	}:append{
 --[=[
 --[[
 Alcubierre 3.1.1
 Baumgarte & Shapiro 2.90
-H = R + K^2 - K^ij K_ij - 16 pi rho
-for rho = n_a n_b T^ab (B&S eqn 2.89)
-and n_a = -alpha t_,a (B&S eqns 2.19, 2.22, 2.24)
+H = R + K^2 - K^ij K_ij - 16 π ρ
+for ρ = n_a n_b T^ab (B&S eqn 2.89)
+and n_a = -α t_,a (B&S eqns 2.19, 2.22, 2.24)
 
 momentum constraints
 --]]
@@ -345,13 +369,19 @@ momentum constraints
 	-- shift-less gravity only
 	-- gravity with shift is much more complex
 	-- TODO add shift influence (which is lengthy)
-	vars:insert{name='gravity', code=[[
-real det_gamma = sym3_det(U->gamma_ll);
-sym3 gamma_uu = sym3_inv(U->gamma_ll, det_gamma);
+	vars:insert{
+		name = 'gravity',
+		type = 'real3',
+		code = self:template[[
+//// MODULE_DEPENDS: <?=calc_gamma_ll?>
+sym3 const gamma_ll = <?=calc_gamma_ll?>(U, cell->pos);
+real const det_gamma = sym3_det(gamma_ll);
+sym3 const gamma_uu = sym3_inv(gamma_ll, det_gamma);
 value.vreal3 = real3_real_mul(sym3_real3_mul(gamma_uu, U->a_l), -U->alpha * U->alpha);
-]], type='real3'}
+]],
+	}
 
-	-- a_i = log(alpha)_,i
+	-- a_i = log(α)_,i
 	vars:insert{
 		name = 'alpha vs a_i',
 		type = 'real3',
@@ -369,7 +399,7 @@ if (<?=OOB?>(1,1)) {
 }
 ]]}
 
-	-- d_kij = 1/2 gamma_ij,k
+	-- d_kij = 1/2 γ_ij,k
 	for i,xi in ipairs(xNames) do
 		vars:insert{
 			name = 'gamma_ij vs d_'..xi..'ij',
@@ -434,7 +464,7 @@ real const betaUi = normal_vecDotN1(<?=n?>, (<?=eig?>)->beta_u);
 end
 
 function Z4_2004Bona:eigenWaveCode(args)
-	-- TODO find out if -- if we use the lagrangian coordinate shift operation -- do we still need to offset the eigenvalues by -beta^i?
+	-- TODO find out if -- if we use the lagrangian coordinate shift operation -- do we still need to offset the eigenvalues by -β^i?
 	--local shiftingLambdas = self.useShift ~= 'none'
 	--and self.useShift ~= 'LagrangianCoordinates'
 
@@ -474,8 +504,10 @@ Z4_2004Bona.consWaveCode = Z4_2004Bona.eigenWaveCode
 
 function Z4_2004Bona:consWaveCodePrefix(args)
 	return self:template([[
-real const det_gamma = sym3_det((<?=U?>)->gamma_ll);
-sym3 const gamma_uu = sym3_inv((<?=U?>)->gamma_ll, det_gamma);
+//// MODULE_DEPENDS: <?=calc_gamma_ll?>
+sym3 const gamma_ll = <?=calc_gamma_ll?>(<?=U?>, <?=pt?>);
+real const det_gamma = sym3_det(gamma_ll);
+sym3 const gamma_uu = sym3_inv(gamma_ll, det_gamma);
 
 <? if solver.coord.vectorComponent == 'cartesian' then ?>
 real3 const n_l = normal_l1(<?=n?>);
