@@ -19,14 +19,28 @@ static inline sym3 <?=calc_gamma_uu?>(
 	return gamma_uu;
 }
 
-//// MODULE_NAME: <?=calc_d_lll?>
+//// MODULE_NAME: <?=calcFromPt_dHat_lll?>
 //// MODULE_DEPENDS: _3sym3
+
+static inline _3sym3 <?=calcFromPt_dHat_lll?>(
+	real3 const pt
+) {
+<? if false then ?>
+//// MODULE_DEPENDS: <?=coord_partial_gHol_lll?>
+	return _3sym3_real_mul(coord_partial_gHol_lll(pt), .5);
+<? else ?>
+	return _3sym3_zero;
+<? end ?>
+}
+
+//// MODULE_NAME: <?=calc_d_lll?>
 
 static inline _3sym3 <?=calc_d_lll?>(
 	global <?=cons_t?> const * const U,
 	real3 const pt
 ) {
-	_3sym3 const dHat_lll = _3sym3_zero;	//TODO from the metric partial
+//// MODULE_DEPENDS: <?=calcFromPt_dHat_lll?>
+	_3sym3 const dHat_lll = <?=calcFromPt_dHat_lll?>(pt);
 	return _3sym3_add(U->dDelta_lll, dHat_lll);
 }
 
@@ -75,6 +89,7 @@ for i=1,solver.dim do
 		global <?=cons_t?> const * const UL = U - solver->stepsize.<?=xi?>;
 		global <?=cons_t?> const * const UR = U + solver->stepsize.<?=xi?>;
 		// needed for dHat_lll
+		// or instead of U->gamma_ll, make/use calcFromU_gamma_ll
 		//global <?=cell_t?> const * const cellL = cell - solver->stepsize.<?=xi?>;
 		//global <?=cell_t?> const * const cellR = cell + solver->stepsize.<?=xi?>;
 <? 	for jk,xjk in ipairs(symNames) do
@@ -138,8 +153,9 @@ kernel void <?=initDerivs?>(
 
 //// MODULE_DEPENDS: <?=calcFromGrad_a_l?>
 	U->a_l = <?=calcFromGrad_a_l?>(solver, U);
+//// MODULE_DEPENDS: <?=calcFromPt_dHat_lll?>
+	_3sym3 const dHat_lll = <?=calcFromPt_dHat_lll?>(cell->pos);
 //// MODULE_DEPENDS: <?=calcFromGrad_d_lll?>
-	_3sym3 const dHat_lll = _3sym3_zero;
 	_3sym3 const d_lll = <?=calcFromGrad_d_lll?>(solver, U, cell);
 	U->dDelta_lll = _3sym3_sub(d_lll, dHat_lll);
 <? if eqn.consStruct.vars:find(nil, function(var) return var.name == "b_ul" end) then ?>
@@ -389,6 +405,7 @@ if eqn.consStruct.vars:find(nil, function(var) return var.name == "b_ul" end) th
 
 //// MODULE_NAME: <?=fluxFromCons?>
 //// MODULE_DEPENDS: <?=cons_t?> <?=solver_t?> <?=normal_t?> rotate sym3_rotate real3x3_rotate _3sym3_rotate
+//// MODULE_DEPENDS: <?=calcFromPt_dHat_lll?>
 
 #define <?=fluxFromCons?>(\
 	/*<?=cons_t?> * const */resultFlux,\
@@ -409,7 +426,7 @@ if eqn.consStruct.vars:find(nil, function(var) return var.name == "b_ul" end) th
 	sym3 gamma_ll = (U)->gamma_ll;\
 	sym3 K_ll = (U)->K_ll;\
 	_3sym3 dDelta_lll = (U)->dDelta_lll;\
-	_3sym3 dHat_lll = _3sym3_zero;\
+	_3sym3 dHat_lll = <?=calcFromPt_dHat_lll?>((cell)->pos);\
 <? if eqn.useShift ~= "none" then --\
 ?>	real3 beta_u = (U)->beta_u;\
 <? end --\
@@ -1993,33 +2010,31 @@ kernel void <?=constrainU?>(
 
 	//partial_d_lll.ij.kl = d_kij,l = d_(k|(ij),|l)
 	//so this object's indexes are rearranged compared to the papers
-	sym3sym3 partial_d_llll;
-<?
-for ij,xij in ipairs(symNames) do
-	for kl,xkl in ipairs(symNames) do
-		local k,l,xk,xl = from6to3x3(kl)
-?>	partial_d_llll.<?=xij?>.<?=xkl?> = 0.
-<?		if l <= solver.dim then
-?>	+ .5 * (	// 1/2 d_kij,l
-		U[solver->stepsize.<?=xl?>].dDelta_lll.<?=xk?>.<?=xij?>
-		//+ dHatR_lll.<?=xk?>.<?=xij?>	//TODO
-		- U[-solver->stepsize.<?=xl?>].dDelta_lll.<?=xk?>.<?=xij?>
-		//- dHatL_lll.<?=xk?>.<?=xij?>	//TODO
-	) / (2. * solver->grid_dx.<?=xl?>)
-<?
-		end
-		if k <= solver.dim then
-?>	+ .5 * (
-		U[solver->stepsize.<?=xk?>].dDelta_lll.<?=xl?>.<?=xij?>
-		//+ dHatR_lll.<?=xk?>.<?=xij?>	//TODO
-		- U[-solver->stepsize.<?=xk?>].dDelta_lll.<?=xl?>.<?=xij?>
-		//- dHatL_lll.<?=xk?>.<?=xij?>	//TODO
-	) / (2. * solver->grid_dx.<?=xk?>)
+	//sym3sym3 partial_d_llll = sym3sym3_zero; //sym3sym3_zero doesn't exist
+	sym3sym3 partial_d_llll = {
+<? for ij,xij in ipairs(symNames) do
+?>		.<?=xij?> = sym3_zero,
+<? end
+?>	};
+
+	<? 
+for k=1,solver.dim do	-- beyond dim and the finite-difference will be zero
+	local xk = xNames[k]
+	?>{
+		global <?=cons_t?> const * const UR = U + solver->stepsize.<?=xk?>;
+		global <?=cons_t?> const * const UL = U - solver->stepsize.<?=xk?>;
+		global <?=cell_t?> const * const cellR = cell + solver->stepsize.<?=xk?>;
+		global <?=cell_t?> const * const cellL = cell - solver->stepsize.<?=xk?>;
+		_3sym3 const dR_lll = <?=calc_d_lll?>(UR, cellR->pos);
+		_3sym3 const dL_lll = <?=calc_d_lll?>(UL, cellL->pos);
+<?	for l=k,3 do	-- since we are writing to xl, only iterate through symmetric terms
+		local xl = xNames[l]
+		for ij,xij in ipairs(symNames) do
+?>		partial_d_llll.<?=xij?>.<?=sym(k,l)?> += (dR_lll.<?=xk?>.<?=xij?> - dL_lll.<?=xk?>.<?=xij?>) / (2. * solver->grid_dx.<?=xk?>);
 <?		end
-?>	;
-<?	end
-end
-?>
+	end
+?>	}<? 
+end ?>
 
 	// R_ll.ij := R_ij
 	//	= gamma^kl (-gamma_ij,kl - gamma_kl,ij + gamma_ik,jl + gamma_jl,ik)

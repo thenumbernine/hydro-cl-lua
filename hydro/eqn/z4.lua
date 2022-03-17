@@ -229,8 +229,9 @@ end
 
 function Z4_2004Bona:getSymbolFields()
 	return Z4_2004Bona.super.getSymbolFields(self):append{
-		'calc_d_lll',			-- from U->dDelta_ijk and dHat(cell->pos)_ijk
 		'initDeriv_numeric_and_useBSSNVars',
+		'calc_d_lll',			-- from U->dDelta_ijk and dHat(cell->pos)_ijk
+		'calcFromPt_dHat_lll',	-- calc dHat_kij = 1/2 gammaHat_ij,k = grid metric (hol.) derivative
 		'calcFromGrad_a_l',
 		'calcFromGrad_d_lll',	-- finite difference from grid
 		'calcFromGrad_b_ul',
