@@ -484,9 +484,10 @@ typedef union {
 #define sym3_zero	_sym3(0,0,0,0,0,0)
 #define sym3_ident	_sym3(1,0,0,1,0,1)
 
-static inline sym3 real3_outer(real3 a);
-static inline real sym3_det(sym3 m);
-static inline sym3 sym3_inv(sym3 m, real det);
+static inline sym3 real3_outer(real3 const a);
+static inline real sym3_det(sym3 const m);
+static inline sym3 sym3_inv(sym3 const m, real const det);
+static inline sym3 sym3_inv_nodet(sym3 const m);
 static inline real3 sym3_real3_mul(sym3 m, real3 v);
 static inline sym3 sym3_add(sym3 a, sym3 b);
 static inline sym3 sym3_sub(sym3 a, sym3 b);
@@ -504,7 +505,7 @@ static inline real real3_weightedLen(real3 a, sym3 m);
 //// MODULE_CODE:
 
 //outer with yourself
-static inline sym3 real3_outer(real3 a) {
+static inline sym3 real3_outer(real3 const a) {
 	return (sym3){
 <? for ij,xij in ipairs(symNames) do
 	local i,j = from6to3x3(ij)
@@ -514,13 +515,13 @@ static inline sym3 real3_outer(real3 a) {
 ?>	};
 }
 
-static inline real sym3_det(sym3 m) {
+static inline real sym3_det(sym3 const m) {
 	return m.xx * (m.yy * m.zz - m.yz * m.yz)
 		- m.xy * (m.xy * m.zz - m.xz * m.yz)
 		+ m.xz * (m.xy * m.yz - m.yy * m.xz);
 }
 
-static inline sym3 sym3_inv(sym3 m, real det) {
+static inline sym3 sym3_inv(sym3 const m, real const det) {
 	real invDet = 1. / det;
 	return (sym3){
 		.xx = (m.yy * m.zz - m.yz * m.yz) * invDet,
@@ -530,6 +531,12 @@ static inline sym3 sym3_inv(sym3 m, real det) {
 		.yz = (m.xz * m.xy - m.xx * m.yz) * invDet,
 		.zz = (m.xx * m.yy - m.xy * m.xy) * invDet,
 	};
+}
+
+//useful for when you want to store the det/inv for evaluation only once,
+// so pass-as-arg instead of macro
+static inline sym3 sym3_inv_nodet(sym3 const m) {
+	return sym3_inv(m, sym3_det(m));
 }
 
 static inline real3 sym3_real3_mul(sym3 m, real3 v) {

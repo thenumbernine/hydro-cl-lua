@@ -342,11 +342,9 @@ value.vreal = U->alpha * sqrt(sym3_det(gamma_ll));
 		{
 			name = 'expansion',
 			code = self:template[[
-//// MODULE_DEPENDS: <?=calc_gamma_ll?>
-sym3 const gamma_ll = <?=calc_gamma_ll?>(U, cell->pos);
-real const det_gamma = sym3_det(gamma_ll);
-sym3 const gamma_uu = sym3_inv(gamma_ll, det_gamma);
-value.vreal = -sym3_dot(gamma_uu, U->K_ll);
+//// MODULE_DEPENDS: <?=calc_gamma_uu?>
+sym3 const gamma_uu = <?=calc_gamma_uu?>(U, cell->pos);
+value.vreal = -sym3_dot(U->K_ll, gamma_uu);
 ]],
 		},
 	}:append{
@@ -373,10 +371,8 @@ momentum constraints
 		name = 'gravity',
 		type = 'real3',
 		code = self:template[[
-//// MODULE_DEPENDS: <?=calc_gamma_ll?>
-sym3 const gamma_ll = <?=calc_gamma_ll?>(U, cell->pos);
-real const det_gamma = sym3_det(gamma_ll);
-sym3 const gamma_uu = sym3_inv(gamma_ll, det_gamma);
+//// MODULE_DEPENDS: <?=calc_gamma_uu?>
+sym3 const gamma_uu = <?=calc_gamma_uu?>(U, cell->pos);
 value.vreal3 = real3_real_mul(sym3_real3_mul(gamma_uu, U->a_l), -U->alpha * U->alpha);
 ]],
 	}
@@ -504,10 +500,8 @@ Z4_2004Bona.consWaveCode = Z4_2004Bona.eigenWaveCode
 
 function Z4_2004Bona:consWaveCodePrefix(args)
 	return self:template([[
-//// MODULE_DEPENDS: <?=calc_gamma_ll?>
-sym3 const gamma_ll = <?=calc_gamma_ll?>(<?=U?>, <?=pt?>);
-real const det_gamma = sym3_det(gamma_ll);
-sym3 const gamma_uu = sym3_inv(gamma_ll, det_gamma);
+//// MODULE_DEPENDS: <?=calc_gamma_uu?>
+sym3 const gamma_uu = <?=calc_gamma_uu?>(<?=U?>, <?=pt?>);
 
 <? if solver.coord.vectorComponent == 'cartesian' then ?>
 real3 const n_l = normal_l1(<?=n?>);

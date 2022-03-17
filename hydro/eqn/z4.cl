@@ -46,15 +46,10 @@ static inline _3sym3 <?=calcFromPt_dHat_lll?>(real3 const pt) {
 //// MODULE_NAME: <?=calc_gamma_uu?>
 //// MODULE_DEPENDS: <?=cons_t?> <?=calc_gamma_ll?>
 
-static inline sym3 <?=calc_gamma_uu?>(
-	global <?=cons_t?> const * const U,
-	real3 const pt
-) {
-	sym3 const gamma_ll = <?=calc_gamma_ll?>(U, pt);
-	real const det_gamma = sym3_det(gamma_ll);
-	sym3 const gamma_uu = sym3_inv(gamma_ll, det_gamma);
-	return gamma_uu;
-}
+#define /*sym3*/ <?=calc_gamma_uu?>(\
+	/*global <?=cons_t?> const * const*/ U,\
+	/*real3 const*/ pt\
+) (sym3_inv_nodet(<?=calc_gamma_ll?>(U, pt)))
 
 //// MODULE_NAME: <?=calc_d_lll?>
 
@@ -883,7 +878,7 @@ end --\
 
 //// MODULE_NAME: <?=eigen_forCell?>
 //// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> <?=normal_t?> <?=initCond_codeprefix?>
-//// MODULE_DEPENDS: <?=calc_gamma_ll?>
+//// MODULE_DEPENDS: <?=calc_gamma_uu?>
 
 //used by PLM, and by the default <?=fluxFromCons?> (used by hll, or roe when roeUseFluxFromCons is set)
 #define <?=eigen_forCell?>(\
@@ -895,10 +890,7 @@ end --\
 ) {\
 	(resultEig)->alpha = (U)->alpha;\
 	(resultEig)->alpha_sqrt_f = sqrt(calc_f_alphaSq((U)->alpha));\
-\
-	sym3 const gamma_ll = <?=calc_gamma_ll?>(U, pt);\
-	real const det_gamma = sym3_det(gamma_ll);\
-	(resultEig)->gamma_uu = sym3_inv(gamma_ll, det_gamma);\
+	(resultEig)->gamma_uu = <?=calc_gamma_uu?>(U, pt);\
 \
 <? if solver.coord.vectorComponent == "cartesian" then ?>\
 /*  I'm using .side for holonomic(coordinate) and anholonomic(orthonormal) */\
@@ -2041,10 +2033,8 @@ kernel void <?=constrainU?>(
 	global <?=cons_t?> * const U = UBuf + index;
 	global <?=cell_t?> const * const cell = cellBuf + index;
 
-//// MODULE_DEPENDS: <?=calc_gamma_ll?>
-	sym3 const gamma_ll = <?=calc_gamma_ll?>(U, cell->pos);
-	real const det_gamma = sym3_det(gamma_ll);
-	sym3 const gamma_uu = sym3_inv(gamma_ll, det_gamma);
+//// MODULE_DEPENDS: <?=calc_gamma_uu?>
+	sym3 const gamma_uu = <?=calc_gamma_uu?>(U, cell->pos);
 
 	real3x3 const K_ul = sym3_sym3_mul(gamma_uu, U->K_ll);			//K^i_j
 	real const tr_K = real3x3_trace(K_ul);							//K^k_k
