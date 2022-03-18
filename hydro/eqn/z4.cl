@@ -2,6 +2,14 @@
 local useConstrainU = true -- constrains alpha to alphamin and calcs H and M^i
 local useAddSource = true
 local useKreissOligarDissipation = true	-- depends on useAddSource
+
+local has_beta_u = eqn.consStruct.vars:find(nil, function(var) return var.name == "beta_u" end)
+local has_betaLap_u = eqn.consStruct.vars:find(nil, function(var) return var.name == "betaLap_u" end)
+local has_b_ul = eqn.consStruct.vars:find(nil, function(var) return var.name == "b_ul" end)
+local has_B_u = eqn.consStruct.vars:find(nil, function(var) return var.name == "B_u" end)
+?>
+
+<? -- ok so ideally you should be able to subtract out the background metric ...
 ?>
 
 //// MODULE_NAME: <?=calc_gammaHat_ll?>
@@ -17,10 +25,10 @@ static inline sym3 <?=calc_gammaHat_ll?>(real3 const pt) {
 <? end ?>
 }
 
-//// MODULE_NAME: <?=calcFromPt_dHat_lll?>
+//// MODULE_NAME: <?=calc_dHat_lll?>
 //// MODULE_DEPENDS: _3sym3
 
-static inline _3sym3 <?=calcFromPt_dHat_lll?>(real3 const pt) {
+static inline _3sym3 <?=calc_dHat_lll?>(real3 const pt) {
 <? if false then 	-- get background grid separation working?
 ?>
 //// MODULE_DEPENDS: <?=coord_partial_gHol_lll?>
@@ -57,8 +65,8 @@ static inline _3sym3 <?=calc_d_lll?>(
 	global <?=cons_t?> const * const U,
 	real3 const pt
 ) {
-//// MODULE_DEPENDS: <?=calcFromPt_dHat_lll?>
-	_3sym3 const dHat_lll = <?=calcFromPt_dHat_lll?>(pt);
+//// MODULE_DEPENDS: <?=calc_dHat_lll?>
+	_3sym3 const dHat_lll = <?=calc_dHat_lll?>(pt);
 	return _3sym3_add(U->dDelta_lll, dHat_lll);
 }
 
@@ -104,7 +112,7 @@ _3sym3 <?=calcFromGrad_d_lll?>(
 for i=1,solver.dim do
 	local xi = xNames[i]
 ?>	{
-//// MODULE_DEPENDS: <?=calc_gamma_ll?>		
+//// MODULE_DEPENDS: <?=calc_gamma_ll?>
 		global <?=cons_t?> const * const UL = U - solver->stepsize.<?=xi?>;
 		global <?=cons_t?> const * const UR = U + solver->stepsize.<?=xi?>;
 		global <?=cell_t?> const * const cellL = cell - solver->stepsize.<?=xi?>;
@@ -177,13 +185,13 @@ kernel void <?=initDerivs?>(
 	//Δd_kij + ^d_kij = 1/2 (Δγ_ij,k + ^γ_ij,k)
 	//^d_kij = 1/2 ^γ_ij,k
 	// => Δd_kij = 1/2 Δγ_ij,k
-//// MODULE_DEPENDS: <?=calcFromPt_dHat_lll?>
-	_3sym3 const dHat_lll = <?=calcFromPt_dHat_lll?>(cell->pos);
+//// MODULE_DEPENDS: <?=calc_dHat_lll?>
+	_3sym3 const dHat_lll = <?=calc_dHat_lll?>(cell->pos);
 //// MODULE_DEPENDS: <?=calcFromGrad_d_lll?>
 	_3sym3 const d_lll = <?=calcFromGrad_d_lll?>(solver, U, cell);
 	U->dDelta_lll = _3sym3_sub(d_lll, dHat_lll);
 
-<? if eqn.consStruct.vars:find(nil, function(var) return var.name == "b_ul" end) then ?>
+<? if has_b_ul then ?>
 //// MODULE_DEPENDS: <?=calcFromGrad_b_ul?>
 	U->b_ul = <?=calcFromGrad_b_ul?>(solver, U);
 <? end ?>
@@ -207,7 +215,7 @@ void <?=applyInitCondCell?>(
 	global <?=cell_t?> const * const cell
 ) {
 	real3 const x = cell->pos;
-//// MODULE_DEPENDS: <?=coordMap?> 
+//// MODULE_DEPENDS: <?=coordMap?>
 	real3 const xc = coordMap(x);
 	real3 const mids = real3_real_mul(real3_add(solver->mins, solver->maxs), .5);
 
@@ -251,13 +259,13 @@ void <?=applyInitCondCell?>(
 	U->Theta = 0.;
 	U->Z_l = real3_zero;
 
-<? if eqn.consStruct.vars:find(nil, function(var) return var.name == "beta_u" end) then 
+<? if has_beta_u then
 ?>	U->beta_u = real3_rescaleToCoord_U(beta_U, x);
 <? end
-if eqn.consStruct.vars:find(nil, function(var) return var.name == "betaLap_u" end) then 
+if has_betaLap_u then
 ?>	U->betaLap_u = real3_zero;
 <? end
-if eqn.consStruct.vars:find(nil, function(var) return var.name == "B_u" end) then 
+if has_B_u then
 ?>	U->B_u = real3_zero;
 <? end
 ?>
@@ -328,13 +336,13 @@ void <?=applyInitCondCell?>(
 	U->Theta = 0.;
 	U->Z_l = real3_zero;
 
-<? if eqn.consStruct.vars:find(nil, function(var) return var.name == "beta_u" end) then 
+<? if has_beta_u then
 ?>	U->beta_u = beta_u;
 <? end
-if eqn.consStruct.vars:find(nil, function(var) return var.name == "betaLap_u" end) then 
+if has_betaLap_u then
 ?>	U->betaLap_u = real3_zero;
 <? end
-if eqn.consStruct.vars:find(nil, function(var) return var.name == "B_u" end) then 
+if has_B_u then
 ?>	U->B_u = real3_zero;
 <? end
 ?>
@@ -377,16 +385,16 @@ static inline void <?=setFlatSpace?>(
 	(U)->Theta = 0.;
 	(U)->Z_l = real3_zero;
 
-<? if eqn.consStruct.vars:find(nil, function(var) return var.name == "beta_u" end) then 
+<? if has_beta_u then
 ?>	(U)->beta_u = beta_u;
 <? end
-if eqn.consStruct.vars:find(nil, function(var) return var.name == "betaLap_u" end) then 
+if has_betaLap_u then
 ?>	(U)->betaLap_u = real3_zero;
 <? end
-if eqn.consStruct.vars:find(nil, function(var) return var.name == "B_u" end) then 
+if has_B_u then
 ?>	(U)->B_u = real3_zero;
 <? end
-if eqn.consStruct.vars:find(nil, function(var) return var.name == "b_ul" end) then 
+if has_b_ul then
 ?>	(U)->b_ul = real3x3_zero;
 <? end
 ?>
@@ -432,7 +440,7 @@ if eqn.consStruct.vars:find(nil, function(var) return var.name == "b_ul" end) th
 		real const lambdaGauge = sqrt_gammaUjj * alpha_sqrt_f;\
 		real const lambda = (real)max(lambdaGauge, lambdaLight);\
 \
-		<? if eqn.useShift ~= "none" then ?>\
+		<? if has_beta_u then ?>\
 		real const betaUi = U->beta_u.s<?=side?>;\
 		<? else ?>\
 		real const betaUi = 0.;\
@@ -448,7 +456,7 @@ if eqn.consStruct.vars:find(nil, function(var) return var.name == "b_ul" end) th
 
 //// MODULE_NAME: <?=fluxFromCons?>
 //// MODULE_DEPENDS: <?=cons_t?> <?=solver_t?> <?=normal_t?> rotate sym3_rotate real3x3_rotate _3sym3_rotate
-//// MODULE_DEPENDS: <?=calcFromPt_dHat_lll?>
+//// MODULE_DEPENDS: <?=calc_dHat_lll?>
 //// MODULE_DEPENDS: <?=calc_gamma_ll?>
 
 #define <?=fluxFromCons?>(\
@@ -470,11 +478,11 @@ if eqn.consStruct.vars:find(nil, function(var) return var.name == "b_ul" end) th
 	real3 a_l = (U)->a_l;\
 	sym3 K_ll = (U)->K_ll;\
 	_3sym3 dDelta_lll = (U)->dDelta_lll;\
-	_3sym3 dHat_lll = <?=calcFromPt_dHat_lll?>((cell)->pos);\
-<? if eqn.useShift ~= "none" then --\
+	_3sym3 dHat_lll = <?=calc_dHat_lll?>((cell)->pos);\
+<? if has_beta_u then --\
 ?>	real3 beta_u = (U)->beta_u;\
 <? end --\
-if eqn.useShift == "2005 Bona / 2008 Yano" then --\
+if has_b_ul then --\
 ?>	real3x3 b_ul = (U)->b_ul;\
 <? end --\
 ?>\
@@ -493,10 +501,10 @@ if eqn.useShift == "2005 Bona / 2008 Yano" then --\
 	K_ll = sym3_rotateFrom(K_ll, n_l);\
 	dDelta_lll = _3sym3_rotateFrom(dDelta_lll, n_l);\
 	dHat_lll = _3sym3_rotateFrom(dHat_lll, n_l);\
-<? if eqn.useShift ~= "none" then --\
+<? if has_beta_u then --\
 ?>	beta_u = real3_rotateFrom(beta_u);\
 <? end --\
-if eqn.useShift == "2005 Bona / 2008 Yano" then --\
+if has_b_ul then --\
 ?>	b_ul = real3x3_rotateFrom(b_ul);\
 <? end --\
 ?>\
@@ -613,7 +621,7 @@ end --\
 	real3x3 const K_ul = sym3_sym3_mul(gamma_uu, K_ll);\
 	real const tr_K = real3x3_trace(K_ul);\
 	sym3 const dHat_t_ll = sym3_zero;\
-<? 	if eqn.useShift == "2005 Bona / 2008 Yano" then ?>\
+<? 	if eqn.useShift == "HarmonicShift" then ?>\
 	real3 const a_u = sym3_real3_mul(gamma_uu, a_l);\
 	sym3 const b_ll = sym3_real3x3_to_sym3_mul(gamma_ll, b_ul);\
 <? 	end ?>\
@@ -658,7 +666,7 @@ end --\
 		(resultFlux)->Z_l.y = -K_ul.x.y * alpha;\
 		(resultFlux)->Z_l.z = -K_ul.x.z * alpha;\
 	}\
-	<? if eqn.useShift == "2005 Bona / 2008 Yano" then ?>\
+	<? if eqn.useShift == "HarmonicShift" then ?>\
 	{\
 		real const tmp1 = alpha * alpha;\
 		(resultFlux)->a_l.x += -beta_u.x * a_l.x;\
@@ -705,7 +713,7 @@ end --\
 		(resultFlux)->b_ul.z.y = 0.;\
 		(resultFlux)->b_ul.z.z = 0.;\
 	}\
-	<? end ?>/* eqn.useShift == "2005 Bona / 2008 Yano" */\
+	<? end ?>/* eqn.useShift == "HarmonicShift" */\
 	/* END CUT */\
 <? end ?>\
 \
@@ -716,11 +724,10 @@ end --\
 	(resultFlux)->gammaDelta_ll = sym3_rotateFrom((resultFlux)->gammaDelta_ll, n_l);\
 	(resultFlux)->K_ll = sym3_rotateFrom((resultFlux)->K_ll, n_l);\
 	(resultFlux)->dDelta_lll = _3sym3_rotateFrom((resultFlux)->dDelta_lll, n_l);\
-<? if eqn.useShift ~= "none" then --\
+<? if has_beta_u then --\
 ?>	(resultFlux)->beta_u = real3_rotateFrom((resultFlux)->beta_u, n_l);\
 <? end --\
-?>\
-<?	if eqn.useShift == "2005 Bona / 2008 Yano" then --\
+if has_b_ul then --\
 ?>	(resultFlux)->b_ul = real3x3_rotateFrom((resultFlux)->b_ul, n_l);\
 <? end --\
 ?>\
@@ -734,11 +741,13 @@ end --\
 		(resultFlux)->gammaDelta_ll = sym3_swap<?=side?>((resultFlux)->gammaDelta_ll);\
 		(resultFlux)->K_ll = sym3_swap<?=side?>((resultFlux)->K_ll);\
 		(resultFlux)->dDelta_lll = _3sym3_swap<?=side?>((resultFlux)->dDelta_lll);\
-<? if eqn.useShift ~= "none" then --\
+<? if has_beta_u then --\
 ?>		(resultFlux)->beta_u = real3_swap<?=side?>((resultFlux)->beta_u);\
 <? end --\
-?>\
-<?	if eqn.useShift == "2005 Bona / 2008 Yano" then --\
+if has_B_u then --\
+?>		(resultFlux)->B_u = real3_swap<?=side?>((resultFlux)->B_u);\
+<? end --\
+if has_b_ul then --\
 ?>		(resultFlux)->b_ul = real3x3_swap<?=side?>((resultFlux)->b_ul);\
 <? end --\
 ?>	}\
@@ -765,18 +774,9 @@ end --\
 \
 <? end ?>\
 \
-<? --\
-if eqn.useShift ~= "none" then --\
-?>	/* beta^i_,t = 0 + source terms */\
-	(resultFlux)->beta_u = real3_zero;\
-<?	if eqn.useShift == "MinimalDistortionElliptic" --\
-	or eqn.useShift == "MinimalDistortionEllipticEvolve" --\
-	then --\
+<? if has_betaLap_u then --\
 ?>	(resultFlux)->betaLap_u = real3_zero;\
-<?	elseif eqn.useShift == "2005 Bona / 2008 Yano" then --\
-?>	(resultFlux)->b_ul = real3x3_zero;\
-<?	end --\
-end --\
+<? end --\
 ?>\
 }
 
@@ -825,7 +825,7 @@ end --\
 \
 	(resultEig)->sqrt_gammaUnn = sqrt(gammaUnn);\
 \
-<? if eqn.useShift ~= "none" then ?>\
+<? if has_beta_u then ?>\
 	(resultEig)->beta_u = real3_real_mul(real3_add((UL)->beta_u, (UR)->beta_u), .5);\
 <? end ?>\
 }
@@ -867,7 +867,7 @@ end --\
 	real lambdaMax = max(lambdaGauge, lambdaLight);\
 	real lambdaMin = -lambdaMin;\
 \
-	<? if eqn.useShift ~= "none" then ?>\
+	<? if has_beta_u then ?>\
 	lambdaMin -= normal_vecDotN1(n, (U)->beta_u);\
 	lambdaMax -= normal_vecDotN1(n, (U)->beta_u);\
 	<? end ?>\
@@ -912,7 +912,7 @@ end --\
 \
 	(resultEig)->sqrt_gammaUnn = sqrt(gammaUnn);\
 \
-	<? if eqn.useShift ~= "none" then ?>\
+	<? if has_beta_u then ?>\
 	(resultEig)->beta_u = (U)->beta_u;\
 	<? end ?>\
 }
@@ -1190,7 +1190,6 @@ kernel void <?=addSource?>(
 	
 	real3x3 const K_ul = sym3_sym3_mul(gamma_uu, U->K_ll);			//K^i_j
 	real const trK = real3x3_trace(K_ul);							//K^k_k
-//	sym3 KSq_ll = sym3_real3x3_to_sym3_mul(U->K_ll, K_ul);			//KSq_ij = K_ik K^k_j
 
 //// MODULE_DEPENDS: <?=calc_d_lll?>
 	_3sym3 const d_lll = <?=calc_d_lll?>(U, cell->pos);
@@ -1234,14 +1233,15 @@ kernel void <?=addSource?>(
 	real const f_alphaSq = calc_f_alphaSq(U->alpha);
 	deriv->alpha += -f_alphaSq * (trK - solver->m * U->Theta);
 	
+	sym3 const dt_gammaHat_ll = sym3_zero;
+	
 	/* γ_ij,t = shift terms - 2 α K_ij */
 	/* Δγ_ij,t = shift terms - 2 α K_ij - ^γ_ij,t */
-	sym3 const dt_gammaHat_ll = sym3_zero;
 	deriv->gammaDelta_ll = sym3_add(
-		deriv->gammaDelta_ll, 
-		sym3_add(
+		deriv->gammaDelta_ll,
+		sym3_sub(
 			sym3_real_mul(U->K_ll, -2. * U->alpha),
-			sym3_neg(dt_gammaHat_ll)
+			dt_gammaHat_ll
 		)
 	);
 
@@ -1299,7 +1299,7 @@ end?>
 	) - 8. * M_PI * U->alpha * rho;
 
 
-<? if eqn.useShift == "2005 Bona / 2008 Yano" then ?>
+<? if eqn.useShift == "HarmonicShift" then ?>
 	
 	real const tr_b = real3x3_trace(U->b_ul);
 	real3 const a_u = sym3_real3_mul(gamma_uu, U->a_l);
@@ -1329,7 +1329,7 @@ end?>
 	/* 2005 Bona et al eqn 28 */
 	/* a_i,t += b^l_i a_l - b^l_l a_i */
 <? for k,xk in ipairs(xNames) do
-?>	deriv->a_l.<?=xk?> += 0. 
+?>	deriv->a_l.<?=xk?> += 0.
 <? 	for l,xl in ipairs(xNames) do
 ?>		+ U->b_ul.<?=xl?>.<?=xk?> * U->a_l.<?=xl?>
 <?	end
@@ -1339,14 +1339,14 @@ end?>
 
 	/* 2005 Bona et al eqn 30 */
 	/* d_kij,t += b^l_k d_lijk - b^l_l d_kij */
-<? for k,xk in ipairs(xNames) do	
+<? for k,xk in ipairs(xNames) do
 	for ij,xij in ipairs(symNames) do
 ?>	deriv->dDelta_lll.<?=xk?>.<?=xij?> += 0.
 <?		for l,xl in ipairs(xNames) do
 ?>		+ U->b_ul.<?=xl?>.<?=xk?> * d_lll.<?=xl?>.<?=xij?>
 <?		end
 ?>		- tr_b * d_lll.<?=xk?>.<?=xij?>;
-<? 	end 
+<? 	end
 end
 ?>
 
@@ -1387,7 +1387,7 @@ end
 <? end
 ?>
 
-<? end -- eqn.useShift == "2005 Bona / 2008 Yano" ?>
+<? end -- eqn.useShift == "HarmonicShift" ?>
 
 
 <? end ?>
@@ -1996,7 +1996,7 @@ for i,xi in ipairs(xNames) do
 end
 ?>	}
 
-<? if eqn.consStruct.vars:find(nil, function(var) return var.name == "b_ul" end) then ?>
+<? if has_b_ul then ?>
 	// b_ul.j.i = beta_u.j,i <=> b_ul.j.i += η (β_u.j,i - b_ul.j.i)
 	if (solver->b_convCoeff != 0.) {
 		real3x3 const target_b_ul = <?=calcFromGrad_b_ul?>(solver, U);
@@ -2038,7 +2038,6 @@ kernel void <?=constrainU?>(
 
 	real3x3 const K_ul = sym3_sym3_mul(gamma_uu, U->K_ll);			//K^i_j
 	real const tr_K = real3x3_trace(K_ul);							//K^k_k
-	sym3 const KSq_ll = sym3_real3x3_to_sym3_mul(U->K_ll, K_ul);	//KSq_ij = K_ik K^k_j
 	sym3 const K_uu = real3x3_sym3_to_sym3_mul(K_ul, gamma_uu);		//K^ij
 
 //// MODULE_DEPENDS: <?=calc_d_lll?>
@@ -2077,7 +2076,7 @@ kernel void <?=constrainU?>(
 <? end
 ?>	};
 
-	<? 
+	<?
 for k=1,solver.dim do	-- beyond dim and the finite-difference will be zero
 	local xk = xNames[k]
 	?>{
@@ -2093,7 +2092,7 @@ for k=1,solver.dim do	-- beyond dim and the finite-difference will be zero
 ?>		partial_d_llll.<?=xij?>.<?=sym(k,l)?> += (dR_lll.<?=xk?>.<?=xij?> - dL_lll.<?=xk?>.<?=xij?>) / (2. * solver->grid_dx.<?=xk?>);
 <?		end
 	end
-?>	}<? 
+?>	}<?
 end ?>
 
 	// R_ll.ij := R_ij
@@ -2128,7 +2127,7 @@ end ?>
 	//Alcubierre eqn 2.5.9, also Alcubierre 2.4.10 divided by two
 	//H = 1/2 (R + K^2 - K_ij K^ij) - 8 π ρ
 	real const R = sym3_dot(R_ll, gamma_uu);
-	real const tr_KSq = sym3_dot(KSq_ll, gamma_uu);
+	real const tr_KSq = sym3_dot(U->K_ll, K_uu);
 	U->H = .5 * (R + tr_K * tr_K - tr_KSq) <?
 if eqn.useStressEnergyTerms then ?>
 	- 8. * M_PI * U->rho <?

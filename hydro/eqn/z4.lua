@@ -4,6 +4,57 @@ probably 2004 Bona et al "A symmetry-breaking mechanism for the Z4 general-covar
 and then 2005 Bona et al "Geometrically Motivated ..."
 and then some 2008 Yano et al
 and then my symmath/tests/Z4.lua ... which is trying to do the same thing but grid-background-indepdendent
+
+scratch paper:
+
+g_uv = spacetime 4-metric
+
+-- state vars: gauge
+α = lapse
+γ_ij = spatial metric
+β^i = shift
+
+-- state vars
+K_ij = extrinsic curvature
+
+-- state vars - 1st deriv
+a_k = log(α)_,k
+d_kij = 1/2 γ_ij,k
+b^i_j = β^i_,j
+
+-- state vars - z4
+Z_i = spatial component of killing vector
+Θ = Z^u n_u
+
+-- background metric
+^γ_ij = background grid holonomic metric
+^d_kij = partial of background grid holonomic metric
+
+-- state vars - deviation from background metric
+Δγ_ij = deviation from background grid metric = γ_ij - ^γ_ij
+Δd_kij = deviation from partial of backgrond = d_kij - ^d_kij
+
+-- hyperbolic shift vars
+B^i = β^i_,t
+
+A_ij = K_ij - 1/3 K γ_ij
+
+d_i = d_ij^j
+e_i = d^j_ji
+
+Γ^i_jk = spatial connection = 1/2 γ^im (γ_mj,k + γ_mk,j - γ_jk,m)
+Γ^i_jk = d_kj^i + d_jk^i - d^i_jk
+Γ^i = Γ^ij_j = d_j^ji + d_j^ji - d^ij_j = 2 e^i - d^i
+log(√γ)_,i = 1/2 γ_,i / γ = Γ^j_ji = d_ij^j + d^j_ji - d^j_ji = d_i
+
+
+gauge ivp:
+α_,t - α_,k β^k = = -α^2 Q = -α^2 f K Bona-Masso slicing lapse family
+d/dt α = -α^2 f (K - m Θ) ... with Z4 vars ... I think I'm assuming m=2 in some calculations
+
+d/dt T = (∂_t - L_β) T ... where L_β is the Lie-derivative in the shift direction
+∂_0 T = T_,0 = (∂_t - ∂_k β^k) T ... which is only the scalar component of the Lie-derivative
+
 --]]
 
 local class = require 'ext.class'
@@ -29,52 +80,119 @@ noZeroRowsInFlux = true by default.
 useShift
 	
 	useShift = 'none'
-	
-	-- minimal distortion elliptic via Poisson relaxation.  
-	-- Alcubierre's book, eqn 4.3.14 and 4.3.15
+
+
 	useShift = 'MinimalDistortionElliptic'
-	β^i_;j^;j + 1/3 β^j_;j^;i + R^i_j β^j = 2 (α (K^ij - 1/3 K γ_ij))_;j
+	minimal distortion, as an elliptic equation, via Poisson relaxation.
+	2008 Alcubierre's book, eqn 4.3.14 and 4.3.15
+	Δ_L(β^i) = β^i_;j^;j + 1/3 β^j_;j^;i + R^i_j β^j = 2 (α A^ij)_;j
 
-	-- minimal distortion elliptic via evolution.  
-	-- eqn 10 of 1996 Balakrishna et al "Coordinate Conditions and their Implementations in 3D Numerical Relativity"
-	useShift = 'MinimalDistortionEllipticEvolve' 
-	β^i_,t = ε (β_i^;j_;j + 1/3 β_j^;j_;i + R^j_i β_j + (2 α (K_ij - 1/3 K γ_ij))^;j)
 
-	useShift = '2005 Bona / 2008 Yano'
-	-- 2008 Yano et al "Flux-Vector-Splitting..." eqn 16-17
-	-- 2005 Bona et al "Geometrically Motivated..." says "to convert the minimal distortion elliptic equations into time-dependent parabolic equations by means of the Hamilton-Jacobi method"
-	-- 2005 Bona mentions a few, but 2008 Yano picks the first one from the 2005 Bona paper.
-	I'm not sure what to call this one ... it's the one in 
-	2005 Bona et al, section B.1, "to convert the minimal distortion elliptic equations into time-dependent parabolic equations by means of the Hamilton-Jacobi method"
-	TODO is this the same as "MinimalDistortionEllipticEvolve" ?
-	2008 Yano eqn 16-17:
-	β^i_,t = -α Q^i 
-	β^i_,t = β^k β^i_,k + α^2 γ^ki (γ^jm γ_jk,m - 1/2 γ_,k / γ - α_,k / α))
-	β^i_,t = β^k β^i_,k + α^2 (2 e^i - d^i - a^i))
+	useShift = 'MinimalDistortionParabolic'
+	minimal distortion, parabolic equation, via evolution.
+	eqn 10 of 1996 Balakrishna et al "Coordinate Conditions and their Implementations in 3D Numerical Relativity"
+		β_i,t = ε (β_i^;j_j + 1/3 β_j^;j_i + R^j_i β_j - 2 (α A_ij)^;j)
+	2008 Alcubierre's book, "parabolic minimal distortion driver"
+	eqn 4.3.26:
+		β^i_,t = ε (β^i;j_j + 1/3 β_j^;ji + R^i_j β^j - 2 (α A^ij)_;j)
+		Notice that Balakrishna's paper is in lower and Alcubierre's is in upper
 
-	useShift = 'HarmonicShiftCondition-FiniteDifference'
-	-- 2008 Alcubierre 4.3.37
-	-- I see some problems in the warp bubble test ...
-	-- wait is this the same as "2005 Bona / 2008 Yano" ?
-	β^i_,t = β^j β^i_,j - α α^,i + α^2 Γ^i + β^i / α (α_,t - β^j α_,j + α^2 K)
+	useShift = "MinimalDistortionHyperbolic"
+	2008 Alcubierre's book, eqn 4.3.27
+		β^i_,tt = α^2 ξ (β^i;j_j + 1/3 β_j^;ji + R^i_j β^j - 2 (α A^ij)_;j)
+	so the ε is replaced with α^2 ξ , and the comment says something about ξ => ξ α^n, for integer n, so choose n=-2 and you recover the original
+	then change to hyperbolic form:
+		β^i_,t = B^i
+		B^i_,t = α^2 ξ (β^i;j_j + 1/3 β_j^;ji + R^i_j β^j - 2 (α A^ij)_;j)
+	then change to "shifting-shift" form:
+	2008 Alcubierre's book, eqn 4.3.31 - 4.3.32
+		β^i_,t - β^i_,j β^j = B^i
+		B^i_,t - B^i_,j β^j = α^2 ξ (β^i;j_j + 1/3 β_j^;ji + R^i_j β^j - 2 (α A^ij)_;j)
+
 
 	useShift = 'GammaDriver'
-	-- Baumgarte & Shapiro's book, eqn 4.82
-	β^i_,t = k _Λ^i_,t + η _Λ^i
-	k = 3/4
-	η = 1 or 1/(2 M), for total mass M
-	-- 2008 Alcubierre's book, eqn 4.3.33 4.3.34
-	β^i_,t - β^i_,j β^j = B^i
-	B^i_,t - B^i_,j β^j = α^2 ξ (~Γ^i_,t - ~Γ^i_,j β^j) - η B^i
-	... 
-	
+	2010 Baumgarte & Shapiro's book, eqn 4.82
+		β^i_,t = k (_Γ^i_,t - η _Γ^i)
+		k = 3/4
+		η = 1 or 1/(2 M) for total mass M
+	2008 Alcubierre's book ... which eqns?
+	"parabolic" + "non-shifting-shift" form:
+		β^i_,t = α^2 ξ ~Γ^i_,t - η ~Γ^i
+	2008 Alcubierre later suggets ξ => ξ α^n, for integer n ...
+	... so for n=-2 and ξ = k = 3/4 this brings us to the 2010 Baumgarte & Shapiro's book definition
+	... with the exception of our exchange of B^i => ~Γ^i ... how about this ...
+
 	useShift = 'HyperbolicGammaDriver'
 	2017 Ruchlin, Etienne, Baumgarte - "SENR-NRPy- Numerical Relativity in Singular Curvilinear Coordinate Systems"
-	eqn 14.a: β^i_,t = B^i
-	eqn 14.b: B^i_,t - B^i_,j β^j = 3/4 _Λ^i_,t - 3/4 _Λ^i_,j β^j - η B^i
-	eqn 11.e: _Λ^i_,t - _Λ^i_,j β^j + _Λ^j β^i_,j = γ^jk ^D_j ^D_k β^i + 2/3 ΔΓ^i (_D_j β^j) + 1/3 _D^i _D_j β^j - 2 _A^ij (α_,j - 6 φ_,j) + 2 _A^jk ΔΓ^i_jk - 4/3 α _γ^ij K_,j
-	...
-	2008 Alcubierre's book:
+		eqn 14.a: β^i_,t = B^i
+		eqn 14.b: B^i_,t - B^i_,j β^j = 3/4 (_Λ^i_,t - _Λ^i_,j β^j) - η B^i
+		eqn 11.e: _Λ^i_,t - _Λ^i_,j β^j + _Λ^j β^i_,j = γ^jk ^D_j ^D_k β^i + 2/3 ΔΓ^i (_D_j β^j) + 1/3 _D^i _D_j β^j - 2 _A^ij (α_,j - 6 φ_,j) + 2 _A^jk ΔΓ^i_jk - 4/3 α _γ^ij K_,j
+	2010 Baumgarte & Shapiro's book, eqn 4.83
+		(non-shifting-shift)
+		β^i_,t = k B^i ... k = 3/4
+		B^i_,t = _Γ^i_,t - η B^i
+		... so when you go from parabolic to hyperbolic, how come you replace the -η _Γ^i with a -η B^i
+		... maybe because in the parabolic form, the 2nd term represented the coefficient converging β^i into _Γ^i
+	2008 Alcubierre's book, eqn 4.3.33 4.3.34
+	"hyperbolic" + "shifting-shift" form:
+		β^i_,t - β^i_,j β^j = B^i
+		B^i_,t - B^i_,j β^j = α^2 ξ (~Γ^i_,t - ~Γ^i_,j β^j) - η B^i
+
+	useShift = 'HarmonicShift'
+	2008 Yano et al "Flux-Vector-Splitting..." eqn 16-17
+	2005 Bona et al "Geometrically Motivated..." says "to convert the minimal distortion elliptic equations into time-dependent parabolic equations by means of the Hamilton-Jacobi method"
+	2005 Bona mentions a few, but 2008 Yano picks the first one from the 2005 Bona paper.
+	2005 Bona et al, section B.1, "to convert the minimal distortion elliptic equations into time-dependent parabolic equations by means of the Hamilton-Jacobi method"
+	2008 Yano eqn 16-17:
+		β^i_,t = -α Q^i
+		β^i_,t = β^k β^i_,k + α^2 γ^ki (γ^jm γ_jk,m - 1/2 γ_,k / γ - α_,k / α))
+		β^i_,t = β^k β^i_,k + α^2 (2 e^i - d^i - a^i)
+		β^i_,t = β^i_,k β^k + α^2 (Γ^i - a^i)
+		β^i_,0 = α^2 (Γ^i - a^i)
+	2008 Alcubierre 4.3.37
+		β^i_,t = β^j β^i_,j - α α^,i + α^2 Γ^i + β^i / α (α_,t - β^j α_,j + α^2 K)
+		β^i_,0 = α^2 (Γ^i - a^i) + β^i / α (α_,t - β^j α_,j + α^2 K)
+		β^i_,0 = α^2 (Γ^i - a^i) + β^i / α (-α^2 Q + α^2 K)
+		β^i_,0 = α^2 (Γ^i - a^i) + α β^i (K - Q)
+	... which for Q = f K and f=1 and Z4's m=0 or Θ=0 ...
+		β^i_,0 = α^2 (Γ^i - a^i)
+	... and this is identical to the HarmonicShift shift
+	... so back to the first def, but substituting the Z4 lapse ivp:
+		β^i_,t = β^j β^i_,j + α^2 (Γ^i - a^i) + β^i / α (-α^2 f (K - m Θ) + α^2 K)
+		β^i_,t = β^j β^i_,j + α^2 (Γ^i - a^i) + α β^i ((1 - f) K + f m Θ)
+	... but wait, if the Alcubierre 4.3.37 eqns shouldve underwent K => K - m Θ for the Z4 impl (TODO determine if so)
+	... then it looks like this:
+		β^i_,t = β^j β^i_,j + α^2 (Γ^i - a^i) + β^i (K - m Θ) (α - α f)
+	2008 Alcubierre's book, eqn 4.3.39
+		σ^i = β^i / α
+		h = h(α) = and to recover some slicing choose h = f
+		σ^i_,t = α σ^i_,j σ^j - α^,i + α h (σ^i K + Γ^i)
+		(β^i / α)_,t = α (β^i / α)_,j β^j / α - α_,j γ^ij + α f (β^i / α K + Γ^i)
+		β^i_,t α^-1 - β^i α^-2 α_,t = α (β^i_,j α^-1 - β^i α^-2 α_,j) β^j / α - α_,j γ^ij + α f (β^i / α K + Γ^i)
+		β^i_,t = β^i_,j β^j - α α_,j γ^ij + f (α β^i K + α^2 Γ^i) + β^i (α_,t - α_,j β^j) / α
+		β^i_,t = β^i_,j β^j + α^2 (f Γ^i - a^i) + α f β^i K + β^i (α_,t - α_,j β^j) / α
+	... then insert α_,t - α_,j β^j = -α^2 Q
+		β^i_,t = β^i_,j β^j + α^2 (f Γ^i - a^i) + α β^i (f K - Q)
+	... so this looks a lot like Alcubierre 4.3.37 except with some extra 'f's laying around
+	... now insert Z4 Q = f (K - m Θ)
+		β^i_,t = β^i_,j β^j + α^2 (f Γ^i - a^i) + α β^i (f K - f (K - m Θ))
+		β^i_,t = β^i_,j β^j + α^2 (f Γ^i - a^i) + α β^i f m Θ
+	... and if the first formulation involved a K => (K - m Θ) then it would look like ...
+		β^i_,t = β^i_,j β^j + α^2 (f Γ^i - a^i)
+	... which is just like the 2005 Bona et al / 2008 Yano et al papers' shift,
+	    but with a 'f' inserted next to the Γ^i
+
+
+so the breakdown of shift conditions ...
+1) Elliptic, Laplacian(curved space) based for minimal-distortion
+2) IVP ...
+	2.a) minimal-distortion
+	2.b) gamma-driver
+	2.c) harmonic
+	- option for non-shifting-shift vs shifting-shift (_,t => _,0 = _,t - _,k β^k)
+	- option for parabolic (β^i_,t = ...) vs hyperbolic (β^i_,tt = ...)
+	
+
 
 	useShift = 'LagrangianCoordinates'
 	--[=[
@@ -142,11 +260,11 @@ function Z4_2004Bona:init(args)
 	if self.useShift ~= 'none' then
 		self.consVars:insert{name='beta_u', type='real3'}
 
-		if self.useShift == 'MinimalDistortionElliptic'
-		or self.useShift == 'MinimalDistortionEllipticEvolve'
-		then
+		if self.useShift == 'MinimalDistortionElliptic' then
 			self.consVars:insert{name='betaLap_u', type='real3'}
-		elseif self.useShift == '2005 Bona / 2008 Yano' then
+		elseif self.useShift == 'HarmonicShift'
+		or self.useShift == 'MinimalDistortionParabolic'
+		then
 			self.consVars:insert{name='b_ul', type='real3x3'}
 		elseif self.useShift == 'HyperbolicGammaDriver' then
 			self.consVars:insert{name='B_u', type='real3'}
@@ -233,9 +351,9 @@ end
 function Z4_2004Bona:getSymbolFields()
 	return Z4_2004Bona.super.getSymbolFields(self):append{
 		'initDeriv_numeric_and_useBSSNVars',
-		'calc_d_lll',			-- from U->dDelta_ijk and ^d(pt)_ijk
 		'calc_gammaHat_ll',		-- calc ^γ_ij = grid metric (hol.) derivative ... also in common with bssnok-fd-*
-		'calcFromPt_dHat_lll',	-- calc ^d_kij = 1/2 ^γ_ij,k
+		'calc_dHat_lll',		-- calc ^d_kij = 1/2 ^γ_ij,k
+		'calc_d_lll',			-- from U->dDelta_ijk and ^d(pt)_ijk
 		'calcFromGrad_a_l',
 		'calcFromGrad_d_lll',	-- finite difference from grid
 		'calcFromGrad_b_ul',
@@ -324,7 +442,8 @@ value.vsym3 = <?=calc_d_lll?>(U, cell->pos).<?=xi?>;
 value.vsym3 = <?=calc_gamma_ll?>(U, cell->pos);
 ]],
 		},
-		{
+		{	-- this is spacetime volume
+			-- spatial volume is just "U gamma_ll det"
 			name = 'volume',
 			code = self:template[[
 //// MODULE_DEPENDS: <?=calc_gamma_ll?>
@@ -338,7 +457,7 @@ value.vreal = U->alpha * sqrt(sym3_det(gamma_ll));
 		{name='df/dalpha', code='value.vreal = calc_dalpha_f(U->alpha);'},
 		{name='alpha^2*df/dalpha', code='value.vreal = calc_alphaSq_dalpha_f(U->alpha);'},
 		
-		-- is expansion really just -K?
+		-- is expansion really just -K?  aren't there shift terms too?
 		{
 			name = 'expansion',
 			code = self:template[[
@@ -362,6 +481,37 @@ momentum constraints
 	.5 *
 ]]		},
 --]=]
+	
+		-- Γ^i = Γ^ij_j = d_j^ji + d_j^ji - d^ij_j = 2 e^i - d^i
+		{
+			name = 'Gamma^i',
+			type = 'real3',
+			code = self:template[[
+//// MODULE_DEPENDS: <?=calc_d_lll?>
+_3sym3 const d_lll = <?=calc_d_lll?>(U, cell->pos);
+//// MODULE_DEPENDS: <?=calc_gamma_uu?>
+sym3 const gamma_uu = <?=calc_gamma_uu?>(U, cell->pos);
+value.vreal3 = real3_sub(
+	real3_real_mul(
+		sym3_3sym3_dot12(gamma_uu, d_lll),	//e_l
+		2.
+	),
+	_3sym3_sym3_dot23(d_lll, gamma_uu)		//d_l
+);
+]],
+		},
+		-- log(√γ)_,i = 1/2 γ_,i / γ = Γ^j_ji = d_ij^j + d^j_ji - d^j_ji = d_i
+		{
+			name = 'log(sqrt(gamma))_,i',
+			type = 'real3',
+			code = self:template[[
+//// MODULE_DEPENDS: <?=calc_d_lll?>
+_3sym3 const d_lll = <?=calc_d_lll?>(U, cell->pos);
+//// MODULE_DEPENDS: <?=calc_gamma_uu?>
+sym3 const gamma_uu = <?=calc_gamma_uu?>(U, cell->pos);
+value.vreal3 = _3sym3_sym3_dot23(d_lll, gamma_uu);		//d_l
+]],
+		},
 	}
 
 	-- shift-less gravity only
@@ -377,7 +527,7 @@ value.vreal3 = real3_real_mul(sym3_real3_mul(gamma_uu, U->a_l), -U->alpha * U->a
 ]],
 	}
 
-	-- a_i = log(α)_,i
+	-- a_i vs. log(α)_,i
 	vars:insert{
 		name = 'alpha vs a_i',
 		type = 'real3',
@@ -395,7 +545,7 @@ if (<?=OOB?>(1,1)) {
 }
 ]]}
 
-	-- d_kij = 1/2 γ_ij,k
+	-- d_kij vs. 1/2 γ_ij,k
 	for i,xi in ipairs(xNames) do
 		vars:insert{
 			name = 'gamma_ij vs d_'..xi..'ij',
@@ -421,6 +571,7 @@ if (<?=OOB?>(1,1)) {
 		}
 	end
 
+	-- b^i_j vs. β^i_,j
 	if self.consStruct.vars:find(nil, function(var) return var.name == 'b_ul' end) then
 		for i,xi in ipairs(xNames) do
 			vars:insert{
