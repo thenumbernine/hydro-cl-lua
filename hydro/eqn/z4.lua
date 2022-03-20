@@ -354,6 +354,7 @@ function Z4_2004Bona:getSymbolFields()
 		'calc_gammaHat_ll',		-- calc ^γ_ij = grid metric (hol.) derivative ... also in common with bssnok-fd-*
 		'calc_dHat_lll',		-- calc ^d_kij = 1/2 ^γ_ij,k
 		'calc_d_lll',			-- from U->dDelta_ijk and ^d(pt)_ijk
+		'calc_conn_ull_from_d_llu_d_ull',	-- Γ^i_jk = d_kj^i + d_jk^i - d^i_jk
 		'calcFromGrad_a_l',
 		'calcFromGrad_d_lll',	-- finite difference from grid
 		'calcFromGrad_b_ul',

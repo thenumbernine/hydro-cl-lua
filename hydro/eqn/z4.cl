@@ -454,10 +454,30 @@ if has_b_ul then
 	}<? end ?>\
 }
 
+//// MODULE_NAME: <?=calc_conn_ull_from_d_llu_d_ull?>
+
+// Γ^i_jk = d_kj^i + d_jk^i - d^i_jk
+_3sym3 <?=calc_conn_ull_from_d_llu_d_ull?>(
+	real3x3x3 const d_llu,
+	_3sym3 const d_ull
+) {
+	return (_3sym3){
+<? for i,xi in ipairs(xNames) do
+?>		.<?=xi?> = (sym3){
+<?	for jk,xjk in ipairs(symNames) do
+		local j,k,xj,xk = from6to3x3(jk)
+?>			.<?=xjk?> = d_llu.<?=xk?>.<?=xj?>.<?=xi?> + d_llu.<?=xj?>.<?=xk?>.<?=xi?> - d_ull.<?=xi?>.<?=xjk?>,
+<?	end
+?>		},
+<? end
+?>	};
+}
+
 //// MODULE_NAME: <?=fluxFromCons?>
 //// MODULE_DEPENDS: <?=cons_t?> <?=solver_t?> <?=normal_t?> rotate sym3_rotate real3x3_rotate _3sym3_rotate
 //// MODULE_DEPENDS: <?=calc_dHat_lll?>
 //// MODULE_DEPENDS: <?=calc_gamma_ll?>
+//// MODULE_DEPENDS: <?=calc_conn_ull_from_d_llu_d_ull?>
 
 #define <?=fluxFromCons?>(\
 	/*<?=cons_t?> * const */resultFlux,\
@@ -552,67 +572,9 @@ end --\
 	}\
 \
 	_3sym3 d_lll = _3sym3_add(dDelta_lll, dHat_lll);\
-<? if false then ?>\
-	/* BEGIN CUT from numerical-relativity-codegen/flux_matrix_output/z4_noZeroRows.html */\
-	real const tmp1 = K_ll.xy * gamma_uu.xy;\
-	real const tmp2 = K_ll.xz * gamma_uu.xz;\
-	real const tmp3 = K_ll.yz * gamma_uu.yz;\
-	real const tmp4 = 2. * tmp3;\
-	real const tmp6 = K_ll.yy * gamma_uu.yy;\
-	real const tmp7 = K_ll.zz * gamma_uu.zz;\
-	real const tmp103 = gamma_uu.xx * gamma_uu.yy;\
-	real const tmp106 = gamma_uu.xy * gamma_uu.xy;\
-	real const tmp107 = gamma_uu.xx * gamma_uu.yz;\
-	real const tmp111 = gamma_uu.xy * gamma_uu.xz;\
-	real const tmp113 = gamma_uu.xx * gamma_uu.zz;\
-	real const tmp116 = gamma_uu.xz * gamma_uu.xz;\
-	real const tmp125 = gamma_uu.xy * gamma_uu.yz;\
-	real const tmp128 = gamma_uu.xz * gamma_uu.yy;\
-	real const tmp129 = gamma_uu.xy * gamma_uu.zz;\
-	real const tmp132 = gamma_uu.xz * gamma_uu.yz;\
-	(resultFlux)->alpha = 0.;\
-	(resultFlux)->gammaDelta_ll.xx = 0.;\
-	(resultFlux)->gammaDelta_ll.xy = 0.;\
-	(resultFlux)->gammaDelta_ll.xz = 0.;\
-	(resultFlux)->gammaDelta_ll.yy = 0.;\
-	(resultFlux)->gammaDelta_ll.yz = 0.;\
-	(resultFlux)->gammaDelta_ll.zz = 0.;\
-	(resultFlux)->a_l.x = f_alpha * (tmp6 + tmp7 + K_ll.xx * gamma_uu.xx + tmp4 - 2. * Theta + 2. * tmp2 + 2. * tmp1);\
-	(resultFlux)->a_l.y = 0.;\
-	(resultFlux)->a_l.z = 0.;\
-	(resultFlux)->dDelta_lll.x.xx = K_ll.xx * alpha;\
-	(resultFlux)->dDelta_lll.x.xy = K_ll.xy * alpha;\
-	(resultFlux)->dDelta_lll.x.xz = K_ll.xz * alpha;\
-	(resultFlux)->dDelta_lll.x.yy = K_ll.yy * alpha;\
-	(resultFlux)->dDelta_lll.x.yz = K_ll.yz * alpha;\
-	(resultFlux)->dDelta_lll.x.zz = K_ll.zz * alpha;\
-	(resultFlux)->dDelta_lll.y.xx = 0.;\
-	(resultFlux)->dDelta_lll.y.xy = 0.;\
-	(resultFlux)->dDelta_lll.y.xz = 0.;\
-	(resultFlux)->dDelta_lll.y.yy = 0.;\
-	(resultFlux)->dDelta_lll.y.yz = 0.;\
-	(resultFlux)->dDelta_lll.y.zz = 0.;\
-	(resultFlux)->dDelta_lll.z.xx = 0.;\
-	(resultFlux)->dDelta_lll.z.xy = 0.;\
-	(resultFlux)->dDelta_lll.z.xz = 0.;\
-	(resultFlux)->dDelta_lll.z.yy = 0.;\
-	(resultFlux)->dDelta_lll.z.yz = 0.;\
-	(resultFlux)->dDelta_lll.z.zz = 0.;\
-	(resultFlux)->K_ll.xx = -alpha * (2. * d_lll.z.xz * gamma_uu.zz + 2. * d_lll.z.xy * gamma_uu.yz + d_lll.z.xx * gamma_uu.xz + 2. * d_lll.y.xz * gamma_uu.yz + 2. * d_lll.y.xy * gamma_uu.yy + d_lll.y.xx * gamma_uu.xy + 2. * Z_l.x - a_l.x - d_lll.x.yy * gamma_uu.yy - 2. * d_lll.x.yz * gamma_uu.yz - d_lll.x.zz * gamma_uu.zz);\
-	(resultFlux)->K_ll.xy = (-alpha * (2. * d_lll.z.yz * gamma_uu.zz + 2. * d_lll.z.yy * gamma_uu.yz + 2. * d_lll.y.yz * gamma_uu.yz + 2. * d_lll.y.yy * gamma_uu.yy + 2. * d_lll.x.yz * gamma_uu.xz + 2. * d_lll.x.yy * gamma_uu.xy + 2. * Z_l.y - a_l.y)) / 2.;\
-	(resultFlux)->K_ll.xz = (-alpha * (2. * d_lll.z.zz * gamma_uu.zz + 2. * d_lll.z.yz * gamma_uu.yz + 2. * d_lll.y.zz * gamma_uu.yz + 2. * d_lll.y.yz * gamma_uu.yy + 2. * d_lll.x.zz * gamma_uu.xz + 2. * d_lll.x.yz * gamma_uu.xy + 2. * Z_l.z - a_l.z)) / 2.;\
-	(resultFlux)->K_ll.yy = alpha * (d_lll.z.yy * gamma_uu.xz + d_lll.y.yy * gamma_uu.xy + d_lll.x.yy * gamma_uu.xx);\
-	(resultFlux)->K_ll.yz = alpha * (d_lll.z.yz * gamma_uu.xz + d_lll.y.yz * gamma_uu.xy + d_lll.x.yz * gamma_uu.xx);\
-	(resultFlux)->K_ll.zz = alpha * (d_lll.z.zz * gamma_uu.xz + d_lll.y.zz * gamma_uu.xy + d_lll.x.zz * gamma_uu.xx);\
-	(resultFlux)->Theta = -alpha * (d_lll.z.yz * tmp129 - d_lll.z.yz * tmp132 + d_lll.z.yy * tmp125 - d_lll.z.yy * tmp128 + d_lll.z.xz * tmp113 - d_lll.z.xz * tmp116 + d_lll.z.xy * tmp107 - d_lll.z.xy * tmp111 + d_lll.y.zz * tmp132 + d_lll.y.yz * tmp128 - d_lll.y.zz * tmp129 + d_lll.y.xz * tmp107 - d_lll.y.xz * tmp111 - d_lll.y.yz * tmp125 + d_lll.y.xy * tmp103 - d_lll.y.xy * tmp106 + d_lll.x.zz * tmp116 + 2. * d_lll.x.yz * tmp111 - d_lll.x.zz * tmp113 + d_lll.x.yy * tmp106 - 2. * d_lll.x.yz * tmp107 + Z_l.z * gamma_uu.xz - d_lll.x.yy * tmp103 + Z_l.y * gamma_uu.xy + Z_l.x * gamma_uu.xx);\
-	(resultFlux)->Z_l.x = alpha * (tmp1 + tmp2 + tmp6 + tmp4 + tmp7 - Theta);\
-	(resultFlux)->Z_l.y = -alpha * (K_ll.yz * gamma_uu.xz + K_ll.yy * gamma_uu.xy + K_ll.xy * gamma_uu.xx);\
-	(resultFlux)->Z_l.z = -alpha * (K_ll.zz * gamma_uu.xz + K_ll.yz * gamma_uu.xy + K_ll.xz * gamma_uu.xx);	\
-	/* END CUT */\
-<? end ?>\
-<? if true then ?>\
 	real3x3x3 const d_llu = _3sym3_sym3_mul(d_lll, gamma_uu);\
 	_3sym3 const d_ull = sym3_3sym3_mul(gamma_uu, d_lll);\
+	_3sym3 const conn_ull = <?=calc_conn_ull_from_d_llu_d_ull?>(d_llu, d_ull);\
 	real3 const e_l = _3sym3_tr12(d_ull);\
 	real3 const d_l = real3x3x3_tr23(d_llu);\
 	real3 const d_u = sym3_real3_mul(gamma_uu, d_l);\
@@ -655,29 +617,29 @@ end --\
 		(resultFlux)->dDelta_lll.z.yy = 0.;\
 		(resultFlux)->dDelta_lll.z.yz = 0.;\
 		(resultFlux)->dDelta_lll.z.zz = 0.;\
-		(resultFlux)->K_ll.xx = alpha * (a_l.x + d_l.x + d_ull.x.xx + -e_l.x + -2. * Z_l.x + -d_llu.x.x.x);\
-		(resultFlux)->K_ll.xy = (alpha * (a_l.y + d_l.y + -e_l.y + -d_llu.x.x.y + -d_llu.y.x.x + 2. * d_ull.x.xy + -2. * Z_l.y)) / 2.;\
-		(resultFlux)->K_ll.xz = (alpha * (a_l.z + d_l.z + -e_l.z + -d_llu.x.x.z + -d_llu.z.x.x + 2. * d_ull.x.xz + -2. * Z_l.z)) / 2.;\
-		(resultFlux)->K_ll.yy = alpha * (d_ull.x.yy + -d_llu.y.x.y);\
-		(resultFlux)->K_ll.yz = (alpha * (-d_llu.y.x.z + 2. * d_ull.x.yz + -d_llu.z.x.y)) / 2.;\
-		(resultFlux)->K_ll.zz = alpha * (d_ull.x.zz + -d_llu.z.x.z);\
+		(resultFlux)->K_ll.xx = alpha * (a_l.x + d_l.x + -2. * Z_l.x + -conn_ull.x.xx);\
+		(resultFlux)->K_ll.xy = (alpha * (a_l.y + d_l.y + -2. * conn_ull.x.xy + -2. * Z_l.y)) / 2.;\
+		(resultFlux)->K_ll.xz = (alpha * (a_l.z + d_l.z + -2. * conn_ull.x.xz + -2. * Z_l.z)) / 2.;\
+		(resultFlux)->K_ll.yy = -conn_ull.x.yy * alpha;\
+		(resultFlux)->K_ll.yz = -conn_ull.x.yz * alpha;\
+		(resultFlux)->K_ll.zz = -conn_ull.x.zz * alpha;\
 		(resultFlux)->Theta = alpha * (d_u.x + -Z_u.x + -e_u.x);\
 		(resultFlux)->Z_l.x = alpha * (tr_K + -K_ul.x.x + -Theta);\
 		(resultFlux)->Z_l.y = -K_ul.x.y * alpha;\
 		(resultFlux)->Z_l.z = -K_ul.x.z * alpha;\
 	}\
-	<? if eqn.useShift == "HarmonicShift" then ?>\
+	<? if useShift == "HarmonicShift" then ?>\
 	{\
 		real const tmp1 = alpha * alpha;\
 		(resultFlux)->a_l.x += -beta_u.x * a_l.x;\
 		(resultFlux)->a_l.y += -beta_u.x * a_l.y;\
 		(resultFlux)->a_l.z += -beta_u.x * a_l.z;\
-		(resultFlux)->dDelta_lll.x.xx += -b_ll.xx + -beta_u.x * d_lll.x.xx + beta_u.y * dDelta_lll.y.xx + -beta_u.y * d_lll.y.xx + -beta_u.z * d_lll.z.xx + beta_u.z * dDelta_lll.z.xx;\
-		(resultFlux)->dDelta_lll.x.xy += (-b_ll.xy + -b_ll.xy + -2. * beta_u.x * d_lll.x.xy + 2. * beta_u.y * dDelta_lll.y.xy + -2. * beta_u.y * d_lll.y.xy + -2. * beta_u.z * d_lll.z.xy + 2. * beta_u.z * dDelta_lll.z.xy) / 2.;\
-		(resultFlux)->dDelta_lll.x.xz += (-b_ll.xz + -b_ll.xz + -2. * beta_u.x * d_lll.x.xz + 2. * beta_u.y * dDelta_lll.y.xz + -2. * beta_u.y * d_lll.y.xz + -2. * beta_u.z * d_lll.z.xz + 2. * beta_u.z * dDelta_lll.z.xz) / 2.;\
-		(resultFlux)->dDelta_lll.x.yy += -b_ll.yy + -beta_u.x * d_lll.x.yy + beta_u.y * dDelta_lll.y.yy + -beta_u.y * d_lll.y.yy + -beta_u.z * d_lll.z.yy + beta_u.z * dDelta_lll.z.yy;\
-		(resultFlux)->dDelta_lll.x.yz += (-b_ll.yz + -b_ll.yz + -2. * beta_u.x * d_lll.x.yz + 2. * beta_u.y * dDelta_lll.y.yz + -2. * beta_u.y * d_lll.y.yz + -2. * beta_u.z * d_lll.z.yz + 2. * beta_u.z * dDelta_lll.z.yz) / 2.;\
-		(resultFlux)->dDelta_lll.x.zz += -b_ll.zz + -beta_u.x * d_lll.x.zz + beta_u.y * dDelta_lll.y.zz + -beta_u.y * d_lll.y.zz + -beta_u.z * d_lll.z.zz + beta_u.z * dDelta_lll.z.zz;\
+		(resultFlux)->dDelta_lll.x.xx += -(b_ll.x.x + beta_u.x * dHat_lll.x.xx + beta_u.x * dDelta_lll.x.xx + beta_u.z * dHat_lll.z.xx + beta_u.y * dHat_lll.y.xx);\
+		(resultFlux)->dDelta_lll.x.xy += -(b_ll.x.y + b_ll.y.x + 2. * beta_u.x * dHat_lll.x.xy + 2. * beta_u.x * dDelta_lll.x.xy + 2. * beta_u.z * dHat_lll.z.xy + 2. * beta_u.y * dHat_lll.y.xy) / 2.;\
+		(resultFlux)->dDelta_lll.x.xz += -(b_ll.x.z + b_ll.z.x + 2. * beta_u.x * dHat_lll.x.xz + 2. * beta_u.x * dDelta_lll.x.xz + 2. * beta_u.z * dHat_lll.z.xz + 2. * beta_u.y * dHat_lll.y.xz) / 2.;\
+		(resultFlux)->dDelta_lll.x.yy += -(b_ll.y.y + beta_u.x * dHat_lll.x.yy + beta_u.x * dDelta_lll.x.yy + beta_u.z * dHat_lll.z.yy + beta_u.y * dHat_lll.y.yy);\
+		(resultFlux)->dDelta_lll.x.yz += -(b_ll.y.z + b_ll.z.y + 2. * beta_u.x * dHat_lll.x.yz + 2. * beta_u.x * dDelta_lll.x.yz + 2. * beta_u.z * dHat_lll.z.yz + 2. * beta_u.y * dHat_lll.y.yz) / 2.;\
+		(resultFlux)->dDelta_lll.x.zz += -(b_ll.z.z + beta_u.x * dHat_lll.x.zz + beta_u.x * dDelta_lll.x.zz + beta_u.z * dHat_lll.z.zz + beta_u.y * dHat_lll.y.zz);\
 		(resultFlux)->dDelta_lll.y.xx += -beta_u.x * dDelta_lll.y.xx;\
 		(resultFlux)->dDelta_lll.y.xy += -beta_u.x * dDelta_lll.y.xy;\
 		(resultFlux)->dDelta_lll.y.xz += -beta_u.x * dDelta_lll.y.xz;\
@@ -713,9 +675,8 @@ end --\
 		(resultFlux)->b_ul.z.y = 0.;\
 		(resultFlux)->b_ul.z.z = 0.;\
 	}\
-	<? end ?>/* eqn.useShift == "HarmonicShift" */\
+	<? end ?>/* useShift == "HarmonicShift" */\
 	/* END CUT */\
-<? end ?>\
 \
 <? if solver.coord.vectorComponent == "cartesian" then ?>\
 \
