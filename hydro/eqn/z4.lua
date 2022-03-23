@@ -138,7 +138,7 @@ useShift
 		β^i_,t - β^i_,j β^j = B^i
 		B^i_,t - B^i_,j β^j = α^2 ξ (~Γ^i_,t - ~Γ^i_,j β^j) - η B^i
 
-	useShift = 'HarmonicShiftParabolic'
+	useShift = 'HarmonicParabolic'
 	2008 Yano et al "Flux-Vector-Splitting..." eqn 16-17
 	2005 Bona et al "Geometrically Motivated..." says "to convert the minimal distortion elliptic equations into time-dependent parabolic equations by means of the Hamilton-Jacobi method"
 	2005 Bona mentions a few, but 2008 Yano picks the first one from the 2005 Bona paper.
@@ -156,7 +156,7 @@ useShift
 		β^i_,0 = α^2 (Γ^i - a^i) + α β^i (K - Q)
 	... which for Q = f K and f=1 and Z4's m=0 or Θ=0 ...
 		β^i_,0 = α^2 (Γ^i - a^i)
-	... and this is identical to the HarmonicShiftParabolic shift
+	... and this is identical to the HarmonicParabolic shift
 	... so back to the first def, but substituting the Z4 lapse ivp:
 		β^i_,t = β^j β^i_,j + α^2 (Γ^i - a^i) + β^i / α (-α^2 f (K - m Θ) + α^2 K)
 		β^i_,t = β^j β^i_,j + α^2 (Γ^i - a^i) + α β^i ((1 - f) K + f m Θ)
@@ -262,11 +262,13 @@ function Z4_2004Bona:init(args)
 
 		if self.useShift == 'MinimalDistortionElliptic' then
 			self.consVars:insert{name='betaLap_u', type='real3'}
-		elseif self.useShift == 'HarmonicShiftParabolic'
+		elseif self.useShift == 'HarmonicParabolic'
 		or self.useShift == 'MinimalDistortionParabolic'
 		then
 			self.consVars:insert{name='b_ul', type='real3x3'}
-		elseif self.useShift == 'HyperbolicGammaDriver' then
+		elseif self.useShift == 'HyperbolicGammaDriver'
+		or self.useShift == 'HarmonicHyperbolic'
+		then
 			self.consVars:insert{name='B_u', type='real3'}
 			self.consVars:insert{name='b_ul', type='real3x3'}
 		end
@@ -413,7 +415,11 @@ Z4_2004Bona.predefinedDisplayVars = {
 	'U Theta',
 	'U Z_l mag',
 --]]
+-- [[ for watching shift
 	'U beta_u mag',
+	'U log(sqrt(gamma))_,i mag',
+	'U Gamma^i mag',
+--]]
 	'U H',
 	'U M_u mag',
 	'U volume',

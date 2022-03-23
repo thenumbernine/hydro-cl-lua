@@ -1466,8 +1466,11 @@ end
 if cmdline['2009Alic-z4'] then
 	self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {eqn='z4'})))
 end
-if cmdline['2009Alic-z4-withShift'] then
-	self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {eqn='z4', eqnArgs={useShift='HarmonicShiftParabolic'}})))
+if cmdline['2009Alic-z4-HarmonicParabolic'] then
+	self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {eqn='z4', eqnArgs={useShift='HarmonicParabolic'}})))
+end
+if cmdline['2009Alic-z4-HarmonicHyperbolic'] then
+	self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {eqn='z4', eqnArgs={useShift='HarmonicHyperbolic'}})))
 end
 if cmdline['2009Alic-z4_2008yano'] then
 	self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {eqn='z4_2008yano'})))

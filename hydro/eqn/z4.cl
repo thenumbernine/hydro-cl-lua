@@ -485,6 +485,9 @@ if has_b_ul then
 if has_b_ul then --\
 ?>	real3x3 b_ul = (U)->b_ul;\
 <? end --\
+if has_B_u then --\
+?>	real3 B_u = (U)->B_u;\
+<? 	end --\
 ?>\
 \
 <? if solver.coord.vectorComponent == "cartesian" then ?>\
@@ -506,6 +509,9 @@ if has_b_ul then --\
 <? end --\
 if has_b_ul then --\
 ?>	b_ul = real3x3_rotateFrom(b_ul);\
+end --\
+if has_B_u then --\
+?>	B_u = real3_rotateFrom(B_u, n_l);\
 <? end --\
 ?>\
 \
@@ -563,7 +569,7 @@ end --\
 	real3x3 const K_ul = sym3_sym3_mul(gamma_uu, K_ll);\
 	real const tr_K = real3x3_trace(K_ul);\
 	sym3 const dHat_t_ll = sym3_zero;\
-<? 	if eqn.useShift == "HarmonicShiftParabolic" then ?>\
+<? 	if eqn.useShift ~= "none" then ?>\
 	real3 const a_u = sym3_real3_mul(gamma_uu, a_l);\
 	sym3 const b_ll = sym3_real3x3_to_sym3_mul(gamma_ll, b_ul);\
 <? 	end ?>\
@@ -642,11 +648,11 @@ end --\
 		(resultFlux)->Z_l.x += -Z_l.x * beta_u.x;\
 		(resultFlux)->Z_l.y += -Z_l.y * beta_u.x;\
 		(resultFlux)->Z_l.z += -Z_l.z * beta_u.x;\
-		<? if eqn.useShift == "HarmonicShiftParabolic" then ?>\
+		<? if eqn.useShift == "HarmonicParabolic" then ?>\
 		(resultFlux)->b_ul.x.x += a_u.x * tmp1 + d_u.x * tmp1 + -beta_u.x * b_ul.x.x + -beta_u.y * b_ul.x.y + -2. * e_u.x * tmp1 + -beta_u.z * b_ul.x.z;\
 		(resultFlux)->b_ul.y.x += a_u.y * tmp1 + d_u.y * tmp1 + -beta_u.x * b_ul.y.x + -beta_u.y * b_ul.y.y + -2. * e_u.y * tmp1 + -beta_u.z * b_ul.y.z;\
 		(resultFlux)->b_ul.z.x += a_u.z * tmp1 + d_u.z * tmp1 + -beta_u.x * b_ul.z.x + -beta_u.y * b_ul.z.y + -2. * e_u.z * tmp1 + -beta_u.z * b_ul.z.z;\
-		<? elseif eqn.useShift == "HarmonicShiftHyperbolic" then ?>\
+		<? elseif eqn.useShift == "HarmonicHyperbolic" then ?>\
 		(resultFlux)->b_ul.x.x += -(B_u.x + beta_u.x * b_ul.x.x + beta_u.z * b_ul.x.z + beta_u.y * b_ul.x.y);\
 		(resultFlux)->b_ul.y.x += -(B_u.y + beta_u.x * b_ul.y.x + beta_u.z * b_ul.y.z + beta_u.y * b_ul.y.y);\
 		(resultFlux)->b_ul.z.x += -(B_u.z + beta_u.x * b_ul.z.x + beta_u.z * b_ul.z.z + beta_u.y * b_ul.z.y);\
@@ -657,16 +663,19 @@ end --\
 \
 <? if solver.coord.vectorComponent == "cartesian" then ?>\
 \
-	(resultFlux)->Z_l = real3_rotateFrom((resultFlux)->Z_l, n_l);\
-	(resultFlux)->a_l = real3_rotateFrom((resultFlux)->a_l, n_l);\
-	(resultFlux)->gammaDelta_ll = sym3_rotateFrom((resultFlux)->gammaDelta_ll, n_l);\
-	(resultFlux)->K_ll = sym3_rotateFrom((resultFlux)->K_ll, n_l);\
-	(resultFlux)->dDelta_lll = _3sym3_rotateFrom((resultFlux)->dDelta_lll, n_l);\
+	(resultFlux)->Z_l = real3_rotateTo((resultFlux)->Z_l, n_l);\
+	(resultFlux)->a_l = real3_rotateTo((resultFlux)->a_l, n_l);\
+	(resultFlux)->gammaDelta_ll = sym3_rotateTo((resultFlux)->gammaDelta_ll, n_l);\
+	(resultFlux)->K_ll = sym3_rotateTo((resultFlux)->K_ll, n_l);\
+	(resultFlux)->dDelta_lll = _3sym3_rotateTo((resultFlux)->dDelta_lll, n_l);\
 <? if has_beta_u then --\
-?>	(resultFlux)->beta_u = real3_rotateFrom((resultFlux)->beta_u, n_l);\
+?>	(resultFlux)->beta_u = real3_rotateTo((resultFlux)->beta_u, n_l);\
 <? end --\
 if has_b_ul then --\
-?>	(resultFlux)->b_ul = real3x3_rotateFrom((resultFlux)->b_ul, n_l);\
+?>	(resultFlux)->b_ul = real3x3_rotateTo((resultFlux)->b_ul, n_l);\
+<? end --\
+if has_B_u then --\
+?>	(resultFlux)->B_u = real3_rotateTo((resultFlux)->B_u, n_l);\
 <? end --\
 ?>\
 <? else ?>\
@@ -682,11 +691,11 @@ if has_b_ul then --\
 <? if has_beta_u then --\
 ?>		(resultFlux)->beta_u = real3_swap<?=side?>((resultFlux)->beta_u);\
 <? end --\
-if has_B_u then --\
-?>		(resultFlux)->B_u = real3_swap<?=side?>((resultFlux)->B_u);\
-<? end --\
 if has_b_ul then --\
 ?>		(resultFlux)->b_ul = real3x3_swap<?=side?>((resultFlux)->b_ul);\
+<? end --\
+if has_B_u then --\
+?>		(resultFlux)->B_u = real3_swap<?=side?>((resultFlux)->B_u);\
 <? end --\
 ?>	}\
 	<? end ?>\
@@ -1135,8 +1144,8 @@ kernel void <?=addSource?>(
 	real3x3x3 const d_llu = _3sym3_sym3_mul(d_lll, gamma_uu);	//d_llu = d_ij^k = d_ijl * γ^lk
 	_3sym3 const d_ull = sym3_3sym3_mul(gamma_uu, d_lll);		//d_ull = d^i_jk = γ^il d_ljk
 	real3 const e_l = _3sym3_tr12(d_ull);						//e_l = e_i = d^j_ji
-	_3sym3 const conn_ull = conn_ull_from_d_llu_d_ull(d_llu, d_ull);		//Γ^k_ij = d_ij^k + d_ji^k - d^k_ij	
-	real3 const d_l = real3x3x3_tr23(d_llu);			/* d_l = d_i = d_ij^j */	
+	_3sym3 const conn_ull = conn_ull_from_d_llu_d_ull(d_llu, d_ull);		//Γ^k_ij = d_ij^k + d_ji^k - d^k_ij
+	real3 const d_l = real3x3x3_tr23(d_llu);			/* d_l = d_i = d_ij^j */
 	real3 const d_u = sym3_real3_mul(gamma_uu, d_l);
 	real3 const e_u = sym3_real3_mul(gamma_uu, e_l);
 	real3 const Z_u = sym3_real3_mul(gamma_uu, U->Z_l);
@@ -1212,7 +1221,7 @@ end?>
 	) - 8. * M_PI * U->alpha * rho;
 
 
-<? if eqn.useShift == "HarmonicShiftParabolic" then ?>
+<? if eqn.useShift == "HarmonicParabolic" then ?>
 	
 	real const tr_b = real3x3_trace(U->b_ul);
 	real3 const a_u = sym3_real3_mul(gamma_uu, U->a_l);
@@ -1302,7 +1311,7 @@ end
 <? end
 ?>
 
-<? end -- eqn.useShift == "HarmonicShiftParabolic" ?>
+<? end -- eqn.useShift == "HarmonicParabolic" ?>
 
 
 <? end ?>
@@ -1432,11 +1441,11 @@ end
 		(deriv)->Z_l.x += Z_l.x * b_ul.x.x + -Z_l.x * tr_b + Z_l.z * b_ul.z.x + Z_l.y * b_ul.y.x;
 		(deriv)->Z_l.y += Z_l.x * b_ul.x.y + Z_l.y * b_ul.y.y + Z_l.z * b_ul.z.y + -Z_l.y * tr_b;
 		(deriv)->Z_l.z += Z_l.x * b_ul.x.z + Z_l.y * b_ul.y.z + -Z_l.z * tr_b + Z_l.z * b_ul.z.z;
-		<? if eqn.useShift == "HarmonicShiftParabolic" then ?>\
+		<? if eqn.useShift == "HarmonicParabolic" then ?>\
 		(deriv)->beta_u.x += beta_u.x * b_ul.x.x + beta_u.y * b_ul.x.y + beta_u.z * b_ul.x.z + tmp5 + tmp6 + tmp7;
 		(deriv)->beta_u.y += beta_u.x * b_ul.y.x + beta_u.y * b_ul.y.y + beta_u.z * b_ul.y.z + tmp11 + tmp12 + tmp13;
 		(deriv)->beta_u.z += beta_u.x * b_ul.z.x + beta_u.y * b_ul.z.y + beta_u.z * b_ul.z.z + tmp17 + tmp18 + tmp19;
-		<? elseif eqn.useShift == "HarmonicShiftHyperbolic" then ?>\
+		<? elseif eqn.useShift == "HarmonicHyperbolic" then ?>\
 		(deriv)->beta_u.x += B_u.x + beta_u.x * b_ul.x.x + beta_u.z * b_ul.x.z + beta_u.y * b_ul.x.y;
 		(deriv)->beta_u.y += B_u.y + beta_u.x * b_ul.y.x + beta_u.z * b_ul.y.z + beta_u.y * b_ul.y.y;
 		(deriv)->beta_u.z += B_u.z + beta_u.x * b_ul.z.x + beta_u.z * b_ul.z.z + beta_u.y * b_ul.z.y;
@@ -1445,7 +1454,7 @@ end
 		(deriv)->B_u.z += B_u.x * b_ul.z.x + B_u.y * b_ul.z.y + B_u.z * b_ul.z.z + tmp17 + tmp18 + tmp19;
 		<? end ?>\
 	}
-	<? end ?>/* eqn.useShift ~= "none" */	
+	<? end ?>/* eqn.useShift ~= "none" */
 	// END CUT
 <? end ?>
 //decay for 1st deriv hyperbolic state vars constraints:
@@ -1520,8 +1529,8 @@ kernel void <?=constrainU?>(
 	sym3 const K_uu = real3x3_sym3_to_sym3_mul(K_ul, gamma_uu);		//K^ij
 
 //// MODULE_DEPENDS: <?=calc_d_lll?>
-	_3sym3 const d_lll = <?=calc_d_lll?>(U, cell->pos);	
-	real3x3x3 const d_llu = _3sym3_sym3_mul(d_lll, gamma_uu);	//d_llu = d_ij^k = d_ijl * γ^lk	
+	_3sym3 const d_lll = <?=calc_d_lll?>(U, cell->pos);
+	real3x3x3 const d_llu = _3sym3_sym3_mul(d_lll, gamma_uu);	//d_llu = d_ij^k = d_ijl * γ^lk
 	_3sym3 const d_ull = sym3_3sym3_mul(gamma_uu, d_lll);	//d_ull = d^i_jk = γ^il d_ljk
 	_3sym3 const conn_ull = conn_ull_from_d_llu_d_ull(d_llu, d_ull);	//Γ^k_ij = d_ij^k + d_ji^k - d^k_ij
 	real3 const e_l = _3sym3_tr12(d_ull);	//e_i = d^j_ji
