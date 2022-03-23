@@ -138,7 +138,7 @@ useShift
 		β^i_,t - β^i_,j β^j = B^i
 		B^i_,t - B^i_,j β^j = α^2 ξ (~Γ^i_,t - ~Γ^i_,j β^j) - η B^i
 
-	useShift = 'HarmonicShift'
+	useShift = 'HarmonicShiftParabolic'
 	2008 Yano et al "Flux-Vector-Splitting..." eqn 16-17
 	2005 Bona et al "Geometrically Motivated..." says "to convert the minimal distortion elliptic equations into time-dependent parabolic equations by means of the Hamilton-Jacobi method"
 	2005 Bona mentions a few, but 2008 Yano picks the first one from the 2005 Bona paper.
@@ -156,7 +156,7 @@ useShift
 		β^i_,0 = α^2 (Γ^i - a^i) + α β^i (K - Q)
 	... which for Q = f K and f=1 and Z4's m=0 or Θ=0 ...
 		β^i_,0 = α^2 (Γ^i - a^i)
-	... and this is identical to the HarmonicShift shift
+	... and this is identical to the HarmonicShiftParabolic shift
 	... so back to the first def, but substituting the Z4 lapse ivp:
 		β^i_,t = β^j β^i_,j + α^2 (Γ^i - a^i) + β^i / α (-α^2 f (K - m Θ) + α^2 K)
 		β^i_,t = β^j β^i_,j + α^2 (Γ^i - a^i) + α β^i ((1 - f) K + f m Θ)
@@ -262,7 +262,7 @@ function Z4_2004Bona:init(args)
 
 		if self.useShift == 'MinimalDistortionElliptic' then
 			self.consVars:insert{name='betaLap_u', type='real3'}
-		elseif self.useShift == 'HarmonicShift'
+		elseif self.useShift == 'HarmonicShiftParabolic'
 		or self.useShift == 'MinimalDistortionParabolic'
 		then
 			self.consVars:insert{name='b_ul', type='real3x3'}
@@ -354,7 +354,6 @@ function Z4_2004Bona:getSymbolFields()
 		'calc_gammaHat_ll',		-- calc ^γ_ij = grid metric (hol.) derivative ... also in common with bssnok-fd-*
 		'calc_dHat_lll',		-- calc ^d_kij = 1/2 ^γ_ij,k
 		'calc_d_lll',			-- from U->dDelta_ijk and ^d(pt)_ijk
-		'calc_conn_ull_from_d_llu_d_ull',	-- Γ^i_jk = d_kj^i + d_jk^i - d^i_jk
 		'calcFromGrad_a_l',
 		'calcFromGrad_d_lll',	-- finite difference from grid
 		'calcFromGrad_b_ul',
@@ -414,6 +413,7 @@ Z4_2004Bona.predefinedDisplayVars = {
 	'U Theta',
 	'U Z_l mag',
 --]]
+	'U beta_u mag',
 	'U H',
 	'U M_u mag',
 	'U volume',

@@ -1266,6 +1266,8 @@ static inline real3 real3x3x3_sym3_dot23(real3x3x3 a, sym3 b);
 static inline real3x3 _3sym3_real3x3x3_dot12_23(_3sym3 a, real3x3x3 b);
 static inline sym3 _3sym3_real3x3x3_dot13_to_sym3(_3sym3 a, real3x3x3 b);
 static inline real3 real3x3x3_tr23(real3x3x3 a);
+static inline _3sym3 sym3_real3x3x3_mul2_to_3sym3(sym3 a, real3x3x3 b);
+static inline _3sym3 conn_ull_from_d_llu_d_ull(real3x3x3 const d_llu, _3sym3 const d_ull);
 
 static inline real3x3x3 real3x3x3_from__3sym3(_3sym3 m);
 static inline _3sym3 _3sym3_from_real3x3x3(real3x3x3 m);
@@ -1373,6 +1375,32 @@ static inline _3sym3 _3sym3_from_real3x3x3(real3x3x3 m) {
 <?	for jk,xjk in ipairs(symNames) do
 		local j,k,xj,xk = from6to3x3(jk)
 ?>			.<?=xjk?> = .5 * (m.<?=xi?>.<?=xj?>.<?=xk?> + m.<?=xi?>.<?=xk?>.<?=xj?>),
+<?	end
+?>		},
+<? end
+?>	};
+}
+
+//c_i^jk = a^jm b_im^k
+// assumes the result is symmetric on the 2nd and 3rd indexes
+static inline _3sym3 sym3_real3x3x3_mul2_to_3sym3(sym3 a, real3x3x3 b) {
+	return (_3sym3){
+<? for i,xi in ipairs(xNames) do
+?>		.<?=xi?> = sym3_real3x3_to_sym3_mul(a, b.<?=xi?>),
+<? end
+?>	};
+}
+
+// Γ^i_jk = d_kj^i + d_jk^i - d^i_jk
+// assumes the dg variable has the derivative index first
+// for d_kij = 1/2 γ_ij,k
+static inline _3sym3 conn_ull_from_d_llu_d_ull(real3x3x3 const d_llu, _3sym3 const d_ull) {
+	return (_3sym3){
+<? for i,xi in ipairs(xNames) do
+?>		.<?=xi?> = (sym3){
+<?	for jk,xjk in ipairs(symNames) do
+		local j,k,xj,xk = from6to3x3(jk)
+?>			.<?=xjk?> = d_llu.<?=xk?>.<?=xj?>.<?=xi?> + d_llu.<?=xj?>.<?=xk?>.<?=xi?> - d_ull.<?=xi?>.<?=xjk?>,
 <?	end
 ?>		},
 <? end
