@@ -9,6 +9,13 @@ local has_b_ul = eqn.consStruct.vars:find(nil, function(var) return var.name == 
 local has_B_u = eqn.consStruct.vars:find(nil, function(var) return var.name == "B_u" end)
 ?>
 
+//// MODULE_NAME: mdeShiftEpsilon
+
+<? if eqn.useShift == "MinimalDistortionHyperbolic" then ?>
+constant real const mdeShiftEpsilon = 1.;
+<? end ?>
+
+
 <? -- ok so ideally you should be able to subtract out the background metric ...
 ?>
 
@@ -458,6 +465,10 @@ if has_b_ul then
 //// MODULE_DEPENDS: <?=cons_t?> <?=solver_t?> <?=normal_t?> rotate sym3_rotate real3x3_rotate _3sym3_rotate
 //// MODULE_DEPENDS: <?=calc_dHat_lll?>
 //// MODULE_DEPENDS: <?=calc_gamma_ll?>
+		
+<? if eqn.useShift == "MinimalDistortionHyperbolic" then ?>
+//// MODULE_DEPENDS: mdeShiftEpsilon
+<? end ?>
 
 #define <?=fluxFromCons?>(\
 	/*<?=cons_t?> * const */resultFlux,\
@@ -569,10 +580,23 @@ end --\
 	real3x3 const K_ul = sym3_sym3_mul(gamma_uu, K_ll);\
 	real const tr_K = real3x3_trace(K_ul);\
 	sym3 const dHat_t_ll = sym3_zero;\
-<? 	if eqn.useShift ~= "none" then ?>\
-	real3 const a_u = sym3_real3_mul(gamma_uu, a_l);\
+\
+	<? if eqn.useShift ~= "none" then ?>\
 	sym3 const b_ll = sym3_real3x3_to_sym3_mul(gamma_ll, b_ul);\
-<? 	end ?>\
+	<? end ?>\
+\
+	<? if eqn.useShift == "HarmonicParabolic" then ?>\
+	real3 const a_u = sym3_real3_mul(gamma_uu, a_l);\
+	<? end ?>\
+\
+	<? if eqn.useShift == "MinimalDistortionHyperbolic" then ?>\
+	real3x3 const DBeta_ul = real3x3_add(b_ul, real3_3sym3_dot2(beta_u, conn_ull));\
+	sym3 const DBeta_uu = real3x3_sym3_to_sym3_mul(DBeta_ul, gamma_uu);\
+	real const tr_DBeta = real3x3_trace(DBeta_ul);\
+	sym3 const K_uu = real3x3_sym3_to_sym3_mul(K_ul, gamma_uu);\
+	sym3 const A_uu = sym3_sub(K_uu, sym3_real_mul(gamma_uu, tr_K / 3.));\
+	<? end ?>\
+\
 	/* BEGIN CUT from symmath/tests/output/Z4.html */\
 	{\
 		(resultFlux)->alpha = 0.;\
@@ -616,50 +640,79 @@ end --\
 	}\
 	<? if eqn.useShift ~= "none" then ?>\
 	{\
-		real const tmp1 = alpha * alpha;\
-		(resultFlux)->a_l.x += -beta_u.x * a_l.x;\
-		(resultFlux)->a_l.y += -beta_u.x * a_l.y;\
-		(resultFlux)->a_l.z += -beta_u.x * a_l.z;\
-		(resultFlux)->dDelta_lll.x.xx += -(b_ll.xx + beta_u.x * dHat_lll.x.xx + beta_u.x * dDelta_lll.x.xx + beta_u.z * dHat_lll.z.xx + beta_u.y * dHat_lll.y.xx);\
-		(resultFlux)->dDelta_lll.x.xy += -(b_ll.xy + b_ll.xy + 2. * beta_u.x * dHat_lll.x.xy + 2. * beta_u.x * dDelta_lll.x.xy + 2. * beta_u.z * dHat_lll.z.xy + 2. * beta_u.y * dHat_lll.y.xy) / 2.;\
-		(resultFlux)->dDelta_lll.x.xz += -(b_ll.xz + b_ll.xz + 2. * beta_u.x * dHat_lll.x.xz + 2. * beta_u.x * dDelta_lll.x.xz + 2. * beta_u.z * dHat_lll.z.xz + 2. * beta_u.y * dHat_lll.y.xz) / 2.;\
-		(resultFlux)->dDelta_lll.x.yy += -(b_ll.yy + beta_u.x * dHat_lll.x.yy + beta_u.x * dDelta_lll.x.yy + beta_u.z * dHat_lll.z.yy + beta_u.y * dHat_lll.y.yy);\
-		(resultFlux)->dDelta_lll.x.yz += -(b_ll.yz + b_ll.yz + 2. * beta_u.x * dHat_lll.x.yz + 2. * beta_u.x * dDelta_lll.x.yz + 2. * beta_u.z * dHat_lll.z.yz + 2. * beta_u.y * dHat_lll.y.yz) / 2.;\
-		(resultFlux)->dDelta_lll.x.zz += -(b_ll.zz + beta_u.x * dHat_lll.x.zz + beta_u.x * dDelta_lll.x.zz + beta_u.z * dHat_lll.z.zz + beta_u.y * dHat_lll.y.zz);\
-		(resultFlux)->dDelta_lll.y.xx += -beta_u.x * dDelta_lll.y.xx;\
-		(resultFlux)->dDelta_lll.y.xy += -beta_u.x * dDelta_lll.y.xy;\
-		(resultFlux)->dDelta_lll.y.xz += -beta_u.x * dDelta_lll.y.xz;\
-		(resultFlux)->dDelta_lll.y.yy += -beta_u.x * dDelta_lll.y.yy;\
-		(resultFlux)->dDelta_lll.y.yz += -beta_u.x * dDelta_lll.y.yz;\
-		(resultFlux)->dDelta_lll.y.zz += -beta_u.x * dDelta_lll.y.zz;\
-		(resultFlux)->dDelta_lll.z.xx += -beta_u.x * dDelta_lll.z.xx;\
-		(resultFlux)->dDelta_lll.z.xy += -beta_u.x * dDelta_lll.z.xy;\
-		(resultFlux)->dDelta_lll.z.xz += -beta_u.x * dDelta_lll.z.xz;\
-		(resultFlux)->dDelta_lll.z.yy += -beta_u.x * dDelta_lll.z.yy;\
-		(resultFlux)->dDelta_lll.z.yz += -beta_u.x * dDelta_lll.z.yz;\
-		(resultFlux)->dDelta_lll.z.zz += -beta_u.x * dDelta_lll.z.zz;\
-		(resultFlux)->K_ll.xx += -beta_u.x * K_ll.xx;\
-		(resultFlux)->K_ll.xy += -beta_u.x * K_ll.xy;\
-		(resultFlux)->K_ll.xz += -beta_u.x * K_ll.xz;\
-		(resultFlux)->K_ll.yy += -beta_u.x * K_ll.yy;\
-		(resultFlux)->K_ll.yz += -beta_u.x * K_ll.yz;\
-		(resultFlux)->K_ll.zz += -beta_u.x * K_ll.zz;\
-		(resultFlux)->Theta += -beta_u.x * Theta;\
-		(resultFlux)->Z_l.x += -Z_l.x * beta_u.x;\
-		(resultFlux)->Z_l.y += -Z_l.y * beta_u.x;\
-		(resultFlux)->Z_l.z += -Z_l.z * beta_u.x;\
+		{\
+			(resultFlux)->a_l.x += -beta_u.x * a_l.x;\
+			(resultFlux)->a_l.y += -beta_u.x * a_l.y;\
+			(resultFlux)->a_l.z += -beta_u.x * a_l.z;\
+			(resultFlux)->dDelta_lll.x.xx += -(b_ll.xx + beta_u.x * dHat_lll.x.xx + beta_u.x * dDelta_lll.x.xx + beta_u.z * dHat_lll.z.xx + beta_u.y * dHat_lll.y.xx);\
+			(resultFlux)->dDelta_lll.x.xy += -(b_ll.xy + beta_u.x * dHat_lll.x.xy + beta_u.x * dDelta_lll.x.xy + beta_u.z * dHat_lll.z.xy + beta_u.y * dHat_lll.y.xy);\
+			(resultFlux)->dDelta_lll.x.xz += -(b_ll.xz + beta_u.x * dHat_lll.x.xz + beta_u.x * dDelta_lll.x.xz + beta_u.z * dHat_lll.z.xz + beta_u.y * dHat_lll.y.xz);\
+			(resultFlux)->dDelta_lll.x.yy += -(b_ll.yy + beta_u.x * dHat_lll.x.yy + beta_u.x * dDelta_lll.x.yy + beta_u.z * dHat_lll.z.yy + beta_u.y * dHat_lll.y.yy);\
+			(resultFlux)->dDelta_lll.x.yz += -(b_ll.yz + beta_u.x * dHat_lll.x.yz + beta_u.x * dDelta_lll.x.yz + beta_u.z * dHat_lll.z.yz + beta_u.y * dHat_lll.y.yz);\
+			(resultFlux)->dDelta_lll.x.zz += -(b_ll.zz + beta_u.x * dHat_lll.x.zz + beta_u.x * dDelta_lll.x.zz + beta_u.z * dHat_lll.z.zz + beta_u.y * dHat_lll.y.zz);\
+			(resultFlux)->dDelta_lll.y.xx += -beta_u.x * dDelta_lll.y.xx;\
+			(resultFlux)->dDelta_lll.y.xy += -beta_u.x * dDelta_lll.y.xy;\
+			(resultFlux)->dDelta_lll.y.xz += -beta_u.x * dDelta_lll.y.xz;\
+			(resultFlux)->dDelta_lll.y.yy += -beta_u.x * dDelta_lll.y.yy;\
+			(resultFlux)->dDelta_lll.y.yz += -beta_u.x * dDelta_lll.y.yz;\
+			(resultFlux)->dDelta_lll.y.zz += -beta_u.x * dDelta_lll.y.zz;\
+			(resultFlux)->dDelta_lll.z.xx += -beta_u.x * dDelta_lll.z.xx;\
+			(resultFlux)->dDelta_lll.z.xy += -beta_u.x * dDelta_lll.z.xy;\
+			(resultFlux)->dDelta_lll.z.xz += -beta_u.x * dDelta_lll.z.xz;\
+			(resultFlux)->dDelta_lll.z.yy += -beta_u.x * dDelta_lll.z.yy;\
+			(resultFlux)->dDelta_lll.z.yz += -beta_u.x * dDelta_lll.z.yz;\
+			(resultFlux)->dDelta_lll.z.zz += -beta_u.x * dDelta_lll.z.zz;\
+			(resultFlux)->K_ll.xx += -beta_u.x * K_ll.xx;\
+			(resultFlux)->K_ll.xy += -beta_u.x * K_ll.xy;\
+			(resultFlux)->K_ll.xz += -beta_u.x * K_ll.xz;\
+			(resultFlux)->K_ll.yy += -beta_u.x * K_ll.yy;\
+			(resultFlux)->K_ll.yz += -beta_u.x * K_ll.yz;\
+			(resultFlux)->K_ll.zz += -beta_u.x * K_ll.zz;\
+			(resultFlux)->Theta += -beta_u.x * Theta;\
+			(resultFlux)->Z_l.x += -Z_l.x * beta_u.x;\
+			(resultFlux)->Z_l.y += -Z_l.y * beta_u.x;\
+			(resultFlux)->Z_l.z += -Z_l.z * beta_u.x;\
+		}\
 		<? if eqn.useShift == "HarmonicParabolic" then ?>\
-		(resultFlux)->b_ul.x.x += a_u.x * tmp1 + d_u.x * tmp1 + -beta_u.x * b_ul.x.x + -beta_u.y * b_ul.x.y + -2. * e_u.x * tmp1 + -beta_u.z * b_ul.x.z;\
-		(resultFlux)->b_ul.y.x += a_u.y * tmp1 + d_u.y * tmp1 + -beta_u.x * b_ul.y.x + -beta_u.y * b_ul.y.y + -2. * e_u.y * tmp1 + -beta_u.z * b_ul.y.z;\
-		(resultFlux)->b_ul.z.x += a_u.z * tmp1 + d_u.z * tmp1 + -beta_u.x * b_ul.z.x + -beta_u.y * b_ul.z.y + -2. * e_u.z * tmp1 + -beta_u.z * b_ul.z.z;\
-		<? elseif eqn.useShift == "HarmonicHyperbolic" then ?>\
-		(resultFlux)->b_ul.x.x += -(B_u.x + beta_u.x * b_ul.x.x + beta_u.z * b_ul.x.z + beta_u.y * b_ul.x.y);\
-		(resultFlux)->b_ul.y.x += -(B_u.y + beta_u.x * b_ul.y.x + beta_u.z * b_ul.y.z + beta_u.y * b_ul.y.y);\
-		(resultFlux)->b_ul.z.x += -(B_u.z + beta_u.x * b_ul.z.x + beta_u.z * b_ul.z.z + beta_u.y * b_ul.z.y);\
-		<? end ?>\
+		{\
+			real const tmp1 = alpha * alpha;\
+			(resultFlux)->b_ul.x.x += -beta_u.x * b_ul.x.x + -beta_u.y * b_ul.x.y + -beta_u.z * b_ul.x.z + a_u.x * tmp1 + -2. * e_u.x * tmp1 + d_u.x * tmp1;\
+			(resultFlux)->b_ul.y.x += -beta_u.x * b_ul.x.y + -beta_u.y * b_ul.y.y + -beta_u.z * b_ul.y.z + a_u.y * tmp1 + -2. * e_u.y * tmp1 + d_u.y * tmp1;\
+			(resultFlux)->b_ul.z.x += -beta_u.x * b_ul.x.z + -beta_u.y * b_ul.y.z + -beta_u.z * b_ul.z.z + a_u.z * tmp1 + -2. * e_u.z * tmp1 + d_u.z * tmp1;\
+		}\
+		<? end ?>/* eqn.useShift == "HarmonicParabolic" */\
+		<? if eqn.useShift == "HarmonicHyperbolic" then ?>\
+		{\
+			(resultFlux)->b_ul.x.x += -(B_u.x + beta_u.x * b_ul.x.x + beta_u.z * b_ul.x.z + beta_u.y * b_ul.x.y);\
+			(resultFlux)->b_ul.y.x += -(B_u.y + beta_u.x * b_ul.x.y + beta_u.z * b_ul.y.z + beta_u.y * b_ul.y.y);\
+			(resultFlux)->b_ul.z.x += -(B_u.z + beta_u.x * b_ul.x.z + beta_u.z * b_ul.z.z + beta_u.y * b_ul.y.z);\
+		}\
+		<? end ?>/* eqn.useShift == "HarmonicHyperbolic" */\
+		<? if eqn.useShift == "GammaDriverParabolic" then ?>\
+		{\
+			(resultFlux)->b_ul.x.x += (-3. * \bar{\Lambda}_{,t}_u.x + 4. * B_u.x * gammaDriverEta + -4. * beta_u.x * b_ul.x.x + -4. * beta_u.z * b_ul.x.z + -4. * beta_u.y * b_ul.x.y) / 4.;\
+			(resultFlux)->b_ul.y.x += (-3. * \bar{\Lambda}_{,t}_u.y + 4. * B_u.y * gammaDriverEta + -4. * beta_u.x * b_ul.x.y + -4. * beta_u.z * b_ul.y.z + -4. * beta_u.y * b_ul.y.y) / 4.;\
+			(resultFlux)->b_ul.z.x += (-3. * \bar{\Lambda}_{,t}_u.z + 4. * B_u.z * gammaDriverEta + -4. * beta_u.x * b_ul.x.z + -4. * beta_u.z * b_ul.z.z + -4. * beta_u.y * b_ul.y.z) / 4.;\
+		}\
+		<? end ?>/* eqn.useShift == "GammaDriverParabolic" */\
+		<? if eqn.useShift == "MinimalDistortionHyperbolic" then ?>\
+		{\
+			real const tmp1 = d_l.y * gamma_uu.xy;\
+			real const tmp2 = d_l.z * gamma_uu.xz;\
+			real const tmp3 = gamma_uu.xy * conn_ull.x.xy;\
+			real const tmp4 = gamma_uu.xz * conn_ull.x.xz;\
+			real const tmp5 = gamma_uu.yz * conn_ull.x.yz;\
+			(resultFlux)->b_ul.x.x += -(B_u.x + beta_u.x * b_ul.x.x + beta_u.z * b_ul.x.z + beta_u.y * b_ul.x.y);\
+			(resultFlux)->b_ul.y.x += -(B_u.y + beta_u.x * b_ul.x.y + beta_u.z * b_ul.y.z + beta_u.y * b_ul.y.y);\
+			(resultFlux)->b_ul.z.x += -(B_u.z + beta_u.x * b_ul.x.z + beta_u.z * b_ul.z.z + beta_u.y * b_ul.y.z);\
+			(resultFlux)->B_u.x += (mdeShiftEpsilon * (-6. * DBeta_uu.xx + -2. * gamma_uu.xx * tr_DBeta + 3. * beta_u.x * tmp1 + 3. * beta_u.x * tmp2 + 3. * beta_u.y * d_l.y * gamma_uu.xx + 3. * beta_u.z * d_l.z * gamma_uu.xx + 12. * A_uu.xx * alpha + 6. * beta_u.x * d_l.x * gamma_uu.xx + -6. * beta_u.x * gamma_uu.xx * conn_ull.x.xx + -6. * beta_u.x * tmp3 + -6. * beta_u.x * tmp4 + -6. * beta_u.y * gamma_uu.xx * conn_ull.x.xy + -6. * beta_u.y * gamma_uu.xy * conn_ull.x.yy + -6. * beta_u.y * gamma_uu.xz * conn_ull.x.yz + -6. * beta_u.z * gamma_uu.xx * conn_ull.x.xz + -6. * beta_u.z * gamma_uu.xz * conn_ull.x.zz + -6. * beta_u.z * gamma_uu.xy * conn_ull.x.yz)) / 6.;\
+			(resultFlux)->B_u.y += (mdeShiftEpsilon * (-6. * DBeta_uu.xy + -2. * gamma_uu.xy * tr_DBeta + 3. * beta_u.x * d_l.y * gamma_uu.yy + 3. * beta_u.x * d_l.z * gamma_uu.yz + 3. * beta_u.y * tmp1 + 3. * beta_u.z * d_l.z * gamma_uu.xy + 12. * A_uu.xy * alpha + 6. * beta_u.x * d_l.x * gamma_uu.xy + -6. * beta_u.x * gamma_uu.xy * conn_ull.x.xx + -6. * beta_u.x * gamma_uu.yy * conn_ull.x.xy + -6. * beta_u.x * gamma_uu.yz * conn_ull.x.xz + -6. * beta_u.y * tmp3 + -6. * beta_u.y * gamma_uu.yy * conn_ull.x.yy + -6. * beta_u.y * tmp5 + -6. * beta_u.z * gamma_uu.xy * conn_ull.x.xz + -6. * beta_u.z * gamma_uu.yz * conn_ull.x.zz + -6. * beta_u.z * gamma_uu.yy * conn_ull.x.yz)) / 6.;\
+			(resultFlux)->B_u.z += (mdeShiftEpsilon * (-6. * DBeta_uu.xz + -2. * gamma_uu.xz * tr_DBeta + 3. * beta_u.x * d_l.y * gamma_uu.yz + 3. * beta_u.x * d_l.z * gamma_uu.zz + 3. * beta_u.y * d_l.y * gamma_uu.xz + 3. * beta_u.z * tmp2 + 12. * A_uu.xz * alpha + 6. * beta_u.x * d_l.x * gamma_uu.xz + -6. * beta_u.x * gamma_uu.xz * conn_ull.x.xx + -6. * beta_u.x * gamma_uu.yz * conn_ull.x.xy + -6. * beta_u.x * gamma_uu.zz * conn_ull.x.xz + -6. * beta_u.y * gamma_uu.xz * conn_ull.x.xy + -6. * beta_u.y * gamma_uu.yz * conn_ull.x.yy + -6. * beta_u.y * gamma_uu.zz * conn_ull.x.yz + -6. * beta_u.z * tmp4 + -6. * beta_u.z * gamma_uu.zz * conn_ull.x.zz + -6. * beta_u.z * tmp5)) / 6.;\
+		}\
+		<? end ?>/* eqn.useShift == "MinimalDistortionHyperbolic" */\
 	}\
 	<? end ?>/* eqn.useShift ~= "none" */\
-	/* END CUT */\
+	/* END CUT from symmath/tests/output/Z4.html */\
 \
 <? if solver.coord.vectorComponent == "cartesian" then ?>\
 \
@@ -1346,18 +1399,35 @@ end
 	real const f_alpha = calc_f_alpha((U)->alpha);
 
 	<? if eqn.useShift ~= "none" then ?>
-	<? if has_beta_u then ?>
+		<? if has_beta_u then ?>
 	real3 const beta_u = U->beta_u;
-	<? end ?>
-	<? if has_b_ul then ?>
+		<? end ?>
+		<? if has_b_ul then ?>
 	real3x3 const b_ul = U->b_ul;
 	real const tr_b = real3x3_trace(b_ul);
 	sym3 b_ll = sym3_real3x3_to_sym3_mul(gamma_ll, b_ul);
-	<? end ?>
-	<? if has_B_u then ?>
+		<? end ?>
+		<? if has_B_u then ?>
 	real3 const B_u = U->B_u;
-	<? end ?>
+		<? end ?>
 	_3sym3 const dDelta_lll = U->dDelta_lll;
+		<? if eqn.useShift == "GammaDriverParabolic" then ?>
+	real const gammaDriverEta = 1.;
+	/*
+	*/
+	real3 const dt_LambdaBar_u;
+
+		<? end ?>
+		<? if eqn.useShift == "MinimalDistortionHyperbolic" then ?>
+//// MODULE_DEPENDS: mdeShiftEpsilon
+	real3x3 const DBeta_ul = real3x3_add(b_ul, real3_3sym3_dot2(beta_u, conn_ull));
+	sym3 const DBeta_uu = real3x3_sym3_to_sym3_mul(DBeta_ul, gamma_uu);
+	real const tr_DBeta = real3x3_trace(DBeta_ul);
+	real3x3x3 const conn_uul = _3sym3_sym3_mul(conn_ull, gamma_uu);
+	//TODO why not use b_ll as a state var? then we'd be storing 6 instead of 9 vars.
+	sym3 const b_uu = real3x3_sym3_to_sym3_mul(b_ul, gamma_uu);
+	sym3 const A_uu = sym3_sub(K_uu, sym3_real_mul(gamma_uu, tr_K / 3.));
+		<? end ?>
 	<? end ?>
 
 	// BEGIN CUT from symmath/tests/output/Z4.html
@@ -1384,78 +1454,176 @@ end
 	}
 	<? if eqn.useShift ~= "none" then ?>
 	{
-		real const tmp1 = alpha * alpha;
-		real const tmp2 = a_u.x * tmp1;
-		real const tmp3 = d_u.x * tmp1;
-		real const tmp4 = e_u.x * tmp1;
-		real const tmp5 = 2. * tmp4;
-		real const tmp6 = -tmp3;
-		real const tmp7 = -tmp2;
-		real const tmp8 = a_u.y * tmp1;
-		real const tmp9 = d_u.y * tmp1;
-		real const tmp10 = e_u.y * tmp1;
-		real const tmp11 = 2. * tmp10;
-		real const tmp12 = -tmp9;
-		real const tmp13 = -tmp8;
-		real const tmp14 = a_u.z * tmp1;
-		real const tmp15 = d_u.z * tmp1;
-		real const tmp16 = e_u.z * tmp1;
-		real const tmp17 = 2. * tmp16;
-		real const tmp18 = -tmp15;
-		real const tmp19 = -tmp14;
-		(deriv)->alpha += alpha * (beta_u.x * a_l.x + beta_u.z * a_l.z + beta_u.y * a_l.y);
-		(deriv)->gammaDelta_ll.xx += 2. * (b_ll.xx + beta_u.x * d_lll.x.xx + beta_u.z * d_lll.z.xx + beta_u.y * d_lll.y.xx);
-		(deriv)->gammaDelta_ll.xy += b_ll.xy + b_ll.xy + 2. * beta_u.x * d_lll.x.xy + 2. * beta_u.z * d_lll.z.xy + 2. * beta_u.y * d_lll.y.xy;
-		(deriv)->gammaDelta_ll.xz += b_ll.xz + b_ll.xz + 2. * beta_u.x * d_lll.x.xz + 2. * beta_u.z * d_lll.z.xz + 2. * beta_u.y * d_lll.y.xz;
-		(deriv)->gammaDelta_ll.yy += 2. * (b_ll.yy + beta_u.x * d_lll.x.yy + beta_u.z * d_lll.z.yy + beta_u.y * d_lll.y.yy);
-		(deriv)->gammaDelta_ll.yz += b_ll.yz + b_ll.yz + 2. * beta_u.x * d_lll.x.yz + 2. * beta_u.z * d_lll.z.yz + 2. * beta_u.y * d_lll.y.yz;
-		(deriv)->gammaDelta_ll.zz += 2. * (b_ll.zz + beta_u.x * d_lll.x.zz + beta_u.z * d_lll.z.zz + beta_u.y * d_lll.y.zz);
-		(deriv)->a_l.x += a_l.x * b_ul.x.x + -a_l.x * tr_b + a_l.z * b_ul.z.x + a_l.y * b_ul.y.x;
-		(deriv)->a_l.y += a_l.x * b_ul.x.y + a_l.y * b_ul.y.y + a_l.z * b_ul.z.y + -a_l.y * tr_b;
-		(deriv)->a_l.z += a_l.x * b_ul.x.z + a_l.y * b_ul.y.z + -a_l.z * tr_b + a_l.z * b_ul.z.z;
-		(deriv)->dDelta_lll.x.xx += b_ul.x.x * dDelta_lll.x.xx + b_ul.y.x * dDelta_lll.y.xx + -dDelta_lll.x.xx * tr_b + b_ul.z.x * dDelta_lll.z.xx;
-		(deriv)->dDelta_lll.x.xy += b_ul.x.x * dDelta_lll.x.xy + b_ul.y.x * dDelta_lll.y.xy + -dDelta_lll.x.xy * tr_b + b_ul.z.x * dDelta_lll.z.xy;
-		(deriv)->dDelta_lll.x.xz += b_ul.x.x * dDelta_lll.x.xz + b_ul.y.x * dDelta_lll.y.xz + -dDelta_lll.x.xz * tr_b + b_ul.z.x * dDelta_lll.z.xz;
-		(deriv)->dDelta_lll.x.yy += b_ul.x.x * dDelta_lll.x.yy + b_ul.y.x * dDelta_lll.y.yy + -dDelta_lll.x.yy * tr_b + b_ul.z.x * dDelta_lll.z.yy;
-		(deriv)->dDelta_lll.x.yz += b_ul.x.x * dDelta_lll.x.yz + b_ul.y.x * dDelta_lll.y.yz + -dDelta_lll.x.yz * tr_b + b_ul.z.x * dDelta_lll.z.yz;
-		(deriv)->dDelta_lll.x.zz += b_ul.x.x * dDelta_lll.x.zz + b_ul.y.x * dDelta_lll.y.zz + -dDelta_lll.x.zz * tr_b + b_ul.z.x * dDelta_lll.z.zz;
-		(deriv)->dDelta_lll.y.xx += b_ul.x.y * dDelta_lll.x.xx + b_ul.y.y * dDelta_lll.y.xx + -dDelta_lll.y.xx * tr_b + b_ul.z.y * dDelta_lll.z.xx;
-		(deriv)->dDelta_lll.y.xy += b_ul.x.y * dDelta_lll.x.xy + b_ul.y.y * dDelta_lll.y.xy + -dDelta_lll.y.xy * tr_b + b_ul.z.y * dDelta_lll.z.xy;
-		(deriv)->dDelta_lll.y.xz += b_ul.x.y * dDelta_lll.x.xz + b_ul.y.y * dDelta_lll.y.xz + -dDelta_lll.y.xz * tr_b + b_ul.z.y * dDelta_lll.z.xz;
-		(deriv)->dDelta_lll.y.yy += b_ul.x.y * dDelta_lll.x.yy + b_ul.y.y * dDelta_lll.y.yy + -dDelta_lll.y.yy * tr_b + b_ul.z.y * dDelta_lll.z.yy;
-		(deriv)->dDelta_lll.y.yz += b_ul.x.y * dDelta_lll.x.yz + b_ul.y.y * dDelta_lll.y.yz + -dDelta_lll.y.yz * tr_b + b_ul.z.y * dDelta_lll.z.yz;
-		(deriv)->dDelta_lll.y.zz += b_ul.x.y * dDelta_lll.x.zz + b_ul.y.y * dDelta_lll.y.zz + -dDelta_lll.y.zz * tr_b + b_ul.z.y * dDelta_lll.z.zz;
-		(deriv)->dDelta_lll.z.xx += b_ul.x.z * dDelta_lll.x.xx + b_ul.y.z * dDelta_lll.y.xx + -dDelta_lll.z.xx * tr_b + b_ul.z.z * dDelta_lll.z.xx;
-		(deriv)->dDelta_lll.z.xy += b_ul.x.z * dDelta_lll.x.xy + b_ul.y.z * dDelta_lll.y.xy + -dDelta_lll.z.xy * tr_b + b_ul.z.z * dDelta_lll.z.xy;
-		(deriv)->dDelta_lll.z.xz += b_ul.x.z * dDelta_lll.x.xz + b_ul.y.z * dDelta_lll.y.xz + -dDelta_lll.z.xz * tr_b + b_ul.z.z * dDelta_lll.z.xz;
-		(deriv)->dDelta_lll.z.yy += b_ul.x.z * dDelta_lll.x.yy + b_ul.y.z * dDelta_lll.y.yy + -dDelta_lll.z.yy * tr_b + b_ul.z.z * dDelta_lll.z.yy;
-		(deriv)->dDelta_lll.z.yz += b_ul.x.z * dDelta_lll.x.yz + b_ul.y.z * dDelta_lll.y.yz + -dDelta_lll.z.yz * tr_b + b_ul.z.z * dDelta_lll.z.yz;
-		(deriv)->dDelta_lll.z.zz += b_ul.x.z * dDelta_lll.x.zz + b_ul.y.z * dDelta_lll.y.zz + -dDelta_lll.z.zz * tr_b + b_ul.z.z * dDelta_lll.z.zz;
-		(deriv)->K_ll.xx += -K_ll.xx * tr_b + 2. * K_ll.xx * b_ul.x.x + 2. * K_ll.xz * b_ul.z.x + 2. * K_ll.xy * b_ul.y.x;
-		(deriv)->K_ll.xy += K_ll.xx * b_ul.x.y + K_ll.xy * b_ul.x.x + K_ll.xy * b_ul.y.y + -K_ll.xy * tr_b + K_ll.xz * b_ul.z.y + K_ll.yz * b_ul.z.x + K_ll.yy * b_ul.y.x;
-		(deriv)->K_ll.xz += K_ll.xx * b_ul.x.z + K_ll.xy * b_ul.y.z + K_ll.xz * b_ul.x.x + K_ll.xz * b_ul.z.z + -K_ll.xz * tr_b + K_ll.zz * b_ul.z.x + K_ll.yz * b_ul.y.x;
-		(deriv)->K_ll.yy += -K_ll.yy * tr_b + 2. * K_ll.xy * b_ul.x.y + 2. * K_ll.yz * b_ul.z.y + 2. * K_ll.yy * b_ul.y.y;
-		(deriv)->K_ll.yz += K_ll.xy * b_ul.x.z + K_ll.xz * b_ul.x.y + K_ll.yy * b_ul.y.z + K_ll.yz * b_ul.y.y + K_ll.yz * b_ul.z.z + K_ll.zz * b_ul.z.y + -K_ll.yz * tr_b;
-		(deriv)->K_ll.zz += -K_ll.zz * tr_b + 2. * K_ll.xz * b_ul.x.z + 2. * K_ll.zz * b_ul.z.z + 2. * K_ll.yz * b_ul.y.z;
-		(deriv)->Theta += -Theta * tr_b;
-		(deriv)->Z_l.x += Z_l.x * b_ul.x.x + -Z_l.x * tr_b + Z_l.z * b_ul.z.x + Z_l.y * b_ul.y.x;
-		(deriv)->Z_l.y += Z_l.x * b_ul.x.y + Z_l.y * b_ul.y.y + Z_l.z * b_ul.z.y + -Z_l.y * tr_b;
-		(deriv)->Z_l.z += Z_l.x * b_ul.x.z + Z_l.y * b_ul.y.z + -Z_l.z * tr_b + Z_l.z * b_ul.z.z;
-		<? if eqn.useShift == "HarmonicParabolic" then ?>\
-		(deriv)->beta_u.x += beta_u.x * b_ul.x.x + beta_u.y * b_ul.x.y + beta_u.z * b_ul.x.z + tmp5 + tmp6 + tmp7;
-		(deriv)->beta_u.y += beta_u.x * b_ul.y.x + beta_u.y * b_ul.y.y + beta_u.z * b_ul.y.z + tmp11 + tmp12 + tmp13;
-		(deriv)->beta_u.z += beta_u.x * b_ul.z.x + beta_u.y * b_ul.z.y + beta_u.z * b_ul.z.z + tmp17 + tmp18 + tmp19;
-		<? elseif eqn.useShift == "HarmonicHyperbolic" then ?>\
-		(deriv)->beta_u.x += B_u.x + beta_u.x * b_ul.x.x + beta_u.z * b_ul.x.z + beta_u.y * b_ul.x.y;
-		(deriv)->beta_u.y += B_u.y + beta_u.x * b_ul.y.x + beta_u.z * b_ul.y.z + beta_u.y * b_ul.y.y;
-		(deriv)->beta_u.z += B_u.z + beta_u.x * b_ul.z.x + beta_u.z * b_ul.z.z + beta_u.y * b_ul.z.y;
-		(deriv)->B_u.x += B_u.x * b_ul.x.x + B_u.y * b_ul.x.y + B_u.z * b_ul.x.z + tmp5 + tmp6 + tmp7;
-		(deriv)->B_u.y += B_u.x * b_ul.y.x + B_u.y * b_ul.y.y + B_u.z * b_ul.y.z + tmp11 + tmp12 + tmp13;
-		(deriv)->B_u.z += B_u.x * b_ul.z.x + B_u.y * b_ul.z.y + B_u.z * b_ul.z.z + tmp17 + tmp18 + tmp19;
-		<? end ?>\
+		{
+			(deriv)->alpha += alpha * (beta_u.x * a_l.x + beta_u.z * a_l.z + beta_u.y * a_l.y);
+			(deriv)->gammaDelta_ll.xx += 2. * (b_ll.xx + beta_u.x * d_lll.x.xx + beta_u.z * d_lll.z.xx + beta_u.y * d_lll.y.xx);
+			(deriv)->gammaDelta_ll.xy += 2. * (b_ll.xy + beta_u.x * d_lll.x.xy + beta_u.z * d_lll.z.xy + beta_u.y * d_lll.y.xy);
+			(deriv)->gammaDelta_ll.xz += 2. * (b_ll.xz + beta_u.x * d_lll.x.xz + beta_u.z * d_lll.z.xz + beta_u.y * d_lll.y.xz);
+			(deriv)->gammaDelta_ll.yy += 2. * (b_ll.yy + beta_u.x * d_lll.x.yy + beta_u.z * d_lll.z.yy + beta_u.y * d_lll.y.yy);
+			(deriv)->gammaDelta_ll.yz += 2. * (b_ll.yz + beta_u.x * d_lll.x.yz + beta_u.z * d_lll.z.yz + beta_u.y * d_lll.y.yz);
+			(deriv)->gammaDelta_ll.zz += 2. * (b_ll.zz + beta_u.x * d_lll.x.zz + beta_u.z * d_lll.z.zz + beta_u.y * d_lll.y.zz);
+			(deriv)->a_l.x += a_l.x * b_ul.x.x + -a_l.x * tr_b + a_l.z * b_ul.x.z + a_l.y * b_ul.x.y;
+			(deriv)->a_l.y += a_l.x * b_ul.x.y + a_l.y * b_ul.y.y + a_l.z * b_ul.y.z + -a_l.y * tr_b;
+			(deriv)->a_l.z += a_l.x * b_ul.x.z + a_l.y * b_ul.y.z + -a_l.z * tr_b + a_l.z * b_ul.z.z;
+			(deriv)->dDelta_lll.x.xx += b_ul.x.x * dDelta_lll.x.xx + b_ul.x.y * dDelta_lll.y.xx + -dDelta_lll.x.xx * tr_b + b_ul.x.z * dDelta_lll.z.xx;
+			(deriv)->dDelta_lll.x.xy += b_ul.x.x * dDelta_lll.x.xy + b_ul.x.y * dDelta_lll.y.xy + -dDelta_lll.x.xy * tr_b + b_ul.x.z * dDelta_lll.z.xy;
+			(deriv)->dDelta_lll.x.xz += b_ul.x.x * dDelta_lll.x.xz + b_ul.x.y * dDelta_lll.y.xz + -dDelta_lll.x.xz * tr_b + b_ul.x.z * dDelta_lll.z.xz;
+			(deriv)->dDelta_lll.x.yy += b_ul.x.x * dDelta_lll.x.yy + b_ul.x.y * dDelta_lll.y.yy + -dDelta_lll.x.yy * tr_b + b_ul.x.z * dDelta_lll.z.yy;
+			(deriv)->dDelta_lll.x.yz += b_ul.x.x * dDelta_lll.x.yz + b_ul.x.y * dDelta_lll.y.yz + -dDelta_lll.x.yz * tr_b + b_ul.x.z * dDelta_lll.z.yz;
+			(deriv)->dDelta_lll.x.zz += b_ul.x.x * dDelta_lll.x.zz + b_ul.x.y * dDelta_lll.y.zz + -dDelta_lll.x.zz * tr_b + b_ul.x.z * dDelta_lll.z.zz;
+			(deriv)->dDelta_lll.y.xx += b_ul.x.y * dDelta_lll.x.xx + b_ul.y.y * dDelta_lll.y.xx + -dDelta_lll.y.xx * tr_b + b_ul.y.z * dDelta_lll.z.xx;
+			(deriv)->dDelta_lll.y.xy += b_ul.x.y * dDelta_lll.x.xy + b_ul.y.y * dDelta_lll.y.xy + -dDelta_lll.y.xy * tr_b + b_ul.y.z * dDelta_lll.z.xy;
+			(deriv)->dDelta_lll.y.xz += b_ul.x.y * dDelta_lll.x.xz + b_ul.y.y * dDelta_lll.y.xz + -dDelta_lll.y.xz * tr_b + b_ul.y.z * dDelta_lll.z.xz;
+			(deriv)->dDelta_lll.y.yy += b_ul.x.y * dDelta_lll.x.yy + b_ul.y.y * dDelta_lll.y.yy + -dDelta_lll.y.yy * tr_b + b_ul.y.z * dDelta_lll.z.yy;
+			(deriv)->dDelta_lll.y.yz += b_ul.x.y * dDelta_lll.x.yz + b_ul.y.y * dDelta_lll.y.yz + -dDelta_lll.y.yz * tr_b + b_ul.y.z * dDelta_lll.z.yz;
+			(deriv)->dDelta_lll.y.zz += b_ul.x.y * dDelta_lll.x.zz + b_ul.y.y * dDelta_lll.y.zz + -dDelta_lll.y.zz * tr_b + b_ul.y.z * dDelta_lll.z.zz;
+			(deriv)->dDelta_lll.z.xx += b_ul.x.z * dDelta_lll.x.xx + b_ul.y.z * dDelta_lll.y.xx + -dDelta_lll.z.xx * tr_b + b_ul.z.z * dDelta_lll.z.xx;
+			(deriv)->dDelta_lll.z.xy += b_ul.x.z * dDelta_lll.x.xy + b_ul.y.z * dDelta_lll.y.xy + -dDelta_lll.z.xy * tr_b + b_ul.z.z * dDelta_lll.z.xy;
+			(deriv)->dDelta_lll.z.xz += b_ul.x.z * dDelta_lll.x.xz + b_ul.y.z * dDelta_lll.y.xz + -dDelta_lll.z.xz * tr_b + b_ul.z.z * dDelta_lll.z.xz;
+			(deriv)->dDelta_lll.z.yy += b_ul.x.z * dDelta_lll.x.yy + b_ul.y.z * dDelta_lll.y.yy + -dDelta_lll.z.yy * tr_b + b_ul.z.z * dDelta_lll.z.yy;
+			(deriv)->dDelta_lll.z.yz += b_ul.x.z * dDelta_lll.x.yz + b_ul.y.z * dDelta_lll.y.yz + -dDelta_lll.z.yz * tr_b + b_ul.z.z * dDelta_lll.z.yz;
+			(deriv)->dDelta_lll.z.zz += b_ul.x.z * dDelta_lll.x.zz + b_ul.y.z * dDelta_lll.y.zz + -dDelta_lll.z.zz * tr_b + b_ul.z.z * dDelta_lll.z.zz;
+			(deriv)->K_ll.xx += -K_ll.xx * tr_b + 2. * K_ll.xx * b_ul.x.x + 2. * K_ll.xz * b_ul.x.z + 2. * K_ll.xy * b_ul.x.y;
+			(deriv)->K_ll.xy += K_ll.xx * b_ul.x.y + K_ll.xy * b_ul.x.x + K_ll.xy * b_ul.y.y + -K_ll.xy * tr_b + K_ll.xz * b_ul.y.z + K_ll.yz * b_ul.x.z + K_ll.yy * b_ul.x.y;
+			(deriv)->K_ll.xz += K_ll.xx * b_ul.x.z + K_ll.xy * b_ul.y.z + K_ll.xz * b_ul.x.x + K_ll.xz * b_ul.z.z + -K_ll.xz * tr_b + K_ll.zz * b_ul.x.z + K_ll.yz * b_ul.x.y;
+			(deriv)->K_ll.yy += -K_ll.yy * tr_b + 2. * K_ll.xy * b_ul.x.y + 2. * K_ll.yz * b_ul.y.z + 2. * K_ll.yy * b_ul.y.y;
+			(deriv)->K_ll.yz += K_ll.xy * b_ul.x.z + K_ll.xz * b_ul.x.y + K_ll.yy * b_ul.y.z + K_ll.yz * b_ul.y.y + K_ll.yz * b_ul.z.z + K_ll.zz * b_ul.y.z + -K_ll.yz * tr_b;
+			(deriv)->K_ll.zz += -K_ll.zz * tr_b + 2. * K_ll.xz * b_ul.x.z + 2. * K_ll.zz * b_ul.z.z + 2. * K_ll.yz * b_ul.y.z;
+			(deriv)->Theta += -Theta * tr_b;
+			(deriv)->Z_l.x += Z_l.x * b_ul.x.x + -Z_l.x * tr_b + Z_l.z * b_ul.x.z + Z_l.y * b_ul.x.y;
+			(deriv)->Z_l.y += Z_l.x * b_ul.x.y + Z_l.y * b_ul.y.y + Z_l.z * b_ul.y.z + -Z_l.y * tr_b;
+			(deriv)->Z_l.z += Z_l.x * b_ul.x.z + Z_l.y * b_ul.y.z + -Z_l.z * tr_b + Z_l.z * b_ul.z.z;
+		}
+		<? if eqn.useShift == "HarmonicParabolic" then ?>
+		{
+			real const tmp1 = alpha * alpha;
+			(deriv)->beta_u.x += beta_u.x * b_ul.x.x + beta_u.y * b_ul.x.y + beta_u.z * b_ul.x.z + -a_u.x * tmp1 + 2. * e_u.x * tmp1 + -d_u.x * tmp1;
+			(deriv)->beta_u.y += beta_u.x * b_ul.x.y + beta_u.y * b_ul.y.y + beta_u.z * b_ul.y.z + -a_u.y * tmp1 + 2. * e_u.y * tmp1 + -d_u.y * tmp1;
+			(deriv)->beta_u.z += beta_u.x * b_ul.x.z + beta_u.y * b_ul.y.z + beta_u.z * b_ul.z.z + -a_u.z * tmp1 + 2. * e_u.z * tmp1 + -d_u.z * tmp1;
+		}
+		<? end ?>/* eqn.useShift == "HarmonicParabolic" */
+		<? if eqn.useShift == "HarmonicHyperbolic" then ?>
+		{
+			real const tmp1 = alpha * alpha;
+			(deriv)->beta_u.x += B_u.x + beta_u.x * b_ul.x.x + beta_u.z * b_ul.x.z + beta_u.y * b_ul.x.y;
+			(deriv)->beta_u.y += B_u.y + beta_u.x * b_ul.x.y + beta_u.z * b_ul.y.z + beta_u.y * b_ul.y.y;
+			(deriv)->beta_u.z += B_u.z + beta_u.x * b_ul.x.z + beta_u.z * b_ul.z.z + beta_u.y * b_ul.y.z;
+			(deriv)->B_u.x += B_u.x * b_ul.x.x + B_u.y * b_ul.x.y + B_u.z * b_ul.x.z + -a_u.x * tmp1 + 2. * e_u.x * tmp1 + -d_u.x * tmp1;
+			(deriv)->B_u.y += B_u.x * b_ul.x.y + B_u.y * b_ul.y.y + B_u.z * b_ul.y.z + -a_u.y * tmp1 + 2. * e_u.y * tmp1 + -d_u.y * tmp1;
+			(deriv)->B_u.z += B_u.x * b_ul.x.z + B_u.y * b_ul.y.z + B_u.z * b_ul.z.z + -a_u.z * tmp1 + 2. * e_u.z * tmp1 + -d_u.z * tmp1;
+		}
+		<? end ?>/* eqn.useShift == "HarmonicHyperbolic" */
+		<? if eqn.useShift == "GammaDriverParabolic" then ?>
+		{
+			(deriv)->beta_u.x += (3. * dt_LambdaBar_u.x + -4. * B_u.x * gammaDriverEta + 4. * beta_u.x * b_ul.x.x + 4. * beta_u.z * b_ul.x.z + 4. * beta_u.y * b_ul.x.y) / 4.;
+			(deriv)->beta_u.y += (3. * dt_LambdaBar_u.y + -4. * B_u.y * gammaDriverEta + 4. * beta_u.x * b_ul.x.y + 4. * beta_u.z * b_ul.y.z + 4. * beta_u.y * b_ul.y.y) / 4.;
+			(deriv)->beta_u.z += (3. * dt_LambdaBar_u.z + -4. * B_u.z * gammaDriverEta + 4. * beta_u.x * b_ul.x.z + 4. * beta_u.z * b_ul.z.z + 4. * beta_u.y * b_ul.y.z) / 4.;
+		}
+		<? end ?>/* eqn.useShift == "GammaDriverParabolic" */
+		<? if eqn.useShift == "MinimalDistortionHyperbolic" then ?>
+		{
+			real const tmp1 = b_ul.x.x * mdeShiftEpsilon;
+			real const tmp2 = b_ul.y.y * mdeShiftEpsilon;
+			real const tmp3 = b_ul.z.z * mdeShiftEpsilon;
+			real const tmp4 = b_uu.xy * mdeShiftEpsilon;
+			real const tmp5 = b_uu.xz * mdeShiftEpsilon;
+			real const tmp6 = tr_DBeta * mdeShiftEpsilon;
+			real const tmp7 = DBeta_uu.xy * mdeShiftEpsilon;
+			real const tmp8 = DBeta_uu.xz * mdeShiftEpsilon;
+			real const tmp9 = conn_ull.x.xx * mdeShiftEpsilon;
+			real const tmp10 = conn_uul.x.x.x * mdeShiftEpsilon;
+			real const tmp11 = conn_uul.y.x.x * mdeShiftEpsilon;
+			real const tmp12 = conn_uul.z.x.x * mdeShiftEpsilon;
+			real const tmp13 = conn_uul.y.x.y * mdeShiftEpsilon;
+			real const tmp14 = conn_uul.z.x.y * mdeShiftEpsilon;
+			real const tmp15 = conn_uul.z.x.z * mdeShiftEpsilon;
+			real const tmp16 = conn_uul.x.x.y * mdeShiftEpsilon;
+			real const tmp17 = conn_uul.x.x.z * mdeShiftEpsilon;
+			real const tmp18 = conn_uul.y.x.z * mdeShiftEpsilon;
+			real const tmp19 = conn_ull.x.xy * mdeShiftEpsilon;
+			real const tmp20 = conn_ull.x.xz * mdeShiftEpsilon;
+			real const tmp21 = e_u.x * mdeShiftEpsilon;
+			real const tmp22 = d_luu.x.xx * mdeShiftEpsilon;
+			real const tmp23 = d_luu.x.xy * mdeShiftEpsilon;
+			real const tmp24 = d_luu.x.xz * mdeShiftEpsilon;
+			real const tmp25 = conn_ull.y.xx * mdeShiftEpsilon;
+			real const tmp26 = conn_ull.z.xx * mdeShiftEpsilon;
+			real const tmp27 = conn_ull.y.xy * mdeShiftEpsilon;
+			real const tmp28 = conn_ull.z.xy * mdeShiftEpsilon;
+			real const tmp29 = conn_ull.z.xz * mdeShiftEpsilon;
+			real const tmp30 = d_luu.y.xx * mdeShiftEpsilon;
+			real const tmp31 = d_luu.y.xy * mdeShiftEpsilon;
+			real const tmp32 = d_luu.y.xz * mdeShiftEpsilon;
+			real const tmp33 = conn_ull.y.yy * mdeShiftEpsilon;
+			real const tmp34 = conn_ull.z.yy * mdeShiftEpsilon;
+			real const tmp35 = conn_ull.z.yz * mdeShiftEpsilon;
+			real const tmp36 = d_luu.z.xx * mdeShiftEpsilon;
+			real const tmp37 = d_luu.z.xy * mdeShiftEpsilon;
+			real const tmp38 = d_luu.z.xz * mdeShiftEpsilon;
+			real const tmp39 = conn_ull.y.xz * mdeShiftEpsilon;
+			real const tmp40 = conn_ull.y.yz * mdeShiftEpsilon;
+			real const tmp41 = conn_ull.z.zz * mdeShiftEpsilon;
+			real const tmp42 = conn_ull.x.xy * tmp23;
+			real const tmp43 = conn_ull.x.xz * tmp24;
+			real const tmp44 = conn_ull.y.xy * tmp31;
+			real const tmp45 = conn_ull.y.xz * tmp32;
+			real const tmp46 = conn_ull.z.xy * tmp37;
+			real const tmp47 = conn_ull.z.xz * tmp38;
+			real const tmp48 = alpha * mdeShiftEpsilon;
+			real const tmp49 = conn_ull.y.xy * tmp48;
+			real const tmp50 = conn_ull.z.xz * tmp48;
+			real const tmp51 = conn_ull.y.yy * tmp48;
+			real const tmp52 = conn_ull.z.yz * tmp48;
+			real const tmp53 = conn_ull.y.yz * tmp48;
+			real const tmp54 = conn_ull.z.zz * tmp48;
+			real const tmp55 = conn_ull.x.xy * tmp48;
+			real const tmp56 = conn_ull.x.xz * tmp48;
+			real const tmp57 = conn_ull.x.xx * tmp48;
+			real const tmp58 = b_uu.yz * mdeShiftEpsilon;
+			real const tmp59 = DBeta_uu.yz * mdeShiftEpsilon;
+			real const tmp60 = conn_uul.x.x.y * mdeShiftEpsilon;
+			real const tmp61 = conn_uul.y.x.y * mdeShiftEpsilon;
+			real const tmp62 = conn_uul.z.x.y * mdeShiftEpsilon;
+			real const tmp63 = conn_uul.y.y.y * mdeShiftEpsilon;
+			real const tmp64 = conn_uul.z.y.y * mdeShiftEpsilon;
+			real const tmp65 = conn_uul.z.y.z * mdeShiftEpsilon;
+			real const tmp66 = conn_uul.x.y.y * mdeShiftEpsilon;
+			real const tmp67 = conn_uul.x.y.z * mdeShiftEpsilon;
+			real const tmp68 = conn_uul.y.y.z * mdeShiftEpsilon;
+			real const tmp69 = e_u.y * mdeShiftEpsilon;
+			real const tmp70 = d_luu.x.yy * mdeShiftEpsilon;
+			real const tmp71 = d_luu.x.yz * mdeShiftEpsilon;
+			real const tmp72 = d_luu.y.yy * mdeShiftEpsilon;
+			real const tmp73 = d_luu.y.yz * mdeShiftEpsilon;
+			real const tmp74 = d_luu.z.yy * mdeShiftEpsilon;
+			real const tmp75 = d_luu.z.yz * mdeShiftEpsilon;
+			real const tmp76 = conn_ull.x.yz * tmp71;
+			real const tmp77 = conn_ull.y.yz * tmp73;
+			real const tmp78 = conn_ull.z.yz * tmp75;
+			real const tmp79 = conn_uul.x.x.z * mdeShiftEpsilon;
+			real const tmp80 = conn_uul.y.x.z * mdeShiftEpsilon;
+			real const tmp81 = conn_uul.z.x.z * mdeShiftEpsilon;
+			real const tmp82 = conn_uul.y.y.z * mdeShiftEpsilon;
+			real const tmp83 = conn_uul.z.y.z * mdeShiftEpsilon;
+			real const tmp84 = conn_uul.z.z.z * mdeShiftEpsilon;
+			real const tmp85 = conn_uul.x.y.z * mdeShiftEpsilon;
+			real const tmp86 = conn_uul.x.z.z * mdeShiftEpsilon;
+			real const tmp87 = conn_uul.y.z.z * mdeShiftEpsilon;
+			real const tmp88 = e_u.z * mdeShiftEpsilon;
+			real const tmp89 = d_luu.x.zz * mdeShiftEpsilon;
+			real const tmp90 = d_luu.y.zz * mdeShiftEpsilon;
+			real const tmp91 = d_luu.z.zz * mdeShiftEpsilon;
+			(deriv)->beta_u.x += B_u.x + beta_u.x * b_ul.x.x + beta_u.z * b_ul.x.z + beta_u.y * b_ul.x.y;
+			(deriv)->beta_u.y += B_u.y + beta_u.x * b_ul.x.y + beta_u.z * b_ul.y.z + beta_u.y * b_ul.y.y;
+			(deriv)->beta_u.z += B_u.z + beta_u.x * b_ul.x.z + beta_u.z * b_ul.z.z + beta_u.y * b_ul.y.z;
+			(deriv)->B_u.x += (6. * B_u.x * b_ul.x.x + 6. * B_u.y * b_ul.x.y + 6. * B_u.z * b_ul.x.z + -3. * d_u.x * tmp1 + -3. * d_u.x * tmp2 + -3. * d_u.x * tmp3 + -3. * d_l.x * b_uu.xx * mdeShiftEpsilon + -3. * d_l.y * tmp4 + -3. * d_l.z * tmp5 + 4. * e_u.x * tmp6 + 6. * d_l.x * DBeta_uu.xx * mdeShiftEpsilon + 6. * d_l.y * tmp7 + 6. * d_l.z * tmp8 + 6. * DBeta_uu.xx * tmp9 + 6. * DBeta_uu.yy * conn_ull.x.yy * mdeShiftEpsilon + 6. * DBeta_uu.zz * conn_ull.x.zz * mdeShiftEpsilon + 6. * b_ul.x.x * tmp10 + 6. * b_ul.x.y * tmp11 + 6. * b_ul.x.z * tmp12 + 6. * b_ul.y.y * tmp13 + 6. * b_ul.y.z * tmp14 + 6. * b_ul.z.z * tmp15 + 6. * b_ul.x.y * tmp16 + 6. * b_ul.x.z * tmp17 + 6. * b_ul.y.z * tmp18 + 12. * DBeta_uu.xy * tmp19 + 12. * DBeta_uu.xz * tmp20 + 12. * DBeta_uu.yz * conn_ull.x.yz * mdeShiftEpsilon + 6. * beta_u.x * d_l.x * tmp21 + 6. * beta_u.x * d_l.x * tmp10 + 6. * beta_u.x * d_l.x * tmp22 + 6. * beta_u.x * d_l.y * tmp11 + 6. * beta_u.x * d_l.y * tmp23 + 6. * beta_u.x * d_l.z * tmp12 + 6. * beta_u.x * d_l.z * tmp24 + -6. * beta_u.x * conn_uul.x.x.x * tmp9 + -6. * beta_u.x * conn_uul.x.x.y * tmp25 + -6. * beta_u.x * conn_uul.x.x.z * tmp26 + -6. * beta_u.x * conn_ull.x.xy * tmp11 + -6. * beta_u.x * conn_ull.x.xz * tmp12 + -6. * beta_u.x * conn_uul.y.x.y * tmp27 + -6. * beta_u.x * conn_uul.y.x.z * tmp28 + -6. * beta_u.x * conn_ull.y.xz * tmp14 + -6. * beta_u.x * conn_uul.z.x.z * tmp29 + 6. * beta_u.y * d_l.x * tmp16 + 6. * beta_u.y * d_l.x * tmp30 + 6. * beta_u.y * d_l.y * tmp21 + 6. * beta_u.y * d_l.y * tmp13 + 6. * beta_u.y * d_l.y * tmp31 + 6. * beta_u.y * d_l.z * tmp14 + 6. * beta_u.y * d_l.z * tmp32 + -6. * beta_u.y * conn_uul.x.x.x * tmp19 + -6. * beta_u.y * conn_uul.x.x.y * tmp27 + -6. * beta_u.y * conn_uul.x.x.z * tmp28 + -6. * beta_u.y * conn_ull.x.yy * tmp11 + -6. * beta_u.y * conn_ull.x.yz * tmp12 + -6. * beta_u.y * conn_uul.y.x.y * tmp33 + -6. * beta_u.y * conn_uul.y.x.z * tmp34 + -6. * beta_u.y * conn_ull.y.yz * tmp14 + -6. * beta_u.y * conn_uul.z.x.z * tmp35 + 6. * beta_u.z * d_l.x * tmp17 + 6. * beta_u.z * d_l.x * tmp36 + 6. * beta_u.z * d_l.y * tmp18 + 6. * beta_u.z * d_l.y * tmp37 + 6. * beta_u.z * d_l.z * tmp21 + 6. * beta_u.z * d_l.z * tmp15 + 6. * beta_u.z * d_l.z * tmp38 + -6. * beta_u.z * conn_uul.x.x.x * tmp20 + -6. * beta_u.z * conn_uul.x.x.y * tmp39 + -6. * beta_u.z * conn_uul.x.x.z * tmp29 + -6. * beta_u.z * conn_ull.x.yz * tmp11 + -6. * beta_u.z * conn_ull.x.zz * tmp12 + -6. * beta_u.z * conn_uul.y.x.y * tmp40 + -6. * beta_u.z * conn_uul.y.x.z * tmp35 + -6. * beta_u.z * conn_ull.y.zz * tmp14 + -6. * beta_u.z * conn_uul.z.x.z * tmp41 + -12. * beta_u.x * conn_ull.x.xx * tmp22 + -12. * beta_u.x * tmp42 + -12. * beta_u.x * tmp43 + -12. * beta_u.x * conn_ull.y.xx * tmp30 + -12. * beta_u.x * tmp44 + -12. * beta_u.x * tmp45 + -12. * beta_u.x * conn_ull.z.xx * tmp36 + -12. * beta_u.x * tmp46 + -12. * beta_u.x * tmp47 + -12. * beta_u.y * conn_ull.x.xy * tmp22 + -12. * beta_u.y * conn_ull.x.yy * tmp23 + -12. * beta_u.y * conn_ull.x.yz * tmp24 + -12. * beta_u.y * conn_ull.y.xy * tmp30 + -12. * beta_u.y * conn_ull.y.yy * tmp31 + -12. * beta_u.y * conn_ull.y.yz * tmp32 + -12. * beta_u.y * conn_ull.z.xy * tmp36 + -12. * beta_u.y * conn_ull.z.yy * tmp37 + -12. * beta_u.y * conn_ull.z.yz * tmp38 + -12. * beta_u.z * conn_ull.x.xz * tmp22 + -12. * beta_u.z * conn_ull.x.yz * tmp23 + -12. * beta_u.z * conn_ull.x.zz * tmp24 + -12. * beta_u.z * conn_ull.y.xz * tmp30 + -12. * beta_u.z * conn_ull.y.yz * tmp31 + -12. * beta_u.z * conn_ull.y.zz * tmp32 + -12. * beta_u.z * conn_ull.z.xz * tmp36 + -12. * beta_u.z * conn_ull.z.yz * tmp37 + -12. * beta_u.z * conn_ull.z.zz * tmp38 + -12. * A_uu.xx * tmp49 + -12. * A_uu.xx * tmp50 + -12. * A_uu.xy * tmp51 + -12. * A_uu.xy * tmp52 + -12. * A_uu.xz * tmp53 + -12. * A_uu.xz * tmp54 + -12. * A_uu.yy * conn_ull.x.yy * tmp48 + -12. * A_uu.zz * conn_ull.x.zz * tmp48 + -36. * A_uu.xy * tmp55 + -36. * A_uu.xz * tmp56 + -24. * A_uu.yz * conn_ull.x.yz * tmp48 + -24. * A_uu.xx * tmp57) / 6.;
+			(deriv)->B_u.y += (6. * B_u.x * b_ul.x.y + 6. * B_u.y * b_ul.y.y + 6. * B_u.z * b_ul.y.z + -3. * d_u.y * tmp1 + -3. * d_u.y * tmp2 + -3. * d_u.y * tmp3 + -3. * d_l.x * tmp4 + -3. * d_l.y * b_uu.yy * mdeShiftEpsilon + -3. * d_l.z * tmp58 + 4. * e_u.y * tmp6 + 6. * d_l.x * tmp7 + 6. * d_l.y * DBeta_uu.yy * mdeShiftEpsilon + 6. * d_l.z * tmp59 + 6. * DBeta_uu.xx * tmp25 + 6. * DBeta_uu.yy * tmp33 + 6. * DBeta_uu.zz * conn_ull.y.zz * mdeShiftEpsilon + 6. * b_ul.x.x * tmp60 + 6. * b_ul.x.y * tmp61 + 6. * b_ul.x.z * tmp62 + 6. * b_ul.y.y * tmp63 + 6. * b_ul.y.z * tmp64 + 6. * b_ul.z.z * tmp65 + 6. * b_ul.x.y * tmp66 + 6. * b_ul.x.z * tmp67 + 6. * b_ul.y.z * tmp68 + 12. * DBeta_uu.xy * tmp27 + 12. * DBeta_uu.xz * tmp39 + 12. * DBeta_uu.yz * tmp40 + 6. * beta_u.x * d_l.x * tmp69 + 6. * beta_u.x * d_l.x * tmp60 + 6. * beta_u.x * d_l.x * tmp23 + 6. * beta_u.x * d_l.y * tmp61 + 6. * beta_u.x * d_l.y * tmp70 + 6. * beta_u.x * d_l.z * tmp62 + 6. * beta_u.x * d_l.z * tmp71 + -6. * beta_u.x * conn_uul.x.y.y * tmp25 + -6. * beta_u.x * conn_uul.x.y.z * tmp26 + -6. * beta_u.x * conn_uul.x.x.y * tmp9 + -6. * beta_u.x * conn_ull.x.xy * tmp61 + -6. * beta_u.x * conn_ull.x.xz * tmp62 + -6. * beta_u.x * conn_uul.y.y.y * tmp27 + -6. * beta_u.x * conn_uul.y.y.z * tmp28 + -6. * beta_u.x * conn_ull.y.xz * tmp64 + -6. * beta_u.x * conn_uul.z.y.z * tmp29 + 6. * beta_u.y * d_l.x * tmp66 + 6. * beta_u.y * d_l.x * tmp31 + 6. * beta_u.y * d_l.y * tmp69 + 6. * beta_u.y * d_l.y * tmp63 + 6. * beta_u.y * d_l.y * tmp72 + 6. * beta_u.y * d_l.z * tmp64 + 6. * beta_u.y * d_l.z * tmp73 + -6. * beta_u.y * conn_uul.x.y.y * tmp27 + -6. * beta_u.y * conn_uul.x.y.z * tmp28 + -6. * beta_u.y * conn_uul.x.x.y * tmp19 + -6. * beta_u.y * conn_ull.x.yy * tmp61 + -6. * beta_u.y * conn_ull.x.yz * tmp62 + -6. * beta_u.y * conn_uul.y.y.y * tmp33 + -6. * beta_u.y * conn_uul.y.y.z * tmp34 + -6. * beta_u.y * conn_ull.y.yz * tmp64 + -6. * beta_u.y * conn_uul.z.y.z * tmp35 + 6. * beta_u.z * d_l.x * tmp67 + 6. * beta_u.z * d_l.x * tmp37 + 6. * beta_u.z * d_l.y * tmp68 + 6. * beta_u.z * d_l.y * tmp74 + 6. * beta_u.z * d_l.z * tmp69 + 6. * beta_u.z * d_l.z * tmp65 + 6. * beta_u.z * d_l.z * tmp75 + -6. * beta_u.z * conn_uul.x.y.y * tmp39 + -6. * beta_u.z * conn_uul.x.y.z * tmp29 + -6. * beta_u.z * conn_uul.x.x.y * tmp20 + -6. * beta_u.z * conn_ull.x.yz * tmp61 + -6. * beta_u.z * conn_ull.x.zz * tmp62 + -6. * beta_u.z * conn_uul.y.y.y * tmp40 + -6. * beta_u.z * conn_uul.y.y.z * tmp35 + -6. * beta_u.z * conn_ull.y.zz * tmp64 + -6. * beta_u.z * conn_uul.z.y.z * tmp41 + -12. * beta_u.x * conn_ull.x.xx * tmp23 + -12. * beta_u.x * conn_ull.x.xy * tmp70 + -12. * beta_u.x * conn_ull.x.xz * tmp71 + -12. * beta_u.x * conn_ull.y.xx * tmp31 + -12. * beta_u.x * conn_ull.y.xy * tmp72 + -12. * beta_u.x * conn_ull.y.xz * tmp73 + -12. * beta_u.x * conn_ull.z.xx * tmp37 + -12. * beta_u.x * conn_ull.z.xy * tmp74 + -12. * beta_u.x * conn_ull.z.xz * tmp75 + -12. * beta_u.y * tmp42 + -12. * beta_u.y * conn_ull.x.yy * tmp70 + -12. * beta_u.y * tmp76 + -12. * beta_u.y * tmp44 + -12. * beta_u.y * conn_ull.y.yy * tmp72 + -12. * beta_u.y * tmp77 + -12. * beta_u.y * tmp46 + -12. * beta_u.y * conn_ull.z.yy * tmp74 + -12. * beta_u.y * tmp78 + -12. * beta_u.z * conn_ull.x.xz * tmp23 + -12. * beta_u.z * conn_ull.x.yz * tmp70 + -12. * beta_u.z * conn_ull.x.zz * tmp71 + -12. * beta_u.z * conn_ull.y.xz * tmp31 + -12. * beta_u.z * conn_ull.y.yz * tmp72 + -12. * beta_u.z * conn_ull.y.zz * tmp73 + -12. * beta_u.z * conn_ull.z.xz * tmp37 + -12. * beta_u.z * conn_ull.z.yz * tmp74 + -12. * beta_u.z * conn_ull.z.zz * tmp75 + -12. * A_uu.xx * conn_ull.y.xx * tmp48 + -12. * A_uu.xy * tmp57 + -12. * A_uu.xy * tmp50 + -12. * A_uu.yy * tmp55 + -12. * A_uu.yy * tmp52 + -12. * A_uu.yz * tmp56 + -12. * A_uu.yz * tmp54 + -12. * A_uu.zz * conn_ull.y.zz * tmp48 + -36. * A_uu.xy * tmp49 + -36. * A_uu.yz * tmp53 + -24. * A_uu.yy * tmp51 + -24. * A_uu.xz * conn_ull.y.xz * tmp48) / 6.;
+			(deriv)->B_u.z += (6. * B_u.x * b_ul.x.z + 6. * B_u.y * b_ul.y.z + 6. * B_u.z * b_ul.z.z + -3. * d_u.z * tmp1 + -3. * d_u.z * tmp2 + -3. * d_u.z * tmp3 + -3. * d_l.x * tmp5 + -3. * d_l.y * tmp58 + -3. * d_l.z * b_uu.zz * mdeShiftEpsilon + 4. * e_u.z * tmp6 + 6. * d_l.x * tmp8 + 6. * d_l.y * tmp59 + 6. * d_l.z * DBeta_uu.zz * mdeShiftEpsilon + 6. * DBeta_uu.xx * tmp26 + 6. * DBeta_uu.yy * tmp34 + 6. * DBeta_uu.zz * tmp41 + 6. * b_ul.x.x * tmp79 + 6. * b_ul.x.y * tmp80 + 6. * b_ul.x.z * tmp81 + 6. * b_ul.y.y * tmp82 + 6. * b_ul.y.z * tmp83 + 6. * b_ul.z.z * tmp84 + 6. * b_ul.x.y * tmp85 + 6. * b_ul.x.z * tmp86 + 6. * b_ul.y.z * tmp87 + 12. * DBeta_uu.xy * tmp28 + 12. * DBeta_uu.xz * tmp29 + 12. * DBeta_uu.yz * tmp35 + 6. * beta_u.x * d_l.x * tmp88 + 6. * beta_u.x * d_l.x * tmp79 + 6. * beta_u.x * d_l.x * tmp24 + 6. * beta_u.x * d_l.y * tmp80 + 6. * beta_u.x * d_l.y * tmp71 + 6. * beta_u.x * d_l.z * tmp81 + 6. * beta_u.x * d_l.z * tmp89 + -6. * beta_u.x * conn_uul.x.z.z * tmp26 + -6. * beta_u.x * conn_uul.x.x.z * tmp9 + -6. * beta_u.x * conn_ull.x.xy * tmp80 + -6. * beta_u.x * conn_ull.x.xz * tmp81 + -6. * beta_u.x * conn_uul.x.y.z * tmp25 + -6. * beta_u.x * conn_uul.y.z.z * tmp28 + -6. * beta_u.x * conn_ull.y.xy * tmp82 + -6. * beta_u.x * conn_ull.y.xz * tmp83 + -6. * beta_u.x * conn_uul.z.z.z * tmp29 + 6. * beta_u.y * d_l.x * tmp85 + 6. * beta_u.y * d_l.x * tmp32 + 6. * beta_u.y * d_l.y * tmp88 + 6. * beta_u.y * d_l.y * tmp82 + 6. * beta_u.y * d_l.y * tmp73 + 6. * beta_u.y * d_l.z * tmp83 + 6. * beta_u.y * d_l.z * tmp90 + -6. * beta_u.y * conn_uul.x.z.z * tmp28 + -6. * beta_u.y * conn_uul.x.x.z * tmp19 + -6. * beta_u.y * conn_uul.x.y.z * tmp27 + -6. * beta_u.y * conn_ull.x.yy * tmp80 + -6. * beta_u.y * conn_ull.x.yz * tmp81 + -6. * beta_u.y * conn_uul.y.z.z * tmp34 + -6. * beta_u.y * conn_uul.y.y.z * tmp33 + -6. * beta_u.y * conn_ull.y.yz * tmp83 + -6. * beta_u.y * conn_uul.z.z.z * tmp35 + 6. * beta_u.z * d_l.x * tmp86 + 6. * beta_u.z * d_l.x * tmp38 + 6. * beta_u.z * d_l.y * tmp87 + 6. * beta_u.z * d_l.y * tmp75 + 6. * beta_u.z * d_l.z * tmp88 + 6. * beta_u.z * d_l.z * tmp84 + 6. * beta_u.z * d_l.z * tmp91 + -6. * beta_u.z * conn_uul.x.z.z * tmp29 + -6. * beta_u.z * conn_uul.x.x.z * tmp20 + -6. * beta_u.z * conn_uul.x.y.z * tmp39 + -6. * beta_u.z * conn_ull.x.yz * tmp80 + -6. * beta_u.z * conn_ull.x.zz * tmp81 + -6. * beta_u.z * conn_uul.y.z.z * tmp35 + -6. * beta_u.z * conn_uul.y.y.z * tmp40 + -6. * beta_u.z * conn_ull.y.zz * tmp83 + -6. * beta_u.z * conn_uul.z.z.z * tmp41 + -12. * beta_u.x * conn_ull.x.xx * tmp24 + -12. * beta_u.x * conn_ull.x.xy * tmp71 + -12. * beta_u.x * conn_ull.x.xz * tmp89 + -12. * beta_u.x * conn_ull.y.xx * tmp32 + -12. * beta_u.x * conn_ull.y.xy * tmp73 + -12. * beta_u.x * conn_ull.y.xz * tmp90 + -12. * beta_u.x * conn_ull.z.xx * tmp38 + -12. * beta_u.x * conn_ull.z.xy * tmp75 + -12. * beta_u.x * conn_ull.z.xz * tmp91 + -12. * beta_u.y * conn_ull.x.xy * tmp24 + -12. * beta_u.y * conn_ull.x.yy * tmp71 + -12. * beta_u.y * conn_ull.x.yz * tmp89 + -12. * beta_u.y * conn_ull.y.xy * tmp32 + -12. * beta_u.y * conn_ull.y.yy * tmp73 + -12. * beta_u.y * conn_ull.y.yz * tmp90 + -12. * beta_u.y * conn_ull.z.xy * tmp38 + -12. * beta_u.y * conn_ull.z.yy * tmp75 + -12. * beta_u.y * conn_ull.z.yz * tmp91 + -12. * beta_u.z * tmp43 + -12. * beta_u.z * tmp76 + -12. * beta_u.z * conn_ull.x.zz * tmp89 + -12. * beta_u.z * tmp45 + -12. * beta_u.z * tmp77 + -12. * beta_u.z * conn_ull.y.zz * tmp90 + -12. * beta_u.z * tmp47 + -12. * beta_u.z * tmp78 + -12. * beta_u.z * conn_ull.z.zz * tmp91 + -12. * A_uu.xx * conn_ull.z.xx * tmp48 + -12. * A_uu.xz * tmp57 + -12. * A_uu.xz * tmp49 + -12. * A_uu.yy * conn_ull.z.yy * tmp48 + -12. * A_uu.yz * tmp55 + -12. * A_uu.yz * tmp51 + -12. * A_uu.zz * tmp56 + -12. * A_uu.zz * tmp53 + -36. * A_uu.xz * tmp50 + -36. * A_uu.yz * tmp52 + -24. * A_uu.zz * tmp54 + -24. * A_uu.xy * conn_ull.z.xy * tmp48) / 6.;
+		}
+		<? end ?>/* eqn.useShift == "MinimalDistortionHyperbolic" */
 	}
 	<? end ?>/* eqn.useShift ~= "none" */
-	// END CUT
+	// END CUT from symmath/tests/output/Z4.html
 <? end ?>
 //decay for 1st deriv hyperbolic state vars constraints:
 
@@ -1595,6 +1763,7 @@ end ?>
 	//B&S eqn 2.125 ... divded by two
 	//Alcubierre eqn 2.5.9, also Alcubierre 2.4.10 divided by two
 	//H = 1/2 (R + K^2 - K_ij K^ij) - 8 π ρ
+	//TODO should Theta or Z be included into these?
 	real const R = sym3_dot(R_ll, gamma_uu);
 	real const tr_KSq = sym3_dot(U->K_ll, K_uu);
 	U->H = .5 * (R + tr_K * tr_K - tr_KSq) <?

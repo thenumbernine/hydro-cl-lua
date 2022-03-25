@@ -22,6 +22,10 @@ a_k = log(α)_,k
 d_kij = 1/2 γ_ij,k
 b^i_j = β^i_,j
 
+0 = δ^i_j,k = (γ^il γ_lj)_,k = γ^il_,k γ_lj + γ^il γ_lj,k
+γ^ij_,k = -γ^il γ_lm,k γ^mj
+γ^ij_,k = -2 d_k^ij
+
 -- state vars - z4
 Z_i = spatial component of killing vector
 Θ = Z^u n_u
@@ -46,6 +50,9 @@ e_i = d^j_ji
 Γ^i_jk = d_kj^i + d_jk^i - d^i_jk
 Γ^i = Γ^ij_j = d_j^ji + d_j^ji - d^ij_j = 2 e^i - d^i
 log(√γ)_,i = 1/2 γ_,i / γ = Γ^j_ji = d_ij^j + d^j_ji - d^j_ji = d_i
+
+log(√γ)_,i - log(√^γ)_,i = log(√(γ/^γ))_,i = Γ^j_ji - ^Γ^j_ji = d_i - ^d_i = Δd_i
+also notice that if we impose the ^γ = _γ constraint then _Γ^j_ji = ^Γ^j_ji and _d_i = ^d_i
 
 
 gauge ivp:
@@ -110,7 +117,7 @@ useShift
 		B^i_,t - B^i_,j β^j = α^2 ξ (β^i;j_j + 1/3 β_j^;ji + R^i_j β^j - 2 (α A^ij)_;j)
 
 
-	useShift = 'GammaDriver'
+	useShift = 'GammaDriverParabolic'
 	2010 Baumgarte & Shapiro's book, eqn 4.82
 		β^i_,t = k (_Γ^i_,t - η _Γ^i)
 		k = 3/4
@@ -122,11 +129,11 @@ useShift
 	... so for n=-2 and ξ = k = 3/4 this brings us to the 2010 Baumgarte & Shapiro's book definition
 	... with the exception of our exchange of B^i => ~Γ^i ... how about this ...
 
-	useShift = 'HyperbolicGammaDriver'
+	useShift = 'GammaDriverHyperbolic'
 	2017 Ruchlin, Etienne, Baumgarte - "SENR-NRPy- Numerical Relativity in Singular Curvilinear Coordinate Systems"
 		eqn 14.a: β^i_,t = B^i
 		eqn 14.b: B^i_,t - B^i_,j β^j = 3/4 (_Λ^i_,t - _Λ^i_,j β^j) - η B^i
-		eqn 11.e: _Λ^i_,t - _Λ^i_,j β^j + _Λ^j β^i_,j = γ^jk ^D_j ^D_k β^i + 2/3 ΔΓ^i (_D_j β^j) + 1/3 _D^i _D_j β^j - 2 _A^ij (α_,j - 6 φ_,j) + 2 _A^jk ΔΓ^i_jk - 4/3 α _γ^ij K_,j
+		eqn 11.e: _Λ^i_,t - _Λ^i_,j β^j + _Λ^j β^i_,j = _γ^jk ^D_j ^D_k β^i + 2/3 ΔΓ^i (_D_j β^j) + 1/3 _D^i _D_j β^j - 2 _A^ij (α_,j - 6 φ_,j) + 2 _A^jk ΔΓ^i_jk - 4/3 α _γ^ij K_,j
 	2010 Baumgarte & Shapiro's book, eqn 4.83
 		(non-shifting-shift)
 		β^i_,t = k B^i ... k = 3/4
@@ -263,14 +270,16 @@ function Z4_2004Bona:init(args)
 		if self.useShift == 'MinimalDistortionElliptic' then
 			self.consVars:insert{name='betaLap_u', type='real3'}
 		elseif self.useShift == 'HarmonicParabolic'
+		or self.useShift == 'GammaDriverParabolic'
 		or self.useShift == 'MinimalDistortionParabolic'
 		then
 			self.consVars:insert{name='b_ul', type='real3x3'}
-		elseif self.useShift == 'HyperbolicGammaDriver'
-		or self.useShift == 'HarmonicHyperbolic'
+		elseif self.useShift == 'HarmonicHyperbolic'
+		or self.useShift == 'MinimalDistortionHyperbolic'
+		or self.useShift == 'GammaDriverHyperbolic'
 		then
-			self.consVars:insert{name='B_u', type='real3'}
 			self.consVars:insert{name='b_ul', type='real3x3'}
+			self.consVars:insert{name='B_u', type='real3'}
 		end
 	end
 
