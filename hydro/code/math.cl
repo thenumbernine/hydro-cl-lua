@@ -998,7 +998,7 @@ static inline real3x3 real3x3_rotateTo(
 }
 
 //for swapping dimensions between x and 012
-static inline real3x3 real3x3_swap0(real3x3 m) { 
+static inline real3x3 real3x3_swap0(real3x3 m) {
 	return m;
 }
 static inline real3x3 real3x3_swap1(real3x3 m) {
@@ -1058,7 +1058,12 @@ static inline real3x3 real3_3sym3_dot2(real3 a, _3sym3 b);
 
 //// MODULE_CODE:
 
-<? for name,symbol in pairs{add='+', sub='-'} do ?>
+<? for _,info in ipairs{
+	{name="add", symbol="+"},
+	{name="sub", symbol="-"},
+} do
+	local name,symbol = info.name, info.symbol
+?>
 static inline _3sym3 _3sym3_<?=name?>(_3sym3 a, _3sym3 b) {
 	return (_3sym3){
 <? for i,xi in ipairs(xNames) do
