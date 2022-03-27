@@ -1164,6 +1164,19 @@ function HydroCLApp:requestExit(...)
 	HydroCLApp.super.requestExit(self, ...)
 end
 
+local function logabsxform(x)
+	x = math.log(math.abs(x), 10)
+	if not math.isfinite(x) then x = -math.huge end
+	x = math.max(-30, x)
+	return x
+end
+local function getminmax(solverymin, solverymax)
+	solverymin = logabsxform(solverymin)
+	solverymax = logabsxform(solverymax)
+	return math.min(solverymin, solverymax),
+			math.max(solverymin, solverymax)
+end
+
 function HydroCLApp:update(...)
 	if not startTime then
 		startTime = getTime()
@@ -1381,12 +1394,7 @@ end
 					varymax = varymax and math.max(thisvarymax, varymax) or thisvarymax
 					
 					if useLog then
-						solverymin = math.log(solverymin, 10)
-						solverymax = math.log(solverymax, 10)
-						if not math.isfinite(solverymin) then solverymin = -math.huge end
-						if not math.isfinite(solverymax) then solverymax = -math.huge end
-						solverymin = math.max(-30, solverymin)
-						solverymax = math.max(-30, solverymax)
+						solverymin, solverymax = getminmax(solverymin, solverymax)
 						solverymax = math.max(solverymax, solverymin + minDeltaY)
 					end
 					

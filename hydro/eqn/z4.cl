@@ -266,14 +266,14 @@ void <?=applyInitCondCell?>(
 	U->Theta = 0.;
 	U->Z_l = real3_zero;
 
-<? if has_beta_u then
-?>	U->beta_u = real3_rescaleToCoord_U(beta_U, x);
-<? end
-if has_betaLap_u then
+<? if has_betaLap_u then
 ?>	U->betaLap_u = real3_zero;
 <? end
+if has_beta_u then
+?>	U->beta_u = real3_rescaleToCoord_U(beta_U, x);
+<? end
 if has_B_u then
-?>	U->B_u = real3_zero;
+?>	U->B_u = real3_rescaleToCoord_U(B_U, x);
 <? end
 ?>
 /*<?--[[
