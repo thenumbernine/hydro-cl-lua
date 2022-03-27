@@ -23,12 +23,12 @@ constant real const mdeShiftEpsilon = 1.;
 //// MODULE_DEPENDS: sym3
 
 static inline sym3 <?=calc_gammaHat_ll?>(real3 const pt) {
-<? if false then -- get background grid separation working
+<? if true then -- get background grid separation working
 ?>
 //// MODULE_DEPENDS: <?=coord_gHol_ll?>
 	return coord_gHol_ll(pt);
 <? else ?>
-	return sym3_zero;
+	return sym3_ident;
 <? end ?>
 }
 
@@ -36,7 +36,7 @@ static inline sym3 <?=calc_gammaHat_ll?>(real3 const pt) {
 //// MODULE_DEPENDS: _3sym3
 
 static inline _3sym3 <?=calc_dHat_lll?>(real3 const pt) {
-<? if false then 	-- get background grid separation working?
+<? if true then 	-- get background grid separation working?
 ?>
 //// MODULE_DEPENDS: <?=coord_partial_gHol_lll?>
 	return _3sym3_real_mul(coord_partial_gHol_lll(pt), .5);
