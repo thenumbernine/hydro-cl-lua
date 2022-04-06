@@ -290,8 +290,8 @@ function Z4_2004Bona:init(args)
 	TODO make this a ctor arg - so solvers can run in parallel with and without this
 	...or why don't I just scrap the old code, because this runs a lot faster.
 	--]]
-	self.noZeroRowsInFlux = true
-	--self.noZeroRowsInFlux = false
+	--self.noZeroRowsInFlux = true
+	self.noZeroRowsInFlux = false		-- I've only got this one so far
 	if args.noZeroRowsInFlux ~= nil then
 		self.noZeroRowsInFlux = args.noZeroRowsInFlux
 	end
@@ -301,11 +301,10 @@ function Z4_2004Bona:init(args)
 	--if self.useShift ~= 'none' then
 	--	self.noZeroRowsInFlux = false
 	--end
-
+	
 	if not self.noZeroRowsInFlux then
 		-- skip α and γ_ij
-		self.numWaves = Struct.countScalars{vars=fluxVars}
-		assert(self.numWaves == 31)
+		self.numWaves = 31
 	else
 		-- Z4 has a_x, d_xij, K_ij, Θ, Z_i ...
 		-- which is 17 waves
@@ -315,6 +314,10 @@ function Z4_2004Bona:init(args)
 	-- only count int vars after the shifts have been added
 	self:cdefAllVarTypes(solver, self.consVars)	-- have to call before countScalars in eqn:init
 	self.numIntStates = Struct.countScalars{vars=self.consVars}
+	
+	if not self.noZeroRowsInFlux then
+		assert(Struct.countScalars{vars=fluxVars} == self.numWaves)
+	end
 
 	-- now add in the source terms (if you want them)
 	if self.useStressEnergyTerms then
@@ -634,17 +637,40 @@ function Z4_2004Bona:eigenWaveCode(args)
 	local betaUi = self.useShift ~= 'none' and 'betaUi' or '0'
 
 	if not self.noZeroRowsInFlux then
-		if args.waveIndex == 0 then
-			return '-'..betaUi..' - eig_lambdaGauge'
-		elseif args.waveIndex >= 1 and args.waveIndex <= 6 then
-			return '-'..betaUi..' - eig_lambdaLight'
-		elseif args.waveIndex >= 7 and args.waveIndex <= 23 then
-			return '-'..betaUi
-		elseif args.waveIndex >= 24 and args.waveIndex <= 29 then
-			return '-'..betaUi..' + eig_lambdaLight'
-		elseif args.waveIndex == 30 then
-			return '-'..betaUi..' + eig_lambdaGauge'
-		end
+		-- BEGIN CUT from symmath/tests/Z4 - compute flux eigenmodes.symmath
+		if args.waveIndex == 0 then return '-'..betaUi..' - eig_lambdaGauge'
+		elseif args.waveIndex == 1 then return '-'..betaUi..' - eig_lambdaLight'
+		elseif args.waveIndex == 2 then return '-'..betaUi..' - eig_lambdaLight'
+		elseif args.waveIndex == 3 then return '-'..betaUi..' - eig_lambdaLight'
+		elseif args.waveIndex == 4 then return '-'..betaUi..' - eig_lambdaLight'
+		elseif args.waveIndex == 5 then return '-'..betaUi..' - eig_lambdaLight'
+		elseif args.waveIndex == 6 then return '-'..betaUi..' - eig_lambdaLight'
+		elseif args.waveIndex == 7 then return '-'..betaUi
+		elseif args.waveIndex == 8 then return '-'..betaUi
+		elseif args.waveIndex == 9 then return '-'..betaUi
+		elseif args.waveIndex == 10 then return '-'..betaUi
+		elseif args.waveIndex == 11 then return '-'..betaUi
+		elseif args.waveIndex == 12 then return '-'..betaUi
+		elseif args.waveIndex == 13 then return '-'..betaUi
+		elseif args.waveIndex == 14 then return '-'..betaUi
+		elseif args.waveIndex == 15 then return '-'..betaUi
+		elseif args.waveIndex == 16 then return '-'..betaUi
+		elseif args.waveIndex == 17 then return '-'..betaUi
+		elseif args.waveIndex == 18 then return '-'..betaUi
+		elseif args.waveIndex == 19 then return '-'..betaUi
+		elseif args.waveIndex == 20 then return '-'..betaUi
+		elseif args.waveIndex == 21 then return '-'..betaUi
+		elseif args.waveIndex == 22 then return '-'..betaUi
+		elseif args.waveIndex == 23 then return '-'..betaUi
+		elseif args.waveIndex == 24 then return '-'..betaUi..' + eig_lambdaLight'
+		elseif args.waveIndex == 25 then return '-'..betaUi..' + eig_lambdaLight'
+		elseif args.waveIndex == 26 then return '-'..betaUi..' + eig_lambdaLight'
+		elseif args.waveIndex == 27 then return '-'..betaUi..' + eig_lambdaLight'
+		elseif args.waveIndex == 28 then return '-'..betaUi..' + eig_lambdaLight'
+		elseif args.waveIndex == 29 then return '-'..betaUi..' + eig_lambdaLight'
+		elseif args.waveIndex == 30 then return '-'..betaUi..' + eig_lambdaGauge'
+		end		
+		-- END CUT from symmath/tests/Z4 - compute flux eigenmodes.symmath
 	else	-- noZeroRowsInFlux
 		-- noZeroRowsInFlux implies useShift == 'none'
 		if args.waveIndex == 0 then

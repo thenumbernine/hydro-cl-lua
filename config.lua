@@ -1461,22 +1461,22 @@ local args = {
 }
 -- comparing hll solvers
 if cmdline['2009Alic-adm'] then
-	self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {eqn='adm3d'})))
+	self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {eqn='adm3d'}, cmdline.solverArgs)))
 end
 if cmdline['2009Alic-z4'] then
-	self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {eqn='z4', eqnArgs={useShift=cmdline.useShift}, initCond = cmdline.initCond})))
+	self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {eqn='z4', eqnArgs={useShift=cmdline.useShift}, initCond = cmdline.initCond}, cmdline.solverArgs)))
 end
 if cmdline['2009Alic-z4_2008yano'] then
-	self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {eqn='z4_2008yano'})))
+	self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {eqn='z4_2008yano'}, cmdline.solverArgs)))
 end
 if cmdline['2009Alic-bssnok-fd-senr'] then
-	self.solvers:insert(require 'hydro.solver.bssnok-fd'(table(args, {eqn='bssnok-fd-senr'})))
+	self.solvers:insert(require 'hydro.solver.bssnok-fd'(table(args, {eqn='bssnok-fd-senr'}, cmdline.solverArgs)))
 end
 if cmdline['2009Alic-bssnok-fd-num'] then
-	self.solvers:insert(require 'hydro.solver.bssnok-fd'(table(args, {eqn='bssnok-fd-num'})))
+	self.solvers:insert(require 'hydro.solver.bssnok-fd'(table(args, {eqn='bssnok-fd-num'}, cmdline.solverArgs)))
 end
 if cmdline['2009Alic-bssnok-fd-sym'] then
-	self.solvers:insert(require 'hydro.solver.bssnok-fd'(table(args, {eqn='bssnok-fd-sym'})))
+	self.solvers:insert(require 'hydro.solver.bssnok-fd'(table(args, {eqn='bssnok-fd-sym'}, cmdline.solverArgs)))
 end
 --]=]
 
@@ -1611,8 +1611,8 @@ local args = {
 		{64, 16, 1},
 		
 		-- N x 2 x 2:
-		{32, 2, 2},		-- SENR sphere_sinh_radial uses this by default
-		--{80, 80, 2},		-- this works well for BrillLindquist sphere_sinh_radial when viewing the xz slice
+		--{32, 2, 2},		-- SENR sphere_sinh_radial uses this by default
+		{80, 80, 2},		-- this works well for BrillLindquist sphere_sinh_radial when viewing the xz slice
 		--{128, 2, 2},
 		--{128, 32, 2},
 		--{400, 64, 2},
