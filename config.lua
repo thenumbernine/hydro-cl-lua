@@ -374,7 +374,7 @@ local args = {
 	--initCond = 'Noh',
 	--initCond = 'implosion',
 	
-	initCond = 'Kelvin-Helmholtz',
+	--initCond = 'Kelvin-Helmholtz',
 	--[[
 	initCondArgs = {
 		noiseAmplitude = 1e-5,
@@ -497,9 +497,9 @@ local args = {
 	--initCond = 'plane gauge wave',
 
 
-	--initCond = 'Alcubierre warp bubble',
+	initCond = 'Alcubierre warp bubble',
 	
-	--initCondArgs = {R=.5, sigma=8, speed=.1},	-- sub-luminal
+	initCondArgs = {R=.5, sigma=8, speed=.1},	-- sub-luminal
 	
 	--initCondArgs = {R=.5, sigma=8, speed=1.1},		-- super-luminal 1.1x
 	-- ... works with
@@ -966,7 +966,8 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='adm3d', eqnArgs={useShift='HarmonicShiftCondition-FiniteDifference'}})))	-- breaks, even with b.e. integrator
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='adm3d', eqnArgs={useShift='LagrangianCoordinates'}})))	-- TODO finish me
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='z4_2008yano'})))
--- TODO fix the left/right transform.  until then, this only works with hll
+
+-- TODO FIXME?
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='z4'})))
 
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='adm1d_v1'})))
