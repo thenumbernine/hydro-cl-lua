@@ -1168,7 +1168,14 @@ end
 
 			moduleNames:append(sideDepends)
 			
-			lines:insert('\t\t'..sideCode:gsub('\n', '\n\t\t'))
+			-- add tab
+			sideCode = '\t\t'..sideCode:gsub('\n', '\n\t\t')
+			-- and remove tabs from MODULE_* lines
+			sideCode = string.split(sideCode, '\n'):mapi(function(l)
+				return (l:gsub('^%s*//// MODULE_', '//// MODULE_'))
+			end):concat'\n'	
+
+			lines:insert(sideCode)
 		end 
 
 lines:insert[[

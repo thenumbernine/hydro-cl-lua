@@ -100,6 +100,13 @@ local args = {
 				--{64,1,1},
 				{32,32,32},
 			},
+			
+			-- latest CL platform/device name on my Intel HD 520 on ubuntu
+			['Intel(R) OpenCL HD Graphics/Intel(R) Graphics Gen9 [0x1916]'] = {
+				{4096,1,1},
+				{256,256,1},
+				{1020,1020,4},
+			},
 		
 			-- 5600M with device=gfx902 to work with gl_sharing:
 			['AMD Accelerated Parallel Processing/gfx902'] = {
@@ -143,12 +150,12 @@ local args = {
 		}
 	)[dim],
 	boundary = type(cmdline.boundary) == 'table' and cmdline.boundary or {
-		xmin = cmdline.boundary or 'periodic',
-		xmax = cmdline.boundary or 'periodic',
-		ymin = cmdline.boundary or 'periodic',
-		ymax = cmdline.boundary or 'periodic',
-		zmin = cmdline.boundary or 'periodic',
-		zmax = cmdline.boundary or 'periodic',
+		xmin = cmdline.boundary or 'fixed',
+		xmax = cmdline.boundary or 'fixed',
+		ymin = cmdline.boundary or 'fixed',
+		ymax = cmdline.boundary or 'fixed',
+		zmin = cmdline.boundary or 'fixed',
+		zmax = cmdline.boundary or 'fixed',
 	},
 	--]]
 	--[[ cylinder
@@ -499,7 +506,7 @@ local args = {
 
 	initCond = 'Alcubierre warp bubble',
 	
-	initCondArgs = {R=.5, sigma=8, speed=.1},	-- sub-luminal
+	--initCondArgs = {R=.5, sigma=8, speed=.1},	-- sub-luminal
 	
 	--initCondArgs = {R=.5, sigma=8, speed=1.1},		-- super-luminal 1.1x
 	-- ... works with
@@ -972,11 +979,10 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {
 
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='adm1d_v1'})))
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='adm1d_v2'})))
--- TODO FIXME:
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='adm3d'})))
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='adm3d', eqnArgs={noZeroRowsInFlux=false}})))
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='adm3d', eqnArgs={useShift='HarmonicShiftCondition-FiniteDifference'}})))
---self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='z4'})))
+self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='z4'})))
 
 --self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='adm3d', wenoMethod='1996 Jiang Shu', order=5})))
 --self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='adm3d', wenoMethod='2010 Shen Zha', order=7})))
@@ -1465,7 +1471,7 @@ if cmdline['2009Alic-adm'] then
 	self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {eqn='adm3d'}, cmdline.solverArgs)))
 end
 if cmdline['2009Alic-z4'] then
-	self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {eqn='z4', eqnArgs={useShift=cmdline.useShift}, initCond = cmdline.initCond}, cmdline.solverArgs)))
+	self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {eqn='z4', eqnArgs={useShift=cmdline.useShift}, initCond=cmdline.initCond}, cmdline.solverArgs)))
 end
 if cmdline['2009Alic-z4_2008yano'] then
 	self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {eqn='z4_2008yano'}, cmdline.solverArgs)))

@@ -60,6 +60,7 @@ end
 -- add an option for fixed Minkowsky boundary spacetime
 -- TODO now there is already a BoundaryFixed in hydro/solver/gridsolver, but no easy way to parameterize how to set what fixed values it is
 function EinsteinEquation:createBoundaryOptions()
+	local eqn = self
 	local Boundary = self.solver.Boudary
 	local BoundaryFixed = class(Boundary)
 	BoundaryFixed.name = 'fixed'
@@ -68,15 +69,13 @@ function EinsteinEquation:createBoundaryOptions()
 		local gridSizeSide = 'solver->gridSize.'..xNames[args.side]
 		for _,j in ipairs{'j', gridSizeSide..' - solver->numGhost + j'} do
 			local index = args.indexv(j)
-			local U = 'buf[INDEX('..index..')]'
-			lines:insert(self:template([[
-	setFlatSpace(solver, &<?=U?>, cellBuf[<?=index?>].pos);
+			lines:insert(eqn:template([[
+<?=setFlatSpace?>(solver, &buf[INDEX(<?=index?>)], cellBuf[<?=index?>].pos);
 ]], 		{
-				U = U,
 				index = index,
 			}))
 		end
-		return lines:concat'\n'
+		return lines:concat'\n', {eqn.symbols.setFlatSpace}
 	end
 	
 	self.solver:addBoundaryOption(BoundaryFixed)
