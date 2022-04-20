@@ -23,7 +23,7 @@ constant real const mdeShiftEpsilon = 1.;
 //// MODULE_DEPENDS: sym3
 
 static inline sym3 <?=calc_gammaHat_ll?>(real3 const pt) {
-<? if true then -- get background grid separation working
+<? if false then
 ?>
 //// MODULE_DEPENDS: <?=coord_gHol_ll?>
 	return coord_gHol_ll(pt);
@@ -36,7 +36,7 @@ static inline sym3 <?=calc_gammaHat_ll?>(real3 const pt) {
 //// MODULE_DEPENDS: _3sym3
 
 static inline _3sym3 <?=calc_dHat_lll?>(real3 const pt) {
-<? if true then 	-- get background grid separation working?
+<? if false then
 ?>
 //// MODULE_DEPENDS: <?=coord_partial_gHol_lll?>
 	return _3sym3_real_mul(coord_partial_gHol_lll(pt), .5);
@@ -434,14 +434,14 @@ if has_b_ul then
 	real const alpha_sqrt_f = sqrt(f_alphaSq);\
 \
 	<? for side=0,solver.dim-1 do ?>{\
-\
 		<? if side == 0 then ?>\
 		real const gammaUjj = (gamma_ll.yy * gamma_ll.zz - gamma_ll.yz * gamma_ll.yz) / det_gamma;\
 		<? elseif side == 1 then ?>\
 		real const gammaUjj = (gamma_ll.xx * gamma_ll.zz - gamma_ll.xz * gamma_ll.xz) / det_gamma;\
 		<? elseif side == 2 then ?>\
 		real const gammaUjj = (gamma_ll.xx * gamma_ll.yy - gamma_ll.xy * gamma_ll.xy) / det_gamma;\
-		<? end ?>	\
+		<? end ?>\
+\
 		real const sqrt_gammaUjj = sqrt(gammaUjj);\
 		real const lambdaLight = sqrt_gammaUjj * U->alpha;\
 		real const lambdaGauge = sqrt_gammaUjj * alpha_sqrt_f;\
@@ -482,98 +482,39 @@ if has_b_ul then
 	/*<?=cell_t?> const * const */cell,\
 	/*<?=normal_t?> const */n\
 ) {\
+	real const alpha = (U)->alpha;\
+	real const Theta = (U)->Theta;\
 	real const f_alpha = calc_f_alpha((U)->alpha);\
 \
-	sym3 gamma_ll = <?=calc_gamma_ll?>(U, (cell)->pos);\
-	real const det_gamma = sym3_det(gamma_ll);\
-\
-	real alpha = (U)->alpha;\
-	real Theta = (U)->Theta;\
-\
-	real3 Z_l = (U)->Z_l;\
-	real3 a_l = (U)->a_l;\
-	sym3 K_ll = (U)->K_ll;\
-	_3sym3 dDelta_lll = (U)->dDelta_lll;\
-	_3sym3 dHat_lll = <?=calc_dHat_lll?>((cell)->pos);\
-<? if has_beta_u then --\
-?>	real3 beta_u = (U)->beta_u;\
-<? end --\
-if has_b_ul then --\
-?>	real3x3 b_ul = (U)->b_ul;\
-<? end --\
-if has_B_u then --\
-?>	real3 B_u = (U)->B_u;\
-<? 	end --\
-?>\
-\
-<? if solver.coord.vectorComponent == "cartesian" then ?>\
-\
-/*  I'm using .side for holonomic(coordinate) and anholonomic(orthonormal) */\
-/* but for cartesian vector componets there is no .side, just .n, which is covariant iirc */\
-/* and I haven't derived the flux in arbitrary-normal form, just in x-axis form (and i swap x<->y or z to calculate their fluxes) */\
-/* so here I'm going to just wing it */\
+	/* I haven't derived the flux in arbitrary-normal form, just in x-axis form (and i swap x<->y or z to calculate their fluxes) */\
+	/* so here I'm going to just wing it */\
 	real3 const n_l = normal_l1(n);\
 \
-	Z_l = real3_rotateFrom(Z_l, n_l);\
-	a_l = real3_rotateFrom(a_l, n_l);\
-	gamma_ll = sym3_rotateFrom(gamma_ll, n_l);\
-	K_ll = sym3_rotateFrom(K_ll, n_l);\
-	dDelta_lll = _3sym3_rotateFrom(dDelta_lll, n_l);\
-	dHat_lll = _3sym3_rotateFrom(dHat_lll, n_l);\
+	sym3 const gamma_ll = sym3_rotateFrom(<?=calc_gamma_ll?>(U, (cell)->pos), n_l);\
+	real const det_gamma = sym3_det(gamma_ll);\
+	sym3 const gamma_uu = sym3_inv(gamma_ll, det_gamma);\
+\
+	real3 const Z_l = real3_rotateFrom((U)->Z_l, n_l);\
+	real3 const a_l = real3_rotateFrom((U)->a_l, n_l);\
+	sym3 const K_ll = sym3_rotateFrom((U)->K_ll, n_l);\
+	_3sym3 const dDelta_lll = _3sym3_rotateFrom((U)->dDelta_lll, n_l);\
+	_3sym3 const dHat_lll = _3sym3_rotateFrom(<?=calc_dHat_lll?>((cell)->pos), n_l);\
 <? if has_beta_u then --\
-?>	beta_u = real3_rotateFrom(beta_u);\
+?>	real3 const beta_u = real3_rotateFrom((U)->beta_u, n_l);\
 <? end --\
 if has_b_ul then --\
-?>	b_ul = real3x3_rotateFrom(b_ul);\
-end --\
+?>	real3x3 const b_ul = real3x3_rotateFrom((U)->b_ul, n_l);\
+<? end --\
 if has_B_u then --\
-?>	B_u = real3_rotateFrom(B_u, n_l);\
-<? end --\
+?>	real3 const B_u = real3_rotateFrom((U)->B_u, n_l);\
+<? 	end --\
 ?>\
-\
-<? else ?>\
-\
-	if (false) {}\
-	<? for side=0,solver.dim-1 do ?>\
-	else if (n.side == <?=side?>) {\
-		Z_l = real3_swap<?=side?>(Z_l);\
-		a_l = real3_swap<?=side?>(a_l);\
-		gamma_ll = sym3_swap<?=side?>(gamma_ll);\
-		K_ll = sym3_swap<?=side?>(K_ll);\
-		dDelta_lll = _3sym3_swap<?=side?>(dDelta_lll);\
-		dHat_lll = _3sym3_swap<?=side?>(dHat_lll);\
-	}\
-	<? end ?>\
-	else {\
-		alpha = 0./0.;\
-		Theta = 0./0.;\
-<? for k,xk in ipairs(xNames) do --\
-?>		a_l.<?=xk?> = 0./0.;\
-		Z_l.<?=xk?> = 0./0.;\
-<? end --\
-?>\
-<? for ij,xij in ipairs(symNames) do --\
-?>		K_ll.<?=xij?> = 0./0.;\
-		gamma_ll.<?=xij?> = 0./0.;\
-<? end --\
-?>\
-<? for k,xk in ipairs(xNames) do --\
-	for ij,xij in ipairs(symNames) do --\
-?>		dDelta_lll.<?=xk?>.<?=xij?> = 0./0.;\
-		dHat_lll.<?=xk?>.<?=xij?> = 0./0.;\
-<?	end --\
-end --\
-?>	}\
-\
-<? end ?>\
-\
-	sym3 const gamma_uu = sym3_inv(gamma_ll, det_gamma);\
 \
 	for (int i = 0; i < numStates; ++i) {\
 		(resultFlux)->ptr[i] = 0./0.;\
 	}\
 \
-	_3sym3 d_lll = _3sym3_add(dDelta_lll, dHat_lll);\
+	_3sym3 const d_lll = _3sym3_add(dDelta_lll, dHat_lll);\
 	real3x3x3 const d_llu = _3sym3_sym3_mul(d_lll, gamma_uu);\
 	_3sym3 const d_ull = sym3_3sym3_mul(gamma_uu, d_lll);\
 	_3sym3 const conn_ull = conn_ull_from_d_llu_d_ull(d_llu, d_ull);\
@@ -734,8 +675,6 @@ end --\
 	<? end ?>/* eqn.useShift ~= "none" */\
 	/* END CUT from symmath/tests/output/Z4.html */\
 \
-<? if solver.coord.vectorComponent == "cartesian" then ?>\
-\
 	(resultFlux)->Z_l = real3_rotateTo((resultFlux)->Z_l, n_l);\
 	(resultFlux)->a_l = real3_rotateTo((resultFlux)->a_l, n_l);\
 	(resultFlux)->gammaDelta_ll = sym3_rotateTo((resultFlux)->gammaDelta_ll, n_l);\
@@ -751,48 +690,6 @@ if has_B_u then --\
 ?>	(resultFlux)->B_u = real3_rotateTo((resultFlux)->B_u, n_l);\
 <? end --\
 ?>\
-<? else ?>\
-\
-	if (false) {}\
-	<? for side=0,solver.dim-1 do ?>\
-	else if (n.side == <?=side?>) {\
-		(resultFlux)->Z_l = real3_swap<?=side?>((resultFlux)->Z_l);\
-		(resultFlux)->a_l = real3_swap<?=side?>((resultFlux)->a_l);\
-		(resultFlux)->gammaDelta_ll = sym3_swap<?=side?>((resultFlux)->gammaDelta_ll);\
-		(resultFlux)->K_ll = sym3_swap<?=side?>((resultFlux)->K_ll);\
-		(resultFlux)->dDelta_lll = _3sym3_swap<?=side?>((resultFlux)->dDelta_lll);\
-<? if has_beta_u then --\
-?>		(resultFlux)->beta_u = real3_swap<?=side?>((resultFlux)->beta_u);\
-<? end --\
-if has_b_ul then --\
-?>		(resultFlux)->b_ul = real3x3_swap<?=side?>((resultFlux)->b_ul);\
-<? end --\
-if has_B_u then --\
-?>		(resultFlux)->B_u = real3_swap<?=side?>((resultFlux)->B_u);\
-<? end --\
-?>	}\
-	<? end ?>\
-	else {\
-		alpha = 0./0.;\
-		Theta = 0./0.;\
-<? for k,xk in ipairs(xNames) do --\
-?>		a_l.<?=xk?> = 0./0.;\
-		Z_l.<?=xk?> = 0./0.;\
-<? end --\
-?>\
-<? for ij,xij in ipairs(symNames) do --\
-?>		K_ll.<?=xij?> = 0./0.;\
-		gamma_ll.<?=xij?> = 0./0.;\
-<? end --\
-?>\
-<? for k,xk in ipairs(xNames) do --\
-	for ij,xij in ipairs(symNames) do --\
-?>		dDelta_lll.<?=xk?>.<?=xij?> = 0./0.;\
-<?	end --\
-end --\
-?>	}\
-\
-<? end ?>\
 \
 <? if has_betaLap_u then --\
 ?>	(resultFlux)->betaLap_u = real3_zero;\
@@ -821,32 +718,21 @@ end --\
 \
 	sym3 const gammaR_ll = <?=calc_gamma_ll?>(UR, (cellR)->pos);\
 	sym3 const gammaL_ll = <?=calc_gamma_ll?>(UL, (cellL)->pos);\
+\
+	/* I haven't derived the flux in arbitrary-normal form, just in x-axis form (and i swap x<->y or z to calculate their fluxes) */\
+	/* so here I'm going to just wing it */\
+	real3 const n_l = normal_l1(n);\
+\
 	(resultEig)->gamma_ll = sym3_real_mul(sym3_add(gammaL_ll, gammaR_ll), .5);\
+	(resultEig)->gamma_ll = sym3_rotateFrom((resultEig)->gamma_ll, n_l);\
+\
 	real const det_avg_gamma = sym3_det((resultEig)->gamma_ll);\
 	(resultEig)->gamma_uu = sym3_inv((resultEig)->gamma_ll, det_avg_gamma);\
 \
-<? if solver.coord.vectorComponent == "cartesian" then ?>\
-/*  I'm using .side for holonomic(coordinate) and anholonomic(orthonormal) */\
-/* but for cartesian vector componets there is no .side, just .n, which is covariant iirc */\
-/* and I haven't derived the flux in arbitrary-normal form, just in x-axis form (and i swap x<->y or z to calculate their fluxes) */\
-/* so here I'm going to just wing it */\
-	real3 const n_l = normal_l1(n);\
-	real const gammaUnn = real3_weightedLenSq(n_l, (resultEig)->gamma_uu);\
-<? else ?>\
-	real gammaUnn = 0./0.;\
-	if (n.side == 0) {\
-		gammaUnn = (resultEig)->gamma_uu.xx;\
-	} else if (n.side == 1) {\
-		gammaUnn = (resultEig)->gamma_uu.yy;\
-	} else if (n.side == 2) {\
-		gammaUnn = (resultEig)->gamma_uu.zz;\
-	}\
-<? end ?>\
-\
-	(resultEig)->sqrt_gammaUnn = sqrt(gammaUnn);\
+	(resultEig)->sqrt_gammaUnn = sqrt((resultEig)->gamma_uu.xx);\
 \
 <? if has_beta_u then ?>\
-	(resultEig)->beta_u = real3_real_mul(real3_add((UL)->beta_u, (UR)->beta_u), .5);\
+	(resultEig)->beta_u = real3_rotateFrom(real3_real_mul(real3_add((UL)->beta_u, (UR)->beta_u), .5), n_l);\
 <? end ?>\
 }
 
@@ -864,20 +750,10 @@ end --\
 	sym3 const gamma_ll = <?=calc_gamma_ll?>(U, pt);\
 	real const det_gamma = sym3_det(gamma_ll);\
 \
-<? if solver.coord.vectorComponent == "cartesian" then ?>\
 	sym3 const gamma_uu = sym3_inv(gamma_ll, det_gamma);\
 	real3 const n_l = normal_l1(n);\
 	real const gammaUnn = real3_weightedLenSq(n_l, gamma_uu);\
-<? else ?>\
-	real gammaUnn = 0./0.;\
-	if (n.side == 0) {\
-		gammaUnn = (gamma_ll.yy * gamma_ll.zz - gamma_ll.yz * gamma_ll.yz) / det_gamma;\
-	} else if (n.side == 1) {\
-		gammaUnn = (gamma_ll.xx * gamma_ll.zz - gamma_ll.xz * gamma_ll.xz) / det_gamma;\
-	} else if (n.side == 2) {\
-		gammaUnn = (gamma_ll.xx * gamma_ll.yy - gamma_ll.xy * gamma_ll.xy) / det_gamma;\
-	}\
-<? end ?>\
+\
 	real const sqrt_gammaUnn = sqrt(gammaUnn);\
 	real const lambdaLight = (U)->alpha * sqrt_gammaUnn;\
 \
@@ -898,6 +774,7 @@ end --\
 
 //// MODULE_NAME: <?=eigen_forCell?>
 //// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> <?=normal_t?> <?=initCond_codeprefix?>
+//// MODULE_DEPENDS: <?=calc_gamma_ll?>
 //// MODULE_DEPENDS: <?=calc_gamma_uu?>
 
 //used by PLM, and by the default <?=fluxFromCons?> (used by hll, or roe when roeUseFluxFromCons is set)
@@ -910,31 +787,19 @@ end --\
 ) {\
 	(resultEig)->alpha = (U)->alpha;\
 	(resultEig)->alpha_sqrt_f = sqrt(calc_f_alphaSq((U)->alpha));\
-	(resultEig)->gamma_uu = <?=calc_gamma_uu?>(U, pt);\
 \
-<? if solver.coord.vectorComponent == "cartesian" then ?>\
-/*  I'm using .side for holonomic(coordinate) and anholonomic(orthonormal) */\
-/* but for cartesian vector componets there is no .side, just .n, which is covariant iirc */\
-/* and I haven't derived the flux in arbitrary-normal form, just in x-axis form (and i swap x<->y or z to calculate their fluxes) */\
-/* so here I'm going to just wing it */\
+	/* I haven't derived the flux in arbitrary-normal form, just in x-axis form (and i swap x<->y or z to calculate their fluxes) */\
+	/* so here I'm going to just wing it */\
 	real3 const n_l = normal_l1(n);\
-	real const gammaUnn = real3_weightedLenSq(n_l, (resultEig)->gamma_uu);\
-<? else ?>\
-	real gammaUnn = 0./0.;\
-	if (n.side == 0) {\
-		gammaUnn = (resultEig)->gamma_uu.xx;\
-	} else if (n.side == 1) {\
-		gammaUnn = (resultEig)->gamma_uu.yy;\
-	} else if (n.side == 2) {\
-		gammaUnn = (resultEig)->gamma_uu.zz;\
-	}\
+\
+	(resultEig)->gamma_ll = sym3_rotateFrom(<?=calc_gamma_ll?>(U, pt), n_l);\
+	(resultEig)->gamma_uu = sym3_inv((resultEig)->gamma_ll, det_avg_gamma);\
+\
+	(resultEig)->sqrt_gammaUnn = sqrt((resultEig)->gamma_uu.xx);\
+\
+<? if has_beta_u then ?>\
+	(resultEig)->beta_u = real3_rotateFrom((U)->beta_u, n_l);\
 <? end ?>\
-\
-	(resultEig)->sqrt_gammaUnn = sqrt(gammaUnn);\
-\
-	<? if has_beta_u then ?>\
-	(resultEig)->beta_u = (U)->beta_u;\
-	<? end ?>\
 }
 
 //// MODULE_NAME: <?=eigen_leftTransform?>
@@ -956,72 +821,30 @@ end --\
 \
 	/* rotate from flux direction to x-axis */\
 	/* TODO copy this from fluxFromCons or make its own function */\
-	real Theta = (inputU)->Theta;												/* 27 */\
+	real const Theta = (inputU)->Theta;												/* 27 */\
 \
-	real3 a_l = (inputU)->a_l;\
-	_3sym3 dDelta_lll = (inputU)->dDelta_lll;\
-	_3sym3 dHat_lll = <?=calc_dHat_lll?>(pt);\
-	sym3 K_ll = (inputU)->K_ll;\
-	real3 Z_l = (inputU)->Z_l;\
-\
-<? if solver.coord.vectorComponent == "cartesian" then ?>\
-\
-/*  I'm using .side for holonomic(coordinate) and anholonomic(orthonormal) */\
-/* but for cartesian vector componets there is no .side, just .n, which is covariant iirc */\
-/* and I haven't derived the flux in arbitrary-normal form, just in x-axis form (and i swap x<->y or z to calculate their fluxes) */\
-/* so here I'm going to just wing it */\
+	/* I haven't derived the flux in arbitrary-normal form, just in x-axis form (and i swap x<->y or z to calculate their fluxes) */\
+	/* so here I'm going to just wing it */\
 	real3 const n_l = normal_l1(n);\
 \
-	Z_l = real3_rotateFrom(Z_l, n_l);\
-	a_l = real3_rotateFrom(a_l, n_l);\
-	K_ll = sym3_rotateFrom(K_ll, n_l);\
-	dDelta_lll = _3sym3_rotateFrom(dDelta_lll, n_l);\
-	dHat_lll = _3sym3_rotateFrom(dHat_lll, n_l);\
+	real3 const a_l = real3_rotateFrom((inputU)->a_l, n_l);\
+	_3sym3 const dDelta_lll = _3sym3_rotateFrom((inputU)->dDelta_lll, n_l);\
+	_3sym3 const dHat_lll = _3sym3_rotateFrom(<?=calc_dHat_lll?>(pt), n_l);\
+	sym3 const K_ll = sym3_rotateFrom((inputU)->K_ll, n_l);\
+	real3 const Z_l = real3_rotateFrom((inputU)->Z_l, n_l);\
+\
 <? if has_beta_u then --\
-?>	beta_u = real3_rotateFrom(beta_u);\
+?>	real3 const beta_u = real3_rotateFrom(beta_u);\
 <? end --\
 if has_b_ul then --\
-?>	b_ul = real3x3_rotateFrom(b_ul);\
+?>	real3x3 const b_ul = real3x3_rotateFrom(b_ul);\
 end --\
 if has_B_u then --\
-?>	B_u = real3_rotateFrom(B_u, n_l);\
+?>	real3 const B_u = real3_rotateFrom(B_u, n_l);\
 <? end --\
 ?>\
 \
-<? else ?>\
-\
-	if (false) {}\
-	<? for side=0,solver.dim-1 do ?>\
-	else if (n.side == <?=side?>) {\
-		Z_l = real3_swap<?=side?>(Z_l);\
-		a_l = real3_swap<?=side?>(a_l);\
-		K_ll = sym3_swap<?=side?>(K_ll);\
-		dDelta_lll = _3sym3_swap<?=side?>(dDelta_lll);\
-		dHat_lll = _3sym3_swap<?=side?>(dHat_lll);\
-	}\
-	<? end ?>\
-	else {\
-		Theta = 0./0.;\
-<? for k,xk in ipairs(xNames) do --\
-?>		a_l.<?=xk?> = 0./0.;\
-		Z_l.<?=xk?> = 0./0.;\
-<? end --\
-?>\
-<? for ij,xij in ipairs(symNames) do --\
-?>		K_ll.<?=xij?> = 0./0.;\
-<? end --\
-?>\
-<? for k,xk in ipairs(xNames) do --\
-	for ij,xij in ipairs(symNames) do --\
-?>		dDelta_lll.<?=xk?>.<?=xij?> = 0./0.;\
-		dHat_lll.<?=xk?>.<?=xij?> = 0./0.;\
-<?	end --\
-end --\
-?>	}\
-\
-<? end ?>\
-\
-	_3sym3 d_lll = _3sym3_add(dDelta_lll, dHat_lll);\
+	_3sym3 const d_lll = _3sym3_add(dDelta_lll, dHat_lll);\
 \
 	/* the eigen_t vars should already be rotated into flux normal frame */\
 	sym3 const gamma_ll = (eig)->gamma_ll;\
@@ -1812,7 +1635,7 @@ end
 		<? if has_b_ul then ?>
 	real3x3 const b_ul = U->b_ul;
 	real const tr_b = real3x3_trace(b_ul);
-	sym3 b_ll = sym3_real3x3_to_sym3_mul(gamma_ll, b_ul);
+	sym3 const b_ll = sym3_real3x3_to_sym3_mul(gamma_ll, b_ul);
 		<? end ?>
 		
 		<? if has_B_u then ?>
@@ -1832,6 +1655,9 @@ end
 		<? end ?>
 		
 		<? if eqn.useShift == "GammaDriverHyperbolic" then ?>
+	//real3x3 const b_ul = U->b_ul;
+	//real3x3 const b_ll = sym3_real3x3_mul(gamma_ll, b_ul);
+	//real const tr_b = real3x3_trace(b_ul);
 //// MODULE_DEPENDS: <?=calc_gammaHat_ll?>
 	sym3 const gammaHat_ll = <?=calc_gammaHat_ll?>(cell->pos);
 	// W = (_γ/γ)^(1/6)
@@ -1862,7 +1688,7 @@ end
 ?>		.<?=xi?> = (sym3){
 <?	for jk,xjk in ipairs(symNames) do
 		local j,k,xj,xk = from6to3x3(jk)
-?>			.<?=xjk?> = (0 
+?>			.<?=xjk?> = (0
 				+ <? if i == j then ?>dDelta_l.<?=xk?><? else ?>0.<? end ?>
 				+ <? if i == k then ?>dDelta_l.<?=xj?><? else ?>0.<? end ?>
 				- gamma_ll.<?=xjk?> * dDelta_u.<?=xi?>
@@ -1877,7 +1703,7 @@ end
 	sym3 const gammaBar_uu = sym3_real_mul(gamma_uu, invW * invW);
 	_3sym3 const DeltaGamma_ull = _3sym3_sub(connBar_ull, connHat_ull);
 	real3 const DeltaGamma_u = _3sym3_sym3_dot23(DeltaGamma_ull, gammaBar_uu);
-	real3 const LambdaBar_u = DeltaGamma_u;	 // ... plus C^i 
+	real3 const LambdaBar_u = DeltaGamma_u;	 // ... plus C^i
 
 	//same problem here as connHat_uul
 	real3x3x3 const DeltaGamma_uul = _3sym3_sym3_mul(DeltaGamma_ull, gamma_uu);

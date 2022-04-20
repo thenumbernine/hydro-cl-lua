@@ -225,6 +225,7 @@ so the breakdown of shift conditions ...
 function Z4_2004Bona:init(args)
 	local solver = args.solver
 
+	-- TODO the whole "delta" idea is a bad one, it removes homogeneity from the flux (I think?)
 	local fluxVars = table{
 		{name='a_l', type='real3'},
 		{name='dDelta_lll', type='_3sym3'},
@@ -293,8 +294,8 @@ function Z4_2004Bona:init(args)
 	TODO make this a ctor arg - so solvers can run in parallel with and without this
 	...or why don't I just scrap the old code, because this runs a lot faster.
 	--]]
-	self.noZeroRowsInFlux = true
-	--self.noZeroRowsInFlux = false		-- I've only got this one so far
+	self.noZeroRowsInFlux = false
+	--self.noZeroRowsInFlux = true 		-- noZeroRowsInFlux == true is causing boundary oscillations
 	if args.noZeroRowsInFlux ~= nil then
 		self.noZeroRowsInFlux = args.noZeroRowsInFlux
 	end
@@ -498,6 +499,26 @@ for ρ = n_a n_b T^ab (B&S eqn 2.89)
 and n_a = -α t_,a (B&S eqns 2.19, 2.22, 2.24)
 
 momentum constraints
+
+
+H = 
+	+ K^i_a K^j_b δ^a_i δ^b_j
+	- K^i_a K^j_b δ^a_j δ^b_i
+
+	= 
+	+ K^i_a K^j_b δ^a_i δ^b_j (δ^c_c / 3)
+	- K^i_a K^j_b δ^a_j δ^b_i (δ^c_c / 3)
+
+	= 
+	+ K^i_a K^j_b δ^a_[i δ^b_j δ^c_c] / 3
+
+	=
+	+ K^i_a K^j_b δ^k_c ε^abc ε_ijk  / 3
+	
+
+	+ R
+	- 16 π ρ
+
 --]]
 		{H = [[
 	.5 *
@@ -627,7 +648,7 @@ function Z4_2004Bona:eigenWaveCodePrefix(args)
 real const eig_lambdaLight = (<?=eig?>)->sqrt_gammaUnn * (<?=eig?>)->alpha;
 real const eig_lambdaGauge = (<?=eig?>)->sqrt_gammaUnn * (<?=eig?>)->alpha_sqrt_f;
 <? if eqn.useShift ~= 'none' then ?>
-real const betaUi = normal_vecDotN1(<?=n?>, (<?=eig?>)->beta_u);
+real const betaUi = (<?=eig?>)->beta_u.x;
 <? end ?>
 ]], args)
 end
@@ -709,21 +730,10 @@ function Z4_2004Bona:consWaveCodePrefix(args)
 //// MODULE_DEPENDS: <?=calc_gamma_uu?>
 sym3 const gamma_uu = <?=calc_gamma_uu?>(<?=U?>, <?=pt?>);
 
-<? if solver.coord.vectorComponent == 'cartesian' then ?>
 real3 const n_l = normal_l1(<?=n?>);
 real const gammaUnn = real3_weightedLenSq(n_l, gamma_uu);
-<? else ?>
-real gammaUnn = 0./0.;
-if ((<?=n?>).side == 0) {
-	gammaUnn = gamma_uu.xx;
-} else if ((<?=n?>).side == 1) {
-	gammaUnn = gamma_uu.yy;
-} else if ((<?=n?>).side == 2) {
-	gammaUnn = gamma_uu.zz;
-}
-<? end ?>
-
 real const sqrt_gammaUnn = sqrt(gammaUnn);
+
 real const eig_lambdaLight = sqrt_gammaUnn * (<?=U?>)->alpha;
 real const alpha_sqrt_f = sqrt(calc_f_alphaSq((<?=U?>)->alpha));
 real const eig_lambdaGauge = sqrt_gammaUnn * alpha_sqrt_f;
