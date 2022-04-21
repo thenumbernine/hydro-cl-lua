@@ -370,6 +370,7 @@ function SolverBase:init(args)
 	self.initArgsForSerialization.id = nil			-- in choppedup
 -- also include # devices.  since, on the nvidia cluster, the binaries compiled for 1 device will segfault if they are loaded when using >1 device
 	self.initArgsForSerialization.numDevices = #args.app.env.devices
+	self.initArgsForSerialization.app_real = args.app.real
 	-- hmm, this is defeating the whole purpose of this, ...
 	-- but thanks to some function serialization in BoundaryFixed ... i'm getting rid of boundary as well
 	self.initArgsForSerialization.mesh = nil

@@ -747,7 +747,7 @@ local BoundaryFixed = class(Boundary)
 BoundaryFixed.name = 'fixed'
 function BoundaryFixed:init(args)
 	-- fixed values to use
-	self.fixedCode = assert(args.fixedCode)
+	self.fixedCode = assert((args or {}).fixedCode, "you didn't provide any fixedCode arg for boundary==fixed")
 end
 function BoundaryFixed:getCode(args)
 	local dst
