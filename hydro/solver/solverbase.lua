@@ -3067,7 +3067,7 @@ function SolverBase:checkFinite(buf)
 	local found
 	local function callback(i)
 		assert(i >= 0 and i < size)
-		local x = tonumber(ptr[i])
+		local x = fromreal(ptr[i])
 		if not math.isfinite(x) then
 			found = found or table()
 			local ins = {i, x}
