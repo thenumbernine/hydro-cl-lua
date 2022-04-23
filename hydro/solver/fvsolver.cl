@@ -75,6 +75,25 @@ then ?>
 		real areaR = cell_area<?=side?>(xIntR);
 <? end ?>
 
+		/*
+		for
+		gridSize={512,512}
+		mins={-1,1}
+		maxs={1,1}
+		grid_dx = {2/512,2/512}
+		volume=1/65536
+		invVolume=65536
+		areaL = 256
+		areaR = 256
+		somewhere half is failing to do this math
+		
+		ok it turns out 65519 is the largest number stored in half precision
+		any larger and it just maps to inf
+		thats why 512x512 doesn't work, 512x511 doesn't work, but 512x510 does work
+		the limit is the volume
+		
+		how to circumvent this?  for higher grid resolutions, maintain volume by increasing mins/maxs of the initcond domain.
+		*/
 		if (volume > 1e-7) {
 			real const invVolume = 1. / volume;
 			if (areaL <= 1e-7) areaL = 0.;

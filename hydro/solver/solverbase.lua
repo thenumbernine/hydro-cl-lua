@@ -3043,7 +3043,9 @@ function SolverBase:checkFinite(buf)
 	local size = buf.count * ptrsPerReal
 	
 	if tostring(self.checkNaNs):sub(1,3) == 'gpu' then
-		assert(size == self.numCells * self.eqn.numStates)
+		if size ~= self.numCells * self.eqn.numStates then
+			error("expected size="..size.." to be "..(self.numCells * self.eqn.numStates))
+		end
 		-- right now findNaNs is hardcoded to numCells
 		-- and if you change that, make sure that it doesn't write past 'reduceBufObj' (which is numCells in size)
 		-- or ... allocate a bigger buffer

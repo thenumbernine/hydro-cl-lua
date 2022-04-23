@@ -284,6 +284,24 @@ if self.checkNaNs then assert(self:checkFinite(derivBufObj)) end
 	self.calcDerivFromFluxKernelObj()
 
 if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
+--[[
+eqn = euler
+solver = fvsolver
+flux = roe
+real = half,
+gridSize = {512,512} or {512,511}
+we get our first nan here at derivBufObj cell position {2,2}
+seems intermediate now (thanks to replacing a few 0's with toreal(0)'s?)
+
+// within fvsolver.cl calcDerivFromFlux():
+grid_dx.x = 2/512 = 0.00390625
+grid_dx.y = 2/512 = 0.00390625
+volume = (2/512)^2 = 1.52587890625e-05
+invVolume = 65536.0
+areaL = grid_dx.y * invVolume = 256.0
+areaR = grid_dx.x * invVolume = 256.0
+volume threshold is 1e-7
+--]]
 if self.checkNaNs then assert(self:checkFinite(derivBufObj)) end
 
 end

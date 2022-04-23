@@ -120,6 +120,7 @@ local range = require 'ext.range'
 local template = require 'template'
 local clnumber = require 'cl.obj.number'
 local Struct = require 'hydro.code.struct'
+local math = require 'ext.math'		--isfinite
 
 local half = require 'cl.obj.half'
 local fromreal, toreal = half.fromreal, half.toreal
@@ -1432,6 +1433,23 @@ function CoordinateSystem:fillGridCellBuf(cellCpuBuf)
 				cellCpuBuf[index].pos.y = toreal(v)
 				cellCpuBuf[index].pos.z = toreal(w)
 				cellCpuBuf[index].volume = toreal(calcVolume(u,v,w, solver, fromreal))
+				--[[ TODO this is all to evaluate the half-precision inverse of 65520, which I'm failing to do here in luajit (without implementing the bitwise half16 function myself)
+				if not math.isfinite(fromreal(cellCpuBuf[index].pos.x)) then
+					print("!!! WARNING !!! cell pos.x is non-finite.  Something is bound to go wrong.")
+				end
+				if not math.isfinite(fromreal(cellCpuBuf[index].pos.y)) then
+					print("!!! WARNING !!! cell pos.y is non-finite.  Something is bound to go wrong.")
+				end
+				if not math.isfinite(fromreal(cellCpuBuf[index].pos.z)) then
+					print("!!! WARNING !!! cell pos.z is non-finite.  Something is bound to go wrong.")
+				end
+				if not math.isfinite(fromreal(cellCpuBuf[index].volume)) then
+					print("!!! WARNING !!! cell volume is non-finite.  Something is bound to go wrong.")
+				end
+				if not math.isfinite(fromreal(cellCpuBuf[index].volume)) then
+					print("!!! WARNING !!! cell volume is zero.  Something is bound to go wrong.")
+				end
+				--]]
 				index = index + 1
 			end
 		end
