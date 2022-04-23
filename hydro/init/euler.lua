@@ -1821,9 +1821,12 @@ end ?>;
 	{
 		name = 'shock bubble interaction',
 		guiVars = {
-			{name='shockwaveAxis', type='combo', value=1, options=xNames, compileTime=true},
+			{name='shockwaveAxis', value=0},
 			{name='waveX', value=-.45},
 			{name='bubbleRadius', value=.2},
+			{name='bubbleCenterX', value=0},
+			{name='bubbleCenterY', value=0},
+			{name='bubbleCenterZ', value=0},
 		},
 		getDepends = function(self)
 			return {
@@ -1835,13 +1838,14 @@ end ?>;
 			solver:setBoundaryMethods'freeflow'
 			return [[
 real3 const xc = coordMap(x);
-real3 bubbleCenter = real3_zero;
+real3 const bubbleCenter = _real3(initCond->bubbleCenterX, initCond->bubbleCenterY, initCond->bubbleCenterZ);
 real const bubbleRadiusSq = initCond->bubbleRadius * initCond->bubbleRadius;
 real3 const delta = real3_sub(xc, bubbleCenter);
 real const bubbleRSq = real3_lenSq(delta);
-rho = xc.shockwaveAxis < initCond->waveX ? 1. : (bubbleRSq < bubbleRadiusSq ? .1 : 1);
-P = xc.shockwaveAxis < initCond->waveX ? 1 : .1;
-v.shockwaveAxis = xc.shockwaveAxis < initCond->waveX ? 0 : -.5;
+int const axis = initCond->shockwaveAxis;
+rho = xc.s[axis] < initCond->waveX ? 1. : (bubbleRSq < bubbleRadiusSq ? .1 : 1);
+P = xc.s[axis] < initCond->waveX ? 1 : .1;
+v.s[axis] = xc.s[axis] < initCond->waveX ? 0 : -.5;
 ]]
 		end,
 	},

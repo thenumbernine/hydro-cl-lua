@@ -104,7 +104,7 @@ local args = {
 			-- latest CL platform/device name on my Intel HD 520 on ubuntu
 			['Intel(R) OpenCL HD Graphics/Intel(R) Graphics Gen9 [0x1916]'] = {
 				{4096,1,1},
-				{256,256,1},
+				{128,128,1},
 				{1020,1020,4},
 			},
 		
@@ -150,12 +150,12 @@ local args = {
 		}
 	)[dim],
 	boundary = type(cmdline.boundary) == 'table' and cmdline.boundary or {
-		xmin = cmdline.boundary or 'freeflow',
-		xmax = cmdline.boundary or 'freeflow',
-		ymin = cmdline.boundary or 'freeflow',
-		ymax = cmdline.boundary or 'freeflow',
-		zmin = cmdline.boundary or 'freeflow',
-		zmax = cmdline.boundary or 'freeflow',
+		xmin = cmdline.boundary or 'mirror',
+		xmax = cmdline.boundary or 'mirror',
+		ymin = cmdline.boundary or 'mirror',
+		ymax = cmdline.boundary or 'mirror',
+		zmin = cmdline.boundary or 'mirror',
+		zmax = cmdline.boundary or 'mirror',
 	},
 	--]]
 	--[[ cylinder
@@ -167,7 +167,7 @@ local args = {
 		-- TODO works but does curvilinear boundaries support cartesian vector components?
 	coordArgs = {vectorComponent='cartesian'},			-- use cartesian vector components
 	mins = cmdline.mins or {0, 0, -1},
-	maxs = cmdline.maxs or {1, 2*math.pi, 1},			-- TODO bake the 2π into the coordinate chart so this matches grid/cylinder.  Technically θ→2πθ means it isn't the standard θ variable.  I did this for UI convenience with CFDMesh.
+	maxs = cmdline.maxs or {.5, 2*math.pi, 1},			-- TODO bake the 2π into the coordinate chart so this matches grid/cylinder.  Technically θ→2πθ means it isn't the standard θ variable.  I did this for UI convenience with CFDMesh.
 	gridSize = ({
 		{128, 1, 1},	-- 1D
 		{64, 256, 1},	-- 2D
@@ -240,6 +240,7 @@ local args = {
 	--[[ cylinder as toroid
 	coord = 'cylinder',
 	coordArgs = {vectorComponent='cartesian'},
+	--coordArgs = {vectorComponent='anholonomic'},
 	mins = cmdline.mins or {.5, 0, -.25},
 	maxs = cmdline.maxs or {1, 2*math.pi, .25},			-- TODO bake the 2π into the coordinate chart so this matches grid/cylinder.  Technically θ→2πθ means it isn't the standard θ variable.  I did this for UI convenience with CFDMesh.
 	gridSize = ({
@@ -376,7 +377,7 @@ local args = {
 	--]]
 
 
-	--initCond = 'rectangle',
+	initCond = 'rectangle',
 	--initCond = 'Sedov',
 	--initCond = 'Noh',
 	--initCond = 'implosion',
@@ -394,12 +395,18 @@ local args = {
 	--initCond = 'Colella-Woodward',
 	--initCond = 'double mach reflection',
 	--initCond = 'square cavity',
-	
+
+	--[[
 	initCond = 'shock bubble interaction',		-- with usePLM only works with prim or with athena
 	initCondArgs = {
+		shockwaveAxis = cmdline.shockwaveAxis,
 		waveX = cmdline.waveX,
 		bubbleRadius = cmdline.bubbleRadius,
+		bubbleCenterX = cmdline.bubbleCenterX,
+		bubbleCenterY = cmdline.bubbleCenterY,
+		bubbleCenterZ = cmdline.bubbleCenterZ,
 	},
+	--]]
 
 	--initCond = 'Richmyer-Meshkov',
 	--initCond = 'radial gaussian',
