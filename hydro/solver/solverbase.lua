@@ -1757,7 +1757,7 @@ kernel void <?=kernelName?>(
 	// so unless I zero the border, it'll skew the averages
 	// but in fact the only reason i'm not zeroing the border is for the display i think?
 	// which sounds like a stupid reason anyways ... i should just use gl wrap
-	int zeroBorder
+	int const zeroBorder
 <?
 if require 'hydro.solver.meshsolver':isa(solver) then
 -- TODO is anyone even using this?  faces? or extraArgs?

@@ -190,7 +190,7 @@ end
 function MeshSolver:createCellStruct()
 	-- here's the mesh-specific stuff
 	self.coord.cellStruct.vars:append{
--- [[			
+--[[ moved to coord/coord to be in gridsolver and meshsolver
 		{type='real', name='volume'},	--volume of the cell
 --]]			
 		{type='int', name='faceOffset'},
@@ -685,7 +685,7 @@ MeshSolver.DisplayVar = MeshSolverDisplayVar
 
 function MeshSolverDisplayVar:setArgs(kernel)
 	MeshSolverDisplayVar.super.setArgs(self, kernel)
-	kernel:setArg(6, self.solver.faceBuf)
+	kernel:setArg(7, self.solver.faceBuf)
 end
 
 function MeshSolver:updateGUIParams()
