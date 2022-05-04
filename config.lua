@@ -395,19 +395,7 @@ local args = {
 	--initCond = 'Colella-Woodward',
 	--initCond = 'double mach reflection',
 	--initCond = 'square cavity',
-
-	--[[
-	initCond = 'shock bubble interaction',		-- with usePLM only works with prim or with athena
-	initCondArgs = {
-		shockwaveAxis = cmdline.shockwaveAxis,
-		waveX = cmdline.waveX,
-		bubbleRadius = cmdline.bubbleRadius,
-		bubbleCenterX = cmdline.bubbleCenterX,
-		bubbleCenterY = cmdline.bubbleCenterY,
-		bubbleCenterZ = cmdline.bubbleCenterZ,
-	},
-	--]]
-
+	--initCond = 'shock bubble interaction',		-- with usePLM only works with prim or with athena
 	--initCond = 'Richmyer-Meshkov',
 	--initCond = 'radial gaussian',
 
@@ -688,7 +676,10 @@ local args = {
 	-- multi-devices
 	multiSlices = {cmdline.multiSlices or 2, 1, 1},
 }
-
+-- apply any cmdline 'initCondArgs' on top of the args.initCondArgs
+if cmdline.initCondArgs or args.initCondArgs then
+	args.initCondArgs = table(cmdline.initCondArgs, args.initCondArgs)
+end
 
 if cmdline.solver then self.solvers:insert(require('hydro.solver.'..cmdline.solver)(table(args, cmdline.solverArgs))) return end
 
@@ -754,7 +745,7 @@ self.solvers:insert(require 'hydro.solver.weno'(table(args, {
 -- compressible Euler equations
 
 
-self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
+--self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
 
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct bounded'})))	-- this is the default hllCalcWaveMethod
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct'})))
@@ -1146,7 +1137,7 @@ With hyperbolic gamma driver shift it has trouble.
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='euler-lingr', mesh={type='cylinder3d', size={8, 8, 8}, mins={.5, 0, -.25}, maxs={1, 1, .25}}})))
 
 
---[=[ 1.25 degree angle of attack, mach 0.8, sea level pressure and density
+-- [=[ 1.25 degree angle of attack, mach 0.8, sea level pressure and density
 -- might be trying to reproduce the "I Do Like CFD" OssanWorld.com edu2d "case_steady_airfoil"
 --local theta = 0					-- cylinder uses 0
 local theta = math.rad(1.25)	-- naca airfoil uses 1.25
@@ -1329,8 +1320,8 @@ local args = {
 	--eqn = 'adm3d',
 	eqn = 'z4',
 	
-	--integrator = 'forward Euler',
-	integrator = 'Runge-Kutta 3, TVD',	-- p.20, eqn B.1
+	integrator = 'forward Euler',
+	--integrator = 'Runge-Kutta 3, TVD',	-- p.20, eqn B.1
 	--integrator = 'Runge-Kutta 4',
 	dim = dim,
 	cfl = .5/dim,			-- no mention of cfl or timestep ...
@@ -1739,5 +1730,53 @@ if cmdline['adm3d-hll'] then
 end
 if cmdline['z4-hll'] then
 	self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='z4', eqnArgs = {useShift = cmdline.useShift}, initCond = cmdline.initCond})))
+end
+--]=]
+
+-- [=[ ok here's my 2D z4 finite volume brill lindquist solver
+if cmdline.z4bl then
+	local dim = 2
+	local args = {
+		app = self,
+		integrator = 'forward Euler',
+		dim = dim,
+		cfl = .5/dim,
+		fluxLimiter = cmdline.fluxLimiter or 'donor cell',
+		--fluxLimiter = cmdline.fluxLimiter or 'minmod',
+		--fluxLimiter = cmdline.fluxLimiter or 'Lax-Wendroff',
+		--fluxLimiter = cmdline.fluxLimiter or 'superbee',
+
+		coord = 'sphere_sinh_radial',
+		coordArgs = {
+			vectorComponent = 'anholonomic',	-- ... these settings also influence the finite volume area/volume calculations (in terms of the vector components) ...
+			amplitude = 1000,
+			sinh_w = .15
+		},
+		mins = {0, 0, 0},
+		maxs = {
+			1,
+			math.pi,
+			2*math.pi,
+		},
+		gridSize = cmdline.gridSize or ({
+			{200, 1, 1},
+			{80, 80, 1},
+			{16, 8, 8},
+		})[dim],
+		boundary = {
+			xmin='sphereRMin',
+			xmax='quadratic',
+			ymin='sphereTheta',
+			ymax='sphereTheta',
+			zmin='periodic',
+			zmax='periodic',
+		},
+
+		initCond = 'SENR BrillLindquist',
+		flux = 'hll',
+		eqn = 'z4',
+		eqnArgs = {useShift = 'GammaDriverHyperbolic'},
+	}
+	self.solvers:insert(require 'hydro.solver.fvsolver'(args))
 end
 --]=]

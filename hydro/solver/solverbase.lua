@@ -683,6 +683,8 @@ function SolverBase:initObjs(args)
 	if not self.initCondIndex then
 		assert(#self.eqn.initCondNames > 0, "couldn't find initCond "..('%q'):format(tostring(args.initCond)).." ... and there are no initConds to search.")
 		self.initCondIndex = 1
+		-- TODO do this fallback before storing the cache string
+		-- this way the cached code / binaries don't get messed up if we are loading extra init conds and they are not present
 		print("!!!!! couldn't find initCond "..('%q'):format(tostring(args.initCond)).." so falling back on initCond "..('%q'):format(tostring(self.eqn.initCondNames[self.initCondIndex])).." !!!!!")
 	end
 	self.initCondArgs = args.initCondArgs

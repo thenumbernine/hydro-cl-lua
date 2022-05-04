@@ -4,11 +4,15 @@ similar to SRHD except using a metric based on a metric of alpha, beta, gamma
 which needs to be provided externally from another solver (via gr-hd-separate-behavior)
 --]]
 local class = require 'ext.class'
+local table = require 'ext.table'
 local Equation = require 'hydro.eqn.eqn'
+local Struct = require 'hydro.code.struct'
 
 local GRHD = class(Equation)
 GRHD.name = 'GRHD'
-GRHD.numStates = 10
+
+--GRHD.numStates = 10
+
 GRHD.numWaves = 5
 GRHD.numIntStates = 5
 
@@ -17,40 +21,48 @@ GRHD.numIntStates = 5
 GRHD.initConds = require 'hydro.init.euler':getList()
 
 function GRHD:init(args)
+	local solver = assert(args.solver)
+
+	self.consOnlyStruct = Struct{
+		solver = solver,
+		name = 'cons_only_t',
+		vars = {
+			{name='D', type='real', units='kg/m^3'},				-- D = ρ W, W = unitless Lorentz factor
+			{name='S', type='real3', units='kg/s^3', variance='l'},	-- S_j = ρ h W^2 v_j ... [ρ] [h] [v] = kg/m^3 * m^2/s^2 * m/s = kg/s^3
+			{name='tau', type='real', units='kg/(m*s^2)'},			-- tau = ρ h W^2 - P ... [ρ] [h] [W^2] = kg/m^3 * m^2/s^2 = kg/(m*s^2)
+		},
+	}
+
+	self.primOnlyStruct = Struct{
+		solver = solver,
+		name = 'prim_only_t',
+		vars = {
+			{name='rho', type='real', units='kg/m^3'},
+			{name='v', type='real3', units='m/s', variance='l'},
+			{name='eInt', type='real', units='m^2/s^2'},
+		},
+	}
+
+	-- TODO how about anonymous structs, so we can copy out prim_only_t and cons_only_t?
+	self.consVars = table()
+	:append(self.consOnlyStruct.vars)
+	:append(self.primOnlyStruct.vars)
+	
+
+	self.consOnlyStruct:makeType()
+	self.primOnlyStruct:makeType()
+
 	GRHD.super.init(self, args)
-	self.cons_only_t = args.solver.app:uniqueName'cons_only_t'
+	
+	self.symbols.cons_only_t = self.consOnlyStruct.typename
+	self.symbols.prim_only_t = self.primOnlyStruct.typename
 end
 
--- TODO upgrade this to srhd: put these all in consVars and just make separate cons_only_ and prim_only_t
--- TODO also upgrade this to initCodeModules.  turn it into a struct, like srhd.
-function GRHD:getTypeCode()
-	return self:template[[
-typedef union {
-	real ptr[5];
-	struct {
-		real D;		//0 D = rho W
-		real3 S;	//1	S_j = rho h W^2 v_j
-		real tau;	//4 tau = rho h W^2 - P
-	};
-} <?=eqn.cons_only_t?>;
-
-typedef union {
-	real ptr[5];
-	struct {
-		real rho;
-		real3 v;	//v_i
-		real eInt;
-	};
-} <?=prim_t?>;
-
-typedef union {
-	real ptr[10];
-	struct {
-		<?=eqn.cons_only_t?> cons;
-		<?=prim_t?> prim;
-	};
-} <?=cons_t?>;
-]]
+function GRHD:getSymbolFields()
+	return GRHD.super.getSymbolFields(self):append{
+		'cons_only_t',
+		'prim_only_t',
+	}
 end
 
 function GRHD:createInitState()
@@ -91,60 +103,87 @@ function GRHD:createInitState()
 	}
 end
 
--- don't use default 
-function GRHD:initCodeModule_consFromPrim_primFromCons() end
+function GRHD:initCodeModules()
+	GRHD.super.initCodeModules(self)
+	local solver = self.solver
+
+	solver.modules:add{
+		name = self.symbols.cons_only_t,
+		structs = {self.consOnlyStruct},
+		-- only generated for cl, not for ffi cdef
+		headercode = 'typedef '..self.symbols.cons_only_t..' cons_only_t;',
+	}
+
+	solver.modules:add{
+		name = self.symbols.prim_only_t,
+		structs = {self.primOnlyStruct},
+		-- only generated for cl, not for ffi cdef
+		headercode = 'typedef '..self.symbols.prim_only_t..' prim_only_t;',
+	}
+end
+
+-- don't use default
+function GRHD:initCodeModule_fluxFromCons() end
+function GRHD:initCodeModule_calcDTCell() end
 
 GRHD.solverCodeFile = 'hydro/eqn/grhd.cl'
 
+GRHD.predefinedDisplayVars = {
+	'U rho',
+	'U v',
+	'U tau',
+	'U div v',
+	'U curl v',
+}
+
 function GRHD:getDisplayVars()
-	local vars = table{
-		{name='D', code='value.vreal = U->cons.D;'},
-		{name='S', code='value.vreal3 = U->cons.S;', type='real3'},
-		{name='S weighted', code=self:template[[
-	<?=solver:getADMVarCode()?>
-	value.vreal = real3_weightedLen(U->cons.S, gamma);
-]]},
-		{name='tau', code='value.vreal = U->cons.tau;'},
-		{name='W based on D', code='value.vreal = U->cons.D / U->prim.rho;'},
+	local vars = GRHD.super.getDisplayVars(self)
+	vars:append{
+		{name='W based on D', code='value.vreal = U->D / U->rho;'},
 		{name='W based on v', code=self:template[[
-	<?=solver:getADMVarCode()?>
-	real det_gamma = sym3_det(gamma);
-	sym3 gammaU = sym3_inv(gamma, det_gamma);
-	value.vreal = 1. / sqrt(1. - real3_weightedLenSq(U->prim.v, gammaU));
+<?=solver:getADMVarCode()?>
+real det_gamma = sym3_det(gamma);
+sym3 gammaU = sym3_inv(gamma, det_gamma);
+value.vreal = 1. / sqrt(1. - real3_weightedLenSq(U->v, gammaU));
 ]]},
 		{name='primitive reconstruction error', code=self:template[[
-	//prim have just been reconstructed from cons
-	//so reconstruct cons from prims again and calculate the difference
+//prim have just been reconstructed from cons
+//so reconstruct cons from prims again and calculate the difference
+{
 	<?=solver:getADMVarCode()?>
-	<?=eqn.cons_only_t?> U2 = consOnlyFromPrim(solver, U->prim, alpha, beta, gamma);
+	<?=cons_only_t?> U2;
+	consOnlyFromPrim(&U2, solver, U, alpha, beta, gamma);
 	value.vreal = 0;
 	for (int j = 0; j < numIntStates; ++j) {
-		value.vreal += fabs(U->cons.ptr[j] - U2.ptr[j]);
+		value.vreal += fabs(U->ptr[j] - U2.ptr[j]);
 	}
-]]},
+}
+]]
+		},
 		{name='W error', code=self:template[[
-	real W1 = U->cons.D / U->prim.rho;
-	<?=solver:getADMVarCode()?>
-	real det_gamma = sym3_det(gamma);
-	sym3 gammaU = sym3_inv(gamma, det_gamma);
-	real W2 = 1. / sqrt(1. - real3_weightedLenSq(U->prim.v, gammaU));
-	value.vreal = fabs(W1 - W2);
-]]},
+real W1 = U->D / U->rho;
+<?=solver:getADMVarCode()?>
+real det_gamma = sym3_det(gamma);
+sym3 gammaU = sym3_inv(gamma, det_gamma);
+real W2 = 1. / sqrt(1. - real3_weightedLenSq(U->v, gammaU));
+value.vreal = fabs(W1 - W2);
+]]		},
 
-		{name='rho', code='value.vreal = U->prim.rho;'},
-		
-		-- TODO abstract the generators of real3 variables and add weighted norms automatically
-		{name='v', code='value.vreal3 = U->prim.v;', type='real3'},
 		{name='v weighted', code=self:template[[
-	<?=solver:getADMVarCode()?>
-	value.vreal = real3_weightedLen(U->prim.v, gamma);
+<?=solver:getADMVarCode()?>
+value.vreal = real3_weightedLen(U->v, gamma);
+]]},
+		-- TODO weighted metric norm option for all tensors/vectors
+		{name='S weighted', code=self:template[[
+<?=solver:getADMVarCode()?>
+value.vreal = real3_weightedLen(U->S, gamma);
 ]]},
 
-		{name='eInt', code='value.vreal = U->prim.eInt;'},
-		{name='P', code='value.vreal = calc_P(solver, U->prim.rho, U->prim.eInt);'},
-		{name='h', code='value.vreal = calc_h(U->prim.rho, calc_P(solver, U->prim.rho, U->prim.eInt), U->prim.eInt);'},
+		{name='eInt', code='value.vreal = U->eInt;'},
+		{name='P', code='value.vreal = calc_P(solver, U->rho, U->eInt);'},
+		{name='h', code='value.vreal = calc_h(U->rho, calc_P(solver, U->rho, U->eInt), U->eInt);'},
 	}
-	
+
 	vars:insert(self:createDivDisplayVar{field='v', units='1/s'} or nil)
 	vars:insert(self:createCurlDisplayVar{field='v', units='1/s'} or nil)
 
@@ -182,5 +221,7 @@ function GRHD:eigenWaveCode(side, eig, x, waveIndex)
 		'<?=eig?>.lambdaMax',
 	})[waveIndex+1], "couldn't find code for waveIndex="..waveIndex), {side=side, eig='('..eig..')'})
 end
+
+GRHD.consWaveCode = GRHD.eigenWaveCode
 
 return GRHD

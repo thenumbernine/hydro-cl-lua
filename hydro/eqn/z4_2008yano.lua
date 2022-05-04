@@ -1,5 +1,15 @@
 --[[
 Based on 2008 Yano et al "Flux Vector Splitting..."
+
+Funny story, I went and derived the Z4 eigenmodes by hand,
+based on the Jacobian of the flux that is listed in the 2005 Bona et al and then again in the 2008 Yano et al paper
+and they didn't match up with the left-eigenvectors listed in the 2008 Yano et al paper.
+It seems like they based their eigendecomposition on a different system than I did,
+probably thanks to shifting around gauge variable derivatives vs converting them into state variables.
+Either way, their paper has some mistakes in it (such that the eigensystem doesn't evaluate to the original flux Jacobian)
+So even after fixing these and reproducing the flux Jacobian, I am still getting numerical errors in this code implementation.
+
+However things are working fine with my own eigenmodes<->left eigenvectors in the hydro/eqn/z4.lua file.
 --]]
 
 local class = require 'ext.class'

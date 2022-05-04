@@ -1827,6 +1827,15 @@ end ?>;
 			{name='bubbleCenterX', value=0},
 			{name='bubbleCenterY', value=0},
 			{name='bubbleCenterZ', value=0},
+			{name='rhoL', value=1},			-- before the shock wave
+			{name='PL', value=1},
+			{name='vL', value=0},
+			{name='rhoR', value=1},			-- after the shock wave
+			{name='PR', value=.1},
+			{name='vR', value=-.5},
+			{name='rhoInside', value=.1},	-- inside the bubble
+			{name='PInside', value=.1},
+			{name='vInside', value=-.5},
 		},
 		getDepends = function(self)
 			return {
@@ -1843,9 +1852,19 @@ real const bubbleRadiusSq = initCond->bubbleRadius * initCond->bubbleRadius;
 real3 const delta = real3_sub(xc, bubbleCenter);
 real const bubbleRSq = real3_lenSq(delta);
 int const axis = initCond->shockwaveAxis;
-rho = xc.s[axis] < initCond->waveX ? 1. : (bubbleRSq < bubbleRadiusSq ? .1 : 1);
-P = xc.s[axis] < initCond->waveX ? 1 : .1;
-v.s[axis] = xc.s[axis] < initCond->waveX ? 0 : -.5;
+if (bubbleRSq < bubbleRadiusSq) {
+	rho = initCond->rhoInside;
+	P = initCond->PInside;
+	v.s[axis] = initCond->vInside;
+} else if (xc.s[axis] < initCond->waveX) {
+	rho = initCond->rhoL;
+	P = initCond->PL;
+	v.s[axis] = initCond->vL;
+} else {
+	rho = initCond->rhoR;
+	P = initCond->PR;
+	v.s[axis] = initCond->vR;
+}
 ]]
 		end,
 	},
