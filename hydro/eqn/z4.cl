@@ -486,7 +486,7 @@ if has_B_u then --\
 	sym3 const dHat_t_ll = sym3_zero;\
 \
 	<? if eqn.useShift ~= "none" then ?>\
-	sym3 const b_ll = sym3_real3x3_to_sym3_mul(gamma_ll, b_ul);\
+	real3x3 const b_ll = sym3_real3x3_mul(gamma_ll, b_ul);\
 	<? end ?>\
 \
 	<? if eqn.useShift == "HarmonicParabolic" then ?>\
@@ -1427,10 +1427,10 @@ kernel void <?=addSource?>(
 <? if false then ?>//hand-rolled
 	
 	// source terms
+	_3sym3 const d_lll = U->d_lll;									//d_kij
 	
 	real3x3 const K_ul = sym3_sym3_mul(gamma_uu, U->K_ll);			//K^i_j
 	real const trK = real3x3_trace(K_ul);							//K^k_k
-	_3sym3 const d_lll = U->d_lll;									//d_kij
 	real3x3x3 const d_llu = _3sym3_sym3_mul(d_lll, gamma_uu);	//d_llu = d_ij^k = d_ijl * γ^lk
 	_3sym3 const d_ull = sym3_3sym3_mul(gamma_uu, d_lll);		//d_ull = d^i_jk = γ^il d_ljk
 	real3 const e_l = _3sym3_tr12(d_ull);						//e_l = e_i = d^j_ji
@@ -1601,6 +1601,7 @@ end
 
 	real const alpha = U->alpha;
 	real3 const a_l = U->a_l;
+	_3sym3 const d_lll = U->d_lll;									//d_kij
 	sym3 const K_ll = U->K_ll;
 	real const Theta = U->Theta;
 	real3 const Z_l = U->Z_l;
@@ -1608,7 +1609,6 @@ end
 	real3x3 const K_ul = sym3_sym3_mul(gamma_uu, K_ll);			//K^i_j
 	real const tr_K = real3x3_trace(K_ul);							//K^k_k
 	sym3 const K_uu = real3x3_sym3_to_sym3_mul(K_ul, gamma_uu);		//K^ij
-	_3sym3 const d_lll = U->d_lll;									//d_kij
 	_3sym3 const d_ull = sym3_3sym3_mul(gamma_uu, d_lll);
 	real3x3x3 const d_llu = _3sym3_sym3_mul(d_lll, gamma_uu);
 	_3sym3 const d_luu = sym3_real3x3x3_mul2_to_3sym3(gamma_uu, d_llu);
@@ -1632,13 +1632,12 @@ end
 		<? if has_b_ul then ?>
 	real3x3 const b_ul = U->b_ul;
 	real const tr_b = real3x3_trace(b_ul);
-	sym3 const b_ll = sym3_real3x3_to_sym3_mul(gamma_ll, b_ul);
+	real3x3 const b_ll = sym3_real3x3_mul(gamma_ll, b_ul);
 		<? end ?>
 		
 		<? if has_B_u then ?>
 	real3 const B_u = U->B_u;
 		<? end ?>
-	_3sym3 const d_lll = U->d_lll;
 		
 		<? if eqn.useShift == "MinimalDistortionHyperbolic" then ?>
 //// MODULE_DEPENDS: mdeShiftEpsilon
@@ -1646,8 +1645,7 @@ end
 	sym3 const DBeta_uu = real3x3_sym3_to_sym3_mul(DBeta_ul, gamma_uu);
 	real const tr_DBeta = real3x3_trace(DBeta_ul);
 	real3x3x3 const conn_uul = _3sym3_sym3_mul(conn_ull, gamma_uu);
-	//TODO why not use b_ll as a state var? then we'd be storing 6 instead of 9 vars.
-	sym3 const b_uu = real3x3_sym3_to_sym3_mul(b_ul, gamma_uu);
+	real3x3 const b_uu = real3x3_sym3_mul(b_ul, gamma_uu);
 	sym3 const A_uu = sym3_sub(K_uu, sym3_real_mul(gamma_uu, tr_K / 3.));
 		<? end ?>
 		
