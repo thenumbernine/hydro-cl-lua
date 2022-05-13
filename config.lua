@@ -1137,7 +1137,7 @@ With hyperbolic gamma driver shift it has trouble.
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='euler-lingr', mesh={type='cylinder3d', size={8, 8, 8}, mins={.5, 0, -.25}, maxs={1, 1, .25}}})))
 
 
--- [=[ 1.25 degree angle of attack, mach 0.8, sea level pressure and density
+--[=[ 1.25 degree angle of attack, mach 0.8, sea level pressure and density
 -- might be trying to reproduce the "I Do Like CFD" OssanWorld.com edu2d "case_steady_airfoil"
 --local theta = 0					-- cylinder uses 0
 local theta = math.rad(1.25)	-- naca airfoil uses 1.25

@@ -228,7 +228,7 @@ function Z4_2004Bona:init(args)
 	-- TODO the whole "delta" idea is a bad one, it removes homogeneity from the flux (I think?)
 	local fluxVars = table{
 		{name='a_l', type='real3'},
-		{name='dDelta_lll', type='_3sym3'},
+		{name='d_lll', type='_3sym3'},
 		{name='K_ll', type='sym3'},
 		{name='Theta', type='real'},
 		{name='Z_l', type='real3'},
@@ -236,7 +236,7 @@ function Z4_2004Bona:init(args)
 
 	self.consVars = table{
 		{name='alpha', type='real'},
-		{name='gammaDelta_ll', type='sym3'},
+		{name='gamma_ll', type='sym3'},
 	}:append(fluxVars)
 
 
@@ -369,9 +369,7 @@ end
 function Z4_2004Bona:getSymbolFields()
 	return Z4_2004Bona.super.getSymbolFields(self):append{
 		'initDeriv_numeric_and_useBSSNVars',
-		'calc_gammaHat_ll',		-- calc ^γ_ij = grid metric (hol.) derivative ... also in common with bssnok-fd-*
 		'calc_dHat_lll',		-- calc ^d_kij = 1/2 ^γ_ij,k
-		'calc_d_lll',			-- from U->dDelta_ijk and ^d(pt)_ijk
 		'calcFromGrad_a_l',
 		'calcFromGrad_d_lll',	-- finite difference from grid
 		'calcFromGrad_b_ul',
@@ -446,32 +444,12 @@ function Z4_2004Bona:getDisplayVars()
 	local vars = Z4_2004Bona.super.getDisplayVars(self)
 
 	vars
-	:append(xNames:mapi(function(xi,i)
-		return {
-			name = 'd_lll '..xi,
-			type = 'sym3',
-			code = self:template([[
-//// MODULE_DEPENDS: <?=calc_d_lll?>
-value.vsym3 = <?=calc_d_lll?>(U, cell->pos).<?=xi?>;
-]], {xi=xi})
-		}
-	end))
 	:append{
-		{
-			name = 'gamma_ll',
-			type = 'sym3',
-			code = self:template[[
-//// MODULE_DEPENDS: <?=calc_gamma_ll?>
-value.vsym3 = <?=calc_gamma_ll?>(U, cell->pos);
-]],
-		},
 		{	-- this is spacetime volume
 			-- spatial volume is just "U gamma_ll det"
 			name = 'volume',
 			code = self:template[[
-//// MODULE_DEPENDS: <?=calc_gamma_ll?>
-sym3 const gamma_ll = <?=calc_gamma_ll?>(U, cell->pos);
-value.vreal = U->alpha * sqrt(sym3_det(gamma_ll));
+value.vreal = U->alpha * sqrt(sym3_det(U->gamma_ll));
 ]],
 		},
 		{name='f', code='value.vreal = calc_f(U->alpha);'},
@@ -530,16 +508,14 @@ H =
 			name = 'Gamma^i',
 			type = 'real3',
 			code = self:template[[
-//// MODULE_DEPENDS: <?=calc_d_lll?>
-_3sym3 const d_lll = <?=calc_d_lll?>(U, cell->pos);
 //// MODULE_DEPENDS: <?=calc_gamma_uu?>
 sym3 const gamma_uu = <?=calc_gamma_uu?>(U, cell->pos);
 value.vreal3 = real3_sub(
 	real3_real_mul(
-		sym3_3sym3_dot12(gamma_uu, d_lll),	//e_l
+		sym3_3sym3_dot12(gamma_uu, U->d_lll),	//e_l
 		2.
 	),
-	_3sym3_sym3_dot23(d_lll, gamma_uu)		//d_l
+	_3sym3_sym3_dot23(U->d_lll, gamma_uu)		//d_l
 );
 ]],
 		},
@@ -548,11 +524,9 @@ value.vreal3 = real3_sub(
 			name = 'log(sqrt(gamma))_,i',
 			type = 'real3',
 			code = self:template[[
-//// MODULE_DEPENDS: <?=calc_d_lll?>
-_3sym3 const d_lll = <?=calc_d_lll?>(U, cell->pos);
 //// MODULE_DEPENDS: <?=calc_gamma_uu?>
 sym3 const gamma_uu = <?=calc_gamma_uu?>(U, cell->pos);
-value.vreal3 = _3sym3_sym3_dot23(d_lll, gamma_uu);		//d_l
+value.vreal3 = _3sym3_sym3_dot23(U->d_lll, gamma_uu);		//d_l
 ]],
 		},
 	}
@@ -598,12 +572,10 @@ if (<?=OOB?>(1,1)) {
 	value.vsym3 = sym3_zero;
 } else {
 //// MODULE_DEPENDS: <?=calcFromGrad_d_lll?>
-	_3sym3 const target_d_lll = <?=calcFromGrad_d_lll?>(solver, U, cell);
-//// MODULE_DEPENDS: <?=calc_d_lll?>
-	_3sym3 const d_lll = <?=calc_d_lll?>(U, cell->pos);
+	_3sym3 const target_d_lll = <?=calcFromGrad_d_lll?>(solver, U);
 	value.vsym3 = (sym3){
 <? for jk,xjk in ipairs(symNames) do
-?>		.<?=xjk?> = fabs(target_d_lll.<?=xi?>.<?=xjk?> - d_lll.<?=xi?>.<?=xjk?>),
+?>		.<?=xjk?> = fabs(target_d_lll.<?=xi?>.<?=xjk?> - U->d_lll.<?=xi?>.<?=xjk?>),
 <? end
 ?>	};
 }
