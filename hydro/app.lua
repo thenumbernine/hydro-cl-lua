@@ -1466,21 +1466,28 @@ end
 				end
 			end
 		end
+		
 		if self.showMouseCoords
 		and mouseOverThisGraph
-		and self.displayDim == 2	-- displaySolvers[1].dim == 2
+		and (self.displayDim == 1 or self.displayDim == 2)	-- displaySolvers[1].dim == 2		-- or better -- instead check for ortho
 		then
-			local xmin, xmax, ymin, ymax
-			if self.view.getOrthoBounds then
-				xmin, xmax, ymin, ymax = self.view:getOrthoBounds(ar)
-			else
-				xmin, xmax, ymin, ymax = graph_xmin, graph_ymin, graph_xmax, graph_ymax
-			end
-			
-			-- frustum doesn't have these ...
-			if xmax and ymax and xmin and ymin then
+			if self.displayDim == 1 then
+				-- use the already-existing xy min max
 				self.mouseCoord[1] = mouseInGraphX * (xmax - xmin) + xmin
 				self.mouseCoord[2] = mouseInGraphY * (ymax - ymin) + ymin
+			else	-- use the ortho xy min max
+				local xmin, xmax, ymin, ymax
+				if self.view.getOrthoBounds then
+					xmin, xmax, ymin, ymax = self.view:getOrthoBounds(ar)
+				else
+					xmin, xmax, ymin, ymax = graph_xmin, graph_ymin, graph_xmax, graph_ymax
+				end
+				
+				-- frustum doesn't have these ...
+				if xmax and ymax and xmin and ymin then
+					self.mouseCoord[1] = mouseInGraphX * (xmax - xmin) + xmin
+					self.mouseCoord[2] = mouseInGraphY * (ymax - ymin) + ymin
+				end
 			end
 		end
 
@@ -1513,7 +1520,7 @@ end
 		-- (that would also let us do one less tex bind/unbind)
 		if mouseOverThisGraph
 		and self.showMouseCoords
-		and self.displayDim == 2
+		and (self.displayDim == 1 or self.displayDim == 2)
 		then
 			local half = require 'cl.obj.half'
 			local toreal, fromreal = half.toreal, half.fromreal
@@ -1949,7 +1956,9 @@ function HydroCLApp:updateGUI()
 		ig.igPopID()
 	end
 
-	if self.showMouseCoords and self.displayDim == 2 then
+	if self.showMouseCoords
+	and (self.displayDim == 1 or self.displayDim == 2)
+	then
 		ig.igBeginTooltip()
 		ig.igText(self:getCoordText())
 		ig.igText(self.mouseCoordValue)

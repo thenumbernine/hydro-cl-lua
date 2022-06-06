@@ -8,9 +8,11 @@ It uses OpenCL for the GPU code.
 
 lua-hydro-cl has been maintained and developed by me, Christopher Moore.
 
-From its creation 2016 Sep 30 until 2019 May 15 it was produced in my free time.
+From its creation 2016 Sep 30 until now it has produced in my free time, with exceptions:
 
-From 2019 May 15 onward its work is being funded by the Chinese University of Hong Kong.
+From 2017 June until 2018 Jan it was funded by King Abdullah University of Science and Technology.
+
+From 2019 May 15 until 2021 March it was being funded by the Chinese University of Hong Kong.
 
 ### Project History:
 
