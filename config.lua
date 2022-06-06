@@ -1377,7 +1377,7 @@ local args = {
 		zmax='periodic',
 	},
 	--]]
-	-- [[
+	--[[ sphere sinh radial with parameters from 2009 Alic (right?)
 	coord = 'sphere_sinh_radial',
 	coordArgs = {
 		-- TODO sort this out
@@ -1420,19 +1420,20 @@ local args = {
 		zmax='periodic',
 	},
 	--]]
-	--[[ sphere_sinh_radial but with SENR parameters ... for SENR init conds
+	-- [[ sphere_sinh_radial but with SENR parameters ... for SENR init conds
 	coord = 'sphere_sinh_radial',
 	coordArgs = {
-		vectorComponent = 'cartesian',
+		--vectorComponent = 'cartesian',
+		vectorComponent = 'anholonomic',
 		--vectorComponent = 'holonomic',
-		--vectorComponent = 'anholonomic',
-		sinh_w = .15,
-		amplitude = 1000,
+		--sinh_w = .15,
+		sinh_w = math.sinh(0.0916845),	-- 2017 Ruchlin, Fig 4, w = 0.0916845
+		amplitude = 1000,				-- 2017 Ruchlin, Fig 4, rmax / M = 1000
 	},
 	mins = {0, 0, 0},
 	maxs = {1, math.pi, 2*math.pi,},
 	gridSize = cmdline.gridSize or ({
-		{200, 1, 1},
+		{200, 1, 1},	-- 2017 Ruchlin, Fig 4, Nx1 = 200, Nx2 = 2, Nx3 = 2 ... but I'm not bothering with the finite-difference min width of 2 stuff
 		{80, 80, 1},
 		{16, 8, 8},
 	})[dim],
