@@ -2770,10 +2770,8 @@ end
 function SolverBase:calcDisplayVarRangeAndAvgAndStdDev(var, componentIndex)
 	componentIndex = componentIndex or var.component
 
-	if var.lastTime ~= self.t then
-		-- this will update lastTime if necessary
-		self:calcDisplayVarRangeAndAvg(var, componentIndex)
-	end
+	-- this will update lastTime if necessary
+	self:calcDisplayVarRangeAndAvg(var, componentIndex)
 
 	if not var.lastStdDev then
 		assert(var.lastAvg)

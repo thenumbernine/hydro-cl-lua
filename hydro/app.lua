@@ -59,6 +59,10 @@ simulation execution:
 	exitTime = start the app running, and exit it after the simulation reaches this time
 	saveOnExit = filename to save all solvers (appending _1 _2 for multiple solvers) before quitting
 	plotOnExit = enable or set to 'true' to have a plot popup upon exit.  set it to a filename string to save the plot to that file.
+				this plots a time history of variable min, max, avg, and stddev of the trackvars.
+	plot1DOnExit = enable to plot the 1D data at the time of exit. set it to a filename string to save the plot to that file. 
+				this plots a snapshot of the variable min, max, avg, and stddev of the trackvars.
+	plot1DOnExit_savedata = (optional) what filename to save the output data as
 	stopTime = stop running once this time is reached.
 	maxiter = max # of iterations to run the application for
 	checknans = stop if a NaN or infinity is found
@@ -1221,6 +1225,9 @@ function HydroCLApp:update(...)
 					-- then every 3 is min, avg, max
 					local cols = table()
 					local usings = table()
+					if type(cmdline.plotOnExit) == 'string' then
+						usings.output = cmdline.plotOnExit 
+					end
 					for _,solver in ipairs(self.solvers) do
 						cols:insert(solver.plotsOnExit.t)
 						local ti = #cols
@@ -1255,7 +1262,67 @@ function HydroCLApp:update(...)
 						persist = true,
 						style = 'data lines',
 						data = cols,
-					}, usings))
+					}, usings):setmetatable(nil))
+				end
+				if cmdline.plot1DOnExit then
+					local half = require 'cl.obj.half'
+					local fromreal = half.fromreal
+					-- fix gnuplot formatting
+					local function fixtitle(s)
+						return (s:gsub('_', ' '))
+					end
+					local string = require 'ext.string'
+					local varnames = string.split(cmdline.trackvars, ','):mapi(string.trim)
+					varnames:removeObject'dt'
+					-- plot trackvars, 1 col per var per solver
+					-- the first is the solver's x
+					-- then every 1 is the value 
+					local cols = table()
+					for _,solver in ipairs(self.solvers) do
+						cols:insert(table())	-- xs
+						for _,varname in ipairs(varnames) do
+							cols:insert(table())
+						end
+					end
+					local usings = table()
+					if type(cmdline.plot1DOnExit) == 'string' then
+						usings.output = cmdline.plot1DOnExit
+					end
+					local ci = 1
+					for _,solver in ipairs(self.solvers) do
+						local xi = ci
+						ci = ci + 1
+						-- TODO only iterate along the 1st dim, keeping 2nd and 3rd fixed 
+						for index=0,solver.numCells-1 do
+							-- only writing the 1st coord for now
+							cols[xi + 0]:insert(tonumber(solver.cellCpuBuf[index].pos.s[0]))
+						end
+						for _,varname in ipairs(varnames) do
+							local colbase = ci
+							ci = ci + 1
+
+							-- TODO here insert the values as 'cols'
+							local var = assert(solver.displayVarForName[varname], "couldn't find "..varname)
+							local component = solver.displayComponentFlatList[var.component]
+							local vectorField = solver:isVarTypeAVectorField(component.type)
+							local unitScale = solver:convertToSIUnitsCode(var.units).func()
+							solver:calcDisplayVarToTex(var)
+							local ptr = ffi.cast(self.real == 'half' and 'real*' or 'float*', solver.calcDisplayVarToTexPtr)
+							local channels = vectorField and 3 or 1
+							for index=0,solver.numCells-1 do
+								-- only writing the 1st var for now
+								cols[colbase + 0]:insert(fromreal(ptr[0 + channels * index]) or '-')
+							end
+					
+							usings:insert{using=xi..':'..colbase, title=fixtitle(solver.name..' '..varname..' at t='..solver.t)}
+						end
+					end
+					require 'gnuplot'(table({
+						persist = true,
+						style = 'data lines',
+						data = cols,
+						savedata = cmdline.plot1DOnExit_savedata,
+					}, usings):setmetatable(nil))
 				end
 
 				self:requestExit()
@@ -1471,11 +1538,11 @@ end
 		and mouseOverThisGraph
 		and (self.displayDim == 1 or self.displayDim == 2)	-- displaySolvers[1].dim == 2		-- or better -- instead check for ortho
 		then
-			if self.displayDim == 1 then
-				-- use the already-existing xy min max
-				self.mouseCoord[1] = mouseInGraphX * (xmax - xmin) + xmin
-				self.mouseCoord[2] = mouseInGraphY * (ymax - ymin) + ymin
-			else	-- use the ortho xy min max
+--			if self.displayDim == 1 then
+--				-- use the already-existing xy min max
+--				self.mouseCoord[1] = mouseInGraphX * (xmax - xmin) + xmin
+--				self.mouseCoord[2] = mouseInGraphY * (ymax - ymin) + ymin
+--			else	-- use the ortho xy min max
 				local xmin, xmax, ymin, ymax
 				if self.view.getOrthoBounds then
 					xmin, xmax, ymin, ymax = self.view:getOrthoBounds(ar)
@@ -1488,7 +1555,7 @@ end
 					self.mouseCoord[1] = mouseInGraphX * (xmax - xmin) + xmin
 					self.mouseCoord[2] = mouseInGraphY * (ymax - ymin) + ymin
 				end
-			end
+--			end
 		end
 
 
@@ -1515,7 +1582,7 @@ end
 			end
 		end
 	
-
+			
 		-- TODO make this custom per-display-method
 		-- (that would also let us do one less tex bind/unbind)
 		if mouseOverThisGraph
@@ -1524,7 +1591,6 @@ end
 		then
 			local half = require 'cl.obj.half'
 			local toreal, fromreal = half.toreal, half.fromreal
-			
 			self.mouseCoordValue = ''
 			for i,solver in ipairs(displaySolvers) do
 				local var = solver.displayVarForName[varName]
@@ -1585,7 +1651,7 @@ end
 									local sep = ''
 									for j=0,channels-1 do
 										local v = fromreal(ptr[j + channels * (texX + size.x * (texY + size.y * texZ))])
-										self.mouseCoordValue = self.mouseCoordValue .. sep .. ('%.3f'):format(v)
+										self.mouseCoordValue = self.mouseCoordValue .. sep .. v
 										sep = ', '
 									end
 									self.mouseCoordValue = self.mouseCoordValue
@@ -1595,7 +1661,7 @@ end
 									for j=0,channels-1 do
 										local v = fromreal(ptr[j + channels * (texX + size.x * (texY + size.y * texZ))])
 										v = v * unitScale
-										self.mouseCoordValue = self.mouseCoordValue .. sep .. ('%.3f'):format(v)
+										self.mouseCoordValue = self.mouseCoordValue .. sep .. v
 										sep = ', '
 									end
 									self.mouseCoordValue = self.mouseCoordValue
