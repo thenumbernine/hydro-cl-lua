@@ -24,7 +24,7 @@ constant real const mdeShiftEpsilon = 1.;
 #define <?=calc_gamma_ll?>(\
 	/*global <?=cons_t?> const * const*/ U,\
 	/*real3 const*/ pt\
-)	((U)->gamma_ll)
+) ((U)->gamma_ll)
 
 //// MODULE_NAME: <?=calc_gammaHat_ll?>
 //// MODULE_DEPENDS: sym3
@@ -226,6 +226,8 @@ void <?=applyInitCondCell?>(
 	U->Theta = 0.;
 	
 	//TODO should this be zero or should this be 2008 Alcubierre eqn 5.8.19 Γ^μ = -2 Z^μ ?
+	//but what about Γ^μ = 2 e^i - d^i?
+	//and what about the popular expression: 2 e^i - d^i - 2 Z^i?
 #if 0
 	U->Z_l = real3_zero;
 #else
@@ -343,11 +345,9 @@ static inline void <?=setFlatSpace?>(
 	real3 const x
 ) {
 	(U)->alpha = 1.;
-
 //// MODULE_DEPENDS: <?=calc_gammaHat_ll?>
 	sym3 const gamma_ll = <?=calc_gammaHat_ll?>(x);
-	U->gamma_ll = gamma_ll;
-	
+	(U)->gamma_ll = gamma_ll;
 	(U)->a_l = real3_zero;
 //// MODULE_DEPENDS: <?=calc_dHat_lll?>
 	(U)->d_lll = <?=calc_dHat_lll?>();
@@ -417,8 +417,7 @@ if has_b_ul then
 \
 		real const lambdaMin = (real)min((real)0., -betaUi - lambda);\
 		real const lambdaMax = (real)max((real)0., -betaUi + lambda);\
-		real absLambdaMax = max(fabs(lambdaMin), fabs(lambdaMax));\
-		absLambdaMax = max((real)1e-9, absLambdaMax);\
+		real const absLambdaMax = max((real)1e-9, max(fabs(lambdaMin), fabs(lambdaMax)));\
 		*(dt) = (real)min(*(dt), solver->grid_dx.s<?=side?> / absLambdaMax);\
 	}<? end ?>\
 }
@@ -733,14 +732,11 @@ if has_B_u then --\
 	(resultEig)->alpha = .5 * ((UL)->alpha + (UR)->alpha);\
 	(resultEig)->alpha_sqrt_f = sqrt(calc_f_alphaSq((resultEig)->alpha));\
 \
-	sym3 const gammaR_ll = (UR)->gamma_ll;\
-	sym3 const gammaL_ll = (UL)->gamma_ll;\
-\
 	/* I haven't derived the flux in arbitrary-normal form, just in x-axis form (and i swap x<->y or z to calculate their fluxes) */\
 	/* so here I'm going to just wing it */\
 	real3 const n_l = normal_l1(n);\
 \
-	(resultEig)->gamma_ll = sym3_real_mul(sym3_add(gammaL_ll, gammaR_ll), .5);\
+	(resultEig)->gamma_ll = sym3_real_mul(sym3_add((UR)->gamma_ll, (UL)->gamma_ll), .5);\
 	(resultEig)->gamma_ll = sym3_rotateFrom((resultEig)->gamma_ll, n_l);\
 \
 	real const det_avg_gamma = sym3_det((resultEig)->gamma_ll);\
@@ -763,10 +759,9 @@ if has_B_u then --\
 	/*real3 const */pt,\
 	/*<?=normal_t?> const */n\
 ) {\
-	sym3 const gamma_ll = (U)->gamma_ll;\
-	real const det_gamma = sym3_det(gamma_ll);\
+	real const det_gamma = sym3_det((U)->gamma_ll);\
+	sym3 const gamma_uu = sym3_inv((U)->gamma_ll, det_gamma);\
 \
-	sym3 const gamma_uu = sym3_inv(gamma_ll, det_gamma);\
 	real3 const n_l = normal_l1(n);\
 	real const gammaUnn = real3_weightedLenSq(n_l, gamma_uu);\
 \

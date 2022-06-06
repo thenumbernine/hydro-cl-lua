@@ -490,7 +490,7 @@ function SolverBase:getIdent()
 	if self.app.verbose then
 		print('ident config str: '..configStr)
 	end
-	print("cache identifier: "..self.ident)
+	print("writing files to cache/"..self.ident)
 --]=]
 --]]
 
@@ -620,7 +620,7 @@ function SolverBase:initMeshVars(args)
 		function GLProgram:init(...)
 			local args = ...
 		
-			print('building '..args.name..'.shader:')
+			print('building shader/'..args.name)
 			
 			local dir = 'cache/'..solver:getIdent()..'/shader'
 			os.mkdir(dir, true)
@@ -1146,7 +1146,7 @@ kernel void findNaNs(
 ]]
 	}:concat'\n'
 
-	time('building common program', function()
+	time('building program src/common.cl', function()
 		self.commonProgramObj = self.Program{name='common', code=commonCode}
 		self.commonProgramObj:compile()
 	end)
@@ -1512,7 +1512,7 @@ function SolverBase:refreshSolverProgram()
 		code = self.modules:getCodeAndHeader(moduleNames:unpack())
 	end)
 
-	time('building solver program', function()
+	time('building program src/solver.cl', function()
 		self.solverProgramObj = self.Program{
 			name = 'solver',
 			code = code,

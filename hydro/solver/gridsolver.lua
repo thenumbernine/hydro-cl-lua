@@ -1191,7 +1191,7 @@ lines:insert[[
 	local boundaryProgramName = 'boundary'..(args.programNameSuffix or '')
 
 	local boundaryProgramObj
-	time('building boundary program', function()
+	time('building program src/boundary.cl', function()
 		boundaryProgramObj = self.Program{name=boundaryProgramName, code=code}
 		boundaryProgramObj:compile()
 	end)
