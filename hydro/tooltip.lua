@@ -77,8 +77,7 @@ local function numberTable(title, t, k, ...)
 	buf[len] = 0
 	-- TODO maybe ig.ImGuiInputTextFlags_EnterReturnsTrue
 	if wrap.text(title, buf, ffi.sizeof(buf), ...) then
-		-- ffi.string doesn't stop at the null term when you pass a fixed size
-		--local s = ffi.string(buf, ffi.sizeof(buf))
+		-- ffi.string doesn't stop at the null term when you pass a fixed size?
 		local s = ffi.string(buf, math.min(ffi.sizeof(buf), tonumber(ffi.C.strlen(buf))))
 		local v = tonumber(s)
 		if v then
@@ -109,7 +108,7 @@ local function textTable(title, t, k, ...)
 	ffi.copy(buf, src, len)
 	buf[len] = 0
 	if wrap.text(title, buf, ffi.sizeof(buf), ...) then
-		t[k] = ffi.string(buf)
+		t[k] = ffi.string(buf, math.min(ffi.sizeof(buf), tonumber(ffi.C.strlen(buf))))
 		return true
 	end
 end
