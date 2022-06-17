@@ -228,7 +228,7 @@ void <?=applyInitCondCell?>(
 	//TODO should this be zero or should this be 2008 Alcubierre eqn 5.8.19 Γ^μ = -2 Z^μ ?
 	//but what about Γ^μ = 2 e^i - d^i?
 	//and what about the popular expression: 2 e^i - d^i - 2 Z^i?
-#if 0
+#if 1
 	U->Z_l = real3_zero;
 #else
 	real3 const LambdaBar_u = real3_rescaleToCoord_U(LambdaBar_U, x);
@@ -302,7 +302,7 @@ void <?=applyInitCondCell?>(
 	U->K_ll = K_ll;
 
 	//Z_u n^u = 0
-	//Θ = α n_u Z^u = α Z^u
+	//Θ = -n_u Z^u = α Z^u
 	//for n_a = (-α, 0)
 	//n^a_l = (1/α, -β^i/α)
 	//(Z_t - Z_i β^i) / α = Θ ... = ?
@@ -511,7 +511,7 @@ if has_B_u then --\
 	<? end ?>\
 \
 	/* BEGIN CUT from symmath/tests/output/Z4.html flux: */\
-{\
+	{\
 		(resultFlux)->alpha = 0.;\
 		(resultFlux)->gamma_ll.xx = 0.;\
 		(resultFlux)->gamma_ll.xy = 0.;\
@@ -1723,10 +1723,10 @@ end
 		(deriv)->K_ll.yy += alpha * (-conn_ull.x.xy * conn_ull.x.xy + -conn_ull.y.yy * conn_ull.y.yy + -conn_ull.z.yz * conn_ull.z.yz + a_l.y * d_l.y + d_l.x * conn_ull.x.yy + d_l.y * conn_ull.y.yy + d_l.z * conn_ull.z.yy + K_ll.yy * tr_K + -2. * Z_l.x * conn_ull.x.yy + -2. * Z_l.y * a_l.y + -2. * Z_l.y * conn_ull.y.yy + -2. * Z_l.z * conn_ull.z.yy + -2. * K_ul.x.y * K_ll.xy + -2. * K_ul.y.y * K_ll.yy + -2. * K_ul.y.z * K_ll.yz + -2. * K_ll.yy * Theta + -2. * conn_ull.x.yy * conn_ull.y.xy + -2. * conn_ull.x.yz * conn_ull.z.xy + -2. * conn_ull.y.yz * conn_ull.z.yy + -8. * S_ll.yy * M_PI + -4. * gamma_ll.yy * tmp2 + 4. * gamma_ll.yy * tmp1);
 		(deriv)->K_ll.yz += (alpha * (a_l.y * d_l.z + a_l.z * d_l.y + -2. * Z_l.y * a_l.z + -2. * Z_l.z * a_l.y + 2. * d_l.x * conn_ull.x.yz + 2. * d_l.y * conn_ull.y.yz + 2. * d_l.z * conn_ull.z.yz + 2. * K_ll.yz * tr_K + -2. * conn_ull.x.xy * conn_ull.x.xz + -2. * conn_ull.x.yy * conn_ull.y.xz + -2. * conn_ull.x.yz * conn_ull.y.xy + -2. * conn_ull.x.yz * conn_ull.z.xz + -2. * conn_ull.x.zz * conn_ull.z.xy + -2. * conn_ull.y.yy * conn_ull.y.yz + -2. * conn_ull.y.yz * conn_ull.z.yz + -2. * conn_ull.y.zz * conn_ull.z.yy + -2. * conn_ull.z.yz * conn_ull.z.zz + -4. * Z_l.x * conn_ull.x.yz + -4. * Z_l.y * conn_ull.y.yz + -4. * Z_l.z * conn_ull.z.yz + -4. * K_ul.x.y * K_ll.xz + -4. * K_ul.y.y * K_ll.yz + -4. * K_ul.y.z * K_ll.zz + -4. * K_ll.yz * Theta + -16. * S_ll.yz * M_PI + -8. * gamma_ll.yz * tmp2 + 8. * gamma_ll.yz * tmp1)) / 2.;
 		(deriv)->K_ll.zz += alpha * (-conn_ull.x.xz * conn_ull.x.xz + -conn_ull.y.yz * conn_ull.y.yz + -conn_ull.z.zz * conn_ull.z.zz + a_l.z * d_l.z + d_l.x * conn_ull.x.zz + d_l.y * conn_ull.y.zz + d_l.z * conn_ull.z.zz + K_ll.zz * tr_K + -2. * Z_l.x * conn_ull.x.zz + -2. * Z_l.y * conn_ull.y.zz + -2. * Z_l.z * a_l.z + -2. * Z_l.z * conn_ull.z.zz + -2. * K_ul.x.z * K_ll.xz + -2. * K_ul.y.z * K_ll.yz + -2. * K_ul.z.z * K_ll.zz + -2. * K_ll.zz * Theta + -2. * conn_ull.x.yz * conn_ull.y.xz + -2. * conn_ull.x.zz * conn_ull.z.xz + -2. * conn_ull.y.zz * conn_ull.z.yz + -8. * S_ll.zz * M_PI + -4. * gamma_ll.zz * tmp2 + 4. * gamma_ll.zz * tmp1);
-		(deriv)->Theta += (alpha * (-K_ul.x.x * K_ul.x.x + -K_ul.y.y * K_ul.y.y + -K_ul.z.z * K_ul.z.z + tr_K * tr_K + -d_u.x * d_l.x + -d_u.y * d_l.y + -d_u.z * d_l.z + d_uuu.x.xx * d_lll.x.xx + -d_uuu.x.yy * d_lll.x.yy + -d_uuu.x.zz * d_lll.x.zz + -d_uuu.y.xx * d_lll.y.xx + d_uuu.y.yy * d_lll.y.yy + -d_uuu.y.zz * d_lll.y.zz + -d_uuu.z.xx * d_lll.z.xx + -d_uuu.z.yy * d_lll.z.yy + d_uuu.z.zz * d_lll.z.zz + 2. * Z_l.x * d_u.x + 2. * Z_l.y * d_u.y + 2. * Z_l.z * d_u.z + 2. * a_l.x * d_u.x + -2. * a_l.x * e_u.x + 2. * a_l.y * d_u.y + -2. * a_l.y * e_u.y + 2. * a_l.z * d_u.z + -2. * a_l.z * e_u.z + -2. * K_ul.x.y * K_ul.x.y + -2. * K_ul.x.z * K_ul.x.z + -2. * K_ul.y.z * K_ul.y.z + 2. * d_uuu.x.xy * d_lll.y.xx + 2. * d_uuu.x.xz * d_lll.z.xx + 2. * d_uuu.x.yy * d_lll.y.xy + -2. * d_uuu.x.yz * d_lll.x.yz + 2. * d_uuu.x.yz * d_lll.y.xz + 2. * d_uuu.x.yz * d_lll.z.xy + 2. * d_uuu.x.zz * d_lll.z.xz + 2. * d_uuu.y.xx * d_lll.x.xy + 2. * d_uuu.y.xy * d_lll.x.yy + 2. * d_uuu.y.xz * d_lll.x.yz + -2. * d_uuu.y.xz * d_lll.y.xz + 2. * d_uuu.y.xz * d_lll.z.xy + 2. * d_uuu.y.yz * d_lll.z.yy + 2. * d_uuu.y.zz * d_lll.z.yz + 2. * d_uuu.z.xx * d_lll.x.xz + 2. * d_uuu.z.xy * d_lll.x.yz + 2. * d_uuu.z.xy * d_lll.y.xz + -2. * d_uuu.z.xy * d_lll.z.xy + 2. * d_uuu.z.xz * d_lll.x.zz + 2. * d_uuu.z.yy * d_lll.y.yz + 2. * d_uuu.z.yz * d_lll.y.zz + -2. * Theta * tr_K + -4. * Z_l.x * a_u.x + -4. * Z_l.y * a_u.y + -16. * tmp2 + -4. * Z_l.z * a_u.z)) / 2.;
-		(deriv)->Z_l.x += alpha * (-a_u.x * K_ll.xx + -a_u.y * K_ll.xy + -a_u.z * K_ll.xz + a_l.x * tr_K + d_u.x * K_ll.xx + d_u.y * K_ll.xy + d_u.z * K_ll.xz + -K_uu.xx * d_lll.x.xx + -K_uu.yy * d_lll.x.yy + -K_uu.zz * d_lll.x.zz + -2. * Z_u.x * K_ll.xx + -2. * Z_u.y * K_ll.xy + -2. * Z_u.z * K_ll.xz + -2. * a_l.x * Theta + -2. * K_uu.xy * d_lll.x.xy + -2. * K_uu.xz * d_lll.x.xz + -8. * S_l.x * M_PI + -2. * K_uu.yz * d_lll.x.yz);
-		(deriv)->Z_l.y += alpha * (-a_u.x * K_ll.xy + -a_u.y * K_ll.yy + -a_u.z * K_ll.yz + a_l.y * tr_K + d_u.x * K_ll.xy + d_u.y * K_ll.yy + d_u.z * K_ll.yz + -K_uu.xx * d_lll.y.xx + -K_uu.yy * d_lll.y.yy + -K_uu.zz * d_lll.y.zz + -2. * Z_u.x * K_ll.xy + -2. * Z_u.y * K_ll.yy + -2. * Z_u.z * K_ll.yz + -2. * a_l.y * Theta + -2. * K_uu.xy * d_lll.y.xy + -2. * K_uu.xz * d_lll.y.xz + -8. * S_l.y * M_PI + -2. * K_uu.yz * d_lll.y.yz);
-		(deriv)->Z_l.z += alpha * (-a_u.x * K_ll.xz + -a_u.y * K_ll.yz + -a_u.z * K_ll.zz + a_l.z * tr_K + d_u.x * K_ll.xz + d_u.y * K_ll.yz + d_u.z * K_ll.zz + -K_uu.xx * d_lll.z.xx + -K_uu.yy * d_lll.z.yy + -K_uu.zz * d_lll.z.zz + -2. * Z_u.x * K_ll.xz + -2. * Z_u.y * K_ll.yz + -2. * Z_u.z * K_ll.zz + -2. * a_l.z * Theta + -2. * K_uu.xy * d_lll.z.xy + -2. * K_uu.xz * d_lll.z.xz + -8. * S_l.z * M_PI + -2. * K_uu.yz * d_lll.z.yz);
+		(deriv)->Theta += (alpha * (-K_ul.x.x * K_ul.x.x + -K_ul.y.y * K_ul.y.y + -K_ul.z.z * K_ul.z.z + tr_K * tr_K + -d_u.x * d_l.x + -d_u.y * d_l.y + -d_u.z * d_l.z + d_uuu.x.xx * d_lll.x.xx + -d_uuu.x.yy * d_lll.x.yy + -d_uuu.x.zz * d_lll.x.zz + -d_uuu.y.xx * d_lll.y.xx + d_uuu.y.yy * d_lll.y.yy + -d_uuu.y.zz * d_lll.y.zz + -d_uuu.z.xx * d_lll.z.xx + -d_uuu.z.yy * d_lll.z.yy + d_uuu.z.zz * d_lll.z.zz + 2. * Z_l.x * d_u.x + 2. * Z_l.y * d_u.y + 2. * Z_l.z * d_u.z + 2. * a_l.x * d_u.x + -2. * a_l.x * e_u.x + 2. * a_l.y * d_u.y + -2. * a_l.y * e_u.y + 2. * a_l.z * d_u.z + -2. * a_l.z * e_u.z + -2. * K_ul.x.y * K_ul.x.y + -2. * K_ul.x.z * K_ul.x.z + -2. * K_ul.y.z * K_ul.y.z + 2. * d_uuu.x.xy * d_lll.y.xx + 2. * d_uuu.x.xz * d_lll.z.xx + 2. * d_uuu.x.yy * d_lll.y.xy + -2. * d_uuu.x.yz * d_lll.x.yz + 2. * d_uuu.x.yz * d_lll.y.xz + 2. * d_uuu.x.yz * d_lll.z.xy + 2. * d_uuu.x.zz * d_lll.z.xz + 2. * d_uuu.y.xx * d_lll.x.xy + 2. * d_uuu.y.xy * d_lll.x.yy + 2. * d_uuu.y.xz * d_lll.x.yz + -2. * d_uuu.y.xz * d_lll.y.xz + 2. * d_uuu.y.xz * d_lll.z.xy + 2. * d_uuu.y.yz * d_lll.z.yy + 2. * d_uuu.y.zz * d_lll.z.yz + 2. * d_uuu.z.xx * d_lll.x.xz + 2. * d_uuu.z.xy * d_lll.x.yz + 2. * d_uuu.z.xy * d_lll.y.xz + -2. * d_uuu.z.xy * d_lll.z.xy + 2. * d_uuu.z.xz * d_lll.x.zz + 2. * d_uuu.z.yy * d_lll.y.yz + 2. * d_uuu.z.yz * d_lll.y.zz + -2. * Theta * tr_K + -4. * Z_l.x * a_u.x + -4. * Z_l.y * a_u.y + -4. * Z_l.z * a_u.z + -4. * Theta * solver->kappa1 + -2. * Theta * solver->kappa1 * solver->kappa2 + -16. * tmp2)) / 2.;
+		(deriv)->Z_l.x += alpha * (-Z_l.x * solver->kappa1 + -a_u.x * K_ll.xx + -a_u.y * K_ll.xy + -a_u.z * K_ll.xz + a_l.x * tr_K + d_u.x * K_ll.xx + d_u.y * K_ll.xy + d_u.z * K_ll.xz + -K_uu.xx * d_lll.x.xx + -K_uu.yy * d_lll.x.yy + -K_uu.zz * d_lll.x.zz + -2. * Z_u.x * K_ll.xx + -2. * Z_u.y * K_ll.xy + -2. * Z_u.z * K_ll.xz + -2. * a_l.x * Theta + -2. * K_uu.xy * d_lll.x.xy + -2. * K_uu.xz * d_lll.x.xz + -8. * S_l.x * M_PI + -2. * K_uu.yz * d_lll.x.yz);
+		(deriv)->Z_l.y += alpha * (-Z_l.y * solver->kappa1 + -a_u.x * K_ll.xy + -a_u.y * K_ll.yy + -a_u.z * K_ll.yz + a_l.y * tr_K + d_u.x * K_ll.xy + d_u.y * K_ll.yy + d_u.z * K_ll.yz + -K_uu.xx * d_lll.y.xx + -K_uu.yy * d_lll.y.yy + -K_uu.zz * d_lll.y.zz + -2. * Z_u.x * K_ll.xy + -2. * Z_u.y * K_ll.yy + -2. * Z_u.z * K_ll.yz + -2. * a_l.y * Theta + -2. * K_uu.xy * d_lll.y.xy + -2. * K_uu.xz * d_lll.y.xz + -8. * S_l.y * M_PI + -2. * K_uu.yz * d_lll.y.yz);
+		(deriv)->Z_l.z += alpha * (-Z_l.z * solver->kappa1 + -a_u.x * K_ll.xz + -a_u.y * K_ll.yz + -a_u.z * K_ll.zz + a_l.z * tr_K + d_u.x * K_ll.xz + d_u.y * K_ll.yz + d_u.z * K_ll.zz + -K_uu.xx * d_lll.z.xx + -K_uu.yy * d_lll.z.yy + -K_uu.zz * d_lll.z.zz + -2. * Z_u.x * K_ll.xz + -2. * Z_u.y * K_ll.yz + -2. * Z_u.z * K_ll.zz + -2. * a_l.z * Theta + -2. * K_uu.xy * d_lll.z.xy + -2. * K_uu.xz * d_lll.z.xz + -8. * S_l.z * M_PI + -2. * K_uu.yz * d_lll.z.yz);
 	}
 	<? if eqn.useShift ~= "none" then ?>
 	{
@@ -1956,7 +1956,7 @@ end
 		}
 		<? end ?>/* eqn.useShift == "GammaDriverHyperbolic" */
 	}
-	<? end ?>/* eqn.useShift ~= "none" */	
+	<? end ?>/* eqn.useShift ~= "none" */
 	// END CUT from symmath/tests/output/Z4.html
 <? end ?>
 //decay for 1st deriv hyperbolic state vars constraints:
@@ -2093,7 +2093,7 @@ end ?>
 	//B&S eqn 2.125 ... divded by two
 	//Alcubierre eqn 2.5.9, also Alcubierre 2.4.10 divided by two
 	//H = 1/2 (R + K^2 - K_ij K^ij) - 8 π ρ
-	//TODO should Theta or Z be included into these?
+	//TODO should Θ or Z^i be included into these?
 	real const R = sym3_dot(R_ll, gamma_uu);
 	real const tr_KSq = sym3_dot(U->K_ll, K_uu);
 	U->H = .5 * (R + tr_K * tr_K - tr_KSq) <?

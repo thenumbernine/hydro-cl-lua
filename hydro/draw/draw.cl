@@ -45,8 +45,8 @@ vec4 getTex(vec3 texCoord) {
 float logmap(float x) {
 	//const float epsilon = 1.;
 	//const float epsilon = 1e-7;
-	const float epsilon = 1e-14;
-	//const float epsilon = 0.;
+	//const float epsilon = 1e-14;
+	const float epsilon = 0.;
 	return log(epsilon + abs(x)) * _1_LN_10;
 }
 

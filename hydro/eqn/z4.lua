@@ -18,7 +18,7 @@ g_uv = spacetime 4-metric
 K_ij = extrinsic curvature
 
 -- state vars - 1st deriv
-a_k = log(α)_,k
+a_k = log(α)_,k = α_,k / α
 d_kij = 1/2 γ_ij,k
 b^i_j = β^i_,j
 
@@ -28,7 +28,7 @@ b^i_j = β^i_,j
 
 -- state vars - z4
 Z_i = spatial component of killing vector
-Θ = Z^u n_u
+Θ = -Z^u n_u
 
 -- background metric
 ^γ_ij = background grid holonomic metric
@@ -382,6 +382,10 @@ function Z4_2004Bona:createInitState()
 		
 		-- from 2004 Bona et al, "A symmetry breaking..." eqn A.20
 		{name='m', value=2},
+
+		-- from 2005 Gundlach et al
+		{name='kappa1', value=0},
+		{name='kappa2', value=0},
 	
 		-- convergence between finite-difference of log(α)_,i and a_i
 		{name='a_convCoeff', value=0},
@@ -478,7 +482,7 @@ and n_a = -α t_,a (B&S eqns 2.19, 2.22, 2.24)
 
 momentum constraints
 
-
+-- this is the H of B&S, which is 2x the EFE trace, and 2x the H of Alcubierre
 H = 
 	+ K^i_a K^j_b δ^a_i δ^b_j
 	- K^i_a K^j_b δ^a_j δ^b_i
