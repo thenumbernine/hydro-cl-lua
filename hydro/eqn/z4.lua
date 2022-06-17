@@ -328,7 +328,7 @@ function Z4_2004Bona:init(args)
 		self.consVars:append{
 			--stress-energy variables:
 			{name='rho', type='real'},			--1: n_a n_b T^ab
-			{name='S_u', type='real3'},			--3: -γ^ij n_a T_aj
+			{name='S_u', type='real3'},			--3: -γ^ij n_a T_aj ... j_i in some sources
 			{name='S_ll', type='sym3'},			--6: γ_i^c γ_j^d T_cd
 		}
 	end
@@ -461,7 +461,7 @@ value.vreal = U->alpha * sqrt(sym3_det(U->gamma_ll));
 		{name='f*alpha^2', code='value.vreal = calc_f_alphaSq(U->alpha);'},
 		{name='df/dalpha', code='value.vreal = calc_dalpha_f(U->alpha);'},
 		{name='alpha^2*df/dalpha', code='value.vreal = calc_alphaSq_dalpha_f(U->alpha);'},
-		
+
 		-- is expansion really just -K?  aren't there shift terms too?
 		{
 			name = 'expansion',
@@ -533,6 +533,88 @@ sym3 const gamma_uu = <?=calc_gamma_uu?>(U, cell->pos);
 value.vreal3 = _3sym3_sym3_dot23(U->d_lll, gamma_uu);		//d_l
 ]],
 		},
+	}
+
+	-- R_ll.ij := R_ij
+	--	= γ^kl (-γ_ij,kl - γ_kl,ij + γ_ik,jl + γ_jl,ik)
+	--		+ Γ^k_ij (d_k - 2 e_k)
+	--		- 2 d^l_ki d^k_lj
+	--		+ 2 d^l_ki d_lj^k
+	--		+ d_il^k d_jk^l
+	vars:insert{
+		name = 'R_ll',
+		type = 'sym3',
+		code = self:template[[
+//// MODULE_DEPENDS: <?=calc_gamma_uu?>
+	_3sym3 const d_lll = U->d_lll;									//d_kij
+	sym3 const gamma_uu = <?=calc_gamma_uu?>(U, cell->pos);
+	real3x3x3 const d_llu = _3sym3_sym3_mul(d_lll, gamma_uu);			//d_llu = d_ij^k = d_ijl * γ^lk
+	_3sym3 const d_ull = sym3_3sym3_mul(gamma_uu, d_lll);				//d_ull = d^i_jk = γ^il d_ljk
+	_3sym3 const conn_ull = conn_ull_from_d_llu_d_ull(d_llu, d_ull);	//Γ^k_ij = d_ij^k + d_ji^k - d^k_ij
+	real3 const e_l = _3sym3_tr12(d_ull);								//e_i = d^j_ji
+	real3 const d_l = real3x3x3_tr23(d_llu);							//d_l.i = d_i = d_ij^j
+
+	//partial_d_lll.ij.kl = d_kij,l = d_(k|(ij),|l)
+	//so this object's indexes are rearranged compared to the papers
+	//sym3sym3 partial_d_llll = sym3sym3_zero; //sym3sym3_zero doesn't exist
+	sym3sym3 partial_d_llll = {
+<? for ij,xij in ipairs(symNames) do
+?>		.<?=xij?> = sym3_zero,
+<? end
+?>	};
+	<?
+for k=1,solver.dim do	-- beyond dim and the finite-difference will be zero
+	local xk = xNames[k]
+	?>{
+		global <?=cons_t?> const * const UR = U + solver->stepsize.<?=xk?>;
+		global <?=cons_t?> const * const UL = U - solver->stepsize.<?=xk?>;
+		_3sym3 const dR_lll = UR->d_lll;
+		_3sym3 const dL_lll = UL->d_lll;
+<?	for l=k,3 do	-- since we are writing to xl, only iterate through symmetric terms
+		local xl = xNames[l]
+		for ij,xij in ipairs(symNames) do
+?>		partial_d_llll.<?=xij?>.<?=sym(k,l)?> += (dR_lll.<?=xk?>.<?=xij?> - dL_lll.<?=xk?>.<?=xij?>) / (2. * solver->grid_dx.<?=xk?>);
+<?		end
+	end
+?>	}<?
+end ?>
+
+	sym3 const R_ll = (sym3){
+<? for ij,xij in ipairs(symNames) do
+	local i,j,xi,xj = from6to3x3(ij)
+?>		.<?=xij?> = 0.
+<? 	for k,xk in ipairs(xNames) do
+?>			+ conn_ull.<?=xk?>.<?=xij?> * (d_l.<?=xk?> - 2. * e_l.<?=xk?>)
+<?		for l,xl in ipairs(xNames) do
+?>			+ 2. * d_ull.<?=xl?>.<?=sym(k,i)?> * (d_llu.<?=xl?>.<?=xj?>.<?=xk?> - d_ull.<?=xk?>.<?=sym(l,j)?>)
+			+ d_llu.<?=xi?>.<?=xl?>.<?=xk?> * d_llu.<?=xj?>.<?=xk?>.<?=xl?>
+			+ gamma_uu.<?=sym(k,l)?> * (
+				- partial_d_llll.<?=xij?>.<?=sym(k,l)?>
+				- partial_d_llll.<?=sym(k,l)?>.<?=xij?>
+				+ partial_d_llll.<?=sym(i,k)?>.<?=sym(j,l)?>
+				+ partial_d_llll.<?=sym(j,l)?>.<?=sym(i,k)?>
+			)
+<? 		end
+	end
+?>		,
+<? end
+?>	};
+
+	value.vsym3 = R_ll;
+]],
+	}
+	
+	-- K_ij K^ij ... component of H
+	-- I could alternatively compute the real3x3 of K^i_j and just look at the frobenius dot of it and its transpose ...
+	vars:insert{
+		name = 'tr_KSq',
+		code = self:template[[
+//// MODULE_DEPENDS: <?=calc_gamma_uu?>
+sym3 const gamma_uu = <?=calc_gamma_uu?>(U, cell->pos);
+real3x3 const K_ul = sym3_sym3_mul(gamma_uu, U->K_ll);			//K^i_j
+sym3 const K_uu = real3x3_sym3_to_sym3_mul(K_ul, gamma_uu);		//K^ij
+real const tr_KSq = sym3_dot(U->K_ll, K_uu);					//K_ij K^ij
+]],
 	}
 
 	-- shift-less gravity only
