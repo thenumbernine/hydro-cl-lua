@@ -4,6 +4,7 @@
 local ffi = require 'ffi'
 local ig = require 'ffi.imgui'
 local table = require 'ext.table'
+require 'ffi.c.string'	-- strlen
 
 local function hoverTooltip(name)
 	if ig.igIsItemHovered(ig.ImGuiHoveredFlags_None) then
@@ -76,7 +77,9 @@ local function numberTable(title, t, k, ...)
 	buf[len] = 0
 	-- TODO maybe ig.ImGuiInputTextFlags_EnterReturnsTrue
 	if wrap.text(title, buf, ffi.sizeof(buf), ...) then
-		local s = ffi.string(buf, ffi.sizeof(buf))
+		-- ffi.string doesn't stop at the null term when you pass a fixed size
+		--local s = ffi.string(buf, ffi.sizeof(buf))
+		local s = ffi.string(buf, math.min(ffi.sizeof(buf), tonumber(ffi.C.strlen(buf))))
 		local v = tonumber(s)
 		if v then
 			t[k] = v
