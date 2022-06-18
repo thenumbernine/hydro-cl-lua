@@ -369,7 +369,9 @@ end
 function Z4_2004Bona:getSymbolFields()
 	return Z4_2004Bona.super.getSymbolFields(self):append{
 		'initDeriv_numeric_and_useBSSNVars',
-		'calc_dHat_lll',		-- calc ^d_kij = 1/2 ^γ_ij,k
+		'calc_dHat_lll',		-- ^d_kij = 1/2 ^γ_ij,k
+		'calc_partial_d_llll',	-- d_kij,l = 1/2 γ_ij,kl
+		'calc_R_ll',			-- R_ij
 		'calcFromGrad_a_l',
 		'calcFromGrad_d_lll',	-- finite difference from grid
 		'calcFromGrad_b_ul',
@@ -414,6 +416,7 @@ function Z4_2004Bona:initCodeModule_fluxFromCons() end
 Z4_2004Bona.solverCodeFile = 'hydro/eqn/z4.cl'
 
 Z4_2004Bona.predefinedDisplayVars = {
+--[=[	
 	'U alpha',
 --[[ for x dir only
 	'U gamma_ll x x',
@@ -442,6 +445,16 @@ Z4_2004Bona.predefinedDisplayVars = {
 	'U M_u mag',
 	'U volume',
 	'U f*alpha',
+--]=]
+-- [[ for watching Hamiltonian error and its pieces
+	'U H',
+	'U R_ll tr weighted gamma^ij',
+	'U K_ll tr weighted gamma^ij',
+	'U KSq_ll tr weighted gamma^ij',
+	'U H_ll tr weighted gamma^ij',
+	'U tr_KSq',
+	'U tr_KSq v2',
+--]]
 }
 
 function Z4_2004Bona:getDisplayVars()
@@ -546,64 +559,38 @@ value.vreal3 = _3sym3_sym3_dot23(U->d_lll, gamma_uu);		//d_l
 		type = 'sym3',
 		code = self:template[[
 //// MODULE_DEPENDS: <?=calc_gamma_uu?>
-	_3sym3 const d_lll = U->d_lll;									//d_kij
-	sym3 const gamma_uu = <?=calc_gamma_uu?>(U, cell->pos);
-	real3x3x3 const d_llu = _3sym3_sym3_mul(d_lll, gamma_uu);			//d_llu = d_ij^k = d_ijl * γ^lk
-	_3sym3 const d_ull = sym3_3sym3_mul(gamma_uu, d_lll);				//d_ull = d^i_jk = γ^il d_ljk
-	_3sym3 const conn_ull = conn_ull_from_d_llu_d_ull(d_llu, d_ull);	//Γ^k_ij = d_ij^k + d_ji^k - d^k_ij
-	real3 const e_l = _3sym3_tr12(d_ull);								//e_i = d^j_ji
-	real3 const d_l = real3x3x3_tr23(d_llu);							//d_l.i = d_i = d_ij^j
+_3sym3 const d_lll = U->d_lll;										//d_lll.i.jk := d_kij
+sym3 const gamma_uu = <?=calc_gamma_uu?>(U, cell->pos);				//gamma_uu.ij := γ^ij
+real3x3x3 const d_llu = _3sym3_sym3_mul(d_lll, gamma_uu);			//d_llu.i.j.k := d_ij^k = d_ijl * γ^lk
+_3sym3 const d_ull = sym3_3sym3_mul(gamma_uu, d_lll);				//d_ull.i.jk := d^i_jk = γ^il d_ljk
+_3sym3 const conn_ull = conn_ull_from_d_llu_d_ull(d_llu, d_ull);	//conn_ull.k.ij := Γ^k_ij = d_ij^k + d_ji^k - d^k_ij
+real3 const e_l = _3sym3_tr12(d_ull);								//e_l.i := e_i = d^j_ji
+real3 const d_l = real3x3x3_tr23(d_llu);							//d_l.i := d_i = d_ij^j
 
-	//partial_d_lll.ij.kl = d_kij,l = d_(k|(ij),|l)
-	//so this object's indexes are rearranged compared to the papers
-	//sym3sym3 partial_d_llll = sym3sym3_zero; //sym3sym3_zero doesn't exist
-	sym3sym3 partial_d_llll = {
-<? for ij,xij in ipairs(symNames) do
-?>		.<?=xij?> = sym3_zero,
-<? end
-?>	};
-	<?
-for k=1,solver.dim do	-- beyond dim and the finite-difference will be zero
-	local xk = xNames[k]
-	?>{
-		global <?=cons_t?> const * const UR = U + solver->stepsize.<?=xk?>;
-		global <?=cons_t?> const * const UL = U - solver->stepsize.<?=xk?>;
-		_3sym3 const dR_lll = UR->d_lll;
-		_3sym3 const dL_lll = UL->d_lll;
-<?	for l=k,3 do	-- since we are writing to xl, only iterate through symmetric terms
-		local xl = xNames[l]
-		for ij,xij in ipairs(symNames) do
-?>		partial_d_llll.<?=xij?>.<?=sym(k,l)?> += (dR_lll.<?=xk?>.<?=xij?> - dL_lll.<?=xk?>.<?=xij?>) / (2. * solver->grid_dx.<?=xk?>);
-<?		end
-	end
-?>	}<?
-end ?>
+//// MODULE_DEPENDS: <?=calc_partial_d_llll?>
+//display code runs to the borders, so don't finite-difference OOB
+sym3sym3 const partial_d_llll = <?=OOB?>(1,1)
+	? sym3sym3_zero
+	: <?=calc_partial_d_llll?>(
+		solver,
+		U
+	);
 
-	sym3 const R_ll = (sym3){
-<? for ij,xij in ipairs(symNames) do
-	local i,j,xi,xj = from6to3x3(ij)
-?>		.<?=xij?> = 0.
-<? 	for k,xk in ipairs(xNames) do
-?>			+ conn_ull.<?=xk?>.<?=xij?> * (d_l.<?=xk?> - 2. * e_l.<?=xk?>)
-<?		for l,xl in ipairs(xNames) do
-?>			+ 2. * d_ull.<?=xl?>.<?=sym(k,i)?> * (d_llu.<?=xl?>.<?=xj?>.<?=xk?> - d_ull.<?=xk?>.<?=sym(l,j)?>)
-			+ d_llu.<?=xi?>.<?=xl?>.<?=xk?> * d_llu.<?=xj?>.<?=xk?>.<?=xl?>
-			+ gamma_uu.<?=sym(k,l)?> * (
-				- partial_d_llll.<?=xij?>.<?=sym(k,l)?>
-				- partial_d_llll.<?=sym(k,l)?>.<?=xij?>
-				+ partial_d_llll.<?=sym(i,k)?>.<?=sym(j,l)?>
-				+ partial_d_llll.<?=sym(j,l)?>.<?=sym(i,k)?>
-			)
-<? 		end
-	end
-?>		,
-<? end
-?>	};
+//// MODULE_DEPENDS: <?=calc_R_ll?>
+sym3 const R_ll = <?=calc_R_ll?>(
+	gamma_uu,
+	d_l,
+	e_l,
+	conn_ull,
+	d_ull,
+	d_llu,
+	partial_d_llll
+);
 
-	value.vsym3 = R_ll;
+value.vsym3 = R_ll;
 ]],
 	}
-	
+
 	-- K_ij K^ij ... component of H
 	-- I could alternatively compute the real3x3 of K^i_j and just look at the frobenius dot of it and its transpose ...
 	vars:insert{
@@ -611,9 +598,95 @@ end ?>
 		code = self:template[[
 //// MODULE_DEPENDS: <?=calc_gamma_uu?>
 sym3 const gamma_uu = <?=calc_gamma_uu?>(U, cell->pos);
-real3x3 const K_ul = sym3_sym3_mul(gamma_uu, U->K_ll);			//K^i_j
-sym3 const K_uu = real3x3_sym3_to_sym3_mul(K_ul, gamma_uu);		//K^ij
-real const tr_KSq = sym3_dot(U->K_ll, K_uu);					//K_ij K^ij
+real3x3 const K_ul = sym3_sym3_mul(gamma_uu, U->K_ll);			//K_ul.i.j := K^i_j
+sym3 const K_uu = real3x3_sym3_to_sym3_mul(K_ul, gamma_uu);		//K_uu.ij := K^ij
+real const tr_KSq = sym3_dot(U->K_ll, K_uu);					//tr_KSq := K_ij K^ij
+value.vreal = tr_KSq;
+]],
+	}
+
+	-- K_ik K^k_j ... calculated identical to "KSq_ll" times γ^ij
+	-- ... same magnitude as "tr_KSq"
+	-- ... different magnitude than "KSq_ll tr weighted gamma^ij"
+	vars:insert{
+		name = 'tr_KSq v2',
+		code = self:template[[
+//// MODULE_DEPENDS: <?=calc_gamma_uu?>
+sym3 const gamma_uu = <?=calc_gamma_uu?>(U, cell->pos);
+real3x3 const K_ul = sym3_sym3_mul(gamma_uu, U->K_ll);			//K_ul.i.j := K^i_j
+sym3 const KSq_ll = sym3_real3x3_to_sym3_mul(U->K_ll, K_ul);	//KSq_ll.ij := K_ik K^k_j
+value.vreal = sym3_dot(KSq_ll, gamma_uu);
+]],
+	}
+
+
+	-- TODO NOTICE the "KSq_ll tr weighted gamma^ij" HAS A DIFFERENT MAGNITUDE THAN "tr_KSq" ABOVE! 
+	-- K_ik K^k_j
+	vars:insert{
+		name = 'KSq_ll',
+		type = 'sym3',
+		code = self:template[[
+//// MODULE_DEPENDS: <?=calc_gamma_uu?>
+sym3 const gamma_uu = <?=calc_gamma_uu?>(U, cell->pos);
+real3x3 const K_ul = sym3_sym3_mul(gamma_uu, U->K_ll);			//K_ul.i.j := K^i_j
+sym3 const KSq_ll = sym3_real3x3_to_sym3_mul(U->K_ll, K_ul);	//KSq_ll.ij := K_ik K^k_j
+value.vsym3 = KSq_ll;
+]],
+	}
+
+	-- Hamiltonian constraint before it is contracted:
+	-- R_ij + K K_ij - K_ik K^k_j
+	-- ... minus eight pi something that traces to rho ...
+	vars:insert{
+		name = 'H_ll',
+		type = 'sym3',
+		code = self:template[[
+
+//// MODULE_DEPENDS: <?=calc_gamma_uu?>
+_3sym3 const d_lll = U->d_lll;										//d_lll.i.jk := d_kij
+sym3 const gamma_uu = <?=calc_gamma_uu?>(U, cell->pos);				//gamma_uu.ij := γ^ij
+real3x3x3 const d_llu = _3sym3_sym3_mul(d_lll, gamma_uu);			//d_llu.i.j.k := d_ij^k = d_ijl * γ^lk
+_3sym3 const d_ull = sym3_3sym3_mul(gamma_uu, d_lll);				//d_ull.i.jk := d^i_jk = γ^il d_ljk
+_3sym3 const conn_ull = conn_ull_from_d_llu_d_ull(d_llu, d_ull);	//conn_ull.k.ij := Γ^k_ij = d_ij^k + d_ji^k - d^k_ij
+real3 const e_l = _3sym3_tr12(d_ull);								//e_l.i := e_i = d^j_ji
+real3 const d_l = real3x3x3_tr23(d_llu);							//d_l.i := d_i = d_ij^j
+
+//// MODULE_DEPENDS: <?=calc_partial_d_llll?>
+//display code runs to the borders, so don't finite-difference OOB
+sym3sym3 const partial_d_llll = <?=OOB?>(1,1)
+	? sym3sym3_zero
+	: <?=calc_partial_d_llll?>(
+		solver,
+		U
+	);
+
+//// MODULE_DEPENDS: <?=calc_R_ll?>
+sym3 const R_ll = <?=calc_R_ll?>(
+	gamma_uu,
+	d_l,
+	e_l,
+	conn_ull,
+	d_ull,
+	d_llu,
+	partial_d_llll
+);
+
+real3x3 const K_ul = sym3_sym3_mul(gamma_uu, U->K_ll);			//K_ul.i.j := K^i_j
+sym3 const KSq_ll = sym3_real3x3_to_sym3_mul(U->K_ll, K_ul);	//KSq_ll.ij := K_ik K^k_j
+real const tr_K = real3x3_trace(K_ul);							//K^k_k
+
+sym3 const H_ll = sym3_real_mul(
+	sym3_add(
+		R_ll,
+		sym3_sub(
+			sym3_real_mul(U->K_ll, tr_K),
+			KSq_ll
+		)
+	),
+	//TODO maybe sub stress energy?
+	.5);
+
+value.vsym3 = H_ll;
 ]],
 	}
 

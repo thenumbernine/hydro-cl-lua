@@ -1427,6 +1427,9 @@ typedef union {
 	};
 } sym3sym3;
 
+//this C array initializer works, right?
+#define sym3sym3_zero ((sym3sym3){.s={0}})
+
 //// MODULE_HEADER:
 
 static inline sym3sym3 sym3sym3_add(sym3sym3 a, sym3sym3 b);

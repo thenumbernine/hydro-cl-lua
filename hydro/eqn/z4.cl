@@ -137,7 +137,77 @@ for i=solver.dim+1,3 do
 end
 ?>
 	return b_ul;
+}
 
+//// MODULE_NAME: <?=calc_partial_d_llll?>
+
+//NOTICE THIS DOES NOT BOUNDS CHECK
+sym3sym3 <?=calc_partial_d_llll?>(
+	constant <?=solver_t?> const * const solver,
+	global <?=cons_t?> const * const U
+) {
+	//partial_d_lll.ij.kl := d_kij,l = d_(k|(ij),|l)
+	//so this object's indexes are rearranged compared to the papers
+	sym3sym3 partial_d_llll = sym3sym3_zero;
+
+	<?
+for k=1,solver.dim do	-- beyond dim and the finite-difference will be zero
+	local xk = xNames[k]
+	?>{
+		global <?=cons_t?> const * const UR = U + solver->stepsize.<?=xk?>;
+		global <?=cons_t?> const * const UL = U - solver->stepsize.<?=xk?>;
+		_3sym3 const dR_lll = UR->d_lll;
+		_3sym3 const dL_lll = UL->d_lll;
+<?	for l=k,3 do	-- since we are writing to xl, only iterate through symmetric terms
+		local xl = xNames[l]
+		for ij,xij in ipairs(symNames) do
+?>		partial_d_llll.<?=xij?>.<?=sym(k,l)?> += (dR_lll.<?=xk?>.<?=xij?> - dL_lll.<?=xk?>.<?=xij?>) / (2. * solver->grid_dx.<?=xk?>);
+<?		end
+	end
+?>	}<?
+end ?>
+	
+	return partial_d_llll;
+}
+
+//// MODULE_NAME: <?=calc_R_ll?>
+	
+// R_ll.ij := R_ij
+//	= γ^kl (-γ_ij,kl - γ_kl,ij + γ_ik,jl + γ_jl,ik)
+//		+ Γ^k_ij (d_k - 2 e_k)
+//		- 2 d^l_ki d^k_lj
+//		+ 2 d^l_ki d_lj^k
+//		+ d_il^k d_jk^l
+sym3 <?=calc_R_ll?>(
+	sym3 const gamma_uu,
+	real3 const d_l,
+	real3 const e_l,
+	_3sym3 const conn_ull,
+	_3sym3 const d_ull,
+	real3x3x3 const d_llu,
+	sym3sym3 const partial_d_llll
+) {
+	sym3 const R_ll = (sym3){
+<? for ij,xij in ipairs(symNames) do
+	local i,j,xi,xj = from6to3x3(ij)
+?>		.<?=xij?> = 0.
+<? 	for k,xk in ipairs(xNames) do
+?>			+ conn_ull.<?=xk?>.<?=xij?> * (d_l.<?=xk?> - 2. * e_l.<?=xk?>)
+<?		for l,xl in ipairs(xNames) do
+?>			+ 2. * d_ull.<?=xl?>.<?=sym(k,i)?> * (d_llu.<?=xl?>.<?=xj?>.<?=xk?> - d_ull.<?=xk?>.<?=sym(l,j)?>)
+			+ d_llu.<?=xi?>.<?=xl?>.<?=xk?> * d_llu.<?=xj?>.<?=xk?>.<?=xl?>
+			+ gamma_uu.<?=sym(k,l)?> * (
+				- partial_d_llll.<?=xij?>.<?=sym(k,l)?>
+				- partial_d_llll.<?=sym(k,l)?>.<?=xij?>
+				+ partial_d_llll.<?=sym(i,k)?>.<?=sym(j,l)?>
+				+ partial_d_llll.<?=sym(j,l)?>.<?=sym(i,k)?>
+			)
+<? 		end
+	end
+?>		,
+<? end
+?>	};
+	return R_ll;
 }
 
 //// MODULE_NAME: <?=initDeriv_numeric_and_useBSSNVars?>
@@ -2036,58 +2106,19 @@ kernel void <?=constrainU?>(
 	real3 const e_l = _3sym3_tr12(d_ull);	//e_i = d^j_ji
 	real3 const d_l = real3x3x3_tr23(d_llu);	//d_l.i = d_i = d_ij^j
 
-	//partial_d_lll.ij.kl = d_kij,l = d_(k|(ij),|l)
-	//so this object's indexes are rearranged compared to the papers
-	//sym3sym3 partial_d_llll = sym3sym3_zero; //sym3sym3_zero doesn't exist
-	sym3sym3 partial_d_llll = {
-<? for ij,xij in ipairs(symNames) do
-?>		.<?=xij?> = sym3_zero,
-<? end
-?>	};
+//// MODULE_DEPENDS: <?=calc_partial_d_llll?>
+	sym3sym3 const partial_d_llll = <?=calc_partial_d_llll?>(solver, U);
 
-	<?
-for k=1,solver.dim do	-- beyond dim and the finite-difference will be zero
-	local xk = xNames[k]
-	?>{
-		global <?=cons_t?> const * const UR = U + solver->stepsize.<?=xk?>;
-		global <?=cons_t?> const * const UL = U - solver->stepsize.<?=xk?>;
-		_3sym3 const dR_lll = UR->d_lll;
-		_3sym3 const dL_lll = UL->d_lll;
-<?	for l=k,3 do	-- since we are writing to xl, only iterate through symmetric terms
-		local xl = xNames[l]
-		for ij,xij in ipairs(symNames) do
-?>		partial_d_llll.<?=xij?>.<?=sym(k,l)?> += (dR_lll.<?=xk?>.<?=xij?> - dL_lll.<?=xk?>.<?=xij?>) / (2. * solver->grid_dx.<?=xk?>);
-<?		end
-	end
-?>	}<?
-end ?>
-
-	// R_ll.ij := R_ij
-	//	= γ^kl (-γ_ij,kl - γ_kl,ij + γ_ik,jl + γ_jl,ik)
-	//		+ Γ^k_ij (d_k - 2 e_k)
-	//		- 2 d^l_ki d^k_lj
-	//		+ 2 d^l_ki d_lj^k
-	//		+ d_il^k d_jk^l
-	sym3 const R_ll = (sym3){
-<? for ij,xij in ipairs(symNames) do
-	local i,j,xi,xj = from6to3x3(ij)
-?>		.<?=xij?> = 0.
-<? 	for k,xk in ipairs(xNames) do
-?>			+ conn_ull.<?=xk?>.<?=xij?> * (d_l.<?=xk?> - 2. * e_l.<?=xk?>)
-<?		for l,xl in ipairs(xNames) do
-?>			+ 2. * d_ull.<?=xl?>.<?=sym(k,i)?> * (d_llu.<?=xl?>.<?=xj?>.<?=xk?> - d_ull.<?=xk?>.<?=sym(l,j)?>)
-			+ d_llu.<?=xi?>.<?=xl?>.<?=xk?> * d_llu.<?=xj?>.<?=xk?>.<?=xl?>
-			+ gamma_uu.<?=sym(k,l)?> * (
-				- partial_d_llll.<?=xij?>.<?=sym(k,l)?>
-				- partial_d_llll.<?=sym(k,l)?>.<?=xij?>
-				+ partial_d_llll.<?=sym(i,k)?>.<?=sym(j,l)?>
-				+ partial_d_llll.<?=sym(j,l)?>.<?=sym(i,k)?>
-			)
-<? 		end
-	end
-?>		,
-<? end
-?>	};
+//// MODULE_DEPENDS: <?=calc_R_ll?>
+	sym3 const R_ll = <?=calc_R_ll?>(
+		gamma_uu,
+		d_l,
+		e_l,
+		conn_ull,
+		d_ull,
+		d_llu,
+		partial_d_llll
+	);
 
 	//scaled down by 1/8 to match B&S BSSNOK equations ... maybe I'll scale theirs up by 8 ...
 	//B&S eqn 2.125 ... divded by two

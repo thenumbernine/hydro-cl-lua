@@ -1674,9 +1674,10 @@ for i,component in ipairs(solver.displayComponentFlatList) do
 	or (group.name == component.onlyFor)
 	then
 		if solver:isModuleUsed(component.base) then
-?>	case <?=i?>:	//<?=component.base or 'real'?> <?=component.name?>
+			local label = (component.base or 'real')..' '..component.name
+?>	case <?=i?>:	//<?=label?>
 		{
-			<?=component.code?>
+			<?=component.code:gsub('\n', '\n\t\t\t')?>
 			*vectorField = <?= solver:isVarTypeAVectorField(component.type) and '1' or '0' ?>;
 			break;
 		}
@@ -1684,7 +1685,13 @@ for i,component in ipairs(solver.displayComponentFlatList) do
 		end
 	end
 end
-?>	}
+	-- should default give some default component, like the first real?
+	-- or should default give a bad value to indicate an error has happened?
+?>	default:
+		*vectorField = 0;
+		value->vreal = 1.23456789;
+		break;
+	}
 }
 ]], 	{
 			name = name,
