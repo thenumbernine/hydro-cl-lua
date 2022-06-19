@@ -2,6 +2,7 @@
 based on whatever my numerical_relativity_codegen z4 is based on, which is probably a Bona-Masso paper,
 probably 2004 Bona et al "A symmetry-breaking mechanism for the Z4 general-covariant evolution system"
 and then 2005 Bona et al "Geometrically Motivated ..."
+and then 2005 Gundlach et al on the generalized constraints (which only add kappa's to the source terms)
 and then some 2008 Yano et al
 and then my symmath/tests/Z4.lua ... which is trying to do the same thing but grid-background-indepdendent
 
@@ -375,6 +376,7 @@ function Z4_2004Bona:getSymbolFields()
 		'calcFromGrad_a_l',
 		'calcFromGrad_d_lll',	-- finite difference from grid
 		'calcFromGrad_b_ul',
+		'minimize_H_K',			-- used by offline convergence of Hamiltonian constraint wrt K_ij
 	}
 end
 
@@ -406,6 +408,9 @@ function Z4_2004Bona:createInitState()
 		-- so until then, just add shift vars no matter what ...
 		-- convergence between finite-difference of 1/2 γ_ij,k and d_kij
 		{name='b_convCoeff', value=0},
+	
+		-- manual/offline convergence of Hamiltonian constraint wrt K_ij
+		{name='minimize_H_K_lambda', value=1},
 	}
 end
 
@@ -416,7 +421,7 @@ function Z4_2004Bona:initCodeModule_fluxFromCons() end
 Z4_2004Bona.solverCodeFile = 'hydro/eqn/z4.cl'
 
 Z4_2004Bona.predefinedDisplayVars = {
---[=[	
+-- [=[	
 	'U alpha',
 --[[ for x dir only
 	'U gamma_ll x x',
@@ -547,7 +552,7 @@ value.vreal3 = _3sym3_sym3_dot23(U->d_lll, gamma_uu);		//d_l
 	}
 
 	-- R_ll.ij := R_ij
-	--	= γ^kl (-γ_ij,kl - γ_kl,ij + γ_ik,jl + γ_jl,ik)
+	--	= 2 γ^kl (-γ_ij,kl - γ_kl,ij + γ_ik,jl + γ_jl,ik)
 	--		+ Γ^k_ij (d_k - 2 e_k)
 	--		- 2 d^l_ki d^k_lj
 	--		+ 2 d^l_ki d_lj^k
@@ -842,5 +847,27 @@ end
 -- Z4_2004Bona.consWaveCodeMinMax uses default
 -- Z4_2004Bona.consWaveCodeMinMaxAllSidesPrefix uses default
 -- Z4_2004Bona.consWaveCodeMinMaxAllSides uses default
+
+function Z4_2004Bona:updateGUI()
+	local ig = require 'ffi.imgui'
+	local solver = self.solver
+	if ig.igButton((solver.Z4_converging_H_K and 'stop' or 'start') .. ' converge H K_ij') then
+		solver.Z4_converging_H_K = not solver.Z4_converging_H_K
+	end
+	if solver.Z4_converging_H_K then
+		if not solver.Z4_minimize_H_K_KernelObj then
+			solver.Z4_minimize_H_K_KernelObj = solver.solverProgramObj:kernel(self.symbols.minimize_H_K)
+		end
+		
+		solver:constrainU()		-- make sure U->H is up to date
+		solver:boundary()
+		solver.Z4_minimize_H_K_KernelObj(
+			solver.solverBuf,
+			solver.UBuf,
+			solver.cellBuf
+		)
+		solver:boundary()
+	end
+end
 
 return Z4_2004Bona

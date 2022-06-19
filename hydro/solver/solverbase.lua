@@ -2668,6 +2668,8 @@ i forget why, something to do with textures and border wrapping arguments
 
 however when it comes to min/max, we don't need ghost cells ...
 and when it comes to average and stddev, the ghost cells skew the results
+
+TODO this caches by 't', but what about if dt=0?  or if we do something to the buffer without changing 't' ?
 --]]
 function SolverBase:calcDisplayVarRange(var, componentIndex)
 	componentIndex = componentIndex or var.component
@@ -3372,6 +3374,10 @@ function SolverBase:updateGUIEqnSpecific()
 	end
 	for _,var in ipairs(self.eqn.guiVars) do
 		var:updateGUI(self)
+	end
+	-- this is a one-off
+	if self.eqn.updateGUI then
+		self.eqn:updateGUI()
 	end
 end
 

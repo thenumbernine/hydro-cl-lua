@@ -171,12 +171,11 @@ end ?>
 }
 
 //// MODULE_NAME: <?=calc_R_ll?>
-	
+
 // R_ll.ij := R_ij
-//	= γ^kl (-γ_ij,kl - γ_kl,ij + γ_ik,jl + γ_jl,ik)
+//	= 2 γ^kl (-γ_ij,kl - γ_kl,ij + γ_ik,jl + γ_jl,ik)
 //		+ Γ^k_ij (d_k - 2 e_k)
-//		- 2 d^l_ki d^k_lj
-//		+ 2 d^l_ki d_lj^k
+//		+ 2 d^l_ki (d_lj^k - d^k_lj)
 //		+ d_il^k d_jk^l
 sym3 <?=calc_R_ll?>(
 	sym3 const gamma_uu,
@@ -2186,4 +2185,66 @@ end ?>;
 
 	U->alpha = max(U->alpha, solver->alphaMin);
 <? end -- useConstrainU ?>
+}
+
+
+/*
+Used for converging the Hamiltonian constraint offline wrt K_ij.
+
+I could make a separate module for this, but I'll just put it in constrainU() because everyone uses that anyways
+
+minimize H = R + (K_ij γ^ij)^2 - K_im γ^mn K_nj γ^ij
+... but only wrt K_ij, not γ_ij (because that would involve R, which is complicated)
+
+∂/∂K_pq H =  2 K δ^p_i δ^q_j γ^ij
+			- δ^p_i δ^q_m γ^mn K_nj γ^ij
+			- K_im γ^mn δ^p_n δ^q_j γ^ij
+∂/∂K_pq H =  2 (K γ^pq - K^pq)
+
+minimizing H = R + (K^ij γ_ij)^2 - K^im γ_mn K^nj γ_ij
+
+∂/∂γ_pq H = ∂R/∂γ_pq + 2 K δ^p_i δ^q_j K^ij
+	- K^im δ^p_m δ^q_n K^nj γ_ij
+	- K^im γ_mn K^nj δ^p_i δ^q_j
+∂/∂γ_pq H = ∂R/∂γ_pq + 2 K K^pq - 2 K^pk K_k^q
+
+so to adjust K_ij, here's how you do it
+and if you want to adjust γ_ij too then you have to adjust a whole lot more
+
+so to adust K's ...∂/∂λ K_pq = -∂/∂K_pq H
+∂/∂K_pq H =  2 (K γ^pq - K^pq)
+... does tensor index variance matter?
+... if we're talking about gradient descent, no?
+*/
+kernel void <?=minimize_H_K?>(
+	constant <?=solver_t?> const * const solver,
+	global <?=cons_t?> * const UBuf,
+	global <?=cell_t?> const * const cellBuf
+) {
+	<?=SETBOUNDS_NOGHOST?>();
+	global <?=cons_t?> * const U = UBuf + index;
+
+//// MODULE_DEPENDS: <?=calc_gamma_uu?>
+	sym3 const gamma_uu = <?=calc_gamma_uu?>(U, cell->pos);
+	
+	real3x3 const K_ul = sym3_sym3_mul(gamma_uu, U->K_ll);			//K^i_j
+	real const tr_K = real3x3_trace(K_ul);							//K^k_k
+	sym3 const K_uu = real3x3_sym3_to_sym3_mul(K_ul, gamma_uu);		//K^ij
+
+	// ∂/∂K_pq H =  2 (K γ^pq - K^pq)
+	sym3 const partial_H_wrt_K_ll = sym3_real_mul(
+		sym3_sub(
+			sym3_real_mul(gamma_uu, tr_K),
+			K_uu
+		),
+		2.);
+
+	//lamda sign issue since the deviation of H is negative ... 
+	// I can fix this by minimizing H^2, i.e. multiply this gradient by 2 H
+	// I'm going to use U->H, which means you have to call 'constrainU' between this function.
+	// ∂/∂K_pq H^2 = 2 H ∂/∂K_pq H
+	sym3 const partial_HSq_wrt_K_ll = sym3_real_mul(partial_H_wrt_K_ll, 2. * U->H);
+
+	// ∂/∂λ K_pq = -∂/∂K_pq H
+	U->K_ll = sym3_sub(U->K_ll, sym3_real_mul(partial_HSq_wrt_K_ll, solver->minimize_H_K_lambda));
 }
