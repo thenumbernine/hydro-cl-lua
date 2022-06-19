@@ -447,13 +447,11 @@ Z4_2004Bona.predefinedDisplayVars = {
 	'U f*alpha',
 --]=]
 -- [[ for watching Hamiltonian error and its pieces
-	'U H',
-	'U R_ll tr weighted gamma^ij',
-	'U K_ll tr weighted gamma^ij',
-	'U KSq_ll tr weighted gamma^ij',
-	'U H_ll tr weighted gamma^ij',
-	'U tr_KSq',
-	'U tr_KSq v2',
+	'U H',								-- H the state variable
+	'U H_ll tr weighted gamma^ij',		-- H the calculation
+	'U R_ll tr weighted gamma^ij',		-- components of H: R_ij ... for SENR UIUC init cond we find R_ij γ^ij = 0
+	'U K_ll tr weighted gamma^ij',		-- components of H: K_ij ... for SENR UIUC init cond we find K_ij γ^ij = 0
+	'U KSq_ll tr weighted gamma^ij',	-- components of H: K_im γ^mn K_nj ... for SENR UIUC init cond we find ~ .2
 --]]
 }
 
@@ -591,36 +589,6 @@ value.vsym3 = R_ll;
 ]],
 	}
 
-	-- K_ij K^ij ... component of H
-	-- I could alternatively compute the real3x3 of K^i_j and just look at the frobenius dot of it and its transpose ...
-	vars:insert{
-		name = 'tr_KSq',
-		code = self:template[[
-//// MODULE_DEPENDS: <?=calc_gamma_uu?>
-sym3 const gamma_uu = <?=calc_gamma_uu?>(U, cell->pos);
-real3x3 const K_ul = sym3_sym3_mul(gamma_uu, U->K_ll);			//K_ul.i.j := K^i_j
-sym3 const K_uu = real3x3_sym3_to_sym3_mul(K_ul, gamma_uu);		//K_uu.ij := K^ij
-real const tr_KSq = sym3_dot(U->K_ll, K_uu);					//tr_KSq := K_ij K^ij
-value.vreal = tr_KSq;
-]],
-	}
-
-	-- K_ik K^k_j ... calculated identical to "KSq_ll" times γ^ij
-	-- ... same magnitude as "tr_KSq"
-	-- ... different magnitude than "KSq_ll tr weighted gamma^ij"
-	vars:insert{
-		name = 'tr_KSq v2',
-		code = self:template[[
-//// MODULE_DEPENDS: <?=calc_gamma_uu?>
-sym3 const gamma_uu = <?=calc_gamma_uu?>(U, cell->pos);
-real3x3 const K_ul = sym3_sym3_mul(gamma_uu, U->K_ll);			//K_ul.i.j := K^i_j
-sym3 const KSq_ll = sym3_real3x3_to_sym3_mul(U->K_ll, K_ul);	//KSq_ll.ij := K_ik K^k_j
-value.vreal = sym3_dot(KSq_ll, gamma_uu);
-]],
-	}
-
-
-	-- TODO NOTICE the "KSq_ll tr weighted gamma^ij" HAS A DIFFERENT MAGNITUDE THAN "tr_KSq" ABOVE! 
 	-- K_ik K^k_j
 	vars:insert{
 		name = 'KSq_ll',

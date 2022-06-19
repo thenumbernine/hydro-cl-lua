@@ -987,7 +987,7 @@ Next question: Should we create a unique context for each sub-solver?
 --]]
 function SolverBase:refreshSolverBuf()
 --[[ bssnok-fd-senr is crashing here even though all the sizes seem to match up
-print('self.solverPtr', self.solverPtr)	
+print('self.solverPtr', self.solverPtr)
 	assert(not rawequal(self.solverPtr, nil))
 print('ffi.sizeof(self.solverPtr)', ffi.sizeof(self.solverPtr))
 print('self.solverBuf.type', self.solverBuf.type)
@@ -995,7 +995,7 @@ print('ffi.sizeof(self.solverBuf.type)', ffi.sizeof(self.solverBuf.type))
 print('self.solverBuf.count', self.solverBuf.count)
 print('ffi.sizeof(self.solverBuf.type) * self.solverBuf.count', ffi.sizeof(self.solverBuf.type) * self.solverBuf.count)
 	assert(ffi.sizeof(self.solverBuf.type) * self.solverBuf.count == ffi.sizeof(self.solverPtr))
---]]	
+--]]
 	self.solverBuf:fromCPU(self.solverPtr)
 end
 
@@ -1649,7 +1649,14 @@ typedef union {
 		}))
 	end
 
-
+--[[
+ok here's my dilemma
+U group (which I considered the default display group)
+uses default "pickComponent" as its name.
+its group has a name, but its pickComponent fake-group doesn't.
+but the einstein stuff needs to be associated only with 'U' ... 
+... so looks like I can't use the default for 'U' anymore?
+--]]
 	local alreadyAddedComponentForGroup = {}
 	local function addPickComponetForGroup(group)
 		local name = self:getPickComponentNameForGroup(group)
@@ -1689,7 +1696,7 @@ end
 	-- or should default give a bad value to indicate an error has happened?
 ?>	default:
 		*vectorField = 0;
-		value->vreal = 1.23456789;
+		value->vreal = 0.987654321;
 		break;
 	}
 }
@@ -1759,7 +1766,7 @@ kernel void <?=kernelName?>(
 	int const component,
 	global <?=cell_t?> const * const cellBuf,
 	
-	// this is an ugly ugly hack, 
+	// this is an ugly ugly hack,
 	// because calculating avg and stddev use a buffer that includes ghost cells
 	// so unless I zero the border, it'll skew the averages
 	// but in fact the only reason i'm not zeroing the border is for the display i think?
@@ -2117,7 +2124,7 @@ properties:
 	type = result type of the component.  nil means real.  only other option is 'real3' or 'cplx' for vector-field display.
 	magn = optional, for type=='real3' or type=='cplx', this is the name of the associated variable that gives the vector magnitude.
 
-	onlyFor = the component is only applied to the specified display group.  hack fo bssnok solver.
+	onlyFor = the component is only applied to the specified buffer.  hack for einstein solvers which uses norms based on metrics based on buffer fields.
 --]]
 function SolverBase:createDisplayComponents()
 	self.displayComponents = table()
@@ -2272,7 +2279,6 @@ value->vreal3 = _real3(coordLen(_real3(value->vreal3x3.x.y, value->vreal3x3.y.y,
 value->vreal3 = _real3(coordLen(_real3(value->vreal3x3.x.z, value->vreal3x3.y.z, value->vreal3x3.z.z), x), 0,0); value->vreal3x3.y = real3_zero; value->vreal3x3.z = real3_zero;
 ]]},
 	})
-
 end
 function SolverBase:addDisplayComponents(basetype, components)
 	for _,component in ipairs(components) do
@@ -2284,10 +2290,7 @@ function SolverBase:addDisplayComponent(basetype, component)
 	-- add defaults
 	component.base = basetype
 	-- TODO evaluate here or later?
-	component.code = template(component.code or '', {
-		solver = self,
-		eqn = self.eqn,
-	})
+	component.code = component.code or ''
 	component.type = component.type or 'real'
 	self.displayComponents[basetype]:insert(component)
 end
@@ -2325,14 +2328,6 @@ function SolverBase:getPickComponentNameForGroup(group)
 	local name = 'pickComponent'
 	if group
 	and group.name	-- exclude the fake group created for default components
---[[
-	and self.displayComponentFlatList:find(nil, function(component)
-		return component.onlyFor
-	end)
---]]
--- [[ if the type is UBuf's type then use the default
-	and group.bufferType ~= self.eqn.symbols.cons_t
---]]
 	then
 		name = name..'_'
 			-- TODO further sanitization?
@@ -2665,10 +2660,10 @@ end
 used by the display code to dynamically adjust ranges
 this returns raw values, not scaled by units
 
-TODO 
+TODO
 this uses calcDisplayVarToBuffer
 which is also used by the display code
-but the display code makes room for ghost cells for some reason, 
+but the display code makes room for ghost cells for some reason,
 i forget why, something to do with textures and border wrapping arguments
 
 however when it comes to min/max, we don't need ghost cells ...
@@ -2751,7 +2746,7 @@ function SolverBase:calcDisplayVarRangeAndAvg(var, componentIndex)
 	if not var.lastAvg then
 		-- TODO the display var is being recalc'd a few times for min/max/avg/stddev?
 		-- would it be better to cache and save it?
-		-- I'm really not sure ... which is more expensive? 
+		-- I'm really not sure ... which is more expensive?
 		-- memory or the few calcs each displayvar requires?
 		self:calcDisplayVarToBuffer(var, componentIndex, true)
 
@@ -2761,7 +2756,7 @@ function SolverBase:calcDisplayVarRangeAndAvg(var, componentIndex)
 		-- very ugly I know.  I should change this so the reduce buf doesn't cover ghost cells
 		-- or at least doesn't during the calc display var stuff
 		-- (maybe other ops like grav potential do use reduceBuf and need border?)
-		local sizeForAvg = self.volumeWithoutBorder	
+		local sizeForAvg = self.volumeWithoutBorder
 		local sizevec = var.group.getBuffer().sizevec
 		if sizevec then
 			size = tonumber(sizevec:volume())
@@ -2787,7 +2782,7 @@ function SolverBase:calcDisplayVarRangeAndAvgAndStdDev(var, componentIndex)
 		
 		-- duplicated in calcDisplayVarRange
 		local size = self.numCells
-		local sizeForAvg = self.volumeWithoutBorder	
+		local sizeForAvg = self.volumeWithoutBorder
 		local sizevec = var.group.getBuffer().sizevec
 		if sizevec then
 			size = tonumber(sizevec:volume())
