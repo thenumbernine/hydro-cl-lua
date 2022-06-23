@@ -1,4 +1,7 @@
--- slowly making this the home of all initial conditions...
+--[[
+initial conditions for Euler fluid equations (and similar)
+slowly making this the home of all initial conditions...
+--]]
 local ffi = require 'ffi'
 local class = require 'ext.class'
 local table = require 'ext.table'
@@ -1661,7 +1664,7 @@ end ?>
 #endif
 	P += initCond->noiseAmplitude * 2. * (U->ptr[4] - .5);
 ]],				{
-					sliceAxis = self.guiVars.sliceAxis.options[self.guiVars.sliceAxis.value],
+					sliceAxis = self.guiVars.sliceAxis:getValue(),
 				}
 			)
 		end,

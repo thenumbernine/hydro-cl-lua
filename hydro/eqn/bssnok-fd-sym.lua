@@ -789,8 +789,7 @@ time('building symbolic math env', function()
 		-------------------------------- alpha_,t -------------------------------- 
 
 		-- usually in init/einstein
-		local fGuiVar = solver.eqn.guiVars.f_eqn
-		local fLuaCode = fGuiVar.options[fGuiVar.value]
+		local fLuaCode = solver.eqn.guiVars.f_eqn:getValue()
 		local f = assert(loadstring([[
 	local alpha, symmath = ...
 	local log = symmath.log

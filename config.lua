@@ -1451,7 +1451,8 @@ local args = {
 	--initCond = 'SENR Minkowski',			-- stable with 2009Alic-z4
 	--initCond = 'gaussian perturbation',
 	--initCond = 'plane gauge wave',
-	initCond = 'SENR UIUC',					-- 2009Alic-z4 runs indefinitely in sphere (t=2000+...), runs indefinitely in sphere_sinh_radial (t=30000+...)
+	--initCond = 'SENR UIUC',					-- 2009Alic-z4 runs indefinitely in sphere (t=2000+...), runs indefinitely in sphere_sinh_radial (t=30000+...)
+	initCond = 'UIUC',
 	--initCond = 'SENR BrillLindquist',
 	--initCond = 'black hole - Schwarzschild',
 	--initCond = 'black hole - isotropic - stuffed',	-- TODO FIXME

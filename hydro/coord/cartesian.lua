@@ -18,6 +18,8 @@ function Cartesian:init(args)
 		y = y,
 		z = z,
 		r = (x^2 + y^2 + z^2)^.5,
+		theta = symmath.atan2((x^2 + y^2)^.5, z),
+		phi = symmath.atan2(y,x),
 	}
 end
 

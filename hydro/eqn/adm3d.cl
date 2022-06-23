@@ -3101,8 +3101,7 @@ kernel void <?=constrainU?>(
 	sym3 const K_uu = real3x3_sym3_to_sym3_mul(K_ul, gamma_uu);			//K^ij
 
 <?
-local constrainVGuiVar = eqn.guiVars["constrain V"]
-local constrainV = constrainVGuiVar.options[constrainVGuiVar.value]  
+local constrainV = eqn.guiVars["constrain V"]:getValue()  
 if constrainV ~= "none" then 
 ?>	//gravitational_wave_sim uses this (for 1D), HydroGPU doesn't (for 2D/3D)
 

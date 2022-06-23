@@ -16,7 +16,7 @@ end
 
 function GuiCombo:updateGUI(solver)
 	if tooltip.comboTable(self.name, self, 'value', self.options) then
-		self:refresh(self.options[self.value], solver)
+		self:refresh(self:getValue(), solver)
 	end
 end
 
@@ -24,7 +24,13 @@ end
 
 -- compile-time
 function GuiCombo:getCode()
-	return '#define '..self.name..' '..self.options[self.value]
+	return '#define '..self.name..' '..self:getValue()
+end
+
+-- ok .value is really the key ...
+-- ... and :getValue() is the value
+function GuiCombo:getValue()
+	return self.options[self.value]
 end
 
 return GuiCombo

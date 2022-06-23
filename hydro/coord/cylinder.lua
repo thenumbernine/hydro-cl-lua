@@ -1,13 +1,13 @@
 --[[
 exact volume: 
-int(θ=θ1,θ2 int(r=r1,r2 r dr) dθ)
-= 1/2 (θ2-θ1) (r2^2 - r1^2)
+int(φ=φ1,φ2 int(r=r1,r2 r dr) dφ)
+= 1/2 (φ2-φ1) (r2^2 - r1^2)
 
 volume element: 
-r dr dθ
-= r (r2 - r1) (θ2 - θ1)
-= (r2+r1)/2 (r2 - r1) (θ2 - θ1)
-= 1/2 (r2^2 - r1^2) (θ2 - θ1)
+r dr dφ
+= r (r2 - r1) (φ2 - φ1)
+= (r2+r1)/2 (r2 - r1) (φ2 - φ1)
+= 1/2 (r2^2 - r1^2) (φ2 - φ1)
 
 same thing, good thing
 --]]
@@ -27,15 +27,20 @@ Cylinder.name = 'cylinder'
 function Cylinder:init(args)
 	local x, y, z = symmath.vars('x', 'y', 'z')
 	self.embedded = table{x,y,z}
-	
-	local r, theta = symmath.vars('r', 'θ')
-	self.baseCoords = table{r, theta, z}
+
+	-- this r is the 2D r, not the 3D r ... I should use a different letter ...
+	-- Wiki uses 'rho' to separate from 3D r
+	-- but my spherical sinh-remapped coordinate system also uses rho ...
+	-- ... should I change that one to 'eta' and change this to 'rho'?
+	-- ... or should I just not bother to keep my local Coord variable names unique?
+	local r2, phi = symmath.vars('r', 'φ')
+	self.baseCoords = table{r2, phi, z}
 
 	-- anholonomic linear transform 
 	-- e_iHol = e_iHol^i partial_i 
 	self.eHolToE = symmath.Matrix(
 		{1, 0, 0},
-		{0, 1/r, 0},
+		{0, 1/r2, 0},
 		{0, 0, 1}
 	)
 	
@@ -44,8 +49,8 @@ function Cylinder:init(args)
 
 	self.chart = function() 
 		return Tensor('^I', 
-			r * cos(theta), 
-			r * sin(theta), 
+			r2 * cos(phi), 
+			r2 * sin(phi), 
 			z
 		) 
 	end
@@ -53,9 +58,11 @@ function Cylinder:init(args)
 	Cylinder.super.init(self, args)
 
 	self.vars = {
-		r = (r^2 + z^2)^.5,
-		x = r * cos(theta),
-		y = r * sin(theta),
+		r = (r2^2 + z^2)^.5,
+		theta = symmath.atan2(r2, z),
+		phi = phi,
+		x = r2 * cos(phi),
+		y = r2 * sin(phi),
 		z = z,
 	}
 end
@@ -67,8 +74,8 @@ real3 coordMapInv(real3 x) {
 	//coord bounds don't seem to matter anywhere else,
 	//except here in the renderer
 	//TODO use the solver's bounds?
-	real theta = fmod(fmod(atan2(x.y, x.x), 2. * M_PI) + 2. * M_PI, 2. * M_PI);
-	return _real3(sqrt(x.x*x.x + x.y*x.y), theta, x.z);
+	real phi = fmod(fmod(atan2(x.y, x.x), 2. * M_PI) + 2. * M_PI, 2. * M_PI);
+	return _real3(sqrt(x.x*x.x + x.y*x.y), phi, x.z);
 }
 ]]
 end

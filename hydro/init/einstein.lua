@@ -59,8 +59,7 @@ function EinsteinInitCond:getCodePrefix()
 	local alphaVar = symmath.var'alpha'
 	-- TODO each eqn must be stated as a guiVar of the solver
 	-- make a parent class or something for all Einstein field eqns
-	local fGuiVar = self.solver.eqn.guiVars.f_eqn
-	local fLuaCode = fGuiVar.options[fGuiVar.value]
+	local fLuaCode = self.solver.eqn.guiVars.f_eqn:getValue()
 	
 	local f = assert(loadstring([[
 local alpha, symmath = ...
@@ -152,8 +151,7 @@ local function initEinstein(args)
 	local alphaVar = symmath.var'alpha'
 	-- TODO each eqn must be stated as a guiVar of the solver
 	-- make a parent class or something for all Einstein field eqns
-	local fGuiVar = self.guiVars.f
-	local fLuaCode = fGuiVar.options[fGuiVar.value]
+	local fLuaCode = self.guiVars.f:getValue()
 	
 	local f = assert(loadstring([[
 local alpha, symmath = ...
@@ -175,8 +173,7 @@ end
 function EinsteinInitCond:buildFCCode(diff)
 	local solver = assert(self.solver)
 	local alphaVar = symmath.var'alpha'
-	local fGuiVar = solver.eqn.guiVars.f_eqn
-	local fLuaCode = fGuiVar.options[fGuiVar.value]
+	local fLuaCode = solver.eqn.guiVars.f_eqn:getValue()
 	
 	local f = assert(loadstring([[
 local alpha, symmath = ...
@@ -1134,7 +1131,140 @@ what if I transforms this from tx back to uv?
 ]]
 		end,
 	},
-	
+
+	{	
+		--[[
+		based on 2010 Liu, Etienne, Shapiro "near extremal ..."
+		NOTICE this condition violates the EFE!
+			"We removed the physical ring singularity inside the horizon by filling the BH interior with constraint-violating “junk” initial data. 
+			It has been demonstrated that the BSSN (Baumgarte-Shapiro-Shibata-Nakamura) scheme [38, 39], coupled with moving puncture gauge conditions, guarantees that the “junk” data will not propagate out of the horizon [40–42]."
+		How does that affect the behavior of the finite-volume solvers?
+		--]]
+		name = 'UIUC',
+		guiVars = {
+			{name = 'M', value = cmdline.UIUC_M or 1},
+			{name = 'chi', value = cmdline.UIUC_chi or .8},
+			{
+				name = 'init_alphaOption',
+				type = 'combo',
+				options = {
+					'2010_Liu_et_al_end_of_section_B',
+					'unit',
+					'trumpet',
+					'isotropic_Schwarzschild',
+					'2010_Liu_et_al_eqn_6',
+				},
+				compileTime = true,	-- no cl code uses this, but initCond does, so set this to recompile initCond code upon change
+			},
+		},
+		getDepends = function(self)
+			return {
+				'sqr',
+				self.solver.coord.symbols.coordMapR,
+			}
+		end,
+		getInitCondCode = function(self)
+			if not require 'hydro.coord.sphere':isa(self.solver.coord) 
+			and not require 'hydro.coord.sphere_sinh_radial':isa(self.solver.coord) 
+			then
+				print"!!!!!!! WARNING !!!!!!! - this init cond only works in spherical (or radially-remapped) coordinate system."
+			end		
+			return self.solver.eqn:template[[
+real const r = coordMapR(x);
+real const r_sqr = r * r;
+real const r_cubed = r * r_sqr;
+real const r_4th = r_sqr * r_sqr;
+
+real const th = x.y;	// assumes spherical coodinates
+real const costh = cos(th);
+real const sinth = sin(th);
+real const costh_sqr = costh * costh;
+real const sinth_sqr = sinth * sinth;
+real const sinth_cubed = sinth_sqr * sinth;
+
+real const M = initCond->M;
+real const chi = initCond->chi;
+
+real const a = M * chi;
+real const a_sqr = a * a;
+real const a_cubed = a_sqr * a;
+real const a_4th = a_sqr * a_sqr;
+
+//2010 Liu et al after eqn 1
+real const sqrt_discr = sqrt(sqr(M) - a_sqr);
+real const rp = M + sqrt_discr;		//outer horizon
+real const rm = M - sqrt_discr;		//inner horizon
+
+//2010 Liu et al eqn 12
+real const rBL = r * sqr(1. + rp / (4.*r));
+real const rBL_sqr = rBL * rBL;
+real const rBL_4th = rBL_sqr * rBL_sqr;
+
+//2010 Liu et al after eqn 2:
+real const Sigma = rBL_sqr + a_sqr * costh_sqr;
+real const Delta = rBL_sqr - 2. * M * rBL + a_sqr;
+real const A = sqr(rBL_sqr + a_sqr) - Delta * a_sqr * sinth_sqr;
+
+//grid coordinate metric. TODO gamma_ll should be initialized to this by the eqn.  but meh initialize it again to be safe. 
+//// MODULE_DEPENDS: <?=calc_gammaHat_ll?>
+sym3 const gammaHat_ll = <?=calc_gammaHat_ll?>(x);
+real const det_gammaHat = sym3_det(gammaHat_ll);
+
+// 2010 Liu et al eqn 13
+gamma_ll = sym3_zero;
+gamma_ll.xx = ((Sigma * sqr(r + rp / 4.)) / (r_cubed * (rBL - rm)));
+gamma_ll.yy = Sigma;
+gamma_ll.zz = A / Sigma * sinth_sqr;
+
+K_ll = sym3_zero;
+
+// 2010 Liu et al eqn. 14
+K_ll.xz = (M * a * sinth_sqr) / (Sigma * sqrt(A * Sigma))
+	* (3. * rBL_4th + 2. * a_sqr * rBL_sqr - a_4th - a_sqr * (rBL_sqr - a_sqr) * sinth_sqr)
+	* (1 + rp / (4.*r)) * 1. / sqrt(r * (rBL - rm));
+
+// 2010 Liu et al eqn. 15
+K_ll.yz = -((2. * a_cubed * M * rBL * costh * sinth_cubed) / (Sigma * sqrt(A*Sigma)))
+	* (r - rp/4) * sqrt((rBL - rm) / r);
+
+
+//with such a low alpha comes slow waves and therefore very slow cfl
+//TODO exclude waves within event horizon from CFL?
+real const det_gamma = sym3_det(gamma_ll);
+//TODO in the BSSN coordinate-free equations, the conformal factor is a ratio of the physical to the grid metric
+// and the difference of physical to background connection (which is a tensor) is evolved
+// but in my finite-volume Z4 equations, I'm evolving the partials of the metric ... 
+// ... not the difference with background metric ...
+// ... specifically because those intrduced more terms (right?)
+// ... bad idea?  should I be evolving difference of partials of physical with background metric?
+// I remember I wrote things out in this method at first but got rid of them later ... hmm ...
+real const psi_4th = cbrt(det_gamma / det_gammaHat));
+real const psi_sqr = sqrt(psi_4th);
+real const psi = sqrt(psi_sqr);
+
+<?
+local init_alphaOption = self.guiVars.init_alphaOption:getValue()
+<? if init_alphaOption == 'unit' then ?>	//unit alpha
+alpha = 1.;
+<? elseif init_alphaOption == 'trumpet' then ?>	//trumpet alpha
+alpha = 1./(2.*psi - 1.);
+<? elseif init_alphaOption == 'isotropic_Schwarzschild' then ?>	//isotropic schwarzschild
+alpha = 2. / (1. + psi_4th);
+<? elseif init_alphaOption == '2010_Liu_et_al_end_of_section_B' then ?>	//2010 Liu et al footnote at the end of section B:
+alpha = 1. / psi_sqr;
+<? elseif init_alphaOption == '2010_Liu_et_al_eqn_6' then ?>	//2010 Liu et al eqn. 6
+alpha = sqrt((Delta * Sigma) / A);
+<? else
+	error("idk how to generate alpha init conds for option "..tostring(init_alphaOption))
+end ?>
+
+//2010 Liu et al eqn. 7
+beta_u.z = -((2 * M * a * rBL) / A);
+
+]]
+		end,
+	},
+
 	-- based on ch.23 of 1973 Misner, Thorne, Wheeler "Gravitation"
 	-- TODO add support for multiple bodies
 	{

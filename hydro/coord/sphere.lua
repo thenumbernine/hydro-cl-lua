@@ -40,10 +40,12 @@ function Sphere:init(args)
 	Sphere.super.init(self, args)
 
 	self.vars = {
-		r = r,
 		x = r * sin(theta) * cos(phi),
 		y = r * sin(theta) * sin(phi),
 		z = r * cos(theta),
+		r = r,
+		theta = theta,
+		phi = phi,
 	}
 end
 
