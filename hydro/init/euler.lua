@@ -485,7 +485,7 @@ function EulerAnalytical:getInitCondCode()
 		}
 
 	-- [[ while we're here, generate the exact solution function
-	-- TODO likewise the clcode and exact solution can both be generated elsewhere 
+	-- TODO likewise the clcode and exact solution can both be generated elsewhere
 	-- and clcode just returned here
 
 	local heatCapacityRatio = symmath.var'heatCapacityRatio'
@@ -577,13 +577,9 @@ local initConds = table{
 		solverVars = {
 			heatCapacityRatio = 7/5,
 		},
-		getDepends = function(self)
-			return table{
-				self.solver.coord.symbols.coordMap,
-			}
-		end,
 		getInitCondCode = function(self)
-			return [[
+			return self.solver.eqn:template[[
+//// MODULE_DEPENDS: <?=coordMap?>
 	real3 xc = coordMap(x);
 	rho = 1. + xc.x;
 	P = 1. + xc.x;
@@ -604,7 +600,7 @@ local initConds = table{
 			{name = 'P0', value = 1e-6},
 			{name = 'x0', value = -.5},
 			{name = 'y0', value = -.5},
-			{name = 'z0', value = 0},	
+			{name = 'z0', value = 0},
 		},
 		getInitCondCode = function(self)
 			self.solver:setBoundaryMethods'periodic'
@@ -633,16 +629,11 @@ local initConds = table{
 		-- boundary waves seem to mess with this,
 		-- otherwise it looks like a wave equation solution
 		name = 'Bessel',
-		getDepends = function(self)
-			return table{
-				'Bessel',
-				self.solver.coord.symbols.coordMapR,
-				self.solver.coord.symbols.coordMap,
-			}
-		end,
 		getInitCondCode = function(self)
-			return [[
+			return self.solver.eqn:template[[
+//// MODULE_DEPENDS: <?=coordMapR?>
 	real r = coordMapR(x);
+//// MODULE_DEPENDS: <?=coordMap?>
 	real3 xc = coordMap(x);
 	real3 n = real3_real_mul(xc, 1. / r);
 	
@@ -655,6 +646,7 @@ local initConds = table{
 	// so ... I have to initialize this to d/dr J0(r)
 	// and then rotate it to point along e_r
 	// so, using -J1(r) = d/dr J0(r) according to Wiki (which says surpriringly little about Bessel function derivatives)
+//// MODULE_DEPENDS: Bessel
 	real vr = -BESSJ1(r);
 	v = real3_real_mul(n, vr);
 ]]
@@ -730,13 +722,9 @@ local initConds = table{
 		solverVars = {
 			heatCapacityRatio = 2,
 		},
-		getDepends = function(self)
-			return table{
-				self.solver.coord.symbols.coordMap,
-			}
-		end,
 		getInitCondCode = function(self)
 			return self.solver.eqn:template([[
+//// MODULE_DEPENDS: <?=coordMap?>
 	real3 const xc = coordMap(x);
 	bool const inside = true
 <?
@@ -881,20 +869,16 @@ end
 		solverVars = {
 			heatCapacityRatio = 7/5,
 		},
-		getDepends = function(self)
-			return table{
-				self.solver.coord.symbols.coordMap,
-				self.solver.coord.symbols.cartesianFromCoord,
-			}
-		end,
 		getInitCondCode = function(self)
-			return [[
+			return self.solver.eqn:template[[
+//// MODULE_DEPENDS: <?=coordMap?>
 	real3 xc = coordMap(x);
 	real const r0 = .1;
 	real const r1 = .115;
 	real const omega = 2.;
 	real r = sqrt(xc.x * xc.x + xc.y * xc.y);
 	real vPhi = 0.;
+//// MODULE_DEPENDS: <?=cartesianFromCoord?>
 	if (r <= r0) {
 		rho = 10.;
 		v = cartesianFromCoord(_real3(
@@ -921,13 +905,9 @@ end
 
 	{
 		name = 'spinning magnetic fluid',
-		getDepends = function(self)
-			return table{
-				self.solver.coord.symbols.coordMap,
-			}
-		end,
 		getInitCondCode = function(self)
-			return [[
+			return self.solver.eqn:template[[
+//// MODULE_DEPENDS: <?=coordMap?>
 	real3 xc = coordMap(x);
 	rho = .1;
 	P = 1;
@@ -962,14 +942,10 @@ end
 
 	{
 		name = 'magnetic fluid',
-		getDepends = function(self)
-			return table{
-				self.solver.coord.symbols.coordMap,
-			}
-		end,
 		getInitCondCode = function(self)
 			self.solver.useGravity = true
-			return [[
+			return self.solver.eqn:template[[
+//// MODULE_DEPENDS: <?=coordMap?>
 	real3 xc = coordMap(x);
 	rho = .1;
 	P = 1;
@@ -1186,13 +1162,9 @@ end) then
 				{name = 'POutside', value = args.rhoOutside or .01},
 			}
 		end,
-		getDepends = function(self)
-			return table{
-				self.solver.coord.symbols.coordMap,
-			}
-		end,
 		getInitCondCode = function(self)
-			return [[
+			return self.solver.eqn:template[[
+//// MODULE_DEPENDS: <?=coordMap?>
 	real3 const xc = coordMap(x);
 	real const rSq = real3_lenSq(xc);
 	real const radius = initCond->radius;
@@ -1218,14 +1190,9 @@ end) then
 				{name = 'D', value = 1, units = 'C/m^2'},
 			}
 		end,
-		getDepends = function(self)
-			return table{
-				'units',
-				self.solver.coord.symbols.coordMap,
-			}
-		end,
 		getInitCondCode = function(self)
-			return [[
+			return self.solver.eqn:template[[
+//// MODULE_DEPENDS: <?=coordMap?>
 	real3 const xc = coordMap(x);
 	real const r2 = sqrt(xc.x * xc.x + xc.y * xc.y);
 	real const dr2 = r2 - initCond->torusGreaterRadius;
@@ -2395,7 +2362,6 @@ if (bubbleRSq < bubbleRadiusSq) {
 			},
 			getDepends = function(self)
 				return table{
-					'Bessel',
 					self.solver.coord.symbols.coordMapR,
 					self.solver.coord.symbols.coordMap,
 				}
@@ -2410,6 +2376,7 @@ if (bubbleRSq < bubbleRadiusSq) {
 	real const r_in_kpc = r * <?=clnumber(meter / (1e+3 * constants.pc_in_m))?>;
 	real const z_in_kpc = z * <?=clnumber(meter / (1e+3 * constants.pc_in_m))?>;
 
+//// MODULE_DEPENDS: Bessel
 	// velocity from 2006 Cooperstock et al to fit 1989 Begeman
 	real const vmag_per_c = 0
 <?
@@ -2557,7 +2524,7 @@ for i=1,#pts-1,2 do
 		rho *= zinfl;
 <?
 end
-?>	
+?>
 	} else {
 		// out of bounds density
 		rho = 0.;
