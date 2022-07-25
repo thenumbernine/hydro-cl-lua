@@ -16,7 +16,9 @@ constant real const mdeShiftEpsilon = 1.;
 <? end ?>
 
 
-<? -- ok so ideally you should be able to subtract out the background metric ...
+<? 
+-- ok so ideally you should be able to subtract out the background metric ...
+-- besides what bad thing happens if our connection pseudo-tensors are linearly transformed, rather than converted to connection-differences which are true tensors? 
 ?>
 
 //// MODULE_NAME: <?=calc_gamma_ll?>

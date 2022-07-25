@@ -435,7 +435,8 @@ end
 	//2011 Cao eqn 22 ... where f == mu_L
 	//2011 Cau before eqn 24 ... mu_L = 2 / alpha
 	real Q = calc_f(U->alpha) * U->KHat;
-	
+
+	//TODO shouldn't there be a Theta in here?  Check 2011 Cao plz
 	//d/dt alpha = -alpha^2 Q = alpha,t + alpha,i beta^i
 	//alpha,t = -alpha^2 Q + alpha,i beta^i
 	deriv->alpha += -U->alpha * U->alpha * Q + real3_dot(*(real3*)partial_alpha_l, U->beta_u);

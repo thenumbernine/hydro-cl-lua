@@ -421,7 +421,7 @@ function Z4_2004Bona:initCodeModule_fluxFromCons() end
 Z4_2004Bona.solverCodeFile = 'hydro/eqn/z4.cl'
 
 Z4_2004Bona.predefinedDisplayVars = {
--- [=[	
+-- [=[
 	'U alpha',
 --[[ for x dir only
 	'U gamma_ll x x',
@@ -499,15 +499,15 @@ and n_a = -α t_,a (B&S eqns 2.19, 2.22, 2.24)
 momentum constraints
 
 -- this is the H of B&S, which is 2x the EFE trace, and 2x the H of Alcubierre
-H = 
+H =
 	+ K^i_a K^j_b δ^a_i δ^b_j
 	- K^i_a K^j_b δ^a_j δ^b_i
 
-	= 
+	=
 	+ K^i_a K^j_b δ^a_i δ^b_j (δ^c_c / 3)
 	- K^i_a K^j_b δ^a_j δ^b_i (δ^c_c / 3)
 
-	= 
+	=
 	+ K^i_a K^j_b δ^a_[i δ^b_j δ^c_c] / 3
 
 	=
@@ -663,16 +663,174 @@ value.vsym3 = H_ll;
 ]],
 	}
 
-	-- shift-less gravity only
-	-- gravity with shift is much more complex
-	-- TODO add shift influence (which is lengthy)
+	--[[[
+	shift-less gravity only
+	gravity with shift is much more complex
+	TODO add shift influence (which is lengthy)
+	
+	u'^u = -Γg^u_ab u^a u^b
+		spatial-only:
+	u'^i = -Γg^i_ab u^a u^b
+
+		separate space+time before lower
+	u'^i =
+		- Γg^i_tt (u^t)^2
+		- 2 Γg^i_tj u^t u^j
+		- Γg^i_jk u^j u^k
+
+		using the definition of the 4-connection in terms of ADM vars:
+	
+	u'^i =
+		- (u^t)^2 (
+			+ β^i / α (-α_,t - β^l α_,l + β^l β^m K_lm)
+			+ β^i_,t
+			- 2 α β^l K_l^i
+			+ α γ^im α_,m
+			+ β^l (β^i_,l + β^m Γγ^i_lm)
+		)
+		- 2 u^t u^j (
+			+ β^i / α (-α_,j + β^l K_lj)
+			- α K_j^i
+			+ β^i_,j
+			+ Γγ^i_lj β^l
+		)
+		- u^j u^k (
+			+ β^i / α K_jk
+			+ Γγ^i_jk
+		)
+
+		simplify
+
+	u'^i =
+			space derivatives:
+		- (u^t)^2 α γ^im α_,m			-- shift-less
+		+ (u^t)^2 β^i β^l α_,l / α
+		+ 2 u^t u^j β^i α_,j / α
+		- (u^t)^2 β^l β^i_,l
+		- 2 u^t u^j β^i_,j
+			time derivatives:
+		+ (u^t)^2 β^i α_,t / α
+		- (u^t)^2 β^i_,t
+			rest:
+		- (u^t)^2 K_lm β^i β^l β^m / α
+		- 2 u^t u^j K_lj β^i β^l / α
+		- (u^t)^2 Γγ^i_lm β^l β^m
+		- u^j u^k K_jk β^i / α
+		+ 2 (u^t)^2 α K^i_l β^l
+		- 2 u^t u^j Γγ^i_lj β^l
+		+ 2 u^t u^j α K_j^i				-- shift-less
+		- u^j u^k Γγ^i_jk				-- shift-less
+
+		replace 1st-derivative hyperbolic state-variables α_,i = α a_i and β^i_,j = b^i_j and B^i = β^i_,t
+	
+	u'^i =
+			space derivatives:
+		- (u^t)^2 α^2 γ^im a_m			-- shift-less
+		+ (u^t)^2 β^i β^l a_l
+		+ 2 u^t u^j β^i a_j
+		- (u^t)^2 β^l b^i_l
+		- 2 u^t u^j b^i_j
+			time derivatives:
+		+ (u^t)^2 β^i α_,t / α
+		- (u^t)^2 B^i
+			rest:
+		- (u^t)^2 K_lm β^i β^l β^m / α
+		- 2 u^t u^j K_lj β^i β^l / α
+		- (u^t)^2 Γγ^i_lm β^l β^m
+		- u^j u^k K_jk β^i / α
+		+ 2 (u^t)^2 α K^i_l β^l
+		- 2 u^t u^j Γγ^i_lj β^l
+		+ 2 u^t u^j α K_j^i				-- shift-less
+		- u^j u^k Γγ^i_jk				-- shift-less
+
+		notice this requires α_,t and β^i_,t
+		how about we only look at an object at rest?, so u^t = 1 and u^i = 0
+
+	u'^i =
+			shift-less:
+		- α^2 γ^im a_m
+			
+			shift vars:
+		+ β^i (β^l a_l)
+		- β^i (K_lm β^l β^m / α)
+		
+		+ 2 α K^i_l β^l
+		- β^l b^i_l
+		
+		- Γγ^i_lm β^l β^m
+		
+		+ β^i α_,t / α
+		- β^i_,t
+
+	TODO split the dependent parts into flags (like has_beta_u) and modules (like calc_b_ul, calc_conn_ull, calc_dt_alpha_over_alpha, calc_dt_beta_u)
+	and then move this code into the eqn/einstein parent class
+
+	--]]
 	vars:insert{
-		name = 'gravity',
+		name = 'gravity',	-- rest-object spatial-gravity 3-force
 		type = 'real3',
 		code = self:template[[
 //// MODULE_DEPENDS: <?=calc_gamma_uu?>
 sym3 const gamma_uu = <?=calc_gamma_uu?>(U, cell->pos);
-value.vreal3 = real3_real_mul(sym3_real3_mul(gamma_uu, U->a_l), -U->alpha * U->alpha);
+
+value.vreal3 = real3_real_mul(sym3_real3_mul(gamma_uu, U->a_l), -U->alpha * U->alpha);		// - α^2 γ^im a_m
+
+<? if eqn.useShift ~= 'none' then ?>
+
+//K_ul.i.j := K^i_j
+real3x3 const K_ul = sym3_sym3_mul(gamma_uu, U->K_ll);
+
+//tr_K := K^i_i
+real const tr_K = real3x3_trace(K_ul);
+
+//beta_dot_a := β^l a_l
+real const beta_dot_a = real3_dot(U->beta_u, U->a_l);
+
+//K_betaSq := β^l β^m K_lm
+real const K_dot_betaSq_over_alpha = real3_weightedLenSq(U->beta_u, U->K_ll) / U->alpha;
+
+<?
+local has_b_ul = eqn.consStruct.vars:find(nil, function(var) return var.name == "b_ul" end)
+if has_b_ul then ?>
+real3x3 const b_ul = U->b_ul;
+<? else
+error "TODO do spatial derivative here"
+end ?>
+
+<?
+local has_B_u = eqn.consStruct.vars:find(nil, function(var) return var.name == "B_u" end)
+if has_B_u then ?>
+real3 const B_u = U->B_u;
+<? else
+error "TODO analytical β^i_,t calculation here"
+end ?>
+
+//dt_alpha_over_alpha := α_,t / α
+// = (-α^2 f (K - 2 Theta) + β^i α_,i) / α
+// = -α f (K - 2 Theta) + β^i a_i
+real const dt_alpha_over_alpha = -calc_f_alpha(U->alpha) * (tr_K - 2. * U->Theta) + beta_dot_a;
+
+_3sym3 const d_lll = U->d_lll;										//d_lll.i.jk := d_kij
+real3x3x3 const d_llu = _3sym3_sym3_mul(d_lll, gamma_uu);			//d_llu.i.j.k := d_ij^k = d_ijl * γ^lk
+_3sym3 const d_ull = sym3_3sym3_mul(gamma_uu, d_lll);				//d_ull.i.jk := d^i_jk = γ^il d_ljk
+_3sym3 const conn_ull = conn_ull_from_d_llu_d_ull(d_llu, d_ull);	//conn_ull.k.ij := Γ^k_ij = d_ij^k + d_ji^k - d^k_ij
+
+<? 	for i,xi in ipairs(xNames) do ?>
+value.vreal3.<?=xi?> += 0.
+	- B_u.<?=xi?>																// - β^i_,t
+	+ U->beta_u.<?=xi?> * beta_dot_a											// + β^i β^l a_l
+	- U->beta_u.<?=xi?> * K_dot_betaSq_over_alpha								// - β^i K_lm β^l β^m / α
+	+ U->beta_u.<?=xi?> * dt_alpha_over_alpha 									// + β^i α_,t / α
+<?		for l,xl in ipairs(xNames) do ?>
+	+ 2. * U->alpha * K_ul.<?=xi?>.<?=xl?> * U->beta_u.<?=xl?>					// + 2 α K^i_l β^l
+	- U->beta_u.<?=xl?> * b_ul.<?=xi?>.<?=xl?>									// - β^l b^i_l
+<?			for m,xm in ipairs(xNames) do ?>
+	- conn_ull.<?=xi?>.<?=sym(l,m)?> * U->beta_u.<?=xl?> * U->beta_u.<?=xm?>	//- Γγ^i_lm β^l β^m
+<?			end ?>
+<?		end ?>
+<? 	end ?>
+;
+<? end -- eqn.useShift ~= 'none' ?>
 ]],
 	}
 
@@ -820,7 +978,7 @@ function Z4_2004Bona:eigenWaveCode(args)
 		elseif args.waveIndex == 28 then return '-'..betaUi..' + eig_lambdaLight'
 		elseif args.waveIndex == 29 then return '-'..betaUi..' + eig_lambdaLight'
 		elseif args.waveIndex == 30 then return '-'..betaUi..' + eig_lambdaGauge'
-		end		
+		end
 		-- END CUT from symmath/tests/Z4 - compute flux eigenmodes.symmath
 	end	-- noZeroRowsInFlux
 	error'got a bad waveIndex'

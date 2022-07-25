@@ -3269,6 +3269,7 @@ function SolverBase:calcDisplayVarToTex(var, componentIndex)
 		end
 
 		tex:bind()
+		glreport'here'	-- this intermittantly reports on my AMD immediately after I re-randomize the palette
 		-- use texSize because meshsolver dim isn't reliable
 		if self.texSize.z == 1 then
 			gl.glTexSubImage2D(tex.target, 0, 0, 0, sizevec.x, sizevec.y, format, gltype, destPtr)
@@ -3277,6 +3278,7 @@ function SolverBase:calcDisplayVarToTex(var, componentIndex)
 				gl.glTexSubImage3D(tex.target, 0, 0, 0, z, sizevec.x, sizevec.y, 1, format, gltype, destPtr + channels * sizevec.x * sizevec.y * z)
 			end
 		end
+		glreport'here'
 		tex:unbind()
 		glreport'here'
 	end

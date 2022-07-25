@@ -825,6 +825,9 @@ HydroCLApp.predefinedPaletteIndex = cmdline.palette and HydroCLApp.predefinedPal
 function HydroCLApp:setGradientTexColors(colors)
 	self.gradientTex = GLGradientTex(1024, colors, false)	-- false = don't wrap the colors...
 	self.gradientTex:setWrap{s = gl.GL_REPEAT}	-- ...but do use GL_REPEAT
+	-- hmm, only on my AMD, intermittantly the next time the tex is bound it will raise an INVALID_OPERATION upon the next bind 
+	-- maybe this is all because I'm using TEXTURE_1D for the gradientTex?  
+	-- maybe AMD doesn't like 1D textures so much?
 end
 
 function HydroCLApp:resetGradientTex()
@@ -1822,7 +1825,8 @@ end
 
 HydroCLApp.display_useCoordMap = cmdline.display_useCoordMap
 if HydroCLApp.display_useCoordMap == nil then HydroCLApp.display_useCoordMap = true end
-		
+
+HydroCLApp.mouse_influenceEquations = false
 HydroCLApp.displayFixedY = 0
 HydroCLApp.displayFixedZ = 0
 
@@ -1890,6 +1894,9 @@ function HydroCLApp:updateGUI()
 		ig.igSameLine()
 		
 		tooltip.checkboxTable('show coords', self, 'showMouseCoords')
+
+		--ig.igSameLine()
+		--tooltip.checkboxTable('mouse influence equations', self, 'mouse_influenceEquations')
 		
 
 		if ig.igRadioButton_Bool('ortho', self.view == self.orthoView) then
@@ -2056,14 +2063,17 @@ function HydroCLApp:event(event, ...)
 		if canHandleMouse() then
 			local dx = event.motion.xrel
 			local dy = event.motion.yrel
-			if mouse.leftDown and not guiDown then
-				if shiftDown then
-					if dx ~= 0 or dy ~= 0 then
-						self.view:mouseZoom(-dy, dy)
-					end
-				else
-					if dx ~= 0 or dy ~= 0 then
-						self.view:mousePan(dx, dy, self:size())
+			if dx ~= 0 or dy ~= 0 then
+				if mouse.leftDown and not guiDown then
+					if self.mouse_influenceEquations then
+						-- 1) determine grid coord
+						-- 2) tell the eqn to mess with the eqn at that location
+					else
+						if shiftDown then
+							self.view:mouseZoom(-dy, dy)
+						else
+							self.view:mousePan(dx, dy, self:size())
+						end
 					end
 				end
 			end

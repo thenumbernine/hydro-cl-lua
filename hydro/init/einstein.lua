@@ -651,6 +651,7 @@ what if I transforms this from tx back to uv?
 				'sqr',
 				self.solver.coord.symbols.coordMapR,
 				self.solver.coord.symbols.coord_g_ll,
+				self.solver.coord.symbols.coord_det_g,
 			}
 		end,
 	
@@ -660,24 +661,24 @@ what if I transforms this from tx back to uv?
 	real const r = coordMapR(x);
 	// this is grid r.  is that the same as isotropic spherical r?
 
-#if 0	// 2009 Alic et al eqn C.7
+<? if true then ?>	// 2009 Alic et al eqn C.7
 	real const M = initCond->M;
 	real const m = 4 * r - 4 / M * (r * r + sqr(.5 * M / M_PI * sin(2 * M_PI * r / M)));
-#else
+<? else ?>
 	real const m = initCond->M;
-#endif
+<? end ?>
 
 	// 2009 Alic et al eqn 31
 	gamma_ll = sym3_real_mul(coord_g_ll(x), 1 + .5 * m / r);
 	
-#if 0	// 2009 Alic et al eqn 29
+<? if true then ?>	// 2009 Alic et al eqn 29
 	real const alpha0 = 1.;
 	real const gamma0 = 1.;
 	real const gamma = sqrt(coord_det_g(x));
 	alpha = alpha0 + log(gamma / gamma0);
-#else	// isotropic alpha = sqrt(-g_tt)
+<? else ?>	// isotropic alpha = sqrt(-g_tt)
 	alpha = (1 - .5 * m / r) / (1 + .5 * m / r);
-#endif
+<? end ?>
 ]]
 		end,
 	},
@@ -1154,6 +1155,7 @@ what if I transforms this from tx back to uv?
 					'isotropic_Schwarzschild',
 					'2010_Liu_et_al_eqn_6',
 				},
+				value = 1,
 				compileTime = true,	-- no cl code uses this, but initCond does, so set this to recompile initCond code upon change
 			},
 		},
@@ -1238,13 +1240,13 @@ real const det_gamma = sym3_det(gamma_ll);
 // ... specifically because those intrduced more terms (right?)
 // ... bad idea?  should I be evolving difference of partials of physical with background metric?
 // I remember I wrote things out in this method at first but got rid of them later ... hmm ...
-real const psi_4th = cbrt(det_gamma / det_gammaHat));
+real const psi_4th = cbrt(det_gamma / det_gammaHat);
 real const psi_sqr = sqrt(psi_4th);
 real const psi = sqrt(psi_sqr);
 
 <?
-local init_alphaOption = self.guiVars.init_alphaOption:getValue()
-<? if init_alphaOption == 'unit' then ?>	//unit alpha
+local init_alphaOption = initCond.guiVars.init_alphaOption:getValue()
+if init_alphaOption == 'unit' then ?>	//unit alpha
 alpha = 1.;
 <? elseif init_alphaOption == 'trumpet' then ?>	//trumpet alpha
 alpha = 1./(2.*psi - 1.);
