@@ -320,7 +320,8 @@ function SelfGravProblem:getInitCondCode(initCond)
 	//v.x = .2 * (U->m.x - .5);	//U is initialized to random()
 	//v.y = .2 * (U->m.y - .5);
 	//v.z = .2 * (U->m.z - .5);
-	
+
+//// MODULE_DEPENDS: <?=coordMap?>
 	<? for i,source in ipairs(sources) do ?>{
 		real3 const xc = coordMap(x);
 		real3 const delta = real3_sub(xc, _real3(
@@ -1210,11 +1211,6 @@ end) then
 	
 	{
 		name = 'jet',
-		getDepends = function(self)
-			return table{
-				self.solver.coord.symbols.coordMap,
-			}
-		end,
 		init = function(self, args)
 			InitCond.init(self, args)
 
@@ -1254,6 +1250,7 @@ end) then
 <? local isSRHD = require 'hydro.eqn.srhd':isa(eqn) ?>
 {
 	real3 const x = cellBuf[<?=dst?>].pos;
+//// MODULE_DEPENDS: <?=coordMap?>
 	real3 const xc = coordMap(x);
 	bool inlet = false;
 	if (xc.x < 0) {
@@ -1370,16 +1367,12 @@ end
 
 	{
 		name = 'radial gaussian',
-		getDepends = function(self)
-			return table{
-				self.solver.coord.symbols.coordMap,
-			}
-		end,
 		getInitCondCode = function(self)
-			return [[
+			return self.solver.eqn:template[[
 	real const gaussianCenter = 6;
 	real const sigma = 1;
 
+//// MODULE_DEPENDS: <?=coordMap?>
 	real3 xc = coordMap(x);
 	real r = real3_len(xc);
 	real delta = (r - gaussianCenter) / sigma;
@@ -1564,11 +1557,6 @@ end
 				{name = 'velOutside', value = args.velOutside or .5},
 			}
 		end,
-		getDepends = function(self)
-			return table{
-				self.solver.coord.symbols.cartesianFromCoord,
-			}
-		end,
 		getInitCondCode = function(self)
 			local solver = assert(self.solver)
 			local boundaryMethods = {}
@@ -1613,6 +1601,7 @@ end ?>
 	v.perpAxis = sin(theta) * noise;
 #endif
 	v.moveAxis += inside * initCond->velInside + (1. - inside) * initCond->velOutside;
+//// MODULE_DEPENDS: <?=cartesianFromCoord?>
 	v = cartesianFromCoord(v, x);
 	P = initCond->backgroundPressure;
 	
@@ -1682,13 +1671,9 @@ end ?>;
 
 	{
 		name = 'Taylor-Green',
-		getDepends = function(self)
-			return {
-				self.solver.coord.symbols.coordMap,
-			}
-		end,
 		getInitCondCode = function(self)
-			return [[
+			return self.solver.eqn:template[[
+//// MODULE_DEPENDS: <?=coordMap?>
 	real3 const xc = coordMap(x);
 	real const ux = xc.x * 2. * M_PI;
 	real const uy = xc.y * 2. * M_PI;
@@ -1807,15 +1792,11 @@ end ?>;
 			{name='PInside', value=.1},
 			{name='vInside', value=-.5},
 		},
-		getDepends = function(self)
-			return {
-				self.solver.coord.symbols.coordMap,
-			}
-		end,
 		getInitCondCode = function(self)
 			local solver = assert(self.solver)
 			solver:setBoundaryMethods'freeflow'
-			return [[
+			return self.solver.eqn:template[[
+//// MODULE_DEPENDS: <?=coordMap?>
 real3 const xc = coordMap(x);
 real3 const bubbleCenter = _real3(initCond->bubbleCenterX, initCond->bubbleCenterY, initCond->bubbleCenterZ);
 real const bubbleRadiusSq = initCond->bubbleRadius * initCond->bubbleRadius;
@@ -2090,15 +2071,11 @@ if (bubbleRSq < bubbleRadiusSq) {
 				gravitationalConstant = constants.gravitationalConstant_in_m3_per_kg_s2,
 				coulombConstant = constants.CoulombConstant_in_kg_m3_per_C2_s2,
 			},
-			getDepends = function(self)
-				return {
-					self.solver.coord.symbols.coordMap,
-					self.solver.coord.symbols.coordMapR,
-				}
-			end,
 			getInitCondCode = function(self)
 				return self.solver.eqn:template([[
+//// MODULE_DEPENDS: <?=coordMap?>
 	real3 const xc = coordMap(x);
+//// MODULE_DEPENDS: <?=coordMapR?>
 	real const r = coordMapR(x);
 	real const rSq = r * r;
 	real const R = <?=clnumber(coordRadius)?>;
@@ -2266,9 +2243,6 @@ if (bubbleRSq < bubbleRadiusSq) {
 				gravitationalConstant = constants.gravitationalConstant_in_m3_per_kg_s2,
 				coulombConstant = constants.CoulombConstant_in_kg_m3_per_C2_s2,
 			},
-			getDepends = function(self)
-				return {self.solver.coord.symbols.coordMap}
-			end,
 			--[[
 			Now assuming A, B, R, Z in eqn C.1 are in units of [m],
 			and M is in units of [kg]
@@ -2288,6 +2262,7 @@ if (bubbleRSq < bubbleRadiusSq) {
 			getInitCondCode = function(self)
 				return self.solver.eqn:template[[
 	// 2021 Ludwig eqn C.1 ... the non-normalized density function
+//// MODULE_DEPENDS: <?=coordMap?>
 	real3 const xc = coordMap(x);
 	real const rSq = xc.x*xc.x + xc.y*xc.y;	//cylindrical 'r'
 	real const a = initCond->a / unit_m;
@@ -2360,14 +2335,9 @@ if (bubbleRSq < bubbleRadiusSq) {
 				gravitationalConstant = constants.gravitationalConstant_in_m3_per_kg_s2,
 				coulombConstant = constants.CoulombConstant_in_kg_m3_per_C2_s2,
 			},
-			getDepends = function(self)
-				return table{
-					self.solver.coord.symbols.coordMapR,
-					self.solver.coord.symbols.coordMap,
-				}
-			end,
 			getInitCondCode = function(self)
 				return self.solver.eqn:template([[
+//// MODULE_DEPENDS: <?=coordMap?>
 	real3 const xc = coordMap(x);
 	real const rSq = xc.x*xc.x + xc.y*xc.y;	//cylindrical 'r'
 	real const r = sqrt(rSq);
@@ -2565,9 +2535,6 @@ end
 		-- hmm, what about spherical coordinates...
 		--mins = {-1,-1,-1},
 		--maxs = {1,1,1},
-		getDepends = function(self)
-			return {self.solver.coord.symbols.coordMap}
-		end,
 		getInitCondCode = function(self)
 			local solver = assert(self.solver)
 			local f = SelfGravProblem{
@@ -2585,9 +2552,6 @@ end
 
 	{
 		name = 'self-gravitation test 1 spinning',
-		getDepends = function(self)
-			return {self.solver.coord.symbols.coordMap}
-		end,
 		getInitCondCode = function(self)
 			local solver = assert(self.solver)
 			local inside = [[
@@ -2617,9 +2581,6 @@ end
 
 	{
 		name = 'self-gravitation test 2',
-		getDepends = function(self)
-			return {self.solver.coord.symbols.coordMap}
-		end,
 		getInitCondCode = function(self)
 			return SelfGravProblem{
 				sources={
@@ -2639,9 +2600,6 @@ end
 	{
 		-- TODO add tidal-locked rotations
 		name = 'self-gravitation test 2 orbiting',
-		getDepends = function(self)
-			return {self.solver.coord.symbols.coordMap}
-		end,
 		getInitCondCode = function(self)
 			return SelfGravProblem{
 				sources = {
@@ -2672,9 +2630,6 @@ end
 	
 	{
 		name = 'self-gravitation test 4',
-		getDepends = function(self)
-			return {self.solver.coord.symbols.coordMap}
-		end,
 		getInitCondCode = function(self)
 			return SelfGravProblem{
 				sources={
@@ -2702,9 +2657,6 @@ end
 
 	{
 		name = 'self-gravitation Jeans, right?',
-		getDepends = function(self)
-			return {self.solver.coord.symbols.coordMap}
-		end,
 		getInitCondCode = function(self)
 			return SelfGravProblem{
 				solver = solver,
@@ -2813,7 +2765,7 @@ end
 				period = 10,
 			}
 			return self.solver.eqn:template[[
-	real3 xc = coordMap(x);
+	real3 const xc = coordMap(x);
 	if (real3_lenSq(xc) < .2*.2) {
 		//2018 Balezin et al "Electromagnetic properties of the Great Pyramids..."
 		permittivity = <?=susc_t?>_from_cplx(_cplx(5., .1));
