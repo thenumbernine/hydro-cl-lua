@@ -283,22 +283,16 @@ local function quadrantProblem(initCond)
 end
 
 -- right now 'center' is provided in cartesian coordinates (i.e. post-applying coordMap)
-local SelfGravProblem = class()
+local SelfGravProblem = class(EulerInitCond)
 
 function SelfGravProblem:getRadiusCode(source)
 	return clnumber(source.radius)
 end
 
-function SelfGravProblem:init(args)
-	self.args = args
-	self.getRadiusCode = args.getRadiusCode
-	self.outside = outside
-end
-
-function SelfGravProblem:getDepends()
-	return table{
-		self.solver.coord.symbols.coordMap,
-	}
+function SelfGravProblem:init(...)
+	assert(self.getRadiusCode)
+	assert(self.outside)
+	SelfGravProblem.super.init(self, ...)
 end
 
 function SelfGravProblem:outside()
@@ -308,9 +302,8 @@ function SelfGravProblem:outside()
 ]]
 end
 
-function SelfGravProblem:getInitCondCode(initCond)
-	local solver = assert(initCond.solver)
-	local args = self.args
+function SelfGravProblem:getInitCondCode()
+	local solver = assert(self.solver)
 
 	solver.useGravity = true
 
@@ -336,7 +329,7 @@ function SelfGravProblem:getInitCondCode(initCond)
 	}<? end ?>
 ]], {
 		self = self,
-		sources = args.sources,
+		sources = self.sources,
 		clnumber = clnumber,
 	})
 end
@@ -2530,117 +2523,91 @@ end
 		}
 	end)(),
 
-	{
+	class(SelfGravProblem, {
 		name = 'self-gravitation test 1',
 		-- hmm, what about spherical coordinates...
 		--mins = {-1,-1,-1},
 		--maxs = {1,1,1},
-		getInitCondCode = function(self)
-			local solver = assert(self.solver)
-			local f = SelfGravProblem{
-				solver = solver,
-				getRadiusCode = function(source)
-					return '.5 - .01 * (U->ptr[0] - .5)'
-				end,
-				sources={
-					{center={0, 0, 0}, radius = .5},
-				},
-			}
-			return f:getInitCondCode(self)
-		end
-	},
+		sources = {
+			{center={0, 0, 0}, radius = .5},
+		},
+		getRadiusCode = function(source)
+			return '.5 - .01 * (U->ptr[0] - .5)'
+		end,
+	}),
 
-	{
+	class(SelfGravProblem, {
 		name = 'self-gravitation test 1 spinning',
-		getInitCondCode = function(self)
-			local solver = assert(self.solver)
-			local inside = [[
+		sources={
+			{
+				center={0, 0, 0},
+				radius = .2,
+				-- srhd solver requires the max velocity not to exceed 1 ...
+				inside = [[
 	v.x = -2 * delta.y;
 	v.y = 2 * delta.x;
 	rho = 1.;
 	P = 1.;
-]]
-
-			return SelfGravProblem{
-				getRadiusCode = function(source)
-					-- TODO compute dr's component in each dx^i's, and scale our random number by that
-					-- U->rho holds noise
-					return '.2 - .005 * (U->ptr[0] - .5)'
-				end,
-				sources={
-					{
-						center={0, 0, 0},
-						radius = .2,
-						-- srhd solver requires the max velocity not to exceed 1 ...
-						inside = inside,
-					},
-				},
-			}:getInitCondCode(self)
+]],
+			},
+		},
+		getRadiusCode = function(source)
+			-- TODO compute dr's component in each dx^i's, and scale our random number by that
+			-- U->rho holds noise
+			return '.2 - .005 * (U->ptr[0] - .5)'
 		end,
-	},
+	}),
 
-	{
+	class(SelfGravProblem, {
 		name = 'self-gravitation test 2',
-		getInitCondCode = function(self)
-			return SelfGravProblem{
-				sources={
-					{
-						center = {-.25, 0, 0},
-						radius = .1,
-					},
-					{
-						center = {.25, 0, 0},
-						radius = .1,
-					},
-				},
-			}:getInitCondCode(self)
-		end,
-	},
+		sources={
+			{
+				center = {-.25, 0, 0},
+				radius = .1,
+			},
+			{
+				center = {.25, 0, 0},
+				radius = .1,
+			},
+		},
+	}),
 
-	{
+	class(SelfGravProblem, {
 		-- TODO add tidal-locked rotations
 		name = 'self-gravitation test 2 orbiting',
-		getInitCondCode = function(self)
-			return SelfGravProblem{
-				sources = {
-					{
-						center = {-.25, 0, 0},
-						radius = .1,
-						inside = [[
+		sources = {
+			{
+				center = {-.25, 0, 0},
+				radius = .1,
+				inside = [[
 	v.x = -2 * delta.y - .1 * x.y;
 	v.y = 2 * delta.x + .1 * x.x;
 	rho = 1;
 	P = 1;
 ]],
-					},
-					{
-						center = {.25, 0, 0},
-						radius = .1,
-						inside = [[
+			},
+			{
+				center = {.25, 0, 0},
+				radius = .1,
+				inside = [[
 	v.x = -2 * delta.y - .1 * x.y;
 	v.y = 2 * delta.x + .1 * x.x;
 	rho = 1;
 	P = 1;
 ]],
-					},
-				},
-			}:getInitCondCode(self)
-		end,
-	},
+			},
+		},
+	}),
 	
-	{
+	class(SelfGravProblem, {
 		name = 'self-gravitation test 4',
-		getInitCondCode = function(self)
-			return SelfGravProblem{
-				sources={
-					{center={.25, .25, 0}, radius = .1},
-					{center={-.25, .25, 0}, radius = .1},
-					{center={.25, -.25, 0}, radius = .1},
-					{center={-.25, -.25, 0}, radius = .1},
-				},
-			}:getInitCondCode(self)
-		end,
-	},
+		sources={
+			{center={.25, .25, 0}, radius = .1},
+			{center={-.25, .25, 0}, radius = .1},
+			{center={.25, -.25, 0}, radius = .1},
+			{center={-.25, -.25, 0}, radius = .1},
+		},
+	}),
 
 	{
 		name = 'self-gravitation soup',
@@ -2655,26 +2622,21 @@ end
 		end,
 	},
 
-	{
+	class(SelfGravProblem, {
 		name = 'self-gravitation Jeans, right?',
-		getInitCondCode = function(self)
-			return SelfGravProblem{
-				solver = solver,
-				getRadiusCode = function(source)
-					return '.5 - .02 * (U->ptr[0] - .5)'
-				end,
-				sources = {
-					{center={0, 0, 0}, radius = .5, inside=[[
+		getRadiusCode = function(source)
+			return '.5 - .02 * (U->ptr[0] - .5)'
+		end,
+		sources = {
+			{center={0, 0, 0}, radius = .5, inside=[[
 	P = 1;
 	rho = .1;
 	if (distSq > .4 * .4) {
 		rho = 1.;
 	}
 ]]},
-				},
-			}:getInitCondCode(self)
-		end,
-	},
+		},
+	}),
 
 
 
