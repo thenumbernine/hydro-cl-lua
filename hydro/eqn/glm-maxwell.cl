@@ -124,6 +124,9 @@ void <?=applyInitCondCell?>(
 
 //// MODULE_NAME: <?=eigen_forInterface?>
 
+//this is here for GLMMaxwell:eigenMinMaxWhatever , same as hydro/eqn/maxwell.lua
+//// MODULE_DEPENDS: <?=coord_sqrt_det_g?>
+
 #define <?=eigen_forInterface?>(\
 	/*<?=eigen_t?> * const */eig,\
 	/*constant <?=solver_t?> const * const */solver,\

@@ -246,6 +246,7 @@ end
 	return initCond
 end
 
+
 local function quadrantProblem(initCond)
 	initCond.getInitCondCode = function(self)
 		local solver = assert(self.solver)
@@ -281,6 +282,7 @@ local function quadrantProblem(initCond)
 	end
 	return initCond
 end
+
 
 -- right now 'center' is provided in cartesian coordinates (i.e. post-applying coordMap)
 local SelfGravProblem = class(EulerInitCond)
@@ -438,12 +440,6 @@ function EulerAnalytical:finalizeInitStruct()
 	end
 end
 
-function EulerAnalytical:getDepends()
-	return {
-		self.solver.coord.symbols.coordMap,
-	}
-end
-
 -- ok now where to do the building of the expressions?
 -- how bout in getInitCondCode?
 function EulerAnalytical:getInitCondCode()
@@ -471,13 +467,16 @@ function EulerAnalytical:getInitCondCode()
 		{['P'] = PExpr},
 	}
 
-	local clcode = 'real3 const xc = coordMap(x);\n'
-		..'real const t = 0.;\n'
-		..symmath.export.C:toCode{
+	local clcode = table{
+		'//// MODULE_DEPENDS: <?=coordMap?>',
+		'real3 const xc = coordMap(x);',
+		'real const t = 0.;',
+		symmath.export.C:toCode{
 			assignOnly = true,
 			output = output,
 		}
-
+	}:concat'\n'
+	
 	-- [[ while we're here, generate the exact solution function
 	-- TODO likewise the clcode and exact solution can both be generated elsewhere
 	-- and clcode just returned here
@@ -507,7 +506,7 @@ function EulerAnalytical:getInitCondCode()
 	end
 	--]]
 
-	return clcode
+	return self.solver.eqn:template(clcode)
 end
 
 
@@ -584,6 +583,7 @@ local initConds = table{
 	-- 2017 Zingale "Introduction to Computational Astrophysics" section 7.9.3
 	class(EulerAnalytical, {
 		name = 'advect gaussian',
+		-- TODO fix the default case - it explodes
 		guiVars = {
 			{name = 'rho0', value = 1e-3},
 			{name = 'rho1', value = 1},
@@ -2713,11 +2713,6 @@ end
 
 	{
 		name = 'Maxwell scattering around cylinder',
-		getDepends = function(self)
-			return table{
-				self.solver.coord.symbols.coordMap,
-			}
-		end,
 		getInitCondCode = function(self)
 			addMaxwellOscillatingBoundary{
 				solver = self.solver,
@@ -2727,9 +2722,11 @@ end
 				period = 10,
 			}
 			return self.solver.eqn:template[[
+//// MODULE_DEPENDS: <?=coordMap?>
 	real3 const xc = coordMap(x);
 	if (real3_lenSq(xc) < .2*.2) {
 		//2018 Balezin et al "Electromagnetic properties of the Great Pyramids..."
+//// MODULE_DEPENDS: cplx
 		permittivity = <?=susc_t?>_from_cplx(_cplx(5., .1));
 	}
 ]]
@@ -2787,11 +2784,6 @@ for _,pn in ipairs(obj) do
 }
 ]])
 		end,
-		getDepends = function(self)
-			return table{
-				self.solver.coord.symbols.coordMap,
-			}
-		end,
 		getInitCondCode = function(self)
 			local solver = assert(self.solver)
 			-- hmm, choosing min or max doesn't matter, it always shows up on min...
@@ -2803,10 +2795,12 @@ for _,pn in ipairs(obj) do
 				period = 10,
 			}
 			return solver.eqn:template([[
+//// MODULE_DEPENDS: <?=coordMap?>
 	real3 xc = coordMap(x);
 	xc = real3_real_mul(xc, 2.);
 	if (testTriangle(xc)) {
 		//2018 Balezin et al "Electromagnetic properties of the Great Pyramids..."
+//// MODULE_DEPENDS: cplx
 		permittivity = <?=susc_t?>_from_cplx(_cplx(5., .1));
 	}
 ]])
@@ -2815,11 +2809,6 @@ for _,pn in ipairs(obj) do
 
 	{
 		name = 'Maxwell scattering around square',
-		getDepends = function(self)
-			return table{
-				self.solver.coord.symbols.coordMap,
-			}
-		end,
 		getInitCondCode = function(self)
 			local solver = assert(self.solver)
 			-- hmm, choosing min or max doesn't matter, it always shows up on min...
@@ -2831,6 +2820,7 @@ for _,pn in ipairs(obj) do
 				period = 10,
 			}
 			return solver.eqn:template([[
+//// MODULE_DEPENDS: <?=coordMap?>
 	real3 xc = coordMap(x);
 	xc = real3_real_mul(xc, 2.);
 	if (
@@ -2843,6 +2833,7 @@ for _,pn in ipairs(obj) do
 end	?>
 	) {
 		//2018 Balezin et al "Electromagnetic properties of the Great Pyramids..."
+//// MODULE_DEPENDS: cplx
 		permittivity = <?=susc_t?>_from_cplx(_cplx(5., .1));
 	}
 ]])
@@ -2917,11 +2908,6 @@ bool testTriangle(real3 xc) {
 }
 ]])
 		end,
-		getDepends = function(self)
-			return table{
-				self.solver.coord.symbols.coordMap,
-			}
-		end,
 		getInitCondCode = function(self)
 			local solver = assert(self.solver)
 			addMaxwellOscillatingBoundary{
@@ -2949,9 +2935,10 @@ bool testTriangle(real3 xc) {
 				silver = 1.59e-8,
 				platinum = 1.06e-7,
 				tungsten = 5.65e-8,
-			}:mapi(function(v) return v * Ohm_in_m end)
+			}:map(function(v) return v * Ohm_in_m end)
 			
 			return solver.eqn:template([[
+//// MODULE_DEPENDS: <?=coordMap?>
 	real3 xc = coordMap(x);
 	xc = real3_real_mul(xc, 2.);
 	
@@ -2981,6 +2968,7 @@ bool testTriangle(real3 xc) {
 	) {
 		//conductivity = 0;
 		//conductivity = <?=clnumber(1/resistivities.copper)?>;
+//// MODULE_DEPENDS: cplx
 		permittivity = <?=susc_t?>_from_cplx(_cplx(5., .1));
 	}
 
@@ -3175,13 +3163,9 @@ kernel void addExtraSource(
 			{name = 'v', value = .5},
 			{name = 'B', value = 1},
 		},
-		getDepends = function(self)
-			return table{
-				self.solver.coord.symbols.coordMap,
-			}
-		end,
 		getInitCondCode = function(self)
-			return [[
+			return self.solver.eqn:template[[
+//// MODULE_DEPENDS: <?=coordMap?>
 	real3 xc = coordMap(x);
 	real r = real3_len(xc);
 	P = initCond->P;

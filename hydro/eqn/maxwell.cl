@@ -75,7 +75,7 @@ void <?=applyInitCondCell?>(
 	real P = 0;
 	real ePot = 0;
 
-	<?=initCode()?>
+<?=initCode()?>
 
 	U->D = eqn_cartesianToCoord(D, x);
 	U->B = eqn_cartesianToCoord(B, x);
@@ -124,6 +124,11 @@ void <?=applyInitCondCell?>(
 }
 
 //// MODULE_NAME: <?=eigen_forInterface?>
+
+//// MODULE_DEPENDS: <?=coord_sqrt_det_g?>
+// This is not used here, but used by Maxwell:eigenWaveCodePrefix
+// where was I supposed to put its dependencies?  
+// here for now.
 
 #define <?=eigen_forInterface?>(\
 	/*<?=eigen_t?> * const */eig,\

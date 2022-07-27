@@ -200,6 +200,18 @@ value.vreal = <?=real_mul?>(<?=add?>(
 	return vars
 end
 
+--[[
+ok how do I add dependent modules?
+if I return MODULE_DEPENDS code lines then i have an problem with inserting line-term comments into macros with line-wrap's
+or maybe my module parser will strip it first
+but it certainly will mess up syntax highlighting.
+alternatively I could make a block-comment-style MODULE_* macros
+maybe something like /* //// MODULE_DEPENDS: ... */
+or the other option is expose the current 'depends' table by the module system
+and let this code insert manually:
+	self.modules:addDepends(...)
+until I figure out, I'm just adding the dependencies to <?=eigen_forInterface?>
+--]]
 function Maxwell:eigenWaveCodePrefix(args)
 --[=[
 	return self:template([[
@@ -208,7 +220,11 @@ function Maxwell:eigenWaveCodePrefix(args)
 --]=]
 -- [=[
 	local code = self:template(
-		[[<?=mul?>(<?=mul?>((<?=eig?>)->sqrt_1_eps, (<?=eig?>)->sqrt_1_mu), 1./coord_sqrt_det_g(<?=pt?>))]],
+		table{
+-- can't add this here, it messes up when this code is inserted into inline macros
+--			'//// MODULE_DEPENDS: <?=coord_sqrt_det_g?>',
+			[[<?=mul?>(<?=mul?>((<?=eig?>)->sqrt_1_eps, (<?=eig?>)->sqrt_1_mu), 1./coord_sqrt_det_g(<?=pt?>))]],
+		}:concat'\n',
 		args
 	)
 	if self.scalar == 'cplx' then

@@ -340,7 +340,7 @@ real3 xInt = x;
 xInt.s<?=side?> -= .5 * solver->grid_dx.s<?=side?>;
 
 <?=solver:getULRCode{bufName='buf', side=side}:gsub('\n', '\n\t')?>
-//// MODULE_DEPENDS: <?=eigen_forInterface?>
+//// MODULE_DEPENDS: <?=eigen_t?> <?=eigen_forInterface?>
 <?=normal_t?> n = normal_forSide<?=side?>(xInt);
 <?=eigen_t?> eig;
 <?=eigen_forInterface?>(&eig, solver, UL, UR, cellL, cellR, xInt, n);

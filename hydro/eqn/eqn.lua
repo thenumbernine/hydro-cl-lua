@@ -822,8 +822,17 @@ end
 
 -- this is a mess, all because of eqn/composite
 function Equation:initCodeModule_solverCodeFile()
+	local code = self:template(assert(file[self.solverCodeFile]))
+	
+	-- in case any MODULE_* cmds were in there, align them back with the lhs
+	-- TODO seems I do this often enough, maybe I should change the module markup?  something inline-able too?
+	local string = require 'ext.string'
+	code = string.split(code, '\n'):mapi(function(l)
+		return (l:gsub('^%s*//// MODULE_', '//// MODULE_'))
+	end):concat'\n'
+
 	self.solver.modules:addFromMarkup{
-		code = self:template(assert(file[self.solverCodeFile])),
+		code = code,
 		onAdd = function(args)
 			self:initCodeModule_solverCodeFile_onAdd(args)
 		end,
