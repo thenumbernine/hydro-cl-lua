@@ -377,7 +377,7 @@ local args = {
 	--]]
 
 
-	initCond = 'rectangle',
+	--initCond = 'rectangle',
 	--initCond = 'Sedov',
 	--initCond = 'Noh',
 	--initCond = 'implosion',
@@ -415,7 +415,7 @@ local args = {
 	--initCond = 'magnetic fluid',
 	--initCond = '2017 Degris et al',
 	--initCond = 'that one mhd simulation from youtube',
-	--initCond = 'spiral with flipped B field',
+	initCond = 'spiral with flipped B field',
 	
 	-- 2002 Dedner
 	--initCond = '2002 Dedner peak Bx',
@@ -1324,7 +1324,7 @@ local args = {
 	--integrator = 'Runge-Kutta 3, TVD',	-- p.20, eqn B.1
 	--integrator = 'Runge-Kutta 4',
 	dim = dim,
-	cfl = 1/dim,			-- no mention of cfl or timestep ...
+	cfl = .5/dim,			-- no mention of cfl or timestep ...
 	fluxLimiter = cmdline.fluxLimiter or 'donor cell',	-- I didn't read much into what kind of flux/slope limiter was used
 	--fluxLimiter = cmdline.fluxLimiter or 'minmod',
 	--fluxLimiter = cmdline.fluxLimiter or 'Lax-Wendroff',
@@ -1451,8 +1451,8 @@ local args = {
 	--initCond = 'SENR Minkowski',			-- stable with 2009Alic-z4
 	--initCond = 'gaussian perturbation',
 	--initCond = 'plane gauge wave',
-	initCond = 'SENR UIUC',					-- 2009Alic-z4 runs indefinitely in sphere (t=2000+...), runs indefinitely in sphere_sinh_radial (t=30000+...)
-	--initCond = 'UIUC',					-- but why does this one run so slow? smaller alphas means lower cfls? too close to zero?
+	--initCond = 'SENR UIUC',					-- 2009Alic-z4 in sphere_sinh_radial with SENR UIUC runs until about t=1000 before oscillations within the event horizon destroy it.
+	initCond = 'UIUC',					-- but why does this one run so slow? smaller alphas means lower cfls? too close to zero?
 	--initCond = 'SENR BrillLindquist',
 	--initCond = 'black hole - Schwarzschild',
 	--initCond = 'black hole - isotropic - stuffed',	-- TODO FIXME

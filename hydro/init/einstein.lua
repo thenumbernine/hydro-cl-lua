@@ -645,35 +645,29 @@ what if I transforms this from tx back to uv?
 		guiVars = {
 			{name = 'M', value = 1},
 		},
-
-		getDepends = function(self)
-			return {
-				'sqr',
-				self.solver.coord.symbols.coordMapR,
-				self.solver.coord.symbols.coord_g_ll,
-				self.solver.coord.symbols.coord_det_g,
-			}
-		end,
-	
 		-- what do the eqns expect gamma_ij to be?
 		getInitCondCode = function(self)
 			return self.solver.eqn:template[[
+//// MODULE_DEPENDS: <?=coordMapR?>
 	real const r = coordMapR(x);
 	// this is grid r.  is that the same as isotropic spherical r?
 
 <? if true then ?>	// 2009 Alic et al eqn C.7
 	real const M = initCond->M;
+//// MODULE_DEPENDS: sqr
 	real const m = 4 * r - 4 / M * (r * r + sqr(.5 * M / M_PI * sin(2 * M_PI * r / M)));
 <? else ?>
 	real const m = initCond->M;
 <? end ?>
 
 	// 2009 Alic et al eqn 31
+//// MODULE_DEPENDS: <?=coord_g_ll?>
 	gamma_ll = sym3_real_mul(coord_g_ll(x), 1 + .5 * m / r);
 	
 <? if true then ?>	// 2009 Alic et al eqn 29
 	real const alpha0 = 1.;
 	real const gamma0 = 1.;
+//// MODULE_DEPENDS: <?=coord_det_g?>
 	real const gamma = sqrt(coord_det_g(x));
 	alpha = alpha0 + log(gamma / gamma0);
 <? else ?>	// isotropic alpha = sqrt(-g_tt)
@@ -1159,12 +1153,6 @@ what if I transforms this from tx back to uv?
 				compileTime = true,	-- no cl code uses this, but initCond does, so set this to recompile initCond code upon change
 			},
 		},
-		getDepends = function(self)
-			return {
-				'sqr',
-				self.solver.coord.symbols.coordMapR,
-			}
-		end,
 		getInitCondCode = function(self)
 			if not require 'hydro.coord.sphere':isa(self.solver.coord) 
 			and not require 'hydro.coord.sphere_sinh_radial':isa(self.solver.coord) 
@@ -1172,6 +1160,7 @@ what if I transforms this from tx back to uv?
 				print"!!!!!!! WARNING !!!!!!! - this init cond only works in spherical (or radially-remapped) coordinate system."
 			end		
 			return self.solver.eqn:template[[
+//// MODULE_DEPENDS: <?=coordMapR?>
 real const r = coordMapR(x);
 real const r_sqr = r * r;
 real const r_cubed = r * r_sqr;
@@ -1191,6 +1180,8 @@ real const a = M * chi;
 real const a_sqr = a * a;
 real const a_cubed = a_sqr * a;
 real const a_4th = a_sqr * a_sqr;
+
+//// MODULE_DEPENDS: sqr
 
 //2010 Liu et al after eqn 1
 real const sqrt_discr = sqrt(sqr(M) - a_sqr);
