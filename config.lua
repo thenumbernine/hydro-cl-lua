@@ -1451,7 +1451,7 @@ local args = {
 	--initCond = 'SENR Minkowski',			-- stable with 2009Alic-z4
 	--initCond = 'gaussian perturbation',
 	--initCond = 'plane gauge wave',
-	--initCond = 'SENR UIUC',					-- 2009Alic-z4 in sphere_sinh_radial with SENR UIUC runs until about t=1000 before oscillations within the event horizon destroy it.
+	--initCond = 'SENR UIUC',				-- 2009Alic-z4 in sphere_sinh_radial with SENR UIUC runs until about t=1000 before oscillations within the event horizon destroy it.
 	initCond = 'UIUC',					-- but why does this one run so slow? smaller alphas means lower cfls? too close to zero?
 	--initCond = 'SENR BrillLindquist',
 	--initCond = 'black hole - Schwarzschild',

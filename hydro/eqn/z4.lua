@@ -421,12 +421,6 @@ function Z4_2004Bona:initCodeModule_fluxFromCons() end
 Z4_2004Bona.solverCodeFile = 'hydro/eqn/z4.cl'
 
 Z4_2004Bona.predefinedDisplayVars = {
--- [==[ debugging
-	'U alpha',
-	'U a_l x',
-	'U alpha vs a_i x',
---]==] -- debugging
--- [==[ debugging
 -- [=[
 	'U alpha',
 --[[ for x dir only
@@ -464,7 +458,6 @@ Z4_2004Bona.predefinedDisplayVars = {
 	'U K_ll tr weighted gamma^ij',		-- components of H: K_ij ... for SENR UIUC init cond we find K_ij γ^ij = 0
 	'U KSq_ll tr weighted gamma^ij',	-- components of H: K_im γ^mn K_nj ... for SENR UIUC init cond we find ~ .2
 --]]
---]==] -- debugging
 }
 
 function Z4_2004Bona:getDisplayVars()
