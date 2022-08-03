@@ -1,3 +1,5 @@
+[![paypal](https://www.paypalobjects.com/en_US/i/btn/btn_donateCC_LG.gif)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=KYWUWS86GSFGL)
+
 ### About:
 
 lua-hydro-cl is a GPU-driven collection of computational fluid schemes, integrators, and equations all housed under one framework.
