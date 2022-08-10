@@ -1,7 +1,7 @@
-//// MODULE_NAME: <?=eqn_common?>
-//// MODULE_DEPENDS: real3x3
+//// MODULE_NAME: <?=metric_f?>
+//// MODULE_DEPENDS: real3
 
-#define /*real */metric_f(/*real3 const */pt) \
+#define /*real */<?=metric_f?>(/*real3 const */pt) \
 	(<?=eqn:compile(eqn.metric.f)?>)
 
 //// MODULE_NAME: <?=applyInitCondCell?>
@@ -40,7 +40,7 @@ end
 }
 
 //// MODULE_NAME: <?=fluxFromCons?>
-//// MODULE_DEPENDS: <?=solver_t?> <?=normal_t?> <?=cons_t?> <?=eqn_common?>
+//// MODULE_DEPENDS: <?=solver_t?> <?=normal_t?> <?=cons_t?>
 
 // What's the difference between <?=eigen_fluxTransform?> and <?=fluxFromCons?>?
 // The difference is that the flux matrix of this is based on 'eig', which is derived from U's ... especially UL & UR in the case of the Roe solver
@@ -215,7 +215,7 @@ void <?=calcCellMinMaxEigenvalues?>(
 then ?>
 
 //// MODULE_NAME: <?=addSource?>
-//// MODULE_DEPENDS: <?=eqn_common?> <?=coord_raise?> <?=coord_connHol_trace23?>
+//// MODULE_DEPENDS: <?=coord_raise?> <?=coord_connHol_trace23?> <?=metric_f?>
 
 kernel void <?=addSource?>(
 	constant <?=solver_t?> const * const solver,
@@ -231,15 +231,14 @@ kernel void <?=addSource?>(
 	//TODO make use of this
 	//real const c = solver->wavespeed / unit_m_per_s;
 
-	real3 const conn23 = coord_connHol_trace23(pt);
-	real const f = metric_f(pt);
 
 	real3 const Psi_u = coord_raise(U->Psi_l, pt);
 
-	deriv->Pi += 
-		- real3_dot(U->Psi_l, conn23)
-		- f 						//... for □Φ=f
-	;
+	real const f = <?=metric_f?>(pt);
+	deriv->Pi -= f;	//... for □Φ=f
+	
+	real3 const conn23 = coord_connHol_trace23(pt);
+	deriv->Pi -= real3_dot(U->Psi_l, conn23);
 }
 
 <? end ?>

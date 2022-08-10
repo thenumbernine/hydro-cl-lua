@@ -51,6 +51,12 @@ function Wave:init(args)
 	Wave.super.init(self, args)
 end
 
+function Wave:getSymbolFields()
+	return table(Wave.super.getSymbolFields(self)):append{
+		'metric_f',
+	}
+end
+
 function Wave:buildVars()
 	Wave.super.buildVars(self)
 	
