@@ -236,9 +236,12 @@ kernel void <?=addSource?>(
 
 	real const f = <?=metric_f?>(pt);
 	deriv->Pi -= f;	//... for □Φ=f
-	
+
+	//this source term makes anholonomic get worse ... hmm ...
+#if 0
 	real3 const conn23 = coord_connHol_trace23(pt);
 	deriv->Pi -= real3_dot(U->Psi_l, conn23);
+#endif
 }
 
 <? end ?>

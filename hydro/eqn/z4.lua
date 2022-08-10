@@ -441,22 +441,41 @@ Z4_2004Bona.predefinedDisplayVars = {
 	'U Theta',
 	'U Z_l mag',
 --]]
--- [[ for watching shift
+--[[ for watching shift
 	'U beta_u mag',
 	'U log(sqrt(gamma))_,i mag',
 	'U Gamma^i mag',
 --]]
+--[[	
 	'U H',
 	'U M_u mag',
 	'U volume',
 	'U f*alpha',
+--]]
 --]=]
--- [[ for watching Hamiltonian error and its pieces
+--[[ for watching Hamiltonian error and its pieces
 	'U H',								-- H the state variable
 	'U H_ll tr weighted gamma^ij',		-- H the calculation
 	'U R_ll tr weighted gamma^ij',		-- components of H: R_ij ... for SENR UIUC init cond we find R_ij γ^ij = 0
 	'U K_ll tr weighted gamma^ij',		-- components of H: K_ij ... for SENR UIUC init cond we find K_ij γ^ij = 0
 	'U KSq_ll tr weighted gamma^ij',	-- components of H: K_im γ^mn K_nj ... for SENR UIUC init cond we find ~ .2
+--]]
+
+-- [[ watch constraints, should all be zero.
+	'U H',
+	'U M_u mag',
+	'U alpha vs a_i mag',
+	'U gamma_ij vs d_xij norm',
+	'U gamma_ij vs d_yij norm',
+	'U gamma_ij vs d_zij norm',
+	-- shift-only:
+	'U beta^j_,x vs b^j_x mag',
+	'U beta^j_,y vs b^j_y mag',
+	'U beta^j_,z vs b^j_z mag',
+	-- TODO looks like fvsolver isn't enabling this for z4 ...
+	--'eigen ortho error x',
+	--'eigen ortho error y',
+	--'eigen ortho error z',
 --]]
 }
 
