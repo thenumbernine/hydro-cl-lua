@@ -60,6 +60,7 @@ simulation execution:
 	saveOnExit = filename to save all solvers (appending _1 _2 for multiple solvers) before quitting
 	plotOnExit = enable or set to 'true' to have a plot popup upon exit.  set it to a filename string to save the plot to that file.
 				this plots a time history of variable min, max, avg, and stddev of the trackvars.
+	plotOnExit_savedata = (optional) where to save the plotOnExit data
 	plot1DOnExit = enable to plot the 1D data at the time of exit. set it to a filename string to save the plot to that file. 
 				this plots a snapshot of the variable min, max, avg, and stddev of the trackvars.
 	plot1DOnExit_savedata = (optional) what filename to save the output data as
@@ -1230,6 +1231,10 @@ function HydroCLApp:update(...)
 					local usings = table()
 					if type(cmdline.plotOnExit) == 'string' then
 						usings.output = cmdline.plotOnExit 
+						local name, ext = io.getfileext(cmdline.plotOnExit)
+						usings.terminal = ext.." size 1600,900 background '#ffffff'"
+					else
+						usings.persist = true
 					end
 					for _,solver in ipairs(self.solvers) do
 						cols:insert(solver.plotsOnExit.t)
@@ -1262,10 +1267,11 @@ function HydroCLApp:update(...)
 						end
 					end
 					require 'gnuplot'(table({
-						persist = true,
 						style = 'data lines',
 						data = cols,
+						savedata = cmdline.plotOnExit_savedata,
 					}, usings):setmetatable(nil))
+					-- TODO wouldn't hurt to add a header column to the savedata
 				end
 				if cmdline.plot1DOnExit then
 					local half = require 'cl.obj.half'
@@ -1326,6 +1332,7 @@ function HydroCLApp:update(...)
 						data = cols,
 						savedata = cmdline.plot1DOnExit_savedata,
 					}, usings):setmetatable(nil))
+					-- TODO wouldn't hurt to add a header column to the savedata
 				end
 
 				self:requestExit()
