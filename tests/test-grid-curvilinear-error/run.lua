@@ -54,15 +54,16 @@ table td, table th {
 			):last(),
 			'%s+'
 		)
+		local colnames = {'time', 'avg', 'min', 'max', 'stddev'}
 		-- last = {time, avg, min, max, stddev}
-		ts:insert('<tr>'
+		ts:insert('<tr>\n'
 			..'<td>'
-				..io.getfileext(f):gsub('_', ' ')
-			..'</td>'
-			..last:mapi(function(l) 
-				return '<td>'..l..'</td>'
+			..io.getfileext(f):gsub('_', ' ')
+			..'</td><!-- name -->\n'
+			..last:mapi(function(l,i) 
+				return '<td>'..l..'</td><!-- '..colnames[i]..' -->\n'
 			end):concat()
-			..'</tr>')
+			..'</tr>\n')
 	end
 	ts:insert(
 [[
@@ -73,7 +74,11 @@ table td, table th {
 	)
 	io.writefile('index.html', ts:concat'\n')
 end
-	
+
+--[[
+updateIndex()
+os.exit()
+--]]
 
 local DIR = lfs.currentdir()
 
@@ -109,20 +114,22 @@ for cfg in coroutine.wrap(function()
 
 
 		for cfgVectorComponent in coroutine.wrap(function()
-	-- [[
+			--[[
 			coroutine.yield{
 				vectorComponent = 'holonomic',
 				name = 'holonomic'..cfgFluxLimiter.name,
 			}
+			--]]		
 			coroutine.yield{
 				vectorComponent = 'anholonomic',
 				name = 'anholonomic'..cfgFluxLimiter.name,
 			}
-	--]]		
+			--[[
 			coroutine.yield{
 				vectorComponent = 'cartesian',
 				name = 'cartesian'..cfgFluxLimiter.name,
 			}
+			--]]		
 		end) do
 			-- [[ cylinder, rmin == 0
 			for cfgBoundary in coroutine.wrap(function()
