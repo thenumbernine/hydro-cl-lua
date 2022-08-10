@@ -6,7 +6,7 @@ local io = require 'ext.io'
 local string = require 'ext.string'
 local lfs = require 'lfs'
 
-local function updateGlobal()
+local function updateIndex()
 	local fs = table()
 	for f in os.listdir'.' do
 		if f:match'%.txt$'
@@ -42,7 +42,7 @@ table td, table th {
 				<th>avg</th>
 				<th>min</th>
 				<th>max</th>
-				<th>stddev/th>
+				<th>stddev</th>
 			</tr>
 ]]
 	}
@@ -191,7 +191,7 @@ end) do
 	assert(lfs.chdir(DIR))
 	
 	-- update our global matrix and write out
-	updateGlobal()
+	updateIndex()
 end
 
 
