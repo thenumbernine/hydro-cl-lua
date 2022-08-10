@@ -1,4 +1,4 @@
--- check out my 'wave equation hyperbolic form' worksheet
+-- simple wave equation with no extra background metric
 local ffi = require 'ffi'
 local class = require 'ext.class'
 local table = require 'ext.table'
@@ -46,9 +46,6 @@ function Wave:init(args)
 		'U Psi_l mag metric',
 	}
 
-	self.init_alpha = args.alpha
-	self.init_beta = args.beta
-	self.init_K = args.K
 	self.init_f = args.f
 
 	Wave.super.init(self, args)
@@ -102,14 +99,6 @@ function Wave:initCodeModules()
 	self.metric = {
 		coords = coords,
 		t = t,
-		
-		alpha = Constant(1),
-		beta_u = {
-			Constant(0),
-			Constant(0),
-			Constant(0),
-		},
-		K = Constant(0),
 		f = Constant(0),
 	}
 
@@ -121,19 +110,6 @@ function Wave:initCodeModules()
 		return symmath.clone(assert(load('local x,y,z,t,r = ... return '..s))(x,y,z,t,r))()
 	end
 
-	if self.init_alpha then
-		self.metric.alpha = readarg(self.init_alpha)
-	end
-	if self.init_beta then
-		for i=1,3 do
-			if self.init_beta[i] then
-				self.metric.beta_u[i] = readarg(self.init_beta[i])
-			end
-		end
-	end
-	if self.init_K then
-		self.metric.K = readarg(self.init_K)
-	end
 	-- this isn't really a metric variable
 	if self.init_f then
 		self.metric.f = readarg(self.init_f)
@@ -151,19 +127,18 @@ function Wave:initCodeModule_fluxFromCons() end
 function Wave:eigenWaveCodePrefix(args)
 	return self:template([[
 real const wavespeed = solver->wavespeed / unit_m_per_s;
-real const alpha_nLen = metric_alpha(<?=pt?>) * normal_len(n);
-real const beta_n = normal_vecDotN1(<?=n?>, metric_beta_u(<?=pt?>));
+real const nLen = normal_len(n);
 ]], args)
 end
 
 function Wave:eigenWaveCode(args)
 	local waveIndex = math.floor(args.waveIndex / self.numRealsInScalar)
 	if waveIndex == 0 then
-		return 'wavespeed * (-beta_n - alpha_nLen)' 
+		return '-wavespeed * nLen' 
 	elseif waveIndex == 1 or waveIndex == 2 then
-		return 'wavespeed * -beta_n'
+		return '0.'
 	elseif waveIndex == 3 then
-		return 'wavespeed * (-beta_n + alpha_nLen)' 
+		return 'wavespeed * nLen' 
 	end
 	error'got a bad waveIndex'
 end
@@ -177,8 +152,8 @@ function Wave:eigenWaveCodeMinMax(args)
 	..self:template([[
 <?=eqn:waveCodeAssignMinMax(
 	declare, resultMin, resultMax,
-	'wavespeed * (-beta_n - alpha_nLen)',
-	'wavespeed * (-beta_n + alpha_nLen)'
+	'-wavespeed * nLen',
+	'wavespeed * nLen'
 )?>
 ]], args)
 end
@@ -189,18 +164,16 @@ Wave.consWaveCodeMinMax = Wave.eigenWaveCodeMinMax
 function Wave:consWaveCodeMinMaxAllSidesPrefix(args)
 	return self:template([[
 real const wavespeed = solver->wavespeed / unit_m_per_s;
-real const alpha = metric_alpha(<?=pt?>);
 ]], args)
 end
 
 function Wave:consWaveCodeMinMaxAllSides(args)
 	return self:template([[
-real const alpha_nLen = alpha * normal_len(n);
-real const beta_n = normal_vecDotN1(<?=n?>, metric_beta_u(<?=pt?>));
+real const nLen = normal_len(n);
 <?=eqn:waveCodeAssignMinMax(
 	declare, resultMin, resultMax,
-	'wavespeed * (-beta_n - alpha_nLen)',
-	'wavespeed * (-beta_n + alpha_nLen)'
+	'-wavespeed * nLen',
+	'wavespeed * nLen'
 )?>
 ]], args)
 end

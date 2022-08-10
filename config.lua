@@ -150,38 +150,50 @@ local args = {
 		}
 	)[dim],
 	boundary = type(cmdline.boundary) == 'table' and cmdline.boundary or {
-		xmin = cmdline.boundary or 'mirror',
-		xmax = cmdline.boundary or 'mirror',
-		ymin = cmdline.boundary or 'mirror',
-		ymax = cmdline.boundary or 'mirror',
-		zmin = cmdline.boundary or 'mirror',
-		zmax = cmdline.boundary or 'mirror',
+		xmin = cmdline.boundary or 'freeflow',
+		xmax = cmdline.boundary or 'freeflow',
+		ymin = cmdline.boundary or 'freeflow',
+		ymax = cmdline.boundary or 'freeflow',
+		zmin = cmdline.boundary or 'freeflow',
+		zmax = cmdline.boundary or 'freeflow',
 	},
 	--]]
 	--[[ cylinder
 	coord = 'cylinder',
-		-- TODO doesn't work
+		-- TODO explodes 
 	--coordArgs = {vectorComponent='holonomic'},		-- use the coordinate derivatives to represent our vector components (though they may not be normalized)
-		-- TODO doesn't work for rmin=0
+		-- TODO subtle innacuracy drift 
 	--coordArgs = {vectorComponent='anholonomic'},		-- use orthonormal basis to represent our vector components.
 		-- TODO works but does curvilinear boundaries support cartesian vector components?
+		-- for Euler equations / constants / vel = 0.1 e_x + 0.1 e_y the density drifts by 0.3% in the first second
 	coordArgs = {vectorComponent='cartesian'},			-- use cartesian vector components
 	mins = cmdline.mins or {0, 0, -1},
 	maxs = cmdline.maxs or {.5, 2*math.pi, 1},			-- TODO bake the 2π into the coordinate chart so this matches grid/cylinder.  Technically θ→2πθ means it isn't the standard θ variable.  I did this for UI convenience with CFDMesh.
 	gridSize = ({
 		{128, 1, 1},	-- 1D
-		{64, 256, 1},	-- 2D
+		{32, 128, 1},	-- 2D
 		{32, 32, 32},	-- 3D
 	})[dim],
 	boundary = type(cmdline.boundary) == 'table' and cmdline.boundary or {
 		-- r
 		-- notice, this boundary is designed with cylindrical components in mind, so it will fail with vectorComponent==cartesian
 		--xmin=cmdline.boundary or 'freeflow',
+	
+		-- solver=fvsolver eqn=wave flux=roe initCond=constant initCondArgs={rho=1, v={.1,.1}}
+		-- after 1s: U Pi=[0.98602808771532 1.0004558819272 ±0.0022951109994 1.0155402211526]
+		-- the average might look like its further from the init value of rho=1, but it is oscillating around rho=1 and not linearly divering (like xmin='none' causes)
+		-- but the error is higher, though it doesn't drift as far
 		xmin=cmdline.boundary or 'cylinderRMin',	-- use this when rmin=0
+		
+		-- solver=fvsolver eqn=wave flux=roe initCond=constant initCondArgs={rho=1, v={.1,.1}}
+		-- after 1s: U Pi=[1.0002535672563 1.0003601365045 ±0.00010068116618478 1.0007179873631]
+		-- so the error stays lower, but the average drifts upward
+		--xmin=cmdline.boundary or 'none',
+		
 		--xmin=cmdline.boundary or 'mirror',
 		--xmin=cmdline.boundary or {name='mirror', args={restitution=0}},
 		--xmax=cmdline.boundary or 'freeflow',
-		xmax=cmdline.boundary or 'mirror',
+		xmax=cmdline.boundary or 'freeflow',
 		--xmax=cmdline.boundary or {name='mirror', args={restitution=0}},
 		
 		-- θ
@@ -395,7 +407,7 @@ local args = {
 	--initCond = 'Colella-Woodward',
 	--initCond = 'double mach reflection',
 	--initCond = 'square cavity',
-	--initCond = 'shock bubble interaction',		-- with usePLM only works with prim or with athena
+	initCond = 'shock bubble interaction',		-- with usePLM only works with prim or with athena
 	--initCond = 'Richmyer-Meshkov',
 	--initCond = 'radial gaussian',
 
@@ -415,7 +427,7 @@ local args = {
 	--initCond = 'magnetic fluid',
 	--initCond = '2017 Degris et al',
 	--initCond = 'that one mhd simulation from youtube',
-	initCond = 'spiral with flipped B field',
+	--initCond = 'spiral with flipped B field',
 	
 	-- 2002 Dedner
 	--initCond = '2002 Dedner peak Bx',
@@ -684,10 +696,10 @@ end
 if cmdline.solver then self.solvers:insert(require('hydro.solver.'..cmdline.solver)(table(args, cmdline.solverArgs))) return end
 
 
--- wave equation
+-- simple wave equation, no time/space coupling via background metric 
 
 
---self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='wave'})))
+self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='wave'})))
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='wave'})))
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='rusanov', eqn='wave'})))
 --self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='wave', wenoMethod='1996 Jiang Shu', order=5})))
@@ -695,8 +707,12 @@ if cmdline.solver then self.solvers:insert(require('hydro.solver.'..cmdline.solv
 --self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='wave', wenoMethod='2010 Shen Zha', order=5})))
 --self.solvers:insert(require 'hydro.solver.fdsolver'(table(args, {eqn='wave'})))
 
--- wave equation with background spacetime metric.  TODO explodes when addSource is used.
---self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='wave', eqnArgs={beta={'-y / (r * r)','x / (r * r)','0'}}, wenoMethod='1996 Jiang Shu', order=5})))
+
+-- wave eqation with background spacetime metric
+-- TODO explodes when addSource is used.
+
+
+--self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='wave_metric', eqnArgs={beta={'-y / (r * r)','x / (r * r)','0'}}, wenoMethod='1996 Jiang Shu', order=5})))
 
 --[[ Acoustic black hole.  for use with cylinder grid?
 args.eqnArgs = args.eqnArgs or {}
@@ -711,8 +727,10 @@ args.eqnArgs.alpha = '1'
 --args.eqnArgs.beta = {'-1', '0', '0'}
 -- K = -v^i_,i / alpha = 0
 -- and it assume gamma_ij == the grid metric gamma_ij
-self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='wave'})))
+self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='wave_metric'})))
 --]]
+
+
 
 
 -- shallow water equations
@@ -1348,14 +1366,14 @@ local args = {
 		zmax = 'quadratic',
 	},
 	--]]
-	--[[
+	-- [[
 	coord = 'sphere',
 	coordArgs = {
 		--vectorComponent = 'holonomic',	-- TODO this is techically the case, but there may be bugs in this.
 		vectorComponent = 'anholonomic',
 		--vectorComponent = 'cartesian',	-- adm3d isn't designed for cartesian / mesh / arbitrary normals yet
 	},
-	mins = {0, 0, 0},
+	mins = {.1, 0, 0},
 	maxs = {
 		cmdline.rmax or 20,	-- bottom of p.11: r(max)=20M
 		math.pi,
@@ -1420,7 +1438,7 @@ local args = {
 		zmax='periodic',
 	},
 	--]]
-	-- [[ sphere_sinh_radial but with SENR parameters ... for SENR init conds
+	--[[ sphere_sinh_radial but with SENR parameters ... for SENR init conds
 	coord = 'sphere_sinh_radial',
 	coordArgs = {
 		--vectorComponent = 'cartesian',
@@ -1447,12 +1465,12 @@ local args = {
 	},
 	--]]
 
-	--initCond = 'Minkowski',				-- stable with 2009Alic-z4
+	initCond = 'Minkowski',				-- stable with 2009Alic-z4
 	--initCond = 'SENR Minkowski',			-- stable with 2009Alic-z4
 	--initCond = 'gaussian perturbation',
 	--initCond = 'plane gauge wave',
 	--initCond = 'SENR UIUC',				-- 2009Alic-z4 in sphere_sinh_radial with SENR UIUC runs until about t=1000 before oscillations within the event horizon destroy it.
-	initCond = 'UIUC',					-- but why does this one run so slow? smaller alphas means lower cfls? too close to zero?
+	--initCond = 'UIUC',					-- but why does this one run so slow? smaller alphas means lower cfls? too close to zero?
 	--initCond = 'SENR BrillLindquist',
 	--initCond = 'black hole - Schwarzschild',
 	--initCond = 'black hole - isotropic - stuffed',	-- TODO FIXME
