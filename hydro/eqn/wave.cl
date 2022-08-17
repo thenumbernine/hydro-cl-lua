@@ -231,15 +231,16 @@ kernel void <?=addSource?>(
 	//TODO make use of this
 	//real const c = solver->wavespeed / unit_m_per_s;
 
-
-	real3 const Psi_u = coord_raise(U->Psi_l, pt);
-
 	real const f = <?=metric_f?>(pt);
 	deriv->Pi -= f;	//... for □Φ=f
 
-	//this source term makes anholonomic get worse ... hmm ...
-#if 0
+	//for cylindrical 
+	// holonomic: no change (which is still diverging to inf)
+	// cartesian: no change
+	// anholonomic: this source term makes it get worse ... hmm ...
+#if 1
 	real3 const conn23 = coord_connHol_trace23(pt);
+	//TODO how about integrating conn23 across the volume?
 	deriv->Pi -= real3_dot(U->Psi_l, conn23);
 #endif
 }

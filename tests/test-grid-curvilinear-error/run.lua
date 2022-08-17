@@ -60,7 +60,7 @@ table td, table th {
 			..'<td>'
 			..io.getfileext(f):gsub('_', ' ')
 			..'</td><!-- name -->\n'
-			..last:mapi(function(l,i) 
+			..last:mapi(function(l,i)
 				return '<td>'..l..'</td><!-- '..colnames[i]..' -->\n'
 			end):concat()
 			..'</tr>\n')
@@ -119,17 +119,19 @@ for cfg in coroutine.wrap(function()
 				vectorComponent = 'holonomic',
 				name = 'holonomic'..cfgFluxLimiter.name,
 			}
-			--]]		
+			--]]
+			-- [[
 			coroutine.yield{
 				vectorComponent = 'anholonomic',
 				name = 'anholonomic'..cfgFluxLimiter.name,
 			}
+			--]]
 			--[[
 			coroutine.yield{
 				vectorComponent = 'cartesian',
 				name = 'cartesian'..cfgFluxLimiter.name,
 			}
-			--]]		
+			--]]
 		end) do
 			-- [[ cylinder, rmin == 0
 			for cfgBoundary in coroutine.wrap(function()
@@ -144,7 +146,7 @@ for cfg in coroutine.wrap(function()
 					boundary = "boundary={xmin='cylinderRMin', xmax='freeflow', ymin='periodic', ymax='periodic', zmin='freeflow', zmax='freeflow'}",
 					name = cfgVectorComponent.name..'_boundary_cylinderRMin',
 				}
-				--]=]	
+				--]=]
 			end) do
 				coroutine.yield(table(cfgVectorComponent, cfgBoundary, {
 					coord = 'cylinder',
