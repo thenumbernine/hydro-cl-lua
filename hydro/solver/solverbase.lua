@@ -3484,12 +3484,12 @@ do
 				if self.app.display3DMethodsEnabled.Slices then
 --[[ currently in app, currently disabled
 					if useClipPlanes then
-						ig.igRadioButtonIntPtr("rotate camera", rotateClip, 0)
+						ig.igRadioButton_IntPtr("rotate camera", rotateClip, 0)
 						for i,clipInfo in ipairs(clipInfos) do
 							ig.igPushID_Str('clip '..i)
 							tooltip.checkbox('clip', clipInfo, 'enabled')
 							ig.igSameLine()
-							ig.igRadioButtonIntPtr('rotate', rotateClip, i)
+							ig.igRadioButton_IntPtr('rotate', rotateClip, i)
 							ig.igSameLine()
 							if ig.igButton('reset') then
 								clipInfo.plane = makeDefaultPlane(i)

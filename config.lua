@@ -142,9 +142,9 @@ local args = {
 				{48,48,48},
 			},
 			['CPU debug implementation/CPU debug implementation'] = {
-				{64,1,1},
-				{64,64,1},
-				{64,64,64},
+				{2048,1,1},
+				{256,256,1},
+				{32,32,32},
 			},
 		})[platAndDevicesNames]
 		-- default size options
