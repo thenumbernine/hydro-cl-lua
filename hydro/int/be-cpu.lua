@@ -6,7 +6,6 @@ local class = require 'ext.class'
 local math = require 'ext.math'
 local template = require 'template'
 local CLBuffer = require 'cl.obj.buffer'
-local tooltip = require 'hydro.tooltip'
 local Integrator = require 'hydro.int.int'
 
 local BackwardEuler = class(Integrator)

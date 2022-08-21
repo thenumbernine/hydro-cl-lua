@@ -1,7 +1,6 @@
 local ig = require 'imgui'
 local class = require 'ext.class'
 local clnumber = require 'cl.obj.number'
-local tooltip = require 'hydro.tooltip'
 local GuiVar = require 'hydro.guivar.guivar'
 
 local GuiNumber = class(GuiVar)
@@ -14,7 +13,7 @@ function GuiNumber:init(args)
 end
 
 function GuiNumber:updateGUI(solver)
-	if tooltip.numberTable(self.name, self, 'value', ig.ImGuiInputTextFlags_EnterReturnsTrue) then
+	if ig.luatableTooltipInputFloat(self.name, self, 'value', ig.ImGuiInputTextFlags_EnterReturnsTrue) then
 		self:refresh(self.value, solver)
 	end
 end

@@ -10,7 +10,6 @@ local class = require 'ext.class'
 local math = require 'ext.math'
 local template = require 'template'
 local CLBuffer = require 'cl.obj.buffer'
-local tooltip = require 'hydro.tooltip'
 local Integrator = require 'hydro.int.int'
 
 --local CLKrylov = require 'solver.cl.conjgrad'
@@ -255,7 +254,7 @@ if solver.checkNaNs then assert(solver:checkFinite(derivBufObj)) end
 end
 
 function BackwardEuler:updateGUI()
-	tooltip.numberTable('Krylov epsilon', self.linearSolver.args, 'epsilon')
+	ig.luatableTooltipInputFloat('Krylov epsilon', self.linearSolver.args, 'epsilon')
 	ig.luatableTooltipInputInt('GMRES restart', self.linearSolver.args, 'restart')
 	ig.luatableTooltipInputInt('Krylov maxiter', self.linearSolver.args, 'maxiter')	-- typically restart * number of reals = restart * numCells * number of states
 	-- read-only:

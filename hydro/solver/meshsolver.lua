@@ -15,7 +15,6 @@ local vec3d = require 'vec-ffi.vec3d'
 local ig = require 'imgui'
 local gl = require 'gl'
 local glreport = require 'gl.report'
-local tooltip = require 'hydro.tooltip'
 local template = require 'template'
 local clnumber = require 'cl.obj.number'
 local SolverBase = require 'hydro.solver.solverbase'
@@ -699,7 +698,7 @@ function MeshSolver:updateGUIParams()
 	ig.igSameLine()
 	ig.luatableTooltipCheckbox('show cell values', self, 'showValues')
 	
-	tooltip.numberTable('cell scale', self, 'drawCellScale')
+	ig.luatableTooltipInputFloat('cell scale', self, 'drawCellScale')
 end
 
 return MeshSolver 

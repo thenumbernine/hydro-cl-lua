@@ -3,7 +3,6 @@ local file = require 'ext.file'
 local table = require 'ext.table'
 local ig = require 'imgui'
 local ffi = require 'ffi'
-local tooltip = require 'hydro.tooltip'
 local CLBuffer = require 'cl.obj.buffer'
 
 local half = require 'cl.obj.half'
@@ -200,7 +199,7 @@ function Relaxation:updateGUI()
 			self.solver:refreshSolverProgram()
 		end
 		ig.igSameLine()
-		tooltip.numberTable('epsilon', self, 'stopEpsilon')
+		ig.luatableTooltipInputFloat('epsilon', self, 'stopEpsilon')
 		ig.luatableTooltipInputInt('maxiter', self, 'maxIters')
 		-- if it doesn't have to stop on epsilon then it doesn't calculate the x norm
 		if self.stopOnEpsilon then

@@ -196,19 +196,16 @@ end
 -- until then ... you have to explicitly state sys=console
 -- TODO move App:init code into a separate function, then in the loader here try calling :init (and :initGL) and only if all succeeds *THEN* run our :appInit()
 -- TODO unless we are still returning a class, in which case this should all be moved into the class's :init() code ... and then we change is-a with has-a, until init() is done, then we swap it back with is-a
-local ig, tooltip
+local ig
 local baseSystems = {
 	{imguiapp = function()
 		ig = require 'imgui'
-		tooltip  = require 'hydro.tooltip'
 		return require 'imguiapp'
 	end},
 	{glapp = function()
 		
 		package.loaded['imgui'] = {disabled=true}
-		package.loaded.tooltip = {disabled=true}
 		ig = require 'imgui'
-		tooltip  = require 'hydro.tooltip'
 		
 		return require 'glapp'
 	end},
@@ -269,9 +266,7 @@ end
 -- and it is here if the cmdline explicitly asks for glapp or console
 if not ig then
 	package.loaded['imgui'] = {disabled=true}
-	package.loaded.tooltip = {disabled=true}
 	ig = require 'imgui'
-	tooltip  = require 'hydro.tooltip'
 end
 
 HydroCLApp.title = 'Hydrodynamics in OpenCL'
@@ -1935,7 +1930,7 @@ function HydroCLApp:updateGUI()
 			self.displayFixedY = self.displayFixedY - .1
 		end
 		ig.igSameLine()
-		tooltip.numberTable('fixed y', self, 'displayFixedY')
+		ig.luatableTooltipInputFloat('fixed y', self, 'displayFixedY')
 		ig.igPopID()
 		
 		ig.igPushID_Str'fixed z zoom'
@@ -1947,7 +1942,7 @@ function HydroCLApp:updateGUI()
 			self.displayFixedZ = self.displayFixedZ - .1
 		end
 		ig.igSameLine()
-		tooltip.numberTable('fixed z', self, 'displayFixedZ')
+		ig.luatableTooltipInputFloat('fixed z', self, 'displayFixedZ')
 		ig.igPopID()
 
 		-- TODO per-solver

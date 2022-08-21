@@ -4,7 +4,6 @@ local class = require 'ext.class'
 local math = require 'ext.math'
 local ffi = require 'ffi'
 local ig = require 'imgui'
-local tooltip = require 'hydro.tooltip'
 local CLBuffer = require 'cl.obj.buffer'
 
 local half = require 'cl.obj.half'
@@ -370,7 +369,7 @@ function PoissonKrylov:updateGUI()
 	ig.igPushID_Str(self.symbolPrefix..' solver')
 	-- TODO name from 'field' / 'enableField', though those aren't properties of PoissonKrylov
 	if ig.igCollapsingHeader'PoissonKrylov solver' then
-		tooltip.numberTable('Krylov epsilon', self.linearSolver.args, 'epsilon')
+		ig.luatableTooltipInputFloat('Krylov epsilon', self.linearSolver.args, 'epsilon')
 		ig.luatableTooltipInputInt('GMRES restart', self.linearSolver.args, 'restart')
 		ig.luatableTooltipInputInt('maxiter', self.linearSolver.args, 'maxiter')	-- typically restart * number of reals = restart * numCells * number of states
 		ig.igText('residual = '..self.lastResidual)

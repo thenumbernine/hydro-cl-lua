@@ -12,7 +12,6 @@ local clnumber = require 'cl.obj.number'
 local template = require 'template'
 local vec3d = require 'vec-ffi.vec3d'
 local vec3sz = require 'vec-ffi.vec3sz'
-local tooltip = require 'hydro.tooltip'
 local roundup = require 'hydro.util.roundup'
 local time, getTime = table.unpack(require 'hydro.util.time')
 local SolverBase = require 'hydro.solver.solverbase'
@@ -1373,7 +1372,7 @@ function GridSolver:updateGUIParams()
 	for i=1,3 do
 		for j,minmax in ipairs(minmaxs) do
 			local k = xNames[i]..minmax
-			if tooltip.numberTable(k, self[minmax..'s'], xNames[i], ig.ImGuiInputTextFlags_EnterReturnsTrue) then
+			if ig.luatableTooltipInputFloat(k, self[minmax..'s'], xNames[i], ig.ImGuiInputTextFlags_EnterReturnsTrue) then
 				local eps = 1e-7
 				if self.maxs.s[i-1] - self.mins.s[i-1] < eps then
 					self.maxs.s[i-1] = self.mins.s[i-1] + eps

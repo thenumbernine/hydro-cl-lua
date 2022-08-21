@@ -211,7 +211,6 @@ local glreport = require 'gl.report'
 local CLBuffer = require 'cl.obj.buffer'
 local template = require 'template'
 local vec3d = require 'vec-ffi.vec3d'
-local tooltip = require 'hydro.tooltip'
 local roundup = require 'hydro.util.roundup'
 local time, getTime = table.unpack(require 'hydro.util.time')
 local Struct = require 'hydro.code.struct'
@@ -3325,8 +3324,8 @@ function SolverBase:updateGUIParams()
 	ig.luatableTooltipCheckbox('use fixed dt', self, 'useFixedDT')
 	ig.igSameLine()
 	
-	tooltip.numberTable('fixed dt', self, 'fixedDT')
-	tooltip.numberTable('CFL', self, 'cfl')
+	ig.luatableTooltipInputFloat('fixed dt', self, 'fixedDT')
+	ig.luatableTooltipInputFloat('CFL', self, 'cfl')
 
 
 	if self.allowAccum then
@@ -3393,13 +3392,13 @@ do
 		anyChanged = anyChanged or enableChanged
 		ig.igSameLine()
 		
-		anyChanged = anyChanged or ig.luatableTooltipCheckbox('log', var, 'useLog')
+		anyChanged = ig.luatableTooltipCheckbox('log', var, 'useLog') or anyChanged
 		ig.igSameLine()
 
-		anyChanged = anyChanged or ig.luatableTooltipCheckbox('units', var, 'showInUnits')
+		anyChanged = ig.luatableTooltipCheckbox('units', var, 'showInUnits') or anyChanged
 		ig.igSameLine()
 
-		anyChanged = anyChanged or ig.luatableTooltipCheckbox('fixed range', var, 'heatMapFixedRange')
+		anyChanged = ig.luatableTooltipCheckbox('fixed range', var, 'heatMapFixedRange') or anyChanged
 		ig.igSameLine()
 
 		--ig.luatableTooltipCombo('component', var, 'component', self.displayComponentNames)
@@ -3413,8 +3412,8 @@ do
 				var.heatMapValueMin = var.heatMapValueMin * unitScale
 				var.heatMapValueMax = var.heatMapValueMax * unitScale
 			end
-			anyChanged = anyChanged or tooltip.numberTable('value min', var, 'heatMapValueMin')
-			anyChanged = anyChanged or tooltip.numberTable('value max', var, 'heatMapValueMax')
+			anyChanged = ig.luatableTooltipInputFloat('value min', var, 'heatMapValueMin') or anyChanged
+			anyChanged = ig.luatableTooltipInputFloat('value max', var, 'heatMapValueMax') or anyChanged
 			if var.units and var.showInUnits then -- convert our ranges from raw to units
 				var.heatMapValueMin = var.heatMapValueMin / unitScale
 				var.heatMapValueMax = var.heatMapValueMax / unitScale
@@ -3522,7 +3521,7 @@ do
 
 				--ig.igCheckbox('vector field', self.enableVectorField)
 				if self.drawVectorArrows then
-					tooltip.numberTable('vector field scale', self.drawVectorArrows, 'scale')
+					ig.luatableTooltipInputFloat('vector field scale', self.drawVectorArrows, 'scale')
 					--ig.luatableTooltipSliderFloat('vector field scale', self.drawVectorArrows, 'scale', 0, 100, nil, 10)
 					
 					ig.luatableTooltipInputInt('vector field step', self.drawVectorArrows, 'step')
