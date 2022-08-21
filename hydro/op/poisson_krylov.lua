@@ -371,8 +371,8 @@ function PoissonKrylov:updateGUI()
 	-- TODO name from 'field' / 'enableField', though those aren't properties of PoissonKrylov
 	if ig.igCollapsingHeader'PoissonKrylov solver' then
 		tooltip.numberTable('Krylov epsilon', self.linearSolver.args, 'epsilon')
-		tooltip.intTable('GMRES restart', self.linearSolver.args, 'restart')
-		tooltip.intTable('maxiter', self.linearSolver.args, 'maxiter')	-- typically restart * number of reals = restart * numCells * number of states
+		ig.luatableTooltipInputInt('GMRES restart', self.linearSolver.args, 'restart')
+		ig.luatableTooltipInputInt('maxiter', self.linearSolver.args, 'maxiter')	-- typically restart * number of reals = restart * numCells * number of states
 		ig.igText('residual = '..self.lastResidual)
 		ig.igText('iter = '..self.lastIter)
 	end

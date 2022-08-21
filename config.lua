@@ -142,9 +142,9 @@ local args = {
 				{48,48,48},
 			},
 			['CPU debug implementation/CPU debug implementation'] = {
-				{2048,1,1},
-				{256,256,1},
-				{32,32,32},
+				{256,1,1},
+				{64,64,1},
+				{16,16,16},
 			},
 		})[platAndDevicesNames]
 		-- default size options
@@ -394,7 +394,7 @@ local args = {
 	--]]
 
 
-	--initCond = 'rectangle',
+	initCond = 'rectangle',
 	--initCond = 'Sedov',
 	--initCond = 'Noh',
 	--initCond = 'implosion',
@@ -412,7 +412,7 @@ local args = {
 	--initCond = 'Colella-Woodward',
 	--initCond = 'double mach reflection',
 	--initCond = 'square cavity',
-	initCond = 'shock bubble interaction',		-- with usePLM only works with prim or with athena
+	--initCond = 'shock bubble interaction',		-- with usePLM only works with prim or with athena
 	--initCond = 'Richmyer-Meshkov',
 	--initCond = 'radial gaussian',
 

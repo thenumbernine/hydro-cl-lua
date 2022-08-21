@@ -691,13 +691,13 @@ end
 function MeshSolver:updateGUIParams()
 	MeshSolver.super.updateGUIParams(self)
 
-	tooltip.checkboxTable('show vertexes', self, 'showVertexes')
+	ig.luatableTooltipCheckbox('show vertexes', self, 'showVertexes')
 	ig.igSameLine()
-	tooltip.checkboxTable('show faces', self, 'showFaces')
+	ig.luatableTooltipCheckbox('show faces', self, 'showFaces')
 	ig.igSameLine()
-	tooltip.checkboxTable('show normals', self, 'showNormals')
+	ig.luatableTooltipCheckbox('show normals', self, 'showNormals')
 	ig.igSameLine()
-	tooltip.checkboxTable('show cell values', self, 'showValues')
+	ig.luatableTooltipCheckbox('show cell values', self, 'showValues')
 	
 	tooltip.numberTable('cell scale', self, 'drawCellScale')
 end

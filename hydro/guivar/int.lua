@@ -1,7 +1,6 @@
 local ffi = require 'ffi'
 local ig = require 'imgui'
 local class = require 'ext.class'
-local tooltip = require 'hydro.tooltip'
 local GuiVar = require 'hydro.guivar.guivar'
 
 local GuiInt = class(GuiVar)
@@ -14,7 +13,7 @@ function GuiInt:init(args)
 end
 
 function GuiInt:updateGUI(solver)
-	if tooltip.intTable(self.name, self, 'value', 1, 100, ig.ImGuiInputTextFlags_EnterReturnsTrue) then
+	if ig.luatableTooltipInputInt(self.name, self, 'value', 1, 100, ig.ImGuiInputTextFlags_EnterReturnsTrue) then
 		self:refresh(self.value, solver)
 	end
 end

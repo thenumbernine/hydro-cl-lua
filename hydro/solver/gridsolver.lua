@@ -1393,7 +1393,7 @@ function GridSolver:updateGUIParams()
 		for _,minmax in ipairs(minmaxs) do
 			local var = xNames[i]..minmax
 			--[[ TODO is this crashing too?  maybe comboTable has a problem
-			if tooltip.comboTable(var, self.boundaryMethods, var, self.boundaryOptionNames) then
+			if ig.luatableTooltipCombo(var, self.boundaryMethods, var, self.boundaryOptionNames) then
 				self:refreshBoundaryProgram()
 			end
 			--]]

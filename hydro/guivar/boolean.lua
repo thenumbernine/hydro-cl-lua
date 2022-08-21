@@ -1,6 +1,5 @@
 local ig = require 'imgui'
 local class = require 'ext.class'
-local tooltip = require 'hydro.tooltip'
 local GuiVar = require 'hydro.guivar.guivar'
 
 local GuiBoolean = class(GuiVar)
@@ -13,7 +12,7 @@ function GuiBoolean:init(args)
 end
 
 function GuiBoolean:updateGUI(solver)
-	if tooltip.checkboxTable(self.name, self, 'value') then
+	if ig.luatableTooltipCheckbox(self.name, self, 'value') then
 		self:refresh(self.value, solver)
 	end
 end

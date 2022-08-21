@@ -2,7 +2,6 @@ local class = require 'ext.class'
 local table = require 'ext.table'
 local file = require 'ext.file'
 local ig = require 'imgui'
-local tooltip = require 'hydro.tooltip'
 
 -- TODO make this a ctor parameter 
 local Poisson = require(
@@ -73,7 +72,7 @@ end
 function SRHDSelfGrav:updateGUI()
 	SRHDSelfGrav.super.updateGUI(self)
 	ig.igPushID_Str'SRHDSelfGrav behavior'
-	tooltip.checkboxTable('use gravity', self.solver, self.enableField)
+	ig.luatableTooltipCheckbox('use gravity', self.solver, self.enableField)
 	ig.igPopID()
 end
 

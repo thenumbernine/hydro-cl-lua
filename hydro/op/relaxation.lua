@@ -195,13 +195,13 @@ function Relaxation:updateGUI()
 	ig.igPushID_Str(self.symbolPrefix..' solver')
 	-- TODO name from 'field' / 'enableField', though those aren't properties of Relaxation
 	if ig.igCollapsingHeader(self.name..' solver') then
-		if tooltip.checkboxTable('stop on epsilon', self, 'stopOnEpsilon') then
+		if ig.luatableTooltipCheckbox('stop on epsilon', self, 'stopOnEpsilon') then
 			-- TODO just recompile the poisson program?
 			self.solver:refreshSolverProgram()
 		end
 		ig.igSameLine()
 		tooltip.numberTable('epsilon', self, 'stopEpsilon')
-		tooltip.intTable('maxiter', self, 'maxIters')
+		ig.luatableTooltipInputInt('maxiter', self, 'maxIters')
 		-- if it doesn't have to stop on epsilon then it doesn't calculate the x norm
 		if self.stopOnEpsilon then
 			ig.igText('residual = '..tostring(self.lastResidual))

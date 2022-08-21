@@ -256,8 +256,8 @@ end
 
 function BackwardEuler:updateGUI()
 	tooltip.numberTable('Krylov epsilon', self.linearSolver.args, 'epsilon')
-	tooltip.intTable('GMRES restart', self.linearSolver.args, 'restart')
-	tooltip.intTable('Krylov maxiter', self.linearSolver.args, 'maxiter')	-- typically restart * number of reals = restart * numCells * number of states
+	ig.luatableTooltipInputInt('GMRES restart', self.linearSolver.args, 'restart')
+	ig.luatableTooltipInputInt('Krylov maxiter', self.linearSolver.args, 'maxiter')	-- typically restart * number of reals = restart * numCells * number of states
 	-- read-only:
 	ig.igText('residual = '..self.lastResidual)	-- this is |r|
 	ig.igText('iter = '..self.lastIter)

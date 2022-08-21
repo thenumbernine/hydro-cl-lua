@@ -2,7 +2,6 @@ local table = require 'ext.table'
 local class = require 'ext.class'
 local file = require 'ext.file'
 local ig = require 'imgui'
-local tooltip = require 'hydro.tooltip'
 local real = require 'hydro.real'	-- really 'realparam'
 
 local half = require 'cl.obj.half'
@@ -108,7 +107,7 @@ end
 function SelfGrav:updateGUI()
 	SelfGrav.super.updateGUI(self)
 	ig.igPushID_Str'SelfGrav behavior'
-	tooltip.checkboxTable('use gravity', self.solver, self.enableField)
+	ig.luatableTooltipCheckbox('use gravity', self.solver, self.enableField)
 	ig.igPopID()
 end
 

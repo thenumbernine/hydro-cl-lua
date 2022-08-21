@@ -1864,7 +1864,7 @@ function HydroCLApp:updateGUI()
 			end
 		end
 	
-		if tooltip.comboTable('Palette', self, 'predefinedPaletteIndex', self.predefinedPaletteNames) then
+		if ig.luatableTooltipCombo('Palette', self, 'predefinedPaletteIndex', self.predefinedPaletteNames) then
 			self:resetGradientTex()
 		end
 	
@@ -1874,37 +1874,37 @@ function HydroCLApp:updateGUI()
 		end
 
 		-- dump min/max(/avg?) of displayvars to a .txt file
-		tooltip.checkboxTable('dump to text file', dumpFile, 'enabled')
+		ig.luatableTooltipCheckbox('dump to text file', dumpFile, 'enabled')
 
 		if ig.igButton'Screenshot' then
 			self:screenshot()
 		end
 		ig.igSameLine()
 
-		tooltip.checkboxTable('screenshot hires', self, 'screenshotUseHiRes')
+		ig.luatableTooltipCheckbox('screenshot hires', self, 'screenshotUseHiRes')
 		ig.igSameLine()
 
-		tooltip.comboTable('screenshot ext', self, 'screenshotExtIndex', self.screenshotExts)
+		ig.luatableTooltipCombo('screenshot ext', self, 'screenshotExtIndex', self.screenshotExts)
 
 		if ig.igButton(self.createAnimation and 'stop frame dump' or 'start frame dump') then
 			self.createAnimation = not self.createAnimation
 		end
 
-		tooltip.checkboxTable('stack graphs', self, 'displayAllTogether')
+		ig.luatableTooltipCheckbox('stack graphs', self, 'displayAllTogether')
 		ig.igSameLine()
 	
 		-- TODO per-solver
-		tooltip.checkboxTable('bilinear textures', self, 'displayBilinearTextures')
+		ig.luatableTooltipCheckbox('bilinear textures', self, 'displayBilinearTextures')
 		ig.igSameLine()
 
 		-- for 2D heatmap only atm
-		tooltip.checkboxTable('display with coord map', self, 'display_useCoordMap')
+		ig.luatableTooltipCheckbox('display with coord map', self, 'display_useCoordMap')
 		ig.igSameLine()
 		
-		tooltip.checkboxTable('show coords', self, 'showMouseCoords')
+		ig.luatableTooltipCheckbox('show coords', self, 'showMouseCoords')
 
 		--ig.igSameLine()
-		--tooltip.checkboxTable('mouse influence equations', self, 'mouse_influenceEquations')
+		--ig.luatableTooltipCheckbox('mouse influence equations', self, 'mouse_influenceEquations')
 		
 
 		if ig.igRadioButton_Bool('ortho', self.view == self.orthoView) then
@@ -1924,8 +1924,8 @@ function HydroCLApp:updateGUI()
 		end
 
 		
-		--tooltip.sliderTable('fixed y', self, 'displayFixedY', -10, 10)
-		--tooltip.sliderTable('fixed z', self, 'displayFixedZ', -10, 10)
+		--ig.luatableTooltipSliderFloat('fixed y', self, 'displayFixedY', -10, 10)
+		--ig.luatableTooltipSliderFloat('fixed z', self, 'displayFixedZ', -10, 10)
 		ig.igPushID_Str'fixed y zoom'
 		if ig.igButton'+' then
 			self.displayFixedY = self.displayFixedY + .1
@@ -1952,16 +1952,16 @@ function HydroCLApp:updateGUI()
 
 		-- TODO per-solver
 		--[[ TODO replace this with trackball behavior
-		if tooltip.sliderTable('slice qw', self.displaySliceAngle, 'w', -1, 1) then
+		if ig.luatableTooltipSliderFloat('slice qw', self.displaySliceAngle, 'w', -1, 1) then
 			self.displaySliceAngle:normalize(self.displaySliceAngle)
 		end
-		if tooltip.sliderTable('slice qx', self.displaySliceAngle, 'x', -1, 1) then
+		if ig.luatableTooltipSliderFloat('slice qx', self.displaySliceAngle, 'x', -1, 1) then
 			self.displaySliceAngle:normalize(self.displaySliceAngle)
 		end
-		if tooltip.sliderTable('slice qy', self.displaySliceAngle, 'y', -1, 1) then
+		if ig.luatableTooltipSliderFloat('slice qy', self.displaySliceAngle, 'y', -1, 1) then
 			self.displaySliceAngle:normalize(self.displaySliceAngle)
 		end
-		if tooltip.sliderTable('slice qz', self.displaySliceAngle, 'z', -1, 1) then
+		if ig.luatableTooltipSliderFloat('slice qz', self.displaySliceAngle, 'z', -1, 1) then
 			self.displaySliceAngle:normalize(self.displaySliceAngle)
 		end
 		--]]
@@ -1993,7 +1993,7 @@ function HydroCLApp:updateGUI()
 				for i,method in ipairs(self.display1DMethods) do
 					if i > 1 then ig.igSameLine() end
 					local name, func = next(method)
-					tooltip.checkboxTable(name, self.display1DMethodsEnabled, name)
+					ig.luatableTooltipCheckbox(name, self.display1DMethodsEnabled, name)
 				end
 				ig.igPopID()
 			elseif dim == 2 then
@@ -2001,7 +2001,7 @@ function HydroCLApp:updateGUI()
 				for i,method in ipairs(self.display2DMethods) do
 					if i > 1 then ig.igSameLine() end
 					local name, func = next(method)
-					tooltip.checkboxTable(name, self.display2DMethodsEnabled, name)
+					ig.luatableTooltipCheckbox(name, self.display2DMethodsEnabled, name)
 				end
 				ig.igPopID()
 			elseif dim == 3 then
@@ -2009,7 +2009,7 @@ function HydroCLApp:updateGUI()
 				for i,method in ipairs(self.display3DMethods) do
 					if i > 1 then ig.igSameLine() end
 					local name, func = next(method)
-					tooltip.checkboxTable(name, self.display3DMethodsEnabled, name)
+					ig.luatableTooltipCheckbox(name, self.display3DMethodsEnabled, name)
 				end
 				ig.igPopID()
 			end
@@ -2020,7 +2020,7 @@ function HydroCLApp:updateGUI()
 				for i,method in ipairs(self.displayVectorMethods) do
 					if i > 1 then ig.igSameLine() end
 					local name, func = next(method)
-					tooltip.checkboxTable(name, self.displayVectorMethodsEnabled, name)
+					ig.luatableTooltipCheckbox(name, self.displayVectorMethodsEnabled, name)
 				end
 				
 				ig.igPopID()

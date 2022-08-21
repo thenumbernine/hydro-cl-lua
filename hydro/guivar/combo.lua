@@ -1,7 +1,6 @@
 local ffi = require 'ffi'
 local ig = require 'imgui'
 local class = require 'ext.class'
-local tooltip = require 'hydro.tooltip'
 local GuiVar = require 'hydro.guivar.guivar'
 
 local GuiCombo = class(GuiVar)
@@ -15,7 +14,7 @@ function GuiCombo:init(args)
 end
 
 function GuiCombo:updateGUI(solver)
-	if tooltip.comboTable(self.name, self, 'value', self.options) then
+	if ig.luatableTooltipCombo(self.name, self, 'value', self.options) then
 		self:refresh(self:getValue(), solver)
 	end
 end

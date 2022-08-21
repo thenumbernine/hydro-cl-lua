@@ -3320,9 +3320,9 @@ function SolverBase:updateGUIParams()
 	-- hmm put fps somewhere else, or put ms update here
 	ig.igText('fps: '..(self.fps and tostring(self.fps) or ''))
 		
-	tooltip.checkboxTable('check NaNs', self, 'checkNaNs')
+	ig.luatableTooltipCheckbox('check NaNs', self, 'checkNaNs')
 
-	tooltip.checkboxTable('use fixed dt', self, 'useFixedDT')
+	ig.luatableTooltipCheckbox('use fixed dt', self, 'useFixedDT')
 	ig.igSameLine()
 	
 	tooltip.numberTable('fixed dt', self, 'fixedDT')
@@ -3330,13 +3330,13 @@ function SolverBase:updateGUIParams()
 
 
 	if self.allowAccum then
-		if tooltip.checkboxTable('accum', self, 'displayVarAccumFunc') then
+		if ig.luatableTooltipCheckbox('accum', self, 'displayVarAccumFunc') then
 			self:refreshSolverProgram()
 			self.cmds:enqueueFillBuffer{buffer=self.accumBuf, size=ffi.sizeof(self.app.real) * self.numCells * 3}
 		end
 	end
 
-	if tooltip.comboTable('integrator', self, 'integratorIndex', integratorNames) then
+	if ig.luatableTooltipCombo('integrator', self, 'integratorIndex', integratorNames) then
 		self:refreshIntegrator()
 	end
 
@@ -3358,14 +3358,14 @@ function SolverBase:updateGUIParams()
 		end
 	end
 
-	if tooltip.comboTable('flux limiter', self, 'fluxLimiter', self.app.limiterNames) then
+	if ig.luatableTooltipCombo('flux limiter', self, 'fluxLimiter', self.app.limiterNames) then
 		self:refreshSolverProgram()
 	end
 end
 
 function SolverBase:updateGUIEqnSpecific()
 --[[ TODO why is this crashing
-	if tooltip.comboTable('init state', self, 'initCondIndex', self.eqn.initCondNames) then
+	if ig.luatableTooltipCombo('init state', self, 'initCondIndex', self.eqn.initCondNames) then
 		-- TODO hmm ... the whole point of making a separate initCondProgram was to be able to refresh it without rebuilding all of the solver ...
 		-- TODO try again once initCond_t is separated from solver_t
 		self:refreshEqnInitState()
@@ -3389,20 +3389,20 @@ do
 		ig.igPushID_Str(title)
 
 		var.enabled = not not var.enabled
-		local enableChanged = tooltip.checkboxTable('enabled', var, 'enabled')
+		local enableChanged = ig.luatableTooltipCheckbox('enabled', var, 'enabled')
 		anyChanged = anyChanged or enableChanged
 		ig.igSameLine()
 		
-		anyChanged = anyChanged or tooltip.checkboxTable('log', var, 'useLog')
+		anyChanged = anyChanged or ig.luatableTooltipCheckbox('log', var, 'useLog')
 		ig.igSameLine()
 
-		anyChanged = anyChanged or tooltip.checkboxTable('units', var, 'showInUnits')
+		anyChanged = anyChanged or ig.luatableTooltipCheckbox('units', var, 'showInUnits')
 		ig.igSameLine()
 
-		anyChanged = anyChanged or tooltip.checkboxTable('fixed range', var, 'heatMapFixedRange')
+		anyChanged = anyChanged or ig.luatableTooltipCheckbox('fixed range', var, 'heatMapFixedRange')
 		ig.igSameLine()
 
-		--tooltip.comboTable('component', var, 'component', self.displayComponentNames)
+		--ig.luatableTooltipCombo('component', var, 'component', self.displayComponentNames)
 	
 		local name = var.name
 		if var.units then name = name..' '..var.units end
@@ -3474,7 +3474,7 @@ do
 				if self.app.display2DMethodsEnabled.Graph then
 					local draw2DGraph = self.draw2DGraph
 					if draw2DGraph then
-						tooltip.intTable('graph step', draw2DGraph, 'step')
+						ig.luatableTooltipInputInt('graph step', draw2DGraph, 'step')
 					end
 				end
 				ig.igPopID()
@@ -3487,7 +3487,7 @@ do
 						ig.igRadioButton_IntPtr("rotate camera", rotateClip, 0)
 						for i,clipInfo in ipairs(clipInfos) do
 							ig.igPushID_Str('clip '..i)
-							tooltip.checkbox('clip', clipInfo, 'enabled')
+							ig.luatableTooltipCheckbox('clip', clipInfo, 'enabled')
 							ig.igSameLine()
 							ig.igRadioButton_IntPtr('rotate', rotateClip, i)
 							ig.igSameLine()
@@ -3500,16 +3500,16 @@ do
 --]]
 					local draw3DSlice = self.draw3DSlice
 					if draw3DSlice then
-						tooltip.sliderTable('alpha', draw3DSlice, 'alpha', 0, 1)
-						tooltip.sliderTable('gamma', draw3DSlice, 'alphaGamma', 0, 1)
-						tooltip.checkboxTable('isobars', draw3DSlice, 'useIsos')
+						ig.luatableTooltipSliderFloat('alpha', draw3DSlice, 'alpha', 0, 1)
+						ig.luatableTooltipSliderFloat('gamma', draw3DSlice, 'alphaGamma', 0, 1)
+						ig.luatableTooltipCheckbox('isobars', draw3DSlice, 'useIsos')
 						if draw3DSlice.useIsos then
-							tooltip.intTable('num isobars', draw3DSlice, 'numIsobars')
+							ig.luatableTooltipInputInt('num isobars', draw3DSlice, 'numIsobars')
 						end
-						tooltip.checkboxTable('lighting', draw3DSlice, 'useLighting')
-						tooltip.checkboxTable('pointcloud', draw3DSlice, 'usePoints')
+						ig.luatableTooltipCheckbox('lighting', draw3DSlice, 'useLighting')
+						ig.luatableTooltipCheckbox('pointcloud', draw3DSlice, 'usePoints')
 						if not self.draw3DSlice.usePoints then
-							tooltip.intTable('num slices', draw3DSlice, 'numSlices')
+							ig.luatableTooltipInputInt('num slices', draw3DSlice, 'numSlices')
 						end
 					end
 				end
@@ -3523,13 +3523,13 @@ do
 				--ig.igCheckbox('vector field', self.enableVectorField)
 				if self.drawVectorArrows then
 					tooltip.numberTable('vector field scale', self.drawVectorArrows, 'scale')
-					--tooltip.sliderTable('vector field scale', self.drawVectorArrows, 'scale', 0, 100, nil, 10)
+					--ig.luatableTooltipSliderFloat('vector field scale', self.drawVectorArrows, 'scale', 0, 100, nil, 10)
 					
-					tooltip.intTable('vector field step', self.drawVectorArrows, 'step')
+					ig.luatableTooltipInputInt('vector field step', self.drawVectorArrows, 'step')
 					self.drawVectorArrows.step = math.max(self.drawVectorArrows.step, 1)
 				end
 				if self.drawVectorLIC then
-					tooltip.intTable('LIC steps', self.drawVectorLIC, 'integralMaxIter')
+					ig.luatableTooltipInputInt('LIC steps', self.drawVectorLIC, 'integralMaxIter')
 				end
 				
 				ig.igPopID()
@@ -3540,9 +3540,9 @@ do
 		if self.guiDisplayFilterEnabledVars == nil then self.guiDisplayFilterEnabledVars = false end
 		local refresh
 			
-		tooltip.textTable('filter', self, 'guiDisplayFilterStr')
+		ig.luatableTooltipInputText('filter', self, 'guiDisplayFilterStr')
 		ig.igSameLine()
-		tooltip.checkboxTable('filter enabled', self, 'guiDisplayFilterEnabledVars')
+		ig.luatableTooltipCheckbox('filter enabled', self, 'guiDisplayFilterEnabledVars')
 		
 		for i,displayVarGroup in ipairs(self.displayVarGroups) do
 			ig.igPushID_Str('display '..i)
