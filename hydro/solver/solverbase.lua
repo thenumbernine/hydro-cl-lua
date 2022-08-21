@@ -3483,12 +3483,12 @@ do
 				if self.app.display3DMethodsEnabled.Slices then
 --[[ currently in app, currently disabled
 					if useClipPlanes then
-						ig.igRadioButton_IntPtr("rotate camera", rotateClip, 0)
+						ig.luatableRadioButton("rotate camera", self.app, 'rotateClip', 0)
 						for i,clipInfo in ipairs(clipInfos) do
 							ig.igPushID_Str('clip '..i)
 							ig.luatableTooltipCheckbox('clip', clipInfo, 'enabled')
 							ig.igSameLine()
-							ig.igRadioButton_IntPtr('rotate', rotateClip, i)
+							ig.luatableRadioButton('rotate', self.app, 'rotateClip', i)
 							ig.igSameLine()
 							if ig.igButton('reset') then
 								clipInfo.plane = makeDefaultPlane(i)
@@ -3519,7 +3519,7 @@ do
 			do
 				ig.igPushID_Str'Vector'
 
-				--ig.igCheckbox('vector field', self.enableVectorField)
+				--ig.luatableCheckbox('vector field', self, 'enableVectorField')
 				if self.drawVectorArrows then
 					ig.luatableTooltipInputFloat('vector field scale', self.drawVectorArrows, 'scale')
 					--ig.luatableTooltipSliderFloat('vector field scale', self.drawVectorArrows, 'scale', 0, 100, nil, 10)

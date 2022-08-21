@@ -321,7 +321,7 @@ end
 HydroCLApp.useClipPlanes = false
 if HydroCLApp.useClipPlanes then
 	-- TODO put all the display3D_slices stuff in its own file
-	HydroCLApp.rotateClip = ffi.new('int[1]', 0)
+	HydroCLApp.rotateClip = 0
 	HydroCLApp.clipInfos = range(4):mapi(function(i)
 		local plane = vec4d(0,0,0,0)
 		plane.s[math.min(i,3)-1] = -1
