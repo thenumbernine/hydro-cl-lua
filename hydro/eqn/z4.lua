@@ -1026,7 +1026,7 @@ end
 -- Z4_2004Bona.consWaveCodeMinMaxAllSides uses default
 
 function Z4_2004Bona:updateGUI()
-	local ig = require 'ffi.imgui'
+	local ig = require 'imgui'
 	local solver = self.solver
 	if ig.igButton((solver.Z4_converging_H_K and 'stop' or 'start') .. ' converge H K_ij') then
 		solver.Z4_converging_H_K = not solver.Z4_converging_H_K

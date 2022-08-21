@@ -1,7 +1,7 @@
 local class = require 'ext.class'
 local table = require 'ext.table'
 local file = require 'ext.file'
-local ig = require 'ffi.imgui'
+local ig = require 'imgui'
 local tooltip = require 'hydro.tooltip'
 
 -- TODO make this a ctor parameter 

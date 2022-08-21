@@ -199,7 +199,7 @@ cache/{app.real}/{solver.name and other options}/{eqn.name and other options}/
 --]]
 
 local ffi = require 'ffi'
-local ig = require 'ffi.imgui'
+local ig = require 'imgui'
 local class = require 'ext.class'
 local table = require 'ext.table'
 local string = require 'ext.string'

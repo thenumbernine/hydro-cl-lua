@@ -1,4 +1,4 @@
-local ig = require 'ffi.imgui'
+local ig = require 'imgui'
 local class = require 'ext.class'
 local clnumber = require 'cl.obj.number'
 local tooltip = require 'hydro.tooltip'

@@ -1,6 +1,6 @@
 local ffi = require 'ffi'
 local gl = require 'gl'
-local ig = require 'ffi.imgui'
+local ig = require 'imgui'
 local io = require 'ext.io'
 local class = require 'ext.class'
 local table = require 'ext.table'

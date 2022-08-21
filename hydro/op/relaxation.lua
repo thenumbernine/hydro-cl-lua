@@ -1,7 +1,7 @@
 local class = require 'ext.class'
 local file = require 'ext.file'
 local table = require 'ext.table'
-local ig = require 'ffi.imgui'
+local ig = require 'imgui'
 local ffi = require 'ffi'
 local tooltip = require 'hydro.tooltip'
 local CLBuffer = require 'cl.obj.buffer'

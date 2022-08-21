@@ -2,7 +2,7 @@
 -- (and push/pop id strs so the no-title doesn't cause a problem)
 
 local ffi = require 'ffi'
-local ig = require 'ffi.imgui'
+local ig = require 'imgui'
 local table = require 'ext.table'
 require 'ffi.c.string'	-- strlen
 

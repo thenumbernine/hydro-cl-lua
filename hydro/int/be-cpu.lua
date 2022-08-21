@@ -1,7 +1,7 @@
 -- CPU version of the GMRES backward-Euler integrator
 
 local ffi = require 'ffi'
-local ig = require 'ffi.imgui'
+local ig = require 'imgui'
 local class = require 'ext.class'
 local math = require 'ext.math'
 local template = require 'template'

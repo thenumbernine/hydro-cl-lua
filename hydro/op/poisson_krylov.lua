@@ -3,7 +3,7 @@ local file = require 'ext.file'
 local class = require 'ext.class'
 local math = require 'ext.math'
 local ffi = require 'ffi'
-local ig = require 'ffi.imgui'
+local ig = require 'imgui'
 local tooltip = require 'hydro.tooltip'
 local CLBuffer = require 'cl.obj.buffer'
 

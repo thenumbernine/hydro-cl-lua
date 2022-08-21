@@ -6,7 +6,7 @@ I should make a parent class/template
 
 local class = require 'ext.class'
 local table = require 'ext.table'
-local ig = require 'ffi.imgui'
+local ig = require 'imgui'
 local vec3d = require 'vec-ffi.vec3d'
 local vec3sz = require 'vec-ffi.vec3sz'
 local template = require 'template'

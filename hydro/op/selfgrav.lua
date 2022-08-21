@@ -1,7 +1,7 @@
-local ig = require 'ffi.imgui'
 local table = require 'ext.table'
 local class = require 'ext.class'
 local file = require 'ext.file'
+local ig = require 'imgui'
 local tooltip = require 'hydro.tooltip'
 local real = require 'hydro.real'	-- really 'realparam'
 

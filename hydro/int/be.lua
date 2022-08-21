@@ -5,7 +5,7 @@ based on GMRES, easily swappable for any other OpenCL krylov solver of your choi
 --]]
 
 local ffi = require 'ffi'
-local ig = require 'ffi.imgui'
+local ig = require 'imgui'
 local class = require 'ext.class'
 local math = require 'ext.math'
 local template = require 'template'

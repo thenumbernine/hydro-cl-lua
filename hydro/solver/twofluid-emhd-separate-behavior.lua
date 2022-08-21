@@ -9,7 +9,7 @@ also puts ion pressure at 1/100'th the electron pressure
 local ffi = require 'ffi'
 local class = require 'ext.class'
 local table = require 'ext.table'
-local ig = require 'ffi.imgui'
+local ig = require 'imgui'
 local vec3d = require 'vec-ffi.vec3d'
 local vec3sz = require 'vec-ffi.vec3sz'
 local template = require 'template'

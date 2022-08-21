@@ -199,15 +199,15 @@ end
 local ig, tooltip
 local baseSystems = {
 	{imguiapp = function()
-		ig = require 'ffi.imgui'
+		ig = require 'imgui'
 		tooltip  = require 'hydro.tooltip'
 		return require 'imguiapp'
 	end},
 	{glapp = function()
 		
-		package.loaded['ffi.imgui'] = {disabled=true}
+		package.loaded['imgui'] = {disabled=true}
 		package.loaded.tooltip = {disabled=true}
-		ig = require 'ffi.imgui'
+		ig = require 'imgui'
 		tooltip  = require 'hydro.tooltip'
 		
 		return require 'glapp'
@@ -268,9 +268,9 @@ end
 -- this is up above if the autosearch passes imguiapp
 -- and it is here if the cmdline explicitly asks for glapp or console
 if not ig then
-	package.loaded['ffi.imgui'] = {disabled=true}
+	package.loaded['imgui'] = {disabled=true}
 	package.loaded.tooltip = {disabled=true}
-	ig = require 'ffi.imgui'
+	ig = require 'imgui'
 	tooltip  = require 'hydro.tooltip'
 end
 
