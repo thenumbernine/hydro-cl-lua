@@ -4,7 +4,7 @@ command-line variables:
 solver parameters:
 	(config file cmdline override options:)
 		solver =
-		solverArgs = 
+		solverArgs =
 			eqn =
 			flux =
 		gridSize =
@@ -61,7 +61,7 @@ simulation execution:
 	plotOnExit = enable or set to 'true' to have a plot popup upon exit.  set it to a filename string to save the plot to that file.
 				this plots a time history of variable min, max, avg, and stddev of the trackvars.
 	plotOnExit_savedata = (optional) where to save the plotOnExit data
-	plot1DOnExit = enable to plot the 1D data at the time of exit. set it to a filename string to save the plot to that file. 
+	plot1DOnExit = enable to plot the 1D data at the time of exit. set it to a filename string to save the plot to that file.
 				this plots a snapshot of the variable min, max, avg, and stddev of the trackvars.
 	plot1DOnExit_savedata = (optional) what filename to save the output data as
 	stopTime = stop running once this time is reached.
@@ -822,8 +822,8 @@ HydroCLApp.predefinedPaletteIndex = cmdline.palette and HydroCLApp.predefinedPal
 function HydroCLApp:setGradientTexColors(colors)
 	self.gradientTex = GLGradientTex(1024, colors, false)	-- false = don't wrap the colors...
 	self.gradientTex:setWrap{s = gl.GL_REPEAT}	-- ...but do use GL_REPEAT
-	-- hmm, only on my AMD, intermittantly the next time the tex is bound it will raise an INVALID_OPERATION upon the next bind 
-	-- maybe this is all because I'm using TEXTURE_1D for the gradientTex?  
+	-- hmm, only on my AMD, intermittantly the next time the tex is bound it will raise an INVALID_OPERATION upon the next bind
+	-- maybe this is all because I'm using TEXTURE_1D for the gradientTex?
 	-- maybe AMD doesn't like 1D textures so much?
 end
 
@@ -1104,7 +1104,7 @@ function HydroCLApp:saveHeatMapBufferImages()
 		-- using 3 channels had some alignment problems ... there's a bug to fix somewhere, maybe in the png write function?
 		local ssimg = Image(w, h, 4, 'unsigned char')
 		local ssflipped = Image(w, h, 4, 'unsigned char')
-		--gl.glGetTexImage(tex.target, 0, gl.GL_RGBA, gl.GL_UNSIGNED_BYTE, ssimg.buffer)
+		--tex:toCPU(ssimg.buffer)
 		gl.glReadPixels(0, 0, w, h, gl.GL_RGBA, gl.GL_UNSIGNED_BYTE, ssimg.buffer)
 		-- reverse rows ...
 		-- TODO maybe ... for all projection matrix setups, have them check a screenshot flag and automatically flip?
@@ -1226,7 +1226,7 @@ function HydroCLApp:update(...)
 					local cols = table()
 					local usings = table()
 					if type(cmdline.plotOnExit) == 'string' then
-						usings.output = cmdline.plotOnExit 
+						usings.output = cmdline.plotOnExit
 						local name, ext = io.getfileext(cmdline.plotOnExit)
 						usings.terminal = ext.." size 1600,900 background '#ffffff'"
 					else
@@ -1281,7 +1281,7 @@ function HydroCLApp:update(...)
 					varnames:removeObject'dt'
 					-- plot trackvars, 1 col per var per solver
 					-- the first is the solver's x
-					-- then every 1 is the value 
+					-- then every 1 is the value
 					local cols = table()
 					for _,solver in ipairs(self.solvers) do
 						cols:insert(table())	-- xs
@@ -1297,7 +1297,7 @@ function HydroCLApp:update(...)
 					for _,solver in ipairs(self.solvers) do
 						local xi = ci
 						ci = ci + 1
-						-- TODO only iterate along the 1st dim, keeping 2nd and 3rd fixed 
+						-- TODO only iterate along the 1st dim, keeping 2nd and 3rd fixed
 						for index=0,solver.numCells-1 do
 							-- only writing the 1st coord for now
 							cols[xi + 0]:insert(tonumber(solver.cellCpuBuf[index].pos.s[0]))
@@ -2128,9 +2128,9 @@ so I'm merging it with App...
 
 for unique names I'm using two systems:
 1) for code, used for caching cl binaries, where the object uid is used
-2) for types, used for ffi.cdef (which can't redefine types), using this incrementing suffix, 
+2) for types, used for ffi.cdef (which can't redefine types), using this incrementing suffix,
 
-now because of constraint #2, if you run the same program twice within the same script, 
+now because of constraint #2, if you run the same program twice within the same script,
 you will get two different cache files in #1 ...
 
 which makes me think that I should just say "FOR THE SAKE OF LUAJIT FFI TYPEDEFS, DON'T RUN THE SAME SIMULATION TWICE IN THE SAME PROCESS, UNLESS YOU WANT THE CL BINARY CACHE TO BREAK"
