@@ -201,7 +201,7 @@ real3 calcGravityForcePerVolume(
 	(result)->psi_g = (W)->psi_g;\
 }
 
-//// MODULE_NAME: <?=apply_dW_dU?>	
+//// MODULE_NAME: <?=apply_dW_dU?>
 //// MODULE_DEPENDS: <?=solver_t?> <?=prim_t?> <?=cons_t?> <?=coord_lower?>
 // only used by PLM
 
@@ -232,7 +232,7 @@ real3 calcGravityForcePerVolume(
 
 /*
 I've highjacked all of this.  It was a normal Euler eqn solver.
-But I experimented with a curved-space solver.  
+But I experimented with a curved-space solver.
 To get back to the original code,
 just replace all the g_ab stuff with their constant values and simplify away.
 */
@@ -300,7 +300,7 @@ end
 	real const _1_mu_g = speedOfLightSq / _1_eps_g;\
 \
 	/* taken from glm-maxwell instead of the 2014 Abgrall, Kumar */\
-	/*  then replace D = epsilon E and phi' -> epsilon phi */\
+	/*  then replace D = ε E and φ' -> ε φ */\
 	real3 const E_g = real3_real_mul((U)->D_g, _1_eps_g);\
 	real3 const H_g = real3_real_mul((U)->B_g, _1_mu_g);\
 \
@@ -311,8 +311,8 @@ end
 	real const ny = normal_l1y(n);\
 	real const nz = normal_l1z(n);\
 \
-	(resultFlux)->D_g.x = H_g.y * nz - H_g.z * ny + nx * (U)->phi_g * divPhiWavespeed_g;	/* F_D^i = -eps^ijk n_j H_k */\
-	(resultFlux)->B_g.x = E_g.z * ny - E_g.y * nz + nx * (U)->psi_g * divPsiWavespeed_g;	/* F_B^i = +eps^ijk n_j B_k */\
+	(resultFlux)->D_g.x = H_g.y * nz - H_g.z * ny + nx * (U)->phi_g * divPhiWavespeed_g;	/* F_D^i = -ε^ijk n_j H_k */\
+	(resultFlux)->B_g.x = E_g.z * ny - E_g.y * nz + nx * (U)->psi_g * divPsiWavespeed_g;	/* F_B^i = +ε^ijk n_j B_k */\
 \
 	(resultFlux)->D_g.y = H_g.z * nx - H_g.x * nz + ny * (U)->phi_g * divPhiWavespeed_g;\
 	(resultFlux)->B_g.y = E_g.x * nz - E_g.z * nx + ny * (U)->psi_g * divPsiWavespeed_g;\
@@ -328,7 +328,7 @@ end
 
 //// MODULE_NAME: <?=calcCellMinMaxEigenvalues?>
 //// MODULE_DEPENDS: real3x3 <?=primFromCons?>
-// added by request only, so I don't have to compile the real3x3 code. 
+// added by request only, so I don't have to compile the real3x3 code.
 // not used at the moment
 
 #define <?=calcCellMinMaxEigenvalues?>(\
@@ -638,7 +638,7 @@ end
 //// MODULE_NAME: <?=eigen_fluxTransform?>
 //// MODULE_DEPENDS: <?=eigen_t?> <?=normal_t?>
 // Not used anymore.  was used by Roe, but I switched that to a <?=fluxFromCons?>.
-// <?=fluxFromCons?> only matches <?=eigen_fluxTransform?> when the eig properties are derived from X_ 
+// <?=fluxFromCons?> only matches <?=eigen_fluxTransform?> when the eig properties are derived from X_
 
 #error Getting rid of this, right?
 #define <?=eigen_fluxTransform?>(\
@@ -699,8 +699,8 @@ end
 	real const ny = normal_l1y(n);\
 	real const nz = normal_l1z(n);\
 \
-	(resultFlux)->D_g.x = H_g.y * nz - H_g.z * ny + nx * (U)->phi_g * solver->divPhiWavespeed_g / unit_m_per_s;	/* F_D^i = -eps^ijk n_j H_k */\
-	(resultFlux)->B_g.x = E_g.z * ny - E_g.y * nz + nx * (U)->psi_g * solver->divPsiWavespeed_g / unit_m_per_s;	/* F_B^i = +eps^ijk n_j B_k */\
+	(resultFlux)->D_g.x = H_g.y * nz - H_g.z * ny + nx * (U)->phi_g * solver->divPhiWavespeed_g / unit_m_per_s;	/* F_D^i = -ε^ijk n_j H_k */\
+	(resultFlux)->B_g.x = E_g.z * ny - E_g.y * nz + nx * (U)->psi_g * solver->divPsiWavespeed_g / unit_m_per_s;	/* F_B^i = +ε^ijk n_j B_k */\
 \
 	(resultFlux)->D_g.y = H_g.z * nx - H_g.x * nz + ny * (U)->phi_g * solver->divPhiWavespeed_g / unit_m_per_s;\
 	(resultFlux)->B_g.y = E_g.x * nz - E_g.z * nx + ny * (U)->psi_g * solver->divPsiWavespeed_g / unit_m_per_s;\
@@ -733,9 +733,9 @@ kernel void <?=addSource?>(
 	<?=prim_t?> W;
 	<?=primFromCons?>(&W, solver, U, x);
 
-<? if false 
-and solver.coord.vectorComponent == "anholonomic" 
-and require "hydro.coord.cylinder":isa(solver.coord) 
+<? if false
+and solver.coord.vectorComponent == "anholonomic"
+and require "hydro.coord.cylinder":isa(solver.coord)
 then ?>
 <? 	if true then -- 2009 Trangenstein, p.474, 1999 Toro, p.29, eqn.1.104, 1.105 ?>
 	<? for side=0,1 do ?>{
@@ -762,7 +762,7 @@ then ?>
 <? end ?>
 
 <? do -- if not solver.coord.vectorComponent == "anholonomic" then ?>
-<? if not (require "hydro.coord.cartesian":isa(solver.coord) 
+<? if not (require "hydro.coord.cartesian":isa(solver.coord)
 		or solver.coord.vectorComponent == "cartesian")
 then ?>
 //// MODULE_DEPENDS: <?=primFromCons?> <?=coord_conn_apply23?> <?=coord_conn_trace23?> <?=coord_conn_apply13?>
@@ -775,17 +775,17 @@ Maybe for an initial constant vel as large as sqrt(2) this fails, but it works o
 */
 	//connection coefficient source terms of covariant derivative w/contravariant velocity vectors in a holonomic coordinate system
 	
-	//- Γ^i_jk ρ v^j v^k 
-	deriv->m = real3_sub(deriv->m, coord_conn_apply23(W.v, U->m, x));	
+	//- Γ^i_jk ρ v^j v^k
+	deriv->m = real3_sub(deriv->m, coord_conn_apply23(W.v, U->m, x));
 	
 	//- Γ^i_jk g^jk P
-	deriv->m = real3_sub(deriv->m, real3_real_mul(coord_conn_trace23(x), W.P));		
+	deriv->m = real3_sub(deriv->m, real3_real_mul(coord_conn_trace23(x), W.P));
 	
 	//+ (γ-1) ρ v^k v^l Γ_kjl g^ij
-	deriv->m = real3_add(deriv->m, real3_real_mul(coord_conn_apply13(W.v, U->m, x), (solver->heatCapacityRatio - 1.) ));	
+	deriv->m = real3_add(deriv->m, real3_real_mul(coord_conn_apply13(W.v, U->m, x), (solver->heatCapacityRatio - 1.) ));
 	
 	//- (γ-1) ρ v^j v^k v^l Γ_jkl
-//	deriv->ETotal -= (solver->heatCapacityRatio - 1.) * coord_conn_apply123(W.v, W.v, U->m, x);	
+//	deriv->ETotal -= (solver->heatCapacityRatio - 1.) * coord_conn_apply123(W.v, W.v, U->m, x);
 
 	//+ c_jk^k * Flux^Ij
 <? 	if false and solver.coord.vectorComponent == "anholonomic" then ?>
@@ -813,12 +813,12 @@ Maybe for an initial constant vel as large as sqrt(2) this fails, but it works o
 	deriv->m = real3_add(deriv->m, gravityForce);
 
 	// u is unitless, ~= [1, v/c]
-	//T_ab = (c^2 rho + P) u_a u_b + P g_ab
-	//T_00 = c^2 rho + P
-	//T_0i = (c rho + P/c) v_i 
-	//T_ij = (c^2 rho + P) v_i v_j + P delta_ij
+	//T_ab = (c^2 ρ + P) u_a u_b + P g_ab
+	//T_00 = c^2 ρ + P
+	//T_0i = (c ρ + P/c) v_i
+	//T_ij = (c^2 ρ + P) v_i v_j + P δ_ij
 
-	// J_i = 1/c T_0i = (rho + P/c^2) v_i
+	// J_i = 1/c T_0i = (ρ + P/c^2) v_i
 	// [T_0i] = kg/(m*s^2)
 	// [J_i] = kg/(m^2*s)
 
@@ -837,17 +837,17 @@ Maybe for an initial constant vel as large as sqrt(2) this fails, but it works o
 	J_g.z += W.v.z * rho_plus_P_over_c2;
 	
 	/* D_g's units: kg/m^2 */
-	deriv->D_g.x += J_g.x;	/* int [J_g] dt = kg/m^2 */
+	deriv->D_g.x += J_g.x;	/* ∫ [J_g] dt = kg/m^2 */
 	deriv->D_g.y += J_g.y;
 	deriv->D_g.z += J_g.z;
 	
-	/*  source of phi_g is T_00 is rho + .5 (D^2 + B^2) */
+	/*  source of φ_g is T_00 is ρ + .5 (D^2 + B^2) */
 	real const T_00_over_c2 = rho_plus_P_over_c2;
 	deriv->phi_g -= 								/* = kg/(m^2*s) */
 		T_00_over_c2 								/* kg/m^3 */
 		* solver->divPhiWavespeed_g / unit_m_per_s	/* m/s */
-	;	/* and the deriv is d/dt, so it is integrated by seconds */
-	/* after integrating the derivative wrt t it becomes in units of kg/m^2, which is phi_g's units */
+	;	/* and the deriv is ∂/∂t, so it is integrated by seconds */
+	/* after integrating the derivative wrt t it becomes in units of kg/m^2, which is φ_g's units */
 }
 
 //// MODULE_NAME: <?=constrainU?>

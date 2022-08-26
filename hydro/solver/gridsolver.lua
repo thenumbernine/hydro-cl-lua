@@ -1372,7 +1372,7 @@ function GridSolver:updateGUIParams()
 	for i=1,3 do
 		for j,minmax in ipairs(minmaxs) do
 			local k = xNames[i]..minmax
-			if ig.luatableTooltipInputFloat(k, self[minmax..'s'], xNames[i], ig.ImGuiInputTextFlags_EnterReturnsTrue) then
+			if ig.luatableTooltipInputFloatAsText(k, self[minmax..'s'], xNames[i], ig.ImGuiInputTextFlags_EnterReturnsTrue) then
 				local eps = 1e-7
 				if self.maxs.s[i-1] - self.mins.s[i-1] < eps then
 					self.maxs.s[i-1] = self.mins.s[i-1] + eps

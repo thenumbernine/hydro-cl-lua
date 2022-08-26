@@ -13,7 +13,7 @@ function GuiNumber:init(args)
 end
 
 function GuiNumber:updateGUI(solver)
-	if ig.luatableTooltipInputFloat(self.name, self, 'value', ig.ImGuiInputTextFlags_EnterReturnsTrue) then
+	if ig.luatableTooltipInputFloatAsText(self.name, self, 'value', ig.ImGuiInputTextFlags_EnterReturnsTrue) then
 		self:refresh(self.value, solver)
 	end
 end

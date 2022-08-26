@@ -254,7 +254,7 @@ if solver.checkNaNs then assert(solver:checkFinite(derivBufObj)) end
 end
 
 function BackwardEuler:updateGUI()
-	ig.luatableTooltipInputFloat('Krylov epsilon', self.linearSolver.args, 'epsilon')
+	ig.luatableTooltipInputFloatAsText('Krylov epsilon', self.linearSolver.args, 'epsilon')
 	ig.luatableTooltipInputInt('GMRES restart', self.linearSolver.args, 'restart')
 	ig.luatableTooltipInputInt('Krylov maxiter', self.linearSolver.args, 'maxiter')	-- typically restart * number of reals = restart * numCells * number of states
 	-- read-only:

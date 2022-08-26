@@ -3324,8 +3324,8 @@ function SolverBase:updateGUIParams()
 	ig.luatableTooltipCheckbox('use fixed dt', self, 'useFixedDT')
 	ig.igSameLine()
 	
-	ig.luatableTooltipInputFloat('fixed dt', self, 'fixedDT')
-	ig.luatableTooltipInputFloat('CFL', self, 'cfl')
+	ig.luatableTooltipInputFloatAsText('fixed dt', self, 'fixedDT')
+	ig.luatableTooltipInputFloatAsText('CFL', self, 'cfl')
 
 
 	if self.allowAccum then
@@ -3412,8 +3412,8 @@ do
 				var.heatMapValueMin = var.heatMapValueMin * unitScale
 				var.heatMapValueMax = var.heatMapValueMax * unitScale
 			end
-			anyChanged = ig.luatableTooltipInputFloat('value min', var, 'heatMapValueMin') or anyChanged
-			anyChanged = ig.luatableTooltipInputFloat('value max', var, 'heatMapValueMax') or anyChanged
+			anyChanged = ig.luatableTooltipInputFloatAsText('value min', var, 'heatMapValueMin') or anyChanged
+			anyChanged = ig.luatableTooltipInputFloatAsText('value max', var, 'heatMapValueMax') or anyChanged
 			if var.units and var.showInUnits then -- convert our ranges from raw to units
 				var.heatMapValueMin = var.heatMapValueMin / unitScale
 				var.heatMapValueMax = var.heatMapValueMax / unitScale
@@ -3521,7 +3521,7 @@ do
 
 				--ig.luatableCheckbox('vector field', self, 'enableVectorField')
 				if self.drawVectorArrows then
-					ig.luatableTooltipInputFloat('vector field scale', self.drawVectorArrows, 'scale')
+					ig.luatableTooltipInputFloatAsText('vector field scale', self.drawVectorArrows, 'scale')
 					--ig.luatableTooltipSliderFloat('vector field scale', self.drawVectorArrows, 'scale', 0, 100, nil, 10)
 					
 					ig.luatableTooltipInputInt('vector field step', self.drawVectorArrows, 'step')

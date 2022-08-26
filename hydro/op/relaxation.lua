@@ -199,7 +199,7 @@ function Relaxation:updateGUI()
 			self.solver:refreshSolverProgram()
 		end
 		ig.igSameLine()
-		ig.luatableTooltipInputFloat('epsilon', self, 'stopEpsilon')
+		ig.luatableTooltipInputFloatAsText('epsilon', self, 'stopEpsilon')
 		ig.luatableTooltipInputInt('maxiter', self, 'maxIters')
 		-- if it doesn't have to stop on epsilon then it doesn't calculate the x norm
 		if self.stopOnEpsilon then

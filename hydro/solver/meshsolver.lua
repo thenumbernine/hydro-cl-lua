@@ -698,7 +698,7 @@ function MeshSolver:updateGUIParams()
 	ig.igSameLine()
 	ig.luatableTooltipCheckbox('show cell values', self, 'showValues')
 	
-	ig.luatableTooltipInputFloat('cell scale', self, 'drawCellScale')
+	ig.luatableTooltipInputFloatAsText('cell scale', self, 'drawCellScale')
 end
 
 return MeshSolver 

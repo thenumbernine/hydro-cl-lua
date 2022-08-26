@@ -361,7 +361,7 @@ local args = {
 	--initCond = 'jet',
 	
 
-	--initCond = 'Sod',
+	initCond = 'Sod',
 	--initCondArgs = {dim=cmdline.displayDim},
 	--[[ real-world vars for Sod ... which are a few orders higher, and therefore screw up the backward-euler solver
 	-- 		which means, todo, redo the backward euler error metric so it is independent of magnitude ... ?   seems I removed that for another numerical error reason.
@@ -394,7 +394,7 @@ local args = {
 	--]]
 
 
-	initCond = 'rectangle',
+	--initCond = 'rectangle',
 	--initCond = 'Sedov',
 	--initCond = 'Noh',
 	--initCond = 'implosion',

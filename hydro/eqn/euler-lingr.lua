@@ -1,7 +1,7 @@
 --[[
-Euler fluid equations (rho, v^i, P) <-> (rho, m^i, ETotal)
-with additional GEM (phi_g, A_g)
-so that means no need for op/selfgrav because it's now built in as (phi, A) 
+Euler fluid equations (ρ, v^i, P) <-> (ρ, m^i, ETotal)
+with additional GEM (φ_g, A_g)
+so that means no need for op/selfgrav because it's now built in as (φ, A)
 --]]
 
 local class = require 'ext.class'
@@ -60,7 +60,7 @@ end
 function EulerLinGR:initCodeModule_calcDTCell()
 	local file = require 'ext.file'
 	-- ok the current implementation - because it uses 'addFromMarkup', and because it is a macro
-	--  there's no way to just add a new dependency module 
+	--  there's no way to just add a new dependency module
 	--return EulerLinGR.super.super.initCodeModule_calcDTCell(self)
 	-- so here.  it's ugly.
 	self.solver.modules:addFromMarkup(self:template(file['hydro/eqn/cl/calcDT.cl'])..self:template[[
@@ -132,16 +132,16 @@ function EulerLinGR:getDisplayVars()
 			name = 'S_g',	-- S Poynting, not S entropy
 			type = 'real3',
 			units = 'kg/s^3',
-			code = 'value.vreal3 = calc_SgField(solver, U);', 
+			code = 'value.vreal3 = calc_SgField(solver, U);',
 		},
 		{
-			name = 'GEM energy', 
+			name = 'GEM energy',
 			units = 'kg/(m*s^2)',
 			code = 'value.vreal = calc_GEM_energy(solver, U, x);',
 		},
 		
-		-- D_g / eps = E_g = Newtonian gravitational acceleration
-		-- v cross B_g = gravito-magnetic acceleration
+		-- D_g / ε = E_g = Newtonian gravitational acceleration
+		-- v × B_g = gravito-magnetic acceleration
 		{
 			name = 'v cross B_g',
 			type = 'real3',
@@ -169,10 +169,10 @@ value.vreal3 = real3_real_mul(calcGravityForcePerVolume(solver, U, x), 1. / U->r
 	}
 		
 	-- how do I recreate ePot?
-	-- d/dt E_g = chi phi_g / eps_g
+	-- ∂/∂t E_g = χ φ_g / ε_g
 	-- [m/s^3] = [m/s] [m/s^2]
-	-- d/dx^i ePot = E_g^i
-	-- so ePot = int (chi phi_g / eps_g) dx^i dt
+	-- ∂/∂x^i ePot = E_g^i
+	-- so ePot = ∫ (χ φ_g / ε_g) dx^i dt
 	vars:insert{
 		name = 'phi_g / eps_g',
 		units = 'm/s^2',
@@ -183,7 +183,7 @@ value.vreal = U->phi_g * _1_eps_g;
 ]],
 	}
 
-	-- add h_ab display based on phi and A
+	-- add h_ab display based on φ and A
 	
 	vars:insert{
 		name = 'h_tt',
@@ -211,14 +211,14 @@ value.vreal = h_tt;
 	[G_uv] = [8 pi G/c^4 T_uv] = 1/m^2
 	so [T_uv] * s^2/(kg*m) = 1/m^2
 	so [T_uv] = kg/(m*s^2) ... which is J / m^3 = energy / volume
-	so T_ab = rho c^2 + P
+	so T_ab = ρ c^2 + P
 	and [T_00] = kg/m^3 m^2/s^2 = kg/(m*s^2)
 
 	Δ A_i = 4 pi G T_0i / c^3
-	T_0i = 
+	T_0i =
 	A_i = 4 pi G / c^3 Δ^-1 T_0i
 	
-	T_00 = c^2 ρ 
+	T_00 = c^2 ρ
 	Δ Φ = -4 π G T_00 / c^2 = -4 π G ρ
 	∇.Φ = E
 	∇.E = -4 π G ρ
@@ -275,7 +275,7 @@ end
 
 --TODO timestep restriction
 -- 2014 Abgrall, Kumar eqn 2.25
--- dt < sqrt( E_alpha,i / rho_alpha,i) * |lHat_r,alpha| sqrt(2) / |E_i + v_alpha,i x B_i|
+-- dt < sqrt( E_α,i / ρ_α,i) * |lHat_r,α| sqrt(2) / |E_i + v_α,i x B_i|
 function EulerLinGR:consWaveCodePrefix(args)
 	return self:template([[
 real const Cs_nLen = <?=calc_Cs_fromCons?>(solver, <?=U?>, <?=pt?>) * normal_len(<?=n?>);

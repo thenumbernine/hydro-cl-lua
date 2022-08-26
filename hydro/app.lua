@@ -1027,14 +1027,11 @@ function HydroCLApp:screenshotToFile(fn)
 		self.ssflipped = Image(w, h, 4, 'unsigned char')
 	end
 	gl.glReadPixels(0, 0, w, h, gl.GL_RGBA, gl.GL_UNSIGNED_BYTE, self.ssimg.buffer)
-	-- reverse rows ...
+	
 	-- TODO maybe ... for all projection matrix setups, have them check a screenshot flag and automatically flip?
-	for y=0,h-1 do
-		ffi.copy(
-			self.ssflipped.buffer + (h-y-1) * w * 4,
-			self.ssimg.buffer + y * w * 4,
-			w * 4)
-	end
+	-- nah, that would neglect things like the multiple viewports spread across the view
+	self.ssimg:flip(self.ssflipped)
+	
 	-- full alpha
 	for i=0,w*h-1 do
 		self.ssflipped.buffer[3+4*i] = 255
@@ -1930,7 +1927,7 @@ function HydroCLApp:updateGUI()
 			self.displayFixedY = self.displayFixedY - .1
 		end
 		ig.igSameLine()
-		ig.luatableTooltipInputFloat('fixed y', self, 'displayFixedY')
+		ig.luatableTooltipInputFloatAsText('fixed y', self, 'displayFixedY')
 		ig.igPopID()
 		
 		ig.igPushID_Str'fixed z zoom'
@@ -1942,7 +1939,7 @@ function HydroCLApp:updateGUI()
 			self.displayFixedZ = self.displayFixedZ - .1
 		end
 		ig.igSameLine()
-		ig.luatableTooltipInputFloat('fixed z', self, 'displayFixedZ')
+		ig.luatableTooltipInputFloatAsText('fixed z', self, 'displayFixedZ')
 		ig.igPopID()
 
 		-- TODO per-solver
