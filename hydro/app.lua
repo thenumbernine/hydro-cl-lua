@@ -1009,34 +1009,7 @@ function HydroCLApp:getScreenShotFilename()
 end
 
 function HydroCLApp:screenshot()
-	self:screenshotToFile(self:getScreenShotFilename())
-end
-
-function HydroCLApp:screenshotToFile(fn)
-	local Image = require 'image'
-	local w, h = self:size()
-	if self.ssimg then
-		if w ~= self.ssimg.width or h ~= self.ssimg.height then
-			self.ssimg = nil
-			self.ssflipped = nil
-		end
-	end
-	if not self.ssimg then
-		-- using 3 channels had some alignment problems ... there's a bug to fix somewhere, maybe in the png write function?
-		self.ssimg = Image(w, h, 4, 'unsigned char')
-		self.ssflipped = Image(w, h, 4, 'unsigned char')
-	end
-	gl.glReadPixels(0, 0, w, h, gl.GL_RGBA, gl.GL_UNSIGNED_BYTE, self.ssimg.buffer)
-	
-	-- TODO maybe ... for all projection matrix setups, have them check a screenshot flag and automatically flip?
-	-- nah, that would neglect things like the multiple viewports spread across the view
-	self.ssimg:flip(self.ssflipped)
-	
-	-- full alpha
-	for i=0,w*h-1 do
-		self.ssflipped.buffer[3+4*i] = 255
-	end
-	self.ssflipped:save(fn)
+	self:screenshotToFile(self:getScreenShotFilename())	-- in GLApp
 end
 
 -- save the visual buffers with their palettes
@@ -1103,15 +1076,9 @@ function HydroCLApp:saveHeatMapBufferImages()
 		local ssflipped = Image(w, h, 4, 'unsigned char')
 		--tex:toCPU(ssimg.buffer)
 		gl.glReadPixels(0, 0, w, h, gl.GL_RGBA, gl.GL_UNSIGNED_BYTE, ssimg.buffer)
+		-- TODO just use the shaders?  just draw the screen with this into the buffer and then grab later?
 		-- reverse rows ...
-		-- TODO maybe ... for all projection matrix setups, have them check a screenshot flag and automatically flip?
-		-- also TODO just use the shaders?  just draw the screen with this into the buffer and then grab later?
-		for y=0,h-1 do
-			ffi.copy(
-				ssflipped.buffer + (h-y-1) * w * 4,
-				ssimg.buffer + y * w * 4,
-				w * 4)
-		end
+		ssimg:flip(ssflipped)
 		-- full alpha
 		for i=0,w*h-1 do
 			ssflipped.buffer[3+4*i] = 255
