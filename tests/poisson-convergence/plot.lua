@@ -1,7 +1,7 @@
 #!/usr/bin/env luajit
 require 'ext'
 local fs = table()
-for f in os.listdir'.' do
+for f in file:dir() do
 	if f:match'%.txt' then fs:insert(f) end
 end
 
