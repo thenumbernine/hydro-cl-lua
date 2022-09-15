@@ -3,11 +3,10 @@
 -- plot error
 
 require 'ext'
-local lfs = require 'lfs'
 local exec = require 'exec'
 
-local DIR = lfs.currentdir()
-assert(lfs.chdir'../..')
+local DIR = file:cwd()
+assert(file'../..':cd())
 
 local writeOut = false
 local writeFits = true
@@ -27,15 +26,15 @@ for _,i in ipairs(range(1,8):mapi(function(i) return math.floor(2^i) end)) do
 	exec(cmd)
 	
 	if writeOut then
-		os.move('out.txt', DIR..'/out-'..i..'.txt')
+		file'out.txt':move(DIR..'/out-'..i..'.txt')
 	end
 	if writeFits then
-		exec('mv "results_UBuf.fits" "'..DIR..'/U-'..i..'.fits"')
+		file'results_UBuf.fits':move(DIR..'/U-'..i..'.fits')
 	end
 end
 
 if writeFits then
-	for f in os.listdir'.' do
+	for f in file:dir() do
 		if f:match'%.fits$' then
 			exec('rm "'..f..'"')
 		end
