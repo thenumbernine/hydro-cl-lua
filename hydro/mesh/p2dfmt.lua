@@ -19,7 +19,7 @@ function P2DFMTMeshFactory:createMesh(solver)
 	local mesh = Mesh(solver)
 	
 	local fn = 'grids/'..self.meshfile
-	local ls = string.split(assert(string.trim(file[fn], "failed to open "..fn)), '\n')
+	local ls = string.split(assert(string.trim(file(fn):read(), "failed to open "..fn)), '\n')
 	local first = ls:remove(1)
 	local m, n = string.split(string.trim(ls:remove(1)), '%s+'):mapi(function(l) return tonumber(l) end):unpack()
 	local x = string.split(string.trim(ls:concat()), '%s+'):mapi(function(l) return tonumber(l) end)

@@ -18,7 +18,7 @@ end
 
 function Draw:getCommonGLSLFragCode()
 	local solver = self.solver
-	return solver.eqn:template(file['hydro/draw/draw.cl'], {
+	return solver.eqn:template(file'hydro/draw/draw.cl':read(), {
 		draw = self,
 		clnumber = require 'cl.obj.number',
 	})

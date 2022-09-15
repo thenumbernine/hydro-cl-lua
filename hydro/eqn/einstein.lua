@@ -54,7 +54,7 @@ end
 function EinsteinEquation:initCodeModules()
 	EinsteinEquation.super.initCodeModules(self)
 
-	self.solver.modules:addFromMarkup(self:template(file['hydro/eqn/einstein.cl']))
+	self.solver.modules:addFromMarkup(self:template(file'hydro/eqn/einstein.cl':read()))
 end
 
 -- add an option for fixed Minkowsky boundary spacetime

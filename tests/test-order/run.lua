@@ -19,8 +19,6 @@ local tolua = require 'ext.tolua'
 local math = require 'ext.math'
 local file = require 'ext.file'
 local string = require 'ext.string'
-local io = require 'ext.io'
-local os = require 'ext.os'
 local matrix = require 'matrix'
 local gnuplot = require 'gnuplot'
 local unistd = require 'ffi.c.unistd'
@@ -31,7 +29,7 @@ ffi.C.free(rundirp)
 
 -- in case it's needed
 local resultsDir = 'results'
-os.mkdir(rundir..'/'..resultsDir)
+file(rundir..'/'..resultsDir):mkdir()
 
 -- from here on the require's expect us to be in the hydro-cl directory
 -- I should change this, and prefix all hydro-cl's require()s with 'hydro-cl', so it is require()able from other projects
@@ -64,7 +62,7 @@ local plotErrorHistory = cmdline.history
 -- exclusive with 'compare': don't use exact, instead use exponential regression
 local uselin = cmdline.uselin
 
-local schemeCfgs = require 'ext.fromlua'(file[rundir..'/schemes.lua'])
+local schemeCfgs = require 'ext.fromlua'(file(rundir..'/schemes.lua'):read())
 
 local problems = {}
 
@@ -148,7 +146,7 @@ print(destName)
 	--]]
 	local testdata
 	local srcfn = rundir..'/'..resultsDir..'/'..destFilename..'.lua'
-	local srcfiledata = file[srcfn]
+	local srcfiledata = file(srcfn):read()
 	if srcfiledata then
 		testdata = fromlua(srcfiledata)
 	end
@@ -294,7 +292,7 @@ print()
 				os.exit()
 			end
 
-			if file.stop then file.stop = nil os.exit(1) end
+			if file'stop':exists() then file'stop':remove() os.exit(1) end
 			if endTime and startTime then
 				testdata.size[size].deltaTime = endTime - startTime
 			end	
@@ -302,7 +300,7 @@ print()
 		end
 	end
 	testdata.name = destName
-	file[srcfn] = tolua(testdata)
+	file(srcfn):write(tolua(testdata))
 local errors = sizes:map(function(size) return testdata.size[size].error end)
 print('error:',table.last(errors))
 	errorsForConfig:insert(errors)
@@ -335,7 +333,7 @@ gnuplot(
 -- [[ plot error histories
 do
 	local graphdir = rundir..'/graphs '..problemName
-	os.mkdir(graphdir)
+	file(graphdir):mkdir()
 	local data = table.append(testdatas:map(function(testdata)
 		return table.append(sizes:map(function(size)
 			local sizedata = testdata.size[size]

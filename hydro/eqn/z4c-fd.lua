@@ -12,7 +12,6 @@ changes I'm making to coincide with 2017 Ruchlin
 
 TODO implement these in hydro/eqn/ and hydro/solver/ bssnok-fd.lua
 --]]
-local file = require 'ext.file'
 local class = require 'ext.class'
 local table = require 'ext.table'
 local symmath = require 'symmath'

@@ -12,7 +12,7 @@ function Flux:init(args)
 end
 
 function Flux:initCodeModules()
-	local code = self.solver.eqn:template(file[self.solverCodeFile], {
+	local code = self.solver.eqn:template(file(self.solverCodeFile):read(), {
 		clnumber = clnumber,
 		flux = self,
 	})

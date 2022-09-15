@@ -14,7 +14,6 @@ However things are working fine with my own eigenmodes<->left eigenvectors in th
 
 local class = require 'ext.class'
 local table = require 'ext.table'
-local file = require 'ext.file'
 local symmath = require 'symmath'
 local EinsteinEqn = require 'hydro.eqn.einstein'
 local Struct = require 'hydro.code.struct'

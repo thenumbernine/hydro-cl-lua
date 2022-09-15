@@ -204,7 +204,7 @@ function DrawVectorField:prepareShader()
 	local solver = self.solver
 	if solver.vectorArrowShader then return end
 
-	local vectorArrowCode = assert(file['hydro/draw/vector_arrow.shader'])
+	local vectorArrowCode = assert(file'hydro/draw/vector_arrow.shader':read())
 	
 	solver.vectorArrowShader = solver.GLProgram{
 		name = 'vector_arrow',

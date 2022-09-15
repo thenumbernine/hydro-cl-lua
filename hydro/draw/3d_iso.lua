@@ -381,7 +381,7 @@ function Draw3DIso:prepareShader()
 	
 	solver.display3D_Ray_maxiter = math.max(tonumber(solver.gridSize.x), tonumber(solver.gridSize.y), tonumber(solver.gridSize.z))
 	
-	local volumetricCode = file['hydro/draw/volumetric.shader']
+	local volumetricCode = file'hydro/draw/volumetric.shader':read()
 	solver.volumeRayShader = solver.GLProgram{
 		name = 'volumetric',
 		vertexCode = solver.eqn:template(volumetricCode, {

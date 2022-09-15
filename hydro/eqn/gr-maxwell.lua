@@ -4,7 +4,6 @@ based on 2009 Alcubierre et al charged black holes
 --]]
 local class = require 'ext.class'
 local table = require 'ext.table'
-local file = require 'ext.file'
 local Equation = require 'hydro.eqn.eqn'
 
 local GRMaxwell = class(Equation)

@@ -29,7 +29,7 @@ function Edu2DGridMeshFactory:createMesh(solver)
 	-- 1) read the .grid file
 
 	local fn = 'grids/'..self.meshfile
-	local ls = string.split(string.trim(assert(file[fn], "failed to open "..fn)), '\n')
+	local ls = string.split(string.trim(assert(file(fn):read(), "failed to open "..fn)), '\n')
 	local n = #ls
 	local numVtxs, numTris, numQuads = lineToNums(ls:remove(1), 3)
 

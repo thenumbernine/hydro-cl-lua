@@ -48,7 +48,7 @@ function SRHDSelfGrav:getPoissonDivCode()
 end
 
 function SRHDSelfGrav:getPoissonCode()
-	return file['hydro/op/srhd-selfgrav.cl']
+	return file'hydro/op/srhd-selfgrav.cl':read()
 end
 
 function SRHDSelfGrav:initCodeModules()

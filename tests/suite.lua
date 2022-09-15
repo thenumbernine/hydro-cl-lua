@@ -11,7 +11,6 @@ require 'ffi.c.stdlib'		-- free
 local unistd = require 'ffi.c.unistd'
 local class = require 'ext.class'
 local table = require 'ext.table'
-local os = require 'ext.os'
 local file = require 'ext.file'
 
 -- save the cwd and chdir to ../..
@@ -39,7 +38,7 @@ HydroApp.allnames = {}
 local configs = dofile(rundir..'/config.lua')	-- could use 'require' but there is another in the newly added package.path
 for _,config in ipairs(configs) do
 	local resultFile = rundir..'/results-'..config.name..'.txt'
-	if not os.fileexists(resultFile) then
+	if not file(resultFile):exists() then
 		
 		-- another TODO for hydro.app ... reuse names for matching ctypes
 		local data = table()
@@ -77,7 +76,7 @@ for _,config in ipairs(configs) do
 		end
 
 		function HydroApp:requestExit()
-			file[resultFile] = 
+			file(resultFile):write(
 				'#t\t'..table.mapi(config.trackVars, function(varName)
 					return varName..' min\t'
 						..varName..' avg\t'
@@ -87,7 +86,7 @@ for _,config in ipairs(configs) do
 					return table.concat(l, '\t') 
 				end):concat'\n'
 				..'\n'
-
+			)
 			HydroApp.super.requestExit(self)
 		end
 

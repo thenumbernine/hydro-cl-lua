@@ -313,7 +313,7 @@ function HydroCLApp:setup(args)
 	local cfgfile = cmdline.config or 'config.lua'
 	assert(load([[
 local ]]..keys:concat', '..[[ = ...
-]] .. file[cfgfile]))(
+]] .. file(cfgfile):read()))(
 	keys:mapi(function(key) return args[key] end):unpack()
 )
 end
@@ -625,7 +625,7 @@ function HydroCLApp:initGL(...)
 		Modules.verbose = cmdline.moduleVerbose
 		self.modules = Modules()
 	
-		self.modules:addFromMarkup(template(file['hydro/code/math.cl'], table(require 'hydro.common', {
+		self.modules:addFromMarkup(template(file'hydro/code/math.cl':read(), table(require 'hydro.common', {
 			app = self,
 		})))
 		

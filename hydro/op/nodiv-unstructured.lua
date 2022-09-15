@@ -137,7 +137,7 @@ function NoDiv:initCodeModules()
 	local solver = self.solver
 	solver.modules:addFromMarkup{
 		code = solver.eqn:template(
-			file['hydro/op/nodiv-unstructured.cl'], 
+			file'hydro/op/nodiv-unstructured.cl':read(),
 			table(self.symbols, {op = self})
 		),
 	}

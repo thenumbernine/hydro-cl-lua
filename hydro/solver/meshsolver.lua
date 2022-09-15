@@ -631,7 +631,7 @@ function MeshSolver:initCodeModules()
 --]]
 
 	self.modules:addFromMarkup(
-		self.eqn:template(file['hydro/solver/meshsolver.cl'])
+		self.eqn:template(file'hydro/solver/meshsolver.cl':read())
 	)
 
 	self.solverModulesEnabled[self.symbols.calcFlux] = true

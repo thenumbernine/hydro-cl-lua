@@ -292,7 +292,7 @@ function PoissonKrylov:initCodeModules()
 	solver.modules:addFromMarkup{
 		code = solver.eqn:template(
 			table{
-				file['hydro/op/poisson.cl'],
+				file'hydro/op/poisson.cl':read(),
 				poissonKrylovCode,
 				self:getPoissonCode(),
 			}:concat'\n',

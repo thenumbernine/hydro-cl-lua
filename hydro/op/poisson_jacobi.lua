@@ -10,7 +10,7 @@ PoissonJacobi.name = 'poisson_jacobi'
 
 PoissonJacobi.solverCodeFile = 'hydro/op/poisson.cl'
 
-local poissonJacobiCode = file['hydro/op/poisson_jacobi.cl']
+local poissonJacobiCode = file'hydro/op/poisson_jacobi.cl':read()
 
 --[[
 args:

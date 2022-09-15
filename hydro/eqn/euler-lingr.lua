@@ -63,7 +63,7 @@ function EulerLinGR:initCodeModule_calcDTCell()
 	--  there's no way to just add a new dependency module
 	--return EulerLinGR.super.super.initCodeModule_calcDTCell(self)
 	-- so here.  it's ugly.
-	self.solver.modules:addFromMarkup(self:template(file['hydro/eqn/cl/calcDT.cl'])..self:template[[
+	self.solver.modules:addFromMarkup(self:template(file'hydro/eqn/cl/calcDT.cl':read())..self:template[[
 //// MODULE_DEPENDS: <?=primFromCons?>
 ]])
 end

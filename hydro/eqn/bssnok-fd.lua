@@ -172,7 +172,7 @@ end
 function BSSNOKFiniteDifferenceEquationBase:initCodeModules()
 	BSSNOKFiniteDifferenceEquationBase.super.initCodeModules(self)
 
-	self.solver.modules:addFromMarkup(self:template(file['hydro/eqn/bssnok-fd.cl']))
+	self.solver.modules:addFromMarkup(self:template(file'hydro/eqn/bssnok-fd.cl':read()))
 end
 
 function BSSNOKFiniteDifferenceEquationBase:initCodeModule_calcDTCell()

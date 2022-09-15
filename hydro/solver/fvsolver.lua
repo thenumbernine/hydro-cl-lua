@@ -42,7 +42,7 @@ function FiniteVolumeSolver:initCodeModules()
 	self.solverModulesEnabled[self.symbols.calcFlux] = true
 
 	self.modules:addFromMarkup(
-		self.eqn:template(file['hydro/solver/fvsolver.cl'], {
+		self.eqn:template(file'hydro/solver/fvsolver.cl':read(), {
 			flux = self.flux,
 		})
 	)

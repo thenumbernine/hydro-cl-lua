@@ -126,7 +126,7 @@ function BSSNOKFiniteDifferenceEquation:getEnv()
 	local env
 	local envCacheFilename = symdir..'/env.lua'
 -- [=[
-	local envCacheData = file[envCacheFilename]
+	local envCacheData = file(envCacheFilename):read()
 	if cmdline.bssnUseCache == false then envCacheData = false end
 	local gotCache
 	if envCacheData then
@@ -1613,7 +1613,7 @@ return env
 -- end prefix code
 ]]
 
-			file[envCacheFilename] = lines:concat'\n'
+			file(envCacheFilename):write(lines:concat'\n')
 		end
 		save()
 end)	-- time()

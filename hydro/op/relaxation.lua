@@ -74,7 +74,7 @@ function Relaxation:initCodeModules()
 	local solver = self.solver
 	solver.modules:addFromMarkup{
 		code = solver.eqn:template(
-			file[self.solverCodeFile],
+			file(self.solverCodeFile):read(),
 			table(self.symbols, {
 				op = self,
 			})

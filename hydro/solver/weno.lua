@@ -383,7 +383,7 @@ end
 
 function WENO:initCodeModule_calcFlux()
 	self.modules:addFromMarkup(
-		self.eqn:template(file['hydro/solver/weno.cl'], {
+		self.eqn:template(file'hydro/solver/weno.cl':read(), {
 			clnumber = require 'cl.obj.number',
 		})
 	)

@@ -496,8 +496,8 @@ function SolverBase:getIdent()
 
 	-- debugging?
 	local dir = 'cache/'..self.ident
-	os.mkdir(dir, true)
-	file[dir..'/config'] = configStr
+	file(dir):mkdir(true)
+	file(dir..'/config'):write(configStr)
 
 	return self.ident
 end
@@ -581,13 +581,13 @@ function SolverBase:initMeshVars(args)
 		-- Write generated code the first time.  Subsequent times use the pre-existing code.  Useful for debugging things in the generated OpenCL.
 		else
 			if os.fileexists(clfn) then
-				local cachedCode = file[clfn]
+				local cachedCode = file(clfn):read()
 				assert(cachedCode:sub(1,#args.env.code) == args.env.code, "seems you have changed the cl env code")
 				args.code = cachedCode:sub(#args.env.code+1)	-- because the program will prepend env.code ... hmm, this could be done a better way.
 				Program.super.init(self, args)
 			else
 				Program.super.init(self, args)	-- do this so getCode() works
-				file[clfn] = self:getCode()
+				file(clfn):write(self:getCode())
 			end
 		end
 	end
@@ -606,7 +606,7 @@ function SolverBase:initMeshVars(args)
 		-- if we are using cached code then manually write binaries
 		if cmdline.usecachedcode and useCache then
 			local binfn = 'cache/'..solver:getIdent()..'/bin/'..self.name..'.bin'
-			file[binfn] = require 'ext.tolua'(self.obj:getBinaries())
+			file(binfn):write(require 'ext.tolua'(self.obj:getBinaries()))
 		end
 		return results
 	end
@@ -625,8 +625,8 @@ function SolverBase:initMeshVars(args)
 			os.mkdir(dir, true)
 			local path = dir..'/'..args.name
 			-- Write generated code
-			file[path..'.vert'] = args.vertexCode
-			file[path..'.frag'] = args.fragmentCode
+			file(path..'.vert'):write(args.vertexCode)
+			file(path..'.frag'):write(args.fragmentCode)
 
 			GLProgram.super.init(self, ...)
 		end
