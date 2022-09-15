@@ -5,7 +5,7 @@ local _ = matrix.index
 local ms = table()
 local fns = table()
 --[[ out of order
-for fn in file['.']() do
+for fn in file:dir() do
 --]]
 -- [[ in order
 for _,fn in ipairs{
@@ -20,7 +20,7 @@ for _,fn in ipairs{
 --]]
 	if select(2, io.getfileext(fn)) == 'txt' then
 		fns:insert(fn)
-		local ls = file[fn]:trim():split'\n'
+		local ls = file(fn):read():trim():split'\n'
 		local firstline = ls:remove(1)
 		assert(firstline:sub(1,1) == '#', "expected first line to be a comment, found:\n"..firstline)
 		local m = matrix(

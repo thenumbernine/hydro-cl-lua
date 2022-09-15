@@ -6,7 +6,7 @@ local gnuplot = require 'gnuplot'
 local datafns = table()
 
 -- parse trackvars out of output
-for fn in os.listdir'.' do
+for fn in file:dir() do
 	local base = fn:match'^out (.*)%.txt'
 	if base then
 		print('processing '..fn)
@@ -20,9 +20,9 @@ for fn in os.listdir'.' do
 		print('got '..#data..' rows')
 		if #data > 0 then
 			local datafn = 'plotdata '..base..'.txt'
-			file[datafn] = data:mapi(function(row)
+			file(datafn):write(data:mapi(function(row)
 				return row:concat'\t'
-			end):concat'\n'
+			end):concat'\n')
 			datafns:insert(datafn)
 			-- TODO only regen upon request? or nah?
 			gnuplot{

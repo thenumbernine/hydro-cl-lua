@@ -1,13 +1,13 @@
 #!/usr/bin/env lua
 require 'ext'
 local gnuplot = require 'gnuplot'
-for f in os.listdir'.' do
+for f in file:dir() do
 	local ident = f:match'^results%-(.*)%.txt$'
 	if ident then
-		local names = file[f]:split'\n'[1]:sub(2):split'\t'
+		local names = file(f):read():split'\n'[1]:sub(2):split'\t'
 
 		local args, argsDiff
-		if os.fileexists'gnuplot-config.lua' then
+		if file'gnuplot-config.lua':exists() then
 			args, argsDiff = table.unpack(dofile'gnuplot-config.lua')
 		end
 

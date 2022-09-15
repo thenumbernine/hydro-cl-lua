@@ -1,4 +1,5 @@
 local class = require 'ext.class'
+local file = require 'ext.file'
 local real = require 'hydro.real'
 local GridSolver = require 'hydro.solver.gridsolver'
 
@@ -18,7 +19,7 @@ function NavierStokesIncompressible:getSolverCode()
 	error'TODO convert this to initCodeModules'
 	return table{
 		NavierStokesIncompressible.super.getSolverCode(self),
-		template(file['hydro/solver/navstokes-incomp.cl'], {solver=self, eqn=self.eqn}),
+		template(file'hydro/solver/navstokes-incomp.cl':read(), {solver=self, eqn=self.eqn}),
 	}:concat'\n'
 end
 
