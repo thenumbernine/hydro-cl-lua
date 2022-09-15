@@ -149,8 +149,6 @@ end
 
 local bit = require 'bit'
 local cl = require 'ffi.OpenCL'
-local io = require 'ext.io'
-local os = require 'ext.os'
 local class = require 'ext.class'
 local math = require 'ext.math'
 local file = require 'ext.file'
@@ -506,7 +504,7 @@ end
 
 --[[ Cheap output of the state each frame so I can compare it to other solvers.
 -- 	This is what the dump-to-file is supposed to also do.
-local printStateFile = io.open('out.txt', 'w')
+local printStateFile = file'out.txt':open'w'
 local function printState(solver)
 	local ptr = solver.UBufObj:toCPU()
 	
@@ -931,7 +929,7 @@ function dumpFile:update(app, t)
 
 	local f = self.file
 	if not f then
-		f = io.open('var-ranges.txt', 'w')
+		f = file'var-ranges.txt':open'w'
 		self.file = f
 		
 		-- don't change any vars while outputting or else your rows won't match your header
@@ -988,17 +986,17 @@ function HydroCLApp:getScreenShotFilename()
 	local ext = self.screenshotExts[self.screenshotExtIndex]
 
 	-- TODO only once upon init?
-	if not os.fileexists'screenshots' then
+	if not file'screenshots':exists() then
 		-- don't assert -- if it already exists the cmd will fail
-		os.mkdir'screenshots'
+		file'screenshots':mkdir()
 	end
 
 	-- make a new subdir for each application instance ... ?
 	if not self.screenshotDir then
-		self.screenshotDir = os.date('%Y.%m.%d-%H.%M.%S')
+		self.screenshotDir = os.date'%Y.%m.%d-%H.%M.%S'
 		local dir = 'screenshots/'..self.screenshotDir
-		assert(not os.fileexists(dir), "found a duplicate screenshot timestamp subdir")
-		assert(os.mkdir(dir))
+		assert(not file(dir):exist(), "found a duplicate screenshot timestamp subdir")
+		assert(file(dir):mkdir())
 		self.screenshotIndex = 0
 	end
 
@@ -1191,7 +1189,7 @@ function HydroCLApp:update(...)
 					local usings = table()
 					if type(cmdline.plotOnExit) == 'string' then
 						usings.output = cmdline.plotOnExit
-						local name, ext = io.getfileext(cmdline.plotOnExit)
+						local name, ext = file(cmdline.plotOnExit):getext()
 						usings.terminal = ext.." size 1600,900 background '#ffffff'"
 					else
 						usings.persist = true
@@ -1816,7 +1814,7 @@ function HydroCLApp:updateGUI()
 		end
 		
 		if ig.igButton'Save' then
-			local savePrefix = os.date('%Y.%m.%d-%H.%M.%S')
+			local savePrefix = os.date'%Y.%m.%d-%H.%M.%S'
 			-- save as cfits
 			for i,solver in ipairs(self.solvers) do
 				solver:save(savePrefix..'_'..tostring(i))

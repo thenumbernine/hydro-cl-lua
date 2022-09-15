@@ -18,7 +18,7 @@ for _,fn in ipairs{
 	'euler 3d gmres err - 32x32x32.txt',
 } do
 --]]
-	if select(2, io.getfileext(fn)) == 'txt' then
+	if select(2, file(fn):getext()) == 'txt' then
 		fns:insert(fn)
 		local ls = file(fn):read():trim():split'\n'
 		local firstline = ls:remove(1)
