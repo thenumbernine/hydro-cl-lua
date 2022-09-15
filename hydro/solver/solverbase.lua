@@ -203,7 +203,6 @@ local ig = require 'imgui'
 local class = require 'ext.class'
 local table = require 'ext.table'
 local string = require 'ext.string'
-local os = require 'ext.os'
 local file = require 'ext.file'
 local math = require 'ext.math'
 local gl = require 'gl'
@@ -563,8 +562,8 @@ function SolverBase:initMeshVars(args)
 			
 		local cldir = 'cache/'..solver:getIdent()..'/src'
 		local bindir = 'cache/'..solver:getIdent()..'/bin'
-		os.mkdir(cldir, true)
-		os.mkdir(bindir, true)
+		file(cldir):mkdir(true)
+		file(bindir):mkdir(true)
 		local clfn = cldir..'/'..args.name..'.cl'
 		local binfn = bindir..'/'..args.name..'.bin'
 		
@@ -580,7 +579,7 @@ function SolverBase:initMeshVars(args)
 		
 		-- Write generated code the first time.  Subsequent times use the pre-existing code.  Useful for debugging things in the generated OpenCL.
 		else
-			if os.fileexists(clfn) then
+			if file(clfn):exists() then
 				local cachedCode = file(clfn):read()
 				assert(cachedCode:sub(1,#args.env.code) == args.env.code, "seems you have changed the cl env code")
 				args.code = cachedCode:sub(#args.env.code+1)	-- because the program will prepend env.code ... hmm, this could be done a better way.
@@ -622,7 +621,7 @@ function SolverBase:initMeshVars(args)
 			print('building shader/'..args.name)
 			
 			local dir = 'cache/'..solver:getIdent()..'/shader'
-			os.mkdir(dir, true)
+			file(dir):mkdir(true)
 			local path = dir..'/'..args.name
 			-- Write generated code
 			file(path..'.vert'):write(args.vertexCode)
