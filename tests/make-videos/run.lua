@@ -5,20 +5,15 @@ it expects ffmpeg to be installed
 --]]
 
 local ffi = require 'ffi'
-local unistd = require 'ffi.c.unistd'
-
-require 'ffi.c.stdlib'
-local rundirp = unistd.getcwd(nil, 0)
-local rundir = ffi.string(rundirp)
-ffi.C.free(rundirp)
-unistd.chdir'../..'
+local file = require 'ext.file'
+local rundir = file:cwd()
+file'../..':cd()
 
 local sdl = require 'ffi.sdl'
 local class = require 'ext.class'
 local table = require 'ext.table'
 local range = require 'ext.range'
 local os = require 'ext.os'
-local file = require 'ext.file'
 
 cmdline = {sys='console'}	-- set this before require 'hydro.app'
 

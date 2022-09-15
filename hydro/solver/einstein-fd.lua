@@ -1,5 +1,4 @@
 local class = require 'ext.class'
-local os = require 'ext.os'
 local table = require 'ext.table'
 local GridSolver = require 'hydro.solver.gridsolver'
 
