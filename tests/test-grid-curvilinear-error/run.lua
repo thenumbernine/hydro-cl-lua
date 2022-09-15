@@ -2,13 +2,12 @@
 local tolua = require 'ext.tolua'
 local table = require 'ext.table'
 local os = require 'ext.os'
-local io = require 'ext.io'
+local file = require 'ext.file'
 local string = require 'ext.string'
-local lfs = require 'lfs'
 
 local function updateIndex()
 	local fs = table()
-	for f in os.listdir'.' do
+	for f in file:dir() do
 		if f:match'%.txt$'
 		and f ~= 'README.txt'
 		then
@@ -49,7 +48,7 @@ table td, table th {
 	for _,f in ipairs(fs) do
 		local last = string.split(
 			string.split(
-				string.trim(io.readfile(f)),
+				string.trim(file(f):read()),
 				'\n'
 			):last(),
 			'%s+'
@@ -58,7 +57,7 @@ table td, table th {
 		-- last = {time, avg, min, max, stddev}
 		ts:insert('<tr>\n'
 			..'<td>'
-			..io.getfileext(f):gsub('_', ' ')
+			..file(f):getext():gsub('_', ' ')
 			..'</td><!-- name -->\n'
 			..last:mapi(function(l,i)
 				return '<td>'..l..'</td><!-- '..colnames[i]..' -->\n'
@@ -72,7 +71,7 @@ table td, table th {
 </html>
 ]]
 	)
-	io.writefile('index.html', ts:concat'\n')
+	file'index.html':write(ts:concat'\n')
 end
 
 --[[
@@ -80,7 +79,7 @@ updateIndex()
 os.exit()
 --]]
 
-local DIR = lfs.currentdir()
+local DIR = file:cwd()
 
 for cfg in coroutine.wrap(function()
 	-- TODO vary flux as well?
@@ -175,7 +174,7 @@ local name = 'cylinder_rmin_gt_0'
 
 end) do
 
-	assert(lfs.chdir'../..')
+	assert(file'../..':cd())
 
 	-- forward args
 	local cmd = './run.lua sys=console "config='..DIR..'/config.lua" exitTime=1'
@@ -197,7 +196,7 @@ end) do
 	print(cmd)
 	print(os.execute(cmd))
 
-	assert(lfs.chdir(DIR))
+	assert(file(DIR):cd())
 	
 	-- update our global matrix and write out
 	updateIndex()
