@@ -18,6 +18,7 @@ local class = require 'ext.class'
 local table = require 'ext.table'
 local range = require 'ext.range'
 local os = require 'ext.os'
+local file = require 'ext.file'
 
 cmdline = {sys='console'}	-- set this before require 'hydro.app'
 
@@ -262,7 +263,7 @@ for _,cfg in ipairs(configurations) do
 	local destMovieName = nameForConfig(cfg, args)..'.mp4'
 	print(destMovieName)
 	
-	if os.fileexists(rundir..'/'..destMovieName) then
+	if file(rundir..'/'..destMovieName):exists() then
 		print("I already found movie "..destMovieName)
 	else
 		local movieStartTime = cfg.movieStartTime or 0
@@ -321,10 +322,9 @@ for _,cfg in ipairs(configurations) do
 		local dir = 'screenshots/'..app.screenshotDir
 		assert(run('ffmpeg -y -i "'..dir..'/%05d.'..ext..'" "'..rundir..'/'..destMovieName..'"'))
 		for i=0,app.screenshotIndex-1 do
-			os.remove(dir..('/%05d.'):format(i)..ext)
+			file(dir..('/%05d.'):format(i)..ext):remove()
 		end
-		local sep = ffi.os == 'Windows' and '\\' or '/'
-		run('rmdir '..dir:gsub('/', sep))
+		run('rmdir '..dir:gsub('/', os.sep))
 --for some odd reason, every time it runs, it messes up the GL state ...
 os.exit(1)
 	end
