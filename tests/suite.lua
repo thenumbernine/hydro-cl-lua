@@ -19,7 +19,7 @@ local rundir = ffi.string(rundirp)
 ffi.C.free(rundirp)
 
 --local resultsDir = 'results'
---os.execute('mkdir "'..rundir..'/'..resultsDir..'" 2> '..(ffi.os == 'Windows' and 'NIL' or '/dev/null'))
+--file(rundir..'/'..resultsDir):mkdir()
 unistd.chdir'../..'
 
 -- set this global to have hydro run in console mode
