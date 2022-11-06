@@ -2695,7 +2695,7 @@ static void calcDeriv_Pi(
 
 
 <? if useSENRShiftAndCoDerivs then ?>
-<?=eqn:template(assert(io.readfile("hydro/eqn/bssnok-fd-num-inject-senr.cl")))?>
+<?=eqn:template(assert(io.readfile("../hydro-cl-senr/hydro/eqn/bssnok-fd-num-inject-senr.cl")))?>
 <? end -- useSENRShiftAndCoDerivs ?>
 
 
@@ -3277,7 +3277,7 @@ advect shift field:	+ β^i_,j β^j
 
 
 <? if useSENRShiftAndCoDerivs then ?>{
-	<?=eqn:template(assert(io.readfile("hydro/eqn/bssnok-fd-num-inject-senr-calcDeriv.cl")), {
+	<?=eqn:template(assert(io.readfile("../hydro-cl-senr/hydro/eqn/bssnok-fd-num-inject-senr-calcDeriv.cl")), {
 		-- The senr cl file will disable variables that are enabled for this file
 		excludeCalcDeriv_alpha = useCalcDeriv_alpha,
 		excludeCalcDeriv_W = useCalcDeriv_W,

@@ -361,7 +361,7 @@ local args = {
 	--initCond = 'jet',
 	
 
-	initCond = 'Sod',
+	--initCond = 'Sod',
 	--initCondArgs = {dim=cmdline.displayDim},
 	--[[ real-world vars for Sod ... which are a few orders higher, and therefore screw up the backward-euler solver
 	-- 		which means, todo, redo the backward euler error metric so it is independent of magnitude ... ?   seems I removed that for another numerical error reason.
@@ -522,9 +522,9 @@ local args = {
 	--initCond = 'plane gauge wave',
 
 
-	--initCond = 'Alcubierre warp bubble',
+	initCond = 'Alcubierre warp bubble',
 	
-	--initCondArgs = {R=.5, sigma=8, speed=.1},	-- sub-luminal
+	initCondArgs = {R=.5, sigma=8, speed=.1},	-- sub-luminal
 	
 	--initCondArgs = {R=.5, sigma=8, speed=1.1},		-- super-luminal 1.1x
 	-- ... works with
@@ -1037,7 +1037,7 @@ for 2D, [40,40] grid, hyperbolic gamma driver shift,
 --self.solvers:insert(require 'hydro.solver.bssnok-fd'(table(args, {eqn='bssnok-fd-num', eqnArgs={useShift='none'}})))
 --self.solvers:insert(require 'hydro.solver.bssnok-fd'(table(args, {eqn='bssnok-fd-num', eqnArgs={useShift='GammaDriver'}})))
 
---self.solvers:insert(require 'hydro.solver.bssnok-fd'(table(args, {eqn='bssnok-fd-senr'})))	-- default shift is HyperbolicGammaDriver
+self.solvers:insert(require 'hydro.solver.bssnok-fd'(table(args, {eqn='bssnok-fd-senr'})))	-- default shift is HyperbolicGammaDriver
 
 --[[
 BSSNOK but with my symbolic CAS generating the math
