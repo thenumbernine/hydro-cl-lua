@@ -1144,7 +1144,7 @@ kernel void findNaNs(
 ]]
 	}:concat'\n'
 
-	time('building program src/common.cl', function()
+	time('building program cache/'..self:getIdent()..'/src/common.cl ', function()
 		self.commonProgramObj = self.Program{name='common', code=commonCode}
 		self.commonProgramObj:compile()
 	end)
@@ -1510,11 +1510,8 @@ function SolverBase:refreshSolverProgram()
 		code = self.modules:getCodeAndHeader(moduleNames:unpack())
 	end)
 
-	time('building program src/solver.cl', function()
-		self.solverProgramObj = self.Program{
-			name = 'solver',
-			code = code,
-		}
+	time('building program cache/'..self:getIdent()..'/src/solver.cl ', function()
+		self.solverProgramObj = self.Program{name='solver', code=code}
 		self.solverProgramObj:compile()
 	end)
 

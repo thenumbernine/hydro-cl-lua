@@ -176,7 +176,7 @@ function InitCond:refreshInitStateProgram()
 		initCondCode = solver.modules:getCodeAndHeader(moduleNames:unpack())
 	end)
 	
-	time('building program src/initCond.cl', function()
+	time('building program cache/'..solver:getIdent()..'/src/initCond.cl ', function()
 		solver.initCondProgramObj = solver.Program{name='initCond', code=initCondCode}
 		solver.initCondProgramObj:compile()
 	end)

@@ -914,11 +914,11 @@ if has_B_u then --\
 	real3 const Z_l = real3_rotateFrom((inputU)->Z_l, n_l);\
 \
 <? if has_beta_u then --\
-?>	real3 const beta_u = real3_rotateFrom(beta_u);\
+?>	real3 const beta_u = real3_rotateFrom(beta_u, n_l);\
 <? end --\
 if has_b_ul then --\
-?>	real3x3 const b_ul = real3x3_rotateFrom(b_ul);\
-end --\
+?>	real3x3 const b_ul = real3x3_rotateFrom(b_ul, n_l);\
+<? end --\
 if has_B_u then --\
 ?>	real3 const B_u = real3_rotateFrom(B_u, n_l);\
 <? end --\

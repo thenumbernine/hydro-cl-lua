@@ -847,8 +847,8 @@ value.vreal3.<?=xi?> += 0.
 	- conn_ull.<?=xi?>.<?=sym(l,m)?> * U->beta_u.<?=xl?> * U->beta_u.<?=xm?>	//- Γγ^i_lm β^l β^m
 <?			end ?>
 <?		end ?>
-<? 	end ?>
 ;
+<? 	end ?>
 <? end -- eqn.useShift ~= 'none' ?>
 ]],
 	}
