@@ -335,8 +335,10 @@ where _γ_ij is the conformal metric, _Γ^i_jk is the conformal connection, ^Γ^
 	U->M_u = real3_zero;
 }
 
-//// MODULE_NAME: <?=initDerivs?>
-//// MODULE_DEPENDS: <?=initDeriv_numeric_and_useBSSNVars?>
+// TODO HERE'S A BIG MYSTERY
+// WITH THESE DERIVATIVES UNINITIALIZED THINGS ARE INCREDIBLY STABLE
+// // MODULE_NAME: <?=initDerivs?>
+// // MODULE_DEPENDS: <?=initDeriv_numeric_and_useBSSNVars?>
 
 <? else	-- not eqn.initCond.useBSSNVars ?>
 
@@ -402,8 +404,10 @@ if has_B_u then
 	U->M_u = real3_zero;
 }
 
-//// MODULE_NAME: <?=initDerivs?>
-//// MODULE_DEPENDS: <?=initDeriv_numeric_and_useBSSNVars?>
+// TODO HERE'S A BIG MYSTERY
+// WITH THESE DERIVATIVES UNINITIALIZED THINGS ARE INCREDIBLY STABLE
+// // MODULE_NAME: <?=initDerivs?>
+// // MODULE_DEPENDS: <?=initDeriv_numeric_and_useBSSNVars?>
 
 <? end	-- eqn.initCond.useBSSNVars ?>
 

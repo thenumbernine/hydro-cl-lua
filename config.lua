@@ -1003,7 +1003,7 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {
 
 -- TODO FIXME
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='z4'})))
-self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='z4', eqnArgs={useShift='GammaDriverHyperbolic'}})))
+--self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='z4', eqnArgs={useShift='GammaDriverHyperbolic'}})))
 
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='adm1d_v1'})))
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='adm1d_v2'})))
@@ -1372,7 +1372,7 @@ local args = {
 		zmax = 'quadratic',
 	},
 	--]]
-	-- [[
+	--[[
 	coord = 'sphere',
 	coordArgs = {
 		--vectorComponent = 'holonomic',	-- TODO this is techically the case, but there may be bugs in this.
@@ -1401,7 +1401,7 @@ local args = {
 		zmax='periodic',
 	},
 	--]]
-	--[[ sphere sinh radial with parameters from 2009 Alic (right?)
+	-- [[ sphere sinh radial with parameters from 2009 Alic (right?)
 	coord = 'sphere_sinh_radial',
 	coordArgs = {
 		-- TODO sort this out
@@ -1471,11 +1471,11 @@ local args = {
 	},
 	--]]
 
-	initCond = 'Minkowski',				-- stable with 2009Alic-z4
-	--initCond = 'SENR Minkowski',			-- stable with 2009Alic-z4
+	--initCond = 'Minkowski',				-- stable with 2009Alic-z4 with derivative vars initd to zero
+	--initCond = 'SENR Minkowski',			-- stable with 2009Alic-z4 with derivative vars initd to zero
 	--initCond = 'gaussian perturbation',
 	--initCond = 'plane gauge wave',
-	--initCond = 'SENR UIUC',				-- 2009Alic-z4 in sphere_sinh_radial with SENR UIUC runs until about t=1000 before oscillations within the event horizon destroy it.
+	initCond = 'SENR UIUC',				-- 2009Alic-z4 with derivative vars initd to zero in sphere_sinh_radial with SENR UIUC runs until about t=1000 before oscillations within the event horizon destroy it.
 	--initCond = 'UIUC',					-- but why does this one run so slow? smaller alphas means lower cfls? too close to zero?
 	--initCond = 'SENR BrillLindquist',
 	--initCond = 'black hole - Schwarzschild',
