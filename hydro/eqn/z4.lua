@@ -881,7 +881,17 @@ if (<?=OOB?>(1,1)) {
 	value.vsym3 = sym3_zero;
 } else {
 //// MODULE_DEPENDS: <?=calcFromGrad_d_lll?>
-	_3sym3 const target_d_lll = <?=calcFromGrad_d_lll?>(solver, U);
+	//_3sym3 const target_d_lll = <?=calcFromGrad_d_lll?>(solver, U);
+// TODO hmm how come this isn't working? seems the Minkowski value of d_ijk is zero
+// does that mean this is really Δd_kij and not d_kij ?
+// it might have something to do with the addSourcc TODO's about needing to update the code to reflect removing the dDelta's ...
+//  cuz ... I see constraint errors between |d_kij - 1/2 γ_ij,k| even with no shift.
+//  more specifically ... theres no d_lll source ... maybe (thanks to dDelta_lll?) there should be?
+// so maybe that means (if I can get by without dDelta_ijk's) that my fluxes are off?
+// either way, flux or source, there's some disagreement, one is considering dDeltas, the other is not
+// and if both are in agreement then whatever system is being used (with dDelta, without dDelta) is the wrong one.
+	_3sym3 const target_d_lll = _3sym3_zero;
+<? print"TODO FIXME display constraint target d_kij is set to zero atm instead of 1/2 γ_ij,k" ?>
 	value.vsym3 = (sym3){
 <? for jk,xjk in ipairs(symNames) do
 ?>		.<?=xjk?> = fabs(target_d_lll.<?=xi?>.<?=xjk?> - U->d_lll.<?=xi?>.<?=xjk?>),

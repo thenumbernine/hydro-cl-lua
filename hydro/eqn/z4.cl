@@ -229,7 +229,12 @@ kernel void <?=initDerivs?>(
 	//d_kij = 1/2 γ_ij,k
 //// MODULE_DEPENDS: <?=calcFromGrad_d_lll?>
 	_3sym3 const d_lll = <?=calcFromGrad_d_lll?>(solver, U);
-	U->d_lll = d_lll;
+// TODO this is problematic ...
+// with this enabled it explodes, even in Minkowski
+// another (related?) TODO is that the gamma_ij vs d_kij constraint is *always* off-zero
+// and is that related to coord_conn vs coord_connHol?
+//	U->d_lll = d_lll;
+<? print"TODO FIXME initDerivs U->d_lll is set to zero instead of 1/2 γ_ij,k" ?>
 
 <? if has_b_ul then ?>
 //// MODULE_DEPENDS: <?=calcFromGrad_b_ul?>
@@ -337,8 +342,8 @@ where _γ_ij is the conformal metric, _Γ^i_jk is the conformal connection, ^Γ^
 
 // TODO HERE'S A BIG MYSTERY
 // WITH THESE DERIVATIVES UNINITIALIZED THINGS ARE INCREDIBLY STABLE
-// // MODULE_NAME: <?=initDerivs?>
-// // MODULE_DEPENDS: <?=initDeriv_numeric_and_useBSSNVars?>
+//// MODULE_NAME: <?=initDerivs?>
+//// MODULE_DEPENDS: <?=initDeriv_numeric_and_useBSSNVars?>
 
 <? else	-- not eqn.initCond.useBSSNVars ?>
 
@@ -406,8 +411,8 @@ if has_B_u then
 
 // TODO HERE'S A BIG MYSTERY
 // WITH THESE DERIVATIVES UNINITIALIZED THINGS ARE INCREDIBLY STABLE
-// // MODULE_NAME: <?=initDerivs?>
-// // MODULE_DEPENDS: <?=initDeriv_numeric_and_useBSSNVars?>
+//// MODULE_NAME: <?=initDerivs?>
+//// MODULE_DEPENDS: <?=initDeriv_numeric_and_useBSSNVars?>
 
 <? end	-- eqn.initCond.useBSSNVars ?>
 
@@ -506,7 +511,7 @@ if has_b_ul then
 
 <? if eqn.useShift == "GammaDriverHyperbolic" then ?>
 //// MODULE_DEPENDS: <?=calc_gammaHat_ll?>
-//// MODULE_DEPENDS: <?=coord_conn_ull?>
+//// MODULE_DEPENDS: <?=coord_connHol_ull?>
 <? end ?>
 
 #define <?=fluxFromCons?>(\
@@ -580,7 +585,7 @@ if has_B_u then --\
 	real const det_gammaHat = sym3_det(gammaHat_ll);\
 	real const W = pow(det_gammaHat / det_gamma, 1./6.);\
 	real const invW = 1. / W;\
-	_3sym3 const connHat_ull = coord_conn_ull((cell)->pos);\
+	_3sym3 const connHat_ull = coord_connHol_ull((cell)->pos);\
 	real3x3 const DHatBeta_ul = real3x3_add(b_ul, real3_3sym3_dot2(beta_u, connHat_ull));\
 	real const tr_DHatBeta = real3x3_trace(DHatBeta_ul);\
 	<? end ?>\
@@ -1730,10 +1735,10 @@ end
 	real const det_gammaHat = sym3_det(gammaHat_ll);	//TODO use coord module for math simplifications?
 	real const W = pow(det_gammaHat / det_gamma, 1./6.);
 	real const invW = 1. / W;
-//// MODULE_DEPENDS: <?=coord_conn_ull?>
+//// MODULE_DEPENDS: <?=coord_connHol_ull?>
 	real const gammaDriver_eta = 1.;
 
-	_3sym3 const connHat_ull = coord_conn_ull((cell)->pos);\
+	_3sym3 const connHat_ull = coord_connHol_ull((cell)->pos);\
 	real3x3 const DHatBeta_ul = real3x3_add(b_ul, real3_3sym3_dot2(beta_u, connHat_ull));
 	real const tr_DHatBeta = real3x3_trace(DHatBeta_ul);
 	
