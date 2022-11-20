@@ -361,7 +361,7 @@ local args = {
 	--initCond = 'jet',
 	
 
-	--initCond = 'Sod',
+	initCond = 'Sod',
 	--initCondArgs = {dim=cmdline.displayDim},
 	--[[ real-world vars for Sod ... which are a few orders higher, and therefore screw up the backward-euler solver
 	-- 		which means, todo, redo the backward euler error metric so it is independent of magnitude ... ?   seems I removed that for another numerical error reason.
@@ -518,7 +518,7 @@ local args = {
 
 	-- Einstein
 	--initCond = 'Minkowski',
-	initCond = 'gaussian perturbation',
+	--initCond = 'gaussian perturbation',
 	--initCond = 'plane gauge wave',
 
 
@@ -768,7 +768,7 @@ self.solvers:insert(require 'hydro.solver.weno'(table(args, {
 -- compressible Euler equations
 
 
---self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
+self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
 
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct bounded'})))	-- this is the default hllCalcWaveMethod
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct'})))
@@ -1471,7 +1471,7 @@ local args = {
 	},
 	--]]
 
-	--initCond = 'Minkowski',				-- stable with 2009Alic-z4 (with derivative vars initd to zero)
+	initCond = 'Minkowski',				-- stable with 2009Alic-z4 (with derivative vars initd to zero)
 	--initCond = 'SENR Minkowski',			-- stable with 2009Alic-z4 (with derivative vars initd to zero)
 	--initCond = 'plane gauge wave',
 	--initCond = 'SENR UIUC',				-- 2009Alic-z4 (with derivative vars initd to zero) coord=sphere_sinh_radial with SENR UIUC runs indefinitely.  coord=sphere runs until t=200 then e.h.? hits rhs and explodes. 
@@ -1491,7 +1491,7 @@ local args = {
 		}
 	},
 	--]]
-	-- [[
+	--[[
 	initCond = 'gaussian perturbation',
 	-- override these from above
 	mins = {-1,-1,-1},

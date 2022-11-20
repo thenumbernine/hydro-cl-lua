@@ -2,6 +2,14 @@ local class = require 'ext.class'
 
 local GuiVar = class()
 
+-- what struct within solver to read/write our values from?
+-- default is the solverPtr
+-- however initCond guiVars will want to read/write initCondPtr
+GuiVar.solverFieldPtr = 'solverPtr'
+GuiVar.refreshPtrFunc = function(solver)
+	solver:refreshSolverBuf()
+end
+
 function GuiVar:init(args)
 	self.name = assert(args.name)
 	self.onChange = args.onChange
@@ -19,10 +27,8 @@ function GuiVar:refresh(value, solver)
 	if self.compileTime then
 		solver:refreshCodePrefix()
 	else
-		-- TODO hmm, which are in solver, and which are in initCond?
-		solver.solverPtr[self.name] = self.value
-		--solver.initCondPtr[self.name] = self.value
-		solver:refreshSolverBuf()
+		solver[self.solverFieldPtr][self.name] = self.value
+		self.refreshPtrFunc(solver)
 	end
 end
 

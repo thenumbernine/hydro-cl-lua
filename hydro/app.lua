@@ -153,11 +153,14 @@ local class = require 'ext.class'
 local math = require 'ext.math'
 local file = require 'ext.file'
 local range = require 'ext.range'
+local string = require 'ext.string'
 local template = require 'template'
 local CLEnv = require 'cl.obj.env'
 local clnumber = require 'cl.obj.number'
+local half = require 'cl.obj.half'
 local vec4d = require 'vec-ffi.vec4d'
 local vec3d = require 'vec-ffi.vec3d'
+local quatf = require 'vec-ffi.quatf'
 local CartesianCoord = require 'hydro.coord.cartesian'
 
 --[[
@@ -469,7 +472,7 @@ have hydro make draw objs *and* solver shaders upon request
 then create the draw objs before the shaders (so they exist during shader ctor)
 --]]
 function HydroCLApp:initDraw()
-	self.displaySliceAngle = require 'vec-ffi.quatf'(0,0,0,1)
+	self.displaySliceAngle = quatf(0,0,0,1)
 	if cmdline.displaySlice == 'xz' then
 		self.displaySliceAngle:fromAngleAxis(1,0,0,90)
 	elseif cmdline.displaySlice == 'yz' then
@@ -1178,7 +1181,6 @@ function HydroCLApp:update(...)
 					local function fixtitle(s)
 						return (s:gsub('_', ' '))
 					end
-					local string = require 'ext.string'
 					local varnames = string.split(cmdline.trackvars, ','):mapi(string.trim)
 					varnames:removeObject'dt'
 					-- plot any track vars we got
@@ -1232,13 +1234,11 @@ function HydroCLApp:update(...)
 					-- TODO wouldn't hurt to add a header column to the savedata
 				end
 				if cmdline.plot1DOnExit then
-					local half = require 'cl.obj.half'
 					local fromreal = half.fromreal
 					-- fix gnuplot formatting
 					local function fixtitle(s)
 						return (s:gsub('_', ' '))
 					end
-					local string = require 'ext.string'
 					local varnames = string.split(cmdline.trackvars, ','):mapi(string.trim)
 					varnames:removeObject'dt'
 					-- plot trackvars, 1 col per var per solver
@@ -1557,7 +1557,6 @@ end
 		and self.showMouseCoords
 		and (self.displayDim == 1 or self.displayDim == 2)
 		then
-			local half = require 'cl.obj.half'
 			local toreal, fromreal = half.toreal, half.fromreal
 			self.mouseCoordValue = ''
 			for i,solver in ipairs(displaySolvers) do
@@ -1908,7 +1907,7 @@ function HydroCLApp:updateGUI()
 		ig.igPopID()
 
 		-- TODO per-solver
-		--[[ TODO replace this with trackball behavior
+		-- [[ TODO replace this with trackball behavior
 		if ig.luatableTooltipSliderFloat('slice qw', self.displaySliceAngle, 'w', -1, 1) then
 			self.displaySliceAngle:normalize(self.displaySliceAngle)
 		end

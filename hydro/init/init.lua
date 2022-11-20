@@ -78,7 +78,7 @@ function InitCond:addGuiVar(args)
 	-- ok 'args' is the guivar/initcondvar args ...
 	-- and 'self.args' is the InitCond ctor args ...
 	-- HERE: allow the InitCond ctor args to override any guiVars
-	if self.args 
+	if self.args
 	and self.args
 	and self.args[args.name] ~= nil
 	then
@@ -100,7 +100,12 @@ function InitCond:addGuiVar(args)
 	self.guiVars:insert(var)
 	self.guiVars[var.name] = var
 
+	-- if it's not a compile-time var then it is for manipulating the initCond struct
 	if not args.compileTime then
+		-- ... and that means we need to tell the var what struct/field to write when it is modified ...
+		var.solverFieldPtr = 'initCondPtr'
+		var.refreshPtrFunc = function(solver) solver:refreshInitCondBuf() end
+		-- ... and add it to the initCond_t
 		self.initStruct.vars:insert{
 			name = var.name,
 			type = var.ctype,
@@ -229,7 +234,7 @@ function InitCond:resetState()
 	if solver.constrainUKernelObj then
 		-- this calls constrainUKernelObj
 		-- and then calls :boundary()
-		solver:constrainU()	
+		solver:constrainU()
 		if cmdline.printBufs then
 			print('post-constrainU init UBuf:')
 			solver:printBuf(solver.UBufObj)
