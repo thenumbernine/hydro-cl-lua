@@ -1427,30 +1427,22 @@ kernel void <?=addSource?>(
 
 	// source terms
 
-	real3x3 const K_ul = sym3_sym3_mul(gamma_uu, U->K_ll);			//K^i_j
-	real const tr_K = real3x3_trace(K_ul);							//K^k_k
-	sym3 const KSq_ll = sym3_real3x3_to_sym3_mul(U->K_ll, K_ul);		//KSq_ij = K_ik K^k_j
-
 	//d_llu = d_ij^k = d_ijl * gamma^lk
 	real3x3x3 const d_llu = _3sym3_sym3_mul(U->d_lll, gamma_uu);
 
 	//d_ull = d^i_jk = gamma^il d_ljk
 	_3sym3 const d_ull = sym3_3sym3_mul(gamma_uu, U->d_lll);
+	
+	//conn^k_ij = d_ij^k + d_ji^k - d^k_ij
+	_3sym3 const conn_ull = conn_ull_from_d_llu_d_ull(d_llu, d_ull);
+	
+	real3x3 const K_ul = sym3_sym3_mul(gamma_uu, U->K_ll);			//K^i_j
+	real const tr_K = real3x3_trace(K_ul);							//K^k_k
+	sym3 const KSq_ll = sym3_real3x3_to_sym3_mul(U->K_ll, K_ul);		//KSq_ij = K_ik K^k_j
 
 	//e_i = d^j_ji
 	real3 const e_l = _3sym3_tr12(d_ull);
 
-	//conn^k_ij = d_ij^k + d_ji^k - d^k_ij
-	_3sym3 const conn_ull = {
-<? for k,xk in ipairs(xNames) do 
-?>		.<?=xk?> = (sym3){
-<?	for ij,xij in ipairs(symNames) do
-		local i,j,xi,xj = from6to3x3(ij)
-?>			.<?=xij?> = d_llu.<?=xi?>.<?=xj?>.<?=xk?> + d_llu.<?=xj?>.<?=xi?>.<?=xk?> - d_ull.<?=xk?>.<?=xij?>,
-<? end
-?>		},
-<? end 
-?>	};
 
 	// Rsrc_ll.ij := Rsrc_ij
 	//	= 	+ conn^k_ij (V_k - e_k)
@@ -1513,8 +1505,7 @@ kernel void <?=addSource?>(
 
 	sym3 srcK_ll_over_alpha = (sym3){
 <? for ij,xij in ipairs(symNames) do
-	local i,j = from6to3x3(ij)
-	local xi, xj = xNames[i], xNames[j]
+	local i,j,xi,xj = from6to3x3(ij)
 ?>		.<?=xij?> = 
 			- U->a_l.<?=xi?> * U->a_l.<?=xj?>
 <? 	for k,xk in ipairs(xNames) do 
@@ -2836,8 +2827,7 @@ kernel void <?=addSource?>(
 	//Gamma_ijk + Gamma_jik = 2 d_kij
 	//gamma_ij,t = -2 alpha K_ij + beta^k_,i gamma_kj + beta^k_,j gamma_ki + 2 d_kij beta^k
 <? for ij,xij in ipairs(symNames) do
-	local i,j = from6to3x3(ij)
-	local xi,xj = xNames[i],xNames[j]
+	local i,j,xi,xj = from6to3x3(ij)
 ?>	deriv->gamma_ll.<?=xij?> += partial_beta_u_ll.<?=xi?>.<?=xj?>
 		+ partial_beta_u_ll.<?=xj?>.<?=xi?>
 <?	for k,xk in ipairs(xNames) do
@@ -2871,7 +2861,7 @@ kernel void <?=addSource?>(
 	//d_kij,t = d_kij,l beta^l + d_lij beta^l_,k + d_klj beta^l_,i + d_kil beta^l_,j
 <? for k,xk in ipairs(xNames) do
 	for ij,xij in ipairs(symNames) do
-		local i,j = from6to3x3(ij)
+		local i,j,xi,xj = from6to3x3(ij)
 ?>	deriv->d_lll.<?=xk?>.<?=xij?> += 0.
 <?		for l,xl in ipairs(xNames) do
 ?>			+ partial_d_llll[<?=l-1?>].<?=xk?>.<?=xij?>
@@ -2885,7 +2875,7 @@ end ?>
 
 	//K_ij,t = K_ij,k beta^k + K_kj beta^k_,i + K_ik beta^k_,j
 <? for ij,xij in ipairs(symNames) do
-	local i,j = from6to3x3(ij)
+	local i,j,xi,xj = from6to3x3(ij)
 ?>
 	deriv->K.<?=xij?> += 0.
 <?	for k,xk in ipairs(xNames) do
@@ -3150,17 +3140,14 @@ so to solve this, you must solve a giant linear system of all variables
 	real const d_weight = (1. - weight) / 4.;
 
 	U->V_l = real3_sub(U->V_l, real3_real_mul(delta, v_weight));
-<? 
-		for i,xi in ipairs(xNames) do 
+<? 		for i,xi in ipairs(xNames) do 
 			for jk,xjk in ipairs(symNames) do
-				local j,k = from6to3x3(jk)
-				local xk = xNames[k]
+				local j,k,xj,xk = from6to3x3(jk)
 ?>	U->d_lll.<?=xi?>.<?=xjk?> += (
 		delta.<?=xi?> * U->gamma_ll.<?=xjk?> 
 		- delta.<?=xk?> * U->gamma_ll.<?=sym(i,j)?>
 	) * d_weight;
-<?	
-			end
+<?			end
 		end 
 	end
 ?>
@@ -3177,21 +3164,11 @@ end	-- constrain V
 	//d_ull = d^i_jk = gamma^il d_ljk
 	_3sym3 const d_ull = sym3_3sym3_mul(gamma_uu, U->d_lll);
 
+	//conn^k_ij = d_ij^k + d_ji^k - d^k_ij
+	_3sym3 const conn_ull = conn_ull_from_d_llu_d_ull(d_llu, d_ull);
+	
 	//e_i = d^j_ji
 	real3 const e_l = _3sym3_tr12(d_ull);
-
-	//conn^k_ij = d_ij^k + d_ji^k - d^k_ij
-	_3sym3 const conn_ull = {
-<? for k,xk in ipairs(xNames) do 
-?>		.<?=xk?> = (sym3){
-<?	for ij,xij in ipairs(symNames) do
-		local i,j = from6to3x3(ij)
-		local xi,xj = xNames[i],xNames[j]
-?>			.<?=xij?> = d_llu.<?=xi?>.<?=xj?>.<?=xk?> + d_llu.<?=xj?>.<?=xi?>.<?=xk?> - d_ull.<?=xk?>.<?=xij?>,
-<? end
-?>		},
-<? end 
-?>	};
 
 	//partial_d_lll.ij.kl = d_kij,l = d_(k|(ij),|l)
 	//so this object's indexes are rearranged compared to the papers 

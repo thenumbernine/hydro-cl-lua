@@ -282,13 +282,73 @@ momentum constraints
 --]=]
 	}
 
-	-- shift-less gravity only
-	-- gravity with shift is much more complex
-	-- TODO add shift influence (which is lengthy)
-	vars:insert{name='gravity', code=[[
-	real det_gamma = sym3_det(U->gamma_ll);
-	sym3 gamma_uu = sym3_inv(U->gamma_ll, det_gamma);
-	value.vreal3 = real3_real_mul(sym3_real3_mul(gamma_uu, U->a_l), -U->alpha * U->alpha);
+	--[[
+	shift-less gravity only
+	gravity with shift is much more complex
+	u^μ_,t = -Γ4^μ_αβ u^α u^β
+	u^k_,t = -Γ4^k_αβ u^α u^β
+	u^k_,t = -(Γ4^k_tt u^t u^t + 2 Γ4^k_ti u^t u^i + Γ4^k_ij u^i u^j)
+	2008 Alcubierre Appendix B:
+	 also my Differential Geometry notes, "14 - ADM formalism"
+	then swap α_,i = α a_i
+		Γ4^k_tt = 
+			+ α^2 γ^km a_m
+			+ β^k_,t
+			- 1/α β^k (α a_,t + β^l α a_l - K_lm β^l β^m)
+			- 2 α β^l K_l^k
+			+ β^l (β^k_,l + β^m Γ3^k_lm)
+
+		Γ4^k_ti = 
+			+ 1/α β^k (-α a_i β^l K_il)
+			- α K_i^k
+			+ β^k_,i
+			+ Γ3^k_li β^l
+		
+		Γ4^k_ij = 
+			+ 1/α β^k K_ij
+			+ Γ3^k_ij
+	--]]
+	vars:insert{name='gravity', code=self:template[[
+	sym3 gamma_uu = sym3_inv(U->gamma_ll, sym3_det(U->gamma_ll));
+
+	real const alpha = U->alpha;
+	real3 const a_l = U->a_l;
+	
+	value.vreal3 = real3_real_mul(sym3_real3_mul(gamma_uu, a_l), alpha * alpha);	//+ α^2 γ^km a_m
+
+<? if useShift then 
+	error("you are here")
+?>
+
+	real3 const beta_u = U->beta_u;
+	real3 const dt_beta_u = real3_zero;
+
+	sym3 const K_ll = U->K_ll;
+	real3x3 const K_lu = sym3_sym3_mul(K_ll, gamma_uu);
+	real3 const beta_dot_K_l = real3_sym3_mul(beta_u, K_ll);
+
+	real3x3 const partial_beta_ul = real3x3_zero;											// β^k_,l
+	real3 const partial_beta_dot_beta_u = real3x3_real3_mul(partial_beta_ul, beta_u);		// β^k_,l β^l 
+
+	real3x3x3 const d_llu = _3sym3_sym3_mul(d_lll, gamma_uu);						//d_llu := d_ij^k = d_ijl * γ^lk
+	_3sym3 const d_ull = sym3_3sym3_mul(gamma_uu, d_lll);							//d_ull := d^i_jk = γ^il d_ljk
+	_3sym3 const conn_ull = conn_ull_from_d_llu_d_ull(d_llu, d_ull);				//Γ^k_ij = d_ij^k + d_ji^k - d^k_ij
+
+	// TODO dot2+dot3 at once
+	real3 const conn_dot_beta_dot_beta_u = _3sym3_sym3_dot23(conn_ull, real3_outer(beta_u, beta_u));		// Γ^k_lm β^l β^m
+
+	// this is just the Γ4^k_tt term ... do I want the Γ4^k_ti and Γ4^k_ij terms?
+	value.vreal3 = real3_add6(
+		value_vreal3,
+		dt_beta_u,																	//+ β^k_,t
+			- 1/α β^k (α a_,t + β^l α a_l - K_lm β^l β^m)
+		real3_real_mul(sym3_real3_mul(gamma_uu, beta_dot_K_l), -2. * alpha),		//- 2 α β^l K_l^k
+		partial_beta_dot_beta_u, 													//+ β^k_,l β^l 
+		conn_dot_beta_dot_beta_u									 				//+ Γ^k_lm β^l β^m
+	);
+<? end ?>
+
+	value.vreal3 = real3_neg(value.vreal3);
 ]], type='real3'}
 
 	vars:insert{name='alpha vs a_i', code=self:template[[

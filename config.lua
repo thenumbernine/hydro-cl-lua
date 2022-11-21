@@ -5,7 +5,7 @@ and no more setting config values (boundary, etc) in the init cond file
 local constants = require 'hydro.constants'
 local materials = require 'hydro.materials'
 
-local dim = cmdline.dim or 1
+local dim = cmdline.dim or 2
 local args = {
 	app = self,
 	dim = dim,
@@ -85,26 +85,15 @@ local args = {
 				{256,256,1},
 				{32,32,32},
 			},
-			['Intel(R) OpenCL/Intel(R) HD Graphics 520'] = {
-				{256,1,1},
-				{256,256,1},
-				{16,16,16},
-			},
-			['Intel(R) OpenCL HD Graphics/Intel(R) Gen9 HD Graphics NEO'] = {
-				{4096,1,1},
-				{256,256,1},
-				
-				-- for 11th WENO (2010 Shen Zha) once we reduce size below 6,6 it breaks
-				-- so TODO something about boundary conditions on WENO or something ... maybe an error
-				-- other than weno, this works fine with finite volume codes
-				--{64,1,1},
-				{32,32,32},
-			},
-			
+
 			-- latest CL platform/device name on my Intel HD 520 on ubuntu
-			['Intel(R) OpenCL HD Graphics/Intel(R) Graphics Gen9 [0x1916]'] = {
+			-- Intel(R) OpenCL/Intel(R) HD Graphics 520
+			-- Intel(R) OpenCL HD Graphics/Intel(R) Gen9 HD Graphics NEO
+			-- Intel(R) OpenCL HD Graphics/Intel(R) Gen9 HD Graphics NEO
+			-- Intel(R) OpenCL HD Graphics/Intel(R) Graphics Gen9 [0x1916]
+			['Intel(R) OpenCL HD Graphics/Intel(R) HD Graphics 520 [0x1916]'] = {
 				{4096,1,1},
-				{128,128,1},
+				{64,64,1},
 				{1020,1020,4},
 			},
 		
@@ -361,7 +350,7 @@ local args = {
 	--initCond = 'jet',
 	
 
-	initCond = 'Sod',
+	--initCond = 'Sod',
 	--initCondArgs = {dim=cmdline.displayDim},
 	--[[ real-world vars for Sod ... which are a few orders higher, and therefore screw up the backward-euler solver
 	-- 		which means, todo, redo the backward euler error metric so it is independent of magnitude ... ?   seems I removed that for another numerical error reason.
@@ -522,7 +511,7 @@ local args = {
 	--initCond = 'plane gauge wave',
 
 
-	--initCond = 'Alcubierre warp bubble',
+	initCond = 'Alcubierre warp bubble',
 	
 	--initCondArgs = {R=.5, sigma=8, speed=.1},	-- sub-luminal
 	
@@ -768,7 +757,7 @@ self.solvers:insert(require 'hydro.solver.weno'(table(args, {
 -- compressible Euler equations
 
 
-self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
+--self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
 
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct bounded'})))	-- this is the default hllCalcWaveMethod
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct'})))
@@ -815,6 +804,12 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn
 --self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='euler', wenoMethod='1996 Jiang Shu', order=5, fluxMethod='Marquina'})))
 
 --self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='euler', wenoMethod='2010 Shen Zha', order=5, fluxMethod='Roe'})))
+
+-- for 11th WENO (2010 Shen Zha) once we reduce size below 6,6 it breaks
+-- so TODO something about boundary conditions on WENO or something ... maybe an error
+-- other than weno, this works fine with finite volume codes
+--gridSize={64,1,1},
+
 
 -- incompressible
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler', eqnArgs={incompressible=true}})))
@@ -992,7 +987,7 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {
 
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='adm1d_v1'})))
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='adm1d_v2'})))
---self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='adm3d'})))
+self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='adm3d'})))
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='adm3d', eqnArgs={noZeroRowsInFlux=false}})))
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='adm3d', eqnArgs={useShift='MinimalDistortionElliptic'}})))	-- TODO finish me
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='adm3d', eqnArgs={useShift='MinimalDistortionEllipticEvolve'}})))	-- TODO finish me

@@ -514,6 +514,17 @@ if has_b_ul then
 //// MODULE_DEPENDS: <?=coord_connHol_ull?>
 <? end ?>
 
+
+#if 1	//using rotate
+#define ALIGN_FROM(type, var, n_l)		type##_rotateFrom(var, n_l)
+#define ALIGN_TO(type, var, n_l)		type##_rotateTo(var, n_l)
+#endif
+
+#if 0	//using swap , which only works with grid-aligned coordinates (cna't use coord==cartesian w/a non-cartesian grid, and can't use mesh based solver)
+#define ALIGN_FROM(type, var, n_l)		(n_l.side == 0 ? type##_swap0(var) : (n_l.side == 1 ? type##_swap1(var) : (n_l.side == 2 ? type##_swap2(var))))
+#define ALIGN_TO(type, var, n_l)		ALIGN_FROM(type, var, n_l)
+#endif
+
 #define <?=fluxFromCons?>(\
 	/*<?=cons_t?> * const */resultFlux,\
 	/*constant <?=solver_t?> const * const */solver,\
@@ -529,22 +540,22 @@ if has_b_ul then
 	/* so here I'm going to just wing it */\
 	real3 const n_l = normal_l1(n);\
 \
-	sym3 const gamma_ll = sym3_rotateFrom((U)->gamma_ll, n_l);\
+	sym3 const gamma_ll = ALIGN_FROM(sym3, (U)->gamma_ll, n_l);\
 	real const det_gamma = sym3_det(gamma_ll);\
 	sym3 const gamma_uu = sym3_inv(gamma_ll, det_gamma);\
 \
-	real3 const Z_l = real3_rotateFrom((U)->Z_l, n_l);\
-	real3 const a_l = real3_rotateFrom((U)->a_l, n_l);\
-	sym3 const K_ll = sym3_rotateFrom((U)->K_ll, n_l);\
-	_3sym3 const d_lll = _3sym3_rotateFrom((U)->d_lll, n_l);\
+	real3 const Z_l = ALIGN_FROM(real3, (U)->Z_l, n_l);\
+	real3 const a_l = ALIGN_FROM(real3, (U)->a_l, n_l);\
+	sym3 const K_ll = ALIGN_FROM(sym3, (U)->K_ll, n_l);\
+	_3sym3 const d_lll = ALIGN_FROM(_3sym3, (U)->d_lll, n_l);\
 <? if has_beta_u then --\
-?>	real3 const beta_u = real3_rotateFrom((U)->beta_u, n_l);\
+?>	real3 const beta_u = ALIGN_FROM(real3, (U)->beta_u, n_l);\
 <? end --\
 if has_b_ul then --\
-?>	real3x3 const b_ul = real3x3_rotateFrom((U)->b_ul, n_l);\
+?>	real3x3 const b_ul = ALIGN_FROM(real3x3, (U)->b_ul, n_l);\
 <? end --\
 if has_B_u then --\
-?>	real3 const B_u = real3_rotateFrom((U)->B_u, n_l);\
+?>	real3 const B_u = ALIGN_FROM(real3, (U)->B_u, n_l);\
 <? 	end --\
 ?>\
 \
@@ -772,19 +783,19 @@ if has_B_u then --\
 	<? end ?>/* eqn.useShift ~= "none" */\
 	/* END CUT from symmath/tests/output/Z4.html */\
 \
-	(resultFlux)->Z_l = real3_rotateTo((resultFlux)->Z_l, n_l);\
-	(resultFlux)->a_l = real3_rotateTo((resultFlux)->a_l, n_l);\
-	(resultFlux)->gamma_ll = sym3_rotateTo((resultFlux)->gamma_ll, n_l);\
-	(resultFlux)->K_ll = sym3_rotateTo((resultFlux)->K_ll, n_l);\
-	(resultFlux)->d_lll = _3sym3_rotateTo((resultFlux)->d_lll, n_l);\
+	(resultFlux)->Z_l = ALIGN_TO(real3, (resultFlux)->Z_l, n_l);\
+	(resultFlux)->a_l = ALIGN_TO(real3, (resultFlux)->a_l, n_l);\
+	(resultFlux)->gamma_ll = ALIGN_TO(sym3, (resultFlux)->gamma_ll, n_l);\
+	(resultFlux)->K_ll = ALIGN_TO(sym3, (resultFlux)->K_ll, n_l);\
+	(resultFlux)->d_lll = ALIGN_TO(_3sym3, (resultFlux)->d_lll, n_l);\
 <? if has_beta_u then --\
-?>	(resultFlux)->beta_u = real3_rotateTo((resultFlux)->beta_u, n_l);\
+?>	(resultFlux)->beta_u = ALIGN_TO(real3, (resultFlux)->beta_u, n_l);\
 <? end --\
 if has_b_ul then --\
-?>	(resultFlux)->b_ul = real3x3_rotateTo((resultFlux)->b_ul, n_l);\
+?>	(resultFlux)->b_ul = ALIGN_TO(real3x3, (resultFlux)->b_ul, n_l);\
 <? end --\
 if has_B_u then --\
-?>	(resultFlux)->B_u = real3_rotateTo((resultFlux)->B_u, n_l);\
+?>	(resultFlux)->B_u = ALIGN_TO(real3, (resultFlux)->B_u, n_l);\
 <? end --\
 ?>\
 \
@@ -817,7 +828,7 @@ if has_B_u then --\
 	real3 const n_l = normal_l1(n);\
 \
 	(resultEig)->gamma_ll = sym3_real_mul(sym3_add((UR)->gamma_ll, (UL)->gamma_ll), .5);\
-	(resultEig)->gamma_ll = sym3_rotateFrom((resultEig)->gamma_ll, n_l);\
+	(resultEig)->gamma_ll = ALIGN_FROM(sym3, (resultEig)->gamma_ll, n_l);\
 \
 	real const det_avg_gamma = sym3_det((resultEig)->gamma_ll);\
 	(resultEig)->gamma_uu = sym3_inv((resultEig)->gamma_ll, det_avg_gamma);\
@@ -825,7 +836,7 @@ if has_B_u then --\
 	(resultEig)->sqrt_gammaUnn = sqrt((resultEig)->gamma_uu.xx);\
 \
 <? if has_beta_u then ?>\
-	(resultEig)->beta_u = real3_rotateFrom(real3_real_mul(real3_add((UL)->beta_u, (UR)->beta_u), .5), n_l);\
+	(resultEig)->beta_u = ALIGN_FROM(real3, real3_real_mul(real3_add((UL)->beta_u, (UR)->beta_u), .5), n_l);\
 <? end ?>\
 }
 
@@ -882,13 +893,13 @@ if has_B_u then --\
 	/* so here I'm going to just wing it */\
 	real3 const n_l = normal_l1(n);\
 \
-	(resultEig)->gamma_ll = sym3_rotateFrom((U)->gamma_ll, n_l);\
+	(resultEig)->gamma_ll = ALIGN_FROM(sym3, (U)->gamma_ll, n_l);\
 	(resultEig)->gamma_uu = sym3_inv((resultEig)->gamma_ll, det_avg_gamma);\
 \
 	(resultEig)->sqrt_gammaUnn = sqrt((resultEig)->gamma_uu.xx);\
 \
 <? if has_beta_u then ?>\
-	(resultEig)->beta_u = real3_rotateFrom((U)->beta_u, n_l);\
+	(resultEig)->beta_u = ALIGN_FROM(real3, (U)->beta_u, n_l);\
 <? end ?>\
 }
 
@@ -917,19 +928,19 @@ if has_B_u then --\
 	/* so here I'm going to just wing it */\
 	real3 const n_l = normal_l1(n);\
 \
-	real3 const a_l = real3_rotateFrom((inputU)->a_l, n_l);\
-	_3sym3 const d_lll = _3sym3_rotateFrom((inputU)->d_lll, n_l);\
-	sym3 const K_ll = sym3_rotateFrom((inputU)->K_ll, n_l);\
-	real3 const Z_l = real3_rotateFrom((inputU)->Z_l, n_l);\
+	real3 const a_l = ALIGN_FROM(real3, (inputU)->a_l, n_l);\
+	_3sym3 const d_lll = ALIGN_FROM(_3sym3, (inputU)->d_lll, n_l);\
+	sym3 const K_ll = ALIGN_FROM(sym3, (inputU)->K_ll, n_l);\
+	real3 const Z_l = ALIGN_FROM(real3, (inputU)->Z_l, n_l);\
 \
 <? if has_beta_u then --\
-?>	real3 const beta_u = real3_rotateFrom(beta_u, n_l);\
+?>	real3 const beta_u = ALIGN_FROM(real3, beta_u, n_l);\
 <? end --\
 if has_b_ul then --\
-?>	real3x3 const b_ul = real3x3_rotateFrom(b_ul, n_l);\
+?>	real3x3 const b_ul = ALIGN_FROM(real3x3, b_ul, n_l);\
 <? end --\
 if has_B_u then --\
-?>	real3 const B_u = real3_rotateFrom(B_u, n_l);\
+?>	real3 const B_u = ALIGN_FROM(real3, B_u, n_l);\
 <? end --\
 ?>\
 \

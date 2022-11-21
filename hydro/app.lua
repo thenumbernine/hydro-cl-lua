@@ -998,7 +998,7 @@ function HydroCLApp:getScreenShotFilename()
 	if not self.screenshotDir then
 		self.screenshotDir = os.date'%Y.%m.%d-%H.%M.%S'
 		local dir = 'screenshots/'..self.screenshotDir
-		assert(not file(dir):exist(), "found a duplicate screenshot timestamp subdir")
+		assert(not file(dir):exists(), "found a duplicate screenshot timestamp subdir")
 		assert(file(dir):mkdir())
 		self.screenshotIndex = 0
 	end
