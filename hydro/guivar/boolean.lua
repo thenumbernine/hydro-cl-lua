@@ -13,7 +13,7 @@ end
 
 function GuiBoolean:updateGUI(solver)
 	if ig.luatableTooltipCheckbox(self.name, self, 'value') then
-		self:refresh(self.value, solver)
+		self:refresh(solver)
 	end
 end
 

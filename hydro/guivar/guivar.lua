@@ -2,14 +2,6 @@ local class = require 'ext.class'
 
 local GuiVar = class()
 
--- what struct within solver to read/write our values from?
--- default is the solverPtr
--- however initCond guiVars will want to read/write initCondPtr
-GuiVar.solverFieldPtr = 'solverPtr'
-GuiVar.refreshPtrFunc = function(solver)
-	solver:refreshSolverBuf()
-end
-
 function GuiVar:init(args)
 	self.name = assert(args.name)
 	self.onChange = args.onChange
@@ -21,15 +13,32 @@ function GuiVar:init(args)
 	self.compileTime = args.compileTime
 end
 
-function GuiVar:refresh(value, solver)
+function GuiVar:refresh(solver)
+	local value = self:getValue()
 	print('refreshing '..self.name..' = '..tostring(value))
 	if self.onChange then self:onChange(value, solver) end
 	if self.compileTime then
 		solver:refreshCodePrefix()
 	else
-		solver[self.solverFieldPtr][self.name] = self.value
-		self.refreshPtrFunc(solver)
+		self:refreshInStruct(solver)
 	end
+end
+
+--[[
+TODO think of a better name
+this gets .value except for combo then it gets the .options[] of .value
+--]]
+function GuiVar:getValue()
+	return self.value
+end
+
+-- what struct within solver to read/write our values from?
+-- default is the solverPtr
+-- however initCond guiVars will want to read/write initCondPtr
+function GuiVar:refreshInStruct(solver)
+	-- use self.value instead of 'value' because in combo 'self.value' is the key and 'value == :getValue()' is the key's value / desc of the key
+	solver.solverPtr[self.name] = self.value
+	solver:refreshSolverBuf()
 end
 
 return GuiVar

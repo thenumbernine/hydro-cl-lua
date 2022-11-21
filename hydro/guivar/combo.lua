@@ -15,7 +15,7 @@ end
 
 function GuiCombo:updateGUI(solver)
 	if ig.luatableTooltipCombo(self.name, self, 'value', self.options) then
-		self:refresh(self:getValue(), solver)
+		self:refresh(solver)
 	end
 end
 

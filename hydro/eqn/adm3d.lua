@@ -17,7 +17,7 @@ local ADM_BonaMasso_3D = class(EinsteinEqn)
 ADM_BonaMasso_3D.name = 'ADM_BonaMasso_3D'
 
 -- TODO this should be 'true',
--- 'true' uses 'fluxfromCons', which is failing
+-- 'true' uses 'fluxfromCons', which is failing (and almost looks like memory write errors somewhere ... hmm ...)
 -- 'false' uses the assumption dF/dU * U = F, which works, but may not be correct for these equations
 ADM_BonaMasso_3D.roeUseFluxFromCons = false
 
@@ -283,8 +283,7 @@ momentum constraints
 	}
 
 	--[[
-	shift-less gravity only
-	gravity with shift is much more complex
+	spatial components of gravity
 	u^μ_,t = -Γ4^μ_αβ u^α u^β
 	u^k_,t = -Γ4^k_αβ u^α u^β
 	u^k_,t = -(Γ4^k_tt u^t u^t + 2 Γ4^k_ti u^t u^i + Γ4^k_ij u^i u^j)
@@ -316,9 +315,10 @@ momentum constraints
 	
 	value.vreal3 = real3_real_mul(sym3_real3_mul(gamma_uu, a_l), alpha * alpha);	//+ α^2 γ^km a_m
 
-<? if useShift then 
-	error("you are here")
-?>
+<? if useShift then ?>
+
+	//TODO bind derivUBuf as well and just read from there
+	real dt_alpha = 0.;
 
 	real3 const beta_u = U->beta_u;
 	real3 const dt_beta_u = real3_zero;
@@ -326,6 +326,9 @@ momentum constraints
 	sym3 const K_ll = U->K_ll;
 	real3x3 const K_lu = sym3_sym3_mul(K_ll, gamma_uu);
 	real3 const beta_dot_K_l = real3_sym3_mul(beta_u, K_ll);
+
+	real const K_dot_beta_dot_beta = real3_dot(beta_dot_K_l, beta_u);
+	real const beta_dot_a = real3_dot(beta_u, a_l);
 
 	real3x3 const partial_beta_ul = real3x3_zero;											// β^k_,l
 	real3 const partial_beta_dot_beta_u = real3x3_real3_mul(partial_beta_ul, beta_u);		// β^k_,l β^l 
@@ -337,11 +340,13 @@ momentum constraints
 	// TODO dot2+dot3 at once
 	real3 const conn_dot_beta_dot_beta_u = _3sym3_sym3_dot23(conn_ull, real3_outer(beta_u, beta_u));		// Γ^k_lm β^l β^m
 
-	// this is just the Γ4^k_tt term ... do I want the Γ4^k_ti and Γ4^k_ij terms?
+	// this is just the Γ4^k_tt term ... do I want the Γ4^k_ti and Γ4^k_ij terms?  I guess that would depend on the observer ... this is all for an observer at rest (wrt the grid?)
 	value.vreal3 = real3_add6(
 		value_vreal3,
 		dt_beta_u,																	//+ β^k_,t
-			- 1/α β^k (α a_,t + β^l α a_l - K_lm β^l β^m)
+		real3_real_mul(beta_u, -dt_alpha / alpha),									//- 1/α β^k α_,t 
+		real3_real_mul(beta_u, -beta_dot_a),										//- β^k β^l a_l 
+		real3_real_mul(beta_u, K_dot_beta_dot_beta / alpha), 						//+ 1/α K_lm β^k β^l β^m
 		real3_real_mul(sym3_real3_mul(gamma_uu, beta_dot_K_l), -2. * alpha),		//- 2 α β^l K_l^k
 		partial_beta_dot_beta_u, 													//+ β^k_,l β^l 
 		conn_dot_beta_dot_beta_u									 				//+ Γ^k_lm β^l β^m

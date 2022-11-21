@@ -3202,6 +3202,7 @@ end
 	//		- 2 d^l_ki d^k_lj 
 	//		+ 2 d^l_ki d_lj^k 
 	//		+ d_il^k d_jk^l
+	// TODO use V_i in R_ij's calculations?  2008 Alcubierre eqn 5.5.2
 	sym3 const R_ll = (sym3){
 <? for ij,xij in ipairs(symNames) do
 	local i,j,xi,xj = from6to3x3(ij)

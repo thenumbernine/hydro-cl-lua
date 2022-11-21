@@ -103,8 +103,10 @@ function InitCond:addGuiVar(args)
 	-- if it's not a compile-time var then it is for manipulating the initCond struct
 	if not args.compileTime then
 		-- ... and that means we need to tell the var what struct/field to write when it is modified ...
-		var.solverFieldPtr = 'initCondPtr'
-		var.refreshPtrFunc = function(solver) solver:refreshInitCondBuf() end
+		function var:refreshInStruct(solver)
+			solver.initCondPtr[self.name] = self.value
+			solver:refreshInitCondBuf()
+		end
 		-- ... and add it to the initCond_t
 		self.initStruct.vars:insert{
 			name = var.name,

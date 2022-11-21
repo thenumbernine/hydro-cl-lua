@@ -14,7 +14,7 @@ end
 
 function GuiNumber:updateGUI(solver)
 	if ig.luatableTooltipInputFloatAsText(self.name, self, 'value', ig.ImGuiInputTextFlags_EnterReturnsTrue) then
-		self:refresh(self.value, solver)
+		self:refresh(solver)
 	end
 end
 
