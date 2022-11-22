@@ -370,6 +370,7 @@ end
 function Z4_2004Bona:getSymbolFields()
 	return Z4_2004Bona.super.getSymbolFields(self):append{
 		'initDeriv_numeric_and_useBSSNVars',
+		'calc_gammaHat_ll',		-- ^γ_ij = background grid metric
 		'calc_dHat_lll',		-- ^d_kij = 1/2 ^γ_ij,k
 		'calc_partial_d_llll',	-- d_kij,l = 1/2 γ_ij,kl
 		'calc_R_ll',			-- R_ij
@@ -844,7 +845,7 @@ value.vreal3.<?=xi?> += 0.
 	+ 2. * U->alpha * K_ul.<?=xi?>.<?=xl?> * U->beta_u.<?=xl?>					// + 2 α K^i_l β^l
 	- U->beta_u.<?=xl?> * b_ul.<?=xi?>.<?=xl?>									// - β^l b^i_l
 <?			for m,xm in ipairs(xNames) do ?>
-	- conn_ull.<?=xi?>.<?=sym(l,m)?> * U->beta_u.<?=xl?> * U->beta_u.<?=xm?>	//- Γγ^i_lm β^l β^m
+	- conn_ull.<?=xi?>.<?=sym(l,m)?> * U->beta_u.<?=xl?> * U->beta_u.<?=xm?>	// - Γ^i_lm β^l β^m
 <?			end ?>
 <?		end ?>
 ;
@@ -861,13 +862,12 @@ value.vreal3.<?=xi?> += 0.
 if (<?=OOB?>(1,1)) {
 	value.vreal3 = real3_zero;
 } else {
+	real3 const a_l = U->a_l;
 {{{{ MODULE_DEPENDS: <?=calcFromGrad_a_l?> }}}}
 	real3 const target_a_l = <?=calcFromGrad_a_l?>(solver, U);
-	value.vreal3 = (real3){
-<? for i,xi in ipairs(xNames) do
-?>		.<?=xi?> = fabs(target_a_l.<?=xi?> - U->a_l.<?=xi?>),
-<? end
-?>	};
+<? for i,xi in ipairs(xNames) do ?>
+	value.vreal3.<?=xi?> = fabs(target_a_l.<?=xi?> - a_l.<?=xi?>);
+<? end ?>
 }
 ]]}
 

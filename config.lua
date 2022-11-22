@@ -1332,7 +1332,7 @@ self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {
 
 
 -- [=[ reproducing 2009 Alic, Bona, Bona-Casas"Towards a gauge-polyvalent numerical relativity code"
-local dim = cmdline.dim or 2
+local dim = cmdline.dim or 1
 local args = {
 	app = self,
 	

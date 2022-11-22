@@ -55,30 +55,29 @@ static inline _3sym3 <?=calc_dHat_lll?>(real3 const pt) {
 //// MODULE_NAME: <?=calcFromGrad_a_l?>
 //// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?>
 
+// NOTICE 
+// calling as a function ... sometimes works sometimes fails
+//  esp in the 'alpha vs a_i' display var, as soon as you subtract the two, even if both their values are real, the result will be NaN
+// inlining the code doesn't have this problem.
+// converting the function to a macro doesn't have this problem. 
+// whats up.
+
 //NOTICE THIS DOES NOT BOUNDS CHECK
-real3 <?=calcFromGrad_a_l?>(
-	constant <?=solver_t?> const * const solver,
-	global <?=cons_t?> const * const U
-) {
-	real3 a_l;
-<?
-for i=1,solver.dim do
-	local xi = xNames[i]
-?>	{
-		global <?=cons_t?> const * const UL = U - solver->stepsize.<?=xi?>;
-		global <?=cons_t?> const * const UR = U + solver->stepsize.<?=xi?>;
-		a_l.<?=xi?> = (log(UR->alpha) - log(UL->alpha)) / (2. * solver->grid_dx.s<?=i-1?>);
-	}
-<?
-end
-for i=solver.dim+1,3 do
-	local xi = xNames[i]
-?>	a_l.<?=xi?> = 0;
-<?
-end
-?>
-	return a_l;
-}
+#define /*real3*/ <?=calcFromGrad_a_l?>(\
+	/*constant <?=solver_t?> const * const */solver,\
+	/*global <?=cons_t?> const * const*/ U\
+) ((real3){\
+<? --\
+for i,xi in ipairs(xNames) do --\
+	if i <= solver.dim then --\
+?>		.<?=xi?> = (log((U)[solver->stepsize.<?=xi?>].alpha) - log((U)[-solver->stepsize.<?=xi?>].alpha)) / (2. * solver->grid_dx.s<?=i-1?>),\
+<? --\
+	else --\
+?>		.<?=xi?> = 0,\
+<? --\
+	end --\
+end --\
+?>	})
 
 //// MODULE_NAME: <?=calcFromGrad_d_lll?>
 //// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> <?=cell_t?>
