@@ -2832,7 +2832,7 @@ function SolverBase:update()
 	if not self.fpsSampleCount then self.fpsSampleCount = 0 end
 	if not self.lastFrameTime then self.lastFrameTime = thisTime end
 
-	local tick = cmdline.tick or 1e-9
+	local tick = cmdline.tick or 0
 	
 	self.fpsSampleCount = self.fpsSampleCount + 1
 	

@@ -501,7 +501,7 @@ value.vreal = U->alpha * sqrt(sym3_det(U->gamma_ll));
 		{
 			name = 'expansion',
 			code = self:template[[
-//// MODULE_DEPENDS: <?=calc_gamma_uu?>
+{{{{ MODULE_DEPENDS: <?=calc_gamma_uu?> }}}}
 sym3 const gamma_uu = <?=calc_gamma_uu?>(U, cell->pos);
 value.vreal = -sym3_dot(U->K_ll, gamma_uu);
 ]],
@@ -547,7 +547,7 @@ H =
 			name = 'Gamma^i',
 			type = 'real3',
 			code = self:template[[
-//// MODULE_DEPENDS: <?=calc_gamma_uu?>
+{{{{ MODULE_DEPENDS: <?=calc_gamma_uu?> }}}}
 sym3 const gamma_uu = <?=calc_gamma_uu?>(U, cell->pos);
 value.vreal3 = real3_sub(
 	real3_real_mul(
@@ -563,7 +563,7 @@ value.vreal3 = real3_sub(
 			name = 'log(sqrt(gamma))_,i',
 			type = 'real3',
 			code = self:template[[
-//// MODULE_DEPENDS: <?=calc_gamma_uu?>
+{{{{ MODULE_DEPENDS: <?=calc_gamma_uu?> }}}}
 sym3 const gamma_uu = <?=calc_gamma_uu?>(U, cell->pos);
 value.vreal3 = _3sym3_sym3_dot23(U->d_lll, gamma_uu);		//d_l
 ]],
@@ -580,7 +580,7 @@ value.vreal3 = _3sym3_sym3_dot23(U->d_lll, gamma_uu);		//d_l
 		name = 'R_ll',
 		type = 'sym3',
 		code = self:template[[
-//// MODULE_DEPENDS: <?=calc_gamma_uu?>
+{{{{ MODULE_DEPENDS: <?=calc_gamma_uu?> }}}}
 _3sym3 const d_lll = U->d_lll;										//d_lll.i.jk := d_kij
 sym3 const gamma_uu = <?=calc_gamma_uu?>(U, cell->pos);				//gamma_uu.ij := γ^ij
 real3x3x3 const d_llu = _3sym3_sym3_mul(d_lll, gamma_uu);			//d_llu.i.j.k := d_ij^k = d_ijl * γ^lk
@@ -589,7 +589,7 @@ _3sym3 const conn_ull = conn_ull_from_d_llu_d_ull(d_llu, d_ull);	//conn_ull.k.ij
 real3 const e_l = _3sym3_tr12(d_ull);								//e_l.i := e_i = d^j_ji
 real3 const d_l = real3x3x3_tr23(d_llu);							//d_l.i := d_i = d_ij^j
 
-//// MODULE_DEPENDS: <?=calc_partial_d_llll?>
+{{{{ MODULE_DEPENDS: <?=calc_partial_d_llll?> }}}}
 //display code runs to the borders, so don't finite-difference OOB
 sym3sym3 const partial_d_llll = <?=OOB?>(1,1)
 	? sym3sym3_zero
@@ -598,7 +598,7 @@ sym3sym3 const partial_d_llll = <?=OOB?>(1,1)
 		U
 	);
 
-//// MODULE_DEPENDS: <?=calc_R_ll?>
+{{{{ MODULE_DEPENDS: <?=calc_R_ll?> }}}}
 sym3 const R_ll = <?=calc_R_ll?>(
 	gamma_uu,
 	d_l,
@@ -618,7 +618,7 @@ value.vsym3 = R_ll;
 		name = 'KSq_ll',
 		type = 'sym3',
 		code = self:template[[
-//// MODULE_DEPENDS: <?=calc_gamma_uu?>
+{{{{ MODULE_DEPENDS: <?=calc_gamma_uu?> }}}}
 sym3 const gamma_uu = <?=calc_gamma_uu?>(U, cell->pos);
 real3x3 const K_ul = sym3_sym3_mul(gamma_uu, U->K_ll);			//K_ul.i.j := K^i_j
 sym3 const KSq_ll = sym3_real3x3_to_sym3_mul(U->K_ll, K_ul);	//KSq_ll.ij := K_ik K^k_j
@@ -634,7 +634,7 @@ value.vsym3 = KSq_ll;
 		type = 'sym3',
 		code = self:template[[
 
-//// MODULE_DEPENDS: <?=calc_gamma_uu?>
+{{{{ MODULE_DEPENDS: <?=calc_gamma_uu?> }}}}
 _3sym3 const d_lll = U->d_lll;										//d_lll.i.jk := d_kij
 sym3 const gamma_uu = <?=calc_gamma_uu?>(U, cell->pos);				//gamma_uu.ij := γ^ij
 real3x3x3 const d_llu = _3sym3_sym3_mul(d_lll, gamma_uu);			//d_llu.i.j.k := d_ij^k = d_ijl * γ^lk
@@ -643,7 +643,7 @@ _3sym3 const conn_ull = conn_ull_from_d_llu_d_ull(d_llu, d_ull);	//conn_ull.k.ij
 real3 const e_l = _3sym3_tr12(d_ull);								//e_l.i := e_i = d^j_ji
 real3 const d_l = real3x3x3_tr23(d_llu);							//d_l.i := d_i = d_ij^j
 
-//// MODULE_DEPENDS: <?=calc_partial_d_llll?>
+{{{{ MODULE_DEPENDS: <?=calc_partial_d_llll?> }}}}
 //display code runs to the borders, so don't finite-difference OOB
 sym3sym3 const partial_d_llll = <?=OOB?>(1,1)
 	? sym3sym3_zero
@@ -652,7 +652,7 @@ sym3sym3 const partial_d_llll = <?=OOB?>(1,1)
 		U
 	);
 
-//// MODULE_DEPENDS: <?=calc_R_ll?>
+{{{{ MODULE_DEPENDS: <?=calc_R_ll?> }}}}
 sym3 const R_ll = <?=calc_R_ll?>(
 	gamma_uu,
 	d_l,
@@ -789,7 +789,7 @@ value.vsym3 = H_ll;
 		name = 'gravity',	-- rest-object spatial-gravity 3-force
 		type = 'real3',
 		code = self:template[[
-//// MODULE_DEPENDS: <?=calc_gamma_uu?>
+{{{{ MODULE_DEPENDS: <?=calc_gamma_uu?> }}}}
 sym3 const gamma_uu = <?=calc_gamma_uu?>(U, cell->pos);
 
 value.vreal3 = real3_real_mul(sym3_real3_mul(gamma_uu, U->a_l), -U->alpha * U->alpha);		// - α^2 γ^im a_m
@@ -861,7 +861,7 @@ value.vreal3.<?=xi?> += 0.
 if (<?=OOB?>(1,1)) {
 	value.vreal3 = real3_zero;
 } else {
-//// MODULE_DEPENDS: <?=calcFromGrad_a_l?>
+{{{{ MODULE_DEPENDS: <?=calcFromGrad_a_l?> }}}}
 	real3 const target_a_l = <?=calcFromGrad_a_l?>(solver, U);
 	value.vreal3 = (real3){
 <? for i,xi in ipairs(xNames) do
@@ -880,7 +880,7 @@ if (<?=OOB?>(1,1)) {
 if (<?=OOB?>(1,1)) {
 	value.vsym3 = sym3_zero;
 } else {
-//// MODULE_DEPENDS: <?=calcFromGrad_d_lll?>
+{{{{ MODULE_DEPENDS: <?=calcFromGrad_d_lll?> }}}}
 	//_3sym3 const target_d_lll = <?=calcFromGrad_d_lll?>(solver, U);
 // TODO hmm how come this isn't working? seems the Minkowski value of d_ijk is zero
 // does that mean this is really Δd_kij and not d_kij ?
@@ -915,7 +915,7 @@ if (<?=OOB?>(1,1)) {
 if (<?=OOB?>(1,1)) {
 	value.vreal3 = real3_zero;
 } else {
-//// MODULE_DEPENDS: <?=calcFromGrad_b_ul?>
+{{{{ MODULE_DEPENDS: <?=calcFromGrad_b_ul?> }}}}
 	real3x3 const target_b_ul = <?=calcFromGrad_b_ul?>(solver, U);
 	value.vreal3 = (real3){
 <? for j,xj in ipairs(xNames) do
@@ -1018,7 +1018,7 @@ Z4_2004Bona.consWaveCode = Z4_2004Bona.eigenWaveCode
 
 function Z4_2004Bona:consWaveCodePrefix(args)
 	return self:template([[
-//// MODULE_DEPENDS: <?=calc_gamma_uu?>
+{{{{ MODULE_DEPENDS: <?=calc_gamma_uu?> }}}}
 sym3 const gamma_uu = <?=calc_gamma_uu?>(<?=U?>, <?=pt?>);
 
 real3 const n_l = normal_l1(<?=n?>);

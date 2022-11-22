@@ -987,7 +987,7 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {
 
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='adm1d_v1'})))
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='adm1d_v2'})))
-self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='adm3d'})))
+--self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='adm3d'})))
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='adm3d', eqnArgs={noZeroRowsInFlux=false}})))
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='adm3d', eqnArgs={useShift='MinimalDistortionElliptic'}})))	-- TODO finish me
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='adm3d', eqnArgs={useShift='MinimalDistortionEllipticEvolve'}})))	-- TODO finish me
@@ -1332,7 +1332,7 @@ self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {
 
 
 -- [=[ reproducing 2009 Alic, Bona, Bona-Casas"Towards a gauge-polyvalent numerical relativity code"
-local dim = cmdline.dim or 1
+local dim = cmdline.dim or 2
 local args = {
 	app = self,
 	
