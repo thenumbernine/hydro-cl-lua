@@ -1349,7 +1349,7 @@ local args = {
 	--fluxLimiter = cmdline.fluxLimiter or 'Lax-Wendroff',
 	--fluxLimiter = cmdline.fluxLimiter or 'superbee',
 
-	-- [[
+	--[[
 	coord = 'cartesian',
 	mins = {-20,-20,-20},
 	maxs = {20,20,20},
@@ -1439,7 +1439,7 @@ local args = {
 		zmax='periodic',
 	},
 	--]]
-	--[[ sphere_sinh_radial but with SENR parameters ... for SENR init conds
+	-- [[ sphere_sinh_radial but with SENR parameters ... for SENR init conds
 	coord = 'sphere_sinh_radial',
 	coordArgs = {
 		--vectorComponent = 'cartesian',
@@ -1466,10 +1466,10 @@ local args = {
 	},
 	--]]
 
-	initCond = 'Minkowski',				-- stable with 2009Alic-z4 (with derivative vars initd to zero)
+	--initCond = 'Minkowski',				-- stable with 2009Alic-z4 (with derivative vars initd to zero)
 	--initCond = 'SENR Minkowski',			-- stable with 2009Alic-z4 (with derivative vars initd to zero)
 	--initCond = 'plane gauge wave',
-	--initCond = 'SENR UIUC',				-- 2009Alic-z4 (with derivative vars initd to zero) coord=sphere_sinh_radial with SENR UIUC runs indefinitely.  coord=sphere runs until t=200 then e.h.? hits rhs and explodes. 
+	initCond = 'SENR UIUC',				-- 2009Alic-z4 (with derivative vars initd to zero) coord=sphere_sinh_radial with SENR UIUC runs indefinitely.  coord=sphere runs until t=200 then e.h.? hits rhs and explodes. 
 	--initCond = 'UIUC',					-- but why does this one run so slow? smaller alphas means lower cfls? too close to zero?
 	--initCond = 'SENR BrillLindquist',
 	--initCond = 'black hole - Schwarzschild',

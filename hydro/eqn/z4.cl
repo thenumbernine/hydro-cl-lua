@@ -31,18 +31,18 @@ constant real const mdeShiftEpsilon = 1.;
 //// MODULE_NAME: <?=calc_gammaHat_ll?>
 //// MODULE_DEPENDS: sym3
 
-static inline sym3 <?=calc_gammaHat_ll?>(real3 const pt) {
 //// MODULE_DEPENDS: <?=coord_gHol_ll?>
-	return coord_gHol_ll(pt);
-}
+#define /*sym3*/ <?=calc_gammaHat_ll?>(\
+	/*real3 const*/ pt\
+)	coord_gHol_ll(pt)
 
 //// MODULE_NAME: <?=calc_dHat_lll?>
 //// MODULE_DEPENDS: _3sym3
 
-static inline _3sym3 <?=calc_dHat_lll?>(real3 const pt) {
 //// MODULE_DEPENDS: <?=coord_partial_gHol_lll?>
-	return _3sym3_real_mul(coord_partial_gHol_lll(pt), .5);
-}
+#define /*_3sym3*/ <?=calc_dHat_lll?>(\
+	/*real3 const*/ pt\
+) (_3sym3_real_mul(coord_partial_gHol_lll(pt), .5))
 
 //// MODULE_NAME: <?=calc_gamma_uu?>
 //// MODULE_DEPENDS: <?=cons_t?>
@@ -82,32 +82,29 @@ end --\
 //// MODULE_NAME: <?=calcFromGrad_d_lll?>
 //// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> <?=cell_t?>
 
+//NOTICE same as the other calc*'s based on gradients, seems to work better as a macro, I bet it's a memory issue somewhere I haven't found but even that doesn't explain why macros=good and functions=bad ... maybe a compiler bug?
+
 //NOTICE THIS DOES NOT BOUNDS CHECK
-_3sym3 <?=calcFromGrad_d_lll?>(
-	constant <?=solver_t?> const * const solver,
-	global <?=cons_t?> * const U
-) {
-	_3sym3 d_lll;
-<?
-for i=1,solver.dim do
-	local xi = xNames[i]
-?>	{
-		global <?=cons_t?> const * const UL = U - solver->stepsize.<?=xi?>;
-		global <?=cons_t?> const * const UR = U + solver->stepsize.<?=xi?>;
-<? 	for jk,xjk in ipairs(symNames) do
-?>		d_lll.<?=xi?>.<?=xjk?> = .5 * (UR->gamma_ll.<?=xjk?> - UL->gamma_ll.<?=xjk?>) / (2. * solver->grid_dx.s<?=i-1?>);
-<? 	end
-?>	}
-<?
-end
-for i=solver.dim+1,3 do
-	local xi = xNames[i]
-?>	d_lll.<?=xi?> = sym3_zero;
-<?
-end
-?>
-	return d_lll;
-}
+#define /*_3sym3*/ <?=calcFromGrad_d_lll?>(\
+	/*constant <?=solver_t?> const * const */solver,\
+	/*global <?=cons_t?> * const */U\
+) ((_3sym3){\
+<? --\
+for i,xi in ipairs(xNames) do --\
+	if i <= solver.dim then --\
+?>		.<?=xi?> = (sym3){\
+<?		for jk,xjk in ipairs(symNames) do --\
+?>			.<?=xjk?> = .5 * (\
+				  U[ solver->stepsize.<?=xi?>].gamma_ll.<?=xjk?>\
+				- U[-solver->stepsize.<?=xi?>].gamma_ll.<?=xjk?>\
+			) / (2. * solver->grid_dx.s<?=i-1?>),\
+<? 		end --\
+?>		},\
+<?	else --\
+?>		.<?=xi?> = sym3_zero,\
+<?	end --\
+end --\
+?>	})
 
 //// MODULE_NAME: <?=calcFromGrad_b_ul?>
 //// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> <?=cell_t?>
@@ -142,34 +139,39 @@ end
 
 //// MODULE_NAME: <?=calc_partial_d_llll?>
 
-//NOTICE THIS DOES NOT BOUNDS CHECK
-sym3sym3 <?=calc_partial_d_llll?>(
-	constant <?=solver_t?> const * const solver,
-	global <?=cons_t?> const * const U
-) {
-	//partial_d_lll.ij.kl := d_kij,l = d_(k|(ij),|l)
-	//so this object's indexes are rearranged compared to the papers
-	sym3sym3 partial_d_llll = sym3sym3_zero;
-
-	<?
-for k=1,solver.dim do	-- beyond dim and the finite-difference will be zero
-	local xk = xNames[k]
-	?>{
-		global <?=cons_t?> const * const UR = U + solver->stepsize.<?=xk?>;
-		global <?=cons_t?> const * const UL = U - solver->stepsize.<?=xk?>;
-		_3sym3 const dR_lll = UR->d_lll;
-		_3sym3 const dL_lll = UL->d_lll;
-<?	for l=k,3 do	-- since we are writing to xl, only iterate through symmetric terms
-		local xl = xNames[l]
-		for ij,xij in ipairs(symNames) do
-?>		partial_d_llll.<?=xij?>.<?=sym(k,l)?> += (dR_lll.<?=xk?>.<?=xij?> - dL_lll.<?=xk?>.<?=xij?>) / (2. * solver->grid_dx.<?=xk?>);
-<?		end
-	end
-?>	}<?
-end ?>
+// NOTICE
+// same as calcFromGrad_a_l
+// this as a function is giving me NaNs in weird places
+// but if I inline it / make it a macro then things work fine.
 	
-	return partial_d_llll;
-}
+//partial_d_lll.ij.kl := d_kij,l = d_(k|(ij),|l)
+//so this object's indexes are rearranged compared to the papers
+
+//NOTICE THIS DOES NOT BOUNDS CHECK
+#define /*sym3sym3*/ <?=calc_partial_d_llll?>(\
+	/*constant <?=solver_t?> const * const*/ solver,\
+	/*global <?=cons_t?> const * const*/ U\
+)	((sym3sym3){\
+<? --\
+for ij,xij in ipairs(symNames) do --\
+?>		.<?=xij?> = (sym3){\
+<?	for kl,xkl in ipairs(symNames) do --\
+		local k,l,xk,xl = from6to3x3(kl) --\
+		-- beyond dim and the finite-difference will be zero \
+		-- since we are writing to xl, only iterate through symmetric terms \
+		if k <= solver.dim then --\
+?>			.<?=xkl?> = (\
+				  U[ solver->stepsize.<?=xk?>].d_lll.<?=xl?>.<?=xij?>\
+				- U[-solver->stepsize.<?=xk?>].d_lll.<?=xl?>.<?=xij?>\
+			) / (2. * solver->grid_dx.<?=xk?>),\
+<?		else --\
+?>			.<?=xkl?> = 0.,\
+<?		end --\
+	end --\
+?>		},\
+<? --\
+end  --\
+?>	})
 
 //// MODULE_NAME: <?=calc_R_ll?>
 
@@ -178,37 +180,34 @@ end ?>
 //		+ Γ^k_ij (d_k - 2 e_k)
 //		+ 2 d^l_ki (d_lj^k - d^k_lj)
 //		+ d_il^k d_jk^l
-sym3 <?=calc_R_ll?>(
-	sym3 const gamma_uu,
-	real3 const d_l,
-	real3 const e_l,
-	_3sym3 const conn_ull,
-	_3sym3 const d_ull,
-	real3x3x3 const d_llu,
-	sym3sym3 const partial_d_llll
-) {
-	sym3 const R_ll = (sym3){
-<? for ij,xij in ipairs(symNames) do
-	local i,j,xi,xj = from6to3x3(ij)
-?>		.<?=xij?> = 0.
-<? 	for k,xk in ipairs(xNames) do
-?>			+ conn_ull.<?=xk?>.<?=xij?> * (d_l.<?=xk?> - 2. * e_l.<?=xk?>)
-<?		for l,xl in ipairs(xNames) do
-?>			+ 2. * d_ull.<?=xl?>.<?=sym(k,i)?> * (d_llu.<?=xl?>.<?=xj?>.<?=xk?> - d_ull.<?=xk?>.<?=sym(l,j)?>)
-			+ d_llu.<?=xi?>.<?=xl?>.<?=xk?> * d_llu.<?=xj?>.<?=xk?>.<?=xl?>
-			+ gamma_uu.<?=sym(k,l)?> * (
-				- partial_d_llll.<?=xij?>.<?=sym(k,l)?>
-				- partial_d_llll.<?=sym(k,l)?>.<?=xij?>
-				+ partial_d_llll.<?=sym(i,k)?>.<?=sym(j,l)?>
-				+ partial_d_llll.<?=sym(j,l)?>.<?=sym(i,k)?>
-			)
-<? 		end
-	end
-?>		,
-<? end
-?>	};
-	return R_ll;
-}
+#define /*sym3*/ <?=calc_R_ll?>(\
+	/*sym3 const*/ gamma_uu,\
+	/*real3 const*/ d_l,\
+	/*real3 const*/ e_l,\
+	/*_3sym3 const*/ conn_ull,\
+	/*_3sym3 const*/ d_ull,\
+	/*real3x3x3 const*/ d_llu,\
+	/*sym3sym3 const*/ partial_d_llll\
+)	((sym3){\
+<? for ij,xij in ipairs(symNames) do --\
+	local i,j,xi,xj = from6to3x3(ij) --\
+?>		.<?=xij?> = 0.\
+<? 	for k,xk in ipairs(xNames) do --\
+?>			+ conn_ull.<?=xk?>.<?=xij?> * (d_l.<?=xk?> - 2. * e_l.<?=xk?>)\
+<?		for l,xl in ipairs(xNames) do --\
+?>			+ 2. * d_ull.<?=xl?>.<?=sym(k,i)?> * (d_llu.<?=xl?>.<?=xj?>.<?=xk?> - d_ull.<?=xk?>.<?=sym(l,j)?>)\
+			+ d_llu.<?=xi?>.<?=xl?>.<?=xk?> * d_llu.<?=xj?>.<?=xk?>.<?=xl?>\
+			+ gamma_uu.<?=sym(k,l)?> * (\
+				- partial_d_llll.<?=xij?>.<?=sym(k,l)?>\
+				- partial_d_llll.<?=sym(k,l)?>.<?=xij?>\
+				+ partial_d_llll.<?=sym(i,k)?>.<?=sym(j,l)?>\
+				+ partial_d_llll.<?=sym(j,l)?>.<?=sym(i,k)?>\
+			)\
+<? 		end --\
+	end --\
+?>		,\
+<? end --\
+?>	})
 
 //// MODULE_NAME: <?=initDeriv_numeric_and_useBSSNVars?>
 //// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> <?=cell_t?> <?=SETBOUNDS?>
@@ -337,6 +336,10 @@ where _γ_ij is the conformal metric, _Γ^i_jk is the conformal connection, ^Γ^
 	
 	U->H = 0;
 	U->M_u = real3_zero;
+	
+	//zero these here.  InitDerivs should calculate them.
+	U->a_l = real3_zero;
+	U->d_lll = _3sym3_zero;
 }
 
 // TODO HERE'S A BIG MYSTERY
@@ -2147,7 +2150,9 @@ kernel void <?=constrainU?>(
 	//TODO should Θ or Z^i be included into these?
 	real const R = sym3_dot(R_ll, gamma_uu);
 	real const tr_KSq = sym3_dot(U->K_ll, K_uu);
-	U->H = .5 * (R + tr_K * tr_K - tr_KSq) <?
+	// TODO for 2D this is getting NaNs ... from partial_d_llll, d_l, d_llu, conn_ull
+	// not gamma_uu, e_l, d_lll, d_ull
+	U->H = .5 * (R + tr_K * tr_K - tr_KSq)<?
 if eqn.useStressEnergyTerms then ?>
 	- 8. * M_PI * U->rho <?
 end ?>;

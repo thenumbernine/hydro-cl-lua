@@ -205,11 +205,14 @@ local table = require 'ext.table'
 local string = require 'ext.string'
 local file = require 'ext.file'
 local math = require 'ext.math'
+local tolua = require 'ext.tolua'
+local range = require 'ext.range'
 local gl = require 'gl'
 local glreport = require 'gl.report'
 local CLBuffer = require 'cl.obj.buffer'
 local template = require 'template'
 local vec3d = require 'vec-ffi.vec3d'
+local vec3sz = require 'vec-ffi.vec3sz'
 local roundup = require 'hydro.util.roundup'
 local time, getTime = table.unpack(require 'hydro.util.time')
 local Struct = require 'hydro.code.struct'
@@ -418,7 +421,7 @@ function SolverBase:getIdent()
 	self.ident = tostring(self.uniqueIndex)
 --]]
 --[[ TODO derive this from the solver's state
-	self.ident = require 'ext.tolua'{
+	self.ident = tolua{
 		solver = getmetatable(self).name,	-- TODO ensure this matches the require('hydro/solver/$name')
 		eqn = self.eqn.name,				-- TODO ensure this matches the require('hydro/eqn/$name')
 		--eqnArgs = {}, -- TODO params here. anything beyond the default.
@@ -426,7 +429,7 @@ function SolverBase:getIdent()
 	}
 --]]
 -- [[ until then, trust the init args to be serialized already (and not objects ... which can be accepted as init args in some cases)
-	--return require 'ext.tolua'(self.initArgsForSerialization, {indent=false})
+	--return tolua(self.initArgsForSerialization, {indent=false})
 	-- here's how tests/test-order does it:
 	-- (this is causing errors, because i think these filenames are coming out too long, because they include stuff that test-order didn't
 	-- 	such as boundary condition info, eqn args, etc ... these need to be shortened)
@@ -455,7 +458,7 @@ function SolverBase:getIdent()
 		checkForLoops(self.initArgsForSerialization)
 	end
 --]=]
-	local serStr = require 'ext.tolua'(self.initArgsForSerialization)
+	local serStr = tolua(self.initArgsForSerialization)
 	local destName = serStr:match('^{(.*)}$')
 	assert(destName, "we must have got a circular reference in:\n"..serStr)
 	destName = destName
@@ -474,7 +477,7 @@ function SolverBase:getIdent()
 -- how about hashing them?
 	local bit = require 'bit'
 	local len = 8
-	local chs = require 'ext.range'(len):mapi(function() return 0 end)
+	local chs = range(len):mapi(function() return 0 end)
 	for i=1,#configStr do
 		local j = (i-1)%len+1
 		chs[j] = bit.bxor(chs[j], configStr:sub(i,i):byte())
@@ -605,7 +608,7 @@ function SolverBase:initMeshVars(args)
 		-- if we are using cached code then manually write binaries
 		if cmdline.usecachedcode and useCache then
 			local binfn = 'cache/'..solver:getIdent()..'/bin/'..self.name..'.bin'
-			file(binfn):write(require 'ext.tolua'(self.obj:getBinaries()))
+			file(binfn):write(tolua(self.obj:getBinaries()))
 		end
 		return results
 	end
@@ -1220,7 +1223,7 @@ end
 function SolverBase:finalizeCLAllocs()
 	for _,info in ipairs(self.buffers) do
 		if self.app.verbose then
-			print(require 'ext.tolua'(info))
+			print(tolua(info))
 		end
 		local name = info.name
 		local ctype = info.type
@@ -1394,7 +1397,6 @@ function SolverBase:refreshEqnInitState()
 	-- get the symbolic function for the x, y, z
 	-- and find its range for a domain of the solverMins/solverMaxs
 	local coord = self.coord
-	local range = require 'ext.range'
 	local symmath = require 'symmath'
 	local var = symmath.var
 	local u,v,w = table.unpack(coord.baseCoords)
@@ -2412,7 +2414,7 @@ enableVector = false
 		var = table(var)
 		var.units = nil
 	
-		local name = assert(var.name, "expected to find name in "..require 'ext.tolua'(var))
+		local name = assert(var.name, "expected to find name in "..tolua(var))
 		local code = assert(var.code, "expected to find code")
 
 		args = table(args, {
@@ -3033,8 +3035,6 @@ end
 -- check for nans
 -- expects buf to be of type cons_t, made up of numStates real variables
 function SolverBase:checkFinite(buf)
-	local vec3sz = require 'vec-ffi.vec3sz'
-	
 	local ptr0size = tonumber(ffi.sizeof(buf.type))
 	local realSize = tonumber(ffi.sizeof'real')
 	local ptrsPerReal = ptr0size / realSize
@@ -3145,8 +3145,8 @@ function SolverBase:checkFinite(buf)
 
 --	self:printBuf(nil, ptr)
 	return false, 'found non-finite offsets and numbers'
-		--..': '..require 'ext.tolua'(found)
-		..', first entry: '..require 'ext.tolua'(found[1])
+		..': '..tolua(found)
+		--..', first entry: '..tolua(found[1])
 		..' at t='..self.t
 end
 
@@ -3172,7 +3172,7 @@ function SolverBase:printBuf(buf, ptrorig, colsize, colmax)
 		colmax = colmax or realsPerCell
 --print('colmax', colmax)
 		if colmax > realsPerCell then
-			error("got too many realsPerCell\n"..require 'ext.tolua'{
+			error("got too many realsPerCell\n"..tolua{
 				colmax = colmax,
 				realsPerCell = realsPerCell,
 				ptr0size = ptr0size,
