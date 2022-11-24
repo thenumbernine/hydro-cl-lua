@@ -66,7 +66,10 @@ simulation execution:
 	plot1DOnExit_savedata = (optional) what filename to save the output data as
 	stopTime = stop running once this time is reached.
 	maxiter = max # of iterations to run the application for
-	checknans = stop if a NaN or infinity is found
+	checknans = Stop if a NaN or infinity is found. This can also be a comma-separated list of flags to modify the check-NaN behavior:
+		all = upon finding a NaN, print all values that were NaN in that buffer.  If this is omitted then only the first value is printed.
+		gpu = perform the check using gpu.  should go faster.  Right?
+		noghost = skip testing NaNs in ghost cells.
 	
 
 debugging:
