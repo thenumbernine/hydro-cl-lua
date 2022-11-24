@@ -1466,7 +1466,7 @@ local args = {
 	},
 	--]]
 
-	initCond = 'Minkowski',				-- stable with 2009Alic-z4 (with derivative vars initd to zero)
+	--initCond = 'Minkowski',				-- stable with 2009Alic-z4 (with derivative vars initd to zero)
 	--initCond = 'SENR Minkowski',			-- stable with 2009Alic-z4 (with derivative vars initd to zero)
 	--initCond = 'plane gauge wave',
 	--initCond = 'SENR UIUC',				-- 2009Alic-z4 (with derivative vars initd to zero) coord=sphere_sinh_radial with SENR UIUC runs indefinitely.  coord=sphere runs until t=200 then e.h.? hits rhs and explodes. 
@@ -1492,13 +1492,23 @@ local args = {
 	mins = {-1,-1,-1},
 	maxs = {1,1,1},
 	--]]
-	--[[
+	-- [[
 	initCond = 'Alcubierre warp bubble',
 	--initCondArgs = {R=.5, sigma=8, speed=.1},	-- sub-luminal
 	--initCondArgs = {R=.5, sigma=8, speed=1.1},		-- super-luminal 1.1x
 	-- override these from above
 	mins = {-1,-1,-1},
 	maxs = {1,1,1},
+	-- quadratic is having numerical problems at the borders
+	boundary = {
+		xmin = 'freeflow',
+		xmax = 'freeflow',
+		ymin = 'freeflow',
+		ymax = 'freeflow',
+		zmin = 'freeflow',
+		zmax = 'freeflow',
+	},
+	gridSize = {64,64,1},
 	--]]
 
 	flux = 'hll',

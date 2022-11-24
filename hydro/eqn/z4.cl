@@ -16,9 +16,9 @@ constant real const mdeShiftEpsilon = 1.;
 <? end ?>
 
 
-<? 
+<?
 -- ok so ideally you should be able to subtract out the background metric ...
--- besides what bad thing happens if our connection pseudo-tensors are linearly transformed, rather than converted to connection-differences which are true tensors? 
+-- besides what bad thing happens if our connection pseudo-tensors are linearly transformed, rather than converted to connection-differences which are true tensors?
 ?>
 
 //// MODULE_NAME: <?=calc_gamma_ll?>
@@ -55,11 +55,11 @@ constant real const mdeShiftEpsilon = 1.;
 //// MODULE_NAME: <?=calcFromGrad_a_l?>
 //// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?>
 
-// NOTICE 
+// NOTICE
 // calling as a function ... sometimes works sometimes fails
 //  esp in the 'alpha vs a_i' display var, as soon as you subtract the two, even if both their values are real, the result will be NaN
 // inlining the code doesn't have this problem.
-// converting the function to a macro doesn't have this problem. 
+// converting the function to a macro doesn't have this problem.
 // whats up.
 
 //NOTICE THIS DOES NOT BOUNDS CHECK
@@ -1762,7 +1762,7 @@ end
 	sym3 const A_uu = sym3_sub(K_uu, sym3_real_mul(gamma_uu, tr_K / 3.));
 	
 	//TODO I never updated this when I updated the Z4.lua symmath to fix a math error with dDeltas ...
-	// TODO TODO get rid of dDeltas altogether since they don't offer any benefit to the finite-volume scheme -- it was just me experimenting with bringing over the finite-difference trick that the BSSN crowd uses 
+	// TODO TODO get rid of dDeltas altogether since they don't offer any benefit to the finite-volume scheme -- it was just me experimenting with bringing over the finite-difference trick that the BSSN crowd uses
 	// TODO TODO TODO I need to replace the dDelta_ijk -> d_ijk 's because approximating dHat_ijk = 0 is ruining the situations where I need the background metric, such as here
 	// and this influences the shift conditions
 	// or TODO I can just calculate connHat from the coord code ...
@@ -2125,7 +2125,7 @@ kernel void <?=constrainU?>(
 	_3sym3 const d_lll = U->d_lll;									//d_kij
 
 /*
-All the bad calcs are based on this var, 
+All the bad calcs are based on this var,
  when it is calculated via pass-by-value function and when that function returns a constructed in place result.
 If the function contents are inlined here then it works.
 If the function is changed to build the result and return it, it works.
@@ -2133,8 +2133,13 @@ So this is another case of functions with return-by-value producing NaNs ...
 NOTICE that all goes away with single precision.
 Is there some hidden mystery pass-by-value size limit?
 This is all for real3x3x3 = 27 reals = 216 bytes for double, 108 for float.
+
+AND TO BOOT
+If I just use my cl-cpu-lua OpenCL cpu multithread wrapper
+ then all these problems go away.
+So yeah pretty sure this is a compiler bug.
 */
-#if 0	
+#if 1
 	// Using this with a modified functino to construct fields per-argument instead of with a named field ctor will fix the H NaNs, but not the M_u NaNs.
 	// And using d_l, conn_ull, d_llu instead of their zeroes will still produce NaNs.
 	real3x3x3 const d_llu = _3sym3_sym3_mul(d_lll, gamma_uu);	//d_llu = d_ij^k = d_ijl * γ^lk
@@ -2184,11 +2189,7 @@ This is all for real3x3x3 = 27 reals = 216 bytes for double, 108 for float.
 	// TODO for 2D this is getting NaNs ... from partial_d_llll, d_l, d_llu, conn_ull
 	// these variables are good: gamma_uu, e_l, d_lll, d_ull
 	// this is all centered around the d_llu calculations, which Intel OpenCL compiler has bugs for return-by-value for certain conditions.
-	U->H = .5 * (
-		R 
-		+ tr_K * tr_K 
-		- tr_KSq
-	)<?
+	U->H = .5 * (R + tr_K * tr_K - tr_KSq)<?
 if eqn.useStressEnergyTerms then ?>
 	- 8. * M_PI * U->rho <?
 end ?>;
@@ -2301,7 +2302,7 @@ kernel void <?=minimize_H_K?>(
 		),
 		2.);
 
-	//lamda sign issue since the deviation of H is negative ... 
+	//lamda sign issue since the deviation of H is negative ...
 	// I can fix this by minimizing H^2, i.e. multiply this gradient by 2 H
 	// I'm going to use U->H, which means you have to call 'constrainU' between this function.
 	// ∂/∂K_pq H^2 = 2 H ∂/∂K_pq H

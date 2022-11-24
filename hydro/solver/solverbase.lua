@@ -1651,7 +1651,7 @@ ok here's my dilemma
 U group (which I considered the default display group)
 uses default "pickComponent" as its name.
 its group has a name, but its pickComponent fake-group doesn't.
-but the einstein stuff needs to be associated only with 'U' ... 
+but the einstein stuff needs to be associated only with 'U' ...
 ... so looks like I can't use the default for 'U' anymore?
 --]]
 	local alreadyAddedComponentForGroup = {}
@@ -3077,9 +3077,14 @@ function SolverBase:checkFinite(buf)
 			local ins = {i, x}
 			-- for certain bufs show the field
 			-- TODO associate each type with the array of fields creating the struct, then reverse lookup on arbitrary types to find the field
-			if buf == self.UBufObj then
+			--if buf == self.UBufObj then
+			if buf.type == self.UBufObj.type	-- self.eqn.symbols.cons_t
+			-- then find the factor that the count is from the UBufObj (fluxBufObj will be 'dim' factor, UBufObj will be 1)
+			and buf.count == self.UBufObj.count
+			then
 				local vars = self.eqn.consStruct.vars
 				local numScalars = self.eqn.consStruct:countScalars()
+--assert(numScalars == ptrsPerReal)
 				local offset = (i % numScalars)
 				local cellIndex = (i - offset) / numScalars
 				local cellpos = vec3sz()
@@ -3090,7 +3095,6 @@ function SolverBase:checkFinite(buf)
 				cellpos.z = tonumber(cellIndex)
 				assert(cellpos.z < self.gridSize.z)
 				table.insert(ins, tostring(cellpos))
-				
 				offset = offset * ffi.sizeof'real'
 				local field
 				for _,var in ipairs(vars) do
