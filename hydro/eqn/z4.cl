@@ -596,7 +596,7 @@ if has_B_u then --\
 	<? if eqn.useShift == "GammaDriverHyperbolic" then ?>\
 	sym3 const gammaHat_ll = <?=calc_gammaHat_ll?>((cell)->pos);\
 	real const det_gammaHat = sym3_det(gammaHat_ll);\
-	real const W = pow(det_gammaHat / det_gamma, 1./6.);\
+	real const W = pow(det_gammaHat / det_gamma, (real)(1./6.));\
 	real const invW = 1. / W;\
 	_3sym3 const connHat_ull = coord_connHol_ull((cell)->pos);\
 	real3x3 const DHatBeta_ul = real3x3_add(b_ul, real3_3sym3_dot2(beta_u, connHat_ull));\
@@ -1746,7 +1746,7 @@ end
 	// W = (_γ/γ)^(1/6)
 	// log(W)_,i = 1/3 (log(√_γ)_,i - log(√γ)_,i) = 1/3 (_Γ^j_ji - Γ^j_ji)
 	real const det_gammaHat = sym3_det(gammaHat_ll);	//TODO use coord module for math simplifications?
-	real const W = pow(det_gammaHat / det_gamma, 1./6.);
+	real const W = pow(det_gammaHat / det_gamma, (real)(1./6.));
 	real const invW = 1. / W;
 //// MODULE_DEPENDS: <?=coord_connHol_ull?>
 	real const gammaDriver_eta = 1.;

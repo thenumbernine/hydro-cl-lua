@@ -388,7 +388,7 @@ local args = {
 	--initCond = 'Noh',
 	--initCond = 'implosion',
 	
-	--initCond = 'Kelvin-Helmholtz',
+	initCond = 'Kelvin-Helmholtz',
 	--[[
 	initCondArgs = {
 		noiseAmplitude = 1e-5,
@@ -511,7 +511,7 @@ local args = {
 	--initCond = 'plane gauge wave',
 
 
-	initCond = 'Alcubierre warp bubble',
+	--initCond = 'Alcubierre warp bubble',
 	
 	--initCondArgs = {R=.5, sigma=8, speed=.1},	-- sub-luminal
 	
@@ -757,7 +757,7 @@ self.solvers:insert(require 'hydro.solver.weno'(table(args, {
 -- compressible Euler equations
 
 
---self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
+self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
 
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct bounded'})))	-- this is the default hllCalcWaveMethod
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct'})))
@@ -1349,7 +1349,7 @@ local args = {
 	--fluxLimiter = cmdline.fluxLimiter or 'Lax-Wendroff',
 	--fluxLimiter = cmdline.fluxLimiter or 'superbee',
 
-	-- [[
+	--[[
 	coord = 'cartesian',
 	mins = {-20,-20,-20},
 	maxs = {20,20,20},
@@ -1439,7 +1439,7 @@ local args = {
 		zmax='periodic',
 	},
 	--]]
-	--[[ sphere_sinh_radial but with SENR parameters ... for SENR init conds
+	-- [[ sphere_sinh_radial but with SENR parameters ... for SENR init conds
 	coord = 'sphere_sinh_radial',
 	coordArgs = {
 		--vectorComponent = 'cartesian',
@@ -1471,7 +1471,7 @@ local args = {
 	--initCond = 'plane gauge wave',
 	--initCond = 'SENR UIUC',				-- 2009Alic-z4 (with derivative vars initd to zero) coord=sphere_sinh_radial with SENR UIUC runs indefinitely.  coord=sphere runs until t=200 then e.h.? hits rhs and explodes. 
 	--initCond = 'UIUC',					-- but why does this one run so slow? smaller alphas means lower cfls? too close to zero?
-	--initCond = 'SENR BrillLindquist',
+	initCond = 'SENR BrillLindquist',
 	--initCond = 'black hole - Schwarzschild',
 	--initCond = 'black hole - isotropic - stuffed',	-- TODO FIXME
 	--[[
@@ -1492,7 +1492,7 @@ local args = {
 	mins = {-1,-1,-1},
 	maxs = {1,1,1},
 	--]]
-	-- [[
+	--[[
 	initCond = 'Alcubierre warp bubble',
 	--initCondArgs = {R=.5, sigma=8, speed=.1},	-- sub-luminal
 	--initCondArgs = {R=.5, sigma=8, speed=1.1},		-- super-luminal 1.1x
