@@ -1277,10 +1277,15 @@ static inline _3sym3 conn_ull_from_d_llu_d_ull(real3x3x3 const d_llu, _3sym3 con
 static inline real3x3x3 real3x3x3_from__3sym3(_3sym3 m);
 static inline _3sym3 _3sym3_from_real3x3x3(real3x3x3 m);
 
+#define real3x3x3_zero ((real3x3x3){.s={0}})
+
 //// MODULE_CODE:
 
 //c_ij^k = a_ijl b^lk
 static inline real3x3x3 _3sym3_sym3_mul(_3sym3 a, sym3 b) {
+	// hmm in hydro/eqn/z4.cl in constrainU()
+	//  this is returning NaNs ...
+#if 0
 	return (real3x3x3){
 <? for i,xi in ipairs(xNames) do
 ?>		.<?=xi?> = {
@@ -1297,6 +1302,21 @@ static inline real3x3x3 _3sym3_sym3_mul(_3sym3 a, sym3 b) {
 ?>		},
 <? end
 ?>	};
+#else
+	real3x3x3 c;
+<? 	for i,xi in ipairs(xNames) do
+		for j,xj in ipairs(xNames) do
+			for k,xk in ipairs(xNames) do
+?>	c.<?=xi?>.<?=xj?>.<?=xk?> = 0.
+<?				for l,xl in ipairs(xNames) do
+?>		+ a.<?=xi?>.<?=sym(j,l)?> * b.<?=sym(l,k)?>
+<?				end
+?>;
+<?			end
+		end
+	end
+?>	return c;
+#endif
 }
 
 static inline real3 real3x3x3_sym3_dot23(real3x3x3 a, sym3 b) {

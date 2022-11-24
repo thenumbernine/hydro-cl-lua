@@ -2123,7 +2123,38 @@ kernel void <?=constrainU?>(
 	real const tr_K = real3x3_trace(K_ul);							//K^k_k
 	sym3 const K_uu = real3x3_sym3_to_sym3_mul(K_ul, gamma_uu);		//K^ij
 	_3sym3 const d_lll = U->d_lll;									//d_kij
+
+/*
+All the bad calcs are based on this var, 
+ when it is calculated via pass-by-value function and when that function returns a constructed in place result.
+If the function contents are inlined here then it works.
+If the function is changed to build the result and return it, it works.
+So this is another case of functions with return-by-value producing NaNs ...
+NOTICE that all goes away with single precision.
+Is there some hidden mystery pass-by-value size limit?
+This is all for real3x3x3 = 27 reals = 216 bytes for double, 108 for float.
+*/
+#if 0	
+	// Using this with a modified functino to construct fields per-argument instead of with a named field ctor will fix the H NaNs, but not the M_u NaNs.
+	// And using d_l, conn_ull, d_llu instead of their zeroes will still produce NaNs.
 	real3x3x3 const d_llu = _3sym3_sym3_mul(d_lll, gamma_uu);	//d_llu = d_ij^k = d_ijl * γ^lk
+#else
+	// Switching to this makes the H and M_u NaNs go away.
+	real3x3x3 d_llu;
+<? 	for i,xi in ipairs(xNames) do
+		for j,xj in ipairs(xNames) do
+			for k,xk in ipairs(xNames) do
+?>	d_llu.<?=xi?>.<?=xj?>.<?=xk?> = 0.
+<?				for l,xl in ipairs(xNames) do
+?>		+ d_lll.<?=xi?>.<?=sym(j,l)?> * gamma_uu.<?=sym(l,k)?>
+<?				end
+?>;
+<?			end
+		end
+	end
+?>
+#endif
+
 	_3sym3 const d_ull = sym3_3sym3_mul(gamma_uu, d_lll);	//d_ull = d^i_jk = γ^il d_ljk
 	_3sym3 const conn_ull = conn_ull_from_d_llu_d_ull(d_llu, d_ull);	//Γ^k_ij = d_ij^k + d_ji^k - d^k_ij
 	real3 const e_l = _3sym3_tr12(d_ull);	//e_i = d^j_ji
@@ -2134,13 +2165,13 @@ kernel void <?=constrainU?>(
 
 //// MODULE_DEPENDS: <?=calc_R_ll?>
 	sym3 const R_ll = <?=calc_R_ll?>(
-		gamma_uu,
-		d_l,
-		e_l,
-		conn_ull,
-		d_ull,
-		d_llu,
-		partial_d_llll
+		gamma_uu,		// GOOD
+		d_l,			// BAD ... but GOOD of d_llu is inlined
+		e_l,			// GOOD
+		conn_ull,		// BAD ... but GOOD of d_llu is inlined
+		d_ull,			// GOOD
+		d_llu,			// BAD ... but GOOD of d_llu is inlined
+		partial_d_llll	// GOOD
 	);
 
 	//scaled down by 1/8 to match B&S BSSNOK equations ... maybe I'll scale theirs up by 8 ...
@@ -2151,8 +2182,13 @@ kernel void <?=constrainU?>(
 	real const R = sym3_dot(R_ll, gamma_uu);
 	real const tr_KSq = sym3_dot(U->K_ll, K_uu);
 	// TODO for 2D this is getting NaNs ... from partial_d_llll, d_l, d_llu, conn_ull
-	// not gamma_uu, e_l, d_lll, d_ull
-	U->H = .5 * (R + tr_K * tr_K - tr_KSq)<?
+	// these variables are good: gamma_uu, e_l, d_lll, d_ull
+	// this is all centered around the d_llu calculations, which Intel OpenCL compiler has bugs for return-by-value for certain conditions.
+	U->H = .5 * (
+		R 
+		+ tr_K * tr_K 
+		- tr_KSq
+	)<?
 if eqn.useStressEnergyTerms then ?>
 	- 8. * M_PI * U->rho <?
 end ?>;

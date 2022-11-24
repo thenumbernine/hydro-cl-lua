@@ -3040,8 +3040,11 @@ function SolverBase:checkFinite(buf)
 	local ptrsPerReal = ptr0size / realSize
 	assert(ptrsPerReal == math.floor(ptrsPerReal))
 	local size = buf.count * ptrsPerReal
-	
-	if tostring(self.checkNaNs):sub(1,3) == 'gpu' then
+
+	-- TODO calculate flags once and store?
+	local checkNaNFlags = string.split(tostring(self.checkNaNs), ','):mapi(function(v) return true,v end):setmetatable(nil)
+
+	if checkNaNFlags.gpu then
 		if size ~= self.numCells * self.eqn.numStates then
 			error("expected size="..size.." to be "..(self.numCells * self.eqn.numStates))
 		end
@@ -3104,7 +3107,7 @@ function SolverBase:checkFinite(buf)
 		end
 	end
 
-	if self.checkNaNs == 'noghost'	-- set to string via cmdline
+	if checkNaNFlags.noghost	-- set to string via cmdline
 	and size == self.numCells * ptrsPerReal
 	and not require 'hydro.solver.meshsolver':isa(self)
 	then
@@ -3145,8 +3148,10 @@ function SolverBase:checkFinite(buf)
 
 --	self:printBuf(nil, ptr)
 	return false, 'found non-finite offsets and numbers'
-		..': '..tolua(found)
-		--..', first entry: '..tolua(found[1])
+		..(checkNaNFlags.all
+			and (': '..tolua(found))
+			or (', first entry: '..tolua(found[1]))
+		)
 		..' at t='..self.t
 end
 
