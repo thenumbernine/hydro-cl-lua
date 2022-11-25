@@ -6,6 +6,11 @@ and then 2005 Gundlach et al on the generalized constraints (which only add kapp
 and then some 2008 Yano et al
 and then my symmath/tests/Z4.lua ... which is trying to do the same thing but grid-background-indepdendent
 
+and especially: https://thenumbernine.github.io/math/Numerical%20Relativity/Z4%20From%20Killing%20Vectors.html
+Which lists a few Z4 formulations in literature, then derives.
+is based on the "Differential Geometry" worksheets at https://thenumbernine.github.io/
+
+
 scratch paper:
 
 g_uv = spacetime 4-metric
