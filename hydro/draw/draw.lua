@@ -40,7 +40,7 @@ function Draw:setupDisplayVarShader(shader, var, valueMin, valueMax)
 		gl.glUniformMatrix4fv(uniforms.modelViewProjectionMatrix.loc, 1, 0, app.view.modelViewProjectionMatrix.ptr)
 	end
 	if uniforms.normalMatrix then
-		self.normalMatrix = self.normalMatrix or matrix_ffi.zeros(3,3)
+		self.normalMatrix = self.normalMatrix or matrix_ffi.zeros{3,3}
 		--gl.glGetFloatv(gl.GL_NORMAL_MATRIX, self.normalMatrix.ptr)
 		-- invert app.view.modelViewMatrix's upper 3x3 into normalMatrix, then transpose
 		-- but if it is purely a rotation matrix, this is the same as just the 3x3 portion ...

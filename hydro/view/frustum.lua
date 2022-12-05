@@ -13,9 +13,9 @@ function FrustumView:init()
 	self.pos = vec3d()
 	self.angle = quatd(0,0,0,1)
 
-	self.modelViewMatrix = matrix_ffi.zeros(4,4)
-	self.projectionMatrix = matrix_ffi.zeros(4,4)
-	self.modelViewProjectionMatrix = matrix_ffi.zeros(4,4)
+	self.modelViewMatrix = matrix_ffi.zeros{4,4}
+	self.projectionMatrix = matrix_ffi.zeros{4,4}
+	self.modelViewProjectionMatrix = matrix_ffi.zeros{4,4}
 end
 
 FrustumView.zFar = 1000

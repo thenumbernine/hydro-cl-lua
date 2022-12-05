@@ -12,9 +12,9 @@ function OrthoView:init()
 	self.zoom = vec2d(zoom, zoom)
 	self.pos = vec2d()
 
-	self.modelViewMatrix = matrix_ffi.zeros(4,4)
-	self.projectionMatrix = matrix_ffi.zeros(4,4)
-	self.modelViewProjectionMatrix = matrix_ffi.zeros(4,4)
+	self.modelViewMatrix = matrix_ffi.zeros{4,4}
+	self.projectionMatrix = matrix_ffi.zeros{4,4}
+	self.modelViewProjectionMatrix = matrix_ffi.zeros{4,4}
 end
 
 -- returns xmin, xmax, ymin, ymax, zmin, zmax

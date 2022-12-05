@@ -429,6 +429,7 @@ Z4_2004Bona.solverCodeFile = 'hydro/eqn/z4.cl'
 Z4_2004Bona.predefinedDisplayVars = {
 -- [=[
 	'U alpha',
+	'U beta_u mag',
 --[[ for x dir only
 	'U gamma_ll x x',
 	'U d_lll_x x x',
@@ -448,7 +449,6 @@ Z4_2004Bona.predefinedDisplayVars = {
 	'U Z_l mag',
 --]]
 --[[ for watching shift
-	'U beta_u mag',
 	'U log(sqrt(gamma))_,i mag',
 	'U Gamma^i mag',
 --]]
