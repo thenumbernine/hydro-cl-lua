@@ -336,7 +336,7 @@ end
 }
 
 //// MODULE_NAME: <?=addSource?>
-//// MODULE_DEPENDS: <?=primFromCons?>
+//// MODULE_DEPENDS: <?=primFromCons?> <?=SETBOUNDS_NOGHOST?>
 
 kernel void <?=addSource?>(
 	constant <?=solver_t?> const * const solver,

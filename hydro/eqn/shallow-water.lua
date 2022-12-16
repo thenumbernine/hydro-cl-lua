@@ -85,6 +85,12 @@ if ShallowWater.depthInCell then
 	end
 end
 
+function ShallowWater:init(args)
+	self.useBathymetry = args.useBathymetry
+
+	ShallowWater.super.init(self, args)
+end
+
 function ShallowWater:getEnv()
 	local env = table(ShallowWater.super.getEnv(self))
 	env.getDepthSource = function(U, cell)
@@ -99,6 +105,8 @@ function ShallowWater:getEnv()
 end
 
 function ShallowWater:resetState()
+	if not self.useBathymetry then return end
+
 	local solver = self.solver
 
 	-- TODO in absense of 'readFromImage', how about providing this info in the init/euler? or init/shallow-water?
