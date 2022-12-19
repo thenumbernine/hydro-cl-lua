@@ -252,16 +252,16 @@ local initConds = table{
 	real const sigma4 = sigma2 * sigma2;
 	real h = H * exp(-s / sigma2);
 
-	//h,i = (H exp(-(x-xc)^2 / sigma^2)),i
-	// = -2 h / sigma^2 (x_i-c_i)
+	//h_,i = (H exp(-(x-xc)^2 / σ^2))_,i
+	// = -2 h / σ^2 (x_i-c_i)
 	real3 dh = real3_real_mul(real3_sub(x, mids), -2. * h / sigma2);
 
 	sym3 delta_ll = sym3_ident;
 
-	//h,ij = h,i,j = (-2 h / sigma^2 (x_i-c_i)),j
-	// = -2 h,j / sigma^2 (x_i-c_i) - 2 h delta_ij / sigma^2
-	// = -2 (-2 h / sigma^2 (x-c)_i (x-c)_j) / sigma^2 - 2 h delta_ij / sigma^2
-	// = 4 h (x-c)_i (x-c)_j / sigma^4 - 2 h delta_ij / sigma^2
+	//h_,ij = h_,i,j = (-2 h / σ^2 (x_i-c_i))_,j
+	// = -2 h_,j / σ^2 (x_i-c_i) - 2 h δ_ij / σ^2
+	// = -2 (-2 h / σ^2 (x-c)_i (x-c)_j) / σ^2 - 2 h δ_ij / σ^2
+	// = 4 h (x-c)_i (x-c)_j / σ^4 - 2 h δ_ij / σ^2
 	sym3 d2h = sym3_sub(
 		sym3_real_mul(real3_outer(d), 4. * h / sigma4),
 		sym3_real_mul(sym3_ident, 2. * h / sigma2));
@@ -374,7 +374,7 @@ what if I transforms this from tx back to uv?
 		name = 'gravitational plane wave txyz',
 		getInitCondCode = function(self)
 			return [[
-	//f = a(u) * (y^2 - z^2) - 2 * b(u) * y * z, for u = (t+x)/sqrt(2)
+	//f = a(u) * (y^2 - z^2) - 2 * b(u) * y * z, for u = (t+x)/√2
 	real const t = 0.;
 	real const u = (t - x.x) * <?=math.sqrt(.5)?>;
 	real const a = 1.;
@@ -422,7 +422,7 @@ what if I transforms this from tx back to uv?
 			local gminus = exp(-rminus^2)
 			local gplus = exp(-rplus^2)
 			
-			-- radial (/ first dimension) perturbation of alpha
+			-- radial (/ first dimension) perturbation of α
 			self.alpha0 = 1 + param_alpha0 * r^2 / (1 + r^2) * (gplus + gminus)
 		end,
 	},
@@ -457,7 +457,7 @@ what if I transforms this from tx back to uv?
 				return Phi:diff(baseCoords[i])()
 			end)
 			
-			-- Pi is 1/alpha (Phi_,t - beta^i Psi_i)
+			-- Π is 1/α (Φ_,t - β^i Ψ_i)
 			local Phi_t = 0
 			local alpha = var'alpha'	-- ADM var
 			local beta = Tensor('^i', function(i) 
@@ -557,7 +557,7 @@ what if I transforms this from tx back to uv?
 	spherical:
 		γ_ij = {1, r^2, (r sin(θ))^2}
 	stuffed:
-		m(r) = 4 r - 4 / M (r^2 + (M / 2 pi)^2 sin(2 pi r / M)^2) ... for r < M / 2:		-- eqn C.7
+		m(r) = 4 r - 4 / M (r^2 + (M / 2 π)^2 sin(2 π r / M)^2) ... for r < M / 2:		-- eqn C.7
 
 
 	ADM decomposition:
@@ -662,7 +662,7 @@ what if I transforms this from tx back to uv?
 //// MODULE_DEPENDS: <?=coord_det_g?>
 	real const gamma = sqrt(coord_det_g(x));
 	alpha = alpha0 + log(gamma / gamma0);
-<? else ?>	// isotropic alpha = sqrt(-g_tt)
+<? else ?>	// isotropic α = √(-g_tt)
 	alpha = (1 - .5 * m / r) / (1 + .5 * m / r);
 <? end ?>
 ]]
@@ -767,20 +767,20 @@ what if I transforms this from tx back to uv?
 
 			--[[
 			I'm trying to follow 1997 Brandt & Brugmann, but here's what I've gathered:
-			1) calculate K_PS^ij for each puncture.  two lowerings are involved in computing the spatial cross product.  these require phi -- which hasn't been calculated yet.  (should I pretend they are lowered with an identity metric?)
+			1) calculate K_PS^ij for each puncture.  two lowerings are involved in computing the spatial cross product.  these require φ -- which hasn't been calculated yet.  (should I pretend they are lowered with an identity metric?)
 			2) use the sum of K_PS^ij's to compute K^ij at each point
-			3) compute alpha = 1 / (.5 sum m_i / (r - r_i))
-			4) compute beta = 1/8 alpha^7 K^ab K_ab ... which again requires phi, which is what we're trying to solve for ... (is this a gradient descent or a predictor-corrector algorithm?) 
-			5) compute (converge?) u = lap^-1 beta / (1 + alpha u)^7
-			6) phi = 1/alpha + u
+			3) compute α = 1 / (.5 sum_i m_i / (r - r_i))
+			4) compute β = 1/8 α^7 K^ab K_ab ... which again requires phi, which is what we're trying to solve for ... (is this a gradient descent or a predictor-corrector algorithm?) 
+			5) compute (converge?) u = Δ^-1 β / (1 + α u)^7
+			6) φ = 1/α + u
 			7) and then there's something about the spherical coordinate inversion ...
 			
 			Here's the answer to the circular definitions of index raising/lowering with a metric that uses the variables we are solving for ...
-			B&S 12.2.1: "...so that gammaTilde_ij = eta_ij..."
-			So all raising and lowering throughout these computations uses eta_ij?
-			This statement makes sense to consider raising/lowering of ABar and gammaTilde using eta_ij.
+			B&S 12.2.1: "...so that ~γ_ij = η_ij..."
+			So all raising and lowering throughout these computations uses η_ij?
+			This statement makes sense to consider raising/lowering of _A_ij and ~γ_ij using η_ij.
 			However it does not explain the raising/lowering of non-bar terms like n^i, S^i, P^i etc
-			And I would simply change the ABar computations from lower to upper, except even they include a term n_i S^i which will still require a metric.
+			And I would simply change the _A computations from lower to upper, except even they include a term n_i S^i which will still require a metric.
 
 			... or (for beta) just use 2015 Baumgarte's advice and initialize to beta=0 ... which I'm doing anyways
 
@@ -807,13 +807,13 @@ what if I transforms this from tx back to uv?
 	}<? end ?>		//sum of mass over radius
 
 	//correct binary black hole way
-	//psi = 1 + 1/alpha + u	-- B&S 12.50
+	//ψ = 1 + 1/α + u	-- B&S 12.50
 
 	//next solve u via 
-	// Baumgarte & Shapiro add an extra 1 to psi's calculations as compared to the original Brandt & Brugmann equation
-	//DBar^2 u = -1/8 alpha^7 ABar_ij ABar^ij / ( alpha (1 + u) + 1)^7 	<-- Baumgarte & Shapiro eqns 12.52, 12.53
-	//...factoring out the alpha ...
-	//DBar^2 u = -1/8 ABar_ij ABar^ij / (1 + 1/alpha + u)^7
+	// Baumgarte & Shapiro add an extra 1 to ψ's calculations as compared to the original Brandt & Brugmann equation
+	//_D^2 u = -1/8 α^7 _A_ij _A^ij / ( α (1 + u) + 1)^7 	<-- Baumgarte & Shapiro eqns 12.52, 12.53
+	//...factoring out the α ...
+	//_D^2 u = -1/8 _A_ij _A^ij / (1 + 1/α + u)^7
 
 	//time-symmmetric way:
 	alpha = alpha_num / psi;
@@ -1106,8 +1106,8 @@ what if I transforms this from tx back to uv?
 		M1 / sqrt(bScale2 + r02 - 2*bScale*r0*cos_theta0)
 		+ M2 / sqrt(bScale2 + r02 + 2*bScale*r0*cos_theta0)
 	);
-	U->alpha = 1.;	//psi0?
-	//psi^2 = exp(-2 phi) = W
+	U->alpha = 1.;	//ψ_0?
+	//ψ^2 = exp(-2 φ) = W
 	U->W = psi0 * psi0;
 	U->K = 0.;
 	U->beta_U = real3_zero;
@@ -1371,11 +1371,11 @@ beta_u.z = -((2 * M * a * rBL) / A);
 			solver.mins = vec3d(0,0,0) 
 			solver.maxs = vec3d(8,8,8) 
 			
-			-- coords: t, eta, Omega
-			-- g_tt = -(tanh eta)^2 = -alpha^2 <=> alpha = tanh eta
-			-- g_eta_eta = 4 m^2 cosh(eta/2)^4
-			-- g_Omega_Omega = 4 m^2 cosh(eta/2)^4
-			-- using r = m/2 exp(Eta)
+			-- coords: t, η, Ω
+			-- g_tt = -tanh(η)^2 = -α^2 <=> α = tanh(η)
+			-- g_ηη = 4 m^2 cosh(η/2)^4
+			-- g_ΩΩ = 4 m^2 cosh(η/2)^4
+			-- using r = m/2 exp(Η) ... Η being Eta, not H
 			-- m = mass
 			-- TODO how should the finite volume scheme be modified to incorporate the volume element -- especially a dynamic volume element
 			--local xNames = table{'eta', 'theta', 'phi'}
@@ -1392,20 +1392,20 @@ beta_u.z = -((2 * M * a * rBL) / A);
 			--[[
 			local x,y,z = xs:unpack()
 			local r = (x^2+y^2+z^2)^.5
-			-- r = m/2 exp(eta)
-			-- eta = log(2r/m)
-			-- alpha = tanh(eta) = tanh(log(2r/m)) = sinh(eta) / cosh(eta) = (exp(eta) - exp(-eta)) / (exp(eta) + exp(-eta))
+			-- r = m/2 exp(η)
+			-- η = log(2r/m)
+			-- α = tanh(η) = tanh(log(2r/m)) = sinh(η) / cosh(η) = (exp(η) - exp(-η)) / (exp(η) + exp(-η))
 			-- = (2r/m - m/2r) / (2r/m + m/2r)
 			-- = (4r^2 - m^2) / (4r^2 + m^2)
 			local tanh_eta = (4 * r^2 - m^2) / (4 * r^2 + m^2)
 			local alpha = tanh_eta
 			-- or maybe the paper just initializes a lapse of 1? 
 			--local alpha = 1
-			-- 4 m^2 cosh(eta/2)^4 deta^2 = 4 m^2 cosh(log(2r/m)/2)^4 /r^2 dr^2
-			-- = 4 (m/r)^2 (sqrt(2r/m) + sqrt(m/2r) )^4 dr^2
+			-- 4 m^2 cosh(η/2)^4 dη^2 = 4 m^2 cosh(log(2r/m)/2)^4 /r^2 dr^2
+			-- = 4 (m/r)^2 (√(2r/m) + √(m/2r) )^4 dr^2
 			-- but now we have an infinity as r->0 ...
 			local g_rr = 4 * (m/r)^2 * (symmath.sqrt(2*r/m) + symmath.sqrt(.5*m/r))^4
-			-- ... unless that "cosh eta / 2" means "cosh(eta)/2" .... but then why not just write 4/16 = 1/4 out front?  grrr this paper  ....
+			-- ... unless that "cosh η / 2" means "cosh(η)/2" .... but then why not just write 4/16 = 1/4 out front?  grrr this paper  ....
 			-- 1/4 (m/r)^2 (2r/m + m/2r)^4
 			--local g_rr = (m/r)^2 * (2*r/m + m/(2*r))^4 / 4
 			local gamma = {g_rr, 0, 0, g_rr, 0, g_rr}
@@ -1430,19 +1430,19 @@ beta_u.z = -((2 * M * a * rBL) / A);
 2004 Bona et al "A symmetry-breaking mechanism..."
 2009 Bona, Bona-Casas "Gowdy waves..." https://arxiv.org/pdf/0911.1208v1.pdf
 Gaudy wave tests
-1/sqrt(t) exp(Q/2) (-dt^2 + dz^2) + t (exp(P) dx^2 + exp(-P) dy^2)
+1/√(t) exp(Q/2) (-dt^2 + dz^2) + t (exp(P) dx^2 + exp(-P) dy^2)
 Q & P are functions of t & z, only periodic in z
-t = t0 exp(-tau/tau0)
-dt = -t0/tau0 exp(-tau/tau0) dtau
+t = t0 exp(-τ/τ0)
+dt = -t0/τ0 exp(-τ/τ0) dτ
 
 specifically for this problem:
-P = J0(2 pi t) cos(2 pi z)
-Q = pi J0(2 pi) J1(2 pi) - 2 pi t J0(2 pi t) J1(2 pi t) cos(2 pi z)^2
-		+ 2 pi^2 t^2 (J0(2 pi t)^2 + J1(2 pi t)^2 - J0(2 pi)^2 - J1(2 pi)^2)
-2 pi t0 is the 20th root of the Bessel function J0 <=> t0 ~ 9.88
+P = J0(2 π t) cos(2 π z)
+Q = π J0(2 π) J1(2 π) - 2 π t J0(2 π t) J1(2 π t) cos(2 π z)^2
+		+ 2 π^2 t^2 (J0(2 π t)^2 + J1(2 π t)^2 - J0(2 π)^2 - J1(2 π)^2)
+2 π t0 is the 20th root of the Bessel function J0 <=> t0 ~ 9.88
 
-at time tau=0 <=> t=t0, and picking 2 pi t0 to be a root of J0 ...
-Q = pi J0(2 pi) J1(2 pi) - 2 pi^2 t0^2 (J0(2 pi)^2 + J1(2 pi)^2)
+at time τ=0 <=> t=t0, and picking 2 π t0 to be a root of J0 ...
+Q = π J0(2 π) J1(2 π) - 2 π^2 t0^2 (J0(2 π)^2 + J1(2 π)^2)
 
 TODO I now have a Bessel function routine in hydro/math.cl
 --]]
@@ -1455,12 +1455,12 @@ TODO I now have a Bessel function routine in hydro/math.cl
 	},
 
 -- 2003 Alcubierre et al "Toward standard testbeds for numerical relativity"
--- grids are from [-.5, .5] with 50 rho cells, rho = 1,2,4, and timesteps of .01/rho
+-- grids are from [-.5, .5] with 50 ρ cells, ρ = 1,2,4, and timesteps of .01/ρ
 	{
 		name = 'testbed - robust',
-		-- pick epsilon so epsilon^2 = 0
-		-- eqn 4.1: pick epsilon from -1e-10 / rho^2 to 1e=10 / rho^2
-		-- the SENR/NumPy uses an epsilon of .02
+		-- pick ε so ε^2 = 0
+		-- eqn 4.1: pick ε from -1e-10 / ρ^2 to 1e=10 / ρ^2
+		-- the SENR/NumPy uses an ε of .02
 		init = function(self, args)
 			EinsteinInitCond.init(self, args)
 			

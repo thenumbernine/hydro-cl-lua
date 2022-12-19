@@ -466,7 +466,7 @@ local args = {
 	--initCond = 'shallow water problem A',	-- boundary: v = reflect, h = freeflow
 	--initCond = 'shallow water problem B',	-- boundary: v = reflect, h = freeflow
 	--initCondArgs = {phi0 = 1},
-	initCond = 'shallow water problem C',	-- boundary = freeflow
+	--initCond = 'shallow water problem C',	-- boundary = freeflow
 	--TODO initCond = 'shallow water problem D',	-- lhs boundary = fixed, rhs boundary = freeflow
 	--initCond = 'shallow water parabola',
 	--initCond = '2003 Rogers',
@@ -507,7 +507,7 @@ local args = {
 
 	-- Einstein
 	--initCond = 'Minkowski',
-	--initCond = 'gaussian perturbation',
+	initCond = 'gaussian perturbation',
 	--initCond = 'plane gauge wave',
 
 
@@ -733,7 +733,7 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='shallow-water'})))
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='shallow-water'})))
 --self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='shallow-water', wenoMethod='1996 Jiang Shu', order=5})))
-self.solvers:insert(require 'hydro.solver.fdsolver'(table(args, {eqn='shallow-water'})))
+--self.solvers:insert(require 'hydro.solver.fdsolver'(table(args, {eqn='shallow-water'})))
 
 --[[ keep my configuration for the 2D world shallow water simulation in one place
 -- roe seems to have less waves than hll
@@ -997,7 +997,7 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='adm3d', eqnArgs={useShift='LagrangianCoordinates'}})))	-- TODO finish me
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='z4_2008yano'})))
 
--- FIXME ? or not?  if I run this with cl-cpu then there's no problem.  Intel?
+-- FIXME ? or not?  if I run this with cl-cpu then there's no problem.  Intel OpenCL, what's up?
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='z4'})))
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='z4', eqnArgs={useShift='GammaDriverHyperbolic'}})))
 
@@ -1006,7 +1006,8 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='adm3d'})))
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='adm3d', eqnArgs={noZeroRowsInFlux=false}})))
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='adm3d', eqnArgs={useShift='HarmonicShiftCondition-FiniteDifference'}})))
---self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='z4'})))
+self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='z4'})))
+--self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='z4', eqnArgs={useShift='GammaDriverHyperbolic'}})))	-- hmm why does it only NaN when shift is used? on 1D gaussian perturbation
 
 --self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='adm3d', wenoMethod='1996 Jiang Shu', order=5})))
 --self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='adm3d', wenoMethod='2010 Shen Zha', order=7})))
