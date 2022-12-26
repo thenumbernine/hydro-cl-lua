@@ -5,7 +5,7 @@ and no more setting config values (boundary, etc) in the init cond file
 local constants = require 'hydro.constants'
 local materials = require 'hydro.materials'
 
-local dim = cmdline.dim or 1
+local dim = cmdline.dim or 3
 local args = {
 	app = self,
 	dim = dim,
@@ -62,7 +62,7 @@ local args = {
 
 	-- this is functional without usePLM, but doing so falls back on the cell-centered buffer, which with the current useCTU code will update the same cell twice from different threads
 	-- TODO this seems to introduce more diagonal waves for SRHD
-	useCTU = true,
+	--useCTU = true,
 
 	-- [[ Cartesian
 	coord = 'cartesian',
@@ -94,7 +94,7 @@ local args = {
 			['Intel(R) OpenCL HD Graphics/Intel(R) HD Graphics 520 [0x1916]'] = {
 				{4096,1,1},
 				{64,64,1},
-				{1020,1020,4},
+				{32,32,32},
 			},
 		
 			-- 5600M with device=gfx902 to work with gl_sharing:
@@ -450,7 +450,7 @@ local args = {
 
 
 	-- self-gravitation tests:
-	--initCond = 'self-gravitation - Earth',	-- validating units along with self-gravitation.
+	initCond = 'self-gravitation - Earth',	-- validating units along with self-gravitation.
 	--initCond = 'self-gravitation - NGC 1560',	-- TODO still needs velocity
 	--initCond = 'self-gravitation - NGC 3198',
 	--initCond = 'self-gravitation test 1',
@@ -507,7 +507,7 @@ local args = {
 
 	-- Einstein
 	--initCond = 'Minkowski',
-	initCond = 'gaussian perturbation',
+	--initCond = 'gaussian perturbation',
 	--initCond = 'plane gauge wave',
 
 
@@ -867,7 +867,7 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {
 -- compressible Euler fluid equations + de-Donder gauge linearized GR
 
 
---self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler-lingr'})))
+self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler-lingr'})))
 
 
 -- special relativistic compressible hydrodynamics
@@ -997,17 +997,21 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='adm3d', eqnArgs={useShift='LagrangianCoordinates'}})))	-- TODO finish me
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='z4_2008yano'})))
 
--- FIXME ? or not?  if I run this with cl-cpu then there's no problem.  Intel OpenCL, what's up?
+-- FIXME ? or not?  if I run 2D Alcubierre with this with cl-cpu then there's no problem.  Intel OpenCL, what's up?
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='z4'})))
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='z4', eqnArgs={useShift='GammaDriverHyperbolic'}})))
 
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='adm1d_v1'})))
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='adm1d_v2'})))
---self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='adm3d'})))
+--self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='adm3d'})))	-- with 1D gaussian perturbation: explodes.  with 2D Alcubierre on cl-cpu 4 cores, looks like mem align errors
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='adm3d', eqnArgs={noZeroRowsInFlux=false}})))
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='adm3d', eqnArgs={useShift='HarmonicShiftCondition-FiniteDifference'}})))
-self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='z4'})))
---self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='z4', eqnArgs={useShift='GammaDriverHyperbolic'}})))	-- hmm why does it only NaN when shift is used? on 1D gaussian perturbation
+--self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='z4'})))
+--self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='z4', eqnArgs={useShift='MinimalDistortionElliptic'}})))		-- with 1D gaussian perturbation: compile error
+--self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='z4', eqnArgs={useShift='MinimalDistortionParabolic'}})))	-- with 1D gaussian perturbation: compile error
+--self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='z4', eqnArgs={useShift='MinimalDistortionHyperbolic'}})))	-- with 1D gaussian perturbation: explodes
+--self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='z4', eqnArgs={useShift='GammaDriverParabolic'}})))			-- with 1D gaussian perturbation: compile error
+--self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='z4', eqnArgs={useShift='GammaDriverHyperbolic'}})))			-- with 1D gaussian perturbation: explodes
 
 --self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='adm3d', wenoMethod='1996 Jiang Shu', order=5})))
 --self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='adm3d', wenoMethod='2010 Shen Zha', order=7})))

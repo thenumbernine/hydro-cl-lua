@@ -78,7 +78,7 @@ void <?=applyInitCondCell?>(
 	//TODO more stress-energy vars 
 	real rho = 0.;
 
-	<?=initCode()?>
+<?=initCode()?>
 
 	U->alpha = alpha;
 
@@ -177,7 +177,7 @@ void <?=applyInitCondCell?>(
 	//TODO more stress-energy vars 
 	real rho = 0.;
 
-	<?=initCode()?>
+<?=initCode()?>
 
 	U->alpha = alpha;
 	U->gamma_ll = gamma_ll;
