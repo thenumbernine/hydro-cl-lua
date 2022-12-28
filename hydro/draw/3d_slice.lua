@@ -1,7 +1,7 @@
 local table = require 'ext.table'
 local class = require 'ext.class'
 local file = require 'ext.file'
-local gl = require 'ffi.OpenGL'
+local gl = require 'gl'
 local CartesianCoordinateSystem = require 'hydro.coord.cartesian'
 local Draw = require 'hydro.draw.draw'
 
@@ -18,27 +18,26 @@ TODO for curved space: provide a coordMapInv function (might have to be manual t
  and treat out-of-bound values as fully transparent
 --]]
 Draw3DSlice.usePoints = false
-Draw3DSlice.useIsos = true
 Draw3DSlice.numIsobars = 20
 Draw3DSlice.useLighting = false
 Draw3DSlice.alpha = .15
 Draw3DSlice.alphaGamma = 1
 Draw3DSlice.numSlices = 255
 
+Draw3DSlice.useIsos = true
+if cmdline.isobars ~= nil then
+	Draw3DSlice.useIsos = cmdline.isobars
+end
 
 function Draw3DSlice:showDisplayVar(var, varName, ar, xmin, xmax, ymin, ymax, useLog)
 	local solver = self.solver
 	local app = solver.app
+	local shader = solver.volumeSliceShader
+	local uniforms = shader.uniforms
 	if require 'hydro.solver.meshsolver':isa(solver) then return end
 
 	app.view:setup(ar)
 
-	if app.useClipPlanes then
-		for i,clipInfo in ipairs(app.clipInfos) do
-			gl.glClipPlane(gl.GL_CLIP_PLANE0+i-1, clipInfo.plane.s)
-		end
-	end
-	
 	local valueMin, valueMax
 	if var.heatMapFixedRange then
 		valueMin = var.heatMapValueMin
@@ -50,9 +49,6 @@ function Draw3DSlice:showDisplayVar(var, varName, ar, xmin, xmax, ymin, ymax, us
 	end
 
 	solver:calcDisplayVarToTex(var)	
-
-	local shader = solver.volumeSliceShader
-	local uniforms = shader.uniforms
 
 	shader:use()
 	local tex = solver:getTex(var)
@@ -68,12 +64,6 @@ function Draw3DSlice:showDisplayVar(var, varName, ar, xmin, xmax, ymin, ymax, us
 	gl.glUniform1i(uniforms.useIsos.loc, self.useIsos)
 	gl.glUniform1f(uniforms.numIsobars.loc, self.numIsobars)
 	gl.glUniform1i(uniforms.useLighting.loc, self.useLighting)
-
-	if app.useClipPlanes then
-		for i,info in ipairs(app.clipInfos) do
-			gl.glUniform1i(uniforms['clipEnabled'..i].loc, info.enabled and 1 or 0)
-		end
-	end
 
 	if self.usePoints then
 		gl.glEnable(gl.GL_DEPTH_TEST)
@@ -99,7 +89,7 @@ function Draw3DSlice:showDisplayVar(var, varName, ar, xmin, xmax, ymin, ymax, us
 		gl.glEnable(gl.GL_BLEND)
 
 		local n = self.numSlices
-		local fwd = -app.frustumView.angle:conjugate():zAxis()
+		local fwd = -app.frustumView.angle:zAxis()
 		
 		local fwddir
 		local jmin, jmax, jdir

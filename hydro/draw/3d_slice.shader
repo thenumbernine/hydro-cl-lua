@@ -48,6 +48,7 @@ uniform vec3 normal;
 <? if app.useClipPlanes then ?>
 <? for i,clipInfo in ipairs(app.clipInfos) do
 ?>uniform bool clipEnabled<?=i?>;
+uniform vec4 clipPlane<?=i?>;
 <? end
 ?>
 <? end ?>
@@ -58,9 +59,9 @@ float getVoxelValue(vec3 tc) {
 
 void main() {
 <? if app.useClipPlanes then ?>
-	vec4 worldPos = gl_ModelViewMatrix * vec4(pos, 1.);
+	vec4 pos4 = vec4(pos, 1.);
 <? for i,clipInfo in ipairs(app.clipInfos) do
-?>	if (clipEnabled<?=i?> && dot(worldPos, gl_ClipPlane[<?=i-1?>]) < 0.) discard;
+?>	if (clipEnabled<?=i?> && (dot(pos4, clipPlane<?=i?>) < 0.)) discard;
 <? end
 end
 ?>	

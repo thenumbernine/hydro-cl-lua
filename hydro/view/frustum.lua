@@ -9,9 +9,10 @@ matrix_ffi.real = 'float'	-- default matrix_ffi type
 local FrustumView = class()
 
 function FrustumView:init()
-	self.dist = 3
+	self.dist = cmdline.frustumDist or 3
 	self.pos = vec3d()
-	self.angle = quatd(0,0,0,1)
+	self.angle = quatd(table.unpack(cmdline.frustumAngle or {0,0,0,1}))
+	self.angle:normalize(self.angle)
 
 	self.modelViewMatrix = matrix_ffi.zeros{4,4}
 	self.projectionMatrix = matrix_ffi.zeros{4,4}
@@ -37,7 +38,7 @@ function FrustumView:modelview()
 	gl.glLoadIdentity()
 	gl.glTranslatef(0,0,-self.dist)
 	local angleAxis = self.angle:toAngleAxis()
-	gl.glRotatef(angleAxis.w, angleAxis.x, angleAxis.y, angleAxis.z)
+	gl.glRotatef(-angleAxis.w, angleAxis.x, angleAxis.y, angleAxis.z)
 	gl.glTranslatef(-self.pos.x, -self.pos.y, -self.pos.z)
 end
 
@@ -55,8 +56,8 @@ function FrustumView:mousePan(dx, dy, screenWidth, screenHeight)
 	local magn = math.sqrt(dx * dx + dy * dy)
 	local fdx = dx / magn
 	local fdy = dy / magn
-	local rotation = quatd():fromAngleAxis(fdy, fdx, 0, magn)
-	self.angle = (rotation * self.angle):normalize()
+	local rotation = quatd():fromAngleAxis(-fdy, -fdx, 0, magn)
+	self.angle = (self.angle * rotation):normalize()
 --]]
 --[[ ortho pan
 	local ar = screenWidth / screenHeight

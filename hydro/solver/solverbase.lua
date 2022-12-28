@@ -621,9 +621,9 @@ function SolverBase:initMeshVars(args)
 		function GLProgram:init(...)
 			local args = ...
 		
-			print('building shader/'..args.name)
-			
 			local dir = 'cache/'..solver:getIdent()..'/shader'
+			print('building '..dir..'/'..args.name..'.vert & .frag')
+			
 			file(dir):mkdir(true)
 			local path = dir..'/'..args.name
 			-- Write generated code

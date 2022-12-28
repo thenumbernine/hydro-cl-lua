@@ -97,6 +97,22 @@ function Draw:setupDisplayVarShader(shader, var, valueMin, valueMax)
 		--gl.glUniform4fv(uniforms.displaySliceAngle.loc, 4, app.displaySliceAngle.s)
 		gl.glUniform4f(uniforms.displaySliceAngle.loc, app.displaySliceAngle:unpack())
 	end
+	if app.useClipPlanes then
+		-- TODO use an array?
+		-- use a uniform struct?
+		for i,info in ipairs(app.clipInfos) do
+			local k = 'clipEnabled'..i
+			local u = uniforms[k]
+			if u then
+				gl.glUniform1i(u.loc, info.enabled and 1 or 0)
+			end
+			local k = 'clipPlane'..i
+			local u = uniforms[k]
+			if u then
+				gl.glUniform4f(u.loc, info.plane:unpack())
+			end
+		end
+	end
 end
 
 local function makeGLSL(code)

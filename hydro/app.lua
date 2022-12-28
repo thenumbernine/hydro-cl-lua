@@ -44,10 +44,15 @@ display:
 		set this to {x,y,z,theta} for angle/axis initialization.
 	
 	frustum = set frustum view initially
+	frustumDist = frustum view initial distance.  default 3
+	frustumAngle = frustum view initial angle.  default {0,0,0,1}
 	ortho = set ortho view initially
 	stackGraphs = stack graphs initially
 	disableFont = set to disable loading of the font.png file.  automatically true if sys=console.
-	
+
+	useClipPlanes = default false.  whether to use clip-planes in the 3d-slice shader (and other shaders?)
+	isobars = default true.  whether to use isobars in 3D-slice display.  default: true.
+
 	vectorFieldStep = spacing between cells of vector field display
 
 	windowsize = override the window size for sys=glapp or sys=imguiapp.  set to either "windowsize={w,h}" or for square windows, "windowsize=size"
@@ -322,7 +327,7 @@ local ]]..keys:concat', '..[[ = ...
 )
 end
 
-HydroCLApp.useClipPlanes = false
+HydroCLApp.useClipPlanes = cmdline.useClipPlanes
 if HydroCLApp.useClipPlanes then
 	-- TODO put all the display3D_slices stuff in its own file
 	HydroCLApp.rotateClip = 0
@@ -1910,20 +1915,15 @@ function HydroCLApp:updateGUI()
 		ig.igPopID()
 
 		-- TODO per-solver
-		-- [[ TODO replace this with trackball behavior
-		if ig.luatableTooltipSliderFloat('slice qw', self.displaySliceAngle, 'w', -1, 1) then
-			self.displaySliceAngle:normalize(self.displaySliceAngle)
+		do
+			local q = self.displaySliceAngle
+			-- [[ TODO replace this with trackball behavior
+			if ig.luatableTooltipSliderFloat('slice qw', q, 'w', -1, 1) then q:normalize(q) end
+			if ig.luatableTooltipSliderFloat('slice qx', q, 'x', -1, 1) then q:normalize(q) end
+			if ig.luatableTooltipSliderFloat('slice qy', q, 'y', -1, 1) then q:normalize(q) end
+			if ig.luatableTooltipSliderFloat('slice qz', q, 'z', -1, 1) then q:normalize(q) end
+			--]]
 		end
-		if ig.luatableTooltipSliderFloat('slice qx', self.displaySliceAngle, 'x', -1, 1) then
-			self.displaySliceAngle:normalize(self.displaySliceAngle)
-		end
-		if ig.luatableTooltipSliderFloat('slice qy', self.displaySliceAngle, 'y', -1, 1) then
-			self.displaySliceAngle:normalize(self.displaySliceAngle)
-		end
-		if ig.luatableTooltipSliderFloat('slice qz', self.displaySliceAngle, 'z', -1, 1) then
-			self.displaySliceAngle:normalize(self.displaySliceAngle)
-		end
-		--]]
 		-- [[ fixed planes
 		ig.igText'slice:'
 		ig.igSameLine()
@@ -1985,8 +1985,29 @@ function HydroCLApp:updateGUI()
 				ig.igPopID()
 			end
 		end
+
+		if self.view == self.frustumView then
+			local q = self.frustumView.angle
+			-- [[ TODO replace this with trackball behavior
+			if ig.luatableTooltipSliderFloat('frustum angle qx', q, 'x', -1, 1) then q:normalize(q) end
+			if ig.luatableTooltipSliderFloat('frustum angle qy', q, 'y', -1, 1) then q:normalize(q) end
+			if ig.luatableTooltipSliderFloat('frustum angle qz', q, 'z', -1, 1) then q:normalize(q) end
+			if ig.luatableTooltipSliderFloat('frustum angle qw', q, 'w', -1, 1) then q:normalize(q) end
+			--]]
+		end
+		if self.useClipPlanes then
+			for i,info in ipairs(self.clipInfos) do
+				ig.igPushID_Str('solver clip plane '..i)
+				ig.luatableTooltipCheckbox('clip plane enabled', info, 'enabled')
+				ig.luatableTooltipSliderFloat('clip plane x', info.plane, 'x', -1, 1)
+				ig.luatableTooltipSliderFloat('clip plane y', info.plane, 'y', -1, 1)
+				ig.luatableTooltipSliderFloat('clip plane z', info.plane, 'z', -1, 1)
+				ig.luatableTooltipSliderFloat('clip plane w', info.plane, 'w', -1, 1)
+				ig.igPopID()
+			end
+		end
 	end
-	
+
 	for i,solver in ipairs(self.solvers) do
 		ig.igPushID_Str('solver '..i)
 		if ig.igCollapsingHeader(solver.name) then
