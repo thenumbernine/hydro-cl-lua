@@ -46,14 +46,19 @@ display:
 	frustum = set frustum view initially
 	frustumDist = frustum view initial distance.  default 3
 	frustumAngle = frustum view initial angle.  default {0,0,0,1}
-	ortho = set ortho view initially
+	
+	ortho = set the initial view to ortho 
+	zoom = set ortho zoom 
+	
 	stackGraphs = stack graphs initially
 	disableFont = set to disable loading of the font.png file.  automatically true if sys=console.
 
 	useClipPlanes = default false.  whether to use clip-planes in the 3d-slice shader (and other shaders?)
 	isobars = default true.  whether to use isobars in 3D-slice display.  default: true.
 
-	vectorFieldStep = spacing between cells of vector field display
+	arrows = use arrows for vector field display (default is LIC)
+	vectorFieldScale = scale of arrows. default 1
+	vectorFieldStep = spacing between cells of vector field display.  default 4
 
 	windowsize = override the window size for sys=glapp or sys=imguiapp.  set to either "windowsize={w,h}" or for square windows, "windowsize=size"
 
@@ -774,6 +779,7 @@ void main() {
 			if solver.dim == 2
 			and self.display_useCoordMap
 			and CartesianCoord:isa(solver.coord)
+			and not cmdline.zoom	-- if cmdline overrides then dont initially scale
 			then
 				local orthoSize = 1
 				for j=1,solver.dim do

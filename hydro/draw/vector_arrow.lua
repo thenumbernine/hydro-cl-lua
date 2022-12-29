@@ -25,7 +25,7 @@ local DrawVectorField = class(Draw)
 
 
 -- TODO move to draw/vectorfield 
-DrawVectorField.scale = 1
+DrawVectorField.scale = cmdline.vectorFieldScale or 1
 DrawVectorField.step = cmdline.vectorFieldStep or 4
 
 function DrawVectorField:showDisplayVar(var, varName, ar, xmin, xmax, ymin, ymax, useLog)

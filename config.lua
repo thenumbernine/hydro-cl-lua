@@ -867,7 +867,7 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {
 -- compressible Euler fluid equations + de-Donder gauge linearized GR
 
 
-self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler-lingr'})))
+--self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler-lingr'})))
 
 
 -- special relativistic compressible hydrodynamics
@@ -1162,7 +1162,7 @@ With hyperbolic gamma driver shift it has trouble.
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='euler-lingr', mesh={type='cylinder3d', size={8, 8, 8}, mins={.5, 0, -.25}, maxs={1, 1, .25}}})))
 
 
---[=[ 1.25 degree angle of attack, mach 0.8, sea level pressure and density
+-- [=[ 1.25 degree angle of attack, mach 0.8, sea level pressure and density
 -- might be trying to reproduce the "I Do Like CFD" OssanWorld.com edu2d "case_steady_airfoil"
 --local theta = 0					-- cylinder uses 0
 local theta = math.rad(1.25)	-- naca airfoil uses 1.25
@@ -1177,14 +1177,14 @@ local m = 1
 local s = 1
 --local s = 10
 --local s = 100
---[[ using real units ...
+-- [[ using real units ...
 local Air = materials.Air
 local gamma = materials.Air.heatCapacityRatio
 local rho0 = Air.seaLevelDensity / (kg/m^3)		-- 1.2754 kg/m^3
 local v0 = Air.speedOfSound * machSpeed / (m/s)
 local P0 = Air.seaLevelPressure / (kg/(m*s^2))	-- 101325 (Pa = kg/(m s^2))
 --]]
--- [[ used in edu2d
+--[[ used in edu2d
 -- edu2d_module_ccfv_data_soln.f90, line 189 ... why is M_inf=0.8 used directly, and not M_inf * sqrt(gamma * P / rho) ?
 local gamma = 1.4
 local rho0 = 1
