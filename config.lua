@@ -5,7 +5,7 @@ and no more setting config values (boundary, etc) in the init cond file
 local constants = require 'hydro.constants'
 local materials = require 'hydro.materials'
 
-local dim = cmdline.dim or 3
+local dim = cmdline.dim or 2
 local args = {
 	app = self,
 	dim = dim,
@@ -154,9 +154,9 @@ local args = {
 	--]]
 	--[[ cylinder
 	coord = 'cylinder',
-		-- TODO explodes 
+		-- TODO explodes
 	--coordArgs = {vectorComponent='holonomic'},		-- use the coordinate derivatives to represent our vector components (though they may not be normalized)
-		-- TODO subtle innacuracy drift 
+		-- TODO subtle innacuracy drift
 	--coordArgs = {vectorComponent='anholonomic'},		-- use orthonormal basis to represent our vector components.
 		-- TODO works but does curvilinear boundaries support cartesian vector components?
 		-- for Euler equations / constants / vel = 0.1 e_x + 0.1 e_y the density drifts by 0.3% in the first second
@@ -350,7 +350,7 @@ local args = {
 	--initCond = 'jet',
 	
 
-	--initCond = 'Sod',
+	initCond = 'Sod',
 	--initCondArgs = {dim=cmdline.displayDim},
 	--[[ real-world vars for Sod ... which are a few orders higher, and therefore screw up the backward-euler solver
 	-- 		which means, todo, redo the backward euler error metric so it is independent of magnitude ... ?   seems I removed that for another numerical error reason.
@@ -450,7 +450,7 @@ local args = {
 
 
 	-- self-gravitation tests:
-	initCond = 'self-gravitation - Earth',	-- validating units along with self-gravitation.
+	--initCond = 'self-gravitation - Earth',	-- validating units along with self-gravitation.
 	--initCond = 'self-gravitation - NGC 1560',	-- TODO still needs velocity
 	--initCond = 'self-gravitation - NGC 3198',
 	--initCond = 'self-gravitation test 1',
@@ -690,7 +690,7 @@ end
 if cmdline.solver then self.solvers:insert(require('hydro.solver.'..cmdline.solver)(table(args, cmdline.solverArgs))) return end
 
 
--- simple wave equation, no time/space coupling via background metric 
+-- simple wave equation, no time/space coupling via background metric
 
 
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='wave'})))
@@ -758,7 +758,7 @@ self.solvers:insert(require 'hydro.solver.weno'(table(args, {
 -- compressible Euler equations
 
 
---self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
+self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
 
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct bounded'})))	-- this is the default hllCalcWaveMethod
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct'})))
@@ -1162,62 +1162,63 @@ With hyperbolic gamma driver shift it has trouble.
 --self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {flux='roe', eqn='euler-lingr', mesh={type='cylinder3d', size={8, 8, 8}, mins={.5, 0, -.25}, maxs={1, 1, .25}}})))
 
 
--- [=[ 1.25 degree angle of attack, mach 0.8, sea level pressure and density
--- might be trying to reproduce the "I Do Like CFD" OssanWorld.com edu2d "case_steady_airfoil"
---local theta = 0					-- cylinder uses 0
-local theta = math.rad(1.25)	-- naca airfoil uses 1.25
---local machSpeed = 0.3			-- cylinder uses 0.3
-local machSpeed = 0.8			-- naca airfoil uses 0.8
---local machSpeed = 0.95
---local machSpeed = 1
---local machSpeed = 1.2
---local machSpeed = 2
-local kg = 1
-local m = 1
-local s = 1
---local s = 10
---local s = 100
--- [[ using real units ...
-local Air = materials.Air
-local gamma = materials.Air.heatCapacityRatio
-local rho0 = Air.seaLevelDensity / (kg/m^3)		-- 1.2754 kg/m^3
-local v0 = Air.speedOfSound * machSpeed / (m/s)
-local P0 = Air.seaLevelPressure / (kg/(m*s^2))	-- 101325 (Pa = kg/(m s^2))
---]]
---[[ used in edu2d
--- edu2d_module_ccfv_data_soln.f90, line 189 ... why is M_inf=0.8 used directly, and not M_inf * sqrt(gamma * P / rho) ?
-local gamma = 1.4
-local rho0 = 1
-local v0 = machSpeed / (m/s)
-local P0 = 1 / gamma
---]]
-self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {
-	flux = 'roe',
-	--flux = 'hll',
-	fluxArgs = {useEntropyFluxFix = true},
-	fluxLimiter = 'donor cell',
-	eqn = 'euler',
-	mesh = {
-		--[[
-		type = 'p2dfmt',	-- hmm, I don't know that p2dfmt has distinct boundary classes
-		meshfile = 'n0012_113-33.p2dfmt',
-		--]]
-		-- [[
-		type = 'edu2dgrid',
-		--meshfile = 'cylinder.grid',
-		meshfile = 'airfoil.grid',
-		--]]
-		boundary = {
-			{	-- slip_wall
-				name='mirror',
-				args={restitution=0},
-			},
-			{	-- freestream
-				name = 'fixed',
-				args = {
-					fixedCode = function(self, args, dst)
-						local solver = args.solver
-						return solver.eqn:template([[
+if cmdline.naca then
+	-- [=[ 1.25 degree angle of attack, mach 0.8, sea level pressure and density
+	-- might be trying to reproduce the "I Do Like CFD" OssanWorld.com edu2d "case_steady_airfoil"
+	--local theta = 0					-- cylinder uses 0
+	local theta = math.rad(1.25)	-- naca airfoil uses 1.25
+	--local machSpeed = 0.3			-- cylinder uses 0.3
+	local machSpeed = 0.8			-- naca airfoil uses 0.8
+	--local machSpeed = 0.95
+	--local machSpeed = 1
+	--local machSpeed = 1.2
+	--local machSpeed = 2
+	local kg = 1
+	local m = 1
+	local s = 1
+	--local s = 10
+	--local s = 100
+	-- [[ using real units ...
+	local Air = materials.Air
+	local gamma = materials.Air.heatCapacityRatio
+	local rho0 = Air.seaLevelDensity / (kg/m^3)		-- 1.2754 kg/m^3
+	local v0 = Air.speedOfSound * machSpeed / (m/s)
+	local P0 = Air.seaLevelPressure / (kg/(m*s^2))	-- 101325 (Pa = kg/(m s^2))
+	--]]
+	--[[ used in edu2d
+	-- edu2d_module_ccfv_data_soln.f90, line 189 ... why is M_inf=0.8 used directly, and not M_inf * sqrt(gamma * P / rho) ?
+	local gamma = 1.4
+	local rho0 = 1
+	local v0 = machSpeed / (m/s)
+	local P0 = 1 / gamma
+	--]]
+	self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {
+		flux = 'roe',
+		--flux = 'hll',
+		fluxArgs = {useEntropyFluxFix = true},
+		fluxLimiter = 'donor cell',
+		eqn = cmdline.eqn or 'euler',
+		mesh = {
+			--[[
+			type = 'p2dfmt',	-- hmm, I don't know that p2dfmt has distinct boundary classes
+			meshfile = 'n0012_113-33.p2dfmt',
+			--]]
+			-- [[
+			type = 'edu2dgrid',
+			--meshfile = 'cylinder.grid',
+			meshfile = 'airfoil.grid',
+			--]]
+			boundary = {
+				{	-- slip_wall
+					name='mirror',
+					args={restitution=0},
+				},
+				{	-- freestream
+					name = 'fixed',
+					args = {
+						fixedCode = function(self, args, dst)
+							local solver = args.solver
+							return solver.eqn:template([[
 {
 	<?=prim_t?> W;	//force entire state to initial state
 	W.rho = <?=rho0?>;
@@ -1228,78 +1229,83 @@ self.solvers:insert(require 'hydro.solver.meshsolver'(table(args, {
 	W.ePot = 0;
 	<?=consFromPrim?>(<?=dst?>, solver, &W, <?=face?>->pos);
 }
-]], table(args, {
-	rho0 = rho0,
-	v0 = v0,
-	P0 = P0,
-	theta = theta,
-}):setmetatable(nil)),
-						-- 2nd return is list of required modules
-						{assert(solver.eqn.symbols.consFromPrim)}
-					end,
-				}
+]],
+								table(args, {
+									rho0 = rho0,
+									v0 = v0,
+									P0 = P0,
+									theta = theta,
+								}):setmetatable(nil)
+							),
+							-- 2nd return is list of required modules
+							{assert(solver.eqn.symbols.consFromPrim)}
+						end,
+					}
+				},
 			},
-		},
-		{
-			-- "outflow_subsonic", used with the cylinder test
-			name = 'fixed',
-			args = {
-				fixedCode = function(self, args, dst)
-					local solver = args.solver
-					return solver.eqn:template([[
+			{
+				-- "outflow_subsonic", used with the cylinder test
+				name = 'fixed',
+				args = {
+					fixedCode = function(self, args, dst)
+						local solver = args.solver
+						return solver.eqn:template([[
 {
 	<?=prim_t?> W;
 	<?=primFromCons?>(&W, solver, <?=src?>, <?=face?>->pos);
 	W.P = <?=P0?>;	//force pressure to initial pressure
 	<?=consFromPrim?>(<?=dst?>, solver, &W, <?=face?>->pos);
 }
-]], table(args, {P0=P0}):setmetatable(nil)),
-					-- 2nd return is list of required modules
-					{
-						assert(solver.eqn.symbols.consFromPrim),
-						solver.eqn.symbols.primFromCons,
-					}
-				end,
+]],
+							table(args, {P0=P0}):setmetatable(nil)
+						),
+						-- 2nd return is list of required modules
+						{
+							assert(solver.eqn.symbols.consFromPrim),
+							solver.eqn.symbols.primFromCons,
+						}
+					end,
+				},
 			},
 		},
-	},
-	initCond = 'constant',
-	initCondArgs = {
-		solverVars = {
-			meter = m,
-			second = s,
-			kilogram = kg,
-			heatCapacityRatio = gamma,
+		initCond = 'constant',
+		initCondArgs = {
+			solverVars = {
+				meter = m,
+				second = s,
+				kilogram = kg,
+				heatCapacityRatio = gamma,
+			},
+			rho = rho0,
+			v = {
+				math.cos(theta) * v0,
+				math.sin(theta) * v0,
+				0,
+			},
+			P = P0,
+			-- so if we want to reduce this to 1, we can scale down seconds ...
 		},
-		rho = rho0,
-		v = {
-			math.cos(theta) * v0,
-			math.sin(theta) * v0,
-			0,
-		},
-		P = P0,
-		-- so if we want to reduce this to 1, we can scale down seconds ...
-	},
-	-- [[
-	--cfl = 1,
-	--cfl = 0.9,	-- I think this is what "I do like CFD" uses ... maybe ... they have an extra 0.5 in the denom tho, makes me think 1.8 is their cfl ... and they also evaluate it for "steady" on a per-cell basis
-	--cfl = 1.8,	-- the "/ 0.5" in "I do like cfd" ... wouldn't that be the same as x2? not exactly...
-	--cfl = .45,
-	-- the first unsteady dt of airfoil in edu2d is 2.8647764373497124E-004 (with their CFL=0.9) ... let's see what cfl I need to use with my implementation of face-based cfl to reproduce this ...
-	-- with my implementation (without a 0.5 in the denom ... is that there because dim = 2?  i thought it was divide-by-dim, not multiply-by-dim ...) and cfl=1 we get a dt=0.00036828253563196
-	-- that means to get the same dt, we should use cfl=0.77787463704567
-	cfl = 0.77787463704567,	-- produces dt=0.00028647764373497
-	--integrator = 'forward Euler',
-	integrator = 'Runge-Kutta 2, TVD',
-	--integrator = 'Runge-Kutta 4',
-	--]]
-	--[[	-- not yet working with meshsolver
-	cfl = 4,
-	--integrator = 'backward Euler',
-	--integrator = 'backward Euler, CPU',
-	--]]
-})))
---]=]
+		-- [[
+		--cfl = 1,
+		--cfl = 0.9,	-- I think this is what "I do like CFD" uses ... maybe ... they have an extra 0.5 in the denom tho, makes me think 1.8 is their cfl ... and they also evaluate it for "steady" on a per-cell basis
+		--cfl = 1.8,	-- the "/ 0.5" in "I do like cfd" ... wouldn't that be the same as x2? not exactly...
+		--cfl = .45,
+		-- the first unsteady dt of airfoil in edu2d is 2.8647764373497124E-004 (with their CFL=0.9) ... let's see what cfl I need to use with my implementation of face-based cfl to reproduce this ...
+		-- with my implementation (without a 0.5 in the denom ... is that there because dim = 2?  i thought it was divide-by-dim, not multiply-by-dim ...) and cfl=1 we get a dt=0.00036828253563196
+		-- that means to get the same dt, we should use cfl=0.77787463704567
+		cfl = 0.77787463704567,	-- produces dt=0.00028647764373497
+		--integrator = 'forward Euler',
+		integrator = 'Runge-Kutta 2, TVD',
+		--integrator = 'Runge-Kutta 4',
+		--]]
+		--[[	-- not yet working with meshsolver
+		cfl = 4,
+		--integrator = 'backward Euler',
+		--integrator = 'backward Euler, CPU',
+		--]]
+	})))
+	--]=]
+end
 
 -- NEXT BIG TODO
 -- * make meshsolver and gridsolver separate options
@@ -1475,7 +1481,7 @@ local args = {
 	--initCond = 'Minkowski',				-- stable with 2009Alic-z4 (with derivative vars initd to zero)
 	--initCond = 'SENR Minkowski',			-- stable with 2009Alic-z4 (with derivative vars initd to zero)
 	--initCond = 'plane gauge wave',
-	initCond = 'SENR UIUC',				-- 2009Alic-z4 (with derivative vars initd to zero) coord=sphere_sinh_radial with SENR UIUC runs indefinitely.  coord=sphere runs until t=200 then e.h.? hits rhs and explodes. 
+	initCond = 'SENR UIUC',				-- 2009Alic-z4 (with derivative vars initd to zero) coord=sphere_sinh_radial with SENR UIUC runs indefinitely.  coord=sphere runs until t=200 then e.h.? hits rhs and explodes.
 	--initCond = 'UIUC',					-- but why does this one run so slow? smaller alphas means lower cfls? too close to zero?
 	--initCond = 'SENR BrillLindquist',
 	--initCond = 'black hole - Schwarzschild',

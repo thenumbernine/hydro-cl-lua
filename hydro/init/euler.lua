@@ -2291,7 +2291,6 @@ if (bubbleRSq < bubbleRadiusSq) {
 	end)(),
 
 	(function()
-		
 		local coordRadius = .5
 		local ngc3198_rmax = 31.7 * 1e+3 * constants.pc_in_m
 		local ngc3198_a = 9.10 * 1e+3 * constants.pc_in_m
@@ -2519,7 +2518,6 @@ end
 					meter = meter,
 				})
 			end,
-
 		}
 	end)(),
 

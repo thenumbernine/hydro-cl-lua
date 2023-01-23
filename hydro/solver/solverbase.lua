@@ -207,6 +207,7 @@ local file = require 'ext.file'
 local math = require 'ext.math'
 local tolua = require 'ext.tolua'
 local range = require 'ext.range'
+local os = require 'ext.os'
 local gl = require 'gl'
 local glreport = require 'gl.report'
 local CLBuffer = require 'cl.obj.buffer'
@@ -247,6 +248,7 @@ end
 local integrators = require 'hydro.int.all'
 local integratorNames = integrators:mapi(function(integrator) return integrator.name end)
 
+local useClang = cmdline.useClang
 
 local SolverBase = class()
 
@@ -567,50 +569,114 @@ function SolverBase:initMeshVars(args)
 		local bindir = 'cache/'..solver:getIdent()..'/bin'
 		file(cldir):mkdir(true)
 		file(bindir):mkdir(true)
-		local clfn = cldir..'/'..args.name..'.cl'
-		local binfn = bindir..'/'..args.name..'.bin'
+
+		--[[
+		https://github.com/KhronosGroup/SPIR/tree/spirv-1.1
+		how to compile 32-bit SPIR-V:
+			clang -cc1 -emit-spirv -triple <triple> -cl-std=c++ -I <libclcxx dir> -x cl -o <output> <input> 				#For OpenCL C++
+			clang -cc1 -emit-spirv -triple <triple> -cl-std=<CLversion> -include opencl.h -x cl -o <output> <input> 		#For OpenCL C
+		how to compile 64-bit SPIR-V:
+			clang -cc1 -emit-spirv -triple=spir-unknown-unknown -cl-std=c++ -I include kernel.cl -o kernel.spv 				#For OpenCL C++
+			clang -cc1 -emit-spirv -triple=spir-unknown-unknown -cl-std=CL2.0 -include opencl.h kernel.cl -o kernel.spv 	#For OpenCL C
+		--]]
+		if useClang then
+			if args.name then
+				if useCache then
+					local cldir = 'cache/'..solver:getIdent()..'/src'
+					local bcdir = 'cache/'..solver:getIdent()..'/bc'
+					local spvdir = 'cache/'..solver:getIdent()..'/spv'
+					file(cldir):mkdir(true)
+					file(bcdir):mkdir(true)
+					file(spvdir):mkdir(true)
+					-- TODO hmm this dependency graph for code->cl->bin is hardcoded into cl/obj/program.lua
+					--  but could I generalize this somehow, and integrate it into lua-make ...
+					-- and then make a separate build-target chain for .clcpp -> .bc -> .spv ...
+					self.cacheFileCL = cldir..'/'..args.name..'.cl'
+					self.cacheFileBC = bcdir..'/'..args.name..'.bc'
+					self.cacheFileSPV = spvdir..'/'..args.name..'.spv'
+				end
+			end
+			Program.super.init(self, args)
+		end
 		
+		local clfn = cldir..'/'..args.name..'.cl'
+
 		-- caching binaries, which doesn't write unless the program successfully compiles
 		if not cmdline.usecachedcode then
 			if args.name then
 				if useCache then
 					args.cacheFileCL = clfn
-					args.cacheFileBin = binfn
+					args.cacheFileBin = bindir..'/'..args.name..'.bin'
 				end
 			end
 			Program.super.init(self, args)
+		end
 		
 		-- Write generated code the first time.  Subsequent times use the pre-existing code.  Useful for debugging things in the generated OpenCL.
+		if file(clfn):exists() then
+			local cachedCode = file(clfn):read()
+			assert(cachedCode:sub(1,#args.env.code) == args.env.code, "seems you have changed the cl env code")
+			args.code = cachedCode:sub(#args.env.code+1)	-- because the program will prepend env.code ... hmm, this could be done a better way.
+			Program.super.init(self, args)
 		else
-			if file(clfn):exists() then
-				local cachedCode = file(clfn):read()
-				assert(cachedCode:sub(1,#args.env.code) == args.env.code, "seems you have changed the cl env code")
-				args.code = cachedCode:sub(#args.env.code+1)	-- because the program will prepend env.code ... hmm, this could be done a better way.
-				Program.super.init(self, args)
-			else
-				Program.super.init(self, args)	-- do this so getCode() works
-				file(clfn):write(self:getCode())
-			end
+			Program.super.init(self, args)	-- do this so getCode() works
+			file(clfn):write(self:getCode())
 		end
 	end
 	
 	function Program:compile(args)
-		args = args or {}
-		args.verbose = solver.app.verbose
-		args.buildOptions = '-w'	-- show warnings
-		local results = Program.super.compile(self, args)
-		assert(self.obj, "there must have been an error in your error handler")	-- otherwise it would have thrown an error
-		do--if self.obj then	-- did compile
-			print((self.name and self.name..' ' or '')..'log:')
-			-- TODO log per device ...
-			print(string.trim(self.obj:getLog(solver.device)))
+		if useClang then
+			local function echo(cmd)
+				print('>'..cmd)
+				return os.execute(cmd)
+			end
+			assert(echo(table{
+				'clang',
+				'-v',
+				'-Xclang -finclude-default-header',
+				'--target=spir64-unknown-unknown',
+				'-emit-llvm',
+				'-c',
+				'-o', ('%q'):format(self.cacheFileBC),
+				('%q'):format(self.cacheFileCL)
+			}:concat' '))
+			assert(echo(table{
+				'llvm-spirv',
+				('%q'):format(self.cacheFileBC),
+				'-o', ('%q'):format(self.cacheFileSPV),
+			}:concat' '))
+			args = args or {}
+			args.verbose = solver.app.verboe
+			args.IL = file(self.cacheFileSPV):read()
+			local results = Program.super.compile(self, args)
+			assert(self.obj, "there must have been an error in your error handler")	-- otherwise it would have thrown an error
+			do--if self.obj then	-- did compile
+				print((self.name and self.name..' ' or '')..'log:')
+				-- TODO log per device ...
+				print(string.trim(self.obj:getLog(solver.device)))
+			end
+			return results
+		else
+			args = args or {}
+			args.verbose = solver.app.verbose
+			local opts = table()
+			opts:insert'-w'	-- show warnings
+			--opts:insert'-cl-std=CLC++'	-- I don't have  cl_ext_cxx_for_opencl  so ... I can only do this with IL
+			args.buildOptions = opts:concat' '
+			local results = Program.super.compile(self, args)
+			assert(self.obj, "there must have been an error in your error handler")	-- otherwise it would have thrown an error
+			do--if self.obj then	-- did compile
+				print((self.name and self.name..' ' or '')..'log:')
+				-- TODO log per device ...
+				print(string.trim(self.obj:getLog(solver.device)))
+			end
+			-- if we are using cached code then manually write binaries
+			if cmdline.usecachedcode and useCache then
+				local binfn = 'cache/'..solver:getIdent()..'/bin/'..self.name..'.bin'
+				file(binfn):write(tolua(self.obj:getBinaries()))
+			end
+			return results
 		end
-		-- if we are using cached code then manually write binaries
-		if cmdline.usecachedcode and useCache then
-			local binfn = 'cache/'..solver:getIdent()..'/bin/'..self.name..'.bin'
-			file(binfn):write(tolua(self.obj:getBinaries()))
-		end
-		return results
 	end
 	
 	self.Program = Program
