@@ -195,7 +195,7 @@ function DrawVectorLIC:prepareShader()
 
 	if solver.vectorLICShader then return end
 
-	local vectorLICCode = assert(file'hydro/draw/vector_lic.shader':read())
+	local vectorLICCode = assert(file'hydro/draw/vector_lic.glsl':read())
 
 	solver.vectorLICShader = solver.GLProgram{
 		name = 'vector_lic',

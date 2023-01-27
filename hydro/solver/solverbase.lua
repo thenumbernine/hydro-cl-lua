@@ -688,13 +688,13 @@ function SolverBase:initMeshVars(args)
 			local args = ...
 		
 			local dir = 'cache/'..solver:getIdent()..'/shader'
-			print('building '..dir..'/'..args.name..'.vert & .frag')
+			print('building '..dir..'/'..args.name..'.vert.glsl & .frag.glsl')
 			
 			file(dir):mkdir(true)
 			local path = dir..'/'..args.name
 			-- Write generated code
-			file(path..'.vert'):write(args.vertexCode)
-			file(path..'.frag'):write(args.fragmentCode)
+			file(path..'.vert.glsl'):write(args.vertexCode)
+			file(path..'.frag.glsl'):write(args.fragmentCode)
 
 			GLProgram.super.init(self, ...)
 		end

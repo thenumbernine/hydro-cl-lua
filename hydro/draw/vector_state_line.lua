@@ -151,7 +151,7 @@ function DrawVectorStateLine:prepareShader()
 	local solver = self.solver
 	if solver.drawVectorStateLineShader then return end
 
-	local code = assert(file'hydro/draw/vector_state_line.shader':read())
+	local code = assert(file'hydro/draw/vector_state_line.glsl':read())
 
 	solver.drawVectorStateLineShader = solver.GLProgram{
 		name = 'vector_state_line',

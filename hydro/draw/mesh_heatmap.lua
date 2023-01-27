@@ -230,7 +230,7 @@ function DrawMeshHeatmap:prepareShader()
 	local solver = self.solver
 	if solver.heatMap2DShader then return end
 
-	local heatMapCode = assert(file'hydro/draw/mesh_heatmap.shader':read())
+	local heatMapCode = assert(file'hydro/draw/mesh_heatmap.glsl':read())
 
 	solver.heatMap2DShader = solver.GLProgram{
 		name = 'mesh_heatmap',

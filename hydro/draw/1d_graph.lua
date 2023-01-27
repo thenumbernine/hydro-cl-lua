@@ -206,7 +206,7 @@ function Draw1D:prepareShader()
 
 	if solver.graphShader then return end
 
-	local graphShaderCode = assert(file'hydro/draw/graph.shader':read())
+	local graphShaderCode = assert(file'hydro/draw/graph.glsl':read())
 
 	solver.graphShader = solver.GLProgram{
 		name = 'graph',

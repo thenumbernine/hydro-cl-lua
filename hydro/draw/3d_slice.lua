@@ -147,7 +147,7 @@ function Draw3DSlice:prepareShader()
 	if solver.volumeSliceShader then return end
 	local app = solver.app
 
-	local volumeSliceCode = assert(file'hydro/draw/3d_slice.shader':read())
+	local volumeSliceCode = assert(file'hydro/draw/3d_slice.glsl':read())
 
 	solver.volumeSliceShader = solver.GLProgram{
 		name = '3d_slice',

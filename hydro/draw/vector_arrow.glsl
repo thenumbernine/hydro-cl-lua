@@ -56,7 +56,7 @@ else
 	vec3 center = gridCoord;
 	vec3 texCoord = vec3(0., 0., 0.);
 	
-	// matches getValue() in mesh_heatmap.shader
+	// matches getValue() in mesh_heatmap.glsl
 <?	
 	if require "gl.tex2d":isa(solver.tex) then 
 		if solver.texSize.y == 1 then
