@@ -38,6 +38,7 @@ Now this project, lua-hydro-cl, pushes the middleman (C++) out completely.
 - https://github.com/thenumbernine/lua-opencl
 - https://github.com/thenumbernine/modules-lua
 - https://github.com/thenumbernine/solver-lua
+- https://github.com/thenumbernine/lua-make
 - https://github.com/thenumbernine/lua-ffi-bindings (OpenGL, SDL, cimgui, libpng)
 - https://github.com/thenumbernine/lua-image (if you want to take pictures/videos)
 - https://github.com/thenumbernine/lua-gl (if you want to use the graphic visualization)
