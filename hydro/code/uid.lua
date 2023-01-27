@@ -18,7 +18,7 @@ local ffi = require 'ffi'
 local randseed = ffi.new('uint32_t', 123459876)
 local function nextrand()
 	randseed = ffi.cast('uint32_t', randseed * 16807) % 2147483647
-	return randseed 
+	return randseed
 end
 --]=]
 local uidForObj = {}
@@ -27,7 +27,7 @@ local function getuid(obj)
 	setmetatable(obj, nil)
 	local uidkey = assert(tostring(obj):match'table: 0x(.*)')
 	setmetatable(obj, mt)
-	
+
 	local uid = uidForObj[uidkey]
 	if not uid then
 		uid = tostring(tonumber(nextrand()), 16)

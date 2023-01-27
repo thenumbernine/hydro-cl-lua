@@ -1,9 +1,9 @@
 --[[
-exact volume: 
+exact volume:
 int(φ=φ1,φ2 int(r=r1,r2 r dr) dφ)
 = 1/2 (φ2-φ1) (r2^2 - r1^2)
 
-volume element: 
+volume element:
 r dr dφ
 = r (r2 - r1) (φ2 - φ1)
 = (r2+r1)/2 (r2 - r1) (φ2 - φ1)
@@ -15,14 +15,14 @@ same thing, good thing
 local class = require 'ext.class'
 local table = require 'ext.table'
 local symmath = require 'symmath'
-local template = require 'template'	
+local template = require 'template'
 local CoordinateSystem = require 'hydro.coord.coord'
 
 local sin, cos = symmath.sin, symmath.cos
 local Tensor = symmath.Tensor
 
 local Cylinder = class(CoordinateSystem)
-Cylinder.name = 'cylinder' 
+Cylinder.name = 'cylinder'
 
 function Cylinder:init(args)
 	local x, y, z = symmath.vars('x', 'y', 'z')
@@ -36,25 +36,25 @@ function Cylinder:init(args)
 	local r2, phi = symmath.vars('r', 'φ')
 	self.baseCoords = table{r2, phi, z}
 
-	-- anholonomic linear transform 
-	-- e_iHol = e_iHol^i partial_i 
+	-- anholonomic linear transform
+	-- e_iHol = e_iHol^i partial_i
 	self.eHolToE = symmath.Matrix(
 		{1, 0, 0},
 		{0, 1/r2, 0},
 		{0, 0, 1}
 	)
-	
+
 	-- https://ntrs.nasa.gov/archive/nasa/casi.ntrs.nasa.gov/19870019781.pdf
 	-- it looks like all I need is the volume and I'm fine
 
-	self.chart = function() 
-		return Tensor('^I', 
-			r2 * cos(phi), 
-			r2 * sin(phi), 
+	self.chart = function()
+		return Tensor('^I',
+			r2 * cos(phi),
+			r2 * sin(phi),
 			z
-		) 
+		)
 	end
-	
+
 	Cylinder.super.init(self, args)
 
 	self.vars = {

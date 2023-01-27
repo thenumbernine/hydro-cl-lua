@@ -1,5 +1,4 @@
 -- TODO make use of app.display_useCoordMap
-local ffi = require 'ffi'
 local class = require 'ext.class'
 local file = require 'ext.file'
 local vec3f = require 'vec-ffi.vec3f'
@@ -45,11 +44,11 @@ function Draw2DGraph:showDisplayVar(var)
 	shader:use()
 	local tex = solver:getTex(var)
 	tex:bind()
-	
+
 	self:setupDisplayVarShader(shader, var, valueMin, valueMax)
 
 	gl.glUniform1f(uniforms.ambient.loc, self.ambient)
-	
+
 	-- TODO where to specify using the heatmap gradient vs using the variable/solver color
 	gl.glUniform3f(uniforms.color.loc, (#app.solvers > 1 and solver or var).color:unpack())
 
@@ -59,7 +58,7 @@ function Draw2DGraph:showDisplayVar(var)
 	local step = math.max(1, self.step)
 	local numX = math.floor((tonumber(solver.gridSize.x) - 2 * solver.numGhost + 1) / step)
 	local numY = math.floor((tonumber(solver.gridSize.y) - 2 * solver.numGhost + 1) / step)
-	-- 2 vtxs per tristrip 
+	-- 2 vtxs per tristrip
 	local numVertexes = 2 * numX * numY
 
 	if #self.vertexes ~= numVertexes then
@@ -80,20 +79,20 @@ function Draw2DGraph:showDisplayVar(var)
 			end
 		end
 	end
-	
+
 	gl.glEnableVertexAttribArray(shader.attrs.gridCoord.loc)
 	gl.glVertexAttribPointer(shader.attrs.gridCoord.loc, 3, gl.GL_FLOAT, false, 0, self.vertexes.v)
-	
+
 	gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_LINE)
 
 	for j=0,numY-2 do
-		gl.glDrawArrays(gl.GL_TRIANGLE_STRIP, j * 2 * numX, 2 * numX) 
+		gl.glDrawArrays(gl.GL_TRIANGLE_STRIP, j * 2 * numX, 2 * numX)
 	end
-	
+
 	gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_FILL)
-	
+
 	gl.glDisableVertexAttribArray(shader.attrs.gridCoord.loc)
-	
+
 	tex:unbind()
 	shader:useNone()
 end
@@ -103,7 +102,7 @@ function Draw2DGraph:display(varName, ar, graph_xmin, graph_xmax, graph_ymin, gr
 	local app = solver.app
 
 	app.view:setup(ar)
-	
+
 	gl.glColor3f(1,1,1)
 	gl.glEnable(gl.GL_DEPTH_TEST)
 
@@ -113,11 +112,11 @@ function Draw2DGraph:display(varName, ar, graph_xmin, graph_xmax, graph_ymin, gr
 			self:prepareShader()
 			self:showDisplayVar(var)
 		end
-		
+
 		-- TODO right here is where the color gradient display usually goes
 		-- mind you I'm not using it in the 2D graph display atm
 	end
-	
+
 	gl.glDisable(gl.GL_DEPTH_TEST)
 end
 
@@ -125,9 +124,9 @@ end
 function Draw2DGraph:prepareShader()
 	local solver = self.solver
 	if solver.graphShader then return end
-	
+
 	local graphShaderCode = assert(file'hydro/draw/graph.shader':read())
-	
+
 	solver.graphShader = solver.GLProgram{
 		name = 'graph',
 		vertexCode = solver.eqn:template(graphShaderCode, {

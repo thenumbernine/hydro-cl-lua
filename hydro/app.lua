@@ -18,7 +18,7 @@ solver parameters:
 		mins =
 		maxs =
 		multiSlices =
-	
+
 hardware/opencl:
 	float = set to true to use 32 bit float instead of 64
 	half = set to true to use 16 bit float instead of 64
@@ -38,18 +38,18 @@ display:
 	display_useCoordMap = set this gui option
 	display_fixedRange = whether to initialize display vars with a fixed range (of [0,1])
 	showMouseCoords = whether to show mouse coords.  default is true.
-	
+
 	displayDim = override dimension of display (useful for displaying 3D simulations as 1D graphs)
 	displaySlice = 'xy' by default, 'xz' for the xz slice, 'yz' for the yz slice.
 		set this to {x,y,z,theta} for angle/axis initialization.
-	
+
 	frustum = set frustum view initially
 	frustumDist = frustum view initial distance.  default 3
 	frustumAngle = frustum view initial angle.  default {0,0,0,1}
-	
-	ortho = set the initial view to ortho 
-	zoom = set ortho zoom 
-	
+
+	ortho = set the initial view to ortho
+	zoom = set ortho zoom
+
 	stackGraphs = stack graphs initially
 	disableFont = set to disable loading of the font.png file.  automatically true if sys=console.
 
@@ -80,7 +80,7 @@ simulation execution:
 		all = upon finding a NaN, print all values that were NaN in that buffer.  If this is omitted then only the first value is printed.
 		gpu = perform the check using gpu.  should go faster.  Right?
 		noghost = skip testing NaNs in ghost cells.
-	
+
 
 debugging:
 	verbose = output extra stuff
@@ -131,7 +131,7 @@ local ffi = require 'ffi'
 do
 	-- save the previous global if it's there, apply it later
 	local oldcmdline = cmdline
-	
+
 	-- initialize our new global cmdline
 	cmdline = table()
 
@@ -147,7 +147,7 @@ do
 
 	-- 2) add in anything from the previously-set cmdline global
 	cmdline = table(oldcmdline, cmdline)
-	
+
 	-- 3) add in anything from the real command-line
 	cmdline = table(require 'ext.cmdline'(table.unpack(arg)), cmdline)
 end
@@ -161,7 +161,6 @@ if cmdline.verbose then
 end
 
 local bit = require 'bit'
-local cl = require 'ffi.OpenCL'
 local class = require 'ext.class'
 local math = require 'ext.math'
 local file = require 'ext.file'
@@ -169,7 +168,6 @@ local range = require 'ext.range'
 local string = require 'ext.string'
 local template = require 'template'
 local CLEnv = require 'cl.obj.env'
-local clnumber = require 'cl.obj.number'
 local half = require 'cl.obj.half'
 local vec4d = require 'vec-ffi.vec4d'
 local vec3d = require 'vec-ffi.vec3d'
@@ -217,18 +215,18 @@ local baseSystems = {
 		return require 'imguiapp'
 	end},
 	{glapp = function()
-		
+
 		package.loaded['imgui'] = {disabled=true}
 		ig = require 'imgui'
-		
+
 		return require 'glapp'
 	end},
 	{console = function()
-		
+
 		package.loaded.ig = {disabled=true}
 		package.loaded.gl = {disabled=true}
 		package.loaded['gl.report'] = {disabled=true}
-		
+
 		local cl = class()
 		function cl:requestExit() self.done = true end
 		function cl:run()
@@ -437,7 +435,7 @@ function HydroCLApp:display3D_Slice(solvers, ...)
 	end
 end
 
-function HydroCLApp:display3D_Ray(solver, ...)
+function HydroCLApp:display3D_Ray(solvers, ...)
 	for _,solver in ipairs(solvers) do
 		solver.draw3DRay = solver.draw3DRay or require 'hydro.draw.3d_ray'(solver)
 		solver.draw3DRay:display(...)
@@ -494,7 +492,7 @@ function HydroCLApp:initDraw()
 		assert(#cmdline.displaySlice == 4, "don't know how to handle this cmdline.displaySlice")
 		self.displaySliceAngle:fromAngleAxis(table.unpack(cmdline.displaySlice))
 	end
-	
+
 	self.display1DMethods = table{
 		{Graph = HydroCLApp.display1D_Graph},
 	}
@@ -517,30 +515,6 @@ function HydroCLApp:initDraw()
 	}
 end
 
-
---[[ Cheap output of the state each frame so I can compare it to other solvers.
--- 	This is what the dump-to-file is supposed to also do.
-local printStateFile = file'out.txt':open'w'
-local function printState(solver)
-	local ptr = solver.UBufObj:toCPU()
-	
-	local cols = {0, 1, 4}
-	
-	for i=0,solver.numCells-1 do
-		-- matching the cl defs:
-		local dx = tonumber((solver.maxs.x - solver.mins.x) / (solver.gridSize.x - (2*solver.numGhost)))
-		local x = (i + .5 - solver.numGhost) * dx + solver.mins.x
-		printStateFile:write(solver.t,'\t',x)
-		for _,j in ipairs(cols) do	-- only use rho, mx, ETotal
-		--for j=0,solver.eqn.numStates-1 do
-			printStateFile:write('\t',ptr[j + solver.eqn.numStates * i])
-		end
-		printStateFile:write'\n'
-	end
-	printStateFile:write'\n'
-	printStateFile:flush()
-end
---]]
 
 -- always called by glapp, even if sys=console
 -- ... in that case a dummy subsys is provided above that calls initGL
@@ -609,12 +583,12 @@ function HydroCLApp:initGL(...)
 	then
 		self.running = true
 	end
-	
+
 	self.frameIndex = 0
 
 	self.createAnimation = cmdline.createAnimation
 	self.animationSaveEvery = cmdline.animationSaveEvery
-	
+
 	-- ok TODO clean this system up a bit because ...
 	-- false = use screenshot of the current display window
 	-- true = save the contents of the solver's gl tex with values mapped through the current palette in gradientTex
@@ -623,7 +597,7 @@ function HydroCLApp:initGL(...)
 	self.useGLSharing = self.env.useGLSharing
 	self.ctx = self.env.ctx
 	self.real = self.env.real
-	
+
 	--half cannot be a kernel param, so this is a proxy type
 	self.realparam = self.real == 'half' and 'float' or self.real
 
@@ -638,19 +612,19 @@ function HydroCLApp:initGL(...)
 		local Modules = require 'modules'
 		Modules.verbose = cmdline.moduleVerbose
 		self.modules = Modules()
-	
+
 		self.modules:addFromMarkup(template(file'hydro/code/math.cl':read(), table(require 'hydro.common', {
 			app = self,
 		})))
-		
+
 		require 'hydro.code.safecdef'(self.modules:getTypeHeader'math')
-	
+
 		-- this expects solver_t to have gridSize, but it doesn't require its def (because it's a macro)
 		self.modules:add{
 			name = 'INDEX',
 			headercode = '#define INDEX(a,b,c)	((a) + solver->gridSize.x * ((b) + solver->gridSize.y * (c)))',
 		}
-	
+
 		self.modules:add{
 			name = 'INDEXV',
 			headercode = '#define INDEXV(i)		indexForInt4ForSize(i, solver->gridSize.x, solver->gridSize.y, solver->gridSize.z)',
@@ -662,7 +636,7 @@ function HydroCLApp:initGL(...)
 			name = 'numberof',
 			headercode = '#define numberof(x)	(sizeof(x)/sizeof(x[0]))',
 		}
-	
+
 		self.modules:add{
 			name = 'endof',
 			depends = {'numberof'},
@@ -681,8 +655,8 @@ function HydroCLApp:initGL(...)
 			return
 		end
 	end
-	
-	
+
+
 	-- this will be per-solver
 	-- but is also tightly linked to the structured grid solvers
 	-- used for 1D
@@ -791,12 +765,6 @@ void main() {
 			end
 		end
 	end
-
-if printState then
-	for _,solver in ipairs(self.solvers) do
-		printState(solver)
-	end
-end
 
 	self.displayDim = cmdline.displayDim or self.solvers:mapi(function(solver)
 		return solver.dim
@@ -914,8 +882,6 @@ gui:
 
 --]]
 
-local View = class()
-
 local Display = class()
 
 function Display:init(args)
@@ -923,12 +889,12 @@ function Display:init(args)
 
 	self.mins = vec3d(-1,-1,-1)
 	self.maxs = vec3d(1,1,1)
-	
+
 	--[[
 	var name, does it contribute to the graph space autoscale range?
 	--]]
 	self.graphVars = table()
-	
+
 	--[[
 	var name, heatmap scale min/max, heatmap autoscale? texture, alpha
 	--]]
@@ -948,10 +914,10 @@ function dumpFile:update(app, t)
 	if not f then
 		f = file'var-ranges.txt':open'w'
 		self.file = f
-		
+
 		-- don't change any vars while outputting or else your rows won't match your header
 		f:write'#t'
-		
+
 		for _,solver in ipairs(app.solvers) do
 			--[[ display variables:
 			for _,var in ipairs(solver.displayVars) do
@@ -969,7 +935,7 @@ function dumpFile:update(app, t)
 		f:write'\n'
 		f:flush()
 	end
-	
+
 	f:write(t)
 	for _,solver in ipairs(app.solvers) do
 		--[[ display variables:
@@ -1047,7 +1013,7 @@ function HydroCLApp:saveHeatMapBufferImages()
 		local tex = solver.tex
 		local cl = tex.class
 		assert(not tex.depth) 	-- i don't have ssimg big enough for glgetteximage of texture_3d yet...
-		
+
 		-- TODO store this if you want to use this for streaming
 		local fbotex = self.saveHeatMapBufferImages_fbotex
 		if not fbotex
@@ -1077,9 +1043,9 @@ function HydroCLApp:saveHeatMapBufferImages()
 
 		fbo:setColorAttachment(0, fbotex)
 		fbo:bind()
-				
+
 		gl.glViewport(0, 0, tex.width, tex.height)
-		
+
 		-- TODO instead of pushing and popping
 		-- just separate out this function
 --		self:update()
@@ -1104,10 +1070,10 @@ function HydroCLApp:saveHeatMapBufferImages()
 		ssflipped:save(fn)
 
 		fbo:unbind()
-	
+
 		self.size = pushSize
 	end
-	
+
 	self.running = pushRunning
 	self.drawGradientLegend = pushDrawGradientLegend
 	self.super.update = pushUpdateGUI
@@ -1294,7 +1260,7 @@ function HydroCLApp:update(...)
 								-- only writing the 1st var for now
 								cols[colbase + 0]:insert(fromreal(ptr[0 + channels * index]) or '-')
 							end
-					
+
 							usings:insert{using=xi..':'..colbase, title=fixtitle(solver.name..' '..varname..' at t='..solver.t)}
 						end
 					end
@@ -1323,13 +1289,6 @@ if cmdline.printBufs then
 	print'UBuf post-update:'
 	oldestSolver:printBuf(oldestSolver.UBufObj)
 end
-
-if printState then
-	for _,solver in ipairs(self.solvers) do
-		printState(solver)
-	end
-end
-
 
 			-- TODO should the time be oldestSolver.t after oldestSolver just updated?
 			-- or - if dumpFile is enabled - should we re-search-out the oldest solver and use its time?
@@ -1399,7 +1358,7 @@ end
 	local ar = (w / graphsWide) / (h / graphsHigh)
 
 	local mouseClickedOnVar
-				
+
 	-- varymin/max is the variable range
 	local varymin, varymax
 
@@ -1409,7 +1368,7 @@ end
 		local xmin, xmax, ymin, ymax
 		for _,solver in ipairs(displaySolvers) do
 			local var = solver.displayVarForName[varName]
-			
+
 			if var and var.enabled
 			--and solver.visiblePtr and solver.visiblePtr[0]
 			then
@@ -1423,7 +1382,7 @@ end
 					solverxmin = (solverxmin - center) * ar + center
 					solverxmax = (solverxmax - center) * ar + center
 				end
-	
+
 				-- solverymin/max is the view range
 				local solverymin, solverymax
 
@@ -1441,12 +1400,12 @@ end
 					local thisvarymin, thisvarymax = solverymin, solverymax
 					varymin = varymin and math.min(thisvarymin, varymin) or thisvarymin
 					varymax = varymax and math.max(thisvarymax, varymax) or thisvarymax
-					
+
 					if useLog then
 						solverymin, solverymax = getminmax(solverymin, solverymax)
 						solverymax = math.max(solverymax, solverymin + minDeltaY)
 					end
-					
+
 					if solverymin
 					and solverymax
 					and solverymin == solverymin
@@ -1467,19 +1426,19 @@ end
 						end
 					end
 				end
-				
+
 				xmin = xmin or solverxmin
 				xmax = xmax or solverxmax
 				ymin = ymin or solverymin
 				ymax = ymax or solverymax
-				
+
 				if xmin and solverxmin then xmin = math.min(xmin, solverxmin) end
 				if xmax and solverxmax then xmax = math.max(xmax, solverxmax) end
 				if ymin and solverymin then ymin = math.min(ymin, solverymin) end
 				if ymax and solverymax then ymax = math.max(ymax, solverymax) end
 			end
 		end
-		
+
 		if not xmin or not xmax or xmin ~= xmin or xmax ~= xmax then
 			xmin = -5
 			xmax = 5
@@ -1515,7 +1474,7 @@ end
 				end
 			end
 		end
-		
+
 		if self.showMouseCoords
 		and mouseOverThisGraph
 		and (self.displayDim == 1 or self.displayDim == 2)	-- displaySolvers[1].dim == 2		-- or better -- instead check for ortho
@@ -1531,7 +1490,7 @@ end
 				else
 					xmin, xmax, ymin, ymax = graph_xmin, graph_ymin, graph_xmax, graph_ymax
 				end
-				
+
 				-- frustum doesn't have these ...
 				if xmax and ymax and xmin and ymin then
 					self.mouseCoord[1] = mouseInGraphX * (xmax - xmin) + xmin
@@ -1541,7 +1500,7 @@ end
 		end
 
 
-	
+
 		if not vectorField then
 			if self.displayDim == 1 then
 				self:display1D(displaySolvers, varName, ar, xmin, xmax, ymin, ymax, useLog, varymin, varymax)
@@ -1554,7 +1513,7 @@ end
 			self:displayVector(displaySolvers, varName, ar, xmin, xmax, ymin, ymax)
 		end
 
-	
+
 		-- in all these above :display...() methods, they exclude meshsolvers
 		-- so this is just for mesh ...
 		for _,solver in ipairs(self.solvers) do
@@ -1563,15 +1522,15 @@ end
 				solver:display(varName, ar)
 			end
 		end
-	
-			
+
+
 		-- TODO make this custom per-display-method
 		-- (that would also let us do one less tex bind/unbind)
 		if mouseOverThisGraph
 		and self.showMouseCoords
 		and (self.displayDim == 1 or self.displayDim == 2)
 		then
-			local toreal, fromreal = half.toreal, half.fromreal
+			local fromreal = half.fromreal
 			self.mouseCoordValue = ''
 			for i,solver in ipairs(displaySolvers) do
 				local var = solver.displayVarForName[varName]
@@ -1600,7 +1559,7 @@ end
 							local texZ = tcZ	-- displayFixedX, remapped from coordinate to texture space
 							do -- if require 'hydro.solver.meshsolver':isa(solver) then
 								size = var.group.getBuffer().sizevec or solver.gridSize
-								
+
 								-- TODO now that I am allowing that slicing stuff, now I have to incorporate those transforms here
 								-- esp if displayDim==2 but the solver dim==3
 								texX = math.floor(texX * tonumber(size.x))
@@ -1616,7 +1575,7 @@ end
 								local unitScale = solver:convertToSIUnitsCode(var.units).func()
 								-- do I have to recalculate it here?
 								solver:calcDisplayVarToTex(var)
-								
+
 								-- ... if we know we're always copying intermediately to reduceBuf then we can use that instead
 								-- in fact, we can even use the CPU intermediate buffer
 									-- right now I'm copying halfs from cl to gl as-is, so calcDisplayVarToTexPtr will have half data for half and float data otherwise
@@ -1654,7 +1613,7 @@ end
 				end
 			end
 		end
-	
+
 		if not self.displayAllTogether then
 			graphCol = graphCol + 1
 			if graphCol == graphsWide then
@@ -1710,7 +1669,7 @@ end
 				self:screenshot()
 			end
 		end
-		
+
 		if self.createAnimation == 'once' then
 			self.createAnimation = nil
 		end
@@ -1760,7 +1719,7 @@ function HydroCLApp:drawGradientLegend(solver, var, varName, ar, valueMin, value
 	self.orthoView:projection(ar)
 	self.orthoView:modelview()
 	local xmin, xmax, ymin, ymax = self.orthoView:getOrthoBounds(ar)
-	
+
 	if self.font then
 		local palwidth = (xmax - xmin) * .1
 		self.gradientTex:enable()
@@ -1792,7 +1751,7 @@ function HydroCLApp:drawGradientLegend(solver, var, varName, ar, valueMin, value
 			}
 		end
 		self.font:draw{
-			pos = {xmin, ymax, gridz},
+			pos = {xmin, ymax},
 			text = varName,
 			color = {1,1,1,1},
 			fontSize = {fontSizeX, -fontSizeY},
@@ -1825,7 +1784,7 @@ function HydroCLApp:updateGUI()
 			end
 			self.running = false
 		end
-		
+
 		if ig.igButton'Save' then
 			local savePrefix = os.date'%Y.%m.%d-%H.%M.%S'
 			-- save as cfits
@@ -1833,11 +1792,11 @@ function HydroCLApp:updateGUI()
 				solver:save(savePrefix..'_'..tostring(i))
 			end
 		end
-	
+
 		if ig.luatableTooltipCombo('Palette', self, 'predefinedPaletteIndex', self.predefinedPaletteNames) then
 			self:resetGradientTex()
 		end
-	
+
 		ig.igSameLine()
 		if ig.igButton'Randomize Palette' then
 			self:randomizeGradientTex()
@@ -1862,7 +1821,7 @@ function HydroCLApp:updateGUI()
 
 		ig.luatableTooltipCheckbox('stack graphs', self, 'displayAllTogether')
 		ig.igSameLine()
-	
+
 		-- TODO per-solver
 		ig.luatableTooltipCheckbox('bilinear textures', self, 'displayBilinearTextures')
 		ig.igSameLine()
@@ -1870,12 +1829,12 @@ function HydroCLApp:updateGUI()
 		-- for 2D heatmap only atm
 		ig.luatableTooltipCheckbox('display with coord map', self, 'display_useCoordMap')
 		ig.igSameLine()
-		
+
 		ig.luatableTooltipCheckbox('show coords', self, 'showMouseCoords')
 
 		--ig.igSameLine()
 		--ig.luatableTooltipCheckbox('mouse influence equations', self, 'mouse_influenceEquations')
-		
+
 
 		if ig.igRadioButton_Bool('ortho', self.view == self.orthoView) then
 			self.view = self.orthoView
@@ -1893,7 +1852,7 @@ function HydroCLApp:updateGUI()
 			if j < 3 then ig.igSameLine() end
 		end
 
-		
+
 		--ig.luatableTooltipSliderFloat('fixed y', self, 'displayFixedY', -10, 10)
 		--ig.luatableTooltipSliderFloat('fixed z', self, 'displayFixedZ', -10, 10)
 		ig.igPushID_Str'fixed y zoom'
@@ -1907,7 +1866,7 @@ function HydroCLApp:updateGUI()
 		ig.igSameLine()
 		ig.luatableTooltipInputFloatAsText('fixed y', self, 'displayFixedY')
 		ig.igPopID()
-		
+
 		ig.igPushID_Str'fixed z zoom'
 		if ig.igButton'+' then
 			self.displayFixedZ = self.displayFixedZ + .1
@@ -1950,7 +1909,7 @@ function HydroCLApp:updateGUI()
 
 		-- TODO flag to toggle slice vs volume display
 		-- or maybe checkboxes for each kind?
-		
+
 		do
 			local dim = self.displayDim
 			if dim == 1 then
@@ -1978,7 +1937,7 @@ function HydroCLApp:updateGUI()
 				end
 				ig.igPopID()
 			end
-			
+
 			do
 				ig.igPushID_Str'Vector'
 
@@ -1987,7 +1946,7 @@ function HydroCLApp:updateGUI()
 					local name, func = next(method)
 					ig.luatableTooltipCheckbox(name, self.displayVectorMethodsEnabled, name)
 				end
-				
+
 				ig.igPopID()
 			end
 		end

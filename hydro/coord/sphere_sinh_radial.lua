@@ -22,7 +22,7 @@ SphereLogRadial.name = 'sphere_sinh_radial'
 --[[
 args
 	volumeDim = (TODO) change volume element etc to act as if we're in a higher dimension
-	
+
 	TODO add some other arg for rearranging the coordinate order so we can do 2D simulations of θ and φ alone
 	amplitude
 	sinh_w
@@ -35,7 +35,7 @@ function SphereLogRadial:init(args)
 
 	-- 2017 Ruchlin, Etienne after eqn 42
 	local solver = args.solver
-	self.amplitude = args.amplitude or 1000 
+	self.amplitude = args.amplitude or 1000
 	self.sinh_w = args.sinh_w or .15
 --	local rmax = solver.maxs.x	-- not used (also not initialized at this point)
 
@@ -49,14 +49,14 @@ function SphereLogRadial:init(args)
 	self.sinh_w_var = var'SINHW'
 	amplitude = self.amplitude_var
 	sinh_w = self.sinh_w_var
-	
+
 	-- TODO repl vars for solver->coord_sinh_w and solver->coord_amplitude, and make these coord parameters?
 	-- or they can just be compile-time, but both can be accomplished with solver's guiVars
-	
+
 	local rDef = amplitude * sinh(rho / sinh_w) / sinh(frac(1, sinh_w))
 
 	local r = symmath.var('r', {rho})
-	
+
 	self.vars = {
 		x = rDef * sin(theta) * cos(phi),
 		y = rDef * sin(theta) * sin(phi),
@@ -98,30 +98,30 @@ function SphereLogRadial:init(args)
 		{0, 1/r, 0},
 		{0, 0, 1/(r*symmath.sin(theta))}
 	)
-	
-	self.chart = function() 
-		return Tensor('^I', 
-			r * symmath.sin(theta) * symmath.cos(phi), 
-			r * symmath.sin(theta) * symmath.sin(phi), 
+
+	self.chart = function()
+		return Tensor('^I',
+			r * symmath.sin(theta) * symmath.cos(phi),
+			r * symmath.sin(theta) * symmath.sin(phi),
 			r * symmath.cos(theta)
-		) 
+		)
 	end
-	
+
 	SphereLogRadial.super.init(self, args)
 end
 
-function SphereLogRadial:getModuleDepends_coordMap() 
+function SphereLogRadial:getModuleDepends_coordMap()
 	return {
 		self.solver.eqn.symbols.eqn_guiVars_compileTime,	-- for AMPL and SINHW
 	}
 end
 
-function SphereLogRadial:getModuleDepends_coordMapGLSL() 
+function SphereLogRadial:getModuleDepends_coordMapGLSL()
 	return {
 		self.solver.eqn.symbols.eqn_guiVars_compileTime,	-- for AMPL and SINHW
 	}
 end
-function SphereLogRadial:getModuleDepends_coordMapInvGLSL() 
+function SphereLogRadial:getModuleDepends_coordMapInvGLSL()
 	return {
 		self.solver.eqn.symbols.eqn_guiVars_compileTime,	-- for AMPL and SINHW
 	}
@@ -158,8 +158,8 @@ real3 coordMapInv(real3 pt) {
 	real theta = acos(pt.z / r);
 	real phi = atan2(pt.y, pt.x);
 	if (phi < 0.) phi += 2. * M_PI;
-<? end 
-?>	
+<? end
+?>
 
 	real rho = <?=
 -- the default expression uses 'pt' for the input arg, and pt.x for 'r' ...
@@ -172,7 +172,7 @@ real3 coordMapInv(real3 pt) {
 				:replace(coord.baseCoords[1], require 'symmath'.var'r')
 		)
 	?>;
-	
+
 	if (rho == 0. || theta == 0. || theta == M_PI) return _real3(0.,0.,0.);
 	return _real3(rho, theta, phi);
 }
@@ -308,7 +308,6 @@ end
 function SphereLogRadial:fillGridCellBuf(cellsCPU)
 	local solver = self.solver
 
-	local symmath = require 'symmath'
 	local rho, theta, phi = self.baseCoords:unpack()
 	local calcR = symmath.export.Lua:toFunc{
 		output = {
@@ -316,10 +315,10 @@ function SphereLogRadial:fillGridCellBuf(cellsCPU)
 		},
 		input = {{rho=rho}, {theta=theta}, {phi=phi}},
 	}
-	
+
 	local index = 0
 	for k=0,tonumber(solver.gridSize.z)-1 do
-		local phi = solver.dim >= 3 
+		local phi = solver.dim >= 3
 			and ((k + .5 - solver.numGhost) / (tonumber(solver.gridSize.z) - 2 * solver.numGhost) * (solver.maxs.z - solver.mins.z) + solver.mins.z)
 			or (.5 * (solver.maxs.z + solver.mins.z))
 		for j=0,tonumber(solver.gridSize.y)-1 do

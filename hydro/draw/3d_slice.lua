@@ -14,7 +14,7 @@ local vertexesInQuad = {{0,0},{1,0},{1,1},{0,1}}
 --[[
 looks great for flat space
 TODO for curved space: provide a coordMapInv function (might have to be manual to account for domains of rotations)
- and then call this as we march through volumes 
+ and then call this as we march through volumes
  and treat out-of-bound values as fully transparent
 --]]
 Draw3DSlice.usePoints = false
@@ -48,15 +48,15 @@ function Draw3DSlice:showDisplayVar(var, varName, ar, xmin, xmax, ymin, ymax, us
 		var.heatMapValueMax = valueMax
 	end
 
-	solver:calcDisplayVarToTex(var)	
+	solver:calcDisplayVarToTex(var)
 
 	shader:use()
 	local tex = solver:getTex(var)
 	tex:bind(0)
 	tex:setParameter(gl.GL_TEXTURE_MAG_FILTER, app.displayBilinearTextures and gl.GL_LINEAR or gl.GL_NEAREST)
-	
+
 	app.gradientTex:bind(1)
-	
+
 	self:setupDisplayVarShader(shader, var, valueMin, valueMax)
 
 	gl.glUniform1f(uniforms.alpha.loc, self.alpha)
@@ -82,15 +82,15 @@ function Draw3DSlice:showDisplayVar(var, varName, ar, xmin, xmax, ymin, ymax, us
 		end
 		gl.glEnd()
 		gl.glDisable(gl.GL_DEPTH_TEST)
-	
+
 	else
-	
+
 		gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
 		gl.glEnable(gl.GL_BLEND)
 
 		local n = self.numSlices
 		local fwd = -app.frustumView.angle:zAxis()
-		
+
 		local fwddir
 		local jmin, jmax, jdir
 
@@ -101,10 +101,10 @@ function Draw3DSlice:showDisplayVar(var, varName, ar, xmin, xmax, ymin, ymax, us
 		else
 			jmin, jmax, jdir = n, 0, -1
 		end
-		
-		gl.glUniform3f(uniforms.normal.loc, 
-			fwddir == 1 and jdir or 0, 
-			fwddir == 2 and jdir or 0, 
+
+		gl.glUniform3f(uniforms.normal.loc,
+			fwddir == 1 and jdir or 0,
+			fwddir == 2 and jdir or 0,
 			fwddir == 3 and jdir or 0)
 
 		gl.glBegin(gl.GL_QUADS)
@@ -121,7 +121,7 @@ function Draw3DSlice:showDisplayVar(var, varName, ar, xmin, xmax, ymin, ymax, us
 			end
 		end
 		gl.glEnd()
-	
+
 		gl.glDisable(gl.GL_BLEND)
 	end
 
@@ -144,11 +144,11 @@ end
 
 function Draw3DSlice:prepareShader()
 	local solver = self.solver
-	if solver.volumeSliceShader then return end 
+	if solver.volumeSliceShader then return end
 	local app = solver.app
 
 	local volumeSliceCode = assert(file'hydro/draw/3d_slice.shader':read())
-	
+
 	solver.volumeSliceShader = solver.GLProgram{
 		name = '3d_slice',
 		vertexCode = solver.eqn:template(volumeSliceCode, {

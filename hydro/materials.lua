@@ -61,8 +61,8 @@ materials.Air.C_p = 1006
 materials.Air.C_v = 717.1
 materials.Air.heatCapacityRatio = 1006 / 717.1 -- ~ 1.4
 
--- sea level air pressure 
--- = 101.325 kPa 
+-- sea level air pressure
+-- = 101.325 kPa
 -- = 101325 Pa = N / m^2 = kg / (m s^2)
 materials.Air.seaLevelPressure = 101325
 
@@ -73,17 +73,17 @@ materials.Air.seaLevelDensity = 1.2754
 -- sqrt(gamma P / rho) = 333.8445024974 m/s
 materials.Air.speedOfSound = math.sqrt(materials.Air.heatCapacityRatio * materials.Air.seaLevelPressure / materials.Air.seaLevelDensity)
 
--- from https://en.wikipedia.org/wiki/Viscosity 
+-- from https://en.wikipedia.org/wiki/Viscosity
 -- at 25 C and 1 bar of pressure
 materials.Air.shearViscosity = 18.5e-6	-- Pa s = kg / (m s)
-	
--- from https://en.wikipedia.org/wiki/List_of_thermal_conductivities 
+
+-- from https://en.wikipedia.org/wiki/List_of_thermal_conductivities
 materials.Air.heatConductivity = 0.0235	-- W / (m K) = kg m / (s^3 K)
 
--- from https://en.wikipedia.org/wiki/Viscosity 
+-- from https://en.wikipedia.org/wiki/Viscosity
 materials['Drinking water'].shearViscosity = 8.9e-4	-- Pa s = kg / (m s) ... at 25 C
 
--- https://github.com/Bowserinator/Periodic-Table-JSON 
+-- https://github.com/Bowserinator/Periodic-Table-JSON
 materials.Lead.seaLevelDensity = 11.34e+3	-- kg/m^3 ... as a solid.  what about as a gas / plasma? at higher temps?
 materials.Lead.boilingPoint = 2022			-- K
 materials.Mercury.seaLevelDensity = 11.34e+3-- kg/m^3

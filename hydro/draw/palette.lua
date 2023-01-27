@@ -3,7 +3,7 @@ local table = require 'ext.table'
 local range = require 'ext.range'
 
 return table{
-	
+
 
 	{
 		name = 'white-rainbow-black',

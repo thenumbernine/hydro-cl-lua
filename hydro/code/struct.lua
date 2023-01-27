@@ -1,7 +1,7 @@
 local ffi = require 'ffi'
 local class = require 'ext.class'
 local table = require 'ext.table'
-local CLBuffer = require 'cl.obj.buffer'
+--local CLBuffer = require 'cl.obj.buffer'
 local safecdef = require 'hydro.code.safecdef'
 
 --[[
@@ -15,7 +15,7 @@ Here's the kinds of things different ones hold:
 
 This holds ...
 *) a typename for the struct in OpenCL code
-*) a table of vars, each with 'name', and 'type', and other things 
+*) a table of vars, each with 'name', and 'type', and other things
 
 Usage:
 initialization:
@@ -25,7 +25,7 @@ initialization:
 	(and TODO let the cl.obj.buffer keep its cpu ptr around)
 
 then CLBuffer update fromCPU:
-4) update struct.var.value's 
+4) update struct.var.value's
 5) struct:update() to update buffers
 --]]
 local Struct = class()
@@ -60,7 +60,7 @@ end
 
 function Struct:makeType()
 	assert(not self.typename, "don't call makeType() twice")
-	
+
 	-- generate the typecode *except* the typename
 	-- then compare it to a map from typecode => typename
 	-- if it matches any, use the old typecode, typename, and metatype
@@ -78,7 +78,7 @@ function Struct:makeType()
 	local info = app.typeInfoForCode[codeWithoutTypename]
 	if info then
 		print('reusing matching struct '..info.typename..' for '..self.name)
-		
+
 		--[[ use cached version
 		self.typename = info.typename
 		self.typecode = info.typecode
@@ -135,29 +135,25 @@ function Struct:makeType()
 			local t = table()
 			for _,field in ipairs(struct.vars) do
 				local name = field.name
-				local ctype = field.type
-				
 				local s = tostring(ptr[name])
-				
 				t:insert(name..'='..s)
 			end
 			return struct.typename..'{'..t:concat', '..'}'
 		end,
-		__concat = function(a,b) 
-			return tostring(a) .. tostring(b) 
+		__concat = function(a,b)
+			return tostring(a) .. tostring(b)
 		end,
 		__eq = function(a,b)
 			for _,field in ipairs(struct.vars) do
 				local name = field.name
-				local ctype = field.type
 				if a[name] ~= b[name] then return false end
 			end
 			return true
 		end,
 	}
 	metatable.__index = metatable
-	
-	local metatype 
+
+	local metatype
 	local status, err = xpcall(function()
 		metatype = ffi.metatype(self.typename, metatable)
 	end, function(err)
@@ -166,7 +162,6 @@ function Struct:makeType()
 	if not status then error(err) end
 
 	local sizeOfFields = table.mapi(struct.vars, function(field)
-		local name = field.name
 		local ctype = field.type
 		return ffi.sizeof(ctype)
 	end):sum() or 0
@@ -179,7 +174,7 @@ function Struct:makeType()
 		print('typecode:\n'..self.typecode)
 		error("struct "..self.typename.." isn't packed!")
 	end
-	
+
 	self.metatype = metatype
 
 --[=[
@@ -210,17 +205,17 @@ function Struct:getTypeCodeWithoutTypeName()
 		lines:insert('	'..scalar..' ptr['..math.max(1, math.floor(numScalars))..'];')
 		lines:insert('	struct {')
 		tab = '\t\t'
-	end	
+	end
 	for _,var in ipairs(self.vars) do
 		lines:insert(
 			tab
 			..var.type
-			
+
 			-- fixing 'half' and 'double' alignment in solver_t
 			-- dontUnion is only used by solver_t
 			-- and solver_t is the only one with this C/CL alignment problem
 			..(self.dontUnion and ' __attribute__ ((packed))' or '')
-			
+
 			..' '..var.name..';')
 	end
 	if not self.dontUnion then

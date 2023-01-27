@@ -47,7 +47,7 @@ local quadsInCube = {
 
 --]]
 
--- maps from the sum of two vertex bits to the edge index 
+-- maps from the sum of two vertex bits to the edge index
 local edgeForTwoCorners = table.map({
 	2^0 + 2^1,
 	2^0 + 2^2,
@@ -95,14 +95,14 @@ for corner=0,6 do
 			singles[2^corner + 2^corner2] = table():append(singles[2^corner], singles[2^corner2])
 		end
 		for corner3=corner2+1,7 do
-			if not neighbor(corner, corner2) 
+			if not neighbor(corner, corner2)
 			and not neighbor(corner2, corner3)
 			and not neighbor(corner, corner3)
 			then
 				singles[2^corner + 2^corner2 + 2^corner3] = table():append(singles[2^corner], singles[2^corner2], singles[2^corner3])
 			end
 			for corner4=corner3+1,7 do
-				if not neighbor(corner, corner2) 
+				if not neighbor(corner, corner2)
 				and not neighbor(corner, corner3)
 				and not neighbor(corner, corner4)
 				and not neighbor(corner2, corner3)
@@ -110,7 +110,7 @@ for corner=0,6 do
 				and not neighbor(corner3, corner4)
 				then
 					singles[2^corner + 2^corner2 + 2^corner3 + 2^corner4] = table():append(singles[2^corner], singles[2^corner2], singles[2^corner3], singles[2^corner4])
-				end		
+				end
 			end
 		end
 	end
@@ -123,12 +123,12 @@ local doubles = {
 	[2^2 + 2^3] = {2, 4, 8, 8, 7, 2},
 	[2^4 + 2^5] = reverse{3, 5, 11, 11, 10, 3},
 	[2^6 + 2^7] = {7, 8, 11, 11, 10, 7},
-	
+
 	[2^0 + 2^2] = reverse{1, 3, 7, 7, 6, 1},
 	[2^1 + 2^3] = {1, 5, 8, 8, 6, 1},
 	[2^4 + 2^6] = {3, 7, 12, 12, 9, 3},
 	[2^5 + 2^7] = reverse{5, 8, 12, 12, 9, 5},
-	
+
 	[2^0 + 2^4] = {1, 2, 10, 10, 9, 1},
 	[2^1 + 2^5] = reverse{1, 4, 11, 11, 9, 1},
 	[2^2 + 2^6] = {2, 6, 12, 12, 10, 2},
@@ -138,10 +138,10 @@ local doubles = {
 for _,pair in ipairs{
 	{ {0,1}, {6,7} },
 	{ {4,5}, {2,3} },
-	
+
 	{ {0,2}, {5,7} },
 	{ {1,3}, {4,6} },
-	
+
 	{ {0,4}, {3,7} },
 	{ {1,5}, {2,6} },
 } do
@@ -156,7 +156,7 @@ edgesForInside = table(edgesForInside, doubles)
 local triples = {
 --[[ something in here is off
 	--bad
-	[2^0 + 2^1 + 2^2] = {3, 5, 7, 4, 6, 7, 7, 5, 4},	
+	[2^0 + 2^1 + 2^2] = {3, 5, 7, 4, 6, 7, 7, 5, 4},
 	[2^0 + 2^1 + 2^3] = {3, 5, 9, 3, 9, 6, 6, 2, 3},
 	[2^0 + 2^2 + 2^3] = {3, 8, 7, 1, 4, 8, 8, 3, 1},
 	[2^1 + 2^2 + 2^3] = {5, 8, 7, 1, 5, 7, 7, 2, 1},
@@ -167,7 +167,7 @@ local triples = {
 	[2^4 + 2^6 + 2^7] = {3, 7, 8, 3, 8, 11, 11, 9, 3},
 	[2^5 + 2^6 + 2^7] = {5, 7, 8, 5, 9, 10, 10, 7, 5},
 --]]
-	
+
 	--good
 	[2^0 + 2^2 + 2^6] = {1, 6, 12, 1, 12, 10, 10, 3, 1},
 	[2^0 + 2^2 + 2^4] = {1, 6, 9, 6, 7, 10, 10, 9, 6},
@@ -221,7 +221,7 @@ function Draw3DIso:showDisplayVar(var)
 
 	shader:use()
 	gl.glBegin(gl.GL_TRIANGLES)
-	
+
 	local valueMin, valueMax
 	if var.heatMapFixedRange then
 		valueMin = var.heatMapValueMin
@@ -231,11 +231,11 @@ function Draw3DIso:showDisplayVar(var)
 		var.heatMapValueMin = valueMin
 		var.heatMapValueMax = valueMax
 	end
-	
-	solver:calcDisplayVarToTex(var)	
-	
+
+	solver:calcDisplayVarToTex(var)
+
 	self:setupDisplayVarShader(shader, var, valueMin, valueMax)
-	
+
 	assert(not app.useGLSharing, "I still need to code in the GL sharing version")
 	local dest = ffi.cast('float*', solver.calcDisplayVarToTexPtr)
 	local cornerValues = {}
@@ -248,7 +248,7 @@ function Draw3DIso:showDisplayVar(var)
 		for j=solver.numGhost,tonumber(solver.gridSize.y)-solver.numGhost-1 do
 			for i=solver.numGhost,tonumber(solver.gridSize.x)-solver.numGhost-1 do
 				local ofs = i + solver.gridSize.x * (j + solver.gridSize.y * k)
-			
+
 				local cellMinBar = math.huge
 				local cellMaxBar = -math.huge
 
@@ -259,20 +259,20 @@ function Draw3DIso:showDisplayVar(var)
 							cornerOfs = cornerOfs + solver.stepSize.s[n]
 						end
 					end
-					
+
 					local cornerValue = dest[cornerOfs]
 					cornerValues[corner] = cornerValue
-					
+
 					local cornerBar = math.floor( (cornerValue - valueMin) / (valueMax - valueMin) * numBars - .5 )
 					cornerBars[corner] = cornerBar
 					cellMinBar = math.min(cellMinBar, cornerBar)
 					cellMaxBar = math.max(cellMaxBar, cornerBar)
 				end
 
-				if not (cellMaxBar < 0 or cellMinBar > numBars) then 
+				if not (cellMaxBar < 0 or cellMinBar > numBars) then
 					for bar = math.max(cellMinBar, 0), math.min(cellMaxBar, numBars-1) do
 						local isoValue = (bar + .5) / numBars * (valueMax - valueMin) + valueMin
-				
+
 						local inside = 0
 						for corner=0,7 do
 							if cornerValues[corner] > isoValue then
@@ -293,26 +293,26 @@ function Draw3DIso:showDisplayVar(var)
 											v.s[m] = v.s[m] + 1
 										end
 									end
-									
+
 									local frac = (isoValue - cornerValues[corner]) / (cornerValues[nextCorner] - cornerValues[corner])
 									v.s[n] = v.s[n] + sign * frac
-								
+
 									local twoCornerIndex = bit.bor(bit.lshift(1, corner), bit.lshift(1, nextCorner))
 									local edge = edgeForTwoCorners[twoCornerIndex]
-									edgeVtxs[edge] = v 
+									edgeVtxs[edge] = v
 								end
 							end
 						end
-						
+
 						local edges = edgesForInside[inside]
 						if edges then
 							for _,edge in ipairs(edges) do
 								local x,y,z = edgeVtxs[edge]:unpack()
-								
+
 								x = (x - solver.numGhost) / tonumber(solver.gridSize.x - 2 * solver.numGhost) * (solver.maxs.x - solver.mins.x) + solver.mins.x
 								y = (y - solver.numGhost) / tonumber(solver.gridSize.y - 2 * solver.numGhost) * (solver.maxs.y - solver.mins.y) + solver.mins.y
 								z = (z - solver.numGhost) / tonumber(solver.gridSize.z - 2 * solver.numGhost) * (solver.maxs.z - solver.mins.z) + solver.mins.z
-							
+
 								gl.glColor3f( table.unpack(({
 									{1,0,0},
 									{0,1,0},
@@ -326,7 +326,7 @@ function Draw3DIso:showDisplayVar(var)
 			end
 		end
 	end
-	
+
 	gl.glEnd()
 	shader:useNone()
 end
@@ -355,20 +355,20 @@ function Draw3DIso:display(varName, ar, xmin, xmax, ymin, ymax, useLog)
 		gl.glEnd()
 		gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_FILL)
 	end
-			
+
 	gl.glColor3f(1,1,1)
 	gl.glEnable(gl.GL_CULL_FACE)
 	gl.glEnable(gl.GL_DEPTH_TEST)
 	gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE)
 	gl.glEnable(gl.GL_BLEND)
-	
+
 
 	local var = solver.displayVarForName[varName]
 	if var and var.enabled then
 		self:prepareShader()
 		self:showDisplayVar(var)
 	end
-		
+
 	gl.glDisable(gl.GL_DEPTH_TEST)
 	gl.glDisable(gl.GL_CULL_FACE)
 	gl.glDisable(gl.GL_BLEND)
@@ -378,9 +378,9 @@ end
 function Draw3DIso:prepareShader()
 	local solver = self.solver
 	if solver.volumeRayShader then return end
-	
+
 	solver.display3D_Ray_maxiter = math.max(tonumber(solver.gridSize.x), tonumber(solver.gridSize.y), tonumber(solver.gridSize.z))
-	
+
 	local volumetricCode = file'hydro/draw/volumetric.shader':read()
 	solver.volumeRayShader = solver.GLProgram{
 		name = 'volumetric',

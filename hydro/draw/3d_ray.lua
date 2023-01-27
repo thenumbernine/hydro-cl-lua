@@ -4,7 +4,7 @@ local gl = require 'ffi.OpenGL'
 local glreport = require 'gl.report'
 local Draw = require 'hydro.draw.draw'
 
--- TODO real raytracing:  
+-- TODO real raytracing:
 -- instead of drawing the cube, draw a quad over the whole screen.
 
 -- 3D
@@ -40,7 +40,7 @@ function Draw3DRay:showDisplayVar(var, ar)
 	local solver = self.solver
 	local app = solver.app
 	app.view:setup(ar)
-	
+
 	local valueMin, valueMax
 	if var.heatMapFixedRange then
 		valueMin = var.heatMapValueMin
@@ -50,8 +50,8 @@ function Draw3DRay:showDisplayVar(var, ar)
 		var.heatMapValueMin = valueMin
 		var.heatMapValueMax = valueMax
 	end
-	
-	solver:calcDisplayVarToTex(var)	
+
+	solver:calcDisplayVarToTex(var)
 
 	gl.glColor3f(1,1,1)
 	for pass=1,1 do
@@ -63,19 +63,19 @@ function Draw3DRay:showDisplayVar(var, ar)
 			gl.glCullFace(gl.GL_FRONT)
 			gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
 			gl.glEnable(gl.GL_BLEND)
-			
+
 			shader = solver.volumeRayShader
 			uniforms = shader.uniforms
-			
+
 			shader:use()
-			
+
 			self:setupDisplayVarShader(shader, var, valueMin, valueMax)
 
 			gl.glUniform1f(uniforms.alpha.loc, self.alpha)
 			gl.glUniform1f(uniforms.alphaGamma.loc, self.alphaGamma)
 			gl.glUniform1f(uniforms.alpha.loc, self.alpha)
 			gl.glUniform1i(uniforms.useIsos.loc, self.useIsos)
-			gl.glUniform1f(uniforms.numIsobars.loc, self.numIsobars)				
+			gl.glUniform1f(uniforms.numIsobars.loc, self.numIsobars)
 			gl.glUniform1i(uniforms.useLighting.loc, self.useLighting)
 			gl.glUniform1i(uniforms.maxiter.loc, solver.display3D_Ray_maxiter)
 			local tex = solver:getTex(var)
@@ -120,12 +120,12 @@ end
 function Draw3DRay:prepareShader()
 	local solver = self.solver
 	if solver.volumeRayShader then return end
-	
+
 	solver.display3D_Ray_maxiter = math.max(
 		tonumber(solver.gridSize.x),
 		tonumber(solver.gridSize.y),
 		tonumber(solver.gridSize.z))
-	
+
 	local volumetricCode = assert(file'hydro/draw/volumetric.shader':read())
 	solver.volumeRayShader = solver.GLProgram{
 		name = 'volumetric',

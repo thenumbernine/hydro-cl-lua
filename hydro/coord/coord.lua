@@ -7,11 +7,11 @@ There are a few options on how to do this.
 	Represent our eqn vector coordinates in Cartesian coordinates,
 	use our CoordinateSystem to determine the cell volumes, areas, centers, normals, etc.,
 	compute flux in Cartesian coordinates.
-	
+
 	This seems like the least change from a Cartesian grid, and should be easy to implement:
-	All you have to change is the face normals and the dx values of the finite volume update 
+	All you have to change is the face normals and the dx values of the finite volume update
 	and change dx's in any operators of divergence (div B=0 magnetic monopole constraint) and Laplacian (del rho = 4 pi G for gravitation).
-	
+
 	This treats the problem as if it were made up a rigid grid, i.e. flattening off the curves in cylindrical and treating each cell like a polygon.
 	For that reason, face center positions should probably be calculated as the average of vertices rather than the coordinate intermediate position,
 	otherwise they won't represent the flat geometry and will introduce errors.
@@ -19,12 +19,12 @@ There are a few options on how to do this.
 	with much greater accuracy than a Cartesian grid.
 
 	...in fact, this can be implemented as a 'grid' class on top of whatever curvilinear coordinates I choose --
-	I should be able to use a cylindrical grid and cartesian coordaintes with no extra modifications to the 
+	I should be able to use a cylindrical grid and cartesian coordaintes with no extra modifications to the
 	connections, or raising/lowering of coordinates -- only modifying my volume and side computations.
 
 2) The Physicist way:
 	Represent our eqn vector coordinates in anholonomic coordinates, normalizing the vector components.
-	Ex. for cylindrical the holonomic basis is e_r = [cos phi, sin phi], e_phi = [-r sin phi, r cos phi], 
+	Ex. for cylindrical the holonomic basis is e_r = [cos phi, sin phi], e_phi = [-r sin phi, r cos phi],
 	while the anholonomic normalized basis is only different by e_phiHat = 1/r e_phi = [-sin phi, cos phi].
 	This creates orthonormal basis vectors and creates an identity metric (which means the equations don't have to be changed)
 	but requires keeping track of both the holonomic and anholonomic coordinates,
@@ -36,12 +36,12 @@ There are a few options on how to do this.
 	The grid length and distance calculations need the holonomic connections.
 	It looks like a lot of extra bookkeeping.
 	Buuut the Euler fluid equations at least stay untouched (except the added Coriolis source term)
-		
+
 	Most sources take that a step further for the Euler fluid equations and say to represent the velocity in covariant form
 	so that the pressure term contribution to the flux needs no rescaling by the holonomic cell volume (while everything else does rescale ... how does the eigen-decomposition represent that?)
 	by making the tensor next to that pressure term a delta^i_j instead of a g^ij.
-	This seems great for a single equation, but might make a Roe implementation problematic if I want to make it flexible. 
-	
+	This seems great for a single equation, but might make a Roe implementation problematic if I want to make it flexible.
+
 	This also means representing covariant derivatives (divergence and Laplace-Beltrami)
 	with connections / holonomic volume derivatives *with* extra rescaling to the anholonomic basis.
 
@@ -91,11 +91,11 @@ here's another rehashing of my options
 	One easy fix would be to just use geom for computing normals and volumes and surface areas,
 	and just keep all coordinates in Euclidian space.
 	This would certainly be easiest when adopting the equations to unstructured meshes.
-	This does throw out any benefits of when velocity streamlines coincide with coordinate derivatives. 
+	This does throw out any benefits of when velocity streamlines coincide with coordinate derivatives.
 
 
 Also I need a better naming system for all the expressions, and what they pertain to
-we have 
+we have
 - components based on the coordinate metric (metric is non-identity)
 - components based on the non-coordinate orthonormal metric (commutation is non-zero)
 - translations between coord, orthonormal, and a cartesian global basis
@@ -128,8 +128,7 @@ local fromreal, toreal = half.fromreal, half.toreal
 local common = require 'hydro.common'
 local xNames = common.xNames
 local symNames = common.symNames
-local from6to3x3 = common.from6to3x3 
-local sym = common.sym
+local from6to3x3 = common.from6to3x3
 
 
 local CoordinateSystem = class()
@@ -145,7 +144,7 @@ args:
 	vectorComponent
 		holonomic = default, e_i = ∂_i = ∂/∂x^i, no guarantees of orthogonality or normalization
 		anholonomic = same as above but orthonormalized
-		cartesian = cartesian components even in the presence of curvilinear coordinates 
+		cartesian = cartesian components even in the presence of curvilinear coordinates
 --]]
 function CoordinateSystem:init(args)
 	-- put all unique code module names here
@@ -167,9 +166,9 @@ function CoordinateSystem:init(args)
 		'cartesianToCoord',
 		'coord_parallelPropagate',
 		'normal_t',
-		
+
 		'coord_tr23_c',
-		
+
 		'coord_g_ll',
 		'coord_g_ll_ij',
 		'coord_g_uu',
@@ -204,7 +203,7 @@ function CoordinateSystem:init(args)
 		'coord_connHol_lll',
 		'coord_connHol_ull',
 		'coord_connHol_trace23',
-		
+
 		'cell_area_i',
 		'cell_dx_i',
 		'cell_volume',
@@ -214,11 +213,11 @@ function CoordinateSystem:init(args)
 
 	local solver = assert(args.solver)
 	self.solver = solver
-	
+
 	-- these are for replacing one expression with another
 	-- it's useful for simplifying calculations, especially complex ones involving derivatives.  just perform the derivatives separately and replace them later.
 	self.repls = self.repls or table()
-	
+
 	-- these are for replacing values, especially dynamic values.
 	-- compile your expressions with variables matching #defines in CL code.
 	-- then, if you want to evaluate them, you can use this, but it isn't done as often as using 'repls'.
@@ -226,7 +225,7 @@ function CoordinateSystem:init(args)
 
 	local symmath = require 'symmath'
 	local const = symmath.Constant
-		
+
 	self.verbose = cmdline.coordVerbose
 
 	self.vectorComponent = args.vectorComponent or 'holonomic'
@@ -239,9 +238,11 @@ assert(args.anholonomic == nil, "coord.anholonomic is deprecated.  instead you s
 		print = symmath.tostring.print
 	end
 
+	-- 3 since all our base types are in 'real3', 'sym3', etc
+	-- what about removing this restriction?
 	local dim = 3
+	
 	local var = symmath.var
-	local vars = symmath.vars
 	local Matrix = symmath.Matrix
 	local Tensor = symmath.Tensor
 	local frac = symmath.frac
@@ -261,27 +262,27 @@ assert(args.anholonomic == nil, "coord.anholonomic is deprecated.  instead you s
 		local nonCoordLinExpr = (eHolToE * Matrix(baseCoords):T())()
 		for i=1,3 do
 			local baseCoord = baseCoords[i]
-			-- the non-coordinate = the coordinate, so use the original variable 
+			-- the non-coordinate = the coordinate, so use the original variable
 			if nonCoordLinExpr[i] == baseCoord then
 				nonCoords[i] = baseCoord
-				tangentSpaceOperators[i] = function(x) return x:diff(baseCoord)() end 
-			
+				tangentSpaceOperators[i] = function(x) return x:diff(baseCoord)() end
+
 			-- the non-coordinate ~= the coordinate, so make a new non-coord var
 			else
 				nonCoords[i] = symmath.var('\\hat{'..baseCoord.name..'}')
-				
+
 				tangentSpaceOperators[i] = function(x)
 					local xPartial = symmath.Matrix:lambda({dim, 1}, function(j,_)
 						return x:diff(baseCoords[j])
 					end)
-					local result = Matrix:lambda({1,dim}, function(_,j) 
+					local result = Matrix:lambda({1,dim}, function(_,j)
 						if symmath.Array:isa(eHolToE[i][j]) then
 							io.stderr:write('eHolToE:\n'..eHolToE..'\n')
 							io.stderr:write('eHolToE['..i..']['..j..']:\n'..eHolToE[i][j]..'\n')
 							error'invalid eHolToE'
 						end
-						return eHolToE[i][j] 
-					end) 
+						return eHolToE[i][j]
+					end)
 						* xPartial
 					result = result()
 					assert(symmath.Matrix:isa(result))
@@ -300,7 +301,7 @@ assert(args.anholonomic == nil, "coord.anholonomic is deprecated.  instead you s
 		-- if you are going to use a cartesian normal of the cell as your boundary then the embedded should be the basis
 		-- in fact, what is 'e' used for?
 		-- e is copied to eHol (only for 'holonomic'), which is used for gHol, which is used for the volume element of the grid (which cartesian will use)
--- TODO but technically, if our manifold coordinate system is non-cartesian, 
+-- TODO but technically, if our manifold coordinate system is non-cartesian,
 --  then our anholonomic transform should be the inverse of the chart
 		self.coords = self.embedded
 	end
@@ -309,7 +310,7 @@ assert(args.anholonomic == nil, "coord.anholonomic is deprecated.  instead you s
 
 	local flatMetric = Matrix:lambda({dim, dim}, function(i,j) return i==j and 1 or 0 end)
 	local embedded = self.embedded
-	
+
 	if self.verbose then
 		print('flatMetric:')
 		print(flatMetric)
@@ -335,7 +336,7 @@ assert(args.anholonomic == nil, "coord.anholonomic is deprecated.  instead you s
 	end
 	--]]
 
-	local eta = Tensor('_IJ', table.unpack(flatMetric)) 
+	local eta = Tensor('_IJ', table.unpack(flatMetric))
 	--[[
 	if self.verbose then
 		print'flat metric:'
@@ -355,7 +356,7 @@ assert(args.anholonomic == nil, "coord.anholonomic is deprecated.  instead you s
 				-- hmm, Tensor tostring puts one forms as cols regardless of indexing (should it? maybe I should do rows for lower indexes?)
 				-- while Matrix doesn't show indexes
 				Matrix(
-					u'^I'() 
+					u'^I'()
 				) * Matrix{
 					var'e''_x',
 					var'e''_y',
@@ -407,7 +408,7 @@ assert(args.anholonomic == nil, "coord.anholonomic is deprecated.  instead you s
 	end
 
 
-	-- for the sake of grid lengths, 
+	-- for the sake of grid lengths,
 	-- I will need the basis and metric of the holonomic version as well
 	local eHol
 	if self.vectorComponent == 'holonomic' then
@@ -451,12 +452,12 @@ assert(args.anholonomic == nil, "coord.anholonomic is deprecated.  instead you s
 			)
 		)
 		print()
-		
+
 		print'transform from chart holonomic basis to chart anholonomic orthonormal basis:'
 		print()
 		print(var'e'' _\\hat{u} ^\\tilde{v}':eq(eHolToE))
 		print()
-	
+
 		print'such that'
 		print()
 		print(
@@ -498,8 +499,8 @@ assert(args.anholonomic == nil, "coord.anholonomic is deprecated.  instead you s
 		print()
 		print(
 			var'g'' _\\hat{u} _\\hat{v}':eq(
-				var'e'' _\\hat{u} ^I' 
-				* var'e'' _\\hat{v} ^J' 
+				var'e'' _\\hat{u} ^I'
+				* var'e'' _\\hat{v} ^J'
 				* var'\\eta''_IJ'
 			):eq(
 				g' _\\hat{u} _\\hat{v}'()
@@ -508,8 +509,8 @@ assert(args.anholonomic == nil, "coord.anholonomic is deprecated.  instead you s
 		print()
 	end
 	self.symchart:setMetric(g)
-	
-	
+
+
 	-- code generation
 
 	local paramU = Tensor('^i', function(i) return var('u.'..xNames[i]) end)
@@ -531,12 +532,12 @@ assert(args.anholonomic == nil, "coord.anholonomic is deprecated.  instead you s
 			error("can't print code "..('%q'):format(name).." of type "..codetype)
 		end
 	end
-self.printNonZero = printNonZero	
+self.printNonZero = printNonZero
 
 	--compile a tensor of expressions to a nested table of codes
 	local function compileTensor(expr)
 		if symmath.Array:isa(expr) then
-			return table.mapi(expr, function(expri) 
+			return table.mapi(expr, function(expri)
 				return compileTensor(expri)
 			end)
 		elseif symmath.Expression:isa(expr) then
@@ -564,7 +565,7 @@ self.compilePrintRequestTensor = compilePrintRequestTensor
 	self.cached = {}
 	self.calc = {}
 	self.request = function(name)
-		if not self.cached[name] then 
+		if not self.cached[name] then
 			local build = assert(self.calc[name], "couldn't find coord.calc["..('%q'):format(name).."]").build
 			if not build then
 				error("requested calculation of '"..name.."' but couldn't find it")
@@ -596,7 +597,7 @@ self.compilePrintRequestTensor = compilePrintRequestTensor
 		end,
 	}
 
-	-- extend 'e' to full R3 
+	-- extend 'e' to full R3
 	-- TODO should I do this from the start?
 	-- just provide the full R3 coordinates, and make no 'eExt' struct?
 	self.calc.eExt = {
@@ -639,7 +640,7 @@ self.compilePrintRequestTensor = compilePrintRequestTensor
 	self.calc.eExitUnit = {
 		build = function()
 			local eExtLen = self.request'eExtLen'
-			return eExt:mapi(function(ei,i)
+			return self.request'eExt':mapi(function(ei,i)
 				return ei:mapi(function(eij) return (eij/eExtLen[i])() end)
 			end)
 		end,
@@ -788,11 +789,11 @@ self.compilePrintRequestTensor = compilePrintRequestTensor
 				print(
 					var'\\Gamma'' _\\hat{a} _\\hat{b} _\\hat{c}':eq(
 						frac(1,2)*(
-							var'g'' _\\hat{a} _\\hat{b} _,\\hat{c}' 
-							+ var'g'' _\\hat{a} _\\hat{c} _,\\hat{b}' 
-							- var'g'' _\\hat{b} _\\hat{c} _,\\hat{a}' 
-							+ var'c'' _\\hat{a} _\\hat{b} _\\hat{c}' 
-							+ var'c'' _\\hat{a} _\\hat{c} _\\hat{b}' 
+							var'g'' _\\hat{a} _\\hat{b} _,\\hat{c}'
+							+ var'g'' _\\hat{a} _\\hat{c} _,\\hat{b}'
+							- var'g'' _\\hat{b} _\\hat{c} _,\\hat{a}'
+							+ var'c'' _\\hat{a} _\\hat{b} _\\hat{c}'
+							+ var'c'' _\\hat{a} _\\hat{c} _\\hat{b}'
 							- var'c'' _\\hat{b} _\\hat{c} _\\hat{a}'
 						)
 					):eq(Gamma_lll' _\\hat{a} _\\hat{b} _\\hat{c}'())
@@ -811,7 +812,7 @@ self.compilePrintRequestTensor = compilePrintRequestTensor
 			if self.verbose then
 				print'connection:'	-- anholonomic if requested
 				print(var'\\Gamma'' ^\\hat{a} _\\hat{b} _\\hat{c}':eq(
-					var'g'' ^\\hat{a} ^\\hat{d}' 
+					var'g'' ^\\hat{a} ^\\hat{d}'
 					* var'\\Gamma'' _\\hat{d} _\\hat{b} _\\hat{c}'
 				):eq(Gamma_ull' ^\\hat{a} _\\hat{b} _\\hat{c}'()))
 			end
@@ -889,7 +890,7 @@ self.compilePrintRequestTensor = compilePrintRequestTensor
 	}
 
 	self.calc.coord_gHol_ll = {
-		build = function() 
+		build = function()
 			if self.vectorComponent == 'holonomic' then
 				return g
 			else
@@ -900,8 +901,8 @@ self.compilePrintRequestTensor = compilePrintRequestTensor
 					print()
 					print(
 						var'g'' _\\tilde{u} _\\tilde{v}':eq(
-							var'e'' _\\tilde{u} ^I' 
-							* var'e'' _\\tilde{v} ^J' 
+							var'e'' _\\tilde{u} ^I'
+							* var'e'' _\\tilde{v} ^J'
 							* var'\\eta''_IJ'
 						):eq(
 							gHol'_uv'()
@@ -951,7 +952,7 @@ self.compilePrintRequestTensor = compilePrintRequestTensor
 	self.calc.eToEHol = {
 		build = function()
 			local lenExprs = self.request"coord_dx"
-			local e = Tensor("_i^I", 
+			local e = Tensor("_i^I",
 				{lenExprs[1], 0, 0},
 				{0, lenExprs[2], 0},
 				{0, 0, lenExprs[3]})
@@ -962,11 +963,11 @@ self.compilePrintRequestTensor = compilePrintRequestTensor
 	self.calc.eHolToE = {
 		build = function()
 			local lenExprs = self.request"coord_dx"
-			local eInv = Tensor("^i_I", 
+			local eInv = Tensor("^i_I",
 				{1/lenExprs[1], 0, 0},
 				{0, 1/lenExprs[2], 0},
 				{0, 0, 1/lenExprs[3]})
-			return eInv 
+			return eInv
 		end,
 	}
 
@@ -1040,7 +1041,7 @@ self.compilePrintRequestTensor = compilePrintRequestTensor
 				print()
 				error'these should be the same'
 			end
-			
+
 			for j=1,dim do
 				local u = self.baseCoords[j]
 				local uL, uR = integralArgs[2*j-1], integralArgs[2*j]
@@ -1107,8 +1108,8 @@ self.compilePrintRequestTensor = compilePrintRequestTensor
 				print'1st kind Christoffel of holonomic basis:'
 				print()
 				print(var'\\Gamma'' _\\tilde{a} _\\tilde{b} _\\tilde{c}':eq(
-					frac(1,2)*(var''' _\\tilde{a} _\\tilde{b} _,\\tilde{c}' 
-					+ var'g'' _\\tilde{a} _\\tilde{c} _,\\tilde{b}' 
+					frac(1,2)*(var''' _\\tilde{a} _\\tilde{b} _,\\tilde{c}'
+					+ var'g'' _\\tilde{a} _\\tilde{c} _,\\tilde{b}'
 					- var'g'' _\\tilde{b} _\\tilde{c} _,\\tilde{a}')
 				):eq(GammaHol_lll' _\\tilde{a} _\\tilde{b} _\\tilde{c}'()))
 				print()
@@ -1129,7 +1130,7 @@ self.compilePrintRequestTensor = compilePrintRequestTensor
 				print()
 				print(
 					var'\\Gamma'' ^\\tilde{a} _\\tilde{b} _\\tilde{c}':eq(
-						var'g'' ^\\tilde{a} ^\\tilde{d}' 
+						var'g'' ^\\tilde{a} ^\\tilde{d}'
 						* var'\\Gamma'' _\\tilde{d} _\\tilde{b} _\\tilde{c}'
 					):eq(
 						GammaHol_ull' ^\\tilde{a} _\\tilde{b} _\\tilde{c}'()
@@ -1214,7 +1215,7 @@ self.compilePrintRequestTensor = compilePrintRequestTensor
 		)
 	end
 
-	-- put all 'coord_dx#'s into one module called 'coord_dx_i'	
+	-- put all 'coord_dx#'s into one module called 'coord_dx_i'
 	-- put the individual elements of 'coord_dx' request into requests called 'coord_dx#'
 	-- dx0, dx1, ...
 	-- this is the change in cartesian wrt the change in grid
@@ -1264,7 +1265,7 @@ self.compilePrintRequestTensor = compilePrintRequestTensor
 --]]
 
 -- [[
-	-- volume of a cell = volume element times grid dx's 
+	-- volume of a cell = volume element times grid dx's
 	self.calc.cell_sqrt_det_g = {
 		build = function()
 			local coord_sqrt_det_g = self.request'coord_sqrt_det_g'
@@ -1278,17 +1279,17 @@ self.compilePrintRequestTensor = compilePrintRequestTensor
 		-- TODO this  macro had a solver arg, but the other #define's (like cell_dx#) didn't
 		-- sooo ... how to specify when to use each?
 		define = 'with solver arg',	-- because it uses solver->grid_dx vars
-		
+
 		depends = {solver.solver_t},	-- if you use integralGridDx
 	}
 --]]
 
-	
+
 	local function addSym3Components(args)
 		local srcname = assert(args.srcname)
 		local prefix = args.subprefix or srcname
 		local dstname = args.dstname or srcname..'_ij'
-		
+
 		for ij,xij in ipairs(symNames) do -- dim is fixed at 3 so just use symNames?
 			local i,j = from6to3x3(ij)
 			self.calc[prefix..(i-1)..(j-1)] = {
@@ -1300,7 +1301,7 @@ self.compilePrintRequestTensor = compilePrintRequestTensor
 				end,
 			}
 		end
-	
+
 		self.calc[dstname] = table(
 			{many = true},
 			range(dim*(dim+1)/2):mapi(function(ij)
@@ -1323,23 +1324,23 @@ self.compilePrintRequestTensor = compilePrintRequestTensor
 		srcname = 'coord_g_ll',
 		define = true,
 	}
-	
+
 	addSym3Components{
 		srcname = 'coord_g_uu',
 		define = true,
 	}
-	
+
 	addSym3Components{
 		srcname = 'coord_sqrt_g_ll',
 		define = true,
 	}
-	
+
 	-- curvilinear grid normals use sqrt(g^ii), as it is the metric-weighted coordinate normal magnitude
 	addSym3Components{
 		srcname = 'coord_sqrt_g_uu',
 		define = true,
 	}
-	
+
 	addSym3Components{
 		srcname = 'coord_sqrt_gHol_ll',
 		define = true,
@@ -1349,7 +1350,7 @@ end
 -- called after coord creation, before finalize creates the type.  between, other objects can modify it.
 function CoordinateSystem:createCellStruct()
 	local solver = self.solver
-	
+
 	--[[
 	ok here's a dilemma ...
 	gridSolver has cellBuf that holds cell pos and any other aux vars used for cell calculations
@@ -1389,7 +1390,7 @@ end
 function CoordinateSystem:finalizeCellStruct()
 	self.cellStruct:makeType()
 	self.cell_t = self.cellStruct.typename
-	
+
 	self.faceStruct:makeType()
 	self.face_t = self.faceStruct.typename
 end
@@ -1418,7 +1419,7 @@ function CoordinateSystem:fillGridCellBuf(cellCpuBuf)
 
 	local index = 0
 	for k=0,tonumber(solver.gridSize.z)-1 do
-		local w = solver.dim >= 3 
+		local w = solver.dim >= 3
 			and ((k + .5 - solver.numGhost) / (tonumber(solver.gridSize.z) - 2 * solver.numGhost) * (solver.maxs.z - solver.mins.z) + solver.mins.z)
 			or (.5 * (solver.maxs.z + solver.mins.z))
 		for j=0,tonumber(solver.gridSize.y)-1 do
@@ -1474,7 +1475,7 @@ end
 
 function CoordinateSystem:compile(expr)
 	if type(expr) == 'number' then return clnumber(expr) end
-	
+
 	local symmath = require 'symmath'
 	local const = symmath.Constant
 
@@ -1610,7 +1611,7 @@ for i,xi in ipairs(xNames) do
 		local j,k = from6to3x3(jk)
 ?>		.<?=xjk?> = <?=exprs[i] and exprs[i][j] and exprs[i][j][k]
 			and exprs[i][j][k] or '0.'?>, \
-<?	end	
+<?	end
 ?>	}, \
 <?
 end
@@ -1737,14 +1738,14 @@ getCode.real3_to__3sym3 = function(name, exprs)
 	return template([[
 _3sym3 <?=name?>(real3 pt) {
 	return (_3sym3){
-<? 
+<?
 for i,xi in ipairs(xNames) do
 ?>	.<?=xi?> = {
 <?	for jk,xjk in ipairs(symNames) do
 		local j,k = from6to3x3(jk)
 ?>		.<?=xjk?> = <?=exprs[i] and exprs[i][j] and exprs[i][j][k]
 			and exprs[i][j][k] or '0.'?>,
-<?	end	
+<?	end
 ?>	},
 <?
 end
@@ -1799,16 +1800,13 @@ we have a few manifolds to deal with ...
 
 coord_dx[_for_coord]<?=side?>(pt) gives the length of the dx of the coordinate in 'side' direction, for 'pt' in coordinates
 cell_dx[_for_coord]<?=side?>(pt) gives the length of the dx of the cell, which is just coord_dx times the grid_dx
-solver->grid_dx is the size of each solver cell, in coordintes 
+solver->grid_dx is the size of each solver cell, in coordintes
 
-should I add these _for_coord _for_grid suffixes to specify what manfiold system the input parameter is? 
+should I add these _for_coord _for_grid suffixes to specify what manfiold system the input parameter is?
 
 --]]
 function CoordinateSystem:initCodeModules()
-	-- 3 since all our base types are in 'real3', 'sym3', etc
-	-- what about removing this restriction?
-	local dim = 3
-	local solver = self.solver	
+	local solver = self.solver
 
 	for moduleName,infos in pairs(self.calc) do
 		if not infos.many then infos = {infos} end
@@ -1845,7 +1843,7 @@ function CoordinateSystem:initCodeModules()
 				end
 				buildsAndExprNames:insert{build=build, name=name}
 			end
-		end	
+		end
 		if #buildsAndExprNames > 0 then
 			xpcall(function()
 				solver.modules:add{
@@ -1870,12 +1868,12 @@ function CoordinateSystem:initCodeModules()
 	self:initCodeModule_coordMap()
 
 	-- parallel propagate code
-	if require 'hydro.solver.fvsolver':isa(solver) 
+	if require 'hydro.solver.fvsolver':isa(solver)
 	-- TODO only if it's a mesh solver using a flux integrator ... which is currently all mesh solvers
-	or require 'hydro.solver.meshsolver':isa(solver) 
+	or require 'hydro.solver.meshsolver':isa(solver)
 	then
 		local lines = table()
-		
+
 		-- parallel-propagate a vector from point 'x' along coordinate 'k' (suffix of func name) by amount 'dx'
 		-- TODO derive this from the metric
 		-- upper parallel propagator = exp(-int_x^(x+dx) of conn_side dx)
@@ -1883,7 +1881,7 @@ function CoordinateSystem:initCodeModules()
 		--
 		-- if we're using a cartesian basis then no need to transport anything
 		-- ... (? except maybe the flux differential across the cell, done in curvilinear coordinates ?)
-		if self.vectorComponent == 'cartesian' 
+		if self.vectorComponent == 'cartesian'
 		or require 'hydro.coord.cartesian':isa(self)
 		then
 			-- general case for a fixed global orthonormal basi:
@@ -1897,19 +1895,19 @@ function CoordinateSystem:initCodeModules()
 // To propagate a one-form, apply the inverse-transpose.
 // In the case of anholonomic orthonormal basis, the transpose equals the inverse so propagateL == propagateR.
 //  This fits with the fact that the metric of an orthonormal basis is identity, so the upper and lower components are equal.
-<? for side=0,solver.dim-1 do 
+<? for side=0,solver.dim-1 do
 ?>#define coord_parallelPropagateL<?=side?>(v, x, dx) (v)
 <? end ?>
 
 ]], 		{
 				solver = solver,
 			}))
-		
-		-- anholonomic orthonormal = metric is identity, so inverse = transpose, so upper propagate = lower propagate ... so we only need to define the upper 
+
+		-- anholonomic orthonormal = metric is identity, so inverse = transpose, so upper propagate = lower propagate ... so we only need to define the upper
 		elseif self.vectorComponent == 'anholonomic' then	-- TODO rename this to 'orthonormal' (since anholonomic doesn't imply orthonormal ... and this assumption is only true for orthonormal basis)
 			lines:insert(self:getParallelPropagatorCode())
 			lines:insert(template([[
-<? for side=0,solver.dim-1 do 
+<? for side=0,solver.dim-1 do
 ?>#define coord_parallelPropagateL<?=side?>(v, x, dx) coord_parallelPropagateU<?=side?>(v, x, dx)
 <? end ?>
 ]], 		{
@@ -1929,7 +1927,7 @@ function CoordinateSystem:initCodeModules()
 	end
 
 	self:initCodeModule_normal()
-	
+
 	-- store all input coordinates for our cells
 	-- for holonomic/anholonomic this is just the linearly interpolated
 	solver.modules:add{
@@ -1966,19 +1964,19 @@ print("WARNING - haven't finished implementing cell_calcAvg_withPt")
 	}
 end
 
-function CoordinateSystem:getModuleDepends_coordMap() 
+function CoordinateSystem:getModuleDepends_coordMap()
 end
-function CoordinateSystem:getModuleDepends_coordMapInv() 
+function CoordinateSystem:getModuleDepends_coordMapInv()
 end
 
-function CoordinateSystem:getModuleDepends_coordMapGLSL() 
+function CoordinateSystem:getModuleDepends_coordMapGLSL()
+	local glslDeps = table()
 --[[
 	-- search for any functions in the expression
 	-- and auto-insert them into getModuleDepends_coordMap
-	-- then for those functions in cl but not glsl, 
+	-- then for those functions in cl but not glsl,
 	-- insert those there
 
-	local glslDeps = table()
 	do
 		-- this is the expression initCodeModule_coordMap uses
 		local symmath = require 'symmath'
@@ -1997,7 +1995,7 @@ function CoordinateSystem:getModuleDepends_coordMapGLSL()
 --]]
 	return table(self:getModuleDepends_coordMap()):append(glslDeps)
 end
-function CoordinateSystem:getModuleDepends_coordMapInvGLSL() 
+function CoordinateSystem:getModuleDepends_coordMapInvGLSL()
 	return self:getModuleDepends_coordMapInv()
 end
 
@@ -2011,10 +2009,10 @@ function CoordinateSystem:initCodeModule_coordMap()
 	-- TODO make this a macro based on cellBuf[index]
 	-- and make it custom per coord system (just like the cellBuf fields are)
 	local uCode = self.compilePrintRequestTensor'u'
-	local code_coordMap = getCode.real3_to_real3('coordMap', range(3):mapi(function(i) 
-		return uCode[i] or 'pt.'..xNames[i] 
+	local code_coordMap = getCode.real3_to_real3('coordMap', range(3):mapi(function(i)
+		return uCode[i] or 'pt.'..xNames[i]
 	end))
-	
+
 	solver.modules:add{
 		name = self.symbols.coordMap,
 		depends = self:getModuleDepends_coordMap(),
@@ -2032,7 +2030,7 @@ function CoordinateSystem:initCodeModule_coordMap()
 	}
 
 	local code_coordMapInv = self:getCoordMapInvModuleCode()	-- until i can autogen this ...
-	
+
 	solver.modules:add{
 		name = self.symbols.coordMapInv,
 		depends = self:getModuleDepends_coordMapInv(),
@@ -2044,7 +2042,7 @@ function CoordinateSystem:initCodeModule_coordMap()
 
 	-- GLSL needs some extra depends
 	--  and I can't think of how to add them in except by doing this ...
-	-- see my rant in SphereLogRadial:getModuleDepends_coordMap 
+	-- see my rant in SphereLogRadial:getModuleDepends_coordMap
 	solver.modules:add{
 		name = self.symbols.coordMapGLSL,
 		depends = self:getModuleDepends_coordMapGLSL(),
@@ -2052,7 +2050,7 @@ function CoordinateSystem:initCodeModule_coordMap()
 			return code_coordMap
 		end,
 	}
-	
+
 	solver.modules:add{
 		name = self.symbols.coordMapInvGLSL,
 		depends = self:getModuleDepends_coordMapInvGLSL(),
@@ -2092,11 +2090,10 @@ function CoordinateSystem:initCodeModule_coordMap()
 			coord = self,
 			xNames = xNames,
 		}
-		if self.vectorComponent == 'cartesian' 
-		or require 'hydro.coord.cartesian':isa(coord)
+		if self.vectorComponent == 'cartesian'
+		or require 'hydro.coord.cartesian':isa(self)
 		then
-			if not require 'hydro.coord.cartesian':isa(coord) then
-				
+			if not require 'hydro.coord.cartesian':isa(self) then
 				depends:insert(self.symbols.coord_basisHolUnit_i)
 				tolines:insert(template([[
 //converts a vector from cartesian coordinates to grid curvilinear coordinates
@@ -2104,7 +2101,7 @@ function CoordinateSystem:initCodeModule_coordMap()
 //at x, which is in grid curvilinear coordinates
 real3 coord_cartesianToCoord(real3 u, real3 pt) {
 	real3 uCoord = real3_zero;
-	<? for i=0,solver.dim-1 do 
+	<? for i=0,solver.dim-1 do
 	local xi = xNames[i+1]
 	?>{
 		real3 e = coord_basisHolUnit<?=i?>(pt);
@@ -2112,7 +2109,7 @@ real3 coord_cartesianToCoord(real3 u, real3 pt) {
 ?>		real uei = real3_dot(e, u);
 <? else		-- holonomic
 ?>		real uei = real3_dot(e, u) / real3_lenSq(e);
-<? end		
+<? end
 ?>		uCoord.<?=xi?> = uei;
 		//subtract off this basis component from u
 		u = real3_sub(u, real3_real_mul(e, uei));
@@ -2127,7 +2124,7 @@ real3 coord_cartesianToCoord(real3 u, real3 pt) {
 //by projecting it onto the basis ... ?
 real3 coord_cartesianFromCoord(real3 u, real3 pt) {
 	real3 uGrid = real3_zero;
-	<? for i=0,solver.dim-1 do 
+	<? for i=0,solver.dim-1 do
 	local xi = xNames[i+1]
 	?>{
 		real3 e = coord_basisHolUnit<?=i?>(pt);
@@ -2144,7 +2141,7 @@ real3 coord_cartesianFromCoord(real3 u, real3 pt) {
 				tolines:insert[[
 #define coord_cartesianToCoord(u, pt) 	(u)
 ]]
-			end 
+			end
 
 --TODO change names
 --'coord' is ambiguous
@@ -2165,7 +2162,7 @@ real3 coord_cartesianFromCoord(real3 u, real3 pt) {
 //at x, which is in grid curvilinear coordinates
 real3 coord_cartesianToCoord(real3 u, real3 pt) {
 	real3 uCoord = real3_zero;
-	<? for i=0,solver.dim-1 do 
+	<? for i=0,solver.dim-1 do
 	local xi = xNames[i+1]
 	?>{
 		real3 e = coordBasis<?=i?>(pt);
@@ -2173,7 +2170,7 @@ real3 coord_cartesianToCoord(real3 u, real3 pt) {
 ?>		real uei = real3_dot(e, u);
 <? else		-- holonomic
 ?>		real uei = real3_dot(e, u) / real3_lenSq(e);
-<? end		
+<? end
 ?>		uCoord.<?=xi?> = uei;
 		//subtract off this basis component from u
 		u = real3_sub(u, real3_real_mul(e, uei));
@@ -2190,7 +2187,7 @@ real3 coord_cartesianToCoord(real3 u, real3 pt) {
 //by projecting it onto the basis ... ?
 real3 coord_cartesianFromCoord(real3 u, real3 pt) {
 	real3 uGrid = real3_zero;
-	<? for i=0,solver.dim-1 do 
+	<? for i=0,solver.dim-1 do
 	local xi = xNames[i+1]
 	?>{
 		real3 e = coordBasis<?=i?>(pt);
@@ -2203,7 +2200,7 @@ real3 coord_cartesianFromCoord(real3 u, real3 pt) {
 ]], env))
 
 		end -- coord.vectorComponent
-		
+
 		solver.modules:add{
 			name = self.symbols.cartesianFromCoord,
 			depends = depends,
@@ -2227,8 +2224,8 @@ end
 
 --[[
 TODO put this somewhere above where display functions can use it
-TODO have this return a structure based on the solver and coordinate system. 
-This can store all the values that would otherwise be recalculated again and again - like normal lower, upper, and magnitudes. 
+TODO have this return a structure based on the solver and coordinate system.
+This can store all the values that would otherwise be recalculated again and again - like normal lower, upper, and magnitudes.
 In cartesian coords, and anholonomic vector components, (anything with a unit metric and coordinate-aligned normals) this can just return nothing
 In non-cartesian coord, holonomic vector components this needs to hold the upper normals (the lower normal is identity) and the normal length (equal to sqrt(g^jj) for side j)
 In non-cartesian coord, cartesian components, this can hold the lower normals (they are non coordinate aligned) but the upper normals match since the metric is identity ... and the normal length is 1
@@ -2299,7 +2296,7 @@ typedef struct {
 #define normal_len(n)	1.
 #define normal_lenSq(n)	1.
 
-<? 
+<?
 for j,xj in ipairs(xNames) do
 	for i,xi in ipairs(xNames) do
 ?>
@@ -2338,7 +2335,7 @@ $(n^i)^k (n^j)^l g_{kl} = g^{ij} = \delta^{ij}$, for anholonomic (orthonormal) b
 $(n^i)_j = (n^i)^j = \delta^{ij}$.<br>
 ]]
 			end
-		
+
 			--[[
 			n_i = n^i = delta_ij for side j
 			|n| = 1
@@ -2364,7 +2361,7 @@ typedef struct {
 #define normal_lenSq(n)	1.
 
 //(nj)_i, (nj)^i, (nj)_i/|nj|, (nj)^i/|nj|
-<? 
+<?
 for j=1,3 do
 	for i,xi in ipairs(xNames) do
 ?>
@@ -2372,13 +2369,13 @@ for j=1,3 do
 #define normal_u<?=j?><?=xi?>(n)			normal_l<?=j?><?=xi?>(n)
 #define normal_l<?=j?><?=xi?>_over_len(n)	normal_l<?=j?><?=xi?>(n)
 #define normal_u<?=j?><?=xi?>_over_len(n)	normal_u<?=j?><?=xi?>(n)
-<? 
-	end 
+<?
+	end
 end
 ?>
 
 // this is the same as converting 'v' in global cartesian to 'v' in the basis of nj
-// v^i (nj)_i for side j 
+// v^i (nj)_i for side j
 #define normal_vecDotNs(n, v) \
 	(_real3( \
 		v.s[n.side], \
@@ -2441,7 +2438,7 @@ typedef struct {
 #define normal_lenSq(normal)	(normal.len * normal.len)
 
 //(nj)_i, (nj)^i, (nj)_i / |nj|, (nj)^i / |nj|
-<? 
+<?
 for j,xj in ipairs(xNames) do
 	for i,xi in ipairs(xNames) do
 ?>
@@ -2454,7 +2451,7 @@ for j,xj in ipairs(xNames) do
 end
 ?>
 
-//v^i (nj)_i for side j 
+//v^i (nj)_i for side j
 #define normal_vecDotNs(normal, v) (real3x3_real3_mul(normal.n, v))
 
 //v^i (n1)_i
@@ -2479,11 +2476,11 @@ $(n_i)^j = g^{jk} \delta_{ik}$<br>
 $(n_i)^k (n_j)^l = g^{km} \delta_{mi} g^{ln} \delta_{nj}$<br>
 ]]
 			end
-			
+
 			depends:insert'real3x3'
 			depends:insert(self.symbols.coord_g_uu_ij)
 			depends:insert(self.symbols.coord_sqrt_g_uu_ij)
-			
+
 			--[[
 			n_i = delta_ij for side j
 			n^i = g^ik delta_kj
@@ -2503,16 +2500,16 @@ typedef struct {
 	((<?=normal_t?>){ \
 		.side = <?=side?>, \
 		.U = _real3x3( \
-<? 
+<?
 for j=0,2 do
-	for i=0,2 do 
+	for i=0,2 do
 		local k = (side + j) % 3
 		local m, n = k, i
 		if m > n then m, n = n, m end
 ?>			coord_g_uu<?=m..n?>(x)<?=i+3*j < 8 and ',' or ''?> \
-<? 
+<?
 	end
-end 
+end
 ?>		), \
 		.len = coord_sqrt_g_uu<?=side..side?>(x), \
 	})
@@ -2589,7 +2586,7 @@ end
 <? end ?>
 
 ]]
-	
+
 	-- TODO if you use multiple solvers that have differing vectorComponents
 	--  then this will cause a silent ffi error.  only the first normal_t will be defined.
 	-- solution: rename all the normal_t C types to <?=normal_t?>

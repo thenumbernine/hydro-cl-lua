@@ -8,12 +8,12 @@ local sin, cos = symmath.sin, symmath.cos
 local Tensor = symmath.Tensor
 
 local Sphere = class(CoordinateSystem)
-Sphere.name = 'sphere' 
+Sphere.name = 'sphere'
 
 --[[
 args
 	volumeDim = (TODO) change volume element etc to act as if we're in a higher dimension
-	
+
 	TODO add some other arg for rearranging the coordinate order so we can do 2D simulations of θ and φ alone
 --]]
 function Sphere:init(args)
@@ -28,15 +28,15 @@ function Sphere:init(args)
 		{0, 1/r, 0},
 		{0, 0, 1/(r*symmath.sin(theta))}
 	)
-	
-	self.chart = function() 
-		return Tensor('^I', 
-			r * sin(theta) * cos(phi), 
-			r * sin(theta) * sin(phi), 
+
+	self.chart = function()
+		return Tensor('^I',
+			r * sin(theta) * cos(phi),
+			r * sin(theta) * sin(phi),
 			r * cos(theta)
-		) 
+		)
 	end
-	
+
 	Sphere.super.init(self, args)
 
 	self.vars = {
@@ -64,7 +64,7 @@ real3 coordMapInv(real3 x) {
 ?>	real r = length(x);
 	real theta = acos(x.z / r);
 	real phi = atan2(x.y, x.x);
-<? end 
+<? end
 ?>	return _real3(r, theta, phi);
 }
 ]], {
@@ -182,16 +182,15 @@ end
 function Sphere:fillGridCellBuf(cellsCPU)
 	local solver = self.solver
 
-	local symmath = require 'symmath'
 	local r, theta, phi = self.baseCoords:unpack()
 	local calcR, code = symmath.export.Lua:toFunc{
 		output = {self.vars.r},
 		input = {{r=r}, {theta=theta}, {phi=phi}},
 	}
-	
+
 	local index = 0
 	for k=0,tonumber(solver.gridSize.z)-1 do
-		local phi = solver.dim >= 3 
+		local phi = solver.dim >= 3
 			and ((k + .5 - solver.numGhost) / (tonumber(solver.gridSize.z) - 2 * solver.numGhost) * (solver.maxs.z - solver.mins.z) + solver.mins.z)
 			or (.5 * (solver.maxs.z + solver.mins.z))
 		for j=0,tonumber(solver.gridSize.y)-1 do

@@ -1,5 +1,4 @@
 local gl = require 'ffi.OpenGL'
-local ffi = require 'ffi'
 local class = require 'ext.class'
 local vec3f = require 'vec-ffi.vec3f'
 local file = require 'ext.file'
@@ -13,10 +12,10 @@ local DrawVectorStateLine = class(Draw)
 function DrawVectorStateLine:showDisplayVar(var, varName, ar, xmin, xmax, ymin, ymax, useLog)
 	local solver = self.solver
 	local app = self.solver.app
-	
+
 
 	gl.glEnable(gl.GL_DEPTH_TEST)
-	
+
 	local valueMin, valueMax
 	if var.heatMapFixedRange then
 		valueMin = var.heatMapValueMin
@@ -32,8 +31,8 @@ function DrawVectorStateLine:showDisplayVar(var, varName, ar, xmin, xmax, ymin, 
 		var.heatMapValueMin = valueMin
 		var.heatMapValueMax = valueMax
 	end
-	
-	solver:calcDisplayVarToTex(var)	
+
+	solver:calcDisplayVarToTex(var)
 
 
 	local shader = solver.drawVectorStateLineShader
@@ -43,9 +42,9 @@ function DrawVectorStateLine:showDisplayVar(var, varName, ar, xmin, xmax, ymin, 
 	local tex = solver:getTex(var)
 	tex:bind(0)
 	--app.gradientTex:bind(1)
-	
+
 	self:setupDisplayVarShader(shader, var, valueMin, valueMax)
-	
+
 	gl.glUniform1f(uniforms.ambient.loc, app.displayDim == 1 and 1 or .3)
 
 	if not self.vertexes then self.vertexes = vector'vec3f_t' end
@@ -60,17 +59,17 @@ function DrawVectorStateLine:showDisplayVar(var, varName, ar, xmin, xmax, ymin, 
 
 	-- [[ overwrite the modelViewProjectionMatrix uniform here
 	-- this is different from the other 'Draw.modelViewProjectionMatrix'
-	-- that one is based on hydro.view, 
+	-- that one is based on hydro.view,
 	-- this is based on the GL state set in hydro.app for 1D graphs
-	-- TODO maybe combine the two, make the hydro.app 1D graph stuff use hydro.view.ortho, 
+	-- TODO maybe combine the two, make the hydro.app 1D graph stuff use hydro.view.ortho,
 	-- then this could just use the default 'modelViewProjectionMatrix'
-	self.ModelViewMatrix = self.ModelViewMatrix or matrix_ffi(nil, 'float', {4,4})--ffi.new'float[16]'
+	self.ModelViewMatrix = self.ModelViewMatrix or matrix_ffi(nil, 'float', {4,4})
 	gl.glGetFloatv(gl.GL_MODELVIEW_MATRIX, self.ModelViewMatrix.ptr)
 
-	self.ProjectionMatrix = self.ProjectionMatrix or matrix_ffi(nil, 'float', {4,4})--ffi.new'float[16]'
+	self.ProjectionMatrix = self.ProjectionMatrix or matrix_ffi(nil, 'float', {4,4})
 	gl.glGetFloatv(gl.GL_PROJECTION_MATRIX, self.ProjectionMatrix.ptr)
 
-	self.ModelViewProjectionMatrix = self.ModelViewProjectionMatrix or require 'matrix.ffi'(nil, 'float', {4,4})--ffi.new'float[16]'
+	self.ModelViewProjectionMatrix = self.ModelViewProjectionMatrix or require 'matrix.ffi'(nil, 'float', {4,4})
 	matrix_ffi.mul(self.ModelViewProjectionMatrix, self.ProjectionMatrix, self.ModelViewMatrix)
 
 	gl.glUniformMatrix4fv(uniforms.modelViewProjectionMatrix.loc, 1, gl.GL_FALSE, self.ModelViewProjectionMatrix.ptr)
@@ -95,23 +94,23 @@ function DrawVectorStateLine:showDisplayVar(var, varName, ar, xmin, xmax, ymin, 
 
 	gl.glEnableVertexAttribArray(shader.attrs.gridCoord.loc)
 	gl.glVertexAttribPointer(shader.attrs.gridCoord.loc, 3, gl.GL_FLOAT, false, 0, self.vertexes.v)
-	
+
 	--gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_LINE)
-	--gl.glDrawArrays(gl.GL_LINE_STRIP, 0, numVertexes) 
+	--gl.glDrawArrays(gl.GL_LINE_STRIP, 0, numVertexes)
 	for j=0,numY-2 do
 		--gl.glDrawArrays(gl.GL_TRIANGLE_STRIP, j * 2 * numX, 2 * numX)
 		gl.glDrawArrays(gl.GL_LINE_STRIP, j * 2 * numX, 2 * numX)
 	end
 	--gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_FILL)
-	
+
 	gl.glDisableVertexAttribArray(shader.attrs.gridCoord.loc)
-	
+
 	--app.gradientTex:unbind(1)
 	tex:unbind(0)
 	shader:useNone()
-	
+
 	gl.glDisable(gl.GL_DEPTH_TEST)
-	
+
 
 	-- TODO only draw the first
 	app:drawGradientLegend(solver, var, varName, ar, valueMin, valueMax)
@@ -121,7 +120,7 @@ function DrawVectorStateLine:display(varName, ar, ...)
 	local solver = self.solver
 	local app = solver.app
 	app.view:setup(ar)
-	
+
 	gl.glEnable(gl.GL_DEPTH_TEST)
 
 	gl.glColor3f(.5, .5, .5)
@@ -135,7 +134,7 @@ function DrawVectorStateLine:display(varName, ar, ...)
 	gl.glVertex3f(0,0,-max)
 	gl.glEnd()
 	gl.glColor3f(1,1,1)
-	
+
 	gl.glDisable(gl.GL_DEPTH_TEST)
 
 
@@ -151,9 +150,9 @@ end
 function DrawVectorStateLine:prepareShader()
 	local solver = self.solver
 	if solver.drawVectorStateLineShader then return end
-	
+
 	local code = assert(file'hydro/draw/vector_state_line.shader':read())
-	
+
 	solver.drawVectorStateLineShader = solver.GLProgram{
 		name = 'vector_state_line',
 		vertexCode = solver.eqn:template(code, {

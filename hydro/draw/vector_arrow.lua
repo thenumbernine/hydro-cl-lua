@@ -4,10 +4,8 @@ local file = require 'ext.file'
 local vec2f = require 'vec-ffi.vec2f'
 local vec3f = require 'vec-ffi.vec3f'
 local gl = require 'gl'
-local glreport = require 'gl.report'
 local GLVertexArray = require 'gl.vertexarray'
 local GLArrayBuffer = require 'gl.arraybuffer'
-local GLAttribute = require 'gl.attribute'
 local vector = require 'ffi.cpp.vector'
 local Draw = require 'hydro.draw.draw'
 
@@ -24,7 +22,7 @@ local arrow = {
 local DrawVectorField = class(Draw)
 
 
--- TODO move to draw/vectorfield 
+-- TODO move to draw/vectorfield
 DrawVectorField.scale = cmdline.vectorFieldScale or 1
 DrawVectorField.step = cmdline.vectorFieldStep or 4
 
@@ -47,11 +45,11 @@ function DrawVectorField:showDisplayVar(var, varName, ar, xmin, xmax, ymin, ymax
 		var.heatMapValueMin = valueMin
 		var.heatMapValueMax = valueMax
 	end
-	
+
 	solver:calcDisplayVarToTex(var)
 
 	local isMeshSolver = require 'hydro.solver.meshsolver':isa(solver)
-	
+
 	local step = self.step
 	local arrowCount
 	local icount, jcount, kcount
@@ -129,7 +127,7 @@ function DrawVectorField:showDisplayVar(var, varName, ar, xmin, xmax, ymin, ymax
 			data = self.glcenters.v,
 			size = #self.glcenters * ffi.sizeof(self.glcenters.type)
 		}
-		
+
 		solver.vectorArrowVAO = GLVertexArray{
 			program = shader,
 			attrs = {
@@ -148,12 +146,12 @@ function DrawVectorField:showDisplayVar(var, varName, ar, xmin, xmax, ymin, ymax
 	local tex = solver:getTex(var)
 	tex:bind(0)
 	app.gradientTex:bind(1)
-	
+
 	-- how to determine scale?
 	--local scale = self.scale * (valueMax - valueMin)
 	--local scale = self.scale / (valueMax - valueMin)
 	local scale = self.scale * step * solver.mindx
-	gl.glUniform1f(uniforms.scale.loc, scale) 
+	gl.glUniform1f(uniforms.scale.loc, scale)
 
 --[[ glVertexAttrib prim calls
 	gl.glBegin(gl.GL_LINES)
@@ -180,7 +178,7 @@ function DrawVectorField:showDisplayVar(var, varName, ar, xmin, xmax, ymin, ymax
 
 	gl.glDisable(gl.GL_BLEND)
 
-	
+
 	-- TODO only draw the first
 	app:drawGradientLegend(solver, var, varName, ar, valueMin, valueMax)
 end
@@ -192,7 +190,7 @@ function DrawVectorField:display(varName, ar, ...)
 	app.view:setup(ar)
 
 	gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE)
-	
+
 	local var = solver.displayVarForName[varName]
 	if var and var.enabled then
 		self:prepareShader()
@@ -205,7 +203,7 @@ function DrawVectorField:prepareShader()
 	if solver.vectorArrowShader then return end
 
 	local vectorArrowCode = assert(file'hydro/draw/vector_arrow.shader':read())
-	
+
 	solver.vectorArrowShader = solver.GLProgram{
 		name = 'vector_arrow',
 		vertexCode = solver.eqn:template(vectorArrowCode, {

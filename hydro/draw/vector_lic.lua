@@ -22,10 +22,8 @@ function DrawVectorLIC:drawSolverWithVar(var, shader, xmin, xmax, ymin, ymax)
 local origSolver = var.solver
 var.solver = solver
 
-	local uniforms = shader.uniforms
-
 	solver:calcDisplayVarToTex(var)
-	
+
 	local tex = solver:getTex(var)
 	tex:bind(0)
 	self.noiseTex:bind(2)
@@ -37,7 +35,7 @@ var.solver = solver
 	gl.glVertex2d(xmax, ymax)
 	gl.glVertex2d(xmin, ymax)
 	gl.glEnd()
-	
+
 	self.noiseTex:unbind(2)
 	tex:unbind(0)
 
@@ -102,7 +100,7 @@ function DrawVectorLIC:showDisplayVar(var, varName, ar, xmin, xmax, ymin, ymax)
 
 	gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
 	gl.glEnable(gl.GL_BLEND)
-	
+
 	self:drawSolverWithVar(var, shader, xmin, xmax, ymin, ymax)
 
 -- [[
@@ -112,7 +110,7 @@ function DrawVectorLIC:showDisplayVar(var, varName, ar, xmin, xmax, ymin, ymax)
 			self.solver = subsolver
 			self:drawSolverWithVar(var, shader, xmin, xmax, ymin, ymax)
 		end
-		self.solver = tmp 
+		self.solver = tmp
 	end
 --]]
 
@@ -147,7 +145,7 @@ function DrawVectorLIC:display(varName, ar, graph_xmin, graph_xmax, graph_ymin, 
 	end
 
 --	gl.glEnable(gl.GL_DEPTH_TEST)
-	
+
 	local gridz = 0	--.1
 
 	gl.glColor3f(.1, .1, .1)
@@ -171,7 +169,7 @@ function DrawVectorLIC:display(varName, ar, graph_xmin, graph_xmax, graph_ymin, 
 		gl.glVertex3f(xmax,y*ystep, gridz)
 	end
 	gl.glEnd()
-	
+
 	gl.glColor3f(.5, .5, .5)
 	gl.glBegin(gl.GL_LINES)
 	gl.glVertex3f(xmin, 0, gridz)
@@ -179,7 +177,7 @@ function DrawVectorLIC:display(varName, ar, graph_xmin, graph_xmax, graph_ymin, 
 	gl.glVertex3f(0, ymin, gridz)
 	gl.glVertex3f(0, ymax, gridz)
 	gl.glEnd()
-			
+
 	-- NOTICE overlays of multiple solvers won't be helpful.  It'll just draw over the last solver.
 	-- I've got to rethink the visualization
 	if not require 'hydro.solver.meshsolver':isa(solver) then
@@ -196,9 +194,9 @@ function DrawVectorLIC:prepareShader()
 	local solver = self.solver
 
 	if solver.vectorLICShader then return end
-	
+
 	local vectorLICCode = assert(file'hydro/draw/vector_lic.shader':read())
-	
+
 	solver.vectorLICShader = solver.GLProgram{
 		name = 'vector_lic',
 		vertexCode = solver.eqn:template(vectorLICCode, {

@@ -4,7 +4,7 @@ local symmath = require 'symmath'
 local CoordinateSystem = require 'hydro.coord.coord'
 
 local Cartesian = class(CoordinateSystem)
-Cartesian.name = 'cartesian' 
+Cartesian.name = 'cartesian'
 
 function Cartesian:init(args)
 	local x,y,z = symmath.vars('x', 'y', 'z')

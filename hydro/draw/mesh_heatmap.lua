@@ -39,7 +39,7 @@ error("I once again need to straighten out the ctor/usage of GLProgram vs its at
 --]]
 	tex:unbind(0)
 end
-	
+
 function DrawMeshHeatmap:showDisplayVar(var, varName, ar)
 	local solver = self.solver
 	local app = solver.app
@@ -64,7 +64,7 @@ function DrawMeshHeatmap:showDisplayVar(var, varName, ar)
 
 		local shader = solver.heatMap2DShader
 		shader:use()
-		
+
 		local gradientTex = app.gradientTex
 		gradientTex:bind(1)
 
@@ -85,7 +85,7 @@ function DrawMeshHeatmap:showDisplayVar(var, varName, ar)
 
 		-- this is only in DrawMeshHeatmap...
 		gl.glUniformMatrix4fv(shader.uniforms.modelViewProjectionMatrix.loc, 1, 0, app.view.modelViewProjectionMatrix.ptr)
-		
+
 		gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
 		gl.glEnable(gl.GL_BLEND)
 
@@ -107,8 +107,8 @@ end
 function DrawMeshHeatmap:display(varName, ar)
 	local solver = self.solver
 	local app = solver.app
-	if app.targetSystem == 'console' then return end	
-	
+	if app.targetSystem == 'console' then return end
+
 	local view = app.view
 	view:setup(ar)
 
@@ -119,23 +119,22 @@ function DrawMeshHeatmap:display(varName, ar)
 	-- if it's a vector field then let app handle it.
 	local component = solver.displayComponentFlatList[var.component]
 	if solver:isVarTypeAVectorField(component.type) then return end
-	
+
 	gl.glEnable(gl.GL_DEPTH_TEST)
 
 	-- TODO move this somewhere to work with all display methods of meshsolver
 	if solver.showVertexes then
-		local mesh = solver.mesh
 		gl.glPointSize(3)
 		gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_POINT)
-		
+
 		solver.drawPointsShader:use()
 		gl.glUniformMatrix4fv(solver.drawPointsShader.uniforms.modelViewProjectionMatrix.loc, 1, 0, app.view.modelViewProjectionMatrix.ptr)
 		gl.glUniform1f(solver.drawPointsShader.uniforms.drawCellScale.loc, solver.drawCellScale)
-		
+
 		solver.drawPointsShader.vao:use()
 		gl.glDrawArrays(gl.GL_TRIANGLES, 0, solver.numGlVtxs * 3)
 		solver.drawPointsShader.vao:useNone()
-		
+
 		solver.drawPointsShader:useNone()
 
 		gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_FILL)
@@ -145,21 +144,21 @@ function DrawMeshHeatmap:display(varName, ar)
 	-- TODO move this somewhere to work with all display methods of meshsolver
 	if solver.showFaces then
 		local mesh = solver.mesh
-		
+
 -- I can technically use the shader above
--- but it will include the internal edges of tesselated polygons 
+-- but it will include the internal edges of tesselated polygons
 -- fixes? 1) make a separate arraybuffers for lines, 2) add an attribute for an internal edge flag
 --[[
 		gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_LINE)
-		
+
 		solver.drawPointsShader:use()
 		gl.glUniformMatrix4fv(solver.drawPointsShader.uniforms.modelViewProjectionMatrix.loc, 1, 0, app.view.modelViewProjectionMatrix.ptr)
 		gl.glUniform1f(solver.drawPointsShader.uniforms.drawCellScale.loc, solver.drawCellScale)
-		
+
 		solver.drawPointsShader.vao:use()
 		gl.glDrawArrays(gl.GL_TRIANGLES, 0, solver.numGlVtxs * 3)
 		solver.drawPointsShader.vao:useNone()
-		
+
 		solver.drawPointsShader:useNone()
 
 		gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_FILL)
@@ -207,11 +206,11 @@ function DrawMeshHeatmap:display(varName, ar)
 				gl.glColor3f(1,0,0)
 				gl.glVertex3d(pos:unpack())
 				gl.glVertex3d((pos + f.normal * dx):unpack())
-				
+
 				gl.glColor3f(0,1,0)
 				gl.glVertex3d(pos:unpack())
 				gl.glVertex3d((pos + f.normal2 * dx):unpack())
-				
+
 				gl.glColor3f(0,0,1)
 				gl.glVertex3d(pos:unpack())
 				gl.glVertex3d((pos + f.normal3 * dx):unpack())
@@ -219,20 +218,20 @@ function DrawMeshHeatmap:display(varName, ar)
 		end
 		gl.glEnd()
 	end
-	
+
 	gl.glDisable(gl.GL_DEPTH_TEST)
-	
+
 	-- from here on it's showDisplayVar
 	self:showDisplayVar(var, varName, ar)
 	glreport'here'
 end
 
 function DrawMeshHeatmap:prepareShader()
-	local solver = self.solver	
+	local solver = self.solver
 	if solver.heatMap2DShader then return end
-	
+
 	local heatMapCode = assert(file'hydro/draw/mesh_heatmap.shader':read())
-	
+
 	solver.heatMap2DShader = solver.GLProgram{
 		name = 'mesh_heatmap',
 		vertexCode = solver.eqn:template(heatMapCode, {

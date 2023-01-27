@@ -33,7 +33,7 @@ function Draw:setupDisplayVarShader(shader, var, valueMin, valueMax)
 	if uniforms.displayDim then
 		gl.glUniform1i(uniforms.displayDim.loc, app.displayDim)
 	end
-	if uniforms.displayFixed then	
+	if uniforms.displayFixed then
 		gl.glUniform2f(uniforms.displayFixed.loc, app.displayFixedY, app.displayFixedZ)
 	end
 	if uniforms.modelViewProjectionMatrix then
@@ -66,13 +66,13 @@ function Draw:setupDisplayVarShader(shader, var, valueMin, valueMax)
 	if uniforms.solverMins then
 		gl.glUniform3f(uniforms.solverMins.loc, solver.mins:unpack())
 	end
-	if uniforms.solverMaxs then	
+	if uniforms.solverMaxs then
 		gl.glUniform3f(uniforms.solverMaxs.loc, solver.maxs:unpack())
 	end
 	if uniforms.cartesianMin then
 		gl.glUniform3f(uniforms.cartesianMin.loc, solver.cartesianMin:unpack())
 	end
-	if uniforms.cartesianMax then	
+	if uniforms.cartesianMax then
 		gl.glUniform3f(uniforms.cartesianMax.loc, solver.cartesianMax:unpack())
 	end
 

@@ -11,7 +11,7 @@ local args = {
 	dim = dim,
 	eqn = cmdline.eqn,
 	flux = cmdline.flux,
-	
+
 	integrator = cmdline.integrator or 'forward Euler',
 	--integrator = 'Iterative Crank-Nicolson',
 	--integrator = 'Runge-Kutta 2',
@@ -28,17 +28,17 @@ local args = {
 	--integrator = 'backward Euler',	-- The epsilon on this is very sensitive.  Too small and it never converges.  Too large and it stops convergence too soon.
 	--integrator = 'backward Euler, CPU',
 	--integratorArgs = {verbose=true},
-	
+
 	--fixedDT = .0001,
 	fixedDT = cmdline.fixedDT,
-	
+
 	-- with Kelvin-Helmholts, this will explode even at .5/(dim=2), but runs safe for .3/(dim=2)
 	cfl = cmdline.cfl or .3/dim,
-	
+
 	fluxLimiter = cmdline.fluxLimiter or 'superbee',
 	--fluxLimiter = 'monotized central',
 	--fluxLimiter = 'donor cell',		-- same as turning fluxlimiter off ... you have to turn fluxlimiter off to use plm
-	
+
 	-- piecewise-linear slope limiter
 	-- TODO rename this to 'calcLR' or something
 	--									-- min div v for gridSize={1024} cfl=.3 Sod mirror at t=0.5:
@@ -54,7 +54,7 @@ local args = {
 	--usePLM = 'plm-athena',			-- -40		based on Athena.  most accurate from 1D sod tests atm
 	--usePLM = 'ppm-wip',				-- 			FIXME one more attempt to figure out all the PLM stuff, based on 2017 Zingale
 	--usePLM = 'weno',					-- 			TODO make WENO one of these 'usePLM' methods. rename it to 'construct LR state method' or something.  then use CTU with WENO.  or can we, since even the CTU method should use the re-linear-projection ... i should just have these separate plm methods as separate functions ...
-	
+
 	-- only enabled for certain usePLM methods
 	--slopeLimiter = 'minmod',
 	--slopeLimiter = 'monotized central',
@@ -71,7 +71,7 @@ local args = {
 	coordArgs = {vectorComponent='cartesian'},			-- use cartesian vector components
 	mins = cmdline.mins or {-1, -1, -1},
 	maxs = cmdline.maxs or {1, 1, 1},
-	
+
 	-- 256^2 = 2^16 = 2 * 32^3
 	gridSize = cmdline.gridSize or (
 		({ 	-- size options based on OpenCL vendor ...
@@ -96,7 +96,7 @@ local args = {
 				{64,64,1},
 				{32,32,32},
 			},
-		
+
 			-- 5600M with device=gfx902 to work with gl_sharing:
 			['AMD Accelerated Parallel Processing/gfx902'] = {
 				{4096,1,1},
@@ -110,7 +110,7 @@ local args = {
 				{256,256,1},
 				{32,32,32},
 			},
-		
+
 			-- 5600M when I'm too lazy to only specify just one device.
 			-- it still just uses the first, which is the gfx1010
 			-- for 2D:
@@ -123,7 +123,7 @@ local args = {
 				{256,256,1},
 				{32,32,32},
 			},
-		
+
 			-- and on linux ...
 			['AMD Accelerated Parallel Processing/gfx1010:xnack-/gfx902:xnack-'] = {
 				{256,1,1},
@@ -172,28 +172,28 @@ local args = {
 		-- r
 		-- notice, this boundary is designed with cylindrical components in mind, so it will fail with vectorComponent==cartesian
 		--xmin=cmdline.boundary or 'freeflow',
-	
+
 		-- solver=fvsolver eqn=wave flux=roe initCond=constant initCondArgs={rho=1, v={.1,.1}}
 		-- after 1s: U Pi=[0.98602808771532 1.0004558819272 ±0.0022951109994 1.0155402211526]
 		-- the average might look like its further from the init value of rho=1, but it is oscillating around rho=1 and not linearly divering (like xmin='none' causes)
 		-- but the error is higher, though it doesn't drift as far
 		xmin=cmdline.boundary or 'cylinderRMin',	-- use this when rmin=0
-		
+
 		-- solver=fvsolver eqn=wave flux=roe initCond=constant initCondArgs={rho=1, v={.1,.1}}
 		-- after 1s: U Pi=[1.0002535672563 1.0003601365045 ±0.00010068116618478 1.0007179873631]
 		-- so the error stays lower, but the average drifts upward
 		--xmin=cmdline.boundary or 'none',
-		
+
 		--xmin=cmdline.boundary or 'mirror',
 		--xmin=cmdline.boundary or {name='mirror', args={restitution=0}},
 		--xmax=cmdline.boundary or 'freeflow',
 		xmax=cmdline.boundary or 'freeflow',
 		--xmax=cmdline.boundary or {name='mirror', args={restitution=0}},
-		
+
 		-- θ
 		ymin=cmdline.boundary or 'periodic',
 		ymax=cmdline.boundary or 'periodic',
-		
+
 		-- z
 		--zmin=cmdline.boundary or {name='mirror', args={restitution=0}},
 		--zmax=cmdline.boundary or {name='mirror', args={restitution=0}},
@@ -280,13 +280,13 @@ local args = {
 
 	-- no initial state means use the first
 	--initCond = cmdline.initCond,
-	
+
 	-- Euler / SRHD / MHD initial states:
-	
+
 	--initCond = 'constant',
 	--initCondArgs = {v={1,0}},
 	--initCondArgs = {v={1e-1,1e-1}},
-	
+
 	--initCond = 'random',
 	--initCond = 'linear',
 	--initCond = 'advect wave',
@@ -315,7 +315,7 @@ local args = {
 
 
 	--initCond = 'sphere',
-	
+
 	--initCond = 'spiral',
 	--initCondArgs = {torusGreaterRadius = .75, torusLesserRadius = .5},
 	--[[ spiral with physically correct units, with 1 graph unit = 1 meter, and 1 simulation second = 1 second
@@ -326,14 +326,14 @@ local args = {
 		solverVars={
 			-- scale time down so that speedOfLight / units_m_per_s = 1 ... so second ~ 1/3e+8 ~ 3.33e-9
 			second = 1 / constants.speedOfLight_in_m_per_s,
-			
+
 			speedOfLight = constants.speedOfLight_in_m_per_s, -- ... speedOfLight = 3e+8 / (1/(1/3e+8)) = 1
 			divPsiWavespeed_g = constants.speedOfLight_in_m_per_s,
 			divPhiWavespeed_g = constants.speedOfLight_in_m_per_s,
-			
+
 			-- 1 / units_m3_per_kg_s2 = second * second * kilogram / meter^3 ... so G ~ 6.67e-11 * 1e-17 ~ 6.67e-28
 			gravitationalConstant = constants.gravitationalConstant_in_m3_per_kg_s2,
-			
+
 			-- change this so that rho=1 corresponds to the density of ... lead? mercury?
 			kilogram = materials.Mercury.seaLevelDensity,
 			kelvin = constants.K_to_C_offset + 12,	--materials.Mercury.boilingPoint,
@@ -348,7 +348,7 @@ local args = {
 	--initCond = 'rarefaction wave',
 	--initCond = 'Bessel',
 	--initCond = 'jet',
-	
+
 
 	initCond = 'Sod',
 	--initCondArgs = {dim=cmdline.displayDim},
@@ -387,7 +387,7 @@ local args = {
 	--initCond = 'Sedov',
 	--initCond = 'Noh',
 	--initCond = 'implosion',
-	
+
 	--initCond = 'Kelvin-Helmholtz',
 	--[[
 	initCondArgs = {
@@ -395,7 +395,7 @@ local args = {
 		thickness = 1e-5,
 	},
 	--]]
-	
+
 	--initCond = 'Rayleigh-Taylor',	--FIXME ... get initial / static hydro potential working
 	--initCond = 'Taylor-Green',	-- should only work with viscosity
 	--initCond = 'Colella-Woodward',
@@ -412,7 +412,7 @@ local args = {
 	--initCond = 'configuration 4',
 	--initCond = 'configuration 5',
 	--initCond = 'configuration 6',
-	
+
 	-- states for ideal MHD or two-fluid (not two-fluid-separate)
 	--initCond = 'Brio-Wu',
 	--initCond = 'Orszag-Tang',
@@ -422,14 +422,14 @@ local args = {
 	--initCond = '2017 Degris et al',
 	--initCond = 'that one mhd simulation from youtube',
 	--initCond = 'spiral with flipped B field',
-	
+
 	-- 2002 Dedner
 	--initCond = '2002 Dedner peak Bx',
 	--initCond = '2002 Dedner 1D Riemann',
 	--initCond = '2002 Dedner Shock Reflection',
 	--initCond = '2002 Dedner 2D Riemann problem',
 	--initCond = '2002 Dedner Kelvin-Helmholtz',
-	
+
 	-- Mara initital conditions
 	--initCond = 'Mara IsentropicPulse',
 	--initCond = 'Mara Explosion',
@@ -461,7 +461,7 @@ local args = {
 	--initCond = 'self-gravitation soup',
 	--initCond = 'self-gravitation Jeans, right?',
 
-	
+
 	--initCond = 'shallow water constant',
 	--initCond = 'shallow water problem A',	-- boundary: v = reflect, h = freeflow
 	--initCond = 'shallow water problem B',	-- boundary: v = reflect, h = freeflow
@@ -500,7 +500,7 @@ local args = {
 	--initCond = 'two-fluid EMHD soliton ion',
 	--initCond = 'two-fluid EMHD soliton electron',
 	--initCond = 'two-fluid EMHD soliton maxwell',
-	
+
 	-- initConds for twofluid-emhd stored in hydro/init/twofluid-emhd.lua:
 	--initCond = 'two-fluid Brio-Wu', eqnArgs = {useEulerInitState=false},
 	--initCond = 'GEM challenge', eqnArgs = {useEulerInitState=false},
@@ -512,28 +512,28 @@ local args = {
 
 
 	--initCond = 'Alcubierre warp bubble',
-	
+
 	--initCondArgs = {R=.5, sigma=8, speed=.1},	-- sub-luminal
-	
+
 	--initCondArgs = {R=.5, sigma=8, speed=1.1},		-- super-luminal 1.1x
 	-- ... works with
 	--	size=64x64 solver=adm3d int=fe plm=athena ctu
 	--  size=64x64 solver=adm3d int=fe plm=athena
 	--  size=64x64 solver=adm3d int=fe flux-limiter=superbee
-	
+
 	--initCondArgs = {R=.5, sigma=8, speed=2},		-- super-luminal 2x
 	-- ... works with
 	--  size=64x64 solver=adm3d int=fe flux-limiter=superbee
-	
+
 	--initCondArgs = {R=.5, sigma=8, speed=10},		-- super-luminal 10x
 	--  size=64x64 solver=roe eqn=adm3d int=fe flux-limiter=superbee ... eventually explodes
 	--  size=64x64 solver=roe eqn=bssnok int=be flux-limiter=superbee ... eventually explodes as well
 	--  size=128x128 solver=hll eqn=adm3d int=fe flux-limiter=superbee ... runs for a really long time
 
-	
+
 	--initCond = 'black hole - Schwarzschild',
-	
-	
+
+
 	--initCond = 'black hole - isotropic',	-- this one has momentum and rotation and almost done with multiple sources.  TODO parameterize
 
 	--initCond = 'black hole - isotropic - stuffed',
@@ -661,7 +661,7 @@ local args = {
 	--initCond = 'stellar model',
 	--initCond = '1D black hole - wormhole form',
 
-	
+
 	--initCond = 'Gowdy waves',
 	--initCond = 'testbed - robust',	-- not working with fv solvers
 	--initCond = 'testbed - gauge wave',
@@ -1347,10 +1347,10 @@ end
 local dim = cmdline.dim or 1
 local args = {
 	app = self,
-	
+
 	--eqn = 'adm3d',
 	eqn = 'z4',
-	
+
 	integrator = 'forward Euler',
 	--integrator = 'Runge-Kutta 3, TVD',	-- p.20, eqn B.1
 	--integrator = 'Runge-Kutta 4',
@@ -1417,7 +1417,7 @@ local args = {
 		--vectorComponent = 'cartesian',
 		vectorComponent = 'anholonomic',	-- ... these settings also influence the finite volume area/volume calculations (in terms of the vector components) ...
 		--vectorComponent = 'holonomic',	-- our tensor components are holonomic ... except the partial / 1st order state variables, like a_k, d_kij
-		
+
 		-- [==[ the paper uses this remapping parameters (eqn 32):
 		-- Alic et al: 		R = L sinh(r / L)
 		-- comparing Alic's sinh remapping to SENR's remapping:
@@ -1554,21 +1554,21 @@ end
 local dim = 3
 local args = {
 	app = self,
-	
+
 	eqn = 'bssnok-fd-num',
 	--eqn = 'bssnok-fd-sym',
 	--eqn = 'bssnok-fd-senr',
-	
+
 	eqnArgs = {
 		--useShift = 'none',
 		--useScalarField = true,	-- needed for the scalar field init cond below
-	
+
 		--cflMethod = cmdline.cflMethod or '2008 Alcubierre',
 		--cflMethod = cmdline.cflMethod or '2013 Baumgarte et al, eqn 32',
 		cflMethod = cmdline.cflMethod or '2017 Ruchlin et al, eqn 53',
 	},
 	dim = dim,
-	
+
 	integrator = cmdline.integrator or 'Runge-Kutta 4',
 	--integrator = cmdline.integrator or 'backward Euler',
 	--integrator = cmdline.integrator or 'backward Euler, CPU',	-- debugging.   seems that, for grid sizes too small, B.E. GPU fails.  i think because the reduce() gpu function isn't set up for lower bounds of buffer sizes.
@@ -1621,36 +1621,36 @@ local args = {
 	gridSize = cmdline.gridSize or ({
 		{128, 1, 1},
 		{64, 16, 1},
-		
+
 		-- N x 2 x 2:
 		{32, 2, 2},
 		--{80, 80, 2},
 		--{128, 2, 2},
 		--{128, 32, 2},
 		--{400, 64, 2},
-	
+
 		-- 80N x 40N x 2N
 		--{160, 80, 4},
-	
+
 		-- Brill-Lindquist head-on merger:2017 Ruchlin, Etienne, section 3, 2 paragraphs after eqn 70:
 		--{400, 64, 2},
-	
+
 		-- 2015 Baumgarte et al, head-on collision: 128N, 48N, 2
 		--{128, 48, 2},
-	
+
 		-- SENR PIRK sphere 'agrees with Baumgarte' grid size
 		--{64,32,32}, -- seems to be running fine with -num, rk4, sphere, UIUC
 		--{16,8,8},
 	})[dim],
 	boundary = {
 		xmin='sphereRMin',
-		
+
 		-- runs a gauge wave until t=...
 		--xmax='fixed',		-- 5.3875
 		--xmax='freeflow',	-- diverges near rmin after t=60 or so
 		--xmax='linear',	-- 13.1875
 		xmax='quadratic',	-- 10.6125
-		
+
 		ymin='sphereTheta',
 		ymax='sphereTheta',
 		zmin='periodic',	-- spherePhi is the same as periodic
@@ -1676,36 +1676,36 @@ local args = {
 	gridSize = cmdline.gridSize or ({
 		{128, 1, 1},
 		{64, 16, 1},
-		
+
 		-- N x 2 x 2:
 		--{32, 2, 2},		-- SENR sphere_sinh_radial uses this by default
 		{80, 80, 2},		-- this works well for BrillLindquist sphere_sinh_radial when viewing the xz slice
 		--{128, 2, 2},
 		--{128, 32, 2},
 		--{400, 64, 2},
-		
+
 		--{200, 2, 2},
-	
+
 		-- 80N x 40N x 2N
 		--{160, 80, 4},
-	
+
 		-- Brill-Lindquist head-on merger:2017 Ruchlin, Etienne, section 3, 2 paragraphs after eqn 70:
 		--{400, 64, 2},
-	
+
 		-- 2015 Baumgarte et al, head-on collision: 128N, 48N, 2
 		--{128, 48, 2},
-	
+
 		--{16,8,8},
 	})[dim],
 	boundary = {
 		xmin='sphereRMin',
-		
+
 		-- runs a gauge wave until t=...
 		--xmax='fixed',		-- 5.3875
 		--xmax='freeflow',	-- diverges near rmin after t=60 or so
 		--xmax='linear',	-- 13.1875
 		xmax='quadratic',	-- 10.6125
-		
+
 		ymin='sphereTheta',
 		ymax='sphereTheta',
 		zmin='periodic',	-- spherePhi is the same as periodic
@@ -1715,13 +1715,13 @@ local args = {
 
 
 	--initCond = 'Minkowski',	-- TODO sphere_sinh_radial
-	
+
 	-- TODO look up Teukolsky Phys Rev 26 745 1982
 	--initCond = 'pure gauge wave',
 	--initCond = 'scalar field',
-	
+
 	--initCond = 'gaussian perturbation',	-- TODO restore this to the 2008 Alcubeirre and 1998 Alcubierre gauge wave examples
-	
+
 	--[[
 	--initCond = 'black hole - boosted Schwarzschild',
 	initCond = 'black hole - Schwarzschild isotropic - spherical',
@@ -1731,9 +1731,9 @@ local args = {
 		R = .1,
 	},
 	--]]
-	
+
 	--initCond = 'black hole - isotropic',
-	
+
 	--initCond = 'Alcubierre warp bubble',
 
 	--[[
@@ -1743,14 +1743,14 @@ local args = {
 		sigma = 10,
 	},
 	--]]
-		
+
 	--initCond = 'Minkowski',
 	--initCond = 'SENR Minkowski',
 	--initCond = 'SENR UIUC',					-- single black hole. bssnok-fd-num explodes because H diverges at t=13 ... when partial_phi_l diverges at the same rate ... because of its r=0 value?
 	initCond = 'SENR BrillLindquist',			-- two merging head-on.
 	--initCond = 'SENR BoostedSchwarzschild',
 	--initCond = 'SENR StaticTrumpet',
-	
+
 	-- multi-devices
 	multiSlices = {cmdline.multiSlices or 3, 1, 1},
 }

@@ -9,11 +9,10 @@ local Draw2DHeatmap = class(Draw)
 function Draw2DHeatmap:drawSolverWithVar(var, shader, xmin, xmax, ymin, ymax)
 	local solver = self.solver
 	local app = solver.app
-	local uniforms = shader.uniforms
 -- hmm ... this is needed for sub-solvers
 local origSolver = var.solver
 var.solver = solver
-	
+
 	solver:calcDisplayVarToTex(var)
 
 	local tex = solver:getTex(var)
@@ -26,7 +25,7 @@ var.solver = solver
 	gl.glVertex2d(xmax, ymax)
 	gl.glVertex2d(xmin, ymax)
 	gl.glEnd()
-	
+
 	tex:unbind(0)
 
 var.solver = origSolver
@@ -36,7 +35,7 @@ function Draw2DHeatmap:showDisplayVar(var, varName, ar, xmin, xmax, ymin, ymax)
 	local solver = self.solver
 	local app = solver.app
 	if require 'hydro.solver.meshsolver':isa(solver) then return end
-	
+
 	-- TODO allow a fixed, manual colormap range
 	-- NOTICE with AMR this will only get from the root node
 	--  which should at least have blitters of the children
@@ -49,7 +48,7 @@ function Draw2DHeatmap:showDisplayVar(var, varName, ar, xmin, xmax, ymin, ymax)
 		var.heatMapValueMin = valueMin
 		var.heatMapValueMax = valueMax
 	end
-	
+
 	local shader = solver.heatMap2DShader
 	shader:use()
 	app.gradientTex:bind(1)
@@ -58,7 +57,7 @@ function Draw2DHeatmap:showDisplayVar(var, varName, ar, xmin, xmax, ymin, ymax)
 
 	gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
 	gl.glEnable(gl.GL_BLEND)
-	
+
 	self:drawSolverWithVar(var, shader, xmin, xmax, ymin, ymax)
 
 -- [[
@@ -100,7 +99,7 @@ function Draw2DHeatmap:display(varName, ar, graph_xmin, graph_xmax, graph_ymin, 
 --	gl.glEnable(gl.GL_DEPTH_TEST)
 
 	-- TODO one grid for all displaly.
-	
+
 	local gridz = 0	--.1
 
 	gl.glColor3f(.1, .1, .1)
@@ -124,7 +123,7 @@ function Draw2DHeatmap:display(varName, ar, graph_xmin, graph_xmax, graph_ymin, 
 		gl.glVertex3f(xmax,y*ystep, gridz)
 	end
 	gl.glEnd()
-	
+
 	gl.glColor3f(.5, .5, .5)
 	gl.glBegin(gl.GL_LINES)
 	gl.glVertex3f(xmin, 0, gridz)
@@ -148,7 +147,7 @@ function Draw2DHeatmap:prepareShader()
 	if solver.heatMap2DShader then return end
 
 	local heatMapCode = assert(file'hydro/draw/2d_heatmap.shader':read())
-	
+
 	solver.heatMap2DShader = solver.GLProgram{
 		name = '2d_heatmap',
 		vertexCode = solver.eqn:template(heatMapCode, {

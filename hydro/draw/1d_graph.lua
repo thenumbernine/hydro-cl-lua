@@ -1,6 +1,5 @@
 -- maybe a better name would be '1d_graph'?
 local gl = require 'ffi.OpenGL'
-local ffi = require 'ffi'
 local class = require 'ext.class'
 local vec3f = require 'vec-ffi.vec3f'
 local file = require 'ext.file'
@@ -14,7 +13,7 @@ local Draw1D = class(Draw)
 function Draw1D:showDisplayVar(var)
 	local solver = self.solver
 	local app = self.solver.app
-	
+
 	local valueMin, valueMax
 	if var.heatMapFixedRange then
 		valueMin = var.heatMapValueMin
@@ -24,8 +23,8 @@ function Draw1D:showDisplayVar(var)
 		var.heatMapValueMin = valueMin
 		var.heatMapValueMax = valueMax
 	end
-	
-	solver:calcDisplayVarToTex(var)	
+
+	solver:calcDisplayVarToTex(var)
 
 
 	-- 1D displays -- use vertex.y
@@ -43,7 +42,7 @@ function Draw1D:showDisplayVar(var)
 	shader:use()
 	local tex = solver:getTex(var)
 	tex:bind()
-	
+
 	self:setupDisplayVarShader(shader, var, valueMin, valueMax)
 
 	gl.glUniform1f(uniforms.ambient.loc, 1)
@@ -60,17 +59,17 @@ function Draw1D:showDisplayVar(var)
 
 	-- [[ overwrite the modelViewProjectionMatrix uniform here
 	-- this is different from the other 'Draw.modelViewProjectionMatrix'
-	-- that one is based on hydro.view, 
+	-- that one is based on hydro.view,
 	-- this is based on the GL state set in hydro.app for 1D graphs
-	-- TODO maybe combine the two, make the hydro.app 1D graph stuff use hydro.view.ortho, 
+	-- TODO maybe combine the two, make the hydro.app 1D graph stuff use hydro.view.ortho,
 	-- then this could just use the default 'modelViewProjectionMatrix'
-	self.ModelViewMatrix = self.ModelViewMatrix or matrix_ffi(nil, 'float', {4,4})--ffi.new'float[16]'
+	self.ModelViewMatrix = self.ModelViewMatrix or matrix_ffi(nil, 'float', {4,4})
 	gl.glGetFloatv(gl.GL_MODELVIEW_MATRIX, self.ModelViewMatrix.ptr)
 
-	self.ProjectionMatrix = self.ProjectionMatrix or matrix_ffi(nil, 'float', {4,4})--ffi.new'float[16]'
+	self.ProjectionMatrix = self.ProjectionMatrix or matrix_ffi(nil, 'float', {4,4})
 	gl.glGetFloatv(gl.GL_PROJECTION_MATRIX, self.ProjectionMatrix.ptr)
 
-	self.ModelViewProjectionMatrix = self.ModelViewProjectionMatrix or require 'matrix.ffi'(nil, 'float', {4,4})--ffi.new'float[16]'
+	self.ModelViewProjectionMatrix = self.ModelViewProjectionMatrix or require 'matrix.ffi'(nil, 'float', {4,4})
 	matrix_ffi.mul(self.ModelViewProjectionMatrix, self.ProjectionMatrix, self.ModelViewMatrix)
 
 	gl.glUniformMatrix4fv(uniforms.modelViewProjectionMatrix.loc, 1, gl.GL_FALSE, self.ModelViewProjectionMatrix.ptr)
@@ -82,14 +81,14 @@ function Draw1D:showDisplayVar(var)
 		v.y = 0--app.displayFixedY
 		v.z = 0--app.displayFixedZ
 	end
-	
+
 	gl.glEnableVertexAttribArray(shader.attrs.gridCoord.loc)
 	gl.glVertexAttribPointer(shader.attrs.gridCoord.loc, 3, gl.GL_FLOAT, false, 0, self.vertexes.v)
-	
-	gl.glDrawArrays(gl.GL_LINE_STRIP, 0, numVertexes) 
-	
+
+	gl.glDrawArrays(gl.GL_LINE_STRIP, 0, numVertexes)
+
 	gl.glDisableVertexAttribArray(shader.attrs.gridCoord.loc)
-	
+
 	tex:unbind()
 	shader:useNone()
 end
@@ -103,7 +102,7 @@ function Draw1D:display(varName, ar, xmin, xmax, ymin, ymax, useLog, valueMin, v
 	gl.glOrtho(xmin, xmax, ymin, ymax, -1, 1)
 	gl.glMatrixMode(gl.GL_MODELVIEW)
 	gl.glLoadIdentity()
-	
+
 	gl.glColor3d(.1, .1, .1)
 	local xrange = xmax - xmin
 	local xstep = 10^math.floor(math.log(xrange, 10) - .5)
@@ -125,7 +124,7 @@ function Draw1D:display(varName, ar, xmin, xmax, ymin, ymax, useLog, valueMin, v
 		gl.glVertex2d(xmax,y*ystep)
 	end
 	gl.glEnd()
-	
+
 	gl.glColor3d(.5, .5, .5)
 	gl.glBegin(gl.GL_LINES)
 	gl.glVertex2d(xmin, 0)
@@ -133,7 +132,7 @@ function Draw1D:display(varName, ar, xmin, xmax, ymin, ymax, useLog, valueMin, v
 	gl.glVertex2d(0, ymin)
 	gl.glVertex2d(0, ymax)
 	gl.glEnd()
-	
+
 	-- display here
 	local var = solver.displayVarForName[varName]
 	if var and var.enabled then
@@ -159,7 +158,7 @@ function Draw1D:display(varName, ar, xmin, xmax, ymin, ymax, useLog, valueMin, v
 		--self.orthoView:projection(ar)
 		--self.orthoView:modelview()
 		--local xmin, xmax, ymin, ymax = self.orthoView:getOrthoBounds(ar)
-		
+
 		if app.font then
 			-- gradient uses 0.025
 			local fontSizeX = (xmax - xmin) * .05
@@ -206,9 +205,9 @@ function Draw1D:prepareShader()
 	local solver = self.solver
 
 	if solver.graphShader then return end
-	
+
 	local graphShaderCode = assert(file'hydro/draw/graph.shader':read())
-	
+
 	solver.graphShader = solver.GLProgram{
 		name = 'graph',
 		vertexCode = solver.eqn:template(graphShaderCode, {
