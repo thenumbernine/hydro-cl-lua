@@ -1152,8 +1152,8 @@ end
 	// and then give this the domain SETBOUNDS_NOGHOST?
 	//that would work except that it is writing to reduceBuf, which is reused for any reduce operation
 	// like display var min/max ranges
-	global real * const dt = dtBuf + index;
-	*dt = INFINITY;
+	global real & dt = dtBuf[index];
+	dt = INFINITY;
 	
 	if (<?=OOB?>(solver->numGhost, solver->numGhost)) return;
 	global <?=cons_t?> const * const U = UBuf + index;
@@ -1161,8 +1161,8 @@ end
 	<?=calcDTCell?>(
 		dt,
 		solver,
-		U,
-		cell<?
+		*U,
+		*cell<?
 if require "hydro.solver.meshsolver":isa(solver) then
 ?>,
 		faces,

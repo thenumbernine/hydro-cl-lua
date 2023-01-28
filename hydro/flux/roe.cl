@@ -51,7 +51,7 @@ static inline <?=cons_t?> <?=calcFluxForInterface?>(
 		UAvg.ptr[j] = .5 * ((UL)->ptr[j] + (UR)->ptr[j]);
 	}
 
-	<?=eigen_leftTransform?>(&fluxEig, solver, &eig, &UAvg, xInt, n);
+	fluxEig = <?=eigen_leftTransform?>(solver, eig, UAvg, xInt, n);
 <? end
 ?>
 	<?=cons_t?> deltaU;
@@ -67,15 +67,12 @@ static inline <?=cons_t?> <?=calcFluxForInterface?>(
 <? end
 ?>	}
 
-	<?=waves_t?> deltaUEig;
-	<?=eigen_leftTransform?>(&deltaUEig, solver, &eig, &deltaU, xInt, n);
+	<?=waves_t?> deltaUEig = <?=eigen_leftTransform?>(solver, eig, deltaU, xInt, n);
 <? 	if useFluxLimiter then ?>
 	<?=eigen_t?> eigL = <?=eigen_forInterface?>(solver, *UL_L, *UR_L, *cellL_L, *cellR_L, xIntL, n);
 	<?=eigen_t?> eigR = <?=eigen_forInterface?>(solver, *UL_R, *UR_R, *cellL_R, *cellR_R, xIntR, n);
-	<?=waves_t?> deltaUEigL;
-	<?=eigen_leftTransform?>(&deltaUEigL, solver, &eigL, &deltaUL, xIntL, n);
-	<?=waves_t?> deltaUEigR;
-	<?=eigen_leftTransform?>(&deltaUEigR, solver, &eigR, &deltaUR, xIntR, n);
+	<?=waves_t?> deltaUEigL = <?=eigen_leftTransform?>(solver, eigL, deltaUL, xIntL, n);
+	<?=waves_t?> deltaUEigR = <?=eigen_leftTransform?>(solver, eigR, deltaUR, xIntR, n);
 <? 	end ?>
 
 <?
@@ -131,7 +128,7 @@ if flux.useEntropyFluxFix then
 ?>		);
 	}<? end ?>
 
-	<?=eigen_rightTransform?>(&resultFlux, solver, &eig, &fluxEig, xInt, n);
+	resultFlux = <?=eigen_rightTransform?>(solver, eig, fluxEig, xInt, n);
 
 <? if eqn.roeUseFluxFromCons then
 -- TODO hmm, fluxFromCons vs eigen_fluxTransform using the 'eig' structure
