@@ -1230,7 +1230,7 @@ self.compilePrintRequestTensor = compilePrintRequestTensor
 	-- area_i = integral of u_j, j!=i of product of dx_j, j!=i
 	addReal3Components{
 		srcname = 'cell_area',
-		define = true,
+		define = 'with solver arg',
 	}
 
 	addReal3Components{
@@ -1258,7 +1258,7 @@ self.compilePrintRequestTensor = compilePrintRequestTensor
 					return self.request('cell_dx'..(i-1))
 				end,
 				result = 'real',
-				define = true,
+				define = 'with solver arg',
 			}
 		end)
 	)
@@ -1510,9 +1510,11 @@ local getCode = {}
 -- so in that case, defines can't work until you rewrite the calling code.
 -- but lets keep this around as an option for now ...
 
-getCode.real3_to_real_define = function(name, code)
+getCode.real3_to_real_define = function(coord, name, code)
 	return template([[
-#define <?=name?>(pt) (<?=code?>)
+static inline real <?=name?>(real3 pt) {
+	return <?=code?>;
+}
 ]], {
 		name = name,
 		code = code,
@@ -1520,14 +1522,15 @@ getCode.real3_to_real_define = function(name, code)
 end
 
 -- f(x) where x is a point in the coordinate chart
-getCode.real3_to_real3_define = function(name, exprs)
+getCode.real3_to_real3_define = function(coord, name, exprs)
 	return template([[
-#define <?=name?>(pt) \
-	(real3( \
+static inline real3 <?=name?>(pt) {
+	return real3( 
 <? for i=1,3 do
-?>		<?=exprs[i] or '0.'?><?=i==3 and '' or ','?> \
+?>		<?=exprs[i] or '0.'?><?=i==3 and '' or ','?>
 <? end
-?>	))
+?>	);
+}
 ]], {
 		name = name,
 		exprs = exprs,
@@ -1535,46 +1538,52 @@ getCode.real3_to_real3_define = function(name, exprs)
 end
 
 -- f(v,x) where x is a point on the coordinate chart and v is most likely a tensor
-getCode.real3_real3_to_real_define = function(name, expr)
+getCode.real3_real3_to_real_define = function(coord, name, expr)
 	return template([[
-#define <?=name?>(u, pt) (<?=expr?>)
+static inline real3 <?=name?>(real3 u, real3 pt) {
+	return <?=expr?>;
+}
 ]], {
 		name = name,
 		expr = expr,
 	})
 end
 
-getCode.real3_real3_to_real3_define = function(name, exprs)
+getCode.real3_real3_to_real3_define = function(coord, name, exprs)
 	return template([[
-#define <?=name?>(u, pt) \
-	(real3( \
+static inline real3 <?=name?>(real3 u, real3 pt) {
+	return real3( \
 <? for i=1,3 do
 ?>		<?=exprs[i] or '0.'?><?=i==3 and '' or ','?> \
 <? end
-?>	))
+?>	);
+}
 ]], {
 		name = name,
 		exprs = exprs,
 	})
 end
 
-getCode.real3_real3_real3_real3_to_real_define = function(name, expr)
+getCode.real3_real3_real3_real3_to_real_define = function(coord, name, expr)
 	return template([[
-#define <?=name?>(u, v, w, pt) (<?=expr?>)
+static inline real <?=name?>(real3 u, real3 v, real3 w, real3 pt) {
+	return <?=expr?>;
+}
 ]], {
 		name = name,
 		expr = expr,
 	})
 end
 
-getCode.real3_real3_real3_to_real3_define = function(name, exprs)
+getCode.real3_real3_real3_to_real3_define = function(coord, name, exprs)
 	return template([[
-#define <?=name?>(u, v, pt) \
-	(real3( \
+static inline real3 <?=name?>(real3 u, real3 v, real3 pt) {
+	return real3( \
 <? for i=1,3 do
 ?>		<?=exprs[i] or '0.'?><?=i==3 and '' or ','?> \
 <? end
-?>	))
+?>	);
+}
 ]], {
 		name = name,
 		exprs = exprs,
@@ -1582,15 +1591,16 @@ getCode.real3_real3_real3_to_real3_define = function(name, exprs)
 end
 
 
-getCode.real3_to_sym3_define = function(name, exprs)
+getCode.real3_to_sym3_define = function(coord, name, exprs)
 	return template([[
-#define <?=name?>(pt) \
-	((sym3){ \
+static inline sym3 <?=name?>(real3 pt) {
+	return (sym3){
 <? for ij,xij in ipairs(symNames) do
 	local i,j = from6to3x3(ij)
-?>		.<?=xij?> = <?=exprs[i] and exprs[i][j] and exprs[i][j] or '0.'?>, \
+?>		.<?=xij?> = <?=exprs[i] and exprs[i][j] and exprs[i][j] or '0.'?>,
 <? end
-?>	})
+?>	};
+}
 ]], {
 		symNames = symNames,
 		from6to3x3 = from6to3x3,
@@ -1600,22 +1610,23 @@ getCode.real3_to_sym3_define = function(name, exprs)
 end
 
 -- symmetric on 2nd & 3rd indexes
-getCode.real3_to__3sym3_define = function(name, exprs)
+getCode.real3_to__3sym3_define = function(coord, name, exprs)
 	return template([[
-#define <?=name?>(pt) \
-	((_3sym3){ \
+static inline _3sym3 <?=name?>(real3 pt) {
+	return _3sym3{
 <?
 for i,xi in ipairs(xNames) do
-?>	.<?=xi?> = { \
+?>	.<?=xi?> = {
 <?	for jk,xjk in ipairs(symNames) do
 		local j,k = from6to3x3(jk)
 ?>		.<?=xjk?> = <?=exprs[i] and exprs[i][j] and exprs[i][j][k]
-			and exprs[i][j][k] or '0.'?>, \
+			and exprs[i][j][k] or '0.'?>,
 <?	end
-?>	}, \
+?>	},
 <?
 end
-?>	})
+?>	}
+}
 ]], {
 		name = name,
 		exprs = exprs,
@@ -1626,19 +1637,25 @@ end
 end
 
 -- ugly hack, TODO, just use one interface for all
-getCode.real3_to_real_defineWithSolver = function(name, code)
+getCode.real3_to_real_defineWithSolver = function(coord, name, code)
 	return template([[
-#define <?=name?>(solver, pt) (<?=code?>)
+static inline real <?=name?>(
+	constant <?=solver_t?> const & solver,
+	real3 pt
+) {
+	return <?=code?>;
+}
 ]], {
 		name = name,
 		code = code,
+		solver_t = coord.solver.solver_t,
 	})
 end
 
 --]=====]
 -- [=====[ as functions:
 
-getCode.real3_to_real = function(name, code)
+getCode.real3_to_real = function(coord, name, code)
 	return template([[
 static inline real <?=name?>(real3 pt) {
 	return <?=code?>;
@@ -1649,7 +1666,7 @@ static inline real <?=name?>(real3 pt) {
 end
 
 -- f(x) where x is a point in the coordinate chart
-getCode.real3_to_real3 = function(name, exprs)
+getCode.real3_to_real3 = function(coord, name, exprs)
 	return template([[
 static inline real3 <?=name?>(real3 pt) {
 	return real3(
@@ -1665,7 +1682,7 @@ static inline real3 <?=name?>(real3 pt) {
 end
 
 -- f(v,x) where x is a point on the coordinate chart and v is most likely a tensor
-getCode.real3_real3_to_real = function(name, expr)
+getCode.real3_real3_to_real = function(coord, name, expr)
 	return template([[
 static inline real <?=name?>(real3 u, real3 pt) {
 	return <?=expr?>;
@@ -1675,7 +1692,7 @@ static inline real <?=name?>(real3 u, real3 pt) {
 	})
 end
 
-getCode.real3_real3_to_real3 = function(name, exprs)
+getCode.real3_real3_to_real3 = function(coord, name, exprs)
 	return template([[
 static inline real3 <?=name?>(real3 u, real3 pt) {
 	return real3(
@@ -1690,7 +1707,7 @@ static inline real3 <?=name?>(real3 u, real3 pt) {
 	})
 end
 
-getCode.real3_real3_real3_real3_to_real = function(name, expr)
+getCode.real3_real3_real3_real3_to_real = function(coord, name, expr)
 	return template([[
 static inline real <?=name?>(real3 u, real3 v, real3 w, real3 pt) {
 	return <?=expr?>;
@@ -1700,7 +1717,7 @@ static inline real <?=name?>(real3 u, real3 v, real3 w, real3 pt) {
 	})
 end
 
-getCode.real3_real3_real3_to_real3 = function(name, exprs)
+getCode.real3_real3_real3_to_real3 = function(coord, name, exprs)
 	return template([[
 static inline real3 <?=name?>(real3 u, real3 v, real3 pt) {
 	return real3(
@@ -1716,7 +1733,7 @@ static inline real3 <?=name?>(real3 u, real3 v, real3 pt) {
 end
 
 
-getCode.real3_to_sym3 = function(name, exprs)
+getCode.real3_to_sym3 = function(coord, name, exprs)
 	return template([[
 sym3 <?=name?>(real3 pt) {
 	return (sym3){
@@ -1734,7 +1751,7 @@ sym3 <?=name?>(real3 pt) {
 end
 
 -- symmetric on 2nd & 3rd indexes
-getCode.real3_to__3sym3 = function(name, exprs)
+getCode.real3_to__3sym3 = function(coord, name, exprs)
 	return template([[
 _3sym3 <?=name?>(real3 pt) {
 	return (_3sym3){
@@ -1760,7 +1777,7 @@ end
 end
 
 -- this is my exception to the rule, which accepts a pointer
-getCode.real3_to_3sym3x3 = function(name, exprs)
+getCode.real3_to_3sym3x3 = function(coord, name, exprs)
 	return template([[
 void <?=name?>(_3sym3 a[3], real3 pt) {
 <?
@@ -1853,7 +1870,7 @@ function CoordinateSystem:initCodeModules()
 						return buildsAndExprNames:mapi(function(buildAndName)
 							local build = buildAndName.build
 							local name = buildAndName.name
-							return build(name, self.compilePrintRequestTensor(name))
+							return build(self, name, self.compilePrintRequestTensor(name))
 						end):concat'\n'
 					end,
 				}
@@ -1888,15 +1905,19 @@ function CoordinateSystem:initCodeModules()
 			lines:insert(template([[
 
 // Propagate an upper index / propagate the components of a vector.
-<? for side=0,solver.dim-1 do
-?>#define coord_parallelPropagateU<?=side?>(v, x, dx) (v)
+<? for side=0,solver.dim-1 do ?>
+real3 coord_parallelPropagateU<?=side?>(real3 v, real3 x, real dx) {
+	return v;
+}
 <? end ?>
 
 // To propagate a one-form, apply the inverse-transpose.
 // In the case of anholonomic orthonormal basis, the transpose equals the inverse so propagateL == propagateR.
 //  This fits with the fact that the metric of an orthonormal basis is identity, so the upper and lower components are equal.
-<? for side=0,solver.dim-1 do
-?>#define coord_parallelPropagateL<?=side?>(v, x, dx) (v)
+<? for side=0,solver.dim-1 do ?>
+real3 coord_parallelPropagateL<?=side?>(real3 v, real3 x, real dx) {
+	return v;
+}
 <? end ?>
 
 ]], 		{
@@ -1907,8 +1928,10 @@ function CoordinateSystem:initCodeModules()
 		elseif self.vectorComponent == 'anholonomic' then	-- TODO rename this to 'orthonormal' (since anholonomic doesn't imply orthonormal ... and this assumption is only true for orthonormal basis)
 			lines:insert(self:getParallelPropagatorCode())
 			lines:insert(template([[
-<? for side=0,solver.dim-1 do
-?>#define coord_parallelPropagateL<?=side?>(v, x, dx) coord_parallelPropagateU<?=side?>(v, x, dx)
+<? for side=0,solver.dim-1 do?>
+real3 coord_parallelPropagateL<?=side?>(real3 v, real3 x, real dx) {
+	return coord_parallelPropagateU<?=side?>(v, x, dx);
+}
 <? end ?>
 ]], 		{
 				solver = solver,
@@ -2009,7 +2032,7 @@ function CoordinateSystem:initCodeModule_coordMap()
 	-- TODO make this a macro based on cellBuf[index]
 	-- and make it custom per coord system (just like the cellBuf fields are)
 	local uCode = self.compilePrintRequestTensor'u'
-	local code_coordMap = getCode.real3_to_real3('coordMap', range(3):mapi(function(i)
+	local code_coordMap = getCode.real3_to_real3(self, 'coordMap', range(3):mapi(function(i)
 		return uCode[i] or 'pt.'..xNames[i]
 	end))
 
@@ -2025,7 +2048,7 @@ function CoordinateSystem:initCodeModule_coordMap()
 	solver.modules:add{
 		name = self.symbols.coordMapR,
 		code = function()
-			return getCode.real3_to_real('coordMapR', self:compile(self.vars.r))
+			return getCode.real3_to_real(self, 'coordMapR', self:compile(self.vars.r))
 		end,
 	}
 
@@ -2066,7 +2089,7 @@ function CoordinateSystem:initCodeModule_coordMap()
 		code = function()
 			local eExt = self.compilePrintRequestTensor'eExt'
 			return eExt:mapi(function(eiCode,i)
-				return getCode.real3_to_real3('coordBasis'..(i-1), eiCode)
+				return getCode.real3_to_real3(self, 'coordBasis'..(i-1), eiCode)
 			end):concat'\n'
 		end,
 	}
@@ -2076,7 +2099,7 @@ function CoordinateSystem:initCodeModule_coordMap()
 		code = function()
 			local eHolUnitCode = self.compilePrintRequestTensor'eHolUnitExt'
 			return eHolUnitCode:mapi(function(eHolUnitiCode,i)
-				return getCode.real3_to_real3('coord_basisHolUnit'..(i-1), eHolUnitiCode)
+				return getCode.real3_to_real3(self, 'coord_basisHolUnit'..(i-1), eHolUnitiCode)
 			end):concat'\n'
 		end,
 	}
@@ -2136,13 +2159,11 @@ real3 coord_cartesianFromCoord(real3 u, real3 pt) {
 
 			else	-- cartesian:isa(coord)
 				fromlines:insert[[
-//#define coord_cartesianFromCoord(u, pt) (u)
 // TODO for when I uncouple this from GLSL
 // ... or make the shader code SPIR-V from OpenCL-C++ also
 real3 coord_cartesianFromCoord(real3 u, real3 pt) { return u; }
 ]]
 				tolines:insert[[
-//#define coord_cartesianToCoord(u, pt) 	(u)
 // TODO for when I uncouple this from GLSL
 // ... or make the shader code SPIR-V from OpenCL-C++ also
 real3 coord_cartesianToCoord(real3 u, real3 pt) { return u; }
@@ -2153,13 +2174,11 @@ real3 coord_cartesianToCoord(real3 u, real3 pt) { return u; }
 --'coord' is ambiguous
 -- this is relative to teh vector component basis
 			fromlines:insert[[
-//#define cartesianFromCoord(u, pt) 	(u)
 // TODO for when I uncouple this from GLSL
 // ... or make the shader code SPIR-V from OpenCL-C++ also
 real3 cartesianFromCoord(real3 u, real3 private const pt) { return u; }
 ]]
 			tolines:insert[[
-//#define cartesianToCoord(u, pt) 	(u)
 // TODO for when I uncouple this from GLSL
 // ... or make the shader code SPIR-V from OpenCL-C++ also
 real3 cartesianToCoord(real3 u, real3 pt) { return u; }
@@ -2192,7 +2211,6 @@ real3 coord_cartesianToCoord(real3 u, real3 pt) {
 	return uCoord;
 }
 
-//#define cartesianToCoord(u, pt) 	coord_cartesianToCoord(u, pt)
 // TODO for when I uncouple this from GLSL
 // ... or make the shader code SPIR-V from OpenCL-C++ also
 real3 cartesianToCoord(real3 u, real3 pt) { return u; }
@@ -2211,7 +2229,6 @@ real3 coord_cartesianFromCoord(real3 u, real3 pt) {
 	return uGrid;
 }
 
-//#define cartesianFromCoord(u, pt) 	coord_cartesianFromCoord(u, pt)
 // TODO for when I uncouple this from GLSL
 // ... or make the shader code SPIR-V from OpenCL-C++ also
 real3 coord_cartesianFromCoord(real3 u, real3 pt) { return u; }
@@ -2235,8 +2252,7 @@ end
 -- until I get inverses on systems of equations working, I'll have this manually specified
 function CoordinateSystem:getCoordMapInvModuleCode()
 	return [[
-//real3 coordMapInv(real3 x) { return x; }
-#define coordMapInv(x) (x)
+real3 coordMapInv(real3 x) { return x; }
 ]]
 end
 
@@ -2302,43 +2318,57 @@ typedef struct {
 ]]
 
 		code = self.solver.eqn:template[[
-#define normal_forFace(face) \
-	((<?=normal_t?>){ \
-		.n = (real3x3){ \
-			.x = face->normal, \
-			.y = face->normal2, \
-			.z = face->normal3, \
-		}, \
-	})
+static inline <?=normal_t?> normal_forFace(global <?=face_t?> const * const face) {
+	return <?=normal_t?>{
+		.n = (real3x3){
+			.x = face->normal,
+			.y = face->normal2,
+			.z = face->normal3,
+		},
+	};
+}
 
-#define normal_len(n)	1.
-#define normal_lenSq(n)	1.
-
+static inline real normal_len(<?=normal_t?> n) {
+	return 1.;
+}
+static inline real normal_lenSq(<?=normal_t?> n) {
+	return 1.;
+}
 <?
 for j,xj in ipairs(xNames) do
 	for i,xi in ipairs(xNames) do
 ?>
-#define normal_l<?=j?><?=xi?>(normal)		(normal.n.<?=xj?>.<?=xi?>)
-#define normal_u<?=j?><?=xi?>(n)			normal_l<?=j?><?=xi?>(n)
-#define normal_l<?=j?><?=xi?>_over_len(n)	normal_l<?=j?><?=xi?>(n)
-#define normal_u<?=j?><?=xi?>_over_len(n)	normal_u<?=j?><?=xi?>(n)
+static inline real normal_l<?=j?><?=xi?>(<?=normal_t?> n) {
+	return n.n.<?=xj?>.<?=xi?>;
+}
+static inline real normal_u<?=j?><?=xi?>(<?=normal_t?> n) {
+	return normal_l<?=j?><?=xi?>(n);
+}
+static inline real normal_l<?=j?><?=xi?>_over_len(<?=normal_t?> n) {
+	return normal_l<?=j?><?=xi?>(n);
+}
+static inline real normal_u<?=j?><?=xi?>_over_len(<?=normal_t?> n) {
+	return normal_u<?=j?><?=xi?>(n);
+}
 <?
 	end
 end
 ?>
 
 //v^i (nj)_i
-#define normal_vecDotNs(normal, v) (real3x3_real3_mul(normal.n, v))
+static inline real3 normal_vecDotNs(<?=normal_t?> n, real3 v) {
+	return n.n * v;
+}
 
 //v^i (n1)_i
-#define normal_vecDotN1(normal, v) (real3_dot(normal.n.x, v))
+static inline real normal_vecDotN1(<?=normal_t?> n, real3 v) {
+	return dot(n.n.x, v);
+}
 
 // w_j <=> (n_j)^i w_i = v_j
-#define normal_vecFromNs(normal, v) \
-	real3_add3( \
-		real3_real_mul(normal.n.x, v.x), \
-		real3_real_mul(normal.n.y, v.y), \
-		real3_real_mul(normal.n.z, v.z))
+static inline real3 normal_vecFromNs(<?=normal_t?> n, real3 v) {
+	return n.n * v;
+}
 
 ]]
 	else	-- not meshsolver
@@ -2376,18 +2406,26 @@ static inline <?=normal_t?> normal_forSide<?=side?>(real3 const x) {
 <? end ?>
 
 //|n|
-#define normal_len(n)	1.
-#define normal_lenSq(n)	1.
+static inline real normal_len(<?=normal_t?> n) { return 1.; }
+static inline real normal_lenSq(<?=normal_t?> n) { return 1.; }
 
 //(nj)_i, (nj)^i, (nj)_i/|nj|, (nj)^i/|nj|
 <?
 for j=1,3 do
 	for i,xi in ipairs(xNames) do
 ?>
-#define normal_l<?=j?><?=xi?>(n)			(n.side == <?=(i-j)%3?> ? 1. : 0.)
-#define normal_u<?=j?><?=xi?>(n)			normal_l<?=j?><?=xi?>(n)
-#define normal_l<?=j?><?=xi?>_over_len(n)	normal_l<?=j?><?=xi?>(n)
-#define normal_u<?=j?><?=xi?>_over_len(n)	normal_u<?=j?><?=xi?>(n)
+static inline real normal_l<?=j?><?=xi?>(<?=normal_t?> n) {
+	return n.side == <?=(i-j)%3?> ? 1. : 0.;
+}
+static inline real normal_u<?=j?><?=xi?>(<?=normal_t?> n) {
+	return normal_l<?=j?><?=xi?>(n);
+}
+static inline real normal_l<?=j?><?=xi?>_over_len(<?=normal_t?> n) {
+	return normal_l<?=j?><?=xi?>(n);
+}
+static inline real normal_u<?=j?><?=xi?>_over_len(<?=normal_t?> n) {
+	return normal_u<?=j?><?=xi?>(n);
+}
 <?
 	end
 end
@@ -2395,22 +2433,26 @@ end
 
 // this is the same as converting 'v' in global cartesian to 'v' in the basis of nj
 // v^i (nj)_i for side j
-#define normal_vecDotNs(n, v) \
-	(real3( \
-		v.s[n.side], \
-		v.s[(n.side+1)%3], \
-		v.s[(n.side+2)%3]))
+static inline real3 normal_vecDotNs(<?=normal_t?> n, real3 v) {
+	return real3(
+		v.s[n.side],
+		v.s[(n.side+1)%3],
+		v.s[(n.side+2)%3]);
+}
 
 //v^i (n1)_i
-#define normal_vecDotN1(n, v)	(v.s[n.side])
+static inline real normal_vecDotN1(<?=normal_t?> n, real3 v) {
+	return v.s[n.side];
+}
 
 // ...and this is the same as converting v in the basis of nj to v in global cartesian
 // v.x * e[side] + v.y * e[side+1] + v.z * e[side+2]
-#define normal_vecFromNs(n, v) \
-	(real3( \
-		v.s[(3-n.side)%3], \
-		v.s[(3-n.side+1)%3], \
-		v.s[(3-n.side+2)%3]))
+static inline real3 normal_vecFromNs(<?=normal_t?> n, real3 v) {
+	return real3(
+		v.s[(3-n.side)%3],
+		v.s[(3-n.side+1)%3],
+		v.s[(3-n.side+2)%3]);
+}
 
 ]]
 		elseif self.vectorComponent == 'cartesian' then
@@ -2441,49 +2483,70 @@ typedef struct {
 			-- which itself aligns with the coord_basisHolUnit
 			code = self.solver.eqn:template[[
 <? for side=0,solver.dim-1 do ?>
-#define normal_forSide<?=side?>(pt) \
-	((<?=normal_t?>){ \
-		.n = (real3x3){ \
-			.x = coord_basisHolUnit<?=side?>(pt), \
-			.y = coord_basisHolUnit<?=(side+1)%3?>(pt), \
-			.z = coord_basisHolUnit<?=(side+2)%3?>(pt), \
-		}, \
-		.len = 1., \
-	})
+static inline <?=normal_t?> normal_forSide<?=side?>(real3 pt) {
+	return (<?=normal_t?>{
+		.n = (real3x3){
+			.x = coord_basisHolUnit<?=side?>(pt),
+			.y = coord_basisHolUnit<?=(side+1)%3?>(pt),
+			.z = coord_basisHolUnit<?=(side+2)%3?>(pt),
+		},
+		.len = 1.,
+	};
+}
 <? end ?>
 
 //|n1|
-#define normal_len(normal)		(normal.len)
-#define normal_lenSq(normal)	(normal.len * normal.len)
+static inline real normal_len(<?=normal_t?> n) {
+	return n.len;
+}
+
+static inline real normal_lenSq(<?=normal_t?> n) {
+	return n.len * n.len;
+}
 
 //(nj)_i, (nj)^i, (nj)_i / |nj|, (nj)^i / |nj|
 <?
 for j,xj in ipairs(xNames) do
 	for i,xi in ipairs(xNames) do
 ?>
-#define normal_l<?=j?><?=xi?>(normal)			(normal.n.<?=xj?>.<?=xi?>)
-#define normal_u<?=j?><?=xi?>(normal)			normal_l<?=j?><?=xi?>(normal)
-#define normal_l<?=j?><?=xi?>_over_len(normal)	(normal_l<?=j?><?=xi?>(normal) / normal.len)
-#define normal_u<?=j?><?=xi?>_over_len(normal)	normal_l<?=j?><?=xi?>_over_len(normal)
+static inline real normal_l<?=j?><?=xi?>(<?=normal_t?> n) {
+	return n.n.<?=xj?>.<?=xi?>;
+}
+
+static inline real normal_u<?=j?><?=xi?>(<?=normal_t?> n) {
+	return normal_l<?=j?><?=xi?>(n);
+}
+
+static inline real normal_l<?=j?><?=xi?>_over_len(<?=normal_t?> n) {
+	return normal_l<?=j?><?=xi?>(n) / n.len;
+}
+
+static inline real normal_u<?=j?><?=xi?>_over_len(<?=normal_t?> n) {
+	return normal_l<?=j?><?=xi?>_over_len(n);
+}
 <?
 	end
 end
 ?>
 
 //v^i (nj)_i for side j
-#define normal_vecDotNs(normal, v) (real3x3_real3_mul(normal.n, v))
+static inline real3 normal_vecDotNs(<?=normal_t?> n, real3 v) {
+	return n.n * v;
+}
 
 //v^i (n1)_i
-#define normal_vecDotN1(normal, v) (real3_dot(normal.n.x, v))
+static inline real normal_vecDotN1(<?=normal_t?> n, real3 v) {
+	return dot(n.n.x, v);
+}
 
 
 // ...and this is the same as converting v in the basis of nj to v in global cartesian
 // v.x * e[side] + v.y * e[side+1] + v.z * e[side+2]
-#define normal_vecFromNs(normal, v) \
-	real3_add3( \
-		real3_real_mul(normal.n.x, v.x), \
-		real3_real_mul(normal.n.y, v.y), \
-		real3_real_mul(normal.n.z, v.z))
+static inline real3 normal_vecFromNs(<?=normal_t?> n, real3 v) {
+	return n.n.x * v.x
+		+ n.n.y * v.y
+		+ n.n.z * v.z;
+}
 ]]
 		elseif self.vectorComponent == 'holonomic' then
 			if self.verbose then
@@ -2515,36 +2578,47 @@ typedef struct {
 
 			code = self.solver.eqn:template[[
 <? for side=0,solver.dim-1 do ?>
-#define normal_forSide<?=side?>(x) \
-	((<?=normal_t?>){ \
-		.side = <?=side?>, \
-		.U = real3x3( \
+static inline <?=normal_t?> normal_forSide<?=side?>(x) {
+	return (<?=normal_t?>){
+		.side = <?=side?>,
+		.U = real3x3(
 <?
 for j=0,2 do
 	for i=0,2 do
 		local k = (side + j) % 3
 		local m, n = k, i
 		if m > n then m, n = n, m end
-?>			coord_g_uu<?=m..n?>(x)<?=i+3*j < 8 and ',' or ''?> \
+?>			coord_g_uu<?=m..n?>(x)<?=i+3*j < 8 and ',' or ''?>
 <?
 	end
 end
-?>		), \
-		.len = coord_sqrt_g_uu<?=side..side?>(x), \
-	})
+?>		),
+		.len = coord_sqrt_g_uu<?=side..side?>(x),
+	};
+}
 <? end ?>
 
 //|n1|
-#define normal_len(n)	(n.len)
-#define normal_lenSq(n)	(n.len * n.len)
+static inline real normal_len(<?=normal_t?> n) {
+	return n.len;
+}
+
+static inline real normal_lenSq(<?=normal_t?> n) {
+	return n.len * n.len;
+}
 
 //(nj)_i, (nj_i / |nj|
 <?
 for j=1,3 do
 	for i,xi in ipairs(xNames) do
 ?>
-#define normal_l<?=j?><?=xi?>(n)			(n.side == <?=(i-j)%3?> ? 1. : 0.)
-#define normal_l<?=j?><?=xi?>_over_len(n)	(n.side == <?=(i-j)%3?> ? (1./n.len) : 0.)
+static inline real normal_l<?=j?><?=xi?>(<?=normal_t?> n) {
+	return n.side == <?=(i-j)%3?> ? 1. : 0.;
+}
+
+static inline real normal_l<?=j?><?=xi?>_over_len(<?=normal_t?> n) {
+	return n.side == <?=(i-j)%3?> ? (1./n.len) : 0.;
+}
 <?
 	end
 end
@@ -2555,30 +2629,40 @@ end
 for j,xj in ipairs(xNames) do
 	for i,xi in ipairs(xNames) do
 ?>
-#define normal_u<?=j?><?=xi?>(n)			(n.U.<?=xj?>.<?=xi?>)
-#define normal_u<?=j?><?=xi?>_over_len(n)	(normal_u<?=j?><?=xi?>(n) / n.len)
+static inline real normal_u<?=j?><?=xi?>(<?=normal_t?> n) {
+	return n.U.<?=xj?>.<?=xi?>;
+}
+
+static inline real normal_u<?=j?><?=xi?>_over_len(<?=normal_t?> n) {
+	return normal_u<?=j?><?=xi?>(n) / n.len;
+}
+
 <?
 	end
 end
 ?>
 
 //v^i (nj)_i for side j
-#define normal_vecDotNs(n, v) \
-	(real3( \
-		v.s[n.side], \
-		v.s[(n.side+1)%3], \
-		v.s[(n.side+2)%3]))
+static inline real3 normal_vecDotNs(<?=normal_t?> n, real3 v) {
+	return real3(
+		v.s[n.side],
+		v.s[(n.side+1)%3],
+		v.s[(n.side+2)%3]));
+}
 
 //v^i (n1)_i
-#define normal_vecDotN1(n, v) 	(v.s[n.side])
+static inline real3 normal_vecDotN1(<?=normal_t?> n, real3 v) {
+	return v.s[n.side];
+}
 
 // ...and this is the same as converting v in the basis of nj to v in global cartesian
 // v.x * e[side] + v.y * e[side+1] + v.z * e[side+2]
-#define normal_vecFromNs(n, v) \
-	(real3( \
-		v.s[(3-n.side)%3], \
-		v.s[(3-n.side+1)%3], \
-		v.s[(3-n.side+2)%3]))
+static inline real3 normal_vecFromNs(<?=normal_t?> n, real3 v) {
+	return real3(
+		v.s[(3-n.side)%3],
+		v.s[(3-n.side+1)%3],
+		v.s[(3-n.side+2)%3]));
+}
 
 ]]
 		else
@@ -2588,20 +2672,22 @@ end
 
 	end	-- meshsolver
 
-	code = code .. template[[
+	code = code .. self.solver.eqn:template[[
 
 <? for i=1,3 do ?>
-#define normal_l<?=i?>(n) \
-	(real3( \
-		normal_l<?=i?>x(n), \
-		normal_l<?=i?>y(n), \
-		normal_l<?=i?>z(n)))
+static inline real3 normal_l<?=i?>(<?=normal_t?> n) {
+	return real3(
+		normal_l<?=i?>x(n),
+		normal_l<?=i?>y(n),
+		normal_l<?=i?>z(n));
+}
 
-#define normal_u<?=i?>(n) \
-	(real3( \
-		normal_u<?=i?>x(n), \
-		normal_u<?=i?>y(n), \
-		normal_u<?=i?>z(n)))
+static inline real3 normal_u<?=i?>(<?=normal_t?> n) {
+	return real3(
+		normal_u<?=i?>x(n),
+		normal_u<?=i?>y(n),
+		normal_u<?=i?>z(n));
+}
 <? end ?>
 
 ]]

@@ -1709,50 +1709,53 @@ typedef union {
 
 	local accumFunc = self.displayVarAccumFunc and 'max' or nil
 	if accumFunc then
-		lines:insert(template([[
-#define END_DISPLAYFUNC_TEX()\
-	float4 texel = read_imagef(tex, <?= solver.dim == 3 and 'i' or 'i.xy'?>);\
-	texel.x = <?=accumFunc?>(texel.x, value.ptr[0]);\
-	if (vectorField) {\
-		texel.y = <?=accumFunc?>(texel.y, value.ptr[1]);\
-		texel.z = <?=accumFunc?>(texel.z, value.ptr[2]);\
-	}\
-	write_imagef(tex, <?= solver.dim == 3 and 'i' or 'i.xy'?>, texel);
-
-#define END_DISPLAYFUNC_BUFFER()\
-<? if solver:isModuleUsed'real3' then --\
-?>	if (vectorField) {\
-		dest[0+3*dstindex] = <?=accumFunc?>(value.ptr[0], dest[0+3*dstindex]);\
-		dest[1+3*dstindex] = <?=accumFunc?>(value.ptr[1], dest[1+3*dstindex]);\
-		dest[2+3*dstindex] = <?=accumFunc?>(value.ptr[2], dest[2+3*dstindex]);\
-	} else\
-<? end --\
-?>	{\
-		dest[dstindex] = <?=accumFunc?>(value.ptr[0], dest[dstindex]);\
+		self.endDisplayFuncTex = template([[
+	float4 texel = read_imagef(tex, <?= solver.dim == 3 and "i" or "i.xy"?>);
+	texel.x = <?=accumFunc?>(texel.x, value.ptr[0]);
+	if (vectorField) {
+		texel.y = <?=accumFunc?>(texel.y, value.ptr[1]);
+		texel.z = <?=accumFunc?>(texel.z, value.ptr[2]);
 	}
+	write_imagef(tex, <?= solver.dim == 3 and "i" or "i.xy"?>, texel);
+]],			{
+				solver = self,
+				accumFunc = accumFunc,
+			})
 
-]],		{
-			solver = self,
-			accumFunc = accumFunc,
-		}))
+		self.endDisplayFuncBuffer = template([[
+<? if solver:isModuleUsed"real3" then
+?>	if (vectorField) {
+		dest[0+3*dstindex] = <?=accumFunc?>(value.ptr[0], dest[0+3*dstindex]);
+		dest[1+3*dstindex] = <?=accumFunc?>(value.ptr[1], dest[1+3*dstindex]);
+		dest[2+3*dstindex] = <?=accumFunc?>(value.ptr[2], dest[2+3*dstindex]);
+	} else
+<? end
+?>	{
+		dest[dstindex] = <?=accumFunc?>(value.ptr[0], dest[dstindex]);
+	}
+]],			{
+				solver = self,
+				accumFunc = accumFunc,
+			})
 	else
-		lines:insert(template([[
-#define END_DISPLAYFUNC_TEX()\
-	write_imagef(tex, <?= solver.dim == 3 and 'i' or 'i.xy'?>, (float4)(value.ptr[0], value.ptr[1], value.ptr[2], 0.));
+		self.endDisplayFuncTex = template([[
+	write_imagef(tex, <?= solver.dim == 3 and "i" or "i.xy"?>, (float4)(value.ptr[0], value.ptr[1], value.ptr[2], 0.));
+]], 		{
+				solver = self,
+			})
 
-#define END_DISPLAYFUNC_BUFFER()\
-<? if solver:isModuleUsed'real3' then --\
-?>	if (vectorField) {\
-		((global real3*)dest)[dstindex] = value.vreal3;\
-	} else\
-<? end --\
-?>	{\
-		dest[dstindex] = value.vreal;\
+		self.endDisplayFuncBuffer = template([[
+<? if solver:isModuleUsed"real3" then
+?>	if (vectorField) {
+		((global real3*)dest)[dstindex] = value.vreal3;
+	} else
+<? end
+?>	{
+		dest[dstindex] = value.vreal;
 	}
-
-]], 	{
-			solver = self,
-		}))
+]], 		{
+				solver = self,
+			})
 	end
 
 --[[
@@ -1982,7 +1985,7 @@ But in this case we are still calling the same pickComponent() as UBuf, and its 
 		<?=solver:getPickComponentNameForGroup(group)?>(solver, buf, component, &vectorField, &value, i, index, cellBuf);
 	}
 
-	END_DISPLAYFUNC_<?=texVsBuf:upper()?>()
+	<?=solver['endDisplayFunc'..texVsBuf]?>
 }
 ]],				{
 					solver = self,

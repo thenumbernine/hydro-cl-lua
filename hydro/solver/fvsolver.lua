@@ -97,7 +97,7 @@ kernel void <?=calcFlux?>(
 	or solver.coord.vectorComponent == 'anholonomic'
 then ?>
 //// MODULE_DEPENDS: <?=cell_area_i?>
-		real area = cell_area<?=side?>(xInt);
+		real area = cell_area<?=side?>(solver, xInt);
 <? else ?>
 		real area = 1.<?
 	for i=0,solver.dim-1 do

@@ -115,6 +115,8 @@ function Draw:setupDisplayVarShader(shader, var, valueMin, valueMax)
 	end
 end
 
+-- macros to turn my CL code into GLSL
+-- TODO eventually use cl-cpp -> spv for shader code
 local function makeGLSL(code)
 	return table{
 		'#define M_PI '..('%.50f'):format(math.pi),

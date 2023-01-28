@@ -53,7 +53,7 @@ end ?>
 	global <?=op:getPotBufType()?> const * const U = UBuf + index;
 
 <? for j=0,solver.dim-1 do
-?>	real const dx<?=j?> = cell_dx<?=j?>(x);
+?>	real const dx<?=j?> = cell_dx<?=j?>(solver, x);
 <? end
 ?>
 	

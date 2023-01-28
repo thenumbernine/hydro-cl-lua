@@ -213,7 +213,7 @@ static inline real <?=calc_eInt_fromCons?>(
 }
 
 <? local materials = require "hydro.materials" ?>
-#define C_v				<?=("%.50f"):format(materials.Air.C_v)?>
+static constexpr real C_v = <?=("%.50f"):format(materials.Air.C_v)?>;
 
 static inline real <?=calc_T?>(
 	<?=cons_t?> const & U,
