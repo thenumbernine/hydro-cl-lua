@@ -10,7 +10,7 @@
 ) {\
 	if ((U)->rho < solver->rhoMin) {\
 		(result)->rho = 0.;\
-		(result)->v = real3_zero;\
+		(result)->v = {};\
 		(result)->P = 0.;\
 	} else {\
 		(result)->rho = (U)->rho;\
@@ -34,7 +34,7 @@
 	/*real3 const */pt\
 ) {\
 	(result)->rho = (W)->rho;\
-	(result)->m = real3_real_mul((W)->v, (W)->rho);\
+	(result)->m = (W)->v * (W)->rho;\
 	(result)->ETotal = <?=calc_ETotal?>(solver, W, pt);\
 	(result)->ePot = (W)->ePot;\
 }
@@ -52,11 +52,11 @@
 ) {\
 	real3 const WA_vL = coord_lower((WA)->v, x);\
 	(result)->rho = (W)->rho;\
-	(result)->m = real3_add(\
-		real3_real_mul((WA)->v, (W)->rho),\
-		real3_real_mul((W)->v, (WA)->rho));\
-	(result)->ETotal = (W)->rho * .5 * real3_dot((WA)->v, WA_vL)\
-		+ (WA)->rho * real3_dot((W)->v, WA_vL)\
+	(result)->m = \
+		(WA)->v * (W)->rho\
+		+ (W)->v * (WA)->rho;\
+	(result)->ETotal = (W)->rho * (real).5 * dot((WA)->v, WA_vL)\
+		+ (WA)->rho * dot((W)->v, WA_vL)\
 		+ (W)->P / (solver->heatCapacityRatio - 1.);\
 	(result)->ePot = (W)->ePot;\
 }
@@ -75,15 +75,15 @@
 	real3 const WA_vL = coord_lower((WA)->v, x);\
 	(result)->rho = (U)->rho;\
 	if ((U)->rho < solver->rhoMin) {\
-		(result)->v = real3_zero;\
+		(result)->v = {};\
 		(result)->P = 0.;\
 	} else {\
-		(result)->v = real3_sub(\
-			real3_real_mul((U)->m, 1. / (WA)->rho),\
-			real3_real_mul((WA)->v, (U)->rho / (WA)->rho));\
+		(result)->v = \
+			(U)->m * (1. / (WA)->rho)\
+			- (WA)->v * ((U)->rho / (WA)->rho);\
 		(result)->P = (solver->heatCapacityRatio - 1.) * (\
-			.5 * real3_dot((WA)->v, WA_vL) * (U)->rho \
-			- real3_dot((U)->m, WA_vL)\
+			.5 * dot((WA)->v, WA_vL) * (U)->rho \
+			- dot((U)->m, WA_vL)\
 			+ (U)->ETotal);\
 	}\
 	(result)->ePot = (U)->ePot;\
@@ -192,7 +192,7 @@ real <?=calc_Cs?>(
 
 #define /*real3*/ <?=calc_v?>(\
 	/*<?=cons_t?> const * const*/U\
-) (real3_real_mul((U)->m, 1. / (U)->rho))
+) ((U)->m * (1. / (U)->rho))
 
 //// MODULE_NAME: <?=applyInitCondCell?>
 //// MODULE_DEPENDS: <?=cartesianToCoord?>
@@ -210,7 +210,7 @@ void <?=applyInitCondCell?>(
 	global <?=cell_t?> const * const cell
 ) {
 	real3 const x = cell->pos;
-	real3 const mids = real3_real_mul(real3_add(solver->initCondMins, solver->initCondMaxs), .5);
+	real3 const mids = (solver->initCondMins + solver->initCondMaxs) * (real).5;
 	bool const lhs = true<?
 for i=1,solver.dim do
 	local xi = xNames[i]
@@ -220,10 +220,10 @@ end
 
 	// these are all standard for all init/euler.lua initial conditions
 	real rho = 0;
-	real3 v = real3_zero;
+	real3 v = {};
 	real P = 0;
-	real3 D = real3_zero;
-	real3 B = real3_zero;
+	real3 D = {};
+	real3 B = {};
 	real ePot = 0;
 	
 <?=initCode()?>
@@ -252,10 +252,9 @@ end
 	<?=primFromCons?>(&W, solver, U, (cell)->pos);\
 	real const v_n = normal_vecDotN1(n, W.v);\
 	(resultF)->rho = (U)->rho * v_n;\
-	(resultF)->m = real3_add(\
-		real3_real_mul((U)->m, v_n),\
-		real3_real_mul(normal_u1(n), W.P)\
-	);\
+	(resultF)->m = \
+		(U)->m * v_n\
+		+ normal_u1(n) * W.P;\
 	real const HTotal = (U)->ETotal + W.P;\
 	(resultF)->ETotal = HTotal * v_n;\
 	(resultF)->ePot = 0;\
@@ -277,7 +276,7 @@ end
 ) {\
 	<?=prim_t?> W;\
 	<?=primFromCons?>(&W, solver, U, pt);\
-	real const v_n = real3_dot(W.v, nL.x);\
+	real const v_n = dot(W.v, nL.x);\
 	real const Cs = <?=calc_Cs?>(solver, &W);\
 	real const Cs_nLen = Cs * nLen;\
 	(result)->min = v_n - Cs_nLen; \
@@ -299,7 +298,7 @@ end
 	<?=prim_t?> W;\
 	<?=primFromCons?>(&W, solver, U, (cell)->pos);\
 	real3 const vL = coord_lower(W.v, (cell)->pos);\
-	real const vSq = real3_dot(W.v, vL);\
+	real const vSq = dot(W.v, vL);\
 	real const v_n = normal_vecDotN1(n, W.v);\
 	real const eKin = .5 * vSq;\
 	real const hTotal = <?=calc_hTotal?>(W.rho, W.P, (U)->ETotal);\
@@ -332,9 +331,9 @@ end
 	if ((UL)->rho < rhoEpsilon && (UR)->rho < rhoEpsilon) {\
 		/* left and right are both vacuum: */\
 		(result)->rho = 0.;\
-		(result)->v = real3_zero;\
+		(result)->v = {};\
 		(result)->vSq = 0.;\
-		(result)->vL = real3_zero;\
+		(result)->vL = {};\
 		(result)->hTotal = 0;\
 		(result)->Cs = 0;\
 	} else {\
@@ -345,7 +344,7 @@ end
 			(result)->rho = (UR)->rho;\
 			(result)->v = WR.v;\
 			(result)->vL = coord_lower(WR.v, pt);\
-			(result)->vSq = real3_dot(WR.v, (result)->vL);\
+			(result)->vSq = dot(WR.v, (result)->vL);\
 			(result)->hTotal = <?=calc_hTotal?>(WR.rho, WR.P, (UR)->ETotal);\
 			(result)->Cs = <?=calc_Cs?>(solver, &WR);\
 		} else if ((UR)->rho < rhoEpsilon) {\
@@ -355,7 +354,7 @@ end
 			(result)->rho = (UL)->rho;\
 			(result)->v = WL.v;\
 			(result)->vL = coord_lower(WL.v, pt);\
-			(result)->vSq = real3_dot(WL.v, (result)->vL);\
+			(result)->vSq = dot(WL.v, (result)->vL);\
 			(result)->hTotal = <?=calc_hTotal?>(WL.rho, WL.P, (UL)->ETotal);\
 			(result)->Cs = <?=calc_Cs?>(solver, &WL);\
 		} else {\
@@ -375,14 +374,14 @@ end
 \
 			/*Roe-averaged*/\
 			(result)->rho = sqrtRhoL * sqrtRhoR;\
-			real3 const v = real3_add(\
-					real3_real_mul(vLeft, sqrtRhoL * invDenom),\
-					real3_real_mul(vR, sqrtRhoR * invDenom));\
+			real3 const v = \
+					vLeft * (sqrtRhoL * invDenom)\
+					+ vR * (sqrtRhoR * invDenom);\
 			real const hTotal = invDenom * (sqrtRhoL * hTotalL + sqrtRhoR * hTotalR);\
 \
 			/*derived:*/\
 			real3 const vLower = coord_lower(v, pt);\
-			real const vSq = real3_dot(v, vLower);\
+			real const vSq = dot(v, vLower);\
 			real const eKin = .5 * vSq;\
 			real const h = hTotal - eKin;\
 			/* TODO verify hTotal = 1/2 v^2 + Cs^2 / (gamma-1) */\
@@ -507,7 +506,7 @@ end
 			+ (X)->ptr[4] * ((eig)->v.z + (eig)->Cs * normal_u1z_over_len(n));\
 		(result)->ptr[4] =\
 			(X)->ptr[0] * ((eig)->hTotal - (eig)->Cs * v_n.x * inv_nLen)\
-			+ (X)->ptr[1] * .5 * (eig)->vSq\
+			+ (X)->ptr[1] * (real).5 * (eig)->vSq\
 			+ (X)->ptr[2] * v_n.y\
 			+ (X)->ptr[3] * v_n.z\
 			+ (X)->ptr[4] * ((eig)->hTotal + (eig)->Cs * v_n.x * inv_nLen);\
@@ -548,21 +547,21 @@ end
 			+ (X)->ptr[3] * normal_l1z(n);\
 	\
 		(resultFlux)->ptr[1] =\
-			(X)->ptr[0] * (-v_n.x * (eig).v.x + gamma_1 * .5 * (eig).vSq * normal_u1x(n))\
+			(X)->ptr[0] * (-v_n.x * (eig).v.x + gamma_1 * (real).5 * (eig).vSq * normal_u1x(n))\
 			+ (X)->ptr[1] * ((eig).v.x * normal_l1x(n) - gamma_2 * normal_u1x(n) * (eig).vL.x + v_n.x)\
 			+ (X)->ptr[2] * ((eig).v.x * normal_l1y(n) - gamma_2 * normal_u1x(n) * (eig).vL.y)\
 			+ (X)->ptr[3] * ((eig).v.x * normal_l1z(n) - gamma_2 * normal_u1x(n) * (eig).vL.z)\
 			+ (X)->ptr[4] * gamma_1 * normal_u1x(n);\
 	\
 		(resultFlux)->ptr[2] =\
-			(X)->ptr[0] * (-v_n.x * (eig).v.y + gamma_1 * .5 * (eig).vSq * normal_u1y(n))\
+			(X)->ptr[0] * (-v_n.x * (eig).v.y + gamma_1 * (real).5 * (eig).vSq * normal_u1y(n))\
 			+ (X)->ptr[1] * ((eig).v.y * normal_l1x(n) - gamma_2 * normal_u1y(n) * (eig).vL.x)\
 			+ (X)->ptr[2] * ((eig).v.y * normal_l1y(n) - gamma_2 * normal_u1y(n) * (eig).vL.y + v_n.x)\
 			+ (X)->ptr[3] * ((eig).v.y * normal_l1z(n) - gamma_2 * normal_u1y(n) * (eig).vL.z)\
 			+ (X)->ptr[4] * gamma_1 * normal_u1y(n);\
 	\
 		(resultFlux)->ptr[3] =\
-			(X)->ptr[0] * (-v_n.x * (eig).v.z + gamma_1 * .5 * (eig).vSq * normal_u1z(n))\
+			(X)->ptr[0] * (-v_n.x * (eig).v.z + gamma_1 * (real).5 * (eig).vSq * normal_u1z(n))\
 			+ (X)->ptr[1] * ((eig).v.z * normal_l1x(n) - gamma_2 * normal_u1z(n) * (eig).vL.x)\
 			+ (X)->ptr[2] * ((eig).v.z * normal_l1y(n) - gamma_2 * normal_u1z(n) * (eig).vL.y)\
 			+ (X)->ptr[3] * ((eig).v.z * normal_l1z(n) - gamma_2 * normal_u1z(n) * (eig).vL.z + v_n.x)\
@@ -642,13 +641,13 @@ Maybe for an initial constant vel as large as sqrt(2) this fails, but it works o
 	<?=primFromCons?>(&W, solver, U, x);
 	
 	//- Γ^i_jk ρ v^j v^k 
-	deriv->m = real3_sub(deriv->m, coord_conn_apply23(W.v, U->m, x));	
+	deriv->m -= coord_conn_apply23(W.v, U->m, x);
 	
 	//- Γ^i_jk g^jk P
-	deriv->m = real3_sub(deriv->m, real3_real_mul(coord_conn_trace23(x), W.P));		
+	deriv->m -= coord_conn_trace23(x) * W.P;
 	
 	//+ (γ-1) ρ v^k v^l Γ_kjl g^ij
-	deriv->m = real3_add(deriv->m, real3_real_mul(coord_conn_apply13(W.v, U->m, x), (solver->heatCapacityRatio - 1.) ));	
+	deriv->m += coord_conn_apply13(W.v, U->m, x) * (solver->heatCapacityRatio - 1.);
 	
 	//- (γ-1) ρ v^j v^k v^l Γ_jkl
 //	deriv->ETotal -= (solver->heatCapacityRatio - 1.) * coord_conn_apply123(W.v, W.v, U->m, x);	

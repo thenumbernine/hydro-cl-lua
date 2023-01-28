@@ -1,12 +1,5 @@
 <?
 local scalar = op.scalar 
-local neg = scalar.."_neg"
-local zero = scalar.."_zero"
-local add3 = scalar.."_add3"
-local sub = scalar.."_sub"
-local mul = scalar.."_mul"
-local lenSq = scalar.."_lenSq"
-local real_mul = scalar.."_real_mul"
 ?>
 
 //// MODULE_NAME: <?=solveJacobi?>
@@ -101,14 +94,13 @@ lap phi = 1/sqrt|g| ( sqrt|g| g^ij phi_,j )_,i
 if true 
 then 
 ?>	
-	<?=scalar?> skewSum = <?=scalar?>_zero;
+	<?=scalar?> skewSum = {};
 
 <? for j=0,solver.dim-1 do 
-?>	skewSum = <?=add3?>(skewSum,
-		<?=real_mul?>(U[solver->stepsize.s<?=j?>].<?=op.potentialField?>, volR.s<?=j?> / (dx<?=j?> * dx<?=j?>)),
-		<?=real_mul?>(U[-solver->stepsize.s<?=j?>].<?=op.potentialField?>, volL.s<?=j?> / (dx<?=j?> * dx<?=j?>)));
+?>	skewSum += U[solver->stepsize.s<?=j?>].<?=op.potentialField?> * (volR.s<?=j?> / (dx<?=j?> * dx<?=j?>))
+			+ U[-solver->stepsize.s<?=j?>].<?=op.potentialField?> * (volL.s<?=j?> / (dx<?=j?> * dx<?=j?>));
 <? end 
-?>	skewSum = <?=real_mul?>(skewSum, 1. / volAtX);
+?>	skewSum /= volAtX;
 
 	real const diag = (0.
 <? for j=0,solver.dim-1 do 
@@ -150,19 +142,19 @@ end
 
 	//source is 4 pi G rho delta(x) is the laplacian of the gravitational potential field, which is integrated across discretely here
 	//in units of 1/s^2
-	<?=scalar?> source = <?=zero?>;
+	<?=scalar?> source = {};
 <?=op:getPoissonDivCode() or ""?>
 
 	<?=scalar?> oldU = U-><?=op.potentialField?>;
 	
 	//Jacobi iteration: x_i = sum i!=j of (b_i - A_ij x_j) / A_ii
-	<?=scalar?> newU = <?=real_mul?>(<?=sub?>(source, skewSum), 1. / diag);
+	<?=scalar?> newU = (source - skewSum) * (1. / diag);
 
 	writeBuf[index] = newU;	
 <? if op.stopOnEpsilon then
 ?>	//residual = b_i - A_ij x_j
-	<?=scalar?> residual = <?=sub?>(<?=sub?>(source, skewSum), <?=mul?>(diag, U-><?=op.potentialField?>));
-	reduceBuf[index] = <?=lenSq?>(residual);
+	<?=scalar?> residual = source - (skewSum + diag * U-><?=op.potentialField?>);
+	reduceBuf[index] = lenSq(residual);
 <? end
 ?>
 }

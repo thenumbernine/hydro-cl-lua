@@ -21,9 +21,6 @@ discrete evaluation:
 */
 <?
 local scalar = op.scalar 
-local neg = scalar.."_neg"
-local zero = scalar.."_zero"
-local lenSq = scalar.."_lenSq"
 ?>
 
 
@@ -41,13 +38,13 @@ kernel void <?=initPotential?>(
 ) {
 	<?=SETBOUNDS?>(solver->numGhost, solver->numGhost);
 	global <?=op:getPotBufType()?> * const U = UBuf + index;
-	<?=scalar?> source = <?=zero?>;
+	<?=scalar?> source = {};
 <?=op:getPoissonDivCode() or ""?>
 	
 <? if cmdline.selfGravInitPotential == "+" then
 ?>	UBuf[index].<?=op.potentialField?> = source;
 <? else
-?>	UBuf[index].<?=op.potentialField?> = <?=neg?>(source);
+?>	UBuf[index].<?=op.potentialField?> = -source;
 <? end
 ?>
 }
@@ -73,5 +70,5 @@ kernel void <?=setReduceToPotentialSquared?>(
 	global <?=cons_t?> const * const UBuf
 ) {
 	<?=SETBOUNDS_NOGHOST?>();
-	reduceBuf[index] = <?=lenSq?>(UBuf[index].<?=op.potentialField?>);
+	reduceBuf[index] = lenSq(UBuf[index].<?=op.potentialField?>);
 }

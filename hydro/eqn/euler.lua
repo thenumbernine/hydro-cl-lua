@@ -56,12 +56,12 @@ function Euler:init(args)
 				writeVectorField = function(op,dv)
 					return self:template([[
 #if 0	// just adjust velocity
-	U->m = real3_sub(U->m, real3_real_mul(<?=dv?>, U->rho));
+	U->m -= <?=dv?> * U->rho;
 #endif
 
 #if 0	// adjust ETotal as well
 	U->ETotal -= .5 * U->rho * coordLenSq(U->m, pt);
-	U->m = real3_sub(U->m, real3_real_mul(<?=dv?>, U->rho));
+	U->m -= <?=dv?> * U->rho;
 	U->ETotal += .5 * U->rho * coordLenSq(U->m, pt);
 #endif
 
@@ -69,7 +69,7 @@ function Euler:init(args)
 //// MODULE_DEPENDS: <?=primFromCons?> <?=consFromPrim?>
 	<?=prim_t?> W;
 	<?=primFromCons?>(&W, solver, U, pt);
-	W.v = real3_sub(W.v, <?=dv?>);
+	W.v -= <?=dv?>;
 	<?=consFromPrim?>(U, solver, &W, pt);
 #endif
 ]], {dv=dv})
@@ -277,7 +277,7 @@ if (!<?=OOB?>(1,1)) {
 //// MODULE_DEPENDS: <?=eqn.gravOp.symbols.calcGravityAccel?>
 	<?=eqn.gravOp.symbols.calcGravityAccel?>(&value.vreal3, solver, U, x);
 } else {
-	value.vreal3 = real3_zero;
+	value.vreal3 = {};
 }
 ]], type='real3', units='m/s^2'}} or nil
 	)
@@ -303,7 +303,7 @@ if (!<?=OOB?>(1,1)) {
 		name = 'state line',
 		type = 'real3',
 		units = '1',
-		code = 'value.vreal3 = _real3(W.rho, coordLen(W.v, x) * sign(W.v.x), W.P);',
+		code = 'value.vreal3 = real3(W.rho, coordLen(W.v, x) * sign(W.v.x), W.P);',
 	}
 
 	return vars

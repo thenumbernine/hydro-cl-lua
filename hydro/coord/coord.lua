@@ -1523,7 +1523,7 @@ end
 getCode.real3_to_real3_define = function(name, exprs)
 	return template([[
 #define <?=name?>(pt) \
-	(_real3( \
+	(real3( \
 <? for i=1,3 do
 ?>		<?=exprs[i] or '0.'?><?=i==3 and '' or ','?> \
 <? end
@@ -1547,7 +1547,7 @@ end
 getCode.real3_real3_to_real3_define = function(name, exprs)
 	return template([[
 #define <?=name?>(u, pt) \
-	(_real3( \
+	(real3( \
 <? for i=1,3 do
 ?>		<?=exprs[i] or '0.'?><?=i==3 and '' or ','?> \
 <? end
@@ -1570,7 +1570,7 @@ end
 getCode.real3_real3_real3_to_real3_define = function(name, exprs)
 	return template([[
 #define <?=name?>(u, v, pt) \
-	(_real3( \
+	(real3( \
 <? for i=1,3 do
 ?>		<?=exprs[i] or '0.'?><?=i==3 and '' or ','?> \
 <? end
@@ -1652,7 +1652,7 @@ end
 getCode.real3_to_real3 = function(name, exprs)
 	return template([[
 static inline real3 <?=name?>(real3 pt) {
-	return _real3(
+	return real3(
 <? for i=1,3 do
 ?>		<?=exprs[i] or '0.'
 		?><?=i==3 and '' or ','?>
@@ -1678,7 +1678,7 @@ end
 getCode.real3_real3_to_real3 = function(name, exprs)
 	return template([[
 static inline real3 <?=name?>(real3 u, real3 pt) {
-	return _real3(
+	return real3(
 <? for i=1,3 do
 ?>		<?=exprs[i] or '0.'
 		?><?=i==3 and '' or ','?>
@@ -1703,7 +1703,7 @@ end
 getCode.real3_real3_real3_to_real3 = function(name, exprs)
 	return template([[
 static inline real3 <?=name?>(real3 u, real3 v, real3 pt) {
-	return _real3(
+	return real3(
 <? for i=1,3 do
 ?>		<?=exprs[i] or '0.'
 		?><?=i==3 and '' or ','?>
@@ -2377,7 +2377,7 @@ end
 // this is the same as converting 'v' in global cartesian to 'v' in the basis of nj
 // v^i (nj)_i for side j
 #define normal_vecDotNs(n, v) \
-	(_real3( \
+	(real3( \
 		v.s[n.side], \
 		v.s[(n.side+1)%3], \
 		v.s[(n.side+2)%3]))
@@ -2388,7 +2388,7 @@ end
 // ...and this is the same as converting v in the basis of nj to v in global cartesian
 // v.x * e[side] + v.y * e[side+1] + v.z * e[side+2]
 #define normal_vecFromNs(n, v) \
-	(_real3( \
+	(real3( \
 		v.s[(3-n.side)%3], \
 		v.s[(3-n.side+1)%3], \
 		v.s[(3-n.side+2)%3]))
@@ -2545,7 +2545,7 @@ end
 
 //v^i (nj)_i for side j
 #define normal_vecDotNs(n, v) \
-	(_real3( \
+	(real3( \
 		v.s[n.side], \
 		v.s[(n.side+1)%3], \
 		v.s[(n.side+2)%3]))
@@ -2556,7 +2556,7 @@ end
 // ...and this is the same as converting v in the basis of nj to v in global cartesian
 // v.x * e[side] + v.y * e[side+1] + v.z * e[side+2]
 #define normal_vecFromNs(n, v) \
-	(_real3( \
+	(real3( \
 		v.s[(3-n.side)%3], \
 		v.s[(3-n.side+1)%3], \
 		v.s[(3-n.side+2)%3]))
@@ -2573,13 +2573,13 @@ end
 
 <? for i=1,3 do ?>
 #define normal_l<?=i?>(n) \
-	(_real3( \
+	(real3( \
 		normal_l<?=i?>x(n), \
 		normal_l<?=i?>y(n), \
 		normal_l<?=i?>z(n)))
 
 #define normal_u<?=i?>(n) \
-	(_real3( \
+	(real3( \
 		normal_u<?=i?>x(n), \
 		normal_u<?=i?>y(n), \
 		normal_u<?=i?>z(n)))

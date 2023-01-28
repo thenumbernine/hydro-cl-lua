@@ -1,4 +1,5 @@
 <?
+local addrs = {"", "constant", "private"}
 local function makevec3type(name, scalar)
 	if 
 	false
@@ -37,11 +38,36 @@ union <?=name?> {
 		z(<?=scalar?>{})
 	{}
 
+<? if false then ?>
+<? for _,addr in ipairs(addrs) do ?>
+	<?=name?>(<?=addr?> <?=name?> const & o) : x(o.x), y(o.y), z(o.z) {}
+<? end ?>
+<? end ?>
+
 	<?=name?>(
 		<?=scalar?> x_,
 		<?=scalar?> y_,
 		<?=scalar?> z_
 	) : x(x_), y(y_), z(z_) {}
+
+<? for _,addr in ipairs{"generic"} do ?>
+	<?=addr?> <?=name?> & operator+=(
+		<?=addr?> <?=name?> const & b
+	) {
+		x += b.x;
+		y += b.y;
+		z += b.z;
+		return *this;
+	}
+	<?=addr?> <?=name?> & operator-=(
+		<?=addr?> <?=name?> const & b
+	) {
+		x -= b.x;
+		y -= b.y;
+		z -= b.z;
+		return *this;
+	}
+<? end ?>
 
 } <?=app.real=="half" and "__attribute__ ((packed))" or ""
 -- __attribute__ ((packed)) seems to need to be here with real=half
@@ -56,207 +82,139 @@ typedef union <?=name?> <?=name?>;
 end
 
 local function makevec3header(vec, scalar, cdef)
-	local add = scalar.."_add"
-	local mul = scalar.."_mul"
+	for _,addr1 in ipairs(addrs) do
+		for _,addr2 in ipairs(addrs) do
 ?>
-
-#define _<?=vec?> <?=vec?>
-
-#define <?=vec?>_zero				_<?=vec?>(<?=scalar?>_zero,<?=scalar?>_zero,<?=scalar?>_zero)
-
-static inline <?=scalar?> <?=vec?>_<?=vec?>_dot(<?=vec?> a, <?=vec?> b);
-#define	<?=vec?>_dot <?=vec?>_<?=vec?>_dot
-
-static inline <?=vec?> <?=vec?>_<?=scalar?>_mul(
-	<?=vec?> const & a,
-	<?=scalar?> s
+static inline <?=scalar?> dot(
+	<?=addr1?> <?=vec?> const & a,
+	<?=addr2?> <?=vec?> const & b
 );
-static inline <?=vec?> <?=vec?>_<?=scalar?>_mul(
-	constant <?=vec?> const & a,
-	<?=scalar?> s
-);
-static inline <?=vec?> <?=vec?>_<?=scalar?>_mul(
-	private <?=vec?> const & a,
-	<?=scalar?> s
-);
-
-static inline <?=vec?> <?=scalar?>_<?=vec?>_mul(<?=scalar?> a, <?=vec?> b);
-<? if scalar ~= "real" then ?>
-
-static inline <?=vec?> <?=vec?>_real_mul(
-	<?=vec?> const & a,
-	real b
-);
-static inline <?=vec?> <?=vec?>_real_mul(
-	constant <?=vec?> const & a,
-	real b
-);
-static inline <?=vec?> <?=vec?>_real_mul(
-	private <?=vec?> const & a,
-	real b
-);
-
-
-static inline <?=vec?> real_<?=vec?>_mul(real a, <?=vec?> b);
-<? end ?>
-
-static inline <?=vec?> <?=vec?>_add(
-	<?=vec?> const & a,
-	<?=vec?> const & b
-);
-static inline <?=vec?> <?=vec?>_add(
-	constant <?=vec?> const & a,
-	constant <?=vec?> const & b
-);
-static inline <?=vec?> <?=vec?>_add(
-	private <?=vec?> const & a,
-	private <?=vec?> const & b
-);
-
-static inline <?=vec?> <?=vec?>_sub(<?=vec?> a, <?=vec?> b);
-static inline <?=vec?> <?=vec?>_cross(<?=vec?> a, <?=vec?> b);
-static inline <?=vec?> <?=vec?>_neg(<?=vec?> a);
-
-#define <?=vec?>_add3(a,b,c)	<?=vec?>_add(<?=vec?>_add(a,b),c)
-#define <?=vec?>_add4(a,b,c,d)	<?=vec?>_add(<?=vec?>_add(a,b),<?=vec?>_add(c,d))
 <?
-end
+		end
+	end
+	for _,addr in ipairs(addrs) do
+?>
+static inline <?=vec?> operator*(
+	<?=addr?> <?=vec?> const & a,
+	<?=scalar?> s
+);
+static inline <?=vec?> operator*(
+	<?=scalar?> a,
+	<?=addr?> <?=vec?> const & b
+);
+<? 
+	end
+	if scalar ~= "real" then
+		for _,addr in ipairs(addrs) do 
+?>
+static inline <?=vec?> operator*(
+	<?=addr?> <?=vec?> const & a,
+	real b
+);
+<?
+		end
+	end
+	for _,addr in ipairs(addrs) do
+?>
+static inline <?=vec?> operator+(
+	<?=addr?> <?=vec?> const & a,
+	<?=addr?> <?=vec?> const & b
+);
+static inline <?=vec?> operator-(
+	<?=addr?> <?=vec?> const & a,
+	<?=addr?> <?=vec?> const & b
+);
+static inline <?=vec?> operator-(
+	<?=addr?> <?=vec?> const & a
+);
+<?
+	end
+?>
+static inline <?=vec?> cross(<?=vec?> a, <?=vec?> b);
+<?
+end	-- makevec3header
 
 local function makevec3code(vec,scalar)
-	local add = scalar.."_add"
-	local sub = scalar.."_sub"
-	local mul = scalar.."_mul"
-	local real_mul = scalar.."_real_mul"
-	local neg = scalar.."_neg"
-	local conj = scalar.."_conj"
-	local add3 = scalar.."_add3"
-	local mul3 = scalar.."_mul3"
+	for _,addr in ipairs(addrs) do 
 ?>
-
-static inline <?=vec?> <?=vec?>_<?=scalar?>_mul(
-	<?=vec?> const & a,
+static inline <?=vec?> operator*(
+	<?=addr?> <?=vec?> const & a,
 	<?=scalar?> s
 ) {
-	return _<?=vec?>(
-		<?=mul?>(a.x, s),
-		<?=mul?>(a.y, s),
-		<?=mul?>(a.z, s));
+	return <?=vec?>(
+		a.x * s,
+		a.y * s,
+		a.z * s);
 }
-static inline <?=vec?> <?=vec?>_<?=scalar?>_mul(
-	constant <?=vec?> const & a,
-	<?=scalar?> s
+static inline <?=vec?> operator*(
+	<?=scalar?> a,
+	<?=addr?> <?=vec?> const & b
 ) {
-	return _<?=vec?>(
-		<?=mul?>(a.x, s),
-		<?=mul?>(a.y, s),
-		<?=mul?>(a.z, s));
-}
-static inline <?=vec?> <?=vec?>_<?=scalar?>_mul(
-	private <?=vec?> const & a,
-	<?=scalar?> s
-) {
-	return _<?=vec?>(
-		<?=mul?>(a.x, s),
-		<?=mul?>(a.y, s),
-		<?=mul?>(a.z, s));
-}
-
-static inline <?=vec?> <?=scalar?>_<?=vec?>_mul(<?=scalar?> a, <?=vec?> b) {
-	return _<?=vec?>(
-		<?=mul?>(a, b.x),
-		<?=mul?>(a, b.y),
-		<?=mul?>(a, b.z));
-}
-
-<? if scalar ~= "real" then ?>
-
-static inline <?=vec?> <?=vec?>_real_mul(
-	<?=vec?> const & a,
-	real b
-) {
-	return _<?=vec?>(
-		<?=real_mul?>(a.x, b),
-		<?=real_mul?>(a.y, b),
-		<?=real_mul?>(a.z, b));
-}
-static inline <?=vec?> <?=vec?>_real_mul(
-	constant <?=vec?> const & a,
-	real b
-) {
-	return _<?=vec?>(
-		<?=real_mul?>(a.x, b),
-		<?=real_mul?>(a.y, b),
-		<?=real_mul?>(a.z, b));
-}
-static inline <?=vec?> <?=vec?>_real_mul(
-	private <?=vec?> const & a,
-	real b
-) {
-	return _<?=vec?>(
-		<?=real_mul?>(a.x, b),
-		<?=real_mul?>(a.y, b),
-		<?=real_mul?>(a.z, b));
-}
-
-static inline <?=vec?> real_<?=vec?>_mul(real a, <?=vec?> b) {
-	return _<?=vec?>(
-		<?=real_mul?>(b.x, a),
-		<?=real_mul?>(b.y, a),
-		<?=real_mul?>(b.z, a));
-}
-<? end ?>
-
-static inline <?=vec?> <?=vec?>_add(
-	<?=vec?> const & a,
-	<?=vec?> const & b
-) {
-	return _<?=vec?>(
-		<?=add?>(a.x, b.x),
-		<?=add?>(a.y, b.y),
-		<?=add?>(a.z, b.z));
-}
-static inline <?=vec?> <?=vec?>_add(
-	constant <?=vec?> const & a,
-	constant <?=vec?> const & b
-) {
-	return _<?=vec?>(
-		<?=add?>(a.x, b.x),
-		<?=add?>(a.y, b.y),
-		<?=add?>(a.z, b.z));
-}
-static inline <?=vec?> <?=vec?>_add(
-	private <?=vec?> const & a,
-	private <?=vec?> const & b
-) {
-	return _<?=vec?>(
-		<?=add?>(a.x, b.x),
-		<?=add?>(a.y, b.y),
-		<?=add?>(a.z, b.z));
-}
-
-static inline <?=vec?> <?=vec?>_sub(<?=vec?> a, <?=vec?> b) {
-	return _<?=vec?>(
-		<?=sub?>(a.x, b.x),
-		<?=sub?>(a.y, b.y),
-		<?=sub?>(a.z, b.z));
-}
-
-static inline <?=vec?> <?=vec?>_neg(<?=vec?> a) {
-	return _<?=vec?>(<?=neg?>(a.x), <?=neg?>(a.y), <?=neg?>(a.z));
-}
-
-static inline <?=vec?> <?=vec?>_cross(<?=vec?> a, <?=vec?> b) {
-	return _<?=vec?>(
-		<?=sub?>(<?=mul?>(a.y, b.z), <?=mul?>(a.z, b.y)),
-		<?=sub?>(<?=mul?>(a.z, b.x), <?=mul?>(a.x, b.z)),
-		<?=sub?>(<?=mul?>(a.x, b.y), <?=mul?>(a.y, b.x)));
-}
-
-static inline <?=vec?> <?=vec?>_unit(<?=vec?> a) {
-	return <?=vec?>_real_mul(a, 1. / <?=vec?>_len(a));
+	return <?=vec?>(
+		a * b.x,
+		a * b.y,
+		a * b.z);
 }
 <?
-end
+	end
+	if scalar ~= "real" then
+		for _,addr in ipairs(addrs) do
+?>
+static inline <?=vec?> operator*(
+	<?=addr?> <?=vec?> const & a,
+	real b
+) {
+	return <?=vec?>(
+		a.x * b,
+		a.y * b,
+		a.z * b);
+}
+<?
+		end
+	end
+	for _,addr in ipairs(addrs) do
+?>
+static inline <?=vec?> operator+(
+	<?=addr?> <?=vec?> const & a,
+	<?=addr?> <?=vec?> const & b
+) {
+	return <?=vec?>(
+		a.x + b.x,
+		a.y + b.y,
+		a.z + b.z);
+}
+static inline <?=vec?> operator-(
+	<?=addr?> <?=vec?> const & a,
+	<?=addr?> <?=vec?> const & b
+) {
+	return <?=vec?>(
+		a.x - b.x,
+		a.y - b.y,
+		a.z - b.z);
+}
+static inline <?=vec?> operator-(
+	<?=addr?> <?=vec?> const & a
+) {
+	return <?=vec?>(
+		-a.x,
+		-a.y,
+		-a.z);
+}
+<?
+	end
+?>
+static inline <?=vec?> cross(<?=vec?> a, <?=vec?> b) {
+	return <?=vec?>(
+		a.y * b.z - a.z * b.y,
+		a.z * b.x - a.x * b.z,
+		a.x * b.y - a.y * b.x);
+}
+
+static inline <?=vec?> unit(<?=vec?> a) {
+	return a * (1. / len(a));
+}
+<?
+end	-- makevec3code
 
 local function make3x3type(scalar)
 	local vec3 = scalar.."3"
@@ -295,15 +253,20 @@ end
 
 local function make_dot(atype, btype)
 	local ctype = resultType(atype, btype)
+	for _,addr1 in ipairs(addrs) do
+		for _,addr2 in ipairs(addrs) do
 ?>
-static inline <?=ctype?> <?=atype?>3_<?=btype?>3_dot(<?=atype?>3 a, <?=btype?>3 b) {
-	return <?=ctype?>_add3(
-		<?=atype?>_<?=btype?>_mul(a.x, <?=btype?>_conj(b.x)),
-		<?=atype?>_<?=btype?>_mul(a.y, <?=btype?>_conj(b.y)),
-		<?=atype?>_<?=btype?>_mul(a.z, <?=btype?>_conj(b.z))
-	);
+static inline <?=ctype?> dot(
+	<?=addr1?> <?=atype?>3 const & a,
+	<?=addr2?> <?=btype?>3 const & b
+) {
+	return a.x * conj(b.x)
+		+ a.y * conj(b.y)
+		+ a.z * conj(b.z);
 }
 <?
+		end
+	end
 end
 
 local function make_3x3_3_mul(atype, btype)
@@ -313,7 +276,7 @@ local function make_3x3_3_mul(atype, btype)
 static inline <?=ctype?>3 <?=atype?>3x3_<?=btype?>3_mul(<?=atype?>3x3 a, <?=btype?>3 b) {
 	return (<?=ctype?>3){
 <? for i,xi in ipairs(xNames) do
-?>		.<?=xi?> = <?=atype?>3_<?=btype?>3_dot(a.<?=xi?>, b),
+?>		.<?=xi?> = a.<?=xi?> * b,
 <? end
 ?>	};
 }
@@ -329,24 +292,12 @@ static inline <?=ctype?>3 <?=atype?>3_<?=btype?>3x3_mul(<?=atype?>3 a, <?=btype?
 	return (<?=ctype?>3){
 <? for i,xi in ipairs(xNames) do
 ?>		.<?=xi?> = <?=ctype?>_add3(
-			<?=atype?>_<?=btype?>_mul(a.x, b.x.<?=xi?>),
-			<?=atype?>_<?=btype?>_mul(a.y, b.y.<?=xi?>),
-			<?=atype?>_<?=btype?>_mul(a.z, b.z.<?=xi?>)),
+			a.x * b.x.<?=xi?>,
+			a.y * b.y.<?=xi?>,
+			a.z * b.z.<?=xi?>),
 <? end
 ?>	};
 }
-<?
-end
-
-local function makescalarheader(scalar)
-	local add = scalar.."_add"
-	local mul = scalar.."_mul"
-?>
-#define <?=scalar?>_add3(a,b,c)		(<?=add?>(a, <?=add?>(b,c)))
-#define <?=scalar?>_add4(a,b,c,d)	(<?=add?>(a, <?=scalar?>_add3(b,c,d)))
-#define <?=scalar?>_add5(a,b,c,d,e) (<?=add?>(a, <?=scalar?>_add4(b,c,d,e)))
-
-#define <?=scalar?>_mul3(a,b,c)		(<?=mul?>(<?=mul?>(a,b),c))
 <?
 end
 ?>
@@ -396,27 +347,9 @@ my current convention is this:
 #define unit_C2_s2_per_kg_m3	((unit_C2 * unit_s2) / (unit_kg * unit_m3))
 
 //// MODULE_NAME: real
-//// MODULE_HEADER:
 
-#define real_conj(x)		(x)
-#define real_from_real(x)	(x)
-#define real_zero			0
-#define real_neg(x)			(-(x))
-#define real_inv(x)			(1./(x))
-#define real_add(a,b)		((a) + (b))
-#define real_sub(a,b)		((a) - (b))
-#define real_mul(a,b)		((a) * (b))
-#define real_div(a,b)		((a) / (b))
-#define real_real_add(a,b)	((a) + (b))
-#define real_real_sub(a,b)	((a) - (b))
-#define real_real_mul(a,b)	((a) * (b))
-#define real_real_div(a,b)	((a) / (b))
-#define real_lenSq(x)		((x) * (x))
-#define real_abs			fabs
-
-#define real_sqrt			sqrt
-
-<?makescalarheader"real"?>
+inline real conj(real const x) { return x; }
+inline real lenSq(real const x) { return x * x; }
 
 //// MODULE_NAME: real3
 //// MODULE_DEPENDS: real
@@ -426,23 +359,24 @@ my current convention is this:
 //// MODULE_HEADER:
 <?makevec3header("real3", "real")?>
 
-#define real3_from_real3(x)	x
-
-static inline real real3_lenSq(real3 a);
-static inline real real3_len(real3 a);
+<? for _,addr in ipairs(addrs) do ?>
+static inline real lenSq(<?=addr?> real3 const & a);
+static inline real len(<?=addr?> real3 const & a);
+<? end ?>
 
 //// MODULE_CODE:
 
 <?makevec3code("real3", "real")?>
 <?make_dot("real", "real")?>
 
-static inline real real3_lenSq(real3 a) {
-	return real3_dot(a,a);
+<? for _,addr in ipairs(addrs) do ?>
+static inline real lenSq(<?=addr?> real3 const & a) {
+	return dot(a, a);
 }
-
-static inline real real3_len(real3 a) {
-	return sqrt(real3_lenSq(a));
+static inline real len(<?=addr?> real3 const & a) {
+	return sqrt(lenSq(a));
 }
+<? end ?>
 
 //// MODULE_NAME: rotate
 //// MODULE_DEPENDS: real3 quat
@@ -472,19 +406,37 @@ static inline real3 real3_swap(real3 v, int side) {
 }
 
 //for swapping dimensions between x and 012
-static inline real3 real3_swap0(real3 v) { return v; }
-static inline real3 real3_swap1(real3 v) { return _real3(v.y, v.x, v.z); }
-static inline real3 real3_swap2(real3 v) { return _real3(v.z, v.y, v.x); }
+static inline real3 real3_swap0(real3 v) {
+	return v;
+}
+static inline real3 real3_swap1(real3 v) {
+	return real3(v.y, v.x, v.z);
+}
+static inline real3 real3_swap2(real3 v) {
+	return real3(v.z, v.y, v.x);
+}
 
 //rotate from a particular side xyz to put x forward
-static inline real3 real3_rotFrom0(real3 v) { return v; }
-static inline real3 real3_rotFrom1(real3 v) { return _real3(v.y, -v.x, v.z); }
-static inline real3 real3_rotFrom2(real3 v) { return _real3(v.z, v.y, -v.x); }
+static inline real3 real3_rotFrom0(real3 v) {
+	return v;
+}
+static inline real3 real3_rotFrom1(real3 v) {
+	return real3(v.y, -v.x, v.z);
+}
+static inline real3 real3_rotFrom2(real3 v) {
+	return real3(v.z, v.y, -v.x);
+}
 
 //rotate to put x back to the side
-static inline real3 real3_rotTo0(real3 v) { return v; }
-static inline real3 real3_rotTo1(real3 v) { return _real3(-v.y, v.x, v.z); }
-static inline real3 real3_rotTo2(real3 v) { return _real3(-v.z, v.y, v.x); }
+static inline real3 real3_rotTo0(real3 v) {
+	return v;
+}
+static inline real3 real3_rotTo1(real3 v) {
+	return real3(-v.y, v.x, v.z);
+}
+static inline real3 real3_rotTo2(real3 v) {
+	return real3(-v.z, v.y, v.x);
+}
 
 //rotate 'n' to x-axis
 //assumes 'n' is unit
@@ -492,7 +444,7 @@ static inline real3 real3_rotateFrom(real3 v, real3 n) {
 #if dim == 1
 	return v;
 #elif dim == 2
-	return _real3(
+	return real3(
 		v.x * n.x + v.y * n.y,
 		-v.x * n.y + v.y * n.x,
 		v.z);
@@ -522,7 +474,7 @@ static inline real3 real3_rotateFrom(real3 v, real3 n) {
 	real4 qInv = quatUnitConj(q);
 	real4 _v = (real4)(v.x, v.y, v.z, 0);
 	real4 vres = quatMul(quatMul(q, _v), qInv);
-	return _real3(vres.x, vres.y, vres.z);
+	return real3(vres.x, vres.y, vres.z);
 #endif
 }
 
@@ -531,7 +483,7 @@ static inline real3 real3_rotateTo(real3 v, real3 n) {
 #if dim == 1
 	return v;
 #elif dim == 2
-	return _real3(
+	return real3(
 		v.x * n.x - v.y * n.y,
 		v.x * n.y + v.y * n.x,
 		v.z);
@@ -548,7 +500,7 @@ static inline real3 real3_rotateTo(real3 v, real3 n) {
 	real4 qInv = quatUnitConj(q);
 	real4 _v = (real4)(v.x, v.y, v.z, 0);
 	real4 vres = quatMul(quatMul(q, _v), qInv);
-	return _real3(vres.x, vres.y, vres.z);
+	return real3(vres.x, vres.y, vres.z);
 #endif
 }
 
@@ -662,7 +614,7 @@ static inline sym3 sym3_inv_nodet(sym3 const m) {
 }
 
 static inline real3 sym3_real3_mul(sym3 m, real3 v) {
-	return _real3(
+	return real3(
 		m.xx * v.x + m.xy * v.y + m.xz * v.z,
 		m.xy * v.y + m.yy * v.y + m.yz * v.z,
 		m.xz * v.z + m.yz * v.y + m.zz * v.z);
@@ -715,9 +667,9 @@ static inline real sym3_dot(sym3 a, sym3 b) {
 		+ 2. * (a.xy * b.xy + a.xz * b.xz + a.yz * b.yz);
 }
 
-static inline real3 sym3_x(sym3 m) { return _real3(m.xx, m.xy, m.xz); }
-static inline real3 sym3_y(sym3 m) { return _real3(m.xy, m.yy, m.yz); }
-static inline real3 sym3_z(sym3 m) { return _real3(m.xz, m.yz, m.zz); }
+static inline real3 sym3_x(sym3 m) { return real3(m.xx, m.xy, m.xz); }
+static inline real3 sym3_y(sym3 m) { return real3(m.xy, m.yy, m.yz); }
+static inline real3 sym3_z(sym3 m) { return real3(m.xz, m.yz, m.zz); }
 
 static inline real3 sym3_col(sym3 m, int side) {
 	if (side == 0) {
@@ -727,7 +679,7 @@ static inline real3 sym3_col(sym3 m, int side) {
 	} else if (side == 2) {
 		return sym3_z(m);
 	}
-	return _real3(0./0., 0./0., 0./0.);
+	return real3(0./0., 0./0., 0./0.);
 }
 
 static inline real sym3_trace(sym3 m) {
@@ -736,7 +688,7 @@ static inline real sym3_trace(sym3 m) {
 
 //weighted inner product using 'm'
 static inline real real3_weightedDot(real3 a, real3 b, sym3 m) {
-	return real3_dot(a, sym3_real3_mul(m, b));
+	return dot(a, sym3_real3_mul(m, b));
 }
 
 static inline real real3_weightedLenSq(real3 a, sym3 m) {
@@ -816,7 +768,7 @@ static inline sym3 sym3_swap2(sym3 m) { return _sym3(m.zz, m.yz, m.xz, m.yy, m.x
 //// MODULE_HEADER:
 
 //specified in row-order, like you would a C array
-#define _real3x3(xx,xy,xz,yx,yy,yz,zx,zy,zz) ((real3x3){.x=_real3(xx,xy,xz), .y=_real3(yx,yy,yz), .z=_real3(zx,zy,zz)})
+#define _real3x3(xx,xy,xz,yx,yy,yz,zx,zy,zz) ((real3x3){.x=real3(xx,xy,xz), .y=real3(yx,yy,yz), .z=real3(zx,zy,zz)})
 
 // failing in AMD OpenCL LLVM
 //LLVM ERROR: Cannot select: 0x55ab0ec9b418: i32 = GlobalAddress<[3 x %union.vec3d_t] addrspace(5)* @constinit> 0
@@ -1042,7 +994,7 @@ static inline real3x3 real3x3_transpose(real3x3 m) {
 static inline real3x3 real3x3_from_real(real x) {
 	return (real3x3){
 <? for i,xi in ipairs(xNames) do
-?>		.<?=xi?> = _real3(<?
+?>		.<?=xi?> = real3(<?
 	for j,xj in ipairs(xNames) do
 		if i~=j then ?>0.<? else ?>x<? end ?><?= j < 3 and ", " or ""?><?
 	end ?>),
@@ -1515,7 +1467,7 @@ static inline _3sym3 _3sym3_from_real3x3x3(real3x3x3 m) {
 static inline _3sym3 sym3_real3x3x3_mul2_to_3sym3(sym3 a, real3x3x3 b) {
 	return (_3sym3){
 <? for i,xi in ipairs(xNames) do
-?>		.<?=xi?> = sym3_real3x3_to_sym3_mul(a, b.<?=xi?>),
+?>		.<?=xi?> = a * b.<?=xi?>,
 <? end
 ?>	};
 }
@@ -1569,7 +1521,6 @@ static inline sym3sym3 sym3sym3_add(sym3sym3 a, sym3sym3 b) {
 }
 
 //// MODULE_NAME: quat
-//// MODULE_DEPENDS: real
 //// MODULE_HEADER:
 
 static inline real4 quatUnitConj(real4 q);
@@ -1624,7 +1575,7 @@ static inline real4 quatMul(real4 q, real4 r) {
 
 static inline cplx cplx_conj(cplx a);
 static inline cplx cplx_neg(cplx a);
-static inline real cplx_lenSq(cplx a);
+static inline real lenSq(cplx a);
 static inline real cplx_abs(cplx a);
 static inline real cplx_arg(cplx a);
 static inline real cplx_dot(cplx a, cplx b);
@@ -1640,14 +1591,12 @@ static inline cplx cplx_log(cplx a);
 static inline cplx cplx_pow(cplx a, cplx b);
 static inline cplx cplx_sqrt(cplx a);
 
-<?makescalarheader"cplx"?>
-
 //// MODULE_CODE:
 
 static inline cplx cplx_conj(cplx a) { return _cplx(a.re, -a.im); }
 static inline cplx cplx_neg(cplx a) { return _cplx(-a.re, -a.im); }
-static inline real cplx_lenSq(cplx a) { return a.re * a.re + a.im * a.im; }
-static inline real cplx_abs(cplx a) { return sqrt(cplx_lenSq(a)); }
+static inline real lenSq(cplx a) { return a.re * a.re + a.im * a.im; }
+static inline real cplx_abs(cplx a) { return sqrt(lenSq(a)); }
 static inline real cplx_arg(cplx a) { return atan2(a.im, a.re); }
 
 //what do I call this function? complex dot? real component of complex dot?  real component of complex mul of a number with another's conjugate?
@@ -1688,11 +1637,11 @@ static inline cplx cplx_real_mul(cplx a, real b) {
 }
 
 static inline cplx cplx_inv(cplx a) {
-	return cplx_real_mul(cplx_conj(a), 1. / cplx_lenSq(a));
+	return cplx_conj(a) * (1. / lenSq(a));
 }
 
 static inline cplx cplx_div(cplx a, cplx b) {
-	return cplx_mul(a, cplx_inv(b));
+	return a * cplx_inv(b);
 }
 
 static inline cplx cplx_exp(cplx a) {
@@ -1710,8 +1659,13 @@ static inline cplx cplx_log(cplx a) {
 	);
 }
 
-static inline cplx cplx_pow(cplx const a, cplx const b) { return cplx_exp(cplx_mul(b, cplx_log(a))); }
-static inline cplx cplx_sqrt(cplx const a) { return cplx_pow(a, cplx_from_real(.5)); }
+static inline cplx cplx_pow(cplx const a, cplx const b) {
+	return cplx_exp(b * cplx_log(a));
+}
+
+static inline cplx cplx_sqrt(cplx const a) {
+	return cplx_pow(a, cplx_from_real(.5));
+}
 
 //// MODULE_NAME: cplx3
 //// MODULE_DEPENDS: cplx sym3
@@ -1729,8 +1683,8 @@ static inline cplx3 cplx3_from_real3(real3 const re);
 static inline cplx3 cplx3_from_real3_real3(real3 const re, real3 const im);
 static inline real3 cplx3_re(cplx3 const v);
 static inline real3 cplx3_im(cplx3 const v);
-static inline real cplx3_lenSq(cplx3 const v);
-static inline real cplx3_len(cplx3 const v);
+static inline real lenSq(cplx3 const v);
+static inline real len(cplx3 const v);
 static inline cplx3 real3_cplx_mul(real3 const a, cplx const b);
 static inline cplx cplx3_real3_dot(cplx3 const a, real3 const b);
 #define real3_cplx3_dot(a,b) cplx3_real3_dot(b,a)
@@ -1760,26 +1714,26 @@ static inline cplx3 cplx3_from_real3_real3(real3 const re, real3 const im) {
 }
 
 static inline real3 cplx3_re(cplx3 const v) {
-	return _real3(v.x.re, v.y.re, v.z.re);
+	return real3(v.x.re, v.y.re, v.z.re);
 }
 
 static inline real3 cplx3_im(cplx3 const v) {
-	return _real3(v.x.im, v.y.im, v.z.im);
+	return real3(v.x.im, v.y.im, v.z.im);
 }
 
-static inline real cplx3_lenSq(cplx3 const v) {
-	return cplx_lenSq(v.x) + cplx_lenSq(v.y) + cplx_lenSq(v.z);
+static inline real lenSq(cplx3 const v) {
+	return lenSq(v.x) + lenSq(v.y) + lenSq(v.z);
 }
 
-static inline real cplx3_len(cplx3 const v) {
-	return sqrt(cplx3_lenSq(v));
+static inline real len(cplx3 const v) {
+	return sqrt(lenSq(v));
 }
 
 static inline cplx3 real3_cplx_mul(real3 const a, cplx const b) {
 	return _cplx3(
-		real_cplx_mul(a.x, b),
-		real_cplx_mul(a.y, b),
-		real_cplx_mul(a.z, b));
+		a.x * b,
+		a.y * b,
+		a.z * b);
 }
 
 <?make_dot("cplx", "real")	-- cplx3_real3_dot ?>
@@ -1852,7 +1806,7 @@ cplx cplx3x3_sym3_dot(cplx3x3 a, sym3 b) {
 	cplx sum = cplx_zero;
 <? for i,xi in ipairs(xNames) do
 	for j,xj in ipairs(xNames) do
-?> 	sum = cplx_add(sum, cplx_real_mul(a.<?=xi?>.<?=xj?>, b.<?=sym(i,j)?>));
+?> 	sum = cplx_add(sum, a.<?=xi?>.<?=xj?> * b.<?=sym(i,j)?>);
 <?	end
 end
 ?>	return sum;
@@ -1953,12 +1907,12 @@ static inline void getPerpendicularBasis(
 	real3 * const n2,
 	real3 * const n3
 ) {
-	real3 n_x_x = real3_cross(n, _real3(1,0,0));
-	real3 n_x_y = real3_cross(n, _real3(0,1,0));
-	real3 n_x_z = real3_cross(n, _real3(0,0,1));
-	real n_x_xSq = real3_lenSq(n_x_x);
-	real n_x_ySq = real3_lenSq(n_x_y);
-	real n_x_zSq = real3_lenSq(n_x_z);
+	real3 n_x_x = real3_cross(n, real3(1,0,0));
+	real3 n_x_y = real3_cross(n, real3(0,1,0));
+	real3 n_x_z = real3_cross(n, real3(0,0,1));
+	real n_x_xSq = lenSq(n_x_x);
+	real n_x_ySq = lenSq(n_x_y);
+	real n_x_zSq = lenSq(n_x_z);
 	if (n_x_xSq > n_x_ySq) {
 		if (n_x_xSq > n_x_zSq) {
 			*n2 = n_x_x;	//use x
@@ -1990,9 +1944,9 @@ static inline void getPerpendicularBasis3x3(
 
 //// MODULE_NAME: normalForSide
 
-#define normalForSide0 _real3(1,0,0)
-#define normalForSide1 _real3(0,1,0)
-#define normalForSide2 _real3(0,0,1)
+#define normalForSide0 real3(1,0,0)
+#define normalForSide1 real3(0,1,0)
+#define normalForSide2 real3(0,0,1)
 
 #define normalBasisForSide0 _real3x3(1,0,0, 0,1,0, 0,0,1)
 #define normalBasisForSide1 _real3x3(0,1,0, 0,0,1, 1,0,0)
@@ -2025,7 +1979,7 @@ static inline real sqr(real const x) {
 }
 
 //// MODULE_NAME: math
-//// MODULE_DEPENDS: realparam units real
+//// MODULE_DEPENDS: realparam units
 /*
 This is defined
 

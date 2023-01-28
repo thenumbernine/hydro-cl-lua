@@ -26,7 +26,7 @@ function TwoFluidSelfGrav:getPoissonCode()
 	/*global <?=cons_t?> * const */U,\
 	/*real3 const */pt\
 ) {\
-	*(accel_g) = real3_zero;\
+	*(accel_g) = {};\
 \
 	<? for side=0,solver.dim-1 do ?>{\
 		/* m/s^2 */\

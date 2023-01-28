@@ -19,7 +19,7 @@ and if they're not?  convert
 	/*global <?=cons_t?> * const */U,\
 	/*real3 const */pt\
 ) {\
-	*(accel_g) = real3_zero;\
+	*(accel_g) = {};\
 \
 	<? for side=0,solver.dim-1 do ?>{\
 		/* m/s^2 */\
@@ -65,10 +65,10 @@ kernel void <?=calcGravityDeriv?>(
 	<?=calcGravityAccel?>(&accel_g, solver, U, pt);
 
 	// kg/(m^2 s) = kg/m^3 * m/s^2
-	deriv->m = real3_sub(deriv->m, real3_real_mul(accel_g, U->rho));
+	deriv->m -= accel_g * U->rho;
 	
 	// kg/(m s^2) = (kg m^2 / s) * m/s^2
-	deriv->ETotal -= real3_dot(U->m, accel_g);
+	deriv->ETotal -= dot(U->m, accel_g);
 }
 
 //// MODULE_NAME: <?=copyPotentialToReduce?>

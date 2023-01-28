@@ -709,7 +709,7 @@ for side=0,solver.dim-1 do
 					t.x = coord_parallelPropagateL<?=side?>(t.x, pt, dx);\
 					t.y = coord_parallelPropagateL<?=side?>(t.y, pt, dx);\
 					t.z = coord_parallelPropagateL<?=side?>(t.z, pt, dx);\
-					resultName##base.<?=var.name?> = <?=var.type?>_from_real3x3(t);\
+					resultName##base.<?=var.name?> = (<?=var.type?>)t;\
 				}\
 <?			elseif variance == 'ul' then
 ?>				{\
@@ -722,7 +722,7 @@ for side=0,solver.dim-1 do
 					t.y = coord_parallelPropagateL<?=side?>(t.y, pt, dx);\
 					t.z = coord_parallelPropagateL<?=side?>(t.z, pt, dx);\
 					t = real3x3_transpose(t);\
-					resultName##base.<?=var.name?> = <?=var.type?>_from_real3x3(t);\
+					resultName##base.<?=var.name?> = (<?=var.type?>)t;\
 				}\
 <?			elseif variance == 'lll' then
 ?>				{\
@@ -747,7 +747,7 @@ for side=0,solver.dim-1 do
 						end
 					end
 				end
-?>					resultName##base.<?=var.name?> = <?=var.type?>_from_real3x3x3(t);\
+?>					resultName##base.<?=var.name?> = (<?=var.type?>)t;\
 				}\
 <?			else
 				error("don't know how to handle variance for "..('%q'):format(variance))
@@ -884,15 +884,12 @@ function Equation:createDivDisplayVar(args)
 	if (<?=OOB?>(1,1)) {
 		value.v<?=scalar?> = 0./0.;
 	} else {
-		<?=scalar?> v = <?=scalar?>_zero;
+		<?=scalar?> v = {};
 		<? for j=0,solver.dim-1 do ?>{
 			global <?=cons_t?> const * const Ujm = U - solver->stepsize.s<?=j?>;
 			global <?=cons_t?> const * const Ujp = U + solver->stepsize.s<?=j?>;
-			v = <?=scalar?>_add(v, <?=scalar?>_real_mul(
-				<?=scalar?>_sub(
-					<?=getField('Ujp', j)?>,
-					<?=getField('Ujm', j)?>
-				), .5 / solver->grid_dx.s<?=j?>));
+			v += (<?=getField('Ujp', j)?> - <?=getField('Ujm', j)?>) 
+				* .5 / solver->grid_dx.s<?=j?>;
 		}<? end ?>
 		value.v<?=scalar?> = v;
 	}
