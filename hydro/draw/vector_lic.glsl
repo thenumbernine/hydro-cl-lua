@@ -10,7 +10,7 @@ local varying = vertexShader and "out"
 //z holds the fixed z slice of the 3D texture
 <?=varying?> vec3 viewCoord;
 
-<?=draw:getModuleCodeGLSL(coordMapGLSL, coordMapInvGLSL, 
+<?=draw:getModuleCodeGLSL(coordMapGLSL, coordMapInvGLSL,
 	coord.vectorComponent == "cartesian"
 	and cartesianToCoord	-- coord_cartesianToCoord
 	or coord_conn_apply23
@@ -59,9 +59,9 @@ void main() {
 		vec3 vel = vec3(0., 0., 0.);
 		vec3 last_dPos_ds = vec3(0., 0., 0.);
 		for (int iter = 0; iter < integralMaxIter; ++iter) {
-			
+
 			vec3 dPos_ds = getTex(chartToNoGhostCoord(pos)).xyz;
-			
+
 <? if solver.coord.name == "cartesian" then ?>
 			vec3 dVel_ds = vec3(0., 0., 0.);
 <? elseif solver.coord.vectorComponent == "cartesian" then ?>
@@ -85,7 +85,7 @@ void main() {
 
 			pos += dPos_ds * (<?=ds * dir?> / uMag);
 			vel += dVel_ds * (<?=ds * dir?> / uMag);
-			
+
 			float f = float(iter + 1) / float(integralMaxIter+1);
 			float weight = smoothstep(1., 0., f);
 			licMag += texture(noiseTex, chartToNoGhostCoord(pos).xy).r * weight;
@@ -93,19 +93,19 @@ void main() {
 			last_dPos_ds = dPos_ds;
 		}
 	}<? end ?>
-	
+
 	licMag /= totalWeight;
-	
+
 	//add some contrast
 	licMag = smoothstep(.2, .8, licMag);
-	
+
 	//color by magnitude
 	float fieldMagn = length(getTex(chartToNoGhostCoord(chartCoord)).xyz);
 // where did these flickers come from?  I'm getting an unnderrun of values...
 fieldMagn = clamp(fieldMagn, valueMin, valueMax);
 	vec4 licColorTimesGradColor = getGradientColor(fieldMagn);
 	licColorTimesGradColor.rgb *= licMag;
-	
+
 	fragColor = licColorTimesGradColor;
 }
 

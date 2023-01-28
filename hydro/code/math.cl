@@ -32,13 +32,13 @@ union <?=name?> {
 	struct { <?=scalar?> s0, s1, s2; };
 	struct { <?=scalar?> x, y, z; };
 
-	<?=name?>()
+	constexpr <?=name?>()
 	:	x(<?=scalar?>{}),
 		y(<?=scalar?>{}),
 		z(<?=scalar?>{})
 	{}
 
-	<?=name?>(
+	constexpr <?=name?>(
 		<?=scalar?> x_,
 		<?=scalar?> y_,
 		<?=scalar?> z_
@@ -1939,15 +1939,19 @@ static inline void getPerpendicularBasis3x3(
 	getPerpendicularBasis(n->x, &n->y, &n->z);
 }
 
+//// MODULE_NAME: normalBasisForSide
+//// MODULE_DEPENDS: real3x3
+
+static constexpr real3x3 normalBasisForSide0 = real3x3{{1,0,0}, {0,1,0}, {0,0,1}};
+static constexpr real3x3 normalBasisForSide1 = real3x3{{0,1,0}, {0,0,1}, {1,0,0}};
+static constexpr real3x3 normalBasisForSide2 = real3x3{{0,0,1}, {1,0,0}, {0,1,0}};
+
 //// MODULE_NAME: normalForSide
+//// MODULE_DEPENDS: real3
 
-#define normalForSide0 real3(1,0,0)
-#define normalForSide1 real3(0,1,0)
-#define normalForSide2 real3(0,0,1)
-
-#define normalBasisForSide0 real3x3{{1,0,0}, {0,1,0}, {0,0,1}}
-#define normalBasisForSide1 real3x3{{0,1,0}, {0,0,1}, {1,0,0}}
-#define normalBasisForSide2 real3x3{{0,0,1}, {1,0,0}, {0,1,0}}
+static constexpr real3 normalForSide0 = real3(1,0,0);
+static constexpr real3 normalForSide1 = real3(0,1,0);
+static constexpr real3 normalForSide2 = real3(0,0,1);
 
 //// MODULE_NAME: sech
 
