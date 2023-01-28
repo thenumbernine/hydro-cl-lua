@@ -36,8 +36,7 @@ static inline <?=cons_t?> <?=calcFluxForInterface?>(
 	real3 const xIntR<? end ?>
 ) {
 	<?=cons_t?> resultFlux;
-	<?=eigen_t?> eig;
-	<?=eigen_forInterface?>(&eig, solver, UL, UR, cellL, cellR, xInt, n);
+	<?=eigen_t?> eig = <?=eigen_forInterface?>(solver, *UL, *UR, *cellL, *cellR, xInt, n);
 
 	<?=eqn:eigenWaveCodePrefix{
 		n = "n",
@@ -71,10 +70,8 @@ static inline <?=cons_t?> <?=calcFluxForInterface?>(
 	<?=waves_t?> deltaUEig;
 	<?=eigen_leftTransform?>(&deltaUEig, solver, &eig, &deltaU, xInt, n);
 <? 	if useFluxLimiter then ?>
-	<?=eigen_t?> eigL;
-	<?=eigen_forInterface?>(&eigL, solver, UL_L, UR_L, cellL_L, cellR_L, xIntL, n);
-	<?=eigen_t?> eigR;
-	<?=eigen_forInterface?>(&eigR, solver, UL_R, UR_R, cellL_R, cellR_R, xIntR, n);
+	<?=eigen_t?> eigL = <?=eigen_forInterface?>(solver, *UL_L, *UR_L, *cellL_L, *cellR_L, xIntL, n);
+	<?=eigen_t?> eigR = <?=eigen_forInterface?>(solver, *UL_R, *UR_R, *cellL_R, *cellR_R, xIntR, n);
 	<?=waves_t?> deltaUEigL;
 	<?=eigen_leftTransform?>(&deltaUEigL, solver, &eigL, &deltaUL, xIntL, n);
 	<?=waves_t?> deltaUEigR;

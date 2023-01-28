@@ -297,21 +297,22 @@ static inline <?=cons_t?> <?=fluxFromCons?>(
 // added by request only, so I don't have to compile the real3x3 code. 
 // not used at the moment
 
-#define <?=calcCellMinMaxEigenvalues?>(\
-	/*<?=range_t?> * const */result,\
-	/*constant <?=solver_t?> const * const */solver,\
-	/*global <?=cons_t?> const * const */U,\
-	/*real3 const */pt,\
-	/*real3x3 const */nL,\
-	/*real3x3 const */nU,\
-	/*real const */nLen\
-) {\
-	<?=prim_t?> W = <?=primFromCons?>(solver, *U, pt);\
-	real const v_n = dot(W.v, nL.x);\
-	real const Cs = <?=calc_Cs?>(solver, &W);\
-	real const Cs_nLen = Cs * nLen;\
-	(result)->min = v_n - Cs_nLen; \
-	(result)->max = v_n + Cs_nLen;\
+static inline <?=range_t?> <?=calcCellMinMaxEigenvalues?>(
+	constant <?=solver_t?> const & solver,
+	global <?=cons_t?> const & U,
+	real3 const pt,
+	real3x3 const nL,
+	real3x3 const nU,
+	real const nLen
+) {
+	<?=prim_t?> W = <?=primFromCons?>(solver, U, pt);
+	real const v_n = dot(W.v, nL.x);
+	real const Cs = <?=calc_Cs?>(solver, &W);
+	real const Cs_nLen = Cs * nLen;
+	<?=range_t?> result;
+	result.min = v_n - Cs_nLen; 
+	result.max = v_n + Cs_nLen;
+	return result;
 }
 
 //// MODULE_NAME: <?=eigen_forCell?>
@@ -319,112 +320,114 @@ static inline <?=cons_t?> <?=fluxFromCons?>(
 // eqn_common is for all the calc_* stuff
 
 // used by PLM
-#define <?=eigen_forCell?>(\
-	/*<?=eigen_t?> * const */result,\
-	/*constant <?=solver_t?> const * const */solver,\
-	/*<?=cons_t?> const * const */U,\
-	/*<?=cell_t?> const * const */cell,\
-	/*<?=normal_t?> const */n\
-) {\
-	<?=prim_t?> W = <?=primFromCons?>(solver, *U, (cell)->pos);\
-	real3 const vL = coord_lower(W.v, (cell)->pos);\
-	real const vSq = dot(W.v, vL);\
-	real const v_n = normal_vecDotN1(n, W.v);\
-	real const eKin = .5 * vSq;\
-	real const hTotal = <?=calc_hTotal?>(W.rho, W.P, (U)->ETotal);\
-	real const CsSq = (solver->heatCapacityRatio - 1.) * (hTotal - eKin);\
-	real const Cs = sqrt(CsSq);\
-	(result)->rho = W.rho;\
-	(result)->v = W.v;\
-	(result)->vSq = vSq;\
-	(result)->vL = vL;\
-	(result)->hTotal = hTotal;\
-	(result)->Cs = Cs;\
+static inline <?=eigen_t?> <?=eigen_forCell?>(
+	constant <?=solver_t?> const & solver,
+	<?=cons_t?> const & U,
+	<?=cell_t?> const & cell,
+	<?=normal_t?> const n
+) {
+	<?=prim_t?> W = <?=primFromCons?>(solver, U, cell.pos);
+	real3 const vL = coord_lower(W.v, cell.pos);
+	real const vSq = dot(W.v, vL);
+	real const v_n = normal_vecDotN1(n, W.v);
+	real const eKin = .5 * vSq;
+	real const hTotal = <?=calc_hTotal?>(W.rho, W.P, U.ETotal);
+	real const CsSq = (solver.heatCapacityRatio - 1.) * (hTotal - eKin);
+	real const Cs = sqrt(CsSq);
+	<?=eigen_t?> * const result;
+	result.rho = W.rho;
+	result.v = W.v;
+	result.vSq = vSq;
+	result.vL = vL;
+	result.hTotal = hTotal;
+	result.Cs = Cs;
+	return result;
 }
 
 //// MODULE_NAME: <?=eigen_forInterface?>
 //// MODULE_DEPENDS: <?=primFromCons?> <?=eigen_t?> <?=normal_t?> <?=coord_lower?>
 
 //used by the mesh version
-#define <?=eigen_forInterface?>(\
-	/*<?=eigen_t?> * const */result,\
-	/*constant <?=solver_t?> const * const */solver,\
-	/*<?=cons_t?> const * const */UL,\
-	/*<?=cons_t?> const * const */UR,\
-	/*<?=cell_t?> const * const */cellL,\
-	/*<?=cell_t?> const * const */cellR,\
-	/*real3 const */pt,\
-	/*<?=normal_t?> const */n\
-) {\
-	real const rhoEpsilon = 1e-5;\
-\
-	if ((UL)->rho < rhoEpsilon && (UR)->rho < rhoEpsilon) {\
-		/* left and right are both vacuum: */\
-		(result)->rho = 0.;\
-		(result)->v = {};\
-		(result)->vSq = 0.;\
-		(result)->vL = {};\
-		(result)->hTotal = 0;\
-		(result)->Cs = 0;\
-	} else {\
-		if ((UL)->rho < rhoEpsilon) {\
-			/* left is vacuum: */\
-			<?=prim_t?> WR = <?=primFromCons?>(solver, *UR, (cellR)->pos);\
-			(result)->rho = (UR)->rho;\
-			(result)->v = WR.v;\
-			(result)->vL = coord_lower(WR.v, pt);\
-			(result)->vSq = dot(WR.v, (result)->vL);\
-			(result)->hTotal = <?=calc_hTotal?>(WR.rho, WR.P, (UR)->ETotal);\
-			(result)->Cs = <?=calc_Cs?>(solver, WR);\
-		} else if ((UR)->rho < rhoEpsilon) {\
-			/* right is vacuum: */\
-			<?=prim_t?> WL = <?=primFromCons?>(solver, *UL, (cellL)->pos);\
-			(result)->rho = (UL)->rho;\
-			(result)->v = WL.v;\
-			(result)->vL = coord_lower(WL.v, pt);\
-			(result)->vSq = dot(WL.v, (result)->vL);\
-			(result)->hTotal = <?=calc_hTotal?>(WL.rho, WL.P, (UL)->ETotal);\
-			(result)->Cs = <?=calc_Cs?>(solver, WL);\
-		} else {\
-			<?=prim_t?> WL = <?=primFromCons?>(solver, *UL, (cellL)->pos);\
-			real const sqrtRhoL = sqrt(WL.rho);\
-			real3 const vLeft = WL.v;\
-			real const hTotalL = <?=calc_hTotal?>(WL.rho, WL.P, (UL)->ETotal);\
-\
-			<?=prim_t?> WR = <?=primFromCons?>(solver, *UR, (cellR)->pos);\
-			real const sqrtRhoR = sqrt(WR.rho);\
-			real3 const vR = WR.v;\
-			real const hTotalR = <?=calc_hTotal?>(WR.rho, WR.P, (UR)->ETotal);\
-\
-			real const invDenom = 1./(sqrtRhoL + sqrtRhoR);\
-\
-			/*Roe-averaged*/\
-			(result)->rho = sqrtRhoL * sqrtRhoR;\
-			real3 const v = \
-					vLeft * (sqrtRhoL * invDenom)\
-					+ vR * (sqrtRhoR * invDenom);\
-			real const hTotal = invDenom * (sqrtRhoL * hTotalL + sqrtRhoR * hTotalR);\
-\
-			/*derived:*/\
-			real3 const vLower = coord_lower(v, pt);\
-			real const vSq = dot(v, vLower);\
-			real const eKin = .5 * vSq;\
-			real const h = hTotal - eKin;\
-			/* TODO verify hTotal = 1/2 v^2 + Cs^2 / (gamma-1) */\
-			if (h < rhoEpsilon) {\
-				(result)->hTotal = eKin;\
-				(result)->Cs = 0.;\
-			} else {\
-				(result)->hTotal = hTotal;\
-				real const CsSq = h < rhoEpsilon ? 0. : (solver->heatCapacityRatio - 1.) * h;\
-				(result)->Cs = sqrt(CsSq);\
-			}\
-\
-			(result)->v = v;\
-			(result)->vSq = vSq;\
-			(result)->vL = vLower;\
-		}\
-	}\
+static inline <?=eigen_t?> <?=eigen_forInterface?>(
+	constant <?=solver_t?> const * const solver,
+	<?=cons_t?> const & UL,
+	<?=cons_t?> const & UR,
+	<?=cell_t?> const & cellL,
+	<?=cell_t?> const & cellR,
+	real3 const pt,
+	<?=normal_t?> const n
+) {
+	<?=eigen_t?> result;
+	real const rhoEpsilon = 1e-5;
+
+	if (UL.rho < rhoEpsilon && UR.rho < rhoEpsilon) {
+		// left and right are both vacuum:
+		result.rho = 0.;
+		result.v = {};
+		result.vSq = 0.;
+		result.vL = {};
+		result.hTotal = 0;
+		result.Cs = 0;
+	} else {
+		if (UL.rho < rhoEpsilon) {
+			// left is vacuum:
+			<?=prim_t?> WR = <?=primFromCons?>(solver, UR, cellR.pos);
+			result.rho = UR.rho;
+			result.v = WR.v;
+			result.vL = coord_lower(WR.v, pt);
+			result.vSq = dot(WR.v, result.vL);
+			result.hTotal = <?=calc_hTotal?>(WR.rho, WR.P, UR.ETotal);
+			result.Cs = <?=calc_Cs?>(solver, WR);
+		} else if (UR.rho < rhoEpsilon) {
+			// right is vacuum:
+			<?=prim_t?> WL = <?=primFromCons?>(solver, UL, cellL.pos);
+			result.rho = UL.rho;
+			result.v = WL.v;
+			result.vL = coord_lower(WL.v, pt);
+			result.vSq = dot(WL.v, result.vL);
+			result.hTotal = <?=calc_hTotal?>(WL.rho, WL.P, UL.ETotal);
+			result.Cs = <?=calc_Cs?>(solver, WL);
+		} else {
+			<?=prim_t?> WL = <?=primFromCons?>(solver, UL, cellL.pos);
+			real const sqrtRhoL = sqrt(WL.rho);
+			real3 const vLeft = WL.v;
+			real const hTotalL = <?=calc_hTotal?>(WL.rho, WL.P, UL.ETotal);
+
+			<?=prim_t?> WR = <?=primFromCons?>(solver, UR, cellR.pos);
+			real const sqrtRhoR = sqrt(WR.rho);
+			real3 const vR = WR.v;
+			real const hTotalR = <?=calc_hTotal?>(WR.rho, WR.P, UR.ETotal);
+
+			real const invDenom = 1./(sqrtRhoL + sqrtRhoR);
+
+			//Roe-averaged
+			result.rho = sqrtRhoL * sqrtRhoR;
+			real3 const v = 
+					vLeft * (sqrtRhoL * invDenom)
+					+ vR * (sqrtRhoR * invDenom);
+			real const hTotal = invDenom * (sqrtRhoL * hTotalL + sqrtRhoR * hTotalR);
+
+			//derived:
+			real3 const vLower = coord_lower(v, pt);
+			real const vSq = dot(v, vLower);
+			real const eKin = .5 * vSq;
+			real const h = hTotal - eKin;
+			// TODO verify hTotal = 1/2 v^2 + Cs^2 / (gamma-1)
+			if (h < rhoEpsilon) {
+				result.hTotal = eKin;
+				result.Cs = 0.;
+			} else {
+				result.hTotal = hTotal;
+				real const CsSq = h < rhoEpsilon ? 0. : (solver->heatCapacityRatio - 1.) * h;
+				result.Cs = sqrt(CsSq);
+			}
+
+			result.v = v;
+			result.vSq = vSq;
+			result.vL = vLower;
+		}
+	}
+	return result;
 }
 
 //// MODULE_NAME: <?=eigen_leftTransform?>

@@ -34,8 +34,7 @@ static inline <?=cons_t?> <?=calcFluxForInterface?>(
 	But mind you not everyone uses the xInt, so it shouldn't always be calculated right?
 	This is where fully-analytical implementations are handy (like BSSN is becoming).
 	*/
-	<?=eigen_t?> eigInt;
-	<?=eigen_forInterface?>(&eigInt, solver, UL, UR, cellL, cellR, xInt, n);
+	<?=eigen_t?> eigInt = <?=eigen_forInterface?>(solver, *UL, *UR, *cellL, *cellR, xInt, n);
 
 	real lambdaIntMin, lambdaIntMax;
 	{

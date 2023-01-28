@@ -2368,10 +2368,11 @@ typedef struct {
 			-- with two exceptions: calcDT and some displayVars
 			code = self.solver.eqn:template[[
 <? for side=0,solver.dim-1 do ?>
-#define normal_forSide<?=side?>(x) \
-	((<?=normal_t?>){ \
-		.side = <?=side?>, \
-	})
+static inline <?=normal_t?> normal_forSide<?=side?>(real3 const x) {
+	return <?=normal_t?>{
+		.side = <?=side?>
+	};
+}
 <? end ?>
 
 //|n|

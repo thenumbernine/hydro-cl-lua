@@ -16,8 +16,7 @@ static inline <?=cons_t?> <?=calcFluxForInterface?>(
 	get min/max lambdas of UL, UR, and interface U (based on Roe averaging)
 	TODO this in a more computationally efficient way
 	*/
-	<?=eigen_t?> eigInt;
-	<?=eigen_forInterface?>(&eigInt, solver, UL, UR, cellL, cellR, xInt, n);
+	<?=eigen_t?> eigInt = <?=eigen_forInterface?>(solver, *UL, *UR, *cellL, *cellR, xInt, n);
 	<?=eqn:eigenWaveCodeMinMax{
 		n = "n",
 		eig = "&eigInt",

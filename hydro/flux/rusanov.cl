@@ -1,5 +1,5 @@
 //// MODULE_NAME: <?=calcFluxForInterface?>
-//// MODULE_DEPENDS: <?=solver_macros?> math <?=eigen_forInterface?> <?=fluxFromCons?>
+//// MODULE_DEPENDS: <?=solver_macros?> math <?=fluxFromCons?>
 
 static inline  <?=cons_t?> <?=calcFluxForInterface?>(
 	constant <?=solver_t?> const * const solver,
