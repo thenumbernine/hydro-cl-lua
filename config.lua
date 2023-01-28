@@ -5,7 +5,7 @@ and no more setting config values (boundary, etc) in the init cond file
 local constants = require 'hydro.constants'
 local materials = require 'hydro.materials'
 
-local dim = cmdline.dim or 2
+local dim = cmdline.dim or 3
 local args = {
 	app = self,
 	dim = dim,

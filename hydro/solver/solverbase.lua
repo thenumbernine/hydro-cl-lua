@@ -657,10 +657,10 @@ function SolverBase:initMeshVars(args)
 							'clang',
 							'-v',
 							'-Xclang -finclude-default-header',
-							'--target=spir64-unknown-unknown',
+							'--target=spirv64-unknown-unknown',
 							'-emit-llvm',
 							'-c',
-							'-O3',
+							--'-O3',	-- ok with this i'm getting llvm-spirv bytecode errors only with the euler + 3D case
 							'-o', ('%q'):format(self.cacheFileBC),
 							('%q'):format(self.cacheFileCL)
 						}:concat' ')

@@ -2499,7 +2499,7 @@ typedef struct {
 #define normal_forSide<?=side?>(x) \
 	((<?=normal_t?>){ \
 		.side = <?=side?>, \
-		.U = _real3x3( \
+		.U = real3x3( \
 <?
 for j=0,2 do
 	for i=0,2 do

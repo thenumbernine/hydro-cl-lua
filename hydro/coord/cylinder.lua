@@ -75,7 +75,7 @@ real3 coordMapInv(real3 x) {
 	//except here in the renderer
 	//TODO use the solver's bounds?
 	real phi = fmod(fmod(atan2(x.y, x.x), 2. * M_PI) + 2. * M_PI, 2. * M_PI);
-	return _real3(sqrt(x.x*x.x + x.y*x.y), phi, x.z);
+	return real3(sqrt(x.x*x.x + x.y*x.y), phi, x.z);
 }
 ]]
 end

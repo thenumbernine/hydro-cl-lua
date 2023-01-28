@@ -1120,7 +1120,7 @@ args.extraArgs and #args.extraArgs > 0
 if solver.dim == 2 then ?>
 	int i = get_global_id(0);<? 
 elseif solver.dim == 3 then ?>
-	int2 i = (int2)(get_global_id(0), get_global_id(1));<? 
+	int2 i = (int2)((int)get_global_id(0), (int)get_global_id(1));<?
 end 
 ?>]], 	{
 			table = table,

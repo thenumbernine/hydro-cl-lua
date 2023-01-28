@@ -65,7 +65,7 @@ real3 coordMapInv(real3 x) {
 	real theta = acos(x.z / r);
 	real phi = atan2(x.y, x.x);
 <? end
-?>	return _real3(r, theta, phi);
+?>	return real3(r, theta, phi);
 }
 ]], {
 		solver = self.solver,

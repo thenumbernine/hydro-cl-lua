@@ -1948,9 +1948,9 @@ static inline void getPerpendicularBasis3x3(
 #define normalForSide1 real3(0,1,0)
 #define normalForSide2 real3(0,0,1)
 
-#define normalBasisForSide0 _real3x3(1,0,0, 0,1,0, 0,0,1)
-#define normalBasisForSide1 _real3x3(0,1,0, 0,0,1, 1,0,0)
-#define normalBasisForSide2 _real3x3(0,0,1, 1,0,0, 0,1,0)
+#define normalBasisForSide0 real3x3{{1,0,0}, {0,1,0}, {0,0,1}}
+#define normalBasisForSide1 real3x3{{0,1,0}, {0,0,1}, {1,0,0}}
+#define normalBasisForSide2 real3x3{{0,0,1}, {1,0,0}, {0,1,0}}
 
 //// MODULE_NAME: sech
 

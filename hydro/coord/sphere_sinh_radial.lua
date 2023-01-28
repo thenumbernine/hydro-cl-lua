@@ -173,8 +173,8 @@ real3 coordMapInv(real3 pt) {
 		)
 	?>;
 
-	if (rho == 0. || theta == 0. || theta == M_PI) return _real3(0.,0.,0.);
-	return _real3(rho, theta, phi);
+	if (rho == 0. || theta == 0. || theta == M_PI) return real3{};
+	return real3(rho, theta, phi);
 }
 ]], {
 		symmath = require 'symmath',
