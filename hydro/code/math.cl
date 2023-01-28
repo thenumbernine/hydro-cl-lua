@@ -38,36 +38,33 @@ union <?=name?> {
 		z(<?=scalar?>{})
 	{}
 
-<? if false then ?>
-<? for _,addr in ipairs(addrs) do ?>
-	<?=name?>(<?=addr?> <?=name?> const & o) : x(o.x), y(o.y), z(o.z) {}
-<? end ?>
-<? end ?>
-
 	<?=name?>(
 		<?=scalar?> x_,
 		<?=scalar?> y_,
 		<?=scalar?> z_
 	) : x(x_), y(y_), z(z_) {}
 
-<? for _,addr in ipairs{"generic"} do ?>
-	<?=addr?> <?=name?> & operator+=(
-		<?=addr?> <?=name?> const & b
+	<?=name?> & operator+=(
+		<?=name?> const & b
 	) {
 		x += b.x;
 		y += b.y;
 		z += b.z;
 		return *this;
 	}
-	<?=addr?> <?=name?> & operator-=(
-		<?=addr?> <?=name?> const & b
+	<?=name?> & operator-=(
+		<?=name?> const & b
 	) {
 		x -= b.x;
 		y -= b.y;
 		z -= b.z;
 		return *this;
 	}
-<? end ?>
+
+	<?=scalar?> & operator[](int i) { return s[i]; }
+	<?=scalar?> const & operator[](int i) const { return s[i]; }
+	constant <?=scalar?> & operator[](int i) constant { return s[i]; }
+	constant <?=scalar?> const & operator[](int i) constant const { return s[i]; }
 
 } <?=app.real=="half" and "__attribute__ ((packed))" or ""
 -- __attribute__ ((packed)) seems to need to be here with real=half

@@ -275,7 +275,7 @@ function Euler:getDisplayVars()
 		{{name='gravity', code=self:template[[
 if (!<?=OOB?>(1,1)) {
 //// MODULE_DEPENDS: <?=eqn.gravOp.symbols.calcGravityAccel?>
-	<?=eqn.gravOp.symbols.calcGravityAccel?>(&value.vreal3, solver, U, x);
+	value.vreal3 = <?=eqn.gravOp.symbols.calcGravityAccel?><dim>(solver, U, x);
 } else {
 	value.vreal3 = {};
 }
