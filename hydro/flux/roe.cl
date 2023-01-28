@@ -16,39 +16,39 @@ local useFluxLimiter = solver.fluxLimiter > 1
 
 //TODO entropy fix ... for the Euler equations at least
 static inline <?=cons_t?> <?=calcFluxForInterface?>(
-	constant <?=solver_t?> const * const solver,
-	<?=cons_t?> const * const UL,
-	<?=cons_t?> const * const UR,
-	<?=cell_t?> const * const cellL,
-	<?=cell_t?> const * const cellR,
+	constant <?=solver_t?> const & solver,
+	<?=cons_t?> const & UL,
+	<?=cons_t?> const & UR,
+	<?=cell_t?> const & cellL,
+	<?=cell_t?> const & cellR,
 	real3 const xInt,
 	<?=normal_t?> const n<? if useFluxLimiter then ?>,
 	realparam const dt_dx,
-	<?=cons_t?> const * const UL_L,
-	<?=cons_t?> const * const UL_R,
-	<?=cell_t?> const * const cellL_L,
-	<?=cell_t?> const * const cellL_R,
+	<?=cons_t?> const & UL_L,
+	<?=cons_t?> const & UL_R,
+	<?=cell_t?> const & cellL_L,
+	<?=cell_t?> const & cellL_R,
 	real3 const xIntL,
-	<?=cons_t?> const * const UR_L,
-	<?=cons_t?> const * const UR_R,
-	<?=cell_t?> const * const cellR_L,
-	<?=cell_t?> const * const cellR_R,
+	<?=cons_t?> const & UR_L,
+	<?=cons_t?> const & UR_R,
+	<?=cell_t?> const & cellR_L,
+	<?=cell_t?> const & cellR_R,
 	real3 const xIntR<? end ?>
 ) {
 	<?=cons_t?> resultFlux;
-	<?=eigen_t?> eig = <?=eigen_forInterface?>(solver, *UL, *UR, *cellL, *cellR, xInt, n);
+	<?=eigen_t?> eig = <?=eigen_forInterface?>(solver, UL, UR, cellL, cellR, xInt, n);
 
 	<?=eqn:eigenWaveCodePrefix{
 		n = "n",
-		eig = "&eig",
+		eig = "eig",
 		pt = "xInt",
-	}:gsub("\\*\n", "\\\n\t")?>
+	}:gsub("\n", "\n\t")?>
 
 	<?=waves_t?> fluxEig;
 <? if not eqn.roeUseFluxFromCons then
 ?>	<?=cons_t?> UAvg;
 	for (int j = 0; j < numIntStates; ++j) {
-		UAvg.ptr[j] = .5 * ((UL)->ptr[j] + (UR)->ptr[j]);
+		UAvg.ptr[j] = .5 * (UL.ptr[j] + UR.ptr[j]);
 	}
 
 	fluxEig = <?=eigen_leftTransform?>(solver, eig, UAvg, xInt, n);
@@ -60,17 +60,17 @@ static inline <?=cons_t?> <?=calcFluxForInterface?>(
 <? end
 ?>
 	for (int j = 0; j < numStates; ++j) {
-		deltaU.ptr[j] = (UR)->ptr[j] - (UL)->ptr[j];
+		deltaU.ptr[j] = UR.ptr[j] - UL.ptr[j];
 <? if useFluxLimiter then
-?>		deltaUL.ptr[j] = (UR_L)->ptr[j] - (UL_L)->ptr[j];
-		deltaUR.ptr[j] = (UR_R)->ptr[j] - (UL_R)->ptr[j];
+?>		deltaUL.ptr[j] = UR_L.ptr[j] - UL_L.ptr[j];
+		deltaUR.ptr[j] = UR_R.ptr[j] - UL_R.ptr[j];
 <? end
 ?>	}
 
 	<?=waves_t?> deltaUEig = <?=eigen_leftTransform?>(solver, eig, deltaU, xInt, n);
 <? 	if useFluxLimiter then ?>
-	<?=eigen_t?> eigL = <?=eigen_forInterface?>(solver, *UL_L, *UR_L, *cellL_L, *cellR_L, xIntL, n);
-	<?=eigen_t?> eigR = <?=eigen_forInterface?>(solver, *UL_R, *UR_R, *cellL_R, *cellR_R, xIntR, n);
+	<?=eigen_t?> eigL = <?=eigen_forInterface?>(solver, UL_L, UR_L, cellL_L, cellR_L, xIntL, n);
+	<?=eigen_t?> eigR = <?=eigen_forInterface?>(solver, UL_R, UR_R, cellL_R, cellR_R, xIntR, n);
 	<?=waves_t?> deltaUEigL = <?=eigen_leftTransform?>(solver, eigL, deltaUL, xIntL, n);
 	<?=waves_t?> deltaUEigR = <?=eigen_leftTransform?>(solver, eigR, deltaUR, xIntR, n);
 <? 	end ?>
@@ -87,10 +87,10 @@ if flux.useEntropyFluxFix then
 		int const j = <?=j?>;
 		real <?=lambdaConst?> lambda = <?=eqn:eigenWaveCode{
 			n = "n",
-			eig = "&eig",
+			eig = "eig",
 			pt = "xInt",
 			waveIndex = j,
-		}:gsub("\\*\n", "\\\n\t\t")?>;
+		}:gsub("\n", "\n\t\t")?>;
 
 <? if flux.useEntropyFluxFix then ?>
 /* So, here is where the Hartan entropy fix goes.*/
@@ -145,8 +145,8 @@ if flux.useEntropyFluxFix then
 -- Because this value itself is diff'd across the cell, so it is a 'dF', so you wouldn't want to compute a second 'd' of it via R Lambda L, because that would give you 'd dF'.
 -- so roeUseFluxFromCons==true is good.
 ?>
-	<?=cons_t?> FL = <?=fluxFromCons?>(solver, *UL, cellL, n);
-	<?=cons_t?> FR = <?=fluxFromCons?>(solver, *UR, cellR, n);
+	<?=cons_t?> FL = <?=fluxFromCons?>(solver, UL, cellL, n);
+	<?=cons_t?> FR = <?=fluxFromCons?>(solver, UR, cellR, n);
 
 	for (int j = 0; j < numIntStates; ++j) {
 		resultFlux.ptr[j] += .5 * (FL.ptr[j] + FR.ptr[j]);

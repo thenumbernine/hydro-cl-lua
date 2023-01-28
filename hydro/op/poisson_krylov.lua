@@ -113,7 +113,7 @@ function PoissonKrylov:initSolver()
 			{name='b', type=solver.app.real, obj=true},
 		},
 		body = solver.eqn:template[[	
-	if (<?=OOB?>(solver->numGhost, solver->numGhost)) {
+	if (<?=OOB?>(solver.numGhost, solver.numGhost)) {
 		y[index] = 0;
 		return;
 	}
@@ -209,13 +209,14 @@ local poissonKrylovCode = [[
 //// MODULE_DEPENDS: <?=cell_dx_i?>
 
 kernel void <?=linearFunc?>(
-	constant <?=solver_t?> const * const solver,
+	constant <?=solver_t?> const * const psolver,
 	global real * const Y,
 	global real const * const X,
 	global <?=cell_t?> const * const cellBuf
 ) {
+	constant <?=solver_t?> const & solver = *psolver;
 	<?=SETBOUNDS?>(0,0);
-	if (<?=OOB?>(solver->numGhost, solver->numGhost)) {
+	if (<?=OOB?>(solver.numGhost, solver.numGhost)) {
 		Y[index] = 0.;
 		return;
 	}
@@ -229,13 +230,13 @@ kernel void <?=linearFunc?>(
 	real3 xInt = x;
 	real3 volL, volR;
 <? for j=0,solver.dim-1 do 
-?>	xInt.s<?=j?> = x.s<?=j?> - .5 * solver->grid_dx.s<?=j?>;
+?>	xInt.s<?=j?> = x.s<?=j?> - .5 * solver.grid_dx.s<?=j?>;
 	// TODO instead of volume_intL as the avg between two cell volumes, and then divide by dx to get the face, instead, just store the face.
-	real const volume_intL<?=j?> = .5 * (cell->volume + cell[-solver->stepsize.s<?=j?>].volume);
+	real const volume_intL<?=j?> = .5 * (cell->volume + cell[-solver.stepsize.s<?=j?>].volume);
 	volL.s<?=j?> = volume_intL<?=j?>;
-	xInt.s<?=j?> = x.s<?=j?> + .5 * solver->grid_dx.s<?=j?>;
+	xInt.s<?=j?> = x.s<?=j?> + .5 * solver.grid_dx.s<?=j?>;
 	// TODO instead of volume_intL as the avg between two cell volumes, and then divide by dx to get the face, instead, just store the face.
-	real const volume_intR<?=j?> = .5 * (cell->volume + cell[solver->stepsize.s<?=j?>].volume);
+	real const volume_intR<?=j?> = .5 * (cell->volume + cell[solver.stepsize.s<?=j?>].volume);
 	volR.s<?=j?> = volume_intR<?=j?>;
 	xInt.s<?=j?> = x.s<?=j?>;
 <? end 
@@ -243,8 +244,8 @@ kernel void <?=linearFunc?>(
 
 	real sum = (0.
 <? for j=0,solver.dim-1 do ?>
-		+ volR.s<?=j?> * X[index + solver->stepsize.s<?=j?>] / (dx<?=j?> * dx<?=j?>)
-		+ volL.s<?=j?> * X[index - solver->stepsize.s<?=j?>] / (dx<?=j?> * dx<?=j?>)
+		+ volR.s<?=j?> * X[index + solver.stepsize.s<?=j?>] / (dx<?=j?> * dx<?=j?>)
+		+ volL.s<?=j?> * X[index - solver.stepsize.s<?=j?>] / (dx<?=j?> * dx<?=j?>)
 <? end 
 ?>	) / volAtX;
 
@@ -260,11 +261,12 @@ kernel void <?=linearFunc?>(
 //// MODULE_NAME: <?=copyPotentialFieldToVecAndInitB?>
 
 kernel void <?=copyPotentialFieldToVecAndInitB?>(
-	constant <?=solver_t?> const * const solver,
+	constant <?=solver_t?> const * const psolver,
 	global real * const x,
 	global real * const b,
 	global <?=cons_t?> const * const UBuf
 ) {
+	constant <?=solver_t?> const & solver = *psolver;
 	<?=SETBOUNDS?>(0, 0);
 	
 	global <?=cons_t?> const * const U = UBuf + index;

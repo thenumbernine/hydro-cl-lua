@@ -1183,11 +1183,12 @@ function SolverBase:refreshCommonProgram()
 		self.modules:getHeader(moduleNames:unpack()),
 		self.eqn:template[[
 kernel void multAddInto(
-	constant <?=solver_t?> const * const solver,
+	constant <?=solver_t?> const * const psolver,
 	global <?=cons_t?> * const a,
 	global <?=cons_t?> const * const b,
 	realparam const c
 ) {
+	constant <?=solver_t?> const & solver = *psolver;
 	<?=SETBOUNDS_NOGHOST?>();
 <?
 for i=0,eqn.numIntStates-1 do
@@ -1197,12 +1198,13 @@ end
 ?>}
 
 kernel void multAdd(
-	constant <?=solver_t?> const * const solver,
+	constant <?=solver_t?> const * const psolver,
 	global <?=cons_t?> * const a,
 	global <?=cons_t?> const * const b,
 	global <?=cons_t?> const * const c,
 	realparam const d
 ) {
+	constant <?=solver_t?> const & solver = *psolver;
 	<?=SETBOUNDS_NOGHOST?>();
 <?
 -- hmm, I only need numIntStates integrated
@@ -1220,10 +1222,11 @@ end
 // this operates on a buffer of reals.
 // and this should only operate on non-ghost cells.
 kernel void subtractAndSquare(
-	constant <?=solver_t?> const * const solver,
+	constant <?=solver_t?> const * const psolver,
 	global real * const a,
 	realparam const mu
 ) {
+	constant <?=solver_t?> const & solver = *psolver;
 	<?=SETBOUNDS_NOGHOST?>();
 	global real * const ai = a + index;
 	*ai -= mu;
@@ -1232,13 +1235,13 @@ kernel void subtractAndSquare(
 
 <? if solver.checkNaNs then ?>
 kernel void findNaNs(
-	constant <?=solver_t?> const * const solver,
+	constant <?=solver_t?> const * const psolver,
 	global real * const dst,
 	global <?=cons_t?> const * const src
 ) {
-
+	constant <?=solver_t?> const & solver = *psolver;
 <? if solver.checkNaNs == 'gpu-noghost' then ?>
-	<?=SETBOUNDS?>(solver->numGhost, solver->numGhost);
+	<?=SETBOUNDS?>(solver.numGhost, solver.numGhost);
 <? else ?>
 	<?=SETBOUNDS?>(0, 0);
 <? end ?>
@@ -1767,7 +1770,7 @@ but the einstein stuff needs to be associated only with 'U' ...
 		alreadyAddedComponentForGroup[name] = true
 		lines:insert((self.eqn:template([[
 static inline void <?=name?>(
-	constant <?=solver_t?> const * const solver,
+	constant <?=solver_t?> const & solver,
 	global <?=group.bufferType?> const * const buf,
 	int const component,
 	int * const vectorField,
@@ -1862,7 +1865,7 @@ end
 			lines:insert(self.eqn:template([[
 //<?=group.name?>
 kernel void <?=kernelName?>(
-	constant <?=solver_t?> const * const solver,
+	constant <?=solver_t?> const * const psolver,
 	<?=outputArg?>,
 	global <?=group.bufferType?> const * const buf,
 	int const displayVarIndex,
@@ -1884,15 +1887,16 @@ end ?><?=group.extraArgs and #group.extraArgs > 0
 		and ',\n\t'..table.concat(group.extraArgs, ',\n\t')
 		or '' ?>
 ) {
+	constant <?=solver_t?> const & solver = *psolver;
 //// MODULE_DEPENDS: <?=SETBOUNDS?>
 	<?=SETBOUNDS?>(0,0);
 <? if not require 'hydro.solver.meshsolver':isa(solver) then
-?>	bool const oob = <?=OOB?>(solver->numGhost, solver->numGhost);
+?>	bool const oob = <?=OOB?>(solver.numGhost, solver.numGhost);
 	int4 dsti = i;
 	int dstindex = index;
 	real3 x = cellBuf[index].pos;
 <? for j=0,solver.dim-1 do
-?>	i.s<?=j?> = clamp(i.s<?=j?>, solver->numGhost, solver->gridSize.s<?=j?> - solver->numGhost - 1);
+?>	i.s<?=j?> = clamp(i.s<?=j?>, solver.numGhost, solver.gridSize.s<?=j?> - solver.numGhost - 1);
 <? end
 ?>	index = INDEXV(i);
 <? else	-- mesh
@@ -1904,7 +1908,7 @@ end ?><?=group.extraArgs and #group.extraArgs > 0
 
 <?=addTab(group.codePrefix or '')
 ?>
-	global <?=cell_t?> const * const cell = cellBuf + index;
+	global <?=cell_t?> const & cell = cellBuf[index];
 
 	int vectorField = 0;
 	if (!(zeroBorder && oob)) {
@@ -2081,7 +2085,7 @@ return ]]..units), "failed to compile unit expression "..units)(m, s, kg, C, K)
 			{__solver_kelvin = K},
 		},
 	}
-	Ccode = Ccode:gsub('__solver_', 'solver->')
+	Ccode = Ccode:gsub('__solver_', 'solver.')
 
 	local luaFunc, luaCode = symmath.export.Lua:toFunc{
 		output = {expr},
@@ -2655,9 +2659,8 @@ function SolverBase:createDisplayVarArgsForStructVars(structVars, ptrName, nameP
 		self.structForType['_3sym3'] = _3sym3Struct
 	end
 
-	-- should I always force it to be a ptr, hence always using -> ?
 	ptrName = ptrName or 'U'
-	ptrName = ptrName .. '->'
+	ptrName = ptrName .. '.'
 
 	local results = table()	-- array of ctor args for DisplayVars
 	for _,var in ipairs(structVars) do

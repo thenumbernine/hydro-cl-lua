@@ -638,10 +638,10 @@ assert(ffi.sizeof'real3' == 3 * ffi.sizeof'real')
 		self.modules:add{
 			name = 'INDEX',
 			headercode = [[
-#define INDEX(a,b,c)	((a) + solver->gridSize.x * ((b) + solver->gridSize.y * (c)))
+#define INDEX(a,b,c)	((a) + solver.gridSize.x * ((b) + solver.gridSize.y * (c)))
 /*
 static inline int INDEX(int a, int b, int c) {
-	return a + solver->gridSize.x * (b + solver->gridSize.y * c);
+	return a + solver.gridSize.x * (b + solver.gridSize.y * c);
 }
 */
 ]],
@@ -650,10 +650,10 @@ static inline int INDEX(int a, int b, int c) {
 		self.modules:add{
 			name = 'INDEXV',
 			headercode = [[
-#define INDEXV(i)		indexForInt4ForSize(i, solver->gridSize.x, solver->gridSize.y, solver->gridSize.z)
+#define INDEXV(i)		indexForInt4ForSize(i, solver.gridSize.x, solver.gridSize.y, solver.gridSize.z)
 /*
 static inline int INDEXV(int4 i) {
-	return indexForInt4ForSize(i, solver->gridSize.x, solver->gridSize.y, solver->gridSize.z);
+	return indexForInt4ForSize(i, solver.gridSize.x, solver.gridSize.y, solver.gridSize.z);
 }
 */
 ]],

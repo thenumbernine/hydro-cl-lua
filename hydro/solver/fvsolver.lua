@@ -66,30 +66,31 @@ local useFluxLimiter = solver.fluxLimiter > 1
 ?>
 
 kernel void <?=calcFlux?>(
-	constant <?=solver_t?> const * const solver,
+	constant <?=solver_t?> const * const psolver,
 	global <?=cons_t?> * const fluxBuf,
 	global const <?=solver.getULRArg?>,
 	realparam const dt,	//not used by HLL, just making this match Roe / other FV solvers
 	global <?=cell_t?> const * const cellBuf
 ) {
-	<?=SETBOUNDS?>(solver->numGhost, solver->numGhost-1);
+	constant <?=solver_t?> const & solver = *psolver;
+	<?=SETBOUNDS?>(solver.numGhost, solver.numGhost-1);
 	
 	int const indexR = index;
-	global <?=cell_t?> const * const cellR = cellBuf + index;
+	global <?=cell_t?> const & cellR = cellBuf[index];
 	
 	<? for side=0,solver.dim-1 do ?>{
 		int const side = <?=side?>;
 
-		real const dx = solver->grid_dx.s<?=side?>;
+		real const dx = solver.grid_dx.s<?=side?>;
 
-		int const indexL = index - solver->stepsize.s<?=side?>;
-		global <?=cell_t?> const * const cellL = cellBuf + indexL;
+		int const indexL = index - solver.stepsize.s<?=side?>;
+		global <?=cell_t?> const & cellL = cellBuf[indexL];
 
-		real3 xInt = cellR->pos;
+		real3 xInt = cellR.pos;
 		xInt.s<?=side?> -= .5 * dx;
 
 		int const indexInt = side + dim * index;
-		global <?=cons_t?> * const flux = fluxBuf + indexInt;
+		global <?=cons_t?> & flux = fluxBuf[indexInt];
 
 
 <? if solver.coord.vectorComponent == 'cartesian'
@@ -101,14 +102,14 @@ then ?>
 		real area = 1.<?
 	for i=0,solver.dim-1 do
 		if i ~= side then
-			?> * solver->grid_dx.s<?=i?><?
+			?> * solver.grid_dx.s<?=i?><?
 		end
 	end
 ?>;
 <? end ?>
 		if (area <= 1e-7) {
 			for (int j = 0; j < numStates; ++j) {
-				flux->ptr[j] = 0;
+				flux.ptr[j] = 0;
 			}
 		} else {
 		
@@ -117,8 +118,8 @@ then ?>
 			//the single act of removing the copy of the U's from global to local memory
 			// increases the framerate from 78 to 127
 //// MODULE_DEPENDS: <?=cons_parallelPropagate?>
-			<?=cons_parallelPropagate?><?=side?>(ppUL, UL, cellL->pos, .5 * dx);
-			<?=cons_parallelPropagate?><?=side?>(ppUR, UR, cellR->pos, -.5 * dx);
+			<?=cons_t?> ppUL = <?=cons_parallelPropagate?><?=side?>(UL, cellL.pos, .5 * dx);
+			<?=cons_t?> ppUR = <?=cons_parallelPropagate?><?=side?>(UR, cellR.pos, -.5 * dx);
 
 			<?=normal_t?> const n = normal_forSide<?=side?>(xInt);
 
@@ -144,25 +145,25 @@ if useFluxLimiter then
 			real3 xIntR = xInt;
 			xIntR.s<?=side?> += dx;
 			
-			int const indexR2 = indexR + solver->stepsize.s<?=side?>;
-			int const indexL2 = indexL - solver->stepsize.s<?=side?>;
+			int const indexR2 = indexR + solver.stepsize.s<?=side?>;
+			int const indexL2 = indexL - solver.stepsize.s<?=side?>;
 			<?=solver:getULRCode{indexL = 'indexL2', indexR = 'indexL', suffix='_L'}:gsub('\n', '\n\t\t\t')?>
 			<?=solver:getULRCode{indexL = 'indexR', indexR = 'indexR2', suffix='_R'}:gsub('\n', '\n\t\t\t')?>
 
 //// MODULE_DEPENDS: <?=cons_parallelPropagate?>
-			<?=cons_parallelPropagate?><?=side?>(ppUL_L, UL_L, xIntL, 1.5 * dx);		//xIntL2?
-			<?=cons_parallelPropagate?><?=side?>(ppUL_R, UL_R, xIntL, .5 * dx);
-			<?=cons_parallelPropagate?><?=side?>(ppUR_L, UR_L, xIntR, -.5 * dx);
-			<?=cons_parallelPropagate?><?=side?>(ppUR_R, UR_R, xIntR, -1.5 * dx);		//xIntR2?
+			<?=cons_t?> ppUL_L = <?=cons_parallelPropagate?><?=side?>(UL_L, xIntL, 1.5 * dx);		//xIntL2?
+			<?=cons_t?> ppUL_R = <?=cons_parallelPropagate?><?=side?>(UL_R, xIntL, .5 * dx);
+			<?=cons_t?> ppUR_L = <?=cons_parallelPropagate?><?=side?>(UR_L, xIntR, -.5 * dx);
+			<?=cons_t?> ppUR_R = <?=cons_parallelPropagate?><?=side?>(UR_R, xIntR, -1.5 * dx);		//xIntR2?
 
-			global <?=cell_t?> const * const cellR2 = cellBuf + indexR2;
-			global <?=cell_t?> const * const cellL2 = cellBuf + indexL2;
+			global <?=cell_t?> const & cellR2 = cellBuf[indexR2];
+			global <?=cell_t?> const & cellL2 = cellBuf[indexL2];
 
 <?
 end
 ?>
 //// MODULE_DEPENDS: <?=calcFluxForInterface?>
-			*flux = <?=calcFluxForInterface?>(
+			flux = <?=calcFluxForInterface?>(
 				solver,
 				ppUL,
 				ppUR,
@@ -316,12 +317,12 @@ function FiniteVolumeSolver:addDisplayVars()
 			bufferType = self.eqn.symbols.cons_t,
 			codePrefix = self.eqn:template([[
 int const indexInt = <?=side?> + dim * index;
-global <?=cons_t?> const * const flux = buf + indexInt;
+global <?=cons_t?> const & flux = buf[indexInt];
 ]],			{
 				side = side,
 			}),
 			vars = range(0,self.eqn.numIntStates-1):mapi(function(i)
-				return {name=tostring(i), code='value.vreal = flux->ptr['..i..'];'}
+				return {name=tostring(i), code='value.vreal = flux.ptr['..i..'];'}
 			end),
 		}
 	end
@@ -330,18 +331,18 @@ global <?=cons_t?> const * const flux = buf + indexInt;
 	local function getEigenCode(args)
 		return self.eqn:template([[
 int indexR = index;
-int indexL = index - solver->stepsize.s<?=side?>;
-global <?=cell_t?> const * const cellL = cellBuf + indexL;
-global <?=cell_t?> const * const cellR = cellBuf + indexR;
+int indexL = index - solver.stepsize.s<?=side?>;
+global <?=cell_t?> const & cellL = cellBuf[indexL];
+global <?=cell_t?> const & cellR = cellBuf[indexR];
 
 /* TODO this isn't always used by normal_forSide or eigen_forInterface ... */
 real3 xInt = x;
-xInt.s<?=side?> -= .5 * solver->grid_dx.s<?=side?>;
+xInt.s<?=side?> -= .5 * solver.grid_dx.s<?=side?>;
 
-<?=solver:getULRCode{bufName='buf', side=side}:gsub('\n', '\n\t')?>
+<?=solver:getULRCode{bufName="buf", side=side}:gsub("\n", "\n\t")?>
 //// MODULE_DEPENDS: <?=eigen_t?> <?=eigen_forInterface?>
 <?=normal_t?> n = normal_forSide<?=side?>(xInt);
-<?=eigen_t?> eig = <?=eigen_forInterface?>(solver, *UL, *UR, *cellL, *cellR, xInt, n);
+<?=eigen_t?> eig = <?=eigen_forInterface?>(solver, UL, UR, cellL, cellR, xInt, n);
 ]], 	{
 			side = args.side,
 		})
@@ -359,10 +360,10 @@ xInt.s<?=side?> -= .5 * solver->grid_dx.s<?=side?>;
 //// MODULE_DEPENDS: <?=normal_t?>
 <?=normal_t?> n<?=side?> = normal_forSide<?=side?>(xInt);
 <?=eqn:eigenWaveCodePrefix{
-	n = 'n',
-	eig = '&eig',
-	pt = 'xInt',
-}:gsub('\n', '\n\t')?>
+	n = "n",
+	eig = "eig",
+	pt = "xInt",
+}:gsub("\n", "\n\t")?>
 ]], 			{
 					side = side,
 				}),
@@ -371,7 +372,7 @@ xInt.s<?=side?> -= .5 * solver->grid_dx.s<?=side?>;
 				return {name=tostring(i), code=self.eqn:template([[
 value.vreal = <?=eqn:eigenWaveCode{
 	n = 'n'..side,
-	eig = '&eig',
+	eig = 'eig',
 	pt = 'xInt',
 	waveIndex = i,
 }?>;
@@ -468,7 +469,7 @@ for (int k = 0; k < numWaves; ++k) {
 <?=normal_t?> n<?=side?> = normal_forSide<?=side?>(x);
 <?=eqn:eigenWaveCodePrefix{
 	n = 'n'..side,
-	eig = '&eig',
+	eig = 'eig',
 	pt = 'xInt',
 }:gsub('\n', '\n\t')?>
 
@@ -489,7 +490,7 @@ for (int k = 0; k < numIntStates; ++k) {
 	<? for j=0,eqn.numWaves-1 do ?>{
 		real const lambda_j = <?=eqn:eigenWaveCode{
 			n = 'n'..side,
-			eig = '&eig',
+			eig = 'eig',
 			pt = 'xInt',
 			waveIndex = j,
 		}:gsub('\n', '\n\t\t')?>;

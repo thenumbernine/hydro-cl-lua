@@ -33,10 +33,11 @@ this is only called upon solver reset
 each iteration uses the previous iteration's results as the starting point
 */
 kernel void <?=initPotential?>(
-	constant <?=solver_t?> const * const solver,
+	constant <?=solver_t?> const * const psolver,
 	global <?=op:getPotBufType()?> * const UBuf
 ) {
-	<?=SETBOUNDS?>(solver->numGhost, solver->numGhost);
+	constant <?=solver_t?> const & solver = *psolver;
+	<?=SETBOUNDS?>(solver.numGhost, solver.numGhost);
 	global <?=op:getPotBufType()?> * const U = UBuf + index;
 	<?=scalar?> source = {};
 <?=op:getPoissonDivCode() or ""?>
@@ -53,10 +54,11 @@ kernel void <?=initPotential?>(
 //// MODULE_DEPENDS: <?=SETBOUNDS_NOGHOST?>
 //used by hydro/op/relaxation.lua
 kernel void <?=copyWriteToPotentialNoGhost?>(
-	constant <?=solver_t?> const * const solver,
+	constant <?=solver_t?> const * const psolver,
 	global <?=cons_t?> * const UBuf,
 	global real const * const writeBuf
 ) {
+	constant <?=solver_t?> const & solver = *psolver;
 	<?=SETBOUNDS_NOGHOST?>();
 	UBuf[index].<?=op.potentialField?> = writeBuf[index];
 }
@@ -65,10 +67,11 @@ kernel void <?=copyWriteToPotentialNoGhost?>(
 //// MODULE_DEPENDS: <?=SETBOUNDS_NOGHOST?>
 //used by hydro/op/relaxation.lua
 kernel void <?=setReduceToPotentialSquared?>(
-	constant <?=solver_t?> const * const solver,
+	constant <?=solver_t?> const * const psolver,
 	global real * const reduceBuf,
 	global <?=cons_t?> const * const UBuf
 ) {
+	constant <?=solver_t?> const & solver = *psolver;
 	<?=SETBOUNDS_NOGHOST?>();
 	reduceBuf[index] = lenSq(UBuf[index].<?=op.potentialField?>);
 }

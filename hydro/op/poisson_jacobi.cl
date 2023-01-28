@@ -30,7 +30,7 @@ input is poisson source divergence, in 1/s^2
 output is potentialField, in m^2/s^2
 */
 kernel void <?=solveJacobi?>(
-	constant <?=solver_t?> const * const solver,
+	constant <?=solver_t?> const * const psolver,
 	global real * const writeBuf,
 	global <?=op:getPotBufType()?> const * const UBuf,
 	global <?=cell_t?> const * const cellBuf<?
@@ -38,8 +38,9 @@ if op.stopOnEpsilon then ?>,
 	global real * const reduceBuf<? 
 end ?>
 ) {
+	constant <?=solver_t?> const & solver = *psolver;
 	<?=SETBOUNDS?>(0,0);
-	if (<?=OOB?>(solver->numGhost, solver->numGhost)) {
+	if (<?=OOB?>(solver.numGhost, solver.numGhost)) {
 		writeBuf[index] = UBuf[index].<?=op.potentialField?>;
 <? if op.stopOnEpsilon then	
 ?>		reduceBuf[index] = 0;
@@ -59,13 +60,13 @@ end ?>
 	real3 xInt = x;
 	real3 volL, volR;
 <? for j=0,solver.dim-1 do 
-?>	xInt.s<?=j?> = x.s<?=j?> - .5 * solver->grid_dx.s<?=j?>;
+?>	xInt.s<?=j?> = x.s<?=j?> - .5 * solver.grid_dx.s<?=j?>;
 	// TODO instead of volume_intL as the avg between two cell volumes, and then divide by dx to get the face, instead, just store the face.
-	real const volume_intL<?=j?> = .5 * (cell->volume + cell[-solver->stepsize.s<?=j?>].volume);
+	real const volume_intL<?=j?> = .5 * (cell->volume + cell[-solver.stepsize.s<?=j?>].volume);
 	volL.s<?=j?> = volume_intL<?=j?>;
-	xInt.s<?=j?> = x.s<?=j?> + .5 * solver->grid_dx.s<?=j?>;
+	xInt.s<?=j?> = x.s<?=j?> + .5 * solver.grid_dx.s<?=j?>;
 	// TODO instead of volume_intL as the avg between two cell volumes, and then divide by dx to get the face, instead, just store the face.
-	real const volume_intR<?=j?> = .5 * (cell->volume + cell[solver->stepsize.s<?=j?>].volume);
+	real const volume_intR<?=j?> = .5 * (cell->volume + cell[solver.stepsize.s<?=j?>].volume);
 	volR.s<?=j?> = volume_intR<?=j?>;
 	xInt.s<?=j?> = x.s<?=j?>;
 <? end 
@@ -97,8 +98,8 @@ then
 	<?=scalar?> skewSum = {};
 
 <? for j=0,solver.dim-1 do 
-?>	skewSum += U[solver->stepsize.s<?=j?>].<?=op.potentialField?> * (volR.s<?=j?> / (dx<?=j?> * dx<?=j?>))
-			+ U[-solver->stepsize.s<?=j?>].<?=op.potentialField?> * (volL.s<?=j?> / (dx<?=j?> * dx<?=j?>));
+?>	skewSum += U[solver.stepsize.s<?=j?>].<?=op.potentialField?> * (volR.s<?=j?> / (dx<?=j?> * dx<?=j?>))
+			+ U[-solver.stepsize.s<?=j?>].<?=op.potentialField?> * (volL.s<?=j?> / (dx<?=j?> * dx<?=j?>));
 <? end 
 ?>	skewSum /= volAtX;
 

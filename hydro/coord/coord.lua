@@ -972,7 +972,7 @@ self.compilePrintRequestTensor = compilePrintRequestTensor
 	}
 
 	local integralGridDx = range(dim):mapi(function(i)
-		return symmath.var('solver->grid_dx.'..xNames[i])
+		return symmath.var('solver.grid_dx.'..xNames[i])
 	end)
 	local integralArgs = table()
 	for i=1,dim do
@@ -1238,7 +1238,7 @@ self.compilePrintRequestTensor = compilePrintRequestTensor
 	}
 
 -- [[
-	-- scale coord_dx by the solver->grid_dx var to get cell_dx:
+	-- scale coord_dx by the solver.grid_dx var to get cell_dx:
 	-- TODO use the 'e' and 'eHol' tensors?  then just make this a tensor product?
 	--  and then we could use the 'addReal3Components' to build these all at once?
 	for i=1,dim do
@@ -1278,7 +1278,7 @@ self.compilePrintRequestTensor = compilePrintRequestTensor
 
 		-- TODO this  macro had a solver arg, but the other #define's (like cell_dx#) didn't
 		-- sooo ... how to specify when to use each?
-		define = 'with solver arg',	-- because it uses solver->grid_dx vars
+		define = 'with solver arg',	-- because it uses solver.grid_dx vars
 
 		depends = {solver.solver_t},	-- if you use integralGridDx
 	}
@@ -1399,7 +1399,7 @@ end
 function CoordinateSystem:fillGridCellBuf(cellCpuBuf)
 	local solver = self.solver
 
--- [[ here replace 'solver->' with 'solver.solverPtr.'
+-- [[ here replace 'solver.' with 'solver.solverPtr.'
 	local symmath = require 'symmath'
 	local var = symmath.var
 	local u, v, w = self.baseCoords:unpack()
@@ -1408,9 +1408,9 @@ function CoordinateSystem:fillGridCellBuf(cellCpuBuf)
 	local calcVolume = assert(symmath.export.Lua:toFunc{
 		output = {
 			self.request'cell_volume'
-				:replace(var'solver->grid_dx.x', var'fromreal(solver.solverPtr.grid_dx.x)')
-				:replace(var'solver->grid_dx.y', var'fromreal(solver.solverPtr.grid_dx.y)')
-				:replace(var'solver->grid_dx.z', var'fromreal(solver.solverPtr.grid_dx.z)')
+				:replace(var'solver.grid_dx.x', var'fromreal(solver.solverPtr.grid_dx.x)')
+				:replace(var'solver.grid_dx.y', var'fromreal(solver.solverPtr.grid_dx.y)')
+				:replace(var'solver.grid_dx.z', var'fromreal(solver.solverPtr.grid_dx.z)')
 			,
 		},
 		input = {{u=u}, {v=v}, {w=w}, var'solver', var'fromreal'},
@@ -1795,12 +1795,12 @@ end
 ok standardizing these macros ...
 we have a few manifolds to deal with ...
 1) grid coordiantes, I = 0..size-1
-2) manifold coordinates, X = grid coordinates rescaled to fit between solver->mins and solver->maxs
+2) manifold coordinates, X = grid coordinates rescaled to fit between solver.mins and solver.maxs
 3) result coordinates, Y = cartesian output of the mapping of the coordinate system
 
 coord_dx[_for_coord]<?=side?>(pt) gives the length of the dx of the coordinate in 'side' direction, for 'pt' in coordinates
 cell_dx[_for_coord]<?=side?>(pt) gives the length of the dx of the cell, which is just coord_dx times the grid_dx
-solver->grid_dx is the size of each solver cell, in coordintes
+solver.grid_dx is the size of each solver cell, in coordintes
 
 should I add these _for_coord _for_grid suffixes to specify what manfiold system the input parameter is?
 

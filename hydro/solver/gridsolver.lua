@@ -242,7 +242,7 @@ function GridSolver:initCodeModules()
 
 --[[
 naming conventions ...
-* the grid indexes i_1..i_n that span 1 through solver->gridSize.1..solver->gridSize.n
+* the grid indexes i_1..i_n that span 1 through solver.gridSize.1..solver.gridSize.n
 (between the index and the coordinate space:)
 	- grid_dx? is the change in coordinate space wrt the change in grid space
 * the coordinates space x_1..x_n that spans mins.s1..maxs.sn
@@ -272,9 +272,9 @@ functionality (and abstraction):
 	self.modules:add{
 		name = self.symbols.OOB,
 		-- bounds-check macro
-		headercode = self.eqn:template('#define <?=OOB?>(lhs,rhs) (i.x < (lhs) || i.x >= solver->gridSize.x - (rhs)'
-			.. (self.dim < 2 and '' or ' || i.y < (lhs) || i.y >= solver->gridSize.y - (rhs)')
-			.. (self.dim < 3 and '' or ' || i.z < (lhs) || i.z >= solver->gridSize.z - (rhs)')
+		headercode = self.eqn:template('#define <?=OOB?>(lhs,rhs) (i.x < (lhs) || i.x >= solver.gridSize.x - (rhs)'
+			.. (self.dim < 2 and '' or ' || i.y < (lhs) || i.y >= solver.gridSize.y - (rhs)')
+			.. (self.dim < 3 and '' or ' || i.z < (lhs) || i.z >= solver.gridSize.z - (rhs)')
 			.. ')'),
 	}
 
@@ -306,9 +306,9 @@ functionality (and abstraction):
 // but the kernel must be invoked across sizeWithoutBorder
 #define <?=SETBOUNDS_NOGHOST?>() \
 	int4 i = globalInt4(); \
-	if (<?=OOB?>(0, 2 * solver->numGhost)) return; \
+	if (<?=OOB?>(0, 2 * solver.numGhost)) return; \
 	i += (int4)(]]..range(4):mapi(function(i)
-		return i <= self.dim and 'solver->numGhost' or '0'
+		return i <= self.dim and 'solver.numGhost' or '0'
 	end):concat','..[[); \
 	int index = INDEXV(i);
 ]],
@@ -484,8 +484,8 @@ function GridSolver:refreshGetULR()
 			args = args or {}
 			local suffix = args.suffix or ''
 			return self.eqn:template([[
-global <?=cons_t?> const * const UL<?=suffix?> = &<?=bufName?>[<?=side?> + dim * <?=indexL?>].R;
-global <?=cons_t?> const * const UR<?=suffix?> = &<?=bufName?>[<?=side?> + dim * <?=indexR?>].L;
+global <?=cons_t?> const & UL<?=suffix?> = <?=bufName?>[<?=side?> + dim * <?=indexL?>].R;
+global <?=cons_t?> const & UR<?=suffix?> = <?=bufName?>[<?=side?> + dim * <?=indexR?>].L;
 ]],			{
 				suffix = suffix,
 				side = args.side or 'side',
@@ -499,8 +499,8 @@ global <?=cons_t?> const * const UR<?=suffix?> = &<?=bufName?>[<?=side?> + dim *
 			args = args or {}
 			local suffix = args.suffix or ''
 			return self.eqn:template([[
-global <?=cons_t?> const * const UL<?=suffix?> = <?=bufName?> + <?=indexL?>;
-global <?=cons_t?> const * const UR<?=suffix?> = <?=bufName?> + <?=indexR?>;
+global <?=cons_t?> const & UL<?=suffix?> = <?=bufName?>[<?=indexL?>];
+global <?=cons_t?> const & UR<?=suffix?> = <?=bufName?>[<?=indexR?>];
 ]],			{
 				suffix = suffix,
 				indexL = args.indexL or 'indexL'..suffix,
@@ -633,14 +633,14 @@ add a new field: 'fields' that says what fields to apply the boundary to
 local BoundaryPeriodic = class(Boundary)
 BoundaryPeriodic.name = 'periodic'
 function BoundaryPeriodic:getCode(args)
-	local gridSizeSide = 'solver->gridSize.'..xNames[args.side]
+	local gridSizeSide = 'solver.gridSize.'..xNames[args.side]
 	local dst, src
 	if args.minmax == 'min' then
 		dst = args.index'j'
-		src = args.index([[solver->numGhost + (j-solver->numGhost + 2 * (]]..gridSizeSide..' - 2 * solver->numGhost)) % ('..gridSizeSide..[[ - 2 * solver->numGhost)]])
+		src = args.index([[solver.numGhost + (j-solver.numGhost + 2 * (]]..gridSizeSide..' - 2 * solver.numGhost)) % ('..gridSizeSide..[[ - 2 * solver.numGhost)]])
 	elseif args.minmax == 'max' then
 		dst = args.index(gridSizeSide..'-1-j')
-		src = args.index('solver->numGhost + (solver->numGhost-1-j) % ('..gridSizeSide..' - 2 * solver->numGhost)')
+		src = args.index('solver.numGhost + (solver.numGhost-1-j) % ('..gridSizeSide..' - 2 * solver.numGhost)')
 	end
 	return self:assignDstSrc(dst, src, args)
 end
@@ -658,11 +658,11 @@ function BoundaryMirror:getCode(args)
 	local dst, src
 	if args.minmax == 'min' then
 		dst = args.index'j'
-		src = args.index'2 * solver->numGhost - 1 - j'
+		src = args.index'2 * solver.numGhost - 1 - j'
 	elseif args.minmax == 'max' then
-		local gridSizeSide = 'solver->gridSize.'..xNames[args.side]
-		dst = args.index(gridSizeSide..' - solver->numGhost + j')
-		src = args.index(gridSizeSide..' - solver->numGhost - 1 - j')
+		local gridSizeSide = 'solver.gridSize.'..xNames[args.side]
+		dst = args.index(gridSizeSide..' - solver.numGhost + j')
+		src = args.index(gridSizeSide..' - solver.numGhost - 1 - j')
 	end
 	local lines = table()
 	lines:insert(self:assignDstSrc(dst, src, args))
@@ -692,7 +692,7 @@ function BoundaryMirror:getCode(args)
 			args = args,
 			iv = args.minmax == 'min'
 				and args.indexv'j'
-				or args.indexv('solver->gridSize.'..xNames[args.side]..' - solver->numGhost + j'),
+				or args.indexv('solver.gridSize.'..xNames[args.side]..' - solver.numGhost + j'),
 			side = args.side,
 		}))
 		for _,var in ipairs(eqn.consStruct.vars) do
@@ -752,8 +752,8 @@ function BoundaryFixed:getCode(args)
 	if args.minmax == 'min' then
 		dst = args.index'j'
 	elseif args.minmax == 'max' then
-		local gridSizeSide = 'solver->gridSize.'..xNames[args.side]
-		dst = args.index(gridSizeSide..' - solver->numGhost + j')
+		local gridSizeSide = 'solver.gridSize.'..xNames[args.side]
+		dst = args.index(gridSizeSide..' - solver.numGhost + j')
 	end
 	return self:fixedCode(args, dst)
 end
@@ -765,11 +765,11 @@ function BoundaryFreeFlow:getCode(args)
 	local dst, src
 	if args.minmax == 'min' then
 		dst = args.index'j'
-		src = args.index'solver->numGhost'
+		src = args.index'solver.numGhost'
 	elseif args.minmax == 'max' then
-		local gridSizeSide = 'solver->gridSize.'..xNames[args.side]
-		dst = args.index(gridSizeSide..' - solver->numGhost + j')
-		src = args.index(gridSizeSide..' - solver->numGhost - 1')
+		local gridSizeSide = 'solver.gridSize.'..xNames[args.side]
+		dst = args.index(gridSizeSide..' - solver.numGhost + j')
+		src = args.index(gridSizeSide..' - solver.numGhost - 1')
 	end
 	return self:assignDstSrc(dst, src, args)
 end
@@ -780,14 +780,14 @@ BoundaryLinear.name = 'linear'
 function BoundaryLinear:getCode(args)
 	local dst, i1, i2
 	if args.minmax == 'min' then
-		dst = args.index'solver->numGhost - j - 1'
-		i1 = args.index'solver->numGhost - j'
-		i2 = args.index'solver->numGhost - j + 1'
+		dst = args.index'solver.numGhost - j - 1'
+		i1 = args.index'solver.numGhost - j'
+		i2 = args.index'solver.numGhost - j + 1'
 	elseif args.minmax == 'max' then
-		local gridSizeSide = 'solver->gridSize.'..xNames[args.side]
-		dst = args.index(gridSizeSide..' - solver->numGhost + j')
-		i1 = args.index(gridSizeSide..' - solver->numGhost + j - 1')
-		i2 = args.index(gridSizeSide..' - solver->numGhost + j - 2')
+		local gridSizeSide = 'solver.gridSize.'..xNames[args.side]
+		dst = args.index(gridSizeSide..' - solver.numGhost + j')
+		i1 = args.index(gridSizeSide..' - solver.numGhost + j - 1')
+		i2 = args.index(gridSizeSide..' - solver.numGhost + j - 2')
 	end
 	local lines = table()
 	local function addField(field)
@@ -811,18 +811,18 @@ BoundaryQuadratic = class(Boundary)
 BoundaryQuadratic.name = 'quadratic'
 function BoundaryQuadratic:getCode(args)
 	-- j is initialized from 0 to numGhost-1
-	local gridSizeSide = 'solver->gridSize.'..xNames[args.side]
+	local gridSizeSide = 'solver.gridSize.'..xNames[args.side]
 	local dst, i1, i2, i3
 	if args.minmax == 'min' then
-		dst = args.index'solver->numGhost - j - 1'
-		i1 = args.index'solver->numGhost - j'
-		i2 = args.index'solver->numGhost - j + 1'
-		i3 = args.index'solver->numGhost - j + 2'
+		dst = args.index'solver.numGhost - j - 1'
+		i1 = args.index'solver.numGhost - j'
+		i2 = args.index'solver.numGhost - j + 1'
+		i3 = args.index'solver.numGhost - j + 2'
 	elseif args.minmax == 'max' then
-		dst = args.index(gridSizeSide..' - solver->numGhost + j')
-		i1 = args.index(gridSizeSide..' - solver->numGhost + j - 1')
-		i2 = args.index(gridSizeSide..' - solver->numGhost + j - 2')
-		i3 = args.index(gridSizeSide..' - solver->numGhost + j - 3')
+		dst = args.index(gridSizeSide..' - solver.numGhost + j')
+		i1 = args.index(gridSizeSide..' - solver.numGhost + j - 1')
+		i2 = args.index(gridSizeSide..' - solver.numGhost + j - 2')
+		i3 = args.index(gridSizeSide..' - solver.numGhost + j - 3')
 	end
 	local lines = table()
 	local function addField(field)
@@ -868,19 +868,19 @@ function BoundarySphereRMin:getCode(args)
 	local src, dst
 	if solver.dim == 1 then
 		dst = 'INDEX(j, 0, 0)'
-		src = 'INDEX(2 * solver->numGhost - 1 - j, 0, 0)'
+		src = 'INDEX(2 * solver.numGhost - 1 - j, 0, 0)'
 	elseif solver.dim == 2 then	-- r, theta
 		dst = 'INDEX(j, i, 0)'
-		src = 'INDEX(2 * solver->numGhost - 1 - j, solver->gridSize.y - i - 1, 0)'
+		src = 'INDEX(2 * solver.numGhost - 1 - j, solver.gridSize.y - i - 1, 0)'
 	elseif solver.dim == 3 then
 		dst = 'INDEX(j, i.x, i.y)'
 		src = [[
 	INDEX(
-		2 * solver->numGhost - 1 - j,
-		solver->gridSize.y - i.x - 1,
-		(i.y - solver->numGhost + (solver->gridSize.z - 2 * solver->numGhost) / 2
-			+ (solver->gridSize.z - 2 * solver->numGhost))
-			% (solver->gridSize.z - 2 * solver->numGhost) + solver->numGhost
+		2 * solver.numGhost - 1 - j,
+		solver.gridSize.y - i.x - 1,
+		(i.y - solver.numGhost + (solver.gridSize.z - 2 * solver.numGhost) / 2
+			+ (solver.gridSize.z - 2 * solver.numGhost))
+			% (solver.gridSize.z - 2 * solver.numGhost) + solver.numGhost
 	)
 ]]
 	end
@@ -910,38 +910,38 @@ function BoundarySphereTheta:getCode(args)
 	if args.minmax == 'min' then
 		if solver.dim == 1 then
 			dst = args.index'j'
-			src = args.index'2 * solver->numGhost - 1 - j'
+			src = args.index'2 * solver.numGhost - 1 - j'
 		elseif solver.dim == 2 then
 			dst = args.index'j'
-			src = args.index'2 * solver->numGhost - 1 - j'
+			src = args.index'2 * solver.numGhost - 1 - j'
 		elseif solver.dim == 3 then
-			dst = 'INDEX(i.x, solver->numGhost - 1 - j, i.y)'
+			dst = 'INDEX(i.x, solver.numGhost - 1 - j, i.y)'
 			src = [[
 	INDEX(
 		i.x,
-		solver->numGhost + j,
-		(i.y - solver->numGhost + (solver->gridSize.z - 2 * solver->numGhost) / 2
-			+ (solver->gridSize.z - 2 * solver->numGhost))
-			% (solver->gridSize.z - 2 * solver->numGhost) + solver->numGhost
+		solver.numGhost + j,
+		(i.y - solver.numGhost + (solver.gridSize.z - 2 * solver.numGhost) / 2
+			+ (solver.gridSize.z - 2 * solver.numGhost))
+			% (solver.gridSize.z - 2 * solver.numGhost) + solver.numGhost
 	)
 ]]
 		end
 	elseif args.minmax == 'max' then
 		if solver.dim == 1 then
-			dst = args.index'solver->gridSize.y - 1 - j'
-			src = args.index'solver->gridSize.y - 2 * solver->numGhost + j'
+			dst = args.index'solver.gridSize.y - 1 - j'
+			src = args.index'solver.gridSize.y - 2 * solver.numGhost + j'
 		elseif solver.dim == 2 then
-			dst = args.index'solver->gridSize.y - 1 - j'
-			src = args.index'solver->gridSize.y - 2 * solver->numGhost + j'
+			dst = args.index'solver.gridSize.y - 1 - j'
+			src = args.index'solver.gridSize.y - 2 * solver.numGhost + j'
 		elseif solver.dim == 3 then
-			dst = 'INDEX(i.x, solver->gridSize.y - solver->numGhost + j, i.y)'
+			dst = 'INDEX(i.x, solver.gridSize.y - solver.numGhost + j, i.y)'
 			src = [[
 	INDEX(
 		i.x,
-		solver->gridSize.y - solver->numGhost - 1 - j,
-		(i.y - solver->numGhost + (solver->gridSize.z - 2 * solver->numGhost) / 2
-			+ (solver->gridSize.z - 2 * solver->numGhost))
-			% (solver->gridSize.z - 2 * solver->numGhost) + solver->numGhost
+		solver.gridSize.y - solver.numGhost - 1 - j,
+		(i.y - solver.numGhost + (solver.gridSize.z - 2 * solver.numGhost) / 2
+			+ (solver.gridSize.z - 2 * solver.numGhost))
+			% (solver.gridSize.z - 2 * solver.numGhost) + solver.numGhost
 	)
 ]]
 		end
@@ -966,25 +966,25 @@ function BoundaryCylinderRMin:getCode(args)
 	local src, dst
 	if solver.dim == 1 then
 		dst = 'INDEX(j, 0, 0)'
-		src = 'INDEX(2 * solver->numGhost - 1 - j, 0, 0)'
+		src = 'INDEX(2 * solver.numGhost - 1 - j, 0, 0)'
 	elseif solver.dim == 2 then	-- r, theta
 		dst = 'INDEX(j, i, 0)'
 		src = [[
 	INDEX(
-		2 * solver->numGhost - 1 - j,
-		(i - solver->numGhost + (solver->gridSize.y - 2 * solver->numGhost) / 2
-			+ (solver->gridSize.y - 2 * solver->numGhost))
-			% (solver->gridSize.y - 2 * solver->numGhost) + solver->numGhost,
+		2 * solver.numGhost - 1 - j,
+		(i - solver.numGhost + (solver.gridSize.y - 2 * solver.numGhost) / 2
+			+ (solver.gridSize.y - 2 * solver.numGhost))
+			% (solver.gridSize.y - 2 * solver.numGhost) + solver.numGhost,
 		0)
 ]]
 	elseif solver.dim == 3 then
 		dst = 'INDEX(j, i.x, i.y)'
 		src = [[
 	INDEX(
-		2 * solver->numGhost - 1 - j,
-		(i.x - solver->numGhost + (solver->gridSize.y - 2 * solver->numGhost) / 2
-			+ (solver->gridSize.y - 2 * solver->numGhost))
-			% (solver->gridSize.y - 2 * solver->numGhost) + solver->numGhost,
+		2 * solver.numGhost - 1 - j,
+		(i.x - solver.numGhost + (solver.gridSize.y - 2 * solver.numGhost) / 2
+			+ (solver.gridSize.y - 2 * solver.numGhost))
+			% (solver.gridSize.y - 2 * solver.numGhost) + solver.numGhost,
 		i.y)
 ]]
 	end
@@ -1108,13 +1108,15 @@ function GridSolver:createBoundaryProgramAndKernel(args)
 
 		lines:insert(self.eqn:template([[
 kernel void boundary_<?=xNames[side]?>(
-	constant <?=solver_t?> const * const solver,
+	constant <?=solver_t?> const * const psolver,
 	global <?=args.type?>* buf,
 	global <?=cell_t?> const * const cellBuf<?=
 args.extraArgs and #args.extraArgs > 0
 	and ',\n\t'..table.concat(args.extraArgs, ',\n\t')
 	or '' ?>
-) {<?
+) {
+	constant <?=solver_t?> const & solver = *psolver;
+<?
 -- 1D: use a small 1D kernel and just run once
 -- 2D: use a 1D kernel the size of the max dim
 if solver.dim == 2 then ?>
@@ -1133,7 +1135,7 @@ end
 	if (<?
 local sep = ''
 for k=1,solver.dim-1 do
-?><?=sep?>i<?=iFields[k]?> >= solver->gridSize.<?=xNames[bxs[k]]?><?
+?><?=sep?>i<?=iFields[k]?> >= solver.gridSize.<?=xNames[bxs[k]]?><?
 	sep = ' || '
 end
 ?>) return;]=],
@@ -1146,7 +1148,7 @@ end
 		end
 
 		lines:insert[[
-	for (int j = 0; j < solver->numGhost; ++j) {]]
+	for (int j = 0; j < solver.numGhost; ++j) {]]
 
 		for _,minmax in ipairs(minmaxs) do
 			local sideCode, sideDepends = args.methods[xNames[side]..minmax]:getCode({

@@ -319,11 +319,11 @@ my current convention is this:
 - right now I'm dividing by units to convert to unitless, and multiplying by units to convert out.  This might be the inverse of what I should be doing.  The plus side is when inputting units to the conversion, you don't have to invert so often. 'meter = 6.3716' gives you 1 distance unit = 6.3716 meters.
 */
 
-#define unit_m					solver->meter
-#define unit_s					solver->second
-#define unit_kg					solver->kilogram
-#define unit_C					solver->coulomb
-#define unit_K					solver->kelvin
+#define unit_m					solver.meter
+#define unit_s					solver.second
+#define unit_kg					solver.kilogram
+#define unit_C					solver.coulomb
+#define unit_K					solver.kelvin
 
 #define unit_m2					(unit_m * unit_m)
 #define unit_m3					(unit_m * unit_m * unit_m)

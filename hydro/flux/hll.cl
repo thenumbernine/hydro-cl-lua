@@ -58,14 +58,12 @@ static inline <?=cons_t?> <?=calcFluxForInterface?>(
 <? end ?>
 
 	if (0 <= sL) {
-		<?=fluxFromCons?>(&resultFlux, solver, UL, cellL, n);
+		resultFlux = <?=fluxFromCons?>(solver, *UL, *cellL, n);
 	} else if (sR <= 0) {
-		<?=fluxFromCons?>(&resultFlux, solver, UR, cellR, n);
+		resultFlux = <?=fluxFromCons?>(solver, *UR, *cellR, n);
 	} else if (sL <= 0 && 0 <= sR) {
-		<?=cons_t?> FL;
-		<?=fluxFromCons?>(&FL, solver, UL, cellL, n);
-		<?=cons_t?> FR;
-		<?=fluxFromCons?>(&FR, solver, UR, cellR, n);
+		<?=cons_t?> FL = <?=fluxFromCons?>(solver, *UL, *cellL, n);
+		<?=cons_t?> FR = <?=fluxFromCons?>(solver, *UR, *cellR, n);
 		for (int j = 0; j < numIntStates; ++j) {
 			resultFlux.ptr[j] = (sR * FL.ptr[j] - sL * FR.ptr[j] + sL * sR * ((UR)->ptr[j] - (UL)->ptr[j])) / (sR - sL);
 		}

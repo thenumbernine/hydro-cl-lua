@@ -15,19 +15,19 @@ and if they're not?  convert
 */
 template<int dim_>
 static inline real3 <?=calcGravityAccel?>(
-	constant <?=solver_t?> const * const solver,
+	constant <?=solver_t?> const & solver,
 	global <?=cons_t?> const * private const U,
 	real3 const pt
 ) {
 	real3 accel_g;
 
 	for (int side = 0; side < dim_; ++side) {
-		/* m/s^2 */
-		/* TODO grid coordinate influence? */
+		// m/s^2
+		// TODO grid coordinate influence?
 		accel_g.s[side] = (
-			U[solver->stepsize[side]].<?=op.potentialField?>
-			- U[-solver->stepsize[side]].<?=op.potentialField?>
-		) / (2. * solver->grid_dx[side]);
+			U[solver.stepsize[side]].<?=op.potentialField?>
+			- U[-solver.stepsize[side]].<?=op.potentialField?>
+		) / (2. * solver.grid_dx[side]);
 	}
 
 <? if coord.vectorComponent == "cartesian" then ?>
@@ -51,12 +51,13 @@ end
 //// MODULE_DEPENDS: units realparam <?=calcGravityAccel?>
 
 kernel void <?=calcGravityDeriv?>(
-	constant <?=solver_t?> const * const solver,
+	constant <?=solver_t?> const * const psolver,
 	global <?=cons_t?> * const derivBuffer,
 	global <?=cons_t?> const * const UBuf,
 	global <?=cell_t?> const * const cellBuf
 ) {
-	<?=SETBOUNDS?>(solver->numGhost, solver->numGhost);
+	constant <?=solver_t?> const & solver = *psolver;
+	<?=SETBOUNDS?>(solver.numGhost, solver.numGhost);
 	real3 const pt = cellBuf[index].pos;
 
 	global <?=cons_t?> * const deriv = derivBuffer + index;
@@ -75,10 +76,11 @@ kernel void <?=calcGravityDeriv?>(
 
 //TODO just use the display var kernels
 kernel void <?=copyPotentialToReduce?>(
-	constant <?=solver_t?> const * const solver,
+	constant <?=solver_t?> const * const psolver,
 	global real* reduceBuf,
 	global const <?=cons_t?>* UBuf
 ) {
+	constant <?=solver_t?> const & solver = *psolver;
 	<?=SETBOUNDS?>(0,0);
 	reduceBuf[index] = UBuf[index].<?=op.potentialField?>;
 }
@@ -87,10 +89,11 @@ kernel void <?=copyPotentialToReduce?>(
 
 //keep potential energy negative
 kernel void <?=offsetPotential?>(
-	constant <?=solver_t?> const * const solver,
+	constant <?=solver_t?> const * const psolver,
 	global <?=cons_t?>* UBuf,
 	realparam ePotMax
 ) {
+	constant <?=solver_t?> const & solver = *psolver;
 	<?=SETBOUNDS?>(0,0);
 	global <?=cons_t?>* U = UBuf + index;
 	U-><?=op.potentialField?> -= ePotMax;

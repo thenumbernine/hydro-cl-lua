@@ -58,7 +58,7 @@ SelfGrav.guiVars = {
 function SelfGrav:getPoissonDivCode()
 	return self.solver.eqn:template([[
 	source = 4. * M_PI * U->rho
-		* solver->gravitationalConstant / unit_m3_per_kg_s2;	//'G'
+		* solver.gravitationalConstant / unit_m3_per_kg_s2;	//'G'
 ]], {op=self})
 end
 

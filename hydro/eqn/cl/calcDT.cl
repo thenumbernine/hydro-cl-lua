@@ -37,12 +37,12 @@ local cellVolumeEpsilon = 0
 
 static inline void <?=calcDTCell?>(
 	real & dt,
-	constant <?=solver_t?> const * const solver,
+	constant <?=solver_t?> const & solver,
 	global <?=cons_t?> const & U,
 	global <?=cell_t?> const & cell
 ) {
 	<?=eqn:consWaveCodeMinMaxAllSidesPrefix{
-		U = "&U",
+		U = "U",
 		pt = "cell.pos",
 	}:gsub("\\*\n", "\\\n\t")?>
 	<? for side=0,solver.dim-1 do ?>{
@@ -50,7 +50,7 @@ static inline void <?=calcDTCell?>(
 if solver.coord.vectorComponent == "holonomic"
 or require "hydro.coord.cartesian":isa(solver.coord)
 then
-?>		real const dx = solver->grid_dx.s<?=side?>;
+?>		real const dx = solver.grid_dx.s<?=side?>;
 <? else
 ?>		real const dx = cell_dx<?=side?>(cell.pos);
 <? end
@@ -59,7 +59,7 @@ then
 			/* use cell-centered eigenvalues */
 			<?=eqn:consWaveCodeMinMaxAllSides{
 				n = "n",
-				U = "&U",
+				U = "U",
 				pt = "cell.pos",
 				resultMin = "lambdaMin",
 				resultMax = "lambdaMax",
@@ -81,7 +81,7 @@ then
 
 static inline void <?=calcDTCell?>(
 	real & dt,
-	constant <?=solver_t?> const * const solver,
+	constant <?=solver_t?> const & solver,
 	global <?=cons_t?> const & U,
 	global <?=cell_t?> const & cell,
 	global <?=face_t?> const * const faces,		/* [numFaces] */
@@ -90,16 +90,16 @@ static inline void <?=calcDTCell?>(
 	if (cell->volume > <?=clnumber(cellVolumeEpsilon)?>) {
 <? if not calcDTFromFaceU then -- cell-centered lambdas ?>
 		<?=eqn:consWaveCodeMinMaxAllSidesPrefix{
-			U = "&U",
+			U = "U",
 			pt = "cell.pos",
 		}:gsub("\\*\n", "\\\n\t")?>
 <? else -- face-centered lambdas ?>
 		/* eqn:eigenWaveCodeMinMax doesn't use a prefix (right?) */
 <? end ?>
 		for (int i = 0; i < cell.faceCount; ++i) {
-			global <?=face_t?> const * const face = faces + cellFaceIndexes[i + cell.faceOffset];
-			if (face->area > <?=clnumber(faceAreaEpsilon)?>) {
-				if (face->cells.x != -1 && face->cells.y != -1) {
+			global <?=face_t?> const & face = faces[cellFaceIndexes[i + cell.faceOffset]];
+			if (face.area > <?=clnumber(faceAreaEpsilon)?>) {
+				if (face.cells.x != -1 && face.cells.y != -1) {
 					<?=normal_t?> const n = normal_forFace(face);
 					/* all sides? or only the most prominent side? */
 					/* which should we pick eigenvalues from? */
@@ -107,7 +107,7 @@ static inline void <?=calcDTCell?>(
 <? if not calcDTFromFaceU then -- cell-centered lambdas ?>
 					<?=eqn:consWaveCodeMinMaxAllSides{
 						n = "n",
-						U = "&U",
+						U = "U",
 						pt = "cell.pos",
 						resultMin = "lambdaMin",
 						resultMax = "lambdaMax",
@@ -117,13 +117,12 @@ static inline void <?=calcDTCell?>(
 					/* copied from meshsolver.cl's calcFlux() ... */
 					<?=cell_t?> cellL, cellR;
 					<?=cons_t?> UL, UR;
-					<?=getEdgeStates?>(solver, &UL, &UR, cellL, cellR, face, UBuf);
-					<?=eigen_t?> eig;
-					<?=eigen_forInterface?>(&eig, solver, &UL, &UR, &cellL, &cellR, face->pos, n);
+					<?=getEdgeStates?>(solver, UL, UR, cellL, cellR, face, UBuf);
+					<?=eigen_t?> eig = <?=eigen_forInterface?>(solver, UL, UR, cellL, cellR, face.pos, n);
 					<?=eqn:eigenWaveCodeMinMax{
-						eig = "&eig",
+						eig = "eig",
 						n = "n",
-						pt = "face->pos",
+						pt = "face.pos",
 						resultMin = "lambdaMin",
 						resultMax = "lambdaMax",
 						declare = true,
@@ -131,7 +130,7 @@ static inline void <?=calcDTCell?>(
 <? end ?>
 					real absLambdaMax = max(fabs(lambdaMin), fabs(lambdaMax));
 					absLambdaMax = max((real)1e-9, absLambdaMax);
-					dt = (real)min(dt, cell.volume / (face->area * absLambdaMax));
+					dt = (real)min(dt, cell.volume / (face.area * absLambdaMax));
 				}
 			}
 		}

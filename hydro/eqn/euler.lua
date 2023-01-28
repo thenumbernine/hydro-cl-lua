@@ -41,10 +41,10 @@ function Euler:init(args)
 				-- div m = (m dot grad ρ)/ρ
 				chargeCode = self:template[[
 	<? for j=0,solver.dim-1 do ?>{
-		global <?=cons_t?> const * const Ujm = U - solver->stepsize.s<?=j?>;
-		global <?=cons_t?> const * const Ujp = U + solver->stepsize.s<?=j?>;
-		real drho_dx = (Ujp->rho - Ujm->rho) * (.5 / solver->grid_dx.s<?=j?>);
-		source -= drho_dx * U->m.s<?=j?> / U->rho;
+		global <?=cons_t?> const * const Ujm = U - solver.stepsize.s<?=j?>;
+		global <?=cons_t?> const * const Ujp = U + solver.stepsize.s<?=j?>;
+		real drho_dx = (Ujp.rho - Ujm.rho) * (.5 / solver.grid_dx.s<?=j?>);
+		source -= drho_dx * U.m.s<?=j?> / U.rho;
 	}<? end ?>
 ]],
 				--]=]
@@ -56,20 +56,20 @@ function Euler:init(args)
 				writeVectorField = function(op,dv)
 					return self:template([[
 #if 0	// just adjust velocity
-	U->m -= <?=dv?> * U->rho;
+	U.m -= <?=dv?> * U.rho;
 #endif
 
 #if 0	// adjust ETotal as well
-	U->ETotal -= .5 * U->rho * coordLenSq(U->m, pt);
-	U->m -= <?=dv?> * U->rho;
-	U->ETotal += .5 * U->rho * coordLenSq(U->m, pt);
+	U.ETotal -= .5 * U.rho * coordLenSq(U.m, pt);
+	U.m -= <?=dv?> * U.rho;
+	U.ETotal += .5 * U.rho * coordLenSq(U.m, pt);
 #endif
 
 #if 1 	// recalculate cons
 //// MODULE_DEPENDS: <?=primFromCons?> <?=consFromPrim?>
-	<?=prim_t?> W = <?=primFromCons?>(solver, *U, pt);
+	<?=prim_t?> W = <?=primFromCons?>(solver, U, pt);
 	W.v -= <?=dv?>;
-	*U = <?=consFromPrim?>(solver, W, pt);
+	U = <?=consFromPrim?>(solver, W, pt);
 #endif
 ]], {dv=dv})
 				end,
@@ -258,23 +258,23 @@ function Euler:getDisplayVars()
 		{name='P', code='value.vreal = W.P;', units='kg/(m*s^2)'},
 		{name='eInt', code=self:template'value.vreal = <?=calc_eInt?>(solver, W);', units='m^2/s^2'},
 		{name='eKin', code=self:template'value.vreal = <?=calc_eKin?>(W, x);', units='m^2/s^2'},
-		{name='eTotal', code='value.vreal = U->ETotal / W.rho;', units='m^2/s^2'},
+		{name='eTotal', code='value.vreal = U.ETotal / W.rho;', units='m^2/s^2'},
 		{name='EInt', code=self:template'value.vreal = <?=calc_EInt?>(solver, W);', units='kg/(m*s^2)'},
 		{name='EKin', code=self:template'value.vreal = <?=calc_EKin?>(W, x);', units='kg/(m*s^2)'},
-		{name='EPot', code='value.vreal = U->rho * U->ePot;', units='kg/(m*s^2)'},
-		{name='S', code='value.vreal = W.P / pow(W.rho, (real)solver->heatCapacityRatio);'},
+		{name='EPot', code='value.vreal = U.rho * U.ePot;', units='kg/(m*s^2)'},
+		{name='S', code='value.vreal = W.P / pow(W.rho, (real)solver.heatCapacityRatio);'},
 		{name='H', code=self:template'value.vreal = <?=calc_H?>(solver, W.P);', units='kg/(m*s^2)'},
 		{name='h', code=self:template'value.vreal = <?=calc_h?>(solver, W.rho, W.P);', units='m^2/s^2'},
-		{name='HTotal', code=self:template'value.vreal = <?=calc_HTotal?>(W.P, U->ETotal);', units='kg/(m*s^2)'},
-		{name='hTotal', code=self:template'value.vreal = <?=calc_hTotal?>(W.rho, W.P, U->ETotal);', units='m^2/s^2'},
+		{name='HTotal', code=self:template'value.vreal = <?=calc_HTotal?>(W.P, U.ETotal);', units='kg/(m*s^2)'},
+		{name='hTotal', code=self:template'value.vreal = <?=calc_hTotal?>(W.rho, W.P, U.ETotal);', units='m^2/s^2'},
 		{name='speed of sound', code=self:template'value.vreal = <?=calc_Cs?>(solver, W);', units='m/s'},
 		{name='Mach number', code=self:template'value.vreal = coordLen(W.v, x) / <?=calc_Cs?>(solver, W);'},
-		{name='temperature', code=self:template'value.vreal = <?=calc_T?>(*U, x);', units='K'},
+		{name='temperature', code=self:template'value.vreal = <?=calc_T?>(U, x);', units='K'},
 	}:append(self.gravOp and
 		{{name='gravity', code=self:template[[
 if (!<?=OOB?>(1,1)) {
 //// MODULE_DEPENDS: <?=eqn.gravOp.symbols.calcGravityAccel?>
-	value.vreal3 = <?=eqn.gravOp.symbols.calcGravityAccel?><dim>(solver, U, x);
+	value.vreal3 = <?=eqn.gravOp.symbols.calcGravityAccel?><dim>(solver, &U, x);
 } else {
 	value.vreal3 = {};
 }
@@ -284,7 +284,7 @@ if (!<?=OOB?>(1,1)) {
 	vars:insert(self:createDivDisplayVar{
 		field = 'v',
 		getField = function(U, j)
-			return U..'->m.s'..j..' / '..U..'->rho'
+			return U..'.m.s'..j..' / '..U..'.rho'
 		end,
 		units = '1/s',
 	} or nil)
@@ -292,7 +292,7 @@ if (!<?=OOB?>(1,1)) {
 	vars:insert(self:createCurlDisplayVar{
 		field = 'v',
 		getField = function(U, j)
-			return U..'->m.s'..j..' / '..U..'->rho'
+			return U..'.m.s'..j..' / '..U..'.rho'
 		end,
 		units = '1/s',
 	} or nil)
@@ -321,8 +321,8 @@ Euler.eigenVars = table{
 
 function Euler:eigenWaveCodePrefix(args)
 	return self:template([[
-real const <?=eqn.symbolPrefix?>Cs_nLen = normal_len(<?=n?>) * (<?=eig?>)->Cs;
-real const <?=eqn.symbolPrefix?>v_n = normal_vecDotN1(<?=n?>, (<?=eig?>)->v);
+real const <?=eqn.symbolPrefix?>Cs_nLen = normal_len(<?=n?>) * (<?=eig?>).Cs;
+real const <?=eqn.symbolPrefix?>v_n = normal_vecDotN1(<?=n?>, (<?=eig?>).v);
 ]],	args)
 end
 
@@ -341,9 +341,9 @@ end
 -- but then I just explicitly wrote out the calcDT, so the extra parameters just aren't used anymore.
 function Euler:consWaveCodePrefix(args)
 	return self:template([[
-real <?=eqn.symbolPrefix?>Cs_nLen = <?=calc_Cs_fromCons?>(solver, *(<?=U?>), <?=pt?>);
+real <?=eqn.symbolPrefix?>Cs_nLen = <?=calc_Cs_fromCons?>(solver, <?=U?>, <?=pt?>);
 <?=eqn.symbolPrefix?>Cs_nLen *= normal_len(<?=n?>);
-real const <?=eqn.symbolPrefix?>v_n = (<?=U?>)->rho < solver->rhoMin ? 0. : normal_vecDotN1(<?=n?>, (<?=U?>)->m) / (<?=U?>)->rho;
+real const <?=eqn.symbolPrefix?>v_n = (<?=U?>).rho < solver.rhoMin ? 0. : normal_vecDotN1(<?=n?>, (<?=U?>).m) / (<?=U?>).rho;
 ]], args)
 end
 
@@ -357,7 +357,7 @@ Euler.consWaveCode = Euler.eigenWaveCode
 -- ok so this goes before consMin/MaxWaveCode
 function Euler:consWaveCodeMinMaxAllSidesPrefix(args)
 	return self:template([[
-real <?=eqn.symbolPrefix?>Cs = <?=calc_Cs_fromCons?>(solver, *(<?=U?>), <?=pt?>);\
+real <?=eqn.symbolPrefix?>Cs = <?=calc_Cs_fromCons?>(solver, (<?=U?>), <?=pt?>);\
 ]],	args)
 end
 
@@ -374,7 +374,7 @@ but in hll flux this is used with one specific side.
 function Euler:consWaveCodeMinMaxAllSides(args)
 	return self:template([[
 real const <?=eqn.symbolPrefix?>Cs_nLen = <?=eqn.symbolPrefix?>Cs * normal_len(<?=n?>);
-real const <?=eqn.symbolPrefix?>v_n = (<?=U?>)->rho < solver->rhoMin ? 0. : normal_vecDotN1(<?=n?>, (<?=U?>)->m) / (<?=U?>)->rho;
+real const <?=eqn.symbolPrefix?>v_n = (<?=U?>).rho < solver.rhoMin ? 0. : normal_vecDotN1(<?=n?>, (<?=U?>).m) / (<?=U?>).rho;
 <?=eqn:waveCodeAssignMinMax(
 	declare, resultMin, resultMax,
 	eqn.symbolPrefix..'v_n - '..eqn.symbolPrefix..'Cs_nLen',

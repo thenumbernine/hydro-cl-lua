@@ -4,11 +4,12 @@
 // used by all the finite volume solvers
 
 kernel void <?=calcDerivFromFlux?>(
-	constant <?=solver_t?> const * const solver,
+	constant <?=solver_t?> const * const psolver,
 	global <?=cons_t?> * const derivBuf,
 	global <?=cons_t?> const * const fluxBuf,
 	global <?=cell_t?> const * const cellBuf
 ) {
+	constant <?=solver_t?> const & solver = *psolver;
 	<?=SETBOUNDS_NOGHOST?>();
 	global <?=cons_t?> * const deriv = derivBuf + index;
 	global <?=cell_t?> const * const cell = cellBuf + index;
@@ -36,7 +37,7 @@ or require "hydro.coord.cartesian":isa(solver.coord)
 then ?>
 	real const volume = 1.<?
 	for i=0,solver.dim-1 do
-		?> * solver->grid_dx.s<?=i?><?
+		?> * solver.grid_dx.s<?=i?><?
 	end
 ?>;
 <? else ?>
@@ -47,11 +48,11 @@ then ?>
 		int const indexIntL = <?=side?> + dim * index;
 		global <?=cons_t?> const * const fluxL = fluxBuf + indexIntL;
 		
-		int const indexIntR = indexIntL + dim * solver->stepsize.s<?=side?>; 
+		int const indexIntR = indexIntL + dim * solver.stepsize.s<?=side?>; 
 		global <?=cons_t?> const * const fluxR = fluxBuf + indexIntR;
 		
-		real3 xIntL = x; xIntL.s<?=side?> -= .5 * solver->grid_dx.s<?=side?>;
-		real3 xIntR = x; xIntR.s<?=side?> += .5 * solver->grid_dx.s<?=side?>;
+		real3 xIntL = x; xIntL.s<?=side?> -= .5 * solver.grid_dx.s<?=side?>;
+		real3 xIntR = x; xIntR.s<?=side?> += .5 * solver.grid_dx.s<?=side?>;
 
 		//This is the covariant finite volume code that that represents the gradient of the metric determinant 
 		//All other covariant terms should be accounted for in the equation source update
@@ -64,7 +65,7 @@ then ?>
 		real areaL = 1.<?
 	for i=0,solver.dim-1 do
 		if i ~= side then
-			?> * solver->grid_dx.s<?=i?><?
+			?> * solver.grid_dx.s<?=i?><?
 		end
 	end
 ?>;

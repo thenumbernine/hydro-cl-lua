@@ -11,21 +11,18 @@ end
 ?>
 
 static inline <?=cons_t?> <?=calcFluxForInterface?>(
-	constant <?=solver_t?> const * const solver,
-	<?=cons_t?> const * const UL,
-	<?=cons_t?> const * const UR,
-	<?=cell_t?> const * const cellL,
-	<?=cell_t?> const * const cellR,
+	constant <?=solver_t?> const & solver,
+	<?=cons_t?> const & UL,
+	<?=cons_t?> const & UR,
+	<?=cell_t?> const & cellL,
+	<?=cell_t?> const & cellR,
 	real3 const xInt,
 	<?=normal_t?> const n
 ) {
-	<?=cons_t?> flux;
-	<?=prim_t?> WL;
-	<?=primFromCons?>(&WL, solver, UL, (cellL)->pos);
-	<?=prim_t?> WR;
-	<?=primFromCons?>(&WR, solver, UR, (cellR)->pos);
+	<?=prim_t?> WL = <?=primFromCons?>(solver, UL, cellL.pos);
+	<?=prim_t?> WR = <?=primFromCons?>(solver, UR, cellR.pos);
 
-<? if true then ?> /* use interface waves? */
+<? if true then ?> // use interface waves?
 	/*
 	get min/max lambdas of UL, UR, and interface U (based on Roe averaging)
 	TODO this in a more computationally efficient way
@@ -34,17 +31,17 @@ static inline <?=cons_t?> <?=calcFluxForInterface?>(
 	But mind you not everyone uses the xInt, so it shouldn't always be calculated right?
 	This is where fully-analytical implementations are handy (like BSSN is becoming).
 	*/
-	<?=eigen_t?> eigInt = <?=eigen_forInterface?>(solver, *UL, *UR, *cellL, *cellR, xInt, n);
+	<?=eigen_t?> eigInt = <?=eigen_forInterface?>(solver, UL, UR, cellL, cellR, xInt, n);
 
 	real lambdaIntMin, lambdaIntMax;
 	{
 		<?=eqn:eigenWaveCodeMinMax{
 			n = "n",
-			eig = "&eigInt",
+			eig = "eigInt",
 			pt = "xInt",
 			resultMin = "lambdaIntMin",
 			resultMax = "lambdaIntMax",
-		}:gsub("\\*\n", "\\\n\t\t")?>
+		}:gsub("\n", "\n\t\t")?>
 	}
 
 <? 	if solver.flux.hllCalcWaveMethod == "Davis direct" then ?>
@@ -57,9 +54,9 @@ static inline <?=cons_t?> <?=calcFluxForInterface?>(
 		<?=eqn:consWaveCodeMinMax{
 			n = "n",
 			U = "UL",
-			pt = "(cellL)->pos",
+			pt = "cellL.pos",
 			resultMin = "lambdaLMin",
-		}:gsub("\\*\n", "\\\n\t\t")?>
+		}:gsub("\n", "\n\t\t")?>
 	}
 
 	real lambdaRMax;
@@ -67,25 +64,25 @@ static inline <?=cons_t?> <?=calcFluxForInterface?>(
 		<?=eqn:consWaveCodeMinMax{
 			n = "n",
 			U = "UR",
-			pt = "(cellR)->pos",
+			pt = "cellR.pos",
 			resultMax = "lambdaRMax",
-		}:gsub("\\*\n", "\\\n\t\t")?>
+		}:gsub("\n", "\n\t\t")?>
 	}
 
 	real const sL = min(lambdaLMin, lambdaIntMin);
 	real const sR = max(lambdaRMax, lambdaIntMax);
 <? 	end ?>
-<? else ?> /* don't use interface waves.  looks no different than above, soo ... why even use interface state waves? */
+<? else ?> // don't use interface waves.  looks no different than above, soo ... why even use interface state waves?
 
 	real sLMin, sLMax;
 	{
 		<?=eqn:consWaveCodeMinMax{
 			n = "n",
 			U = "UL",
-			pt = "(cellL)->pos",
+			pt = "cellL.pos",
 			resultMin = "sLMin",
 			resultMax = "sLMax",
-		}:gsub("\\*\n", "\\\n\t\t")?>
+		}:gsub("\n", "\n\t\t")?>
 	}
 
 	real sRMin, sRMax;
@@ -93,16 +90,16 @@ static inline <?=cons_t?> <?=calcFluxForInterface?>(
 		<?=eqn:consWaveCodeMinMax{
 			n = "n",
 			U = "UR",
-			pt = "(cellR)->pos",
+			pt = "cellR.pos",
 			resultMin = "sRMin",
 			resultMax = "sRMax",
-		}:gsub("\\*\n", "\\\n\t\t")?>
+		}:gsub("\n", "\n\t\t")?>
 	}
 	real const sL = min(sLMin, sRMin);
 	real const sR = max(sLMax, sRMax);
 <? end ?>
 
-	/* notice that, for Euler, consWaveCodePrefix calculates v dot n1 ... while here we're using v dot nj */
+	// notice that, for Euler, consWaveCodePrefix calculates v dot n1 ... while here we're using v dot nj
 	real3 const vnL = normal_vecDotNs(n, WL.v);
 	real3 const vnR = normal_vecDotNs(n, WR.v);
 
@@ -110,133 +107,126 @@ static inline <?=cons_t?> <?=calcFluxForInterface?>(
 	real const sStar = (WR.rho * vnR.x * (sR - vnR.x) - WL.rho * vnL.x * (sL - vnL.x) + WL.P - WR.P) 
 		/ (WR.rho * (sR - vnR.x) - WL.rho * (sL - vnL.x));
 
+	<?=cons_t?> flux;
 	if (0 <= sL) {
-		<?=fluxFromCons?>(&flux, solver, UL, cellL, n);
+		flux = <?=fluxFromCons?>(solver, UL, cellL, n);
 <? if solver.flux.hllcMethod == 0 then ?>
 	
 	} else if (sL <= 0. && 0. <= sStar) {
-		<?=cons_t?> FL;
-		<?=fluxFromCons?>(&FL, solver, UL, cellL, n);
+		<?=cons_t?> FL = <?=fluxFromCons?>(solver, UL, cellL, n);
 		<?=cons_t?> ULStar;
-		ULStar.rho = (UL)->rho * (sL - vnL.x) / (sL - sStar);
+		ULStar.rho = UL.rho * (sL - vnL.x) / (sL - sStar);
 		
-		real3 vStar = normal_vecFromNs(n, _real3(sStar, vnL.y, vnL.z));
+		real3 vStar = normal_vecFromNs(n, real3(sStar, vnL.y, vnL.z));
 		ULStar.m.x = ULStar.rho * vStar.x;
 		ULStar.m.y = ULStar.rho * vStar.y;
 		ULStar.m.z = ULStar.rho * vStar.z;
 		
 		ULStar.ETotal = ULStar.rho * (
-			(UL)->ETotal / (UL)->rho
+			UL.ETotal / UL.rho
 			+ (sStar - vnL.x) 
-				* (sStar + WL.P / ((UL)->rho * (sL - vnL.x)))
+				* (sStar + WL.P / (UL.rho * (sL - vnL.x)))
 		);
 		for (int i = 0; i < numStates; ++i) {
-			flux.ptr[i] = FL.ptr[i] + sL * (ULStar.ptr[i] - (UL)->ptr[i]);
+			flux.ptr[i] = FL.ptr[i] + sL * (ULStar.ptr[i] - UL.ptr[i]);
 		}
 	} else if (sStar <= 0. && 0. <= sR) {
-		<?=cons_t?> FR;
-		<?=fluxFromCons?>(&FR, solver, UR, cellR, n);
+		<?=cons_t?> FR = <?=fluxFromCons?>(solver, UR, cellR, n);
 		<?=cons_t?> URStar;
-		URStar.rho = (UR)->rho * (sR - vnR.x) / (sR - sStar);
+		URStar.rho = UR.rho * (sR - vnR.x) / (sR - sStar);
 		
-		real3 vStar = normal_vecFromNs(n, _real3(sStar, vnR.y, vnR.z));
+		real3 vStar = normal_vecFromNs(n, real3(sStar, vnR.y, vnR.z));
 		URStar.m.x = URStar.rho * vStar.x;
 		URStar.m.y = URStar.rho * vStar.y;
 		URStar.m.z = URStar.rho * vStar.z;
 		
 		URStar.ETotal = URStar.rho * (
-			(UR)->ETotal / (UR)->rho
+			UR.ETotal / UR.rho
 			+ (sStar - vnR.x) 
-				* (sStar + WR.P / ((UR)->rho * (sR - vnR.x))));
+				* (sStar + WR.P / (UR.rho * (sR - vnR.x))));
 		for (int i = 0; i < numStates; ++i) {
-			flux.ptr[i] = FR.ptr[i] + sR * (URStar.ptr[i] - (UR)->ptr[i]);
+			flux.ptr[i] = FR.ptr[i] + sR * (URStar.ptr[i] - UR.ptr[i]);
 		}
 
 <? elseif solver.flux.hllcMethod == 1 then ?>
 
 	} else if (sL <= 0. && 0. <= sStar) {
-		<?=cons_t?> FL;
-		<?=fluxFromCons?>(&FL, solver, UL, cellL, n);
-		flux.rho = (sStar * (sL * (UL)->rho - FL.rho)) / (sL - sStar);
+		<?=cons_t?> FL = <?=fluxFromCons?>(solver, UL, cellL, n);
+		flux.rho = (sStar * (sL * UL.rho - FL.rho)) / (sL - sStar);
 	
-		real3 ULmn = normal_vecDotNs(n, (UL)->m);
+		real3 ULmn = normal_vecDotNs(n, UL.m);
 		real3 FLmn = normal_vecDotNs(n, FL.m);
-		flux.m = normal_vecFromNs(n, _real3(
+		flux.m = normal_vecFromNs(n, real3(
 			(sStar * (sL * ULmn.x - FLmn.x) + sL * (WL.P + WL.rho * (sL - vnL.x) * (sStar - vnL.x))) / (sL - sStar),
 			(sStar * (sL * ULmn.y - FLmn.y)) / (sL - sStar),
 			(sStar * (sL * ULmn.z - FLmn.z)) / (sL - sStar)
 		));
 		
-		flux.ETotal = (sStar * (sL * (UL)->ETotal - FL.ETotal) + sL * (WL.P + WL.rho * (sL - vnL.x) * (sStar - vnL.x)) * sStar) / (sL - sStar);
+		flux.ETotal = (sStar * (sL * UL.ETotal - FL.ETotal) + sL * (WL.P + WL.rho * (sL - vnL.x) * (sStar - vnL.x)) * sStar) / (sL - sStar);
 	} else if (sStar <= 0. && 0. <= sR) {
-		<?=cons_t?> FR;
-		<?=fluxFromCons?>(&FR, solver, UR, cellR, n);
-		flux.rho = (sStar * (sR * (UR)->rho - FR.rho)) / (sR - sStar);
+		<?=cons_t?> FR = <?=fluxFromCons?>(solver, UR, cellR, n);
+		flux.rho = (sStar * (sR * UR.rho - FR.rho)) / (sR - sStar);
 		
-		real3 URmn = normal_vecDotNs(n, (UR)->m);
+		real3 URmn = normal_vecDotNs(n, UR.m);
 		real3 FRmn = normal_vecDotNs(n, FR.m);
-		flux.m = normal_vecFromNs(n, _real3(
+		flux.m = normal_vecFromNs(n, real3(
 			(sStar * (sR * URmn.x - FRmn.x) + sR * (WR.P + WR.rho * (sR - vnR.x) * (sStar - vnR.x))) / (sR - sStar),
 			(sStar * (sR * URmn.y - FRmn.y)) / (sR - sStar),
 			(sStar * (sR * URmn.z - FRmn.z)) / (sR - sStar)
 		));
 
-		flux.ETotal = (sStar * (sR * (UR)->ETotal - FR.ETotal) + sR * (WR.P + WR.rho * (sR - vnR.x) * (sStar - vnR.x)) * sStar) / (sR - sStar);
+		flux.ETotal = (sStar * (sR * UR.ETotal - FR.ETotal) + sR * (WR.P + WR.rho * (sR - vnR.x) * (sStar - vnR.x)) * sStar) / (sR - sStar);
 
 <? elseif solver.flux.hllcMethod == 2 then ?>
 
 	} else if (sL <= 0. && 0. <= sStar) {
-		<?=cons_t?> FL;
-		<?=fluxFromCons?>(&FL, solver, UL, cellL, n);
+		<?=cons_t?> FL = <?=fluxFromCons?>(solver, UL, cellL, n);
 		real PLR = .5 * (
 			WL.P
 			+ WR.P
 			+ WL.rho * (sL - vnL.x) * (sStar - vnL.x)
 			+ WR.rho * (sR - vnR.x) * (sStar - vnR.x)
 		);
-		flux.rho = (sL * (UL)->rho - FL.rho) * sStar / (sL - sStar);
+		flux.rho = (sL * UL.rho - FL.rho) * sStar / (sL - sStar);
 		
-		real3 ULmn = normal_vecDotNs(n, (UL)->m);
+		real3 ULmn = normal_vecDotNs(n, UL.m);
 		real3 FLmn = normal_vecDotNs(n, FL.m);
-		flux.m = normal_vecFromNs(n, _real3(
+		flux.m = normal_vecFromNs(n, real3(
 			((sL * ULmn.x - FLmn.x) * sStar + sL * PLR) / (sL - sStar),
 			sStar * (sL * ULmn.y - FLmn.y) / (sL - sStar),
 			sStar * (sL * ULmn.z - FLmn.z) / (sL - sStar)
 		));
 
-		flux.ETotal = (sStar * (sL * (UL)->ETotal - FL.ETotal) + sL * PLR * sStar) / (sL - sStar);
+		flux.ETotal = (sStar * (sL * UL.ETotal - FL.ETotal) + sL * PLR * sStar) / (sL - sStar);
 	} else if (sStar <= 0. && 0. <= sR) {
-		<?=cons_t?> FR;
-		<?=fluxFromCons?>(&FR, solver, UR, cellR, n);
+		<?=cons_t?> FR = <?=fluxFromCons?>(solver, UR, cellR, n);
 		real PLR = .5 * (WL.P + WR.P + WL.rho * (sL - vnL.x) * (sStar - vnL.x) + WR.rho * (sR - vnR.x) * (sStar - vnR.x));
-		flux.rho = sStar * (sR * (UR)->rho - FR.rho) / (sR - sStar);
+		flux.rho = sStar * (sR * UR.rho - FR.rho) / (sR - sStar);
 		
-		real3 URmn = normal_vecDotNs(n, (UR)->m);
+		real3 URmn = normal_vecDotNs(n, UR.m);
 		real3 FRmn = normal_vecDotNs(n, FR.m);
-		flux.m = normal_vecFromNs(n, _real3(
-			/*TODO why were these assigns here:?*/
-			/*flux.m.x = */(sStar * (sR * URmn.x - FRmn.x) + sR * PLR) / (sR - sStar),
-			/*flux.m.y = */sStar * (sR * URmn.y - FRmn.y) / (sR - sStar),
-			/*flux.m.z = */sStar * (sR * URmn.z - FRmn.z) / (sR - sStar)
+		flux.m = normal_vecFromNs(n, real3(
+			//TODO why were these assigns here:?
+			(sStar * (sR * URmn.x - FRmn.x) + sR * PLR) / (sR - sStar),
+			sStar * (sR * URmn.y - FRmn.y) / (sR - sStar),
+			sStar * (sR * URmn.z - FRmn.z) / (sR - sStar)
 		));
 		
-		flux.ETotal = (sStar * (sR * (UR)->ETotal - FR.ETotal) + sR * PLR * sStar) / (sR - sStar);
+		flux.ETotal = (sStar * (sR * UR.ETotal - FR.ETotal) + sR * PLR * sStar) / (sR - sStar);
 
 <? end	--solver.flux.hllcMethod ?>
 	
 	} else if (sR <= 0) {
-		<?=fluxFromCons?>(&flux, solver, UR, cellR, n);
-<? if true then ?>	/*why is this here? for when sStar is not between sL and sR*/
+		flux = <?=fluxFromCons?>(solver, UR, cellR, n);
+<? if true then ?>	//why is this here? for when sStar is not between sL and sR
 	} else if (sL <= 0 && 0 <= sR) {
-		<?=cons_t?> FL;
-		<?=fluxFromCons?>(&FL, solver, UL, cellL, n);
-		<?=cons_t?> FR;
-		<?=fluxFromCons?>(&FR, solver, UR, cellR, n);
+		<?=cons_t?> FL = <?=fluxFromCons?>(solver, UL, cellL, n);
+		<?=cons_t?> FR = <?=fluxFromCons?>(solver, UR, cellR, n);
 		for (int j = 0; j < numIntStates; ++j) {
-			flux.ptr[j] = (sR * FL.ptr[j] - sL * FR.ptr[j] + sL * sR * ((UR)->ptr[j] - (UL)->ptr[j])) / (sR - sL);
+			flux.ptr[j] = (sR * FL.ptr[j] - sL * FR.ptr[j] + sL * sR * (UR.ptr[j] - UL.ptr[j])) / (sR - sL);
 		}
 <? end ?>
 	}
-	/*flux.m = real3_rotTo<?=side?>(flux.m);*/
+	//flux.m = real3_rotTo<?=side?>(flux.m);
 	return flux;
 }

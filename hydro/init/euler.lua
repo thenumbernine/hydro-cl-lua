@@ -96,7 +96,7 @@ local function RiemannProblem(initCond)
 	function initCond:getInitCondCode()
 		local function build(i)
 			return table.keys(initCond[i]):sort():mapi(function(name,_,t)
-				return '\t\t'..name..' = initCond->'..getInitCondFieldName(i,name)..';', #t+1
+				return '\t\t'..name..' = initCond.'..getInitCondFieldName(i,name)..';', #t+1
 			end):concat'\n'
 		end
 		return self.solver.eqn:template([[
@@ -452,7 +452,7 @@ function EulerAnalytical:getInitCondCode()
 		v:nameForExporter('C', 'xc.'..v.name)
 	end
 	for _,v in ipairs(self.guiVars) do
-		v.symvar:nameForExporter('C', 'initCond->'..v.name)
+		v.symvar:nameForExporter('C', 'initCond.'..v.name)
 		v.symvar:nameForExporter('Lua', 'initCondPtr.'..v.name)
 	end
 
@@ -537,11 +537,11 @@ local initConds = table{
 			end
 		
 			return [[
-	rho = initCond->rho0;
-	v.x = initCond->vx0;
-	v.y = initCond->vy0;
-	v.z = initCond->vz0;
-	P = initCond->P0;
+	rho = initCond.rho0;
+	v.x = initCond.vx0;
+	v.y = initCond.vy0;
+	v.z = initCond.vz0;
+	P = initCond.P0;
 ]]
 		end,
 	},
@@ -729,11 +729,11 @@ for i=1,solver.dim do
 end
 ?>;
 	
-	rho = inside ? initCond->rhoL : initCond->rhoR;
-	P = inside ? initCond->PL : initCond->PR;
-	B.x = inside ? initCond->BxL : initCond->BxR;
-	B.y = inside ? initCond->ByL : initCond->ByR;
-	B.z = inside ? initCond->BzL : initCond->BzR;
+	rho = inside ? initCond.rhoL : initCond.rhoR;
+	P = inside ? initCond.PL : initCond.PR;
+	B.x = inside ? initCond.BxL : initCond.BxR;
+	B.y = inside ? initCond.ByL : initCond.ByR;
+	B.z = inside ? initCond.BzL : initCond.BzR;
 ]], 	{
 			solver = solver,
 			xNames = xNames,
@@ -752,8 +752,8 @@ end
 		getInitCondCode = function(self)
 			return [[
 	int4 const i = globalInt4();
-	rho = initCond->rho0;
-	P = (i.x == solver->gridSize.x/2 && i.y == solver->gridSize.y/2 && i.z == solver->gridSize.z/2) ? initCond->P1 : initCond->P0;
+	rho = initCond.rho0;
+	P = (i.x == solver->gridSize.x/2 && i.y == solver->gridSize.y/2 && i.z == solver->gridSize.z/2) ? initCond.P1 : initCond.P0;
 ]]
 		end,
 	},
@@ -1161,10 +1161,10 @@ end) then
 //// MODULE_DEPENDS: <?=coordMap?>
 	real3 const xc = coordMap(x);
 	real const rSq = real3_lenSq(xc);
-	real const radius = initCond->radius;
+	real const radius = initCond.radius;
 	bool const inside = rSq < radius*radius;
-	rho = inside ? initCond->rhoInside : initCond->rhoOutside;
-	P = inside ? initCond->PInside : initCond->POutside;
+	rho = inside ? initCond.rhoInside : initCond.rhoOutside;
+	P = inside ? initCond.PInside : initCond.POutside;
 ]]
 		end,
 	},
@@ -1189,15 +1189,15 @@ end) then
 //// MODULE_DEPENDS: <?=coordMap?>
 	real3 const xc = coordMap(x);
 	real const r2 = sqrt(xc.x * xc.x + xc.y * xc.y);
-	real const dr2 = r2 - initCond->torusGreaterRadius;
+	real const dr2 = r2 - initCond.torusGreaterRadius;
 	real const tr = sqrt(xc.z * xc.z + dr2 * dr2);		//change this to L1 norm for square toroid
-	bool const inside = tr < initCond->torusLesserRadius;
-	P = initCond->P;
-	rho = inside ? initCond->rhoInside : initCond->rhoOutside;
-	v.x = -xc.y / r2 * initCond->v / unit_m_per_s;
-	v.y =  xc.x / r2 * initCond->v / unit_m_per_s;
-	D.x = -xc.y / r2 * initCond->D / unit_C_per_m2;
-	D.y =  xc.x / r2 * initCond->D / unit_C_per_m2;
+	bool const inside = tr < initCond.torusLesserRadius;
+	P = initCond.P;
+	rho = inside ? initCond.rhoInside : initCond.rhoOutside;
+	v.x = -xc.y / r2 * initCond.v / unit_m_per_s;
+	v.y =  xc.x / r2 * initCond.v / unit_m_per_s;
+	D.x = -xc.y / r2 * initCond.D / unit_C_per_m2;
+	D.y =  xc.x / r2 * initCond.D / unit_C_per_m2;
 ]]
 		end,
 	},
@@ -1569,10 +1569,10 @@ end
 	real yq1 = solver->mins.<?=sliceAxis?> * .75 + solver->maxs.<?=sliceAxis?> * .25;
 	real yq2 = solver->mins.<?=sliceAxis?> * .25 + solver->maxs.<?=sliceAxis?> * .75;
 
-	real inside = (.5 + .5 * tanh((x.<?=sliceAxis?> - yq1) / initCond->thickness))
-				- (.5 + .5 * tanh((x.<?=sliceAxis?> - yq2) / initCond->thickness));
+	real inside = (.5 + .5 * tanh((x.<?=sliceAxis?> - yq1) / initCond.thickness))
+				- (.5 + .5 * tanh((x.<?=sliceAxis?> - yq2) / initCond.thickness));
 
-	real theta = initCond->frequency * 2. * M_PI;
+	real theta = initCond.frequency * 2. * M_PI;
 <?
 for i=0,solver.dim-1 do
 	if xNames[i+1] ~= sliceAxis then
@@ -1587,31 +1587,31 @@ end ?>
 #define perpAxis z
 #endif
 
-	real noise = (solver->maxs.x - solver->mins.x) * initCond->amplitude;
-	rho = inside * initCond->rhoInside + (1. - inside) * initCond->rhoOutside;
+	real noise = (solver->maxs.x - solver->mins.x) * initCond.amplitude;
+	rho = inside * initCond.rhoInside + (1. - inside) * initCond.rhoOutside;
 	//v.x = cos(theta) * noise;
 #if dim >= 2
 	v.perpAxis = sin(theta) * noise;
 #endif
-	v.moveAxis += inside * initCond->velInside + (1. - inside) * initCond->velOutside;
+	v.moveAxis += inside * initCond.velInside + (1. - inside) * initCond.velOutside;
 //// MODULE_DEPENDS: <?=cartesianFromCoord?>
 	v = cartesianFromCoord(v, x);
-	P = initCond->backgroundPressure;
+	P = initCond.backgroundPressure;
 	
 	//U is initialized with random(), so use its values for unique random #s
 <? assert(solver.eqn.numStates >= 5); ?>
-	rho += initCond->noiseAmplitude * 2. * (U->ptr[0] - .5);
+	rho += initCond.noiseAmplitude * 2. * (U->ptr[0] - .5);
 #if 0
-	v.x += initCond->noiseAmplitude * 2. * (U->ptr[1] - .5);
-	v.y += initCond->noiseAmplitude * 2. * (U->ptr[2] - .5);
-	v.z += initCond->noiseAmplitude * 2. * (U->ptr[3] - .5);
+	v.x += initCond.noiseAmplitude * 2. * (U->ptr[1] - .5);
+	v.y += initCond.noiseAmplitude * 2. * (U->ptr[2] - .5);
+	v.z += initCond.noiseAmplitude * 2. * (U->ptr[3] - .5);
 #elif dim >= 2
 	real noisePhi = 2. * M_PI * U->ptr[1];
 	real noiseR = U->ptr[2];
-	v.moveAxis += initCond->noiseAmplitude * noiseR * cos(noisePhi);
-	v.perpAxis += initCond->noiseAmplitude * noiseR * sin(noisePhi);
+	v.moveAxis += initCond.noiseAmplitude * noiseR * cos(noisePhi);
+	v.perpAxis += initCond.noiseAmplitude * noiseR * sin(noisePhi);
 #endif
-	P += initCond->noiseAmplitude * 2. * (U->ptr[4] - .5);
+	P += initCond.noiseAmplitude * 2. * (U->ptr[4] - .5);
 ]],				{
 					sliceAxis = self.guiVars.sliceAxis:getValue(),
 				}
@@ -1791,23 +1791,23 @@ end ?>;
 			return self.solver.eqn:template[[
 //// MODULE_DEPENDS: <?=coordMap?>
 real3 const xc = coordMap(x);
-real3 const bubbleCenter = _real3(initCond->bubbleCenterX, initCond->bubbleCenterY, initCond->bubbleCenterZ);
-real const bubbleRadiusSq = initCond->bubbleRadius * initCond->bubbleRadius;
+real3 const bubbleCenter = _real3(initCond.bubbleCenterX, initCond.bubbleCenterY, initCond.bubbleCenterZ);
+real const bubbleRadiusSq = initCond.bubbleRadius * initCond.bubbleRadius;
 real3 const delta = real3_sub(xc, bubbleCenter);
 real const bubbleRSq = real3_lenSq(delta);
-int const axis = initCond->shockwaveAxis;
+int const axis = initCond.shockwaveAxis;
 if (bubbleRSq < bubbleRadiusSq) {
-	rho = initCond->rhoInside;
-	P = initCond->PInside;
-	v.s[axis] = initCond->vInside;
-} else if (xc.s[axis] < initCond->waveX) {
-	rho = initCond->rhoL;
-	P = initCond->PL;
-	v.s[axis] = initCond->vL;
+	rho = initCond.rhoInside;
+	P = initCond.PInside;
+	v.s[axis] = initCond.vInside;
+} else if (xc.s[axis] < initCond.waveX) {
+	rho = initCond.rhoL;
+	P = initCond.PL;
+	v.s[axis] = initCond.vL;
 } else {
-	rho = initCond->rhoR;
-	P = initCond->PR;
-	v.s[axis] = initCond->vR;
+	rho = initCond.rhoR;
+	P = initCond.PR;
+	v.s[axis] = initCond.vR;
 }
 ]]
 		end,
@@ -1874,10 +1874,10 @@ if (bubbleRSq < bubbleRadiusSq) {
 	         return [[
 	real3 c = real3_real_mul(x, .5);
 	real L = 1.0;
-	real n = initCond->mode;
-	real K = initCond->entropy_ref;
+	real n = initCond.mode;
+	real K = initCond.entropy_ref;
 	real Gamma = solver->heatCapacityRatio;
-	real rho_ref = initCond->rho_ref;
+	real rho_ref = initCond.rho_ref;
 	real pre_ref = K * pow(rho_ref, Gamma);
 	real cs_ref = sqrt(Gamma * pre_ref / rho_ref);
 	real f = sin(n*M_PI*c.x/L);
@@ -1903,7 +1903,7 @@ if (bubbleRSq < bubbleRadiusSq) {
 	bool inside = r2 < 0.01;
 	rho = inside ? 1.000 : 0.125;
 	P = inside ? 1.0 : 0.1;
-	B.x = initCond->Bx;
+	B.x = initCond.Bx;
 ]]
 		end,
 	},
@@ -1941,12 +1941,12 @@ if (bubbleRSq < bubbleRadiusSq) {
 			local solver = assert(self.solver)
 			return [[
 	real3 c = real3_add(real3_real_mul(x, .5), _real3(.5, .5, .5));
-	real const rho1 = initCond->rho1;
-	real const rho2 = initCond->rho2;
-	real const L = initCond->L;
-	real const U1 = initCond->U1;
-	real const U2 = initCond->U2;
-	real const w0 = initCond->w0;
+	real const rho1 = initCond.rho1;
+	real const rho2 = initCond.rho2;
+	real const L = initCond.L;
+	real const U1 = initCond.U1;
+	real const U2 = initCond.U2;
+	real const w0 = initCond.w0;
 	if (c.y < 0.25) {
 		rho = rho1 - 0.5*(rho1-rho2)*exp( (c.y - 0.25)/L);
 		v.x = U1 - 0.5*( U1 - U2 )*exp( (c.y - 0.25)/L);
@@ -1961,7 +1961,7 @@ if (bubbleRSq < bubbleRadiusSq) {
 		v.x = U1 - 0.5*( U1 - U2 )*exp(-(c.y - 0.75)/L);
 	}
 	v.y = w0*sin(4.*M_PI*c.x);
-	P = initCond->P0;
+	P = initCond.P0;
 ]]
 		end,
 	},
@@ -2258,10 +2258,10 @@ if (bubbleRSq < bubbleRadiusSq) {
 //// MODULE_DEPENDS: <?=coordMap?>
 	real3 const xc = coordMap(x);
 	real const rSq = xc.x*xc.x + xc.y*xc.y;	//cylindrical 'r'
-	real const a = initCond->a / unit_m;
-	real const b = initCond->b / unit_m;
+	real const a = initCond.a / unit_m;
+	real const b = initCond.b / unit_m;
 	real const bSq = b*b;
-	real const M = initCond->M / unit_kg;
+	real const M = initCond.M / unit_kg;
 	real const z = xc.z;
 	real const zSq = z*z;
 	real const bzLenSq = bSq + zSq;
@@ -2668,12 +2668,12 @@ end
 		},
 		getInitCondCode = function(self)
 			return self.solver.eqn:template([[
-	D.x = <?=scalar?>_from_real(initCond->Dx);
-	D.y = <?=scalar?>_from_real(initCond->Dy);
-	D.z = <?=scalar?>_from_real(initCond->Dz);
-	B.x = <?=scalar?>_from_real(initCond->Bx);
-	B.y = <?=scalar?>_from_real(initCond->By);
-	B.z = <?=scalar?>_from_real(initCond->Bz);
+	D.x = <?=scalar?>_from_real(initCond.Dx);
+	D.y = <?=scalar?>_from_real(initCond.Dy);
+	D.z = <?=scalar?>_from_real(initCond.Dz);
+	B.x = <?=scalar?>_from_real(initCond.Bx);
+	B.y = <?=scalar?>_from_real(initCond.By);
+	B.z = <?=scalar?>_from_real(initCond.Bz);
 ]])
 		end,
 	},
@@ -3108,7 +3108,7 @@ kernel void addExtraSource(
 		getInitCondCode = function(self)
 			return self.solver.eqn:template[[
 	int4 const i = globalInt4();
-	rhoCharge = (i.x == solver->gridSize.x/2 && i.y == solver->gridSize.y/2 && i.z == solver->gridSize.z/2) ? initCond->rhoCharge0 : 0.;
+	rhoCharge = (i.x == solver->gridSize.x/2 && i.y == solver->gridSize.y/2 && i.z == solver->gridSize.z/2) ? initCond.rhoCharge0 : 0.;
 ]]
 		end,
 	},
@@ -3166,13 +3166,13 @@ kernel void addExtraSource(
 //// MODULE_DEPENDS: <?=coordMap?>
 	real3 xc = coordMap(x);
 	real r = real3_len(xc);
-	P = initCond->P;
-	rho = initCond->rho;
-	v.x = -xc.y * initCond->v / r;
-	v.y = xc.x * initCond->v / r;
+	P = initCond.P;
+	rho = initCond.rho;
+	v.x = -xc.y * initCond.v / r;
+	v.y = xc.x * initCond.v / r;
 	real s = sign(r - .5);
-	B.x = -xc.y * s * initCond->B / r;
-	B.y = xc.x * s * initCond->B / r;
+	B.x = -xc.y * s * initCond.B / r;
+	B.y = xc.x * s * initCond.B / r;
 ]]
 		end,
 	},
@@ -3340,7 +3340,7 @@ In both cases it looks like F is wanted, not dF/dU.
 	if (s < .5) {
 		water_h = 1 - water_B;
 	} else {
-		water_h = initCond->phi0 - water_B;
+		water_h = initCond.phi0 - water_B;
 	}
 	//here's our placeholder variable I call 'rho' just for compat with euler fluid equation code
 	rho = water_h;

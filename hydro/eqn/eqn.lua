@@ -593,14 +593,16 @@ function Equation:initCodeModules()
 		},
 		code = self:template[[
 kernel void <?=applyInitCond?>(
-	constant <?=solver_t?> const * const solver,
-	constant <?=initCond_t?> const * const initCond,
+	constant <?=solver_t?> const * const psolver,
+	constant <?=initCond_t?> const * const pinitCond,
 	global <?=cons_t?> * const UBuf,
 	global <?=cell_t?> * const cellBuf
 ) {
+	constant <?=solver_t?> const & solver = *psolver;
+	constant <?=initCond_t?> const & initCond = *pinitCond;
 	<?=SETBOUNDS?>(0,0);
-	global <?=cons_t?> * const U = UBuf + index;
-	global <?=cell_t?> * const cell = cellBuf + index;
+	global <?=cons_t?> & U = UBuf[index];
+	global <?=cell_t?> & cell = cellBuf[index];
 	<?=applyInitCondCell?>(solver, initCond, U, cell);
 }
 ]],
@@ -675,59 +677,64 @@ for side=0,solver.dim-1 do
 	if coord.vectorComponent == 'cartesian'
 	or require 'hydro.coord.cartesian':isa(coord)
 	then
-?>#define <?=cons_parallelPropagate?><?=side?>(resultName, U, pt, dx)\
-	global <?=cons_t?> const * const resultName = U;
+?>static inline <?=cons_t?> const & <?=cons_parallelPropagate?><?=side?>(
+	global <?=cons_t?> const & U,
+	real3 const pt,
+	real const dx
+) {
+	return U;
+}
 <?	else
-?>#define <?=cons_parallelPropagate?><?=side?>(\
-	resultName,\
-	/*<?=cons_t?> const * const */U,\
-	/*real3 const */pt,\
-	/*real const */dx\
-)\
-/* TODO don't assign here, instead assign all fields and just don't propagate the scalars */\
-	<?=cons_t?> resultName##base = *(U);\
+?>static inline <?=cons_t?> <?=cons_parallelPropagate?><?=side?>(
+	global <?=cons_t?> const & U,
+	real3 const pt,
+	real const dx
+) {
+	<?=cons_t?> result;
+/* TODO don't assign here, instead assign all fields and just don't propagate the scalars */
+	<?=cons_t?> result = U;
 <?		for _,var in ipairs(eqn.consStruct.vars) do
 			local variance = assert(var.variance)
 			local degree = degreeForType[var.type]
 			if variance == '' then
 			elseif variance == 'u' then
 -- P_u^a T^u
-?>	resultName##base.<?=var.name?> = coord_parallelPropagateU<?=side?>(resultName##base.<?=var.name?>, pt, dx);\
+?>	result.<?=var.name?> = coord_parallelPropagateU<?=side?>(result.<?=var.name?>, pt, dx);
 <?
 			elseif variance == 'l' then
 -- T_u (P^-T)_a^u
-?>	resultName##base.<?=var.name?> = coord_parallelPropagateL<?=side?>(resultName##base.<?=var.name?>, pt, dx);\
+?>	result.<?=var.name?> = coord_parallelPropagateL<?=side?>(result.<?=var.name?>, pt, dx);
 <?
 			elseif variance == 'll' then
 -- (P^-T)_a^u (P^-T)_b^v T_uv
-?>				{\
-					real3x3 t = real3x3_from_<?=var.type?>(resultName##base.<?=var.name?>);\
-					t.x = coord_parallelPropagateL<?=side?>(t.x, pt, dx);\
-					t.y = coord_parallelPropagateL<?=side?>(t.y, pt, dx);\
-					t.z = coord_parallelPropagateL<?=side?>(t.z, pt, dx);\
-					t = real3x3_transpose(t);\
-					t.x = coord_parallelPropagateL<?=side?>(t.x, pt, dx);\
-					t.y = coord_parallelPropagateL<?=side?>(t.y, pt, dx);\
-					t.z = coord_parallelPropagateL<?=side?>(t.z, pt, dx);\
-					resultName##base.<?=var.name?> = (<?=var.type?>)t;\
-				}\
+?>				{
+					real3x3 t = real3x3_from_<?=var.type?>(result.<?=var.name?>);
+					t.x = coord_parallelPropagateL<?=side?>(t.x, pt, dx);
+					t.y = coord_parallelPropagateL<?=side?>(t.y, pt, dx);
+					t.z = coord_parallelPropagateL<?=side?>(t.z, pt, dx);
+					t = real3x3_transpose(t);
+					t.x = coord_parallelPropagateL<?=side?>(t.x, pt, dx);
+					t.y = coord_parallelPropagateL<?=side?>(t.y, pt, dx);
+					t.z = coord_parallelPropagateL<?=side?>(t.z, pt, dx);
+					result.<?=var.name?> = (<?=var.type?>)t;
+				}
 <?			elseif variance == 'ul' then
-?>				{\
-					real3x3 t = real3x3_from_<?=var.type?>(resultName##base.<?=var.name?>);\
-					t.x = coord_parallelPropagateU<?=side?>(t.x, pt, dx);\
-					t.y = coord_parallelPropagateU<?=side?>(t.y, pt, dx);\
-					t.z = coord_parallelPropagateU<?=side?>(t.z, pt, dx);\
-					t = real3x3_transpose(t);\
-					t.x = coord_parallelPropagateL<?=side?>(t.x, pt, dx);\
-					t.y = coord_parallelPropagateL<?=side?>(t.y, pt, dx);\
-					t.z = coord_parallelPropagateL<?=side?>(t.z, pt, dx);\
-					t = real3x3_transpose(t);\
-					resultName##base.<?=var.name?> = (<?=var.type?>)t;\
-				}\
+?>				{
+					real3x3 t = real3x3_from_<?=var.type?>(result.<?=var.name?>);
+					t.x = coord_parallelPropagateU<?=side?>(t.x, pt, dx);
+					t.y = coord_parallelPropagateU<?=side?>(t.y, pt, dx);
+					t.z = coord_parallelPropagateU<?=side?>(t.z, pt, dx);
+					t = real3x3_transpose(t);
+					t.x = coord_parallelPropagateL<?=side?>(t.x, pt, dx);
+					t.y = coord_parallelPropagateL<?=side?>(t.y, pt, dx);
+					t.z = coord_parallelPropagateL<?=side?>(t.z, pt, dx);
+					t = real3x3_transpose(t);
+					result.<?=var.name?> = (<?=var.type?>)t;
+				}
 <?			elseif variance == 'lll' then
-?>				{\
-					real3x3x3 t = real3x3x3_from_<?=var.type?>(resultName##base.<?=var.name?>);\
-					real3 tmp;\
+?>				{
+					real3x3x3 t = real3x3x3_from_<?=var.type?>(result.<?=var.name?>);
+					real3 tmp;
 <?				local table = require 'ext.table'
 				local is = table()
 				for e=1,3 do
@@ -737,26 +744,28 @@ for side=0,solver.dim-1 do
 							is[e%3+1] = xj
 							for k,xk in ipairs(xNames) do
 								is[(e+1)%3+1] = xk
-?>						tmp.<?=xk?> = t.<?=is:concat'.'?>;\
+?>						tmp.<?=xk?> = t.<?=is:concat'.'?>;
 <?							end
-?>						tmp = coord_parallelPropagateL<?=side?>(tmp, pt, dx);\
+?>						tmp = coord_parallelPropagateL<?=side?>(tmp, pt, dx);
 <?							for k,xk in ipairs(xNames) do
 								is[(e+1)%3+1] = xk
-?>						t.<?=is:concat'.'?> = tmp.<?=xk?>;\
+?>						t.<?=is:concat'.'?> = tmp.<?=xk?>;
 <?							end
 						end
 					end
 				end
-?>					resultName##base.<?=var.name?> = (<?=var.type?>)t;\
-				}\
+?>					result.<?=var.name?> = (<?=var.type?>)t;
+				}
 <?			else
 				error("don't know how to handle variance for "..('%q'):format(variance))
 			end
 		end
-?>	<?=cons_t?> const * const resultName = &resultName##base;
+?>	return result;
+}
 <?	end
 end
-?>]], 		{
+?>
+]], 		{
 				coord = solver.coord,
 				degreeForType = degreeForType,
 			}),
@@ -854,10 +863,10 @@ end
 Equation.displayVarCodeUsesPrims = false
 function Equation:getDisplayVarCodePrefix()
 	return self:template[[
-global <?=cons_t?> const * const U = buf + index;
+global <?=cons_t?> const & U = buf[index];
 <? if eqn.displayVarCodeUsesPrims then ?>
 //// MODULE_DEPENDS: <?=primFromCons?>
-<?=prim_t?> W = <?=primFromCons?>(solver, *U, x);
+<?=prim_t?> W = <?=primFromCons?>(solver, U, x);
 <? end
 ?>]]
 end
@@ -885,16 +894,16 @@ function Equation:createDivDisplayVar(args)
 	} else {
 		<?=scalar?> v = {};
 		<? for j=0,solver.dim-1 do ?>{
-			global <?=cons_t?> const * const Ujm = U - solver->stepsize.s<?=j?>;
-			global <?=cons_t?> const * const Ujp = U + solver->stepsize.s<?=j?>;
+			global <?=cons_t?> const & Ujm = (&U)[-solver.stepsize.s<?=j?>];
+			global <?=cons_t?> const & Ujp = (&U)[ solver.stepsize.s<?=j?>];
 			v += (<?=getField('Ujp', j)?> - <?=getField('Ujm', j)?>) 
-				* .5 / solver->grid_dx.s<?=j?>;
+				* .5 / solver.grid_dx.s<?=j?>;
 		}<? end ?>
 		value.v<?=scalar?> = v;
 	}
 ]], 	{
 			getField = getField or function(U, j)
-				return U..'->'..field..'.s'..j
+				return U..'.'..field..'.s'..j
 			end,
 			scalar = scalar,
 		}),
@@ -923,10 +932,10 @@ function Equation:createCurlDisplayVar(args)
 	if (<?=OOB?>(1,1)) {
 		<?=result?> = 0./0.;
 	} else {
-		global <?=cons_t?> const * const Uim = U - solver->stepsize.s<?=i?>;
-		global <?=cons_t?> const * const Uip = U + solver->stepsize.s<?=i?>;
-		global <?=cons_t?> const * const Ujm = U - solver->stepsize.s<?=j?>;
-		global <?=cons_t?> const * const Ujp = U + solver->stepsize.s<?=j?>;
+		global <?=cons_t?> const & Uim = (&U)[-solver.stepsize.s<?=i?>];
+		global <?=cons_t?> const & Uip = (&U)[ solver.stepsize.s<?=i?>];
+		global <?=cons_t?> const & Ujm = (&U)[-solver.stepsize.s<?=j?>];
+		global <?=cons_t?> const & Ujp = (&U)[ solver.stepsize.s<?=j?>];
 
 		//TODO incorporate metric
 
@@ -936,15 +945,15 @@ function Equation:createCurlDisplayVar(args)
 		real vjm_i = <?=getField('Ujm', i)?>;
 		real vjp_i = <?=getField('Ujp', i)?>;
 		
-		<?=result?> = (vjp_i - vjm_i) / (2. * solver->grid_dx.s<?=i?>)
-					- (vip_j - vim_j) / (2. * solver->grid_dx.s<?=j?>);
+		<?=result?> = (vjp_i - vjm_i) / (2. * solver.grid_dx.s<?=i?>)
+					- (vip_j - vim_j) / (2. * solver.grid_dx.s<?=j?>);
 	}
 ]], 	{
 			i = i,
 			j = j,
 			result = result,
 			getField = getField or function(U, j)
-				return U..'->'..field..'.s'..j
+				return U..'.'..field..'.s'..j
 			end,
 		})}
 	end
@@ -976,7 +985,7 @@ end
 function Equation:getEigenDisplayVars()
 	-- use the automatic codegen for display vars
 	if not self.eigenVars then return end
-	return self.solver:createDisplayVarArgsForStructVars(self.eigenVars, '(&eig)')
+	return self.solver:createDisplayVarArgsForStructVars(self.eigenVars, 'eig')
 end
 
 function Equation:waveCodeAssignMinMax(declare, resultMin, resultMax, minCode, maxCode)
@@ -1134,7 +1143,7 @@ function Equation:initCodeModule_calcDT()
 		depends = {self.symbols.calcDTCell},
 		code = self:template[[
 kernel void <?=calcDT?>(
-	constant <?=solver_t?> const * const solver,
+	constant <?=solver_t?> const * const psolver,
 	global real * const dtBuf,
 	global <?=cons_t?> const * const UBuf,
 	global <?=cell_t?> const * const cellBuf<?
@@ -1145,6 +1154,7 @@ if require "hydro.solver.meshsolver":isa(solver) then
 end
 ?>
 ) {
+	constant <?=solver_t?> const & solver = *psolver;
 	<?=SETBOUNDS?>(0,0);
 	
 	//write inf to boundary cells
@@ -1155,14 +1165,14 @@ end
 	global real & dt = dtBuf[index];
 	dt = INFINITY;
 	
-	if (<?=OOB?>(solver->numGhost, solver->numGhost)) return;
-	global <?=cons_t?> const * const U = UBuf + index;
-	global <?=cell_t?> const * const cell = cellBuf + index;
+	if (<?=OOB?>(solver.numGhost, solver.numGhost)) return;
+	global <?=cons_t?> const & U = UBuf[index];
+	global <?=cell_t?> const & cell = cellBuf[index];
 	<?=calcDTCell?>(
 		dt,
 		solver,
-		*U,
-		*cell<?
+		U,
+		cell<?
 if require "hydro.solver.meshsolver":isa(solver) then
 ?>,
 		faces,

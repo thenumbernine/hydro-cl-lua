@@ -79,10 +79,9 @@ for side=0,solver.dim-1 do
 		global <?=consLR_t?> * const ULR = ULRBuf + indexForSide;
 		
 		//calc flux from ULR state here before modifying ULR
-		<?=cons_t?> fluxCellL, fluxCellR;
 		<?=normal_t?> n = normal_forSide<?=side?>(x);
-		<?=fluxFromCons?>(&fluxCellL, solver, &ULR->L, cell, n);
-		<?=fluxFromCons?>(&fluxCellR, solver, &ULR->R, cell, n);
+		<?=cons_t?> fluxCellL = <?=fluxFromCons?>(solver, ULR->L, cell, n);
+		<?=cons_t?> fluxCellR = <?=fluxFromCons?>(solver, &ULR->R, cell, n);
 <?
 		updateFields:insert"ULR->L"
 		updateFields:insert"ULR->R"
