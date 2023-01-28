@@ -928,13 +928,19 @@ self.modules = self.app.modules
 		name = self.symbols.solver_macros,
 		headercode = table{
 			self.dim == 3 and '#pragma OPENCL EXTENSION cl_khr_3d_image_writes : enable' or '',
+			-- already defined in cl-cpp as a macro
 			'#ifndef M_PI',
 			'#define M_PI '..('%.50f'):format(math.pi),
 			'#endif',
-			'#define dim '..self.dim,
-			'#define numStates '..self.eqn.numStates,
-			'#define numIntStates '..self.eqn.numIntStates,
-			'#define numWaves '..self.eqn.numWaves,
+			--'static constexpr real M_PI = '..('%.50f'):format(math.pi),
+			--'#define dim '..self.dim,
+			--'#define numStates '..self.eqn.numStates,
+			--'#define numIntStates '..self.eqn.numIntStates,
+			--'#define numWaves '..self.eqn.numWaves,
+			'static constexpr int dim = '..self.dim..';',
+			'static constexpr int numStates = '..self.eqn.numStates..';',
+			'static constexpr int numIntStates = '..self.eqn.numIntStates..';',
+			'static constexpr int numWaves = '..self.eqn.numWaves..';',
 		}:concat'\n',
 	}
 
@@ -1188,7 +1194,7 @@ kernel void multAddInto(
 	global <?=cons_t?> const * const b,
 	realparam const c
 ) {
-	constant <?=solver_t?> const & solver = *psolver;
+	auto const & solver = *psolver;
 	<?=SETBOUNDS_NOGHOST?>();
 <?
 for i=0,eqn.numIntStates-1 do
@@ -1204,7 +1210,7 @@ kernel void multAdd(
 	global <?=cons_t?> const * const c,
 	realparam const d
 ) {
-	constant <?=solver_t?> const & solver = *psolver;
+	auto const & solver = *psolver;
 	<?=SETBOUNDS_NOGHOST?>();
 <?
 -- hmm, I only need numIntStates integrated
@@ -1226,7 +1232,7 @@ kernel void subtractAndSquare(
 	global real * const a,
 	realparam const mu
 ) {
-	constant <?=solver_t?> const & solver = *psolver;
+	auto const & solver = *psolver;
 	<?=SETBOUNDS_NOGHOST?>();
 	global real * const ai = a + index;
 	*ai -= mu;
@@ -1239,7 +1245,7 @@ kernel void findNaNs(
 	global real * const dst,
 	global <?=cons_t?> const * const src
 ) {
-	constant <?=solver_t?> const & solver = *psolver;
+	auto const & solver = *psolver;
 <? if solver.checkNaNs == 'gpu-noghost' then ?>
 	<?=SETBOUNDS?>(solver.numGhost, solver.numGhost);
 <? else ?>
@@ -1890,7 +1896,7 @@ end ?><?=group.extraArgs and #group.extraArgs > 0
 		and ',\n\t'..table.concat(group.extraArgs, ',\n\t')
 		or '' ?>
 ) {
-	constant <?=solver_t?> const & solver = *psolver;
+	auto const & solver = *psolver;
 //// MODULE_DEPENDS: <?=SETBOUNDS?>
 	<?=SETBOUNDS?>(0,0);
 <? if not require 'hydro.solver.meshsolver':isa(solver) then
@@ -3775,18 +3781,17 @@ function SolverBase:checkStructSizes()
 print('shared modules: '..moduleNames:concat', ')
 	local codePrefix = self.modules:getTypeHeader(moduleNames:unpack())
 
---[=[
+-- [=[
 	local testStructProgramObj = self.Program{
 		name = 'checkStructSizes',
 		code = table{
 			codePrefix,
 			template([[
-kernel void checkStructSizes(
-	global int* resultBuf
-) {
-
 #define offsetof __builtin_offsetof
 
+kernel void checkStructSizes(
+	global int * result
+) {
 <?
 local index = 0
 for i,typeinfo in ipairs(typeinfos) do
@@ -3809,13 +3814,17 @@ end
 ?>
 
 }
-]], 	{
-			typeinfos = typeinfos,
-		})
+]], 		{
+				typeinfos = typeinfos,
+			})
 		}:concat'\n',
 	}
 	testStructProgramObj:compile()
+	local kernelObj = testStructProgramObj:kernel{name='checkStructSizes', domain=_1x1_domain}
+	kernelObj.obj:setArg(0, resultBuf)
+	kernelObj()
 --]=]
+--[=[
 	require 'cl.obj.kernel'{
 		env = self.app.env,
 		domain = _1x1_domain,
@@ -3849,6 +3858,7 @@ end
 			typeinfos = typeinfos,
 		}),
 	}()
+--]=]
 	resultBuf:toCPU(resultPtr)
 	local index = 0
 	for i,typeinfo in ipairs(typeinfos) do

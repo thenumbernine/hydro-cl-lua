@@ -9,7 +9,7 @@ kernel void <?=calcDerivFromFlux?>(
 	global <?=cons_t?> const * const fluxBuf,
 	global <?=cell_t?> const * const cellBuf
 ) {
-	constant <?=solver_t?> const & solver = *psolver;
+	auto const & solver = *psolver;
 	<?=SETBOUNDS_NOGHOST?>();
 	global <?=cons_t?> * const deriv = derivBuf + index;
 	global <?=cell_t?> const * const cell = cellBuf + index;

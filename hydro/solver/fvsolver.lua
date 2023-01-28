@@ -72,7 +72,7 @@ kernel void <?=calcFlux?>(
 	realparam const dt,	//not used by HLL, just making this match Roe / other FV solvers
 	global <?=cell_t?> const * const cellBuf
 ) {
-	constant <?=solver_t?> const & solver = *psolver;
+	auto const & solver = *psolver;
 	<?=SETBOUNDS?>(solver.numGhost, solver.numGhost-1);
 	
 	int const indexR = index;

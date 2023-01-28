@@ -214,7 +214,7 @@ kernel void <?=linearFunc?>(
 	global real const * const X,
 	global <?=cell_t?> const * const cellBuf
 ) {
-	constant <?=solver_t?> const & solver = *psolver;
+	auto const & solver = *psolver;
 	<?=SETBOUNDS?>(0,0);
 	if (<?=OOB?>(solver.numGhost, solver.numGhost)) {
 		Y[index] = 0.;
@@ -266,7 +266,7 @@ kernel void <?=copyPotentialFieldToVecAndInitB?>(
 	global real * const b,
 	global <?=cons_t?> const * const UBuf
 ) {
-	constant <?=solver_t?> const & solver = *psolver;
+	auto const & solver = *psolver;
 	<?=SETBOUNDS?>(0, 0);
 	
 	global <?=cons_t?> const * const U = UBuf + index;

@@ -621,7 +621,7 @@ kernel void <?=addSource?>(
 	global <?=cons_t?> const * const UBuf,
 	global <?=cell_t?> const * const cellBuf
 ) {
-	constant <?=solver_t?> const & solver = *psolver;
+	auto const & solver = *psolver;
 	<?=SETBOUNDS_NOGHOST?>();
 
 	global <?=cons_t?> & deriv = derivBuf[index];
@@ -708,7 +708,7 @@ kernel void <?=constrainU?>(
 	global <?=cons_t?> * const UBuf,
 	global <?=cell_t?> const * const cellBuf
 ) {
-	constant <?=solver_t?> const & solver = *psolver;
+	auto const & solver = *psolver;
 	<?=SETBOUNDS?>(0,0);
 	real3 const x = cellBuf[index].pos;
 

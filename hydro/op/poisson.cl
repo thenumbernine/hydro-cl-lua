@@ -36,7 +36,7 @@ kernel void <?=initPotential?>(
 	constant <?=solver_t?> const * const psolver,
 	global <?=op:getPotBufType()?> * const UBuf
 ) {
-	constant <?=solver_t?> const & solver = *psolver;
+	auto const & solver = *psolver;
 	<?=SETBOUNDS?>(solver.numGhost, solver.numGhost);
 	global <?=op:getPotBufType()?> * const U = UBuf + index;
 	<?=scalar?> source = {};
@@ -58,7 +58,7 @@ kernel void <?=copyWriteToPotentialNoGhost?>(
 	global <?=cons_t?> * const UBuf,
 	global real const * const writeBuf
 ) {
-	constant <?=solver_t?> const & solver = *psolver;
+	auto const & solver = *psolver;
 	<?=SETBOUNDS_NOGHOST?>();
 	UBuf[index].<?=op.potentialField?> = writeBuf[index];
 }
@@ -71,7 +71,7 @@ kernel void <?=setReduceToPotentialSquared?>(
 	global real * const reduceBuf,
 	global <?=cons_t?> const * const UBuf
 ) {
-	constant <?=solver_t?> const & solver = *psolver;
+	auto const & solver = *psolver;
 	<?=SETBOUNDS_NOGHOST?>();
 	reduceBuf[index] = lenSq(UBuf[index].<?=op.potentialField?>);
 }

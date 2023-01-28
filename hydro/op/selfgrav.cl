@@ -56,7 +56,7 @@ kernel void <?=calcGravityDeriv?>(
 	global <?=cons_t?> const * const UBuf,
 	global <?=cell_t?> const * const cellBuf
 ) {
-	constant <?=solver_t?> const & solver = *psolver;
+	auto const & solver = *psolver;
 	<?=SETBOUNDS?>(solver.numGhost, solver.numGhost);
 	real3 const pt = cellBuf[index].pos;
 
@@ -80,7 +80,7 @@ kernel void <?=copyPotentialToReduce?>(
 	global real* reduceBuf,
 	global const <?=cons_t?>* UBuf
 ) {
-	constant <?=solver_t?> const & solver = *psolver;
+	auto const & solver = *psolver;
 	<?=SETBOUNDS?>(0,0);
 	reduceBuf[index] = UBuf[index].<?=op.potentialField?>;
 }
@@ -93,7 +93,7 @@ kernel void <?=offsetPotential?>(
 	global <?=cons_t?>* UBuf,
 	realparam ePotMax
 ) {
-	constant <?=solver_t?> const & solver = *psolver;
+	auto const & solver = *psolver;
 	<?=SETBOUNDS?>(0,0);
 	global <?=cons_t?>* U = UBuf + index;
 	U-><?=op.potentialField?> -= ePotMax;

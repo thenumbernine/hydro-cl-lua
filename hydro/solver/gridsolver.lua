@@ -1115,7 +1115,7 @@ args.extraArgs and #args.extraArgs > 0
 	and ',\n\t'..table.concat(args.extraArgs, ',\n\t')
 	or '' ?>
 ) {
-	constant <?=solver_t?> const & solver = *psolver;
+	auto const & solver = *psolver;
 <?
 -- 1D: use a small 1D kernel and just run once
 -- 2D: use a 1D kernel the size of the max dim

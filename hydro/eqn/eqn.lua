@@ -598,7 +598,7 @@ kernel void <?=applyInitCond?>(
 	global <?=cons_t?> * const UBuf,
 	global <?=cell_t?> * const cellBuf
 ) {
-	constant <?=solver_t?> const & solver = *psolver;
+	auto const & solver = *psolver;
 	constant <?=initCond_t?> const & initCond = *pinitCond;
 	<?=SETBOUNDS?>(0,0);
 	global <?=cons_t?> & U = UBuf[index];
@@ -1154,7 +1154,7 @@ if require "hydro.solver.meshsolver":isa(solver) then
 end
 ?>
 ) {
-	constant <?=solver_t?> const & solver = *psolver;
+	auto const & solver = *psolver;
 	<?=SETBOUNDS?>(0,0);
 	
 	//write inf to boundary cells

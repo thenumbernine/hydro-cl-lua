@@ -38,7 +38,7 @@ if op.stopOnEpsilon then ?>,
 	global real * const reduceBuf<? 
 end ?>
 ) {
-	constant <?=solver_t?> const & solver = *psolver;
+	auto const & solver = *psolver;
 	<?=SETBOUNDS?>(0,0);
 	if (<?=OOB?>(solver.numGhost, solver.numGhost)) {
 		writeBuf[index] = UBuf[index].<?=op.potentialField?>;
