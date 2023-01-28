@@ -623,11 +623,12 @@ function HydroCLApp:initGL(...)
 --  and typedef later is shared with .clcpp
 		local safecdef = require 'hydro.code.safecdef'
 		safecdef[[
-typedef union {
+union real3 {
 	real s[3];
 	struct { real s0, s1, s2; };
 	struct { real x, y, z; };
-} real3;
+};
+typedef union real3 real3;
 ]]
 
 		safecdef(self.modules:getTypeHeader'math')
