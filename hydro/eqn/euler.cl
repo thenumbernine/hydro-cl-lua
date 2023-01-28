@@ -228,12 +228,12 @@ end
 	
 <?=initCode()?>
 	
-	<?=prim_t?> W = {
-		.rho = rho,
-		.v = cartesianToCoord(v, x),
-		.P = P,
-		.ePot = ePot,
-	};
+	<?=prim_t?> W = <?=prim_t?>()
+		.set_rho(rho)
+		.set_v(cartesianToCoord(v, x))
+		.set_P(P)
+		.set_ePot(ePot)
+	;
 
 	<?=consFromPrim?>(U, solver, &W, x);
 }

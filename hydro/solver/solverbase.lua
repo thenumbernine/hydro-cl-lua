@@ -248,7 +248,8 @@ end
 local integrators = require 'hydro.int.all'
 local integratorNames = integrators:mapi(function(integrator) return integrator.name end)
 
-local useClang = cmdline.useClang
+local useClang = true
+if cmdline.useClang ~= nil then useClang = cmdline.useClang end
 
 local SolverBase = class()
 
@@ -594,7 +595,7 @@ function SolverBase:initMeshVars(args)
 			-- TODO hmm this dependency graph for code->cl->bin is hardcoded into cl/obj/program.lua
 			--  but could I generalize this somehow, and integrate it into lua-make ...
 			-- and then make a separate build-target chain for .clcpp -> .bc -> .spv ...
-			self.cacheFileCL = cldir..'/'..args.name..'.cl'
+			self.cacheFileCL = cldir..'/'..args.name..'.clcpp'
 			self.cacheFileBC = bcdir..'/'..args.name..'.bc'
 			self.cacheFileSPV = spvdir..'/'..args.name..'.spv'
 			Program.super.init(self, args)
@@ -604,9 +605,7 @@ function SolverBase:initMeshVars(args)
 		local clfn = cldir..'/'..args.name..'.cl'
 
 		-- caching binaries, which doesn't write unless the program successfully compiles
-		if not cmdline.usecachedcode
-		and not useClang
-		then
+		if not cmdline.usecachedcode then
 			if args.name then
 				if useCache then
 					args.cacheFileCL = clfn
@@ -634,15 +633,17 @@ function SolverBase:initMeshVars(args)
 		if useClang then
 			-- if cl file is out of date then regen bytecode
 
-			local oldCode
-			if file(self.cacheFileCL):exists() then
-				oldCode = file(self.cacheFileCL):read()
-			end
-			local newCode = self:getCode()
-			if oldCode ~= newCode then
-				-- only write the new code if it is outdated -- to preserve file timestamps -- so the build system doesn't rebuild needlessly
-				if oldCode then file(self.cacheFileCL..'.old'):write(oldCode) end
-				file(self.cacheFileCL):write(newCode)
+			if not cmdline.usecachedcode then
+				local oldCode
+				if file(self.cacheFileCL):exists() then
+					oldCode = file(self.cacheFileCL):read()
+				end
+				local newCode = self:getCode()
+				if oldCode ~= newCode then
+					-- only write the new code if it is outdated -- to preserve file timestamps -- so the build system doesn't rebuild needlessly
+					if oldCode then file(self.cacheFileCL..'.old'):write(oldCode) end
+					file(self.cacheFileCL):write(newCode)
+				end
 			end
 			-- so cl.obj.program :compile using .code and .cacheFile basically does the same thing, but less flexible
 			local exec = require 'make.exec'
@@ -659,6 +660,7 @@ function SolverBase:initMeshVars(args)
 							'--target=spir64-unknown-unknown',
 							'-emit-llvm',
 							'-c',
+							'-O3',
 							'-o', ('%q'):format(self.cacheFileBC),
 							('%q'):format(self.cacheFileCL)
 						}:concat' ')
@@ -989,6 +991,10 @@ end
 -- how about instead I call cdef() immediately upon request?
 -- and then just get of this function completely.
 function SolverBase:initCDefs()
+-- structures are cdef'd already in Struct:makeType
+-- so why was I ever doing it a second time here?
+-- but if I cdef here and don't in Struct:makeType then it fails ...
+--[[
 	local moduleNames = table(
 		self.initModulesEnabled,
 		self.solverModulesEnabled,
@@ -1002,6 +1008,7 @@ function SolverBase:initCDefs()
 		print("ffi.cdef'ing: "..moduleNames:concat', ')
 	end
 	require 'hydro.code.safecdef'(self.modules:getTypeHeader(moduleNames:unpack()))
+--]]
 end
 
 function SolverBase:refreshGetULR()

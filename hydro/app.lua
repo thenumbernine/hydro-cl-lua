@@ -95,6 +95,8 @@ debugging:
 
 	trace = insert a debug hook to print out where we are every so often.
 
+	debugcdefs = print out cdefs as we do them, to debug those frustrating "attempt to redefine" errors
+
 integrator parameters:
 	intVerbose = output extra info from int/*.lua
 	intBEEpsilon = backwards Euler stop on residual less than this epsilon
@@ -617,7 +619,19 @@ function HydroCLApp:initGL(...)
 			app = self,
 		})))
 
-		require 'hydro.code.safecdef'(self.modules:getTypeHeader'math')
+-- the luajit version goes here
+--  and typedef later is shared with .clcpp
+		local safecdef = require 'hydro.code.safecdef'
+		safecdef[[
+typedef union {
+	real s[3];
+	struct { real s0, s1, s2; };
+	struct { real x, y, z; };
+} real3;
+]]
+
+		safecdef(self.modules:getTypeHeader'math')
+assert(ffi.sizeof'real3' == 3 * ffi.sizeof'real')
 
 		-- this expects solver_t to have gridSize, but it doesn't require its def (because it's a macro)
 		self.modules:add{

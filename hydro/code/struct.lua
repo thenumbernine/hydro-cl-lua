@@ -61,43 +61,6 @@ end
 function Struct:makeType()
 	assert(not self.typename, "don't call makeType() twice")
 
-	-- generate the typecode *except* the typename
-	-- then compare it to a map from typecode => typename
-	-- if it matches any, use the old typecode, typename, and metatype
-	-- otherwise generate a new one
-
-	local codeWithoutTypename = self:getTypeCodeWithoutTypeName()
-
--- new issue with multi-solvers and modules
--- setting the type code to this typedef also means the module using this code will need to depend on the previous def
--- which I can't communicate just yet
--- so in the mean time, I'll just disable this for now
---[=[
-	local app = assert(self.app)
-	app.typeInfoForCode = app.typeInfoForCode or {}
-	local info = app.typeInfoForCode[codeWithoutTypename]
-	if info then
-		print('reusing matching struct '..info.typename..' for '..self.name)
-
-		--[[ use cached version
-		self.typename = info.typename
-		self.typecode = info.typecode
-		self.metatype = info.metatype
-		return
-		--]]
-		-- but our module system now expects typenames to be unique names
-		-- which means that we can't use a matching typename but instead must do a unique name + a typedef
-		-- [[
-		self.typename = app:uniqueName(self.name)
-		codeWithoutTypename = 'typedef '..info.typename
-		self.typecode = codeWithoutTypename .. ' ' .. self.typename .. ';'
-		safecdef(assert(self.typecode))
-		self.metatype = info.metatype
-		return
-		--]]
-	end
---]=]
-
 	-- TODO no more uniqueName and typename ~= name .. instead force names to be unique
 	-- and make them unique before passing them in by appending the lua object uid or something
 	if self.dontMakeUniqueName then
@@ -105,8 +68,9 @@ function Struct:makeType()
 	else
 		self.typename = assert(self.app):uniqueName(self.name)
 	end
+	
 	do
-		local typecode = codeWithoutTypename .. ' ' .. self.typename .. ';'
+		local typecode = self:getTypeCode(self.typename)
 		if self.typecode then
 			assert(typecode == self.typecode)
 		else
@@ -176,31 +140,22 @@ function Struct:makeType()
 	end
 
 	self.metatype = metatype
-
---[=[
-	-- store it
-	app.typeInfoForCode[codeWithoutTypename] = {
-		typename = self.typename,
-		typecode = self.typecode,
-		metatype = self.metatype,
-	}
---]=]
 end
 
--- this gets the type code *except* the typename
--- this way I can compare it to other type codes previously generated,
--- so I only need to generate struct codes once
--- I can use this to reduce the number of ffi.cdef's that are called.
-function Struct:getTypeCodeWithoutTypeName()
+-- this gets the type code
+function Struct:getTypeCode(typename)
 	local lines = table()
 	local scalar = 'real'
 
 	local tab
+	local classType
 	if self.dontUnion then
-		lines:insert'typedef struct {'
+		classType = 'struct'
+		lines:insert(classType..' '..typename..' {')
 		tab = '\t'
 	else
-		lines:insert'typedef union {'
+		classType = 'union'
+		lines:insert(classType..' '..typename..' {')
 		local numScalars = self:countScalars(scalar)
 		lines:insert('	'..scalar..' ptr['..math.max(1, math.floor(numScalars))..'];')
 		lines:insert('	struct {')
@@ -221,7 +176,15 @@ function Struct:getTypeCodeWithoutTypeName()
 	if not self.dontUnion then
 		lines:insert('	};')
 	end
-	lines:insert('}')
+	-- for opencl-cpp, not for ffi.cef
+	lines:insert'//// BEGIN EXCLUDE FROM FFI_CDEF'
+	lines:insert('\t'..typename..'() {}')
+	for _,var in ipairs(self.vars) do
+		lines:insert('\t'..typename..' & set_'..var.name..'('..var.type..' const & value_) { '..var.name..' = value_; return *this; }')
+	end
+	lines:insert'//// END EXCLUDE FROM FFI_CDEF'
+	lines:insert('};')
+	lines:insert('typedef '..classType..' '..typename..' '..typename..';')
 	return lines:concat'\n'
 end
 

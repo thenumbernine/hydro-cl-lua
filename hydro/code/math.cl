@@ -1,7 +1,8 @@
 <?
 local function makevec3type(name, scalar)
-	if scalar == "real"
-	and (
+	if 
+	false
+	and scalar == "real" and (
 		app.real == "float"
 		or app.real == "double"
 	) then
@@ -23,37 +24,95 @@ typedef <?=vecType.type?> <?=name?>;
 		else
 			-- normal
 ?>
-typedef union {
+
+//// BEGIN EXCLUDE FROM FFI_CDEF
+union <?=name?> {
 	<?=scalar?> s[3];
 	struct { <?=scalar?> s0, s1, s2; };
 	struct { <?=scalar?> x, y, z; };
-} <?=app.real=='half' and '__attribute__ ((packed))' or ''
+
+	<?=name?>()
+	:	x(<?=scalar?>{}),
+		y(<?=scalar?>{}),
+		z(<?=scalar?>{})
+	{}
+
+	<?=name?>(
+		<?=scalar?> x_,
+		<?=scalar?> y_,
+		<?=scalar?> z_
+	) : x(x_), y(y_), z(z_) {}
+
+} <?=app.real=="half" and "__attribute__ ((packed))" or ""
 -- __attribute__ ((packed)) seems to need to be here with real=half
-?> <?=name?>;
+?>;
+//// END EXCLUDE FROM FFI_CDEF
+
+// for the ffi.cdef C code:
+typedef union <?=name?> <?=name?>;
+
 <?
 	end
 end
 
-local function makevec3header(vec, scalar)
+local function makevec3header(vec, scalar, cdef)
 	local add = scalar.."_add"
 	local mul = scalar.."_mul"
 ?>
-//is buggy with doubles on intel opencl ubuntu compiler
-//#define _<?=vec?>(a,b,c) 			((<?=vec?>){.s={a,b,c}})
-//so we do this instead and are safe:
-#define _<?=vec?>(a,b,c) 			((<?=vec?>){.x=a, .y=b, .z=c})
+
+#define _<?=vec?> <?=vec?>
 
 #define <?=vec?>_zero				_<?=vec?>(<?=scalar?>_zero,<?=scalar?>_zero,<?=scalar?>_zero)
 
 static inline <?=scalar?> <?=vec?>_<?=vec?>_dot(<?=vec?> a, <?=vec?> b);
 #define	<?=vec?>_dot <?=vec?>_<?=vec?>_dot
-static inline <?=vec?> <?=vec?>_<?=scalar?>_mul(<?=vec?> a, <?=scalar?> s);
+
+static inline <?=vec?> <?=vec?>_<?=scalar?>_mul(
+	<?=vec?> const & a,
+	<?=scalar?> s
+);
+static inline <?=vec?> <?=vec?>_<?=scalar?>_mul(
+	constant <?=vec?> const & a,
+	<?=scalar?> s
+);
+static inline <?=vec?> <?=vec?>_<?=scalar?>_mul(
+	private <?=vec?> const & a,
+	<?=scalar?> s
+);
+
 static inline <?=vec?> <?=scalar?>_<?=vec?>_mul(<?=scalar?> a, <?=vec?> b);
-<? if scalar ~= 'real' then ?>
-static inline <?=vec?> <?=vec?>_real_mul(<?=vec?> a, real b);
+<? if scalar ~= "real" then ?>
+
+static inline <?=vec?> <?=vec?>_real_mul(
+	<?=vec?> const & a,
+	real b
+);
+static inline <?=vec?> <?=vec?>_real_mul(
+	constant <?=vec?> const & a,
+	real b
+);
+static inline <?=vec?> <?=vec?>_real_mul(
+	private <?=vec?> const & a,
+	real b
+);
+
+
 static inline <?=vec?> real_<?=vec?>_mul(real a, <?=vec?> b);
 <? end ?>
-static inline <?=vec?> <?=vec?>_add(<?=vec?> a, <?=vec?> b);
+
+static inline <?=vec?> <?=vec?>_add(
+	<?=vec?> const & a,
+	<?=vec?> const & b
+);
+static inline <?=vec?> <?=vec?>_add(
+	constant <?=vec?> const & a,
+	constant <?=vec?> const & b
+);
+static inline <?=vec?> <?=vec?>_add(
+	private <?=vec?> const & a,
+	private <?=vec?> const & b
+);
+
 static inline <?=vec?> <?=vec?>_sub(<?=vec?> a, <?=vec?> b);
 static inline <?=vec?> <?=vec?>_cross(<?=vec?> a, <?=vec?> b);
 static inline <?=vec?> <?=vec?>_neg(<?=vec?> a);
@@ -73,7 +132,29 @@ local function makevec3code(vec,scalar)
 	local add3 = scalar.."_add3"
 	local mul3 = scalar.."_mul3"
 ?>
-static inline <?=vec?> <?=vec?>_<?=scalar?>_mul(<?=vec?> a, <?=scalar?> s) {
+
+static inline <?=vec?> <?=vec?>_<?=scalar?>_mul(
+	<?=vec?> const & a,
+	<?=scalar?> s
+) {
+	return _<?=vec?>(
+		<?=mul?>(a.x, s),
+		<?=mul?>(a.y, s),
+		<?=mul?>(a.z, s));
+}
+static inline <?=vec?> <?=vec?>_<?=scalar?>_mul(
+	constant <?=vec?> const & a,
+	<?=scalar?> s
+) {
+	return _<?=vec?>(
+		<?=mul?>(a.x, s),
+		<?=mul?>(a.y, s),
+		<?=mul?>(a.z, s));
+}
+static inline <?=vec?> <?=vec?>_<?=scalar?>_mul(
+	private <?=vec?> const & a,
+	<?=scalar?> s
+) {
 	return _<?=vec?>(
 		<?=mul?>(a.x, s),
 		<?=mul?>(a.y, s),
@@ -88,7 +169,29 @@ static inline <?=vec?> <?=scalar?>_<?=vec?>_mul(<?=scalar?> a, <?=vec?> b) {
 }
 
 <? if scalar ~= "real" then ?>
-static inline <?=vec?> <?=vec?>_real_mul(<?=vec?> a, real b) {
+
+static inline <?=vec?> <?=vec?>_real_mul(
+	<?=vec?> const & a,
+	real b
+) {
+	return _<?=vec?>(
+		<?=real_mul?>(a.x, b),
+		<?=real_mul?>(a.y, b),
+		<?=real_mul?>(a.z, b));
+}
+static inline <?=vec?> <?=vec?>_real_mul(
+	constant <?=vec?> const & a,
+	real b
+) {
+	return _<?=vec?>(
+		<?=real_mul?>(a.x, b),
+		<?=real_mul?>(a.y, b),
+		<?=real_mul?>(a.z, b));
+}
+static inline <?=vec?> <?=vec?>_real_mul(
+	private <?=vec?> const & a,
+	real b
+) {
 	return _<?=vec?>(
 		<?=real_mul?>(a.x, b),
 		<?=real_mul?>(a.y, b),
@@ -103,7 +206,28 @@ static inline <?=vec?> real_<?=vec?>_mul(real a, <?=vec?> b) {
 }
 <? end ?>
 
-static inline <?=vec?> <?=vec?>_add(<?=vec?> a, <?=vec?> b) {
+static inline <?=vec?> <?=vec?>_add(
+	<?=vec?> const & a,
+	<?=vec?> const & b
+) {
+	return _<?=vec?>(
+		<?=add?>(a.x, b.x),
+		<?=add?>(a.y, b.y),
+		<?=add?>(a.z, b.z));
+}
+static inline <?=vec?> <?=vec?>_add(
+	constant <?=vec?> const & a,
+	constant <?=vec?> const & b
+) {
+	return _<?=vec?>(
+		<?=add?>(a.x, b.x),
+		<?=add?>(a.y, b.y),
+		<?=add?>(a.z, b.z));
+}
+static inline <?=vec?> <?=vec?>_add(
+	private <?=vec?> const & a,
+	private <?=vec?> const & b
+) {
 	return _<?=vec?>(
 		<?=add?>(a.x, b.x),
 		<?=add?>(a.y, b.y),
@@ -297,11 +421,9 @@ my current convention is this:
 //// MODULE_NAME: real3
 //// MODULE_DEPENDS: real
 //// MODULE_TYPE:
-
 <?makevec3type("real3", "real")?>
 
 //// MODULE_HEADER:
-
 <?makevec3header("real3", "real")?>
 
 #define real3_from_real3(x)	x
@@ -922,7 +1044,7 @@ static inline real3x3 real3x3_from_real(real x) {
 <? for i,xi in ipairs(xNames) do
 ?>		.<?=xi?> = _real3(<?
 	for j,xj in ipairs(xNames) do
-		if i~=j then ?>0.<? else ?>x<? end ?><?= j < 3 and ', ' or ''?><?
+		if i~=j then ?>0.<? else ?>x<? end ?><?= j < 3 and ", " or ""?><?
 	end ?>),
 <? end
 ?>	};
@@ -1903,10 +2025,15 @@ static inline real sqr(real const x) {
 }
 
 //// MODULE_NAME: math
-//// MODULE_DEPENDS: realparam units real real3
+//// MODULE_DEPENDS: realparam units real
 /*
+This is defined
+
 TODO don't just use 'math',
 put a global depends list somewhere, build on it as we add eqn and solver
 but app has its own modules which it needs typecode for first (which other solvers use ffi instances of)
 and solvers modules depend on those app modules...
+
+and here don't put structs
+cuz I don't want to ffi.cdef them twice
 */
