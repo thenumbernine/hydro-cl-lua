@@ -162,8 +162,7 @@ if useFluxLimiter then
 end
 ?>
 //// MODULE_DEPENDS: <?=calcFluxForInterface?>
-			<?=calcFluxForInterface?>(
-				flux,
+			*flux = <?=calcFluxForInterface?>(
 				solver,
 				ppUL,
 				ppUR,

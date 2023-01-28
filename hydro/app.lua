@@ -636,26 +636,45 @@ assert(ffi.sizeof'real3' == 3 * ffi.sizeof'real')
 		-- this expects solver_t to have gridSize, but it doesn't require its def (because it's a macro)
 		self.modules:add{
 			name = 'INDEX',
-			headercode = '#define INDEX(a,b,c)	((a) + solver->gridSize.x * ((b) + solver->gridSize.y * (c)))',
+			headercode = [[
+#define INDEX(a,b,c)	((a) + solver->gridSize.x * ((b) + solver->gridSize.y * (c)))
+/*
+static inline int INDEX(int a, int b, int c) {
+	return a + solver->gridSize.x * (b + solver->gridSize.y * c);
+}
+*/
+]],
 		}
 
 		self.modules:add{
 			name = 'INDEXV',
-			headercode = '#define INDEXV(i)		indexForInt4ForSize(i, solver->gridSize.x, solver->gridSize.y, solver->gridSize.z)',
+			headercode = [[
+#define INDEXV(i)		indexForInt4ForSize(i, solver->gridSize.x, solver->gridSize.y, solver->gridSize.z)
+/*
+static inline int INDEXV(int4 i) {
+	return indexForInt4ForSize(i, solver->gridSize.x, solver->gridSize.y, solver->gridSize.z);
+}
+*/
+]],
 		}
 
 		-- add defs.h?
 
 		self.modules:add{
 			name = 'numberof',
-			headercode = '#define numberof(x)	(sizeof(x)/sizeof(x[0]))',
+			headercode = [[
+#define numberof(x)	(sizeof(x)/sizeof(x[0]))
+]],
 		}
 
 		self.modules:add{
 			name = 'endof',
 			depends = {'numberof'},
-			headercode = '#define endof(x)	((x) + numberof(x))',
+			headercode = [[
+#define endof(x)	((x) + numberof(x))
+]],
 		}
+
 	end
 
 

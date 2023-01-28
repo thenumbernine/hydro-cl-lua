@@ -142,7 +142,7 @@ for (int j = 0; j < numStates; ++j) {
 
 //// MODULE_DEPENDS: <?=calcFluxForInterface?>
 	<?=normal_t?> const n = normal_forFace(face);
-	<?=calcFluxForInterface?>(flux, solver, &UL, &UR, &cellL, &cellR, face->pos, n);
+	*flux = <?=calcFluxForInterface?>(solver, &UL, &UR, &cellL, &cellR, face->pos, n);
 }
 
 //// MODULE_NAME: <?=calcDerivFromFlux?>

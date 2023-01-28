@@ -2137,9 +2137,15 @@ real3 coord_cartesianFromCoord(real3 u, real3 pt) {
 			else	-- cartesian:isa(coord)
 				fromlines:insert[[
 #define coord_cartesianFromCoord(u, pt) (u)
+// TODO for when I uncouple this from GLSL
+// ... or make the shader code SPIR-V from OpenCL-C++ also
+//real3 & coord_cartesianFromCoord(real3 & u, real3 private const & pt) { return u; }
 ]]
 				tolines:insert[[
 #define coord_cartesianToCoord(u, pt) 	(u)
+// TODO for when I uncouple this from GLSL
+// ... or make the shader code SPIR-V from OpenCL-C++ also
+//real3 & coord_cartesianToCoord(real3 & u, real3 private const & pt) { return u; }
 ]]
 			end
 
@@ -2148,9 +2154,15 @@ real3 coord_cartesianFromCoord(real3 u, real3 pt) {
 -- this is relative to teh vector component basis
 			fromlines:insert[[
 #define cartesianFromCoord(u, pt) 	(u)
+// TODO for when I uncouple this from GLSL
+// ... or make the shader code SPIR-V from OpenCL-C++ also
+//real3 & cartesianFromCoord(real3 & u, real3 private const & pt) { return u; }
 ]]
 			tolines:insert[[
 #define cartesianToCoord(u, pt) 	(u)
+// TODO for when I uncouple this from GLSL
+// ... or make the shader code SPIR-V from OpenCL-C++ also
+//real3 & cartesianToCoord(real3 & u, real3 private const & pt) { return u; }
 ]]
 
 		else	-- coord.vectorComponent
@@ -2181,6 +2193,9 @@ real3 coord_cartesianToCoord(real3 u, real3 pt) {
 }
 
 #define cartesianToCoord(u, pt) 	coord_cartesianToCoord(u, pt)
+// TODO for when I uncouple this from GLSL
+// ... or make the shader code SPIR-V from OpenCL-C++ also
+//real3 & cartesianToCoord(real3 & u, real3 private const & pt) { return u; }
 ]], env))
 			fromlines:insert(template([[
 //converts a vector from cartesian to grid curvilinear coordinates
@@ -2197,6 +2212,9 @@ real3 coord_cartesianFromCoord(real3 u, real3 pt) {
 }
 
 #define cartesianFromCoord(u, pt) 	coord_cartesianFromCoord(u, pt)
+// TODO for when I uncouple this from GLSL
+// ... or make the shader code SPIR-V from OpenCL-C++ also
+//real3 & coord_cartesianFromCoord(real3 & u, real3 private const & pt) { return u; }
 ]], env))
 
 		end -- coord.vectorComponent

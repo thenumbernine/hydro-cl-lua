@@ -855,10 +855,9 @@ Equation.displayVarCodeUsesPrims = false
 function Equation:getDisplayVarCodePrefix()
 	return self:template[[
 global <?=cons_t?> const * const U = buf + index;
-<? if eqn.displayVarCodeUsesPrims then
-?><?=prim_t?> W;
+<? if eqn.displayVarCodeUsesPrims then ?>
 //// MODULE_DEPENDS: <?=primFromCons?>
-<?=primFromCons?>(&W, solver, U, x);
+<?=prim_t?> W = <?=primFromCons?>(solver, *U, x);
 <? end
 ?>]]
 end
@@ -1192,12 +1191,11 @@ function Equation:initCodeModule_consFromPrim_primFromCons()
 		name = self.symbols.primFromCons,
 		depends = {self.solver.solver_t, self.symbols.prim_t, self.symbols.cons_t},
 		code = self:template[[
-#define <?=primFromCons?>(W, solver, U, x)	(*(W) = *(U))
+#define <?=primFromCons?>(solver, U, x)	(*(U))
 /*
-void <?=primFromCons?>(
-	<?=prim_t?> * const W,
+<?=cons_t?> <?=primFromCons?>(
 	constant <?=solver_t?> const * const solver,
-	<?=cons_t?> const * const U,
+	<?=cons_t?> const & U,
 	real3 const x
 ) {
 	return U;
@@ -1214,12 +1212,11 @@ void <?=primFromCons?>(
 			self.symbols.cons_t,
 		},
 		code = self:template[[
-#define <?=consFromPrim?>(U, solver, W, x)	(*(U) = *(W))
+#define <?=consFromPrim?>(solver, W, x)	(*(W))
 /*
-void <?=consFromPrim?>(
-	<?=cons_t?> * const U,
+<?=prim_t?> <?=consFromPrim?>(
 	constant <?=solver_t?> const * const solver,
-	<?=prim_t?> const * const W,
+	<?=prim_t?> const & W,
 	real3 const x
 ) {
 	return W;

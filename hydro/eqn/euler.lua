@@ -67,10 +67,9 @@ function Euler:init(args)
 
 #if 1 	// recalculate cons
 //// MODULE_DEPENDS: <?=primFromCons?> <?=consFromPrim?>
-	<?=prim_t?> W;
-	<?=primFromCons?>(&W, solver, U, pt);
+	<?=prim_t?> W = <?=primFromCons?>(solver, *U, pt);
 	W.v -= <?=dv?>;
-	<?=consFromPrim?>(U, solver, &W, pt);
+	*U = <?=consFromPrim?>(solver, W, pt);
 #endif
 ]], {dv=dv})
 				end,
@@ -257,20 +256,20 @@ function Euler:getDisplayVars()
 		-- should SI unit displays be auto generated as well?
 		{name='v', code='value.vreal3 = W.v;', type='real3', units='m/s'},
 		{name='P', code='value.vreal = W.P;', units='kg/(m*s^2)'},
-		{name='eInt', code=self:template'value.vreal = <?=calc_eInt?>(solver, &W);', units='m^2/s^2'},
-		{name='eKin', code=self:template'value.vreal = <?=calc_eKin?>(&W, x);', units='m^2/s^2'},
+		{name='eInt', code=self:template'value.vreal = <?=calc_eInt?>(solver, W);', units='m^2/s^2'},
+		{name='eKin', code=self:template'value.vreal = <?=calc_eKin?>(W, x);', units='m^2/s^2'},
 		{name='eTotal', code='value.vreal = U->ETotal / W.rho;', units='m^2/s^2'},
-		{name='EInt', code=self:template'value.vreal = <?=calc_EInt?>(solver, &W);', units='kg/(m*s^2)'},
-		{name='EKin', code=self:template'value.vreal = <?=calc_EKin?>(&W, x);', units='kg/(m*s^2)'},
+		{name='EInt', code=self:template'value.vreal = <?=calc_EInt?>(solver, W);', units='kg/(m*s^2)'},
+		{name='EKin', code=self:template'value.vreal = <?=calc_EKin?>(W, x);', units='kg/(m*s^2)'},
 		{name='EPot', code='value.vreal = U->rho * U->ePot;', units='kg/(m*s^2)'},
 		{name='S', code='value.vreal = W.P / pow(W.rho, (real)solver->heatCapacityRatio);'},
 		{name='H', code=self:template'value.vreal = <?=calc_H?>(solver, W.P);', units='kg/(m*s^2)'},
 		{name='h', code=self:template'value.vreal = <?=calc_h?>(solver, W.rho, W.P);', units='m^2/s^2'},
 		{name='HTotal', code=self:template'value.vreal = <?=calc_HTotal?>(W.P, U->ETotal);', units='kg/(m*s^2)'},
 		{name='hTotal', code=self:template'value.vreal = <?=calc_hTotal?>(W.rho, W.P, U->ETotal);', units='m^2/s^2'},
-		{name='speed of sound', code=self:template'value.vreal = <?=calc_Cs?>(solver, &W);', units='m/s'},
-		{name='Mach number', code=self:template'value.vreal = coordLen(W.v, x) / <?=calc_Cs?>(solver, &W);'},
-		{name='temperature', code=self:template'value.vreal = <?=calc_T?>(U, x);', units='K'},
+		{name='speed of sound', code=self:template'value.vreal = <?=calc_Cs?>(solver, W);', units='m/s'},
+		{name='Mach number', code=self:template'value.vreal = coordLen(W.v, x) / <?=calc_Cs?>(solver, W);'},
+		{name='temperature', code=self:template'value.vreal = <?=calc_T?>(*U, x);', units='K'},
 	}:append(self.gravOp and
 		{{name='gravity', code=self:template[[
 if (!<?=OOB?>(1,1)) {
@@ -342,8 +341,7 @@ end
 -- but then I just explicitly wrote out the calcDT, so the extra parameters just aren't used anymore.
 function Euler:consWaveCodePrefix(args)
 	return self:template([[
-real <?=eqn.symbolPrefix?>Cs_nLen;
-<?=calc_Cs_fromCons?>(&<?=eqn.symbolPrefix?>Cs_nLen, solver, <?=U?>, <?=pt?>);
+real <?=eqn.symbolPrefix?>Cs_nLen = <?=calc_Cs_fromCons?>(solver, *(<?=U?>), <?=pt?>);
 <?=eqn.symbolPrefix?>Cs_nLen *= normal_len(<?=n?>);
 real const <?=eqn.symbolPrefix?>v_n = (<?=U?>)->rho < solver->rhoMin ? 0. : normal_vecDotN1(<?=n?>, (<?=U?>)->m) / (<?=U?>)->rho;
 ]], args)
@@ -359,8 +357,7 @@ Euler.consWaveCode = Euler.eigenWaveCode
 -- ok so this goes before consMin/MaxWaveCode
 function Euler:consWaveCodeMinMaxAllSidesPrefix(args)
 	return self:template([[
-real <?=eqn.symbolPrefix?>Cs;
-<?=calc_Cs_fromCons?>(&<?=eqn.symbolPrefix?>Cs, solver, <?=U?>, <?=pt?>);\
+real <?=eqn.symbolPrefix?>Cs = <?=calc_Cs_fromCons?>(solver, *(<?=U?>), <?=pt?>);\
 ]],	args)
 end
 
