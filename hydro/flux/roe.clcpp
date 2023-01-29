@@ -68,16 +68,13 @@ static inline Cons calcFluxForInterface(
 <? 	end ?>
 
 <?
-local lambdaConst = 'const'
 if flux.useEntropyFluxFix then
-	lambdaConst = ''
 ?>	real const speedOfSound = eig.Cs; //This is Euler-specific, so TODO abstract this.
 	real const lambdaLimitingFactor = <?=clnumber(flux.entropyFluxFixLimitingFactor)?>;
-<? end -- flux.useEntropyFluxFix ?>
+<? end ?>
 
-	<? for j=0,eqn.numWaves-1 do ?>{
-		int const j = <?=j?>;
-		real <?=lambdaConst?> lambda = calcWaves(solver, eig, n, xInt, j);
+	for (int j = 0; j < numWaves; ++j) {
+		real lambda = calcWaves(solver, eig, n, xInt, j);
 
 <? if flux.useEntropyFluxFix then ?>
 // So, here is where the Hartan entropy fix goes.
@@ -113,7 +110,7 @@ if flux.useEntropyFluxFix then
 ?>			+ phi * (lambda * (dt_dx) - sgnLambda)
 <? end
 ?>		);
-	}<? end ?>
+	}
 
 	resultFlux = Eqn::eigen_rightTransform(solver, eig, fluxEig, xInt, n);
 
