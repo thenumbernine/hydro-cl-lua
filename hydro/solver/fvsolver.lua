@@ -21,7 +21,6 @@ FiniteVolumeSolver.name = 'fvsolver'
 function FiniteVolumeSolver:getSymbolFields()
 	return FiniteVolumeSolver.super.getSymbolFields(self):append{
 		'calcFlux',
-		'calcFluxForInterface',
 		'calcDerivFromFlux',
 	}
 end
@@ -162,8 +161,8 @@ if useFluxLimiter then
 <?
 end
 ?>
-//// MODULE_DEPENDS: <?=calcFluxForInterface?>
-			flux = <?=calcFluxForInterface?>(
+//// MODULE_DEPENDS: <?=Equation?> calcFluxForInterface
+			flux = <?=Equation?>::calcFluxForInterface(
 				solver,
 				ppUL,
 				ppUR,
@@ -357,25 +356,16 @@ xInt.s<?=side?> -= .5 * solver.grid_dx.s<?=side?>;
 			codePrefix = table{
 				getEigenCode{side=side},
 				self.eqn:template([[
-//// MODULE_DEPENDS: <?=normal_t?>
-<?=normal_t?> n<?=side?> = normal_forSide<?=side?>(xInt);
-<?=eqn:eigenWaveCodePrefix{
-	n = "n",
-	eig = "eig",
-	pt = "xInt",
-}:gsub("\n", "\n\t")?>
+//// MODULE_DEPENDS: <?=Equation?>
+auto n<?=side?> = normal_forSide<?=side?>(xInt);
+auto calcWaves = <?=Equation?>::Eqn::EigenWaveCode(solver, eig, n<?=side?>, xInt);
 ]], 			{
 					side = side,
 				}),
 			}:concat'\n',
 			vars = range(0, self.eqn.numWaves-1):mapi(function(i)
 				return {name=tostring(i), code=self.eqn:template([[
-value.vreal = <?=eqn:eigenWaveCode{
-	n = 'n'..side,
-	eig = 'eig',
-	pt = 'xInt',
-	waveIndex = i,
-}?>;
+value.vreal = calcWaves(solver, eig, n<?=side?>, xInt, <?=i?>);
 ]], 			{
 					side = side,
 					i = i,
@@ -468,12 +458,8 @@ for (int k = 0; k < numWaves; ++k) {
 						getEigenCode{side=side},
 						self.eqn:template([[
 //// MODULE_DEPENDS: <?=cell_calcAvg_withPt?>
-<?=normal_t?> n<?=side?> = normal_forSide<?=side?>(x);
-<?=eqn:eigenWaveCodePrefix{
-	n = 'n'..side,
-	eig = 'eig',
-	pt = 'xInt',
-}:gsub('\n', '\n\t')?>
+auto n<?=side?> = normal_forSide<?=side?>(x);
+auto calcWaves = <?=Equation?>::Eqn::EigenWaveCode(solver, eig, n<?=side?>, xInt);
 
 value.vreal = 0;
 for (int k = 0; k < numIntStates; ++k) {
@@ -489,15 +475,10 @@ for (int k = 0; k < numIntStates; ++k) {
 	<?=waves_t?> chars = <?=Equation?>::Eqn::eigen_leftTransform(solver, eig, basis, xInt, n);
 
 	<?=waves_t?> charScaled;
-	<? for j=0,eqn.numWaves-1 do ?>{
-		real const lambda_j = <?=eqn:eigenWaveCode{
-			n = 'n'..side,
-			eig = 'eig',
-			pt = 'xInt',
-			waveIndex = j,
-		}:gsub('\n', '\n\t\t')?>;
-		charScaled.ptr[<?=j?>] = chars.ptr[<?=j?>] * lambda_j;
-	}<? end ?>
+	for (int j = 0; j < numWaves; ++j) {
+		real const lambda_j = calcWaves(solver, eig, n<?=side?>, xInt, j);
+		charScaled.ptr[j] = chars.ptr[j] * lambda_j;
+	}
 
 	//once again, only needs to be numIntStates
 	<?=cons_t?> newtransformed = <?=Equation?>::Eqn::eigen_rightTransform(solver, eig, charScaled, xInt, n);

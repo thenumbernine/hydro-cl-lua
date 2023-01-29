@@ -960,30 +960,6 @@ function Equation:waveCodeAssignMinMax(declare, resultMin, resultMax, minCode, m
 end
 
 --[[
-this is for getting specific wave #s from eigen_t
-returns code for multiple statements.
-args:
-	n = normal_t
-	eig = eigen_t
-	pt = real3
---]]
-function Equation:eigenWaveCodePrefix(args)
-	return ''
-end
-
---[[
-returns code of an expression, so no multi-stmts.
-args:
-	n = normal_t
-	eig = eigen_t
-	pt = real3
-	waveIndex = # (0 to numWaves-1)
---]]
-function Equation:eigenWaveCode(args)
-	return '\n#error :eigenWaveCode() not implemented'
-end
-
---[[
 this is for getting specific wave #s from cons_t
 returns code for multiple statements.
 args:
@@ -1057,31 +1033,6 @@ function Equation:consWaveCodeMinMax(args)
 	eqn:consWaveCode(table(args, {waveIndex=eqn.numWaves-1}):setmetatable(nil))
 )?>
 ]], args)
-end
-
---[[
-this is for getting min/max from cons_t for multiple normal_t's
-returns code for multiple statements.
-args:
-	U = cons_t
-	pt = real3
---]]
-function Equation:consWaveCodeMinMaxAllSidesPrefix(args)
-	return ''
-end
-
---[[
-returns code for multiple statements.
-args:
-	U = cons_t variable name
-	n = normal_t variable name
-	pt = real3 position, in chart coordinates
-	resultMin = name of min lambda var to store
-	resultMax = name of max lambda var to store
-	declare = true to declare the variables
---]]
-function Equation:consWaveCodeMinMaxAllSides(args)
-	return self:consWaveCodeMinMax(args)
 end
 
 -- especially used by the num rel stuff

@@ -51,7 +51,7 @@ union Cons {
 	Cons & set_ePot(real const & value_) { ePot = value_; return *this; }
 //// END EXCLUDE FROM FFI_CDEF
 };
-	
+
 using Solver = <?=solver_t?>;
 using Normal = <?=normal_t?>;
 using Cell = <?=cell_t?>;
@@ -319,6 +319,36 @@ struct Eqn : public Hydro::Eqn<Eqn, Solver, Cons, Prim, Normal, Cell, Eigen, Wav
 			if (resultMax) {
 				*resultMax = v_n + Cs_nLen;
 			}
+		}
+	};
+
+	struct EigenWaveCode {
+		real Cs_nLen, v_n;
+		constexpr EigenWaveCode(
+			constant Solver const & solver,
+			Eigen const & eig,
+			Normal const n,
+			real3 const pt
+		) :	Cs_nLen(normal_len(n) * eig.Cs),
+			v_n(normal_vecDotN1(n, eig.v))
+		{}
+
+		// TODO templated index and if constexpr's ... and template-based for-loop ...
+		constexpr real operator()(
+			constant Solver const & solver,
+			Eigen const & eig,
+			Normal const n,
+			real3 const pt,
+			int waveIndex
+		) const {
+			if (waveIndex == 0) {
+				return v_n - Cs_nLen;
+			} else if (waveIndex >= 1 && waveIndex <= 3) {
+				return v_n;
+			} else if (waveIndex == 4) {
+				return v_n + Cs_nLen;
+			}
+			return {};
 		}
 	};
 
@@ -681,17 +711,17 @@ and solver.coord.vectorComponent == "anholonomic"
 and require "hydro.coord.cylinder":isa(solver.coord) 
 then ?>
 <? 	if true then -- 2009 Trangenstein, p.474, 1999 Toro, p.29, eqn.1.104, 1.105 ?>
-		<? for side=0,1 do ?>{
-			real3 xL = x; xL.s<?=side?> -= solver.grid_dx.s<?=side?>;
-			real3 xR = x; xR.s<?=side?> += solver.grid_dx.s<?=side?>;
+		for (int side = 0; side < 2; ++side) {
+			real3 xL = x; xL[<?=side?>] -= solver.grid_dx[<?=side?>];
+			real3 xR = x; xR[<?=side?>] += solver.grid_dx[<?=side?>];
 			
-			global Cons const & UL = U[solver.stepsize.s<?=side?>];
-			global Cons const & UR = U[solver.stepsize.s<?=side?>];
+			global Cons const & UL = U[solver.stepsize[<?=side?>]];
+			global Cons const & UR = U[solver.stepsize[<?=side?>]];
 			real const PL = calc_P?>(solver, UL, xL);
 			real const PR = calc_P?>(solver, UR, xR);
 		
-			deriv.m.s<?=side?> -= (PR - PL) / (2. * solver.grid_dx.s<?=side?>);
-		}<? end ?>
+			deriv.m[<?=side?>] -= (PR - PL) / (2. * solver.grid_dx[<?=side?>]);
+		}
 <?	end ?>
 <?	if false then -- 1999 Toro p.28 eqn.1.102, 1.103 ?>
 		Cons F = fluxFromCons(solver, U, cell, normal_forSide0(x));
@@ -733,12 +763,12 @@ Maybe for an initial constant vel as large as sqrt(2) this fails, but it works o
 		//+ c_jk^k * Flux^Ij
 <? 	if false and solver.coord.vectorComponent == "anholonomic" then ?>
 		real3 const commTrace = coord_tr23_c(x);
-		<? for i=0,solver.dim-1 do ?>{
+		for (int i = 0; i < dim; ++i) {
 			Cons F = fluxFromCons(solver, U, cell, normal_forSide<?=i?>(x));
 			for (int j = 0; j < numIntStates; ++j) {
-				deriv.ptr[j] += commTrace.s<?=i?> * F.ptr[j];
+				deriv.ptr[j] += commTrace[i] * F.ptr[j];
 			}
-		}<? end ?>
+		}
 <? 	end ?>
 <? end ?>
 <? end -- vectorComponent == "anholonomic" ?>
@@ -799,7 +829,6 @@ if require "hydro.solver.meshsolver":isa(solver) then
 end
 ?>	);
 }
-
 
 kernel void <?=applyInitCond?>(
 	constant <?=solver_t?> const * const psolver,

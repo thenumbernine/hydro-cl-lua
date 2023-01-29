@@ -295,24 +295,6 @@ Euler.eigenVars = table{
 	{name='vL', type='real3', units='m/s'},
 }
 
-function Euler:eigenWaveCodePrefix(args)
-	return self:template([[
-real const <?=eqn.symbolPrefix?>Cs_nLen = normal_len(<?=n?>) * (<?=eig?>).Cs;
-real const <?=eqn.symbolPrefix?>v_n = normal_vecDotN1(<?=n?>, (<?=eig?>).v);
-]],	args)
-end
-
-function Euler:eigenWaveCode(args)
-	if args.waveIndex == 0 then
-		return self:template'<?=eqn.symbolPrefix?>v_n - <?=eqn.symbolPrefix?>Cs_nLen'
-	elseif args.waveIndex >= 1 and args.waveIndex <= 3 then
-		return self:template'<?=eqn.symbolPrefix?>v_n'
-	elseif args.waveIndex == 4 then
-		return self:template'<?=eqn.symbolPrefix?>v_n + <?=eqn.symbolPrefix?>Cs_nLen'
-	end
-	error'got a bad waveIndex'
-end
-
 -- W is an extra param specific to Euler's calcDT in this case
 -- but then I just explicitly wrote out the calcDT, so the extra parameters just aren't used anymore.
 function Euler:consWaveCodePrefix(args)

@@ -248,9 +248,6 @@ end
 local integrators = require 'hydro.int.all'
 local integratorNames = integrators:mapi(function(integrator) return integrator.name end)
 
-local useClang = true
-if cmdline.useClang ~= nil then useClang = cmdline.useClang end
-
 local SolverBase = class()
 
 SolverBase.name = 'solverbase'
@@ -580,138 +577,87 @@ function SolverBase:initMeshVars(args)
 			clang -cc1 -emit-spirv -triple=spir-unknown-unknown -cl-std=c++ -I include kernel.cl -o kernel.spv 				#For OpenCL C++
 			clang -cc1 -emit-spirv -triple=spir-unknown-unknown -cl-std=CL2.0 -include opencl.h kernel.cl -o kernel.spv 	#For OpenCL C
 		--]]
-		if useClang then
-			assert(args.name, "clang needs a program to have a name")
-			local cldir = 'cache/'..solver:getIdent()..'/src'
-			local bcdir = 'cache/'..solver:getIdent()..'/bc'
-			local spvdir = 'cache/'..solver:getIdent()..'/spv'
-			file(cldir):mkdir(true)
-			file(bcdir):mkdir(true)
-			file(spvdir):mkdir(true)
-			-- ok I don't want super to hit the args.code condition
-			-- but I want to store the code for later, so
-			self.code = args.code
-			args.code = nil
-			-- TODO hmm this dependency graph for code->cl->bin is hardcoded into cl/obj/program.lua
-			--  but could I generalize this somehow, and integrate it into lua-make ...
-			-- and then make a separate build-target chain for .clcpp -> .bc -> .spv ...
-			self.cacheFileCL = cldir..'/'..args.name..'.clcpp'
-			self.cacheFileBC = bcdir..'/'..args.name..'.bc'
-			self.cacheFileSPV = spvdir..'/'..args.name..'.spv'
-			Program.super.init(self, args)
-			return
-		end
-
-		local clfn = cldir..'/'..args.name..'.cl'
-
-		-- caching binaries, which doesn't write unless the program successfully compiles
-		if not cmdline.usecachedcode then
-			if args.name then
-				if useCache then
-					args.cacheFileCL = clfn
-					args.cacheFileBin = bindir..'/'..args.name..'.bin'
-				end
-			end
-			Program.super.init(self, args)
-			return
-		end
-
-		-- Write generated code the first time.  Subsequent times use the pre-existing code.  Useful for debugging things in the generated OpenCL.
-		if file(clfn):exists() then
-			local cachedCode = file(clfn):read()
-			assert(cachedCode:sub(1,#args.env.code) == args.env.code, "seems you have changed the cl env code")
-			args.code = cachedCode:sub(#args.env.code+1)	-- because the program will prepend env.code ... hmm, this could be done a better way.
-			Program.super.init(self, args)
-			return
-		end
-
-		Program.super.init(self, args)	-- do this so getCode() works
-		file(clfn):write(self:getCode())
+		assert(args.name, "clang needs a program to have a name")
+		local cldir = 'cache/'..solver:getIdent()..'/src'
+		local bcdir = 'cache/'..solver:getIdent()..'/bc'
+		local spvdir = 'cache/'..solver:getIdent()..'/spv'
+		file(cldir):mkdir(true)
+		file(bcdir):mkdir(true)
+		file(spvdir):mkdir(true)
+		-- ok I don't want super to hit the args.code condition
+		-- but I want to store the code for later, so
+		self.code = args.code
+		args.code = nil
+		-- TODO hmm this dependency graph for code->cl->bin is hardcoded into cl/obj/program.lua
+		--  but could I generalize this somehow, and integrate it into lua-make ...
+		-- and then make a separate build-target chain for .clcpp -> .bc -> .spv ...
+		self.cacheFileCL = cldir..'/'..args.name..'.clcpp'
+		self.cacheFileBC = bcdir..'/'..args.name..'.bc'
+		self.cacheFileSPV = spvdir..'/'..args.name..'.spv'
+		Program.super.init(self, args)
 	end
 
 	function Program:compile(args)
-		if useClang then
-			-- if cl file is out of date then regen bytecode
+		-- if cl file is out of date then regen bytecode
 
-			if not cmdline.usecachedcode then
-				local oldCode
-				if file(self.cacheFileCL):exists() then
-					oldCode = file(self.cacheFileCL):read()
-				end
-				local newCode = self:getCode()
-				if oldCode ~= newCode then
-					-- only write the new code if it is outdated -- to preserve file timestamps -- so the build system doesn't rebuild needlessly
-					if oldCode then file(self.cacheFileCL..'.old'):write(oldCode) end
-					file(self.cacheFileCL):write(newCode)
-				end
+		if not cmdline.usecachedcode then
+			local oldCode
+			if file(self.cacheFileCL):exists() then
+				oldCode = file(self.cacheFileCL):read()
 			end
-			-- so cl.obj.program :compile using .code and .cacheFile basically does the same thing, but less flexible
-			local exec = require 'make.exec'
-			require 'make.targets'{
-				verbose = true,
-				{
-					srcs = {self.cacheFileCL},
-					dsts = {self.cacheFileBC},
-					rule = function()
-						exec(table{
-							'clang',
-							'-v',
-							'-Xclang -finclude-default-header',
-							'--target=spirv64-unknown-unknown',
-							'-emit-llvm',
-							'-c',
-							--'-O3',	-- ok with this i'm getting llvm-spirv bytecode errors only with the euler + 3D case
-							'-o', ('%q'):format(self.cacheFileBC),
-							('%q'):format(self.cacheFileCL)
-						}:concat' ')
-					end,
-				}, {
-					srcs = {self.cacheFileBC},
-					dsts = {self.cacheFileSPV},
-					rule = function()
-						exec(table{
-							'llvm-spirv',
-							('%q'):format(self.cacheFileBC),
-							'-o', ('%q'):format(self.cacheFileSPV),
-						}:concat' ')
-					end,
-				},
-			}:run(self.cacheFileSPV)
-
-			self.IL = file(self.cacheFileSPV):read()
-			assert(self.IL, "failed to read the IL code")
-
-			args = table(args):setmetatable(nil)
-			args.verbose = solver.app.verbose
-			local results = Program.super.compile(self, args)
-			assert(self.obj, "there must have been an error in your error handler")	-- otherwise it would have thrown an error
-			do--if self.obj then	-- did compile
-				print((self.name and self.name..' ' or '')..'log:')
-				-- TODO log per device ...
-				print(string.trim(self.obj:getLog(solver.device)))
+			local newCode = self:getCode()
+			if oldCode ~= newCode then
+				-- only write the new code if it is outdated -- to preserve file timestamps -- so the build system doesn't rebuild needlessly
+				if oldCode then file(self.cacheFileCL..'.old'):write(oldCode) end
+				file(self.cacheFileCL):write(newCode)
 			end
-			return results
-		else
-			args = args or {}
-			args.verbose = solver.app.verbose
-			local opts = table()
-			opts:insert'-w'	-- show warnings
-			--opts:insert'-cl-std=CLC++'	-- I don't have  cl_ext_cxx_for_opencl  so ... I can only do this with IL
-			args.buildOptions = opts:concat' '
-			local results = Program.super.compile(self, args)
-			assert(self.obj, "there must have been an error in your error handler")	-- otherwise it would have thrown an error
-			do--if self.obj then	-- did compile
-				print((self.name and self.name..' ' or '')..'log:')
-				-- TODO log per device ...
-				print(string.trim(self.obj:getLog(solver.device)))
-			end
-			-- if we are using cached code then manually write binaries
-			if cmdline.usecachedcode and useCache then
-				local binfn = 'cache/'..solver:getIdent()..'/bin/'..self.name..'.bin'
-				file(binfn):write(tolua(self.obj:getBinaries()))
-			end
-			return results
 		end
+		-- so cl.obj.program :compile using .code and .cacheFile basically does the same thing, but less flexible
+		local exec = require 'make.exec'
+		require 'make.targets'{
+			verbose = true,
+			{
+				srcs = {self.cacheFileCL},
+				dsts = {self.cacheFileBC},
+				rule = function()
+					exec(table{
+						'clang',
+						'-v',
+						'-Xclang -finclude-default-header',
+						'--target=spirv64-unknown-unknown',
+						'-emit-llvm',
+						'-c',
+						--'-O3',	-- ok with this i'm getting llvm-spirv bytecode errors only with the euler + 3D case
+						'-o', ('%q'):format(self.cacheFileBC),
+						('%q'):format(self.cacheFileCL)
+					}:concat' ')
+				end,
+			}, {
+				srcs = {self.cacheFileBC},
+				dsts = {self.cacheFileSPV},
+				rule = function()
+					exec(table{
+						'llvm-spirv',
+						('%q'):format(self.cacheFileBC),
+						'-o', ('%q'):format(self.cacheFileSPV),
+					}:concat' ')
+				end,
+			},
+		}:run(self.cacheFileSPV)
+
+		self.IL = file(self.cacheFileSPV):read()
+		assert(self.IL, "failed to read the IL code")
+
+		args = table(args):setmetatable(nil)
+		args.verbose = solver.app.verbose
+		local results = Program.super.compile(self, args)
+		assert(self.obj, "there must have been an error in your error handler")	-- otherwise it would have thrown an error
+		do--if self.obj then	-- did compile
+			print((self.name and self.name..' ' or '')..'log:')
+			-- TODO log per device ...
+			print(string.trim(self.obj:getLog(solver.device)))
+		end
+		return results
 	end
 
 	self.Program = Program

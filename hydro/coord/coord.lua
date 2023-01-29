@@ -209,6 +209,7 @@ function CoordinateSystem:init(args)
 		'cell_volume',
 		'cell_sqrt_det_g',	-- seems that, when this is used, it would most often be used with gHol...
 		'cell_calcAvg_withPt',
+		'cell_dxs',
 	})
 
 	local solver = assert(args.solver)
@@ -1985,6 +1986,29 @@ print("WARNING - haven't finished implementing cell_calcAvg_withPt")
 ]]
 		end,
 	}
+
+	solver.modules:add{
+		name = self.symbols.cell_dxs,
+		depends = {self.symbols.cell_dx_i},
+		code = solver.eqn:template[[
+struct CellDx {
+	int i = {};
+	constexpr CellDx(int i_) : i(i_) {}
+	constexpr real operator()(
+		constant <?=solver_t?> const & solver,
+		real3 const pt
+	) const {
+		return solver.grid_dx[i];
+	}
+};
+constexpr CellDx cell_dxs[3] = {
+	CellDx(0),
+	CellDx(1),
+	CellDx(2),
+};
+]],
+	}
+
 end
 
 function CoordinateSystem:getModuleDepends_coordMap()

@@ -286,6 +286,7 @@ end
 HydroCLApp.title = 'Hydrodynamics in OpenCL'
 
 -- list from https://en.wikipedia.org/wiki/Flux_limiter
+-- TODO std::tuple
 HydroCLApp.limiters = table{
 	{name='donor cell', code='return 0.;'},
 	{name='Lax-Wendroff', code='return 1.;'},

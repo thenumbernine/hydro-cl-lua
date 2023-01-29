@@ -1,5 +1,5 @@
-//// MODULE_NAME: <?=calcFluxForInterface?>
-//// MODULE_DEPENDS: math <?=solver_macros?> <?=fluxLimiter?> <?=waves_t?> <?=Equation?>
+//// MODULE_NAME: calcFluxForInterface
+//// MODULE_DEPENDS: math <?=solver_macros?> <?=fluxLimiter?> <?=Equation?>
 
 // Roe solver:
 
@@ -8,49 +8,47 @@ local useFluxLimiter = solver.fluxLimiter > 1
 	and flux.usesFluxLimiter -- just flux/roe.lua right now
 ?>
 
+namespace <?=Equation?> {
+
 //TODO entropy fix ... for the Euler equations at least
-static inline <?=cons_t?> <?=calcFluxForInterface?>(
-	constant <?=solver_t?> const & solver,
-	<?=cons_t?> const & UL,
-	<?=cons_t?> const & UR,
-	<?=cell_t?> const & cellL,
-	<?=cell_t?> const & cellR,
+static inline Cons calcFluxForInterface(
+	constant Solver const & solver,
+	Cons const & UL,
+	Cons const & UR,
+	Cell const & cellL,
+	Cell const & cellR,
 	real3 const xInt,
-	<?=normal_t?> const n<? if useFluxLimiter then ?>,
+	Normal const n<? if useFluxLimiter then ?>,
 	realparam const dt_dx,
-	<?=cons_t?> const & UL_L,
-	<?=cons_t?> const & UL_R,
-	<?=cell_t?> const & cellL_L,
-	<?=cell_t?> const & cellL_R,
+	Cons const & UL_L,
+	Cons const & UL_R,
+	Cell const & cellL_L,
+	Cell const & cellL_R,
 	real3 const xIntL,
-	<?=cons_t?> const & UR_L,
-	<?=cons_t?> const & UR_R,
-	<?=cell_t?> const & cellR_L,
-	<?=cell_t?> const & cellR_R,
+	Cons const & UR_L,
+	Cons const & UR_R,
+	Cell const & cellR_L,
+	Cell const & cellR_R,
 	real3 const xIntR<? end ?>
 ) {
-	<?=cons_t?> resultFlux;
-	<?=eigen_t?> eig = <?=Equation?>::Eqn::eigen_forInterface(solver, UL, UR, cellL, cellR, xInt, n);
+	Cons resultFlux;
+	Eigen eig = Eqn::eigen_forInterface(solver, UL, UR, cellL, cellR, xInt, n);
 
-	<?=eqn:eigenWaveCodePrefix{
-		n = "n",
-		eig = "eig",
-		pt = "xInt",
-	}:gsub("\n", "\n\t")?>
+	auto calcWaves = Eqn::EigenWaveCode(solver, eig, n, xInt);
 
-	<?=waves_t?> fluxEig;
+	Waves fluxEig;
 <? if not eqn.roeUseFluxFromCons then
-?>	<?=cons_t?> UAvg;
+?>	Cons UAvg;
 	for (int j = 0; j < numIntStates; ++j) {
 		UAvg.ptr[j] = .5 * (UL.ptr[j] + UR.ptr[j]);
 	}
 
-	fluxEig = <?=Equation?>::Eqn::eigen_leftTransform(solver, eig, UAvg, xInt, n);
+	fluxEig = Eqn::eigen_leftTransform(solver, eig, UAvg, xInt, n);
 <? end
 ?>
-	<?=cons_t?> deltaU;
+	Cons deltaU;
 <? if useFluxLimiter then
-?>	<?=cons_t?> deltaUL, deltaUR;
+?>	Cons deltaUL, deltaUR;
 <? end
 ?>
 	for (int j = 0; j < numStates; ++j) {
@@ -61,35 +59,30 @@ static inline <?=cons_t?> <?=calcFluxForInterface?>(
 <? end
 ?>	}
 
-	<?=waves_t?> deltaUEig = <?=Equation?>::Eqn::eigen_leftTransform(solver, eig, deltaU, xInt, n);
+	Waves deltaUEig = Eqn::eigen_leftTransform(solver, eig, deltaU, xInt, n);
 <? 	if useFluxLimiter then ?>
-	<?=eigen_t?> eigL = <?=Equation?>::Eqn::eigen_forInterface(solver, UL_L, UR_L, cellL_L, cellR_L, xIntL, n);
-	<?=eigen_t?> eigR = <?=Equation?>::Eqn::eigen_forInterface(solver, UL_R, UR_R, cellL_R, cellR_R, xIntR, n);
-	<?=waves_t?> deltaUEigL = <?=Equation?>::Eqn::eigen_leftTransform(solver, eigL, deltaUL, xIntL, n);
-	<?=waves_t?> deltaUEigR = <?=Equation?>::Eqn::eigen_leftTransform(solver, eigR, deltaUR, xIntR, n);
+	Eigen eigL = Eqn::eigen_forInterface(solver, UL_L, UR_L, cellL_L, cellR_L, xIntL, n);
+	Eigen eigR = Eqn::eigen_forInterface(solver, UL_R, UR_R, cellL_R, cellR_R, xIntR, n);
+	Waves deltaUEigL = Eqn::eigen_leftTransform(solver, eigL, deltaUL, xIntL, n);
+	Waves deltaUEigR = Eqn::eigen_leftTransform(solver, eigR, deltaUR, xIntR, n);
 <? 	end ?>
 
 <?
 local lambdaConst = 'const'
 if flux.useEntropyFluxFix then
 	lambdaConst = ''
-?>	real const speedOfSound = eig.Cs; /*This is Euler-specific, so TODO abstract this.*/
+?>	real const speedOfSound = eig.Cs; //This is Euler-specific, so TODO abstract this.
 	real const lambdaLimitingFactor = <?=clnumber(flux.entropyFluxFixLimitingFactor)?>;
 <? end -- flux.useEntropyFluxFix ?>
 
 	<? for j=0,eqn.numWaves-1 do ?>{
 		int const j = <?=j?>;
-		real <?=lambdaConst?> lambda = <?=eqn:eigenWaveCode{
-			n = "n",
-			eig = "eig",
-			pt = "xInt",
-			waveIndex = j,
-		}:gsub("\n", "\n\t\t")?>;
+		real <?=lambdaConst?> lambda = calcWaves(solver, eig, n, xInt, j);
 
 <? if flux.useEntropyFluxFix then ?>
-/* So, here is where the Hartan entropy fix goes.*/
-/* Is it used everywhere the lambdas are used, or only in the Roe flux use of lambdas?*/
-/* Should it go before or after the flux limiter? */
+// So, here is where the Hartan entropy fix goes.
+// Is it used everywhere the lambdas are used, or only in the Roe flux use of lambdas?
+// Should it go before or after the flux limiter?
 		real const dws = lambdaLimitingFactor * speedOfSound;
 		if (fabs(lambda) < dws) lambda = sign(lambda) * .5 * (lambda * lambda / dws + dws);
 <? end -- flux.useEntropyFluxFix ?>
@@ -122,25 +115,25 @@ if flux.useEntropyFluxFix then
 ?>		);
 	}<? end ?>
 
-	resultFlux = <?=Equation?>::Eqn::eigen_rightTransform(solver, eig, fluxEig, xInt, n);
+	resultFlux = Eqn::eigen_rightTransform(solver, eig, fluxEig, xInt, n);
 
-<? if eqn.roeUseFluxFromCons then
--- TODO hmm, fluxFromCons vs eigen_fluxTransform using the 'eig' structure
--- fluxFromCons is using the left and right states to create their flux jacobian transform - applied to the left and right states to make the left and right flux vector
--- which is F(U)
--- while eigen_fluxTransform would use the intermediate state to create the flux vector
--- which is dF/dU * dU/dx
--- It turns out dF/dU * U = F *ONLY FOR* the Euler fluid equations, and this is why lots of literature assumes it is true for all equations (when it's not).
--- But that means roeUseFluxFromCons==true's option is the correct one, but not ==false?
--- But Dullemond eqn 6.56 says that the FL and FR come from R Lambda L U = dF/dU * U calculations ...
--- ... which are *ONLY* equal to F in the case of the Euler fluid equations, and systems with linear flux jacobians, (NOT shallow-water).
--- So that would mean this part is wrong.
--- But maybe the description in Dullemond and other sources is wrong.
--- Because this value itself is diff'd across the cell, so it is a 'dF', so you wouldn't want to compute a second 'd' of it via R Lambda L, because that would give you 'd dF'.
--- so roeUseFluxFromCons==true is good.
-?>
-	<?=cons_t?> FL = <?=Equation?>::Eqn::fluxFromCons(solver, UL, cellL, n);
-	<?=cons_t?> FR = <?=Equation?>::Eqn::fluxFromCons(solver, UR, cellR, n);
+<? if eqn.roeUseFluxFromCons then ?>
+// TODO hmm, fluxFromCons vs eigen_fluxTransform using the 'eig' structure
+// fluxFromCons is using the left and right states to create their flux jacobian transform - applied to the left and right states to make the left and right flux vector
+// which is F(U)
+// while eigen_fluxTransform would use the intermediate state to create the flux vector
+// which is dF/dU * dU/dx
+// It turns out dF/dU * U = F *ONLY FOR* the Euler fluid equations, and this is why lots of literature assumes it is true for all equations (when it's not).
+// But that means roeUseFluxFromCons==true's option is the correct one, but not ==false?
+// But Dullemond eqn 6.56 says that the FL and FR come from R Lambda L U = dF/dU * U calculations ...
+// ... which are *ONLY* equal to F in the case of the Euler fluid equations, and systems with linear flux jacobians, (NOT shallow-water).
+// So that would mean this part is wrong.
+// But maybe the description in Dullemond and other sources is wrong.
+// Because this value itself is diff'd across the cell, so it is a 'dF', so you wouldn't want to compute a second 'd' of it via R Lambda L, because that would give you 'd dF'.
+// so roeUseFluxFromCons==true is good.
+	
+	Cons FL = Eqn::fluxFromCons(solver, UL, cellL, n);
+	Cons FR = Eqn::fluxFromCons(solver, UR, cellR, n);
 
 	for (int j = 0; j < numIntStates; ++j) {
 		resultFlux.ptr[j] += .5 * (FL.ptr[j] + FR.ptr[j]);
@@ -149,3 +142,5 @@ if flux.useEntropyFluxFix then
 ?>
 	return resultFlux;
 }
+
+}	//namespace <?=Equation?>
