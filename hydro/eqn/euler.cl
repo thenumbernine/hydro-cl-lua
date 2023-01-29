@@ -45,19 +45,22 @@ union Cons {
 //// END EXCLUDE FROM FFI_CDEF
 };
 	
-//// MODULE_DEPENDS: <?=normal_t?>
+//// MODULE_DEPENDS: <?=normal_t?> <?=initCond_t?> <?=cell_t?>
 using Solver = <?=solver_t?>;
 using Normal = <?=normal_t?>;
+using InitCond = <?=initCond_t?>;
+using Cell = <?=cell_t?>;
 
 // TODO eventually:
 //template<typename Solver>
-struct Eqn : public Hydro::Eqn<Eqn, Solver, Cons, Prim, Normal> {
+struct Eqn : public Hydro::Eqn<Eqn, Solver, Cons, Prim, Normal, Cell> {
 	// until then just use a typedef and a namespace
 
 	// hmm for some reason crtp parent can't seem to 'using' see into the childs member class's 'using's
-	//using Normal = <?=normal_t?>;
 	//using Cons = ::<?=Equation?>::Cons;
 	//using Prim = ::<?=Equation?>::Prim;
+	//using Normal = <?=normal_t?>;
+	//using Cell = <?=cell_t?>;
 
 	static inline real calc_H(
 		constant Solver const & solver,
@@ -309,12 +312,54 @@ struct Eqn : public Hydro::Eqn<Eqn, Solver, Cons, Prim, Normal> {
 			}
 		}
 	};
+
+	/*
+	I've highjacked all of this.  It was a normal Euler eqn solver.
+	But I experimented with a curved-space solver.
+	To get back to the original code,
+	just replace all the g_ab stuff with their constant values and simplify away.
+	*/
+	static inline void applyInitCondCell(
+		constant Solver const & solver,
+		constant InitCond const & initCond,
+		global Cons & U,
+		global Cell const & cell
+	) {
+		real3 const x = cell.pos;
+		real3 const mids = (solver.initCondMins + solver.initCondMaxs) * (real).5;
+		bool const lhs = true<?
+for i=1,solver.dim do
+		local xi = xNames[i]
+?> && x.<?=xi?> < mids.<?=xi?><?
+end
+?>;
+
+		// these are all standard for all init/euler.lua initial conditions
+		real rho = 0;
+		real3 v = {};
+		real P = 0;
+		real3 D = {};
+		real3 B = {};
+		real ePot = 0;
+<?=initCode()?>
+		Prim W = Prim()
+			.set_rho(rho)
+//// MODULE_DEPENDS: <?=cartesianToCoord?>
+			.set_v(cartesianToCoord(v, x))
+			.set_P(P)
+			.set_ePot(ePot)
+		;
+		U = consFromPrim(solver, W, x);
+	}
+
 };
 
 }	//namespace <?=Equation?>
 
 using <?=cons_t?> = <?=Equation?>::Cons;
 using <?=prim_t?> = <?=Equation?>::Prim;
+using <?=initCond_t?> = <?=Equation?>::InitCond;
+
 
 // TODO use the one in hydro/eqn/eqn.clcpp
 #if 1
@@ -342,51 +387,24 @@ if require "hydro.solver.meshsolver":isa(solver) then
 end
 ?>	);
 }
+
+
+kernel void <?=applyInitCond?>(
+	constant <?=solver_t?> const * const psolver,
+	constant <?=initCond_t?> const * const pinitCond,
+	global <?=cons_t?> * const UBuf,
+	global <?=cell_t?> * const cellBuf
+) {
+	auto const & solver = *psolver;
+	constant <?=initCond_t?> const & initCond = *pinitCond;
+	<?=SETBOUNDS?>(0,0);
+	global <?=cons_t?> & U = UBuf[index];
+	global <?=cell_t?> & cell = cellBuf[index];
+	<?=Equation?>::Eqn::applyInitCondCell(solver, initCond, U, cell);
+}
+
 #endif
 
-//// MODULE_NAME: <?=applyInitCondCell?>
-//// MODULE_DEPENDS: <?=cartesianToCoord?> <?=Equation?>
-
-/*
-I've highjacked all of this.  It was a normal Euler eqn solver.
-But I experimented with a curved-space solver.
-To get back to the original code,
-just replace all the g_ab stuff with their constant values and simplify away.
-*/
-void <?=applyInitCondCell?>(
-	constant <?=solver_t?> const & solver,
-	constant <?=initCond_t?> const & initCond,
-	global <?=cons_t?> & U,
-	global <?=cell_t?> const & cell
-) {
-	real3 const x = cell.pos;
-	real3 const mids = (solver.initCondMins + solver.initCondMaxs) * (real).5;
-	bool const lhs = true<?
-for i=1,solver.dim do
-	local xi = xNames[i]
-?> && x.<?=xi?> < mids.<?=xi?><?
-end
-?>;
-
-	// these are all standard for all init/euler.lua initial conditions
-	real rho = 0;
-	real3 v = {};
-	real P = 0;
-	real3 D = {};
-	real3 B = {};
-	real ePot = 0;
-	
-<?=initCode()?>
-	
-	<?=prim_t?> W = <?=prim_t?>()
-		.set_rho(rho)
-		.set_v(cartesianToCoord(v, x))
-		.set_P(P)
-		.set_ePot(ePot)
-	;
-
-	U = <?=Equation?>::Eqn::consFromPrim(solver, W, x);
-}
 
 //// MODULE_NAME: <?=fluxFromCons?>
 //// MODULE_DEPENDS: <?=solver_t?> <?=normal_t?> <?=Equation?>

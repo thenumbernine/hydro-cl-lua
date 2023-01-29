@@ -7,7 +7,8 @@ template<
 	typename Solver_,
 	typename Cons_,
 	typename Prim_,
-	typename Normal_
+	typename Normal_,
+	typename Cell_
 >
 struct Eqn {
 	using Base = Base_;
@@ -15,11 +16,13 @@ struct Eqn {
 	using Cons = Cons_;
 	using Prim = Prim_;
 	using Normal = Normal_;
+	using Cell = Cell_;
 	//using Cons = typename Base::Cons;
 	//using Prim = typename Base::Prim;
 	//using Normal = typename Base::Normal;
+	//using Cell = typename Base::Cell;
 
-	//default implementation assumes Cons == Prim
+	//default implementation assumes Cons == Prim:
 
 	static inline Prim primFromCons(
 		constant Solver const & solver,
@@ -65,6 +68,10 @@ struct Eqn {
 		return U;
 	}
 
+
+
+
+
 <?
 -- TODO put all the epsilons in one place?
 --local faceAreaEpsilon = 1e-7
@@ -77,8 +84,7 @@ local cellVolumeEpsilon = 0
 		real & dt,
 		constant Solver const & solver,
 		global Cons const & U,
-//// MODULE_DEPENDS: <?=cell_t?>		
-		global <?=cell_t?> const & cell
+		global Cell const & cell
 	) {
 		auto calcWaves = typename Base::ConsWaveCodeMinMaxAllSides(solver, U, cell.pos);
 		<? for side=0,solver.dim-1 do ?>{
@@ -106,7 +112,7 @@ then ?>
 		constant Solver const & solver,
 		global real * const dtBuf,
 		global Cons const * const UBuf,
-		global <?=cell_t?> const * const cellBuf
+		global Cell const * const cellBuf
 <?
 if require "hydro.solver.meshsolver":isa(solver) then
 ?>,
@@ -129,7 +135,7 @@ end
 		
 		if (OOB<dim>(solver, i, solver.numGhost, solver.numGhost)) return;
 		global Cons const & U = UBuf[index];
-		global <?=cell_t?> const & cell = cellBuf[index];
+		global Cell const & cell = cellBuf[index];
 		calcDTCell(
 			dt,
 			solver,
@@ -149,8 +155,14 @@ end
 
 }	// namespace Hydro
 
+
 //this has to go afer the subclass def ... or TODO template instanciate or something.
 #if 0
+//// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> <?=cell_t?> <?=face_t?>
+namespace <?=Equation?> {
+struct Eqn;
+}
+
 // TODO std::forward implementation
 kernel void <?=calcDT?>(
 	constant <?=solver_t?> const * const psolver,
@@ -174,6 +186,20 @@ if require "hydro.solver.meshsolver":isa(solver) then
 <?
 end
 ?>	);
+}
+
+kernel void <?=applyInitCond?>(
+	constant <?=solver_t?> const * const psolver,
+	constant <?=initCond_t?> const * const pinitCond,
+	global <?=cons_t?> * const UBuf,
+	global <?=cell_t?> * const cellBuf
+) {
+	auto const & solver = *psolver;
+	constant <?=initCond_t?> const & initCond = *pinitCond;
+	<?=SETBOUNDS?>(0,0);
+	global <?=cons_t?> & U = UBuf[index];
+	global <?=cell_t?> & cell = cellBuf[index];
+	<?=applyInitCondCell?>(solver, initCond, U, cell);
 }
 
 #endif

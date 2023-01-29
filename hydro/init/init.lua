@@ -168,7 +168,7 @@ function InitCond:refreshInitStateProgram()
 	local eqn = solver.eqn
 
 	solver.initModulesEnabled.units = true		-- I think this is safe to assume
-	solver.initModulesEnabled[eqn.symbols.applyInitCond] = true
+	solver.initModulesEnabled[eqn.symbols.Equation] = true
 	if solver:hasModule(eqn.symbols.initDerivs) then
 		solver.initModulesEnabled[eqn.symbols.initDerivs] = true
 	end

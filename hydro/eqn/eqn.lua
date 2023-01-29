@@ -369,7 +369,6 @@ function Equation:getSymbolFields()
 		'eigen_rightTransform',
 		'eigen_fluxTransform',
 		'cons_parallelPropagate',
-		'applyInitCondCell',
 		
 		-- kernels:
 		'calcDT',
@@ -567,31 +566,6 @@ function Equation:initCodeModules()
 	self:initCodeModule_fluxFromCons()
 
 	self:initCodeModule_solverCodeFile()
-
-	solver.modules:add{
-		name = self.symbols.applyInitCond,
-		depends = {
-			self.solver.symbols.SETBOUNDS,
-			self.symbols.cell_t,
-			self.symbols.initCond_t,
-			self.symbols.applyInitCondCell,
-		},
-		code = self:template[[
-kernel void <?=applyInitCond?>(
-	constant <?=solver_t?> const * const psolver,
-	constant <?=initCond_t?> const * const pinitCond,
-	global <?=cons_t?> * const UBuf,
-	global <?=cell_t?> * const cellBuf
-) {
-	auto const & solver = *psolver;
-	constant <?=initCond_t?> const & initCond = *pinitCond;
-	<?=SETBOUNDS?>(0,0);
-	global <?=cons_t?> & U = UBuf[index];
-	global <?=cell_t?> & cell = cellBuf[index];
-	<?=applyInitCondCell?>(solver, initCond, U, cell);
-}
-]],
-	}
 end
 
 function Equation:initCodeModule_cons_parallelPropagate()
