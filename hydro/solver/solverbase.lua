@@ -1171,8 +1171,8 @@ function SolverBase:refreshCommonProgram()
 	-- it only seems to use solver_t and cons_t
 	local moduleNames = table{
 		'realparam',
-		self.solver_t,
-		self.eqn.symbols.cons_t,
+		assert(self.solver_t),
+		self.eqn.symbols.Equation,
 
 		-- This is in GridSolver, a subclass.
 		-- In fact, all the display stuff is pretty specific to cartesian grids.
@@ -1186,7 +1186,7 @@ function SolverBase:refreshCommonProgram()
 	end
 	local commonCode = table{
 		-- just header, no function calls needed
-		self.modules:getHeader(moduleNames:unpack()),
+		self.modules:getCodeAndHeader(moduleNames:unpack()),
 		self.eqn:template[[
 kernel void multAddInto(
 	constant <?=solver_t?> const * const psolver,
@@ -1262,7 +1262,7 @@ kernel void findNaNs(
 ]]
 	}:concat'\n'
 
-	time('building program cache/'..self:getIdent()..'/src/common.cl ', function()
+	time('building program cache/'..self:getIdent()..'/src/common.clcpp ', function()
 		self.commonProgramObj = self.Program{name='common', code=commonCode}
 		self.commonProgramObj:compile()
 	end)
@@ -1627,7 +1627,7 @@ function SolverBase:refreshSolverProgram()
 		code = self.modules:getCodeAndHeader(moduleNames:unpack())
 	end)
 
-	time('building program cache/'..self:getIdent()..'/src/solver.cl ', function()
+	time('building program cache/'..self:getIdent()..'/src/solver.clcpp ', function()
 		self.solverProgramObj = self.Program{name='solver', code=code}
 		self.solverProgramObj:compile()
 	end)

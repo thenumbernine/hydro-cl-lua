@@ -35,43 +35,6 @@ local cellVolumeEpsilon = 0
 
 <? if not require "hydro.solver.meshsolver":isa(solver) then ?>
 
-static inline void <?=calcDTCell?>(
-	real & dt,
-	constant <?=solver_t?> const & solver,
-	global <?=cons_t?> const & U,
-	global <?=cell_t?> const & cell
-) {
-	<?=eqn:consWaveCodeMinMaxAllSidesPrefix{
-		U = "U",
-		pt = "cell.pos",
-	}:gsub("\\*\n", "\\\n\t")?>
-	<? for side=0,solver.dim-1 do ?>{
-<?
-if solver.coord.vectorComponent == "holonomic"
-or require "hydro.coord.cartesian":isa(solver.coord)
-then
-?>		real const dx = solver.grid_dx.s<?=side?>;
-<? else
-?>		real const dx = cell_dx<?=side?>(cell.pos);
-<? end
-?>		if (dx > <?=clnumber(faceAreaEpsilon)?>) {
-			<?=normal_t?> const n = normal_forSide<?=side?>(cell.pos);
-			/* use cell-centered eigenvalues */
-			<?=eqn:consWaveCodeMinMaxAllSides{
-				n = "n",
-				U = "U",
-				pt = "cell.pos",
-				resultMin = "lambdaMin",
-				resultMax = "lambdaMax",
-				declare = true,
-			}:gsub("\\*\n", "\\\n\t\t\t")?>
-			real absLambdaMax = max(fabs(lambdaMin), fabs(lambdaMax));
-			absLambdaMax = max((real)1e-9, absLambdaMax);
-			dt = (real)min(dt, dx / absLambdaMax);
-		}
-	}<? end ?>
-}
-
 <? else -- meshsolver ?>
 //// MODULE_DEPENDS: <?=face_t?>
 

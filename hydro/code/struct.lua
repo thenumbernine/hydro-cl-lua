@@ -12,6 +12,7 @@ Here's the kinds of things different ones hold:
 *) units
 *) code (for calculating display var values)
 *) compile-time or not
+*) class body (now that we're in C++)
 
 This holds ...
 *) a typename for the struct in OpenCL code
@@ -38,6 +39,7 @@ function Struct:init(args)
 	if not self.dontMakeUniqueName then
 		self.app = assert(assert(args.solver).app)
 	end
+	self.body = args.body
 end
 
 -- TODO make this static
@@ -182,6 +184,7 @@ function Struct:getTypeCode(typename)
 	for _,var in ipairs(self.vars) do
 		lines:insert('\t'..typename..' & set_'..var.name..'('..var.type..' const & value_) { '..var.name..' = value_; return *this; }')
 	end
+	if self.body then lines:insert(self.body) end
 	lines:insert'//// END EXCLUDE FROM FFI_CDEF'
 	lines:insert('};')
 	lines:insert('typedef '..classType..' '..typename..' '..typename..';')

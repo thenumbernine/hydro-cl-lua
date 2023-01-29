@@ -1,0 +1,179 @@
+namespace Hydro {
+
+//equation parent-class
+// TODO crtp this
+template<
+	typename Base_,
+	typename Solver_,
+	typename Cons_,
+	typename Prim_,
+	typename Normal_
+>
+struct Eqn {
+	using Base = Base_;
+	using Solver = Solver_;
+	using Cons = Cons_;
+	using Prim = Prim_;
+	using Normal = Normal_;
+	//using Cons = typename Base::Cons;
+	//using Prim = typename Base::Prim;
+	//using Normal = typename Base::Normal;
+
+	//default implementation assumes Cons == Prim
+
+	static inline Prim primFromCons(
+		constant Solver const & solver,
+		Cons const & U,
+		real3 const pt
+	) 
+	//requires std::is_same_v<Prim, Cons>
+	{
+		return U;
+	}
+
+	static inline Cons consFromPrim(
+		constant Solver const & solver,
+		Prim const & W,
+		real3 const pt
+	)
+	//requires std::is_same_v<Prim, Cons>
+	{
+		return W;
+	}
+
+	// only used by PLM
+	static inline Cons apply_dU_dW(
+		constant Solver const & solver,
+		Prim const & WA,
+		Prim const & W,
+		real3 const x
+	)
+	//requires std::is_same_v<Prim, Cons>
+	{
+		return W;
+	}
+
+	// only used by PLM
+	static inline Prim apply_dW_dU(
+		constant Solver const & solver,
+		Prim const & WA,
+		Cons const & U,
+		real3 const x
+	)
+	//requires std::is_same_v<Prim, Cons>
+	{
+		return U;
+	}
+
+<?
+-- TODO put all the epsilons in one place?
+--local faceAreaEpsilon = 1e-7
+--local cellVolumeEpsilon = 1e-7
+local faceAreaEpsilon = 0
+local cellVolumeEpsilon = 0
+?>
+
+	static inline void calcDTCell(
+		real & dt,
+		constant Solver const & solver,
+		global Cons const & U,
+//// MODULE_DEPENDS: <?=cell_t?>		
+		global <?=cell_t?> const & cell
+	) {
+		auto calcWaves = typename Base::ConsWaveCodeMinMaxAllSides(solver, U, cell.pos);
+		<? for side=0,solver.dim-1 do ?>{
+<?
+if solver.coord.vectorComponent == "holonomic"
+or require "hydro.coord.cartesian":isa(solver.coord)
+then ?>
+			real const dx = solver.grid_dx[<?=side?>];
+<? else ?>
+			real const dx = cell_dx<?=side?>(cell.pos);
+<? end ?>
+			if (dx > <?=clnumber(faceAreaEpsilon)?>) {
+				auto const n = normal_forSide<?=side?>(cell.pos);
+				// use cell-centered eigenvalues
+				real lambdaMin, lambdaMax;
+				calcWaves(solver, n, U, cell.pos, &lambdaMin, &lambdaMax);
+				real absLambdaMax = max(fabs(lambdaMin), fabs(lambdaMax));
+				absLambdaMax = max((real)1e-9, absLambdaMax);
+				dt = (real)min(dt, dx / absLambdaMax);
+			}
+		}<? end ?>
+	}
+
+	static void calcDT(
+		constant Solver const & solver,
+		global real * const dtBuf,
+		global Cons const * const UBuf,
+		global <?=cell_t?> const * const cellBuf
+<?
+if require "hydro.solver.meshsolver":isa(solver) then
+?>,
+		global <?=face_t?> const * const faces,
+		global int const * const cellFaceIndexes
+<?
+end
+?>
+	) {
+//// MODULE_DEPENDS: <?=SETBOUNDS?>		
+		<?=SETBOUNDS?>(0,0);
+		
+		//write inf to boundary cells
+		//TODO why not write inf to boundary cells upon init,
+		// and then give this the domain SETBOUNDS_NOGHOST?
+		//that would work except that it is writing to reduceBuf, which is reused for any reduce operation
+		// like display var min/max ranges
+		global real & dt = dtBuf[index];
+		dt = INFINITY;
+		
+		if (OOB<dim>(solver, i, solver.numGhost, solver.numGhost)) return;
+		global Cons const & U = UBuf[index];
+		global <?=cell_t?> const & cell = cellBuf[index];
+		calcDTCell(
+			dt,
+			solver,
+			U,
+			cell
+<?
+if require "hydro.solver.meshsolver":isa(solver) then
+?>			,
+			faces,
+			cellFaceIndexes
+<?
+end
+?>
+		);
+	}
+};	// struct Eqn
+
+}	// namespace Hydro
+
+//this has to go afer the subclass def ... or TODO template instanciate or something.
+#if 0
+// TODO std::forward implementation
+kernel void <?=calcDT?>(
+	constant <?=solver_t?> const * const psolver,
+	global real * const dtBuf,
+	global <?=cons_t?> const * const UBuf,
+	global <?=cell_t?> const * const cellBuf
+<?
+if require "hydro.solver.meshsolver":isa(solver) then
+?>	,
+	global <?=face_t?> const * const faces,
+	global int const * const cellFaceIndexes
+<?
+end
+?>
+) {
+	auto const & solver = *psolver;
+	<?=Equation?>::Eqn::calcDT(solver, dtBuf, UBuf, cellBuf
+<?
+if require "hydro.solver.meshsolver":isa(solver) then
+?>, faces, cellFaceIndexes
+<?
+end
+?>	);
+}
+
+#endif

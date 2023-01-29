@@ -1,17 +1,73 @@
 //// MODULE_NAME: <?=Equation?>
-//// MODULE_DEPENDS: <?=coordLenSq?> <?=cons_t?> <?=prim_t?> <?=waves_t?> <?=eigen_t?> <?=eqn_guiVars_compileTime?>
+//// MODULE_DEPENDS: <?=coordLenSq?> <?=waves_t?> <?=eigen_t?> <?=eqn_guiVars_compileTime?>
 // Equation is for all the calc_* stuff
 
-struct <?=Equation?> {
+<?=eqn:template(require "ext.file" "hydro/eqn/eqn.clcpp":read())?>
+
+// TODO 'namespace Equation' then 'class <?=Equation?>'
+// or TODO namespace <?=Solver?> and then class Solver, class Eqn, etc
+namespace <?=Equation?> {
+
+// TODO this is usually the <?=prim_t?> structure ...
+// which I want to get rid of in favor of member-class of the equation, Cons and Prim
+// but this does match the codegen struct so far except ...
+union Prim {
+	real ptr[6];
+	struct {
+		real rho;
+		real3 v;
+		real P;
+		real ePot;
+	};
+//// BEGIN EXCLUDE FROM FFI_CDEF
+	Prim() {}
+	Prim & set_rho(real const & value_) { rho = value_; return *this; }
+	Prim & set_v(real3 const & value_) { v = value_; return *this; }
+	Prim & set_P(real const & value_) { P = value_; return *this; }
+	Prim & set_ePot(real const & value_) { ePot = value_; return *this; }
+//// END EXCLUDE FROM FFI_CDEF
+};
+
+union Cons {
+	real ptr[6];
+	struct {
+		real rho;
+		real3 m;
+		real ETotal;
+		real ePot;
+	};
+//// BEGIN EXCLUDE FROM FFI_CDEF
+	Cons() {}
+	Cons & set_rho(real const & value_) { rho = value_; return *this; }
+	Cons & set_m(real3 const & value_) { m = value_; return *this; }
+	Cons & set_ETotal(real const & value_) { ETotal = value_; return *this; }
+	Cons & set_ePot(real const & value_) { ePot = value_; return *this; }
+//// END EXCLUDE FROM FFI_CDEF
+};
+	
+//// MODULE_DEPENDS: <?=normal_t?>
+using Solver = <?=solver_t?>;
+using Normal = <?=normal_t?>;
+
+// TODO eventually:
+//template<typename Solver>
+struct Eqn : public Hydro::Eqn<Eqn, Solver, Cons, Prim, Normal> {
+	// until then just use a typedef and a namespace
+
+	// hmm for some reason crtp parent can't seem to 'using' see into the childs member class's 'using's
+	//using Normal = <?=normal_t?>;
+	//using Cons = ::<?=Equation?>::Cons;
+	//using Prim = ::<?=Equation?>::Prim;
+
 	static inline real calc_H(
-		constant <?=solver_t?> const & solver,
+		constant Solver const & solver,
 		real const P
 	) {
 		return (P * (solver.heatCapacityRatio / (solver.heatCapacityRatio - 1.)));
 	}
 
 	static inline real calc_h(
-		constant <?=solver_t?> const & solver,
+		constant Solver const & solver,
 		real const rho,
 		real const P
 	) {
@@ -34,63 +90,63 @@ struct <?=Equation?> {
 	}
 
 	static inline real calc_eKin(
-		<?=prim_t?> const & W,
-		real3 const x
+		Prim const & W,
+		real3 const pt
 	) {
-		return (real).5 * coordLenSq(W.v, x);
+		return (real).5 * coordLenSq(W.v, pt);
 	}
 
 	static inline real calc_EKin(
-		<?=prim_t?> const & W,
-		real3 const x
+		Prim const & W,
+		real3 const pt
 	) {
-		return W.rho * calc_eKin(W, x);
+		return W.rho * calc_eKin(W, pt);
 	}
 
 	static inline real calc_EInt(
-		constant <?=solver_t?> const & solver,
-		<?=prim_t?> const & W
+		constant Solver const & solver,
+		Prim const & W
 	) {
 		return W.P / (solver.heatCapacityRatio - 1.);
 	}
 
 	static inline real calc_eInt(
-		constant <?=solver_t?> const & solver,
-		<?=prim_t?> const & W
+		constant Solver const & solver,
+		Prim const & W
 	) {
 		return calc_EInt(solver, W) / W.rho;
 	}
 
 	static inline real calc_EKin_fromCons(
-		constant <?=solver_t?> const & solver,
-		<?=cons_t?> const & U,
-		real3 const x
+		constant Solver const & solver,
+		Cons const & U,
+		real3 const pt
 	) {
 		if (U.rho < solver.rhoMin) return 0;
-		return (real).5 * coordLenSq(U.m, x) / U.rho;
+		return (real).5 * coordLenSq(U.m, pt) / U.rho;
 	}
 
 	static inline real calc_ETotal(
-		constant <?=solver_t?> const & solver,
-		<?=prim_t?> const & W,
-		real3 const x
+		constant Solver const & solver,
+		Prim const & W,
+		real3 const pt
 	) {
-		return calc_EKin(W, x) + calc_EInt(solver, W);
+		return calc_EKin(W, pt) + calc_EInt(solver, W);
 	}
 
 	static inline real calc_P(
-		constant <?=solver_t?> const & solver,
-		<?=cons_t?> const & U,
-		real3 const x
+		constant Solver const & solver,
+		Cons const & U,
+		real3 const pt
 	) {
 		if (U.rho < solver.rhoMin) return 0;
 		return (solver.heatCapacityRatio - 1.) * 
-			/*EInt=*/(U.ETotal - calc_EKin_fromCons(solver, U, x));
+			/*EInt=*/(U.ETotal - calc_EKin_fromCons(solver, U, pt));
 	}
 
 	static inline real calc_Cs(
-		constant <?=solver_t?> const & solver,
-		<?=prim_t?> const & W
+		constant Solver const & solver,
+		Prim const & W
 	) {
 		if (W.P <= solver.PMin) return 0.;
 		if (W.rho < solver.rhoMin) return INFINITY;
@@ -98,8 +154,8 @@ struct <?=Equation?> {
 	}
 
 	static inline real calc_Cs_fromCons(
-		constant <?=solver_t?> const & solver,
-		<?=cons_t?> const & U,
+		constant Solver const & solver,
+		Cons const & U,
 		real3 const pt
 	) {
 		real const P = calc_P(solver, U, pt);
@@ -113,129 +169,187 @@ struct <?=Equation?> {
 	}
 
 	static inline real calc_eInt_fromCons(
-		<?=cons_t?> const & U,
-		real3 const x
+		Cons const & U,
+		real3 const pt
 	) {
-		return (U.ETotal - .5 * coordLenSq(U.m, x) / U.rho) / U.rho - U.ePot;
+		return (U.ETotal - .5 * coordLenSq(U.m, pt) / U.rho) / U.rho - U.ePot;
 	}
 
-	<? local materials = require "hydro.materials" ?>
+<? local materials = require "hydro.materials" ?>
 	static constexpr real C_v = <?=("%.50f"):format(materials.Air.C_v)?>;
 
 	static inline real calc_T(
-		<?=cons_t?> const & U,
-		real3 const x
+		Cons const & U,
+		real3 const pt
 	) {
-		return calc_eInt_fromCons(U, x) / C_v;
+		return calc_eInt_fromCons(U, pt) / C_v;
 	}
 
 	static inline real3 calc_v(
-		<?=cons_t?> const & U
+		Cons const & U
 	) {
 		return U.m * (1. / U.rho);
 	}
+
+	// TODO make this a member-function
+	// so it can access equation-specific vars (like heatCapacityRatio)
+	// and move those from Solver to Equation
+	// then there's one less argument 
+	
+	static inline Prim primFromCons(
+		constant Solver const & solver,
+		Cons const & U,
+		real3 const pt
+	) {
+		if (U.rho < solver.rhoMin) {
+			return Prim()
+			.set_rho(0)
+			.set_v({})
+			.set_P(0)
+			.set_ePot(U.ePot)
+			;
+		} else {
+			return Prim()
+			.set_rho(U.rho)
+			.set_v(calc_v(U))
+			.set_P(calc_P(solver, U, pt))
+			.set_ePot(U.ePot)
+			;
+		}
+	}
+
+	static inline Cons consFromPrim(
+		constant Solver const & solver,
+		Prim const & W,
+		real3 const pt
+	) {
+		return Cons()
+		.set_rho(W.rho)
+		.set_m(W.v * W.rho)
+		.set_ETotal(calc_ETotal(solver, W, pt))
+		.set_ePot(W.ePot)
+		;
+	}
+
+	// only used by PLM
+	static inline Cons apply_dU_dW(
+		constant Solver const & solver,
+		Prim const & WA,
+		Prim const & W,
+		real3 const pt
+	) {
+		Cons result;
+		result.rho = W.rho;
+		result.m = 
+			WA.v * W.rho
+			+ W.v * WA.rho;
+//// MODULE_DEPENDS: <?=coord_lower?>
+		real3 const WA_vL = coord_lower(WA.v, pt);
+		result.ETotal = W.rho * (real).5 * dot(WA.v, WA_vL)
+			+ WA.rho * dot(W.v, WA_vL)
+			+ W.P / (solver.heatCapacityRatio - 1.);
+		result.ePot = W.ePot;
+		return result;
+	}
+
+	// only used by PLM
+	static inline Prim apply_dW_dU(
+		constant Solver const & solver,
+		Prim const & WA,
+		Cons const & U,
+		real3 const pt
+	) {
+		Prim result;
+		result.rho = U.rho;
+		if (U.rho < solver.rhoMin) {
+			result.v = {};
+			result.P = 0.;
+		} else {
+			result.v = 
+				U.m * (1. / WA.rho)
+				- WA.v * (U.rho / WA.rho);
+//// MODULE_DEPENDS: <?=coord_lower?>
+			real3 const WA_vL = coord_lower(WA.v, pt);
+			result.P = (solver.heatCapacityRatio - 1.) * (
+				.5 * dot(WA.v, WA_vL) * U.rho 
+				- dot(U.m, WA_vL)
+				+ U.ETotal);
+		}
+		result.ePot = U.ePot;
+		return result;
+	}
+
+	struct ConsWaveCodeMinMaxAllSides {
+		real Cs;
+		ConsWaveCodeMinMaxAllSides(
+			constant Solver const & solver,
+			Cons const & U,
+			real3 const pt
+		) : Cs(calc_Cs_fromCons(solver, U, pt))
+		{}
+
+		void operator()(
+			constant Solver const & solver,
+			Normal n,
+			Cons const & U,
+			real3 const pt,
+			real * resultMin,
+			real * resultMax
+		) {
+			real const Cs_nLen = Cs * normal_len(n);
+			real const v_n = U.rho < solver.rhoMin 
+				? 0. 
+				: normal_vecDotN1(n, U.m) / U.rho;
+			//waveCodeAssignMinMax
+			if (resultMin) {
+				*resultMin = v_n - Cs_nLen;
+			}
+			if (resultMax) {
+				*resultMax = v_n + Cs_nLen;
+			}
+		}
+	};
 };
 
-//// MODULE_NAME: <?=primFromCons?>
-//// MODULE_DEPENDS: real3 <?=solver_t?> <?=prim_t?> <?=cons_t?> <?=Equation?>
-// Equation is for all the calc_* stuff
+}	//namespace <?=Equation?>
 
-static inline <?=prim_t?> <?=primFromCons?>(
-	constant <?=solver_t?> const & solver,
-	<?=cons_t?> const & U,
-	real3 const & x
+using <?=cons_t?> = <?=Equation?>::Cons;
+using <?=prim_t?> = <?=Equation?>::Prim;
+
+// TODO use the one in hydro/eqn/eqn.clcpp
+#if 1
+// TODO std::forward implementation
+kernel void <?=calcDT?>(
+	constant <?=solver_t?> const * const psolver,
+	global real * const dtBuf,
+	global <?=cons_t?> const * const UBuf,
+	global <?=cell_t?> const * const cellBuf
+<?
+if require "hydro.solver.meshsolver":isa(solver) then
+?>	,
+	global <?=face_t?> const * const faces,
+	global int const * const cellFaceIndexes
+<?
+end
+?>
 ) {
-	<?=prim_t?> result;
-	if (U.rho < solver.rhoMin) {
-		result.rho = 0.;
-		result.v = {};
-		result.P = 0.;
-	} else {
-		result.rho = U.rho;
-		result.v = <?=Equation?>::calc_v(U);
-		result.P = <?=Equation?>::calc_P(solver, U, x);
-	}
-	result.rho = U.rho;
-	result.v = <?=Equation?>::calc_v(U);
-	result.P = <?=Equation?>::calc_P(solver, U, x);
-	result.ePot = U.ePot;
-	return result;
+	auto const & solver = *psolver;
+	<?=Equation?>::Eqn::calcDT(solver, dtBuf, UBuf, cellBuf
+<?
+if require "hydro.solver.meshsolver":isa(solver) then
+?>, faces, cellFaceIndexes
+<?
+end
+?>	);
 }
-
-//// MODULE_NAME: <?=consFromPrim?>
-//// MODULE_DEPENDS: real3 <?=Equation?> <?=solver_t?> <?=prim_t?> <?=cons_t?>
-
-static inline <?=cons_t?> <?=consFromPrim?>(
-	constant <?=solver_t?> const & solver,
-	<?=prim_t?> const & W,
-	real3 const pt
-) {
-	<?=cons_t?> result;
-	result.rho = W.rho;
-	result.m = W.v * W.rho;
-	result.ETotal = <?=Equation?>::calc_ETotal(solver, W, pt);
-	result.ePot = W.ePot;
-	return result;
-}
-
-//// MODULE_NAME: <?=apply_dU_dW?>
-//// MODULE_DEPENDS: <?=solver_t?> <?=prim_t?> <?=cons_t?> <?=coord_lower?>
-// only used by PLM
-
-static inline <?=cons_t?> <?=apply_dU_dW?>(
-	constant <?=solver_t?> const & solver,
-	<?=prim_t?> const & WA,
-	<?=prim_t?> const & W,
-	real3 const x
-) {
-	<?=cons_t?> result;
-	real3 const WA_vL = coord_lower(WA.v, x);
-	result.rho = W.rho;
-	result.m = 
-		WA.v * W.rho
-		+ W.v * WA.rho;
-	result.ETotal = W.rho * (real).5 * dot(WA.v, WA_vL)
-		+ WA.rho * dot(W.v, WA_vL)
-		+ W.P / (solver.heatCapacityRatio - 1.);
-	result.ePot = W.ePot;
-	return result;
-}
-
-//// MODULE_NAME: <?=apply_dW_dU?>	
-//// MODULE_DEPENDS: <?=solver_t?> <?=prim_t?> <?=cons_t?> <?=coord_lower?>
-// only used by PLM
-
-static inline <?=prim_t?> <?=apply_dW_dU?>(
-	constant <?=solver_t?> const & solver,
-	<?=prim_t?> const & WA,
-	<?=cons_t?> const & U,
-	real3 const x
-) {
-	<?=prim_t?> result;
-	real3 const WA_vL = coord_lower(WA.v, x);
-	result.rho = U.rho;
-	if (U.rho < solver.rhoMin) {
-		result.v = {};
-		result.P = 0.;
-	} else {
-		result.v = 
-			U.m * (1. / WA.rho)
-			- WA.v * (U.rho / WA.rho);
-		result.P = (solver.heatCapacityRatio - 1.) * (
-			.5 * dot(WA.v, WA_vL) * U.rho 
-			- dot(U.m, WA_vL)
-			+ U.ETotal);
-	}
-	result.ePot = U.ePot;
-	return result;
-}
+#endif
 
 //// MODULE_NAME: <?=applyInitCondCell?>
-//// MODULE_DEPENDS: <?=cartesianToCoord?>
+//// MODULE_DEPENDS: <?=cartesianToCoord?> <?=Equation?>
 
 /*
 I've highjacked all of this.  It was a normal Euler eqn solver.
-But I experimented with a curved-space solver.  
+But I experimented with a curved-space solver.
 To get back to the original code,
 just replace all the g_ab stuff with their constant values and simplify away.
 */
@@ -271,11 +385,11 @@ end
 		.set_ePot(ePot)
 	;
 
-	U = <?=consFromPrim?>(solver, W, x);
+	U = <?=Equation?>::Eqn::consFromPrim(solver, W, x);
 }
 
 //// MODULE_NAME: <?=fluxFromCons?>
-//// MODULE_DEPENDS: <?=solver_t?> <?=primFromCons?> <?=normal_t?>
+//// MODULE_DEPENDS: <?=solver_t?> <?=normal_t?> <?=Equation?>
 
 static inline <?=cons_t?> <?=fluxFromCons?>(
 	constant <?=solver_t?> const & solver,
@@ -284,7 +398,7 @@ static inline <?=cons_t?> <?=fluxFromCons?>(
 	<?=normal_t?> const n
 ) {
 	<?=cons_t?> resultF;
-	<?=prim_t?> W = <?=primFromCons?>(solver, U, cell.pos);
+	<?=prim_t?> W = <?=Equation?>::Eqn::primFromCons(solver, U, cell.pos);
 	real const v_n = normal_vecDotN1(n, W.v);
 	resultF.rho = U.rho * v_n;
 	resultF.m = 
@@ -297,7 +411,7 @@ static inline <?=cons_t?> <?=fluxFromCons?>(
 }
 
 //// MODULE_NAME: <?=calcCellMinMaxEigenvalues?>
-//// MODULE_DEPENDS: real3x3 <?=primFromCons?>
+//// MODULE_DEPENDS: real3x3 <?=Equation?>
 // added by request only, so I don't have to compile the real3x3 code. 
 // not used at the moment
 
@@ -309,9 +423,9 @@ static inline <?=range_t?> <?=calcCellMinMaxEigenvalues?>(
 	real3x3 const nU,
 	real const nLen
 ) {
-	<?=prim_t?> W = <?=primFromCons?>(solver, U, pt);
+	<?=prim_t?> W = <?=Equation?>::Eqn::primFromCons(solver, U, pt);
 	real const v_n = dot(W.v, nL.x);
-	real const Cs = <?=Equation?>::calc_Cs(solver, &W);
+	real const Cs = <?=Equation?>::Eqn::calc_Cs(solver, &W);
 	real const Cs_nLen = Cs * nLen;
 	<?=range_t?> result;
 	result.min = v_n - Cs_nLen; 
@@ -320,7 +434,7 @@ static inline <?=range_t?> <?=calcCellMinMaxEigenvalues?>(
 }
 
 //// MODULE_NAME: <?=eigen_forCell?>
-//// MODULE_DEPENDS: <?=normal_t?> <?=coord_lower?> <?=cons_t?> <?=prim_t?> <?=eigen_t?> <?=primFromCons?> <?=Equation?>
+//// MODULE_DEPENDS: <?=normal_t?> <?=coord_lower?> <?=cons_t?> <?=prim_t?> <?=eigen_t?> <?=Equation?>
 // Equation is for all the calc_* stuff
 
 // used by PLM
@@ -330,12 +444,12 @@ static inline <?=eigen_t?> <?=eigen_forCell?>(
 	<?=cell_t?> const & cell,
 	<?=normal_t?> const n
 ) {
-	<?=prim_t?> W = <?=primFromCons?>(solver, U, cell.pos);
+	<?=prim_t?> W = <?=Equation?>::Eqn::primFromCons(solver, U, cell.pos);
 	real3 const vL = coord_lower(W.v, cell.pos);
 	real const vSq = dot(W.v, vL);
 	real const v_n = normal_vecDotN1(n, W.v);
 	real const eKin = .5 * vSq;
-	real const hTotal = <?=Equation?>::calc_hTotal(W.rho, W.P, U.ETotal);
+	real const hTotal = <?=Equation?>::Eqn::calc_hTotal(W.rho, W.P, U.ETotal);
 	real const CsSq = (solver.heatCapacityRatio - 1.) * (hTotal - eKin);
 	real const Cs = sqrt(CsSq);
 	<?=eigen_t?> result;
@@ -349,7 +463,7 @@ static inline <?=eigen_t?> <?=eigen_forCell?>(
 }
 
 //// MODULE_NAME: <?=eigen_forInterface?>
-//// MODULE_DEPENDS: <?=primFromCons?> <?=eigen_t?> <?=normal_t?> <?=coord_lower?>
+//// MODULE_DEPENDS: <?=eigen_t?> <?=normal_t?> <?=coord_lower?> <?=Equation?>
 
 //used by the mesh version
 static inline <?=eigen_t?> <?=eigen_forInterface?>(
@@ -375,32 +489,32 @@ static inline <?=eigen_t?> <?=eigen_forInterface?>(
 	} else {
 		if (UL.rho < rhoEpsilon) {
 			// left is vacuum:
-			<?=prim_t?> WR = <?=primFromCons?>(solver, UR, cellR.pos);
+			<?=prim_t?> WR = <?=Equation?>::Eqn::primFromCons(solver, UR, cellR.pos);
 			result.rho = UR.rho;
 			result.v = WR.v;
 			result.vL = coord_lower(WR.v, pt);
 			result.vSq = dot(WR.v, result.vL);
-			result.hTotal = <?=Equation?>::calc_hTotal(WR.rho, WR.P, UR.ETotal);
-			result.Cs = <?=Equation?>::calc_Cs(solver, WR);
+			result.hTotal = <?=Equation?>::Eqn::calc_hTotal(WR.rho, WR.P, UR.ETotal);
+			result.Cs = <?=Equation?>::Eqn::calc_Cs(solver, WR);
 		} else if (UR.rho < rhoEpsilon) {
 			// right is vacuum:
-			<?=prim_t?> WL = <?=primFromCons?>(solver, UL, cellL.pos);
+			<?=prim_t?> WL = <?=Equation?>::Eqn::primFromCons(solver, UL, cellL.pos);
 			result.rho = UL.rho;
 			result.v = WL.v;
 			result.vL = coord_lower(WL.v, pt);
 			result.vSq = dot(WL.v, result.vL);
-			result.hTotal = <?=Equation?>::calc_hTotal(WL.rho, WL.P, UL.ETotal);
-			result.Cs = <?=Equation?>::calc_Cs(solver, WL);
+			result.hTotal = <?=Equation?>::Eqn::calc_hTotal(WL.rho, WL.P, UL.ETotal);
+			result.Cs = <?=Equation?>::Eqn::calc_Cs(solver, WL);
 		} else {
-			<?=prim_t?> WL = <?=primFromCons?>(solver, UL, cellL.pos);
+			<?=prim_t?> WL = <?=Equation?>::Eqn::primFromCons(solver, UL, cellL.pos);
 			real const sqrtRhoL = sqrt(WL.rho);
 			real3 const vLeft = WL.v;
-			real const hTotalL = <?=Equation?>::calc_hTotal(WL.rho, WL.P, UL.ETotal);
+			real const hTotalL = <?=Equation?>::Eqn::calc_hTotal(WL.rho, WL.P, UL.ETotal);
 
-			<?=prim_t?> WR = <?=primFromCons?>(solver, UR, cellR.pos);
+			<?=prim_t?> WR = <?=Equation?>::Eqn::primFromCons(solver, UR, cellR.pos);
 			real const sqrtRhoR = sqrt(WR.rho);
 			real3 const vR = WR.v;
-			real const hTotalR = <?=Equation?>::calc_hTotal(WR.rho, WR.P, UR.ETotal);
+			real const hTotalR = <?=Equation?>::Eqn::calc_hTotal(WR.rho, WR.P, UR.ETotal);
 
 			real const invDenom = 1./(sqrtRhoL + sqrtRhoR);
 
@@ -551,7 +665,7 @@ static inline <?=cons_t?> <?=eigen_rightTransform?>(
 
 //// MODULE_NAME: <?=eigen_fluxTransform?>
 //// MODULE_DEPENDS: <?=eigen_t?> <?=normal_t?>
-// Not used anymore.  was used by Roe, but I switched that to a <?=fluxFromCons?>.
+// Not used anymore.  Was used by Roe, but I switched that to a <?=fluxFromCons?>.
 // <?=fluxFromCons?> only matches <?=eigen_fluxTransform?> when the eig properties are derived from X_ 
 
 static inline <?=eigen_fluxTransform?>(
@@ -615,7 +729,7 @@ static inline <?=eigen_fluxTransform?>(
 
 <? if false then -- TODO sort <?=addSource?> out. ?>
 //// MODULE_NAME: <?=addSource?>
-//// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> <?=cell_t?> <?=SETBOUNDS_NOGHOST?>
+//// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> <?=cell_t?> <?=SETBOUNDS_NOGHOST?> <?=Equation?>
 
 kernel void <?=addSource?>(
 	constant <?=solver_t?> const * const psolver,
@@ -642,8 +756,8 @@ then ?>
 		
 		global <?=cons_t?> const & UL = U[solver.stepsize.s<?=side?>];
 		global <?=cons_t?> const & UR = U[solver.stepsize.s<?=side?>];
-		real const PL = <?=Equation?>::calc_P?>(solver, UL, xL);
-		real const PR = <?=Equation?>::calc_P?>(solver, UR, xR);
+		real const PL = <?=Equation?>::Eqn::calc_P?>(solver, UL, xL);
+		real const PR = <?=Equation?>::Eqn::calc_P?>(solver, UR, xR);
 	
 		deriv.m.s<?=side?> -= (PR - PL) / (2. * solver.grid_dx.s<?=side?>);
 	}<? end ?>
@@ -662,7 +776,7 @@ then ?>
 <? if not (require "hydro.coord.cartesian":isa(solver.coord) 
 		or solver.coord.vectorComponent == "cartesian")
 then ?>
-//// MODULE_DEPENDS: <?=primFromCons?> <?=coord_conn_apply23?> <?=coord_conn_trace23?> <?=coord_conn_apply13?>
+//// MODULE_DEPENDS: <?=coord_conn_apply23?> <?=coord_conn_trace23?> <?=coord_conn_apply13?>
 /*
 This is working for init conds with zero velocity.
 Introducing constant velocity of v=[x=1,y=1]=[r=sqrt(2),theta=pi/4] in the init cond causes some numerical errors.
@@ -671,7 +785,7 @@ That means that the volume gradient in calcDerivFV is causing nonzero velocities
 Maybe for an initial constant vel as large as sqrt(2) this fails, but it works only for small perturbations?
 */
 	//connection coefficient source terms of covariant derivative w/contravariant velocity vectors in a holonomic coordinate system
-	<?=prim_t?> W = <?=primFromCons?>(solver, U, x);
+	<?=prim_t?> W = <?=Equation?>::Eqn::primFromCons(solver, U, x);
 	
 	//- Γ^i_jk ρ v^j v^k 
 	deriv.m -= coord_conn_apply23(W.v, U.m, x);
@@ -703,7 +817,7 @@ Maybe for an initial constant vel as large as sqrt(2) this fails, but it works o
 
 <? if false then ?>
 //// MODULE_NAME: <?=constrainU?>
-//// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> <?=cell_t?> <?=primFromCons?> <?=consFromPrim?>
+//// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> <?=cell_t?> <?=Equation?>
 
 kernel void <?=constrainU?>(
 	constant <?=solver_t?> const * const psolver,
@@ -715,11 +829,11 @@ kernel void <?=constrainU?>(
 	real3 const x = cellBuf[index].pos;
 
 	global <?=cons_t?> & U = UBuf[index];
-	<?=prim_t?> W = <?=primFromCons?>(solver, U, x);
+	<?=prim_t?> W = <?=Equation?>::Eqn::primFromCons(solver, U, x);
 
 	if (W.rho < solver.rhoMin) W.rho = solver.rhoMin;
 	if (W.P < solver.PMin) W.P = solver.PMin;
 
-	U = <?=consFromPrim?>(solver, W, x);
+	U = <?=Equation?>::Eqn::consFromPrim(solver, W, x);
 }
 <? end ?>

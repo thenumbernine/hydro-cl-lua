@@ -361,10 +361,6 @@ end
 function Equation:getSymbolFields()
 	return table{
 		-- functions:
-		'primFromCons',
-		'consFromPrim',
-		'apply_dU_dW',
-		'apply_dW_dU',
 		'fluxFromCons',
 		'calcCellMinMaxEigenvalues',
 		'eigen_forCell',
@@ -374,11 +370,10 @@ function Equation:getSymbolFields()
 		'eigen_fluxTransform',
 		'cons_parallelPropagate',
 		'applyInitCondCell',
-		'calcDTCell',
 		
 		-- kernels:
-		'applyInitCond',
 		'calcDT',
+		'applyInitCond',
 		'initDerivs',
 		'addSource',
 		'constrainU',
@@ -560,11 +555,6 @@ function Equation:initCodeModules()
 	-- eqn:initCodeModules is called after ... hmm
 	self.initCond:initCodeModules()
 
-	-- init primFromCons and consFromPrim
-	-- prim-cons should have access to all ... prefix stuff?
-	-- but initstate has access to it
-	self:initCodeModule_consFromPrim_primFromCons()
-
 	-- these are only the compile-time gui vars
 	-- the runtime ones are stored in solver_t
 	solver.modules:add{
@@ -573,11 +563,6 @@ function Equation:initCodeModules()
 			return (var.compileTime and var:getCode() or nil), #t+1
 		end):concat'\n',
 	}
-
-	-- this contains calcDTCell, which varies per-equation
-	self:initCodeModule_calcDTCell()
-	-- and here is calcDT, which is always the same
-	self:initCodeModule_calcDT()
 
 	self:initCodeModule_fluxFromCons()
 
@@ -784,29 +769,33 @@ function Equation:initCodeModule_cons_prim_eigen_waves()
 	end
 
 	assert(self.consStruct)
+
+--TODO do insert the cdef code
+--then static_assert that the sizeof matches Equation::Cons
+	
 	solver.modules:add{
 		name = self.symbols.cons_t,
-		structs = {self.consStruct},
-		depends = self.getModuleDepends_cons_t and self:getModuleDepends_cons_t() or nil,
+--		structs = {self.consStruct},
+--		depends = self.getModuleDepends_cons_t and self:getModuleDepends_cons_t() or nil,
 		-- only generated for cl, not for ffi cdef
-		headercode = 'typedef '..self.symbols.cons_t..' cons_t;',
+--		headercode = 'typedef '..self.symbols.cons_t..' cons_t;',
 	}
 
 	if self.primStruct then
 		solver.modules:add{
 			name = self.symbols.prim_t,
-			structs = {self.primStruct},
-			depends = self.getModuleDepends_prim_t and self:getModuleDepends_prim_t() or nil,
+--			structs = {self.primStruct},
+--			depends = self.getModuleDepends_prim_t and self:getModuleDepends_prim_t() or nil,
 			-- only generated for cl, not for ffi cdef
-			headercode = 'typedef '..self.symbols.prim_t..' prim_t;',
+--			headercode = 'typedef '..self.symbols.prim_t..' prim_t;',
 		}
 	else
 		solver.modules:add{
 			name = self.symbols.prim_t,
-			depends = {self.symbols.cons_t},
-			typecode = 'typedef '..self.symbols.cons_t..' '..self.symbols.prim_t..';',
+--			depends = {self.symbols.cons_t},
+--			typecode = 'typedef '..self.symbols.cons_t..' '..self.symbols.prim_t..';',
 			-- only generated for cl, not for ffi cdef
-			headercode = 'typedef '..self.symbols.prim_t..' prim_t;',
+--			headercode = 'typedef '..self.symbols.prim_t..' prim_t;',
 		}
 	end
 
@@ -865,8 +854,8 @@ function Equation:getDisplayVarCodePrefix()
 	return self:template[[
 global <?=cons_t?> const & U = buf[index];
 <? if eqn.displayVarCodeUsesPrims then ?>
-//// MODULE_DEPENDS: <?=primFromCons?>
-<?=prim_t?> W = <?=primFromCons?>(solver, U, x);
+//// MODULE_DEPENDS: <?=Equation?>
+<?=prim_t?> W = <?=Equation?>::Eqn::primFromCons(solver, U, x);
 <? end
 ?>]]
 end
@@ -1126,166 +1115,6 @@ args:
 --]]
 function Equation:consWaveCodeMinMaxAllSides(args)
 	return self:consWaveCodeMinMax(args)
-end
-
-
--- By default calcDT is taken from hydro/eqn/cl/calcDT.cl
--- Override to provide your own.
-function Equation:initCodeModule_calcDTCell()
-	self.solver.modules:addFromMarkup(self:template(file'hydro/eqn/cl/calcDT.cl':read()))
-end
-
--- override this if you don't want the original calcDT at all
--- maybe if you don't know the waves and only want fixedDT use
-function Equation:initCodeModule_calcDT()
-	self.solver.modules:add{
-		name = self.symbols.calcDT,
-		depends = {self.symbols.calcDTCell},
-		code = self:template[[
-kernel void <?=calcDT?>(
-	constant <?=solver_t?> const * const psolver,
-	global real * const dtBuf,
-	global <?=cons_t?> const * const UBuf,
-	global <?=cell_t?> const * const cellBuf<?
-if require "hydro.solver.meshsolver":isa(solver) then
-?>,
-	global <?=face_t?> const * const faces,
-	global int const * const cellFaceIndexes<?
-end
-?>
-) {
-	auto const & solver = *psolver;
-	<?=SETBOUNDS?>(0,0);
-	
-	//write inf to boundary cells
-	//TODO why not write inf to boundary cells upon init,
-	// and then give this the domain SETBOUNDS_NOGHOST?
-	//that would work except that it is writing to reduceBuf, which is reused for any reduce operation
-	// like display var min/max ranges
-	global real & dt = dtBuf[index];
-	dt = INFINITY;
-	
-	if (OOB<dim>(solver, i, solver.numGhost, solver.numGhost)) return;
-	global <?=cons_t?> const & U = UBuf[index];
-	global <?=cell_t?> const & cell = cellBuf[index];
-	<?=calcDTCell?>(
-		dt,
-		solver,
-		U,
-		cell<?
-if require "hydro.solver.meshsolver":isa(solver) then
-?>,
-		faces,
-		cellFaceIndexes<?
-end
-?>
-	);
-}
-]],
-	}
-end
-
---[[
-Default code for the following:
-	primFromCons
-	consFromPrim
-	apply_dU_dW : prim_t -> cons_t
-	apply_dW_dU : cons_t -> prim_t
-
-The default assumes prim_t == cons_t and this transformation is identity
---]]
-function Equation:initCodeModule_consFromPrim_primFromCons()
-	assert(not self.primStruct, "if you're using the default prim<->cons code then you shouldn't have any primStruct")
-
-	self.solver.modules:add{
-		name = self.symbols.primFromCons,
-		depends = {self.solver.solver_t, self.symbols.prim_t, self.symbols.cons_t},
-		code = self:template[[
-#define <?=primFromCons?>(solver, U, x)	(*(U))
-/*
-<?=cons_t?> <?=primFromCons?>(
-	constant <?=solver_t?> const * const solver,
-	<?=cons_t?> const & U,
-	real3 const x
-) {
-	return U;
-}
-*/
-]],
-	}
-	
-	self.solver.modules:add{
-		name = self.symbols.consFromPrim,
-		depends = {
-			self.solver.solver_t,
-			self.symbols.prim_t,
-			self.symbols.cons_t,
-		},
-		code = self:template[[
-#define <?=consFromPrim?>(solver, W, x)	(*(W))
-/*
-<?=prim_t?> <?=consFromPrim?>(
-	constant <?=solver_t?> const * const solver,
-	<?=prim_t?> const & W,
-	real3 const x
-) {
-	return W;
-}
-*/
-]],
-	}
-
-	-- only used by PLM
-	self.solver.modules:add{
-		name = self.symbols.apply_dU_dW,
-		depends = {self.solver.solver_t, self.symbols.prim_t, self.symbols.cons_t},
-		code = self:template[[
-/*
-WA = W components that make up the jacobian matrix
-W = input vector
-x = coordinate location
-returns output vector
-*/
-#define <?=apply_dU_dW?>(result, solver, WA, W, x)	(*(result) = *(W))
-/*
-void <?=apply_dU_dW?>(
-	<?=cons_t?> * const result,
-	constant <?=solver_t?> const * const solver,
-	<?=prim_t?> const * const WA,
-	<?=prim_t?> const * const W,
-	real3 const x
-) {
-	return W;
-}
-*/
-]],
-	}
-
-	-- only used by PLM
-	self.solver.modules:add{
-		name = self.symbols.apply_dW_dU,
-		depends = {self.solver.solver_t, self.symbols.prim_t, self.symbols.cons_t},
-		code = self:template[[
-/*
-WA = W components that make up the jacobian matrix
-U = input vector
-x = coordinate location
-returns output vector
-*/
-#define <?=apply_dW_dU?>(solver, WA, U, x)	(*(result) = (*U))
-/*
-void <?=apply_dW_dU?>(
-	<?=prim_t?> const * W,
-	constant <?=solver_t?> const * const solver,
-	<?=prim_t?> const * const WA,
-	<?=cons_t?> const * const U,
-	real3 const x
-) {
-	return U;
-}
-*/
-]],
-	}
 end
 
 -- especially used by the num rel stuff

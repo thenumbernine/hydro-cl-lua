@@ -1075,7 +1075,7 @@ function GridSolver:createBoundaryProgramAndKernel(args)
 
 	local moduleNames = self.sharedModulesEnabled:keys():append{
 		self.solver_t,
-		self.eqn.symbols.cons_t,
+		self.eqn.symbols.Equation,
 		assert(self.coord.cell_t),
 		'INDEX',
 		'INDEXV',
@@ -1197,7 +1197,7 @@ lines:insert[[
 	local boundaryProgramName = 'boundary'..(args.programNameSuffix or '')
 
 	local boundaryProgramObj
-	time('building program cache/'..self:getIdent()..'/src/boundary.cl ', function()
+	time('building program cache/'..self:getIdent()..'/src/boundary.clcpp ', function()
 		boundaryProgramObj = self.Program{name=boundaryProgramName, code=code}
 		boundaryProgramObj:compile()
 	end)
