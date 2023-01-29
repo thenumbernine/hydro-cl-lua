@@ -1,6 +1,144 @@
+//// MODULE_NAME: <?=Equation?>
+//// MODULE_DEPENDS: <?=coordLenSq?> <?=cons_t?> <?=prim_t?> <?=waves_t?> <?=eigen_t?> <?=eqn_guiVars_compileTime?>
+// Equation is for all the calc_* stuff
+
+struct <?=Equation?> {
+	static inline real calc_H(
+		constant <?=solver_t?> const & solver,
+		real const P
+	) {
+		return (P * (solver.heatCapacityRatio / (solver.heatCapacityRatio - 1.)));
+	}
+
+	static inline real calc_h(
+		constant <?=solver_t?> const & solver,
+		real const rho,
+		real const P
+	) {
+		return calc_H(solver, P) / rho;
+	}
+
+	static inline real calc_HTotal(
+		real const P,
+		real const ETotal
+	) {
+		return P + ETotal;
+	}
+
+	static inline real calc_hTotal(
+		real const rho,
+		real const P,
+		real const ETotal
+	) {
+		return calc_HTotal(P, ETotal) / rho;
+	}
+
+	static inline real calc_eKin(
+		<?=prim_t?> const & W,
+		real3 const x
+	) {
+		return (real).5 * coordLenSq(W.v, x);
+	}
+
+	static inline real calc_EKin(
+		<?=prim_t?> const & W,
+		real3 const x
+	) {
+		return W.rho * calc_eKin(W, x);
+	}
+
+	static inline real calc_EInt(
+		constant <?=solver_t?> const & solver,
+		<?=prim_t?> const & W
+	) {
+		return W.P / (solver.heatCapacityRatio - 1.);
+	}
+
+	static inline real calc_eInt(
+		constant <?=solver_t?> const & solver,
+		<?=prim_t?> const & W
+	) {
+		return calc_EInt(solver, W) / W.rho;
+	}
+
+	static inline real calc_EKin_fromCons(
+		constant <?=solver_t?> const & solver,
+		<?=cons_t?> const & U,
+		real3 const x
+	) {
+		if (U.rho < solver.rhoMin) return 0;
+		return (real).5 * coordLenSq(U.m, x) / U.rho;
+	}
+
+	static inline real calc_ETotal(
+		constant <?=solver_t?> const & solver,
+		<?=prim_t?> const & W,
+		real3 const x
+	) {
+		return calc_EKin(W, x) + calc_EInt(solver, W);
+	}
+
+	static inline real calc_P(
+		constant <?=solver_t?> const & solver,
+		<?=cons_t?> const & U,
+		real3 const x
+	) {
+		if (U.rho < solver.rhoMin) return 0;
+		return (solver.heatCapacityRatio - 1.) * 
+			/*EInt=*/(U.ETotal - calc_EKin_fromCons(solver, U, x));
+	}
+
+	static inline real calc_Cs(
+		constant <?=solver_t?> const & solver,
+		<?=prim_t?> const & W
+	) {
+		if (W.P <= solver.PMin) return 0.;
+		if (W.rho < solver.rhoMin) return INFINITY;
+		return sqrt(solver.heatCapacityRatio * W.P / W.rho);
+	}
+
+	static inline real calc_Cs_fromCons(
+		constant <?=solver_t?> const & solver,
+		<?=cons_t?> const & U,
+		real3 const pt
+	) {
+		real const P = calc_P(solver, U, pt);
+		if (P <= solver.PMin) {
+			return 0;
+		} else if (U.rho < solver.rhoMin) {
+			return INFINITY;
+		} else {
+			return sqrt(solver.heatCapacityRatio * P / U.rho);
+		}
+	}
+
+	static inline real calc_eInt_fromCons(
+		<?=cons_t?> const & U,
+		real3 const x
+	) {
+		return (U.ETotal - .5 * coordLenSq(U.m, x) / U.rho) / U.rho - U.ePot;
+	}
+
+	<? local materials = require "hydro.materials" ?>
+	static constexpr real C_v = <?=("%.50f"):format(materials.Air.C_v)?>;
+
+	static inline real calc_T(
+		<?=cons_t?> const & U,
+		real3 const x
+	) {
+		return calc_eInt_fromCons(U, x) / C_v;
+	}
+
+	static inline real3 calc_v(
+		<?=cons_t?> const & U
+	) {
+		return U.m * (1. / U.rho);
+	}
+};
+
 //// MODULE_NAME: <?=primFromCons?>
-//// MODULE_DEPENDS: real3 <?=solver_t?> <?=prim_t?> <?=cons_t?> <?=eqn_common?>
-// eqn_common is for all the calc_* stuff
+//// MODULE_DEPENDS: real3 <?=solver_t?> <?=prim_t?> <?=cons_t?> <?=Equation?>
+// Equation is for all the calc_* stuff
 
 static inline <?=prim_t?> <?=primFromCons?>(
 	constant <?=solver_t?> const & solver,
@@ -14,19 +152,18 @@ static inline <?=prim_t?> <?=primFromCons?>(
 		result.P = 0.;
 	} else {
 		result.rho = U.rho;
-		result.v = <?=calc_v?>(U);
-		result.P = <?=calc_P?>(solver, U, x);
+		result.v = <?=Equation?>::calc_v(U);
+		result.P = <?=Equation?>::calc_P(solver, U, x);
 	}
 	result.rho = U.rho;
-	result.v = <?=calc_v?>(U);
-	result.P = <?=calc_P?>(solver, U, x);
+	result.v = <?=Equation?>::calc_v(U);
+	result.P = <?=Equation?>::calc_P(solver, U, x);
 	result.ePot = U.ePot;
 	return result;
 }
 
 //// MODULE_NAME: <?=consFromPrim?>
-//// MODULE_DEPENDS: real3 <?=eqn_common?> <?=solver_t?> <?=prim_t?> <?=cons_t?>
-// eqn_common is for all the calc_* stuff
+//// MODULE_DEPENDS: real3 <?=Equation?> <?=solver_t?> <?=prim_t?> <?=cons_t?>
 
 static inline <?=cons_t?> <?=consFromPrim?>(
 	constant <?=solver_t?> const & solver,
@@ -36,7 +173,7 @@ static inline <?=cons_t?> <?=consFromPrim?>(
 	<?=cons_t?> result;
 	result.rho = W.rho;
 	result.m = W.v * W.rho;
-	result.ETotal = <?=calc_ETotal?>(solver, W, pt);
+	result.ETotal = <?=Equation?>::calc_ETotal(solver, W, pt);
 	result.ePot = W.ePot;
 	return result;
 }
@@ -91,141 +228,6 @@ static inline <?=prim_t?> <?=apply_dW_dU?>(
 	}
 	result.ePot = U.ePot;
 	return result;
-}
-
-//// MODULE_NAME: <?=eqn_common?>
-//// MODULE_DEPENDS: <?=coordLenSq?> <?=cons_t?> <?=prim_t?> <?=waves_t?> <?=eigen_t?> <?=eqn_guiVars_compileTime?>
-
-static inline real <?=calc_H?>(
-	constant <?=solver_t?> const & solver,
-	real const P
-) {
-	return (P * (solver.heatCapacityRatio / (solver.heatCapacityRatio - 1.)));
-}
-
-static inline real <?=calc_h?>(
-	constant <?=solver_t?> const & solver,
-	real const rho,
-	real const P
-) {
-	return <?=calc_H?>(solver, P) / rho;
-}
-
-static inline real <?=calc_HTotal?>(
-	real const P,
-	real const ETotal
-) {
-	return P + ETotal;
-}
-
-static inline real <?=calc_hTotal?>(
-	real const rho,
-	real const P,
-	real const ETotal
-) {
-	return <?=calc_HTotal?>(P, ETotal) / rho;
-}
-
-static inline real <?=calc_eKin?>(
-	<?=prim_t?> const & W,
-	real3 const x
-) {
-	return (real).5 * coordLenSq(W.v, x);
-}
-
-static inline real <?=calc_EKin?>(
-	<?=prim_t?> const & W,
-	real3 const x
-) {
-	return W.rho * <?=calc_eKin?>(W, x);
-}
-
-static inline real <?=calc_EInt?>(
-	constant <?=solver_t?> const & solver,
-	<?=prim_t?> const & W
-) {
-	return W.P / (solver.heatCapacityRatio - 1.);
-}
-
-static inline real <?=calc_eInt?>(
-	constant <?=solver_t?> const & solver,
-	<?=prim_t?> const & W
-) {
-	return <?=calc_EInt?>(solver, W) / W.rho;
-}
-
-static inline real <?=calc_EKin_fromCons?>(
-	constant <?=solver_t?> const & solver,
-	<?=cons_t?> const & U,
-	real3 const x
-) {
-	if (U.rho < solver.rhoMin) return 0;
-	return (real).5 * coordLenSq(U.m, x) / U.rho;
-}
-
-static inline real <?=calc_ETotal?>(
-	constant <?=solver_t?> const & solver,
-	<?=prim_t?> const & W,
-	real3 const x
-) {
-	return <?=calc_EKin?>(W, x) + <?=calc_EInt?>(solver, W);
-}
-
-static inline real <?=calc_P?>(
-	constant <?=solver_t?> const & solver,
-	<?=cons_t?> const & U,
-	real3 const x
-) {
-	if (U.rho < solver.rhoMin) return 0;
-	return (solver.heatCapacityRatio - 1.) * 
-		/*EInt=*/(U.ETotal - <?=calc_EKin_fromCons?>(solver, U, x));
-}
-
-static inline real <?=calc_Cs?>(
-	constant <?=solver_t?> const & solver,
-	<?=prim_t?> const & W
-) {
-	if (W.P <= solver.PMin) return 0.;
-	if (W.rho < solver.rhoMin) return INFINITY;
-	return sqrt(solver.heatCapacityRatio * W.P / W.rho);
-}
-
-static inline real <?=calc_Cs_fromCons?>(
-	constant <?=solver_t?> const & solver,
-	<?=cons_t?> const & U,
-	real3 const pt
-) {
-	real const P = <?=calc_P?>(solver, U, pt);
-	if (P <= solver.PMin) {
-		return 0;
-	} else if (U.rho < solver.rhoMin) {
-		return INFINITY;
-	} else {
-		return sqrt(solver.heatCapacityRatio * P / U.rho);
-	}
-}
-
-static inline real <?=calc_eInt_fromCons?>(
-	<?=cons_t?> const & U,
-	real3 const x
-) {
-	return (U.ETotal - .5 * coordLenSq(U.m, x) / U.rho) / U.rho - U.ePot;
-}
-
-<? local materials = require "hydro.materials" ?>
-static constexpr real C_v = <?=("%.50f"):format(materials.Air.C_v)?>;
-
-static inline real <?=calc_T?>(
-	<?=cons_t?> const & U,
-	real3 const x
-) {
-	return <?=calc_eInt_fromCons?>(U, x) / C_v;
-}
-
-static inline real3 <?=calc_v?>(
-	<?=cons_t?> const & U
-) {
-	return U.m * (1. / U.rho);
 }
 
 //// MODULE_NAME: <?=applyInitCondCell?>
@@ -309,7 +311,7 @@ static inline <?=range_t?> <?=calcCellMinMaxEigenvalues?>(
 ) {
 	<?=prim_t?> W = <?=primFromCons?>(solver, U, pt);
 	real const v_n = dot(W.v, nL.x);
-	real const Cs = <?=calc_Cs?>(solver, &W);
+	real const Cs = <?=Equation?>::calc_Cs(solver, &W);
 	real const Cs_nLen = Cs * nLen;
 	<?=range_t?> result;
 	result.min = v_n - Cs_nLen; 
@@ -318,8 +320,8 @@ static inline <?=range_t?> <?=calcCellMinMaxEigenvalues?>(
 }
 
 //// MODULE_NAME: <?=eigen_forCell?>
-//// MODULE_DEPENDS: <?=normal_t?> <?=coord_lower?> <?=cons_t?> <?=prim_t?> <?=eigen_t?> <?=primFromCons?> <?=eqn_common?>
-// eqn_common is for all the calc_* stuff
+//// MODULE_DEPENDS: <?=normal_t?> <?=coord_lower?> <?=cons_t?> <?=prim_t?> <?=eigen_t?> <?=primFromCons?> <?=Equation?>
+// Equation is for all the calc_* stuff
 
 // used by PLM
 static inline <?=eigen_t?> <?=eigen_forCell?>(
@@ -333,7 +335,7 @@ static inline <?=eigen_t?> <?=eigen_forCell?>(
 	real const vSq = dot(W.v, vL);
 	real const v_n = normal_vecDotN1(n, W.v);
 	real const eKin = .5 * vSq;
-	real const hTotal = <?=calc_hTotal?>(W.rho, W.P, U.ETotal);
+	real const hTotal = <?=Equation?>::calc_hTotal(W.rho, W.P, U.ETotal);
 	real const CsSq = (solver.heatCapacityRatio - 1.) * (hTotal - eKin);
 	real const Cs = sqrt(CsSq);
 	<?=eigen_t?> result;
@@ -378,8 +380,8 @@ static inline <?=eigen_t?> <?=eigen_forInterface?>(
 			result.v = WR.v;
 			result.vL = coord_lower(WR.v, pt);
 			result.vSq = dot(WR.v, result.vL);
-			result.hTotal = <?=calc_hTotal?>(WR.rho, WR.P, UR.ETotal);
-			result.Cs = <?=calc_Cs?>(solver, WR);
+			result.hTotal = <?=Equation?>::calc_hTotal(WR.rho, WR.P, UR.ETotal);
+			result.Cs = <?=Equation?>::calc_Cs(solver, WR);
 		} else if (UR.rho < rhoEpsilon) {
 			// right is vacuum:
 			<?=prim_t?> WL = <?=primFromCons?>(solver, UL, cellL.pos);
@@ -387,18 +389,18 @@ static inline <?=eigen_t?> <?=eigen_forInterface?>(
 			result.v = WL.v;
 			result.vL = coord_lower(WL.v, pt);
 			result.vSq = dot(WL.v, result.vL);
-			result.hTotal = <?=calc_hTotal?>(WL.rho, WL.P, UL.ETotal);
-			result.Cs = <?=calc_Cs?>(solver, WL);
+			result.hTotal = <?=Equation?>::calc_hTotal(WL.rho, WL.P, UL.ETotal);
+			result.Cs = <?=Equation?>::calc_Cs(solver, WL);
 		} else {
 			<?=prim_t?> WL = <?=primFromCons?>(solver, UL, cellL.pos);
 			real const sqrtRhoL = sqrt(WL.rho);
 			real3 const vLeft = WL.v;
-			real const hTotalL = <?=calc_hTotal?>(WL.rho, WL.P, UL.ETotal);
+			real const hTotalL = <?=Equation?>::calc_hTotal(WL.rho, WL.P, UL.ETotal);
 
 			<?=prim_t?> WR = <?=primFromCons?>(solver, UR, cellR.pos);
 			real const sqrtRhoR = sqrt(WR.rho);
 			real3 const vR = WR.v;
-			real const hTotalR = <?=calc_hTotal?>(WR.rho, WR.P, UR.ETotal);
+			real const hTotalR = <?=Equation?>::calc_hTotal(WR.rho, WR.P, UR.ETotal);
 
 			real const invDenom = 1./(sqrtRhoL + sqrtRhoR);
 
@@ -640,8 +642,8 @@ then ?>
 		
 		global <?=cons_t?> const & UL = U[solver.stepsize.s<?=side?>];
 		global <?=cons_t?> const & UR = U[solver.stepsize.s<?=side?>];
-		real const PL = <?=calc_P?>(solver, UL, xL);
-		real const PR = <?=calc_P?>(solver, UR, xR);
+		real const PL = <?=Equation?>::calc_P?>(solver, UL, xL);
+		real const PR = <?=Equation?>::calc_P?>(solver, UR, xR);
 	
 		deriv.m.s<?=side?> -= (PR - PL) / (2. * solver.grid_dx.s<?=side?>);
 	}<? end ?>

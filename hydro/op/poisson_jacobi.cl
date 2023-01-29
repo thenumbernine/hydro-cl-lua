@@ -40,7 +40,7 @@ end ?>
 ) {
 	auto const & solver = *psolver;
 	<?=SETBOUNDS?>(0,0);
-	if (<?=OOB?>(solver.numGhost, solver.numGhost)) {
+	if (OOB<dim>(solver, i, solver.numGhost, solver.numGhost)) {
 		writeBuf[index] = UBuf[index].<?=op.potentialField?>;
 <? if op.stopOnEpsilon then	
 ?>		reduceBuf[index] = 0;

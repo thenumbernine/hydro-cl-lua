@@ -194,7 +194,7 @@ for nx=0,tonumber(solver.amr.ctx.nodeFromSize.x)-1 do
 			0,0);
 		
 		
-		int Uindex = INDEXV(Ui);
+		int Uindex = INDEXV(solver, Ui);
 		global <?=cons_t?> const * const U = UBuf + Uindex;
 				
 	//TODO this wasn't the exact formula ...

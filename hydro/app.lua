@@ -638,26 +638,53 @@ assert(ffi.sizeof'real3' == 3 * ffi.sizeof'real')
 		self.modules:add{
 			name = 'INDEX',
 			headercode = [[
-#define INDEX(a,b,c)	((a) + solver.gridSize.x * ((b) + solver.gridSize.y * (c)))
-/*
-static inline int INDEX(int a, int b, int c) {
-	return a + solver.gridSize.x * (b + solver.gridSize.y * c);
+template<typename Solver>
+static inline int INDEX(
+	constant Solver const & solver,
+	int a,
+	int b,
+	int c
+) {
+	return a + solver.gridSize.x * (
+		b + solver.gridSize.y * c
+	);
 }
-*/
 ]],
 		}
 
 		self.modules:add{
 			name = 'INDEXV',
 			headercode = [[
-#define INDEXV(i)		indexForInt4ForSize(i, solver.gridSize.x, solver.gridSize.y, solver.gridSize.z)
-/*
-static inline int INDEXV(int4 i) {
+template<typename Solver>
+static inline int INDEXV(
+	constant Solver const & solver,
+	int4 i
+) {
 	return indexForInt4ForSize(i, solver.gridSize.x, solver.gridSize.y, solver.gridSize.z);
 }
-*/
 ]],
 		}
+
+		-- maybe use 'dim' of 'solver_t' instead of the macro'd codegen'd template'd dim
+		-- but that might lose some lookup speed of dim
+		self.modules:add{
+			name = 'OOB',
+			headercode = [[
+template<int dim_, typename Solver>
+static inline bool OOB(
+	constant Solver const & solver,
+	int4 i,
+	int lhs,
+	int rhs
+) {
+	// TODO replace this codegen with an index_sequence once I get libclcxx built
+	for (int j = 0; j < dim_; ++j) {
+		if (i[j] < lhs || i[j] >= solver.gridSize[j] - rhs) return true;
+	}
+	return false;
+}
+]],
+}
 
 		-- add defs.h?
 

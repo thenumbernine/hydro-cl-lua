@@ -70,7 +70,7 @@ function EinsteinEquation:createBoundaryOptions()
 		for _,j in ipairs{'j', gridSizeSide..' - solver->numGhost + j'} do
 			local index = args.indexv(j)
 			lines:insert(eqn:template([[
-<?=setFlatSpace?>(solver, &buf[INDEX(<?=index?>)], cellBuf[<?=index?>].pos);
+<?=setFlatSpace?>(solver, &buf[INDEX(solver, <?=index?>)], cellBuf[<?=index?>].pos);
 ]], 		{
 				index = index,
 			}))

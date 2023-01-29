@@ -347,7 +347,7 @@ function BSSNOKFiniteDifferenceEquationBase:createDisplayComponents()
 		onlyFor = 'U',
 		name = 'norm weighted gammaBar_IJ',
 		code = self:template[[
-int index = INDEXV(i);
+int index = INDEXV(solver, i);
 real3 x = cellBuf[index].pos;
 global <?=cons_t?> const * const U = buf + index;
 sym3 gammaBar_LL = <?=calc_gammaBar_LL?>(U, x);
@@ -357,7 +357,7 @@ value->vreal = real3_weightedLen(value->vreal3, gammaBar_LL);]],
 		onlyFor = 'U',
 		name = 'norm weighted gammaBar_ij',
 		code = self:template[[
-int index = INDEXV(i);
+int index = INDEXV(solver, i);
 real3 x = cellBuf[index].pos;
 global <?=cons_t?> const * const U = buf + index;
 sym3 gammaBar_ll = <?=calc_gammaBar_ll?>(U, x);
@@ -367,7 +367,7 @@ value->vreal = real3_weightedLen(value->vreal3, gammaBar_ll);]],
 		onlyFor = 'U',
 		name = 'tr weighted gamma^IJ',
 		code = self:template[[
-int index = INDEXV(i);
+int index = INDEXV(solver, i);
 real3 x = cellBuf[index].pos;
 global <?=cons_t?> const * const U = buf + index;
 sym3 gamma_UU = sym3_rescaleFromCoord_uu(<?=calc_gamma_uu?>(U, x), x);
@@ -377,7 +377,7 @@ value->vreal = sym3_dot(value->vsym3, gamma_UU);]],
 		onlyFor = 'U',
 		name = 'tr weighted gammaBar^IJ',
 		code = self:template[[
-int index = INDEXV(i);
+int index = INDEXV(solver, i);
 real3 x = cellBuf[index].pos;
 global <?=cons_t?> const * const U = buf + index;
 sym3 gammaBar_UU = <?=calc_gammaBar_UU?>(U, x);

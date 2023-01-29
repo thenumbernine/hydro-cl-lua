@@ -130,7 +130,6 @@ function InitCond:getBaseDepends()
 		solver.eqn.symbols.initCond_guiVars_compileTime,
 		'INDEX',
 		'INDEXV',
-		solver.symbols.OOB,
 		solver.symbols.SETBOUNDS,
 		-- enough use #if dim that i'll put this here:
 		solver.symbols.solver_macros,

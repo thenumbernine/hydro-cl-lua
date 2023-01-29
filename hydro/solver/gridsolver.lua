@@ -43,7 +43,6 @@ GridSolver.numGhost = 2
 
 function GridSolver:getSymbolFields()
 	return GridSolver.super.getSymbolFields(self):append{
-		'OOB',
 		'SETBOUNDS',
 		'SETBOUNDS_NOGHOST',
 		'updateCTU',
@@ -265,39 +264,46 @@ functionality (and abstraction):
 	 (This is already started in the coords.vars table.)
 --]]
 
-	-- if I wanted, I could put 'dim' in 'solver_t'
-	-- and then this would be independent of all solvers
-	-- and it could go into app
-	-- but that would lose some lookup speed of dim
-	self.modules:add{
-		name = self.symbols.OOB,
-		-- bounds-check macro
-		headercode = self.eqn:template('#define <?=OOB?>(lhs,rhs) (i.x < (lhs) || i.x >= solver.gridSize.x - (rhs)'
-			.. (self.dim < 2 and '' or ' || i.y < (lhs) || i.y >= solver.gridSize.y - (rhs)')
-			.. (self.dim < 3 and '' or ' || i.z < (lhs) || i.z >= solver.gridSize.z - (rhs)')
-			.. ')'),
-	}
-
 	self.modules:add{
 		name = self.symbols.SETBOUNDS,
 		depends = {
+			'OOB',
+			self.symbols.solver_macros,	-- OOB needs this, it's solver-specific, but OOB is not, so ...
 			'INDEXV',
 			self.symbols.SETBOUNDS,
-			self.symbols.OOB,
 		},
+		
+--[=[ hmm, can't quite c++ ize this yet
+		-- usage: 
+		--	auto [i, index, is_oob] = SETBOUND(solver, lhs, rhs);
+		--	if (is_oob) return;
+		-- ... I dont wanna throw for sure ...
+		-- hmm but how to return as well ...
+		headercode = self.eqn:template[[
+// define i, index, and bounds-check
+struct int4_and_int { int4 a = {}; int b = {}; }
+static inline auto SETBOUNDS(int lhs, int rhs) {
+	int4 i = globalInt4();
+	if (OOB<dim>(solver, i, lhs, rhs)) return;
+	int index = INDEXV(solver, i);
+	return int4_and_int{i, index};	//honestly I could just use .w, but I wanna use tie semantics!
+}
+]],
+--]=]
 		headercode = self.eqn:template[[
 // define i, index, and bounds-check
 #define <?=SETBOUNDS?>(lhs,rhs)	\
 	int4 i = globalInt4(); \
-	if (<?=OOB?>(lhs,rhs)) return; \
-	int index = INDEXV(i);
+	if (OOB<dim>(solver, i, lhs, rhs)) return; \
+	int index = INDEXV(solver, i);
 ]],
 	}
 
 	self.modules:add{
 		name = self.symbols.SETBOUNDS_NOGHOST,
 		depends = {
-			self.symbols.OOB,
+			'OOB',
+			self.symbols.solver_macros,	-- OOB needs this, it's solver-specific, but OOB is not, so ...
 			'INDEXV',
 		},
 		headercode = self.eqn:template[[
@@ -306,11 +312,11 @@ functionality (and abstraction):
 // but the kernel must be invoked across sizeWithoutBorder
 #define <?=SETBOUNDS_NOGHOST?>() \
 	int4 i = globalInt4(); \
-	if (<?=OOB?>(0, 2 * solver.numGhost)) return; \
+	if (OOB<dim>(solver, i, 0, 2 * solver.numGhost)) return; \
 	i += (int4)(]]..range(4):mapi(function(i)
 		return i <= self.dim and 'solver.numGhost' or '0'
 	end):concat','..[[); \
-	int index = INDEXV(i);
+	int index = INDEXV(solver, i);
 ]],
 	}
 
@@ -682,7 +688,7 @@ function BoundaryMirror:getCode(args)
 		--  so I can use this for things like the poisson solver
 		lines:insert(template([[
 {
-	real3 const x = cellBuf[INDEX(<?=iv?>)].pos;
+	real3 const x = cellBuf[INDEX(solver, <?=iv?>)].pos;
 <? if args.minmax == 'min' then ?>
 	real3 const n = coord_cartesianFromCoord(normalForSide<?=side-1?>, x);
 <? else -- max ?>
@@ -867,15 +873,15 @@ function BoundarySphereRMin:getCode(args)
 
 	local src, dst
 	if solver.dim == 1 then
-		dst = 'INDEX(j, 0, 0)'
-		src = 'INDEX(2 * solver.numGhost - 1 - j, 0, 0)'
+		dst = 'INDEX(solver, j, 0, 0)'
+		src = 'INDEX(solver, 2 * solver.numGhost - 1 - j, 0, 0)'
 	elseif solver.dim == 2 then	-- r, theta
-		dst = 'INDEX(j, i, 0)'
-		src = 'INDEX(2 * solver.numGhost - 1 - j, solver.gridSize.y - i - 1, 0)'
+		dst = 'INDEX(solver, j, i, 0)'
+		src = 'INDEX(solver, 2 * solver.numGhost - 1 - j, solver.gridSize.y - i - 1, 0)'
 	elseif solver.dim == 3 then
-		dst = 'INDEX(j, i.x, i.y)'
+		dst = 'INDEX(solver, j, i.x, i.y)'
 		src = [[
-	INDEX(
+	INDEX(solver, 
 		2 * solver.numGhost - 1 - j,
 		solver.gridSize.y - i.x - 1,
 		(i.y - solver.numGhost + (solver.gridSize.z - 2 * solver.numGhost) / 2
@@ -915,9 +921,9 @@ function BoundarySphereTheta:getCode(args)
 			dst = args.index'j'
 			src = args.index'2 * solver.numGhost - 1 - j'
 		elseif solver.dim == 3 then
-			dst = 'INDEX(i.x, solver.numGhost - 1 - j, i.y)'
+			dst = 'INDEX(solver, i.x, solver.numGhost - 1 - j, i.y)'
 			src = [[
-	INDEX(
+	INDEX(solver, 
 		i.x,
 		solver.numGhost + j,
 		(i.y - solver.numGhost + (solver.gridSize.z - 2 * solver.numGhost) / 2
@@ -934,9 +940,9 @@ function BoundarySphereTheta:getCode(args)
 			dst = args.index'solver.gridSize.y - 1 - j'
 			src = args.index'solver.gridSize.y - 2 * solver.numGhost + j'
 		elseif solver.dim == 3 then
-			dst = 'INDEX(i.x, solver.gridSize.y - solver.numGhost + j, i.y)'
+			dst = 'INDEX(solver, i.x, solver.gridSize.y - solver.numGhost + j, i.y)'
 			src = [[
-	INDEX(
+	INDEX(solver, 
 		i.x,
 		solver.gridSize.y - solver.numGhost - 1 - j,
 		(i.y - solver.numGhost + (solver.gridSize.z - 2 * solver.numGhost) / 2
@@ -965,12 +971,12 @@ function BoundaryCylinderRMin:getCode(args)
 
 	local src, dst
 	if solver.dim == 1 then
-		dst = 'INDEX(j, 0, 0)'
-		src = 'INDEX(2 * solver.numGhost - 1 - j, 0, 0)'
+		dst = 'INDEX(solver, j, 0, 0)'
+		src = 'INDEX(solver, 2 * solver.numGhost - 1 - j, 0, 0)'
 	elseif solver.dim == 2 then	-- r, theta
-		dst = 'INDEX(j, i, 0)'
+		dst = 'INDEX(solver, j, i, 0)'
 		src = [[
-	INDEX(
+	INDEX(solver, 
 		2 * solver.numGhost - 1 - j,
 		(i - solver.numGhost + (solver.gridSize.y - 2 * solver.numGhost) / 2
 			+ (solver.gridSize.y - 2 * solver.numGhost))
@@ -978,9 +984,9 @@ function BoundaryCylinderRMin:getCode(args)
 		0)
 ]]
 	elseif solver.dim == 3 then
-		dst = 'INDEX(j, i.x, i.y)'
+		dst = 'INDEX(solver, j, i.x, i.y)'
 		src = [[
-	INDEX(
+	INDEX(solver, 
 		2 * solver.numGhost - 1 - j,
 		(i.x - solver.numGhost + (solver.gridSize.y - 2 * solver.numGhost) / 2
 			+ (solver.gridSize.y - 2 * solver.numGhost))
@@ -1103,7 +1109,7 @@ function GridSolver:createBoundaryProgramAndKernel(args)
 		end
 
 		local function index(j)
-			return 'INDEX('..indexv(j)..')'
+			return 'INDEX(solver, '..indexv(j)..')'
 		end
 
 		lines:insert(self.eqn:template([[

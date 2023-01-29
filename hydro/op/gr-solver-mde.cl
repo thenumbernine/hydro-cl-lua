@@ -31,9 +31,9 @@ kernel void <?=op.symbols.solveJacobi?>(
 	real3 volL, volR;
 <? for j=0,solver.dim-1 do ?>
 	intIndex.s<?=j?> = i.s<?=j?> - .5;
-	volL.s<?=j?> = coord_sqrt_det_g(solver, cellBuf[INDEXV(intIndex)].pos);
+	volL.s<?=j?> = coord_sqrt_det_g(solver, cellBuf[INDEXV(solver, intIndex)].pos);
 	intIndex.s<?=j?> = i.s<?=j?> + .5;
-	volR.s<?=j?> = coord_sqrt_det_g(solver, cellBuf[INDEXV(initIndex)].pos);
+	volR.s<?=j?> = coord_sqrt_det_g(solver, cellBuf[INDEXV(solver, initIndex)].pos);
 	intIndex.s<?=j?> = i.s<?=j?>;
 <? end ?>
 	real volAtX = coord_sqrt_det_g(solver, cellBuf[index].pos);

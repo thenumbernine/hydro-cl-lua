@@ -3000,8 +3000,8 @@ bool testTriangle(real3 xc) {
 kernel void addExtraSource(
 	global <?=cons_t?>* UBuf
 ) {
-	UBuf[INDEX(<?=src[1]?>,<?=src[2]?>,<?=src[3]?>)].D.x = -10;
-	UBuf[INDEX(<?=dst[1]?>,<?=dst[2]?>,<?=dst[3]?>)].D.x = -10;
+	UBuf[INDEX(solver, <?=src[1]?>,<?=src[2]?>,<?=src[3]?>)].D.x = -10;
+	UBuf[INDEX(solver, <?=dst[1]?>,<?=dst[2]?>,<?=dst[3]?>)].D.x = -10;
 }
 ]], {
 	eqn = solver.eqn,

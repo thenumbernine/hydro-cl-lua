@@ -1900,14 +1900,14 @@ end ?><?=group.extraArgs and #group.extraArgs > 0
 //// MODULE_DEPENDS: <?=SETBOUNDS?>
 	<?=SETBOUNDS?>(0,0);
 <? if not require 'hydro.solver.meshsolver':isa(solver) then
-?>	bool const oob = <?=OOB?>(solver.numGhost, solver.numGhost);
+?>	bool const oob = OOB<dim>(solver, i, solver.numGhost, solver.numGhost);
 	int4 dsti = i;
 	int dstindex = index;
 	real3 x = cellBuf[index].pos;
 <? for j=0,solver.dim-1 do
 ?>	i.s<?=j?> = clamp(i.s<?=j?>, solver.numGhost, solver.gridSize.s<?=j?> - solver.numGhost - 1);
 <? end
-?>	index = INDEXV(i);
+?>	index = INDEXV(solver, i);
 <? else	-- mesh
 ?>	bool const oob = false;
 	int dstindex = index;

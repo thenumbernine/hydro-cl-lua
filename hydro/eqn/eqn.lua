@@ -889,7 +889,7 @@ function Equation:createDivDisplayVar(args)
 	return {
 		name = 'div '..field,
 		code = self:template([[
-	if (<?=OOB?>(1,1)) {
+	if (OOB<dim>(solver, i, 1, 1)) {
 		value.v<?=scalar?> = 0./0.;
 	} else {
 		<?=scalar?> v = {};
@@ -929,7 +929,7 @@ function Equation:createCurlDisplayVar(args)
 		return {
 			name = 'curl '..field..' '..xNames[k+1],
 			code = self:template([[
-	if (<?=OOB?>(1,1)) {
+	if (OOB<dim>(solver, i, 1, 1)) {
 		<?=result?> = 0./0.;
 	} else {
 		global <?=cons_t?> const & Uim = (&U)[-solver.stepsize.s<?=i?>];
@@ -1165,7 +1165,7 @@ end
 	global real & dt = dtBuf[index];
 	dt = INFINITY;
 	
-	if (<?=OOB?>(solver.numGhost, solver.numGhost)) return;
+	if (OOB<dim>(solver, i, solver.numGhost, solver.numGhost)) return;
 	global <?=cons_t?> const & U = UBuf[index];
 	global <?=cell_t?> const & cell = cellBuf[index];
 	<?=calcDTCell?>(
