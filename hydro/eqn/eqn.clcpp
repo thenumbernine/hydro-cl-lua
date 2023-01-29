@@ -10,7 +10,8 @@ template<
 	typename Normal_,
 	typename Cell_,
 	typename Eigen_,
-	typename Wave_
+	typename Waves_,
+	typename InitCond_
 >
 struct Eqn {
 	using Base = Base_;
@@ -20,13 +21,15 @@ struct Eqn {
 	using Normal = Normal_;
 	using Cell = Cell_;
 	using Eigen = Eigen_;
-	using Wave = Wave_;
+	using Waves = Waves_;
+	using InitCond = InitCond_;
 	//using Cons = typename Base::Cons;
 	//using Prim = typename Base::Prim;
 	//using Normal = typename Base::Normal;
 	//using Cell = typename Base::Cell;
 	//using Eigen = typename Base::Eigen;
-	//using Wave = typename Base::Wave;
+	//using Waves = typename Base::Waves;
+	//using InitCond = typename Base::InitCond;
 
 	//default implementation assumes Cons == Prim:
 
@@ -157,6 +160,7 @@ end
 ?>
 		);
 	}
+
 };	// struct Eqn
 
 }	// namespace Hydro
@@ -201,11 +205,8 @@ kernel void <?=applyInitCond?>(
 	global <?=cell_t?> * const cellBuf
 ) {
 	auto const & solver = *psolver;
-	constant <?=initCond_t?> const & initCond = *pinitCond;
 	<?=SETBOUNDS?>(0,0);
-	global <?=cons_t?> & U = UBuf[index];
-	global <?=cell_t?> & cell = cellBuf[index];
-	<?=applyInitCondCell?>(solver, initCond, U, cell);
+	<?=Equation?>::Eqn::applyInitCondCell(solver, *pinitCond, UBuf[index], cellBuf[index]);
 }
 
 #endif

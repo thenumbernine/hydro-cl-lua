@@ -4,7 +4,7 @@ local Flux = require 'hydro.flux.flux'
 
 local Roe = class(Flux)
 Roe.name = 'roe'
-Roe.solverCodeFile = 'hydro/flux/roe.cl'
+Roe.solverCodeFile = 'hydro/flux/roe.clcpp'
 Roe.usesFluxLimiter = true
 
 -- specifically for Euler, but I guess anyone can enable this

@@ -1,3 +1,7 @@
+<?
+local useAddSource = false
+local useConstrainU = false
+?>
 //// MODULE_NAME: <?=Equation?>
 //// MODULE_DEPENDS: <?=coordLenSq?> <?=waves_t?> <?=eigen_t?> <?=eqn_guiVars_compileTime?>
 //// MODULE_DEPENDS: <?=coord_lower?>
@@ -50,14 +54,14 @@ union Cons {
 	
 using Solver = <?=solver_t?>;
 using Normal = <?=normal_t?>;
-using InitCond = <?=initCond_t?>;
 using Cell = <?=cell_t?>;
 using Eigen = <?=eigen_t?>;
 using Waves = <?=waves_t?>;
+using InitCond = <?=initCond_t?>;
 
 // TODO eventually:
 //template<typename Solver>
-struct Eqn : public Hydro::Eqn<Eqn, Solver, Cons, Prim, Normal, Cell, Eigen, Waves> {
+struct Eqn : public Hydro::Eqn<Eqn, Solver, Cons, Prim, Normal, Cell, Eigen, Waves, InitCond> {
 	// until then just use a typedef and a namespace
 
 	// hmm for some reason crtp parent can't seem to 'using' see into the childs member class's 'using's
@@ -65,6 +69,9 @@ struct Eqn : public Hydro::Eqn<Eqn, Solver, Cons, Prim, Normal, Cell, Eigen, Wav
 	//using Prim = ::<?=Equation?>::Prim;
 	//using Normal = <?=normal_t?>;
 	//using Cell = <?=cell_t?>;
+	//using Eigen = <?=eigen_t?>;
+	//using Waves = <?=waves_t?>;
+	//using InitCond = <?=initCond_t?>;
 
 	static inline real calc_H(
 		constant Solver const & solver,
@@ -343,7 +350,9 @@ end
 		real3 D = {};
 		real3 B = {};
 		real ePot = 0;
-<?=initCode()?>
+
+		<?=initCode()?>
+		
 		auto W = Prim()
 			.set_rho(rho)
 			.set_v(cartesianToCoord(v, x))
@@ -590,7 +599,7 @@ end
 		return result;
 	}
 
-	// Not used anymore.  Was used by Roe, but I switched that to a <?=fluxFromCons?>.
+	// Not used anymore.  Was used by Roe, but I switched that to a fluxFromCons.
 	// fluxFromCons only matches eigen_fluxTransform when the eig properties are derived from X_ 
 	static inline Cons eigen_fluxTransform(
 		constant Solver const & solver,
@@ -652,6 +661,106 @@ end
 	}
 
 
+<? if useAddSource then ?>
+	// TODO sort addSource out
+	static inline void addSource(
+		constant Solver const & solver,
+		global Cons * const derivBuf,
+		global Cons const * const UBuf,
+		global Cell const * const cellBuf
+	) {
+		<?=SETBOUNDS_NOGHOST?>();
+
+		global Cons & deriv = derivBuf[index];
+		global Cons const & U = UBuf[index];
+		global Cell const & cell = cellBuf[index];
+		real3 const x = cell.pos;
+
+<? if false 
+and solver.coord.vectorComponent == "anholonomic" 
+and require "hydro.coord.cylinder":isa(solver.coord) 
+then ?>
+<? 	if true then -- 2009 Trangenstein, p.474, 1999 Toro, p.29, eqn.1.104, 1.105 ?>
+		<? for side=0,1 do ?>{
+			real3 xL = x; xL.s<?=side?> -= solver.grid_dx.s<?=side?>;
+			real3 xR = x; xR.s<?=side?> += solver.grid_dx.s<?=side?>;
+			
+			global Cons const & UL = U[solver.stepsize.s<?=side?>];
+			global Cons const & UR = U[solver.stepsize.s<?=side?>];
+			real const PL = calc_P?>(solver, UL, xL);
+			real const PR = calc_P?>(solver, UR, xR);
+		
+			deriv.m.s<?=side?> -= (PR - PL) / (2. * solver.grid_dx.s<?=side?>);
+		}<? end ?>
+<?	end ?>
+<?	if false then -- 1999 Toro p.28 eqn.1.102, 1.103 ?>
+		Cons F = fluxFromCons(solver, U, cell, normal_forSide0(x));
+		deriv.rho -= F.rho / x.x;
+		deriv.m.x -= F.m.x / x.x;
+		deriv.m.y -= F.m.y / x.x;
+		deriv.m.z -= F.m.z / x.x;
+		deriv.ETotal -= F.ETotal / x.x;
+<?	end ?>
+<? end ?>
+
+<? do -- if not solver.coord.vectorComponent == "anholonomic" then ?>
+<? if not (require "hydro.coord.cartesian":isa(solver.coord) 
+		or solver.coord.vectorComponent == "cartesian")
+then ?>
+//// MODULE_DEPENDS: <?=coord_conn_apply23?> <?=coord_conn_trace23?> <?=coord_conn_apply13?>
+/*
+This is working for init conds with zero velocity.
+Introducing constant velocity of v=[x=1,y=1]=[r=sqrt(2),theta=pi/4] in the init cond causes some numerical errors.
+However the problem isn't the terms below -- because disabling this for zero-vel init conds causes things to become unsteady.
+That means that the volume gradient in calcDerivFV is causing nonzero velocities to emerge, and this is cancelling them.
+Maybe for an initial constant vel as large as sqrt(2) this fails, but it works only for small perturbations?
+*/
+		//connection coefficient source terms of covariant derivative w/contravariant velocity vectors in a holonomic coordinate system
+		Prim W = primFromCons(solver, U, x);
+		
+		//- Γ^i_jk ρ v^j v^k 
+		deriv.m -= coord_conn_apply23(W.v, U.m, x);
+		
+		//- Γ^i_jk g^jk P
+		deriv.m -= coord_conn_trace23(x) * W.P;
+		
+		//+ (γ-1) ρ v^k v^l Γ_kjl g^ij
+		deriv.m += coord_conn_apply13(W.v, U.m, x) * (solver.heatCapacityRatio - 1.);
+		
+		//- (γ-1) ρ v^j v^k v^l Γ_jkl
+	//	deriv.ETotal -= (solver.heatCapacityRatio - 1.) * coord_conn_apply123(W.v, W.v, U.m, x);	
+
+		//+ c_jk^k * Flux^Ij
+<? 	if false and solver.coord.vectorComponent == "anholonomic" then ?>
+		real3 const commTrace = coord_tr23_c(x);
+		<? for i=0,solver.dim-1 do ?>{
+			Cons F = fluxFromCons(solver, U, cell, normal_forSide<?=i?>(x));
+			for (int j = 0; j < numIntStates; ++j) {
+				deriv.ptr[j] += commTrace.s<?=i?> * F.ptr[j];
+			}
+		}<? end ?>
+<? 	end ?>
+<? end ?>
+<? end -- vectorComponent == "anholonomic" ?>
+		}
+<? end -- useAddSource ?>
+
+<? if useConstrainU then ?>
+	kernel void constrainU(
+		constant Solver const & solver,
+		global Cons * const UBuf,
+		global Cell const * const cellBuf
+	) {
+		<?=SETBOUNDS?>(0,0);
+		real3 const x = cellBuf[index].pos;
+		global Cons & U = UBuf[index];
+		Prim W = primFromCons(solver, U, x);
+		if (W.rho < solver.rhoMin) W.rho = solver.rhoMin;
+		if (W.P < solver.PMin) W.P = solver.PMin;
+		U = consFromPrim(solver, W, x);
+	}
+<? end -- useConstrainU ?>
+
 };
 
 }	//namespace <?=Equation?>
@@ -699,123 +808,34 @@ kernel void <?=applyInitCond?>(
 	global <?=cell_t?> * const cellBuf
 ) {
 	auto const & solver = *psolver;
-	constant <?=initCond_t?> const & initCond = *pinitCond;
 	<?=SETBOUNDS?>(0,0);
-	global <?=cons_t?> & U = UBuf[index];
-	global <?=cell_t?> & cell = cellBuf[index];
-	<?=Equation?>::Eqn::applyInitCondCell(solver, initCond, U, cell);
+	<?=Equation?>::Eqn::applyInitCondCell(solver, *pinitCond, UBuf[index], cellBuf[index]);
 }
 
 #endif
 
 
-<? if false then -- TODO sort <?=addSource?> out. ?>
+<? if useAddSource then ?>
 //// MODULE_NAME: <?=addSource?>
-//// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> <?=cell_t?> <?=SETBOUNDS_NOGHOST?> <?=Equation?>
-
+//// MODULE_DEPENDS: <?=Equation?>
 kernel void <?=addSource?>(
 	constant <?=solver_t?> const * const psolver,
 	global <?=cons_t?> * const derivBuf,
 	global <?=cons_t?> const * const UBuf,
 	global <?=cell_t?> const * const cellBuf
 ) {
-	auto const & solver = *psolver;
-	<?=SETBOUNDS_NOGHOST?>();
-
-	global <?=cons_t?> & deriv = derivBuf[index];
-	global <?=cons_t?> const & U = UBuf[index];
-	global <?=cell_t?> const & cell = cellBuf[index];
-	real3 const x = cell.pos;
-
-<? if false 
-and solver.coord.vectorComponent == "anholonomic" 
-and require "hydro.coord.cylinder":isa(solver.coord) 
-then ?>
-<? 	if true then -- 2009 Trangenstein, p.474, 1999 Toro, p.29, eqn.1.104, 1.105 ?>
-	<? for side=0,1 do ?>{
-		real3 xL = x; xL.s<?=side?> -= solver.grid_dx.s<?=side?>;
-		real3 xR = x; xR.s<?=side?> += solver.grid_dx.s<?=side?>;
-		
-		global <?=cons_t?> const & UL = U[solver.stepsize.s<?=side?>];
-		global <?=cons_t?> const & UR = U[solver.stepsize.s<?=side?>];
-		real const PL = <?=Equation?>::Eqn::calc_P?>(solver, UL, xL);
-		real const PR = <?=Equation?>::Eqn::calc_P?>(solver, UR, xR);
-	
-		deriv.m.s<?=side?> -= (PR - PL) / (2. * solver.grid_dx.s<?=side?>);
-	}<? end ?>
-<?	end ?>
-<?	if false then -- 1999 Toro p.28 eqn.1.102, 1.103 ?>
-	<?=cons_t?> F = <?=Equation?>::Eqn::fluxFromCons(solver, U, cell, normal_forSide0(x));
-	deriv.rho -= F.rho / x.x;
-	deriv.m.x -= F.m.x / x.x;
-	deriv.m.y -= F.m.y / x.x;
-	deriv.m.z -= F.m.z / x.x;
-	deriv.ETotal -= F.ETotal / x.x;
-<?	end ?>
-<? end ?>
-
-<? do -- if not solver.coord.vectorComponent == "anholonomic" then ?>
-<? if not (require "hydro.coord.cartesian":isa(solver.coord) 
-		or solver.coord.vectorComponent == "cartesian")
-then ?>
-//// MODULE_DEPENDS: <?=coord_conn_apply23?> <?=coord_conn_trace23?> <?=coord_conn_apply13?>
-/*
-This is working for init conds with zero velocity.
-Introducing constant velocity of v=[x=1,y=1]=[r=sqrt(2),theta=pi/4] in the init cond causes some numerical errors.
-However the problem isn't the terms below -- because disabling this for zero-vel init conds causes things to become unsteady.
-That means that the volume gradient in calcDerivFV is causing nonzero velocities to emerge, and this is cancelling them.
-Maybe for an initial constant vel as large as sqrt(2) this fails, but it works only for small perturbations?
-*/
-	//connection coefficient source terms of covariant derivative w/contravariant velocity vectors in a holonomic coordinate system
-	<?=prim_t?> W = <?=Equation?>::Eqn::primFromCons(solver, U, x);
-	
-	//- Γ^i_jk ρ v^j v^k 
-	deriv.m -= coord_conn_apply23(W.v, U.m, x);
-	
-	//- Γ^i_jk g^jk P
-	deriv.m -= coord_conn_trace23(x) * W.P;
-	
-	//+ (γ-1) ρ v^k v^l Γ_kjl g^ij
-	deriv.m += coord_conn_apply13(W.v, U.m, x) * (solver.heatCapacityRatio - 1.);
-	
-	//- (γ-1) ρ v^j v^k v^l Γ_jkl
-//	deriv.ETotal -= (solver.heatCapacityRatio - 1.) * coord_conn_apply123(W.v, W.v, U.m, x);	
-
-	//+ c_jk^k * Flux^Ij
-<? 	if false and solver.coord.vectorComponent == "anholonomic" then ?>
-	real3 const commTrace = coord_tr23_c(x);
-	<? for i=0,solver.dim-1 do ?>{
-		<?=cons_t?> flux;
-		calcFluxFromCons(&F, U, x);
-		for (int j = 0; j < numIntStates; ++j) {
-			deriv.ptr[j] += commTrace.s<?=i?> * flux.ptr[j];
-		}
-	}<? end ?>
-<? 	end ?>
-<? end ?>
-<? end -- vectorComponent == "anholonomic" ?>
+	<?=Equation?>::Eqn::addSource(*psolver, derivBuf, UBuf, cellBuf);
 }
-<? end ?>
+<? end -- useAddSource ?>
 
-<? if false then ?>
+<? if useConstrainU then ?>
 //// MODULE_NAME: <?=constrainU?>
-//// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> <?=cell_t?> <?=Equation?>
-
+//// MODULE_DEPENDS: <?=Equation?>
 kernel void <?=constrainU?>(
 	constant <?=solver_t?> const * const psolver,
 	global <?=cons_t?> * const UBuf,
 	global <?=cell_t?> const * const cellBuf
 ) {
-	auto const & solver = *psolver;
-	<?=SETBOUNDS?>(0,0);
-	real3 const x = cellBuf[index].pos;
-
-	global <?=cons_t?> & U = UBuf[index];
-	<?=prim_t?> W = <?=Equation?>::Eqn::primFromCons(solver, U, x);
-
-	if (W.rho < solver.rhoMin) W.rho = solver.rhoMin;
-	if (W.P < solver.PMin) W.P = solver.PMin;
-
-	U = <?=Equation?>::Eqn::consFromPrim(solver, W, x);
+	<?=Equation?>::Eqn::constrainU(*psolver, UBuf, cellBuf);
 }
-<? end ?>
+<? end -- useConstrainU ?>
