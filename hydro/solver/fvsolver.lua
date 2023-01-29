@@ -340,9 +340,9 @@ real3 xInt = x;
 xInt.s<?=side?> -= .5 * solver.grid_dx.s<?=side?>;
 
 <?=solver:getULRCode{bufName="buf", side=side}:gsub("\n", "\n\t")?>
-//// MODULE_DEPENDS: <?=eigen_t?> <?=eigen_forInterface?>
+//// MODULE_DEPENDS: <?=eigen_t?> <?=Equation?>
 <?=normal_t?> n = normal_forSide<?=side?>(xInt);
-<?=eigen_t?> eig = <?=eigen_forInterface?>(solver, UL, UR, cellL, cellR, xInt, n);
+<?=eigen_t?> eig = <?=Equation?>::Eqn::eigen_forInterface(solver, UL, UR, cellL, cellR, xInt, n);
 ]], 	{
 			side = args.side,
 		})
@@ -399,9 +399,10 @@ value.vreal = <?=eqn:eigenWaveCode{
 		end
 	end
 
-	if self:isModuleUsed(self.eqn.symbols.eigen_leftTransform)
-	and self:isModuleUsed(self.eqn.symbols.eigen_rightTransform)
-	then
+	--if self:isModuleUsed(self.eqn.symbols.eigen_leftTransform)
+	--and self:isModuleUsed(self.eqn.symbols.eigen_rightTransform)
+	--then
+	do
 		-- ortho
 		-- TODO why is the x error getting 'nans' after a few iterations?
 		-- TODO WARNING - this only does ForSide, which doesn't match non-cartesian grids w/cartesian components
@@ -428,10 +429,10 @@ for (int k = 0; k < numWaves; ++k) {
 		basis.ptr[j] = k == j ? 1 : 0;
 	}
 	
-//// MODULE_DEPENDS: <?=eigen_leftTransform?> <?=eigen_rightTransform?>
+//// MODULE_DEPENDS: <?=Equation?>
 	<?=normal_t?> n = normal_forSide<?=side?>(xInt);
-	<?=waves_t?> chars = <?=eigen_leftTransform?>(solver, eig, basis, xInt, n);
-	<?=cons_t?> newbasis = <?=eigen_rightTransform?>(solver, eig, chars, xInt, n);
+	<?=waves_t?> chars = <?=Equation?>::Eqn::eigen_leftTransform(solver, eig, basis, xInt, n);
+	<?=cons_t?> newbasis = <?=Equation?>::Eqn::eigen_rightTransform(solver, eig, chars, xInt, n);
 
 	for (int j = 0; j < numStates; ++j) {
 		value.vreal += fabs(newbasis.ptr[j] - basis.ptr[j]);
@@ -447,10 +448,11 @@ for (int k = 0; k < numWaves; ++k) {
 		end
 	end
 
-	if self:isModuleUsed(self.eqn.symbols.eigen_fluxTransform)
-	and self:isModuleUsed(self.eqn.symbols.eigen_leftTransform)
-	and self:isModuleUsed(self.eqn.symbols.eigen_rightTransform)
-	then
+	--if self:isModuleUsed(self.eqn.symbols.eigen_fluxTransform)
+	--and self:isModuleUsed(self.eqn.symbols.eigen_leftTransform)
+	--and self:isModuleUsed(self.eqn.symbols.eigen_rightTransform)
+	--then
+	do
 		-- flux
 		-- TODO same as above, why is the x error getting 'nans' after a few iterations?
 		-- TODO WARNING - this only does ForSide, which doesn't match non-cartesian grids w/cartesian components
@@ -465,7 +467,7 @@ for (int k = 0; k < numWaves; ++k) {
 					{name='0', code=table{
 						getEigenCode{side=side},
 						self.eqn:template([[
-//// MODULE_DEPENDS: <?=eigen_leftTransform?> <?=eigen_rightTransform?> <?=eigen_fluxTransform?> <?=cell_calcAvg_withPt?>
+//// MODULE_DEPENDS: <?=cell_calcAvg_withPt?>
 <?=normal_t?> n<?=side?> = normal_forSide<?=side?>(x);
 <?=eqn:eigenWaveCodePrefix{
 	n = 'n'..side,
@@ -484,7 +486,7 @@ for (int k = 0; k < numIntStates; ++k) {
 
 	<?=normal_t?> n = normal_forSide<?=side?>(xInt);
 	
-	<?=waves_t?> chars = <?=eigen_leftTransform?>(solver, eig, basis, xInt, n);
+	<?=waves_t?> chars = <?=Equation?>::Eqn::eigen_leftTransform(solver, eig, basis, xInt, n);
 
 	<?=waves_t?> charScaled;
 	<? for j=0,eqn.numWaves-1 do ?>{
@@ -498,7 +500,7 @@ for (int k = 0; k < numIntStates; ++k) {
 	}<? end ?>
 
 	//once again, only needs to be numIntStates
-	<?=cons_t?> newtransformed = <?=eigen_rightTransform?>(solver, eig, charScaled, xInt, n);
+	<?=cons_t?> newtransformed = <?=Equation?>::Eqn::eigen_rightTransform(solver, eig, charScaled, xInt, n);
 
 #if 1
 	//this shouldn't need to be reset here
@@ -512,7 +514,7 @@ for (int k = 0; k < numIntStates; ++k) {
 	cell_calcAvg_withPt(&cellAvg, cellL, cellR, xInt);
 
 	//once again, only needs to be numIntStates
-	<?=cons_t?> transformed = <?=eigen_fluxTransform?>(solver, eig, basis, &cellAvg, n);
+	<?=cons_t?> transformed = <?=Equation?>::Eqn::eigen_fluxTransform(solver, eig, basis, cellAvg, n);
 	
 	for (int j = 0; j < numIntStates; ++j) {
 		value.vreal += fabs(newtransformed.ptr[j] - transformed.ptr[j]);

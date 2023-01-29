@@ -195,7 +195,7 @@ end
 function Euler:initCodeModule_fluxFromCons() end
 function Euler:initCodeModule_consFromPrim_primFromCons() end
 
-Euler.solverCodeFile = 'hydro/eqn/euler.cl'
+Euler.solverCodeFile = 'hydro/eqn/euler.clcpp'
 
 Euler.displayVarCodeUsesPrims = true
 

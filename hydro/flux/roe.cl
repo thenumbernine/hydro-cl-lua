@@ -1,11 +1,5 @@
 //// MODULE_NAME: <?=calcFluxForInterface?>
-//// MODULE_DEPENDS: math <?=solver_macros?> <?=fluxLimiter?> <?=eigen_forInterface?> <?=eigen_leftTransform?> <?=eigen_rightTransform?> <?=waves_t?>
-
-<? if eqn.roeUseFluxFromCons then 
--- this was inline'd before I made the function into a giant macro, then I can't use the //// comments to inline anymore so TODO change the MODULE_ markup to handle /* */ instead/aswell?
-?>
-//// MODULE_DEPENDS: <?=fluxFromCons?>
-<? end ?>
+//// MODULE_DEPENDS: math <?=solver_macros?> <?=fluxLimiter?> <?=waves_t?> <?=Equation?>
 
 // Roe solver:
 
@@ -36,7 +30,7 @@ static inline <?=cons_t?> <?=calcFluxForInterface?>(
 	real3 const xIntR<? end ?>
 ) {
 	<?=cons_t?> resultFlux;
-	<?=eigen_t?> eig = <?=eigen_forInterface?>(solver, UL, UR, cellL, cellR, xInt, n);
+	<?=eigen_t?> eig = <?=Equation?>::Eqn::eigen_forInterface(solver, UL, UR, cellL, cellR, xInt, n);
 
 	<?=eqn:eigenWaveCodePrefix{
 		n = "n",
@@ -51,7 +45,7 @@ static inline <?=cons_t?> <?=calcFluxForInterface?>(
 		UAvg.ptr[j] = .5 * (UL.ptr[j] + UR.ptr[j]);
 	}
 
-	fluxEig = <?=eigen_leftTransform?>(solver, eig, UAvg, xInt, n);
+	fluxEig = <?=Equation?>::Eqn::eigen_leftTransform(solver, eig, UAvg, xInt, n);
 <? end
 ?>
 	<?=cons_t?> deltaU;
@@ -67,12 +61,12 @@ static inline <?=cons_t?> <?=calcFluxForInterface?>(
 <? end
 ?>	}
 
-	<?=waves_t?> deltaUEig = <?=eigen_leftTransform?>(solver, eig, deltaU, xInt, n);
+	<?=waves_t?> deltaUEig = <?=Equation?>::Eqn::eigen_leftTransform(solver, eig, deltaU, xInt, n);
 <? 	if useFluxLimiter then ?>
-	<?=eigen_t?> eigL = <?=eigen_forInterface?>(solver, UL_L, UR_L, cellL_L, cellR_L, xIntL, n);
-	<?=eigen_t?> eigR = <?=eigen_forInterface?>(solver, UL_R, UR_R, cellL_R, cellR_R, xIntR, n);
-	<?=waves_t?> deltaUEigL = <?=eigen_leftTransform?>(solver, eigL, deltaUL, xIntL, n);
-	<?=waves_t?> deltaUEigR = <?=eigen_leftTransform?>(solver, eigR, deltaUR, xIntR, n);
+	<?=eigen_t?> eigL = <?=Equation?>::Eqn::eigen_forInterface(solver, UL_L, UR_L, cellL_L, cellR_L, xIntL, n);
+	<?=eigen_t?> eigR = <?=Equation?>::Eqn::eigen_forInterface(solver, UL_R, UR_R, cellL_R, cellR_R, xIntR, n);
+	<?=waves_t?> deltaUEigL = <?=Equation?>::Eqn::eigen_leftTransform(solver, eigL, deltaUL, xIntL, n);
+	<?=waves_t?> deltaUEigR = <?=Equation?>::Eqn::eigen_leftTransform(solver, eigR, deltaUR, xIntR, n);
 <? 	end ?>
 
 <?
@@ -128,7 +122,7 @@ if flux.useEntropyFluxFix then
 ?>		);
 	}<? end ?>
 
-	resultFlux = <?=eigen_rightTransform?>(solver, eig, fluxEig, xInt, n);
+	resultFlux = <?=Equation?>::Eqn::eigen_rightTransform(solver, eig, fluxEig, xInt, n);
 
 <? if eqn.roeUseFluxFromCons then
 -- TODO hmm, fluxFromCons vs eigen_fluxTransform using the 'eig' structure
@@ -145,8 +139,8 @@ if flux.useEntropyFluxFix then
 -- Because this value itself is diff'd across the cell, so it is a 'dF', so you wouldn't want to compute a second 'd' of it via R Lambda L, because that would give you 'd dF'.
 -- so roeUseFluxFromCons==true is good.
 ?>
-	<?=cons_t?> FL = <?=fluxFromCons?>(solver, UL, cellL, n);
-	<?=cons_t?> FR = <?=fluxFromCons?>(solver, UR, cellR, n);
+	<?=cons_t?> FL = <?=Equation?>::Eqn::fluxFromCons(solver, UL, cellL, n);
+	<?=cons_t?> FR = <?=Equation?>::Eqn::fluxFromCons(solver, UR, cellR, n);
 
 	for (int j = 0; j < numIntStates; ++j) {
 		resultFlux.ptr[j] += .5 * (FL.ptr[j] + FR.ptr[j]);

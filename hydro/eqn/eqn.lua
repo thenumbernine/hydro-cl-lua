@@ -361,13 +361,6 @@ end
 function Equation:getSymbolFields()
 	return table{
 		-- functions:
-		'fluxFromCons',
-		'calcCellMinMaxEigenvalues',
-		'eigen_forCell',
-		'eigen_forInterface',
-		'eigen_leftTransform',
-		'eigen_rightTransform',
-		'eigen_fluxTransform',
 		'cons_parallelPropagate',
 		
 		-- kernels:

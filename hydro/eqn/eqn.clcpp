@@ -8,7 +8,9 @@ template<
 	typename Cons_,
 	typename Prim_,
 	typename Normal_,
-	typename Cell_
+	typename Cell_,
+	typename Eigen_,
+	typename Wave_
 >
 struct Eqn {
 	using Base = Base_;
@@ -17,10 +19,14 @@ struct Eqn {
 	using Prim = Prim_;
 	using Normal = Normal_;
 	using Cell = Cell_;
+	using Eigen = Eigen_;
+	using Wave = Wave_;
 	//using Cons = typename Base::Cons;
 	//using Prim = typename Base::Prim;
 	//using Normal = typename Base::Normal;
 	//using Cell = typename Base::Cell;
+	//using Eigen = typename Base::Eigen;
+	//using Wave = typename Base::Wave;
 
 	//default implementation assumes Cons == Prim:
 
