@@ -5,7 +5,7 @@ local HLL = require 'hydro.flux.hll'
 local EulerHLLC = class(HLL)
 
 EulerHLLC.name = 'euler-hllc'
-EulerHLLC.solverCodeFile = 'hydro/flux/euler-hllc.cl'
+EulerHLLC.solverCodeFile = 'hydro/flux/euler-hllc.clcpp'
 
 --[[
 args:

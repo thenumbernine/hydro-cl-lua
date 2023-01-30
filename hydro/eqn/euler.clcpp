@@ -5,7 +5,7 @@ local useConstrainU = false
 //// MODULE_NAME: <?=Equation?>
 //// MODULE_DEPENDS: <?=coordLenSq?> <?=waves_t?> <?=eigen_t?> <?=eqn_guiVars_compileTime?>
 //// MODULE_DEPENDS: <?=coord_lower?>
-//// MODULE_DEPENDS: <?=normal_t?> <?=initCond_t?> <?=cell_t?>
+//// MODULE_DEPENDS: <?=prim_t?> <?=cons_t?> <?=normal_t?> <?=initCond_t?> <?=cell_t?>
 //// MODULE_DEPENDS: <?=cartesianToCoord?>
 // Equation is for all the calc_* stuff
 
@@ -15,43 +15,8 @@ local useConstrainU = false
 // or TODO namespace <?=Solver?> and then class Solver, class Eqn, etc
 namespace <?=Equation?> {
 
-// TODO this is usually the <?=prim_t?> structure ...
-// which I want to get rid of in favor of member-class of the equation, Cons and Prim
-// but this does match the codegen struct so far except ...
-union Prim {
-	real ptr[6];
-	struct {
-		real rho;
-		real3 v;
-		real P;
-		real ePot;
-	};
-//// BEGIN EXCLUDE FROM FFI_CDEF
-	Prim() {}
-	Prim & set_rho(real const & value_) { rho = value_; return *this; }
-	Prim & set_v(real3 const & value_) { v = value_; return *this; }
-	Prim & set_P(real const & value_) { P = value_; return *this; }
-	Prim & set_ePot(real const & value_) { ePot = value_; return *this; }
-//// END EXCLUDE FROM FFI_CDEF
-};
-
-union Cons {
-	real ptr[6];
-	struct {
-		real rho;
-		real3 m;
-		real ETotal;
-		real ePot;
-	};
-//// BEGIN EXCLUDE FROM FFI_CDEF
-	Cons() {}
-	Cons & set_rho(real const & value_) { rho = value_; return *this; }
-	Cons & set_m(real3 const & value_) { m = value_; return *this; }
-	Cons & set_ETotal(real const & value_) { ETotal = value_; return *this; }
-	Cons & set_ePot(real const & value_) { ePot = value_; return *this; }
-//// END EXCLUDE FROM FFI_CDEF
-};
-
+using Prim = <?=prim_t?>;
+using Cons = <?=cons_t?>;
 using Solver = <?=solver_t?>;
 using Normal = <?=normal_t?>;
 using Cell = <?=cell_t?>;
@@ -870,12 +835,6 @@ Maybe for an initial constant vel as large as sqrt(2) this fails, but it works o
 };
 
 }	//namespace <?=Equation?>
-
-
-
-using <?=cons_t?> = <?=Equation?>::Cons;
-using <?=prim_t?> = <?=Equation?>::Prim;
-using <?=initCond_t?> = <?=Equation?>::InitCond;
 
 
 
