@@ -760,10 +760,10 @@ self.solvers:insert(require 'hydro.solver.weno'(table(args, {
 
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
 
-self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct bounded'})))	-- this is the default hllCalcWaveMethod
+--self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct bounded'})))	-- this is the default hllCalcWaveMethod
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct'})))
 
---self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='rusanov', eqn='euler'})))
+self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='rusanov', eqn='euler'})))
 
 --self.solvers:insert(require 'hydro.solver.fdsolver'(table(args, {eqn='euler'})))
 

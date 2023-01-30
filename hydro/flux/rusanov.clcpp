@@ -1,0 +1,31 @@
+//// MODULE_NAME: calcFluxForInterface
+//// MODULE_DEPENDS: <?=solver_macros?> math <?=Equation?>
+
+namespace <?=Equation?> {
+
+static inline  Cons calcFluxForInterface(
+	constant Solver const & solver,
+	Cons const & UL,
+	Cons const & UR,
+	Cell const & cellL,
+	Cell const & cellR,
+	real3 const xInt,
+	Normal const n
+) {
+	Cons result;
+	real lambdaMax;
+	real lambdaMinL, lambdaMaxL;
+	Eqn::consWaveCodeMinMax(solver, UL, n, xInt, &lambdaMinL, &lambdaMaxL);
+	lambdaMax = max(fabs(lambdaMinL), fabs(lambdaMaxL));
+	real lambdaMinR, lambdaMaxR;
+	Eqn::consWaveCodeMinMax(solver, UR, n, xInt, &lambdaMinR, &lambdaMaxR);
+	lambdaMax = max(lambdaMax, max(fabs(lambdaMinR), fabs(lambdaMaxR)));
+	Cons FL = Eqn::fluxFromCons(solver, UL, cellL, n);
+	Cons FR = Eqn::fluxFromCons(solver, UR, cellR, n);
+	for (int j = 0; j < numIntStates; ++j) {
+		result.ptr[j] = .5 * (FL.ptr[j] + FR.ptr[j] - lambdaMax * (UR.ptr[j] - UL.ptr[j]));
+	}
+	return result;
+}
+
+}

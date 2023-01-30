@@ -6,6 +6,6 @@ local Flux = require 'hydro.flux.flux'
 local Rusanov = class(Flux)
 
 Rusanov.name = 'rusanov'
-Rusanov.solverCodeFile = 'hydro/flux/rusanov.cl'
+Rusanov.solverCodeFile = 'hydro/flux/rusanov.clcpp'
 
 return Rusanov
