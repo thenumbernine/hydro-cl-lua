@@ -35,13 +35,13 @@ function FiniteVolumeSolver:initCodeModules()
 
 	self.flux:initCodeModules()
 
-	-- the calcFlux kernel is in fvsolver.cl for gridsolvers and in meshsolver.lua for meshsolvers
+	-- the calcFlux kernel is in fvsolver.clcpp for gridsolvers and in meshsolver.lua for meshsolvers
 	-- both are dependent on calcFluxForInterface
 	-- which is set up in hydro/flux/flux.lua
 	self.solverModulesEnabled[self.symbols.calcFlux] = true
 
 	self.modules:addFromMarkup(
-		self.eqn:template(file'hydro/solver/fvsolver.cl':read(), {
+		self.eqn:template(file'hydro/solver/fvsolver.clcpp':read(), {
 			flux = self.flux,
 		})
 	)

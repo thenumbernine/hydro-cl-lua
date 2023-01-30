@@ -11,9 +11,9 @@ kernel void <?=calcDerivFromFlux?>(
 ) {
 	auto const & solver = *psolver;
 	<?=SETBOUNDS_NOGHOST?>();
-	global <?=cons_t?> * const deriv = derivBuf + index;
-	global <?=cell_t?> const * const cell = cellBuf + index;
-	real3 const x = cell->pos;
+	auto & deriv = derivBuf[index];
+	auto const & cell = cellBuf[index];
+	real3 const x = cell.pos;
 
 /*<?--[[
 volume vs area ...
@@ -41,18 +41,18 @@ then ?>
 	end
 ?>;
 <? else ?>
-	real const volume = cell->volume;
+	real const volume = cell.volume;
 <? end ?>
 
 	<? for side=0,solver.dim-1 do ?>{
 		int const indexIntL = <?=side?> + dim * index;
-		global <?=cons_t?> const * const fluxL = fluxBuf + indexIntL;
+		auto const & fluxL = fluxBuf[indexIntL];
 		
 		int const indexIntR = indexIntL + dim * solver.stepsize.s<?=side?>; 
-		global <?=cons_t?> const * const fluxR = fluxBuf + indexIntR;
+		auto const & fluxR = fluxBuf[indexIntR];
 		
-		real3 xIntL = x; xIntL.s<?=side?> -= .5 * solver.grid_dx.s<?=side?>;
-		real3 xIntR = x; xIntR.s<?=side?> += .5 * solver.grid_dx.s<?=side?>;
+		real3 xIntL = x; xIntL[<?=side?>] -= .5 * solver.grid_dx[<?=side?>];
+		real3 xIntR = x; xIntR[<?=side?>] += .5 * solver.grid_dx[<?=side?>];
 
 		//This is the covariant finite volume code that that represents the gradient of the metric determinant 
 		//All other covariant terms should be accounted for in the equation source update
@@ -106,19 +106,19 @@ if eqn.postComputeFluxCode then ?>
 			<?=cons_t?> flux = {.ptr={0}};
 			for (int j = 0; j < numIntStates; ++j) {
 				flux.ptr[j] = 
-					fluxR->ptr[j] * areaR
-					- fluxL->ptr[j] * areaL;
+					fluxR.ptr[j] * areaR
+					- fluxL.ptr[j] * areaL;
 			}
 <?=eqn:postComputeFluxCode()?>
 			for (int j = 0; j < numIntStates; ++j) {
-				deriv->ptr[j] -= flux.ptr[j];
+				deriv.ptr[j] -= flux.ptr[j];
 			}
 
 <? else -- not postComputeFluxCode ?>
 			for (int j = 0; j < numIntStates; ++j) {
-				deriv->ptr[j] -= 
-					fluxR->ptr[j] * areaR
-					- fluxL->ptr[j] * areaL;
+				deriv.ptr[j] -= 
+					fluxR.ptr[j] * areaR
+					- fluxL.ptr[j] * areaL;
 			}
 <? end -- postComputeFluxCode ?>	
 		}

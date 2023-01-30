@@ -3,7 +3,7 @@ local scalar = op.scalar
 ?>
 
 //// MODULE_NAME: <?=solveJacobi?>
-//// MODULE_DEPENDS: <?=cell_dxs?> <?=table.concat(op.codeDepends or {}, ' ')?>
+//// MODULE_DEPENDS: <?=cell_dx_i?> <?=table.concat(op.codeDepends or {}, ' ')?>
 /*
 called every Jacobi method iteration
 
@@ -53,7 +53,7 @@ end ?>
 	global <?=op:getPotBufType()?> const * const U = UBuf + index;
 
 <? for j=0,solver.dim-1 do
-?>	real const dx<?=j?> = cell_dxs[<?=j?>](solver, x);
+?>	real const dx<?=j?> = cell_dx<?=j?>(solver, x);
 <? end
 ?>
 	

@@ -209,7 +209,6 @@ function CoordinateSystem:init(args)
 		'cell_volume',
 		'cell_sqrt_det_g',	-- seems that, when this is used, it would most often be used with gHol...
 		'cell_calcAvg_withPt',
-		'cell_dxs',
 	})
 
 	local solver = assert(args.solver)
@@ -1987,6 +1986,9 @@ print("WARNING - haven't finished implementing cell_calcAvg_withPt")
 		end,
 	}
 
+--[=[
+--TODO this possibly needs different code per function
+-- that means it really needs std::function() and lambdas
 	solver.modules:add{
 		name = self.symbols.cell_dxs,
 		depends = {self.symbols.cell_dx_i},
@@ -2008,6 +2010,7 @@ constexpr CellDx cell_dxs[3] = {
 };
 ]],
 	}
+--]=]
 
 end
 
