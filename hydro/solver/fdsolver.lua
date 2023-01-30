@@ -22,7 +22,7 @@ end
 function FiniteDifferenceSolver:initCodeModules()
 	FiniteDifferenceSolver.super.initCodeModules(self)
 	self.modules:addFromMarkup(
-		self.eqn:template(file'hydro/solver/fdsolver.cl':read())
+		self.eqn:template(file'hydro/solver/fdsolver.clcpp':read())
 	)
 	self.solverModulesEnabled['calcFluxAtCell'] = true
 	self.solverModulesEnabled['calcDerivFiniteDifference'] = true
