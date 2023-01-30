@@ -291,37 +291,6 @@ struct Eqn : public Hydro::Eqn<Eqn, Solver, Cons, Prim, Normal, Cell, Eigen, Wav
 		return result;
 	}
 
-	struct ConsWaveCodeMinMaxAllSides {
-		real Cs;
-		ConsWaveCodeMinMaxAllSides(
-			constant Solver const & solver,
-			Cons const & U,
-			real3 const pt
-		) : Cs(calc_Cs_fromCons(solver, U, pt))
-		{}
-
-		void operator()(
-			constant Solver const & solver,
-			Normal n,
-			Cons const & U,
-			real3 const pt,
-			real * resultMin,
-			real * resultMax
-		) {
-			real const Cs_nLen = Cs * normal_len(n);
-			real const v_n = U.rho < solver.rhoMin 
-				? 0. 
-				: normal_vecDotN1(n, U.m) / U.rho;
-			//waveCodeAssignMinMax
-			if (resultMin) {
-				*resultMin = v_n - Cs_nLen;
-			}
-			if (resultMax) {
-				*resultMax = v_n + Cs_nLen;
-			}
-		}
-	};
-
 	struct EigenWaveCode {
 		real Cs_nLen, v_n;
 		constexpr EigenWaveCode(
@@ -351,6 +320,113 @@ struct Eqn : public Hydro::Eqn<Eqn, Solver, Cons, Prim, Normal, Cell, Eigen, Wav
 			return {};
 		}
 	};
+
+	// TODO move to base class
+	// default implementation assumes wave 0 is the lowest and wave n-1 is the highest
+	static inline void eigenWaveCodeMinMax(
+		constant Solver const & solver,
+		Eigen const & eig,
+		Normal const n,
+		real3 const pt,
+		real * resultMin,
+		real * resultMax
+	) {
+		auto calcWaves = EigenWaveCode(solver, eig, n, pt);
+		if (resultMin) {
+			*resultMin = calcWaves(solver, eig, n, pt, 0);
+		}
+		if (resultMax) {
+			*resultMax = calcWaves(solver, eig, n, pt, numWaves-1);
+		}
+	}
+
+	struct ConsWaveCode {
+		real Cs_nLen, v_n;
+		constexpr ConsWaveCode(
+			constant Solver const & solver,
+			Cons const & U,
+			Normal const n,
+			real3 const pt
+		) :	Cs_nLen(normal_len(n) * calc_Cs_fromCons(solver, U, pt)),
+			v_n(U.rho < solver.rhoMin
+				? 0
+				: normal_vecDotN1(n, U.m) / U.rho
+			)
+		{}
+
+		// TODO templated index and if constexpr's ... and template-based for-loop ...
+		// TODO as long as U or eig isn't used, we can use this for both implementations
+		constexpr real operator()(
+			constant Solver const & solver,
+			Cons const & U,
+			Normal const n,
+			real3 const pt,
+			int waveIndex
+		) const {
+			if (waveIndex == 0) {
+				return v_n - Cs_nLen;
+			} else if (waveIndex >= 1 && waveIndex <= 3) {
+				return v_n;
+			} else if (waveIndex == 4) {
+				return v_n + Cs_nLen;
+			}
+			return {};
+		}
+	};
+
+	// TODO move to base class
+	//returns code for multiple statements.
+	//there is no prerequisite 'Prefix' call to this.
+	//why? because no multiple subsequent calls are intended, unlike the 'AllSides' or the default wave code, and because this is returning multiple statements (unlike the default wave code that has Prefix do multiple statements and the cons/eigenWaveCode call produce expressios).
+	// default implementation assumes wave 0 is the lowest and wave n-1 is the highest
+	static inline void consWaveCodeMinMax(
+		constant Solver const & solver,
+		Cons const & U,
+		Normal const n,
+		real3 const pt,
+		real * resultMin,
+		real * resultMax
+	) {
+		auto calcWaves = ConsWaveCode(solver, U, n, pt);
+		if (resultMin) {
+			*resultMin = calcWaves(solver, U, n, pt, 0);
+		}
+		if (resultMax) {
+			*resultMax = calcWaves(solver, U, n, pt, numWaves-1);
+		}
+	}
+
+	struct ConsWaveCodeMinMaxAllSides {
+		real Cs;
+		constexpr ConsWaveCodeMinMaxAllSides(
+			constant Solver const & solver,
+			Cons const & U,
+			real3 const pt
+		) : Cs(calc_Cs_fromCons(solver, U, pt))
+		{}
+
+		constexpr void operator()(
+			constant Solver const & solver,
+			Normal n,
+			Cons const & U,
+			real3 const pt,
+			real * resultMin,
+			real * resultMax
+		) {
+			real const Cs_nLen = Cs * normal_len(n);
+			real const v_n = U.rho < solver.rhoMin 
+				? 0. 
+				: normal_vecDotN1(n, U.m) / U.rho;
+			//waveCodeAssignMinMax
+			if (resultMin) {
+				*resultMin = v_n - Cs_nLen;
+			}
+			if (resultMax) {
+				*resultMax = v_n + Cs_nLen;
+			}
+		}
+	};
+
 
 	/*
 	I've highjacked all of this.  It was a normal Euler eqn solver.

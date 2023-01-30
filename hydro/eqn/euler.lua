@@ -295,22 +295,6 @@ Euler.eigenVars = table{
 	{name='vL', type='real3', units='m/s'},
 }
 
--- W is an extra param specific to Euler's calcDT in this case
--- but then I just explicitly wrote out the calcDT, so the extra parameters just aren't used anymore.
-function Euler:consWaveCodePrefix(args)
-	return self:template([[
-real <?=eqn.symbolPrefix?>Cs_nLen = <?=Equation?>::Eqn::calc_Cs_fromCons(solver, <?=U?>, <?=pt?>);
-<?=eqn.symbolPrefix?>Cs_nLen *= normal_len(<?=n?>);
-real const <?=eqn.symbolPrefix?>v_n = (<?=U?>).rho < solver.rhoMin ? 0. : normal_vecDotN1(<?=n?>, (<?=U?>).m) / (<?=U?>).rho;
-]], args)
-end
-
--- as long as U or eig isn't used, we can use this for both implementations
-Euler.consWaveCode = Euler.eigenWaveCode
-
---Euler.eigenWaveCodeMinMax uses default
---Euler.consWaveCodeMinMax uses default
-
 return Euler
 
 --[[

@@ -5,7 +5,7 @@ local Flux = require 'hydro.flux.flux'
 local HLL = class(Flux)
 
 HLL.name = 'hll'
-HLL.solverCodeFile = 'hydro/flux/hll.cl'
+HLL.solverCodeFile = 'hydro/flux/hll.clcpp'
 
 --HLL.hllCalcWaveMethod = 'Davis direct'
 HLL.hllCalcWaveMethod = 'Davis direct bounded'
