@@ -1,5 +1,5 @@
 //// MODULE_NAME: calcFluxForInterface
-//// MODULE_DEPENDS: <?=solver_macros?> math <?=Equation?>
+//// MODULE_DEPENDS: <?=Equation?>
 
 namespace <?=Equation?> {
 
@@ -28,4 +28,4 @@ static inline  Cons calcFluxForInterface(
 	return result;
 }
 
-}
+}	//namespace <?=Equation?> {

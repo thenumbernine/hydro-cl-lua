@@ -119,14 +119,14 @@ static inline Cons calcFluxForInterface(
 			}
 		} else if (sR <= 0) {
 			flux = Eqn::fluxFromCons(solver, UR, cellR, n);
-	<? if true then ?>	//why is this here? for when sStar is not between sL and sR
+#if 1	//why is this here? for when sStar is not between sL and sR
 		} else if (sL <= 0 && 0 <= sR) {
 			Cons FL = Eqn::fluxFromCons(solver, UL, cellL, n);
 			Cons FR = Eqn::fluxFromCons(solver, UR, cellR, n);
 			for (int j = 0; j < numIntStates; ++j) {
 				flux.ptr[j] = (sR * FL.ptr[j] - sL * FR.ptr[j] + sL * sR * (UR.ptr[j] - UL.ptr[j])) / (sR - sL);
 			}
-	<? end ?>
+#endif
 		}
 
 	} else if (solver.flux_hllcMethod == 1) {
@@ -162,14 +162,14 @@ static inline Cons calcFluxForInterface(
 		
 		} else if (sR <= 0) {
 			flux = Eqn::fluxFromCons(solver, UR, cellR, n);
-	<? if true then ?>	//why is this here? for when sStar is not between sL and sR
+#if 1		//why is this here? for when sStar is not between sL and sR
 		} else if (sL <= 0 && 0 <= sR) {
 			Cons FL = Eqn::fluxFromCons(solver, UL, cellL, n);
 			Cons FR = Eqn::fluxFromCons(solver, UR, cellR, n);
 			for (int j = 0; j < numIntStates; ++j) {
 				flux.ptr[j] = (sR * FL.ptr[j] - sL * FR.ptr[j] + sL * sR * (UR.ptr[j] - UL.ptr[j])) / (sR - sL);
 			}
-	<? end ?>
+#endif
 		}
 
 	} else if (solver.flux_hllcMethod == 2) {
@@ -213,14 +213,14 @@ static inline Cons calcFluxForInterface(
 
 		} else if (sR <= 0) {
 			flux = Eqn::fluxFromCons(solver, UR, cellR, n);
-	<? if true then ?>	//why is this here? for when sStar is not between sL and sR
+#if 1		//why is this here? for when sStar is not between sL and sR
 		} else if (sL <= 0 && 0 <= sR) {
 			Cons FL = Eqn::fluxFromCons(solver, UL, cellL, n);
 			Cons FR = Eqn::fluxFromCons(solver, UR, cellR, n);
 			for (int j = 0; j < numIntStates; ++j) {
 				flux.ptr[j] = (sR * FL.ptr[j] - sL * FR.ptr[j] + sL * sR * (UR.ptr[j] - UL.ptr[j])) / (sR - sL);
 			}
-	<? end ?>
+#endif
 		}
 
 	} // solver.flux.hllcMethod

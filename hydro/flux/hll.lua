@@ -7,13 +7,25 @@ local HLL = class(Flux)
 HLL.name = 'hll'
 HLL.solverCodeFile = 'hydro/flux/hll.clcpp'
 
---HLL.hllCalcWaveMethod = 'Davis direct'
-HLL.hllCalcWaveMethod = 'Davis direct bounded'
-
+--[[
+hllCalcWaveMethod:
+0 = Davis direct
+1 = Davis direct bounded
+--]]
 function HLL:init(args)
-	HLL.super.init(self, args)
+	self.hllCalcWaveMethod = args.hllCalcWaveMethod or 1
 
-	self.hllCalcWaveMethod = args.hllCalcWaveMethod
+	HLL.super.init(self, args)
+	
+	self.solver.solverStruct.vars:append{
+		{name='flux_hllCalcWaveMethod', type='int'},
+	}
 end
+
+function HLL:initCodeModules()
+	HLL.super.initCodeModules(self)
+	self.solver.solverPtr.flux_hllCalcWaveMethod = self.hllCalcWaveMethod
+end
+
 
 return HLL

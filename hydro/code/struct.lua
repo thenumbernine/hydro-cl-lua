@@ -148,7 +148,7 @@ end
 function Struct:getTypeCode(typename)
 	local lines = table()
 	local scalar = 'real'
-
+--print('getTypeCode '..typename)
 	local tab
 	local classType
 	if self.dontUnion then

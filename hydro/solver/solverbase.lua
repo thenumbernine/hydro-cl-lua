@@ -959,7 +959,6 @@ function SolverBase:initCDefs()
 	if self.app.verbose then
 		print("ffi.cdef'ing: "..moduleNames:concat', ')
 	end
-	require 'hydro.code.safecdef'(self.modules:getTypeHeader(moduleNames:unpack()))
 --]]
 end
 

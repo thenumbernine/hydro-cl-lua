@@ -7,6 +7,8 @@ local useConstrainU = false
 //// MODULE_DEPENDS: <?=coord_lower?>
 //// MODULE_DEPENDS: <?=prim_t?> <?=cons_t?> <?=normal_t?> <?=initCond_t?> <?=cell_t?>
 //// MODULE_DEPENDS: <?=cartesianToCoord?>
+//// MODULE_DEPENDS: <?=SETBOUNDS?>
+//// MODULE_DEPENDS: <?=SETBOUNDS_NOGHOST?>
 // Equation is for all the calc_* stuff
 
 <?=eqn:template(require "ext.file" "hydro/eqn/eqn.clcpp":read())?>
@@ -15,10 +17,13 @@ local useConstrainU = false
 // or TODO namespace <?=Solver?> and then class Solver, class Eqn, etc
 namespace <?=Equation?> {
 
+// TOOD eventually this should go back into hydro/coord/coord.clcpp
+using Normal = <?=normal_t?>;
+
+
 using Prim = <?=prim_t?>;
 using Cons = <?=cons_t?>;
 using Solver = <?=solver_t?>;
-using Normal = <?=normal_t?>;
 using Cell = <?=cell_t?>;
 using Eigen = <?=eigen_t?>;
 using Waves = <?=waves_t?>;

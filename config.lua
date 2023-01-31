@@ -35,7 +35,7 @@ local args = {
 	-- with Kelvin-Helmholts, this will explode even at .5/(dim=2), but runs safe for .3/(dim=2)
 	cfl = cmdline.cfl or .3/dim,
 
-	fluxLimiter = cmdline.fluxLimiter or 'superbee',
+	--fluxLimiter = cmdline.fluxLimiter or 'superbee',
 	--fluxLimiter = 'monotized central',
 	--fluxLimiter = 'donor cell',		-- same as turning fluxlimiter off ... you have to turn fluxlimiter off to use plm
 
@@ -44,7 +44,7 @@ local args = {
 	--									-- min div v for gridSize={1024} cfl=.3 Sod mirror at t=0.5:
 	--									-- -191 = no plm, superbee flux limiter
 	--									-- -184 = no plm, monotized central flux limiter
-	--usePLM = 'piecewise-constant',	-- -84		degenerate case.  don't use this, instead just disable usePLM, or else this will allocate more memory / run more functions.
+	usePLM = 'piecewise-constant',	-- -84		degenerate case.  don't use this, instead just disable usePLM, or else this will allocate more memory / run more functions.
 	--usePLM = 'plm-cons',				-- -190
 	--usePLM = 'plm-cons-alone',		-- -177
 	--usePLM = 'plm-prim-alone',		-- -175
@@ -758,16 +758,16 @@ self.solvers:insert(require 'hydro.solver.weno'(table(args, {
 -- compressible Euler equations
 
 
---self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
+self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
 
---self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct bounded'})))	-- this is the default hllCalcWaveMethod
---self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct'})))
+--self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod=0})))	-- 'Davis direct'
+--self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod=1})))	-- 'Davis direct bounded' -- this is the default hllCalcWaveMethod
 
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='rusanov', eqn='euler'})))
 
 --self.solvers:insert(require 'hydro.solver.fdsolver'(table(args, {eqn='euler'})))
 
-self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='euler-hllc', eqn='euler', fluxArgs={hllcMethod=0}})))
+--self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='euler-hllc', eqn='euler', fluxArgs={hllcMethod=0}})))
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='euler-hllc', eqn='euler', fluxArgs={hllcMethod=1}})))
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='euler-hllc', eqn='euler', fluxArgs={hllcMethod=2}})))
 

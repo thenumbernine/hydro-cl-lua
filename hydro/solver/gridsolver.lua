@@ -330,10 +330,7 @@ real <?=slopeLimiter?>(real r) {
 ]],
 		}
 
-		self.modules:add{
-			name = self.eqn.symbols.consLR_t,
-			depends = {self.eqn.symbols.cons_t},
-			typecode = self.eqn:template([[
+		local typecode = self.eqn:template([[
 typedef union {
 	<?=cons_t?> LR[2];
 	struct {
@@ -345,10 +342,15 @@ typedef union {
 typedef struct {
 	<?=consLR_t?> side[<?=solver.dim?>];
 } <?=consLR_t?>_dim;
-]]),
+]])
+		self.modules:add{
+			name = self.eqn.symbols.consLR_t,
+			depends = {self.eqn.symbols.cons_t},
+			typecode = typecode,
 		}
+		require 'hydro.code.safecdef'(typecode)
 
-		self.modules:addFromMarkup(self.eqn:template(file'hydro/solver/plm.cl':read()))
+		self.modules:addFromMarkup(self.eqn:template(file'hydro/solver/plm.clcpp':read()))
 		self.solverModulesEnabled[self.symbols.calcLR] = true
 	end
 

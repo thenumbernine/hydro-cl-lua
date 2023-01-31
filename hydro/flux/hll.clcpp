@@ -1,8 +1,13 @@
 //// MODULE_NAME: calcFluxForInterface
-//// MODULE_DEPENDS: <?=solver_macros?> math <?=Equation?>
+//// MODULE_DEPENDS: <?=Equation?>
 //HLL solver:
 
 namespace <?=Equation?> {
+
+enum {
+	HLL_DAVIS_DIRECT,
+	HLL_DAVIS_DIRECT_BOUNDED,
+};
 
 static inline Cons calcFluxForInterface(
 	constant Solver const & solver,
@@ -22,22 +27,20 @@ static inline Cons calcFluxForInterface(
 	real lambdaIntMin, lambdaIntMax;
 	Eqn::eigenWaveCodeMinMax(solver, eigInt, n, xInt, &lambdaIntMin, &lambdaIntMax);
 
-<? if solver.flux.hllCalcWaveMethod == "Davis direct" then ?>
-	real const sL = lambdaIntMin;
-	real const sR = lambdaIntMax;
-<? end ?>
+	real sL, sR;
+	if (solver.flux_hllCalcWaveMethod == HLL_DAVIS_DIRECT) {
+		sL = lambdaIntMin;
+		sR = lambdaIntMax;
+	} else if (solver.flux_hllCalcWaveMethod == HLL_DAVIS_DIRECT_BOUNDED) {
+		real lambdaLMin;
+		Eqn::consWaveCodeMinMax(solver, UL, n, cellL.pos, &lambdaLMin, nullptr);
 
-<? if solver.flux.hllCalcWaveMethod == "Davis direct bounded" then ?>
+		real lambdaRMax;
+		Eqn::consWaveCodeMinMax(solver, UR, n, cellR.pos, nullptr, &lambdaRMax);
 
-	real lambdaLMin;
-	Eqn::consWaveCodeMinMax(solver, UL, n, cellL.pos, &lambdaLMin, nullptr);
-
-	real lambdaRMax;
-	Eqn::consWaveCodeMinMax(solver, UR, n, cellR.pos, nullptr, &lambdaRMax);
-
-	real const sL = min(lambdaLMin, lambdaIntMin);
-	real const sR = max(lambdaRMax, lambdaIntMax);
-<? end ?>
+		sL = min(lambdaLMin, lambdaIntMin);
+		sR = max(lambdaRMax, lambdaIntMax);
+	}
 
 	if (0 <= sL) {
 		resultFlux = Eqn::fluxFromCons(solver, UL, cellL, n);
