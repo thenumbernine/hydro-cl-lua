@@ -44,13 +44,13 @@ local args = {
 	--									-- min div v for gridSize={1024} cfl=.3 Sod mirror at t=0.5:
 	--									-- -191 = no plm, superbee flux limiter
 	--									-- -184 = no plm, monotized central flux limiter
-	usePLM = 'piecewise-constant',	-- -84		degenerate case.  don't use this, instead just disable usePLM, or else this will allocate more memory / run more functions.
+	--usePLM = 'piecewise-constant',	-- -84		degenerate case.  don't use this, instead just disable usePLM, or else this will allocate more memory / run more functions.
 	--usePLM = 'plm-cons',				-- -190
 	--usePLM = 'plm-cons-alone',		-- -177
 	--usePLM = 'plm-prim-alone',		-- -175
 	--usePLM = 'plm-eig',				-- -88		\
 	--usePLM = 'plm-eig-prim',			-- -88		 - these have less sharp shock wave in Sod than the non-eig ones
-	--usePLM = 'plm-eig-prim-ref',		-- -28 		/
+	usePLM = 'plm-eig-prim-ref',		-- -28 		/
 	--usePLM = 'plm-athena',			-- -40		based on Athena.  most accurate from 1D sod tests atm
 	--usePLM = 'ppm-wip',				-- 			FIXME one more attempt to figure out all the PLM stuff, based on 2017 Zingale
 	--usePLM = 'weno',					-- 			TODO make WENO one of these 'usePLM' methods. rename it to 'construct LR state method' or something.  then use CTU with WENO.  or can we, since even the CTU method should use the re-linear-projection ... i should just have these separate plm methods as separate functions ...

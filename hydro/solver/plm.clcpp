@@ -18,15 +18,15 @@ for side=0,solver.dim-1 do
 
 static inline ConsLR calcCellLR_<?=side?>(
 	constant Solver const & solver,
-	global Cons const & U,
-	global Cell const & cell,
+	global Cons const * const pU,
+	global Cell const * const pcell,
 	real const dt,
 	int4 const i,
 	Normal const n
 ) {
 	return ConsLR{
-		.L = U,
-		.R = U,
+		.L = *pU,
+		.R = *pU,
 	};
 }
 
@@ -59,28 +59,27 @@ works for mhd Brio-Wu 1D with oscillations
 works for maxwell with oscillations 
 works for adm1d_v1 freeflow with oscillations (fails for mirror)
 */
-void calcCellLR_<?=side?>(
-	global ConsLR * const result,
-	constant Solver const * const solver,
-	global Cons const * const U,
-	global Cell const * const cell,
+static inline ConsLR calcCellLR_<?=side?>(
+	constant Solver const & solver,
+	global Cons const * const pU,
+	global Cell const * const pcell,
 	real const dt,
 	int4 const i,
 	Normal const n
 ) {
-	global Cons const * const UL = U - solver->stepsize.s<?=side?>;
-	global Cons const * const UR = U + solver->stepsize.s<?=side?>;
+	auto const & UL = pU[-solver.stepsize[<?=side?>]];
+	auto const & UR = pU[ solver.stepsize[<?=side?>]];
 	
-	global Cell const * const cellL = cell - solver->stepsize.s<?=side?>;
-	global Cell const * const cellR = cell + solver->stepsize.s<?=side?>;
+	auto const & cellL = pcell[-solver.stepsize[<?=side?>]];
+	auto const & cellR = pcell[ solver.stepsize[<?=side?>]];
 
-	real3 xIntL = cell->pos; xIntL.s<?=side?> -= .5 * solver->grid_dx.s<?=side?>;
-	real3 xIntR = cell->pos; xIntR.s<?=side?> += .5 * solver->grid_dx.s<?=side?>;
+	real3 xIntL = pcell->pos; xIntL[<?=side?>] -= .5 * solver.grid_dx[<?=side?>];
+	real3 xIntR = pcell->pos; xIntR[<?=side?>] += .5 * solver.grid_dx[<?=side?>];
 	
 	Cons UHalfL, UHalfR;
 	for (int j = 0; j < numIntStates; ++j) {
-		real dUL = U->ptr[j] - UL->ptr[j];
-		real dUR = UR->ptr[j] - U->ptr[j];
+		real dUL = pU->ptr[j] - UL.ptr[j];
+		real dUR = UR.ptr[j] - pU->ptr[j];
 		
 		//Hydrodynamics II slope-limiters (4.4.2) and MUSCL-Hancock (6.6)	
 		//https://en.wikipedia.org/wiki/MUSCL_scheme
@@ -123,38 +122,38 @@ for sgn b >= 0:
 		) * sign(dUL - dUR);
 #endif
 		//q^n_i-1/2,R = q^n_i - 1/2 dx sigma	(Hydrodynamics II 6.58)
-		UHalfL.ptr[j] = U->ptr[j] - .5 * sigma;
+		UHalfL.ptr[j] = pU->ptr[j] - .5 * sigma;
 		
 		//q^n_i+1/2,L = q^n_i + 1/2 dx sigma	(Hydrodynamics II 6.59)
-		UHalfR.ptr[j] = U->ptr[j] + .5 * sigma;
+		UHalfR.ptr[j] = pU->ptr[j] + .5 * sigma;
 	}
 	for (int j = numIntStates; j < numStates; ++j) {
-		UHalfL.ptr[j] = UHalfR.ptr[j] = U->ptr[j];
+		UHalfL.ptr[j] = UHalfR.ptr[j] = pU->ptr[j];
 	}
 
-	real dx = cell_dx<?=side?>(cell->pos);
+	real dx = cell_dx<?=side?>(solver, pcell->pos);
 	real dt_dx = dt / dx;
 
-//// MODULE_DEPENDS: <?=fluxFromCons?> 
 <? print("TODO cell_t averaging here?") ?>
-	Cons FHalfL;
-	<?=fluxFromCons?>(&FHalfL, solver, &UHalfL, cellL, normal_forSide<?=side?>(xIntL));
-	Cons FHalfR;
-	<?=fluxFromCons?>(&FHalfR, solver, &UHalfR, cellR, normal_forSide<?=side?>(xIntR));
+	Cons FHalfL = Eqn::fluxFromCons(solver, UHalfL, cellL, normal_forSide<?=side?>(xIntL));
+	Cons FHalfR = Eqn::fluxFromCons(solver, UHalfR, cellR, normal_forSide<?=side?>(xIntR));
 
-	result->L = *U;
-	result->R = *U;
+	ConsLR result = {
+		.L = *pU,
+		.R = *pU,
+	};
 	for (int j = 0; j < numIntStates; ++j) {
 		real dF = FHalfR.ptr[j] - FHalfL.ptr[j];
 
-		//U-cell-L = q^n+1/2_i-1/2,R (Hydrodynamics II 6.62)
+		//pU-cell-L = q^n+1/2_i-1/2,R (Hydrodynamics II 6.62)
 		// = q^n_i-1/2,R + 1/2 dt/dx (f_k(q^n_i+1/2,L) - f_k(q_i-1/2,R))
-		result->L.ptr[j] = UHalfL.ptr[j] + .5 * dt_dx * dF;
+		result.L.ptr[j] = UHalfL.ptr[j] + .5 * dt_dx * dF;
 
-		//U-cell R = q^n+1/2_i+1/2,L (Hydrodynamics II 6.63)
+		//pU-cell R = q^n+1/2_i+1/2,L (Hydrodynamics II 6.63)
 		// = q^n_i+1/2,L + 1/2 dt/dx (f_k(q^n_i+1/2,L) - f_k(q_i-1/2,R))
-		result->R.ptr[j] = UHalfR.ptr[j] + .5 * dt_dx * dF;
+		result.R.ptr[j] = UHalfR.ptr[j] + .5 * dt_dx * dF;
 	}
+	return result;
 }
 
 <? 
@@ -163,86 +162,83 @@ for sgn b >= 0:
 	elseif solver.usePLM == "plm-cons-alone" then 
 ?>
 
-void calcCellLR_<?=side?>(
-	global ConsLR * const result,
-	constant Solver const * const solver,
-	global Cons const * const U,
-	global Cell const * const cell,
+static inline ConsLR calcCellLR_<?=side?>(
+	constant Solver const & solver,
+	global Cons const * const pU,
+	global Cell const * const pcell,
 	real const dt,
 	int4 const i,
 	Normal const n
 ) {
 	// extrapolate slopes in consered variable space
-	real dx = solver->grid_dx.s<?=side?>;
+	real dx = solver.grid_dx[<?=side?>];
 
-	real3 xL = cell->pos; xL.s<?=side?> -= dx;
-	real3 xR = cell->pos; xR.s<?=side?> += dx;
+	real3 xL = pcell->pos; xL[<?=side?>] -= dx;
+	real3 xR = pcell->pos; xR[<?=side?>] += dx;
 
-	global Cons const * const UL = U - solver->stepsize.s<?=side?>;
-	global Cons const * const UR = U + solver->stepsize.s<?=side?>;
+	auto const & UL = pU[-solver.stepsize[<?=side?>]];
+	auto const & UR = pU[ solver.stepsize[<?=side?>]];
 
-	result->L = *U;
-	result->R = *U;
+	auto result = ConsLR{
+		.L = *pU,
+		.R = *pU,
+	};
 	// minmod
 	for (int j = 0; j < numIntStates; ++j) {
 #if 1	// taken from above / from Dullemond "Hydrodynamics II"
-		real dUR = UR->ptr[j] - U->ptr[j];
-		real dUL = U->ptr[j] - UL->ptr[j];
+		real dUR = UR.ptr[j] - pU->ptr[j];
+		real dUL = pU->ptr[j] - UL.ptr[j];
 		real r = dUR == 0 ? 0 : (dUL / dUR);
 //// MODULE_DEPENDS: <?=slopeLimiter?>
 		real phi = <?=slopeLimiter?>(r);	//works good with minmod, bad with superbee
 		real sigma = phi * dUR;
-		result->L.ptr[j] -= .5 * sigma;
-		result->R.ptr[j] += .5 * sigma;
+		result.L.ptr[j] -= .5 * sigma;
+		result.R.ptr[j] += .5 * sigma;
 #endif
 #if 0 	// Based on Mara's PLM.  Looks to be asymmetric, favoring the x+ and y+ directions. Maybe I copied it wrong.
-		real dUL = U->ptr[j] - UL->ptr[j];
-		real dUC = .5 * (UR->ptr[j] - UL->ptr[j]);
-		real dUR = UR->ptr[j] - U->ptr[j];
+		real dUL = pU->ptr[j] - UL.ptr[j];
+		real dUC = .5 * (UR.ptr[j] - UL.ptr[j]);
+		real dUR = UR.ptr[j] - pU->ptr[j];
 		real adwl = fabs(dUL);
 		real adwr = fabs(dUR);
 		real adwc = fabs(dUC);
 		real mindw = min3(adwl, adwr, adwc);
 		real dUM = .25 * fabs(sign(dUL) + sign(dUC)) * fabs(sign(dUL) + sign(dUR)) * mindw;
-		result->L.ptr[j] -= .5 * dUM; 
-		result->R.ptr[j] += .5 * dUM; 
+		result.L.ptr[j] -= .5 * dUM; 
+		result.R.ptr[j] += .5 * dUM; 
 #endif
 	}
+	return result;
 }
 
 <? 
 	elseif solver.usePLM == "plm-prim-alone" then 
 ?>
-//// MODULE_DEPENDS: <?=consFromPrim?> <?=primFromCons?>
 
-void calcCellLR_<?=side?>(
-	global ConsLR * const result,
-	constant Solver const * const solver,
-	global Cons const * const U,
-	global Cell const * const cell,
+static inline ConsLR calcCellLR_<?=side?>(
+	constant Solver const & solver,
+	global Cons const * const pU,
+	global Cell const * const pcell,
 	real const dt,
 	int4 const i,
 	Normal const n
 ) {
 	// extrapolate slopes in primitive space
-	real dx = solver->grid_dx.s<?=side?>;
+	real dx = solver.grid_dx[<?=side?>];
 
-	real3 xL = cell->pos; xL.s<?=side?> -= dx;
-	real3 xR = cell->pos; xR.s<?=side?> += dx;
+	real3 xL = pcell->pos; xL[<?=side?>] -= dx;
+	real3 xR = pcell->pos; xR[<?=side?>] += dx;
 
-	global Cons const * const UL = U - solver->stepsize.s<?=side?>;
-	global Cons const * const UR = U + solver->stepsize.s<?=side?>;
+	auto const & UL = pU[-solver.stepsize[<?=side?>]];
+	auto const & UR = pU[ solver.stepsize[<?=side?>]];
 
-	<?=prim_t?> W;
-	<?=primFromCons?>(&W, solver, U, cell->pos);
-	<?=prim_t?> WL;
-	<?=primFromCons?>(&WL, solver, UL, xL);
-	<?=prim_t?> WR;
-	<?=primFromCons?>(&WR, solver, UR, xR);
+	Prim W = Eqn::primFromCons(solver, *pU, pcell->pos);
+	Prim WL = Eqn::primFromCons(solver, UL, xL);
+	Prim WR = Eqn::primFromCons(solver, UR, xR);
 	
 	// minmod
-	<?=prim_t?> nWL = W;
-	<?=prim_t?> nWR = W;
+	Prim nWL = W;
+	Prim nWR = W;
 	for (int j = 0; j < numIntStates; ++j) {
 #if 1	// taken from above / from Dullemond "Hydrodynamics II"
 		real dWR = WR.ptr[j] - W.ptr[j];
@@ -268,18 +264,20 @@ void calcCellLR_<?=side?>(
 #endif	
 	}
 	
-	real3 xIntL = cell->pos; xIntL.s<?=side?> -= .5 * dx;
-	real3 xIntR = cell->pos; xIntR.s<?=side?> += .5 * dx;
+	real3 xIntL = pcell->pos; xIntL[<?=side?>] -= .5 * dx;
+	real3 xIntR = pcell->pos; xIntR[<?=side?>] += .5 * dx;
 
 	//converting from cons->prim and then prim->cons might lose us accuracy? 
-	<?=consFromPrim?>(&result->L, solver, &nWL, xIntL);
-	<?=consFromPrim?>(&result->R, solver, &nWR, xIntR);
+	return ConsLR{
+		.L = Eqn::consFromPrim(solver, nWL, xIntL),
+		.R = Eqn::consFromPrim(solver, nWR, xIntR),
+	};
 }
 
 <? 
 	elseif solver.usePLM == "plm-eig" then 
 ?>
-//// MODULE_DEPENDS: <?=eigen_forCell?> <?=eigen_leftTransform?> <?=eigen_rightTransform?> min3
+//// MODULE_DEPENDS: min3
 
 /*
 #2: next step, project into eigenspace
@@ -309,49 +307,43 @@ works for maxwell
 works for adm1d_v1 
 */
 
-void calcCellLR_<?=side?>(
-	global ConsLR * const result,
-	constant Solver const * const solver,
-	global Cons const * const U,
-	global Cell const * const cell,
+static inline ConsLR calcCellLR_<?=side?>(
+	constant Solver const & solver,
+	global Cons const * const pU,
+	global Cell const * const pcell,
 	real const dt,
 	int4 const i,
 	Normal const n
 ) {
 	//1) calc delta q's ... l r c (eqn 36)
-	global Cons const * const UL = U - solver->stepsize.s<?=side?>;
-	global Cons const * const UR = U + solver->stepsize.s<?=side?>;
+	auto const & UL = pU[-solver.stepsize[<?=side?>]];
+	auto const & UR = pU[ solver.stepsize[<?=side?>]];
 	Cons dUL, dUR, dUC;
 	for (int j = 0; j < numIntStates; ++j) {
-		dUL.ptr[j] = U->ptr[j] - UL->ptr[j];
-		dUR.ptr[j] = UR->ptr[j] - U->ptr[j];
-		dUC.ptr[j] = .5 * (UR->ptr[j] - UL->ptr[j]);
+		dUL.ptr[j] = pU->ptr[j] - UL.ptr[j];
+		dUR.ptr[j] = UR.ptr[j] - pU->ptr[j];
+		dUC.ptr[j] = .5 * (UR.ptr[j] - UL.ptr[j]);
 	}
 	for (int j = numIntStates; j < numStates; ++j) {
 		dUL.ptr[j] = dUR.ptr[j] = dUC.ptr[j] = 0;
 	}
 
-	real3 xIntL = cell->pos; xIntL.s<?=side?> -= .5 * solver->grid_dx.s<?=side?>;
-	real3 xIntR = cell->pos; xIntR.s<?=side?> += .5 * solver->grid_dx.s<?=side?>;
+	real3 xIntL = pcell->pos; xIntL[<?=side?>] -= .5 * solver.grid_dx[<?=side?>];
+	real3 xIntR = pcell->pos; xIntR[<?=side?>] += .5 * solver.grid_dx[<?=side?>];
 
 	//calc eigen values and vectors at cell center
-	<?=eigen_t?> eig;
-	<?=eigen_forCell?>(&eig, solver, U, cell, n);
+	Eigen eig = Eqn::eigen_forCell(solver, *pU, *pcell, n);
 		
-	<?=waves_t?> dULEig;
-	<?=eigen_leftTransform?>(&dULEig, solver, &eig, &dUL, xIntL, normal_forSide<?=side?>(xIntL));
-	<?=waves_t?> dUREig;
-	<?=eigen_leftTransform?>(&dUREig, solver, &eig, &dUR, xIntR, normal_forSide<?=side?>(xIntR));
-	<?=waves_t?> dUCEig;
-	<?=eigen_leftTransform?>(&dUCEig, solver, &eig, &dUC, cell->pos, n);
+	Waves dULEig = Eqn::eigen_leftTransform(solver, eig, dUL, xIntL, normal_forSide<?=side?>(xIntL));
+	Waves dUREig = Eqn::eigen_leftTransform(solver, eig, dUR, xIntR, normal_forSide<?=side?>(xIntR));
+	Waves dUCEig = Eqn::eigen_leftTransform(solver, eig, dUC, pcell->pos, n);
 
 	//MUSCL slope of characteristic variables
 	//TODO make this based on the choice of slope limiter
-	<?=waves_t?> dUMEig;
+	Waves dUMEig;
 	for (int j = 0; j < numWaves; ++j) {
 
 // This is adapted from above to use the modular slopeLimiter
-<? if false then ?>
 #if 0
 		real r = dUREig.ptr[j] == 0 ? 0 : (dULEig.ptr[j] / dUREig.ptr[j]);
 //// MODULE_DEPENDS: <?=slopeLimiter?>
@@ -360,7 +352,6 @@ void calcCellLR_<?=side?>(
 		dUMEig.ptr[j] = sigma;
 
 #endif
-<? end ?>
 
 //This one is symmetric, unlike the above center-slope-based methods.
 // It also takes into account the center slope, unlike the <?=slopeLimiter?>() options.
@@ -377,42 +368,33 @@ void calcCellLR_<?=side?>(
 #endif	
 	}
 
-	real dx = cell_dx<?=side?>(cell->pos);
+	real dx = cell_dx<?=side?>(solver, pcell->pos);
 	real dt_dx = dt / dx;
 
-	<?=eqn:eigenWaveCodePrefix{
-		n = "n",
-		eig = "&eig",
-		pt = "cell->pos",
-	}:gsub("\n", "\n\t")?>
+	auto calcWaves = Eqn::EigenWaveCode(solver, eig, n, pcell->pos);
 
 	// slopes in characteristic space
-	<?=waves_t?> aL;
-	<?=waves_t?> aR;
-	<? for j=0,eqn.numWaves-1 do ?>{
-		int const j = <?=j?>;
-		real const wave_j = <?=eqn:eigenWaveCode{
-			n = "n",
-			eig = "&eig",
-			pt = "cell->pos",
-			waveIndex = j,
-		}:gsub("\n", "\n\t\t")?>;
+	Waves aL;
+	Waves aR;
+	for (int j = 0; j < numWaves; ++j) {
+		real const wave_j = calcWaves(solver, eig, n, pcell->pos, j);
 		aL.ptr[j] = wave_j < 0 ? 0 : dUMEig.ptr[j] * .5 * (1. - wave_j * dt_dx);
 		aR.ptr[j] = wave_j > 0 ? 0 : dUMEig.ptr[j] * .5 * (1. + wave_j * dt_dx);
-	}<? end ?>
+	}
 	
 	//convert back to conservation variable space
-	Cons sL;
-	<?=eigen_rightTransform?>(&sL, solver, &eig, &aL, cell->pos, n);
-	Cons sR;
-	<?=eigen_rightTransform?>(&sR, solver, &eig, &aR, cell->pos, n);
+	Cons sL = Eqn::eigen_rightTransform(solver, eig, aL, pcell->pos, n);
+	Cons sR = Eqn::eigen_rightTransform(solver, eig, aR, pcell->pos, n);
 
-	result->L = *U;
-	result->R = *U;
+	auto result = ConsLR{
+		.L = *pU,
+		.R = *pU,
+	};
 	for (int j = 0; j < numIntStates; ++j) {
-		result->L.ptr[j] += sL.ptr[j];
-		result->R.ptr[j] -= sR.ptr[j];
+		result.L.ptr[j] += sL.ptr[j];
+		result.R.ptr[j] -= sR.ptr[j];
 	}
+	return result;
 }
 
 <? 
@@ -420,7 +402,7 @@ void calcCellLR_<?=side?>(
 	or solver.usePLM == "plm-eig-prim-ref" 
 	then 
 ?>
-//// MODULE_DEPENDS: <?=eigen_forCell?> min3 <?=primFromCons?>
+//// MODULE_DEPENDS: min3
 
 /*
 #3a: next step, convert to primitives
@@ -464,32 +446,28 @@ U_i+1/2,L = U( W_i + 1/2 dW/dU evR (aL + (1 - dt/dx max(wave)) dWMe) )
 based on Trangenstein, Athena, etc, except working on primitives like it says to
 */
 
-void calcCellLR_<?=side?>(
-	global ConsLR * const result,
-	constant Solver const * const solver,
-	global Cons const * const U,
-	global Cell const * const cell,
+static inline ConsLR calcCellLR_<?=side?>(
+	constant Solver const & solver,
+	global Cons const * const pU,
+	global Cell const * const pcell,
 	real const dt,
 	int4 const i,
 	Normal const n
 ) {
-	real3 xL = cell->pos; xL.s<?=side?> -= solver->grid_dx.s<?=side?>;
-	real3 xR = cell->pos; xR.s<?=side?> += solver->grid_dx.s<?=side?>;
+	real3 xL = pcell->pos; xL[<?=side?>] -= solver.grid_dx[<?=side?>];
+	real3 xR = pcell->pos; xR[<?=side?>] += solver.grid_dx[<?=side?>];
 	
-	real3 xIntL = cell->pos; xIntL.s<?=side?> -= .5 * solver->grid_dx.s<?=side?>;
-	real3 xIntR = cell->pos; xIntR.s<?=side?> += .5 * solver->grid_dx.s<?=side?>;
+	real3 xIntL = pcell->pos; xIntL[<?=side?>] -= .5 * solver.grid_dx[<?=side?>];
+	real3 xIntR = pcell->pos; xIntR[<?=side?>] += .5 * solver.grid_dx[<?=side?>];
 	
-	global Cons const * const UL = U - solver->stepsize.s<?=side?>;
-	global Cons const * const UR = U + solver->stepsize.s<?=side?>;
+	auto const & UL = pU[-solver.stepsize[<?=side?>]];
+	auto const & UR = pU[ solver.stepsize[<?=side?>]];
 	
 	//1) calc delta q's ... l r c (eqn 36)
-	<?=prim_t?> W;
-	<?=primFromCons?>(&W, solver, U, cell->pos);
-	<?=prim_t?> WL;
-	<?=primFromCons?>(&WL, solver, UL, xL);
-	<?=prim_t?> WR;
-	<?=primFromCons?>(&WR, solver, UR, xR);
-	<?=prim_t?> dWL, dWR, dWC;
+	Prim W = Eqn::primFromCons(solver, *pU, pcell->pos);
+	Prim WL = Eqn::primFromCons(solver, UL, xL);
+	Prim WR = Eqn::primFromCons(solver, UR, xR);
+	Prim dWL, dWR, dWC;
 	for (int j = 0; j < numIntStates; ++j) {
 		dWL.ptr[j] = W.ptr[j] - WL.ptr[j];
 		dWR.ptr[j] = WR.ptr[j] - W.ptr[j];
@@ -501,27 +479,34 @@ void calcCellLR_<?=side?>(
 
 	//calc eigen values and vectors at cell center
 	//TODO calculate the eigenstate wrt W instead of U - to save some computations
-	<?=eigen_t?> eig;
-	<?=eigen_forCell?>(&eig, solver, U, cell, n);
+	Eigen eig = Eqn::eigen_forCell(solver, *pU, *pcell, n);
 		
 	//apply dU/dW before applying left/right eigenvectors so the eigenvectors are of the flux wrt primitives 
 	//RW = dW/dU RU, LW = LU dU/dW
-	Cons tmp;
-
-	<?=apply_dU_dW?>(&tmp, solver, &W, &dWL, xIntL); 
-	<?=waves_t?> dWLEig;
-	<?=eigen_leftTransform?>(&dWLEig, solver, &eig, &tmp, xIntL, normal_forSide<?=side?>(xIntL));
+	Waves dWLEig = Eqn::eigen_leftTransform(
+		solver,
+		eig,
+		Eqn::apply_dU_dW(solver, W, dWL, xIntL),
+		xIntL,
+		normal_forSide<?=side?>(xIntL)
+	);
 	
-	<?=apply_dU_dW?>(&tmp, solver, &W, &dWR, xIntR); 
-	<?=waves_t?> dWREig;
-	<?=eigen_leftTransform?>(&dWREig, solver, &eig, &tmp, xIntR, normal_forSide<?=side?>(xIntR));
+	Waves dWREig = Eqn::eigen_leftTransform(
+		solver,
+		eig,
+		Eqn::apply_dU_dW(solver, W, dWR, xIntR),
+		xIntR,
+		normal_forSide<?=side?>(xIntR));
 	
-	<?=apply_dU_dW?>(&tmp, solver, &W, &dWC, cell->pos); 
-	<?=waves_t?> dWCEig;
-	<?=eigen_leftTransform?>(&dWCEig, solver, &eig, &tmp, cell->pos, n);
+	Waves dWCEig = Eqn::eigen_leftTransform(
+		solver,
+		eig,
+		Eqn::apply_dU_dW(solver, W, dWC, pcell->pos),
+		pcell->pos,
+		n);
 
 	//MUSCL slope of characteristic variables
-	<?=waves_t?> dWMEig;
+	Waves dWMEig;
 	for (int j = 0; j < numWaves; ++j) {
 		dWMEig.ptr[j] = dWLEig.ptr[j] * dWREig.ptr[j] < 0. ? 0. : (
 			(dWCEig.ptr[j] >= 0. ? 1. : -1.)
@@ -533,47 +518,39 @@ void calcCellLR_<?=side?>(
 		);
 	}
 
-	real dx = cell_dx<?=side?>(cell->pos);
+	real dx = cell_dx<?=side?>(solver, pcell->pos);
 	real dt_dx = dt / dx;
 
-	<?=eqn:eigenWaveCodePrefix{
-		n = "n",
-		eig = "&eig",
-		pt = "cell->pos",
-	}:gsub("\n", "\n\t")?>
+	auto calcWaves = Eqn::EigenWaveCode(solver, eig, n, pcell->pos);
 
 <? 	
 		if solver.usePLM == "plm-eig-prim" then 
 ?>
-//// MODULE_DEPENDS: <?=apply_dU_dW?> <?=apply_dW_dU?> <?=eigen_leftTransform?> <?=eigen_rightTransform?> <?=consFromPrim?>
 
 	//without reference state
 
 	// calculate left and right slopes in characteristic space
-	<?=waves_t?> aL, aR;
-	<? for j=0,eqn.numWaves-1 do ?>{
-		int const j = <?=j?>;
-		real const wave_j = <?=eqn:eigenWaveCode{
-			n = "n",
-			eig = "&eig",
-			pt = "cell->pos",
-			waveIndex = j,
-		}:gsub("\n", "\n\t\t")?>;
+	Waves aL, aR;
+	for (int j = 0; j < numWaves; ++j) {
+		real const wave_j = calcWaves(solver, eig, n, pcell->pos, j);
 		aL.ptr[j] = wave_j < 0 ? 0 : dWMEig.ptr[j] * .5 * (1. - wave_j * dt_dx);
 		aR.ptr[j] = wave_j > 0 ? 0 : dWMEig.ptr[j] * .5 * (1. + wave_j * dt_dx);
-	}<? end ?>
+	}
 
 	// transform slopes back to conserved variable space
-	<?=eigen_rightTransform?>(&tmp, solver, &eig, &aL, xIntL, normal_forSide<?=side?>(xIntL)); 
-	<?=prim_t?> sL;
-	<?=apply_dW_dU?>(&sL, solver, &W, &tmp, xIntL);
+	Prim sL = Eqn::apply_dW_dU(
+		solver,
+		W,
+		Eqn::eigen_rightTransform(solver, eig, aL, xIntL, normal_forSide<?=side?>(xIntL)), 
+		xIntL);
 	
-	<?=eigen_rightTransform?>(&tmp, solver, &eig, &aR, xIntR, normal_forSide<?=side?>(xIntR)); 
-	<?=prim_t?> sR;
-	<?=apply_dW_dU?>(&sR, solver, &W, &tmp, xIntR);
+	Prim sR = Eqn::apply_dW_dU(solver,
+		W,
+		Eqn::eigen_rightTransform(solver, eig, aR, xIntR, normal_forSide<?=side?>(xIntR)),
+		xIntR);
 
 	// linearly extrapolate the slopes forward and backward from the cell center
-	<?=prim_t?> W2L, W2R;
+	Prim W2L, W2R;
 	for (int j = 0; j < numIntStates; ++j) {
 		W2L.ptr[j] = W.ptr[j] + sL.ptr[j];
 		W2R.ptr[j] = W.ptr[j] - sR.ptr[j];
@@ -581,13 +558,13 @@ void calcCellLR_<?=side?>(
 	for (int j = numIntStates; j < numStates; ++j) {
 		W2L.ptr[j] = W2R.ptr[j] = W.ptr[j];
 	}
-	<?=consFromPrim?>(&result->L, solver, &W2L, xIntL);
-	<?=consFromPrim?>(&result->R, solver, &W2R, xIntR);
+	return ConsLR{
+		.L = Eqn::consFromPrim(solver, W2L, xIntL),
+		.R = Eqn::consFromPrim(solver, W2R, xIntR),
+	};
 <?	
 		elseif solver.usePLM == "plm-eig-prim-ref" then 
 ?>
-//// MODULE_DEPENDS: <?=apply_dU_dW?> <?=apply_dW_dU?> <?=eigen_leftTransform?> <?=eigen_rightTransform?> <?=consFromPrim?>
-
 	//with reference state
 
 	//min and max waves
@@ -595,25 +572,19 @@ void calcCellLR_<?=side?>(
 	// but the same vars have been declared in eigenWaveCodePrefix above ...
 	// so which is worse? 5 min() calcs or 1 sqrt() ?
 	real waveMin, waveMax;
-	{
-		<?=eqn:eigenWaveCodeMinMax{
-			n = "n",
-			eig = "&eig",
-			pt = "cell->pos",
-			resultMin = "waveMin",
-			resultMax = "waveMax",
-		}:gsub("\n", "\n\t\t")?>
-	}
+	Eqn::eigenWaveCodeMinMax(solver, eig, n, pcell->pos, &waveMin, &waveMax);
 	waveMin = min(0., waveMin);
 	waveMax = max(0., waveMax);
 
 	//limited slope in primitive variable space
-	<?=eigen_rightTransform?>(&tmp, solver, &eig, &dWMEig, cell->pos, n);
-	<?=prim_t?> dWM;
-	<?=apply_dW_dU?>(&dWM, solver, &W, &tmp, cell->pos);
+	Prim dWM = Eqn::apply_dW_dU(
+		solver,
+		W,
+		Eqn::eigen_rightTransform(solver, eig, dWMEig, pcell->pos, n),
+		pcell->pos);
 
 	//left and right reference states
-	<?=prim_t?> WLRef, WRRef;
+	Prim WLRef, WRRef;
 	for (int j = 0; j < numIntStates; ++j) {
 		WLRef.ptr[j] = W.ptr[j] + .5 * (1. - dt_dx * waveMax) * dWM.ptr[j];
 		WRRef.ptr[j] = W.ptr[j] - .5 * (1. + dt_dx * waveMin) * dWM.ptr[j];
@@ -623,30 +594,27 @@ void calcCellLR_<?=side?>(
 	}
 
 	// calculate left and right slopes in characteristic space
-	<?=waves_t?> aL, aR;
-	<? for j=0,eqn.numWaves-1 do ?>{
-		int const j = <?=j?>;
-		real const wave_j = <?=eqn:eigenWaveCode{
-			n = "n",
-			eig = "&eig",
-			pt = "cell->pos",
-			waveIndex = j,
-		}:gsub("\n", "\n\t\t")?>;
+	Waves aL, aR;
+	for (int j = 0; j < numWaves; ++j) {
+		real const wave_j = calcWaves(solver, eig, n, pcell->pos, j);
 		aL.ptr[j] = wave_j < 0 ? 0 : (dWMEig.ptr[j] * dt_dx * (waveMax - wave_j));
 		aR.ptr[j] = wave_j > 0 ? 0 : (dWMEig.ptr[j] * dt_dx * (waveMin - wave_j));
-	}<? end ?>
+	}
 
 	// transform slopes back to conserved variable space
-	<?=eigen_rightTransform?>(&tmp, solver, &eig, &aL, xIntL, normal_forSide<?=side?>(xIntL)); 
-	<?=prim_t?> sL;
-	<?=apply_dW_dU?>(&sL, solver, &W, &tmp, xIntL);
-	
-	<?=eigen_rightTransform?>(&tmp, solver, &eig, &aR, xIntR, normal_forSide<?=side?>(xIntR)); 
-	<?=prim_t?> sR;
-	<?=apply_dW_dU?>(&sR, solver, &W, &tmp, xIntR);
+	Prim sL = Eqn::apply_dW_dU(
+		solver,
+		W,
+		Eqn::eigen_rightTransform(solver, eig, aL, xIntL, normal_forSide<?=side?>(xIntL)),
+		xIntL);
+	Prim sR = Eqn::apply_dW_dU(
+		solver,
+		W,
+		Eqn::eigen_rightTransform(solver, eig, aR, xIntR, normal_forSide<?=side?>(xIntR)),
+		xIntR);
 
 	// linearly extrapolate the slopes forward and backward from the cell center
-	<?=prim_t?> W2L, W2R;
+	Prim W2L, W2R;
 	for (int j = 0; j < numIntStates; ++j) {
 		W2R.ptr[j] = WRRef.ptr[j] + .5 * sR.ptr[j];
 		W2L.ptr[j] = WLRef.ptr[j] + .5 * sL.ptr[j];
@@ -655,8 +623,10 @@ void calcCellLR_<?=side?>(
 		W2R.ptr[j] = W2L.ptr[j] = W.ptr[j];
 	}
 	//TODO fix the x's
-	<?=consFromPrim?>(&result->L, solver, &W2L, xIntL);
-	<?=consFromPrim?>(&result->R, solver, &W2R, xIntR);
+	return ConsLR{
+		.L = Eqn::consFromPrim(solver, W2L, xIntL),
+		.R = Eqn::consFromPrim(solver, W2R, xIntR),
+	};
 <?
 		end	-- solver.usePLM
 ?>
@@ -667,43 +637,37 @@ void calcCellLR_<?=side?>(
 	elseif solver.usePLM == "plm-athena" then 
 
 ?>
-//// MODULE_DEPENDS: <?=eigen_forCell?> <?=eigen_leftTransform?> <?=eigen_rightTransform?> <?=consFromPrim?> <?=primFromCons?>
 
 //based on Athena
-void calcCellLR_<?=side?>(
-	global ConsLR * const result,
-	constant Solver const * const solver,
-	global Cons const * const U,
-	global Cell const * const cell,
+static inline ConsLR calcCellLR_<?=side?>(
+	constant Solver const & solver,
+	global Cons const * const pU,
+	global Cell const * const pcell,
 	real const dt,
 	int4 const i,
 	Normal const n
 ) {
-	real3 xIntL = cell->pos; xIntL.s<?=side?> -= .5 * solver->grid_dx.s<?=side?>;
-	real3 xIntR = cell->pos; xIntR.s<?=side?> += .5 * solver->grid_dx.s<?=side?>;
+	real3 xIntL = pcell->pos; xIntL[<?=side?>] -= .5 * solver.grid_dx[<?=side?>];
+	real3 xIntR = pcell->pos; xIntR[<?=side?>] += .5 * solver.grid_dx[<?=side?>];
 	
-	real3 xL = cell->pos; xL.s<?=side?> -= solver->grid_dx.s<?=side?>;
-	real3 xR = cell->pos; xR.s<?=side?> += solver->grid_dx.s<?=side?>;
+	real3 xL = pcell->pos; xL[<?=side?>] -= solver.grid_dx[<?=side?>];
+	real3 xR = pcell->pos; xR[<?=side?>] += solver.grid_dx[<?=side?>];
 
 	//calc eigen values and vectors at cell center
-	<?=eigen_t?> eig;
-	<?=eigen_forCell?>(&eig, solver, U, cell, n);
+	Eigen eig = Eqn::eigen_forCell(solver, *pU, *pcell, n);
 
-	real const dx = cell_dx<?=side?>(cell->pos);
+	real const dx = cell_dx<?=side?>(solver, pcell->pos);
 	real const dt_dx = dt / dx;
 
 	//1) calc delta q's ... l r c (eqn 36)
-	global Cons const * const UL = U - solver->stepsize.s<?=side?>;
-	global Cons const * const UR = U + solver->stepsize.s<?=side?>;
+	auto const & UL = pU[-solver.stepsize[<?=side?>]];
+	auto const & UR = pU[ solver.stepsize[<?=side?>]];
 
-	<?=prim_t?> W;
-	<?=primFromCons?>(&W, solver, U, cell->pos);
-	<?=prim_t?> WL;
-	<?=primFromCons?>(&WL, solver, UL, xL);
-	<?=prim_t?> WR;
-	<?=primFromCons?>(&WR, solver, UR, xR);
+	Prim W = Eqn::primFromCons(solver, *pU, pcell->pos);
+	Prim WL = Eqn::primFromCons(solver, UL, xL);
+	Prim WR = Eqn::primFromCons(solver, UR, xR);
 	
-	<?=prim_t?> dWL, dWR, dWC, dWG;
+	Prim dWL, dWR, dWC, dWG;
 	for (int j = 0; j < numIntStates; ++j) {
 		dWL.ptr[j] = W.ptr[j] - WL.ptr[j];
 		dWR.ptr[j] = WR.ptr[j] - W.ptr[j];
@@ -717,16 +681,12 @@ void calcCellLR_<?=side?>(
 	}
 
 	//TODO shouldn't this be the dA/dW eigen transformation?
-	<?=waves_t?> dal;
-	<?=eigen_leftTransform?>(&dal, solver, &eig, (Cons*)&dWL, xIntL, normal_forSide<?=side?>(xIntL));
-	<?=waves_t?> dar;
-	<?=eigen_leftTransform?>(&dar, solver, &eig, (Cons*)&dWR, xIntR, normal_forSide<?=side?>(xIntR));
-	<?=waves_t?> dac;
-	<?=eigen_leftTransform?>(&dac, solver, &eig, (Cons*)&dWC, cell->pos, n);
-	<?=waves_t?> dag;
-	<?=eigen_leftTransform?>(&dag, solver, &eig, (Cons*)&dWG, cell->pos, n);
+	Waves dal = Eqn::eigen_leftTransform(solver, eig, *(Cons*)&dWL, xIntL, normal_forSide<?=side?>(xIntL));
+	Waves dar = Eqn::eigen_leftTransform(solver, eig, *(Cons*)&dWR, xIntR, normal_forSide<?=side?>(xIntR));
+	Waves dac = Eqn::eigen_leftTransform(solver, eig, *(Cons*)&dWC, pcell->pos, n);
+	Waves dag = Eqn::eigen_leftTransform(solver, eig, *(Cons*)&dWG, pcell->pos, n);
 
-	<?=waves_t?> da;
+	Waves da;
 	for (int j = 0; j < numWaves; ++j) {
 		da.ptr[j] = 0;
 		if (dal.ptr[j] * dar.ptr[j] > 0) {
@@ -736,11 +696,10 @@ void calcCellLR_<?=side?>(
 		}
 	}
 
-	Cons dWm_tmp;
-	<?=eigen_rightTransform?>(&dWm_tmp, solver, &eig, &da, cell->pos, n);
-	<?=prim_t?> dWm = *(<?=prim_t?>*)&dWm_tmp;
+	Cons dWm_tmp = Eqn::eigen_rightTransform(solver, eig, da, pcell->pos, n);
+	Prim dWm = *(Prim*)&dWm_tmp;
 
-	<?=prim_t?> Wlv, Wrv;
+	Prim Wlv, Wrv;
 	for (int j = 0; j < numIntStates; ++j) {
 		Wlv.ptr[j] = W.ptr[j] - .5 * dWm.ptr[j];
 		Wrv.ptr[j] = W.ptr[j] + .5 * dWm.ptr[j];
@@ -759,48 +718,42 @@ void calcCellLR_<?=side?>(
 		Wrv.ptr[j] = W.ptr[j];
 	}
 
-	<?=consFromPrim?>(&result->L, solver, &Wrv, xIntL);
-	<?=consFromPrim?>(&result->R, solver, &Wlv, xIntR);
+	return ConsLR{
+		.L = Eqn::consFromPrim(solver, Wrv, xIntL),
+		.R = Eqn::consFromPrim(solver, Wlv, xIntR),
+	};
 }
 
 <? 
 	elseif solver.usePLM == 'ppm-wip' then 
 ?>
-//// MODULE_DEPENDS: <?=eigen_forCell?> <?=eigen_leftTransform?> <?=eigen_rightTransform?> <?=consFromPrim?> <?=primFromCons?> min3 sqr <?=apply_dU_dW?> <?=apply_dW_dU?>
+//// MODULE_DEPENDS: min3 sqr
 
 // based on http://zingale.github.io/hydro1d/  ppm code
 
-void calcCellLR_<?=side?>(
-	global ConsLR * const result,
-	constant Solver const * const solver,
-	global Cons const * const U,
-	global Cell const * const cell,
+static inline ConsLR calcCellLR_<?=side?>(
+	constant Solver const & solver,
+	global Cons const * const pU,
+	global Cell const * const pcell,
 	real const dt,
 	int4 const i,
 	Normal const n
 ) {
-	real3 xL = cell->pos; xL.s<?=side?> -= solver->grid_dx.s<?=side?>;
-	real3 xR = cell->pos; xR.s<?=side?> += solver->grid_dx.s<?=side?>;
+	real3 xL = pcell->pos; xL[<?=side?>] -= solver.grid_dx[<?=side?>];
+	real3 xR = pcell->pos; xR[<?=side?>] += solver.grid_dx[<?=side?>];
 
 	real const z0 = .75;
 	real const z1 = .85;
 	real const delta = .33;
 	real const minP = 1e-10;
 	
-	<?=prim_t?> W_im3;
-	<?=primFromCons?>(&W_im3, solver, U - 3 * solver->stepsize.s<?=side?>, cell->pos);
-	<?=prim_t?> W_im2;
-	<?=primFromCons?>(&W_im2, solver, U - 2 * solver->stepsize.s<?=side?>, cell->pos);
-	<?=prim_t?> W_im1;
-	<?=primFromCons?>(&W_im1, solver, U - 1 * solver->stepsize.s<?=side?>, cell->pos);
-	<?=prim_t?> W_i;
-	<?=primFromCons?>(&W_i, solver, U, cell->pos);
-	<?=prim_t?> W_ip1;
-	<?=primFromCons?>(&W_ip1, solver, U + 1 * solver->stepsize.s<?=side?>, cell->pos);
-	<?=prim_t?> W_ip2;
-	<?=primFromCons?>(&W_ip2, solver, U + 2 * solver->stepsize.s<?=side?>, cell->pos);
-	<?=prim_t?> W_ip3;
-	<?=primFromCons?>(&W_ip3, solver, U + 3 * solver->stepsize.s<?=side?>, cell->pos);
+	Prim W_im3 = Eqn::primFromCons(solver, pU[- 3 * solver.stepsize[<?=side?>]], pcell->pos);
+	Prim W_im2 = Eqn::primFromCons(solver, pU[- 2 * solver.stepsize[<?=side?>]], pcell->pos);
+	Prim W_im1 = Eqn::primFromCons(solver, pU[- 1 * solver.stepsize[<?=side?>]], pcell->pos);
+	Prim W_i = Eqn::primFromCons(solver, *pU, pcell->pos);
+	Prim W_ip1 = Eqn::primFromCons(solver, pU[+ 1 * solver.stepsize[<?=side?>]], pcell->pos);
+	Prim W_ip2 = Eqn::primFromCons(solver, pU[+ 2 * solver.stepsize[<?=side?>]], pcell->pos);
+	Prim W_ip3 = Eqn::primFromCons(solver, pU[+ 3 * solver.stepsize[<?=side?>]], pcell->pos);
 
 	// this is based on pressure ... how to generalize for all PDEs?
 	real const dP_i = fabs(W_ip1.P - W_im1.P);
@@ -808,7 +761,7 @@ void calcCellLR_<?=side?>(
 	real const z_i = dP_i / max(dP2_i, minP);
 	
 	real xi_t_i;
-	if ((W_im1.v.s<?=side?> - W_ip1.v.s<?=side?> > 0) && (dP_i / min(W_ip1.P, W_im1.P) > delta)) {
+	if ((W_im1.v[<?=side?>] - W_ip1.v[<?=side?>] > 0) && (dP_i / min(W_ip1.P, W_im1.P) > delta)) {
 		xi_t_i = clamp(1. - (z_i - z0) / (z1 - z0), 0., 1.);
 	} else {
 		xi_t_i = 0;
@@ -820,7 +773,7 @@ void calcCellLR_<?=side?>(
 	real const z_ip1 = dP_ip1 / max(dP2_ip1, minP);
 	
 	real xi_t_ip1;
-	if ((W_i.v.s<?=side?> - W_ip2.v.s<?=side?> > 0) && (dP_ip1 / min(W_ip2.P, W_i.P) > delta)) {
+	if ((W_i.v[<?=side?>] - W_ip2.v[<?=side?>] > 0) && (dP_ip1 / min(W_ip2.P, W_i.P) > delta)) {
 		xi_t_ip1 = clamp(1. - (z_ip1 - z0) / (z1 - z0), 0., 1.);
 	} else {
 		xi_t_ip1 = 0;
@@ -832,7 +785,7 @@ void calcCellLR_<?=side?>(
 	real const z_im1 = dP_im1 / max(dP2_im1, minP);
 	
 	real xi_t_im1;
-	if ((W_im2.v.s<?=side?> - W_i.v.s<?=side?> > 0) && (dP_im1 / min(W_i.P, W_im2.P) > delta)) {
+	if ((W_im2.v[<?=side?>] - W_i.v[<?=side?>] > 0) && (dP_im1 / min(W_i.P, W_im2.P) > delta)) {
 		xi_t_im1 = clamp(1. - (z_im1 - z0) / (z1 - z0), 0., 1.);
 	} else {
 		xi_t_im1 = 0;
@@ -941,36 +894,27 @@ void calcCellLR_<?=side?>(
 		W6_i.ptr[j] = 6. * W_i.ptr[j] - 3. * (Wminus_i.ptr[j] + Wplus_i.ptr[j]);
 	}
 
-	<?=eigen_t?> eig;
-	<?=eigen_forCell?>(&eig, solver, U, cell, n);
+	Eigen eig = Eqn::eigen_forCell(solver, *pU, *pcell, n);
 
-	<?=waves_t?> lambda;
+	Waves lambda;
 	real lambdaMin = INFINITY;
 	real lambdaMax = -INFINITY;
 	{
-		<?=eqn:eigenWaveCodePrefix{
-			n = "n",
-			eig = "&eig",
-			pt = "cell->pos",
-		}:gsub("\n", "\n\t\t")?>
-		<? for j=0,eqn.numWaves-1 do ?>{
-			real const lambda_j = <?=eqn:eigenWaveCode{
-				n = "n",
-				eig = "&eig",	-- TODO once again this was set to U when the prefix was based on eig ...
-				"cell->pos",
-				waveIndex = j,
-			}:gsub("\n", "\n\t\t\t")?>;
+		auto calcWaves = Eqn::EigenWaveCode(solver, eig, n, pcell->pos);
+		for (int j = 0; j < numWaves; ++j) {
+			// TODO once again this was set to U when the prefix was based on eig ...
+			real const lambda_j = calcWaves(solver, eig, n, pcell->pos, j);
 			lambdaMin = min(lambdaMin, lambda_j);
 			lambdaMax = min(lambdaMax, lambda_j);
 			lambda.ptr[<?=j?>] = lambda_j;
-		}<? end ?>	
+		}
 	}
 
-	real dx = cell_dx<?=side?>(cell->pos);
+	real dx = cell_dx<?=side?>(solver, pcell->pos);
 	real dt_dx = dt / dx;
 	
-	<?=prim_t?> Iplus[numWaves];
-	<?=prim_t?> Iminus[numWaves];
+	Prim Iplus[numWaves];
+	Prim Iminus[numWaves];
 	for (int j = 0; j < numWaves; ++j) {
 		real sigma = fabs(lambda.ptr[j]) * dt_dx;
 		for (int k = 0; k < numStates; ++k) {
@@ -987,14 +931,14 @@ void calcCellLR_<?=side?>(
 		}
 	}
 
-	<?=prim_t?> Wref_xp;
+	Prim Wref_xp;
 	if (lambdaMax >= 0) {
 		Wref_xp = Iplus[numWaves-1];	//this assumes max == numWaves-1
 	} else {
 		Wref_xp = W_i;
 	}
 
-	<?=prim_t?> Wref_xm;
+	Prim Wref_xm;
 	if (lambdaMin <= 0) {
 		Wref_xm = Iminus[0];			//this assumes min == 0
 	} else {
@@ -1007,30 +951,22 @@ void calcCellLR_<?=side?>(
 	// 
 
 	//TODO ... convert prim to cons, then cons eig transform
-	Cons Uref_xp;
-	<?=apply_dU_dW?>(&Uref_xp, solver, &W_i, &Wref_xp, cell->pos);
-	<?=waves_t?> beta_xp;
-	<?=eigen_leftTransform?>(&beta_xp, solver, &eig, &Uref_xp, cell->pos, n);
+	Cons Uref_xp = Eqn::apply_dU_dW(solver, W_i, Wref_xp, pcell->pos);
+	Waves beta_xp = Eqn::eigen_leftTransform(solver, eig, Uref_xp, pcell->pos, n);
 	
-	Cons Uref_xm;
-	<?=apply_dU_dW?>(&Uref_xm, solver, &W_i, &Wref_xm, cell->pos);
-	<?=waves_t?> beta_xm;
-	<?=eigen_leftTransform?>(&beta_xm, solver, &eig, &Uref_xm, cell->pos, n);
+	Cons Uref_xm = Eqn::apply_dU_dW(solver, W_i, Wref_xm, pcell->pos);
+	Waves beta_xm = Eqn::eigen_leftTransform(solver, eig, Uref_xm, pcell->pos, n);
 	
 	for (int m = 0; m < numWaves; ++m) {
 		{
-			Cons Uminus;
-			<?=apply_dU_dW?>(&Uminus, solver, &W_i, Iminus + m, cell->pos);
-			<?=waves_t?> waves;
-			<?=eigen_leftTransform?>(&waves, solver, &eig, &Uminus, cell->pos, n);
+			Cons Uminus = Eqn::apply_dU_dW(solver, W_i, Iminus[m], pcell->pos);
+			Waves waves = Eqn::eigen_leftTransform(solver, eig, Uminus, pcell->pos, n);
 			beta_xm.ptr[m] -= waves.ptr[m];
 		}
 
 		{
-			Cons Uplus;
-			<?=apply_dU_dW?>(&Uplus, solver, &W_i, Iplus + m, cell->pos);
-			<?=waves_t?> waves;
-			<?=eigen_leftTransform?>(&waves, solver, &eig, &Uplus, cell->pos, n);
+			Cons Uplus = Eqn::apply_dU_dW(solver, W_i, Iplus[m], pcell->pos);
+			Waves waves = Eqn::eigen_leftTransform(solver, eig, Uplus, pcell->pos, n);
 			beta_xp.ptr[m] -= waves.ptr[m];
 		}
 	}
@@ -1040,23 +976,21 @@ void calcCellLR_<?=side?>(
 		if (lambda.ptr[j] > 0) beta_xm.ptr[j] = 0;
 	}
 	
-	Cons U_l_ip1;
-	<?=eigen_rightTransform?>(&U_l_ip1, solver, &eig, &beta_xp, cell->pos, n);
-	Cons U_r_i;
-	<?=eigen_rightTransform?>(&U_r_i, solver, &eig, &beta_xm, cell->pos, n);
+	Cons U_l_ip1 = Eqn::eigen_rightTransform(solver, eig, beta_xp, pcell->pos, n);
+	Cons U_r_i = Eqn::eigen_rightTransform(solver, eig, beta_xm, pcell->pos, n);
 
-	<?=prim_t?> W_l_ip1;
-	<?=apply_dW_dU?>(&W_l_ip1, solver, &W_i, &U_l_ip1, cell->pos);
-	<?=prim_t?> W_r_i;
-	<?=apply_dW_dU?>(&W_r_i, solver, &W_i, &U_r_i, cell->pos);
+	Prim W_l_ip1 = Eqn::apply_dW_dU(solver, W_i, U_l_ip1, pcell->pos);
+	Prim W_r_i = Eqn::apply_dW_dU(solver, W_i, U_r_i, pcell->pos);
 
 	for (int j = 0; j < numStates; ++j) {
 		W_l_ip1.ptr[j] = Wref_xp.ptr[j] - W_l_ip1.ptr[j];
 		W_r_i.ptr[j] = Wref_xm.ptr[j] - W_r_i.ptr[j];
 	}
 
-	<?=consFromPrim?>(&result->L, solver, &W_r_i, cell->pos);
-	<?=consFromPrim?>(&result->R, solver, &W_l_ip1, cell->pos);
+	return ConsLR{
+		.L = Eqn::consFromPrim(solver, W_r_i, pcell->pos),
+		.R = Eqn::consFromPrim(solver, W_l_ip1, pcell->pos),
+	};
 }
 
 <?
@@ -1068,10 +1002,9 @@ void calcCellLR_<?=side?>(
 ?>
 
 static inline void calcCellLR_<?=side?>(
-	global ConsLR * const result,
-	constant Solver const * const solver,
-	global Cons const * const U,
-	global Cell const * const cell,
+	constant Solver const & solver,
+	global Cons const * const pU,
+	global Cell const * const pcell,
 	real const dt,
 	int4 const i,
 	Normal const n
@@ -1096,17 +1029,17 @@ kernel void <?=calcLR?>(
 ) {
 	auto const & solver = *psolver;
 	<?=SETBOUNDS?>(1,1);
-	global <?=cons_t?> const & U = UBuf[index];
-	global <?=cell_t?> const & cell = cellBuf[index];
+	global <?=cons_t?> const * const pU = UBuf + index;
+	global <?=cell_t?> const * const pcell = cellBuf + index;
 
 	//TODO skip this lr stuff if we're doing piecewise-constant
 	//...and just use the original buffers
 	<? for side=0,solver.dim-1 do ?>{
-		<?=normal_t?> const n = normal_forSide<?=side?>(cell.pos);
+		<?=normal_t?> const n = normal_forSide<?=side?>(pcell->pos);
 		
 		//cell-centered index for a particular side...
 		int const indexForSide = <?=side?> + dim * index;
-		ULRBuf[indexForSide] = <?=Equation?>::calcCellLR_<?=side?>(solver, U, cell, dt, i, n);
+		ULRBuf[indexForSide] = <?=Equation?>::calcCellLR_<?=side?>(solver, pU, pcell, dt, i, n);
 	}<? end ?>
 }
 
