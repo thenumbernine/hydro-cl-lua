@@ -26,8 +26,10 @@ function FiniteVolumeSolver:getSymbolFields()
 end
 
 function FiniteVolumeSolver:initObjs(args)
-	FiniteVolumeSolver.super.initObjs(self, args)
+	-- used to go after but I need it before so I can manipulate solver_t
 	self:createFlux(args.flux, args.fluxArgs)
+	
+	FiniteVolumeSolver.super.initObjs(self, args)
 end
 
 function FiniteVolumeSolver:initCodeModules()
