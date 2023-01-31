@@ -331,12 +331,22 @@ real <?=slopeLimiter?>(real r) {
 		}
 
 		local typecode = self.eqn:template([[
-typedef union {
-	<?=cons_t?> LR[2];
+union <?=consLR_t?> {
 	struct {
-		<?=cons_t?> L, R;
+		<?=cons_t?> L;
+		<?=cons_t?> R;
 	};
-} <?=consLR_t?>;
+	<?=cons_t?> LR[2];
+	
+//// BEGIN EXCLUDE FROM FFI_CDEF
+	<?=consLR_t?>() {}
+	<?=consLR_t?>(
+		<?=cons_t?> const & L_, 
+		<?=cons_t?> const & R_
+	) : L(L_), R(R_) {}
+//// END EXCLUDE FROM FFI_CDEF
+};
+typedef union <?=consLR_t?> <?=consLR_t?>;
 
 //ugly hack to work around even uglier boundary code
 typedef struct {
