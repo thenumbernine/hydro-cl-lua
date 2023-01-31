@@ -1,5 +1,5 @@
-//// MODULE_NAME: <?=calcFluxForInterface?>
-//// MODULE_DEPENDS: <?=solver_macros?> math <?=eigen_forInterface?> <?=fluxFromCons?>
+//// MODULE_NAME: calcFluxForInterface
+//// MODULE_DEPENDS: <?=solver_macros?> math <?=Equation?>
 
 //HLLC based on
 //http://math.lanl.gov/~shenli/publications/hllc_mhd.pdf
@@ -10,17 +10,19 @@ if not require "hydro.eqn.euler":isa(solver.eqn) then
 end
 ?>
 
-static inline <?=cons_t?> <?=calcFluxForInterface?>(
-	constant <?=solver_t?> const & solver,
-	<?=cons_t?> const & UL,
-	<?=cons_t?> const & UR,
-	<?=cell_t?> const & cellL,
-	<?=cell_t?> const & cellR,
+namespace <?=Equation?> {
+
+static inline Cons calcFluxForInterface(
+	constant Solver const & solver,
+	Cons const & UL,
+	Cons const & UR,
+	Cell const & cellL,
+	Cell const & cellR,
 	real3 const xInt,
-	<?=normal_t?> const n
+	Normal const n
 ) {
-	<?=prim_t?> WL = <?=primFromCons?>(solver, UL, cellL.pos);
-	<?=prim_t?> WR = <?=primFromCons?>(solver, UR, cellR.pos);
+	Prim WL = <?=Equation?>::Eqn::primFromCons(solver, UL, cellL.pos);
+	Prim WR = <?=Equation?>::Eqn::primFromCons(solver, UR, cellR.pos);
 
 <? if true then ?> // use interface waves?
 	/*
@@ -31,18 +33,10 @@ static inline <?=cons_t?> <?=calcFluxForInterface?>(
 	But mind you not everyone uses the xInt, so it shouldn't always be calculated right?
 	This is where fully-analytical implementations are handy (like BSSN is becoming).
 	*/
-	<?=eigen_t?> eigInt = <?=eigen_forInterface?>(solver, UL, UR, cellL, cellR, xInt, n);
+	Eigen eigInt = <?=Equation?>::Eqn::eigen_forInterface(solver, UL, UR, cellL, cellR, xInt, n);
 
 	real lambdaIntMin, lambdaIntMax;
-	{
-		<?=eqn:eigenWaveCodeMinMax{
-			n = "n",
-			eig = "eigInt",
-			pt = "xInt",
-			resultMin = "lambdaIntMin",
-			resultMax = "lambdaIntMax",
-		}:gsub("\n", "\n\t\t")?>
-	}
+	Eqn::eigenWaveCodeMinMax(solver, eigInt, n, xInt, &lambdaIntMin, &lambdaIntMax);
 
 <? 	if solver.flux.hllCalcWaveMethod == "Davis direct" then ?>
 	real sL = lambdaIntMin;
@@ -50,24 +44,9 @@ static inline <?=cons_t?> <?=calcFluxForInterface?>(
 <? 	end ?>
 <? 	if solver.flux.hllCalcWaveMethod == "Davis direct bounded" then ?>
 	real lambdaLMin;
-	{
-		<?=eqn:consWaveCodeMinMax{
-			n = "n",
-			U = "UL",
-			pt = "cellL.pos",
-			resultMin = "lambdaLMin",
-		}:gsub("\n", "\n\t\t")?>
-	}
-
+	Eqn::consWaveCodeMinMax(solver, UL, n, cellL.pos, &lambdaLMin, {});
 	real lambdaRMax;
-	{
-		<?=eqn:consWaveCodeMinMax{
-			n = "n",
-			U = "UR",
-			pt = "cellR.pos",
-			resultMax = "lambdaRMax",
-		}:gsub("\n", "\n\t\t")?>
-	}
+	Eqn::consWaveCodeMinMax(solver, UR, n, cellR.pos, {}, &lambdaRMax);
 
 	real const sL = min(lambdaLMin, lambdaIntMin);
 	real const sR = max(lambdaRMax, lambdaIntMax);
@@ -75,26 +54,9 @@ static inline <?=cons_t?> <?=calcFluxForInterface?>(
 <? else ?> // don't use interface waves.  looks no different than above, soo ... why even use interface state waves?
 
 	real sLMin, sLMax;
-	{
-		<?=eqn:consWaveCodeMinMax{
-			n = "n",
-			U = "UL",
-			pt = "cellL.pos",
-			resultMin = "sLMin",
-			resultMax = "sLMax",
-		}:gsub("\n", "\n\t\t")?>
-	}
-
+	Eqn::consWaveCodeMinMax(solver, UL, n, cellL.pos, &sLMin, &sLMax);
 	real sRMin, sRMax;
-	{
-		<?=eqn:consWaveCodeMinMax{
-			n = "n",
-			U = "UR",
-			pt = "cellR.pos",
-			resultMin = "sRMin",
-			resultMax = "sRMax",
-		}:gsub("\n", "\n\t\t")?>
-	}
+	Eqn::consWaveCodeMinMax(solver, UR, n, cellR.pos, &sRMin, &sRMax);
 	real const sL = min(sLMin, sRMin);
 	real const sR = max(sLMax, sRMax);
 <? end ?>
@@ -107,14 +69,14 @@ static inline <?=cons_t?> <?=calcFluxForInterface?>(
 	real const sStar = (WR.rho * vnR.x * (sR - vnR.x) - WL.rho * vnL.x * (sL - vnL.x) + WL.P - WR.P) 
 		/ (WR.rho * (sR - vnR.x) - WL.rho * (sL - vnL.x));
 
-	<?=cons_t?> flux;
+	Cons flux;
 	if (0 <= sL) {
-		flux = <?=fluxFromCons?>(solver, UL, cellL, n);
+		flux = Eqn::fluxFromCons(solver, UL, cellL, n);
 <? if solver.flux.hllcMethod == 0 then ?>
 	
 	} else if (sL <= 0. && 0. <= sStar) {
-		<?=cons_t?> FL = <?=fluxFromCons?>(solver, UL, cellL, n);
-		<?=cons_t?> ULStar;
+		Cons FL = Eqn::fluxFromCons(solver, UL, cellL, n);
+		Cons ULStar;
 		ULStar.rho = UL.rho * (sL - vnL.x) / (sL - sStar);
 		
 		real3 vStar = normal_vecFromNs(n, real3(sStar, vnL.y, vnL.z));
@@ -131,8 +93,8 @@ static inline <?=cons_t?> <?=calcFluxForInterface?>(
 			flux.ptr[i] = FL.ptr[i] + sL * (ULStar.ptr[i] - UL.ptr[i]);
 		}
 	} else if (sStar <= 0. && 0. <= sR) {
-		<?=cons_t?> FR = <?=fluxFromCons?>(solver, UR, cellR, n);
-		<?=cons_t?> URStar;
+		Cons FR = Eqn::fluxFromCons(solver, UR, cellR, n);
+		Cons URStar;
 		URStar.rho = UR.rho * (sR - vnR.x) / (sR - sStar);
 		
 		real3 vStar = normal_vecFromNs(n, real3(sStar, vnR.y, vnR.z));
@@ -151,7 +113,7 @@ static inline <?=cons_t?> <?=calcFluxForInterface?>(
 <? elseif solver.flux.hllcMethod == 1 then ?>
 
 	} else if (sL <= 0. && 0. <= sStar) {
-		<?=cons_t?> FL = <?=fluxFromCons?>(solver, UL, cellL, n);
+		Cons FL = Eqn::fluxFromCons(solver, UL, cellL, n);
 		flux.rho = (sStar * (sL * UL.rho - FL.rho)) / (sL - sStar);
 	
 		real3 ULmn = normal_vecDotNs(n, UL.m);
@@ -164,7 +126,7 @@ static inline <?=cons_t?> <?=calcFluxForInterface?>(
 		
 		flux.ETotal = (sStar * (sL * UL.ETotal - FL.ETotal) + sL * (WL.P + WL.rho * (sL - vnL.x) * (sStar - vnL.x)) * sStar) / (sL - sStar);
 	} else if (sStar <= 0. && 0. <= sR) {
-		<?=cons_t?> FR = <?=fluxFromCons?>(solver, UR, cellR, n);
+		Cons FR = Eqn::fluxFromCons(solver, UR, cellR, n);
 		flux.rho = (sStar * (sR * UR.rho - FR.rho)) / (sR - sStar);
 		
 		real3 URmn = normal_vecDotNs(n, UR.m);
@@ -180,7 +142,7 @@ static inline <?=cons_t?> <?=calcFluxForInterface?>(
 <? elseif solver.flux.hllcMethod == 2 then ?>
 
 	} else if (sL <= 0. && 0. <= sStar) {
-		<?=cons_t?> FL = <?=fluxFromCons?>(solver, UL, cellL, n);
+		Cons FL = Eqn::fluxFromCons(solver, UL, cellL, n);
 		real PLR = .5 * (
 			WL.P
 			+ WR.P
@@ -199,7 +161,7 @@ static inline <?=cons_t?> <?=calcFluxForInterface?>(
 
 		flux.ETotal = (sStar * (sL * UL.ETotal - FL.ETotal) + sL * PLR * sStar) / (sL - sStar);
 	} else if (sStar <= 0. && 0. <= sR) {
-		<?=cons_t?> FR = <?=fluxFromCons?>(solver, UR, cellR, n);
+		Cons FR = Eqn::fluxFromCons(solver, UR, cellR, n);
 		real PLR = .5 * (WL.P + WR.P + WL.rho * (sL - vnL.x) * (sStar - vnL.x) + WR.rho * (sR - vnR.x) * (sStar - vnR.x));
 		flux.rho = sStar * (sR * UR.rho - FR.rho) / (sR - sStar);
 		
@@ -217,16 +179,18 @@ static inline <?=cons_t?> <?=calcFluxForInterface?>(
 <? end	--solver.flux.hllcMethod ?>
 	
 	} else if (sR <= 0) {
-		flux = <?=fluxFromCons?>(solver, UR, cellR, n);
+		flux = Eqn::fluxFromCons(solver, UR, cellR, n);
 <? if true then ?>	//why is this here? for when sStar is not between sL and sR
 	} else if (sL <= 0 && 0 <= sR) {
-		<?=cons_t?> FL = <?=fluxFromCons?>(solver, UL, cellL, n);
-		<?=cons_t?> FR = <?=fluxFromCons?>(solver, UR, cellR, n);
+		Cons FL = Eqn::fluxFromCons(solver, UL, cellL, n);
+		Cons FR = Eqn::fluxFromCons(solver, UR, cellR, n);
 		for (int j = 0; j < numIntStates; ++j) {
 			flux.ptr[j] = (sR * FL.ptr[j] - sL * FR.ptr[j] + sL * sR * (UR.ptr[j] - UL.ptr[j])) / (sR - sL);
 		}
 <? end ?>
 	}
-	//flux.m = real3_rotTo<?=side?>(flux.m);
+	//flux.m = real3_rotToEqn::side(flux.m);
 	return flux;
 }
+
+}	// namespace <?=Equation?>
