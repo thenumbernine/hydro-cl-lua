@@ -1,5 +1,5 @@
 //// MODULE_NAME: <?=calcLR?>
-//// MODULE_DEPENDS: <?=consLR_t?> <?=cell_dx_i?> <?=Equation?>
+//// MODULE_DEPENDS: <?=consLR_t?> <?=cell_dxs?> <?=Equation?>
 
 // TODO incorporate parallel propagators
 
@@ -131,12 +131,12 @@ for sgn b >= 0:
 		UHalfL.ptr[j] = UHalfR.ptr[j] = pU->ptr[j];
 	}
 
-	real dx = cell_dx<?=side?>(solver, pcell->pos);
+	real dx = cell_dxs<<?=side?>>(solver, pcell->pos);
 	real dt_dx = dt / dx;
 
 <? print("TODO cell_t averaging here?") ?>
-	Cons FHalfL = Eqn::fluxFromCons(solver, UHalfL, cellL, normal_forSide<?=side?>(xIntL));
-	Cons FHalfR = Eqn::fluxFromCons(solver, UHalfR, cellR, normal_forSide<?=side?>(xIntR));
+	Cons FHalfL = Eqn::fluxFromCons(solver, UHalfL, cellL, normal_forSides<<?=side?>>(xIntL));
+	Cons FHalfR = Eqn::fluxFromCons(solver, UHalfR, cellR, normal_forSides<<?=side?>>(xIntR));
 
 	ConsLR result = {
 		.L = *pU,
@@ -334,8 +334,8 @@ static inline ConsLR calcCellLR_<?=side?>(
 	//calc eigen values and vectors at cell center
 	Eigen eig = Eqn::eigen_forCell(solver, *pU, *pcell, n);
 		
-	Waves dULEig = Eqn::eigen_leftTransform(solver, eig, dUL, xIntL, normal_forSide<?=side?>(xIntL));
-	Waves dUREig = Eqn::eigen_leftTransform(solver, eig, dUR, xIntR, normal_forSide<?=side?>(xIntR));
+	Waves dULEig = Eqn::eigen_leftTransform(solver, eig, dUL, xIntL, normal_forSides<<?=side?>>(xIntL));
+	Waves dUREig = Eqn::eigen_leftTransform(solver, eig, dUR, xIntR, normal_forSides<<?=side?>>(xIntR));
 	Waves dUCEig = Eqn::eigen_leftTransform(solver, eig, dUC, pcell->pos, n);
 
 	//MUSCL slope of characteristic variables
@@ -368,7 +368,7 @@ static inline ConsLR calcCellLR_<?=side?>(
 #endif	
 	}
 
-	real dx = cell_dx<?=side?>(solver, pcell->pos);
+	real dx = cell_dxs<<?=side?>>(solver, pcell->pos);
 	real dt_dx = dt / dx;
 
 	auto calcWaves = Eqn::EigenWaveCode(solver, eig, n, pcell->pos);
@@ -488,7 +488,7 @@ static inline ConsLR calcCellLR_<?=side?>(
 		eig,
 		Eqn::apply_dU_dW(solver, W, dWL, xIntL),
 		xIntL,
-		normal_forSide<?=side?>(xIntL)
+		normal_forSides<<?=side?>>(xIntL)
 	);
 	
 	Waves dWREig = Eqn::eigen_leftTransform(
@@ -496,7 +496,7 @@ static inline ConsLR calcCellLR_<?=side?>(
 		eig,
 		Eqn::apply_dU_dW(solver, W, dWR, xIntR),
 		xIntR,
-		normal_forSide<?=side?>(xIntR));
+		normal_forSides<<?=side?>>(xIntR));
 	
 	Waves dWCEig = Eqn::eigen_leftTransform(
 		solver,
@@ -518,7 +518,7 @@ static inline ConsLR calcCellLR_<?=side?>(
 		);
 	}
 
-	real dx = cell_dx<?=side?>(solver, pcell->pos);
+	real dx = cell_dxs<<?=side?>>(solver, pcell->pos);
 	real dt_dx = dt / dx;
 
 	auto calcWaves = Eqn::EigenWaveCode(solver, eig, n, pcell->pos);
@@ -541,12 +541,12 @@ static inline ConsLR calcCellLR_<?=side?>(
 	Prim sL = Eqn::apply_dW_dU(
 		solver,
 		W,
-		Eqn::eigen_rightTransform(solver, eig, aL, xIntL, normal_forSide<?=side?>(xIntL)), 
+		Eqn::eigen_rightTransform(solver, eig, aL, xIntL, normal_forSides<<?=side?>>(xIntL)), 
 		xIntL);
 	
 	Prim sR = Eqn::apply_dW_dU(solver,
 		W,
-		Eqn::eigen_rightTransform(solver, eig, aR, xIntR, normal_forSide<?=side?>(xIntR)),
+		Eqn::eigen_rightTransform(solver, eig, aR, xIntR, normal_forSides<<?=side?>>(xIntR)),
 		xIntR);
 
 	// linearly extrapolate the slopes forward and backward from the cell center
@@ -605,12 +605,12 @@ static inline ConsLR calcCellLR_<?=side?>(
 	Prim sL = Eqn::apply_dW_dU(
 		solver,
 		W,
-		Eqn::eigen_rightTransform(solver, eig, aL, xIntL, normal_forSide<?=side?>(xIntL)),
+		Eqn::eigen_rightTransform(solver, eig, aL, xIntL, normal_forSides<<?=side?>>(xIntL)),
 		xIntL);
 	Prim sR = Eqn::apply_dW_dU(
 		solver,
 		W,
-		Eqn::eigen_rightTransform(solver, eig, aR, xIntR, normal_forSide<?=side?>(xIntR)),
+		Eqn::eigen_rightTransform(solver, eig, aR, xIntR, normal_forSides<<?=side?>>(xIntR)),
 		xIntR);
 
 	// linearly extrapolate the slopes forward and backward from the cell center
@@ -656,7 +656,7 @@ static inline ConsLR calcCellLR_<?=side?>(
 	//calc eigen values and vectors at cell center
 	Eigen eig = Eqn::eigen_forCell(solver, *pU, *pcell, n);
 
-	real const dx = cell_dx<?=side?>(solver, pcell->pos);
+	real const dx = cell_dxs<<?=side?>>(solver, pcell->pos);
 	real const dt_dx = dt / dx;
 
 	//1) calc delta q's ... l r c (eqn 36)
@@ -681,8 +681,8 @@ static inline ConsLR calcCellLR_<?=side?>(
 	}
 
 	//TODO shouldn't this be the dA/dW eigen transformation?
-	Waves dal = Eqn::eigen_leftTransform(solver, eig, *(Cons*)&dWL, xIntL, normal_forSide<?=side?>(xIntL));
-	Waves dar = Eqn::eigen_leftTransform(solver, eig, *(Cons*)&dWR, xIntR, normal_forSide<?=side?>(xIntR));
+	Waves dal = Eqn::eigen_leftTransform(solver, eig, *(Cons*)&dWL, xIntL, normal_forSides<<?=side?>>(xIntL));
+	Waves dar = Eqn::eigen_leftTransform(solver, eig, *(Cons*)&dWR, xIntR, normal_forSides<<?=side?>>(xIntR));
 	Waves dac = Eqn::eigen_leftTransform(solver, eig, *(Cons*)&dWC, pcell->pos, n);
 	Waves dag = Eqn::eigen_leftTransform(solver, eig, *(Cons*)&dWG, pcell->pos, n);
 
@@ -910,7 +910,7 @@ static inline ConsLR calcCellLR_<?=side?>(
 		}
 	}
 
-	real dx = cell_dx<?=side?>(solver, pcell->pos);
+	real dx = cell_dxs<<?=side?>>(solver, pcell->pos);
 	real dt_dx = dt / dx;
 	
 	Prim Iplus[numWaves];
@@ -1035,7 +1035,7 @@ kernel void <?=calcLR?>(
 	//TODO skip this lr stuff if we're doing piecewise-constant
 	//...and just use the original buffers
 	<? for side=0,solver.dim-1 do ?>{
-		<?=normal_t?> const n = normal_forSide<?=side?>(pcell->pos);
+		<?=normal_t?> const n = normal_forSides<<?=side?>>(pcell->pos);
 		
 		//cell-centered index for a particular side...
 		int const indexForSide = <?=side?> + dim * index;

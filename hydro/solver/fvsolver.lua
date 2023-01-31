@@ -82,13 +82,13 @@ kernel void <?=calcFlux?>(
 	<? for side=0,solver.dim-1 do ?>{
 		int const side = <?=side?>;
 
-		real const dx = solver.grid_dx.s<?=side?>;
+		real const dx = solver.grid_dx[<?=side?>];
 
-		int const indexL = index - solver.stepsize.s<?=side?>;
+		int const indexL = index - solver.stepsize[<?=side?>];
 		global <?=cell_t?> const & cellL = cellBuf[indexL];
 
 		real3 xInt = cellR.pos;
-		xInt.s<?=side?> -= .5 * dx;
+		xInt[<?=side?>] -= .5 * dx;
 
 		int const indexInt = side + dim * index;
 		global <?=cons_t?> & flux = fluxBuf[indexInt];
@@ -97,8 +97,8 @@ kernel void <?=calcFlux?>(
 <? if solver.coord.vectorComponent == 'cartesian'
 	or solver.coord.vectorComponent == 'anholonomic'
 then ?>
-//// MODULE_DEPENDS: <?=cell_area_i?>
-		real area = cell_area<?=side?>(solver, xInt);
+//// MODULE_DEPENDS: <?=cell_areas?>
+		real area = cell_areas<<?=side?>>(solver, xInt);
 <? else ?>
 		real area = 1.<?
 	for i=0,solver.dim-1 do
@@ -128,26 +128,26 @@ then ?>
 if useFluxLimiter then
 ?>			//this is used for the flux limiter
 			//should it be using the coordinate dx or the grid dx?
-			//real dt_dx = dt / cell_dx<?=side?>(xInt);
+			//real dt_dx = dt / cell_dxs<<?=side?>>(xInt);
 <?
 	if solver.coord.vectorComponent == 'cartesian'
 	and not require 'hydro.coord.cartesian':isa(solver.coord)
 	then
 ?>
-//// MODULE_DEPENDS: <?=cell_dx_i?>
-			real const dt_dx = dt / cell_dx<?=side?>(xInt);
+//// MODULE_DEPENDS: <?=cell_dxs?>
+			real const dt_dx = dt / cell_dxs<<?=side?>>(xInt);
 <? 	else
 ?>			real const dt_dx = dt / dx;
 <? 	end
 ?>
 			real3 xIntL = xInt;
-			xIntL.s<?=side?> -= dx;
+			xIntL[<?=side?>] -= dx;
 			
 			real3 xIntR = xInt;
-			xIntR.s<?=side?> += dx;
+			xIntR[<?=side?>] += dx;
 			
-			int const indexR2 = indexR + solver.stepsize.s<?=side?>;
-			int const indexL2 = indexL - solver.stepsize.s<?=side?>;
+			int const indexR2 = indexR + solver.stepsize[<?=side?>];
+			int const indexL2 = indexL - solver.stepsize[<?=side?>];
 			<?=solver:getULRCode{indexL = 'indexL2', indexR = 'indexL', suffix='_L'}:gsub('\n', '\n\t\t\t')?>
 			<?=solver:getULRCode{indexL = 'indexR', indexR = 'indexR2', suffix='_R'}:gsub('\n', '\n\t\t\t')?>
 
@@ -332,13 +332,13 @@ global <?=cons_t?> const & flux = buf[indexInt];
 	local function getEigenCode(args)
 		return self.eqn:template([[
 int indexR = index;
-int indexL = index - solver.stepsize.s<?=side?>;
+int indexL = index - solver.stepsize[<?=side?>];
 global <?=cell_t?> const & cellL = cellBuf[indexL];
 global <?=cell_t?> const & cellR = cellBuf[indexR];
 
 /* TODO this isn't always used by normal_forSide or eigen_forInterface ... */
 real3 xInt = x;
-xInt.s<?=side?> -= .5 * solver.grid_dx.s<?=side?>;
+xInt[<?=side?>] -= .5 * solver.grid_dx[<?=side?>];
 
 <?=solver:getULRCode{bufName="buf", side=side}:gsub("\n", "\n\t")?>
 //// MODULE_DEPENDS: <?=eigen_t?> <?=Equation?>

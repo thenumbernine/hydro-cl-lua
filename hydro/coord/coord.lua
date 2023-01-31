@@ -209,6 +209,9 @@ function CoordinateSystem:init(args)
 		'cell_volume',
 		'cell_sqrt_det_g',	-- seems that, when this is used, it would most often be used with gHol...
 		'cell_calcAvg_withPt',
+		
+		'cell_dxs',
+		'cell_areas',
 	})
 
 	local solver = assert(args.solver)
@@ -1986,31 +1989,48 @@ print("WARNING - haven't finished implementing cell_calcAvg_withPt")
 		end,
 	}
 
---[=[
---TODO this possibly needs different code per function
--- that means it really needs std::function() and lambdas
 	solver.modules:add{
 		name = self.symbols.cell_dxs,
 		depends = {self.symbols.cell_dx_i},
 		code = solver.eqn:template[[
-struct CellDx {
-	int i = {};
-	constexpr CellDx(int i_) : i(i_) {}
-	constexpr real operator()(
-		constant <?=solver_t?> const & solver,
-		real3 const pt
-	) const {
-		return solver.grid_dx[i];
-	}
+// TODO std::function and std::tuple ...
+/*
+// error: 'cell_areas' declared as array of 'auto'
+// error: taking address of function is not allowed
+auto cell_dxs[3] = {
+	cell_dx0,
+	cell_dx1,
+	cell_dx2,
 };
-constexpr CellDx cell_dxs[3] = {
-	CellDx(0),
-	CellDx(1),
-	CellDx(2),
-};
+*/
+
+// until then, here's templated:
+template<int side> real cell_dxs(constant solver_t_1 const & solver, real3 pt);
+template<> real cell_dxs<0>(constant solver_t_1 const & solver, real3 pt) { return cell_dx0(solver, pt); }
+template<> real cell_dxs<1>(constant solver_t_1 const & solver, real3 pt) { return cell_dx1(solver, pt); }
+template<> real cell_dxs<2>(constant solver_t_1 const & solver, real3 pt) { return cell_dx2(solver, pt); }
 ]],
 	}
---]=]
+
+	solver.modules:add{
+		name = self.symbols.cell_areas,
+		depends = {self.symbols.cell_area_i},
+		code = solver.eqn:template[[
+/*
+auto cell_areas[3] = {
+	cell_area0,
+	cell_area1,
+	cell_area2,
+};
+*/
+
+template<int side> real cell_areas(constant solver_t_1 const & solver, real3 pt);
+template<> real cell_areas<0>(constant solver_t_1 const & solver, real3 pt) { return cell_area0(solver, pt); }
+template<> real cell_areas<1>(constant solver_t_1 const & solver, real3 pt) { return cell_area1(solver, pt); }
+template<> real cell_areas<2>(constant solver_t_1 const & solver, real3 pt) { return cell_area2(solver, pt); }
+]],
+	}
+
 
 end
 
@@ -2715,6 +2735,11 @@ static inline real3 normal_u<?=i?>(<?=normal_t?> n) {
 		normal_u<?=i?>y(n),
 		normal_u<?=i?>z(n));
 }
+<? end ?>
+
+template<int side> <?=normal_t?> normal_forSides(real3 pt);
+<? for side=0,solver.dim-1 do ?>
+template<> <?=normal_t?> normal_forSides<<?=side?>>(real3 pt) { return normal_forSide<?=side?>(pt); }
 <? end ?>
 
 ]]
