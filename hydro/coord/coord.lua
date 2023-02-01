@@ -2435,6 +2435,7 @@ $(n^i)_j = (n^i)^j = \delta^{ij}$.<br>
 			n_i = n^i = delta_ij for side j
 			|n| = 1
 			--]]
+			-- typecode is now only used for lua ffi cdef and tested to sizeof the c++ struct with static_assert
 			typecode = self.solver.eqn:template[[
 typedef struct {
 	int side;			//0, 1, 2
@@ -2444,62 +2445,92 @@ typedef struct {
 			-- this is overwhelmingly interface-based
 			-- with two exceptions: calcDT and some displayVars
 			code = self.solver.eqn:template[[
-<? for side=0,solver.dim-1 do ?>
-static inline <?=normal_t?> normal_forSide<?=side?>(real3 const x) {
-	return <?=normal_t?>{
-		.side = <?=side?>
-	};
-}
-<? end ?>
 
-//|n|
-static inline real normal_len(<?=normal_t?> n) { return 1.; }
-static inline real normal_lenSq(<?=normal_t?> n) { return 1.; }
+namespace <?=Equation?> {
+
+struct Normal {
+	int side;
+	constexpr Normal(int side_) : side(side_) {}
+
+	template<int side>
+	static Normal forSide(real3 const x) {
+		return Normal(side);
+	}
+
+	//|n|
+	constexpr real len() const { return 1.; }
+	constexpr real lenSq() const { return 1.; }
 
 //(nj)_i, (nj)^i, (nj)_i/|nj|, (nj)^i/|nj|
 <?
 for j=1,3 do
 	for i,xi in ipairs(xNames) do
 ?>
-static inline real normal_l<?=j?><?=xi?>(<?=normal_t?> n) {
-	return n.side == <?=(i-j)%3?> ? 1. : 0.;
-}
-static inline real normal_u<?=j?><?=xi?>(<?=normal_t?> n) {
-	return normal_l<?=j?><?=xi?>(n);
-}
-static inline real normal_l<?=j?><?=xi?>_over_len(<?=normal_t?> n) {
-	return normal_l<?=j?><?=xi?>(n);
-}
-static inline real normal_u<?=j?><?=xi?>_over_len(<?=normal_t?> n) {
-	return normal_u<?=j?><?=xi?>(n);
-}
+	real l<?=j?><?=xi?>() const {
+		return side == <?=(i-j)%3?> ? 1. : 0.;
+	}
+	real u<?=j?><?=xi?>() const {
+		return l<?=j?><?=xi?>();
+	}
+	real l<?=j?><?=xi?>_over_len() const {
+		return l<?=j?><?=xi?>();
+	}
+	real u<?=j?><?=xi?>_over_len() const {
+		return u<?=j?><?=xi?>();
+	}
 <?
 	end
 end
 ?>
 
-// this is the same as converting 'v' in global cartesian to 'v' in the basis of nj
-// v^i (nj)_i for side j
-static inline real3 normal_vecDotNs(<?=normal_t?> n, real3 v) {
-	return real3(
-		v.s[n.side],
-		v.s[(n.side+1)%3],
-		v.s[(n.side+2)%3]);
-}
+	// this is the same as converting 'v' in global cartesian to 'v' in the basis of nj
+	// v^i (nj)_i for side j
+	real3 vecDotNs(real3 v) const {
+		return real3(
+			v.s[side],
+			v.s[(side+1)%3],
+			v.s[(side+2)%3]);
+	}
 
-//v^i (n1)_i
-static inline real normal_vecDotN1(<?=normal_t?> n, real3 v) {
-	return v.s[n.side];
-}
+	//v^i (n1)_i
+	real vecDotN1(real3 v) const {
+		return v.s[side];
+	}
 
-// ...and this is the same as converting v in the basis of nj to v in global cartesian
-// v.x * e[side] + v.y * e[side+1] + v.z * e[side+2]
-static inline real3 normal_vecFromNs(<?=normal_t?> n, real3 v) {
-	return real3(
-		v.s[(3-n.side)%3],
-		v.s[(3-n.side+1)%3],
-		v.s[(3-n.side+2)%3]);
-}
+	// ...and this is the same as converting v in the basis of nj to v in global cartesian
+	// v.x * e[side] + v.y * e[side+1] + v.z * e[side+2]
+	real3 vecFromNs(real3 v) const {
+		return real3(
+			v.s[(3-side)%3],
+			v.s[(3-side+1)%3],
+			v.s[(3-side+2)%3]);
+	}
+
+// BEGIN CODE FOR ALL NORMALS (inherit? crtp insert?)
+
+	<? for i=1,3 do ?>
+	real3 l<?=i?>() const {
+		return real3(
+			l<?=i?>x(),
+			l<?=i?>y(),
+			l<?=i?>z());
+	}
+
+	real3 u<?=i?>() const {
+		return real3(
+			u<?=i?>x(),
+			u<?=i?>y(),
+			u<?=i?>z());
+	}
+	<? end ?>
+
+// END CODE FOR ALL NORMALS 
+
+};
+
+static_assert(sizeof(Normal) == sizeof(<?=normal_t?>));
+
+}	// namespace <?=Equation?>
 
 ]]
 		elseif self.vectorComponent == 'cartesian' then
@@ -2718,31 +2749,6 @@ static inline real3 normal_vecFromNs(<?=normal_t?> n, real3 v) {
 
 
 	end	-- meshsolver
-
-	code = code .. self.solver.eqn:template[[
-
-<? for i=1,3 do ?>
-static inline real3 normal_l<?=i?>(<?=normal_t?> n) {
-	return real3(
-		normal_l<?=i?>x(n),
-		normal_l<?=i?>y(n),
-		normal_l<?=i?>z(n));
-}
-
-static inline real3 normal_u<?=i?>(<?=normal_t?> n) {
-	return real3(
-		normal_u<?=i?>x(n),
-		normal_u<?=i?>y(n),
-		normal_u<?=i?>z(n));
-}
-<? end ?>
-
-template<int side> <?=normal_t?> normal_forSides(real3 pt);
-<? for side=0,solver.dim-1 do ?>
-template<> <?=normal_t?> normal_forSides<<?=side?>>(real3 pt) { return normal_forSide<?=side?>(pt); }
-<? end ?>
-
-]]
 
 	-- TODO if you use multiple solvers that have differing vectorComponents
 	--  then this will cause a silent ffi error.  only the first normal_t will be defined.

@@ -105,7 +105,7 @@ then ?>
 			real const dx = cell_dx<?=side?>(cell.pos);
 <? end ?>
 			if (dx > faceAreaEpsilon) {
-				auto const n = normal_forSide<?=side?>(cell.pos);
+				auto const n = Normal::template forSide<<?=side?>>(cell.pos);
 				// use cell-centered eigenvalues
 				real lambdaMin, lambdaMax;
 				calcWaves(solver, n, U, cell.pos, &lambdaMin, &lambdaMax);

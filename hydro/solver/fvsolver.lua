@@ -122,7 +122,7 @@ then ?>
 			<?=cons_t?> ppUL = <?=cons_parallelPropagate?><?=side?>(UL, cellL.pos, .5 * dx);
 			<?=cons_t?> ppUR = <?=cons_parallelPropagate?><?=side?>(UR, cellR.pos, -.5 * dx);
 
-			<?=normal_t?> const n = normal_forSide<?=side?>(xInt);
+			auto const n = <?=Equation?>::Normal::forSide<<?=side?>>(xInt);
 
 <?
 if useFluxLimiter then
@@ -342,7 +342,7 @@ xInt[<?=side?>] -= .5 * solver.grid_dx[<?=side?>];
 
 <?=solver:getULRCode{bufName="buf", side=side}:gsub("\n", "\n\t")?>
 //// MODULE_DEPENDS: <?=eigen_t?> <?=Equation?>
-<?=normal_t?> n = normal_forSide<?=side?>(xInt);
+auto n = <?=Equation?>::Normal::forSide<<?=side?>>(xInt);
 <?=eigen_t?> eig = <?=Equation?>::Eqn::eigen_forInterface(solver, UL, UR, cellL, cellR, xInt, n);
 ]], 	{
 			side = args.side,
@@ -359,7 +359,7 @@ xInt[<?=side?>] -= .5 * solver.grid_dx[<?=side?>];
 				getEigenCode{side=side},
 				self.eqn:template([[
 //// MODULE_DEPENDS: <?=Equation?>
-auto n<?=side?> = normal_forSide<?=side?>(xInt);
+auto n<?=side?> = <?=Equation?>::Normal::forSide<<?=side?>>(xInt);
 auto calcWaves = <?=Equation?>::Eqn::EigenWaveCode(solver, eig, n<?=side?>, xInt);
 ]], 			{
 					side = side,
@@ -422,7 +422,7 @@ for (int k = 0; k < numWaves; ++k) {
 	}
 	
 //// MODULE_DEPENDS: <?=Equation?>
-	<?=normal_t?> n = normal_forSide<?=side?>(xInt);
+	auto n = <?=Equation?>::Normal::forSide<<?=side?>>(xInt);
 	<?=waves_t?> chars = <?=Equation?>::Eqn::eigen_leftTransform(solver, eig, basis, xInt, n);
 	<?=cons_t?> newbasis = <?=Equation?>::Eqn::eigen_rightTransform(solver, eig, chars, xInt, n);
 
@@ -460,7 +460,7 @@ for (int k = 0; k < numWaves; ++k) {
 						getEigenCode{side=side},
 						self.eqn:template([[
 //// MODULE_DEPENDS: <?=cell_calcAvg_withPt?>
-auto n<?=side?> = normal_forSide<?=side?>(x);
+auto n<?=side?> = <?=Equation?>::Normal::forSide<<?=side?>>(x);
 auto calcWaves = <?=Equation?>::Eqn::EigenWaveCode(solver, eig, n<?=side?>, xInt);
 
 value.vreal = 0;
@@ -472,7 +472,7 @@ for (int k = 0; k < numIntStates; ++k) {
 		basis.ptr[j] = k == j ? 1 : 0;
 	}
 
-	<?=normal_t?> n = normal_forSide<?=side?>(xInt);
+	auto n = <?=Equation?>::Normal::forSide<<?=side?>>(xInt);
 	
 	<?=waves_t?> chars = <?=Equation?>::Eqn::eigen_leftTransform(solver, eig, basis, xInt, n);
 

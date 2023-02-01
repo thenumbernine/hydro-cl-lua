@@ -17,10 +17,6 @@ local useConstrainU = false
 // or TODO namespace <?=Solver?> and then class Solver, class Eqn, etc
 namespace <?=Equation?> {
 
-// TOOD eventually this should go back into hydro/coord/coord.clcpp
-using Normal = <?=normal_t?>;
-
-
 using Prim = <?=prim_t?>;
 using Cons = <?=cons_t?>;
 using Solver = <?=solver_t?>;
@@ -268,8 +264,8 @@ struct Eqn : public Hydro::Eqn<Eqn, Solver, Cons, Prim, Normal, Cell, Eigen, Wav
 			Eigen const & eig,
 			Normal const n,
 			real3 const pt
-		) :	Cs_nLen(normal_len(n) * eig.Cs),
-			v_n(normal_vecDotN1(n, eig.v))
+		) :	Cs_nLen(n.len() * eig.Cs),
+			v_n(n.vecDotN1(eig.v))
 		{}
 
 		// TODO templated index and if constexpr's ... and template-based for-loop ...
@@ -317,10 +313,10 @@ struct Eqn : public Hydro::Eqn<Eqn, Solver, Cons, Prim, Normal, Cell, Eigen, Wav
 			Cons const & U,
 			Normal const n,
 			real3 const pt
-		) :	Cs_nLen(normal_len(n) * calc_Cs_fromCons(solver, U, pt)),
+		) :	Cs_nLen(n.len() * calc_Cs_fromCons(solver, U, pt)),
 			v_n(U.rho < solver.rhoMin
 				? 0
-				: normal_vecDotN1(n, U.m) / U.rho
+				: n.vecDotN1(U.m) / U.rho
 			)
 		{}
 
@@ -383,10 +379,10 @@ struct Eqn : public Hydro::Eqn<Eqn, Solver, Cons, Prim, Normal, Cell, Eigen, Wav
 			real * resultMin,
 			real * resultMax
 		) {
-			real const Cs_nLen = Cs * normal_len(n);
+			real const Cs_nLen = Cs * n.len();
 			real const v_n = U.rho < solver.rhoMin 
 				? 0. 
-				: normal_vecDotN1(n, U.m) / U.rho;
+				: n.vecDotN1(U.m) / U.rho;
 			//waveCodeAssignMinMax
 			if (resultMin) {
 				*resultMin = v_n - Cs_nLen;
@@ -445,11 +441,11 @@ end
 		Normal const n
 	) {
 		Prim W = primFromCons(solver, U, cell.pos);
-		real const v_n = normal_vecDotN1(n, W.v);
+		real const v_n = n.vecDotN1(W.v);
 		real const HTotal = U.ETotal + W.P;
 		return Cons()
 		.set_rho(U.rho * v_n)
-		.set_m(U.m * v_n + normal_u1(n) * W.P)
+		.set_m(U.m * v_n + n.u1() * W.P)
 		.set_ETotal(HTotal * v_n)
 		.set_ePot(0)
 		;
@@ -467,7 +463,7 @@ end
 		auto W = primFromCons(solver, U, cell.pos);
 		real3 const vL = coord_lower(W.v, cell.pos);
 		real const vSq = dot(W.v, vL);
-		real const v_n = normal_vecDotN1(n, W.v);
+		real const v_n = n.vecDotN1(W.v);
 		real const eKin = .5 * vSq;
 		real const hTotal = calc_hTotal(W.rho, W.P, U.ETotal);
 		real const CsSq = (solver.heatCapacityRatio - 1.) * (hTotal - eKin);
@@ -581,17 +577,17 @@ end
 			result.ptr[3] = X.ptr[3];
 			result.ptr[4] = X.ptr[4];
 		} else {
-			real3 const v_n = normal_vecDotNs(n, eig.v);
-			real const nLen = normal_len(n);
+			real3 const v_n = n.vecDotNs(eig.v);
+			real const nLen = n.len();
 			real const inv_nLen = 1. / nLen;
 			real const denom = 2. * eig.Cs * eig.Cs;
 			real const invDenom = 1. / denom;
 			real const gamma_1 = solver.heatCapacityRatio - 1.;
 			result.ptr[0] = (
 					X.ptr[0] * (.5 * gamma_1 * eig.vSq + eig.Cs * v_n.x * inv_nLen)
-					+ X.ptr[1] * (-gamma_1 * eig.vL.x - eig.Cs * normal_l1x_over_len(n))
-					+ X.ptr[2] * (-gamma_1 * eig.vL.y - eig.Cs * normal_l1y_over_len(n))
-					+ X.ptr[3] * (-gamma_1 * eig.vL.z - eig.Cs * normal_l1z_over_len(n))
+					+ X.ptr[1] * (-gamma_1 * eig.vL.x - eig.Cs * n.l1x_over_len())
+					+ X.ptr[2] * (-gamma_1 * eig.vL.y - eig.Cs * n.l1y_over_len())
+					+ X.ptr[3] * (-gamma_1 * eig.vL.z - eig.Cs * n.l1z_over_len())
 					+ X.ptr[4] * gamma_1
 				) * invDenom;
 			result.ptr[1] =
@@ -604,20 +600,20 @@ end
 				) * invDenom;
 			result.ptr[2] =
 				X.ptr[0] * -v_n.y
-				+ X.ptr[1] * normal_l2x(n)
-				+ X.ptr[2] * normal_l2y(n)
-				+ X.ptr[3] * normal_l2z(n);
+				+ X.ptr[1] * n.l2x()
+				+ X.ptr[2] * n.l2y()
+				+ X.ptr[3] * n.l2z();
 			result.ptr[3] =
 				X.ptr[0] * -v_n.z
-				+ X.ptr[1] * normal_l3x(n)
-				+ X.ptr[2] * normal_l3y(n)
-				+ X.ptr[3] * normal_l3z(n);
+				+ X.ptr[1] * n.l3x()
+				+ X.ptr[2] * n.l3y()
+				+ X.ptr[3] * n.l3z();
 			result.ptr[4] =
 				(
 					X.ptr[0] * (.5 * gamma_1 * eig.vSq - eig.Cs * v_n.x * inv_nLen)
-					+ X.ptr[1] * (-gamma_1 * eig.vL.x + eig.Cs * normal_l1x_over_len(n))
-					+ X.ptr[2] * (-gamma_1 * eig.vL.y + eig.Cs * normal_l1y_over_len(n))
-					+ X.ptr[3] * (-gamma_1 * eig.vL.z + eig.Cs * normal_l1z_over_len(n))
+					+ X.ptr[1] * (-gamma_1 * eig.vL.x + eig.Cs * n.l1x_over_len())
+					+ X.ptr[2] * (-gamma_1 * eig.vL.y + eig.Cs * n.l1y_over_len())
+					+ X.ptr[3] * (-gamma_1 * eig.vL.z + eig.Cs * n.l1z_over_len())
 					+ X.ptr[4] * gamma_1
 				) * invDenom;
 		}
@@ -639,31 +635,31 @@ end
 			result.ptr[3] = X.ptr[3];
 			result.ptr[4] = X.ptr[4];
 		} else {
-			real3 const v_n = normal_vecDotNs(n, eig.v);
-			real const nLen = normal_len(n);
+			real3 const v_n = n.vecDotNs(eig.v);
+			real const nLen = n.len();
 			real const inv_nLen = 1. / nLen;
 			result.ptr[0] =
 				X.ptr[0]
 				+ X.ptr[1]
 				+ X.ptr[4];
 			result.ptr[1] =
-				X.ptr[0] * (eig.v.x - eig.Cs * normal_u1x_over_len(n))
+				X.ptr[0] * (eig.v.x - eig.Cs * n.u1x_over_len())
 				+ X.ptr[1] * eig.v.x
-				+ X.ptr[2] * normal_u2x(n)
-				+ X.ptr[3] * normal_u3x(n)
-				+ X.ptr[4] * (eig.v.x + eig.Cs * normal_u1x_over_len(n));
+				+ X.ptr[2] * n.u2x()
+				+ X.ptr[3] * n.u3x()
+				+ X.ptr[4] * (eig.v.x + eig.Cs * n.u1x_over_len());
 			result.ptr[2] =
-				X.ptr[0] * (eig.v.y - eig.Cs * normal_u1y_over_len(n))
+				X.ptr[0] * (eig.v.y - eig.Cs * n.u1y_over_len())
 				+ X.ptr[1] * eig.v.y
-				+ X.ptr[2] * normal_u2y(n)
-				+ X.ptr[3] * normal_u3y(n)
-				+ X.ptr[4] * (eig.v.y + eig.Cs * normal_u1y_over_len(n));
+				+ X.ptr[2] * n.u2y()
+				+ X.ptr[3] * n.u3y()
+				+ X.ptr[4] * (eig.v.y + eig.Cs * n.u1y_over_len());
 			result.ptr[3] =
-				X.ptr[0] * (eig.v.z - eig.Cs * normal_u1z_over_len(n))
+				X.ptr[0] * (eig.v.z - eig.Cs * n.u1z_over_len())
 				+ X.ptr[1] * eig.v.z
-				+ X.ptr[2] * normal_u2z(n)
-				+ X.ptr[3] * normal_u3z(n)
-				+ X.ptr[4] * (eig.v.z + eig.Cs * normal_u1z_over_len(n));
+				+ X.ptr[2] * n.u2z()
+				+ X.ptr[3] * n.u3z()
+				+ X.ptr[4] * (eig.v.z + eig.Cs * n.u1z_over_len());
 			result.ptr[4] =
 				X.ptr[0] * (eig.hTotal - eig.Cs * v_n.x * inv_nLen)
 				+ X.ptr[1] * (real).5 * eig.vSq
@@ -692,43 +688,43 @@ end
 			result.ptr[3] = X.ptr[3];
 			result.ptr[4] = X.ptr[4];
 		} else {
-			real3 const v_n = normal_vecDotNs(n, eig.v);
-			real const nLen = normal_len(n);
+			real3 const v_n = n.vecDotNs(eig.v);
+			real const nLen = n.len();
 			real const gamma = solver.heatCapacityRatio;
 			real const gamma_1 = gamma - 1.;
 			real const gamma_2 = gamma - 2.;
 		
 			result.ptr[0] =
-				X.ptr[1] * normal_l1x(n)
-				+ X.ptr[2] * normal_l1y(n)
-				+ X.ptr[3] * normal_l1z(n);
+				X.ptr[1] * n.l1x()
+				+ X.ptr[2] * n.l1y()
+				+ X.ptr[3] * n.l1z();
 		
 			result.ptr[1] =
-				X.ptr[0] * (-v_n.x * eig.v.x + gamma_1 * (real).5 * eig.vSq * normal_u1x(n))
-				+ X.ptr[1] * (eig.v.x * normal_l1x(n) - gamma_2 * normal_u1x(n) * eig.vL.x + v_n.x)
-				+ X.ptr[2] * (eig.v.x * normal_l1y(n) - gamma_2 * normal_u1x(n) * eig.vL.y)
-				+ X.ptr[3] * (eig.v.x * normal_l1z(n) - gamma_2 * normal_u1x(n) * eig.vL.z)
-				+ X.ptr[4] * gamma_1 * normal_u1x(n);
+				X.ptr[0] * (-v_n.x * eig.v.x + gamma_1 * (real).5 * eig.vSq * n.u1x())
+				+ X.ptr[1] * (eig.v.x * n.l1x() - gamma_2 * n.u1x() * eig.vL.x + v_n.x)
+				+ X.ptr[2] * (eig.v.x * n.l1y() - gamma_2 * n.u1x() * eig.vL.y)
+				+ X.ptr[3] * (eig.v.x * n.l1z() - gamma_2 * n.u1x() * eig.vL.z)
+				+ X.ptr[4] * gamma_1 * n.u1x();
 		
 			result.ptr[2] =
-				X.ptr[0] * (-v_n.x * eig.v.y + gamma_1 * (real).5 * eig.vSq * normal_u1y(n))
-				+ X.ptr[1] * (eig.v.y * normal_l1x(n) - gamma_2 * normal_u1y(n) * eig.vL.x)
-				+ X.ptr[2] * (eig.v.y * normal_l1y(n) - gamma_2 * normal_u1y(n) * eig.vL.y + v_n.x)
-				+ X.ptr[3] * (eig.v.y * normal_l1z(n) - gamma_2 * normal_u1y(n) * eig.vL.z)
-				+ X.ptr[4] * gamma_1 * normal_u1y(n);
+				X.ptr[0] * (-v_n.x * eig.v.y + gamma_1 * (real).5 * eig.vSq * n.u1y())
+				+ X.ptr[1] * (eig.v.y * n.l1x() - gamma_2 * n.u1y() * eig.vL.x)
+				+ X.ptr[2] * (eig.v.y * n.l1y() - gamma_2 * n.u1y() * eig.vL.y + v_n.x)
+				+ X.ptr[3] * (eig.v.y * n.l1z() - gamma_2 * n.u1y() * eig.vL.z)
+				+ X.ptr[4] * gamma_1 * n.u1y();
 		
 			result.ptr[3] =
-				X.ptr[0] * (-v_n.x * eig.v.z + gamma_1 * (real).5 * eig.vSq * normal_u1z(n))
-				+ X.ptr[1] * (eig.v.z * normal_l1x(n) - gamma_2 * normal_u1z(n) * eig.vL.x)
-				+ X.ptr[2] * (eig.v.z * normal_l1y(n) - gamma_2 * normal_u1z(n) * eig.vL.y)
-				+ X.ptr[3] * (eig.v.z * normal_l1z(n) - gamma_2 * normal_u1z(n) * eig.vL.z + v_n.x)
-				+ X.ptr[4] * gamma_1 * normal_u1z(n);
+				X.ptr[0] * (-v_n.x * eig.v.z + gamma_1 * (real).5 * eig.vSq * n.u1z())
+				+ X.ptr[1] * (eig.v.z * n.l1x() - gamma_2 * n.u1z() * eig.vL.x)
+				+ X.ptr[2] * (eig.v.z * n.l1y() - gamma_2 * n.u1z() * eig.vL.y)
+				+ X.ptr[3] * (eig.v.z * n.l1z() - gamma_2 * n.u1z() * eig.vL.z + v_n.x)
+				+ X.ptr[4] * gamma_1 * n.u1z();
 		
 			result.ptr[4] =
 				X.ptr[0] * v_n.x * (.5 * gamma_1 * eig.vSq - eig.hTotal)
-				+ X.ptr[1] * (normal_l1x(n) * eig.hTotal - gamma_1 * v_n.x * eig.vL.x)
-				+ X.ptr[2] * (normal_l1y(n) * eig.hTotal - gamma_1 * v_n.x * eig.vL.y)
-				+ X.ptr[3] * (normal_l1z(n) * eig.hTotal - gamma_1 * v_n.x * eig.vL.z)
+				+ X.ptr[1] * (n.l1x() * eig.hTotal - gamma_1 * v_n.x * eig.vL.x)
+				+ X.ptr[2] * (n.l1y() * eig.hTotal - gamma_1 * v_n.x * eig.vL.y)
+				+ X.ptr[3] * (n.l1z() * eig.hTotal - gamma_1 * v_n.x * eig.vL.z)
 				+ X.ptr[4] * gamma * v_n.x;
 		}
 

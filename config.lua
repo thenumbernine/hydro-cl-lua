@@ -35,7 +35,7 @@ local args = {
 	-- with Kelvin-Helmholts, this will explode even at .5/(dim=2), but runs safe for .3/(dim=2)
 	cfl = cmdline.cfl or .3/dim,
 
-	--fluxLimiter = cmdline.fluxLimiter or 'superbee',
+	fluxLimiter = cmdline.fluxLimiter or 'superbee',
 	--fluxLimiter = 'monotized central',
 	--fluxLimiter = 'donor cell',		-- same as turning fluxlimiter off ... you have to turn fluxlimiter off to use plm
 
@@ -50,7 +50,7 @@ local args = {
 	--usePLM = 'plm-prim-alone',		-- -175
 	--usePLM = 'plm-eig',				-- -88		\
 	--usePLM = 'plm-eig-prim',			-- -88		 - these have less sharp shock wave in Sod than the non-eig ones
-	usePLM = 'plm-eig-prim-ref',		-- -28 		/
+	--usePLM = 'plm-eig-prim-ref',		-- -28 		/
 	--usePLM = 'plm-athena',			-- -40		based on Athena.  most accurate from 1D sod tests atm
 	--usePLM = 'ppm-wip',				-- 			FIXME one more attempt to figure out all the PLM stuff, based on 2017 Zingale
 	--usePLM = 'weno',					-- 			TODO make WENO one of these 'usePLM' methods. rename it to 'construct LR state method' or something.  then use CTU with WENO.  or can we, since even the CTU method should use the re-linear-projection ... i should just have these separate plm methods as separate functions ...
