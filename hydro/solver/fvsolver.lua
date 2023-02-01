@@ -13,6 +13,12 @@ local GridSolver = require 'hydro.solver.gridsolver'
 local common = require 'hydro.common'
 local xNames = common.xNames
 
+error[[
+TODO
+give each flux lua obj its c++ class name
+then template-ize the FVSolver class with a flux class name
+and then auto-insert it, or typedef it once somewhere, to use the lua obj class name
+]]
 
 local FiniteVolumeSolver = class(GridSolver)
 
@@ -58,13 +64,13 @@ function FiniteVolumeSolver:initCodeModule_calcFlux()
 	self.modules:addFromMarkup{
 		code = self.eqn:template([[
 //// MODULE_NAME: <?=calcFlux?>
-//// MODULE_DEPENDS: <?=Equation?>
 // used by all gridsolvers.  the meshsolver alternative is in solver/meshsolver.lua
 
-<?
-local useFluxLimiter = solver.fluxLimiter > 1
-	and flux.usesFluxLimiter -- just flux/roe.lua right now
-?>
+// right now I'm putting the function in the calcDerivFromFlux module.
+// I want uniquely-generated names for calcFlux and calcDerivFromFlux because they are each associated with kernels.
+// but I don't want to separate out the code since I'm merging everything into cpp files
+// I do want this here and overrideable since WENO etc use dif args than this
+//// MODULE_DEPENDS: <?=calcDerivFromFlux?>
 
 kernel void <?=calcFlux?>(
 	constant <?=solver_t?> const * const psolver,
@@ -75,127 +81,12 @@ kernel void <?=calcFlux?>(
 ) {
 	using namespace <?=Equation?>;
 	auto const & solver = *psolver;
-	<?=SETBOUNDS?>(solver.numGhost, solver.numGhost-1);
-
-	int const indexR = index;
-	auto const & cellR = cellBuf[index];
-
-	<? for side=0,solver.dim-1 do ?>{
-		constexpr int const side = <?=side?>;
-
-		real const dx = solver.grid_dx[side];
-
-		int const indexL = index - solver.stepsize[side];
-		auto const & cellL = cellBuf[indexL];
-
-		real3 xInt = cellR.pos;
-		xInt[side] -= .5 * dx;
-
-		int const indexInt = side + dim * index;
-		auto & flux = fluxBuf[indexInt];
-
-
-<? if solver.coord.vectorComponent == 'cartesian'
-	or solver.coord.vectorComponent == 'anholonomic'
-then ?>
-//// MODULE_DEPENDS: <?=cell_areas?>
-		real area = cell_areas<side>(solver, xInt);
-<? else ?>
-		real area = 1.;
-		for (int i = 0; i < dim; ++i) {
-			if (i != side) {
-				area *= solver.grid_dx[i];
-			}
-		}
-<? end ?>
-		if (area <= 1e-7) {
-			for (int j = 0; j < numStates; ++j) {
-				flux[j] = 0;
-			}
-		} else {
-
-			<?=solver:getULRCode():gsub('\n', '\n\t\t\t')?>
-
-			//the single act of removing the copy of the U's from global to local memory
-			// increases the framerate from 78 to 127
-//// MODULE_DEPENDS: <?=cons_parallelPropagate?>
-			auto const ppUL = <?=cons_parallelPropagate?><?=side?>(UL, cellL.pos, .5 * dx);
-			auto const ppUR = <?=cons_parallelPropagate?><?=side?>(UR, cellR.pos, -.5 * dx);
-
-			auto const n = Normal::forSide<side>(xInt);
-
-<?
-if useFluxLimiter then
-?>			//this is used for the flux limiter
-			//should it be using the coordinate dx or the grid dx?
-			//real dt_dx = dt / cell_dxs<side>(solver, xInt);
-<?
-	if solver.coord.vectorComponent == 'cartesian'
-	and not require 'hydro.coord.cartesian':isa(solver.coord)
-	then
-?>
-//// MODULE_DEPENDS: <?=cell_dxs?>
-			real const dt_dx = dt / cell_dxs<side>(solver, xInt);
-<? 	else
-?>			real const dt_dx = dt / dx;
-<? 	end
-?>
-			real3 xIntL = xInt; xIntL[side] -= dx;
-			real3 xIntR = xInt; xIntR[side] += dx;
-
-			int const indexR2 = indexR + solver.stepsize[side];
-			int const indexL2 = indexL - solver.stepsize[side];
-			<?=solver:getULRCode{indexL = 'indexL2', indexR = 'indexL', suffix='_L'}:gsub('\n', '\n\t\t\t')?>
-			<?=solver:getULRCode{indexL = 'indexR', indexR = 'indexR2', suffix='_R'}:gsub('\n', '\n\t\t\t')?>
-
-//// MODULE_DEPENDS: <?=cons_parallelPropagate?>
-			auto const ppUL_L = <?=cons_parallelPropagate?><?=side?>(UL_L, xIntL, 1.5 * dx);		//xIntL2?
-			auto const ppUL_R = <?=cons_parallelPropagate?><?=side?>(UL_R, xIntL, .5 * dx);
-			auto const ppUR_L = <?=cons_parallelPropagate?><?=side?>(UR_L, xIntR, -.5 * dx);
-			auto const ppUR_R = <?=cons_parallelPropagate?><?=side?>(UR_R, xIntR, -1.5 * dx);		//xIntR2?
-
-			auto const & cellR2 = cellBuf[indexR2];
-			auto const & cellL2 = cellBuf[indexL2];
-
-<?
-end
-?>
-//// MODULE_DEPENDS: calcFluxForInterface
-			flux = calcFluxForInterface(
-				solver,
-				ppUL,
-				ppUR,
-				cellL,
-				cellR,
-				xInt,
-				n
-<? if useFluxLimiter then ?>
-				,
-				dt_dx,
-				ppUL_L,
-				ppUL_R,
-				cellL2,
-				cellL,
-				xIntL,
-				ppUR_L,
-				ppUR_R,
-				cellR,
-				cellR2,
-				xIntR
-<? end ?>
-			);
-
-			//while we're here how about other solvers that might want to modify the flux?  like adding the viscous flux to the update?
-			//or should the viscous flux only be added separately?  in case its eigenvalues change the euler flux enough to overstep the CFL or something
-<?
-for _,op in ipairs(solver.ops) do
-	if op.addCalcFluxCode then
-?>			<?=op:addCalcFluxCode()?>
-<? 	end
-end
-?>
-		}
-	}<? end ?>
+	<?=Equation?>::FVSolver::calcFlux(
+		solver,
+		fluxBuf,
+		<?=solver.getULRBufName?>,
+		dt,
+		cellBuf);
 }
 
 ]], 	{

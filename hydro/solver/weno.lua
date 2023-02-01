@@ -383,6 +383,10 @@ function WENO:initCodeModule_calcFlux()
 			clnumber = require 'cl.obj.number',
 		})
 	)
+	-- another one that would be added by flux on fvsolver:
+	self.modules:add{
+		name = 'calcFluxForInterface',
+	}
 end
 
 -- all these are found eqn's cl code

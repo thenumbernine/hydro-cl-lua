@@ -9,51 +9,56 @@ enum {
 	HLL_DAVIS_DIRECT_BOUNDED,
 };
 
-static inline Cons calcFluxForInterface(
-	constant Solver const & solver,
-	Cons const & UL,
-	Cons const & UR,
-	Cell const & cellL,
-	Cell const & cellR,
-	real3 const xInt,
-	Normal const n
-) {
-	Cons resultFlux;
-	/* 
-	get min/max lambdas of UL, UR, and interface U (based on Roe averaging)
-	TODO this in a more computationally efficient way
-	*/
-	Eigen eigInt = Eqn::eigen_forInterface(solver, UL, UR, cellL, cellR, xInt, n);
-	real lambdaIntMin, lambdaIntMax;
-	Eqn::eigenWaveCodeMinMax(solver, eigInt, n, xInt, &lambdaIntMin, &lambdaIntMax);
+struct HLLFlux {
 
-	real sL, sR;
-	if (solver.flux_hllCalcWaveMethod == HLL_DAVIS_DIRECT) {
-		sL = lambdaIntMin;
-		sR = lambdaIntMax;
-	} else if (solver.flux_hllCalcWaveMethod == HLL_DAVIS_DIRECT_BOUNDED) {
-		real lambdaLMin;
-		Eqn::consWaveCodeMinMax(solver, UL, n, cellL.pos, &lambdaLMin, nullptr);
+	static inline Cons calcFluxForInterface(
+		constant Solver const & solver,
+		Cons const & UL,
+		Cons const & UR,
+		Cell const & cellL,
+		Cell const & cellR,
+		real3 const xInt,
+		Normal const n
+	) {
+		Cons resultFlux;
+		/* 
+		get min/max lambdas of UL, UR, and interface U (based on Roe averaging)
+		TODO this in a more computationally efficient way
+		*/
+		Eigen eigInt = Eqn::eigen_forInterface(solver, UL, UR, cellL, cellR, xInt, n);
+		real lambdaIntMin, lambdaIntMax;
+		Eqn::eigenWaveCodeMinMax(solver, eigInt, n, xInt, &lambdaIntMin, &lambdaIntMax);
 
-		real lambdaRMax;
-		Eqn::consWaveCodeMinMax(solver, UR, n, cellR.pos, nullptr, &lambdaRMax);
+		real sL, sR;
+		if (solver.flux_hllCalcWaveMethod == HLL_DAVIS_DIRECT) {
+			sL = lambdaIntMin;
+			sR = lambdaIntMax;
+		} else if (solver.flux_hllCalcWaveMethod == HLL_DAVIS_DIRECT_BOUNDED) {
+			real lambdaLMin;
+			Eqn::consWaveCodeMinMax(solver, UL, n, cellL.pos, &lambdaLMin, nullptr);
 
-		sL = min(lambdaLMin, lambdaIntMin);
-		sR = max(lambdaRMax, lambdaIntMax);
-	}
+			real lambdaRMax;
+			Eqn::consWaveCodeMinMax(solver, UR, n, cellR.pos, nullptr, &lambdaRMax);
 
-	if (0 <= sL) {
-		resultFlux = Eqn::fluxFromCons(solver, UL, cellL, n);
-	} else if (sR <= 0) {
-		resultFlux = Eqn::fluxFromCons(solver, UR, cellR, n);
-	} else if (sL <= 0 && 0 <= sR) {
-		Cons FL = Eqn::fluxFromCons(solver, UL, cellL, n);
-		Cons FR = Eqn::fluxFromCons(solver, UR, cellR, n);
-		for (int j = 0; j < numIntStates; ++j) {
-			resultFlux.ptr[j] = (sR * FL.ptr[j] - sL * FR.ptr[j] + sL * sR * (UR.ptr[j] - UL.ptr[j])) / (sR - sL);
+			sL = min(lambdaLMin, lambdaIntMin);
+			sR = max(lambdaRMax, lambdaIntMax);
 		}
+
+		if (0 <= sL) {
+			resultFlux = Eqn::fluxFromCons(solver, UL, cellL, n);
+		} else if (sR <= 0) {
+			resultFlux = Eqn::fluxFromCons(solver, UR, cellR, n);
+		} else if (sL <= 0 && 0 <= sR) {
+			Cons FL = Eqn::fluxFromCons(solver, UL, cellL, n);
+			Cons FR = Eqn::fluxFromCons(solver, UR, cellR, n);
+			for (int j = 0; j < numIntStates; ++j) {
+				resultFlux.ptr[j] = (sR * FL.ptr[j] - sL * FR.ptr[j] + sL * sR * (UR.ptr[j] - UL.ptr[j])) / (sR - sL);
+			}
+		}
+		return resultFlux;
 	}
-	return resultFlux;
-}
+};
+
+using Flux = HLLFlux;
 
 }	// namespace <?=Equation?>

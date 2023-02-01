@@ -96,17 +96,18 @@ struct Eqn {
 	) {
 		auto calcWaves = typename Base::ConsWaveCodeMinMaxAllSides(solver, U, cell.pos);
 		<? for side=0,solver.dim-1 do ?>{
+			constexpr int side = <?=side?>;
 <?
 if solver.coord.vectorComponent == "holonomic"
 or require "hydro.coord.cartesian":isa(solver.coord)
 then ?>
-			real const dx = solver.grid_dx[<?=side?>];
+			real const dx = solver.grid_dx[side];
 <? else ?>
 //// MODULE_DEPENDS: <?=cell_dxs?>
-			real const dx = cell_dxs<<?=side?>>(solver, cell.pos);
+			real const dx = cell_dxs<side>(solver, cell.pos);
 <? end ?>
 			if (dx > faceAreaEpsilon) {
-				auto const n = Normal::template forSide<<?=side?>>(cell.pos);
+				auto const n = Normal::template forSide<side>(cell.pos);
 				// use cell-centered eigenvalues
 				real lambdaMin, lambdaMax;
 				calcWaves(solver, n, U, cell.pos, &lambdaMin, &lambdaMax);

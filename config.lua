@@ -758,7 +758,7 @@ self.solvers:insert(require 'hydro.solver.weno'(table(args, {
 -- compressible Euler equations
 
 
---self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
+self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
 
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod=0})))	-- 'Davis direct'
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod=1})))	-- 'Davis direct bounded' -- this is the default hllCalcWaveMethod
@@ -799,7 +799,7 @@ self.solvers:insert(require 'hydro.solver.weno'(table(args, {
 --self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='euler', wenoMethod='2010 Shen Zha', order=13, integrator='backward Euler'})))
 
 -- testing different flux methods
-self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='euler', wenoMethod='1996 Jiang Shu', order=5, fluxMethod='Lax-Friedrichs'})))
+--self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='euler', wenoMethod='1996 Jiang Shu', order=5, fluxMethod='Lax-Friedrichs'})))
 --self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='euler', wenoMethod='1996 Jiang Shu', order=5, fluxMethod='Roe'})))
 -- FIXME: Marquina is broken:
 --self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='euler', wenoMethod='1996 Jiang Shu', order=5, fluxMethod='Marquina'})))
