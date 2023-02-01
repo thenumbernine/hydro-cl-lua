@@ -209,7 +209,7 @@ function CoordinateSystem:init(args)
 		'cell_volume',
 		'cell_sqrt_det_g',	-- seems that, when this is used, it would most often be used with gHol...
 		'cell_calcAvg_withPt',
-		
+
 		'cell_dxs',
 		'cell_areas',
 		'coord_basisHolUnits',
@@ -245,7 +245,7 @@ assert(args.anholonomic == nil, "coord.anholonomic is deprecated.  instead you s
 	-- 3 since all our base types are in 'real3', 'sym3', etc
 	-- what about removing this restriction?
 	local dim = 3
-	
+
 	local var = symmath.var
 	local Matrix = symmath.Matrix
 	local Tensor = symmath.Tensor
@@ -1529,7 +1529,7 @@ end
 getCode.real3_to_real3_define = function(coord, name, exprs)
 	return template([[
 static inline real3 <?=name?>(pt) {
-	return real3( 
+	return real3(
 <? for i=1,3 do
 ?>		<?=exprs[i] or '0.'?><?=i==3 and '' or ','?>
 <? end
@@ -2279,9 +2279,7 @@ real3 coord_cartesianToCoord(real3 u, real3 pt) {
 	return uCoord;
 }
 
-// TODO for when I uncouple this from GLSL
-// ... or make the shader code SPIR-V from OpenCL-C++ also
-real3 cartesianToCoord(real3 u, real3 pt) { return u; }
+real3 cartesianToCoord(real3 u, real3 pt) { return coord_cartesianToCoord(u, pt); }
 ]], env))
 			fromlines:insert(template([[
 //converts a vector from cartesian to grid curvilinear coordinates
@@ -2296,9 +2294,7 @@ real3 coord_cartesianFromCoord(real3 u, real3 pt) {
 	return uGrid;
 }
 
-// TODO for when I uncouple this from GLSL
-// ... or make the shader code SPIR-V from OpenCL-C++ also
-real3 coord_cartesianFromCoord(real3 u, real3 pt) { return u; }
+real3 cartesianFromCoord(real3 u, real3 pt) { return coord_cartesianFromCoord(u, pt); }
 ]], env))
 
 		end -- coord.vectorComponent
@@ -2544,7 +2540,7 @@ end
 	}
 	<? end ?>
 
-// END CODE FOR ALL NORMALS 
+// END CODE FOR ALL NORMALS
 
 };
 
@@ -2665,7 +2661,7 @@ end
 	}
 	<? end ?>
 
-// END CODE FOR ALL NORMALS 
+// END CODE FOR ALL NORMALS
 };
 
 }	// namespace <?=Equation?>
@@ -2700,11 +2696,111 @@ typedef struct {
 ]]
 
 			code = self.solver.eqn:template[[
-<? for side=0,solver.dim-1 do ?>
-static inline <?=normal_t?> normal_forSide<?=side?>(x) {
-	return (<?=normal_t?>){
-		.side = <?=side?>,
-		.U = real3x3(
+namespace <?=Equation?> {
+
+struct Normal {
+	int side;
+	real3x3 U;
+	real l;
+
+	Normal(int side_, real3x3 U_, real l_) : side(side_), U(U_), l(l_) {}
+
+	template<int side>
+	constexpr static Normal forSide(real3 pt);
+
+	//|n1|
+	constexpr real len() const {
+		return l;
+	}
+
+	constexpr real lenSq() const {
+		return l * l;
+	}
+
+	//(nj)_i, (nj_i / |nj|
+	<?
+	for j=1,3 do
+		for i,xi in ipairs(xNames) do
+	?>
+	constexpr real l<?=j?><?=xi?>() const {
+		return side == <?=(i-j)%3?> ? 1. : 0.;
+	}
+
+	constexpr real l<?=j?><?=xi?>_over_len() {
+		return side == <?=(i-j)%3?> ? (1./l) : 0.;
+	}
+	<?
+		end
+	end
+	?>
+
+	//(nj)^i, (nj)^i / |nj|
+	<?
+	for j,xj in ipairs(xNames) do
+		for i,xi in ipairs(xNames) do
+	?>
+	constexpr real u<?=j?><?=xi?>() const {
+		return U.<?=xj?>.<?=xi?>;
+	}
+
+	constexpr real u<?=j?><?=xi?>_over_len() const {
+		return u<?=j?><?=xi?>() / l;
+	}
+
+	<?
+		end
+	end
+	?>
+
+	//v^i (nj)_i for side j
+	constexpr real3 vecDotNs(real3 v) const {
+		return real3(
+			v[side],
+			v[(side+1)%3],
+			v[(side+2)%3]));
+	}
+
+	//v^i (n1)_i
+	constexpr real3 vecDotN1(real3 v) const {
+		return v[side];
+	}
+
+	// ...and this is the same as converting v in the basis of nj to v in global cartesian
+	// v.x * e[side] + v.y * e[side+1] + v.z * e[side+2]
+	constexpr real3 vecFromNs(real3 v) const {
+		return real3(
+			v[(3-side)%3],
+			v[(3-side+1)%3],
+			v[(3-side+2)%3]));
+	}
+
+// BEGIN CODE FOR ALL NORMALS (inherit? crtp insert?)
+
+	<? for i=1,3 do ?>
+	constexpr real3 l<?=i?>() const {
+		return real3(
+			l<?=i?>x(),
+			l<?=i?>y(),
+			l<?=i?>z());
+	}
+
+	constexpr real3 u<?=i?>() const {
+		return real3(
+			u<?=i?>x(),
+			u<?=i?>y(),
+			u<?=i?>z());
+	}
+	<? end ?>
+
+// END CODE FOR ALL NORMALS
+};
+
+<? for side=0,2 do ?>
+template<>
+constexpr Normal Normal::forSide<<?=side?>>(real3 pt) {
+	return Normal(
+		<?=side?>,
+		real3x3(
 <?
 for j=0,2 do
 	for i=0,2 do
@@ -2716,77 +2812,12 @@ for j=0,2 do
 	end
 end
 ?>		),
-		.len = coord_sqrt_g_uu<?=side..side?>(x),
-	};
+		coord_sqrt_g_uu<?=side..side?>(x)
+	);
 }
 <? end ?>
 
-//|n1|
-static inline real normal_len(<?=normal_t?> n) {
-	return n.len;
-}
-
-static inline real normal_lenSq(<?=normal_t?> n) {
-	return n.len * n.len;
-}
-
-//(nj)_i, (nj_i / |nj|
-<?
-for j=1,3 do
-	for i,xi in ipairs(xNames) do
-?>
-static inline real normal_l<?=j?><?=xi?>(<?=normal_t?> n) {
-	return n.side == <?=(i-j)%3?> ? 1. : 0.;
-}
-
-static inline real normal_l<?=j?><?=xi?>_over_len(<?=normal_t?> n) {
-	return n.side == <?=(i-j)%3?> ? (1./n.len) : 0.;
-}
-<?
-	end
-end
-?>
-
-//(nj)^i, (nj)^i / |nj|
-<?
-for j,xj in ipairs(xNames) do
-	for i,xi in ipairs(xNames) do
-?>
-static inline real normal_u<?=j?><?=xi?>(<?=normal_t?> n) {
-	return n.U.<?=xj?>.<?=xi?>;
-}
-
-static inline real normal_u<?=j?><?=xi?>_over_len(<?=normal_t?> n) {
-	return normal_u<?=j?><?=xi?>(n) / n.len;
-}
-
-<?
-	end
-end
-?>
-
-//v^i (nj)_i for side j
-static inline real3 normal_vecDotNs(<?=normal_t?> n, real3 v) {
-	return real3(
-		v.s[n.side],
-		v.s[(n.side+1)%3],
-		v.s[(n.side+2)%3]));
-}
-
-//v^i (n1)_i
-static inline real3 normal_vecDotN1(<?=normal_t?> n, real3 v) {
-	return v.s[n.side];
-}
-
-// ...and this is the same as converting v in the basis of nj to v in global cartesian
-// v.x * e[side] + v.y * e[side+1] + v.z * e[side+2]
-static inline real3 normal_vecFromNs(<?=normal_t?> n, real3 v) {
-	return real3(
-		v.s[(3-n.side)%3],
-		v.s[(3-n.side+1)%3],
-		v.s[(3-n.side+2)%3]));
-}
-
+}	// namespace <?=Equation?>
 ]]
 		else
 			error'here'

@@ -642,7 +642,6 @@ for side=0,solver.dim-1 do
 	real3 const pt,
 	real const dx
 ) {
-	<?=cons_t?> result;
 /* TODO don't assign here, instead assign all fields and just don't propagate the scalars */
 	<?=cons_t?> result = U;
 <?		for _,var in ipairs(eqn.consStruct.vars) do
