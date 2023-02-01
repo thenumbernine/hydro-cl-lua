@@ -2348,129 +2348,95 @@ How to organize this?
 3) have code gen for (1) calculating the struct and (2) accessing the struct.
 --]]
 function CoordinateSystem:initCodeModule_normal()
-	local typecode, code
-	local depends = table()
-	if self.verbose then
-		print[[
-normals:<br>
-$n^i =$ i'th normal, along the i'th coordinate basis.<br>
-$(n^i)_\\hat{j}$ = i'th basis direction, j'th component.<br>
-]]
-	end
-	if require 'hydro.solver.meshsolver':isa(self.solver) then
-		if self.verbose then
-			print[[
-mesh-based normals are assuming a cartesian coordinate system, and assumed to be normalized:<br>
-$(n^i)_k (n^j)^k = g^{ij} = \delta^{ij}$<br>
-]]
-		end
---[[
-mesh vertexes are provided in Cartesian coordinates
-so their normals are as well
- so face->normal will be in Cartesian components
-
-however their use with the cell vector components requires them to be converted to whatever coord.vectorComponents specifies
-maybe I will just do that up front?  save a frame basis & dual (that is orthonormal to the basis)
-though for now I'll just support Cartesian / identity metric
---]]
-		depends:insert'real3x3'
-		typecode = self.solver.eqn:template[[
-typedef struct {
-	real3x3 n;
-} <?=normal_t?>;
-]]
-
-		code = self.solver.eqn:template[[
-static inline <?=normal_t?> normal_forFace(global <?=face_t?> const * const face) {
-	return <?=normal_t?>{
-		.n = (real3x3){
-			.x = face->normal,
-			.y = face->normal2,
-			.z = face->normal3,
-		},
-	};
-}
-
-static inline real normal_len(<?=normal_t?> n) {
-	return 1.;
-}
-static inline real normal_lenSq(<?=normal_t?> n) {
-	return 1.;
-}
-<?
-for j,xj in ipairs(xNames) do
-	for i,xi in ipairs(xNames) do
-?>
-static inline real normal_l<?=j?><?=xi?>(<?=normal_t?> n) {
-	return n.n.<?=xj?>.<?=xi?>;
-}
-static inline real normal_u<?=j?><?=xi?>(<?=normal_t?> n) {
-	return normal_l<?=j?><?=xi?>(n);
-}
-static inline real normal_l<?=j?><?=xi?>_over_len(<?=normal_t?> n) {
-	return normal_l<?=j?><?=xi?>(n);
-}
-static inline real normal_u<?=j?><?=xi?>_over_len(<?=normal_t?> n) {
-	return normal_u<?=j?><?=xi?>(n);
-}
-<?
-	end
-end
-?>
-
-//v^i (nj)_i
-static inline real3 normal_vecDotNs(<?=normal_t?> n, real3 v) {
-	return n.n * v;
-}
-
-//v^i (n1)_i
-static inline real normal_vecDotN1(<?=normal_t?> n, real3 v) {
-	return dot(n.n.x, v);
-}
-
-// w_j <=> (n_j)^i w_i = v_j
-static inline real3 normal_vecFromNs(<?=normal_t?> n, real3 v) {
-	return n.n * v;
-}
-
-]]
-	else	-- not meshsolver
-
-		if require 'hydro.coord.cartesian':isa(self)
-		or self.vectorComponent == 'anholonomic'
-		then
-			if self.verbose then
-				print[[
-anholonomic normals are coordinate-aligned but orthonormalized by the locally-Cartesian basis:<br>
-$(n^i)^k (n^j)^l g_{kl} = g^{ij} = \delta^{ij}$, for anholonomic (orthonormal) basis.<br>
-$(n^i)_j = (n^i)^j = \delta^{ij}$.<br>
-]]
-			end
-
-			--[[
-			n_i = n^i = delta_ij for side j
-			|n| = 1
-			--]]
-			-- typecode is now only used for lua ffi cdef and tested to sizeof the c++ struct with static_assert
-			typecode = self.solver.eqn:template[[
-typedef struct {
-	int side;			//0, 1, 2
-} <?=normal_t?>;		//nL = nU = normalBasisForSide (permutation of I), nLen = 1
-]]
-
-			-- this is overwhelmingly interface-based
-			-- with two exceptions: calcDT and some displayVars
-			code = self.solver.eqn:template[[
-
+	local typecode	-- only for lua ffi, inserted into c++ so i can static_assert sizeof ==
+	local code = self.solver.eqn:template[[
 namespace <?=Equation?> {
 
-struct Normal {
+struct MeshNormal {
+	real3x3 n;
+
+	MeshNormal(real3x3 n_) : n(n_) {}
+
+<? if require "hydro.solver.meshsolver":isa(solver) then ?>
+	static MeshNormal forFace(global Face const & face) {
+		return MeshNormal(real3x3{
+			face->normal,
+			face->normal2,
+			face->normal3,
+		});
+	}
+<? end ?>
+
+	constexpr real len() const {
+		return 1.;
+	}
+	constexpr real lenSq() const {
+		return 1.;
+	}
+	<?
+	for j,xj in ipairs(xNames) do
+		for i,xi in ipairs(xNames) do
+	?>
+	constexpr real l<?=j?><?=xi?>() const {
+		return n.<?=xj?>.<?=xi?>;
+	}
+	constexpr real u<?=j?><?=xi?>() const {
+		return l<?=j?><?=xi?>();
+	}
+	constexpr real l<?=j?><?=xi?>_over_len() const {
+		return l<?=j?><?=xi?>();
+	}
+	constexpr real u<?=j?><?=xi?>_over_len() const {
+		return u<?=j?><?=xi?>();
+	}
+	<?
+		end
+	end
+	?>
+
+	//v^i (nj)_i
+	constexpr real3 vecDotNs(real3 v) const {
+		return n * v;
+	}
+
+	//v^i (n1)_i
+	constexpr real vecDotN1(real3 v) const {
+		return dot(n.x, v);
+	}
+
+	// w_j <=> (n_j)^i w_i = v_j
+	constexpr real3 vecFromNs(real3 v) const {
+		return n * v;
+	}
+
+// BEGIN CODE FOR ALL NORMALS (inherit? crtp insert?)
+
+	<? for i=1,3 do ?>
+	constexpr real3 l<?=i?>() const {
+		return real3(
+			l<?=i?>x(),
+			l<?=i?>y(),
+			l<?=i?>z());
+	}
+
+	constexpr real3 u<?=i?>() const {
+		return real3(
+			u<?=i?>x(),
+			u<?=i?>y(),
+			u<?=i?>z());
+	}
+	<? end ?>
+
+// END CODE FOR ALL NORMALS
+};
+
+struct AnholonomicNormal {
 	int side;
-	constexpr Normal(int side_) : side(side_) {}
+	constexpr AnholonomicNormal(int side_) : side(side_) {}
 
 	template<int side>
-	static Normal forSide(real3 const x) {
-		return Normal(side);
+	static AnholonomicNormal forSide(real3 const x) {
+		return AnholonomicNormal(side);
 	}
 
 	//|n|
@@ -2541,48 +2507,16 @@ end
 	<? end ?>
 
 // END CODE FOR ALL NORMALS
-
 };
 
-}	// namespace <?=Equation?>
-]]
-		elseif self.vectorComponent == 'cartesian' then
-			if self.verbose then
-				print[[
-cartesian-component normals:<br>
-$n_i = e_i$<br>
-$(n_i)_j = e_{ij}$<br>
-$(n_i)^j = {e_i}^j$<br>
-$n_i \cdot n_j = (n_i)_k (n_j)^l = \delta_{ij}$<br>
-]]
-			end
-			depends:insert'real3x3'
-			depends:insert(self.symbols.coord_basisHolUnits)
-
-			--[[
-			n_i = n^i = unit(u^i_,j) for side j
-			|n| = sqrt(n^i n_i) = 1 (since g_ij = g^ij = delta_ij)
-			--]]
-			typecode = self.solver.eqn:template[[
-typedef struct {
-	real3x3 n;		// nL = nU, both are orthonormal so nLen = 1
-	real len;
-} <?=normal_t?>;
-]]
-
-			-- this would call coord_cartesianFromCoord
-			-- which itself aligns with the coord_basisHolUnit
-			code = self.solver.eqn:template[[
-namespace <?=Equation?> {
-
-struct Normal {
+struct CartesianNormal {
 	real3x3 n;
 	real l;
-	constexpr Normal(real3x3 n_, real lenval_) : n(n_), l(lenval_) {}
+	constexpr CartesianNormal(real3x3 n_, real lenval_) : n(n_), l(lenval_) {}
 
 	template<int side>
-	static Normal forSide(real3 const pt) {
-		return Normal(
+	static CartesianNormal forSide(real3 const pt) {
+		return CartesianNormal(
 			real3x3{
 				coord_basisHolUnits<side>(pt),
 				coord_basisHolUnits<(side+1)%3>(pt),
@@ -2664,49 +2598,15 @@ end
 // END CODE FOR ALL NORMALS
 };
 
-}	// namespace <?=Equation?>
-
-]]
-		elseif self.vectorComponent == 'holonomic' then
-			if self.verbose then
-				print[[
-cartesian normals are aligned to the embedding cartesian coordinate space:<br>
-$n_i = e_i$<br>
-$(n_i)_j = \delta_{ij}$<br>
-$(n_i)^j = g^{jk} \delta_{ik}$<br>
-$(n_i)^k (n_j)^l = g^{km} \delta_{mi} g^{ln} \delta_{nj}$<br>
-]]
-			end
-
-			depends:insert'real3x3'
-			depends:insert(self.symbols.coord_g_uu_ij)
-			depends:insert(self.symbols.coord_sqrt_g_uu_ij)
-
-			--[[
-			n_i = delta_ij for side j
-			n^i = g^ik delta_kj
-			|n| = sqrt(n^i n_i) = sqrt(g^jj)
-			--]]
-			typecode = self.solver.eqn:template[[
-typedef struct {
-	int side;
-	real3x3 U;
-	real len;
-} <?=normal_t?>;
-]]
-
-			code = self.solver.eqn:template[[
-namespace <?=Equation?> {
-
-struct Normal {
+struct HolonomicNormal {
 	int side;
 	real3x3 U;
 	real l;
 
-	Normal(int side_, real3x3 U_, real l_) : side(side_), U(U_), l(l_) {}
+	HolonomicNormal(int side_, real3x3 U_, real l_) : side(side_), U(U_), l(l_) {}
 
 	template<int side>
-	constexpr static Normal forSide(real3 pt);
+	constexpr static HolonomicNormal forSide(real3 pt);
 
 	//|n1|
 	constexpr real len() const {
@@ -2757,11 +2657,11 @@ struct Normal {
 		return real3(
 			v[side],
 			v[(side+1)%3],
-			v[(side+2)%3]));
+			v[(side+2)%3]);
 	}
 
 	//v^i (n1)_i
-	constexpr real3 vecDotN1(real3 v) const {
+	constexpr real vecDotN1(real3 v) const {
 		return v[side];
 	}
 
@@ -2771,7 +2671,7 @@ struct Normal {
 		return real3(
 			v[(3-side)%3],
 			v[(3-side+1)%3],
-			v[(3-side+2)%3]));
+			v[(3-side+2)%3]);
 	}
 
 // BEGIN CODE FOR ALL NORMALS (inherit? crtp insert?)
@@ -2797,8 +2697,8 @@ struct Normal {
 
 <? for side=0,2 do ?>
 template<>
-constexpr Normal Normal::forSide<<?=side?>>(real3 pt) {
-	return Normal(
+HolonomicNormal HolonomicNormal::forSide<<?=side?>>(real3 pt) {
+	return HolonomicNormal(
 		<?=side?>,
 		real3x3(
 <?
@@ -2807,16 +2707,148 @@ for j=0,2 do
 		local k = (side + j) % 3
 		local m, n = k, i
 		if m > n then m, n = n, m end
-?>			coord_g_uu<?=m..n?>(x)<?=i+3*j < 8 and ',' or ''?>
+?>			coord_g_uu<?=m..n?>(pt)<?=i+3*j < 8 and ',' or ''?>
 <?
 	end
 end
 ?>		),
-		coord_sqrt_g_uu<?=side..side?>(x)
+		coord_sqrt_g_uu<?=side..side?>(pt)
 	);
 }
 <? end ?>
 
+}	//namespace <?=Equation?>
+]]
+	
+	local depends = table{
+		'real3x3',
+		self.symbols.coord_basisHolUnits,
+		self.symbols.coord_g_uu_ij,
+		self.symbols.coord_sqrt_g_uu_ij,
+	}
+	
+	if self.verbose then
+		print[[
+normals:<br>
+$n^i =$ i'th normal, along the i'th coordinate basis.<br>
+$(n^i)_\\hat{j}$ = i'th basis direction, j'th component.<br>
+]]
+	end
+	if require 'hydro.solver.meshsolver':isa(self.solver) then
+		if self.verbose then
+			print[[
+mesh-based normals are assuming a cartesian coordinate system, and assumed to be normalized:<br>
+$(n^i)_k (n^j)^k = g^{ij} = \delta^{ij}$<br>
+]]
+		end
+--[[
+mesh vertexes are provided in Cartesian coordinates
+so their normals are as well
+ so face->normal will be in Cartesian components
+
+however their use with the cell vector components requires them to be converted to whatever coord.vectorComponents specifies
+maybe I will just do that up front?  save a frame basis & dual (that is orthonormal to the basis)
+though for now I'll just support Cartesian / identity metric
+--]]
+		typecode = self.solver.eqn:template[[
+typedef struct {
+	real3x3 n;
+} <?=normal_t?>;
+]]
+
+		code = code .. self.solver.eqn:template[[
+namespace <?=Equation?> {
+using Normal = MeshNormal;
+}	//namespace <?=Equation?>
+]]
+	else	-- not meshsolver
+
+		if require 'hydro.coord.cartesian':isa(self)
+		or self.vectorComponent == 'anholonomic'
+		then
+			if self.verbose then
+				print[[
+anholonomic normals are coordinate-aligned but orthonormalized by the locally-Cartesian basis:<br>
+$(n^i)^k (n^j)^l g_{kl} = g^{ij} = \delta^{ij}$, for anholonomic (orthonormal) basis.<br>
+$(n^i)_j = (n^i)^j = \delta^{ij}$.<br>
+]]
+			end
+
+			--[[
+			n_i = n^i = delta_ij for side j
+			|n| = 1
+			--]]
+			-- typecode is now only used for lua ffi cdef and tested to sizeof the c++ struct with static_assert
+			typecode = self.solver.eqn:template[[
+typedef struct {
+	int side;			//0, 1, 2
+} <?=normal_t?>;		//nL = nU = normalBasisForSide (permutation of I), nLen = 1
+]]
+
+			-- this is overwhelmingly interface-based
+			-- with two exceptions: calcDT and some displayVars
+			code = code .. self.solver.eqn:template[[
+namespace <?=Equation?> {
+using Normal = AnholonomicNormal;
+}	// namespace <?=Equation?>
+]]
+		elseif self.vectorComponent == 'cartesian' then
+			if self.verbose then
+				print[[
+cartesian-component normals:<br>
+$n_i = e_i$<br>
+$(n_i)_j = e_{ij}$<br>
+$(n_i)^j = {e_i}^j$<br>
+$n_i \cdot n_j = (n_i)_k (n_j)^l = \delta_{ij}$<br>
+]]
+			end
+
+			--[[
+			n_i = n^i = unit(u^i_,j) for side j
+			|n| = sqrt(n^i n_i) = 1 (since g_ij = g^ij = delta_ij)
+			--]]
+			typecode = self.solver.eqn:template[[
+typedef struct {
+	real3x3 n;		// nL = nU, both are orthonormal so nLen = 1
+	real len;
+} <?=normal_t?>;
+]]
+
+			-- this would call coord_cartesianFromCoord
+			-- which itself aligns with the coord_basisHolUnit
+			code = code .. self.solver.eqn:template[[
+namespace <?=Equation?> {
+using Normal = CartesianNormal;
+}	// namespace <?=Equation?>
+]]
+		elseif self.vectorComponent == 'holonomic' then
+			if self.verbose then
+				print[[
+cartesian normals are aligned to the embedding cartesian coordinate space:<br>
+$n_i = e_i$<br>
+$(n_i)_j = \delta_{ij}$<br>
+$(n_i)^j = g^{jk} \delta_{ik}$<br>
+$(n_i)^k (n_j)^l = g^{km} \delta_{mi} g^{ln} \delta_{nj}$<br>
+]]
+			end
+
+
+			--[[
+			n_i = delta_ij for side j
+			n^i = g^ik delta_kj
+			|n| = sqrt(n^i n_i) = sqrt(g^jj)
+			--]]
+			typecode = self.solver.eqn:template[[
+typedef struct {
+	int side;
+	real3x3 U;
+	real len;
+} <?=normal_t?>;
+]]
+
+			code = code .. self.solver.eqn:template[[
+namespace <?=Equation?> {
+using Normal = HolonomicNormal;
 }	// namespace <?=Equation?>
 ]]
 		else
