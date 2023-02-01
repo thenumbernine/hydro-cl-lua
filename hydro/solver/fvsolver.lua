@@ -28,7 +28,7 @@ end
 function FiniteVolumeSolver:initObjs(args)
 	-- used to go after but I need it before so I can manipulate solver_t
 	self:createFlux(args.flux, args.fluxArgs)
-	
+
 	FiniteVolumeSolver.super.initObjs(self, args)
 end
 
@@ -47,7 +47,7 @@ function FiniteVolumeSolver:initCodeModules()
 			flux = self.flux,
 		})
 	)
-	
+
 	self.solverModulesEnabled[self.symbols.calcDerivFromFlux] = true
 
 	self:initCodeModule_calcFlux()
@@ -58,7 +58,7 @@ function FiniteVolumeSolver:initCodeModule_calcFlux()
 	self.modules:addFromMarkup{
 		code = self.eqn:template([[
 //// MODULE_NAME: <?=calcFlux?>
-//// MODULE_DEPENDS: <?=normal_t?>
+//// MODULE_DEPENDS: <?=Equation?>
 // used by all gridsolvers.  the meshsolver alternative is in solver/meshsolver.lua
 
 <?
@@ -73,105 +73,104 @@ kernel void <?=calcFlux?>(
 	realparam const dt,	//not used by HLL, just making this match Roe / other FV solvers
 	global <?=cell_t?> const * const cellBuf
 ) {
+	using namespace <?=Equation?>;
 	auto const & solver = *psolver;
 	<?=SETBOUNDS?>(solver.numGhost, solver.numGhost-1);
-	
+
 	int const indexR = index;
-	global <?=cell_t?> const & cellR = cellBuf[index];
-	
+	auto const & cellR = cellBuf[index];
+
 	<? for side=0,solver.dim-1 do ?>{
-		int const side = <?=side?>;
+		constexpr int const side = <?=side?>;
 
-		real const dx = solver.grid_dx[<?=side?>];
+		real const dx = solver.grid_dx[side];
 
-		int const indexL = index - solver.stepsize[<?=side?>];
-		global <?=cell_t?> const & cellL = cellBuf[indexL];
+		int const indexL = index - solver.stepsize[side];
+		auto const & cellL = cellBuf[indexL];
 
 		real3 xInt = cellR.pos;
-		xInt[<?=side?>] -= .5 * dx;
+		xInt[side] -= .5 * dx;
 
 		int const indexInt = side + dim * index;
-		global <?=cons_t?> & flux = fluxBuf[indexInt];
+		auto & flux = fluxBuf[indexInt];
 
 
 <? if solver.coord.vectorComponent == 'cartesian'
 	or solver.coord.vectorComponent == 'anholonomic'
 then ?>
 //// MODULE_DEPENDS: <?=cell_areas?>
-		real area = cell_areas<<?=side?>>(solver, xInt);
+		real area = cell_areas<side>(solver, xInt);
 <? else ?>
-		real area = 1.<?
-	for i=0,solver.dim-1 do
-		if i ~= side then
-			?> * solver.grid_dx.s<?=i?><?
-		end
-	end
-?>;
+		real area = 1.;
+		for (int i = 0; i < dim; ++i) {
+			if (i != side) {
+				area *= solver.grid_dx[i];
+			}
+		}
 <? end ?>
 		if (area <= 1e-7) {
 			for (int j = 0; j < numStates; ++j) {
-				flux.ptr[j] = 0;
+				flux[j] = 0;
 			}
 		} else {
-		
+
 			<?=solver:getULRCode():gsub('\n', '\n\t\t\t')?>
 
 			//the single act of removing the copy of the U's from global to local memory
 			// increases the framerate from 78 to 127
 //// MODULE_DEPENDS: <?=cons_parallelPropagate?>
-			<?=cons_t?> ppUL = <?=cons_parallelPropagate?><?=side?>(UL, cellL.pos, .5 * dx);
-			<?=cons_t?> ppUR = <?=cons_parallelPropagate?><?=side?>(UR, cellR.pos, -.5 * dx);
+			auto const ppUL = <?=cons_parallelPropagate?><?=side?>(UL, cellL.pos, .5 * dx);
+			auto const ppUR = <?=cons_parallelPropagate?><?=side?>(UR, cellR.pos, -.5 * dx);
 
-			auto const n = <?=Equation?>::Normal::forSide<<?=side?>>(xInt);
+			auto const n = Normal::forSide<side>(xInt);
 
 <?
 if useFluxLimiter then
 ?>			//this is used for the flux limiter
 			//should it be using the coordinate dx or the grid dx?
-			//real dt_dx = dt / cell_dxs<<?=side?>>(solver, xInt);
+			//real dt_dx = dt / cell_dxs<side>(solver, xInt);
 <?
 	if solver.coord.vectorComponent == 'cartesian'
 	and not require 'hydro.coord.cartesian':isa(solver.coord)
 	then
 ?>
 //// MODULE_DEPENDS: <?=cell_dxs?>
-			real const dt_dx = dt / cell_dxs<<?=side?>>(solver, xInt);
+			real const dt_dx = dt / cell_dxs<side>(solver, xInt);
 <? 	else
 ?>			real const dt_dx = dt / dx;
 <? 	end
 ?>
-			real3 xIntL = xInt;
-			xIntL[<?=side?>] -= dx;
-			
-			real3 xIntR = xInt;
-			xIntR[<?=side?>] += dx;
-			
-			int const indexR2 = indexR + solver.stepsize[<?=side?>];
-			int const indexL2 = indexL - solver.stepsize[<?=side?>];
+			real3 xIntL = xInt; xIntL[side] -= dx;
+			real3 xIntR = xInt; xIntR[side] += dx;
+
+			int const indexR2 = indexR + solver.stepsize[side];
+			int const indexL2 = indexL - solver.stepsize[side];
 			<?=solver:getULRCode{indexL = 'indexL2', indexR = 'indexL', suffix='_L'}:gsub('\n', '\n\t\t\t')?>
 			<?=solver:getULRCode{indexL = 'indexR', indexR = 'indexR2', suffix='_R'}:gsub('\n', '\n\t\t\t')?>
 
 //// MODULE_DEPENDS: <?=cons_parallelPropagate?>
-			<?=cons_t?> ppUL_L = <?=cons_parallelPropagate?><?=side?>(UL_L, xIntL, 1.5 * dx);		//xIntL2?
-			<?=cons_t?> ppUL_R = <?=cons_parallelPropagate?><?=side?>(UL_R, xIntL, .5 * dx);
-			<?=cons_t?> ppUR_L = <?=cons_parallelPropagate?><?=side?>(UR_L, xIntR, -.5 * dx);
-			<?=cons_t?> ppUR_R = <?=cons_parallelPropagate?><?=side?>(UR_R, xIntR, -1.5 * dx);		//xIntR2?
+			auto const ppUL_L = <?=cons_parallelPropagate?><?=side?>(UL_L, xIntL, 1.5 * dx);		//xIntL2?
+			auto const ppUL_R = <?=cons_parallelPropagate?><?=side?>(UL_R, xIntL, .5 * dx);
+			auto const ppUR_L = <?=cons_parallelPropagate?><?=side?>(UR_L, xIntR, -.5 * dx);
+			auto const ppUR_R = <?=cons_parallelPropagate?><?=side?>(UR_R, xIntR, -1.5 * dx);		//xIntR2?
 
-			global <?=cell_t?> const & cellR2 = cellBuf[indexR2];
-			global <?=cell_t?> const & cellL2 = cellBuf[indexL2];
+			auto const & cellR2 = cellBuf[indexR2];
+			auto const & cellL2 = cellBuf[indexL2];
 
 <?
 end
 ?>
-//// MODULE_DEPENDS: <?=Equation?> calcFluxForInterface
-			flux = <?=Equation?>::calcFluxForInterface(
+//// MODULE_DEPENDS: calcFluxForInterface
+			flux = calcFluxForInterface(
 				solver,
 				ppUL,
 				ppUR,
 				cellL,
 				cellR,
 				xInt,
-				n<? if useFluxLimiter then ?>,
+				n
+<? if useFluxLimiter then ?>
+				,
 				dt_dx,
 				ppUL_L,
 				ppUL_R,
@@ -182,9 +181,10 @@ end
 				ppUR_R,
 				cellR,
 				cellR2,
-				xIntR<? end ?>
+				xIntR
+<? end ?>
 			);
-		
+
 			//while we're here how about other solvers that might want to modify the flux?  like adding the viscous flux to the update?
 			//or should the viscous flux only be added separately?  in case its eigenvalues change the euler flux enough to overstep the CFL or something
 <?
@@ -220,7 +220,7 @@ function FiniteVolumeSolver:refreshSolverProgram()
 	FiniteVolumeSolver.super.refreshSolverProgram(self)
 
 	self.calcFluxKernelObj = self.solverProgramObj:kernel(self.symbols.calcFlux)
-	
+
 	self.calcDerivFromFluxKernelObj = self.solverProgramObj:kernel{name=self.symbols.calcDerivFromFlux, domain=self.domainWithoutBorder}
 	self.calcDerivFromFluxKernelObj.obj:setArg(0, self.solverBuf)
 	self.calcDerivFromFluxKernelObj.obj:setArg(2, self.fluxBuf)
@@ -234,7 +234,7 @@ if self.checkNaNs then assert(math.isfinite(dt)) end
 
 if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
 if self.checkNaNs then assert(self:checkFinite(derivBufObj)) end
-	
+
 	if self.usePLM then
 		self.calcLRKernelObj(self.solverBuf, self.cellBuf, self:getULRBuf(), self.UBuf, dtArg)
 	end
@@ -257,17 +257,17 @@ if self.checkNaNs then assert(self:checkFinite(derivBufObj)) end
 		--	( don't use the deriv buf because it already has the sum of all dimensions' flux differences)
 		self.updateCTUKernelObj(self.solverBuf, self.cellBuf, self:getULRBuf(), self.fluxBuf, dtArg)
 if self.checkNaNs then assert(self:checkFinite(derivBufObj)) end
-		
+
 		-- now we need to calcBounds on the ULR
 		-- TODO this will break for mirror conditions
 		-- because I haven't got the boundary code flexible enough to operate on specific fields within the L & R fields of the ULRBuf
 		self:boundaryLR()
-		
+
 		-- 3) use the final LR states to calculate the flux ...
-		
+
 		-- the rest of this matches above
 		-- maybe use 'repeat'?
-		
+
 --if self.checkNaNs then assert(self:checkFinite(derivBufObj)) end
 --		self.calcEigenBasisKernelObj()
 if self.checkNaNs then assert(self:checkFinite(derivBufObj)) end
@@ -280,7 +280,7 @@ if self.checkNaNs then assert(self:checkFinite(self.fluxBufObj)) end
 if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
 if self.checkNaNs then assert(self:checkFinite(self.fluxBufObj)) end
 if self.checkNaNs then assert(self:checkFinite(derivBufObj)) end
-	
+
 	self.calcDerivFromFluxKernelObj.obj:setArg(1, derivBufObj.obj)
 	self.calcDerivFromFluxKernelObj()
 
@@ -323,7 +323,7 @@ global <?=cons_t?> const & flux = buf[indexInt];
 				side = side,
 			}),
 			vars = range(0,self.eqn.numIntStates-1):mapi(function(i)
-				return {name=tostring(i), code='value.vreal = flux.ptr['..i..'];'}
+				return {name=tostring(i), code='value.vreal = flux['..i..'];'}
 			end),
 		}
 	end
@@ -348,7 +348,7 @@ auto n = <?=Equation?>::Normal::forSide<<?=side?>>(xInt);
 			side = args.side,
 		})
 	end
-	
+
 	for side=0,self.dim-1 do
 		local xj = xNames[side+1]
 		self:addDisplayVarGroup{
@@ -416,18 +416,18 @@ value.vreal = 0;
 //I = L R
 //Also note (courtesy of Trangenstein) consider summing across outer products of basis vectors to fulfill rank
 for (int k = 0; k < numWaves; ++k) {
-	<?=cons_t?> basis;
+	<?=Equation?>::Cons basis;
 	for (int j = 0; j < numStates; ++j) {
-		basis.ptr[j] = k == j ? 1 : 0;
+		basis[j] = k == j ? 1 : 0;
 	}
-	
+
 //// MODULE_DEPENDS: <?=Equation?>
 	auto n = <?=Equation?>::Normal::forSide<<?=side?>>(xInt);
 	<?=waves_t?> chars = <?=Equation?>::Eqn::eigen_leftTransform(solver, eig, basis, xInt, n);
 	<?=cons_t?> newbasis = <?=Equation?>::Eqn::eigen_rightTransform(solver, eig, chars, xInt, n);
 
 	for (int j = 0; j < numStates; ++j) {
-		value.vreal += fabs(newbasis.ptr[j] - basis.ptr[j]);
+		value.vreal += fabs(newbasis[j] - basis[j]);
 	}
 }
 ]], 						{
@@ -460,36 +460,37 @@ for (int k = 0; k < numWaves; ++k) {
 						getEigenCode{side=side},
 						self.eqn:template([[
 //// MODULE_DEPENDS: <?=cell_calcAvg_withPt?>
-auto n<?=side?> = <?=Equation?>::Normal::forSide<<?=side?>>(x);
-auto calcWaves = <?=Equation?>::Eqn::EigenWaveCode(solver, eig, n<?=side?>, xInt);
+
+using namespace <?=Equation?>;
+
+auto n<?=side?> = Normal::forSide<<?=side?>>(x);
+auto calcWaves = Eqn::EigenWaveCode(solver, eig, n<?=side?>, xInt);
 
 value.vreal = 0;
 for (int k = 0; k < numIntStates; ++k) {
 	//This only needs to be numIntStates in size, but just in case the left/right transforms are reaching past that memory boundary ...
 	//Then again, how do I know what the non-integrated states should be?  Defaulting to zero is a bad idea.
-	<?=cons_t?> basis;
+	Cons basis;
 	for (int j = 0; j < numStates; ++j) {
-		basis.ptr[j] = k == j ? 1 : 0;
+		basis[j] = k == j ? 1 : 0;
 	}
 
-	auto n = <?=Equation?>::Normal::forSide<<?=side?>>(xInt);
-	
-	<?=waves_t?> chars = <?=Equation?>::Eqn::eigen_leftTransform(solver, eig, basis, xInt, n);
+	auto n = Normal::forSide<<?=side?>>(xInt);
+	auto chars = Eqn::eigen_leftTransform(solver, eig, basis, xInt, n);
 
-	<?=waves_t?> charScaled;
+	Waves charScaled;
 	for (int j = 0; j < numWaves; ++j) {
-		real const lambda_j = calcWaves(solver, eig, n<?=side?>, xInt, j);
-		charScaled.ptr[j] = chars.ptr[j] * lambda_j;
+		charScaled[j] = chars[j] * calcWaves(solver, eig, n<?=side?>, xInt, j);
 	}
 
 	//once again, only needs to be numIntStates
-	<?=cons_t?> newtransformed = <?=Equation?>::Eqn::eigen_rightTransform(solver, eig, charScaled, xInt, n);
+	auto newtransformed = Eqn::eigen_rightTransform(solver, eig, charScaled, xInt, n);
 
 #if 1
 	//this shouldn't need to be reset here
 	// but it will if leftTransform does anything destructive
 	for (int j = 0; j < numStates; ++j) {
-		basis.ptr[j] = k == j ? 1 : 0;
+		basis[j] = k == j ? 1 : 0;
 	}
 #endif
 
@@ -497,10 +498,10 @@ for (int k = 0; k < numIntStates; ++k) {
 	cell_calcAvg_withPt(&cellAvg, cellL, cellR, xInt);
 
 	//once again, only needs to be numIntStates
-	<?=cons_t?> transformed = <?=Equation?>::Eqn::eigen_fluxTransform(solver, eig, basis, cellAvg, n);
-	
+	auto transformed = Eqn::eigen_fluxTransform(solver, eig, basis, cellAvg, n);
+
 	for (int j = 0; j < numIntStates; ++j) {
-		value.vreal += fabs(newtransformed.ptr[j] - transformed.ptr[j]);
+		value.vreal += fabs(newtransformed[j] - transformed[j]);
 	}
 }
 ]], 						{

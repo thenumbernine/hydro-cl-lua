@@ -59,7 +59,7 @@ WENO.coeffs = {
 			},
 		},
 	},
-	
+
 	[3] = {
 -- [[
 		d = {1/10, 6/10, 3/10},
@@ -93,7 +93,7 @@ WENO.coeffs = {
 			},
 		},
 	},
-	
+
 	[4] = {
 		d = {1/35, 12/35, 18/35, 4/35},
 		a = {
@@ -348,12 +348,12 @@ args:
 function WENO:init(args)
 	self.wenoMethod = args.wenoMethod
 	self.fluxMethod = args.fluxMethod
-	
+
 	local order = args.order
 	if order then
 		self.stencilSize = (order+1)/2
 	end
-	
+
 	self.numGhost = self.stencilSize
 	WENO.super.init(self, args)
 end
@@ -362,11 +362,7 @@ end
 -- TODO WENO should be a 'Flux' object rather than a 'Solver'
 function WENO:createFlux()
 	self.flux = {
-		initCodeModules = function()
-			self.modules:add{
-				name = self.symbols.calcFluxForInterface,
-			}
-		end,
+		initCodeModules = function() end,
 	}
 end
 
@@ -383,7 +379,7 @@ end
 
 function WENO:initCodeModule_calcFlux()
 	self.modules:addFromMarkup(
-		self.eqn:template(file'hydro/solver/weno.cl':read(), {
+		self.eqn:template(file'hydro/solver/weno.clcpp':read(), {
 			clnumber = require 'cl.obj.number',
 		})
 	)
@@ -392,7 +388,7 @@ end
 -- all these are found eqn's cl code
 function WENO:refreshSolverProgram()
 	WENO.super.refreshSolverProgram(self)
-	
+
 --	self.calcCellFluxKernelObj = self.solverProgramObj:kernel'calcCellFlux'
 
 	self.calcFluxKernelObj = self.solverProgramObj:kernel(self.symbols.calcFlux)
@@ -402,7 +398,7 @@ end
 -- NOTICE this adds the contents of derivBufObj and does not clear it
 function WENO:calcDeriv(derivBufObj, dt)
 	local dtArg = real(dt)
-	
+
 	if self.usePLM then
 		self.calcLRKernelObj(self.solverBuf, self.cellBuf, self.UBuf, self.UBuf, dtArg)
 	end
@@ -413,7 +409,7 @@ function WENO:calcDeriv(derivBufObj, dt)
 	self.calcCellFluxKernelObj.obj:setArg(2, self.UBuf)
 	self.calcCellFluxKernelObj()
 --]]
-	
+
 	self.calcFluxKernelObj.obj:setArg(0, self.solverBuf)
 	self.calcFluxKernelObj.obj:setArg(1, self.fluxBuf)
 	self.calcFluxKernelObj.obj:setArg(2, self:getULRBuf())
@@ -431,7 +427,7 @@ function WENO:calcDeriv(derivBufObj, dt)
 		self.updateCTUKernelObj(self.solverBuf, self.cellBuf, self.UBuf, self.fluxBuf, dtArg)
 
 --		self.calcCellFluxKernelObj()
-	
+
 		-- now we need to calcBounds on the ULR
 		-- TODO this will break for mirror conditions
 		-- because I haven't got the boundary code flexible enough to operate on specific fields within the L & R fields of the ULRBuf
@@ -441,11 +437,11 @@ function WENO:calcDeriv(derivBufObj, dt)
 
 		-- the rest of this matches above
 		-- maybe use 'repeat'?
-		
+
 		self.calcFluxKernelObj()
 	end
 --]=]
-	
+
 	self:boundary()
 	self.calcDerivFromFluxKernelObj.obj:setArg(1, derivBufObj.obj)
 self.calcDerivFromFluxKernelObj.obj:setArg(0, self.solverBuf)

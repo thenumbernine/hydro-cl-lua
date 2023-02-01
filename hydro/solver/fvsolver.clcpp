@@ -23,13 +23,13 @@ in Cartesian grids the volume is dx * dy * dz  = int dx dy dz
 
 in curvilinear holonomic (coordinate)
 	- basis is given by the int (coordinate volume form) dx dy dz
-	- 
-in curvilinear anholonomic basis 
+	-
+in curvilinear anholonomic basis
 	- basis is given by the int (coordinate volume form) dx dy dz
 	- some flux rescaling for non-scalars is needed
-in curvilinear coords, cartesian basis: 
+in curvilinear coords, cartesian basis:
 	- basis is given by the int (coordinate volume form) dx dy dz
-	- 
+	-
 
 --]]?>*/
 <? if solver.coord.vectorComponent == "holonomic"
@@ -37,7 +37,7 @@ or require "hydro.coord.cartesian":isa(solver.coord)
 then ?>
 	real const volume = 1.<?
 	for i=0,solver.dim-1 do
-		?> * solver.grid_dx.s<?=i?><?
+		?> * solver.grid_dx[<?=i?>]<?
 	end
 ?>;
 <? else ?>
@@ -47,25 +47,25 @@ then ?>
 	<? for side=0,solver.dim-1 do ?>{
 		int const indexIntL = <?=side?> + dim * index;
 		auto const & fluxL = fluxBuf[indexIntL];
-		
-		int const indexIntR = indexIntL + dim * solver.stepsize.s<?=side?>; 
+
+		int const indexIntR = indexIntL + dim * solver.stepsize[<?=side?>];
 		auto const & fluxR = fluxBuf[indexIntR];
-		
+
 		real3 xIntL = x; xIntL[<?=side?>] -= .5 * solver.grid_dx[<?=side?>];
 		real3 xIntR = x; xIntR[<?=side?>] += .5 * solver.grid_dx[<?=side?>];
 
-		//This is the covariant finite volume code that that represents the gradient of the metric determinant 
+		//This is the covariant finite volume code that that represents the gradient of the metric determinant
 		//All other covariant terms should be accounted for in the equation source update
 		//U^i_;t + F^ij_;j  = 0
 		//U^i_,t + F^ij_,j + Gamma^j_kj F^ik + Gamma^i1_kj F^i1^k + ... + Gamma^in_kj F^in^k = 0
-		//					(metric det gradient) 
+		//					(metric det gradient)
 <? if solver.coord.vectorComponent == "holonomic"
 or require "hydro.coord.cartesian":isa(solver.coord)
 then ?>
 		real areaL = 1.<?
 	for i=0,solver.dim-1 do
 		if i ~= side then
-			?> * solver.grid_dx.s<?=i?><?
+			?> * solver.grid_dx[<?=i?>]<?
 		end
 	end
 ?>;
@@ -87,12 +87,12 @@ then ?>
 		areaL = 256
 		areaR = 256
 		somewhere half is failing to do this math
-		
+
 		ok it turns out 65519 is the largest number stored in half precision
 		any larger and it just maps to inf
 		thats why 512x512 doesn't work, 512x511 doesn't work, but 512x510 does work
 		the limit is the volume
-		
+
 		how to circumvent this?  for higher grid resolutions, maintain volume by increasing mins/maxs of the initcond domain.
 		*/
 		if (volume > 1e-7) {
@@ -105,7 +105,7 @@ then ?>
 if eqn.postComputeFluxCode then ?>
 			<?=cons_t?> flux = {.ptr={0}};
 			for (int j = 0; j < numIntStates; ++j) {
-				flux.ptr[j] = 
+				flux.ptr[j] =
 					fluxR.ptr[j] * areaR
 					- fluxL.ptr[j] * areaL;
 			}
@@ -116,11 +116,11 @@ if eqn.postComputeFluxCode then ?>
 
 <? else -- not postComputeFluxCode ?>
 			for (int j = 0; j < numIntStates; ++j) {
-				deriv.ptr[j] -= 
+				deriv.ptr[j] -=
 					fluxR.ptr[j] * areaR
 					- fluxL.ptr[j] * areaL;
 			}
-<? end -- postComputeFluxCode ?>	
+<? end -- postComputeFluxCode ?>
 		}
 	}<? end ?>
 }

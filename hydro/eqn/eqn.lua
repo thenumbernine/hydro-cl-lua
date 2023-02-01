@@ -136,7 +136,7 @@ function Equation:init(args)
 	--self.primVars = self.primVars or table()
 	--self.consVars = self.consVars or table()
 	self:buildVars(args)
-	
+
 	-- build consStruct and primStruct from self.consVars and .primVars (then erase them -- don't use them anymore)
 	-- TODO think of a better way for the eqn to pass this info along, maybe a callback instead of a field?
 	if not self.consStruct then
@@ -178,24 +178,24 @@ no, they're needed for the integrator
 	when we makeType the consStruct
 	we can't do this after makeType unless we also put it after initCodeModule
 	(but eqn:initCodeModule is called after the consStruct type is defined)
-	
+
 	here's a better idea ... only do this within initCodeModules
 	but that means you can't create the integrator until within solver's initCodeModules
 	or at least you can't set its # scalars / allocate its buffers
-	
+
 	but then why not also create eqn within solver's initCodeModules?
 	--]]
 	self:cdefAllVarTypes(solver, self.consStruct.vars)
-	
+
 	self.consStruct:makeType()	-- create consStruct.typename
 	-- TODO replace the cdef uniqueName with a unique eqn object name
 	self.symbols.cons_t = self.consStruct.typename
-	
+
 	-- don't use consVars anymore ... use consStruct.vars instead
 	self.consVars = nil
 	-- if you have multiple eqns then the class needs to keep the field
 	--getmetatable(self).consVars = nil
-	
+
 	self.consStruct.eqn = self	-- hack
 	solver.structForType[self.consStruct.typename] = self.consStruct	-- hack
 
@@ -211,7 +211,7 @@ no, they're needed for the integrator
 
 		-- cdef the used types before :makeType the Struct.  see consStruct for more notes.
 		self:cdefAllVarTypes(solver, self.primStruct.vars)
-		
+
 		local res, err = xpcall(function()
 			self.primStruct:makeType()
 		end, function(err)
@@ -226,12 +226,12 @@ no, they're needed for the integrator
 
 		-- TODO replace the cdef uniqueName with a unique eqn object name
 		self.symbols.prim_t = self.primStruct.typename
-		
+
 		-- don't use primVars anymore ... use primStruct.vars instead
 		self.primVars = nil
 		-- if you have multiple eqns then the class needs to keep the field
 		--getmetatable(self).primVars = nil
-		
+
 		self.primStruct.eqn = self	-- hack
 		solver.structForType[self.primStruct.typename] = self.primStruct
 	else
@@ -257,12 +257,12 @@ no, they're needed for the integrator
 
 	self.eigenStruct:makeType()
 	self.symbols.eigen_t = assert(self.eigenStruct.typename)
-	
+
 	self.eigenStruct.eqn = self	-- hack
 	solver.structForType[self.eigenStruct.typename] = self.eigenStruct
 
 	self.symbols.consLR_t = app:uniqueName'consLR_t'
-	
+
 
 	local numReals
 	if self.consStruct.vars then
@@ -272,7 +272,7 @@ no, they're needed for the integrator
 			assert(numPrimReals <= numReals, "hmm, this is awkward")
 		end
 	end
-	
+
 	if not self.numStates then
 		self.numStates = numReals
 		if not self.numStates then
@@ -285,7 +285,7 @@ no, they're needed for the integrator
 	end
 	-- default # waves is the # of states
 	if not self.numWaves then self.numWaves = self.numStates end
-	
+
 	-- how many states are integratable
 	-- (put static states at the end of your cons_t structures)
 	if not self.numIntStates then self.numIntStates = self.numStates end
@@ -301,7 +301,7 @@ no, they're needed for the integrator
 		name = 'waves_t',
 		vars = self.wavesVars,
 	}
-	
+
 	self.wavesStruct:makeType()
 	self.symbols.waves_t = assert(self.wavesStruct.typename)
 
@@ -314,7 +314,7 @@ no, they're needed for the integrator
 		assert(self.initConds, "you forgot to specify your initConds in your hydro/eqn/* file"),
 		function(info) return info.name end)
 
-	
+
 	self.reflectVars = self.reflectVars or {}
 
 	-- r min, for spherical coordinates
@@ -362,7 +362,7 @@ function Equation:getSymbolFields()
 	return table{
 		-- functions:
 		'cons_parallelPropagate',
-		
+
 		-- kernels:
 		'calcDT',
 		'applyInitCond',
@@ -370,11 +370,11 @@ function Equation:getSymbolFields()
 		'addSource',
 		'constrainU',
 		'calcDeriv',		-- used by finite-difference solvers
-		
+
 		-- placeholder modules for dependencies
 		'eqn_guiVars_compileTime',	-- module of code for compile-time #defines of gui vars
 		'eqn_common',				-- module of functions that are commonly used ... not required.
-	
+
 		-- placeholder, used by initCond
 		'initCond_guiVars_compileTime',
 		'initCond_codeprefix',
@@ -439,7 +439,7 @@ function Equation:createInitState()
 	end
 
 	self:createInitCond_createInitCond()
-	
+
 	-- should ops add vars to initCond_t or solver_t?
 	-- or should there be a new eqn_t?
 	-- I would like init cond stuff in initCond_t so changing the init cond only recompiles initCond.cl
@@ -483,13 +483,13 @@ function Equation:getEnv()
 		coord = coord,
 		initCond = self.initCond,
 		app = solver.app,
-	
+
 		-- type names
 		solver_t = solver.solver_t,
 		initCond_t = solver.initCond_t,
 		cell_t = assert(coord.cell_t),
 		face_t = assert(coord.face_t),
-		
+
 		-- macro numbers
 		numWaves = self.numWaves,
 
@@ -500,7 +500,7 @@ function Equation:getEnv()
 		from6to3x3 = from6to3x3,
 		sym = sym,
 		clnumber = require 'cl.obj.number',
-	
+
 		-- really only used by applyInitCond
 		initCode = function()
 			-- calls initCond:getInitCondCode
@@ -517,7 +517,7 @@ function Equation:getEnv()
 	for k,v in pairs(coord.symbols) do
 		env[k] = v
 	end
-	
+
 	-- add solver's symbols
 	for k,v in pairs(solver.symbols) do
 		env[k] = v
@@ -585,7 +585,7 @@ function Equation:initCodeModule_cons_parallelPropagate()
 			_3sym3 = 3,
 			real3x3x3 = 3,
 		}
-		
+
 		for _,var in ipairs(self.consStruct.vars) do
 			-- guess the variance if it isn't specified
 			if not var.variance then
@@ -738,7 +738,7 @@ function Equation:initCodeModule_cons_prim_eigen_waves()
 
 --TODO do insert the cdef code
 --then static_assert that the sizeof matches Equation::Cons
-	
+
 	solver.modules:add{
 		name = self.symbols.cons_t,
 		structs = {self.consStruct},
@@ -787,7 +787,7 @@ end
 -- this is a mess, all because of eqn/composite
 function Equation:initCodeModule_solverCodeFile()
 	local code = self:template(assert(file(self.solverCodeFile):read()))
-	
+
 	-- in case any MODULE_* cmds were in there, align them back with the lhs
 	-- TODO seems I do this often enough, maybe I should change the module markup?  something inline-able too?
 	local string = require 'ext.string'
@@ -835,30 +835,30 @@ end
 -- TODO use the automatic arbitrary finite difference generator in bssnok
 function Equation:createDivDisplayVar(args)
 	if require 'hydro.solver.meshsolver':isa(self.solver) then return end
-	
+
 	local field = assert(args.field)
 	local getField = args.getField
 	local scalar = args.scalar or 'real'
 	local units = args.units
-	
+
 	return {
 		name = 'div '..field,
-		code = self:template([[
+		code = self:template([=[
 	if (OOB<dim>(solver, i, 1, 1)) {
 		value.v<?=scalar?> = 0./0.;
 	} else {
 		<?=scalar?> v = {};
 		<? for j=0,solver.dim-1 do ?>{
-			global <?=cons_t?> const & Ujm = (&U)[-solver.stepsize.s<?=j?>];
-			global <?=cons_t?> const & Ujp = (&U)[ solver.stepsize.s<?=j?>];
-			v += (<?=getField('Ujp', j)?> - <?=getField('Ujm', j)?>) 
-				* .5 / solver.grid_dx.s<?=j?>;
+			global <?=cons_t?> const & Ujm = (&U)[-solver.stepsize[<?=j?>]];
+			global <?=cons_t?> const & Ujp = (&U)[ solver.stepsize[<?=j?>]];
+			v += (<?=getField('Ujp', j)?> - <?=getField('Ujm', j)?>)
+				* .5 / solver.grid_dx[<?=j?>];
 		}<? end ?>
 		value.v<?=scalar?> = v;
 	}
-]], 	{
+]=], 	{
 			getField = getField or function(U, j)
-				return U..'.'..field..'.s'..j
+				return U..'.'..field..'['..j..']'
 			end,
 			scalar = scalar,
 		}),
@@ -883,32 +883,32 @@ function Equation:createCurlDisplayVar(args)
 		local j = (i+1)%3	-- 0-based
 		return {
 			name = 'curl '..field..' '..xNames[k+1],
-			code = self:template([[
+			code = self:template([=[
 	if (OOB<dim>(solver, i, 1, 1)) {
 		<?=result?> = 0./0.;
 	} else {
-		global <?=cons_t?> const & Uim = (&U)[-solver.stepsize.s<?=i?>];
-		global <?=cons_t?> const & Uip = (&U)[ solver.stepsize.s<?=i?>];
-		global <?=cons_t?> const & Ujm = (&U)[-solver.stepsize.s<?=j?>];
-		global <?=cons_t?> const & Ujp = (&U)[ solver.stepsize.s<?=j?>];
+		global <?=cons_t?> const & Uim = (&U)[-solver.stepsize[<?=i?>]];
+		global <?=cons_t?> const & Uip = (&U)[ solver.stepsize[<?=i?>]];
+		global <?=cons_t?> const & Ujm = (&U)[-solver.stepsize[<?=j?>]];
+		global <?=cons_t?> const & Ujp = (&U)[ solver.stepsize[<?=j?>]];
 
 		//TODO incorporate metric
 
 		real vim_j = <?=getField('Uim', j)?>;
 		real vip_j = <?=getField('Uip', j)?>;
-		
+
 		real vjm_i = <?=getField('Ujm', i)?>;
 		real vjp_i = <?=getField('Ujp', i)?>;
-		
-		<?=result?> = (vjp_i - vjm_i) / (2. * solver.grid_dx.s<?=i?>)
-					- (vip_j - vim_j) / (2. * solver.grid_dx.s<?=j?>);
+
+		<?=result?> = (vjp_i - vjm_i) / (2. * solver.grid_dx[<?=i?>])
+					- (vip_j - vim_j) / (2. * solver.grid_dx[<?=j?>]);
 	}
-]], 	{
+]=], 	{
 			i = i,
 			j = j,
 			result = result,
 			getField = getField or function(U, j)
-				return U..'.'..field..'.s'..j
+				return U..'.'..field..'['..j..']'
 			end,
 		})}
 	end

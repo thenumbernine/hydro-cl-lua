@@ -2350,7 +2350,7 @@ How to organize this?
 function CoordinateSystem:initCodeModule_normal()
 	local typecode	-- only for lua ffi, inserted into c++ so i can static_assert sizeof ==
 	local code = self.solver.eqn:template(file'hydro/coord/coord.clcpp':read())
-	
+
 	if self.verbose then
 		print[[
 normals:<br>

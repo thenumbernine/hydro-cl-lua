@@ -1143,7 +1143,7 @@ kernel void multAddInto(
 	<?=SETBOUNDS_NOGHOST?>();
 <?
 for i=0,eqn.numIntStates-1 do
-?>	a[index].ptr[<?=i?>] += b[index].ptr[<?=i?>] * c;
+?>	a[index][<?=i?>] += b[index][<?=i?>] * c;
 <?
 end
 ?>}
@@ -1164,7 +1164,7 @@ kernel void multAdd(
 -- how to get around this?
 -- Another thought, if I'm scaling *everything* in the struct, then just use reals and scale up the kernel size by numReals
 for i=0,eqn.numIntStates-1 do
-?>	a[index].ptr[<?=i?>] = b[index].ptr[<?=i?>] + c[index].ptr[<?=i?>] * d;
+?>	a[index][<?=i?>] = b[index][<?=i?>] + c[index][<?=i?>] * d;
 <?
 end
 ?>}
@@ -1199,7 +1199,7 @@ kernel void findNaNs(
 
 	dst[index] = 0;
 <? for i=0,eqn.numStates-1 do
-?>	dst[index] += (real)(!isfinite(src[index].ptr[<?=i?>]));
+?>	dst[index] += (real)(!isfinite(src[index][<?=i?>]));
 <? end ?>
 }
 <? end ?>
@@ -1662,10 +1662,10 @@ typedef union {
 	if accumFunc then
 		self.endDisplayFuncTex = template([[
 	float4 texel = read_imagef(tex, <?= solver.dim == 3 and "i" or "i.xy"?>);
-	texel.x = <?=accumFunc?>(texel.x, value.ptr[0]);
+	texel.x = <?=accumFunc?>(texel.x, value[0]);
 	if (vectorField) {
-		texel.y = <?=accumFunc?>(texel.y, value.ptr[1]);
-		texel.z = <?=accumFunc?>(texel.z, value.ptr[2]);
+		texel.y = <?=accumFunc?>(texel.y, value[1]);
+		texel.z = <?=accumFunc?>(texel.z, value[2]);
 	}
 	write_imagef(tex, <?= solver.dim == 3 and "i" or "i.xy"?>, texel);
 ]],			{
@@ -1676,13 +1676,13 @@ typedef union {
 		self.endDisplayFuncBuffer = template([[
 <? if solver:isModuleUsed"real3" then
 ?>	if (vectorField) {
-		dest[0+3*dstindex] = <?=accumFunc?>(value.ptr[0], dest[0+3*dstindex]);
-		dest[1+3*dstindex] = <?=accumFunc?>(value.ptr[1], dest[1+3*dstindex]);
-		dest[2+3*dstindex] = <?=accumFunc?>(value.ptr[2], dest[2+3*dstindex]);
+		dest[0+3*dstindex] = <?=accumFunc?>(value[0], dest[0+3*dstindex]);
+		dest[1+3*dstindex] = <?=accumFunc?>(value[1], dest[1+3*dstindex]);
+		dest[2+3*dstindex] = <?=accumFunc?>(value[2], dest[2+3*dstindex]);
 	} else
 <? end
 ?>	{
-		dest[dstindex] = <?=accumFunc?>(value.ptr[0], dest[dstindex]);
+		dest[dstindex] = <?=accumFunc?>(value[0], dest[dstindex]);
 	}
 ]],			{
 				solver = self,
@@ -1690,7 +1690,7 @@ typedef union {
 			})
 	else
 		self.endDisplayFuncTex = template([[
-	write_imagef(tex, <?= solver.dim == 3 and "i" or "i.xy"?>, (float4)(value.ptr[0], value.ptr[1], value.ptr[2], 0.));
+	write_imagef(tex, <?= solver.dim == 3 and "i" or "i.xy"?>, (float4)(value[0], value[1], value[2], 0.));
 ]], 		{
 				solver = self,
 			})
@@ -1841,6 +1841,8 @@ end ?><?=group.extraArgs and #group.extraArgs > 0
 		and ',\n\t'..table.concat(group.extraArgs, ',\n\t')
 		or '' ?>
 ) {
+//// MODULE_DEPENDS: <?=Equation?>
+	using namespace <?=Equation?>;
 	auto const & solver = *psolver;
 //// MODULE_DEPENDS: <?=SETBOUNDS?>
 	<?=SETBOUNDS?>(0,0);
@@ -1849,10 +1851,10 @@ end ?><?=group.extraArgs and #group.extraArgs > 0
 	int4 dsti = i;
 	int dstindex = index;
 	real3 x = cellBuf[index].pos;
-<? for j=0,solver.dim-1 do
-?>	i.s<?=j?> = clamp(i.s<?=j?>, solver.numGhost, solver.gridSize.s<?=j?> - solver.numGhost - 1);
-<? end
-?>	index = INDEXV(solver, i);
+	for (int j = 0; j < dim; ++j) {
+		i[j] = clamp(i[j], solver.numGhost, solver.gridSize[j] - solver.numGhost - 1);
+	}
+	index = INDEXV(solver, i);
 <? else	-- mesh
 ?>	bool const oob = false;
 	int dstindex = index;
@@ -1862,7 +1864,7 @@ end ?><?=group.extraArgs and #group.extraArgs > 0
 
 <?=addTab(group.codePrefix or '')
 ?>
-	global <?=cell_t?> const & cell = cellBuf[index];
+	auto const & cell = cellBuf[index];
 
 	int vectorField = 0;
 	if (!(zeroBorder && oob)) {

@@ -120,7 +120,7 @@ struct Eqn : public Hydro::Eqn<Eqn, Solver, Cons, Prim, Normal, Cell, Eigen, Wav
 		real3 const pt
 	) {
 		if (U.rho < solver.rhoMin) return 0;
-		return (solver.heatCapacityRatio - 1.) * 
+		return (solver.heatCapacityRatio - 1.) *
 			/*EInt=*/(U.ETotal - calc_EKin_fromCons(solver, U, pt));
 	}
 
@@ -174,8 +174,8 @@ struct Eqn : public Hydro::Eqn<Eqn, Solver, Cons, Prim, Normal, Cell, Eigen, Wav
 	// TODO make this a member-function
 	// so it can access equation-specific vars (like heatCapacityRatio)
 	// and move those from Solver to Equation
-	// then there's one less argument 
-	
+	// then there's one less argument
+
 	static inline Prim primFromCons(
 		constant Solver const & solver,
 		Cons const & U,
@@ -220,7 +220,7 @@ struct Eqn : public Hydro::Eqn<Eqn, Solver, Cons, Prim, Normal, Cell, Eigen, Wav
 	) {
 		Cons result;
 		result.rho = W.rho;
-		result.m = 
+		result.m =
 			WA.v * W.rho
 			+ W.v * WA.rho;
 		real3 const WA_vL = coord_lower(WA.v, pt);
@@ -244,12 +244,12 @@ struct Eqn : public Hydro::Eqn<Eqn, Solver, Cons, Prim, Normal, Cell, Eigen, Wav
 			result.v = {};
 			result.P = 0.;
 		} else {
-			result.v = 
+			result.v =
 				U.m * (1. / WA.rho)
 				- WA.v * (U.rho / WA.rho);
 			real3 const WA_vL = coord_lower(WA.v, pt);
 			result.P = (solver.heatCapacityRatio - 1.) * (
-				.5 * dot(WA.v, WA_vL) * U.rho 
+				.5 * dot(WA.v, WA_vL) * U.rho
 				- dot(U.m, WA_vL)
 				+ U.ETotal);
 		}
@@ -380,8 +380,8 @@ struct Eqn : public Hydro::Eqn<Eqn, Solver, Cons, Prim, Normal, Cell, Eigen, Wav
 			real * resultMax
 		) {
 			real const Cs_nLen = Cs * n.len();
-			real const v_n = U.rho < solver.rhoMin 
-				? 0. 
+			real const v_n = U.rho < solver.rhoMin
+				? 0.
 				: n.vecDotN1(U.m) / U.rho;
 			//waveCodeAssignMinMax
 			if (resultMin) {
@@ -424,7 +424,7 @@ end
 		real ePot = 0;
 
 		<?=initCode()?>
-		
+
 		auto W = Prim()
 			.set_rho(rho)
 			.set_v(cartesianToCoord(v, x))
@@ -534,7 +534,7 @@ end
 
 				//Roe-averaged
 				result.rho = sqrtRhoL * sqrtRhoR;
-				real3 const v = 
+				real3 const v =
 						vLeft * (sqrtRhoL * invDenom)
 						+ vR * (sqrtRhoR * invDenom);
 				real const hTotal = invDenom * (sqrtRhoL * hTotalL + sqrtRhoR * hTotalR);
@@ -672,7 +672,7 @@ end
 	}
 
 	// Not used anymore.  Was used by Roe, but I switched that to a fluxFromCons.
-	// fluxFromCons only matches eigen_fluxTransform when the eig properties are derived from X_ 
+	// fluxFromCons only matches eigen_fluxTransform when the eig properties are derived from X_
 	static inline Cons eigen_fluxTransform(
 		constant Solver const & solver,
 		Eigen const & eig,
@@ -693,33 +693,33 @@ end
 			real const gamma = solver.heatCapacityRatio;
 			real const gamma_1 = gamma - 1.;
 			real const gamma_2 = gamma - 2.;
-		
+
 			result.ptr[0] =
 				X.ptr[1] * n.l1x()
 				+ X.ptr[2] * n.l1y()
 				+ X.ptr[3] * n.l1z();
-		
+
 			result.ptr[1] =
 				X.ptr[0] * (-v_n.x * eig.v.x + gamma_1 * (real).5 * eig.vSq * n.u1x())
 				+ X.ptr[1] * (eig.v.x * n.l1x() - gamma_2 * n.u1x() * eig.vL.x + v_n.x)
 				+ X.ptr[2] * (eig.v.x * n.l1y() - gamma_2 * n.u1x() * eig.vL.y)
 				+ X.ptr[3] * (eig.v.x * n.l1z() - gamma_2 * n.u1x() * eig.vL.z)
 				+ X.ptr[4] * gamma_1 * n.u1x();
-		
+
 			result.ptr[2] =
 				X.ptr[0] * (-v_n.x * eig.v.y + gamma_1 * (real).5 * eig.vSq * n.u1y())
 				+ X.ptr[1] * (eig.v.y * n.l1x() - gamma_2 * n.u1y() * eig.vL.x)
 				+ X.ptr[2] * (eig.v.y * n.l1y() - gamma_2 * n.u1y() * eig.vL.y + v_n.x)
 				+ X.ptr[3] * (eig.v.y * n.l1z() - gamma_2 * n.u1y() * eig.vL.z)
 				+ X.ptr[4] * gamma_1 * n.u1y();
-		
+
 			result.ptr[3] =
 				X.ptr[0] * (-v_n.x * eig.v.z + gamma_1 * (real).5 * eig.vSq * n.u1z())
 				+ X.ptr[1] * (eig.v.z * n.l1x() - gamma_2 * n.u1z() * eig.vL.x)
 				+ X.ptr[2] * (eig.v.z * n.l1y() - gamma_2 * n.u1z() * eig.vL.y)
 				+ X.ptr[3] * (eig.v.z * n.l1z() - gamma_2 * n.u1z() * eig.vL.z + v_n.x)
 				+ X.ptr[4] * gamma_1 * n.u1z();
-		
+
 			result.ptr[4] =
 				X.ptr[0] * v_n.x * (.5 * gamma_1 * eig.vSq - eig.hTotal)
 				+ X.ptr[1] * (n.l1x() * eig.hTotal - gamma_1 * v_n.x * eig.vL.x)
@@ -748,20 +748,20 @@ end
 		global Cell const & cell = cellBuf[index];
 		real3 const x = cell.pos;
 
-<? if false 
-and solver.coord.vectorComponent == "anholonomic" 
-and require "hydro.coord.cylinder":isa(solver.coord) 
+<? if false
+and solver.coord.vectorComponent == "anholonomic"
+and require "hydro.coord.cylinder":isa(solver.coord)
 then ?>
 <? 	if true then -- 2009 Trangenstein, p.474, 1999 Toro, p.29, eqn.1.104, 1.105 ?>
 		for (int side = 0; side < 2; ++side) {
 			real3 xL = x; xL[<?=side?>] -= solver.grid_dx[<?=side?>];
 			real3 xR = x; xR[<?=side?>] += solver.grid_dx[<?=side?>];
-			
+
 			global Cons const & UL = U[solver.stepsize[<?=side?>]];
 			global Cons const & UR = U[solver.stepsize[<?=side?>]];
 			real const PL = calc_P?>(solver, UL, xL);
 			real const PR = calc_P?>(solver, UR, xR);
-		
+
 			deriv.m[<?=side?>] -= (PR - PL) / (2. * solver.grid_dx[<?=side?>]);
 		}
 <?	end ?>
@@ -776,7 +776,7 @@ then ?>
 <? end ?>
 
 <? do -- if not solver.coord.vectorComponent == "anholonomic" then ?>
-<? if not (require "hydro.coord.cartesian":isa(solver.coord) 
+<? if not (require "hydro.coord.cartesian":isa(solver.coord)
 		or solver.coord.vectorComponent == "cartesian")
 then ?>
 //// MODULE_DEPENDS: <?=coord_conn_apply23?> <?=coord_conn_trace23?> <?=coord_conn_apply13?>
@@ -789,18 +789,18 @@ Maybe for an initial constant vel as large as sqrt(2) this fails, but it works o
 */
 		//connection coefficient source terms of covariant derivative w/contravariant velocity vectors in a holonomic coordinate system
 		Prim W = primFromCons(solver, U, x);
-		
-		//- Γ^i_jk ρ v^j v^k 
+
+		//- Γ^i_jk ρ v^j v^k
 		deriv.m -= coord_conn_apply23(W.v, U.m, x);
-		
+
 		//- Γ^i_jk g^jk P
 		deriv.m -= coord_conn_trace23(x) * W.P;
-		
+
 		//+ (γ-1) ρ v^k v^l Γ_kjl g^ij
 		deriv.m += coord_conn_apply13(W.v, U.m, x) * (solver.heatCapacityRatio - 1.);
-		
+
 		//- (γ-1) ρ v^j v^k v^l Γ_jkl
-	//	deriv.ETotal -= (solver.heatCapacityRatio - 1.) * coord_conn_apply123(W.v, W.v, U.m, x);	
+	//	deriv.ETotal -= (solver.heatCapacityRatio - 1.) * coord_conn_apply123(W.v, W.v, U.m, x);
 
 		//+ c_jk^k * Flux^Ij
 <? 	if false and solver.coord.vectorComponent == "anholonomic" then ?>

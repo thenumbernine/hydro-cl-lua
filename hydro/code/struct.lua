@@ -1,6 +1,7 @@
 local ffi = require 'ffi'
 local class = require 'ext.class'
 local table = require 'ext.table'
+local template = require 'template'
 --local CLBuffer = require 'cl.obj.buffer'
 local safecdef = require 'hydro.code.safecdef'
 
@@ -182,7 +183,17 @@ function Struct:getTypeCode(typename)
 	lines:insert'//// BEGIN EXCLUDE FROM FFI_CDEF'
 	lines:insert('\t'..typename..'() {}')
 	for _,var in ipairs(self.vars) do
-		lines:insert('\t'..typename..' & set_'..var.name..'('..var.type..' const & value_) { '..var.name..' = value_; return *this; }')
+		lines:insert('\tconstexpr '..typename..' & set_'..var.name..'('..var.type..' const & value_) { '..var.name..' = value_; return *this; }')
+	end
+	if not self.dontUnion then
+		lines:insert(template([[
+	constexpr <?=scalar?> & operator[](int i) { return ptr[i]; }
+	constexpr <?=scalar?> const & operator[](int i) const { return ptr[i]; }
+	constexpr constant <?=scalar?> & operator[](int i) constant { return ptr[i]; }
+	constexpr constant <?=scalar?> const & operator[](int i) constant const { return ptr[i]; }
+]], 	{
+			scalar = scalar,
+		}))
 	end
 	if self.body then lines:insert(self.body) end
 	lines:insert'//// END EXCLUDE FROM FFI_CDEF'

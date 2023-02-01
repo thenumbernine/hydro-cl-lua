@@ -39,7 +39,7 @@ struct Eqn {
 		constant Solver const & solver,
 		Cons const & U,
 		real3 const pt
-	) 
+	)
 	//requires std::is_same_v<Prim, Cons>
 	{
 		return U;
@@ -131,9 +131,9 @@ if require "hydro.solver.meshsolver":isa(solver) then
 end
 ?>
 	) {
-//// MODULE_DEPENDS: <?=SETBOUNDS?>		
+//// MODULE_DEPENDS: <?=SETBOUNDS?>
 		<?=SETBOUNDS?>(0,0);
-		
+
 		//write inf to boundary cells
 		//TODO why not write inf to boundary cells upon init,
 		// and then give this the domain SETBOUNDS_NOGHOST?
@@ -141,7 +141,7 @@ end
 		// like display var min/max ranges
 		global real & dt = dtBuf[index];
 		dt = INFINITY;
-		
+
 		if (OOB<dim>(solver, i, solver.numGhost, solver.numGhost)) return;
 		global Cons const & U = UBuf[index];
 		global Cell const & cell = cellBuf[index];

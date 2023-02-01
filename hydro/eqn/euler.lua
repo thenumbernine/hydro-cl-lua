@@ -30,28 +30,28 @@ function Euler:init(args)
 			solver.ops:insert(NoDiv{
 				solver = solver,
 				potentialField = 'mPot',	-- TODO don't store this
-			
+
 				--[=[ using div (m/rho) = 0, solve for div m:
 				-- TODO field as a read function, and just read
 				vectorField = 'm',
-			
+
 				-- div v = 0
 				-- div (m/ρ) = 0
 				-- 1/ρ div m - 1/ρ^2 m dot grad ρ = 0
 				-- div m = (m dot grad ρ)/ρ
 				chargeCode = self:template[[
 	<? for j=0,solver.dim-1 do ?>{
-		global <?=cons_t?> const * const Ujm = U - solver.stepsize.s<?=j?>;
-		global <?=cons_t?> const * const Ujp = U + solver.stepsize.s<?=j?>;
-		real drho_dx = (Ujp.rho - Ujm.rho) * (.5 / solver.grid_dx.s<?=j?>);
-		source -= drho_dx * U.m.s<?=j?> / U.rho;
+		global <?=cons_t?> const * const Ujm = U - solver.stepsize[<?=j?>];
+		global <?=cons_t?> const * const Ujp = U + solver.stepsize[<?=j?>];
+		real drho_dx = (Ujp.rho - Ujm.rho) * (.5 / solver.grid_dx[<?=j?>]);
+		source -= drho_dx * U.m[<?=j?>] / U.rho;
 	}<? end ?>
 ]],
 				--]=]
 				-- [=[ reading via div(v), writing via div(m)
 				readVectorField = function(op,offset,j)
 					local function U(field) return 'U['..offset..'].'..field end
-					return U('m.s'..j)..' / '..U'rho'
+					return U('m['..j..']')..' / '..U'rho'
 				end,
 				writeVectorField = function(op,dv)
 					return self:template([[
@@ -139,13 +139,13 @@ function Euler:buildVars(args)
 	-- have to check for primVars' existence
 	self.primVars = self.primVars or table()
 	self.consVars = self.consVars or table()
-	
+
 	-- TODO primVars doesn't autogen displayVars, and therefore units doesn't matter
 	self.primVars:append{
 		{name='rho', type='real', units='kg/m^3'},
 		{name='v', type='real3', units='m/s', variance='u'},			-- contravariant
 		{name='P', type='real', units='kg/(m*s^2)'},
-		
+
 		-- used dynamically by op/selfgrav, but optionally can be initialized statically for constant/background potential energy
 		-- TODO in the static case, merge into cell_t to save memory & flops?
 		{name='ePot', type='real', units='m^2/s^2'},
@@ -232,20 +232,20 @@ function Euler:getDisplayVars()
 		-- should SI unit displays be auto generated as well?
 		{name='v', code='value.vreal3 = W.v;', type='real3', units='m/s'},
 		{name='P', code='value.vreal = W.P;', units='kg/(m*s^2)'},
-		{name='eInt', code=self:template'value.vreal = <?=Equation?>::Eqn::calc_eInt(solver, W);', units='m^2/s^2'},
-		{name='eKin', code=self:template'value.vreal = <?=Equation?>::Eqn::calc_eKin(W, x);', units='m^2/s^2'},
+		{name='eInt', code=self:template'value.vreal = Eqn::calc_eInt(solver, W);', units='m^2/s^2'},
+		{name='eKin', code=self:template'value.vreal = Eqn::calc_eKin(W, x);', units='m^2/s^2'},
 		{name='eTotal', code='value.vreal = U.ETotal / W.rho;', units='m^2/s^2'},
-		{name='EInt', code=self:template'value.vreal = <?=Equation?>::Eqn::calc_EInt(solver, W);', units='kg/(m*s^2)'},
-		{name='EKin', code=self:template'value.vreal = <?=Equation?>::Eqn::calc_EKin(W, x);', units='kg/(m*s^2)'},
+		{name='EInt', code=self:template'value.vreal = Eqn::calc_EInt(solver, W);', units='kg/(m*s^2)'},
+		{name='EKin', code=self:template'value.vreal = Eqn::calc_EKin(W, x);', units='kg/(m*s^2)'},
 		{name='EPot', code='value.vreal = U.rho * U.ePot;', units='kg/(m*s^2)'},
 		{name='S', code='value.vreal = W.P / pow(W.rho, (real)solver.heatCapacityRatio);'},
-		{name='H', code=self:template'value.vreal = <?=Equation?>::Eqn::calc_H(solver, W.P);', units='kg/(m*s^2)'},
-		{name='h', code=self:template'value.vreal = <?=Equation?>::Eqn::calc_h(solver, W.rho, W.P);', units='m^2/s^2'},
-		{name='HTotal', code=self:template'value.vreal = <?=Equation?>::Eqn::calc_HTotal(W.P, U.ETotal);', units='kg/(m*s^2)'},
-		{name='hTotal', code=self:template'value.vreal = <?=Equation?>::Eqn::calc_hTotal(W.rho, W.P, U.ETotal);', units='m^2/s^2'},
-		{name='speed of sound', code=self:template'value.vreal = <?=Equation?>::Eqn::calc_Cs(solver, W);', units='m/s'},
-		{name='Mach number', code=self:template'value.vreal = coordLen(W.v, x) / <?=Equation?>::Eqn::calc_Cs(solver, W);'},
-		{name='temperature', code=self:template'value.vreal = <?=Equation?>::Eqn::calc_T(U, x);', units='K'},
+		{name='H', code=self:template'value.vreal = Eqn::calc_H(solver, W.P);', units='kg/(m*s^2)'},
+		{name='h', code=self:template'value.vreal = Eqn::calc_h(solver, W.rho, W.P);', units='m^2/s^2'},
+		{name='HTotal', code=self:template'value.vreal = Eqn::calc_HTotal(W.P, U.ETotal);', units='kg/(m*s^2)'},
+		{name='hTotal', code=self:template'value.vreal = Eqn::calc_hTotal(W.rho, W.P, U.ETotal);', units='m^2/s^2'},
+		{name='speed of sound', code=self:template'value.vreal = Eqn::calc_Cs(solver, W);', units='m/s'},
+		{name='Mach number', code=self:template'value.vreal = coordLen(W.v, x) / Eqn::calc_Cs(solver, W);'},
+		{name='temperature', code=self:template'value.vreal = Eqn::calc_T(U, x);', units='K'},
 	}:append(self.gravOp and
 		{{name='gravity', code=self:template[[
 if (!OOB<dim>(solver, i, 1,1)) {
@@ -260,7 +260,7 @@ if (!OOB<dim>(solver, i, 1,1)) {
 	vars:insert(self:createDivDisplayVar{
 		field = 'v',
 		getField = function(U, j)
-			return U..'.m.s'..j..' / '..U..'.rho'
+			return U..'.m['..j..'] / '..U..'.rho'
 		end,
 		units = '1/s',
 	} or nil)
@@ -268,7 +268,7 @@ if (!OOB<dim>(solver, i, 1,1)) {
 	vars:insert(self:createCurlDisplayVar{
 		field = 'v',
 		getField = function(U, j)
-			return U..'.m.s'..j..' / '..U..'.rho'
+			return U..'.m['..j..'] / '..U..'.rho'
 		end,
 		units = '1/s',
 	} or nil)
