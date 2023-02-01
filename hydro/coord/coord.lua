@@ -212,6 +212,7 @@ function CoordinateSystem:init(args)
 		
 		'cell_dxs',
 		'cell_areas',
+		'coord_basisHolUnits',
 	})
 
 	local solver = assert(args.solver)
@@ -2031,6 +2032,26 @@ template<> real cell_areas<2>(constant solver_t_1 const & solver, real3 pt) { re
 ]],
 	}
 
+	solver.modules:add{
+		name = self.symbols.coord_basisHolUnits,
+		depends = {self.symbols.coord_basisHolUnit_i},
+		code = solver.eqn:template[[
+/*
+auto coord_basisHolUnits[3] = {
+	coord_basisHolUnit0,
+	coord_basisHolUnit1,
+	coord_basisHolUnit2,
+};
+*/
+
+template<int side> real3 coord_basisHolUnits(real3 pt);
+template<> real3 coord_basisHolUnits<0>(real3 pt) { return coord_basisHolUnit0(pt); }
+template<> real3 coord_basisHolUnits<1>(real3 pt) { return coord_basisHolUnit1(pt); }
+template<> real3 coord_basisHolUnits<2>(real3 pt) { return coord_basisHolUnit2(pt); }
+]],
+	}
+
+
 
 end
 
@@ -2170,22 +2191,22 @@ function CoordinateSystem:initCodeModule_coordMap()
 //by projecting the vector into the grid basis vectors
 //at x, which is in grid curvilinear coordinates
 real3 coord_cartesianToCoord(real3 u, real3 pt) {
-	real3 uCoord = real3_zero;
+	real3 uCoord = real3(0,0,0);	//for gl compat
 	<? for i=0,solver.dim-1 do
 	local xi = xNames[i+1]
 	?>{
 		real3 e = coord_basisHolUnit<?=i?>(pt);
 <? if coord.vectorComponent == 'anholonomic' then	-- anholonomic normalized
-?>		real uei = real3_dot(e, u);
+?>		real uei = dot(e, u);
 <? else		-- holonomic
-?>		real uei = real3_dot(e, u) / real3_lenSq(e);
+?>		real uei = dot(e, u) / lenSq(e);
 <? end
 ?>		uCoord.<?=xi?> = uei;
 		//subtract off this basis component from u
-		u = real3_sub(u, real3_real_mul(e, uei));
+		u -= e * uei;
 	}<? end ?>
 	//add whatever's left of u
-	uCoord = real3_add(uCoord, u);
+	uCoord += u;
 	return uCoord;
 }
 ]], env))
@@ -2193,12 +2214,12 @@ real3 coord_cartesianToCoord(real3 u, real3 pt) {
 //converts a vector from cartesian to grid curvilinear coordinates
 //by projecting it onto the basis ... ?
 real3 coord_cartesianFromCoord(real3 u, real3 pt) {
-	real3 uGrid = real3_zero;
+	real3 uGrid = real3(0,0,0);	//for gl compat
 	<? for i=0,solver.dim-1 do
 	local xi = xNames[i+1]
 	?>{
 		real3 e = coord_basisHolUnit<?=i?>(pt);
-		uGrid = real3_add(uGrid, real3_real_mul(e, u.<?=xi?>));
+		uGrid += e * u.<?=xi?>;
 	}<? end ?>
 	return uGrid;
 }
@@ -2239,22 +2260,22 @@ real3 cartesianToCoord(real3 u, real3 pt) { return u; }
 //by projecting the vector into the grid basis vectors
 //at x, which is in grid curvilinear coordinates
 real3 coord_cartesianToCoord(real3 u, real3 pt) {
-	real3 uCoord = real3_zero;
+	real3 uCoord = real3(0,0,0);	//for gl compat
 	<? for i=0,solver.dim-1 do
 	local xi = xNames[i+1]
 	?>{
 		real3 e = coordBasis<?=i?>(pt);
 <? if coord.vectorComponent == 'anholonomic' then	-- anholonomic normalized
-?>		real uei = real3_dot(e, u);
+?>		real uei = dot(e, u);
 <? else		-- holonomic
-?>		real uei = real3_dot(e, u) / real3_lenSq(e);
+?>		real uei = dot(e, u) / lenSq(e);
 <? end
 ?>		uCoord.<?=xi?> = uei;
 		//subtract off this basis component from u
-		u = real3_sub(u, real3_real_mul(e, uei));
+		u -= e * uei;
 	}<? end ?>
 	//add whatever's left of u
-	uCoord = real3_add(uCoord, u);
+	uCoord += u;
 	return uCoord;
 }
 
@@ -2266,12 +2287,11 @@ real3 cartesianToCoord(real3 u, real3 pt) { return u; }
 //converts a vector from cartesian to grid curvilinear coordinates
 //by projecting it onto the basis ... ?
 real3 coord_cartesianFromCoord(real3 u, real3 pt) {
-	real3 uGrid = real3_zero;
+	real3 uGrid = real3(0,0,0);	//for gl compat
 	<? for i=0,solver.dim-1 do
 	local xi = xNames[i+1]
 	?>{
-		real3 e = coordBasis<?=i?>(pt);
-		uGrid = real3_add(uGrid, real3_real_mul(e, u.<?=xi?>));
+		uGrid += coordBasis<?=i?>(pt) * u.<?=xi?>;
 	}<? end ?>
 	return uGrid;
 }
@@ -2466,16 +2486,16 @@ struct Normal {
 for j=1,3 do
 	for i,xi in ipairs(xNames) do
 ?>
-	real l<?=j?><?=xi?>() const {
+	constexpr real l<?=j?><?=xi?>() const {
 		return side == <?=(i-j)%3?> ? 1. : 0.;
 	}
-	real u<?=j?><?=xi?>() const {
+	constexpr real u<?=j?><?=xi?>() const {
 		return l<?=j?><?=xi?>();
 	}
-	real l<?=j?><?=xi?>_over_len() const {
+	constexpr real l<?=j?><?=xi?>_over_len() const {
 		return l<?=j?><?=xi?>();
 	}
-	real u<?=j?><?=xi?>_over_len() const {
+	constexpr real u<?=j?><?=xi?>_over_len() const {
 		return u<?=j?><?=xi?>();
 	}
 <?
@@ -2485,7 +2505,7 @@ end
 
 	// this is the same as converting 'v' in global cartesian to 'v' in the basis of nj
 	// v^i (nj)_i for side j
-	real3 vecDotNs(real3 v) const {
+	constexpr real3 vecDotNs(real3 v) const {
 		return real3(
 			v.s[side],
 			v.s[(side+1)%3],
@@ -2493,13 +2513,13 @@ end
 	}
 
 	//v^i (n1)_i
-	real vecDotN1(real3 v) const {
+	constexpr real vecDotN1(real3 v) const {
 		return v.s[side];
 	}
 
 	// ...and this is the same as converting v in the basis of nj to v in global cartesian
 	// v.x * e[side] + v.y * e[side+1] + v.z * e[side+2]
-	real3 vecFromNs(real3 v) const {
+	constexpr real3 vecFromNs(real3 v) const {
 		return real3(
 			v.s[(3-side)%3],
 			v.s[(3-side+1)%3],
@@ -2509,14 +2529,14 @@ end
 // BEGIN CODE FOR ALL NORMALS (inherit? crtp insert?)
 
 	<? for i=1,3 do ?>
-	real3 l<?=i?>() const {
+	constexpr real3 l<?=i?>() const {
 		return real3(
 			l<?=i?>x(),
 			l<?=i?>y(),
 			l<?=i?>z());
 	}
 
-	real3 u<?=i?>() const {
+	constexpr real3 u<?=i?>() const {
 		return real3(
 			u<?=i?>x(),
 			u<?=i?>y(),
@@ -2528,10 +2548,7 @@ end
 
 };
 
-static_assert(sizeof(Normal) == sizeof(<?=normal_t?>));
-
 }	// namespace <?=Equation?>
-
 ]]
 		elseif self.vectorComponent == 'cartesian' then
 			if self.verbose then
@@ -2544,7 +2561,7 @@ $n_i \cdot n_j = (n_i)_k (n_j)^l = \delta_{ij}$<br>
 ]]
 			end
 			depends:insert'real3x3'
-			depends:insert(self.symbols.coord_basisHolUnit_i)
+			depends:insert(self.symbols.coord_basisHolUnits)
 
 			--[[
 			n_i = n^i = unit(u^i_,j) for side j
@@ -2560,71 +2577,99 @@ typedef struct {
 			-- this would call coord_cartesianFromCoord
 			-- which itself aligns with the coord_basisHolUnit
 			code = self.solver.eqn:template[[
-<? for side=0,solver.dim-1 do ?>
-static inline <?=normal_t?> normal_forSide<?=side?>(real3 pt) {
-	return (<?=normal_t?>{
-		.n = (real3x3){
-			.x = coord_basisHolUnit<?=side?>(pt),
-			.y = coord_basisHolUnit<?=(side+1)%3?>(pt),
-			.z = coord_basisHolUnit<?=(side+2)%3?>(pt),
-		},
-		.len = 1.,
+namespace <?=Equation?> {
+
+struct Normal {
+	real3x3 n;
+	real l;
+	constexpr Normal(real3x3 n_, real lenval_) : n(n_), l(lenval_) {}
+
+	template<int side>
+	static Normal forSide(real3 const pt) {
+		return Normal(
+			real3x3{
+				coord_basisHolUnits<side>(pt),
+				coord_basisHolUnits<(side+1)%3>(pt),
+				coord_basisHolUnits<(side+2)%3>(pt),
+			},
+			1.
+		);
 	};
-}
-<? end ?>
 
-//|n1|
-static inline real normal_len(<?=normal_t?> n) {
-	return n.len;
-}
+	//|n1|
+	constexpr real len() const {
+		return l;
+	}
 
-static inline real normal_lenSq(<?=normal_t?> n) {
-	return n.len * n.len;
-}
+	constexpr real lenSq() {
+		return l * l;
+	}
 
 //(nj)_i, (nj)^i, (nj)_i / |nj|, (nj)^i / |nj|
 <?
 for j,xj in ipairs(xNames) do
 	for i,xi in ipairs(xNames) do
 ?>
-static inline real normal_l<?=j?><?=xi?>(<?=normal_t?> n) {
-	return n.n.<?=xj?>.<?=xi?>;
-}
+	constexpr real l<?=j?><?=xi?>() const {
+		return n.<?=xj?>.<?=xi?>;
+	}
 
-static inline real normal_u<?=j?><?=xi?>(<?=normal_t?> n) {
-	return normal_l<?=j?><?=xi?>(n);
-}
+	constexpr real u<?=j?><?=xi?>() const {
+		return l<?=j?><?=xi?>();
+	}
 
-static inline real normal_l<?=j?><?=xi?>_over_len(<?=normal_t?> n) {
-	return normal_l<?=j?><?=xi?>(n) / n.len;
-}
+	constexpr real l<?=j?><?=xi?>_over_len() const {
+		return l<?=j?><?=xi?>() / l;
+	}
 
-static inline real normal_u<?=j?><?=xi?>_over_len(<?=normal_t?> n) {
-	return normal_l<?=j?><?=xi?>_over_len(n);
-}
+	constexpr real u<?=j?><?=xi?>_over_len() const {
+		return l<?=j?><?=xi?>_over_len();
+	}
 <?
 	end
 end
 ?>
 
-//v^i (nj)_i for side j
-static inline real3 normal_vecDotNs(<?=normal_t?> n, real3 v) {
-	return n.n * v;
-}
+	//v^i (nj)_i for side j
+	constexpr real3 vecDotNs(real3 v) const {
+		return n * v;
+	}
 
-//v^i (n1)_i
-static inline real normal_vecDotN1(<?=normal_t?> n, real3 v) {
-	return dot(n.n.x, v);
-}
+	//v^i (n1)_i
+	constexpr real vecDotN1(real3 v) const {
+		return dot(n.x, v);
+	}
 
 
-// ...and this is the same as converting v in the basis of nj to v in global cartesian
-// v.x * e[side] + v.y * e[side+1] + v.z * e[side+2]
-static inline real3 normal_vecFromNs(<?=normal_t?> n, real3 v) {
-	return n.n.x * v.x
-		+ n.n.y * v.y
-		+ n.n.z * v.z;
-}
+	// ...and this is the same as converting v in the basis of nj to v in global cartesian
+	// v.x * e[side] + v.y * e[side+1] + v.z * e[side+2]
+	constexpr real3 vecFromNs(real3 v) const {
+		return v * n;
+	}
+
+// BEGIN CODE FOR ALL NORMALS (inherit? crtp insert?)
+
+	<? for i=1,3 do ?>
+	constexpr real3 l<?=i?>() const {
+		return real3(
+			l<?=i?>x(),
+			l<?=i?>y(),
+			l<?=i?>z());
+	}
+
+	constexpr real3 u<?=i?>() const {
+		return real3(
+			u<?=i?>x(),
+			u<?=i?>y(),
+			u<?=i?>z());
+	}
+	<? end ?>
+
+// END CODE FOR ALL NORMALS 
+};
+
+}	// namespace <?=Equation?>
+
 ]]
 		elseif self.vectorComponent == 'holonomic' then
 			if self.verbose then
@@ -2749,6 +2794,10 @@ static inline real3 normal_vecFromNs(<?=normal_t?> n, real3 v) {
 
 
 	end	-- meshsolver
+
+	code = code .. self.solver.eqn:template[[
+static_assert(sizeof(<?=Equation?>::Normal) == sizeof(<?=normal_t?>));
+]]
 
 	-- TODO if you use multiple solvers that have differing vectorComponents
 	--  then this will cause a silent ffi error.  only the first normal_t will be defined.

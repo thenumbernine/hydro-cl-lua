@@ -128,14 +128,14 @@ then ?>
 if useFluxLimiter then
 ?>			//this is used for the flux limiter
 			//should it be using the coordinate dx or the grid dx?
-			//real dt_dx = dt / cell_dxs<<?=side?>>(xInt);
+			//real dt_dx = dt / cell_dxs<<?=side?>>(solver, xInt);
 <?
 	if solver.coord.vectorComponent == 'cartesian'
 	and not require 'hydro.coord.cartesian':isa(solver.coord)
 	then
 ?>
 //// MODULE_DEPENDS: <?=cell_dxs?>
-			real const dt_dx = dt / cell_dxs<<?=side?>>(xInt);
+			real const dt_dx = dt / cell_dxs<<?=side?>>(solver, xInt);
 <? 	else
 ?>			real const dt_dx = dt / dx;
 <? 	end

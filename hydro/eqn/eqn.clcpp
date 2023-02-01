@@ -102,7 +102,8 @@ or require "hydro.coord.cartesian":isa(solver.coord)
 then ?>
 			real const dx = solver.grid_dx[<?=side?>];
 <? else ?>
-			real const dx = cell_dx<?=side?>(cell.pos);
+//// MODULE_DEPENDS: <?=cell_dxs?>
+			real const dx = cell_dxs<<?=side?>>(solver, cell.pos);
 <? end ?>
 			if (dx > faceAreaEpsilon) {
 				auto const n = Normal::template forSide<<?=side?>>(cell.pos);

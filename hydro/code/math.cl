@@ -44,7 +44,7 @@ union <?=name?> {
 		<?=scalar?> z_
 	) : x(x_), y(y_), z(z_) {}
 
-	<?=name?> & operator+=(
+	constexpr <?=name?> & operator+=(
 		<?=name?> const & b
 	) {
 		x += b.x;
@@ -52,7 +52,8 @@ union <?=name?> {
 		z += b.z;
 		return *this;
 	}
-	<?=name?> & operator-=(
+	
+	constexpr <?=name?> & operator-=(
 		<?=name?> const & b
 	) {
 		x -= b.x;
@@ -61,10 +62,10 @@ union <?=name?> {
 		return *this;
 	}
 
-	<?=scalar?> & operator[](int i) { return s[i]; }
-	<?=scalar?> const & operator[](int i) const { return s[i]; }
-	constant <?=scalar?> & operator[](int i) constant { return s[i]; }
-	constant <?=scalar?> const & operator[](int i) constant const { return s[i]; }
+	constexpr <?=scalar?> & operator[](int i) { return s[i]; }
+	constexpr <?=scalar?> const & operator[](int i) const { return s[i]; }
+	constexpr constant <?=scalar?> & operator[](int i) constant { return s[i]; }
+	constexpr constant <?=scalar?> const & operator[](int i) constant const { return s[i]; }
 
 } <?=app.real=="half" and "__attribute__ ((packed))" or ""
 -- __attribute__ ((packed)) seems to need to be here with real=half
@@ -217,16 +218,51 @@ local function make3x3type(scalar)
 	local vec3 = scalar.."3"
 	local name = scalar.."3x3"
 ?>
-typedef union {
-	<?=scalar?> s[9];
-	<?=vec3?> v[3];
+union <?=name?> {
+	struct {
+		<?=vec3?> x;
+		<?=vec3?> y;
+		<?=vec3?> z;
+	};
 	struct {
 		<?=vec3?> v0,v1,v2;
 	};
-	struct {
-		<?=vec3?> x,y,z;
-	};
-} <?=name?>;
+	<?=vec3?> v[3];
+	<?=scalar?> s[9];
+
+//// BEGIN EXCLUDE FROM FFI_CDEF
+	constexpr <?=name?>() : x({}), y({}), z({}) {}
+	
+	constexpr <?=name?>(
+		<?=vec3?> x_,
+		<?=vec3?> y_,
+		<?=vec3?> z_
+	) : x(x_), y(y_), z(z_) {}
+
+	//specified in row-order, like you would a C array
+	constexpr <?=name?>(
+		real xx,
+		real xy,
+		real xz,
+		real yx,
+		real yy,
+		real yz,
+		real zx,
+		real zy,
+		real zz
+	) : x(xx,xy,xz),
+		y(yx,yy,yz),
+		z(zx,zy,zz)
+	{}
+
+	<?=vec3?> & operator[](int i) { return v[i]; }
+	<?=vec3?> const & operator[](int i) const { return v[i]; }
+	constant <?=vec3?> & operator[](int i) constant { return v[i]; }
+	constant <?=vec3?> const & operator[](int i) constant const { return v[i]; }
+
+//// END EXCLUDE FROM FFI_CDEF
+};
+typedef union <?=name?> <?=name?>;
 <?
 end
 
@@ -270,10 +306,10 @@ local function make_3x3_3_mul(atype, btype)
 	local ctype = resultType(atype, btype)
 ?>
 //c_i = a_ij * b^j
-static inline <?=ctype?>3 <?=atype?>3x3_<?=btype?>3_mul(<?=atype?>3x3 a, <?=btype?>3 b) {
-	return (<?=ctype?>3){
+inline <?=ctype?>3 operator*(<?=atype?>3x3 a, <?=btype?>3 b) {
+	return <?=ctype?>3{
 <? for i,xi in ipairs(xNames) do
-?>		.<?=xi?> = a.<?=xi?> * b,
+?>		dot(a.<?=xi?>, b),
 <? end
 ?>	};
 }
@@ -285,13 +321,10 @@ local function make_3_3x3_mul(atype, btype)
 ?>
 //c_j = a^i * b_ij = b_ji * a^i
 //so this is the same behavior as transpose(A) * b
-static inline <?=ctype?>3 <?=atype?>3_<?=btype?>3x3_mul(<?=atype?>3 a, <?=btype?>3x3 b) {
-	return (<?=ctype?>3){
+inline <?=ctype?>3 operator*(<?=atype?>3 a, <?=btype?>3x3 b) {
+	return <?=ctype?>3{
 <? for i,xi in ipairs(xNames) do
-?>		.<?=xi?> = <?=ctype?>_add3(
-			a.x * b.x.<?=xi?>,
-			a.y * b.y.<?=xi?>,
-			a.z * b.z.<?=xi?>),
+?>		a.x * b.x.<?=xi?> + a.y * b.y.<?=xi?> + a.z * b.z.<?=xi?>,
 <? end
 ?>	};
 }
@@ -437,15 +470,24 @@ static inline real3 real3_rotTo2(real3 v) {
 
 //rotate 'n' to x-axis
 //assumes 'n' is unit
-static inline real3 real3_rotateFrom(real3 v, real3 n) {
-#if dim == 1
+template<int dim>
+inline real3 rotateFrom(real3 v, real3 n);
+
+template<>
+inline real3 rotateFrom<1>(real3 v, real3 n) {
 	return v;
-#elif dim == 2
+}
+
+template<>
+inline real3 rotateFrom<2>(real3 v, real3 n) {
 	return real3(
 		v.x * n.x + v.y * n.y,
 		-v.x * n.y + v.y * n.x,
 		v.z);
-#elif dim == 3
+}
+
+template<>
+inline real3 rotateFrom<3>(real3 v, real3 n) {
 	/*
 	axis is n cross x-axis
 	[ 1  0  0] x [nx ny nz] = [0, -nz, ny] / (ny^2 + nz^2)
@@ -472,19 +514,27 @@ static inline real3 real3_rotateFrom(real3 v, real3 n) {
 	real4 _v = (real4)(v.x, v.y, v.z, 0);
 	real4 vres = quatMul(quatMul(q, _v), qInv);
 	return real3(vres.x, vres.y, vres.z);
-#endif
 }
 
 //rotate x-axis to 'n'
-static inline real3 real3_rotateTo(real3 v, real3 n) {
-#if dim == 1
+template<int dim>
+inline real3 rotateTo(real3 v, real3 n);
+
+template<>
+inline real3 rotateTo<1>(real3 v, real3 n) {
 	return v;
-#elif dim == 2
+}
+
+template<>
+inline real3 rotateTo<2>(real3 v, real3 n) {
 	return real3(
 		v.x * n.x - v.y * n.y,
 		v.x * n.y + v.y * n.x,
 		v.z);
-#elif dim == 3
+}
+
+template<>
+inline real3 rotateTo<3>(real3 v, real3 n) {
 	//same as above but with negative axis
 	real cosTheta = n.x;
 	real cosHalfTheta = sqrt(.5 * (1. + cosTheta));
@@ -498,7 +548,6 @@ static inline real3 real3_rotateTo(real3 v, real3 n) {
 	real4 _v = (real4)(v.x, v.y, v.z, 0);
 	real4 vres = quatMul(quatMul(q, _v), qInv);
 	return real3(vres.x, vres.y, vres.z);
-#endif
 }
 
 static inline real3 real3_rotateX(real3 v, real theta) {
@@ -535,15 +584,16 @@ static inline real3 real3_rotateZ(real3 v, real theta) {
 //// MODULE_DEPENDS: real3
 //// MODULE_TYPE:
 
-typedef union {
-	real s[6];
+union sym3 {
 	struct {
 		real xx, xy, xz, yy, yz, zz;
 	};
 	struct {
 		real s00, s01, s02, s11, s12, s22;
 	};
-} sym3;
+	real s[6];
+};
+typedef union sym3 sym3;
 
 //// MODULE_HEADER:
 
@@ -555,7 +605,7 @@ typedef union {
 #define sym3_zero	_sym3(0,0,0,0,0,0)
 #define sym3_ident	_sym3(1,0,0,1,0,1)
 
-static inline sym3 real3_outer(real3 const a);
+inline sym3 outer(real3 const a);
 static inline real sym3_det(sym3 const m);
 static inline sym3 sym3_inv(sym3 const m, real const det);
 static inline sym3 sym3_inv_nodet(sym3 const m);
@@ -576,7 +626,7 @@ static inline real real3_weightedLen(real3 a, sym3 m);
 //// MODULE_CODE:
 
 //outer with yourself
-static inline sym3 real3_outer(real3 const a) {
+inline sym3 outer(real3 const a) {
 	return (sym3){
 <? for ij,xij in ipairs(symNames) do
 	local i,j = from6to3x3(ij)
@@ -717,7 +767,7 @@ static inline sym3 sym3_rotateFrom(
 	t.x = real3_rotateFrom(t.x, n);
 	t.y = real3_rotateFrom(t.y, n);
 	t.z = real3_rotateFrom(t.z, n);
-	t = real3x3_transpose(t);
+	t = transpose(t);
 	t.x = real3_rotateFrom(t.x, n);
 	t.y = real3_rotateFrom(t.y, n);
 	t.z = real3_rotateFrom(t.z, n);
@@ -732,7 +782,7 @@ static inline sym3 sym3_rotateTo(
 	t.x = real3_rotateTo(t.x, n);
 	t.y = real3_rotateTo(t.y, n);
 	t.z = real3_rotateTo(t.z, n);
-	t = real3x3_transpose(t);
+	t = transpose(t);
 	t.x = real3_rotateTo(t.x, n);
 	t.y = real3_rotateTo(t.y, n);
 	t.z = real3_rotateTo(t.z, n);
@@ -764,18 +814,9 @@ static inline sym3 sym3_swap2(sym3 m) { return _sym3(m.zz, m.yz, m.xz, m.yy, m.x
 
 //// MODULE_HEADER:
 
-//specified in row-order, like you would a C array
-#define _real3x3(xx,xy,xz,yx,yy,yz,zx,zy,zz) ((real3x3){.x=real3(xx,xy,xz), .y=real3(yx,yy,yz), .z=real3(zx,zy,zz)})
-
-// failing in AMD OpenCL LLVM
-//LLVM ERROR: Cannot select: 0x55ab0ec9b418: i32 = GlobalAddress<[3 x %union.vec3d_t] addrspace(5)* @constinit> 0
-//#define real3x3_zero ((real3x3){.v={real3_zero, real3_zero, real3_zero}})
-//instead:
-#define real3x3_zero ((real3x3){.x=real3_zero, .y=real3_zero, .z=real3_zero})
-
 static inline real3x3 real3x3_from_real3x3(real3x3 x);
-static inline real3x3 real3x3_add(real3x3 a, real3x3 b);
-static inline real3x3 real3_real3_outer(real3 a, real3 b);
+inline real3x3 operator+(real3x3 a, real3x3 b);
+inline real3x3 outer(real3 a, real3 b);
 static inline real real3x3_dot(real3x3 a, real3x3 b);
 static inline real real3x3_sym3_dot(real3x3 a, sym3 b);
 static inline real3x3 sym3_sym3_mul(sym3 a, sym3 b);
@@ -787,9 +828,9 @@ static inline sym3 sym3_from_real3x3(real3x3 a);
 static inline real3x3 real3x3_from_sym3(sym3 a);
 static inline real3x3 real3x3_addT(real3x3 a, real3x3 b);
 static inline real3x3 real3x3_real3x3_mul(real3x3 a, real3x3 b);
-static inline real3 real3x3_real3_mul(real3x3 a, real3 b);
+inline real3 operator*(real3x3 a, real3 b);
 static inline real real3x3_trace(real3x3 m);
-static inline real3x3 real3x3_transpose(real3x3 m);
+static inline real3x3 transpose(real3x3 m);
 static inline real3x3 real3x3_from_real(real x);
 static inline real real3x3_det(real3x3 m);
 static inline real3x3 real3x3_inv(real3x3 m);
@@ -798,10 +839,10 @@ static inline real3x3 real3x3_inv(real3x3 m);
 
 static inline real3x3 real3x3_from_real3x3(real3x3 x) { return x; }
 
-static inline real3x3 real3x3_add(real3x3 a, real3x3 b) {
-	return (real3x3){
+inline real3x3 operator+(real3x3 a, real3x3 b) {
+	return real3x3{
 <? for i,xi in ipairs(xNames) do
-?>		.<?=xi?> = real3_add(a.<?=xi?>, b.<?=xi?>),
+?>		a.<?=xi?> + b.<?=xi?>,
 <? end
 ?>	};
 }
@@ -813,12 +854,12 @@ a^T * b
  = [a.y b.x, a.y b.y, a.y b.z]
    [a.z b.x, a.z b.y, a.z b.z]
 */
-static inline real3x3 real3_real3_outer(real3 a, real3 b) {
-	return (real3x3){
+inline real3x3 outer(real3 a, real3 b) {
+	return real3x3{
 <? for i,xi in ipairs(xNames) do
-?>		.<?=xi?> = {
+?>		{
 <?	for j,xj in ipairs(xNames) do
-?>			.<?=xj?> = a.<?=xi?> * b.<?=xj?>,
+?>			a.<?=xi?> * b.<?=xj?>,
 <?	end
 ?>		},
 <? end
@@ -846,11 +887,11 @@ static inline real real3x3_sym3_dot(real3x3 a, sym3 b) {
 }
 
 static inline real3x3 sym3_sym3_mul(sym3 a, sym3 b) {
-	return (real3x3){
+	return real3x3{
 <? for i,xi in ipairs(xNames) do
-?>		.<?=xi?> = {
+?>		{
 <?	for j,xj in ipairs(xNames) do
-?>			.<?=xj?> = 0.<?
+?>			0.<?
 		for k,xk in ipairs(xNames) do
 ?> + a.<?=sym(i,k)?> * b.<?=sym(k,j)?><?
 		end ?>,
@@ -861,11 +902,11 @@ static inline real3x3 sym3_sym3_mul(sym3 a, sym3 b) {
 }
 
 static inline real3x3 real3x3_sym3_mul(real3x3 a, sym3 b) {
-	return (real3x3){
+	return real3x3{
 <? for i,xi in ipairs(xNames) do
-?>		.<?=xi?> = {
+?>		{
 <?	for j,xj in ipairs(xNames) do
-?>			.<?=xj?> = 0.<?
+?>			0.<?
 		for k,xk in ipairs(xNames) do
 ?> + a.<?=xi?>.<?=xk?> * b.<?=sym(k,j)?><?
 		end ?>,
@@ -876,11 +917,11 @@ static inline real3x3 real3x3_sym3_mul(real3x3 a, sym3 b) {
 }
 
 static inline real3x3 sym3_real3x3_mul(sym3 a, real3x3 b) {
-	return (real3x3){
+	return real3x3{
 <? for i,xi in ipairs(xNames) do
-?>		.<?=xi?> = {
+?>		{
 <?	for j,xj in ipairs(xNames) do
-?>			.<?=xj?> = 0.<?
+?>			0.<?
 		for k,xk in ipairs(xNames) do
 ?> + a.<?=sym(i,k)?> * b.<?=xk?>.<?=xj?><?
 		end ?>,
@@ -930,12 +971,12 @@ static inline sym3 sym3_from_real3x3(real3x3 a) {
 }
 
 static inline real3x3 real3x3_from_sym3(sym3 a) {
-	return (real3x3){
+	return real3x3{
 <? for i,xi in ipairs(xNames) do
-?>		.<?=xi?> = {
+?>		{
 <?	for j,xj in ipairs(xNames) do
 		local ij,xij = from3x3to6(i,j)
-?>			.<?=xj?> = a.<?=xij?>,
+?>			a.<?=xij?>,
 <?	end
 ?>		},
 <? end
@@ -944,11 +985,11 @@ static inline real3x3 real3x3_from_sym3(sym3 a) {
 
 //c_ij = a_ij + b_ji
 static inline real3x3 real3x3_addT(real3x3 a, real3x3 b) {
-	return (real3x3){
+	return real3x3{
 <? for i,xi in ipairs(xNames) do
-?>		.<?=xi?> = {
+?>		{
 <?	for j,xj in ipairs(xNames) do
-?>			.<?=xj?> = a.<?=xi?>.<?=xj?> + b.<?=xj?>.<?=xi?>,
+?>			a.<?=xi?>.<?=xj?> + b.<?=xj?>.<?=xi?>,
 <?	end
 ?>		},
 <? end
@@ -956,11 +997,11 @@ static inline real3x3 real3x3_addT(real3x3 a, real3x3 b) {
 }
 
 static inline real3x3 real3x3_real3x3_mul(real3x3 a, real3x3 b) {
-	return (real3x3){
+	return real3x3{
 <? for i,xi in ipairs(xNames) do
-?>		.<?=xi?> = {
+?>		{
 <?	for j,xj in ipairs(xNames) do
-?>			.<?=xj?> = 0.<?
+?>			0.<?
 		for k,xk in ipairs(xNames) do
 ?> + a.<?=xi?>.<?=xk?> * b.<?=xk?>.<?=xj?><?
 		end ?>,
@@ -977,21 +1018,21 @@ static inline real real3x3_trace(real3x3 m) {
 	return m.x.x + m.y.y + m.z.z;
 }
 
-static inline real3x3 real3x3_transpose(real3x3 m) {
-	return (real3x3){
+static inline real3x3 transpose(real3x3 m) {
+	return real3x3{
 <? for i,xi in ipairs(xNames) do
-?>		.<?=xi?> = (real3){<?
+?>		real3{<?
 	for j,xj in ipairs(xNames) do
-?>.<?=xj?> = m.<?=xj?>.<?=xi?>, <?
+?>m.<?=xj?>.<?=xi?>, <?
 	end ?>},
 <? end
 ?>	};
 }
 
 static inline real3x3 real3x3_from_real(real x) {
-	return (real3x3){
+	return real3x3{
 <? for i,xi in ipairs(xNames) do
-?>		.<?=xi?> = real3(<?
+?>		real3(<?
 	for j,xj in ipairs(xNames) do
 		if i~=j then ?>0.<? else ?>x<? end ?><?= j < 3 and ", " or ""?><?
 	end ?>),
@@ -1007,7 +1048,7 @@ static inline real real3x3_det(real3x3 m) {
 
 static inline real3x3 real3x3_inv(real3x3 m) {
 	real invDet = 1. / real3x3_det(m);
-	return (real3x3){
+	return real3x3{
 <?
 --n.x.x = (m.y.y * m.z.z - m.z.y * m.y.z) / det;
 --n.x.y = (m.z.y * m.x.z - m.x.y * m.z.z) / det;
@@ -1016,11 +1057,11 @@ static inline real3x3 real3x3_inv(real3x3 m) {
 for i=0,2 do
 	local i1 = (i+1)%3;
 	local i2 = (i+2)%3;
-?>		.v<?=i?> = {
+?>		{
 <? 	for j=0,2 do
 		local j1 = (j+1)%3;
 		local j2 = (j+2)%3;
-?>			.s<?=j?> = (m.v<?=j1?>.s<?=i1?> * m.v<?=j2?>.s<?=i2?> - m.v<?=j2?>.s<?=i1?> * m.v<?=j1?>.s<?=i2?>) * invDet,
+?>			(m.v<?=j1?>.s<?=i1?> * m.v<?=j2?>.s<?=i2?> - m.v<?=j2?>.s<?=i1?> * m.v<?=j1?>.s<?=i2?>) * invDet,
 <? end
 ?>		},
 <? end
@@ -1047,7 +1088,7 @@ static inline real3x3 real3x3_rotateFrom(
 	t.x = real3_rotateFrom(t.x, n);
 	t.y = real3_rotateFrom(t.y, n);
 	t.z = real3_rotateFrom(t.z, n);
-	t = real3x3_transpose(t);
+	t = transpose(t);
 	t.x = real3_rotateFrom(t.x, n);
 	t.y = real3_rotateFrom(t.y, n);
 	t.z = real3_rotateFrom(t.z, n);
@@ -1061,7 +1102,7 @@ static inline real3x3 real3x3_rotateTo(
 	t.x = real3_rotateTo(t.x, n);
 	t.y = real3_rotateTo(t.y, n);
 	t.z = real3_rotateTo(t.z, n);
-	t = real3x3_transpose(t);
+	t = transpose(t);
 	t.x = real3_rotateTo(t.x, n);
 	t.y = real3_rotateTo(t.y, n);
 	t.z = real3_rotateTo(t.z, n);
@@ -1178,18 +1219,18 @@ static inline _3sym3 sym3_3sym3_mul(sym3 a, _3sym3 b) {
 
 //c^i = a^i_jk b^jk
 static inline real3 _3sym3_sym3_dot23(_3sym3 a, sym3 b) {
-	return (real3){
+	return real3{
 <? for i,xi in ipairs(xNames) do
-?>		.<?=xi?> = sym3_dot(a.<?=xi?>, b),
+?>		sym3_dot(a.<?=xi?>, b),
 <? end
 ?>	};
 }
 
 //c_i = a^jk b_jki
 static inline real3 sym3_3sym3_dot12(sym3 a, _3sym3 b) {
-	return (real3){
+	return real3{
 <? for i,xi in ipairs(xNames) do
-?>		.<?=xi?> = 0.<?
+?>		0.<?
 	for j,xj in ipairs(xNames) do
 		for k,xk in ipairs(xNames) do
 ?> + a.<?=sym(j,k)?> * b.<?=xj?>.<?=sym(k,i)?><?
@@ -1213,9 +1254,9 @@ static inline sym3 real3_3sym3_dot1(real3 a, _3sym3 b) {
 
 //c_i = a^j_ji
 static inline real3 _3sym3_tr12(_3sym3 a) {
-	return (real3){
+	return real3{
 <? for i,xi in ipairs(xNames) do
-?>		.<?=xi?> = 0.<?
+?>		0.<?
 	for j,xj in ipairs(xNames) do
 ?> + a.<?=xj?>.<?=sym(j,i)?><?
 	end ?>,
@@ -1225,11 +1266,11 @@ static inline real3 _3sym3_tr12(_3sym3 a) {
 
 //c_ij = a^k b_ikj
 static inline real3x3 real3_3sym3_dot2(real3 a, _3sym3 b) {
-	return (real3x3){
+	return real3x3{
 <? for i,xi in ipairs(xNames) do
-?>		.<?=xi?> = {
+?>		{
 <?	for j,xj in ipairs(xNames) do
-?>			.<?=xj?> = 0.<?
+?>			0.<?
 		for k,xk in ipairs(xNames) do
 ?> + a.<?=xk?> * b.<?=xi?>.<?=sym(k,j)?><?
 		end ?>,
@@ -1373,20 +1414,20 @@ static inline real3x3x3 _3sym3_sym3_mul(_3sym3 a, sym3 b) {
 }
 
 static inline real3 real3x3x3_sym3_dot23(real3x3x3 a, sym3 b) {
-	return (real3){
+	return real3{
 <? for i,xi in ipairs(xNames) do
-?>		.<?=xi?> = real3x3_sym3_dot(a.<?=xi?>, b),
+?>		real3x3_sym3_dot(a.<?=xi?>, b),
 <? end
 ?>	};
 }
 
 //c_ij = a^k_li b_jk^l
 static inline real3x3 _3sym3_real3x3x3_dot12_23(_3sym3 a, real3x3x3 b) {
-	return (real3x3){
+	return real3x3{
 <? for i,xi in ipairs(xNames) do
-?>		.<?=xi?> = {
+?>		{
 <?	for j,xj in ipairs(xNames) do
-?>			.<?=xj?> = 0.
+?>			0.
 <?		for k,xk in ipairs(xNames) do
 			for l,xl in ipairs(xNames) do
 ?>				+ a.<?=xk?>.<?=sym(l,i)?> * b.<?=xj?>.<?=xk?>.<?=xl?>
@@ -1419,9 +1460,9 @@ static inline sym3 _3sym3_real3x3x3_dot13_to_sym3(_3sym3 a, real3x3x3 b) {
 
 //b_i = a_ij^j
 static inline real3 real3x3x3_tr23(real3x3x3 a) {
-	return (real3){
+	return real3{
 <? for i,xi in ipairs(xNames) do
-?>		.<?=xi?> = 0.<?
+?>		0.<?
 	for j,xj in ipairs(xNames) do
 ?> + a.<?=xi?>.<?=xj?>.<?=xj?><?
 	end
@@ -1433,11 +1474,11 @@ static inline real3 real3x3x3_tr23(real3x3x3 a) {
 static inline real3x3x3 real3x3x3_from__3sym3(_3sym3 m) {
 	return (real3x3x3){
 <? for i,xi in ipairs(xNames) do
-?>		.<?=xi?> = (real3x3){
+?>		real3x3{
 <?	for j,xj in ipairs(xNames) do
-?>			.<?=xj?> = (real3){
+?>			real3{
 <?		for k,xk in ipairs(xNames) do
-?>				.<?=xk?> = m.<?=xi?>.<?=sym(j,k)?>,
+?>				m.<?=xi?>.<?=sym(j,k)?>,
 <?		end
 ?>			},
 <?	end
@@ -1780,17 +1821,17 @@ static inline cplx3x3 cplx3x3_from_real3x3_real3x3(
 }
 
 static inline real3x3 cplx3x3_re(cplx3x3 const v) {
-	return (real3x3){
+	return real3x3{
 <? for i,xi in ipairs(xNames) do
-?>		.<?=xi?> = cplx3_re(v.<?=xi?>),
+?>		cplx3_re(v.<?=xi?>),
 <? end
 ?>	};
 }
 
 static inline real3x3 cplx3x3_im(cplx3x3 const v) {
-	return (real3x3){
+	return real3x3{
 <? for i,xi in ipairs(xNames) do
-?>		.<?=xi?> = cplx3_im(v.<?=xi?>),
+?>		cplx3_im(v.<?=xi?>),
 <? end
 ?>	};
 }

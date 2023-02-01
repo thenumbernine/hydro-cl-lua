@@ -704,7 +704,7 @@ function BoundaryMirror:getCode(args)
 <? if args.minmax == 'min' then ?>
 	real3 const n = coord_cartesianFromCoord(normalForSide<?=side-1?>, x);
 <? else -- max ?>
-	real3 const n = coord_cartesianFromCoord(real3_neg(normalForSide<?=side-1?>), x);
+	real3 const n = coord_cartesianFromCoord(-normalForSide<?=side-1?>, x);
 <? end ?>
 ]], 	{
 			args = args,
@@ -723,19 +723,7 @@ function BoundaryMirror:getCode(args)
 			then
 				-- TODO looks very similar to the reflect code in meshsolver
 				lines:insert(template([[
-	<?=result?>-><?=field?> = <?=vec3?>_sub(
-		<?=result?>-><?=field?>,
-		<?=vec3?>_<?=scalar?>_mul(
-			<?=vec3?>_from_real3(n),
-			<?=scalar?>_real_mul(
-				<?=vec3?>_real3_dot(
-					<?=result?>-><?=field?>,
-					n
-				),
-				<?=restitutionPlusOne?>
-			)
-		)
-	);
+	<?=result?>-><?=field?> -= n * dot(<?=result?>-><?=field?>, n) * <?=restitutionPlusOne?>;
 ]], 			{
 					restitutionPlusOne = clnumber(self.restitution + 1),
 					vec3 = var.type,
