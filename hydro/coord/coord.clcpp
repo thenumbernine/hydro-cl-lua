@@ -31,10 +31,10 @@ struct MeshNormal {
 	constexpr real lenSq() const {
 		return 1.;
 	}
-	<?
-	for j,xj in ipairs(xNames) do
-		for i,xi in ipairs(xNames) do
-	?>
+<?
+for j,xj in ipairs(xNames) do
+	for i,xi in ipairs(xNames) do
+?>
 	constexpr real l<?=j?><?=xi?>() const {
 		return n.<?=xj?>.<?=xi?>;
 	}
@@ -47,10 +47,10 @@ struct MeshNormal {
 	constexpr real u<?=j?><?=xi?>_over_len() const {
 		return u<?=j?><?=xi?>();
 	}
-	<?
-		end
+<?
 	end
-	?>
+end
+?>
 
 	//v^i (nj)_i
 	constexpr real3 vecDotNs(real3 v) const {
@@ -69,7 +69,7 @@ struct MeshNormal {
 
 // BEGIN CODE FOR ALL NORMALS (inherit? crtp insert?)
 
-	<? for i=1,3 do ?>
+<? for i=1,3 do ?>
 	constexpr real3 l<?=i?>() const {
 		return real3(
 			l<?=i?>x(),
@@ -83,7 +83,7 @@ struct MeshNormal {
 			u<?=i?>y(),
 			u<?=i?>z());
 	}
-	<? end ?>
+<? end ?>
 
 // END CODE FOR ALL NORMALS
 };
@@ -148,7 +148,7 @@ end
 
 // BEGIN CODE FOR ALL NORMALS (inherit? crtp insert?)
 
-	<? for i=1,3 do ?>
+<? for i=1,3 do ?>
 	constexpr real3 l<?=i?>() const {
 		return real3(
 			l<?=i?>x(),
@@ -162,7 +162,7 @@ end
 			u<?=i?>y(),
 			u<?=i?>z());
 	}
-	<? end ?>
+<? end ?>
 
 // END CODE FOR ALL NORMALS
 };
@@ -237,7 +237,7 @@ end
 
 // BEGIN CODE FOR ALL NORMALS (inherit? crtp insert?)
 
-	<? for i=1,3 do ?>
+<? for i=1,3 do ?>
 	constexpr real3 l<?=i?>() const {
 		return real3(
 			l<?=i?>x(),
@@ -251,7 +251,7 @@ end
 			u<?=i?>y(),
 			u<?=i?>z());
 	}
-	<? end ?>
+<? end ?>
 
 // END CODE FOR ALL NORMALS
 };
@@ -276,10 +276,10 @@ struct HolonomicNormal {
 	}
 
 	//(nj)_i, (nj_i / |nj|
-	<?
-	for j=1,3 do
-		for i,xi in ipairs(xNames) do
-	?>
+<?
+for j=1,3 do
+	for i,xi in ipairs(xNames) do
+?>
 	constexpr real l<?=j?><?=xi?>() const {
 		return side == <?=(i-j)%3?> ? 1. : 0.;
 	}
@@ -287,16 +287,16 @@ struct HolonomicNormal {
 	constexpr real l<?=j?><?=xi?>_over_len() {
 		return side == <?=(i-j)%3?> ? (1./l) : 0.;
 	}
-	<?
-		end
+<?
 	end
-	?>
+end
+?>
 
 	//(nj)^i, (nj)^i / |nj|
-	<?
-	for j,xj in ipairs(xNames) do
-		for i,xi in ipairs(xNames) do
-	?>
+<?
+for j,xj in ipairs(xNames) do
+	for i,xi in ipairs(xNames) do
+?>
 	constexpr real u<?=j?><?=xi?>() const {
 		return U.<?=xj?>.<?=xi?>;
 	}
@@ -305,10 +305,10 @@ struct HolonomicNormal {
 		return u<?=j?><?=xi?>() / l;
 	}
 
-	<?
-		end
+<?
 	end
-	?>
+end
+?>
 
 	//v^i (nj)_i for side j
 	constexpr real3 vecDotNs(real3 v) const {
@@ -334,7 +334,7 @@ struct HolonomicNormal {
 
 // BEGIN CODE FOR ALL NORMALS (inherit? crtp insert?)
 
-	<? for i=1,3 do ?>
+<? for i=1,3 do ?>
 	constexpr real3 l<?=i?>() const {
 		return real3(
 			l<?=i?>x(),
@@ -348,7 +348,7 @@ struct HolonomicNormal {
 			u<?=i?>y(),
 			u<?=i?>z());
 	}
-	<? end ?>
+<? end ?>
 
 // END CODE FOR ALL NORMALS
 };
@@ -375,5 +375,4 @@ end
 }
 <? end ?>
 
-static_assert(sizeof(Normal) == sizeof(<?=normal_t?>));
 }	//namespace <?=Equation?>

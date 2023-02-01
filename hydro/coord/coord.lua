@@ -2208,8 +2208,7 @@ real3 coord_cartesianToCoord(real3 u, real3 pt) {
 		u -= e * uei;
 	}<? end ?>
 	//add whatever's left of u
-	uCoord += u;
-	return uCoord;
+	return uCoord + u;
 }
 ]], env))
 				fromlines:insert(template([[
@@ -2277,8 +2276,7 @@ real3 coord_cartesianToCoord(real3 u, real3 pt) {
 		u -= e * uei;
 	}<? end ?>
 	//add whatever's left of u
-	uCoord += u;
-	return uCoord;
+	return uCoord + u;
 }
 
 real3 cartesianToCoord(real3 u, real3 pt) { return coord_cartesianToCoord(u, pt); }
@@ -2367,15 +2365,7 @@ mesh-based normals are assuming a cartesian coordinate system, and assumed to be
 $(n^i)_k (n^j)^k = g^{ij} = \delta^{ij}$<br>
 ]]
 		end
---[[
-mesh vertexes are provided in Cartesian coordinates
-so their normals are as well
- so face->normal will be in Cartesian components
 
-however their use with the cell vector components requires them to be converted to whatever coord.vectorComponents specifies
-maybe I will just do that up front?  save a frame basis & dual (that is orthonormal to the basis)
-though for now I'll just support Cartesian / identity metric
---]]
 		typecode = self.solver.eqn:template[[
 typedef struct {
 	real3x3 n;
@@ -2481,6 +2471,10 @@ using Normal = HolonomicNormal;
 			error("unknown vectorComponent == "..tolua(self.vectorComponent))
 		end
 	end	-- meshsolver
+
+	code = code .. self.solver.eqn:template[[
+static_assert(sizeof(<?=Equation?>::Normal) == sizeof(<?=normal_t?>));
+]]
 
 	-- TODO if you use multiple solvers that have differing vectorComponents
 	--  then this will cause a silent ffi error.  only the first normal_t will be defined.

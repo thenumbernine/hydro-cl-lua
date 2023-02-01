@@ -1,5 +1,5 @@
 //// MODULE_NAME: calcFluxAtCell
-//// MODULE_DEPENDS: <?=solver_macros?> <?=Equation?>
+//// MODULE_DEPENDS: <?=Equation?>
 
 kernel void calcFluxAtCell(
 	constant <?=solver_t?> const * const psolver,
@@ -12,7 +12,7 @@ kernel void calcFluxAtCell(
 	auto const & U = UBuf[index];
 	auto const & cell = cellBuf[index];
 <? for side=0,solver.dim-1 do 
-?>	fluxBuf[<?=side?> + dim * index] = <?=Equation?>::Eqn::fluxFromCons(solver, U, cell, normal_forSide<?=side?>(cell.pos));
+?>	fluxBuf[<?=side?> + dim * index] = <?=Equation?>::Eqn::fluxFromCons(solver, U, cell, <?=Equation?>::Normal::forSide<<?=side?>>(cell.pos));
 <? end
 ?>
 }
