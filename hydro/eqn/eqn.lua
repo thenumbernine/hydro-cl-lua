@@ -504,7 +504,10 @@ function Equation:getEnv()
 		-- really only used by applyInitCond
 		initCode = function()
 			-- calls initCond:getInitCondCode
-			return self.initCond:getInitCondCode()
+			return table{
+				self:template(self.initCond.cppHeader),
+				self.initCond:getInitCondCode(),
+			}:concat'\n'
 		end,
 	}
 

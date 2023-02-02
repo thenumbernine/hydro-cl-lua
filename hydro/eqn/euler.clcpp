@@ -396,7 +396,6 @@ struct EulerEqn : public Hydro::Eqn<EulerEqn, EulerEqnTraits> {
 		}
 	};
 
-
 	/*
 	I've highjacked all of this.  It was a normal Euler eqn solver.
 	But I experimented with a curved-space solver.
@@ -411,28 +410,26 @@ struct EulerEqn : public Hydro::Eqn<EulerEqn, EulerEqnTraits> {
 	) {
 		real3 const x = cell.pos;
 		real3 const mids = (solver.initCondMins + solver.initCondMaxs) * (real).5;
-		bool const lhs = true<?
+		bool const lhs = true
+<?
 for i=1,solver.dim do
-		local xi = xNames[i]
-?> && x.<?=xi?> < mids.<?=xi?><?
+	local xi = xNames[i]
+?> 
+			&& x.<?=xi?> < mids.<?=xi?>
+<?
 end
-?>;
+?>
+		;
 
 		// these are all standard for all init/euler.lua initial conditions
-		real rho = 0;
-		real3 v = {};
-		real P = 0;
-		real3 D = {};
-		real3 B = {};
-		real ePot = 0;
-
-		<?=initCode()?>
+		auto args = Hydro::InitCondCellArgs(solver, initCond, x);
+		InitCondC::initCond(args);
 
 		auto W = Prim()
-			.set_rho(rho)
-			.set_v(cartesianToCoord(v, x))
-			.set_P(P)
-			.set_ePot(ePot)
+			.set_rho(args.rho)
+			.set_v(cartesianToCoord(args.v, x))
+			.set_P(args.P)
+			.set_ePot(args.ePot)
 		;
 		U = consFromPrim(solver, W, x);
 	}

@@ -18,7 +18,6 @@ local common = require 'hydro.common'
 local xNames = common.xNames
 local minmaxs = common.minmaxs
 
-
 local EulerInitCond = class(InitCond)
 
 --[[
@@ -100,19 +99,32 @@ local function RiemannProblem(initCond)
 			end):concat'\n'
 		end
 		return self.solver.eqn:template([[
-	bool lhsSod = true<?
+namespace <?=Solver?> {
+struct InitCond_Euler_<?=name?> {
+	static inline void initCond(
+		Hydro::InitCondCellArgs & args
+	) {
+		auto & [solver, initCond, x, rho, v, P, ePot, D, B] = args;
+		auto mids = .5 * (solver.initCondMins + solver.initCondMaxs);
+		bool lhsSod = true<?
 for i=1,overrideDim or solver.dim do
 	local xi = xNames[i]
 ?> && x.<?=xi?> < mids.<?=xi?><?
 end
 ?>;
 
-	if (lhsSod) {
+		if (lhsSod) {
 <?=build(1)?>
-	} else {
+		} else {
 <?=build(2)?>
+		}
 	}
+};
+// TODO merge initCond_t i.e. InitCond with InitCondC here
+using InitCondC = InitCond_Euler_<?=name?>;
+}	//namespace <?=Solver?>
 ]], 		{
+				name = self.name,
 				build = build,
 				overrideDim = self.overrideDim,
 			})
@@ -718,22 +730,36 @@ local initConds = table{
 		},
 		getInitCondCode = function(self)
 			return self.solver.eqn:template([[
+namespace <?=Solver?> {
+struct InitCond_Euler_rectangle {
+	static inline void initCond(
+		Hydro::InitCondCellArgs args
+	) {
+		auto & [solver, initCond, x, rho, v, P, ePot, D, B] = args;
+
 //// MODULE_DEPENDS: <?=coordMap?>
-	real3 const xc = coordMap(x);
-	bool const inside = true
+		real3 const xc = coordMap(x);
+		bool const inside = true
 <?
 for i=1,solver.dim do
 	local xi = xNames[i]
-?> 		&& xc.<?=xi?> > -.5 && xc.<?=xi?> < .5
+?>
+			&& xc.<?=xi?> > -.5 && xc.<?=xi?> < .5
 <?
 end
-?>;
+?>
+		;
 	
-	rho = inside ? initCond.rhoL : initCond.rhoR;
-	P = inside ? initCond.PL : initCond.PR;
-	B.x = inside ? initCond.BxL : initCond.BxR;
-	B.y = inside ? initCond.ByL : initCond.ByR;
-	B.z = inside ? initCond.BzL : initCond.BzR;
+		rho = inside ? initCond.rhoL : initCond.rhoR;
+		P = inside ? initCond.PL : initCond.PR;
+		B.x = inside ? initCond.BxL : initCond.BxR;
+		B.y = inside ? initCond.ByL : initCond.ByR;
+		B.z = inside ? initCond.BzL : initCond.BzR;
+	}
+};
+// TODO merge initCond_t i.e. InitCond with InitCondC here
+using InitCondC = InitCond_Euler_rectangle;
+}	//namespace <?=Solver?>
 ]], 	{
 			solver = solver,
 			xNames = xNames,

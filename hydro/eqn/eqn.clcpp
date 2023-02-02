@@ -153,6 +153,9 @@ end
 
 }	// namespace Hydro
 
+// insert here Hydro{ InitCond{} }
+// and <?=Solver?>::InitCondC
+<?=initCode()?>
 
 //this has to go afer the subclass def ... or TODO template instanciate or something.
 #if 0
