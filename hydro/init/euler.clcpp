@@ -1,0 +1,58 @@
+<?=eqn:template(require"ext.file""hydro/init/init.clcpp":read())?>
+
+namespace Hydro {
+
+template<
+	int dim_,
+	typename Prim,
+	typename GetPrimLR
+>
+struct RiemannProblem {
+	static inline void initCond(
+		Hydro::InitCondCellArgs & args
+	) {
+		auto & [solver, initCond, x, rho, v, P, ePot, D, B] = args;
+		auto mids = .5 * (solver.initCondMins + solver.initCondMaxs);
+		
+		bool lhsSod = true;
+		for (int i = 0; i < dim_; ++i) {
+			lhsSod &= x[i] < mids[i];
+		}
+
+		if (lhsSod) {
+			GetPrimLR::buildL(args);
+		} else {
+			GetPrimLR::buildR(args);
+		}
+	}
+};
+
+}
+
+#if 0
+// currently generated in init/euler.lua
+// I would like to move all initcond's into this file
+// but the problem is, initCond_t is something that varies problem by problem
+// and it contains info that must be communicated between Lua and C++ 
+
+namespace <?=Solver?> {
+
+template<typename Prim>
+struct InitCond_Euler_Sod 
+: public Hydro::RiemannProblem<
+	<?= overrideDim or solver.dim ?>,
+	Prim,
+	Hydro::RiemannProblem
+> {
+	static void buildL(InitCond const & initCond) {
+		args.rho = args.initCond.rhoL;
+		args.P = args.initCond.PL;
+	}
+	static Prim getR(InitCond const & initCond) {
+		args.rho = args.initCond.rhoR;
+		args.P = args.initCond.PR;
+	}
+};
+
+}	//namespace <?=Solver?>
+#endif

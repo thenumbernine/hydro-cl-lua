@@ -423,7 +423,7 @@ end
 
 		// these are all standard for all init/euler.lua initial conditions
 		auto args = Hydro::InitCondCellArgs(solver, initCond, x);
-		InitCondC::initCond(args);
+		InitCondC<Prim>::initCond(args);
 
 		auto W = Prim()
 			.set_rho(args.rho)

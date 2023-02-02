@@ -17,42 +17,6 @@ getInitCondCode = function(self) returns the OpenCL code for the initial conditi
 
 local InitCond = class()
 
-InitCond.cppHeader = [[
-namespace Hydro {
-
-//template<typename Cons>
-struct InitCondCellArgs {
-	//input vars:
-	//manifold coords
-	constant <?=solver_t?> const & solver;
-	constant <?=initCond_t?> const & initCond;
-	real3 x;
-
-	//TODO input random field:
-	//Cons const & U,
-
-	//output vars:
-	//euler vars
-	real rho = {};
-	real3 v;
-	real P = {};
-	real ePot = {};
-	//maxwell vars
-	real3 D, B;	//EM vars
-
-	InitCondCellArgs(
-		constant <?=solver_t?> const & solver_,
-		constant <?=initCond_t?> const & initCond_,
-		real3 x_
-	) : solver(solver_),
-		initCond(initCond_),
-		x(x_)
-	{}
-};
-
-}
-]]
-
 --[[
 for now it depends on the initCond
 but how about I make some stanard overrides?
@@ -159,6 +123,7 @@ function InitCond:getBaseDepends()
 	return {
 		-- if an InitCond provides codeprefix, it is for code it expects to reference from within 'applyInitCond()'
 		solver.eqn.symbols.initCond_codeprefix,
+		solver.symbols.Solver,
 		-- applyInitCond uses these:
 		solver.solver_t,
 		self.initCond_t,

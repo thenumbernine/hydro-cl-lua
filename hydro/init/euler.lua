@@ -7,6 +7,7 @@ local class = require 'ext.class'
 local table = require 'ext.table'
 local range = require 'ext.range'
 local math = require 'ext.math'
+local file = require 'ext.file'
 local clnumber = require 'cl.obj.number'
 local symmath = require 'symmath'
 local materials = require 'hydro.materials'
@@ -95,33 +96,28 @@ local function RiemannProblem(initCond)
 	function initCond:getInitCondCode()
 		local function build(i)
 			return table.keys(initCond[i]):sort():mapi(function(name,_,t)
-				return '\t\t'..name..' = initCond.'..getInitCondFieldName(i,name)..';', #t+1
+				return '\t\targs.'..name..' = args.initCond.'..getInitCondFieldName(i,name)..';', #t+1
 			end):concat'\n'
 		end
-		return self.solver.eqn:template([[
+		return self.solver.eqn:template(
+file'hydro/init/euler.clcpp':read()
+..[[
 namespace <?=Solver?> {
-struct InitCond_Euler_<?=name?> {
-	static inline void initCond(
-		Hydro::InitCondCellArgs & args
-	) {
-		auto & [solver, initCond, x, rho, v, P, ePot, D, B] = args;
-		auto mids = .5 * (solver.initCondMins + solver.initCondMaxs);
-		bool lhsSod = true<?
-for i=1,overrideDim or solver.dim do
-	local xi = xNames[i]
-?> && x.<?=xi?> < mids.<?=xi?><?
-end
-?>;
-
-		if (lhsSod) {
+template<typename Prim>
+struct InitCond_Euler_<?=name?> : public Hydro::RiemannProblem<
+	<?=overrideDim or solver.dim?>,
+	Prim,
+	InitCond_Euler_<?=name?><Prim>
+> {
+	static void buildL(Hydro::InitCondCellArgs & args) {
 <?=build(1)?>
-		} else {
+	}
+	static void buildR(Hydro::InitCondCellArgs & args) {
 <?=build(2)?>
-		}
 	}
 };
 // TODO merge initCond_t i.e. InitCond with InitCondC here
-using InitCondC = InitCond_Euler_<?=name?>;
+template<typename Prim> using InitCondC = InitCond_Euler_<?=name?><Prim>;
 }	//namespace <?=Solver?>
 ]], 		{
 				name = self.name,
@@ -729,11 +725,14 @@ local initConds = table{
 			heatCapacityRatio = 2,
 		},
 		getInitCondCode = function(self)
-			return self.solver.eqn:template([[
+			return self.solver.eqn:template(
+file'hydro/init/euler.clcpp':read()
+..[[
 namespace <?=Solver?> {
+template<typename Prim>
 struct InitCond_Euler_rectangle {
 	static inline void initCond(
-		Hydro::InitCondCellArgs args
+		Hydro::InitCondCellArgs & args
 	) {
 		auto & [solver, initCond, x, rho, v, P, ePot, D, B] = args;
 
@@ -758,7 +757,7 @@ end
 	}
 };
 // TODO merge initCond_t i.e. InitCond with InitCondC here
-using InitCondC = InitCond_Euler_rectangle;
+template<typename Prim> using InitCondC = InitCond_Euler_rectangle<Prim>;
 }	//namespace <?=Solver?>
 ]], 	{
 			solver = solver,

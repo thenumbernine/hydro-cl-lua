@@ -1,0 +1,33 @@
+namespace Hydro {
+
+//template<typename Cons>
+struct InitCondCellArgs {
+	//input vars:
+	//manifold coords
+	constant <?=solver_t?> const & solver;
+	constant <?=initCond_t?> const & initCond;
+	real3 x;
+
+	//TODO input random field:
+	//Cons const & U,
+
+	//output vars:
+	//euler vars
+	real rho = {};
+	real3 v;
+	real P = {};
+	real ePot = {};
+	//maxwell vars
+	real3 D, B;	//EM vars
+
+	InitCondCellArgs(
+		constant <?=solver_t?> const & solver_,
+		constant <?=initCond_t?> const & initCond_,
+		real3 x_
+	) : solver(solver_),
+		initCond(initCond_),
+		x(x_)
+	{}
+};
+
+}
