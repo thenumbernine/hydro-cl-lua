@@ -110,6 +110,257 @@ Waves weno_<?=l_or_r?>_<?=side?>(
 end
 ?>
 
+// is supposed to be a subclass of FVSolver
+// but right now the Solver C++ code and the solver_t code are uncoupled anyways
+// and I don't have vtables anywhere (can I even?)
+// so ...
+struct WENOSolver {
+	static inline void calcFlux(
+		constant Solver const & solver,
+		global Cons * const fluxBuf,
+		global Cons const * const UBuf/*<?=solver.getULRArg?> ... but why use getULR when we're using WENO? */,
+		global Cell const * const cellBuf
+
+	) {
+		<?=SETBOUNDS?>(solver.numGhost, solver.numGhost-1);
+
+		real3 const xR = cellBuf[index].pos;
+		auto const * const U = UBuf + index;
+		auto const * const cell = cellBuf + index;
+		<? for side=0,solver.dim-1 do ?>{
+			int const side = <?=side?>;
+
+			int const indexL = index - solver.stepsize[<?=side?>];
+			int const indexR = index;
+
+#if 0
+			<?=solver:getULRCode():gsub("\n", "\n\t\t")?>
+#else
+			auto const & UL = UBuf[indexL];
+			auto const & UR = UBuf[indexR];
+#endif
+
+			auto const & cellL = cellBuf[indexL];
+			auto const & cellR = cellBuf[indexR];
+
+			real3 xInt = xR; xInt[<?=side?>] -= .5 * solver.grid_dx[<?=side?>];
+
+			auto const n = Normal::forSide<<?=side?>>(xInt);
+
+			int const fluxIndexInt = side + dim * index;
+			auto & flux = fluxBuf[fluxIndexInt];
+
+<?
+
+	if solver.fluxMethod == "Lax-Friedrichs" then
+
+?>
+			auto eig = Eqn::eigen_forInterface(solver, UL, UR, cellL, cellR, xInt, n);
+			real maxAbsLambda = 0.;
+			for (int j = 0; j < <?=2*stencilSize?>; ++j) {
+				real lambdaMin, lambdaMax;
+				Eqn::consWaveCodeMinMax(
+					solver, 
+					U[(j - <?=stencilSize?>) * solver.stepsize[<?=side?>]],
+					n,
+					xInt,
+					&lambdaMin,
+					&lambdaMax);
+				maxAbsLambda = max(maxAbsLambda, fabs(lambdaMin));
+				maxAbsLambda = max(maxAbsLambda, fabs(lambdaMax));
+			}
+
+<?
+		for j=0,2*stencilSize-1 do
+?>
+			int const offset<?=j?> = <?=j - stencilSize?> * solver.stepsize[<?=side?>];
+			auto const & U<?=j?> = U[offset<?=j?>];
+			auto const & cell<?=j?> = cell[offset<?=j?>];
+			//auto> F<?=j?> = fluxCellBuf[<?=side?> + dim * (index + <?=j - stencilSize?> * solver.stepsize[<?=side?>])];
+			auto F<?=j?> = Eqn::fluxFromCons(solver, U<?=j?>, cell<?=j?>, n);
+<?			if j < 2*stencilSize-1 then ?>
+			Cons fp<?=j?>;
+			for (int k = 0; k < numStates; ++k) {
+				fp<?=j?>.ptr[k] = (F<?=j?>.ptr[k] + maxAbsLambda * U<?=j?>.ptr[k]) * .5;
+			}
+<?			end
+			if j > 0 then
+?>
+			Cons fm<?=j-1?>;
+			for (int k = 0; k < numStates; ++k) {
+				fm<?=j-1?>.ptr[k] = (F<?=j?>.ptr[k] - maxAbsLambda * U<?=j?>.ptr[k]) * .5;
+			}
+<?			end
+		end
+?>
+			Waves afp[<?=2*stencilSize-1?>] = {
+<? 		for j=0,2*stencilSize-2 do
+?>				Eqn::eigen_leftTransform(solver, eig, fp<?=j?>, xInt, n),
+<?		end
+?>			};
+			Waves afm[<?=2*stencilSize-1?>] = {
+<?		for j=0,2*stencilSize-2 do
+?>				Eqn::eigen_leftTransform(solver, eig, fm<?=j?>, xInt, n),
+<? 		end
+?>			};
+
+			Waves wafp = weno_r_<?=side?>(afp);
+			Waves wafm = weno_l_<?=side?>(afm);
+
+			Waves waf;
+			for (int j = 0; j < numWaves; ++j) {
+				waf.ptr[j] = wafp.ptr[j] + wafm.ptr[j];
+			}
+
+			flux = Eqn::eigen_rightTransform(solver, eig, waf, xInt, n);
+<?
+
+	elseif solver.fluxMethod == "Marquina" then
+
+?>
+			auto eigL = Eqn::eigen_forCell(solver, UL, cellL, n);
+			auto eigR = Eqn::eigen_forCell(solver, UR, cellR, n);
+
+			real lambdaL[numWaves];
+			real lambdaR[numWaves];
+			<? for _,lr in ipairs{"L", "R"} do ?>{
+				auto calcWaves = Eqn::EigenWaveCode(solver, eig<?=lr?>, n, xInt);
+				for (int k = 0; k < numWaves; ++k) {
+					// TODO this was 'U', but the CodePrefix was &eig ... so ... which is it?
+					lambda<?=lr?>[k] = calcWaves(solver, eig<?=lr?>, n, xInt, k);
+				}
+			}<? end ?>
+
+<? 		for j=0,2*stencilSize-2 do
+?>		
+			int const offset<?=j?> = (<?=j - stencilSize?>) * solver.stepsize[<?=side?>];
+			auto const & U<?=j?> = U[offset<?=j?>];
+			auto const & cell<?=j?> = cell[offset<?=j?>];
+			auto F<?=j?> = Eqn::fluxFromCons(solver, U<?=j?>, cell<?=j?>, n);
+			Waves al<?=j?> = Eqn::eigen_leftTransform(solver, eigL, U<?=j?>, xInt, n);
+			Waves ar<?=j?> = Eqn::eigen_leftTransform(solver, eigR, U<?=j?>, xInt, n);
+			Waves afl<?=j?> = Eqn::eigen_leftTransform(solver, eigL, F<?=j?>, xInt, n);
+			Waves afr<?=j?> = Eqn::eigen_leftTransform(solver, eigR, F<?=j?>, xInt, n);
+
+<?		end
+?>
+
+			Waves afp[<?=2*stencilSize-1?>], afm[<?=2*stencilSize-1?>];
+			for (int k = 0; k < numWaves; ++k) {
+				if (lambdaL[k] > 0.0 && lambdaR[k] > 0.0) {
+<?				for j=0,2*stencilSize-2 do ?>
+					afp[<?=j?>].ptr[k] = afl<?=j?>.ptr[k];
+					afm[<?=j?>].ptr[k] = 0;
+<?				end
+?>				} else if (lambdaL[k] < 0.0 && lambdaR[k] < 0.0) {
+<?				for j=0,2*stencilSize-2 do ?>
+					afp[<?=j?>].ptr[k] = 0;
+					afm[<?=j?>].ptr[k] = afr<?=j?>.ptr[k];
+<?				end ?>
+				} else {
+					real absLambdaL = fabs(lambdaL[k]);
+					real absLambdaR = fabs(lambdaR[k]);
+					real a, absa;
+					if (absLambdaL > absLambdaR) {
+						a = lambdaL[k];
+						absa = absLambdaL;
+					} else {
+						a = lambdaR[k];
+						absa = absLambdaR;
+					}
+<?				for j=0,2*stencilSize-2 do
+?>					afp[<?=j?>].ptr[k] = .5 * (afl<?=j?>.ptr[k] + absa * al<?=j?>.ptr[k]);
+					afm[<?=j?>].ptr[k] = .5 * (afr<?=j?>.ptr[k] - absa * ar<?=j?>.ptr[k]);
+<?				end
+?>				}
+			}
+
+			Waves wafp = weno_r_<?=side?>(afp);
+			auto fluxP = Eqn::eigen_rightTransform(solver, eigL, wafp, xInt, n);
+
+			Waves wafm = weno_l_<?=side?>(afm);
+			auto fluxM = Eqn::eigen_rightTransform(solver, eigR, wafm, xInt, n);
+
+			for (int j = 0; j < numIntStates; ++j) {
+				flux.ptr[j] = fluxP.ptr[j] + fluxM.ptr[j];
+			}
+<?
+
+	elseif solver.fluxMethod == "Roe" then
+
+		-- TODO make the following its own function, maybe in solver/roe.cl or solver/roe.lua
+		-- so we can call a function instead of copy/paste
+		-- but this means making it a function of the lua parameters, like flux limiter.
+		-- and a flux limiter means +1 to the numGhost
+?>
+
+			auto eig = Eqn::eigen_forInterface(solver, UL, UR, cellL, cellR, xInt, n);
+
+			Waves afp[<?=2*stencilSize-1?>], afm[<?=2*stencilSize-1?>];
+<?		for j=0,2*stencilSize-2 do
+?>
+			{
+				int const offsetL<?=j?> = <?=j - stencilSize?> * solver.stepsize[<?=side?>];
+				int const offsetR<?=j?> = <?=j+1 - stencilSize?> * solver.stepsize[<?=side?>];
+
+				auto const & UL<?=j?> = U[offsetL<?=j?>];
+				auto const & UR<?=j?> = U[offsetR<?=j?>];
+
+				auto const & cellL<?=j?> = cell[offsetL<?=j?>];
+				auto const & cellR<?=j?> = cell[offsetR<?=j?>];
+
+				//should we only use a single 'eig'?  seems errors pop up when I use the 'eig' at each interface along the stencil
+				//auto eig = Eqn::eigen_forInterface(solver, UL, UR, cellL, cellR, xInt, n);
+
+				auto calcWaves = Eqn::EigenWaveCode(solver, eig, n, xInt);
+
+				Cons UAvg;
+				for (int k = 0; k < numIntStates; ++k) {
+					UAvg.ptr[k] = .5 * (UL<?=j?>.ptr[k] + UR<?=j?>.ptr[k]);
+				}
+				afp[<?=j?>] = afm[<?=j?>] = Eqn::eigen_leftTransform(solver, eig, UAvg, xInt, n);
+
+				Cons deltaU;
+				for (int k = 0; k < numStates; ++k) {
+					deltaU.ptr[k] = UR<?=j?>.ptr[k] - UL<?=j?>.ptr[k];
+				}
+
+				Waves deltaUEig = Eqn::eigen_leftTransform(solver, eig, deltaU, xInt, n);
+
+				for (int k = 0; k < numWaves; ++k) {
+					real const lambda = calcWaves(solver, eig, n, xInt, k);
+					real lambdaPlus = max(lambda, 0.);
+					real lambdaMinus = min(lambda, 0.);
+
+					afp[<?=j?>].ptr[k] *= lambdaPlus;
+					afm[<?=j?>].ptr[k] *= lambdaMinus;
+					real sgnLambda = lambda >= 0 ? 1 : -1;
+					afp[<?=j?>].ptr[k] -= .5 * lambdaPlus * deltaUEig.ptr[k] * sgnLambda;
+					afm[<?=j?>].ptr[k] -= .5 * lambdaMinus * deltaUEig.ptr[k] * sgnLambda;
+				}
+			}
+<?
+		end
+?>
+			Waves wafp = weno_r_<?=side?>(afp);
+			Waves wafm = weno_l_<?=side?>(afm);
+			Waves waf;
+			for (int j = 0; j < numWaves; ++j) {
+				waf.ptr[j] = wafp.ptr[j] + wafm.ptr[j];
+			}
+
+			flux = Eqn::eigen_rightTransform(solver, eig, waf, xInt, n);
+<?
+
+	else
+		error("unknown fluxMethod "..tostring(solver.fluxMethod))
+	end
+?>		}<?
+end ?>
+
+	}
+};
+
 }	// namespace <?=Equation?>
 
 //// MODULE_NAME: calcCellFlux
@@ -148,240 +399,5 @@ kernel void <?=calcFlux?>(
 ) {
 	using namespace <?=Equation?>;
 	auto const & solver = *psolver;
-	<?=SETBOUNDS?>(solver.numGhost, solver.numGhost-1);
-
-	real3 const xR = cellBuf[index].pos;
-	auto const * const U = UBuf + index;
-	auto const * const cell = cellBuf + index;
-	<?
-for side=0,solver.dim-1 do ?>{
-		int const side = <?=side?>;
-
-		int const indexL = index - solver.stepsize[<?=side?>];
-		int const indexR = index;
-
-#if 0
-		<?=solver:getULRCode():gsub("\n", "\n\t\t")?>
-#else
-		auto const & UL = UBuf[indexL];
-		auto const & UR = UBuf[indexR];
-#endif
-
-		auto const & cellL = cellBuf[indexL];
-		auto const & cellR = cellBuf[indexR];
-
-		real3 xInt = xR; xInt[<?=side?>] -= .5 * solver.grid_dx[<?=side?>];
-
-		auto const n = Normal::forSide<<?=side?>>(xInt);
-
-		int const fluxIndexInt = side + dim * index;
-		auto & flux = fluxBuf[fluxIndexInt];
-
-<?
-
-	if solver.fluxMethod == "Lax-Friedrichs" then
-
-?>
-		auto eig = Eqn::eigen_forInterface(solver, UL, UR, cellL, cellR, xInt, n);
-		real maxAbsLambda = 0.;
-		for (int j = 0; j < <?=2*stencilSize?>; ++j) {
-			real lambdaMin, lambdaMax;
-			Eqn::consWaveCodeMinMax(
-				solver, 
-				U[(j - <?=stencilSize?>) * solver.stepsize[<?=side?>]],
-				n,
-				xInt,
-				&lambdaMin,
-				&lambdaMax);
-			maxAbsLambda = max(maxAbsLambda, fabs(lambdaMin));
-			maxAbsLambda = max(maxAbsLambda, fabs(lambdaMax));
-		}
-
-<?
-		for j=0,2*stencilSize-1 do
-?>
-		int const offset<?=j?> = <?=j - stencilSize?> * solver.stepsize[<?=side?>];
-		auto const & U<?=j?> = U[offset<?=j?>];
-		auto const & cell<?=j?> = cell[offset<?=j?>];
-		//auto> F<?=j?> = fluxCellBuf[<?=side?> + dim * (index + <?=j - stencilSize?> * solver.stepsize[<?=side?>])];
-		auto F<?=j?> = Eqn::fluxFromCons(solver, U<?=j?>, cell<?=j?>, n);
-<?
-			if j < 2*stencilSize-1 then
-?>		Cons fp<?=j?>;
-		for (int k = 0; k < numStates; ++k) {
-			fp<?=j?>.ptr[k] = (F<?=j?>.ptr[k] + maxAbsLambda * U<?=j?>.ptr[k]) * .5;
-		}
-<?			end
-
-			if j > 0 then
-?>		Cons fm<?=j-1?>;
-		for (int k = 0; k < numStates; ++k) {
-			fm<?=j-1?>.ptr[k] = (F<?=j?>.ptr[k] - maxAbsLambda * U<?=j?>.ptr[k]) * .5;
-		}
-<?			end
-		end
-?>
-		Waves afp[<?=2*stencilSize-1?>] = {
-<? 		for j=0,2*stencilSize-2 do
-?>			Eqn::eigen_leftTransform(solver, eig, fp<?=j?>, xInt, n),
-<?		end
-?>		};
-		Waves afm[<?=2*stencilSize-1?>] = {
-<?		for j=0,2*stencilSize-2 do
-?>			Eqn::eigen_leftTransform(solver, eig, fm<?=j?>, xInt, n),
-<? 		end
-?>		};
-
-		Waves wafp = weno_r_<?=side?>(afp);
-		Waves wafm = weno_l_<?=side?>(afm);
-
-		Waves waf;
-		for (int j = 0; j < numWaves; ++j) {
-			waf.ptr[j] = wafp.ptr[j] + wafm.ptr[j];
-		}
-
-		flux = Eqn::eigen_rightTransform(solver, eig, waf, xInt, n);
-<?
-
-	elseif solver.fluxMethod == "Marquina" then
-
-?>
-		auto eigL = Eqn::eigen_forCell(solver, UL, cellL, n);
-		auto eigR = Eqn::eigen_forCell(solver, UR, cellR, n);
-
-		real lambdaL[numWaves];
-		real lambdaR[numWaves];
-		<? for _,lr in ipairs{"L", "R"} do ?>{
-			auto calcWaves = Eqn::EigenWaveCode(solver, eig<?=lr?>, n, xInt);
-			for (int k = 0; k < numWaves; ++k) {
-				// TODO this was 'U', but the CodePrefix was &eig ... so ... which is it?
-				lambda<?=lr?>[k] = calcWaves(solver, eig<?=lr?>, n, xInt, k);
-			}
-		}<? end ?>
-
-<? 		for j=0,2*stencilSize-2 do
-?>		int const offset<?=j?> = (<?=j - stencilSize?>) * solver.stepsize[<?=side?>];
-		auto const & U<?=j?> = U[offset<?=j?>];
-		auto const & cell<?=j?> = cell[offset<?=j?>];
-		auto F<?=j?> = Eqn::fluxFromCons(solver, U<?=j?>, cell<?=j?>, n);
-		Waves al<?=j?> = Eqn::eigen_leftTransform(solver, eigL, U<?=j?>, xInt, n);
-		Waves ar<?=j?> = Eqn::eigen_leftTransform(solver, eigR, U<?=j?>, xInt, n);
-		Waves afl<?=j?> = Eqn::eigen_leftTransform(solver, eigL, F<?=j?>, xInt, n);
-		Waves afr<?=j?> = Eqn::eigen_leftTransform(solver, eigR, F<?=j?>, xInt, n);
-
-<?		end
-?>
-
-		Waves afp[<?=2*stencilSize-1?>], afm[<?=2*stencilSize-1?>];
-		for (int k = 0; k < numWaves; ++k) {
-			if (lambdaL[k] > 0.0 && lambdaR[k] > 0.0) {
-<?				for j=0,2*stencilSize-2 do
-?>				afp[<?=j?>].ptr[k] = afl<?=j?>.ptr[k];
-				afm[<?=j?>].ptr[k] = 0;
-<?				end
-?>			} else if (lambdaL[k] < 0.0 && lambdaR[k] < 0.0) {
-<?				for j=0,2*stencilSize-2 do
-?>				afp[<?=j?>].ptr[k] = 0;
-				afm[<?=j?>].ptr[k] = afr<?=j?>.ptr[k];
-<?				end
-?>			} else {
-				real absLambdaL = fabs(lambdaL[k]);
-				real absLambdaR = fabs(lambdaR[k]);
-				real a, absa;
-				if (absLambdaL > absLambdaR) {
-					a = lambdaL[k];
-					absa = absLambdaL;
-				} else {
-					a = lambdaR[k];
-					absa = absLambdaR;
-				}
-<?				for j=0,2*stencilSize-2 do
-?>				afp[<?=j?>].ptr[k] = .5 * (afl<?=j?>.ptr[k] + absa * al<?=j?>.ptr[k]);
-				afm[<?=j?>].ptr[k] = .5 * (afr<?=j?>.ptr[k] - absa * ar<?=j?>.ptr[k]);
-<?				end
-?>			}
-		}
-
-		Waves wafp = weno_r_<?=side?>(afp);
-		auto fluxP = Eqn::eigen_rightTransform(solver, eigL, wafp, xInt, n);
-
-		Waves wafm = weno_l_<?=side?>(afm);
-		auto fluxM = Eqn::eigen_rightTransform(solver, eigR, wafm, xInt, n);
-
-		for (int j = 0; j < numIntStates; ++j) {
-			flux.ptr[j] = fluxP.ptr[j] + fluxM.ptr[j];
-		}
-<?
-
-	elseif solver.fluxMethod == "Roe" then
-
-		-- TODO make the following its own function, maybe in solver/roe.cl or solver/roe.lua
-		-- so we can call a function instead of copy/paste
-		-- but this means making it a function of the lua parameters, like flux limiter.
-		-- and a flux limiter means +1 to the numGhost
-?>
-
-		auto eig = Eqn::eigen_forInterface(solver, UL, UR, cellL, cellR, xInt, n);
-
-		Waves afp[<?=2*stencilSize-1?>], afm[<?=2*stencilSize-1?>];
-<?		for j=0,2*stencilSize-2 do
-?>
-		{
-			int const offsetL<?=j?> = <?=j - stencilSize?> * solver.stepsize[<?=side?>];
-			int const offsetR<?=j?> = <?=j+1 - stencilSize?> * solver.stepsize[<?=side?>];
-
-			auto const & UL<?=j?> = U[offsetL<?=j?>];
-			auto const & UR<?=j?> = U[offsetR<?=j?>];
-
-			auto const & cellL<?=j?> = cell[offsetL<?=j?>];
-			auto const & cellR<?=j?> = cell[offsetR<?=j?>];
-
-			//should we only use a single 'eig'?  seems errors pop up when I use the 'eig' at each interface along the stencil
-			//auto eig = Eqn::eigen_forInterface(solver, UL, UR, cellL, cellR, xInt, n);
-
-			auto calcWaves = Eqn::EigenWaveCode(solver, eig, n, xInt);
-
-			Cons UAvg;
-			for (int k = 0; k < numIntStates; ++k) {
-				UAvg.ptr[k] = .5 * (UL<?=j?>.ptr[k] + UR<?=j?>.ptr[k]);
-			}
-			afp[<?=j?>] = afm[<?=j?>] = Eqn::eigen_leftTransform(solver, eig, UAvg, xInt, n);
-
-			Cons deltaU;
-			for (int k = 0; k < numStates; ++k) {
-				deltaU.ptr[k] = UR<?=j?>.ptr[k] - UL<?=j?>.ptr[k];
-			}
-
-			Waves deltaUEig = Eqn::eigen_leftTransform(solver, eig, deltaU, xInt, n);
-
-			for (int k = 0; k < numWaves; ++k) {
-				real const lambda = calcWaves(solver, eig, n, xInt, k);
-				real lambdaPlus = max(lambda, 0.);
-				real lambdaMinus = min(lambda, 0.);
-
-				afp[<?=j?>].ptr[k] *= lambdaPlus;
-				afm[<?=j?>].ptr[k] *= lambdaMinus;
-				real sgnLambda = lambda >= 0 ? 1 : -1;
-				afp[<?=j?>].ptr[k] -= .5 * lambdaPlus * deltaUEig.ptr[k] * sgnLambda;
-				afm[<?=j?>].ptr[k] -= .5 * lambdaMinus * deltaUEig.ptr[k] * sgnLambda;
-			}
-		}
-<?
-		end
-?>
-		Waves wafp = weno_r_<?=side?>(afp);
-		Waves wafm = weno_l_<?=side?>(afm);
-		Waves waf;
-		for (int j = 0; j < numWaves; ++j) {
-			waf.ptr[j] = wafp.ptr[j] + wafm.ptr[j];
-		}
-
-		flux = Eqn::eigen_rightTransform(solver, eig, waf, xInt, n);
-<?
-
-	else
-		error("unknown fluxMethod "..tostring(solver.fluxMethod))
-	end
-?>	}<?
-end ?>
+	WENOSolver::calcFlux(solver, fluxBuf, UBuf, cellBuf);
 }

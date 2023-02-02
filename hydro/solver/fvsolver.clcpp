@@ -11,6 +11,7 @@ local useFluxLimiter = solver.fluxLimiter > 1
 	and flux.usesFluxLimiter -- just flux/roe.lua right now
 ?>
 	// this one gets overridden by WENO and EulerBurgers
+	template<typename Flux>
 	static inline void calcFlux(
 		constant Solver const & solver,
 		global Cons * const fluxBuf,

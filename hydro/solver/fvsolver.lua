@@ -13,13 +13,6 @@ local GridSolver = require 'hydro.solver.gridsolver'
 local common = require 'hydro.common'
 local xNames = common.xNames
 
-error[[
-TODO
-give each flux lua obj its c++ class name
-then template-ize the FVSolver class with a flux class name
-and then auto-insert it, or typedef it once somewhere, to use the lua obj class name
-]]
-
 local FiniteVolumeSolver = class(GridSolver)
 
 FiniteVolumeSolver.name = 'fvsolver'
@@ -81,7 +74,10 @@ kernel void <?=calcFlux?>(
 ) {
 	using namespace <?=Equation?>;
 	auto const & solver = *psolver;
-	<?=Equation?>::FVSolver::calcFlux(
+	<?=Equation?>::FVSolver::calcFlux<
+		// TODO here put the lua solver.flux.cppClassName
+		<?=Equation?>::Flux
+	>(
 		solver,
 		fluxBuf,
 		<?=solver.getULRBufName?>,
