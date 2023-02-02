@@ -34,22 +34,22 @@ struct WENOCoeffs<2> {
 template<>
 struct WENOCoeffs<3> {
 #if 1	
-	static constexpr real d[3] = {1/10, 6/10, 3/10};
-	static constexpr real a[3][3] = {
+	constant static constexpr real d[3] = {1/10, 6/10, 3/10};
+	constant static constexpr real a[3][3] = {
 		{ 2/6,	-7/6, 11/6, },
 		{-1/6,	 5/6,  2/6, },
 		{ 2/6,	 5/6, -1/6, },
 	};
 #endif
 #if 0	// which paper is this from?
-	static constexpr real d[3] = {1/16,	10/16,	5/16};
-	static constexpr real a[3][3] = {
+	constant static constexpr real d[3] = {1/16,	10/16,	5/16};
+	constant static constexpr real a[3][3] = {
 		{3/8,	-10/8,	15/8},
 		{-1/8,	6/8,	3/8},
 		{3/8,	6/8,	-1/8},
 	};
 #endif
-	static constexpr real beta[3][3][3] = {
+	constant static constexpr real beta[3][3][3] = {
 		{
 			{4/3, 0, 0},
 			{-19/3,	25/3, 0},
@@ -335,31 +335,26 @@ struct WenoR {
 
 <?
 local coeffs = solver.coeffs
-
 local coeff = coeffs[stencilSize]
 local a = coeff.a
 local d = coeff.d
 local betaCoeffs = coeff.betaCoeffs
+
+for _,l_or_r in ipairs{"l", "r"} do
+	local ak0 = l_or_r == "l" and stencilSize or 1
+	local akd = l_or_r == "l" and -1 or 1
+	local al0 = l_or_r == "l" and stencilSize or 1
+	local ald = l_or_r == "l" and -1 or 1
+	local d0 = l_or_r == "l" and stencilSize or 1
+	local dd = l_or_r == "l" and -1 or 1
 ?>
 
-
-<?
-for side=0,solver.dim-1 do
-	for _,l_or_r in ipairs{"l", "r"} do
-		local ak0 = l_or_r == "l" and stencilSize or 1
-		local akd = l_or_r == "l" and -1 or 1
-		local al0 = l_or_r == "l" and stencilSize or 1
-		local ald = l_or_r == "l" and -1 or 1
-		local d0 = l_or_r == "l" and stencilSize or 1
-		local dd = l_or_r == "l" and -1 or 1
-
--- how should I generalize this?
--- base pointer
--- number of cells (stencilSize)
--- number of coefficients at each cell ... or what C type it is, and how many variables to cycle across in the ptr field
--- ... or we can just always perform this interpolation in cons/char space
-?>
-Waves weno_<?=l_or_r?>_<?=side?>(
+// how should I generalize this?
+// base pointer
+// number of cells (stencilSize)
+// number of coefficients at each cell ... or what C type it is, and how many variables to cycle across in the ptr field
+// ... or we can just always perform this interpolation in cons/char space
+Waves weno_<?=l_or_r?>(
 	Waves const * const v
 ) {
 	using Coeffs = WENOCoeffs<stencilSize>;
@@ -367,43 +362,43 @@ Waves weno_<?=l_or_r?>_<?=side?>(
 	Waves result;
 	for (int k = 0; k < numWaves; ++k) {
 		real beta[stencilSize];
-<? 		for j=0,stencilSize-1 do
+<? 	for j=0,stencilSize-1 do
 ?>		beta[<?=j?>] = 0.;
-<?			for m=0,stencilSize-1 do
-				for n=0,m do ?>
+<?		for m=0,stencilSize-1 do
+			for n=0,m do ?>
 		// works with inline'd coeffs
 		beta[<?=j?>] += <?=clnumber(betaCoeffs[j+1][m+1][n+1])?> * v[<?=j+m?>][k] * v[<?=j+n?>][k];
 		// doens't work with static constexpr arrays ...
 		//beta[<?=j?>] += Coeffs::beta[<?=j?>][<?=m?>][<?=n?>] * v[<?=j+m?>][k] * v[<?=j+n?>][k];
-<?				end
-			end
+<?			end
 		end
+	end
 
-		if solver.wenoMethod == "1996 Jiang Shu" then 		-- WENO-JS
+	if solver.wenoMethod == "1996 Jiang Shu" then 		-- WENO-JS
 ?>		//constexpr real epsilon = 1e-14;
 		constexpr real epsilon = 1e-6;
 
 		real alpha[stencilSize];
-<? 			for i=0,stencilSize-1 do
+<? 		for i=0,stencilSize-1 do
 ?>		alpha[<?=i?>] = <?=clnumber(d[d0 + i * dd])?> / sqr(epsilon + beta[<?=i?>]);
-<? 			end
+<? 		end
 
-		elseif solver.wenoMethod == "2008 Borges" then 	-- WENO-Z
+	elseif solver.wenoMethod == "2008 Borges" then 	-- WENO-Z
 ?>		constexpr real epsilon = 1e-6;
 <?
-			-- TODO different coeffs of betas?
-			if false then 	--if stencilSize == 4 then -- for 2016 Rathan, it suggests these:
+		-- TODO different coeffs of betas?
+		if false then 	--if stencilSize == 4 then -- for 2016 Rathan, it suggests these:
 ?>		real tau = fabs(beta[0] + 3. * beta[1] - 3. * beta[2] - beta[3]);
-<?			else	-- for weno7, 2018 Zeytinoglu suggests this:
+<?		else	-- for weno7, 2018 Zeytinoglu suggests this:
 ?>		real tau = fabs(beta[0] - beta[<?=stencilSize-1?>]);
-<?			end
+<?		end
 ?>
 		real alpha[stencilSize];
-<?			for i=0,stencilSize-1 do
+<?		for i=0,stencilSize-1 do
 ?>		alpha[<?=i?>] = <?=clnumber(d[d0 + i * dd])?> * (1. + (tau / (beta[<?=i?>] + epsilon)));
-<? 			end
+<? 		end
 
-		elseif solver.wenoMethod == "2010 Shen Zha" then -- WENO-BS?
+	elseif solver.wenoMethod == "2010 Shen Zha" then -- WENO-BS?
 ?>		constexpr real epsilon = 1e-10;
 
 		// TODO find these for other order WENO's
@@ -419,20 +414,20 @@ Waves weno_<?=l_or_r?>_<?=side?>(
 		real R0 = minB / (maxB + epsilon);
 
 		real alpha[stencilSize];
-<? 			for i=0,stencilSize-1 do
+<? 		for i=0,stencilSize-1 do
 ?>		alpha[<?=i?>] = <?=clnumber(d[d0 + i * dd])?> / sqr(epsilon + beta[<?=i?>] + R0 * shen_zha_A * minB);
-<?	 		end
-		else
-			error("unknown wenoMethod "..tostring(solver.wenoMethod))
-		end
+<? 		end
+	else
+		error("unknown wenoMethod "..tostring(solver.wenoMethod))
+	end
 ?>
 		real vs[stencilSize];
-<?		for i=0,stencilSize-1 do
+<?	for i=0,stencilSize-1 do
 ?>		vs[<?=i?>] = 0.<?
 			for j=0,stencilSize-1 do ?>
 			+ <?=clnumber(a[ak0+akd*i][al0+ald*j])?> * v[<?=i+j?>][k]<?
 			end ?>;
-<? 		end
+<? 	end
 ?>
 		
 		real alphasum = 0;
@@ -448,8 +443,7 @@ Waves weno_<?=l_or_r?>_<?=side?>(
 	}
 	return result;
 }
-<? 	end
-end
+<? end
 ?>
 
 // is supposed to be a subclass of FVSolver
@@ -546,8 +540,8 @@ struct WENOSolver {
 <? 		end
 ?>			};
 
-			Waves wafp = weno_r_<?=side?>(afp);
-			Waves wafm = weno_l_<?=side?>(afm);
+			Waves wafp = weno_r(afp);
+			Waves wafm = weno_l(afm);
 
 			Waves waf;
 			for (int j = 0; j < numWaves; ++j) {
@@ -617,10 +611,10 @@ struct WENOSolver {
 ?>				}
 			}
 
-			Waves wafp = weno_r_<?=side?>(afp);
+			Waves wafp = weno_r(afp);
 			auto fluxP = Eqn::eigen_rightTransform(solver, eigL, wafp, xInt, n);
 
-			Waves wafm = weno_l_<?=side?>(afm);
+			Waves wafm = weno_l(afm);
 			auto fluxM = Eqn::eigen_rightTransform(solver, eigR, wafm, xInt, n);
 
 			for (int j = 0; j < numIntStates; ++j) {
@@ -684,8 +678,8 @@ struct WENOSolver {
 <?
 		end
 ?>
-			Waves wafp = weno_r_<?=side?>(afp);
-			Waves wafm = weno_l_<?=side?>(afm);
+			Waves wafp = weno_r(afp);
+			Waves wafm = weno_l(afm);
 			Waves waf;
 			for (int j = 0; j < numWaves; ++j) {
 				waf[j] = wafp[j] + wafm[j];
