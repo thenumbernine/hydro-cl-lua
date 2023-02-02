@@ -1,12 +1,12 @@
 //// MODULE_NAME: weno_l/r
-//// MODULE_DEPENDS: sqr <?=Equation?>
+//// MODULE_DEPENDS: sqr <?=Solver?>
 
 <?
 local clnumber = require "cl.obj.number"
 local stencilSize = solver.stencilSize
 ?>
 
-namespace <?=Equation?> {
+namespace <?=Solver?> {
 
 template<int stencilSize>
 struct WENOCoeffs {};
@@ -697,10 +697,10 @@ end ?>
 	}
 };
 
-}	// namespace <?=Equation?>
+}	// namespace <?=Solver?>
 
 //// MODULE_NAME: calcCellFlux
-//// MODULE_DEPENDS: <?=Equation?>
+//// MODULE_DEPENDS: <?=Solver?>
 
 kernel void calcCellFlux(
 	constant <?=solver_t?> const * const psolver,
@@ -708,7 +708,7 @@ kernel void calcCellFlux(
 	global <?=cons_t?> * const fluxCellBuf,
 	global <?=cons_t?> const * const UBuf
 ) {
-	using namespace <?=Equation?>;
+	using namespace <?=Solver?>;
 	auto const & solver = *psolver;
 	<?=SETBOUNDS?>(0,0);
 	auto const & U = UBuf[index];
@@ -725,7 +725,7 @@ kernel void calcCellFlux(
 }
 
 //// MODULE_NAME: <?=calcFlux?>
-//// MODULE_DEPENDS: <?=Equation?> weno_l/r
+//// MODULE_DEPENDS: <?=Solver?> weno_l/r
 
 kernel void <?=calcFlux?>(
 	constant <?=solver_t?> const * const psolver,
@@ -733,7 +733,7 @@ kernel void <?=calcFlux?>(
 	global <?=cons_t?> const * const UBuf/*<?=solver.getULRArg?> ... but why use getULR when we're using WENO? */,
 	global <?=cell_t?> const * const cellBuf
 ) {
-	using namespace <?=Equation?>;
+	using namespace <?=Solver?>;
 	auto const & solver = *psolver;
 	WENOSolver::calcFlux(solver, fluxBuf, UBuf, cellBuf);
 }

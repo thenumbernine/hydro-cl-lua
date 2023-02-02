@@ -66,15 +66,15 @@ function Euler:init(args)
 #endif
 
 #if 1 	// recalculate cons
-//// MODULE_DEPENDS: <?=Equation?>
-	<?=prim_t?> W = <?=Equation?>::Eqn::primFromCons(solver, U, pt);
+//// MODULE_DEPENDS: <?=Solver?>
+	<?=prim_t?> W = <?=Solver?>::Eqn::primFromCons(solver, U, pt);
 	W.v -= <?=dv?>;
-	U = <?=Equation?>::Eqn::consFromPrim(solver, W, pt);
+	U = <?=Solver?>::Eqn::consFromPrim(solver, W, pt);
 #endif
 ]], {dv=dv})
 				end,
 				codeDepends = {
-					assert(self.symbols.Equation),
+					self.solver.symbols.Solver,
 				},
 				--]=]
 			})
@@ -123,12 +123,6 @@ function Euler:init(args)
 			error("got an unknown viscosity method: "..self.viscosity)
 		end
 	end
-end
-
-function Euler:getSymbolFields()
-	return table(Euler.super.getSymbolFields(self)):append{
-		'Equation',
-	}
 end
 
 function Euler:buildVars(args)

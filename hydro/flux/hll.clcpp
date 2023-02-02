@@ -1,8 +1,8 @@
 //// MODULE_NAME: calcFluxForInterface
-//// MODULE_DEPENDS: <?=Equation?>
+//// MODULE_DEPENDS: <?=Solver?>
 //HLL solver:
 
-namespace <?=Equation?> {
+namespace <?=Solver?> {
 
 enum {
 	HLL_DAVIS_DIRECT,
@@ -61,4 +61,4 @@ struct HLLFlux {
 
 using Flux = HLLFlux;
 
-}	// namespace <?=Equation?>
+}	// namespace <?=Solver?>

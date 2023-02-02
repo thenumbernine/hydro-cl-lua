@@ -2373,9 +2373,9 @@ typedef struct {
 ]]
 
 		code = code .. self.solver.eqn:template[[
-namespace <?=Equation?> {
+namespace <?=Solver?> {
 using Normal = MeshNormal;
-}	//namespace <?=Equation?>
+}	//namespace <?=Solver?>
 ]]
 	else	-- not meshsolver
 
@@ -2404,9 +2404,9 @@ typedef struct {
 			-- this is overwhelmingly interface-based
 			-- with two exceptions: calcDT and some displayVars
 			code = code .. self.solver.eqn:template[[
-namespace <?=Equation?> {
+namespace <?=Solver?> {
 using Normal = AnholonomicNormal;
-}	// namespace <?=Equation?>
+}	// namespace <?=Solver?>
 ]]
 		elseif self.vectorComponent == 'cartesian' then
 			if self.verbose then
@@ -2433,9 +2433,9 @@ typedef struct {
 			-- this would call coord_cartesianFromCoord
 			-- which itself aligns with the coord_basisHolUnit
 			code = code .. self.solver.eqn:template[[
-namespace <?=Equation?> {
+namespace <?=Solver?> {
 using Normal = CartesianNormal;
-}	// namespace <?=Equation?>
+}	// namespace <?=Solver?>
 ]]
 		elseif self.vectorComponent == 'holonomic' then
 			if self.verbose then
@@ -2463,9 +2463,9 @@ typedef struct {
 ]]
 
 			code = code .. self.solver.eqn:template[[
-namespace <?=Equation?> {
+namespace <?=Solver?> {
 using Normal = HolonomicNormal;
-}	// namespace <?=Equation?>
+}	// namespace <?=Solver?>
 ]]
 		else
 			error("unknown vectorComponent == "..tolua(self.vectorComponent))
@@ -2473,7 +2473,7 @@ using Normal = HolonomicNormal;
 	end	-- meshsolver
 
 	code = code .. self.solver.eqn:template[[
-static_assert(sizeof(<?=Equation?>::Normal) == sizeof(<?=normal_t?>));
+static_assert(sizeof(<?=Solver?>::Normal) == sizeof(<?=normal_t?>));
 ]]
 
 	-- TODO if you use multiple solvers that have differing vectorComponents

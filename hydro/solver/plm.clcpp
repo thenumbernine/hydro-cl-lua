@@ -1,9 +1,9 @@
 //// MODULE_NAME: <?=calcLR?>
-//// MODULE_DEPENDS: <?=consLR_t?> <?=cell_dxs?> <?=Equation?>
+//// MODULE_DEPENDS: <?=consLR_t?> <?=cell_dxs?> <?=Solver?>
 
 // TODO incorporate parallel propagators
 
-namespace <?=Equation?> {
+namespace <?=Solver?> {
 
 using ConsLR = <?=consLR_t?>;
 
@@ -1028,7 +1028,7 @@ using CalcCellLR = CalcCellLR_Athena;
 using CalcCellLR = CalcCellLR_PPM_WIP;
 <? end ?>
 
-}	// namespace <?=Equation?>
+}	// namespace <?=Solver?>
 
 kernel void <?=calcLR?>(
 	constant <?=solver_t?> const * const psolver,
@@ -1037,6 +1037,7 @@ kernel void <?=calcLR?>(
 	global <?=cons_t?> const * const UBuf,
 	real const dt
 ) {
+	using namespace <?=Solver?>;
 	auto const & solver = *psolver;
 	<?=SETBOUNDS?>(1,1);
 	global <?=cons_t?> const * const pU = UBuf + index;
@@ -1049,7 +1050,7 @@ kernel void <?=calcLR?>(
 		
 		//cell-centered index for a particular side...
 		int const indexForSide = <?=side?> + dim * index;
-		ULRBuf[indexForSide] = <?=Equation?>::CalcCellLR::go<<?=side?>>(solver, pU, pcell, dt, i, n);
+		ULRBuf[indexForSide] = CalcCellLR::go<<?=side?>>(solver, pU, pcell, dt, i, n);
 	}<? end ?>
 }
 

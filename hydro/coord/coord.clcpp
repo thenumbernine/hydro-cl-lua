@@ -1,4 +1,4 @@
-namespace <?=Equation?> {
+namespace <?=Solver?> {
 
 /*
 mesh vertexes are provided in Cartesian coordinates
@@ -375,4 +375,4 @@ end
 }
 <? end ?>
 
-}	//namespace <?=Equation?>
+}	//namespace <?=Solver?>

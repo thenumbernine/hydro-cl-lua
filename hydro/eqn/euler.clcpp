@@ -2,20 +2,17 @@
 local useAddSource = false
 local useConstrainU = false
 ?>
-//// MODULE_NAME: <?=Equation?>
+//// MODULE_NAME: <?=Solver?>
 //// MODULE_DEPENDS: <?=coordLenSq?> <?=waves_t?> <?=eigen_t?> <?=eqn_guiVars_compileTime?>
 //// MODULE_DEPENDS: <?=coord_lower?>
 //// MODULE_DEPENDS: <?=prim_t?> <?=cons_t?> <?=normal_t?> <?=initCond_t?> <?=cell_t?>
 //// MODULE_DEPENDS: <?=cartesianToCoord?>
 //// MODULE_DEPENDS: <?=SETBOUNDS?>
 //// MODULE_DEPENDS: <?=SETBOUNDS_NOGHOST?>
-// Equation is for all the calc_* stuff
 
 <?=eqn:template(require "ext.file" "hydro/eqn/eqn.clcpp":read())?>
 
-// TODO 'namespace Equation' then 'class <?=Equation?>'
-// or TODO namespace <?=Solver?> and then class Solver, class Eqn, etc
-namespace <?=Equation?> {
+namespace <?=Solver?> {
 
 using Prim = <?=prim_t?>;
 using Cons = <?=cons_t?>;
@@ -25,19 +22,25 @@ using Eigen = <?=eigen_t?>;
 using Waves = <?=waves_t?>;
 using InitCond = <?=initCond_t?>;
 
+// hmm i can ref a type from a passed-in traits-class
+// but not from a crtp class?
+struct EulerEqnTraits {
+	using Solver = Solver;
+	using Cons = Cons;
+	using Prim = Prim;
+	using Normal = Normal;
+	using Cell = Cell;
+	using Eigen = Eigen;
+	using Waves = Waves;
+	using InitCond = InitCond;
+};
+
 // TODO eventually:
 //template<typename Solver>
-struct Eqn : public Hydro::Eqn<Eqn, Solver, Cons, Prim, Normal, Cell, Eigen, Waves, InitCond> {
+struct EulerEqn : public Hydro::Eqn<EulerEqn, EulerEqnTraits> {
 	// until then just use a typedef and a namespace
-
 	// hmm for some reason crtp parent can't seem to 'using' see into the childs member class's 'using's
-	//using Cons = ::<?=Equation?>::Cons;
-	//using Prim = ::<?=Equation?>::Prim;
-	//using Normal = <?=normal_t?>;
-	//using Cell = <?=cell_t?>;
-	//using Eigen = <?=eigen_t?>;
-	//using Waves = <?=waves_t?>;
-	//using InitCond = <?=initCond_t?>;
+	// so I used the traits instead
 
 	static inline real calc_H(
 		constant Solver const & solver,
@@ -451,8 +454,6 @@ end
 		;
 	}
 
-	// Equation is for all the calc_* stuff
-
 	// used by PLM
 	static inline Eigen eigen_forCell(
 		constant Solver const & solver,
@@ -835,7 +836,9 @@ Maybe for an initial constant vel as large as sqrt(2) this fails, but it works o
 
 };
 
-}	//namespace <?=Equation?>
+using Eqn = EulerEqn;
+
+}	//namespace <?=Solver?>
 
 
 
@@ -857,7 +860,7 @@ end
 ?>
 ) {
 	auto const & solver = *psolver;
-	<?=Equation?>::Eqn::calcDT(solver, dtBuf, UBuf, cellBuf
+	<?=Solver?>::Eqn::calcDT(solver, dtBuf, UBuf, cellBuf
 <?
 if require "hydro.solver.meshsolver":isa(solver) then
 ?>, faces, cellFaceIndexes
@@ -874,7 +877,7 @@ kernel void <?=applyInitCond?>(
 ) {
 	auto const & solver = *psolver;
 	<?=SETBOUNDS?>(0,0);
-	<?=Equation?>::Eqn::applyInitCondCell(solver, *pinitCond, UBuf[index], cellBuf[index]);
+	<?=Solver?>::Eqn::applyInitCondCell(solver, *pinitCond, UBuf[index], cellBuf[index]);
 }
 
 #endif
@@ -882,25 +885,25 @@ kernel void <?=applyInitCond?>(
 
 <? if useAddSource then ?>
 //// MODULE_NAME: <?=addSource?>
-//// MODULE_DEPENDS: <?=Equation?>
+//// MODULE_DEPENDS: <?=Solver?>
 kernel void <?=addSource?>(
 	constant <?=solver_t?> const * const psolver,
 	global <?=cons_t?> * const derivBuf,
 	global <?=cons_t?> const * const UBuf,
 	global <?=cell_t?> const * const cellBuf
 ) {
-	<?=Equation?>::Eqn::addSource(*psolver, derivBuf, UBuf, cellBuf);
+	<?=Solver?>::Eqn::addSource(*psolver, derivBuf, UBuf, cellBuf);
 }
 <? end -- useAddSource ?>
 
 <? if useConstrainU then ?>
 //// MODULE_NAME: <?=constrainU?>
-//// MODULE_DEPENDS: <?=Equation?>
+//// MODULE_DEPENDS: <?=Solver?>
 kernel void <?=constrainU?>(
 	constant <?=solver_t?> const * const psolver,
 	global <?=cons_t?> * const UBuf,
 	global <?=cell_t?> const * const cellBuf
 ) {
-	<?=Equation?>::Eqn::constrainU(*psolver, UBuf, cellBuf);
+	<?=Solver?>::Eqn::constrainU(*psolver, UBuf, cellBuf);
 }
 <? end -- useConstrainU ?>

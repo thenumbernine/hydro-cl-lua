@@ -1,5 +1,5 @@
 //// MODULE_NAME: calcFluxAtCell
-//// MODULE_DEPENDS: <?=Equation?>
+//// MODULE_DEPENDS: <?=Solver?>
 
 kernel void calcFluxAtCell(
 	constant <?=solver_t?> const * const psolver,
@@ -7,18 +7,19 @@ kernel void calcFluxAtCell(
 	global <?=cons_t?> const * const UBuf,
 	global <?=cell_t?> const * const cellBuf
 ) {
+	using namespace <?=Solver?>;
 	auto const & solver = *psolver;
 	<?=SETBOUNDS?>(0,0);
 	auto const & U = UBuf[index];
 	auto const & cell = cellBuf[index];
 <? for side=0,solver.dim-1 do 
-?>	fluxBuf[<?=side?> + dim * index] = <?=Equation?>::Eqn::fluxFromCons(solver, U, cell, <?=Equation?>::Normal::forSide<<?=side?>>(cell.pos));
+?>	fluxBuf[<?=side?> + dim * index] = Eqn::fluxFromCons(solver, U, cell, Normal::forSide<<?=side?>>(cell.pos));
 <? end
 ?>
 }
 
 //// MODULE_NAME: calcDerivFiniteDifference
-//// MODULE_DEPENDS: <?=solver_macros?> <?=Equation?>
+//// MODULE_DEPENDS: <?=solver_macros?> <?=Solver?>
 
 kernel void calcDerivFiniteDifference(
 	constant <?=solver_t?> const * const psolver,

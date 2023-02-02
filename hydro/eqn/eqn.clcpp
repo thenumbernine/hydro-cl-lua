@@ -3,33 +3,20 @@ namespace Hydro {
 //equation parent-class
 // TODO crtp this
 template<
-	typename Base_,
-	typename Solver_,
-	typename Cons_,
-	typename Prim_,
-	typename Normal_,
-	typename Cell_,
-	typename Eigen_,
-	typename Waves_,
-	typename InitCond_
+	typename Child_,
+	typename ChildTraits_
 >
 struct Eqn {
-	using Base = Base_;
-	using Solver = Solver_;
-	using Cons = Cons_;
-	using Prim = Prim_;
-	using Normal = Normal_;
-	using Cell = Cell_;
-	using Eigen = Eigen_;
-	using Waves = Waves_;
-	using InitCond = InitCond_;
-	//using Cons = typename Base::Cons;
-	//using Prim = typename Base::Prim;
-	//using Normal = typename Base::Normal;
-	//using Cell = typename Base::Cell;
-	//using Eigen = typename Base::Eigen;
-	//using Waves = typename Base::Waves;
-	//using InitCond = typename Base::InitCond;
+	using Child = Child_;
+	using ChildTraits = ChildTraits_;
+	using Solver = typename ChildTraits::Solver;
+	using Cons = typename ChildTraits::Cons;
+	using Prim = typename ChildTraits::Prim;
+	using Normal = typename ChildTraits::Normal;
+	using Cell = typename ChildTraits::Cell;
+	using Eigen = typename ChildTraits::Eigen;
+	using Waves = typename ChildTraits::Waves;
+	using InitCond = typename ChildTraits::InitCond;
 
 	//default implementation assumes Cons == Prim:
 
@@ -94,7 +81,7 @@ struct Eqn {
 		global Cons const & U,
 		global Cell const & cell
 	) {
-		auto calcWaves = typename Base::ConsWaveCodeMinMaxAllSides(solver, U, cell.pos);
+		auto calcWaves = typename Child::ConsWaveCodeMinMaxAllSides(solver, U, cell.pos);
 		<? for side=0,solver.dim-1 do ?>{
 			constexpr int side = <?=side?>;
 <?
@@ -170,7 +157,7 @@ end
 //this has to go afer the subclass def ... or TODO template instanciate or something.
 #if 0
 //// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> <?=cell_t?> <?=face_t?>
-namespace <?=Equation?> {
+namespace <?=Solver?> {
 struct Eqn;
 }
 
@@ -190,7 +177,7 @@ end
 ?>
 ) {
 	auto const & solver = *psolver;
-	<?=Equation?>::Eqn::calcDT(solver, dtBuf, UBuf, cellBuf
+	<?=Solver?>::Eqn::calcDT(solver, dtBuf, UBuf, cellBuf
 <?
 if require "hydro.solver.meshsolver":isa(solver) then
 ?>, faces, cellFaceIndexes
@@ -207,7 +194,7 @@ kernel void <?=applyInitCond?>(
 ) {
 	auto const & solver = *psolver;
 	<?=SETBOUNDS?>(0,0);
-	<?=Equation?>::Eqn::applyInitCondCell(solver, *pinitCond, UBuf[index], cellBuf[index]);
+	<?=Solver?>::Eqn::applyInitCondCell(solver, *pinitCond, UBuf[index], cellBuf[index]);
 }
 
 #endif

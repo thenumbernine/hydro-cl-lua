@@ -73,12 +73,12 @@ kernel void <?=calcFlux?>(
 	realparam const dt,	//not used by HLL, just making this match Roe / other FV solvers
 	global <?=cell_t?> const * const cellBuf
 ) {
-	using namespace <?=Equation?>;
+	using namespace <?=Solver?>;
 	auto const & solver = *psolver;
-	<?=Equation?>::FVSolver::calcFlux<
+	FVSolver::calcFlux<
 		// TODO here put the lua solver.flux.cppClassName
 		// but I"m basically doing the same thing with the 'using Flux =' inside each flux's C++ file
-		<?=Equation?>::Flux
+		Flux
 	>(
 		solver,
 		fluxBuf,
@@ -231,9 +231,9 @@ real3 xInt = x;
 xInt[<?=side?>] -= .5 * solver.grid_dx[<?=side?>];
 
 <?=solver:getULRCode{bufName="buf", side=side}:gsub("\n", "\n\t")?>
-//// MODULE_DEPENDS: <?=eigen_t?> <?=Equation?>
-auto n = <?=Equation?>::Normal::forSide<<?=side?>>(xInt);
-<?=eigen_t?> eig = <?=Equation?>::Eqn::eigen_forInterface(solver, UL, UR, cellL, cellR, xInt, n);
+//// MODULE_DEPENDS: <?=eigen_t?> <?=Solver?>
+auto n = <?=Solver?>::Normal::forSide<<?=side?>>(xInt);
+auto eig = <?=Solver?>::Eqn::eigen_forInterface(solver, UL, UR, cellL, cellR, xInt, n);
 ]], 	{
 			side = args.side,
 		})
@@ -248,9 +248,9 @@ auto n = <?=Equation?>::Normal::forSide<<?=side?>>(xInt);
 			codePrefix = table{
 				getEigenCode{side=side},
 				self.eqn:template([[
-//// MODULE_DEPENDS: <?=Equation?>
-auto n<?=side?> = <?=Equation?>::Normal::forSide<<?=side?>>(xInt);
-auto calcWaves = <?=Equation?>::Eqn::EigenWaveCode(solver, eig, n<?=side?>, xInt);
+//// MODULE_DEPENDS: <?=Solver?>
+auto n<?=side?> = <?=Solver?>::Normal::forSide<<?=side?>>(xInt);
+auto calcWaves = <?=Solver?>::Eqn::EigenWaveCode(solver, eig, n<?=side?>, xInt);
 ]], 			{
 					side = side,
 				}),
@@ -306,15 +306,15 @@ value.vreal = 0;
 //I = L R
 //Also note (courtesy of Trangenstein) consider summing across outer products of basis vectors to fulfill rank
 for (int k = 0; k < numWaves; ++k) {
-	<?=Equation?>::Cons basis;
+	<?=Solver?>::Cons basis;
 	for (int j = 0; j < numStates; ++j) {
 		basis[j] = k == j ? 1 : 0;
 	}
 
-//// MODULE_DEPENDS: <?=Equation?>
-	auto n = <?=Equation?>::Normal::forSide<<?=side?>>(xInt);
-	<?=waves_t?> chars = <?=Equation?>::Eqn::eigen_leftTransform(solver, eig, basis, xInt, n);
-	<?=cons_t?> newbasis = <?=Equation?>::Eqn::eigen_rightTransform(solver, eig, chars, xInt, n);
+//// MODULE_DEPENDS: <?=Solver?>
+	auto n = <?=Solver?>::Normal::forSide<<?=side?>>(xInt);
+	auto chars = <?=Solver?>::Eqn::eigen_leftTransform(solver, eig, basis, xInt, n);
+	auto newbasis = <?=Solver?>::Eqn::eigen_rightTransform(solver, eig, chars, xInt, n);
 
 	for (int j = 0; j < numStates; ++j) {
 		value.vreal += fabs(newbasis[j] - basis[j]);
@@ -351,7 +351,7 @@ for (int k = 0; k < numWaves; ++k) {
 						self.eqn:template([[
 //// MODULE_DEPENDS: <?=cell_calcAvg_withPt?>
 
-using namespace <?=Equation?>;
+using namespace <?=Solver?>;
 
 auto n<?=side?> = Normal::forSide<<?=side?>>(x);
 auto calcWaves = Eqn::EigenWaveCode(solver, eig, n<?=side?>, xInt);

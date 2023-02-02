@@ -1,5 +1,5 @@
 //// MODULE_NAME: calcFluxForInterface
-//// MODULE_DEPENDS: <?=Equation?>
+//// MODULE_DEPENDS: <?=Solver?>
 
 //HLLC based on
 //http://math.lanl.gov/~shenli/publications/hllc_mhd.pdf
@@ -10,7 +10,7 @@ if not require "hydro.eqn.euler":isa(solver.eqn) then
 end
 ?>
 
-namespace <?=Equation?> {
+namespace <?=Solver?> {
 
 constexpr bool flux_hllc_useInterfaceWaves = true;
 
@@ -235,4 +235,4 @@ struct EulerHLLCFlux {
 
 using Flux = EulerHLLCFlux;
 
-}	// namespace <?=Equation?>
+}	// namespace <?=Solver?>

@@ -820,8 +820,8 @@ function Equation:getDisplayVarCodePrefix()
 	return self:template[[
 global <?=cons_t?> const & U = buf[index];
 <? if eqn.displayVarCodeUsesPrims then ?>
-//// MODULE_DEPENDS: <?=Equation?>
-<?=prim_t?> W = <?=Equation?>::Eqn::primFromCons(solver, U, x);
+//// MODULE_DEPENDS: <?=Solver?>
+<?=prim_t?> W = <?=Solver?>::Eqn::primFromCons(solver, U, x);
 <? end
 ?>]]
 end

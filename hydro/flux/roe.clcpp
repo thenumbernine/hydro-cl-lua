@@ -1,5 +1,5 @@
 //// MODULE_NAME: calcFluxForInterface
-//// MODULE_DEPENDS: <?=fluxLimiter?> <?=Equation?>
+//// MODULE_DEPENDS: <?=fluxLimiter?> <?=Solver?>
 
 // Roe solver:
 
@@ -8,7 +8,7 @@ local useFluxLimiter = solver.fluxLimiter > 1
 	and flux.usesFluxLimiter -- just flux/roe.lua right now
 ?>
 
-namespace <?=Equation?> {
+namespace <?=Solver?> {
 
 struct RoeFlux {
 
@@ -144,4 +144,4 @@ struct RoeFlux {
 
 using Flux = RoeFlux;
 
-}	//namespace <?=Equation?>
+}	//namespace <?=Solver?>

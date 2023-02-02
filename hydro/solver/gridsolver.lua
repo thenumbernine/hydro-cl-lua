@@ -1075,7 +1075,7 @@ function GridSolver:createBoundaryProgramAndKernel(args)
 
 	local moduleNames = self.sharedModulesEnabled:keys():append{
 		self.solver_t,
-		self.eqn.symbols.Equation,
+		self.symbols.Solver,
 		assert(self.coord.cell_t),
 		'INDEX',
 		'INDEXV',

@@ -399,6 +399,7 @@ function SolverBase:getSymbolFields()
 		-- it turns out all module names need to be unique in order to run more than one solver at a time.
 		-- makes me think we should move all these symbols/generation of them into solver
 		-- TODO put these' symbol generation in solver?
+		'Solver',			-- namespace for the solver
 		'solver_macros',
 		'solver_displayCode',
 		'fluxLimiter',
@@ -1117,7 +1118,7 @@ function SolverBase:refreshCommonProgram()
 	local moduleNames = table{
 		'realparam',
 		assert(self.solver_t),
-		self.eqn.symbols.Equation,
+		self.symbols.Solver,
 
 		-- This is in GridSolver, a subclass.
 		-- In fact, all the display stuff is pretty specific to cartesian grids.
@@ -1841,8 +1842,8 @@ end ?><?=group.extraArgs and #group.extraArgs > 0
 		and ',\n\t'..table.concat(group.extraArgs, ',\n\t')
 		or '' ?>
 ) {
-//// MODULE_DEPENDS: <?=Equation?>
-	using namespace <?=Equation?>;
+//// MODULE_DEPENDS: <?=Solver?>
+	using namespace <?=Solver?>;
 	auto const & solver = *psolver;
 //// MODULE_DEPENDS: <?=SETBOUNDS?>
 	<?=SETBOUNDS?>(0,0);

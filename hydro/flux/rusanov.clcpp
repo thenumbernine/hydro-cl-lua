@@ -1,7 +1,7 @@
 //// MODULE_NAME: calcFluxForInterface
-//// MODULE_DEPENDS: <?=Equation?>
+//// MODULE_DEPENDS: <?=Solver?>
 
-namespace <?=Equation?> {
+namespace <?=Solver?> {
 struct RusanovFlux {
 	static inline  Cons calcFluxForInterface(
 		constant Solver const & solver,
@@ -29,4 +29,4 @@ struct RusanovFlux {
 	}
 };
 using Flux = RusanovFlux;
-}	//namespace <?=Equation?> {
+}	//namespace <?=Solver?> {
