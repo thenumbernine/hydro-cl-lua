@@ -1,5 +1,7 @@
-//// MODULE_NAME: <?=calcDerivFromFlux?>
+//// MODULE_NAME: <?=FVSolver?>
 //// MODULE_DEPENDS: <?=Equation?>
+// I don't plan to use this name in the c++ code anywhere
+// I just need a unique name for all the fvsolver kernels to reference
 
 // used by all the finite volume solvers
 
@@ -264,6 +266,9 @@ if eqn.postComputeFluxCode then ?>
 };
 
 }	// namespace <?=Equation?>
+
+//// MODULE_NAME: <?=calcDerivFromFlux?>
+//// MODULE_DEPENDS: <?=FVSolver?>
 
 kernel void <?=calcDerivFromFlux?>(
 	constant <?=solver_t?> const * const psolver,

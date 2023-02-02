@@ -19,6 +19,7 @@ FiniteVolumeSolver.name = 'fvsolver'
 
 function FiniteVolumeSolver:getSymbolFields()
 	return FiniteVolumeSolver.super.getSymbolFields(self):append{
+		'FVSolver',
 		'calcFlux',
 		'calcDerivFromFlux',
 	}
@@ -59,11 +60,11 @@ function FiniteVolumeSolver:initCodeModule_calcFlux()
 //// MODULE_NAME: <?=calcFlux?>
 // used by all gridsolvers.  the meshsolver alternative is in solver/meshsolver.lua
 
-// right now I'm putting the function in the calcDerivFromFlux module.
+// I'm putting the function in the FVSolver module.
 // I want uniquely-generated names for calcFlux and calcDerivFromFlux because they are each associated with kernels.
 // but I don't want to separate out the code since I'm merging everything into cpp files
 // I do want this here and overrideable since WENO etc use dif args than this
-//// MODULE_DEPENDS: <?=calcDerivFromFlux?>
+//// MODULE_DEPENDS: <?=FVSolver?>
 
 kernel void <?=calcFlux?>(
 	constant <?=solver_t?> const * const psolver,
@@ -76,13 +77,15 @@ kernel void <?=calcFlux?>(
 	auto const & solver = *psolver;
 	<?=Equation?>::FVSolver::calcFlux<
 		// TODO here put the lua solver.flux.cppClassName
+		// but I"m basically doing the same thing with the 'using Flux =' inside each flux's C++ file
 		<?=Equation?>::Flux
 	>(
 		solver,
 		fluxBuf,
 		<?=solver.getULRBufName?>,
 		dt,
-		cellBuf);
+		cellBuf
+	);
 }
 
 ]], 	{
