@@ -63,7 +63,7 @@ function SelfGrav:getPoissonDivCode()
 end
 
 function SelfGrav:getPoissonCode()
-	return file'hydro/op/selfgrav.cl':read()
+	return file'hydro/op/selfgrav.clcpp':read()
 end
 
 function SelfGrav:initCodeModules()
