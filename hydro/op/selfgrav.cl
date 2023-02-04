@@ -1,47 +1,53 @@
-//// MODULE_NAME: <?=calcGravityAccel?>
+//// MODULE_NAME: <?=SelfGrav?>
+//// MODULE_DEPENDS: <?=Solver?>
 
-/*
-This is going to give back phi_,i ... in grid coordinates ... which might not be vector coordinates
-and if they're not?  convert
-*/
-template<int dim_>
-static inline real3 <?=calcGravityAccel?>(
-	constant <?=solver_t?> const & solver,
-	global <?=cons_t?> const * private const U,
-	real3 const pt
-) {
-	real3 accel_g;
+namespace <?=Solver?> {
 
-	for (int side = 0; side < dim_; ++side) {
-		// m/s^2
-		// TODO grid coordinate influence?
-		accel_g[side] = (
-			U[solver.stepsize[side]].<?=op.potentialField?>
-			- U[-solver.stepsize[side]].<?=op.potentialField?>
-		) / (2. * solver.grid_dx[side]);
-	}
+struct SelfGrav {
+	/*
+	This is going to give back phi_,i ... in grid coordinates ... which might not be vector coordinates
+	and if they're not?  convert
+	*/
+	template<int dim_>
+	static inline real3 calcGravityAccel(
+		constant Solver const & solver,
+		global Cons const * private const U,
+		real3 const pt
+	) {
+		real3 accel_g;
+
+		for (int i = 0; i < dim_; ++i) {
+			// m/s^2
+			// TODO grid coordinate influence?
+			accel_g[i] = (
+				U[solver.stepsize[i]].<?=op.potentialField?>
+				- U[-solver.stepsize[i]].<?=op.potentialField?>
+			) / (2. * solver.grid_dx[i]);
+		}
 
 <? if coord.vectorComponent == "cartesian" then ?>
 //// MODULE_DEPENDS: <?=cartesianFromCoord?>
-	accel_g = coord_cartesianFromCoord(accel_g, pt);
-<? elseif coord.vectorComponent == "anholonomic" then
-	for i=0,solver.dim-1 do
-?>
+		accel_g = coord_cartesianFromCoord(accel_g, pt);
+<? elseif coord.vectorComponent == "anholonomic" then ?>
 //// MODULE_DEPENDS: <?=coord_dxs?>
-	accel_g[<?=i?>] /= coord_dxs<<?=i?>>(pt);
+		accel_g /= coord_dx_vec(solver, pt);
 <?
-	end
 elseif coord.vectorComponent == "holonomic" then
-	-- nothing
+		-- nothing
 else 
 	error "here" 
 end
 ?>
-	return accel_g;
+		return accel_g;
+	}
+};
+
 }
 
+
 //// MODULE_NAME: <?=calcGravityDeriv?>
-//// MODULE_DEPENDS: units realparam <?=calcGravityAccel?>
+//// MODULE_DEPENDS: <?=SelfGrav?>
+//// MODULE_DEPENDS: units realparam
 
 kernel void <?=calcGravityDeriv?>(
 	constant <?=solver_t?> const * const psolver,
@@ -52,17 +58,11 @@ kernel void <?=calcGravityDeriv?>(
 	auto const & solver = *psolver;
 	<?=SETBOUNDS?>(solver.numGhost, solver.numGhost);
 	real3 const pt = cellBuf[index].pos;
-
-	global <?=cons_t?> * const deriv = derivBuffer + index;
-	global <?=cons_t?> const * const U = UBuf + index;
-
-	real3 accel_g = <?=calcGravityAccel?><dim>(solver, U, pt);
-
-	// kg/(m^2 s) = kg/m^3 * m/s^2
-	deriv->m -= accel_g * U->rho;
-
-	// kg/(m s^2) = (kg m^2 / s) * m/s^2
-	deriv->ETotal -= dot(U->m, accel_g);
+	auto * const deriv = derivBuffer + index;
+	auto const * const U = UBuf + index;
+	real3 accel_g = <?=Solver?>::SelfGrav::calcGravityAccel<dim>(solver, U, pt);
+	deriv->m -= accel_g * U->rho;			// kg/(m^2 s) = kg/m^3 * m/s^2
+	deriv->ETotal -= dot(U->m, accel_g);	// kg/(m s^2) = (kg m^2 / s) * m/s^2
 }
 
 //// MODULE_NAME: <?=copyPotentialToReduce?>

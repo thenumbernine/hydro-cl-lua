@@ -243,8 +243,8 @@ function Euler:getDisplayVars()
 	}:append(self.gravOp and
 		{{name='gravity', code=self:template[[
 if (!OOB<dim>(solver, i, 1,1)) {
-//// MODULE_DEPENDS: <?=eqn.gravOp.symbols.calcGravityAccel?>
-	value.vreal3 = <?=eqn.gravOp.symbols.calcGravityAccel?><dim>(solver, &U, x);
+//// MODULE_DEPENDS: <?=eqn.gravOp.symbols.SelfGrav?>
+	value.vreal3 = <?=Solver?>::SelfGrav::calcGravityAccel<dim>(solver, &U, x);
 } else {
 	value.vreal3 = {};
 }

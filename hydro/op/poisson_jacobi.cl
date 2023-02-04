@@ -10,8 +10,8 @@ optionally if stopOnEpsilon is enabled, writes residual component-wise squared t
 del phi = f
 (d/dx^2 + d/dy^2 + ...) phi = f
 sum_i ((phi[x+e[i] ] - 2 phi[x] + phi[x-e[i] ]) / dx[i]^2) = f
-sum_i (1 / dx[i]^2) phi[x+e[i] ] 
-	+ sum_i (-2 / dx[i]^2) phi[x] 
+sum_i (1 / dx[i]^2) phi[x+e[i] ]
+	+ sum_i (-2 / dx[i]^2) phi[x]
 	+ sum_i (1 / dx[i]^2) phi[x-e[i] ]
 	= f
 
@@ -41,10 +41,10 @@ struct SolveJacobi {
 		<?=SETBOUNDS?>(0,0);
 		if (OOB<dim>(solver, i, solver.numGhost, solver.numGhost)) {
 			writeBuf[index] = UBuf[index].<?=op.potentialField?>;
-<? if op.stopOnEpsilon then	
-?>			reduceBuf[index] = 0;
-<? end
-?>			return;
+<? if op.stopOnEpsilon then	?>
+			reduceBuf[index] = 0;
+<? end ?>
+			return;
 		}
 		auto const * const cell = cellBuf + index;
 		real3 const x = cell->pos;
@@ -53,7 +53,7 @@ struct SolveJacobi {
 
 //// MODULE_DEPENDS: <?=cell_dxs?>
 		real3 dx = cell_dx_vec(solver, x);
-	
+
 		real3 xInt = x;
 		real3 volL, volR;
 		for (int j = 0; j < dim; ++j) {
@@ -72,21 +72,23 @@ volume-weighted ... however volume-weighted laplace beltrami looks like this:
 lap phi = 1/sqrt|g| ( sqrt|g| g^ij phi_,j )_,i
 ...so I should be sampling sqrt|g| g^ij phi_,j at the + and - on each dimension
 = 1/sqrt|g| (
-	[( sqrt|g| g^ij phi_,j )|(x+dx_i) 
+	[( sqrt|g| g^ij phi_,j )|(x+dx_i)
 	- ( sqrt|g| g^ij phi_,j )|(x-dx_i)] / (2*dx_i)
 )
 = 1/sqrt|g|(x) (
 	[
-		( sqrt|g|(x+dx_i) g^ij(x+dx_i) 
-			* (phi(x+dx_i+dx_j) - phi(x+dx_i-dx_j)) / (2*dx_j) 
-		)|(x+dx_i) 
-		- ( sqrt|g|(x+dx_i) g^ij(x+dx_i) 
-			* (phi(x-dx_i+dx_j) - phi(x-dx_i-dx_j)) / (2*dx_j) 
+		( sqrt|g|(x+dx_i) g^ij(x+dx_i)
+			* (phi(x+dx_i+dx_j) - phi(x+dx_i-dx_j)) / (2*dx_j)
+		)|(x+dx_i)
+		- ( sqrt|g|(x+dx_i) g^ij(x+dx_i)
+			* (phi(x-dx_i+dx_j) - phi(x-dx_i-dx_j)) / (2*dx_j)
 		)|(x-dx_i)
 	] / (2*dx_i)
 )
 */
-<? if true then ?>	
+<?
+if true then	-- TODO if cartesian
+?>
 		using Scalar = decltype(U-><?=op.potentialField?>);
 		Scalar skewSum = {};
 		for (int j = 0; j < dim; ++j) {
@@ -101,7 +103,7 @@ lap phi = 1/sqrt|g| ( sqrt|g| g^ij phi_,j )_,i
 		}
 		diag /= volAtX;
 
-<? 
+<?
 else 	-- not cartesian
 ?>
 /*
@@ -115,17 +117,17 @@ I think I'm gonna use finite-differencing with the second one
 or for arbitrary tensors:
 (wiki says (T_;ab - T_;ba) g^ab)
 t^i1..ip_j1..jq^;a_;a
-= (t^i1..ip_j1..jq_,a 
-	+ Sum_I=1..p Conn^iI_k_a t^i1..k..ip_j1..jq 
+= (t^i1..ip_j1..jq_,a
+	+ Sum_I=1..p Conn^iI_k_a t^i1..k..ip_j1..jq
 	- Sum_J=1..q Conn^k_jJ_a t^i1..ip_j1..k..jq )_;b g^ab
-= (t^i1..ip_j1..jq_,ab 
+= (t^i1..ip_j1..jq_,ab
 	+ (Sum_I=1..p Conn^iI_k_a t^i1..k..ip_j1..jq)_;b
 	- (Sum_J=1..q Conn^k_jJ_a t^i1..ip_j1..k..jq)_;b ) g^ab
-= (t^i1..ip_j1..jq_,ab 
-	+ Sum_I=1..p Conn^iI_k_a,b t^i1..k..ip_j1..jq 
-	- Sum_J=1..q Conn^k_jJ_a,b t^i1..ip_j1..k..jq 
+= (t^i1..ip_j1..jq_,ab
+	+ Sum_I=1..p Conn^iI_k_a,b t^i1..k..ip_j1..jq
+	- Sum_J=1..q Conn^k_jJ_a,b t^i1..ip_j1..k..jq
 	+ Sum_I=1..p Conn^Ii_k_a t^i1..k..ip_j1..jq,b
-	- Sum_J=1..q Conn^k_jJ_a t^i1..ip_j1..k..jq,b 
+	- Sum_J=1..q Conn^k_jJ_a t^i1..ip_j1..k..jq,b
 ) g^ab
 
 */
@@ -139,11 +141,11 @@ end
 <?=op:getPoissonDivCode() or ""?>
 
 		Scalar oldU = U-><?=op.potentialField?>;
-		
+
 		//Jacobi iteration: x_i = sum i!=j of (b_i - A_ij x_j) / A_ii
 		Scalar newU = (source - skewSum) * (1. / diag);
 
-		writeBuf[index] = newU;	
+		writeBuf[index] = newU;
 <? if op.stopOnEpsilon then
 ?>		//residual = b_i - A_ij x_j
 		Scalar residual = source - (skewSum + diag * U-><?=op.potentialField?>);
@@ -153,7 +155,7 @@ end
 	}
 };
 
-};
+}
 
 kernel void <?=solveJacobi?>(
 	constant <?=solver_t?> const * const psolver,

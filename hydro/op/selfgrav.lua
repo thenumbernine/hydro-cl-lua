@@ -10,9 +10,9 @@ local toreal, fromreal = half.toreal, half.fromreal
 
 -- TODO make this a ctor parameter
 local Poisson = require(
-	cmdline.selfGravPoissonSolver 
+	cmdline.selfGravPoissonSolver
 	and 'hydro.op.poisson_'..cmdline.selfGravPoissonSolver
-	-- Jacobi seems to be converging fastest atm. 
+	-- Jacobi seems to be converging fastest atm.
 	-- however Jacobi seems to be most unstable for 3D.
 	-- TODO multigrid or FFT?
 	--or 'hydro.op.poisson_krylov'		-- Krylov. was working for a moment, but I broke it and now it is diverging.
@@ -36,16 +36,16 @@ function SelfGrav:init(args)
 	args.linearSolver = cmdline.selfGravLinearSolver
 
 	SelfGrav.super.init(self, args)
-	
+
 	self.solver[self.enableField] = not not self.solver[self.enableField]
 end
 
 function SelfGrav:getSymbolFields()
 	return SelfGrav.super.getSymbolFields(self):append{
+		'SelfGrav',	--'calcGravityAccel',
+		'calcGravityDeriv',
 		'copyPotentialToReduce',
 		'offsetPotential',
-		'calcGravityAccel',
-		'calcGravityDeriv',
 	}
 end
 
@@ -53,7 +53,7 @@ SelfGrav.guiVars = {
 	{name='gravitationalConstant', value=1, units='m^3/(kg*s^2)'},
 }
 
--- params for hydro/op/poisson.cl 
+-- params for hydro/op/poisson.cl
 -- units of m^3/(kg*s^2) * kg/m^3 = 1/s^2
 function SelfGrav:getPoissonDivCode()
 	return self.solver.eqn:template([[
@@ -68,7 +68,7 @@ end
 
 function SelfGrav:initCodeModules()
 	SelfGrav.super.initCodeModules(self)
-	
+
 	local solver = self.solver
 	solver.solverModulesEnabled[self.symbols.calcGravityDeriv] = true
 	solver.solverModulesEnabled[self.symbols.copyPotentialToReduce] = true
@@ -77,7 +77,7 @@ end
 
 function SelfGrav:refreshSolverProgram()
 	SelfGrav.super.refreshSolverProgram(self)
-	
+
 	local solver = self.solver
 	self.calcGravityDerivKernelObj = solver.solverProgramObj:kernel(self.symbols.calcGravityDeriv)
 	self.calcGravityDerivKernelObj.obj:setArg(0, solver.solverBuf)
@@ -132,7 +132,7 @@ function SelfGrav:offsetPotential()
 	end
 	self.copyPotentialToReduceKernelObj()
 	local ePotMax = fromreal(solver.reduceMax())
-	
+
 	self.offsetPotentialKernelObj.obj:setArg(2, real(ePotMax))
 	self.offsetPotentialKernelObj()
 
@@ -142,7 +142,7 @@ function SelfGrav:offsetPotential()
 		new_ePotMin = fromreal(solver.reduceMin())
 		self.copyPotentialToReduceKernelObj()
 		new_ePotMax = fromreal(solver.reduceMax())
-	
+
 		print('offsetting potential energy from '..ePotMin..','..ePotMax..' to '..new_ePotMin..','..new_ePotMax)
 	end
 end
