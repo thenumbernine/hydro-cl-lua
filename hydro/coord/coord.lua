@@ -2012,6 +2012,17 @@ template<int side> real cell_dxs(constant solver_t_1 const & solver, real3 pt);
 template<> real cell_dxs<0>(constant solver_t_1 const & solver, real3 pt) { return cell_dx0(solver, pt); }
 template<> real cell_dxs<1>(constant solver_t_1 const & solver, real3 pt) { return cell_dx1(solver, pt); }
 template<> real cell_dxs<2>(constant solver_t_1 const & solver, real3 pt) { return cell_dx2(solver, pt); }
+
+real3 cell_dx_vec(
+	constant solver_t_1 const & solver,
+	real3 const pt
+) {
+	return real3(
+		cell_dxs<0>(solver, pt),
+		cell_dxs<1>(solver, pt),
+		cell_dxs<2>(solver, pt)
+	);
+}
 ]],
 	}
 

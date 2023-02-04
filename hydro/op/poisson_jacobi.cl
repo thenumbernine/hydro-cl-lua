@@ -1,9 +1,5 @@
-<?
-local scalar = op.scalar 
-?>
-
 //// MODULE_NAME: <?=solveJacobi?>
-//// MODULE_DEPENDS: <?=cell_dx_i?> <?=table.concat(op.codeDepends or {}, ' ')?>
+//// MODULE_DEPENDS: <?=table.concat(op.codeDepends or {}, ' ')?>
 /*
 called every Jacobi method iteration
 
@@ -29,51 +25,49 @@ phi[x,k+1] = (f[x] - sum_i,j!=k (phi[x+e[i],k] / dx[i]^2))
 input is poisson source divergence, in 1/s^2
 output is potentialField, in m^2/s^2
 */
-kernel void <?=solveJacobi?>(
-	constant <?=solver_t?> const * const psolver,
-	global real * const writeBuf,
-	global <?=op:getPotBufType()?> const * const UBuf,
-	global <?=cell_t?> const * const cellBuf<?
-if op.stopOnEpsilon then ?>,
-	global real * const reduceBuf<? 
-end ?>
-) {
-	auto const & solver = *psolver;
-	<?=SETBOUNDS?>(0,0);
-	if (OOB<dim>(solver, i, solver.numGhost, solver.numGhost)) {
-		writeBuf[index] = UBuf[index].<?=op.potentialField?>;
+
+namespace <?=Solver?> {
+
+struct SolveJacobi {
+	static void solveJacobi(
+		constant Solver const & solver,
+		global real * const writeBuf,
+		global <?=op:getPotBufType()?> const * const UBuf,
+		global Cell const * const cellBuf
+<? if op.stopOnEpsilon then ?>
+		, global real * const reduceBuf
+<? end ?>
+	) {
+		<?=SETBOUNDS?>(0,0);
+		if (OOB<dim>(solver, i, solver.numGhost, solver.numGhost)) {
+			writeBuf[index] = UBuf[index].<?=op.potentialField?>;
 <? if op.stopOnEpsilon then	
-?>		reduceBuf[index] = 0;
+?>			reduceBuf[index] = 0;
 <? end
-?>		return;
-	}
-	global <?=cell_t?> const * const cell = cellBuf + index;
-	real3 const x = cell->pos;
+?>			return;
+		}
+		auto const * const cell = cellBuf + index;
+		real3 const x = cell->pos;
 
-	global <?=op:getPotBufType()?> const * const U = UBuf + index;
+		auto const * const U = UBuf + index;
 
-<? for j=0,solver.dim-1 do
-?>	real const dx<?=j?> = cell_dx<?=j?>(solver, x);
-<? end
-?>
+//// MODULE_DEPENDS: <?=cell_dxs?>
+		real3 dx = cell_dx_vec(solver, x);
 	
-	real3 xInt = x;
-	real3 volL, volR;
-<? for j=0,solver.dim-1 do 
-?>	xInt.s<?=j?> = x.s<?=j?> - .5 * solver.grid_dx.s<?=j?>;
-	// TODO instead of volume_intL as the avg between two cell volumes, and then divide by dx to get the face, instead, just store the face.
-	real const volume_intL<?=j?> = .5 * (cell->volume + cell[-solver.stepsize.s<?=j?>].volume);
-	volL.s<?=j?> = volume_intL<?=j?>;
-	xInt.s<?=j?> = x.s<?=j?> + .5 * solver.grid_dx.s<?=j?>;
-	// TODO instead of volume_intL as the avg between two cell volumes, and then divide by dx to get the face, instead, just store the face.
-	real const volume_intR<?=j?> = .5 * (cell->volume + cell[solver.stepsize.s<?=j?>].volume);
-	volR.s<?=j?> = volume_intR<?=j?>;
-	xInt.s<?=j?> = x.s<?=j?>;
-<? end 
-?>	real const volAtX = cell->volume;
+		real3 xInt = x;
+		real3 volL, volR;
+		for (int j = 0; j < dim; ++j) {
+			xInt[j] = x[j] - .5 * solver.grid_dx[j];
+			// TODO instead of volume_intL as the avg between two cell volumes, and then divide by dx to get the face, instead, just store the face.
+			volL[j] = .5 * (cell->volume + cell[-solver.stepsize[j]].volume);
+			xInt[j] = x[j] + .5 * solver.grid_dx[j];
+			// TODO instead of volume_intR as the avg between two cell volumes, and then divide by dx to get the face, instead, just store the face.
+			volR[j] = .5 * (cell->volume + cell[solver.stepsize[j]].volume);
+			xInt[j] = x[j];
+		}
+		real const volAtX = cell->volume;
 
-<? 
---[=[
+/*
 volume-weighted ... however volume-weighted laplace beltrami looks like this:
 lap phi = 1/sqrt|g| ( sqrt|g| g^ij phi_,j )_,i
 ...so I should be sampling sqrt|g| g^ij phi_,j at the + and - on each dimension
@@ -91,23 +85,21 @@ lap phi = 1/sqrt|g| ( sqrt|g| g^ij phi_,j )_,i
 		)|(x-dx_i)
 	] / (2*dx_i)
 )
---]=]
-if true 
-then 
-?>	
-	<?=scalar?> skewSum = {};
+*/
+<? if true then ?>	
+		using Scalar = decltype(U-><?=op.potentialField?>);
+		Scalar skewSum = {};
+		for (int j = 0; j < dim; ++j) {
+			skewSum += U[solver.stepsize[j]].<?=op.potentialField?> * (volR[j] / (dx[j] * dx[j]))
+					+ U[-solver.stepsize[j]].<?=op.potentialField?> * (volL[j] / (dx[j] * dx[j]));
+		}
+		skewSum /= volAtX;
 
-<? for j=0,solver.dim-1 do 
-?>	skewSum += U[solver.stepsize.s<?=j?>].<?=op.potentialField?> * (volR.s<?=j?> / (dx<?=j?> * dx<?=j?>))
-			+ U[-solver.stepsize.s<?=j?>].<?=op.potentialField?> * (volL.s<?=j?> / (dx<?=j?> * dx<?=j?>));
-<? end 
-?>	skewSum /= volAtX;
-
-	real const diag = (0.
-<? for j=0,solver.dim-1 do 
-?>		- (volR.s<?=j?> + volL.s<?=j?>) / (dx<?=j?> * dx<?=j?>)
-<? end 
-?>	) / volAtX;
+		real diag = {};
+		for (int j = 0; j < dim; ++j) {
+			diag -= (volR[j] + volL[j]) / (dx[j] * dx[j]);
+		}
+		diag /= volAtX;
 
 <? 
 else 	-- not cartesian
@@ -141,21 +133,42 @@ t^i1..ip_j1..jq^;a_;a
 end
 ?>
 
-	//source is 4 pi G rho delta(x) is the laplacian of the gravitational potential field, which is integrated across discretely here
-	//in units of 1/s^2
-	<?=scalar?> source = {};
+		//source is 4 pi G rho delta(x) is the laplacian of the gravitational potential field, which is integrated across discretely here
+		//in units of 1/s^2
+		Scalar source = {};
 <?=op:getPoissonDivCode() or ""?>
 
-	<?=scalar?> oldU = U-><?=op.potentialField?>;
-	
-	//Jacobi iteration: x_i = sum i!=j of (b_i - A_ij x_j) / A_ii
-	<?=scalar?> newU = (source - skewSum) * (1. / diag);
+		Scalar oldU = U-><?=op.potentialField?>;
+		
+		//Jacobi iteration: x_i = sum i!=j of (b_i - A_ij x_j) / A_ii
+		Scalar newU = (source - skewSum) * (1. / diag);
 
-	writeBuf[index] = newU;	
+		writeBuf[index] = newU;	
 <? if op.stopOnEpsilon then
-?>	//residual = b_i - A_ij x_j
-	<?=scalar?> residual = source - (skewSum + diag * U-><?=op.potentialField?>);
-	reduceBuf[index] = lenSq(residual);
+?>		//residual = b_i - A_ij x_j
+		Scalar residual = source - (skewSum + diag * U-><?=op.potentialField?>);
+		reduceBuf[index] = lenSq(residual);
 <? end
 ?>
+	}
+};
+
+};
+
+kernel void <?=solveJacobi?>(
+	constant <?=solver_t?> const * const psolver,
+	global real * const writeBuf,
+	global <?=op:getPotBufType()?> const * const UBuf,
+	global <?=cell_t?> const * const cellBuf
+<? if op.stopOnEpsilon then ?>
+	,
+	global real * const reduceBuf
+<? end ?>
+) {
+	auto const & solver = *psolver;
+	<?=Solver?>::SolveJacobi::solveJacobi(solver, writeBuf, UBuf, cellBuf
+<? if op.stopOnEpsilon then ?>
+	, reduceBuf
+<? end ?>
+	);
 }

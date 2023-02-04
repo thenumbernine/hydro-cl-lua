@@ -1,14 +1,5 @@
 //// MODULE_NAME: <?=calcGravityAccel?>
 
-<?
--- I would inline these, except it's a macro (which doesn't handle //'s)
--- so maybe I should change the markup to also accept a /**/ variant?
-if coord.vectorComponent == "cartesian" then ?>
-//// MODULE_DEPENDS: <?=cartesianFromCoord?>
-<? elseif coord.vectorComponent == "anholonomic" then ?>
-//// MODULE_DEPENDS: <?=coord_dx_i?>
-<? end ?>
-
 /*
 This is going to give back phi_,i ... in grid coordinates ... which might not be vector coordinates
 and if they're not?  convert
@@ -24,18 +15,20 @@ static inline real3 <?=calcGravityAccel?>(
 	for (int side = 0; side < dim_; ++side) {
 		// m/s^2
 		// TODO grid coordinate influence?
-		accel_g.s[side] = (
+		accel_g[side] = (
 			U[solver.stepsize[side]].<?=op.potentialField?>
 			- U[-solver.stepsize[side]].<?=op.potentialField?>
 		) / (2. * solver.grid_dx[side]);
 	}
 
 <? if coord.vectorComponent == "cartesian" then ?>
+//// MODULE_DEPENDS: <?=cartesianFromCoord?>
 	accel_g = coord_cartesianFromCoord(accel_g, pt);
 <? elseif coord.vectorComponent == "anholonomic" then
 	for i=0,solver.dim-1 do
 ?>
-	accel_g.s<?=i?> /= coord_dx<?=i?>(pt);
+//// MODULE_DEPENDS: <?=coord_dxs?>
+	accel_g[<?=i?>] /= coord_dxs<<?=i?>>(pt);
 <?
 	end
 elseif coord.vectorComponent == "holonomic" then

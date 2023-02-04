@@ -317,30 +317,47 @@ function SelfGravProblem:getInitCondCode()
 
 	solver.useGravity = true
 
-	return solver.eqn:template([[
-	<?=self:outside()?>
-	//notice about initializing random velocity -- it isn't uniform about .5 so it will pull left
-	//v.x = .2 * (U->m.x - .5);	//U is initialized to random()
-	//v.y = .2 * (U->m.y - .5);
-	//v.z = .2 * (U->m.z - .5);
+	return solver.eqn:template(
+file'hydro/init/euler.clcpp':read()
+..[[
+namespace <?=Solver?> {
+template<typename Prim>
+struct InitCond_Euler_<?=name?> {
+	static inline void initCond(
+		Hydro::InitCondCellArgs & args
+	) {
+		auto & [solver, initCond, x, rho, v, P, ePot, D, B] = args;
+	
+		<?=self:outside()?>
+		//notice about initializing random velocity -- it isn't uniform about .5 so it will pull left
+		//v.x = .2 * (U->m.x - .5);	//U is initialized to random()
+		//v.y = .2 * (U->m.y - .5);
+		//v.z = .2 * (U->m.z - .5);
 
 //// MODULE_DEPENDS: <?=coordMap?>
-	<? for i,source in ipairs(sources) do ?>{
-		real3 const xc = coordMap(x);
-		real3 const delta = real3_sub(xc, _real3(
-			<?=clnumber(source.center[1])?>,
-			<?=clnumber(source.center[2])?>,
-			<?=clnumber(source.center[3])?>));
-		real const distSq = real3_lenSq(delta);
-		real const radius = <?=self:getRadiusCode(source)?>;
-		if (distSq < radius * radius) {
-			<?=source.inside or 'rho = P = 1;'?>
-		}
-	}<? end ?>
+		<? for i,source in ipairs(sources) do ?>{
+			real3 const xc = coordMap(x);
+			real3 const delta = xc 
+				- real3(
+					<?=clnumber(source.center[1])?>,
+					<?=clnumber(source.center[2])?>,
+					<?=clnumber(source.center[3])?>
+				);
+			real const distSq = lenSq(delta);
+			real const radius = <?=self:getRadiusCode(source)?>;
+			if (distSq < radius * radius) {
+				<?=source.inside or 'rho = P = 1;'?>
+			}
+		}<? end ?>
+	}
+};
+template<typename Prim> using InitCondC = InitCond_Euler_<?=name?><Prim>;
+}
 ]], {
 		self = self,
 		sources = self.sources,
 		clnumber = clnumber,
+		name = self.name:gsub('[%- ]', '_'),
 	})
 end
 
@@ -560,14 +577,14 @@ local initConds = table{
 			return [[
 	rho = U->rho + 1.;
 #if dim == 2
-	v = _real3(
+	v = real3(
 		U->m.x * cos(U->m.y * 2. * M_PI),
 		U->m.x * sin(U->m.y * 2. * M_PI),
 		2. * U->m.z - 1.
 	);
 #else
 	// TODO spherical random distribution using asin and stuff
-	v = real3_sub(U->m, _real3(.5, .5, .5));
+	v = real3_sub(U->m, real3(.5, .5, .5));
 #endif
 	P = U->ETotal + 1.;
 ]]
@@ -900,7 +917,7 @@ template<typename Prim> using InitCondC = InitCond_Euler_rectangle<Prim>;
 //// MODULE_DEPENDS: <?=cartesianFromCoord?>
 	if (r <= r0) {
 		rho = 10.;
-		v = cartesianFromCoord(_real3(
+		v = cartesianFromCoord(real3(
 			-omega * xc.y / r0,
 			omega * xc.x / r0,
 			0.
@@ -908,7 +925,7 @@ template<typename Prim> using InitCondC = InitCond_Euler_rectangle<Prim>;
 	} else if (r <= r1) {
 		real f = (r1 - r) / (r1 - r0);
 		rho = 1 + 9 * f;
-		v = cartesianFromCoord(_real3(
+		v = cartesianFromCoord(real3(
 			-f * omega * xc.y / r,
 			f * omega * xc.x / r,
 			0.
@@ -934,8 +951,8 @@ template<typename Prim> using InitCondC = InitCond_Euler_rectangle<Prim>;
 	real3 delta = xc;
 	real coord_r = real3_len(delta);
 	real3 eHat_r = real3_real_mul(delta, 1. / coord_r);
-	real3 eHat_theta = _real3(-eHat_r.y, eHat_r.x, 0.);
-	real3 eHat_z = _real3(0., 0., 1.);
+	real3 eHat_theta = real3(-eHat_r.y, eHat_r.x, 0.);
+	real3 eHat_z = real3(0., 0., 1.);
 	real radius = 1.;
 	real distPastRadius = coord_r - radius;
 	
@@ -952,7 +969,7 @@ template<typename Prim> using InitCondC = InitCond_Euler_rectangle<Prim>;
 			)
 		);
 #else
-		B = _real3(0,0,1);
+		B = real3(0,0,1);
 #endif
 	}
 ]]
@@ -970,7 +987,7 @@ template<typename Prim> using InitCondC = InitCond_Euler_rectangle<Prim>;
 	P = 1;
 	
 	real3 delta = xc;
-	real dist = real3_len(_real3(delta.x, delta.y, 0.));
+	real dist = real3_len(real3(delta.x, delta.y, 0.));
 	real radius = 1.;
 	real distPastRadius = dist - radius;
 	rho = .1;
@@ -1061,8 +1078,8 @@ template<typename Prim> using InitCondC = InitCond_Euler_rectangle<Prim>;
 	real3 const x = cellBuf[<?=args.index'j'?>].pos;
 	<?=prim_t?> W = {
 		.rho = 1.,
-		.v = _real3(2.9, 0., 0.),
-		.B = _real3(.5, 0., 0.),
+		.v = real3(2.9, 0., 0.),
+		.B = real3(.5, 0., 0.),
 		.P = 5. / 7.,
 <? if eqn.primStruct.vars:find(nil, function(var)
 	return next(var) == 'psi'
@@ -1081,8 +1098,8 @@ end) then
 	real3 const x = cellBuf[index].pos;
 	<?=prim_t?> W = {
 		.rho = 1.4598,
-		.v = _real3(2.717, -.4049, 0.),
-		.B = _real3(.6838, -.1019, 0.),
+		.v = real3(2.717, -.4049, 0.),
+		.B = real3(.6838, -.1019, 0.),
 		.P = 1.2229,
 <? if eqn.primStruct.vars:find(nil, function(var)
 	return next(var) == 'psi'
@@ -1120,25 +1137,25 @@ end) then
 	if (yp) {
 		if (xp) {	//I
 			rho = .9308;
-			m = _real3(1.4557, -.4633, .0575);
-			B = _real3(.3501, .9830, .3050);
+			m = real3(1.4557, -.4633, .0575);
+			B = real3(.3501, .9830, .3050);
 			eInt = 5.0838;
 		} else {	//II
 			rho = 1.0304;
-			m = _real3(1.5774, -1.0455, -0.1016);
-			B = _real3(0.3501, 0.5078, 0.1576);
+			m = real3(1.5774, -1.0455, -0.1016);
+			B = real3(0.3501, 0.5078, 0.1576);
 			eInt = 5.7813;
 		}
 	} else {
 		if (!xp) {	//III
 			rho = 1.0000;
-			m = _real3(1.7500, -1.0000, 0.0000);
-			B = _real3(0.5642, 0.5078, 0.2539);
+			m = real3(1.7500, -1.0000, 0.0000);
+			B = real3(0.5642, 0.5078, 0.2539);
 			eInt = 6.0000;
 		} else {	//IV
 			rho = 1.8887;
-			m = _real3(0.2334, -1.7422, 0.0733);
-			B = _real3(0.5642, 0.9830, 0.4915);
+			m = real3(0.2334, -1.7422, 0.0733);
+			B = real3(0.5642, 0.9830, 0.4915);
 			eInt = 12.999;
 		}
 	}
@@ -1281,7 +1298,7 @@ end) then
 
 	if (inlet) {
 		prim.rho = solver->init_inlet_rho;
-		prim.v = _real3(solver->init_inlet_v, 0., 0.);
+		prim.v = real3(solver->init_inlet_v, 0., 0.);
 <? if not isSRHD then ?>
 		prim.P = solver->init_inlet_P;
 		prim.ePot = 0;
@@ -1672,7 +1689,7 @@ end ?>
 			solver:setBoundaryMethods(boundaryMethods)
 		
 			return solver.eqn:template([[
-	real3 const externalForce = _real3(0,1,0);
+	real3 const externalForce = real3(0,1,0);
 	ePot = 0. <?
 for side=0,solver.dim-1 do
 ?> + (x.s<?=side?> - solver->mins.s<?=side?>) * externalForce.s<?=side?><?
@@ -1766,7 +1783,7 @@ end ?>;
 <?=prim_t?> W = {
 	.rho = 1.,
 	.P = 1.,
-	.v = _real3(initVel, 0., 0.),
+	.v = real3(initVel, 0., 0.),
 	.ePot = 0.,
 };
 <?=consFromPrim?>(buf + <?=dst?>, solver, &W, cellBuf[<?=dst?>].pos);
@@ -1816,7 +1833,7 @@ end ?>;
 			return self.solver.eqn:template[[
 //// MODULE_DEPENDS: <?=coordMap?>
 real3 const xc = coordMap(x);
-real3 const bubbleCenter = _real3(initCond.bubbleCenterX, initCond.bubbleCenterY, initCond.bubbleCenterZ);
+real3 const bubbleCenter = real3(initCond.bubbleCenterX, initCond.bubbleCenterY, initCond.bubbleCenterZ);
 real const bubbleRadiusSq = initCond.bubbleRadius * initCond.bubbleRadius;
 real3 const delta = real3_sub(xc, bubbleCenter);
 real const bubbleRSq = real3_lenSq(delta);
@@ -1965,7 +1982,7 @@ if (bubbleRSq < bubbleRadiusSq) {
 		getInitCondCode = function(self)
 			local solver = assert(self.solver)
 			return [[
-	real3 c = real3_add(real3_real_mul(x, .5), _real3(.5, .5, .5));
+	real3 c = real3_add(real3_real_mul(x, .5), real3(.5, .5, .5));
 	real const rho1 = initCond.rho1;
 	real const rho2 = initCond.rho2;
 	real const L = initCond.L;
@@ -2108,7 +2125,7 @@ if (bubbleRSq < bubbleRadiusSq) {
 	// 1 rev / 1 sidereal day * 1 sidereal day / 86164.0905 second
 	real const omegaLen_in_1_s = omegaLen_in_1_day / 86164.0905;
 	// units of 1/s
-	real3 const omega = _real3(0, 0, omegaLen_in_1_s);
+	real3 const omega = real3(0, 0, omegaLen_in_1_s);
 	
 	// v = omega cross x (in Cartesian coordinates)
 	v = real3_cross(omega, xc);
@@ -2385,7 +2402,7 @@ if (bubbleRSq < bubbleRadiusSq) {
 ?>	;
 	
 	real const vmag = vmag_per_c * solver->speedOfLight / unit_m_per_s;
-	v = real3_real_mul(_real3(-xc.y, xc.x, 0.), vmag / r);
+	v = real3_real_mul(real3(-xc.y, xc.x, 0.), vmag / r);
 
 	// TODO init GEM potential from 2021 Ludwig once you figure out the graph
 
@@ -2671,10 +2688,10 @@ end
 		},
 		getInitCondCode = function(self)
 			return self.solver.eqn:template([[
-	D.x = <?=scalar?>_from_real(lhs ? 1 : -1);
-	D.y = <?=scalar?>_from_real(1);
-	B.y = <?=scalar?>_from_real(-1);
-	B.z = <?=scalar?>_from_real(lhs ? 1 : -1);
+	D.x = <?=scalar?>(lhs ? 1 : -1);
+	D.y = <?=scalar?>(1);
+	B.y = <?=scalar?>(-1);
+	B.z = <?=scalar?>(lhs ? 1 : -1);
 ]])
 		end,
 	},
@@ -2693,12 +2710,12 @@ end
 		},
 		getInitCondCode = function(self)
 			return self.solver.eqn:template([[
-	D.x = <?=scalar?>_from_real(initCond.Dx);
-	D.y = <?=scalar?>_from_real(initCond.Dy);
-	D.z = <?=scalar?>_from_real(initCond.Dz);
-	B.x = <?=scalar?>_from_real(initCond.Bx);
-	B.y = <?=scalar?>_from_real(initCond.By);
-	B.z = <?=scalar?>_from_real(initCond.Bz);
+	D.x = <?=scalar?>(initCond.Dx);
+	D.y = <?=scalar?>(initCond.Dy);
+	D.z = <?=scalar?>(initCond.Dz);
+	B.x = <?=scalar?>(initCond.Bx);
+	B.y = <?=scalar?>(initCond.By);
+	B.z = <?=scalar?>(initCond.Bz);
 ]])
 		end,
 	},
@@ -2799,7 +2816,7 @@ for _,pn in ipairs(obj) do
 	local p = table(pn.p):mapi(clnumber):concat', '
 	local n = table(pn.n):mapi(clnumber):concat', '
 ?>
-			&& real3_dot(real3_sub(xc, _real3(<?=p?>)), _real3(<?=n?>)) < 0.
+			&& real3_dot(real3_sub(xc, real3(<?=p?>)), real3(<?=n?>)) < 0.
 <? end ?>
 		)
 <? end ?>
@@ -2870,23 +2887,23 @@ end	?>
 
 #define sqrt3 <?=clnumber(math.sqrt(3))?>
 
-#define p1 _real3(0, .5, 0)
-#define p2 _real3(.25*sqrt3, -.25, 0.)
-#define p3 _real3(-.25*sqrt3, -.25, 0.)
+#define p1 real3(0, .5, 0)
+#define p2 real3(.25*sqrt3, -.25, 0.)
+#define p3 real3(-.25*sqrt3, -.25, 0.)
 
-#define n1 _real3(0, 1, 0)
-#define n2 _real3(.5*sqrt3, -.5, 0)
-#define n3 _real3(-.5*sqrt3, -.5, 0)
+#define n1 real3(0, 1, 0)
+#define n2 real3(.5*sqrt3, -.5, 0)
+#define n3 real3(-.5*sqrt3, -.5, 0)
 
 //initial branches
 <? for i=1,3 do ?>
 real3 branch<?=i?>(real3 x) {
-	x = _real3(-x.x, -x.y, 0);	//180 rotation
-	real3 n = _real3(-n<?=i?>.y, n<?=i?>.x, 0);	//angle of rotation of the normal
-	x = _real3(n.x * x.x - n.y * x.y, n.x * x.y + n.y * x.x, 0.);	//rotate by 'n'
+	x = real3(-x.x, -x.y, 0);	//180 rotation
+	real3 n = real3(-n<?=i?>.y, n<?=i?>.x, 0);	//angle of rotation of the normal
+	x = real3(n.x * x.x - n.y * x.y, n.x * x.y + n.y * x.x, 0.);	//rotate by 'n'
 	x.y -= sqrt3*3./8.;	//translate to center
 	x = real3_real_mul(x, 3.);	//scale up by 3
-	x = _real3(-x.x, -x.y, 0);	//180 rotation
+	x = real3(-x.x, -x.y, 0);	//180 rotation
 	return x;
 }
 <? end ?>
@@ -2909,7 +2926,7 @@ real3 branch2_2(real3 x) {
 real3 branch2_3(real3 x) {
 	real c = .5;
 	real s = sqrt3*.5;
-	x = _real3(x.x*c - x.y*s, x.x*s + x.y*c, 0.);	//rotate by c,s
+	x = real3(x.x*c - x.y*s, x.x*s + x.y*c, 0.);	//rotate by c,s
 	x = real3_real_mul(x, 3);	//scale by 3
 	x.y += sqrt3;	//translate to center
 	return x;
@@ -2918,7 +2935,7 @@ real3 branch2_3(real3 x) {
 real3 branch2_4(real3 x) {
 	real c = .5;
 	real s = -sqrt3*.5;
-	x = _real3(x.x*c - x.y*s, x.x*s + x.y*c, 0.);	//rotate by c,s
+	x = real3(x.x*c - x.y*s, x.x*s + x.y*c, 0.);	//rotate by c,s
 	x = real3_real_mul(x, 3);	//scale by 3
 	x.y += sqrt3;	//translate to center
 	return x;
