@@ -19,9 +19,6 @@ or is this already solved in the discrete case?
 discrete evaluation:
 1/sqrt(g) (sqrt(g(x+dxi/2)) g^ij(x+dxj/2) (f(x+dxj) - f(x)) / dx(x+dxj/2))_,i
 */
-<?
-local scalar = op.scalar 
-?>
 
 
 //// MODULE_NAME: <?=initPotential?>
@@ -39,7 +36,8 @@ kernel void <?=initPotential?>(
 	auto const & solver = *psolver;
 	<?=SETBOUNDS?>(solver.numGhost, solver.numGhost);
 	global <?=op:getPotBufType()?> * const U = UBuf + index;
-	<?=scalar?> source = {};
+	using Scalar = decltype(UBuf-><?=op.potentialField?>);
+	Scalar source = {};
 <?=op:getPoissonDivCode() or ""?>
 	
 <? if cmdline.selfGravInitPotential == "+" then
