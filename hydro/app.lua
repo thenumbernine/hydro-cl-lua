@@ -186,7 +186,6 @@ local targetSystem = cmdline.sys or 'imguiapp'
 -- -- that will probalby mean lots of pcalls around requires
 local gl
 local sdl
-local GLProgram
 local GLGradientTex
 local GLTex2D
 local Font
@@ -194,7 +193,6 @@ local Mouse
 if targetSystem ~= 'console' then
 	gl = require 'gl'
 	sdl = require 'ffi.sdl'
-	GLProgram = require 'gl.program'
 	GLGradientTex = require 'gl.gradienttex'
 	Mouse = require 'glapp.mouse'
 	GLTex2D = require 'gl.tex2d'
@@ -743,6 +741,7 @@ static inline bool OOB(
 		end
 
 
+		local GLProgram = require 'gl.program'
 		self.isobarShader = GLProgram{
 			vertexCode = [[
 varying vec4 color;

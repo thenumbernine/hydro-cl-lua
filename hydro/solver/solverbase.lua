@@ -615,6 +615,9 @@ function SolverBase:initMeshVars(args)
 		end
 		-- so cl.obj.program :compile using .code and .cacheFile basically does the same thing, but less flexible
 		local exec = require 'make.exec'
+		local clangname = ffi.os == 'Window' -- TODO this isn't windows, it's intel ...
+			and 'clangspirv'
+			or 'clang'
 		require 'make.targets'{
 			verbose = true,
 			{
@@ -622,7 +625,7 @@ function SolverBase:initMeshVars(args)
 				dsts = {self.cacheFileBC},
 				rule = function()
 					exec(table{
-						'clang',
+						clangname,
 						'-v',
 						'-Xclang -finclude-default-header',
 						'--target=spirv64-unknown-unknown',
