@@ -10,7 +10,7 @@ template<
 >
 struct RiemannProblem {
 	static inline void initCond(
-		Hydro::InitCondCellArgs & args
+		CellArgs & args
 	) {
 		auto & [solver, initCond, x, rho, v, P, ePot, D, B] = args;
 		auto mids = .5 * (solver.initCondMins + solver.initCondMaxs);
