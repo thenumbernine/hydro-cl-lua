@@ -121,6 +121,8 @@ local function makeGLSL(code)
 	return table{
 		'#define M_PI '..('%.50f'):format(math.pi),
 		'#define inline',
+		'#define private',	-- this is for cl arg attributes
+		'#define const',	-- TODO this is for cl arg attributes also, but glsl does use this for variable declarations
 		'#define real					float',
 		'#define real3					vec3',
 		'#define len(a)					length(a)',

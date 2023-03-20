@@ -12,13 +12,13 @@ local args = {
 	eqn = cmdline.eqn,
 	flux = cmdline.flux,
 
-	--integrator = cmdline.integrator or 'forward Euler',
+	integrator = cmdline.integrator or 'forward Euler',
 	--integrator = 'Iterative Crank-Nicolson',
 	--integrator = 'Runge-Kutta 2',
 	--integrator = 'Runge-Kutta 2 Heun',
 	--integrator = 'Runge-Kutta 2 Ralston',
 	--integrator = 'Runge-Kutta 3',
-	integrator = 'Runge-Kutta 4',
+	--integrator = 'Runge-Kutta 4',
 	--integrator = 'Runge-Kutta 4, 3/8ths rule',
 	--integrator = 'Runge-Kutta 2, TVD',
 	--integrator = 'Runge-Kutta 2, non-TVD',
@@ -350,7 +350,7 @@ local args = {
 	--initCond = 'jet',
 
 
-	--initCond = 'Sod',
+	initCond = 'Sod',
 	--initCondArgs = {dim=cmdline.displayDim},
 	--[[ real-world vars for Sod ... which are a few orders higher, and therefore screw up the backward-euler solver
 	-- 		which means, todo, redo the backward euler error metric so it is independent of magnitude ... ?   seems I removed that for another numerical error reason.
@@ -456,7 +456,7 @@ local args = {
 	--initCond = 'self-gravitation test 1',
 	--initCond = 'self-gravitation test 1 spinning',
 	--initCond = 'self-gravitation test 2',		--FIXME
-	initCond = 'self-gravitation test 2 orbiting',
+	--initCond = 'self-gravitation test 2 orbiting',
 	--initCond = 'self-gravitation test 4',
 	--initCond = 'self-gravitation soup',
 	--initCond = 'self-gravitation Jeans, right?',

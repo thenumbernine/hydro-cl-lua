@@ -5,6 +5,7 @@ namespace Hydro {
 template<
 	int dim_,
 	typename Prim,
+	typename CellArgs,
 	typename GetPrimLR
 >
 struct RiemannProblem {
@@ -30,25 +31,25 @@ struct RiemannProblem {
 }
 
 #if 0
-// currently generated in init/euler.lua
-// I would like to move all initcond's into this file
-// but the problem is, initCond_t is something that varies problem by problem
-// and it contains info that must be communicated between Lua and C++ 
-
 namespace <?=Solver?> {
 
-template<typename Prim>
+template<
+	int dim_,
+	typename Prim,
+	typename CellArgs
+>
 struct InitCond_Euler_Sod 
 : public Hydro::RiemannProblem<
-	<?= overrideDim or solver.dim ?>,
+	<?=overrideDim or solver.dim?>,
 	Prim,
-	Hydro::RiemannProblem
+	CellArgs,
+	InitCond_Euler_Sod<Prim, CellArgs>
 > {
-	static void buildL(InitCond const & initCond) {
+	static void buildL(CellArgs & args) {
 		args.rho = args.initCond.rhoL;
 		args.P = args.initCond.PL;
 	}
-	static Prim getR(InitCond const & initCond) {
+	static void buildR(CellArgs & args) {
 		args.rho = args.initCond.rhoR;
 		args.P = args.initCond.PR;
 	}
@@ -56,3 +57,39 @@ struct InitCond_Euler_Sod
 
 }	//namespace <?=Solver?>
 #endif
+
+namespace <?=Solver?> {
+
+template<
+	int dim_,
+	typename Prim,
+	typename CellArgs
+> struct InitCond_Euler_spiral {
+	static inline void initCond(
+		CellArgs & args
+	) {
+		auto & [solver, ic, x, rho, v, P, ePot, D, B] = args;
+		auto mids = .5 * (solver.initCondMins + solver.initCondMaxs);
+		
+		bool lhsSod = true;
+		for (int i = 0; i < dim_; ++i) {
+			lhsSod &= x[i] < mids[i];
+		}
+
+//// MODULE_DEPENDS: <?=coordMap?>
+		real3 const xc = coordMap(x);
+		real const r2 = sqrt(xc.x * xc.x + xc.y * xc.y);
+		real const dr2 = r2 - ic.torusGreaterRadius;
+		real const tr = sqrt(xc.z * xc.z + dr2 * dr2);		//change this to L1 norm for square toroid
+		bool const inside = tr < ic.torusLesserRadius;
+		P = ic.P;
+		rho = inside ? ic.rhoInside : ic.rhoOutside;
+//// MODULE_DEPENDS: units
+		v.x = -xc.y / r2 * ic.v / unit_m_per_s;
+		v.y =  xc.x / r2 * ic.v / unit_m_per_s;
+		D.x = -xc.y / r2 * ic.D / unit_C_per_m2;
+		D.y =  xc.x / r2 * ic.D / unit_C_per_m2;
+	}
+};
+
+}	//namespace <?=Solver?>
