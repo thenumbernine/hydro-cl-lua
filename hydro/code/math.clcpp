@@ -6,6 +6,10 @@ local addrs = {"", "constant", "private"}
 
 //// BEGIN EXCLUDE FROM FFI_CDEF
 
+// TODO from here on down, put in its own header file
+// but that means writing these files to the /cache/ident/src location
+// or another location, and put that in the include search path of the clcpp compiler
+
 //https://en.cppreference.com/w/cpp/types/integral_constant
 namespace std {
 	template<typename T, T v>
@@ -23,44 +27,28 @@ namespace std {
 
 //https://en.cppreference.com/w/cpp/types/void_t
 namespace std {
-	template<typename...>
-	using void_t = void;
+	template<typename...> using void_t = void;
 }
 
 //https://en.cppreference.com/w/cpp/types/is_same
 namespace std {
-	template<typename T, typename U>
-	struct is_same : std::false_type {};
-	 
-	template<typename T>
-	struct is_same<T, T> : std::true_type {};
-	
-	template<typename A, typename B>
-	static constexpr bool is_same_v = is_same<A, B>::value;
+	template<typename T, typename U> struct is_same : std::false_type {};
+	template<typename T> struct is_same<T, T> : std::true_type {};
+	template<typename A, typename B> static constexpr bool is_same_v = is_same<A, B>::value;
 }
 
 //https://en.cppreference.com/w/cpp/types/enable_if
 namespace std {
-	template<bool B, typename T = void>
-	struct enable_if {};
-	
-	template<typename T>
-	struct enable_if<true, T> { typedef T type; };
-
-	template<bool B, typename T = void>
-	using enable_if_t = typename enable_if<B, T>::type;
+	template<bool B, typename T = void> struct enable_if {};
+	template<typename T> struct enable_if<true, T> { typedef T type; };
+	template<bool B, typename T = void> using enable_if_t = typename enable_if<B, T>::type;
 }
 
 //https://en.cppreference.com/w/cpp/types/conditional
 namespace std {
-	template<bool B, class T, class F>
-	struct conditional { using type = T; };
-	 
-	template<class T, class F>
-	struct conditional<false, T, F> { using type = F; };
-
-	template<bool B, class T, class F>
-	using conditional_t = typename conditional<B, T, F>::type;
+	template<bool B, class T, class F> struct conditional { using type = T; };
+	template<class T, class F> struct conditional<false, T, F> { using type = F; };
+	template<bool B, class T, class F> using conditional_t = typename conditional<B, T, F>::type;
 }
 
 //https://en.cppreference.com/w/cpp/types/type_identity
@@ -81,7 +69,7 @@ namespace std {
 namespace std {
 	template<typename T> struct add_lvalue_reference : public type_identity<T&> {};
 	template<typename T> struct add_lvalue_reference<T&> : public type_identity<T&> {};
-	 
+
 	template<typename T> struct add_rvalue_reference : public type_identity<T&&> {};
 	template<typename T> struct add_rvalue_reference<T&&> : public type_identity<T&&> {};
 }
@@ -91,8 +79,8 @@ namespace std {
 	template<typename T> struct add_pointer : public type_identity<T*> {};
 	template<typename T> struct remove_pointer : public type_identity<T> {};
 	template<typename T> struct remove_pointer<T*> : public type_identity<T> {};
-	
-	template<typename T> using add_pointer_t = typename add_pointer<T>::type; 
+
+	template<typename T> using add_pointer_t = typename add_pointer<T>::type;
 	template<typename T> using remove_pointer_t = typename remove_pointer<T>::type;
 }
 
@@ -100,7 +88,7 @@ namespace std {
 namespace std {
 	template<typename T>
 	constexpr bool always_false = false;
-	 
+
 	template<typename T>
 	typename std::add_rvalue_reference<T>::type declval() noexcept
 	{
@@ -120,27 +108,26 @@ namespace std {
 //https://en.cppreference.com/w/cpp/experimental/is_detected
 namespace std {
 	namespace detail {
-	template<class Default, class AlwaysVoid,
-			  template<class...> class Op, class... Args>
-	struct detector {
-	  using value_t = std::false_type;
-	  using type = Default;
-	};
-	 
-	template<class Default, template<class...> class Op, class... Args>
-	struct detector<Default, std::void_t<Op<Args...>>, Op, Args...> {
-	  using value_t = std::true_type;
-	  using type = Op<Args...>;
-	};
-	 
+		template<class Default, class AlwaysVoid,
+				  template<class...> class Op, class... Args>
+		struct detector {
+			using value_t = std::false_type;
+			using type = Default;
+		};
+
+		template<class Default, template<class...> class Op, class... Args>
+		struct detector<Default, std::void_t<Op<Args...>>, Op, Args...> {
+			using value_t = std::true_type;
+			using type = Op<Args...>;
+		};
 	} // namespace detail
-	 
+
 	template<template<class...> class Op, class... Args>
 	using is_detected = typename detail::detector<nonesuch, void, Op, Args...>::value_t;
-	 
+
 	template<template<class...> class Op, class... Args>
 	using detected_t = typename detail::detector<nonesuch, void, Op, Args...>::type;
-	 
+
 	template<class Default, template<class...> class Op, class... Args>
 	using detected_or = detail::detector<Default, void, Op, Args...>;
 
@@ -152,12 +139,19 @@ template<class T>
 using has_tensorFlag = decltype(std::declval<T>().isTensorFlag);
 
 template<typename T>
-constexpr bool is_tensor_v = std::is_detected_v<has_tensorFlag, T>;
+static constexpr bool is_tensor_v = std::is_detected_v<has_tensorFlag, T>;
+
+template<typename A, typename B>
+static constexpr bool IsBinaryTensorOp = is_tensor_v<A> && is_tensor_v<B>;
 
 template<typename Inner_>
 union vec3 {
 	static constexpr bool isTensorFlag = true;
 	using Inner = Inner_;
+
+	// TODO instead just count # of tuples in the nested args
+	// but ... I need tuples for that ...
+
 	struct NestedScalarImpl {
 		static constexpr auto value() {
 			if constexpr (is_tensor_v<Inner>) {
@@ -170,24 +164,54 @@ union vec3 {
 	};
 	using Scalar = typename std::remove_pointer_t<typename NestedScalarImpl::type>;
 
+	struct NestedRankImpl {
+		static constexpr int value() {
+			if constexpr (is_tensor_v<Inner>) {
+				return Inner::NestedRankImpl::value()+1;
+			} else {
+				return 1;
+			}
+		}
+	};
+	static constexpr int rank = NestedRankImpl::value();
+
 	Inner s[3];
 	struct { Inner s0, s1, s2; };
 	struct { Inner x, y, z; };
 
+	//default construuctor
 	constexpr vec3()
 	:	x(Inner{}),
 		y(Inner{}),
 		z(Inner{})
 	{}
 
+	//argument constructor
 	constexpr vec3(
 		Inner x_,
 		Inner y_,
 		Inner z_
 	) : x(x_), y(y_), z(z_) {}
 
+	//scalar constructor
+	constexpr vec3(Inner const s)
+	:	x(s),
+		y(s),
+		z(s)
+	{}
+
+	//tensor/tensor construction
+	template<
+		typename U,
+		std::enable_if_t<U::rank == rank, int> = 0
+	>
+	constexpr vec3(U const & u) 
+	:	x(u.x),
+		y(u.y),
+		z(u.z) {}
+
 #if 0
-	// TODO needs rank, Common stuff, tuples, functions, apply, write-iterator
+	// TODO needs Common stuff, tuples, functions, apply, write-iterator
 	template<
 		typename Lambda,
 		std::enable_if_t<
@@ -205,8 +229,19 @@ union vec3 {
 			*i = std::apply(f, i.readIndex.s);
 		}
 	}
-#endif
+#elif 0
 // until then I can just use fixed-signature per-rank
+// but I'll still need the FunctionFromLambda ...
+	template<
+		typename Lambda,
+		std::enable_if_t<
+			rank == 1
+			//&& is_callable<Lambda>	//TODO implement this
+		, int> = 0
+	>
+	constexpr vec3(Lambda lambda) {
+	}
+#endif
 
 	constexpr vec3 & operator+=(
 		vec3 const & b
@@ -216,7 +251,7 @@ union vec3 {
 		z += b.z;
 		return *this;
 	}
-	
+
 	constexpr vec3 & operator-=(
 		vec3 const & b
 	) {
@@ -246,58 +281,97 @@ union vec3 {
 ?>;
 
 // TODO if I do use const& then I will have to use all possible kinds of OpenCL address qualifiers
-// and when doing so, the compiler chokes on scalars ... 
+// and when doing so, the compiler chokes on scalars ...
 // so I'm just going to pass-by-value
 // ... but maybe this is a masked error from enable_if and I can re-introduce it once I fix that ...
 
-//vec3 * scalar
-template<
-	typename A,
-	typename B,
-	std::enable_if_t<is_tensor_v<A> && !is_tensor_v<B>, int> = 0
->
-decltype(auto) operator*(
-	A const a,
-	B const b
-) {
-	using AS = typename A::Scalar;
-	using RS = decltype(AS() * B());
-	using R = typename A::template ReplaceScalar<RS>;
-	return R(a.x * b, a.y * b, a.z * b);
+#define TENSOR_SCALAR_OP(op)\
+template<\
+	typename A,\
+	typename B,\
+	std::enable_if_t<is_tensor_v<A> && !is_tensor_v<B>, int> = 0\
+>\
+decltype(auto) operator op(\
+	A const a,\
+	B const b\
+) {\
+	using AS = typename A::Scalar;\
+	using RS = decltype(AS() op B());\
+	using R = typename A::template ReplaceScalar<RS>;\
+	return R(a.x op b, a.y op b, a.z op b);\
+}\
+\
+template<\
+	typename A,\
+	typename B,\
+	std::enable_if_t<!is_tensor_v<A> && is_tensor_v<B>, int> = 0\
+>\
+decltype(auto) operator op(\
+	A const a,\
+	B const b\
+) {\
+	using BS = typename B::Scalar;\
+	using RS = decltype(A() op BS());\
+	using R = typename B::template ReplaceScalar<RS>;\
+	return R(a op b.x, a op b.y, a op b.z);\
 }
 
-//scalar * vec3
-template<
-	typename A,
-	typename B,
-	std::enable_if_t<!is_tensor_v<A> && is_tensor_v<B>, int> = 0
->
-decltype(auto) operator*(
-	A const a,
-	B const b
-) {
-	using BS = typename B::Scalar;
-	using RS = decltype(A() * BS());
-	using R = typename B::template ReplaceScalar<RS>;
-	return R(a * b.x, a * b.y, a * b.z);
+TENSOR_SCALAR_OP(+)
+TENSOR_SCALAR_OP(-)
+TENSOR_SCALAR_OP(*)
+TENSOR_SCALAR_OP(/)
+
+#define TENSOR_TENSOR_OP(op)\
+template<\
+	typename A,\
+	typename B,\
+	std::enable_if_t<\
+		IsBinaryTensorOp<A,B>\
+		/* && A::dims() == B::dims()*/\
+	, int> = 0\
+>\
+decltype(auto) operator op(A const a, B const b) {\
+	using RS = decltype(typename A::Scalar() op typename B::Scalar());\
+	using R = typename A/*::template TensorSumResult<B>*/::template ReplaceScalar<RS>;\
+	return R(a.x op b.x, a.y op b.y, a.z op b.z);\
 }
 
-//vec3 * vec3
-#if 0
+TENSOR_TENSOR_OP(+)
+TENSOR_TENSOR_OP(-)
+//TENSOR_TENSOR_OP(*) handled elsewhere as inner product
+TENSOR_TENSOR_OP(/)
+
 template<
 	typename A,
 	typename B,
-	std::enable_if_t<IsBinaryTensorOpWithMatchingNeighborDims<A,B>, int> = 0
+	std::enable_if_t<IsBinaryTensorOp<A,B>, int> = 0
 >
-auto operator*(
+auto dot(
 	A const a,
 	B const b
-) {
-	//return interior<1>
-}
-#endif
+);
 
 //// END EXCLUDE FROM FFI_CDEF
+
+//// MODULE_CODE:
+
+// default conj(x) = x
+template<typename T>
+decltype(auto) conj(T const t) { return t; }
+
+template<
+	typename A,
+	typename B,
+	std::enable_if_t<IsBinaryTensorOp<A,B>, int>
+>
+auto dot(
+	A const a,
+	B const b
+) {
+	return a.x * conj(b.x)
+		+ a.y * conj(b.y)
+		+ a.z * conj(b.z);
+}
 
 //// MODULE_NAME: mat3x3
 //// MODULE_DEPENDS: vec3
@@ -311,7 +385,7 @@ using mat3x3 = vec3<vec3<Inner>>;
 
 <?
 local function makevec3type(name, scalar)
-	if 
+	if
 	false
 	and scalar == "real" and (
 		app.real == "float"
@@ -319,7 +393,7 @@ local function makevec3type(name, scalar)
 	) then
 		-- use vec-ffi when we can
 		assert(name == "real3")
-		
+
 		local vecType
 		if app.real == "float" then
 			vecType = require "vec-ffi.vec3f"
@@ -350,31 +424,6 @@ using <?=name?> = vec3<<?=scalar?>>;
 end
 
 local function makevec3header(vec, scalar, cdef)
-	for _,addr1 in ipairs(addrs) do
-		for _,addr2 in ipairs(addrs) do
-?>
-static inline <?=scalar?> dot(
-	<?=addr1?> <?=vec?> const & a,
-	<?=addr2?> <?=vec?> const & b
-);
-<?
-		end
-	end
-	for _,addr in ipairs(addrs) do
-?>
-static inline <?=vec?> operator+(
-	<?=addr?> <?=vec?> const & a,
-	<?=addr?> <?=vec?> const & b
-);
-static inline <?=vec?> operator-(
-	<?=addr?> <?=vec?> const & a,
-	<?=addr?> <?=vec?> const & b
-);
-static inline <?=vec?> operator-(
-	<?=addr?> <?=vec?> const & a
-);
-<?
-	end
 ?>
 static inline <?=vec?> cross(<?=vec?> a, <?=vec?> b);
 static inline real lenSq(real3 const a);
@@ -384,20 +433,6 @@ end	-- makevec3header
 
 local function makevec3code(vec,scalar)
 	for _,addr in ipairs(addrs) do
-?>
-static inline <?=vec?> operator+(
-	<?=addr?> <?=vec?> const & a,
-	<?=addr?> <?=vec?> const & b
-) {
-	return <?=vec?>(a.x + b.x, a.y + b.y, a.z + b.z);
-}
-static inline <?=vec?> operator-(
-	<?=addr?> <?=vec?> const & a,
-	<?=addr?> <?=vec?> const & b
-) {
-	return <?=vec?>(a.x - b.x, a.y - b.y, a.z - b.z);
-}
-<?
 	end
 ?>
 static inline <?=vec?> cross(<?=vec?> a, <?=vec?> b) {
@@ -437,7 +472,7 @@ union <?=name?> {
 
 //// BEGIN EXCLUDE FROM FFI_CDEF
 	constexpr <?=name?>() : x({}), y({}), z({}) {}
-	
+
 	constexpr <?=name?>(
 		<?=vec3?> x_,
 		<?=vec3?> y_,
@@ -479,32 +514,6 @@ typedef union {
 	struct { <?=real?> re, im; };
 } <?=name?>;
 <?
-end
-
-local function resultType(atype, btype)
-	if atype == "real" and btype == "real" then return "real" end
-	if atype == "cplx" and btype == "real" then return "cplx" end
-	if atype == "real" and btype == "cplx" then return "cplx" end
-	if atype == "cplx" and btype == "cplx" then return "cplx" end
-	error("no resultType for operations of "..atype.." and "..btype)
-end
-
-local function make_dot(atype, btype)
-	local ctype = resultType(atype, btype)
-	for _,addr1 in ipairs(addrs) do
-		for _,addr2 in ipairs(addrs) do
-?>
-static inline <?=ctype?> dot(
-	<?=addr1?> <?=atype?>3 const & a,
-	<?=addr2?> <?=btype?>3 const & b
-) {
-	return a.x * conj(b.x)
-		+ a.y * conj(b.y)
-		+ a.z * conj(b.z);
-}
-<?
-		end
-	end
 end
 ?>
 //// MODULE_NAME: realparam
@@ -568,7 +577,6 @@ inline real lenSq(real const x) { return x * x; }
 //// MODULE_CODE:
 
 <?makevec3code("real3", "real")?>
-<?make_dot("real", "real")?>
 
 //// MODULE_NAME: rotate
 //// MODULE_DEPENDS: real3 quat
@@ -976,7 +984,6 @@ using real3x3 = mat3x3<real>;
 //// MODULE_HEADER:
 
 static inline real3x3 real3x3_from_real3x3(real3x3 x);
-inline real3x3 operator+(real3x3 a, real3x3 b);
 static inline real3 operator*(real3, real3x3);
 static inline real3 operator*(real3x3, real3);
 inline real3x3 outer(real3 a, real3 b);
@@ -1000,14 +1007,6 @@ static inline real3x3 real3x3_inv(real3x3 m);
 //// MODULE_CODE:
 
 static inline real3x3 real3x3_from_real3x3(real3x3 x) { return x; }
-
-inline real3x3 operator+(real3x3 a, real3x3 b) {
-	return real3x3{
-<? for i,xi in ipairs(xNames) do
-?>		a.<?=xi?> + b.<?=xi?>,
-<? end
-?>	};
-}
 
 inline real3 operator*(real3 a, real3x3 b) {
 	return real3(
@@ -1952,8 +1951,6 @@ static inline cplx3 real3_cplx_mul(real3 const a, cplx const b) {
 		a.y * b,
 		a.z * b);
 }
-
-<?make_dot("cplx", "real")	-- cplx3_real3_dot ?>
 
 /*
 assumes the weights are real and only returns the real component ...
