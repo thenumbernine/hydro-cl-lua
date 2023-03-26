@@ -1832,8 +1832,6 @@ end
 	/*
 	tr12_partial2_beta_l.i := beta^j_,ji
 	beta^i_,jk is a sym3 of 3's ... so I don't have that struct yet ... 
-	 What name could I use? sym3x3?  how about real3s3x3 where we have 's' for symmetric and 'x' for cartesian product.
-	 Then sym3 turns into real3s3 and _3sym3 turns into real3x3s3.
 	TODO simplify math plz
 	*/
 	real3 tr12_partial2_beta_L = _3sym3_tr12(partial2_beta_ULL);

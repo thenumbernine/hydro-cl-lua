@@ -205,8 +205,6 @@ constexpr auto cross(
 // 3D dimension-swapping functions
 // TODO change to make sure it's a tensor of dim 3's all across (irrespective of rank)
 
-#if 1
-
 template<
 	typename T
 >
@@ -255,8 +253,6 @@ constexpr auto rotateToInDim(
 	N const & n,
 	std::enable_if_t<is_tensor_v<T> && is_tensor_v<N> && N::rank == 1 && N::template dim<0> == 3>* = nullptr
 );
-
-#endif
 
 template<typename Inner_>
 union vec3 {
@@ -438,7 +434,6 @@ union vec3 {
 		return ::cross(*this, b);
 	}
 
-#if 1
 	// TODO make global scope methods for these?
 	// they are all vec3-specific
 	// TODO TODO these implementations are all vec3-specific
@@ -494,7 +489,6 @@ union vec3 {
 	) const {
 		return ::rotateToInDim<dim, This, N>(*this);
 	}
-#endif
 
 #if 0	//"error: parameter may not be qualified with an address space" ... ?????
 	vec3 rotateX(Scalar const theta) const {
@@ -678,8 +672,6 @@ constexpr auto cross(
 		a[2] * b[0] - a[0] * b[2],
 		a[0] * b[1] - a[1] * b[0]);
 }
-
-#if 1
 
 // TODO this is the vec3 impl
 // for mat3 etc it might be different ...
@@ -977,8 +969,6 @@ constexpr auto rotateToInDim(
 ) {
 	return RotateToInDimImpl<side, T, N>::go(v, n);
 }
-
-#endif
 
 //// MODULE_NAME: mat3x3
 //// MODULE_DEPENDS: vec3

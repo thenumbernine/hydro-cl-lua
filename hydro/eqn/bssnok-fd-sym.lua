@@ -1338,8 +1338,6 @@ time('building symbolic math env', function()
 	--[[
 	tr12_partial2_beta_l.i := beta^j_,ji
 	beta^i_,jk is a sym3 of 3's ... so I don't have that struct yet ... 
-	 What name could I use? sym3x3?  how about real3s3x3 where we have 's' for symmetric and 'x' for cartesian product.
-	 Then sym3 turns into real3s3 and _3sym3 turns into real3x3s3.
 	--]]
 	printbr'tr12_partial2_beta_l'
 		tr12_partial2_beta_l = partial2_beta_ull'^j_ij'():factorDivision()
