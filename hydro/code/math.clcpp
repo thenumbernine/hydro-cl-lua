@@ -152,87 +152,109 @@ template<
 >
 auto dot(
 	A const & a,
-	B const & b
-	std::enable_if_t<IsBinaryTensorOp<A,B>, int>* = nullptr
+	B const & b,
+	std::enable_if_t<IsBinaryTensorOp<A,B>>* = nullptr
 );
 
 template<
-	typename T,
-	std::enable_if_t<is_tensor_v<T>, int> = 0
+	typename T
 >
-auto lenSq(T const v);
+auto lenSq(
+	T const & v,
+	std::enable_if_t<is_tensor_v<T>>* = nullptr
+);
 
 template<
-	typename T,
-	std::enable_if_t<is_tensor_v<T>, int> = 0
+	typename T
 >
-auto length(T const v);
+auto length(
+	T const & v,
+	std::enable_if_t<is_tensor_v<T>>* = nullptr
+);
 
 template<
 	typename A,
-	typename B,
-	std::enable_if_t<IsBinaryTensorOp<A,B>, int> = 0
+	typename B
 >
-auto distance(A const a, B const b);
+auto distance(
+	A const & a,
+	B const & b,
+	std::enable_if_t<IsBinaryTensorOp<A,B>>* = nullptr
+);
 
 template<
-	typename T,
-	std::enable_if_t<is_tensor_v<T>, int> = 0
+	typename T
 >
-T normalize(T const v);
+T normalize(
+	T const & v,
+	std::enable_if_t<is_tensor_v<T>>* = nullptr
+);
 
 // 3D-specific:
 
 template<
 	typename A,
-	typename B,
-	std::enable_if_t<IsBinaryTensorR3xR3Op<A,B>, int> = 0
+	typename B
 >
 constexpr auto cross(
-	A const a,
-	B const b
+	A const & a,
+	B const & b,
+	std::enable_if_t<IsBinaryTensorR3xR3Op<A,B>>* = nullptr
 );
 
 // 3D dimension-swapping functions
 // TODO change to make sure it's a tensor of dim 3's all across (irrespective of rank)
 
-#if 0
+#if 1
 
 template<
-	typename T,
-	std::enable_if_t<is_tensor_v<T>, int> = 0
+	typename T
 >
-constexpr auto swap(T const v, int side);
+constexpr auto swap(
+	T const & v,
+	int side,
+	std::enable_if_t<is_tensor_v<T>>* = nullptr
+);
 
 template<
 	int side,
-	typename T,
-	std::enable_if_t<is_tensor_v<T>, int> = 0
+	typename T
 >
-constexpr auto rotateFromSide(T const v);
+constexpr auto rotateFromSide(
+	T const & v,
+	std::enable_if_t<is_tensor_v<T>>* = nullptr
+);
 
 template<
 	int side,
-	typename T,
-	std::enable_if_t<is_tensor_v<T>, int> = 0
+	typename T
 >
-constexpr auto rotateToSide(T const v);
+constexpr auto rotateToSide(
+	T const & v,
+	std::enable_if_t<is_tensor_v<T>>* = nullptr
+);
 
 template<
 	int dim,
 	typename T,
-	typename N,
-	std::enable_if_t<is_tensor_v<T> && is_tensor_v<N> && N::rank == 1 && N::template dim<0> == 3, int> = 0
+	typename N
 >
-constexpr auto rotateFromInDim(T const v, N const n);
+constexpr auto rotateFromInDim(
+	T const & v,
+	N const & n,
+	std::enable_if_t<is_tensor_v<T> && is_tensor_v<N> && N::rank == 1 && N::template dim<0> == 3>* = nullptr
+);
 
 template<
 	int dim,
 	typename T,
-	typename N,
-	std::enable_if_t<is_tensor_v<T> && is_tensor_v<N> && N::rank == 1 && N::template dim<0> == 3, int> = 0
+	typename N
 >
-constexpr auto rotateToInDim(T const v, N const n);
+constexpr auto rotateToInDim(
+	T const & v,
+	N const & n,
+	std::enable_if_t<is_tensor_v<T> && is_tensor_v<N> && N::rank == 1 && N::template dim<0> == 3>* = nullptr
+);
 
 #endif
 
@@ -377,7 +399,7 @@ union vec3 {
 	>
 	auto dot(
 		B const & b,
-		std::enable_if_t<IsBinaryTensorOp<This,B>, int>* = nullptr
+		std::enable_if_t<IsBinaryTensorOp<This,B>>* = nullptr
 	) const {
 		return ::dot(*this, b);
 	}
@@ -391,10 +413,12 @@ union vec3 {
 	}
 
 	template<
-		typename B,
-		std::enable_if_t<IsBinaryTensorOp<This,B>, int> = 0
+		typename B
 	>
-	auto distance(B const b) const {
+	auto distance(
+		B const & b,
+		std::enable_if_t<IsBinaryTensorOp<This,B>>* = nullptr
+	) const {
 		return ::distance(*this, b);
 	}
 
@@ -402,17 +426,19 @@ union vec3 {
 		return ::normalize(*this);
 	}
 
+	// the following are 3D specific:
+
 	template<
-		typename B,
-		std::enable_if_t<IsBinaryTensorR3xR3Op<This,B>, int> = 0
+		typename B
 	>
 	auto cross(
-		B const b
+		B const & b,
+		std::enable_if_t<IsBinaryTensorR3xR3Op<This,B>>* = nullptr
 	) const {
 		return ::cross(*this, b);
 	}
 
-#if 0
+#if 1
 	// TODO make global scope methods for these?
 	// they are all vec3-specific
 	// TODO TODO these implementations are all vec3-specific
@@ -421,7 +447,9 @@ union vec3 {
 
 	//for swapping dimensions between x and 012
 	
-	constexpr vec3 swap(int side) const { return ::swap(*this, side); }
+	constexpr vec3 swap(int side) const {
+		return ::swap(*this, side);
+	}
 	
 	//rotate from a particular side xyz to put x forward
 	// all assumed to be 3D rotations
@@ -445,10 +473,12 @@ union vec3 {
 	
 	template<
 		int dim,
-		typename N,
-		std::enable_if_t<is_tensor_v<N> && N::rank == 1 && N::template dim<0> == 3, int> = 0
+		typename N
 	>
-	constexpr vec3 rotateFromInDim(vec3 n) const {
+	constexpr vec3 rotateFromInDim(
+		N const & n,
+		std::enable_if_t<is_tensor_v<N> && N::rank == 1 && N::template dim<0> == 3>* = nullptr
+	) const {
 		return ::rotateFromInDim<dim, This, N>(*this);
 	}
 
@@ -456,10 +486,12 @@ union vec3 {
 
 	template<
 		int dim,
-		typename N,
-		std::enable_if_t<is_tensor_v<N> && N::rank == 1 && N::template dim<0> == 3, int> = 0
+		typename N
 	>
-	constexpr vec3 rotateToInDim(vec3 n) const {
+	constexpr vec3 rotateToInDim(
+		N const & n,
+		std::enable_if_t<is_tensor_v<N> && N::rank == 1 && N::template dim<0> == 3>* = nullptr
+	) const {
 		return ::rotateToInDim<dim, This, N>(*this);
 	}
 #endif
@@ -579,7 +611,7 @@ template<
 auto dot(
 	A const & a,
 	B const & b,
-	std::enable_if_t<IsBinaryTensorOp<A,B>, int>*
+	std::enable_if_t<IsBinaryTensorOp<A,B>>*
 ) {
 	return a.x * conj(b.x)
 		+ a.y * conj(b.y)
@@ -587,48 +619,57 @@ auto dot(
 }
 
 template<
-	typename T,
-	std::enable_if_t<is_tensor_v<T>, int>
+	typename T
 >
-auto lenSq(T const v) {
+auto lenSq(
+	T const & v,
+	std::enable_if_t<is_tensor_v<T>>*
+) {
 	return dot(v, v);
 }
 
 template<
-	typename T,
-	std::enable_if_t<is_tensor_v<T>, int>
+	typename T
 >
-auto length(T const v) {
+auto length(
+	T const & v,
+	std::enable_if_t<is_tensor_v<T>>*
+) {
 	return (typename T::Scalar)sqrt(lenSq(v));
 }
 
 template<
 	typename A,
-	typename B,
-	std::enable_if_t<IsBinaryTensorOp<A,B>, int>
+	typename B
 >
-auto distance(A const a, B const b) {
+auto distance(
+	A const & a,
+	B const & b,
+	std::enable_if_t<IsBinaryTensorOp<A,B>>*
+) {
 	return length(b - a);
 }
 
 template<
-	typename T,
-	std::enable_if_t<is_tensor_v<T>, int>
+	typename T
 >
-T normalize(T const v) {
+T normalize(
+	T const & v,
+	std::enable_if_t<is_tensor_v<T>>*
+) {
 	return v / length(v);
 }
 
-// vec3-specific:
+// the following are 3D specific:
 
 template<
 	typename A,
-	typename B,
-	std::enable_if_t<IsBinaryTensorR3xR3Op<A,B>, int>
+	typename B
 >
 constexpr auto cross(
-	A const a,
-	B const b
+	A const & a,
+	B const & b,
+	std::enable_if_t<IsBinaryTensorR3xR3Op<A,B>>*
 ) {
 	using RS = decltype(typename A::Scalar() * typename B::Scalar());
 	using R = typename A::template ReplaceScalar<RS>;
@@ -638,16 +679,19 @@ constexpr auto cross(
 		a[0] * b[1] - a[1] * b[0]);
 }
 
-#if 0
+#if 1
 
 // TODO this is the vec3 impl
 // for mat3 etc it might be different ...
 
 template<
-	typename T,
-	std::enable_if_t<is_tensor_v<T>, int>
+	typename T
 >
-constexpr auto swap(T const v, int side) {
+constexpr auto swap(
+	T const & v,
+	int side,
+	std::enable_if_t<is_tensor_v<T>>*
+) {
 	auto tmp = v.s[side];
 	v.s[side] = v.x;
 	v.x = tmp;
@@ -655,178 +699,283 @@ constexpr auto swap(T const v, int side) {
 }
 
 template<
-	typename T,
-	std::enable_if_t<is_tensor_v<T>, int>
+	int side,
+	typename T
 >
-constexpr auto rotateFromSide<0, T>(T const v) {
-	return v;
+struct RotateFromSideImpl {};
+
+template<
+	typename T
+>
+struct RotateFromSideImpl<0, T> {
+	static constexpr auto go(
+		T const & v,
+		std::enable_if_t<is_tensor_v<T>>*
+	) {
+		return v;
+	}
+};
+
+template<
+	typename T
+>
+struct RotateFromSideImpl<1, T> {
+	static constexpr auto go(
+		T const & v,
+		std::enable_if_t<is_tensor_v<T>>*
+	) {
+		return T{v.y, -v.x, v.z};
+	}
+};
+
+template<
+	typename T
+>
+struct RotateFromSideImpl<2, T> {
+	static constexpr auto go(
+		T const & v,
+		std::enable_if_t<is_tensor_v<T>>*
+	) {
+		return T{v.z, v.y, -v.x};
+	}
+};
+
+template<
+	int side,
+	typename T
+>
+constexpr auto rotateFromSide(
+	T const & v,
+	std::enable_if_t<is_tensor_v<T>>*
+) {
+	// to get around "error: function template partial specialization is not allowed"
+	return RotateFromSideImpl<side, T>::go(v);
 }
 
 template<
-	typename T,
-	std::enable_if_t<is_tensor_v<T>, int>
+	int side,
+	typename T
 >
-constexpr auto rotateFromSide<1, T>(T const v) {
-	return T{v.y, -v.x, v.z};
-}
+struct RotateToSideImpl {};
 
 template<
-	typename T,
-	std::enable_if_t<is_tensor_v<T>, int>
+	typename T
 >
-constexpr auto rotateFromSide<2, T>(T const v) {
-	return T{v.z, v.y, -v.x};
-}
+struct RotateToSideImpl<0, T> {
+	static constexpr auto go(
+		T const & v,
+		std::enable_if_t<is_tensor_v<T>>*
+	) {
+		return v;
+	}
+};
 
 template<
-	typename T,
-	std::enable_if_t<is_tensor_v<T>, int>
+	typename T
 >
-constexpr auto rotateToSide<0, T>(T const v) {
-	return v;
-}
+struct RotateToSideImpl<1, T> {
+	static constexpr auto go(
+		T const & v,
+		std::enable_if_t<is_tensor_v<T>>*
+	) {
+		return T{-v.y, v.x, v.z};
+	}
+};
 
 template<
-	typename T,
-	std::enable_if_t<is_tensor_v<T>, int>
+	typename T
 >
-constexpr auto rotateToSide<1, T>(T const v) {
-	return T{-v.y, v.x, v.z};
-}
+struct RotateToSideImpl<2, T> {
+	static constexpr auto go(
+		T const & v,
+		std::enable_if_t<is_tensor_v<T>>*
+	) {
+		return T{-v.z, v.y, v.x};
+	}
+};
 
 template<
-	typename T,
-	std::enable_if_t<is_tensor_v<T>, int>
+	int side,
+	typename T
 >
-constexpr auto rotateToSide<2, T>(T const v) {
-	return T{-v.z, v.y, v.x};
+constexpr auto rotateToSide(
+	T const & v,
+	std::enable_if_t<is_tensor_v<T>>*
+) {
+	// to get around "error: function template partial specialization is not allowed"
+	return RotateToSideImpl<side, T>::go(v);
 }
 
 template<
 	int dim,
 	typename T,
-	typename N,
-	std::enable_if_t<is_tensor_v<T> && is_tensor_v<N> && N::rank == 1 && N::template dim<0> == 3, int>
+	typename N
 >
-constexpr auto rotateFromInDim<1, T, N>(
-	T const v,
-	N const n
-) {
-	return *this;
-}
+struct RotateFromInDimImpl {};
 
 template<
-	int dim,
 	typename T,
-	typename N,
-	std::enable_if_t<is_tensor_v<T> && is_tensor_v<N> && N::rank == 1 && N::template dim<0> == 3, int>
+	typename N
 >
-constexpr auto rotateFromInDim<2, T, N>(
-	T const v,
-	N const n
-) {
-	return T(
-		v.x * n.x + v.y * n.y,
-		-v.x * n.y + v.y * n.x,
-		z);
-}
+struct RotateFromInDimImpl<1, T, N> {
+	static constexpr auto go(
+		T const & v,
+		N const & n,
+		std::enable_if_t<is_tensor_v<T> && is_tensor_v<N> && N::rank == 1 && N::template dim<0> == 3>* = nullptr
+	) {
+		return v;
+	}
+};
+
+template<
+	typename T,
+	typename N
+>
+struct RotateFromInDimImpl<2, T, N> {
+	static constexpr auto go(
+		T const & v,
+		N const & n,
+		std::enable_if_t<is_tensor_v<T> && is_tensor_v<N> && N::rank == 1 && N::template dim<0> == 3>* = nullptr
+	) {
+		return T(
+			v.x * n.x + v.y * n.y,
+			-v.x * n.y + v.y * n.x,
+			v.z);
+	}
+};
 
 //// MODULE_DEPENDS: quat
 template<
+	typename T,
+	typename N
+>
+struct RotateFromInDimImpl<3, T, N> {
+	static constexpr auto go(
+		T const & v,
+		N const & n,
+		std::enable_if_t<is_tensor_v<T> && is_tensor_v<N> && N::rank == 1 && N::template dim<0> == 3>* = nullptr
+	) {
+		using Scalar = typename T::Scalar;
+		/*
+		axis is n cross x-axis
+		[ 1  0  0] x [nx ny nz] = [0, -nz, ny] / (ny^2 + nz^2)
+		angle = acos(n.x)
+		cos angle = n.x
+		sin angle = sqrt(1 - nx^2)
+		cos (angle/2) =
+
+		cos^2 theta + sin^2 theta = 1
+		sin^2 theta = 1 - cos^2
+		cos^2 theta - sin^2 theta = cos(2 theta) <->
+		cos(theta/2) = sqrt((1 + cos(theta))/2) <->
+		2 sin theta cos theta = sin(2 theta)
+		*/
+		Scalar cosTheta = n.x;
+		Scalar cosHalfTheta = sqrt(.5 * (1. + cosTheta));
+		Scalar sinHalfTheta = sqrt(1. - cosHalfTheta * cosHalfTheta);
+		Scalar n2 = sqrt(n.y * n.y + n.z * n.z);
+		Scalar ax = 0.;
+		Scalar ay = -n.z / n2;
+		Scalar az = n.y / n2;
+		// TODO template quat
+		real4 q = real4{ax * sinHalfTheta, ay * sinHalfTheta, az * sinHalfTheta, cosHalfTheta};
+		real4 qInv = quatUnitConj(q);
+		real4 _v = real4{v.x, v.y, v.z, 0};
+		real4 vres = quatMul(quatMul(q, _v), qInv);
+		return T{vres.x, vres.y, vres.z};
+	}
+};
+
+template<
 	int dim,
 	typename T,
-	typename N,
-	std::enable_if_t<is_tensor_v<T> && is_tensor_v<N> && N::rank == 1 && N::template dim<0> == 3, int>
+	typename N
 >
-constexpr auto rotateFromInDim<3, T, N>(
-	T const v,
-	N const n
+constexpr auto rotateFromInDim(
+	T const & v,
+	N const & n,
+	std::enable_if_t<is_tensor_v<T> && is_tensor_v<N> && N::rank == 1 && N::template dim<0> == 3>*
 ) {
-	using Scalar = typename T::Scalar;
-	/*
-	axis is n cross x-axis
-	[ 1  0  0] x [nx ny nz] = [0, -nz, ny] / (ny^2 + nz^2)
-	angle = acos(n.x)
-	cos angle = n.x
-	sin angle = sqrt(1 - nx^2)
-	cos (angle/2) =
-
-	cos^2 theta + sin^2 theta = 1
-	sin^2 theta = 1 - cos^2
-	cos^2 theta - sin^2 theta = cos(2 theta) <->
-	cos(theta/2) = sqrt((1 + cos(theta))/2) <->
-	2 sin theta cos theta = sin(2 theta)
-	*/
-	Scalar cosTheta = n.x;
-	Scalar cosHalfTheta = sqrt(.5 * (1. + cosTheta));
-	Scalar sinHalfTheta = sqrt(1. - cosHalfTheta * cosHalfTheta);
-	Scalar n2 = sqrt(n.y * n.y + n.z * n.z);
-	Scalar ax = 0.;
-	Scalar ay = -n.z / n2;
-	Scalar az = n.y / n2;
-	// TODO template quat
-	real4 q = real4{ax * sinHalfTheta, ay * sinHalfTheta, az * sinHalfTheta, cosHalfTheta};
-	real4 qInv = quatUnitConj(q);
-	real4 _v = real4{v.x, v.y, v.z, 0};
-	real4 vres = quatMul(quatMul(q, _v), qInv);
-	return T{vres.x, vres.y, vres.z};
-}
-
-
-template<
-	int side,
-	typename T,
-	typename N,
-	std::enable_if_t<is_tensor_v<T> && is_tensor_v<N> && N::rank == 1 && N::template dim<0> == 3, int>
->
-constexpr auto rotateToInDim<1, T, N>(
-	T const v,
-	N const n
-) {
-	return *this;
+	return RotateFromInDimImpl<dim, T, N>::go(v, n);
 }
 
 template<
 	int side,
 	typename T,
-	typename N,
-	std::enable_if_t<is_tensor_v<T> && is_tensor_v<N> && N::rank == 1 && N::template dim<0> == 3, int>
+	typename N
 >
-constexpr auto rotateToInDim<2, T, N>(
-	T const v,
-	N const n
-) {
-	return T{
-		v.x * n.x - v.y * n.y,
-		v.x * n.y + v.y * n.x,
-		v.z};
-}
+struct RotateToInDimImpl {};
+
+template<
+	typename T,
+	typename N
+>
+struct RotateToInDimImpl<1, T, N> {
+	static constexpr auto go(
+		T const & v,
+		N const & n,
+		std::enable_if_t<is_tensor_v<T> && is_tensor_v<N> && N::rank == 1 && N::template dim<0> == 3>* = nullptr
+	) {
+		return v;
+	}
+};
+
+template<
+	typename T,
+	typename N
+>
+struct RotateToInDimImpl<2, T, N> {
+	static constexpr auto go(
+		T const & v,
+		N const & n,
+		std::enable_if_t<is_tensor_v<T> && is_tensor_v<N> && N::rank == 1 && N::template dim<0> == 3>* = nullptr
+	) {
+		return T{
+			v.x * n.x - v.y * n.y,
+			v.x * n.y + v.y * n.x,
+			v.z};
+	}
+};
 
 //// MODULE_DEPENDS: quat
 template<
+	typename T,
+	typename N
+>
+struct RotateToInDimImpl<3, T, N> {
+	static constexpr auto go(
+		T const & v,
+		N const & n,
+		std::enable_if_t<is_tensor_v<T> && is_tensor_v<N> && N::rank == 1 && N::template dim<0> == 3>* = nullptr
+	) {
+		using Scalar = typename T::Scalar;
+		//same as above but with negative axis
+		Scalar cosTheta = n.x;
+		Scalar cosHalfTheta = sqrt(.5 * (1. + cosTheta));
+		Scalar sinHalfTheta = sqrt(1. - cosHalfTheta * cosHalfTheta);
+		Scalar n2 = sqrt(n.y * n.y + n.z * n.z);
+		Scalar ax = 0.;
+		Scalar ay = n.z / n2;
+		Scalar az = -n.y / n2;
+		real4 q = real4{ax * sinHalfTheta, ay * sinHalfTheta, az * sinHalfTheta, cosHalfTheta};
+		real4 qInv = quatUnitConj(q);
+		real4 _v = real4{v.x, v.y, v.z, 0};
+		real4 vres = quatMul(quatMul(q, _v), qInv);
+		return T{vres.x, vres.y, vres.z};
+	}
+};
+
+template<
 	int side,
 	typename T,
-	typename N,
-	std::enable_if_t<is_tensor_v<T> && is_tensor_v<N> && N::rank == 1 && N::template dim<0> == 3, int>
+	typename N
 >
-constexpr auto rotateToInDim<3, T, N>(
-	T const v,
-	N const n
+constexpr auto rotateToInDim(
+	T const & v,
+	N const & n,
+	std::enable_if_t<is_tensor_v<T> && is_tensor_v<N> && N::rank == 1 && N::template dim<0> == 3>*
 ) {
-	using Scalar = typename T::Scalar;
-	//same as above but with negative axis
-	Scalar cosTheta = n.x;
-	Scalar cosHalfTheta = sqrt(.5 * (1. + cosTheta));
-	Scalar sinHalfTheta = sqrt(1. - cosHalfTheta * cosHalfTheta);
-	Scalar n2 = sqrt(n.y * n.y + n.z * n.z);
-	Scalar ax = 0.;
-	Scalar ay = n.z / n2;
-	Scalar az = -n.y / n2;
-	real4 q = real4{ax * sinHalfTheta, ay * sinHalfTheta, az * sinHalfTheta, cosHalfTheta};
-	real4 qInv = quatUnitConj(q);
-	real4 _v = real4{x, y, z, 0};
-	real4 vres = quatMul(quatMul(q, _v), qInv);
-	return T{vres.x, vres.y, vres.z};
+	return RotateToInDimImpl<side, T, N>::go(v, n);
 }
 
 #endif
