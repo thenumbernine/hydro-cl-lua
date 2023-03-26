@@ -148,12 +148,12 @@ static constexpr bool IsBinaryTensorR3xR3Op = IsBinaryTensorOp<A,B>
 
 template<
 	typename A,
-	typename B,
-	std::enable_if_t<IsBinaryTensorOp<A,B>, int> = 0
+	typename B
 >
 auto dot(
 	A const & a,
 	B const & b
+	std::enable_if_t<IsBinaryTensorOp<A,B>, int>* = nullptr
 );
 
 template<
@@ -373,11 +373,11 @@ union vec3 {
 
 
 	template<
-		typename B,
-		std::enable_if_t<IsBinaryTensorOp<This,B>, int> = 0
+		typename B
 	>
 	auto dot(
-		B const & b
+		B const & b,
+		std::enable_if_t<IsBinaryTensorOp<This,B>, int>* = nullptr
 	) const {
 		return ::dot(*this, b);
 	}
@@ -574,12 +574,12 @@ decltype(auto) conj(T const t) { return t; }
 
 template<
 	typename A,
-	typename B,
-	std::enable_if_t<IsBinaryTensorOp<A,B>, int>
+	typename B
 >
 auto dot(
 	A const & a,
-	B const & b
+	B const & b,
+	std::enable_if_t<IsBinaryTensorOp<A,B>, int>*
 ) {
 	return a.x * conj(b.x)
 		+ a.y * conj(b.y)
