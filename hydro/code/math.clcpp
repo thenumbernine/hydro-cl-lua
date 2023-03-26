@@ -254,131 +254,217 @@ constexpr auto rotateToInDim(
 	std::enable_if_t<is_tensor_v<T> && is_tensor_v<N> && N::rank == 1 && N::template dim<0> == 3>* = nullptr
 );
 
-template<typename Inner_>
-union vec3 {
-	using This = vec3;
-	using Inner = Inner_;
+#define TENSOR_THIS(classname)\
+	using This = classname;\
 	static constexpr bool isTensorFlag = true;
 
-	// TODO instead just count # of tuples in the nested args
-	// but ... I need tuples for that ...
+#define TENSOR_SET_INNER_LOCALDIM_LOCALRANK(Inner_, localDim_, localRank_)\
+	using Inner = Inner_;\
+	static constexpr int localDim = localDim_;\
+	static constexpr int localRank = localRank_;
 
-	struct NestedScalarImpl {
-		static constexpr auto value() {
-			if constexpr (is_tensor_v<Inner>) {
-				return Inner::NestedScalarImpl::value();
-			} else {
-				return (Inner*){};
-			}
-		}
-		using type = decltype(value());
-	};
+#define TENSOR_HEADER_VECTOR(classname, Inner_, localDim_)\
+	TENSOR_THIS(classname)\
+	TENSOR_SET_INNER_LOCALDIM_LOCALRANK(Inner_, localDim_, 1)
+
+#define TENSOR_ADD_SCALAR_IMPL(classname)\
+	/* TODO instead just count # of tuples in the nested args */\
+	/* but ... I need tuples for that ... */\
+	struct NestedScalarImpl {\
+		static constexpr auto value() {\
+			if constexpr (is_tensor_v<Inner>) {\
+				return Inner::NestedScalarImpl::value();\
+			} else {\
+				return (Inner*){};\
+			}\
+		}\
+		using type = decltype(value());\
+	};\
 	using Scalar = typename std::remove_pointer_t<typename NestedScalarImpl::type>;
 
-	struct NestedRankImpl {
-		static constexpr int value() {
-			if constexpr (is_tensor_v<Inner>) {
-				return Inner::NestedRankImpl::value()+1;
-			} else {
-				return 1;
-			}
-		}
-	};
+#define TENSOR_ADD_RANK_IMPL(classname)\
+	struct NestedRankImpl {\
+		static constexpr int value() {\
+			if constexpr (is_tensor_v<Inner>) {\
+				return Inner::NestedRankImpl::value() + localRank;\
+			} else {\
+				return localRank;\
+			}\
+		}\
+	};\
 	static constexpr int rank = NestedRankImpl::value();
+
+#define TENSOR_ADD_CTORS(classname)\
+	/*default construuctor*/\
+	constexpr classname()\
+	:	x(Inner{}),\
+		y(Inner{}),\
+		z(Inner{})\
+	{}\
+\
+	/*argument constructor*/\
+	constexpr classname(\
+		Inner const & x_,\
+		Inner const & y_,\
+		Inner const & z_\
+	) : x(x_), y(y_), z(z_) {}\
+\
+	/*scalar constructor*/\
+	constexpr classname(Scalar const & s)\
+	:	x(s),\
+		y(s),\
+		z(s)\
+	{}\
+\
+	/*tensor/tensor construction*/\
+	template<\
+		typename U,\
+		std::enable_if_t<U::rank == rank, int> = 0\
+	>\
+	constexpr classname(U const & u) \
+	:	x(u.x),\
+		y(u.y),\
+		z(u.z) {}\
+\
+/*\
+#if 0\
+	// TODO needs Common stuff, tuples, functions, apply, write-iterator\
+	template<\
+		typename Lambda,\
+		std::enable_if_t<\
+			std::is_same_v<\
+				Common::FunctionFromLambda<Lambda>,\
+				Common::FunctionFromTupleArgs<Scalar, Common::tuple_rep_t<int, rank>>\
+			>\
+		, int> = 0\
+	>\
+	constexpr vec3(Lambda lambda) {\
+		using Func = typename Common::FunctionFromLambda<Lambda>::FuncType;\
+		Func f(lambda);\
+		auto w = write();\
+		for (auto i = w.begin(); i != w.end(); ++i) {\
+			*i = std::apply(f, i.readIndex.s);\
+		}\
+	}\
+#elif 0\
+// until then I can just use fixed-signature per-rank\
+// but I'll still need the FunctionFromLambda ...\
+	template<\
+		typename Lambda,\
+		std::enable_if_t<\
+			rank == 1\
+			//&& is_callable<Lambda>	//TODO implement this\
+		, int> = 0\
+	>\
+	constexpr vec3(Lambda lambda) {\
+	}\
+#endif\
+*/\
+
+
+#define TENSOR_ADD_VECTOR_OP_EQ(op)\
+	constexpr This & operator op(This const & b) {\
+		s[0] op b.s[0];\
+		s[1] op b.s[1];\
+		s[2] op b.s[2];\
+		return *this;\
+	}
+
+#define TENSOR_ADD_SCALAR_OP_EQ(op)\
+	constexpr This & operator op(Scalar const & b) {\
+		s[0] op b;\
+		s[1] op b;\
+		s[2] op b;\
+		return *this;\
+	}
+
+#define TENSOR_ADD_UNARY(op)\
+	constexpr This operator op() const {\
+		This result;\
+		result.s[0] = op s[0];\
+		result.s[1] = op s[1];\
+		result.s[2] = op s[2];\
+		return result;\
+	}
+
+#define TENSOR_ADD_CMP_OP()\
+	constexpr bool operator==(This const & b) const {\
+		return s[0] == b.s[0]\
+			&& s[1] == b.s[1]\
+			&& s[2] == b.s[2];\
+	}\
+	constexpr bool operator!=(This const & b) const {\
+		return !operator==(b);\
+	}
+
+#define TENSOR_ADD_MATH_MEMBER_FUNCS()\
+	template<\
+		typename B\
+	>\
+	auto dot(\
+		B const & b,\
+		std::enable_if_t<IsBinaryTensorOp<This,B>>* = nullptr\
+	) const {\
+		return ::dot(*this, b);\
+	}\
+\
+	auto lenSq() const {\
+		return ::lenSq(*this);\
+	}\
+\
+	auto length() const {\
+		return ::length(*this);\
+	}\
+\
+	template<\
+		typename B\
+	>\
+	auto distance(\
+		B const & b,\
+		std::enable_if_t<IsBinaryTensorOp<This,B>>* = nullptr\
+	) const {\
+		return ::distance(*this, b);\
+	}\
+\
+	auto normalize() const {\
+		return ::normalize(*this);\
+	}
+
+#define TENSOR_ADD_OPS(classname)\
+	TENSOR_ADD_CTORS(classname)\
+	TENSOR_ADD_VECTOR_OP_EQ(+=)\
+	TENSOR_ADD_VECTOR_OP_EQ(-=)\
+	TENSOR_ADD_VECTOR_OP_EQ(*=)\
+	TENSOR_ADD_VECTOR_OP_EQ(/=)\
+	TENSOR_ADD_SCALAR_OP_EQ(+=)\
+	TENSOR_ADD_SCALAR_OP_EQ(-=)\
+	TENSOR_ADD_SCALAR_OP_EQ(*=)\
+	TENSOR_ADD_SCALAR_OP_EQ(/=)\
+	TENSOR_ADD_UNARY(-)\
+	TENSOR_ADD_CMP_OP()\
+	TENSOR_ADD_MATH_MEMBER_FUNCS()
+
+#define TENSOR_VECTOR_CLASS_OPS(classname)\
+	TENSOR_ADD_SCALAR_IMPL(classname)\
+	TENSOR_ADD_RANK_IMPL(classname)\
+	TENSOR_ADD_OPS(classname)
+
+template<typename Inner_>
+union vec3 {
+	TENSOR_HEADER_VECTOR(vec3, Inner_, 1)
+	
+	TENSOR_VECTOR_CLASS_OPS(vec3)
 
 	// TODO arbitrary-dimension
 	template<int dimIndex>
-	static constexpr int dim = 3;
+	static constexpr int dim = localDim;
+
+	template<typename R>
+	using ReplaceScalar = vec3<R>;
 
 	Inner s[3];
 	struct { Inner s0, s1, s2; };
 	struct { Inner x = {}, y = {}, z = {}; };
-
-	//default construuctor
-	constexpr vec3()
-	:	x(Inner{}),
-		y(Inner{}),
-		z(Inner{})
-	{}
-
-	//argument constructor
-	constexpr vec3(
-		Inner const & x_,
-		Inner const & y_,
-		Inner const & z_
-	) : x(x_), y(y_), z(z_) {}
-
-	//scalar constructor
-	constexpr vec3(Scalar const & s)
-	:	x(s),
-		y(s),
-		z(s)
-	{}
-
-	//tensor/tensor construction
-	template<
-		typename U,
-		std::enable_if_t<U::rank == rank, int> = 0
-	>
-	constexpr vec3(U const & u) 
-	:	x(u.x),
-		y(u.y),
-		z(u.z) {}
-
-#if 0
-	// TODO needs Common stuff, tuples, functions, apply, write-iterator
-	template<
-		typename Lambda,
-		std::enable_if_t<
-			std::is_same_v<
-				Common::FunctionFromLambda<Lambda>,
-				Common::FunctionFromTupleArgs<Scalar, Common::tuple_rep_t<int, rank>>
-			>
-		, int> = 0
-	>
-	constexpr vec3(Lambda lambda) {
-		using Func = typename Common::FunctionFromLambda<Lambda>::FuncType;
-		Func f(lambda);
-		auto w = write();
-		for (auto i = w.begin(); i != w.end(); ++i) {
-			*i = std::apply(f, i.readIndex.s);
-		}
-	}
-#elif 0
-// until then I can just use fixed-signature per-rank
-// but I'll still need the FunctionFromLambda ...
-	template<
-		typename Lambda,
-		std::enable_if_t<
-			rank == 1
-			//&& is_callable<Lambda>	//TODO implement this
-		, int> = 0
-	>
-	constexpr vec3(Lambda lambda) {
-	}
-#endif
-
-	constexpr vec3 & operator+=(
-		vec3 const & b
-	) {
-		x += b.x;
-		y += b.y;
-		z += b.z;
-		return *this;
-	}
-
-	constexpr vec3 & operator-=(
-		vec3 const & b
-	) {
-		x -= b.x;
-		y -= b.y;
-		z -= b.z;
-		return *this;
-	}
-
-	vec3 operator-() const {
-		return vec3(-x, -y, -z);
-	}
 
 	constexpr Inner & operator[](int i) { return s[i]; }
 	constexpr Inner const & operator[](int i) const { return s[i]; }
@@ -386,41 +472,6 @@ union vec3 {
 	constexpr constant Inner & operator[](int i) constant { return s[i]; }
 	constexpr constant Inner const & operator[](int i) constant const { return s[i]; }
 
-	template<typename R>
-	using ReplaceScalar = vec3<R>;
-
-
-	template<
-		typename B
-	>
-	auto dot(
-		B const & b,
-		std::enable_if_t<IsBinaryTensorOp<This,B>>* = nullptr
-	) const {
-		return ::dot(*this, b);
-	}
-
-	auto lenSq() const {
-		return ::lenSq(*this);
-	}
-
-	auto length() const {
-		return ::length(*this);
-	}
-
-	template<
-		typename B
-	>
-	auto distance(
-		B const & b,
-		std::enable_if_t<IsBinaryTensorOp<This,B>>* = nullptr
-	) const {
-		return ::distance(*this, b);
-	}
-
-	auto normalize() const {
-		return ::normalize(*this);
-	}
 
 	// the following are 3D specific:
 
@@ -1037,6 +1088,29 @@ inline real lenSq(real const x) { return x * x; }
 //// MODULE_DEPENDS: vec3
 using real3 = vec3<real>;
 //// END EXCLUDE FROM FFI_CDEF
+
+//// MODULE_NAME: sym3
+//// MODULE_DEPENDS: vec3
+//// MODULE_TYPE:
+
+
+#define TENSOR_HEADER_SYMMETRIC_MATRIX(classname, Inner_, localDim_)\
+	TENSOR_THIS(classname)\
+	TENSOR_SET_INNER_LOCALDIM_LOCALRANK(Inner_, localDim_, 2)
+
+template<typename Inner_>
+union sym3 {
+	TENSOR_HEADER_SYMMETRIC_MATRIX(sym3, Inner_, 3)
+
+	struct {
+		Inner xx, xy, xz, yy, yz, zz;
+	};
+	struct {
+		Inner s00, s01, s02, s11, s12, s22;
+	};
+	Inner s[6];
+
+};
 
 //// MODULE_NAME: real3s3
 //// MODULE_DEPENDS: real3
