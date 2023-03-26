@@ -119,7 +119,7 @@ void calcDTCell(
 	global <?=cell_t?> const * const cell
 ) {
 	real3 const x = cell->pos;
-	sym3 const gammaU = coord_g_uu(x);
+	real3s3 const gammaU = coord_g_uu(x);
 
 	<?=prim_only_t?> primOnly;
 	primOnlyFromCons(&primOnly, solver, U, x);
@@ -200,7 +200,7 @@ kernel void calcEigenBasis(
 		
 		real3 xInt = x;
 		xInt.s<?=side?> -= .5 * solver->grid_dx.s<?=side?>;
-		sym3 gammaU = coord_g_uu(xInt);
+		real3s3 gammaU = coord_g_uu(xInt);
 
 <? if true then -- arithmetic averaging ?>
 		<?=prim_t?> avg = (<?=prim_t?>){
@@ -313,8 +313,8 @@ void eigen_leftTransform(
 
 	<?=prefix?>
 	real const gammaDet = coord_sqrt_det_g(solver, x);
-	sym3 const gammaL = coord_g_ll(x);
-	sym3 const gammaU = coord_g_uu(x);
+	real3s3 const gammaL = coord_g_ll(x);
+	real3s3 const gammaU = coord_g_uu(x);
 
 	real3 const vL = coord_lower(v, x);
 	real const vxSq = v.x * v.x;
@@ -388,7 +388,7 @@ void eigen_rightTransform(
 	real3 const x
 ) {
 	<?=prefix?>
-	sym3 const gammaL = coord_g_ll(x);
+	real3s3 const gammaL = coord_g_ll(x);
 	
 	real3 const vL = coord_lower(v, x);
 	real const hW = h * W;

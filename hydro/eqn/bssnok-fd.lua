@@ -200,7 +200,7 @@ void <?=calcDTCell?>(
 	real3 const x = cell->pos;
 
 <? if eqn.cflMethod == '2008 Alcubierre' then
-?>	sym3 gamma_uu = <?=calc_gamma_uu?>(U, x);
+?>	real3s3 gamma_uu = <?=calc_gamma_uu?>(U, x);
 <? end 
 ?>
 	<? for side=0,solver.dim-1 do ?>{
@@ -266,66 +266,66 @@ value.vreal = calc_dalpha_f(U->alpha);
 			name = 'gammaHat_ll',
 			code = self:template[[
 //// MODULE_DEPENDS: <?=calc_gammaHat_ll?>
-value.vsym3 = <?=calc_gammaHat_ll?>(x);
+value.vreal3s3 = <?=calc_gammaHat_ll?>(x);
 ]],
-			type = 'sym3',
+			type = 'real3s3',
 		},
 		{
 			name = 'gammaHat_uu',
 			code = self:template[[
 //// MODULE_DEPENDS: <?=calc_gammaHat_uu?>
-value.vsym3 = <?=calc_gammaHat_uu?>(x);
+value.vreal3s3 = <?=calc_gammaHat_uu?>(x);
 ]],
-			type = 'sym3',
+			type = 'real3s3',
 		},
 		{
 			name = 'gammaBar_ll',
 			code = self:template[[
 //// MODULE_DEPENDS: <?=calc_gammaBar_ll?>
-value.vsym3 = <?=calc_gammaBar_ll?>(U, x);
+value.vreal3s3 = <?=calc_gammaBar_ll?>(U, x);
 ]],
-			type = 'sym3',
+			type = 'real3s3',
 		},
 		{
 			name = 'gammaBar_uu',
 			code = self:template[[
 //// MODULE_DEPENDS: <?=calc_gammaBar_uu?>
-value.vsym3 = <?=calc_gammaBar_uu?>(U, x);
+value.vreal3s3 = <?=calc_gammaBar_uu?>(U, x);
 ]],
-			type = 'sym3',
+			type = 'real3s3',
 		},
 		{
 			name = 'gammaBar_LL',
 			code = self:template[[
 //// MODULE_DEPENDS: <?=calc_gammaBar_LL?>
-value.vsym3 = <?=calc_gammaBar_LL?>(U, x);
+value.vreal3s3 = <?=calc_gammaBar_LL?>(U, x);
 ]],
-			type = 'sym3',
+			type = 'real3s3',
 		},
 		{
 			name = 'gammaBar_UU',
 			code = self:template[[
 //// MODULE_DEPENDS: <?=calc_gammaBar_UU?>
-value.vsym3 = <?=calc_gammaBar_UU?>(U, x);
+value.vreal3s3 = <?=calc_gammaBar_UU?>(U, x);
 ]],
-			type = 'sym3',
+			type = 'real3s3',
 		},
 		{
 			name = 'K_ll',
 			code = self:template[[
 real exp_4phi = 1. / <?=calc_exp_neg4phi?>(U);
-sym3 gammaBar_ll = <?=calc_gammaBar_ll?>(U, x);
-value.vsym3 = sym3_real_mul(
-	sym3_add(
-		sym3_rescaleToCoord_LL(U->ABar_LL, x),
-		sym3_real_mul(gammaBar_ll, U->K / 3.)
+real3s3 gammaBar_ll = <?=calc_gammaBar_ll?>(U, x);
+value.vreal3s3 = real3s3_real_mul(
+	real3s3_add(
+		real3s3_rescaleToCoord_LL(U->ABar_LL, x),
+		real3s3_real_mul(gammaBar_ll, U->K / 3.)
 	), exp_4phi);
 ]],
-			type = 'sym3',
+			type = 'real3s3',
 		},
 
 		{name='det gammaBar - det gammaHat', code = self:template[[
-value.vreal = sym3_det(<?=calc_gammaBar_ll?>(U, x)) - <?=calc_det_gammaBar?>(x);
+value.vreal = real3s3_det(<?=calc_gammaBar_ll?>(U, x)) - <?=calc_det_gammaBar?>(x);
 ]]},
 		{name='det gamma based on phi', code = self:template[[
 real exp_neg4phi = <?=calc_exp_neg4phi?>(U);
@@ -350,7 +350,7 @@ function BSSNOKFiniteDifferenceEquationBase:createDisplayComponents()
 int index = INDEXV(solver, i);
 real3 x = cellBuf[index].pos;
 global <?=cons_t?> const * const U = buf + index;
-sym3 gammaBar_LL = <?=calc_gammaBar_LL?>(U, x);
+real3s3 gammaBar_LL = <?=calc_gammaBar_LL?>(U, x);
 value->vreal = real3_weightedLen(value->vreal3, gammaBar_LL);]],
 	})
 	solver:addDisplayComponent('real3', {
@@ -360,28 +360,28 @@ value->vreal = real3_weightedLen(value->vreal3, gammaBar_LL);]],
 int index = INDEXV(solver, i);
 real3 x = cellBuf[index].pos;
 global <?=cons_t?> const * const U = buf + index;
-sym3 gammaBar_ll = <?=calc_gammaBar_ll?>(U, x);
+real3s3 gammaBar_ll = <?=calc_gammaBar_ll?>(U, x);
 value->vreal = real3_weightedLen(value->vreal3, gammaBar_ll);]],
 	})
-	solver:addDisplayComponent('sym3', {
+	solver:addDisplayComponent('real3s3', {
 		onlyFor = 'U',
 		name = 'tr weighted gamma^IJ',
 		code = self:template[[
 int index = INDEXV(solver, i);
 real3 x = cellBuf[index].pos;
 global <?=cons_t?> const * const U = buf + index;
-sym3 gamma_UU = sym3_rescaleFromCoord_uu(<?=calc_gamma_uu?>(U, x), x);
-value->vreal = sym3_dot(value->vsym3, gamma_UU);]],
+real3s3 gamma_UU = real3s3_rescaleFromCoord_uu(<?=calc_gamma_uu?>(U, x), x);
+value->vreal = real3s3_dot(value->vreal3s3, gamma_UU);]],
 	})
-	solver:addDisplayComponent('sym3', {
+	solver:addDisplayComponent('real3s3', {
 		onlyFor = 'U',
 		name = 'tr weighted gammaBar^IJ',
 		code = self:template[[
 int index = INDEXV(solver, i);
 real3 x = cellBuf[index].pos;
 global <?=cons_t?> const * const U = buf + index;
-sym3 gammaBar_UU = <?=calc_gammaBar_UU?>(U, x);
-value->vreal = sym3_dot(value->vsym3, gammaBar_UU);]],
+real3s3 gammaBar_UU = <?=calc_gammaBar_UU?>(U, x);
+value->vreal = real3s3_dot(value->vreal3s3, gammaBar_UU);]],
 	})
 end
 

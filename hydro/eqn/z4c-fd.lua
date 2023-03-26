@@ -40,11 +40,11 @@ function Z4cFiniteDifferenceEquation:init(args)
 	local intVars = table{
 		{name='alpha', type='real'},			-- 1
 		{name='beta_u', type='real3'},         -- 3: beta^i
-		{name='epsilon_ll', type='sym3'},		-- 6: epsilon_ij = gammaBar_ij - gammaHat_ij, where gammaHat_ij = grid metric. This has only 5 dof since det gammaBar_ij = 1
+		{name='epsilon_ll', type='real3s3'},		-- 6: epsilon_ij = gammaBar_ij - gammaHat_ij, where gammaHat_ij = grid metric. This has only 5 dof since det gammaBar_ij = 1
 		{name='chi', type='real'},				-- 1
 		{name='KHat', type='real'},			-- 1
 		{name='Theta', type='real'},			-- 1
-		{name='ABar_ll', type='sym3'},       	-- 6: ABar_ij, only 5 dof since ABar^k_k = 0
+		{name='ABar_ll', type='real3s3'},       	-- 6: ABar_ij, only 5 dof since ABar^k_k = 0
 		{name='Delta_u', type='real3'},      	-- 3: Delta^i = gammaBar^jk Delta^i_jk
 	}
 
@@ -57,20 +57,20 @@ function Z4cFiniteDifferenceEquation:init(args)
 	:append{
 		--hyperbolic variables:
 		--real3 a;			//3: a_i
-		--_3sym3 dBar;		//18: dBar_ijk, only 15 dof since dBar_ij^j = 0
+		--real3x3s3 dBar;		//18: dBar_ijk, only 15 dof since dBar_ij^j = 0
 		--real3 Phi;			//3: Phi_i
 
 		--stress-energy variables:
 		{name='rho', type='real'},			--1: n_a n_b T^ab
 		{name='S_u', type='real3'},			--3: -gamma^ij n_a T_aj
-		{name='S_ll', type='sym3'},			--6: gamma_i^c gamma_j^d T_cd
+		{name='S_ll', type='real3s3'},			--6: gamma_i^c gamma_j^d T_cd
 
 		--constraints:
 		{name='H', type='real'},			--1
 		{name='M_u', type='real3'},			--3
 
 		-- aux variable
-		{name='gammaBar_uu', type='sym3'},	--6
+		{name='gammaBar_uu', type='real3s3'},	--6
 	}
 	self.numIntStates = Struct.countScalars{vars=intVars}
 
@@ -116,7 +116,7 @@ function Z4cFiniteDifferenceEquation:getDisplayVars()
 	local vars = Z4cFiniteDifferenceEquation.super.getDisplayVars(self)
 
 	vars:insert{name='det gammaBar - det gammaHat', code = self:template[[
-	value.vreal = sym3_det(<?=calc_gammaBar_ll?>(U, x)) - calc_det_gammaBar_ll(x);
+	value.vreal = real3s3_det(<?=calc_gammaBar_ll?>(U, x)) - calc_det_gammaBar_ll(x);
 ]]}	-- for logarithmic displays
 	vars:insert{name='det gamma_ij based on phi', code = self:template[[
 	real exp_neg4phi = <?=calc_exp_neg4phi?>(U);
@@ -125,7 +125,7 @@ function Z4cFiniteDifferenceEquation:getDisplayVars()
 	
 	local derivOrder = 2 * self.solver.numGhost
 	vars:append{
-		{name='S', code='value.vreal = sym3_dot(U->S_ll, <?=calc_gamma_uu?>(U, x));'},
+		{name='S', code='value.vreal = real3s3_dot(U->S_ll, <?=calc_gamma_uu?>(U, x));'},
 		{name='volume', code='value.vreal = U->alpha * calc_det_gamma_ll(U, x);'},
 	
 --[[ expansion:
@@ -164,15 +164,15 @@ end ?>;
 	real exp_4phi = 1. / <?=calc_exp_neg4phi?>(U);
 
 	//gamma_ij = exp(4 phi) gammaBar_ij
-	sym3 gamma_ll = sym3_real_mul(<?=calc_gammaBar_ll?>(U, x), exp_4phi);
+	real3s3 gamma_ll = real3s3_real_mul(<?=calc_gammaBar_ll?>(U, x), exp_4phi);
 
 	//K = KHat + 2 Theta
 	real K = U->KHat + 2. * U->Theta;
 
 	//K_ij = exp(4 phi) ABar_ij + 1/3 gamma_ij K 
-	sym3 K_ll = sym3_add(
-		sym3_real_mul(U->ABar_ll, exp_4phi),
-		sym3_real_mul(gamma_ll, K/3.));
+	real3s3 K_ll = real3s3_add(
+		real3s3_real_mul(U->ABar_ll, exp_4phi),
+		real3s3_real_mul(gamma_ll, K/3.));
 
 	value.vreal = -tr_partial_beta / U->alpha
 <? 
@@ -196,10 +196,10 @@ end
 		{name='gamma_ll', code = self:template[[
 	{
 		real exp_4phi = 1. / <?=calc_exp_neg4phi?>(U);
-		sym3 gammaBar_ll = <?=calc_gammaBar_ll?>(U, x);
-		value.vsym3 = sym3_real_mul(gammaBar_ll, exp_4phi);
+		real3s3 gammaBar_ll = <?=calc_gammaBar_ll?>(U, x);
+		value.vreal3s3 = real3s3_real_mul(gammaBar_ll, exp_4phi);
 	}
-]], type='sym3'},
+]], type='real3s3'},
 	
 		-- K_ij = exp(4 phi) ABar_ij + K/3 gamma_ij  
 		-- gamma_ij = exp(4 phi) gammaBar_ij
@@ -207,13 +207,13 @@ end
 		{name='K_ll', code = self:template[[
 	real exp_4phi = 1. / <?=calc_exp_neg4phi?>(U);
 	real K = U->KHat + 2. * U->Theta;
-	sym3 gammaBar_ll = <?=calc_gammaBar_ll?>(U, x);
-	value.vsym3 = sym3_real_mul(
-		sym3_add(
+	real3s3 gammaBar_ll = <?=calc_gammaBar_ll?>(U, x);
+	value.vreal3s3 = real3s3_real_mul(
+		real3s3_add(
 			U->ABar_ll,
-			sym3_real_mul(gammaBar_ll, K / 3.)
+			real3s3_real_mul(gammaBar_ll, K / 3.)
 		), exp_4phi);
-]], type='sym3'},
+]], type='real3s3'},
 
 --[=[ TODO FIXME
 		--[[ ADM geodesic equation spatial terms:
@@ -251,41 +251,41 @@ end
 
 	//gammaBar_ij = gammaHat_ij + epsilon_ij
 	//gammaBar_ij,k = epsilon_ij,k for static meshes
-	<?=makePartial1('epsilon_ll', 'sym3')?>
+	<?=makePartial1('epsilon_ll', 'real3s3')?>
 
 	//chi = exp(-4 phi)
 	real _1_chi = 1. / U->chi;
 	
 	//gamma_ij = 1/chi gammaBar_ij
-	sym3 gammaBar_ll = <?=calc_gammaBar_ll?>(U, x);
-	sym3 gamma_ll = sym3_real_mul(gammaBar_ll, _1_chi);
+	real3s3 gammaBar_ll = <?=calc_gammaBar_ll?>(U, x);
+	real3s3 gamma_ll = real3s3_real_mul(gammaBar_ll, _1_chi);
 	
 	//gamma_ij,k = 1/chi gammaBar_ij,k - chi,k / chi^2 gammaBar_ij
 	<?=makePartial1('chi', 'real')?>
-	_3sym3 partial_gamma_lll = {
+	real3x3s3 partial_gamma_lll = {
 <? for i,xi in ipairs(xNames) do
-?>		.<?=xi?> = sym3_sub(
-			sym3_real_mul(partial_epsilon_lll[<?=i-1?>], _1_chi),
-			sym3_real_mul(gammaBar_ll, partial_chi_l[<?=i-1?>] * _1_chi * _1_chi)),
+?>		.<?=xi?> = real3s3_sub(
+			real3s3_real_mul(partial_epsilon_lll[<?=i-1?>], _1_chi),
+			real3s3_real_mul(gammaBar_ll, partial_chi_l[<?=i-1?>] * _1_chi * _1_chi)),
 <? end
 ?>	};
 
 	//TODO
 	real dt_alpha = 0.;
-	sym3 dt_gamma_ll = sym3_zero;
+	real3s3 dt_gamma_ll = real3s3_zero;
 
 
 	real _1_alpha = 1. / U->alpha;
 
-	sym3 gamma_uu = <?=calc_gamma_uu?>(U, x);
-	real3 partial_alpha_u = sym3_real3_mul(gamma_uu, *(real3*)partial_alpha_l);		//alpha_,j gamma^ij = alpha^,i
+	real3s3 gamma_uu = <?=calc_gamma_uu?>(U, x);
+	real3 partial_alpha_u = real3s3_real3_mul(gamma_uu, *(real3*)partial_alpha_l);		//alpha_,j gamma^ij = alpha^,i
 	real partial_alpha_dot_beta = real3_dot(U->beta_u, *(real3*)partial_alpha_l);	//beta^j alpha_,j
 
-	real3 beta_l = sym3_real3_mul(gamma_ll, U->beta_u);								//beta^j gamma_ij
-	real3 beta_dt_gamma_l = sym3_real3_mul(dt_gamma_ll, U->beta_u);					//beta^j gamma_ij,t
+	real3 beta_l = real3s3_real3_mul(gamma_ll, U->beta_u);								//beta^j gamma_ij
+	real3 beta_dt_gamma_l = real3s3_real3_mul(dt_gamma_ll, U->beta_u);					//beta^j gamma_ij,t
 	real beta_beta_dt_gamma = real3_dot(U->beta_u, beta_dt_gamma_l);				//beta^i beta^j gamma_ij,t
 	
-	real3 beta_dt_gamma_u = sym3_real3_mul(gamma_uu, beta_dt_gamma_l);				//gamma^ij gamma_jk,t beta^k
+	real3 beta_dt_gamma_u = real3s3_real3_mul(gamma_uu, beta_dt_gamma_l);				//gamma^ij gamma_jk,t beta^k
 
 	//beta^i beta^j beta^k gamma_ij,k
 	real beta_beta_beta_partial_gamma = 0.<?
@@ -304,7 +304,7 @@ end ?>;
 	real beta_beta_dbeta = real3_dot(U->beta_u, beta_dbeta_l);
 
 	//beta_j beta^j_,k gamma^ik
-	real3 beta_dbeta_u = sym3_real3_mul(gamma_uu, beta_dbeta_l);
+	real3 beta_dbeta_u = real3s3_real3_mul(gamma_uu, beta_dbeta_l);
 
 	//gamma_kl,j beta^k beta^l
 	real3 beta_beta_dgamma_l = (real3){
@@ -313,7 +313,7 @@ end ?>;
 <? end
 ?>	};
 
-	real3 beta_beta_dgamma_u = sym3_real3_mul(gamma_uu, beta_beta_dgamma_l);
+	real3 beta_beta_dgamma_u = real3s3_real3_mul(gamma_uu, beta_beta_dgamma_l);
 
 <? for i,xi in ipairs(xNames) do
 ?>	value_real3->s<?=i-1?> = -partial_alpha_u.<?=xi?>

@@ -133,7 +133,7 @@ or I could factor our momentum and density ...
 		real3_real_mul(ppUL->m, 1. / (ppUL->rho * dx))
 	)
 
-	sym3 tau_uu = 
+	real3s3 tau_uu = 
 ]]
 end
 

@@ -409,7 +409,7 @@ kernel void <?=addSource?>(
 	// diffusion? 
 	// of the difference of the height and the sea floor? 
 	// what can save this simulation?
-//// MODULE_DEPENDS: sym3
+//// MODULE_DEPENDS: real3s3
 <?=eqn:makePartial2'h'?>
 <?=eqn:makePartial2("depth", "real", nil, getDepthSource())?>
 	deriv->h -= .0002 * (partial2_h_ll.xx - partial2_depth_ll.xx);

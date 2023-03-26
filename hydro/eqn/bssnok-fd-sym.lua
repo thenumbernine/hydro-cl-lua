@@ -45,8 +45,8 @@ function BSSNOKFiniteDifferenceEquation:init(args)
 		{name='beta_U', type='real3'},		 	-- 3:	3: beta^i
 		{name='B_U', type='real3'},				-- 6:	3: B^i ... only used with HyperbolicGammaDriver
 		{name='LambdaBar_U', type='real3'},		-- 9:	3: LambdaBar^i = C^i + Delta^i = C^i + gammaBar^jk (connBar^i_jk - connHat^i_jk)
-		{name='epsilon_LL', type='sym3'},		-- 12:	6: gammaBar_ij - gammaHat_ij, only 5 dof since det gammaBar_ij = 1
-		{name='ABar_LL', type='sym3'},			-- 18:	6: ABar_ij, only 5 dof since ABar^k_k = 0
+		{name='epsilon_LL', type='real3s3'},		-- 12:	6: gammaBar_ij - gammaHat_ij, only 5 dof since det gammaBar_ij = 1
+		{name='ABar_LL', type='real3s3'},			-- 18:	6: ABar_ij, only 5 dof since ABar^k_k = 0
 	}	
 
 	self.consVars = table()
@@ -55,7 +55,7 @@ function BSSNOKFiniteDifferenceEquation:init(args)
 		--stress-energy variables:
 		{name='rho', type='real'},				--1: n_a n_b T^ab
 		{name='S_u', type='real3'},				--3: -gamma^ij n_a T_aj
-		{name='S_ll', type='sym3'},				--6: gamma_i^c gamma_j^d T_cd
+		{name='S_ll', type='real3s3'},				--6: gamma_i^c gamma_j^d T_cd
 
 		--constraints:
 		{name='H', type='real'},				--1
@@ -347,10 +347,10 @@ assert(env.assignRepls)
 		return lines:concat'\n'
 	end
 
-	function assign_sym3(name, expr)
+	function assign_real3s3(name, expr)
 		if expr == nil then expr = env[name] end
 		local lines = table()
-		lines:insert('\tsym3 '..name..';')
+		lines:insert('\treal3s3 '..name..';')
 		for ij,xij in ipairs(symNames) do
 			local i,j = from6to3x3(ij)
 			assert(expr, "failed to find var "..name)
@@ -377,10 +377,10 @@ assert(env.assignRepls)
 	end
 
 	-- assumes the 2nd and 3rd indexes are symmetric
-	function assign_3sym3(name, expr)
+	function assignreal3x3s3(name, expr)
 		if expr == nil then expr = env[name] end
 		local lines = table()
-		lines:insert('\t_3sym3 '..name..';')
+		lines:insert('\treal3x3s3 '..name..';')
 		for i,xi in ipairs(xNames) do
 			for jk,xjk in ipairs(symNames) do
 				local j,k = from6to3x3(jk)
@@ -414,10 +414,10 @@ assert(env.assignRepls)
 
 	-- assumes 2nd and 3rd indexes are symmetric
 	-- places the 4th index first, as an array
-	function assign_3sym3x3(name, expr)
+	function assignreal3x3s3x3(name, expr)
 		if expr == nil then expr = env[name] end
 		local lines = table()
-		lines:insert('\t_3sym3 '..name..'[3];')
+		lines:insert('\treal3x3s3 '..name..'[3];')
 		for i,xi in ipairs(xNames) do
 			for jk,xjk in ipairs(symNames) do
 				local j,k = from6to3x3(jk)
@@ -434,10 +434,10 @@ assert(env.assignRepls)
 		return lines:concat'\n'
 	end
 
-	function assign_sym3sym3(name, expr)
+	function assign_real3s3x3s3(name, expr)
 		if expr == nil then expr = env[name] end
 		local lines = table()
-		lines:insert('\tsym3sym3 '..name..';')
+		lines:insert('\treal3s3x3s3 '..name..';')
 		for ij,xij in ipairs(symNames) do
 			local i,j = from6to3x3(ij)
 			for kl,xkl in ipairs(symNames) do
@@ -465,7 +465,7 @@ assert(env.assignRepls)
 		end)
 	end
 	
-	function makevars_sym3(variance, name)
+	function makevars_real3s3(variance, name)
 		return Tensor(variance, function(i,j)
 			return var(name..'.'..sym(i,j), coords)
 		end)
@@ -477,7 +477,7 @@ assert(env.assignRepls)
 		end)
 	end
 	
-	function makevars_3sym3(variance, name)
+	function makevarsreal3x3s3(variance, name)
 		return Tensor(variance, function(i,j,k) 
 			return var(name..'.'..xNames[i]..'.'..sym(j,k), coords) 
 		end)
@@ -593,16 +593,16 @@ time('building symbolic math env', function()
 
 		alpha = var('U->alpha', coords)
 		beta_U = makevars_real3('^I', 'U->beta_U')
-		epsilon_LL = makevars_sym3('_IJ', 'U->epsilon_LL')
+		epsilon_LL = makevars_real3s3('_IJ', 'U->epsilon_LL')
 		W = var('U->W', coords)
 		K = var('U->K', coords)
-		ABar_LL = makevars_sym3('_IJ', 'U->ABar_LL')
+		ABar_LL = makevars_real3s3('_IJ', 'U->ABar_LL')
 		LambdaBar_U = makevars_real3('^I', 'U->LambdaBar_U')
 		B_U = makevars_real3('^I', 'U->B_U')
 		
 		rho = var'U->rho'
 		S_u = makevars_real3('^i', 'U->S_u')
-		S_ll = makevars_sym3('_ij', 'U->S_ll')
+		S_ll = makevars_real3s3('_ij', 'U->S_ll')
 		
 		H = var('U->H', coords)
 		
@@ -702,7 +702,7 @@ time('building symbolic math env', function()
 
 	printbr'gammaBar_ll'
 		gammaBar_ll = (gammaHat_ll'_ij' + epsilon_ll'_ij')()
-		gammaBar_ll_vars = makevars_sym3('_ij', 'gammaBar_ll')
+		gammaBar_ll_vars = makevars_real3s3('_ij', 'gammaBar_ll')
 -- TODO defer this	
 	printbr(gammaBar_ll)
 
@@ -726,7 +726,7 @@ time('building symbolic math env', function()
 		-- I picked gammaBar^IJ because it is O(1/det gammaBar_IJ), which is near 1
 		-- in fact, looking at the SENR generated code, it looks like gammaBar_ij and gammaBar^ij (conformal scale) are basically the only two explicitly defined (and therefore explicitly deferred?) calculations in the generated code? 
 		--  though don't quote me on this, because I was only going by tmp variable names.  there could be other vars explicitly deferred but not given distinct var names and still called 'tmp'.
-		--gammaBar_UU_vars = makevars_sym3('^IJ', 'gammaBar_UU')
+		--gammaBar_UU_vars = makevars_real3s3('^IJ', 'gammaBar_UU')
 -- TODO don't defer this	
 	printbr(gammaBar_UU)
 
@@ -738,7 +738,7 @@ time('building symbolic math env', function()
 
 	printbr'gammaBar_uu'
 		gammaBar_uu = (eu'^i_I' * eu'^j_J' * gammaBar_UU'^IJ')():factorDivision()
-		gammaBar_uu_vars = makevars_sym3('^ij', 'gammaBar_uu')
+		gammaBar_uu_vars = makevars_real3s3('^ij', 'gammaBar_uu')
 	printbr(gammaBar_uu)
 	printbr'gamma_uu'
 		gamma_uu = (exp_neg4phi * gammaBar_uu_vars'^ij')():factorDivision()
@@ -1337,7 +1337,7 @@ time('building symbolic math env', function()
 	
 	--[[
 	tr12_partial2_beta_l.i := beta^j_,ji
-	beta^i_,jk is a sym3 of 3's ... so I don't have that struct yet ... 
+	beta^i_,jk is a real3s3 of 3's ... so I don't have that struct yet ... 
 	--]]
 	printbr'tr12_partial2_beta_l'
 		tr12_partial2_beta_l = partial2_beta_ull'^j_ij'():factorDivision()
@@ -1694,11 +1694,11 @@ void <?=applyInitCondCell?>(
 	U->B_U = B0_U;
 <?=assign'W0'?>
 	U->W = W0;
-<?=assign_sym3'epsilon0_LL'?>
+<?=assign_real3s3'epsilon0_LL'?>
 	U->epsilon_LL = epsilon0_LL;
 <?=assign'K0'?>
 	U->K = K0;
-<?=assign_sym3'ABar0_LL'?>
+<?=assign_real3s3'ABar0_LL'?>
 	U->ABar_LL = ABar0_LL;
 <?=assign_real3'LambdaBar0_U'?>
 	U->LambdaBar_U = LambdaBar0_U;
@@ -1707,7 +1707,7 @@ void <?=applyInitCondCell?>(
 //how about an initial call to constrainU?	
 	U->rho = 0.;
 	U->S_u = real3_zero;
-	U->S_ll = sym3_zero;
+	U->S_ll = real3s3_zero;
 	
 	U->H = 0.;
 	U->M_U = real3_zero;
@@ -1734,13 +1734,13 @@ void <?=applyInitCondCell?>(
 		U->beta_U = _real3(INFINITY, INFINITY, INFINITY);
 		U->B_U = _real3(INFINITY, INFINITY, INFINITY);
 		U->LambdaBar_U = _real3(INFINITY, INFINITY, INFINITY);
-		U->epsilon_LL = _sym3(INFINITY, INFINITY, INFINITY, INFINITY, INFINITY, INFINITY);
-		U->ABar_LL = _sym3(INFINITY, INFINITY, INFINITY, INFINITY, INFINITY, INFINITY);
+		U->epsilon_LL = _real3s3(INFINITY, INFINITY, INFINITY, INFINITY, INFINITY, INFINITY);
+		U->ABar_LL = _real3s3(INFINITY, INFINITY, INFINITY, INFINITY, INFINITY, INFINITY);
 		U->H = INFINITY;
 		U->M_U = _real3(INFINITY, INFINITY, INFINITY);
 		U->rho = INFINITY;
 		U->S_u = _real3(INFINITY, INFINITY, INFINITY);
-		U->S_ll = _sym3(INFINITY, INFINITY, INFINITY, INFINITY, INFINITY, INFINITY);
+		U->S_ll = _real3s3(INFINITY, INFINITY, INFINITY, INFINITY, INFINITY, INFINITY);
 		return;
 	}
 
@@ -1754,8 +1754,8 @@ void <?=applyInitCondCell?>(
 	real3 LambdaBar_U = real3_zero;
 	real3 beta_U = real3_zero;
 	real3 B_U = real3_zero;
-	sym3 epsilon_LL = sym3_zero;
-	sym3 ABar_LL = sym3_zero;
+	real3s3 epsilon_LL = real3s3_zero;
+	real3s3 ABar_LL = real3s3_zero;
 
 	// stress-energy tensor
 	real rho = 0.;
@@ -1781,7 +1781,7 @@ void <?=applyInitCondCell?>(
 	//stress-energy fields
 	U->rho = rho;
 	U->S_u = real3_zero;
-	U->S_ll = sym3_zero;
+	U->S_ll = real3s3_zero;
 	U->H = 0.;
 	U->M_U = real3_zero;
 
@@ -1807,29 +1807,29 @@ void <?=applyInitCondCell?>(
 
 <?=assignRepls(cos_xs)?>
 <?=assignRepls(sin_xs)?>
-<?=assign_sym3'gammaHat_ll'?>
+<?=assign_real3s3'gammaHat_ll'?>
 
 	real alpha = 1.;
 	real3 beta_u = real3_zero;
 	real3 B_u = real3_zero;
 
 	//initCond will assume it is providing a metric in Cartesian
-	sym3 gamma_ll = sym3_ident;
+	real3s3 gamma_ll = real3s3_ident;
 	
-	sym3 K_ll = sym3_zero;
+	real3s3 K_ll = real3s3_zero;
 	real rho = 0.;
 
 	<?=initCode()?>
 	
 	//rescale from cartesian to spherical
-	gamma_ll = sym3_rescaleToCoord_LL(gamma_ll, x);
+	gamma_ll = real3s3_rescaleToCoord_LL(gamma_ll, x);
 
 	U->alpha = alpha;
 	U->beta_U = real3_rescaleFromCoord_u(beta_u, x);
 	U->B_U = real3_rescaleFromCoord_u(B_u, x);
 
-	real det_gamma = sym3_det(gamma_ll);
-	sym3 gamma_uu = sym3_inv(gamma_ll, det_gamma);
+	real det_gamma = real3s3_det(gamma_ll);
+	real3s3 gamma_uu = real3s3_inv(gamma_ll, det_gamma);
 	
 	//det(gammaBar_ij) == det(gammaHat_ij)
 	real det_gammaBar = <?=calc_det_gammaBar?>(x); 
@@ -1841,18 +1841,18 @@ void <?=applyInitCondCell?>(
 	//W = exp(-2 phi)
 	U->W = sqrt(exp_neg4phi);
 
-	sym3 gammaBar_ll = sym3_real_mul(gamma_ll, exp_neg4phi);
-	sym3 epsilon_ll = sym3_sub(gammaBar_ll, gammaHat_ll);
-	U->epsilon_LL = sym3_rescaleFromCoord_ll(epsilon_ll, x);
+	real3s3 gammaBar_ll = real3s3_real_mul(gamma_ll, exp_neg4phi);
+	real3s3 epsilon_ll = real3s3_sub(gammaBar_ll, gammaHat_ll);
+	U->epsilon_LL = real3s3_rescaleFromCoord_ll(epsilon_ll, x);
 
-	U->K = sym3_dot(K_ll, gamma_uu);
-	sym3 A_ll = sym3_sub(K_ll, sym3_real_mul(gamma_ll, 1./3. * U->K));
-	sym3 ABar_ll = sym3_real_mul(A_ll, exp_neg4phi);
-	U->ABar_LL = sym3_rescaleFromCoord_ll(ABar_ll, x);
+	U->K = real3s3_dot(K_ll, gamma_uu);
+	real3s3 A_ll = real3s3_sub(K_ll, real3s3_real_mul(gamma_ll, 1./3. * U->K));
+	real3s3 ABar_ll = real3s3_real_mul(A_ll, exp_neg4phi);
+	U->ABar_LL = real3s3_rescaleFromCoord_ll(ABar_ll, x);
 
 	U->rho = rho;
 	U->S_u = real3_zero;
-	U->S_ll = sym3_zero;
+	U->S_ll = real3s3_zero;
 	
 	U->H = 0.;
 	U->M_U = real3_zero;
@@ -1879,7 +1879,7 @@ kernel void initDerivs(
 
 <?=assign'det_gammaBar_over_det_gammaHat'?>
 
-<?=assign_3sym3'Delta_ULL'?>
+<?=assignreal3x3s3'Delta_ULL'?>
 <?=assign_real3'LambdaBar0_U'?>
 	U->LambdaBar_U = LambdaBar0_U;
 }
@@ -1999,7 +1999,7 @@ function BSSNOKFiniteDifferenceEquation:getDisplayVars()
 	local env = self:getEnv()
 
 	vars:append{
-		{name='S', code = self:template'value.vreal = sym3_dot(U->S_ll, <?=calc_gamma_uu?>(U, x));'},
+		{name='S', code = self:template'value.vreal = real3s3_dot(U->S_ll, <?=calc_gamma_uu?>(U, x));'},
 		
 		{
 			name = 'volume', 
@@ -2014,14 +2014,14 @@ function BSSNOKFiniteDifferenceEquation:getDisplayVars()
 	
 		{
 			name = 'ABarSq_LL',
-			type = 'sym3',
+			type = 'real3s3',
 			code = template([[
 <?=assignRepls(cos_xs)?>
 <?=assignRepls(sin_xs)?>
 <?=assign'det_gammaBar_over_det_gammaHat'?>
 
-<?=assign_sym3'ABarSq_LL'?>
-	value.vsym3 = ABarSq_LL;
+<?=assign_real3s3'ABarSq_LL'?>
+	value.vreal3s3 = ABarSq_LL;
 ]], env),
 		},
 		
@@ -2064,15 +2064,15 @@ function BSSNOKFiniteDifferenceEquation:getDisplayVars()
 			code = template([[
 <?=eqn:makePartial1'alpha'?>
 <?=eqn:makePartial2'alpha'?>
-<?=assign_sym3'DBar2_alpha_ll'?> 
-	value.vreal = sym3_dot(gammaBar_uu, DBar2_alpha_ll);
+<?=assign_real3s3'DBar2_alpha_ll'?> 
+	value.vreal = real3s3_dot(gammaBar_uu, DBar2_alpha_ll);
 ]], env),
 		},
 	
 	
 		{
 			name = 'TF_tracelessPart_LL',
-			type = 'sym3',
+			type = 'real3s3',
 			code = template([[
 <?=eqn:makePartial1'alpha'?>
 <?=eqn:makePartial2'alpha'?>
@@ -2080,8 +2080,8 @@ function BSSNOKFiniteDifferenceEquation:getDisplayVars()
 <?=assign'det_gammaBar'?>
 <?=eqn:makePartial1'W'?>
 <?=eqn:makePartial2'W'?>
-<?=assign_sym3'TF_tracelessPart_LL'?>	
-	value.vsym3 = TF_tracelessPart_LL; 
+<?=assign_real3s3'TF_tracelessPart_LL'?>	
+	value.vreal3s3 = TF_tracelessPart_LL; 
 ]], env),
 		},
 --]=]	
@@ -2119,15 +2119,15 @@ using gamma = gammaHat / W^6
 
 	real exp_4phi = 1. / <?=calc_exp_neg4phi?>(U);
 
-<?=assign_sym3'gammaBar_ll'?>
+<?=assign_real3s3'gammaBar_ll'?>
 
 	//gamma_ij = exp(4 phi) gammaBar_ij
-	sym3 gamma_ll = sym3_real_mul(gammaBar_ll, exp_4phi);
+	real3s3 gamma_ll = real3s3_real_mul(gammaBar_ll, exp_4phi);
 
 	//K_ij = exp(4 phi) ABar_ij + 1/3 gamma_ij K 
-	sym3 K_ll = sym3_add(
-		sym3_real_mul(U->ABar_ll, exp_4phi),
-		sym3_real_mul(gamma_ll, U->K/3.));
+	real3s3 K_ll = real3s3_add(
+		real3s3_real_mul(U->ABar_ll, exp_4phi),
+		real3s3_real_mul(gamma_ll, U->K/3.));
 
 	value.vreal = -tr_partial_beta / U->alpha
 <? 
@@ -2180,7 +2180,7 @@ end
 
 <?=assign'det_gammaBar_over_det_gammaHat'?>
 <?=assign'det_gammaBar'?>
-	real3 partial_alpha_u = sym3_real3_mul(gamma_uu, partial_alpha_l);		//alpha_,j gamma^ij = alpha^,i
+	real3 partial_alpha_u = real3s3_real3_mul(gamma_uu, partial_alpha_l);		//alpha_,j gamma^ij = alpha^,i
 	
 <? for i,xi in ipairs(xNames) do
 ?>	value_real3-><?=xi?> = -partial_alpha_u.<?=xi?>;
@@ -2195,24 +2195,24 @@ end
 	real _1_W = 1. / U->W;
 	
 	//gamma_ij = W^-2 gammaBar_ij
-<?=assign_sym3'gammaBar_ll'?>
-	sym3 gamma_ll = sym3_real_mul(gammaBar_ll, _1_W * _1_W);
+<?=assign_real3s3'gammaBar_ll'?>
+	real3s3 gamma_ll = real3s3_real_mul(gammaBar_ll, _1_W * _1_W);
 	
 	//gamma_ij,k = W^-2 gammaBar_ij,k - 2 W^-3 gammaBar_ij W_,k
 <?=eqn:makePartial1'W'?>
-<?=assign_3sym3('partial_gamma_lll', partial_gamma_lll:permute'_kij'?>
+<?=assignreal3x3s3('partial_gamma_lll', partial_gamma_lll:permute'_kij'?>
 
 	//TODO
 	real dt_alpha = 0.;
-	sym3 dt_gamma_ll = sym3_zero;
+	real3s3 dt_gamma_ll = real3s3_zero;
 	
 	real partial_alpha_dot_beta = real3_dot(U->beta_u, partial_alpha_l);	//beta^j alpha_,j
 
-	real3 beta_l = sym3_real3_mul(gamma_ll, U->beta_u);								//beta^j gamma_ij
-	real3 beta_dt_gamma_l = sym3_real3_mul(dt_gamma_ll, U->beta_u);					//beta^j gamma_ij,t
+	real3 beta_l = real3s3_real3_mul(gamma_ll, U->beta_u);								//beta^j gamma_ij
+	real3 beta_dt_gamma_l = real3s3_real3_mul(dt_gamma_ll, U->beta_u);					//beta^j gamma_ij,t
 	real beta_beta_dt_gamma = real3_dot(U->beta_u, beta_dt_gamma_l);				//beta^i beta^j gamma_ij,t
 	
-	real3 beta_dt_gamma_u = sym3_real3_mul(gamma_uu, beta_dt_gamma_l);				//gamma^ij gamma_jk,t beta^k
+	real3 beta_dt_gamma_u = real3s3_real3_mul(gamma_uu, beta_dt_gamma_l);				//gamma^ij gamma_jk,t beta^k
 
 	//beta^i beta^j beta^k gamma_ij,k
 	real beta_beta_beta_partial_gamma = 0.<?
@@ -2235,7 +2235,7 @@ end ?>;
 	real beta_beta_dbeta = real3_dot(U->beta_u, beta_dbeta_l);
 
 	//beta_j beta^j_,k gamma^ik
-	real3 beta_dbeta_u = sym3_real3_mul(gamma_uu, beta_dbeta_l);
+	real3 beta_dbeta_u = real3s3_real3_mul(gamma_uu, beta_dbeta_l);
 
 	//gamma_kl,j beta^k beta^l
 	real3 beta_beta_dgamma_l = (real3){
@@ -2244,7 +2244,7 @@ end ?>;
 <? end
 ?>	};
 
-	real3 beta_beta_dgamma_u = sym3_real3_mul(gamma_uu, beta_beta_dgamma_l);
+	real3 beta_beta_dgamma_u = real3s3_real3_mul(gamma_uu, beta_beta_dgamma_l);
 
 <? for i,xi in ipairs(xNames) do
 ?>	value_real3-><?=xi?> +=
@@ -2276,7 +2276,7 @@ end ?>;
 -- [=[
 	vars:insert{
 		name = 'RBar_LL',
-		type = 'sym3',
+		type = 'real3s3',
 		code = template([[
 <?=eqn:makePartial1'LambdaBar_U'?>
 <?=eqn:makePartial1'epsilon_LL'?>
@@ -2287,23 +2287,23 @@ end ?>;
 
 <?=assign'det_gammaBar_over_det_gammaHat'?>
 
-<?=assign_sym3'connBar_LLL'?>
-<?=assign_sym3'RBar_LL'?>
-	value.vsym3 = RBar_LL;
+<?=assign_real3s3'connBar_LLL'?>
+<?=assign_real3s3'RBar_LL'?>
+	value.vreal3s3 = RBar_LL;
 ]], env),
 	}
 --]=]
 --[=[
 	vars:insert{
 		name = 'RPhi_LL',
-		type = 'sym3',
+		type = 'real3s3',
 		code = template([[
 <?=eqn:makePartial1'W'?>
 <?=eqn:makePartial2'W'?>
 <?=assign'det_gammaBar_over_det_gammaHat'?>
 <?=assign'det_gammaBar'?>
 <?=assign'RPhi_LL'?>
-	value.vsym3 = RPhi_LL;
+	value.vreal3s3 = RPhi_LL;
 ]], env),
 	}
 
@@ -2332,7 +2332,7 @@ gammaBar^kl = inv(gammaBar_kl)
 		-- this fixes it.
 		vars:insert{
 			name='del gammaBar_ll sym',
-			type = 'sym3',
+			type = 'real3s3',
 			code = template([[
 <?=assignRepls(cos_xs)?>
 <?=assignRepls(sin_xs)?>
@@ -2341,7 +2341,7 @@ gammaBar^kl = inv(gammaBar_kl)
 <?=eqn:makePartial1'epsilon_LL'?>
 <?=eqn:makePartial2'epsilon_LL'?>
 
-	value.vsym3 = trBar_partial2_gammaBar_ll;
+	value.vreal3s3 = trBar_partial2_gammaBar_ll;
 ]], env),
 		}
 	end

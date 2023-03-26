@@ -1,18 +1,18 @@
 //// MODULE_NAME: <?=calc_gammaHat_ll?>
 
-sym3 <?=calc_gammaHat_ll?>(real3 x) {
+real3s3 <?=calc_gammaHat_ll?>(real3 x) {
 <?=assignRepls(cos_xs)?>
 <?=assignRepls(sin_xs)?>
-<?=assign_sym3"gammaHat_ll"?>
+<?=assign_real3s3"gammaHat_ll"?>
 	return gammaHat_ll;
 }
 
 //// MODULE_NAME: <?=calc_gammaHat_uu?>
 
-sym3 <?=calc_gammaHat_uu?>(real3 x) {
+real3s3 <?=calc_gammaHat_uu?>(real3 x) {
 <?=assignRepls(cos_xs)?>
 <?=assignRepls(sin_xs)?>
-<?=assign_sym3"gammaHat_uu"?>
+<?=assign_real3s3"gammaHat_uu"?>
 	return gammaHat_uu;
 }
 
@@ -27,19 +27,19 @@ real <?=calc_det_gammaHat?>(real3 x) {
 
 //// MODULE_NAME: <?=calc_gammaHat_LL?>
 // also in parent
-#define <?=calc_gammaHat_LL?>(x) (sym3_ident)
+#define <?=calc_gammaHat_LL?>(x) (real3s3_ident)
 
 //// MODULE_NAME: <?=calc_gammaHat_UU?>
 // also in parent
-#define <?=calc_gammaHat_UU?>(x) (sym3_ident)
+#define <?=calc_gammaHat_UU?>(x) (real3s3_ident)
 
 //// MODULE_NAME: <?=calc_gammaBar_LL?>
 //// MODULE_DEPENDS: <?=cons_t?>
 
-sym3 <?=calc_gammaBar_LL?>(global const <?=cons_t?>* U, real3 x) {
+real3s3 <?=calc_gammaBar_LL?>(global const <?=cons_t?>* U, real3 x) {
 <?=assignRepls(cos_xs)?>
 <?=assignRepls(sin_xs)?>
-<?=assign_sym3"gammaBar_LL"?>
+<?=assign_real3s3"gammaBar_LL"?>
 	return gammaBar_LL;
 }
 
@@ -69,11 +69,11 @@ real <?=calc_det_gammaBarLL?>(global const <?=cons_t?>* U, ral3 x) {
 //// MODULE_NAME: <?=calc_gammaBar_UU?>
 //// MODULE_DEPENDS: <?=cons_t?>
 
-sym3 <?=calc_gammaBar_UU?>(global const <?=cons_t?>* U, real3 x) {
+real3s3 <?=calc_gammaBar_UU?>(global const <?=cons_t?>* U, real3 x) {
 <?=assignRepls(cos_xs)?>
 <?=assignRepls(sin_xs)?>
 <? -- assign"det_gammaBar_over_det_gammaHat"?>
-<?=assign_sym3"gammaBar_UU"?>
+<?=assign_real3s3"gammaBar_UU"?>
 	return gammaBar_UU;
 }
 
@@ -81,10 +81,10 @@ sym3 <?=calc_gammaBar_UU?>(global const <?=cons_t?>* U, real3 x) {
 //// MODULE_DEPENDS: <?=cons_t?>
 
 //gammaBar_ll.ij := gammaBar_ij = gammaHat_ij + epsilon_ij = gammaHat_ij + epsilon_IJ e_i^I e_j^J
-sym3 <?=calc_gammaBar_ll?>(global const <?=cons_t?>* U, real3 x) {
+real3s3 <?=calc_gammaBar_ll?>(global const <?=cons_t?>* U, real3 x) {
 <?=assignRepls(cos_xs)?>
 <?=assignRepls(sin_xs)?>
-<?=assign_sym3"gammaBar_ll"?>
+<?=assign_real3s3"gammaBar_ll"?>
 	return gammaBar_ll;
 }
 
@@ -109,10 +109,10 @@ real <?=calc_det_gammaBar?>(real3 x) {
 //// MODULE_DEPENDS: <?=cons_t?> <?=calc_gammaBar_ll?> <?=calc_det_gammaBar?>
 
 // also in parent
-sym3 <?=calc_gammaBar_uu?>(global const <?=cons_t?>* U, real3 x) {
-	sym3 gammaBar_ll = <?=calc_gammaBar_ll?>(U, x);
+real3s3 <?=calc_gammaBar_uu?>(global const <?=cons_t?>* U, real3 x) {
+	real3s3 gammaBar_ll = <?=calc_gammaBar_ll?>(U, x);
 	real det_gammaBar = <?=calc_det_gammaBar?>(x);
-	sym3 gammaBar_uu = sym3_inv(gammaBar_ll, det_gammaBar);
+	real3s3 gammaBar_uu = real3s3_inv(gammaBar_ll, det_gammaBar);
 	return gammaBar_uu;
 }
 
@@ -120,13 +120,13 @@ sym3 <?=calc_gammaBar_uu?>(global const <?=cons_t?>* U, real3 x) {
 //// MODULE_DEPENDS: <?=cons_t?> <?=calc_gammaBar_ll?> <?=calc_exp_neg4phi?>
 
 // also in parent
-sym3 <?=calc_gamma_ll?>(
+real3s3 <?=calc_gamma_ll?>(
 	global <?=cons_t?> const * const U,
 	real3 const x
 ) {
-	sym3 gammaBar_ll = <?=calc_gammaBar_ll?>(U, x);
+	real3s3 gammaBar_ll = <?=calc_gammaBar_ll?>(U, x);
 	real exp_4phi = 1. / <?=calc_exp_neg4phi?>(U);
-	sym3 gamma_ll = sym3_real_mul(gammaBar_ll, exp_4phi);
+	real3s3 gamma_ll = real3s3_real_mul(gammaBar_ll, exp_4phi);
 	return gamma_ll;
 }
 	
@@ -134,12 +134,12 @@ sym3 <?=calc_gamma_ll?>(
 //// MODULE_DEPENDS: <?=cons_t?> <?=calc_gammaBar_ll?> <?=calc_exp_neg4phi?> <?=calc_det_gammaBar?>
 // also in parent
 
-sym3 <?=calc_gamma_uu?>(global const <?=cons_t?>* U, real3 x) {
-	sym3 gammaBar_ll = <?=calc_gammaBar_ll?>(U, x);
+real3s3 <?=calc_gamma_uu?>(global const <?=cons_t?>* U, real3 x) {
+	real3s3 gammaBar_ll = <?=calc_gammaBar_ll?>(U, x);
 	real exp_4phi = 1. / <?=calc_exp_neg4phi?>(U);
-	sym3 gamma_ll = sym3_real_mul(gammaBar_ll, exp_4phi);
+	real3s3 gamma_ll = real3s3_real_mul(gammaBar_ll, exp_4phi);
 	real det_gamma = <?=calc_det_gammaBar?>(x) * exp_4phi * exp_4phi * exp_4phi;
-	sym3 gamma_uu = sym3_inv(gamma_ll, det_gamma); 
+	real3s3 gamma_uu = real3s3_inv(gamma_ll, det_gamma); 
 	return gamma_uu;
 }
 
@@ -182,9 +182,9 @@ TFBar(K_ij) = K_ij - 1/3 gammaBar_ij gammaBar^kl K_kl
 notice that gamma'_ij -> f gamma_ij; gamma'^ij -> 1/f gamma'^ij will produce the same result
 so feel free to use gammaBar, gammaHat, etc
 */
-sym3 tracefree(sym3 A_ll, sym3 g_ll, sym3 g_uu) {
-	real tr_A = sym3_dot(A_ll, g_uu);
-	return sym3_sub(A_ll, sym3_real_mul(g_ll, tr_A / 3.));
+real3s3 tracefree(real3s3 A_ll, real3s3 g_ll, real3s3 g_uu) {
+	real tr_A = real3s3_dot(A_ll, g_uu);
+	return real3s3_sub(A_ll, real3s3_real_mul(g_ll, tr_A / 3.));
 }
 
 /*
@@ -235,7 +235,7 @@ kernel void <?=calcDeriv?>(
 <?=eqn:makePartial1"B_U"?>			//partial_B_Ul.j.I := B^I_,j
 <? end ?>
 
-<?=assign_sym3"gammaHat_ll"?>
+<?=assign_real3s3"gammaHat_ll"?>
 
 	/*
 	Etienne's SENR Mathematica notebook has '*  detg'...
@@ -281,18 +281,18 @@ kernel void <?=calcDeriv?>(
 	//////////////////////////////// epsilon_ij,t //////////////////////////////// 
 
 <?=eqn:makePartialUpwind"epsilon_LL"?>
-<?=assign_sym3"dt_epsilon_LL"?>
-	deriv->epsilon_LL = sym3_add(deriv->epsilon_LL, dt_epsilon_LL);
+<?=assign_real3s3"dt_epsilon_LL"?>
+	deriv->epsilon_LL = real3s3_add(deriv->epsilon_LL, dt_epsilon_LL);
 
 	//////////////////////////////// ABar_ij,t //////////////////////////////// 
 
 <?=eqn:makePartial2"epsilon_LL"?>
 <?=eqn:makePartialUpwind"ABar_LL"?>
 
-<?=assign_sym3"Delta_LLL"?>
+<?=assign_real3s3"Delta_LLL"?>
 
-<?=assign_sym3"dt_ABar_LL"?>
-	deriv->ABar_LL = sym3_add(deriv->ABar_LL, dt_ABar_LL);
+<?=assign_real3s3"dt_ABar_LL"?>
+	deriv->ABar_LL = real3s3_add(deriv->ABar_LL, dt_ABar_LL);
 
 	//////////////////////////////// LambdaBar^i_,t //////////////////////////////// 
 
@@ -351,22 +351,22 @@ then
 	= det(gammaHat_ij)
 	*/
 <?	if eqn.guiVars.constrain_det_gammaBar.value then ?>
-<?=assign_sym3"gammaBar_ll"?>
+<?=assign_real3s3"gammaBar_ll"?>
 	real rescaleMetric = cbrt(1. / det_gammaBar_over_det_gammaHat);
 <? 		for ij,xij in ipairs(symNames) do
 ?>	gammaBar_ll.<?=xij?> *= rescaleMetric;
 <? 		end ?>
 
-<?=assign_sym3"gammaHat_ll"?>
-	sym3 epsilon_ll = sym3_sub(gammaBar_ll, gammaHat_ll);
-	U->epsilon_LL = sym3_rescaleFromCoord_ll(epsilon_ll, x);
+<?=assign_real3s3"gammaHat_ll"?>
+	real3s3 epsilon_ll = real3s3_sub(gammaBar_ll, gammaHat_ll);
+	U->epsilon_LL = real3s3_rescaleFromCoord_ll(epsilon_ll, x);
 <?	end	-- constrain_det_gammaBar ?>
 
 	//in Buchman's paper it says he doesn't do this
 	//and in the new arbitrary-coord formalism, there is a tr ABar_ij term
 <? if eqn.guiVars.constrain_tr_ABar.value then ?>
-<?=assign_sym3"gammaBar_LL"?>
-<?=assign_sym3"gammaBar_UU"?>
+<?=assign_real3s3"gammaBar_LL"?>
+<?=assign_real3s3"gammaBar_UU"?>
 	U->ABar_LL = tracefree(U->ABar_LL, gammaBar_LL, gammaBar_UU);
 <? end	-- constrain_tr_ABar ?>
 
@@ -391,7 +391,7 @@ then
 <?=eqn:makePartial1"epsilon_LL"?>	//partial_epsilon[k].ij := epsilon_ij,k = gammaBar_ij,k
 <?=eqn:makePartial2"epsilon_LL"?>
 
-<?=assign_3sym3"connBar_LLL"?>
+<?=assignreal3x3s3"connBar_LLL"?>
 
 <?=assign"H_def"?>
 	U->H = H_def;

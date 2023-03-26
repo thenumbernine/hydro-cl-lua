@@ -31,10 +31,10 @@ end
 ?>	U->Pi_tt = rho;
 <? end
 ?>	U->Pi_ti = real3_zero;
-	U->Pi_ij = sym3_zero;
+	U->Pi_ij = real3s3_zero;
 	U->Psi_ttk = cartesianToCoord(v, x);
 	U->Psi_tik = real3x3_zero;
-	U->Psi_ijk = _3sym3_zero;
+	U->Psi_ijk = real3x3s3_zero;
 }
 
 //// MODULE_NAME: <?=fluxFromCons?>

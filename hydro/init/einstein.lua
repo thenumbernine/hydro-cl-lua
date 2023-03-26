@@ -256,15 +256,15 @@ local initConds = table{
 	// = -2 h / σ^2 (x_i-c_i)
 	real3 dh = real3_real_mul(real3_sub(x, mids), -2. * h / sigma2);
 
-	sym3 delta_ll = sym3_ident;
+	real3s3 delta_ll = real3s3_ident;
 
 	//h_,ij = h_,i,j = (-2 h / σ^2 (x_i-c_i))_,j
 	// = -2 h_,j / σ^2 (x_i-c_i) - 2 h δ_ij / σ^2
 	// = -2 (-2 h / σ^2 (x-c)_i (x-c)_j) / σ^2 - 2 h δ_ij / σ^2
 	// = 4 h (x-c)_i (x-c)_j / σ^4 - 2 h δ_ij / σ^2
-	sym3 d2h = sym3_sub(
-		sym3_real_mul(real3_outer(d), 4. * h / sigma4),
-		sym3_real_mul(sym3_ident, 2. * h / sigma2));
+	real3s3 d2h = real3s3_sub(
+		real3s3_real_mul(real3_outer(d), 4. * h / sigma4),
+		real3s3_real_mul(real3s3_ident, 2. * h / sigma2));
 
 #if 0
 	alpha = .5 * (
@@ -273,16 +273,16 @@ local initConds = table{
 	);
 #endif
 
-	gamma_ll = sym3_sub(delta_ll, real3_outer(dh));
-	K_ll = sym3_real_mul(d2h, -1./sqrt(1. - real3_lenSq(dh)));
+	gamma_ll = real3s3_sub(delta_ll, real3_outer(dh));
+	K_ll = real3s3_real_mul(d2h, -1./sqrt(1. - real3_lenSq(dh)));
 
 //plane wave vs bubble perturbation
 //TODO make these two separate init conds
 //enable this if you want the ADM 3D run in 1D to match the ADM 1D's
 //disable this if you want things to run in higher dimensions
 #if	dim == 1
-	gamma_ll = _sym3(gamma_ll.xx, 0,0,1,0,1);
-	K_ll = _sym3(K_ll.xx, 0,0,0,0,0);
+	gamma_ll = _real3s3(gamma_ll.xx, 0,0,1,0,1);
+	K_ll = _real3s3(K_ll.xx, 0,0,0,0,0);
 #endif
 ]],			{
 				initCond = self,
@@ -384,7 +384,7 @@ what if I transforms this from tx back to uv?
 	real const gamma_xx = (f + 2.) / 2.;
 	alpha = sqrt(1. / gamma_xx);
 	beta_u = _real3(-f/(f + 2.), 0., 0.);
-	gamma_ll = _sym3(gamma_xx, 0., 0., 1., 0., 1.);
+	gamma_ll = _real3s3(gamma_xx, 0., 0., 1., 0., 1.);
 ]]
 		end,
 	},
@@ -654,7 +654,7 @@ what if I transforms this from tx back to uv?
 
 	// 2009 Alic et al eqn 31
 //// MODULE_DEPENDS: <?=coord_g_ll?>
-	gamma_ll = sym3_real_mul(coord_g_ll(x), 1 + .5 * m / r);
+	gamma_ll = real3s3_real_mul(coord_g_ll(x), 1 + .5 * m / r);
 	
 <? if true then ?>	// 2009 Alic et al eqn 29
 	real const alpha0 = 1.;
@@ -700,7 +700,7 @@ what if I transforms this from tx back to uv?
 	real psi = 1. + .25 * R_over_r;
 	real psiSq = psi * psi;
 	real psiToThe4 = psiSq * psiSq;
-	gamma_ll = sym3_real_mul(gamma_ll, psiToThe4);
+	gamma_ll = real3s3_real_mul(gamma_ll, psiToThe4);
 	alpha = 1. / psiSq;
 ]]
 		end,
@@ -845,23 +845,23 @@ what if I transforms this from tx back to uv?
 		//Alcubierre 3.4.22
 		//Bowen-York extrinsic curvature
 
-		sym3 ABar_boost_ll = sym3_real_mul(
-			sym3_sub(
-				sym3_real_mul(sym3_from_real3x3(real3_real3_outer(P_l, n_l)), 2.),
-				sym3_real_mul(sym3_sub(real3_outer(n_l), sym3_ident), n_dot_P)
+		real3s3 ABar_boost_ll = real3s3_real_mul(
+			real3s3_sub(
+				real3s3_real_mul(real3s3_from_real3x3(real3_real3_outer(P_l, n_l)), 2.),
+				real3s3_real_mul(real3s3_sub(real3_outer(n_l), real3s3_ident), n_dot_P)
 			), 1.5 / rSq);
 
 		//Levi-Civita density is det gamma for conformal metric, whose det is 1, so a cross product works with covariant Levi-Civita
 		real3 S_cross_n_l = real3_cross(S_u, n_u);
 
-		sym3 ABar_spin_ll = sym3_real_mul(
-			sym3_real_mul(sym3_from_real3x3(real3_real3_outer(S_cross_n_l, n_l)), 2.),
+		real3s3 ABar_spin_ll = real3s3_real_mul(
+			real3s3_real_mul(real3s3_from_real3x3(real3_real3_outer(S_cross_n_l, n_l)), 2.),
 			3. / rCubed);
 
-		ABar_LL = sym3_add(
+		ABar_LL = real3s3_add(
 			ABar_LL, 
-			sym3_rescaleFromCoord_LL(
-				sym3_add(ABar_boost_ll, ABar_spin_ll),
+			real3s3_rescaleFromCoord_LL(
+				real3s3_add(ABar_boost_ll, ABar_spin_ll),
 				x)
 		);
 	}<? end ?>
@@ -1008,7 +1008,7 @@ what if I transforms this from tx back to uv?
 		real sin_theta0 = sin(theta0);
 		real sin_theta0_sq = sin_theta0 * sin_theta0;
 
-		sym3 gPhys00DD;
+		real3s3 gPhys00DD;
 		gPhys00DD.xx = psiB_toThe4 * .5 * (1. + gtzz + (-1. + gtzz) * cos(2. * theta0));
 		gPhys00DD.xy = psiB_toThe4 * (1. - gtzz) * r0 * cos_theta0 * sin(theta0);
 		gPhys00DD.xz = 0.;
@@ -1017,7 +1017,7 @@ what if I transforms this from tx back to uv?
 		gPhys00DD.zz = psiB_toThe4 * r0sq * sin(theta0) * sin(theta0);
 		gamma_ll = gPhys00DD;
 
-		sym3 APhys00DD;
+		real3s3 APhys00DD;
 		APhys00DD.xx = psiB_toThe4 * (
 			.5*(Atxx + Atzz + (-Atxx + Atzz)*cos(2*theta0) + 2*(Atxz*cos(phi0) + Atyz*sin(phi0))*sin(2*theta0))
 		);
@@ -1040,12 +1040,12 @@ what if I transforms this from tx back to uv?
 		real K = (32*LF * M * vz * (M_plus_2_rB_toThe7 - 32*M_minus_2_rB_sq * (M - rB) * rB_toThe4 * vzsq)*rBsq * zB)
 			/ (M_plus_2_rB_toThe3*BB_toThe3);
 	
-		real det_gamma = sym3_det(gamma_ll);
+		real det_gamma = real3s3_det(gamma_ll);
 		real det_gammaBar = <?=calc_det_gammaBar?>(x); 
 		real exp_neg4phi = cbrt(det_gammaBar / det_gamma);
 
-		sym3 A_ll = sym3_real_mul(APhys00DD, 1. / exp_neg4phi);
-		K_ll = sym3_add(A_ll, sym3_real_mul(gamma_ll, K));
+		real3s3 A_ll = real3s3_real_mul(APhys00DD, 1. / exp_neg4phi);
+		K_ll = real3s3_add(A_ll, real3s3_real_mul(gamma_ll, K));
 	}
 ]]
 		end,
@@ -1080,7 +1080,7 @@ what if I transforms this from tx back to uv?
 		psi += .25 * R / r;
 	}<? end ?>
 	real psi2 = psi*psi;
-	gamma_ll = sym3_real_mul(sym3_ident, psi2*psi2);
+	gamma_ll = real3s3_real_mul(real3s3_ident, psi2*psi2);
 	alpha = 1. / psi2;
 ]], 		{
 				bodies = self.bodies,
@@ -1113,8 +1113,8 @@ what if I transforms this from tx back to uv?
 	U->beta_U = real3_zero;
 	U->B_U = real3_zero;
 	U->LambdaBar_U = real3_zero;
-	U->epsilon_LL = sym3_zero; 
-	U->ABar_LL = sym3_zero;
+	U->epsilon_LL = real3s3_zero; 
+	U->ABar_LL = real3s3_zero;
 ]]
 		end,
 	},
@@ -1192,16 +1192,16 @@ real const A = sqr(rBL_sqr + a_sqr) - Delta * a_sqr * sinth_sqr;
 
 //grid coordinate metric. TODO gamma_ll should be initialized to this by the eqn.  but meh initialize it again to be safe. 
 //// MODULE_DEPENDS: <?=calc_gammaHat_ll?>
-sym3 const gammaHat_ll = <?=calc_gammaHat_ll?>(x);
-real const det_gammaHat = sym3_det(gammaHat_ll);
+real3s3 const gammaHat_ll = <?=calc_gammaHat_ll?>(x);
+real const det_gammaHat = real3s3_det(gammaHat_ll);
 
 // 2010 Liu et al eqn 13
-gamma_ll = sym3_zero;
+gamma_ll = real3s3_zero;
 gamma_ll.xx = ((Sigma * sqr(r + rp / 4.)) / (r_cubed * (rBL - rm)));
 gamma_ll.yy = Sigma;
 gamma_ll.zz = A / Sigma * sinth_sqr;
 
-K_ll = sym3_zero;
+K_ll = real3s3_zero;
 
 // 2010 Liu et al eqn. 14
 K_ll.xz = (M * a * sinth_sqr) / (Sigma * sqrt(A * Sigma))
@@ -1215,7 +1215,7 @@ K_ll.yz = -((2. * a_cubed * M * rBL * costh * sinth_cubed) / (Sigma * sqrt(A*Sig
 
 //with such a low alpha comes slow waves and therefore very slow cfl
 //TODO exclude waves within event horizon from CFL?
-real const det_gamma = sym3_det(gamma_ll);
+real const det_gamma = real3s3_det(gamma_ll);
 //TODO in the BSSN coordinate-free equations, the conformal factor is a ratio of the physical to the grid metric
 // and the difference of physical to background connection (which is a tensor) is evolved
 // but in my finite-volume Z4 equations, I'm evolving the partials of the metric ... 
@@ -1280,7 +1280,7 @@ beta_u.z = -((2 * M * a * rBL) / A);
 	real R = 2. * m;
 
 	alpha -= 2*m/r;
-	gamma_ll = sym3_add(gamma_ll, sym3_real_mul(real3_outer(l), 1./(r/R - 1.)));
+	gamma_ll = real3s3_add(gamma_ll, real3s3_real_mul(real3_outer(l), 1./(r/R - 1.)));
 
 	if (r < initCond->bodyRadius) {
 		rho += initCond->bodyMass / (4./3. * M_PI * initCond->bodyRadius * initCond->bodyRadius * initCond->bodyRadius);
@@ -1472,7 +1472,7 @@ TODO I now have a Bessel function routine in hydro/math.cl
 	for (int j = 0; j < 6; ++j) {
 		gamma_ll.s[j] = initCond->epsilon * U.ptr[j+1];
 	}
-	gamma_ll = sym3_add(gamma_ll, conn_g_ll(x));
+	gamma_ll = real3s3_add(gamma_ll, conn_g_ll(x));
 	for (int j = 0; j < 6; ++j) {
 		K_ll.s[j] = initCond->epsilon * U.ptr[j+7];
 	}

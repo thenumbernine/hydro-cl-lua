@@ -343,7 +343,7 @@ for side=0,2 do
 	end
 	
 	prefix = [[
-	sym3 const gU = coord_g_uu(pt);
+	real3s3 const gU = coord_g_uu(pt);
 	real const gUjj = gU.s]]..side..side..[[;
 	real const sqrt_gUjj = coord_sqrt_g_uu]]..side..side..[[(pt);
 	

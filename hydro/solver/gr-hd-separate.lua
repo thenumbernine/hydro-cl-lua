@@ -76,11 +76,11 @@ function GRHDSeparateSolver:init(args)
 	global <?=gr.eqn.symbols.cons_t?> const * const <?=args.U?> = grUBuf + <?=args.index?>;
 	real <?=args.alpha?> = <?=args.U?>->alpha;
 	real3 <?=args.beta?> = <?=args.U?>->beta_u;
-	//sym3 gammaHat_ll = coord_g_ll(x); // with x I get some redefinitions, without it I get some undefined x's...
-	sym3 gammaHat_ll = coord_g_ll(cellBuf[index].pos);
-	sym3 gammaBar_ll = sym3_add(gammaHat_ll, <?=args.U?>->epsilon_ll);
+	//real3s3 gammaHat_ll = coord_g_ll(x); // with x I get some redefinitions, without it I get some undefined x's...
+	real3s3 gammaHat_ll = coord_g_ll(cellBuf[index].pos);
+	real3s3 gammaBar_ll = real3s3_add(gammaHat_ll, <?=args.U?>->epsilon_ll);
 	real exp_4phi = 1. / <?=calc_exp_neg4phi?>(<?=args.U?>);
-	sym3 <?=args.gamma?> = sym3_real_mul(gammaBar_ll, exp_4phi);
+	real3s3 <?=args.gamma?> = real3s3_real_mul(gammaBar_ll, exp_4phi);
 ]], {gr=gr, args=args})
 	end
 	
@@ -227,7 +227,7 @@ S^i = -gamma^ij n^a T_aj
 	real3 u_l = real3_add(
 		real3_real_mul(hydroU->prim.v, W),
 		real3_real_mul(beta_u, -W / alpha));
-	real3 u_u = sym3_mul(gamma_uu, u_l);
+	real3 u_u = real3s3_mul(gamma_uu, u_l);
 	grU->S_u = real3_real_mul(u_u, W * rhoMass * h);
 
 /*
@@ -242,9 +242,9 @@ S_ij = gamma_i^a gamma_j^b T_cd
 = rho_mass h u_i u_j + P gamma_ij 
 = rho_mass h u_i u_j + P gamma_ij 
 */
-	grU->S_ll = sym3_add(
-		sym3_real_mul(real3_outer(u_l), rhoMass * h),
-		sym3_real_mul(gamma_ll, P));
+	grU->S_ll = real3s3_add(
+		real3s3_real_mul(real3_outer(u_l), rhoMass * h),
+		real3s3_real_mul(gamma_ll, P));
 }
 ]], 	{
 			hydro = self.hydro,
@@ -281,7 +281,7 @@ kernel void copyMetricFromGRToHydro(
 	hydroU->beta = hydroPrim->beta = grU->beta_u;
 
 	real exp_4phi = exp(4. * grU->phi);
-	sym3 gamma_ll = sym3_real_mul(grU->gammaTilde_ll, exp_4phi);
+	real3s3 gamma_ll = real3s3_real_mul(grU->gammaTilde_ll, exp_4phi);
 	hydroU->gamma = hydroPrim->gamma = gamma_ll;
 }
 ]], 	{

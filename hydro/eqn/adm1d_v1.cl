@@ -1,16 +1,16 @@
 //// MODULE_NAME: <?=calc_gamma_ll?>
 
-#define /*sym3*/ <?=calc_gamma_ll?>(\
+#define /*real3s3*/ <?=calc_gamma_ll?>(\
 	/*<?=cons_t?> const * const */U,\
 	/*real3 const */pt\
-) _sym3((U)->gamma_xx, 0, 0, 1, 0, 1)
+) _real3s3((U)->gamma_xx, 0, 0, 1, 0, 1)
 
 //// MODULE_NAME: <?=calc_gamma_uu?>
 
-#define /*sym3*/ <?=calc_gamma_uu?>(\
+#define /*real3s3*/ <?=calc_gamma_uu?>(\
 	/*<?=cons_t?> const * const */U,\
 	/*real3 const */pt\
-) _sym3(1. / (U)->gamma_xx, 0, 0, 1, 0, 1)
+) _real3s3(1. / (U)->gamma_xx, 0, 0, 1, 0, 1)
 
 //// MODULE_NAME: <?=setFlatSpace?>
 
@@ -27,7 +27,7 @@ void <?=setFlatSpace?>(
 }
 
 //// MODULE_NAME: <?=applyInitCondCell?>
-//// MODULE_DEPENDS: sym3 <?=coordMap?>
+//// MODULE_DEPENDS: real3s3 <?=coordMap?>
 
 void <?=applyInitCondCell?>(
 	constant <?=solver_t?> const * const solver,
@@ -41,8 +41,8 @@ void <?=applyInitCondCell?>(
 	
 	real alpha = 1.;
 	real3 beta_u = real3_zero;
-	sym3 gamma_ll = sym3_ident;
-	sym3 K_ll = sym3_zero;
+	real3s3 gamma_ll = real3s3_ident;
+	real3s3 K_ll = real3s3_zero;
 
 	<?=initCode()?>
 

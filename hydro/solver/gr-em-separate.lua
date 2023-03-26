@@ -68,7 +68,7 @@ function GREMSeparateSolver:init(args)
 	global <?=gr.eqn.symbols.cons_t?> const * const <?=args.U?> = grUBuf + <?=args.index?>;
 	real <?=args.alpha?> = <?=args.U?>->alpha;
 	real3 <?=args.beta?> = <?=args.U?>->beta_u;
-	sym3 <?=args.gamma?> = sym3_real_mul(<?=args.U?>->gammaTilde_ll, 1. / <?=calc_exp_neg4phi?>(<?=args.U?>));
+	real3s3 <?=args.gamma?> = real3s3_real_mul(<?=args.U?>->gammaTilde_ll, 1. / <?=calc_exp_neg4phi?>(<?=args.U?>));
 ]], {gr=gr, args=args})
 	end
 
@@ -170,10 +170,10 @@ kernel void computeGRStressEnergy(
 	global <?=em.eqn.symbols.cons_t?> const * const emU = emUBuf + index;
 
 	real exp_neg4phi = <?=calc_exp_neg4phi?>(grU);
-	sym3 gamma_ll = sym3_real_mul(grU->gammaTilde_ll, 1. / exp_neg4phi);
-	sym3 gamma_uu = sym3_real_mul(grU->gammaTilde_uu, exp_neg4phi);
+	real3s3 gamma_ll = real3s3_real_mul(grU->gammaTilde_ll, 1. / exp_neg4phi);
+	real3s3 gamma_uu = real3s3_real_mul(grU->gammaTilde_uu, exp_neg4phi);
 	//g^ij = gamma^ij - beta^i beta^j / alpha^2
-	sym3 g_uu = sym3_sub(
+	real3s3 g_uu = real3s3_sub(
 		gamma_uu, 
 		real3_outer(
 			real3_real_mul(
@@ -181,9 +181,9 @@ kernel void computeGRStressEnergy(
 				1. / grU->alpha)));
 	
 	real3 B_u = emU->B;
-	real3 B_l = sym3_real3_mul(gamma_ll, B_u);
+	real3 B_l = real3s3_real3_mul(gamma_ll, B_u);
 	real3 E_u = real3_real_mul(emU->epsE, 1. / emU->eps);
-	real3 E_l = sym3_real3_mul(gamma_ll, E_u);
+	real3 E_l = real3s3_real3_mul(gamma_ll, E_u);
 
 	//2009 Alcubierre eqn 2.75-2.77
 	real ESqBSq = real3_weightedLenSq(E_u, gamma_ll) + real3_weightedLenSq(B_u, gamma_ll);
@@ -193,14 +193,14 @@ kernel void computeGRStressEnergy(
 	//g^ab J_b = g^it J_t + g^ij J_j = g^ij S_j / (4 pi)
 	//now does this raise by g^ij and not gamma^ij?  the eqn looks like so...
 	real3 S_l = real3_cross(E_u, B_u);
-	grU->S_u = real3_real_mul(sym3_real3_mul(g_uu, S_l), 1. / (4. * M_PI));
+	grU->S_u = real3_real_mul(real3s3_real3_mul(g_uu, S_l), 1. / (4. * M_PI));
 
 	//E_i = g_ia E^a = g_ij E^j (since E^t = 0) = gamma_ij E^j (by ADM metric def)
 	//S_ij = (gamma_ij (E^2 + B^2) - 2 (E_i E_j + B_i B_j)) / (8 pi)
-	grU->S_ll = sym3_sub(
-		sym3_real_mul(gamma_ll, ESqBSq / (8. * M_PI)),
-		sym3_real_mul(
-			sym3_add(
+	grU->S_ll = real3s3_sub(
+		real3s3_real_mul(gamma_ll, ESqBSq / (8. * M_PI)),
+		real3s3_real_mul(
+			real3s3_add(
 				real3_outer(E_l),
 				real3_outer(B_l)
 			), 1. / (4. * M_PI)

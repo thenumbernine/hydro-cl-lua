@@ -5,12 +5,12 @@
 //// MODULE_NAME: <?=calc_gamma_uu?>
 //// MODULE_DEPENDS: <?=cons_t?>
 
-static inline sym3 <?=calc_gamma_uu?>(
+static inline real3s3 <?=calc_gamma_uu?>(
 	global <?=cons_t?> const * const U,
 	real3 const x
 ) {
-	real const det_gamma = sym3_det(U->gamma_ll);
-	sym3 const gamma_uu = sym3_inv(U->gamma_ll, det_gamma);
+	real const det_gamma = real3s3_det(U->gamma_ll);
+	real3s3 const gamma_uu = real3s3_inv(U->gamma_ll, det_gamma);
 	return gamma_uu;
 }
 
@@ -41,8 +41,8 @@ void <?=applyInitCondCell?>(
 	real3 LambdaBar_U = real3_zero;
 	real3 beta_U = real3_zero;
 	real3 B_U = real3_zero;
-	sym3 epsilon_LL = sym3_zero;
-	sym3 ABar_LL = sym3_zero;
+	real3s3 epsilon_LL = real3s3_zero;
+	real3s3 ABar_LL = real3s3_zero;
 
 	real rho = 0.;
 
@@ -58,15 +58,15 @@ void <?=applyInitCondCell?>(
 //// MODULE_DEPENDS: <?=rescaleFromCoord_rescaleToCoord?>
 	// gammaHat_IJ = delta_IJ
 	// gamma_ij = e_i^I e_j^J (epsilon_IJ + gammaHat_IJ) / W^2
-	sym3 const gammaBar_LL = sym3_add(epsilon_LL, sym3_ident);
-	sym3 const gamma_LL = sym3_real_mul(gammaBar_LL, 1. / (W*W));
-	U->gamma_ll = sym3_rescaleToCoord_LL(gamma_LL, x);
+	real3s3 const gammaBar_LL = real3s3_add(epsilon_LL, real3s3_ident);
+	real3s3 const gamma_LL = real3s3_real_mul(gammaBar_LL, 1. / (W*W));
+	U->gamma_ll = real3s3_rescaleToCoord_LL(gamma_LL, x);
 	
 	// K_ij = e_i^I e_j^J (ABar_IJ + gammaBar_IJ K/3) / W^2
-	U->K_ll = sym3_rescaleToCoord_LL(
-		sym3_add(
-			sym3_real_mul(ABar_LL, 1. / (W*W)),
-			sym3_real_mul(gamma_LL, K / 3.)
+	U->K_ll = real3s3_rescaleToCoord_LL(
+		real3s3_add(
+			real3s3_real_mul(ABar_LL, 1. / (W*W)),
+			real3s3_real_mul(gamma_LL, K / 3.)
 		), x);
 
 	U->Theta = 0.;
@@ -80,7 +80,7 @@ void <?=applyInitCondCell?>(
 <? if eqn.useStressEnergyTerms then ?>
 	U->rho = rho;
 	U->S_u = real3_zero;
-	U->S_ll = sym3_zero;
+	U->S_ll = real3s3_zero;
 <? end ?>
 	
 	U->H = 0;
@@ -98,8 +98,8 @@ kernel void <?=initDerivs?>(
 	<?=SETBOUNDS?>(solver->numGhost, solver->numGhost);
 	global <?=cons_t?> * const U = UBuf + index;
 	
-	real det_gamma = sym3_det(U->gamma_ll);
-	sym3 const gamma_uu = sym3_inv(U->gamma_ll, det_gamma);
+	real det_gamma = real3s3_det(U->gamma_ll);
+	real3s3 const gamma_uu = real3s3_inv(U->gamma_ll, det_gamma);
 
 <? 
 for i=1,solver.dim do 
@@ -121,7 +121,7 @@ for i=solver.dim+1,3 do
 	local xi = xNames[i]
 ?>
 	U->a_l.<?=xi?> = 0;
-	U->d_lll.<?=xi?> = sym3_zero;
+	U->d_lll.<?=xi?> = real3s3_zero;
 <?
 end
 ?>
@@ -145,9 +145,9 @@ void <?=applyInitCondCell?>(
 	real alpha = 1.;
 	real3 beta_u = real3_zero;
 
-	sym3 gamma_ll = coord_gHol_ll(x);
+	real3s3 gamma_ll = coord_gHol_ll(x);
 
-	sym3 K_ll = sym3_zero;
+	real3s3 K_ll = real3s3_zero;
 
 	//TODO more stress-energy vars 
 	real rho = 0.;
@@ -177,7 +177,7 @@ void <?=applyInitCondCell?>(
 <? if eqn.useStressEnergyTerms then ?>
 	U->rho = rho;
 	U->S_u = real3_zero;
-	U->S_ll = sym3_zero;
+	U->S_ll = real3s3_zero;
 <? end ?>
 	
 	U->H = 0;
@@ -195,8 +195,8 @@ kernel void <?=initDerivs?>(
 	<?=SETBOUNDS?>(solver->numGhost, solver->numGhost);
 	global <?=cons_t?> * const U = UBuf + index;
 	
-	real const det_gamma = sym3_det(U->gamma_ll);
-	sym3 const gamma_uu = sym3_inv(U->gamma_ll, det_gamma);
+	real const det_gamma = real3s3_det(U->gamma_ll);
+	real3s3 const gamma_uu = real3s3_inv(U->gamma_ll, det_gamma);
 
 <? 
 for i=1,solver.dim do 
@@ -218,7 +218,7 @@ for i=solver.dim+1,3 do
 	local xi = xNames[i]
 ?>
 	U->a_l.<?=xi?> = 0;
-	U->d_lll.<?=xi?> = sym3_zero;
+	U->d_lll.<?=xi?> = real3s3_zero;
 <?
 end
 ?>
@@ -235,12 +235,12 @@ static inline void <?=setFlatSpace?>(
 	real3 const x
 ) {
 	(U)->alpha = 1.;
-	(U)->gamma_ll = sym3_ident;
+	(U)->gamma_ll = real3s3_ident;
 	(U)->a_l = real3_zero;
-	(U)->d_lll.x = sym3_zero;
-	(U)->d_lll.y = sym3_zero;
-	(U)->d_lll.z = sym3_zero;
-	(U)->K_ll = sym3_zero;
+	(U)->d_lll.x = real3s3_zero;
+	(U)->d_lll.y = real3s3_zero;
+	(U)->d_lll.z = real3s3_zero;
+	(U)->K_ll = real3s3_zero;
 	(U)->Theta = 0.;
 	(U)->Z_l = real3_zero;
 <? if eqn.useShift ~= "none" then 
@@ -251,7 +251,7 @@ static inline void <?=setFlatSpace?>(
 	//what to do with the constraint vars and the source vars?
 	(U)->rho = 0;
 	(U)->S_u = real3_zero;
-	(U)->S_ll = sym3_zero;
+	(U)->S_ll = real3s3_zero;
 <? end ?>
 	
 	(U)->H = 0;
@@ -269,7 +269,7 @@ static inline void <?=setFlatSpace?>(
 ) {\
 	/* the only advantage of this calcDT over the default is that here this sqrt(f) and det(gamma_ij) is only called once */\
 	real const f_alphaSq = calc_f_alphaSq(U->alpha);\
-	real const det_gamma = sym3_det(U->gamma_ll);\
+	real const det_gamma = real3s3_det(U->gamma_ll);\
 	real const alpha_sqrt_f = sqrt(f_alphaSq);\
 \
 	<? for side=0,solver.dim-1 do ?>{\
@@ -494,28 +494,28 @@ b^l_k,t
 ) {\
 	real const f_alpha = calc_f_alpha((U)->alpha);\
 \
-	real const det_gamma = sym3_det((U)->gamma_ll);\
-	sym3 const gamma_uu = sym3_inv((U)->gamma_ll, det_gamma);\
-	real const K = sym3_dot((U)->K_ll, gamma_uu);\
-	real3 const d_l = _3sym3_sym3_dot23((U)->d_lll, gamma_uu);\
-	real3 const e_l = sym3_3sym3_dot12(gamma_uu, (U)->d_lll);\
-	_3sym3 const d_ull = sym3_3sym3_mul(gamma_uu, (U)->d_lll);\
-	real3x3x3 const d_llu = _3sym3_sym3_mul((U)->d_lll, gamma_uu);\
-	real3 const d_u = sym3_real3_mul(gamma_uu, d_l);\
-	real3 const e_u = sym3_real3_mul(gamma_uu, e_l);\
-	real3 const Z_u = sym3_real3_mul(gamma_uu, (U)->Z_l);\
-	real3x3 const K_ul = sym3_sym3_mul(gamma_uu, (U)->K_ll);\
+	real const det_gamma = real3s3_det((U)->gamma_ll);\
+	real3s3 const gamma_uu = real3s3_inv((U)->gamma_ll, det_gamma);\
+	real const K = real3s3_dot((U)->K_ll, gamma_uu);\
+	real3 const d_l = real3x3s3_real3s3_dot23((U)->d_lll, gamma_uu);\
+	real3 const e_l = real3s3_real3x3s3_dot12(gamma_uu, (U)->d_lll);\
+	real3x3s3 const d_ull = real3s3_real3x3s3_mul(gamma_uu, (U)->d_lll);\
+	real3x3x3 const d_llu = real3x3s3_real3s3_mul((U)->d_lll, gamma_uu);\
+	real3 const d_u = real3s3_real3_mul(gamma_uu, d_l);\
+	real3 const e_u = real3s3_real3_mul(gamma_uu, e_l);\
+	real3 const Z_u = real3s3_real3_mul(gamma_uu, (U)->Z_l);\
+	real3x3 const K_ul = real3s3_real3s3_mul(gamma_uu, (U)->K_ll);\
 \
 	(resultFlux)->H = 0.;\
 	(resultFlux)->M_u = real3_zero;\
 	(resultFlux)->alpha = 0.;\
-	(resultFlux)->gamma_ll = sym3_zero;\
+	(resultFlux)->gamma_ll = real3s3_zero;\
 \
 /* a_k,t		+ (α f (K - 2 Θ) δ^r_k)_,r */\
 	(resultFlux)->a_l.x = f_alpha * (K - 2 * (U)->Theta);\
 \
 /* Δd_kij,t		+ (α K_ij δ^r_k)_,r */\
-	(resultFlux)->d_lll.x = sym3_real_mul((U)->K_ll, (U)->alpha);\
+	(resultFlux)->d_lll.x = real3s3_real_mul((U)->K_ll, (U)->alpha);\
 \
 /* K_ij,t 		+ (1/2 α (									\
 					+ δ^r_i (d_j - e_j + a_j - 2 Z_j)		\
@@ -580,10 +580,10 @@ b^l_k,t 	+ (-β^i b^l_i)_,k									*/	\
 	(resultEig)->alpha = .5 * ((UL)->alpha + (UR)->alpha);\
 	(resultEig)->alpha_sqrt_f = sqrt(calc_f_alphaSq((resultEig)->alpha));\
 \
-	sym3 const avg_gamma = sym3_real_mul(sym3_add((UL)->gamma_ll, (UR)->gamma_ll), .5);\
-	real const det_avg_gamma = sym3_det(avg_gamma);\
+	real3s3 const avg_gamma = real3s3_real_mul(real3s3_add((UL)->gamma_ll, (UR)->gamma_ll), .5);\
+	real const det_avg_gamma = real3s3_det(avg_gamma);\
 	(resultEig)->gamma_ll = avg_gamma;\
-	(resultEig)->gamma_uu = sym3_inv(avg_gamma, det_avg_gamma);\
+	(resultEig)->gamma_uu = real3s3_inv(avg_gamma, det_avg_gamma);\
 \
 <? if solver.coord.vectorComponent == "cartesian" then ?>\
 /*  I'm using .side for holonomic(coordinate) and anholonomic(orthonormal) */\
@@ -620,10 +620,10 @@ b^l_k,t 	+ (-β^i b^l_i)_,k									*/	\
 	/*real3 const */pt,\
 	/*<?=normal_t?> const */n\
 ) {\
-	real const det_gamma = sym3_det((U)->gamma_ll);\
+	real const det_gamma = real3s3_det((U)->gamma_ll);\
 \
 <? if solver.coord.vectorComponent == "cartesian" then ?>\
-	sym3 const gamma_uu = sym3_inv((U)->gamma_ll, det_gamma);\
+	real3s3 const gamma_uu = real3s3_inv((U)->gamma_ll, det_gamma);\
 	real3 const n_l = normal_l1(n);\
 	real const gammaUnn = real3_weightedLenSq(n_l, gamma_uu);\
 <? else ?>\
@@ -668,8 +668,8 @@ b^l_k,t 	+ (-β^i b^l_i)_,k									*/	\
 	(resultEig)->alpha = (U)->alpha;\
 	(resultEig)->alpha_sqrt_f = sqrt(calc_f_alphaSq((U)->alpha));\
 	(resultEig)->gamma_ll = (U)->gamma_ll;\
-	real const det_gamma = sym3_det((U)->gamma_ll);\
-	(resultEig)->gamma_uu = sym3_inv((U)->gamma_ll, det_gamma);\
+	real const det_gamma = real3s3_det((U)->gamma_ll);\
+	(resultEig)->gamma_uu = real3s3_inv((U)->gamma_ll, det_gamma);\
 \
 <? if solver.coord.vectorComponent == "cartesian" then ?>\
 /*  I'm using .side for holonomic(coordinate) and anholonomic(orthonormal) */\
@@ -711,8 +711,8 @@ b^l_k,t 	+ (-β^i b^l_i)_,k									*/	\
 ) {\
 	/* input */\
 	real3 const a_l = (inputU)->a_l.swap(n.side);							/* 0-2 */\
-	_3sym3 const d_lll = (inputU)->d_lll.swap(n.side);						/* 3-20 */\
-	sym3 const K_ll = (inputU)->K_ll.swap(n.side);							/* 21-26 */\
+	real3x3s3 const d_lll = (inputU)->d_lll.swap(n.side);						/* 3-20 */\
+	real3s3 const K_ll = (inputU)->K_ll.swap(n.side);							/* 21-26 */\
 	real const Theta = (inputU)->Theta;										/* 27 */\
 	real3 const Z_l = (inputU)->Z_l.swap(n.side);							/* 28-30 */\
 \
@@ -728,12 +728,12 @@ b^l_k,t 	+ (-β^i b^l_i)_,k									*/	\
 	real const f_minus_1 = f - 1.;\
 	real const f_minus_1_sq = f_minus_1 * f_minus_1;\
 \
-	sym3 const gamma_ll = (eig)->gamma_ll.swap(n.side);\
-	sym3 const gamma_uu = (eig)->gamma_uu.swap(n.side);\
+	real3s3 const gamma_ll = (eig)->gamma_ll.swap(n.side);\
+	real3s3 const gamma_uu = (eig)->gamma_uu.swap(n.side);\
 \
-	_3sym3 const d_ull = sym3_3sym3_mul(gamma_uu, d_lll);\
+	real3x3s3 const d_ull = real3s3_real3x3s3_mul(gamma_uu, d_lll);\
 \
-	real3x3 const K_ul = sym3_sym3_mul(gamma_uu, K_ll);\
+	real3x3 const K_ul = real3s3_real3s3_mul(gamma_uu, K_ll);\
 \
 	real const tr_K = real3x3_trace(K_ul);\
 \
@@ -747,9 +747,9 @@ b^l_k,t 	+ (-β^i b^l_i)_,k									*/	\
 \
 	/* d_i = d_ijk gamma^jk */\
 	real3 const d_l = _real3(\
-		sym3_dot(d_lll.x, gamma_uu),\
-		sym3_dot(d_lll.y, gamma_uu),\
-		sym3_dot(d_lll.z, gamma_uu));\
+		real3s3_dot(d_lll.x, gamma_uu),\
+		real3s3_dot(d_lll.y, gamma_uu),\
+		real3s3_dot(d_lll.z, gamma_uu));\
 \
 	real const d_u_x = d_l.x * gamma_uu.xx + d_l.y * gamma_uu.xy + d_l.z * gamma_uu.xz;\
 \
@@ -1337,8 +1337,8 @@ b^l_k,t 	+ (-β^i b^l_i)_,k									*/	\
 		(resultU)->ptr[j] = 0;\
 	}\
 	\
-	sym3 gamma_ll = (eig)->gamma_ll.swap(n.side);\
-	sym3 gamma_uu = (eig)->gamma_uu.swap(n.side);\
+	real3s3 gamma_ll = (eig)->gamma_ll.swap(n.side);\
+	real3s3 gamma_uu = (eig)->gamma_uu.swap(n.side);\
 \
 	real sqrt_f = (eig)->alpha_sqrt_f / (eig)->alpha;\
 	real f = sqrt_f * sqrt_f;\
@@ -1878,13 +1878,13 @@ b^l_k,t 	+ (-β^i b^l_i)_,k									*/	\
 \
 	/* input */\
 	real3 a_l = (input)->a_l.swap(n.side);			/* 0-2 */\
-	_3sym3 d_lll = (input)->d_lll.swap(n.side);		/* 3-20 */\
-	sym3 K_ll = (input)->K_ll.swap(n.side);			/* 21-26 */\
+	real3x3s3 d_lll = (input)->d_lll.swap(n.side);		/* 3-20 */\
+	real3s3 K_ll = (input)->K_ll.swap(n.side);			/* 21-26 */\
 	real Theta = (input)->Theta;							/* 27 */\
 	real3 Z_l = (input)->Z_l.swap(n.side);			/* 28-30 */\
 \
-	sym3 gamma_ll = (eig)->gamma_ll.swap(n.side);\
-	sym3 gamma_uu = (eig)->gamma_uu.swap(n.side);\
+	real3s3 gamma_ll = (eig)->gamma_ll.swap(n.side);\
+	real3s3 gamma_uu = (eig)->gamma_uu.swap(n.side);\
 \
 	real sqrt_f = (eig)->alpha_sqrt_f / (eig)->alpha;\
 	real f = sqrt_f * sqrt_f;\
@@ -2026,30 +2026,30 @@ kernel void <?=addSource?>(
 	global <?=cons_t?> const * const U = UBuf + index;
 	global <?=cons_t?> * const deriv = derivBuf + index;
 
-	real const det_gamma = sym3_det(U->gamma_ll);
-	sym3 const gamma_uu = sym3_inv(U->gamma_ll, det_gamma);
+	real const det_gamma = real3s3_det(U->gamma_ll);
+	real3s3 const gamma_uu = real3s3_inv(U->gamma_ll, det_gamma);
 	real const f = calc_f(U->alpha);	/* could be based on alpha... */
 
 	real3 const S_l = real3_zero;
-	sym3 const S_ll = sym3_zero;
+	real3s3 const S_ll = real3s3_zero;
 	real const S = 0.;
 	real const rho = 0.;
 
 	/*  source terms */
 	
-	real3x3 const K_ul = sym3_sym3_mul(gamma_uu, U->K_ll);			/* K^i_j */
+	real3x3 const K_ul = real3s3_real3s3_mul(gamma_uu, U->K_ll);			/* K^i_j */
 	real const trK = real3x3_trace(K_ul);								/* K^k_k */
-	sym3 const KSq_ll = sym3_real3x3_to_sym3_mul(U->K_ll, K_ul);		/* KSq_ij = K_ik K^k_j */
+	real3s3 const KSq_ll = real3s3_real3x3_to_real3s3_mul(U->K_ll, K_ul);		/* KSq_ij = K_ik K^k_j */
 
 	/* d_llu = d_ij^k = d_ijl * gamma^lk */
 	real3x3 d_llu[3] = {
 <? for i,xi in ipairs(xNames) do
-?>		sym3_sym3_mul(U->d_lll.<?=xi?>, gamma_uu),
+?>		real3s3_real3s3_mul(U->d_lll.<?=xi?>, gamma_uu),
 <? end
 ?>	};
 
 	/* d_ull = d^i_jk = gamma^il d_ljk */
-	_3sym3 const d_ull = sym3_3sym3_mul(gamma_uu, U->d_lll);
+	real3x3s3 const d_ull = real3s3_real3x3s3_mul(gamma_uu, U->d_lll);
 
 	/* e_l = d^j_ji */
 	real3 const e_l = (real3){
@@ -2062,9 +2062,9 @@ kernel void <?=addSource?>(
 ?>	};
 
 	/* conn^k_ij = d_ij^k + d_ji^k - d^k_ij */
-	_3sym3 const conn_ull = {
+	real3x3s3 const conn_ull = {
 <? for k,xk in ipairs(xNames) do 
-?>		.<?=xk?> = (sym3){
+?>		.<?=xk?> = (real3s3){
 <?	for ij,xij in ipairs(symNames) do
 		local i,j = from6to3x3(ij)
 		local xi,xj = xNames[i],xNames[j]
@@ -2082,14 +2082,14 @@ kernel void <?=addSource?>(
 <? end
 ?>	};
 	
-	real3 const d_u = sym3_real3_mul(gamma_uu, d_l);
-	real3 const e_u = sym3_real3_mul(gamma_uu, e_l);
-	real3 const Z_u = sym3_real3_mul(gamma_uu, U->Z_l);
+	real3 const d_u = real3s3_real3_mul(gamma_uu, d_l);
+	real3 const e_u = real3s3_real3_mul(gamma_uu, e_l);
+	real3 const Z_u = real3s3_real3_mul(gamma_uu, U->Z_l);
 
 	/* d_luu = d_i^jk = gamma^jl d_il^k */
-	_3sym3 const d_luu = (_3sym3){
+	real3x3s3 const d_luu = (real3x3s3){
 <? for i,xi in ipairs(xNames) do		
-?>		.<?=xi?> = sym3_real3x3_to_sym3_mul(gamma_uu, d_llu[<?=i-1?>]),
+?>		.<?=xi?> = real3s3_real3x3_to_real3s3_mul(gamma_uu, d_llu[<?=i-1?>]),
 <? end
 ?>	};
 
@@ -2098,7 +2098,7 @@ kernel void <?=addSource?>(
 	deriv->alpha += -f_alphaSq * (trK - solver->m * U->Theta);
 	
 	/* gamma_ij,t = shift terms - 2 alpha K_ij */
-	deriv->gamma_ll = sym3_add(deriv->gamma_ll, sym3_real_mul(U->K_ll, -2. * U->alpha));
+	deriv->gamma_ll = real3s3_add(deriv->gamma_ll, real3s3_real_mul(U->K_ll, -2. * U->alpha));
 
 	/* 2005 Bona et al A.1 */
 <? for ij,xij in ipairs(symNames) do
@@ -2167,17 +2167,17 @@ kernel void <?=constrainU?>(
 	<?=SETBOUNDS?>(solver->numGhost, solver->numGhost);
 	global <?=cons_t?> * const U = UBuf + index;
 
-	real const det_gamma = sym3_det(U->gamma_ll);
-	sym3 const gamma_uu = sym3_inv(U->gamma_ll, det_gamma);
+	real const det_gamma = real3s3_det(U->gamma_ll);
+	real3s3 const gamma_uu = real3s3_inv(U->gamma_ll, det_gamma);
 
 	real const rho = 0.;
 
-	real3x3 const K_ul = sym3_sym3_mul(gamma_uu, U->K_ll);			/* K^i_j */
+	real3x3 const K_ul = real3s3_real3s3_mul(gamma_uu, U->K_ll);			/* K^i_j */
 	real const trK = real3x3_trace(K_ul);								/* K^k_k */
-	sym3 const KSq_ll = sym3_real3x3_to_sym3_mul(U->K_ll, K_ul);		/* KSq_ij = K_ik K^k_j */
+	real3s3 const KSq_ll = real3s3_real3x3_to_real3s3_mul(U->K_ll, K_ul);		/* KSq_ij = K_ik K^k_j */
 
 	/* d_ull = d^i_jk = gamma^il d_ljk */
-	_3sym3 const d_ull = sym3_3sym3_mul(gamma_uu, U->d_lll);
+	real3x3s3 const d_ull = real3s3_real3x3s3_mul(gamma_uu, U->d_lll);
 
 	/* e_l = d^j_ji */
 	real3 const e_l = (real3){
@@ -2192,7 +2192,7 @@ kernel void <?=constrainU?>(
 	/* d_llu = d_ij^k = d_ijl * gamma^lk */
 	real3x3 d_llu[3] = {
 <? for i,xi in ipairs(xNames) do
-?>		sym3_sym3_mul(U->d_lll.<?=xi?>, gamma_uu),
+?>		real3s3_real3s3_mul(U->d_lll.<?=xi?>, gamma_uu),
 <? end
 ?>	};
 	
@@ -2204,9 +2204,9 @@ kernel void <?=constrainU?>(
 ?>	};
 
 	/* conn^k_ij = d_ij^k + d_ji^k - d^k_ij */
-	_3sym3 const conn_ull = {
+	real3x3s3 const conn_ull = {
 <? for k,xk in ipairs(xNames) do 
-?>		.<?=xk?> = (sym3){
+?>		.<?=xk?> = (real3s3){
 <?	for ij,xij in ipairs(symNames) do
 		local i,j = from6to3x3(ij)
 		local xi,xj = xNames[i],xNames[j]
@@ -2218,7 +2218,7 @@ kernel void <?=constrainU?>(
 
 	real3 const V_l = real3_sub(d_l, e_l);
 
-	sym3 const R_ll = (sym3){
+	real3s3 const R_ll = (real3s3){
 <? for ij,xij in ipairs(symNames) do
 	local i,j,xi,xj = from6to3x3(ij)
 ?>		.<?=xij?> = 0.
@@ -2244,7 +2244,7 @@ kernel void <?=constrainU?>(
 	/* B&S eqn 2.125 ... divded by two */
 	/* Alcubierre eqn 2.5.9 */
 	/* H = 1/2 (R + K^2 - K_ij K^ij) - 8 pi rho */
-	real const R = sym3_dot(R_ll, gamma_uu);
-	real const tr_KSq = sym3_dot(KSq_ll, gamma_uu);
+	real const R = real3s3_dot(R_ll, gamma_uu);
+	real const tr_KSq = real3s3_dot(KSq_ll, gamma_uu);
 	U->H = .5 * (R + trK * trK - tr_KSq) - 8. * M_PI * rho;
 }

@@ -30,8 +30,8 @@ function EinsteinEquation:getSymbolFields()
 		-- placeholder for rescale[From/To]Coord_*
 		'rescaleFromCoord_rescaleToCoord',
 		'cplx3_rescaleFromCoord_cplx3_rescaleToCoord',
-		'_3sym3_rescaleFromCoord__3sym3_rescaleToCoord',
-		'sym3sym3_rescaleFromCoord_sym3sym3_rescaleToCoord',
+		'real3x3s3_rescaleFromCoord_real3x3s3_rescaleToCoord',
+		'real3s3x3s3_rescaleFromCoord_real3s3x3s3_rescaleToCoord',
 	}
 end
 
@@ -92,17 +92,17 @@ function EinsteinEquation:getDisplayVars()
 			name = 'gamma_ll',
 			code = self:template[[
 //// MODULE_DEPENDS: <?=calc_gamma_ll?>
-value.vsym3 = <?=calc_gamma_ll?>(U, x);
+value.vreal3s3 = <?=calc_gamma_ll?>(U, x);
 ]],
-			type = 'sym3',
+			type = 'real3s3',
 		},
 		{
 			name = 'gamma_uu',
 			code = self:template[[
 //// MODULE_DEPENDS: <?=calc_gamma_uu?>
-value.vsym3 = <?=calc_gamma_uu?>(U, x);
+value.vreal3s3 = <?=calc_gamma_uu?>(U, x);
 ]],
-			type = 'sym3',
+			type = 'real3s3',
 		},
 	}
 
@@ -117,7 +117,7 @@ function EinsteinEquation:createDisplayComponents()
 		name = 'norm weighted gamma_ij',
 		code = self:template[[
 global <?=cons_t?> const * const U = buf + index;
-sym3 gamma_ll = <?=calc_gamma_ll?>(U, x);
+real3s3 gamma_ll = <?=calc_gamma_ll?>(U, x);
 value->vreal = real3_weightedLen(value->vreal3, gamma_ll);
 ]],
 	})
@@ -126,17 +126,17 @@ value->vreal = real3_weightedLen(value->vreal3, gamma_ll);
 		name = 'norm weighted gamma^ij',
 		code = self:template[[
 global <?=cons_t?> const * const U = buf + index;
-sym3 gamma_uu = <?=calc_gamma_uu?>(U, x);
+real3s3 gamma_uu = <?=calc_gamma_uu?>(U, x);
 value->vreal = real3_weightedLen(value->vreal3, gamma_uu);
 ]],
 	})
-	solver:addDisplayComponent('sym3', {
+	solver:addDisplayComponent('real3s3', {
 		onlyFor = 'U',
 		name = 'tr weighted gamma^ij',
 		code = self:template[[
 global <?=cons_t?> const * const U = buf + index;
-sym3 gamma_uu = <?=calc_gamma_uu?>(U, x);
-value->vreal = sym3_dot(value->vsym3, gamma_uu);]],
+real3s3 gamma_uu = <?=calc_gamma_uu?>(U, x);
+value->vreal = real3s3_dot(value->vreal3s3, gamma_uu);]],
 	})
 end
 

@@ -32,7 +32,7 @@ return function(parent)
 		return template([[
 	real <?=args.alpha?> = 1;
 	real3 <?=args.beta?> = real3_zero;
-	sym3 <?=args.gamma?> = sym3_ident;
+	real3s3 <?=args.gamma?> = real3s3_ident;
 ]], {args=args})
 	end
 

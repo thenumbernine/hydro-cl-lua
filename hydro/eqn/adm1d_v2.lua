@@ -112,8 +112,8 @@ function ADM_BonaMasso_1D_1997Alcubierre:createDisplayComponents()
 	-- displayValue_t needs this
 	-- where should I set it?
 	-- it is needed by calc_gamma_ll's display code
-	-- however adding 'sym3' as a dependency to 'calc_gamma_ll' doesn't seem to set it in displayValue_t
-	self.solver.solverModulesEnabled.sym3 = true
+	-- however adding 'real3s3' as a dependency to 'calc_gamma_ll' doesn't seem to set it in displayValue_t
+	self.solver.solverModulesEnabled.real3s3 = true
 end
 
 ADM_BonaMasso_1D_1997Alcubierre.solverCodeFile = 'hydro/eqn/adm1d_v2.cl'
