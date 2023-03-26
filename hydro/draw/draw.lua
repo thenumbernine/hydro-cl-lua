@@ -125,7 +125,6 @@ local function makeGLSL(code)
 		'#define const',	-- TODO this is for cl arg attributes also, but glsl does use this for variable declarations
 		'#define real					float',
 		'#define real3					vec3',
-		'#define len(a)					length(a)',
 		'#define atan2					atan',
 		'#define fmod					mod',
 		'#define fabs					abs',

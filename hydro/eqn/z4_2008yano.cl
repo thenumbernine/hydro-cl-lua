@@ -301,7 +301,7 @@ static inline void <?=setFlatSpace?>(
 }
 
 //// MODULE_NAME: <?=fluxFromCons?>
-//// MODULE_DEPENDS: <?=cons_t?> <?=solver_t?> <?=normal_t?> rotate sym3_rotate _3sym3_rotate
+//// MODULE_DEPENDS: <?=cons_t?> <?=solver_t?> <?=normal_t?>
 
 /*
 Going by the 2008 Yano et al paper flux term.
@@ -697,7 +697,7 @@ b^l_k,t 	+ (-β^i b^l_i)_,k									*/	\
 }
 
 //// MODULE_NAME: <?=eigen_leftTransform?>
-//// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> <?=normal_t?> rotate <?=initCond_codeprefix?>
+//// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> <?=normal_t?> <?=initCond_codeprefix?>
 // used by roe, weno, some plm
 
 //TODO these were based no noZeroRowsInFlux==false (I think) so maybe/certainly they are out of date
@@ -710,11 +710,11 @@ b^l_k,t 	+ (-β^i b^l_i)_,k									*/	\
 	/*<?=normal_t?> const */n\
 ) {\
 	/* input */\
-	real3 const a_l = real3_swap((inputU)->a_l, n.side);							/* 0-2 */\
-	_3sym3 const d_lll = _3sym3_swap((inputU)->d_lll, n.side);						/* 3-20 */\
-	sym3 const K_ll = sym3_swap((inputU)->K_ll, n.side);							/* 21-26 */\
-	real const Theta = (inputU)->Theta;												/* 27 */\
-	real3 const Z_l = real3_swap((inputU)->Z_l, n.side);							/* 28-30 */\
+	real3 const a_l = (inputU)->a_l.swap(n.side);							/* 0-2 */\
+	_3sym3 const d_lll = (inputU)->d_lll.swap(n.side);						/* 3-20 */\
+	sym3 const K_ll = (inputU)->K_ll.swap(n.side);							/* 21-26 */\
+	real const Theta = (inputU)->Theta;										/* 27 */\
+	real3 const Z_l = (inputU)->Z_l.swap(n.side);							/* 28-30 */\
 \
 	/* eig */\
 	real const sqrt_f = (eig)->alpha_sqrt_f / (eig)->alpha;\
@@ -728,8 +728,8 @@ b^l_k,t 	+ (-β^i b^l_i)_,k									*/	\
 	real const f_minus_1 = f - 1.;\
 	real const f_minus_1_sq = f_minus_1 * f_minus_1;\
 \
-	sym3 const gamma_ll = sym3_swap((eig)->gamma_ll, n.side);\
-	sym3 const gamma_uu = sym3_swap((eig)->gamma_uu, n.side);\
+	sym3 const gamma_ll = (eig)->gamma_ll.swap(n.side);\
+	sym3 const gamma_uu = (eig)->gamma_uu.swap(n.side);\
 \
 	_3sym3 const d_ull = sym3_3sym3_mul(gamma_uu, d_lll);\
 \
@@ -1322,7 +1322,7 @@ b^l_k,t 	+ (-β^i b^l_i)_,k									*/	\
 }
 
 //// MODULE_NAME: <?=eigen_rightTransform?>
-//// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> <?=normal_t?> rotate <?=initCond_codeprefix?> _3sym3_rotate sym3_rotate
+//// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> <?=normal_t?> <?=initCond_codeprefix?>
 
 //TODO these were based no noZeroRowsInFlux==false (I think) so maybe/certainly they are out of date
 #define <?=eigen_rightTransform?>(\
@@ -1337,8 +1337,8 @@ b^l_k,t 	+ (-β^i b^l_i)_,k									*/	\
 		(resultU)->ptr[j] = 0;\
 	}\
 	\
-	sym3 gamma_ll = sym3_swap((eig)->gamma_ll, n.side);\
-	sym3 gamma_uu = sym3_swap((eig)->gamma_uu, n.side);\
+	sym3 gamma_ll = (eig)->gamma_ll.swap(n.side);\
+	sym3 gamma_uu = (eig)->gamma_uu.swap(n.side);\
 \
 	real sqrt_f = (eig)->alpha_sqrt_f / (eig)->alpha;\
 	real f = sqrt_f * sqrt_f;\
@@ -1845,14 +1845,14 @@ b^l_k,t 	+ (-β^i b^l_i)_,k									*/	\
 		+ (input)->ptr[23] \
 		+ (input)->ptr[24];\
 \
-	(resultU)->a_l = real3_swap((resultU)->a_l, n.side);							/* 0-2 */\
-	(resultU)->d_lll = _3sym3_swap((resultU)->d_lll, n.side);						/* 3-20 */\
-	(resultU)->K_ll = sym3_swap((resultU)->K_ll, n.side);							/* 21-26 */\
-	(resultU)->Z_l = real3_swap((resultU)->Z_l, n.side);							/* 28-30 */\
+	(resultU)->a_l = (resultU)->a_l.swap(n.side);							/* 0-2 */\
+	(resultU)->d_lll = (resultU)->d_lll.swap(n.side);						/* 3-20 */\
+	(resultU)->K_ll = (resultU)->K_ll.swap(n.side);							/* 21-26 */\
+	(resultU)->Z_l = (resultU)->Z_l.swap(n.side);							/* 28-30 */\
 }
 
 //// MODULE_NAME: <?=eigen_fluxTransform?>
-//// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> <?=normal_t?> _3sym3_rotate sym3_rotate
+//// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> <?=normal_t?>
 // used by roe, some plm
 //so long as roeUseFluxFromCons isn't set for the roe solver, 
 // and fluxFromCons is provided/unused,
@@ -1877,14 +1877,14 @@ b^l_k,t 	+ (-β^i b^l_i)_,k									*/	\
 	}\
 \
 	/* input */\
-	real3 a_l = real3_swap((input)->a_l, n.side);			/* 0-2 */\
-	_3sym3 d_lll = _3sym3_swap((input)->d_lll, n.side);		/* 3-20 */\
-	sym3 K_ll = sym3_swap((input)->K_ll, n.side);			/* 21-26 */\
+	real3 a_l = (input)->a_l.swap(n.side);			/* 0-2 */\
+	_3sym3 d_lll = (input)->d_lll.swap(n.side);		/* 3-20 */\
+	sym3 K_ll = (input)->K_ll.swap(n.side);			/* 21-26 */\
 	real Theta = (input)->Theta;							/* 27 */\
-	real3 Z_l = real3_swap((input)->Z_l, n.side);			/* 28-30 */\
+	real3 Z_l = (input)->Z_l.swap(n.side);			/* 28-30 */\
 \
-	sym3 gamma_ll = sym3_swap((eig)->gamma_ll, n.side);\
-	sym3 gamma_uu = sym3_swap((eig)->gamma_uu, n.side);\
+	sym3 gamma_ll = (eig)->gamma_ll.swap(n.side);\
+	sym3 gamma_uu = (eig)->gamma_uu.swap(n.side);\
 \
 	real sqrt_f = (eig)->alpha_sqrt_f / (eig)->alpha;\
 	real f = sqrt_f * sqrt_f;\

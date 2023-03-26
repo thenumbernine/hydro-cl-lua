@@ -243,7 +243,7 @@ end
 <? end	-- eqn.initCond.useBSSNVars ?>
 
 //// MODULE_NAME: <?=fluxFromCons?>
-//// MODULE_DEPENDS: rotate <?=cons_t?> <?=solver_t?> <?=normal_t?> sym3_rotate _3sym3_rotate <?=initCond_codeprefix?>
+//// MODULE_DEPENDS: <?=cons_t?> <?=solver_t?> <?=normal_t?> <?=initCond_codeprefix?>
 
 #define <?=fluxFromCons?>(\
 	/*<?=cons_t?> * const */F,\
@@ -265,12 +265,12 @@ end
 \
 	<? for side=0,solver.dim-1 do ?>\
 	if (n.side == <?=side?>) {\
-		V_l = real3_swap<?=side?>(V_l);\
-		a_l = real3_swap<?=side?>(a_l);\
-		gamma_ll = sym3_swap<?=side?>(gamma_ll);\
-		K_ll = sym3_swap<?=side?>(K_ll);\
-		d_lll = _3sym3_swap<?=side?>(d_lll);\
-		gamma_uu = sym3_swap<?=side?>(gamma_uu);\
+		V_l = V_l.swap<?=side?>();\
+		a_l = a_l.swap<?=side?>();\
+		gamma_ll = gamma_ll.swap<?=side?>();\
+		K_ll = K_ll.swap<?=side?>();\
+		d_lll = d_lll.swap<?=side?>();\
+		gamma_uu = gamma_uu.swap<?=side?>();\
 	}\
 	<? end ?>\
 \
@@ -293,11 +293,11 @@ end
 \
 	<? for side=0,solver.dim-1 do ?>\
 	if (n.side == <?=side?>) {\
-		(F)->V_l = real3_swap<?=side?>((F)->V_l);\
-		(F)->a_l = real3_swap<?=side?>((F)->a_l);\
-		(F)->gamma_ll = sym3_swap<?=side?>((F)->gamma_ll);\
-		(F)->K_ll = sym3_swap<?=side?>((F)->K_ll);\
-		(F)->d_lll = _3sym3_swap<?=side?>((F)->d_lll);\
+		(F)->V_l = (F)->V_l.swap<?=side?>();\
+		(F)->a_l = (F)->a_l.swap<?=side?>();\
+		(F)->gamma_ll = (F)->gamma_ll.swap<?=side?>();\
+		(F)->K_ll = (F)->K_ll.swap<?=side?>();\
+		(F)->d_lll = (F)->d_lll.swap<?=side?>();\
 	}\
 	<? end ?>\
 }
@@ -397,7 +397,6 @@ end
 }
 
 //// MODULE_NAME: <?=eigen_leftTransform?>
-//// MODULE_DEPENDS: sym3_rotate _3sym3_rotate
 
 #define <?=eigen_leftTransform?>(\
 	/*<?=waves_t?> * const */result,\
@@ -682,9 +681,9 @@ end
 \
 		a_j = (inputU)->a_l.s<?=side?>;\
 \
-		d_lll = sym3_swap<?=side?>((inputU)->d_lll.v<?=side?>);\
-		K_ll = sym3_swap<?=side?>((inputU)->K_ll);\
-		gamma_uu = sym3_swap<?=side?>((eig)->gamma_uu);\
+		d_lll = (inputU)->d_lll.v<?=side?>.swap<?=side?>();\
+		K_ll = (inputU)->K_ll.swap<?=side?>();\
+		gamma_uu = (eig)->gamma_uu.swap<?=side?>();\
 	}\
 	<? end ?>\
 \
@@ -1229,7 +1228,7 @@ end
 	if (n.side == <?=side?>) {\
 		/* TODO swap size inside <?=eigen_t?> structure */\
 		/* instead of doing it here */\
-		sym3 const gamma_uu = sym3_swap<?=side?>((eig)->gamma_uu);\
+		sym3 const gamma_uu = (eig)->gamma_uu.swap<?=side?>();\
 \
 		real const input1_dot_gammaU = (input)->ptr[1] * 2. * gamma_uu.xy\
 			+ (input)->ptr[2] * 2. * gamma_uu.xz\
@@ -1267,8 +1266,8 @@ end
 		<? end ?>\
 \
 		/* now swap x and side on the sym3's */\
-		(result)->d_lll.v<?=side?> = sym3_swap<?=side?>(d_lll);\
-		(result)->K_ll = sym3_swap<?=side?>(K_ll);\
+		(result)->d_lll.v<?=side?> = d_lll.swap<?=side?>();\
+		(result)->K_ll = K_ll.swap<?=side?>();\
 	}\
 	<? end ?>\
 \
@@ -1276,7 +1275,7 @@ end
 }
 
 //// MODULE_NAME: <?=eigen_fluxTransform?>
-//// MODULE_DEPENDS: <?=eigen_t?> <?=waves_t?> rotate
+//// MODULE_DEPENDS: <?=eigen_t?> <?=waves_t?>
 
 #define <?=eigen_fluxTransform?>(\
 	/*<?=cons_t?> * const */result, \
@@ -1317,9 +1316,9 @@ end
 	if (n.side == <?=side?>) {\
 \
 		/* now swap x and side on the sym3's */\
-		sym3 const input_d = sym3_swap<?=side?>((inputU)->d_lll.v<?=side?>);\
-		sym3 const input_K = sym3_swap<?=side?>((inputU)->K_ll);\
-		sym3 const gamma_uu = sym3_swap<?=side?>((eig)->gamma_uu);\
+		sym3 const input_d = (inputU)->d_lll.v<?=side?>.swap<?=side?>();\
+		sym3 const input_K = (inputU)->K_ll.swap<?=side?>();\
+		sym3 const gamma_uu = (eig)->gamma_uu.swap<?=side?>();\
 \
 		(result)->a_l.s<?=side?> = sym3_dot(input_K, gamma_uu) * (eig)->alpha * f;\
 		sym3 const result_d = sym3_real_mul(input_K, (eig)->alpha);\
@@ -1327,8 +1326,8 @@ end
 		result_K.xx += ((inputU)->a_l.s<?=side?> - sym3_dot(input_d, gamma_uu)) * (eig)->alpha;\
 \
 		/* now swap x and side on the sym3's */\
-		(result)->d_lll.v<?=side?> = sym3_swap<?=side?>(result_d);\
-		(result)->K_ll = sym3_swap<?=side?>(result_K);\
+		(result)->d_lll.v<?=side?> = result_d.swap<?=side?>();\
+		(result)->K_ll = result_K.swap<?=side?>();\
 \
 	}\
 	<? end ?>\
@@ -1348,12 +1347,12 @@ end
 	\
 	<? for side=0,solver.dim-1 do ?>\
 	if (n.side == <?=side?>) {\
-		V_l = real3_swap<?=side?>(V_l);\
-		a_l = real3_swap<?=side?>(a_l);\
-		gamma_ll = sym3_swap<?=side?>(gamma_ll);\
-		K_ll = sym3_swap<?=side?>(K_ll);\
-		d_lll = _3sym3_swap<?=side?>(d_lll);\
-		gamma_uu = sym3_swap<?=side?>(gamma_uu);\
+		V_l = V_l.swap<?=side?>();\
+		a_l = a_l.swap<?=side?>();\
+		gamma_ll = gamma_ll.swap<?=side?>();\
+		K_ll = K_ll.swap<?=side?>();\
+		d_lll = d_lll.swap<?=side?>();\
+		gamma_uu = gamma_uu.swap<?=side?>();\
 	}\
 	<? end ?>\
 \
@@ -1375,11 +1374,11 @@ end
 \
 	<? for side=0,solver.dim-1 do ?>\
 	if (n.side == <?=side?>) {\
-		(result)->V_l = real3_swap<?=side?>((result)->V_l);\
-		(result)->a_l = real3_swap<?=side?>((result)->a_l);\
-		(result)->gamma_ll = sym3_swap<?=side?>((result)->gamma_ll);\
-		(result)->K_ll = sym3_swap<?=side?>((result)->K_ll);\
-		(result)->d_lll = _3sym3_swap<?=side?>((result)->d_lll);\
+		(result)->V_l = (result)->V_l.swap<?=side?>();\
+		(result)->a_l = (result)->a_l.swap<?=side?>();\
+		(result)->gamma_ll = (result)->gamma_ll.swap<?=side?>();\
+		(result)->K_ll = (result)->K_ll.swap<?=side?>();\
+		(result)->d_lll = (result)->d_lll.swap<?=side?>();\
 	}\
 	<? end ?>\
 <? end ?>\

@@ -25,7 +25,7 @@ struct MeshNormal {
 	}
 <? end ?>
 
-	constexpr real len() const {
+	constexpr real length() const {
 		return 1.;
 	}
 	constexpr real lenSq() const {
@@ -41,10 +41,10 @@ for j,xj in ipairs(xNames) do
 	constexpr real u<?=j?><?=xi?>() const {
 		return l<?=j?><?=xi?>();
 	}
-	constexpr real l<?=j?><?=xi?>_over_len() const {
+	constexpr real l<?=j?><?=xi?>_over_length() const {
 		return l<?=j?><?=xi?>();
 	}
-	constexpr real u<?=j?><?=xi?>_over_len() const {
+	constexpr real u<?=j?><?=xi?>_over_length() const {
 		return u<?=j?><?=xi?>();
 	}
 <?
@@ -98,7 +98,7 @@ struct AnholonomicNormal {
 	}
 
 	//|n|
-	constexpr real len() const { return 1.; }
+	constexpr real length() const { return 1.; }
 	constexpr real lenSq() const { return 1.; }
 
 //(nj)_i, (nj)^i, (nj)_i/|nj|, (nj)^i/|nj|
@@ -112,10 +112,10 @@ for j=1,3 do
 	constexpr real u<?=j?><?=xi?>() const {
 		return l<?=j?><?=xi?>();
 	}
-	constexpr real l<?=j?><?=xi?>_over_len() const {
+	constexpr real l<?=j?><?=xi?>_over_length() const {
 		return l<?=j?><?=xi?>();
 	}
-	constexpr real u<?=j?><?=xi?>_over_len() const {
+	constexpr real u<?=j?><?=xi?>_over_length() const {
 		return u<?=j?><?=xi?>();
 	}
 <?
@@ -185,7 +185,7 @@ struct CartesianNormal {
 	};
 
 	//|n1|
-	constexpr real len() const {
+	constexpr real length() const {
 		return l;
 	}
 
@@ -206,12 +206,12 @@ for j,xj in ipairs(xNames) do
 		return l<?=j?><?=xi?>();
 	}
 
-	constexpr real l<?=j?><?=xi?>_over_len() const {
+	constexpr real l<?=j?><?=xi?>_over_length() const {
 		return l<?=j?><?=xi?>() / l;
 	}
 
-	constexpr real u<?=j?><?=xi?>_over_len() const {
-		return l<?=j?><?=xi?>_over_len();
+	constexpr real u<?=j?><?=xi?>_over_length() const {
+		return l<?=j?><?=xi?>_over_length();
 	}
 <?
 	end
@@ -267,7 +267,7 @@ struct HolonomicNormal {
 	constexpr static HolonomicNormal forSide(real3 pt);
 
 	//|n1|
-	constexpr real len() const {
+	constexpr real length() const {
 		return l;
 	}
 
@@ -284,7 +284,7 @@ for j=1,3 do
 		return side == <?=(i-j)%3?> ? 1. : 0.;
 	}
 
-	constexpr real l<?=j?><?=xi?>_over_len() {
+	constexpr real l<?=j?><?=xi?>_over_length() {
 		return side == <?=(i-j)%3?> ? (1./l) : 0.;
 	}
 <?
@@ -301,7 +301,7 @@ for j,xj in ipairs(xNames) do
 		return U.<?=xj?>.<?=xi?>;
 	}
 
-	constexpr real u<?=j?><?=xi?>_over_len() const {
+	constexpr real u<?=j?><?=xi?>_over_length() const {
 		return u<?=j?><?=xi?>() / l;
 	}
 

@@ -853,7 +853,7 @@ template<typename Prim> using InitCondC = InitCond_Euler_rectangle<Prim, Hydro::
 			return [[
 	rho = 1.;
 	P = 1e-6;
-	real r = real3_len(x);
+	real r = x.length();
 	v = real3_real_mul(x, -1./r);
 ]]
 		end,
@@ -987,7 +987,7 @@ template<typename Prim> using InitCondC = InitCond_Euler_rectangle<Prim, Hydro::
 	P = 1;
 
 	real3 delta = xc;
-	real coord_r = real3_len(delta);
+	real coord_r = delta.length();
 	real3 eHat_r = real3_real_mul(delta, 1. / coord_r);
 	real3 eHat_theta = real3(-eHat_r.y, eHat_r.x, 0.);
 	real3 eHat_z = real3(0., 0., 1.);
@@ -1025,7 +1025,7 @@ template<typename Prim> using InitCondC = InitCond_Euler_rectangle<Prim, Hydro::
 	P = 1;
 
 	real3 delta = xc;
-	real dist = real3_len(real3(delta.x, delta.y, 0.));
+	real dist = real3(delta.x, delta.y, 0.).length();
 	real radius = 1.;
 	real distPastRadius = dist - radius;
 	rho = .1;
@@ -1450,7 +1450,7 @@ end
 
 //// MODULE_DEPENDS: <?=coordMap?>
 	real3 xc = coordMap(x);
-	real r = real3_len(xc);
+	real r = xc.length();
 	real delta = (r - gaussianCenter) / sigma;
 	real deltaSq = delta * delta;
 	rho = .1 + exp(-deltaSq);
@@ -3248,7 +3248,7 @@ kernel void addExtraSource(
 			return self.solver.eqn:template[[
 //// MODULE_DEPENDS: <?=coordMap?>
 	real3 xc = coordMap(x);
-	real r = real3_len(xc);
+	real r = xc.length();
 	P = initCond.P;
 	rho = initCond.rho;
 	v.x = -xc.y * initCond.v / r;

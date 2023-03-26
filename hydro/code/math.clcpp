@@ -1,6 +1,3 @@
-<?
-local addrs = {"", "constant", "private"}
-?>
 //// MODULE_NAME: vec3
 //// MODULE_TYPE:
 
@@ -144,10 +141,106 @@ static constexpr bool is_tensor_v = std::is_detected_v<has_tensorFlag, T>;
 template<typename A, typename B>
 static constexpr bool IsBinaryTensorOp = is_tensor_v<A> && is_tensor_v<B>;
 
+template<typename A, typename B>
+static constexpr bool IsBinaryTensorR3xR3Op = IsBinaryTensorOp<A,B>
+	&& A::rank == 1 && A::template dim<0> == 3
+	&& B::rank == 1 && B::template dim<0> == 3;
+
+template<
+	typename A,
+	typename B,
+	std::enable_if_t<IsBinaryTensorOp<A,B>, int> = 0
+>
+auto dot(
+	A const & a,
+	B const & b
+);
+
+template<
+	typename T,
+	std::enable_if_t<is_tensor_v<T>, int> = 0
+>
+auto lenSq(T const v);
+
+template<
+	typename T,
+	std::enable_if_t<is_tensor_v<T>, int> = 0
+>
+auto length(T const v);
+
+template<
+	typename A,
+	typename B,
+	std::enable_if_t<IsBinaryTensorOp<A,B>, int> = 0
+>
+auto distance(A const a, B const b);
+
+template<
+	typename T,
+	std::enable_if_t<is_tensor_v<T>, int> = 0
+>
+T normalize(T const v);
+
+// 3D-specific:
+
+template<
+	typename A,
+	typename B,
+	std::enable_if_t<IsBinaryTensorR3xR3Op<A,B>, int> = 0
+>
+constexpr auto cross(
+	A const a,
+	B const b
+);
+
+// 3D dimension-swapping functions
+// TODO change to make sure it's a tensor of dim 3's all across (irrespective of rank)
+
+#if 0
+
+template<
+	typename T,
+	std::enable_if_t<is_tensor_v<T>, int> = 0
+>
+constexpr auto swap(T const v, int side);
+
+template<
+	int side,
+	typename T,
+	std::enable_if_t<is_tensor_v<T>, int> = 0
+>
+constexpr auto rotateFromSide(T const v);
+
+template<
+	int side,
+	typename T,
+	std::enable_if_t<is_tensor_v<T>, int> = 0
+>
+constexpr auto rotateToSide(T const v);
+
+template<
+	int dim,
+	typename T,
+	typename N,
+	std::enable_if_t<is_tensor_v<T> && is_tensor_v<N> && N::rank == 1 && N::template dim<0> == 3, int> = 0
+>
+constexpr auto rotateFromInDim(T const v, N const n);
+
+template<
+	int dim,
+	typename T,
+	typename N,
+	std::enable_if_t<is_tensor_v<T> && is_tensor_v<N> && N::rank == 1 && N::template dim<0> == 3, int> = 0
+>
+constexpr auto rotateToInDim(T const v, N const n);
+
+#endif
+
 template<typename Inner_>
 union vec3 {
-	static constexpr bool isTensorFlag = true;
+	using This = vec3;
 	using Inner = Inner_;
+	static constexpr bool isTensorFlag = true;
 
 	// TODO instead just count # of tuples in the nested args
 	// but ... I need tuples for that ...
@@ -174,6 +267,10 @@ union vec3 {
 		}
 	};
 	static constexpr int rank = NestedRankImpl::value();
+
+	// TODO arbitrary-dimension
+	template<int dimIndex>
+	static constexpr int dim = 3;
 
 	Inner s[3];
 	struct { Inner s0, s1, s2; };
@@ -264,17 +361,143 @@ union vec3 {
 	vec3 operator-() const {
 		return vec3(-x, -y, -z);
 	}
-	vec3 operator-() constant const {
-		return vec3(-x, -y, -z);
-	}
 
 	constexpr Inner & operator[](int i) { return s[i]; }
 	constexpr Inner const & operator[](int i) const { return s[i]; }
+	// hmm why 'constant' need here?
 	constexpr constant Inner & operator[](int i) constant { return s[i]; }
 	constexpr constant Inner const & operator[](int i) constant const { return s[i]; }
 
 	template<typename R>
 	using ReplaceScalar = vec3<R>;
+
+
+	template<
+		typename B,
+		std::enable_if_t<IsBinaryTensorOp<This,B>, int> = 0
+	>
+	auto dot(
+		B const & b
+	) const {
+		return ::dot(*this, b);
+	}
+
+	auto lenSq() const {
+		return ::lenSq(*this);
+	}
+
+	auto length() const {
+		return ::length(*this);
+	}
+
+	template<
+		typename B,
+		std::enable_if_t<IsBinaryTensorOp<This,B>, int> = 0
+	>
+	auto distance(B const b) const {
+		return ::distance(*this, b);
+	}
+
+	auto normalize() const {
+		return ::normalize(*this);
+	}
+
+	template<
+		typename B,
+		std::enable_if_t<IsBinaryTensorR3xR3Op<This,B>, int> = 0
+	>
+	auto cross(
+		B const b
+	) const {
+		return ::cross(*this, b);
+	}
+
+#if 0
+	// TODO make global scope methods for these?
+	// they are all vec3-specific
+	// TODO TODO these implementations are all vec3-specific
+	// ALSO do implementations for sym3, real3x3, and 3sym3
+	// so maybe I should make them globals after all?
+
+	//for swapping dimensions between x and 012
+	
+	constexpr vec3 swap(int side) const { return ::swap(*this, side); }
+	
+	//rotate from a particular side xyz to put x forward
+	// all assumed to be 3D rotations
+	// used for cartesian 3D grids 
+
+	template<int side>
+	constexpr vec3 rotateFromSide() const {
+		return ::rotateFromSide<side, This>(*this);
+	}
+
+	//rotate to put x back to the side
+
+	template<int side>
+	constexpr vec3 rotateToSide() const {
+		return ::rotateToSide<side, This>(*this);
+	}
+
+	//rotate 'n' to x-axis
+	//assumes 'n' is unit
+	// dim = dimension of the rotate operation
+	
+	template<
+		int dim,
+		typename N,
+		std::enable_if_t<is_tensor_v<N> && N::rank == 1 && N::template dim<0> == 3, int> = 0
+	>
+	constexpr vec3 rotateFromInDim(vec3 n) const {
+		return ::rotateFromInDim<dim, This, N>(*this);
+	}
+
+	//rotate x-axis to 'n'
+
+	template<
+		int dim,
+		typename N,
+		std::enable_if_t<is_tensor_v<N> && N::rank == 1 && N::template dim<0> == 3, int> = 0
+	>
+	constexpr vec3 rotateToInDim(vec3 n) const {
+		return ::rotateToInDim<dim, This, N>(*this);
+	}
+#endif
+
+#if 0	//"error: parameter may not be qualified with an address space" ... ?????
+	vec3 rotateX(Scalar const theta) const {
+		Scalar cosTheta = cos(theta);
+		Scalar sinTheta = sin(theta);
+		vec3 v = *this;
+		Scalar vy = v.y;
+		Scalar vz = v.z;
+		v.y = vy * cosTheta - vz * sinTheta;
+		v.z = vy * sinTheta + vz * cosTheta;
+		return v;
+	}
+	
+	vec3 rotateY(Scalar const theta) const {
+		Scalar cosTheta = cos(theta);
+		Scalar sinTheta = sin(theta);
+		vec3 v = *this;
+		Scalar vx = v.x;
+		Scalar vz = v.z;
+		v.x = vx * cosTheta + vz * sinTheta;
+		v.z = -vx * sinTheta + vz * cosTheta;
+		return v;
+	}
+
+	vec3 rotateZ(Scalar const theta) const {
+		Scalar cosTheta = cos(theta);
+		Scalar sinTheta = sin(theta);
+		vec3 v = *this;
+		Scalar vx = v.x;
+		Scalar vy = v.y;
+		v.x = vx * cosTheta - vy * sinTheta;
+		v.y = vx * sinTheta + vy * cosTheta;
+		return v;
+	}
+#endif
 
 } <?=app.real=="half" and "__attribute__ ((packed))" or ""
 -- __attribute__ ((packed)) seems to need to be here with real=half
@@ -327,12 +550,12 @@ template<\
 	typename B,\
 	std::enable_if_t<\
 		IsBinaryTensorOp<A,B>\
-		/* && A::dims() == B::dims()*/\
+		/* && A::dims() == B::dims() TODO haven't got this yet*/\
 	, int> = 0\
 >\
 decltype(auto) operator op(A const a, B const b) {\
 	using RS = decltype(typename A::Scalar() op typename B::Scalar());\
-	using R = typename A/*::template TensorSumResult<B>*/::template ReplaceScalar<RS>;\
+	using R = typename A/*::template TensorSumResult<B> TODO */::template ReplaceScalar<RS>;\
 	return R(a.x op b.x, a.y op b.y, a.z op b.z);\
 }
 
@@ -340,16 +563,6 @@ TENSOR_TENSOR_OP(+)
 TENSOR_TENSOR_OP(-)
 //TENSOR_TENSOR_OP(*) handled elsewhere as inner product
 TENSOR_TENSOR_OP(/)
-
-template<
-	typename A,
-	typename B,
-	std::enable_if_t<IsBinaryTensorOp<A,B>, int> = 0
->
-auto dot(
-	A const a,
-	B const b
-);
 
 //// END EXCLUDE FROM FFI_CDEF
 
@@ -365,13 +578,258 @@ template<
 	std::enable_if_t<IsBinaryTensorOp<A,B>, int>
 >
 auto dot(
-	A const a,
-	B const b
+	A const & a,
+	B const & b
 ) {
 	return a.x * conj(b.x)
 		+ a.y * conj(b.y)
 		+ a.z * conj(b.z);
 }
+
+template<
+	typename T,
+	std::enable_if_t<is_tensor_v<T>, int>
+>
+auto lenSq(T const v) {
+	return dot(v, v);
+}
+
+template<
+	typename T,
+	std::enable_if_t<is_tensor_v<T>, int>
+>
+auto length(T const v) {
+	return (typename T::Scalar)sqrt(lenSq(v));
+}
+
+template<
+	typename A,
+	typename B,
+	std::enable_if_t<IsBinaryTensorOp<A,B>, int>
+>
+auto distance(A const a, B const b) {
+	return length(b - a);
+}
+
+template<
+	typename T,
+	std::enable_if_t<is_tensor_v<T>, int>
+>
+T normalize(T const v) {
+	return v / length(v);
+}
+
+// vec3-specific:
+
+template<
+	typename A,
+	typename B,
+	std::enable_if_t<IsBinaryTensorR3xR3Op<A,B>, int>
+>
+constexpr auto cross(
+	A const a,
+	B const b
+) {
+	using RS = decltype(typename A::Scalar() * typename B::Scalar());
+	using R = typename A::template ReplaceScalar<RS>;
+	return R(
+		a[1] * b[2] - a[2] * b[1],
+		a[2] * b[0] - a[0] * b[2],
+		a[0] * b[1] - a[1] * b[0]);
+}
+
+#if 0
+
+// TODO this is the vec3 impl
+// for mat3 etc it might be different ...
+
+template<
+	typename T,
+	std::enable_if_t<is_tensor_v<T>, int>
+>
+constexpr auto swap(T const v, int side) {
+	auto tmp = v.s[side];
+	v.s[side] = v.x;
+	v.x = tmp;
+	return v;
+}
+
+template<
+	typename T,
+	std::enable_if_t<is_tensor_v<T>, int>
+>
+constexpr auto rotateFromSide<0, T>(T const v) {
+	return v;
+}
+
+template<
+	typename T,
+	std::enable_if_t<is_tensor_v<T>, int>
+>
+constexpr auto rotateFromSide<1, T>(T const v) {
+	return T{v.y, -v.x, v.z};
+}
+
+template<
+	typename T,
+	std::enable_if_t<is_tensor_v<T>, int>
+>
+constexpr auto rotateFromSide<2, T>(T const v) {
+	return T{v.z, v.y, -v.x};
+}
+
+template<
+	typename T,
+	std::enable_if_t<is_tensor_v<T>, int>
+>
+constexpr auto rotateToSide<0, T>(T const v) {
+	return v;
+}
+
+template<
+	typename T,
+	std::enable_if_t<is_tensor_v<T>, int>
+>
+constexpr auto rotateToSide<1, T>(T const v) {
+	return T{-v.y, v.x, v.z};
+}
+
+template<
+	typename T,
+	std::enable_if_t<is_tensor_v<T>, int>
+>
+constexpr auto rotateToSide<2, T>(T const v) {
+	return T{-v.z, v.y, v.x};
+}
+
+template<
+	int dim,
+	typename T,
+	typename N,
+	std::enable_if_t<is_tensor_v<T> && is_tensor_v<N> && N::rank == 1 && N::template dim<0> == 3, int>
+>
+constexpr auto rotateFromInDim<1, T, N>(
+	T const v,
+	N const n
+) {
+	return *this;
+}
+
+template<
+	int dim,
+	typename T,
+	typename N,
+	std::enable_if_t<is_tensor_v<T> && is_tensor_v<N> && N::rank == 1 && N::template dim<0> == 3, int>
+>
+constexpr auto rotateFromInDim<2, T, N>(
+	T const v,
+	N const n
+) {
+	return T(
+		v.x * n.x + v.y * n.y,
+		-v.x * n.y + v.y * n.x,
+		z);
+}
+
+//// MODULE_DEPENDS: quat
+template<
+	int dim,
+	typename T,
+	typename N,
+	std::enable_if_t<is_tensor_v<T> && is_tensor_v<N> && N::rank == 1 && N::template dim<0> == 3, int>
+>
+constexpr auto rotateFromInDim<3, T, N>(
+	T const v,
+	N const n
+) {
+	using Scalar = typename T::Scalar;
+	/*
+	axis is n cross x-axis
+	[ 1  0  0] x [nx ny nz] = [0, -nz, ny] / (ny^2 + nz^2)
+	angle = acos(n.x)
+	cos angle = n.x
+	sin angle = sqrt(1 - nx^2)
+	cos (angle/2) =
+
+	cos^2 theta + sin^2 theta = 1
+	sin^2 theta = 1 - cos^2
+	cos^2 theta - sin^2 theta = cos(2 theta) <->
+	cos(theta/2) = sqrt((1 + cos(theta))/2) <->
+	2 sin theta cos theta = sin(2 theta)
+	*/
+	Scalar cosTheta = n.x;
+	Scalar cosHalfTheta = sqrt(.5 * (1. + cosTheta));
+	Scalar sinHalfTheta = sqrt(1. - cosHalfTheta * cosHalfTheta);
+	Scalar n2 = sqrt(n.y * n.y + n.z * n.z);
+	Scalar ax = 0.;
+	Scalar ay = -n.z / n2;
+	Scalar az = n.y / n2;
+	// TODO template quat
+	real4 q = real4{ax * sinHalfTheta, ay * sinHalfTheta, az * sinHalfTheta, cosHalfTheta};
+	real4 qInv = quatUnitConj(q);
+	real4 _v = real4{v.x, v.y, v.z, 0};
+	real4 vres = quatMul(quatMul(q, _v), qInv);
+	return T{vres.x, vres.y, vres.z};
+}
+
+
+template<
+	int side,
+	typename T,
+	typename N,
+	std::enable_if_t<is_tensor_v<T> && is_tensor_v<N> && N::rank == 1 && N::template dim<0> == 3, int>
+>
+constexpr auto rotateToInDim<1, T, N>(
+	T const v,
+	N const n
+) {
+	return *this;
+}
+
+template<
+	int side,
+	typename T,
+	typename N,
+	std::enable_if_t<is_tensor_v<T> && is_tensor_v<N> && N::rank == 1 && N::template dim<0> == 3, int>
+>
+constexpr auto rotateToInDim<2, T, N>(
+	T const v,
+	N const n
+) {
+	return T{
+		v.x * n.x - v.y * n.y,
+		v.x * n.y + v.y * n.x,
+		v.z};
+}
+
+//// MODULE_DEPENDS: quat
+template<
+	int side,
+	typename T,
+	typename N,
+	std::enable_if_t<is_tensor_v<T> && is_tensor_v<N> && N::rank == 1 && N::template dim<0> == 3, int>
+>
+constexpr auto rotateToInDim<3, T, N>(
+	T const v,
+	N const n
+) {
+	using Scalar = typename T::Scalar;
+	//same as above but with negative axis
+	Scalar cosTheta = n.x;
+	Scalar cosHalfTheta = sqrt(.5 * (1. + cosTheta));
+	Scalar sinHalfTheta = sqrt(1. - cosHalfTheta * cosHalfTheta);
+	Scalar n2 = sqrt(n.y * n.y + n.z * n.z);
+	Scalar ax = 0.;
+	Scalar ay = n.z / n2;
+	Scalar az = -n.y / n2;
+	real4 q = real4{ax * sinHalfTheta, ay * sinHalfTheta, az * sinHalfTheta, cosHalfTheta};
+	real4 qInv = quatUnitConj(q);
+	real4 _v = real4{x, y, z, 0};
+	real4 vres = quatMul(quatMul(q, _v), qInv);
+	return T{vres.x, vres.y, vres.z};
+}
+
+#endif
 
 //// MODULE_NAME: mat3x3
 //// MODULE_DEPENDS: vec3
@@ -383,139 +841,6 @@ template<typename Inner>
 using mat3x3 = vec3<vec3<Inner>>;
 //// END EXCLUDE FROM FFI_CDEF
 
-<?
-local function makevec3type(name, scalar)
-	if
-	false
-	and scalar == "real" and (
-		app.real == "float"
-		or app.real == "double"
-	) then
-		-- use vec-ffi when we can
-		assert(name == "real3")
-
-		local vecType
-		if app.real == "float" then
-			vecType = require "vec-ffi.vec3f"
-		elseif app.real == "double" then
-			vecType = require "vec-ffi.vec3d"
-		end
-		-- use the vec-ffi type code
-		-- granted if we ffi.cdef this, it will have already been ffi.cdef'd from the require 'vec-ffi.vec3x'
-?>
-<?=vecType.typeCode?>
-typedef <?=vecType.type?> <?=name?>;
-<?
-		else
-			-- normal
-?>
-
-//// BEGIN EXCLUDE FROM FFI_CDEF
-//// MODULE_DEPENDS: vec3
-using <?=name?> = vec3<<?=scalar?>>;
-//// END EXCLUDE FROM FFI_CDEF
-
-// ELSE?
-// for the ffi.cdef C code:
-//typedef union <?=name?> <?=name?>;
-
-<?
-	end
-end
-
-local function makevec3header(vec, scalar, cdef)
-?>
-static inline <?=vec?> cross(<?=vec?> a, <?=vec?> b);
-static inline real lenSq(real3 const a);
-static inline real len(real3 const a);
-<?
-end	-- makevec3header
-
-local function makevec3code(vec,scalar)
-	for _,addr in ipairs(addrs) do
-	end
-?>
-static inline <?=vec?> cross(<?=vec?> a, <?=vec?> b) {
-	return <?=vec?>(
-		a.y * b.z - a.z * b.y,
-		a.z * b.x - a.x * b.z,
-		a.x * b.y - a.y * b.x);
-}
-
-static inline <?=vec?> unit(<?=vec?> a) {
-	return a * (1. / len(a));
-}
-static inline real lenSq(real3 const a) {
-	return dot(a, a);
-}
-static inline real len(real3 const a) {
-	return sqrt(lenSq(a));
-}
-<?
-end	-- makevec3code
-
-local function make3x3type(scalar)
-	local vec3 = scalar.."3"
-	local name = scalar.."3x3"
-?>
-union <?=name?> {
-	struct {
-		<?=vec3?> x;
-		<?=vec3?> y;
-		<?=vec3?> z;
-	};
-	struct {
-		<?=vec3?> v0,v1,v2;
-	};
-	<?=vec3?> v[3];
-	<?=scalar?> s[9];
-
-//// BEGIN EXCLUDE FROM FFI_CDEF
-	constexpr <?=name?>() : x({}), y({}), z({}) {}
-
-	constexpr <?=name?>(
-		<?=vec3?> x_,
-		<?=vec3?> y_,
-		<?=vec3?> z_
-	) : x(x_), y(y_), z(z_) {}
-
-	//specified in row-order, like you would a C array
-	constexpr <?=name?>(
-		real xx,
-		real xy,
-		real xz,
-		real yx,
-		real yy,
-		real yz,
-		real zx,
-		real zy,
-		real zz
-	) : x(xx,xy,xz),
-		y(yx,yy,yz),
-		z(zx,zy,zz)
-	{}
-
-	<?=vec3?> & operator[](int i) { return v[i]; }
-	<?=vec3?> const & operator[](int i) const { return v[i]; }
-	constant <?=vec3?> & operator[](int i) constant { return v[i]; }
-	constant <?=vec3?> const & operator[](int i) constant const { return v[i]; }
-
-//// END EXCLUDE FROM FFI_CDEF
-};
-typedef union <?=name?> <?=name?>;
-<?
-end
-
-local function makecplx(name, real)
-?>
-typedef union {
-	<?=real?> s[2];
-	struct { <?=real?> s0, s1; };
-	struct { <?=real?> re, im; };
-} <?=name?>;
-<?
-end
-?>
 //// MODULE_NAME: realparam
 //// MODULE_TYPE:
 // used for passing parameters into real, distinct from real in the case that real=half which can't be passed as kernel arguments
@@ -563,192 +888,16 @@ my current convention is this:
 
 //// MODULE_NAME: real
 
-inline real conj(real const x) { return x; }
 inline real lenSq(real const x) { return x * x; }
 
 //// MODULE_NAME: real3
 //// MODULE_DEPENDS: real vec3
 //// MODULE_TYPE:
-<?makevec3type("real3", "real")?>
 
-//// MODULE_HEADER:
-<?makevec3header("real3", "real")?>
-
-//// MODULE_CODE:
-
-<?makevec3code("real3", "real")?>
-
-//// MODULE_NAME: rotate
-//// MODULE_DEPENDS: real3 quat
-// quat -- used only for real3_rotateFrom and real3_rotateTo
-//// MODULE_HEADER:
-
-static inline real3 real3_swap(real3 v, int side);
-static inline real3 real3_swap0(real3 v);
-static inline real3 real3_swap1(real3 v);
-static inline real3 real3_swap2(real3 v);
-static inline real3 real3_rotFrom0(real3 v);
-static inline real3 real3_rotFrom1(real3 v);
-static inline real3 real3_rotFrom2(real3 v);
-static inline real3 real3_rotTo0(real3 v);
-static inline real3 real3_rotTo1(real3 v);
-static inline real3 real3_rotTo2(real3 v);
-static inline real3 real3_rotateFrom(real3 v, real3 n);
-static inline real3 real3_rotateTo(real3 v, real3 n);
-
-//// MODULE_CODE:
-
-static inline real3 real3_swap(real3 v, int side) {
-	real tmp = v.s[side];
-	v.s[side] = v.x;
-	v.x = tmp;
-	return v;
-}
-
-//for swapping dimensions between x and 012
-static inline real3 real3_swap0(real3 v) {
-	return v;
-}
-static inline real3 real3_swap1(real3 v) {
-	return real3(v.y, v.x, v.z);
-}
-static inline real3 real3_swap2(real3 v) {
-	return real3(v.z, v.y, v.x);
-}
-
-//rotate from a particular side xyz to put x forward
-static inline real3 real3_rotFrom0(real3 v) {
-	return v;
-}
-static inline real3 real3_rotFrom1(real3 v) {
-	return real3(v.y, -v.x, v.z);
-}
-static inline real3 real3_rotFrom2(real3 v) {
-	return real3(v.z, v.y, -v.x);
-}
-
-//rotate to put x back to the side
-static inline real3 real3_rotTo0(real3 v) {
-	return v;
-}
-static inline real3 real3_rotTo1(real3 v) {
-	return real3(-v.y, v.x, v.z);
-}
-static inline real3 real3_rotTo2(real3 v) {
-	return real3(-v.z, v.y, v.x);
-}
-
-//rotate 'n' to x-axis
-//assumes 'n' is unit
-template<int dim>
-inline real3 rotateFrom(real3 v, real3 n);
-
-template<>
-inline real3 rotateFrom<1>(real3 v, real3 n) {
-	return v;
-}
-
-template<>
-inline real3 rotateFrom<2>(real3 v, real3 n) {
-	return real3(
-		v.x * n.x + v.y * n.y,
-		-v.x * n.y + v.y * n.x,
-		v.z);
-}
-
-template<>
-inline real3 rotateFrom<3>(real3 v, real3 n) {
-	/*
-	axis is n cross x-axis
-	[ 1  0  0] x [nx ny nz] = [0, -nz, ny] / (ny^2 + nz^2)
-	angle = acos(n.x)
-	cos angle = n.x
-	sin angle = sqrt(1 - nx^2)
-	cos (angle/2) =
-
-	cos^2 theta + sin^2 theta = 1
-	sin^2 theta = 1 - cos^2
-	cos^2 theta - sin^2 theta = cos(2 theta) <->
-	cos(theta/2) = sqrt((1 + cos(theta))/2) <->
-	2 sin theta cos theta = sin(2 theta)
-	*/
-	real cosTheta = n.x;
-	real cosHalfTheta = sqrt(.5 * (1. + cosTheta));
-	real sinHalfTheta = sqrt(1. - cosHalfTheta * cosHalfTheta);
-	real n2 = sqrt(n.y * n.y + n.z * n.z);
-	real ax = 0.;
-	real ay = -n.z / n2;
-	real az = n.y / n2;
-	real4 q = (real4)(ax * sinHalfTheta, ay * sinHalfTheta, az * sinHalfTheta, cosHalfTheta);
-	real4 qInv = quatUnitConj(q);
-	real4 _v = (real4)(v.x, v.y, v.z, 0);
-	real4 vres = quatMul(quatMul(q, _v), qInv);
-	return real3(vres.x, vres.y, vres.z);
-}
-
-//rotate x-axis to 'n'
-template<int dim>
-inline real3 rotateTo(real3 v, real3 n);
-
-template<>
-inline real3 rotateTo<1>(real3 v, real3 n) {
-	return v;
-}
-
-template<>
-inline real3 rotateTo<2>(real3 v, real3 n) {
-	return real3(
-		v.x * n.x - v.y * n.y,
-		v.x * n.y + v.y * n.x,
-		v.z);
-}
-
-template<>
-inline real3 rotateTo<3>(real3 v, real3 n) {
-	//same as above but with negative axis
-	real cosTheta = n.x;
-	real cosHalfTheta = sqrt(.5 * (1. + cosTheta));
-	real sinHalfTheta = sqrt(1. - cosHalfTheta * cosHalfTheta);
-	real n2 = sqrt(n.y * n.y + n.z * n.z);
-	real ax = 0.;
-	real ay = n.z / n2;
-	real az = -n.y / n2;
-	real4 q = (real4)(ax * sinHalfTheta, ay * sinHalfTheta, az * sinHalfTheta, cosHalfTheta);
-	real4 qInv = quatUnitConj(q);
-	real4 _v = (real4)(v.x, v.y, v.z, 0);
-	real4 vres = quatMul(quatMul(q, _v), qInv);
-	return real3(vres.x, vres.y, vres.z);
-}
-
-static inline real3 real3_rotateX(real3 v, real theta) {
-	real cosTheta = cos(theta);
-	real sinTheta = sin(theta);
-	real vy = v.y;
-	real vz = v.z;
-	v.y = vy * cosTheta - vz * sinTheta;
-	v.z = vy * sinTheta + vz * cosTheta;
-	return v;
-}
-
-static inline real3 real3_rotateY(real3 v, real theta) {
-	real cosTheta = cos(theta);
-	real sinTheta = sin(theta);
-	real vx = v.x;
-	real vz = v.z;
-	v.x = vx * cosTheta + vz * sinTheta;
-	v.z = -vx * sinTheta + vz * cosTheta;
-	return v;
-}
-
-static inline real3 real3_rotateZ(real3 v, real theta) {
-	real cosTheta = cos(theta);
-	real sinTheta = sin(theta);
-	real vx = v.x;
-	real vy = v.y;
-	v.x = vx * cosTheta - vy * sinTheta;
-	v.y = vx * sinTheta + vy * cosTheta;
-	return v;
-}
+//// BEGIN EXCLUDE FROM FFI_CDEF
+//// MODULE_DEPENDS: vec3
+using real3 = vec3<real>;
+//// END EXCLUDE FROM FFI_CDEF
 
 //// MODULE_NAME: sym3
 //// MODULE_DEPENDS: real3
@@ -984,6 +1133,7 @@ using real3x3 = mat3x3<real>;
 //// MODULE_HEADER:
 
 static inline real3x3 real3x3_from_real3x3(real3x3 x);
+// multiplication isn't template parent class based yet (TODO)
 static inline real3 operator*(real3, real3x3);
 static inline real3 operator*(real3x3, real3);
 inline real3x3 outer(real3 a, real3 b);
@@ -1771,7 +1921,12 @@ static inline real4 quatMul(real4 q, real4 r) {
 //// MODULE_NAME: cplx
 //// MODULE_TYPE:
 
-<?makecplx("cplx", "real")?>
+typedef union {
+	real s[2];
+	struct { real s0, s1; };
+	struct { real re, im; };
+} cplx;
+
 
 //// MODULE_HEADER:
 
@@ -1887,11 +2042,12 @@ static inline cplx cplx_sqrt(cplx const a) {
 //// MODULE_DEPENDS: cplx sym3
 //// MODULE_TYPE:
 
-<?makevec3type("cplx3", "cplx")?>
+//// BEGIN EXCLUDE FROM FFI_CDEF
+//// MODULE_DEPENDS: vec3
+using cplx3 = vec3<cplx>;
+//// END EXCLUDE FROM FFI_CDEF
 
 //// MODULE_HEADER:
-
-<?makevec3header("cplx3", "cplx")?>
 
 #define real3_from_cplx3		cplx3_re
 
@@ -1900,7 +2056,7 @@ static inline cplx3 cplx3_from_real3_real3(real3 const re, real3 const im);
 static inline real3 cplx3_re(cplx3 const v);
 static inline real3 cplx3_im(cplx3 const v);
 static inline real lenSq(cplx3 const v);
-static inline real len(cplx3 const v);
+static inline real length(cplx3 const v);
 static inline cplx3 real3_cplx_mul(real3 const a, cplx const b);
 static inline cplx cplx3_real3_dot(cplx3 const a, real3 const b);
 #define real3_cplx3_dot(a,b) cplx3_real3_dot(b,a)
@@ -1910,8 +2066,6 @@ static inline real cplx3_re_weightedDot(cplx3 const a, cplx3 const b, sym3 const
 static inline real cplx3_weightedLenSq(cplx3 const a, sym3 const m);
 
 //// MODULE_CODE:
-
-<?makevec3code("cplx3", "cplx")?>
 
 static inline cplx3 cplx3_from_real3(real3 const re) {
 	return (cplx3){
@@ -1941,7 +2095,7 @@ static inline real lenSq(cplx3 const v) {
 	return lenSq(v.x) + lenSq(v.y) + lenSq(v.z);
 }
 
-static inline real len(cplx3 const v) {
+static inline real length(cplx3 const v) {
 	return sqrt(lenSq(v));
 }
 
@@ -1973,7 +2127,8 @@ static inline real cplx3_weightedLenSq(cplx3 const a, sym3 const m) {
 //// MODULE_DEPENDS: sym3 real3x3 cplx3
 
 //// MODULE_TYPE:
-<?make3x3type"cplx"?>
+
+using cplx3x3 = mat3x3<cplx>;
 
 //// MODULE_HEADER:
 
@@ -2117,9 +2272,9 @@ static inline void getPerpendicularBasis(
 	real3 * const n2,
 	real3 * const n3
 ) {
-	real3 n_x_x = real3_cross(n, real3(1,0,0));
-	real3 n_x_y = real3_cross(n, real3(0,1,0));
-	real3 n_x_z = real3_cross(n, real3(0,0,1));
+	real3 n_x_x = n.cross(real3(1,0,0));
+	real3 n_x_y = n.cross(real3(0,1,0));
+	real3 n_x_z = n.cross(real3(0,0,1));
 	real n_x_xSq = lenSq(n_x_x);
 	real n_x_ySq = lenSq(n_x_y);
 	real n_x_zSq = lenSq(n_x_z);
@@ -2136,8 +2291,8 @@ static inline void getPerpendicularBasis(
 			*n2 = n_x_z;	//use z
 		}
 	}
-	*n2 = real3_unit(*n2);
-	*n3 = real3_cross(n, *n2);
+	*n2 = n2->normalize();
+	*n3 = n.cross(*n2);
 }
 
 //// MODULE_NAME: getPerpendicularBasis3x3

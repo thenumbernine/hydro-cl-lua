@@ -267,7 +267,7 @@ struct EulerEqn : public Hydro::Eqn<EulerEqn, EulerEqnTraits> {
 			Eigen const & eig,
 			Normal const n,
 			real3 const pt
-		) :	Cs_nLen(n.len() * eig.Cs),
+		) :	Cs_nLen(n.length() * eig.Cs),
 			v_n(n.vecDotN1(eig.v))
 		{}
 
@@ -316,7 +316,7 @@ struct EulerEqn : public Hydro::Eqn<EulerEqn, EulerEqnTraits> {
 			Cons const & U,
 			Normal const n,
 			real3 const pt
-		) :	Cs_nLen(n.len() * calc_Cs_fromCons(solver, U, pt)),
+		) :	Cs_nLen(n.length() * calc_Cs_fromCons(solver, U, pt)),
 			v_n(U.rho < solver.rhoMin
 				? 0
 				: n.vecDotN1(U.m) / U.rho
@@ -382,7 +382,7 @@ struct EulerEqn : public Hydro::Eqn<EulerEqn, EulerEqnTraits> {
 			real * resultMin,
 			real * resultMax
 		) {
-			real const Cs_nLen = Cs * n.len();
+			real const Cs_nLen = Cs * n.length();
 			real const v_n = U.rho < solver.rhoMin
 				? 0.
 				: n.vecDotN1(U.m) / U.rho;
@@ -576,16 +576,16 @@ end
 			result.ptr[4] = X.ptr[4];
 		} else {
 			real3 const v_n = n.vecDotNs(eig.v);
-			real const nLen = n.len();
+			real const nLen = n.length();
 			real const inv_nLen = 1. / nLen;
 			real const denom = 2. * eig.Cs * eig.Cs;
 			real const invDenom = 1. / denom;
 			real const gamma_1 = solver.heatCapacityRatio - 1.;
 			result.ptr[0] = (
 					X.ptr[0] * (.5 * gamma_1 * eig.vSq + eig.Cs * v_n.x * inv_nLen)
-					+ X.ptr[1] * (-gamma_1 * eig.vL.x - eig.Cs * n.l1x_over_len())
-					+ X.ptr[2] * (-gamma_1 * eig.vL.y - eig.Cs * n.l1y_over_len())
-					+ X.ptr[3] * (-gamma_1 * eig.vL.z - eig.Cs * n.l1z_over_len())
+					+ X.ptr[1] * (-gamma_1 * eig.vL.x - eig.Cs * n.l1x_over_length())
+					+ X.ptr[2] * (-gamma_1 * eig.vL.y - eig.Cs * n.l1y_over_length())
+					+ X.ptr[3] * (-gamma_1 * eig.vL.z - eig.Cs * n.l1z_over_length())
 					+ X.ptr[4] * gamma_1
 				) * invDenom;
 			result.ptr[1] =
@@ -609,9 +609,9 @@ end
 			result.ptr[4] =
 				(
 					X.ptr[0] * (.5 * gamma_1 * eig.vSq - eig.Cs * v_n.x * inv_nLen)
-					+ X.ptr[1] * (-gamma_1 * eig.vL.x + eig.Cs * n.l1x_over_len())
-					+ X.ptr[2] * (-gamma_1 * eig.vL.y + eig.Cs * n.l1y_over_len())
-					+ X.ptr[3] * (-gamma_1 * eig.vL.z + eig.Cs * n.l1z_over_len())
+					+ X.ptr[1] * (-gamma_1 * eig.vL.x + eig.Cs * n.l1x_over_length())
+					+ X.ptr[2] * (-gamma_1 * eig.vL.y + eig.Cs * n.l1y_over_length())
+					+ X.ptr[3] * (-gamma_1 * eig.vL.z + eig.Cs * n.l1z_over_length())
 					+ X.ptr[4] * gamma_1
 				) * invDenom;
 		}
@@ -634,30 +634,30 @@ end
 			result.ptr[4] = X.ptr[4];
 		} else {
 			real3 const v_n = n.vecDotNs(eig.v);
-			real const nLen = n.len();
+			real const nLen = n.length();
 			real const inv_nLen = 1. / nLen;
 			result.ptr[0] =
 				X.ptr[0]
 				+ X.ptr[1]
 				+ X.ptr[4];
 			result.ptr[1] =
-				X.ptr[0] * (eig.v.x - eig.Cs * n.u1x_over_len())
+				X.ptr[0] * (eig.v.x - eig.Cs * n.u1x_over_length())
 				+ X.ptr[1] * eig.v.x
 				+ X.ptr[2] * n.u2x()
 				+ X.ptr[3] * n.u3x()
-				+ X.ptr[4] * (eig.v.x + eig.Cs * n.u1x_over_len());
+				+ X.ptr[4] * (eig.v.x + eig.Cs * n.u1x_over_length());
 			result.ptr[2] =
-				X.ptr[0] * (eig.v.y - eig.Cs * n.u1y_over_len())
+				X.ptr[0] * (eig.v.y - eig.Cs * n.u1y_over_length())
 				+ X.ptr[1] * eig.v.y
 				+ X.ptr[2] * n.u2y()
 				+ X.ptr[3] * n.u3y()
-				+ X.ptr[4] * (eig.v.y + eig.Cs * n.u1y_over_len());
+				+ X.ptr[4] * (eig.v.y + eig.Cs * n.u1y_over_length());
 			result.ptr[3] =
-				X.ptr[0] * (eig.v.z - eig.Cs * n.u1z_over_len())
+				X.ptr[0] * (eig.v.z - eig.Cs * n.u1z_over_length())
 				+ X.ptr[1] * eig.v.z
 				+ X.ptr[2] * n.u2z()
 				+ X.ptr[3] * n.u3z()
-				+ X.ptr[4] * (eig.v.z + eig.Cs * n.u1z_over_len());
+				+ X.ptr[4] * (eig.v.z + eig.Cs * n.u1z_over_length());
 			result.ptr[4] =
 				X.ptr[0] * (eig.hTotal - eig.Cs * v_n.x * inv_nLen)
 				+ X.ptr[1] * (real).5 * eig.vSq
@@ -687,7 +687,7 @@ end
 			result.ptr[4] = X.ptr[4];
 		} else {
 			real3 const v_n = n.vecDotNs(eig.v);
-			real const nLen = n.len();
+			real const nLen = n.length();
 			real const gamma = solver.heatCapacityRatio;
 			real const gamma_1 = gamma - 1.;
 			real const gamma_2 = gamma - 2.;
