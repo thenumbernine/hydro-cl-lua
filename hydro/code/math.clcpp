@@ -292,7 +292,7 @@ union vec3 {
 
 	Inner s[3];
 	struct { Inner s0, s1, s2; };
-	struct { Inner x, y, z; };
+	struct { Inner x = {}, y = {}, z = {}; };
 
 	//default construuctor
 	constexpr vec3()
@@ -303,13 +303,13 @@ union vec3 {
 
 	//argument constructor
 	constexpr vec3(
-		Inner x_,
-		Inner y_,
-		Inner z_
+		Inner const & x_,
+		Inner const & y_,
+		Inner const & z_
 	) : x(x_), y(y_), z(z_) {}
 
 	//scalar constructor
-	constexpr vec3(Inner const s)
+	constexpr vec3(Scalar const & s)
 	:	x(s),
 		y(s),
 		z(s)
@@ -1184,7 +1184,7 @@ static inline real3 sym3_col(sym3 m, int side) {
 	} else if (side == 2) {
 		return sym3_z(m);
 	}
-	return real3(0./0., 0./0., 0./0.);
+	return real3(0./0.);
 }
 
 static inline real sym3_trace(sym3 m) {
@@ -1256,7 +1256,7 @@ static inline sym3 sym3_swap(sym3 m, int side) {
 	} else if (side == 2) {
 		return _sym3(m.zz, m.yz, m.xz, m.yy, m.xy, m.xx);
 	}
-	return _sym3(0./0., 0./0., 0./0., 0./0., 0./0., 0./0.);
+	return _sym3(0./0.);
 }
 
 static inline sym3 sym3_swap0(sym3 m) { return m; }
@@ -1596,11 +1596,7 @@ static inline real3x3 real3x3_swap(real3x3 m, int side) {
 	} else if (side == 2) {
 		return real3x3_swap2(m);
 	}
-	return real3x3{
-		{0./0., 0./0., 0./0.},
-		{0./0., 0./0., 0./0.},
-		{0./0., 0./0., 0./0.}
-	};
+	return real3x3(0./0.);
 }
 
 //// MODULE_NAME: _3sym3
