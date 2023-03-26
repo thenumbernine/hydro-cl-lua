@@ -394,7 +394,7 @@ kernel void <?=addSource?>(
 
 //// MODULE_DEPENDS: <?=coord_holBasisLen_i?>
 	//e_j(depth) = {e_j}^\tilde{j} \partial_\tilde{j} (depth)
-	real3 const e_depth_l = _real3(
+	real3 const e_depth_l = real3(
 		partial_depth_l.x / coord_holBasisLen0(pt),
 		partial_depth_l.y / coord_holBasisLen1(pt),	
 		partial_depth_l.z / coord_holBasisLen2(pt)

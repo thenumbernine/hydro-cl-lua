@@ -216,9 +216,9 @@ kernel void calcEigenBasis(
 		real const eInt = avg.eInt;
 	
 		<? if side == 1 then ?>
-		v = _real3(v.y, -v.x, v.z);	// -90' rotation to put the y axis contents into the x axis
+		v = real3(v.y, -v.x, v.z);	// -90' rotation to put the y axis contents into the x axis
 		<? elseif side == 2 then ?>
-		v = _real3(v.z, v.y, -v.x);	//-90' rotation to put the z axis in the x axis
+		v = real3(v.z, v.y, -v.x);	//-90' rotation to put the z axis in the x axis
 		<? end ?>
 
 //TODO NOTE if you're swapping vector components, you have to swap metric components too 

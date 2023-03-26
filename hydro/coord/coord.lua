@@ -1600,10 +1600,10 @@ end
 getCode.real3_to_real3s3_define = function(coord, name, exprs)
 	return template([[
 static inline real3s3 <?=name?>(real3 pt) {
-	return (real3s3){
+	return real3s3{
 <? for ij,xij in ipairs(symNames) do
 	local i,j = from6to3x3(ij)
-?>		.<?=xij?> = <?=exprs[i] and exprs[i][j] and exprs[i][j] or '0.'?>,
+?>		<?=exprs[i] and exprs[i][j] and exprs[i][j] or '0.'?>,
 <? end
 ?>	};
 }
@@ -1742,10 +1742,10 @@ end
 getCode.real3_to_real3s3 = function(coord, name, exprs)
 	return template([[
 real3s3 <?=name?>(real3 pt) {
-	return (real3s3){
+	return real3s3{
 <? for ij,xij in ipairs(symNames) do
 	local i,j,xi,xj = from6to3x3(ij)
-?>		.<?=xij?> = <?=exprs[i] and exprs[i][j] and exprs[i][j] or '0.'?>,
+?>		<?=exprs[i] and exprs[i][j] and exprs[i][j] or '0.'?>,
 <? end
 ?>	};
 }]], {
@@ -1760,13 +1760,13 @@ end
 getCode.real3_to_real3x3s3 = function(coord, name, exprs)
 	return template([[
 real3x3s3 <?=name?>(real3 pt) {
-	return (real3x3s3){
+	return real3x3s3{
 <?
 for i,xi in ipairs(xNames) do
-?>	.<?=xi?> = {
+?>	{
 <?	for jk,xjk in ipairs(symNames) do
 		local j,k = from6to3x3(jk)
-?>		.<?=xjk?> = <?=exprs[i] and exprs[i][j] and exprs[i][j][k]
+?>		<?=exprs[i] and exprs[i][j] and exprs[i][j][k]
 			and exprs[i][j][k] or '0.'?>,
 <?	end
 ?>	},

@@ -43,7 +43,9 @@ function GRHDSeparateSolver:init(args)
 		HydroSolver.super.createCodePrefix(self)
 		
 		self.codePrefix = table{
-			self.modules:getCodeAndHeader(self.sharedModulesEnabled:keys():unpack()),
+			self.modules:getCodeAndHeader(self.sharedModulesEnabled:keys():unpack())
+				:gsub('//// BEGIN INCLUDE FOR FFI_CDEF.-//// END INCLUDE FOR FFI_CDEF', '')
+			,
 			gr.eqn:getTypeCode(),
 			
 			-- this is for calc_exp_neg4phi
@@ -171,7 +173,9 @@ function GRHDSeparateSolver:createCalcStressEnergyKernel()
 	require 'hydro.solver.gridsolver'.createCodePrefix(self)
 
 	local lines = table{
-		self.modules:getCodeAndHeader(self.sharedModulesEnabled:keys():unpack()),
+		self.modules:getCodeAndHeader(self.sharedModulesEnabled:keys():unpack())
+			:gsub('//// BEGIN INCLUDE FOR FFI_CDEF.-//// END INCLUDE FOR FFI_CDEF', '')
+		,
 		self.gr.eqn:getTypeCode(),
 		self.hydro.eqn:getTypeCode(),
 		template([[
@@ -262,7 +266,9 @@ function GRHDSeparateSolver:replaceSourceKernels()
 --[=[ instead of copying vars from nr to grhd, I've integrated the nr code directly to the grhd solver
 	
 	local lines = table{
-		self.modules:getCodeAndHeader(self.sharedModulesEnabled:keys():unpack()),
+		self.modules:getCodeAndHeader(self.sharedModulesEnabled:keys():unpack())
+			:gsub('//// BEGIN INCLUDE FOR FFI_CDEF.-//// END INCLUDE FOR FFI_CDEF', '')
+		,
 		self.gr.eqn:getTypeCode(),
 		self.hydro.eqn:getTypeCode(),
 		template([[

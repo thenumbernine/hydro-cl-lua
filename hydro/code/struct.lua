@@ -180,7 +180,7 @@ function Struct:getTypeCode(typename)
 		lines:insert('	};')
 	end
 	-- for opencl-cpp, not for ffi.cef
-	lines:insert'//// BEGIN EXCLUDE FROM FFI_CDEF'
+	lines:insert'//// BEGIN EXCLUDE FOR FFI_CDEF'
 	lines:insert('\t'..typename..'() {}')
 	for _,var in ipairs(self.vars) do
 		lines:insert('\tconstexpr '..typename..' & set_'..var.name..'('..var.type..' const & value_) { '..var.name..' = value_; return *this; }')
@@ -196,7 +196,7 @@ function Struct:getTypeCode(typename)
 		}))
 	end
 	if self.body then lines:insert(self.body) end
-	lines:insert'//// END EXCLUDE FROM FFI_CDEF'
+	lines:insert'//// END EXCLUDE FOR FFI_CDEF'
 	lines:insert('};')
 	lines:insert('typedef '..classType..' '..typename..' '..typename..';')
 	return lines:concat'\n'

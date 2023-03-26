@@ -598,17 +598,17 @@ void <?=applyInitCondCell?>(
 
 	U->alpha = <?=eqn:compile(initCond.alpha0)?>;
 
-	real3s3 gamma_ll = (real3s3){
+	real3s3 gamma_ll = real3s3{
 <? for ij,xij in ipairs(symNames) do
 	local i,j,xi,xj = from6to3x3(ij)
-?>		.<?=xij?> = <?=eqn:compile(initCond.gamma0_ll[i][j])?>,
+?>		<?=eqn:compile(initCond.gamma0_ll[i][j])?>,
 <? end
 ?>	};
 
-	real3s3 K_ll = (real3s3){
+	real3s3 K_ll = real3s3{
 <? for ij,xij in ipairs(symNames) do
 	local i,j,xi,xj = from6to3x3(ij)
-?>		.<?=xij?> = <?=eqn:compile(initCond.K0_ll[i][j])?>,
+?>		<?=eqn:compile(initCond.K0_ll[i][j])?>,
 <? end
 ?>	};
 
@@ -629,9 +629,9 @@ void <?=applyInitCondCell?>(
 	real3s3 ABar_ll = real3s3_real_mul(A_ll, exp_neg4phi);
 	U->ABar_LL = real3s3_rescaleFromCoord_ll(ABar_ll, x);
 
-	real3 beta_u = (real3){
+	real3 beta_u = real3{
 <? for i,xi in ipairs(xNames) do
-?>		.<?=xi?> = <?=eqn:compile(initCond.beta0_u[i])?>,
+?>		<?=eqn:compile(initCond.beta0_u[i])?>,
 <? end
 ?>	};
 	U->beta_U = real3_rescaleFromCoord_u(beta_u, x);
@@ -738,16 +738,16 @@ void <?=applyInitCondCell?>(
 		U->alpha = INFINITY;
 		U->W = INFINITY;
 		U->K = INFINITY;
-		U->beta_U = _real3(INFINITY, INFINITY, INFINITY);
-		U->B_U = _real3(INFINITY, INFINITY, INFINITY);
-		U->LambdaBar_U = _real3(INFINITY, INFINITY, INFINITY);
-		U->epsilon_LL = _real3s3(INFINITY, INFINITY, INFINITY, INFINITY, INFINITY, INFINITY);
-		U->ABar_LL = _real3s3(INFINITY, INFINITY, INFINITY, INFINITY, INFINITY, INFINITY);
+		U->beta_U = real3(INFINITY, INFINITY, INFINITY);
+		U->B_U = real3(INFINITY, INFINITY, INFINITY);
+		U->LambdaBar_U = real3(INFINITY, INFINITY, INFINITY);
+		U->epsilon_LL = real3s3(INFINITY, INFINITY, INFINITY, INFINITY, INFINITY, INFINITY);
+		U->ABar_LL = real3s3(INFINITY, INFINITY, INFINITY, INFINITY, INFINITY, INFINITY);
 		U->H = INFINITY;
-		U->M_U = _real3(INFINITY, INFINITY, INFINITY);
+		U->M_U = real3(INFINITY, INFINITY, INFINITY);
 		U->rho = INFINITY;
-		U->S_u = _real3(INFINITY, INFINITY, INFINITY);
-		U->S_ll = _real3s3(INFINITY, INFINITY, INFINITY, INFINITY, INFINITY, INFINITY);
+		U->S_u = real3(INFINITY, INFINITY, INFINITY);
+		U->S_ll = real3s3(INFINITY, INFINITY, INFINITY, INFINITY, INFINITY, INFINITY);
 		return;
 	}
 
@@ -1180,17 +1180,17 @@ static void applyKreissOligar(
 
 	real3 dy = solver->grid_dx;
 <? if require "hydro.coord.sphere_sinh_radial":isa(coord) then ?>
-	real3 const yR = _real3(cell->r, cell->pos.y, cell->pos.z);
+	real3 const yR = real3(cell->r, cell->pos.y, cell->pos.z);
 <? for i=1,solver.dim do
 	local xi = xNames[i]
 ?>{
 	global <?=cell_t?> const * const cellL = cell - solver->stepsize.<?=xi?>;
-	real3 const yL = _real3(cellL->r, cellL->pos.y, cellL->pos.z);
+	real3 const yL = real3(cellL->r, cellL->pos.y, cellL->pos.z);
 	dy.<?=xi?> = real3_len(real3_sub(yR, yL));
 }<? end ?>
 <? end ?>
 	
-	real3 const _1_dy = _real3(1./dy.x, 1./dy.y, 1./dy.z);
+	real3 const _1_dy = real3(1./dy.x, 1./dy.y, 1./dy.z);
 
 	//described in 2008 Babiuc et al as Q = (-1)^r h^(2r-1) (D+)^r rho (D-)^r / 2^(2r)
 	//...for r=2... -sigma h^3 (D+)^2 rho (D-)^2 / 16 ... and rho=1, except rho=0 at borders maybe.
@@ -1249,12 +1249,12 @@ to compute upwind differencing from.
 Same thing as (int4)sgn(v)
 */
 int4 getUpwind(real3 v) {
-	return (int4)(
+	return int4{
 		v.x >= 0 ? 1 : -1,
 		v.y >= 0 ? 1 : -1,
 		v.z >= 0 ? 1 : -1,
 		0
-	);
+	};
 }
 
 //// MODULE_NAME: from3x3to6

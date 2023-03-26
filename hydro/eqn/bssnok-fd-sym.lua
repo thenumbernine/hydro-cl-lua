@@ -1731,16 +1731,16 @@ void <?=applyInitCondCell?>(
 		U->alpha = INFINITY;
 		U->W = INFINITY;
 		U->K = INFINITY;
-		U->beta_U = _real3(INFINITY, INFINITY, INFINITY);
-		U->B_U = _real3(INFINITY, INFINITY, INFINITY);
-		U->LambdaBar_U = _real3(INFINITY, INFINITY, INFINITY);
-		U->epsilon_LL = _real3s3(INFINITY, INFINITY, INFINITY, INFINITY, INFINITY, INFINITY);
-		U->ABar_LL = _real3s3(INFINITY, INFINITY, INFINITY, INFINITY, INFINITY, INFINITY);
+		U->beta_U = {INFINITY};
+		U->B_U = {INFINITY};
+		U->LambdaBar_U = {INFINITY};
+		U->epsilon_LL = {INFINITY};
+		U->ABar_LL = {INFINITY};
 		U->H = INFINITY;
-		U->M_U = _real3(INFINITY, INFINITY, INFINITY);
+		U->M_U = {INFINITY};
 		U->rho = INFINITY;
-		U->S_u = _real3(INFINITY, INFINITY, INFINITY);
-		U->S_ll = _real3s3(INFINITY, INFINITY, INFINITY, INFINITY, INFINITY, INFINITY);
+		U->S_u = {INFINITY};
+		U->S_ll = {INFINITY};
 		return;
 	}
 
@@ -2238,9 +2238,9 @@ end ?>;
 	real3 beta_dbeta_u = real3s3_real3_mul(gamma_uu, beta_dbeta_l);
 
 	//gamma_kl,j beta^k beta^l
-	real3 beta_beta_dgamma_l = (real3){
+	real3 beta_beta_dgamma_l = real3{
 <? for i,xi in ipairs(xNames) do
-?>		.<?=xi?> = real3_weightedLenSq(U->beta_u, partial_gamma_lll.<?=xi?>),
+?>		real3_weightedLenSq(U->beta_u, partial_gamma_lll.<?=xi?>),
 <? end
 ?>	};
 

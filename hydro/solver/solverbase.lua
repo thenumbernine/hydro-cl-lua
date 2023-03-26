@@ -298,7 +298,9 @@ SolverBase.useCLLinkLibraries = false
 	time('compiling math program', function()
 		self.mathUnlinkedObj = self.Program{
 			name = 'math',
-			code = self.modules:getCodeAndHeader(self.sharedModulesEnabled:keys():unpack()),
+			code = self.modules:getCodeAndHeader(self.sharedModulesEnabled:keys():unpack())
+				:gsub('//// BEGIN INCLUDE FOR FFI_CDEF.-//// END INCLUDE FOR FFI_CDEF', '')
+			,
 		}
 		self.mathUnlinkedObj:compile{
 			dontLink = true,
@@ -1135,7 +1137,9 @@ function SolverBase:refreshCommonProgram()
 	end
 	local commonCode = table{
 		-- just header, no function calls needed
-		self.modules:getCodeAndHeader(moduleNames:unpack()),
+		self.modules:getCodeAndHeader(moduleNames:unpack())
+			:gsub('//// BEGIN INCLUDE FOR FFI_CDEF.-//// END INCLUDE FOR FFI_CDEF', '')
+		,
 		self.eqn:template[[
 kernel void multAddInto(
 	constant <?=solver_t?> const * const psolver,
@@ -1574,6 +1578,7 @@ function SolverBase:refreshSolverProgram()
 			print('solver modules: '..moduleNames:concat', ')
 		end
 		code = self.modules:getCodeAndHeader(moduleNames:unpack())
+			:gsub('//// BEGIN INCLUDE FOR FFI_CDEF.-//// END INCLUDE FOR FFI_CDEF', '')
 	end)
 
 	time('building program cache/'..self:getIdent()..'/src/solver.clcpp ', function()
@@ -2213,33 +2218,33 @@ value->vreal3 = real3(coordLen(value->vreal3, x),0,0);
 		{name = 'zx arg', code = 'value->vreal3 = real3(atan2(value->vreal3.x, value->vreal3.z),0,0);'},
 	})
 	self:addDisplayComponents('real3s3', {
-		{name = 'xx', code = 'value->vreal3s3 = _real3s3(value->vreal3s3.xx,0,0,0,0,0);'},
-		{name = 'xy', code = 'value->vreal3s3 = _real3s3(value->vreal3s3.xy,0,0,0,0,0);'},
-		{name = 'xz', code = 'value->vreal3s3 = _real3s3(value->vreal3s3.xz,0,0,0,0,0);'},
-		{name = 'yy', code = 'value->vreal3s3 = _real3s3(value->vreal3s3.yy,0,0,0,0,0);'},
-		{name = 'yz', code = 'value->vreal3s3 = _real3s3(value->vreal3s3.yz,0,0,0,0,0);'},
-		{name = 'zz', code = 'value->vreal3s3 = _real3s3(value->vreal3s3.zz,0,0,0,0,0);'},
-		{name = 'norm', code = 'value->vreal3s3 = _real3s3(sqrt(real3s3_dot(value->vreal3s3, value->vreal3s3)), 0,0,0,0,0);'},
-		{name = 'tr', code = 'value->vreal3s3 = _real3s3(real3s3_trace(value->vreal3s3), 0,0,0,0,0);'},
-		{name = 'det', code = 'value->vreal3s3 = _real3s3(real3s3_det(value->vreal3s3), 0,0,0,0,0);'},
+		{name = 'xx', code = 'value->vreal3s3 = real3s3(value->vreal3s3.xx,0,0,0,0,0);'},
+		{name = 'xy', code = 'value->vreal3s3 = real3s3(value->vreal3s3.xy,0,0,0,0,0);'},
+		{name = 'xz', code = 'value->vreal3s3 = real3s3(value->vreal3s3.xz,0,0,0,0,0);'},
+		{name = 'yy', code = 'value->vreal3s3 = real3s3(value->vreal3s3.yy,0,0,0,0,0);'},
+		{name = 'yz', code = 'value->vreal3s3 = real3s3(value->vreal3s3.yz,0,0,0,0,0);'},
+		{name = 'zz', code = 'value->vreal3s3 = real3s3(value->vreal3s3.zz,0,0,0,0,0);'},
+		{name = 'norm', code = 'value->vreal3s3 = real3s3(sqrt(real3s3_dot(value->vreal3s3, value->vreal3s3)), 0,0,0,0,0);'},
+		{name = 'tr', code = 'value->vreal3s3 = real3s3(real3s3_trace(value->vreal3s3), 0,0,0,0,0);'},
+		{name = 'det', code = 'value->vreal3s3 = real3s3(real3s3_det(value->vreal3s3), 0,0,0,0,0);'},
 
-		{name = 'x', code = 'value->vreal3s3 = _real3s3(value->vreal3s3.xx, value->vreal3s3.xy, value->vreal3s3.xz, 0,0,0);', type = 'real3', magn='x mag'},
-		{name = 'y', code = 'value->vreal3s3 = _real3s3(value->vreal3s3.xy, value->vreal3s3.yy, value->vreal3s3.yz, 0,0,0);', type = 'real3', magn='y mag'},
-		{name = 'z', code = 'value->vreal3s3 = _real3s3(value->vreal3s3.xz, value->vreal3s3.yz, value->vreal3s3.zz, 0,0,0);', type = 'real3', magn='z mag'},
-		{name = 'x mag', code = 'value->vreal3s3 = _real3s3(real3s3_x(value->vreal3s3).length(), 0,0,0,0,0);'},
-		{name = 'y mag', code = 'value->vreal3s3 = _real3s3(real3s3_y(value->vreal3s3).length(), 0,0,0,0,0);'},
-		{name = 'z mag', code = 'value->vreal3s3 = _real3s3(real3s3_z(value->vreal3s3).length(), 0,0,0,0,0);'},
+		{name = 'x', code = 'value->vreal3s3 = real3s3(value->vreal3s3.xx, value->vreal3s3.xy, value->vreal3s3.xz, 0,0,0);', type = 'real3', magn='x mag'},
+		{name = 'y', code = 'value->vreal3s3 = real3s3(value->vreal3s3.xy, value->vreal3s3.yy, value->vreal3s3.yz, 0,0,0);', type = 'real3', magn='y mag'},
+		{name = 'z', code = 'value->vreal3s3 = real3s3(value->vreal3s3.xz, value->vreal3s3.yz, value->vreal3s3.zz, 0,0,0);', type = 'real3', magn='z mag'},
+		{name = 'x mag', code = 'value->vreal3s3 = real3s3(real3s3_x(value->vreal3s3).length(), 0,0,0,0,0);'},
+		{name = 'y mag', code = 'value->vreal3s3 = real3s3(real3s3_y(value->vreal3s3).length(), 0,0,0,0,0);'},
+		{name = 'z mag', code = 'value->vreal3s3 = real3s3(real3s3_z(value->vreal3s3).length(), 0,0,0,0,0);'},
 		{name = 'x mag metric', code = self.eqn:template[[
 //// MODULE_DEPENDS: <?=coordLen?>
-value->vreal3s3 = _real3s3(coordLen(real3s3_x(value->vreal3s3), x), 0,0,0,0,0);
+value->vreal3s3 = real3s3(coordLen(real3s3_x(value->vreal3s3), x), 0,0,0,0,0);
 ]]},
 		{name = 'y mag metric', code = self.eqn:template[[
 //// MODULE_DEPENDS: <?=coordLen?>
-value->vreal3s3 = _real3s3(coordLen(real3s3_y(value->vreal3s3), x), 0,0,0,0,0);
+value->vreal3s3 = real3s3(coordLen(real3s3_y(value->vreal3s3), x), 0,0,0,0,0);
 ]]},
 		{name = 'z mag metric', code = self.eqn:template[[
 //// MODULE_DEPENDS: <?=coordLen?>
-value->vreal3s3 = _real3s3(coordLen(real3s3_z(value->vreal3s3), x), 0,0,0,0,0);
+value->vreal3s3 = real3s3(coordLen(real3s3_z(value->vreal3s3), x), 0,0,0,0,0);
 ]]},
 	})
 	self:addDisplayComponents('cplx', {
@@ -3731,6 +3736,7 @@ function SolverBase:checkStructSizes()
 
 print('shared modules: '..moduleNames:concat', ')
 	local codePrefix = self.modules:getTypeHeader(moduleNames:unpack())
+		:gsub('//// BEGIN INCLUDE FOR FFI_CDEF.-//// END INCLUDE FOR FFI_CDEF', '')
 
 -- [=[
 	local testStructProgramObj = self.Program{

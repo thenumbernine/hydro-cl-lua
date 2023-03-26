@@ -1,7 +1,7 @@
 //// MODULE_NAME: vec3
 //// MODULE_TYPE:
 
-//// BEGIN EXCLUDE FROM FFI_CDEF
+//// BEGIN EXCLUDE FOR FFI_CDEF
 
 // TODO from here on down, put in its own header file
 // but that means writing these files to the /cache/ident/src location
@@ -263,9 +263,36 @@ constexpr auto rotateToInDim(
 	static constexpr int localDim = localDim_;\
 	static constexpr int localRank = localRank_;
 
+#define TENSOR_TEMPLATE_T(classname)\
+\
+	template<typename Inner2>\
+	using Template = classname<Inner2>;\
+\
+	template<typename NewInner>\
+	using ReplaceInner = Template<NewInner>;\
+\
+	template<int newLocalDim>\
+	using ReplaceLocalDim = Template<Inner>;
+
+#define TENSOR_TEMPLATE_T_I(classname)\
+\
+	template<typename Inner2, int localDim2>\
+	using Template = classname<Inner2, localDim2>;\
+\
+	template<typename NewInner>\
+	using ReplaceInner = Template<NewInner, localDim>;\
+\
+	template<int newLocalDim>\
+	using ReplaceLocalDim = Template<Inner, newLocalDim>;
+
+#define TENSOR_HEADER_VECTOR_SPECIFIC()\
+	static constexpr int localCount = localDim;
+
 #define TENSOR_HEADER_VECTOR(classname, Inner_, localDim_)\
 	TENSOR_THIS(classname)\
-	TENSOR_SET_INNER_LOCALDIM_LOCALRANK(Inner_, localDim_, 1)
+	TENSOR_SET_INNER_LOCALDIM_LOCALRANK(Inner_, localDim_, 1)\
+	TENSOR_TEMPLATE_T/*_I*/(classname)\
+	TENSOR_HEADER_VECTOR_SPECIFIC()
 
 #define TENSOR_ADD_SCALAR_IMPL(classname)\
 	/* TODO instead just count # of tuples in the nested args */\
@@ -294,20 +321,20 @@ constexpr auto rotateToInDim(
 	};\
 	static constexpr int rank = NestedRankImpl::value();
 
-#define TENSOR_ADD_CTORS(classname)\
-	/*default construuctor*/\
-	constexpr classname()\
-	:	x(Inner{}),\
-		y(Inner{}),\
-		z(Inner{})\
-	{}\
-\
+#define TENSOR_ADD_VECTOR_CTORS(classname)\
 	/*argument constructor*/\
 	constexpr classname(\
 		Inner const & x_,\
 		Inner const & y_,\
 		Inner const & z_\
 	) : x(x_), y(y_), z(z_) {}\
+\
+	/*default constructor*/\
+	constexpr classname()\
+	:	x(Inner{}),\
+		y(Inner{}),\
+		z(Inner{})\
+	{}\
 \
 	/*scalar constructor*/\
 	constexpr classname(Scalar const & s)\
@@ -317,15 +344,28 @@ constexpr auto rotateToInDim(
 	{}\
 \
 	/*tensor/tensor construction*/\
+	/* can't be constexpr and use a loop so I have to write it per class */\
 	template<\
 		typename U,\
 		std::enable_if_t<U::rank == rank, int> = 0\
 	>\
-	constexpr classname(U const & u) \
+	constexpr classname(U const & u)\
 	:	x(u.x),\
 		y(u.y),\
-		z(u.z) {}\
+		z(u.z)\
+	{}\
 \
+	template<\
+		typename U,\
+		std::enable_if_t<U::rank == rank, int> = 0\
+	>\
+	constexpr classname(U && u)\
+	:	x(u.x),\
+		y(u.y),\
+		z(u.z)\
+	{}
+
+#define TENSOR_ADD_CTORS(classname)\
 /*\
 #if 0\
 	// TODO needs Common stuff, tuples, functions, apply, write-iterator\
@@ -338,7 +378,7 @@ constexpr auto rotateToInDim(
 			>\
 		, int> = 0\
 	>\
-	constexpr vec3(Lambda lambda) {\
+	constexpr classname(Lambda lambda) {\
 		using Func = typename Common::FunctionFromLambda<Lambda>::FuncType;\
 		Func f(lambda);\
 		auto w = write();\
@@ -356,7 +396,7 @@ constexpr auto rotateToInDim(
 			//&& is_callable<Lambda>	//TODO implement this\
 		, int> = 0\
 	>\
-	constexpr vec3(Lambda lambda) {\
+	constexpr classname(Lambda lambda) {\
 	}\
 #endif\
 */\
@@ -447,6 +487,7 @@ constexpr auto rotateToInDim(
 #define TENSOR_VECTOR_CLASS_OPS(classname)\
 	TENSOR_ADD_SCALAR_IMPL(classname)\
 	TENSOR_ADD_RANK_IMPL(classname)\
+	TENSOR_ADD_VECTOR_CTORS(classname)\
 	TENSOR_ADD_OPS(classname)
 
 template<typename Inner_>
@@ -641,7 +682,7 @@ TENSOR_TENSOR_OP(-)
 //TENSOR_TENSOR_OP(*) handled elsewhere as inner product
 TENSOR_TENSOR_OP(/)
 
-//// END EXCLUDE FROM FFI_CDEF
+//// END EXCLUDE FOR FFI_CDEF
 
 //// MODULE_CODE:
 
@@ -1025,11 +1066,11 @@ constexpr auto rotateToInDim(
 //// MODULE_DEPENDS: vec3
 //// MODULE_TYPE:
 
-//// BEGIN EXCLUDE FROM FFI_CDEF
+//// BEGIN EXCLUDE FOR FFI_CDEF
 // row vectors, so a.i.j = a_ij
 template<typename Inner>
 using mat3x3 = vec3<vec3<Inner>>;
-//// END EXCLUDE FROM FFI_CDEF
+//// END EXCLUDE FOR FFI_CDEF
 
 //// MODULE_NAME: realparam
 //// MODULE_TYPE:
@@ -1084,24 +1125,110 @@ inline real lenSq(real const x) { return x * x; }
 //// MODULE_DEPENDS: real vec3
 //// MODULE_TYPE:
 
-//// BEGIN EXCLUDE FROM FFI_CDEF
+//// BEGIN EXCLUDE FOR FFI_CDEF
 //// MODULE_DEPENDS: vec3
 using real3 = vec3<real>;
-//// END EXCLUDE FROM FFI_CDEF
+//// END EXCLUDE FOR FFI_CDEF
 
 //// MODULE_NAME: sym3
 //// MODULE_DEPENDS: vec3
 //// MODULE_TYPE:
 
+//// BEGIN EXCLUDE FOR FFI_CDEF
+
+inline constexpr int triangleSize(int n) {
+	return (n * (n + 1)) / 2;
+}
+
+inline constexpr int symIndex(int i, int j) {
+	if (i > j) return symIndex(j,i);
+	return i + triangleSize(j);
+}
+
+#define TENSOR_HEADER_SYMMETRIC_MATRIX_SPECIFIC()\
+	static constexpr int localCount = triangleSize(localDim);
 
 #define TENSOR_HEADER_SYMMETRIC_MATRIX(classname, Inner_, localDim_)\
 	TENSOR_THIS(classname)\
-	TENSOR_SET_INNER_LOCALDIM_LOCALRANK(Inner_, localDim_, 2)
+	TENSOR_SET_INNER_LOCALDIM_LOCALRANK(Inner_, localDim_, 2)\
+	TENSOR_TEMPLATE_T/*_I*/(classname)\
+	TENSOR_HEADER_SYMMETRIC_MATRIX_SPECIFIC()
+
+#define TENSOR_ADD_SYMMETRIC_MATRIX_CTORS(classname)\
+	/*argument constructor*/\
+	constexpr classname(\
+		Inner const & xx_,\
+		Inner const & xy_,\
+		Inner const & xz_,\
+		Inner const & yy_,\
+		Inner const & yz_,\
+		Inner const & zz_\
+	) :	xx(xx_),\
+		xy(xy_),\
+		xz(xz_),\
+		yy(yy_),\
+		yz(yz_),\
+		zz(zz_)\
+	{}\
+\
+	/*default constructor*/\
+	constexpr classname()\
+	:	xx(Inner{}),\
+		xy(Inner{}),\
+		xz(Inner{}),\
+		yy(Inner{}),\
+		yz(Inner{}),\
+		zz(Inner{})\
+	{}\
+\
+	/*scalar constructor*/\
+	constexpr classname(Scalar const & s)\
+	:	xx(s),\
+		xy(s),\
+		xz(s),\
+		yy(s),\
+		yz(s),\
+		zz(s)\
+	{}\
+\
+	/*tensor/tensor construction*/\
+	/* can't be constexpr and use a loop so I have to write it per class */\
+	template<\
+		typename U,\
+		std::enable_if_t<U::rank == rank, int> = 0\
+	>\
+	constexpr classname(U const & u)\
+	:	xx(u.xx),\
+		xy(u.xy),\
+		xz(u.xz),\
+		yy(u.yy),\
+		yz(u.yz),\
+		zz(u.zz)\
+	{}\
+\
+	template<\
+		typename U,\
+		std::enable_if_t<U::rank == rank, int> = 0\
+	>\
+	constexpr classname(U && u)\
+	:	xx(u.xx),\
+		xy(u.xy),\
+		xz(u.xz),\
+		yy(u.yy),\
+		yz(u.yz),\
+		zz(u.zz)\
+	{}
+#define TENSOR_SYMMETRIC_MATRIX_CLASS_OPS(classname)\
+	TENSOR_ADD_SCALAR_IMPL(classname)\
+	TENSOR_ADD_RANK_IMPL(classname)\
+	TENSOR_ADD_SYMMETRIC_MATRIX_CTORS(classname)\
+	TENSOR_ADD_OPS(classname)
 
 template<typename Inner_>
 union sym3 {
 	TENSOR_HEADER_SYMMETRIC_MATRIX(sym3, Inner_, 3)
 
+	// TODO rename to x_x x_y etc
 	struct {
 		Inner xx, xy, xz, yy, yz, zz;
 	};
@@ -1110,13 +1237,19 @@ union sym3 {
 	};
 	Inner s[6];
 
+	TENSOR_SYMMETRIC_MATRIX_CLASS_OPS(sym3)
 };
+
+//// END EXCLUDE FOR FFI_CDEF
 
 //// MODULE_NAME: real3s3
 //// MODULE_DEPENDS: real3
 //// MODULE_TYPE:
 
-union real3s3 {
+// This is exclusively for the luajit ffi.cdef, which cannot handle c++:
+// But I'll expose it to the clcpp so I can static_assert its size
+// TODO pick a suffix like cdef_t and use it for all the other cdef<->clcpp interchange POD structs, like initCond_t, prim_t, cons_t, etc
+union real3s3_cdef_t {
 	struct {
 		real xx, xy, xz, yy, yz, zz;
 	};
@@ -1125,17 +1258,21 @@ union real3s3 {
 	};
 	real s[6];
 };
-typedef union real3s3 real3s3;
+
+//// BEGIN INCLUDE FOR FFI_CDEF
+typedef union real3s3_cdef_t real3s3;
+//// END INCLUDE FOR FFI_CDEF
+
+// This is exclusively for the clcpp files:
+//// BEGIN EXCLUDE FOR FFI_CDEF
+//// MODULE_DEPENDS: sym3
+using real3s3 = sym3<real>;
+static_assert(sizeof(real3s3) == sizeof(real3s3_cdef_t));
+//// END EXCLUDE FOR FFI_CDEF
 
 //// MODULE_HEADER:
 
-//buggy on intel opencl ubuntu
-//#define _real3s3(a,b,c,d,e,f) ((real3s3){.s={a,b,c,d,e,f}})
-//fix
-#define _real3s3(a,b,c,d,e,f) ((real3s3){.xx=a, .xy=b, .xz=c, .yy=d, .yz=e, .zz=f})
-
-#define real3s3_zero	_real3s3(0,0,0,0,0,0)
-#define real3s3_ident	_real3s3(1,0,0,1,0,1)
+#define real3s3_ident	real3s3(1,0,0,1,0,1)
 
 inline real3s3 outer(real3 const a);
 static inline real real3s3_det(real3s3 const m);
@@ -1159,11 +1296,11 @@ static inline real real3_weightedLen(real3 a, real3s3 m);
 
 //outer with yourself
 inline real3s3 outer(real3 const a) {
-	return (real3s3){
+	return real3s3{
 <? for ij,xij in ipairs(symNames) do
 	local i,j = from6to3x3(ij)
 	local xi,xj = xNames[i],xNames[j]
-?>		.<?=xij?> = a.<?=xi?> * a.<?=xj?>,
+?>		a.<?=xi?> * a.<?=xj?>,
 <? end
 ?>	};
 }
@@ -1176,13 +1313,13 @@ static inline real real3s3_det(real3s3 const m) {
 
 static inline real3s3 real3s3_inv(real3s3 const m, real const det) {
 	real invDet = 1. / det;
-	return (real3s3){
-		.xx = (m.yy * m.zz - m.yz * m.yz) * invDet,
-		.xy = (m.xz * m.yz - m.xy * m.zz) * invDet,
-		.xz = (m.xy * m.yz - m.xz * m.yy) * invDet,
-		.yy = (m.xx * m.zz - m.xz * m.xz) * invDet,
-		.yz = (m.xz * m.xy - m.xx * m.yz) * invDet,
-		.zz = (m.xx * m.yy - m.xy * m.xy) * invDet,
+	return real3s3{
+		(m.yy * m.zz - m.yz * m.yz) * invDet,
+		(m.xz * m.yz - m.xy * m.zz) * invDet,
+		(m.xy * m.yz - m.xz * m.yy) * invDet,
+		(m.xx * m.zz - m.xz * m.xz) * invDet,
+		(m.xz * m.xy - m.xx * m.yz) * invDet,
+		(m.xx * m.yy - m.xy * m.xy) * invDet,
 	};
 }
 
@@ -1200,43 +1337,43 @@ static inline real3 real3s3_real3_mul(real3s3 m, real3 v) {
 }
 
 static inline real3s3 real3s3_neg(real3s3 a) {
-	return (real3s3){
+	return real3s3{
 <? for ij,xij in ipairs(symNames) do
-?>		.<?=xij?> = -a.<?=xij?>,
+?>		-a.<?=xij?>,
 <? end
 ?>	};
 }
 
 static inline real3s3 real3s3_add(real3s3 a, real3s3 b) {
-	return (real3s3){
-		.xx = a.xx + b.xx,
-		.xy = a.xy + b.xy,
-		.xz = a.xz + b.xz,
-		.yy = a.yy + b.yy,
-		.yz = a.yz + b.yz,
-		.zz = a.zz + b.zz,
+	return real3s3{
+		a.xx + b.xx,
+		a.xy + b.xy,
+		a.xz + b.xz,
+		a.yy + b.yy,
+		a.yz + b.yz,
+		a.zz + b.zz,
 	};
 }
 
 static inline real3s3 real3s3_sub(real3s3 a, real3s3 b) {
-	return (real3s3){
-		.xx = a.xx - b.xx,
-		.xy = a.xy - b.xy,
-		.xz = a.xz - b.xz,
-		.yy = a.yy - b.yy,
-		.yz = a.yz - b.yz,
-		.zz = a.zz - b.zz,
+	return real3s3{
+		a.xx - b.xx,
+		a.xy - b.xy,
+		a.xz - b.xz,
+		a.yy - b.yy,
+		a.yz - b.yz,
+		a.zz - b.zz,
 	};
 }
 
 static inline real3s3 real3s3_real_mul(real3s3 a, real s) {
-	return (real3s3){
-		.xx = a.xx * s,
-		.xy = a.xy * s,
-		.xz = a.xz * s,
-		.yy = a.yy * s,
-		.yz = a.yz * s,
-		.zz = a.zz * s,
+	return real3s3{
+		a.xx * s,
+		a.xy * s,
+		a.xz * s,
+		a.yy * s,
+		a.yz * s,
+		a.zz * s,
 	};
 }
 
@@ -1326,16 +1463,16 @@ static inline real3s3 real3s3_swap(real3s3 m, int side) {
 	if (side == 0) {
 		return m;
 	} else if (side == 1) {
-		return _real3s3(m.yy, m.xy, m.yz, m.xx, m.xz, m.zz);
+		return real3s3(m.yy, m.xy, m.yz, m.xx, m.xz, m.zz);
 	} else if (side == 2) {
-		return _real3s3(m.zz, m.yz, m.xz, m.yy, m.xy, m.xx);
+		return real3s3(m.zz, m.yz, m.xz, m.yy, m.xy, m.xx);
 	}
-	return _real3s3(0./0.);
+	return real3s3(0./0.);
 }
 
 static inline real3s3 real3s3_swap0(real3s3 m) { return m; }
-static inline real3s3 real3s3_swap1(real3s3 m) { return _real3s3(m.yy, m.xy, m.yz, m.xx, m.xz, m.zz); }
-static inline real3s3 real3s3_swap2(real3s3 m) { return _real3s3(m.zz, m.yz, m.xz, m.yy, m.xy, m.xx); }
+static inline real3s3 real3s3_swap1(real3s3 m) { return real3s3(m.yy, m.xy, m.yz, m.xx, m.xz, m.zz); }
+static inline real3s3 real3s3_swap2(real3s3 m) { return real3s3(m.zz, m.yz, m.xz, m.yy, m.xy, m.xx); }
 
 //// MODULE_NAME: real3x3
 //// MODULE_DEPENDS: real real3s3 mat3x3
@@ -1347,8 +1484,8 @@ using real3x3 = mat3x3<real>;
 
 static inline real3x3 real3x3_from_real3x3(real3x3 x);
 // multiplication isn't template parent class based yet (TODO)
-static inline real3 operator*(real3, real3x3);
-static inline real3 operator*(real3x3, real3);
+static inline constexpr real3 operator*(real3, real3x3);
+static inline constexpr real3 operator*(real3x3, real3);
 inline real3x3 outer(real3 a, real3 b);
 static inline real real3x3_dot(real3x3 a, real3x3 b);
 static inline real real3x3_real3s3_dot(real3x3 a, real3s3 b);
@@ -1371,14 +1508,14 @@ static inline real3x3 real3x3_inv(real3x3 m);
 
 static inline real3x3 real3x3_from_real3x3(real3x3 x) { return x; }
 
-inline real3 operator*(real3 a, real3x3 b) {
+inline constexpr real3 operator*(real3 a, real3x3 b) {
 	return real3(
 		a.x * b.x.x + a.y * b.y.x + a.z * b.z.x,
 		a.x * b.x.y + a.y * b.y.y + a.z * b.z.y,
 		a.x * b.x.z + a.y * b.y.z + a.z * b.z.z);
 }
 
-inline real3 operator*(real3x3 a, real3 b) {
+inline constexpr real3 operator*(real3x3 a, real3 b) {
 	return real3(
 		a.x.x * b.x + a.x.y * b.y + a.x.z * b.z,
 		a.y.x * b.x + a.y.y * b.y + a.y.z * b.z,
@@ -1470,11 +1607,11 @@ static inline real3x3 real3s3_real3x3_mul(real3s3 a, real3x3 b) {
 }
 
 static inline real3s3 real3x3_real3s3_to_real3s3_mul(real3x3 a, real3s3 b) {
-	return (real3s3){
+	return real3s3{
 <? for ij,xij in ipairs(symNames) do
 	local i,j = from6to3x3(ij)
 	local xi,xj = xNames[i],xNames[j]
-?>		.<?=xij?> = 0.<?
+?>		0.<?
 		for k,xk in ipairs(xNames) do
 ?> + a.<?=xi?>.<?=xk?> * b.<?=sym(k,j)?><?
 		end ?>,
@@ -1484,11 +1621,11 @@ static inline real3s3 real3x3_real3s3_to_real3s3_mul(real3x3 a, real3s3 b) {
 
 //c_ik = a_ij b_jk when you know c_ik is going to be symmetric
 static inline real3s3 real3s3_real3x3_to_real3s3_mul(real3s3 a, real3x3 b) {
-	return (real3s3){
+	return real3s3{
 <? for ij,xij in ipairs(symNames) do
 	local i,j = from6to3x3(ij)
 	local xi,xj = xNames[i],xNames[j]
-?>		.<?=xij?> = 0.<?
+?>		0.<?
 	for k,xk in ipairs(xNames) do
 ?> + a.<?=sym(i,k)?> * b.<?=xk?>.<?=xj?><?
 	end
@@ -1499,11 +1636,11 @@ static inline real3s3 real3s3_real3x3_to_real3s3_mul(real3s3 a, real3x3 b) {
 
 //a_ij = .5 (b_ij + b_ji)
 static inline real3s3 real3s3_from_real3x3(real3x3 a) {
-	return (real3s3){
+	return real3s3{
 <? for ij,xij in ipairs(symNames) do
 	local i,j = from6to3x3(ij)
 	local xi,xj = xNames[i],xNames[j]
-?>		.<?=xij?> = .5 * (a.<?=xi?>.<?=xj?> + a.<?=xj?>.<?=xi?>),
+?>		.5 * (a.<?=xi?>.<?=xj?> + a.<?=xj?>.<?=xi?>),
 <? end
 ?>	};
 }
@@ -1690,11 +1827,6 @@ typedef union {
 
 //// MODULE_HEADER:
 
-//buggy
-//#define real3x3s3_zero ((real3x3s3){.s={0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}})
-//fixed
-#define real3x3s3_zero ((real3x3s3){.x=real3s3_zero, .y=real3s3_zero, .z=real3s3_zero})
-
 static inline real3x3s3 real3x3s3_add(real3x3s3 a, real3x3s3 b);
 static inline real3x3s3 real3x3s3_sub(real3x3s3 a, real3x3s3 b);
 static inline real3x3s3 real3x3s3_real_mul(real3x3s3 a, real b);
@@ -1714,11 +1846,11 @@ static inline real3x3 real3_real3x3s3_dot2(real3 a, real3x3s3 b);
 	local name,symbol = info.name, info.symbol
 ?>
 static inline real3x3s3 real3x3s3_<?=name?>(real3x3s3 a, real3x3s3 b) {
-	return (real3x3s3){
+	return real3x3s3{
 <? for i,xi in ipairs(xNames) do
-?>		.<?=xi?> = {
+?>		{
 <?	for jk,xjk in ipairs(symNames) do
-?>			.<?=xjk?> = a.<?=xi?>.<?=xjk?> <?=symbol?> b.<?=xi?>.<?=xjk?>,
+?>			a.<?=xi?>.<?=xjk?> <?=symbol?> b.<?=xi?>.<?=xjk?>,
 <?	end
 ?>		},
 <? end
@@ -1727,11 +1859,11 @@ static inline real3x3s3 real3x3s3_<?=name?>(real3x3s3 a, real3x3s3 b) {
 <? end ?>
 
 static inline real3x3s3 real3x3s3_real_mul(real3x3s3 a, real b) {
-	return (real3x3s3){
+	return real3x3s3{
 <? for i,xi in ipairs(xNames) do
-?>		.<?=xi?> = {
+?>		{
 <?	for jk,xjk in ipairs(symNames) do
-?>			.<?=xjk?> = a.<?=xi?>.<?=xjk?> * b,
+?>			a.<?=xi?>.<?=xjk?> * b,
 <?	end
 ?>		},
 <? end
@@ -1740,11 +1872,11 @@ static inline real3x3s3 real3x3s3_real_mul(real3x3s3 a, real b) {
 
 //c^i_jk = a^il b_ljk
 static inline real3x3s3 real3s3_real3x3s3_mul(real3s3 a, real3x3s3 b) {
-	return (real3x3s3){
+	return real3x3s3{
 <? for i,xi in ipairs(xNames) do
-?>		.<?=xi?> = (real3s3){
+?>		{
 <?	for jk,xjk in ipairs(symNames) do
-?>			.<?=xjk?> = 0.<?
+?>			0.<?
 		for l,xl in ipairs(xNames) do
 				?> + a.<?=sym(i,l)?> * b.<?=xl?>.<?=xjk?><?
 		end ?>,
@@ -1779,9 +1911,9 @@ static inline real3 real3s3_real3x3s3_dot12(real3s3 a, real3x3s3 b) {
 
 //c_ij = a_k b^k_ij
 static inline real3s3 real3_real3x3s3_dot1(real3 a, real3x3s3 b) {
-	return (real3s3){
+	return real3s3{
 <? for ij,xij in ipairs(symNames) do
-?>		.<?=xij?> = 0.<?
+?>		0.<?
 	for k,xk in ipairs(xNames) do
 ?> + a.<?=xk?> * b.<?=xk?>.<?=xij?><?
 	end ?>,
@@ -1881,19 +2013,19 @@ static inline real3x3s3 real3x3s3_rotateTo(
 }
 
 static inline real3x3s3 real3x3s3_swap(real3x3s3 m, int side) {
-	return (real3x3s3){
-		.x = real3s3_swap(m.s[side], side),
-		.y = real3s3_swap(m.s[side==1 ? 0 : 1], side),
-		.z = real3s3_swap(m.s[side==2 ? 0 : 2], side),
+	return real3x3s3{
+		real3s3_swap(m.s[side], side),
+		real3s3_swap(m.s[side==1 ? 0 : 1], side),
+		real3s3_swap(m.s[side==2 ? 0 : 2], side),
 	};
 }
 
 <? for side=0,2 do ?>
 static inline real3x3s3 real3x3s3_swap<?=side?>(real3x3s3 m) {
-	return (real3x3s3){
-		.x = real3s3_swap<?=side?>(m.s[<?=side?>]),
-		.y = real3s3_swap<?=side?>(m.s[<?=side==1 and 0 or 1?>]),
-		.z = real3s3_swap<?=side?>(m.s[<?=side==2 and 0 or 2?>]),
+	return real3x3s3{
+		real3s3_swap<?=side?>(m.s[<?=side?>]),
+		real3s3_swap<?=side?>(m.s[<?=side==1 and 0 or 1?>]),
+		real3s3_swap<?=side?>(m.s[<?=side==2 and 0 or 2?>]),
 	};
 }
 <? end ?>
@@ -1926,19 +2058,17 @@ static inline real3x3s3 conn_ull_from_d_llu_d_ull(real3x3x3 const d_llu, real3x3
 static inline real3x3x3 real3x3x3_from_real3x3s3(real3x3s3 m);
 static inline real3x3s3 real3x3s3_from_real3x3x3(real3x3x3 m);
 
-#define real3x3x3_zero ((real3x3x3){.s={0}})
-
 //// MODULE_CODE:
 
 //c_ij^k = a_ijl b^lk
 static inline real3x3x3 real3x3s3_real3s3_mul(real3x3s3 a, real3s3 b) {
-	return (real3x3x3){
+	return real3x3x3{
 <? for i,xi in ipairs(xNames) do
-?>		.<?=xi?> = {
+?>		{
 <?	for j,xj in ipairs(xNames) do
-?>			.<?=xj?> = {
+?>			{
 <?		for k,xk in ipairs(xNames) do
-?>				.<?=xk?> = 0.<?
+?>				0.<?
 			for l,xl in ipairs(xNames) do
 ?> + a.<?=xi?>.<?=sym(j,l)?> * b.<?=sym(l,k)?><?
 			end ?>,
@@ -1980,11 +2110,11 @@ static inline real3x3 real3x3s3_real3x3x3_dot12_23(real3x3s3 a, real3x3x3 b) {
 //c_ij = a^k_il b_kj^l
 //assuming the result is symmetric
 static inline real3s3 real3x3s3_real3x3x3_dot13_to_real3s3(real3x3s3 a, real3x3x3 b) {
-	return (real3s3){
+	return real3s3{
 <? for ij,xij in ipairs(symNames) do
 	local i,j = from6to3x3(ij)
 	local xi,xj = xNames[i],xNames[j]
-?>		.<?=xij?> = 0.
+?>		0.
 <?	for k,xk in ipairs(xNames) do
 		for l,xl in ipairs(xNames) do
 ?>			+ a.<?=xk?>.<?=sym(i,l)?> * b.<?=xk?>.<?=xj?>.<?=xl?>
@@ -2009,11 +2139,11 @@ static inline real3 real3x3x3_tr23(real3x3x3 a) {
 }
 
 static inline real3x3x3 real3x3x3_from_real3x3s3(real3x3s3 m) {
-	return (real3x3x3){
+	return real3x3x3{
 <? for i,xi in ipairs(xNames) do
-?>		real3x3{
+?>		{
 <?	for j,xj in ipairs(xNames) do
-?>			real3{
+?>			{
 <?		for k,xk in ipairs(xNames) do
 ?>				m.<?=xi?>.<?=sym(j,k)?>,
 <?		end
@@ -2025,12 +2155,12 @@ static inline real3x3x3 real3x3x3_from_real3x3s3(real3x3s3 m) {
 }
 
 static inline real3x3s3 real3x3s3_from_real3x3x3(real3x3x3 m) {
-	return (real3x3s3){
+	return real3x3s3{
 <? for i,xi in ipairs(xNames) do
-?>		.<?=xi?> = (real3s3){
+?>		{
 <?	for jk,xjk in ipairs(symNames) do
 		local j,k,xj,xk = from6to3x3(jk)
-?>			.<?=xjk?> = .5 * (m.<?=xi?>.<?=xj?>.<?=xk?> + m.<?=xi?>.<?=xk?>.<?=xj?>),
+?>			.5 * (m.<?=xi?>.<?=xj?>.<?=xk?> + m.<?=xi?>.<?=xk?>.<?=xj?>),
 <?	end
 ?>		},
 <? end
@@ -2040,9 +2170,9 @@ static inline real3x3s3 real3x3s3_from_real3x3x3(real3x3x3 m) {
 //c_i^jk = a^jm b_im^k
 // assumes the result is symmetric on the 2nd and 3rd indexes
 static inline real3x3s3 real3s3_real3x3x3_mul2_toreal3x3s3(real3s3 a, real3x3x3 b) {
-	return (real3x3s3){
+	return real3x3s3{
 <? for i,xi in ipairs(xNames) do
-?>		.<?=xi?> = a * b.<?=xi?>,
+?>		a * b.<?=xi?>,
 <? end
 ?>	};
 }
@@ -2051,12 +2181,12 @@ static inline real3x3s3 real3s3_real3x3x3_mul2_toreal3x3s3(real3s3 a, real3x3x3 
 // assumes the dg variable has the derivative index first
 // for d_kij = 1/2 γ_ij,k
 static inline real3x3s3 conn_ull_from_d_llu_d_ull(real3x3x3 const d_llu, real3x3s3 const d_ull) {
-	return (real3x3s3){
+	return real3x3s3{
 <? for i,xi in ipairs(xNames) do
-?>		.<?=xi?> = (real3s3){
+?>		{
 <?	for jk,xjk in ipairs(symNames) do
 		local j,k,xj,xk = from6to3x3(jk)
-?>			.<?=xjk?> = d_llu.<?=xk?>.<?=xj?>.<?=xi?> + d_llu.<?=xj?>.<?=xk?>.<?=xi?> - d_ull.<?=xi?>.<?=xjk?>,
+?>			d_llu.<?=xk?>.<?=xj?>.<?=xi?> + d_llu.<?=xj?>.<?=xk?>.<?=xi?> - d_ull.<?=xi?>.<?=xjk?>,
 <?	end
 ?>		},
 <? end
@@ -2078,9 +2208,6 @@ typedef union {
 	};
 } real3s3x3s3;
 
-//this C array initializer works, right?
-#define real3s3x3s3_zero ((real3s3x3s3){.s={0}})
-
 //// MODULE_HEADER:
 
 static inline real3s3x3s3 real3s3x3s3_add(real3s3x3s3 a, real3s3x3s3 b);
@@ -2088,9 +2215,9 @@ static inline real3s3x3s3 real3s3x3s3_add(real3s3x3s3 a, real3s3x3s3 b);
 //// MODULE_CODE:
 
 static inline real3s3x3s3 real3s3x3s3_add(real3s3x3s3 a, real3s3x3s3 b) {
-	return (real3s3x3s3){
+	return real3s3x3s3{
 <? for ij,xij in ipairs(symNames) do
-?>		.<?=xij?> = real3s3_add(a.<?=xij?>, b.<?=xij?>),
+?>		real3s3_add(a.<?=xij?>, b.<?=xij?>),
 <? end
 ?>	};
 }
@@ -2106,7 +2233,7 @@ static inline real4 quatMul(real4 q, real4 r);
 //assumes q is unit
 //returns the conjugate
 static inline real4 quatUnitConj(real4 q) {
-	return (real4)(-q.x, -q.y, -q.z, q.x);
+	return real4{-q.x, -q.y, -q.z, q.x};
 }
 
 static inline real4 quatMul(real4 q, real4 r) {
@@ -2119,11 +2246,11 @@ static inline real4 quatMul(real4 q, real4 r) {
 	real g = (q.w + q.y) * (r.w - r.z);
 	real h = (q.w - q.y) * (r.w + r.z);
 
-	return (real4)(
+	return real4{
 		 a - .5 * ( e + f + g + h), //x
 		-c + .5 * ( e - f + g - h), //y
 		-d + .5 * ( e - f - g + h), //z
-		 b + .5 * (-e - f + g + h)); //w
+		 b + .5 * (-e - f + g + h)}; //w
 }
 
 
@@ -2251,10 +2378,10 @@ static inline cplx cplx_sqrt(cplx const a) {
 //// MODULE_DEPENDS: cplx real3s3
 //// MODULE_TYPE:
 
-//// BEGIN EXCLUDE FROM FFI_CDEF
+//// BEGIN EXCLUDE FOR FFI_CDEF
 //// MODULE_DEPENDS: vec3
 using cplx3 = vec3<cplx>;
-//// END EXCLUDE FROM FFI_CDEF
+//// END EXCLUDE FOR FFI_CDEF
 
 //// MODULE_HEADER:
 

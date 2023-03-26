@@ -79,8 +79,8 @@ end ?>
 			real const phi_iA = UiA-><?=op.potentialField?>;
 			real const phi_iB = UiB-><?=op.potentialField?>;
 			real3 const dx_i = real3_sub(ciB->pos, ciA->pos); 
-			real3 const dphi_dx_iB = _real3( phi_iB / dx_i.x,  phi_iB / dx_i.y,  phi_iB / dx_i.z);
-			real3 const d_dx_iA = _real3(-1. / dx_i.x, -1. / dx_i.y, -1. / dx_i.z);
+			real3 const dphi_dx_iB = real3( phi_iB / dx_i.x,  phi_iB / dx_i.y,  phi_iB / dx_i.z);
+			real3 const d_dx_iA = real3(-1. / dx_i.x, -1. / dx_i.y, -1. / dx_i.z);
 			
 			for (int j = i+1; j < cell->faceCount-1; ++j) {
 				global <?=face_t?> const * const fj = faces + cellFaceIndexes[j + cell->faceOffset];
@@ -100,8 +100,8 @@ end ?>
 					real const phi_jA = UjA-><?=op.potentialField?>;
 					real const phi_jB = UjB-><?=op.potentialField?>;
 					real3 const dx_j = real3_sub(cjB->pos, cjA->pos); 
-					real3 const dphi_dx_jB = _real3( phi_jB / dx_j.x,  phi_jB / dx_j.y, phi_jB / dx_j.z);
-					real3 const d_dx_jA = _real3(-1. / dx_j.x, -1. / dx_j.y, 1. / dx_j.z);
+					real3 const dphi_dx_jB = real3( phi_jB / dx_j.x,  phi_jB / dx_j.y, phi_jB / dx_j.z);
+					real3 const d_dx_jA = real3(-1. / dx_j.x, -1. / dx_j.y, 1. / dx_j.z);
 
 					real3 const dx2 = real3_sub(fi->pos, fj->pos);
 					d2phi_dx2_skewSum += 

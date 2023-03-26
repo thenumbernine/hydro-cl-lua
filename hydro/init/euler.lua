@@ -3077,7 +3077,9 @@ bool testTriangle(real3 xc) {
 			local addExtraSourceProgramObj = solver.Program{
 				name = 'addExtraSource',
 				code = table{
-					solver.modules:getCodeAndHeader(solver.sharedModulesEnabled:keys():unpack()),
+					solver.modules:getCodeAndHeader(solver.sharedModulesEnabled:keys():unpack())
+						:gsub('//// BEGIN INCLUDE FOR FFI_CDEF.-//// END INCLUDE FOR FFI_CDEF', '')
+					,
 					solver.eqn:template([[
 //single cell domain
 kernel void addExtraSource(

@@ -324,7 +324,7 @@ if (!<?=OOB?>(1,1)) {
 		name = 'state line',
 		type = 'real3',
 		units = '1',
-		code = 'value.vreal3 = _real3(U->rho, coordLen(U->v, x) * sign(U->v.x), calc_P(solver, U->rho, U->eInt));',
+		code = 'value.vreal3 = real3(U->rho, coordLen(U->v, x) * sign(U->v.x), calc_P(solver, U->rho, U->eInt));',
 	}
 
 	return vars

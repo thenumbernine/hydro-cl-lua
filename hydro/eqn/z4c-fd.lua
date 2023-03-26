@@ -294,9 +294,9 @@ for i,xi in ipairs(xNames) do
 end ?>;
 
 	//beta_j beta^j_,i
-	real3 beta_dbeta_l = (real3){
+	real3 beta_dbeta_l = real3{
 <? for i,xi in ipairs(xNames) do
-?>		.<?=xi?> = real3_dot(beta_l, partial_beta_ul[<?=i-1?>]),
+?>		real3_dot(beta_l, partial_beta_ul[<?=i-1?>]),
 <? end
 ?>	};
 
@@ -307,9 +307,9 @@ end ?>;
 	real3 beta_dbeta_u = real3s3_real3_mul(gamma_uu, beta_dbeta_l);
 
 	//gamma_kl,j beta^k beta^l
-	real3 beta_beta_dgamma_l = (real3){
+	real3 beta_beta_dgamma_l = real3{
 <? for i,xi in ipairs(xNames) do
-?>		.<?=xi?> = real3_weightedLenSq(U->beta_u, partial_gamma_lll.<?=xi?>),
+?>		real3_weightedLenSq(U->beta_u, partial_gamma_lll.<?=xi?>),
 <? end
 ?>	};
 

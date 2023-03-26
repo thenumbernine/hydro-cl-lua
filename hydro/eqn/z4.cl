@@ -66,18 +66,18 @@ constant real const mdeShiftEpsilon = 1.;
 #define /*real3*/ <?=calcFromGrad_a_l?>(\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*global <?=cons_t?> const * const*/ U\
-) ((real3){\
+) real3{\
 <? --\
 for i,xi in ipairs(xNames) do --\
 	if i <= solver.dim then --\
-?>		.<?=xi?> = (log((U)[solver->stepsize.<?=xi?>].alpha) - log((U)[-solver->stepsize.<?=xi?>].alpha)) / (2. * solver->grid_dx.s<?=i-1?>),\
+?>		(log((U)[solver->stepsize.<?=xi?>].alpha) - log((U)[-solver->stepsize.<?=xi?>].alpha)) / (2. * solver->grid_dx.s<?=i-1?>),\
 <? --\
 	else --\
-?>		.<?=xi?> = 0,\
+?>		0,\
 <? --\
 	end --\
 end --\
-?>	})
+?>	}
 
 //// MODULE_NAME: <?=calcFromGrad_d_lll?>
 //// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> <?=cell_t?>
@@ -88,23 +88,23 @@ end --\
 #define /*real3x3s3*/ <?=calcFromGrad_d_lll?>(\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*global <?=cons_t?> * const */U\
-) ((real3x3s3){\
+) real3x3s3{\
 <? --\
 for i,xi in ipairs(xNames) do --\
 	if i <= solver.dim then --\
-?>		.<?=xi?> = (real3s3){\
+?>		{\
 <?		for jk,xjk in ipairs(symNames) do --\
-?>			.<?=xjk?> = .5 * (\
+?>			.5 * (\
 				  U[ solver->stepsize.<?=xi?>].gamma_ll.<?=xjk?>\
 				- U[-solver->stepsize.<?=xi?>].gamma_ll.<?=xjk?>\
 			) / (2. * solver->grid_dx.s<?=i-1?>),\
 <? 		end --\
 ?>		},\
 <?	else --\
-?>		.<?=xi?> = real3s3_zero,\
+?>		real3s3(),\
 <?	end --\
 end --\
-?>	})
+?>	}
 
 //// MODULE_NAME: <?=calcFromGrad_b_ul?>
 //// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> <?=cell_t?>
@@ -151,27 +151,27 @@ end
 #define /*real3s3x3s3*/ <?=calc_partial_d_llll?>(\
 	/*constant <?=solver_t?> const * const*/ solver,\
 	/*global <?=cons_t?> const * const*/ U\
-)	((real3s3x3s3){\
+)	real3s3x3s3{\
 <? --\
 for ij,xij in ipairs(symNames) do --\
-?>		.<?=xij?> = (real3s3){\
+?>		{\
 <?	for kl,xkl in ipairs(symNames) do --\
 		local k,l,xk,xl = from6to3x3(kl) --\
 		-- beyond dim and the finite-difference will be zero \
 		-- since we are writing to xl, only iterate through symmetric terms \
 		if k <= solver.dim then --\
-?>			.<?=xkl?> = (\
+?>			(\
 				  U[ solver->stepsize.<?=xk?>].d_lll.<?=xl?>.<?=xij?>\
 				- U[-solver->stepsize.<?=xk?>].d_lll.<?=xl?>.<?=xij?>\
 			) / (2. * solver->grid_dx.<?=xk?>),\
 <?		else --\
-?>			.<?=xkl?> = 0.,\
+?>			0.,\
 <?		end --\
 	end --\
 ?>		},\
 <? --\
 end  --\
-?>	})
+?>	}
 
 //// MODULE_NAME: <?=calc_R_ll?>
 
@@ -188,10 +188,10 @@ end  --\
 	/*real3x3s3 const*/ d_ull,\
 	/*real3x3x3 const*/ d_llu,\
 	/*real3s3x3s3 const*/ partial_d_llll\
-)	((real3s3){\
+)	real3s3{\
 <? for ij,xij in ipairs(symNames) do --\
 	local i,j,xi,xj = from6to3x3(ij) --\
-?>		.<?=xij?> = 0.\
+?>		0.\
 <? 	for k,xk in ipairs(xNames) do --\
 ?>			+ conn_ull.<?=xk?>.<?=xij?> * (d_l.<?=xk?> - 2. * e_l.<?=xk?>)\
 <?		for l,xl in ipairs(xNames) do --\
@@ -207,7 +207,7 @@ end  --\
 	end --\
 ?>		,\
 <? end --\
-?>	})
+?>	}
 
 //// MODULE_NAME: <?=initDeriv_numeric_and_useBSSNVars?>
 //// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> <?=cell_t?> <?=SETBOUNDS?>
@@ -596,7 +596,7 @@ if has_B_u then --\
 	<? if eqn.useShift == "GammaDriverHyperbolic" then ?>\
 	real3s3 const gammaHat_ll = <?=calc_gammaHat_ll?>((cell)->pos);\
 	real const det_gammaHat = real3s3_det(gammaHat_ll);\
-	real const W = pow(det_gammaHat / det_gamma, (real)(1./6.));\
+	real const W = pow(det_gammaHat / det_gamma, real(1./6.));\
 	real const invW = 1. / W;\
 	real3x3s3 const connHat_ull = coord_connHol_ull((cell)->pos);\
 	real3x3 const DHatBeta_ul = real3x3_add(b_ul, real3_real3x3s3_dot2(beta_u, connHat_ull));\
@@ -1456,17 +1456,17 @@ static void applyKreissOligar(
 
 	real3 dy = solver->grid_dx;
 <? if require "hydro.coord.sphere_sinh_radial":isa(coord) then ?>
-	real3 const yR = _real3(cell->r, cell->pos.y, cell->pos.z);
+	real3 const yR = real3(cell->r, cell->pos.y, cell->pos.z);
 <? for i=1,solver.dim do
 	local xi = xNames[i]
 ?>{
 	global <?=cell_t?> const * const cellL = cell - solver->stepsize.<?=xi?>;
-	real3 const yL = _real3(cellL->r, cellL->pos.y, cellL->pos.z);
+	real3 const yL = real3(cellL->r, cellL->pos.y, cellL->pos.z);
 	dy.<?=xi?> = real3_len(real3_sub(yR, yL));
 }<? end ?>
 <? end ?>
 
-	real3 const _1_dy = _real3(1./dy.x, 1./dy.y, 1./dy.z);
+	real3 const _1_dy = real3(1./dy.x, 1./dy.y, 1./dy.z);
 
 	//described in 2008 Babiuc et al as Q = (-1)^r h^(2r-1) (D+)^r ρ (D-)^r / 2^(2r)
 	//...for r=2... -σ h^3 (D+)^2 ρ (D-)^2 / 16 ... and ρ=1, except ρ=0 at borders maybe.
@@ -1746,7 +1746,7 @@ end
 	// W = (_γ/γ)^(1/6)
 	// log(W)_,i = 1/3 (log(√_γ)_,i - log(√γ)_,i) = 1/3 (_Γ^j_ji - Γ^j_ji)
 	real const det_gammaHat = real3s3_det(gammaHat_ll);	//TODO use coord module for math simplifications?
-	real const W = pow(det_gammaHat / det_gamma, (real)(1./6.));
+	real const W = pow(det_gammaHat / det_gamma, real(1./6.));
 	real const invW = 1. / W;
 //// MODULE_DEPENDS: <?=coord_connHol_ull?>
 	real const gammaDriver_eta = 1.;
@@ -1772,12 +1772,12 @@ end
 	real3 const GDelta_u = real3s3_real3_mul(gamma_uu, GDelta_l);
 
 	//(_Γ->Γ)^i_jk = Γ^i_jk - _Γ^i_jk = 1/3 (δ^i_j ΔG_k + δ^i_k ΔG_j - γ_jk ΔG^i)
-	real3x3s3 const connToBar_ull = (real3x3s3){
+	real3x3s3 const connToBar_ull = {
 <? for i,xi in ipairs(xNames) do
-?>		.<?=xi?> = (real3s3){
+?>		{
 <?	for jk,xjk in ipairs(symNames) do
 		local j,k,xj,xk = from6to3x3(jk)
-?>			.<?=xjk?> = (0
+?>			(0
 				+ <? if i == j then ?>GDelta_l.<?=xk?><? else ?>0.<? end ?>
 				+ <? if i == k then ?>GDelta_l.<?=xj?><? else ?>0.<? end ?>
 				- gamma_ll.<?=xjk?> * GDelta_u.<?=xi?>
@@ -1787,7 +1787,7 @@ end
 <? end
 ?>	};
 
-	real3x3s3 const connBar_ull =real3x3s3_sub(conn_ull, connToBar_ull);
+	real3x3s3 const connBar_ull = real3x3s3_sub(conn_ull, connToBar_ull);
 
 	real3s3 const gammaBar_uu = real3s3_real_mul(gamma_uu, invW * invW);
 	real3x3s3 const DeltaGamma_ull = real3x3s3_sub(connBar_ull, connHat_ull);

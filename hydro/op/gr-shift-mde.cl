@@ -135,7 +135,7 @@ end ?>
 	real dx<?=j?> = cell_dx<?=j?>(x);
 <? end ?>
 
-	real3 intIndex = _real3(i.x, i.y, i.z);
+	real3 intIndex = real3(i.x, i.y, i.z);
 	real3 volL, volR;
 <? for j=0,solver.dim-1 do ?>
 	intIndex.s<?=j?> = i.s<?=j?> - .5;

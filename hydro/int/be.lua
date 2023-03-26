@@ -71,6 +71,7 @@ function BackwardEuler:init(solver, args)
 				solver.symbols.solver_macros,
 				assert(solver.solver_t),
 			}:unpack())
+				:gsub('//// BEGIN INCLUDE FOR FFI_CDEF.-//// END INCLUDE FOR FFI_CDEF', '')
 			..[[
 <? local range = require 'ext.range' ?>
 kernel void copyBufferWithoutGhostToBufferWithGhost(

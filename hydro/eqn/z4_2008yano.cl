@@ -746,7 +746,7 @@ b^l_k,t 	+ (-β^i b^l_i)_,k									*/	\
 	real const Z_u_x = Z_l.x * gamma_uu.xx + Z_l.y * gamma_uu.xy + Z_l.z * gamma_uu.xz;\
 \
 	/* d_i = d_ijk gamma^jk */\
-	real3 const d_l = _real3(\
+	real3 const d_l = real3(\
 		real3s3_dot(d_lll.x, gamma_uu),\
 		real3s3_dot(d_lll.y, gamma_uu),\
 		real3s3_dot(d_lll.z, gamma_uu));\
@@ -754,9 +754,9 @@ b^l_k,t 	+ (-β^i b^l_i)_,k									*/	\
 	real const d_u_x = d_l.x * gamma_uu.xx + d_l.y * gamma_uu.xy + d_l.z * gamma_uu.xz;\
 \
 	/* e_i = d_jki gamma^jk */\
-	real3 const e_l = (real3){\
+	real3 const e_l = real3{\
 <? for i,xi in ipairs(xNames) do --\
-?>		.<?=xi?> = 0. <? --\
+?>		0. <? --\
 	for j,xj in ipairs(xNames) do --\
 		for k,xk in ipairs(xNames) do --\
 ?> + d_lll.<?=xj?>.<?=sym(k,i)?> * gamma_uu.<?=sym(j,k)?><? --\
@@ -2052,9 +2052,9 @@ kernel void <?=addSource?>(
 	real3x3s3 const d_ull = real3s3_real3x3s3_mul(gamma_uu, U->d_lll);
 
 	/* e_l = d^j_ji */
-	real3 const e_l = (real3){
+	real3 const e_l = real3{
 <? for i,xi in ipairs(xNames) do
-?>		.<?=xi?> = 0.<?
+?>		0.<?
 	for j,xj in ipairs(xNames) do
 		?> + d_ull.<?=xj?>.<?=sym(j,i)?><?
 	end	?>,
@@ -2062,13 +2062,13 @@ kernel void <?=addSource?>(
 ?>	};
 
 	/* conn^k_ij = d_ij^k + d_ji^k - d^k_ij */
-	real3x3s3 const conn_ull = {
+	real3x3s3 const conn_ull = real3x3s3{
 <? for k,xk in ipairs(xNames) do 
-?>		.<?=xk?> = (real3s3){
+?>		{
 <?	for ij,xij in ipairs(symNames) do
 		local i,j = from6to3x3(ij)
 		local xi,xj = xNames[i],xNames[j]
-?>			.<?=xij?> = d_llu[<?=i-1?>].<?=xj?>.<?=xk?> - d_llu[<?=j-1?>].<?=xi?>.<?=xk?> - U->d_lll.<?=xk?>.<?=xij?>,
+?>			d_llu[<?=i-1?>].<?=xj?>.<?=xk?> - d_llu[<?=j-1?>].<?=xi?>.<?=xk?> - U->d_lll.<?=xk?>.<?=xij?>,
 <? end
 ?>		},
 <? end 
@@ -2076,9 +2076,9 @@ kernel void <?=addSource?>(
 
 
 	/* d_l = d_i = d_ij^j */
-	real3 const d_l = (real3){
+	real3 const d_l = real3{
 <? for i,xi in ipairs(xNames) do
-?>		.<?=xi?> = real3x3_trace(d_llu[<?=i-1?>]),
+?>		real3x3_trace(d_llu[<?=i-1?>]),
 <? end
 ?>	};
 	
@@ -2087,9 +2087,9 @@ kernel void <?=addSource?>(
 	real3 const Z_u = real3s3_real3_mul(gamma_uu, U->Z_l);
 
 	/* d_luu = d_i^jk = gamma^jl d_il^k */
-	real3x3s3 const d_luu = (real3x3s3){
+	real3x3s3 const d_luu = real3x3s3{
 <? for i,xi in ipairs(xNames) do		
-?>		.<?=xi?> = real3s3_real3x3_to_real3s3_mul(gamma_uu, d_llu[<?=i-1?>]),
+?>		real3s3_real3x3_to_real3s3_mul(gamma_uu, d_llu[<?=i-1?>]),
 <? end
 ?>	};
 
@@ -2180,9 +2180,9 @@ kernel void <?=constrainU?>(
 	real3x3s3 const d_ull = real3s3_real3x3s3_mul(gamma_uu, U->d_lll);
 
 	/* e_l = d^j_ji */
-	real3 const e_l = (real3){
+	real3 const e_l = real3{
 <? for i,xi in ipairs(xNames) do
-?>		.<?=xi?> = 0.<?
+?>		0.<?
 	for j,xj in ipairs(xNames) do
 		?> + d_ull.<?=xj?>.<?=sym(j,i)?><?
 	end	?>,
@@ -2197,20 +2197,20 @@ kernel void <?=constrainU?>(
 ?>	};
 	
 	/* d_l = d_ij^j */
-	real3 const d_l = (real3){
+	real3 const d_l = real3{
 <? for i,xi in ipairs(xNames) do
-?>		.<?=xi?> = real3x3_trace(d_llu[<?=i-1?>]),
+?>		real3x3_trace(d_llu[<?=i-1?>]),
 <? end
 ?>	};
 
 	/* conn^k_ij = d_ij^k + d_ji^k - d^k_ij */
-	real3x3s3 const conn_ull = {
+	real3x3s3 const conn_ull = real3x3s3{
 <? for k,xk in ipairs(xNames) do 
-?>		.<?=xk?> = (real3s3){
+?>		{
 <?	for ij,xij in ipairs(symNames) do
 		local i,j = from6to3x3(ij)
 		local xi,xj = xNames[i],xNames[j]
-?>			.<?=xij?> = d_llu[<?=i-1?>].<?=xj?>.<?=xk?> - d_llu[<?=j-1?>].<?=xi?>.<?=xk?> - U->d_lll.<?=xk?>.<?=xij?>,
+?>			d_llu[<?=i-1?>].<?=xj?>.<?=xk?> - d_llu[<?=j-1?>].<?=xi?>.<?=xk?> - U->d_lll.<?=xk?>.<?=xij?>,
 <? end
 ?>		},
 <? end 
@@ -2218,10 +2218,10 @@ kernel void <?=constrainU?>(
 
 	real3 const V_l = real3_sub(d_l, e_l);
 
-	real3s3 const R_ll = (real3s3){
+	real3s3 const R_ll = real3s3{
 <? for ij,xij in ipairs(symNames) do
 	local i,j,xi,xj = from6to3x3(ij)
-?>		.<?=xij?> = 0.
+?>		0.
 <? 	for k,xk in ipairs(xNames) do 
 ?>
 			+ conn_ull.<?=xk?>.<?=xij?> * (V_l.<?=xk?> - e_l.<?=xk?>)

@@ -210,7 +210,7 @@ void <?=applyInitCondCell?>(
 	(resultFlux)->D = (U)->D * v_n;\
 	(resultFlux)->S = real3_add(\
 		real3_real_mul((U)->S, v_n),\
-		_real3(\
+		real3(\
 			normal_u1x(n) * P,\
 			normal_u1y(n) * P,\
 			normal_u1z(n) * P\

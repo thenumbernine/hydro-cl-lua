@@ -19,11 +19,11 @@ or make it modular enough to merge with BSSNOK
 	(<?=eqn:compile(eqn.metric.alpha)?>)
 
 #define /*real3 */metric_beta_u(/*real3 const */pt) \
-	((real3){\
+	real3{\
 <? for i,xi in ipairs(xNames) do --\
-?>		.<?=xi?> = <?=eqn:compile(eqn.metric.beta_u[i])?>,\
+?>		<?=eqn:compile(eqn.metric.beta_u[i])?>,\
 <? end --\
-?>	})
+?>	}
 
 #define /*real */metric_K(/*real3 const */pt) \
 	(<?=eqn:compile(eqn.metric.K)?>)
@@ -32,23 +32,23 @@ or make it modular enough to merge with BSSNOK
 	(<?=eqn:compile(eqn.metric.f)?>)
 
 #define /*real3 */metric_partial_alpha_l(/*real3 const */pt) \
-	((real3){\
+	real3{\
 <? for i,xi in ipairs(xNames) do --\
-?>		.<?=xi?> = <?=eqn:compile(eqn.metric.alpha:diff(eqn.metric.coords[i])())?>,\
+?>		<?=eqn:compile(eqn.metric.alpha:diff(eqn.metric.coords[i])())?>,\
 <? end --\
-?>	})
+?>	}
 
 //partial_beta_ul[i][j] = beta^i_,j
 #define /*real3x3 */metric_partial_beta_ul(/*real3 const */pt) \
-	((real3x3){\
+	real3x3{\
 <? for i,xi in ipairs(xNames) do --\
-?>		.<?=xi?> = (real3){\
+?>		{\
 <?	for j,xj in ipairs(xNames) do --\
-?>			.<?=xj?> = <?=eqn:compile(eqn.metric.beta_u[i]:diff(eqn.metric.coords[j])())?>,\
+?>			<?=eqn:compile(eqn.metric.beta_u[i]:diff(eqn.metric.coords[j])())?>,\
 <?	end --\
 ?>		},\
 <?	end --\
-?>	})
+?>	}
 
 //// MODULE_NAME: <?=applyInitCondCell?>
 //// MODULE_DEPENDS: <?=cartesianToCoord?>

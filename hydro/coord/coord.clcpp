@@ -53,17 +53,17 @@ end
 ?>
 
 	//v^i (nj)_i
-	constexpr real3 vecDotNs(real3 v) const {
+	constexpr real3 vecDotNs(real3 const & v) const {
 		return n * v;
 	}
 
 	//v^i (n1)_i
-	constexpr real vecDotN1(real3 v) const {
+	constexpr real vecDotN1(real3 const & v) const {
 		return dot(n.x, v);
 	}
 
 	// w_j <=> (n_j)^i w_i = v_j
-	constexpr real3 vecFromNs(real3 v) const {
+	constexpr real3 vecFromNs(real3 const & v) const {
 		return n * v;
 	}
 

@@ -412,14 +412,14 @@ end --\
 	real3 const E = real3_real_mul((U)->D, 1. / eps);\
 	real3 const H = real3_real_mul((U)->B, 1. / mu);\
 	if (n.side == 0) {\
-		(resultFlux)->D = _real3((U)->phi * solver->divPhiWavespeed / unit_m_per_s, H.z, -H.y);\
-		(resultFlux)->B = _real3((U)->psi * solver->divPsiWavespeed / unit_m_per_s, -E.z, E.y);\
+		(resultFlux)->D = real3((U)->phi * solver->divPhiWavespeed / unit_m_per_s, H.z, -H.y);\
+		(resultFlux)->B = real3((U)->psi * solver->divPsiWavespeed / unit_m_per_s, -E.z, E.y);\
 	} else if (n.side == 1) {\
-		(resultFlux)->D = _real3(-H.z, (U)->phi * solver->divPhiWavespeed / unit_m_per_s, H.x);\
-		(resultFlux)->B = _real3(E.z, (U)->psi * solver->divPsiWavespeed / unit_m_per_s, -E.x);\
+		(resultFlux)->D = real3(-H.z, (U)->phi * solver->divPhiWavespeed / unit_m_per_s, H.x);\
+		(resultFlux)->B = real3(E.z, (U)->psi * solver->divPsiWavespeed / unit_m_per_s, -E.x);\
 	} else if (n.side == 2) {\
-		(resultFlux)->D = _real3(H.y, -H.x, (U)->phi * solver->divPhiWavespeed / unit_m_per_s);\
-		(resultFlux)->B = _real3(-E.y, E.x, (U)->psi * solver->divPsiWavespeed / unit_m_per_s);\
+		(resultFlux)->D = real3(H.y, -H.x, (U)->phi * solver->divPhiWavespeed / unit_m_per_s);\
+		(resultFlux)->B = real3(-E.y, E.x, (U)->psi * solver->divPsiWavespeed / unit_m_per_s);\
 	}\
 	(resultFlux)->phi = normal_vecDotN1(n, (U)->D) * solver->divPhiWavespeed / unit_m_per_s;\
 	(resultFlux)->psi = normal_vecDotN1(n, (U)->B) * solver->divPsiWavespeed / unit_m_per_s;\
@@ -897,14 +897,14 @@ end --\
 	real3 const E = real3_real_mul((UX)->D, 1. / eps);\
 	real3 const H = real3_real_mul((UX)->B, 1. / mu);\
 	if (n.side == 0) {\
-		(UY)->D = _real3(solver->divPhiWavespeed / unit_m_per_s * (UX)->phi, H.z, -H.y);\
-		(UY)->B = _real3(solver->divPsiWavespeed / unit_m_per_s * (UX)->psi, -E.z, E.y);\
+		(UY)->D = real3(solver->divPhiWavespeed / unit_m_per_s * (UX)->phi, H.z, -H.y);\
+		(UY)->B = real3(solver->divPsiWavespeed / unit_m_per_s * (UX)->psi, -E.z, E.y);\
 	} else if (n.side == 1) {\
-		(UY)->D = _real3(-H.z, solver->divPhiWavespeed / unit_m_per_s * (UX)->phi, H.x);\
-		(UY)->B = _real3(E.z, solver->divPsiWavespeed / unit_m_per_s * (UX)->psi, -E.x);\
+		(UY)->D = real3(-H.z, solver->divPhiWavespeed / unit_m_per_s * (UX)->phi, H.x);\
+		(UY)->B = real3(E.z, solver->divPsiWavespeed / unit_m_per_s * (UX)->psi, -E.x);\
 	} else if (n.side == 2) {\
-		(UY)->D = _real3(H.y, -H.x, solver->divPhiWavespeed / unit_m_per_s * (UX)->phi);\
-		(UY)->B = _real3(-E.y, E.x, solver->divPsiWavespeed / unit_m_per_s * (UX)->psi);\
+		(UY)->D = real3(H.y, -H.x, solver->divPhiWavespeed / unit_m_per_s * (UX)->phi);\
+		(UY)->B = real3(-E.y, E.x, solver->divPsiWavespeed / unit_m_per_s * (UX)->psi);\
 	}\
 	(UY)->phi = solver->divPhiWavespeed / unit_m_per_s * normal_vecDotN1(n, (UX)->D);\
 	(UY)->psi = solver->divPsiWavespeed / unit_m_per_s * normal_vecDotN1(n, (UX)->B);\

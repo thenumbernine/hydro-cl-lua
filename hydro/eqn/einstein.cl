@@ -17,10 +17,10 @@
 //apply this to lower indexes to convert from coordinate metric to better metric
 //apply this to upper indexes to convert from better metric to coordinate metric
 real3 real3_rescaleFromCoord_l(real3 v, real3 x) {
-	return (real3){
-		.x = v.x / coord_dx0(x),
-		.y = v.y / coord_dx1(x),
-		.z = v.z / coord_dx2(x),
+	return real3{
+		v.x / coord_dx0(x),
+		v.y / coord_dx1(x),
+		v.z / coord_dx2(x),
 	};
 }
 #define real3_rescaleToCoord_U real3_rescaleFromCoord_l
@@ -28,29 +28,29 @@ real3 real3_rescaleFromCoord_l(real3 v, real3 x) {
 //convert coord upper to better
 //convert better lower to coord
 real3 real3_rescaleToCoord_L(real3 v, real3 x) {
-	return (real3){
-		.x = v.x * coord_dx0(x),
-		.y = v.y * coord_dx1(x),
-		.z = v.z * coord_dx2(x),
+	return real3{
+		v.x * coord_dx0(x),
+		v.y * coord_dx1(x),
+		v.z * coord_dx2(x),
 	};
 }
 #define real3_rescaleFromCoord_u real3_rescaleToCoord_L
 
 real3s3 real3s3_rescaleFromCoord_ll(real3s3 a, real3 x) {
-	return (real3s3){
+	return real3s3{
 <? for ij,xij in ipairs(symNames) do
 	local i,j = from6to3x3(ij)
-?>		.<?=xij?> = a.<?=xij?> / (coord_dx<?=i-1?>(x) * coord_dx<?=j-1?>(x)),
+?>		a.<?=xij?> / (coord_dx<?=i-1?>(x) * coord_dx<?=j-1?>(x)),
 <? end
 ?>	};
 }
 #define real3s3_rescaleToCoord_UU real3s3_rescaleFromCoord_ll
 
 real3s3 real3s3_rescaleToCoord_LL(real3s3 a, real3 x) {
-	return (real3s3){
+	return real3s3{
 <? for ij,xij in ipairs(symNames) do
 	local i,j = from6to3x3(ij)
-?>		.<?=xij?> = a.<?=xij?> * (coord_dx<?=i-1?>(x) * coord_dx<?=j-1?>(x)),
+?>		a.<?=xij?> * (coord_dx<?=i-1?>(x) * coord_dx<?=j-1?>(x)),
 <? end
 ?>	};
 }
@@ -86,9 +86,9 @@ cplx3 cplx3_rescaleFromCoord_l(cplx3 v, real3 x) {
 #if 1
 
 real3x3s3 real3x3s3_rescaleFromCoord_lll(real3x3s3 a, real3 x) {
-	return (real3x3s3){
+	return real3x3s3{
 <? for i,xi in ipairs(xNames) do
-?>		.<?=xi?> = (real3s3){
+?>		{
 <?	for jk,xjk in ipairs(symNames) do
 	local j,k = from6to3x3(jk)
 ?>			a.<?=xi?>.<?=xjk?> / (coord_dx<?=i-1?>(x) * coord_dx<?=j-1?>(x) * coord_dx<?=k-1?>(x)),
@@ -100,9 +100,9 @@ real3x3s3 real3x3s3_rescaleFromCoord_lll(real3x3s3 a, real3 x) {
 #define real3x3s3_rescaleToCoord_UUU real3x3s3_rescaleFromCoord_lll
 
 real3x3s3 real3x3s3_rescaleToCoord_LLL(real3x3s3 a, real3 x) {
-	return (real3x3s3){
+	return real3x3s3{
 <? for i,xi in ipairs(xNames) do
-?>		.<?=xi?> = (real3s3){
+?>		{
 <?	for jk,xjk in ipairs(symNames) do
 	local j,k = from6to3x3(jk)
 ?>			a.<?=xi?>.<?=xjk?> * (coord_dx<?=i-1?>(x) * coord_dx<?=j-1?>(x) * coord_dx<?=k-1?>(x)),
@@ -114,9 +114,9 @@ real3x3s3 real3x3s3_rescaleToCoord_LLL(real3x3s3 a, real3 x) {
 #define real3x3s3_rescaleFromCoord_uuu real3x3s3_rescaleToCoord_LLL
 
 real3x3s3 real3x3s3_rescaleFromCoord_ull(real3x3s3 a, real3 x) {
-	return (real3x3s3){
+	return real3x3s3{
 <? for i,xi in ipairs(xNames) do
-?>		.<?=xi?> = (real3s3){
+?>		{
 <?	for jk,xjk in ipairs(symNames) do
 	local j,k = from6to3x3(jk)
 ?>			a.<?=xi?>.<?=xjk?> * coord_dx<?=i-1?>(x) / (coord_dx<?=j-1?>(x) * coord_dx<?=k-1?>(x)),
@@ -127,9 +127,9 @@ real3x3s3 real3x3s3_rescaleFromCoord_ull(real3x3s3 a, real3 x) {
 }
 
 real3x3s3 real3x3s3_rescaleToCoord_ULL(real3x3s3 a, real3 x) {
-	return (real3x3s3){
+	return real3x3s3{
 <? for i,xi in ipairs(xNames) do
-?>		.<?=xi?> = (real3s3){
+?>		{
 <?	for jk,xjk in ipairs(symNames) do
 	local j,k = from6to3x3(jk)
 ?>			a.<?=xi?>.<?=xjk?> * (coord_dx<?=j-1?>(x) * coord_dx<?=k-1?>(x)) / coord_dx<?=i-1?>(x),
@@ -157,13 +157,13 @@ real3x3s3 real3x3s3_rescaleToCoord_ULL(real3x3s3 a, real3 x) {
 #if 1
 
 real3s3x3s3 real3s3x3s3_rescaleFromCoord_llll(real3s3x3s3 a, real3 x) {
-	return (real3s3x3s3){
+	return real3s3x3s3{
 <? for ij,xij in ipairs(symNames) do
 	local i,j = from6to3x3(ij)
-?>		.<?=xij?> = (real3s3){
+?>		{
 <?	for kl,xkl in ipairs(symNames) do
 	local k,l = from6to3x3(kl)
-?>			.<?=xkl?> = a.<?=xij?>.<?=xkl?> / (coord_dx<?=i-1?>(x) * coord_dx<?=j-1?>(x) * coord_dx<?=k-1?>(x) * coord_dx<?=l-1?>(x)),
+?>			a.<?=xij?>.<?=xkl?> / (coord_dx<?=i-1?>(x) * coord_dx<?=j-1?>(x) * coord_dx<?=k-1?>(x) * coord_dx<?=l-1?>(x)),
 <?	end
 ?>		},
 <? end
@@ -172,13 +172,13 @@ real3s3x3s3 real3s3x3s3_rescaleFromCoord_llll(real3s3x3s3 a, real3 x) {
 #define real3s3x3s3_rescaleToCoord_UUUU real3s3x3s3_rescaleFromCoord_llll
 
 real3s3x3s3 real3s3x3s3_rescaleToCoord_LLLL(real3s3x3s3 a, real3 x) {
-	return (real3s3x3s3){
+	return real3s3x3s3{
 <? for ij,xij in ipairs(symNames) do
 	local i,j = from6to3x3(ij)
-?>		.<?=xij?> = (real3s3){
+?>		{
 <?	for kl,xkl in ipairs(symNames) do
 	local k,l = from6to3x3(kl)
-?>			.<?=xkl?> = a.<?=xij?>.<?=xkl?> * (coord_dx<?=i-1?>(x) * coord_dx<?=j-1?>(x) * coord_dx<?=k-1?>(x) * coord_dx<?=l-1?>(x)),
+?>			a.<?=xij?>.<?=xkl?> * (coord_dx<?=i-1?>(x) * coord_dx<?=j-1?>(x) * coord_dx<?=k-1?>(x) * coord_dx<?=l-1?>(x)),
 <?	end
 ?>		},
 <? end

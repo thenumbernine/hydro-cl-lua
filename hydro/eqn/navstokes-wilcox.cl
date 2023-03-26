@@ -359,7 +359,7 @@ for side=0,2 do
 	/* g^ij for fixed j=side */
 ]] .. prefix
 
-	local gUdef = "\treal3 gUj = _real3(\n"
+	local gUdef = "\treal3 gUj = real3(\n"
 	for i=0,2 do
 		gUdef = gUdef .. "\t\tcoord_g_uu"..(i < side and i..side or side..i).."(pt)"..(i<2 and "," or "").."\n"
 	end

@@ -898,9 +898,9 @@ if (<?=OOB?>(1,1)) {
 	//real3x3s3 const target_d_lll = real3x3s3_zero;
 <? -- print"TODO FIXME display constraint target d_kij is set to zero atm instead of 1/2 γ_ij,k"
 ?>
-	value.vreal3s3 = (real3s3){
+	value.vreal3s3 = real3s3{
 <? for jk,xjk in ipairs(symNames) do
-?>		.<?=xjk?> = fabs(target_d_lll.<?=xi?>.<?=xjk?> - U->d_lll.<?=xi?>.<?=xjk?>),
+?>		fabs(target_d_lll.<?=xi?>.<?=xjk?> - U->d_lll.<?=xi?>.<?=xjk?>),
 <? end
 ?>	};
 }
@@ -923,9 +923,9 @@ if (<?=OOB?>(1,1)) {
 } else {
 {{{{ MODULE_DEPENDS: <?=calcFromGrad_b_ul?> }}}}
 	real3x3 const target_b_ul = <?=calcFromGrad_b_ul?>(solver, U);
-	value.vreal3 = (real3){
+	value.vreal3 = real3{
 <? for j,xj in ipairs(xNames) do
-?>		.<?=xj?> = fabs(target_b_ul.<?=xi?>.<?=xj?> - U->b_ul.<?=xi?>.<?=xj?>),
+?>		fabs(target_b_ul.<?=xi?>.<?=xj?> - U->b_ul.<?=xi?>.<?=xj?>),
 <? end
 ?>	};
 }

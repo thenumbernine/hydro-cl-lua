@@ -193,7 +193,9 @@ local function TwoFluidEMHDBehavior(parent)
 
 		local lines = table{
 			'// TwoFluidEMHDSeparateBehavior:replaceSourceKernels() end',
-			self.modules:getCodeAndHeader(self.sharedModulesEnabled:keys():sort():unpack()),
+			self.modules:getCodeAndHeader(self.sharedModulesEnabled:keys():sort():unpack())
+				:gsub('//// BEGIN INCLUDE FOR FFI_CDEF.-//// END INCLUDE FOR FFI_CDEF', '')
+			,
 --			self.eqn:getTypeCode(),
 
 			'#define eps0 '..clnumber(eps0),

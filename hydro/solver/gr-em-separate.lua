@@ -37,7 +37,9 @@ function GREMSeparateSolver:init(args)
 		GRMaxwellSolver.super.createCodePrefix(self)
 		
 		self.codePrefix = table{
-			self.modules:getCodeAndHeader(self.sharedModulesEnabled:keys():sort():unpack()),
+			self.modules:getCodeAndHeader(self.sharedModulesEnabled:keys():sort():unpack())
+				:gsub('//// BEGIN INCLUDE FOR FFI_CDEF.-//// END INCLUDE FOR FFI_CDEF', '')
+			,
 			gr.eqn:getTypeCode(),
 			
 			-- this is for gr's calc_exp_neg4phi, which em will need 
@@ -152,7 +154,9 @@ function GREMSeparateSolver:getConsLRTypeCode() return '' end
 function GREMSeparateSolver:replaceSourceKernels()
 
 	local lines = table{
-		self.modules:getCodeAndHeader(self.sharedModulesEnabled:keys():sort():unpack()),
+		self.modules:getCodeAndHeader(self.sharedModulesEnabled:keys():sort():unpack())
+			:gsub('//// BEGIN INCLUDE FOR FFI_CDEF.-//// END INCLUDE FOR FFI_CDEF', '')
+		,
 		self.gr.eqn:getTypeCode(),
 		-- TODO :getCommonFuncCode() has been replaced with :initCodeModules()
 		self.gr.eqn:getCommonFuncCode(),

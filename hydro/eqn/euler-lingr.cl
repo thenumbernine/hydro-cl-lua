@@ -132,7 +132,7 @@ real3 calcGravityForcePerVolume(
 ) {
 	real const G = solver->gravitationalConstant / unit_m3_per_kg_s2;
 	real const _1_eps_g = 4. * M_PI * G;
-	return _real3(
+	return real3(
 		U->rho * U->D_g.x * _1_eps_g + U->m.y * U->B_g.z - U->m.z * U->B_g.y,
 		U->rho * U->D_g.y * _1_eps_g + U->m.z * U->B_g.x - U->m.x * U->B_g.z,
 		U->rho * U->D_g.z * _1_eps_g + U->m.x * U->B_g.y - U->m.y * U->B_g.x);

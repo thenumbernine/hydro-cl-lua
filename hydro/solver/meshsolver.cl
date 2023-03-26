@@ -15,7 +15,7 @@ local faceAreaEpsilon = 0
 
 #define <?=SETBOUNDS?>(lhs,rhs)	\
 	int index = get_global_id(0); \
-	int4 i = (int4)(index,0,0,0);	\
+	int4 i = int4{index,0,0,0};	\
 	if (<?=OOB?>(0,0)) return;
 
 //// MODULE_NAME: <?=SETBOUNDS_NOGHOST?>
@@ -25,7 +25,7 @@ local faceAreaEpsilon = 0
 
 #define <?=SETBOUNDS_NOGHOST?>()	\
 	int index = get_global_id(0); \
-	int4 i = (int4)(index,0,0,0); \
+	int4 i = int4{index,0,0,0}; \
 	if (<?=OOB?>(0,0)) return;
 
 //// MODULE_NAME: <?=boundaryCons?>

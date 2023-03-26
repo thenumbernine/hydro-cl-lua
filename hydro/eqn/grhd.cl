@@ -253,27 +253,27 @@ kernel void <?=calcEigenBasis?>(
 		Also, the norms work out, so (P gamma P') (P v) has the same norm as (gamma v)
 		Same with (P v)' (P gamma P') (P v) works vs (P v)' (P' gamma P) (P v) which doesn't
 		*/
-		vL = _real3(vL.y, -vL.x, vL.z);	// -90' rotation to put the y axis contents into the x axis
-		beta = _real3(beta.y, -beta.x, beta.z);
-		gamma = (real3s3){
-			.xx = gamma.yy,
-			.xy = -gamma.xy,
-			.xz = gamma.yz,
-			.yy = gamma.xx,
-			.yz = -gamma.xz,
-			.zz = gamma.zz,
+		vL = real3(vL.y, -vL.x, vL.z);	// -90' rotation to put the y axis contents into the x axis
+		beta = real3(beta.y, -beta.x, beta.z);
+		gamma = real3s3{
+			gamma.yy,
+			-gamma.xy,
+			gamma.yz,
+			gamma.xx,
+			-gamma.xz,
+			gamma.zz,
 		};
 		<? elseif side == 2 then ?>
 		//x,z -> z,-x
-		vL = _real3(vL.z, vL.y, -vL.x);	//-90' rotation to put the z axis in the x axis
-		beta = _real3(beta.z, beta.y, -beta.x);
-		gamma = (real3s3){
-			.xx = gamma.zz,
-			.xy = gamma.yz,
-			.xz = -gamma.xz,
-			.yy = gamma.yy,
-			.yz = -gamma.xy,
-			.zz = gamma.xx,
+		vL = real3(vL.z, vL.y, -vL.x);	//-90' rotation to put the z axis in the x axis
+		beta = real3(beta.z, beta.y, -beta.x);
+		gamma = real3s3{
+			gamma.zz,
+			gamma.yz,
+			-gamma.xz,
+			gamma.yy,
+			-gamma.xy,
+			gamma.xx,
 		};
 		<? end ?>
 		

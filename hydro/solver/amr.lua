@@ -188,10 +188,11 @@ for nx=0,tonumber(solver.amr.ctx.nodeFromSize.x)-1 do
 		int const nx = <?=nx?>;
 		int const ny = <?=ny?>;
 		
-		int4 Ui = (int4)(
+		int4 Ui = int4{
 			solver->numGhost + nx + <?=solver.amr.ctx.nodeFromSize.x?> * nodei.x,
 			solver->numGhost + ny + <?=solver.amr.ctx.nodeFromSize.y?> * nodei.y,
-			0,0);
+			0,
+			0};
 		
 		
 		int Uindex = INDEXV(solver, Ui);
@@ -222,7 +223,7 @@ kernel void initNodeFromRoot(
 	int4 from	//where in the child tree
 ) {
 	//'i' is the dest in the child node to write
-	int4 i = (int4)(0,0,0,0);
+	int4 i = int4{0,0,0,0};
 	i.x = get_global_id(0);
 	i.y = get_global_id(1);
 	if (i.x >= <?=solver.amr.nodeSize.x?> || 
@@ -234,7 +235,7 @@ kernel void initNodeFromRoot(
 	int dstIndex = i.x + <?=solver.amr.nodeSize.x?> * i.y;
 
 	//'srci' is the coords within the parent node to read, relative to the child's upper-left
-	int4 srci = (int4)(0,0,0,0);
+	int4 srci = int4{0,0,0,0};
 	srci.x = i.x / <?= solver.amr.ctx.parentSizeInFromSize.x ?>;
 	srci.y = i.y / <?= solver.amr.ctx.parentSizeInFromSize.y ?>;
 

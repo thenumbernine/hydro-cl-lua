@@ -381,10 +381,10 @@ end
 	real partial_chi_bardot_partial_alpha = real3_weightedDot( *(real3*)partial_chi_l, *(real3*)partial_alpha_l, U->gammaBar_uu);
 
 	//chi D_i D_j alpha = alpha,ij - connBar^k_ij alpha,k + 1/(2 chi) (alpha,i chi,j + alpha,j chi,i - gammaBar_ij gammaBar^kl alpha,k chi,l)
-	real3s3 chi_D2_alpha_ll = (real3s3){
+	real3s3 chi_D2_alpha_ll = real3s3{
 <? 	for ij,xij in ipairs(symNames) do
 		local i,j = from6to3x3(ij)
-?>		.<?=xij?> = U->chi * (partial2_alpha_ll[<?=ij-1?>] <?
+?>		U->chi * (partial2_alpha_ll[<?=ij-1?>] <?
 		for k,xk in ipairs(xNames) do
 			?> - connBar_ull.<?=xk?>.<?=xij?> * partial_alpha_l[<?=k-1?>]<?
 		end
@@ -397,10 +397,10 @@ end
 	//D_i D_j alpha 
 	// = D_i alpha_,j 
 	// = alpha_,ij - conn^k_ij alpha_,k
-	real3s3 D2_alpha_ll = (real3s3){
+	real3s3 D2_alpha_ll = real3s3{
 <?	for ij,xij in ipairs(symNames) do
 		local i,j = from6to3x3(ij)
-?>		.<?=xij?> = partial2_alpha_ll[<?=ij-1?>] 
+?>		partial2_alpha_ll[<?=ij-1?>] 
 <?		for k,xk in ipairs(xNames) do
 ?>			- conn_ull.<?=xk?>.<?=xij?> * partial_alpha_l[<?=k-1?>]
 <?		end ?>,

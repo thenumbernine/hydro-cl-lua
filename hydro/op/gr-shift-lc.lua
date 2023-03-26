@@ -29,7 +29,7 @@ kernel void lagrangianCoordinateAdvect(
 	// U[i] = U[i - beta * dt]
 	global <?=cons_t?> const * const U = UBuf + index;
 
-	real4 src = (real4)(
+	real4 src = real4(
 <? 
 for j=0,solver.dim-1 do
 ?>		(real)i.s<?=j?> - dt * U->beta_u.s<?=j?> / grid_dx<?=j?>,
@@ -46,7 +46,7 @@ end
 	real4 nf = 1. - f;
 
 	//TODO boundary conditions... for now just freeflow
-	isrc = clamp((int4)srcf, (int4)(0,0,0,0), gridSize - 1);
+	isrc = clamp((int4)srcf, int4{0,0,0,0}, gridSize - 1);
 
 	//here's the next cell
 	int4 isrc2 = clamp(isrc + 1, gridSize - 1);

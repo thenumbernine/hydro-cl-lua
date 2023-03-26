@@ -202,7 +202,7 @@ densitized force, in units of kg/(m^2 s^2)
 real3 calcIonGravForce(constant <?=solver_t?> const * const solver, global <?=cons_t?> const * const U, real3 const x) {
 	real const G = solver->sqrt_G * solver->sqrt_G / unit_m3_per_kg_s2;
 	real const eps_g = 1. / (4. * M_PI * G);
-	return _real3(
+	return real3(
 		U->ion_rho * U->D_g.x / eps_g + 4. * (U->ion_m.y * U->B_g.z - U->ion_m.z * U->B_g.y),
 		U->ion_rho * U->D_g.y / eps_g + 4. * (U->ion_m.z * U->B_g.x - U->ion_m.x * U->B_g.z),
 		U->ion_rho * U->D_g.z / eps_g + 4. * (U->ion_m.x * U->B_g.y - U->ion_m.y * U->B_g.x));
@@ -211,7 +211,7 @@ real3 calcIonGravForce(constant <?=solver_t?> const * const solver, global <?=co
 real3 calcElecGravForce(constant <?=solver_t?> const * const solver, global <?=cons_t?> const * const U, real3 const x) {
 	real const G = solver->sqrt_G * solver->sqrt_G / unit_m3_per_kg_s2;
 	real const eps_g = 1. / (4. * M_PI * G);
-	return _real3(
+	return real3(
 		U->elec_rho * U->D_g.x / eps_g + 4. * (U->elec_m.y * U->B_g.z - U->elec_m.z * U->B_g.y),
 		U->elec_rho * U->D_g.y / eps_g + 4. * (U->elec_m.z * U->B_g.x - U->elec_m.x * U->B_g.z),
 		U->elec_rho * U->D_g.z / eps_g + 4. * (U->elec_m.x * U->B_g.y - U->elec_m.y * U->B_g.x));
@@ -462,14 +462,14 @@ end --\
 		real3 const E = real3_real_mul((U)->D<?=suffix?>, 1. / eps<?=suffix?>);\
 		real3 const H = real3_real_mul((U)->B<?=suffix?>, 1. / mu<?=suffix?>);\
 		if (n.side == 0) {\
-			(resultFlux)->D<?=suffix?> = _real3((U)->phi<?=suffix?> * solver->divPhiWavespeed<?=suffix?> / unit_m_per_s, H.z, -H.y);\
-			(resultFlux)->B<?=suffix?> = _real3((U)->psi<?=suffix?> * solver->divPsiWavespeed<?=suffix?> / unit_m_per_s, -E.z, E.y);\
+			(resultFlux)->D<?=suffix?> = real3((U)->phi<?=suffix?> * solver->divPhiWavespeed<?=suffix?> / unit_m_per_s, H.z, -H.y);\
+			(resultFlux)->B<?=suffix?> = real3((U)->psi<?=suffix?> * solver->divPsiWavespeed<?=suffix?> / unit_m_per_s, -E.z, E.y);\
 		} else if (n.side == 1) {\
-			(resultFlux)->D<?=suffix?> = _real3(-H.z, (U)->phi<?=suffix?> * solver->divPhiWavespeed<?=suffix?> / unit_m_per_s, H.x);\
-			(resultFlux)->B<?=suffix?> = _real3(E.z, (U)->psi<?=suffix?> * solver->divPsiWavespeed<?=suffix?> / unit_m_per_s, -E.x);\
+			(resultFlux)->D<?=suffix?> = real3(-H.z, (U)->phi<?=suffix?> * solver->divPhiWavespeed<?=suffix?> / unit_m_per_s, H.x);\
+			(resultFlux)->B<?=suffix?> = real3(E.z, (U)->psi<?=suffix?> * solver->divPsiWavespeed<?=suffix?> / unit_m_per_s, -E.x);\
 		} else if (n.side == 2) {\
-			(resultFlux)->D<?=suffix?> = _real3(H.y, -H.x, (U)->phi<?=suffix?> * solver->divPhiWavespeed<?=suffix?> / unit_m_per_s);\
-			(resultFlux)->B<?=suffix?> = _real3(-E.y, E.x, (U)->psi<?=suffix?> * solver->divPsiWavespeed<?=suffix?> / unit_m_per_s);\
+			(resultFlux)->D<?=suffix?> = real3(H.y, -H.x, (U)->phi<?=suffix?> * solver->divPhiWavespeed<?=suffix?> / unit_m_per_s);\
+			(resultFlux)->B<?=suffix?> = real3(-E.y, E.x, (U)->psi<?=suffix?> * solver->divPsiWavespeed<?=suffix?> / unit_m_per_s);\
 		}\
 		(resultFlux)->phi<?=suffix?> = normal_vecDotN1(n, (U)->D<?=suffix?>) * solver->divPhiWavespeed<?=suffix?> / unit_m_per_s;\
 		(resultFlux)->psi<?=suffix?> = normal_vecDotN1(n, (U)->B<?=suffix?>) * solver->divPsiWavespeed<?=suffix?> / unit_m_per_s;\
@@ -1009,14 +1009,14 @@ end --\
 	real3 const E = real3_real_mul((UX)->D, 1. / eps);\
 	real3 const H = real3_real_mul((UX)->B, 1. / mu);\
 	if (n.side == 0) {\
-		(UY)->D = _real3(solver->divPhiWavespeed / unit_m_per_s * (UX)->phi, H.z, -H.y);\
-		(UY)->B = _real3(solver->divPsiWavespeed / unit_m_per_s * (UX)->psi, -E.z, E.y);\
+		(UY)->D = real3(solver->divPhiWavespeed / unit_m_per_s * (UX)->phi, H.z, -H.y);\
+		(UY)->B = real3(solver->divPsiWavespeed / unit_m_per_s * (UX)->psi, -E.z, E.y);\
 	} else if (n.side == 1) {\
-		(UY)->D = _real3(-H.z, solver->divPhiWavespeed / unit_m_per_s * (UX)->phi, H.x);\
-		(UY)->B = _real3(E.z, solver->divPsiWavespeed / unit_m_per_s * (UX)->psi, -E.x);\
+		(UY)->D = real3(-H.z, solver->divPhiWavespeed / unit_m_per_s * (UX)->phi, H.x);\
+		(UY)->B = real3(E.z, solver->divPsiWavespeed / unit_m_per_s * (UX)->psi, -E.x);\
 	} else if (n.side == 2) {\
-		(UY)->D = _real3(H.y, -H.x, solver->divPhiWavespeed / unit_m_per_s * (UX)->phi);\
-		(UY)->B = _real3(-E.y, E.x, solver->divPsiWavespeed / unit_m_per_s * (UX)->psi);\
+		(UY)->D = real3(H.y, -H.x, solver->divPhiWavespeed / unit_m_per_s * (UX)->phi);\
+		(UY)->B = real3(-E.y, E.x, solver->divPsiWavespeed / unit_m_per_s * (UX)->psi);\
 	}\
 	(UY)->phi = solver->divPhiWavespeed / unit_m_per_s * normal_vecDotN1(n, (UX)->D);\
 	(UY)->psi = solver->divPsiWavespeed / unit_m_per_s * normal_vecDotN1(n, (UX)->B);\
@@ -1024,14 +1024,14 @@ end --\
 	real3 const E_g = real3_real_mul((UX)->D_g, 1. / eps_g);\
 	real3 const H_g = real3_real_mul((UX)->B_g, 1. / mu_g);\
 	if (n.side == 0) {\
-		(UY)->D_g = _real3(solver->divPhiWavespeed_g / unit_m_per_s * (UX)->phi_g, H_g.z, -H_g.y);\
-		(UY)->B_g = _real3(solver->divPsiWavespeed_g / unit_m_per_s * (UX)->psi_g, -E_g.z, E_g.y);\
+		(UY)->D_g = real3(solver->divPhiWavespeed_g / unit_m_per_s * (UX)->phi_g, H_g.z, -H_g.y);\
+		(UY)->B_g = real3(solver->divPsiWavespeed_g / unit_m_per_s * (UX)->psi_g, -E_g.z, E_g.y);\
 	} else if (n.side == 1) {\
-		(UY)->D_g = _real3(-H_g.z, solver->divPhiWavespeed_g / unit_m_per_s * (UX)->phi_g, H_g.x);\
-		(UY)->B_g = _real3(E_g.z, solver->divPsiWavespeed_g / unit_m_per_s * (UX)->psi_g, -E_g.x);\
+		(UY)->D_g = real3(-H_g.z, solver->divPhiWavespeed_g / unit_m_per_s * (UX)->phi_g, H_g.x);\
+		(UY)->B_g = real3(E_g.z, solver->divPsiWavespeed_g / unit_m_per_s * (UX)->psi_g, -E_g.x);\
 	} else if (n.side == 2) {\
-		(UY)->D_g = _real3(H_g.y, -H_g.x, solver->divPhiWavespeed_g / unit_m_per_s * (UX)->phi_g);\
-		(UY)->B_g = _real3(-E_g.y, E_g.x, solver->divPsiWavespeed_g / unit_m_per_s * (UX)->psi_g);\
+		(UY)->D_g = real3(H_g.y, -H_g.x, solver->divPhiWavespeed_g / unit_m_per_s * (UX)->phi_g);\
+		(UY)->B_g = real3(-E_g.y, E_g.x, solver->divPsiWavespeed_g / unit_m_per_s * (UX)->psi_g);\
 	}\
 	(UY)->phi_g = solver->divPhiWavespeed_g / unit_m_per_s * normal_vecDotN1(n, E_g);\
 	(UY)->psi_g = solver->divPsiWavespeed_g / unit_m_per_s * normal_vecDotN1(n, H_g);\

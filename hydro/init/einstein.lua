@@ -240,7 +240,7 @@ local initConds = table{
 			-- solver.coord.gHol
 			
 			return solver.eqn:template([[
-	real3 center = coordMap(_real3(<?=clnumber(initCond.center[1])
+	real3 center = coordMap(real3(<?=clnumber(initCond.center[1])
 								?>, <?=clnumber(initCond.center[2])
 								?>, <?=clnumber(initCond.center[3])?>));
 	real3 d = real3_sub(xc, center);
@@ -281,8 +281,8 @@ local initConds = table{
 //enable this if you want the ADM 3D run in 1D to match the ADM 1D's
 //disable this if you want things to run in higher dimensions
 #if	dim == 1
-	gamma_ll = _real3s3(gamma_ll.xx, 0,0,1,0,1);
-	K_ll = _real3s3(K_ll.xx, 0,0,0,0,0);
+	gamma_ll = real3s3(gamma_ll.xx, 0,0,1,0,1);
+	K_ll = real3s3(K_ll.xx, 0,0,0,0,0);
 #endif
 ]],			{
 				initCond = self,
@@ -383,8 +383,8 @@ what if I transforms this from tx back to uv?
 
 	real const gamma_xx = (f + 2.) / 2.;
 	alpha = sqrt(1. / gamma_xx);
-	beta_u = _real3(-f/(f + 2.), 0., 0.);
-	gamma_ll = _real3s3(gamma_xx, 0., 0., 1., 0., 1.);
+	beta_u = real3(-f/(f + 2.), 0., 0.);
+	gamma_ll = real3s3(gamma_xx, 0., 0., 1., 0., 1.);
 ]]
 		end,
 	},
@@ -473,7 +473,7 @@ what if I transforms this from tx back to uv?
 
 			return solver.eqn:template([[
 	Phi = cplx_from_real(<?=compile(Phi)?>);
-	real3 re_Psi_l = _real3(
+	real3 re_Psi_l = real3(
 		<?=compile(Psi[1])?>,
 		<?=compile(Psi[2])?>,
 		<?=compile(Psi[3])?>);
@@ -691,7 +691,7 @@ what if I transforms this from tx back to uv?
 		getInitCondCode = function(self)
 			return self.solver.eqn:template[[
 	real const R = initCond->R;
-	real3 center = _real3(initCond->x, initCond->y, initCond->z);
+	real3 center = real3(initCond->x, initCond->y, initCond->z);
 	real3 xrel = real3_sub(xc, center);
 
 	real r = real3_len(xrel);
@@ -792,7 +792,7 @@ what if I transforms this from tx back to uv?
 	real alpha_num = 1.;
 	<? for _,body in ipairs(bodies) do ?>{
 		real const R = <?=clnumber(body.R)?>;
-		real3 pos = _real3(<?=table(body.pos):mapi(clnumber):concat', '?>);
+		real3 pos = real3(<?=table(body.pos):mapi(clnumber):concat', '?>);
 		real3 xrel = real3_sub(xc, pos);
 		real r = real3_len(xrel);
 		
@@ -824,7 +824,7 @@ what if I transforms this from tx back to uv?
 
 	<? for _,body in ipairs(bodies) do ?>{
 
-		real3 pos = _real3(<?=table(body.pos):mapi(clnumber):concat', '?>);
+		real3 pos = real3(<?=table(body.pos):mapi(clnumber):concat', '?>);
 		real3 xrel = real3_sub(xc, pos);
 		real r = real3_len(xrel);
 		real rSq = r * r;
@@ -832,11 +832,11 @@ what if I transforms this from tx back to uv?
 
 		// upper is cartesian coordinates
 		// metric is isotropic
-		real3 n_u = r == 0 ? _real3(0,0,1) : real3_real_mul(xrel, 1./r);
+		real3 n_u = r == 0 ? real3(0,0,1) : real3_real_mul(xrel, 1./r);
 		real3 n_l = real3_real_mul(n_u, psi4);
 
-		real3 P_u = _real3(<?=table(body.P_u):mapi(clnumber):concat', '?>);
-		real3 S_u = _real3(<?=table(body.S_u):mapi(clnumber):concat', '?>);
+		real3 P_u = real3(<?=table(body.P_u):mapi(clnumber):concat', '?>);
+		real3 S_u = real3(<?=table(body.S_u):mapi(clnumber):concat', '?>);
 
 		real3 P_l = real3_real_mul(P_u, psi4);
 		
@@ -1074,7 +1074,7 @@ what if I transforms this from tx back to uv?
 	real psi = 1.;
 	<? for _,body in ipairs(bodies) do ?>{
 		real const R = <?=clnumber(body.R)?>;
-		real3 pos = _real3(<?=clnumber(body.pos[1])?>, <?=clnumber(body.pos[2])?>, <?=clnumber(body.pos[3])?>);
+		real3 pos = real3(<?=clnumber(body.pos[1])?>, <?=clnumber(body.pos[2])?>, <?=clnumber(body.pos[3])?>);
 		real3 xrel = real3_sub(xc, pos);
 		real r = real3_len(xrel);
 		psi += .25 * R / r;
@@ -1270,7 +1270,7 @@ beta_u.z = -((2 * M * a * rBL) / A);
 			return self.solver.eqn:template([[
 <? for _,body in ipairs(bodies) do
 ?>
-	real3 pos = _real3(<?=table.mapi(body.pos, clnumber):concat', '?>);
+	real3 pos = real3(<?=table.mapi(body.pos, clnumber):concat', '?>);
 	real3 ofs = real3_sub(xc, pos);
 	
 	real r = real3_len(ofs);

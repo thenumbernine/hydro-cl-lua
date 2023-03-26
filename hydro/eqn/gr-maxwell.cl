@@ -79,14 +79,14 @@ void <?=applyInitCondCell?>(
 	//TODO update this and addSource to your worksheet
 	return (<?=cons_t?>){
 	<? if side == 0 then ?>
-		.D = _real3(0., B_l.z / mu, -B_l.y / mu),
-		.B = _real3(0., -D_l.z / eps, D_l.y / eps),
+		.D = real3(0., B_l.z / mu, -B_l.y / mu),
+		.B = real3(0., -D_l.z / eps, D_l.y / eps),
 	<? elseif side == 1 then ?>
-		.D = _real3(-B_l.z / mu, 0., B_l.x / mu),
-		.B = _real3(D_l.z / eps, 0., -D_l.x / eps),
+		.D = real3(-B_l.z / mu, 0., B_l.x / mu),
+		.B = real3(D_l.z / eps, 0., -D_l.x / eps),
 	<? elseif side == 2 then ?>
-		.D = _real3(B_l.y / mu, -B_l.x / mu, 0.),
-		.B = _real3(-D_l.y / eps, D_l.x / eps, 0.),
+		.D = real3(B_l.y / mu, -B_l.x / mu, 0.),
+		.B = real3(-D_l.y / eps, D_l.x / eps, 0.),
 	<? end ?>
 		.divBPot = 0.,
 		.sigma = 0.,

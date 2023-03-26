@@ -395,9 +395,9 @@ momentum constraints
 		real3s3 partial_i_gamma_ll = real3s3_zero;
 		<? end ?>
 		value.vreal3s3 = real3s3_sub(real3s3_real_mul(partial_i_gamma_ll, .5), U->d_lll.<?=xi?>);
-		value.vreal3s3 = (real3s3){<?
+		value.vreal3s3 = real3s3{<?
 	for jk,xjk in ipairs(symNames) do
-?>			.<?=xjk?> = fabs(value.vreal3s3.<?=xjk?>),
+?>			fabs(value.vreal3s3.<?=xjk?>),
 <?	end
 ?>		};
 	}

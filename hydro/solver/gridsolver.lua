@@ -313,9 +313,9 @@ static inline auto SETBOUNDS(int lhs, int rhs) {
 #define <?=SETBOUNDS_NOGHOST?>() \
 	int4 i = globalInt4(); \
 	if (OOB<dim>(solver, i, 0, 2 * solver.numGhost)) return; \
-	i += (int4)(]]..range(4):mapi(function(i)
+	i += int4{]]..range(4):mapi(function(i)
 		return i <= self.dim and 'solver.numGhost' or '0'
-	end):concat','..[[); \
+	end):concat','..[[}; \
 	int index = INDEXV(solver, i);
 ]],
 	}
@@ -338,13 +338,13 @@ union <?=consLR_t?> {
 	};
 	<?=cons_t?> LR[2];
 	
-//// BEGIN EXCLUDE FROM FFI_CDEF
+//// BEGIN EXCLUDE FOR FFI_CDEF
 	<?=consLR_t?>() {}
 	<?=consLR_t?>(
 		<?=cons_t?> const & L_, 
 		<?=cons_t?> const & R_
 	) : L(L_), R(R_) {}
-//// END EXCLUDE FROM FFI_CDEF
+//// END EXCLUDE FOR FFI_CDEF
 };
 typedef union <?=consLR_t?> <?=consLR_t?>;
 
@@ -1128,7 +1128,7 @@ args.extraArgs and #args.extraArgs > 0
 if solver.dim == 2 then ?>
 	int i = get_global_id(0);<?
 elseif solver.dim == 3 then ?>
-	int2 i = (int2)((int)get_global_id(0), (int)get_global_id(1));<?
+	int2 i = int2((int)get_global_id(0), (int)get_global_id(1));<?
 end
 ?>]], 	{
 			table = table,
@@ -1191,7 +1191,13 @@ lines:insert[[
 	end
 
 	-- last, add dependency code to the beginning
-	lines:insert(1, self.modules:getCodeAndHeader(moduleNames:unpack()))
+	lines:insert(
+		1,
+		(
+			self.modules:getCodeAndHeader(moduleNames:unpack())
+				:gsub('//// BEGIN INCLUDE FOR FFI_CDEF.-//// END INCLUDE FOR FFI_CDEF', '')
+		)
+	)
 
 	local code = lines:concat'\n'
 	local boundaryProgramName = 'boundary'..(args.programNameSuffix or '')

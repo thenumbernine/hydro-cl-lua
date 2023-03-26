@@ -322,7 +322,7 @@ end
 	(eig)->alpha_sqrt_f = sqrt(calc_f_alphaSq((U)->alpha));\
 	real det_gamma = real3s3_det((U)->gamma_ll);\
 	(eig)->gamma_uu = real3s3_inv((U)->gamma_ll, det_gamma);\
-	(eig)->sqrt_gammaUjj = _real3(sqrt((eig)->gamma_uu.xx), sqrt((eig)->gamma_uu.yy), sqrt((eig)->gamma_uu.zz));\
+	(eig)->sqrt_gammaUjj = real3(sqrt((eig)->gamma_uu.xx), sqrt((eig)->gamma_uu.yy), sqrt((eig)->gamma_uu.zz));\
 \
 <? if eqn.useShift ~= "none" then ?>\
 	(eig)->beta_u = (U)->beta_u;\
@@ -1448,10 +1448,10 @@ kernel void <?=addSource?>(
 	//		+ 2 d^l_ki d_lj^k 
 	//		- 2 d^l_ki d^k_lj 
 	//		+ d_il^k d_jk^l
-	real3s3 const Rsrc_ll = (real3s3){
+	real3s3 const Rsrc_ll = real3s3{
 <? for ij,xij in ipairs(symNames) do
 	local i,j,xi,xj = from6to3x3(ij)
-?>		.<?=xij?> = 0.
+?>		0.
 <? 	for k,xk in ipairs(xNames) do 
 ?>			+ conn_ull.<?=xk?>.<?=xij?> * (U->V_l.<?=xk?> - e_l.<?=xk?>)
 <?		for l,xl in ipairs(xNames) do
@@ -1486,10 +1486,9 @@ kernel void <?=addSource?>(
 	
 	//...and the shift comes later ...
 
-	real3s3 const stressConstraint_ll = (real3s3){
+	real3s3 const stressConstraint_ll = real3s3{
 <? for ij,xij in ipairs(symNames) do	
-?>		.<?=xij?> = 
-			Rsrc_ll.<?=xij?> 
+?>		Rsrc_ll.<?=xij?> 
 			+ tr_K * U->K_ll.<?=xij?> 
 			- KSq_ll.<?=xij?>
 			- 8. * M_PI * S_ll.<?=xij?> 
@@ -1502,11 +1501,10 @@ kernel void <?=addSource?>(
 
 #if 0	//hand-rolled
 
-	real3s3 srcK_ll_over_alpha = (real3s3){
+	real3s3 srcK_ll_over_alpha = real3s3{
 <? for ij,xij in ipairs(symNames) do
 	local i,j,xi,xj = from6to3x3(ij)
-?>		.<?=xij?> = 
-			- U->a_l.<?=xi?> * U->a_l.<?=xj?>
+?>		- U->a_l.<?=xi?> * U->a_l.<?=xj?>
 <? 	for k,xk in ipairs(xNames) do 
 ?>			+ conn_ull.<?=xk?>.<?=xij?> * U->a_l.<?=xk?>
 <?	end
@@ -1517,7 +1515,7 @@ kernel void <?=addSource?>(
 
 
 	//d_i = d_ij^j
-	real3 d_l = (real3){
+	real3 d_l = real3{
 <? for i,xi in ipairs(xNames) do
 ?>		.<?=xi?> = real3x3_trace(d_llu.<?=xi?>),
 <? end
@@ -1531,9 +1529,9 @@ kernel void <?=addSource?>(
 	//			+ K^i_k d_ij^j 
 	//			- K^i_j d_ki^j
 	//			+ 2 K^i_j d_ik^j 
-	real3 srcV_l = (real3){
+	real3 srcV_l = real3{
 <? for k,xk in ipairs(xNames) do
-?>		.<?=xk?> = -tr_K * U->a_l.<?=xk?>
+?>		-tr_K * U->a_l.<?=xk?>
 			- 8. * M_PI * S_l.<?=xk?>
 <?	for j,xj in ipairs(xNames) do
 ?>			+ U->a_l.<?=xj?> * K_ul.<?=xj?>.<?=xk?>
@@ -2799,9 +2797,9 @@ kernel void <?=addSource?>(
 <?=eqn:makePartial1"beta_u"?>	
 
 	//= gamma_ik beta^k_,j
-	real3x3 const partial_beta_u_ll = (real3x3){
+	real3x3 const partial_beta_u_ll = real3x3{
 <? for i,xi in ipairs(xNames) do
-?>		.<?=xi?> = real3s3_real3_mul(gamma_uu, partial_beta_ul[<?=i-1?>]),
+?>		real3s3_real3_mul(gamma_uu, partial_beta_ul[<?=i-1?>]),
 <? end
 ?>	};
 
@@ -2918,9 +2916,9 @@ end ?>
 	//= beta^j beta^i_,j + alpha^2 (conn^i - a^i) + beta^i (beta^j a_j - alpha f K - beta^j a_j + alpha K)
 	//= beta^j beta^i_,j + alpha^2 (conn^i - a^i) + alpha K beta^i (1 - f)
 
-	real3 const dbeta_beta = (real3){
+	real3 const dbeta_beta = real3{
 <? for i,xi in ipairs(xNames) do
-?>		.<?=xi?> = 0.<?
+?>		0.<?
 	for j,xj in ipairs(xNames) do
 		?> + partial_beta_ul[<?=j-1?>].<?=xi?> * U->beta_u.<?=xj?><?
 	end ?>,
@@ -2930,9 +2928,9 @@ end ?>
 	real3 const a_u = real3s3_real3_mul(gamma_uu, U->a_l);
 
 	//conn^i = conn^i_jk gamma^jk
-	real3 const conn_u = (real3){
+	real3 const conn_u = real3{
 <? for i,xi in ipairs(xNames) do
-?>		.<?=xi?> = real3s3_dot(conn_ull.<?=xi?>, gamma_uu),
+?>		real3s3_dot(conn_ull.<?=xi?>, gamma_uu),
 <? end
 ?>	};
 
@@ -3202,10 +3200,10 @@ end
 	//		+ 2 d^l_ki d_lj^k 
 	//		+ d_il^k d_jk^l
 	// TODO use V_i in R_ij's calculations?  2008 Alcubierre eqn 5.5.2
-	real3s3 const R_ll = (real3s3){
+	real3s3 const R_ll = real3s3{
 <? for ij,xij in ipairs(symNames) do
 	local i,j,xi,xj = from6to3x3(ij)
-?>		.<?=xij?> = 0.
+?>		0.
 <? 	for k,xk in ipairs(xNames) do 
 ?>			+ conn_ull.<?=xk?>.<?=xij?> * (U->V_l.<?=xk?> - e_l.<?=xk?>)
 <?		for l,xl in ipairs(xNames) do
