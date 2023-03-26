@@ -614,7 +614,7 @@ function HydroCLApp:initGL(...)
 		Modules.verbose = cmdline.moduleVerbose
 		self.modules = Modules()
 
-		self.modules:addFromMarkup(template(file'hydro/code/math.cl':read(), table(require 'hydro.common', {
+		self.modules:addFromMarkup(template(file'hydro/code/math.clcpp':read(), table(require 'hydro.common', {
 			app = self,
 		})))
 

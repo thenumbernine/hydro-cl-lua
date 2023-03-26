@@ -743,8 +743,6 @@ function Equation:initCodeModule_cons_prim_eigen_waves()
 		name = self.symbols.cons_t,
 		structs = {self.consStruct},
 		depends = self.getModuleDepends_cons_t and self:getModuleDepends_cons_t() or nil,
-		-- only generated for cl, not for ffi cdef
-		headercode = 'typedef '..self.symbols.cons_t..' cons_t;',
 	}
 
 	if self.primStruct then
@@ -752,31 +750,23 @@ function Equation:initCodeModule_cons_prim_eigen_waves()
 			name = self.symbols.prim_t,
 			structs = {self.primStruct},
 			depends = self.getModuleDepends_prim_t and self:getModuleDepends_prim_t() or nil,
-			-- only generated for cl, not for ffi cdef
-			headercode = 'typedef '..self.symbols.prim_t..' prim_t;',
 		}
 	else
 		solver.modules:add{
 			name = self.symbols.prim_t,
 			depends = {self.symbols.cons_t},
 			typecode = 'typedef '..self.symbols.cons_t..' '..self.symbols.prim_t..';',
-			-- only generated for cl, not for ffi cdef
-			headercode = 'typedef '..self.symbols.prim_t..' prim_t;',
 		}
 	end
 
 	solver.modules:add{
 		name = self.symbols.eigen_t,
 		structs = {assert(self.eigenStruct)},
-		-- only generated for cl, not for ffi cdef
-		headercode = 'typedef '..self.symbols.eigen_t..' eigen_t;',
 	}
 
 	solver.modules:add{
 		name = self.symbols.waves_t,
 		structs = {assert(self.wavesStruct)},
-		-- only generated for cl, not for ffi cdef
-		headercode = 'typedef '..self.symbols.waves_t..' waves_t;',
 	}
 end
 

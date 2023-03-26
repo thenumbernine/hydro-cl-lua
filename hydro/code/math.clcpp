@@ -1,5 +1,315 @@
 <?
 local addrs = {"", "constant", "private"}
+?>
+//// MODULE_NAME: vec3
+//// MODULE_TYPE:
+
+//// BEGIN EXCLUDE FROM FFI_CDEF
+
+//https://en.cppreference.com/w/cpp/types/integral_constant
+namespace std {
+	template<typename T, T v>
+	struct integral_constant {
+		static constexpr T value = v;
+		using value_type = T;
+		using type = integral_constant; // using injected-class-name
+		constexpr operator value_type() const noexcept { return value; }
+		constexpr value_type operator()() const noexcept { return value; } // since c++14
+	};
+
+	using true_type = integral_constant<bool, true>;
+	using false_type = integral_constant<bool, false>;
+}
+
+//https://en.cppreference.com/w/cpp/types/void_t
+namespace std {
+	template<typename...>
+	using void_t = void;
+}
+
+//https://en.cppreference.com/w/cpp/types/is_same
+namespace std {
+	template<typename T, typename U>
+	struct is_same : std::false_type {};
+	 
+	template<typename T>
+	struct is_same<T, T> : std::true_type {};
+	
+	template<typename A, typename B>
+	static constexpr bool is_same_v = is_same<A, B>::value;
+}
+
+//https://en.cppreference.com/w/cpp/types/enable_if
+namespace std {
+	template<bool B, typename T = void>
+	struct enable_if {};
+	
+	template<typename T>
+	struct enable_if<true, T> { typedef T type; };
+
+	template<bool B, typename T = void>
+	using enable_if_t = typename enable_if<B, T>::type;
+}
+
+//https://en.cppreference.com/w/cpp/types/conditional
+namespace std {
+	template<bool B, class T, class F>
+	struct conditional { using type = T; };
+	 
+	template<class T, class F>
+	struct conditional<false, T, F> { using type = F; };
+
+	template<bool B, class T, class F>
+	using conditional_t = typename conditional<B, T, F>::type;
+}
+
+//https://en.cppreference.com/w/cpp/types/type_identity
+namespace std {
+	template<class T> struct type_identity { using type = T; }; // or use std::type_identity (since C++20)
+}
+
+// https://en.cppreference.com/w/cpp/types/is_pointer
+namespace std {
+	template<typename T> struct is_pointer : std::false_type {};
+	template<typename T> struct is_pointer<T*> : std::true_type {};
+	template<typename T> struct is_pointer<T* const> : std::true_type {};
+	template<typename T> struct is_pointer<T* volatile> : std::true_type {};
+	template<typename T> struct is_pointer<T* const volatile> : std::true_type {};
+}
+
+//https://en.cppreference.com/w/cpp/types/add_reference
+namespace std {
+	template<typename T> struct add_lvalue_reference : public type_identity<T&> {};
+	template<typename T> struct add_lvalue_reference<T&> : public type_identity<T&> {};
+	 
+	template<typename T> struct add_rvalue_reference : public type_identity<T&&> {};
+	template<typename T> struct add_rvalue_reference<T&&> : public type_identity<T&&> {};
+}
+
+// based on above
+namespace std {
+	template<typename T> struct add_pointer : public type_identity<T*> {};
+	template<typename T> struct remove_pointer : public type_identity<T> {};
+	template<typename T> struct remove_pointer<T*> : public type_identity<T> {};
+	
+	template<typename T> using add_pointer_t = typename add_pointer<T>::type; 
+	template<typename T> using remove_pointer_t = typename remove_pointer<T>::type;
+}
+
+//https://en.cppreference.com/w/cpp/utility/declval
+namespace std {
+	template<typename T>
+	constexpr bool always_false = false;
+	 
+	template<typename T>
+	typename std::add_rvalue_reference<T>::type declval() noexcept
+	{
+		static_assert(always_false<T>, "declval not allowed in an evaluated context");
+	}
+}
+
+//https://en.cppreference.com/w/cpp/experimental/nonesuch
+namespace std {
+	struct nonesuch {
+		~nonesuch() = delete;
+		nonesuch(nonesuch const&) = delete;
+		void operator=(nonesuch const&) = delete;
+	};
+}
+
+//https://en.cppreference.com/w/cpp/experimental/is_detected
+namespace std {
+	namespace detail {
+	template<class Default, class AlwaysVoid,
+			  template<class...> class Op, class... Args>
+	struct detector {
+	  using value_t = std::false_type;
+	  using type = Default;
+	};
+	 
+	template<class Default, template<class...> class Op, class... Args>
+	struct detector<Default, std::void_t<Op<Args...>>, Op, Args...> {
+	  using value_t = std::true_type;
+	  using type = Op<Args...>;
+	};
+	 
+	} // namespace detail
+	 
+	template<template<class...> class Op, class... Args>
+	using is_detected = typename detail::detector<nonesuch, void, Op, Args...>::value_t;
+	 
+	template<template<class...> class Op, class... Args>
+	using detected_t = typename detail::detector<nonesuch, void, Op, Args...>::type;
+	 
+	template<class Default, template<class...> class Op, class... Args>
+	using detected_or = detail::detector<Default, void, Op, Args...>;
+
+	template<template<class...> class Op, class... Args>
+	static constexpr bool is_detected_v = is_detected<Op, Args...>::value;
+}
+
+template<class T>
+using has_tensorFlag = decltype(std::declval<T>().isTensorFlag);
+
+template<typename T>
+constexpr bool is_tensor_v = std::is_detected_v<has_tensorFlag, T>;
+
+template<typename Inner_>
+union vec3 {
+	static constexpr bool isTensorFlag = true;
+	using Inner = Inner_;
+	struct NestedScalarImpl {
+		static constexpr auto value() {
+			if constexpr (is_tensor_v<Inner>) {
+				return Inner::NestedScalarImpl::value();
+			} else {
+				return (Inner*){};
+			}
+		}
+		using type = decltype(value());
+	};
+	using Scalar = typename std::remove_pointer_t<typename NestedScalarImpl::type>;
+
+	Inner s[3];
+	struct { Inner s0, s1, s2; };
+	struct { Inner x, y, z; };
+
+	constexpr vec3()
+	:	x(Inner{}),
+		y(Inner{}),
+		z(Inner{})
+	{}
+
+	constexpr vec3(
+		Inner x_,
+		Inner y_,
+		Inner z_
+	) : x(x_), y(y_), z(z_) {}
+
+#if 0
+	// TODO needs rank, Common stuff, tuples, functions, apply, write-iterator
+	template<
+		typename Lambda,
+		std::enable_if_t<
+			std::is_same_v<
+				Common::FunctionFromLambda<Lambda>,
+				Common::FunctionFromTupleArgs<Scalar, Common::tuple_rep_t<int, rank>>
+			>
+		, int> = 0
+	>
+	constexpr vec3(Lambda lambda) {
+		using Func = typename Common::FunctionFromLambda<Lambda>::FuncType;
+		Func f(lambda);
+		auto w = write();
+		for (auto i = w.begin(); i != w.end(); ++i) {
+			*i = std::apply(f, i.readIndex.s);
+		}
+	}
+#endif
+// until then I can just use fixed-signature per-rank
+
+	constexpr vec3 & operator+=(
+		vec3 const & b
+	) {
+		x += b.x;
+		y += b.y;
+		z += b.z;
+		return *this;
+	}
+	
+	constexpr vec3 & operator-=(
+		vec3 const & b
+	) {
+		x -= b.x;
+		y -= b.y;
+		z -= b.z;
+		return *this;
+	}
+
+	vec3 operator-() const {
+		return vec3(-x, -y, -z);
+	}
+	vec3 operator-() constant const {
+		return vec3(-x, -y, -z);
+	}
+
+	constexpr Inner & operator[](int i) { return s[i]; }
+	constexpr Inner const & operator[](int i) const { return s[i]; }
+	constexpr constant Inner & operator[](int i) constant { return s[i]; }
+	constexpr constant Inner const & operator[](int i) constant const { return s[i]; }
+
+	template<typename R>
+	using ReplaceScalar = vec3<R>;
+
+} <?=app.real=="half" and "__attribute__ ((packed))" or ""
+-- __attribute__ ((packed)) seems to need to be here with real=half
+?>;
+
+// TODO if I do use const& then I will have to use all possible kinds of OpenCL address qualifiers
+// and when doing so, the compiler chokes on scalars ... 
+// so I'm just going to pass-by-value
+// ... but maybe this is a masked error from enable_if and I can re-introduce it once I fix that ...
+
+//vec3 * scalar
+template<
+	typename A,
+	typename B,
+	std::enable_if_t<is_tensor_v<A> && !is_tensor_v<B>, int> = 0
+>
+decltype(auto) operator*(
+	A const a,
+	B const b
+) {
+	using AS = typename A::Scalar;
+	using RS = decltype(AS() * B());
+	using R = typename A::template ReplaceScalar<RS>;
+	return R(a.x * b, a.y * b, a.z * b);
+}
+
+//scalar * vec3
+template<
+	typename A,
+	typename B,
+	std::enable_if_t<!is_tensor_v<A> && is_tensor_v<B>, int> = 0
+>
+decltype(auto) operator*(
+	A const a,
+	B const b
+) {
+	using BS = typename B::Scalar;
+	using RS = decltype(A() * BS());
+	using R = typename B::template ReplaceScalar<RS>;
+	return R(a * b.x, a * b.y, a * b.z);
+}
+
+//vec3 * vec3
+#if 0
+template<
+	typename A,
+	typename B,
+	std::enable_if_t<IsBinaryTensorOpWithMatchingNeighborDims<A,B>, int> = 0
+>
+auto operator*(
+	A const a,
+	B const b
+) {
+	//return interior<1>
+}
+#endif
+
+//// END EXCLUDE FROM FFI_CDEF
+
+//// MODULE_NAME: mat3x3
+//// MODULE_DEPENDS: vec3
+//// MODULE_TYPE:
+
+//// BEGIN EXCLUDE FROM FFI_CDEF
+// row vectors, so a.i.j = a_ij
+template<typename Inner>
+using mat3x3 = vec3<vec3<Inner>>;
+//// END EXCLUDE FROM FFI_CDEF
+
+<?
 local function makevec3type(name, scalar)
 	if 
 	false
@@ -27,53 +337,13 @@ typedef <?=vecType.type?> <?=name?>;
 ?>
 
 //// BEGIN EXCLUDE FROM FFI_CDEF
-union <?=name?> {
-	<?=scalar?> s[3];
-	struct { <?=scalar?> s0, s1, s2; };
-	struct { <?=scalar?> x, y, z; };
-
-	constexpr <?=name?>()
-	:	x(<?=scalar?>{}),
-		y(<?=scalar?>{}),
-		z(<?=scalar?>{})
-	{}
-
-	constexpr <?=name?>(
-		<?=scalar?> x_,
-		<?=scalar?> y_,
-		<?=scalar?> z_
-	) : x(x_), y(y_), z(z_) {}
-
-	constexpr <?=name?> & operator+=(
-		<?=name?> const & b
-	) {
-		x += b.x;
-		y += b.y;
-		z += b.z;
-		return *this;
-	}
-	
-	constexpr <?=name?> & operator-=(
-		<?=name?> const & b
-	) {
-		x -= b.x;
-		y -= b.y;
-		z -= b.z;
-		return *this;
-	}
-
-	constexpr <?=scalar?> & operator[](int i) { return s[i]; }
-	constexpr <?=scalar?> const & operator[](int i) const { return s[i]; }
-	constexpr constant <?=scalar?> & operator[](int i) constant { return s[i]; }
-	constexpr constant <?=scalar?> const & operator[](int i) constant const { return s[i]; }
-
-} <?=app.real=="half" and "__attribute__ ((packed))" or ""
--- __attribute__ ((packed)) seems to need to be here with real=half
-?>;
+//// MODULE_DEPENDS: vec3
+using <?=name?> = vec3<<?=scalar?>>;
 //// END EXCLUDE FROM FFI_CDEF
 
+// ELSE?
 // for the ffi.cdef C code:
-typedef union <?=name?> <?=name?>;
+//typedef union <?=name?> <?=name?>;
 
 <?
 	end
@@ -86,28 +356,6 @@ local function makevec3header(vec, scalar, cdef)
 static inline <?=scalar?> dot(
 	<?=addr1?> <?=vec?> const & a,
 	<?=addr2?> <?=vec?> const & b
-);
-<?
-		end
-	end
-	for _,addr in ipairs(addrs) do
-?>
-static inline <?=vec?> operator*(
-	<?=addr?> <?=vec?> const & a,
-	<?=scalar?> s
-);
-static inline <?=vec?> operator*(
-	<?=scalar?> a,
-	<?=addr?> <?=vec?> const & b
-);
-<? 
-	end
-	if scalar ~= "real" then
-		for _,addr in ipairs(addrs) do 
-?>
-static inline <?=vec?> operator*(
-	<?=addr?> <?=vec?> const & a,
-	real b
 );
 <?
 		end
@@ -129,74 +377,25 @@ static inline <?=vec?> operator-(
 	end
 ?>
 static inline <?=vec?> cross(<?=vec?> a, <?=vec?> b);
+static inline real lenSq(real3 const a);
+static inline real len(real3 const a);
 <?
 end	-- makevec3header
 
 local function makevec3code(vec,scalar)
-	for _,addr in ipairs(addrs) do 
-?>
-static inline <?=vec?> operator*(
-	<?=addr?> <?=vec?> const & a,
-	<?=scalar?> s
-) {
-	return <?=vec?>(
-		a.x * s,
-		a.y * s,
-		a.z * s);
-}
-static inline <?=vec?> operator*(
-	<?=scalar?> a,
-	<?=addr?> <?=vec?> const & b
-) {
-	return <?=vec?>(
-		a * b.x,
-		a * b.y,
-		a * b.z);
-}
-<?
-	end
-	if scalar ~= "real" then
-		for _,addr in ipairs(addrs) do
-?>
-static inline <?=vec?> operator*(
-	<?=addr?> <?=vec?> const & a,
-	real b
-) {
-	return <?=vec?>(
-		a.x * b,
-		a.y * b,
-		a.z * b);
-}
-<?
-		end
-	end
 	for _,addr in ipairs(addrs) do
 ?>
 static inline <?=vec?> operator+(
 	<?=addr?> <?=vec?> const & a,
 	<?=addr?> <?=vec?> const & b
 ) {
-	return <?=vec?>(
-		a.x + b.x,
-		a.y + b.y,
-		a.z + b.z);
+	return <?=vec?>(a.x + b.x, a.y + b.y, a.z + b.z);
 }
 static inline <?=vec?> operator-(
 	<?=addr?> <?=vec?> const & a,
 	<?=addr?> <?=vec?> const & b
 ) {
-	return <?=vec?>(
-		a.x - b.x,
-		a.y - b.y,
-		a.z - b.z);
-}
-static inline <?=vec?> operator-(
-	<?=addr?> <?=vec?> const & a
-) {
-	return <?=vec?>(
-		-a.x,
-		-a.y,
-		-a.z);
+	return <?=vec?>(a.x - b.x, a.y - b.y, a.z - b.z);
 }
 <?
 	end
@@ -210,6 +409,12 @@ static inline <?=vec?> cross(<?=vec?> a, <?=vec?> b) {
 
 static inline <?=vec?> unit(<?=vec?> a) {
 	return a * (1. / len(a));
+}
+static inline real lenSq(real3 const a) {
+	return dot(a, a);
+}
+static inline real len(real3 const a) {
+	return sqrt(lenSq(a));
 }
 <?
 end	-- makevec3code
@@ -301,35 +506,6 @@ static inline <?=ctype?> dot(
 		end
 	end
 end
-
-local function make_3x3_3_mul(atype, btype)
-	local ctype = resultType(atype, btype)
-?>
-//c_i = a_ij * b^j
-inline <?=ctype?>3 operator*(<?=atype?>3x3 a, <?=btype?>3 b) {
-	return <?=ctype?>3{
-<? for i,xi in ipairs(xNames) do
-?>		dot(a.<?=xi?>, b),
-<? end
-?>	};
-}
-<?
-end
-
-local function make_3_3x3_mul(atype, btype)
-	local ctype = resultType(atype, btype)
-?>
-//c_j = a^i * b_ij = b_ji * a^i
-//so this is the same behavior as transpose(A) * b
-inline <?=ctype?>3 operator*(<?=atype?>3 a, <?=btype?>3x3 b) {
-	return <?=ctype?>3{
-<? for i,xi in ipairs(xNames) do
-?>		a.x * b.x.<?=xi?> + a.y * b.y.<?=xi?> + a.z * b.z.<?=xi?>,
-<? end
-?>	};
-}
-<?
-end
 ?>
 //// MODULE_NAME: realparam
 //// MODULE_TYPE:
@@ -382,31 +558,17 @@ inline real conj(real const x) { return x; }
 inline real lenSq(real const x) { return x * x; }
 
 //// MODULE_NAME: real3
-//// MODULE_DEPENDS: real
+//// MODULE_DEPENDS: real vec3
 //// MODULE_TYPE:
 <?makevec3type("real3", "real")?>
 
 //// MODULE_HEADER:
 <?makevec3header("real3", "real")?>
 
-<? for _,addr in ipairs(addrs) do ?>
-static inline real lenSq(<?=addr?> real3 const & a);
-static inline real len(<?=addr?> real3 const & a);
-<? end ?>
-
 //// MODULE_CODE:
 
 <?makevec3code("real3", "real")?>
 <?make_dot("real", "real")?>
-
-<? for _,addr in ipairs(addrs) do ?>
-static inline real lenSq(<?=addr?> real3 const & a) {
-	return dot(a, a);
-}
-static inline real len(<?=addr?> real3 const & a) {
-	return sqrt(lenSq(a));
-}
-<? end ?>
 
 //// MODULE_NAME: rotate
 //// MODULE_DEPENDS: real3 quat
@@ -806,16 +968,17 @@ static inline sym3 sym3_swap1(sym3 m) { return _sym3(m.yy, m.xy, m.yz, m.xx, m.x
 static inline sym3 sym3_swap2(sym3 m) { return _sym3(m.zz, m.yz, m.xz, m.yy, m.xy, m.xx); }
 
 //// MODULE_NAME: real3x3
-//// MODULE_DEPENDS: real3 sym3
+//// MODULE_DEPENDS: real sym3 mat3x3
 //// MODULE_TYPE:
 
-// row vectors, so a.i.j = a_ij
-<?make3x3type"real"?>
+using real3x3 = mat3x3<real>;
 
 //// MODULE_HEADER:
 
 static inline real3x3 real3x3_from_real3x3(real3x3 x);
 inline real3x3 operator+(real3x3 a, real3x3 b);
+static inline real3 operator*(real3, real3x3);
+static inline real3 operator*(real3x3, real3);
 inline real3x3 outer(real3 a, real3 b);
 static inline real real3x3_dot(real3x3 a, real3x3 b);
 static inline real real3x3_sym3_dot(real3x3 a, sym3 b);
@@ -828,7 +991,6 @@ static inline sym3 sym3_from_real3x3(real3x3 a);
 static inline real3x3 real3x3_from_sym3(sym3 a);
 static inline real3x3 real3x3_addT(real3x3 a, real3x3 b);
 static inline real3x3 real3x3_real3x3_mul(real3x3 a, real3x3 b);
-inline real3 operator*(real3x3 a, real3 b);
 static inline real real3x3_trace(real3x3 m);
 static inline real3x3 transpose(real3x3 m);
 static inline real3x3 real3x3_from_real(real x);
@@ -845,6 +1007,20 @@ inline real3x3 operator+(real3x3 a, real3x3 b) {
 ?>		a.<?=xi?> + b.<?=xi?>,
 <? end
 ?>	};
+}
+
+inline real3 operator*(real3 a, real3x3 b) {
+	return real3(
+		a.x * b.x.x + a.y * b.y.x + a.z * b.z.x,
+		a.x * b.x.y + a.y * b.y.y + a.z * b.z.y,
+		a.x * b.x.z + a.y * b.y.z + a.z * b.z.z);
+}
+
+inline real3 operator*(real3x3 a, real3 b) {
+	return real3(
+		a.x.x * b.x + a.x.y * b.y + a.x.z * b.z,
+		a.y.x * b.x + a.y.y * b.y + a.y.z * b.z,
+		a.z.x * b.x + a.z.y * b.y + a.z.z * b.z);
 }
 
 /*
@@ -1011,9 +1187,6 @@ static inline real3x3 real3x3_real3x3_mul(real3x3 a, real3x3 b) {
 ?>	};
 }
 
-<?make_3x3_3_mul("real", "real")	-- real3x3_real3_mul ?>
-<?make_3_3x3_mul("real", "real") -- real3_real3x3_mul ?>
-
 static inline real real3x3_trace(real3x3 m) {
 	return m.x.x + m.y.y + m.z.z;
 }
@@ -1061,7 +1234,7 @@ for i=0,2 do
 <? 	for j=0,2 do
 		local j1 = (j+1)%3;
 		local j2 = (j+2)%3;
-?>			(m.v<?=j1?>.s<?=i1?> * m.v<?=j2?>.s<?=i2?> - m.v<?=j2?>.s<?=i1?> * m.v<?=j1?>.s<?=i2?>) * invDet,
+?>			(m.s<?=j1?>.s<?=i1?> * m.s<?=j2?>.s<?=i2?> - m.s<?=j2?>.s<?=i1?> * m.s<?=j1?>.s<?=i2?>) * invDet,
 <? end
 ?>		},
 <? end
@@ -1114,16 +1287,18 @@ static inline real3x3 real3x3_swap0(real3x3 m) {
 	return m;
 }
 static inline real3x3 real3x3_swap1(real3x3 m) {
-	return _real3x3(
-		m.y.y, m.y.x, m.y.z,
-		m.x.y, m.x.x, m.x.z,
-		m.z.y, m.z.x, m.z.z);
+	return real3x3{
+		{m.y.y, m.y.x, m.y.z},
+		{m.x.y, m.x.x, m.x.z},
+		{m.z.y, m.z.x, m.z.z}
+	};
 }
 static inline real3x3 real3x3_swap2(real3x3 m) {
-	return _real3x3(
-		m.z.z, m.z.y, m.z.x,
-		m.y.z, m.y.y, m.y.x,
-		m.x.z, m.x.y, m.x.x);
+	return real3x3{
+		{m.z.z, m.z.y, m.z.x},
+		{m.y.z, m.y.y, m.y.x},
+		{m.x.z, m.x.y, m.x.x}
+	};
 }
 static inline real3x3 real3x3_swap(real3x3 m, int side) {
 	if (side == 0) {
@@ -1133,7 +1308,11 @@ static inline real3x3 real3x3_swap(real3x3 m, int side) {
 	} else if (side == 2) {
 		return real3x3_swap2(m);
 	}
-	return _real3x3(0./0., 0./0., 0./0., 0./0., 0./0., 0./0., 0./0., 0./0., 0./0.);
+	return real3x3{
+		{0./0., 0./0., 0./0.},
+		{0./0., 0./0., 0./0.},
+		{0./0., 0./0., 0./0.}
+	};
 }
 
 //// MODULE_NAME: _3sym3
@@ -1345,18 +1524,18 @@ static inline _3sym3 _3sym3_rotateTo(
 
 static inline _3sym3 _3sym3_swap(_3sym3 m, int side) {
 	return (_3sym3){
-		.x = sym3_swap(m.v[side], side),
-		.y = sym3_swap(m.v[side==1 ? 0 : 1], side),
-		.z = sym3_swap(m.v[side==2 ? 0 : 2], side),
+		.x = sym3_swap(m.s[side], side),
+		.y = sym3_swap(m.s[side==1 ? 0 : 1], side),
+		.z = sym3_swap(m.s[side==2 ? 0 : 2], side),
 	};
 }
 
 <? for side=0,2 do ?>
 static inline _3sym3 _3sym3_swap<?=side?>(_3sym3 m) {
 	return (_3sym3){
-		.x = sym3_swap<?=side?>(m.v[<?=side?>]),
-		.y = sym3_swap<?=side?>(m.v[<?=side==1 and 0 or 1?>]),
-		.z = sym3_swap<?=side?>(m.v[<?=side==2 and 0 or 2?>]),
+		.x = sym3_swap<?=side?>(m.s[<?=side?>]),
+		.y = sym3_swap<?=side?>(m.s[<?=side==1 and 0 or 1?>]),
+		.z = sym3_swap<?=side?>(m.s[<?=side==2 and 0 or 2?>]),
 	};
 }
 <? end ?>
@@ -1835,10 +2014,6 @@ static inline real3x3 cplx3x3_im(cplx3x3 const v) {
 <? end
 ?>	};
 }
-
-<?make_3x3_3_mul("cplx", "real")	-- cplx3x3_real3_mul ?>
-<?make_3x3_3_mul("real", "cplx")	-- real3x3_cplx3_mul ?>
-<?make_3_3x3_mul("cplx", "real")	-- cplx3_real3x3_mul ?>
 
 cplx cplx3x3_sym3_dot(cplx3x3 a, sym3 b) {
 	cplx sum = cplx_zero;

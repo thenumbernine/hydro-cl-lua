@@ -358,18 +358,21 @@ template<>
 HolonomicNormal HolonomicNormal::forSide<<?=side?>>(real3 pt) {
 	return HolonomicNormal(
 		<?=side?>,
-		real3x3(
+		real3x3{
 <?
 for j=0,2 do
-	for i=0,2 do
+?>			{
+<?	for i=0,2 do
 		local k = (side + j) % 3
 		local m, n = k, i
 		if m > n then m, n = n, m end
-?>			coord_g_uu<?=m..n?>(pt)<?=i+3*j < 8 and ',' or ''?>
+?>				coord_g_uu<?=m..n?>(pt)<?=i+3*j < 8 and ',' or ''?>
 <?
 	end
+?>			},
+<?
 end
-?>		),
+?>		},
 		coord_sqrt_g_uu<?=side..side?>(pt)
 	);
 }
