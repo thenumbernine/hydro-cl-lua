@@ -171,7 +171,7 @@ template<
 constexpr auto dot(
 	A const & a,
 	B const & b,
-	std::enable_if_t<IsBinaryTensorOp<A,B>>* = nullptr
+	std::enable_if_t<IsBinaryTensorOp<A,B>>* = {}
 );
 #else	//until then, specific overrides ...
 // vector-vector
@@ -182,7 +182,7 @@ constexpr auto dot(
 	std::enable_if_t<
 		is_tensor_v<A> && A::rank == 1 && A::template dim<0> == 3 &&
 		is_tensor_v<B> && B::rank == 1 && B::template dim<0> == 3
-	>* = nullptr
+	>* = {}
 );
 
 // sym3-sym3
@@ -193,7 +193,7 @@ constexpr auto dot(
 	std::enable_if_t<
 		is_tensor_v<A> && A::rank == 2 && A::template dim<0> == 3 && A::template dim<1> == 3 && A::numNestings == 1 &&
 		is_tensor_v<B> && B::rank == 2 && B::template dim<0> == 3 && B::template dim<1> == 3 && B::numNestings == 1
-	>* = nullptr
+	>* = {}
 );
 #endif
 
@@ -202,7 +202,7 @@ template<
 >
 constexpr auto lenSq(
 	T const & v,
-	std::enable_if_t<is_tensor_v<T>>* = nullptr
+	std::enable_if_t<is_tensor_v<T>>* = {}
 );
 
 template<
@@ -210,7 +210,7 @@ template<
 >
 constexpr auto length(
 	T const & v,
-	std::enable_if_t<is_tensor_v<T>>* = nullptr
+	std::enable_if_t<is_tensor_v<T>>* = {}
 );
 
 template<
@@ -220,7 +220,7 @@ template<
 constexpr auto distance(
 	A const & a,
 	B const & b,
-	std::enable_if_t<IsBinaryTensorOp<A,B>>* = nullptr
+	std::enable_if_t<IsBinaryTensorOp<A,B>>* = {}
 );
 
 template<
@@ -228,7 +228,7 @@ template<
 >
 constexpr T normalize(
 	T const & v,
-	std::enable_if_t<is_tensor_v<T>>* = nullptr
+	std::enable_if_t<is_tensor_v<T>>* = {}
 );
 
 #if 0 // needs lambda ctor
@@ -239,7 +239,7 @@ template<
 constexpr auto outer(
 	A const & a,
 	B const & b,
-	std::enable_if_t<IsBinaryTensorOp<A,B>>* = nullptr
+	std::enable_if_t<IsBinaryTensorOp<A,B>>* = {}
 );
 #else
 template<typename real>
@@ -266,7 +266,7 @@ constexpr auto trace(
 		m < T::rank &&
 		n < T::rank &&
 		T::template dim<m> == T::template dim<n>
-	>* = nullptr
+	>* = {}
 );
 #else
 template<
@@ -317,7 +317,7 @@ template<
 constexpr auto cross(
 	A const & a,
 	B const & b,
-	std::enable_if_t<IsBinaryTensorR3xR3Op<A,B>>* = nullptr
+	std::enable_if_t<IsBinaryTensorR3xR3Op<A,B>>* = {}
 );
 
 // 3D dimension-swapping functions
@@ -329,7 +329,7 @@ template<
 constexpr auto swap(
 	T const & v,
 	int side,
-	std::enable_if_t<is_tensor_v<T>>* = nullptr
+	std::enable_if_t<is_tensor_v<T>>* = {}
 );
 
 template<
@@ -338,7 +338,7 @@ template<
 >
 constexpr auto rotateFromSide(
 	T const & v,
-	std::enable_if_t<is_tensor_v<T>>* = nullptr
+	std::enable_if_t<is_tensor_v<T>>* = {}
 );
 
 template<
@@ -347,7 +347,7 @@ template<
 >
 constexpr auto rotateToSide(
 	T const & v,
-	std::enable_if_t<is_tensor_v<T>>* = nullptr
+	std::enable_if_t<is_tensor_v<T>>* = {}
 );
 
 template<
@@ -358,7 +358,7 @@ template<
 constexpr auto rotateFromInDim(
 	T const & v,
 	N const & n,
-	std::enable_if_t<is_tensor_v<T> && is_tensor_v<N> && N::rank == 1 && N::template dim<0> == 3>* = nullptr
+	std::enable_if_t<is_tensor_v<T> && is_tensor_v<N> && N::rank == 1 && N::template dim<0> == 3>* = {}
 );
 
 template<
@@ -369,7 +369,7 @@ template<
 constexpr auto rotateToInDim(
 	T const & v,
 	N const & n,
-	std::enable_if_t<is_tensor_v<T> && is_tensor_v<N> && N::rank == 1 && N::template dim<0> == 3>* = nullptr
+	std::enable_if_t<is_tensor_v<T> && is_tensor_v<N> && N::rank == 1 && N::template dim<0> == 3>* = {}
 );
 
 //////////////////////////////// Tensor/Vector.h ////////////////////////////////
@@ -523,7 +523,7 @@ constexpr auto rotateToInDim(
 	>\
 	constexpr classname(\
 		U const & u,\
-		std::enable_if_t<U::rank == rank>* = nullptr\
+		std::enable_if_t<U::rank == rank>* = {}\
 	)\
 	:	x(u.x),\
 		y(u.y),\
@@ -535,7 +535,7 @@ constexpr auto rotateToInDim(
 	>\
 	constexpr classname(\
 		U && u,\
-		std::enable_if_t<U::rank == rank>* = nullptr\
+		std::enable_if_t<U::rank == rank>* = {}\
 	)\
 	:	x(u.x),\
 		y(u.y),\
@@ -554,7 +554,7 @@ constexpr auto rotateToInDim(
 				Common::FunctionFromLambda<Lambda>,\
 				Common::FunctionFromTupleArgs<Scalar, Common::tuple_rep_t<int, rank>>\
 			>\
-		>* = nullptr\
+		>* = {}\
 	) {\
 		using Func = typename Common::FunctionFromLambda<Lambda>::FuncType;\
 		Func f(lambda);\
@@ -574,7 +574,7 @@ constexpr auto rotateToInDim(
 		std::enable_if_t<\
 			rank == 1\
 			//&& is_callable<Lambda>	//TODO implement this\
-		>* = nullptr\
+		>* = {}\
 	) : x(f(0)), y(f(1)), z(f(2)) {}\
 #endif\
 */\
@@ -621,7 +621,7 @@ constexpr auto rotateToInDim(
 	>\
 	constexpr auto dot(\
 		B const & b,\
-		std::enable_if_t<IsBinaryTensorOp<This,B>>* = nullptr\
+		std::enable_if_t<IsBinaryTensorOp<This,B>>* = {}\
 	) const {\
 		return ::dot(*this, b);\
 	}\
@@ -639,7 +639,7 @@ constexpr auto rotateToInDim(
 	>\
 	constexpr auto distance(\
 		B const & b,\
-		std::enable_if_t<IsBinaryTensorOp<This,B>>* = nullptr\
+		std::enable_if_t<IsBinaryTensorOp<This,B>>* = {}\
 	) const {\
 		return ::distance(*this, b);\
 	}\
@@ -655,7 +655,7 @@ constexpr auto rotateToInDim(
 	template<typename B>\
 	auto outer(\
 		B const & b,\
-		std::enable_if_t<IsBinaryTensorOp<This,B>>* = nullptr\
+		std::enable_if_t<IsBinaryTensorOp<This,B>>* = {}\
 	) const {\
 		return ::outer<This,B>(*this, b);\
 	}\
@@ -733,7 +733,7 @@ union vec3 {
 	>
 	auto cross(
 		B const & b,
-		std::enable_if_t<IsBinaryTensorR3xR3Op<This,B>>* = nullptr
+		std::enable_if_t<IsBinaryTensorR3xR3Op<This,B>>* = {}
 	) const {
 		return ::cross(*this, b);
 	}
@@ -776,7 +776,7 @@ union vec3 {
 	>
 	constexpr vec3 rotateFromInDim(
 		N const & n,
-		std::enable_if_t<is_tensor_v<N> && N::rank == 1 && N::template dim<0> == 3>* = nullptr
+		std::enable_if_t<is_tensor_v<N> && N::rank == 1 && N::template dim<0> == 3>* = {}
 	) const {
 		return ::rotateFromInDim<dim, This, N>(*this);
 	}
@@ -789,7 +789,7 @@ union vec3 {
 	>
 	constexpr vec3 rotateToInDim(
 		N const & n,
-		std::enable_if_t<is_tensor_v<N> && N::rank == 1 && N::template dim<0> == 3>* = nullptr
+		std::enable_if_t<is_tensor_v<N> && N::rank == 1 && N::template dim<0> == 3>* = {}
 	) const {
 		return ::rotateToInDim<dim, This, N>(*this);
 	}
@@ -896,7 +896,7 @@ inline constexpr int symIndex(int i, int j) {
 	>\
 	constexpr classname(\
 		U const & u,\
-		std::enable_if_t<U::rank == rank>* = nullptr\
+		std::enable_if_t<U::rank == rank>* = {}\
 	)\
 	:	xx(u.xx),\
 		xy(u.xy),\
@@ -911,7 +911,7 @@ inline constexpr int symIndex(int i, int j) {
 	>\
 	constexpr classname(\
 		U && u,\
-		std::enable_if_t<U::rank == rank>* = nullptr\
+		std::enable_if_t<U::rank == rank>* = {}\
 	)\
 	:	xx(u.xx),\
 		xy(u.xy),\
@@ -1172,7 +1172,7 @@ constexpr auto trace(
 		m < T::rank &&
 		n < T::rank &&
 		T::template dim<m> == T::template dim<n>
-	>* = nullptr
+	>* = {}
 );
 #else
 template<
@@ -1356,7 +1356,7 @@ struct RotateFromInDimImpl<1, T, N> {
 	static constexpr auto value(
 		T const & v,
 		N const & n,
-		std::enable_if_t<is_tensor_v<T> && is_tensor_v<N> && N::rank == 1 && N::template dim<0> == 3>* = nullptr
+		std::enable_if_t<is_tensor_v<T> && is_tensor_v<N> && N::rank == 1 && N::template dim<0> == 3>* = {}
 	) {
 		return v;
 	}
@@ -1370,7 +1370,7 @@ struct RotateFromInDimImpl<2, T, N> {
 	static constexpr auto value(
 		T const & v,
 		N const & n,
-		std::enable_if_t<is_tensor_v<T> && is_tensor_v<N> && N::rank == 1 && N::template dim<0> == 3>* = nullptr
+		std::enable_if_t<is_tensor_v<T> && is_tensor_v<N> && N::rank == 1 && N::template dim<0> == 3>* = {}
 	) {
 		return T(
 			v.x * n.x + v.y * n.y,
@@ -1388,7 +1388,7 @@ struct RotateFromInDimImpl<3, T, N> {
 	static constexpr auto value(
 		T const & v,
 		N const & n,
-		std::enable_if_t<is_tensor_v<T> && is_tensor_v<N> && N::rank == 1 && N::template dim<0> == 3>* = nullptr
+		std::enable_if_t<is_tensor_v<T> && is_tensor_v<N> && N::rank == 1 && N::template dim<0> == 3>* = {}
 	) {
 		using Scalar = typename T::Scalar;
 		/*
@@ -1449,7 +1449,7 @@ struct RotateToInDimImpl<1, T, N> {
 	static constexpr auto value(
 		T const & v,
 		N const & n,
-		std::enable_if_t<is_tensor_v<T> && is_tensor_v<N> && N::rank == 1 && N::template dim<0> == 3>* = nullptr
+		std::enable_if_t<is_tensor_v<T> && is_tensor_v<N> && N::rank == 1 && N::template dim<0> == 3>* = {}
 	) {
 		return v;
 	}
@@ -1463,7 +1463,7 @@ struct RotateToInDimImpl<2, T, N> {
 	static constexpr auto value(
 		T const & v,
 		N const & n,
-		std::enable_if_t<is_tensor_v<T> && is_tensor_v<N> && N::rank == 1 && N::template dim<0> == 3>* = nullptr
+		std::enable_if_t<is_tensor_v<T> && is_tensor_v<N> && N::rank == 1 && N::template dim<0> == 3>* = {}
 	) {
 		return T{
 			v.x * n.x - v.y * n.y,
@@ -1481,7 +1481,7 @@ struct RotateToInDimImpl<3, T, N> {
 	static constexpr auto value(
 		T const & v,
 		N const & n,
-		std::enable_if_t<is_tensor_v<T> && is_tensor_v<N> && N::rank == 1 && N::template dim<0> == 3>* = nullptr
+		std::enable_if_t<is_tensor_v<T> && is_tensor_v<N> && N::rank == 1 && N::template dim<0> == 3>* = {}
 	) {
 		using Scalar = typename T::Scalar;
 		//same as above but with negative axis
