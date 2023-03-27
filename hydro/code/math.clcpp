@@ -155,11 +155,14 @@ static constexpr bool IsBinaryTensorR3xR3Op = IsBinaryTensorOp<A,B>
 	&& A::rank == 1 && A::template dim<0> == 3
 	&& B::rank == 1 && B::template dim<0> == 3;
 
-template<typename Inner>
-union vec3;
+template<typename Inner, int localDim>
+union vec;
 
 template<typename Inner_>
 union sym3;
+
+template<typename Inner>
+using vec3 = vec<Inner, 3>;
 
 //////////////////////////////// Tensor/Math.h.h ////////////////////////////////
 
@@ -443,15 +446,28 @@ constexpr auto rotateToInDim(
 	/* TODO numNestings = length of tensor tuple ptr */\
 	TENSOR_ADD_NUMNESTINGS_IMPL()\
 \
-	/* TODO need tuples for this */\
 	template<typename NewScalar>\
+	struct ReplaceScalarImpl {\
+		static constexpr auto value() {\
+			if constexpr (is_tensor_v<Inner>) {\
+				return (ReplaceInner<\
+					typename Inner::template ReplaceScalarImpl<NewScalar>::type\
+				>*)nullptr;\
+			} else {\
+				return (ReplaceInner<NewScalar>*)nullptr;\
+			}\
+		}\
+		using type = typename std::remove_pointer_t<decltype(value())>;\
+	};\
+	template<typename NewScalar>\
+	/* TODO need tuples for this */\
 	/*using ReplaceScalar = tensorScalarTuple<NewScalar, StorageTuple>;*/\
-	using ReplaceScalar = Template<NewScalar> /* TODO this fails for mat3x3 */;
+	using ReplaceScalar = typename ReplaceScalarImpl<NewScalar>::type;
 
 #define TENSOR_HEADER_VECTOR(classname, Inner_, localDim_)\
 	TENSOR_THIS(classname)\
 	TENSOR_SET_INNER_LOCALDIM_LOCALRANK(Inner_, localDim_, 1)\
-	TENSOR_TEMPLATE_T/*_I*/(classname)\
+	TENSOR_TEMPLATE_T_I(classname)\
 	TENSOR_HEADER_VECTOR_SPECIFIC()\
 	TENSOR_HEADER()
 
@@ -499,48 +515,38 @@ constexpr auto rotateToInDim(
 	constexpr classname(\
 		Inner const & x_,\
 		Inner const & y_,\
-		Inner const & z_\
-	) : x(x_), y(y_), z(z_) {}\
+		Inner const & z_,\
+		std::enable_if_t<localCount >= 3>* = {}\
+	) : s{x_, y_, z_} {}\
 \
 	/*default constructor*/\
 	constexpr classname()\
-	:	x(Inner{}),\
-		y(Inner{}),\
-		z(Inner{})\
-	{}\
+	: s{} {}\
 \
 	/*scalar constructor*/\
-	constexpr classname(Scalar const & s)\
-	:	x(s),\
-		y(s),\
-		z(s)\
-	{}\
+	constexpr classname(Scalar const & s_)\
+	: s(s_) {}\
 \
 	/*tensor/tensor construction*/\
-	/* can't be constexpr and use a loop so I have to write it per class */\
-	template<\
-		typename U\
-	>\
+	template<typename U>\
 	constexpr classname(\
 		U const & u,\
 		std::enable_if_t<U::rank == rank>* = {}\
-	)\
-	:	x(u.x),\
-		y(u.y),\
-		z(u.z)\
-	{}\
+	) : s{} {\
+		for (int i = 0; i < localCount; ++i) {\
+			s[i] = u.s[i];\
+		}\
+	}\
 \
-	template<\
-		typename U\
-	>\
+	template<typename U>\
 	constexpr classname(\
 		U && u,\
 		std::enable_if_t<U::rank == rank>* = {}\
-	)\
-	:	x(u.x),\
-		y(u.y),\
-		z(u.z)\
-	{}
+	) : s{} {\
+		for (int i = 0; i < localCount; ++i) {\
+			s[i] = u.s[i];\
+		}\
+	}\
 
 #define TENSOR_ADD_CTORS(classname)\
 /*\
@@ -676,7 +682,101 @@ constexpr auto rotateToInDim(
 	template<typename Det>\
 	auto inverse(Det det) const {\
 		return ::inverse(*this, det);\
-	}
+	}\
+\
+	/* the following are 3D specific: */\
+\
+	template<typename B>\
+	auto cross(\
+		B const & b,\
+		std::enable_if_t<IsBinaryTensorR3xR3Op<This,B>>* = {}\
+	) const {\
+		return ::cross(*this, b);\
+	}\
+\
+	/* TODO make global scope methods for these? */\
+	/* they are all vec3-specific */\
+	/* TODO TODO these implementations are all vec3-specific */\
+	/* ALSO do implementations for real3s3, real3x3, and real3x3s3 */\
+	/* so maybe I should make them globals after all? */\
+	/* for swapping dimensions between x and 012 */\
+\
+	constexpr auto swap(int side) const {\
+		return ::swap(*this, side);\
+	}\
+\
+	/* rotate from a particular side xyz to put x forward */\
+	/* all assumed to be 3D rotations */\
+	/* used for cartesian 3D grids */\
+\
+	template<int side>\
+	constexpr auto rotateFromSide() const {\
+		return ::rotateFromSide<side, This>(*this);\
+	}\
+\
+	/* rotate to put x back to the side */\
+\
+	template<int side>\
+	constexpr auto rotateToSide() const {\
+		return ::rotateToSide<side, This>(*this);\
+	}\
+\
+	/*rotate 'n' to x-axis*/\
+	/*assumes 'n' is unit*/\
+	/* dim = dimension of the rotate operation*/\
+\
+	template<int dim, typename N>\
+	constexpr auto rotateFromInDim(\
+		N const & n,\
+		std::enable_if_t<is_tensor_v<N> && N::rank == 1 && N::template dim<0> == 3>* = {}\
+	) const {\
+		return ::rotateFromInDim<dim, This, N>(*this);\
+	}\
+\
+	/*rotate x-axis to 'n'*/\
+\
+	template<int dim, typename N>\
+	constexpr auto rotateToInDim(\
+		N const & n,\
+		std::enable_if_t<is_tensor_v<N> && N::rank == 1 && N::template dim<0> == 3>* = {}\
+	) const {\
+		return ::rotateToInDim<dim, This, N>(*this);\
+	}\
+\
+/* "error: parameter may not be qualified with an address space" ... ?????\
+	auto rotateX(Scalar const theta) const {\
+		Scalar cosTheta = cos(theta);\
+		Scalar sinTheta = sin(theta);\
+		vec v = *this;\
+		Scalar vy = v.y;\
+		Scalar vz = v.z;\
+		v.y = vy * cosTheta - vz * sinTheta;\
+		v.z = vy * sinTheta + vz * cosTheta;\
+		return v;\
+	}\
+\
+	auto rotateY(Scalar const theta) const {\
+		Scalar cosTheta = cos(theta);\
+		Scalar sinTheta = sin(theta);\
+		vec v = *this;\
+		Scalar vx = v.x;\
+		Scalar vz = v.z;\
+		v.x = vx * cosTheta + vz * sinTheta;\
+		v.z = -vx * sinTheta + vz * cosTheta;\
+		return v;\
+	}\
+\
+	auto rotateZ(Scalar const theta) const {\
+		Scalar cosTheta = cos(theta);\
+		Scalar sinTheta = sin(theta);\
+		vec v = *this;\
+		Scalar vx = v.x;\
+		Scalar vy = v.y;\
+		v.x = vx * cosTheta - vy * sinTheta;\
+		v.y = vx * sinTheta + vy * cosTheta;\
+		return v;\
+	}\
+*/
 
 #define TENSOR_ADD_OPS(classname)\
 	TENSOR_ADD_CTORS(classname)\
@@ -691,12 +791,6 @@ constexpr auto rotateToInDim(
 	TENSOR_ADD_UNARY(-)\
 	TENSOR_ADD_CMP_OP()\
 	TENSOR_ADD_MATH_MEMBER_FUNCS()
-
-#define TENSOR_VECTOR_CLASS_OPS(classname)\
-	TENSOR_ADD_VECTOR_CTORS(classname)\
-	TENSOR_ADD_OPS(classname)\
-	TENSOR_ADD_VECTOR_CALL_INDEX_PRIMARY()\
-	TENSOR_ADD_RANK1_CALL_INDEX_AUX()
 
 #define TENSOR_ADD_VECTOR_CALL_INDEX_PRIMARY()\
 	constexpr decltype(auto) operator()(int i) { return s[i]; }\
@@ -713,121 +807,46 @@ constexpr auto rotateToInDim(
 	constexpr decltype(auto) operator[](int i) constant const { return s[i]; }
 
 #define TENSOR_ADD_RANK1_CALL_INDEX_AUX()\
+\
 	TENSOR_ADD_BRACKET_FWD_TO_CALL()\
-	/* TODO operator()(int, int...) */
+\
+	template<typename... Ints>\
+	/*requires Common::is_all_v<int, Ints...>*/\
+	constexpr decltype(auto) operator()(int i, Ints... k) { return (*this)(i)(k...); }\
+	template<typename... Ints>\
+	/*requires Common::is_all_v<int, Ints...>*/\
+	constexpr decltype(auto) operator()(int i, Ints... k) const { return (*this)(i)(k...); }\
+	template<typename... Ints>\
+	/*requires Common::is_all_v<int, Ints...>*/\
+	constexpr decltype(auto) operator()(int i, Ints... k) constant { return (*this)(i)(k...); }\
+	template<typename... Ints>\
+	/*requires Common::is_all_v<int, Ints...>*/\
+	constexpr decltype(auto) operator()(int i, Ints... k) constant const { return (*this)(i)(k...); }
+
+#define TENSOR_VECTOR_CLASS_OPS(classname)\
+	TENSOR_ADD_VECTOR_CTORS(classname)\
+	TENSOR_ADD_OPS(classname)\
+	TENSOR_ADD_VECTOR_CALL_INDEX_PRIMARY()\
+	TENSOR_ADD_RANK1_CALL_INDEX_AUX()
+
+template<typename Inner_, int localDim_>
+union vec {
+	TENSOR_HEADER_VECTOR(vec, Inner_, localDim_)
+	Inner s[3] = {{}};
+	TENSOR_VECTOR_CLASS_OPS(vec)
+} <?=app.real=="half" and "__attribute__ ((packed))" or ""
+-- __attribute__ ((packed)) seems to need to be here with real=half
+?>;
 
 template<typename Inner_>
-union vec3 {
-	TENSOR_HEADER_VECTOR(vec3, Inner_, 3)
+union vec<Inner_,3> {
+	TENSOR_HEADER_VECTOR(vec, Inner_, 3)
 
-	Inner s[3] = {{}};
+	Inner s[localCount] = {{}};
 	struct { Inner s0, s1, s2; };
 	struct { Inner x, y, z; };
 	
-	TENSOR_VECTOR_CLASS_OPS(vec3)
-	
-	// the following are 3D specific:
-
-	template<
-		typename B
-	>
-	auto cross(
-		B const & b,
-		std::enable_if_t<IsBinaryTensorR3xR3Op<This,B>>* = {}
-	) const {
-		return ::cross(*this, b);
-	}
-
-	// TODO make global scope methods for these?
-	// they are all vec3-specific
-	// TODO TODO these implementations are all vec3-specific
-	// ALSO do implementations for real3s3, real3x3, and real3x3s3
-	// so maybe I should make them globals after all?
-
-	//for swapping dimensions between x and 012
-	
-	constexpr vec3 swap(int side) const {
-		return ::swap(*this, side);
-	}
-	
-	//rotate from a particular side xyz to put x forward
-	// all assumed to be 3D rotations
-	// used for cartesian 3D grids 
-
-	template<int side>
-	constexpr vec3 rotateFromSide() const {
-		return ::rotateFromSide<side, This>(*this);
-	}
-
-	//rotate to put x back to the side
-
-	template<int side>
-	constexpr vec3 rotateToSide() const {
-		return ::rotateToSide<side, This>(*this);
-	}
-
-	//rotate 'n' to x-axis
-	//assumes 'n' is unit
-	// dim = dimension of the rotate operation
-	
-	template<
-		int dim,
-		typename N
-	>
-	constexpr vec3 rotateFromInDim(
-		N const & n,
-		std::enable_if_t<is_tensor_v<N> && N::rank == 1 && N::template dim<0> == 3>* = {}
-	) const {
-		return ::rotateFromInDim<dim, This, N>(*this);
-	}
-
-	//rotate x-axis to 'n'
-
-	template<
-		int dim,
-		typename N
-	>
-	constexpr vec3 rotateToInDim(
-		N const & n,
-		std::enable_if_t<is_tensor_v<N> && N::rank == 1 && N::template dim<0> == 3>* = {}
-	) const {
-		return ::rotateToInDim<dim, This, N>(*this);
-	}
-
-#if 0	//"error: parameter may not be qualified with an address space" ... ?????
-	vec3 rotateX(Scalar const theta) const {
-		Scalar cosTheta = cos(theta);
-		Scalar sinTheta = sin(theta);
-		vec3 v = *this;
-		Scalar vy = v.y;
-		Scalar vz = v.z;
-		v.y = vy * cosTheta - vz * sinTheta;
-		v.z = vy * sinTheta + vz * cosTheta;
-		return v;
-	}
-	
-	vec3 rotateY(Scalar const theta) const {
-		Scalar cosTheta = cos(theta);
-		Scalar sinTheta = sin(theta);
-		vec3 v = *this;
-		Scalar vx = v.x;
-		Scalar vz = v.z;
-		v.x = vx * cosTheta + vz * sinTheta;
-		v.z = -vx * sinTheta + vz * cosTheta;
-		return v;
-	}
-
-	vec3 rotateZ(Scalar const theta) const {
-		Scalar cosTheta = cos(theta);
-		Scalar sinTheta = sin(theta);
-		vec3 v = *this;
-		Scalar vx = v.x;
-		Scalar vy = v.y;
-		v.x = vx * cosTheta - vy * sinTheta;
-		v.y = vx * sinTheta + vy * cosTheta;
-		return v;
-	}
-#endif
+	TENSOR_VECTOR_CLASS_OPS(vec)
 
 } <?=app.real=="half" and "__attribute__ ((packed))" or ""
 -- __attribute__ ((packed)) seems to need to be here with real=half
@@ -2162,7 +2181,7 @@ static inline real3x3s3 real3x3s3_swap<?=side?>(real3x3s3 m) {
 //// MODULE_DEPENDS: real3 real3s3 real3x3 real3x3s3
 //// MODULE_TYPE:
 
-typedef union {
+union real3x3x3_cdef_t {
 	real s[27];
 	real3x3 v[3];
 	struct {
@@ -2171,7 +2190,17 @@ typedef union {
 	struct {
 		real3x3 x,y,z;
 	};
-} real3x3x3;
+};
+
+//// BEGIN INCLUDE FOR FFI_CDEF
+typedef union real3x3x3_cdef_t;
+//// END INCLUDE FOR FFI_CDEF
+
+//// BEGIN EXCLUDE FOR FFI_CDEF
+using real3x3x3 = vec3<real3x3>;
+static_assert(sizeof(real3x3x3) == sizeof(real3x3x3_cdef_t));
+//// END EXCLUDE FOR FFI_CDEF
+
 
 //// MODULE_HEADER:
 
@@ -2343,11 +2372,20 @@ static inline real4 quatMul(real4 q, real4 r) {
 //// MODULE_NAME: cplx
 //// MODULE_TYPE:
 
-typedef union {
+union cplx_cdef_t {
 	real s[2];
 	struct { real s0, s1; };
 	struct { real re, im; };
-} cplx;
+};
+
+//// BEGIN INCLUDE FOR FFI_CDEF
+typedef union cplx cplx_cdef_t;
+//// END INCLUDE FOR FFI_CDEF
+
+//// BEGIN EXCLUDE FOR FFI_CDEF
+using cplx = __complex__ real;
+static_assert(sizeof(cplx) == sizeof(cplx_cdef_t));
+//// END EXCLUDE FOR FFI_CDEF
 
 
 //// MODULE_HEADER:
