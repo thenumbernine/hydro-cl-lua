@@ -1011,9 +1011,14 @@ TENSOR_TENSOR_OP(-)
 //TENSOR_TENSOR_OP(*) handled elsewhere as inner product
 TENSOR_TENSOR_OP(/)
 
-//// END EXCLUDE FOR FFI_CDEF
+// row vectors, so a.i.j = a_ij
+template<typename Inner>
+using mat3x3 = vec3<vec3<Inner>>;
 
-//// MODULE_CODE:
+//// MODULE_DEPENDS: real
+using real3 = vec3<real>;
+using real3x3 = mat3x3<real>;
+using real3s3 = sym3<real>;
 
 //////////////////////////////// Tensor/Math.h ////////////////////////////////
 
@@ -1075,6 +1080,16 @@ constexpr real dot(real3x3 a, real3x3 b) {
 ?>		<?
 	for j,xj in ipairs(xNames) do
 ?> + a.<?=xi?>.<?=xj?> * conj(b.<?=xi?>.<?=xj?>)<?
+	end ?>
+<? end ?>;
+}
+
+static inline real dot(real3x3 a, real3s3 b) {
+	return 0.
+<? for i,xi in ipairs(xNames) do
+?>		<?
+	for j,xj in ipairs(xNames) do
+?> + a.<?=xi?>.<?=xj?> * b.<?=sym(i,j)?><?
 	end ?>
 <? end ?>;
 }
@@ -1586,15 +1601,10 @@ constexpr auto inverse(vec3<vec3<real>> const & m) {
 	return inverse(m, determinant(m));
 }
 
+//// END EXCLUDE FOR FFI_CDEF
+
 //// MODULE_NAME: mat3x3
 //// MODULE_DEPENDS: vec3
-//// MODULE_TYPE:
-
-//// BEGIN EXCLUDE FOR FFI_CDEF
-// row vectors, so a.i.j = a_ij
-template<typename Inner>
-using mat3x3 = vec3<vec3<Inner>>;
-//// END EXCLUDE FOR FFI_CDEF
 
 //// MODULE_NAME: realparam
 //// MODULE_TYPE:
@@ -1646,20 +1656,15 @@ my current convention is this:
 constexpr inline real lenSq(real const x) { return x * x; }
 
 //// MODULE_NAME: real3
-//// MODULE_DEPENDS: real vec3
-//// MODULE_TYPE:
-
-//// BEGIN EXCLUDE FOR FFI_CDEF
 //// MODULE_DEPENDS: vec3
-using real3 = vec3<real>;
-//// END EXCLUDE FOR FFI_CDEF
+// legacy, now merged into vec3
 
 //// MODULE_NAME: sym3
 //// MODULE_DEPENDS: vec3
 // legacy, now merged into vec3
 
 //// MODULE_NAME: real3s3
-//// MODULE_DEPENDS: real3
+//// MODULE_DEPENDS: vec3
 //// MODULE_TYPE:
 
 // This is exclusively for the luajit ffi.cdef, which cannot handle c++:
@@ -1681,8 +1686,6 @@ typedef union real3s3_cdef_t real3s3;
 
 // This is exclusively for the clcpp files:
 //// BEGIN EXCLUDE FOR FFI_CDEF
-//// MODULE_DEPENDS: sym3
-using real3s3 = sym3<real>;
 static_assert(sizeof(real3s3) == sizeof(real3s3_cdef_t));
 //// END EXCLUDE FOR FFI_CDEF
 
@@ -1769,11 +1772,7 @@ static inline real3s3 real3s3_swap2(real3s3 m) { return real3s3(m.zz, m.yz, m.xz
 #endif
 
 //// MODULE_NAME: real3x3
-//// MODULE_DEPENDS: real real3s3 mat3x3
-//// MODULE_TYPE:
-
-using real3x3 = mat3x3<real>;
-
+//// MODULE_DEPENDS: vec3
 //// MODULE_HEADER:
 
 static inline real3x3 real3x3_from_real3x3(real3x3 x);
@@ -1808,16 +1807,6 @@ inline constexpr real3 operator*(real3x3 a, real3 b) {
 		a.x.x * b.x + a.x.y * b.y + a.x.z * b.z,
 		a.y.x * b.x + a.y.y * b.y + a.y.z * b.z,
 		a.z.x * b.x + a.z.y * b.y + a.z.z * b.z);
-}
-
-static inline real dot(real3x3 a, real3s3 b) {
-	return 0.
-<? for i,xi in ipairs(xNames) do
-?>		<?
-	for j,xj in ipairs(xNames) do
-?> + a.<?=xi?>.<?=xj?> * b.<?=sym(i,j)?><?
-	end ?>
-<? end ?>;
 }
 
 static inline real3x3 real3s3_real3s3_mul(real3s3 a, real3s3 b) {
@@ -2306,7 +2295,9 @@ static inline real3s3x3s3 real3s3x3s3_add(real3s3x3s3 a, real3s3x3s3 b) {
 }
 
 //// MODULE_NAME: quat
-//// MODULE_HEADER:
+
+//// MODULE_TYPE:
+// has to be TYPE and not HEADER because vec3's TYPE depends on this:
 
 static inline real4 quatUnitConj(real4 q);
 static inline real4 quatMul(real4 q, real4 r);
