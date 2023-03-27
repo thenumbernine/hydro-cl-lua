@@ -588,34 +588,35 @@ constexpr auto rotateToInDim(
 
 #define TENSOR_ADD_VECTOR_OP_EQ(op)\
 	constexpr This & operator op(This const & b) {\
-		s[0] op b.s[0];\
-		s[1] op b.s[1];\
-		s[2] op b.s[2];\
+		for (int i = 0; i < localCount; ++i) {\
+			s[i] op b.s[i];\
+		}\
 		return *this;\
 	}
 
 #define TENSOR_ADD_SCALAR_OP_EQ(op)\
 	constexpr This & operator op(Scalar const & b) {\
-		s[0] op b;\
-		s[1] op b;\
-		s[2] op b;\
+		for (int i = 0; i < localCount; ++i) {\
+			s[i] op b;\
+		}\
 		return *this;\
 	}
 
 #define TENSOR_ADD_UNARY(op)\
 	constexpr This operator op() const {\
 		This result;\
-		result.s[0] = op s[0];\
-		result.s[1] = op s[1];\
-		result.s[2] = op s[2];\
+		for (int i = 0; i < localCount; ++i) {\
+			result.s[i] = op s[i];\
+		}\
 		return result;\
 	}
 
 #define TENSOR_ADD_CMP_OP()\
 	constexpr bool operator==(This const & b) const {\
-		return s[0] == b.s[0]\
-			&& s[1] == b.s[1]\
-			&& s[2] == b.s[2];\
+		for (int i = 0; i < localCount; ++i) {\
+			if (s[i] != b.s[i]) return false;\
+		}\
+		return true;\
 	}\
 	constexpr bool operator!=(This const & b) const {\
 		return !operator==(b);\
