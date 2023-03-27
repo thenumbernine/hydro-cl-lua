@@ -1600,7 +1600,7 @@ end?>
 
 	/* α_,t += β^i α a_i */
 <? for k,xk in ipairs(xNames) do
-?>	deriv->alpha += U->alpha * real3_dot(U->a_l, U->beta_u);
+?>	deriv->alpha += U->alpha * U->a_l.dot(U->beta_u);
 <? end
 ?>
 

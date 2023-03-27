@@ -315,9 +315,9 @@ kernel void <?=addSource?>(
 	real3 const Psi_u = coord_raise(U->Psi_l, pt);
 
 	deriv->Pi += 
-		real3_dot(partial_alpha_l, Psi_u)
+		partial_alpha_l.dot(Psi_u)
 		+ alpha * K * U->Pi
-		- alpha * real3_dot(U->Psi_l, conn23)
+		- alpha * U->Psi_l.dot(conn23)
 		- alpha * f 						//... for □Φ=f
 	;
 

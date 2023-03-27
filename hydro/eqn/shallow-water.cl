@@ -402,7 +402,7 @@ kernel void <?=addSource?>(
 
 	//negate changes in h due to differences in water from resting depth?
 	//h += v^j nabla_j H
-	//deriv->h += real3_dot(U->m, e_depth_l) / U->h;
+	//deriv->h += U->m.dot(e_depth_l) / U->h;
 	//but then again, this should only happen proportional to the velocity, when at zero shouldn't change the height
 
 <? if false then ?>

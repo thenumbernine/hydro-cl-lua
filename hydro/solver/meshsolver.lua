@@ -278,10 +278,7 @@ function BoundaryMirror:getCode(args)
 		<?=vec3?>_<?=scalar?>_mul(
 			<?=vec3?>_from_real3(n),
 			<?=scalar?>_real_mul(
-				<?=vec3?>_real3_dot(
-					(<?=dst?>)-><?=field?>,
-					n
-				), 
+				(<?=dst?>)-><?=field?>.dot(n), 
 				<?=restitutionPlusOne?>
 			)
 		)

@@ -288,7 +288,7 @@ void <?=applyInitCondCell?>(
 \
 	/* TODO NOTE if you're swapping vector components, you have to swap metric components too  */\
 	real3 const vL = coord_lower(v, pt);\
-	real const vSq = real3_dot(v, vL);\
+	real const vSq = v.dot(vL);\
 	real const oneOverW2 = 1. - vSq;\
 	real const oneOverW = sqrt(oneOverW2);\
 	real const W = 1. / oneOverW;\

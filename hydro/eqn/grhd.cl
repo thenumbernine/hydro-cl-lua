@@ -50,7 +50,7 @@ real calc_h(real rho, real P, real eInt) {
 	real det_gamma = gamma.determinant();
 	real3s3 gammaU = gamma.inverse(det_gamma);
 	real3 vU = real3s3_real3_mul(gammaU, prim.v);
-	real vSq = real3_dot(prim.v, vU);
+	real vSq = prim.v.dot(vU);
 	real WSq = 1. / (1. - vSq);
 	real W = sqrt(WSq);
 	real P = calc_P(solver, prim.rho, prim.eInt);
@@ -122,7 +122,7 @@ void <?=calcDTCell?>(
 	real const rho = prim.rho;
 	real const eInt = prim.eInt;
 	//2008 Font Eqn 31: v^2 = gamma_ij v^i v^j
-	real const vSq = real3_dot(prim.v, vU);
+	real const vSq = prim.v.dot(vU);
 	real const P = calc_P(solver, rho, eInt);
 	real const h = calc_h(rho, P, eInt);
 	real const csSq = solver->heatCapacityRatio * P / (rho * h);
@@ -281,7 +281,7 @@ kernel void <?=calcEigenBasis?>(
 		real3s3 gammaU = gamma.inverse(det_gamma);
 
 		real3 vU = real3s3_real3_mul(gammaU, vL);
-		real vSq = real3_dot(vL, vU);
+		real vSq = vL.dot(vU);
 		real oneOverW2 = 1. - vSq;
 		real oneOverW = sqrt(oneOverW2);
 		real W = 1. / oneOverW;	//alpha?

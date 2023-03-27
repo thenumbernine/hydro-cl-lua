@@ -116,7 +116,7 @@ end
 	/*real3x3 const */nU,\
 	/*real const */nLen\
 ) {\
-	real const v_n = real3_dot((U)->v, nL.x);\
+	real const v_n = (U)->v.dot(nL.x);\
 	real const Cs = <?=calc_Cs?>(solver, U);\
 	real const Cs_nLen = Cs * nLen;\
 	(result)->min = v_n - Cs_nLen; \
@@ -136,7 +136,7 @@ end
 	/*<?=normal_t?> const */n\
 ) {\
 	real3 const vL = coord_lower((U)->v, (cell)->pos);\
-	real const vSq = real3_dot((U)->v, vL);\
+	real const vSq = (U)->v.dot(vL);\
 	real const v_n = normal_vecDotN1(n, (U)->v);\
 	real const eKin = .5 * vSq;\
 	real const ETotal = <?=calc_ETotal?>(solver, U, cell->pos);\
@@ -186,7 +186,7 @@ end
 \
 	/*derived:*/\
 	real3 const vLower = coord_lower(v, pt);\
-	real const vSq = real3_dot(v, vLower);\
+	real const vSq = v.dot(vLower);\
 	real const eKin = .5 * vSq;\
 	real const h = hTotal - eKin;\
 	/* TODO verify hTotal = 1/2 v^2 + Cs^2 / (gamma-1) */\

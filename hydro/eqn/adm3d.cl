@@ -2807,7 +2807,7 @@ kernel void <?=addSource?>(
 
 	//alpha_,t = alpha_,i beta^i + ...
 	// = alpha a_i beta^i + ..
-	deriv->alpha += real3_dot(U->beta_u, U->a_l) * U->alpha;
+	deriv->alpha += U->beta_u.dot(U->a_l) * U->alpha;
 
 	//Alcubierre 2.3.11
 	//gamma_ij,t = gamma_ij,k beta^k + gamma_kj beta^k_,i + gamma_ik beta^k_,j

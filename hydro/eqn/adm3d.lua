@@ -327,8 +327,8 @@ momentum constraints
 	real3x3 const K_lu = real3s3_real3s3_mul(K_ll, gamma_uu);
 	real3 const beta_dot_K_l = real3_real3s3_mul(beta_u, K_ll);
 
-	real const K_dot_beta_dot_beta = real3_dot(beta_dot_K_l, beta_u);
-	real const beta_dot_a = real3_dot(beta_u, a_l);
+	real const K_dot_beta_dot_beta = beta_dot_K_l.dot(beta_u);
+	real const beta_dot_a = beta_u.dot(a_l);
 
 	real3x3 const partial_beta_ul = real3x3_zero;											// β^k_,l
 	real3 const partial_beta_dot_beta_u = real3x3_real3_mul(partial_beta_ul, beta_u);		// β^k_,l β^l

@@ -224,7 +224,7 @@ kernel void addSource_<?=species?>(
 	deriv->m.x += (<?=speciesElectronMassRatio?> / normalizedIonLarmorRadius) * (U->rho * maxwellU->E.x + U->m.y * maxwellU->B.z - U->m.z * maxwellU->B.y);
 	deriv->m.y += (<?=speciesElectronMassRatio?> / normalizedIonLarmorRadius) * (U->rho * maxwellU->E.y + U->m.z * maxwellU->B.x - U->m.x * maxwellU->B.z);
 	deriv->m.z += (<?=speciesElectronMassRatio?> / normalizedIonLarmorRadius) * (U->rho * maxwellU->E.z + U->m.x * maxwellU->B.y - U->m.y * maxwellU->B.x);
-	deriv->ETotal += (<?=speciesElectronMassRatio?> / normalizedIonLarmorRadius) * real3_dot(maxwellU->E, U->m);
+	deriv->ETotal += (<?=speciesElectronMassRatio?> / normalizedIonLarmorRadius) * maxwellU->E.dot(U->m);
 }
 
 <? end ?>

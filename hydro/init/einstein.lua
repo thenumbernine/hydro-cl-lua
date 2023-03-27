@@ -840,7 +840,7 @@ what if I transforms this from tx back to uv?
 
 		real3 P_l = real3_real_mul(P_u, psi4);
 
-		real n_dot_P = real3_dot(n_l, P_u);
+		real n_dot_P = n_l.dot(P_u);
 
 		//Alcubierre 3.4.22
 		//Bowen-York extrinsic curvature

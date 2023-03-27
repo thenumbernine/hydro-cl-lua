@@ -279,11 +279,11 @@ end
 
 	real3s3 gamma_uu = <?=calc_gamma_uu?>(U, x);
 	real3 partial_alpha_u = real3s3_real3_mul(gamma_uu, *(real3*)partial_alpha_l);		//alpha_,j gamma^ij = alpha^,i
-	real partial_alpha_dot_beta = real3_dot(U->beta_u, *(real3*)partial_alpha_l);	//beta^j alpha_,j
+	real partial_alpha_dot_beta = U->beta_u.dot(*(real3*)partial_alpha_l);	//beta^j alpha_,j
 
 	real3 beta_l = real3s3_real3_mul(gamma_ll, U->beta_u);								//beta^j gamma_ij
 	real3 beta_dt_gamma_l = real3s3_real3_mul(dt_gamma_ll, U->beta_u);					//beta^j gamma_ij,t
-	real beta_beta_dt_gamma = real3_dot(U->beta_u, beta_dt_gamma_l);				//beta^i beta^j gamma_ij,t
+	real beta_beta_dt_gamma = U->beta_u.dot(beta_dt_gamma_l);				//beta^i beta^j gamma_ij,t
 
 	real3 beta_dt_gamma_u = real3s3_real3_mul(gamma_uu, beta_dt_gamma_l);				//gamma^ij gamma_jk,t beta^k
 
@@ -296,12 +296,12 @@ end ?>;
 	//beta_j beta^j_,i
 	real3 beta_dbeta_l = real3{
 <? for i,xi in ipairs(xNames) do
-?>		real3_dot(beta_l, partial_beta_ul[<?=i-1?>]),
+?>		beta_l.dot(partial_beta_ul[<?=i-1?>]),
 <? end
 ?>	};
 
 	//beta_j beta^j_,i beta^i
-	real beta_beta_dbeta = real3_dot(U->beta_u, beta_dbeta_l);
+	real beta_beta_dbeta = U->beta_u.dot(beta_dbeta_l);
 
 	//beta_j beta^j_,k gamma^ik
 	real3 beta_dbeta_u = real3s3_real3_mul(gamma_uu, beta_dbeta_l);

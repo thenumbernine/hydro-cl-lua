@@ -255,8 +255,8 @@ static inline real calc_EM_energy(
 	(result)-><?=fluid?>_m = real3_add(\
 		real3_real_mul((WA)-><?=fluid?>_v, (W)-><?=fluid?>_rho), \
 		real3_real_mul((W)-><?=fluid?>_v, (WA)-><?=fluid?>_rho));\
-	(result)-><?=fluid?>_ETotal = (W)-><?=fluid?>_rho * .5 * real3_dot((WA)-><?=fluid?>_v, WA_<?=fluid?>_vL) \
-		+ (WA)-><?=fluid?>_rho * real3_dot((W)-><?=fluid?>_v, WA_<?=fluid?>_vL)\
+	(result)-><?=fluid?>_ETotal = (W)-><?=fluid?>_rho * .5 * (WA)-><?=fluid?>_v.dot(WA_<?=fluid?>_vL) \
+		+ (WA)-><?=fluid?>_rho * (W)-><?=fluid?>_v.dot(WA_<?=fluid?>_vL)\
 		+ (W)-><?=fluid?>_P / (solver->heatCapacityRatio - 1.);\
 <? end ?>\
 	(result)->B = (W)->B;\
@@ -285,8 +285,8 @@ static inline real calc_EM_energy(
 		real3_real_mul((U)-><?=fluid?>_m, 1. / (WA)-><?=fluid?>_rho),\
 		real3_real_mul((WA)-><?=fluid?>_v, (U)-><?=fluid?>_rho / (WA)-><?=fluid?>_rho));\
 	(result)-><?=fluid?>_P = (solver->heatCapacityRatio - 1.) * (\
-		.5 * real3_dot((WA)-><?=fluid?>_v, WA_<?=fluid?>_vL) * (U)-><?=fluid?>_rho \
-		- real3_dot((U)-><?=fluid?>_m, WA_<?=fluid?>_vL)\
+		.5 * (WA)-><?=fluid?>_v.dot(WA_<?=fluid?>_vL) * (U)-><?=fluid?>_rho \
+		- (U)-><?=fluid?>_m.dot(WA_<?=fluid?>_vL)\
 		+ (U)-><?=fluid?>_ETotal);\
 <? end ?>\
 	(result)->B = (U)->B;\
@@ -949,13 +949,13 @@ kernel void <?=addSource?>(
 	kg/(m s^3) = C/kg * (kg^2)/(C m s^3)
 	kg/(m s^3) = kg/(m s^3)
 	*/
-	deriv->ion_ETotal += solver->ionChargeMassRatio / unit_C_per_kg * real3_dot(U->D, U->ion_m) / eps;
+	deriv->ion_ETotal += solver->ionChargeMassRatio / unit_C_per_kg * U->D.dot(U->ion_m) / eps;
 
 	deriv->elec_m.x -= elecChargeMassRatio / unit_C_per_kg * (U->elec_rho * U->D.x / eps + U->elec_m.y * U->B.z - U->elec_m.z * U->B.y);
 	deriv->elec_m.y -= elecChargeMassRatio / unit_C_per_kg * (U->elec_rho * U->D.y / eps + U->elec_m.z * U->B.x - U->elec_m.x * U->B.z);
 	deriv->elec_m.z -= elecChargeMassRatio / unit_C_per_kg * (U->elec_rho * U->D.z / eps + U->elec_m.x * U->B.y - U->elec_m.y * U->B.x);
 	
-	deriv->elec_ETotal -= elecChargeMassRatio / unit_C_per_kg * real3_dot(U->D, U->elec_m) / eps;
+	deriv->elec_ETotal -= elecChargeMassRatio / unit_C_per_kg * U->D.dot(U->elec_m) / eps;
 
 	/*
 	C/(m^2 s) = kg/(m^2*s) * C/kg

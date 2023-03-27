@@ -1466,7 +1466,7 @@ static void calcDeriv_W(
 <?=eqn:makePartialUpwind"W"?>
 	real3 const partial_W_L_upwind = real3_rescaleFromCoord_l(partial_W_l_upwind, x);
 
-	real const Lbeta_W = real3_dot(partial_W_L_upwind, U->beta_U);
+	real const Lbeta_W = partial_W_L_upwind.dot(U->beta_U);
 
 	real const L2_W = (1. / 3.) * U->W * (U->alpha * U->K - tr_DBar_beta);
 
@@ -1899,7 +1899,7 @@ end
 				real3_real_mul(
 					real3_real_mul(
 						partial_det_gammaBar_L,
-						-real3_dot(partial_det_gammaBar_L, U->beta_U)),
+						-partial_det_gammaBar_L.dot(U->beta_U)),
 					1. / det_gammaBar),
 				partial_det_gammaBar_times_partial_beta_L
 			), .5 / det_gammaBar)
@@ -2348,7 +2348,7 @@ static inline void calcDeriv_K(
 
 <?=eqn:makePartialUpwind"K"?>
 	real3 const partial_K_L_upwind = real3_rescaleFromCoord_l(partial_K_l_upwind, x);
-	real const Lbeta_K = real3_dot(partial_K_L_upwind, U->beta_U);
+	real const Lbeta_K = partial_K_L_upwind.dot(U->beta_U);
 
 	/*
 	B&S 11.52
@@ -2539,7 +2539,7 @@ static void calcDeriv_Phi(
 	deriv->Phi = cplx_add3(
 		deriv->Phi,
 		cplx_real_mul(U->Pi, U->alpha),
-		cplx_from_real(real3_dot(cplx3_re(partial_Phi_L_upwind), U->beta_U))
+		cplx_from_real(cplx3_re(partial_Phi_L_upwind).dot(U->beta_U))
 	);
 }
 
@@ -2603,7 +2603,7 @@ static void calcDeriv_Pi(
 	4conn^t = -1/alpha^3 (alpha_,t - beta^m alpha_,m + alpha^2 K)
 	*/
 	real const _4conn_t = (
-		(dt_alpha - real3_dot(U->beta_U, *partial_alpha_L)) / (U->alpha * U->alpha)
+		(dt_alpha - U->beta_U.dot(*partial_alpha_L)) / (U->alpha * U->alpha)
 		+ U->K) / U->alpha;
 
 	real3x3s3 const connHat_ull = real3x3s3_rescaleToCoord_ULL(connHat_ULL, x);
@@ -2644,7 +2644,7 @@ static void calcDeriv_Pi(
 	*/
 	real3 const _4conn_i_U = real3_add5(
 		conn_U,
-		real3_real_mul(U->beta_U, ((dt_alpha - real3_dot(U->beta_U, *partial_alpha_L)) / (U->alpha * U->alpha) + U->K) / U->alpha),
+		real3_real_mul(U->beta_U, ((dt_alpha - U->beta_U.dot(*partial_alpha_L)) / (U->alpha * U->alpha) + U->K) / U->alpha),
 		real3_real_mul(*dt_beta_U, -1. / (U->alpha * U->alpha)),
 		real3_real_mul(real3x3_real3_mul(partial_beta_UL, U->beta_U), 1. / (U->alpha * U->alpha)),
 		real3_real_mul(partial_alpha_U, -1. / U->alpha)
@@ -2666,9 +2666,9 @@ static void calcDeriv_Pi(
 		deriv->Pi,
 		cplx_real_mul(
 			cplx_add4(
-				real_cplx_mul(real3_dot(U->beta_U, *partial_alpha_L), U->Pi),
+				real_cplx_mul(U->beta_U.dot(*partial_alpha_L), U->Pi),
 				cplx_neg(real3_cplx3_dot(*dt_beta_U, Psi_L)),
-				cplx3_real3_dot(Psi_L, real3x3_real3_mul(partial_beta_UL, U->beta_U)),
+				cplx3_Psi_L.dot(real3x3_real3_mul(partial_beta_UL, U->beta_U)),
 				real_cplx_mul(-dt_alpha / U->alpha, U->Pi)
 			),
 			1. / U->alpha
@@ -2676,7 +2676,7 @@ static void calcDeriv_Pi(
 		cplx_real_mul(
 			cplx_add5(
 				cplx_neg(real3_cplx3_dot(_4conn_i_U, Psi_L)),
-				cplx_real_mul(cplx3_real3_dot(Psi_L, U->beta_U), -_4conn_t),
+				cplx_real_mul(cplx3_Psi_L.dot(U->beta_U), -_4conn_t),
 				cplx3x3_real3s3_dot(partial_Psi_LL, gamma_UU),
 
 				// dV/d|Phi|^2
@@ -2743,7 +2743,7 @@ kernel void <?=calcDeriv?>(
 		 for f(alpha) = 2/alpha
 		alpha_,t = -2 alpha K + alpha_,i e^i_I beta^I
 		*/
-		dt_alpha = -U->K * calc_f_alphaSq(U->alpha) + real3_dot(partial_alpha_L_upwind, U->beta_U);
+		dt_alpha = -U->K * calc_f_alphaSq(U->alpha) + partial_alpha_L_upwind.dot(U->beta_U);
 	}
 
 	deriv->alpha += dt_alpha;
@@ -2827,7 +2827,7 @@ kernel void <?=calcDeriv?>(
 
 		real3 tr_connBar_L = real3x3s3_tr12(connBar_ULL);
 
-		tr_DBar_beta = tr_partial_beta + real3_dot(U->beta_U, tr_connBar_L);
+		tr_DBar_beta = tr_partial_beta + U->beta_U.dot(tr_connBar_L);
 	}
 
 <? elseif false then ?>
@@ -2838,7 +2838,7 @@ kernel void <?=calcDeriv?>(
 	//Etienne's SENR Mathematica notebook uses this instead:
 	//tr_DBar_beta := beta^j_,j + beta^j gammaBar_,j / (2 gammaBar)
 	real const tr_DBar_beta = tr_partial_beta
-		+ real3_dot(U->beta_U, partial_det_gammaBar_over_det_gammaBar_L) * .5;
+		+ U->beta_U.dot(partial_det_gammaBar_over_det_gammaBar_L) * .5;
 
 <? else ?>
 
@@ -3633,7 +3633,7 @@ kernel void <?=addSource?>(
 	//d/dt alpha = -alpha^2 Q = alpha,t + alpha,i beta^i
 	//alpha,t = -alpha^2 f(alpha) K + alpha,i beta^i
 	real const dt_alpha = -calc_f_alphaSq(U->alpha) * U->K
-		+ real3_dot(partial_alpha_L_upwind, U->beta_U);
+		+ partial_alpha_L_upwind.dot(U->beta_U);
 
 
 <?=eqn:makePartial1"alpha"?>			//partial_alpha_l[i] := alpha_,i
@@ -3665,9 +3665,9 @@ kernel void <?=addSource?>(
 			dt_alpha * (1. - 1. / U->alpha) / U->alpha
 			+ U->alpha * U->K
 		)
-		+ real3_dot(partial_alpha_u, U->Psi_l)
+		+ partial_alpha_u.dot(U->Psi_l)
 		- U->alpha * (
-			real3_dot(conn_u, U->Psi_l)
+			conn_u.dot(U->Psi_l)
 			+ phi_source
 		)
 	);
@@ -3763,7 +3763,7 @@ kernel void calcDeriv_PIRK_L1_EpsilonWAlphaBeta(
 	Etienne's SENR Mathematica notebook uses this instead:
 	tr_DBar_beta := beta^j_,j + beta^j gammaBar_,j / (2 gammaBar)
 	*/
-	real const tr_DBar_beta = tr_partial_beta + real3_dot(U->beta_U, partial_det_gammaBar_over_det_gammaBar_L) * .5;
+	real const tr_DBar_beta = tr_partial_beta + U->beta_U.dot(partial_det_gammaBar_over_det_gammaBar_L) * .5;
 
 
 	real3s3 gammaBar_LL = <?=calc_gammaBar_LL?>(U, x);
@@ -3811,7 +3811,7 @@ kernel void calcDeriv_PIRK_L1_EpsilonWAlphaBeta(
 	//d/dt alpha = -alpha^2 Q = alpha,t + alpha,i beta^i
 	//alpha,t = -alpha^2 f(alpha) K + alpha,i beta^i
 	real const dt_alpha = -calc_f_alphaSq(U->alpha) * U->K
-		+ real3_dot(partial_alpha_L_upwind, U->beta_U);
+		+ partial_alpha_L_upwind.dot(U->beta_U);
 
 	deriv->alpha = dt_alpha;
 
@@ -4001,7 +4001,7 @@ kernel void calcDeriv_PIRK_L3_ABarK(
 	Etienne's SENR Mathematica notebook uses this instead:
 	tr_DBar_beta := beta^j_,j + beta^j gammaBar_,j / (2 gammaBar)
 	*/
-	real tr_DBar_beta = tr_partial_beta + real3_dot(U->beta_U, partial_det_gammaBar_over_det_gammaBar_L) * .5;
+	real tr_DBar_beta = tr_partial_beta + U->beta_U.dot(partial_det_gammaBar_over_det_gammaBar_L) * .5;
 
 	real3s3 const gammaBar_uu = real3s3_rescaleToCoord_UU(gammaBar_UU, x);
 
@@ -4040,7 +4040,7 @@ kernel void calcDeriv_PIRK_L3_ABarK(
 
 <?=eqn:makePartialUpwind"K"?>
 	real3 partial_K_L_upwind = real3_rescaleFromCoord_l(partial_K_l_upwind, x);
-	real Lbeta_K = real3_dot(partial_K_L_upwind, U->beta_U);
+	real Lbeta_K = partial_K_L_upwind.dot(U->beta_U);
 
 	deriv->K += Lbeta_K;
 <? end	-- useLBetaWithPIRK ?>
@@ -4198,7 +4198,7 @@ kernel void calcDeriv_PIRK_L3_LambdaBar(
 	Etienne's SENR Mathematica notebook uses this instead:
 	tr_DBar_beta := beta^j_,j + beta^j gammaBar_,j / (2 gammaBar)
 	*/
-	real tr_DBar_beta = tr_partial_beta + real3_dot(U->beta_U, partial_det_gammaBar_over_det_gammaBar_L) * .5;
+	real tr_DBar_beta = tr_partial_beta + U->beta_U.dot(partial_det_gammaBar_over_det_gammaBar_L) * .5;
 
 	deriv->LambdaBar_U = calc_PIRK_L3_LambdaBar_U(
 		tr_DBar_beta,
@@ -4308,7 +4308,7 @@ kernel void calcDeriv_PIRK_L2_B(
 	Etienne's SENR Mathematica notebook uses this instead:
 	tr_DBar_beta := beta^j_,j + beta^j gammaBar_,j / (2 gammaBar)
 	*/
-	real tr_DBar_beta = tr_partial_beta + real3_dot(U->beta_U, partial_det_gammaBar_over_det_gammaBar_L) * .5;
+	real tr_DBar_beta = tr_partial_beta + U->beta_U.dot(partial_det_gammaBar_over_det_gammaBar_L) * .5;
 
 
 	real exp_neg4phi = <?=calc_exp_neg4phi?>(U);

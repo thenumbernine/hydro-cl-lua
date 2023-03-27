@@ -88,15 +88,15 @@ end
 	*(W) = U->D / U->rho;
 	*(u) = real3_real_mul(U->v, *(W));
 
-	real const uSq = real3_dot(*(u), *(u)) / (1. - 2. * Phi);
+	real const uSq = u->lenSq() / (1. - 2. * Phi);
 	real3 const dv_dt = real3_add(
 		real3_real_mul(*(du_dt), 1. / *(W)),
-		real3_real_mul(*(u), real3_dot(*(u), *(du_dt)) / (*(W) * (1. - 2. * Phi) * (1. + uSq)))
+		real3_real_mul(*(u), u->dot(*du_dt) / (*(W) * (1. - 2. * Phi) * (1. + uSq)))
 	);
 
 	//W_,t = W^3 (v^i_,t v_i + v^i v^j γ_ij,t / 2)
 	//W_,t = W^3 (v^i_,t v^i) / (1 - 2 Φ)
-	*(dW_dt) = *(W) * *(W) * *(W) * real3_dot(U->v, dv_dt) / (1. - 2. * Phi);
+	*(dW_dt) = *(W) * *(W) * *(W) * U->v.dot(dv_dt) / (1. - 2. * Phi);
 }
 
 //// MODULE_NAME: <?=calcGravityDeriv?>

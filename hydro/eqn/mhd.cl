@@ -59,9 +59,9 @@
 		real3_real_mul((WA)->v, (W)->rho),\
 		real3_real_mul((W)->v, (WA)->rho)),\
 	(result)->B = (WA)->B;\
-	(result)->ETotal = (W)->rho * .5 * real3_dot((WA)->v, (WA)->v)\
-		+ (WA)->rho * real3_dot((W)->v, (WA)->v)\
-		+ real3_dot((W)->B, (WA)->B) / (solver->mu0 / unit_kg_m_per_C2)\
+	(result)->ETotal = (W)->rho * .5 * (WA)->v.dot((WA)->v)\
+		+ (WA)->rho * (W)->v.dot((WA)->v)\
+		+ (W)->B.dot((WA)->B) / (solver->mu0 / unit_kg_m_per_C2)\
 		+ (W)->P / (solver->heatCapacityRatio - 1.);\
 	(result)->psi = (W)->psi;\
 	(result)->ePot = (W)->ePot;\
@@ -83,9 +83,9 @@
 		real3_real_mul((WA)->v, (U)->rho / (WA)->rho));\
 	(result)->B = (U)->B;\
 	(result)->P = (solver->heatCapacityRatio - 1.) *  (\
-		.5 * (U)->rho * real3_dot((WA)->v, (WA)->v)\
-		- real3_dot((U)->m, (WA)->v)\
-		- real3_dot((U)->B, (WA)->B) / (solver->mu0 / unit_kg_m_per_C2)\
+		.5 * (U)->rho * (WA)->v.dot((WA)->v)\
+		- (U)->m.dot((WA)->v)\
+		- (U)->B.dot((WA)->B) / (solver->mu0 / unit_kg_m_per_C2)\
 		+ (U)->ETotal);\
 	(result)->psi = (U)->psi;\
 	(result)->ePot = (U)->ePot;\
@@ -435,7 +435,7 @@ static inline real3 calc_CA(
 	real vj = normal_vecDotN1(n, W.v);\
 	real Bj = normal_vecDotN1(n, W.B);\
 	real BSq = coordLenSq(W.B, (cell)->pos);\
-	real BDotV = real3_dot(W.B, W.v);\
+	real BDotV = W.B.dot(W.v);\
 	real PMag = .5 * BSq / (solver->mu0 / unit_kg_m_per_C2);\
 	real PTotal = W.P + PMag;\
 	real HTotal = (U)->ETotal + PTotal;\

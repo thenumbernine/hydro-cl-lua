@@ -62,7 +62,7 @@ kernel void <?=calcGravityDeriv?>(
 ?>
 	// kg/(m s^2) = (kg m^2 / s) * m/s^2
 <? for _,fluid in ipairs(eqn.fluids) do	
-?>	deriv-><?=fluid?>_ETotal -= real3_dot(U-><?=fluid?>_m, accel_g);
+?>	deriv-><?=fluid?>_ETotal -= U-><?=fluid?>_m.dot(accel_g);
 <? end	
 ?>
 }

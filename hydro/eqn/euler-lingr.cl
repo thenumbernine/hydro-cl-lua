@@ -192,8 +192,8 @@ real3 calcGravityForcePerVolume(
 	(result)->m = real3_add(\
 		real3_real_mul((WA)->v, (W)->rho),\
 		real3_real_mul((W)->v, (WA)->rho));\
-	(result)->ETotal = (W)->rho * .5 * real3_dot((WA)->v, WA_vL)\
-		+ (WA)->rho * real3_dot((W)->v, WA_vL)\
+	(result)->ETotal = (W)->rho * .5 * (WA)->v.dot(WA_vL)\
+		+ (WA)->rho * (W)->v.dot(WA_vL)\
 		+ (W)->P / (solver->heatCapacityRatio - 1.);\
 	(result)->B_g = (W)->B_g;\
 	(result)->D_g = (W)->D_g;\
@@ -218,8 +218,8 @@ real3 calcGravityForcePerVolume(
 		real3_real_mul((U)->m, 1. / (WA)->rho),\
 		real3_real_mul((WA)->v, (U)->rho / (WA)->rho));\
 	(result)->P = (solver->heatCapacityRatio - 1.) * (\
-		.5 * real3_dot((WA)->v, WA_vL) * (U)->rho \
-		- real3_dot((U)->m, WA_vL)\
+		.5 * (WA)->v.dot(WA_vL) * (U)->rho \
+		- (U)->m.dot(WA_vL)\
 		+ (U)->ETotal);\
 	(result)->B_g = (U)->B_g;\
 	(result)->D_g = (U)->D_g;\
@@ -342,7 +342,7 @@ end
 ) {\
 	<?=prim_t?> W;\
 	<?=primFromCons?>(&W, solver, U, pt);\
-	real const v_n = real3_dot(W.v, nL.x);\
+	real const v_n = W.v.dot(nL.x);\
 	real const Cs = <?=calc_Cs?>(solver, &W);\
 	real const Cs_nLen = Cs * nLen;\
 	(result)->min = v_n - Cs_nLen; \
@@ -364,7 +364,7 @@ end
 	<?=prim_t?> W;\
 	<?=primFromCons?>(&W, solver, U, (cell)->pos);\
 	real3 const vL = coord_lower(W.v, (cell)->pos);\
-	real const vSq = real3_dot(W.v, vL);\
+	real const vSq = W.v.dot(vL);\
 	real const v_n = normal_vecDotN1(n, W.v);\
 	real const eKin = .5 * vSq;\
 	real const hTotal = <?=calc_hTotal?>(W.rho, W.P, (U)->ETotal);\
@@ -415,7 +415,7 @@ end
 \
 	/*derived:*/\
 	real3 const vLower = coord_lower(v, pt);\
-	real const vSq = real3_dot(v, vLower);\
+	real const vSq = v.dot(vLower);\
 	real const eKin = .5 * vSq;\
 	real const CsSq = (solver->heatCapacityRatio - 1.) * (hTotal - eKin);\
 	real const Cs = sqrt(CsSq);\

@@ -67,9 +67,9 @@
 	(result)->rhoBar_vTilde = real3_add(\
 		real3_real_mul((WA)->vTilde, (W)->rhoBar), \
 		real3_real_mul((W)->vTilde, (WA)->rhoBar));\
-	(result)->rhoBar_eTotalTilde = (W)->rhoBar * (.5 * real3_dot((WA)->vTilde, WA_vTildeL) \
+	(result)->rhoBar_eTotalTilde = (W)->rhoBar * (.5 * (WA)->vTilde.dot(WA_vTildeL) \
 			+ (1. - 2./3. * C_v_over_R) * (WA)->k)\
-		+ (WA)->rhoBar * real3_dot((W)->vTilde, WA_vTildeL)\
+		+ (WA)->rhoBar * (W)->vTilde.dot(WA_vTildeL)\
 		+ (W)->PStar * C_v_over_R\
 		+ (1. - 2./3 * C_v_over_R) * (WA)->rhoBar * (W)->k;\
 	(result)->rhoBar_k = (WA)->k * (W)->rhoBar + (WA)->rhoBar * (W)->k;\
@@ -93,8 +93,8 @@
 		real3_real_mul((U)->rhoBar_vTilde, 1. / (WA)->rhoBar),\
 		real3_real_mul((WA)->vTilde, (U)->rhoBar / (WA)->rhoBar));\
 	(result)->PStar = R_over_C_v * (\
-			.5 * real3_dot((WA)->vTilde, WA_vTildeL) * (U)->rhoBar \
-			- real3_dot((U)->rhoBar_vTilde, WA_vTildeL)\
+			.5 * (WA)->vTilde.dot(WA_vTildeL) * (U)->rhoBar \
+			- (U)->rhoBar_vTilde.dot(WA_vTildeL)\
 			+ (U)->rhoBar_eTotalTilde\
 		) + (2./3. * R_over_C_v - 1.) * (U)->rhoBar_k;\
 	(result)->k = (U)->rhoBar_k / (WA)->rhoBar - (WA)->k / (WA)->rhoBar * (U)->rhoBar;\
@@ -350,7 +350,7 @@ for side=0,2 do
 	real3 const vTilde = (eig)->vTilde;
 	real3 const vTildeL = coord_lower(vTilde, pt);
 	real const hTotal = (eig)->hTotal;
-	real const vTildeSq = real3_dot(vTilde, vTildeL);
+	real const vTildeSq = vTilde.dot(vTildeL);
 	real const Cs = (eig)->Cs;
 	real const Cs_over_sqrt_gUjj = Cs / sqrt_gUjj; 
 	real const rhoBar = (eig)->rhoBar;

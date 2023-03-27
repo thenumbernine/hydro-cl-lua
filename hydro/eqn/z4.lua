@@ -809,7 +809,7 @@ real3x3 const K_ul = real3s3_real3s3_mul(gamma_uu, U->K_ll);
 real const tr_K = K_ul.trace();
 
 //beta_dot_a := β^l a_l
-real const beta_dot_a = real3_dot(U->beta_u, U->a_l);
+real const beta_dot_a = U->beta_u.dot(U->a_l);
 
 //K_betaSq := β^l β^m K_lm
 real const K_dot_betaSq_over_alpha = real3_weightedLenSq(U->beta_u, U->K_ll) / U->alpha;

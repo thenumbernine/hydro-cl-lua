@@ -97,9 +97,9 @@ static inline real3 calc_CA(
 		real3_real_mul((WA)->v, (W)->rho),\
 		real3_real_mul((W)->v, (WA)->rho));\
 	(result)->B = (WA)->B;\
-	(result)->ETotal = (W)->rho * .5 * real3_dot((WA)->v, (WA)->v)\
-		+ (WA)->rho * real3_dot((W)->v, (WA)->v)\
-		+ real3_dot((W)->B, (WA)->B) / (solver->mu0 / unit_kg_m_per_C2)\
+	(result)->ETotal = (W)->rho * .5 * (WA)->v.dot((WA)->v)\
+		+ (WA)->rho * (W)->v.dot((WA)->v)\
+		+ (W)->B.dot((WA)->B) / (solver->mu0 / unit_kg_m_per_C2)\
 		+ (W)->P / (solver->heatCapacityRatio - 1.);\
 	(result)->psi = (W)->psi;\
 	(result)->ePot = (W)->ePot;\
@@ -122,9 +122,9 @@ static inline real3 calc_CA(
 		real3_real_mul((WA)->v, (U)->rho / (WA)->rho));\
 	(result)->B = (U)->B;\
 	(result)->P = (solver->heatCapacityRatio - 1.) *  (\
-		.5 * (U)->rho * real3_dot((WA)->v, (WA)->v)\
-		- real3_dot((U)->m, (WA)->v)\
-		- real3_dot((U)->B, (WA)->B) / (solver->mu0 / unit_kg_m_per_C2)\
+		.5 * (U)->rho * (WA)->v.dot((WA)->v)\
+		- (U)->m.dot((WA)->v)\
+		- (U)->B.dot((WA)->B) / (solver->mu0 / unit_kg_m_per_C2)\
 		+ (U)->ETotal);\
 	(result)->psi = (U)->psi;\
 	(result)->ePot = (U)->ePot;\
@@ -355,7 +355,7 @@ kernel void <?=initDerivs?>(
 	real const vj = normal_vecDotN1(n, W.v);\
 	real const Bj = normal_vecDotN1(n, W.B);\
 	real const BSq = coordLenSq(W.B, (cell)->pos);\
-	real const BDotV = real3_dot(W.B, W.v);\
+	real const BDotV = W.B.dot(W.v);\
 	real const PMag = .5 * BSq / (solver->mu0 / unit_kg_m_per_C2);\
 	real const PTotal = W.P + PMag;\
 	real const HTotal = (U)->ETotal + PTotal;\
@@ -884,7 +884,7 @@ then
 <? 		for i,xi in ipairs(xNames) do
 ?>	deriv->m.<?=xi?> -= divB * U->B.<?=xi?>;
 <? 		end
-?>	deriv->ETotal -= real3_dot(U->B, grad_psi);
+?>	deriv->ETotal -= U->B.dot(grad_psi);
 //	deriv->psi -= Ch * Ch / (Cp * Cp) * U->psi;
 <? 	end ?>
 <? 	if eqn.use2002DednerEqn38 then ?>
@@ -895,12 +895,12 @@ then
 	for i,xi in ipairs(xNames) do
 ?>	deriv->B.<?=xi?> -= divB * U->m.<?=xi?> / U->rho;
 <?	end
-?>	deriv->ETotal -= real3_dot(U->B, grad_psi) + real3_dot(U->m, U->B) * (divB / U->rho);
+?>	deriv->ETotal -= U->B.dot(grad_psi) + U->m.dot(U->B) * (divB / U->rho);
 	
 	//update this in the second step:
 	//psi[n+1] = psi[n] * exp(-dt * ch * ch / (cp * cp))
 	//deriv->psi -= Ch * Ch / (Cp * Cp) * U->psi;
-	deriv->psi -= real3_dot(U->m, grad_psi) / U->rho;
+	deriv->psi -= U->m.dot(grad_psi) / U->rho;
 <? 	end 
 end ?>
 }

@@ -2366,7 +2366,7 @@ if (bubbleRSq < bubbleRadiusSq) {
 	}
 
 	// ram pressure?
-	P = rho * real3_dot(v, v);
+	P = rho * v.dot(v);
 	//P = max(P, 1e-7);	//but really, is there any harm in P=0 with the Euler equations?
 ]]
 			end,
@@ -2593,7 +2593,7 @@ end
 
 
 	// galactic pressure ... ram pressure?
-	P = rho * real3_dot(v, v);
+	P = rho * v.dot(v);
 	//P = max(P, 1e-7);	//but really, is there any harm in P=0 with the Euler equations?
 	//P *= zinfl;
 ]],				{
@@ -2857,7 +2857,7 @@ for _,pn in ipairs(obj) do
 	local p = table(pn.p):mapi(clnumber):concat', '
 	local n = table(pn.n):mapi(clnumber):concat', '
 ?>
-			&& real3_dot(real3_sub(xc, real3(<?=p?>)), real3(<?=n?>)) < 0.
+			&& (xc - real3(<?=p?>).dot(real3(<?=n?>)) < 0.
 <? end ?>
 		)
 <? end ?>
@@ -2983,9 +2983,9 @@ real3 branch2_4(real3 x) {
 }
 
 bool testTriangle(real3 xc) {
-	return (real3_dot(real3_sub(xc, p1), n1) < 0. &&
-		real3_dot(real3_sub(xc, p2), n2) < 0. &&
-		real3_dot(real3_sub(xc, p3), n3) < 0.);
+	return ((xc - p1).dot(n1) < 0. &&
+		(xc - p2).dot(n2) < 0. &&
+		(xc - p3).dot(n3) < 0.);
 }
 ]])
 		end,

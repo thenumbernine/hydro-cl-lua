@@ -241,7 +241,7 @@ kernel void <?=addSource?>(
 #if 1
 	real3 const conn23 = coord_connHol_trace23(pt);
 	//TODO how about integrating conn23 across the volume?
-	deriv->Pi -= real3_dot(U->Psi_l, conn23);
+	deriv->Pi -= U->Psi_l.dot(conn23);
 #endif
 }
 
