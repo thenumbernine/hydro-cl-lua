@@ -1810,7 +1810,7 @@ inline constexpr real3 operator*(real3x3 a, real3 b) {
 		a.z.x * b.x + a.z.y * b.y + a.z.z * b.z);
 }
 
-static inline real real3x3_real3s3_dot(real3x3 a, real3s3 b) {
+static inline real dot(real3x3 a, real3s3 b) {
 	return 0.
 <? for i,xi in ipairs(xNames) do
 ?>		<?

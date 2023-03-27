@@ -2310,7 +2310,7 @@ value->vcplx3 = _cplx3(cplx_from_real(coordLen(cplx3_im(value->vcplx3), x)), cpl
 		{name = 'tr', code = 'value->vreal3x3 = real3x3{{trace(value->vreal3x3), 0,0},{0,0,0},{0,0,0}};'},
 		{name = 'tr metric', code = self.eqn:template[[
 //// MODULE_DEPENDS: <?=coord_g_ll?>
-value->vreal3x3 = real3x3{{real3x3_real3s3_dot(value->vreal3x3, coord_g_ll(x)), 0,0},{0,0,0},{0,0,0}};
+value->vreal3x3 = real3x3{{dot(value->vreal3x3, coord_g_ll(x)), 0,0},{0,0,0},{0,0,0}};
 ]]},
 
 		{name = 'x', code = 'value->vreal3 = value->vreal3x3.x; value->vreal3x3.y = {}; value->vreal3x3.z = {};', type = 'real3', magn='x mag'},
