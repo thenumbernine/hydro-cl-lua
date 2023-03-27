@@ -1068,6 +1068,16 @@ constexpr auto dot(
 			+ a.yz * conj(b.yz)
 		);
 }
+
+constexpr real dot(real3x3 a, real3x3 b) {
+	return 0.
+<? for i,xi in ipairs(xNames) do
+?>		<?
+	for j,xj in ipairs(xNames) do
+?> + a.<?=xi?>.<?=xj?> * conj(b.<?=xi?>.<?=xj?>)<?
+	end ?>
+<? end ?>;
+}
 #endif
 
 template<
@@ -1798,16 +1808,6 @@ inline constexpr real3 operator*(real3x3 a, real3 b) {
 		a.x.x * b.x + a.x.y * b.y + a.x.z * b.z,
 		a.y.x * b.x + a.y.y * b.y + a.y.z * b.z,
 		a.z.x * b.x + a.z.y * b.y + a.z.z * b.z);
-}
-
-static inline real real3x3_dot(real3x3 a, real3x3 b) {
-	return 0.
-<? for i,xi in ipairs(xNames) do
-?>		<?
-	for j,xj in ipairs(xNames) do
-?> + a.<?=xi?>.<?=xj?> * b.<?=xi?>.<?=xj?><?
-	end ?>
-<? end ?>;
 }
 
 static inline real real3x3_real3s3_dot(real3x3 a, real3s3 b) {

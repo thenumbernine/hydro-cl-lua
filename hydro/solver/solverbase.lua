@@ -2306,7 +2306,7 @@ value->vcplx3 = _cplx3(cplx_from_real(coordLen(cplx3_im(value->vcplx3), x)), cpl
 		{name = 'zy', code = 'value->vreal3x3 = real3x3{{value->vreal3x3.z.y, 0,0},{0,0,0},{0,0,0}};'},
 		{name = 'zz', code = 'value->vreal3x3 = real3x3{{value->vreal3x3.z.z, 0,0},{0,0,0},{0,0,0}};'},
 
-		{name = 'norm', code = 'value->vreal3x3 = real3x3{{sqrt(real3x3_dot(value->vreal3x3, value->vreal3x3)), 0,0},{0,0,0},{0,0,0}};'},
+		{name = 'norm', code = 'value->vreal3x3 = real3x3{{sqrt(dot(value->vreal3x3, value->vreal3x3)), 0,0},{0,0,0},{0,0,0}};'},
 		{name = 'tr', code = 'value->vreal3x3 = real3x3{{trace(value->vreal3x3), 0,0},{0,0,0},{0,0,0}};'},
 		{name = 'tr metric', code = self.eqn:template[[
 //// MODULE_DEPENDS: <?=coord_g_ll?>
