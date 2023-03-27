@@ -40,6 +40,11 @@ namespace std {
 	template<typename T> struct enable_if<true, T> { typedef T type; };
 	template<bool B, typename T = void> using enable_if_t = typename enable_if<B, T>::type;
 }
+// best practices:
+// enable_if on a defaulted template argument will interfere with template-specialization
+// enable_if on a return type will interfere with auto return type
+// so it looks like enable_if on defaulted function argument is the best way to go
+// except for operators where signature matters
 
 //https://en.cppreference.com/w/cpp/types/conditional
 namespace std {
@@ -346,20 +351,24 @@ constexpr auto rotateToInDim(
 	/*tensor/tensor construction*/\
 	/* can't be constexpr and use a loop so I have to write it per class */\
 	template<\
-		typename U,\
-		std::enable_if_t<U::rank == rank, int> = 0\
+		typename U\
 	>\
-	constexpr classname(U const & u)\
+	constexpr classname(\
+		U const & u,\
+		std::enable_if_t<U::rank == rank>* = nullptr\
+	)\
 	:	x(u.x),\
 		y(u.y),\
 		z(u.z)\
 	{}\
 \
 	template<\
-		typename U,\
-		std::enable_if_t<U::rank == rank, int> = 0\
+		typename U\
 	>\
-	constexpr classname(U && u)\
+	constexpr classname(\
+		U && u,\
+		std::enable_if_t<U::rank == rank>* = nullptr\
+	)\
 	:	x(u.x),\
 		y(u.y),\
 		z(u.z)\
@@ -370,15 +379,17 @@ constexpr auto rotateToInDim(
 #if 0\
 	// TODO needs Common stuff, tuples, functions, apply, write-iterator\
 	template<\
-		typename Lambda,\
+		typename Lambda\
+	>\
+	constexpr classname(\
+		Lambda lambda,\
 		std::enable_if_t<\
 			std::is_same_v<\
 				Common::FunctionFromLambda<Lambda>,\
 				Common::FunctionFromTupleArgs<Scalar, Common::tuple_rep_t<int, rank>>\
 			>\
-		, int> = 0\
-	>\
-	constexpr classname(Lambda lambda) {\
+		>* = nullptr\
+	) {\
 		using Func = typename Common::FunctionFromLambda<Lambda>::FuncType;\
 		Func f(lambda);\
 		auto w = write();\
@@ -388,16 +399,17 @@ constexpr auto rotateToInDim(
 	}\
 #elif 0\
 // until then I can just use fixed-signature per-rank\
-// but I'll still need the FunctionFromLambda ...\
+// but I'll still need is_callable or FunctionFromLambda ...\
 	template<\
-		typename Lambda,\
+		typename Lambda\
+	>\
+	constexpr classname(\
+		Lambda f,\
 		std::enable_if_t<\
 			rank == 1\
 			//&& is_callable<Lambda>	//TODO implement this\
-		, int> = 0\
-	>\
-	constexpr classname(Lambda lambda) {\
-	}\
+		>* = nullptr\
+	) : x(f(0)), y(f(1)), z(f(2)) {}\
 #endif\
 */\
 
@@ -1194,10 +1206,12 @@ inline constexpr int symIndex(int i, int j) {
 	/*tensor/tensor construction*/\
 	/* can't be constexpr and use a loop so I have to write it per class */\
 	template<\
-		typename U,\
-		std::enable_if_t<U::rank == rank, int> = 0\
+		typename U\
 	>\
-	constexpr classname(U const & u)\
+	constexpr classname(\
+		U const & u,\
+		std::enable_if_t<U::rank == rank>* = nullptr\
+	)\
 	:	xx(u.xx),\
 		xy(u.xy),\
 		xz(u.xz),\
@@ -1207,10 +1221,12 @@ inline constexpr int symIndex(int i, int j) {
 	{}\
 \
 	template<\
-		typename U,\
-		std::enable_if_t<U::rank == rank, int> = 0\
+		typename U\
 	>\
-	constexpr classname(U && u)\
+	constexpr classname(\
+		U && u,\
+		std::enable_if_t<U::rank == rank>* = nullptr\
+	)\
 	:	xx(u.xx),\
 		xy(u.xy),\
 		xz(u.xz),\
