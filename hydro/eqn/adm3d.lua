@@ -251,7 +251,7 @@ function ADM_BonaMasso_3D:getDisplayVars()
 	local vars = ADM_BonaMasso_3D.super.getDisplayVars(self)
 
 	vars:append{
-		{name='volume', code='value.vreal = U->alpha * sqrt(real3s3_det(U->gamma_ll));'},
+		{name='volume', code='value.vreal = U->alpha * sqrt(determinant(U->gamma_ll));'},
 		{name='f', code=self:template[[
 //// MODULE_DEPENDS: <?=initCond_codeprefix?>
 value.vreal = calc_f(U->alpha);
@@ -261,8 +261,8 @@ value.vreal = calc_f(U->alpha);
 value.vreal = calc_dalpha_f(U->alpha);
 ]]},
 		{name='expansion', code=[[
-	real det_gamma = real3s3_det(U->gamma_ll);
-	real3s3 gamma_uu = real3s3_inv(U->gamma_ll, det_gamma);
+	real det_gamma = determinant(U->gamma_ll);
+	real3s3 gamma_uu = inverse(U->gamma_ll, det_gamma);
 	value.vreal = -real3s3_dot(gamma_uu, U->K_ll);
 ]]		},
 	}:append{
@@ -308,7 +308,7 @@ momentum constraints
 			+ Γ3^k_ij
 	--]]
 	vars:insert{name='gravity', code=self:template[[
-	real3s3 gamma_uu = real3s3_inv(U->gamma_ll, real3s3_det(U->gamma_ll));
+	real3s3 gamma_uu = inverse(U->gamma_ll, determinant(U->gamma_ll));
 
 	real const alpha = U->alpha;
 	real3 const a_l = U->a_l;
@@ -408,8 +408,8 @@ momentum constraints
 	end
 
 	vars:insert{name='V constraint', code=self:template[[
-	real det_gamma = real3s3_det(U->gamma_ll);
-	real3s3 gamma_uu = real3s3_inv(U->gamma_ll, det_gamma);
+	real det_gamma = determinant(U->gamma_ll);
+	real3s3 gamma_uu = inverse(U->gamma_ll, det_gamma);
 	<? for i,xi in ipairs(xNames) do ?>{
 		real d1 = real3s3_dot(U->d_lll.<?=xi?>, gamma_uu);
 		real d2 = 0.<?
@@ -483,8 +483,8 @@ end
 
 function ADM_BonaMasso_3D:consWaveCodePrefix(args)
 	return self:template([[
-real const det_gamma = real3s3_det((<?=U?>)->gamma_ll);
-real3s3 const gamma_uu = real3s3_inv((<?=U?>)->gamma_ll, det_gamma);
+real const det_gamma = determinant((<?=U?>)->gamma_ll);
+real3s3 const gamma_uu = inverse((<?=U?>)->gamma_ll, det_gamma);
 real sqrt_gammaUjj = 0./0.;
 if (<?=n?>.side == 0) {
 	sqrt_gammaUjj = sqrt(gamma_uu.xx);
@@ -509,7 +509,7 @@ end
 function ADM_BonaMasso_3D:consWaveCodeMinMaxAllSidesPrefix(args)
 	return self:template([[
 real const f_alphaSq = calc_f_alphaSq((<?=U?>)->alpha);
-real const det_gamma = real3s3_det((<?=U?>)->gamma_ll);
+real const det_gamma = determinant((<?=U?>)->gamma_ll);
 real const alpha_sqrt_f = sqrt(f_alphaSq);
 ]], args)
 end

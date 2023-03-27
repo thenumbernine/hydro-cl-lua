@@ -1040,7 +1040,7 @@ what if I transforms this from tx back to uv?
 		real K = (32*LF * M * vz * (M_plus_2_rB_toThe7 - 32*M_minus_2_rB_sq * (M - rB) * rB_toThe4 * vzsq)*rBsq * zB)
 			/ (M_plus_2_rB_toThe3*BB_toThe3);
 	
-		real det_gamma = real3s3_det(gamma_ll);
+		real det_gamma = determinant(gamma_ll);
 		real det_gammaBar = <?=calc_det_gammaBar?>(x); 
 		real exp_neg4phi = cbrt(det_gammaBar / det_gamma);
 
@@ -1193,7 +1193,7 @@ real const A = sqr(rBL_sqr + a_sqr) - Delta * a_sqr * sinth_sqr;
 //grid coordinate metric. TODO gamma_ll should be initialized to this by the eqn.  but meh initialize it again to be safe. 
 //// MODULE_DEPENDS: <?=calc_gammaHat_ll?>
 real3s3 const gammaHat_ll = <?=calc_gammaHat_ll?>(x);
-real const det_gammaHat = real3s3_det(gammaHat_ll);
+real const det_gammaHat = determinant(gammaHat_ll);
 
 // 2010 Liu et al eqn 13
 gamma_ll = real3s3_zero;
@@ -1215,7 +1215,7 @@ K_ll.yz = -((2. * a_cubed * M * rBL * costh * sinth_cubed) / (Sigma * sqrt(A*Sig
 
 //with such a low alpha comes slow waves and therefore very slow cfl
 //TODO exclude waves within event horizon from CFL?
-real const det_gamma = real3s3_det(gamma_ll);
+real const det_gamma = determinant(gamma_ll);
 //TODO in the BSSN coordinate-free equations, the conformal factor is a ratio of the physical to the grid metric
 // and the difference of physical to background connection (which is a tensor) is evolved
 // but in my finite-volume Z4 equations, I'm evolving the partials of the metric ... 

@@ -50,7 +50,7 @@ constant real const mdeShiftEpsilon = 1.;
 #define /*real3s3*/ <?=calc_gamma_uu?>(\
 	/*global <?=cons_t?> const * const*/ U,\
 	/*real3 const*/ pt\
-) (real3s3_inv_nodet((U)->gamma_ll))
+) (inverse((U)->gamma_ll))
 
 //// MODULE_NAME: <?=calcFromGrad_a_l?>
 //// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?>
@@ -474,7 +474,7 @@ if has_b_ul then
 	/* the only advantage of this calcDT over the default is that here this sqrt(f) and det(gamma_ij) is only called once */\
 	real const f_alphaSq = calc_f_alphaSq(U->alpha);\
 	real3s3 const gamma_ll = (U)->gamma_ll;\
-	real const det_gamma = real3s3_det(gamma_ll);\
+	real const det_gamma = determinant(gamma_ll);\
 	real const alpha_sqrt_f = sqrt(f_alphaSq);\
 \
 	<? for side=0,solver.dim-1 do ?>{\
@@ -543,8 +543,8 @@ if has_b_ul then
 	real3 const n_l = normal_l1(n);\
 \
 	real3s3 const gamma_ll = ALIGN_FROM((U)->gamma_ll, n_l);\
-	real const det_gamma = real3s3_det(gamma_ll);\
-	real3s3 const gamma_uu = real3s3_inv(gamma_ll, det_gamma);\
+	real const det_gamma = determinant(gamma_ll);\
+	real3s3 const gamma_uu = inverse(gamma_ll, det_gamma);\
 \
 	real3 const Z_l = ALIGN_FROM((U)->Z_l, n_l);\
 	real3 const a_l = ALIGN_FROM((U)->a_l, n_l);\
@@ -595,7 +595,7 @@ if has_B_u then --\
 \
 	<? if eqn.useShift == "GammaDriverHyperbolic" then ?>\
 	real3s3 const gammaHat_ll = <?=calc_gammaHat_ll?>((cell)->pos);\
-	real const det_gammaHat = real3s3_det(gammaHat_ll);\
+	real const det_gammaHat = determinant(gammaHat_ll);\
 	real const W = pow(det_gammaHat / det_gamma, real(1./6.));\
 	real const invW = 1. / W;\
 	real3x3s3 const connHat_ull = coord_connHol_ull((cell)->pos);\
@@ -832,8 +832,8 @@ if has_B_u then --\
 	(resultEig)->gamma_ll = real3s3_real_mul(real3s3_add((UR)->gamma_ll, (UL)->gamma_ll), .5);\
 	(resultEig)->gamma_ll = ALIGN_FROM((resultEig)->gamma_ll, n_l);\
 \
-	real const det_avg_gamma = real3s3_det((resultEig)->gamma_ll);\
-	(resultEig)->gamma_uu = real3s3_inv((resultEig)->gamma_ll, det_avg_gamma);\
+	real const det_avg_gamma = determinant((resultEig)->gamma_ll);\
+	(resultEig)->gamma_uu = inverse((resultEig)->gamma_ll, det_avg_gamma);\
 \
 	(resultEig)->sqrt_gammaUnn = sqrt((resultEig)->gamma_uu.xx);\
 \
@@ -852,8 +852,8 @@ if has_B_u then --\
 	/*real3 const */pt,\
 	/*<?=normal_t?> const */n\
 ) {\
-	real const det_gamma = real3s3_det((U)->gamma_ll);\
-	real3s3 const gamma_uu = real3s3_inv((U)->gamma_ll, det_gamma);\
+	real const det_gamma = determinant((U)->gamma_ll);\
+	real3s3 const gamma_uu = inverse((U)->gamma_ll, det_gamma);\
 \
 	real3 const n_l = normal_l1(n);\
 	real const gammaUnn = real3_weightedLenSq(n_l, gamma_uu);\
@@ -896,7 +896,7 @@ if has_B_u then --\
 	real3 const n_l = normal_l1(n);\
 \
 	(resultEig)->gamma_ll = ALIGN_FROM((U)->gamma_ll, n_l);\
-	(resultEig)->gamma_uu = real3s3_inv((resultEig)->gamma_ll, det_avg_gamma);\
+	(resultEig)->gamma_uu = inverse((resultEig)->gamma_ll, det_avg_gamma);\
 \
 	(resultEig)->sqrt_gammaUnn = sqrt((resultEig)->gamma_uu.xx);\
 \
@@ -1504,8 +1504,8 @@ kernel void <?=addSource?>(
 	global <?=cell_t?> const * const cell = cellBuf + index;
 
 	real3s3 const gamma_ll = U->gamma_ll;
-	real const det_gamma = real3s3_det(gamma_ll);
-	real3s3 const gamma_uu = real3s3_inv(gamma_ll, det_gamma);
+	real const det_gamma = determinant(gamma_ll);
+	real3s3 const gamma_uu = inverse(gamma_ll, det_gamma);
 
 	real3 const S_l = real3_zero;
 	real3s3 const S_ll = real3s3_zero;
@@ -1745,7 +1745,7 @@ end
 	real3s3 const gammaHat_ll = <?=calc_gammaHat_ll?>(cell->pos);
 	// W = (_γ/γ)^(1/6)
 	// log(W)_,i = 1/3 (log(√_γ)_,i - log(√γ)_,i) = 1/3 (_Γ^j_ji - Γ^j_ji)
-	real const det_gammaHat = real3s3_det(gammaHat_ll);	//TODO use coord module for math simplifications?
+	real const det_gammaHat = determinant(gammaHat_ll);	//TODO use coord module for math simplifications?
 	real const W = pow(det_gammaHat / det_gamma, real(1./6.));
 	real const invW = 1. / W;
 //// MODULE_DEPENDS: <?=coord_connHol_ull?>
@@ -1766,7 +1766,7 @@ end
 	// TODO TODO TODO I need to replace the dDelta_ijk -> d_ijk 's because approximating dHat_ijk = 0 is ruining the situations where I need the background metric, such as here
 	// and this influences the shift conditions
 	// or TODO I can just calculate connHat from the coord code ...
-	real3s3 const gammaHat_uu = real3s3_inv(gammaHat_ll, det_gammaHat);
+	real3s3 const gammaHat_uu = inverse(gammaHat_ll, det_gammaHat);
 //// MODULE_DEPENDS: <?=coord_partial_gHol_lll?>
 	real3 const GDelta_l = real3_sub(d_l, real3x3s3_real3s3_dot23(real3x3s3_real_mul(coord_partial_gHol_lll((cell)->pos), .5), gammaHat_uu));
 	real3 const GDelta_u = real3s3_real3_mul(gamma_uu, GDelta_l);

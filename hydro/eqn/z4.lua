@@ -494,7 +494,7 @@ function Z4_2004Bona:getDisplayVars()
 			-- spatial volume is just "U gamma_ll det"
 			name = 'volume',
 			code = self:template[[
-value.vreal = U->alpha * sqrt(real3s3_det(U->gamma_ll));
+value.vreal = U->alpha * sqrt(determinant(U->gamma_ll));
 ]],
 		},
 		{name='f', code='value.vreal = calc_f(U->alpha);'},

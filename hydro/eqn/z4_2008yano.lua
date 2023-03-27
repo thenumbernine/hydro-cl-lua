@@ -94,7 +94,7 @@ Z4_2008Yano.predefinedDisplayVars = {
 function Z4_2008Yano:getDisplayVars()
 	local vars = Z4_2008Yano.super.getDisplayVars(self)
 	vars:append{
-		{name='volume', code='value.vreal = U->alpha * sqrt(real3s3_det(U->gamma_ll));'},
+		{name='volume', code='value.vreal = U->alpha * sqrt(determinant(U->gamma_ll));'},
 		{name='f', code='value.vreal = calc_f(U->alpha);'},
 		{name='f*alpha', code='value.vreal = calc_f_alpha(U->alpha);'},
 		{name='f*alpha^2', code='value.vreal = calc_f_alphaSq(U->alpha);'},
@@ -102,8 +102,8 @@ function Z4_2008Yano:getDisplayVars()
 		{name='alpha^2*df/dalpha', code='value.vreal = calc_alphaSq_dalpha_f(U->alpha);'},
 		
 		{name='expansion', code=[[
-	real det_gamma = real3s3_det(U->gamma_ll);
-	real3s3 gamma_uu = real3s3_inv(U->gamma_ll, det_gamma);
+	real det_gamma = determinant(U->gamma_ll);
+	real3s3 gamma_uu = inverse(U->gamma_ll, det_gamma);
 	value.vreal = -real3s3_dot(gamma_uu, U->K_ll);
 ]]		},
 --[=[
@@ -123,8 +123,8 @@ momentum constraints
 	-- gravity with shift is much more complex
 	-- TODO add shift influence (which is lengthy)
 		{name='gravity', code=[[
-	real det_gamma = real3s3_det(U->gamma_ll);
-	real3s3 gamma_uu = real3s3_inv(U->gamma_ll, det_gamma);
+	real det_gamma = determinant(U->gamma_ll);
+	real3s3 gamma_uu = inverse(U->gamma_ll, det_gamma);
 	value.vreal3 = real3_real_mul(real3s3_real3_mul(gamma_uu, U->a_l), -U->alpha * U->alpha);
 ]], type='real3'},
 	}
@@ -172,8 +172,8 @@ end
 
 function Z4_2008Yano:consWaveCodePrefix(args)
 	return self:template([[
-real const det_gamma = real3s3_det((<?=U?>)->gamma_ll);
-real3s3 const gamma_uu = real3s3_inv((<?=U?>)->gamma_ll, det_gamma);
+real const det_gamma = determinant((<?=U?>)->gamma_ll);
+real3s3 const gamma_uu = inverse((<?=U?>)->gamma_ll, det_gamma);
 
 <? if solver.coord.vectorComponent == 'cartesian' then ?>
 real3 const n_l = normal_l1(<?=n?>);

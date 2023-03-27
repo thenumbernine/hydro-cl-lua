@@ -47,8 +47,8 @@ real calc_h(real rho, real P, real eInt) {
 	real3s3 const gamma
 ) {
 	//2008 Font eqn 31 etc 
-	real det_gamma = real3s3_det(gamma);
-	real3s3 gammaU = real3s3_inv(gamma, det_gamma);
+	real det_gamma = determinant(gamma);
+	real3s3 gammaU = inverse(gamma, det_gamma);
 	real3 vU = real3s3_real3_mul(gammaU, prim.v);
 	real vSq = real3_dot(prim.v, vU);
 	real WSq = 1. / (1. - vSq);
@@ -115,8 +115,8 @@ void <?=calcDTCell?>(
 	<?=prim_only_t?> prim = primOnlyFromPrim(U, solver, x);
 	<?=solver:getADMVarCode()?>
 
-	real const det_gamma = real3s3_det(gamma);
-	real3s3 const gammaU = real3s3_inv(gamma, det_gamma);
+	real const det_gamma = determinant(gamma);
+	real3s3 const gammaU = inverse(gamma, det_gamma);
 	real3 const vU = real3s3_real3_mul(gammaU, prim.v);
 
 	real const rho = prim.rho;
@@ -156,8 +156,8 @@ void <?=calcDTCell?>(
 	solver:getADMArgs()?>
 ) {
 	<?=solver:getADMVarCode()?>
-	real const det_gamma = real3s3_det(gamma);
-	real3s3 const gammaU = real3s3_inv(gamma, det_gamma);
+	real const det_gamma = determinant(gamma);
+	real3s3 const gammaU = inverse(gamma, det_gamma);
 	
 	real const vUi = gammaU.<?=sym(side+1,1)?> * U.prim.v.x
 			+ gammaU.<?=sym(side+1,2)?> * U.prim.v.y
@@ -277,8 +277,8 @@ kernel void <?=calcEigenBasis?>(
 		};
 		<? end ?>
 		
-		real det_gamma = real3s3_det(gamma);
-		real3s3 gammaU = real3s3_inv(gamma, det_gamma);
+		real det_gamma = determinant(gamma);
+		real3s3 gammaU = inverse(gamma, det_gamma);
 
 		real3 vU = real3s3_real3_mul(gammaU, vL);
 		real vSq = real3_dot(vL, vU);
@@ -369,8 +369,8 @@ void <?=eigen_leftTransform?>(
 	
 	<?=prefix?>
 	
-	real const det_gamma = real3s3_det(gamma);
-	real3s3 const gammaU = real3s3_inv(gamma, det_gamma);
+	real const det_gamma = determinant(gamma);
+	real3s3 const gammaU = inverse(gamma, det_gamma);
 
 	real const vUxSq = vU.x * vU.x;
 	real const hSq = h * h;
@@ -560,8 +560,8 @@ kernel void <?=constrainU?>(
 	
 	<?=solver:getADMVarCode()?>
 	
-	real det_gamma = real3s3_det(gamma);
-	real3s3 gammaU = real3s3_inv(gamma, det_gamma);
+	real det_gamma = determinant(gamma);
+	real3s3 gammaU = inverse(gamma, det_gamma);
 
 	global <?=eqn.cons_only_t?> const * const U = &UBuf[index].cons;
 	

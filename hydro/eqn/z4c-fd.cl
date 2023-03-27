@@ -30,7 +30,7 @@ void <?=setFlatSpace?>(
 <? end
 ?>	real3s3 gammaBar_ll = <?=calc_gammaBar_ll?>(U, x);
 	real det_gammaBar_ll = calc_det_gammaBar_ll(x);
-	U->gammaBar_uu = real3s3_inv(gammaBar_ll, det_gammaBar_ll);
+	U->gammaBar_uu = inverse(gammaBar_ll, det_gammaBar_ll);
 
 	//what to do with the constraint vars and the source vars?
 	U->rho = 0;
@@ -122,8 +122,8 @@ void <?=applyInitCondCell?>(
 	U->alpha = alpha;
 	U->beta_u = beta_u;
 
-	real det_gamma_ll = real3s3_det(gamma_ll);
-	real3s3 gamma_uu = real3s3_inv(gamma_ll, det_gamma_ll);
+	real det_gamma_ll = determinant(gamma_ll);
+	real3s3 gamma_uu = inverse(gamma_ll, det_gamma_ll);
 
 	//det(gammaBar_ij) == det(gammaHat_ij)
 	real det_gammaBar_ll = calc_det_gammaBar_ll(x); 
@@ -135,7 +135,7 @@ void <?=applyInitCondCell?>(
 	
 	real3s3 gammaBar_ll = real3s3_real_mul(gamma_ll, exp_neg4phi);
 	U->epsilon_ll = real3s3_sub(gammaBar_ll, gammaHat_ll);
-	U->gammaBar_uu = real3s3_inv(gammaBar_ll, det_gammaBar_ll);
+	U->gammaBar_uu = inverse(gammaBar_ll, det_gammaBar_ll);
 
 <? if false then ?>
 <? for _,x in ipairs(xNames) do
@@ -228,7 +228,7 @@ then
 	*/
 <? 	if eqn.guiVars.constrain_det_gammaBar_ll.value then ?>
 	real det_gammaHat_ll = coord_det_gHol(x);
-	real det_gammaBar_ll = real3s3_det(gammaBar_ll);
+	real det_gammaBar_ll = determinant(gammaBar_ll);
 	real rescaleMetric = cbrt(det_gammaHat_ll/det_gammaBar_ll);
 <? 		for ij,xij in ipairs(symNames) do
 ?>	gammaBar_ll.<?=xij?> *= rescaleMetric;
@@ -237,7 +237,7 @@ then
 <? 	end ?>
 
 	//here we refresh gammaBar_uu
-	U->gammaBar_uu = real3s3_inv(gammaBar_ll, 1.);
+	U->gammaBar_uu = inverse(gammaBar_ll, 1.);
 	
 	//in Buchman's paper it says he doesn't do this
 	//likewise in my own experiences, this can tend A to grow out of control 

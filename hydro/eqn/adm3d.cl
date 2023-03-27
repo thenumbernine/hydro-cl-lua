@@ -9,8 +9,8 @@ static inline real3s3 <?=calc_gamma_uu?>(
 	global <?=cons_t?> const * const U,
 	real3 const x
 ) {
-	real const det_gamma = real3s3_det((U)->gamma_ll);
-	real3s3 const gamma_uu = real3s3_inv((U)->gamma_ll, det_gamma);
+	real const det_gamma = determinant((U)->gamma_ll);
+	real3s3 const gamma_uu = inverse((U)->gamma_ll, det_gamma);
 	return gamma_uu;
 }
 
@@ -123,8 +123,8 @@ kernel void <?=initDerivs?>(
 	<?=SETBOUNDS?>(solver->numGhost, solver->numGhost);
 	global <?=cons_t?> * const U = UBuf + index;
 	
-	real const det_gamma = real3s3_det(U->gamma_ll);
-	real3s3 const gamma_uu = real3s3_inv(U->gamma_ll, det_gamma);
+	real const det_gamma = determinant(U->gamma_ll);
+	real3s3 const gamma_uu = inverse(U->gamma_ll, det_gamma);
 
 <? 
 for i=1,solver.dim do 
@@ -207,8 +207,8 @@ kernel void <?=initDerivs?>(
 	<?=SETBOUNDS?>(solver->numGhost, solver->numGhost);
 	global <?=cons_t?> * const U = UBuf + index;
 	
-	real const det_gamma = real3s3_det(U->gamma_ll);
-	real3s3 const gamma_uu = real3s3_inv(U->gamma_ll, det_gamma);
+	real const det_gamma = determinant(U->gamma_ll);
+	real3s3 const gamma_uu = inverse(U->gamma_ll, det_gamma);
 
 <? 
 for i=1,solver.dim do 
@@ -254,8 +254,8 @@ end
 ) {\
 	real const f_alpha = calc_f_alpha((U)->alpha);\
 \
-	real const det_gamma = real3s3_det((U)->gamma_ll);\
-	real3s3 gamma_uu = real3s3_inv((U)->gamma_ll, det_gamma);\
+	real const det_gamma = determinant((U)->gamma_ll);\
+	real3s3 gamma_uu = inverse((U)->gamma_ll, det_gamma);\
 \
 	real3 V_l = (U)->V_l;\
 	real3 a_l = (U)->a_l;\
@@ -320,8 +320,8 @@ end
 ) {\
 	(eig)->alpha = (U)->alpha;\
 	(eig)->alpha_sqrt_f = sqrt(calc_f_alphaSq((U)->alpha));\
-	real det_gamma = real3s3_det((U)->gamma_ll);\
-	(eig)->gamma_uu = real3s3_inv((U)->gamma_ll, det_gamma);\
+	real det_gamma = determinant((U)->gamma_ll);\
+	(eig)->gamma_uu = inverse((U)->gamma_ll, det_gamma);\
 	(eig)->sqrt_gammaUjj = real3(sqrt((eig)->gamma_uu.xx), sqrt((eig)->gamma_uu.yy), sqrt((eig)->gamma_uu.zz));\
 \
 <? if eqn.useShift ~= "none" then ?>\
@@ -338,7 +338,7 @@ end
 	/*real3 const */pt,\
 	/*<?=normal_t?> const */n\
 ) {\
-	real const det_gamma = real3s3_det((U)->gamma_ll);\
+	real const det_gamma = determinant((U)->gamma_ll);\
 \
 	real gammaUjj;\
 	if (n.side == 0) {\
@@ -383,10 +383,10 @@ end
 ) {\
 	(eig)->alpha = .5 * ((UL)->alpha + (UR)->alpha);\
 	real3s3 const avg_gamma = real3s3_real_mul(real3s3_add((UL)->gamma_ll, (UR)->gamma_ll), .5);\
-	real const det_avg_gamma = real3s3_det(avg_gamma);\
+	real const det_avg_gamma = determinant(avg_gamma);\
 \
 	(eig)->alpha_sqrt_f = sqrt(calc_f_alphaSq((eig)->alpha));\
-	(eig)->gamma_uu = real3s3_inv(avg_gamma, det_avg_gamma);\
+	(eig)->gamma_uu = inverse(avg_gamma, det_avg_gamma);\
 	(eig)->sqrt_gammaUjj.x = sqrt((eig)->gamma_uu.xx);\
 	(eig)->sqrt_gammaUjj.y = sqrt((eig)->gamma_uu.yy);\
 	(eig)->sqrt_gammaUjj.z = sqrt((eig)->gamma_uu.zz);\
@@ -1408,8 +1408,8 @@ kernel void <?=addSource?>(
 	global <?=cons_t?> * const deriv = derivBuf + index;
 	global <?=cons_t?> const * const U = UBuf + index;
 
-	real const det_gamma = real3s3_det(U->gamma_ll);
-	real3s3 const gamma_uu = real3s3_inv(U->gamma_ll, det_gamma);
+	real const det_gamma = determinant(U->gamma_ll);
+	real3s3 const gamma_uu = inverse(U->gamma_ll, det_gamma);
 
 <? if eqn.useStressEnergyTerms then ?> 
 	real const rho = U->rho;
@@ -3079,8 +3079,8 @@ kernel void <?=constrainU?>(
 	<?=SETBOUNDS?>(solver->numGhost, solver->numGhost);		
 	global <?=cons_t?> * const U = UBuf + index;
 	
-	real const det_gamma = real3s3_det(U->gamma_ll);
-	real3s3 const gamma_uu = real3s3_inv(U->gamma_ll, det_gamma);
+	real const det_gamma = determinant(U->gamma_ll);
+	real3s3 const gamma_uu = inverse(U->gamma_ll, det_gamma);
 
 	real3x3 const K_ul = real3s3_real3s3_mul(gamma_uu, U->K_ll);			//K^i_j
 	real const tr_K = real3x3_trace(K_ul);							//K^k_k

@@ -613,9 +613,9 @@ void <?=applyInitCondCell?>(
 ?>	};
 
 	real3s3 gammaHat_ll = <?=calc_gammaHat_ll?>(x);
-	real det_gammaHat = real3s3_det(gammaHat_ll);
+	real det_gammaHat = determinant(gammaHat_ll);
 	real det_gammaBar = det_gammaHat;
-	real det_gamma = real3s3_det(gamma_ll);
+	real det_gamma = determinant(gamma_ll);
 	real det_gammaBar_over_det_gamma = det_gammaBar / det_gamma;
 	real exp_neg4phi = cbrt(det_gammaBar_over_det_gamma);
 	U->W = sqrt(exp_neg4phi);
@@ -623,7 +623,7 @@ void <?=applyInitCondCell?>(
 	real3s3 epsilon_ll = real3s3_sub(gammaBar_ll, gammaHat_ll);
 	U->epsilon_LL = real3s3_rescaleFromCoord_ll(epsilon_ll, x);
 	
-	real3s3 gamma_uu = real3s3_inv(gamma_ll, det_gamma);
+	real3s3 gamma_uu = inverse(gamma_ll, det_gamma);
 	U->K = real3s3_dot(gamma_uu, K_ll);
 	real3s3 A_ll = real3s3_sub(K_ll, real3s3_real_mul(gamma_ll, -U->K/3.));
 	real3s3 ABar_ll = real3s3_real_mul(A_ll, exp_neg4phi);
@@ -844,8 +844,8 @@ void <?=applyInitCondCell?>(
 	U->alpha = alpha;
 	U->beta_U = real3_rescaleFromCoord_u(beta_u, x);
 
-	real det_gamma = real3s3_det(gamma_ll);
-	real3s3 gamma_uu = real3s3_inv(gamma_ll, det_gamma);
+	real det_gamma = determinant(gamma_ll);
+	real3s3 gamma_uu = inverse(gamma_ll, det_gamma);
 	
 	//det(gammaBar_ij) == det(gammaHat_ij)
 	real det_gammaBar = <?=calc_det_gammaBar?>(x); 
@@ -901,7 +901,7 @@ kernel void <?=initDerivs?>(
 
 //// MODULE_DEPENDS: <?=calc_det_gammaBarLL?>
 	real det_gammaBarLL = <?=calc_det_gammaBarLL?>(x);
-	real3s3 gammaBar_UU = real3s3_inv(gammaBar_LL, det_gammaBarLL);
+	real3s3 gammaBar_UU = inverse(gammaBar_LL, det_gammaBarLL);
 
 <?=eqn:makePartial1"epsilon_LL"?>
 //// MODULE_DEPENDS: calc_partial_gammaBar_LLL 
@@ -2815,7 +2815,7 @@ kernel void <?=calcDeriv?>(
 //// MODULE_DEPENDS: <?=calc_gammaBar_LL?> 
 		real3s3 gammaBar_LL = <?=calc_gammaBar_LL?>(U, x);
 		
-		real3s3 gammaBar_UU = real3s3_inv(gammaBar_LL, det_gammaBarLL);
+		real3s3 gammaBar_UU = inverse(gammaBar_LL, det_gammaBarLL);
 
 <?=eqn:makePartial1'epsilon_LL'?>	//partial_epsilon[k].ij := epsilon_ij,k = gammaBar_ij,k
 
@@ -2880,7 +2880,7 @@ end
 
 //// MODULE_DEPENDS: <?=calc_gammaBar_LL?> 
 	real3s3 const gammaBar_LL = <?=calc_gammaBar_LL?>(U, x);
-	real3s3 const gammaBar_UU = real3s3_inv(gammaBar_LL, det_gammaBarLL);
+	real3s3 const gammaBar_UU = inverse(gammaBar_LL, det_gammaBarLL);
 
 //// MODULE_DEPENDS: <?=calc_exp_neg4phi?> 
 	real const exp_neg4phi = <?=calc_exp_neg4phi?>(U);
@@ -2912,7 +2912,7 @@ end
 	real const det_gammaHat = <?=calc_det_gammaHat?>(x);
 	real const det_gammaBar = det_gammaHat;
 	real3s3 const gammaBar_ll = real3s3_rescaleToCoord_LL(gammaBar_LL, x);
-	real3s3 const gammaBar_uu = real3s3_inv(gammaBar_ll, det_gammaBar);
+	real3s3 const gammaBar_uu = inverse(gammaBar_ll, det_gammaBar);
 #endif	
 
 <? end ?>
@@ -3313,7 +3313,7 @@ kernel void <?=constrainU?>(
 	global <?=cons_t?> * const U = UBuf + index;
 	
 	real3s3 gammaBar_LL = real3s3_add(real3s3_ident, U->epsilon_LL);
-	real det_gammaBarLL = real3s3_det(gammaBar_LL);
+	real det_gammaBarLL = determinant(gammaBar_LL);
 
 <? 
 if eqn.guiVars.constrain_det_gammaBar.value 
@@ -3346,12 +3346,12 @@ then
 	gammaBar_ll = real3s3_real_mul(gammaBar_ll, rescaleMetric); 
 	gammaBar_LL = real3s3_rescaleFromCoord_ll(gammaBar_ll, x);
 	U->epsilon_LL = real3s3_sub(gammaBar_LL, real3s3_ident);
-	det_gammaBarLL = real3s3_det(gammaBar_LL);
+	det_gammaBarLL = determinant(gammaBar_LL);
 #endif
 
 <?	end	-- constrain_det_gammaBar ?>
 
-	real3s3 gammaBar_UU = real3s3_inv(gammaBar_LL, det_gammaBarLL);
+	real3s3 gammaBar_UU = inverse(gammaBar_LL, det_gammaBarLL);
 	
 	//in Buchman's paper it says he doesn't do this
 	//and in the new arbitrary-coord formalism, there is a tr ABar_ij term
@@ -3361,7 +3361,7 @@ then
 
 <? else -- constrain_det_gammaBar or constrain_tr_ABar ?>
 	
-	real3s3 gammaBar_UU = real3s3_inv(gammaBar_LL, det_gammaBarLL);
+	real3s3 gammaBar_UU = inverse(gammaBar_LL, det_gammaBarLL);
 	
 <? end -- constrain_det_gammaBar or constrain_tr_ABar ?>
 
@@ -3770,7 +3770,7 @@ kernel void calcDeriv_PIRK_L1_EpsilonWAlphaBeta(
 	
 	
 	real3s3 gammaBar_LL = <?=calc_gammaBar_LL?>(U, x);
-	real3s3 gammaBar_UU = real3s3_inv(gammaBar_LL, det_gammaBarLL);
+	real3s3 gammaBar_UU = inverse(gammaBar_LL, det_gammaBarLL);
 
 	//////////////////////////////// epsilon_ij_,t //////////////////////////////// 
 	
@@ -3887,7 +3887,7 @@ kernel void calcDeriv_PIRK_L2_ABarK(
 	real const det_gammaBarLL = <?=calc_det_gammaBarLL?>(x);
 	
 	real3s3 const gammaBar_LL = <?=calc_gammaBar_LL?>(U, x);
-	real3s3 const gammaBar_UU = real3s3_inv(gammaBar_LL, det_gammaBarLL);
+	real3s3 const gammaBar_UU = inverse(gammaBar_LL, det_gammaBarLL);
 	
 	real3 const partial_W_L = real3_rescaleFromCoord_l(partial_W_l, x);
 	
@@ -3968,7 +3968,7 @@ kernel void calcDeriv_PIRK_L3_ABarK(
 	real det_gammaBarLL = <?=calc_det_gammaBarLL?>(x);
 
 	real3s3 gammaBar_LL = <?=calc_gammaBar_LL?>(U, x);
-	real3s3 gammaBar_UU = real3s3_inv(gammaBar_LL, det_gammaBarLL);
+	real3s3 gammaBar_UU = inverse(gammaBar_LL, det_gammaBarLL);
 
 	//ABar_ul.i.j := ABar^i_j = gammaBar^kl ABar_kj
 	real3x3 ABar_UL = real3s3_real3s3_mul(gammaBar_UU, U->ABar_LL);
@@ -4077,7 +4077,7 @@ kernel void calcDeriv_PIRK_L2_LambdaBar(
 //// MODULE_DEPENDS: <?=calc_det_gammaBarLL?>
 	real det_gammaBarLL = <?=calc_det_gammaBarLL?>(x);
 	real3s3 gammaBar_LL = <?=calc_gammaBar_LL?>(U, x);
-	real3s3 gammaBar_UU = real3s3_inv(gammaBar_LL, det_gammaBarLL);
+	real3s3 gammaBar_UU = inverse(gammaBar_LL, det_gammaBarLL);
 
 <?=eqn:makePartial1"beta_U"?>		//partial_beta_Ul.j..i := beta^I_,j
 <?=eqn:makePartial1"W"?>			//partial_W_l.i := W_,i 
@@ -4180,7 +4180,7 @@ kernel void calcDeriv_PIRK_L3_LambdaBar(
 
 
 	real3s3 gammaBar_LL = <?=calc_gammaBar_LL?>(U, x);
-	real3s3 gammaBar_UU = real3s3_inv(gammaBar_LL, det_gammaBarLL);
+	real3s3 gammaBar_UU = inverse(gammaBar_LL, det_gammaBarLL);
 
 	real3x3s3 connHat_LLL, connHat_ULL;
 	calc_connHat_LLL_and_ULL(&connHat_LLL, &connHat_ULL, U, x);
@@ -4261,7 +4261,7 @@ kernel void calcDeriv_PIRK_L2_B(
 //// MODULE_DEPENDS: <?=calc_det_gammaBarLL?>
 	real det_gammaBarLL = <?=calc_det_gammaBarLL?>(x);
 	real3s3 gammaBar_LL = <?=calc_gammaBar_LL?>(U, x);
-	real3s3 gammaBar_UU = real3s3_inv(gammaBar_LL, det_gammaBarLL);
+	real3s3 gammaBar_UU = inverse(gammaBar_LL, det_gammaBarLL);
 
 <?=eqn:makePartial1"beta_U"?>		//partial_beta_Ul.j..i := beta^I_,j
 <?=eqn:makePartial1"W"?>			//partial_W_l.i := W_,i 

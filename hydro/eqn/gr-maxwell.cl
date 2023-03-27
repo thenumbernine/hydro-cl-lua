@@ -103,7 +103,7 @@ void <?=applyInitCondCell?>(
 	solver:getADMArgs()?>
 ) {
 	<?=solver:getADMVarCode()?>	
-	real det_gamma = real3s3_det(gamma);	
+	real det_gamma = determinant(gamma);	
 	real det_gamma2 = det_gamma * det_gamma;
 	real det_gamma3 = det_gamma * det_gamma2;
 	
@@ -149,7 +149,7 @@ kernel void calcEigenBasis(
 	int const indexR = index;
 	
 	<?=solver:getADMVarCode{suffix='R'} --[[ produce alphaR, betaR, gammaR at indexR ]] ?>
-	real det_gammaR = real3s3_det(gammaR);
+	real det_gammaR = determinant(gammaR);
 	real det_gammaR2 = det_gammaR * det_gammaR;
 	real det_gammaR3 = det_gammaR * det_gammaR2;
 
@@ -161,7 +161,7 @@ kernel void calcEigenBasis(
 		<?=solver:getULRCode()?>
 		
 		<?=solver:getADMVarCode{suffix='L'} --[[ produce alphaL, betaL, gammaL at indexL ]] ?>
-		real det_gammaL = real3s3_det(gammaL);
+		real det_gammaL = determinant(gammaL);
 		real det_gammaL2 = det_gammaL * det_gammaL;
 		real det_gammaL3 = det_gammaL * det_gammaL2;
 		

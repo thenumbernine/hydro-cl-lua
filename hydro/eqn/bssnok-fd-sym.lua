@@ -1828,8 +1828,8 @@ void <?=applyInitCondCell?>(
 	U->beta_U = real3_rescaleFromCoord_u(beta_u, x);
 	U->B_U = real3_rescaleFromCoord_u(B_u, x);
 
-	real det_gamma = real3s3_det(gamma_ll);
-	real3s3 gamma_uu = real3s3_inv(gamma_ll, det_gamma);
+	real det_gamma = determinant(gamma_ll);
+	real3s3 gamma_uu = inverse(gamma_ll, det_gamma);
 	
 	//det(gammaBar_ij) == det(gammaHat_ij)
 	real det_gammaBar = <?=calc_det_gammaBar?>(x); 

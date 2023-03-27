@@ -116,7 +116,7 @@ function Z4cFiniteDifferenceEquation:getDisplayVars()
 	local vars = Z4cFiniteDifferenceEquation.super.getDisplayVars(self)
 
 	vars:insert{name='det gammaBar - det gammaHat', code = self:template[[
-	value.vreal = real3s3_det(<?=calc_gammaBar_ll?>(U, x)) - calc_det_gammaBar_ll(x);
+	value.vreal = determinant(<?=calc_gammaBar_ll?>(U, x)) - calc_det_gammaBar_ll(x);
 ]]}	-- for logarithmic displays
 	vars:insert{name='det gamma_ij based on phi', code = self:template[[
 	real exp_neg4phi = <?=calc_exp_neg4phi?>(U);

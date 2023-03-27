@@ -3,6 +3,8 @@
 
 //// BEGIN EXCLUDE FOR FFI_CDEF
 
+//////////////////////////////// STL ////////////////////////////////
+
 // TODO from here on down, put in its own header file
 // but that means writing these files to the /cache/ident/src location
 // or another location, and put that in the include search path of the clcpp compiler
@@ -137,6 +139,8 @@ namespace std {
 	static constexpr bool is_detected_v = is_detected<Op, Args...>::value;
 }
 
+//////////////////////////////// Tensor/Math.h.h ////////////////////////////////
+
 template<class T>
 using has_tensorFlag = decltype(std::declval<T>().isTensorFlag);
 
@@ -155,7 +159,7 @@ template<
 	typename A,
 	typename B
 >
-auto dot(
+constexpr auto dot(
 	A const & a,
 	B const & b,
 	std::enable_if_t<IsBinaryTensorOp<A,B>>* = nullptr
@@ -164,7 +168,7 @@ auto dot(
 template<
 	typename T
 >
-auto lenSq(
+constexpr auto lenSq(
 	T const & v,
 	std::enable_if_t<is_tensor_v<T>>* = nullptr
 );
@@ -172,7 +176,7 @@ auto lenSq(
 template<
 	typename T
 >
-auto length(
+constexpr auto length(
 	T const & v,
 	std::enable_if_t<is_tensor_v<T>>* = nullptr
 );
@@ -181,7 +185,7 @@ template<
 	typename A,
 	typename B
 >
-auto distance(
+constexpr auto distance(
 	A const & a,
 	B const & b,
 	std::enable_if_t<IsBinaryTensorOp<A,B>>* = nullptr
@@ -190,9 +194,19 @@ auto distance(
 template<
 	typename T
 >
-T normalize(
+constexpr T normalize(
 	T const & v,
 	std::enable_if_t<is_tensor_v<T>>* = nullptr
+);
+
+template<
+	typename A,
+	typename B
+>
+constexpr auto outer(
+	A const & a,
+	B const & b,
+	std::enable_if_t<IsBinaryTensorOp<A,B>>* = nullptr
 );
 
 // 3D-specific:
@@ -259,6 +273,8 @@ constexpr auto rotateToInDim(
 	std::enable_if_t<is_tensor_v<T> && is_tensor_v<N> && N::rank == 1 && N::template dim<0> == 3>* = nullptr
 );
 
+//////////////////////////////// Tensor/Vector.h ////////////////////////////////
+
 #define TENSOR_THIS(classname)\
 	using This = classname;\
 	static constexpr bool isTensorFlag = true;
@@ -293,11 +309,33 @@ constexpr auto rotateToInDim(
 #define TENSOR_HEADER_VECTOR_SPECIFIC()\
 	static constexpr int localCount = localDim;
 
+// TODO this needs tuple and integer_sequence
+#define TENSOR_HEADER()\
+\
+	static_assert(localCount > 0);\
+\
+	TENSOR_ADD_SCALAR_IMPL(classname)\
+\
+	/*using intN = vec<int,rank>;*//*this needs vec to have arbitrary rank ... which needs ... */\
+\
+	/* TODO arbitrary-dimension ... dim<index> = seq_get_v<index>(dimseq) ... needs integer_sequence to store dimensions */\
+	template<int dimIndex>\
+	static constexpr int dim = localDim;\
+\
+	/* TODO: rank = length of dimseq*/\
+	TENSOR_ADD_RANK_IMPL(classname)\
+\
+	/* TODO need tuples for this */\
+	template<typename NewScalar>\
+	/*using ReplaceScalar = tensorScalarTuple<NewScalar, StorageTuple>;*/\
+	using ReplaceScalar = Template<NewScalar> /* TODO this fails for mat3x3 */;
+
 #define TENSOR_HEADER_VECTOR(classname, Inner_, localDim_)\
 	TENSOR_THIS(classname)\
 	TENSOR_SET_INNER_LOCALDIM_LOCALRANK(Inner_, localDim_, 1)\
 	TENSOR_TEMPLATE_T/*_I*/(classname)\
-	TENSOR_HEADER_VECTOR_SPECIFIC()
+	TENSOR_HEADER_VECTOR_SPECIFIC()\
+	TENSOR_HEADER()
 
 #define TENSOR_ADD_SCALAR_IMPL(classname)\
 	/* TODO instead just count # of tuples in the nested args */\
@@ -378,9 +416,7 @@ constexpr auto rotateToInDim(
 /*\
 #if 0\
 	// TODO needs Common stuff, tuples, functions, apply, write-iterator\
-	template<\
-		typename Lambda\
-	>\
+	template<typename Lambda>\
 	constexpr classname(\
 		Lambda lambda,\
 		std::enable_if_t<\
@@ -453,33 +489,41 @@ constexpr auto rotateToInDim(
 	template<\
 		typename B\
 	>\
-	auto dot(\
+	constexpr auto dot(\
 		B const & b,\
 		std::enable_if_t<IsBinaryTensorOp<This,B>>* = nullptr\
 	) const {\
 		return ::dot(*this, b);\
 	}\
 \
-	auto lenSq() const {\
+	constexpr auto lenSq() const {\
 		return ::lenSq(*this);\
 	}\
 \
-	auto length() const {\
+	constexpr auto length() const {\
 		return ::length(*this);\
 	}\
 \
 	template<\
 		typename B\
 	>\
-	auto distance(\
+	constexpr auto distance(\
 		B const & b,\
 		std::enable_if_t<IsBinaryTensorOp<This,B>>* = nullptr\
 	) const {\
 		return ::distance(*this, b);\
 	}\
 \
-	auto normalize() const {\
+	constexpr auto normalize() const {\
 		return ::normalize(*this);\
+	}\
+\
+	template<typename B>\
+	auto outer(\
+		B const & b,\
+		std::enable_if_t<IsBinaryTensorOp<This,B>>* = nullptr\
+	) const {\
+		return ::outer(*this, b);\
 	}
 
 #define TENSOR_ADD_OPS(classname)\
@@ -497,35 +541,39 @@ constexpr auto rotateToInDim(
 	TENSOR_ADD_MATH_MEMBER_FUNCS()
 
 #define TENSOR_VECTOR_CLASS_OPS(classname)\
-	TENSOR_ADD_SCALAR_IMPL(classname)\
-	TENSOR_ADD_RANK_IMPL(classname)\
 	TENSOR_ADD_VECTOR_CTORS(classname)\
-	TENSOR_ADD_OPS(classname)
+	TENSOR_ADD_OPS(classname)\
+	TENSOR_ADD_VECTOR_CALL_INDEX_PRIMARY()\
+	TENSOR_ADD_RANK1_CALL_INDEX_AUX()
+
+#define TENSOR_ADD_VECTOR_CALL_INDEX_PRIMARY()\
+	constexpr decltype(auto) operator()(int i) { return s[i]; }\
+	constexpr decltype(auto) operator()(int i) const { return s[i]; }\
+	constexpr decltype(auto) operator()(int i) constant { return s[i]; }\
+	constexpr decltype(auto) operator()(int i) constant const { return s[i]; }
+
+#define TENSOR_ADD_BRACKET_FWD_TO_CALL()\
+	constexpr decltype(auto) operator[](int i) { return s[i]; }\
+	constexpr decltype(auto) operator[](int i) const { return s[i]; }\
+	/* need these or else I get this error: */\
+	/* `candidate function not viable: 'this' object is in address space '__constant', but method expects object in address space '__generic'` */\
+	constexpr decltype(auto) operator[](int i) constant { return s[i]; }\
+	constexpr decltype(auto) operator[](int i) constant const { return s[i]; }
+
+#define TENSOR_ADD_RANK1_CALL_INDEX_AUX()\
+	TENSOR_ADD_BRACKET_FWD_TO_CALL()\
+	/* TODO operator()(int, int...) */
 
 template<typename Inner_>
 union vec3 {
 	TENSOR_HEADER_VECTOR(vec3, Inner_, 1)
+
+	Inner s[3] = {{}};
+	struct { Inner s0, s1, s2; };
+	struct { Inner x, y, z; };
 	
 	TENSOR_VECTOR_CLASS_OPS(vec3)
-
-	// TODO arbitrary-dimension
-	template<int dimIndex>
-	static constexpr int dim = localDim;
-
-	template<typename R>
-	using ReplaceScalar = vec3<R>;
-
-	Inner s[3];
-	struct { Inner s0, s1, s2; };
-	struct { Inner x = {}, y = {}, z = {}; };
-
-	constexpr Inner & operator[](int i) { return s[i]; }
-	constexpr Inner const & operator[](int i) const { return s[i]; }
-	// hmm why 'constant' need here?
-	constexpr constant Inner & operator[](int i) constant { return s[i]; }
-	constexpr constant Inner const & operator[](int i) constant const { return s[i]; }
-
-
+	
 	// the following are 3D specific:
 
 	template<
@@ -698,6 +746,8 @@ TENSOR_TENSOR_OP(/)
 
 //// MODULE_CODE:
 
+//////////////////////////////// Tensor/Math.h ////////////////////////////////
+
 // default conj(x) = x
 template<typename T>
 decltype(auto) conj(T const t) { return t; }
@@ -706,7 +756,7 @@ template<
 	typename A,
 	typename B
 >
-auto dot(
+constexpr auto dot(
 	A const & a,
 	B const & b,
 	std::enable_if_t<IsBinaryTensorOp<A,B>>*
@@ -719,7 +769,7 @@ auto dot(
 template<
 	typename T
 >
-auto lenSq(
+constexpr auto lenSq(
 	T const & v,
 	std::enable_if_t<is_tensor_v<T>>*
 ) {
@@ -729,7 +779,7 @@ auto lenSq(
 template<
 	typename T
 >
-auto length(
+constexpr auto length(
 	T const & v,
 	std::enable_if_t<is_tensor_v<T>>*
 ) {
@@ -740,7 +790,7 @@ template<
 	typename A,
 	typename B
 >
-auto distance(
+constexpr auto distance(
 	A const & a,
 	B const & b,
 	std::enable_if_t<IsBinaryTensorOp<A,B>>*
@@ -751,12 +801,31 @@ auto distance(
 template<
 	typename T
 >
-T normalize(
+constexpr T normalize(
 	T const & v,
 	std::enable_if_t<is_tensor_v<T>>*
 ) {
 	return v / length(v);
 }
+
+#if 0		// needs lambda ctor
+template<
+	typename A,
+	typename B
+>
+constexpr auto outer(
+	A const & a,
+	B const & b,
+	std::enable_if_t<IsBinaryTensorOp<A,B>>*
+) {
+	using RS = decltype(typename A::Scalar() * typename B::Scalar());
+	using AB = typename A::template ReplaceScalar<typename B::template ReplaceScalar<RS>>;
+	return AB([&](typename AB::intN i) -> RS {
+		static_assert(decltype(i)::template dim<0> == A::rank + B::rank);
+		return a(i.template subset<A::rank, 0>()) * b(i.template subset<B::rank, A::rank>());
+	});
+}
+#endif
 
 // the following are 3D specific:
 
@@ -1131,7 +1200,7 @@ my current convention is this:
 
 //// MODULE_NAME: real
 
-inline real lenSq(real const x) { return x * x; }
+constexpr inline real lenSq(real const x) { return x * x; }
 
 //// MODULE_NAME: real3
 //// MODULE_DEPENDS: real vec3
@@ -1291,9 +1360,9 @@ static_assert(sizeof(real3s3) == sizeof(real3s3_cdef_t));
 #define real3s3_ident	real3s3(1,0,0,1,0,1)
 
 inline real3s3 outer(real3 const a);
-static inline real real3s3_det(real3s3 const m);
-static inline real3s3 real3s3_inv(real3s3 const m, real const det);
-static inline real3s3 real3s3_inv_nodet(real3s3 const m);
+static inline real determinant(real3s3 const m);
+static inline real3s3 inverse(real3s3 const m, real const det);
+static inline real3s3 inverse(real3s3 const m);
 static inline real3 real3s3_real3_mul(real3s3 m, real3 v);
 static inline real3s3 real3s3_add(real3s3 a, real3s3 b);
 static inline real3s3 real3s3_sub(real3s3 a, real3s3 b);
@@ -1321,13 +1390,13 @@ inline real3s3 outer(real3 const a) {
 ?>	};
 }
 
-static inline real real3s3_det(real3s3 const m) {
+static inline real determinant(real3s3 const m) {
 	return m.xx * (m.yy * m.zz - m.yz * m.yz)
 		- m.xy * (m.xy * m.zz - m.xz * m.yz)
 		+ m.xz * (m.xy * m.yz - m.yy * m.xz);
 }
 
-static inline real3s3 real3s3_inv(real3s3 const m, real const det) {
+static inline real3s3 inverse(real3s3 const m, real const det) {
 	real invDet = 1. / det;
 	return real3s3{
 		(m.yy * m.zz - m.yz * m.yz) * invDet,
@@ -1341,8 +1410,8 @@ static inline real3s3 real3s3_inv(real3s3 const m, real const det) {
 
 //useful for when you want to store the det/inv for evaluation only once,
 // so pass-as-arg instead of macro
-static inline real3s3 real3s3_inv_nodet(real3s3 const m) {
-	return real3s3_inv(m, real3s3_det(m));
+static inline real3s3 inverse(real3s3 const m) {
+	return inverse(m, determinant(m));
 }
 
 static inline real3 real3s3_real3_mul(real3s3 m, real3 v) {
@@ -1517,8 +1586,8 @@ static inline real3x3 real3x3_real3x3_mul(real3x3 a, real3x3 b);
 static inline real real3x3_trace(real3x3 m);
 static inline real3x3 transpose(real3x3 m);
 static inline real3x3 real3x3_from_real(real x);
-static inline real real3x3_det(real3x3 m);
-static inline real3x3 real3x3_inv(real3x3 m);
+static inline real determinant(real3x3 m);
+static inline real3x3 inverse(real3x3 m);
 
 //// MODULE_CODE:
 
@@ -1728,14 +1797,14 @@ static inline real3x3 real3x3_from_real(real x) {
 ?>	};
 }
 
-static inline real real3x3_det(real3x3 m) {
+static inline real determinant(real3x3 m) {
 	return m.x.x * (m.y.y * m.z.z - m.y.z * m.z.y)
 		- m.x.y * (m.y.x * m.z.z - m.y.z * m.z.x)
 		+ m.x.z * (m.y.x * m.z.y - m.y.y * m.z.x);
 }
 
-static inline real3x3 real3x3_inv(real3x3 m) {
-	real invDet = 1. / real3x3_det(m);
+static inline real3x3 inverse(real3x3 m) {
+	real invDet = 1. / determinant(m);
 	return real3x3{
 <?
 --n.x.x = (m.y.y * m.z.z - m.z.y * m.y.z) / det;

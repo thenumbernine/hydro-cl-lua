@@ -112,7 +112,7 @@ real <?=calc_det_gammaBar?>(real3 x) {
 real3s3 <?=calc_gammaBar_uu?>(global const <?=cons_t?>* U, real3 x) {
 	real3s3 gammaBar_ll = <?=calc_gammaBar_ll?>(U, x);
 	real det_gammaBar = <?=calc_det_gammaBar?>(x);
-	real3s3 gammaBar_uu = real3s3_inv(gammaBar_ll, det_gammaBar);
+	real3s3 gammaBar_uu = inverse(gammaBar_ll, det_gammaBar);
 	return gammaBar_uu;
 }
 
@@ -139,7 +139,7 @@ real3s3 <?=calc_gamma_uu?>(global const <?=cons_t?>* U, real3 x) {
 	real exp_4phi = 1. / <?=calc_exp_neg4phi?>(U);
 	real3s3 gamma_ll = real3s3_real_mul(gammaBar_ll, exp_4phi);
 	real det_gamma = <?=calc_det_gammaBar?>(x) * exp_4phi * exp_4phi * exp_4phi;
-	real3s3 gamma_uu = real3s3_inv(gamma_ll, det_gamma); 
+	real3s3 gamma_uu = inverse(gamma_ll, det_gamma); 
 	return gamma_uu;
 }
 

@@ -325,7 +325,7 @@ value.vreal3s3 = real3s3_real_mul(
 		},
 
 		{name='det gammaBar - det gammaHat', code = self:template[[
-value.vreal = real3s3_det(<?=calc_gammaBar_ll?>(U, x)) - <?=calc_det_gammaBar?>(x);
+value.vreal = determinant(<?=calc_gammaBar_ll?>(U, x)) - <?=calc_det_gammaBar?>(x);
 ]]},
 		{name='det gamma based on phi', code = self:template[[
 real exp_neg4phi = <?=calc_exp_neg4phi?>(U);

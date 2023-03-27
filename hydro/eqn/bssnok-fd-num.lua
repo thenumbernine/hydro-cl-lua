@@ -468,7 +468,7 @@ end
 
 	real3s3 gammaBar_LL = <?=calc_gammaBar_LL?>(U, x);
 	real det_gammaBarLL = calc_det_gammaBar(x);
-	real3s3 gammaBar_UU = real3s3_inv(gammaBar_LL, det_gammaBarLL);
+	real3s3 gammaBar_UU = inverse(gammaBar_LL, det_gammaBarLL);
 	real3s3 gammaBar_ll = real3s3_rescaleToCoord_LL(gammaBar_LL, x);
 
 //// MODULE_DEPENDS: calc_connBar_ULL
@@ -760,7 +760,7 @@ end ?>;
 
 	real3s3 gammaBar_LL = <?=calc_gammaBar_LL?>(U, x);
 	real det_gammaBarLL = <?=calc_det_gammaBarLL?>(x);
-	real3s3 gammaBar_UU = real3s3_inv(gammaBar_LL, det_gammaBarLL);
+	real3s3 gammaBar_UU = inverse(gammaBar_LL, det_gammaBarLL);
 
 //// MODULE_DEPENDS: calc_connBar_ULL
 	real3x3s3 connBar_ULL = calc_connBar_ULL(partial_gammaBar_LLL, gammaBar_UU);
@@ -832,7 +832,7 @@ end ?>;
 	
 	real3s3 gammaBar_LL = <?=calc_gammaBar_LL?>(U, x);
 	real det_gammaBarLL = <?=calc_det_gammaBarLL?>(x);
-	real3s3 gammaBar_UU = real3s3_inv(gammaBar_LL, det_gammaBarLL);
+	real3s3 gammaBar_UU = inverse(gammaBar_LL, det_gammaBarLL);
 
 <?=eqn:makePartial1'epsilon_LL'?>
 //// MODULE_DEPENDS: calc_partial_gammaBar_LLL
@@ -899,7 +899,7 @@ gammaBar^kl = inv(gammaBar_kl)
 		code = self:template[[
 	real3s3 gammaBar_LL = <?=calc_gammaBar_LL?>(U, x);
 	real det_gammaBarLL = <?=calc_det_gammaBarLL?>(x);
-	real3s3 gammaBar_UU = real3s3_inv(gammaBar_LL, det_gammaBarLL);
+	real3s3 gammaBar_UU = inverse(gammaBar_LL, det_gammaBarLL);
 <?=eqn:makePartial1'epsilon_LL'?>
 <?=eqn:makePartial2'epsilon_LL'?>
 	
@@ -924,7 +924,7 @@ gammaBar^kl = inv(gammaBar_kl)
 
 	real3s3 gammaBar_LL = <?=calc_gammaBar_LL?>(U, x);
 	real det_gammaBarLL = <?=calc_det_gammaBarLL?>(x);
-	real3s3 gammaBar_UU = real3s3_inv(gammaBar_LL, det_gammaBarLL);
+	real3s3 gammaBar_UU = inverse(gammaBar_LL, det_gammaBarLL);
 	real3s3 gammaBar_ll = real3s3_rescaleToCoord_LL(gammaBar_LL, x);
 
 	real3s3 gammaBar_uu = real3s3_rescaleToCoord_UU(gammaBar_UU, x);
@@ -962,7 +962,7 @@ end
 
 	real3s3 gammaBar_LL = <?=calc_gammaBar_LL?>(U, x);
 	real det_gammaBarLL = <?=calc_det_gammaBarLL?>(x);
-	real3s3 gammaBar_UU = real3s3_inv(gammaBar_LL, det_gammaBarLL);
+	real3s3 gammaBar_UU = inverse(gammaBar_LL, det_gammaBarLL);
 
 	real3x3s3 connHat_LLL, connHat_ULL;
 //// MODULE_DEPENDS: calc_connHat_LLL_and_ULL
@@ -1005,7 +1005,7 @@ end
 			code = self:template[[
 	real3s3 gammaBar_LL = <?=calc_gammaBar_LL?>(U, x);
 	real det_gammaBarLL = <?=calc_det_gammaBarLL?>(x);
-	real3s3 gammaBar_UU = real3s3_inv(gammaBar_LL, det_gammaBarLL);
+	real3s3 gammaBar_UU = inverse(gammaBar_LL, det_gammaBarLL);
 
 <?=eqn:makePartial1'epsilon_LL'?>
 //// MODULE_DEPENDS: calc_partial_gammaBar_LLL
@@ -1034,7 +1034,7 @@ end
 		code = self:template[[
 	real3s3 gammaBar_LL = <?=calc_gammaBar_LL?>(U, x);
 	real det_gammaBarLL = <?=calc_det_gammaBarLL?>(x);
-	real3s3 gammaBar_UU = real3s3_inv(gammaBar_LL, det_gammaBarLL);
+	real3s3 gammaBar_UU = inverse(gammaBar_LL, det_gammaBarLL);
 
 <?=eqn:makePartial1'epsilon_LL'?>
 //// MODULE_DEPENDS: calc_partial_gammaBar_LLL
