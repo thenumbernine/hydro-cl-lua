@@ -2038,7 +2038,7 @@ static inline real3x3 real3x3_swap(real3x3 m, int side) {
 //// MODULE_DEPENDS: real3s3 real3x3
 //// MODULE_TYPE:
 
-typedef union {
+union real3x3s3_cdef_t {
 	real s[18];
 	real3s3 v[3];
 	struct {
@@ -2047,7 +2047,16 @@ typedef union {
 	struct {
 		real3s3 x,y,z;
 	};
-} real3x3s3;
+};
+
+//// BEGIN INCLUDE FOR FFI_CDEF
+typedef union real3x3s3_cdef_t;
+//// END INCLUDE FOR FFI_CDEF
+
+//// BEGIN EXCLUDE FOR FFI_CDEF
+using real3x3s3 = vec3<real3s3>;
+static_assert(sizeof(real3x3s3) == sizeof(real3x3s3_cdef_t));
+//// END EXCLUDE FOR FFI_CDEF
 
 //c^i_jk = a^il b_ljk
 //static inline real3x3s3 real3s3_real3x3s3_mul(real3s3 a, real3x3s3 b);
