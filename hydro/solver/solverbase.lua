@@ -2224,7 +2224,7 @@ value->vreal3 = real3(coordLen(value->vreal3, x),0,0);
 		{name = 'yy', code = 'value->vreal3s3 = real3s3(value->vreal3s3.yy,0,0,0,0,0);'},
 		{name = 'yz', code = 'value->vreal3s3 = real3s3(value->vreal3s3.yz,0,0,0,0,0);'},
 		{name = 'zz', code = 'value->vreal3s3 = real3s3(value->vreal3s3.zz,0,0,0,0,0);'},
-		{name = 'norm', code = 'value->vreal3s3 = real3s3(sqrt(value->vreal3s3.dot(value->vreal3s3)), 0,0,0,0,0);'},
+		{name = 'norm', code = 'value->vreal3s3 = real3s3(sqrt(value->vreal3s3.lenSq()), 0,0,0,0,0);'},
 		{name = 'tr', code = 'value->vreal3s3 = real3s3(trace(value->vreal3s3), 0,0,0,0,0);'},
 		{name = 'det', code = 'value->vreal3s3 = real3s3(value->vreal3s3.determinant(), 0,0,0,0,0);'},
 
@@ -2306,11 +2306,11 @@ value->vcplx3 = _cplx3(cplx_from_real(coordLen(cplx3_im(value->vcplx3), x)), cpl
 		{name = 'zy', code = 'value->vreal3x3 = real3x3{{value->vreal3x3.z.y, 0,0},{0,0,0},{0,0,0}};'},
 		{name = 'zz', code = 'value->vreal3x3 = real3x3{{value->vreal3x3.z.z, 0,0},{0,0,0},{0,0,0}};'},
 
-		{name = 'norm', code = 'value->vreal3x3 = real3x3{{sqrt(dot(value->vreal3x3, value->vreal3x3)), 0,0},{0,0,0},{0,0,0}};'},
+		{name = 'norm', code = 'value->vreal3x3 = real3x3{{sqrt(value->vreal3x3.lenSq()), 0,0},{0,0,0},{0,0,0}};'},
 		{name = 'tr', code = 'value->vreal3x3 = real3x3{{trace(value->vreal3x3), 0,0},{0,0,0},{0,0,0}};'},
 		{name = 'tr metric', code = self.eqn:template[[
 //// MODULE_DEPENDS: <?=coord_g_ll?>
-value->vreal3x3 = real3x3{{dot(value->vreal3x3, coord_g_ll(x)), 0,0},{0,0,0},{0,0,0}};
+value->vreal3x3 = real3x3{{value->vreal3x3.dot(coord_g_ll(x)), 0,0},{0,0,0},{0,0,0}};
 ]]},
 
 		{name = 'x', code = 'value->vreal3 = value->vreal3x3.x; value->vreal3x3.y = {}; value->vreal3x3.z = {};', type = 'real3', magn='x mag'},

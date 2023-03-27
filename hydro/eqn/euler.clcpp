@@ -227,8 +227,8 @@ struct EulerEqn : public Hydro::Eqn<EulerEqn, EulerEqnTraits> {
 			WA.v * W.rho
 			+ W.v * WA.rho;
 		real3 const WA_vL = coord_lower(WA.v, pt);
-		result.ETotal = W.rho * (real).5 * dot(WA.v, WA_vL)
-			+ WA.rho * dot(W.v, WA_vL)
+		result.ETotal = W.rho * (real).5 * WA.v.dot(WA_vL)
+			+ WA.rho * W.v.dot(WA_vL)
 			+ W.P / (solver.heatCapacityRatio - 1.);
 		result.ePot = W.ePot;
 		return result;
@@ -252,8 +252,8 @@ struct EulerEqn : public Hydro::Eqn<EulerEqn, EulerEqnTraits> {
 				- WA.v * (U.rho / WA.rho);
 			real3 const WA_vL = coord_lower(WA.v, pt);
 			result.P = (solver.heatCapacityRatio - 1.) * (
-				.5 * dot(WA.v, WA_vL) * U.rho
-				- dot(U.m, WA_vL)
+				.5 * WA.v.dot(WA_vL) * U.rho
+				- U.m.dot(WA_vL)
 				+ U.ETotal);
 		}
 		result.ePot = U.ePot;
@@ -460,7 +460,7 @@ end
 	) {
 		auto W = primFromCons(solver, U, cell.pos);
 		real3 const vL = coord_lower(W.v, cell.pos);
-		real const vSq = dot(W.v, vL);
+		real const vSq = W.v.dot(vL);
 		real const v_n = n.vecDotN1(W.v);
 		real const eKin = .5 * vSq;
 		real const hTotal = calc_hTotal(W.rho, W.P, U.ETotal);
@@ -505,7 +505,7 @@ end
 				result.rho = UR.rho;
 				result.v = WR.v;
 				result.vL = coord_lower(WR.v, pt);
-				result.vSq = dot(WR.v, result.vL);
+				result.vSq = WR.v.dot(result.vL);
 				result.hTotal = calc_hTotal(WR.rho, WR.P, UR.ETotal);
 				result.Cs = calc_Cs(solver, WR);
 			} else if (UR.rho < rhoEpsilon) {
@@ -514,7 +514,7 @@ end
 				result.rho = UL.rho;
 				result.v = WL.v;
 				result.vL = coord_lower(WL.v, pt);
-				result.vSq = dot(WL.v, result.vL);
+				result.vSq = WL.v.dot(result.vL);
 				result.hTotal = calc_hTotal(WL.rho, WL.P, UL.ETotal);
 				result.Cs = calc_Cs(solver, WL);
 			} else {
@@ -539,7 +539,7 @@ end
 
 				//derived:
 				real3 const vLower = coord_lower(v, pt);
-				real const vSq = dot(v, vLower);
+				real const vSq = v.dot(vLower);
 				real const eKin = .5 * vSq;
 				real const h = hTotal - eKin;
 				// TODO verify hTotal = 1/2 v^2 + Cs^2 / (gamma-1)

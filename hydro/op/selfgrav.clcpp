@@ -62,7 +62,7 @@ kernel void <?=calcGravityDeriv?>(
 	auto const * const U = UBuf + index;
 	real3 accel_g = <?=Solver?>::SelfGrav::calcGravityAccel<dim>(solver, U, pt);
 	deriv->m -= accel_g * U->rho;			// kg/(m^2 s) = kg/m^3 * m/s^2
-	deriv->ETotal -= dot(U->m, accel_g);	// kg/(m s^2) = (kg m^2 / s) * m/s^2
+	deriv->ETotal -= U->m.dot(accel_g);	// kg/(m s^2) = (kg m^2 / s) * m/s^2
 }
 
 //// MODULE_NAME: <?=copyPotentialToReduce?>

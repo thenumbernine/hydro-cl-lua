@@ -723,7 +723,7 @@ function BoundaryMirror:getCode(args)
 			then
 				-- TODO looks very similar to the reflect code in meshsolver
 				lines:insert(template([[
-	<?=result?>-><?=field?> -= n * dot(<?=result?>-><?=field?>, n) * <?=restitutionPlusOne?>;
+	<?=result?>-><?=field?> -= n * <?=result?>-><?=field?>.dot(n) * <?=restitutionPlusOne?>;
 ]], 			{
 					restitutionPlusOne = clnumber(self.restitution + 1),
 					vec3 = var.type,

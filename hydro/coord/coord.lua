@@ -2210,9 +2210,9 @@ real3 coord_cartesianToCoord(real3 u, real3 pt) {
 	?>{
 		real3 e = coord_basisHolUnit<?=i?>(pt);
 <? if coord.vectorComponent == 'anholonomic' then	-- anholonomic normalized
-?>		real uei = dot(e, u);
+?>		real uei = e.dot(u);
 <? else		-- holonomic
-?>		real uei = dot(e, u) / lenSq(e);
+?>		real uei = e.dot(u) / e.lenSq();
 <? end
 ?>		uCoord.<?=xi?> = uei;
 		//subtract off this basis component from u
@@ -2278,9 +2278,9 @@ real3 coord_cartesianToCoord(real3 u, real3 pt) {
 	?>{
 		real3 e = coordBasis<?=i?>(pt);
 <? if coord.vectorComponent == 'anholonomic' then	-- anholonomic normalized
-?>		real uei = dot(e, u);
+?>		real uei = e.dot(u);
 <? else		-- holonomic
-?>		real uei = dot(e, u) / lenSq(e);
+?>		real uei = e.dot(u) / e.lenSq();
 <? end
 ?>		uCoord.<?=xi?> = uei;
 		//subtract off this basis component from u
