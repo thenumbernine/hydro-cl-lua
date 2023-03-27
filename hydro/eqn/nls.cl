@@ -12,7 +12,7 @@ void <?=applyInitCondCell?>(
 	real3 const x = cellBuf[index].pos;
 
 	real r = fabs(x.x);
-	cplx q = cplx_zero;
+	cplx q = {};
 	<?=initCode()?>
 	U->q = q;
 }
@@ -41,31 +41,9 @@ kernel void <?=addSource?>(
 	cplx const q = U[0].q;
 	cplx const q_1R = U[1].q;
 	cplx const q_2R = U[2].q;
-	cplx const d2q_dx2 = cplx_real_mul(
-		cplx_add5(
-			cplx_neg(q_2L),
-			cplx_real_mul(q_1L, 16.),
-			cplx_real_mul(q, -30.),
-			cplx_real_mul(q_1R, 16.),
-			cplx_neg(q_2R)),
-		 1. / (12. * dr * dr));
-	cplx const dq_dx = cplx_real_mul(
-		cplx_add4(
-			q_2L,
-			cplx_real_mul(q_1L, -8.),
-			cplx_real_mul(q_1R, 8.),
-			cplx_neg(q_2R)),
-		 1. / (12. * dr));
-	real const q2 = cplx_lenSq(q);
+	cplx const d2q_dx2 = (-q_2L + q_1L * 16. - q * 30. + q_1R * 16. - q_2R) * (1. / (12. * dr * dr));
+	cplx const dq_dx = (q_2L - q_1L * 8. + q_1R * 8. - q_2R) * (1. / (12. * dr));
+	real const q2 = q.lenSq();
 	real const q4 = q2 * q2;
-	deriv->q = cplx_add(
-		deriv->q,
-		cplx_mul( 
-			_cplx(0., 1.),
-			cplx_add3(
-				d2q_dx2,
-				cplx_real_mul(dq_dx, 4. / r),
-				cplx_real_mul(q, -q4))
-		)
-	);
+	deriv->q += cplx_i * (d2q_dx2 + dq_dx * (4. / r) - q * q4);
 }

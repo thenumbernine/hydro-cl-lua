@@ -881,9 +881,65 @@ union vec {
 	TENSOR_HEADER_VECTOR(vec, Inner_, localDim_)
 	Inner s[3] = {{}};
 	TENSOR_VECTOR_CLASS_OPS(vec)
-} <?=app.real=="half" and "__attribute__ ((packed))" or ""
--- __attribute__ ((packed)) seems to need to be here with real=half
-?>;
+} <?=app.real=="half" and "__attribute__ ((packed))" or ""?>;
+
+template<typename Inner_>
+union vec<Inner_,2> {
+	TENSOR_HEADER_VECTOR(vec, Inner_, 2)
+
+	Inner s[localCount] = {{}};
+	struct { Inner s0, s1, s2; };
+	struct { Inner x, y, z; };
+	
+	TENSOR_VECTOR_CLASS_OPS(vec)
+
+#if 0
+	// 2-component swizzles
+#define TENSOR_VEC2_ADD_SWIZZLE2_ij(i, j)\
+	auto i ## j () { return vec<std::reference_wrapper<Inner>, 2>(i, j); }\
+	auto i ## j () const { return vec<std::reference_wrapper<Inner const>, 2>(i, j); }
+#define TENSOR_VEC2_ADD_SWIZZLE2_i(i)\
+	TENSOR_VEC2_ADD_SWIZZLE2_ij(i,x)\
+	TENSOR_VEC2_ADD_SWIZZLE2_ij(i,y)
+#define TENSOR3_VEC2_ADD_SWIZZLE2()\
+	TENSOR_VEC2_ADD_SWIZZLE2_i(x)\
+	TENSOR_VEC2_ADD_SWIZZLE2_i(y)
+	TENSOR3_VEC2_ADD_SWIZZLE2()
+	
+	// 3-component swizzles
+#define TENSOR_VEC2_ADD_SWIZZLE3_ijk(i, j, k)\
+	auto i ## j ## k() { return vec<std::reference_wrapper<Inner>, 3>(i, j, k); }\
+	auto i ## j ## k() const { return vec<std::reference_wrapper<Inner const>, 3>(i, j, k); }
+#define TENSOR_VEC2_ADD_SWIZZLE3_ij(i,j)\
+	TENSOR_VEC2_ADD_SWIZZLE3_ijk(i,j,x)\
+	TENSOR_VEC2_ADD_SWIZZLE3_ijk(i,j,y)
+#define TENSOR_VEC2_ADD_SWIZZLE3_i(i)\
+	TENSOR_VEC2_ADD_SWIZZLE3_ij(i,x)\
+	TENSOR_VEC2_ADD_SWIZZLE3_ij(i,y)
+#define TENSOR3_VEC2_ADD_SWIZZLE3()\
+	TENSOR_VEC2_ADD_SWIZZLE3_i(x)\
+	TENSOR_VEC2_ADD_SWIZZLE3_i(y)
+	TENSOR3_VEC2_ADD_SWIZZLE3()
+
+	// 4-component swizzles
+#define TENSOR_VEC2_ADD_SWIZZLE4_ijkl(i, j, k, l)\
+	auto i ## j ## k ## l() { return vec<std::reference_wrapper<Inner>, 4>(i, j, k, l); }\
+	auto i ## j ## k ## l() const { return vec<std::reference_wrapper<Inner const>, 4>(i, j, k, l); }
+#define TENSOR_VEC2_ADD_SWIZZLE4_ijk(i,j,k)\
+	TENSOR_VEC2_ADD_SWIZZLE4_ijkl(i,j,k,x)\
+	TENSOR_VEC2_ADD_SWIZZLE4_ijkl(i,j,k,y)
+#define TENSOR_VEC2_ADD_SWIZZLE4_ij(i,j)\
+	TENSOR_VEC2_ADD_SWIZZLE4_ijk(i,j,x)\
+	TENSOR_VEC2_ADD_SWIZZLE4_ijk(i,j,y)
+#define TENSOR_VEC2_ADD_SWIZZLE4_i(i)\
+	TENSOR_VEC2_ADD_SWIZZLE4_ij(i,x)\
+	TENSOR_VEC2_ADD_SWIZZLE4_ij(i,y)
+#define TENSOR3_VEC2_ADD_SWIZZLE4()\
+	TENSOR_VEC2_ADD_SWIZZLE4_i(x)\
+	TENSOR_VEC2_ADD_SWIZZLE4_i(y)
+	TENSOR3_VEC2_ADD_SWIZZLE4()
+#endif
+} <?=app.real=="half" and "__attribute__ ((packed))" or ""?>;
 
 template<typename Inner_>
 union vec<Inner_,3> {
@@ -951,9 +1007,83 @@ union vec<Inner_,3> {
 	TENSOR3_VEC3_ADD_SWIZZLE4()
 #endif
 
-} <?=app.real=="half" and "__attribute__ ((packed))" or ""
--- __attribute__ ((packed)) seems to need to be here with real=half
-?>;
+} <?=app.real=="half" and "__attribute__ ((packed))" or ""?>;
+
+template<typename Inner_>
+union vec<Inner_,4> {
+	TENSOR_HEADER_VECTOR(vec, Inner_, 4)
+
+	Inner s[localCount] = {{}};
+	struct { Inner s0, s1, s2; };
+	struct { Inner x, y, z; };
+	
+	TENSOR_VECTOR_CLASS_OPS(vec)
+
+#if 0
+	// 2-component swizzles
+#define TENSOR_VEC4_ADD_SWIZZLE2_ij(i, j)\
+	auto i ## j () { return vec<std::reference_wrapper<Inner>, 2>(i, j); }\
+	auto i ## j () const { return vec<std::reference_wrapper<Inner const>, 2>(i, j); }
+#define TENSOR_VEC4_ADD_SWIZZLE2_i(i)\
+	TENSOR_VEC4_ADD_SWIZZLE2_ij(i,x)\
+	TENSOR_VEC4_ADD_SWIZZLE2_ij(i,y)\
+	TENSOR_VEC4_ADD_SWIZZLE2_ij(i,z)\
+	TENSOR_VEC4_ADD_SWIZZLE2_ij(i,w)
+#define TENSOR3_VEC4_ADD_SWIZZLE2()\
+	TENSOR_VEC4_ADD_SWIZZLE2_i(x)\
+	TENSOR_VEC4_ADD_SWIZZLE2_i(y)\
+	TENSOR_VEC4_ADD_SWIZZLE2_i(z)\
+	TENSOR_VEC4_ADD_SWIZZLE2_i(w)
+	TENSOR3_VEC4_ADD_SWIZZLE2()
+	
+	// 3-component swizzles
+#define TENSOR_VEC4_ADD_SWIZZLE3_ijk(i, j, k)\
+	auto i ## j ## k() { return vec<std::reference_wrapper<Inner>, 3>(i, j, k); }\
+	auto i ## j ## k() const { return vec<std::reference_wrapper<Inner const>, 3>(i, j, k); }
+#define TENSOR_VEC4_ADD_SWIZZLE3_ij(i,j)\
+	TENSOR_VEC4_ADD_SWIZZLE3_ijk(i,j,x)\
+	TENSOR_VEC4_ADD_SWIZZLE3_ijk(i,j,y)\
+	TENSOR_VEC4_ADD_SWIZZLE3_ijk(i,j,z)\
+	TENSOR_VEC4_ADD_SWIZZLE3_ijk(i,j,w)
+#define TENSOR_VEC4_ADD_SWIZZLE3_i(i)\
+	TENSOR_VEC4_ADD_SWIZZLE3_ij(i,x)\
+	TENSOR_VEC4_ADD_SWIZZLE3_ij(i,y)\
+	TENSOR_VEC4_ADD_SWIZZLE3_ij(i,z)\
+	TENSOR_VEC4_ADD_SWIZZLE3_ij(i,w)
+#define TENSOR3_VEC4_ADD_SWIZZLE3()\
+	TENSOR_VEC4_ADD_SWIZZLE3_i(x)\
+	TENSOR_VEC4_ADD_SWIZZLE3_i(y)\
+	TENSOR_VEC4_ADD_SWIZZLE3_i(z)\
+	TENSOR_VEC4_ADD_SWIZZLE3_i(w)
+	TENSOR3_VEC4_ADD_SWIZZLE3()
+
+	// 4-component swizzles
+#define TENSOR_VEC4_ADD_SWIZZLE4_ijkl(i, j, k, l)\
+	auto i ## j ## k ## l() { return vec<std::reference_wrapper<Inner>, 4>(i, j, k, l); }\
+	auto i ## j ## k ## l() const { return vec<std::reference_wrapper<Inner const>, 4>(i, j, k, l); }
+#define TENSOR_VEC4_ADD_SWIZZLE4_ijk(i,j,k)\
+	TENSOR_VEC4_ADD_SWIZZLE4_ijkl(i,j,k,x)\
+	TENSOR_VEC4_ADD_SWIZZLE4_ijkl(i,j,k,y)\
+	TENSOR_VEC4_ADD_SWIZZLE4_ijkl(i,j,k,z)\
+	TENSOR_VEC4_ADD_SWIZZLE4_ijkl(i,j,k,w)
+#define TENSOR_VEC4_ADD_SWIZZLE4_ij(i,j)\
+	TENSOR_VEC4_ADD_SWIZZLE4_ijk(i,j,x)\
+	TENSOR_VEC4_ADD_SWIZZLE4_ijk(i,j,y)\
+	TENSOR_VEC4_ADD_SWIZZLE4_ijk(i,j,z)\
+	TENSOR_VEC4_ADD_SWIZZLE4_ijk(i,j,w)
+#define TENSOR_VEC4_ADD_SWIZZLE4_i(i)\
+	TENSOR_VEC4_ADD_SWIZZLE4_ij(i,x)\
+	TENSOR_VEC4_ADD_SWIZZLE4_ij(i,y)\
+	TENSOR_VEC4_ADD_SWIZZLE4_ij(i,z)\
+	TENSOR_VEC4_ADD_SWIZZLE4_ij(i,w)
+#define TENSOR3_VEC4_ADD_SWIZZLE4()\
+	TENSOR_VEC4_ADD_SWIZZLE4_i(x)\
+	TENSOR_VEC4_ADD_SWIZZLE4_i(y)\
+	TENSOR_VEC4_ADD_SWIZZLE4_i(z)\
+	TENSOR_VEC4_ADD_SWIZZLE4_i(w)
+	TENSOR3_VEC4_ADD_SWIZZLE4()
+#endif
+} <?=app.real=="half" and "__attribute__ ((packed))" or ""?>;
 
 inline constexpr int triangleSize(int n) {
 	return (n * (n + 1)) / 2;
@@ -2440,78 +2570,72 @@ static_assert(sizeof(cplx) == sizeof(cplx_cdef_t));
 
 //// MODULE_HEADER:
 
+#if 0
 #define real_from_cplx(x)	((x).re)
 
-//buggy
-//#define _cplx(a,b) 			((cplx){.s={a,b}})
-//fixed
-#define _cplx(a,b) 			((cplx){.re=a, .im=b})
-
-#define cplx_from_real(x)	_cplx(x,0)
+#define cplx_from_real(x)	cplx(x,0)
 #define cplx_from_cplx(x)	(x)
-#define cplx_1				_cplx(1,0)
-#define cplx_i	 			_cplx(0,1)
+#define cplx_1				cplx(1,0)
+#define cplx_i	 			cplx(0,1)
 
 static inline cplx cplx_conj(cplx a);
 static inline cplx cplx_neg(cplx a);
 static inline real lenSq(cplx a);
 static inline real cplx_abs(cplx a);
 static inline real cplx_arg(cplx a);
-#if 0
 static inline cplx cplx_add(cplx a, cplx b);
 static inline cplx cplx_sub(cplx a, cplx b);
 static inline cplx cplx_mul(cplx a, cplx b);
 static inline cplx cplx_real_mul(cplx a, real b);
 #define real_cplx_mul(a,b)	cplx_real_mul(b,a)
-#endif
 static inline cplx cplx_inv(cplx a);
 static inline cplx cplx_div(cplx a, cplx b);
 static inline cplx cplx_exp(cplx a);
 static inline cplx cplx_log(cplx a);
 static inline cplx cplx_pow(cplx a, cplx b);
 static inline cplx cplx_sqrt(cplx a);
+#endif
 
 //// MODULE_CODE:
 
-static inline cplx cplx_conj(cplx a) { return _cplx(a.re, -a.im); }
-static inline cplx cplx_neg(cplx a) { return _cplx(-a.re, -a.im); }
+#if 0
+static inline cplx cplx_conj(cplx a) { return cplx(a.re, -a.im); }
+static inline cplx cplx_neg(cplx a) { return cplx(-a.re, -a.im); }
 static inline real lenSq(cplx a) { return a.re * a.re + a.im * a.im; }
 static inline real cplx_abs(cplx a) { return sqrt(lenSq(a)); }
 static inline real cplx_arg(cplx a) { return atan2(a.im, a.re); }
 
 static inline cplx cplx_add(cplx a, cplx b) {
-	return _cplx(
+	return cplx(
 		a.re + b.re,
 		a.im + b.im
 	);
 }
 
 static inline cplx cplx_sub(cplx a, cplx b) {
-	return _cplx(
+	return cplx(
 		a.re - b.re,
 		a.im - b.im
 	);
 }
 
-#if 0
 static inline cplx cplx_mul(cplx a, cplx b) {
-	return _cplx(
+	return cplx(
 		a.re * b.re - a.im * b.im,
 		a.re * b.im + a.im * b.re);
 }
 
 static inline cplx cplx_real_add(cplx a, real b) {
-	return _cplx(a.re + b, a.im);
+	return cplx(a.re + b, a.im);
 }
 
 static inline cplx real_cplx_add(real a, cplx b) {
-	return _cplx(b.re + a, b.im);
+	return cplx(b.re + a, b.im);
 }
 
 static inline cplx cplx_real_mul(cplx a, real b) {
-	return _cplx(a.re * b, a.im * b);
+	return cplx(a.re * b, a.im * b);
 }
-#endif
 
 static inline cplx cplx_inv(cplx a) {
 	return cplx_conj(a) * (1. / lenSq(a));
@@ -2523,14 +2647,14 @@ static inline cplx cplx_div(cplx a, cplx b) {
 
 static inline cplx cplx_exp(cplx a) {
 	real expre = exp(a.re);
-	return _cplx(
+	return cplx(
 		expre * cos(a.im),
 		expre * sin(a.im)
 	);
 }
 
 static inline cplx cplx_log(cplx a) {
-	return _cplx(
+	return cplx(
 		log(cplx_abs(a)),
 		cplx_arg(a)
 	);
@@ -2543,6 +2667,7 @@ static inline cplx cplx_pow(cplx const a, cplx const b) {
 static inline cplx cplx_sqrt(cplx const a) {
 	return cplx_pow(a, cplx_from_real(.5));
 }
+#endif
 
 //// MODULE_NAME: cplx3
 //// MODULE_DEPENDS: cplx real3s3
@@ -2584,7 +2709,7 @@ static inline cplx3 cplx3_from_real3(real3 const re) {
 static inline cplx3 cplx3_from_real3_real3(real3 const re, real3 const im) {
 	return (cplx3){
 <? for i,xi in ipairs(xNames) do
-?>		.<?=xi?> = _cplx(re.<?=xi?>, im.<?=xi?>),
+?>		.<?=xi?> = cplx(re.<?=xi?>, im.<?=xi?>),
 <? end
 ?>	};
 }

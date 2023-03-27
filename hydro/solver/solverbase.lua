@@ -2224,8 +2224,8 @@ value->vreal3 = real3(coordLen(value->vreal3, x),0,0);
 		{name = 'yy', code = 'value->vreal3s3 = real3s3(value->vreal3s3.yy,0,0,0,0,0);'},
 		{name = 'yz', code = 'value->vreal3s3 = real3s3(value->vreal3s3.yz,0,0,0,0,0);'},
 		{name = 'zz', code = 'value->vreal3s3 = real3s3(value->vreal3s3.zz,0,0,0,0,0);'},
-		{name = 'norm', code = 'value->vreal3s3 = real3s3(sqrt(value->vreal3s3.lenSq()), 0,0,0,0,0);'},
-		{name = 'tr', code = 'value->vreal3s3 = real3s3(trace(value->vreal3s3), 0,0,0,0,0);'},
+		{name = 'norm', code = 'value->vreal3s3 = real3s3(value->vreal3s3.length(), 0,0,0,0,0);'},
+		{name = 'tr', code = 'value->vreal3s3 = real3s3(value->vreal3s3.trace(), 0,0,0,0,0);'},
 		{name = 'det', code = 'value->vreal3s3 = real3s3(value->vreal3s3.determinant(), 0,0,0,0,0);'},
 
 		{name = 'x', code = 'value->vreal3s3 = real3s3(value->vreal3s3.xx, value->vreal3s3.xy, value->vreal3s3.xz, 0,0,0);', type = 'real3', magn='x mag'},
@@ -2249,48 +2249,48 @@ value->vreal3s3 = real3s3(coordLen(value->vreal3s3.z(), x), 0,0,0,0,0);
 	})
 	self:addDisplayComponents('cplx', {
 		{name = 'default', type='cplx', magn='abs'},
-		{name = 're', code = 'value->vcplx = cplx_from_real(value->vcplx.re);'},
-		{name = 'im', code = 'value->vcplx = cplx_from_real(value->vcplx.im);'},
-		{name = 'abs', code = 'value->vcplx = cplx_from_real(cplx_abs(value->vcplx));'},
-		{name = 'arg', code = 'value->vcplx = cplx_from_real(cplx_arg(value->vcplx));'},
+		{name = 're', code = 'value->vcplx = cplx(value->vcplx.re);'},
+		{name = 'im', code = 'value->vcplx = cplx(value->vcplx.im);'},
+		{name = 'abs', code = 'value->vcplx = cplx(value->vcplx.abs());'},
+		{name = 'arg', code = 'value->vcplx = cplx(value->vcplx.arg());'},
 	})
 	self:addDisplayComponents('cplx3', {
-		{name = 'mag', code = 'value->vcplx3 = _cplx3(cplx_from_real(value->vcplx3.length()), cplx_zero, cplx_zero);'},
+		{name = 'mag', code = 'value->vcplx3 = cplx3(real3(value->vcplx3.length(), 0, 0));'},
 		{name = 'mag metric', code = self.eqn:template[[
 //// MODULE_DEPENDS: <?=coord_g_ll?>
-value->vcplx3 = _cplx3(cplx_from_real(cplx3_weightedLenSq(value->vcplx3, coord_g_ll(x))), cplx_zero, cplx_zero);
+value->vcplx3 = cplx3(value->vcplx3.weightedLenSq(coord_g_ll(x)), {}, {});
 ]]},
 
-		{name = 'x', code='value->vcplx3 = _cplx3(value->vcplx3.x, cplx_zero, cplx_zero);', type='cplx', magn='x abs'},
-		{name = 'x abs', code = 'value->vcplx3 = _cplx3(cplx_from_real(cplx_abs(value->vcplx3.x)), cplx_zero, cplx_zero);'},
+		{name = 'x', code='value->vcplx3 = cplx3(value->vcplx3.x, {}, {});', type='cplx', magn='x abs'},
+		{name = 'x abs', code = 'value->vcplx3 = cplx3(cplx(value->vcplx3.x.abs()), {}, {});'},
 
-		{name = 'y', code='value->vcplx3 = _cplx3(value->vcplx3.y, cplx_zero, cplx_zero);', type='cplx', magn='y abs'},
-		{name = 'y abs', code = 'value->vcplx3 = _cplx3(cplx_from_real(cplx_abs(value->vcplx3.y)), cplx_zero, cplx_zero);'},
+		{name = 'y', code='value->vcplx3 = cplx3(value->vcplx3.y, {}, {});', type='cplx', magn='y abs'},
+		{name = 'y abs', code = 'value->vcplx3 = cplx3(cplx(value->vcplx3.y.abs()), {}, {});'},
 
-		{name = 'z', code='value->vcplx3 = _cplx3(value->vcplx3.z, cplx_zero, cplx_zero);', type='cplx', magn='z abs'},
-		{name = 'z abs', code = 'value->vcplx3 = _cplx3(cplx_from_real(cplx_abs(value->vcplx3.z)), cplx_zero, cplx_zero);'},
+		{name = 'z', code='value->vcplx3 = cplx3(value->vcplx3.z, {}, {});', type='cplx', magn='z abs'},
+		{name = 'z abs', code = 'value->vcplx3 = cplx3(cplx(value->vcplx3.z.abs()), {}, {});'},
 
-		{name = 'x arg', code = 'value->vcplx3 = _cplx3(cplx_from_real(cplx_arg(value->vcplx3.x)), cplx_zero, cplx_zero);'},
-		{name = 'y arg', code = 'value->vcplx3 = _cplx3(cplx_from_real(cplx_arg(value->vcplx3.y)), cplx_zero, cplx_zero);'},
-		{name = 'z arg', code = 'value->vcplx3 = _cplx3(cplx_from_real(cplx_arg(value->vcplx3.z)), cplx_zero, cplx_zero);'},
-		{name = 'x re', code = 'value->vcplx3 = _cplx3(cplx_from_real(value->vcplx3.x.re), cplx_zero, cplx_zero);'},
-		{name = 'x im', code = 'value->vcplx3 = _cplx3(cplx_from_real(value->vcplx3.x.im), cplx_zero, cplx_zero);'},
-		{name = 'y re', code = 'value->vcplx3 = _cplx3(cplx_from_real(value->vcplx3.y.re), cplx_zero, cplx_zero);'},
-		{name = 'y im', code = 'value->vcplx3 = _cplx3(cplx_from_real(value->vcplx3.y.im), cplx_zero, cplx_zero);'},
-		{name = 'z re', code = 'value->vcplx3 = _cplx3(cplx_from_real(value->vcplx3.z.re), cplx_zero, cplx_zero);'},
-		{name = 'z im', code = 'value->vcplx3 = _cplx3(cplx_from_real(value->vcplx3.z.im), cplx_zero, cplx_zero);'},
+		{name = 'x arg', code = 'value->vcplx3 = cplx3(cplx(cplx_arg(value->vcplx3.x)), {}, {});'},
+		{name = 'y arg', code = 'value->vcplx3 = cplx3(cplx(cplx_arg(value->vcplx3.y)), {}, {});'},
+		{name = 'z arg', code = 'value->vcplx3 = cplx3(cplx(cplx_arg(value->vcplx3.z)), {}, {});'},
+		{name = 'x re', code = 'value->vcplx3 = cplx3(cplx(value->vcplx3.x.re), {}, {});'},
+		{name = 'x im', code = 'value->vcplx3 = cplx3(cplx(value->vcplx3.x.im), {}, {});'},
+		{name = 'y re', code = 'value->vcplx3 = cplx3(cplx(value->vcplx3.y.re), {}, {});'},
+		{name = 'y im', code = 'value->vcplx3 = cplx3(cplx(value->vcplx3.y.im), {}, {});'},
+		{name = 'z re', code = 'value->vcplx3 = cplx3(cplx(value->vcplx3.z.re), {}, {});'},
+		{name = 'z im', code = 'value->vcplx3 = cplx3(cplx(value->vcplx3.z.im), {}, {});'},
 
-		{name = 're', code = 'value->vreal3 = cplx3_re(value->vcplx3); *(real3*)(value+3) = {};', type = 'real3', magn='re mag'},
-		{name = 're mag', code = 'value->vcplx3 = _cplx3(cplx_from_real(cplx3_re(value->vcplx3).length()), cplx_zero, cplx_zero);'},
+		{name = 're', code = 'value->vreal3 = value->vcplx3.re(); *(real3*)(value+3) = {};', type = 'real3', magn='re mag'},
+		{name = 're mag', code = 'value->vcplx3 = cplx3(cplx(value->vcplx3.re().length()), {}, {});'},
 		{name = 're mag metric', code = self.eqn:template[[
 //// MODULE_DEPENDS: <?=coordLen?>
-value->vcplx3 = _cplx3(cplx_from_real(coordLen(cplx3_re(value->vcplx3), x)), cplx_zero, cplx_zero);
+value->vcplx3 = cplx3(cplx(coordLen(value->vcplx3.re(), x)), {}, {});
 ]]},
-		{name = 'im', code = 'value->vreal3 = cplx3_im(value->vcplx3); *(real3*)(value+3) = {};', type = 'real3', magn='im mag'},
-		{name = 'im mag', code = 'value->vcplx3 = _cplx3(cplx_from_real(cplx3_im(value->vcplx3).length()), cplx_zero, cplx_zero);'},
+		{name = 'im', code = 'value->vreal3 = value->vcplx3.im(); *(real3*)(value+3) = {};', type = 'real3', magn='im mag'},
+		{name = 'im mag', code = 'value->vcplx3 = cplx3(cplx(value->vcplx3.im().length()), {}, {});'},
 		{name = 'im mag metric', code = self.eqn:template[[
 //// MODULE_DEPENDS: <?=coordLen?>
-value->vcplx3 = _cplx3(cplx_from_real(coordLen(cplx3_im(value->vcplx3), x)), cplx_zero, cplx_zero);
+value->vcplx3 = cplx3(cplx(coordLen(value->vcplx3.im(), x)), {}, {});
 ]]},
 	})
 	self:addDisplayComponents('real3x3', {
