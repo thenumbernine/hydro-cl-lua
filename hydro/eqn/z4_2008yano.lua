@@ -21,8 +21,8 @@ local Struct = require 'hydro.code.struct'
 local common = require 'hydro.common'
 local xNames = common.xNames
 local symNames = common.symNames
-local from3x3to6 = common.from3x3to6 
-local from6to3x3 = common.from6to3x3 
+local from3x3to6 = common.from3x3to6
+local from6to3x3 = common.from6to3x3
 local sym = common.sym
 
 
@@ -34,9 +34,9 @@ Z4_2008Yano.name = 'z4_2008yano'
 Z4_2008Yano.roeUseFluxFromCons = false
 
 function Z4_2008Yano:init(args)
-	
+
 	self.useShift = args.useShift or 'none'
-	
+
 	local fluxVars = table{
 		{name='a_l', type='real3'},		-- 3:  0-2
 		{name='d_lll', type='real3x3s3'},	-- 18: 3-20
@@ -49,16 +49,16 @@ function Z4_2008Yano:init(args)
 		{name='alpha', type='real'},
 		{name='gamma_ll', type='real3s3'},
 	}:append(fluxVars)
-	
+
 	self:cdefAllVarTypes(args.solver, self.consVars)	-- have to call before countScalars in eqn:init
 
 	self.numWaves = Struct.countScalars{vars=fluxVars}
 	assert(self.numWaves == 31)
-		
+
 	self.numIntStates = Struct.countScalars{vars=self.consVars}
 
 	self.consVars:append{
-		--constraints:              
+		--constraints:
 		{name='H', type='real'},				--1
 		{name='M_u', type='real3'},				--3
 	}
@@ -94,16 +94,16 @@ Z4_2008Yano.predefinedDisplayVars = {
 function Z4_2008Yano:getDisplayVars()
 	local vars = Z4_2008Yano.super.getDisplayVars(self)
 	vars:append{
-		{name='volume', code='value.vreal = U->alpha * sqrt(determinant(U->gamma_ll));'},
+		{name='volume', code='value.vreal = U->alpha * sqrt(U->gamma_ll.determinant());'},
 		{name='f', code='value.vreal = calc_f(U->alpha);'},
 		{name='f*alpha', code='value.vreal = calc_f_alpha(U->alpha);'},
 		{name='f*alpha^2', code='value.vreal = calc_f_alphaSq(U->alpha);'},
 		{name='df/dalpha', code='value.vreal = calc_dalpha_f(U->alpha);'},
 		{name='alpha^2*df/dalpha', code='value.vreal = calc_alphaSq_dalpha_f(U->alpha);'},
-		
+
 		{name='expansion', code=[[
-	real det_gamma = determinant(U->gamma_ll);
-	real3s3 gamma_uu = inverse(U->gamma_ll, det_gamma);
+	real det_gamma = U->gamma_ll.determinant();
+	real3s3 gamma_uu = U->gamma_ll.inverse(det_gamma);
 	value.vreal = -gamma_uu.dot(U->K_ll);
 ]]		},
 --[=[
@@ -115,7 +115,7 @@ for 8 pi rho = G^00
 momentum constraints
 --]]
 		{H = [[
-	.5 * 
+	.5 *
 ]]		},
 --]=]
 
@@ -123,12 +123,12 @@ momentum constraints
 	-- gravity with shift is much more complex
 	-- TODO add shift influence (which is lengthy)
 		{name='gravity', code=[[
-	real det_gamma = determinant(U->gamma_ll);
-	real3s3 gamma_uu = inverse(U->gamma_ll, det_gamma);
+	real det_gamma = U->gamma_ll.determinant();
+	real3s3 gamma_uu = U->gamma_ll.inverse(det_gamma);
 	value.vreal3 = real3_real_mul(real3s3_real3_mul(gamma_uu, U->a_l), -U->alpha * U->alpha);
 ]], type='real3'},
 	}
-	
+
 	return vars
 end
 
@@ -172,8 +172,8 @@ end
 
 function Z4_2008Yano:consWaveCodePrefix(args)
 	return self:template([[
-real const det_gamma = determinant((<?=U?>)->gamma_ll);
-real3s3 const gamma_uu = inverse((<?=U?>)->gamma_ll, det_gamma);
+real const det_gamma = (<?=U?>)->gamma_ll.determinant();
+real3s3 const gamma_uu = (<?=U?>)->gamma_ll.inverse(det_gamma);
 
 <? if solver.coord.vectorComponent == 'cartesian' then ?>
 real3 const n_l = normal_l1(<?=n?>);

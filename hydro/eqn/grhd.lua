@@ -47,13 +47,13 @@ function GRHD:init(args)
 	self.consVars = table()
 	:append(self.consOnlyStruct.vars)
 	:append(self.primOnlyStruct.vars)
-	
+
 
 	self.consOnlyStruct:makeType()
 	self.primOnlyStruct:makeType()
 
 	GRHD.super.init(self, args)
-	
+
 	self.symbols.cons_only_t = self.consOnlyStruct.typename
 	self.symbols.prim_only_t = self.primOnlyStruct.typename
 end
@@ -73,8 +73,8 @@ function GRHD:createInitState()
 
 	self:addGuiVars{
 		{name='heatCapacityRatio', value=7/5},
-		
-		-- setting max iter to 100+ makes it freeze initially 
+
+		-- setting max iter to 100+ makes it freeze initially
 		-- but setting it to 100 after the first iteration is fine ...
 		-- meaning the initial cons to prim is taking too long ...
 		{name='solvePrimMaxIter', type='int', value=10, compileTime=true},	-- value=1000},
@@ -90,9 +90,9 @@ function GRHD:createInitState()
 		--velEpsilon = 1e-10	-- <=> handles up to W = 100,000
 		-- <=> smaller than 1e-15 gnuplot x11 terminal breaks down past W = 1e+7 ...
 		{name='solvePrimVelEpsilon', value=double and 1e-15 or 1e-7},
-		
+
 		{name='solvePrimPMinEpsilon', value=double and 1e-16 or 1e-7},
-		
+
 		{name='rhoMin', value=double and 1e-15 or 1e-7},
 		{name='rhoMax', value=1e+20},
 		{name='eIntMax', value=1e+20},
@@ -142,8 +142,8 @@ function GRHD:getDisplayVars()
 		{name='W based on D', code='value.vreal = U->D / U->rho;'},
 		{name='W based on v', code=self:template[[
 <?=solver:getADMVarCode()?>
-real det_gamma = determinant(gamma);
-real3s3 gammaU = inverse(gamma, det_gamma);
+real det_gamma = gamma.determinant();
+real3s3 gammaU = gamma.inverse(det_gamma);
 value.vreal = 1. / sqrt(1. - real3_weightedLenSq(U->v, gammaU));
 ]]},
 		{name='primitive reconstruction error', code=self:template[[
@@ -163,8 +163,8 @@ value.vreal = 1. / sqrt(1. - real3_weightedLenSq(U->v, gammaU));
 		{name='W error', code=self:template[[
 real W1 = U->D / U->rho;
 <?=solver:getADMVarCode()?>
-real det_gamma = determinant(gamma);
-real3s3 gammaU = inverse(gamma, det_gamma);
+real det_gamma = gamma.determinant();
+real3s3 gammaU = gamma.inverse(det_gamma);
 real W2 = 1. / sqrt(1. - real3_weightedLenSq(U->v, gammaU));
 value.vreal = fabs(W1 - W2);
 ]]		},

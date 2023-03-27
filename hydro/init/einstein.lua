@@ -14,7 +14,7 @@ local EinsteinInitCond = class(InitCond)
 
 function EinsteinInitCond:init(args)
 	EinsteinInitCond.super.init(self, args)
-	
+
 	-- initialize analytical metric components to flat spacetime
 	-- you still have to set 'initAnalytical=true'
 	local Tensor = require 'symmath'.Tensor
@@ -22,15 +22,15 @@ function EinsteinInitCond:init(args)
 	self.beta0_u = Tensor'^i'
 	self.gamma0_ll = self.solver.coord.symchart.metric
 	self.K0_ll = Tensor'_ij'
-	
+
 	--EinsteinInitCond.super.init(self, args, ...)
 end
 
 function EinsteinInitCond:compileC(expr, name, vars)
 	assert(type(expr) == 'table', "expected table, found "..type(expr))
-	if symmath.Expression:isa(expr) then 
+	if symmath.Expression:isa(expr) then
 		expr = expr()
-		
+
 		if self.solver.app.verbose then
 			print('compiling '..name..':')
 			print(expr)
@@ -39,10 +39,10 @@ function EinsteinInitCond:compileC(expr, name, vars)
 			output = {expr},
 			input = vars,
 		}, name
-	
+
 		-- ugh...
 		code = code:gsub('sqrt%(', '(real)sqrt((real)')
-		
+
 		if self.solver.app.verbose then
 			print(code)
 		end
@@ -60,7 +60,7 @@ function EinsteinInitCond:getCodePrefix()
 	-- TODO each eqn must be stated as a guiVar of the solver
 	-- make a parent class or something for all Einstein field eqns
 	local fLuaCode = self.solver.eqn.guiVars.f_eqn:getValue()
-	
+
 	local f = assert(loadstring([[
 local alpha, symmath = ...
 local log = symmath.log
@@ -91,7 +91,7 @@ args:
 
 	args = {x,y,z} spatial basis variables
 	alpha = lapse expression
-	beta = shift expressions 
+	beta = shift expressions
 	gamma = 3-metric
 	K = extrinsic curvature
 
@@ -102,9 +102,9 @@ args:
 
 	preCompile = function to call on expressions before compile
 --]]
-local function initEinstein(args)	
+local function initEinstein(args)
 	local vars = assert(args.vars)
-	
+
 	local exprs = table{
 		alpha = assert(args.alpha),
 		beta = {table.unpack(args.beta or {0,0,0})},	-- optional
@@ -131,28 +131,28 @@ local function initEinstein(args)
 	print('converting everything to expressions...')
 	exprs = table.map(exprs, toExpr)
 	print('...done converting everything to expressions')
-	
+
 	-- ADM
-	
+
 	-- assuming this is one of the ADM 1D solvers
 	print('compiling expressions...')
 	local codes = table.map(
 		assert(args.getCodes(exprs, vars, args), "getCodes needs to return something"),
-		function(v,k) 
+		function(v,k)
 			if args.preCompile then
 				v = args.preCompile(v)
 			end
-			return args.initCond:compileC(v,k,vars) 
+			return args.initCond:compileC(v,k,vars)
 		end)
 	print('...done compiling expressions')
-	
-	-- here's the lapse conditions 
+
+	-- here's the lapse conditions
 
 	local alphaVar = symmath.var'alpha'
 	-- TODO each eqn must be stated as a guiVar of the solver
 	-- make a parent class or something for all Einstein field eqns
 	local fLuaCode = self.guiVars.f:getValue()
-	
+
 	local f = assert(loadstring([[
 local alpha, symmath = ...
 local log = symmath.log
@@ -174,7 +174,7 @@ function EinsteinInitCond:buildFCCode(diff)
 	local solver = assert(self.solver)
 	local alphaVar = symmath.var'alpha'
 	local fLuaCode = solver.eqn.guiVars.f_eqn:getValue()
-	
+
 	local f = assert(loadstring([[
 local alpha, symmath = ...
 local log = symmath.log
@@ -186,7 +186,7 @@ return ]]..fLuaCode))(alphaVar, symmath)
 end
 
 local initConds = table{
-	
+
 	{
 		name = 'Minkowski',
 		-- flag for determining whether to initialize variables (esp the derivative variables) from analytical expressions, or whether to use finite difference via initDerivs
@@ -218,7 +218,7 @@ local initConds = table{
 
 			local size = solver.maxs.x - solver.mins.x
 			self.center = args and args.center or {0,0,0}
-			
+
 			-- 1997 Alcubierre uses amplitude of 5 on a grid size of 300 with dx=1
 			--local H = 5 / 300 * size
 			--local sigma = 10 / 300 * size
@@ -238,7 +238,7 @@ local initConds = table{
 			local solver = assert(self.solver)
 			-- this has to make use of the coordinate metric
 			-- solver.coord.gHol
-			
+
 			return solver.eqn:template([[
 	real3 center = coordMap(real3(<?=clnumber(initCond.center[1])
 								?>, <?=clnumber(initCond.center[2])
@@ -316,14 +316,14 @@ for ij in {v,y,z}
 β_i = {1, 0, 0}			by g_0i = β_i
 γ_ij = diag{0,1,1}  	by g_ij = γ_ij ... is not invertible, so I guess γ^ij is arbitrary?
 	or does a non-invertible γ_ij imply that {u,v,y,z} can't be used as a coordinate system for ADM decomposition?
-γ^ij = diag{0,1,1} also? 
+γ^ij = diag{0,1,1} also?
 since g^ij = γ^ij - β^i β^j / α^2, this could still be non-singular if β^i = {√f, 0, 0} ... chicken-and-egg ...
 --]]
-	{	
+	{
 		name = 'gravitational plane wave uvyz',
 		getInitCondCode = function(self)
 			return [[
-	alpha = 
+	alpha =
 ]]
 		end,
 	},
@@ -337,7 +337,7 @@ g^ab = -(f/2 + 1) e_t^2 - f e_t e_x + (1 - f/2) e_x^2 + e_y^2 + e_z^2
 for ij in {x,y,z}
 
 g_ij = γ_ij
-=> γ_ij = diag{ f/2 + 1, 1, 1} 
+=> γ_ij = diag{ f/2 + 1, 1, 1}
 => γ^ij = diag{ 2/(f + 2), 1, 1}
 
 g_0i = β_i
@@ -357,7 +357,7 @@ CHECK
 
 g^0i = β^i / α^2
 => {-f/2, 0, 0} = {-f/(f + 2), 0, 0} * (f + 2)/2
-=> {-f/2, 0, 0} = {-f/2, 0, 0} 
+=> {-f/2, 0, 0} = {-f/2, 0, 0}
 CHECK
 
 g^ij = γ^ij - β^i β^j / α^2
@@ -370,7 +370,7 @@ CHECK
 what if I transforms this from tx back to uv?
 
 --]]
-	{	
+	{
 		name = 'gravitational plane wave txyz',
 		getInitCondCode = function(self)
 			return [[
@@ -401,27 +401,27 @@ what if I transforms this from tx back to uv?
 		},
 		init = function(self, args)
 			EinsteinInitCond.init(self, args)
-			local solver = assert(self.solver)	
+			local solver = assert(self.solver)
 			local coord = solver.coord
 			assert(coord)
 
 			local symmath = require 'symmath'
 			local var = symmath.var
 			local exp = symmath.exp
-			
+
 			-- TODO make a separate OpenCL initCond_t structure
 			-- this is the alpha0 of the init state params -- wave amplitude -- not the init cond alpha0 used for the initial alpha value
 			local param_alpha0 = var'initCond->alpha0'
 			local param_r0 = var'initCond->r0'
 			local param_sigma = var'initCond->sigma'
-	
+
 			-- variables used by initAnalytical
-			local r = coord.vars.r 
+			local r = coord.vars.r
 			local rplus = (r + param_r0) / param_sigma
 			local rminus = (r - param_r0) / param_sigma
 			local gminus = exp(-rminus^2)
 			local gplus = exp(-rplus^2)
-			
+
 			-- radial (/ first dimension) perturbation of α
 			self.alpha0 = 1 + param_alpha0 * r^2 / (1 + r^2) * (gplus + gminus)
 		end,
@@ -437,7 +437,7 @@ what if I transforms this from tx back to uv?
 		getInitCondCode = function(self)
 			local solver = assert(self.solver)
 			assert(solver.eqn.useScalarField, "you need to enable 'useScalarField' in the eqn ctor args")
-			
+
 			local symmath = require 'symmath'
 			local var = symmath.var
 			local Tensor = symmath.Tensor
@@ -451,16 +451,16 @@ what if I transforms this from tx back to uv?
 			local gminus = symmath.exp(-rminus * rminus)
 			local gplus = symmath.exp(-rplus * rplus)
 			local Phi = alpha0 * r^2 / (1 + r^2) * (gplus + gminus)
-			
+
 			local baseCoords = solver.coord.baseCoords
 			local Psi = Tensor('_i', function(i)
 				return Phi:diff(baseCoords[i])()
 			end)
-			
+
 			-- Π is 1/α (Φ_,t - β^i Ψ_i)
 			local Phi_t = 0
 			local alpha = var'alpha'	-- ADM var
-			local beta = Tensor('^i', function(i) 
+			local beta = Tensor('^i', function(i)
 				return var('beta_u.s'..(i-1))
 			end)
 			local Pi = 1/alpha * (Phi_t - beta'^i' * Psi'_i')()
@@ -516,7 +516,7 @@ what if I transforms this from tx back to uv?
 			return [[
 	real x_s = 0;	//speed * t
 	real v_s = initCond->speed;
-	
+
 	real3 y = xc; y.x -= x_s;
 	real r_s = real3_len(y);
 
@@ -531,9 +531,9 @@ what if I transforms this from tx back to uv?
 
 	real3 dx_r_s = real3_real_mul(y, 1. / r_s);
 
-	real3 dx_f = real3_real_mul(dx_r_s, 
+	real3 dx_f = real3_real_mul(dx_r_s,
 		initCond->sigma * (
-			dtanh(initCond->sigma * (r_s + initCond->R)) 
+			dtanh(initCond->sigma * (r_s + initCond->R))
 			- dtanh(initCond->sigma * (r_s - initCond->R))
 		) / fdenom);
 
@@ -549,8 +549,8 @@ what if I transforms this from tx back to uv?
 
 	--[[
 	2009 Alic, Bona, Bona-Casas "Towards a gauge-polyvariant Numerical Relativity code"
-	
-	isotropic 
+
+	isotropic
 		K_ij = 0
 	cartesian:
 		γ_ij = (1 + m / (2 r))^4 δ_ij	-- eqn 31
@@ -562,7 +562,7 @@ what if I transforms this from tx back to uv?
 
 	ADM decomposition:
 		ds^2 = -(α^2 - β^2) dt^2 + 2 β_i dt dx^i + γ_ij dx^i dx^j
-		
+
 		γ_ij (β^i dt + dx^i) (dt β^j + dx^j)
 		= β^2 dt^2 + 2 β_i dt dx^i + γ_ij dx^i dx^j
 
@@ -571,7 +571,7 @@ what if I transforms this from tx back to uv?
 		n = n_u dx^u = -α dt
 
 		n^2 = α^2 dt^2
-		
+
 		ds^2 = -n^2 + γ_ij (β^i dt + dx^i) (dt β^j + dx^j)
 
 
@@ -582,17 +582,17 @@ what if I transforms this from tx back to uv?
 
 
 	equating this with 2010 Muller "Catalog of Spacetimes" gives us ...
-	
+
 	cartesian isotropic coordiantes, section 2.2.4:
-		
+
 		ds^2 = -((1 - ρ_s/ρ) / (1 + ρ_s/ρ))^2 dt^2 + (1 + ρ_s/ρ)^4 (dx^2 + dy^2 + dz^2)
-		
+
 		g_tt = -((1 - ρ_s/ρ) / (1 + ρ_s/ρ))^2
 		g_ij = (1 + ρ_s/ρ)^4 δ_ij
 
 		2009 Alic's r = 2010 Muller's ρ
 		2009 Alic's m/2 = 2010 Muller's ρ_s
-	
+
 		based on 4-metric:
 			α = (1 - m/(2 r)) / (1 + m/(2 r))
 
@@ -604,13 +604,13 @@ what if I transforms this from tx back to uv?
 		γ^_ij = δ_ij
 
 	spherical isotropic coordinates, section 2.2.3:
-		
+
 		ds^2 = -((1 - ρ_s/ρ) / (1 + ρ_s/ρ))^2 dt^2 + (1 + ρ_s/ρ)^4 (dρ^2 + ρ^2 (dθ^2 + sin(θ)^2 dφ^2))
-		
+
 		g_tt = -((1 - ρ_s/ρ) / (1 + ρ_s/ρ))^2
 		so α is the same as cartesian isotropic
 
-		γ_ρρ = (1 + ρ_s/ρ)^4 
+		γ_ρρ = (1 + ρ_s/ρ)^4
 		γ_θθ = (1 + ρ_s/ρ)^4 ρ^2
 		γ_φφ = (1 + ρ_s/ρ)^4 ρ^2 sin(θ)^2 dφ^2)
 
@@ -655,7 +655,7 @@ what if I transforms this from tx back to uv?
 	// 2009 Alic et al eqn 31
 //// MODULE_DEPENDS: <?=coord_g_ll?>
 	gamma_ll = real3s3_real_mul(coord_g_ll(x), 1 + .5 * m / r);
-	
+
 <? if true then ?>	// 2009 Alic et al eqn 29
 	real const alpha0 = 1.;
 	real const gamma0 = 1.;
@@ -670,7 +670,7 @@ what if I transforms this from tx back to uv?
 	},
 
 	-- 2009 Bona et al "Elements in Numerical Relativity ... " eqn 6.22-6.24
-	{	
+	{
 		name = 'black hole - Schwarzschild',
 		init = function(self, args)
 			self.initCondArgs = args
@@ -679,7 +679,7 @@ what if I transforms this from tx back to uv?
 		createInitStruct = function(self)
 			EinsteinInitCond.createInitStruct(self)
 			args = self.initCondArgs or {}
-				
+
 			-- TODO bodies
 			self:addGuiVars{
 				{name = 'R', value = args and args.R or 2},	-- M = 1
@@ -695,7 +695,7 @@ what if I transforms this from tx back to uv?
 	real3 xrel = real3_sub(xc, center);
 
 	real r = real3_len(xrel);
-	
+
 	real R_over_r = R / r;
 	real psi = 1. + .25 * R_over_r;
 	real psiSq = psi * psi;
@@ -705,8 +705,8 @@ what if I transforms this from tx back to uv?
 ]]
 		end,
 	},
-	
-	
+
+
 	{	-- Baumgarte & Shapiro, table 2.1, isotropic coordinates
 		-- also looking at ch 12.2 on binary black hole initial data
 		--[[
@@ -720,18 +720,18 @@ what if I transforms this from tx back to uv?
 		args:
 			bodies:
 				R = Schwarzschild radius
-				P_u = linear momentum 
-				S_u = angular momentum 
+				P_u = linear momentum
+				S_u = angular momentum
 				pos = separation
 		--]]
 		init = function(self, args)
 			EinsteinInitCond.init(self, args)
 			local solver = assert(self.solver)
-			
+
 			args = args or {}
-			
+
 			local v = self.guiVars
-			
+
 			-- TODO make the default just M=1 <=> R=2 and no momentum or spin
 			self.bodies = args.bodies or {
 				{
@@ -741,9 +741,9 @@ what if I transforms this from tx back to uv?
 					pos = {0,0,0},
 				},
 			}
-			
+
 			-- TODO allow rescaling grid within initial conditions.
-			--[[ TODO use these instead of bodies ... and have a parameter for # of bodies ... and add/subtract bodies ... 
+			--[[ TODO use these instead of bodies ... and have a parameter for # of bodies ... and add/subtract bodies ...
 			for i,body in ipairs(self.bodies) do
 				local bodyPrefix = i..'.'
 				solver.eqn:addGuiVar{name = bodyPrefix..'R', value = body.R}
@@ -770,11 +770,11 @@ what if I transforms this from tx back to uv?
 			1) calculate K_PS^ij for each puncture.  two lowerings are involved in computing the spatial cross product.  these require φ -- which hasn't been calculated yet.  (should I pretend they are lowered with an identity metric?)
 			2) use the sum of K_PS^ij's to compute K^ij at each point
 			3) compute α = 1 / (.5 sum_i m_i / (r - r_i))
-			4) compute β = 1/8 α^7 K^ab K_ab ... which again requires phi, which is what we're trying to solve for ... (is this a gradient descent or a predictor-corrector algorithm?) 
+			4) compute β = 1/8 α^7 K^ab K_ab ... which again requires phi, which is what we're trying to solve for ... (is this a gradient descent or a predictor-corrector algorithm?)
 			5) compute (converge?) u = Δ^-1 β / (1 + α u)^7
 			6) φ = 1/α + u
 			7) and then there's something about the spherical coordinate inversion ...
-			
+
 			Here's the answer to the circular definitions of index raising/lowering with a metric that uses the variables we are solving for ...
 			B&S 12.2.1: "...so that ~γ_ij = η_ij..."
 			So all raising and lowering throughout these computations uses η_ij?
@@ -787,7 +787,7 @@ what if I transforms this from tx back to uv?
 			--]]
 			return solver.eqn:template([[
 	//real sln_oneOverAlpha = 0.;
-	
+
 	real psi = 1.;
 	real alpha_num = 1.;
 	<? for _,body in ipairs(bodies) do ?>{
@@ -795,21 +795,21 @@ what if I transforms this from tx back to uv?
 		real3 pos = real3(<?=table(body.pos):mapi(clnumber):concat', '?>);
 		real3 xrel = real3_sub(xc, pos);
 		real r = real3_len(xrel);
-		
+
 		// the correct binary black hole way: B&S 12.51
 		//sln_oneOverAlpha += .5 * <?=clnumber(body.R)?> / r;
-		
+
 		//the time-symmetric way:
 		real R_over_r = R / r;
 		psi += .25 * R_over_r;
 		alpha_num -= .25 * R_over_r;
-	
+
 	}<? end ?>		//sum of mass over radius
 
 	//correct binary black hole way
 	//ψ = 1 + 1/α + u	-- B&S 12.50
 
-	//next solve u via 
+	//next solve u via
 	// Baumgarte & Shapiro add an extra 1 to ψ's calculations as compared to the original Brandt & Brugmann equation
 	//_D^2 u = -1/8 α^7 _A_ij _A^ij / ( α (1 + u) + 1)^7 	<-- Baumgarte & Shapiro eqns 12.52, 12.53
 	//...factoring out the α ...
@@ -819,7 +819,7 @@ what if I transforms this from tx back to uv?
 	alpha = alpha_num / psi;
 	real psi2 = psi * psi;
 	real psi4 = psi2 * psi2;
-	
+
 	W = psi2;
 
 	<? for _,body in ipairs(bodies) do ?>{
@@ -839,9 +839,9 @@ what if I transforms this from tx back to uv?
 		real3 S_u = real3(<?=table(body.S_u):mapi(clnumber):concat', '?>);
 
 		real3 P_l = real3_real_mul(P_u, psi4);
-		
+
 		real n_dot_P = real3_dot(n_l, P_u);
-		
+
 		//Alcubierre 3.4.22
 		//Bowen-York extrinsic curvature
 
@@ -859,7 +859,7 @@ what if I transforms this from tx back to uv?
 			3. / rCubed);
 
 		ABar_LL = real3s3_add(
-			ABar_LL, 
+			ABar_LL,
 			real3s3_rescaleFromCoord_LL(
 				real3s3_add(ABar_boost_ll, ABar_spin_ll),
 				x)
@@ -886,7 +886,7 @@ what if I transforms this from tx back to uv?
 		init = function(self, args)
 			EinsteinInitCond.init(self, args)
 			local solver = assert(self.solver)
-			
+
 			local symmath = require 'symmath'
 			setfenv(1, setmetatable({}, {
 				__index = function(t,k)
@@ -894,13 +894,13 @@ what if I transforms this from tx back to uv?
 					local v = _G[k] if v ~= nil then return v end
 				end,
 			}))
-			
+
 			local r = solver.coord.vars.r
 			local theta = solver.coord.baseCoords[2]	-- only true for sphere and sphere-log-polar
 			local rs = var'initCond->rs'
-			
+
 			self.alpha0 = sqrt(1 - rs/r)
-			self.gamma0_ll = Tensor('_ij', 
+			self.gamma0_ll = Tensor('_ij',
 				{1/(1 - rs/r), 0, 0},
 				{0, r^2, 0},
 				{0, 0, r^2 * sin(theta)^2}
@@ -925,13 +925,13 @@ what if I transforms this from tx back to uv?
 					local v = _G[k] if v ~= nil then return v end
 				end,
 			}))
-			
+
 			local r = solver.coord.vars.r
 			local theta = solver.coord.baseCoords[2]	-- only true for sphere and sphere-log-polar
 			local rs = var'initCond->rs'
-			
+
 			self.alpha0 = sqrt( (1 - rs/(4*r)) / (1 + rs/(4*r)) )
-			self.gamma0_ll = (Tensor('_ij', 
+			self.gamma0_ll = (Tensor('_ij',
 				{1, 0, 0},
 				{0, r^2, 0},
 				{0, 0, r^2 * sin(theta)^2}
@@ -983,8 +983,8 @@ what if I transforms this from tx back to uv?
 		real BB_toThe3 = BB * BBsq;
 		real CC = M_plus_2_rB_toThe6 - 8. * M_minus_2_rB_sq * rB_toThe4 * vzsq;
 		beta_u.z = -1./(BB*BB) * (
-			M * vz 
-			* (M*M + 6*M*rB + 16*rBsq) 
+			M * vz
+			* (M*M + 6*M*rB + 16*rBsq)
 			* (M*M*M + 6*M*M*rB + 8*M*rB*rB + 16*rB*rBsq)
 		);
 		B_u.z = -(
@@ -1002,7 +1002,7 @@ what if I transforms this from tx back to uv?
 		real theta0 = x.y;
 		real phi0 = x.z;
 		real r0sq = r0 * r0;
-		
+
 		real cos_theta0 = cos(theta0);
 		real cos_theta0_sq = cos_theta0 * cos_theta0;
 		real sin_theta0 = sin(theta0);
@@ -1025,23 +1025,23 @@ what if I transforms this from tx back to uv?
 			r0*cos(2*theta0)*(Atxz*cos(phi0) + Atyz*sin(phi0)) + (Atxx - Atzz)*r0*cos_theta0*sin(theta0)
 		);
 		APhys00DD.xz = psiB_toThe4 * (
-			r0*cos_theta0*(Atyz*cos(phi0) - Atxz*sin(phi0))*sin(theta0) 
+			r0*cos_theta0*(Atyz*cos(phi0) - Atxz*sin(phi0))*sin(theta0)
 		);
 		APhys00DD.yy = psiB_toThe4 * (
-			r0sq*(Atxx*cos_theta0_sq + Atzz*sin_theta0_sq - (Atxz*cos(phi0) + Atyz*sin(phi0))*sin(2*theta0))	
+			r0sq*(Atxx*cos_theta0_sq + Atzz*sin_theta0_sq - (Atxz*cos(phi0) + Atyz*sin(phi0))*sin(2*theta0))
 		);
 		APhys00DD.yz = psiB_toThe4 * (
 			r0sq*(-Atyz*cos(phi0) + Atxz*sin(phi0))*sin_theta0_sq
 		);
 		APhys00DD.zz = psiB_toThe4 * (
-			Atxx*r0sq*sin_theta0_sq	
+			Atxx*r0sq*sin_theta0_sq
 		);
 
 		real K = (32*LF * M * vz * (M_plus_2_rB_toThe7 - 32*M_minus_2_rB_sq * (M - rB) * rB_toThe4 * vzsq)*rBsq * zB)
 			/ (M_plus_2_rB_toThe3*BB_toThe3);
-	
-		real det_gamma = determinant(gamma_ll);
-		real det_gammaBar = <?=calc_det_gammaBar?>(x); 
+
+		real det_gamma = gamma_ll.determinant();
+		real det_gammaBar = <?=calc_det_gammaBar?>(x);
 		real exp_neg4phi = cbrt(det_gammaBar / det_gamma);
 
 		real3s3 A_ll = real3s3_real_mul(APhys00DD, 1. / exp_neg4phi);
@@ -1056,7 +1056,7 @@ what if I transforms this from tx back to uv?
 		name = 'black hole - Brill Lindquist',
 		init = function(self, args)
 			EinsteinInitCond.init(self, args)
-			
+
 			args = args or {}
 			local v = self.guiVars
 			self.bodies = args.bodies or {
@@ -1070,7 +1070,7 @@ what if I transforms this from tx back to uv?
 		end,
 		getInitCondCode = function(self)
 			return self.solver.eqn:template([[
-<? local clnumber = require 'cl.obj.number' ?>	
+<? local clnumber = require 'cl.obj.number' ?>
 	real psi = 1.;
 	<? for _,body in ipairs(bodies) do ?>{
 		real const R = <?=clnumber(body.R)?>;
@@ -1113,17 +1113,17 @@ what if I transforms this from tx back to uv?
 	U->beta_U = real3_zero;
 	U->B_U = real3_zero;
 	U->LambdaBar_U = real3_zero;
-	U->epsilon_LL = real3s3_zero; 
+	U->epsilon_LL = real3s3_zero;
 	U->ABar_LL = real3s3_zero;
 ]]
 		end,
 	},
 
-	{	
+	{
 		--[[
 		based on 2010 Liu, Etienne, Shapiro "near extremal ..."
 		NOTICE this condition violates the EFE!
-			"We removed the physical ring singularity inside the horizon by filling the BH interior with constraint-violating “junk” initial data. 
+			"We removed the physical ring singularity inside the horizon by filling the BH interior with constraint-violating “junk” initial data.
 			It has been demonstrated that the BSSN (Baumgarte-Shapiro-Shibata-Nakamura) scheme [38, 39], coupled with moving puncture gauge conditions, guarantees that the “junk” data will not propagate out of the horizon [40–42]."
 		How does that affect the behavior of the finite-volume solvers?
 		--]]
@@ -1146,11 +1146,11 @@ what if I transforms this from tx back to uv?
 			},
 		},
 		getInitCondCode = function(self)
-			if not require 'hydro.coord.sphere':isa(self.solver.coord) 
-			and not require 'hydro.coord.sphere_sinh_radial':isa(self.solver.coord) 
+			if not require 'hydro.coord.sphere':isa(self.solver.coord)
+			and not require 'hydro.coord.sphere_sinh_radial':isa(self.solver.coord)
 			then
 				print"!!!!!!! WARNING !!!!!!! - this init cond only works in spherical (or radially-remapped) coordinate system."
-			end		
+			end
 			return self.solver.eqn:template[[
 //// MODULE_DEPENDS: <?=coordMapR?>
 real const r = coordMapR(x);
@@ -1190,10 +1190,10 @@ real const Sigma = rBL_sqr + a_sqr * costh_sqr;
 real const Delta = rBL_sqr - 2. * M * rBL + a_sqr;
 real const A = sqr(rBL_sqr + a_sqr) - Delta * a_sqr * sinth_sqr;
 
-//grid coordinate metric. TODO gamma_ll should be initialized to this by the eqn.  but meh initialize it again to be safe. 
+//grid coordinate metric. TODO gamma_ll should be initialized to this by the eqn.  but meh initialize it again to be safe.
 //// MODULE_DEPENDS: <?=calc_gammaHat_ll?>
 real3s3 const gammaHat_ll = <?=calc_gammaHat_ll?>(x);
-real const det_gammaHat = determinant(gammaHat_ll);
+real const det_gammaHat = gammaHat_ll.determinant();
 
 // 2010 Liu et al eqn 13
 gamma_ll = real3s3_zero;
@@ -1215,10 +1215,10 @@ K_ll.yz = -((2. * a_cubed * M * rBL * costh * sinth_cubed) / (Sigma * sqrt(A*Sig
 
 //with such a low alpha comes slow waves and therefore very slow cfl
 //TODO exclude waves within event horizon from CFL?
-real const det_gamma = determinant(gamma_ll);
+real const det_gamma = gamma_ll.determinant();
 //TODO in the BSSN coordinate-free equations, the conformal factor is a ratio of the physical to the grid metric
 // and the difference of physical to background connection (which is a tensor) is evolved
-// but in my finite-volume Z4 equations, I'm evolving the partials of the metric ... 
+// but in my finite-volume Z4 equations, I'm evolving the partials of the metric ...
 // ... not the difference with background metric ...
 // ... specifically because those intrduced more terms (right?)
 // ... bad idea?  should I be evolving difference of partials of physical with background metric?
@@ -1266,16 +1266,16 @@ beta_u.z = -((2 * M * a * rBL) / A);
 					radius = self.guiVars.bodyRadius.value,
 				}
 			}
-			
+
 			return self.solver.eqn:template([[
 <? for _,body in ipairs(bodies) do
 ?>
 	real3 pos = real3(<?=table.mapi(body.pos, clnumber):concat', '?>);
 	real3 ofs = real3_sub(xc, pos);
-	
+
 	real r = real3_len(ofs);
 	real3 l = real3_real_mul(ofs, 1./r);
-	
+
 	real m = r / initCond->bodyRadius; m *= m * m; m = min(m, 1.); m *= initCond->bodyMass;
 	real R = 2. * m;
 
@@ -1309,10 +1309,10 @@ beta_u.z = -((2 * M * a * rBL) / A);
 			})
 		end,
 	},
-	
-	
-	
-	
+
+
+
+
 	--[=[
 	{
 		name = 'stellar model 3',
@@ -1342,10 +1342,10 @@ beta_u.z = -((2 * M * a * rBL) / A);
 				bodies={
 					{pos = {0,0,0}, radius = planet.radiusInCoords, mass = planet.massInCoords},
 	--]=]
-	
-	
-	
-	
+
+
+
+
 	--[[
 	2007 Alic et al "Efficient Implementation of finite volume methods in Numerical Relativity"
 	1D Black Hole in wormhole form
@@ -1359,18 +1359,18 @@ beta_u.z = -((2 * M * a * rBL) / A);
 		name = '1D black hole - wormhole form',
 		init = function(self, args)
 			EinsteinInitCond.init(self, args)
-			
+
 			self.solver.eqn:addGuiVar{name='m', value=1}
 		end,
 		getCodePrefix = function(self)
 			local solver = assert(self.solver)
 			local m = self.guiVars.m.value
-		
+
 			-- TODO refreshCodePrefix ... except this is called by that ...
 			-- hmm, account for initCond's defining the bounds
-			solver.mins = vec3d(0,0,0) 
-			solver.maxs = vec3d(8,8,8) 
-			
+			solver.mins = vec3d(0,0,0)
+			solver.maxs = vec3d(8,8,8)
+
 			-- coords: t, η, Ω
 			-- g_tt = -tanh(η)^2 = -α^2 <=> α = tanh(η)
 			-- g_ηη = 4 m^2 cosh(η/2)^4
@@ -1382,12 +1382,12 @@ beta_u.z = -((2 * M * a * rBL) / A);
 			-- TODO mapping to isotropic coordinates?
 			-- or separate models or automatic transforms between isotropic and spherical?
 			local xs = xNames:mapi(function(x) return symmath.var(x) end)
-			
+
 			-- [[ using eta as a coord
 			local eta, theta, phi = xs:unpack()
 			local alpha = symmath.tanh(eta)
 			local g_eta_eta = 4 * m^2 * symmath.cosh(eta/2)^4
-			local gamma = {g_eta_eta, 0, 0, g_eta_eta, 0, g_eta_eta}  
+			local gamma = {g_eta_eta, 0, 0, g_eta_eta, 0, g_eta_eta}
 			--]]
 			--[[
 			local x,y,z = xs:unpack()
@@ -1399,7 +1399,7 @@ beta_u.z = -((2 * M * a * rBL) / A);
 			-- = (4r^2 - m^2) / (4r^2 + m^2)
 			local tanh_eta = (4 * r^2 - m^2) / (4 * r^2 + m^2)
 			local alpha = tanh_eta
-			-- or maybe the paper just initializes a lapse of 1? 
+			-- or maybe the paper just initializes a lapse of 1?
 			--local alpha = 1
 			-- 4 m^2 cosh(η/2)^4 dη^2 = 4 m^2 cosh(log(2r/m)/2)^4 /r^2 dr^2
 			-- = 4 (m/r)^2 (√(2r/m) + √(m/2r) )^4 dr^2
@@ -1410,7 +1410,7 @@ beta_u.z = -((2 * M * a * rBL) / A);
 			--local g_rr = (m/r)^2 * (2*r/m + m/(2*r))^4 / 4
 			local gamma = {g_rr, 0, 0, g_rr, 0, g_rr}
 			--]]
-			
+
 			return initEinstein{
 				initCond = self,
 				solver = solver,
@@ -1463,7 +1463,7 @@ TODO I now have a Bessel function routine in hydro/math.cl
 		-- the SENR/NumPy uses an ε of .02
 		init = function(self, args)
 			EinsteinInitCond.init(self, args)
-			
+
 			self.solver.eqn:addGuiVar{name='epsilon', value=1e-10}
 		end,
 		getInitCondCode = function(self)
@@ -1511,13 +1511,13 @@ TODO I now have a Bessel function routine in hydro/math.cl
 		name = 'testbed - gauge wave - diagonal',
 		init = function(self, args)
 			EinsteinInitCond.init(self, args)
-			
+
 			error"finishme"
 		end,
 	},
-	
+
 	--[[
-	ds^2 = 
+	ds^2 =
 	--]]
 	{
 		name = 'testbed - linear wave',
@@ -1550,7 +1550,7 @@ TODO I now have a Bessel function routine in hydro/math.cl
 		name = 'testbed - linear wave - diagonal',
 		init = function(self, args)
 			EinsteinInitCond.init(self, args)
-			
+
 			error"finishme"
 		end,
 	},
@@ -1558,7 +1558,7 @@ TODO I now have a Bessel function routine in hydro/math.cl
 		name = 'testbed - Gowdy',
 		init = function(self, args)
 			EinsteinInitCond.init(self, args)
-			
+
 			error'finishme'
 		end,
 		getCodePrefix = function(self)

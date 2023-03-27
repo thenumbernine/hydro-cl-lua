@@ -35,8 +35,8 @@ real3s3 <?=calc_gammaBar_LL?>(
 
 //// MODULE_NAME: <?=calc_det_gammaBarLL?>
 /*
-det(epsilon_IJ + gammaHat_IJ) 
-= det(epsilon_IJ + delta_IJ) 
+det(epsilon_IJ + gammaHat_IJ)
+= det(epsilon_IJ + delta_IJ)
 = det(e^i_I e^j_J (gammaHat_ij + epsilon_ij))
 = det(e^i_I) det(e^j_J) det(gammaHat_ij + epsilon_ij)
 = det(gammaHat^ij) det(gammaBar_ij)
@@ -47,7 +47,7 @@ TODO detg ... unless we want to change the constraint
 #if 0	//use the value
 real <?=calc_det_gammaBarLL?>(global const <?=cons_t?>* U, ral3 x) {
 	real3s3 gammaBar_LL = <?=calc_gammaBar_LL?>(U, x);
-	real det_gammaBarLL = determinant(gammaBar_LL);
+	real det_gammaBarLL = gammaBar_LL.determinant();
 	return det_gammaBarLL;
 }
 #else	//use the constraint
@@ -63,7 +63,7 @@ real3s3 <?=calc_gammaBar_UU?>(
 ) {
 	real3s3 const gammaBar_LL = <?=calc_gammaBar_LL?>(U, x);
 	real const det_gammaBarLL = <?=calc_det_gammaBarLL?>(x);
-	real3s3 const gammaBar_UU = inverse(gammaBar_LL, det_gammaBarLL);
+	real3s3 const gammaBar_UU = gammaBar_LL.inverse(det_gammaBarLL);
 	return gammaBar_UU;
 }
 
@@ -107,7 +107,7 @@ real3s3 <?=calc_gammaBar_uu?>(
 ) {
 	real3s3 const gammaBar_ll = <?=calc_gammaBar_ll?>(U, x);
 	real const det_gammaBar = <?=calc_det_gammaBar?>(x);
-	real3s3 const gammaBar_uu = inverse(gammaBar_ll, det_gammaBar);
+	real3s3 const gammaBar_uu = gammaBar_ll.inverse(det_gammaBar);
 	return gammaBar_uu;
 }
 
@@ -135,7 +135,7 @@ real3s3 <?=calc_gamma_uu?>(
 	real const exp_4phi = 1. / <?=calc_exp_neg4phi?>(U);
 	real3s3 const gamma_ll = real3s3_real_mul(gammaBar_ll, exp_4phi);
 	real const det_gamma = <?=calc_det_gammaBar?>(x) * exp_4phi * exp_4phi * exp_4phi;
-	real3s3 const gamma_uu = inverse(gamma_ll, det_gamma); 
+	real3s3 const gamma_uu = gamma_ll.inverse(det_gamma);
 	return gamma_uu;
 }
 

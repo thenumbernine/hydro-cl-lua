@@ -46,8 +46,8 @@ real3s3 <?=calc_gammaBar_LL?>(global const <?=cons_t?>* U, real3 x) {
 //// MODULE_NAME: <?=calc_det_gammaBarLL?>
 // also in parent ... at least the #if 1 part is
 /*
-det(epsilon_IJ + gammaHat_IJ) 
-= det(epsilon_IJ + delta_IJ) 
+det(epsilon_IJ + gammaHat_IJ)
+= det(epsilon_IJ + delta_IJ)
 = det(e^i_I e^j_J (gammaHat_ij + epsilon_ij))
 = det(e^i_I) det(e^j_J) det(gammaHat_ij + epsilon_ij)
 = det(gammaHat^ij) det(gammaBar_ij)
@@ -112,7 +112,7 @@ real <?=calc_det_gammaBar?>(real3 x) {
 real3s3 <?=calc_gammaBar_uu?>(global const <?=cons_t?>* U, real3 x) {
 	real3s3 gammaBar_ll = <?=calc_gammaBar_ll?>(U, x);
 	real det_gammaBar = <?=calc_det_gammaBar?>(x);
-	real3s3 gammaBar_uu = inverse(gammaBar_ll, det_gammaBar);
+	real3s3 gammaBar_uu = gammaBar_ll.inverse(det_gammaBar);
 	return gammaBar_uu;
 }
 
@@ -129,7 +129,7 @@ real3s3 <?=calc_gamma_ll?>(
 	real3s3 gamma_ll = real3s3_real_mul(gammaBar_ll, exp_4phi);
 	return gamma_ll;
 }
-	
+
 //// MODULE_NAME: <?=calc_gamma_uu?>
 //// MODULE_DEPENDS: <?=cons_t?> <?=calc_gammaBar_ll?> <?=calc_exp_neg4phi?> <?=calc_det_gammaBar?>
 // also in parent
@@ -139,13 +139,13 @@ real3s3 <?=calc_gamma_uu?>(global const <?=cons_t?>* U, real3 x) {
 	real exp_4phi = 1. / <?=calc_exp_neg4phi?>(U);
 	real3s3 gamma_ll = real3s3_real_mul(gammaBar_ll, exp_4phi);
 	real det_gamma = <?=calc_det_gammaBar?>(x) * exp_4phi * exp_4phi * exp_4phi;
-	real3s3 gamma_uu = inverse(gamma_ll, det_gamma); 
+	real3s3 gamma_uu = gamma_ll.inverse(det_gamma);
 	return gamma_uu;
 }
 
 //// MODULE_NAME: <?=eqn_common?>
 
-<? 
+<?
 -- constrains det gammaBar_ij = det gammaHat_ij, ABar^i_i = 0, and calculates H and M^i ... if the associated flags are set
 local useConstrainU = true
 
@@ -171,11 +171,11 @@ tr(A_ij)
 = K - 1/3 3 K
 = 0
 
-tr(ABar_ij) = exp(-4 phi) tr(A_ij) 
+tr(ABar_ij) = exp(-4 phi) tr(A_ij)
 = exp(-4 phi) * 0
 = 0
 
-TFBar(K_ij) = K_ij - 1/3 gammaBar_ij gammaBar^kl K_kl 
+TFBar(K_ij) = K_ij - 1/3 gammaBar_ij gammaBar^kl K_kl
 	= K_ij - 1/3 gamma_ij gamma^kl K_kl
 	= TF(K_ij)
 
@@ -223,7 +223,7 @@ kernel void <?=calcDeriv?>(
 <?=eqn:makePartial1"alpha"?>			//partial_alpha_l.i := alpha_,i
 <?=eqn:makePartial1"beta_U"?>			//partial_beta_Ul.j.I := beta^I_,j
 <?=eqn:makePartial1"epsilon_LL"?>		//partial_epsilon_LLl[k].IJ := epsilon_IJ,k
-<?=eqn:makePartial1"W"?>				//partial_W_l.i := W_,i 
+<?=eqn:makePartial1"W"?>				//partial_W_l.i := W_,i
 <?=eqn:makePartial1"K"?>				//partial_K_l.i := K,i
 <?=eqn:makePartial1"ABar_LL"?>		//partial_ABar_LLl[k].IJ = ABar_IJ,k
 <?=eqn:makePartial1"LambdaBar_U"?>	//partial_LambdaBar_Ul.j.I := LambdaBar^I_,j
@@ -241,50 +241,50 @@ kernel void <?=calcDeriv?>(
 	Etienne's SENR Mathematica notebook has '*  detg'...
 	 ... but the paper says det gammaBar_ij = det gammaHat_ij
 	 ... so what is this mysterious 'detg' factor?
-	 TODO find where detg comes from 
-	
-	From 2017 Ruchlin: 
-	
+	 TODO find where detg comes from
+
+	From 2017 Ruchlin:
+
 	"We choose ˆγ ≡ det(ˆγij ) = ¯γ in the initial data for
 	all applications in this paper. Since both determinants
 	remain independent of time, they remain equal to each
 	other throughout the evolution."
-	
-	... so why is there a distinction between det gammaBar_ij and det gammaHat_ij? 
-	
+
+	... so why is there a distinction between det gammaBar_ij and det gammaHat_ij?
+
 	because in 2013 Baumgarte et al, IIB last paragraph, they say they relax this constraint.
-	
+
 	TODO detg ...
 	*/
 <? -- assign"det_gammaBar_over_det_gammaHat"?>
 
 
-	//////////////////////////////// alpha_,t //////////////////////////////// 
+	//////////////////////////////// alpha_,t ////////////////////////////////
 
 <?=eqn:makePartialUpwind"alpha"?>
 <?=assign"dt_alpha"?>
 	deriv->alpha += dt_alpha;
-	
-	//////////////////////////////// W_,t //////////////////////////////// 
+
+	//////////////////////////////// W_,t ////////////////////////////////
 
 <?=eqn:makePartialUpwind"W"?>
 <?=assign_real3"partial_det_gammaBar_over_det_gammaHat_l"?>
 <?=assign"dt_W"?>
 	deriv->W += dt_W;
 
-	//////////////////////////////// K_,t //////////////////////////////// 
-	
+	//////////////////////////////// K_,t ////////////////////////////////
+
 <?=eqn:makePartialUpwind"K"?>
 <?=assign"dt_K"?>
 	deriv->K += dt_K;
 
-	//////////////////////////////// epsilon_ij,t //////////////////////////////// 
+	//////////////////////////////// epsilon_ij,t ////////////////////////////////
 
 <?=eqn:makePartialUpwind"epsilon_LL"?>
 <?=assign_real3s3"dt_epsilon_LL"?>
 	deriv->epsilon_LL = real3s3_add(deriv->epsilon_LL, dt_epsilon_LL);
 
-	//////////////////////////////// ABar_ij,t //////////////////////////////// 
+	//////////////////////////////// ABar_ij,t ////////////////////////////////
 
 <?=eqn:makePartial2"epsilon_LL"?>
 <?=eqn:makePartialUpwind"ABar_LL"?>
@@ -294,13 +294,13 @@ kernel void <?=calcDeriv?>(
 <?=assign_real3s3"dt_ABar_LL"?>
 	deriv->ABar_LL = real3s3_add(deriv->ABar_LL, dt_ABar_LL);
 
-	//////////////////////////////// LambdaBar^i_,t //////////////////////////////// 
+	//////////////////////////////// LambdaBar^i_,t ////////////////////////////////
 
 <?=eqn:makePartialUpwind"LambdaBar_U"?>
 <?=assign_real3"dt_LambdaBar_U"?>
 	deriv->LambdaBar_U = real3_add(deriv->LambdaBar_U, dt_LambdaBar_U);
 
-	//////////////////////////////// beta^i_,t and B^i_,t //////////////////////////////// 
+	//////////////////////////////// beta^i_,t and B^i_,t ////////////////////////////////
 
 <? if eqn.useShift == "GammaDriver" then ?>
 
@@ -326,7 +326,7 @@ kernel void constrainU(
 	global <?=cons_t?> * const UBuf,
 	global <?=cell_t?> const * const cellBuf
 ) {
-<? if useConstrainU then ?>	
+<? if useConstrainU then ?>
 	<?=SETBOUNDS?>(solver->numGhost, solver->numGhost);
 	real3 const x = cellBuf[index].pos;
 	global <?=cons_t?> * const U = UBuf + index;
@@ -334,14 +334,14 @@ kernel void constrainU(
 <?=assignRepls(cos_xs)?>
 <?=assignRepls(sin_xs)?>
 
-<? 
-if eqn.guiVars.constrain_det_gammaBar.value 
-or eqn.guiVars.constrain_tr_ABar.value 
-then 
+<?
+if eqn.guiVars.constrain_det_gammaBar.value
+or eqn.guiVars.constrain_tr_ABar.value
+then
 ?>
 
 <?=assign"det_gammaBar_over_det_gammaHat"?>
-	
+
 	/*
 	we need to force det(gammaBar_ij) = det(gammaHat_ij)
 	and we can do so with gammaBar_ij := gammaBar_ij * (det(gammaHat_ij) / det(gammaBar_ij))^(1/3)
@@ -373,7 +373,7 @@ then
 <? else -- constrain_det_gammaBar or constrain_tr_ABar ?>
 
 <? -- assign"det_gammaBar_over_det_gammaHat"?>
-	
+
 <? end -- constrain_det_gammaBar or constrain_tr_ABar ?>
 
 	//makes the spinning black hole simulations look ugly
@@ -385,7 +385,7 @@ then
 <?=eqn:makePartial1"ABar_LL"?>			//partial_ABar_LLl[k].IJ = ABar_IJ,k
 <?=eqn:makePartial1"alpha"?>			//partial_alpha_l.i := alpha_,i
 <?=eqn:makePartial1"K"?>				//partial_K_l.i := K_,i
-<?=eqn:makePartial1"W"?>				//partial_W_l.i := phi_,i 
+<?=eqn:makePartial1"W"?>				//partial_W_l.i := phi_,i
 <?=eqn:makePartial1"LambdaBar_U"?>		//partial_LambdaBar_Ul.j.I := LambdaBar^I_,j
 <?=eqn:makePartial2"W"?>				//partial2_W_ll.ij := phi_,ij
 <?=eqn:makePartial1"epsilon_LL"?>	//partial_epsilon[k].ij := epsilon_ij,k = gammaBar_ij,k
@@ -411,11 +411,11 @@ kernel void addSource(
 ) {
 <? if useAddSource then ?>
 	<?=SETBOUNDS_NOGHOST?>();
-	
+
 	global <?=cons_t?> const * const U = UBuf + index;
 	global <?=cons_t?> * const deriv = derivBuf + index;
 
-	if (solver->diffuseCoeff != 0.) { 
+	if (solver->diffuseCoeff != 0.) {
 		//Kreiss-Oligar dissipation
 		//described in 2008 Babiuc et al as Q = (-1)^r h^(2r-1) (D+)^r rho (D-)^r / 2^(2r)
 		//...for r=2... -sigma h^3 (D+)^2 rho (D-)^2 / 16 ... and rho=1, except rho=0 at borders maybe.

@@ -30,21 +30,21 @@ void <?=applyInitCondCell?>(
 	real3 D = real3_zero;
 	real3 B = real3_zero;
 	real conductivity = 1.;
-	
+
 	//natural units say eps0 = 1/4pi, mu0 = 4pi
 	//but waves don't make it to the opposite side...
 	//mu0 eps0 = 1/c^2
 	real permittivity = 1.; //1. / (4. * M_PI);
 	real permeability = 1.; //4. * M_PI;
-	
+
 	//throw-away
 	real rho = 0;
 	real3 v = real3_zero;
 	real P = 0;
 	real ePot = 0;
-	
+
 	<?=code?>
-	
+
 	U->D = D;
 	U->B = B;
 	U->divBPot = 0;
@@ -65,14 +65,14 @@ void <?=applyInitCondCell?>(
 	solver:getADMArgs()?>
 ) {
 	<?=solver:getADMVarCode()?>
-	
+
 	real3 B_u = U.B;
 	real3 D_u = U.D;
 
 	//this only works for fluxFromCons
 	real3 B_l = real3s3_real3_mul(gamma, B_u);
 	real3 D_l = real3s3_real3_mul(gamma, D_u);
-	
+
 	real mu = U.mu;
 	real eps = U.eps;
 
@@ -102,11 +102,11 @@ void <?=applyInitCondCell?>(
 	real3 const x<?=
 	solver:getADMArgs()?>
 ) {
-	<?=solver:getADMVarCode()?>	
-	real det_gamma = determinant(gamma);	
+	<?=solver:getADMVarCode()?>
+	real det_gamma = gamma.determinant();
 	real det_gamma2 = det_gamma * det_gamma;
 	real det_gamma3 = det_gamma * det_gamma2;
-	
+
 	<? if side == 0 then ?>
 	real detg_gUjj = gamma.yy * gamma.zz - gamma.yz * gamma.yz;
 	<? elseif side == 1 then ?>
@@ -121,7 +121,7 @@ void <?=applyInitCondCell?>(
 
 //// MODULE_NAME: calcEigenBasis
 
-//TODO HLL needs eigen_forInterface 
+//TODO HLL needs eigen_forInterface
 //but it would have to pass the extra ADM args into it
 #if 0
 #define eigen_forInterface(\
@@ -145,30 +145,30 @@ kernel void calcEigenBasis(
 ) {
 	<?=SETBOUNDS?>(solver->numGhost, solver->numGhost - 1);
 	real3 const x = cellBuf[index].pos;
-	
+
 	int const indexR = index;
-	
+
 	<?=solver:getADMVarCode{suffix='R'} --[[ produce alphaR, betaR, gammaR at indexR ]] ?>
-	real det_gammaR = determinant(gammaR);
+	real det_gammaR = gammaR.determinant();
 	real det_gammaR2 = det_gammaR * det_gammaR;
 	real det_gammaR3 = det_gammaR * det_gammaR2;
 
 	<? for side=0,solver.dim-1 do ?>{
 		int const side = <?=side?>;
-		
+
 		int const indexL = index - solver->stepsize.s<?=side?>;
-		
+
 		<?=solver:getULRCode()?>
-		
+
 		<?=solver:getADMVarCode{suffix='L'} --[[ produce alphaL, betaL, gammaL at indexL ]] ?>
-		real det_gammaL = determinant(gammaL);
+		real det_gammaL = gammaL.determinant();
 		real det_gammaL2 = det_gammaL * det_gammaL;
 		real det_gammaL3 = det_gammaL * det_gammaL2;
-		
-		int const indexInt = side + dim * index;	
+
+		int const indexInt = side + dim * index;
 		real3 xInt = x;
 		xInt.s<?=side?> -= .5 * solver->grid_dx.s<?=side?>;
-		
+
 		global <?=eigen_t?>* eig = eigenBuf + indexInt;
 		//*eig = eigen_forInterface(eig, solver, UL, UR, cellL, cellR, xInt, normalForSide<?=side?>());
 		eig->eps = .5 * (UL->eps + UR->eps);
@@ -192,7 +192,7 @@ kernel void calcEigenBasis(
 			+ gammaR.xx * gammaR.yy - gammaR.xy * gammaR.xy
 		);
 		<? end ?>
-	
+
 		real det_gamma3 = sqrt(det_gammaL3 * det_gammaR3);
 		eig->lambda = alpha / sqrt(detg_gUjj / (det_gamma3 * eig->eps * eig->mu));
 	}<? end ?>
@@ -225,25 +225,25 @@ TODO update this for Einstein-Maxwell (take the metric into consideration
 	Y[3] = X[0] *  ise 								+ X[3] * isu;
 	Y[4] = 				X[1] *  ise 												+ X[5] * isu;
 	Y[5] = 								X[2] * -ise 				+ X[4] * isu;
-	
+
 	<? elseif side == 1 then ?>
-	
+
 	Y[0] = X[0] *  ise + X[5] * isu;
 	Y[1] = X[2] * -ise + X[3] * isu;
 	Y[2] = X[1] * -ise + X[4] * isu;
 	Y[3] = X[1] *  ise + X[4] * isu;
 	Y[4] = X[2] *  ise + X[3] * isu;
 	Y[5] = X[0] * -ise + X[5] * isu;
-	
+
 	<? elseif side == 2 then ?>
-	
+
 	Y[0] = X[1] *  ise + X[3] * isu;
 	Y[1] = X[0] * -ise + X[4] * isu;
 	Y[2] = X[2] * -ise + X[5] * isu;
 	Y[3] = X[2] *  ise + X[5] * isu;
 	Y[4] = X[0] *  ise + X[4] * isu;
 	Y[5] = X[1] * -ise + X[3] * isu;
-	
+
 	<? end ?>
 
 	return UY;
@@ -273,7 +273,7 @@ y,  z,  x, x, z, y
 	Y[3] = su * (				X[2] + X[3]						);
 	Y[4] = su * (X[0] 									+ X[5]	);
 	Y[5] = su * (		X[1] 					+ X[4]			);
-	
+
 	<? elseif side==1 then ?>
 
 /*
@@ -293,7 +293,7 @@ z,  x,  y, y, x,  z
 	Y[3] = su * (X[1] + X[4]);
 	Y[4] = su * (X[2] + X[3]);
 	Y[5] = su * (X[0] + X[5]);
-	
+
 	<? elseif side==2 then ?>
 
 /*
@@ -313,9 +313,9 @@ x,  y,  z, z,  y,  x
 	Y[3] = su * (X[0] + X[5]);
 	Y[4] = su * (X[1] + X[4]);
 	Y[5] = su * (X[2] + X[3]);
-	
+
 	<? end ?>
-	
+
 	Y[6] = 0;	//divBPot
 
 	return UY;
@@ -341,7 +341,7 @@ void <?=eigen_fluxTransform?>(
 	real * const Y = result->ptr;
 
 	<? if side==0 then ?>
-	
+
 	Y[0] = 0;
 	Y[1] = B.z * imu;
 	Y[2] = -B.y * imu;
@@ -350,23 +350,23 @@ void <?=eigen_fluxTransform?>(
 	Y[5] = D.y * ieps;
 
 	<? elseif side==1 then ?>
-		
+
 	Y[0] = -B.z * imu;
 	Y[1] = 0;
 	Y[2] = B.x * imu;
 	Y[3] = D.z * ieps;
 	Y[4] = 0;
 	Y[5] = -D.x * ieps;
-		
+
 	<? elseif side==2 then ?>
-		
+
 	Y[0] = B.y * imu;
 	Y[1] = -B.x * imu;
 	Y[2] = 0;
 	Y[3] = -D.y * ieps;
 	Y[4] = D.x * ieps;
 	Y[5] = 0;
-		
+
 	<? end ?>
 
 	Y[6] = 0.;

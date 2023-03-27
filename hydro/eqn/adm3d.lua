@@ -27,11 +27,11 @@ noZeroRowsInFlux = true by default.
 	true = use 13 vars of a_x, d_xij, K_ij
 	false = use all 30 or so hyperbolic conservation variables
 useShift
-	
+
 	useShift = 'none'
-	
+
 	useShift = 'MinimalDistortionElliptic' -- minimal distortion elliptic via Poisson relaxation.  Alcubierre's book, eqn 4.3.14 and 4.3.15
-	
+
 	useShift = 'MinimalDistortionEllipticEvolve' -- minimal distortion elliptic via evolution.  eqn 10 of 1996 Balakrishna et al "Coordinate Conditions and their Implementations in 3D Numerical Relativity"
 
 	useShift = '2005 Bona / 2008 Yano'
@@ -100,7 +100,7 @@ function ADM_BonaMasso_3D:init(args)
 	--]]
 
 	self.useShift = args.useShift or 'none'
-	
+
 	-- set to false to disable rho, S_i, S^ij
 	self.useStressEnergyTerms = true
 
@@ -132,7 +132,7 @@ function ADM_BonaMasso_3D:init(args)
 	--if self.useShift ~= 'none' then
 	--	self.noZeroRowsInFlux = false
 	--end
-	
+
 	-- only count int vars after the shifts have been added
 	self:cdefAllVarTypes(solver, self.consVars)	-- have to call before countScalars in eqn:init
 
@@ -176,7 +176,7 @@ function ADM_BonaMasso_3D:init(args)
 		self.eigenVars:insert{name='beta_u', type='real3'}
 	end
 
-	
+
 	-- build stuff around consVars
 	ADM_BonaMasso_3D.super.init(self, args)
 
@@ -192,7 +192,7 @@ end
 
 function ADM_BonaMasso_3D:createInitState()
 	ADM_BonaMasso_3D.super.createInitState(self)
-	
+
 	self:addGuiVars{
 		{
 			type = 'combo',
@@ -208,22 +208,22 @@ function ADM_BonaMasso_3D:createInitState()
 		-- K_ij source term stress constraint coefficient
 		-- 1 of these is occurring in the ADM formalism
 		{name='K_ll_srcStressCoeff', value=0},
-		
+
 		-- K_ij source term Hamiltonian constraint coefficient
 		{name='K_ll_srcHCoeff', value=0},-- -.5},
 
 		-- gamma_ij source term stress constraint coefficient
 		{name='gamma_ll_srcStressCoeff', value=0},	--1},
-	
+
 		-- gamma_ij source term Hamiltonian constraint coefficient
 		{name='gamma_ll_srcHCoeff', value=0}, ---.5},
 
 		-- convergence between finite-difference of alpha,i and alpha a_i
 		{name='a_convCoeff', value=0},
-		
+
 		-- convergence between finite-difference of 1/2 gamma_ij,k and d_kij
 		{name='d_convCoeff', value=0},
-		
+
 		-- convergence between V_k and d_kj^j - d^j_jk
 		{name='V_convCoeff', value=10},
 	}
@@ -251,7 +251,7 @@ function ADM_BonaMasso_3D:getDisplayVars()
 	local vars = ADM_BonaMasso_3D.super.getDisplayVars(self)
 
 	vars:append{
-		{name='volume', code='value.vreal = U->alpha * sqrt(determinant(U->gamma_ll));'},
+		{name='volume', code='value.vreal = U->alpha * sqrt(U->gamma_ll.determinant());'},
 		{name='f', code=self:template[[
 //// MODULE_DEPENDS: <?=initCond_codeprefix?>
 value.vreal = calc_f(U->alpha);
@@ -261,8 +261,8 @@ value.vreal = calc_f(U->alpha);
 value.vreal = calc_dalpha_f(U->alpha);
 ]]},
 		{name='expansion', code=[[
-	real det_gamma = determinant(U->gamma_ll);
-	real3s3 gamma_uu = inverse(U->gamma_ll, det_gamma);
+	real det_gamma = U->gamma_ll.determinant();
+	real3s3 gamma_uu = U->gamma_ll.inverse(det_gamma);
 	value.vreal = -real3s3_dot(gamma_uu, U->K_ll);
 ]]		},
 	}:append{
@@ -290,29 +290,29 @@ momentum constraints
 	2008 Alcubierre Appendix B:
 	 also my Differential Geometry notes, "14 - ADM formalism"
 	then swap α_,i = α a_i
-		Γ4^k_tt = 
+		Γ4^k_tt =
 			+ α^2 γ^km a_m
 			+ β^k_,t
 			- 1/α β^k (α a_,t + β^l α a_l - K_lm β^l β^m)
 			- 2 α β^l K_l^k
 			+ β^l (β^k_,l + β^m Γ3^k_lm)
 
-		Γ4^k_ti = 
+		Γ4^k_ti =
 			+ 1/α β^k (-α a_i β^l K_il)
 			- α K_i^k
 			+ β^k_,i
 			+ Γ3^k_li β^l
-		
-		Γ4^k_ij = 
+
+		Γ4^k_ij =
 			+ 1/α β^k K_ij
 			+ Γ3^k_ij
 	--]]
 	vars:insert{name='gravity', code=self:template[[
-	real3s3 gamma_uu = inverse(U->gamma_ll, determinant(U->gamma_ll));
+	real3s3 gamma_uu = U->gamma_ll.inverse(U->gamma_ll.determinant());
 
 	real const alpha = U->alpha;
 	real3 const a_l = U->a_l;
-	
+
 	value.vreal3 = real3_real_mul(real3s3_real3_mul(gamma_uu, a_l), alpha * alpha);	//+ α^2 γ^km a_m
 
 <? if useShift then ?>
@@ -331,7 +331,7 @@ momentum constraints
 	real const beta_dot_a = real3_dot(beta_u, a_l);
 
 	real3x3 const partial_beta_ul = real3x3_zero;											// β^k_,l
-	real3 const partial_beta_dot_beta_u = real3x3_real3_mul(partial_beta_ul, beta_u);		// β^k_,l β^l 
+	real3 const partial_beta_dot_beta_u = real3x3_real3_mul(partial_beta_ul, beta_u);		// β^k_,l β^l
 
 	real3x3x3 const d_llu = real3x3s3_real3s3_mul(d_lll, gamma_uu);						//d_llu := d_ij^k = d_ijl * γ^lk
 	real3x3s3 const d_ull = real3s3_real3x3s3_mul(gamma_uu, d_lll);							//d_ull := d^i_jk = γ^il d_ljk
@@ -344,11 +344,11 @@ momentum constraints
 	value.vreal3 = real3_add6(
 		value_vreal3,
 		dt_beta_u,																	//+ β^k_,t
-		real3_real_mul(beta_u, -dt_alpha / alpha),									//- 1/α β^k α_,t 
-		real3_real_mul(beta_u, -beta_dot_a),										//- β^k β^l a_l 
+		real3_real_mul(beta_u, -dt_alpha / alpha),									//- 1/α β^k α_,t
+		real3_real_mul(beta_u, -beta_dot_a),										//- β^k β^l a_l
 		real3_real_mul(beta_u, K_dot_beta_dot_beta / alpha), 						//+ 1/α K_lm β^k β^l β^m
 		real3_real_mul(real3s3_real3_mul(gamma_uu, beta_dot_K_l), -2. * alpha),		//- 2 α β^l K_l^k
-		partial_beta_dot_beta_u, 													//+ β^k_,l β^l 
+		partial_beta_dot_beta_u, 													//+ β^k_,l β^l
 		conn_dot_beta_dot_beta_u									 				//+ Γ^k_lm β^l β^m
 	);
 <? end ?>
@@ -408,8 +408,8 @@ momentum constraints
 	end
 
 	vars:insert{name='V constraint', code=self:template[[
-	real det_gamma = determinant(U->gamma_ll);
-	real3s3 gamma_uu = inverse(U->gamma_ll, det_gamma);
+	real det_gamma = U->gamma_ll.determinant();
+	real3s3 gamma_uu = U->gamma_ll.inverse(det_gamma);
 	<? for i,xi in ipairs(xNames) do ?>{
 		real d1 = real3s3_dot(U->d_lll.<?=xi?>, gamma_uu);
 		real d2 = 0.<?
@@ -483,8 +483,8 @@ end
 
 function ADM_BonaMasso_3D:consWaveCodePrefix(args)
 	return self:template([[
-real const det_gamma = determinant((<?=U?>)->gamma_ll);
-real3s3 const gamma_uu = inverse((<?=U?>)->gamma_ll, det_gamma);
+real const det_gamma = (<?=U?>)->gamma_ll.determinant();
+real3s3 const gamma_uu = (<?=U?>)->gamma_ll.inverse(det_gamma);
 real sqrt_gammaUjj = 0./0.;
 if (<?=n?>.side == 0) {
 	sqrt_gammaUjj = sqrt(gamma_uu.xx);
@@ -509,7 +509,7 @@ end
 function ADM_BonaMasso_3D:consWaveCodeMinMaxAllSidesPrefix(args)
 	return self:template([[
 real const f_alphaSq = calc_f_alphaSq((<?=U?>)->alpha);
-real const det_gamma = determinant((<?=U?>)->gamma_ll);
+real const det_gamma = (<?=U?>)->gamma_ll.determinant();
 real const alpha_sqrt_f = sqrt(f_alphaSq);
 ]], args)
 end

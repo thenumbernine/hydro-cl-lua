@@ -5,7 +5,7 @@ Baumgarte & Shapiro "Numerical Relativity"
 2011 Cao, Hilditch "Numerical stability of the Z4c formulation of general relativity"
 2017 Ruchlin
 
-changes I'm making to coincide with 2017 Ruchlin 
+changes I'm making to coincide with 2017 Ruchlin
 1) rename the gammaTilde_ll => gammaBar_ll
 2) rename ATilde_ll => ABar_ll
 3) separate gammaBar_ll = gammaHat_ll + epsilon_ll
@@ -23,7 +23,7 @@ local makePartial1 = makePartials.makePartial1
 local makePartial2 = makePartials.makePartial2
 
 local Z4cFiniteDifferenceEquation = class(EinsteinEqn)
-Z4cFiniteDifferenceEquation.name = 'Z4c finite difference' 
+Z4cFiniteDifferenceEquation.name = 'Z4c finite difference'
 
 Z4cFiniteDifferenceEquation.weightFluxByGridVolume = false
 
@@ -34,7 +34,7 @@ args:
 		GammaDriver
 		HyperbolicGammaDriver
 --]]
-function Z4cFiniteDifferenceEquation:init(args)	
+function Z4cFiniteDifferenceEquation:init(args)
 	self.useShift = args.useShift or 'none'
 
 	local intVars = table{
@@ -74,7 +74,7 @@ function Z4cFiniteDifferenceEquation:init(args)
 	}
 	self.numIntStates = Struct.countScalars{vars=intVars}
 
-	-- call construction / build structures	
+	-- call construction / build structures
 	Z4cFiniteDifferenceEquation.super.init(self, args)
 end
 
@@ -112,22 +112,22 @@ Z4cFiniteDifferenceEquation.predefinedDisplayVars = {
 	'U f',
 }
 
-function Z4cFiniteDifferenceEquation:getDisplayVars()	
+function Z4cFiniteDifferenceEquation:getDisplayVars()
 	local vars = Z4cFiniteDifferenceEquation.super.getDisplayVars(self)
 
 	vars:insert{name='det gammaBar - det gammaHat', code = self:template[[
-	value.vreal = determinant(<?=calc_gammaBar_ll?>(U, x)) - calc_det_gammaBar_ll(x);
+	value.vreal = <?=calc_gammaBar_ll?>(U, x).determinant() - calc_det_gammaBar_ll(x);
 ]]}	-- for logarithmic displays
 	vars:insert{name='det gamma_ij based on phi', code = self:template[[
 	real exp_neg4phi = <?=calc_exp_neg4phi?>(U);
 	value.vreal = calc_det_gammaBar_ll(x) / (exp_neg4phi * exp_neg4phi * exp_neg4phi);
 ]]}
-	
+
 	local derivOrder = 2 * self.solver.numGhost
 	vars:append{
 		{name='S', code='value.vreal = real3s3_dot(U->S_ll, <?=calc_gamma_uu?>(U, x));'},
 		{name='volume', code='value.vreal = U->alpha * calc_det_gamma_ll(U, x);'},
-	
+
 --[[ expansion:
 2003 Thornburg:  ... from Wald ...
 Theta = n^i_;i + K_ij n^i n^j - K
@@ -169,16 +169,16 @@ end ?>;
 	//K = KHat + 2 Theta
 	real K = U->KHat + 2. * U->Theta;
 
-	//K_ij = exp(4 phi) ABar_ij + 1/3 gamma_ij K 
+	//K_ij = exp(4 phi) ABar_ij + 1/3 gamma_ij K
 	real3s3 K_ll = real3s3_add(
 		real3s3_real_mul(U->ABar_ll, exp_4phi),
 		real3s3_real_mul(gamma_ll, K/3.));
 
 	value.vreal = -tr_partial_beta / U->alpha
-<? 
+<?
 for i,xi in ipairs(xNames) do
-?>		+ U->beta_u.<?=xi?> * partial_alpha_l[<?=i-1?>] / (U->alpha * U->alpha) 
-		- U->beta_u.<?=xi?> * partial_alpha_l[<?=i-1?>] / (U->alpha * U->alpha) 
+?>		+ U->beta_u.<?=xi?> * partial_alpha_l[<?=i-1?>] / (U->alpha * U->alpha)
+		- U->beta_u.<?=xi?> * partial_alpha_l[<?=i-1?>] / (U->alpha * U->alpha)
 		+ 1.5 * partial_chi_l[<?=i-1?>] / U->chi * U->beta_u.<?=xi?> / U->alpha
 <?	for j,xj in ipairs(xNames) do
 ?>		+ K_ll.<?=sym(i,j)?> * U->beta_u.<?=xi?> * U->beta_u.<?=xj?> / (U->alpha * U->alpha)
@@ -190,7 +190,7 @@ end
 				}
 			)
 		},
-		
+
 		{name='f', code='value.vreal = calc_f(U->alpha);'},
 		{name='df/dalpha', code='value.vreal = calc_dalpha_f(U->alpha);'},
 		{name='gamma_ll', code = self:template[[
@@ -200,8 +200,8 @@ end
 		value.vreal3s3 = real3s3_real_mul(gammaBar_ll, exp_4phi);
 	}
 ]], type='real3s3'},
-	
-		-- K_ij = exp(4 phi) ABar_ij + K/3 gamma_ij  
+
+		-- K_ij = exp(4 phi) ABar_ij + K/3 gamma_ij
 		-- gamma_ij = exp(4 phi) gammaBar_ij
 		-- K_ij = exp(4 phi) (ABar_ij + K/3 gammaBar_ij)
 		{name='K_ll', code = self:template[[
@@ -217,7 +217,7 @@ end
 
 --[=[ TODO FIXME
 		--[[ ADM geodesic equation spatial terms:
-		-Gamma^i_tt = 
+		-Gamma^i_tt =
 			- gamma^ij alpha_,j
 
 			+ alpha^-1 (
@@ -238,7 +238,7 @@ end
 				)
 			)
 
-		substitute 
+		substitute
 		alpha_,t = -alpha^2 f K + beta^j alpha_,j
 		beta^k_,t = B^k
 		gamma_jk,t = -2 alpha K_jk + gamma_jk,l beta^l + gamma_lj beta^l_,k + gamma_lk beta^l_,j
@@ -255,11 +255,11 @@ end
 
 	//chi = exp(-4 phi)
 	real _1_chi = 1. / U->chi;
-	
+
 	//gamma_ij = 1/chi gammaBar_ij
 	real3s3 gammaBar_ll = <?=calc_gammaBar_ll?>(U, x);
 	real3s3 gamma_ll = real3s3_real_mul(gammaBar_ll, _1_chi);
-	
+
 	//gamma_ij,k = 1/chi gammaBar_ij,k - chi,k / chi^2 gammaBar_ij
 	<?=makePartial1('chi', 'real')?>
 	real3x3s3 partial_gamma_lll = {
@@ -284,7 +284,7 @@ end
 	real3 beta_l = real3s3_real3_mul(gamma_ll, U->beta_u);								//beta^j gamma_ij
 	real3 beta_dt_gamma_l = real3s3_real3_mul(dt_gamma_ll, U->beta_u);					//beta^j gamma_ij,t
 	real beta_beta_dt_gamma = real3_dot(U->beta_u, beta_dt_gamma_l);				//beta^i beta^j gamma_ij,t
-	
+
 	real3 beta_dt_gamma_u = real3s3_real3_mul(gamma_uu, beta_dt_gamma_l);				//gamma^ij gamma_jk,t beta^k
 
 	//beta^i beta^j beta^k gamma_ij,k
@@ -320,7 +320,7 @@ end ?>;
 
 		+ _1_alpha * (
 			beta_dbeta_u.<?=xi?>
-			+ .5 * beta_beta_dgamma_u.<?=xi?>	
+			+ .5 * beta_beta_dgamma_u.<?=xi?>
 			- U->B_u.<?=xi?>
 			- beta_dt_gamma_u.<?=xi?>
 
@@ -330,23 +330,23 @@ end ?>;
 
 				+ _1_alpha * (
 					.5 * beta_beta_dt_gamma
-					- .5 * beta_beta_beta_partial_gamma 
+					- .5 * beta_beta_beta_partial_gamma
 					- beta_beta_dbeta
 				)
 			)
 		)
-	; 
+	;
 <? end
 ?>
 ]],				{
 					makePartial1 = function(...) return makePartial1(derivOrder, self.solver, ...) end,
 				}
-			), 
+			),
 			type = 'real3',
 		},
---]=]	
+--]=]
 	}
-	
+
 	return vars
 end
 

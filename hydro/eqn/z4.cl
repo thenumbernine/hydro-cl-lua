@@ -50,7 +50,7 @@ constant real const mdeShiftEpsilon = 1.;
 #define /*real3s3*/ <?=calc_gamma_uu?>(\
 	/*global <?=cons_t?> const * const*/ U,\
 	/*real3 const*/ pt\
-) (inverse((U)->gamma_ll))
+) (U)->gamma_ll.inverse()
 
 //// MODULE_NAME: <?=calcFromGrad_a_l?>
 //// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?>
@@ -143,7 +143,7 @@ end
 // same as calcFromGrad_a_l
 // this as a function is giving me NaNs in weird places
 // but if I inline it / make it a macro then things work fine.
-	
+
 //partial_d_lll.ij.kl := d_kij,l = d_(k|(ij),|l)
 //so this object's indexes are rearranged compared to the papers
 
@@ -298,7 +298,7 @@ void <?=applyInitCondCell?>(
 		), x);
 
 	U->Theta = 0.;
-	
+
 	//TODO should this be zero or should this be 2008 Alcubierre eqn 5.8.19 Γ^μ = -2 Z^μ ?
 	//but what about Γ^μ = 2 e^i - d^i?
 	//and what about the popular expression: 2 e^i - d^i - 2 Z^i?
@@ -333,10 +333,10 @@ where _γ_ij is the conformal metric, _Γ^i_jk is the conformal connection, ^Γ^
 	U->S_u = real3_zero;
 	U->S_ll = real3s3_zero;
 <? end ?>
-	
+
 	U->H = 0;
 	U->M_u = real3_zero;
-	
+
 	//zero these here.  InitDerivs should calculate them.
 	U->a_l = real3_zero;
 	U->d_lll = real3x3s3_zero;
@@ -376,7 +376,7 @@ void <?=applyInitCondCell?>(
 	<?=initCode()?>
 
 	*U = (<?=cons_t?>){.ptr={ 0. / 0. }};
-	
+
 	U->alpha = alpha;
 	U->gamma_ll = gamma_ll;
 	U->K_ll = K_ll;
@@ -406,7 +406,7 @@ if has_B_u then
 	U->S_u = real3_zero;
 	U->S_ll = real3s3_zero;
 <? end ?>
-	
+
 	U->H = 0;
 	U->M_u = real3_zero;
 }
@@ -457,7 +457,7 @@ if has_b_ul then
 	(U)->S_u = real3_zero;
 	(U)->S_ll = real3s3_zero;
 <? end ?>
-	
+
 	(U)->H = 0;
 	(U)->M_u = real3_zero;
 }
@@ -474,7 +474,7 @@ if has_b_ul then
 	/* the only advantage of this calcDT over the default is that here this sqrt(f) and det(gamma_ij) is only called once */\
 	real const f_alphaSq = calc_f_alphaSq(U->alpha);\
 	real3s3 const gamma_ll = (U)->gamma_ll;\
-	real const det_gamma = determinant(gamma_ll);\
+	real const det_gamma = gamma_ll.determinant();\
 	real const alpha_sqrt_f = sqrt(f_alphaSq);\
 \
 	<? for side=0,solver.dim-1 do ?>{\
@@ -506,7 +506,7 @@ if has_b_ul then
 
 //// MODULE_NAME: <?=fluxFromCons?>
 //// MODULE_DEPENDS: <?=cons_t?> <?=solver_t?> <?=normal_t?>
-		
+
 <? if eqn.useShift == "MinimalDistortionHyperbolic" then ?>
 //// MODULE_DEPENDS: mdeShiftEpsilon
 <? end ?>
@@ -543,8 +543,8 @@ if has_b_ul then
 	real3 const n_l = normal_l1(n);\
 \
 	real3s3 const gamma_ll = ALIGN_FROM((U)->gamma_ll, n_l);\
-	real const det_gamma = determinant(gamma_ll);\
-	real3s3 const gamma_uu = inverse(gamma_ll, det_gamma);\
+	real const det_gamma = gamma_ll.determinant();\
+	real3s3 const gamma_uu = gamma_ll.inverse(det_gamma);\
 \
 	real3 const Z_l = ALIGN_FROM((U)->Z_l, n_l);\
 	real3 const a_l = ALIGN_FROM((U)->a_l, n_l);\
@@ -595,7 +595,7 @@ if has_B_u then --\
 \
 	<? if eqn.useShift == "GammaDriverHyperbolic" then ?>\
 	real3s3 const gammaHat_ll = <?=calc_gammaHat_ll?>((cell)->pos);\
-	real const det_gammaHat = determinant(gammaHat_ll);\
+	real const det_gammaHat = gammaHat_ll.determinant();\
 	real const W = pow(det_gammaHat / det_gamma, real(1./6.));\
 	real const invW = 1. / W;\
 	real3x3s3 const connHat_ull = coord_connHol_ull((cell)->pos);\
@@ -832,8 +832,8 @@ if has_B_u then --\
 	(resultEig)->gamma_ll = real3s3_real_mul(real3s3_add((UR)->gamma_ll, (UL)->gamma_ll), .5);\
 	(resultEig)->gamma_ll = ALIGN_FROM((resultEig)->gamma_ll, n_l);\
 \
-	real const det_avg_gamma = determinant((resultEig)->gamma_ll);\
-	(resultEig)->gamma_uu = inverse((resultEig)->gamma_ll, det_avg_gamma);\
+	real const det_avg_gamma = (resultEig)->gamma_ll.determinant();\
+	(resultEig)->gamma_uu = (resultEig)->gamma_ll.inverse(det_avg_gamma);\
 \
 	(resultEig)->sqrt_gammaUnn = sqrt((resultEig)->gamma_uu.xx);\
 \
@@ -852,8 +852,8 @@ if has_B_u then --\
 	/*real3 const */pt,\
 	/*<?=normal_t?> const */n\
 ) {\
-	real const det_gamma = determinant((U)->gamma_ll);\
-	real3s3 const gamma_uu = inverse((U)->gamma_ll, det_gamma);\
+	real const det_gamma = (U)->gamma_ll.determinant();\
+	real3s3 const gamma_uu = (U)->gamma_ll.inverse(det_gamma);\
 \
 	real3 const n_l = normal_l1(n);\
 	real const gammaUnn = real3_weightedLenSq(n_l, gamma_uu);\
@@ -896,7 +896,7 @@ if has_B_u then --\
 	real3 const n_l = normal_l1(n);\
 \
 	(resultEig)->gamma_ll = ALIGN_FROM((U)->gamma_ll, n_l);\
-	(resultEig)->gamma_uu = inverse((resultEig)->gamma_ll, det_avg_gamma);\
+	(resultEig)->gamma_uu = (resultEig)->gamma_ll.inverse(det_avg_gamma);\
 \
 	(resultEig)->sqrt_gammaUnn = sqrt((resultEig)->gamma_uu.xx);\
 \
@@ -1504,8 +1504,8 @@ kernel void <?=addSource?>(
 	global <?=cell_t?> const * const cell = cellBuf + index;
 
 	real3s3 const gamma_ll = U->gamma_ll;
-	real const det_gamma = determinant(gamma_ll);
-	real3s3 const gamma_uu = inverse(gamma_ll, det_gamma);
+	real const det_gamma = gamma_ll.determinant();
+	real3s3 const gamma_uu = gamma_ll.inverse(det_gamma);
 
 	real3 const S_l = real3_zero;
 	real3s3 const S_ll = real3s3_zero;
@@ -1513,10 +1513,10 @@ kernel void <?=addSource?>(
 	real const rho = 0.;
 
 <? if false then ?>//hand-rolled
-	
+
 	// source terms
 	real3x3s3 const d_lll = U->d_lll;									//d_kij
-	
+
 	real3x3 const K_ul = real3s3_real3s3_mul(gamma_uu, U->K_ll);			//K^i_j
 	real const trK = K_ul.trace();							//K^k_k
 	real3x3x3 const d_llu = real3x3s3_real3s3_mul(d_lll, gamma_uu);	//d_llu = d_ij^k = d_ijl * γ^lk
@@ -1529,10 +1529,10 @@ kernel void <?=addSource?>(
 	real3 const Z_u = real3s3_real3_mul(gamma_uu, U->Z_l);
 	real3x3s3 const d_luu = real3s3_real3x3x3_mul2_toreal3x3s3(gamma_uu, d_llu);		/* d_luu = d_i^jk = γ^jl d_il^k */
 	real const f_alphaSq = calc_f_alphaSq(U->alpha);
-	
+
 	/* α_,t = shift terms - α^2 f (γ^ij K_ij - m Θ) */
 	deriv->alpha += -f_alphaSq * (trK - solver->m * U->Theta);
-	
+
 	/* γ_ij,t = shift terms - 2 α K_ij */
 	deriv->gamma_ll = real3s3_add(
 		deriv->gamma_ll,
@@ -1594,7 +1594,7 @@ end?>
 
 
 <? if eqn.useShift == "HarmonicParabolic" then ?>
-	
+
 	real const tr_b = U->b_ul.trace();
 	real3 const a_u = real3s3_real3_mul(gamma_uu, U->a_l);
 
@@ -1709,24 +1709,24 @@ end
 	real3 const Z_u = real3s3_real3_mul(gamma_uu, Z_l);
 	real3x3s3 const conn_ull = conn_ull_from_d_llu_d_ull(d_llu, d_ull);	//Γ^k_ij = d_ij^k + d_ji^k - d^k_ij
 	real3s3 const dHat_t_ll = real3s3_zero;
-	
+
 	real const f_alpha = calc_f_alpha((U)->alpha);
 
 	<? if eqn.useShift ~= "none" then ?>
 		<? if has_beta_u then ?>
 	real3 const beta_u = U->beta_u;
 		<? end ?>
-		
+
 		<? if has_b_ul then ?>
 	real3x3 const b_ul = U->b_ul;
 	real const tr_b = b_ul.trace();
 	real3x3 const b_ll = real3s3_real3x3_mul(gamma_ll, b_ul);
 		<? end ?>
-		
+
 		<? if has_B_u then ?>
 	real3 const B_u = U->B_u;
 		<? end ?>
-		
+
 		<? if eqn.useShift == "MinimalDistortionHyperbolic" then ?>
 //// MODULE_DEPENDS: mdeShiftEpsilon
 	real3x3 const DBeta_ul = real3x3_add(b_ul, real3_real3x3s3_dot2(beta_u, conn_ull));
@@ -1736,7 +1736,7 @@ end
 	real3x3 const b_uu = real3x3_real3s3_mul(b_ul, gamma_uu);
 	real3s3 const A_uu = real3s3_sub(K_uu, real3s3_real_mul(gamma_uu, tr_K / 3.));
 		<? end ?>
-		
+
 		<? if eqn.useShift == "GammaDriverHyperbolic" then ?>
 	//real3x3 const b_ul = U->b_ul;
 	//real3x3 const b_ll = real3s3_real3x3_mul(gamma_ll, b_ul);
@@ -1745,7 +1745,7 @@ end
 	real3s3 const gammaHat_ll = <?=calc_gammaHat_ll?>(cell->pos);
 	// W = (_γ/γ)^(1/6)
 	// log(W)_,i = 1/3 (log(√_γ)_,i - log(√γ)_,i) = 1/3 (_Γ^j_ji - Γ^j_ji)
-	real const det_gammaHat = determinant(gammaHat_ll);	//TODO use coord module for math simplifications?
+	real const det_gammaHat = gammaHat_ll.determinant();	//TODO use coord module for math simplifications?
 	real const W = pow(det_gammaHat / det_gamma, real(1./6.));
 	real const invW = 1. / W;
 //// MODULE_DEPENDS: <?=coord_connHol_ull?>
@@ -1754,19 +1754,19 @@ end
 	real3x3s3 const connHat_ull = coord_connHol_ull((cell)->pos);\
 	real3x3 const DHatBeta_ul = real3x3_add(b_ul, real3_real3x3s3_dot2(beta_u, connHat_ull));
 	real const tr_DHatBeta = DHatBeta_ul.trace();
-	
+
 	//ok so here's an error in my analytical/codegen ... ^Γ^i_jk is raised/lowered by ^γ_ij
 	//so this "connHat_uul" had its first index raised by γ_ij and second index raised by ^γ_ij
 	real3x3x3 const connHat_uul = real3x3s3_real3s3_mul(connHat_ull, gamma_uu);
-	
+
 	real3s3 const A_uu = real3s3_sub(K_uu, real3s3_real_mul(gamma_uu, tr_K / 3.));
-	
+
 	//TODO I never updated this when I updated the Z4.lua symmath to fix a math error with dDeltas ...
 	// TODO TODO get rid of dDeltas altogether since they don't offer any benefit to the finite-volume scheme -- it was just me experimenting with bringing over the finite-difference trick that the BSSN crowd uses
 	// TODO TODO TODO I need to replace the dDelta_ijk -> d_ijk 's because approximating dHat_ijk = 0 is ruining the situations where I need the background metric, such as here
 	// and this influences the shift conditions
 	// or TODO I can just calculate connHat from the coord code ...
-	real3s3 const gammaHat_uu = inverse(gammaHat_ll, det_gammaHat);
+	real3s3 const gammaHat_uu = gammaHat_ll.inverse(det_gammaHat);
 //// MODULE_DEPENDS: <?=coord_partial_gHol_lll?>
 	real3 const GDelta_l = real3_sub(d_l, real3x3s3_real3s3_dot23(real3x3s3_real_mul(coord_partial_gHol_lll((cell)->pos), .5), gammaHat_uu));
 	real3 const GDelta_u = real3s3_real3_mul(gamma_uu, GDelta_l);
@@ -2292,7 +2292,7 @@ kernel void <?=minimize_H_K?>(
 
 //// MODULE_DEPENDS: <?=calc_gamma_uu?>
 	real3s3 const gamma_uu = <?=calc_gamma_uu?>(U, cell->pos);
-	
+
 	real3x3 const K_ul = real3s3_real3s3_mul(gamma_uu, U->K_ll);			//K^i_j
 	real const tr_K = K_ul.trace();							//K^k_k
 	real3s3 const K_uu = real3x3_real3s3_to_real3s3_mul(K_ul, gamma_uu);		//K^ij

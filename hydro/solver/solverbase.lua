@@ -2226,7 +2226,7 @@ value->vreal3 = real3(coordLen(value->vreal3, x),0,0);
 		{name = 'zz', code = 'value->vreal3s3 = real3s3(value->vreal3s3.zz,0,0,0,0,0);'},
 		{name = 'norm', code = 'value->vreal3s3 = real3s3(sqrt(value->vreal3s3.dot(value->vreal3s3)), 0,0,0,0,0);'},
 		{name = 'tr', code = 'value->vreal3s3 = real3s3(trace(value->vreal3s3), 0,0,0,0,0);'},
-		{name = 'det', code = 'value->vreal3s3 = real3s3(determinant(value->vreal3s3), 0,0,0,0,0);'},
+		{name = 'det', code = 'value->vreal3s3 = real3s3(value->vreal3s3.determinant(), 0,0,0,0,0);'},
 
 		{name = 'x', code = 'value->vreal3s3 = real3s3(value->vreal3s3.xx, value->vreal3s3.xy, value->vreal3s3.xz, 0,0,0);', type = 'real3', magn='x mag'},
 		{name = 'y', code = 'value->vreal3s3 = real3s3(value->vreal3s3.xy, value->vreal3s3.yy, value->vreal3s3.yz, 0,0,0);', type = 'real3', magn='y mag'},

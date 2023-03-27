@@ -7,7 +7,7 @@ real calc_P(
 	real const eInt
 ) {
 	return (solver->heatCapacityRatio - 1.) * rho * eInt;
-}	
+}
 
 //chi in most papers
 real calc_dP_drho(
@@ -46,9 +46,9 @@ real calc_h(real rho, real P, real eInt) {
 	real3 const beta,
 	real3s3 const gamma
 ) {
-	//2008 Font eqn 31 etc 
-	real det_gamma = determinant(gamma);
-	real3s3 gammaU = inverse(gamma, det_gamma);
+	//2008 Font eqn 31 etc
+	real det_gamma = gamma.determinant();
+	real3s3 gammaU = gamma.inverse(det_gamma);
 	real3 vU = real3s3_real3_mul(gammaU, prim.v);
 	real vSq = real3_dot(prim.v, vU);
 	real WSq = 1. / (1. - vSq);
@@ -57,7 +57,7 @@ real calc_h(real rho, real P, real eInt) {
 	real h = calc_h(prim.rho, P, prim.eInt);
 
 	//2008 Font, eqn 28-30:
-	
+
 	real D = prim.rho * W;
 	real3 S = real3_real_mul(prim.v, prim.rho * h * WSq);
 	real tau = prim.rho * h * WSq - P - D;
@@ -93,7 +93,7 @@ void <?=applyInitCondCell?>(
 	<?=solver:getADMVarCode()?>
 
 	<?=code?>
-	
+
 	real eInt = calc_eInt_from_P(solver, rho, P);
 
 	<?=prim_only_t?> prim = {.rho=rho, .v=v, .eInt=eInt};
@@ -115,8 +115,8 @@ void <?=calcDTCell?>(
 	<?=prim_only_t?> prim = primOnlyFromPrim(U, solver, x);
 	<?=solver:getADMVarCode()?>
 
-	real const det_gamma = determinant(gamma);
-	real3s3 const gammaU = inverse(gamma, det_gamma);
+	real const det_gamma = gamma.determinant();
+	real3s3 const gammaU = gamma.inverse(det_gamma);
 	real3 const vU = real3s3_real3_mul(gammaU, prim.v);
 
 	real const rho = prim.rho;
@@ -127,13 +127,13 @@ void <?=calcDTCell?>(
 	real const h = calc_h(rho, P, eInt);
 	real const csSq = solver->heatCapacityRatio * P / (rho * h);
 	real const cs = sqrt(csSq);
-	
+
 	//for (int side = 0; side < dim; ++side) {
 	<? for side=0,solver.dim-1 do ?>{
 		//for the particular direction
 		real vUi = vU.s<?=side?>;
 		real vUiSq = vUi * vUi;
-		
+
 		//Font 2008 eqn 106
 		real const betaUi = beta.s<?=side?>;
 		real discr = sqrt((1. - vSq) * (gammaU.xx * (1. - vSq * csSq) - vUiSq * (1. - csSq)));
@@ -156,9 +156,9 @@ void <?=calcDTCell?>(
 	solver:getADMArgs()?>
 ) {
 	<?=solver:getADMVarCode()?>
-	real const det_gamma = determinant(gamma);
-	real3s3 const gammaU = inverse(gamma, det_gamma);
-	
+	real const det_gamma = gamma.determinant();
+	real3s3 const gammaU = gamma.inverse(det_gamma);
+
 	real const vUi = gammaU.<?=sym(side+1,1)?> * U.prim.v.x
 			+ gammaU.<?=sym(side+1,2)?> * U.prim.v.y
 			+ gammaU.<?=sym(side+1,3)?> * U.prim.v.z;
@@ -201,10 +201,10 @@ void <?=calcDTCell?>(
 kernel void <?=calcEigenBasis?>(
 	constant <?=solver_t?> const * const solver,
 	global <?=eigen_t?> * const eigenBuf,
-	
-	//TODO 
+
+	//TODO
 	//turn this into a LR extrapolation
-	//actually make use of PLM somehow 
+	//actually make use of PLM somehow
 	//right now only primBuf is being used for getting neighbor values
 	//so SRHD should perform the PLM stuff on the primBuf instead of the UBUf?
 	// or do the PLM on the UBuf and do the cons->prim on the ULR edge values
@@ -212,19 +212,19 @@ kernel void <?=calcEigenBasis?>(
 	solver:getADMArgs()?>
 ) {
 	<?=SETBOUNDS?>(solver->numGhost, solver->numGhost - 1);
-	
+
 	int const indexR = index;
 	<?=prim_t?> primR = UBuf[indexR].prim;
-	
+
 	<?=solver:getADMVarCode{suffix='R'} --[[ produce alphaR, betaR, gammaR at indexR ]] ?>
-	
+
 	//for (int side = 0; side < dim; ++side) {
 	<? for side=0,solver.dim-1 do ?>{
 		int const side = <?=side?>;
-		
+
 		int const indexL = index - solver->stepsize.s<?=side?>;
 		<?=prim_t?> primL = UBuf[indexL].prim;
-	
+
 		<?=solver:getADMVarCode{suffix='L'} --[[ produce alphaL, betaL, gammaL at indexL ]] ?>
 
 <? if true then -- arithmetic averaging ?>
@@ -238,18 +238,18 @@ kernel void <?=calcEigenBasis?>(
 		real3s3 gamma = real3s3_real_mul(real3s3_add(gammaL, gammaR), .5);
 <? -- else -- Roe-averaging, Font 2008 eqn 38 ?>
 <? end ?>
-		
+
 		real rho = avg.rho;
 		real3 vL = avg.v;
 		real eInt = avg.eInt;
-			
+
 		//these match <?=eigen_leftTransform?>
 		<? if side == 1 then ?>
 		//v' = P [vx,vy,vz] = [vy,-vx,vz]
 		/*
 		should gamma' = P gamma P' or P' gamma P ?
 		I'm going to use P gamma P' because the signs match how 'v' changes as well
-		however, because gamma the metric of v, maybe it should be opposite? 
+		however, because gamma the metric of v, maybe it should be opposite?
 		Also, the norms work out, so (P gamma P') (P v) has the same norm as (gamma v)
 		Same with (P v)' (P gamma P') (P v) works vs (P v)' (P' gamma P) (P v) which doesn't
 		*/
@@ -276,9 +276,9 @@ kernel void <?=calcEigenBasis?>(
 			gamma.xx,
 		};
 		<? end ?>
-		
-		real det_gamma = determinant(gamma);
-		real3s3 gammaU = inverse(gamma, det_gamma);
+
+		real det_gamma = gamma.determinant();
+		real3s3 gammaU = gamma.inverse(det_gamma);
 
 		real3 vU = real3s3_real3_mul(gammaU, vL);
 		real vSq = real3_dot(vL, vU);
@@ -310,26 +310,26 @@ kernel void <?=calcEigenBasis?>(
 
 		real LambdaMin = (lambdaMin + betaUi) / alpha;	//2008 Font eqn 114
 		real LambdaMax = (lambdaMax + betaUi) / alpha;	//2008 Font eqn 114
-		
+
 		//used by evL and evR
 		real ATildeMinus = (gammaU.xx - vUxSq) / (gammaU.xx - vU.x * LambdaMin);	//2008 Font eqn 113
 		real ATildePlus  = (gammaU.xx - vUxSq) / (gammaU.xx - vU.x * LambdaMax);	//2008 Font eqn 113
-		
+
 		//used by evL
 		real VMinus = (vU.x - LambdaMin) / (gammaU.xx - vU.x * LambdaMin);	//2008 Font eqn 113
 		real VPlus = (vU.x - LambdaMax) / (gammaU.xx - vU.x * LambdaMax);		//2008 Font eqn 113
-	
+
 		//used by evL and evR
 		//hmm, should these be lower?  Time to derive the equations?
 		real CMinus = vL.x - VMinus;	//2008 Font eqn 112
 		real CPlus = vL.x - VPlus;		//2008 Font eqn 112
 
 		real kappa = calc_dP_deInt(solver, rho, eInt);	//2008 Font note just after eqn 107
-		real kappaTilde = kappa / rho;	//2008 Font eqn 112.  
+		real kappaTilde = kappa / rho;	//2008 Font eqn 112.
 		//used by evL and evR
-		real Kappa = kappaTilde / (kappaTilde - csSq);	//2008 Font eqn 112.  
+		real Kappa = kappaTilde / (kappaTilde - csSq);	//2008 Font eqn 112.
 		//Kappa = h;	//approx for ideal gas
-	
+
 		int indexInt = side + dim * index;
 		global <?=eigen_t?>* eig = eigenBuf + indexInt;
 <?
@@ -341,7 +341,7 @@ for _,var in ipairs(eqn.eigenVars) do
 }
 
 
-<? 
+<?
 local prefix = require 'ext.table'.map(eqn.eigenVars, function(var)
 	return '\t'..var.type..' '..var.name..' = eig.'..var.name..';\n'
 end):concat()
@@ -355,7 +355,7 @@ void <?=eigen_leftTransform?>(
 	<?=eigen_t?> const eig,
 	<?=cons_t?> const X_,
 	real3 const x
-) { 
+) {
 	//rotate incoming v's in X
 	//this should match calcEigenBasis
 	//eig.beta and eig.gamma should already be rotated
@@ -366,11 +366,11 @@ void <?=eigen_leftTransform?>(
 	<? elseif side == 2 then ?>
 	<?=cons_t?> X = {.ptr={X_.ptr[0], X_.ptr[3], X_.ptr[2], -X_.ptr[1], X_.ptr[4]}};
 	<? end ?>
-	
+
 	<?=prefix?>
-	
-	real const det_gamma = determinant(gamma);
-	real3s3 const gammaU = inverse(gamma, det_gamma);
+
+	real const det_gamma = gamma.determinant();
+	real3s3 const gammaU = gamma.inverse(det_gamma);
 
 	real const vUxSq = vU.x * vU.x;
 	real const hSq = h * h;
@@ -382,7 +382,7 @@ void <?=eigen_leftTransform?>(
 	real const gamma_gammaUxz = det_gamma * gammaU.xz;
 	real const xi = det_gamma * (gammaU.xx - vUxSq);//2008 Font eqn 121
 	real const Delta = hSq * hW * (Kappa - 1.) * (CPlus - CMinus) * xi;	//2008 Font eqn 121
-	
+
 	//min row	2008 Font eqn 118
 	real scale;
 	scale = hSq / Delta;
@@ -397,16 +397,16 @@ void <?=eigen_leftTransform?>(
 	//mid normal row	2008 Font eqn 115
 	scale = W / (Kappa - 1.);
 	Y->ptr[1] = (
-		X.ptr[0] * (h - W) 
-		+ X.ptr[1] * (W * vU.x) 
-		+ X.ptr[2] * (W * vU.y) 
-		+ X.ptr[3] * (W * vU.z) 
+		X.ptr[0] * (h - W)
+		+ X.ptr[1] * (W * vU.x)
+		+ X.ptr[2] * (W * vU.y)
+		+ X.ptr[3] * (W * vU.z)
 		+ X.ptr[4] * (-W)
 	) * scale;
 	//mid tangent A row	2008 Font eqn 116
 	scale = 1. / (h * xi);
 	Y->ptr[2] = (
-		X.ptr[0] * (-gamma.zz * vL.y + gamma.yz * vL.z) 
+		X.ptr[0] * (-gamma.zz * vL.y + gamma.yz * vL.z)
 		+ X.ptr[1] * vU.x * (gamma.zz * vL.y - gamma.yz * vL.z)
 		+ X.ptr[2] * (gamma.zz * (1. - vL.x * vU.x) + gamma.xz * vL.z * vU.x)
 		+ X.ptr[3] * (-gamma.yz * (1. - vL.x * vU.x) - gamma.xz * vL.y * vU.x)
@@ -443,7 +443,7 @@ void <?=eigen_rightTransform?>(
 	normal_t const n
 ) {
 	<?=prefix?>
-	
+
 	real hW = h * W;
 	real W2 = W * W;
 
@@ -473,7 +473,7 @@ void <?=eigen_rightTransform?>(
 		+ X.ptr[2] * (W * vL.y * (2. * hW - 1.))
 		+ X.ptr[3] * (W * vL.z * (2. * hW - 1.))
 		+ X.ptr[4] * (hW * ATildePlus - 1.);
-	
+
 	//rotate outgoing y's x's into side
 	real const tmp = Y->ptr[1];
 	Y->ptr[1] = -Y->ptr[1+n->side];
@@ -513,9 +513,9 @@ void <?=eigen_fluxTransform?>(
 	<?=waves_t?> waves;
 	<?=eigen_leftTransform?>(&waves, solver, eig, X_, (cell)->pos, n);
 	<?=eqn:eigenWaveCodePrefix("n", "eig", "(cell)->pos")?>
-<? for j=0,eqn.numWaves-1 do 
+<? for j=0,eqn.numWaves-1 do
 ?>	waves.ptr[<?=j?>] *= <?=eqn:eigenWaveCode("n", "eig", "(cell)->pos", j)?>;
-<? end 
+<? end
 ?>	eigen_rightTransform(result, solver, eig, waves, (cell)->pos, n);
 #endif
 }
@@ -540,13 +540,13 @@ kernel void <?=addSource?>(
 This is from 2008 Alcubierre eqn 7.3.11
 Also in 2013 Rezzolla, Zanotti eqn 7.17-7.22
 TODO verify this matches with the rest of the Font 2008 stuff
-because I remember seeing multiple definitions of u^i from v^i in GRHD, 
+because I remember seeing multiple definitions of u^i from v^i in GRHD,
 between Marti & Muller, Font, Alcubierre, and Baumgarte & Shapiro
 
 W = alpha u^0
 v^i = (u^i / u^0 + beta^i) / alpha
 
-therefore 
+therefore
 u^0 = W / alpha
 u^i = W (v^i - beta^i / alpha)
 W = sqrt(1 - v^i v^j gamma_ij)
@@ -557,14 +557,14 @@ kernel void <?=constrainU?>(
 	solver:getADMArgs()?>
 ) {
 	<?=SETBOUNDS?>(solver->numGhost, solver->numGhost - 1);
-	
+
 	<?=solver:getADMVarCode()?>
-	
-	real det_gamma = determinant(gamma);
-	real3s3 gammaU = inverse(gamma, det_gamma);
+
+	real det_gamma = gamma.determinant();
+	real3s3 gammaU = gamma.inverse(det_gamma);
 
 	global <?=eqn.cons_only_t?> const * const U = &UBuf[index].cons;
-	
+
 	U->D = max(U->D, (real)solver->DMin);
 	U->tau = max(U->tau, (real)solver->tauMin);
 

@@ -9,8 +9,8 @@ static inline real3s3 <?=calc_gamma_uu?>(
 	global <?=cons_t?> const * const U,
 	real3 const x
 ) {
-	real const det_gamma = determinant((U)->gamma_ll);
-	real3s3 const gamma_uu = inverse((U)->gamma_ll, det_gamma);
+	real const det_gamma = (U)->gamma_ll.determinant();
+	real3s3 const gamma_uu = (U)->gamma_ll.inverse(det_gamma);
 	return gamma_uu;
 }
 
@@ -28,10 +28,10 @@ static inline void <?=setFlatSpace?>(
 	(U)->d_lll = real3x3s3_zero;
 	(U)->K_ll = real3s3_zero;
 	(U)->V_l = real3_zero;
-<? if eqn.useShift ~= "none" then 
+<? if eqn.useShift ~= "none" then
 ?>	(U)->beta_u = real3_zero;
-<? end 
-?>	
+<? end
+?>
 <? if eqn.useStressEnergyTerms then ?>
 	//what to do with the constraint vars and the source vars?
 	(U)->rho = 0;
@@ -75,7 +75,7 @@ void <?=applyInitCondCell?>(
 	real3s3 epsilon_LL = real3s3_zero;
 	real3s3 ABar_LL = real3s3_zero;
 
-	//TODO more stress-energy vars 
+	//TODO more stress-energy vars
 	real rho = 0.;
 
 <?=initCode()?>
@@ -87,7 +87,7 @@ void <?=applyInitCondCell?>(
 	real3s3 gammaBar_LL = real3s3_add(epsilon_LL, real3s3_ident);
 	real3s3 gamma_LL = real3s3_real_mul(gammaBar_LL, 1. / (W*W));
 	U->gamma_ll = real3s3_rescaleToCoord_LL(gamma_LL, x);
-	
+
 	// K_ij = e_i^I e_j^J (ABar_IJ + gammaBar_IJ K/3) / W^2
 	U->K_ll = real3s3_rescaleToCoord_LL(
 		real3s3_add(
@@ -118,24 +118,24 @@ void <?=applyInitCondCell?>(
 kernel void <?=initDerivs?>(
 	constant <?=solver_t?> const * const solver,
 	global <?=cons_t?> * const UBuf,
-	global <?=cell_t?> const * const cellBuf 
+	global <?=cell_t?> const * const cellBuf
 ) {
 	<?=SETBOUNDS?>(solver->numGhost, solver->numGhost);
 	global <?=cons_t?> * const U = UBuf + index;
-	
-	real const det_gamma = determinant(U->gamma_ll);
-	real3s3 const gamma_uu = inverse(U->gamma_ll, det_gamma);
 
-<? 
-for i=1,solver.dim do 
+	real const det_gamma = U->gamma_ll.determinant();
+	real3s3 const gamma_uu = U->gamma_ll.inverse(det_gamma);
+
+<?
+for i=1,solver.dim do
 	local xi = xNames[i]
 ?>
 	U->a_l.<?=xi?> = (U[solver->stepsize.<?=xi?>].alpha - U[-solver->stepsize.<?=xi?>].alpha) / (solver->grid_dx.s<?=i-1?> * U->alpha);
 	<? for jk,xjk in ipairs(symNames) do ?>
 	U->d_lll.<?=xi?>.<?=xjk?> = .5 * (U[solver->stepsize.<?=xi?>].gamma_ll.<?=xjk?> - U[-solver->stepsize.<?=xi?>].gamma_ll.<?=xjk?>) / solver->grid_dx.s<?=i-1?>;
 	<? end ?>
-<? 
-end 
+<?
+end
 for i=solver.dim+1,3 do
 	local xi = xNames[i]
 ?>
@@ -145,7 +145,7 @@ for i=solver.dim+1,3 do
 end
 ?>
 
-//V_i = d_ik^k - d^k_ki 
+//V_i = d_ik^k - d^k_ki
 <? for i,xi in ipairs(xNames) do ?>
 	U->V_l.<?=xi?> = 0.<?
 	for j,xj in ipairs(xNames) do
@@ -174,7 +174,7 @@ void <?=applyInitCondCell?>(
 	real3s3 gamma_ll = coord_g_ll(x);	//init to vector basis metric, or to grid metric?  vector basis metric I guess
 	real3s3 K_ll = real3s3_zero;
 
-	//TODO more stress-energy vars 
+	//TODO more stress-energy vars
 	real rho = 0.;
 
 <?=initCode()?>
@@ -202,24 +202,24 @@ void <?=applyInitCondCell?>(
 kernel void <?=initDerivs?>(
 	constant <?=solver_t?> const * const solver,
 	global <?=cons_t?> * const UBuf,
-	global <?=cell_t?> const * const cellBuf 
+	global <?=cell_t?> const * const cellBuf
 ) {
 	<?=SETBOUNDS?>(solver->numGhost, solver->numGhost);
 	global <?=cons_t?> * const U = UBuf + index;
-	
-	real const det_gamma = determinant(U->gamma_ll);
-	real3s3 const gamma_uu = inverse(U->gamma_ll, det_gamma);
 
-<? 
-for i=1,solver.dim do 
+	real const det_gamma = U->gamma_ll.determinant();
+	real3s3 const gamma_uu = U->gamma_ll.inverse(det_gamma);
+
+<?
+for i=1,solver.dim do
 	local xi = xNames[i]
 ?>
 	U->a_l.<?=xi?> = (U[solver->stepsize.<?=xi?>].alpha - U[-solver->stepsize.<?=xi?>].alpha) / (solver->grid_dx.s<?=i-1?> * U->alpha);
 	<? for jk,xjk in ipairs(symNames) do ?>
 	U->d_lll.<?=xi?>.<?=xjk?> = .5 * (U[solver->stepsize.<?=xi?>].gamma_ll.<?=xjk?> - U[-solver->stepsize.<?=xi?>].gamma_ll.<?=xjk?>) / solver->grid_dx.s<?=i-1?>;
 	<? end ?>
-<? 
-end 
+<?
+end
 for i=solver.dim+1,3 do
 	local xi = xNames[i]
 ?>
@@ -229,7 +229,7 @@ for i=solver.dim+1,3 do
 end
 ?>
 
-//V_i = d_ik^k - d^k_ki 
+//V_i = d_ik^k - d^k_ki
 <? for i,xi in ipairs(xNames) do ?>
 	U->V_l.<?=xi?> = 0.<?
 	for j,xj in ipairs(xNames) do
@@ -254,8 +254,8 @@ end
 ) {\
 	real const f_alpha = calc_f_alpha((U)->alpha);\
 \
-	real const det_gamma = determinant((U)->gamma_ll);\
-	real3s3 gamma_uu = inverse((U)->gamma_ll, det_gamma);\
+	real const det_gamma = (U)->gamma_ll.determinant();\
+	real3s3 gamma_uu = (U)->gamma_ll.inverse(det_gamma);\
 \
 	real3 V_l = (U)->V_l;\
 	real3 a_l = (U)->a_l;\
@@ -320,8 +320,8 @@ end
 ) {\
 	(eig)->alpha = (U)->alpha;\
 	(eig)->alpha_sqrt_f = sqrt(calc_f_alphaSq((U)->alpha));\
-	real det_gamma = determinant((U)->gamma_ll);\
-	(eig)->gamma_uu = inverse((U)->gamma_ll, det_gamma);\
+	real det_gamma = (U)->gamma_ll.determinant();\
+	(eig)->gamma_uu = (U)->gamma_ll.inverse(det_gamma);\
 	(eig)->sqrt_gammaUjj = real3(sqrt((eig)->gamma_uu.xx), sqrt((eig)->gamma_uu.yy), sqrt((eig)->gamma_uu.zz));\
 \
 <? if eqn.useShift ~= "none" then ?>\
@@ -338,7 +338,7 @@ end
 	/*real3 const */pt,\
 	/*<?=normal_t?> const */n\
 ) {\
-	real const det_gamma = determinant((U)->gamma_ll);\
+	real const det_gamma = (U)->gamma_ll.determinant();\
 \
 	real gammaUjj;\
 	if (n.side == 0) {\
@@ -383,10 +383,10 @@ end
 ) {\
 	(eig)->alpha = .5 * ((UL)->alpha + (UR)->alpha);\
 	real3s3 const avg_gamma = real3s3_real_mul(real3s3_add((UL)->gamma_ll, (UR)->gamma_ll), .5);\
-	real const det_avg_gamma = determinant(avg_gamma);\
+	real const det_avg_gamma = avg_gamma.determinant();\
 \
 	(eig)->alpha_sqrt_f = sqrt(calc_f_alphaSq((eig)->alpha));\
-	(eig)->gamma_uu = inverse(avg_gamma, det_avg_gamma);\
+	(eig)->gamma_uu = avg_gamma.inverse(det_avg_gamma);\
 	(eig)->sqrt_gammaUjj.x = sqrt((eig)->gamma_uu.xx);\
 	(eig)->sqrt_gammaUjj.y = sqrt((eig)->gamma_uu.yy);\
 	(eig)->sqrt_gammaUjj.z = sqrt((eig)->gamma_uu.zz);\
@@ -1389,7 +1389,7 @@ end
 //// MODULE_DEPENDS: <?=initCond_codeprefix?> real3x3x3
 
 /*
-this should just be 
+this should just be
 
 alpha_,t + F^i^alpha_,i = -f alpha gamma^ij K_ij
 */
@@ -1408,10 +1408,10 @@ kernel void <?=addSource?>(
 	global <?=cons_t?> * const deriv = derivBuf + index;
 	global <?=cons_t?> const * const U = UBuf + index;
 
-	real const det_gamma = determinant(U->gamma_ll);
-	real3s3 const gamma_uu = inverse(U->gamma_ll, det_gamma);
+	real const det_gamma = U->gamma_ll.determinant();
+	real3s3 const gamma_uu = U->gamma_ll.inverse(det_gamma);
 
-<? if eqn.useStressEnergyTerms then ?> 
+<? if eqn.useStressEnergyTerms then ?>
 	real const rho = U->rho;
 	real3 const S_l = real3s3_real3_mul(U->gamma_ll, U->S_u);
 	real3s3 const S_ll = U->S_ll;
@@ -1431,10 +1431,10 @@ kernel void <?=addSource?>(
 
 	//d_ull = d^i_jk = gamma^il d_ljk
 	real3x3s3 const d_ull = real3s3_real3x3s3_mul(gamma_uu, U->d_lll);
-	
+
 	//conn^k_ij = d_ij^k + d_ji^k - d^k_ij
 	real3x3s3 const conn_ull = conn_ull_from_d_llu_d_ull(d_llu, d_ull);
-	
+
 	real3x3 const K_ul = real3s3_real3s3_mul(gamma_uu, U->K_ll);			//K^i_j
 	real const tr_K = K_ul.trace();							//K^k_k
 	real3s3 const KSq_ll = real3s3_real3x3_to_real3s3_mul(U->K_ll, K_ul);		//KSq_ij = K_ik K^k_j
@@ -1445,14 +1445,14 @@ kernel void <?=addSource?>(
 
 	// Rsrc_ll.ij := Rsrc_ij
 	//	= 	+ conn^k_ij (V_k - e_k)
-	//		+ 2 d^l_ki d_lj^k 
-	//		- 2 d^l_ki d^k_lj 
+	//		+ 2 d^l_ki d_lj^k
+	//		- 2 d^l_ki d^k_lj
 	//		+ d_il^k d_jk^l
 	real3s3 const Rsrc_ll = real3s3{
 <? for ij,xij in ipairs(symNames) do
 	local i,j,xi,xj = from6to3x3(ij)
 ?>		0.
-<? 	for k,xk in ipairs(xNames) do 
+<? 	for k,xk in ipairs(xNames) do
 ?>			+ conn_ull.<?=xk?>.<?=xij?> * (U->V_l.<?=xk?> - e_l.<?=xk?>)
 <?		for l,xl in ipairs(xNames) do
 ?>			+ 2. * d_ull.<?=xl?>.<?=sym(k,i)?> * (d_llu.<?=xl?>.<?=xj?>.<?=xk?> - d_ull.<?=xk?>.<?=sym(l,j)?>)
@@ -1464,34 +1464,34 @@ kernel void <?=addSource?>(
 ?>	};
 
 
-	//srcK_ij = 
-	
+	//srcK_ij =
+
 	//lapse:
-	//	(-a_i a_j 
+	//	(-a_i a_j
 	//		+ conn^k_ij a_k
 
 	//Riemann curvature:
-	//		+ conn^k_ij (V_k - d^l_lk) 
-	//		+ 2 d^l_ki d_lj^k 
-	//		- 2 d^l_ki d^k_lj 
+	//		+ conn^k_ij (V_k - d^l_lk)
+	//		+ 2 d^l_ki d_lj^k
+	//		- 2 d^l_ki d^k_lj
 	//		+ d_il^k d_jk^l
-	
+
 	//extrinsic curvature:
-	//		+ K K_ij 
+	//		+ K K_ij
 	//		- 2 K_ik K^k_j
 
 	//matter terms:
-	//		- 8 pi S_ij 
+	//		- 8 pi S_ij
 	//		+ 4 pi  gamma_ij (S - rho)
-	
+
 	//...and the shift comes later ...
 
 	real3s3 const stressConstraint_ll = real3s3{
-<? for ij,xij in ipairs(symNames) do	
-?>		Rsrc_ll.<?=xij?> 
-			+ tr_K * U->K_ll.<?=xij?> 
+<? for ij,xij in ipairs(symNames) do
+?>		Rsrc_ll.<?=xij?>
+			+ tr_K * U->K_ll.<?=xij?>
 			- KSq_ll.<?=xij?>
-			- 8. * M_PI * S_ll.<?=xij?> 
+			- 8. * M_PI * S_ll.<?=xij?>
 			+ 4. * M_PI * U->gamma_ll.<?=xij?> * (S - rho)
 		,
 <? end
@@ -1505,7 +1505,7 @@ kernel void <?=addSource?>(
 <? for ij,xij in ipairs(symNames) do
 	local i,j,xi,xj = from6to3x3(ij)
 ?>		- U->a_l.<?=xi?> * U->a_l.<?=xj?>
-<? 	for k,xk in ipairs(xNames) do 
+<? 	for k,xk in ipairs(xNames) do
 ?>			+ conn_ull.<?=xk?>.<?=xij?> * U->a_l.<?=xk?>
 <?	end
 ?>			- KSq_ll.<?=xij?>
@@ -1521,14 +1521,14 @@ kernel void <?=addSource?>(
 <? end
 ?>	};
 
-	//srcV_k = -a_k K 
+	//srcV_k = -a_k K
 	//			+ 8 pi j_k
-	//			+ a^j K_jk 
-	//			- 4 K d^j_jk 
-	//			+ 2 K^i_k d^j_ji 
-	//			+ K^i_k d_ij^j 
+	//			+ a^j K_jk
+	//			- 4 K d^j_jk
+	//			+ 2 K^i_k d^j_ji
+	//			+ K^i_k d_ij^j
 	//			- K^i_j d_ki^j
-	//			+ 2 K^i_j d_ik^j 
+	//			+ 2 K^i_j d_ik^j
 	real3 srcV_l = real3{
 <? for k,xk in ipairs(xNames) do
 ?>		-tr_K * U->a_l.<?=xk?>
@@ -1550,7 +1550,7 @@ kernel void <?=addSource?>(
 
 	//alpha_,t = shift terms - alpha^2 f gamma^ij K_ij
 	deriv->alpha += -U->alpha * U->alpha * f * tr_K;
-	
+
 	//gamma_ij,t = shift terms - 2 alpha K_ij
 <? for ij,xij in ipairs(symNames) do
 ?>	deriv->gamma_ll.<?=xij?> += -2. * U->alpha * U->K_ll.<?=xij?>;
@@ -1574,7 +1574,7 @@ kernel void <?=addSource?>(
 	real3 const a_l = U->a_l;
 	real3x3s3 const d_lll = U->d_lll;
 	real3s3 const K_ll = U->K_ll;
-	
+
 	real const f = calc_f(alpha);									//order 1/alpha
 	real const f_alpha = calc_f_alpha(alpha);						//order 1
 	real const f_alphaSq = calc_f_alphaSq(alpha);					//order alpha
@@ -1582,7 +1582,7 @@ kernel void <?=addSource?>(
 	real const alphaSq_dalpha_f = calc_alphaSq_dalpha_f(alpha);	//order 1
 
 	real3 const d_l = real3x3s3_real3s3_dot23(d_lll, gamma_uu);
-	
+
 	// BEGIN CUT from numerical-relativity-codegen/flux_matrix_output/adm_noZeroRows.html
 	real const tmp1 = K_ll.xy * gamma_uu.xy;
 	real const tmp2 = K_ll.xz * gamma_uu.xz;
@@ -2769,7 +2769,7 @@ kernel void <?=addSource?>(
 		+ 2. * K_ll.xy * K_ll.zz * gamma_uu.xy
 		- 4. * K_ll.xz * tmp2177
 		- 2. * K_ll.xz * tmp2179
-		+ K_ll.xx * K_ll.zz * gamma_uu.xx);	
+		+ K_ll.xx * K_ll.zz * gamma_uu.xx);
 	// END CUT
 
 #endif
@@ -2781,7 +2781,7 @@ kernel void <?=addSource?>(
 	if eqn.useShift == "HarmonicShiftCondition-FiniteDifference"
 	or eqn.useShift == "MinimalDistortionElliptic"
 	or eqn.useShift == "MinimalDistortionEllipticEvolve"
-	then 
+	then
 	?>
 
 	//make each useShift option into an object
@@ -2794,7 +2794,7 @@ kernel void <?=addSource?>(
 	// for any '-FiniteDifference' shift, the flux won't have any shift terms.
 
 	//partial_beta_ul[j].i := beta^i_,j
-<?=eqn:makePartial1"beta_u"?>	
+<?=eqn:makePartial1"beta_u"?>
 
 	//= gamma_ik beta^k_,j
 	real3x3 const partial_beta_u_ll = real3x3{
@@ -2879,7 +2879,7 @@ end ?>
 ?>		+ partial_K_l[<?=k-1?>].<?=xij?> * U->beta_u.<?=xk?>
 		+ U->K.<?=sym(k,j)?> * partial_beta_ul[<?=i-1?>].<?=xk?>
 		+ U->K.<?=sym(i,k)?> * partial_beta_ul[<?=j-1?>].<?=xk?>
-<? 	end 
+<? 	end
 ?>	;
 <? end ?>
 
@@ -2900,12 +2900,12 @@ end ?>
 #endif
 
 
-	<? 
-	end	-- using partial_beta_ul to integrate alpha, gamma_ll, 
+	<?
+	end	-- using partial_beta_ul to integrate alpha, gamma_ll,
 	if eqn.useShift == "2005 Bona / 2008 Yano" then ?>
-	
-	
-	<? elseif eqn.useShift == "HarmonicShiftCondition-FiniteDifference" then 
+
+
+	<? elseif eqn.useShift == "HarmonicShiftCondition-FiniteDifference" then
 	?>
 
 	//next add the source for the particular useShift
@@ -2924,7 +2924,7 @@ end ?>
 	end ?>,
 <? end
 ?>	};
-	
+
 	real3 const a_u = real3s3_real3_mul(gamma_uu, U->a_l);
 
 	//conn^i = conn^i_jk gamma^jk
@@ -2961,38 +2961,38 @@ end ?>
 	/*
 	beta^i_,t = epsilon (gamma^jk D_j D_k beta^i + 1/3 D^i D_j beta^j + R^i_j beta^j - D_j (2 alpha (K^ij - 1/3 K gamma^ij))
 	= epsilon (
-		gamma^jk D_j (beta^i_,k + Gamma^i_lk beta^l) 
-		+ 1/3 gamma^ik D_k (beta^j_,j + Gamma^j_lj beta^l) 
-		+ R^i_j beta^j 
+		gamma^jk D_j (beta^i_,k + Gamma^i_lk beta^l)
+		+ 1/3 gamma^ik D_k (beta^j_,j + Gamma^j_lj beta^l)
+		+ R^i_j beta^j
 		- (2 alpha_,j (K^ij - 1/3 K gamma^ij)
 		- (2 alpha (D_j K^ij - 1/3 K_,j gamma^ij)
 	)
 	= epsilon (
-		- 2 alpha_,j K^ij 
+		- 2 alpha_,j K^ij
 		+ 2/3 alpha_,j K gamma^ij
-		+ gamma^jk Gamma^i_lk,j beta^l 
-		+ 2 Gamma^ik_j beta^j_,k 
-		- Gamma^kj_j beta^i_,k 
-		+ 1/3 gamma^ik Gamma^j_lj beta^l_,k 
-		+ gamma^jk beta^i_,kj 
-		+ 1/3 gamma^ik beta^j_,jk 
-		+ 1/3 gamma^ik Gamma^j_lj,k beta^l 
-		- 2 alpha K^ij_,j 
+		+ gamma^jk Gamma^i_lk,j beta^l
+		+ 2 Gamma^ik_j beta^j_,k
+		- Gamma^kj_j beta^i_,k
+		+ 1/3 gamma^ik Gamma^j_lj beta^l_,k
+		+ gamma^jk beta^i_,kj
+		+ 1/3 gamma^ik beta^j_,jk
+		+ 1/3 gamma^ik Gamma^j_lj,k beta^l
+		- 2 alpha K^ij_,j
 		+ 2/3 alpha K_,j gamma^ij
-		+ Gamma^i_jm Gamma^mj_l beta^l 
-		- Gamma^m_jl Gamma^ij_m beta^l 
+		+ Gamma^i_jm Gamma^mj_l beta^l
+		- Gamma^m_jl Gamma^ij_m beta^l
 		- Gamma^mj_j Gamma^i_lm beta^l
 		+ Gamma^ij_l Gamma^l_kj beta^k
 		+ 1/3 gamma^ik Gamma^j_lj Gamma^l_mk beta^m
-		+ R^i_j beta^j 
-		- 2 alpha Gamma^i_kj K^ki 
-		- 2 alpha Gamma^j_kj K^ik 
+		+ R^i_j beta^j
+		- 2 alpha Gamma^i_kj K^ki
+		- 2 alpha Gamma^j_kj K^ik
 	)
 	*/
 
 	<?
-	elseif eqn.useShift == "LagrangianCoordinates" 
-	or eqn.useShift == "MinimalDistortionElliptic" 
+	elseif eqn.useShift == "LagrangianCoordinates"
+	or eqn.useShift == "MinimalDistortionElliptic"
 	then
 		-- do nothing
 	else
@@ -3014,22 +3014,22 @@ end ?>
 		real const partial_i_log_alpha = 0.;
 		<? end ?>
 		deriv->a_l.<?=xi?> += solver->a_convCoeff * (partial_i_log_alpha - U->a_l.<?=xi?>);
-	}<? end ?>	
-	
+	}<? end ?>
+
 	// d_xxx = .5 gamma_xx,x <=> d_xxx += eta (.5 gamma_xx,x - d_xxx)
-	<? 
-for i,xi in ipairs(xNames) do 
+	<?
+for i,xi in ipairs(xNames) do
 	for jk,xjk in ipairs(symNames) do ?>{
 		<? if i <= solver.dim then ?>
 		real const partial_i_gamma_jk = (
-			U[solver->stepsize.<?=xi?>].gamma_ll.<?=xjk?> 
+			U[solver->stepsize.<?=xi?>].gamma_ll.<?=xjk?>
 			- U[-solver->stepsize.<?=xi?>].gamma_ll.<?=xjk?>
 		) / (2. * solver->grid_dx.s<?=i-1?>);
 		<? else ?>
 		real const partial_i_gamma_jk = 0;
 		<? end ?>
 		deriv->d_lll.<?=xi?>.<?=xjk?> += solver->d_convCoeff * (.5 * partial_i_gamma_jk - U->d_lll.<?=xi?>.<?=xjk?>);
-	}<? 
+	}<?
 	end
 end ?>
 
@@ -3043,7 +3043,7 @@ end ?>
 		+ solver->gamma_ll_srcStressCoeff * stressConstraint_ll.<?=xij?>
 		+ solver->gamma_ll_srcHCoeff * U->gamma_ll.<?=xij?> * HamiltonianConstraint
 	);
-<? end 
+<? end
 ?>
 
 <? for ij,xij in ipairs(symNames) do
@@ -3051,7 +3051,7 @@ end ?>
 			+ solver->K_ll_srcStressCoeff * stressConstraint_ll.<?=xij?>
 			+ solver->K_ll_srcHCoeff * U->gamma_ll.<?=xij?> * HamiltonianConstraint
 	);
-<? end 
+<? end
 ?>
 
 	//converge V_i to its constrained value:
@@ -3076,11 +3076,11 @@ kernel void <?=constrainU?>(
 	global <?=cons_t?> * const UBuf,
 	global <?=cell_t?> const * const cellBuf
 ) {
-	<?=SETBOUNDS?>(solver->numGhost, solver->numGhost);		
+	<?=SETBOUNDS?>(solver->numGhost, solver->numGhost);
 	global <?=cons_t?> * const U = UBuf + index;
-	
-	real const det_gamma = determinant(U->gamma_ll);
-	real3s3 const gamma_uu = inverse(U->gamma_ll, det_gamma);
+
+	real const det_gamma = U->gamma_ll.determinant();
+	real3s3 const gamma_uu = U->gamma_ll.inverse(det_gamma);
 
 	real3x3 const K_ul = real3s3_real3s3_mul(gamma_uu, U->K_ll);			//K^i_j
 	real const tr_K = K_ul.trace();							//K^k_k
@@ -3088,8 +3088,8 @@ kernel void <?=constrainU?>(
 	real3s3 const K_uu = real3x3_real3s3_to_real3s3_mul(K_ul, gamma_uu);			//K^ij
 
 <?
-local constrainV = eqn.guiVars["constrain V"]:getValue()  
-if constrainV ~= "none" then 
+local constrainV = eqn.guiVars["constrain V"]:getValue()
+if constrainV ~= "none" then
 ?>	//gravitational_wave_sim uses this (for 1D), HydroGPU doesn't (for 2D/3D)
 
 	real3 const delta;
@@ -3137,15 +3137,15 @@ so to solve this, you must solve a giant linear system of all variables
 	real const d_weight = (1. - weight) / 4.;
 
 	U->V_l = real3_sub(U->V_l, real3_real_mul(delta, v_weight));
-<? 		for i,xi in ipairs(xNames) do 
+<? 		for i,xi in ipairs(xNames) do
 			for jk,xjk in ipairs(symNames) do
 				local j,k,xj,xk = from6to3x3(jk)
 ?>	U->d_lll.<?=xi?>.<?=xjk?> += (
-		delta.<?=xi?> * U->gamma_ll.<?=xjk?> 
+		delta.<?=xi?> * U->gamma_ll.<?=xjk?>
 		- delta.<?=xk?> * U->gamma_ll.<?=sym(i,j)?>
 	) * d_weight;
 <?			end
-		end 
+		end
 	end
 ?>
 
@@ -3157,20 +3157,20 @@ end	-- constrain V
 
 	//d_llu = d_ij^k = d_ijl * gamma^lk
 	real3x3x3 const d_llu = real3x3s3_real3s3_mul(U->d_lll, gamma_uu);
-	
+
 	//d_ull = d^i_jk = gamma^il d_ljk
 	real3x3s3 const d_ull = real3s3_real3x3s3_mul(gamma_uu, U->d_lll);
 
 	//conn^k_ij = d_ij^k + d_ji^k - d^k_ij
 	real3x3s3 const conn_ull = conn_ull_from_d_llu_d_ull(d_llu, d_ull);
-	
+
 	//e_i = d^j_ji
 	real3 const e_l = real3x3s3_tr12(d_ull);
 
 	//partial_d_lll.ij.kl = d_kij,l = d_(k|(ij),|l)
-	//so this object's indexes are rearranged compared to the papers 
+	//so this object's indexes are rearranged compared to the papers
 	real3s3x3s3 partial_d_llll;
-<? 
+<?
 for ij,xij in ipairs(symNames) do
 	for kl,xkl in ipairs(symNames) do
 		local k,l,xk,xl = from6to3x3(kl)
@@ -3196,15 +3196,15 @@ end
 	// R_ll.ij := R_ij
 	//	= gamma^kl (-gamma_ij,kl - gamma_kl,ij + gamma_ik,jl + gamma_jl,ik)
 	//		+ conn^k_ij (d_k - 2 e_k)
-	//		- 2 d^l_ki d^k_lj 
-	//		+ 2 d^l_ki d_lj^k 
+	//		- 2 d^l_ki d^k_lj
+	//		+ 2 d^l_ki d_lj^k
 	//		+ d_il^k d_jk^l
 	// TODO use V_i in R_ij's calculations?  2008 Alcubierre eqn 5.5.2
 	real3s3 const R_ll = real3s3{
 <? for ij,xij in ipairs(symNames) do
 	local i,j,xi,xj = from6to3x3(ij)
 ?>		0.
-<? 	for k,xk in ipairs(xNames) do 
+<? 	for k,xk in ipairs(xNames) do
 ?>			+ conn_ull.<?=xk?>.<?=xij?> * (U->V_l.<?=xk?> - e_l.<?=xk?>)
 <?		for l,xl in ipairs(xNames) do
 ?>			+ 2. * d_ull.<?=xl?>.<?=sym(k,i)?> * (d_llu.<?=xl?>.<?=xj?>.<?=xk?> - d_ull.<?=xk?>.<?=sym(l,j)?>)
@@ -3227,39 +3227,39 @@ end
 	//H = 1/2 (R + K^2 - K_ij K^ij) - 8 pi rho
 	real const R = R_ll.dot(gamma_uu);
 	real const tr_KSq = KSq_ll.dot(gamma_uu);
-	U->H = .5 * (R + tr_K * tr_K - tr_KSq) <? 
+	U->H = .5 * (R + tr_K * tr_K - tr_KSq) <?
 if eqn.useStressEnergyTerms then ?>
-	- 8. * M_PI * U->rho <? 
+	- 8. * M_PI * U->rho <?
 end ?>;
 
-<?=eqn:makePartial1"K_ll"?>	
+<?=eqn:makePartial1"K_ll"?>
 
 	/*
 	momentum constraint
 	Alcubierre eqn 2.4.11
-	M^i = K^ij_;j 
-		- gamma^ij K_,j 
+	M^i = K^ij_;j
+		- gamma^ij K_,j
 		- 8 pi S^i
 	M^i = gamma^im gamma^jn (
-			K_mn,j 
-			- conn^k_mj K_kn 
+			K_mn,j
+			- conn^k_mj K_kn
 			- conn^k_nj K_mk
-		) 
+		)
 		- gamma^ij (gamma^mn_,j K_mn + gamma^mn K_mn,j)
 		- 8 pi S^i
 	M^i = gamma^ij (
 			gamma^mn (
-				K_jn,m 
+				K_jn,m
 				- K_mn,j
-				- conn^k_jm K_kn 
+				- conn^k_jm K_kn
 				- conn^k_nm K_jk
-			) 
-			+ 2 d_jmn K^mn 
+			)
+			+ 2 d_jmn K^mn
 		)
 		- 8 pi S^i
 	*/
-<? for i,xi in ipairs(xNames) do 
-?>	U->M_u.<?=xi?> = 
+<? for i,xi in ipairs(xNames) do
+?>	U->M_u.<?=xi?> =
 <?	for j,xj in ipairs(xNames) do
 		for m,xm in ipairs(xNames) do
 			for n,xn in ipairs(xNames) do
@@ -3270,7 +3270,7 @@ end ?>;
 <?				for k,xk in ipairs(xNames) do
 ?>				- conn_ull.<?=xk?>.<?=sym(j,m)?> * U->K_ll.<?=sym(k,n)?>
 				- conn_ull.<?=xk?>.<?=sym(n,m)?> * U->K_ll.<?=sym(j,k)?>
-<?				end			
+<?				end
 ?>			)
 			+ 2. * U->d_lll.<?=xj?>.<?=sym(m,n)?> * K_uu.<?=sym(m,n)?>
 		)

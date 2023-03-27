@@ -41,7 +41,7 @@ function BSSNOKFiniteDifferenceEquationBase:getSymbolFields()
 	}
 end
 
--- source: https://en.wikipedia.org/wiki/Finite_difference_coefficient 
+-- source: https://en.wikipedia.org/wiki/Finite_difference_coefficient
 -- derivCoeffs[derivative][order] = {coeffs...}
 local derivCoeffs = {
 	-- upwind 1st deriv coefficients
@@ -49,7 +49,7 @@ local derivCoeffs = {
 		[2] = {[0] = -1, 1},
 		[4] = {[0] = -3, 4, -1, denom=2},
 		[6] = {[0] = -11, 18, -9, 2, denom=6},
---[[		
+--[[
 		[8] = {[0] = -25, 48, -36, 16, -3, denom=12},
 		senr_8 = { 	-- SENR's coeffs
 			[-1] = -3,
@@ -59,7 +59,7 @@ local derivCoeffs = {
 			[3] = 1,
 			denom = 12,
 		},
---]]	
+--]]
 -- [[ using senr's 8 by default
 		[8] = { 	-- SENR's coeffs
 			[-1] = -3,
@@ -134,7 +134,7 @@ function BSSNOKFiniteDifferenceEquationBase:makePartialUpwind(field, fieldType, 
 	end
 	for i,xi in ipairs(xNames) do
 		local namei
-		if fieldType == 'real' 
+		if fieldType == 'real'
 		or fieldType == 'cplx'
 		or fieldType == 'real3'
 		or fieldType == 'cplx3'
@@ -152,7 +152,7 @@ function BSSNOKFiniteDifferenceEquationBase:makePartialUpwind(field, fieldType, 
 				--local coeff = d1coeffs[j]
 				if type(j) == 'number' and j ~= 0 then
 					local U = 'U['..j..' * updir.'..xi..' * solver->stepsize.'..xi..'].'..field
-				
+
 					local subexpr, subexprtype = real_mul(U, clnumber(coeff))
 					expr, exprtype = add(expr, subexpr, exprtype, subexprtype)
 				end
@@ -182,7 +182,7 @@ function BSSNOKFiniteDifferenceEquationBase:initCodeModule_calcDTCell()
 			self.symbols.eqn_common,
 		}:append(
 			({
-				['2008 Alcubierre'] = { 
+				['2008 Alcubierre'] = {
 					self.symbols.calc_gamma_uu,
 				},
 				['2017 Ruchlin et al, eqn 53'] = {
@@ -201,30 +201,30 @@ void <?=calcDTCell?>(
 
 <? if eqn.cflMethod == '2008 Alcubierre' then
 ?>	real3s3 gamma_uu = <?=calc_gamma_uu?>(U, x);
-<? end 
+<? end
 ?>
 	<? for side=0,solver.dim-1 do ?>{
-<? 
+<?
 if eqn.cflMethod == '2013 Baumgarte et al, eqn 32' then
 	-- TODO if the grid is static then this only needs to be done once
-	if side == 0 then 
+	if side == 0 then
 ?>		*(dt) = (real)min(*(dt), solver->grid_dx.x);
-<?	elseif side == 1 then 
+<?	elseif side == 1 then
 ?>		*(dt) = (real)min(*(dt), .5 * solver->grid_dx.x * solver->grid_dx.y);
-<? 	elseif side == 2 then 
+<? 	elseif side == 2 then
 ?>		*(dt) = (real)min(*(dt), .5 * solver->grid_dx.x * sin(.5 * solver->grid_dx.y) * solver->grid_dx.z);
-<? 	end 
+<? 	end
 else
-	if eqn.cflMethod == '2008 Alcubierre' then 
+	if eqn.cflMethod == '2008 Alcubierre' then
 ?>		//this is asserting alpha and W >0, which they should be
 		real absLambdaMax = U->alpha * sqrt(gamma_uu.<?=sym(side+1,side+1)?>);
 		real dx = solver->grid_dx.s<?=side?>;
 		*(dt) = (real)min(*(dt), dx / absLambdaMax);
-<? 	elseif eqn.cflMethod == '2017 Ruchlin et al, eqn 53' then 
+<? 	elseif eqn.cflMethod == '2017 Ruchlin et al, eqn 53' then
 ?>		// for wavespeeds alpha sqrt(gammaBar^ii)
 		// and if we assume alpha > 1
-		// and gamma_ii ~ 1/gamma^ii 
-		// and gammaBar_ij ~ gammaHat_ij 
+		// and gamma_ii ~ 1/gamma^ii
+		// and gammaBar_ij ~ gammaHat_ij
 		// then the typical CFL equation: dt <= dx / lambda, lambda = alpha sqrt(gammaBar^ii)
 		// turns into the SENR code: dt <= sqrt(gammaHat_ii) * dx
 		real sqrt_gammaHat_ii = coord_sqrt_gHol_ll<?=side..side?>(x);
@@ -258,10 +258,10 @@ value.vreal = calc_f(U->alpha);
 value.vreal = calc_dalpha_f(U->alpha);
 ]],
 		},
-		
+
 		{name='W-1', code=[[value.vreal = U->W - 1.;]], type='real'},
 		{name='alpha-W', code=[[value.vreal = U->alpha - U->W;]], type='real'},		-- this is the "pre-collapse" initial condition for SENR UIUC
-		
+
 		{
 			name = 'gammaHat_ll',
 			code = self:template[[
@@ -325,12 +325,12 @@ value.vreal3s3 = real3s3_real_mul(
 		},
 
 		{name='det gammaBar - det gammaHat', code = self:template[[
-value.vreal = determinant(<?=calc_gammaBar_ll?>(U, x)) - <?=calc_det_gammaBar?>(x);
+value.vreal = <?=calc_gammaBar_ll?>(U, x).determinant() - <?=calc_det_gammaBar?>(x);
 ]]},
 		{name='det gamma based on phi', code = self:template[[
 real exp_neg4phi = <?=calc_exp_neg4phi?>(U);
 real exp_12phi = 1. / (exp_neg4phi * exp_neg4phi * exp_neg4phi);
-//// MODULE_DEPENDS: <?=calc_det_gammaHat?>	
+//// MODULE_DEPENDS: <?=calc_det_gammaHat?>
 real det_gamma = exp_12phi * <?=calc_det_gammaHat?>(x);
 value.vreal = det_gamma;
 ]]},
@@ -341,7 +341,7 @@ end
 
 function BSSNOKFiniteDifferenceEquationBase:createDisplayComponents()
 	BSSNOKFiniteDifferenceEquationBase.super.createDisplayComponents(self)
-	
+
 	local solver = self.solver
 	solver:addDisplayComponent('real3', {
 		onlyFor = 'U',
@@ -385,4 +385,4 @@ value->vreal = value->vreal3s3.dot(gammaBar_UU);]],
 	})
 end
 
-return BSSNOKFiniteDifferenceEquationBase 
+return BSSNOKFiniteDifferenceEquationBase
