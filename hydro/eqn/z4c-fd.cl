@@ -92,7 +92,7 @@ tr(TF(A_ij + B_ij)) = gamma^ij ( A_ij + B_ij - 1/3 gamma_ij gamma^kl (A_kl + B_k
 	= 0
 */
 real3s3 tracefree(real3s3 const A_ll, real3s3 const gamma_ll, real3s3 const gamma_uu) {
-	real const tr_A = real3s3_dot(A_ll, gamma_uu);
+	real const tr_A = A_ll.dot(gamma_uu);
 	return real3s3_sub(A_ll, real3s3_real_mul(gamma_ll, tr_A / 3.));
 }
 
@@ -145,7 +145,7 @@ void <?=applyInitCondCell?>(
 
 	U->Theta = 0.;	//TODO ... Theta = -Z^mu n_mu = alpha * Z^t ... which is?
 
-	real K = real3s3_dot(K_ll, gamma_uu);
+	real K = K_ll.dot(gamma_uu);
 	U->KHat = K - 2. * U->Theta;
 	
 	real3s3 A_ll = real3s3_sub(K_ll, real3s3_real_mul(gamma_ll, 1./3. * K));
@@ -412,7 +412,7 @@ end
 #if 0 	//why bother when I need to use chi D_i D_j alpha?  why not just take the trace?
 	//chi gammaBar^ij alpha,ij - chi connBar^i alpha,i - 1/2 gammaBar^ij chi,i alpha,j
 	real tr_D2_alpha = U->chi * (
-			real3s3_dot(U->gammaBar_uu, *(real3s3*)partial2_alpha_ll)
+			U->gammaBar_uu.dot(*(real3s3*)partial2_alpha_ll)
 			- real3_dot(connBar_u, *(real3*)partial_alpha_l)
 		)
 		- .5 * real3_weightedDot(
@@ -420,9 +420,9 @@ end
 			*(real3*)partial_alpha_l,
 			U->gammaBar_uu);
 #elif 0
-	real tr_D2_alpha = real3s3_dot(U->gammaBar_uu, chi_D2_alpha_ll);
+	real tr_D2_alpha = U->gammaBar_uu.dot(chi_D2_alpha_ll);
 #else
-	real tr_D2_alpha = real3s3_dot(gamma_uu, D2_alpha_ll);
+	real tr_D2_alpha = gamma_uu.dot(D2_alpha_ll);
 #endif
 
 	//2011 Cao eqn 11
@@ -462,9 +462,9 @@ end
 ?>
 	real3x3 ABar_ul = real3s3_real3s3_mul(U->gammaBar_uu, U->ABar_ll);		//ABar^i_j = gammaBar^kl ABar_kj
 	real3s3 ABar_uu = real3x3_real3s3_to_real3s3_mul(ABar_ul, U->gammaBar_uu);	//ABar^ij = gammaBar^ik ABar_kl gammaBar^lj
-	real tr_ABar_sq = real3s3_dot(U->ABar_ll, ABar_uu);			//tr_ABar_sq := tr(ABar^2) = ABar_ij ABar^ji
+	real tr_ABar_sq = U->ABar_ll.dot(ABar_uu);			//tr_ABar_sq := tr(ABar^2) = ABar_ij ABar^ji
 	
-	real S = real3s3_dot(U->S_ll, gamma_uu);
+	real S = U->S_ll.dot(gamma_uu);
 
 	real const kappa1 = 1.;
 	real const kappa2 = 0.;
@@ -533,7 +533,7 @@ end
 ?>;
 <? end
 ?>
-	real tr_DBar2_phi = real3s3_dot(U->gammaBar_uu, DBar2_phi_ll);
+	real tr_DBar2_phi = U->gammaBar_uu.dot(DBar2_phi_ll);
 	real DBar_phi_norm = real3_dot(*(real3*)partial_phi_l, DBar_phi_u);
 
 	//Baumgarte & Shapiro p.57 eqn 3.10
@@ -579,7 +579,7 @@ end
 		real3s3_real_mul(gammaBar_ll, 
 			1./3. * U->chi * (
 				real3_dot(connBar_u, *(real3*)partial_alpha_l)
-				- real3s3_dot(U->gammaBar_uu, *(real3s3*)partial2_alpha_ll)
+				- U->gammaBar_uu.dot(*(real3s3*)partial2_alpha_ll)
 			) + 1./6. * real3_weightedDot(
 				*(real3*)partial_alpha_l,
 				*(real3*)partial_chi_l,
@@ -708,7 +708,7 @@ end ?>
 //TODO move U->H calculation into another function, or into constrainU
 // for some reason, keeping it here, my intel GPU doesn't write U->H
 #if 0
-	real RBar = real3s3_dot(U->gammaBar_uu, RBar_ll);
+	real RBar = U->gammaBar_uu.dot(RBar_ll);
 	real exp_phi = exp(U->phi);
 	
 	//B&S 11.48
@@ -753,7 +753,7 @@ end ?>
 	);
 #endif
 #if 0
-	real R = real3s3_dot(gamma_uu, R_ll);	//R = gamma^ij R_ij
+	real R = gamma_uu.dot(R_ll);	//R = gamma^ij R_ij
 
 	//2011 Cao eqn 16
 	deriv->Theta += .5 * U->alpha * (
@@ -771,7 +771,7 @@ end ?>
 	real3s3 K_uu = real3x3_real3s3_to_real3s3_mul(K_ul, gamma_uu);
 	
 	//Alcubierre 3.1.1
-	U->H = R + K * K - real3s3_dot(K_uu, K_ll) - 16. * M_PI * U->rho;
+	U->H = R + K * K - K_uu.dot(K_ll) - 16. * M_PI * U->rho;
 #endif
 
 #if 0

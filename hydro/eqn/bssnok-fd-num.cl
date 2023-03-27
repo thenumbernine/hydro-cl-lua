@@ -624,7 +624,7 @@ void <?=applyInitCondCell?>(
 	U->epsilon_LL = real3s3_rescaleFromCoord_ll(epsilon_ll, x);
 	
 	real3s3 gamma_uu = inverse(gamma_ll, det_gamma);
-	U->K = real3s3_dot(gamma_uu, K_ll);
+	U->K = gamma_uu.dot(K_ll);
 	real3s3 A_ll = real3s3_sub(K_ll, real3s3_real_mul(gamma_ll, -U->K/3.));
 	real3s3 ABar_ll = real3s3_real_mul(A_ll, exp_neg4phi);
 	U->ABar_LL = real3s3_rescaleFromCoord_ll(ABar_ll, x);
@@ -861,7 +861,7 @@ void <?=applyInitCondCell?>(
 	real3s3 epsilon_ll = real3s3_sub(gammaBar_ll, gammaHat_ll);
 	U->epsilon_LL = real3s3_rescaleFromCoord_ll(epsilon_ll, x);
 
-	U->K = real3s3_dot(K_ll, gamma_uu);
+	U->K = K_ll.dot(gamma_uu);
 	real3s3 A_ll = real3s3_sub(K_ll, real3s3_real_mul(gamma_ll, 1./3. * U->K));
 	real3s3 ABar_ll = real3s3_real_mul(A_ll, exp_neg4phi);
 	U->ABar_LL = real3s3_rescaleFromCoord_ll(ABar_ll, x);
@@ -1236,7 +1236,7 @@ notice that gamma'_ij -> f gamma_ij; gamma'^ij -> 1/f gamma'^ij will produce the
 so feel free to use gammaBar, gammaHat, etc
 */
 real3s3 tracefree(real3s3 A_ll, real3s3 g_ll, real3s3 g_uu) {
-	real tr_A = real3s3_dot(A_ll, g_uu);
+	real tr_A = A_ll.dot(g_uu);
 	return real3s3_sub(A_ll, real3s3_real_mul(g_ll, tr_A * (1. / 3.)));
 }
 
@@ -1372,7 +1372,7 @@ static void calcDeriv_epsilon_LL(
 	real3x3 const * const ABar_UL,
 	real const tr_DBar_beta
 ) {
-	real const tr_ABar = real3x3_trace(*ABar_UL);
+	real const tr_ABar = ABar_UL->trace();
 
 <?=eqn:makePartialUpwind"epsilon_LL"?>
 //// MODULE_DEPENDS: calc_partial_gammaBar_LLL
@@ -1656,7 +1656,7 @@ static inline real calc_PIRK_L2_K(
 ) {
 
 	//tr_DBar2_alpha := gammaBar^ij DBar_i DBar_j alpha
-	real const tr_DBar2_alpha = real3s3_dot(*gammaBar_uu, *DBar2_alpha_ll);
+	real const tr_DBar2_alpha = gammaBar_uu->dot(*DBar2_alpha_ll);
 	
 	//2013 Baumgarte eqn B3: 
 	// SENR/NRPy's code has a note that the "+ alpha ABar_ij ABar^ij" term should be in L3
@@ -1728,7 +1728,7 @@ static real calc_PIRK_L3_K(
 	real3s3 const * const ABar_UU
 ) {
 	//tr_ABarSq := ABar_ij ABar^ij = ABar_ij ABar_kl gammaBar^ik gammaBar^jl
-	real const tr_ABarSq = real3s3_dot(U->ABar_LL, *ABar_UU);
+	real const tr_ABarSq = U->ABar_LL.dot(*ABar_UU);
 
 	// SENR/NRPy's code has a note that the "+ alpha ABar_ij ABar^ij" term should be in L3
 	return U->alpha * (
@@ -2805,7 +2805,7 @@ kernel void <?=calcDeriv?>(
 <? if false then ?>
 	
 	//tr_partial_beta := beta^i_,i
-	real tr_partial_beta = real3x3_trace(partial_beta_UL);
+	real tr_partial_beta = partial_beta_UL.trace();
 	
 	//tr_DBar_beta := DBar_j beta^j = beta^j_,j + connBar^j_kj beta^k	
 	//ran sim to t=100, only dif with the det grad was 2e-10 ratio of the alpha value at t=10. so these two match.
@@ -2833,7 +2833,7 @@ kernel void <?=calcDeriv?>(
 <? elseif false then ?>
 	
 	//tr_partial_beta := beta^i_,i
-	real tr_partial_beta = real3x3_trace(partial_beta_UL);
+	real tr_partial_beta = partial_beta_UL.trace();
 	
 	//Etienne's SENR Mathematica notebook uses this instead:
 	//tr_DBar_beta := beta^j_,j + beta^j gammaBar_,j / (2 gammaBar)
@@ -2847,7 +2847,7 @@ kernel void <?=calcDeriv?>(
 local bleh = (eInv"^j_J_,j"() + frac(1,2) * (eInv"^j_J" * partial_det_gammaHat_l"_j")() / det_gammaHat)()
 ?>
 	real3 const pt = x;
-	real const tr_DBar_beta = real3x3_trace(partial_beta_Ul)
+	real const tr_DBar_beta = partial_beta_Ul.trace()
 <? 
 for J,xJ in ipairs(xNames) do
 	if not Constant.isValue(bleh[J], 0) then
@@ -2923,7 +2923,7 @@ end
 	gamma^ij = exp(-4 phi) gammaBar^ij
 	S := S_ij gamma^ij = exp(-4 phi) S_ij gammaBar^ij 
 	*/
-	real const S = exp_neg4phi * real3s3_dot(U->S_ll, gammaBar_uu);
+	real const S = exp_neg4phi * U->S_ll.dot(gammaBar_uu);
 
 #if 0	//BAD.  this does some divisions by r which cause numbers to diverge.
 	real3s3 const DBar2_alpha_ll = real3s3_rescaleToCoord_LL(DBar2_alpha_LL, x);
@@ -3508,16 +3508,13 @@ for ij,xij in ipairs(symNames) do
 		&Delta_LLL);
 
 	//RBar := RBar_ij gammaBar^ij
-	real RBar = real3s3_dot(gammaBar_UU, RBar_LL);
+	real RBar = gammaBar_UU.dot(RBar_LL);
 	
 	real3 const partial_W_L = real3_rescaleFromCoord_l(partial_W_l, x);
 
 	//tr_DBar2_phi := gammaBar^ij DBar_i DBar_j phi = gammaBar^ij phi_,ij - connBar^k phi_,k
 	real tr_DBar2_phi_times_WSq = 
-		real3s3_dot(
-			gammaBar_UU,
-			partial2_phi_LL_times_WSq
-		)
+		gammaBar_UU.dot(partial2_phi_LL_times_WSq)
 		+ real3_dot(
 			real3x3s3_real3s3_dot23(connBar_ULL, gammaBar_UU),
 			partial_W_L
@@ -3527,7 +3524,7 @@ for ij,xij in ipairs(symNames) do
 	//H = 2/3 K^2 - ABar^ij ABar_ij + exp(-4 phi) (RBar - 8 DBar^i phi DBar_i phi - 8 gammaBar^ij DBar_i DBar_j phi)
 	// but I will scale down by 1/2 to match other equations
 	U->H = (1. / 3.) * U->K * U->K
-		- .5 * real3s3_dot(U->ABar_LL, ABar_UU)
+		- .5 * U->ABar_LL.dot(ABar_UU)
 		+ .5 * (
 			  RBar * U->W * U->W
 			+ 4. * real3_weightedLenSq(partial_W_L, gammaBar_UU) * U->W
@@ -3759,7 +3756,7 @@ kernel void calcDeriv_PIRK_L1_EpsilonWAlphaBeta(
 	real3x3 const partial_beta_UL = real3x3_partial_rescaleFromCoord_Ul(U->beta_U, partial_beta_Ul, x);
 
 	//tr_partial_beta := beta^i_,i
-	real const tr_partial_beta = real3x3_trace(partial_beta_UL);
+	real const tr_partial_beta = partial_beta_UL.trace();
 
 	/*
 	tr_DBar_beta := DBar_j beta^j = beta^j_,j + connBar^j_kj beta^k
@@ -3997,7 +3994,7 @@ kernel void calcDeriv_PIRK_L3_ABarK(
 	real3x3 partial_beta_UL = real3x3_partial_rescaleFromCoord_Ul(U->beta_U, partial_beta_Ul, x);
 
 	//tr_partial_beta := beta^i_,i
-	real tr_partial_beta = real3x3_trace(partial_beta_UL);
+	real tr_partial_beta = partial_beta_UL.trace();
 	
 	/*
 	tr_DBar_beta := DBar_j beta^j = beta^j_,j + connBar^j_kj beta^k
@@ -4176,7 +4173,7 @@ kernel void calcDeriv_PIRK_L3_LambdaBar(
 	real3x3 partial_beta_UL = real3x3_partial_rescaleFromCoord_Ul(U->beta_U, partial_beta_Ul, x);
 
 	//tr_partial_beta := beta^i_,i
-	real tr_partial_beta = real3x3_trace(partial_beta_UL);
+	real tr_partial_beta = partial_beta_UL.trace();
 
 
 	real3s3 gammaBar_LL = <?=calc_gammaBar_LL?>(U, x);
@@ -4304,7 +4301,7 @@ kernel void calcDeriv_PIRK_L2_B(
 
 
 	//tr_partial_beta := beta^i_,i
-	real tr_partial_beta = real3x3_trace(partial_beta_UL);
+	real tr_partial_beta = partial_beta_UL.trace();
 
 	/*
 	tr_DBar_beta := DBar_j beta^j = beta^j_,j + connBar^j_kj beta^k

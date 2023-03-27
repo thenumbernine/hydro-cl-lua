@@ -82,7 +82,7 @@ kernel void <?=viscousExplicitUpdate?>(
 <?=eqn:makePartial2(getT, "real", "d2T")?>
 
 	deriv->m = real3_add(deriv->m, div_tau);
-	deriv->ETotal += real3_dot(div_tau, v) + tau_dot_dv - solver->heatConductivity * real3s3_trace(d2T);
+	deriv->ETotal += real3_dot(div_tau, v) + tau_dot_dv - solver->heatConductivity * d2T.trace();
 }
 ]],
 	}

@@ -574,7 +574,7 @@ if has_B_u then --\
 	real3 const e_u = real3s3_real3_mul(gamma_uu, e_l);\
 	real3 const Z_u = real3s3_real3_mul(gamma_uu, Z_l);\
 	real3x3 const K_ul = real3s3_real3s3_mul(gamma_uu, K_ll);\
-	real const tr_K = real3x3_trace(K_ul);\
+	real const tr_K = K_ul.trace();\
 	real3s3 const dHat_t_ll = real3s3_zero;\
 \
 	<? if eqn.useShift ~= "none" then ?>\
@@ -588,7 +588,7 @@ if has_B_u then --\
 	<? if eqn.useShift == "MinimalDistortionHyperbolic" then ?>\
 	real3x3 const DBeta_ul = real3x3_add(b_ul, real3_real3x3s3_dot2(beta_u, conn_ull));\
 	real3s3 const DBeta_uu = real3x3_real3s3_to_real3s3_mul(DBeta_ul, gamma_uu);\
-	real const tr_DBeta = real3x3_trace(DBeta_ul);\
+	real const tr_DBeta = DBeta_ul.trace();\
 	real3s3 const K_uu = real3x3_real3s3_to_real3s3_mul(K_ul, gamma_uu);\
 	real3s3 const A_uu = real3s3_sub(K_uu, real3s3_real_mul(gamma_uu, tr_K / 3.));\
 	<? end ?>\
@@ -600,7 +600,7 @@ if has_B_u then --\
 	real const invW = 1. / W;\
 	real3x3s3 const connHat_ull = coord_connHol_ull((cell)->pos);\
 	real3x3 const DHatBeta_ul = real3x3_add(b_ul, real3_real3x3s3_dot2(beta_u, connHat_ull));\
-	real const tr_DHatBeta = real3x3_trace(DHatBeta_ul);\
+	real const tr_DHatBeta = DHatBeta_ul.trace();\
 	<? end ?>\
 \
 	/* BEGIN CUT from symmath/tests/output/Z4.html flux: */\
@@ -1518,7 +1518,7 @@ kernel void <?=addSource?>(
 	real3x3s3 const d_lll = U->d_lll;									//d_kij
 	
 	real3x3 const K_ul = real3s3_real3s3_mul(gamma_uu, U->K_ll);			//K^i_j
-	real const trK = real3x3_trace(K_ul);							//K^k_k
+	real const trK = K_ul.trace();							//K^k_k
 	real3x3x3 const d_llu = real3x3s3_real3s3_mul(d_lll, gamma_uu);	//d_llu = d_ij^k = d_ijl * γ^lk
 	real3x3s3 const d_ull = real3s3_real3x3s3_mul(gamma_uu, d_lll);		//d_ull = d^i_jk = γ^il d_ljk
 	real3 const e_l = real3x3s3_tr12(d_ull);						//e_l = e_i = d^j_ji
@@ -1595,7 +1595,7 @@ end?>
 
 <? if eqn.useShift == "HarmonicParabolic" then ?>
 	
-	real const tr_b = real3x3_trace(U->b_ul);
+	real const tr_b = U->b_ul.trace();
 	real3 const a_u = real3s3_real3_mul(gamma_uu, U->a_l);
 
 	/* α_,t += β^i α a_i */
@@ -1695,7 +1695,7 @@ end
 	real3 const Z_l = U->Z_l;
 
 	real3x3 const K_ul = real3s3_real3s3_mul(gamma_uu, K_ll);			//K^i_j
-	real const tr_K = real3x3_trace(K_ul);							//K^k_k
+	real const tr_K = K_ul.trace();							//K^k_k
 	real3s3 const K_uu = real3x3_real3s3_to_real3s3_mul(K_ul, gamma_uu);		//K^ij
 	real3x3s3 const d_ull = real3s3_real3x3s3_mul(gamma_uu, d_lll);
 	real3x3x3 const d_llu = real3x3s3_real3s3_mul(d_lll, gamma_uu);
@@ -1719,7 +1719,7 @@ end
 		
 		<? if has_b_ul then ?>
 	real3x3 const b_ul = U->b_ul;
-	real const tr_b = real3x3_trace(b_ul);
+	real const tr_b = b_ul.trace();
 	real3x3 const b_ll = real3s3_real3x3_mul(gamma_ll, b_ul);
 		<? end ?>
 		
@@ -1731,7 +1731,7 @@ end
 //// MODULE_DEPENDS: mdeShiftEpsilon
 	real3x3 const DBeta_ul = real3x3_add(b_ul, real3_real3x3s3_dot2(beta_u, conn_ull));
 	real3s3 const DBeta_uu = real3x3_real3s3_to_real3s3_mul(DBeta_ul, gamma_uu);
-	real const tr_DBeta = real3x3_trace(DBeta_ul);
+	real const tr_DBeta = DBeta_ul.trace();
 	real3x3x3 const conn_uul = real3x3s3_real3s3_mul(conn_ull, gamma_uu);
 	real3x3 const b_uu = real3x3_real3s3_mul(b_ul, gamma_uu);
 	real3s3 const A_uu = real3s3_sub(K_uu, real3s3_real_mul(gamma_uu, tr_K / 3.));
@@ -1740,7 +1740,7 @@ end
 		<? if eqn.useShift == "GammaDriverHyperbolic" then ?>
 	//real3x3 const b_ul = U->b_ul;
 	//real3x3 const b_ll = real3s3_real3x3_mul(gamma_ll, b_ul);
-	//real const tr_b = real3x3_trace(b_ul);
+	//real const tr_b = b_ul.trace();
 //// MODULE_DEPENDS: <?=calc_gammaHat_ll?>
 	real3s3 const gammaHat_ll = <?=calc_gammaHat_ll?>(cell->pos);
 	// W = (_γ/γ)^(1/6)
@@ -1753,7 +1753,7 @@ end
 
 	real3x3s3 const connHat_ull = coord_connHol_ull((cell)->pos);\
 	real3x3 const DHatBeta_ul = real3x3_add(b_ul, real3_real3x3s3_dot2(beta_u, connHat_ull));
-	real const tr_DHatBeta = real3x3_trace(DHatBeta_ul);
+	real const tr_DHatBeta = DHatBeta_ul.trace();
 	
 	//ok so here's an error in my analytical/codegen ... ^Γ^i_jk is raised/lowered by ^γ_ij
 	//so this "connHat_uul" had its first index raised by γ_ij and second index raised by ^γ_ij
@@ -2123,7 +2123,7 @@ kernel void <?=constrainU?>(
 	real3s3 const gamma_uu = <?=calc_gamma_uu?>(U, cell->pos);
 
 	real3x3 const K_ul = real3s3_real3s3_mul(gamma_uu, U->K_ll);			//K^i_j
-	real const tr_K = real3x3_trace(K_ul);							//K^k_k
+	real const tr_K = K_ul.trace();							//K^k_k
 	real3s3 const K_uu = real3x3_real3s3_to_real3s3_mul(K_ul, gamma_uu);		//K^ij
 	real3x3s3 const d_lll = U->d_lll;									//d_kij
 
@@ -2187,8 +2187,8 @@ So yeah pretty sure this is a compiler bug.
 	//Alcubierre eqn 2.5.9, also Alcubierre 2.4.10 divided by two
 	//H = 1/2 (R + K^2 - K_ij K^ij) - 8 π ρ
 	//TODO should Θ or Z^i be included into these?
-	real const R = real3s3_dot(R_ll, gamma_uu);
-	real const tr_KSq = real3s3_dot(U->K_ll, K_uu);
+	real const R = R_ll.dot(gamma_uu);
+	real const tr_KSq = U->K_ll.dot(K_uu);
 	// TODO for 2D this is getting NaNs ... from partial_d_llll, d_l, d_llu, conn_ull
 	// these variables are good: gamma_uu, e_l, d_lll, d_ull
 	// this is all centered around the d_llu calculations, which Intel OpenCL compiler has bugs for return-by-value for certain conditions.
@@ -2294,7 +2294,7 @@ kernel void <?=minimize_H_K?>(
 	real3s3 const gamma_uu = <?=calc_gamma_uu?>(U, cell->pos);
 	
 	real3x3 const K_ul = real3s3_real3s3_mul(gamma_uu, U->K_ll);			//K^i_j
-	real const tr_K = real3x3_trace(K_ul);							//K^k_k
+	real const tr_K = K_ul.trace();							//K^k_k
 	real3s3 const K_uu = real3x3_real3s3_to_real3s3_mul(K_ul, gamma_uu);		//K^ij
 
 	// ∂/∂K_pq H =  2 (K γ^pq - K^pq)

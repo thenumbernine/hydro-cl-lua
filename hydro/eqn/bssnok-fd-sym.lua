@@ -1845,7 +1845,7 @@ void <?=applyInitCondCell?>(
 	real3s3 epsilon_ll = real3s3_sub(gammaBar_ll, gammaHat_ll);
 	U->epsilon_LL = real3s3_rescaleFromCoord_ll(epsilon_ll, x);
 
-	U->K = real3s3_dot(K_ll, gamma_uu);
+	U->K = K_ll.dot(gamma_uu);
 	real3s3 A_ll = real3s3_sub(K_ll, real3s3_real_mul(gamma_ll, 1./3. * U->K));
 	real3s3 ABar_ll = real3s3_real_mul(A_ll, exp_neg4phi);
 	U->ABar_LL = real3s3_rescaleFromCoord_ll(ABar_ll, x);
@@ -1999,7 +1999,7 @@ function BSSNOKFiniteDifferenceEquation:getDisplayVars()
 	local env = self:getEnv()
 
 	vars:append{
-		{name='S', code = self:template'value.vreal = real3s3_dot(U->S_ll, <?=calc_gamma_uu?>(U, x));'},
+		{name='S', code = self:template'value.vreal = U->S_ll.dot(<?=calc_gamma_uu?>(U, x));'},
 		
 		{
 			name = 'volume', 
@@ -2065,7 +2065,7 @@ function BSSNOKFiniteDifferenceEquation:getDisplayVars()
 <?=eqn:makePartial1'alpha'?>
 <?=eqn:makePartial2'alpha'?>
 <?=assign_real3s3'DBar2_alpha_ll'?> 
-	value.vreal = real3s3_dot(gammaBar_uu, DBar2_alpha_ll);
+	value.vreal = gammaBar_uu.dot(DBar2_alpha_ll);
 ]], env),
 		},
 	
@@ -2115,7 +2115,7 @@ using gamma = gammaHat / W^6
 <?=eqn:makePartial1'W'?>
 <?=eqn:makePartial1'alpha'?>
 <?=eqn:makePartial1'beta_U'?>
-	real tr_partial_beta = real3x3_trace(partial_beta_ul);
+	real tr_partial_beta = partial_beta_ul.trace();
 
 	real exp_4phi = 1. / <?=calc_exp_neg4phi?>(U);
 

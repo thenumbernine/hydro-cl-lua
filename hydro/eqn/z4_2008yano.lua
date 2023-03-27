@@ -104,7 +104,7 @@ function Z4_2008Yano:getDisplayVars()
 		{name='expansion', code=[[
 	real det_gamma = determinant(U->gamma_ll);
 	real3s3 gamma_uu = inverse(U->gamma_ll, det_gamma);
-	value.vreal = -real3s3_dot(gamma_uu, U->K_ll);
+	value.vreal = -gamma_uu.dot(U->K_ll);
 ]]		},
 --[=[
 	-- 1998 Bona et al

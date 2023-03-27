@@ -183,7 +183,7 @@ notice that gamma'_ij -> f gamma_ij; gamma'^ij -> 1/f gamma'^ij will produce the
 so feel free to use gammaBar, gammaHat, etc
 */
 real3s3 tracefree(real3s3 A_ll, real3s3 g_ll, real3s3 g_uu) {
-	real tr_A = real3s3_dot(A_ll, g_uu);
+	real tr_A = A_ll.dot(g_uu);
 	return real3s3_sub(A_ll, real3s3_real_mul(g_ll, tr_A / 3.));
 }
 

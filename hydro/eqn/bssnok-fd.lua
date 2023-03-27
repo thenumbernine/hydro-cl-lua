@@ -371,7 +371,7 @@ int index = INDEXV(solver, i);
 real3 x = cellBuf[index].pos;
 global <?=cons_t?> const * const U = buf + index;
 real3s3 gamma_UU = real3s3_rescaleFromCoord_uu(<?=calc_gamma_uu?>(U, x), x);
-value->vreal = real3s3_dot(value->vreal3s3, gamma_UU);]],
+value->vreal = value->vreal3s3.dot(gamma_UU);]],
 	})
 	solver:addDisplayComponent('real3s3', {
 		onlyFor = 'U',
@@ -381,7 +381,7 @@ int index = INDEXV(solver, i);
 real3 x = cellBuf[index].pos;
 global <?=cons_t?> const * const U = buf + index;
 real3s3 gammaBar_UU = <?=calc_gammaBar_UU?>(U, x);
-value->vreal = real3s3_dot(value->vreal3s3, gammaBar_UU);]],
+value->vreal = value->vreal3s3.dot(gammaBar_UU);]],
 	})
 end
 

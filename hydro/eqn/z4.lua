@@ -509,7 +509,7 @@ value.vreal = U->alpha * sqrt(determinant(U->gamma_ll));
 			code = self:template[[
 {{{{ MODULE_DEPENDS: <?=calc_gamma_uu?> }}}}
 real3s3 const gamma_uu = <?=calc_gamma_uu?>(U, cell->pos);
-value.vreal = -real3s3_dot(U->K_ll, gamma_uu);
+value.vreal = -U->K_ll.dot(gamma_uu);
 ]],
 		},
 	}:append{
@@ -671,7 +671,7 @@ real3s3 const R_ll = <?=calc_R_ll?>(
 
 real3x3 const K_ul = real3s3_real3s3_mul(gamma_uu, U->K_ll);			//K_ul.i.j := K^i_j
 real3s3 const KSq_ll = real3s3_real3x3_to_real3s3_mul(U->K_ll, K_ul);	//KSq_ll.ij := K_ik K^k_j
-real const tr_K = real3x3_trace(K_ul);							//K^k_k
+real const tr_K = K_ul.trace();							//K^k_k
 
 real3s3 const H_ll = real3s3_real_mul(
 	real3s3_add(
@@ -806,7 +806,7 @@ value.vreal3 = real3_real_mul(real3s3_real3_mul(gamma_uu, U->a_l), -U->alpha * U
 real3x3 const K_ul = real3s3_real3s3_mul(gamma_uu, U->K_ll);
 
 //tr_K := K^i_i
-real const tr_K = real3x3_trace(K_ul);
+real const tr_K = K_ul.trace();
 
 //beta_dot_a := β^l a_l
 real const beta_dot_a = real3_dot(U->beta_u, U->a_l);

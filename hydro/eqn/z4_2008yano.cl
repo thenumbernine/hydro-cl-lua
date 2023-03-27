@@ -735,7 +735,7 @@ b^l_k,t 	+ (-β^i b^l_i)_,k									*/	\
 \
 	real3x3 const K_ul = real3s3_real3s3_mul(gamma_uu, K_ll);\
 \
-	real const tr_K = real3x3_trace(K_ul);\
+	real const tr_K = K_ul.trace();\
 \
 	real sqrt_gUxx = (eig)->sqrt_gammaUnn;\
 \
@@ -2038,7 +2038,7 @@ kernel void <?=addSource?>(
 	/*  source terms */
 	
 	real3x3 const K_ul = real3s3_real3s3_mul(gamma_uu, U->K_ll);			/* K^i_j */
-	real const trK = real3x3_trace(K_ul);								/* K^k_k */
+	real const trK = K_ul.trace();								/* K^k_k */
 	real3s3 const KSq_ll = real3s3_real3x3_to_real3s3_mul(U->K_ll, K_ul);		/* KSq_ij = K_ik K^k_j */
 
 	/* d_llu = d_ij^k = d_ijl * gamma^lk */
@@ -2078,7 +2078,7 @@ kernel void <?=addSource?>(
 	/* d_l = d_i = d_ij^j */
 	real3 const d_l = real3{
 <? for i,xi in ipairs(xNames) do
-?>		real3x3_trace(d_llu[<?=i-1?>]),
+?>		d_llu[<?=i-1?>].trace(),
 <? end
 ?>	};
 	
@@ -2173,7 +2173,7 @@ kernel void <?=constrainU?>(
 	real const rho = 0.;
 
 	real3x3 const K_ul = real3s3_real3s3_mul(gamma_uu, U->K_ll);			/* K^i_j */
-	real const trK = real3x3_trace(K_ul);								/* K^k_k */
+	real const trK = K_ul.trace();								/* K^k_k */
 	real3s3 const KSq_ll = real3s3_real3x3_to_real3s3_mul(U->K_ll, K_ul);		/* KSq_ij = K_ik K^k_j */
 
 	/* d_ull = d^i_jk = gamma^il d_ljk */
@@ -2199,7 +2199,7 @@ kernel void <?=constrainU?>(
 	/* d_l = d_ij^j */
 	real3 const d_l = real3{
 <? for i,xi in ipairs(xNames) do
-?>		real3x3_trace(d_llu[<?=i-1?>]),
+?>		d_llu[<?=i-1?>].trace(),
 <? end
 ?>	};
 

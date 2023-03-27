@@ -139,7 +139,7 @@ namespace std {
 	static constexpr bool is_detected_v = is_detected<Op, Args...>::value;
 }
 
-//////////////////////////////// Tensor/Math.h.h ////////////////////////////////
+//////////////////////////////// Tensor/Vector.h.h ////////////////////////////////
 
 template<class T>
 using has_tensorFlag = decltype(std::declval<T>().isTensorFlag);
@@ -155,6 +155,15 @@ static constexpr bool IsBinaryTensorR3xR3Op = IsBinaryTensorOp<A,B>
 	&& A::rank == 1 && A::template dim<0> == 3
 	&& B::rank == 1 && B::template dim<0> == 3;
 
+template<typename Inner>
+union vec3;
+
+template<typename Inner_>
+union sym3;
+
+//////////////////////////////// Tensor/Math.h.h ////////////////////////////////
+
+#if 0	// needs iterator
 template<
 	typename A,
 	typename B
@@ -164,6 +173,29 @@ constexpr auto dot(
 	B const & b,
 	std::enable_if_t<IsBinaryTensorOp<A,B>>* = nullptr
 );
+#else	//until then, specific overrides ...
+// vector-vector
+template<typename A, typename B>
+constexpr auto dot(
+	A const & a,
+	B const & b,
+	std::enable_if_t<
+		is_tensor_v<A> && A::rank == 1 && A::template dim<0> == 3 &&
+		is_tensor_v<B> && B::rank == 1 && B::template dim<0> == 3
+	>* = nullptr
+);
+
+// sym3-sym3
+template<typename A, typename B>
+constexpr auto dot(
+	A const & a,
+	B const & b,
+	std::enable_if_t<
+		is_tensor_v<A> && A::rank == 2 && A::template dim<0> == 3 && A::template dim<1> == 3 && A::numNestings == 1 &&
+		is_tensor_v<B> && B::rank == 2 && B::template dim<0> == 3 && B::template dim<1> == 3 && B::numNestings == 1
+	>* = nullptr
+);
+#endif
 
 template<
 	typename T
@@ -199,6 +231,7 @@ constexpr T normalize(
 	std::enable_if_t<is_tensor_v<T>>* = nullptr
 );
 
+#if 0 // needs lambda ctor
 template<
 	typename A,
 	typename B
@@ -208,6 +241,52 @@ constexpr auto outer(
 	B const & b,
 	std::enable_if_t<IsBinaryTensorOp<A,B>>* = nullptr
 );
+#else
+template<typename real>
+constexpr auto outer(
+	vec3<real> const & a,
+	vec3<real> const & b
+);
+
+// self-outer, returns sym3
+template<typename real>
+constexpr auto outer(vec3<real> const & a);
+#endif
+
+#if 0
+template<
+	int m = 0,
+	int n = 1,
+	typename T
+>
+constexpr auto trace(
+	T const & v,
+	std::enable_if_t<
+		is_tensor_v<T> &&
+		m < T::rank &&
+		n < T::rank &&
+		T::template dim<m> == T::template dim<n>
+	>* = nullptr
+);
+#else
+template<
+	int m = 0,
+	int n = 1,
+	typename real
+>
+constexpr auto trace(
+	sym3<real> const & v
+);
+
+template<
+	int m = 0,
+	int n = 1,
+	typename real
+>
+constexpr auto trace(
+	vec3<vec3<real>> const & v
+);
+#endif
 
 // 3D-specific:
 
@@ -314,7 +393,23 @@ constexpr auto rotateToInDim(
 \
 	static_assert(localCount > 0);\
 \
-	TENSOR_ADD_SCALAR_IMPL(classname)\
+	/*struct NestedPtrTupleImpl {\
+		static constexpr auto value() {\
+			if constexpr (is_tensor_v<Inner>) {\
+				return std::tuple_cat(\
+					std::tuple<This*>(),\
+					Inner::NestedPtrTupleImpl::value()\
+				);\
+			} else {\
+				*//* while I am at the base of the chain, grab Scalar*//*\
+				return std::tuple<This*, Inner*>();\
+			}\
+		}\
+		using type = decltype(value());\
+	};\
+	using NestedPtrTuple = typename NestedPtrTupleImpl::type;*/\
+\
+	TENSOR_ADD_SCALAR_IMPL()\
 \
 	/*using intN = vec<int,rank>;*//*this needs vec to have arbitrary rank ... which needs ... */\
 \
@@ -323,7 +418,10 @@ constexpr auto rotateToInDim(
 	static constexpr int dim = localDim;\
 \
 	/* TODO: rank = length of dimseq*/\
-	TENSOR_ADD_RANK_IMPL(classname)\
+	TENSOR_ADD_RANK_IMPL()\
+\
+	/* TODO numNestings = length of tensor tuple ptr */\
+	TENSOR_ADD_NUMNESTINGS_IMPL()\
 \
 	/* TODO need tuples for this */\
 	template<typename NewScalar>\
@@ -337,32 +435,44 @@ constexpr auto rotateToInDim(
 	TENSOR_HEADER_VECTOR_SPECIFIC()\
 	TENSOR_HEADER()
 
-#define TENSOR_ADD_SCALAR_IMPL(classname)\
+#define TENSOR_ADD_SCALAR_IMPL()\
 	/* TODO instead just count # of tuples in the nested args */\
 	/* but ... I need tuples for that ... */\
-	struct NestedScalarImpl {\
+	struct ScalarImpl {\
 		static constexpr auto value() {\
 			if constexpr (is_tensor_v<Inner>) {\
-				return Inner::NestedScalarImpl::value();\
+				return Inner::ScalarImpl::value();\
 			} else {\
 				return (Inner*){};\
 			}\
 		}\
 		using type = decltype(value());\
 	};\
-	using Scalar = typename std::remove_pointer_t<typename NestedScalarImpl::type>;
+	using Scalar = typename std::remove_pointer_t<typename ScalarImpl::type>;
 
-#define TENSOR_ADD_RANK_IMPL(classname)\
-	struct NestedRankImpl {\
+#define TENSOR_ADD_RANK_IMPL()\
+	struct RankImpl {\
 		static constexpr int value() {\
 			if constexpr (is_tensor_v<Inner>) {\
-				return Inner::NestedRankImpl::value() + localRank;\
+				return Inner::RankImpl::value() + localRank;\
 			} else {\
 				return localRank;\
 			}\
 		}\
 	};\
-	static constexpr int rank = NestedRankImpl::value();
+	static constexpr int rank = RankImpl::value();
+
+#define TENSOR_ADD_NUMNESTINGS_IMPL()\
+	struct NumNestingsImpl {\
+		static constexpr int value() {\
+			if constexpr (is_tensor_v<Inner>) {\
+				return Inner::NumNestingsImpl::value() + 1;\
+			} else {\
+				return 1;\
+			}\
+		}\
+	};\
+	static constexpr int numNestings = NumNestingsImpl::value();
 
 #define TENSOR_ADD_VECTOR_CTORS(classname)\
 	/*argument constructor*/\
@@ -518,12 +628,21 @@ constexpr auto rotateToInDim(
 		return ::normalize(*this);\
 	}\
 \
+	auto outer() const {\
+		return ::outer<This>(*this);\
+	}\
+\
 	template<typename B>\
 	auto outer(\
 		B const & b,\
 		std::enable_if_t<IsBinaryTensorOp<This,B>>* = nullptr\
 	) const {\
-		return ::outer(*this, b);\
+		return ::outer<This,B>(*this, b);\
+	}\
+\
+	template<int m=0, int n=1>\
+	auto trace() const {\
+		return ::trace<m,n,This>(*this);\
 	}
 
 #define TENSOR_ADD_OPS(classname)\
@@ -566,7 +685,7 @@ constexpr auto rotateToInDim(
 
 template<typename Inner_>
 union vec3 {
-	TENSOR_HEADER_VECTOR(vec3, Inner_, 1)
+	TENSOR_HEADER_VECTOR(vec3, Inner_, 3)
 
 	Inner s[3] = {{}};
 	struct { Inner s0, s1, s2; };
@@ -681,6 +800,123 @@ union vec3 {
 -- __attribute__ ((packed)) seems to need to be here with real=half
 ?>;
 
+inline constexpr int triangleSize(int n) {
+	return (n * (n + 1)) / 2;
+}
+
+inline constexpr int symIndex(int i, int j) {
+	if (i > j) return symIndex(j,i);
+	return i + triangleSize(j);
+}
+
+#define TENSOR_HEADER_SYMMETRIC_MATRIX_SPECIFIC()\
+	static constexpr int localCount = triangleSize(localDim);
+
+#define TENSOR_HEADER_SYMMETRIC_MATRIX(classname, Inner_, localDim_)\
+	TENSOR_THIS(classname)\
+	TENSOR_SET_INNER_LOCALDIM_LOCALRANK(Inner_, localDim_, 2)\
+	TENSOR_TEMPLATE_T/*_I*/(classname)\
+	TENSOR_HEADER_SYMMETRIC_MATRIX_SPECIFIC()\
+	TENSOR_HEADER()
+	
+#define TENSOR_ADD_SYMMETRIC_MATRIX_CTORS(classname)\
+	/*argument constructor*/\
+	constexpr classname(\
+		Inner const & xx_,\
+		Inner const & xy_,\
+		Inner const & xz_,\
+		Inner const & yy_,\
+		Inner const & yz_,\
+		Inner const & zz_\
+	) :	xx(xx_),\
+		xy(xy_),\
+		xz(xz_),\
+		yy(yy_),\
+		yz(yz_),\
+		zz(zz_)\
+	{}\
+\
+	/*default constructor*/\
+	constexpr classname()\
+	:	xx(Inner{}),\
+		xy(Inner{}),\
+		xz(Inner{}),\
+		yy(Inner{}),\
+		yz(Inner{}),\
+		zz(Inner{})\
+	{}\
+\
+	/*scalar constructor*/\
+	constexpr classname(Scalar const & s)\
+	:	xx(s),\
+		xy(s),\
+		xz(s),\
+		yy(s),\
+		yz(s),\
+		zz(s)\
+	{}\
+\
+	/*tensor/tensor construction*/\
+	/* can't be constexpr and use a loop so I have to write it per class */\
+	template<\
+		typename U\
+	>\
+	constexpr classname(\
+		U const & u,\
+		std::enable_if_t<U::rank == rank>* = nullptr\
+	)\
+	:	xx(u.xx),\
+		xy(u.xy),\
+		xz(u.xz),\
+		yy(u.yy),\
+		yz(u.yz),\
+		zz(u.zz)\
+	{}\
+\
+	template<\
+		typename U\
+	>\
+	constexpr classname(\
+		U && u,\
+		std::enable_if_t<U::rank == rank>* = nullptr\
+	)\
+	:	xx(u.xx),\
+		xy(u.xy),\
+		xz(u.xz),\
+		yy(u.yy),\
+		yz(u.yz),\
+		zz(u.zz)\
+	{}
+#define TENSOR_SYMMETRIC_MATRIX_CLASS_OPS(classname)\
+	TENSOR_ADD_SYMMETRIC_MATRIX_CTORS(classname)\
+	TENSOR_ADD_OPS(classname)
+
+
+template<typename Inner_>
+union sym3 {
+	TENSOR_HEADER_SYMMETRIC_MATRIX(sym3, Inner_, 3)
+
+	using vec3 = ::vec3<Inner>;
+
+	// TODO rename to x_x x_y etc
+	struct {
+		Inner xx, xy, xz, yy, yz, zz;
+	};
+	struct {
+		Inner s00, s01, s02, s11, s12, s22;
+	};
+	Inner s[6];
+
+	TENSOR_SYMMETRIC_MATRIX_CLASS_OPS(sym3)
+
+	// TODO as refs?
+	vec3 x() const { return vec3(xx, xy, xz); }
+	vec3 y() const { return vec3(xy, yy, yz); }
+	vec3 z() const { return vec3(xz, yz, zz); }
+};
+
+
+
 // TODO if I do use const& then I will have to use all possible kinds of OpenCL address qualifiers
 // and when doing so, the compiler chokes on scalars ...
 // so I'm just going to pass-by-value
@@ -752,6 +988,7 @@ TENSOR_TENSOR_OP(/)
 template<typename T>
 decltype(auto) conj(T const t) { return t; }
 
+#if 0	// needs iterator
 template<
 	typename A,
 	typename B
@@ -761,10 +998,44 @@ constexpr auto dot(
 	B const & b,
 	std::enable_if_t<IsBinaryTensorOp<A,B>>*
 ) {
+	static_assert(false);
+}
+#else
+// vector-vector
+template<typename A, typename B>
+constexpr auto dot(
+	A const & a,
+	B const & b,
+	std::enable_if_t<
+		is_tensor_v<A> && A::rank == 1 && A::template dim<0> == 3 &&
+		is_tensor_v<B> && B::rank == 1 && B::template dim<0> == 3
+	>*
+) {
 	return a.x * conj(b.x)
 		+ a.y * conj(b.y)
 		+ a.z * conj(b.z);
 }
+
+// sym3-sym3
+template<typename A, typename B>
+constexpr auto dot(
+	A const & a,
+	B const & b,
+	std::enable_if_t<
+		is_tensor_v<A> && A::rank == 2 && A::template dim<0> == 3 && A::template dim<1> == 3 && A::numNestings == 1 &&
+		is_tensor_v<B> && B::rank == 2 && B::template dim<0> == 3 && B::template dim<1> == 3 && B::numNestings == 1
+	>*
+) {
+	return a.xx * conj(b.xx)
+		+ a.yy * conj(b.yy)
+		+ a.zz * conj(b.zz)
+		+ 2 * (
+			  a.xy * conj(b.xy)
+			+ a.xz * conj(b.xz)
+			+ a.yz * conj(b.yz)
+		);
+}
+#endif
 
 template<
 	typename T
@@ -808,7 +1079,7 @@ constexpr T normalize(
 	return v / length(v);
 }
 
-#if 0		// needs lambda ctor
+#if 0 // needs lambda ctor
 template<
 	typename A,
 	typename B
@@ -825,8 +1096,74 @@ constexpr auto outer(
 		return a(i.template subset<A::rank, 0>()) * b(i.template subset<B::rank, A::rank>());
 	});
 }
+#else
+//until then ... specific overrides
+template<typename real>
+constexpr auto outer(
+	vec3<real> const & a,
+	vec3<real> const & b
+) {
+	return vec3<vec3<real>>{
+		{a.x * b.x, a.x * b.y, a.x * b.z},
+		{a.y * b.x, a.y * b.y, a.y * b.z},
+		{a.z * b.x, a.z * b.y, a.z * b.z},
+	};
+}
+
+//self-outer
+template<typename real>
+constexpr auto outer(
+	vec3<real> const & a
+) {
+	return sym3<real>{
+		a.x * a.x,	//xx
+		a.x * a.y,	//xy
+		a.x * a.z,	//xz
+		a.y * a.y,	//yy
+		a.y * a.z,	//yz
+		a.z * a.z	//zz
+	};
+}
 #endif
 
+#if 0
+template<
+	int m = 0,
+	int n = 1,
+	typename T
+>
+constexpr auto trace(
+	T const & v,
+	std::enable_if_t<
+		is_tensor_v<T> &&
+		m < T::rank &&
+		n < T::rank &&
+		T::template dim<m> == T::template dim<n>
+	>* = nullptr
+);
+#else
+template<
+	int m,
+	int n,
+	typename real
+>
+constexpr auto trace(
+	sym3<real> const & v
+) {
+	return v.xx + v.yy + v.zz;
+}
+
+template<
+	int m,
+	int n,
+	typename real
+>
+constexpr auto trace(
+	vec3<vec3<real>> const & v
+) {
+	return v.x.x + v.y.y + v.z.z;
+}
+#endif
 // the following are 3D specific:
 
 template<
@@ -873,7 +1210,7 @@ template<
 	typename T
 >
 struct RotateFromSideImpl<0, T> {
-	static constexpr auto go(
+	static constexpr auto value(
 		T const & v,
 		std::enable_if_t<is_tensor_v<T>>*
 	) {
@@ -885,7 +1222,7 @@ template<
 	typename T
 >
 struct RotateFromSideImpl<1, T> {
-	static constexpr auto go(
+	static constexpr auto value(
 		T const & v,
 		std::enable_if_t<is_tensor_v<T>>*
 	) {
@@ -897,7 +1234,7 @@ template<
 	typename T
 >
 struct RotateFromSideImpl<2, T> {
-	static constexpr auto go(
+	static constexpr auto value(
 		T const & v,
 		std::enable_if_t<is_tensor_v<T>>*
 	) {
@@ -914,7 +1251,7 @@ constexpr auto rotateFromSide(
 	std::enable_if_t<is_tensor_v<T>>*
 ) {
 	// to get around "error: function template partial specialization is not allowed"
-	return RotateFromSideImpl<side, T>::go(v);
+	return RotateFromSideImpl<side, T>::value(v);
 }
 
 template<
@@ -927,7 +1264,7 @@ template<
 	typename T
 >
 struct RotateToSideImpl<0, T> {
-	static constexpr auto go(
+	static constexpr auto value(
 		T const & v,
 		std::enable_if_t<is_tensor_v<T>>*
 	) {
@@ -939,7 +1276,7 @@ template<
 	typename T
 >
 struct RotateToSideImpl<1, T> {
-	static constexpr auto go(
+	static constexpr auto value(
 		T const & v,
 		std::enable_if_t<is_tensor_v<T>>*
 	) {
@@ -951,7 +1288,7 @@ template<
 	typename T
 >
 struct RotateToSideImpl<2, T> {
-	static constexpr auto go(
+	static constexpr auto value(
 		T const & v,
 		std::enable_if_t<is_tensor_v<T>>*
 	) {
@@ -968,7 +1305,7 @@ constexpr auto rotateToSide(
 	std::enable_if_t<is_tensor_v<T>>*
 ) {
 	// to get around "error: function template partial specialization is not allowed"
-	return RotateToSideImpl<side, T>::go(v);
+	return RotateToSideImpl<side, T>::value(v);
 }
 
 template<
@@ -983,7 +1320,7 @@ template<
 	typename N
 >
 struct RotateFromInDimImpl<1, T, N> {
-	static constexpr auto go(
+	static constexpr auto value(
 		T const & v,
 		N const & n,
 		std::enable_if_t<is_tensor_v<T> && is_tensor_v<N> && N::rank == 1 && N::template dim<0> == 3>* = nullptr
@@ -997,7 +1334,7 @@ template<
 	typename N
 >
 struct RotateFromInDimImpl<2, T, N> {
-	static constexpr auto go(
+	static constexpr auto value(
 		T const & v,
 		N const & n,
 		std::enable_if_t<is_tensor_v<T> && is_tensor_v<N> && N::rank == 1 && N::template dim<0> == 3>* = nullptr
@@ -1015,7 +1352,7 @@ template<
 	typename N
 >
 struct RotateFromInDimImpl<3, T, N> {
-	static constexpr auto go(
+	static constexpr auto value(
 		T const & v,
 		N const & n,
 		std::enable_if_t<is_tensor_v<T> && is_tensor_v<N> && N::rank == 1 && N::template dim<0> == 3>* = nullptr
@@ -1061,7 +1398,7 @@ constexpr auto rotateFromInDim(
 	N const & n,
 	std::enable_if_t<is_tensor_v<T> && is_tensor_v<N> && N::rank == 1 && N::template dim<0> == 3>*
 ) {
-	return RotateFromInDimImpl<dim, T, N>::go(v, n);
+	return RotateFromInDimImpl<dim, T, N>::value(v, n);
 }
 
 template<
@@ -1076,7 +1413,7 @@ template<
 	typename N
 >
 struct RotateToInDimImpl<1, T, N> {
-	static constexpr auto go(
+	static constexpr auto value(
 		T const & v,
 		N const & n,
 		std::enable_if_t<is_tensor_v<T> && is_tensor_v<N> && N::rank == 1 && N::template dim<0> == 3>* = nullptr
@@ -1090,7 +1427,7 @@ template<
 	typename N
 >
 struct RotateToInDimImpl<2, T, N> {
-	static constexpr auto go(
+	static constexpr auto value(
 		T const & v,
 		N const & n,
 		std::enable_if_t<is_tensor_v<T> && is_tensor_v<N> && N::rank == 1 && N::template dim<0> == 3>* = nullptr
@@ -1108,7 +1445,7 @@ template<
 	typename N
 >
 struct RotateToInDimImpl<3, T, N> {
-	static constexpr auto go(
+	static constexpr auto value(
 		T const & v,
 		N const & n,
 		std::enable_if_t<is_tensor_v<T> && is_tensor_v<N> && N::rank == 1 && N::template dim<0> == 3>* = nullptr
@@ -1140,7 +1477,7 @@ constexpr auto rotateToInDim(
 	N const & n,
 	std::enable_if_t<is_tensor_v<T> && is_tensor_v<N> && N::rank == 1 && N::template dim<0> == 3>*
 ) {
-	return RotateToInDimImpl<side, T, N>::go(v, n);
+	return RotateToInDimImpl<side, T, N>::value(v, n);
 }
 
 //// MODULE_NAME: mat3x3
@@ -1213,119 +1550,7 @@ using real3 = vec3<real>;
 
 //// MODULE_NAME: sym3
 //// MODULE_DEPENDS: vec3
-//// MODULE_TYPE:
-
-//// BEGIN EXCLUDE FOR FFI_CDEF
-
-inline constexpr int triangleSize(int n) {
-	return (n * (n + 1)) / 2;
-}
-
-inline constexpr int symIndex(int i, int j) {
-	if (i > j) return symIndex(j,i);
-	return i + triangleSize(j);
-}
-
-#define TENSOR_HEADER_SYMMETRIC_MATRIX_SPECIFIC()\
-	static constexpr int localCount = triangleSize(localDim);
-
-#define TENSOR_HEADER_SYMMETRIC_MATRIX(classname, Inner_, localDim_)\
-	TENSOR_THIS(classname)\
-	TENSOR_SET_INNER_LOCALDIM_LOCALRANK(Inner_, localDim_, 2)\
-	TENSOR_TEMPLATE_T/*_I*/(classname)\
-	TENSOR_HEADER_SYMMETRIC_MATRIX_SPECIFIC()
-
-#define TENSOR_ADD_SYMMETRIC_MATRIX_CTORS(classname)\
-	/*argument constructor*/\
-	constexpr classname(\
-		Inner const & xx_,\
-		Inner const & xy_,\
-		Inner const & xz_,\
-		Inner const & yy_,\
-		Inner const & yz_,\
-		Inner const & zz_\
-	) :	xx(xx_),\
-		xy(xy_),\
-		xz(xz_),\
-		yy(yy_),\
-		yz(yz_),\
-		zz(zz_)\
-	{}\
-\
-	/*default constructor*/\
-	constexpr classname()\
-	:	xx(Inner{}),\
-		xy(Inner{}),\
-		xz(Inner{}),\
-		yy(Inner{}),\
-		yz(Inner{}),\
-		zz(Inner{})\
-	{}\
-\
-	/*scalar constructor*/\
-	constexpr classname(Scalar const & s)\
-	:	xx(s),\
-		xy(s),\
-		xz(s),\
-		yy(s),\
-		yz(s),\
-		zz(s)\
-	{}\
-\
-	/*tensor/tensor construction*/\
-	/* can't be constexpr and use a loop so I have to write it per class */\
-	template<\
-		typename U\
-	>\
-	constexpr classname(\
-		U const & u,\
-		std::enable_if_t<U::rank == rank>* = nullptr\
-	)\
-	:	xx(u.xx),\
-		xy(u.xy),\
-		xz(u.xz),\
-		yy(u.yy),\
-		yz(u.yz),\
-		zz(u.zz)\
-	{}\
-\
-	template<\
-		typename U\
-	>\
-	constexpr classname(\
-		U && u,\
-		std::enable_if_t<U::rank == rank>* = nullptr\
-	)\
-	:	xx(u.xx),\
-		xy(u.xy),\
-		xz(u.xz),\
-		yy(u.yy),\
-		yz(u.yz),\
-		zz(u.zz)\
-	{}
-#define TENSOR_SYMMETRIC_MATRIX_CLASS_OPS(classname)\
-	TENSOR_ADD_SCALAR_IMPL(classname)\
-	TENSOR_ADD_RANK_IMPL(classname)\
-	TENSOR_ADD_SYMMETRIC_MATRIX_CTORS(classname)\
-	TENSOR_ADD_OPS(classname)
-
-template<typename Inner_>
-union sym3 {
-	TENSOR_HEADER_SYMMETRIC_MATRIX(sym3, Inner_, 3)
-
-	// TODO rename to x_x x_y etc
-	struct {
-		Inner xx, xy, xz, yy, yz, zz;
-	};
-	struct {
-		Inner s00, s01, s02, s11, s12, s22;
-	};
-	Inner s[6];
-
-	TENSOR_SYMMETRIC_MATRIX_CLASS_OPS(sym3)
-};
-
-//// END EXCLUDE FOR FFI_CDEF
+// legacy, now merged into vec3
 
 //// MODULE_NAME: real3s3
 //// MODULE_DEPENDS: real3
@@ -1359,36 +1584,24 @@ static_assert(sizeof(real3s3) == sizeof(real3s3_cdef_t));
 
 #define real3s3_ident	real3s3(1,0,0,1,0,1)
 
-inline real3s3 outer(real3 const a);
 static inline real determinant(real3s3 const m);
 static inline real3s3 inverse(real3s3 const m, real const det);
 static inline real3s3 inverse(real3s3 const m);
-static inline real3 real3s3_real3_mul(real3s3 m, real3 v);
-static inline real3s3 real3s3_add(real3s3 a, real3s3 b);
-static inline real3s3 real3s3_sub(real3s3 a, real3s3 b);
-static inline real3s3 real3s3_real_mul(real3s3 a, real s);
-static inline real real3s3_dot(real3s3 a, real3s3 b);
-static inline real3 real3s3_x(real3s3 m);
-static inline real3 real3s3_y(real3s3 m);
-static inline real3 real3s3_z(real3s3 m);
-static inline real3 real3s3_col(real3s3 m, int side);
-static inline real real3s3_trace(real3s3 m);
+
+#if 0
 static inline real real3_weightedDot(real3 a, real3 b, real3s3 m);
 static inline real real3_weightedLenSq(real3 a, real3s3 m);
 static inline real real3_weightedLen(real3 a, real3s3 m);
 
-//// MODULE_CODE:
+static inline real3s3 real3s3_rotateFrom(real3s3 const m, real3 const n);
+static inline real3s3 real3s3_rotateTo(real3s3 const m, real3 const n);
+static inline real3s3 real3s3_swap(real3s3 m, int side);
+static inline real3s3 real3s3_swap0(real3s3 m);
+static inline real3s3 real3s3_swap1(real3s3 m);
+static inline real3s3 real3s3_swap2(real3s3 m);
+#endif
 
-//outer with yourself
-inline real3s3 outer(real3 const a) {
-	return real3s3{
-<? for ij,xij in ipairs(symNames) do
-	local i,j = from6to3x3(ij)
-	local xi,xj = xNames[i],xNames[j]
-?>		a.<?=xi?> * a.<?=xj?>,
-<? end
-?>	};
-}
+//// MODULE_CODE:
 
 static inline real determinant(real3s3 const m) {
 	return m.xx * (m.yy * m.zz - m.yz * m.yz)
@@ -1414,78 +1627,7 @@ static inline real3s3 inverse(real3s3 const m) {
 	return inverse(m, determinant(m));
 }
 
-static inline real3 real3s3_real3_mul(real3s3 m, real3 v) {
-	return real3(
-		m.xx * v.x + m.xy * v.y + m.xz * v.z,
-		m.xy * v.y + m.yy * v.y + m.yz * v.z,
-		m.xz * v.z + m.yz * v.y + m.zz * v.z);
-}
-
-static inline real3s3 real3s3_neg(real3s3 a) {
-	return real3s3{
-<? for ij,xij in ipairs(symNames) do
-?>		-a.<?=xij?>,
-<? end
-?>	};
-}
-
-static inline real3s3 real3s3_add(real3s3 a, real3s3 b) {
-	return real3s3{
-		a.xx + b.xx,
-		a.xy + b.xy,
-		a.xz + b.xz,
-		a.yy + b.yy,
-		a.yz + b.yz,
-		a.zz + b.zz,
-	};
-}
-
-static inline real3s3 real3s3_sub(real3s3 a, real3s3 b) {
-	return real3s3{
-		a.xx - b.xx,
-		a.xy - b.xy,
-		a.xz - b.xz,
-		a.yy - b.yy,
-		a.yz - b.yz,
-		a.zz - b.zz,
-	};
-}
-
-static inline real3s3 real3s3_real_mul(real3s3 a, real s) {
-	return real3s3{
-		a.xx * s,
-		a.xy * s,
-		a.xz * s,
-		a.yy * s,
-		a.yz * s,
-		a.zz * s,
-	};
-}
-
-//computes a^ij b_ij
-static inline real real3s3_dot(real3s3 a, real3s3 b) {
-	return a.xx * b.xx + a.yy * b.yy + a.zz * b.zz
-		+ 2. * (a.xy * b.xy + a.xz * b.xz + a.yz * b.yz);
-}
-
-static inline real3 real3s3_x(real3s3 m) { return real3(m.xx, m.xy, m.xz); }
-static inline real3 real3s3_y(real3s3 m) { return real3(m.xy, m.yy, m.yz); }
-static inline real3 real3s3_z(real3s3 m) { return real3(m.xz, m.yz, m.zz); }
-
-static inline real3 real3s3_col(real3s3 m, int side) {
-	if (side == 0) {
-		return real3s3_x(m);
-	} else if (side == 1) {
-		return real3s3_y(m);
-	} else if (side == 2) {
-		return real3s3_z(m);
-	}
-	return real3(0./0.);
-}
-
-static inline real real3s3_trace(real3s3 m) {
-	return m.xx + m.yy + m.zz;
-}
+#if 0
 
 //weighted inner product using 'm'
 static inline real real3_weightedDot(real3 a, real3 b, real3s3 m) {
@@ -1499,19 +1641,6 @@ static inline real real3_weightedLenSq(real3 a, real3s3 m) {
 static inline real real3_weightedLen(real3 a, real3s3 m) {
 	return sqrt(real3_weightedLenSq(a, m));
 }
-
-//// MODULE_NAME: real3s3_rotate
-//// MODULE_DEPENDS: real3s3 rotate
-//// MODULE_HEADER:
-
-static inline real3s3 real3s3_rotateFrom(real3s3 const m, real3 const n);
-static inline real3s3 real3s3_rotateTo(real3s3 const m, real3 const n);
-static inline real3s3 real3s3_swap(real3s3 m, int side);
-static inline real3s3 real3s3_swap0(real3s3 m);
-static inline real3s3 real3s3_swap1(real3s3 m);
-static inline real3s3 real3s3_swap2(real3s3 m);
-
-//// MODULE_CODE:
 
 static inline real3s3 real3s3_rotateFrom(
 	real3s3 const m,
@@ -1559,6 +1688,8 @@ static inline real3s3 real3s3_swap0(real3s3 m) { return m; }
 static inline real3s3 real3s3_swap1(real3s3 m) { return real3s3(m.yy, m.xy, m.yz, m.xx, m.xz, m.zz); }
 static inline real3s3 real3s3_swap2(real3s3 m) { return real3s3(m.zz, m.yz, m.xz, m.yy, m.xy, m.xx); }
 
+#endif
+
 //// MODULE_NAME: real3x3
 //// MODULE_DEPENDS: real real3s3 mat3x3
 //// MODULE_TYPE:
@@ -1571,9 +1702,6 @@ static inline real3x3 real3x3_from_real3x3(real3x3 x);
 // multiplication isn't template parent class based yet (TODO)
 static inline constexpr real3 operator*(real3, real3x3);
 static inline constexpr real3 operator*(real3x3, real3);
-inline real3x3 outer(real3 a, real3 b);
-static inline real real3x3_dot(real3x3 a, real3x3 b);
-static inline real real3x3_real3s3_dot(real3x3 a, real3s3 b);
 static inline real3x3 real3s3_real3s3_mul(real3s3 a, real3s3 b);
 static inline real3x3 real3x3_real3s3_mul(real3x3 a, real3s3 b);
 static inline real3x3 real3s3_real3x3_mul(real3s3 a, real3x3 b);
@@ -1583,7 +1711,6 @@ static inline real3s3 real3s3_from_real3x3(real3x3 a);
 static inline real3x3 real3x3_from_real3s3(real3s3 a);
 static inline real3x3 real3x3_addT(real3x3 a, real3x3 b);
 static inline real3x3 real3x3_real3x3_mul(real3x3 a, real3x3 b);
-static inline real real3x3_trace(real3x3 m);
 static inline real3x3 transpose(real3x3 m);
 static inline real3x3 real3x3_from_real(real x);
 static inline real determinant(real3x3 m);
@@ -1605,25 +1732,6 @@ inline constexpr real3 operator*(real3x3 a, real3 b) {
 		a.x.x * b.x + a.x.y * b.y + a.x.z * b.z,
 		a.y.x * b.x + a.y.y * b.y + a.y.z * b.z,
 		a.z.x * b.x + a.z.y * b.y + a.z.z * b.z);
-}
-
-/*
-a^T * b
-= a^i b_j
-   [a.x b.x, a.x b.y, a.x b.z]
- = [a.y b.x, a.y b.y, a.y b.z]
-   [a.z b.x, a.z b.y, a.z b.z]
-*/
-inline real3x3 outer(real3 a, real3 b) {
-	return real3x3{
-<? for i,xi in ipairs(xNames) do
-?>		{
-<?	for j,xj in ipairs(xNames) do
-?>			a.<?=xi?> * b.<?=xj?>,
-<?	end
-?>		},
-<? end
-?>	};
 }
 
 static inline real real3x3_dot(real3x3 a, real3x3 b) {
@@ -1771,10 +1879,6 @@ static inline real3x3 real3x3_real3x3_mul(real3x3 a, real3x3 b) {
 ?>	};
 }
 
-static inline real real3x3_trace(real3x3 m) {
-	return m.x.x + m.y.y + m.z.z;
-}
-
 static inline real3x3 transpose(real3x3 m) {
 	return real3x3{
 <? for i,xi in ipairs(xNames) do
@@ -1910,129 +2014,24 @@ typedef union {
 	};
 } real3x3s3;
 
-//// MODULE_HEADER:
-
-static inline real3x3s3 real3x3s3_add(real3x3s3 a, real3x3s3 b);
-static inline real3x3s3 real3x3s3_sub(real3x3s3 a, real3x3s3 b);
-static inline real3x3s3 real3x3s3_real_mul(real3x3s3 a, real b);
-static inline real3x3s3 real3s3_real3x3s3_mul(real3s3 a, real3x3s3 b);
-static inline real3 real3x3s3_real3s3_dot23(real3x3s3 a, real3s3 b);
-static inline real3 real3s3_real3x3s3_dot12(real3s3 a, real3x3s3 b);
-static inline real3s3 real3_real3x3s3_dot1(real3 a, real3x3s3 b);
-static inline real3 real3x3s3_tr12(real3x3s3 a);
-static inline real3x3 real3_real3x3s3_dot2(real3 a, real3x3s3 b);
-
-//// MODULE_CODE:
-
-<? for _,info in ipairs{
-	{name="add", symbol="+"},
-	{name="sub", symbol="-"},
-} do
-	local name,symbol = info.name, info.symbol
-?>
-static inline real3x3s3 real3x3s3_<?=name?>(real3x3s3 a, real3x3s3 b) {
-	return real3x3s3{
-<? for i,xi in ipairs(xNames) do
-?>		{
-<?	for jk,xjk in ipairs(symNames) do
-?>			a.<?=xi?>.<?=xjk?> <?=symbol?> b.<?=xi?>.<?=xjk?>,
-<?	end
-?>		},
-<? end
-?>	};
-}
-<? end ?>
-
-static inline real3x3s3 real3x3s3_real_mul(real3x3s3 a, real b) {
-	return real3x3s3{
-<? for i,xi in ipairs(xNames) do
-?>		{
-<?	for jk,xjk in ipairs(symNames) do
-?>			a.<?=xi?>.<?=xjk?> * b,
-<?	end
-?>		},
-<? end
-?>	};
-}
-
 //c^i_jk = a^il b_ljk
-static inline real3x3s3 real3s3_real3x3s3_mul(real3s3 a, real3x3s3 b) {
-	return real3x3s3{
-<? for i,xi in ipairs(xNames) do
-?>		{
-<?	for jk,xjk in ipairs(symNames) do
-?>			0.<?
-		for l,xl in ipairs(xNames) do
-				?> + a.<?=sym(i,l)?> * b.<?=xl?>.<?=xjk?><?
-		end ?>,
-<?	end
-?>		},
-<? end
-?>	};
-}
+//static inline real3x3s3 real3s3_real3x3s3_mul(real3s3 a, real3x3s3 b);
 
 //c^i = a^i_jk b^jk
-static inline real3 real3x3s3_real3s3_dot23(real3x3s3 a, real3s3 b) {
-	return real3{
-<? for i,xi in ipairs(xNames) do
-?>		real3s3_dot(a.<?=xi?>, b),
-<? end
-?>	};
-}
+//static inline real3 real3x3s3_real3s3_dot23(real3x3s3 a, real3s3 b);
 
 //c_i = a^jk b_jki
-static inline real3 real3s3_real3x3s3_dot12(real3s3 a, real3x3s3 b) {
-	return real3{
-<? for i,xi in ipairs(xNames) do
-?>		0.<?
-	for j,xj in ipairs(xNames) do
-		for k,xk in ipairs(xNames) do
-?> + a.<?=sym(j,k)?> * b.<?=xj?>.<?=sym(k,i)?><?
-		end
-	end ?>,
-<? end
-?>	};
-}
+//static inline real3 real3s3_real3x3s3_dot12(real3s3 a, real3x3s3 b);
 
 //c_ij = a_k b^k_ij
-static inline real3s3 real3_real3x3s3_dot1(real3 a, real3x3s3 b) {
-	return real3s3{
-<? for ij,xij in ipairs(symNames) do
-?>		0.<?
-	for k,xk in ipairs(xNames) do
-?> + a.<?=xk?> * b.<?=xk?>.<?=xij?><?
-	end ?>,
-<? end
-?>	};
-}
+//static inline real3s3 real3_real3x3s3_dot1(real3 a, real3x3s3 b);
 
 //c_i = a^j_ji
-static inline real3 real3x3s3_tr12(real3x3s3 a) {
-	return real3{
-<? for i,xi in ipairs(xNames) do
-?>		0.<?
-	for j,xj in ipairs(xNames) do
-?> + a.<?=xj?>.<?=sym(j,i)?><?
-	end ?>,
-<? end
-?>	};
-}
+//static inline real3 real3x3s3_tr12(real3x3s3 a);
 
 //c_ij = a^k b_ikj
-static inline real3x3 real3_real3x3s3_dot2(real3 a, real3x3s3 b) {
-	return real3x3{
-<? for i,xi in ipairs(xNames) do
-?>		{
-<?	for j,xj in ipairs(xNames) do
-?>			0.<?
-		for k,xk in ipairs(xNames) do
-?> + a.<?=xk?> * b.<?=xi?>.<?=sym(k,j)?><?
-		end ?>,
-<?	end
-?>		},
-<? end
-?>	};
-}
+//static inline real3x3 real3_real3x3s3_dot2(real3 a, real3x3s3 b);
+
 
 //// MODULE_NAME: real3x3s3_rotate
 //// MODULE_HEADER:
@@ -2132,10 +2131,16 @@ typedef union {
 
 //// MODULE_HEADER:
 
-static inline real3x3x3 real3x3s3_real3s3_mul(real3x3s3 a, real3s3 b);
-static inline real3 real3x3x3_real3s3_dot23(real3x3x3 a, real3s3 b);
-static inline real3x3 real3x3s3_real3x3x3_dot12_23(real3x3s3 a, real3x3x3 b);
-static inline real3s3 real3x3s3_real3x3x3_dot13_to_real3s3(real3x3s3 a, real3x3x3 b);
+//c_i = a_ijk b^jk
+//static inline real3 real3x3x3_real3s3_dot23(real3x3x3 a, real3s3 b);
+
+//c_ij = a^k_li b_jk^l
+//static inline real3x3 real3x3s3_real3x3x3_dot12_23(real3x3s3 a, real3x3x3 b);
+
+//c_ij = a^k_il b_kj^l
+//assuming the result is symmetric
+//static inline real3s3 real3x3s3_real3x3x3_dot13_to_real3s3(real3x3s3 a, real3x3x3 b);
+
 static inline real3 real3x3x3_tr23(real3x3x3 a);
 static inline real3x3s3 real3s3_real3x3x3_mul2_toreal3x3s3(real3s3 a, real3x3x3 b);
 static inline real3x3s3 conn_ull_from_d_llu_d_ull(real3x3x3 const d_llu, real3x3s3 const d_ull);
@@ -2161,51 +2166,6 @@ static inline real3x3x3 real3x3s3_real3s3_mul(real3x3s3 a, real3s3 b) {
 ?>			},
 <? end
 ?>		},
-<? end
-?>	};
-}
-
-static inline real3 real3x3x3_real3s3_dot23(real3x3x3 a, real3s3 b) {
-	return real3{
-<? for i,xi in ipairs(xNames) do
-?>		real3x3_real3s3_dot(a.<?=xi?>, b),
-<? end
-?>	};
-}
-
-//c_ij = a^k_li b_jk^l
-static inline real3x3 real3x3s3_real3x3x3_dot12_23(real3x3s3 a, real3x3x3 b) {
-	return real3x3{
-<? for i,xi in ipairs(xNames) do
-?>		{
-<?	for j,xj in ipairs(xNames) do
-?>			0.
-<?		for k,xk in ipairs(xNames) do
-			for l,xl in ipairs(xNames) do
-?>				+ a.<?=xk?>.<?=sym(l,i)?> * b.<?=xj?>.<?=xk?>.<?=xl?>
-<?			end
-		end
-?>			,
-<? 	end
-?>		},
-<? end
-?>	};
-}
-
-//c_ij = a^k_il b_kj^l
-//assuming the result is symmetric
-static inline real3s3 real3x3s3_real3x3x3_dot13_to_real3s3(real3x3s3 a, real3x3x3 b) {
-	return real3s3{
-<? for ij,xij in ipairs(symNames) do
-	local i,j = from6to3x3(ij)
-	local xi,xj = xNames[i],xNames[j]
-?>		0.
-<?	for k,xk in ipairs(xNames) do
-		for l,xl in ipairs(xNames) do
-?>			+ a.<?=xk?>.<?=sym(i,l)?> * b.<?=xk?>.<?=xj?>.<?=xl?>
-<?		end
-	end
-?>		,
 <? end
 ?>	};
 }
@@ -2370,7 +2330,6 @@ static inline cplx cplx_neg(cplx a);
 static inline real lenSq(cplx a);
 static inline real cplx_abs(cplx a);
 static inline real cplx_arg(cplx a);
-static inline real cplx_dot(cplx a, cplx b);
 static inline cplx cplx_add(cplx a, cplx b);
 static inline cplx cplx_sub(cplx a, cplx b);
 static inline cplx cplx_mul(cplx a, cplx b);
@@ -2390,11 +2349,6 @@ static inline cplx cplx_neg(cplx a) { return _cplx(-a.re, -a.im); }
 static inline real lenSq(cplx a) { return a.re * a.re + a.im * a.im; }
 static inline real cplx_abs(cplx a) { return sqrt(lenSq(a)); }
 static inline real cplx_arg(cplx a) { return atan2(a.im, a.re); }
-
-//what do I call this function? complex dot? real component of complex dot?  real component of complex mul of a number with another's conjugate?
-static inline real cplx_dot(cplx a, cplx b) {
-	return a.re * b.re + a.im * b.im;
-}
 
 static inline cplx cplx_add(cplx a, cplx b) {
 	return _cplx(
@@ -2479,8 +2433,6 @@ static inline real3 cplx3_im(cplx3 const v);
 static inline real lenSq(cplx3 const v);
 static inline real length(cplx3 const v);
 static inline cplx3 real3_cplx_mul(real3 const a, cplx const b);
-static inline cplx cplx3_real3_dot(cplx3 const a, real3 const b);
-#define real3_cplx3_dot(a,b) cplx3_real3_dot(b,a)
 
 //TODO instead of real3s3 as a depends, put this into a cplx+real3s3 module?
 static inline real cplx3_re_weightedDot(cplx3 const a, cplx3 const b, real3s3 const m);
@@ -2586,16 +2538,6 @@ static inline real3x3 cplx3x3_im(cplx3x3 const v) {
 ?>		cplx3_im(v.<?=xi?>),
 <? end
 ?>	};
-}
-
-cplx cplx3x3_real3s3_dot(cplx3x3 a, real3s3 b) {
-	cplx sum = cplx_zero;
-<? for i,xi in ipairs(xNames) do
-	for j,xj in ipairs(xNames) do
-?> 	sum = cplx_add(sum, a.<?=xi?>.<?=xj?> * b.<?=sym(i,j)?>);
-<?	end
-end
-?>	return sum;
 }
 
 //// MODULE_NAME: Bessel
