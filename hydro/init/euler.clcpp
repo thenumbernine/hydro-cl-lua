@@ -28,10 +28,7 @@ struct RiemannProblem {
 	}
 };
 
-}
-
 #if 0
-namespace <?=Solver?> {
 
 template<
 	int dim_,
@@ -55,10 +52,7 @@ struct InitCond_Euler_Sod
 	}
 };
 
-}	//namespace <?=Solver?>
 #endif
-
-namespace <?=Solver?> {
 
 template<
 	int dim_,
@@ -92,4 +86,4 @@ template<
 	}
 };
 
-}	//namespace <?=Solver?>
+}	//namespace Hydro

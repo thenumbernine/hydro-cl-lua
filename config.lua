@@ -383,7 +383,7 @@ local args = {
 	--]]
 
 
-	--initCond = 'rectangle',
+	initCond = 'rectangle',
 	--initCond = 'Sedov',
 	--initCond = 'Noh',
 	--initCond = 'implosion',
@@ -453,7 +453,7 @@ local args = {
 	--initCond = 'self-gravitation - Earth',	-- validating units along with self-gravitation.
 	--initCond = 'self-gravitation - NGC 1560',	-- TODO still needs velocity
 	--initCond = 'self-gravitation - NGC 3198',
-	initCond = 'self-gravitation test 1',
+	--initCond = 'self-gravitation test 1',
 	--initCond = 'self-gravitation test 1 spinning',
 	--initCond = 'self-gravitation test 2',		--FIXME
 	--initCond = 'self-gravitation test 2 orbiting',

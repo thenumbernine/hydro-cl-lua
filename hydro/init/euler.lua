@@ -102,7 +102,7 @@ local function RiemannProblem(initCond)
 		return self.solver.eqn:template(
 file'hydro/init/euler.clcpp':read()
 ..[[
-namespace <?=Solver?> {
+namespace Hydro {
 template<
 	typename Prim,
 	typename CellArgs
@@ -120,7 +120,10 @@ struct InitCond_Euler_<?=name?> : public Hydro::RiemannProblem<
 <?=build(2)?>
 	}
 };
+}
+
 // TODO merge initCond_t i.e. InitCond with InitCondC here
+namespace <?=Solver?> {
 template<typename Prim, typename Cons> using InitCondC = InitCond_Euler_<?=name?><
 	Prim,
 	Hydro::InitCondCellArgs<Cons>
@@ -314,8 +317,8 @@ end
 
 function SelfGravProblem:outside()
 	return [[
-	rho = .1;
-	P = 1;
+		rho = .1;
+		P = 1;
 ]]
 end
 
@@ -327,13 +330,13 @@ function SelfGravProblem:getInitCondCode()
 	return solver.eqn:template(
 file'hydro/init/euler.clcpp':read()
 ..[[
-namespace <?=Solver?> {
+namespace Hydro {
+
 template<typename Prim, typename CellArgs>
 struct InitCond_Euler_<?=name?> {
 	static inline void initCond(CellArgs & args) {
 		auto & [solver, initCond, x, U, rho, v, P, ePot, D, B] = args;
-
-		<?=self:outside()?>
+<?=self:outside()?>
 		//notice about initializing random velocity -- it isn't uniform about .5 so it will pull left
 		//v.x = .2 * (U.m.x - .5);	//U is initialized to random()
 		//v.y = .2 * (U.m.y - .5);
@@ -342,12 +345,11 @@ struct InitCond_Euler_<?=name?> {
 //// MODULE_DEPENDS: <?=coordMap?>
 		<? for i,source in ipairs(sources) do ?>{
 			real3 const xc = coordMap(x);
-			real3 const delta = xc
-				- real3(
-					<?=clnumber(source.center[1])?>,
-					<?=clnumber(source.center[2])?>,
-					<?=clnumber(source.center[3])?>
-				);
+			real3 const delta = xc - real3(<?=
+				clnumber(source.center[1])?>,<?=
+				clnumber(source.center[2])?>,<?=
+				clnumber(source.center[3])
+			?>);
 			real const distSq = lenSq(delta);
 			real const radius = <?=self:getRadiusCode(source)?>;
 			if (distSq < radius * radius) {
@@ -356,7 +358,10 @@ struct InitCond_Euler_<?=name?> {
 		}<? end ?>
 	}
 };
-template<typename Prim, typename Cons> using InitCondC = InitCond_Euler_<?=name?><
+}	// namespace Hydro
+
+namespace <?=Solver?> {
+template<typename Prim, typename Cons> using InitCondC = Hydro::InitCond_Euler_<?=name?><
 	Prim,
 	Hydro::InitCondCellArgs<Cons>
 >;
@@ -789,7 +794,7 @@ template<typename Prim, typename Cons> using InitCondC = InitCond_Euler_<?=name?
 			return self.solver.eqn:template(
 file'hydro/init/euler.clcpp':read()
 ..[[
-namespace <?=Solver?> {
+namespace Hydro {
 template<
 	typename Prim,
 	typename CellArgs
@@ -820,12 +825,15 @@ end
 		B.z = inside ? initCond.BzL : initCond.BzR;
 	}
 };
+}	// namespace Hydro
+
 // TODO merge initCond_t i.e. InitCond with InitCondC here
-template<typename Prim> using InitCondC = InitCond_Euler_rectangle<
+namespace <?=Solver?> {
+template<typename Prim, typename Cons> using InitCondC = Hydro::InitCond_Euler_rectangle<
 	Prim,
 	Hydro::InitCondCellArgs<Cons>
 >;
-}	//namespace <?=Solver?>
+}
 ]], 	{
 			solver = solver,
 			xNames = xNames,
@@ -1285,7 +1293,7 @@ end) then
 file'hydro/init/euler.clcpp':read()
 ..[[
 namespace <?=Solver?> {
-template<typename Prim> using InitCondC = InitCond_Euler_spiral<
+template<typename Prim, typename Cons> using InitCondC = InitCond_Euler_spiral<
 	<?=overrideDim or solver.dim?>,
 	Prim,
 	Hydro::InitCondCellArgs<Cons>
