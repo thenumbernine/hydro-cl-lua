@@ -12,7 +12,7 @@ struct RiemannProblem {
 	static inline void initCond(
 		CellArgs & args
 	) {
-		auto & [solver, initCond, x, rho, v, P, ePot, D, B] = args;
+		auto & [solver, initCond, x, U, rho, v, P, ePot, D, B] = args;
 		auto mids = .5 * (solver.initCondMins + solver.initCondMaxs);
 		
 		bool lhsSod = true;
@@ -68,7 +68,7 @@ template<
 	static inline void initCond(
 		CellArgs & args
 	) {
-		auto & [solver, ic, x, rho, v, P, ePot, D, B] = args;
+		auto & [solver, ic, x, U, rho, v, P, ePot, D, B] = args;
 		auto mids = .5 * (solver.initCondMins + solver.initCondMaxs);
 		
 		bool lhsSod = true;

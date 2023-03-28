@@ -70,7 +70,7 @@ kernel void <?=calcGravityDeriv?>(
 //TODO just use the display var kernels
 kernel void <?=copyPotentialToReduce?>(
 	constant <?=solver_t?> const * const psolver,
-	global real* reduceBuf,
+	global real * reduceBuf,
 	global const <?=cons_t?>* UBuf
 ) {
 	auto const & solver = *psolver;

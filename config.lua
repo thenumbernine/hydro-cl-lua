@@ -350,7 +350,7 @@ local args = {
 	--initCond = 'jet',
 
 
-	initCond = 'Sod',
+	--initCond = 'Sod',
 	--initCondArgs = {dim=cmdline.displayDim},
 	--[[ real-world vars for Sod ... which are a few orders higher, and therefore screw up the backward-euler solver
 	-- 		which means, todo, redo the backward euler error metric so it is independent of magnitude ... ?   seems I removed that for another numerical error reason.
@@ -453,7 +453,7 @@ local args = {
 	--initCond = 'self-gravitation - Earth',	-- validating units along with self-gravitation.
 	--initCond = 'self-gravitation - NGC 1560',	-- TODO still needs velocity
 	--initCond = 'self-gravitation - NGC 3198',
-	--initCond = 'self-gravitation test 1',
+	initCond = 'self-gravitation test 1',
 	--initCond = 'self-gravitation test 1 spinning',
 	--initCond = 'self-gravitation test 2',		--FIXME
 	--initCond = 'self-gravitation test 2 orbiting',

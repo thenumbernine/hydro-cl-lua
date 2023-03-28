@@ -121,7 +121,10 @@ struct InitCond_Euler_<?=name?> : public Hydro::RiemannProblem<
 	}
 };
 // TODO merge initCond_t i.e. InitCond with InitCondC here
-template<typename Prim> using InitCondC = InitCond_Euler_<?=name?><Prim, Hydro::InitCondCellArgs>;
+template<typename Prim, typename Cons> using InitCondC = InitCond_Euler_<?=name?><
+	Prim,
+	Hydro::InitCondCellArgs<Cons>
+>;
 }	//namespace <?=Solver?>
 ]], 		{
 				name = self.name,
@@ -328,13 +331,13 @@ namespace <?=Solver?> {
 template<typename Prim, typename CellArgs>
 struct InitCond_Euler_<?=name?> {
 	static inline void initCond(CellArgs & args) {
-		auto & [solver, initCond, x, rho, v, P, ePot, D, B] = args;
+		auto & [solver, initCond, x, U, rho, v, P, ePot, D, B] = args;
 
 		<?=self:outside()?>
 		//notice about initializing random velocity -- it isn't uniform about .5 so it will pull left
-		//v.x = .2 * (U->m.x - .5);	//U is initialized to random()
-		//v.y = .2 * (U->m.y - .5);
-		//v.z = .2 * (U->m.z - .5);
+		//v.x = .2 * (U.m.x - .5);	//U is initialized to random()
+		//v.y = .2 * (U.m.y - .5);
+		//v.z = .2 * (U.m.z - .5);
 
 //// MODULE_DEPENDS: <?=coordMap?>
 		<? for i,source in ipairs(sources) do ?>{
@@ -353,7 +356,10 @@ struct InitCond_Euler_<?=name?> {
 		}<? end ?>
 	}
 };
-template<typename Prim> using InitCondC = InitCond_Euler_<?=name?><Prim, Hydro::InitCondCellArgs>;
+template<typename Prim, typename Cons> using InitCondC = InitCond_Euler_<?=name?><
+	Prim,
+	Hydro::InitCondCellArgs<Cons>
+>;
 }
 ]], {
 		self = self,
@@ -577,18 +583,18 @@ local initConds = table{
 		getInitCondCode = function(self)
 			self.solver.useGravity = true
 			return [[
-	rho = U->rho + 1.;
+	rho = U.rho + 1.;
 #if dim == 2
 	v = real3(
-		U->m.x * cos(U->m.y * 2. * M_PI),
-		U->m.x * sin(U->m.y * 2. * M_PI),
-		2. * U->m.z - 1.
+		U.m.x * cos(U.m.y * 2. * M_PI),
+		U.m.x * sin(U.m.y * 2. * M_PI),
+		2. * U.m.z - 1.
 	);
 #else
 	// TODO spherical random distribution using asin and stuff
-	v = real3_sub(U->m, real3(.5, .5, .5));
+	v = real3_sub(U.m, real3(.5, .5, .5));
 #endif
-	P = U->ETotal + 1.;
+	P = U.ETotal + 1.;
 ]]
 		end,
 	},
@@ -748,7 +754,10 @@ local initConds = table{
 file'hydro/init/euler.clcpp':read()
 ..[[
 namespace <?=Solver?> {
-template<typename Prim> using InitCondC = InitCond_Euler_<?=name?><Prim, Hydro::InitCondCellArgs>;
+template<typename Prim, typename Cons> using InitCondC = InitCond_Euler_<?=name?><
+	Prim,
+	Hydro::InitCondCellArgs<Cons>
+>;
 }
 ]], 			{
 					name = self.name,
@@ -789,7 +798,7 @@ struct InitCond_Euler_rectangle {
 	static inline void initCond(
 		CellArgs & args
 	) {
-		auto & [solver, initCond, x, rho, v, P, ePot, D, B] = args;
+		auto & [solver, initCond, x, U, rho, v, P, ePot, D, B] = args;
 
 //// MODULE_DEPENDS: <?=coordMap?>
 		real3 const xc = coordMap(x);
@@ -812,7 +821,10 @@ end
 	}
 };
 // TODO merge initCond_t i.e. InitCond with InitCondC here
-template<typename Prim> using InitCondC = InitCond_Euler_rectangle<Prim, Hydro::InitCondCellArgs>;
+template<typename Prim> using InitCondC = InitCond_Euler_rectangle<
+	Prim,
+	Hydro::InitCondCellArgs<Cons>
+>;
 }	//namespace <?=Solver?>
 ]], 	{
 			solver = solver,
@@ -1276,7 +1288,7 @@ namespace <?=Solver?> {
 template<typename Prim> using InitCondC = InitCond_Euler_spiral<
 	<?=overrideDim or solver.dim?>,
 	Prim,
-	Hydro::InitCondCellArgs
+	Hydro::InitCondCellArgs<Cons>
 >; 
 }
 ]],			{
@@ -1683,18 +1695,18 @@ end ?>
 
 	//U is initialized with random(), so use its values for unique random #s
 <? assert(solver.eqn.numStates >= 5); ?>
-	rho += initCond.noiseAmplitude * 2. * (U->ptr[0] - .5);
+	rho += initCond.noiseAmplitude * 2. * (U.ptr[0] - .5);
 #if 0
-	v.x += initCond.noiseAmplitude * 2. * (U->ptr[1] - .5);
-	v.y += initCond.noiseAmplitude * 2. * (U->ptr[2] - .5);
-	v.z += initCond.noiseAmplitude * 2. * (U->ptr[3] - .5);
+	v.x += initCond.noiseAmplitude * 2. * (U.ptr[1] - .5);
+	v.y += initCond.noiseAmplitude * 2. * (U.ptr[2] - .5);
+	v.z += initCond.noiseAmplitude * 2. * (U.ptr[3] - .5);
 #elif dim >= 2
-	real noisePhi = 2. * M_PI * U->ptr[1];
-	real noiseR = U->ptr[2];
+	real noisePhi = 2. * M_PI * U.ptr[1];
+	real noiseR = U.ptr[2];
 	v.moveAxis += initCond.noiseAmplitude * noiseR * cos(noisePhi);
 	v.perpAxis += initCond.noiseAmplitude * noiseR * sin(noisePhi);
 #endif
-	P += initCond.noiseAmplitude * 2. * (U->ptr[4] - .5);
+	P += initCond.noiseAmplitude * 2. * (U.ptr[4] - .5);
 ]],				{
 					sliceAxis = self.guiVars.sliceAxis:getValue(),
 				}
@@ -2002,8 +2014,8 @@ if (bubbleRSq < bubbleRadiusSq) {
 	P = 2.5;
 	//U is initialized with [0,1] random values
 <? assert(solver.eqn.numStates >= 2); ?>
-	v.x = 0.02*(U->ptr[0] - 0.5) + fabs(c.y) > 0.25 ? -.5 : .5;
-	v.y = 0.02*(U->ptr[1] - 0.5);
+	v.x = 0.02*(U.ptr[0] - 0.5) + fabs(c.y) > 0.25 ? -.5 : .5;
+	v.y = 0.02*(U.ptr[1] - 0.5);
 	v.z = 0.;
 ]]
 		end,
@@ -2613,7 +2625,7 @@ end
 			{center={0, 0, 0}, radius = .5},
 		},
 		getRadiusCode = function(source)
-			return '.5 - .01 * (U->ptr[0] - .5)'
+			return '.5 - .01 * (U.ptr[0] - .5)'
 		end,
 	}),
 
@@ -2634,8 +2646,8 @@ end
 		},
 		getRadiusCode = function(source)
 			-- TODO compute dr's component in each dx^i's, and scale our random number by that
-			-- U->rho holds noise
-			return '.2 - .005 * (U->ptr[0] - .5)'
+			-- U.rho holds noise
+			return '.2 - .005 * (U.ptr[0] - .5)'
 		end,
 	}),
 
@@ -2694,11 +2706,11 @@ end
 		name = 'self-gravitation soup',
 		getInitCondCode = function(self)
 			return [[
-	rho = .1 * U->ptr[0] + .1;
-	v.x = .2 * U->ptr[1] - .1;
-	v.y = .2 * U->ptr[2] - .1;
-	v.z = .2 * U->ptr[3] - .1;
-	P = .1 * U->ptr[4] + .1;
+	rho = .1 * U.ptr[0] + .1;
+	v.x = .2 * U.ptr[1] - .1;
+	v.y = .2 * U.ptr[2] - .1;
+	v.z = .2 * U.ptr[3] - .1;
+	P = .1 * U.ptr[4] + .1;
 ]]
 		end,
 	},
@@ -2706,7 +2718,7 @@ end
 	class(SelfGravProblem, {
 		name = 'self-gravitation Jeans, right?',
 		getRadiusCode = function(source)
-			return '.5 - .02 * (U->ptr[0] - .5)'
+			return '.5 - .02 * (U.ptr[0] - .5)'
 		end,
 		sources = {
 			{center={0, 0, 0}, radius = .5, inside=[[
