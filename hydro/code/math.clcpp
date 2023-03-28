@@ -196,6 +196,10 @@ union sym3;
 template<typename Inner>
 using vec3 = vec<Inner, 3>;
 
+// row vectors, so a.i.j = a_ij
+template<typename Inner>
+using mat3x3 = vec3<vec3<Inner>>;
+
 //////////////////////////////// Tensor/Math.h.h ////////////////////////////////
 
 #if 0	// needs iterator
@@ -235,45 +239,33 @@ constexpr auto dot(
 );
 #endif
 
-template<
-	typename T
->
+template<typename T>
 constexpr auto lenSq(
 	T const & v,
 	std::enable_if_t<is_tensor_v<T>>* = {}
 );
 
-template<
-	typename T
->
+template<typename T>
 constexpr auto length(
 	T const & v,
 	std::enable_if_t<is_tensor_v<T>>* = {}
 );
 
-template<
-	typename A,
-	typename B
->
+template<typename A, typename B>
 constexpr auto distance(
 	A const & a,
 	B const & b,
 	std::enable_if_t<IsBinaryTensorOp<A,B>>* = {}
 );
 
-template<
-	typename T
->
+template<typename T>
 constexpr T normalize(
 	T const & v,
 	std::enable_if_t<is_tensor_v<T>>* = {}
 );
 
 #if 0 // needs lambda ctor
-template<
-	typename A,
-	typename B
->
+template<typename A, typename B>
 constexpr auto outer(
 	A const & a,
 	B const & b,
@@ -1227,9 +1219,22 @@ TENSOR_TENSOR_OP(-)
 //TENSOR_TENSOR_OP(*) handled elsewhere as inner product
 TENSOR_TENSOR_OP(/)
 
-// row vectors, so a.i.j = a_ij
-template<typename Inner>
-using mat3x3 = vec3<vec3<Inner>>;
+// per-class implementation of operator*
+template<typename T>
+inline constexpr vec3<T> operator*(vec3<T> a, mat3x3<T> b) {
+	return vec3<T>(
+		a.x * b.x.x + a.y * b.y.x + a.z * b.z.x,
+		a.x * b.x.y + a.y * b.y.y + a.z * b.z.y,
+		a.x * b.x.z + a.y * b.y.z + a.z * b.z.z);
+}
+
+template<typename T>
+inline constexpr vec3<T> operator*(mat3x3<T> a, vec3<T> b) {
+	return vec3<T>(
+		a.x.x * b.x + a.x.y * b.y + a.x.z * b.z,
+		a.y.x * b.x + a.y.y * b.y + a.y.z * b.z,
+		a.z.x * b.x + a.z.y * b.y + a.z.z * b.z);
+}
 
 //// MODULE_DEPENDS: real
 using real3 = vec3<real>;
@@ -2009,8 +2014,6 @@ static inline real3s3 real3s3_swap2(real3s3 m) { return real3s3(m.zz, m.yz, m.xz
 //// MODULE_HEADER:
 
 // multiplication isn't template parent class based yet (TODO)
-static inline constexpr real3 operator*(real3, real3x3);
-static inline constexpr real3 operator*(real3x3, real3);
 #if 0
 static inline real3x3 real3x3_from_real3x3(real3x3 x);
 static inline real3x3 real3s3_real3s3_mul(real3s3 a, real3s3 b);
@@ -2034,20 +2037,6 @@ static inline real3x3 real3x3_from_real(real x);
 #endif
 
 //// MODULE_CODE:
-
-inline constexpr real3 operator*(real3 a, real3x3 b) {
-	return real3(
-		a.x * b.x.x + a.y * b.y.x + a.z * b.z.x,
-		a.x * b.x.y + a.y * b.y.y + a.z * b.z.y,
-		a.x * b.x.z + a.y * b.y.z + a.z * b.z.z);
-}
-
-inline constexpr real3 operator*(real3x3 a, real3 b) {
-	return real3(
-		a.x.x * b.x + a.x.y * b.y + a.x.z * b.z,
-		a.y.x * b.x + a.y.y * b.y + a.y.z * b.z,
-		a.z.x * b.x + a.z.y * b.y + a.z.z * b.z);
-}
 
 #if 0
 static inline real3x3 real3x3_from_real3x3(real3x3 x) { return x; }
@@ -2190,15 +2179,18 @@ static inline real3x3 real3x3_from_real(real x) {
 //// MODULE_DEPENDS: real3x3 rotate
 //// MODULE_HEADER:
 
+#if 0
 static inline real3x3 real3x3_rotateFrom(real3x3 const m, real3 const n);
 static inline real3x3 real3x3_rotateTo(real3x3 const m, real3 const n);
 static inline real3x3 real3x3_swap(real3x3 m, int side);
 static inline real3x3 real3x3_swap0(real3x3 m);
 static inline real3x3 real3x3_swap1(real3x3 m);
 static inline real3x3 real3x3_swap2(real3x3 m);
+#endif
 
 //// MODULE_CODE:
 
+#if 0
 static inline real3x3 real3x3_rotateFrom(
 	real3x3 t,
 	real3 const n
@@ -2255,6 +2247,7 @@ static inline real3x3 real3x3_swap(real3x3 m, int side) {
 	}
 	return real3x3(0./0.);
 }
+#endif
 
 //// MODULE_NAME: real3x3s3
 //// MODULE_DEPENDS: real3s3 real3x3
@@ -2302,12 +2295,15 @@ static_assert(sizeof(real3x3s3) == sizeof(real3x3s3_cdef_t));
 //// MODULE_NAME: real3x3s3_rotate
 //// MODULE_HEADER:
 
+#if 0
 static inline real3x3s3 real3x3s3_rotateFrom(real3x3s3 const m, real3 const n);
 static inline real3x3s3 real3x3s3_rotateTo(real3x3s3 const m, real3 const n);
 static inline real3x3s3 real3x3s3_swap(real3x3s3 m, int side);
+#endif
 
 //// MODULE_CODE:
 
+#if 0
 static inline real3x3s3 real3x3s3_rotateFrom(
 	real3x3s3 const m,
 	real3 const n
@@ -2379,6 +2375,7 @@ static inline real3x3s3 real3x3s3_swap<?=side?>(real3x3s3 m) {
 	};
 }
 <? end ?>
+#endif
 
 //// MODULE_NAME: real3x3x3
 //// MODULE_DEPENDS: real3 real3s3 real3x3 real3x3s3
@@ -2420,20 +2417,21 @@ static_assert(sizeof(real3x3x3) == sizeof(real3x3x3_cdef_t));
 //c_ij^k = a_ijl b^lk
 //static inline real3x3x3 real3x3s3_real3s3_mul(real3x3s3 a, real3s3 b);
 
-static inline real3 real3x3x3_tr23(real3x3x3 a);
+//b_i = a_ij^j
+//static inline real3 real3x3x3_tr23(real3x3x3 a);
 
 //c_i^jk = a^jm b_im^k
 // assumes the result is symmetric on the 2nd and 3rd indexes
 //static inline real3x3s3 real3s3_real3x3x3_mul2_toreal3x3s3(real3s3 a, real3x3x3 b);
 
-static inline real3x3s3 conn_ull_from_d_llu_d_ull(real3x3x3 const d_llu, real3x3s3 const d_ull);
-
-static inline real3x3x3 real3x3x3_from_real3x3s3(real3x3s3 m);
-static inline real3x3s3 real3x3s3_from_real3x3x3(real3x3x3 m);
+// Γ^i_jk = d_kj^i + d_jk^i - d^i_jk
+// assumes the dg variable has the derivative index first
+// for d_kij = 1/2 γ_ij,k
+//static inline real3x3s3 conn_ull_from_d_llu_d_ull(real3x3x3 const d_llu, real3x3s3 const d_ull);
 
 //// MODULE_CODE:
 
-//b_i = a_ij^j
+#if 0
 static inline real3 real3x3x3_tr23(real3x3x3 a) {
 	return real3{
 <? for i,xi in ipairs(xNames) do
@@ -2475,9 +2473,6 @@ static inline real3x3s3 real3x3s3_from_real3x3x3(real3x3x3 m) {
 ?>	};
 }
 
-// Γ^i_jk = d_kj^i + d_jk^i - d^i_jk
-// assumes the dg variable has the derivative index first
-// for d_kij = 1/2 γ_ij,k
 static inline real3x3s3 conn_ull_from_d_llu_d_ull(real3x3x3 const d_llu, real3x3s3 const d_ull) {
 	return real3x3s3{
 <? for i,xi in ipairs(xNames) do
@@ -2490,6 +2485,7 @@ static inline real3x3s3 conn_ull_from_d_llu_d_ull(real3x3x3 const d_llu, real3x3
 <? end
 ?>	};
 }
+#endif
 
 //// MODULE_NAME: real3s3x3s3
 //// MODULE_DEPENDS: real3s3
@@ -2680,6 +2676,7 @@ using cplx3 = vec3<cplx>;
 
 //// MODULE_HEADER:
 
+#if 0
 #define real3_from_cplx3		cplx3_re
 
 static inline cplx3 cplx3_from_real3(real3 const re);
@@ -2695,9 +2692,11 @@ static inline cplx3 real3_cplx_mul(real3 const a, cplx const b);
 //TODO instead of real3s3 as a depends, put this into a cplx+real3s3 module?
 static inline real cplx3_re_weightedDot(cplx3 const a, cplx3 const b, real3s3 const m);
 static inline real cplx3_weightedLenSq(cplx3 const a, real3s3 const m);
+#endif
 
 //// MODULE_CODE:
 
+#if 0
 static inline cplx3 cplx3_from_real3(real3 const re) {
 	return (cplx3){
 <? for i,xi in ipairs(xNames) do
@@ -2755,6 +2754,7 @@ static inline real cplx3_weightedLenSq(cplx3 const a, real3s3 const m) {
 	return real3_weightedLenSq(cplx3_re(a), m)
 		+ real3_weightedLenSq(cplx3_im(a), m);
 }
+#endif
 
 //// MODULE_NAME: cplx3x3
 //// MODULE_DEPENDS: real3s3 real3x3 cplx3
@@ -2775,6 +2775,7 @@ static inline real3x3 cplx3x3_im(cplx3x3 const v);
 
 //// MODULE_CODE:
 
+#if 0
 static inline cplx3x3 cplx3x3_from_real3x3_real3x3(
 	real3x3 const re,
 	real3x3 const im
@@ -2801,6 +2802,7 @@ static inline real3x3 cplx3x3_im(cplx3x3 const v) {
 <? end
 ?>	};
 }
+#endif
 
 //// MODULE_NAME: Bessel
 
