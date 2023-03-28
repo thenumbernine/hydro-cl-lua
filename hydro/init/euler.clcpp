@@ -14,13 +14,12 @@ struct RiemannProblem {
 	) {
 		auto & [solver, initCond, x, U, rho, v, P, ePot, D, B] = args;
 		auto mids = .5 * (solver.initCondMins + solver.initCondMaxs);
-		
-		bool lhsSod = true;
+		bool lhs = true;
 		for (int i = 0; i < dim_; ++i) {
-			lhsSod &= x[i] < mids[i];
+			lhs &= x[i] < mids[i];
 		}
 
-		if (lhsSod) {
+		if (lhs) {
 			GetPrimLR::buildL(args);
 		} else {
 			GetPrimLR::buildR(args);
@@ -28,19 +27,17 @@ struct RiemannProblem {
 	}
 };
 
-#if 0
-
+#if 0	// declare Sod here (verbose atm)
 template<
 	int dim_,
 	typename Prim,
 	typename CellArgs
 >
-struct InitCond_Euler_Sod 
-: public Hydro::RiemannProblem<
-	<?=overrideDim or solver.dim?>,
+struct InitCond_Euler_Sod : public RiemannProblem<
+	dim_,
 	Prim,
 	CellArgs,
-	InitCond_Euler_Sod<Prim, CellArgs>
+	InitCond_Euler_Sod<dim_, Prim, CellArgs>
 > {
 	static void buildL(CellArgs & args) {
 		args.rho = args.initCond.rhoL;
@@ -51,7 +48,6 @@ struct InitCond_Euler_Sod
 		args.P = args.initCond.PR;
 	}
 };
-
 #endif
 
 template<
@@ -65,9 +61,9 @@ template<
 		auto & [solver, ic, x, U, rho, v, P, ePot, D, B] = args;
 		auto mids = .5 * (solver.initCondMins + solver.initCondMaxs);
 		
-		bool lhsSod = true;
+		bool lhs = true;
 		for (int i = 0; i < dim_; ++i) {
-			lhsSod &= x[i] < mids[i];
+			lhs &= x[i] < mids[i];
 		}
 
 //// MODULE_DEPENDS: <?=coordMap?>

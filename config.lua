@@ -283,7 +283,7 @@ local args = {
 
 	-- Euler / SRHD / MHD initial states:
 
-	--initCond = 'constant',
+	initCond = 'constant',
 	--initCondArgs = {v={1,0}},
 	--initCondArgs = {v={1e-1,1e-1}},
 
@@ -383,7 +383,7 @@ local args = {
 	--]]
 
 
-	initCond = 'rectangle',
+	--initCond = 'rectangle',
 	--initCond = 'Sedov',
 	--initCond = 'Noh',
 	--initCond = 'implosion',

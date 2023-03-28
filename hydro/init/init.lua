@@ -1,5 +1,6 @@
 local class = require 'ext.class'
 local table = require 'ext.table'
+local file = require 'ext.file'
 local time = table.unpack(require 'hydro.util.time')
 local Struct = require 'hydro.code.struct'
 local half = require 'cl.obj.half'
@@ -198,6 +199,25 @@ end
 
 function InitCond:getInitCondCode()
 	return '//no code from InitCond:getInitCondCode() was provided'
+end
+
+-- the *new* CL-C++ entry function
+function InitCond:getClassDefCode()
+	return self.solver.eqn:template(
+file'hydro/init/euler.clcpp':read()
+..[[
+namespace <?=Solver?> {
+template<typename Prim, typename Cons>
+struct InitCondC {
+	static inline void initCond(Hydro::InitCondCellArgs<Cons> & args) {
+		auto & [solver, initCond, x, U, rho, v, P, ePot, D, B] = args;
+		<?=initCond:getInitCondCode()?>
+	}
+};
+}
+]], {
+		initCond = self,
+	})
 end
 
 -- called when the solver resets

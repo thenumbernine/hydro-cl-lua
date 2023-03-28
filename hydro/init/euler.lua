@@ -93,7 +93,7 @@ local function RiemannProblem(initCond)
 		end
 	end
 
-	function initCond:getInitCondCode()
+	function initCond:getClassDefCode()
 		local function build(i)
 			return table.keys(initCond[i]):sort():mapi(function(name,_,t)
 				return '\t\targs.'..name..' = args.initCond.'..getInitCondFieldName(i,name)..';', #t+1
@@ -104,14 +104,15 @@ file'hydro/init/euler.clcpp':read()
 ..[[
 namespace Hydro {
 template<
+	int dim_,
 	typename Prim,
 	typename CellArgs
 >
-struct InitCond_Euler_<?=name?> : public Hydro::RiemannProblem<
-	<?=overrideDim or solver.dim?>,
+struct InitCond_Euler_<?=initCond.name?> : public Hydro::RiemannProblem<
+	dim_,
 	Prim,
 	CellArgs,
-	InitCond_Euler_<?=name?><Prim, CellArgs>
+	InitCond_Euler_<?=initCond.name?><dim_, Prim, CellArgs>
 > {
 	static void buildL(CellArgs & args) {
 <?=build(1)?>
@@ -124,15 +125,15 @@ struct InitCond_Euler_<?=name?> : public Hydro::RiemannProblem<
 
 // TODO merge initCond_t i.e. InitCond with InitCondC here
 namespace <?=Solver?> {
-template<typename Prim, typename Cons> using InitCondC = InitCond_Euler_<?=name?><
+template<typename Prim, typename Cons> using InitCondC = Hydro::InitCond_Euler_<?=initCond.name?><
+	<?=initCond.overrideDim or solver.dim?>,
 	Prim,
 	Hydro::InitCondCellArgs<Cons>
 >;
 }	//namespace <?=Solver?>
 ]], 		{
-				name = self.name,
+				initCond = self,
 				build = build,
-				overrideDim = self.overrideDim,
 			})
 	end
 
@@ -322,7 +323,7 @@ function SelfGravProblem:outside()
 ]]
 end
 
-function SelfGravProblem:getInitCondCode()
+function SelfGravProblem:getClassDefCode()
 	local solver = assert(self.solver)
 
 	solver.useGravity = true
@@ -561,7 +562,7 @@ local initConds = table{
 		solverVars = {
 			heatCapacityRatio = 7/5,
 		},
-		getInitCondCode = function(self)
+		getClassDefCode = function(self)
 			local args = self.args
 			if args then
 				local found
@@ -574,13 +575,25 @@ local initConds = table{
 				end
 			end
 
-			return [[
-	rho = initCond.rho0;
-	v.x = initCond.vx0;
-	v.y = initCond.vy0;
-	v.z = initCond.vz0;
-	P = initCond.P0;
-]]
+			return self.solver.eqn:template(
+file'hydro/init/euler.clcpp':read()
+..[[
+namespace <?=Solver?> {
+template<typename Prim, typename Cons>
+struct InitCondC {
+	static inline void initCond(Hydro::InitCondCellArgs<Cons> & args) {
+		auto & [solver, initCond, x, U, rho, v, P, ePot, D, B] = args;
+	
+		rho = initCond.rho0;
+		v.x = initCond.vx0;
+		v.y = initCond.vy0;
+		v.z = initCond.vz0;
+		P = initCond.P0;
+	
+	}
+};
+}
+]])
 		end,
 	},
 	{
@@ -754,19 +767,19 @@ local initConds = table{
 		solverVars = {
 			heatCapacityRatio = 5/3,
 		},
-		getInitCondCode = function(self)
+		getClassDefCode = function(self)
 			return self.solver.eqn:template(
 file'hydro/init/euler.clcpp':read()
 ..[[
 namespace <?=Solver?> {
-template<typename Prim, typename Cons> using InitCondC = InitCond_Euler_<?=name?><
+template<typename Prim, typename Cons> using InitCondC = Hydro::InitCond_Euler_Sod<
+	<?=initCond.overrideDim or solver.dim?>,
 	Prim,
 	Hydro::InitCondCellArgs<Cons>
 >;
 }
 ]], 			{
-					name = self.name,
-					overrideDim = self.overrideDim,
+					initCond = self,
 				}
 )
 		end,
@@ -790,7 +803,7 @@ template<typename Prim, typename Cons> using InitCondC = InitCond_Euler_<?=name?
 		solverVars = {
 			heatCapacityRatio = 2,
 		},
-		getInitCondCode = function(self)
+		getClassDefCode = function(self)
 			return self.solver.eqn:template(
 file'hydro/init/euler.clcpp':read()
 ..[[
@@ -1288,7 +1301,7 @@ end) then
 				{name = 'D', value = 1, units = 'C/m^2'},
 			}
 		end,
-		getInitCondCode = function(self)
+		getClassDefCode = function(self)
 			return self.solver.eqn:template(
 file'hydro/init/euler.clcpp':read()
 ..[[
