@@ -230,7 +230,7 @@ function InitCond:resetState()
 		local ptr = solver.UBufObj:toCPU()
 		for i=0,solver.numCells-1 do
 			for j=0,solver.eqn.numStates-1 do
-				ptr[i].ptr[j] = half.toreal(math.random())
+				ptr[i].s[j] = half.toreal(math.random())
 			end
 		end
 		solver.UBufObj:fromCPU(ptr)

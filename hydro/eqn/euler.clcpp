@@ -3,9 +3,9 @@ local useAddSource = false
 local useConstrainU = false
 ?>
 //// MODULE_NAME: <?=Solver?>
-//// MODULE_DEPENDS: <?=coordLenSq?> <?=waves_t?> <?=eigen_t?> <?=eqn_guiVars_compileTime?>
+//// MODULE_DEPENDS: <?=coordLenSq?>
+//// MODULE_DEPENDS: <?=eqn_guiVars_compileTime?>
 //// MODULE_DEPENDS: <?=coord_lower?>
-//// MODULE_DEPENDS: <?=prim_t?> <?=cons_t?> <?=normal_t?> <?=initCond_t?> <?=cell_t?>
 //// MODULE_DEPENDS: <?=cartesianToCoord?>
 //// MODULE_DEPENDS: <?=SETBOUNDS?>
 //// MODULE_DEPENDS: <?=SETBOUNDS_NOGHOST?>
@@ -14,13 +14,65 @@ local useConstrainU = false
 
 namespace <?=Solver?> {
 
-using Prim = <?=prim_t?>;
-using Cons = <?=cons_t?>;
+// needed to define Solver::Normal
+//// MODULE_DEPENDS: <?=normal_t?>
+
+//// MODULE_DEPENDS: <?=solver_t?>
 using Solver = <?=solver_t?>;
-using Cell = <?=cell_t?>;
-using Eigen = <?=eigen_t?>;
-using Waves = <?=waves_t?>;
+
+//// MODULE_DEPENDS: <?=initCond_t?>
 using InitCond = <?=initCond_t?>;
+
+//// MODULE_DEPENDS: <?=cell_t?>
+using Cell = <?=cell_t?>;
+
+// for these, I should make a C++ version that has all the TENSOR macros for correct operators:
+// but also still has the correct C field names (matching the equivalent C structures)
+// and then static_assert that they match
+//// MODULE_DEPENDS: <?=cons_t?>
+using Cons = <?=cons_t?>;
+
+//// MODULE_DEPENDS: <?=eigen_t?>
+using Eigen = <?=eigen_t?>;
+
+//// MODULE_DEPENDS: <?=prim_t?>
+#if 1
+using Prim = <?=prim_t?>;
+#else
+template<typename Scalar_>
+struct PrimT {
+	TENSOR_THIS(PrimT)
+	TENSOR_SET_INNER_LOCALDIM_LOCALRANK(Scalar_, 6, 1)
+	TENSOR_TEMPLATE_T(PrimT)
+	TENSOR_HEADER_VECTOR_SPECIFIC()
+	TENSOR_HEADER()
+
+	using vec3 = ::vec3<Scalar_>;
+	
+	union {
+		Scalar_ s[localDim] = {{}};
+		struct {
+			Scalar_ rho;
+			vec3 v;
+			Scalar_ P;
+			Scalar_ ePot;
+		};
+	};
+	
+	constexpr This & set_rho(real const & value_) { rho = value_; return *this; }
+	constexpr This & set_v(real3 const & value_) { v = value_; return *this; }
+	constexpr This & set_P(real const & value_) { P = value_; return *this; }
+	constexpr This & set_ePot(real const & value_) { ePot = value_; return *this; }
+	
+	TENSOR_VECTOR_CLASS_OPS(PrimT)
+};
+using Prim = PrimT<real>;
+static_assert(sizeof(Prim) == sizeof(<?=prim_t?>));
+#endif
+
+//// MODULE_DEPENDS: <?=waves_t?>
+using Waves = vec<real, numWaves>;
+static_assert(sizeof(Waves) == sizeof(<?=waves_t?>));
 
 // hmm i can ref a type from a passed-in traits-class
 // but not from a crtp class?
@@ -37,7 +89,10 @@ struct EulerEqnTraits {
 
 // TODO eventually:
 //template<typename Solver>
-struct EulerEqn : public Hydro::Eqn<EulerEqn, EulerEqnTraits> {
+struct EulerEqn : public Hydro::Eqn<
+	EulerEqn,
+	EulerEqnTraits
+> {
 	// until then just use a typedef and a namespace
 	// hmm for some reason crtp parent can't seem to 'using' see into the childs member class's 'using's
 	// so I used the traits instead
@@ -261,7 +316,8 @@ struct EulerEqn : public Hydro::Eqn<EulerEqn, EulerEqnTraits> {
 	}
 
 	struct EigenWaveCode {
-		real Cs_nLen, v_n;
+		real Cs_nLen = {};
+		real v_n = {};
 		constexpr EigenWaveCode(
 			constant Solver const & solver,
 			Eigen const & eig,
@@ -434,6 +490,7 @@ end
 		U = consFromPrim(solver, W, x);
 	}
 
+	// TODO Flux constructor?
 	static inline Cons fluxFromCons(
 		constant Solver const & solver,
 		Cons const & U,
@@ -569,11 +626,24 @@ end
 	) {
 		Waves result;
 		if (eig.rho < solver.rhoMin) {
-			result.ptr[0] = X.ptr[0];
-			result.ptr[1] = X.ptr[1];
-			result.ptr[2] = X.ptr[2];
-			result.ptr[3] = X.ptr[3];
-			result.ptr[4] = X.ptr[4];
+#if 1
+			result[0] = X[0];
+			result[1] = X[1];
+			result[2] = X[2];
+			result[3] = X[3];
+			result[4] = X[4];
+#elif 0	//needs list initializer
+			return Waves{
+				X[0],
+				X[1],
+				X[2],
+				X[3],
+				X[4]};
+#elif 0	//needs Cons to have vec properties
+			return X.subset<0,numWaves>();
+#elif 0	// also?
+			return Waves(X);
+#endif
 		} else {
 			real3 const v_n = n.vecDotNs(eig.v);
 			real const nLen = n.length();
@@ -581,38 +651,38 @@ end
 			real const denom = 2. * eig.Cs * eig.Cs;
 			real const invDenom = 1. / denom;
 			real const gamma_1 = solver.heatCapacityRatio - 1.;
-			result.ptr[0] = (
-					X.ptr[0] * (.5 * gamma_1 * eig.vSq + eig.Cs * v_n.x * inv_nLen)
-					+ X.ptr[1] * (-gamma_1 * eig.vL.x - eig.Cs * n.l1x_over_length())
-					+ X.ptr[2] * (-gamma_1 * eig.vL.y - eig.Cs * n.l1y_over_length())
-					+ X.ptr[3] * (-gamma_1 * eig.vL.z - eig.Cs * n.l1z_over_length())
-					+ X.ptr[4] * gamma_1
+			result[0] = (
+					X[0] * (.5 * gamma_1 * eig.vSq + eig.Cs * v_n.x * inv_nLen)
+					+ X[1] * (-gamma_1 * eig.vL.x - eig.Cs * n.l1x_over_length())
+					+ X[2] * (-gamma_1 * eig.vL.y - eig.Cs * n.l1y_over_length())
+					+ X[3] * (-gamma_1 * eig.vL.z - eig.Cs * n.l1z_over_length())
+					+ X[4] * gamma_1
 				) * invDenom;
-			result.ptr[1] =
+			result[1] =
 				(
-					X.ptr[0] * (denom - gamma_1 * eig.vSq)
-					+ X.ptr[1] * 2. * gamma_1 * eig.vL.x
-					+ X.ptr[2] * 2. * gamma_1 * eig.vL.y
-					+ X.ptr[3] * 2. * gamma_1 * eig.vL.z
-					+ X.ptr[4] * -2. * gamma_1
+					X[0] * (denom - gamma_1 * eig.vSq)
+					+ X[1] * 2. * gamma_1 * eig.vL.x
+					+ X[2] * 2. * gamma_1 * eig.vL.y
+					+ X[3] * 2. * gamma_1 * eig.vL.z
+					+ X[4] * -2. * gamma_1
 				) * invDenom;
-			result.ptr[2] =
-				X.ptr[0] * -v_n.y
-				+ X.ptr[1] * n.l2x()
-				+ X.ptr[2] * n.l2y()
-				+ X.ptr[3] * n.l2z();
-			result.ptr[3] =
-				X.ptr[0] * -v_n.z
-				+ X.ptr[1] * n.l3x()
-				+ X.ptr[2] * n.l3y()
-				+ X.ptr[3] * n.l3z();
-			result.ptr[4] =
+			result[2] =
+				X[0] * -v_n.y
+				+ X[1] * n.l2x()
+				+ X[2] * n.l2y()
+				+ X[3] * n.l2z();
+			result[3] =
+				X[0] * -v_n.z
+				+ X[1] * n.l3x()
+				+ X[2] * n.l3y()
+				+ X[3] * n.l3z();
+			result[4] =
 				(
-					X.ptr[0] * (.5 * gamma_1 * eig.vSq - eig.Cs * v_n.x * inv_nLen)
-					+ X.ptr[1] * (-gamma_1 * eig.vL.x + eig.Cs * n.l1x_over_length())
-					+ X.ptr[2] * (-gamma_1 * eig.vL.y + eig.Cs * n.l1y_over_length())
-					+ X.ptr[3] * (-gamma_1 * eig.vL.z + eig.Cs * n.l1z_over_length())
-					+ X.ptr[4] * gamma_1
+					X[0] * (.5 * gamma_1 * eig.vSq - eig.Cs * v_n.x * inv_nLen)
+					+ X[1] * (-gamma_1 * eig.vL.x + eig.Cs * n.l1x_over_length())
+					+ X[2] * (-gamma_1 * eig.vL.y + eig.Cs * n.l1y_over_length())
+					+ X[3] * (-gamma_1 * eig.vL.z + eig.Cs * n.l1z_over_length())
+					+ X[4] * gamma_1
 				) * invDenom;
 		}
 		return result;
@@ -627,45 +697,45 @@ end
 	) {
 		Cons result;
 		if (eig.rho < solver.rhoMin) {
-			result.ptr[0] = X.ptr[0];
-			result.ptr[1] = X.ptr[1];
-			result.ptr[2] = X.ptr[2];
-			result.ptr[3] = X.ptr[3];
-			result.ptr[4] = X.ptr[4];
+			result[0] = X[0];
+			result[1] = X[1];
+			result[2] = X[2];
+			result[3] = X[3];
+			result[4] = X[4];
 		} else {
 			real3 const v_n = n.vecDotNs(eig.v);
 			real const nLen = n.length();
 			real const inv_nLen = 1. / nLen;
-			result.ptr[0] =
-				X.ptr[0]
-				+ X.ptr[1]
-				+ X.ptr[4];
-			result.ptr[1] =
-				X.ptr[0] * (eig.v.x - eig.Cs * n.u1x_over_length())
-				+ X.ptr[1] * eig.v.x
-				+ X.ptr[2] * n.u2x()
-				+ X.ptr[3] * n.u3x()
-				+ X.ptr[4] * (eig.v.x + eig.Cs * n.u1x_over_length());
-			result.ptr[2] =
-				X.ptr[0] * (eig.v.y - eig.Cs * n.u1y_over_length())
-				+ X.ptr[1] * eig.v.y
-				+ X.ptr[2] * n.u2y()
-				+ X.ptr[3] * n.u3y()
-				+ X.ptr[4] * (eig.v.y + eig.Cs * n.u1y_over_length());
-			result.ptr[3] =
-				X.ptr[0] * (eig.v.z - eig.Cs * n.u1z_over_length())
-				+ X.ptr[1] * eig.v.z
-				+ X.ptr[2] * n.u2z()
-				+ X.ptr[3] * n.u3z()
-				+ X.ptr[4] * (eig.v.z + eig.Cs * n.u1z_over_length());
-			result.ptr[4] =
-				X.ptr[0] * (eig.hTotal - eig.Cs * v_n.x * inv_nLen)
-				+ X.ptr[1] * (real).5 * eig.vSq
-				+ X.ptr[2] * v_n.y
-				+ X.ptr[3] * v_n.z
-				+ X.ptr[4] * (eig.hTotal + eig.Cs * v_n.x * inv_nLen);
+			result[0] =
+				X[0]
+				+ X[1]
+				+ X[4];
+			result[1] =
+				X[0] * (eig.v.x - eig.Cs * n.u1x_over_length())
+				+ X[1] * eig.v.x
+				+ X[2] * n.u2x()
+				+ X[3] * n.u3x()
+				+ X[4] * (eig.v.x + eig.Cs * n.u1x_over_length());
+			result[2] =
+				X[0] * (eig.v.y - eig.Cs * n.u1y_over_length())
+				+ X[1] * eig.v.y
+				+ X[2] * n.u2y()
+				+ X[3] * n.u3y()
+				+ X[4] * (eig.v.y + eig.Cs * n.u1y_over_length());
+			result[3] =
+				X[0] * (eig.v.z - eig.Cs * n.u1z_over_length())
+				+ X[1] * eig.v.z
+				+ X[2] * n.u2z()
+				+ X[3] * n.u3z()
+				+ X[4] * (eig.v.z + eig.Cs * n.u1z_over_length());
+			result[4] =
+				X[0] * (eig.hTotal - eig.Cs * v_n.x * inv_nLen)
+				+ X[1] * (real).5 * eig.vSq
+				+ X[2] * v_n.y
+				+ X[3] * v_n.z
+				+ X[4] * (eig.hTotal + eig.Cs * v_n.x * inv_nLen);
 		}
-		result.ptr[5] = 0;
+		result[5] = 0;
 		return result;
 	}
 
@@ -680,11 +750,11 @@ end
 	) {
 		Cons result;
 		if (eig.rho < solver.rhoMin) {
-			result.ptr[0] = X.ptr[0];
-			result.ptr[1] = X.ptr[1];
-			result.ptr[2] = X.ptr[2];
-			result.ptr[3] = X.ptr[3];
-			result.ptr[4] = X.ptr[4];
+			result[0] = X[0];
+			result[1] = X[1];
+			result[2] = X[2];
+			result[3] = X[3];
+			result[4] = X[4];
 		} else {
 			real3 const v_n = n.vecDotNs(eig.v);
 			real const nLen = n.length();
@@ -692,41 +762,40 @@ end
 			real const gamma_1 = gamma - 1.;
 			real const gamma_2 = gamma - 2.;
 
-			result.ptr[0] =
-				X.ptr[1] * n.l1x()
-				+ X.ptr[2] * n.l1y()
-				+ X.ptr[3] * n.l1z();
+			result[0] =
+				X[1] * n.l1x()
+				+ X[2] * n.l1y()
+				+ X[3] * n.l1z();
 
-			result.ptr[1] =
-				X.ptr[0] * (-v_n.x * eig.v.x + gamma_1 * (real).5 * eig.vSq * n.u1x())
-				+ X.ptr[1] * (eig.v.x * n.l1x() - gamma_2 * n.u1x() * eig.vL.x + v_n.x)
-				+ X.ptr[2] * (eig.v.x * n.l1y() - gamma_2 * n.u1x() * eig.vL.y)
-				+ X.ptr[3] * (eig.v.x * n.l1z() - gamma_2 * n.u1x() * eig.vL.z)
-				+ X.ptr[4] * gamma_1 * n.u1x();
+			result[1] =
+				X[0] * (-v_n.x * eig.v.x + gamma_1 * (real).5 * eig.vSq * n.u1x())
+				+ X[1] * (eig.v.x * n.l1x() - gamma_2 * n.u1x() * eig.vL.x + v_n.x)
+				+ X[2] * (eig.v.x * n.l1y() - gamma_2 * n.u1x() * eig.vL.y)
+				+ X[3] * (eig.v.x * n.l1z() - gamma_2 * n.u1x() * eig.vL.z)
+				+ X[4] * gamma_1 * n.u1x();
 
-			result.ptr[2] =
-				X.ptr[0] * (-v_n.x * eig.v.y + gamma_1 * (real).5 * eig.vSq * n.u1y())
-				+ X.ptr[1] * (eig.v.y * n.l1x() - gamma_2 * n.u1y() * eig.vL.x)
-				+ X.ptr[2] * (eig.v.y * n.l1y() - gamma_2 * n.u1y() * eig.vL.y + v_n.x)
-				+ X.ptr[3] * (eig.v.y * n.l1z() - gamma_2 * n.u1y() * eig.vL.z)
-				+ X.ptr[4] * gamma_1 * n.u1y();
+			result[2] =
+				X[0] * (-v_n.x * eig.v.y + gamma_1 * (real).5 * eig.vSq * n.u1y())
+				+ X[1] * (eig.v.y * n.l1x() - gamma_2 * n.u1y() * eig.vL.x)
+				+ X[2] * (eig.v.y * n.l1y() - gamma_2 * n.u1y() * eig.vL.y + v_n.x)
+				+ X[3] * (eig.v.y * n.l1z() - gamma_2 * n.u1y() * eig.vL.z)
+				+ X[4] * gamma_1 * n.u1y();
 
-			result.ptr[3] =
-				X.ptr[0] * (-v_n.x * eig.v.z + gamma_1 * (real).5 * eig.vSq * n.u1z())
-				+ X.ptr[1] * (eig.v.z * n.l1x() - gamma_2 * n.u1z() * eig.vL.x)
-				+ X.ptr[2] * (eig.v.z * n.l1y() - gamma_2 * n.u1z() * eig.vL.y)
-				+ X.ptr[3] * (eig.v.z * n.l1z() - gamma_2 * n.u1z() * eig.vL.z + v_n.x)
-				+ X.ptr[4] * gamma_1 * n.u1z();
+			result[3] =
+				X[0] * (-v_n.x * eig.v.z + gamma_1 * (real).5 * eig.vSq * n.u1z())
+				+ X[1] * (eig.v.z * n.l1x() - gamma_2 * n.u1z() * eig.vL.x)
+				+ X[2] * (eig.v.z * n.l1y() - gamma_2 * n.u1z() * eig.vL.y)
+				+ X[3] * (eig.v.z * n.l1z() - gamma_2 * n.u1z() * eig.vL.z + v_n.x)
+				+ X[4] * gamma_1 * n.u1z();
 
-			result.ptr[4] =
-				X.ptr[0] * v_n.x * (.5 * gamma_1 * eig.vSq - eig.hTotal)
-				+ X.ptr[1] * (n.l1x() * eig.hTotal - gamma_1 * v_n.x * eig.vL.x)
-				+ X.ptr[2] * (n.l1y() * eig.hTotal - gamma_1 * v_n.x * eig.vL.y)
-				+ X.ptr[3] * (n.l1z() * eig.hTotal - gamma_1 * v_n.x * eig.vL.z)
-				+ X.ptr[4] * gamma * v_n.x;
+			result[4] =
+				X[0] * v_n.x * (.5 * gamma_1 * eig.vSq - eig.hTotal)
+				+ X[1] * (n.l1x() * eig.hTotal - gamma_1 * v_n.x * eig.vL.x)
+				+ X[2] * (n.l1y() * eig.hTotal - gamma_1 * v_n.x * eig.vL.y)
+				+ X[3] * (n.l1z() * eig.hTotal - gamma_1 * v_n.x * eig.vL.z)
+				+ X[4] * gamma * v_n.x;
 		}
-
-		result.ptr[5] = 0;
+		result[5] = 0;
 		return result;
 	}
 
@@ -777,7 +846,6 @@ then ?>
 <? if not (require "hydro.coord.cartesian":isa(solver.coord)
 		or solver.coord.vectorComponent == "cartesian")
 then ?>
-//// MODULE_DEPENDS: <?=coord_conn_apply23?> <?=coord_conn_trace23?> <?=coord_conn_apply13?>
 /*
 This is working for init conds with zero velocity.
 Introducing constant velocity of v=[x=1,y=1]=[r=sqrt(2),theta=pi/4] in the init cond causes some numerical errors.
@@ -789,12 +857,15 @@ Maybe for an initial constant vel as large as sqrt(2) this fails, but it works o
 		Prim W = primFromCons(solver, U, x);
 
 		//- Γ^i_jk ρ v^j v^k
+//// MODULE_DEPENDS: <?=coord_conn_apply23?>
 		deriv.m -= coord_conn_apply23(W.v, U.m, x);
 
 		//- Γ^i_jk g^jk P
+//// MODULE_DEPENDS: <?=coord_conn_trace23?>
 		deriv.m -= coord_conn_trace23(x) * W.P;
 
 		//+ (γ-1) ρ v^k v^l Γ_kjl g^ij
+//// MODULE_DEPENDS: <?=coord_conn_apply13?>
 		deriv.m += coord_conn_apply13(W.v, U.m, x) * (solver.heatCapacityRatio - 1.);
 
 		//- (γ-1) ρ v^j v^k v^l Γ_jkl
@@ -806,7 +877,7 @@ Maybe for an initial constant vel as large as sqrt(2) this fails, but it works o
 		for (int i = 0; i < dim; ++i) {
 			Cons F = fluxFromCons(solver, U, cell, normal_forSide<?=i?>(x));
 			for (int j = 0; j < numIntStates; ++j) {
-				deriv.ptr[j] += commTrace[i] * F.ptr[j];
+				deriv.s[j] += commTrace[i] * F.s[j];
 			}
 		}
 <? 	end ?>

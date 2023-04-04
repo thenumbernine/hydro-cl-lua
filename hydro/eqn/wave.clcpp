@@ -1,0 +1,391 @@
+<?
+-- TODO only if metric ~= ident and coord ~= cartesian 
+--[[
+local useAddSource = not (
+	solver.coord.vectorComponent == "cartesian" 
+	or require "hydro.coord.cartesian":isa(solver.coord) 
+)
+--]]
+local useAddSource = true 
+?>
+//// MODULE_NAME: <?=metric_f?>
+//// MODULE_DEPENDS: real3
+
+static inline real <?=metric_f?>(real3 const & pt) {
+	return <?=eqn:compile(eqn.metric.f)?>;
+}
+
+//// MODULE_NAME: <?=Solver?>
+//// MODULE_DEPENDS: <?=cartesianToCoord?>
+
+namespace <?=Solver?> {
+
+// needed to define Solver::Normal
+//// MODULE_DEPENDS: <?=normal_t?>
+
+//// MODULE_DEPENDS: <?=solver_t?>
+using Solver = <?=solver_t?>;
+
+//// MODULE_DEPENDS: <?=cell_t?>
+using Cell = <?=cell_t?>;
+
+//// MODULE_DEPENDS: <?=cons_t?>
+using Cons = <?=cons_t?>;
+
+//// MODULE_DEPENDS: <?=eigen_t?>
+using Eigen = <?=eigen_t?>;
+
+//// MODULE_DEPENDS: <?=prim_t?>
+using Prim = <?=prim_t?>;
+
+//// MODULE_DEPENDS: <?=waves_t?>
+using Waves = vec<real, numWaves>;
+static_assert(sizeof(Waves) == sizeof(<?=waves_t?>));
+
+//// MODULE_DEPENDS: <?=initCond_t?>
+using InitCond = <?=initCond_t?>;
+
+// hmm i can ref a type from a passed-in traits-class
+// but not from a crtp class?
+struct WaveEqnTraits {
+	using Solver = Solver;
+	using Cons = Cons;
+	using Prim = Prim;
+	using Normal = Normal;
+	using Cell = Cell;
+	using Eigen = Eigen;
+	using Waves = Waves;
+	using InitCond = InitCond;
+};
+
+struct WaveEqn : public Hydro::Eqn<
+	WaveEqn,
+	WaveEqnTraits
+> {
+
+	struct EigenWaveCode {
+		real c_nLen = {};
+		constexpr EigenWaveCode(
+			constant Solver const & solver,
+			Eigen const & eig,
+			Normal const n,
+			real3 const pt
+		) : c_nLen(solver.wavespeed / unit_m_per_s * n.length())
+		{}
+	
+		constexpr real operator()(
+			constant Solver const & solver,
+			Eigen const & eig,
+			Normal const n,
+			real3 const pt,
+			int waveIndex
+		) const {
+			//waveIndex /= sizeof(Scalar) / sizeof(real);
+			if (waveIndex == 0) {
+				return -c_nLen;
+			} else if (waveIndex == 1 || waveIndex == 2) {
+				return 0;
+			} else if (waveIndex == 3) {
+				return c_nLen;
+			}
+			return {};
+		}
+	};
+
+	// used by PLM
+	// matches Euler
+	// move to parent? or put in a mutual spot somewhere?
+	// inherit?
+	static inline void eigenWaveCodeMinMax(
+		constant Solver const & solver,
+		Eigen const & eig,
+		Normal const n,
+		real3 const pt,
+		real * resultMin,
+		real * resultMax
+	) {
+		auto calcWaves = EigenWaveCode(solver, eig, n, pt);
+		if (resultMin) *resultMin = calcWaves(solver, eig, n, pt, 0);
+		if (resultMax) *resultMax = calcWaves(solver, eig, n, pt, numWaves-1);
+	}
+
+	// ConsWaveCode matches EigenWaveCode, just different ctor arg
+	
+	struct ConsWaveCode {
+		real c_nLen = {};
+		constexpr ConsWaveCode(
+			constant Solver const & solver,
+			Cons const & U,
+			Normal const n,
+			real3 const pt
+		) : c_nLen(solver.wavespeed / unit_m_per_s * n.length())
+		{}
+	
+		constexpr real operator()(
+			constant Solver const & solver,
+			Eigen const & eig,
+			Normal const n,
+			real3 const pt,
+			int waveIndex
+		) const {
+			//waveIndex /= sizeof(Scalar) / sizeof(real);
+			if (waveIndex == 0) {
+				return -c_nLen;
+			} else if (waveIndex == 1 || waveIndex == 2) {
+				return 0;
+			} else if (waveIndex == 3) {
+				return c_nLen;
+			}
+			return {};
+		}
+	};
+
+	// matches Eigen and Euler consWaveCodeMinMax
+	static inline void consWaveCodeMinMax(
+		constant Solver const & solver,
+		Cons const & U,
+		Normal const n,
+		real3 const pt,
+		real * resultMin,
+		real * resultMax
+	) {
+		auto calcWaves = ConsWaveCode(solver, U, n, pt);
+		if (resultMin) *resultMin = calcWaves(solver, U, n, pt, 0);
+		if (resultMax) *resultMax = calcWaves(solver, U, n, pt, numWaves-1);
+	}
+
+	struct ConsWaveCodeMinMaxAllSides {
+		real wavespeed;
+		constexpr ConsWaveCodeMinMaxAllSides(
+			constant Solver const & solver,
+			Cons const & U,
+			real3 const pt
+		) : wavespeed(solver.wavespeed / unit_m_per_s)
+		{}
+
+		constexpr void operator()(
+			constant Solver const & solver,
+			Normal n,
+			Cons const & U,
+			real3 const pt,
+			real * resultMin,
+			real * resultMax
+		) {
+			real const nLen = n.length();
+			real c_nLen = wavespeed * nLen;
+			if (resultMin) *resultMin = -c_nLen;
+			if (resultMax) *resultMax = c_nLen;
+		}
+	};
+
+
+	void applyInitCondCell(
+		constant Solver const & solver,
+		constant InitCond const & initCond,
+		global Cons & U,
+		global Cell const & cell
+	) {
+		real3 const x = cell.pos;
+		real3 const mids = (solver.initCondMins + solver.initCondMaxs) * .5;
+		bool const lhs = true
+<?
+for i=1,solver.dim do
+	local xi = xNames[i]
+?>
+			&& x.<?=xi?> < mids.<?=xi?><?
+end
+?>
+		;
+		
+		auto args = Hydro::InitCondCellArgs<Cons>(solver, initCond, x, U);
+		InitCondC<Prim, Cons>::initCond(args);
+
+		return Cons()
+<? if eqn.usePressure then
+?>		.set_Pi(args.P)
+<? else		
+?>		.set_Pi(args.rho)
+<? end		
+?>		.set_Psi_l(cartesianToCoord(args.v, x));
+	}
+
+	// What's the difference between <?=eigen_fluxTransform?> and <?=fluxFromCons?>?
+	// The difference is that the flux matrix of this is based on 'eig', which is derived from U's ... especially UL & UR in the case of the Roe solver
+	// whereas that of <?=fluxFromCons?> is based purely on 'U'.
+	// Since hydro/eqn/wave has no <?=eigen_t?> info derived from U, the two functions are identical.
+	static inline Cons fluxFromCons?>(
+		constant Solver const & solver,
+		Cons const & U,
+		Cell const & cell,
+		Normal const n
+	) {
+		return Cons()
+		// F^Pi = -c Psi_i n^i
+		.set_Pi(U.Psi_l.dot(n.u1()) * -solver.wavespeed)
+		
+		// F^{Psi_j} = -c Pi n_j
+		.set_Psi_l(n.l1() * (U.Pi * -solver.wavespeed))
+		;
+	}
+
+	static inline Eigen eigen_forInterface(
+		constant Solver const & solver,
+		Cons const & UL,
+		Cons const & UR,
+		Cell const & cellL,
+		Cell const & cellR,
+		real3 const pt,
+		Normal const n
+	) {
+		return {};
+	}
+
+	// used by PLM
+	static inline Eigen eigen_forCell(
+		constant Solver const & solver,
+		Cons const & U,
+		Cell const & cell,
+		Normal const n
+	) {
+		return {};
+	}
+
+	static inline Waves eigen_leftTransform(
+		constant Solver const & solver,
+		Eigen const & eig,
+		Cons const & X,
+		real3 const pt,
+		Normal n
+	) {
+		real const nLen = n.length();
+		real const invDenom = 1. / (nLen * nLen);
+		Waves result;
+		result[0] = .5 * invDenom * (
+				  X[0] * nLen
+				+ X[1] * n.u1x()
+				+ X[2] * n.u1y()
+				+ X[3] * n.u1z()
+			);
+		result[1] = invDenom * (
+				  X[1] * n.u2x()
+				+ X[2] * n.u2y()
+				+ X[3] * n.u2z()
+			);
+		result[2] = invDenom * (
+				  X[1] * n.u3x()
+				+ X[2] * n.u3y()
+				+ X[3] * n.u3z()
+			);
+		result[3] = .5 * invDenom * (
+				- X[0] * nLen
+				+ X[1] * n.u1x()
+				+ X[2] * n.u1y()
+				+ X[3] * n.u1z()
+			);
+		return result;
+	}
+
+	static inline Cons eigen_rightTransform(
+		constant Solver const & solver,
+		Eigen const & eig,
+		Waves const & X,
+		real3 const pt,
+		Normal const n
+	) {
+		Cons result;
+		real const nLen = n.length();
+		result[0] = 
+			  (X[0] - X[3]) * nLen;
+		result[1] = 
+			  X[0] * n.l1x() 
+			+ X[1] * n.l2x() 
+			+ X[2] * n.l3x() 
+			+ X[3] * n.l1x();
+		result[2] = 
+			  X[0] * n.l1y() 
+			+ X[1] * n.l2y() 
+			+ X[2] * n.l3y() 
+			+ X[3] * n.l1y();
+		result[3] = 
+			  X[0] * n.l1z() 
+			+ X[1] * n.l2z() 
+			+ X[2] * n.l3z() 
+			+ X[3] * n.l1z();
+		return result;
+	}
+
+	static inline Cons eigen_fluxTransform(
+		constant Solver const & solver,
+		Eigen const & eig,
+		Cons const & X,
+		Cell const & cell,
+		Normal const n
+	) {
+	// by default in hydro/eqn/eqn.lua, <?=fluxFromCons?> is defined by <?=eigen_fluxTransform?>
+	// but since eig is empty, we can define <?=eigen_fluxTransform?> with <?=fluxFromCons?>
+		return fluxFromCons(solver, X, cell, n);
+	}
+
+<? if useAddSource then ?>
+//// MODULE_DEPENDS: <?=coord_raise?> <?=coord_connHol_trace23?> <?=metric_f?>
+	static inline void addSource(
+		constant Solver const & solver,
+		global Cons * const derivBuf,
+		global Cons const * const UBuf,
+		global Cell const * const cellBuf
+	) {
+		<?=SETBOUNDS_NOGHOST?>();
+		
+		global Cons & deriv = derivBuf[index];
+		global Cons const & U = UBuf[index];
+		global Cell const & cell = cellBuf[index];
+		real3 const x = cell.pos;	
+
+		real3 const pt = cellBuf[index].pos;
+		
+		//TODO make use of this
+		//real const c = solver.wavespeed / unit_m_per_s;
+
+		real const f = <?=metric_f?>(pt);
+		deriv.Pi -= f;	//... for □Φ=f
+
+		//for cylindrical 
+		// holonomic: no change (which is still diverging to inf)
+		// cartesian: no change
+		// anholonomic: this source term makes it get worse ... hmm ...
+#if 1
+		real3 const conn23 = coord_connHol_trace23(pt);
+		//TODO how about integrating conn23 across the volume?
+		deriv.Pi -= U->Psi_l.dot(conn23);
+#endif
+	}
+
+<? end ?>
+
+};
+
+}	//namespace <?=Solver?>
+
+kernel void <?=applyInitCond?>(
+	constant <?=solver_t?> const * const psolver,
+	constant <?=initCond_t?> const * const pinitCond,
+	global <?=cons_t?> * const UBuf,
+	global <?=cell_t?> * const cellBuf
+) {
+	auto const & solver = *psolver;
+	<?=SETBOUNDS?>(0,0);
+	<?=Solver?>::Eqn::applyInitCondCell(solver, *pinitCond, UBuf[index], cellBuf[index]);
+}
+
+<? if useAddSource then ?>
+//// MODULE_NAME: <?=addSource?>
+//// MODULE_DEPENDS: <?=Solver?>
+kernel void <?=addSource?>(
+	constant <?=solver_t?> const * const psolver,
+	global <?=cons_t?> * const derivBuf,
+	global <?=cons_t?> const * const UBuf,
+	global <?=cell_t?> const * const cellBuf
+) {
+	<?=Solver?>::Eqn::addSource(*psolver, derivBuf, UBuf, cellBuf);
+}
+<? end -- useAddSource ?>

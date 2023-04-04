@@ -5,17 +5,18 @@
 
 kernel void <?=calcDTCell?>(
 	global real * const dt,
-	constant <?=solver_t?> const * const solver,
+	constant <?=solver_t?> const * const psolver,
 	global <?=cons_t?> const * const U,
 	global <?=cell_t?> const * const cell
 ) {
+	auto const & solver = *psolver;
 	real3 const x = cell->pos;
 	<?=prim_t?> W;
 	<?=primFromCons?>(&W, solver, U, x);
 	real const Cs = <?=calc_Cs?>(solver, &W);
 
 <? for side=0,solver.dim-1 do 
-?>	*(dt) = min(*(dt), (real)solver->grid_dx.s<?=side?> / (Cs + fabs(W.v.s<?=side?>)));
+?>	*(dt) = min(*(dt), (real)solver.grid_dx.s<?=side?> / (Cs + fabs(W.v.s<?=side?>)));
 <? end
 ?>
 }
@@ -24,12 +25,13 @@ kernel void <?=calcDTCell?>(
 
 kernel void <?=calcDTCell?>(
 	global real * const dt,
-	constant <?=solver_t?> const * const solver,
+	constant <?=solver_t?> const * const psolver,
 	global <?=cons_t?> const * const U,
 	global <?=cell_t?> const * const cell,
 	global <?=face_t?> const * const faceBuf,	//[numFaces]
 	global int const * const cellFaceIndexes	//[numCellFaceIndexes]
 ) {
+	auto const & solver = *psolver;
 	real3 const x = cell->pos;
 	
 	<?=prim_t?> W;
@@ -51,24 +53,25 @@ kernel void <?=calcDTCell?>(
 //// MODULE_DEPENDS: <?=SETBOUNDS?> <?=fluxLimiter?> <?=primFromCons?>
 
 kernel void calcIntVel(
-	constant <?=solver_t?> const * const solver,
+	constant <?=solver_t?> const * const psolver,
 	global real * const intVelBuf,
 	global const <?=solver.getULRArg?>,
 	global <?=cell_t?> const * const cellBuf
 ) {
-	<?=SETBOUNDS?>(solver->numGhost, solver->numGhost-1);
+	auto const & solver = *psolver;
+	<?=SETBOUNDS?>(solver.numGhost, solver.numGhost-1);
 	real3 const xR = cellBuf[index].pos;
 	int const indexR = index;
 	
 	<? for side=0,solver.dim-1 do ?>{
 		int const side = <?=side?>;
-		int const indexL = index - solver->stepsize.s<?=side?>;
+		int const indexL = index - solver.stepsize.s<?=side?>;
 
 		<?=solver:getULRCode()?>
 	
 		int const indexInt = side + dim * index;
 		real3 xInt = xR;
-		xInt.s<?=side?> -= .5 * solver->grid_dx.s<?=side?>;
+		xInt.s<?=side?> -= .5 * solver.grid_dx.s<?=side?>;
 
 		real const rhoL = UL->rho;
 		real const vL = UL->m.s<?=side?> / rhoL;
@@ -81,14 +84,15 @@ kernel void calcIntVel(
 }
 
 kernel void <?=calcFlux?>(
-	constant <?=solver_t?> const * const solver,
+	constant <?=solver_t?> const * const psolver,
 	global <?=cons_t?> * const fluxBuf,
 	global const <?=solver.getULRArg?>,
 	global real const * const intVelBuf,
 	global <?=cell_t?> const * const cellBuf,
 	realparam const dt
 ) {
-	<?=SETBOUNDS?>(solver->numGhost, solver->numGhost-1);
+	auto const & solver = *psolver;
+	<?=SETBOUNDS?>(solver.numGhost, solver.numGhost-1);
 	real3 const xR = cellBuf[index].pos;
 	int const indexR = index;
 
@@ -97,11 +101,11 @@ kernel void <?=calcFlux?>(
 //// MODULE_DEPENDS: <?=cell_dx_i?>
 		real const dt_dx = dt / cell_dx<?=side?>(i);
 		
-		int const indexL = index - solver->stepsize.s<?=side?>;
+		int const indexL = index - solver.stepsize.s<?=side?>;
 		<?=solver:getULRCode()?>
 		
-		int const indexL2 = indexL - solver->stepsize.s<?=side?>;
-		int const indexR2 = index + solver->stepsize.s<?=side?>;
+		int const indexL2 = indexL - solver.stepsize.s<?=side?>;
+		int const indexR2 = index + solver.stepsize.s<?=side?>;
 		<?=solver:getULRCode{suffix="2"}?>
 	
 		int const indexInt = side + dim * index;
@@ -109,7 +113,7 @@ kernel void <?=calcFlux?>(
 		global <?=cons_t?> * const flux = fluxBuf + indexInt;
 		
 		real3 xInt = xR;
-		xInt.s<?=side?> -= .5 * solver->grid_dx.s<?=side?>;
+		xInt.s<?=side?> -= .5 * solver.grid_dx.s<?=side?>;
 
 		for (int j = 0; j < numIntStates; ++j) {
 			real const deltaL = UL->ptr[j] - UL2->ptr[j];
@@ -132,12 +136,13 @@ kernel void <?=calcFlux?>(
 }
 
 kernel void computePressure(
-	constant <?=solver_t?> const * const solver,
+	constant <?=solver_t?> const * const psolver,
 	global real * const PBuf,
 	global <?=cons_t?> const * const UBuf,
 	global <?=cell_t?> const * const cellBuf
 ) {
-	<?=SETBOUNDS?>(solver->numGhost-1, solver->numGhost-2);
+	auto const & solver = *psolver;
+	<?=SETBOUNDS?>(solver.numGhost-1, solver.numGhost-2);
 	real3 const x = cellBuf[index].pos;
 	
 	global <?=cons_t?> const * const U = UBuf + index;
@@ -149,8 +154,8 @@ kernel void computePressure(
 ?>	real dvSqSum = 0.;
 	<? for side=0,solver.dim-1 do ?>{
 		int const side = <?=side?>;
-		global <?=cons_t?> const * const UL = U - solver->stepsize.s<?=side?>;
-		global <?=cons_t?> const * const UR = U + solver->stepsize.s<?=side?>;
+		global <?=cons_t?> const * const UL = U - solver.stepsize.s<?=side?>;
+		global <?=cons_t?> const * const UR = U + solver.stepsize.s<?=side?>;
 		
 		real const dv = UR->m.s<?=side?> / UR->rho
 			- UL->m.s<?=side?> / UL->rho;
@@ -163,27 +168,29 @@ kernel void computePressure(
 }
 
 kernel void diffuseMomentum(
-	constant <?=solver_t?> const * const solver,
+	constant <?=solver_t?> const * const psolver,
 	global <?=cons_t?> * const derivBuf,
 	global real const * const PBuf
 ) {
+	auto const & solver = *psolver;
 	<?=SETBOUNDS_NOGHOST?>();
 	global <?=cons_t?> * const deriv = derivBuf + index; 
 	global real const * const P = PBuf + index; 
 
 	<? for side=0,solver.dim-1 do ?>{
 		int const side = <?=side?>;
-		real const dP = P[solver->stepsize.s<?=side?>] - P[-solver->stepsize.s<?=side?>];
-		deriv->m.s<?=side?> -= .5 * dP / solver->grid_dx.s<?=side?>;
+		real const dP = P[solver.stepsize.s<?=side?>] - P[-solver.stepsize.s<?=side?>];
+		deriv->m.s<?=side?> -= .5 * dP / solver.grid_dx.s<?=side?>;
 	}<? end ?>
 }
 
 kernel void diffuseWork(
-	constant <?=solver_t?> const * const solver,
+	constant <?=solver_t?> const * const psolver,
 	global <?=cons_t?> * const derivBuf,
 	global <?=cons_t?> const * const UBuf,
 	global real const * const PBuf
 ) {
+	auto const & solver = *psolver;
 	<?=SETBOUNDS_NOGHOST?>();
 	global <?=cons_t?> * const deriv = derivBuf + index; 
 	global <?=cons_t?> const * const U = UBuf + index;
@@ -192,14 +199,14 @@ kernel void diffuseWork(
 	real dE = 0.;
 	<? for side=0,solver.dim-1 do ?>{
 		int const side = <?=side?>;
-		global <?=cons_t?> const * const UL = U - solver->stepsize.s<?=side?>;
-		global <?=cons_t?> const * const UR = U + solver->stepsize.s<?=side?>;
+		global <?=cons_t?> const * const UL = U - solver.stepsize.s<?=side?>;
+		global <?=cons_t?> const * const UR = U + solver.stepsize.s<?=side?>;
 		
 		real const vR = UR->m.s<?=side?> / UR->rho;
-		real const PR = P[solver->stepsize.s<?=side?>];
+		real const PR = P[solver.stepsize.s<?=side?>];
 		real const vL = UL->m.s<?=side?> / UL->rho;
-		real const PL = P[-solver->stepsize.s<?=side?>];
-		dE -= .5 * (PR * vR - PL * vL) / solver->grid_dx.s<?=side?>;
+		real const PL = P[-solver.stepsize.s<?=side?>];
+		dE -= .5 * (PR * vR - PL * vL) / solver.grid_dx.s<?=side?>;
 	}<? end ?>
 
 	deriv->ETotal += dE;

@@ -241,7 +241,6 @@ no, they're needed for the integrator
 		self.symbols.prim_t = app:uniqueName'prim_t'
 	end
 
-
 	if not self.eigenVars then
 		self.eigenStruct = Struct{
 			solver = solver,
@@ -742,14 +741,14 @@ function Equation:initCodeModule_cons_prim_eigen_waves()
 	solver.modules:add{
 		name = self.symbols.cons_t,
 		structs = {self.consStruct},
-		depends = self.getModuleDepends_cons_t and self:getModuleDepends_cons_t() or nil,
+		depends = table(self.getModuleDepends_cons_t and self:getModuleDepends_cons_t() or nil):append{'vec'},
 	}
 
 	if self.primStruct then
 		solver.modules:add{
 			name = self.symbols.prim_t,
 			structs = {self.primStruct},
-			depends = self.getModuleDepends_prim_t and self:getModuleDepends_prim_t() or nil,
+			depends = table(self.getModuleDepends_prim_t and self:getModuleDepends_prim_t() or nil):append{'vec'},
 		}
 	else
 		solver.modules:add{
@@ -762,11 +761,14 @@ function Equation:initCodeModule_cons_prim_eigen_waves()
 	solver.modules:add{
 		name = self.symbols.eigen_t,
 		structs = {assert(self.eigenStruct)},
+		depends = {'vec'},
 	}
 
+	-- I think the direction I'm going is to make waves_t only for ffi.cdef side of things
 	solver.modules:add{
 		name = self.symbols.waves_t,
 		structs = {assert(self.wavesStruct)},
+		depends = {'vec'},
 	}
 end
 
@@ -785,12 +787,23 @@ function Equation:initCodeModule_solverCodeFile()
 		return (l:gsub('^%s*//// MODULE_', '//// MODULE_'))
 	end):concat'\n'
 
-	self.solver.modules:addFromMarkup{
-		code = code,
-		onAdd = function(args)
-			self:initCodeModule_solverCodeFile_onAdd(args)
-		end,
-	}
+	assert(xpcall(function()
+		self.solver.modules:addFromMarkup{
+			code = code,
+			onAdd = function(args)
+				self:initCodeModule_solverCodeFile_onAdd(args)
+			end,
+		}
+	end, function(err)
+		print(
+			string.split(require 'template.showcode'(code), '\n')
+			:filter(function(l)
+				return l:match'MODULE'
+			end)
+			:concat'\n'
+		)
+		return err
+	end))
 end
 
 function Equation:initCodeModule_solverCodeFile_onAdd(args)

@@ -163,10 +163,11 @@ kernel void compareUvsU2(
 				gradient = [==[
 <? local clnumber = require 'cl.obj.number' ?>
 kernel void calcAMRError(
-	constant <?=solver_t?> const * const solver,	//parent node's solver_t
+	constant <?=solver_t?> const * const psolver,	//parent node's solver_t
 	global real * const amrErrorBuf,
 	global <?=cons_t?> const * const UBuf		//parent node's UBuf
 ) {
+	auto const & solver = *psolver;
 	int4 nodei = globalInt4();
 	if (nodei.x >= <?=solver.amr.ctx.parentSizeInFromSize.x?> || 
 		nodei.y >= <?=solver.amr.ctx.parentSizeInFromSize.y?>) 
@@ -189,8 +190,8 @@ for nx=0,tonumber(solver.amr.ctx.nodeFromSize.x)-1 do
 		int const ny = <?=ny?>;
 		
 		int4 Ui = int4{
-			solver->numGhost + nx + <?=solver.amr.ctx.nodeFromSize.x?> * nodei.x,
-			solver->numGhost + ny + <?=solver.amr.ctx.nodeFromSize.y?> * nodei.y,
+			solver.numGhost + nx + <?=solver.amr.ctx.nodeFromSize.x?> * nodei.x,
+			solver.numGhost + ny + <?=solver.amr.ctx.nodeFromSize.y?> * nodei.y,
 			0,
 			0};
 		
@@ -202,7 +203,7 @@ for nx=0,tonumber(solver.amr.ctx.nodeFromSize.x)-1 do
 	// and TODO make this modular.  some papers use velocity vector instead of density.  
 	// why not total energy -- that incorporates everything?
 <? for i=0,solver.dim-1 do
-?>		dV_dx = (U[solver->stepsize.s<?=i?>].rho - U[-solver->stepsize.s<?=i?>].rho) / (2. * solver->grid_dx.s<?=i?>);
+?>		dV_dx = (U[solver.stepsize.s<?=i?>].rho - U[-solver.stepsize.s<?=i?>].rho) / (2. * solver.grid_dx.s<?=i?>);
 		sum += dV_dx * dV_dx;
 <? end
 ?>

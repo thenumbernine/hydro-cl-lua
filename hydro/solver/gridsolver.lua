@@ -805,7 +805,7 @@ function BoundaryLinear:getCode(args)
 		end
 	else
 		lines:insert('for (int k = 0; k < numStates; ++k) {')
-		addField'ptr[k]'
+		addField's[k]'
 		lines:insert('}')
 	end
 	return lines:concat'\n'
@@ -840,7 +840,7 @@ function BoundaryQuadratic:getCode(args)
 		end
 	else
 		lines:insert'for (int k = 0; k < numStates; ++k) {'
-		addField'ptr[k]'
+		addField's[k]'
 		lines:insert'}'
 	end
 	return lines:concat'\n'
@@ -1364,7 +1364,7 @@ function GridSolver:calcExactError(numStates)
 				local index = i + self.solverPtr.stepsize.x * j + self.solverPtr.stepsize.y * k
 				local cell = self.cellCpuBuf[index]
 				local U = UCpuBuf[index]
-				err = err + compareL1(U.ptr, numStates, initCond:exactSolution(self.t, cell.pos:unpack()))
+				err = err + compareL1(U.s, numStates, initCond:exactSolution(self.t, cell.pos:unpack()))
 			end
 		end
 	end

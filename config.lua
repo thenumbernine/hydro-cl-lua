@@ -92,21 +92,21 @@ local args = {
 			-- Intel(R) OpenCL HD Graphics/Intel(R) Gen9 HD Graphics NEO
 			-- Intel(R) OpenCL HD Graphics/Intel(R) Graphics Gen9 [0x1916]
 			['Intel(R) OpenCL HD Graphics/Intel(R) HD Graphics 520 [0x1916]'] = {
-				{4096,1,1},
+				{1024,1,1},
 				{64,64,1},
 				{32,32,32},
 			},
 
 			-- 5600M with device=gfx902 to work with gl_sharing:
 			['AMD Accelerated Parallel Processing/gfx902'] = {
-				{4096,1,1},
+				{1024,1,1},
 				{256,256,1},
 				{32,32,32},
 			},
 
 			-- 5600M with device=gfx1010, which doesn't work with gl_sharing, but runs much faster:
 			['AMD Accelerated Parallel Processing/gfx1010'] = {
-				{4096,1,1},
+				{1024,1,1},
 				{256,256,1},
 				{32,32,32},
 			},
@@ -138,18 +138,18 @@ local args = {
 		})[platAndDevicesNames]
 		-- default size options
 		or {
-			{1024,1,1},
+			{256,1,1},
 			{256,256,1},
 			{32,32,32},
 		}
 	)[dim],
 	boundary = type(cmdline.boundary) == 'table' and cmdline.boundary or {
-		xmin = cmdline.boundary or 'mirror',
-		xmax = cmdline.boundary or 'mirror',
-		ymin = cmdline.boundary or 'mirror',
-		ymax = cmdline.boundary or 'mirror',
-		zmin = cmdline.boundary or 'mirror',
-		zmax = cmdline.boundary or 'mirror',
+		xmin = cmdline.boundary or 'freeflow',
+		xmax = cmdline.boundary or 'freeflow',
+		ymin = cmdline.boundary or 'freeflow',
+		ymax = cmdline.boundary or 'freeflow',
+		zmin = cmdline.boundary or 'freeflow',
+		zmax = cmdline.boundary or 'freeflow',
 	},
 	--]]
 	--[[ cylinder
@@ -283,7 +283,7 @@ local args = {
 
 	-- Euler / SRHD / MHD initial states:
 
-	initCond = 'constant',
+	--initCond = 'constant',
 	--initCondArgs = {v={1,0}},
 	--initCondArgs = {v={1e-1,1e-1}},
 
@@ -383,7 +383,7 @@ local args = {
 	--]]
 
 
-	--initCond = 'rectangle',
+	initCond = 'rectangle',
 	--initCond = 'Sedov',
 	--initCond = 'Noh',
 	--initCond = 'implosion',

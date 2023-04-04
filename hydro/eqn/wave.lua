@@ -86,13 +86,6 @@ function Wave:createInitState()
 	}
 end
 
-function Wave:getEnv()
-	return table(Wave.super.getEnv(self), {
-		scalar = self.scalar,
-		vec3 = self.vec3,
-	})
-end
-
 function Wave:initCodeModules()
 	local symmath = require 'symmath'
 	local Tensor = symmath.Tensor
@@ -125,63 +118,9 @@ function Wave:initCodeModules()
 end
 
 
-Wave.solverCodeFile = 'hydro/eqn/wave.cl'
+Wave.solverCodeFile = 'hydro/eqn/wave.clcpp'
 
 -- don't use default
 function Wave:initCodeModule_fluxFromCons() end
-
-function Wave:eigenWaveCodePrefix(args)
-	return self:template([[
-real const wavespeed = solver->wavespeed / unit_m_per_s;
-real const nLen = normal_len(n);
-]], args)
-end
-
-function Wave:eigenWaveCode(args)
-	local waveIndex = math.floor(args.waveIndex / self.numRealsInScalar)
-	if waveIndex == 0 then
-		return '-wavespeed * nLen' 
-	elseif waveIndex == 1 or waveIndex == 2 then
-		return '0.'
-	elseif waveIndex == 3 then
-		return 'wavespeed * nLen' 
-	end
-	error'got a bad waveIndex'
-end
-
--- safe so long as eigenWaveCode[Prefix] doesn't use args.eig
-Wave.consWaveCodePrefix = Wave.eigenWaveCodePrefix
-Wave.consWaveCode = Wave.eigenWaveCode
-
-function Wave:eigenWaveCodeMinMax(args)
-	return self:eigenWaveCodePrefix(args)
-	..self:template([[
-<?=eqn:waveCodeAssignMinMax(
-	declare, resultMin, resultMax,
-	'-wavespeed * nLen',
-	'wavespeed * nLen'
-)?>
-]], args)
-end
-
--- safe so long as eigenWaveCode[Prefix] doesn't use args.eig
-Wave.consWaveCodeMinMax = Wave.eigenWaveCodeMinMax
-
-function Wave:consWaveCodeMinMaxAllSidesPrefix(args)
-	return self:template([[
-real const wavespeed = solver->wavespeed / unit_m_per_s;
-]], args)
-end
-
-function Wave:consWaveCodeMinMaxAllSides(args)
-	return self:template([[
-real const nLen = normal_len(n);
-<?=eqn:waveCodeAssignMinMax(
-	declare, resultMin, resultMax,
-	'-wavespeed * nLen',
-	'wavespeed * nLen'
-)?>
-]], args)
-end
 
 return Wave

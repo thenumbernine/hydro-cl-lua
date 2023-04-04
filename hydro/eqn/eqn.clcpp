@@ -26,9 +26,8 @@ struct Eqn {
 		constant Solver const & solver,
 		Cons const & U,
 		real3 const pt
-	)
-	//requires std::is_same_v<Prim, Cons>
-	{
+		//std::enable_if_t<std::is_same_v<Prim, Cons>>* = {}
+	) {
 		return U;
 	}
 
@@ -36,9 +35,8 @@ struct Eqn {
 		constant Solver const & solver,
 		Prim const & W,
 		real3 const pt
-	)
-	//requires std::is_same_v<Prim, Cons>
-	{
+		//std::enable_if_t<std::is_same_v<Prim, Cons>>* = {}
+	) {
 		return W;
 	}
 
@@ -48,9 +46,8 @@ struct Eqn {
 		Prim const & WA,
 		Prim const & W,
 		real3 const x
-	)
-	//requires std::is_same_v<Prim, Cons>
-	{
+		//std::enable_if_t<std::is_same_v<Prim, Cons>>* = {}
+	) {
 		return W;
 	}
 
@@ -60,9 +57,8 @@ struct Eqn {
 		Prim const & WA,
 		Cons const & U,
 		real3 const x
-	)
-	//requires std::is_same_v<Prim, Cons>
-	{
+		//std::enable_if_t<std::is_same_v<Prim, Cons>>* = {}
+	) {
 		return U;
 	}
 

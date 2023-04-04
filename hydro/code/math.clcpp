@@ -1,4 +1,4 @@
-//// MODULE_NAME: vec3
+//// MODULE_NAME: vec
 //// MODULE_TYPE:
 
 //// BEGIN EXCLUDE FOR FFI_CDEF
@@ -188,10 +188,10 @@ static constexpr bool IsBinaryTensorR3xR3Op = IsBinaryTensorOp<A,B>
 	&& B::rank == 1 && B::template dim<0> == 3;
 
 template<typename Inner, int localDim>
-union vec;
+struct vec;
 
 template<typename Inner_>
-union sym3;
+struct sym3;
 
 template<typename Inner>
 using vec3 = vec<Inner, 3>;
@@ -537,20 +537,16 @@ constexpr auto rotateToInDim(
 	};\
 	static constexpr int numNestings = NumNestingsImpl::value();
 
-#define TENSOR_ADD_CTORS(classname)\
-\
-	/*default constructor*/\
-	constexpr classname()\
-	: s{} {}\
-\
-	/*scalar*/\
-	constexpr classname(Scalar const & s_)\
+
+#define TENSOR_ADD_SCALAR_CTOR(classname)\
+	constexpr classname(Scalar const & x)\
 	: s{} {\
-		for (int i = 0; i < localCount; ++i) {\
-			s[i] = s_;\
+		for (int k = 0; k < localCount; ++k) {\
+			s[k] = x;\
 		}\
-	}\
-\
+	}
+
+#define TENSOR_ADD_CTOR_FOR_GENERIC_TENSORS(classname)\
 	/*generic tensor/tensor*/\
 	template<typename U>\
 	constexpr classname(\
@@ -571,9 +567,10 @@ constexpr auto rotateToInDim(
 		for (int i = 0; i < localCount; ++i) {\
 			s[i] = u.s[i];\
 		}\
-	}\
-/*\
-#if 0\
+	}
+
+#if 0
+#define TENSOR_ADD_LAMBDA_CTOR(classname)\
 	// TODO needs Common stuff, tuples, functions, apply, write-iterator\
 	template<typename Lambda>\
 	constexpr classname(\
@@ -591,8 +588,9 @@ constexpr auto rotateToInDim(
 		for (auto i = w.begin(); i != w.end(); ++i) {\
 			*i = std::apply(f, i.readIndex.s);\
 		}\
-	}\
-#elif 0\
+	}
+#elif 0
+#define TENSOR_ADD_LAMBDA_CTOR(classname)\
 // until then I can just use fixed-signature per-rank\
 // but I'll still need is_callable or FunctionFromLambda ...\
 	template<\
@@ -604,18 +602,35 @@ constexpr auto rotateToInDim(
 			rank == 1\
 			//&& is_callable<Lambda>	//TODO implement this\
 		>* = {}\
-	) : x(f(0)), y(f(1)), z(f(2)) {}\
-#endif\
-*/\
+	) : x(f(0)), y(f(1)), z(f(2)) {}
+#endif
+
+//needs std::initializer_list ...
+#define TENSOR_ADD_LIST_CTOR(classname)\
+	constexpr classname(std::initializer_list<Inner> l) {\
+		auto src = l.begin();\
+		/*auto dst = this->begin();*/\
+		/*Inner const * const thisEnd = this->end();*/\
+		Inner * dst = s;\
+		Inner const * const thisEnd = s + localCount;\
+		for (; src != l.end() && dst != thisEnd; ++src, ++dst) {\
+			*dst = *src;\
+		}\
+		for (; dst != thisEnd; ++dst) {\
+			*dst = {};\
+		}\
+	}
+
+#define TENSOR_ADD_ARG_CTOR(classname)\
 \
-	/*argument constructor*/\
+	/*vec3*/\
 	constexpr classname(\
 		Inner const & x_,\
 		Inner const & y_,\
 		Inner const & z_\
 	) : s{x_, y_, z_} {}\
 \
-	/*argument constructor*/\
+	/*sym3*/\
 	constexpr classname(\
 		Inner const & xx_,\
 		Inner const & xy_,\
@@ -624,6 +639,18 @@ constexpr auto rotateToInDim(
 		Inner const & yz_,\
 		Inner const & zz_\
 	) :	s{xx_, xy_, xz_, yy_, yz_, zz_} {}
+
+#define TENSOR_ADD_CTORS(classname)\
+\
+	/*default constructor*/\
+	constexpr classname()\
+	: s{} {}\
+\
+	TENSOR_ADD_SCALAR_CTOR(classname)\
+	TENSOR_ADD_CTOR_FOR_GENERIC_TENSORS(classname)\
+	/*TENSOR_ADD_LAMBDA_CTOR(classname)*/\
+	/*TENSOR_ADD_LIST_CTOR(classname)*/\
+	TENSOR_ADD_ARG_CTOR(classname)
 
 #define TENSOR_ADD_VECTOR_OP_EQ(op)\
 	constexpr This & operator op(This const & b) {\
@@ -863,26 +890,64 @@ constexpr auto rotateToInDim(
 	/*requires Common::is_all_v<int, Ints...>*/\
 	constexpr decltype(auto) operator()(int i, Ints... k) constant const { return (*this)(i)(k...); }
 
+// TODO is this safe?
+#define TENSOR_ADD_SUBSET_ACCESS()\
+\
+	/* assumes packed tensor */\
+		/* compile-time offset */\
+	template<int subdim, int offset = 0>\
+	vec<Inner,subdim> & subset() {\
+		static_assert(subdim >= 0);\
+		static_assert(offset >= 0);\
+		static_assert(offset + subdim <= localCount);\
+		return *(vec<Inner,subdim>*)(&s[offset]);\
+	}\
+	template<int subdim, int offset = 0>\
+	vec<Inner,subdim> const & subset() const {\
+		static_assert(subdim >= 0);\
+		static_assert(offset >= 0);\
+		static_assert(offset + subdim <= localCount);\
+		return *(vec<Inner,subdim>*)(&s[offset]);\
+	}\
+		/* runtime offset */\
+	template<int subdim>\
+	vec<Inner,subdim> & subset(int offset) {\
+		static_assert(subdim >= 0);\
+		static_assert(subdim <= localCount);\
+		return *(vec<Inner,subdim>*)(&s[offset]);\
+	}\
+	template<int subdim>\
+	vec<Inner,subdim> const & subset(int offset) const {\
+		static_assert(subdim >= 0);\
+		static_assert(subdim <= localCount);\
+		return *(vec<Inner,subdim>*)(&s[offset]);\
+	}
+
+
 #define TENSOR_VECTOR_CLASS_OPS(classname)\
 	TENSOR_ADD_OPS(classname)\
 	TENSOR_ADD_VECTOR_CALL_INDEX_PRIMARY()\
-	TENSOR_ADD_RANK1_CALL_INDEX_AUX()
+	TENSOR_ADD_RANK1_CALL_INDEX_AUX()\
+	/*TENSOR_ADD_SUBSET_ACCESS()*/ /* needs std::apply */\
+	TENSOR_ADD_SUBSET_ACCESS()
 
 template<typename Inner_, int localDim_>
-union vec {
+struct vec {
 	TENSOR_HEADER_VECTOR(vec, Inner_, localDim_)
-	Inner s[3] = {{}};
+	Inner s[localDim] = {{}};
 	TENSOR_VECTOR_CLASS_OPS(vec)
 } <?=app.real=="half" and "__attribute__ ((packed))" or ""?>;
 
 template<typename Inner_>
-union vec<Inner_,2> {
+struct vec<Inner_,2> {
 	TENSOR_HEADER_VECTOR(vec, Inner_, 2)
 
-	Inner s[localCount] = {{}};
-	struct { Inner s0, s1, s2; };
-	struct { Inner x, y, z; };
-	
+	union {
+		Inner s[localCount] = {{}};
+		struct { Inner s0, s1, s2; };
+		struct { Inner x, y, z; };
+	};
+
 	TENSOR_VECTOR_CLASS_OPS(vec)
 
 #if 0
@@ -934,13 +999,15 @@ union vec<Inner_,2> {
 } <?=app.real=="half" and "__attribute__ ((packed))" or ""?>;
 
 template<typename Inner_>
-union vec<Inner_,3> {
+struct vec<Inner_,3> {
 	TENSOR_HEADER_VECTOR(vec, Inner_, 3)
 
-	Inner s[localCount] = {{}};
-	struct { Inner s0, s1, s2; };
-	struct { Inner x, y, z; };
-	
+	union {
+		Inner s[localCount] = {{}};
+		struct { Inner s0, s1, s2; };
+		struct { Inner x, y, z; };
+	};
+
 	TENSOR_VECTOR_CLASS_OPS(vec)
 
 #if 0	//needs std::reference_wrapper
@@ -1002,12 +1069,14 @@ union vec<Inner_,3> {
 } <?=app.real=="half" and "__attribute__ ((packed))" or ""?>;
 
 template<typename Inner_>
-union vec<Inner_,4> {
+struct vec<Inner_,4> {
 	TENSOR_HEADER_VECTOR(vec, Inner_, 4)
 
-	Inner s[localCount] = {{}};
-	struct { Inner s0, s1, s2; };
-	struct { Inner x, y, z; };
+	union {
+		Inner s[localCount] = {{}};
+		struct { Inner s0, s1, s2; };
+		struct { Inner x, y, z; };
+	};	
 	
 	TENSOR_VECTOR_CLASS_OPS(vec)
 
@@ -1134,19 +1203,21 @@ inline constexpr int symIndex(int i, int j) {
 
 
 template<typename Inner_>
-union sym3 {
+struct sym3 {
 	TENSOR_HEADER_SYMMETRIC_MATRIX(sym3, Inner_, 3)
 
 	using vec3 = ::vec3<Inner>;
 
-	// TODO rename to x_x x_y etc
-	struct {
-		Inner xx, xy, xz, yy, yz, zz;
+	union {
+		// TODO rename to x_x x_y etc
+		struct {
+			Inner xx, xy, xz, yy, yz, zz;
+		};
+		struct {
+			Inner s00, s01, s02, s11, s12, s22;
+		};
+		Inner s[6];
 	};
-	struct {
-		Inner s00, s01, s02, s11, s12, s22;
-	};
-	Inner s[6];
 
 	TENSOR_SYMMETRIC_MATRIX_CLASS_OPS(sym3)
 
@@ -1155,7 +1226,6 @@ union sym3 {
 	vec3 y() const { return vec3(xy, yy, yz); }
 	vec3 z() const { return vec3(xz, yz, zz); }
 };
-
 
 
 // TODO if I do use const& then I will have to use all possible kinds of OpenCL address qualifiers
@@ -1889,20 +1959,24 @@ my current convention is this:
 #define unit_C2_s_per_kg_m3		((unit_C2 * unit_s) / (unit_kg * unit_m3))
 #define unit_C2_s2_per_kg_m3	((unit_C2 * unit_s2) / (unit_kg * unit_m3))
 
+//// MODULE_NAME: vec3
+//// MODULE_DEPENDS: vec
+// legacy, now merged into vec
+
 //// MODULE_NAME: real
 
 constexpr inline real lenSq(real const x) { return x * x; }
 
 //// MODULE_NAME: real3
 //// MODULE_DEPENDS: vec3
-// legacy, now merged into vec3
+// legacy, now merged into vec
 
 //// MODULE_NAME: sym3
 //// MODULE_DEPENDS: vec3
-// legacy, now merged into vec3
+// legacy, now merged into vec
 
 //// MODULE_NAME: real3s3
-//// MODULE_DEPENDS: vec3
+//// MODULE_DEPENDS: sym3 real
 //// MODULE_TYPE:
 
 // This is exclusively for the luajit ffi.cdef, which cannot handle c++:

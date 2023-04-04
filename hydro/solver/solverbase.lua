@@ -1645,7 +1645,7 @@ function SolverBase:getDisplayCode()
 	lines:insert(template([[
 
 typedef union {
-	real	ptr[9];
+	real	s[9];
 	real	vreal;
 <? if solver:isModuleUsed'real3s3' then ?>
 	real3s3	vreal3s3;
@@ -1869,7 +1869,7 @@ end ?><?=group.extraArgs and #group.extraArgs > 0
 	int dstindex = index;
 	real3 x = cellBuf[index].pos;
 <? end 		-- mesh vs grid
-?>	displayValue_t value = {.ptr={0}};
+?>	displayValue_t value = {.s={0}};
 
 <?=addTab(group.codePrefix or '')
 ?>

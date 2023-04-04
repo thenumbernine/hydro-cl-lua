@@ -146,23 +146,37 @@ function Struct:makeType()
 end
 
 -- this gets the type code
+-- TODO make this only for ffi cdef, and just use the c++ vec template for the c++ side
 function Struct:getTypeCode(typename)
 	local lines = table()
 	local scalar = 'real'
 --print('getTypeCode '..typename)
 	local tab
-	local classType
+	local numScalars
 	if self.dontUnion then
-		classType = 'struct'
-		lines:insert(classType..' '..typename..' {')
+		lines:insert('struct '..typename..' {')
 		tab = '\t'
 	else
-		classType = 'union'
-		lines:insert(classType..' '..typename..' {')
-		local numScalars = self:countScalars(scalar)
-		lines:insert('	'..scalar..' ptr['..math.max(1, math.floor(numScalars))..'];')
-		lines:insert('	struct {')
-		tab = '\t\t'
+		numScalars = self:countScalars(scalar)
+		numScalars = math.max(1, math.floor(numScalars))
+		lines:insert('struct '..typename..' {')
+	
+		--[[
+		lines:insert'//// BEGIN EXCLUDE FOR FFI_CDEF'
+		--lines:insert('	TENSOR_HEADER_VECTOR('..typename..', '..scalar..', '..numScalars..')')
+		-- can't use TENSOR_TEMPLATE_T_I ... or any ... since this isn't a template ... sooo ...
+		lines:insert('	TENSOR_THIS('..typename..')')
+		lines:insert('	TENSOR_SET_INNER_LOCALDIM_LOCALRANK('..scalar..', '..numScalars..', 1)')
+		--lines:insert('	TENSOR_TEMPLATE_T_I('..typename..')')
+		lines:insert('	TENSOR_HEADER_VECTOR_SPECIFIC()')
+		lines:insert('	TENSOR_HEADER()')
+		lines:insert'//// END EXCLUDE FOR FFI_CDEF'
+		--]]
+
+		lines:insert('	union {')
+		lines:insert('		'..scalar..' s['..numScalars..'];')
+		lines:insert'		struct {'
+		tab = '\t\t\t'
 	end
 	for _,var in ipairs(self.vars) do
 		lines:insert(
@@ -177,28 +191,29 @@ function Struct:getTypeCode(typename)
 			..' '..var.name..';')
 	end
 	if not self.dontUnion then
+		lines:insert('		};')
 		lines:insert('	};')
 	end
 	-- for opencl-cpp, not for ffi.cef
 	lines:insert'//// BEGIN EXCLUDE FOR FFI_CDEF'
-	lines:insert('\t'..typename..'() {}')
+	if not self.dontUnion then
+		--[[
+		lines:insert('	TENSOR_VECTOR_CLASS_OPS('..typename..')')
+		--]]
+		-- [[ instead
+		lines:insert('constexpr '..typename..'() : s{} {}')
+		lines:insert('TENSOR_ADD_BRACKET_FWD_TO_CALL()')
+		--]]
+	end
 	for _,var in ipairs(self.vars) do
 		lines:insert('\tconstexpr '..typename..' & set_'..var.name..'('..var.type..' const & value_) { '..var.name..' = value_; return *this; }')
-	end
-	if not self.dontUnion then
-		lines:insert(template([[
-	constexpr <?=scalar?> & operator[](int i) { return ptr[i]; }
-	constexpr <?=scalar?> const & operator[](int i) const { return ptr[i]; }
-	constexpr constant <?=scalar?> & operator[](int i) constant { return ptr[i]; }
-	constexpr constant <?=scalar?> const & operator[](int i) constant const { return ptr[i]; }
-]], 	{
-			scalar = scalar,
-		}))
 	end
 	if self.body then lines:insert(self.body) end
 	lines:insert'//// END EXCLUDE FOR FFI_CDEF'
 	lines:insert('};')
-	lines:insert('typedef '..classType..' '..typename..' '..typename..';')
+	lines:insert'//// BEGIN INCLUDE FOR FFI_CDEF'
+	lines:insert('typedef struct '..typename..' '..typename..';')
+	lines:insert'//// END INCLUDE FOR FFI_CDEF'
 	return lines:concat'\n'
 end
 

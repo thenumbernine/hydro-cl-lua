@@ -75,20 +75,21 @@ function BackwardEuler:init(solver, args)
 			..[[
 <? local range = require 'ext.range' ?>
 kernel void copyBufferWithoutGhostToBufferWithGhost(
-	constant <?=solver_t?> const * const solver,
+	constant <?=solver_t?> const * const psolver,
 	global real * const dst,
 	global real const * const src
 ) {
+	auto const & solver = *psolver;
 	<?=SETBOUNDS_NOGHOST?>();
 	for (int j = 0; j < numIntStates; ++j) {
 		dst[j + numStates * index] = src[j
 			+ numIntStates * (
-				(i.x - solver->numGhost)
+				(i.x - solver.numGhost)
 <? if solver.dim > 1 then ?>
-				+ (solver->gridSize.x - 2 * solver->numGhost) * (
-					(i.y - solver->numGhost) 
+				+ (solver.gridSize.x - 2 * solver.numGhost) * (
+					(i.y - solver.numGhost) 
 <? if solver.dim > 2 then ?>
-					+ (solver->gridSize.y - 2 * solver->numGhost) * (i.z - solver->numGhost)
+					+ (solver.gridSize.y - 2 * solver.numGhost) * (i.z - solver.numGhost)
 <? end ?>
 				)
 <? end ?>
@@ -97,20 +98,21 @@ kernel void copyBufferWithoutGhostToBufferWithGhost(
 }
 
 kernel void copyBufferWithGhostToBufferWithoutGhost(
-	constant <?=solver_t?> const * const solver,
+	constant <?=solver_t?> const * const psolver,
 	global real * const dst,
 	global real const * const src
 ) {
+	auto const & solver = *psolver;
 	<?=SETBOUNDS_NOGHOST?>();
 	for (int j = 0; j < numIntStates; ++j) {
 		dst[j 
 			+ numIntStates * (
-				(i.x - solver->numGhost) 
+				(i.x - solver.numGhost) 
 <? if solver.dim > 1 then ?>
-				+ (solver->gridSize.x - 2 * solver->numGhost) * (
-					(i.y - solver->numGhost) 
+				+ (solver.gridSize.x - 2 * solver.numGhost) * (
+					(i.y - solver.numGhost) 
 <? if solver.dim > 2 then ?>
-					+ (solver->gridSize.y - 2 * solver->numGhost) * (i.z - solver->numGhost)
+					+ (solver.gridSize.y - 2 * solver.numGhost) * (i.z - solver.numGhost)
 <? end ?>
 				)
 <? end ?>

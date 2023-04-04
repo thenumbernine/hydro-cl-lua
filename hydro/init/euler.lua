@@ -1368,7 +1368,7 @@ template<typename Prim, typename Cons> using InitCondC = InitCond_Euler_spiral<
 		real dyzSq = dy*dy + dz*dz;
 		inlet = dyzSq < solver->inlet_r * solver->inlet_r;
 	}
-	<?=isSRHD and prim_only_t or prim_t?> prim = {.ptr={0}};
+	<?=isSRHD and prim_only_t or prim_t?> prim = {.s={0}};
 
 	if (inlet) {
 		prim.rho = solver->init_inlet_rho;
@@ -1716,18 +1716,18 @@ end ?>
 
 	//U is initialized with random(), so use its values for unique random #s
 <? assert(solver.eqn.numStates >= 5); ?>
-	rho += initCond.noiseAmplitude * 2. * (U.ptr[0] - .5);
+	rho += initCond.noiseAmplitude * 2. * (U.s[0] - .5);
 #if 0
-	v.x += initCond.noiseAmplitude * 2. * (U.ptr[1] - .5);
-	v.y += initCond.noiseAmplitude * 2. * (U.ptr[2] - .5);
-	v.z += initCond.noiseAmplitude * 2. * (U.ptr[3] - .5);
+	v.x += initCond.noiseAmplitude * 2. * (U.s[1] - .5);
+	v.y += initCond.noiseAmplitude * 2. * (U.s[2] - .5);
+	v.z += initCond.noiseAmplitude * 2. * (U.s[3] - .5);
 #elif dim >= 2
-	real noisePhi = 2. * M_PI * U.ptr[1];
-	real noiseR = U.ptr[2];
+	real noisePhi = 2. * M_PI * U.s[1];
+	real noiseR = U.s[2];
 	v.moveAxis += initCond.noiseAmplitude * noiseR * cos(noisePhi);
 	v.perpAxis += initCond.noiseAmplitude * noiseR * sin(noisePhi);
 #endif
-	P += initCond.noiseAmplitude * 2. * (U.ptr[4] - .5);
+	P += initCond.noiseAmplitude * 2. * (U.s[4] - .5);
 ]],				{
 					sliceAxis = self.guiVars.sliceAxis:getValue(),
 				}
@@ -2035,8 +2035,8 @@ if (bubbleRSq < bubbleRadiusSq) {
 	P = 2.5;
 	//U is initialized with [0,1] random values
 <? assert(solver.eqn.numStates >= 2); ?>
-	v.x = 0.02*(U.ptr[0] - 0.5) + fabs(c.y) > 0.25 ? -.5 : .5;
-	v.y = 0.02*(U.ptr[1] - 0.5);
+	v.x = 0.02*(U.s[0] - 0.5) + fabs(c.y) > 0.25 ? -.5 : .5;
+	v.y = 0.02*(U.s[1] - 0.5);
 	v.z = 0.;
 ]]
 		end,
@@ -2646,7 +2646,7 @@ end
 			{center={0, 0, 0}, radius = .5},
 		},
 		getRadiusCode = function(source)
-			return '.5 - .01 * (U.ptr[0] - .5)'
+			return '.5 - .01 * (U.s[0] - .5)'
 		end,
 	}),
 
@@ -2668,7 +2668,7 @@ end
 		getRadiusCode = function(source)
 			-- TODO compute dr's component in each dx^i's, and scale our random number by that
 			-- U.rho holds noise
-			return '.2 - .005 * (U.ptr[0] - .5)'
+			return '.2 - .005 * (U.s[0] - .5)'
 		end,
 	}),
 
@@ -2727,11 +2727,11 @@ end
 		name = 'self-gravitation soup',
 		getInitCondCode = function(self)
 			return [[
-	rho = .1 * U.ptr[0] + .1;
-	v.x = .2 * U.ptr[1] - .1;
-	v.y = .2 * U.ptr[2] - .1;
-	v.z = .2 * U.ptr[3] - .1;
-	P = .1 * U.ptr[4] + .1;
+	rho = .1 * U.s[0] + .1;
+	v.x = .2 * U.s[1] - .1;
+	v.y = .2 * U.s[2] - .1;
+	v.z = .2 * U.s[3] - .1;
+	P = .1 * U.s[4] + .1;
 ]]
 		end,
 	},
@@ -2739,7 +2739,7 @@ end
 	class(SelfGravProblem, {
 		name = 'self-gravitation Jeans, right?',
 		getRadiusCode = function(source)
-			return '.5 - .02 * (U.ptr[0] - .5)'
+			return '.5 - .02 * (U.s[0] - .5)'
 		end,
 		sources = {
 			{center={0, 0, 0}, radius = .5, inside=[[

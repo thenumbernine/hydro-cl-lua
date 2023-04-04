@@ -76,8 +76,8 @@ if useFluxLimiter then
 				//should it be using the coordinate dx or the grid dx?
 				//real dt_dx = dt / cell_dxs<side>(solver, xInt);
 <?
-	if solver.coord.vectorComponent == 'cartesian'
-	and not require 'hydro.coord.cartesian':isa(solver.coord)
+	if solver.coord.vectorComponent == "cartesian"
+	and not require "hydro.coord.cartesian":isa(solver.coord)
 	then
 ?>
 //// MODULE_DEPENDS: <?=cell_dxs?>
@@ -91,8 +91,8 @@ if useFluxLimiter then
 
 				int const indexR2 = indexR + solver.stepsize[side];
 				int const indexL2 = indexL - solver.stepsize[side];
-				<?=solver:getULRCode{indexL = 'indexL2', indexR = 'indexL', suffix='_L'}:gsub('\n', '\n\t\t\t')?>
-				<?=solver:getULRCode{indexL = 'indexR', indexR = 'indexR2', suffix='_R'}:gsub('\n', '\n\t\t\t')?>
+				<?=solver:getULRCode{indexL = "indexL2", indexR = "indexL", suffix="_L"}:gsub("\n", "\n\t\t\t")?>
+				<?=solver:getULRCode{indexL = "indexR", indexR = "indexR2", suffix="_R"}:gsub("\n", "\n\t\t\t")?>
 
 //// MODULE_DEPENDS: <?=cons_parallelPropagate?>
 				auto const ppUL_L = <?=cons_parallelPropagate?><?=side?>(UL_L, xIntL, 1.5 * dx);		//xIntL2?
@@ -107,13 +107,20 @@ if useFluxLimiter then
 end
 ?>
 //// MODULE_DEPENDS: calcFluxForInterface
+				// since the flux args change depending on the flux (1st order vs 2nd order)
+				// how about the flux itself does the stencil calcs?
+				// then the function signatures would all match.
+				// but the stencils need to be parallel-propagated into the current interface's frame
+				// so I could provide a function to do that?
 				flux = Flux::calcFluxForInterface(
 					solver,
+					
 					ppUL,
 					ppUR,
 					cellL,
 					cellR,
 					xInt,
+					
 					n
 <? if useFluxLimiter then ?>
 					,
@@ -242,7 +249,7 @@ then ?>
 				areaR *= invVolume;
 <? -- TODO get rid of this, it's only used by the maxwell and glm-maxwell eqns
 if eqn.postComputeFluxCode then ?>
-				Cons flux = {.ptr={0}};
+				Cons flux = {.s={0}};
 				for (int j = 0; j < numIntStates; ++j) {
 					flux[j] =
 						fluxR[j] * areaR
