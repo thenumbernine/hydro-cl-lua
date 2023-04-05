@@ -3170,6 +3170,7 @@ if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
 	for _,op in ipairs(self.ops) do
 		if op.step then
 			self:boundary()
+			self:constrainU()
 			op:step(dt)
 			if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
 		end

@@ -287,9 +287,9 @@ functionality (and abstraction):
 		},
 		headercode = self.eqn:template[[
 // define i, index, and bounds-check
-#define <?=SETBOUNDS?>(lhs,rhs)	\
-	int4 i = globalInt4(); \
-	if (<?=OOB?>(lhs,rhs)) return; \
+#define <?=SETBOUNDS?>(lhs,rhs)\
+	int4 i = globalInt4();\
+	if (<?=OOB?>(lhs,rhs)) return;\
 	int index = INDEXV(i);
 ]],
 	}

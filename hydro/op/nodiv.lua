@@ -183,6 +183,7 @@ kernel void <?=copyPotentialToReduce?>(
 	function NoDiv:step(dt)
 		local solver = self.solver
 		self:relax()
+		-- remove the divergence
 		self.noDivKernelObj()
 	end
 
