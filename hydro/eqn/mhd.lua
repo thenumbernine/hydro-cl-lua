@@ -193,9 +193,10 @@ MHD.guiVars = {
 }
 
 function MHD:initCodeModules()
+	local solver = self.solver
 	MHD.super.initCodeModules(self)
 	
-	self.solver.modules:add{
+	solver.modules:add{
 		name = self.symbols.roe_t,
 		structs = {self.roeStruct},
 		-- only generated for cl, not for ffi cdef
@@ -206,6 +207,14 @@ function MHD:initCodeModules()
 	-- but not override a value set by the init state?
 	-- this used to be in Equation:getInitCondCode
 	self.guiVars.coulomb.value = math.sqrt(self.guiVars.kilogram.value * self.guiVars.meter.value / self.guiVars.mu0.value)
+
+	-- used by consWaveCode / should be added via initCodeModule_cons_prim_eigen_waves
+	-- might have future problems if the modules build order is rearranged
+	solver.sharedModulesEnabled[assert(solver.symbols.range_t)] = true
+	
+	-- used by calcDT / should be added via initCodeModule_calcDT but I'm lazy
+	-- might have future problems if the modules build order is rearranged
+	solver.sharedModulesEnabled[assert(self.symbols.calcCellMinMaxEigenvalues)] = true
 end
 
 -- don't use default
