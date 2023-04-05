@@ -669,7 +669,8 @@ Maybe for an initial constant vel as large as sqrt(2) this fails, but it works o
 }
 <? end ?>
 
-<? if false then ?>
+<? if true then -- implicit solvers need this
+?>
 //// MODULE_NAME: <?=constrainU?>
 //// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> <?=cell_t?> <?=primFromCons?> <?=consFromPrim?>
 
@@ -682,10 +683,13 @@ kernel void <?=constrainU?>(
 	real3 const x = cellBuf[index].pos;
 
 	global <?=cons_t?> * const U = UBuf + index;
+
+	//do this to U before calculating 'v' so we don't get nans
+	if (U->rho < solver->rhoMin) U->rho = solver->rhoMin;
+
 	<?=prim_t?> W;
 	<?=primFromCons?>(&W, solver, U, x);
 
-	if (W.rho < solver->rhoMin) W.rho = solver->rhoMin;
 	if (W.P < solver->PMin) W.P = solver->PMin;
 
 	<?=consFromPrim?>(U, solver, &W, x);

@@ -1628,7 +1628,6 @@ function SolverBase:refreshSolverProgram()
 		self.constrainUKernelObj = self.solverProgramObj:kernel(eqn.symbols.constrainU)
 	end
 
-
 	for _,op in ipairs(self.ops) do
 		if op.refreshSolverProgram then
 			op:refreshSolverProgram()
@@ -2027,6 +2026,11 @@ end
 function SolverBase:constrainU()
 	if self.constrainUKernelObj then
 		self.constrainUKernelObj(self.solverBuf, self.UBuf, self.cellBuf)
+		if cmdline.printBufs == 2 then
+			print()
+			print('constrainU')
+			self:printBuf(self.UBufObj)
+		end
 		if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
 		self:boundary()
 	end
@@ -3306,6 +3310,7 @@ function SolverBase:printBuf(buf, ptrorig, colsize, colmax)
 	else
 		local maxdigitlen = #tostring(size-1)
 		colsize = colsize or 1
+--print('colsize', colsize)		
 		for i=0,size-1 do
 			if i % colsize == 0 then
 				io.write((' '):rep(maxdigitlen-#tostring(i)), i,':')

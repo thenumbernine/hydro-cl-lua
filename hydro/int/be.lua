@@ -13,8 +13,8 @@ local CLBuffer = require 'cl.obj.buffer'
 local Integrator = require 'hydro.int.int'
 
 --local CLKrylov = require 'solver.cl.conjgrad'
---local CLKrylov = require 'solver.cl.conjres'
-local CLKrylov = require 'solver.cl.gmres'
+local CLKrylov = require 'solver.cl.conjres'
+--local CLKrylov = require 'solver.cl.gmres'
 
 local ThisKrylov = class(CLKrylov)
 
@@ -136,11 +136,16 @@ kernel void copyBufferWithGhostToBufferWithoutGhost(
 	-- function that returns deriv when provided a state vector
 	-- dUdtBuf and UBuf are cl.obj.buffer
 	local function calc_dU_dt(dUdtBuf, UBuf)
---print'\nUBuf:' solver:printBuf(UBuf, nil, solver.eqn.numIntStates)
+		if self.verbose then
+			print('calc_dU_dt begin')
+		end
+		if cmdline.printBufsInt then
+			print'\nUBuf:' solver:printBuf(UBuf, nil, solver.eqn.numIntStates)
+		end
 
 		self.copyWithoutToWithGhostKernel(solver.solverBuf, solver.UBufObj, UBuf)
 		
-if solver.checkNaNs then assert(solver:checkFinite(derivBufObj)) end
+		if solver.checkNaNs then assert(solver:checkFinite(derivBufObj)) end
 		solver:constrainU()
 		solver:boundary()
 		
@@ -148,8 +153,13 @@ if solver.checkNaNs then assert(solver:checkFinite(derivBufObj)) end
 		self.integrateCallback(self.derivBufObj)
 		self.copyWithToWithoutGhostKernel(solver.solverBuf, dUdtBuf, self.derivBufObj)
 
---print'\ndUdtBuf:' solver:printBuf(dUdtBuf, nil, solver.eqn.numIntStates)
+		if cmdline.printBufsInt then
+			print'\ndUdtBuf:' solver:printBuf(dUdtBuf, nil, solver.eqn.numIntStates)
+		end		
 		if solver.checkNaNs then assert(solver:checkFinite(dUdtBuf)) end
+		if self.verbose then
+			print('calc_dU_dt end')
+		end
 	end
 
 	local volumeWithoutBorder = solver.volumeWithoutBorder
@@ -184,22 +194,36 @@ if solver.checkNaNs then assert(solver:checkFinite(derivBufObj)) end
 	-- [=[ backward Euler
 	linearSolverArgs.b = self.krylov_bObj
 	linearSolverArgs.A = function(UNext, U)
+		if self.verbose then
+			print('linearSolverArgs.A begin')
+		end
 		local dUdt = self.krylov_dUdtObj
-		--[[ evolve based on U(t) ... so this is solving GMRES against an unchanging matrix, i.e. static linear solver.
+		--[[ evolve based on U(t) ... so this is solving our Krylov solver against an unchanging matrix, i.e. static linear solver.
 		-- this is stable, but not backward-Euler
 		calc_dU_dt(dUdt, self.krylov_bObj)
 		--]]
 		-- [[ evolve based on U(t+dt) ... this is a correct backward-Euler solver
-		-- doesn't seem to be stable.
+-- TODO ... by the 2nd time this is called, UBuf is all zeroes ... hmm ...		
+-- the first time this is good
+-- the second time this is zeroes
+-- because it's the residual duh
+-- so conjgrad on the nearly-zero-residual produces nans
+-- conjres and gmres just don't do anything it seems
 		calc_dU_dt(dUdt, U)
 		--]]
 		
 		--UNext = U - dt * calc_dU_dt(lastU)
---print'\nU:' solver:printBuf(U, nil, solver.numIntStates)
---print('self.linearSolverDT', self.linearSolverDT)
-		
+		if cmdline.printBufsInt then
+			print'\nU:' solver:printBuf(U, nil, solver.eqn.numIntStates)
+			print('self.linearSolverDT', self.linearSolverDT)
+		end
 		self.linearSolver.args.mulAdd(UNext, U, dUdt.obj, -self.linearSolverDT)
---print'\nUNext:' solver:printBuf(UNext, nil, solver.numIntStates)
+		if cmdline.printBufsInt then
+			print'\nUNext:' solver:printBuf(UNext, nil, solver.eqn.numIntStates)
+		end
+		if self.verbose then
+			print('linearSolverArgs.A end')
+		end
 	end
 	--]=]
 	--[=[ crank-nicolson - converges faster
@@ -235,6 +259,10 @@ end
 -- step contains integrating flux and source terms
 -- but not post iterate
 function BackwardEuler:integrate(dt, callback)
+	if self.verbose then
+		print('BackwardEuler:integrate begin')
+		print('dt', dt)
+	end
 	local solver = self.solver
 	-- this is a call to 'calcDeriv'
 	self.integrateCallback = callback
@@ -243,19 +271,26 @@ function BackwardEuler:integrate(dt, callback)
 	-- UBuf needs to be overwritten to pass on to the calcFluxDeriv
 	-- (TODO make calcFluxDeriv accept a parameter)
 	self.copyWithToWithoutGhostKernel(solver.solverBuf, self.krylov_bObj, solver.UBufObj)
---print'\nself.krylov_bObj:' solver:printBuf(self.krylov_bObj, nil, solver.eqn.numIntStates)
+	if cmdline.printBufsInt then
+		print'\nself.krylov_bObj:' solver:printBuf(self.krylov_bObj, nil, solver.eqn.numIntStates)
+	end
 	self.copyWithToWithoutGhostKernel(solver.solverBuf, self.krylov_xObj, solver.UBufObj)
 	self.linearSolver()
 	self.copyWithoutToWithGhostKernel(solver.solverBuf, solver.UBufObj, self.krylov_xObj)
 
 	solver:boundary()	
-if solver.checkNaNs then assert(solver:checkFinite(derivBufObj)) end
+	if solver.checkNaNs then assert(solver:checkFinite(derivBufObj)) end
 	solver:constrainU()
+	if self.verbose then
+		print('BackwardEuler:integrate end')
+	end
 end
 
 function BackwardEuler:updateGUI()
 	ig.luatableTooltipInputFloatAsText('Krylov epsilon', self.linearSolver.args, 'epsilon')
-	ig.luatableTooltipInputInt('GMRES restart', self.linearSolver.args, 'restart')
+	if self.linearSolver.args.restart then
+		ig.luatableTooltipInputInt('GMRES restart', self.linearSolver.args, 'restart')
+	end
 	ig.luatableTooltipInputInt('Krylov maxiter', self.linearSolver.args, 'maxiter')	-- typically restart * number of reals = restart * numCells * number of states
 	-- read-only:
 	ig.igText('residual = '..self.lastResidual)	-- this is |r|

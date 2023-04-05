@@ -5,15 +5,14 @@ and no more setting config values (boundary, etc) in the init cond file
 local constants = require 'hydro.constants'
 local materials = require 'hydro.materials'
 
-local dim = cmdline.dim or 2
+local dim = cmdline.dim or 1
 local args = {
 	app = self,
 	dim = dim,
 	eqn = cmdline.eqn,
 	flux = cmdline.flux,
 
-	integrator = cmdline.integrator or 'forward Euler',
-	--integrator = 'Iterative Crank-Nicolson',
+	--integrator = cmdline.integrator or 'forward Euler',
 	--integrator = 'Runge-Kutta 2',
 	--integrator = 'Runge-Kutta 2 Heun',
 	--integrator = 'Runge-Kutta 2 Ralston',
@@ -25,8 +24,10 @@ local args = {
 	--integrator = 'Runge-Kutta 3, TVD',
 	--integrator = 'Runge-Kutta 4, TVD',
 	--integrator = 'Runge-Kutta 4, non-TVD',
-	--integrator = 'backward Euler',	-- The epsilon on this is very sensitive.  Too small and it never converges.  Too large and it stops convergence too soon.
+	--integrator = 'Iterative Crank-Nicolson',
+	--integrator = 'backward Euler',	-- this is a linear solver applied to nonlinear problems so ofc it's gonna break.  TODO proper nonlinear CG / GMRES.
 	--integrator = 'backward Euler, CPU',
+	integrator = 'backward Euler predictor-corrector',
 	--integratorArgs = {verbose=true},
 
 	--fixedDT = .0001,
@@ -92,21 +93,21 @@ local args = {
 			-- Intel(R) OpenCL HD Graphics/Intel(R) Gen9 HD Graphics NEO
 			-- Intel(R) OpenCL HD Graphics/Intel(R) Graphics Gen9 [0x1916]
 			['Intel(R) OpenCL HD Graphics/Intel(R) HD Graphics 520 [0x1916]'] = {
-				{4096,1,1},
+				{16,1,1},
 				{64,64,1},
 				{32,32,32},
 			},
 
 			-- 5600M with device=gfx902 to work with gl_sharing:
 			['AMD Accelerated Parallel Processing/gfx902'] = {
-				{4096,1,1},
+				{256,1,1},
 				{256,256,1},
 				{32,32,32},
 			},
 
 			-- 5600M with device=gfx1010, which doesn't work with gl_sharing, but runs much faster:
 			['AMD Accelerated Parallel Processing/gfx1010'] = {
-				{4096,1,1},
+				{256,1,1},
 				{256,256,1},
 				{32,32,32},
 			},
@@ -138,7 +139,7 @@ local args = {
 		})[platAndDevicesNames]
 		-- default size options
 		or {
-			{1024,1,1},
+			{256,1,1},
 			{256,256,1},
 			{32,32,32},
 		}

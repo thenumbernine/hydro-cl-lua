@@ -89,7 +89,7 @@ debugging:
 	tick = how often to update the console for fps or trackvars
 	coordVerbose = output extra info from coord/coord.lua
 
-	printBufs = print buffer contents for debugging
+	printBufs = print buffer contents for debugging.  set this to 2 for more info than default, since default is made to match with other debug output in comparing results with other simulations.
 	config = specify alternative config file.  default is config.lua (TODO configs/default.lua)
 	checkStructSizes = verify that ffi and OpenCL are using matching struct sizes
 
@@ -97,6 +97,7 @@ debugging:
 
 integrator parameters:
 	intVerbose = output extra info from int/*.lua
+	printBufs = printBufs for extra integrator steps
 	intBEEpsilon = backwards Euler stop on residual less than this epsilon
 	intBERestart = backwards Euler GMRES restart
 	intBEMaxIter = backwards Euler Krylov max iter
