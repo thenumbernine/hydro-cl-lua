@@ -10,6 +10,7 @@ U(t + Δt) = lim i->∞ U[i](t + Δt)
 --]]
 local ffi = require 'ffi'
 local class = require 'ext.class'
+local math = require 'ext.math'
 local CLBuffer = require 'cl.obj.buffer'
 local roundup = require 'hydro.util.roundup'
 local Integrator = require 'hydro.int.int'
@@ -111,7 +112,11 @@ function BackwardEulerPredCorr:integrate(dt, callback)
 			solver.cmds:enqueueFillBuffer{buffer=solver.reduceBuf, size=solver.numCells * ffi.sizeof(solver.app.real)}
 			solver.squareConsKernelObj.obj:setArg(2, self.U1BufObj.obj)
 			solver.squareConsKernelObj()
-			local deltaUMag = fromreal(solver.reduceSum(nil, solver.numCells))
+			local deltaUMag = math.sqrt(fromreal(solver.reduceSum(nil, solver.numCells)) / solver.volumeWithoutBorder)
+			if not math.isfinite(deltaUMag) then
+				print("got non-finite residual: "..deltaUMag)
+				return -- fail
+			end
 			if self.verbose and type(self.verbose) == 'number' and self.verbose > 1 then
 				print('deltaUMag', deltaUMag)
 			end

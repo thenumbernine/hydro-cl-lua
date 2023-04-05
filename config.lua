@@ -5,7 +5,7 @@ and no more setting config values (boundary, etc) in the init cond file
 local constants = require 'hydro.constants'
 local materials = require 'hydro.materials'
 
-local dim = cmdline.dim or 1
+local dim = cmdline.dim or 2
 local args = {
 	app = self,
 	dim = dim,
@@ -94,7 +94,7 @@ local args = {
 			-- Intel(R) OpenCL HD Graphics/Intel(R) Graphics Gen9 [0x1916]
 			['Intel(R) OpenCL HD Graphics/Intel(R) HD Graphics 520 [0x1916]'] = {
 				{256,1,1},
-				{64,64,1},
+				{256,256,1},
 				{32,32,32},
 			},
 
@@ -145,12 +145,12 @@ local args = {
 		}
 	)[dim],
 	boundary = type(cmdline.boundary) == 'table' and cmdline.boundary or {
-		xmin = cmdline.boundary or 'freeflow',
-		xmax = cmdline.boundary or 'freeflow',
-		ymin = cmdline.boundary or 'freeflow',
-		ymax = cmdline.boundary or 'freeflow',
-		zmin = cmdline.boundary or 'freeflow',
-		zmax = cmdline.boundary or 'freeflow',
+		xmin = cmdline.boundary or 'periodic',
+		xmax = cmdline.boundary or 'periodic',
+		ymin = cmdline.boundary or 'periodic',
+		ymax = cmdline.boundary or 'periodic',
+		zmin = cmdline.boundary or 'periodic',
+		zmax = cmdline.boundary or 'periodic',
 	},
 	--]]
 	--[[ cylinder
@@ -415,8 +415,8 @@ local args = {
 	--initCond = 'configuration 6',
 
 	-- states for ideal MHD or two-fluid (not two-fluid-separate)
-	initCond = 'Brio-Wu',
-	--initCond = 'Orszag-Tang',
+	--initCond = 'Brio-Wu',
+	initCond = 'Orszag-Tang',
 	--initCond = 'MHD rotor',
 	--initCond = 'spinning magnetic fluid',
 	--initCond = 'magnetic fluid',
@@ -911,8 +911,8 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {
 --		and works fine with backwards Euler
 -- when run alongside HD Roe solver, curves don't match (different heat capacity ratios?)
 --		but that could be because of issues with simultaneous solvers.
-self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='mhd'})))
---self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='mhd'})))
+--self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='mhd'})))
+self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='mhd'})))
 
 -- explodes with Orszag-Tang
 --self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='mhd', wenoMethod='1996 Jiang Shu', order=5})))
