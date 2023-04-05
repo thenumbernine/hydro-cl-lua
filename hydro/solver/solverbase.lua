@@ -795,6 +795,7 @@ function SolverBase:initObjs(args)
 		assert(#integratorNames > 0, "couldn't find integrator "..('%q'):format(tostring(args.integrator)).." ... and there are no integrators to search.")
 		self.integratorIndex = 1
 		print("!!!!! couldn't find integrator "..('%q'):format(tostring(args.integrator)).." so falling back on integrator "..('%q'):format(tostring(integratorNames[self.integratorIndex])).." !!!!!")
+		-- TODO shouldn't this be an error? if the explicitly-asked-for integrator isn't there...
 	end
 
 	self.checkNaNs = self.checkNaNs or args.checkNaNs
@@ -1174,6 +1175,9 @@ function SolverBase:refreshCommonProgram()
 	local commonCode = table{
 		-- just header, no function calls needed
 		self.modules:getHeader(moduleNames:unpack()),
+		-- and i need this. .. but I need its code ... but if it requests any of 'moduleNames' headers , then i'll have duplicates ... so ... ?
+		self.modules:getCodeAndHeader('sqr'),
+		-- and here's the code
 		self.eqn:template[[
 kernel void multAddInto(
 	constant <?=solver_t?> const * const solver,
@@ -1209,9 +1213,25 @@ for i=0,eqn.numIntStates-1 do
 end
 ?>}
 
+// cons x cons -> cons
+// a -= b
+// TODO cut out ghost cells?
+kernel void subtractIntoCons(
+	constant <?=solver_t?> const * const solver,
+	global <?=cons_t?> * const a,
+	global <?=cons_t?> const * const b
+) {
+	<?=SETBOUNDS_NOGHOST?>();
+<? for i=0,eqn.numIntStates-1 do
+?>	a[index].ptr[<?=i?>] -= b[index].ptr[<?=i?>];
+<? end
+?>
+}
+
 // whereas the multAddInto and multAdd operate on cons_t,
 // this operates on a buffer of reals.
 // and this should only operate on non-ghost cells.
+// This is used on reduceBuf / displayVars to calc their stddev.
 kernel void subtractAndSquare(
 	constant <?=solver_t?> const * const solver,
 	global real * const a,
@@ -1223,13 +1243,29 @@ kernel void subtractAndSquare(
 	*ai *= *ai;
 }
 
+// cons -> real
+// a = b^2 
+// TODO cut out ghost cells
+kernel void squareCons(
+	constant <?=solver_t?> const * const solver,
+	global real * const a,
+	global <?=cons_t?> const * const b
+) {
+	<?=SETBOUNDS_NOGHOST?>();
+	real sum = 0.;
+<? for i=0,eqn.numIntStates-1 do
+?>	sum += sqr(b[index].ptr[<?=i?>]);
+<? end
+?>
+	a[index] = sum;
+}
+
 <? if solver.checkNaNs then ?>
 kernel void findNaNs(
 	constant <?=solver_t?> const * const solver,
 	global real * const dst,
 	global <?=cons_t?> const * const src
 ) {
-
 <? if solver.checkNaNs == 'gpu-noghost' then ?>
 	<?=SETBOUNDS?>(solver->numGhost, solver->numGhost);
 <? else ?>
@@ -1262,6 +1298,12 @@ kernel void findNaNs(
 
 	self.subtractAndSquareKernelObj = self.commonProgramObj:kernel{name='subtractAndSquare', domain=self.domainWithoutBorder}
 	self.subtractAndSquareKernelObj.obj:setArg(0, self.solverBuf)
+	
+	self.subtractIntoConsKernelObj = self.commonProgramObj:kernel{name='subtractIntoCons', domain=self.domainWithoutBorder}
+	self.subtractIntoConsKernelObj.obj:setArgs(self.solverBuf)
+
+	self.squareConsKernelObj = self.commonProgramObj:kernel{name='squareCons', domain=self.domainWithoutBorder}
+	self.squareConsKernelObj.obj:setArgs(self.solverBuf, self.reduceBuf)
 
 	if self.checkNaNs then
 		self.findNaNsKernelObj = self.commonProgramObj:kernel('findNaNs', self.solverBuf, self.reduceBuf)
