@@ -1,5 +1,4 @@
 //// MODULE_NAME: <?=calcLR?>
-//// MODULE_DEPENDS: <?=consLR_t?> <?=solver_t?> <?=cons_t?> <?=normal_t?> <?=cell_dx_i?>
 
 // TODO incorporate parallel propagators
 
@@ -108,7 +107,6 @@ for sgn b >= 0:
 */
 #if 1
 		real r = dUR == 0 ? 0 : (dUL / dUR);
-//// MODULE_DEPENDS: <?=slopeLimiter?>
 		real phi = <?=slopeLimiter?>(r);	//works good with minmod, bad with superbee
 		real sigma = phi * dUR;
 #else	//isn't as accurate anyways
@@ -127,10 +125,10 @@ for sgn b >= 0:
 		UHalfL.ptr[j] = UHalfR.ptr[j] = U->ptr[j];
 	}
 
+//// MODULE_DEPENDS: <?=cell_dx_i?>
 	real dx = cell_dx<?=side?>(cell->pos);
 	real dt_dx = dt / dx;
 
-//// MODULE_DEPENDS: <?=fluxFromCons?> 
 <? print("TODO cell_t averaging here?") ?>
 	<?=cons_t?> FHalfL;
 	<?=fluxFromCons?>(&FHalfL, solver, &UHalfL, cellL, normal_forSide<?=side?>(xIntL));
@@ -184,7 +182,6 @@ void calcCellLR_<?=side?>(
 		real dUR = UR->ptr[j] - U->ptr[j];
 		real dUL = U->ptr[j] - UL->ptr[j];
 		real r = dUR == 0 ? 0 : (dUL / dUR);
-//// MODULE_DEPENDS: <?=slopeLimiter?>
 		real phi = <?=slopeLimiter?>(r);	//works good with minmod, bad with superbee
 		real sigma = phi * dUR;
 		result->L.ptr[j] -= .5 * sigma;
@@ -208,7 +205,6 @@ void calcCellLR_<?=side?>(
 <? 
 	elseif solver.usePLM == "plm-prim-alone" then 
 ?>
-//// MODULE_DEPENDS: <?=consFromPrim?> <?=primFromCons?>
 
 void calcCellLR_<?=side?>(
 	global <?=consLR_t?> * const result,
@@ -243,7 +239,6 @@ void calcCellLR_<?=side?>(
 		real dWR = WR.ptr[j] - W.ptr[j];
 		real dWL = W.ptr[j] - WL.ptr[j];
 		real r = dWR == 0 ? 0 : (dWL / dWR);
-//// MODULE_DEPENDS: <?=slopeLimiter?>
 		real phi = <?=slopeLimiter?>(r);
 		real sigma = phi * dWR;
 		nWL.ptr[j] -= .5 * sigma;
@@ -274,7 +269,6 @@ void calcCellLR_<?=side?>(
 <? 
 	elseif solver.usePLM == "plm-eig" then 
 ?>
-//// MODULE_DEPENDS: <?=eigen_forCell?> <?=eigen_leftTransform?> <?=eigen_rightTransform?> min3
 
 /*
 #2: next step, project into eigenspace
@@ -349,7 +343,6 @@ void calcCellLR_<?=side?>(
 <? if false then ?>
 #if 0
 		real r = dUREig.ptr[j] == 0 ? 0 : (dULEig.ptr[j] / dUREig.ptr[j]);
-//// MODULE_DEPENDS: <?=slopeLimiter?>
 		real phi = <?=slopeLimiter?>(r);
 		real sigma = phi * dUREig.ptr[j];
 		dUMEig.ptr[j] = sigma;
@@ -372,6 +365,7 @@ void calcCellLR_<?=side?>(
 #endif	
 	}
 
+//// MODULE_DEPENDS: <?=cell_dx_i?>
 	real dx = cell_dx<?=side?>(cell->pos);
 	real dt_dx = dt / dx;
 
@@ -415,7 +409,6 @@ void calcCellLR_<?=side?>(
 	or solver.usePLM == "plm-eig-prim-ref" 
 	then 
 ?>
-//// MODULE_DEPENDS: <?=eigen_forCell?> min3 <?=primFromCons?>
 
 /*
 #3a: next step, convert to primitives
@@ -528,6 +521,7 @@ void calcCellLR_<?=side?>(
 		);
 	}
 
+//// MODULE_DEPENDS: <?=cell_dx_i?>
 	real dx = cell_dx<?=side?>(cell->pos);
 	real dt_dx = dt / dx;
 
@@ -540,7 +534,6 @@ void calcCellLR_<?=side?>(
 <? 	
 		if solver.usePLM == "plm-eig-prim" then 
 ?>
-//// MODULE_DEPENDS: <?=apply_dU_dW?> <?=apply_dW_dU?> <?=eigen_leftTransform?> <?=eigen_rightTransform?> <?=consFromPrim?>
 
 	//without reference state
 
@@ -581,7 +574,6 @@ void calcCellLR_<?=side?>(
 <?	
 		elseif solver.usePLM == "plm-eig-prim-ref" then 
 ?>
-//// MODULE_DEPENDS: <?=apply_dU_dW?> <?=apply_dW_dU?> <?=eigen_leftTransform?> <?=eigen_rightTransform?> <?=consFromPrim?>
 
 	//with reference state
 
@@ -662,7 +654,6 @@ void calcCellLR_<?=side?>(
 	elseif solver.usePLM == "plm-athena" then 
 
 ?>
-//// MODULE_DEPENDS: <?=eigen_forCell?> <?=eigen_leftTransform?> <?=eigen_rightTransform?> <?=consFromPrim?> <?=primFromCons?>
 
 //based on Athena
 void calcCellLR_<?=side?>(
@@ -684,6 +675,7 @@ void calcCellLR_<?=side?>(
 	<?=eigen_t?> eig;
 	<?=eigen_forCell?>(&eig, solver, U, cell, n);
 
+//// MODULE_DEPENDS: <?=cell_dx_i?>
 	real const dx = cell_dx<?=side?>(cell->pos);
 	real const dt_dx = dt / dx;
 
@@ -761,7 +753,6 @@ void calcCellLR_<?=side?>(
 <? 
 	elseif solver.usePLM == 'ppm-wip' then 
 ?>
-//// MODULE_DEPENDS: <?=eigen_forCell?> <?=eigen_leftTransform?> <?=eigen_rightTransform?> <?=consFromPrim?> <?=primFromCons?> min3 sqr <?=apply_dU_dW?> <?=apply_dW_dU?>
 
 // based on http://zingale.github.io/hydro1d/  ppm code
 
@@ -961,6 +952,7 @@ void calcCellLR_<?=side?>(
 		}<? end ?>	
 	}
 
+//// MODULE_DEPENDS: <?=cell_dx_i?>
 	real dx = cell_dx<?=side?>(cell->pos);
 	real dt_dx = dt / dx;
 	

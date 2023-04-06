@@ -2,10 +2,7 @@
 local table = require "ext.table"
 ?>
 //// MODULE_NAME: <?=updateCTU?>
-//// MODULE_DEPENDS: <?=solver_t?> <?=cell_t?> <?=cons_t?> <?=SETBOUNDS?> <?=solver_macros?> realparam
-<? if solver.usePLM then ?>
-//// MODULE_DEPENDS: <?=consLR_t?> <?=normal_t?> <?=fluxFromCons?>
-<? end ?>
+//// MODULE_DEPENDS: <?=solver_macros?>
 
 /*
 2017 Zingale "Introduction to Computational Astrophysics"

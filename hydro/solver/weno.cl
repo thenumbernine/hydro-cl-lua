@@ -1,6 +1,3 @@
-//// MODULE_NAME: weno_l/r
-//// MODULE_DEPENDS: sqr <?=normal_t?> <?=eigen_leftTransform?> <?=eigen_rightTransform?> <?=waves_t?>
-
 <? 
 local clnumber = require "cl.obj.number"
 
@@ -27,6 +24,9 @@ for side=0,solver.dim-1 do
 -- number of coefficients at each cell ... or what C type it is, and how many variables to cycle across in the ptr field
 -- ... or we can just always perform this interpolation in cons/char space
 ?>
+
+//// MODULE_NAME: weno_<?=l_or_r?>_<?=side?>
+
 <?=waves_t?> weno_<?=l_or_r?>_<?=side?>(
 	const <?=waves_t?>* v
 ) {
@@ -109,8 +109,6 @@ end
 ?>
 
 //// MODULE_NAME: calcCellFlux
-//// MODULE_DEPENDS: <?=normal_t?>
-//// MODULE_DEPENDS: <?=fluxFromCons?>
 
 kernel void calcCellFlux(
 	constant <?=solver_t?> const * const solver,
@@ -131,7 +129,6 @@ kernel void calcCellFlux(
 }
 
 //// MODULE_NAME: <?=calcFlux?>
-//// MODULE_DEPENDS: <?=normal_t?> weno_l/r <?=eigen_leftTransform?> <?=eigen_rightTransform?>
 
 kernel void <?=calcFlux?>(
 	constant <?=solver_t?> const * const solver,
@@ -174,7 +171,6 @@ for side=0,solver.dim-1 do ?>{
 	if solver.fluxMethod == "Lax-Friedrichs" then
 
 ?>
-//// MODULE_DEPENDS: <?=eigen_forInterface?>
 		<?=eigen_t?> eig;
 		<?=eigen_forInterface?>(&eig, solver, UL, UR, cellL, cellR, xInt, n);
 		real maxAbsLambda = 0.;
@@ -201,7 +197,6 @@ for side=0,solver.dim-1 do ?>{
 		global <?=cons_t?> const * const U<?=j?> = U + offset<?=j?>;
 		global <?=cell_t?> const * const cell<?=j?> = cell + offset<?=j?>;
 		//<?=cons_t?> F<?=j?> = fluxCellBuf[<?=side?> + dim * (index + <?=j - stencilSize?> * solver->stepsize.s<?=side?>)];
-//// MODULE_DEPENDS: <?=fluxFromCons?>
 		<?=cons_t?> F<?=j?>;
 		<?=fluxFromCons?>(&F<?=j?>, solver, U<?=j?>, cell<?=j?>, n);
 <?
@@ -244,7 +239,6 @@ for side=0,solver.dim-1 do ?>{
 	elseif solver.fluxMethod == "Marquina" then
 
 ?>
-//// MODULE_DEPENDS: <?=eigen_forCell?>
 		<?=eigen_t?> eigL;
 		<?=eigen_forCell?>(&eigL, solver, UL, cellL, n);
 		<?=eigen_t?> eigR;
@@ -276,7 +270,6 @@ for side=0,solver.dim-1 do ?>{
 ?>		int const offset<?=j?> = (<?=j - stencilSize?>) * solver->stepsize.s<?=side?>;
 		global <?=cons_t?> const * const U<?=j?> = U + offset<?=j?>;
 		global <?=cell_t?> const * const cell<?=j?> = cell + offset<?=j?>;
-//// MODULE_DEPENDS: <?=fluxFromCons?>
 		<?=cons_t?> F<?=j?>;
 		<?=fluxFromCons?>(&F<?=j?>, solver, U<?=j?>, cell<?=j?>, n);
 		<?=waves_t?> al<?=j?>;
@@ -343,7 +336,6 @@ for side=0,solver.dim-1 do ?>{
 		-- but this means making it a function of the lua parameters, like flux limiter.
 		-- and a flux limiter means +1 to the numGhost
 ?>
-//// MODULE_DEPENDS: <?=eigen_leftTransform?> <?=eigen_rightTransform?> <?=eigen_forInterface?>
 		
 		<?=eigen_t?> eig;
 		<?=eigen_forInterface?>(&eig, solver, UL, UR, cellL, cellR, xInt, n);

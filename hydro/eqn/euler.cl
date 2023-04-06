@@ -326,8 +326,7 @@ end
 }
 
 //// MODULE_NAME: <?=eigen_forCell?>
-//// MODULE_DEPENDS: <?=coord_lower?> <?=eqn_common?>
-// eqn_common is for all the calc_* stuff
+//// MODULE_DEPENDS: <?=coord_lower?>
 
 // used by PLM
 #define <?=eigen_forCell?>(\

@@ -22,7 +22,6 @@ function ViscousExplicit:initCodeModules()
 	solver.modules:addFromMarkup{
 		code = solver.eqn:template[[
 //// MODULE_NAME: <?=viscousExplicitUpdate?>
-//// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> <?=cell_t?> <?=SETBOUNDS?> <?=eqn_common?> 
 
 kernel void <?=viscousExplicitUpdate?>(
 	constant <?=solver_t?> const * const solver,
@@ -55,7 +54,6 @@ kernel void <?=viscousExplicitUpdate?>(
 		<? end ?>
 	<? end ?>
 
-//// MODULE_DEPENDS: real3x3
 <?=eqn:makePartial1(getV, "real3", "dv")?>
 	
 	real div_v = dv.x.x + dv.y.y + dv.z.z;
@@ -76,7 +74,6 @@ kernel void <?=viscousExplicitUpdate?>(
 	//q^i_;i = -(k T_,i g^ij)_;j = -g^ij (k T_;ij + k_,i T_,j) = -g^ij (k T_,ij - k T_,k Γ^k_ij + k_,i T_,j)
 	//for an ideal gas: T = eInt / Cv = (ETotal - 1/2 g^ij m_i m_j / ρ) / ρ / Cv
 
-//// MODULE_DEPENDS: <?=eqn_common?>
 // TODO calc_T's 'x' should vary with the offset
 <? local function getT(offset) return eqn.symbols.calc_T.."(U + "..offset..", x)" end ?>
 <?=eqn:makePartial2(getT, "real", "d2T")?>
