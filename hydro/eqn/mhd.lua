@@ -142,23 +142,24 @@ function MHD:init(args)
 				end,
 				writeVectorField = function(op,dv)
 					return self:template([[
-#if 0	// just adjust velocity
+<? if false then ?>	// just adjust velocity
 	U->m = real3_sub(U->m, real3_real_mul(<?=dv?>, U->rho));
-#endif
+<? end ?>
 
-#if 0	// adjust ETotal as well
+<? if false then ?>	// adjust ETotal as well
 	U->ETotal -= .5 * U->rho * coordLenSq(U->m, pt);
 	U->m = real3_sub(U->m, real3_real_mul(<?=dv?>, U->rho));
 	U->ETotal += .5 * U->rho * coordLenSq(U->m, pt);
-#endif
+<? end ?>
 
-#if 1 	// recalculate cons
-//// MODULE_DEPENDS: <?=primFromCons?> <?=consFromPrim?>
+<? if true then ?> 	// recalculate cons
 	<?=prim_t?> W;
+//// MODULE_DEPENDS: <?=primFromCons?>
 	<?=primFromCons?>(&W, solver, U, pt);
 	W.v = real3_sub(W.v, <?=dv?>);
+//// MODULE_DEPENDS: <?=consFromPrim?>
 	<?=consFromPrim?>(U, solver, &W, pt);
-#endif
+<? end ?>
 ]], {dv=dv})
 				end,
 				codeDepends = {

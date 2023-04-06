@@ -12,7 +12,7 @@ local args = {
 	eqn = cmdline.eqn,
 	flux = cmdline.flux,
 
-	--integrator = cmdline.integrator or 'forward Euler',
+	integrator = cmdline.integrator or 'forward Euler',
 	--integrator = 'Runge-Kutta 2',
 	--integrator = 'Runge-Kutta 2 Heun',
 	--integrator = 'Runge-Kutta 2 Ralston',
@@ -27,7 +27,7 @@ local args = {
 	--integrator = 'Iterative Crank-Nicolson',
 	--integrator = 'backward Euler',	-- this is a linear solver applied to nonlinear problems so ofc it's gonna break.  TODO proper nonlinear CG / GMRES.
 	--integrator = 'backward Euler, CPU',
-	integrator = 'backward Euler predictor-corrector',
+	--integrator = 'backward Euler predictor-corrector',
 	--integratorArgs = {verbose=true},
 
 	--fixedDT = .0001,
@@ -759,7 +759,7 @@ self.solvers:insert(require 'hydro.solver.weno'(table(args, {
 -- compressible Euler equations
 
 
---self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
+self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
 
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct bounded'})))	-- this is the default hllCalcWaveMethod
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct'})))
@@ -912,7 +912,9 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {
 -- when run alongside HD Roe solver, curves don't match (different heat capacity ratios?)
 --		but that could be because of issues with simultaneous solvers.
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='mhd'})))
-self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='mhd'})))
+--self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='mhd'})))
+
+-- TODO mhd divergence removal failing at the corners
 
 -- explodes with Orszag-Tang
 --self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='mhd', wenoMethod='1996 Jiang Shu', order=5})))
@@ -923,7 +925,8 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='mhd', eqnArgs={incompressible=true}})))
 
 
--- eqn.useFixedCh == false is failing
+-- TODO eqn.useFixedCh == false is failing
+
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='glm-mhd'})))
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='glm-mhd'})))
 --self.solvers:insert(require 'hydro.solver.fdsolver'(table(args, {eqn='glm-mhd'})))

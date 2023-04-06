@@ -30,11 +30,11 @@ function Euler:init(args)
 			solver.ops:insert(NoDiv{
 				solver = solver,
 				potentialField = 'mPot',	-- TODO don't store this
-			
+
 				--[=[ using div (m/rho) = 0, solve for div m:
 				-- TODO field as a read function, and just read
 				vectorField = 'm',
-			
+
 				-- div v = 0
 				-- div (m/ρ) = 0
 				-- 1/ρ div m - 1/ρ^2 m dot grad ρ = 0
@@ -66,7 +66,6 @@ function Euler:init(args)
 #endif
 
 #if 1 	// recalculate cons
-//// MODULE_DEPENDS: <?=primFromCons?> <?=consFromPrim?>
 	<?=prim_t?> W;
 	<?=primFromCons?>(&W, solver, U, pt);
 	W.v = real3_sub(W.v, <?=dv?>);
@@ -74,9 +73,6 @@ function Euler:init(args)
 #endif
 ]], {dv=dv})
 				end,
-				codeDepends = {
-					assert(self.symbols.eqn_common),
-				},
 				--]=]
 			})
 		else
@@ -155,13 +151,13 @@ function Euler:buildVars(args)
 	-- have to check for primVars' existence
 	self.primVars = self.primVars or table()
 	self.consVars = self.consVars or table()
-	
+
 	-- TODO primVars doesn't autogen displayVars, and therefore units doesn't matter
 	self.primVars:append{
 		{name='rho', type='real', units='kg/m^3'},
 		{name='v', type='real3', units='m/s', variance='u'},			-- contravariant
 		{name='P', type='real', units='kg/(m*s^2)'},
-		
+
 		-- used dynamically by op/selfgrav, but optionally can be initialized statically for constant/background potential energy
 		-- TODO in the static case, merge into cell_t to save memory & flops?
 		{name='ePot', type='real', units='m^2/s^2'},
@@ -205,15 +201,6 @@ function Euler:createInitState()
 			{name='heatConductivity', value=assert(self.heatConductivity), units='kg/(m*s^3*K)'},
 		}
 	end
-end
-
-function Euler:initCodeModule_calcDTCell()
-	-- ugly hack to insert more dependent modules
-	local file = require 'ext.file'
-	self.solver.modules:addFromMarkup(self:template(file'hydro/eqn/cl/calcDT.cl':read()
-	..self:template[[
-//// MODULE_DEPENDS: <?=primFromCons?>
-]]))
 end
 
 -- don't use default
@@ -274,7 +261,6 @@ function Euler:getDisplayVars()
 	}:append(self.gravOp and
 		{{name='gravity', code=self:template[[
 if (!<?=OOB?>(1,1)) {
-//// MODULE_DEPENDS: <?=eqn.gravOp.symbols.calcGravityAccel?>
 	<?=eqn.gravOp.symbols.calcGravityAccel?>(&value.vreal3, solver, U, x);
 } else {
 	value.vreal3 = real3_zero;

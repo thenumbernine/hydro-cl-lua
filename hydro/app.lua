@@ -613,6 +613,9 @@ function HydroCLApp:initGL(...)
 		local Modules = require 'modules'
 		Modules.verbose = cmdline.moduleVerbose
 		self.modules = Modules()
+		-- new system, don't need markup for dependencies.
+		--  if it finds the module name in the code then it uses it.
+		self.modules.ambitious = true
 
 		self.modules:addFromMarkup(template(file'hydro/code/math.cl':read(), table(require 'hydro.common', {
 			app = self,

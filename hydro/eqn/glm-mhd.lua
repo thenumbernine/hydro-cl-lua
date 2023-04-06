@@ -21,7 +21,7 @@ MHD.numIntStates = 9
 MHD.roeUseFluxFromCons = true
 MHD.useConstrainU = true
 
--- TODO this is broken
+-- TODO useFixedCh==false is broken
 MHD.useFixedCh = true -- true = use a gui var, false = calculate by max(|v_i|+Cf)
 
 
@@ -384,7 +384,9 @@ end
 
 function MHD:consWaveCodeMinMax(args)
 	return self:template([[
+/*{{{{ MODULE_DEPENDS: <?=range_t?> }}}}*/
 range_t lambda;
+/*{{{{ MODULE_DEPENDS: <?=calcCellMinMaxEigenvalues?> }}}}*/
 <?=calcCellMinMaxEigenvalues?>(&lambda, solver, <?=U?>, <?=pt?>, <?=n?>); 
 <?=eqn:waveCodeAssignMinMax(declare, resultMin, resultMax, 'lambda.min', 'lambda.max')?>
 ]], args)
