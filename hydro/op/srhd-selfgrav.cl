@@ -100,7 +100,6 @@ end
 }
 
 //// MODULE_NAME: <?=calcGravityDeriv?>
-//// MODULE_DEPENDS: units
 
 kernel void <?=calcGravityDeriv?>(
 	constant <?=solver_t?> const * const solver,

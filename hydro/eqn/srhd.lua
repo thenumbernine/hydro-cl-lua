@@ -109,10 +109,6 @@ function SRHD:init(args)
 				solver = self.solver,
 				potentialField = 'SPot',	-- TODO don't store this
 				
-				codeDepends = {
-					assert(self.symbols.eqn_common),
-				},
-				
 			--[=[ using 0 = div S = div (D^2 h v / ρ)
 				vectorField = 'S',
 			
@@ -129,11 +125,11 @@ function SRHD:init(args)
 		global const <?=cons_t?>* Ujm = U - solver->stepsize.s<?=j?>;
 		global const <?=cons_t?>* Ujp = U + solver->stepsize.s<?=j?>;
 		real d_rho_h_WSq_over_dx = (
-			Ujp->D * Ujp->D / Ujp->rho * calc_h(solver, Ujp->eInt)
-			- Ujm->D * Ujm->D / Ujm->rho * calc_h(solver, Ujm->eInt)
+			Ujp->D * Ujp->D / Ujp->rho * <?=calc_h?>(solver, Ujp->eInt)
+			- Ujm->D * Ujm->D / Ujm->rho * <?=calc_h?>(solver, Ujm->eInt)
 		) * (.5 / solver->grid_dx.s<?=j?>);
 		source -= d_rho_h_WSq_over_dx * U->S.s<?=j?> / (
-			U->D * U->D / U->rho * calc_h(solver, U->eInt)
+			U->D * U->D / U->rho * <?=calc_h?>(solver, U->eInt)
 		);
 	}<? end ?>
 ]],
@@ -141,7 +137,7 @@ function SRHD:init(args)
 			-- [=[ reading via div v, writing via div S
 				readVectorField = function(op, offset, j)
 					local function U(field) return 'U['..offset..'].'..field end
-					--return U('S.s'..j)..' * '..U'rho'..' / ('..U'D'..' * '..U'D'..' * calc_h(solver, '..U'eInt'..'))'
+					--return U('S.s'..j)..' * '..U'rho'..' / ('..U'D'..' * '..U'D'..' * <?=calc_h?>(solver, '..U'eInt'..'))'
 					--return U('v.s'..j)	-- div v = 0
 					return U'D'..' / '..U'rho'..' * '..U('v.s'..j)		-- div (W v) = ... W ... ?
 				end,
@@ -151,16 +147,15 @@ function SRHD:init(args)
 				writeVectorField = function(op, dv)
 					return self:template([[
 #if 0	// adjust momentum, update velocity with 'constrainU' later
-	U->S = real3_sub(U->S, real3_real_mul(<?=dv?>, U->D * U->D / U->rho * calc_h(solver, U->eInt)));
+	U->S = real3_sub(U->S, real3_real_mul(<?=dv?>, U->D * U->D / U->rho * <?=calc_h?>(solver, U->eInt)));
 #endif
 
 #if 1	// adjust velocity, update conservatives immediately
-//// MODULE_DEPENDS: <?=prim_only_t?> <?=eqn_common?>
 	<?=prim_only_t?> prim;
-	primOnlyFromCons(&prim, solver, U, pt);
+	<?=primOnlyFromCons?>(&prim, solver, U, pt);
 	//prim.v = real3_sub(prim.v, <?=dv?>);
 	prim.v = real3_sub(prim.v, real3_real_mul(<?=dv?>, U->rho / U->D));
-	consFromPrimOnly(U, solver, &prim, pt);
+	<?=consFromPrimOnly?>(U, solver, &prim, pt);
 #endif
 
 ]], {dv=dv})
@@ -176,6 +171,16 @@ function SRHD:getSymbolFields()
 	return SRHD.super.getSymbolFields(self):append{
 		'cons_only_t',
 		'prim_only_t',
+		'consFromPrimOnly',
+		'consOnlyFromPrim',
+		'primOnlyFromCons',
+		'calc_P',
+		'calc_dP_drho',
+		'calc_dP_deInt_over_rho',
+		'calc_eInt_from_P',
+		'calc_h',
+		'calc_CsSq',
+		'calc_Cs',
 	}
 end
 
@@ -191,7 +196,7 @@ function SRHD:createInitState()
 		-- setting max iter to 100+ makes it freeze initially 
 		-- but setting it to 100 after the first iteration is fine ...
 		-- meaning the initial cons to prim is taking too long ...
-		{name='solvePrimMaxIter', type='int', value=10, compileTime=true},	-- value=1000},
+		{name='solvePrimMaxIter', type='int', value=cmdline.srhdSolvePrimMaxIter or 10, compileTime=true},	-- value=1000},
 
 		{name='solvePrimStopEpsilon', value=1e-7},
 
@@ -218,22 +223,19 @@ function SRHD:createInitState()
 end
 
 function SRHD:initCodeModules()
-	SRHD.super.initCodeModules(self)
 	local solver = self.solver
 
 	solver.modules:add{
 		name = self.symbols.cons_only_t,
 		structs = {self.consOnlyStruct},
-		-- only generated for cl, not for ffi cdef
-		headercode = 'typedef '..self.symbols.cons_only_t..' cons_only_t;',
 	}
 
 	solver.modules:add{
 		name = self.symbols.prim_only_t,
 		structs = {self.primOnlyStruct},
-		-- only generated for cl, not for ffi cdef
-		headercode = 'typedef '..self.symbols.prim_only_t..' prim_only_t;',
 	}
+	
+	SRHD.super.initCodeModules(self)
 end
 
 -- don't use default
@@ -253,21 +255,21 @@ SRHD.predefinedDisplayVars = {
 function SRHD:getDisplayVars()
 	local vars = SRHD.super.getDisplayVars(self)
 	vars:append{
-		{name='W based on D', code='value.vreal = U->D / U->rho;'},
-		{name='W based on v', code='value.vreal = 1. / sqrt(1. - coordLenSq(U->v, x));'},
+		{name='W based on D', code = self:template'value.vreal = U->D / U->rho;'},
+		{name='W based on v', code = self:template'value.vreal = 1. / sqrt(1. - coordLenSq(U->v, x));'},
 		
-		{name='P', code='value.vreal = calc_P(solver, U->rho, U->eInt);'},
+		{name='P', code = self:template'value.vreal = <?=calc_P?>(solver, U->rho, U->eInt);'},
 		
-		{name='EPot', code='value.vreal = U->rho * U->ePot;'},
+		{name='EPot', code = self:template'value.vreal = U->rho * U->ePot;'},
 		
 		-- is this true for relativistic fluids?
-		{name='S', code='value.vreal = calc_P(solver, U->rho, U->eInt) / pow(U->rho, (real)solver->heatCapacityRatio);'},
+		{name='S', code = self:template'value.vreal = <?=calc_P?>(solver, U->rho, U->eInt) / pow(U->rho, (real)solver->heatCapacityRatio);'},
 		
-		{name='H', code='value.vreal = U->rho * calc_h(solver, U->eInt);', units='kg/(m*s^2)'},
-		{name='h', code='value.vreal = calc_h(solver, U->eInt);'},
+		{name='H', code = self:template'value.vreal = U->rho * <?=calc_h?>(solver, U->eInt);', units='kg/(m*s^2)'},
+		{name='h', code = self:template'value.vreal = <?=calc_h?>(solver, U->eInt);'},
 		
-		{name='speed of sound', code='value.vreal = calc_Cs(solver, U->eInt);', units='m/s'},
-		{name='Mach number', code='value.vreal = coordLen(U->v, x) / calc_Cs(solver, U->eInt);'},
+		{name='speed of sound', code = self:template'value.vreal = <?=calc_Cs?>(solver, U->eInt);', units='m/s'},
+		{name='Mach number', code = self:template'value.vreal = coordLen(U->v, x) / <?=calc_Cs?>(solver, U->eInt);'},
 
 		-- is this true for relativistic fluids?
 		{name='temperature', code=self:template[[
@@ -281,7 +283,7 @@ value.vreal = U->eInt / C_v;
 //so reconstruct cons from prims again and calculate the difference
 {
 	<?=cons_only_t?> U2;
-	consOnlyFromPrim(&U2, solver, U, x);
+	<?=consOnlyFromPrim?>(&U2, solver, U, x);
 	value.vreal = 0;
 	for (int j = 0; j < numIntStates; ++j) {
 		value.vreal += fabs(U->ptr[j] - U2.ptr[j]);
@@ -324,7 +326,7 @@ if (!<?=OOB?>(1,1)) {
 		name = 'state line',
 		type = 'real3',
 		units = '1',
-		code = 'value.vreal3 = _real3(U->rho, coordLen(U->v, x) * sign(U->v.x), calc_P(solver, U->rho, U->eInt));',
+		code = self:template'value.vreal3 = _real3(U->rho, coordLen(U->v, x) * sign(U->v.x), <?=calc_P?>(solver, U->rho, U->eInt));',
 	}
 
 	return vars
@@ -368,7 +370,7 @@ function SRHD:consWaveCodePrefix(args)
 real const eInt = (<?=U?>)->eInt;
 
 real const vSq = coordLenSq((<?=U?>)->v, <?=pt?>);
-real const csSq = calc_CsSq(solver, eInt);
+real const csSq = <?=calc_CsSq?>(solver, eInt);
 real const cs = sqrt(csSq);
 
 /* for the particular direction */
@@ -405,7 +407,7 @@ function SRHD:consWaveCodeMinMaxAllSidesPrefix(args)
 	return self:template([[
 real const eInt = (<?=U?>)->eInt;
 real const vSq = coordLenSq((<?=U?>)->v, <?=pt?>);
-real const csSq = calc_CsSq(solver, eInt);
+real const csSq = <?=calc_CsSq?>(solver, eInt);
 real const cs = sqrt(csSq);
 ]], args)
 end

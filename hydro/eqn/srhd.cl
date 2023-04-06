@@ -1,46 +1,48 @@
-//// MODULE_NAME: <?=eqn_common?>
-//// MODULE_DEPENDS: <?=coordLenSq?> <?=cons_only_t?> <?=prim_only_t?>
-
+//// MODULE_NAME: <?=calc_P?>
 /*
 pressure function for ideal gas
 P = (γ-1) ρ eInt
 */
-#define calc_P(\
+#define <?=calc_P?>(\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*real const */rho,\
 	/*real const */eInt\
 )\
 	((solver->heatCapacityRatio - 1.) * (rho) * (eInt))
 
+//// MODULE_NAME: <?=calc_dP_drho?>
 /*
 χ = dP/dρ in most papers
 P = (γ-1) ρ eInt
 dP/dρ = (γ-1) eInt
 χ = (γ-1) eInt
 */
-#define calc_dP_drho(\
+#define <?=calc_dP_drho?>(\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*real const */rho,\
 	/*real const */eInt\
 )\
 	((solver->heatCapacityRatio - 1.) * (eInt))
 
+//// MODULE_NAME: <?=calc_dP_deInt_over_rho?>
 /*
 κ = dP/deInt in most papers
 κTilde = κ/ρ
 */
-#define calc_dP_deInt_over_rho(\
+#define <?=calc_dP_deInt_over_rho?>(\
 	/*constant <?=solver_t?> const * const */solver\
 )\
 	(solver->heatCapacityRatio - 1.)
 
-#define calc_eInt_from_P(\
+//// MODULE_NAME: <?=calc_eInt_from_P?>
+#define <?=calc_eInt_from_P?>(\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*real const */rho,\
 	/*real const */P\
 )\
 	((P) / ((solver->heatCapacityRatio - 1.) * (rho)))
 
+//// MODULE_NAME: <?=calc_h?>
 /*
 h = 1 + eInt + P / ρ
  P = (γ-1) ρ eInt
@@ -48,12 +50,13 @@ h = 1 + eInt + ((γ-1) ρ eInt) / ρ
 h = 1 + eInt + (γ-1) eInt
 h = 1 + γ eInt
 */
-#define calc_h(\
+#define <?=calc_h?>(\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*real const */eInt\
 )\
 	(1. + solver->heatCapacityRatio * (eInt))
 
+//// MODULE_NAME: <?=calc_CsSq?>
 /*
 just after 2008 Font eqn 107:
 h cs^2 = χ + P / ρ^2 κ = dp/dρ + p / ρ^2 dp/deInt
@@ -74,20 +77,22 @@ cs^2 = γ / (1 + ρ (1 + eInt) / ((γ-1) ρ eInt) )
 cs^2 = γ / (1 + (1 + 1 / eInt) / (γ-1) )
 wow, when you simplify all those Cs variables, everything cancels out except eInt ...
 */
-#define calc_CsSq(\
+#define <?=calc_CsSq?>(\
 	/* constant <?=solver_t?> const * const */solver,\
 	/*real const */eInt\
 )\
 	(solver->heatCapacityRatio / (1. + (1. + 1. / (eInt) ) / (solver->heatCapacityRatio - 1.)))
 
-#define calc_Cs(\
+//// MODULE_NAME: <?=calc_Cs?>
+#define <?=calc_Cs?>(\
 	/* constant <?=solver_t?> const * const */solver,\
 	/*real const */eInt\
 )\
-	(sqrt(calc_CsSq(solver, eInt)))
+	(sqrt(<?=calc_CsSq?>(solver, eInt)))
 
-
-#define consFromPrimOnly(\
+//// MODULE_NAME: <?=consFromPrimOnly?>
+//// MODULE_DEPENDS: <?=coordLenSq?>
+#define <?=consFromPrimOnly?>(\
 	/*<?=cons_t?> * const */result,\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=prim_only_t?> const * const */prim,\
@@ -96,8 +101,8 @@ wow, when you simplify all those Cs variables, everything cancels out except eIn
 	real const vSq = coordLenSq((prim)->v, x);\
 	real const WSq = 1. / (1. - vSq);\
 	real const W = sqrt(WSq);\
-	real const P = calc_P(solver, (prim)->rho, (prim)->eInt);\
-	real const h = calc_h(solver, (prim)->eInt);\
+	real const P = <?=calc_P?>(solver, (prim)->rho, (prim)->eInt);\
+	real const h = <?=calc_h?>(solver, (prim)->eInt);\
 \
 	/* 2008 Font, eqn 40-42: */\
 \
@@ -116,9 +121,11 @@ wow, when you simplify all those Cs variables, everything cancels out except eIn
 	(result)->ePot = 0;\
 }
 
+//// MODULE_NAME: <?=consOnlyFromPrim?>
+//// MODULE_DEPENDS: <?=coordLenSq?>
 //build the cons_only_t from the <?=cons_t?>'s prim_only_t fields
 //used for checking the error between cons_only_t and its prim-reconstructed-from-cons_only_t
-#define consOnlyFromPrim(\
+#define <?=consOnlyFromPrim?>(\
 	/*<?=cons_only_t?> * const */result,\
 	/*constant <?=solver_t?> const * const */solver, \
 	/*<?=cons_t?> const * const */U,\
@@ -127,8 +134,8 @@ wow, when you simplify all those Cs variables, everything cancels out except eIn
 	real const vSq = coordLenSq((U)->v, x);\
 	real const WSq = 1. / (1. - vSq);\
 	real const W = sqrt(WSq);\
-	real const P = calc_P(solver, (U)->rho, (U)->eInt);\
-	real const h = calc_h(solver, (U)->eInt);\
+	real const P = <?=calc_P?>(solver, (U)->rho, (U)->eInt);\
+	real const h = <?=calc_h?>(solver, (U)->eInt);\
 \
 	/* 2008 Font, eqn 40-42: */\
 \
@@ -142,7 +149,8 @@ wow, when you simplify all those Cs variables, everything cancels out except eIn
 	(result)->tau = (U)->rho * h * WSq - (result)->D - P;\
 }
 
-#define primOnlyFromCons(\
+//// MODULE_NAME: <?=primOnlyFromCons?>
+#define <?=primOnlyFromCons?>(\
 	/*<?=prim_only_t?> * const */result,\
 	/*constant <?=solver_t?> const * const */solver, \
 	/*<?=cons_t?> const * const */U,\
@@ -157,7 +165,6 @@ wow, when you simplify all those Cs variables, everything cancels out except eIn
 //...and PLM uses consFromPrim and primFromCons
 
 //// MODULE_NAME: <?=applyInitCondCell?>
-//// MODULE_DEPENDS: <?=eqn_common?>
 
 void <?=applyInitCondCell?>(
 	constant <?=solver_t?> const * const solver,
@@ -189,14 +196,13 @@ void <?=applyInitCondCell?>(
 	<?=prim_only_t?> prim = {
 		.rho = rho,
 		.v = v,
-		.eInt = calc_eInt_from_P(solver, rho, P),
+		.eInt = <?=calc_eInt_from_P?>(solver, rho, P),
 	};
-	consFromPrimOnly(U, solver, &prim, x);
+	<?=consFromPrimOnly?>(U, solver, &prim, x);
 }
 
 
 //// MODULE_NAME: <?=fluxFromCons?>
-//// MODULE_DEPENDS: <?=normal_t?> <?=solver_t?> <?=cons_t?> <?=eqn_common?>
 
 #define <?=fluxFromCons?>(\
 	/*<?=cons_t?> * const */resultFlux,\
@@ -206,7 +212,7 @@ void <?=applyInitCondCell?>(
 	/*<?=normal_t?> const */n\
 ) {\
 	real const v_n = normal_vecDotN1(n, (U)->v);\
-	real const P = calc_P(solver, (U)->rho, (U)->eInt);\
+	real const P = <?=calc_P?>(solver, (U)->rho, (U)->eInt);\
 	(resultFlux)->D = (U)->D * v_n;\
 	(resultFlux)->S = real3_add(\
 		real3_real_mul((U)->S, v_n),\
@@ -224,7 +230,7 @@ void <?=applyInitCondCell?>(
 }
 
 //// MODULE_NAME: <?=calcDTCell?>
-//// MODULE_DEPENDS: <?=SETBOUNDS?> <?=coordLenSq?> <?=normal_t?> <?=eqn_common?>
+//// MODULE_DEPENDS: <?=coordLenSq?>
 
 //everything matches the default except the params passed through to calcCellMinMaxEigenvalues
 #define <?=calcDTCell?>(\
@@ -236,7 +242,7 @@ void <?=applyInitCondCell?>(
 	real3 const x = cell->pos;\
 	real const eInt = (U)->eInt;\
 	real const vSq = coordLenSq((U)->v, x);\
-	real const csSq = calc_CsSq(solver, eInt);\
+	real const csSq = <?=calc_CsSq?>(solver, eInt);\
 	real const cs = sqrt(csSq);\
 	<? for side=0,solver.dim-1 do ?>{\
 		<?=normal_t?> const n = normal_forSide<?=side?>(x);\
@@ -293,12 +299,12 @@ void <?=applyInitCondCell?>(
 	real const oneOverW = sqrt(oneOverW2);\
 	real const W = 1. / oneOverW;\
 	/*real const W2 = 1. / oneOverW2;*/\
-	/*real const P = calc_P(solver, rho, eInt);*/\
+	/*real const P = <?=calc_P?>(solver, rho, eInt);*/\
 	/*real const hW = h * W;*/\
-	real const h = calc_h(solver, eInt);\
+	real const h = <?=calc_h?>(solver, eInt);\
 \
 	real const vxSq = v.x * v.x;\
-	real const csSq = calc_CsSq(solver, eInt);\
+	real const csSq = <?=calc_CsSq?>(solver, eInt);\
 	real const cs = sqrt(csSq);\
 \
 	real const discr = sqrt((1. - vSq) * ((1. - vSq * csSq) - vxSq * (1. - csSq)));\
@@ -319,7 +325,7 @@ void <?=applyInitCondCell?>(
 \
 	/* κ = dP/deInt = d/deInt ( (γ-1) ρ eInt ) = (γ-1) ρ -- 2008 Font note just after eqn 107 */\
 	/* ~κ = κ / ρ = γ-1  -- 2008 Font eqn 112 */\
-	real const kappaTilde = calc_dP_deInt_over_rho(solver);\
+	real const kappaTilde = <?=calc_dP_deInt_over_rho?>(solver);\
 	/* used by evL and evR */\
 	real const Kappa = kappaTilde / (kappaTilde - csSq);	/* 2008 Font eqn 112.   */\
 	/* Kappa = h;	/ * approx for ideal gas */\
@@ -349,7 +355,6 @@ end):concat()
 ?>
 
 //// MODULE_NAME: <?=eigen_leftTransform?>
-//// MODULE_DEPENDS: <?=waves_t?> <?=eigen_t?>
 
 #define <?=eigen_leftTransform?>(\
 	/*<?=waves_t?> * const */result,\
@@ -429,7 +434,6 @@ end):concat()
 }
 
 //// MODULE_NAME: <?=eigen_rightTransform?>
-//// MODULE_DEPENDS: <?=waves_t?> <?=eigen_t?>
 
 #define <?=eigen_rightTransform?>(\
 	/*<?=cons_t?> * const */result,\
@@ -484,7 +488,6 @@ end):concat()
 }
 
 //// MODULE_NAME: <?=eigen_fluxTransform?>
-//// MODULE_DEPENDS: <?=eigen_t?>
 
 #define <?=eigen_fluxTransform?>(\
 	/*<?=cons_t?> * const */result,\
@@ -514,7 +517,7 @@ end):concat()
 }
 
 //// MODULE_NAME: <?=constrainU?>
-//// MODULE_DEPENDS: <?=coordLen?> <?=eqn_guiVars_compileTime?>
+//// MODULE_DEPENDS: <?=coordLen?>
 
 kernel void <?=constrainU?>(
 	constant <?=solver_t?> const * const solver,
@@ -544,6 +547,8 @@ kernel void <?=constrainU?>(
 	PMax = max(PMax, PMin);
 	real P = .5 * (PMin + PMax);
 
+// needed for solvePrimMaxIter:
+//// MODULE_DEPENDS: <?=eqn_guiVars_compileTime?>
 	for (int iter = 0; iter < solvePrimMaxIter; ++iter) {
 		real vLen = SLen / (tau + D + P);
 		real vSq = vLen * vLen;
@@ -576,7 +581,6 @@ kernel void <?=constrainU?>(
 }
 
 //// MODULE_NAME: <?=addSource?>
-//// MODULE_DEPENDS: <?=eqn_common?>
 
 kernel void <?=addSource?>(
 	constant <?=solver_t?> const * const solver,
@@ -595,7 +599,7 @@ kernel void <?=addSource?>(
 	
 	/* connection coefficient source terms of covariant derivative w/contravariant velocity vectors in a holonomic coordinate system */
 	/* TODO calculate this according to SRHD flux.  I'm winging it right now. */
-	real const P = calc_P(solver, U->rho, U->eInt);
+	real const P = <?=calc_P?>(solver, U->rho, U->eInt);
 	real3 const Ftau = real3_sub(U->S, real3_real_mul(U->v, U->D));
 
 	/* - Γ^i_jk S^j v^k  */

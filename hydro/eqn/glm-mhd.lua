@@ -224,8 +224,6 @@ function MHD:initCodeModules()
 	self.solver.modules:add{
 		name = self.symbols.roe_t,
 		structs = {self.roeStruct},
-		-- only generated for cl, not for ffi cdef
-		headercode = 'typedef '..self.symbols.roe_t..' roe_t;',
 	}
 	
 	MHD.super.initCodeModules(self)

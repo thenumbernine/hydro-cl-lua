@@ -145,12 +145,12 @@ local args = {
 		}
 	)[dim],
 	boundary = type(cmdline.boundary) == 'table' and cmdline.boundary or {
-		xmin = cmdline.boundary or 'periodic',
-		xmax = cmdline.boundary or 'periodic',
-		ymin = cmdline.boundary or 'periodic',
-		ymax = cmdline.boundary or 'periodic',
-		zmin = cmdline.boundary or 'periodic',
-		zmax = cmdline.boundary or 'periodic',
+		xmin = cmdline.boundary or 'freeflow',
+		xmax = cmdline.boundary or 'freeflow',
+		ymin = cmdline.boundary or 'freeflow',
+		ymax = cmdline.boundary or 'freeflow',
+		zmin = cmdline.boundary or 'freeflow',
+		zmax = cmdline.boundary or 'freeflow',
 	},
 	--]]
 	--[[ cylinder
@@ -348,10 +348,10 @@ local args = {
 
 	--initCond = 'rarefaction wave',
 	--initCond = 'Bessel',
-	--initCond = 'jet',
+	--initCond = 'jet',	-- TODO naming initialization mixup with srhd and this problem
 
 
-	--initCond = 'Sod',
+	initCond = 'Sod',
 	--initCondArgs = {dim=cmdline.displayDim},
 	--[[ real-world vars for Sod ... which are a few orders higher, and therefore screw up the backward-euler solver
 	-- 		which means, todo, redo the backward euler error metric so it is independent of magnitude ... ?   seems I removed that for another numerical error reason.
@@ -417,7 +417,7 @@ local args = {
 	-- states for ideal MHD or two-fluid (not two-fluid-separate)
 	--initCond = 'Brio-Wu',
 	--initCond = 'Orszag-Tang',
-	initCond = 'MHD rotor',
+	--initCond = 'MHD rotor',
 	--initCond = 'spinning magnetic fluid',
 	--initCond = 'magnetic fluid',
 	--initCond = '2017 Degris et al',
@@ -864,7 +864,7 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {
 -- f.e. and b.e. are working, but none of the r.k. integrators
 -- PLM isn't implemented yet
 -- neither is source term / poisson stuff
-self.solvers:insert(require 'hydro.solver.euler-burgers'(args))
+--self.solvers:insert(require 'hydro.solver.euler-burgers'(args))
 
 
 -- compressible Euler fluid equations + de-Donder gauge linearized GR
@@ -885,7 +885,7 @@ self.solvers:insert(require 'hydro.solver.euler-burgers'(args))
 -- 	at 256x256 fails with F.E, RK2, RK2-non-TVD., RK3-TVD, RK4, RK4-TVD, RK4-non-TVD
 --    but works with RK2-Heun, RK2-Ralston, RK2-TVD, RK3, RK4-3/8ths
 -- Kelvin-Helmholtz works for all borderes freeflow, float precision, 256x256, superbee flux limiter
---self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='srhd'})))
+self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='srhd'})))
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='srhd'})))
 --self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='srhd', wenoMethod='2010 Shen Zha', order=5})))
 

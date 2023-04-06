@@ -1266,7 +1266,7 @@ end) then
 
 
 <? if isSRHD then ?>
-		consFromPrimOnly(buf + <?=dst?>, solver, &prim, x);
+		<?=consFromPrimOnly?>(buf + <?=dst?>, solver, &prim, x);
 <? else ?>
 		<?=consFromPrim?>(buf + <?=dst?>, solver, &prim, x);
 <? end ?>
@@ -1303,7 +1303,7 @@ end
 <? end ?>
 	
 <? if isSRHD then ?>
-		consFromPrimOnly(buf + <?=dst?>, solver, &prim, x);
+		<?=consFromPrimOnly?>(buf + <?=dst?>, solver, &prim, x);
 <? else ?>
 		<?=consFromPrim?>(buf + <?=dst?>, solver, &prim, x);
 <? end ?>
@@ -1323,11 +1323,6 @@ end
 					assert(solver.eqn.symbols.consFromPrim),
 					assert(solver.coord.symbols.coordMap),
 				}
-				if require 'hydro.eqn.srhd':isa(solver.eqn) then
-					depends:append{
-						assert(solver.eqn.symbols.eqn_common),
-					}
-				end
 
 				return lines:concat'\n', depends
 			end
