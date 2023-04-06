@@ -38,7 +38,6 @@ end
 }
 
 //// MODULE_NAME: <?=fluxFromCons?>
-//// MODULE_DEPENDS: <?=normal_t?> <?=solver_t?> <?=cons_t?>
 
 #define <?=fluxFromCons?>(\
 	/*<?=cons_t?> * const */resultF,\
@@ -73,7 +72,6 @@ end --\
 }
 
 //// MODULE_NAME: <?=eigen_forInterface?>
-//// MODULE_DEPENDS: <?=eigen_t?>
 
 #define <?=eigen_forInterface?>(\
 	/*<?=eigen_t?> * const */resultEig,\
@@ -87,7 +85,6 @@ end --\
 )
 
 //// MODULE_NAME: <?=eigen_forCell?>
-//// MODULE_DEPENDS: <?=eigen_t?>
 
 #define <?=eigen_forCell?>(\
 	/*<?=eigen_t?> * const */result,\
@@ -98,7 +95,6 @@ end --\
 )
 
 //// MODULE_NAME: <?=eigen_leftTransform?>
-//// MODULE_DEPENDS: <?=eigen_t?> <?=waves_t?>
 
 #define <?=eigen_leftTransform?>(\
 	/*<?=waves_t?> * const */Y,\
@@ -152,7 +148,6 @@ end --\
 }
 
 //// MODULE_NAME: <?=eigen_rightTransform?>
-//// MODULE_DEPENDS: <?=eigen_t?> <?=waves_t?>
 
 #define <?=eigen_rightTransform?>(\
 	/*<?=cons_t?> * const */Y,\

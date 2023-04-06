@@ -1,115 +1,134 @@
-//// MODULE_NAME: <?=eqn_common?>
-//// MODULE_DEPENDS: <?=coordLenSq?> <?=cons_t?> <?=prim_t?> <?=waves_t?> <?=eigen_t?> <?=eqn_guiVars_compileTime?>
-
+//// MODULE_NAME: <?=calc_H?>
 #define /*real*/ <?=calc_H?>(\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*real const */P\
 )	((P) * (solver->heatCapacityRatio / (solver->heatCapacityRatio - 1.)))
 
+//// MODULE_NAME: <?=calc_h?>
 #define /*real*/ <?=calc_h?>(\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*real const */rho,\
 	/*real const */P\
 )	(<?=calc_H?>(solver, P) / (rho))
 
+//// MODULE_NAME: <?=calc_HTotal?>
 #define /*real*/ <?=calc_HTotal?>(\
 	/*real const */P,\
 	/*real const */ETotal\
 )	((P) + (ETotal))
 
+//// MODULE_NAME: <?=calc_hTotal?>
 #define /*real*/ <?=calc_hTotal?>(\
 	/*real const */rho,\
 	/*real const */P,\
 	/*real const */ETotal\
 )	(<?=calc_HTotal?>(P, ETotal) / (rho))
 
+//// MODULE_NAME: <?=calc_eKin?>
+//// MODULE_DEPENDS: <?=coordLenSq?>
 #define /*real*/ <?=calc_eKin?>(\
 	/*<?=prim_t?> const * const */W,\
 	/*real3 const */pt\
 )	(.5 * coordLenSq((W)->v, pt))
 
+//// MODULE_NAME: <?=calc_EKin?>
 #define /*real*/ <?=calc_EKin?>(\
 	/*<?=prim_t?> const * const */W,\
 	/*real3 const */pt\
 ) 	((W)->rho * <?=calc_eKin?>(W, pt))
 
+//// MODULE_NAME: <?=calc_EInt?>
 #define /*real*/ <?=calc_EInt?>(\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=prim_t?> const * const */W\
 ) 	((W)->P / (solver->heatCapacityRatio - 1.))
 
+//// MODULE_NAME: <?=calc_eInt?>
 #define /*real*/ <?=calc_eInt?>(\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=prim_t?> const * const */W\
 )	(<?=calc_EInt?>(solver, W) / (W)->rho)
 
+//// MODULE_NAME: <?=calc_EKin_fromCons?>
+//// MODULE_DEPENDS: <?=coordLenSq?>
 #define /*real*/ <?=calc_EKin_fromCons?>(\
 	/*<?=cons_t?> const * const*/U,\
 	/*real3 const */pt\
 )	(.5 * coordLenSq((U)->m, pt) / (U)->rho)
 
+//// MODULE_NAME: <?=calc_ETotal?>
 #define /*real*/ <?=calc_ETotal?>(\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=prim_t?> const * const */W,\
 	/*real3 const */pt\
 ) 	(<?=calc_EKin?>(W, pt) + <?=calc_EInt?>(solver, W))
 
+//// MODULE_NAME: <?=calc_Cs?>
 #define /*real*/ <?=calc_Cs?>(\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=prim_t?> const * const */W\
 ) 	(sqrt(solver->heatCapacityRatio * (W)->P / (W)->rho))
 
+//// MODULE_NAME: <?=calc_P?>
 #define /*real*/ <?=calc_P?>(\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const*/U,\
 	/*real3 const */pt\
 )	(solver->heatCapacityRatio - 1.) * (/*EInt=*/(U)->ETotal - /*EKin=*/<?=calc_EKin_fromCons?>(U, pt))
 
+//// MODULE_NAME: <?=calc_Cs_fromCons?>
 #define /*real*/ <?=calc_Cs_fromCons?>(\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */U,\
 	/*real3 const */pt\
 ) 	(sqrt(solver->heatCapacityRatio * <?=calc_P?>(solver, U, pt) / (U)->rho))
 
+//// MODULE_NAME: <?=calc_eInt_fromCons?>
+//// MODULE_DEPENDS: <?=coordLenSq?>
 #define /*real*/ <?=calc_eInt_fromCons?>(\
 	/*<?=cons_t?> const * const*/U,\
 	/*real3 const */pt\
 ) (((U)->ETotal - .5 * coordLenSq((U)->m, pt) / (U)->rho) / (U)->rho)
 
+//// MODULE_NAME: <?=calc_T?>
 <? local materials = require "hydro.materials" ?>
 #define C_v				<?=("%.50f"):format(materials.Air.C_v)?>
-
 #define /*real*/ <?=calc_T?>(\
 	/*<?=cons_t?> const * const*/U,\
 	/*real3 const */pt\
 ) (<?=calc_eInt_fromCons?>(U, pt) / C_v)
 
+//// MODULE_NAME: <?=calc_v?>
 #define /*real3*/ <?=calc_v?>(\
 	/*<?=cons_t?> const * const*/U\
 ) (real3_real_mul((U)->m, 1. / (U)->rho))
 
+//// MODULE_NAME: <?=calc_EgField?>
 //// MODULE_DEPENDS: units
-
-#define /*real3*/ calc_EgField(\
+#define /*real3*/ <?=calc_EgField?>(\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*global <?=cons_t?> const * const */U\
 )\
 	(real3_real_mul((U)->D_g, 4. * M_PI * solver->gravitationalConstant / unit_m3_per_kg_s2))
 
-#define /*real3*/ calc_HgField(\
+//// MODULE_NAME: <?=calc_HgField?>
+#define /*real3*/ <?=calc_HgField?>(\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*global <?=cons_t?> const * const */U\
 )\
 	(real3_real_mul((U)->B_g, solver->speedOfLight * solver->speedOfLight / (4. * M_PI * solver->gravitationalConstant) / unit_kg_per_m))
 
-#define /*real3*/ calc_SgField(\
+//// MODULE_NAME: <?=calc_SgField?>
+#define /*real3*/ <?=calc_SgField?>(\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*global <?=cons_t?> const * const */U\
 )\
-	(real3_cross(calc_EgField(solver, U), calc_HgField(solver, U)))
+	(real3_cross(<?=calc_EgField?>(solver, U), <?=calc_HgField?>(solver, U)))
 
+//// MODULE_NAME: <?=calc_GEM_energy?>
+//// MODULE_DEPENDS: <?=coordLenSq?>
 //units are energy-per-volume: kg/(m*s^2)
-static inline real calc_GEM_energy(
+static inline real <?=calc_GEM_energy?>(
 	constant <?=solver_t?> const * const solver,
 	global <?=cons_t?> const * const U,
 	real3 const x
@@ -122,10 +141,11 @@ static inline real calc_GEM_energy(
 	return .5 * (coordLenSq(U->D_g, x) * _1_eps_g + coordLenSq(U->B_g, x) * _1_mu_g);
 }
 
+//// MODULE_NAME: <?=calcGravityForcePerVolume?>
 //rho * (E + v * B) has units kg/(m^2 s^2)
 //so this is a force-per-volume
 //divide by rho to get m/s^2 acceleration
-real3 calcGravityForcePerVolume(
+real3 <?=calcGravityForcePerVolume?>(
 	constant <?=solver_t?> const * const solver,
 	global <?=cons_t?> const * const U,
 	real3 const pt
@@ -139,8 +159,6 @@ real3 calcGravityForcePerVolume(
 }
 
 //// MODULE_NAME: <?=primFromCons?>
-//// MODULE_DEPENDS: real3 <?=solver_t?> <?=prim_t?> <?=cons_t?> <?=eqn_common?>
-// eqn_common is for all the calc_* stuff
 
 #define <?=primFromCons?>(\
 	/*<?=prim_t?> * const */resultW,\
@@ -158,8 +176,6 @@ real3 calcGravityForcePerVolume(
 }
 
 //// MODULE_NAME: <?=consFromPrim?>
-//// MODULE_DEPENDS: real3 <?=eqn_common?> <?=solver_t?> <?=prim_t?> <?=cons_t?>
-// eqn_common is for all the calc_* stuff
 
 #define <?=consFromPrim?>(\
 	/*<?=cons_t?> * const */ resultU,\
@@ -350,8 +366,7 @@ end
 }
 
 //// MODULE_NAME: <?=eigen_forCell?>
-//// MODULE_DEPENDS: <?=normal_t?> <?=coord_lower?> <?=cons_t?> <?=prim_t?> <?=eigen_t?> <?=primFromCons?> <?=eqn_common?>
-// eqn_common is for all the calc_* stuff
+//// MODULE_DEPENDS: <?=coord_lower?>
 
 // used by PLM
 #define <?=eigen_forCell?>(\
@@ -792,7 +807,7 @@ Maybe for an initial constant vel as large as sqrt(2) this fails, but it works o
 	real3 const commTrace = coord_tr23_c(x);
 	<? for i=0,solver.dim-1 do ?>{
 		<?=cons_t?> flux;
-		calcFluxFromCons(&F, *U, x);
+		<?=calcFluxFromCons?>(&F, *U, x);
 		for (int j = 0; j < numIntStates; ++j) {
 			deriv->ptr[j] += commTrace.s<?=i?> * flux.ptr[j];
 		}
@@ -807,8 +822,7 @@ Maybe for an initial constant vel as large as sqrt(2) this fails, but it works o
 //	real const mu_g = _1_eps_g / speedOfLightSq;
 	real const speedOfLightSq = solver->speedOfLight * solver->speedOfLight / unit_m2_per_s2;
 
-//// MODULE_DEPENDS: <?=eqn_common?>
-	real3 const gravityForce = calcGravityForcePerVolume(solver, U, x);
+	real3 const gravityForce = <?=calcGravityForcePerVolume?>(solver, U, x);
 	
 	deriv->m = real3_add(deriv->m, gravityForce);
 

@@ -21,6 +21,16 @@ EulerLinGR.name = 'euler_lingr'
 -- which means this flag shouldn't change the results.
 EulerLinGR.roeUseFluxFromCons = false
 
+function EulerLinGR:getSymbolFields()
+	return table(EulerLinGR.super.getSymbolFields(self)):append{
+		'calc_EgField',
+		'calc_HgField',
+		'calc_SgField',
+		'calc_GEM_energy',
+		'calcGravityForcePerVolume',
+	}
+end
+
 function EulerLinGR:buildVars(args)
 	EulerLinGR.super.buildVars(self, args)
 	for _,t in ipairs{self.primVars, self.consVars} do
@@ -120,24 +130,24 @@ function EulerLinGR:getDisplayVars()
 			name = 'E_g',
 			type = 'real3',
 			units = 'm/s^2',
-			code = 'value.vreal3 = calc_EgField(solver, U);',
+			code = self:template'value.vreal3 = <?=calc_EgField?>(solver, U);',
 		},
 		{
 			name = 'H_g',
 			type = 'real3',
 			units = 'kg/(m*s)',
-			code = 'value.vreal3 = calc_HgField(solver, U);',
+			code = self:template'value.vreal3 = <?=calc_HgField?>(solver, U);',
 		},
 		{
 			name = 'S_g',	-- S Poynting, not S entropy
 			type = 'real3',
 			units = 'kg/s^3',
-			code = 'value.vreal3 = calc_SgField(solver, U);',
+			code = self:template'value.vreal3 = <?=calc_SgField?>(solver, U);',
 		},
 		{
 			name = 'GEM energy',
 			units = 'kg/(m*s^2)',
-			code = 'value.vreal = calc_GEM_energy(solver, U, x);',
+			code = self:template'value.vreal = <?=calc_GEM_energy?>(solver, U, x);',
 		},
 		
 		-- D_g / ε = E_g = Newtonian gravitational acceleration
@@ -146,7 +156,7 @@ function EulerLinGR:getDisplayVars()
 			name = 'v cross B_g',
 			type = 'real3',
 			units = 'm/s^2',
-			code = 'value.vreal3 = real3_cross(W.v, U->B_g);',
+			code = self:template'value.vreal3 = real3_cross(W.v, U->B_g);',
 		},
 	}:append(table{'D_g','B_g'}:mapi(function(field)
 		local field = assert( ({D_g='D_g', B_g='B_g'})[field] )
@@ -164,7 +174,7 @@ function EulerLinGR:getDisplayVars()
 		type = 'real3',
 		units = 'm/s^2',
 		code = self:template[[
-value.vreal3 = real3_real_mul(calcGravityForcePerVolume(solver, U, x), 1. / U->rho);
+value.vreal3 = real3_real_mul(<?=calcGravityForcePerVolume?>(solver, U, x), 1. / U->rho);
 ]],
 	}
 		
