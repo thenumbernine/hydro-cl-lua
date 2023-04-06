@@ -1,5 +1,4 @@
 //// MODULE_NAME: <?=primFromCons?>
-//// MODULE_DEPENDS: real3 <?=solver_t?> <?=prim_t?> <?=cons_t?>
 
 #define <?=primFromCons?>(\
 	/*<?=prim_t?> * const */result,\
@@ -15,7 +14,6 @@
 }
 
 //// MODULE_NAME: <?=consFromPrim?>
-//// MODULE_DEPENDS: real3 <?=solver_t?> <?=prim_t?> <?=cons_t?>
 
 #define <?=consFromPrim?>(\
 	/*<?=cons_t?> * const */result,\
@@ -31,7 +29,6 @@
 }
 
 //// MODULE_NAME: <?=apply_dU_dW?>
-//// MODULE_DEPENDS: real3 <?=solver_t?> <?=prim_t?> <?=cons_t?>
 
 #define <?=apply_dU_dW?>(\
 	/*<?=cons_t?> * const */result,\
@@ -50,7 +47,6 @@
 }
 
 //// MODULE_NAME: <?=apply_dW_dU?>
-//// MODULE_DEPENDS: real3 <?=solver_t?> <?=prim_t?> <?=cons_t?>
 
 #define <?=apply_dW_dU?>(\
 	/*<?=prim_t?> * const */result,\
@@ -68,10 +64,9 @@
 <? end ?>
 }
 
-//// MODULE_NAME: <?=eqn_common?>
-//// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?>
+//// MODULE_NAME: <?=calc_C?>
 
-#define calc_C(\
+#define <?=calc_C?>(\
 	/*constant <?=solver_t?> const * const */solver,\
 	/*<?=cons_t?> const * const */U\
 )\
@@ -120,7 +115,6 @@ end
 }
 
 //// MODULE_NAME: <?=fluxFromCons?>
-//// MODULE_DEPENDS: <?=solver_t?> <?=primFromCons?> <?=normal_t?>
 
 #define <?=fluxFromCons?>(\
 	/*<?=cons_t?> * const */result,\
@@ -156,14 +150,13 @@ end
 	<?=prim_t?> W;\
 	<?=primFromCons?>(&W, solver, U, pt);\
 	real const v_n = normal_vecDotN1(n, W.v);\
-	real const C = calc_C(solver, U);\
+	real const C = <?=calc_C?>(solver, U);\
 	real const C_nLen = C * normal_len(n);\
 	(result)->min = v_n - C_nLen;\
 	(result)->max = v_n + C_nLen;\
 }
 
 //// MODULE_NAME: <?=eigen_forInterface?>
-//// MODULE_DEPENDS: <?=eigen_t?>
 
 #define <?=eigen_forInterface?>(\
 	/*<?=eigen_t?> * const */resultEig,\
@@ -206,7 +199,6 @@ end
 }
 
 //// MODULE_NAME: <?=eigen_forCell?>
-//// MODULE_DEPENDS: <?=eigen_t?>
 
 // used by PLM
 #define <?=eigen_forCell?>(\
@@ -226,7 +218,6 @@ end
 }
 
 //// MODULE_NAME: <?=eigen_leftTransform?>
-//// MODULE_DEPENDS: <?=waves_t?> <?=eigen_t?>
 
 #define <?=eigen_leftTransform?>(\
 	/*<?=waves_t?> * const */result,\
@@ -262,7 +253,6 @@ end
 }
 
 //// MODULE_NAME: <?=eigen_rightTransform?>
-//// MODULE_DEPENDS: <?=waves_t?> <?=eigen_t?>
 
 #define <?=eigen_rightTransform?>(\
 	/*<?=cons_t?> * const */result,\
@@ -312,7 +302,6 @@ end
 }
 
 //// MODULE_NAME: <?=eigen_fluxTransform?>
-//// MODULE_DEPENDS: <?=eigen_t?>
 
 #define <?=eigen_fluxTransform?>(\
 	/*<?=cons_t?> * const */result,\
@@ -336,7 +325,6 @@ end
 }
 
 //// MODULE_NAME: <?=addSource?>
-//// MODULE_DEPENDS: <?=primFromCons?> <?=SETBOUNDS_NOGHOST?>
 
 kernel void <?=addSource?>(
 	constant <?=solver_t?> const * const solver,
@@ -409,7 +397,6 @@ kernel void <?=addSource?>(
 	// diffusion? 
 	// of the difference of the height and the sea floor? 
 	// what can save this simulation?
-//// MODULE_DEPENDS: sym3
 <?=eqn:makePartial2'h'?>
 <?=eqn:makePartial2("depth", "real", nil, getDepthSource())?>
 	deriv->h -= .0002 * (partial2_h_ll.xx - partial2_depth_ll.xx);

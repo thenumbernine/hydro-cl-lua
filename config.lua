@@ -709,7 +709,9 @@ if cmdline.solver then self.solvers:insert(require('hydro.solver.'..cmdline.solv
 
 --self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='wave_metric', eqnArgs={beta={'-y / (r * r)','x / (r * r)','0'}}, wenoMethod='1996 Jiang Shu', order=5})))
 
---[[ Acoustic black hole.  for use with cylinder grid?
+--[[ Acoustic black hole.
+-- for use with cylinder grid?
+-- and which initial conditions? 
 args.eqnArgs = args.eqnArgs or {}
 -- for 2012 Visser A.B. metric,
 args.eqnArgs.alpha = '1'
@@ -731,7 +733,7 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn
 -- shallow water equations
 
 
---self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='shallow-water'})))
+self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='shallow-water'})))
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='shallow-water'})))
 --self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='shallow-water', wenoMethod='1996 Jiang Shu', order=5})))
 --self.solvers:insert(require 'hydro.solver.fdsolver'(table(args, {eqn='shallow-water'})))
@@ -903,6 +905,8 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {
 -- ideal magnetohydrodynamics
 
 
+-- TODO mhd divergence removal failing at the corners
+
 -- with superbee flux lim:
 -- Brio-Wu works in 1D at 256, works in 2D at 64x64 in a 1D profile in the x and y directions.
 -- Orszag-Tang with forward Euler integrator fails at 64x64 around .7 or .8
@@ -912,9 +916,7 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {
 -- when run alongside HD Roe solver, curves don't match (different heat capacity ratios?)
 --		but that could be because of issues with simultaneous solvers.
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='mhd'})))
-self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='mhd'})))
-
--- TODO mhd divergence removal failing at the corners
+--self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='mhd'})))
 
 -- explodes with Orszag-Tang
 --self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='mhd', wenoMethod='1996 Jiang Shu', order=5})))

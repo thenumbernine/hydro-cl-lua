@@ -1,5 +1,4 @@
 //// MODULE_NAME: <?=metric_f?>
-//// MODULE_DEPENDS: real3
 
 #define /*real */<?=metric_f?>(/*real3 const */pt) \
 	(<?=eqn:compile(eqn.metric.f)?>)
@@ -40,7 +39,6 @@ end
 }
 
 //// MODULE_NAME: <?=fluxFromCons?>
-//// MODULE_DEPENDS: <?=solver_t?> <?=normal_t?> <?=cons_t?>
 
 // What's the difference between <?=eigen_fluxTransform?> and <?=fluxFromCons?>?
 // The difference is that the flux matrix of this is based on 'eig', which is derived from U's ... especially UL & UR in the case of the Roe solver
@@ -96,7 +94,6 @@ void <?=calcCellMinMaxEigenvalues?>(
 }
 
 //// MODULE_NAME: <?=eigen_forInterface?>
-//// MODULE_DEPENDS: <?=eigen_t?>
 
 #define <?=eigen_forInterface?>(\
 	/*<?=eigen_t?> * const */resultEig,\
@@ -111,7 +108,6 @@ void <?=calcCellMinMaxEigenvalues?>(
 	*(resultEig) = (<?=eigen_t?>){}
 
 //// MODULE_NAME: <?=eigen_forCell?>
-//// MODULE_DEPENDS: <?=eigen_t?>
 
 #define <?=eigen_forCell?>(\
 	/*<?=eigen_t?> * const */resultEig,\
@@ -123,7 +119,6 @@ void <?=calcCellMinMaxEigenvalues?>(
 	*(resultEig) = (<?=eigen_t?>){};
 
 //// MODULE_NAME: <?=eigen_leftTransform?>
-//// MODULE_DEPENDS: <?=eigen_t?> <?=waves_t?>
 
 #define <?=eigen_leftTransform?>(\
 	/*<?=waves_t?> * const */result,\
@@ -160,7 +155,6 @@ void <?=calcCellMinMaxEigenvalues?>(
 }
 
 //// MODULE_NAME: <?=eigen_rightTransform?>
-//// MODULE_DEPENDS: <?=eigen_t?> <?=waves_t?>
 
 #define <?=eigen_rightTransform?>(\
 	/*<?=cons_t?> * const */result,\
@@ -215,7 +209,7 @@ void <?=calcCellMinMaxEigenvalues?>(
 then ?>
 
 //// MODULE_NAME: <?=addSource?>
-//// MODULE_DEPENDS: <?=coord_raise?> <?=coord_connHol_trace23?> <?=metric_f?>
+//// MODULE_DEPENDS: <?=coord_raise?> <?=coord_connHol_trace23?>
 
 kernel void <?=addSource?>(
 	constant <?=solver_t?> const * const solver,

@@ -91,6 +91,12 @@ function ShallowWater:init(args)
 	ShallowWater.super.init(self, args)
 end
 
+function ShallowWater:getSymbolFields()
+	return table(ShallowWater.super.getSymbolFields(self)):append{
+		'calc_C',
+	}
+end
+
 function ShallowWater:getEnv()
 	local env = table(ShallowWater.super.getEnv(self))
 	env.getDepthSource = function(U, cell)
@@ -212,8 +218,7 @@ function ShallowWater:getDisplayVars()
 	vars:append{
 		{name='v', code='value.vreal3 = W.v;', type='real3', units='m/s'},
 		{name='wavespeed', code=self:template[[
-//// MODULE_DEPENDS: <?=eqn_common?>
-value.vreal = calc_C(solver, U);
+value.vreal = <?=calc_C?>(solver, U);
 ]], units='m/s'},
 		-- D(x) = maximum depth = constant
 		-- H(x) = cell->depth = displacement of seafloor below resting depth.
