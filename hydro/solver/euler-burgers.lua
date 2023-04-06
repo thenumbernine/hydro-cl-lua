@@ -23,6 +23,13 @@ function EulerBurgers:init(...)
 	self.name = nil	-- don't append the eqn name to this
 end
 
+function EulerBurgers:getSymbolFields()
+	return EulerBurgers.super.getSymbolFields(self):append{
+		'calcIntVel',
+	}
+end
+
+
 -- override this -- don't expect a flux argument
 -- ... or ... make -burgers a flux object?  but then you need to add the pressure integration as well
 function EulerBurgers:createFlux(fluxName, fluxArgs)
@@ -56,7 +63,7 @@ end
 function EulerBurgers:initCodeModules()
 	EulerBurgers.super.initCodeModules(self)
 	self.modules:addFromMarkup(self.eqn:template(file'hydro/solver/euler-burgers.cl':read()))
-	self.solverModulesEnabled['EulerBurgers.solver'] = true
+	self.solverModulesEnabled[self.symbols.calcIntVel] = true
 end
 
 function EulerBurgers:refreshSolverProgram()
@@ -64,7 +71,7 @@ function EulerBurgers:refreshSolverProgram()
 
 	-- no mention of ULR just yet ...
 
-	self.calcIntVelKernelObj = self.solverProgramObj:kernel'calcIntVel'
+	self.calcIntVelKernelObj = self.solverProgramObj:kernel(self.symbols.calcIntVel)
 	self.calcFluxKernelObj = self.solverProgramObj:kernel(self.symbols.calcFlux)
 
 	self.computePressureKernelObj = self.solverProgramObj:kernel('computePressure', self.solverBuf, self.PBuf, self.UBuf, self.cellBuf)

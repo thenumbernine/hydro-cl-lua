@@ -1918,7 +1918,6 @@ end ?><?=group.extraArgs and #group.extraArgs > 0
 		and ',\n\t'..table.concat(group.extraArgs, ',\n\t')
 		or '' ?>
 ) {
-//// MODULE_DEPENDS: <?=SETBOUNDS?>
 	<?=SETBOUNDS?>(0,0);
 <? if not require 'hydro.solver.meshsolver':isa(solver) then
 ?>	bool const oob = <?=OOB?>(solver->numGhost, solver->numGhost);

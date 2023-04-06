@@ -864,13 +864,13 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {
 -- f.e. and b.e. are working, but none of the r.k. integrators
 -- PLM isn't implemented yet
 -- neither is source term / poisson stuff
---self.solvers:insert(require 'hydro.solver.euler-burgers'(args))
+self.solvers:insert(require 'hydro.solver.euler-burgers'(args))
 
 
 -- compressible Euler fluid equations + de-Donder gauge linearized GR
 
 
-self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler-lingr'})))
+--self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler-lingr'})))
 
 
 -- special relativistic compressible hydrodynamics

@@ -1,5 +1,4 @@
 //// MODULE_NAME: <?=calcDTCell?>
-//// MODULE_DEPENDS: <?=solver_t?> <?=primFromCons?> <?=eqn_guiVars_compileTime?>
 
 <? if require "hydro.solver.gridsolver":isa(solver) then ?>
 
@@ -47,10 +46,9 @@ kernel void <?=calcDTCell?>(
 
 <? end -- mesh solver ?>
 
-//// MODULE_NAME: EulerBurgers.solver
-//// MODULE_DEPENDS: <?=SETBOUNDS?> <?=fluxLimiter?> <?=primFromCons?>
+//// MODULE_NAME: <?=calcIntVel?>
 
-kernel void calcIntVel(
+kernel void <?=calcIntVel?>(
 	constant <?=solver_t?> const * const solver,
 	global real * const intVelBuf,
 	global const <?=solver.getULRArg?>,
