@@ -709,8 +709,6 @@ Maybe for an initial constant vel as large as sqrt(2) this fails, but it works o
 <? if true then -- implicit solvers need this
 ?>
 //// MODULE_NAME: <?=constrainU?>
-//// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> <?=cell_t?> <?=primFromCons?> <?=consFromPrim?>
-
 kernel void <?=constrainU?>(
 	constant <?=solver_t?> const * const solver,
 	global <?=cons_t?> * const UBuf,
