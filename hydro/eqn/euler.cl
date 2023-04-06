@@ -1,5 +1,4 @@
 //// MODULE_NAME: <?=calc_H?>
-//// MODULE_DEPENDS: <?=coordLenSq?> <?=eqn_guiVars_compileTime?>
 
 #define /*real*/ <?=calc_H?>(\
 	/*constant <?=solver_t?> const * const */solver,\
@@ -7,7 +6,6 @@
 )	((P) * (solver->heatCapacityRatio / (solver->heatCapacityRatio - 1.)))
 
 //// MODULE_NAME: <?=calc_h?>
-//// MODULE_DEPENDS: <?=coordLenSq?> <?=eqn_guiVars_compileTime?>
 
 #define /*real*/ <?=calc_h?>(\
 	/*constant <?=solver_t?> const * const */solver,\
@@ -16,7 +14,6 @@
 )	(<?=calc_H?>(solver, P) / (rho))
 
 //// MODULE_NAME: <?=calc_HTotal?>
-//// MODULE_DEPENDS: <?=coordLenSq?> <?=eqn_guiVars_compileTime?>
 
 #define /*real*/ <?=calc_HTotal?>(\
 	/*real const */P,\
@@ -24,7 +21,6 @@
 )	((P) + (ETotal))
 
 //// MODULE_NAME: <?=calc_hTotal?>
-//// MODULE_DEPENDS: <?=coordLenSq?> <?=eqn_guiVars_compileTime?>
 
 #define /*real*/ <?=calc_hTotal?>(\
 	/*real const */rho,\
@@ -33,7 +29,7 @@
 )	(<?=calc_HTotal?>(P, ETotal) / (rho))
 
 //// MODULE_NAME: <?=calc_eKin?>
-//// MODULE_DEPENDS: <?=coordLenSq?> <?=eqn_guiVars_compileTime?>
+//// MODULE_DEPENDS: <?=coordLenSq?>
 
 #define /*real*/ <?=calc_eKin?>(\
 	/*<?=prim_t?> const * const */W,\
@@ -41,7 +37,6 @@
 )	(.5 * coordLenSq((W)->v, x))
 
 //// MODULE_NAME: <?=calc_EKin?>
-//// MODULE_DEPENDS: <?=coordLenSq?> <?=eqn_guiVars_compileTime?>
 
 #define /*real*/ <?=calc_EKin?>(\
 	/*<?=prim_t?> const * const */W,\
@@ -49,7 +44,6 @@
 ) 	((W)->rho * <?=calc_eKin?>(W, x))
 
 //// MODULE_NAME: <?=calc_EInt?>
-//// MODULE_DEPENDS: <?=coordLenSq?> <?=eqn_guiVars_compileTime?>
 
 #define /*real*/ <?=calc_EInt?>(\
 	/*constant <?=solver_t?> const * const */solver,\
@@ -57,7 +51,6 @@
 ) 	((W)->P / (solver->heatCapacityRatio - 1.))
 
 //// MODULE_NAME: <?=calc_eInt?>
-//// MODULE_DEPENDS: <?=coordLenSq?> <?=eqn_guiVars_compileTime?>
 
 #define /*real*/ <?=calc_eInt?>(\
 	/*constant <?=solver_t?> const * const */solver,\
@@ -65,7 +58,7 @@
 )	(<?=calc_EInt?>(solver, W) / (W)->rho)
 
 //// MODULE_NAME: <?=calc_EKin_fromCons?>
-//// MODULE_DEPENDS: <?=coordLenSq?> <?=eqn_guiVars_compileTime?>
+//// MODULE_DEPENDS: <?=coordLenSq?>
 
 #define /*real*/ <?=calc_EKin_fromCons?>(\
 	/*constant <?=solver_t?> const * const */solver,\
@@ -74,7 +67,6 @@
 )	((U)->rho < solver->rhoMin ? 0. : (.5 * coordLenSq((U)->m, x) / (U)->rho))
 
 //// MODULE_NAME: <?=calc_ETotal?>
-//// MODULE_DEPENDS: <?=coordLenSq?> <?=eqn_guiVars_compileTime?>
 
 #define /*real*/ <?=calc_ETotal?>(\
 	/*constant <?=solver_t?> const * const */solver,\
@@ -83,7 +75,6 @@
 ) 	(<?=calc_EKin?>(W, x) + <?=calc_EInt?>(solver, W))
 
 //// MODULE_NAME: <?=calc_P?>
-//// MODULE_DEPENDS: <?=coordLenSq?> <?=eqn_guiVars_compileTime?>
 
 #define /*real*/ <?=calc_P?>(\
 	/*constant <?=solver_t?> const * const */solver,\
@@ -92,7 +83,6 @@
 )	((U)->rho < solver->rhoMin ? 0. : ((solver->heatCapacityRatio - 1.) * (/*EInt=*/(U)->ETotal - /*EKin=*/<?=calc_EKin_fromCons?>(solver, U, x))))
 
 //// MODULE_NAME: <?=calc_Cs?>
-//// MODULE_DEPENDS: <?=coordLenSq?> <?=eqn_guiVars_compileTime?>
 
 real <?=calc_Cs?>(
 	constant <?=solver_t?> const * const solver,
@@ -104,7 +94,6 @@ real <?=calc_Cs?>(
 }
 
 //// MODULE_NAME: <?=calc_Cs_fromCons?>
-//// MODULE_DEPENDS: <?=coordLenSq?> <?=eqn_guiVars_compileTime?>
 
 #define <?=calc_Cs_fromCons?>(\
 	/*real * const */result,\
@@ -123,7 +112,7 @@ real <?=calc_Cs?>(
 }
 
 //// MODULE_NAME: <?=calc_eInt_fromCons?>
-//// MODULE_DEPENDS: <?=coordLenSq?> <?=eqn_guiVars_compileTime?>
+//// MODULE_DEPENDS: <?=coordLenSq?>
 
 #define /*real*/ <?=calc_eInt_fromCons?>(\
 	/*<?=cons_t?> const * const*/U,\
@@ -131,7 +120,6 @@ real <?=calc_Cs?>(
 ) (((U)->ETotal - .5 * coordLenSq((U)->m, x) / (U)->rho) / (U)->rho - (U)->ePot)
 
 //// MODULE_NAME: <?=calc_T?>
-//// MODULE_DEPENDS: <?=coordLenSq?> <?=eqn_guiVars_compileTime?>
 
 <? local materials = require "hydro.materials" ?>
 #define C_v				<?=("%.50f"):format(materials.Air.C_v)?>
@@ -142,7 +130,6 @@ real <?=calc_Cs?>(
 ) (<?=calc_eInt_fromCons?>(U, x) / C_v)
 
 //// MODULE_NAME: <?=calc_v?>
-//// MODULE_DEPENDS: <?=coordLenSq?> <?=eqn_guiVars_compileTime?>
 
 #define /*real3*/ <?=calc_v?>(\
 	/*<?=cons_t?> const * const*/U\

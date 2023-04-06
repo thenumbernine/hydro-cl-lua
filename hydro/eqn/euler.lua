@@ -60,6 +60,7 @@ function Euler:init(args)
 #endif
 
 #if 0	// adjust ETotal as well
+//// MODULE_DEPENDS: <?=coordLenSq?>
 	U->ETotal -= .5 * U->rho * coordLenSq(U->m, pt);
 	U->m = real3_sub(U->m, real3_real_mul(<?=dv?>, U->rho));
 	U->ETotal += .5 * U->rho * coordLenSq(U->m, pt);
