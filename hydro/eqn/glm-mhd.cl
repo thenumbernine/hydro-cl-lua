@@ -1,34 +1,65 @@
-//// MODULE_NAME: <?=eqn_common?>
+//// MODULE_NAME: <?=calc_eKin?>
 //// MODULE_DEPENDS: <?=coordLenSq?>
+static inline real <?=calc_eKin?>(<?=prim_t?> const * const W, real3 x) { return .5 * coordLenSq((W)->v, x); }
 
-static inline real calc_eKin(<?=prim_t?> const * const W, real3 x) { return .5 * coordLenSq((W)->v, x); }
-static inline real calc_EKin(<?=prim_t?> const * const W, real3 x) { return (W)->rho * calc_eKin(W, x); }
-static inline real calc_EInt(constant <?=solver_t?> const * const solver, <?=prim_t?> const * const W) { return (W)->P / (solver->heatCapacityRatio - 1.); }
-static inline real calc_eInt(constant <?=solver_t?> const * const solver, <?=prim_t?> const * const W) { return calc_EInt(solver, W) / (W)->rho; }
-static inline real calc_EM_energy(constant <?=solver_t?> const * const solver, <?=prim_t?> const * const W, real3 const x) { return .5 * coordLenSq((W)->B, x) / (solver->mu0 / unit_kg_m_per_C2); }
-static inline real calc_PMag(constant <?=solver_t?> const * const solver, <?=prim_t?> const * const W, real3 const x) { return .5 * coordLenSq((W)->B, x) / (solver->mu0 / unit_kg_m_per_C2); }
-static inline real calc_EHydro(constant <?=solver_t?> const * const solver, <?=prim_t?> const * const W, real3 const x) { return calc_EKin(W, x) + calc_EInt(solver, W); }
-static inline real calc_eHydro(constant <?=solver_t?> const * const solver, <?=prim_t?> const * const W, real3 const x) { return calc_EHydro(solver, W, x) / (W)->rho; }
-static inline real calc_ETotal(constant <?=solver_t?> const * const solver, <?=prim_t?> const * const W, real3 const x) { return calc_EKin(W, x) + calc_EInt(solver, W) + calc_EM_energy(solver, W, x); }
-static inline real calc_eTotal(constant <?=solver_t?> const * const solver, <?=prim_t?> const * const W, real3 const x) { return calc_ETotal(solver, W, x) / (W)->rho; }
-static inline real calc_H(constant <?=solver_t?> const * const solver, real const P) { return P * (solver->heatCapacityRatio / (solver->heatCapacityRatio - 1.)); }
-static inline real calc_h(constant <?=solver_t?> const * const solver, real const rho, real const P) { return calc_H(solver, P) / rho; }
-static inline real calc_HTotal(constant <?=solver_t?> const * const solver, <?=prim_t?> const * const W, real const ETotal, real3 const x) { return (W)->P + calc_PMag(solver, W, x) + ETotal; }
-static inline real calc_hTotal(constant <?=solver_t?> const * const solver, <?=prim_t?> const * const W, real const ETotal, real3 const x) { return calc_HTotal(solver, W, ETotal, x) / (W)->rho; }
+//// MODULE_NAME: <?=calc_EKin?>
+static inline real <?=calc_EKin?>(<?=prim_t?> const * const W, real3 x) { return (W)->rho * <?=calc_eKin?>(W, x); }
+
+//// MODULE_NAME: <?=calc_EInt?>
+static inline real <?=calc_EInt?>(constant <?=solver_t?> const * const solver, <?=prim_t?> const * const W) { return (W)->P / (solver->heatCapacityRatio - 1.); }
+
+//// MODULE_NAME: <?=calc_eInt?>
+static inline real <?=calc_eInt?>(constant <?=solver_t?> const * const solver, <?=prim_t?> const * const W) { return <?=calc_EInt?>(solver, W) / (W)->rho; }
+
+//// MODULE_NAME: <?=calc_EM_energy?>
+//// MODULE_DEPENDS: <?=coordLenSq?>
+static inline real <?=calc_EM_energy?>(constant <?=solver_t?> const * const solver, <?=prim_t?> const * const W, real3 const x) { return .5 * coordLenSq((W)->B, x) / (solver->mu0 / unit_kg_m_per_C2); }
+
+//// MODULE_NAME: <?=calc_PMag?>
+//// MODULE_DEPENDS: <?=coordLenSq?>
+static inline real <?=calc_PMag?>(constant <?=solver_t?> const * const solver, <?=prim_t?> const * const W, real3 const x) { return .5 * coordLenSq((W)->B, x) / (solver->mu0 / unit_kg_m_per_C2); }
+
+//// MODULE_NAME: <?=calc_EHydro?>
+static inline real <?=calc_EHydro?>(constant <?=solver_t?> const * const solver, <?=prim_t?> const * const W, real3 const x) { return <?=calc_EKin?>(W, x) + <?=calc_EInt?>(solver, W); }
+
+//// MODULE_NAME: <?=calc_eHydro?>
+static inline real <?=calc_eHydro?>(constant <?=solver_t?> const * const solver, <?=prim_t?> const * const W, real3 const x) { return <?=calc_EHydro?>(solver, W, x) / (W)->rho; }
+
+//// MODULE_NAME: <?=calc_ETotal?>
+static inline real <?=calc_ETotal?>(constant <?=solver_t?> const * const solver, <?=prim_t?> const * const W, real3 const x) { return <?=calc_EKin?>(W, x) + <?=calc_EInt?>(solver, W) + <?=calc_EM_energy?>(solver, W, x); }
+
+//// MODULE_NAME: <?=calc_eTotal?>
+static inline real <?=calc_eTotal?>(constant <?=solver_t?> const * const solver, <?=prim_t?> const * const W, real3 const x) { return <?=calc_ETotal?>(solver, W, x) / (W)->rho; }
+
+//// MODULE_NAME: <?=calc_H?>
+static inline real <?=calc_H?>(constant <?=solver_t?> const * const solver, real const P) { return P * (solver->heatCapacityRatio / (solver->heatCapacityRatio - 1.)); }
+
+//// MODULE_NAME: <?=calc_h?>
+static inline real <?=calc_h?>(constant <?=solver_t?> const * const solver, real const rho, real const P) { return <?=calc_H?>(solver, P) / rho; }
+
+//// MODULE_NAME: <?=calc_HTotal?>
+static inline real <?=calc_HTotal?>(constant <?=solver_t?> const * const solver, <?=prim_t?> const * const W, real const ETotal, real3 const x) { return (W)->P + <?=calc_PMag?>(solver, W, x) + ETotal; }
+
+//// MODULE_NAME: <?=calc_hTotal?>
+static inline real <?=calc_hTotal?>(constant <?=solver_t?> const * const solver, <?=prim_t?> const * const W, real const ETotal, real3 const x) { return <?=calc_HTotal?>(solver, W, ETotal, x) / (W)->rho; }
+
+//// MODULE_NAME: <?=calc_Cs?>
 
 //notice, this is speed of sound, to match the name convention of hydro/eqn/euler
 //but Cs in <?=eigen_t?> is the slow speed
 //most the MHD papers use 'a' for the speed of sound
-static inline real calc_Cs(constant <?=solver_t?> const * const solver, <?=prim_t?> const * const W) { 
+static inline real <?=calc_Cs?>(constant <?=solver_t?> const * const solver, <?=prim_t?> const * const W) { 
 	return sqrt(solver->heatCapacityRatio * (W)->P / (W)->rho); 
 }
+
+//// MODULE_NAME: <?=calc_CA?>
 
 //CA = B/sqrt(mu0 rho)
 //B has units kg/(C*s)
 //mu0 has units kg*m/C^2
 //rho has units kg/m^3
 //CA has units m/s
-static inline real3 calc_CA(
+static inline real3 <?=calc_CA?>(
 	constant <?=solver_t?> const * const solver,
 	global <?=cons_t?> const * const U
 ) {
@@ -36,7 +67,7 @@ static inline real3 calc_CA(
 }
 
 //// MODULE_NAME: <?=primFromCons?>
-//// MODULE_DEPENDS: units <?=solver_t?> <?=prim_t?> <?=cons_t?> <?=coordLenSq?>
+//// MODULE_DEPENDS: units <?=coordLenSq?>
 
 #define <?=primFromCons?>(\
 	/*<?=prim_t?> const * const */W,\
@@ -60,7 +91,7 @@ static inline real3 calc_CA(
 }
 
 //// MODULE_NAME: <?=consFromPrim?>
-//// MODULE_DEPENDS: units <?=solver_t?> <?=prim_t?> <?=cons_t?> <?=coordLenSq?>
+//// MODULE_DEPENDS: units <?=coordLenSq?>
 
 #define <?=consFromPrim?>(\
 	/*<?=cons_t?> const * const */U,\
@@ -82,7 +113,6 @@ static inline real3 calc_CA(
 }
 
 //// MODULE_NAME: <?=apply_dU_dW?>
-//// MODULE_DEPENDS: real3 <?=solver_t?> <?=prim_t?> <?=cons_t?>
 //-- only used by PLM
 
 #define <?=apply_dU_dW?>(\
@@ -106,7 +136,6 @@ static inline real3 calc_CA(
 }
 
 //// MODULE_NAME: <?=apply_dW_dU?>
-//// MODULE_DEPENDS: real3 <?=solver_t?> <?=prim_t?> <?=cons_t?>
 //-- only used by PLM
 
 #define <?=apply_dW_dU?>(\
@@ -172,7 +201,6 @@ end
 }
 
 //// MODULE_NAME: <?=initDerivs?>
-//// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> <?=cell_t?> <?=SETBOUNDS?>
 
 kernel void <?=initDerivs?>(
 	constant <?=solver_t?> const * const solver,
@@ -197,7 +225,7 @@ kernel void <?=initDerivs?>(
 }
 
 //// MODULE_NAME: <?=calcCellMinMaxEigenvalues?>
-//// MODULE_DEPENDS: <?=range_t?> <?=primFromCons?>
+//// MODULE_DEPENDS: <?=range_t?>
 
 // TODO find out where mu_0 goes in the code below
 
@@ -341,7 +369,6 @@ kernel void <?=initDerivs?>(
 };
 
 //// MODULE_NAME: <?=fluxFromCons?>
-//// MODULE_DEPENDS: <?=solver_t?> <?=eigen_forCell?> <?=normal_t?>
 
 #define <?=fluxFromCons?>(\
 	/*<?=cons_t?> * const */F,\
@@ -387,7 +414,6 @@ kernel void <?=initDerivs?>(
 }
 
 //// MODULE_NAME: <?=eigen_forRoeAvgs?>
-//// MODULE_DEPENDS: <?=roe_t?> <?=eigen_t?>
 
 //assumes the vector values are x-axis aligned with the interface normal
 #define <?=eigen_forRoeAvgs?>(\
@@ -491,7 +517,6 @@ kernel void <?=initDerivs?>(
 }
 
 //// MODULE_NAME: <?=eigen_forInterface?>
-//// MODULE_DEPENDS: <?=calcRoeValues?> <?=eigen_forRoeAvgs?>
 
 #define <?=eigen_forInterface?>(\
 	/*<?=eigen_t?> * const */eig,\
@@ -509,7 +534,6 @@ kernel void <?=initDerivs?>(
 }
 
 //// MODULE_NAME: <?=eigen_forCell?>
-//// MODULE_DEPENDS: <?=solver_t?> <?=primFromCons?> <?=normal_t?> <?=coordLenSq?> <?=eigen_forRoeAvgs?>
 
 #define <?=eigen_forCell?>(\
 	/*<?=eigen_t?> * const */eig,\
@@ -534,7 +558,6 @@ kernel void <?=initDerivs?>(
 }
 
 //// MODULE_NAME: <?=eigen_leftTransform?>
-//// MODULE_DEPENDS: <?=waves_t?>
 
 #define <?=eigen_leftTransform?>(\
 	/*<?=waves_t?> * const */result,\
@@ -649,7 +672,6 @@ kernel void <?=initDerivs?>(
 }
 
 //// MODULE_NAME: <?=eigen_rightTransform?>
-//// MODULE_DEPENDS: <?=waves_t?>
 
 #define <?=eigen_rightTransform?>(\
 	/*<?=cons_t?> * const */result,\
@@ -832,7 +854,6 @@ kernel void <?=initDerivs?>(
 }
 
 //// MODULE_NAME: <?=addSource?>
-//// MODULE_DEPENDS: <?=SETBOUNDS_NOGHOST?>
 
 kernel void <?=addSource?>(
 	constant <?=solver_t?> const * const solver,
@@ -906,7 +927,6 @@ end ?>
 }
 
 //// MODULE_NAME: <?=constrainU?>
-//// MODULE_DEPENDS: <?=consFromPrim?>
 
 kernel void <?=constrainU?>(
 	constant <?=solver_t?> const * const solver,

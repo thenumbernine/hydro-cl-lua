@@ -53,7 +53,6 @@ kernel void <?=initPotential?>(
 }
 
 //// MODULE_NAME: <?=copyWriteToPotentialNoGhost?>
-//// MODULE_DEPENDS: <?=SETBOUNDS_NOGHOST?>
 //used by hydro/op/relaxation.lua
 kernel void <?=copyWriteToPotentialNoGhost?>(
 	constant <?=solver_t?> const * const solver,
@@ -65,7 +64,6 @@ kernel void <?=copyWriteToPotentialNoGhost?>(
 }
 
 //// MODULE_NAME: <?=setReduceToPotentialSquared?>
-//// MODULE_DEPENDS: <?=SETBOUNDS_NOGHOST?>
 //used by hydro/op/relaxation.lua
 kernel void <?=setReduceToPotentialSquared?>(
 	constant <?=solver_t?> const * const solver,

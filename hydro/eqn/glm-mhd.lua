@@ -163,7 +163,6 @@ function MHD:init(args)
 #endif
 
 #if 1 	// recalculate cons
-//// MODULE_DEPENDS: <?=primFromCons?> <?=consFromPrim?>
 	<?=prim_t?> W;
 	<?=primFromCons?>(&W, solver, U, pt);
 	W.v = real3_sub(W.v, <?=dv?>);
@@ -171,9 +170,6 @@ function MHD:init(args)
 #endif
 ]], {dv=dv})
 				end,
-				codeDepends = {
-					assert(self.symbols.eqn_common),
-				},
 				--]=]
 			})
 		end
@@ -185,6 +181,22 @@ function MHD:getSymbolFields()
 		'roe_t',
 		'calcRoeValues',
 		'eigen_forRoeAvgs',
+		'calc_eKin',
+		'calc_EKin',
+		'calc_EInt',
+		'calc_eInt',
+		'calc_EM_energy',
+		'calc_PMag',
+		'calc_EHydro',
+		'calc_eHydro',
+		'calc_ETotal',
+		'calc_eTotal',
+		'calc_H',
+		'calc_h',
+		'calc_HTotal',
+		'calc_hTotal',
+		'calc_Cs',
+		'calc_CA',
 	}
 end
 
@@ -209,8 +221,6 @@ if MHD.useFixedCh then
 end
 
 function MHD:initCodeModules()
-	MHD.super.initCodeModules(self)
-
 	self.solver.modules:add{
 		name = self.symbols.roe_t,
 		structs = {self.roeStruct},
@@ -218,6 +228,8 @@ function MHD:initCodeModules()
 		headercode = 'typedef '..self.symbols.roe_t..' roe_t;',
 	}
 	
+	MHD.super.initCodeModules(self)
+
 	-- where do I put this to make it the default value for MHD solvers,
 	-- but not override a value set by the init state?
 	self.guiVars.coulomb.value = math.sqrt(self.guiVars.kilogram.value * self.guiVars.meter.value / self.guiVars.mu0.value)
@@ -246,79 +258,62 @@ function MHD:getDisplayVars()
 		{name='v', code='value.vreal3 = W.v;', type='real3', units='m/s'},
 		{name='P', code='value.vreal = W.P;', units='kg/(m*s^2)'},
 		{name='PMag', code = self:template[[
-//// MODULE_DEPENDS: <?=eqn_common?>
-value.vreal = calc_PMag(solver, &W, x);
+value.vreal = <?=calc_PMag?>(solver, &W, x);
 ]], units='kg/(m*s^2)'},
 		{name='PTotal', code = self:template[[
-//// MODULE_DEPENDS: <?=eqn_common?>
-value.vreal = W.P + calc_PMag(solver, &W, x);
+value.vreal = W.P + <?=calc_PMag?>(solver, &W, x);
 ]], units='kg/(m*s^2)'},
 		{name='eInt', code = self:template[[
-//// MODULE_DEPENDS: <?=eqn_common?>
-value.vreal = calc_eInt(solver, &W);
+value.vreal = <?=calc_eInt?>(solver, &W);
 ]], units='m^2/s^2'},
 		{name='EInt', code = self:template[[
-//// MODULE_DEPENDS: <?=eqn_common?>
-value.vreal = calc_EInt(solver, &W);
+value.vreal = <?=calc_EInt?>(solver, &W);
 ]], units='kg/(m*s^2)'},
 		{name='eKin', code = self:template[[
-//// MODULE_DEPENDS: <?=eqn_common?>
-value.vreal = calc_eKin(&W, x);
+value.vreal = <?=calc_eKin?>(&W, x);
 ]], units='m^2/s^2'},
 		{name='EKin', code = self:template[[
-//// MODULE_DEPENDS: <?=eqn_common?>
-value.vreal = calc_EKin(&W, x);
+value.vreal = <?=calc_EKin?>(&W, x);
 ]], units='kg/(m*s^2)'},
 		{name='eHydro', code = self:template[[
-//// MODULE_DEPENDS: <?=eqn_common?>
-value.vreal = calc_eHydro(solver, &W, x);
+value.vreal = <?=calc_eHydro?>(solver, &W, x);
 ]], units='m^2/s^2'},
 		{name='EHydro', code = self:template[[
-//// MODULE_DEPENDS: <?=eqn_common?>
-value.vreal = calc_EHydro(solver, &W, x);
+value.vreal = <?=calc_EHydro?>(solver, &W, x);
 ]], units='kg/(m*s^2)'},
 		{name='EM energy', code = self:template[[
-//// MODULE_DEPENDS: <?=eqn_common?>
-value.vreal = calc_EM_energy(solver, &W, x);
+value.vreal = <?=calc_EM_energy?>(solver, &W, x);
 ]], units='kg/(m*s^2)'},
-		{name='eTotal', code='value.vreal = U->ETotal / W.rho;', units='m^2/s^2'},
-		{name='S', code='value.vreal = W.P / pow(W.rho, (real)solver->heatCapacityRatio);'},
-		{name='H', code='value.vreal = calc_H(solver, W.P);', units='kg/(m*s^2)'},
+		{name='eTotal', code = self:template'value.vreal = U->ETotal / W.rho;', units='m^2/s^2'},
+		{name='S', code = self:template'value.vreal = W.P / pow(W.rho, (real)solver->heatCapacityRatio);'},
+		{name='H', code = self:template'value.vreal = <?=calc_H?>(solver, W.P);', units='kg/(m*s^2)'},
 		{name='h', code = self:template[[
-//// MODULE_DEPENDS: <?=eqn_common?>
-value.vreal = calc_H(solver, W.P) / W.rho;
+value.vreal = <?=calc_H?>(solver, W.P) / W.rho;
 ]], units='m^2/s^2'},
 		{name='HTotal', code = self:template[[
-//// MODULE_DEPENDS: <?=eqn_common?>
-value.vreal = calc_HTotal(solver, &W, U->ETotal, x);
+value.vreal = <?=calc_HTotal?>(solver, &W, U->ETotal, x);
 ]], units='kg/(m*s^2)'},
 		{name='hTotal', code = self:template[[
-//// MODULE_DEPENDS: <?=eqn_common?>
-value.vreal = calc_hTotal(solver, &W, U->ETotal, x);
+value.vreal = <?=calc_hTotal?>(solver, &W, U->ETotal, x);
 ]], units='m^2/s^2'},
 		{name='speed of sound', code = self:template[[
-//// MODULE_DEPENDS: <?=eqn_common?>
-value.vreal = calc_Cs(solver, &W);
+value.vreal = <?=calc_Cs?>(solver, &W);
 ]], units='m/s'},
 		{name='alfven velocity', code = self:template[[
-//// MODULE_DEPENDS: <?=eqn_common?>
-value.vreal3 = calc_CA(solver, U);
+value.vreal3 = <?=calc_CA?>(solver, U);
 ]], type='real3', units='m/s'},
 		{name='Mach number', code = self:template[[
-//// MODULE_DEPENDS: <?=eqn_common?>
-value.vreal = coordLen(W.v, x) / calc_Cs(solver, &W);
+value.vreal = coordLen(W.v, x) / <?=calc_Cs?>(solver, &W);
 ]]},
 		{name='temperature', code=self:template[[
 <? local materials = require 'hydro.materials' ?>
 #define C_v				<?=('%.50f'):format(materials.Air.C_v)?>
-//// MODULE_DEPENDS: <?=eqn_common?>
-	value.vreal = calc_eInt(solver, &W) / C_v;
+	value.vreal = <?=calc_eInt?>(solver, &W) / C_v;
 ]], units='K'},
 		{name='primitive reconstruction error', code=self:template[[
 //prim have just been reconstructed from cons
 //so reconstruct cons from prims again and calculate the difference
 <?=cons_t?> U2;
-//// MODULE_DEPENDS: <?=consFromPrim?>
 <?=consFromPrim?>(&U2, solver, &W, x);
 value.vreal = 0;
 for (int j = 0; j < numIntStates; ++j) {
@@ -332,7 +327,6 @@ for (int j = 0; j < numIntStates; ++j) {
 			name='gravity', 
 			code=self:template[[
 if (!<?=OOB?>(1,1)) {
-//// MODULE_DEPENDS: <?=eqn.gravOp.symbols.calcGravityAccel?>
 	<?=eqn.gravOp.symbols.calcGravityAccel?>(&value.vreal3, solver, U, x);
 }
 ]], 
@@ -384,9 +378,7 @@ end
 
 function MHD:consWaveCodeMinMax(args)
 	return self:template([[
-/*{{{{ MODULE_DEPENDS: <?=range_t?> }}}}*/
 range_t lambda;
-/*{{{{ MODULE_DEPENDS: <?=calcCellMinMaxEigenvalues?> }}}}*/
 <?=calcCellMinMaxEigenvalues?>(&lambda, solver, <?=U?>, <?=pt?>, <?=n?>); 
 <?=eqn:waveCodeAssignMinMax(declare, resultMin, resultMax, 'lambda.min', 'lambda.max')?>
 ]], args)
