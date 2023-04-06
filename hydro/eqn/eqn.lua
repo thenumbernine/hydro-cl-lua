@@ -373,6 +373,9 @@ function Equation:getSymbolFields()
 		'eigen_rightTransform',
 		'eigen_fluxTransform',
 		'cons_parallelPropagate',
+		'cons_parallelPropagate0',
+		'cons_parallelPropagate1',
+		'cons_parallelPropagate2',
 		'applyInitCondCell',
 		'calcDTCell',
 
@@ -654,24 +657,23 @@ In the event that propagation is identity, a pointer with name 'resultName' poin
 
 In the event that a transformation is necessary, then a temp var is created, and 'resultName' points to it.
 --]]
-		solver.modules:add{
-			name = self.symbols.cons_parallelPropagate,
-			depends = table{
-				self.symbols.cons_t,
-				solver.coord.symbols.coord_parallelPropagate,
-			}:append(
-				-- rank-2 always use real3x3 for transformation
-				self.consStruct.vars:find(nil, function(var)
-					return degreeForType[var.type] == 2
-				end) and {'real3x3'} or nil
-			):append(
-				-- rank-3 always use real3x3x3 for transformation
-				self.consStruct.vars:find(nil, function(var)
-					return degreeForType[var.type] == 3
-				end) and {'real3x3x3'} or nil
-			),
-			code = self:template([[<?
-for side=0,solver.dim-1 do
+		for side=0,2 do
+			solver.modules:add{
+				name = self.symbols['cons_parallelPropagate'..side],
+				depends = table{
+					solver.coord.symbols.coord_parallelPropagate,
+				}:append(
+					-- rank-2 always use real3x3 for transformation
+					self.consStruct.vars:find(nil, function(var)
+						return degreeForType[var.type] == 2
+					end) and {'real3x3'} or nil
+				):append(
+					-- rank-3 always use real3x3x3 for transformation
+					self.consStruct.vars:find(nil, function(var)
+						return degreeForType[var.type] == 3
+					end) and {'real3x3x3'} or nil
+				),
+				code = self:template([[<?
 	if coord.vectorComponent == 'cartesian'
 	or require 'hydro.coord.cartesian':isa(coord)
 	then
@@ -755,11 +757,22 @@ for side=0,solver.dim-1 do
 		end
 ?>	<?=cons_t?> const * const resultName = &resultName##base;
 <?	end
-end
-?>]], 		{
-				coord = solver.coord,
-				degreeForType = degreeForType,
-			}),
+?>]], 			{
+					side = side,
+					coord = solver.coord,
+					degreeForType = degreeForType,
+				}),
+			}
+		end
+		
+		-- legacy manual depends def:
+		solver.modules:add{
+			name = self.symbols.cons_parallelPropagate,
+			depends = {
+				self.symbols.cons_parallelPropagate0,
+				self.symbols.cons_parallelPropagate1,
+				self.symbols.cons_parallelPropagate2,
+			},
 		}
 	end
 end

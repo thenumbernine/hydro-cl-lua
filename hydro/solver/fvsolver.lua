@@ -57,7 +57,6 @@ function FiniteVolumeSolver:initCodeModule_calcFlux()
 	self.modules:addFromMarkup{
 		code = self.eqn:template([[
 //// MODULE_NAME: <?=calcFlux?>
-//// MODULE_DEPENDS: <?=normal_t?>
 // used by all gridsolvers.  the meshsolver alternative is in solver/meshsolver.lua
 
 <?
@@ -116,7 +115,6 @@ then ?>
 
 			//the single act of removing the copy of the U's from global to local memory
 			// increases the framerate from 78 to 127
-//// MODULE_DEPENDS: <?=cons_parallelPropagate?>
 			<?=cons_parallelPropagate?><?=side?>(ppUL, UL, cellL->pos, .5 * dx);
 			<?=cons_parallelPropagate?><?=side?>(ppUR, UR, cellR->pos, -.5 * dx);
 
@@ -149,7 +147,6 @@ if useFluxLimiter then
 			<?=solver:getULRCode{indexL = 'indexL2', indexR = 'indexL', suffix='_L'}:gsub('\n', '\n\t\t\t')?>
 			<?=solver:getULRCode{indexL = 'indexR', indexR = 'indexR2', suffix='_R'}:gsub('\n', '\n\t\t\t')?>
 
-//// MODULE_DEPENDS: <?=cons_parallelPropagate?>
 			<?=cons_parallelPropagate?><?=side?>(ppUL_L, UL_L, xIntL, 1.5 * dx);		//xIntL2?
 			<?=cons_parallelPropagate?><?=side?>(ppUL_R, UL_R, xIntL, .5 * dx);
 			<?=cons_parallelPropagate?><?=side?>(ppUR_L, UR_L, xIntR, -.5 * dx);
@@ -161,7 +158,6 @@ if useFluxLimiter then
 <?
 end
 ?>
-//// MODULE_DEPENDS: <?=calcFluxForInterface?>
 			<?=calcFluxForInterface?>(
 				flux,
 				solver,
@@ -340,7 +336,6 @@ real3 xInt = x;
 xInt.s<?=side?> -= .5 * solver->grid_dx.s<?=side?>;
 
 <?=solver:getULRCode{bufName='buf', side=side}:gsub('\n', '\n\t')?>
-//// MODULE_DEPENDS: <?=eigen_t?> <?=eigen_forInterface?>
 <?=normal_t?> n = normal_forSide<?=side?>(xInt);
 <?=eigen_t?> eig;
 <?=eigen_forInterface?>(&eig, solver, UL, UR, cellL, cellR, xInt, n);
@@ -358,7 +353,6 @@ xInt.s<?=side?> -= .5 * solver->grid_dx.s<?=side?>;
 			codePrefix = table{
 				getEigenCode{side=side},
 				self.eqn:template([[
-//// MODULE_DEPENDS: <?=normal_t?>
 <?=normal_t?> n<?=side?> = normal_forSide<?=side?>(xInt);
 <?=eqn:eigenWaveCodePrefix{
 	n = 'n',
@@ -429,7 +423,6 @@ for (int k = 0; k < numWaves; ++k) {
 		basis.ptr[j] = k == j ? 1 : 0;
 	}
 	
-//// MODULE_DEPENDS: <?=eigen_leftTransform?> <?=eigen_rightTransform?>
 	<?=normal_t?> n = normal_forSide<?=side?>(xInt);
 	<?=waves_t?> chars;
 	<?=eigen_leftTransform?>(&chars, solver, &eig, &basis, xInt, n);
@@ -468,7 +461,6 @@ for (int k = 0; k < numWaves; ++k) {
 					{name='0', code=table{
 						getEigenCode{side=side},
 						self.eqn:template([[
-//// MODULE_DEPENDS: <?=eigen_leftTransform?> <?=eigen_rightTransform?> <?=eigen_fluxTransform?> <?=cell_calcAvg_withPt?>
 <?=normal_t?> n<?=side?> = normal_forSide<?=side?>(x);
 <?=eqn:eigenWaveCodePrefix{
 	n = 'n'..side,
@@ -514,6 +506,7 @@ for (int k = 0; k < numIntStates; ++k) {
 #endif
 
 	<?=cell_t?> cellAvg;
+//// MODULE_DEPENDS: <?=cell_calcAvg_withPt?>
 	cell_calcAvg_withPt(&cellAvg, cellL, cellR, xInt);
 
 	//once again, only needs to be numIntStates

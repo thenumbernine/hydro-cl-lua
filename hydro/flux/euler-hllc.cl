@@ -1,5 +1,5 @@
 //// MODULE_NAME: <?=calcFluxForInterface?>
-//// MODULE_DEPENDS: <?=solver_macros?> math <?=eigen_forInterface?> <?=fluxFromCons?>
+//// MODULE_DEPENDS: <?=solver_macros?> math
 
 //HLLC based on
 //http://math.lanl.gov/~shenli/publications/hllc_mhd.pdf
