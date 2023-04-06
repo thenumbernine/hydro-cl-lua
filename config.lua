@@ -759,7 +759,7 @@ self.solvers:insert(require 'hydro.solver.weno'(table(args, {
 -- compressible Euler equations
 
 
-self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
+--self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
 
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct bounded'})))	-- this is the default hllCalcWaveMethod
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct'})))
@@ -912,7 +912,7 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {
 -- when run alongside HD Roe solver, curves don't match (different heat capacity ratios?)
 --		but that could be because of issues with simultaneous solvers.
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='mhd'})))
---self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='mhd'})))
+self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='mhd'})))
 
 -- TODO mhd divergence removal failing at the corners
 
