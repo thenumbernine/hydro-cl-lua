@@ -1665,10 +1665,11 @@ end ?>;
 	real3 const xc = coordMap(x);
 	real const ux = xc.x * 2. * M_PI;
 	real const uy = xc.y * 2. * M_PI;
+	real const uz = xc.z * 2. * M_PI;
 	rho = 1.;
-	v.x = sin(ux) * cos(uy);
-	v.y = -cos(ux) * sin(uy);
-	P = 100. / solver->heatCapacityRatio + .25 * (cos(2. * ux) + cos(2. * uy));
+	v.x = sin(ux) * cos(uy) * cos(uz);
+	v.y = -cos(ux) * sin(uy) * cos(uz);
+	P = 100. / solver->heatCapacityRatio + (cos(2. * ux) + cos(2. * uy)) * (2. + cos(2. * uz)) * (1. / 16.);
 ]]
 		end,
 	},

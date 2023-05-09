@@ -17,7 +17,9 @@ local function makevec3type(name, scalar)
 		-- use the vec-ffi type code
 		-- granted if we ffi.cdef this, it will have already been ffi.cdef'd from the require 'vec-ffi.vec3x'
 ?>
+//// BEGIN EXCLUDE FOR FFI_CDEF
 <?=vecType.typeCode?>
+//// END EXCLUDE FOR FFI_CDEF
 typedef <?=vecType.type?> <?=name?>;
 <?
 		else

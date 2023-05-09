@@ -26,7 +26,7 @@ GRMHD.initConds = require 'hydro.init.euler':getList()
 -- TODO also upgrade this to initCodeModules.  turn it into a struct, like srhd.
 function GRMHD:getTypeCode()
 	return self:template[[
-typedef union {
+typedef union <?=prim_t?> {
 	real ptr[9];
 	struct {
 		real rho;
@@ -41,7 +41,7 @@ typedef union {
 	};
 } <?=prim_t?>;
 
-typedef union {
+typedef union <?=cons_t?> {
 	real ptr[9];
 	struct {
 		real D;

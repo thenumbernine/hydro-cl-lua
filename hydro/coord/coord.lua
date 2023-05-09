@@ -2278,7 +2278,7 @@ though for now I'll just support Cartesian / identity metric
 --]]
 		depends:insert'real3x3'
 		typecode = self.solver.eqn:template[[
-typedef struct {
+typedef struct <?=normal_t?> {
 	real3x3 n;
 } <?=normal_t?>;
 ]]
@@ -2341,7 +2341,7 @@ $(n^i)_j = (n^i)^j = \delta^{ij}$.<br>
 			|n| = 1
 			--]]
 			typecode = self.solver.eqn:template[[
-typedef struct {
+typedef struct <?=normal_t?> {
 	int side;			//0, 1, 2
 } <?=normal_t?>;		//nL = nU = normalBasisForSide (permutation of I), nLen = 1
 ]]
@@ -2412,7 +2412,7 @@ $n_i \cdot n_j = (n_i)_k (n_j)^l = \delta_{ij}$<br>
 			|n| = sqrt(n^i n_i) = 1 (since g_ij = g^ij = delta_ij)
 			--]]
 			typecode = self.solver.eqn:template[[
-typedef struct {
+typedef struct <?=normal_t?> {
 	real3x3 n;		// nL = nU, both are orthonormal so nLen = 1
 	real len;
 } <?=normal_t?>;
@@ -2487,7 +2487,7 @@ $(n_i)^k (n_j)^l = g^{km} \delta_{mi} g^{ln} \delta_{nj}$<br>
 			|n| = sqrt(n^i n_i) = sqrt(g^jj)
 			--]]
 			typecode = self.solver.eqn:template[[
-typedef struct {
+typedef struct <?=normal_t?> {
 	int side;
 	real3x3 U;
 	real len;

@@ -328,7 +328,7 @@ real <?=slopeLimiter?>(real r) {
 			name = self.eqn.symbols.consLR_t,
 			depends = {self.eqn.symbols.cons_t},
 			typecode = self.eqn:template([[
-typedef union {
+typedef union <?=consLR_t?> {
 	<?=cons_t?> LR[2];
 	struct {
 		<?=cons_t?> L, R;
@@ -336,7 +336,7 @@ typedef union {
 } <?=consLR_t?>;
 
 //ugly hack to work around even uglier boundary code
-typedef struct {
+typedef struct <?=consLR_t?>_dim {
 	<?=consLR_t?> side[<?=solver.dim?>];
 } <?=consLR_t?>_dim;
 ]]),

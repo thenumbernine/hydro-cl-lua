@@ -957,7 +957,7 @@ real <?=fluxLimiter?>(real r) {
 	self.modules:add{
 		name = self.symbols.range_t,
 		-- TODO use struct so I can verify cl/ffi struct alignment
-		typecode = 'typedef struct { real min, max; } range_t;',
+		typecode = 'typedef struct range_t { real min, max; } range_t;',
 	}
 
 	-- when building modules for ops, only add them to solverModulesEnabled, not sharedModulesEnabled, since init doesn't need them
@@ -1002,7 +1002,10 @@ function SolverBase:initCDefs()
 	if self.app.verbose then
 		print("ffi.cdef'ing: "..moduleNames:concat', ')
 	end
-	require 'hydro.code.safecdef'(self.modules:getTypeHeader(moduleNames:unpack()))
+	require 'hydro.code.safecdef'(
+		(self.modules:getTypeHeader(moduleNames:unpack())
+		:gsub('//// BEGIN EXCLUDE FOR FFI_CDEF.-//// END EXCLUDE FOR FFI_CDEF', ''))
+	)
 end
 
 function SolverBase:refreshGetULR()
@@ -1715,7 +1718,7 @@ function SolverBase:getDisplayCode()
 	local lines = table()
 	lines:insert(template([[
 
-typedef union {
+typedef union displayValue_t {
 	real	ptr[9];
 	real	vreal;
 <? if solver:isModuleUsed'sym3' then ?>
@@ -3808,7 +3811,7 @@ function SolverBase:checkStructSizes()
 
 print('shared modules: '..moduleNames:concat', ')
 	local codePrefix = self.modules:getTypeHeader(moduleNames:unpack())
-
+		:gsub('//// BEGIN EXCLUDE FOR FFI_CDEF.-//// END EXCLUDE FOR FFI_CDEF', '')
 --[=[
 	local testStructProgramObj = self.Program{
 		name = 'checkStructSizes',

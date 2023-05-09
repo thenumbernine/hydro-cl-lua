@@ -621,7 +621,10 @@ function HydroCLApp:initGL(...)
 			app = self,
 		})))
 
-		require 'hydro.code.safecdef'(self.modules:getTypeHeader'math')
+		require 'hydro.code.safecdef'(
+			(self.modules:getTypeHeader'math'
+			:gsub('//// BEGIN EXCLUDE FOR FFI_CDEF.-//// END EXCLUDE FOR FFI_CDEF', ''))
+		)
 
 		-- this expects solver_t to have gridSize, but it doesn't require its def (because it's a macro)
 		self.modules:add{

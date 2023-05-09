@@ -138,7 +138,9 @@ local function makeGLSL(code)
 end
 
 function Draw:getModuleCodeGLSL(...)
-	return makeGLSL(self.solver.modules:getCodeAndHeader(...))
+	return makeGLSL(self.solver.modules:getCodeAndHeader(...)
+		:gsub('//// BEGIN EXCLUDE FOR FFI_CDEF.-//// END EXCLUDE FOR FFI_CDEF', '')
+	)
 end
 
 return Draw
