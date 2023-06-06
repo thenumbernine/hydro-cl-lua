@@ -63,7 +63,7 @@ local args = {
 
 	-- this is functional without usePLM, but doing so falls back on the cell-centered buffer, which with the current useCTU code will update the same cell twice from different threads
 	-- TODO this seems to introduce more diagonal waves for SRHD
-	--useCTU = true,
+	useCTU = true,
 
 	-- [[ Cartesian
 	coord = 'cartesian',
@@ -94,7 +94,7 @@ local args = {
 			-- Intel(R) OpenCL HD Graphics/Intel(R) Graphics Gen9 [0x1916]
 			['Intel(R) OpenCL HD Graphics/Intel(R) HD Graphics 520 [0x1916]'] = {
 				{256,1,1},
-				{256,256,1},
+				{512,512,1},
 				{32,32,32},
 			},
 
@@ -133,7 +133,7 @@ local args = {
 			},
 			['CPU debug implementation/CPU debug implementation'] = {
 				{256,1,1},
-				{64,64,1},
+				{128,128,1},
 				{32,32,32},
 			},
 		})[platAndDevicesNames]
@@ -145,12 +145,12 @@ local args = {
 		}
 	)[dim],
 	boundary = type(cmdline.boundary) == 'table' and cmdline.boundary or {
-		xmin = cmdline.boundary or 'periodic',
-		xmax = cmdline.boundary or 'periodic',
-		ymin = cmdline.boundary or 'periodic',
-		ymax = cmdline.boundary or 'periodic',
-		zmin = cmdline.boundary or 'periodic',
-		zmax = cmdline.boundary or 'periodic',
+		xmin = cmdline.boundary or 'freeflow',
+		xmax = cmdline.boundary or 'freeflow',
+		ymin = cmdline.boundary or 'freeflow',
+		ymax = cmdline.boundary or 'freeflow',
+		zmin = cmdline.boundary or 'freeflow',
+		zmax = cmdline.boundary or 'freeflow',
 	},
 	--]]
 	--[[ cylinder
@@ -398,11 +398,11 @@ local args = {
 	--]]
 
 	--initCond = 'Rayleigh-Taylor',	--FIXME ... get initial / static hydro potential working
-	initCond = 'Taylor-Green',	-- should only work with viscosity
+	--initCond = 'Taylor-Green',	-- should only work with viscosity
 	--initCond = 'Colella-Woodward',
 	--initCond = 'double mach reflection',
 	--initCond = 'square cavity',
-	--initCond = 'shock bubble interaction',		-- with usePLM only works with prim or with athena
+	initCond = 'shock bubble interaction',		-- with usePLM only works with prim or with athena
 	--initCond = 'Richmyer-Meshkov',
 	--initCond = 'radial gaussian',
 
@@ -761,7 +761,7 @@ self.solvers:insert(require 'hydro.solver.weno'(table(args, {
 -- compressible Euler equations
 
 
---self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
+self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
 
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct bounded'})))	-- this is the default hllCalcWaveMethod
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct'})))
@@ -818,7 +818,7 @@ self.solvers:insert(require 'hydro.solver.weno'(table(args, {
 -- incompressible
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler', eqnArgs={incompressible=true}})))
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', eqnArgs={incompressible=true}})))
-self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='euler-hllc', eqn='euler', eqnArgs={incompressible=true}})))
+--self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='euler-hllc', eqn='euler', eqnArgs={incompressible=true}})))
 --self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='euler', eqnArgs={incompressible=true}, wenoMethod='2010 Shen Zha', order=5})))
 
 -- viscosity in source terms as finite-different explicit update
