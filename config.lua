@@ -94,7 +94,7 @@ local args = {
 			-- Intel(R) OpenCL HD Graphics/Intel(R) Graphics Gen9 [0x1916]
 			['Intel(R) OpenCL HD Graphics/Intel(R) HD Graphics 520 [0x1916]'] = {
 				{256,1,1},
-				{512,512,1},
+				{128,128,1},
 				{32,32,32},
 			},
 
@@ -351,7 +351,7 @@ local args = {
 	--initCond = 'jet',	-- TODO naming initialization mixup with srhd and this problem
 
 
-	--initCond = 'Sod',
+	initCond = 'Sod',
 	--initCondArgs = {dim=cmdline.displayDim},
 	--[[ real-world vars for Sod ... which are a few orders higher, and therefore screw up the backward-euler solver
 	-- 		which means, todo, redo the backward euler error metric so it is independent of magnitude ... ?   seems I removed that for another numerical error reason.
@@ -402,7 +402,7 @@ local args = {
 	--initCond = 'Colella-Woodward',
 	--initCond = 'double mach reflection',
 	--initCond = 'square cavity',
-	initCond = 'shock bubble interaction',		-- with usePLM only works with prim or with athena
+	--initCond = 'shock bubble interaction',		-- with usePLM only works with prim or with athena
 	--initCond = 'Richmyer-Meshkov',
 	--initCond = 'radial gaussian',
 

@@ -997,13 +997,17 @@ function HydroCLApp:getScreenShotFilename()
 end
 
 function HydroCLApp:screenshot()
-	self:screenshotToFile(self:getScreenShotFilename())	-- in GLApp
+	if self.screenshotUseHiRes then
+		self:saveHeatMapBufferImages()
+	else
+		self:screenshotToFile(self:getScreenShotFilename())	-- in GLApp
+	end
 end
 
 -- save the visual buffers with their palettes
 -- what about 1D? what about vector fields?
 -- I guess this is why screenshotting the buffer is a good default behavior
-
+-- TODO this is broken
 function HydroCLApp:saveHeatMapBufferImages()
 	local pushRunning = self.running
 	self.running = false
@@ -1014,14 +1018,17 @@ function HydroCLApp:saveHeatMapBufferImages()
 	local pushFont = self.font
 	self.font = nil
 
+	--[[
 	local FBO = require 'gl.fbo'
 	local fbo = FBO()
+	fbo:unbind()
+	--]]
 	for _,solver in ipairs(self.solvers) do
 		local tex = solver.tex
 		local cl = tex.class
 		assert(not tex.depth) 	-- i don't have ssimg big enough for glgetteximage of texture_3d yet...
 
-		-- TODO store this if you want to use this for streaming
+		--[[ TODO store this if you want to use this for streaming
 		local fbotex = self.saveHeatMapBufferImages_fbotex
 		if not fbotex
 		or self.saveHeatMapBufferImages_width ~= tex.width
@@ -1044,27 +1051,42 @@ function HydroCLApp:saveHeatMapBufferImages()
 			self.saveHeatMapBufferImages_height = tex.height
 			self.saveHeatMapBufferImages_depth = tex.depth
 		end
+		--]]
 
 		local pushSize = self.size
 		self.size = function(self) return tex.width, tex.height end
-
-		fbo:setColorAttachment(0, fbotex)
-		fbo:bind()
-
-		gl.glViewport(0, 0, tex.width, tex.height)
-
-		-- TODO instead of pushing and popping
-		-- just separate out this function
---		self:update()
 
 		local Image = require 'image'
 		local w, h = tex.width, tex.height
 		-- using 3 channels had some alignment problems ... there's a bug to fix somewhere, maybe in the png write function?
 		local ssimg = Image(w, h, 4, 'unsigned char')
 		local ssflipped = Image(w, h, 4, 'unsigned char')
-		--tex:toCPU(ssimg.buffer)
-		gl.glReadPixels(0, 0, w, h, gl.GL_RGBA, gl.GL_UNSIGNED_BYTE, ssimg.buffer)
-		-- TODO just use the shaders?  just draw the screen with this into the buffer and then grab later?
+
+		--[[
+		fbo:draw({
+			dest = fbotex,
+			viewport = {0, 0, tex.width, tex.height},
+			callback = function()
+				-- TODO instead of pushing and popping
+				-- just separate out this function
+				--self:update()
+
+				local glint = ffi.new'GLint[1]'
+				gl.glGetIntegerv(gl.GL_READ_BUFFER, glint)
+				local readbuffer = glint[0]
+				gl.glReadBuffer(gl.GL_COLOR_ATTACHMENT0)
+
+				gl.glReadPixels(0, 0, w, h, gl.GL_RGBA, gl.GL_UNSIGNED_BYTE, ssimg.buffer)
+				-- TODO just use the shaders?  just draw the screen with this into the buffer and then grab later?
+
+				gl.glReadBuffer(readbuffer)
+			end,
+		})
+		--]]
+		-- [[
+		tex:toCPU(ssimg.buffer)
+		--]]
+
 		-- reverse rows ...
 		ssimg:flip(ssflipped)
 		-- full alpha
@@ -1075,8 +1097,6 @@ function HydroCLApp:saveHeatMapBufferImages()
 		-- TODO prefix for solver and for buffer name?
 		local fn = self:getScreenShotFilename()
 		ssflipped:save(fn)
-
-		fbo:unbind()
 
 		self.size = pushSize
 	end
@@ -1670,11 +1690,7 @@ end
 		if not self.animationSaveEvery
 		or self.frameIndex % self.animationSaveEvery == 0
 		then
-			if self.screenshotUseHiRes then
-				self:saveHeatMapBufferImages()
-			else
-				self:screenshot()
-			end
+			self:screenshot()
 		end
 
 		if self.createAnimation == 'once' then
