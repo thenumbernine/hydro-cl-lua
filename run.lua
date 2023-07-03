@@ -20,4 +20,4 @@ if useTrace then
 	end, 'cr')
 end
 
-require 'hydro.app'():run()
+return require 'hydro.app'():run()
