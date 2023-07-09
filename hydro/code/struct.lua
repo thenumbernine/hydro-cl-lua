@@ -207,16 +207,22 @@ function Struct:getTypeCodeWithoutTypeName()
 		tab = '\t\t'
 	end
 	for _,var in ipairs(self.vars) do
+		local artype, arsize = var.type:match'(.-)%[(.-)%]'
+		if not artype then
+			artype = var.type
+		end
 		lines:insert(
 			tab
-			..var.type
+			..artype
 
 			-- fixing 'half' and 'double' alignment in solver_t
 			-- dontUnion is only used by solver_t
 			-- and solver_t is the only one with this C/CL alignment problem
 			..(self.dontUnion and ' __attribute__ ((packed))' or '')
 
-			..' '..var.name..';')
+			..' '..var.name
+			..(arsize and '['..arsize..']' or '')
+			..';')
 	end
 	if not self.dontUnion then
 		lines:insert('	};')

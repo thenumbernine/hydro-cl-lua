@@ -99,10 +99,11 @@ local function getParityVars(structVars, sign, parityVars, field)
 	for _,var in ipairs(structVars) do
 		local getter = Equation.parityVarsGetters[var.type]
 		if not getter then
-			error("don't know how to handle type "..var.type)
+			print("B.C. WARNING!!! don't know how to handle type "..var.type)
 			-- TODO if it's a struct made up of these types, then handle it recursively
+		else
+			getter(sign, parityVars, field..var.name)
 		end
-		getter(sign, parityVars, field..var.name)
 	end
 end
 
@@ -405,7 +406,9 @@ function Equation:cdefAllVarTypes(solver, vars)
 	require 'hydro.code.safecdef'(
 		(solver.app.modules:getTypeHeader(
 			table.mapi(vars, function(var,i,t)
-				return true, var.type
+				local ctype = var.type
+				ctype = ctype:match('(.-)%[') or ctype
+				return true, ctype
 			end):keys():sort():unpack()
 		):gsub('//// BEGIN EXCLUDE FOR FFI_CDEF.-//// END EXCLUDE FOR FFI_CDEF', ''))
 	)
@@ -784,7 +787,9 @@ function Equation:initCodeModule_cons_prim_eigen_waves()
 	-- while we're here, enable them as well, so solver:isModuleUsed knows they are used.
 	-- TODO move this somewhere else?
 	for _,var in ipairs(self.consStruct.vars) do
-		solver.sharedModulesEnabled[var.type] = true
+		local ctype = var.type
+		ctype = ctype:match('(.-)%[') or ctype
+		solver.sharedModulesEnabled[ctype] = true
 	end
 
 	assert(self.consStruct)
@@ -835,6 +840,10 @@ end
 
 -- this is a mess, all because of eqn/composite
 function Equation:initCodeModule_solverCodeFile()
+	if not self.solverCodeFile then
+		print('your eqn does not have a .cl file')
+		return
+	end
 	local code = self:template(assert(file(self.solverCodeFile):read()))
 
 	-- in case any MODULE_* cmds were in there, align them back with the lhs

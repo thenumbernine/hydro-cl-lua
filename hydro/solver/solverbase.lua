@@ -1708,7 +1708,10 @@ function SolverBase:hasModule(name)
 end
 
 function SolverBase:isModuleUsed(name)
+--print('self.sharedModulesEnabled', table.keys(self.sharedModulesEnabled):unpack())
+--print('self.solverModulesEnabled', table.keys(self.solverModulesEnabled):unpack())
 	local moduleNames = table(self.sharedModulesEnabled, self.solverModulesEnabled):keys()
+--print('moduleNames', moduleNames:unpack())	
 	local modulesEnabled = self.modules:getDependentModules(moduleNames:unpack())
 		:mapi(function(module) return true, module.name end)
 	return modulesEnabled[name]
@@ -2556,54 +2559,58 @@ function SolverBase:addDisplayVarGroup(args, cl)
 enableVector = false
 
 	for i,var in ipairs(args.vars) do
+		xpcall(function()
+			local units = var.units
+			var = table(var)
+			var.units = nil
 
-		local units = var.units
-		var = table(var)
-		var.units = nil
+			local name = assert(var.name, "expected to find name in "..tolua(var))
+			local code = assert(var.code, "expected to find code")
 
-		local name = assert(var.name, "expected to find name in "..tolua(var))
-		local code = assert(var.code, "expected to find code")
+			args = table(args, {
+				solver = self,
+				name = group.name .. ' ' .. name,
+				code = code,
+				units = units,
+				group = group,
+				type = var.type or 'real',
+			})
 
-		args = table(args, {
-			solver = self,
-			name = group.name .. ' ' .. name,
-			code = code,
-			units = units,
-			group = group,
-			type = var.type or 'real',
-		})
+			-- enable the first scalar field
+			-- also enable the first vector field on non-1D simulations
+			local enabled
 
-		-- enable the first scalar field
-		-- also enable the first vector field on non-1D simulations
-		local enabled
+			-- TODO how about saving somewhere what should be enabled by default?
+			-- TODO pick predefined somewhere?
+			if cmdline.displayvars or self.eqn.predefinedDisplayVars then
+				-- moved this to after the duplicate var creation
+				--enabled = not not table.find(self.eqn.predefinedDisplayVars, args.name)
+			else
+				if group.name == 'U'
+				or (group.name:sub(1,5) == 'error' and self.dim == 1)
+				then
+					if not self:isVarTypeAVectorField(args.type) then
+						enabled = enableScalar
 
-		-- TODO how about saving somewhere what should be enabled by default?
-		-- TODO pick predefined somewhere?
-		if cmdline.displayvars or self.eqn.predefinedDisplayVars then
-			-- moved this to after the duplicate var creation
-			--enabled = not not table.find(self.eqn.predefinedDisplayVars, args.name)
-		else
-			if group.name == 'U'
-			or (group.name:sub(1,5) == 'error' and self.dim == 1)
-			then
-				if not self:isVarTypeAVectorField(args.type) then
-					enabled = enableScalar
-
-					if self.dim ~= 1 then
-						enableScalar = nil
-					end
-				else
-					if self.dim ~= 1 then
-						enabled = enableVector
-						enableVector = nil
+						if self.dim ~= 1 then
+							enableScalar = nil
+						end
+					else
+						if self.dim ~= 1 then
+							enabled = enableVector
+							enableVector = nil
+						end
 					end
 				end
 			end
-		end
 
-		args.enabled = enabled
-		local varForGroup = cl(args)
-		group.vars:insert(varForGroup)
+			args.enabled = enabled
+			local varForGroup = cl(args)
+			group.vars:insert(varForGroup)
+		end, function(err)
+			io.stderr:write(err..'\n'..debug.traceback()..'\n')
+			io.stderr:flush()
+		end)
 	end
 
 	return args.group
