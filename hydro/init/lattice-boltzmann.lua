@@ -41,9 +41,22 @@ for (int ofz = 0; ofz < solver->ofsmax.z; ++ofz) {
 			}
 
 			rho += nbhd[ofs];
+			
+			++ofs;
 		}
 	}
 }
+real const rho0 = 100.;
+ofs = 0;
+for (int ofz = 0; ofz < solver->ofsmax.z; ++ofz) {
+	for (int ofy = 0; ofy < solver->ofsmax.y; ++ofy) {
+		for (int ofx = 0; ofx < solver->ofsmax.x; ++ofx) {
+			nbhd[ofs] *= rho0 / rho;
+			++ofs;
+		}
+	}
+}
+rho = rho0;
 ]]
 		end,
 	},
