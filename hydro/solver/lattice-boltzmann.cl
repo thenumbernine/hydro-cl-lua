@@ -17,9 +17,9 @@ void <?=applyInitCondCell?>(
 
 	real solid = 0;
 	real rho = 0;
-	real nbhd[maxofsvol];
+	real F[maxofsvol];
 	for (int i = 0; i < solver->ofsvol; ++i) {
-		nbhd[i] = 0;
+		F[i] = 0;
 	}
 
 <?=initCode()?>
@@ -28,7 +28,7 @@ void <?=applyInitCondCell?>(
 	U->solid = solid;
 	U->v = real3_zero;
 	for (int i = 0; i < solver->ofsvol; ++i) {
-		U->nbhd[i] = nbhd[i];
+		U->F[i] = F[i];
 	}
 }
 
@@ -40,7 +40,7 @@ kernel void <?=advect?>(
 	global <?=cons_t?> * const UNextBuf,
 	global <?=cons_t?> const * const UBuf
 ) {
-	<?=SETBOUNDS?>(solver->numGhost-1, solver->numGhost-2);
+	<?=SETBOUNDS?>(solver->numGhost, solver->numGhost);
 	
 	global <?=cons_t?> const * const U = UBuf + index;
 	global <?=cons_t?> * const UNext = UNextBuf + index;
@@ -49,21 +49,22 @@ kernel void <?=advect?>(
 	UNext->v = U->v;
 	UNext->solid = U->solid;
 
-	int ofs = 0;
+	int ofsindex = 0;
 	int4 c = (int4)(0,0,0,0);		
-	for (int ofz = 0; ofz < solver->ofsmax.z; ++ofz) {
-		c.z = ofz - (solver->ofsmax.z-1)/2;
-		for (int ofy = 0; ofy < solver->ofsmax.y; ++ofy) {
-			c.y = ofy - (solver->ofsmax.y-1)/2;
-			for (int ofx = 0; ofx < solver->ofsmax.x; ++ofx) {
-				c.x = ofx - (solver->ofsmax.x-1)/2;
-				//int indexofs = -dot(c, solver->stepsize);
-				int indexofs = 
-					-c.x * solver->stepsize.x
-					-c.y * solver->stepsize.y
-					-c.z * solver->stepsize.z;
-				UNext->nbhd[ofs] = U[indexofs].nbhd[ofs];
-				++ofs;
+	int4 ofs = (int4)(0,0,0,0);
+	for (ofs.z = 0; ofs.z < solver->ofsmax.z; ++ofs.z) {
+		c.z = ofs.z - (solver->ofsmax.z-1)/2;
+		for (ofs.y = 0; ofs.y < solver->ofsmax.y; ++ofs.y) {
+			c.y = ofs.y - (solver->ofsmax.y-1)/2;
+			for (ofs.x = 0; ofs.x < solver->ofsmax.x; ++ofs.x) {
+				c.x = ofs.x - (solver->ofsmax.x-1)/2;
+				//int Fofs = -dot(c, solver->stepsize);
+				int Fofs = 
+					- c.x * solver->stepsize.x
+					- c.y * solver->stepsize.y
+					- c.z * solver->stepsize.z;
+				UNext->F[ofsindex] = U[Fofs].F[ofsindex];
+				++ofsindex;
 			}
 		}
 	}
@@ -77,24 +78,25 @@ kernel void <?=calcPrims?>(
 	constant <?=solver_t?> const * const solver,
 	global <?=cons_t?> * const UBuf
 ) {
-	<?=SETBOUNDS?>(solver->numGhost-1, solver->numGhost-2);
+	<?=SETBOUNDS?>(solver->numGhost, solver->numGhost);
 	
 	global <?=cons_t?> * const U = UBuf + index;
 
-	int ofs = 0;
+	int ofsindex = 0;
 	real rho = 0;
 	real3 m = real3_zero;
 	real3 c;
-	for (int ofz = 0; ofz < solver->ofsmax.z; ++ofz) {
-		c.z = (real)(ofz - 1);
-		for (int ofy = 0; ofy < solver->ofsmax.y; ++ofy) {
-			c.y = (real)(ofy - 1);
-			for (int ofx = 0; ofx < solver->ofsmax.x; ++ofx) {
-				c.x = (real)(ofx - 1);
-				real rhoNbhd = U->nbhd[ofs];
-				rho += rhoNbhd;
-				m = real3_add(m, real3_real_mul(c, rhoNbhd));
-				++ofs;
+	int4 ofs = (int4)(0,0,0,0);
+	for (ofs.z = 0; ofs.z < solver->ofsmax.z; ++ofs.z) {
+		c.z = (real)(ofs.z - (solver->ofsmax.z-1)/2);
+		for (ofs.y = 0; ofs.y < solver->ofsmax.y; ++ofs.y) {
+			c.y = (real)(ofs.y - (solver->ofsmax.y-1)/2);
+			for (ofs.x = 0; ofs.x < solver->ofsmax.x; ++ofs.x) {
+				c.x = (real)(ofs.x - (solver->ofsmax.x-1)/2);
+				real const Fnbhd = U->F[ofsindex];
+				++ofsindex;
+				rho += Fnbhd;
+				m = real3_add(m, real3_real_mul(c, Fnbhd));
 			}
 		}
 	}
@@ -111,48 +113,53 @@ kernel void <?=calcPrims?>(
 
 kernel void <?=applyCollision?>(
 	constant <?=solver_t?> const * const solver,
-	global <?=cons_t?> * const UBuf
+	global <?=cons_t?> * const UBuf,
+	realparam const dt
 ) {
-	<?=SETBOUNDS?>(solver->numGhost-1, solver->numGhost-2);
+	<?=SETBOUNDS?>(solver->numGhost, solver->numGhost);
 	
 	global <?=cons_t?> * const U = UBuf + index;
 
-	real const invtau = 1. / .6;	// 1./dt?
+	real const invdt = 1. / dt;
+
+	real tmpF[maxofsvol];
 
 	if (U->solid) {
-		real tmp[maxofsvol];
-		int ofs = 0;
-		for (int ofz = 0; ofz < solver->ofsmax.z; ++ofz) {
-			int const nofz = solver->ofsmax.z-1-ofz;
-			for (int ofy = 0; ofy < solver->ofsmax.y; ++ofy) {
-				int const nofy = solver->ofsmax.y-1-ofy;
-				for (int ofx = 0; ofx < solver->ofsmax.x; ++ofx) {
-					int const nofx = solver->ofsmax.x-1-ofx;	
-					tmp[ofs] = U->nbhd[nofx + 3 * (nofy + 3 * nofz)];
-					++ofs;
+		int ofsindex = 0;
+		int4 ofs = (int4)(0,0,0,0);
+		int4 nofs = (int4)(0,0,0,0);
+		for (ofs.z = 0; ofs.z < solver->ofsmax.z; ++ofs.z) {
+			nofs.z = solver->ofsmax.z - 1 - ofs.z;
+			for (ofs.y = 0; ofs.y < solver->ofsmax.y; ++ofs.y) {
+				nofs.y = solver->ofsmax.y - 1 - ofs.y;
+				for (ofs.x = 0; ofs.x < solver->ofsmax.x; ++ofs.x) {
+					nofs.x = solver->ofsmax.x - 1 - ofs.x;
+					tmpF[ofsindex] = U->F[nofs.x + 3 * (nofs.y + 3 * nofs.z)];
+					++ofsindex;
 				}
 			}
 		}
-		for (int ofs = 0; ofs < solver->ofsvol; ++ofs) {
-			U->nbhd[ofs] = tmp[ofs];
+		for (int ofsindex = 0; ofsindex < solver->ofsvol; ++ofsindex) {
+			U->F[ofsindex] = tmpF[ofsindex];
 		}
 	} else {
+		int4 ofs = (int4)(0,0,0,0);
 		real3 const v = U->v;
 		real const vSq = real3_lenSq(v);
 		real3 c;
-		int ofs = 0;
-		for (int ofz = 0; ofz < solver->ofsmax.z; ++ofz) {
-			c.z = (real)(ofz - 1);
-			for (int ofy = 0; ofy < solver->ofsmax.y; ++ofy) {
-				c.y = (real)(ofy - 1);
-				for (int ofx = 0; ofx < solver->ofsmax.x; ++ofx) {
-					c.x = (real)(ofx - 1);
-					real const w = solver->weights[ofx + 3 * (ofy + 3 * ofz)];
+		int ofsindex = 0;
+		for (ofs.z = 0; ofs.z < solver->ofsmax.z; ++ofs.z) {
+			c.z = (real)(ofs.z - (solver->ofsmax.z-1)/2);
+			for (ofs.y = 0; ofs.y < solver->ofsmax.y; ++ofs.y) {
+				c.y = (real)(ofs.y - (solver->ofsmax.y-1)/2);
+				for (ofs.x = 0; ofs.x < solver->ofsmax.x; ++ofs.x) {
+					c.x = (real)(ofs.x - (solver->ofsmax.x-1)/2);
+					real const w = solver->weights[ofs.x + 3 * (ofs.y + 3 * ofs.z)];
 					real const velDotOfs = real3_dot(c, v);
 					real const Feq = U->rho * w * (1. + 3. * velDotOfs + 4.5 * velDotOfs * velDotOfs - 1.5 * vSq);
-					U->nbhd[ofs] *= 1. - invtau;
-					U->nbhd[ofs] += invtau *  Feq;
-					++ofs;
+					U->F[ofsindex] *= 1. - invdt;
+					U->F[ofsindex] += invdt *  Feq;
+					++ofsindex;
 				}
 			}
 		}

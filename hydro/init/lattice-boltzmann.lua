@@ -7,10 +7,12 @@ local LatticeBoltzmannInitCond = class(InitCond)
 local initConds = table{
 	{
 		name = 'cylinder',
-		mins = {-1, -1, -1},
-		maxs = {1, 1, 1},
+		mins = {-1, -.25, -1},
+		maxs = {1, .25, 1},
 		guiVars = {
-			{name='r', value=.25},
+			{name='r', value=.1},
+			{name='cx', value=-.8},
+			{name='cy', value=0},
 		},
 		getInitCondCode = function(self)
 			local solver = assert(self.solver)
@@ -20,39 +22,41 @@ local initConds = table{
 
 #define DBL_EPSILON 2.220446049250313080847e-16
 #define DBL_EPS_COMP (1. - DBL_EPSILON)
-solid = (real)(real3_len(xc) < initCond->r);
+solid = (real)(real3_len(real3_sub(xc, _real3(initCond->cx, initCond->cy, 0.))) < initCond->r);
 
-int ofs = 0;
+int ofsindex = 0;
 int4 c = (int4)(0,0,0,0);		
-for (int ofz = 0; ofz < solver->ofsmax.z; ++ofz) {
-	c.z = ofz - (solver->ofsmax.z-1)/2;
-	for (int ofy = 0; ofy < solver->ofsmax.y; ++ofy) {
-		c.y = ofy - (solver->ofsmax.y-1)/2;
-		for (int ofx = 0; ofx < solver->ofsmax.x; ++ofx) {
-			c.x = ofx - (solver->ofsmax.x-1)/2;
+int4 ofs = (int4)(0,0,0,0);
+for (ofs.z = 0; ofs.z < solver->ofsmax.z; ++ofs.z) {
+	c.z = ofs.z - (solver->ofsmax.z-1)/2;
+	for (ofs.y = 0; ofs.y < solver->ofsmax.y; ++ofs.y) {
+		c.y = ofs.y - (solver->ofsmax.y-1)/2;
+		for (ofs.x = 0; ofs.x < solver->ofsmax.x; ++ofs.x) {
+			c.x = ofs.x - (solver->ofsmax.x-1)/2;
 
 			real const mu = 0.;
 			real const sigma = 1.;
-			real const randn = mu + (U->rho > .5 ? -1. : 1.) * sigma * sqrt(-log(DBL_EPS_COMP * U->nbhd[ofs]));
+			real const randn = mu + (U->rho > .5 ? -1. : 1.) * sigma * sqrt(-log(DBL_EPS_COMP * U->F[ofsindex]));
 
-			nbhd[ofs] = 1. + .01 * randn;
+			F[ofsindex] = 1. + .01 * randn;
 			if (c.x == 1 && c.y == 0 && c.z == 0) {
-				nbhd[ofs] += 2 * (1 + .2 * cos(2. * M_PI * xc.x));
+				F[ofsindex] += 2 * (1 + .2 * cos(2. * M_PI * xc.x));
 			}
 
-			rho += nbhd[ofs];
+			rho += F[ofsindex];
 			
-			++ofs;
+			++ofsindex;
 		}
 	}
 }
 real const rho0 = 100.;
-ofs = 0;
-for (int ofz = 0; ofz < solver->ofsmax.z; ++ofz) {
-	for (int ofy = 0; ofy < solver->ofsmax.y; ++ofy) {
-		for (int ofx = 0; ofx < solver->ofsmax.x; ++ofx) {
-			nbhd[ofs] *= rho0 / rho;
-			++ofs;
+ofsindex = 0;
+ofs = (int4)(0,0,0,0);
+for (ofs.z = 0; ofs.z < solver->ofsmax.z; ++ofs.z) {
+	for (ofs.y = 0; ofs.y < solver->ofsmax.y; ++ofs.y) {
+		for (ofs.x = 0; ofs.x < solver->ofsmax.x; ++ofs.x) {
+			F[ofsindex] *= rho0 / rho;
+			++ofsindex;
 		}
 	}
 }

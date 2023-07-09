@@ -4,6 +4,7 @@ local table = require 'ext.table'
 local file = require 'ext.file'
 local vec3sz = require 'vec-ffi.vec3sz'
 local GridSolver = require 'hydro.solver.gridsolver'
+local real = require 'hydro.real'
 
 local LatticeBoltzmann = class(GridSolver)
 LatticeBoltzmann.name = 'LatticeBoltzmann'
@@ -26,6 +27,7 @@ function LatticeBoltzmann:initMeshVars(args)
 	LatticeBoltzmann.super.initMeshVars(self, args)
 	self.solverStruct.vars:append{
 		{name='ofsmax', type='int4'},
+		{name='ofsstep', type='int4'},
 		{name='ofsvol', type='int'},
 		{name='weights', type='real[27]'},
 	}
@@ -37,6 +39,11 @@ function LatticeBoltzmann:initMeshVars(args)
 	)
 
 	self.ofsvol = self.ofsmax:volume()
+
+	self.ofsstep = vec3sz()
+	self.ofsstep.x = 1
+	self.ofsstep.y = self.ofsmax.x * self.ofsstep.x
+	self.ofsstep.z = self.ofsmax.y * self.ofsstep.y
 end
 
 function LatticeBoltzmann:createSolverBuf()
@@ -45,6 +52,10 @@ function LatticeBoltzmann:createSolverBuf()
 	self.solverPtr.ofsmax.y = self.ofsmax.y
 	self.solverPtr.ofsmax.z = self.ofsmax.z
 	self.solverPtr.ofsmax.w = 0
+	self.solverPtr.ofsstep.x = self.ofsstep.x
+	self.solverPtr.ofsstep.y = self.ofsstep.y
+	self.solverPtr.ofsstep.z = self.ofsstep.z
+	self.solverPtr.ofsstep.w = self.ofsmax.z * self.ofsstep.z
 	
 	-- but super also calls refreshSolverBuf...
 	self.solverPtr.ofsvol = self.ofsvol
@@ -57,12 +68,12 @@ function LatticeBoltzmann:createSolverBuf()
 		self.solverPtr.weights[0] = 1/36
 		self.solverPtr.weights[1] = 4/36
 		self.solverPtr.weights[2] = 1/36
-		self.solverPtr.weights[4] = 4/36
-		self.solverPtr.weights[5] = 16/36
-		self.solverPtr.weights[6] = 4/36
-		self.solverPtr.weights[7] = 1/36
-		self.solverPtr.weights[8] = 4/36
-		self.solverPtr.weights[9] = 1/36
+		self.solverPtr.weights[3] = 4/36
+		self.solverPtr.weights[4] = 16/36
+		self.solverPtr.weights[5] = 4/36
+		self.solverPtr.weights[6] = 1/36
+		self.solverPtr.weights[7] = 4/36
+		self.solverPtr.weights[8] = 1/36
 	elseif self.dim == 3 then
 	else
 		error("unknown dim "..tostring(self.dim))
@@ -87,13 +98,12 @@ local LatticeBoltzmannEqn = class(require 'hydro.eqn.eqn')
 LatticeBoltzmannEqn.name = 'LatticeBoltzmann'
 LatticeBoltzmannEqn.initConds = require 'hydro.init.lattice-boltzmann':getList()
 function LatticeBoltzmannEqn:buildVars()
-	self.lbmNbhdVol = 3 ^ self.solver.dim
 	self.consVars = self.consVars or table()
 	self.consVars:append{
 		{name='rho', type='real'},
 		{name='v', type='real3'},
 		{name='solid', type='real'},
-		{name='nbhd', type='real['..self.lbmNbhdVol..']'},
+		{name='F', type='real['..tonumber(self.solver.ofsvol)..']'},
 	}
 end
 function LatticeBoltzmannEqn:initCodeModule_calcDTCell() end
@@ -103,9 +113,45 @@ LatticeBoltzmannEqn.predefinedDisplayVars = {
 	'U v x',
 	'U v y',
 	'U solid',
+	'U curl v',
+	'U div v',
 }
+function LatticeBoltzmannEqn:getDisplayVars()
+	local vars = LatticeBoltzmannEqn.super.getDisplayVars(self)
+	vars:append{
+		{name='rhoSum', code=[[
+value.vreal = 0;
+for (int i = 0; i < solver->ofsvol; ++i) {
+	value.vreal += U->F[i];
+}
+]], type='real'},
+		{name='rho-rhoSum', code=[[
+value.vreal = -U->rho;
+for (int i = 0; i < solver->ofsvol; ++i) {
+	value.vreal += U->F[i];
+}
+]], type='real'},
+	}
+
+	-- TODO this for all vectors?
+	vars:insert(self:createDivDisplayVar{
+		field = 'v',
+		units = '1/s',
+	} or nil)
+
+	vars:insert(self:createCurlDisplayVar{
+		field = 'v',
+		units = '1/s',
+	} or nil)
+
+	return vars
+end
 function LatticeBoltzmann:createEqn()
 	self.eqn = LatticeBoltzmannEqn{solver=self}
+end
+
+function LatticeBoltzmann:refreshIntegrator()
+	self.integrator = {}
 end
 
 function LatticeBoltzmann:createBuffers()
@@ -131,6 +177,7 @@ function LatticeBoltzmann:refreshSolverProgram()
 end
 
 function LatticeBoltzmann:step(dt)
+
 	if cmdline.printBufs then
 		print()
 		print('LBM step:')
@@ -163,7 +210,7 @@ function LatticeBoltzmann:step(dt)
 		self:printBuf(self.UBuf)
 	end
 
-	self.applyCollisionKernelObj(self.solverBuf, self.UBuf)
+	self.applyCollisionKernelObj(self.solverBuf, self.UBuf, real(dt))
 	if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
 	self:boundary()
 	if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
