@@ -617,28 +617,90 @@ function SolverBase:initMeshVars(args)
 		end
 		-- so cl.obj.program :compile using .code and .cacheFile basically does the same thing, but less flexible
 		local exec = require 'make.exec'
-		local clangname = ffi.os == 'Window' -- TODO this isn't windows, it's intel ...
-			and 'clangspirv'
-			or 'clang'
+		local usingWindowsIntelSDK = ffi.os == 'Windows'  -- TODO this isn't windows, it's intel ... maybe detect clang-spirv type? clang vs clangspirv
 		require 'make.targets'{
 			verbose = true,
 			{
 				srcs = {self.cacheFileCL},
-				dsts = {self.cacheFileBC},
+				dsts = {
+					not usingWindowsIntelSDK
+					and self.cacheFileBC
+					or self.cacheFileSPV
+				},
 				rule = function()
-					exec(table{
-						clangname,
-						'-v',
-						'-Xclang -finclude-default-header',
-						'--target=spirv64-unknown-unknown',
-						'-emit-llvm',
-						'-c',
-						--'-O3',	-- ok with this i'm getting llvm-spirv bytecode errors only with the euler + 3D case
-						'-o', ('%q'):format(self.cacheFileBC),
-						('%q'):format(self.cacheFileCL)
-					}:concat' ')
+					if not usingWindowsIntelSDK then
+						-- use linux, vanilla clang, llvm-spirv
+						exec(table{
+							'clang',
+							'-v',
+							'-Xclang -finclude-default-header',
+							'--target=spirv64-unknown-unknown',
+							'-emit-llvm',
+							'-c',
+							--'-O3',	-- ok with this i'm getting llvm-spirv bytecode errors only with the euler + 3D case
+							'-o', '"'..file(self.cacheFileBC):fixpathsep()..'"',	-- %q will also escape \'s, which are window's sep ofc, so ... maybe just gsub "'s only?
+							'"'..file(self.cacheFileCL):fixpathsep()..'"'
+						}:concat' ')
+					else
+						-- from https://www.intel.com/content/dam/develop/external/us/en/documents/opencl-sdk-2019-update-1-release-notes-541257.pdf
+						exec(table{
+							-- in the intel sdk:
+							--'clangspirv',
+							-- also in the intel sdk:
+							--'clangspir12',	-- seems like none of the c++ stuff works on spir12
+							-- in msvc clang ...
+							'clang',
+							-- also in msvc clang
+							--'clang-cl',
+							-- mind you llvm-spirv is also in the intel sdk ...
+							'-v',
+							--'-emit-llvm-bc',	-- tries to separate into "-e mit-llvm-bc" ???WTF???
+							--'-Xclang',
+							'--target=spirv64-unknown-unknown',
+							--'-emit-llvm',	-- "-emit-llvm cannot be used when linking" ... but you're not linking.  you're compiling.
+							--'-cc1','-triple spir64',
+							--'-x cl',	-- -cl-std= -std= depends on -x cl
+							-- https://clang.llvm.org/docs/UsersManual.html
+							-- C++ for OpenCL 1.0: -cl-std=clc++, -cl-std=CLC++, -cl-std=clc++1.0, -cl-std=CLC++1.0, -std=clc++, -std=CLC++, -std=clc++1.0 or -std=CLC++1.0.
+							-- C++ for OpenCL 2021: -cl-std=clc++2021, -cl-std=CLC++2021, -std=clc++2021, -std=CLC++2021.
+							'-cl-std=clc++', -- fails
+							--'-cl-std=CLC++', -- fails
+							--'-cl-std=clc++1.0', -- fails
+							--'-cl-std=CLC++1.0', -- fails
+							--'-std=clc++', -- fails
+							--'-std=CLC++', -- fails
+							--'-std=clc++1.0',-- fails
+							--'-std=CLC++1.0', -- fails
+							--'-cl-std=clc++2021',	-- fails
+							--'-cl-std=CLC++2021', -- fails
+							--'-std=clc++2021', -- fails
+							--'-std=CLC++2021',	-- fails
+							-- ... and when I use -std= the compiler tells me: `error: invalid value 'clc++' in '-std=clc++' note: use 'c++' for 'OpenCL C++ 1.0' standard `
+							-- works for clangspirv, not for clangspir12
+							--'-std=c++',	-- works but seems to be only taking in c++, not CL c++
+							--'-c',
+							--'-include opencl-c.h',
+							--'-fno-validate-pch',
+							-- https://stackoverflow.com/questions/52388836/how-to-compile-opencl-kernels-to-spir-v-using-clang
+							--'-cc1',
+							'-emit-spirv',	-- will still try to call llvm-spirv which isn't included in the MS version of clang or clang-cl ... hmm ...
+							-- why does clang-cl even exist in msvc if llvm-spirv does not?
+							-- heck llvm doesn't.
+							--'-triple=spir-unknown-unknown',
+							--'-triple=spirv-unknown-unknown',
+							--'-triple=spirv64-unknown-unknown',
+							--'-cl-std=c++',
+							--'-O0',
+							'-o', '"'..file(self.cacheFileSPV):fixpathsep()..'"',	-- %q will also escape \'s, which are window's sep ofc, so ... maybe just gsub "'s only?
+							'"'..file(self.cacheFileCL):fixpathsep()..'"'
+						}:concat' ')
+						-- TODO hmm, on my intel I'm getting for real=double:
+						-- warning: unsupported OpenCL extension 'cl_khr_fp64' - ignoring ... #pragma OPENCL EXTENSION cl_khr_fp64 : enable
+						-- hmm likewise float2 isn't a recognized type ...
+					end
 				end,
-			}, {
+			},
+			not usingWindowsIntelSDK and {
 				srcs = {self.cacheFileBC},
 				dsts = {self.cacheFileSPV},
 				rule = function()
@@ -648,7 +710,7 @@ function SolverBase:initMeshVars(args)
 						'-o', ('%q'):format(self.cacheFileSPV),
 					}:concat' ')
 				end,
-			},
+			} or nil,
 		}:run(self.cacheFileSPV)
 
 		self.IL = file(self.cacheFileSPV):read()
