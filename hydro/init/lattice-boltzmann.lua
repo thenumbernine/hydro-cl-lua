@@ -34,9 +34,12 @@ for (ofs.z = 0; ofs.z < solver->ofsmax.z; ++ofs.z) {
 		for (ofs.x = 0; ofs.x < solver->ofsmax.x; ++ofs.x) {
 			c.x = ofs.x - (solver->ofsmax.x-1)/2;
 
+			real randunit = U->F[ofsindex];
+			real const s = randunit > .5 ? -1 : 1;
+			randunit = fmod(randunit * 2., 1.);
 			real const mu = 0.;
 			real const sigma = 1.;
-			real const randn = mu + (U->rho > .5 ? -1. : 1.) * sigma * sqrt(-log(DBL_EPS_COMP * U->F[ofsindex]));
+			real const randn = mu + s * sigma * sqrt(-log(DBL_EPS_COMP * randunit));
 
 			F[ofsindex] = 1. + .01 * randn;
 			if (c.x == 1 && c.y == 0 && c.z == 0) {
