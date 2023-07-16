@@ -694,7 +694,7 @@ if cmdline.solver then self.solvers:insert(require('hydro.solver.'..cmdline.solv
 -- fitting a lattice-boltzmann solver into my framework
 
 
-self.solvers:insert(require 'hydro.solver.lattice-boltzmann'(table(args, {initCond='cylinder', fixedDT=.6, gridSize={400,100}, usePLM=false, useCTU=false})))
+--self.solvers:insert(require 'hydro.solver.lattice-boltzmann'(table(args, {initCond='cylinder', fixedDT=.6, gridSize={400,100}, usePLM=false, useCTU=false})))
 
 
 -- simple wave equation, no time/space coupling via background metric
@@ -877,6 +877,11 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {
 
 
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler-lingr'})))
+
+
+-- incompressible 
+-- TODO finish me
+--self.solvers:insert(require 'hydro.solver.navstokes-incomp'(table(args)))
 
 
 -- special relativistic compressible hydrodynamics

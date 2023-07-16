@@ -20,6 +20,7 @@ local initConds = table{
 			solver:setBoundaryMethods'freeflow'
 			return [[
 
+// TODO put this in lua ext.math?
 #define DBL_EPSILON 2.220446049250313080847e-16
 #define DBL_EPS_COMP (1. - DBL_EPSILON)
 solid = (real)(real3_len(real3_sub(xc, _real3(initCond->cx, initCond->cy, 0.))) < initCond->r);
