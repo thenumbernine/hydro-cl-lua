@@ -9,6 +9,7 @@ local class = require 'ext.class'
 local table = require 'ext.table'
 local math = require 'ext.math'
 local file = require 'ext.file'
+local vec2i = require 'vec-ffi.vec2i'
 local vec3sz = require 'vec-ffi.vec3sz'
 local vec3f = require 'vec-ffi.vec3f'
 local vec3d = require 'vec-ffi.vec3d'
@@ -626,7 +627,15 @@ function MeshSolver:initCodeModules()
 	-- TODO move this to hydro.code.math?
 	self.modules:add{
 		name = 'vec2i_t',
-		typecode = vec2i.typeCode,
+		typecode = [[
+
+//// BEGIN EXCLUDE FOR FFI_CDEF
+
+]]..vec2i.typeCode..[[
+
+//// END EXCLUDE FOR FFI_CDEF
+
+]],
 	}
 --]]
 
