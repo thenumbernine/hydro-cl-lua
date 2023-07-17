@@ -5,7 +5,7 @@ require 'ext'
 local fn = assert((...))
 local matrix = require 'matrix'
 local _ = range
-local ls = file(fn):read():trim():split'\n'
+local ls = path(fn):read():trim():split'\n'
 
 local cols = ls:remove(1):split'\t'
 

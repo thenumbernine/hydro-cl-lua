@@ -2,12 +2,12 @@
 local tolua = require 'ext.tolua'
 local table = require 'ext.table'
 local os = require 'ext.os'
-local file = require 'ext.file'
+local path = require 'ext.path'
 local string = require 'ext.string'
 
 local function updateIndex()
 	local fs = table()
-	for f in file:dir() do
+	for f in path:dir() do
 		if f:match'%.txt$'
 		and f ~= 'README.txt'
 		then
@@ -48,7 +48,7 @@ table td, table th {
 	for _,f in ipairs(fs) do
 		local last = string.split(
 			string.split(
-				string.trim(file(f):read()),
+				string.trim(path(f):read()),
 				'\n'
 			):last(),
 			'%s+'
@@ -57,7 +57,7 @@ table td, table th {
 		-- last = {time, avg, min, max, stddev}
 		ts:insert('<tr>\n'
 			..'<td>'
-			..file(f):getext():gsub('_', ' ')
+			..path(f):getext():gsub('_', ' ')
 			..'</td><!-- name -->\n'
 			..last:mapi(function(l,i)
 				return '<td>'..l..'</td><!-- '..colnames[i]..' -->\n'
@@ -71,7 +71,7 @@ table td, table th {
 </html>
 ]]
 	)
-	file'index.html':write(ts:concat'\n')
+	path'index.html':write(ts:concat'\n')
 end
 
 --[[
@@ -79,7 +79,7 @@ updateIndex()
 os.exit()
 --]]
 
-local DIR = file:cwd()
+local DIR = path:cwd()
 
 for cfg in coroutine.wrap(function()
 	-- TODO vary flux as well?
@@ -174,7 +174,7 @@ local name = 'cylinder_rmin_gt_0'
 
 end) do
 
-	assert(file'../..':cd())
+	assert(path'../..':cd())
 
 	-- forward args
 	local cmd = './run.lua sys=console "config='..DIR..'/config.lua" exitTime=1'
@@ -196,7 +196,7 @@ end) do
 	print(cmd)
 	print(os.execute(cmd))
 
-	assert(file(DIR):cd())
+	assert(path(DIR):cd())
 	
 	-- update our global matrix and write out
 	updateIndex()

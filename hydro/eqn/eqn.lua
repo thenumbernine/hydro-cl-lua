@@ -2,7 +2,7 @@ local ffi = require 'ffi'
 local class = require 'ext.class'
 local table = require 'ext.table'
 local range = require 'ext.range'
-local file = require 'ext.file'
+local path = require 'ext.path'
 local template = require 'template'
 local Struct = require 'hydro.code.struct'
 local makePartials = require 'hydro.eqn.makepartial'
@@ -844,7 +844,7 @@ function Equation:initCodeModule_solverCodeFile()
 		print('your eqn does not have a .cl file')
 		return
 	end
-	local code = self:template(assert(file(self.solverCodeFile):read()))
+	local code = self:template(assert(path(self.solverCodeFile):read()))
 
 	-- in case any MODULE_* cmds were in there, align them back with the lhs
 	-- TODO seems I do this often enough, maybe I should change the module markup?  something inline-able too?
@@ -1149,7 +1149,7 @@ end
 -- By default calcDT is taken from hydro/eqn/cl/calcDT.cl
 -- Override to provide your own.
 function Equation:initCodeModule_calcDTCell()
-	self.solver.modules:addFromMarkup(self:template(file'hydro/eqn/cl/calcDT.cl':read()))
+	self.solver.modules:addFromMarkup(self:template(path'hydro/eqn/cl/calcDT.cl':read()))
 end
 
 -- override this if you don't want the original calcDT at all

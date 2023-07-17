@@ -4,7 +4,7 @@ common functions for all Einstein field equation solvers
 
 local class = require 'ext.class'
 local table = require 'ext.table'
-local file = require 'ext.file'
+local path = require 'ext.path'
 local Equation = require 'hydro.eqn.eqn'
 
 local common = require 'hydro.common'
@@ -54,7 +54,7 @@ end
 function EinsteinEquation:initCodeModules()
 	EinsteinEquation.super.initCodeModules(self)
 
-	self.solver.modules:addFromMarkup(self:template(file'hydro/eqn/einstein.cl':read()))
+	self.solver.modules:addFromMarkup(self:template(path'hydro/eqn/einstein.cl':read()))
 end
 
 -- add an option for fixed Minkowsky boundary spacetime

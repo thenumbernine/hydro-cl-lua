@@ -5,7 +5,7 @@ local _ = matrix.index
 local ms = table()
 local fns = table()
 --[[ out of order
-for fn in file:dir() do
+for fn in path:dir() do
 --]]
 -- [[ in order
 for _,fn in ipairs{
@@ -18,9 +18,9 @@ for _,fn in ipairs{
 	'euler 3d gmres err - 32x32x32.txt',
 } do
 --]]
-	if select(2, file(fn):getext()) == 'txt' then
+	if select(2, path(fn):getext()) == 'txt' then
 		fns:insert(fn)
-		local ls = file(fn):read():trim():split'\n'
+		local ls = path(fn):read():trim():split'\n'
 		local firstline = ls:remove(1)
 		assert(firstline:sub(1,1) == '#', "expected first line to be a comment, found:\n"..firstline)
 		local m = matrix(

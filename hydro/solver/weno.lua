@@ -15,7 +15,7 @@ local ffi = require 'ffi'
 local class = require 'ext.class'
 local table = require 'ext.table'
 local range = require 'ext.range'
-local file = require 'ext.file'
+local path = require 'ext.path'
 local real = require 'hydro.real'
 local FiniteVolumeSolver = require 'hydro.solver.fvsolver'
 
@@ -383,7 +383,7 @@ end
 
 function WENO:initCodeModule_calcFlux()
 	self.modules:addFromMarkup(
-		self.eqn:template(file'hydro/solver/weno.cl':read(), {
+		self.eqn:template(path'hydro/solver/weno.cl':read(), {
 			clnumber = require 'cl.obj.number',
 		})
 	)

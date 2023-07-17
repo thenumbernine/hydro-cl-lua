@@ -1,15 +1,15 @@
 require 'ext'
 local gnuplot = require 'gnuplot'
 local txts = table()
-for fn in file:dir() do
-	local name,ext = file(fn):getext()
+for fn in path:dir() do
+	local name,ext = path(fn):getext()
 	if ext == 'txt' then
 		txts:insert(fn)
 	end
 end
 for _,fn in ipairs(txts) do
 	print(fn)
-	local name,ext = file(fn):getext()
+	local name,ext = path(fn):getext()
 	assert(name)
 	gnuplot{
 		output = name..'.png',

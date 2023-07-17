@@ -1,6 +1,6 @@
 local table = require 'ext.table'
 local class = require 'ext.class'
-local file = require 'ext.file'
+local path = require 'ext.path'
 local template = require 'template'
 local Relaxation = require 'hydro.op.relaxation'
 
@@ -10,7 +10,7 @@ PoissonJacobi.name = 'poisson_jacobi'
 
 PoissonJacobi.solverCodeFile = 'hydro/op/poisson.cl'
 
-local poissonJacobiCode = file'hydro/op/poisson_jacobi.cl':read()
+local poissonJacobiCode = path'hydro/op/poisson_jacobi.cl':read()
 
 --[[
 args:

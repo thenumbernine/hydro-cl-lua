@@ -1,5 +1,5 @@
 --[[
-foundation class for solvers that use unstructured meshes from files
+foundation class for solvers that use unstructured meshes from file
 
 NACA 0012 from...
 https://turbmodels.larc.nasa.gov/naca0012_grids.html
@@ -8,7 +8,7 @@ local ffi = require 'ffi'
 local class = require 'ext.class'
 local table = require 'ext.table'
 local math = require 'ext.math'
-local file = require 'ext.file'
+local path = require 'ext.path'
 local vec2i = require 'vec-ffi.vec2i'
 local vec3sz = require 'vec-ffi.vec3sz'
 local vec3f = require 'vec-ffi.vec3f'
@@ -640,7 +640,7 @@ function MeshSolver:initCodeModules()
 --]]
 
 	self.modules:addFromMarkup(
-		self.eqn:template(file'hydro/solver/meshsolver.cl':read())
+		self.eqn:template(path'hydro/solver/meshsolver.cl':read())
 	)
 
 	self.solverModulesEnabled[self.symbols.calcFlux] = true

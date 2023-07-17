@@ -1,7 +1,7 @@
 local ffi = require 'ffi'
 local class = require 'ext.class'
 local table = require 'ext.table'
-local file = require 'ext.file'
+local path = require 'ext.path'
 local vec3sz = require 'vec-ffi.vec3sz'
 local GridSolver = require 'hydro.solver.gridsolver'
 local real = require 'hydro.real'
@@ -163,7 +163,7 @@ function LatticeBoltzmann:refreshCalcDTKernel() end
 
 function LatticeBoltzmann:initCodeModules()
 	LatticeBoltzmann.super.initCodeModules(self)
-	self.modules:addFromMarkup(self.eqn:template(file'hydro/solver/lattice-boltzmann.cl':read()))
+	self.modules:addFromMarkup(self.eqn:template(path'hydro/solver/lattice-boltzmann.cl':read()))
 	self.solverModulesEnabled[self.symbols.advect] = true
 	self.solverModulesEnabled[self.symbols.calcPrims] = true
 	self.solverModulesEnabled[self.symbols.applyCollision] = true

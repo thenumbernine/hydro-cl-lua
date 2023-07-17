@@ -1,6 +1,6 @@
 local table = require 'ext.table'
 local class = require 'ext.class'
-local file = require 'ext.file'
+local path = require 'ext.path'
 local ig = require 'imgui'
 local real = require 'hydro.real'	-- really 'realparam'
 
@@ -63,7 +63,7 @@ function SelfGrav:getPoissonDivCode()
 end
 
 function SelfGrav:getPoissonCode()
-	return file'hydro/op/selfgrav.cl':read()
+	return path'hydro/op/selfgrav.cl':read()
 end
 
 function SelfGrav:initCodeModules()

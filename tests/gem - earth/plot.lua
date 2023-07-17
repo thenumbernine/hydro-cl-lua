@@ -6,7 +6,7 @@ local gnuplot = require 'gnuplot'
 local datafns = table()
 
 -- parse trackvars out of output
-for fn in file:dir() do
+for fn in path:dir() do
 	local base = fn:match'^out (.*)%.txt'
 	if base then
 		print('processing '..fn)
@@ -20,7 +20,7 @@ for fn in file:dir() do
 		print('got '..#data..' rows')
 		if #data > 0 then
 			local datafn = 'plotdata '..base..'.txt'
-			file(datafn):write(data:mapi(function(row)
+			path(datafn):write(data:mapi(function(row)
 				return row:concat'\t'
 			end):concat'\n')
 			datafns:insert(datafn)

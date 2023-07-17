@@ -6,7 +6,7 @@ local class = require 'ext.class'
 local table = require 'ext.table'
 local range = require 'ext.range'
 local math = require 'ext.math'
-local file = require 'ext.file'
+local path = require 'ext.path'
 local real = require 'hydro.real'
 local GridSolver = require 'hydro.solver.gridsolver'
 
@@ -42,7 +42,7 @@ function FiniteVolumeSolver:initCodeModules()
 	self.solverModulesEnabled[self.symbols.calcFlux] = true
 
 	self.modules:addFromMarkup(
-		self.eqn:template(file'hydro/solver/fvsolver.cl':read(), {
+		self.eqn:template(path'hydro/solver/fvsolver.cl':read(), {
 			flux = self.flux,
 		})
 	)

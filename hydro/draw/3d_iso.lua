@@ -1,5 +1,5 @@
 local class = require 'ext.class'
-local file = require 'ext.file'
+local path = require 'ext.path'
 local gl = require 'ffi.OpenGL'
 local ffi = require 'ffi'
 local table = require 'ext.table'
@@ -381,7 +381,7 @@ function Draw3DIso:prepareShader()
 
 	solver.display3D_Ray_maxiter = math.max(tonumber(solver.gridSize.x), tonumber(solver.gridSize.y), tonumber(solver.gridSize.z))
 
-	local volumetricCode = file'hydro/draw/volumetric.glsl':read()
+	local volumetricCode = path'hydro/draw/volumetric.glsl':read()
 	solver.volumeRayShader = solver.GLProgram{
 		name = 'volumetric',
 		vertexCode = solver.eqn:template(volumetricCode, {

@@ -1,7 +1,7 @@
 local gl = require 'ffi.OpenGL'
 local class = require 'ext.class'
 local vec3f = require 'vec-ffi.vec3f'
-local file = require 'ext.file'
+local path = require 'ext.path'
 local matrix_ffi = require 'matrix.ffi'
 local vector = require 'ffi.cpp.vector'
 local Draw = require 'hydro.draw.draw'
@@ -151,7 +151,7 @@ function DrawVectorStateLine:prepareShader()
 	local solver = self.solver
 	if solver.drawVectorStateLineShader then return end
 
-	local code = assert(file'hydro/draw/vector_state_line.glsl':read())
+	local code = assert(path'hydro/draw/vector_state_line.glsl':read())
 
 	solver.drawVectorStateLineShader = solver.GLProgram{
 		name = 'vector_state_line',

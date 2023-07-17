@@ -1,6 +1,6 @@
 local class = require 'ext.class'
 local table = require 'ext.table'
-local file = require 'ext.file'
+local path = require 'ext.path'
 local string = require 'ext.string'
 local template = require 'template'
 local clnumber = require 'cl.obj.number'
@@ -12,7 +12,7 @@ function Flux:init(args)
 end
 
 function Flux:initCodeModules()
-	local code = self.solver.eqn:template(file(self.solverCodeFile):read(), {
+	local code = self.solver.eqn:template(path(self.solverCodeFile):read(), {
 		clnumber = clnumber,
 		flux = self,
 	})

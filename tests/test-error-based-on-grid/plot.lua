@@ -7,7 +7,7 @@ local gnuplot = require 'gnuplot'
 local outdst = 'out.txt'
 local datafn = 'data.txt'
 local ks
-local data = file(outdst):read():split'\n':mapi(function(l,i,t)
+local data = path(outdst):read():split'\n':mapi(function(l,i,t)
 	-- first line always starts with t=
 	if l:match'^t=' then
 		local firstcol
@@ -31,10 +31,10 @@ local data = file(outdst):read():split'\n':mapi(function(l,i,t)
 		return ws:concat'\t', #t+1
 	end
 end):concat'\n'..'\n'
-file(datafn):write('#'..ks:concat'\t'..'\n'..data)
+path(datafn):write('#'..ks:concat'\t'..'\n'..data)
 
 local datafn = 'data.txt'
-local cols = file(datafn):read():split'\n'[1]:sub(2):split'\t'
+local cols = path(datafn):read():split'\n'[1]:sub(2):split'\t'
 for i=2,#cols do
 	local col = cols[i]
 	gnuplot{

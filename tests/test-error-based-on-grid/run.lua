@@ -5,8 +5,8 @@
 require 'ext'
 local exec = require 'exec'
 
-local DIR = file:cwd()
-assert(file'../..':cd())
+local DIR = path:cwd()
+assert(path'../..':cd())
 
 local writeOut = false
 local writeFits = true
@@ -26,15 +26,15 @@ for _,i in ipairs(range(1,8):mapi(function(i) return math.floor(2^i) end)) do
 	exec(cmd)
 	
 	if writeOut then
-		file'out.txt':move(DIR..'/out-'..i..'.txt')
+		path'out.txt':move(DIR..'/out-'..i..'.txt')
 	end
 	if writeFits then
-		file'results_UBuf.fits':move(DIR..'/U-'..i..'.fits')
+		path'results_UBuf.fits':move(DIR..'/U-'..i..'.fits')
 	end
 end
 
 if writeFits then
-	for f in file:dir() do
+	for f in path:dir() do
 		if f:match'%.fits$' then
 			exec('rm "'..f..'"')
 		end

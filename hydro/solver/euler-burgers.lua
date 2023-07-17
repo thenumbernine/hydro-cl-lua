@@ -1,7 +1,7 @@
 local ffi = require 'ffi'
 local class = require 'ext.class'
 local table = require 'ext.table'
-local file = require 'ext.file'
+local path = require 'ext.path'
 local range = require 'ext.range'
 local real = require 'hydro.real'
 local FiniteVolumeSolver = require 'hydro.solver.fvsolver'
@@ -62,7 +62,7 @@ end
 
 function EulerBurgers:initCodeModules()
 	EulerBurgers.super.initCodeModules(self)
-	self.modules:addFromMarkup(self.eqn:template(file'hydro/solver/euler-burgers.cl':read()))
+	self.modules:addFromMarkup(self.eqn:template(path'hydro/solver/euler-burgers.cl':read()))
 	self.solverModulesEnabled[self.symbols.calcIntVel] = true
 end
 

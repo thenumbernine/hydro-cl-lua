@@ -1,7 +1,7 @@
 local class = require 'ext.class'
 local table = require 'ext.table'
 local string = require 'ext.string'
-local file = require 'ext.file'
+local path = require 'ext.path'
 local vector = require 'ffi.cpp.vector'
 local Mesh = require 'hydro.mesh.mesh'
 local MeshFactory = require 'hydro.mesh.factory'
@@ -29,7 +29,7 @@ function Edu2DGridMeshFactory:createMesh(solver)
 	-- 1) read the .grid file
 
 	local fn = 'grids/'..self.meshfile
-	local ls = string.split(string.trim(assert(file(fn):read(), "failed to open "..fn)), '\n')
+	local ls = string.split(string.trim(assert(path(fn):read(), "failed to open "..fn)), '\n')
 	local n = #ls
 	local numVtxs, numTris, numQuads = lineToNums(ls:remove(1), 3)
 

@@ -1,6 +1,6 @@
 -- TODO make use of app.display_useCoordMap
 local class = require 'ext.class'
-local file = require 'ext.file'
+local path = require 'ext.path'
 local vec3f = require 'vec-ffi.vec3f'
 local gl = require 'ffi.OpenGL'
 local vector = require 'ffi.cpp.vector'
@@ -125,7 +125,7 @@ function Draw2DGraph:prepareShader()
 	local solver = self.solver
 	if solver.graphShader then return end
 
-	local graphShaderCode = assert(file'hydro/draw/graph.glsl':read())
+	local graphShaderCode = assert(path'hydro/draw/graph.glsl':read())
 
 	solver.graphShader = solver.GLProgram{
 		name = 'graph',
