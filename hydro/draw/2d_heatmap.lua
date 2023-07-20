@@ -16,8 +16,8 @@ var.solver = solver
 	solver:calcDisplayVarToTex(var)
 
 	local tex = solver:getTex(var)
-	tex:bind(0)
-	tex:setParameter(gl.GL_TEXTURE_MAG_FILTER, app.displayBilinearTextures and gl.GL_LINEAR or gl.GL_NEAREST)
+		:bind(0)
+		:setParameter(gl.GL_TEXTURE_MAG_FILTER, app.displayBilinearTextures and gl.GL_LINEAR or gl.GL_NEAREST)
 
 	gl.glBegin(gl.GL_QUADS)
 	gl.glVertex2d(xmin, ymin)

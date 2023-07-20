@@ -716,10 +716,12 @@ void main() {
 				magFilter = gl.GL_LINEAR,
 			}
 			if not pcall(function()
-				gl.glGenerateMipmap(gl.GL_TEXTURE_2D)
+				fonttex:generateMipmap()
 			end) then
-				fonttex:setParameter(gl.GL_TEXTURE_MIN_FILTER, gl.GL_NEAREST)
-				fonttex:setParameter(gl.GL_TEXTURE_MAG_FILTER, gl.GL_LINEAR)
+				fonttex
+					:bind()
+					:setParameter(gl.GL_TEXTURE_MIN_FILTER, gl.GL_NEAREST)
+					:setParameter(gl.GL_TEXTURE_MAG_FILTER, gl.GL_LINEAR)
 			end
 			self.font = Font{tex = fonttex}
 		end
@@ -811,7 +813,7 @@ HydroCLApp.predefinedPaletteIndex = cmdline.palette and HydroCLApp.predefinedPal
 
 function HydroCLApp:setGradientTexColors(colors)
 	self.gradientTex = GLGradientTex(1024, colors, false)	-- false = don't wrap the colors...
-	self.gradientTex:setWrap{s = gl.GL_REPEAT}	-- ...but do use GL_REPEAT
+		:setWrap{s = gl.GL_REPEAT}	-- ...but do use GL_REPEAT
 	-- hmm, only on my AMD, intermittantly the next time the tex is bound it will raise an INVALID_OPERATION upon the next bind
 	-- maybe this is all because I'm using TEXTURE_1D for the gradientTex?
 	-- maybe AMD doesn't like 1D textures so much?
