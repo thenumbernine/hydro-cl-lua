@@ -203,7 +203,7 @@ local ig = require 'imgui'
 local class = require 'ext.class'
 local table = require 'ext.table'
 local string = require 'ext.string'
-local file = require 'ext.file'
+local path = require 'ext.path'
 local math = require 'ext.math'
 local tolua = require 'ext.tolua'
 local range = require 'ext.range'
@@ -501,8 +501,8 @@ function SolverBase:getIdent()
 
 	-- debugging?
 	local dir = 'cache/'..self.ident
-	file(dir):mkdir(true)
-	file(dir..'/config'):write(configStr)
+	path(dir):mkdir(true)
+	path(dir..'/config'):write(configStr)
 
 	return self.ident
 end
@@ -568,8 +568,8 @@ function SolverBase:initMeshVars(args)
 
 		local cldir = 'cache/'..solver:getIdent()..'/src'
 		local bindir = 'cache/'..solver:getIdent()..'/bin'
-		file(cldir):mkdir(true)
-		file(bindir):mkdir(true)
+		path(cldir):mkdir(true)
+		path(bindir):mkdir(true)
 
 		--[[
 		https://github.com/KhronosGroup/SPIR/tree/spirv-1.1
@@ -584,9 +584,9 @@ function SolverBase:initMeshVars(args)
 		local cldir = 'cache/'..solver:getIdent()..'/src'
 		local bcdir = 'cache/'..solver:getIdent()..'/bc'
 		local spvdir = 'cache/'..solver:getIdent()..'/spv'
-		file(cldir):mkdir(true)
-		file(bcdir):mkdir(true)
-		file(spvdir):mkdir(true)
+		path(cldir):mkdir(true)
+		path(bcdir):mkdir(true)
+		path(spvdir):mkdir(true)
 		-- ok I don't want super to hit the args.code condition
 		-- but I want to store the code for later, so
 		self.code = args.code
@@ -605,14 +605,14 @@ function SolverBase:initMeshVars(args)
 
 		if not cmdline.usecachedcode then
 			local oldCode
-			if file(self.cacheFileCL):exists() then
-				oldCode = file(self.cacheFileCL):read()
+			if path(self.cacheFileCL):exists() then
+				oldCode = path(self.cacheFileCL):read()
 			end
 			local newCode = self:getCode()
 			if oldCode ~= newCode then
 				-- only write the new code if it is outdated -- to preserve file timestamps -- so the build system doesn't rebuild needlessly
-				if oldCode then file(self.cacheFileCL..'.old'):write(oldCode) end
-				file(self.cacheFileCL):write(newCode)
+				if oldCode then path(self.cacheFileCL..'.old'):write(oldCode) end
+				path(self.cacheFileCL):write(newCode)
 			end
 		end
 		-- so cl.obj.program :compile using .code and .cacheFile basically does the same thing, but less flexible
@@ -638,8 +638,8 @@ function SolverBase:initMeshVars(args)
 							'-emit-llvm',
 							'-c',
 							--'-O3',	-- ok with this i'm getting llvm-spirv bytecode errors only with the euler + 3D case
-							'-o', '"'..file(self.cacheFileBC):fixpathsep()..'"',	-- %q will also escape \'s, which are window's sep ofc, so ... maybe just gsub "'s only?
-							'"'..file(self.cacheFileCL):fixpathsep()..'"'
+							'-o', '"'..path(self.cacheFileBC):fixpathsep()..'"',	-- %q will also escape \'s, which are window's sep ofc, so ... maybe just gsub "'s only?
+							'"'..path(self.cacheFileCL):fixpathsep()..'"'
 						}:concat' ')
 					else
 						-- from https://www.intel.com/content/dam/develop/external/us/en/documents/opencl-sdk-2019-update-1-release-notes-541257.pdf
@@ -691,8 +691,8 @@ function SolverBase:initMeshVars(args)
 							--'-triple=spirv64-unknown-unknown',
 							--'-cl-std=c++',
 							--'-O0',
-							'-o', '"'..file(self.cacheFileSPV):fixpathsep()..'"',	-- %q will also escape \'s, which are window's sep ofc, so ... maybe just gsub "'s only?
-							'"'..file(self.cacheFileCL):fixpathsep()..'"'
+							'-o', '"'..path(self.cacheFileSPV):fixpathsep()..'"',	-- %q will also escape \'s, which are window's sep ofc, so ... maybe just gsub "'s only?
+							'"'..path(self.cacheFileCL):fixpathsep()..'"'
 						}:concat' ')
 						-- TODO hmm, on my intel I'm getting for real=double:
 						-- warning: unsupported OpenCL extension 'cl_khr_fp64' - ignoring ... #pragma OPENCL EXTENSION cl_khr_fp64 : enable
@@ -713,7 +713,7 @@ function SolverBase:initMeshVars(args)
 			} or nil,
 		}:run(self.cacheFileSPV)
 
-		self.IL = file(self.cacheFileSPV):read()
+		self.IL = path(self.cacheFileSPV):read()
 		assert(self.IL, "failed to read the IL code")
 
 		args = table(args):setmetatable(nil)
@@ -739,11 +739,11 @@ function SolverBase:initMeshVars(args)
 			local dir = 'cache/'..solver:getIdent()..'/shader'
 			print('building '..dir..'/'..args.name..'.vert.glsl & .frag.glsl')
 
-			file(dir):mkdir(true)
-			local path = dir..'/'..args.name
+			path(dir):mkdir(true)
+			local pathstr = dir..'/'..args.name
 			-- Write generated code
-			file(path..'.vert.glsl'):write(args.vertexCode)
-			file(path..'.frag.glsl'):write(args.fragmentCode)
+			path(pathstr..'.vert.glsl'):write(args.vertexCode)
+			path(pathstr..'.frag.glsl'):write(args.fragmentCode)
 
 			GLProgram.super.init(self, ...)
 		end

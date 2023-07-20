@@ -7,7 +7,7 @@ local class = require 'ext.class'
 local table = require 'ext.table'
 local range = require 'ext.range'
 local math = require 'ext.math'
-local file = require 'ext.file'
+local path = require 'ext.path'
 local clnumber = require 'cl.obj.number'
 local symmath = require 'symmath'
 local materials = require 'hydro.materials'
@@ -100,7 +100,7 @@ local function RiemannProblem(initCond)
 			end):concat'\n'
 		end
 		return self.solver.eqn:template(
-file'hydro/init/euler.clcpp':read()
+path'hydro/init/euler.clcpp':read()
 ..[[
 namespace Hydro {
 template<
@@ -329,7 +329,7 @@ function SelfGravProblem:getClassDefCode()
 	solver.useGravity = true
 
 	return solver.eqn:template(
-file'hydro/init/euler.clcpp':read()
+path'hydro/init/euler.clcpp':read()
 ..[[
 namespace Hydro {
 
@@ -576,7 +576,7 @@ local initConds = table{
 			end
 
 			return self.solver.eqn:template(
-file'hydro/init/euler.clcpp':read()
+path'hydro/init/euler.clcpp':read()
 ..[[
 namespace <?=Solver?> {
 template<typename Prim, typename Cons>
@@ -769,7 +769,7 @@ struct InitCondC {
 		},
 		getClassDefCode = function(self)
 			return self.solver.eqn:template(
-file'hydro/init/euler.clcpp':read()
+path'hydro/init/euler.clcpp':read()
 ..[[
 namespace <?=Solver?> {
 template<typename Prim, typename Cons> using InitCondC = Hydro::InitCond_Euler_Sod<
@@ -805,7 +805,7 @@ template<typename Prim, typename Cons> using InitCondC = Hydro::InitCond_Euler_S
 		},
 		getClassDefCode = function(self)
 			return self.solver.eqn:template(
-file'hydro/init/euler.clcpp':read()
+path'hydro/init/euler.clcpp':read()
 ..[[
 namespace Hydro {
 template<
@@ -1303,7 +1303,7 @@ end) then
 		end,
 		getClassDefCode = function(self)
 			return self.solver.eqn:template(
-file'hydro/init/euler.clcpp':read()
+path'hydro/init/euler.clcpp':read()
 ..[[
 namespace <?=Solver?> {
 template<typename Prim, typename Cons> using InitCondC = InitCond_Euler_spiral<

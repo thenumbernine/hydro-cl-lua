@@ -25,7 +25,7 @@ NoDiv:step()
 		do stop on epsilon stuff maybe
 --]]
 local class = require 'ext.class'
-local file = require 'ext.file'
+local path = require 'ext.path'
 local table = require 'ext.table'
 local CLBuffer = require 'cl.obj.buffer'
 
@@ -137,7 +137,7 @@ function NoDiv:initCodeModules()
 	local solver = self.solver
 	solver.modules:addFromMarkup{
 		code = solver.eqn:template(
-			file'hydro/op/nodiv-unstructured.cl':read(),
+			path'hydro/op/nodiv-unstructured.cl':read(),
 			table(self.symbols, {op = self})
 		),
 	}

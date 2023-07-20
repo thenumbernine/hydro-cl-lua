@@ -1,5 +1,5 @@
 local class = require 'ext.class'
-local file = require 'ext.file'
+local path = require 'ext.path'
 local table = require 'ext.table'
 local ig = require 'imgui'
 local ffi = require 'ffi'
@@ -74,7 +74,7 @@ function Relaxation:initCodeModules()
 	local solver = self.solver
 	solver.modules:addFromMarkup{
 		code = solver.eqn:template(
-			file(self.solverCodeFile):read(),
+			path(self.solverCodeFile):read(),
 			table(self.symbols, {
 				op = self,
 			})

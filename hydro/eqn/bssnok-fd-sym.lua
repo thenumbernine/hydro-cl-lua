@@ -11,7 +11,7 @@ rescaled tensors are denoted _U _L etc
 
 Then I'm double checking all against (and borrowing heavily from) Zach Etienne's SENR: https://math.wvu.edu/~zetienne/SENR/
 --]]
-local file = require 'ext.file'
+local path = require 'ext.path'
 local class = require 'ext.class'
 local table = require 'ext.table'
 local template = require 'template'
@@ -116,7 +116,7 @@ function BSSNOKFiniteDifferenceEquation:getEnv()
 	-- should I put this here, or in the cache dir?  if so then store the cache dir in the solver itself.
 	local symdir = 'hydro/eqn/bssnok-fd-sym/'..self.solver.coord.name
 
-	file(symdir):mkdir(true)
+	path(symdir):mkdir(true)
 
 	-- next chore: save everything in env to env.lua
 	-- this means saving anything that will be assign'd
@@ -125,7 +125,7 @@ function BSSNOKFiniteDifferenceEquation:getEnv()
 	local env
 	local envCacheFilename = symdir..'/env.lua'
 -- [=[
-	local envCacheData = file(envCacheFilename):read()
+	local envCacheData = path(envCacheFilename):read()
 	if cmdline.bssnUseCache == false then envCacheData = false end
 	local gotCache
 	if envCacheData then
@@ -1610,7 +1610,7 @@ return env
 -- end prefix code
 ]]
 
-			file(envCacheFilename):write(lines:concat'\n')
+			path(envCacheFilename):write(lines:concat'\n')
 		end
 		save()
 end)	-- time()

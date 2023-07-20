@@ -2,7 +2,7 @@
 local gl = require 'ffi.OpenGL'
 local class = require 'ext.class'
 local vec3f = require 'vec-ffi.vec3f'
-local file = require 'ext.file'
+local path = require 'ext.path'
 local matrix_ffi = require 'matrix.ffi'
 local vector = require 'ffi.cpp.vector'
 local Draw = require 'hydro.draw.draw'
@@ -206,7 +206,7 @@ function Draw1D:prepareShader()
 
 	if solver.graphShader then return end
 
-	local graphShaderCode = assert(file'hydro/draw/graph.glsl':read())
+	local graphShaderCode = assert(path'hydro/draw/graph.glsl':read())
 
 	solver.graphShader = solver.GLProgram{
 		name = 'graph',

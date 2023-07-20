@@ -1,4 +1,4 @@
-<?=eqn:template(require"ext.file""hydro/init/init.clcpp":read())?>
+<?=eqn:template(require"ext.path""hydro/init/init.clcpp":read())?>
 
 namespace Hydro {
 

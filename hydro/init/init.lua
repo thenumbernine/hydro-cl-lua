@@ -1,6 +1,6 @@
 local class = require 'ext.class'
 local table = require 'ext.table'
-local file = require 'ext.file'
+local path = require 'ext.path'
 local time = table.unpack(require 'hydro.util.time')
 local Struct = require 'hydro.code.struct'
 local half = require 'cl.obj.half'
@@ -204,7 +204,7 @@ end
 -- the *new* CL-C++ entry function
 function InitCond:getClassDefCode()
 	return self.solver.eqn:template(
-file'hydro/init/euler.clcpp':read()
+path'hydro/init/euler.clcpp':read()
 ..[[
 namespace <?=Solver?> {
 template<typename Prim, typename Cons>

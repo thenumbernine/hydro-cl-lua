@@ -60,8 +60,8 @@ end
 
 function Euler:initCodeModule_calcDTCell()
 	-- ugly hack to insert more dependent modules
-	local file = require 'ext.file'
-	self.solver.modules:addFromMarkup(self:template(file'hydro/eqn/cl/calcDT.cl':read()
+	local path = require 'ext.path'
+	self.solver.modules:addFromMarkup(self:template(path'hydro/eqn/cl/calcDT.cl':read()
 	..self:template[[
 //// MODULE_DEPENDS: <?=eqn_common?>
 ]]))

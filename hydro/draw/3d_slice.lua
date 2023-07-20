@@ -1,6 +1,6 @@
 local table = require 'ext.table'
 local class = require 'ext.class'
-local file = require 'ext.file'
+local path = require 'ext.path'
 local gl = require 'gl'
 local CartesianCoordinateSystem = require 'hydro.coord.cartesian'
 local Draw = require 'hydro.draw.draw'
@@ -147,7 +147,7 @@ function Draw3DSlice:prepareShader()
 	if solver.volumeSliceShader then return end
 	local app = solver.app
 
-	local volumeSliceCode = assert(file'hydro/draw/3d_slice.glsl':read())
+	local volumeSliceCode = assert(path'hydro/draw/3d_slice.glsl':read())
 
 	solver.volumeSliceShader = solver.GLProgram{
 		name = '3d_slice',

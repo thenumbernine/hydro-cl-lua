@@ -4,7 +4,7 @@ local ig = require 'imgui'
 local class = require 'ext.class'
 local table = require 'ext.table'
 local range = require 'ext.range'
-local file = require 'ext.file'
+local path = require 'ext.path'
 local math = require 'ext.math'
 local string = require 'ext.string'
 local clnumber = require 'cl.obj.number'
@@ -360,12 +360,12 @@ typedef struct {
 		}
 		require 'hydro.code.safecdef'(typecode)
 
-		self.modules:addFromMarkup(self.eqn:template(file'hydro/solver/plm.clcpp':read()))
+		self.modules:addFromMarkup(self.eqn:template(path'hydro/solver/plm.clcpp':read()))
 		self.solverModulesEnabled[self.symbols.calcLR] = true
 	end
 
 	if self.useCTU then
-		self.modules:addFromMarkup(self.eqn:template(file'hydro/solver/ctu.cl':read()))
+		self.modules:addFromMarkup(self.eqn:template(path'hydro/solver/ctu.cl':read()))
 		self.sharedModulesEnabled[self.symbols.updateCTU] = true
 	end
 end

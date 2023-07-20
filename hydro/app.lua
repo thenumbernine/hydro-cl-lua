@@ -165,7 +165,7 @@ end
 local bit = require 'bit'
 local class = require 'ext.class'
 local math = require 'ext.math'
-local file = require 'ext.file'
+local path = require 'ext.path'
 local range = require 'ext.range'
 local string = require 'ext.string'
 local template = require 'template'
@@ -326,7 +326,7 @@ function HydroCLApp:setup(args)
 	local cfgfile = cmdline.config or 'config.lua'
 	assert(load([[
 local ]]..keys:concat', '..[[ = ...
-]] .. file(cfgfile):read()))(
+]] .. path(cfgfile):read()))(
 	keys:mapi(function(key) return args[key] end):unpack()
 )
 end
@@ -614,7 +614,7 @@ function HydroCLApp:initGL(...)
 		Modules.verbose = cmdline.moduleVerbose
 		self.modules = Modules()
 
-		self.modules:addFromMarkup(template(file'hydro/code/math.clcpp':read(), table(require 'hydro.common', {
+		self.modules:addFromMarkup(template(path'hydro/code/math.clcpp':read(), table(require 'hydro.common', {
 			app = self,
 		})))
 
@@ -973,7 +973,7 @@ function dumpFile:update(app, t)
 
 	local f = self.file
 	if not f then
-		f = file'var-ranges.txt':open'w'
+		f = path'var-ranges.txt':open'w'
 		self.file = f
 
 		-- don't change any vars while outputting or else your rows won't match your header
@@ -1030,17 +1030,17 @@ function HydroCLApp:getScreenShotFilename()
 	local ext = self.screenshotExts[self.screenshotExtIndex]
 
 	-- TODO only once upon init?
-	if not file'screenshots':exists() then
+	if not path'screenshots':exists() then
 		-- don't assert -- if it already exists the cmd will fail
-		file'screenshots':mkdir()
+		path'screenshots':mkdir()
 	end
 
 	-- make a new subdir for each application instance ... ?
 	if not self.screenshotDir then
 		self.screenshotDir = os.date'%Y.%m.%d-%H.%M.%S'
 		local dir = 'screenshots/'..self.screenshotDir
-		assert(not file(dir):exists(), "found a duplicate screenshot timestamp subdir")
-		assert(file(dir):mkdir())
+		assert(not path(dir):exists(), "found a duplicate screenshot timestamp subdir")
+		assert(path(dir):mkdir())
 		self.screenshotIndex = 0
 	end
 
@@ -1232,7 +1232,7 @@ function HydroCLApp:update(...)
 					local usings = table()
 					if type(cmdline.plotOnExit) == 'string' then
 						usings.output = cmdline.plotOnExit
-						local name, ext = file(cmdline.plotOnExit):getext()
+						local name, ext = path(cmdline.plotOnExit):getext()
 						usings.terminal = ext.." size 1600,900 background '#ffffff'"
 					else
 						usings.persist = true

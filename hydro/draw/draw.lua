@@ -4,7 +4,7 @@ parent class for some common functions that all draw glsl code uses
 
 local class = require 'ext.class'
 local table = require 'ext.table'
-local file = require 'ext.file'
+local path = require 'ext.path'
 local gl = require 'gl'
 local matrix_ffi = require 'matrix.ffi'
 
@@ -18,7 +18,7 @@ end
 
 function Draw:getCommonGLSLFragCode()
 	local solver = self.solver
-	return solver.eqn:template(file'hydro/draw/draw.glsl':read(), {
+	return solver.eqn:template(path'hydro/draw/draw.glsl':read(), {
 		draw = self,
 		clnumber = require 'cl.obj.number',
 	})

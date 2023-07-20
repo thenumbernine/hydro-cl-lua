@@ -1,5 +1,5 @@
 local table = require 'ext.table'
-local file = require 'ext.file'
+local path = require 'ext.path'
 local class = require 'ext.class'
 local math = require 'ext.math'
 local ffi = require 'ffi'
@@ -295,7 +295,7 @@ function PoissonKrylov:initCodeModules()
 	solver.modules:addFromMarkup{
 		code = solver.eqn:template(
 			table{
-				file'hydro/op/poisson.cl':read(),
+				path'hydro/op/poisson.cl':read(),
 				poissonKrylovCode,
 				self:getPoissonCode(),
 			}:concat'\n',

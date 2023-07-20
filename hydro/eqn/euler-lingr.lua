@@ -58,12 +58,12 @@ end
 -- Euler has its own calcDT to save a sqrt calculation per side
 -- but I'm being lazy here, I could write my own for EulerLinGR but I'll just use the default (and repeat sqrt() calcs)
 function EulerLinGR:initCodeModule_calcDTCell()
-	local file = require 'ext.file'
+	local path = require 'ext.path'
 	-- ok the current implementation - because it uses 'addFromMarkup', and because it is a macro
 	--  there's no way to just add a new dependency module
 	--return EulerLinGR.super.super.initCodeModule_calcDTCell(self)
 	-- so here.  it's ugly.
-	self.solver.modules:addFromMarkup(self:template(file'hydro/eqn/cl/calcDT.cl':read())..self:template[[
+	self.solver.modules:addFromMarkup(self:template(path'hydro/eqn/cl/calcDT.cl':read())..self:template[[
 //// MODULE_DEPENDS: <?=primFromCons?>
 ]])
 end

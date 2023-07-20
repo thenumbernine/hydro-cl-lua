@@ -2,7 +2,7 @@
 local ffi = require 'ffi'
 local class = require 'ext.class'
 local table = require 'ext.table'
-local file = require 'ext.file'
+local path = require 'ext.path'
 local GridSolver = require 'hydro.solver.gridsolver'
 
 local FiniteDifferenceSolver = class(GridSolver)
@@ -22,7 +22,7 @@ end
 function FiniteDifferenceSolver:initCodeModules()
 	FiniteDifferenceSolver.super.initCodeModules(self)
 	self.modules:addFromMarkup(
-		self.eqn:template(file'hydro/solver/fdsolver.clcpp':read())
+		self.eqn:template(path'hydro/solver/fdsolver.clcpp':read())
 	)
 	self.solverModulesEnabled['calcFluxAtCell'] = true
 	self.solverModulesEnabled['calcDerivFiniteDifference'] = true

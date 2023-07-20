@@ -1,6 +1,6 @@
 local ffi = require 'ffi'
 local class = require 'ext.class'
-local file = require 'ext.file'
+local path = require 'ext.path'
 local vec2f = require 'vec-ffi.vec2f'
 local vec3f = require 'vec-ffi.vec3f'
 local gl = require 'gl'
@@ -202,7 +202,7 @@ function DrawVectorField:prepareShader()
 	local solver = self.solver
 	if solver.vectorArrowShader then return end
 
-	local vectorArrowCode = assert(file'hydro/draw/vector_arrow.glsl':read())
+	local vectorArrowCode = assert(path'hydro/draw/vector_arrow.glsl':read())
 
 	solver.vectorArrowShader = solver.GLProgram{
 		name = 'vector_arrow',

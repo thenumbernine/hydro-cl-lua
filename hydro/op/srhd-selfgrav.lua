@@ -1,6 +1,6 @@
 local class = require 'ext.class'
 local table = require 'ext.table'
-local file = require 'ext.file'
+local path = require 'ext.path'
 local ig = require 'imgui'
 
 -- TODO make this a ctor parameter 
@@ -48,7 +48,7 @@ function SRHDSelfGrav:getPoissonDivCode()
 end
 
 function SRHDSelfGrav:getPoissonCode()
-	return file'hydro/op/srhd-selfgrav.cl':read()
+	return path'hydro/op/srhd-selfgrav.cl':read()
 end
 
 function SRHDSelfGrav:initCodeModules()

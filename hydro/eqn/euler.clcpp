@@ -10,7 +10,7 @@ local useConstrainU = false
 //// MODULE_DEPENDS: <?=SETBOUNDS?>
 //// MODULE_DEPENDS: <?=SETBOUNDS_NOGHOST?>
 
-<?=eqn:template(require "ext.file" "hydro/eqn/eqn.clcpp":read())?>
+<?=eqn:template(require "ext.path" "hydro/eqn/eqn.clcpp":read())?>
 
 namespace <?=Solver?> {
 

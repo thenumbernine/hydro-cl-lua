@@ -5,9 +5,9 @@ it expects ffmpeg to be installed
 --]]
 
 local ffi = require 'ffi'
-local file = require 'ext.file'
-local rundir = file:cwd()
-file'../..':cd()
+local path = require 'ext.path'
+local rundir = path:cwd()
+path'../..':cd()
 
 local sdl = require 'ffi.sdl'
 local class = require 'ext.class'
@@ -258,7 +258,7 @@ for _,cfg in ipairs(configurations) do
 	local destMovieName = nameForConfig(cfg, args)..'.mp4'
 	print(destMovieName)
 	
-	if file(rundir..'/'..destMovieName):exists() then
+	if path(rundir..'/'..destMovieName):exists() then
 		print("I already found movie "..destMovieName)
 	else
 		local movieStartTime = cfg.movieStartTime or 0
@@ -317,7 +317,7 @@ for _,cfg in ipairs(configurations) do
 		local dir = 'screenshots/'..app.screenshotDir
 		assert(run('ffmpeg -y -i "'..dir..'/%05d.'..ext..'" "'..rundir..'/'..destMovieName..'"'))
 		for i=0,app.screenshotIndex-1 do
-			file(dir..('/%05d.'):format(i)..ext):remove()
+			path(dir..('/%05d.'):format(i)..ext):remove()
 		end
 		run('rmdir '..dir:gsub('/', os.sep))
 --for some odd reason, every time it runs, it messes up the GL state ...

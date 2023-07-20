@@ -117,7 +117,7 @@ let the lua object designate which 3 coordinates are x1 x2 x3 (chart parameters)
 local class = require 'ext.class'
 local table = require 'ext.table'
 local range = require 'ext.range'
-local file = require 'ext.file'
+local path = require 'ext.path'
 local tolua = require 'ext.tolua'
 local template = require 'template'
 local clnumber = require 'cl.obj.number'
@@ -2360,7 +2360,7 @@ How to organize this?
 --]]
 function CoordinateSystem:initCodeModule_normal()
 	local typecode	-- only for lua ffi, inserted into c++ so i can static_assert sizeof ==
-	local code = self.solver.eqn:template(file'hydro/coord/coord.clcpp':read())
+	local code = self.solver.eqn:template(path'hydro/coord/coord.clcpp':read())
 
 	if self.verbose then
 		print[[

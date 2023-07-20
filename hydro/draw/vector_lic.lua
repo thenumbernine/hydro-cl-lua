@@ -1,6 +1,6 @@
 local ffi = require 'ffi'
 local class = require 'ext.class'
-local file = require 'ext.file'
+local path = require 'ext.path'
 local gl = require 'ffi.OpenGL'
 local GLTex2D = require 'gl.tex2d'
 local Draw = require 'hydro.draw.draw'
@@ -195,7 +195,7 @@ function DrawVectorLIC:prepareShader()
 
 	if solver.vectorLICShader then return end
 
-	local vectorLICCode = assert(file'hydro/draw/vector_lic.glsl':read())
+	local vectorLICCode = assert(path'hydro/draw/vector_lic.glsl':read())
 
 	solver.vectorLICShader = solver.GLProgram{
 		name = 'vector_lic',

@@ -8,7 +8,7 @@ local ffi = require 'ffi'
 local class = require 'ext.class'
 local table = require 'ext.table'
 local math = require 'ext.math'
-local file = require 'ext.file'
+local path = require 'ext.path'
 local vec3sz = require 'vec-ffi.vec3sz'
 local vec3f = require 'vec-ffi.vec3f'
 local vec3d = require 'vec-ffi.vec3d'
@@ -628,7 +628,7 @@ function MeshSolver:initCodeModules()
 --]]
 
 	self.modules:addFromMarkup(
-		self.eqn:template(file'hydro/solver/meshsolver.cl':read())
+		self.eqn:template(path'hydro/solver/meshsolver.cl':read())
 	)
 
 	self.solverModulesEnabled[self.symbols.calcFlux] = true

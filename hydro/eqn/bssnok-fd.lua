@@ -1,6 +1,6 @@
 local class = require 'ext.class'
 local table = require 'ext.table'
-local file = require 'ext.file'
+local path = require 'ext.path'
 local EinsteinEqn = require 'hydro.eqn.einstein'
 
 local common = require 'hydro.common'
@@ -172,7 +172,7 @@ end
 function BSSNOKFiniteDifferenceEquationBase:initCodeModules()
 	BSSNOKFiniteDifferenceEquationBase.super.initCodeModules(self)
 
-	self.solver.modules:addFromMarkup(self:template(file'hydro/eqn/bssnok-fd.cl':read()))
+	self.solver.modules:addFromMarkup(self:template(path'hydro/eqn/bssnok-fd.cl':read()))
 end
 
 function BSSNOKFiniteDifferenceEquationBase:initCodeModule_calcDTCell()
