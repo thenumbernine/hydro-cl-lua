@@ -3,6 +3,7 @@ local ForwardEuler = require 'hydro.int.fe'
 local IterativeCrankNicolson = require 'hydro.int.icn'
 local BackwardEuler = require 'hydro.int.be'
 local BackwardEulerCPU = require 'hydro.int.be-cpu'
+local BackwardEulerPredCorr = require 'hydro.int.be-pred-corr'
 local RungeKutta = require 'hydro.int.rk'
 
 --the following are from https://en.wikipedia.org/wiki/List_of_Runge%E2%80%93Kutta_methods#Classic_fourth-order_method
@@ -155,7 +156,6 @@ RungeKutta4NonTVD.betas = {
 
 return require 'ext.table'{
 	ForwardEuler,
-	IterativeCrankNicolson,
 	RungeKutta2,
 	RungeKutta2Heun,
 	RungeKutta2Ralston,
@@ -167,6 +167,8 @@ return require 'ext.table'{
 	RungeKutta3TVD,
 	RungeKutta4TVD,
 	RungeKutta4NonTVD,
+	IterativeCrankNicolson,
 	BackwardEuler,
 	BackwardEulerCPU,
+	BackwardEulerPredCorr,
 }

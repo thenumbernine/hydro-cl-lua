@@ -52,7 +52,7 @@ struct HLLFlux {
 			Cons FL = Eqn::fluxFromCons(solver, UL, cellL, n);
 			Cons FR = Eqn::fluxFromCons(solver, UR, cellR, n);
 			for (int j = 0; j < numIntStates; ++j) {
-				resultFlux.ptr[j] = (sR * FL.ptr[j] - sL * FR.ptr[j] + sL * sR * (UR.ptr[j] - UL.ptr[j])) / (sR - sL);
+				resultFlux.s[j] = (sR * FL.s[j] - sL * FR.s[j] + sL * sR * (UR.s[j] - UL.s[j])) / (sR - sL);
 			}
 		}
 		return resultFlux;

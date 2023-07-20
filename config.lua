@@ -12,8 +12,7 @@ local args = {
 	eqn = cmdline.eqn,
 	flux = cmdline.flux,
 
-	integrator = cmdline.integrator or 'forward Euler',
-	--integrator = 'Iterative Crank-Nicolson',
+	--integrator = cmdline.integrator or 'forward Euler',
 	--integrator = 'Runge-Kutta 2',
 	--integrator = 'Runge-Kutta 2 Heun',
 	--integrator = 'Runge-Kutta 2 Ralston',
@@ -25,8 +24,10 @@ local args = {
 	--integrator = 'Runge-Kutta 3, TVD',
 	--integrator = 'Runge-Kutta 4, TVD',
 	--integrator = 'Runge-Kutta 4, non-TVD',
-	--integrator = 'backward Euler',	-- The epsilon on this is very sensitive.  Too small and it never converges.  Too large and it stops convergence too soon.
+	--integrator = 'Iterative Crank-Nicolson',
+	--integrator = 'backward Euler',	-- this is a linear solver applied to nonlinear problems so ofc it's gonna break.  TODO proper nonlinear CG / GMRES.
 	--integrator = 'backward Euler, CPU',
+	integrator = 'backward Euler predictor-corrector',
 	--integratorArgs = {verbose=true},
 
 	--fixedDT = .0001,
@@ -347,7 +348,7 @@ local args = {
 
 	--initCond = 'rarefaction wave',
 	--initCond = 'Bessel',
-	--initCond = 'jet',
+	--initCond = 'jet',	-- TODO naming initialization mixup with srhd and this problem
 
 
 	--initCond = 'Sod',
@@ -708,7 +709,9 @@ if cmdline.solver then self.solvers:insert(require('hydro.solver.'..cmdline.solv
 
 --self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='wave_metric', eqnArgs={beta={'-y / (r * r)','x / (r * r)','0'}}, wenoMethod='1996 Jiang Shu', order=5})))
 
---[[ Acoustic black hole.  for use with cylinder grid?
+--[[ Acoustic black hole.
+-- for use with cylinder grid?
+-- and which initial conditions?
 args.eqnArgs = args.eqnArgs or {}
 -- for 2012 Visser A.B. metric,
 args.eqnArgs.alpha = '1'
@@ -870,6 +873,11 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler-lingr'})))
 
 
+-- incompressible
+-- TODO finish me
+--self.solvers:insert(require 'hydro.solver.navstokes-incomp'(table(args)))
+
+
 -- special relativistic compressible hydrodynamics
 
 
@@ -902,6 +910,7 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {
 -- ideal magnetohydrodynamics
 
 
+-- TODO mhd divergence removal failing at the corners
 -- with superbee flux lim:
 -- Brio-Wu works in 1D at 256, works in 2D at 64x64 in a 1D profile in the x and y directions.
 -- Orszag-Tang with forward Euler integrator fails at 64x64 around .7 or .8
@@ -922,7 +931,8 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='mhd', eqnArgs={incompressible=true}})))
 
 
--- eqn.useFixedCh == false is failing
+-- TODO eqn.useFixedCh == false is failing
+
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='glm-mhd'})))
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='glm-mhd'})))
 --self.solvers:insert(require 'hydro.solver.fdsolver'(table(args, {eqn='glm-mhd'})))
