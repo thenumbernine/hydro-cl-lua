@@ -26,8 +26,8 @@ var.solver = solver
 
 	local tex = solver:getTex(var)
 	tex:bind(0)
-	self.noiseTex:bind(2)
 	tex:setParameter(gl.GL_TEXTURE_MAG_FILTER, app.displayBilinearTextures and gl.GL_LINEAR or gl.GL_NEAREST)
+	self.noiseTex:bind(2)
 
 	gl.glBegin(gl.GL_QUADS)
 	gl.glVertex2d(xmin, ymin)
@@ -90,6 +90,7 @@ function DrawVectorLIC:showDisplayVar(var, varName, ar, xmin, xmax, ymin, ymax)
 
 	local shader = solver.vectorLICShader
 	shader:use()
+
 	app.gradientTex:bind(1)
 
 	self:setupDisplayVarShader(shader, var, valueMin, valueMax)
