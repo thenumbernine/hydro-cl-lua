@@ -16,7 +16,14 @@ static inline real <?=metric_f?>(real3 const & pt) {
 }
 
 //// MODULE_NAME: <?=Solver?>
+//// MODULE_DEPENDS: <?=coordLenSq?>
+//// MODULE_DEPENDS: <?=eqn_guiVars_compileTime?>
+//// MODULE_DEPENDS: <?=coord_lower?>
 //// MODULE_DEPENDS: <?=cartesianToCoord?>
+//// MODULE_DEPENDS: <?=SETBOUNDS?>
+//// MODULE_DEPENDS: <?=SETBOUNDS_NOGHOST?>
+
+<?=eqn:template(require "ext.path" "hydro/eqn/eqn.clcpp":read())?>
 
 namespace <?=Solver?> {
 
@@ -105,8 +112,12 @@ struct WaveEqn : public Hydro::Eqn<
 		real * resultMax
 	) {
 		auto calcWaves = EigenWaveCode(solver, eig, n, pt);
-		if (resultMin) *resultMin = calcWaves(solver, eig, n, pt, 0);
-		if (resultMax) *resultMax = calcWaves(solver, eig, n, pt, numWaves-1);
+		if (resultMin) {
+			*resultMin = calcWaves(solver, eig, n, pt, 0);
+		}
+		if (resultMax) {
+			*resultMax = calcWaves(solver, eig, n, pt, numWaves-1);
+		}
 	}
 
 	// ConsWaveCode matches EigenWaveCode, just different ctor arg
@@ -123,7 +134,7 @@ struct WaveEqn : public Hydro::Eqn<
 	
 		constexpr real operator()(
 			constant Solver const & solver,
-			Eigen const & eig,
+			Cons const & U,
 			Normal const n,
 			real3 const pt,
 			int waveIndex
@@ -150,8 +161,12 @@ struct WaveEqn : public Hydro::Eqn<
 		real * resultMax
 	) {
 		auto calcWaves = ConsWaveCode(solver, U, n, pt);
-		if (resultMin) *resultMin = calcWaves(solver, U, n, pt, 0);
-		if (resultMax) *resultMax = calcWaves(solver, U, n, pt, numWaves-1);
+		if (resultMin) {
+			*resultMin = calcWaves(solver, U, n, pt, 0);
+		}
+		if (resultMax) {
+			*resultMax = calcWaves(solver, U, n, pt, numWaves-1);
+		}
 	}
 
 	struct ConsWaveCodeMinMaxAllSides {
@@ -179,7 +194,7 @@ struct WaveEqn : public Hydro::Eqn<
 	};
 
 
-	void applyInitCondCell(
+	static inline void applyInitCondCell(
 		constant Solver const & solver,
 		constant InitCond const & initCond,
 		global Cons & U,
@@ -200,7 +215,7 @@ end
 		auto args = Hydro::InitCondCellArgs<Cons>(solver, initCond, x, U);
 		InitCondC<Prim, Cons>::initCond(args);
 
-		return Cons()
+		U = Cons()
 <? if eqn.usePressure then
 ?>		.set_Pi(args.P)
 <? else		
@@ -213,7 +228,7 @@ end
 	// The difference is that the flux matrix of this is based on 'eig', which is derived from U's ... especially UL & UR in the case of the Roe solver
 	// whereas that of <?=fluxFromCons?> is based purely on 'U'.
 	// Since hydro/eqn/wave has no <?=eigen_t?> info derived from U, the two functions are identical.
-	static inline Cons fluxFromCons?>(
+	static inline Cons fluxFromCons(
 		constant Solver const & solver,
 		Cons const & U,
 		Cell const & cell,
@@ -356,13 +371,15 @@ end
 #if 1
 		real3 const conn23 = coord_connHol_trace23(pt);
 		//TODO how about integrating conn23 across the volume?
-		deriv.Pi -= U->Psi_l.dot(conn23);
+		deriv.Pi -= U.Psi_l.dot(conn23);
 #endif
 	}
 
 <? end ?>
 
 };
+
+using Eqn = WaveEqn;
 
 }	//namespace <?=Solver?>
 

@@ -1,5 +1,5 @@
 //// MODULE_NAME: calcFluxForInterface
-//// MODULE_DEPENDS: <?=fluxLimiter?> <?=Solver?>
+//// MODULE_DEPENDS: <?=fluxLimiter?> <?=Solver?> realparam
 
 // Roe solver:
 

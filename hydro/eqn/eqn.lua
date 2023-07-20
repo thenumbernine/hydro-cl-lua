@@ -239,6 +239,8 @@ no, they're needed for the integrator
 		-- or you could typedef this ...
 		-- TODO replace the cdef uniqueName with a unique eqn object name
 		self.symbols.prim_t = app:uniqueName'prim_t'
+		-- TODO this here or elsewhere?
+		ffi.cdef('typedef '..self.symbols.cons_t..' '..self.symbols.prim_t..';')
 	end
 
 	if not self.eigenVars then
