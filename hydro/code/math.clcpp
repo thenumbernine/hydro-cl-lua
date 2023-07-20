@@ -962,7 +962,7 @@ struct vec<Inner_,2> {
 	TENSOR_VEC2_ADD_SWIZZLE2_i(x)\
 	TENSOR_VEC2_ADD_SWIZZLE2_i(y)
 	TENSOR3_VEC2_ADD_SWIZZLE2()
-	
+
 	// 3-component swizzles
 #define TENSOR_VEC2_ADD_SWIZZLE3_ijk(i, j, k)\
 	auto i ## j ## k() { return vec<std::reference_wrapper<Inner>, 3>(i, j, k); }\
@@ -1024,7 +1024,7 @@ struct vec<Inner_,3> {
 	TENSOR_VEC3_ADD_SWIZZLE2_i(y)\
 	TENSOR_VEC3_ADD_SWIZZLE2_i(z)
 	TENSOR3_VEC3_ADD_SWIZZLE2()
-	
+
 	// 3-component swizzles
 #define TENSOR_VEC3_ADD_SWIZZLE3_ijk(i, j, k)\
 	auto i ## j ## k() { return vec<std::reference_wrapper<Inner>, 3>(i, j, k); }\
@@ -1076,8 +1076,8 @@ struct vec<Inner_,4> {
 		Inner s[localCount] = {{}};
 		struct { Inner s0, s1, s2; };
 		struct { Inner x, y, z; };
-	};	
-	
+	};
+
 	TENSOR_VECTOR_CLASS_OPS(vec)
 
 #if 0
@@ -1096,7 +1096,7 @@ struct vec<Inner_,4> {
 	TENSOR_VEC4_ADD_SWIZZLE2_i(z)\
 	TENSOR_VEC4_ADD_SWIZZLE2_i(w)
 	TENSOR3_VEC4_ADD_SWIZZLE2()
-	
+
 	// 3-component swizzles
 #define TENSOR_VEC4_ADD_SWIZZLE3_ijk(i, j, k)\
 	auto i ## j ## k() { return vec<std::reference_wrapper<Inner>, 3>(i, j, k); }\
@@ -1164,7 +1164,7 @@ inline constexpr int symIndex(int i, int j) {
 	TENSOR_TEMPLATE_T/*_I*/(classname)\
 	TENSOR_HEADER_SYMMETRIC_MATRIX_SPECIFIC()\
 	TENSOR_HEADER()
-	
+
 #define TENSOR_SYMMETRIC_MATRIX_LOCAL_READ_FOR_WRITE_INDEX()\
 	/*static constexpr intNLocal getLocalReadForWriteIndex(int writeIndex) {\
 		intNLocal iread;\

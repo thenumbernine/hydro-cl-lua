@@ -71,7 +71,7 @@ function Struct:makeType()
 	else
 		self.typename = assert(self.app):uniqueName(self.name)
 	end
-	
+
 	do
 		local typecode = self:getTypeCode(self.typename)
 		if self.typecode then
@@ -160,7 +160,7 @@ function Struct:getTypeCode(typename)
 		numScalars = self:countScalars(scalar)
 		numScalars = math.max(1, math.floor(numScalars))
 		lines:insert('struct '..typename..' {')
-	
+
 		--[[
 		lines:insert'//// BEGIN EXCLUDE FOR FFI_CDEF'
 		--lines:insert('	TENSOR_HEADER_VECTOR('..typename..', '..scalar..', '..numScalars..')')
