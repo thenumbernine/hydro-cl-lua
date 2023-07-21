@@ -79,7 +79,7 @@ function Euler:getDisplayVars()
 		{name='eTotal', code=self:template'value.vreal = Eqn::calc_ETotal(solver, U, x) / U.rho;', units='m^2/s^2'},
 		{name='EInt', code=self:template'value.vreal = Eqn::calc_EInt(solver, U);', units='kg/(m*s^2)'},
 		{name='EKin', code=self:template'value.vreal = Eqn::calc_EKin(U, x);', units='kg/(m*s^2)'},
-		{name='S', code='value.vreal = U.P / pow(U.rho, (real)solver->heatCapacityRatio);'},
+		{name='S', code='value.vreal = U.P / pow(U.rho, (real)solver.heatCapacityRatio);'},
 		{name='H', code=self:template'value.vreal = Eqn::calc_H(solver, U.P);', units='kg/(m*s^2)'},
 		{name='h', code=self:template'value.vreal = Eqn::calc_h(solver, U.rho, U.P);', units='m^2/s^2'},
 		{name='HTotal', code=self:template[[

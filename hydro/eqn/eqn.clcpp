@@ -20,7 +20,7 @@ struct Eqn {
 
 	//default implementation assumes Cons == Prim:
 
-	static constexpr bool roeUseFluxFromCons = <?=eqn.roeUseFluxFromCons?>;
+	static constexpr bool roeUseFluxFromCons = true;
 
 	static inline Prim primFromCons(
 		constant Solver const & solver,

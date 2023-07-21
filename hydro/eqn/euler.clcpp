@@ -96,9 +96,9 @@ struct EulerEqn : public Hydro::Eqn<
 	// until then just use a typedef and a namespace
 	// hmm for some reason crtp parent can't seem to 'using' see into the childs member class's 'using's
 	// so I used the traits instead
-
-	//true or false?
-	static constexpr bool roeUseFluxFromCons = true;
+	
+	//inherited
+	//static constexpr bool roeUseFluxFromCons = true;
 
 	static inline real calc_H(
 		constant Solver const & solver,

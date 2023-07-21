@@ -10,6 +10,65 @@ local useFluxLimiter = solver.fluxLimiter > 1
 
 namespace <?=Solver?> {
 
+template<
+	typename Eqn,
+	bool roeUseFluxFromCons = false
+>
+struct AddFluxFromCons {};
+		
+template<
+	typename Eqn
+>
+struct AddFluxFromCons<Eqn, false> {
+	static void go(
+		constant Solver const & solver,
+		Cons & resultFlux,
+		Cons const & UL,
+		Cons const & UR,
+		Cell const & cellL,
+		Cell const & cellR,
+		Normal const n
+	) {
+	}
+};
+
+// TODO how to sfinae so this doesn't compile when boolean param is false
+template<
+	typename Eqn
+>
+struct AddFluxFromCons<Eqn, true> {
+	static void go(
+		constant Solver const & solver,
+		Cons & resultFlux,
+		Cons const & UL,
+		Cons const & UR,
+		Cell const & cellL,
+		Cell const & cellR,
+		Normal const n
+	) {
+		// TODO hmm, fluxFromCons vs eigen_fluxTransform using the 'eig' structure
+		// fluxFromCons is using the left and right states to create their flux jacobian transform - applied to the left and right states to make the left and right flux vector
+		// which is F(U)
+		// while eigen_fluxTransform would use the intermediate state to create the flux vector
+		// which is dF/dU * dU/dx
+		// It turns out dF/dU * U = F *ONLY FOR* the Euler fluid equations, and this is why lots of literature assumes it is true for all equations (when it's not).
+		// But that means roeUseFluxFromCons==true's option is the correct one, but not ==false?
+		// But Dullemond eqn 6.56 says that the FL and FR come from R Lambda L U = dF/dU * U calculations ...
+		// ... which are *ONLY* equal to F in the case of the Euler fluid equations, and systems with linear flux jacobians, (NOT shallow-water).
+		// So that would mean this part is wrong.
+		// But maybe the description in Dullemond and other sources is wrong.
+		// Because this value itself is diff'd across the cell, so it is a 'dF', so you wouldn't want to compute a second 'd' of it via R Lambda L, because that would give you 'd dF'.
+		// so roeUseFluxFromCons==true is good.
+	
+		Cons FL = Eqn::fluxFromCons(solver, UL, cellL, n);
+		Cons FR = Eqn::fluxFromCons(solver, UR, cellR, n);
+
+		for (int j = 0; j < numIntStates; ++j) {
+			resultFlux.s[j] += .5 * (FL.s[j] + FR.s[j]);
+		}
+	}
+};
+
 struct RoeFlux {
 
 	//TODO entropy fix ... for the Euler equations at least
@@ -124,28 +183,9 @@ struct RoeFlux {
 
 		resultFlux = Eqn::eigen_rightTransform(solver, eig, fluxEig, xInt, n);
 
-		if constexpr (Eqn::roeUseFluxFromCons) {
-			// TODO hmm, fluxFromCons vs eigen_fluxTransform using the 'eig' structure
-			// fluxFromCons is using the left and right states to create their flux jacobian transform - applied to the left and right states to make the left and right flux vector
-			// which is F(U)
-			// while eigen_fluxTransform would use the intermediate state to create the flux vector
-			// which is dF/dU * dU/dx
-			// It turns out dF/dU * U = F *ONLY FOR* the Euler fluid equations, and this is why lots of literature assumes it is true for all equations (when it's not).
-			// But that means roeUseFluxFromCons==true's option is the correct one, but not ==false?
-			// But Dullemond eqn 6.56 says that the FL and FR come from R Lambda L U = dF/dU * U calculations ...
-			// ... which are *ONLY* equal to F in the case of the Euler fluid equations, and systems with linear flux jacobians, (NOT shallow-water).
-			// So that would mean this part is wrong.
-			// But maybe the description in Dullemond and other sources is wrong.
-			// Because this value itself is diff'd across the cell, so it is a 'dF', so you wouldn't want to compute a second 'd' of it via R Lambda L, because that would give you 'd dF'.
-			// so roeUseFluxFromCons==true is good.
-		
-			Cons FL = Eqn::fluxFromCons(solver, UL, cellL, n);
-			Cons FR = Eqn::fluxFromCons(solver, UR, cellR, n);
+		//sfinae to hide Eqn::fluxFromCons
+		AddFluxFromCons<Eqn, Eqn::roeUseFluxFromCons>::go(solver, resultFlux, UL, UR, cellL, cellR, n);
 
-			for (int j = 0; j < numIntStates; ++j) {
-				resultFlux.s[j] += .5 * (FL.s[j] + FR.s[j]);
-			}
-		}
 		return resultFlux;
 	}
 };

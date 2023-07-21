@@ -12,7 +12,7 @@ local args = {
 	eqn = cmdline.eqn,
 	flux = cmdline.flux,
 
-	--integrator = cmdline.integrator or 'forward Euler',
+	integrator = cmdline.integrator or 'forward Euler',
 	--integrator = 'Runge-Kutta 2',
 	--integrator = 'Runge-Kutta 2 Heun',
 	--integrator = 'Runge-Kutta 2 Ralston',
@@ -27,7 +27,7 @@ local args = {
 	--integrator = 'Iterative Crank-Nicolson',
 	--integrator = 'backward Euler',	-- this is a linear solver applied to nonlinear problems so ofc it's gonna break.  TODO proper nonlinear CG / GMRES.
 	--integrator = 'backward Euler, CPU',
-	integrator = 'backward Euler predictor-corrector',
+	--integrator = 'backward Euler predictor-corrector',
 	--integratorArgs = {verbose=true},
 
 	--fixedDT = .0001,
