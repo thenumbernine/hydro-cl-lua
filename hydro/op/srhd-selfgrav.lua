@@ -3,9 +3,9 @@ local table = require 'ext.table'
 local path = require 'ext.path'
 local ig = require 'imgui'
 
--- TODO make this a ctor parameter 
+-- TODO make this a ctor parameter
 local Poisson = require(
-	cmdline.srhdSelfGravPoissonSolver 
+	cmdline.srhdSelfGravPoissonSolver
 	and 'hydro.op.poisson_'..cmdline.srhdSelfGravPoissonSolver
 	or 'hydro.op.poisson_krylov'		-- Krylov
 	--or 'hydro.op.poisson_jacobi'		-- Jacobi
@@ -37,10 +37,10 @@ function SRHDSelfGrav:getSymbolFields()
 	}
 end
 
--- params for hydro/op/poisson.cl 
+-- params for hydro/op/poisson.clcpp
 function SRHDSelfGrav:getPoissonDivCode()
 	return self.solver.eqn:template([[
-	source = 4. * M_PI * U->rho 
+	source = 4. * M_PI * U->rho
 		* solver->gravitationalConstant / unit_m3_per_kg_s2;
 ]], {
 		op = self,
@@ -62,7 +62,7 @@ end
 
 function SRHDSelfGrav:refreshSolverProgram()
 	SRHDSelfGrav.super.refreshSolverProgram(self)
-	
+
 	local solver = self.solver
 	self.calcGravityDerivKernelObj = solver.solverProgramObj:kernel(self.symbols.calcGravityDeriv)
 	self.calcGravityDerivKernelObj.obj:setArg(0, solver.solverBuf)
@@ -79,7 +79,7 @@ end
 function SRHDSelfGrav:addSource(derivBufObj)
 	local solver = self.solver
 	if not solver[self.enableField] then return end
-		
+
 	self:relax()
 	self.calcGravityDerivKernelObj.obj:setArg(1, derivBufObj.obj)
 	self.calcGravityDerivKernelObj()

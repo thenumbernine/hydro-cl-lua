@@ -54,7 +54,7 @@ function PoissonKrylov:getSymbolFields()
 		'copyPotentialFieldToVecAndInitB',
 		-- shared with relaxation:
 		'initPotential',				-- this seems to be the only thing shared between poisson_jacobi and poisson_krylov
-		'copyWriteToPotentialNoGhost',	-- TODO MOVE.  in poisson.cl but specific to poisson_jacobi/relaxation
+		'copyWriteToPotentialNoGhost',	-- TODO MOVE.  in poisson.clcpp but specific to poisson_jacobi/relaxation
 		'setReduceToPotentialSquared',	-- TODO SAME
 	}
 end
@@ -196,7 +196,7 @@ function PoissonKrylov:initSolver()
 	
 	linearSolverArgs.A = function(UNext, U)
 		-- A(x) = div x
-		-- but don't use the routine in hydro/op/poisson.cl, that's for Jacobi
+		-- but don't use the routine in hydro/op/poisson.clcpp, that's for Jacobi
 		self.poissonKrylovLinearFuncKernelObj(solver.solverBuf, UNext, U, solver.cellBuf)
 	end	
 	self.linearSolver = ThisKrylov(linearSolverArgs)

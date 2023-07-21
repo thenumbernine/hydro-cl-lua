@@ -53,7 +53,7 @@ SelfGrav.guiVars = {
 	{name='gravitationalConstant', value=1, units='m^3/(kg*s^2)'},
 }
 
--- params for hydro/op/poisson.cl
+-- params for hydro/op/poisson.clcpp
 -- units of m^3/(kg*s^2) * kg/m^3 = 1/s^2
 function SelfGrav:getPoissonDivCode()
 	return self.solver.eqn:template([[

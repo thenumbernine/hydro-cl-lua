@@ -3,13 +3,13 @@ right now nodiv is a collection of a few classes, depending on what underlying s
 for the jacobi version:
 nodiv.lua
 	-> poisson_jacobi.lua
-		-> poisson.cl (shared with poisson_krylov)
-		-> poisson_jacobi.cl
+		-> poisson.clcpp (shared with poisson_krylov)
+		-> poisson_jacobi.clcpp
 		-> relaxation.lua
 
 for the krylov version:
 nodiv.lua
-	-> poisson.cl (shared with poisson_jacobi)
+	-> poisson.clcpp (shared with poisson_jacobi)
 	-> solver/cl/$solverClass.lua
 
 what do the classes fulfill externally?

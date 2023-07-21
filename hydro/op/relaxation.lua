@@ -76,7 +76,7 @@ function Relaxation:initCodeModules()
 			})
 		),
 	}
-	-- provided in poisson_jacobi and poisson_krylov's poisson.cl
+	-- provided in poisson_jacobi and poisson_krylov's poisson.clcpp
 	solver.solverModulesEnabled[self.symbols.initPotential] = true
 	solver.solverModulesEnabled[self.symbols.copyWriteToPotentialNoGhost] = true
 	solver.solverModulesEnabled[self.symbols.setReduceToPotentialSquared] = true
