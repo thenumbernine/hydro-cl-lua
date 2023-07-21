@@ -38,7 +38,7 @@ kernel void calcDerivFiniteDifference(
 		auto const & FL = F[ - dim * solver.stepsize.s<?=j?> + <?=j?>];
 		auto const & FR = F[ + dim * solver.stepsize.s<?=j?> + <?=j?>];
 		for (int k = 0; k < numIntStates; ++k) {
-			deriv.ptr[k] -= (FR.ptr[k] - FL.ptr[k]) / (2. * solver.grid_dx.s<?=j?>);
+			deriv.s[k] -= (FR.s[k] - FL.s[k]) / (2. * solver.grid_dx.s<?=j?>);
 		}
 	}<? end ?>
 }
