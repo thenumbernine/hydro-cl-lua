@@ -58,28 +58,6 @@ local function makePartialRank1(deriv, order, solver, field, fieldType, nameOver
 		suffix = '_' .. suffix
 	end
 
-	local add, sub, real_mul, zero
-	if fieldType == 'real' then	--for readability, just inline the macros here
-		add = function(x,y,xt,yt)
-			return x..' + '..y, 'add'
-		end
-		sub = function(x,y,xt,yt)
-			if yt == 'add' or yt == 'sub' then y = '('..y..')' end
-			return x..' - '..y, 'sub'
-		end
-		real_mul = function(x,y,xt,yt)
-			if xt == 'add' or xt == 'sub' then x = '('..x..')' end
-			if yt == 'add' or yt == 'sub' then y = '('..y..')' end
-			return x..' * '..y, 'mul'
-		end
-		zero = '0.'
-	else
-		add = function(x,y) return fieldType..'_add('..x..', '..y..')' end
-		sub = function(x,y) return fieldType..'_sub('..x..', '..y..')' end
-		real_mul = function(x,y) return fieldType..'_real_mul('..x..', '..y..')' end
-		zero = fieldType..'_zero'
-	end
-
 	srcName = srcName or 'U'
 	local readField = 
 		type(field) == 'string'
@@ -111,21 +89,18 @@ local function makePartialRank1(deriv, order, solver, field, fieldType, nameOver
 		else
 			namei = name..'['..(i-1)..']'
 		end
-		local expr, exprtype = zero, 'value'
+		local expr = fieldType..'{}'
 		if i <= solver.dim then
 			for j,coeff in ipairs(d1coeffs) do
-				local UR = readField(j..' * solver->stepsize.'..xi)
-				local UL = readField('-'..j..' * solver->stepsize.'..xi)
-				
-				local subexpr, subexprtype = sub(UR, UL, 'value', 'value')
-				local mulexpr, mulexprtype = real_mul(subexpr, clnumber(coeff), subexprtype, 'value')
-				expr, exprtype = add(expr, mulexpr, exprtype, mulexprtype)
+				local UR = readField(j..' * solver.stepsize.'..xi)
+				local UL = readField('-'..j..' * solver.stepsize.'..xi)
+				expr = expr..' + (('..UR..') - ('..UL..')) * '..clnumber(coeff)
 			end
-			local denom = 'solver->grid_dx.'..xi
+			local denom = 'solver.grid_dx.'..xi
 			if d1coeffs.denom then
 				denom = denom .. ' * ' .. clnumber(d1coeffs.denom)
 			end
-			expr, exprtype = real_mul(expr, '(1. / ('..denom..'))', exprtype, 'value')
+			expr = '('..expr..') * (1. / ('..denom..'))'
 		end
 		lines:insert('\t'..namei..' = '..expr..';')
 	end
@@ -139,28 +114,8 @@ local function makePartialRank2(deriv, order, solver, field, fieldType, nameOver
 	local suffix = 'll'
 	if type(field) == 'string' and not field:find'_' then suffix = '_' .. suffix end
 	
-	local add, sub, real_mul, zero
-	if fieldType == 'real' then	--for readability, just inline the macros here
-		add = function(x,y,xt,yt)
-			return x..' + '..y, 'add'
-		end
-		sub = function(x,y,xt,yt)
-			if yt == 'add' or yt == 'sub' then y = '('..y..')' end
-			return x..' - '..y, 'sub'
-		end
-		real_mul = function(x,y,xt,yt)
-			if xt == 'add' or xt == 'sub' then x = '('..x..')' end
-			if yt == 'add' or yt == 'sub' then y = '('..y..')' end
-			return x..' * '..y, 'mul'
-		end
-		zero = '0.'
-	else
-		add = function(x,y) return fieldType..'_add('..x..', '..y..')' end
-		sub = function(x,y) return fieldType..'_sub('..x..', '..y..')' end
-		real_mul = function(x,y) return fieldType..'_real_mul('..x..', '..y..')' end
-		zero = fieldType..'_zero'
-	end
-
+	local zero = fieldType..'{}'
+	
 	srcName = srcName or 'U'
 	local readField = 
 		type(field) == 'string'
@@ -188,40 +143,40 @@ local function makePartialRank2(deriv, order, solver, field, fieldType, nameOver
 		if i > solver.dim or j > solver.dim then
 			lines:insert('\t'..nameij..' = '..zero..';')
 		elseif i == j then
-			local expr, exprtype = real_mul(readField'0', d2coeffs[0], 'value', 'value')
+			local expr = '('..readField'0'..') * ('..d2coeffs[0]..')'
 			for k,coeff in ipairs(d2coeffs) do
-				local UR = readField(k..' * solver->stepsize.'..xi)
-				local UL = readField('-'..k..' * solver->stepsize.'..xi)
-				local addexpr, addexprtype = add(UR, UL, 'value', 'value')
-				local mulexpr, mulexprtype = real_mul(addexpr, clnumber(coeff), addexprtype)
-				expr, exprtype = add(expr, mulexpr, exprtype, mulexprtype)
+				local UR = readField(k..' * solver.stepsize.'..xi)
+				local UL = readField('-'..k..' * solver.stepsize.'..xi)
+				local addexpr = '('..UR..') + ('..UL..')'
+				local mulexpr = '('..addexpr..') * '..clnumber(coeff)
+				expr = '('..expr..') + ('..mulexpr..')'
 			end
-			local denom = 'solver->grid_dx.'..xi..' * solver->grid_dx.'..xi
+			local denom = 'solver.grid_dx.'..xi..' * solver.grid_dx.'..xi
 			if d2coeffs.denom then
 				denom = denom .. ' * ' .. clnumber(d2coeffs.denom)
 			end
-			expr, exprtype = real_mul(expr, '(1. / ('..denom..'))', exprtype, 'value')
+			expr = '('..expr..') * (1. / ('..denom..'))'
 			lines:insert('\t'..nameij..' = '..expr..';')
 		else
-			local expr, exprtype = zero, 'value'
+			local expr = zero
 			for k,coeff_k in ipairs(d1coeffs) do
 				for l,coeff_l in ipairs(d1coeffs) do
-					local URR = readField(k..' * solver->stepsize.'..xi..' + '..l..' * solver->stepsize.'..xj)
-					local ULL = readField('-'..k..' * solver->stepsize.'..xi..' - '..l..' * solver->stepsize.'..xj)
-					local ULR = readField('-'..k..' * solver->stepsize.'..xi..' + '..l..' * solver->stepsize.'..xj)
-					local URL = readField(k..' * solver->stepsize.'..xi..' - '..l..' * solver->stepsize.'..xj)
-					local addRRLLexpr, addRRLLtype = add(URR, ULL)
-					local addLRRLexpr, addLRRLtype = add(ULR, URL)
-					local subexpr, subexprtype = sub(addRRLLexpr, addLRRLexpr, addRRLLtype, addLRRLtype)
-					local mulexpr, mulexprtype = real_mul(subexpr, clnumber(coeff_k * coeff_l), subexprtype, 'value')
-					expr, exprtype = add(expr, mulexpr, exprtype, mulexprtype)
+					local URR = readField(k..' * solver.stepsize.'..xi..' + '..l..' * solver.stepsize.'..xj)
+					local ULL = readField('-'..k..' * solver.stepsize.'..xi..' - '..l..' * solver.stepsize.'..xj)
+					local ULR = readField('-'..k..' * solver.stepsize.'..xi..' + '..l..' * solver.stepsize.'..xj)
+					local URL = readField(k..' * solver.stepsize.'..xi..' - '..l..' * solver.stepsize.'..xj)
+					local addRRLLexpr = '('..URR..') + ('..ULL..')'
+					local addLRRLexpr = '('..ULR..') + ('..URL..')'
+					local subexpr = '('..addRRLLexpr..') - ('..addLRRLexpr..')'
+					local mulexpr = '('..subexpr..') * '..clnumber(coeff_k * coeff_l)
+					expr = '('..expr..') + ('..mulexpr..')'
 				end
 			end
-			local denom = 'solver->grid_dx.'..xi..' * solver->grid_dx.'..xj
+			local denom = 'solver.grid_dx.'..xi..' * solver.grid_dx.'..xj
 			if d1coeffs.denom then
 				denom = denom .. ' * ' .. clnumber(d1coeffs.denom)
 			end
-			expr, exprtype = real_mul(expr, '(1. / ('..denom..'))', exprtype, 'value')
+			expr = '('..expr..') * (1. / ('..denom..'))'
 			lines:insert('\t'..nameij..' = '..expr..';')
 		end
 	end

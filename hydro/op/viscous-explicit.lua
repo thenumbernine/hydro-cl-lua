@@ -22,33 +22,34 @@ function ViscousExplicit:initCodeModules()
 	solver.modules:addFromMarkup{
 		code = solver.eqn:template[[
 //// MODULE_NAME: <?=viscousExplicitUpdate?>
-//// MODULE_DEPENDS: <?=solver_t?> <?=cons_t?> <?=cell_t?> <?=SETBOUNDS?> <?=eqn_common?> 
+//// MODULE_DEPENDS: <?=Solver?>
 
 kernel void <?=viscousExplicitUpdate?>(
-	constant <?=solver_t?> const * const solver,
+	constant <?=solver_t?> const * const psolver,
 	global <?=cons_t?> * const derivBuf,
 	global <?=cons_t?> const * const UBuf,
 	global <?=cell_t?> const * const cellBuf
 ) {
-	<?=SETBOUNDS?>(solver->numGhost, solver->numGhost);
+	auto const & solver = *psolver;
+	<?=SETBOUNDS?>(solver.numGhost, solver.numGhost);
 // viscous terms as rhs.  work is in hydro/op/viscousflux.lua
 // only for grid solvers at the moment
 // notice that in the real world shear viscosity changes with temperature (which changes with internal energy, which changes with position and time)
 // so add more derivative terms?
 
 	global <?=cons_t?> * const deriv = derivBuf + index;
-	global <?=cons_t?> const * const U = UBuf + index;
+	global <?=cons_t?> const * const pU = UBuf + index;
 	real3 const x = cellBuf[index].pos;
 
-	real3 v = <?=calc_v?>(U);
+	real3 v = <?=Solver?>::Eqn::calc_v(*pU);
 
-<? local function getV(offset) return eqn.symbols.calc_v.."(U + "..offset..")" end ?>
+<? local function getV(offset) return solver.symbols.Solver.."::Eqn::calc_v(pU["..offset.."])" end ?>
 <?=eqn:makePartial2(getV, "real3", "d2v")?>
 
-	real3 div_tau = real3_zero;		// tau^ij_,j
+	real3 div_tau = {};		// tau^ij_,j
 	<? for i,xi in ipairs(xNames) do ?>
 		<? for j,xj in ipairs(xNames) do ?>
-			div_tau.<?=xi?> += solver->shearViscosity * (
+			div_tau.<?=xi?> += solver.shearViscosity * (
 				d2v[<?=from3x3to6(j,j)-1?>].<?=xi?>
 				+ (1./3.) * d2v[<?=from3x3to6(i,j)-1?>].<?=xj?>
 			);
@@ -68,7 +69,7 @@ kernel void <?=viscousExplicitUpdate?>(
 	<? if i==j then ?>
 		tau_ij -= (2./3.) * div_v;
 	<? end ?>
-		tau_ij *= solver->shearViscosity;
+		tau_ij *= solver.shearViscosity;
 		tau_dot_dv += tau_ij * dv.<?=xi?>.<?=xj?>;
 	}<? end ?>
 
@@ -76,13 +77,12 @@ kernel void <?=viscousExplicitUpdate?>(
 	//q^i_;i = -(k T_,i g^ij)_;j = -g^ij (k T_;ij + k_,i T_,j) = -g^ij (k T_,ij - k T_,k Γ^k_ij + k_,i T_,j)
 	//for an ideal gas: T = eInt / Cv = (ETotal - 1/2 g^ij m_i m_j / ρ) / ρ / Cv
 
-//// MODULE_DEPENDS: <?=eqn_common?>
 // TODO calc_T's 'x' should vary with the offset
-<? local function getT(offset) return eqn.symbols.calc_T.."(U + "..offset..", x)" end ?>
+<? local function getT(offset) return solver.symbols.Solver.."::Eqn::calc_T(pU["..offset.."], x)" end ?>
 <?=eqn:makePartial2(getT, "real", "d2T")?>
 
-	deriv->m = real3_add(deriv->m, div_tau);
-	deriv->ETotal += div_tau.dot(v) + tau_dot_dv - solver->heatConductivity * d2T.trace();
+	deriv->m += div_tau;
+	deriv->ETotal += div_tau.dot(v) + tau_dot_dv - solver.heatConductivity * d2T.template trace<>();
 }
 ]],
 	}

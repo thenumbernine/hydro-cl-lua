@@ -101,6 +101,16 @@ namespace std {
 	template<class T> using remove_cvref_t = typename remove_cvref<T>::type;
 }
 
+//based on above
+namespace std {
+	template<class T> struct remove_addr { using type = T; };
+	template<class T> struct remove_addr<generic T> { using type = T; };
+	template<class T> struct remove_addr<private T> { using type = T; };
+	template<class T> struct remove_addr<global T> { using type = T; };
+	template<class T> struct remove_addr<constant T> { using type = T; };
+	template<class T> using remove_addr_t = typename remove_addr<T>::type;
+}
+
 //https://en.cppreference.com/w/cpp/types/add_reference
 namespace std {
 	template<typename T> struct add_lvalue_reference : public type_identity<T&> {};
@@ -511,7 +521,7 @@ constexpr auto rotateToInDim(
 		}\
 		using type = decltype(value());\
 	};\
-	using Scalar = typename std::remove_pointer_t<typename ScalarImpl::type>;
+	using Scalar = typename std::remove_addr_t<std::remove_pointer_t<typename ScalarImpl::type>>;
 
 #define TENSOR_ADD_RANK_IMPL()\
 	struct RankImpl {\
@@ -735,7 +745,8 @@ constexpr auto rotateToInDim(
 \
 	template<int m=0, int n=1>\
 	auto trace() const {\
-		return ::trace<m,n,This>(*this);\
+		/*return ::trace<m,n,This>(*this);*/\
+		return ::trace<m,n,Scalar>(*this);\
 	}\
 \
 	auto determinant() const {\
