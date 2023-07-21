@@ -8,7 +8,7 @@ local PoissonJacobi = class(Relaxation)
 
 PoissonJacobi.name = 'poisson_jacobi'
 
-PoissonJacobi.solverCodeFile = 'hydro/op/poisson.cl'
+PoissonJacobi.solverCodeFile = 'hydro/op/poisson.clcpp'
 
 local poissonJacobiCode = path'hydro/op/poisson_jacobi.clcpp':read()
 
@@ -21,6 +21,12 @@ function PoissonJacobi:init(args)
 	PoissonJacobi.super.init(self, args)
 
 	self.codeDepends = args.codeDepends
+end
+
+function PoissonJacobi:getSymbolFields()
+	return table(PoissonJacobi.super.getSymbolFields(self)):append{
+		'SolveJacobi',
+	}
 end
 
 function PoissonJacobi:initCodeModules()

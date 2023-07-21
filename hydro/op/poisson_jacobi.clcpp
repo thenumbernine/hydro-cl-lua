@@ -28,7 +28,7 @@ output is potentialField, in m^2/s^2
 
 namespace <?=Solver?> {
 
-struct SolveJacobi {
+struct <?=SolveJacobi?> {
 	static void solveJacobi(
 		constant Solver const & solver,
 		global real * const writeBuf,
@@ -49,7 +49,8 @@ struct SolveJacobi {
 		auto const * const cell = cellBuf + index;
 		real3 const x = cell->pos;
 
-		auto const * const U = UBuf + index;
+		auto const * const pU = UBuf + index;
+		auto const & U = *pU;
 
 //// MODULE_DEPENDS: <?=cell_dxs?>
 		real3 dx = cell_dx_vec(solver, x);
@@ -89,11 +90,11 @@ lap phi = 1/sqrt|g| ( sqrt|g| g^ij phi_,j )_,i
 <?
 if true then	-- TODO if cartesian
 ?>
-		using Scalar = decltype(U-><?=op.potentialField?>);
+		using Scalar = decltype(U.<?=op.potentialField?>);
 		Scalar skewSum = {};
 		for (int j = 0; j < dim; ++j) {
-			skewSum += U[solver.stepsize[j]].<?=op.potentialField?> * (volR[j] / (dx[j] * dx[j]))
-					+ U[-solver.stepsize[j]].<?=op.potentialField?> * (volL[j] / (dx[j] * dx[j]));
+			skewSum += pU[solver.stepsize[j]].<?=op.potentialField?> * (volR[j] / (dx[j] * dx[j]))
+					+ pU[-solver.stepsize[j]].<?=op.potentialField?> * (volL[j] / (dx[j] * dx[j]));
 		}
 		skewSum /= volAtX;
 
@@ -140,7 +141,7 @@ end
 		Scalar source = {};
 <?=op:getPoissonDivCode() or ""?>
 
-		Scalar oldU = U-><?=op.potentialField?>;
+		Scalar oldU = U.<?=op.potentialField?>;
 
 		//Jacobi iteration: x_i = sum i!=j of (b_i - A_ij x_j) / A_ii
 		Scalar newU = (source - skewSum) * (1. / diag);
@@ -148,7 +149,7 @@ end
 		writeBuf[index] = newU;
 <? if op.stopOnEpsilon then
 ?>		//residual = b_i - A_ij x_j
-		Scalar residual = source - (skewSum + diag * U-><?=op.potentialField?>);
+		Scalar residual = source - (skewSum + diag * U.<?=op.potentialField?>);
 		reduceBuf[index] = lenSq(residual);
 <? end
 ?>
@@ -168,7 +169,7 @@ kernel void <?=solveJacobi?>(
 <? end ?>
 ) {
 	auto const & solver = *psolver;
-	<?=Solver?>::SolveJacobi::solveJacobi(solver, writeBuf, UBuf, cellBuf
+	<?=Solver?>::<?=SolveJacobi?>::solveJacobi(solver, writeBuf, UBuf, cellBuf
 <? if op.stopOnEpsilon then ?>
 	, reduceBuf
 <? end ?>

@@ -50,7 +50,7 @@ function Euler:init(args)
 				--]=]
 				-- [=[ reading via div(v), writing via div(m)
 				readVectorField = function(op,offset,j)
-					local function U(field) return 'U['..offset..'].'..field end
+					local function U(field) return 'pU['..offset..'].'..field end
 					return U('m['..j..']')..' / '..U'rho'
 				end,
 				writeVectorField = function(op,dv)
@@ -67,7 +67,7 @@ function Euler:init(args)
 
 #if 1 	// recalculate cons
 //// MODULE_DEPENDS: <?=Solver?>
-	<?=prim_t?> W = <?=Solver?>::Eqn::primFromCons(solver, U, pt);
+	auto W = <?=Solver?>::Eqn::primFromCons(solver, U, pt);
 	W.v -= <?=dv?>;
 	U = <?=Solver?>::Eqn::consFromPrim(solver, W, pt);
 #endif

@@ -772,7 +772,7 @@ self.solvers:insert(require 'hydro.solver.weno'(table(args, {
 
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='euler-hllc', eqn='euler', fluxArgs={hllcMethod=0}})))
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='euler-hllc', eqn='euler', fluxArgs={hllcMethod=1}})))
-self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='euler-hllc', eqn='euler', fluxArgs={hllcMethod=2}})))
+--self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='euler-hllc', eqn='euler', fluxArgs={hllcMethod=2}})))
 
 -- NOTICE, these are very accurate with RK4, etc., but incur oscillations with Forward-Euler
 -- TODO weno doesn't seem to work with self-gravitation
@@ -816,7 +816,7 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='euler-hll
 
 
 -- incompressible
---self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler', eqnArgs={incompressible=true}})))
+self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler', eqnArgs={incompressible=true}})))
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', eqnArgs={incompressible=true}})))
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='euler-hllc', eqn='euler', eqnArgs={incompressible=true}})))
 --self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='euler', eqnArgs={incompressible=true}, wenoMethod='2010 Shen Zha', order=5})))

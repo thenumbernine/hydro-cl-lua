@@ -13,10 +13,6 @@ local Relaxation = class()
 
 Relaxation.name = 'relaxation'
 
--- scalar type of our vectors -- real or cplx
--- TODO can be inferred from the type
-Relaxation.scalar = 'real'
-
 -- field we are solving for
 Relaxation.potentialField = 'ePot'
 

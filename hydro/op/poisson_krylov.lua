@@ -13,7 +13,6 @@ local toreal, fromreal = half.toreal, half.fromreal
 local PoissonKrylov = class()
 
 PoissonKrylov.name = 'poisson_krylov'
-PoissonKrylov.scalar = 'real'
 PoissonKrylov.potentialField = 'ePot'
 
 --[[
@@ -98,7 +97,6 @@ function PoissonKrylov:initSolver()
 		table(solver.sharedModulesEnabled:keys())
 		:append{
 			solver.solver_t,
-			solver.symbols.OOB,
 		}:unpack())
 		:gsub('//// BEGIN INCLUDE FOR FFI_CDEF.-//// END INCLUDE FOR FFI_CDEF', '')
 
@@ -114,7 +112,7 @@ function PoissonKrylov:initSolver()
 			{name='b', type=solver.app.real, obj=true},
 		},
 		body = solver.eqn:template[[	
-	if (<?=OOB?>(solver.numGhost, solver.numGhost)) {
+	if (OOB<dim>(solver, i, solver.numGhost, solver.numGhost)) {
 		y[index] = 0;
 		return;
 	}
@@ -133,7 +131,7 @@ function PoissonKrylov:initSolver()
 			{name = 'x', type=solver.app.real, obj=true},
 		},
 		body = solver.eqn:template[[
-	if (<?=OOB?>(0,0)) return;
+	if (OOB<dim>(solver, i, 0, 0)) return;
 	y[index] = x[index] * x[index];
 ]],
 	}
@@ -217,7 +215,7 @@ kernel void <?=linearFunc?>(
 ) {
 	auto const & solver = *psolver;
 	<?=SETBOUNDS?>(0,0);
-	if (<?=OOB?>(solver.numGhost, solver.numGhost)) {
+	if (OOB<dim>(solver, i, solver.numGhost, solver.numGhost)) {
 		Y[index] = 0.;
 		return;
 	}
@@ -270,8 +268,8 @@ kernel void <?=copyPotentialFieldToVecAndInitB?>(
 	auto const & solver = *psolver;
 	<?=SETBOUNDS?>(0, 0);
 	
-	global <?=cons_t?> const * const U = UBuf + index;
-	x[index] = U-><?=op.potentialField?>;
+	global <?=cons_t?> const * const pU = UBuf + index;
+	x[index] = pU-><?=op.potentialField?>;
 	
 	real source = 0.;
 <?=op:getPoissonDivCode() or ''?>
@@ -295,7 +293,7 @@ function PoissonKrylov:initCodeModules()
 	solver.modules:addFromMarkup{
 		code = solver.eqn:template(
 			table{
-				path'hydro/op/poisson.cl':read(),
+				path'hydro/op/poisson.clcpp':read(),
 				poissonKrylovCode,
 				self:getPoissonCode(),
 			}:concat'\n',

@@ -35,7 +35,8 @@ kernel void <?=initPotential?>(
 ) {
 	auto const & solver = *psolver;
 	<?=SETBOUNDS?>(solver.numGhost, solver.numGhost);
-	global <?=op:getPotBufType()?> * const U = UBuf + index;
+	auto const * const pU = UBuf + index;
+	auto & U = *pU;
 	using Scalar = decltype(UBuf-><?=op.potentialField?>);
 	Scalar source = {};
 <?=op:getPoissonDivCode() or ""?>

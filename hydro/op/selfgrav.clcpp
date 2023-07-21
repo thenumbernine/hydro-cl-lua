@@ -11,7 +11,7 @@ struct SelfGrav {
 	template<int dim_>
 	static inline real3 calcGravityAccel(
 		constant Solver const & solver,
-		global Cons const * private const U,
+		global Cons const * private const pU,
 		real3 const pt
 	) {
 		real3 accel_g;
@@ -20,8 +20,8 @@ struct SelfGrav {
 			// m/s^2
 			// TODO grid coordinate influence?
 			accel_g[i] = (
-				U[solver.stepsize[i]].<?=op.potentialField?>
-				- U[-solver.stepsize[i]].<?=op.potentialField?>
+				pU[solver.stepsize[i]].<?=op.potentialField?>
+				- pU[-solver.stepsize[i]].<?=op.potentialField?>
 			) / (2. * solver.grid_dx[i]);
 		}
 
@@ -59,10 +59,11 @@ kernel void <?=calcGravityDeriv?>(
 	<?=SETBOUNDS?>(solver.numGhost, solver.numGhost);
 	real3 const pt = cellBuf[index].pos;
 	auto * const deriv = derivBuffer + index;
-	auto const * const U = UBuf + index;
-	real3 accel_g = <?=Solver?>::SelfGrav::calcGravityAccel<dim>(solver, U, pt);
-	deriv->m -= accel_g * U->rho;			// kg/(m^2 s) = kg/m^3 * m/s^2
-	deriv->ETotal -= U->m.dot(accel_g);	// kg/(m s^2) = (kg m^2 / s) * m/s^2
+	auto const * const pU = UBuf + index;
+	auto const & U = *pU;
+	real3 accel_g = <?=Solver?>::SelfGrav::calcGravityAccel<dim>(solver, pU, pt);
+	deriv->m -= accel_g * U.rho;			// kg/(m^2 s) = kg/m^3 * m/s^2
+	deriv->ETotal -= U.m.dot(accel_g);	// kg/(m s^2) = (kg m^2 / s) * m/s^2
 }
 
 //// MODULE_NAME: <?=copyPotentialToReduce?>
