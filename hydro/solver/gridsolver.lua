@@ -365,7 +365,7 @@ typedef struct {
 	end
 
 	if self.useCTU then
-		self.modules:addFromMarkup(self.eqn:template(path'hydro/solver/ctu.cl':read()))
+		self.modules:addFromMarkup(self.eqn:template(path'hydro/solver/ctu.clcpp':read()))
 		self.sharedModulesEnabled[self.symbols.updateCTU] = true
 	end
 end

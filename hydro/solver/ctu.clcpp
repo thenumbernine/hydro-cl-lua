@@ -2,9 +2,9 @@
 local table = require "ext.table"
 ?>
 //// MODULE_NAME: <?=updateCTU?>
-//// MODULE_DEPENDS: <?=solver_t?> <?=cell_t?> <?=cons_t?> <?=SETBOUNDS?> <?=solver_macros?> realparam
+//// MODULE_DEPENDS: <?=Solver?> realparam
 <? if solver.usePLM then ?>
-//// MODULE_DEPENDS: <?=consLR_t?> <?=normal_t?> <?=fluxFromCons?>
+//// MODULE_DEPENDS: <?=consLR_t?>
 <? end ?>
 
 /*
@@ -15,29 +15,36 @@ using the interface flux
 update the LR states by integrating dt/2 times the interface flux
 */
 kernel void <?=updateCTU?>(
-	constant <?=solver_t?> const * const solver,
+	constant <?=solver_t?> const * const psolver,
 	global <?=cell_t?> const * const cellBuf,
 	global <?=solver.getULRArg?>,
 	global <?=cons_t?> const * const fluxBuf,
 	realparam const dt
 ) {
-	<?=SETBOUNDS?>(1,1);	//this was (0,1) so it could run across interfaces, but looks like i need (1,1) for cell->volume interface access, unless TODO I change the volume LR into face area 
-	global <?=cell_t?> const * const cell = cellBuf + index;
-	real3 const x = cell->pos;
+	using Eqn = <?=Solver?>::Eqn;
+	using Normal = <?=Solver?>::Normal;
+	using Cell = <?=Solver?>::Cell;
+	using Cons = <?=Solver?>::Cons;
+
+	constant <?=solver_t?> const & solver = *psolver;
+	<?=SETBOUNDS?>(1,1);	//this was (0,1) so it could run across interfaces, but looks like i need (1,1) for cell.volume interface access, unless TODO I change the volume LR into face area 
+	global Cell const * const pcell = cellBuf + index;
+	global Cell const & cell = *pcell;
+	real3 const x = cell.pos;
 <? if eqn.weightFluxByGridVolume then ?>
-	real const volume = cell->volume;
+	real const volume = cell.volume;
 <? else ?>
-	real const volume = 1.<? for i=0,solver.dim-1 do ?> * solver->grid_dx.s<?=i?><? end ?>;
+	real const volume = 1.<? for i=0,solver.dim-1 do ?> * solver.grid_dx.s<?=i?><? end ?>;
 <? end ?>
 	real const invVolume = 1. / volume;
 
 	//these are the inter-cell fluxes, computed from the previously calculated calcLR states
 <? for side=0,solver.dim-1 do
 ?>	int const indexIntL<?=side?> = <?=side?> + dim * index;
-	global <?=cons_t?> const * const fluxL<?=side?> = fluxBuf + indexIntL<?=side?>;
+	global Cons const * const fluxL<?=side?> = fluxBuf + indexIntL<?=side?>;
 	
-	int const indexIntR<?=side?> = indexIntL<?=side?> + dim * solver->stepsize.s<?=side?>;
-	global <?=cons_t?> const * const fluxR<?=side?> = fluxBuf + indexIntR<?=side?>;
+	int const indexIntR<?=side?> = indexIntL<?=side?> + dim * solver.stepsize.s<?=side?>;
+	global Cons const * const fluxR<?=side?> = fluxBuf + indexIntR<?=side?>;
 <? end
 ?>
 
@@ -47,21 +54,21 @@ for side=0,solver.dim-1 do
 	if eqn.weightFluxByGridVolume then
 ?>
 	real3 xIntL<?=side?> = x;
-	xIntL<?=side?>.s<?=side?> -= .5 * solver->grid_dx.s<?=side?>;
+	xIntL<?=side?>.s<?=side?> -= .5 * solver.grid_dx.s<?=side?>;
 	// TODO instead of volume_intL as the avg between two cell volumes, and then divide by dx to get the face, instead, just store the face.
-	real const volume_intL<?=side?> = .5 * (cell->volume + cell[-solver->stepsize.s<?=side?>].volume);
-	real const areaL<?=side?> = volume_intL<?=side?> / solver->grid_dx.s<?=side?>;
+	real const volume_intL<?=side?> = .5 * (cell.volume + pcell[-solver.stepsize.s<?=side?>].volume);
+	real const areaL<?=side?> = volume_intL<?=side?> / solver.grid_dx.s<?=side?>;
 
 	real3 xIntR<?=side?> = x;
-	xIntR<?=side?>.s<?=side?> += .5 * solver->grid_dx.s<?=side?>;
+	xIntR<?=side?>.s<?=side?> += .5 * solver.grid_dx.s<?=side?>;
 	// TODO instead of volume_intL as the avg between two cell volumes, and then divide by dx to get the face, instead, just store the face.
-	real const volume_intR<?=side?> = .5 * (cell->volume + cell[solver->stepsize.s<?=side?>].volume);
-	real const areaR<?=side?> = volume_intR<?=side?> / solver->grid_dx.s<?=side?>;
+	real const volume_intR<?=side?> = .5 * (cell.volume + pcell[solver.stepsize.s<?=side?>].volume);
+	real const areaR<?=side?> = volume_intR<?=side?> / solver.grid_dx.s<?=side?>;
 <?
 	else
 ?>
-	real const areaL<?=side?> = 1.<? for i=0,solver.dim-1 do if i ~= side then ?> * solver->grid_dx.s<?=i?><? end end ?>;
-	real const areaR<?=side?> = 1.<? for i=0,solver.dim-1 do if i ~= side then ?> * solver->grid_dx.s<?=i?><? end end ?>;
+	real const areaL<?=side?> = 1.<? for i=0,solver.dim-1 do if i ~= side then ?> * solver.grid_dx.s<?=i?><? end end ?>;
+	real const areaR<?=side?> = 1.<? for i=0,solver.dim-1 do if i ~= side then ?> * solver.grid_dx.s<?=i?><? end end ?>;
 <?
 	end
 end
@@ -76,23 +83,24 @@ for side=0,solver.dim-1 do
 ?>
 		//these are the cell left and right edge states (from calcLR)'s fluxes
 		int const indexForSide = <?=side?> + dim * index;
-		global <?=consLR_t?> * const ULR = ULRBuf + indexForSide;
+		auto & ULR = ULRBuf[indexForSide];
 		
 		//calc flux from ULR state here before modifying ULR
-		<?=normal_t?> n = normal_forSide<?=side?>(x);
-		<?=cons_t?> fluxCellL = <?=fluxFromCons?>(solver, ULR->L, cell, n);
-		<?=cons_t?> fluxCellR = <?=fluxFromCons?>(solver, &ULR->R, cell, n);
+		auto n = Normal::template forSide<<?=side?>>(x);
+		Cons fluxCellL = Eqn::fluxFromCons(solver, ULR.L, cell, n);
+		Cons fluxCellR = Eqn::fluxFromCons(solver, ULR.R, cell, n);
 <?
-		updateFields:insert"ULR->L"
-		updateFields:insert"ULR->R"
+		updateFields:insert"ULR.L"
+		updateFields:insert"ULR.R"
 	elseif solver.getULRBufType == eqn.symbols.cons_t then
 		-- imporatnt detail about running non-PLM with CTU...
 		-- (you shouldn't but who am I to stop you)
 		-- the PLM version will not update the UBuf ... so after correcting the flux, the subsequent UBuf integration step will be applied to the original UBuf
 		-- however the non-PLM version *will* update the UBuf, so the new UBuf won't only contribute to the adjusted flux, but it will also contribute to the next UBuf integration, and will probably add to the error
-?>		global <?=cons_t?> * const U = UBuf + index;
+?>		auto const pU = UBuf + index;
+		auto & U = *pU;
 <?
-		updateFields:insert"(*U)"
+		updateFields:insert"U"
 	else
 		error("can't handle getULRBufType "..tostring(solver.getULRBufType))
 	end
@@ -118,12 +126,12 @@ for side=0,solver.dim-1 do
 			local dF_dx = "dF_dx"..side2
 ?>
 			real const <?=dF_dx?> = (
-				<?=fluxR?>.ptr[j] * areaR<?=side2?>
-				- <?=fluxL?>.ptr[j] * areaL<?=side2?>
+				<?=fluxR?>.s[j] * areaR<?=side2?>
+				- <?=fluxL?>.s[j] * areaL<?=side2?>
 			) * invVolume;
 <?
 			for _,updateField in ipairs(updateFields) do
-?>			<?=updateField?>.ptr[j] -= .5 * dt * <?=dF_dx?>;
+?>			<?=updateField?>.s[j] -= .5 * dt * <?=dF_dx?>;
 <?
 			end
 		end
