@@ -822,7 +822,7 @@ self.solvers:insert(require 'hydro.solver.weno'(table(args, {
 --self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='euler', eqnArgs={incompressible=true}, wenoMethod='2010 Shen Zha', order=5})))
 
 -- viscosity in source terms as finite-different explicit update
-self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler', eqnArgs={viscosity='rhs-explicit'}})))
+--self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler', eqnArgs={viscosity='rhs-explicit'}})))
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler', eqnArgs={viscosity='rhs-implicit'}})))
 -- not yet finished:
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler', eqnArgs={viscosity='flux'}})))
@@ -847,7 +847,7 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {
 -- compressible Euler equations, based on primitive vars
 -- only works with eigensystem-based solvers (since idk how to solve the flux vector of the primitive system)
 
---self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler_prim'})))
+self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler_prim'})))
 
 
 -- Navier-Stokes-Wilcox:

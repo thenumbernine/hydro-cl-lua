@@ -1,0 +1,572 @@
+<?
+local useAddSource = false
+?>
+//// MODULE_NAME: <?=Solver?>
+//// MODULE_DEPENDS: <?=coordLenSq?>
+//// MODULE_DEPENDS: <?=eqn_guiVars_compileTime?>
+//// MODULE_DEPENDS: <?=coord_lower?>
+//// MODULE_DEPENDS: <?=cartesianToCoord?>
+//// MODULE_DEPENDS: <?=SETBOUNDS?>
+//// MODULE_DEPENDS: <?=SETBOUNDS_NOGHOST?>
+
+<?=eqn:template(require "ext.path" "hydro/eqn/eqn.clcpp":read())?>
+
+namespace <?=Solver?> {
+
+// needed to define Solver::Normal
+//// MODULE_DEPENDS: <?=normal_t?>
+
+//// MODULE_DEPENDS: <?=solver_t?>
+using Solver = <?=solver_t?>;
+
+//// MODULE_DEPENDS: <?=initCond_t?>
+using InitCond = <?=initCond_t?>;
+
+//// MODULE_DEPENDS: <?=cell_t?>
+using Cell = <?=cell_t?>;
+
+//// MODULE_DEPENDS: <?=cons_t?>
+using Cons = <?=cons_t?>;
+
+//// MODULE_DEPENDS: <?=eigen_t?>
+using Eigen = <?=eigen_t?>;
+
+//// MODULE_DEPENDS: <?=prim_t?>
+using Prim = <?=prim_t?>;
+
+//// MODULE_DEPENDS: <?=waves_t?>
+using Waves = vec<real, numWaves>;
+static_assert(sizeof(Waves) == sizeof(<?=waves_t?>));
+
+// hmm i can ref a type from a passed-in traits-class
+// but not from a crtp class?
+struct EulerPrimEqnTraits {
+	using Solver = Solver;
+	using Cons = Cons;
+	using Prim = Prim;
+	using Normal = Normal;
+	using Cell = Cell;
+	using Eigen = Eigen;
+	using Waves = Waves;
+	using InitCond = InitCond;
+};
+
+struct EulerPrimEqn : public Hydro::Eqn<
+	EulerPrimEqn,
+	EulerPrimEqnTraits
+> {
+	// true by default, disable since there is no flux vector of the primitive-state-variable form
+	static constexpr bool roeUseFluxFromCons = false;
+
+	static inline real calc_H(
+		constant Solver const & solver,
+		real const P
+	) {
+		return P * (solver.heatCapacityRatio / (solver.heatCapacityRatio - 1.));
+	}
+
+	static inline real calc_h(
+		constant Solver const & solver,
+		real const rho,
+		real const P
+	) {
+		return calc_H(solver, P) / rho;
+	}
+
+	static inline real calc_HTotal(
+		real const P,
+		real const ETotal
+	) {
+		return P + ETotal;
+	}
+
+	static inline real calc_hTotal(
+		real const rho,
+		real const P,
+		real const ETotal
+	) {
+		return calc_HTotal(P, ETotal) / rho;
+	}
+
+	static inline real calc_eKin(
+		Cons const & U,
+		real3 const x
+	) {
+		return .5 * coordLenSq(U.v, x);
+	}
+
+	static inline real calc_EKin(
+		Cons const & U,
+		real3 const x
+	) {
+		return U.rho * calc_eKin(U, x);
+	}
+
+	static inline real calc_EInt(
+		constant Solver const & solver,
+		Cons const & U
+	) {
+		return U.P / (solver.heatCapacityRatio - 1.);
+	}
+
+	static inline real calc_eInt(
+		constant Solver const & solver,
+		Cons const & U
+	) {
+		return calc_EInt(solver, U) / U.rho;
+	}
+
+	static inline real calc_ETotal(
+		constant Solver const & solver,
+		Cons const & U,
+		real3 const x
+	) {
+		return calc_EKin(U, x) + calc_EInt(solver, U);
+	}
+
+	static inline real calc_Cs(
+		constant Solver const & solver,
+		Cons const & U
+	) {
+		return sqrt(solver.heatCapacityRatio * U.P / U.rho);
+	}
+
+<? local materials = require "hydro.materials" ?>
+	static constexpr real C_v = <?=("%.50f"):format(materials.Air.C_v)?>;
+
+	static inline real calc_T(
+		constant Solver const & solver,
+		Cons const & U
+	) {
+		return calc_eInt(solver, U) / C_v;
+	}
+
+	struct EigenWaveCode {
+		real Cs_nLen;
+		real v_n;
+		constexpr EigenWaveCode(
+			constant Solver const & solver,
+			Eigen const & eig,
+			Normal const n,
+			real3 const pt
+		) :	Cs_nLen(n.length() * eig.Cs),
+			v_n(n.vecDotN1(eig.v))
+		{}
+
+		// TODO templated index and if constexpr's ... and template-based for-loop ...
+		constexpr real operator()(
+			constant Solver const & solver,
+			Eigen const & eig,
+			Normal const n,
+			real3 const pt,
+			int waveIndex
+		) const {
+			if (waveIndex == 0) {
+				return v_n - Cs_nLen;
+			} else if (waveIndex >= 1 && waveIndex <= 3) {
+				return v_n;
+			} else if (waveIndex == 4) {
+				return v_n + Cs_nLen;
+			}
+			return {};
+		}
+	};
+
+	// TODO move to base class
+	// default implementation assumes wave 0 is the lowest and wave n-1 is the highest
+	static inline void eigenWaveCodeMinMax(
+		constant Solver const & solver,
+		Eigen const & eig,
+		Normal const n,
+		real3 const pt,
+		real * resultMin,
+		real * resultMax
+	) {
+		auto calcWaves = EigenWaveCode(solver, eig, n, pt);
+		if (resultMin) {
+			*resultMin = calcWaves(solver, eig, n, pt, 0);
+		}
+		if (resultMax) {
+			*resultMax = calcWaves(solver, eig, n, pt, numWaves-1);
+		}
+	}
+
+	struct ConsWaveCode {
+		real Cs_nLen, v_n;
+		constexpr ConsWaveCode(
+			constant Solver const & solver,
+			Cons const & U,
+			Normal const n,
+			real3 const pt
+		) :	Cs_nLen(n.length() * calc_Cs(solver, U)),
+			v_n(n.vecDotN1(U.v))
+		{}
+
+		// TODO templated index and if constexpr's ... and template-based for-loop ...
+		// TODO as long as U or eig isn't used, we can use this for both implementations
+		constexpr real operator()(
+			constant Solver const & solver,
+			Cons const & U,
+			Normal const n,
+			real3 const pt,
+			int waveIndex
+		) const {
+			if (waveIndex == 0) {
+				return v_n - Cs_nLen;
+			} else if (waveIndex >= 1 && waveIndex <= 3) {
+				return v_n;
+			} else if (waveIndex == 4) {
+				return v_n + Cs_nLen;
+			}
+			return {};
+		}
+	};
+
+	// TODO move to base class
+	//returns code for multiple statements.
+	//there is no prerequisite 'Prefix' call to this.
+	//why? because no multiple subsequent calls are intended, unlike the 'AllSides' or the default wave code, and because this is returning multiple statements (unlike the default wave code that has Prefix do multiple statements and the cons/eigenWaveCode call produce expressios).
+	// default implementation assumes wave 0 is the lowest and wave n-1 is the highest
+	static inline void consWaveCodeMinMax(
+		constant Solver const & solver,
+		Cons const & U,
+		Normal const n,
+		real3 const pt,
+		real * resultMin,
+		real * resultMax
+	) {
+		auto calcWaves = ConsWaveCode(solver, U, n, pt);
+		if (resultMin) {
+			*resultMin = calcWaves(solver, U, n, pt, 0);
+		}
+		if (resultMax) {
+			*resultMax = calcWaves(solver, U, n, pt, numWaves-1);
+		}
+	}
+
+	// added by request only, so I don't have to compile the real3x3 code. 
+	// not used at the moment
+	struct ConsWaveCodeMinMaxAllSides {
+		real Cs;
+		constexpr ConsWaveCodeMinMaxAllSides(
+			constant Solver const & solver,
+			Cons const & U,
+			real3 const pt
+		) : Cs(calc_Cs(solver, U))
+		{}
+
+		constexpr void operator()(
+			constant Solver const & solver,
+			Normal const n,
+			Cons const & U,
+			real3 const pt,
+			real * resultMin,
+			real * resultMax
+		) {
+			real const Cs_nLen = Cs * n.length();
+			real const v_n = n.vecDotN1(U.v);
+			if (resultMin) {
+				*resultMin = v_n - Cs_nLen;
+			}
+			if (resultMax) {
+				*resultMax = v_n + Cs_nLen;
+			}
+		}
+	};
+
+	/*
+	I've highjacked all of this.  It was a normal Euler eqn solver.
+	But I experimented with a curved-space solver.  
+	To get back to the original code,
+	just replace all the g_ab stuff with their constant values and simplify away.
+	*/
+	static void applyInitCondCell(
+		constant Solver const & solver,
+		constant InitCond const & initCond,
+		global Cons & U,
+		global Cell const & cell
+	) {
+		real3 const x = cell.pos;
+		real3 const mids = (solver.initCondMins + solver.initCondMaxs) * (real).5;
+		bool const lhs = true<?
+for i=1,solver.dim do
+		local xi = xNames[i]
+?> && x.<?=xi?> < mids.<?=xi?><?
+end
+?>;
+
+		// these are all standard for all init/euler.lua initial conditions
+		auto args = Hydro::InitCondCellArgs<Cons>(solver, initCond, x, U);
+		InitCondC<Prim, Cons>::initCond(args);
+
+		auto W = Prim()
+			.set_rho(args.rho)
+			.set_v(cartesianToCoord(args.v, x))
+			.set_P(args.P)
+		;
+		U = consFromPrim(solver, W, x);
+	}
+
+	// used by PLM
+	static inline Eigen eigen_forCell(
+		constant Solver const & solver,
+		Cons const & U,
+		Cell const & cell,
+		Normal const n
+	) {
+		real3 const vL = coord_lower(U.v, cell.pos);
+		real const vSq = U.v.dot(vL);
+		real const v_n = n.vecDotN1(U.v);
+		real const eKin = .5 * vSq;
+		real const ETotal = calc_ETotal(solver, U, cell.pos);
+		real const hTotal = calc_hTotal(U.rho, U.P, ETotal);
+		real const CsSq = (solver.heatCapacityRatio - 1.) * (hTotal - eKin);
+		real const Cs = sqrt(CsSq);
+		Eigen result;
+		result.rho = U.rho;
+		result.v = U.v;
+		result.vSq = vSq;
+		result.vL = vL;
+		result.hTotal = hTotal;
+		result.Cs = Cs;
+		return result;
+	}
+
+	//used by the mesh version
+	static inline Eigen eigen_forInterface(
+		constant Solver const & solver,
+		Cons const & UL,
+		Cons const & UR,
+		Cell const & cellL,
+		Cell const & cellR,
+		real3 const pt,
+		Normal const n
+	) {
+		Eigen result;
+		real const sqrtRhoL = sqrt(UL.rho);
+		real3 const vLeft = UL.v;
+		real const ETotalL = calc_ETotal(solver, UL, cellL.pos);
+		real const hTotalL = calc_hTotal(UL.rho, UL.P, ETotalL);
+	
+		real const sqrtRhoR = sqrt(UR.rho);
+		real3 const vR = UR.v;
+		real const ETotalR = calc_ETotal(solver, UR, cellR.pos);
+		real const hTotalR = calc_hTotal(UR.rho, UR.P, ETotalR);
+	
+		real const invDenom = 1./(sqrtRhoL + sqrtRhoR);
+	
+		//Roe-averaged
+		result.rho = sqrtRhoL * sqrtRhoR;
+		real3 const v = vLeft * (sqrtRhoL * invDenom)
+					+ vR * (sqrtRhoR * invDenom);
+		real const hTotal = invDenom * (sqrtRhoL * hTotalL + sqrtRhoR * hTotalR);
+	
+		//derived:
+		real3 const vLower = coord_lower(v, pt);
+		real const vSq = v.dot(vLower);
+		real const eKin = .5 * vSq;
+		real const h = hTotal - eKin;
+		// TODO verify hTotal = 1/2 v^2 + Cs^2 / (gamma-1)
+		result.hTotal = hTotal;
+		real const CsSq = (solver.heatCapacityRatio - 1.) * h;
+		result.Cs = sqrt(CsSq);
+	
+		result.v = v;
+		result.vSq = vSq;
+		result.vL = vLower;
+		
+		return result;
+	}
+
+	static inline Waves eigen_leftTransform(
+		constant Solver const & solver,
+		Eigen const & eig,
+		Cons const & X,
+		real3 const pt,
+		Normal const n
+	) {
+		Waves result;
+		real const nLen = n.length();
+		real const nLenSq = n.lenSq();
+		real const CsSq = eig.Cs * eig.Cs;
+		result[0] = (
+				  X[1] * -eig.rho * n.l1x_over_length()
+				+ X[2] * -eig.rho * n.l1y_over_length()
+				+ X[3] * -eig.rho * n.l1z_over_length()
+				+ X[4] / eig.Cs
+			) * .5 / (eig.Cs * nLen);
+		result[1] =
+				  X[0]
+				+ X[4] * -1. / CsSq;
+		result[2] =(
+				  X[1] * -(nLenSq - n.l1y() * n.u1y()) / n.l1x()
+				+ X[2] * n.u1y() / n.l1x()
+				+ X[3] * -n.l1z()
+			) * eig.rho / nLenSq;
+		result[3] =(
+				  X[1] * -n.u1z()
+				+ X[2] * -n.l1y() * n.u1z() / n.l1x()
+				+ X[3] * (nLenSq - n.l1z() * n.u1z()) / n.l1x()
+			) * eig.rho / nLenSq;
+		result[4] =(
+				  X[1] * eig.rho * n.l1x_over_length()
+				+ X[2] * eig.rho * n.l1y_over_length()
+				+ X[3] * eig.rho * n.l1z_over_length()
+				+ X[4] / eig.Cs
+			) * .5 / (eig.Cs * nLen);
+		return result;
+	}
+
+	static inline Cons eigen_rightTransform(
+		constant Solver const & solver,
+		Eigen const & eig,
+		Waves const & X,
+		real3 const pt,
+		Normal const n
+	) {
+		Cons result;
+		real const nLen = n.length();
+		real const invRho = 1. / eig.rho;
+		result[0] =
+			  X[0] * nLen
+			+ X[1]
+			+ X[4] * nLen;
+		result[1] =(
+			  X[0] * -eig.Cs * n.u1x()
+			+ X[2] * -n.l1y()
+			+ X[3] * -n.l1z()
+			+ X[4] * eig.Cs * n.u1x()
+		) * invRho;
+		result[2] =(
+			  X[0] * -eig.Cs * n.u1y()
+			+ X[2] * n.l1x()
+			+ X[4] * eig.Cs * n.u1y()
+		) * invRho;
+		result[3] =(
+			  X[0] * -eig.Cs * n.u1z()
+			+ X[3] * n.l1x()
+			+ X[4] * eig.Cs * n.u1z()
+		) * invRho;
+		result[4] =(
+			  X[0]
+			+ X[4]
+		) * nLen * eig.Cs * eig.Cs;
+		return result;
+	}
+
+<? if useAddSource then ?>
+	// TODO sort addSource out.
+	static inline void addSource(
+		constant Solver const & solver,
+		global Cons * const derivBuf,
+		global Cons const * const UBuf,
+		global Cell const * const cellBuf
+	) {
+		<?=SETBOUNDS_NOGHOST?>();
+
+		global Cons & deriv = derivBuf[index];
+		global Cons const & U = UBuf[index];
+		global Cell const & cell = cellBuf[index];
+		real3 const x = cell.pos;
+
+<? if false 
+and solver.coord.vectorComponent == "anholonomic" 
+and require "hydro.coord.cylinder":isa(solver.coord) 
+then ?>
+<? 	if true then -- 2009 Trangenstein, p.474, 1999 Toro, p.29, eqn.1.104, 1.105 ?>
+		for (int side = 0; side < 2; ++side) {
+			real3 xL = x; xL.s<?=side?> -= solver.grid_dx.s<?=side?>;
+			real3 xR = x; xR.s<?=side?> += solver.grid_dx.s<?=side?>;
+			
+			global Cons const * const UL = U - solver.stepsize.s<?=side?>;
+			global Cons const * const UR = U + solver.stepsize.s<?=side?>;
+			real const PL = UL->P;
+			real const PR = UR->P;
+		
+			deriv->m.s<?=side?> -= (PR - PL) / (2. * solver.grid_dx.s<?=side?>);
+		}
+<?	end ?>
+<?	if false then -- 1999 Toro p.28 eqn.1.102, 1.103 ?>
+		Cons F;
+		fluxFromCons(&F, solver, U, cell, normal_forSide0(x));
+		deriv->rho -= F.rho / x.x;
+		deriv->m.x -= F.m.x / x.x;
+		deriv->m.y -= F.m.y / x.x;
+		deriv->m.z -= F.m.z / x.x;
+		deriv->ETotal -= F.ETotal / x.x;
+<?	end ?>
+<? end ?>
+
+<? if false then -- if not solver.coord.vectorComponent == "anholonomic" then ?>
+<? if not (require "hydro.coord.cartesian":isa(solver.coord) 
+		or solver.coord.vectorComponent == "cartesian")
+then ?>
+/*
+This is working for init conds with zero velocity.
+Introducing constant velocity of v=[x=1,y=1]=[r=sqrt(2),theta=pi/4] in the init cond causes some numerical errors.
+However the problem isn't the terms below -- because disabling this for zero-vel init conds causes things to become unsteady.
+That means that the volume gradient in calcDerivFV is causing nonzero velocities to emerge, and this is cancelling them.
+Maybe for an initial constant vel as large as sqrt(2) this fails, but it works only for small perturbations?
+*/
+		//connection coefficient source terms of covariant derivative w/contravariant velocity vectors in a holonomic coordinate system
+		
+		//- Γ^i_jk ρ v^j v^k 
+		deriv->m -= coord_conn_apply23(U->v, U->m, x);
+		
+		//- Γ^i_jk g^jk P
+		deriv->m -= coord_conn_trace23(x) * U->P;
+		
+		//+ (γ-1) ρ v^k v^l Γ_kjl g^ij
+		deriv->m += coord_conn_apply13(U->v, U->m, x) * (solver.heatCapacityRatio - 1.);
+		
+		//- (γ-1) ρ v^j v^k v^l Γ_jkl
+	//	deriv->ETotal -= (solver.heatCapacityRatio - 1.) * coord_conn_apply123(U->v, U->v, U->m, x);	
+
+		//+ c_jk^k * Flux^Ij
+<? 	if false and solver.coord.vectorComponent == "anholonomic" then ?>
+		real3 const commTrace = coord_tr23_c(x);
+		for (int i = 0; i < dim; ++i) {
+			Cons flux;
+			calcFluxFromCons(&F, *U, x);
+			for (int j = 0; j < numIntStates; ++j) {
+				deriv->ptr[j] += commTrace.s<?=i?> * flux.ptr[j];
+			}
+		}
+<? 	end ?>
+<? end ?>
+<? end -- vectorComponent == "anholonomic" ?>
+	}
+<? end -- useAddSource ?>
+};
+
+using Eqn = EulerPrimEqn;
+
+}	//namespace <?=Solver?>
+
+// TODO use the one in hydro/eqn/eqn.clcpp
+#if 1
+kernel void <?=applyInitCond?>(
+	constant <?=solver_t?> const * const psolver,
+	constant <?=initCond_t?> const * const pinitCond,
+	global <?=cons_t?> * const UBuf,
+	global <?=cell_t?> * const cellBuf
+) {
+	auto const & solver = *psolver;
+	<?=SETBOUNDS?>(0,0);
+	<?=Solver?>::Eqn::applyInitCondCell(solver, *pinitCond, UBuf[index], cellBuf[index]);
+}
+#endif
+
+
+<? if useAddSource then ?>
+//// MODULE_NAME: <?=addSource?>
+//// MODULE_DEPENDS: <?=Solver?>
+kernel void <?=addSource?>(
+	constant <?=solver_t?> const * const psolver,
+	global <?=cons_t?> * const derivBuf,
+	global <?=cons_t?> const * const UBuf,
+	global <?=cell_t?> const * const cellBuf
+) {
+	<?=Solver?>::Eqn::addSource(*psolver, derivBuf, UBuf, cellBuf);
+}
+<? end -- useAddSource ?>

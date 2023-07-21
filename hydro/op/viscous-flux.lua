@@ -128,10 +128,9 @@ or I could factor our momentum and density ...
 	// even for grids, along the flux dir we will be using dx, but along the perp dirs we will use 2 dx
 	// and even if I do 2dx along the non-flux axis then we have to recalc centers of faces in neighbors of our current face
 	real3x3 dv;
-	dv.x = real3_sub(
-		real3_real_mul(ppUR->m, 1. / (ppUR->rho * dx)),
-		real3_real_mul(ppUL->m, 1. / (ppUL->rho * dx))
-	)
+	dv.x = 
+		ppUR->m * (1. / (ppUR->rho * dx))
+		- ppUL->m * (1. / (ppUL->rho * dx));
 
 	real3s3 tau_uu = 
 ]]

@@ -13,9 +13,6 @@ local Equation = require 'hydro.eqn.eqn'
 local Euler = class(Equation)
 Euler.name = 'euler_prim'
 
--- true by default, disable since there is no flux vector of the primitive-state-variable form
-Euler.roeUseFluxFromCons = false
-
 Euler.initConds = require 'hydro.init.euler':getList()
 
 function Euler:init(args)
@@ -30,22 +27,6 @@ function Euler:init(args)
 end
 
 
-function Euler:getSymbolFields()
-	return table(Euler.super.getSymbolFields(self)):append{
-		'calc_H',
-		'calc_h',
-		'calc_HTotal',
-		'calc_hTotal',
-		'calc_eKin',
-		'calc_EKin',
-		'calc_eInt',
-		'calc_EInt',
-		'calc_ETotal',
-		'calc_Cs',
-		'calc_T',
-	}
-end
-
 function Euler:createInitState()
 	Euler.super.createInitState(self)
 	self:addGuiVars{	
@@ -55,19 +36,15 @@ end
 
 -- don't use default
 -- in fact, idk / there is no flux vector solvable from the (A + I v) dW/dx system ...
-function Euler:initCodeModule_fluxFromCons() 
-end
+function Euler:initCodeModule_fluxFromCons() end
 
 function Euler:initCodeModule_calcDTCell()
 	-- ugly hack to insert more dependent modules
 	local path = require 'ext.path'
-	self.solver.modules:addFromMarkup(self:template(path'hydro/eqn/cl/calcDT.cl':read()
-	..self:template[[
-//// MODULE_DEPENDS: <?=eqn_common?>
-]]))
+	self.solver.modules:addFromMarkup(self:template(path'hydro/eqn/cl/calcDT.cl':read()))
 end
 
-Euler.solverCodeFile = 'hydro/eqn/euler_prim.cl'
+Euler.solverCodeFile = 'hydro/eqn/euler_prim.clcpp'
 
 -- [=[
 Euler.predefinedDisplayVars = {
@@ -95,27 +72,27 @@ function Euler:getDisplayVars()
 	vars:append{
 		-- TODO should the default display generated of variables be in solver units or SI units?
 		-- should SI unit displays be auto generated as well?
-		{name='v', code='value.vreal3 = U->v;', type='real3', units='m/s'},
-		{name='P', code='value.vreal = U->P;', units='kg/(m*s^2)'},
-		{name='eInt', code=self:template'value.vreal = <?=calc_eInt?>(solver, U);', units='m^2/s^2'},
-		{name='eKin', code=self:template'value.vreal = <?=calc_eKin?>(U, x);', units='m^2/s^2'},
-		{name='eTotal', code=self:template'value.vreal = <?=calc_ETotal?>(solver, U, x) / U->rho;', units='m^2/s^2'},
-		{name='EInt', code=self:template'value.vreal = <?=calc_EInt?>(solver, U);', units='kg/(m*s^2)'},
-		{name='EKin', code=self:template'value.vreal = <?=calc_EKin?>(U, x);', units='kg/(m*s^2)'},
-		{name='S', code='value.vreal = U->P / pow(U->rho, (real)solver->heatCapacityRatio);'},
-		{name='H', code=self:template'value.vreal = <?=calc_H?>(solver, U->P);', units='kg/(m*s^2)'},
-		{name='h', code=self:template'value.vreal = <?=calc_h?>(solver, U->rho, U->P);', units='m^2/s^2'},
+		{name='v', code='value.vreal3 = U.v;', type='real3', units='m/s'},
+		{name='P', code='value.vreal = U.P;', units='kg/(m*s^2)'},
+		{name='eInt', code=self:template'value.vreal = Eqn::calc_eInt(solver, U);', units='m^2/s^2'},
+		{name='eKin', code=self:template'value.vreal = Eqn::calc_eKin(U, x);', units='m^2/s^2'},
+		{name='eTotal', code=self:template'value.vreal = Eqn::calc_ETotal(solver, U, x) / U.rho;', units='m^2/s^2'},
+		{name='EInt', code=self:template'value.vreal = Eqn::calc_EInt(solver, U);', units='kg/(m*s^2)'},
+		{name='EKin', code=self:template'value.vreal = Eqn::calc_EKin(U, x);', units='kg/(m*s^2)'},
+		{name='S', code='value.vreal = U.P / pow(U.rho, (real)solver->heatCapacityRatio);'},
+		{name='H', code=self:template'value.vreal = Eqn::calc_H(solver, U.P);', units='kg/(m*s^2)'},
+		{name='h', code=self:template'value.vreal = Eqn::calc_h(solver, U.rho, U.P);', units='m^2/s^2'},
 		{name='HTotal', code=self:template[[
-real const ETotal = <?=calc_ETotal?>(solver, U, x);
-value.vreal = <?=calc_HTotal?>(U->P, ETotal);
+real const ETotal = Eqn::calc_ETotal(solver, U, x);
+value.vreal = Eqn::calc_HTotal(U.P, ETotal);
 ]], units='kg/(m*s^2)'},
 		{name='hTotal', code=self:template[[
-real const ETotal = <?=calc_ETotal?>(solver, U, x);
-value.vreal = <?=calc_hTotal?>(U->rho, U->P, ETotal);
+real const ETotal = Eqn::calc_ETotal(solver, U, x);
+value.vreal = Eqn::calc_hTotal(U.rho, U.P, ETotal);
 ]], units='m^2/s^2'},
-		{name='speed of sound', code=self:template'value.vreal = <?=calc_Cs?>(solver, U);', units='m/s'},
-		{name='Mach number', code=self:template'value.vreal = coordLen(U->v, x) / <?=calc_Cs?>(solver, U);'},
-		{name='temperature', code=self:template'value.vreal = <?=calc_T?>(solver, U);', units='K'},
+		{name='speed of sound', code=self:template'value.vreal = Eqn::calc_Cs(solver, U);', units='m/s'},
+		{name='Mach number', code=self:template'value.vreal = coordLen(U.v, x) / Eqn::calc_Cs(solver, U);'},
+		{name='temperature', code=self:template'value.vreal = Eqn::calc_T(solver, U);', units='K'},
 	}
 	
 	vars:insert(self:createDivDisplayVar{
@@ -133,7 +110,7 @@ value.vreal = <?=calc_hTotal?>(U->rho, U->P, ETotal);
 		name = 'state line',
 		type = 'real3',
 		units = '1',
-		code = 'value.vreal3 = real3(U->rho, coordLen(U->v, x) * sign(U->v.x), U->P);',
+		code = 'value.vreal3 = real3(U.rho, coordLen(U.v, x) * sign(U.v.x), U.P);',
 	}
 
 	return vars
@@ -149,69 +126,6 @@ Euler.eigenVars = table{
 	{name='vSq', type='real', units='m^2/s^2'},
 	{name='vL', type='real3', units='m/s'},
 }
-
-function Euler:eigenWaveCodePrefix(args)
-	return self:template([[
-real const <?=eqn.symbolPrefix?>Cs_nLen = normal_len(<?=n?>) * (<?=eig?>)->Cs;
-real const <?=eqn.symbolPrefix?>v_n = normal_vecDotN1(<?=n?>, (<?=eig?>)->v);
-]],	args)
-end
-
-function Euler:eigenWaveCode(args)
-	if args.waveIndex == 0 then
-		return self:template'<?=eqn.symbolPrefix?>v_n - <?=eqn.symbolPrefix?>Cs_nLen'
-	elseif args.waveIndex >= 1 and args.waveIndex <= 3 then
-		return self:template'<?=eqn.symbolPrefix?>v_n'
-	elseif args.waveIndex == 4 then
-		return self:template'<?=eqn.symbolPrefix?>v_n + <?=eqn.symbolPrefix?>Cs_nLen'
-	end
-	error'got a bad waveIndex'
-end
-
--- W is an extra param specific to Euler's calcDT in this case
--- but then I just explicitly wrote out the calcDT, so the extra parameters just aren't used anymore.
-function Euler:consWaveCodePrefix(args)
-	return self:template([[
-real <?=eqn.symbolPrefix?>Cs_nLen = <?=calc_Cs?>(solver, <?=U?>) * normal_len(<?=n?>);
-real const <?=eqn.symbolPrefix?>v_n = normal_vecDotN1(<?=n?>, (<?=U?>)->v);
-]], args)
-end
-
--- as long as U or eig isn't used, we can use this for both implementations
-Euler.consWaveCode = Euler.eigenWaveCode
-
---Euler.eigenWaveCodeMinMax uses default
---Euler.consWaveCodeMinMax uses default
-
--- alright, thanks to eqn/euler you now have to always call this before the for-loop along sides of cells in calcDT
--- ok so this goes before consMin/MaxWaveCode
-function Euler:consWaveCodeMinMaxAllSidesPrefix(args)
-	return self:template([[
-real <?=eqn.symbolPrefix?>Cs = <?=calc_Cs?>(solver, <?=U?>);\
-]],	args)
-end
-
---[[
-set resultMin or resultMax to store the resulting min / max in either
-you have to call 'consWaveCodeMinMaxAllSidesPrefix' before you call this
-but you don't have to call 'consWaveCodePrefix'
-should this function create the vars or assign the vars?
-I'll go with create so it can create them const.
-
-so in calcDT this is used with the allsides prefix.
-but in hll flux this is used with one specific side.
---]]
-function Euler:consWaveCodeMinMaxAllSides(args)
-	return self:template([[
-real const <?=eqn.symbolPrefix?>Cs_nLen = <?=eqn.symbolPrefix?>Cs * normal_len(<?=n?>);
-real const <?=eqn.symbolPrefix?>v_n = normal_vecDotN1(<?=n?>, (<?=U?>)->v);
-<?=eqn:waveCodeAssignMinMax(
-	declare, resultMin, resultMax,
-	eqn.symbolPrefix..'v_n - '..eqn.symbolPrefix..'Cs_nLen',
-	eqn.symbolPrefix..'v_n + '..eqn.symbolPrefix..'Cs_nLen'
-)?>
-]], args)
-end
 
 return Euler
 

@@ -97,11 +97,14 @@ struct EulerEqn : public Hydro::Eqn<
 	// hmm for some reason crtp parent can't seem to 'using' see into the childs member class's 'using's
 	// so I used the traits instead
 
+	//true or false?
+	static constexpr bool roeUseFluxFromCons = true;
+
 	static inline real calc_H(
 		constant Solver const & solver,
 		real const P
 	) {
-		return (P * (solver.heatCapacityRatio / (solver.heatCapacityRatio - 1.)));
+		return P * (solver.heatCapacityRatio / (solver.heatCapacityRatio - 1.));
 	}
 
 	static inline real calc_h(

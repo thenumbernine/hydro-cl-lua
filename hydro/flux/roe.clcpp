@@ -50,7 +50,7 @@ struct RoeFlux {
 		auto calcWaves = Eqn::EigenWaveCode(solver, eig, n, xInt);
 
 		Waves fluxEig;
-		if (!Eqn::roeUseFluxFromCons) {
+		if constexpr (!Eqn::roeUseFluxFromCons) {
 			Cons UAvg;
 			for (int j = 0; j < numIntStates; ++j) {
 				UAvg.s[j] = .5 * (UL.s[j] + UR.s[j]);
@@ -95,7 +95,7 @@ struct RoeFlux {
 			if (fabs(lambda) < dws) lambda = sign(lambda) * .5 * (lambda * lambda / dws + dws);
 	<? end ?>
 
-		if (!Eqn::roeUseFluxFromCons) {
+		if constexpr (!Eqn::roeUseFluxFromCons) {
 			fluxEig.s[j] *= lambda;
 		} else {
 			fluxEig.s[j] = 0.;
@@ -124,7 +124,7 @@ struct RoeFlux {
 
 		resultFlux = Eqn::eigen_rightTransform(solver, eig, fluxEig, xInt, n);
 
-		if (Eqn::roeUseFluxFromCons) {
+		if constexpr (Eqn::roeUseFluxFromCons) {
 			// TODO hmm, fluxFromCons vs eigen_fluxTransform using the 'eig' structure
 			// fluxFromCons is using the left and right states to create their flux jacobian transform - applied to the left and right states to make the left and right flux vector
 			// which is F(U)
