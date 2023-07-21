@@ -23,7 +23,7 @@ struct RusanovFlux {
 		Cons FL = Eqn::fluxFromCons(solver, UL, cellL, n);
 		Cons FR = Eqn::fluxFromCons(solver, UR, cellR, n);
 		for (int j = 0; j < numIntStates; ++j) {
-			result.ptr[j] = .5 * (FL.ptr[j] + FR.ptr[j] - lambdaMax * (UR.ptr[j] - UL.ptr[j]));
+			result.s[j] = .5 * (FL.s[j] + FR.s[j] - lambdaMax * (UR.s[j] - UL.s[j]));
 		}
 		return result;
 	}
