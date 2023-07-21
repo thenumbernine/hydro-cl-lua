@@ -72,8 +72,8 @@ struct CalcCellLR_PLMCons {
 		
 		Cons UHalfL, UHalfR;
 		for (int j = 0; j < numIntStates; ++j) {
-			real dUL = pU->ptr[j] - UL.ptr[j];
-			real dUR = UR.ptr[j] - pU->ptr[j];
+			real dUL = pU->s[j] - UL.s[j];
+			real dUR = UR.s[j] - pU->s[j];
 			
 			//Hydrodynamics II slope-limiters (4.4.2) and MUSCL-Hancock (6.6)	
 			//https://en.wikipedia.org/wiki/MUSCL_scheme
@@ -111,38 +111,38 @@ struct CalcCellLR_PLMCons {
 			real sigma = phi * dUR;
 #else	//isn't as accurate anyways
 			real sigma = minmod(minmod(fabs(dUL), 
-				fabs(dUR.ptr[j])),
+				fabs(dUR.s[j])),
 				fabs(.5 * (dUL - dUR))
 			) * sign(dUL - dUR);
 #endif
 			//q^n_i-1/2,R = q^n_i - 1/2 dx sigma	(Hydrodynamics II 6.58)
-			UHalfL.ptr[j] = pU->ptr[j] - .5 * sigma;
+			UHalfL.s[j] = pU->s[j] - .5 * sigma;
 			
 			//q^n_i+1/2,L = q^n_i + 1/2 dx sigma	(Hydrodynamics II 6.59)
-			UHalfR.ptr[j] = pU->ptr[j] + .5 * sigma;
+			UHalfR.s[j] = pU->s[j] + .5 * sigma;
 		}
 		for (int j = numIntStates; j < numStates; ++j) {
-			UHalfL.ptr[j] = UHalfR.ptr[j] = pU->ptr[j];
+			UHalfL.s[j] = UHalfR.s[j] = pU->s[j];
 		}
 
 		real dx = cell_dxs<side>(solver, pcell->pos);
 		real dt_dx = dt / dx;
 
 <? print("TODO cell_t averaging here?") ?>
-		Cons FHalfL = Eqn::fluxFromCons(solver, UHalfL, cellL, normal_forSides<side>(xIntL));
-		Cons FHalfR = Eqn::fluxFromCons(solver, UHalfR, cellR, normal_forSides<side>(xIntR));
+		Cons FHalfL = Eqn::fluxFromCons(solver, UHalfL, cellL, Normal::template forSide<side>(xIntL));
+		Cons FHalfR = Eqn::fluxFromCons(solver, UHalfR, cellR, Normal::template forSide<side>(xIntR));
 
 		auto result = ConsLR(*pU, *pU);
 		for (int j = 0; j < numIntStates; ++j) {
-			real dF = FHalfR.ptr[j] - FHalfL.ptr[j];
+			real dF = FHalfR.s[j] - FHalfL.s[j];
 
 			//pU-cell-L = q^n+1/2_i-1/2,R (Hydrodynamics II 6.62)
 			// = q^n_i-1/2,R + 1/2 dt/dx (f_k(q^n_i+1/2,L) - f_k(q_i-1/2,R))
-			result.L.ptr[j] = UHalfL.ptr[j] + .5 * dt_dx * dF;
+			result.L.s[j] = UHalfL.s[j] + .5 * dt_dx * dF;
 
 			//pU-cell R = q^n+1/2_i+1/2,L (Hydrodynamics II 6.63)
 			// = q^n_i+1/2,L + 1/2 dt/dx (f_k(q^n_i+1/2,L) - f_k(q_i-1/2,R))
-			result.R.ptr[j] = UHalfR.ptr[j] + .5 * dt_dx * dF;
+			result.R.s[j] = UHalfR.s[j] + .5 * dt_dx * dF;
 		}
 		return result;
 	}
@@ -173,26 +173,26 @@ struct CalcCellLR_PLMConsAlone {
 		// minmod
 		for (int j = 0; j < numIntStates; ++j) {
 #if 1	// taken from above / from Dullemond "Hydrodynamics II"
-			real dUR = UR.ptr[j] - pU->ptr[j];
-			real dUL = pU->ptr[j] - UL.ptr[j];
+			real dUR = UR.s[j] - pU->s[j];
+			real dUL = pU->s[j] - UL.s[j];
 			real r = dUR == 0 ? 0 : (dUL / dUR);
 //// MODULE_DEPENDS: <?=slopeLimiter?>
 			real phi = <?=slopeLimiter?>(r);	//works good with minmod, bad with superbee
 			real sigma = phi * dUR;
-			result.L.ptr[j] -= .5 * sigma;
-			result.R.ptr[j] += .5 * sigma;
+			result.L.s[j] -= .5 * sigma;
+			result.R.s[j] += .5 * sigma;
 #endif
 #if 0 	// Based on Mara's PLM.  Looks to be asymmetric, favoring the x+ and y+ directions. Maybe I copied it wrong.
-			real dUL = pU->ptr[j] - UL.ptr[j];
-			real dUC = .5 * (UR.ptr[j] - UL.ptr[j]);
-			real dUR = UR.ptr[j] - pU->ptr[j];
+			real dUL = pU->s[j] - UL.s[j];
+			real dUC = .5 * (UR.s[j] - UL.s[j]);
+			real dUR = UR.s[j] - pU->s[j];
 			real adwl = fabs(dUL);
 			real adwr = fabs(dUR);
 			real adwc = fabs(dUC);
 			real mindw = min3(adwl, adwr, adwc);
 			real dUM = .25 * fabs(sign(dUL) + sign(dUC)) * fabs(sign(dUL) + sign(dUR)) * mindw;
-			result.L.ptr[j] -= .5 * dUM; 
-			result.R.ptr[j] += .5 * dUM; 
+			result.L.s[j] -= .5 * dUM; 
+			result.R.s[j] += .5 * dUM; 
 #endif
 		}
 		return result;
@@ -227,26 +227,26 @@ struct CalcCellLR_PLMPrimAlone {
 		Prim nWR = W;
 		for (int j = 0; j < numIntStates; ++j) {
 #if 1	// taken from above / from Dullemond "Hydrodynamics II"
-			real dWR = WR.ptr[j] - W.ptr[j];
-			real dWL = W.ptr[j] - WL.ptr[j];
+			real dWR = WR.s[j] - W.s[j];
+			real dWL = W.s[j] - WL.s[j];
 			real r = dWR == 0 ? 0 : (dWL / dWR);
 //// MODULE_DEPENDS: <?=slopeLimiter?>
 			real phi = <?=slopeLimiter?>(r);
 			real sigma = phi * dWR;
-			nWL.ptr[j] -= .5 * sigma;
-			nWR.ptr[j] += .5 * sigma;
+			nWL.s[j] -= .5 * sigma;
+			nWR.s[j] += .5 * sigma;
 #endif
 #if 0	// Based on Mara's PLM.  Looks to be asymmetric, favoring the x+ and y+ directions. Maybe I copied it wrong.
-			real dWL = W.ptr[j] - WL.ptr[j];	//TODO SOR or whatever ... scalar here x2?
-			real dWC = .5 * (WR.ptr[j] - WL.ptr[j]);
-			real dWR = WR.ptr[j] - W.ptr[j];
+			real dWL = W.s[j] - WL.s[j];	//TODO SOR or whatever ... scalar here x2?
+			real dWC = .5 * (WR.s[j] - WL.s[j]);
+			real dWR = WR.s[j] - W.s[j];
 			real adwl = fabs(dWL);
 			real adwr = fabs(dWR);
 			real adwc = fabs(dWC);
 			real mindw = min(min(adwl, adwr), adwc);
 			real dWM = .25 * fabs(sign(dWL) + sign(dWC)) * fabs(sign(dWL) + sign(dWR)) * mindw;
-			nWL.ptr[j] -= .5 * dWM; 
-			nWR.ptr[j] += .5 * dWM; 
+			nWL.s[j] -= .5 * dWM; 
+			nWR.s[j] += .5 * dWM; 
 #endif	
 		}
 		
@@ -304,12 +304,12 @@ struct CalcCellLR_PLMEig {
 		auto const & UR = pU[ solver.stepsize[side]];
 		Cons dUL, dUR, dUC;
 		for (int j = 0; j < numIntStates; ++j) {
-			dUL.ptr[j] = pU->ptr[j] - UL.ptr[j];
-			dUR.ptr[j] = UR.ptr[j] - pU->ptr[j];
-			dUC.ptr[j] = .5 * (UR.ptr[j] - UL.ptr[j]);
+			dUL.s[j] = pU->s[j] - UL.s[j];
+			dUR.s[j] = UR.s[j] - pU->s[j];
+			dUC.s[j] = .5 * (UR.s[j] - UL.s[j]);
 		}
 		for (int j = numIntStates; j < numStates; ++j) {
-			dUL.ptr[j] = dUR.ptr[j] = dUC.ptr[j] = 0;
+			dUL.s[j] = dUR.s[j] = dUC.s[j] = 0;
 		}
 
 		real3 xIntL = pcell->pos; xIntL[side] -= .5 * solver.grid_dx[side];
@@ -318,8 +318,8 @@ struct CalcCellLR_PLMEig {
 		//calc eigen values and vectors at cell center
 		Eigen eig = Eqn::eigen_forCell(solver, *pU, *pcell, n);
 			
-		Waves dULEig = Eqn::eigen_leftTransform(solver, eig, dUL, xIntL, normal_forSides<side>(xIntL));
-		Waves dUREig = Eqn::eigen_leftTransform(solver, eig, dUR, xIntR, normal_forSides<side>(xIntR));
+		Waves dULEig = Eqn::eigen_leftTransform(solver, eig, dUL, xIntL, Normal::template forSide<side>(xIntL));
+		Waves dUREig = Eqn::eigen_leftTransform(solver, eig, dUR, xIntR, Normal::template forSide<side>(xIntR));
 		Waves dUCEig = Eqn::eigen_leftTransform(solver, eig, dUC, pcell->pos, n);
 
 		//MUSCL slope of characteristic variables
@@ -329,11 +329,11 @@ struct CalcCellLR_PLMEig {
 
 // This is adapted from above to use the modular slopeLimiter
 #if 0
-			real r = dUREig.ptr[j] == 0 ? 0 : (dULEig.ptr[j] / dUREig.ptr[j]);
+			real r = dUREig.s[j] == 0 ? 0 : (dULEig.s[j] / dUREig.s[j]);
 //// MODULE_DEPENDS: <?=slopeLimiter?>
 			real phi = <?=slopeLimiter?>(r);
-			real sigma = phi * dUREig.ptr[j];
-			dUMEig.ptr[j] = sigma;
+			real sigma = phi * dUREig.s[j];
+			dUMEig.s[j] = sigma;
 
 #endif
 
@@ -341,13 +341,13 @@ struct CalcCellLR_PLMEig {
 // It also takes into account the center slope, unlike the <?=slopeLimiter?>() options.
 // However it is fixed to minmod and does not use the modular <?=slopeLimiter?>() option.
 #if 1	
-			//dUMEig.ptr[j] = minmod(minmod(2. * dULEig.ptr[j], 2. * dUREig.ptr[j]), dUCEig.ptr[j]);
-			dUMEig.ptr[j] = dULEig.ptr[j] * dUREig.ptr[j] < 0 ? 0 : (
-				(dUCEig.ptr[j] >= 0. ? 1. : -1.)
+			//dUMEig.s[j] = minmod(minmod(2. * dULEig.s[j], 2. * dUREig.s[j]), dUCEig.s[j]);
+			dUMEig.s[j] = dULEig.s[j] * dUREig.s[j] < 0 ? 0 : (
+				(dUCEig.s[j] >= 0. ? 1. : -1.)
 				* 2. * min3(
-					fabs(dULEig.ptr[j]),
-					fabs(dUREig.ptr[j]),
-					fabs(dUCEig.ptr[j]))
+					fabs(dULEig.s[j]),
+					fabs(dUREig.s[j]),
+					fabs(dUCEig.s[j]))
 			);
 #endif	
 		}
@@ -362,8 +362,8 @@ struct CalcCellLR_PLMEig {
 		Waves aR;
 		for (int j = 0; j < numWaves; ++j) {
 			real const wave_j = calcWaves(solver, eig, n, pcell->pos, j);
-			aL.ptr[j] = wave_j < 0 ? 0 : dUMEig.ptr[j] * .5 * (1. - wave_j * dt_dx);
-			aR.ptr[j] = wave_j > 0 ? 0 : dUMEig.ptr[j] * .5 * (1. + wave_j * dt_dx);
+			aL.s[j] = wave_j < 0 ? 0 : dUMEig.s[j] * .5 * (1. - wave_j * dt_dx);
+			aR.s[j] = wave_j > 0 ? 0 : dUMEig.s[j] * .5 * (1. + wave_j * dt_dx);
 		}
 		
 		//convert back to conservation variable space
@@ -372,8 +372,8 @@ struct CalcCellLR_PLMEig {
 
 		auto result = ConsLR(*pU, *pU);
 		for (int j = 0; j < numIntStates; ++j) {
-			result.L.ptr[j] += sL.ptr[j];
-			result.R.ptr[j] -= sR.ptr[j];
+			result.L.s[j] += sL.s[j];
+			result.R.s[j] -= sR.s[j];
 		}
 		return result;
 	}
@@ -458,12 +458,12 @@ struct CalcCellLR_PLMEigPrimBase {
 		Prim WR = Eqn::primFromCons(solver, UR, xR);
 		Prim dWL, dWR, dWC;
 		for (int j = 0; j < numIntStates; ++j) {
-			dWL.ptr[j] = W.ptr[j] - WL.ptr[j];
-			dWR.ptr[j] = WR.ptr[j] - W.ptr[j];
-			dWC.ptr[j] = .5 * (WR.ptr[j] - WL.ptr[j]);
+			dWL.s[j] = W.s[j] - WL.s[j];
+			dWR.s[j] = WR.s[j] - W.s[j];
+			dWC.s[j] = .5 * (WR.s[j] - WL.s[j]);
 		}
 		for (int j = numIntStates; j < numStates; ++j) {
-			dWL.ptr[j] = dWR.ptr[j] = dWC.ptr[j] = 0.;
+			dWL.s[j] = dWR.s[j] = dWC.s[j] = 0.;
 		}
 
 		//calc eigen values and vectors at cell center
@@ -477,7 +477,7 @@ struct CalcCellLR_PLMEigPrimBase {
 			eig,
 			Eqn::apply_dU_dW(solver, W, dWL, xIntL),
 			xIntL,
-			normal_forSides<side>(xIntL)
+			Normal::template forSide<side>(xIntL)
 		);
 		
 		Waves dWREig = Eqn::eigen_leftTransform(
@@ -485,7 +485,7 @@ struct CalcCellLR_PLMEigPrimBase {
 			eig,
 			Eqn::apply_dU_dW(solver, W, dWR, xIntR),
 			xIntR,
-			normal_forSides<side>(xIntR));
+			Normal::template forSide<side>(xIntR));
 		
 		Waves dWCEig = Eqn::eigen_leftTransform(
 			solver,
@@ -497,12 +497,12 @@ struct CalcCellLR_PLMEigPrimBase {
 		//MUSCL slope of characteristic variables
 		Waves dWMEig;
 		for (int j = 0; j < numWaves; ++j) {
-			dWMEig.ptr[j] = dWLEig.ptr[j] * dWREig.ptr[j] < 0. ? 0. : (
-				(dWCEig.ptr[j] >= 0. ? 1. : -1.)
+			dWMEig.s[j] = dWLEig.s[j] * dWREig.s[j] < 0. ? 0. : (
+				(dWCEig.s[j] >= 0. ? 1. : -1.)
 				* 2. * min3(
-					fabs(dWLEig.ptr[j]),
-					fabs(dWREig.ptr[j]),
-					fabs(dWCEig.ptr[j])
+					fabs(dWLEig.s[j]),
+					fabs(dWREig.s[j]),
+					fabs(dWCEig.s[j])
 				)
 			);
 		}
@@ -544,30 +544,30 @@ struct CalcCellLR_PLMEigPrim : public CalcCellLR_PLMEigPrimBase {
 		Waves aL, aR;
 		for (int j = 0; j < numWaves; ++j) {
 			real const wave_j = calcWaves(solver, eig, n, pcell->pos, j);
-			aL.ptr[j] = wave_j < 0 ? 0 : dWMEig.ptr[j] * .5 * (1. - wave_j * dt_dx);
-			aR.ptr[j] = wave_j > 0 ? 0 : dWMEig.ptr[j] * .5 * (1. + wave_j * dt_dx);
+			aL.s[j] = wave_j < 0 ? 0 : dWMEig.s[j] * .5 * (1. - wave_j * dt_dx);
+			aR.s[j] = wave_j > 0 ? 0 : dWMEig.s[j] * .5 * (1. + wave_j * dt_dx);
 		}
 
 		// transform slopes back to conserved variable space
 		Prim sL = Eqn::apply_dW_dU(
 			solver,
 			W,
-			Eqn::eigen_rightTransform(solver, eig, aL, xIntL, normal_forSides<side>(xIntL)), 
+			Eqn::eigen_rightTransform(solver, eig, aL, xIntL, Normal::template forSide<side>(xIntL)), 
 			xIntL);
 		
 		Prim sR = Eqn::apply_dW_dU(solver,
 			W,
-			Eqn::eigen_rightTransform(solver, eig, aR, xIntR, normal_forSides<side>(xIntR)),
+			Eqn::eigen_rightTransform(solver, eig, aR, xIntR, Normal::template forSide<side>(xIntR)),
 			xIntR);
 
 		// linearly extrapolate the slopes forward and backward from the cell center
 		Prim W2L, W2R;
 		for (int j = 0; j < numIntStates; ++j) {
-			W2L.ptr[j] = W.ptr[j] + sL.ptr[j];
-			W2R.ptr[j] = W.ptr[j] - sR.ptr[j];
+			W2L.s[j] = W.s[j] + sL.s[j];
+			W2R.s[j] = W.s[j] - sR.s[j];
 		}
 		for (int j = numIntStates; j < numStates; ++j) {
-			W2L.ptr[j] = W2R.ptr[j] = W.ptr[j];
+			W2L.s[j] = W2R.s[j] = W.s[j];
 		}
 		return ConsLR(
 			Eqn::consFromPrim(solver, W2L, xIntL),
@@ -610,41 +610,41 @@ struct CalcCellLR_PLMEigPrimRef : public CalcCellLR_PLMEigPrimBase {
 		//left and right reference states
 		Prim WLRef, WRRef;
 		for (int j = 0; j < numIntStates; ++j) {
-			WLRef.ptr[j] = W.ptr[j] + .5 * (1. - dt_dx * waveMax) * dWM.ptr[j];
-			WRRef.ptr[j] = W.ptr[j] - .5 * (1. + dt_dx * waveMin) * dWM.ptr[j];
+			WLRef.s[j] = W.s[j] + .5 * (1. - dt_dx * waveMax) * dWM.s[j];
+			WRRef.s[j] = W.s[j] - .5 * (1. + dt_dx * waveMin) * dWM.s[j];
 		}
 		for (int j = numIntStates; j < numStates; ++j) {
-			WLRef.ptr[j] = WRRef.ptr[j] = 0;
+			WLRef.s[j] = WRRef.s[j] = 0;
 		}
 
 		// calculate left and right slopes in characteristic space
 		Waves aL, aR;
 		for (int j = 0; j < numWaves; ++j) {
 			real const wave_j = calcWaves(solver, eig, n, pcell->pos, j);
-			aL.ptr[j] = wave_j < 0 ? 0 : (dWMEig.ptr[j] * dt_dx * (waveMax - wave_j));
-			aR.ptr[j] = wave_j > 0 ? 0 : (dWMEig.ptr[j] * dt_dx * (waveMin - wave_j));
+			aL.s[j] = wave_j < 0 ? 0 : (dWMEig.s[j] * dt_dx * (waveMax - wave_j));
+			aR.s[j] = wave_j > 0 ? 0 : (dWMEig.s[j] * dt_dx * (waveMin - wave_j));
 		}
 
 		// transform slopes back to conserved variable space
 		Prim sL = Eqn::apply_dW_dU(
 			solver,
 			W,
-			Eqn::eigen_rightTransform(solver, eig, aL, xIntL, normal_forSides<side>(xIntL)),
+			Eqn::eigen_rightTransform(solver, eig, aL, xIntL, Normal::template forSide<side>(xIntL)),
 			xIntL);
 		Prim sR = Eqn::apply_dW_dU(
 			solver,
 			W,
-			Eqn::eigen_rightTransform(solver, eig, aR, xIntR, normal_forSides<side>(xIntR)),
+			Eqn::eigen_rightTransform(solver, eig, aR, xIntR, Normal::template forSide<side>(xIntR)),
 			xIntR);
 
 		// linearly extrapolate the slopes forward and backward from the cell center
 		Prim W2L, W2R;
 		for (int j = 0; j < numIntStates; ++j) {
-			W2R.ptr[j] = WRRef.ptr[j] + .5 * sR.ptr[j];
-			W2L.ptr[j] = WLRef.ptr[j] + .5 * sL.ptr[j];
+			W2R.s[j] = WRRef.s[j] + .5 * sR.s[j];
+			W2L.s[j] = WLRef.s[j] + .5 * sL.s[j];
 		}
 		for (int j = numIntStates; j < numStates; ++j) {
-			W2R.ptr[j] = W2L.ptr[j] = W.ptr[j];
+			W2R.s[j] = W2L.s[j] = W.s[j];
 		}
 		//TODO fix the x's
 		return ConsLR(
@@ -686,30 +686,30 @@ struct CalcCellLR_Athena {
 		
 		Prim dWL, dWR, dWC, dWG;
 		for (int j = 0; j < numIntStates; ++j) {
-			dWL.ptr[j] = W.ptr[j] - WL.ptr[j];
-			dWR.ptr[j] = WR.ptr[j] - W.ptr[j];
-			dWC.ptr[j] = .5 * (WR.ptr[j] - WL.ptr[j]);
-			dWG.ptr[j] = (dWL.ptr[j] * dWR.ptr[j]) <= 0. ? 0. : (
-				2. * dWL.ptr[j] * dWR.ptr[j] / (dWL.ptr[j] + dWR.ptr[j])
+			dWL.s[j] = W.s[j] - WL.s[j];
+			dWR.s[j] = WR.s[j] - W.s[j];
+			dWC.s[j] = .5 * (WR.s[j] - WL.s[j]);
+			dWG.s[j] = (dWL.s[j] * dWR.s[j]) <= 0. ? 0. : (
+				2. * dWL.s[j] * dWR.s[j] / (dWL.s[j] + dWR.s[j])
 			);
 		}
 		for (int j = numIntStates; j < numStates; ++j) {
-			dWL.ptr[j] = dWR.ptr[j] = dWC.ptr[j] = dWG.ptr[j] = 0.;
+			dWL.s[j] = dWR.s[j] = dWC.s[j] = dWG.s[j] = 0.;
 		}
 
 		//TODO shouldn't this be the dA/dW eigen transformation?
-		Waves dal = Eqn::eigen_leftTransform(solver, eig, *(Cons*)&dWL, xIntL, normal_forSides<side>(xIntL));
-		Waves dar = Eqn::eigen_leftTransform(solver, eig, *(Cons*)&dWR, xIntR, normal_forSides<side>(xIntR));
+		Waves dal = Eqn::eigen_leftTransform(solver, eig, *(Cons*)&dWL, xIntL, Normal::template forSide<side>(xIntL));
+		Waves dar = Eqn::eigen_leftTransform(solver, eig, *(Cons*)&dWR, xIntR, Normal::template forSide<side>(xIntR));
 		Waves dac = Eqn::eigen_leftTransform(solver, eig, *(Cons*)&dWC, pcell->pos, n);
 		Waves dag = Eqn::eigen_leftTransform(solver, eig, *(Cons*)&dWG, pcell->pos, n);
 
 		Waves da;
 		for (int j = 0; j < numWaves; ++j) {
-			da.ptr[j] = 0;
-			if (dal.ptr[j] * dar.ptr[j] > 0) {
-				real lim_slope1 = min(fabs(dal.ptr[j]), fabs(dar.ptr[j]));
-				real lim_slope2 = min(fabs(dac.ptr[j]), fabs(dag.ptr[j]));
-				da.ptr[j] = sign(dac.ptr[j]) * min((real)2. * lim_slope1, lim_slope2);
+			da.s[j] = 0;
+			if (dal.s[j] * dar.s[j] > 0) {
+				real lim_slope1 = min(fabs(dal.s[j]), fabs(dar.s[j]));
+				real lim_slope2 = min(fabs(dac.s[j]), fabs(dag.s[j]));
+				da.s[j] = sign(dac.s[j]) * min((real)2. * lim_slope1, lim_slope2);
 			}
 		}
 
@@ -718,21 +718,21 @@ struct CalcCellLR_Athena {
 
 		Prim Wlv, Wrv;
 		for (int j = 0; j < numIntStates; ++j) {
-			Wlv.ptr[j] = W.ptr[j] - .5 * dWm.ptr[j];
-			Wrv.ptr[j] = W.ptr[j] + .5 * dWm.ptr[j];
-			real C = Wrv.ptr[j] + Wlv.ptr[j];
+			Wlv.s[j] = W.s[j] - .5 * dWm.s[j];
+			Wrv.s[j] = W.s[j] + .5 * dWm.s[j];
+			real C = Wrv.s[j] + Wlv.s[j];
 			
-			Wlv.ptr[j] = max(min(W.ptr[j], WL.ptr[j]), Wlv.ptr[j]);
-			Wlv.ptr[j] = min(max(W.ptr[j], WL.ptr[j]), Wlv.ptr[j]);
-			Wrv.ptr[j] = C - Wlv.ptr[j];
+			Wlv.s[j] = max(min(W.s[j], WL.s[j]), Wlv.s[j]);
+			Wlv.s[j] = min(max(W.s[j], WL.s[j]), Wlv.s[j]);
+			Wrv.s[j] = C - Wlv.s[j];
 
-			Wrv.ptr[j] = max(min(W.ptr[j],WR.ptr[j]),Wrv.ptr[j]);
-			Wrv.ptr[j] = min(max(W.ptr[j],WR.ptr[j]),Wrv.ptr[j]);
-			Wlv.ptr[j] = C - Wrv.ptr[j];
+			Wrv.s[j] = max(min(W.s[j],WR.s[j]),Wrv.s[j]);
+			Wrv.s[j] = min(max(W.s[j],WR.s[j]),Wrv.s[j]);
+			Wlv.s[j] = C - Wrv.s[j];
 		}
 		for (int j = numIntStates; j < numStates; ++j) {
-			Wlv.ptr[j] = W.ptr[j];
-			Wrv.ptr[j] = W.ptr[j];
+			Wlv.s[j] = W.s[j];
+			Wrv.s[j] = W.s[j];
 		}
 
 		return ConsLR(
@@ -819,93 +819,93 @@ struct CalcCellLR_PPM_WIP {
 		Cons Wminus_i;
 		for (int j = 0; j < numStates; ++j) {
 			// 1984 collela & woodward eqn 1.7
-			real dq0_i = .5 * (W_ip1.ptr[j] - W_im1.ptr[j]);
+			real dq0_i = .5 * (W_ip1.s[j] - W_im1.s[j]);
 			
 			// 1984 collela & woodward eqn 1.8
-			if ((W_ip1.ptr[j] - W_i.ptr[j]) * (W_i.ptr[j] - W_im1.ptr[j]) > 0) {
+			if ((W_ip1.s[j] - W_i.s[j]) * (W_i.s[j] - W_im1.s[j]) > 0) {
 				dq0_i = sign(dq0_i) * min3( 
 					fabs(dq0_i),
-					2. * fabs(W_i.ptr[j] - W_im1.ptr[j]),
-					2. * fabs(W_ip1.ptr[j] - W_i.ptr[j]));
+					2. * fabs(W_i.s[j] - W_im1.s[j]),
+					2. * fabs(W_ip1.s[j] - W_i.s[j]));
 			} else {
 				dq0_i = 0;
 			}
 		
 			// 1984 collela & woodward eqn 1.7
-			real dqp_i = .5 * (W_ip2.ptr[j] - W_i.ptr[j]);
+			real dqp_i = .5 * (W_ip2.s[j] - W_i.s[j]);
 			
 			// 1984 collela & woodward eqn 1.8
-			if ((W_ip2.ptr[j] - W_ip1.ptr[j]) * (W_ip1.ptr[j] - W_i.ptr[j]) > 0) {
+			if ((W_ip2.s[j] - W_ip1.s[j]) * (W_ip1.s[j] - W_i.s[j]) > 0) {
 				dqp_i = sign(dqp_i) * min3(
 					fabs(dqp_i),
-					2. * fabs(W_ip1.ptr[j] - W_i.ptr[j]),
-					2. * fabs(W_ip2.ptr[j] - W_ip1.ptr[j]));
+					2. * fabs(W_ip1.s[j] - W_i.s[j]),
+					2. * fabs(W_ip2.s[j] - W_ip1.s[j]));
 			} else {
 				dqp_i = 0;
 			}
 
 
 			// 1984 collela & woodward eqn 1.7
-			real dq0_im1 = .5 * (W_i.ptr[j] - W_im2.ptr[j]);
+			real dq0_im1 = .5 * (W_i.s[j] - W_im2.s[j]);
 			
 			// 1984 collela & woodward eqn 1.8
-			if ((W_i.ptr[j] - W_im1.ptr[j]) * (W_im1.ptr[j] - W_im2.ptr[j]) > 0) {
+			if ((W_i.s[j] - W_im1.s[j]) * (W_im1.s[j] - W_im2.s[j]) > 0) {
 				dq0_im1 = sign(dq0_im1) * min3( 
 					fabs(dq0_im1),
-					2. * fabs(W_im1.ptr[j] - W_im2.ptr[j]),
-					2. * fabs(W_i.ptr[j] - W_im1.ptr[j]));
+					2. * fabs(W_im1.s[j] - W_im2.s[j]),
+					2. * fabs(W_i.s[j] - W_im1.s[j]));
 			} else {
 				dq0_im1 = 0;
 			}
 		
 			// 1984 collela & woodward eqn 1.7
-			real dqp_im1 = .5 * (W_ip1.ptr[j] - W_im1.ptr[j]);
+			real dqp_im1 = .5 * (W_ip1.s[j] - W_im1.s[j]);
 			
 			// 1984 collela & woodward eqn 1.8
-			if ((W_ip1.ptr[j] - W_i.ptr[j]) * (W_i.ptr[j] - W_im1.ptr[j]) > 0) {
+			if ((W_ip1.s[j] - W_i.s[j]) * (W_i.s[j] - W_im1.s[j]) > 0) {
 				dqp_im1 = sign(dqp_im1) * min3(
 					fabs(dqp_im1),
-					2. * fabs(W_i.ptr[j] - W_im1.ptr[j]),
-					2. * fabs(W_ip1.ptr[j] - W_i.ptr[j]));
+					2. * fabs(W_i.s[j] - W_im1.s[j]),
+					2. * fabs(W_ip1.s[j] - W_i.s[j]));
 			} else {
 				dqp_im1 = 0;
 			}
 
 
 			// 1984 collela & woodward, eqn 1.6
-			Wplus_i.ptr[j] = .5 * (W_i.ptr[j] + W_ip1.ptr[j]) - (1./6.) * (dqp_i - dq0_i);
-			Wminus_i.ptr[j] = .5 * (W_im1.ptr[j] + W_i.ptr[j]) - (1./6.) * (dqp_im1 - dq0_im1);
+			Wplus_i.s[j] = .5 * (W_i.s[j] + W_ip1.s[j]) - (1./6.) * (dqp_i - dq0_i);
+			Wminus_i.s[j] = .5 * (W_im1.s[j] + W_i.s[j]) - (1./6.) * (dqp_im1 - dq0_im1);
 		
 			// 2008 Colella & Sekora
-			Wplus_i.ptr[j] = max(Wplus_i.ptr[j], min(W_i.ptr[j], W_ip1.ptr[j]));
-			Wplus_i.ptr[j] = min(Wplus_i.ptr[j], max(W_i.ptr[j], W_ip1.ptr[j]));
+			Wplus_i.s[j] = max(Wplus_i.s[j], min(W_i.s[j], W_ip1.s[j]));
+			Wplus_i.s[j] = min(Wplus_i.s[j], max(W_i.s[j], W_ip1.s[j]));
 			
-			Wminus_i.ptr[j] = max(Wminus_i.ptr[j], min(W_im1.ptr[j], W_i.ptr[j]));
-			Wminus_i.ptr[j] = min(Wminus_i.ptr[j], max(W_im1.ptr[j], W_i.ptr[j]));
+			Wminus_i.s[j] = max(Wminus_i.s[j], min(W_im1.s[j], W_i.s[j]));
+			Wminus_i.s[j] = min(Wminus_i.s[j], max(W_im1.s[j], W_i.s[j]));
 		}
 
 		// 1984 Collela & Woodward eqn 1.10 is somewhere in here:
 		for (int j = 0; j < numStates; ++j) {
-			if ((Wplus_i.ptr[j] - W_i.ptr[j]) * (W_i.ptr[j] - Wminus_i.ptr[j]) <= 0) {
-				Wminus_i.ptr[j] = W_i.ptr[j];
-				Wplus_i.ptr[j] = W_i.ptr[j];
-			} else if ((Wplus_i.ptr[j] - Wminus_i.ptr[j]) * (W_i.ptr[j] - .5 * (Wminus_i.ptr[j] + Wplus_i.ptr[j])) > sqr(Wplus_i.ptr[j] - Wminus_i.ptr[j]) / 6.) {
-				Wminus_i.ptr[j] = 3. * W_i.ptr[j] - 2. * Wplus_i.ptr[j];
-			} else if (-sqr(Wplus_i.ptr[j] - Wminus_i.ptr[j]) / 6. > (Wplus_i.ptr[j] - Wminus_i.ptr[j]) * (W_i.ptr[j] - .5 * (Wminus_i.ptr[j] + Wplus_i.ptr[j]))) {
-				Wplus_i.ptr[j] = 3. * W_i.ptr[j] - 2. * Wminus_i.ptr[j];
+			if ((Wplus_i.s[j] - W_i.s[j]) * (W_i.s[j] - Wminus_i.s[j]) <= 0) {
+				Wminus_i.s[j] = W_i.s[j];
+				Wplus_i.s[j] = W_i.s[j];
+			} else if ((Wplus_i.s[j] - Wminus_i.s[j]) * (W_i.s[j] - .5 * (Wminus_i.s[j] + Wplus_i.s[j])) > sqr(Wplus_i.s[j] - Wminus_i.s[j]) / 6.) {
+				Wminus_i.s[j] = 3. * W_i.s[j] - 2. * Wplus_i.s[j];
+			} else if (-sqr(Wplus_i.s[j] - Wminus_i.s[j]) / 6. > (Wplus_i.s[j] - Wminus_i.s[j]) * (W_i.s[j] - .5 * (Wminus_i.s[j] + Wplus_i.s[j]))) {
+				Wplus_i.s[j] = 3. * W_i.s[j] - 2. * Wminus_i.s[j];
 			}
 		}
 
 		// flatten
 		for (int j = 0; j < numStates; ++j) {
-			Wminus_i.ptr[j] = (1. - xi_i) * W_i.ptr[j] + xi_i * Wminus_i.ptr[j];
-			Wplus_i.ptr[j] = (1. - xi_i) * W_i.ptr[j] + xi_i * Wplus_i.ptr[j];
+			Wminus_i.s[j] = (1. - xi_i) * W_i.s[j] + xi_i * Wminus_i.s[j];
+			Wplus_i.s[j] = (1. - xi_i) * W_i.s[j] + xi_i * Wplus_i.s[j];
 		}
 		
 		// W6
 		Cons W6_i;
 		for (int j = 0; j < numStates; ++j) {
-			W6_i.ptr[j] = 6. * W_i.ptr[j] - 3. * (Wminus_i.ptr[j] + Wplus_i.ptr[j]);
+			W6_i.s[j] = 6. * W_i.s[j] - 3. * (Wminus_i.s[j] + Wplus_i.s[j]);
 		}
 
 		Eigen eig = Eqn::eigen_forCell(solver, *pU, *pcell, n);
@@ -920,7 +920,7 @@ struct CalcCellLR_PPM_WIP {
 				real const lambda_j = calcWaves(solver, eig, n, pcell->pos, j);
 				lambdaMin = min(lambdaMin, lambda_j);
 				lambdaMax = min(lambdaMax, lambda_j);
-				lambda.ptr[j] = lambda_j;
+				lambda.s[j] = lambda_j;
 			}
 		}
 
@@ -930,17 +930,17 @@ struct CalcCellLR_PPM_WIP {
 		Prim Iplus[numWaves];
 		Prim Iminus[numWaves];
 		for (int j = 0; j < numWaves; ++j) {
-			real sigma = fabs(lambda.ptr[j]) * dt_dx;
+			real sigma = fabs(lambda.s[j]) * dt_dx;
 			for (int k = 0; k < numStates; ++k) {
-				if (lambda.ptr[j] >= 0) {
-					Iplus[j].ptr[k] = Wplus_i.ptr[k] - .5 * sigma * (Wplus_i.ptr[k] - Wminus_i.ptr[k] - (1 - (2./3.)*sigma) * W6_i.ptr[k]);
+				if (lambda.s[j] >= 0) {
+					Iplus[j].s[k] = Wplus_i.s[k] - .5 * sigma * (Wplus_i.s[k] - Wminus_i.s[k] - (1 - (2./3.)*sigma) * W6_i.s[k]);
 				} else {
-					Iplus[j].ptr[k] = W_i.ptr[k];
+					Iplus[j].s[k] = W_i.s[k];
 				}
-				if (lambda.ptr[j] <= 0) {
-					Iminus[j].ptr[k] = Wminus_i.ptr[k] + .5 * sigma * (Wplus_i.ptr[k] - Wminus_i.ptr[k] + (1 - (2./3.)*sigma) * W6_i.ptr[k]);
+				if (lambda.s[j] <= 0) {
+					Iminus[j].s[k] = Wminus_i.s[k] + .5 * sigma * (Wplus_i.s[k] - Wminus_i.s[k] + (1 - (2./3.)*sigma) * W6_i.s[k]);
 				} else {
-					Iminus[j].ptr[k] = W_i.ptr[k];
+					Iminus[j].s[k] = W_i.s[k];
 				}
 			}
 		}
@@ -975,19 +975,19 @@ struct CalcCellLR_PPM_WIP {
 			{
 				Cons Uminus = Eqn::apply_dU_dW(solver, W_i, Iminus[m], pcell->pos);
 				Waves waves = Eqn::eigen_leftTransform(solver, eig, Uminus, pcell->pos, n);
-				beta_xm.ptr[m] -= waves.ptr[m];
+				beta_xm.s[m] -= waves.s[m];
 			}
 
 			{
 				Cons Uplus = Eqn::apply_dU_dW(solver, W_i, Iplus[m], pcell->pos);
 				Waves waves = Eqn::eigen_leftTransform(solver, eig, Uplus, pcell->pos, n);
-				beta_xp.ptr[m] -= waves.ptr[m];
+				beta_xp.s[m] -= waves.s[m];
 			}
 		}
 
 		for (int j = 0; j < numWaves; ++j) {
-			if (lambda.ptr[j] < 0) beta_xp.ptr[j] = 0;
-			if (lambda.ptr[j] > 0) beta_xm.ptr[j] = 0;
+			if (lambda.s[j] < 0) beta_xp.s[j] = 0;
+			if (lambda.s[j] > 0) beta_xm.s[j] = 0;
 		}
 		
 		Cons U_l_ip1 = Eqn::eigen_rightTransform(solver, eig, beta_xp, pcell->pos, n);
@@ -997,8 +997,8 @@ struct CalcCellLR_PPM_WIP {
 		Prim W_r_i = Eqn::apply_dW_dU(solver, W_i, U_r_i, pcell->pos);
 
 		for (int j = 0; j < numStates; ++j) {
-			W_l_ip1.ptr[j] = Wref_xp.ptr[j] - W_l_ip1.ptr[j];
-			W_r_i.ptr[j] = Wref_xm.ptr[j] - W_r_i.ptr[j];
+			W_l_ip1.s[j] = Wref_xp.s[j] - W_l_ip1.s[j];
+			W_r_i.s[j] = Wref_xm.s[j] - W_r_i.s[j];
 		}
 
 		return ConsLR(
@@ -1046,7 +1046,7 @@ kernel void <?=calcLR?>(
 	//TODO skip this lr stuff if we're doing piecewise-constant
 	//...and just use the original buffers
 	<? for side=0,solver.dim-1 do ?>{
-		<?=normal_t?> const n = normal_forSides<<?=side?>>(pcell->pos);
+		Normal const n = Normal::template forSide<<?=side?>>(pcell->pos);
 		
 		//cell-centered index for a particular side...
 		int const indexForSide = <?=side?> + dim * index;

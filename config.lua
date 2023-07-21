@@ -36,9 +36,9 @@ local args = {
 	-- with Kelvin-Helmholts, this will explode even at .5/(dim=2), but runs safe for .3/(dim=2)
 	cfl = cmdline.cfl or .3/dim,
 
-	fluxLimiter = cmdline.fluxLimiter or 'superbee',
+	--fluxLimiter = cmdline.fluxLimiter or 'superbee',
 	--fluxLimiter = 'monotized central',
-	--fluxLimiter = 'donor cell',		-- same as turning fluxlimiter off ... you have to turn fluxlimiter off to use plm
+	fluxLimiter = 'donor cell',		-- same as turning fluxlimiter off ... you have to turn fluxlimiter off to use plm
 
 	-- piecewise-linear slope limiter
 	-- TODO rename this to 'calcLR' or something
@@ -52,7 +52,7 @@ local args = {
 	--usePLM = 'plm-eig',				-- -88		\
 	--usePLM = 'plm-eig-prim',			-- -88		 - these have less sharp shock wave in Sod than the non-eig ones
 	--usePLM = 'plm-eig-prim-ref',		-- -28 		/
-	--usePLM = 'plm-athena',			-- -40		based on Athena.  most accurate from 1D sod tests atm
+	usePLM = 'plm-athena',			-- -40		based on Athena.  most accurate from 1D sod tests atm
 	--usePLM = 'ppm-wip',				-- 			FIXME one more attempt to figure out all the PLM stuff, based on 2017 Zingale
 	--usePLM = 'weno',					-- 			TODO make WENO one of these 'usePLM' methods. rename it to 'construct LR state method' or something.  then use CTU with WENO.  or can we, since even the CTU method should use the re-linear-projection ... i should just have these separate plm methods as separate functions ...
 
@@ -761,7 +761,7 @@ self.solvers:insert(require 'hydro.solver.weno'(table(args, {
 -- compressible Euler equations
 
 
---self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
+self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
 
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod=0})))	-- 'Davis direct'
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod=1})))	-- 'Davis direct bounded' -- this is the default hllCalcWaveMethod
@@ -847,7 +847,7 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {
 -- compressible Euler equations, based on primitive vars
 -- only works with eigensystem-based solvers (since idk how to solve the flux vector of the primitive system)
 
-self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler_prim'})))
+--self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler_prim'})))
 
 
 -- Navier-Stokes-Wilcox:

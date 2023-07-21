@@ -330,6 +330,8 @@ for (int k = 0; k < numWaves; ++k) {
 		end
 	end
 
+	-- TODO detect if the clcpp has these ... hmm
+	-- but that would mean moving 'addDisplayVarGroup' entirely to clcpp ...
 	--if self:isModuleUsed(self.eqn.symbols.eigen_fluxTransform)
 	--and self:isModuleUsed(self.eqn.symbols.eigen_leftTransform)
 	--and self:isModuleUsed(self.eqn.symbols.eigen_rightTransform)
