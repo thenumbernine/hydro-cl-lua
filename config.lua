@@ -63,7 +63,7 @@ local args = {
 
 	-- this is functional without usePLM, but doing so falls back on the cell-centered buffer, which with the current useCTU code will update the same cell twice from different threads
 	-- TODO this seems to introduce more diagonal waves for SRHD
-	useCTU = true,
+	--useCTU = true,
 
 	-- [[ Cartesian
 	coord = 'cartesian',
@@ -384,7 +384,7 @@ local args = {
 	--]]
 
 
-	initCond = 'rectangle',
+	--initCond = 'rectangle',
 	--initCond = 'Sedov',
 	--initCond = 'Noh',
 	--initCond = 'implosion',
@@ -422,7 +422,7 @@ local args = {
 	--initCond = 'magnetic fluid',
 	--initCond = '2017 Degris et al',
 	--initCond = 'that one mhd simulation from youtube',
-	--initCond = 'spiral with flipped B field',
+	initCond = 'spiral with flipped B field',
 
 	-- 2002 Dedner
 	--initCond = '2002 Dedner peak Bx',
@@ -767,7 +767,7 @@ self.solvers:insert(require 'hydro.solver.weno'(table(args, {
 -- compressible Euler equations
 
 
-self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
+--self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
 
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct bounded'})))	-- this is the default hllCalcWaveMethod
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct'})))
@@ -988,7 +988,7 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {
 
 
 -- here's another one: two-fluid emhd with de Donder gauge linearized general relativity
---self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='twofluid-emhd-lingr'})))
+self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='twofluid-emhd-lingr'})))
 --self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='twofluid-emhd-lingr', wenoMethod='1996 Jiang Shu', order=5})))
 --self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='twofluid-emhd-lingr', wenoMethod='2010 Shen Zha', order=7})))
 
