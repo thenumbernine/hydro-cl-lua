@@ -5,7 +5,7 @@ and no more setting config values (boundary, etc) in the init cond file
 local constants = require 'hydro.constants'
 local materials = require 'hydro.materials'
 
-local dim = cmdline.dim or 2
+local dim = cmdline.dim or 3
 local args = {
 	app = self,
 	dim = dim,
@@ -65,7 +65,7 @@ local args = {
 	-- TODO this seems to introduce more diagonal waves for SRHD
 	--useCTU = true,
 
-	-- [[ Cartesian
+	--[[ Cartesian
 	coord = 'cartesian',
 	--coordArgs = {vectorComponent='holonomic'},		-- use the coordinate derivatives to represent our vector components (though they may not be normalized)
 	--coordArgs = {vectorComponent='anholonomic'},		-- use orthonormal basis to represent our vector components
@@ -244,7 +244,7 @@ local args = {
 		zmax=cmdline.boundary or 'mirror',
 	},
 	--]]
-	--[[ cylinder as toroid
+	-- [[ cylinder as toroid
 	coord = 'cylinder',
 	coordArgs = {vectorComponent='cartesian'},
 	--coordArgs = {vectorComponent='anholonomic'},

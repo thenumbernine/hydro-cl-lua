@@ -1001,6 +1001,12 @@ kernel void <?=addSource?>(
 
 <? if not require "hydro.coord.cartesian":isa(solver.coord) then ?>
 	/* connection coefficient source terms of covariant derivative w/contravariant velocity vectors in a holonomic coordinate system */
+//// MODULE_DEPENDS: <?=coord_conn_trace13?>
+//// MODULE_DEPENDS: <?=coord_raise?>
+//// MODULE_DEPENDS: <?=coord_conn_apply23?>
+//// MODULE_DEPENDS: <?=coord_conn_trace23?>
+//// MODULE_DEPENDS: <?=coord_conn_apply13?>
+//// MODULE_DEPENDS: <?=coord_conn_apply123?>
 	<?=prim_t?> W;
 	<?=primFromCons?>(&W, solver, U, x);
 	real3 const conn1_u = coord_conn_trace23(x);
