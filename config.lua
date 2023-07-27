@@ -249,11 +249,11 @@ local args = {
 	coordArgs = {vectorComponent='cartesian'},
 	--coordArgs = {vectorComponent='anholonomic'},
 	mins = cmdline.mins or {.5, 0, -.25},
-	maxs = cmdline.maxs or {1, 2*math.pi, .25},			-- TODO bake the 2π into the coordinate chart so this matches grid/cylinder.  Technically θ→2πθ means it isn't the standard θ variable.  I did this for UI convenience with CFDMesh.
+	maxs = cmdline.maxs or {1, 2*math.pi, .25},			-- TODO bake the 2π into the coordinate chart so this matches grid/cylinder.  Technically θ → 2πθ means it isn't the standard θ variable.  I did this for UI convenience with CFDMesh.
 	gridSize = ({
 		{128, 1, 1},	-- 1D
 		{64, 64, 1},	-- 2D
-		{32, 32, 32},	-- 3D
+		{8, 128, 8},	-- 3D
 	})[dim],
 	boundary = type(cmdline.boundary) == 'table' and cmdline.boundary or {
 		-- r

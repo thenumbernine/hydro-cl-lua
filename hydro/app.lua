@@ -710,8 +710,10 @@ void main() {
 		}
 
 		if not cmdline.disableFont then
+			local Image = require 'image'
+			local fontimage = Image'font.png'
 			local fonttex = GLTex2D{
-				filename = 'font.png',
+				image = fontimage,
 				minFilter = gl.GL_LINEAR_MIPMAP_LINEAR,
 				magFilter = gl.GL_LINEAR,
 			}
@@ -723,7 +725,10 @@ void main() {
 					:setParameter(gl.GL_TEXTURE_MIN_FILTER, gl.GL_NEAREST)
 					:setParameter(gl.GL_TEXTURE_MAG_FILTER, gl.GL_LINEAR)
 			end
-			self.font = Font{tex = fonttex}
+			self.font = Font{
+				image = fontimage,
+				tex = fonttex,
+			}
 		end
 
 		-- todo reorganize me
