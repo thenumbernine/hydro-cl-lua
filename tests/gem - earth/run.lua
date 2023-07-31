@@ -1,15 +1,11 @@
 #!/usr/bin/env luajit
 require 'ext'
 local exec = require 'exec'	-- TODO put this somewhere everyone can get it
-
 local ffi = require 'ffi'
-local unistd = require 'ffi.c.unistd'	-- getcwd, chdir
-require 'ffi.c.stdlib'	-- free
-local ccwd = unistd.getcwd(nil, 0)
-local cwd = ffi.string(ccwd)
-ffi.C.free(ccwd)
-assert(unistd.chdir'../..' == 0)
+
+local cwd = path:cwd()
 print('cwd = '..cwd)
+path'../..':cd()
 
 for _,coord in ipairs{
 	'cartesian',

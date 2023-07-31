@@ -1,17 +1,13 @@
 #!/usr/bin/env luajit
 require 'ext'
 local ffi = require 'ffi'
-local unistd = require 'ffi.c.unistd'
-require 'ffi.c.stdlib'
-local dirp = unistd.getcwd(nil, 0)
-local dir = ffi.string(dirp)
-ffi.C.free(dirp)
-unistd.chdir'../..'
+local dir = path:cwd()
+path'../..':cd()
 
 -- TODO make App accept this as a ctor argument
 cmdline = {sys='console'}
 
-local App = class(require 'hydro.app')
+local App = require 'hydro.app':subclass()
 
 function App:setup()
 	local solver = require 'hydro.solver.roe'{

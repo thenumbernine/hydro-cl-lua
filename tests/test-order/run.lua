@@ -6,12 +6,9 @@ this will run some order of accuracy tests on different configurations
 --]]
 
 local ffi = require 'ffi'
-require 'ffi.c.stdlib'	-- free
-
 local clnumber = require 'cl.obj.number'
 local template = require 'template'
-local sdl = require 'ffi.sdl'
-local class = require 'ext.class'
+local sdl = require 'ffi.req' 'sdl'
 local table = require 'ext.table'
 local range = require 'ext.range'
 local fromlua = require 'ext.fromlua'
@@ -21,11 +18,8 @@ local path = require 'ext.path'
 local string = require 'ext.string'
 local matrix = require 'matrix'
 local gnuplot = require 'gnuplot'
-local unistd = require 'ffi.c.unistd'
 
-local rundirp = unistd.getcwd(nil, 0)
-local rundir = ffi.string(rundirp)
-ffi.C.free(rundirp)
+local rundir = path:cwd()
 
 -- in case it's needed
 local resultsDir = 'results'
@@ -33,7 +27,7 @@ path(rundir..'/'..resultsDir):mkdir()
 
 -- from here on the require's expect us to be in the hydro-cl directory
 -- I should change this, and prefix all hydro-cl's require()s with 'hydro-cl', so it is require()able from other projects
-unistd.chdir'../..'
+path'../..':cd()
 
 for k,v in pairs(require 'tests.util') do _G[k] = v end
 
@@ -42,6 +36,7 @@ for k,v in pairs(require 'tests.util') do _G[k] = v end
 --  I could reuse this 'cmdline' as a global to get around that, and set its cmdline.sys='console'
 --  or I could rename this 'local cmdline' to 'local testcmdline' and declare a separate global "cmdline={sys='console'}"
 -- TODO looks like my own setenv always returns 0, even if it fails to write ...
+require 'ffi.req' 'c.stdlib'	-- setenv
 assert(0 == ffi.C.setenv('HYDROCL_ENV', 'sys="console",'..(os.getenv'HYDROCL_ENV' or ''), 0))
 
 local cmdline = require 'ext.cmdline'(...)
@@ -217,7 +212,7 @@ print()
 					try('boundary_'..i)
 					if not found then break end
 				end
-				local App = class(require 'hydro.app')
+				local App = require 'hydro.app':subclass()
 				App.allnames = allnames
 				function App:setup(clArgs)
 					cfg.app = self

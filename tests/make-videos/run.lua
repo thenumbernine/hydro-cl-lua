@@ -9,8 +9,7 @@ local path = require 'ext.path'
 local rundir = path:cwd()
 path'../..':cd()
 
-local sdl = require 'ffi.sdl'
-local class = require 'ext.class'
+local sdl = require 'ffi.req' 'sdl'
 local table = require 'ext.table'
 local range = require 'ext.range'
 local os = require 'ext.os'
@@ -265,7 +264,7 @@ for _,cfg in ipairs(configurations) do
 		local movieEndTime = cfg.movieEndTime or 1
 		local movieFrameDT = cfg.movieFrameDT or 0 
 
-		local App = class(require 'hydro.app')
+		local App = require 'hydro.app':subclass()
 		function App:setup(clArgs)
 			args.app = self
 			self.solvers:insert(require('hydro.solver.'..cfg.solver)(args))

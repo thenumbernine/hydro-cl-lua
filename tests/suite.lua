@@ -7,20 +7,15 @@
 --  how about TODO instead, put this in a subdir called "common" or "util" or something?
 
 local ffi = require 'ffi'
-require 'ffi.c.stdlib'		-- free
-local unistd = require 'ffi.c.unistd'
-local class = require 'ext.class'
 local table = require 'ext.table'
 local path = require 'ext.path'
 
 -- save the cwd and chdir to ../..
-local rundirp = unistd.getcwd(nil, 0)
-local rundir = ffi.string(rundirp)
-ffi.C.free(rundirp)
+local rundir = path:cwd()
 
 --local resultsDir = 'results'
 --path(rundir..'/'..resultsDir):mkdir()
-unistd.chdir'../..'
+path'../..':cd()
 
 -- set this global to have hydro run in console mode
 -- working on doing this cleaner...
@@ -30,7 +25,7 @@ cmdline = {
 	exitTime = 10,
 }
 
-local HydroApp = class(require 'hydro.app')
+local HydroApp = require 'hydro.app':subclass()
 
 -- share across all app instances
 HydroApp.allnames = {}
@@ -94,7 +89,7 @@ for _,config in ipairs(configs) do
 	end
 end
 
-unistd.chdir(rundir)
+path(rundir):cd()
 
 print('configs done -- plotting...')
 --os.execute('gnuplot plot.gnuplot')

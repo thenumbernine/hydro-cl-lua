@@ -1,15 +1,12 @@
 local ffi = require 'ffi'
-require 'ffi.c.stdlib'
-local unistd = require 'ffi.c.unistd'
-
-local rundirp = unistd.getcwd(nil, 0)
-local rundir = ffi.string(rundirp)
-ffi.C.free(rundirp)
-
 local class = require 'ext.class'
 local table = require 'ext.table'
-unistd.chdir'../..'
+local path = require 'ext.path'
 
+local rundir = path:cwd()
+path'../..':cd()
+
+require 'ffi.req' 'c.stdlib'
 assert(0 == ffi.C.setenv('HYDROCL_ENV', 'sys="console",'..(os.getenv'HYDROCL_ENV' or ''), 0))
 
 local dim, solvername, initState = ...
@@ -124,4 +121,4 @@ end, function()
 end)
 
 f:close()
---unistd.chdir(rundir)
+--path(rundir):cd()

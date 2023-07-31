@@ -1,6 +1,6 @@
 local class = require 'ext.class'
 local path = require 'ext.path'
-local gl = require 'ffi.OpenGL'
+local gl = require 'gl'
 local glreport = require 'gl.report'
 local Draw = require 'hydro.draw.draw'
 

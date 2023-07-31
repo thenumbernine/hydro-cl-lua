@@ -1,16 +1,13 @@
 #!/usr/bin/env luajit
 require 'ext'
 local ffi = require 'ffi'
-local unistd = require 'ffi.c.unistd'
-require 'ffi.c.stdlib'
-local dirp = unistd.getcwd(nil, 0)
-local dir = ffi.string(dirp)
-ffi.C.free(dirp)
-unistd.chdir'../..'
+
+local dir = path:cwd()
+path'../..':cd()
 
 -- honestly what's App used for anyways, beyond the gui?
 -- the cl.env ... can I build a solver without app, but just with a cl.env?
-local App = class(require 'hydro.app')
+local App = require 'hydro.app':subclass()
 
 function App:setup()
 	local args = {

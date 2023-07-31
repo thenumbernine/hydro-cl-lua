@@ -1,19 +1,13 @@
 #!/usr/bin/env luajit
-
 local ffi = require 'ffi'
-local unistd = require 'ffi.c.unistd'
-require 'ffi.c.stdlib'
-local dirp = unistd.getcwd(nil, 0)
-local dir = ffi.string(dirp)
-ffi.C.free(dirp)
+local table = require 'ext.table'
+
+local dir = path:cwd()
 
 -- chdir to the base
 -- (another alternative would be to execute this script from the base)
 -- I think that's what the Relativity project did
-unistd.chdir'../..'
-
-local table = require 'ext.table'
-local class = require 'ext.class'
+path'../..':cd()
 
 -- global
 cmdline = {sys='console'}
@@ -29,7 +23,7 @@ for _,info in ipairs{
 	local suffix, integrator= table.unpack(info)
 	local f = io.open(dir..'/var-ranges-'..suffix..'.txt', 'w')
 
-	local App = class(require 'hydro.app')
+	local App = require 'hydro.app':subclass()
 	
 	function App:setup()
 		--local solver = require 'hydro.solver.z4c-fd'{

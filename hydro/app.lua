@@ -192,7 +192,7 @@ local Font
 local Mouse
 if targetSystem ~= 'console' then
 	gl = require 'gl'
-	sdl = require 'ffi.sdl'
+	sdl = require 'ffi.req' 'sdl'
 	GLProgram = require 'gl.program'
 	GLGradientTex = require 'gl.gradienttex'
 	Mouse = require 'glapp.mouse'

@@ -1,4 +1,3 @@
-local class = require 'ext.class'
 local table = require 'ext.table'
 local string = require 'ext.string'
 local path = require 'ext.path'
@@ -6,7 +5,7 @@ local vector = require 'ffi.cpp.vector'
 local Mesh = require 'hydro.mesh.mesh'
 local MeshFactory = require 'hydro.mesh.factory'
 
-local P2DFMTMeshFactory = class(MeshFactory)
+local P2DFMTMeshFactory = MeshFactory:subclass()
 
 P2DFMTMeshFactory.name = 'p2dfmt'
 P2DFMTMeshFactory.dim = 2
