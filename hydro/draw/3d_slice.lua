@@ -167,7 +167,7 @@ function Draw3DSlice:prepareShader()
 			valueMin = 0,
 			valueMax = 0,
 		},
-	}
+	}:useNone()
 end
 
 return Draw3DSlice

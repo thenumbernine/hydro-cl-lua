@@ -461,7 +461,7 @@ void main() {
 			vtx = self.glvtxArrayBuffer,
 			vtxcenter = self.glvtxcenterArrayBuffer,
 		}
-	}
+	}:useNone()
 end
 
 -- TODO organize this between SolverBase and MeshSolver

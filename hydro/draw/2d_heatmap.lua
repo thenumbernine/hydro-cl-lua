@@ -164,7 +164,7 @@ function Draw2DHeatmap:prepareShader()
 			tex = 0,
 			gradientTex = 1,
 		},
-	}
+	}:useNone()
 end
 
 return Draw2DHeatmap

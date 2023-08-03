@@ -223,7 +223,7 @@ function Draw1D:prepareShader()
 			scale = 1,
 			ambient = 1,
 		},
-	}
+	}:useNone()
 end
 
 return Draw1D

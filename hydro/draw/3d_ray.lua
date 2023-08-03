@@ -142,7 +142,7 @@ function Draw3DRay:prepareShader()
 			gradientTex = 1,
 			oneOverDx = {(solver.maxs - solver.mins):unpack()},
 		},
-	}
+	}:useNone()
 end
 
 return Draw3DRay

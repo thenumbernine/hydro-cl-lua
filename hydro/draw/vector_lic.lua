@@ -215,7 +215,7 @@ function DrawVectorLIC:prepareShader()
 			gradientTex = 1,
 			noiseTex = 2,
 		},
-	}
+	}:useNone()
 end
 
 return DrawVectorLIC

@@ -254,7 +254,7 @@ function DrawMeshHeatmap:prepareShader()
 			vtxcenter = solver.glvtxcenterArrayBuffer,
 			cellindex = solver.glcellindexArrayBuffer,
 		},
-	}
+	}:useNone()
 end
 
 return DrawMeshHeatmap

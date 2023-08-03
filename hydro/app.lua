@@ -707,7 +707,7 @@ void main() {
 	gl_FragColor = vec4(color.rgb * n.z, color.a);
 }
 ]],
-		}
+		}:useNone()
 
 		if not cmdline.disableFont then
 			local Image = require 'image'

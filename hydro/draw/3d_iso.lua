@@ -397,7 +397,7 @@ function Draw3DIso:prepareShader()
 			gradientTex = 1,
 			oneOverDx = {(solver.maxs - solver.mins):unpack()},
 		},
-	}
+	}:useNone()
 end
 
 return Draw3DIso
