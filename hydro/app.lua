@@ -1028,7 +1028,7 @@ function HydroCLApp:saveHeatMapBufferImages()
 	--[[
 	local FBO = require 'gl.fbo'
 	local fbo = FBO()
-	fbo:unbind()
+		:unbind()
 	--]]
 	for _,solver in ipairs(self.solvers) do
 		local tex = solver.tex
