@@ -121,12 +121,12 @@ function DrawVectorField:showDisplayVar(var, varName, ar, xmin, xmax, ymin, ymax
 		solver.vectorArrowGLVtxArrayBuffer = GLArrayBuffer{
 			data = self.glvtxs.v,
 			size = #self.glvtxs * ffi.sizeof(self.glvtxs.type)
-		}
+		}:unbind()
 
 		solver.vectorArrowGLCentersArrayBuffer = GLArrayBuffer{
 			data = self.glcenters.v,
 			size = #self.glcenters * ffi.sizeof(self.glcenters.type)
-		}
+		}:unbind()
 
 		solver.vectorArrowVAO = GLVertexArray{
 			program = shader,
