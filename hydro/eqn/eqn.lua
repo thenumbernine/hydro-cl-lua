@@ -637,6 +637,10 @@ function Equation:initCodeModule_cons_parallelPropagate()
 			_3sym3 = 3,
 			real3x3x3 = 3,
 		}
+		for _,k in ipairs(table.keys(degreeForType)) do
+			-- hmm, what about sym3 and _3sym3?
+			degreeForType[k:gsub('real', 'cplx')] = degreeForType[k]
+		end
 
 		for _,var in ipairs(self.consStruct.vars) do
 			-- guess the variance if it isn't specified

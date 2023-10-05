@@ -2629,14 +2629,18 @@ function SolverBase:addDisplayVars()
 		vars = {{name='0', code='value.vreal = buf[index];'}},
 	}
 
+	local cellStructVars = self.coord.cellStruct.vars:filter(function(var)
+		return not (var.type == 'int')
+	end)
+	for _,var in ipairs(cellStructVars) do
+		self.solverModulesEnabled[var.type] = true
+	end
 	self:addDisplayVarGroup{
 		name = 'cell',
 		bufferField = 'cellBuf',
 		bufferType = self.coord.cell_t,
 		vars = self:createDisplayVarArgsForStructVars(
-			self.coord.cellStruct.vars:filter(function(var)
-				return not (var.type == 'int')
-			end),
+			cellStructVars,
 			'cell'
 		)
 	}

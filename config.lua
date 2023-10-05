@@ -5,7 +5,7 @@ and no more setting config values (boundary, etc) in the init cond file
 local constants = require 'hydro.constants'
 local materials = require 'hydro.materials'
 
-local dim = cmdline.dim or 3
+local dim = cmdline.dim or 2
 local args = {
 	app = self,
 	dim = dim,
@@ -65,7 +65,7 @@ local args = {
 	-- TODO this seems to introduce more diagonal waves for SRHD
 	--useCTU = true,
 
-	--[[ Cartesian
+	-- [[ Cartesian
 	coord = 'cartesian',
 	--coordArgs = {vectorComponent='holonomic'},		-- use the coordinate derivatives to represent our vector components (though they may not be normalized)
 	--coordArgs = {vectorComponent='anholonomic'},		-- use orthonormal basis to represent our vector components
@@ -244,7 +244,7 @@ local args = {
 		zmax=cmdline.boundary or 'mirror',
 	},
 	--]]
-	-- [[ cylinder as toroid
+	--[[ cylinder as toroid
 	coord = 'cylinder',
 	coordArgs = {vectorComponent='cartesian'},
 	--coordArgs = {vectorComponent='anholonomic'},
@@ -315,7 +315,7 @@ local args = {
 	--]]
 
 
-	--initCond = 'sphere',
+	initCond = 'sphere',
 
 	--initCond = 'spiral',
 	--initCondArgs = {torusGreaterRadius = .75, torusLesserRadius = .5},
@@ -422,7 +422,7 @@ local args = {
 	--initCond = 'magnetic fluid',
 	--initCond = '2017 Degris et al',
 	--initCond = 'that one mhd simulation from youtube',
-	initCond = 'spiral with flipped B field',
+	--initCond = 'spiral with flipped B field',
 
 	-- 2002 Dedner
 	--initCond = '2002 Dedner peak Bx',
@@ -709,10 +709,30 @@ if cmdline.solver then self.solvers:insert(require('hydro.solver.'..cmdline.solv
 --self.solvers:insert(require 'hydro.solver.fdsolver'(table(args, {eqn='wave'})))
 
 
+-- [[ wave equation <-> Schrodinger equation
+-- try to implement the equation:
+-- partial_t phi = i hbar / 2 m * nabla^2 - i / hbar V(x) * phi
+-- wait that's a 1st deriv in time, not 2nd ...
+--[=[
+-- I could use eqn/wave but with the Klein-Gordon equation ...
+self.solvers:insert{require 'hydro.solver.fvsolver'(table(args, {
+	flux='roe',
+	eqn='wave',
+	eqnArgs = {
+		scalar = 'cplx',
+	},
+	--initCond = '',
+}))}
+--]=]
+-- [=[ or nls, but that is finite-difference only, and hard-coded at 1D
+self.solvers:insert(require 'hydro.solver.nls'(table(args, {
+	--initCond = '',
+})))
+--]=]
+--]]
+
 -- wave eqation with background spacetime metric
 -- TODO explodes when addSource is used.
-
-
 --self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='wave_metric', eqnArgs={beta={'-y / (r * r)','x / (r * r)','0'}}, wenoMethod='1996 Jiang Shu', order=5})))
 
 --[[ Acoustic black hole.
@@ -988,7 +1008,7 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {
 
 
 -- here's another one: two-fluid emhd with de Donder gauge linearized general relativity
-self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='twofluid-emhd-lingr'})))
+--self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='twofluid-emhd-lingr'})))
 --self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='twofluid-emhd-lingr', wenoMethod='1996 Jiang Shu', order=5})))
 --self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='twofluid-emhd-lingr', wenoMethod='2010 Shen Zha', order=7})))
 

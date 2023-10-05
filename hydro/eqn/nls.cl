@@ -9,7 +9,7 @@ void <?=applyInitCondCell?>(
 	global <?=cons_t?> * const U,
 	global <?=cell_t?> const * const cell
 ) {
-	real3 const x = cellBuf[index].pos;
+	real3 const x = cell->pos;
 
 	real r = fabs(x.x);
 	cplx q = cplx_zero;

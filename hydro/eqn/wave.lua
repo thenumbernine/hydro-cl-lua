@@ -30,6 +30,14 @@ function Wave:init(args)
 	
 	self.scalar = (args and args.scalar) or 'real'
 
+	-- TODO when scalar==cplx then we need to cdef scalar for numRealsInScalar to work, so...
+	if self.scalar == 'cplx' then
+		require 'hydro.code.safecdef'(
+			(args.solver.app.modules:getTypeHeader'cplx'
+			:gsub('//// BEGIN EXCLUDE FOR FFI_CDEF.-//// END EXCLUDE FOR FFI_CDEF', ''))
+		)
+		-- annnd I still need to change the eigen left & right to work too...
+	end
 
 	self.vec3 = self.scalar..'3'
 	self.numRealsInScalar = ffi.sizeof(self.scalar) / ffi.sizeof'real'
