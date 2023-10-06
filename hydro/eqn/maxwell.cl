@@ -64,10 +64,10 @@ void <?=applyInitCondCell?>(
 	/* used */
 	<?=vec3?> D = <?=vec3?>_zero;
 	<?=vec3?> B = <?=vec3?>_zero;
+	<?=scalar?> rhoCharge = <?=zero?>;
 	<?=scalar?> conductivity = <?=scalar?>_from_real(1.);
 	<?=susc_t?> permittivity = <?=susc_t?>_from_real(1.);
 	<?=susc_t?> permeability = <?=susc_t?>_from_real(1.);
-	<?=scalar?> rhoCharge = <?=zero?>;
 
 	/* throw-away */
 	real rho = 0;
@@ -335,4 +335,17 @@ kernel void <?=addSource?>(
 		deriv->D.<?=xj?> = <?=sub?>(deriv->D.<?=xj?>, <?=vec3?>_dot(flux.D, grad_1_mu));
 		deriv->B.<?=xj?> = <?=sub?>(deriv->B.<?=xj?>, <?=vec3?>_dot(flux.B, grad_1_eps));
 	}<? end ?>
+
+<? if initCond.rhoChargeCode then 
+print"WARNING - rhoChargeCode is broken in eqn/maxwell.lua"
+?>
+	// TODO glm-maxwell doesn't have J
+	// does it need both?
+	// do I need to split J between J = sigma E and some external J?
+	// is that the same distinction as between J_bound and J_free?
+	// TODO instead of here, this calculation should go into the 'chargeField' of the div-free op of eqn/maxwell.lua
+	<?=scalar?> rhoCharge = U->rhoCharge;
+<?=initCond.rhoChargeCode and initCond.rhoChargeCode(solver) or ""?>
+	deriv->phi = <?=add?>(deriv->phi, <?=real_mul?>(rhoCharge, solver->divPhiWavespeed / unit_m_per_s));
+<? end ?>
 }

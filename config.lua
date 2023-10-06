@@ -145,12 +145,12 @@ local args = {
 		}
 	)[dim],
 	boundary = type(cmdline.boundary) == 'table' and cmdline.boundary or {
-		xmin = cmdline.boundary or 'periodic',
-		xmax = cmdline.boundary or 'periodic',
-		ymin = cmdline.boundary or 'periodic',
-		ymax = cmdline.boundary or 'periodic',
-		zmin = cmdline.boundary or 'periodic',
-		zmax = cmdline.boundary or 'periodic',
+		xmin = cmdline.boundary or 'freeflow',
+		xmax = cmdline.boundary or 'freeflow',
+		ymin = cmdline.boundary or 'freeflow',
+		ymax = cmdline.boundary or 'freeflow',
+		zmin = cmdline.boundary or 'freeflow',
+		zmax = cmdline.boundary or 'freeflow',
 	},
 	--]]
 	--[[ cylinder
@@ -315,7 +315,7 @@ local args = {
 	--]]
 
 
-	initCond = 'sphere',
+	--initCond = 'sphere',
 
 	--initCond = 'spiral',
 	--initCondArgs = {torusGreaterRadius = .75, torusLesserRadius = .5},
@@ -491,7 +491,7 @@ local args = {
 	--initCond = 'Maxwell scattering around Koch snowflake',
 	--initCond = 'Maxwell wire',
 	--initCond = 'Maxwell transverse waves',
-	--initCond = 'Maxwell charged particle',
+	initCond = 'Maxwell charged particle',
 
 	-- hmm, I think I need a fluid solver for this, not just a Maxwell solver ...
 	--initCond = 'Maxwell Lichtenberg',
@@ -709,7 +709,7 @@ if cmdline.solver then self.solvers:insert(require('hydro.solver.'..cmdline.solv
 --self.solvers:insert(require 'hydro.solver.fdsolver'(table(args, {eqn='wave'})))
 
 
--- [[ wave equation <-> Schrodinger equation
+--[[ wave equation <-> Schrodinger equation
 -- try to implement the equation:
 -- partial_t phi = i hbar / 2 m * nabla^2 - i / hbar V(x) * phi
 -- wait that's a 1st deriv in time, not 2nd ...
@@ -981,7 +981,7 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {
 -- GLM Maxwell
 
 
---self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='glm-maxwell'})))
+self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='glm-maxwell'})))
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='glm-maxwell'})))
 --self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='glm-maxwell', wenoMethod='2010 Shen Zha', order=7})))
 --self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='glm-maxwell', wenoMethod='2010 Shen Zha', order=13})))

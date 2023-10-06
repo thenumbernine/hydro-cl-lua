@@ -3107,6 +3107,28 @@ kernel void addExtraSource(
 	rhoCharge = (i.x == solver->gridSize.x/2 && i.y == solver->gridSize.y/2 && i.z == solver->gridSize.z/2) ? initCond->rhoCharge0 : 0.;
 ]]
 		end,
+		
+		-- special for eqn/maxwell and eqn/glm-maxwell ...
+		-- easier than assigning/clearing rhoCharge every frame for moving point charges ...
+		-- in fact, if rhoCharge is unchanging, maybe giving it storage isn't necessary? or at least let that be a flag...
+		rhoChargeCode = function(solver)
+			return solver.eqn:template[[
+	{
+		real const r = .05;
+		real const freq = 20.;
+		real const theta = solver->t * 2. * M_PI * freq;
+		// going in a loop...
+		//real3 const particlePos = _real3(r * cos(theta), r * sin(theta), 0.);
+		// moving up and down ...
+		real3 const particlePos = _real3(0., r * sin(theta), 0.);
+		rhoCharge = <?=scalar?>_from_real(
+			real3_len(real3_sub(cell->pos, particlePos)) <= solver->grid_dx.x
+			? 1 //initCond->rhoCharge0
+			: 0
+		);
+	}
+]]
+		end,
 	},
 
 	{

@@ -62,6 +62,7 @@ void <?=applyInitCondCell?>(
 	//used
 	<?=vec3?> D = <?=vec3?>_zero;
 	<?=vec3?> B = <?=vec3?>_zero;
+	<?=scalar?> rhoCharge = <?=zero?>;
 	<?=scalar?> conductivity = <?=scalar?>_from_real(1.);
 	<?=susc_t?> permittivity = <?=susc_t?>_from_real(1.);
 	<?=susc_t?> permeability = <?=susc_t?>_from_real(1.);
@@ -79,7 +80,7 @@ void <?=applyInitCondCell?>(
 	U->phi = <?=zero?>;
 	U->psi = <?=zero?>;
 	U->sigma = conductivity;
-	U->rhoCharge = <?=zero?>;
+	U->rhoCharge = rhoCharge;
 	U->sqrt_1_eps = <?=susc_t?>_sqrt(<?=susc_t?>_inv(permittivity));
 	U->sqrt_1_mu = <?=susc_t?>_sqrt(<?=susc_t?>_inv(permeability));
 }
@@ -366,5 +367,7 @@ kernel void <?=addSource?>(
 		deriv->B.<?=xj?> = <?=sub?>(deriv->B.<?=xj?>, <?=vec3?>_dot(flux.B, grad_1_eps));
 	}<? end ?>
 	
-	deriv->phi = <?=add?>(deriv->phi, <?=real_mul?>(U->rhoCharge, solver->divPhiWavespeed / unit_m_per_s));
+	<?=scalar?> rhoCharge = U->rhoCharge;
+<?=initCond.rhoChargeCode and initCond.rhoChargeCode(solver) or ""?>
+	deriv->phi = <?=add?>(deriv->phi, <?=real_mul?>(rhoCharge, solver->divPhiWavespeed / unit_m_per_s));
 }

@@ -546,6 +546,8 @@ function SolverBase:initMeshVars(args)
 		{name='initCondMins', type='real3'},
 		{name='initCondMaxs', type='real3'},
 	--]]
+		{name='t', type='real'},
+		{name='dt', type='real'},
 	}
 
 	-- in GridSolver this was 'initMeshVars' which comes first
@@ -3124,6 +3126,10 @@ local <?=varabsmax?> = math.max(math.abs(<?=varmin?>, <?=varmax?>))
 	-- why was this moved out of :step() ?
 	self.t = self.t + dt
 	self.dt = dt
+
+	self.solverPtr.t = self.t
+	self.solverPtr.dt = self.dt
+	self:refreshSolverBuf()
 
 	if cmdline.testAccuracy then
 		local err = self:calcExactError()
