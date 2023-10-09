@@ -5,7 +5,7 @@ local class = require 'ext.class'
 local GridSolver = require 'hydro.solver.gridsolver'
 
 local WaveFDSolver = class(GridSolver)
-WaveFDSolver.name = 'Wave-FD'
+WaveFDSolver.name = 'Wave_FD'
 WaveFDSolver.eqnName = 'wave-fd'
 WaveFDSolver.fixedDT = 1e-5
 
@@ -21,6 +21,7 @@ end
 function WaveFDSolver:refreshCalcDTKernel() end
 function WaveFDSolver:calcDT() 
 	-- paper says h=1/30 ... 1/2000
+	-- TODO maybe move the fixed-dt stuff to config?
 	return .5 * tonumber(self.solverPtr.grid_dx.x)
 	--return self.fixedDT 
 end
@@ -37,6 +38,8 @@ function WaveFDSolver.DisplayVar_U:setArgs(kernel)
 	kernel:setArg(6, real(self.solver.t))
 end
 
+-- TODO instead of adding 't' here, I've just added it to 'solver' overall, so ...
+-- but a bigger TODO is just merge this whole solver with solver/fdsolver.lua
 function WaveFDSolver:getUBufDisplayVarsArgs()
 	local args = WaveFDSolver.super.getUBufDisplayVarsArgs(self)
 	args.extraArgs = args.extraArgs or {}

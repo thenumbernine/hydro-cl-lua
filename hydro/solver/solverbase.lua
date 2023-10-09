@@ -1701,8 +1701,11 @@ end
 
 -- for solvers who don't rely on calcDT
 function SolverBase:refreshCalcDTKernel()
-	self.calcDTKernelObj = self.solverProgramObj:kernel(self.eqn.symbols.calcDT)
-	self.calcDTKernelObj.obj:setArg(1, self.reduceBuf)
+	-- if the eqn doesn't have calcDT, let it still run if it provides a fixedDT
+	if self:hasModule(self.eqn.symbols.calcDT) then
+		self.calcDTKernelObj = self.solverProgramObj:kernel(self.eqn.symbols.calcDT)
+		self.calcDTKernelObj.obj:setArg(1, self.reduceBuf)
+	end
 end
 
 function SolverBase:hasModule(name)
@@ -2967,6 +2970,7 @@ function SolverBase:calcDT()
 	if self.useFixedDT then
 		dt = self.fixedDT
 	else
+		assert(self.calcDTKernelObj)
 		-- TODO this without the border, but that means changing reduce *and display*
 		self.calcDTKernelObj.obj:setArg(0, self.solverBuf)
 		self.calcDTKernelObj.obj:setArg(2, self.UBuf)

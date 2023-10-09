@@ -1,10 +1,8 @@
 -- based on 2014 Oliveira et al - Ergoregion instability- The hydrodynamic vortex
-local ffi = require 'ffi'
-local class = require 'ext.class'
 local table = require 'ext.table'
 local Equation = require 'hydro.eqn.eqn'
 
-local WaveFDEqn = class(Equation)
+local WaveFDEqn = Equation:subclass()
 WaveFDEqn.name = 'wave_fd'
 
 WaveFDEqn.consVars = table{
@@ -15,7 +13,7 @@ WaveFDEqn.consVars = table{
 }
 
 function WaveFDEqn:createBoundaryOptions()
-	local BoundaryFixed = class(self.solver.BoundaryFixed)
+	local BoundaryFixed = self.solver.BoundaryFixed:subclass()
 	BoundaryFixed.fixedCode = '('..self.symbols.cons_t..'){.psi=cplx_zero, .zeta=cplx_zero}'
 	self.solver:addBoundaryOption(BoundaryFixed)
 end

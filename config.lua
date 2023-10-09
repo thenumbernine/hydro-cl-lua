@@ -981,7 +981,7 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {
 -- GLM Maxwell
 
 
-self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='glm-maxwell'})))
+--self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='glm-maxwell'})))
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='glm-maxwell'})))
 --self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='glm-maxwell', wenoMethod='2010 Shen Zha', order=7})))
 --self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='glm-maxwell', wenoMethod='2010 Shen Zha', order=13})))
@@ -1115,7 +1115,7 @@ With hyperbolic gamma driver shift it has trouble.
 --self.solvers:insert(require 'hydro.solver.gr-em-separate'(args))
 
 
--- nonlinear Schrodinger equation
+-- 1D nonlinear Schrodinger equation
 --self.solvers:insert(require 'hydro.solver.nls'(args))
 
 -- [[ wave with background metric of acoustic black hole, fourier transform mode, finite difference
@@ -1128,6 +1128,10 @@ With hyperbolic gamma driver shift it has trouble.
 -- TODO how about a weno-finite-difference solver?
 --]]
 
+-- finite-difference Schrodinger equation
+
+--self.solvers:insert(require 'hydro.solver.fdonly_solver'(table(args, {fixedDT=.01, eqn='schrodinger-fd', integrator='backward Euler'})))
+self.solvers:insert(require 'hydro.solver.fdonly_solver'(table(args, {fixedDT=.00001, eqn='schrodinger-fd', integrator='Iterative Crank-Nicolson'})))
 
 
 -- unstructured meshes

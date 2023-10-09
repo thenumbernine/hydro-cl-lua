@@ -18,20 +18,20 @@ reads from UBuf
 writes to writeBuf
 optionally if stopOnEpsilon is enabled, writes residual component-wise squared to reduceBuf
 
-del phi = f
-(d/dx^2 + d/dy^2 + ...) phi = f
-sum_i ((phi[x+e[i] ] - 2 phi[x] + phi[x-e[i] ]) / dx[i]^2) = f
-sum_i (1 / dx[i]^2) phi[x+e[i] ] 
-	+ sum_i (-2 / dx[i]^2) phi[x] 
-	+ sum_i (1 / dx[i]^2) phi[x-e[i] ]
+Δφ = f
+(∂/∂x^2 + ∂/∂y^2 + ... (plus connections...)) φ = f
+Σ_i ((φ[x+e[i] ] - 2 φ[x] + φ[x-e[i] ]) / dx[i]^2) = f
+Σ_i (1 / dx[i]^2) φ[x+e[i] ] 
+	+ Σ_i (-2 / dx[i]^2) φ[x] 
+	+ Σ_i (1 / dx[i]^2) φ[x-e[i] ]
 	= f
 
-a_kk = sum_i (-2 / dx[i]^2)
-a_jk = sum_i (1 / dx[i]^2) for j != k
+a_kk = Σ_i (-2 / dx[i]^2)
+a_jk = Σ_i (1 / dx[i]^2) for j≠k
 
 jacobi update:
-phi[x,k+1] = (f[x] - sum_i,j!=k (phi[x+e[i],k] / dx[i]^2))
-	/ sum_i (-2 / dx[i]^2)
+φ[x,k+1] = (f[x] - Σ_i,j≠k (φ[x+e[i],k] / dx[i]^2))
+	/ Σ_i (-2 / dx[i]^2)
 
 input is poisson source divergence, in 1/s^2
 output is potentialField, in m^2/s^2
@@ -81,19 +81,19 @@ end ?>
 <? 
 --[=[
 volume-weighted ... however volume-weighted laplace beltrami looks like this:
-lap phi = 1/sqrt|g| ( sqrt|g| g^ij phi_,j )_,i
-...so I should be sampling sqrt|g| g^ij phi_,j at the + and - on each dimension
-= 1/sqrt|g| (
-	[( sqrt|g| g^ij phi_,j )|(x+dx_i) 
-	- ( sqrt|g| g^ij phi_,j )|(x-dx_i)] / (2*dx_i)
+Δφ = 1/√|g| ( √|g| g^ij φ_,j )_,i
+...so I should be sampling √|g| g^ij φ_,j at the + and - on each dimension
+= 1/√|g| (
+	[( √|g| g^ij φ_,j )|(x+dx_i) 
+	- ( √|g| g^ij φ_,j )|(x-dx_i)] / (2*dx_i)
 )
-= 1/sqrt|g|(x) (
+= 1/√|g|(x) (
 	[
-		( sqrt|g|(x+dx_i) g^ij(x+dx_i) 
-			* (phi(x+dx_i+dx_j) - phi(x+dx_i-dx_j)) / (2*dx_j) 
+		( √|g|(x+dx_i) g^ij(x+dx_i) 
+			* (φ(x+dx_i+dx_j) - φ(x+dx_i-dx_j)) / (2*dx_j) 
 		)|(x+dx_i) 
-		- ( sqrt|g|(x+dx_i) g^ij(x+dx_i) 
-			* (phi(x-dx_i+dx_j) - phi(x-dx_i-dx_j)) / (2*dx_j) 
+		- ( √|g|(x+dx_i) g^ij(x+dx_i) 
+			* (φ(x-dx_i+dx_j) - φ(x-dx_i-dx_j)) / (2*dx_j) 
 		)|(x-dx_i)
 	] / (2*dx_i)
 )
@@ -121,26 +121,26 @@ else 	-- not cartesian
 ?>
 /*
 for scalars:
-f_;a^a = g^ab (f_,ab - Gamma^c_ab f,c)
- = 1/sqrt|g| (sqrt|g| g^ab f_,a)_,b
+f_;a^a = g^ab (f_,ab - Γ^c_ab f,c)
+ = 1/√|g| (√|g| g^ab f_,a)_,b
 I think I'm gonna use finite-differencing with the second one
- = 1/sqrt|g|(x) ((sqrt|g| g^ab)(x+h/2) (f(x+h)-f(x))/h - (sqrt|g| g^ab)(x-h/2) (f(x)-f(x-h))/h)/h
- = 1/sqrt|g|(x) ((sqrt|g| g^ab)(x+h/2) f(x+h)/h - ((sqrt|g| g^ab)(x+h/2) + (sqrt|g| g^ab)(x-h/2)) f(x)/h + (sqrt|g| g^ab)(x-h/2) f(x-h)/h)/h
+ = 1/√|g|(x) ((√|g| g^ab)(x+h/2) (f(x+h)-f(x))/h - (√|g| g^ab)(x-h/2) (f(x)-f(x-h))/h)/h
+ = 1/√|g|(x) ((√|g| g^ab)(x+h/2) f(x+h)/h - ((√|g| g^ab)(x+h/2) + (√|g| g^ab)(x-h/2)) f(x)/h + (√|g| g^ab)(x-h/2) f(x-h)/h)/h
 
 or for arbitrary tensors:
 (wiki says (T_;ab - T_;ba) g^ab)
 t^i1..ip_j1..jq^;a_;a
 = (t^i1..ip_j1..jq_,a 
-	+ Sum_I=1..p Conn^iI_k_a t^i1..k..ip_j1..jq 
-	- Sum_J=1..q Conn^k_jJ_a t^i1..ip_j1..k..jq )_;b g^ab
+	+ Σ_I=1..p Γ^iI_k_a t^i1..k..ip_j1..jq 
+	- Σ_J=1..q Γ^k_jJ_a t^i1..ip_j1..k..jq )_;b g^ab
 = (t^i1..ip_j1..jq_,ab 
-	+ (Sum_I=1..p Conn^iI_k_a t^i1..k..ip_j1..jq)_;b
-	- (Sum_J=1..q Conn^k_jJ_a t^i1..ip_j1..k..jq)_;b ) g^ab
+	+ (Σ_I=1..p Γ^iI_k_a t^i1..k..ip_j1..jq)_;b
+	- (Σ_J=1..q Γ^k_jJ_a t^i1..ip_j1..k..jq)_;b ) g^ab
 = (t^i1..ip_j1..jq_,ab 
-	+ Sum_I=1..p Conn^iI_k_a,b t^i1..k..ip_j1..jq 
-	- Sum_J=1..q Conn^k_jJ_a,b t^i1..ip_j1..k..jq 
-	+ Sum_I=1..p Conn^Ii_k_a t^i1..k..ip_j1..jq,b
-	- Sum_J=1..q Conn^k_jJ_a t^i1..ip_j1..k..jq,b 
+	+ Σ_I=1..p Γ^iI_k_a,b t^i1..k..ip_j1..jq 
+	- Σ_J=1..q Γ^k_jJ_a,b t^i1..ip_j1..k..jq 
+	+ Σ_I=1..p Γ^Ii_k_a t^i1..k..ip_j1..jq,b
+	- Σ_J=1..q Γ^k_jJ_a t^i1..ip_j1..k..jq,b 
 ) g^ab
 
 */
@@ -148,14 +148,14 @@ t^i1..ip_j1..jq^;a_;a
 end
 ?>
 
-	//source is 4 pi G rho delta(x) is the laplacian of the gravitational potential field, which is integrated across discretely here
+	//source is 4 π G ρ δ(x) is the laplacian of the gravitational potential field, which is integrated across discretely here
 	//in units of 1/s^2
 	<?=scalar?> source = <?=zero?>;
 <?=op:getPoissonDivCode() or ""?>
 
 	<?=scalar?> oldU = U-><?=op.potentialField?>;
 	
-	//Jacobi iteration: x_i = sum i!=j of (b_i - A_ij x_j) / A_ii
+	//Jacobi iteration: x_i = Σ i≠j of (b_i - A_ij x_j) / A_ii
 	<?=scalar?> newU = <?=real_mul?>(<?=sub?>(source, skewSum), 1. / diag);
 
 	writeBuf[index] = newU;	
