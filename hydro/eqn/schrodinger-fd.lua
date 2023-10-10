@@ -23,14 +23,15 @@ local SchrodingerFDEqn = Equation:subclass()
 SchrodingerFDEqn.name = 'schrodinger_fd'
 
 SchrodingerFDEqn.consVars = table{
-	{name='psi', type='cplx', units='kg*m^2/(s^2)'},
+	{name='psi', type='cplx', units='kg*m^2/s^2'},
+	{name='V', type='cplx', units='kg*m^2/s^2'},
 }
 
 function SchrodingerFDEqn:createInitState()
 	SchrodingerFDEqn.super.createInitState(self)
 	self:addGuiVars{
-		{name='hBar', value=1, units='kg*m^2/s'},	-- TODO I could just use the real constant and let units determine this' magnitude ...
-		{name='m', value=1, units='kg'},			-- mass ... of what? of the field? but the field is *everywhere* ... mass of *everything* ?
+		{name='hBar', value=1.054e-34, units='kg*m^2/s'},	-- TODO I could just use the real constant and let units determine this' magnitude ...
+		{name='m', value=9.109383e-31, units='kg'},			-- mass ... of what? of the particle? of the field? but the field is *everywhere* ... mass of *everything* ?
 	}
 end
 

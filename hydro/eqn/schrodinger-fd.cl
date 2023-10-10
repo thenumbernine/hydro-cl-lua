@@ -8,11 +8,18 @@ void <?=applyInitCondCell?>(
 	global <?=cell_t?> const * const cell
 ) {
 	real3 const x = cell->pos;
+	
+	// TODO this is special-case for the init/nls that was made for solver/nls
 	real const r = fabs(x.x);
+
+	//TODO this is also in nls, but I should rename it to psi ...
 	cplx q = cplx_zero;
+	cplx V = cplx_zero;
+
 // hydro.init.nls sets cplx q
 <?=initCode()
 ?>	U->psi = q;
+	U->V = V;
 }
 
 //// MODULE_NAME: <?=addSource?>
@@ -77,7 +84,7 @@ kernel void <?=addSource?>(
 	
 	real const hBar = solver->hBar;
 	real const m = solver->m;
-	real const V = 0.;	// TODO a field of this
+	cplx const V = U->V;	// TODO a field of this
 
 	// i ℏ Ψ_,t = - ℏ^2/(2 m) Ψ_;j^j + V Ψ
 	// Ψ_,t = i ℏ/(2 m) Ψ_;j^j - i V / ℏ Ψ
@@ -85,8 +92,8 @@ kernel void <?=addSource?>(
 	deriv->psi = cplx_add3(
 		deriv->psi,
 		// TODO is particle-mass constant?  after all ... you're talking about the mass *of a field* ...
-		cplx_real_mul(cplx_mul(cplx_i, lapPsi), hBar / (2 * m)),
+		cplx_real_mul(cplx_imul(lapPsi), hBar / (2 * m)),
 		// TODO is potential energy V complex?
-		cplx_real_mul(cplx_mul(cplx_i, U->psi), -V / hBar)
+		cplx_mul(cplx_imul(U->psi), cplx_real_mul(V, -1. / hBar))
 	);
 }

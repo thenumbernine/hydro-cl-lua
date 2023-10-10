@@ -491,7 +491,7 @@ local args = {
 	--initCond = 'Maxwell scattering around Koch snowflake',
 	--initCond = 'Maxwell wire',
 	--initCond = 'Maxwell transverse waves',
-	initCond = 'Maxwell charged particle',
+	--initCond = 'Maxwell charged particle',
 
 	-- hmm, I think I need a fluid solver for this, not just a Maxwell solver ...
 	--initCond = 'Maxwell Lichtenberg',
@@ -679,6 +679,7 @@ local args = {
 	---- piggybacking for my wave-finite-difference here: ----
 	--initCond = 'Wave-FD Gaussian',
 	--initCond = 'Wave-FD Bessel',
+	initCond = 'electron in potential',
 
 	-- multi-devices
 	multiSlices = {cmdline.multiSlices or 2, 1, 1},

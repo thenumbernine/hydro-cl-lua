@@ -1510,6 +1510,7 @@ static inline real cplx_arg(cplx a);
 static inline real cplx_dot(cplx a, cplx b);
 static inline cplx cplx_add(cplx a, cplx b);
 static inline cplx cplx_sub(cplx a, cplx b);
+static inline cplx cplx_imul(cplx a);
 static inline cplx cplx_mul(cplx a, cplx b);
 static inline cplx cplx_real_mul(cplx a, real b);
 #define real_cplx_mul(a,b)	cplx_real_mul(b,a)
@@ -1553,6 +1554,12 @@ static inline cplx cplx_mul(cplx a, cplx b) {
 	return _cplx(
 		a.re * b.re - a.im * b.im,
 		a.re * b.im + a.im * b.re);
+}
+
+// there's enough i*'s out there so ...
+// this is basically 2D-perpendicular operation
+static inline cplx cplx_imul(cplx a) {
+	return _cplx(-a.im, a.re);
 }
 
 static inline cplx cplx_real_add(cplx a, real b) {
