@@ -327,7 +327,7 @@ function TwoFluidEMHD:getDisplayVars()
 			name = 'EField',
 			code = 'value.vreal3 = calc_EField(solver, U);',
 			type = 'real3',
-			units = '(kg*m)/(C*s)',
+			units = '(kg*m)/(C*s^2)',
 		},
 		{
 			name = 'HField',

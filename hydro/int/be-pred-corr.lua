@@ -6,7 +6,7 @@ the "non-stiff problems" implementation, which is assuming that the derivative c
 
 U[0](t + Δt) = U(t)
 U[i+1](t + Δt) = U(t) + Δt ∂U/∂t(t + Δt, U[i](t + Δt))
-U(t + Δt) = lim i->∞ U[i](t + Δt)
+U(t + Δt) = lim i→ ∞ U[i](t + Δt)
 --]]
 local ffi = require 'ffi'
 local class = require 'ext.class'

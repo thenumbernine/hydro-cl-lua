@@ -153,7 +153,7 @@ function GLM_Maxwell:getDisplayVars()
 	
 	local vars = GLM_Maxwell.super.getDisplayVars(self)
 	vars:append{ 
-		{name = 'E', code = self:template[[	value.v<?=vec3?> = calc_E(U);]], type=env.vec3, units='(kg*m)/(C*s)'},
+		{name = 'E', code = self:template[[	value.v<?=vec3?> = calc_E(U);]], type=env.vec3, units='(kg*m)/(C*s^2)'},
 		{name = 'H', code = self:template[[	value.v<?=vec3?> = calc_H(U);]], type=env.vec3, units='C/(m*s)'},
 		{name = 'S', code = self:template[[	value.v<?=vec3?> = <?=vec3?>_cross(calc_E(U), calc_H(U));]], type=env.vec3, units='kg/s^3'},
 		{

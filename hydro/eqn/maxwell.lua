@@ -168,7 +168,7 @@ function Maxwell:getDisplayVars()
 		{name='E', code=self:template[[
 //// MODULE_DEPENDS: <?=eqn_common?>
 value.v<?=vec3?> = calc_E(U);
-]], type=env.vec3, units='(kg*m)/(C*s)'},
+]], type=env.vec3, units='(kg*m)/(C*s^2)'},
 		{name='H', code=self:template[[
 //// MODULE_DEPENDS: <?=eqn_common?>
 value.v<?=vec3?> = calc_H(U);
