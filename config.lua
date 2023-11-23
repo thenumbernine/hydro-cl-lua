@@ -351,7 +351,7 @@ local args = {
 	--initCond = 'jet',	-- TODO naming initialization mixup with srhd and this problem
 
 
-	--initCond = 'Sod',
+	initCond = 'Sod',
 	--initCondArgs = {dim=cmdline.displayDim},
 	--[[ real-world vars for Sod ... which are a few orders higher, and therefore screw up the backward-euler solver
 	-- 		which means, todo, redo the backward euler error metric so it is independent of magnitude ... ?   seems I removed that for another numerical error reason.
@@ -679,7 +679,7 @@ local args = {
 	---- piggybacking for my wave-finite-difference here: ----
 	--initCond = 'Wave-FD Gaussian',
 	--initCond = 'Wave-FD Bessel',
-	initCond = 'electron in potential',
+	--initCond = 'electron in potential',
 
 	-- multi-devices
 	multiSlices = {cmdline.multiSlices or 2, 1, 1},
@@ -788,7 +788,7 @@ self.solvers:insert(require 'hydro.solver.weno'(table(args, {
 -- compressible Euler equations
 
 
---self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
+self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
 
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct bounded'})))	-- this is the default hllCalcWaveMethod
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct'})))
@@ -1132,7 +1132,7 @@ With hyperbolic gamma driver shift it has trouble.
 -- finite-difference Schrodinger equation
 
 --self.solvers:insert(require 'hydro.solver.fdonly_solver'(table(args, {fixedDT=.01, eqn='schrodinger-fd', integrator='backward Euler'})))
-self.solvers:insert(require 'hydro.solver.fdonly_solver'(table(args, {fixedDT=.00001, eqn='schrodinger-fd', integrator='Iterative Crank-Nicolson'})))
+--self.solvers:insert(require 'hydro.solver.fdonly_solver'(table(args, {fixedDT=.00001, eqn='schrodinger-fd', integrator='Iterative Crank-Nicolson'})))
 
 
 -- unstructured meshes
