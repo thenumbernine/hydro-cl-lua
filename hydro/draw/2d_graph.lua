@@ -2,7 +2,7 @@
 local class = require 'ext.class'
 local path = require 'ext.path'
 local vec3f = require 'vec-ffi.vec3f'
-local gl = require 'ffi.OpenGL'
+local gl = require 'gl'
 local vector = require 'ffi.cpp.vector'
 local Draw = require 'hydro.draw.draw'
 

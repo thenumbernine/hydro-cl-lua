@@ -1,5 +1,5 @@
 -- maybe a better name would be '1d_graph'?
-local gl = require 'ffi.OpenGL'
+local gl = require 'gl'
 local class = require 'ext.class'
 local vec3f = require 'vec-ffi.vec3f'
 local path = require 'ext.path'
