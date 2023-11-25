@@ -12,7 +12,7 @@ path'../..':cd()
 local cols = table()
 local rows = table()
 
-local f = io.open(dir..'/var-ranges.txt', 'w')
+local f = (dir/'var-ranges.txt'):open'w'
 
 cmdline = {sys='console'}
 

@@ -257,7 +257,7 @@ for _,cfg in ipairs(configurations) do
 	local destMovieName = nameForConfig(cfg, args)..'.mp4'
 	print(destMovieName)
 	
-	if path(rundir..'/'..destMovieName):exists() then
+	if (rundir/destMovieName):exists() then
 		print("I already found movie "..destMovieName)
 	else
 		local movieStartTime = cfg.movieStartTime or 0
@@ -314,7 +314,7 @@ for _,cfg in ipairs(configurations) do
 		-- once we're done ...
 		local ext = app.screenshotExts[app.screenshotExtIndex]
 		local dir = 'screenshots/'..app.screenshotDir
-		assert(run('ffmpeg -y -i "'..dir..'/%05d.'..ext..'" "'..rundir..'/'..destMovieName..'"'))
+		assert(run('ffmpeg -y -i "'..dir..'/%05d.'..ext..'" '..(rundir/destMovieName):escape()))
 		for i=0,app.screenshotIndex-1 do
 			path(dir..('/%05d.'):format(i)..ext):remove()
 		end

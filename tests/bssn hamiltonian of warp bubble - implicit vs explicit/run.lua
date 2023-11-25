@@ -21,7 +21,7 @@ for _,info in ipairs{
 	{'be', 'backward Euler'},
 } do
 	local suffix, integrator= table.unpack(info)
-	local f = io.open(dir..'/var-ranges-'..suffix..'.txt', 'w')
+	local f = (dir/('var-ranges-'..suffix..'.txt')):open'w'
 
 	local App = require 'hydro.app':subclass()
 	

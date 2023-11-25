@@ -14,7 +14,7 @@ local path = require 'ext.path'
 local rundir = path:cwd()
 
 --local resultsDir = 'results'
---path(rundir..'/'..resultsDir):mkdir()
+--(rundir/resultsDir):mkdir()
 path'../..':cd()
 
 -- set this global to have hydro run in console mode
@@ -30,10 +30,10 @@ local HydroApp = require 'hydro.app':subclass()
 -- share across all app instances
 HydroApp.allnames = {}
 
-local configs = dofile(rundir..'/config.lua')	-- could use 'require' but there is another in the newly added package.path
+local configs = dofile((rundir/'config.lua').path)	-- could use 'require' but there is another in the newly added package.path
 for _,config in ipairs(configs) do
-	local resultFile = rundir..'/results-'..config.name..'.txt'
-	if not path(resultFile):exists() then
+	local resultFile = rundir/('results-'..config.name..'.txt')
+	if not resultFile:exists() then
 		
 		-- another TODO for hydro.app ... reuse names for matching ctypes
 		local data = table()
@@ -71,7 +71,7 @@ for _,config in ipairs(configs) do
 		end
 
 		function HydroApp:requestExit()
-			path(resultFile):write(
+			resultFile:write(
 				'#t\t'..table.mapi(config.trackVars, function(varName)
 					return varName..' min\t'
 						..varName..' avg\t'
@@ -89,7 +89,7 @@ for _,config in ipairs(configs) do
 	end
 end
 
-path(rundir):cd()
+rundir:cd()
 
 print('configs done -- plotting...')
 --os.execute('gnuplot plot.gnuplot')

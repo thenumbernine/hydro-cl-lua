@@ -23,7 +23,7 @@ local rundir = path:cwd()
 
 -- in case it's needed
 local resultsDir = 'results'
-path(rundir..'/'..resultsDir):mkdir()
+(rundir/resultsDir):mkdir()
 
 -- from here on the require's expect us to be in the hydro-cl directory
 -- I should change this, and prefix all hydro-cl's require()s with 'hydro-cl', so it is require()able from other projects
@@ -57,7 +57,7 @@ local plotErrorHistory = cmdline.history
 -- exclusive with 'compare': don't use exact, instead use exponential regression
 local uselin = cmdline.uselin
 
-local schemeCfgs = require 'ext.fromlua'(path(rundir..'/schemes.lua'):read())
+local schemeCfgs = require 'ext.fromlua'((rundir/'schemes.lua'):read())
 
 local problems = {}
 
@@ -140,8 +140,8 @@ print(destName)
 		.ys[index] 
 	--]]
 	local testdata
-	local srcfn = rundir..'/'..resultsDir..'/'..destFilename..'.lua'
-	local srcfiledata = path(srcfn):read()
+	local srcpath = rundir/resultsDir/(destFilename..'.lua')
+	local srcfiledata = srcpath:read()
 	if srcfiledata then
 		testdata = fromlua(srcfiledata)
 	end
@@ -295,7 +295,7 @@ print()
 		end
 	end
 	testdata.name = destName
-	path(srcfn):write(tolua(testdata))
+	srcpath:write(tolua(testdata))
 local errors = sizes:map(function(size) return testdata.size[size].error end)
 print('error:',table.last(errors))
 	errorsForConfig:insert(errors)

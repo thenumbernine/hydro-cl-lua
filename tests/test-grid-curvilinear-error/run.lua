@@ -196,7 +196,7 @@ end) do
 	print(cmd)
 	print(os.execute(cmd))
 
-	assert(path(DIR):cd())
+	assert(DIR:cd())
 	
 	-- update our global matrix and write out
 	updateIndex()
