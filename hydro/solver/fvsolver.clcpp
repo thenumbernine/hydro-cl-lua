@@ -1,5 +1,6 @@
 //// MODULE_NAME: <?=FVSolver?>
 //// MODULE_DEPENDS: <?=Solver?>
+//// MODULE_DEPENDS: realparam
 // I don't plan to use this name in the c++ code anywhere
 // I just need a unique name for all the fvsolver kernels to reference
 
