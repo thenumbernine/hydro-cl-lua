@@ -142,7 +142,7 @@ function Draw2DGraph:prepareShader()
 			scale = 1,
 			ambient = 1,
 		},
-	}
+	}:useNone()
 end
 
 return Draw2DGraph

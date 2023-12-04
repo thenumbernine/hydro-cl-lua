@@ -169,7 +169,7 @@ function DrawVectorStateLine:prepareShader()
 			tex = 0,
 			--gradientTex = 1,
 		},
-	}
+	}:useNone()
 end
 
 return DrawVectorStateLine

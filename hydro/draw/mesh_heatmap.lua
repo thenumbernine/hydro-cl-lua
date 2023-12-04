@@ -13,8 +13,8 @@ function DrawMeshHeatmap:drawSolverWithVar(var, heatMap2DShader)
 	solver:calcDisplayVarToTex(var)
 
 	local tex = solver:getTex()
-	tex:bind(0)
-	tex:setParameter(gl.GL_TEXTURE_MAG_FILTER, app.displayBilinearTextures and gl.GL_LINEAR or gl.GL_NEAREST)
+		:bind(0)
+		:setParameter(gl.GL_TEXTURE_MAG_FILTER, app.displayBilinearTextures and gl.GL_LINEAR or gl.GL_NEAREST)
 
 --[[ 110 fps: glVertexAttrib prim calls
 	gl.glBegin(gl.GL_TRIANGLES)
@@ -33,9 +33,9 @@ error("I once again need to straighten out the ctor/usage of GLProgram vs its at
 	GLVertexArray:disableAttrs(solver.heatMapShaderAttrs)
 --]]
 -- [[ 150fps: glVertexArray
-	solver.heatMap2DShader.vao:use()
+	solver.heatMap2DShader.vao:bind()
 	gl.glDrawArrays(gl.GL_TRIANGLES, 0, solver.numGlVtxs * 3)
-	solver.heatMap2DShader.vao:useNone()
+	solver.heatMap2DShader.vao:unbind()
 --]]
 	tex:unbind(0)
 end
@@ -131,9 +131,9 @@ function DrawMeshHeatmap:display(varName, ar)
 		gl.glUniformMatrix4fv(solver.drawPointsShader.uniforms.modelViewProjectionMatrix.loc, 1, 0, app.view.modelViewProjectionMatrix.ptr)
 		gl.glUniform1f(solver.drawPointsShader.uniforms.drawCellScale.loc, solver.drawCellScale)
 
-		solver.drawPointsShader.vao:use()
+		solver.drawPointsShader.vao:bind()
 		gl.glDrawArrays(gl.GL_TRIANGLES, 0, solver.numGlVtxs * 3)
-		solver.drawPointsShader.vao:useNone()
+		solver.drawPointsShader.vao:unbind()
 
 		solver.drawPointsShader:useNone()
 
@@ -155,9 +155,9 @@ function DrawMeshHeatmap:display(varName, ar)
 		gl.glUniformMatrix4fv(solver.drawPointsShader.uniforms.modelViewProjectionMatrix.loc, 1, 0, app.view.modelViewProjectionMatrix.ptr)
 		gl.glUniform1f(solver.drawPointsShader.uniforms.drawCellScale.loc, solver.drawCellScale)
 
-		solver.drawPointsShader.vao:use()
+		solver.drawPointsShader.vao:bind()
 		gl.glDrawArrays(gl.GL_TRIANGLES, 0, solver.numGlVtxs * 3)
-		solver.drawPointsShader.vao:useNone()
+		solver.drawPointsShader.vao:unbind()
 
 		solver.drawPointsShader:useNone()
 
@@ -254,7 +254,7 @@ function DrawMeshHeatmap:prepareShader()
 			vtxcenter = solver.glvtxcenterArrayBuffer,
 			cellindex = solver.glcellindexArrayBuffer,
 		},
-	}
+	}:useNone()
 end
 
 return DrawMeshHeatmap

@@ -121,12 +121,12 @@ function DrawVectorField:showDisplayVar(var, varName, ar, xmin, xmax, ymin, ymax
 		solver.vectorArrowGLVtxArrayBuffer = GLArrayBuffer{
 			data = self.glvtxs.v,
 			size = #self.glvtxs * ffi.sizeof(self.glvtxs.type)
-		}
+		}:unbind()
 
 		solver.vectorArrowGLCentersArrayBuffer = GLArrayBuffer{
 			data = self.glcenters.v,
 			size = #self.glcenters * ffi.sizeof(self.glcenters.type)
-		}
+		}:unbind()
 
 		solver.vectorArrowVAO = GLVertexArray{
 			program = shader,
@@ -162,14 +162,14 @@ function DrawVectorField:showDisplayVar(var, varName, ar, xmin, xmax, ymin, ymax
 	gl.glEnd()
 --]]
 -- [[ glVertexArray
-	solver.vectorArrowVAO:use()
+	solver.vectorArrowVAO:bind()
 	gl.glDrawArrays(gl.GL_LINES, 0, arrowCount * #arrow)
-	solver.vectorArrowVAO:useNone()
+	solver.vectorArrowVAO:unbind()
 --]]
 --[[ glVertexArray with glDrawArraysInstanced (not fully implemented - just speed testing) doesn't go noticably faster  than glDrawArrays
-	solver.vectorArrowVAO:use()
+	solver.vectorArrowVAO:bind()
 	gl.glDrawArraysInstancedARB(gl.GL_LINES, 0, #arrow, arrowCount)
-	solver.vectorArrowVAO:useNone()
+	solver.vectorArrowVAO:unbind()
 --]]
 
 	app.gradientTex:unbind(1)
@@ -221,7 +221,7 @@ function DrawVectorField:prepareShader()
 			tex = 0,
 			gradientTex = 1,
 		},
-	}
+	}:useNone()
 end
 
 return DrawVectorField

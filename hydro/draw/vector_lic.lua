@@ -25,7 +25,7 @@ var.solver = solver
 	solver:calcDisplayVarToTex(var)
 
 	local tex = solver:getTex(var)
-	tex:bind(0)
+		:bind(0)
 		:setParameter(gl.GL_TEXTURE_MAG_FILTER, app.displayBilinearTextures and gl.GL_LINEAR or gl.GL_NEAREST)
 	self.noiseTex:bind(2)
 
@@ -214,7 +214,7 @@ function DrawVectorLIC:prepareShader()
 			gradientTex = 1,
 			noiseTex = 2,
 		},
-	}
+	}:useNone()
 end
 
 return DrawVectorLIC

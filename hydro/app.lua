@@ -187,6 +187,7 @@ local targetSystem = cmdline.sys or 'imguiapp'
 -- -- that will probalby mean lots of pcalls around requires
 local gl
 local sdl
+local GLProgram
 local GLGradientTex
 local GLTex2D
 local Font
@@ -194,6 +195,7 @@ local Mouse
 if targetSystem ~= 'console' then
 	gl = require 'gl'
 	sdl = require 'ffi.req' 'sdl'
+	GLProgram = require 'gl.program'
 	GLGradientTex = require 'gl.gradienttex'
 	Mouse = require 'glapp.mouse'
 	GLTex2D = require 'gl.tex2d'
@@ -742,7 +744,6 @@ static inline bool OOB(
 		end
 
 
-		local GLProgram = require 'gl.program'
 		self.isobarShader = GLProgram{
 			vertexCode = [[
 varying vec4 color;
@@ -762,21 +763,27 @@ void main() {
 	gl_FragColor = vec4(color.rgb * n.z, color.a);
 }
 ]],
-		}
+		}:useNone()
 
 		if not cmdline.disableFont then
+			local Image = require 'image'
+			local fontimage = Image'font.png'
 			local fonttex = GLTex2D{
-				filename = 'font.png',
+				image = fontimage,
 				minFilter = gl.GL_LINEAR_MIPMAP_LINEAR,
 				magFilter = gl.GL_LINEAR,
 			}
 			if not pcall(function()
-				gl.glGenerateMipmap(gl.GL_TEXTURE_2D)
+				fonttex:generateMipmap()
 			end) then
-				fonttex:setParameter(gl.GL_TEXTURE_MIN_FILTER, gl.GL_NEAREST)
-				fonttex:setParameter(gl.GL_TEXTURE_MAG_FILTER, gl.GL_LINEAR)
+				fonttex
+					:setParameter(gl.GL_TEXTURE_MIN_FILTER, gl.GL_NEAREST)
+					:setParameter(gl.GL_TEXTURE_MAG_FILTER, gl.GL_LINEAR)
 			end
-			self.font = Font{tex = fonttex}
+			self.font = Font{
+				image = fontimage,
+				tex = fonttex,
+			}
 		end
 
 		-- todo reorganize me
@@ -866,7 +873,7 @@ HydroCLApp.predefinedPaletteIndex = cmdline.palette and HydroCLApp.predefinedPal
 
 function HydroCLApp:setGradientTexColors(colors)
 	self.gradientTex = GLGradientTex(1024, colors, false)	-- false = don't wrap the colors...
-	self.gradientTex:setWrap{s = gl.GL_REPEAT}	-- ...but do use GL_REPEAT
+		:setWrap{s = gl.GL_REPEAT}	-- ...but do use GL_REPEAT
 	-- hmm, only on my AMD, intermittantly the next time the tex is bound it will raise an INVALID_OPERATION upon the next bind
 	-- maybe this is all because I'm using TEXTURE_1D for the gradientTex?
 	-- maybe AMD doesn't like 1D textures so much?
@@ -1077,7 +1084,7 @@ function HydroCLApp:saveHeatMapBufferImages()
 	--[[
 	local FBO = require 'gl.fbo'
 	local fbo = FBO()
-	fbo:unbind()
+		:unbind()
 	--]]
 	for _,solver in ipairs(self.solvers) do
 		local tex = solver.tex
