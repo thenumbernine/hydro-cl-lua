@@ -694,7 +694,7 @@ if cmdline.solver then self.solvers:insert(require('hydro.solver.'..cmdline.solv
 -- simple wave equation, no time/space coupling via background metric
 
 
---self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='wave'})))
+self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='wave'})))
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='wave'})))
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='rusanov', eqn='wave'})))
 --self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='wave', wenoMethod='1996 Jiang Shu', order=5})))
@@ -761,7 +761,7 @@ self.solvers:insert(require 'hydro.solver.weno'(table(args, {
 -- compressible Euler equations
 
 
-self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
+--self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
 
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod=0})))	-- 'Davis direct'
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod=1})))	-- 'Davis direct bounded' -- this is the default hllCalcWaveMethod

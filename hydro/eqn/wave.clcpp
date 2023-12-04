@@ -383,6 +383,32 @@ using Eqn = WaveEqn;
 
 }	//namespace <?=Solver?>
 
+// TODO use the one in hydro/eqn/eqn.clcpp
+// TODO std::forward implementation
+kernel void <?=calcDT?>(
+	constant <?=solver_t?> const * const psolver,
+	global real * const dtBuf,
+	global <?=cons_t?> const * const UBuf,
+	global <?=cell_t?> const * const cellBuf
+<?
+if require "hydro.solver.meshsolver":isa(solver) then
+?>	,
+	global <?=face_t?> const * const faces,
+	global int const * const cellFaceIndexes
+<?
+end
+?>
+) {
+	auto const & solver = *psolver;
+	<?=Solver?>::Eqn::calcDT(solver, dtBuf, UBuf, cellBuf
+<?
+if require "hydro.solver.meshsolver":isa(solver) then
+?>, faces, cellFaceIndexes
+<?
+end
+?>	);
+}
+
 kernel void <?=applyInitCond?>(
 	constant <?=solver_t?> const * const psolver,
 	constant <?=initCond_t?> const * const pinitCond,
