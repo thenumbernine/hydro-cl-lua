@@ -556,7 +556,7 @@ function SolverBase:initMeshVars(args)
 
 	-- my kernel objs are going to need workgroup info based on domain.size-2*noGhost as well as domain.size ...
 	-- ...and rather than require an extra argument, I think I'll just take advantage of a closure
-	local Program = class(require 'cl.obj.program')
+	local Program = require 'cl.obj.program':subclass()
 
 	-- I'm tempted to merge the two cl oop libs...
 	require 'cl.program'.showCodeOnError = false
@@ -582,7 +582,7 @@ function SolverBase:initMeshVars(args)
 
 
 	if self.app.targetSystem ~= 'console' then
-		local GLProgram = class(require 'gl.program')
+		local GLProgram = require 'gl.program':subclass()
 		function GLProgram:init(...)
 			local args = ...
 

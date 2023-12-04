@@ -1,8 +1,7 @@
-local class = require 'ext.class'
 local table = require 'ext.table'
 local InitCond = require 'hydro.init.init'
 
-local TwoFluidInitCond = class(InitCond)
+local TwoFluidInitCond = InitCond:subclass()
 
 local initConds = table{
 	{
@@ -74,7 +73,7 @@ local initConds = table{
 	},
 
 }:mapi(function(cl)
-	return class(TwoFluidInitCond, cl)
+	return TwoFluidInitCond:subclass(cl)
 end)
 
 function TwoFluidInitCond:getList()

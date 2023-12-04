@@ -5,12 +5,11 @@ cited as 1998 Wilcox' version of Navier-Stokes
 k-omega turbulence model of Navier Stokes method for finite volume
 --]]
 
-local class = require 'ext.class'
 local table = require 'ext.table'
 local materials = require 'hydro.materials'
 local Equation = require 'hydro.eqn.eqn'
 
-local NavierStokesWilcox = class(Equation)
+local NavierStokesWilcox = Equation:subclass()
 NavierStokesWilcox.name = 'navstokes_wilcox'
 
 NavierStokesWilcox.numWaves = 7	-- v-a, v,v,v,v,v, v+a

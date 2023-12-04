@@ -6,7 +6,6 @@ based on GMRES, easily swappable for any other OpenCL krylov solver of your choi
 
 local ffi = require 'ffi'
 local ig = require 'imgui'
-local class = require 'ext.class'
 local math = require 'ext.math'
 local template = require 'template'
 local CLBuffer = require 'cl.obj.buffer'
@@ -16,7 +15,7 @@ local Integrator = require 'hydro.int.int'
 --local CLKrylov = require 'solver.cl.conjres'
 local CLKrylov = require 'solver.cl.gmres'
 
-local ThisKrylov = class(CLKrylov)
+local ThisKrylov = CLKrylov:subclass()
 
 function ThisKrylov:newBuffer(name)
 	if not self.cache then self.cache = {} end
@@ -28,7 +27,7 @@ function ThisKrylov:newBuffer(name)
 	return cached
 end
 
-local BackwardEuler = class(Integrator)
+local BackwardEuler = Integrator:subclass()
 
 BackwardEuler.name = 'backward Euler'
 

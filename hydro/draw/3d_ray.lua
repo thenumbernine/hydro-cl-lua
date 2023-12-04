@@ -1,4 +1,3 @@
-local class = require 'ext.class'
 local path = require 'ext.path'
 local gl = require 'gl'
 local glreport = require 'gl.report'
@@ -28,7 +27,7 @@ local quadsInCube = {
 	2,3,7,6,
 }
 
-local Draw3DRay = class(Draw)
+local Draw3DRay = Draw:subclass()
 
 Draw3DRay.useIsos = false
 Draw3DRay.numIsobars = 20

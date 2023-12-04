@@ -1,10 +1,9 @@
-local class = require 'ext.class'
 local path = require 'ext.path'
 local gl = require 'gl'
 local Draw = require 'hydro.draw.draw'
 
 
-local Draw2DHeatmap = class(Draw)
+local Draw2DHeatmap = Draw:subclass()
 
 function Draw2DHeatmap:drawSolverWithVar(var, shader, xmin, xmax, ymin, ymax)
 	local solver = self.solver

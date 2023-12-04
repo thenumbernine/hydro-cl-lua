@@ -16,11 +16,10 @@ Not doing so means our wavespeeds are all the speed of light, and we can't contr
 
 --]]
 local ffi = require 'ffi'
-local class = require 'ext.class'
 local table = require 'ext.table'
 local Equation = require 'hydro.eqn.eqn'
 
-local GLM_Maxwell = class(Equation)
+local GLM_Maxwell = Equation:subclass()
 GLM_Maxwell.name = 'glm_maxwell'
 
 GLM_Maxwell.roeUseFluxFromCons = true

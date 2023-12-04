@@ -1,10 +1,9 @@
 local table = require 'ext.table'
-local class = require 'ext.class'
 local path = require 'ext.path'
 local template = require 'template'
 local Relaxation = require 'hydro.op.relaxation'
 
-local PoissonJacobi = class(Relaxation)
+local PoissonJacobi = Relaxation:subclass()
 
 PoissonJacobi.name = 'poisson_jacobi'
 

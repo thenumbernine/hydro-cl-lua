@@ -1,4 +1,3 @@
-local class = require 'ext.class'
 local table = require 'ext.table'
 local path = require 'ext.path'
 local ig = require 'imgui'
@@ -12,7 +11,7 @@ local Poisson = require(
 )
 
 
-local SRHDSelfGrav = class(Poisson)
+local SRHDSelfGrav = Poisson:subclass()
 
 SRHDSelfGrav.name = 'srhd_selfgrav'
 SRHDSelfGrav.enableField = 'useGravity'

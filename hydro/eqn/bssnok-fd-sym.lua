@@ -12,7 +12,6 @@ rescaled tensors are denoted _U _L etc
 Then I'm double checking all against (and borrowing heavily from) Zach Etienne's SENR: https://math.wvu.edu/~zetienne/SENR/
 --]]
 local path = require 'ext.path'
-local class = require 'ext.class'
 local table = require 'ext.table'
 local template = require 'template'
 local common = require 'hydro.common'
@@ -20,7 +19,7 @@ local time, getTime = table.unpack(require 'hydro.util.time')
 local BSSNOKFiniteDifferenceEquationBase = require 'hydro.eqn.bssnok-fd'
 local Struct = require 'hydro.code.struct'
 
-local BSSNOKFiniteDifferenceEquation = class(BSSNOKFiniteDifferenceEquationBase)
+local BSSNOKFiniteDifferenceEquation = BSSNOKFiniteDifferenceEquationBase:subclass()
 BSSNOKFiniteDifferenceEquation.name = 'BSSNOK finite difference'
 
 -- not used with finite-difference schemes anyways

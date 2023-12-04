@@ -9,12 +9,11 @@ then I bumped it up to GRHD by incorporating (fixed) α's β's and γ's
 and then I thought "why not keep the old SRHD solver around"
 so viola, here it is.
 --]]
-local class = require 'ext.class'
 local table = require 'ext.table'
 local Equation = require 'hydro.eqn.eqn'
 local Struct = require 'hydro.code.struct'
 
-local SRHD = class(Equation)
+local SRHD = Equation:subclass()
 SRHD.name = 'SRHD'
 
 -- 11 without SPos, 12 with SPot
@@ -97,7 +96,7 @@ function SRHD:init(args)
 				-- TODO TODO now jacobi is crashing as well.  seems I broke something.
 			}
 		
-			local SRHDNoDiv = class(NoDiv)
+			local SRHDNoDiv = NoDiv:subclass()
 --[[ srhd needs to refresh primitives after updating conservatives in the nodiv step
 -- unless you're doing the update-prim-and-recalc-cons method.  then no need.
 			function SRHDNoDiv:step(dt)

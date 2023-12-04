@@ -1,9 +1,8 @@
-local class = require 'ext.class'
 local table = require 'ext.table'
 local template = require 'template'
 local SelfGrav = require 'hydro.op.selfgrav'
 
-local TwoFluidSelfGrav = class(SelfGrav)
+local TwoFluidSelfGrav = SelfGrav:subclass()
 
 TwoFluidSelfGrav.name = 'twofluid_selfgrav'
 

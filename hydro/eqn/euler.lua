@@ -1,9 +1,8 @@
-local class = require 'ext.class'
 local table = require 'ext.table'
 local Equation = require 'hydro.eqn.eqn'
 
 
-local Euler = class(Equation)
+local Euler = Equation:subclass()
 Euler.name = 'euler'
 
 -- ePot is the 6th param

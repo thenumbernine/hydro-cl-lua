@@ -1,4 +1,3 @@
-local class = require 'ext.class'
 local ForwardEuler = require 'hydro.int.fe'
 local IterativeCrankNicolson = require 'hydro.int.icn'
 local BackwardEuler = require 'hydro.int.be'
@@ -8,7 +7,7 @@ local RungeKutta = require 'hydro.int.rk'
 
 --the following are from https://en.wikipedia.org/wiki/List_of_Runge%E2%80%93Kutta_methods#Classic_fourth-order_method
 
-local RungeKutta2 = class(RungeKutta)
+local RungeKutta2 = RungeKutta:subclass()
 RungeKutta2.name = 'Runge-Kutta 2'
 RungeKutta2.alphas = {
 	{1,0},
@@ -19,7 +18,7 @@ RungeKutta2.betas = {
 	{0, 1},
 }
 
-local RungeKutta2Heun = class(RungeKutta)
+local RungeKutta2Heun = RungeKutta:subclass()
 RungeKutta2Heun.name = 'Runge-Kutta 2 Heun'
 RungeKutta2Heun.alphas = { 
 	{1, 0},
@@ -30,7 +29,7 @@ RungeKutta2Heun.betas = {
 	{.5, .5},
 }
 
-local RungeKutta2Ralston = class(RungeKutta)
+local RungeKutta2Ralston = RungeKutta:subclass()
 RungeKutta2Ralston.name = 'Runge-Kutta 2 Ralston'
 RungeKutta2Ralston.alphas = {
 	{1, 0},
@@ -41,7 +40,7 @@ RungeKutta2Ralston.betas = {
 	{1./4., 3./4.},
 }
 
-local RungeKutta3 = class(RungeKutta)
+local RungeKutta3 = RungeKutta:subclass()
 RungeKutta3.name = 'Runge-Kutta 3'
 RungeKutta3.alphas = {
 	{1, 0, 0},
@@ -54,7 +53,7 @@ RungeKutta3.betas = {
 	{1./6., 2./6., 1./6.},
 }
 
-local RungeKutta4 = class(RungeKutta)
+local RungeKutta4 = RungeKutta:subclass()
 RungeKutta4.name = 'Runge-Kutta 4'
 RungeKutta4.alphas = {
 	{1, 0, 0, 0},
@@ -69,7 +68,7 @@ RungeKutta4.betas = {
 	{1./6., 2./6., 2./6., 1./6.},
 }
 
-local RungeKutta4_3_8thsRule = class(RungeKutta)
+local RungeKutta4_3_8thsRule = RungeKutta:subclass()
 RungeKutta4_3_8thsRule.name = 'Runge-Kutta 4, 3/8ths rule'
 RungeKutta4_3_8thsRule.alphas = {
 	{1, 0, 0, 0},
@@ -86,7 +85,7 @@ RungeKutta4_3_8thsRule.betas = {
 
 --the following are from 1998 Gottleib, Shu "Total Variation Diminishing Runge-Kutta Methods"
 
-local RungeKutta2TVD = class(RungeKutta)
+local RungeKutta2TVD = RungeKutta:subclass()
 RungeKutta2TVD.name = 'Runge-Kutta 2, TVD'
 RungeKutta2TVD.alphas = {
 	{1, 0},
@@ -97,7 +96,7 @@ RungeKutta2TVD.betas = {
 	{0, .5},
 }
 
-local RungeKutta2NonTVD = class(RungeKutta)
+local RungeKutta2NonTVD = RungeKutta:subclass()
 RungeKutta2NonTVD.name = 'Runge-Kutta 2, non-TVD'
 RungeKutta2NonTVD.alphas = {
 	{1, 0},
@@ -108,7 +107,7 @@ RungeKutta2NonTVD.betas = {
 	{41./40., -1./40.},
 }
 
-local RungeKutta3TVD = class(RungeKutta)
+local RungeKutta3TVD = RungeKutta:subclass()
 RungeKutta3TVD.name = 'Runge-Kutta 3, TVD'
 RungeKutta3TVD.alphas = {
 	{1, 0, 0},
@@ -121,7 +120,7 @@ RungeKutta3TVD.betas = {
 	{0, 0, 2/3},
 }
 
-local RungeKutta4TVD = class(RungeKutta)
+local RungeKutta4TVD = RungeKutta:subclass()
 RungeKutta4TVD.name = 'Runge-Kutta 4, TVD'
 RungeKutta4TVD.alphas = {
 	{1, 0, 0, 0},
@@ -139,7 +138,7 @@ RungeKutta4TVD.betas = {
 -- this one is from 1995 Jiang, Shu "Efficient Implementation of Weighted ENO Schemes"
 --  found at http://lsec.cc.ac.cn/lcfd/DEWENO/paper/WENO_1996.pdf
 
-local RungeKutta4NonTVD = class(RungeKutta)
+local RungeKutta4NonTVD = RungeKutta:subclass()
 RungeKutta4NonTVD.name = 'Runge-Kutta 4, non-TVD'
 RungeKutta4NonTVD.alphas = {
 	{1, 0, 0, 0},

@@ -1,5 +1,4 @@
 local ffi = require 'ffi'
-local class = require 'ext.class'
 local path = require 'ext.path'
 local vec2f = require 'vec-ffi.vec2f'
 local vec3f = require 'vec-ffi.vec3f'
@@ -19,7 +18,7 @@ local arrow = {
 	{.5, 0.},
 }
 
-local DrawVectorField = class(Draw)
+local DrawVectorField = Draw:subclass()
 
 
 -- TODO move to draw/vectorfield

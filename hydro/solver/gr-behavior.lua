@@ -3,11 +3,10 @@ this looks a lot like GRHDBehavior
 it does the same thing -- adds 'getADMArgs' and 'getADMVarCode' for the eqn to use
 make it a behavior for adding ADM args to eqns
 --]]
-local class = require 'ext.class'
 local template = require 'template'
 
 return function(parent)
-	local templateClass = class(parent)
+	local templateClass = parent:subclass()
 	
 	-- hydro/eqn/grhd.cl needs this implemented for deducing alpha, beta, gamma
 	function templateClass:getADMArgs()

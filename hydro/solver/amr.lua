@@ -5,7 +5,6 @@ now to change hydro/solver/gridsolver so I can somehow modify the mins/maxs with
 ...
 --]]
 local ffi = require 'ffi'
-local class = require 'ext.class'
 local table = require 'ext.table'
 local template = require 'template'
 local vec3sz = require 'vec-ffi.vec3sz'
@@ -114,7 +113,7 @@ local function createBuffersAMR(self)
 end
 
 return function(cl)
-	cl = class(cl)
+	cl = cl:subclass()
 
 	local subcl
 
@@ -438,7 +437,7 @@ print("creating depth "..tonumber(self.amr.depth).." child "..tonumber(i))
 
 	-- maybe I shouldn't make a subclass
 	-- maybe a patchlevel class is a better idea
-	subcl = class(cl)
+	subcl = cl:subclass()
 
 	function subcl:initObjs(args)
 		self.parent = assert(args.parent)

@@ -66,7 +66,7 @@ function PoissonKrylov:initSolver()
 	local CLKrylov = require('solver.cl.'..self.linearSolverType)
 
 	-- can I combine this with the CLKrylov in int/be.lua somehow?
-	local ThisKrylov = class(CLKrylov)
+	local ThisKrylov = CLKrylov:subclass()
 
 	function ThisKrylov:newBuffer(name)
 		if not self.cache then self.cache = {} end

@@ -1,10 +1,9 @@
 --[[
 based on 2014 Oliveira et al - Ergoregion instability- The hydrodynamic vortex
 --]]
-local class = require 'ext.class'
 local GridSolver = require 'hydro.solver.gridsolver'
 
-local WaveFDSolver = class(GridSolver)
+local WaveFDSolver = GridSolver:subclass()
 WaveFDSolver.name = 'Wave-FD'
 WaveFDSolver.eqnName = 'wave-fd'
 WaveFDSolver.fixedDT = 1e-5
@@ -30,7 +29,7 @@ end
 -- how hard would it be to just put it in solver_t and update it immediately?
 local real = require 'hydro.real'
 
-WaveFDSolver.DisplayVar_U = class(WaveFDSolver.DisplayVar_U)
+WaveFDSolver.DisplayVar_U = WaveFDSolver.DisplayVar_U:subclass()
 
 function WaveFDSolver.DisplayVar_U:setArgs(kernel)
 	WaveFDSolver.DisplayVar_U.super.setArgs(self, kernel)

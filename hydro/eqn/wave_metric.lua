@@ -1,11 +1,10 @@
 -- check out my 'wave equation hyperbolic form' worksheet
 local ffi = require 'ffi'
-local class = require 'ext.class'
 local table = require 'ext.table'
 local Equation = require 'hydro.eqn.eqn'
 
 
-local WaveMetric = class(Equation)
+local WaveMetric = Equation:subclass()
 WaveMetric.name = 'wave_metric'
 
 WaveMetric.roeUseFluxFromCons = true

@@ -1,5 +1,4 @@
 local ffi = require 'ffi'
-local class = require 'ext.class'
 local table = require 'ext.table'
 local path = require 'ext.path'
 local range = require 'ext.range'
@@ -15,7 +14,7 @@ local sym = common.sym
 
 
 -- TODO make this work with ops, specifically Euler's SelfGrav
-local EulerBurgers = class(FiniteVolumeSolver)
+local EulerBurgers = FiniteVolumeSolver:subclass()
 EulerBurgers.name = 'EulerBurgers'
 
 function EulerBurgers:init(...)
@@ -39,7 +38,7 @@ end
 
 -- TODO put this in its own eqn file? eqn/euler-burgers.lua?
 local EulerEqn = require 'hydro.eqn.euler'
-local EulerBurgersEqn = class(EulerEqn)
+local EulerBurgersEqn = EulerEqn:subclass()
 function EulerBurgersEqn:initCodeModule_calcDTCell() end
 
 function EulerBurgers:createEqn()

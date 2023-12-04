@@ -4,12 +4,11 @@ with additional GEM (φ_g, A_g)
 so that means no need for op/selfgrav because it's now built in as (φ, A)
 --]]
 
-local class = require 'ext.class'
 local table = require 'ext.table'
 local Euler = require 'hydro.eqn.euler'
 
 
-local EulerLinGR = class(Euler)
+local EulerLinGR = Euler:subclass()
 
 EulerLinGR.numWaves = nil
 EulerLinGR.numIntStates = nil

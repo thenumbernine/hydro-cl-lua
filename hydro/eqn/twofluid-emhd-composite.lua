@@ -57,7 +57,7 @@ what do I have to change to get it to match the manually create twofluid-emhd.lu
 
 local Composite = require 'hydro.eqn.composite'
 
-local TwoFluidEMHDComposite = class(Composite)
+local TwoFluidEMHDComposite = Composite:subclass()
 
 TwoFluidEMHDComposite.name = 'twofluid_emhd_composite'
 

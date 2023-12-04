@@ -26,7 +26,7 @@ local half = require 'cl.obj.half'
 local toreal, fromreal = half.toreal, half.fromreal
 
 
-local MeshSolver = class(SolverBase)
+local MeshSolver = SolverBase:subclass()
 
 MeshSolver.name = 'meshsolver'
 
@@ -227,7 +227,7 @@ function Boundary:assignDstSrc(dst, src, args)
 	return lines:concat'\n'
 end
 
-local BoundaryNone = class(Boundary)
+local BoundaryNone = Boundary:subclass()
 BoundaryNone.name = 'none'
 function BoundaryNone:getCode(args)
 	return ''
@@ -237,7 +237,7 @@ end
 -- but 'periodic' is not so clear for unstructured grids
 -- so we'd need some kind of "read from arbitrary neighbor cell"
 
-local BoundaryMirror = class(Boundary)
+local BoundaryMirror = Boundary:subclass()
 BoundaryMirror.name = 'mirror'
 BoundaryMirror.restitution = 1
 function BoundaryMirror:init(args)
@@ -300,7 +300,7 @@ function BoundaryMirror:getCode(args)
 	return lines:concat'\n'
 end
 
-local BoundaryFixed = class(Boundary)
+local BoundaryFixed = Boundary:subclass()
 BoundaryFixed.name = 'fixed'
 function BoundaryFixed:init(args)
 	-- fixed values to use
@@ -312,7 +312,7 @@ function BoundaryFixed:getCode(args)
 end
 MeshSolver.BoundaryFixed = BoundaryFixed 
 
-local BoundaryFreeFlow = class(Boundary)
+local BoundaryFreeFlow = Boundary:subclass()
 BoundaryFreeFlow.name = 'freeflow'
 function BoundaryFreeFlow:getCode(args)
 	local dst = assert(args.dst)
@@ -676,7 +676,7 @@ end
 -- hmm, if something else require's solverbase and uses SolverBase.DisplayVar before this does 
 -- then won't it get the wrong class? (compared to if this require's first before it does?)
 local DisplayVar = MeshSolver.DisplayVar
-local MeshSolverDisplayVar = class(DisplayVar)
+local MeshSolverDisplayVar = DisplayVar:subclass()
 MeshSolver.DisplayVar = MeshSolverDisplayVar
 
 function MeshSolverDisplayVar:setArgs(kernel)

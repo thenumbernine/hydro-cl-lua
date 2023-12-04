@@ -16,12 +16,11 @@ I could work around this by scaling down the Maxwell eigenvalues by sqrt(det(g))
  then in the post-flux code, transform D and B by g_ij
  and in the source terms, add to ion_ and elec_ m^i connection values
 --]]
-local class = require 'ext.class'
 local table = require 'ext.table'
 local Equation = require 'hydro.eqn.eqn'
 
 
-local TwoFluidEMHD = class(Equation)
+local TwoFluidEMHD = Equation:subclass()
 
 local fluids = table{'ion', 'elec'}
 TwoFluidEMHD.fluids = fluids

@@ -3,12 +3,11 @@
 similar to SRHD except using a metric based on a metric of alpha, beta, gamma
 which needs to be provided externally from another solver (via gr-hd-separate-behavior)
 --]]
-local class = require 'ext.class'
 local table = require 'ext.table'
 local Equation = require 'hydro.eqn.eqn'
 local Struct = require 'hydro.code.struct'
 
-local GRHD = class(Equation)
+local GRHD = Equation:subclass()
 GRHD.name = 'GRHD'
 
 --GRHD.numStates = 10

@@ -1,13 +1,12 @@
 --[[
 From 2010 Colliander, Simpso, Sulem - Numerical Simulations of the Energy-Supercritical nonlinear Schrodinger equation
 --]]
-local class = require 'ext.class'
 local table = require 'ext.table'
 local Equation = require 'hydro.eqn.eqn'
 
 local xNames = require 'hydro.common'.xNames
 
-local NLSEqn = class(Equation)
+local NLSEqn = Equation:subclass()
 NLSEqn.name = 'nls'
 
 -- TODO just use cplx_t?
@@ -20,7 +19,7 @@ NLSEqn.initConds = require 'hydro.init.nls':getList()
 
 function NLSEqn:createBoundaryOptions()
 	local Boundary = self.solver.Boudary
-	local BoundaryOscillating = class(Boundary)
+	local BoundaryOscillating = Boundary:subclass()
 	BoundaryOscillating.name = 'oscillating'
 	function BoundaryOscillating:getCode(args)
 		local index = args.index
@@ -43,7 +42,7 @@ function NLSEqn:createBoundaryOptions()
 	end
 	self.solver:addBoundaryOption(BoundaryOscillating)
 	
-	local BoundaryFixed = class(Boundary)	
+	local BoundaryFixed = Boundary:subclass()	
 	BoundaryFixed.name = 'fixed'
 	function BoundaryFixed:getCode(args)
 		local index = args.index

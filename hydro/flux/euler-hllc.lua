@@ -1,8 +1,7 @@
-local class = require 'ext.class'
 local table = require 'ext.table'
 local HLL = require 'hydro.flux.hll'
 
-local EulerHLLC = class(HLL)
+local EulerHLLC = HLL:subclass()
 
 EulerHLLC.name = 'euler-hllc'
 EulerHLLC.solverCodeFile = 'hydro/flux/euler-hllc.clcpp'

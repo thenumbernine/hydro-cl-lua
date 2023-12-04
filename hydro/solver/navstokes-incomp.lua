@@ -1,9 +1,8 @@
-local class = require 'ext.class'
 local path = require 'ext.path'
 local real = require 'hydro.real'
 local GridSolver = require 'hydro.solver.gridsolver'
 
-local NavierStokesIncompressible = class(GridSolver)
+local NavierStokesIncompressible = GridSolver:subclass()
 NavierStokesIncompressible.name = 'NavierStokesIncompressible' 
 NavierStokesIncompressible.eqnName = 'navstokes-incomp'
 

@@ -70,7 +70,6 @@ d/dt T = (∂_t - L_β) T ... where L_β is the Lie-derivative in the shift dire
 
 --]]
 
-local class = require 'ext.class'
 local table = require 'ext.table'
 local symmath = require 'symmath'
 local EinsteinEqn = require 'hydro.eqn.einstein'
@@ -82,7 +81,7 @@ local symNames = common.symNames
 local sym = common.sym
 
 
-local Z4_2004Bona = class(EinsteinEqn)
+local Z4_2004Bona = EinsteinEqn:subclass()
 Z4_2004Bona.name = 'Z4_2004Bona'
 
 --[[

@@ -6,9 +6,7 @@ return function(args)
 		parentClass = args and args.poissonSolver or require 'hydro.op.poisson_krylov'
 	end
 
-	local class = require 'ext.class'
-
-	local NoDiv = class(parentClass)
+	local NoDiv = parentClass:subclass()
 	NoDiv.name = 'NoDiv'
 
 	-- which cons_t field to store the solved potential value in

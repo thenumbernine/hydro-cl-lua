@@ -1,8 +1,7 @@
 local table = require 'ext.table'
-local class = require 'ext.class'
 local Equation = require 'hydro.eqn.eqn'
 
-local Composite = class(Equation)
+local Composite = Equation:subclass()
 
 Composite.name = 'composite'
 

@@ -1,8 +1,7 @@
-local class = require 'ext.class'
 local table = require 'ext.table'
 local GridSolver = require 'hydro.solver.gridsolver'
 
-local EinsteinFiniteDifferenceSolver = class(GridSolver)
+local EinsteinFiniteDifferenceSolver = GridSolver:subclass()
 
 -- TODO make a gui variable for numGhost
 -- hmm, can I do that without rebuilding solverProgram every time it changes?

@@ -3,7 +3,6 @@ Based on Alcubierre 2008 "Introduction to 3+1 Numerical Relativity" on the chapt
 The first Bona-Masso formalism.
 --]]
 
-local class = require 'ext.class'
 local table = require 'ext.table'
 local symmath = require 'symmath'
 local EinsteinEqn = require 'hydro.eqn.einstein'
@@ -13,7 +12,7 @@ local common = require 'hydro.common'
 local xNames = common.xNames
 
 
-local ADM_BonaMasso_3D = class(EinsteinEqn)
+local ADM_BonaMasso_3D = EinsteinEqn:subclass()
 ADM_BonaMasso_3D.name = 'ADM_BonaMasso_3D'
 
 -- TODO this should be 'true',

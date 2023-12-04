@@ -1,10 +1,9 @@
-local class = require 'ext.class'
 local table = require 'ext.table'
 local Cube3DMeshFactory = require 'hydro.mesh.cube3d'
 local vec3d = require 'vec-ffi.vec3d'
 local vec3i = require 'vec-ffi.vec3i'
 
-local Sphere3DMeshFactory = class(Cube3DMeshFactory)
+local Sphere3DMeshFactory = Cube3DMeshFactory:subclass()
 
 Sphere3DMeshFactory.name = 'sphere3d'
 

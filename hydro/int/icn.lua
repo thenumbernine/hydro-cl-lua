@@ -1,10 +1,9 @@
 local ffi = require 'ffi'
-local class = require 'ext.class'
 local CLBuffer = require 'cl.obj.buffer'
 local Integrator = require 'hydro.int.int'
 local real = require 'hydro.real'
 
-local IterativeCrankNicolson = class(Integrator)
+local IterativeCrankNicolson = Integrator:subclass()
 	
 IterativeCrankNicolson.name = 'iterative Crank-Nicolson'
 

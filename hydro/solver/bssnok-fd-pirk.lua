@@ -5,7 +5,7 @@ local real = require 'hydro.real'
 local CLBuffer = require 'cl.obj.buffer'
 local BSSNOKFiniteDifferenceSolver = require 'hydro.solver.bssnok-fd'
 
-local BSSNOKFiniteDifferencePIRKSolver = class(BSSNOKFiniteDifferenceSolver)
+local BSSNOKFiniteDifferencePIRKSolver = BSSNOKFiniteDifferenceSolver:subclass()
 BSSNOKFiniteDifferencePIRKSolver.name = 'BSSNOK_FiniteDifference_PIRK'
 
 function BSSNOKFiniteDifferencePIRKSolver:createEqn()

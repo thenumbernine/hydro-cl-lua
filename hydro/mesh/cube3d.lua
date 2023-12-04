@@ -1,4 +1,3 @@
-local class = require 'ext.class'
 local vec3sz = require 'vec-ffi.vec3sz'
 local vec3i = require 'vec-ffi.vec3i'
 local vec3d = require 'vec-ffi.vec3d'
@@ -6,7 +5,7 @@ local vector = require 'ffi.cpp.vector'
 local Mesh = require 'hydro.mesh.mesh'
 local MeshFactory = require 'hydro.mesh.factory'
 
-local Cube3DMeshFactory = class(MeshFactory)
+local Cube3DMeshFactory = MeshFactory:subclass()
 
 Cube3DMeshFactory.name = 'cube3d'
 Cube3DMeshFactory.dim = 3

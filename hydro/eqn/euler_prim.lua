@@ -5,12 +5,11 @@ and that means the flux-jacobian is now the acoustic matrix + normal vel compone
 and that means ... i don't think the d/dW (A + I v) * dW is now integratable into any sort of flux vector ...
 so now HLL won't work with this
 --]]
-local class = require 'ext.class'
 local table = require 'ext.table'
 local Equation = require 'hydro.eqn.eqn'
 
 
-local Euler = class(Equation)
+local Euler = Equation:subclass()
 Euler.name = 'euler_prim'
 
 Euler.initConds = require 'hydro.init.euler':getList()

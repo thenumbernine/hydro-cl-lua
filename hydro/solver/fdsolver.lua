@@ -1,11 +1,10 @@
 -- cell-centered finite-difference solver
 local ffi = require 'ffi'
-local class = require 'ext.class'
 local table = require 'ext.table'
 local path = require 'ext.path'
 local GridSolver = require 'hydro.solver.gridsolver'
 
-local FiniteDifferenceSolver = class(GridSolver)
+local FiniteDifferenceSolver = GridSolver:subclass()
 FiniteDifferenceSolver.name = 'FiniteDifference'
 
 FiniteDifferenceSolver.numGhost = 2

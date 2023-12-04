@@ -1,4 +1,3 @@
-local class = require 'ext.class'
 local table = require 'ext.table'
 local path = require 'ext.path'
 local EinsteinEqn = require 'hydro.eqn.einstein'
@@ -7,7 +6,7 @@ local common = require 'hydro.common'
 local xNames = common.xNames
 
 
-local BSSNOKFiniteDifferenceEquationBase = class(EinsteinEqn)
+local BSSNOKFiniteDifferenceEquationBase = EinsteinEqn:subclass()
 
 -- seems all the hyperbolic formalisms listed in Alcubierre's book use alpha sqrt(gamma^ii) for the speed-of-light wavespeed
 -- however the 2017 Ruchlin paper says to use gamma_ij

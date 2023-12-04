@@ -1,7 +1,6 @@
-local class = require 'ext.class'
 local Equation = require 'hydro.eqn.eqn'
 
-local NavierStokesDivFree = class(Equation)
+local NavierStokesDivFree = Equation:subclass()
 NavierStokesDivFree.name = 'Navier-Stokes div-free' 
 
 NavierStokesDivFree.numStates = 4

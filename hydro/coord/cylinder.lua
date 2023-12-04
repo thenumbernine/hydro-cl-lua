@@ -12,7 +12,6 @@ r dr dφ
 same thing, good thing
 --]]
 
-local class = require 'ext.class'
 local table = require 'ext.table'
 local symmath = require 'symmath'
 local template = require 'template'
@@ -21,7 +20,7 @@ local CoordinateSystem = require 'hydro.coord.coord'
 local sin, cos = symmath.sin, symmath.cos
 local Tensor = symmath.Tensor
 
-local Cylinder = class(CoordinateSystem)
+local Cylinder = CoordinateSystem:subclass()
 Cylinder.name = 'cylinder'
 
 function Cylinder:init(args)

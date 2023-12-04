@@ -1,7 +1,6 @@
-local class = require 'ext.class'
 local Quad2DMeshFactory = require 'hydro.mesh.quad2d'
 
-local Quad2DWithBoxRemovedMeshFactory = class(Quad2DMeshFactory)
+local Quad2DWithBoxRemovedMeshFactory = Quad2DMeshFactory:subclass()
 
 function Quad2DWithBoxRemovedMeshFactory:testMakeCell(i,j)
 	local sx = tonumber(self.size.x)

@@ -12,7 +12,6 @@ https://github.com/python-hydro/hydro_examples/blob/master/compressible/weno_coe
 TODO incorporate parallel propagators
 --]]
 local ffi = require 'ffi'
-local class = require 'ext.class'
 local table = require 'ext.table'
 local range = require 'ext.range'
 local path = require 'ext.path'
@@ -27,7 +26,7 @@ local from6to3x3 = common.from6to3x3
 local sym = common.sym
 
 
-local WENO = class(FiniteVolumeSolver)
+local WENO = FiniteVolumeSolver:subclass()
 WENO.name = 'WENO'
 
 WENO.stencilSize = 3

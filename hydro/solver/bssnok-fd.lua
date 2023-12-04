@@ -1,8 +1,7 @@
-local class = require 'ext.class'
 local table = require 'ext.table'
 local EinsteinFiniteDifferenceSolver = require 'hydro.solver.einstein-fd' 
 
-local BSSNOKFiniteDifferenceSolver = class(EinsteinFiniteDifferenceSolver)
+local BSSNOKFiniteDifferenceSolver = EinsteinFiniteDifferenceSolver:subclass()
 BSSNOKFiniteDifferenceSolver.name = 'BSSNOK_FiniteDifference'
 
 -- split into bssnok-fd-num and bssnok-fd-sym

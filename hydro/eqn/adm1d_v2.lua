@@ -77,11 +77,10 @@ why do I have to use a matrix that reconstructs without them?
 
 --]]
 
-local class = require 'ext.class'
 local table = require 'ext.table'
 local EinsteinEqn = require 'hydro.eqn.einstein'
 
-local ADM_BonaMasso_1D_1997Alcubierre = class(EinsteinEqn)
+local ADM_BonaMasso_1D_1997Alcubierre = EinsteinEqn:subclass()
 ADM_BonaMasso_1D_1997Alcubierre.name = 'ADM_BonaMasso_1D_1997_Alcubierre'
 
 ADM_BonaMasso_1D_1997Alcubierre.numStates = 5
