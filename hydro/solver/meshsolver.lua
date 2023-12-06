@@ -623,7 +623,7 @@ function MeshSolver:initCodeModules()
 	-- TODO move this to hydro.code.math?
 	self.modules:add{
 		name = 'vec2i_t',
-		typecode = vec2i.typeCode,
+		typecode = vec2i.code,
 	}
 --]]
 
