@@ -631,7 +631,7 @@ function MeshSolver:initCodeModules()
 
 //// BEGIN EXCLUDE FOR FFI_CDEF
 
-]]..vec2i.typeCode..[[
+]]..vec2i.code..[[
 
 //// END EXCLUDE FOR FFI_CDEF
 
