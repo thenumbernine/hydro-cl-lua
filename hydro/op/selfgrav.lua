@@ -1,5 +1,4 @@
 local table = require 'ext.table'
-local class = require 'ext.class'
 local path = require 'ext.path'
 local ig = require 'imgui'
 local real = require 'hydro.real'	-- really 'realparam'
@@ -21,7 +20,7 @@ local Poisson = require(
 
 -- TODO Schurr filter instead of 2n+1 point filter.
 
-local SelfGrav = class(Poisson)
+local SelfGrav = Poisson:subclass()
 
 SelfGrav.name = 'selfgrav'
 SelfGrav.enableField = 'useGravity'

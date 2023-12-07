@@ -1,5 +1,4 @@
 -- TODO make use of app.display_useCoordMap
-local class = require 'ext.class'
 local path = require 'ext.path'
 local vec3f = require 'vec-ffi.vec3f'
 local gl = require 'gl'
@@ -7,7 +6,7 @@ local vector = require 'ffi.cpp.vector'
 local Draw = require 'hydro.draw.draw'
 
 
-local Draw2DGraph = class(Draw)
+local Draw2DGraph = Draw:subclass()
 
 Draw2DGraph.step = 1
 

@@ -1,7 +1,6 @@
-local class = require 'ext.class'
 local Quad2DMeshFactory = require 'hydro.mesh.quad2d'
 
-local Quad2DWithCylinderRemovedMeshFactory = class(Quad2DMeshFactory)
+local Quad2DWithCylinderRemovedMeshFactory = Quad2DMeshFactory:subclass()
 
 Quad2DWithCylinderRemovedMeshFactory.cylinderRadius = .2
 

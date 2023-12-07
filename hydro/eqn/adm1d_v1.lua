@@ -4,11 +4,10 @@ Based on Alcubierre 2008 "Introduction to 3+1 Numerical Relativity" 2008 chapter
 See comments in my gravitation-waves project adm1d_v1.lua file for the math.
 --]]
 
-local class = require 'ext.class'
 local table = require 'ext.table'
 local EinsteinEqn = require 'hydro.eqn.einstein'
 
-local ADM_BonaMasso_1D_2008Alcubierre = class(EinsteinEqn)
+local ADM_BonaMasso_1D_2008Alcubierre = EinsteinEqn:subclass()
 
 ADM_BonaMasso_1D_2008Alcubierre.name = 'ADM_BonaMasso_1D_2008Alcubierre' 
 

@@ -2,13 +2,12 @@
 https://www.researchgate.net/publication/2560062_Real-Time_Fluid_Dynamics_for_Games
 2003 Stam "Real-Time Fluid Dynamics for Games"
 --]]
-local class = require 'ext.class'
 local path = require 'ext.path'
 local table = require 'ext.table'
 local real = require 'hydro.real'
 local GridSolver = require 'hydro.solver.gridsolver'
 
-local NavierStokesIncompressible = class(GridSolver)
+local NavierStokesIncompressible = GridSolver:subclass()
 NavierStokesIncompressible.name = 'NavierStokesIncompressible' 
 NavierStokesIncompressible.eqnName = 'navstokes-incomp'
 

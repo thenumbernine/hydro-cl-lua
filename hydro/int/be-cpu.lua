@@ -2,13 +2,12 @@
 
 local ffi = require 'ffi'
 local ig = require 'imgui'
-local class = require 'ext.class'
 local math = require 'ext.math'
 local template = require 'template'
 local CLBuffer = require 'cl.obj.buffer'
 local Integrator = require 'hydro.int.int'
 
-local BackwardEuler = class(Integrator)
+local BackwardEuler = Integrator:subclass()
 
 BackwardEuler.name = 'backward Euler, CPU'
 

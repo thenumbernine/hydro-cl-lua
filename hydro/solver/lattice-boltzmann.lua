@@ -1,12 +1,11 @@
 local ffi = require 'ffi'
-local class = require 'ext.class'
 local table = require 'ext.table'
 local path = require 'ext.path'
 local vec3sz = require 'vec-ffi.vec3sz'
 local GridSolver = require 'hydro.solver.gridsolver'
 local real = require 'hydro.real'
 
-local LatticeBoltzmann = class(GridSolver)
+local LatticeBoltzmann = GridSolver:subclass()
 LatticeBoltzmann.name = 'LatticeBoltzmann'
 
 function LatticeBoltzmann:init(...)
@@ -94,7 +93,7 @@ bool solid
 real U[3^dim] ... 'f' in LBM literature
 --]]
 
-local LatticeBoltzmannEqn = class(require 'hydro.eqn.eqn')
+local LatticeBoltzmannEqn = require 'hydro.eqn.eqn':subclass()
 LatticeBoltzmannEqn.name = 'LatticeBoltzmann'
 LatticeBoltzmannEqn.initConds = require 'hydro.init.lattice-boltzmann':getList()
 function LatticeBoltzmannEqn:buildVars()

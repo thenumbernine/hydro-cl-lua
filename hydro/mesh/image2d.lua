@@ -1,9 +1,8 @@
-local class = require 'ext.class'
 local table = require 'ext.table'
 local Image = require 'image'
 local Quad2DMeshFactory = require 'hydro.mesh.quad2d'
 
-local Image2DMeshFactory = class(Quad2DMeshFactory)
+local Image2DMeshFactory = Quad2DMeshFactory:subclass()
 
 Image2DMeshFactory.name = 'image2d'
 

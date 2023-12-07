@@ -3,7 +3,6 @@ initial conditions for Euler fluid equations (and similar)
 slowly making this the home of all initial conditions...
 --]]
 local ffi = require 'ffi'
-local class = require 'ext.class'
 local table = require 'ext.table'
 local range = require 'ext.range'
 local math = require 'ext.math'
@@ -19,7 +18,7 @@ local xNames = common.xNames
 local minmaxs = common.minmaxs
 
 
-local EulerInitCond = class(InitCond)
+local EulerInitCond = InitCond:subclass()
 
 --[[
 create mins/maxs functions that are conditional on the solver.coord
@@ -285,7 +284,7 @@ end
 
 
 -- right now 'center' is provided in cartesian coordinates (i.e. post-applying coordMap)
-local SelfGravProblem = class(EulerInitCond)
+local SelfGravProblem = EulerInitCond:subclass()
 
 function SelfGravProblem:getRadiusCode(source)
 	return clnumber(source.radius)
@@ -352,7 +351,7 @@ local function addMaxwellOscillatingBoundary(args)
 	local dir = args.dir or 'y'
 
 	-- TODO addBoundaryOption?  only do this once?
-	local BoundaryOscillating = class(solver.Boundary)
+	local BoundaryOscillating = solver.Boundary:subclass()
 	BoundaryOscillating.name = 'oscillating'
 	function BoundaryOscillating:getCode(args)
 		local gridSizeSide = 'solver->gridSize.'..xNames[args.side]
@@ -429,7 +428,7 @@ assert(self.t)
 end
 
 
-local EulerAnalytical = class(EulerInitCond)
+local EulerAnalytical = EulerInitCond:subclass()
 
 function EulerAnalytical:finalizeInitStruct()
 	-- createInitStruct will overwrite self.guiVars ...
@@ -581,7 +580,7 @@ local initConds = table{
 	},
 	
 	-- 2017 Zingale "Introduction to Computational Astrophysics" section 7.9.3
-	class(EulerAnalytical, {
+	EulerAnalytical:subclass{
 		name = 'advect gaussian',
 		-- TODO fix the default case - it explodes
 		guiVars = {
@@ -617,7 +616,7 @@ local initConds = table{
 
 			return rhoExpr, vxExpr, vyExpr, vzExpr, PExpr
 		end,
-	}),
+	},
 
 	{
 		-- boundary waves seem to mess with this,
@@ -647,7 +646,7 @@ local initConds = table{
 		end,
 	},
 
-	class(EulerAnalytical, {
+	EulerAnalytical:subclass{
 		name = 'advect wave',
 		mins = {0,0,0},
 		maxs = {1,1,1},
@@ -685,7 +684,7 @@ local initConds = table{
 		
 			return rhoExpr, vxExpr, vyExpr, vzExpr, PExpr
 		end,
-	}),
+	},
 
 	-- test case vars
 	RiemannProblem{
@@ -1221,7 +1220,7 @@ end) then
 		getInitCondCode = function(self)
 			local solver = assert(self.solver)
 
-			local ProblemBoundary = class(solver.Boundary)
+			local ProblemBoundary = solver.Boundary:subclass()
 			
 			ProblemBoundary.name = 'jet boundary'
 		
@@ -2517,7 +2516,7 @@ end
 		}
 	end)(),
 
-	class(SelfGravProblem, {
+	SelfGravProblem:subclass{
 		name = 'self-gravitation test 1',
 		-- hmm, what about spherical coordinates...
 		--mins = {-1,-1,-1},
@@ -2528,9 +2527,9 @@ end
 		getRadiusCode = function(source)
 			return '.5 - .01 * (U->ptr[0] - .5)'
 		end,
-	}),
+	},
 
-	class(SelfGravProblem, {
+	SelfGravProblem:subclass{
 		name = 'self-gravitation test 1 spinning',
 		sources={
 			{
@@ -2550,9 +2549,9 @@ end
 			-- U->rho holds noise
 			return '.2 - .005 * (U->ptr[0] - .5)'
 		end,
-	}),
+	},
 
-	class(SelfGravProblem, {
+	SelfGravProblem:subclass{
 		name = 'self-gravitation test 2',
 		sources={
 			{
@@ -2564,9 +2563,9 @@ end
 				radius = .1,
 			},
 		},
-	}),
+	},
 
-	class(SelfGravProblem, {
+	SelfGravProblem:subclass{
 		-- TODO add tidal-locked rotations
 		name = 'self-gravitation test 2 orbiting',
 		sources = {
@@ -2591,9 +2590,9 @@ end
 ]],
 			},
 		},
-	}),
+	},
 	
-	class(SelfGravProblem, {
+	SelfGravProblem:subclass{
 		name = 'self-gravitation test 4',
 		sources={
 			{center={.25, .25, 0}, radius = .1},
@@ -2601,7 +2600,7 @@ end
 			{center={.25, -.25, 0}, radius = .1},
 			{center={-.25, -.25, 0}, radius = .1},
 		},
-	}),
+	},
 
 	{
 		name = 'self-gravitation soup',
@@ -2616,7 +2615,7 @@ end
 		end,
 	},
 
-	class(SelfGravProblem, {
+	SelfGravProblem:subclass{
 		name = 'self-gravitation Jeans, right?',
 		getRadiusCode = function(source)
 			return '.5 - .02 * (U->ptr[0] - .5)'
@@ -2630,7 +2629,7 @@ end
 	}
 ]]},
 		},
-	}),
+	},
 
 
 
@@ -3463,9 +3462,9 @@ In both cases it looks like F is wanted, not dF/dU.
 
 }:mapi(function(cl)
 	if EulerInitCond:isa(cl) then
-		return class(cl)
+		return cl:subclass()
 	end
-	return class(EulerInitCond, cl)
+	return EulerInitCond:subclass(cl)
 end)
 
 function EulerInitCond:getList()

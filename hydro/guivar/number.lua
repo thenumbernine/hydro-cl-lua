@@ -1,9 +1,8 @@
 local ig = require 'imgui'
-local class = require 'ext.class'
 local clnumber = require 'cl.obj.number'
 local GuiVar = require 'hydro.guivar.guivar'
 
-local GuiNumber = class(GuiVar)
+local GuiNumber = GuiVar:subclass()
 
 GuiNumber.ctype = 'real' 
 

@@ -1,6 +1,5 @@
 -- maybe a better name would be '1d_graph'?
 local gl = require 'gl'
-local class = require 'ext.class'
 local vec3f = require 'vec-ffi.vec3f'
 local path = require 'ext.path'
 local matrix_ffi = require 'matrix.ffi'
@@ -8,7 +7,7 @@ local vector = require 'ffi.cpp.vector'
 local Draw = require 'hydro.draw.draw'
 
 
-local Draw1D = class(Draw)
+local Draw1D = Draw:subclass()
 
 function Draw1D:showDisplayVar(var)
 	local solver = self.solver

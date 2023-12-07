@@ -2,7 +2,6 @@
 common functions for all Einstein field equation solvers
 --]]
 
-local class = require 'ext.class'
 local table = require 'ext.table'
 local path = require 'ext.path'
 local Equation = require 'hydro.eqn.eqn'
@@ -10,7 +9,7 @@ local Equation = require 'hydro.eqn.eqn'
 local common = require 'hydro.common'
 local xNames = common.xNames
 
-local EinsteinEquation = class(Equation)
+local EinsteinEquation = Equation:subclass()
 
 EinsteinEquation.initConds = table(require 'hydro.init.einstein':getList())
 do
@@ -62,7 +61,7 @@ end
 function EinsteinEquation:createBoundaryOptions()
 	local eqn = self
 	local Boundary = self.solver.Boudary
-	local BoundaryFixed = class(Boundary)
+	local BoundaryFixed = Boundary:subclass()
 	BoundaryFixed.name = 'fixed'
 	function BoundaryFixed:getCode(args)
 		local lines = table()

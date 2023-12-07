@@ -4,13 +4,12 @@ based on Athena's version of eigenvectors of derivative of adiabatic MHD flux wr
 ideal-mhd, divergence-free, conservative-based eigensystem
 --]]
 
-local class = require 'ext.class'
 local table = require 'ext.table'
 local constants = require 'hydro.constants'
 local Struct = require 'hydro.code.struct'
 local Equation = require 'hydro.eqn.eqn'
 
-local MHD = class(Equation)
+local MHD = Equation:subclass()
 
 MHD.name = 'mhd'
 

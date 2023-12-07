@@ -1,9 +1,8 @@
-local class = require 'ext.class'
 local table = require 'ext.table'
 local symmath = require 'symmath'
 local CoordinateSystem = require 'hydro.coord.coord'
 
-local Cartesian = class(CoordinateSystem)
+local Cartesian = CoordinateSystem:subclass()
 Cartesian.name = 'cartesian'
 
 function Cartesian:init(args)

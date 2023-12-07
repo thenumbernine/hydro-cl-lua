@@ -34,7 +34,7 @@ local function unpack(x)
 end
 
 
-local GridSolver = class(SolverBase)
+local GridSolver = SolverBase:subclass()
 
 GridSolver.name = 'gridsolver'
 
@@ -543,7 +543,7 @@ end
 
 
 -- subclass and override
-local DisplayVar = class(GridSolver.DisplayVar)
+local DisplayVar = GridSolver.DisplayVar:subclass()
 GridSolver.DisplayVar = DisplayVar
 
 
@@ -608,7 +608,7 @@ function Boundary:getCode(args)
 end
 
 -- this is purely for debugging.  annnd it doesn't crash, whereas rectangular grids are crashing...
-local BoundaryNone = class(Boundary)
+local BoundaryNone = Boundary:subclass()
 BoundaryNone.name = 'none'
 function BoundaryNone:getCode(args)
 	return ''
@@ -629,7 +629,7 @@ add a new field: 'fields' that says what fields to apply the boundary to
 --]]
 
 -- aka torus
-local BoundaryPeriodic = class(Boundary)
+local BoundaryPeriodic = Boundary:subclass()
 BoundaryPeriodic.name = 'periodic'
 function BoundaryPeriodic:getCode(args)
 	local gridSizeSide = 'solver->gridSize.'..xNames[args.side]
@@ -645,7 +645,7 @@ function BoundaryPeriodic:getCode(args)
 end
 
 -- TODO incorporate surface normal and restitution
-local BoundaryMirror = class(Boundary)
+local BoundaryMirror = Boundary:subclass()
 BoundaryMirror.name = 'mirror'
 BoundaryMirror.restitution = 1
 function BoundaryMirror:init(args)
@@ -740,7 +740,7 @@ end
 -- Dirichlet boundary conditions: constant values
 -- fixedCode = function(boundary, args, dst) 
 --	returns code, list of dependency module names
-local BoundaryFixed = class(Boundary)
+local BoundaryFixed = Boundary:subclass()
 BoundaryFixed.name = 'fixed'
 function BoundaryFixed:init(args)
 	-- fixed values to use
@@ -758,7 +758,7 @@ function BoundaryFixed:getCode(args)
 end
 GridSolver.BoundaryFixed = BoundaryFixed 
 
-local BoundaryFreeFlow = class(Boundary)
+local BoundaryFreeFlow = Boundary:subclass()
 BoundaryFreeFlow.name = 'freeflow'
 function BoundaryFreeFlow:getCode(args)
 	local dst, src
@@ -774,7 +774,7 @@ function BoundaryFreeFlow:getCode(args)
 end
 
 -- linear extrapolation
-local BoundaryLinear = class(Boundary)
+local BoundaryLinear = Boundary:subclass()
 BoundaryLinear.name = 'linear'
 function BoundaryLinear:getCode(args)
 	local dst, i1, i2
@@ -806,7 +806,7 @@ end
 
 -- quadratic extrapolation
 -- f[i] = 3*f[i+1] - 3*f[i+2] + f[i+3]
-BoundaryQuadratic = class(Boundary)
+BoundaryQuadratic = Boundary:subclass()
 BoundaryQuadratic.name = 'quadratic'
 function BoundaryQuadratic:getCode(args)
 	-- j is initialized from 0 to numGhost-1
@@ -853,7 +853,7 @@ for 3D (r,theta,phi), for theta in [0,pi), phi in [0,2pi) for cell[i][j][k] we u
 	This requires knowledge of the domain of the grid, and the boundary condition of the phi variable.
 	For now I'm just going to assume that the phi domain is [0,2pi)+c and has periodic boundary condition.
 --]]
-local BoundarySphereRMin = class(Boundary)
+local BoundarySphereRMin = Boundary:subclass()
 BoundarySphereRMin.name = 'sphereRMin'
 function BoundarySphereRMin:getCode(args)
 	local solver = args.solver
@@ -896,7 +896,7 @@ I'll assume theta is [0,pi) and phi is [-pi,pi]
 2D: (r, theta): 
 3D: (r, theta, phi): 
 --]]
-local BoundarySphereTheta = class(Boundary)
+local BoundarySphereTheta = Boundary:subclass()
 BoundarySphereTheta.name = 'sphereTheta'
 function BoundarySphereTheta:getCode(args)
 	local solver = args.solver
@@ -952,7 +952,7 @@ function BoundarySphereTheta:getCode(args)
 end
 
 
-local BoundaryCylinderRMin = class(Boundary)
+local BoundaryCylinderRMin = Boundary:subclass()
 BoundaryCylinderRMin.name = 'cylinderRMin'
 function BoundaryCylinderRMin:getCode(args)
 	local solver = args.solver

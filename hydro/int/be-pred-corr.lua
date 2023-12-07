@@ -9,7 +9,6 @@ U[i+1](t + Δt) = U(t) + Δt ∂U/∂t(t + Δt, U[i](t + Δt))
 U(t + Δt) = lim i→ ∞ U[i](t + Δt)
 --]]
 local ffi = require 'ffi'
-local class = require 'ext.class'
 local math = require 'ext.math'
 local CLBuffer = require 'cl.obj.buffer'
 local roundup = require 'hydro.util.roundup'
@@ -19,7 +18,7 @@ local real = require 'hydro.real'
 local half = require 'cl.obj.half'
 local toreal, fromreal = half.toreal, half.fromreal
 
-local BackwardEulerPredCorr = class(Integrator)
+local BackwardEulerPredCorr = Integrator:subclass()
 
 BackwardEulerPredCorr.name = 'backward Euler predictor-corrector'
 

@@ -1,8 +1,7 @@
-local class = require 'ext.class'
 local table = require 'ext.table'
 local InitCond = require 'hydro.init.init'
 
-local NLSInitCond = class(InitCond)
+local NLSInitCond = InitCond:subclass()
 
 local initConds = table{
 	{
@@ -125,7 +124,7 @@ print'TODO fix the numerical precision errors'
 		end,
 	},
 }:mapi(function(cl)
-	return class(NLSInitCond, cl)
+	return NLSInitCond:subclass(cl)
 end)
 
 function NLSInitCond:getList()

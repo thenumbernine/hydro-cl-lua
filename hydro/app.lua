@@ -247,7 +247,7 @@ for i,sys in ipairs(baseSystems) do
 	if targetSystem == name then
 		--print('trying to load system '..name..'...')
 		xpcall(function()
-			HydroCLApp = class(loader())
+			HydroCLApp = loader():subclass()
 		end, function(err)
 			io.stderr:write('...load failed with error:')
 			io.stderr:write(err..'\n'..debug.traceback())

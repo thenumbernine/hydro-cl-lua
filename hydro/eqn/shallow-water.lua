@@ -5,12 +5,11 @@ with help from:
 	2016 Titov et al - Development of MOST for Real-Time Tsunami Forecasting
 	https://en.wikipedia.org/wiki/Shallow_water_equations
 --]]
-local class = require 'ext.class'
 local table = require 'ext.table'
 local Equation = require 'hydro.eqn.eqn'
 
 
-local ShallowWater = class(Equation)
+local ShallowWater = Equation:subclass()
 ShallowWater.name = 'shallow_water'
 
 --[[

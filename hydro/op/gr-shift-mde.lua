@@ -1,8 +1,7 @@
-local class = require 'ext.class'
 local template = require 'template'
 local Relaxation = require 'hydro.op.relaxation'
 
-local MinimalDistortionEllipticShift = class(Relaxation)
+local MinimalDistortionEllipticShift = Relaxation:subclass()
 
 MinimalDistortionEllipticShift.name = 'MDEShift'
 

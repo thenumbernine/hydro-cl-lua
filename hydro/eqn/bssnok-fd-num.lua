@@ -11,12 +11,11 @@ rescaled tensors are denoted _U _L etc
 
 Then I'm double checking all against (and borrowing heavily from) Zach Etienne's SENR: https://math.wvu.edu/~zetienne/SENR/
 --]]
-local class = require 'ext.class'
 local table = require 'ext.table'
 local BSSNOKFiniteDifferenceEquationBase = require 'hydro.eqn.bssnok-fd'
 local Struct = require 'hydro.code.struct'
 
-local BSSNOKFiniteDifferenceEquation = class(BSSNOKFiniteDifferenceEquationBase)
+local BSSNOKFiniteDifferenceEquation = BSSNOKFiniteDifferenceEquationBase:subclass()
 
 BSSNOKFiniteDifferenceEquation.name = 'bssnok_fd_num' 
 

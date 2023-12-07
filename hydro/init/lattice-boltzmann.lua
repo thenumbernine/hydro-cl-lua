@@ -1,8 +1,7 @@
-local class = require 'ext.class'
 local table = require 'ext.table'
 local InitCond = require 'hydro.init.init'
 
-local LatticeBoltzmannInitCond = class(InitCond)
+local LatticeBoltzmannInitCond = InitCond:subclass()
 
 local initConds = table{
 	{
@@ -69,7 +68,7 @@ rho = rho0;
 		end,
 	},
 }:mapi(function(cl)
-	return class(LatticeBoltzmannInitCond, cl)
+	return LatticeBoltzmannInitCond:subclass(cl)
 end)
 
 function LatticeBoltzmannInitCond:getList()

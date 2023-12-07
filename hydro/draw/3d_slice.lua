@@ -1,12 +1,11 @@
 local table = require 'ext.table'
-local class = require 'ext.class'
 local path = require 'ext.path'
 local gl = require 'gl'
 local CartesianCoordinateSystem = require 'hydro.coord.cartesian'
 local Draw = require 'hydro.draw.draw'
 
 
-local Draw3DSlice = class(Draw)
+local Draw3DSlice = Draw:subclass()
 
 -- 2D
 local vertexesInQuad = {{0,0},{1,0},{1,1},{0,1}}

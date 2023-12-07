@@ -12,7 +12,6 @@ So even after fixing these and reproducing the flux Jacobian, I am still getting
 However things are working fine with my own eigenmodes<->left eigenvectors in the hydro/eqn/z4.lua file.
 --]]
 
-local class = require 'ext.class'
 local table = require 'ext.table'
 local symmath = require 'symmath'
 local EinsteinEqn = require 'hydro.eqn.einstein'
@@ -26,7 +25,7 @@ local from6to3x3 = common.from6to3x3
 local sym = common.sym
 
 
-local Z4_2008Yano = class(EinsteinEqn)
+local Z4_2008Yano = EinsteinEqn:subclass()
 Z4_2008Yano.name = 'z4_2008yano'
 
 -- TODO keep this as 'true' and instead implement 'fluxFromCons'

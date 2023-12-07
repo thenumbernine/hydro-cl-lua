@@ -28,10 +28,9 @@ let's do ordinary euler fluid equations first
 
 TODO how about a composite 'equation' ? instead of a composite solver file?
 --]]
-local class = require 'ext.class'
 local Equation = require 'hydro.eqn.eqn'
 
-local LinGR = class(Equation)
+local LinGR = Equation:subclass()
 LinGR.name = 'lingr'
 LinGR.usePressure = false
 

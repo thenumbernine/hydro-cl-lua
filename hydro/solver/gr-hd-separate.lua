@@ -26,7 +26,7 @@ function GRHDSeparateSolver:init(args)
 	local einsteinargs = solverargs.einstein or {}
 	self.app = assert(args.app)
 
-	local GRSolver = class(require 'hydro.solver.z4c-fd')
+	local GRSolver = require 'hydro.solver.z4c-fd':subclass()
 	function GRSolver:init(args)
 		GRSolver.super.init(self, table(args, {
 			initCond = einsteinargs.initCond or 'Minkowski',
@@ -37,7 +37,7 @@ function GRHDSeparateSolver:init(args)
 	local gr = GRSolver(args)
 	self.gr = gr
 
-	local HydroSolver = class(require 'hydro.solver.grhd-roe')
+	local HydroSolver = require 'hydro.solver.grhd-roe':subclass()
 	-- TODO :createCodePrefix() has been replaced with :initCodeModules()
 	function HydroSolver:createCodePrefix()
 		HydroSolver.super.createCodePrefix(self)
@@ -84,7 +84,7 @@ function GRHDSeparateSolver:init(args)
 ]], {gr=gr, args=args})
 	end
 	
-	HydroSolver.DisplayVar_U = class(HydroSolver.DisplayVar_U)
+	HydroSolver.DisplayVar_U = HydroSolver.DisplayVar_U:subclass()
 	function HydroSolver.DisplayVar_U:setArgs(kernel)
 		HydroSolver.DisplayVar_U.super.setArgs(self, kernel)
 		kernel:setArg(4, gr.UBuf)

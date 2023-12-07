@@ -1,4 +1,3 @@
-local class = require 'ext.class'
 local path = require 'ext.path'
 local gl = require 'gl'
 local ffi = require 'ffi'
@@ -212,7 +211,7 @@ end
 --]]
 
 
-local Draw3DIso = class(Draw)
+local Draw3DIso = Draw:subclass()
 
 function Draw3DIso:showDisplayVar(var)
 	local solver = self.solver

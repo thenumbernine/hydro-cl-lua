@@ -2,7 +2,6 @@
 This is a Solver that uses a fluxBuffer
 and that uses calcDerivFromFlux to update it
 --]]
-local class = require 'ext.class'
 local table = require 'ext.table'
 local range = require 'ext.range'
 local math = require 'ext.math'
@@ -14,7 +13,7 @@ local common = require 'hydro.common'
 local xNames = common.xNames
 
 
-local FiniteVolumeSolver = class(GridSolver)
+local FiniteVolumeSolver = GridSolver:subclass()
 
 FiniteVolumeSolver.name = 'fvsolver'
 

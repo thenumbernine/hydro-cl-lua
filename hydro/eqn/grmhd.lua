@@ -8,10 +8,9 @@ where are varying metrics incorporated in 2010 Anton?
 general relativistic ideal MHD
 (TODO do a resistivie GRMHD, which incorporates E as well)
 --]]
-local class = require 'ext.class'
 local Equation = require 'hydro.eqn.eqn'
 
-local GRMHD = class(Equation)
+local GRMHD = Equation:subclass()
 GRMHD.name = 'GRMHD'
 GRMHD.numStates = 9
 GRMHD.numWaves = 8

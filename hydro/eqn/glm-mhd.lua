@@ -5,13 +5,12 @@ tweaked it while looking at
 2009 Mignone, Tzeferacos - A Second-Order Unsplit Godunov Scheme for Cell-Centered MHD- the CTU-GLM scheme
 --]]
 
-local class = require 'ext.class'
 local table = require 'ext.table'
 local constants = require 'hydro.constants'
 local Struct = require 'hydro.code.struct'
 local Equation = require 'hydro.eqn.eqn'
 
-local MHD = class(Equation)
+local MHD = Equation:subclass()
 
 MHD.name = 'glm_mhd'
 

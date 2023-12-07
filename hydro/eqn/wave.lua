@@ -1,11 +1,10 @@
 -- simple wave equation with no extra background metric
 local ffi = require 'ffi'
-local class = require 'ext.class'
 local table = require 'ext.table'
 local Equation = require 'hydro.eqn.eqn'
 
 
-local Wave = class(Equation)
+local Wave = Equation:subclass()
 Wave.name = 'wave'
 
 Wave.roeUseFluxFromCons = true

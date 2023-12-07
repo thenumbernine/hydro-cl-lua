@@ -19,7 +19,7 @@ GREMSeparateSolver.name = 'GR+EM'
 function GREMSeparateSolver:init(args)
 	self.app = assert(args.app)
 
-	local GRSolver = class(require 'hydro.solver.bssnok-fd')
+	local GRSolver = require 'hydro.solver.bssnok-fd':subclass()
 	function GRSolver:init(args)
 		GRSolver.super.init(self, table(args, {
 			--initCond = 'black hole - isotropic',
@@ -31,7 +31,7 @@ function GREMSeparateSolver:init(args)
 	local gr = GRSolver(args)
 	self.gr = gr
 
-	local GRMaxwellSolver = class(require 'hydro.solver.gr-maxwell-roe')
+	local GRMaxwellSolver = require 'hydro.solver.gr-maxwell-roe':subclass()
 	-- TODO :createCodePrefix() has been replaced with :initCodeModules()
 	function GRMaxwellSolver:createCodePrefix()
 		GRMaxwellSolver.super.createCodePrefix(self)
@@ -72,7 +72,7 @@ function GREMSeparateSolver:init(args)
 ]], {gr=gr, args=args})
 	end
 
-	GRMaxwellSolver.DisplayVar_U = class(GRMaxwellSolver.DisplayVar_U)
+	GRMaxwellSolver.DisplayVar_U = GRMaxwellSolver.DisplayVar_U:subclass()
 	function GRMaxwellSolver.DisplayVar_U:setArgs(kernel)
 		GRMaxwellSolver.DisplayVar_U.super.setArgs(self, kernel)
 		kernel:setArg(4, gr.UBuf)

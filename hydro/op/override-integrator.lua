@@ -5,12 +5,10 @@ args:
 	integrator = which integrator class to override it with
 --]]
 return function(args)
-	local class = require 'ext.class'
-
 	local opClass = assert(args.op)
 	local integratorClass = assert(args.integrator)
 
-	local behavior = class(opClass) 
+	local behavior = opClass:subclass() 
 
 	function behavior:refreshSolverProgram()
 		if opClass.refreshSolverProgram then

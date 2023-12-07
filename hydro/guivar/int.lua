@@ -1,9 +1,8 @@
 local ffi = require 'ffi'
 local ig = require 'imgui'
-local class = require 'ext.class'
 local GuiVar = require 'hydro.guivar.guivar'
 
-local GuiInt = class(GuiVar)
+local GuiInt = GuiVar:subclass()
 
 GuiInt.ctype = 'int' 
 

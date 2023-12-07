@@ -1,7 +1,6 @@
-local class = require 'ext.class'
 local Quad2DMeshFactory = require 'hydro.mesh.quad2d'
 
-local Quad2DCubedMeshFactory = class(Quad2DMeshFactory)
+local Quad2DCubedMeshFactory = Quad2DMeshFactory:subclass()
 
 Quad2DCubedMeshFactory.name = 'quad2dcubed'
 

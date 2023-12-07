@@ -1,4 +1,3 @@
-local class = require 'ext.class'
 local table = require 'ext.table'
 local string = require 'ext.string'
 local path = require 'ext.path'
@@ -6,7 +5,7 @@ local vector = require 'ffi.cpp.vector'
 local Mesh = require 'hydro.mesh.mesh'
 local MeshFactory = require 'hydro.mesh.factory'
 
-local Edu2DGridMeshFactory = class(MeshFactory)
+local Edu2DGridMeshFactory = MeshFactory:subclass()
 
 -- .grid files from ossanworld.com / "I Do Like CFD"
 Edu2DGridMeshFactory.name = 'edu2dgrid'

@@ -43,7 +43,7 @@ local function TwoFluidEMHDBehavior(parent)
 		-- TODO scale elec->U.rho and elec->U.P down by 1/ionElectronMassRatio
 		--]]
 
-		local IonSolver = class(parent)
+		local IonSolver = parent:subclass()
 		IonSolver.eqnName = 'euler'
 		function IonSolver:init(args)
 			IonSolver.super.init(self, table(args, {initCond = ionInitState}))
@@ -51,7 +51,7 @@ local function TwoFluidEMHDBehavior(parent)
 		end
 		self.ion = IonSolver(args)
 
-		local ElectronSolver = class(parent)
+		local ElectronSolver = parent:subclass()
 		ElectronSolver.eqnName = 'euler'
 		function ElectronSolver:init(args)
 			ElectronSolver.super.init(self, table(args, {initCond = electronInitState}))
@@ -59,7 +59,7 @@ local function TwoFluidEMHDBehavior(parent)
 		end
 		self.electron = ElectronSolver(args)
 
-		local MaxwellSolver = class(parent)
+		local MaxwellSolver = parent:subclass()
 		MaxwellSolver.eqnName = 'glm-maxwell'
 		function MaxwellSolver:init(args)
 			MaxwellSolver.super.init(self, table(args, {initCond = emhdInitState}))

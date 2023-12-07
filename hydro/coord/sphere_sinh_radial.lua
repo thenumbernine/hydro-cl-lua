@@ -1,4 +1,3 @@
-local class = require 'ext.class'
 local table = require 'ext.table'
 local symmath = require 'symmath'
 local CoordinateSystem = require 'hydro.coord.coord'
@@ -10,7 +9,7 @@ local sin, cos = symmath.sin, symmath.cos
 local sinh = symmath.sinh
 local Tensor = symmath.Tensor
 
-local SphereLogRadial = class(CoordinateSystem)
+local SphereLogRadial = CoordinateSystem:subclass()
 SphereLogRadial.name = 'sphere_sinh_radial'
 
 -- I was trying to hold off on this, thinking it would save something somewhere, because the subsequent conn calcs were slow

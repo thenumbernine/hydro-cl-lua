@@ -2,11 +2,10 @@
 maxwell but extended to include ADM metric influence
 based on 2009 Alcubierre et al charged black holes
 --]]
-local class = require 'ext.class'
 local table = require 'ext.table'
 local Equation = require 'hydro.eqn.eqn'
 
-local GRMaxwell = class(Equation)
+local GRMaxwell = Equation:subclass()
 GRMaxwell.name = 'GRMaxwell'
 GRMaxwell.numStates = 10
 GRMaxwell.numWaves = 6

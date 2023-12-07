@@ -17,12 +17,11 @@ I could work around this by scaling down the Maxwell eigenvalues by sqrt(det(g))
  and in the source terms, add to ion_ and elec_ m^i connection values
 
 --]]
-local class = require 'ext.class'
 local table = require 'ext.table'
 local Equation = require 'hydro.eqn.eqn'
 
 
-local TwoFluidEMHDDeDonderGaugeLinearizedGR = class(Equation)
+local TwoFluidEMHDDeDonderGaugeLinearizedGR = Equation:subclass()
 
 local fluids = table{'ion', 'elec'}
 TwoFluidEMHDDeDonderGaugeLinearizedGR.fluids = fluids

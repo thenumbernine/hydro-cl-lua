@@ -1,4 +1,3 @@
-local class = require 'ext.class'
 local table = require 'ext.table'
 local symmath = require 'symmath'
 local vec3d = require 'vec-ffi.vec3d'
@@ -10,7 +9,7 @@ local common = require 'hydro.common'
 local xNames = common.xNames
 
 
-local EinsteinInitCond = class(InitCond)
+local EinsteinInitCond = InitCond:subclass()
 
 function EinsteinInitCond:init(args)
 	EinsteinInitCond.super.init(self, args)
@@ -1589,7 +1588,7 @@ TODO I now have a Bessel function routine in hydro/math.cl
 	},
 
 }:mapi(function(cl)
-	return class(EinsteinInitCond, cl)
+	return EinsteinInitCond:subclass(cl)
 end)
 
 function EinsteinInitCond:getList()

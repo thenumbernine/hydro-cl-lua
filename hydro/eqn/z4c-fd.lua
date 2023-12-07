@@ -12,7 +12,6 @@ changes I'm making to coincide with 2017 Ruchlin
 
 TODO implement these in hydro/eqn/ and hydro/solver/ bssnok-fd.lua
 --]]
-local class = require 'ext.class'
 local table = require 'ext.table'
 local symmath = require 'symmath'
 local EinsteinEqn = require 'hydro.eqn.einstein'
@@ -22,7 +21,7 @@ local makePartials = require 'hydro.eqn.makepartial'
 local makePartial1 = makePartials.makePartial1
 local makePartial2 = makePartials.makePartial2
 
-local Z4cFiniteDifferenceEquation = class(EinsteinEqn)
+local Z4cFiniteDifferenceEquation = EinsteinEqn:subclass()
 Z4cFiniteDifferenceEquation.name = 'Z4c finite difference' 
 
 Z4cFiniteDifferenceEquation.weightFluxByGridVolume = false

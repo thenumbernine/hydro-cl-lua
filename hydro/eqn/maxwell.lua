@@ -33,11 +33,10 @@ B_i,t + 1/sqrt(g) g_il epsBar^ljk (1/eps)_k^l D_l,j = 1/sqrt(g) g_il epsBar^ljk 
 
 --]]
 local ffi = require 'ffi'
-local class = require 'ext.class'
 local table = require 'ext.table'
 local Equation = require 'hydro.eqn.eqn'
 
-local Maxwell = class(Equation)
+local Maxwell = Equation:subclass()
 Maxwell.name = 'maxwell'
 
 Maxwell.roeUseFluxFromCons = true
