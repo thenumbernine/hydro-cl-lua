@@ -8,11 +8,10 @@ return function(code)
 		print(showcode(code))
 		print('***** END CDEF *****')
 	end
-	xpcall(function()
+	assert(xpcall(function()
 		ffi.cdef(code)
 	end, function(msg)
-		print(showcode(code))
-		io.stderr:write(msg..'\n'..debug.traceback())
-		os.exit(1)
-	end)
+		return showcode(code)..'\n'
+			..msg..'\n'..debug.traceback()
+	end))
 end

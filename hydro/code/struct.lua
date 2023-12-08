@@ -1,6 +1,8 @@
+-- TODO use struct-lua here
 local ffi = require 'ffi'
 local class = require 'ext.class'
 local table = require 'ext.table'
+local string = require 'ext.string'
 --local CLBuffer = require 'cl.obj.buffer'
 local safecdef = require 'hydro.code.safecdef'
 
@@ -140,9 +142,7 @@ function Struct:makeType()
 			end
 			return struct.typename..'{'..t:concat', '..'}'
 		end,
-		__concat = function(a,b)
-			return tostring(a) .. tostring(b)
-		end,
+		__concat = string.concat,
 		__eq = function(a,b)
 			for _,field in ipairs(struct.vars) do
 				local name = field.name

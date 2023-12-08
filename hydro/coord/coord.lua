@@ -1845,7 +1845,7 @@ function CoordinateSystem:initCodeModules()
 			end
 		end
 		if #buildsAndExprNames > 0 then
-			xpcall(function()
+			assert(xpcall(function()
 				solver.modules:add{
 					name = self.symbols[moduleName] or error("failed to find symbol for coord-depend "..moduleName),
 					depends = depends,
@@ -1858,9 +1858,10 @@ function CoordinateSystem:initCodeModules()
 					end,
 				}
 			end, function(err)
-				io.stderr:write('failed for module: '..moduleName..'\n'..err..'\n'..debug.traceback())
-				os.exit(1)
-			end)
+				return 'failed for module: '..moduleName..'\n'
+					..err..'\n'
+					..debug.traceback()
+			end))
 		end
 	end
 
