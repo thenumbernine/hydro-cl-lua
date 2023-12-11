@@ -44,26 +44,46 @@ function SRHD:init(args)
 	--]]
 	self.consOnlyStruct = Struct{
 		name = solver.app:uniqueName'cons_only_t',
+		union = true,
 		fields = {
-			{name='D', type='real', units='kg/m^3'},				-- D = ρ W, W = unitless Lorentz factor
-			{name='S', type='real3', units='kg/s^3', variance='l'},	-- S_j = ρ h W^2 v_j ... [ρ] [h] [v] = kg/m^3 * m^2/s^2 * m/s = kg/s^3
-			{name='tau', type='real', units='kg/(m*s^2)'},			-- tau = ρ h W^2 - P ... [ρ] [h] [W^2] = kg/m^3 * m^2/s^2 = kg/(m*s^2)
+			{type=Struct{
+				anonymous = true,
+				fields = {
+					{name='D', type='real', units='kg/m^3'},				-- D = ρ W, W = unitless Lorentz factor
+					{name='S', type='real3', units='kg/s^3', variance='l'},	-- S_j = ρ h W^2 v_j ... [ρ] [h] [v] = kg/m^3 * m^2/s^2 * m/s = kg/s^3
+					{name='tau', type='real', units='kg/(m*s^2)'},			-- tau = ρ h W^2 - P ... [ρ] [h] [W^2] = kg/m^3 * m^2/s^2 = kg/(m*s^2)
+				},
+				packed = true,
+			}},
+			{name='ptr', type='real[1]'},
 		},
+		cdef = false,
+		packed = true,
 	}.class
 
 	self.primOnlyStruct = Struct{
 		name = solver.app:uniqueName'prim_only_t',
+		union = true,
 		fields = {
-			{name='rho', type='real', units='kg/m^3'},
-			{name='v', type='real3', units='m/s', variance='l'},
-			{name='eInt', type='real', units='m^2/s^2'},
+			{type=Struct{
+				anonymous = true,
+				fields = {
+					{name='rho', type='real', units='kg/m^3'},
+					{name='v', type='real3', units='m/s', variance='l'},
+					{name='eInt', type='real', units='m^2/s^2'},
+				},
+				packed = true,
+			}},
+			{name='ptr', type='real[1]'},
 		},
+		cdef = false,
+		packed = true,
 	}.class
 
 	-- TODO how about anonymous structs, so we can copy out prim_only_t and cons_only_t?
 	self.consVars = table()
-	:append(self.consOnlyStruct.fields)
-	:append(self.primOnlyStruct.fields)
+	:append(self.consOnlyStruct.fields[1].type.fields)
+	:append(self.primOnlyStruct.fields[1].type.fields)
 	:append{
 		-- extra
 		{name='ePot', type='real', units='m^2/s^2'},

@@ -186,7 +186,7 @@ no, they're needed for the integrator
 			fields = {
 				{type=Struct{
 					anonymous = true,
-					fields = assert(self.consVars),
+					fields = table((assert(self.consVars))),
 					packed = true,
 				}},
 				{name='ptr', type='real[1]'},
@@ -217,7 +217,7 @@ no, they're needed for the integrator
 			fields = {
 				{type=Struct{
 					anonymous = true,
-					fields = self.primVars,
+					fields = table((assert(self.primVars))),
 					packed = true,
 				}},
 				{name = 'ptr', type = 'real[1]'},
