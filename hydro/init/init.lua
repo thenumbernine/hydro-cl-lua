@@ -1,7 +1,7 @@
 local class = require 'ext.class'
 local table = require 'ext.table'
 local time = table.unpack(require 'hydro.util.time')
-local Struct = require 'hydro.code.struct'
+local Struct = require 'struct'
 local half = require 'cl.obj.half'
 
 --[[
@@ -36,11 +36,7 @@ function InitCond:init(args)
 end
 
 function InitCond:createInitStruct()
-	self.initStruct = Struct{
-		solver = self.solver,
-		name = 'initCond_t',
-		dontUnion = true,
-	}
+	self.initStructFields = table()
 	
 	-- then setup the gui vars
 	-- this assumes guiVars are index-keyed
@@ -59,11 +55,14 @@ function InitCond:finalizeInitStruct()
 	-- b) allocating it at a minimium of size 1
 	-- c) putting a temp field in empty initCond_t structures
 	-- I'll pick c) for now
-	if #self.initStruct.vars == 0 then
-		self.initStruct.vars:insert{name='tmp', type='real'}
+	if #self.initStructFields == 0 then
+		self.initStructFields:insert{name='tmp', type='real'}
 	end
-	self.initStruct:makeType()
-	self.initCond_t = self.initStruct.typename
+	self.initCond_t = self.solver.app:uniqueName'initCond_t'
+	self.initStruct = Struct{
+		name = self.initCond_t,
+		fields = self.initStructFields,
+	}.class
 end
 
 -- [[ TODO this is similar to what's in Equation
@@ -108,7 +107,7 @@ function InitCond:addGuiVar(args)
 			solver:refreshInitCondBuf()
 		end
 		-- ... and add it to the initCond_t
-		self.initStruct.vars:insert{
+		self.initStructFields:insert{
 			name = var.name,
 			type = var.ctype,
 		}
@@ -143,7 +142,7 @@ function InitCond:initCodeModules()
 	local solver = assert(self.solver)
 	solver.modules:add{
 		name = self.initCond_t,
-		structs = {self.initStruct:getForModules()},
+		structs = {self.initStruct},
 		-- only generated for cl, not for ffi cdef
 		headercode = 'typedef '..self.initCond_t..' initCond_t;',
 	}

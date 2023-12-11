@@ -838,9 +838,9 @@ function SolverBase:initObjs(args)
 	-- but right now both structs are tied directly to solver.cl, so there's no need to separate them at the moment.
 
 	-- not sure where this should go, but probably somewhere parallel to solverPtr
-	-- initStruct:makeType() is already called in eqn:createInitState
+	-- initStruct is already created in eqn:createInitState
 	-- TODO if initCond is supposed to be modular then this would have to be created after initCond is changed
-	self.initCond_t = self.eqn.initCond.initStruct.typename
+	self.initCond_t = self.eqn.initCond.initStruct.name
 	self.initCondPtr = ffi.new(self.initCond_t)
 
 
