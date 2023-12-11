@@ -143,7 +143,7 @@ function InitCond:initCodeModules()
 	local solver = assert(self.solver)
 	solver.modules:add{
 		name = self.initCond_t,
-		structs = {self.initStruct},
+		structs = {self.initStruct:getForModules()},
 		-- only generated for cl, not for ffi cdef
 		headercode = 'typedef '..self.initCond_t..' initCond_t;',
 	}

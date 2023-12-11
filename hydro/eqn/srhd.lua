@@ -226,12 +226,12 @@ function SRHD:initCodeModules()
 
 	solver.modules:add{
 		name = self.symbols.cons_only_t,
-		structs = {self.consOnlyStruct},
+		structs = {self.consOnlyStruct:getForModules()},
 	}
 
 	solver.modules:add{
 		name = self.symbols.prim_only_t,
-		structs = {self.primOnlyStruct},
+		structs = {self.primOnlyStruct:getForModules()},
 	}
 	
 	SRHD.super.initCodeModules(self)

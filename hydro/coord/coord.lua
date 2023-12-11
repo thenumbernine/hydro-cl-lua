@@ -1933,14 +1933,14 @@ function CoordinateSystem:initCodeModules()
 	-- for holonomic/anholonomic this is just the linearly interpolated
 	solver.modules:add{
 		name = self.cell_t,
-		structs = {self.cellStruct},
+		structs = {self.cellStruct:getForModules()},
 		-- only generated for cl, not for ffi cdef
 		headercode = 'typedef '..self.cell_t..' cell_t;',
 	}
 
 	solver.modules:add{
 		name = self.face_t,
-		structs = {self.faceStruct},
+		structs = {self.faceStruct:getForModules()},
 		-- only generated for cl, not for ffi cdef
 		headercode = 'typedef '..self.face_t..' face_t;',
 	}
