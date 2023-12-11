@@ -32,9 +32,9 @@ SolverBase:init
 				self.cmds = ...
 				self.color = ...
 				self.ops = ...
-				self.solverStruct = ...
-				self.solverStruct.vars:append(...)
-			self.solverStruct.vars:append(...)
+				self.solverStructFields = ...
+				self.solverStructFields:append(...)
+			self.solverStructFields:append(...)
 			self.mins = ...
 			self.maxs = ...
 			self.initCondMins = ...
@@ -66,7 +66,7 @@ SolverBase:init
 					self.eqn.initCond:finalizeInitStruct
 						self.eqn.initCond.initCond_t = ...
 
-				self.solverStruct:makeType				-- now that initCond does not modify solver_t, this can be moved back -- but eqn still modifies it, so not back by far
+				self.solverStruct = ...				-- now that initCond does not modify solver_t, this can be moved back -- but eqn still modifies it, so not back by far
 				self.solver_t = ...
 
 -- Here's where the solverPtr is created.
@@ -216,7 +216,8 @@ local vec3d = require 'vec-ffi.vec3d'
 local vec3sz = require 'vec-ffi.vec3sz'
 local roundup = require 'hydro.util.roundup'
 local time, getTime = table.unpack(require 'hydro.util.time')
-local Struct = require 'hydro.code.struct'
+local Struct = require 'struct'
+local HydroStruct = require 'hydro.code.struct'
 
 local common = require 'hydro.common'	-- xNames, symNames
 local xNames = common.xNames
@@ -517,11 +518,7 @@ function SolverBase:initMeshVars(args)
 	self.ops = table()
 
 	-- struct for the solver
-	self.solverStruct = Struct{
-		solver = self,
-		name = 'solver_t',
-		dontUnion = true,
-	}
+	self.solverStructFields = table()
 --]]
 
 	-- MeshSolver needs coord created early
@@ -537,7 +534,8 @@ function SolverBase:initMeshVars(args)
 	self.color = vec3d(math.random(), math.random(), math.random()):normalize()
 
 
-	self.solverStruct.vars:append{
+assert(not self.solverStruct)
+	self.solverStructFields:append{
 	-- [[ right now the mesh initial conditions use these, but otherwise they can be GridSolver-specific
 		{name='mins', type='real3'},
 		{name='maxs', type='real3'},
@@ -817,7 +815,7 @@ function SolverBase:initObjs(args)
 	-- add eqn vars to solver_t
 	for _,var in ipairs(self.eqn.guiVars) do
 		if not var.compileTime then
-			self.solverStruct.vars:insert{name=var.name, type=var.ctype}
+			self.solverStructFields:insert{name=var.name, type=var.ctype}
 		end
 	end
 
@@ -831,8 +829,13 @@ function SolverBase:initObjs(args)
 	--  which is called in postInit
 	-- the createInitState also creates kernels and runs them on the solver buffers
 	-- so I probably need a separate call to eqn.initCond, earlier, which constructs the object and the guiVars, but runs no kernels
-	self.solverStruct:makeType()
-	self.solver_t = self.solverStruct.typename
+	self.solver_t = self.app:uniqueName'solver_t'
+	self.solverStruct = Struct{
+		name = self.solver_t,
+		fields = self.solverStructFields,
+		-- without 'packed' I get misalignments between ffi and opencl
+		packed = true,
+	}.class
 	self.solverPtr = ffi.new(self.solver_t)
 	-- TODO I see room for a separation between solver_t and eqn_t
 	-- but right now both structs are tied directly to solver.cl, so there's no need to separate them at the moment.
@@ -917,9 +920,12 @@ self.modules = self.app.modules
 	self.solverModulesEnabled = table()
 	self.sharedModulesEnabled = table()
 
+	-- hmm, if solverStruct needs to be cdef'd immediately ...
+	-- I get the impression that, previously, ffi.cdef was pulling nothing from solverStruct
+	-- while opencl was getting the proper struct
 	self.modules:add{
 		name = assert(self.solver_t),
-		structs = {self.solverStruct:getForModules()},
+		structs = {self.solverStruct},
 		-- only generated for cl, not for ffi cdef
 		headercode = 'typedef '..self.solver_t..' solver_t;',
 	}
@@ -1004,10 +1010,18 @@ function SolverBase:initCDefs()
 	if self.app.verbose then
 		print("ffi.cdef'ing: "..moduleNames:concat', ')
 	end
+
+	-- opencl needs solver_t
+	-- but ffi.cdef doesn't (cuz it was already cdef'd)
+	-- (and I can't defer cdef, cuz I already need it asap for solverPtr)
+	self.modules.set[self.solver_t].structs:remove()
+
 	require 'hydro.code.safecdef'(
 		(self.modules:getTypeHeader(moduleNames:unpack())
 		:gsub('//// BEGIN EXCLUDE FOR FFI_CDEF.-//// END EXCLUDE FOR FFI_CDEF', ''))
 	)
+	-- ... and re-add
+	self.modules.set[self.solver_t].structs:insert(self.solverStruct)
 end
 
 function SolverBase:refreshGetULR()
@@ -1249,7 +1263,7 @@ kernel void subtractAndSquare(
 }
 
 // cons -> real
-// a = b^2 
+// a = b^2
 // TODO cut out ghost cells
 kernel void squareCons(
 	constant <?=solver_t?> const * const solver,
@@ -1303,7 +1317,7 @@ kernel void findNaNs(
 
 	self.subtractAndSquareKernelObj = self.commonProgramObj:kernel{name='subtractAndSquare', domain=self.domainWithoutBorder}
 	self.subtractAndSquareKernelObj.obj:setArg(0, self.solverBuf)
-	
+
 	self.subtractIntoConsKernelObj = self.commonProgramObj:kernel{name='subtractIntoCons', domain=self.domainWithoutBorder}
 	self.subtractIntoConsKernelObj.obj:setArgs(self.solverBuf)
 
@@ -1716,7 +1730,7 @@ function SolverBase:isModuleUsed(name)
 --print('self.sharedModulesEnabled', table.keys(self.sharedModulesEnabled):unpack())
 --print('self.solverModulesEnabled', table.keys(self.solverModulesEnabled):unpack())
 	local moduleNames = table(self.sharedModulesEnabled, self.solverModulesEnabled):keys()
---print('moduleNames', moduleNames:unpack())	
+--print('moduleNames', moduleNames:unpack())
 	local modulesEnabled = self.modules:getDependentModules(moduleNames:unpack())
 		:mapi(function(module) return true, module.name end)
 	return modulesEnabled[name]
@@ -2699,7 +2713,7 @@ function SolverBase:createDisplayVarArgsForStructVars(structVars, ptrName, nameP
 	-- TODO put the _3sym3Struct initialization somewhere else
 	-- TODO is the structForType table the same as typeInfoForCode table within hydro/code/struct.lua?
 	if not self.structForType['_3sym3'] then
-		local _3sym3Struct = Struct{
+		local _3sym3Struct = HydroStruct{
 			solver = self,
 			name = '_3sym3',
 			typename = '_3sym3',	-- TODO don't uniquely gen this name
@@ -3376,7 +3390,7 @@ function SolverBase:printBuf(buf, ptrorig, colsize, colmax)
 	else
 		local maxdigitlen = #tostring(size-1)
 		colsize = colsize or 1
---print('colsize', colsize)		
+--print('colsize', colsize)
 		for i=0,size-1 do
 			if i % colsize == 0 then
 				io.write((' '):rep(maxdigitlen-#tostring(i)), i,':')
@@ -3807,9 +3821,9 @@ function SolverBase:checkStructSizes()
 		for _,struct in ipairs(module.structs) do
 			--print('checking for struct '..struct.typename..' from module '..module.name)
 			if not typeinfos:find(struct)
-			and not typeinfos:find(struct.typename)
+			and not typeinfos:find(struct.name)
 			then
-				print('adding struct '..struct.typename..' from module '..module.name)
+if self.app.verbose then print('adding struct '..struct.name..' from module '..module.name) end
 				typeinfos:insert(struct)
 			end
 		end
@@ -3820,8 +3834,16 @@ function SolverBase:checkStructSizes()
 	local varcount = 0
 	for _,typeinfo in ipairs(typeinfos) do
 		varcount = varcount + 1
-		if Struct:isa(typeinfo) then
+		if type(typeinfo) == 'string' then
+			typeinfo = ffi.typeof(typeinfo)
+		end
+		if HydroStruct:isa(typeinfo) then
 			varcount = varcount + #typeinfo.vars
+		end
+		if Struct:isa(typeinfo) then
+			for _,field in typeinfo:fielditer() do
+				varcount = varcount + 1
+			end
 		end
 	end
 
@@ -3831,9 +3853,15 @@ function SolverBase:checkStructSizes()
 	local resultBuf = self.app.env:buffer{name='result', type='size_t', count=varcount, data=resultPtr}
 
 print('shared modules: '..moduleNames:concat', ')
-	local codePrefix = self.modules:getTypeHeader(moduleNames:unpack())
-		:gsub('//// BEGIN EXCLUDE FOR FFI_CDEF.-//// END EXCLUDE FOR FFI_CDEF', '')
+	local codePrefix =
+		vec3d.code..'\n'
+		..self.modules:getTypeHeader(moduleNames:unpack())
+			:gsub('//// BEGIN EXCLUDE FOR FFI_CDEF.-//// END EXCLUDE FOR FFI_CDEF', '')
 --[=[
+<?
+local Struct = require 'struct'
+local HydroStruct = require 'hydro.code.struct'
+?>
 	local testStructProgramObj = self.Program{
 		name = 'checkStructSizes',
 		code = table{
@@ -3857,10 +3885,18 @@ for i,typeinfo in ipairs(typeinfos) do
 ?>	result[<?=index?>] = sizeof(<?=typeinfo.typename?>);
 <?
 		index = index + 1
-		for _,var in ipairs(typeinfo.vars) do
+		if HydroStruct:isa(typeinfo) then
+			for _,var in ipairs(typeinfo.vars) do
 ?>	result[<?=index?>] = offsetof(<?=typeinfo.typename?>, <?=var.name?>);
 <?
-			index = index + 1
+				index = index + 1
+			end
+		elseif Struct:isa(typeinfo) then
+			for _,field in ipairs(typeinfo.fields) do
+?>	result[<?=index?>] = offsetof(<?=typeinfo.typename?>, <?=field.name?>);
+<?
+				index = index + 1
+			end
 		end
 	end
 end
@@ -3874,13 +3910,11 @@ end
 	}
 	testStructProgramObj:compile()
 --]=]
-	require 'cl.obj.kernel'{
-		env = self.app.env,
-		domain = _1x1_domain,
-		argsOut = {resultBuf},
-		header = codePrefix,
-		showCodeOnError = true,
-		body = template([[
+	local body = template([[
+<?
+local Struct = require 'struct'
+local HydroStruct = require 'hydro.code.struct'
+?>
 #define offsetof __builtin_offsetof
 
 <?
@@ -3892,20 +3926,42 @@ for i,typeinfo in ipairs(typeinfos) do
 <?
 		index = index + 1
 	else
+		if HydroStruct:isa(typeinfo) then
 ?>	result[<?=index?>] = sizeof(<?=typeinfo.typename?>);
 <?
-		index = index + 1
-		for _,var in ipairs(typeinfo.vars) do
+			index = index + 1
+			for _,var in ipairs(typeinfo.vars) do
 ?>	result[<?=index?>] = offsetof(<?=typeinfo.typename?>, <?=var.name?>);
 <?
+				index = index + 1
+			end
+		elseif Struct:isa(typeinfo) then
+?>	result[<?=index?>] = sizeof(<?=typeinfo.name?>);
+<?
 			index = index + 1
+			for _,field in ipairs(typeinfo.fields) do
+?>	result[<?=index?>] = offsetof(<?=typeinfo.name?>, <?=field.name?>);
+<?
+				index = index + 1
+			end
 		end
 	end
 end
 ?>
-]], 	{
-			typeinfos = typeinfos,
-		}),
+]], {
+		typeinfos = typeinfos,
+	})
+print'codePrefix:'
+print(require 'template.showcode'(codePrefix))
+print'body:'
+print(require 'template.showcode'(body))
+	require 'cl.obj.kernel'{
+		env = self.app.env,
+		domain = _1x1_domain,
+		argsOut = {resultBuf},
+		header = codePrefix,
+		showCodeOnError = true,
+		body = body,
 	}()
 	resultBuf:toCPU(resultPtr)
 	local index = 0
@@ -3918,14 +3974,26 @@ end
 		else
 			local clsize = tostring(resultPtr[index]):match'%d+'
 			index = index + 1
-			local ffisize = tostring(ffi.sizeof(typeinfo.typename))
-			print('sizeof('..typeinfo.typename..'): OpenCL='..clsize..', ffi='..ffisize..(clsize == ffisize and '' or ' -- !!!DANGER!!!'))
+			if HydroStruct:isa(typeinfo) then
+				local ffisize = tostring(ffi.sizeof(typeinfo.typename))
+				print('sizeof('..typeinfo.typename..'): OpenCL='..clsize..', ffi='..ffisize..(clsize == ffisize and '' or ' -- !!!DANGER!!!'))
 
-			for _,var in ipairs(typeinfo.vars) do
-				local cloffset = tostring(resultPtr[index]):match'%d+'
-				index = index + 1
-				local ffioffset = tostring(ffi.offsetof(typeinfo.typename, var.name))
-				print('offsetof('..typeinfo.typename..', '..var.name..'): OpenCL='..cloffset..', ffi='..ffioffset..(cloffset == ffioffset and '' or ' -- !!!DANGER!!!'))
+				for _,var in ipairs(typeinfo.vars) do
+					local cloffset = tostring(resultPtr[index]):match'%d+'
+					index = index + 1
+					local ffioffset = tostring(ffi.offsetof(typeinfo.typename, var.name))
+					print('offsetof('..typeinfo.typename..', '..var.name..'): OpenCL='..cloffset..', ffi='..ffioffset..(cloffset == ffioffset and '' or ' -- !!!DANGER!!!'))
+				end
+			elseif Struct:isa(typeinfo) then
+				local ffisize = tostring(ffi.sizeof(typeinfo.name))
+				print('sizeof('..typeinfo.name..'): OpenCL='..clsize..', ffi='..ffisize..(clsize == ffisize and '' or ' -- !!!DANGER!!!'))
+
+				for _,field in ipairs(typeinfo.fields) do
+					local cloffset = tostring(resultPtr[index]):match'%d+'
+					index = index + 1
+					local ffioffset = tostring(ffi.offsetof(typeinfo.name, field.name))
+					print('offsetof('..typeinfo.name..', '..field.name..'): OpenCL='..cloffset..', ffi='..ffioffset..(cloffset == ffioffset and '' or ' -- !!!DANGER!!!'))
+				end
 			end
 		end
 	end

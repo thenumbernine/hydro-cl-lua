@@ -63,8 +63,9 @@ function GridSolver:initMeshVars(args)
 	-- same as equations
 	-- but let equations/init conds add to the solver vars (as gui vars)
 	-- then we can edit them without recompiling the kernels
-	
-	self.solverStruct.vars:append{
+
+assert(not self.solverStruct)
+	self.solverStructFields:append{
 		{name='grid_dx', type='real3'},
 		{name='gridSize', type='int4'},
 		{name='stepsize', type='int4'},

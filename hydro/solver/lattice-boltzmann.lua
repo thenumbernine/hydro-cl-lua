@@ -24,7 +24,7 @@ end
 
 function LatticeBoltzmann:initMeshVars(args)
 	LatticeBoltzmann.super.initMeshVars(self, args)
-	self.solverStruct.vars:append{
+	self.solverStructFields:append{
 		{name='ofsmax', type='int4'},
 		{name='ofsstep', type='int4'},
 		{name='ofsvol', type='int'},
