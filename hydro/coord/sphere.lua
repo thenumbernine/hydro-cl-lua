@@ -175,7 +175,7 @@ end
 
 function Sphere:createCellStruct()
 	Sphere.super.createCellStruct(self)
-	self.cellStruct.vars:insert{name='r', type='real'}
+	self.cellStructFields:insert{name='r', type='real'}
 end
 
 function Sphere:fillGridCellBuf(cellsCPU)

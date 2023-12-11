@@ -80,7 +80,7 @@ if ShallowWater.depthInCell then
 	-- 'depth' = height-above-seafloor, in m, so sealevel values are negative
 	-- but in order to complete this, I need to pass cellL and cellR into the eigen_forInterface function ...
 	function ShallowWater:createCellStruct()
-		self.solver.coord.cellStruct.vars:insert{name='depth', type='real'}
+		self.solver.coord.cellStructFields:insert{name='depth', type='real'}
 	end
 end
 

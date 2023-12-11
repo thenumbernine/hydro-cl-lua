@@ -2634,8 +2634,8 @@ function SolverBase:addDisplayVars()
 		vars = {{name='0', code='value.vreal = buf[index];'}},
 	}
 
-	local cellStructVars = self.coord.cellStruct.vars:filter(function(var)
-		return not (var.type == 'int')
+	local cellStructVars = self.coord.cellStructFields:filter(function(var)
+		return var.type ~= 'int'
 	end)
 	for _,var in ipairs(cellStructVars) do
 		self.solverModulesEnabled[var.type] = true

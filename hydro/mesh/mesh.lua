@@ -11,7 +11,7 @@ local vector = require 'ffi.cpp.vector'
 -- one of these is bound to be real3, right?
 local vec3f = require 'vec-ffi.vec3f'
 local vec3d = require 'vec-ffi.vec3d'
-local Struct = require 'hydro.code.struct'
+local Struct = require 'struct'
 local time, getTime = table.unpack(require 'hydro.util.time')
 
 
@@ -32,11 +32,9 @@ local function allocateTypes(solver)
 	-- stripped-down version of face_t and cell_t to build with mesh
 	-- before the solver defines any custom entries in face_t or cell_t
 	-- [=[ look in coord's cellStruct def for these fields
-	meshfaceStruct = Struct{
-		dontMakeUniqueName = true,	--with this set, solver isn't needed
+	meshface_t = Struct{
 		name = 'meshface_t',
-		dontUnion = true,
-		vars = {
+		fields = {
 			-- all solvers:
 			{type='real3', name='pos'},		--center.  realN.
 			{type='real3', name='normal'},	--normal pointing from first to second
@@ -51,14 +49,11 @@ local function allocateTypes(solver)
 			{type='int', name='boundaryMethodIndex'},	-- 1-based boundary class.  0 == not a boundary.
 		},
 	}
-	meshfaceStruct:makeType()
-	meshface_t = meshfaceStruct.metatype
+	meshfaceStruct = meshface_t.class
 
-	meshcellStruct = Struct{
-		dontMakeUniqueName = true,	--with this set, solver isn't needed
+	meshcell_t = Struct{
 		name = 'meshcell_t',
-		dontUnion = true,
-		vars = {
+		fields = {
 			-- all solvers:
 			{type='real3', name='pos'},		--center.  technically could be a 'realN'
 			{type='real', name='volume'},	--volume of the cell
@@ -69,8 +64,7 @@ local function allocateTypes(solver)
 			{type='int', name='vtxCount'},
 		},
 	}
-	meshcellStruct:makeType()
-	meshcell_t = meshcellStruct.metatype
+	meshcellStruct = meshcell_t.class
 	--]=]
 end
 

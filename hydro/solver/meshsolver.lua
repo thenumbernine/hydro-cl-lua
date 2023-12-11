@@ -189,7 +189,7 @@ end
 
 function MeshSolver:createCellStruct()
 	-- here's the mesh-specific stuff
-	self.coord.cellStruct.vars:append{
+	self.coord.cellStructFields:append{
 --[[ moved to coord/coord to be in gridsolver and meshsolver
 		{type='real', name='volume'},	--volume of the cell
 --]]			
@@ -200,7 +200,7 @@ function MeshSolver:createCellStruct()
 	}
 
 	-- here is the mesh-specific face_t fields
-	self.coord.faceStruct.vars:append{
+	self.coord.faceStructFields:append{
 		{type='vec2i_t', name='cells'},	--indexes of cells
 		{type='int', name='vtxOffset'},
 		{type='int', name='vtxCount'},
