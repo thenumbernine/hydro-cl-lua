@@ -184,12 +184,12 @@ no, they're needed for the integrator
 			name = solver.app:uniqueName'cons_t',
 			union = true,
 			fields = {
-				{type=Struct{
+				{type = Struct{
 					anonymous = true,
 					fields = table((assert(self.consVars))),
 					packed = true,
 				}},
-				{name='ptr', type='real[1]'},
+				{name = 'ptr', type='real[1]'},
 			},
 			packed = true,
 			cdef = false,
@@ -215,7 +215,7 @@ no, they're needed for the integrator
 			name = solver.app:uniqueName'prim_t',
 			union = true,
 			fields = {
-				{type=Struct{
+				{type = Struct{
 					anonymous = true,
 					fields = table((assert(self.primVars))),
 					packed = true,
@@ -253,7 +253,7 @@ no, they're needed for the integrator
 		self.eigenStruct = Struct{
 			name = solver.app:uniqueName'eigen_t',
 			fields = {
-				{name='unused', type='char'},
+				{name = 'unused', type = 'char'},
 			},
 			cdef = false,
 		}.class
@@ -302,19 +302,19 @@ no, they're needed for the integrator
 
 	if not self.wavesVars then
 		self.wavesVars = range(self.numWaves):mapi(function(i)
-			return {name='wave'..(i-1), type='real'}
+			return {name = 'wave'..(i-1), type = 'real'}
 		end)
 	end
 	self.wavesStruct = Struct{
 		name = solver.app:uniqueName'waves_t',
 		union = true,
 		fields = {
-			{type=Struct{
+			{type = Struct{
 				anonymous = true,
 				fields = self.wavesVars,
 				packed = true,
 			}},
-			{name='ptr', type='real[1]'},
+			{name = 'ptr', type = 'real[1]'},
 		},
 		packed = true,
 		cdef = false,
@@ -462,11 +462,11 @@ function Equation:createInitState()
 
 	-- start with units
 	self:addGuiVars{
-		{name='meter', value=1},
-		{name='second', value=1},
-		{name='kilogram', value=1},
-		{name='coulomb', value=1},
-		{name='kelvin', value=1},
+		{name = 'meter', value = 1},
+		{name = 'second', value = 1},
+		{name = 'kilogram', value = 1},
+		{name = 'coulomb', value = 1},
+		{name = 'kelvin', value = 1},
 	}
 
 	local mt = getmetatable(self)
