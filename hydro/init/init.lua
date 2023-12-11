@@ -63,6 +63,7 @@ function InitCond:finalizeInitStruct()
 		name = self.initCond_t,
 		fields = self.initStructFields,
 	}.class
+	self.initStructFields = nil
 end
 
 -- [[ TODO this is similar to what's in Equation

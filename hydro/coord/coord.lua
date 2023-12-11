@@ -1384,6 +1384,7 @@ function CoordinateSystem:finalizeCellStruct()
 		fields = self.cellStructFields,
 		cdef = false,
 	}.class
+	self.cellStructFields = nil
 
 	self.face_t = self.solver.app:uniqueName'face_t'
 	self.faceStruct = Struct{
@@ -1391,6 +1392,7 @@ function CoordinateSystem:finalizeCellStruct()
 		fields = self.faceStructFields,
 		cdef = false,
 	}.class
+	self.faceStructFields = nil
 end
 
 -- TODO this as a CL kernel?

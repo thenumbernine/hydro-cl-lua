@@ -17,25 +17,6 @@ hydro/solver/solverbase.lua:520:	self.solverStruct = Struct{
 hydro/solver/solverbase.lua:2702:		local _3sym3Struct = Struct{
 hydro/solver/solverbase.lua:3823:		if Struct:isa(typeinfo) then
 
-	solverStruct:
-hydro/solver/solverbase.lua:35:				self.solverStruct = ...
-hydro/solver/solverbase.lua:36:				self.solverStruct.vars:append(...)
-hydro/solver/solverbase.lua:37:			self.solverStruct.vars:append(...)
-hydro/solver/solverbase.lua:69:				self.solverStruct:makeType
-hydro/solver/solverbase.lua:97:		self.solverStruct
-hydro/solver/solverbase.lua:520:	self.solverStruct = Struct{
-hydro/solver/solverbase.lua:540:	self.solverStruct.vars:append{
-hydro/solver/solverbase.lua:820:			self.solverStruct.vars:insert{name=var.name, type=var.ctype}
-hydro/solver/solverbase.lua:834:	self.solverStruct:makeType()
-hydro/solver/solverbase.lua:835:	self.solver_t = self.solverStruct.typename
-hydro/solver/solverbase.lua:922:		structs = {self.solverStruct:getForModules()},
-hydro/solver/gridsolver.lua:67:	self.solverStruct.vars:append{
-hydro/solver/twofluid-emhd-separate-behavior.lua:176:		self.solverStruct:makeType()
-hydro/solver/twofluid-emhd-separate-behavior.lua:177:		self.solver_t = self.solverStruct.typename
-hydro/solver/meshsolver.lua:79:	self.solverStruct.vars:append{
-hydro/solver/lattice-boltzmann.lua:27:	self.solverStruct.vars:append{
-
-
 	consStruct:
 hydro/eqn/z4.lua:817:local has_b_ul = eqn.consStruct.vars:find(nil, function(var) return var.name == "b_ul" end)
 hydro/eqn/z4.lua:825:local has_B_u = eqn.consStruct.vars:find(nil, function(var) return var.name == "B_u" end)

@@ -836,6 +836,7 @@ function SolverBase:initObjs(args)
 		-- without 'packed' I get misalignments between ffi and opencl
 		packed = true,
 	}.class
+	self.solverStructFields = nil
 	self.solverPtr = ffi.new(self.solver_t)
 	-- TODO I see room for a separation between solver_t and eqn_t
 	-- but right now both structs are tied directly to solver.cl, so there's no need to separate them at the moment.
@@ -2648,7 +2649,7 @@ function SolverBase:addDisplayVars()
 		vars = {{name='0', code='value.vreal = buf[index];'}},
 	}
 
-	local cellStructVars = self.coord.cellStructFields:filter(function(var)
+	local cellStructVars = self.coord.cellStruct.fields:filter(function(var)
 		return var.type ~= 'int'
 	end)
 	for _,var in ipairs(cellStructVars) do
