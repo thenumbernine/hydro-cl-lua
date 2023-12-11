@@ -5,7 +5,7 @@ which needs to be provided externally from another solver (via gr-hd-separate-be
 --]]
 local table = require 'ext.table'
 local Equation = require 'hydro.eqn.eqn'
-local Struct = require 'hydro.code.struct'
+local Struct = require 'struct'
 
 local GRHD = Equation:subclass()
 GRHD.name = 'GRHD'
@@ -23,38 +23,32 @@ function GRHD:init(args)
 	local solver = assert(args.solver)
 
 	self.consOnlyStruct = Struct{
-		solver = solver,
-		name = 'cons_only_t',
-		vars = {
+		name = solver.app:uniqueName'cons_only_t',
+		fields = {
 			{name='D', type='real', units='kg/m^3'},				-- D = ρ W, W = unitless Lorentz factor
 			{name='S', type='real3', units='kg/s^3', variance='l'},	-- S_j = ρ h W^2 v_j ... [ρ] [h] [v] = kg/m^3 * m^2/s^2 * m/s = kg/s^3
 			{name='tau', type='real', units='kg/(m*s^2)'},			-- tau = ρ h W^2 - P ... [ρ] [h] [W^2] = kg/m^3 * m^2/s^2 = kg/(m*s^2)
 		},
-	}
+	}.class
 
 	self.primOnlyStruct = Struct{
-		solver = solver,
-		name = 'prim_only_t',
-		vars = {
+		name = solver.app:uniqueName'prim_only_t',
+		fields = {
 			{name='rho', type='real', units='kg/m^3'},
 			{name='v', type='real3', units='m/s', variance='l'},
 			{name='eInt', type='real', units='m^2/s^2'},
 		},
-	}
+	}.class
 
 	-- TODO how about anonymous structs, so we can copy out prim_only_t and cons_only_t?
 	self.consVars = table()
-	:append(self.consOnlyStruct.vars)
-	:append(self.primOnlyStruct.vars)
+	:append(self.consOnlyStruct.fields)
+	:append(self.primOnlyStruct.fields)
 	
-
-	self.consOnlyStruct:makeType()
-	self.primOnlyStruct:makeType()
-
 	GRHD.super.init(self, args)
 	
-	self.symbols.cons_only_t = self.consOnlyStruct.typename
-	self.symbols.prim_only_t = self.primOnlyStruct.typename
+	self.symbols.cons_only_t = self.consOnlyStruct.name
+	self.symbols.prim_only_t = self.primOnlyStruct.name
 end
 
 function GRHD:getSymbolFields()
@@ -108,14 +102,14 @@ function GRHD:initCodeModules()
 
 	solver.modules:add{
 		name = self.symbols.cons_only_t,
-		structs = {self.consOnlyStruct:getForModules()},
+		structs = {self.consOnlyStruct},
 		-- only generated for cl, not for ffi cdef
 		headercode = 'typedef '..self.symbols.cons_only_t..' cons_only_t;',
 	}
 
 	solver.modules:add{
 		name = self.symbols.prim_only_t,
-		structs = {self.primOnlyStruct:getForModules()},
+		structs = {self.primOnlyStruct},
 		-- only generated for cl, not for ffi cdef
 		headercode = 'typedef '..self.symbols.prim_only_t..' prim_only_t;',
 	}

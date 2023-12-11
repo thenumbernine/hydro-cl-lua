@@ -6,7 +6,7 @@ ideal-mhd, divergence-free, conservative-based eigensystem
 
 local table = require 'ext.table'
 local constants = require 'hydro.constants'
-local Struct = require 'hydro.code.struct'
+local Struct = require 'struct'
 local Equation = require 'hydro.eqn.eqn'
 
 local MHD = Equation:subclass()
@@ -91,9 +91,11 @@ function MHD:init(args)
 	
 	local solver = self.solver
 
-	self.roeStruct = Struct{solver=solver, name='roe_t', vars=self.roeVars}
-	self.roeStruct:makeType()
-	self.symbols.roe_t = self.roeStruct.typename
+	self.roeStruct = Struct{
+		name = solver.app:uniqueName'roe_t',
+		fields = self.roeVars,
+	}.class
+	self.symbols.roe_t = self.roeStruct.name
 
 	if require 'hydro.solver.meshsolver':isa(solver) then
 		print("not using ops (selfgrav, nodiv, etc) with mesh solvers yet")
@@ -209,7 +211,7 @@ function MHD:initCodeModules()
 	
 	solver.modules:add{
 		name = self.symbols.roe_t,
-		structs = {self.roeStruct:getForModules()},
+		structs = {self.roeStruct},
 		-- only generated for cl, not for ffi cdef
 		headercode = 'typedef '..self.symbols.roe_t..' roe_t;',
 	}

@@ -11,7 +11,7 @@ so viola, here it is.
 --]]
 local table = require 'ext.table'
 local Equation = require 'hydro.eqn.eqn'
-local Struct = require 'hydro.code.struct'
+local Struct = require 'struct'
 
 local SRHD = Equation:subclass()
 SRHD.name = 'SRHD'
@@ -43,29 +43,27 @@ function SRHD:init(args)
 	TODO redo the srhd equations for a background grid metric, and take note of covariance/contravariance
 	--]]
 	self.consOnlyStruct = Struct{
-		solver = solver,
-		name = 'cons_only_t',
-		vars = {
+		name = solver.app:uniqueName'cons_only_t',
+		fields = {
 			{name='D', type='real', units='kg/m^3'},				-- D = ρ W, W = unitless Lorentz factor
 			{name='S', type='real3', units='kg/s^3', variance='l'},	-- S_j = ρ h W^2 v_j ... [ρ] [h] [v] = kg/m^3 * m^2/s^2 * m/s = kg/s^3
 			{name='tau', type='real', units='kg/(m*s^2)'},			-- tau = ρ h W^2 - P ... [ρ] [h] [W^2] = kg/m^3 * m^2/s^2 = kg/(m*s^2)
 		},
-	}
+	}.class
 
 	self.primOnlyStruct = Struct{
-		solver = solver,
-		name = 'prim_only_t',
-		vars = {
+		name = solver.app:uniqueName'prim_only_t',
+		fields = {
 			{name='rho', type='real', units='kg/m^3'},
 			{name='v', type='real3', units='m/s', variance='l'},
 			{name='eInt', type='real', units='m^2/s^2'},
 		},
-	}
+	}.class
 
 	-- TODO how about anonymous structs, so we can copy out prim_only_t and cons_only_t?
 	self.consVars = table()
-	:append(self.consOnlyStruct.vars)
-	:append(self.primOnlyStruct.vars)
+	:append(self.consOnlyStruct.fields)
+	:append(self.primOnlyStruct.fields)
 	:append{
 		-- extra
 		{name='ePot', type='real', units='m^2/s^2'},
@@ -75,13 +73,10 @@ function SRHD:init(args)
 		self.consVars:insert{name='SPot', type='real', units='kg*m/s^2'}
 	end
 
-	self.consOnlyStruct:makeType()
-	self.primOnlyStruct:makeType()
-
 	SRHD.super.init(self, args)
 	
-	self.symbols.cons_only_t = self.consOnlyStruct.typename
-	self.symbols.prim_only_t = self.primOnlyStruct.typename
+	self.symbols.cons_only_t = self.consOnlyStruct.name
+	self.symbols.prim_only_t = self.primOnlyStruct.name
 
 	if require 'hydro.solver.meshsolver':isa(self.solver) then
 		print("not using ops (selfgrav, nodiv, etc) with mesh solvers yet")
@@ -226,12 +221,12 @@ function SRHD:initCodeModules()
 
 	solver.modules:add{
 		name = self.symbols.cons_only_t,
-		structs = {self.consOnlyStruct:getForModules()},
+		structs = {self.consOnlyStruct},
 	}
 
 	solver.modules:add{
 		name = self.symbols.prim_only_t,
-		structs = {self.primOnlyStruct:getForModules()},
+		structs = {self.primOnlyStruct},
 	}
 	
 	SRHD.super.initCodeModules(self)

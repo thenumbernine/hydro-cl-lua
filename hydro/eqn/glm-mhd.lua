@@ -7,7 +7,7 @@ tweaked it while looking at
 
 local table = require 'ext.table'
 local constants = require 'hydro.constants'
-local Struct = require 'hydro.code.struct'
+local Struct = require 'struct'
 local Equation = require 'hydro.eqn.eqn'
 
 local MHD = Equation:subclass()
@@ -106,9 +106,11 @@ function MHD:init(args)
 
 	MHD.super.init(self, args)
 	
-	self.roeStruct = Struct{solver=solver, name='roe_t', vars=self.roeVars}
-	self.roeStruct:makeType()
-	self.symbols.roe_t = self.roeStruct.typename
+	self.roeStruct = Struct{
+		name = self.solver.app:uniqueName'roe_t',
+		fields = self.roeVars,
+	}.class
+	self.symbols.roe_t = self.roeStruct.name
 
 	local UpdatePsi = require 'hydro.op.glm-mhd-update-psi'
 	solver.ops:insert(UpdatePsi{solver=solver})
@@ -222,7 +224,7 @@ end
 function MHD:initCodeModules()
 	self.solver.modules:add{
 		name = self.symbols.roe_t,
-		structs = {self.roeStruct:getForModules()},
+		structs = {self.roeStruct},
 	}
 	
 	MHD.super.initCodeModules(self)

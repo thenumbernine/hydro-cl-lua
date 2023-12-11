@@ -814,7 +814,7 @@ real const beta_dot_a = real3_dot(U->beta_u, U->a_l);
 real const K_dot_betaSq_over_alpha = real3_weightedLenSq(U->beta_u, U->K_ll) / U->alpha;
 
 <?
-local has_b_ul = eqn.consStruct.vars:find(nil, function(var) return var.name == "b_ul" end)
+local has_b_ul = eqn.consStruct.fields[1].type.fields:find(nil, function(var) return var.name == "b_ul" end)
 if has_b_ul then ?>
 real3x3 const b_ul = U->b_ul;
 <? else
@@ -822,7 +822,7 @@ error "TODO do spatial derivative here"
 end ?>
 
 <?
-local has_B_u = eqn.consStruct.vars:find(nil, function(var) return var.name == "B_u" end)
+local has_B_u = eqn.consStruct.fields[1].type.fields:find(nil, function(var) return var.name == "B_u" end)
 if has_B_u then ?>
 real3 const B_u = U->B_u;
 <? else
@@ -911,7 +911,7 @@ if (<?=OOB?>(1,1)) {
 	end
 
 	-- b^i_j vs. β^i_,j
-	if self.consStruct.vars:find(nil, function(var) return var.name == 'b_ul' end) then
+	if self.consStruct.fields[1].type.fields:find(nil, function(var) return var.name == 'b_ul' end) then
 		for i,xi in ipairs(xNames) do
 			vars:insert{
 				name = 'beta^j_,'..xi..' vs b^j_'..xi,

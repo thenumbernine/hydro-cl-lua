@@ -695,7 +695,7 @@ function BoundaryMirror:getCode(args)
 				or args.indexv('solver->gridSize.'..xNames[args.side]..' - solver->numGhost + j'),
 			side = args.side,
 		}))
-		for _,var in ipairs(eqn.consStruct.vars) do
+		for _,var in ipairs(eqn.consStruct.fields[1].type.fields) do
 			if var.type == 'real' 
 			or var.type == 'cplx'
 			then

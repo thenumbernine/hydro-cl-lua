@@ -1427,6 +1427,8 @@ function SolverBase:createBuffers()
 		   ..'Maybe you need to update Eqn.numStates?')
 	end
 	if ffi.sizeof(self.eqn.symbols.cons_t) < ffi.sizeof(self.eqn.symbols.prim_t) then
+		print("sizeof(cons_t) =", ffi.sizeof(self.eqn.symbols.cons_t))
+		print("sizeof(prim_t) =", ffi.sizeof(self.eqn.symbols.prim_t))
 		error("for PLM's sake I might need sizeof(prim_t) <= sizeof(cons_t)")
 	end
 
@@ -2697,7 +2699,7 @@ function SolverBase:addDisplayVars()
 		args.extraArgs = nil
 
 		args.group = group
-		args.vars = self:createDisplayVarArgsForStructVars(self.eqn.consStruct.vars)
+		args.vars = self:createDisplayVarArgsForStructVars(self.eqn.consStruct.fields[1].type.fields)
 
 		-- why in addUBufDisplayVars() do I make a new group and assign args.group to it?
 		self:addDisplayVarGroup(args, self.DisplayVar_U)
@@ -2714,16 +2716,15 @@ function SolverBase:createDisplayVarArgsForStructVars(structVars, ptrName, nameP
 	-- TODO put the _3sym3Struct initialization somewhere else
 	-- TODO is the structForType table the same as typeInfoForCode table within hydro/code/struct.lua?
 	if not self.structForType['_3sym3'] then
-		local _3sym3Struct = HydroStruct{
-			solver = self,
+		local _3sym3Struct = Struct{
 			name = '_3sym3',
-			typename = '_3sym3',	-- TODO don't uniquely gen this name
-			vars = {
+			fields = {
 				{name='x', type='sym3'},
 				{name='y', type='sym3'},
 				{name='z', type='sym3'},
 			},
-		}
+			cdef = false,
+		}.class
 		self.structForType['_3sym3'] = _3sym3Struct
 	end
 
@@ -2737,7 +2738,7 @@ function SolverBase:createDisplayVarArgsForStructVars(structVars, ptrName, nameP
 		if substruct then
 			assert(not var.units)	-- struct which are being recursively called shouldn't have units if their fields have units
 			results:append(
-				self:createDisplayVarArgsForStructVars(substruct.vars, '(&'..ptrName..var.name..')', var.name)
+				self:createDisplayVarArgsForStructVars(substruct.fields, '(&'..ptrName..var.name..')', var.name)
 			)
 		else
 			results:insert{
@@ -3266,8 +3267,8 @@ function SolverBase:checkFinite(buf)
 			-- then find the factor that the count is from the UBufObj (fluxBufObj will be 'dim' factor, UBufObj will be 1)
 			and buf.count == self.UBufObj.count
 			then
-				local vars = self.eqn.consStruct.vars
-				local numScalars = self.eqn.consStruct:countScalars()
+				local vars = self.eqn.consStruct.fields[1].type.fields
+				local numScalars = HydroStruct.countScalars{vars=self.eqn.consStruct.fields[1].type.fields}
 --assert(numScalars == ptrsPerReal)
 				local offset = (i % numScalars)
 				local cellIndex = (i - offset) / numScalars
@@ -3838,9 +3839,6 @@ if self.app.verbose then print('adding struct '..struct.name..' from module '..m
 		if type(typeinfo) == 'string' then
 			typeinfo = ffi.typeof(typeinfo)
 		end
-		if HydroStruct:isa(typeinfo) then
-			varcount = varcount + #typeinfo.vars
-		end
 		if Struct:isa(typeinfo) then
 			for _,field in typeinfo:fielditer() do
 				varcount = varcount + 1
@@ -3886,13 +3884,7 @@ for i,typeinfo in ipairs(typeinfos) do
 ?>	result[<?=index?>] = sizeof(<?=typeinfo.typename?>);
 <?
 		index = index + 1
-		if HydroStruct:isa(typeinfo) then
-			for _,var in ipairs(typeinfo.vars) do
-?>	result[<?=index?>] = offsetof(<?=typeinfo.typename?>, <?=var.name?>);
-<?
-				index = index + 1
-			end
-		elseif Struct:isa(typeinfo) then
+		if Struct:isa(typeinfo) then
 			for _,field in ipairs(typeinfo.fields) do
 ?>	result[<?=index?>] = offsetof(<?=typeinfo.typename?>, <?=field.name?>);
 <?
@@ -3927,16 +3919,7 @@ for i,typeinfo in ipairs(typeinfos) do
 <?
 		index = index + 1
 	else
-		if HydroStruct:isa(typeinfo) then
-?>	result[<?=index?>] = sizeof(<?=typeinfo.typename?>);
-<?
-			index = index + 1
-			for _,var in ipairs(typeinfo.vars) do
-?>	result[<?=index?>] = offsetof(<?=typeinfo.typename?>, <?=var.name?>);
-<?
-				index = index + 1
-			end
-		elseif Struct:isa(typeinfo) then
+		if Struct:isa(typeinfo) then
 ?>	result[<?=index?>] = sizeof(<?=typeinfo.name?>);
 <?
 			index = index + 1
@@ -3975,17 +3958,7 @@ print(require 'template.showcode'(body))
 		else
 			local clsize = tostring(resultPtr[index]):match'%d+'
 			index = index + 1
-			if HydroStruct:isa(typeinfo) then
-				local ffisize = tostring(ffi.sizeof(typeinfo.typename))
-				print('sizeof('..typeinfo.typename..'): OpenCL='..clsize..', ffi='..ffisize..(clsize == ffisize and '' or ' -- !!!DANGER!!!'))
-
-				for _,var in ipairs(typeinfo.vars) do
-					local cloffset = tostring(resultPtr[index]):match'%d+'
-					index = index + 1
-					local ffioffset = tostring(ffi.offsetof(typeinfo.typename, var.name))
-					print('offsetof('..typeinfo.typename..', '..var.name..'): OpenCL='..cloffset..', ffi='..ffioffset..(cloffset == ffioffset and '' or ' -- !!!DANGER!!!'))
-				end
-			elseif Struct:isa(typeinfo) then
+			if Struct:isa(typeinfo) then
 				local ffisize = tostring(ffi.sizeof(typeinfo.name))
 				print('sizeof('..typeinfo.name..'): OpenCL='..clsize..', ffi='..ffisize..(clsize == ffisize and '' or ' -- !!!DANGER!!!'))
 
