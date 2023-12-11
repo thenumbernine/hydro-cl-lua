@@ -1,4 +1,93 @@
--- TODO use struct-lua here
+--[[
+TODO use struct-lua here
+
+	Struct:
+hydro/eqn/grhd.lua:25:	self.consOnlyStruct = Struct{
+hydro/eqn/grhd.lua:35:	self.primOnlyStruct = Struct{
+hydro/eqn/glm-mhd.lua:109:	self.roeStruct = Struct{solver=solver, name='roe_t', vars=self.roeVars}
+hydro/eqn/srhd.lua:45:	self.consOnlyStruct = Struct{
+hydro/eqn/srhd.lua:55:	self.primOnlyStruct = Struct{
+hydro/eqn/mhd.lua:94:	self.roeStruct = Struct{solver=solver, name='roe_t', vars=self.roeVars}
+hydro/eqn/eqn.lua:145:		self.consStruct = Struct{
+hydro/eqn/eqn.lua:205:		self.primStruct = Struct{
+hydro/eqn/eqn.lua:247:		self.eigenStruct = Struct{
+hydro/eqn/eqn.lua:256:		self.eigenStruct = Struct{solver=solver, name='eigen_t', vars=self.eigenVars}
+hydro/eqn/eqn.lua:300:	self.wavesStruct = Struct{
+hydro/solver/solverbase.lua:520:	self.solverStruct = Struct{
+hydro/solver/solverbase.lua:2702:		local _3sym3Struct = Struct{
+hydro/solver/solverbase.lua:3823:		if Struct:isa(typeinfo) then
+
+	consStruct:
+hydro/eqn/z4.lua:817:local has_b_ul = eqn.consStruct.vars:find(nil, function(var) return var.name == "b_ul" end)
+hydro/eqn/z4.lua:825:local has_B_u = eqn.consStruct.vars:find(nil, function(var) return var.name == "B_u" end)
+hydro/eqn/z4.lua:914:	if self.consStruct.vars:find(nil, function(var) return var.name == 'b_ul' end) then
+hydro/eqn/z4.cl:6:local has_beta_u = eqn.consStruct.vars:find(nil, function(var) return var.name == "beta_u" end)
+hydro/eqn/z4.cl:7:local has_betaLap_u = eqn.consStruct.vars:find(nil, function(var) return var.name == "betaLap_u" end)
+hydro/eqn/z4.cl:8:local has_b_ul = eqn.consStruct.vars:find(nil, function(var) return var.name == "b_ul" end)
+hydro/eqn/z4.cl:9:local has_B_u = eqn.consStruct.vars:find(nil, function(var) return var.name == "B_u" end)
+hydro/eqn/eqn.lua:118:	getParityVars(self.consStruct.vars, sign, parityVars)
+hydro/eqn/eqn.lua:127:	make sure self.consStruct and self.primStruct is defined beforehand
+hydro/eqn/eqn.lua:143:	if not self.consStruct then
+hydro/eqn/eqn.lua:145:		self.consStruct = Struct{
+hydro/eqn/eqn.lua:179:	when we makeType the consStruct
+hydro/eqn/eqn.lua:181:	(but eqn:initCodeModule is called after the consStruct type is defined)
+hydro/eqn/eqn.lua:189:	self:cdefAllVarTypes(solver, self.consStruct.vars)
+hydro/eqn/eqn.lua:191:	self.consStruct:makeType()
+hydro/eqn/eqn.lua:193:	self.symbols.cons_t = self.consStruct.typename
+hydro/eqn/eqn.lua:200:	self.consStruct.eqn = self
+hydro/eqn/eqn.lua:201:	solver.structForType[self.consStruct.typename] = self.consStruct
+hydro/eqn/eqn.lua:269:	if self.consStruct.vars then
+hydro/eqn/eqn.lua:270:		numReals = self.consStruct:countScalars()
+hydro/eqn/eqn.lua:280:			error("you either need to define numStates or consVars or consStruct")
+hydro/eqn/eqn.lua:354:		getParityVars(self.consStruct.vars, sign, parityVars, field)
+hydro/eqn/eqn.lua:645:		for _,var in ipairs(self.consStruct.vars) do
+hydro/eqn/eqn.lua:674:					self.consStruct.vars:find(nil, function(var)
+hydro/eqn/eqn.lua:679:					self.consStruct.vars:find(nil, function(var)
+hydro/eqn/eqn.lua:698:<?		for _,var in ipairs(eqn.consStruct.vars) do
+hydro/eqn/eqn.lua:793:	for _,var in ipairs(self.consStruct.vars) do
+hydro/eqn/eqn.lua:799:	assert(self.consStruct)
+hydro/eqn/eqn.lua:802:		structs = {self.consStruct:getForModules()},
+hydro/eqn/eqn.lua:893:	return self.solver:createDisplayVarArgsForStructVars(self.consStruct.vars)
+hydro/eqn/eqn.lua:1317:	local _, var = self.consStruct.vars:find(nil, function(v) return v.name == varname end)
+hydro/solver/solverbase.lua:2685:		args.vars = self:createDisplayVarArgsForStructVars(self.eqn.consStruct.vars)
+hydro/solver/solverbase.lua:3254:				local vars = self.eqn.consStruct.vars
+hydro/solver/solverbase.lua:3255:				local numScalars = self.eqn.consStruct:countScalars()
+hydro/solver/gridsolver.lua:697:		for _,var in ipairs(eqn.consStruct.vars) do
+hydro/solver/meshsolver.lua:267:	for _,var in ipairs(eqn.consStruct.vars) do
+
+	primStruct:
+hydro/eqn/eqn.lua:127:	make sure self.consStruct and self.primStruct is defined beforehand
+hydro/eqn/eqn.lua:204:	if not self.primStruct and self.primVars then
+hydro/eqn/eqn.lua:211:	if self.primStruct then
+hydro/eqn/eqn.lua:214:		self:cdefAllVarTypes(solver, self.primStruct.vars)
+hydro/eqn/eqn.lua:217:			self.primStruct:makeType()
+hydro/eqn/eqn.lua:219:			return "eqn "..self.name.." primStruct:makeType() failed for type "..self.primStruct.name..'\n'
+hydro/eqn/eqn.lua:221:					self.primStruct,
+hydro/eqn/eqn.lua:229:		self.symbols.prim_t = self.primStruct.typename
+hydro/eqn/eqn.lua:236:		self.primStruct.eqn = self
+hydro/eqn/eqn.lua:237:		solver.structForType[self.primStruct.typename] = self.primStruct
+hydro/eqn/eqn.lua:271:		if self.primStruct then
+hydro/eqn/eqn.lua:272:			local numPrimReals = self.primStruct:countScalars()
+hydro/eqn/eqn.lua:357:		getParityVars(self.primStruct.vars, sign, parityVars, field)
+hydro/eqn/eqn.lua:808:	if self.primStruct then
+hydro/eqn/eqn.lua:811:			structs = {self.primStruct:getForModules()},
+hydro/eqn/eqn.lua:1218:	assert(not self.primStruct, "if you're using the default prim<->cons code then you shouldn't have any primStruct")
+hydro/init/euler.lua:1041:<? if eqn.primStruct.vars:find(nil, function(var)
+hydro/init/euler.lua:1061:<? if eqn.primStruct.vars:find(nil, function(var)
+
+	eigenStruct:
+
+	wavesStruct:
+
+	roeStruct:
+
+	consOnlyStruct:
+
+	primOnlyStruct:
+
+	solverStruct:
+
+--]]
 local ffi = require 'ffi'
 local class = require 'ext.class'
 local table = require 'ext.table'
@@ -231,7 +320,7 @@ function Struct:getTypeCodeWithoutTypeName()
 	return lines:concat'\n'
 end
 
--- glue function between old hydro struct and new struct-lua which the modules system now works with 
+-- glue function between old hydro struct and new struct-lua which the modules system now works with
 function Struct:getForModules()
 	return {
 		code = self.typecode,

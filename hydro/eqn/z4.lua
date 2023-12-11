@@ -73,7 +73,7 @@ d/dt T = (∂_t - L_β) T ... where L_β is the Lie-derivative in the shift dire
 local table = require 'ext.table'
 local symmath = require 'symmath'
 local EinsteinEqn = require 'hydro.eqn.einstein'
-local Struct = require 'hydro.code.struct'
+local HydroStruct = require 'hydro.code.struct'
 
 local common = require 'hydro.common'
 local xNames = common.xNames
@@ -322,10 +322,10 @@ function Z4_2004Bona:init(args)
 
 	-- only count int vars after the shifts have been added
 	self:cdefAllVarTypes(solver, self.consVars)	-- have to call before countScalars in eqn:init
-	self.numIntStates = Struct.countScalars{vars=self.consVars}
+	self.numIntStates = HydroStruct.countScalars{vars=self.consVars}
 	
 	if not self.noZeroRowsInFlux then
-		assert(Struct.countScalars{vars=fluxVars} == self.numWaves)
+		assert(HydroStruct.countScalars{vars=fluxVars} == self.numWaves)
 	end
 
 	-- now add in the source terms (if you want them)

@@ -15,7 +15,7 @@ TODO implement these in hydro/eqn/ and hydro/solver/ bssnok-fd.lua
 local table = require 'ext.table'
 local symmath = require 'symmath'
 local EinsteinEqn = require 'hydro.eqn.einstein'
-local Struct = require 'hydro.code.struct'
+local HydroStruct = require 'hydro.code.struct'
 
 local makePartials = require 'hydro.eqn.makepartial'
 local makePartial1 = makePartials.makePartial1
@@ -71,7 +71,7 @@ function Z4cFiniteDifferenceEquation:init(args)
 		-- aux variable
 		{name='gammaBar_uu', type='sym3'},	--6
 	}
-	self.numIntStates = Struct.countScalars{vars=intVars}
+	self.numIntStates = HydroStruct.countScalars{vars=intVars}
 
 	-- call construction / build structures	
 	Z4cFiniteDifferenceEquation.super.init(self, args)

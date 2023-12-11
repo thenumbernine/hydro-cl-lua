@@ -6,7 +6,7 @@ The first Bona-Masso formalism.
 local table = require 'ext.table'
 local symmath = require 'symmath'
 local EinsteinEqn = require 'hydro.eqn.einstein'
-local Struct = require 'hydro.code.struct'
+local HydroStruct = require 'hydro.code.struct'
 
 local common = require 'hydro.common'
 local xNames = common.xNames
@@ -137,14 +137,14 @@ function ADM_BonaMasso_3D:init(args)
 
 	if not self.noZeroRowsInFlux then
 		-- skip alpha and gamma
-		self.numWaves = Struct.countScalars{vars=fluxVars}
+		self.numWaves = HydroStruct.countScalars{vars=fluxVars}
 		assert(self.numWaves == 30)
 	else
 		-- skip alpha, gamma_ij, a_q, d_qij, V_i for q != the direction of flux
 		self.numWaves = 13
 	end
 
-	self.numIntStates = Struct.countScalars{vars=self.consVars}
+	self.numIntStates = HydroStruct.countScalars{vars=self.consVars}
 
 	-- now add in the source terms (if you want them)
 	if self.useStressEnergyTerms then
