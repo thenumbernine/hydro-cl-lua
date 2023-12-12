@@ -782,7 +782,7 @@ self.modules = self.app.modules
 
 	self.modules:add{
 		name = assert(self.solver_t),
-		structs = {self.solverStruct},
+		structs = {self.solverStruct:getForModules()},
 		-- only generated for cl, not for ffi cdef
 		headercode = 'typedef '..self.solver_t..' solver_t;',
 	}

@@ -742,14 +742,14 @@ function Equation:initCodeModule_cons_prim_eigen_waves()
 
 	solver.modules:add{
 		name = self.symbols.cons_t,
-		structs = {self.consStruct},
+		structs = {self.consStruct:getForModules()},
 		depends = table(self.getModuleDepends_cons_t and self:getModuleDepends_cons_t() or nil):append{'vec'},
 	}
 
 	if self.primStruct then
 		solver.modules:add{
 			name = self.symbols.prim_t,
-			structs = {self.primStruct},
+			structs = {self.primStruct:getForModules()},
 			depends = table(self.getModuleDepends_prim_t and self:getModuleDepends_prim_t() or nil):append{'vec'},
 		}
 	else
@@ -762,14 +762,14 @@ function Equation:initCodeModule_cons_prim_eigen_waves()
 
 	solver.modules:add{
 		name = self.symbols.eigen_t,
-		structs = {assert(self.eigenStruct)},
+		structs = {assert(self.eigenStruct):getForModules()},
 		depends = {'vec'},
 	}
 
 	-- I think the direction I'm going is to make waves_t only for ffi.cdef side of things
 	solver.modules:add{
 		name = self.symbols.waves_t,
-		structs = {assert(self.wavesStruct)},
+		structs = {assert(self.wavesStruct):getForModules()},
 		depends = {'vec'},
 	}
 end

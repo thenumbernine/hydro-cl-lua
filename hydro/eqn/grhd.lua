@@ -108,14 +108,14 @@ function GRHD:initCodeModules()
 
 	solver.modules:add{
 		name = self.symbols.cons_only_t,
-		structs = {self.consOnlyStruct},
+		structs = {self.consOnlyStruct:getForModules()},
 		-- only generated for cl, not for ffi cdef
 		headercode = 'typedef '..self.symbols.cons_only_t..' cons_only_t;',
 	}
 
 	solver.modules:add{
 		name = self.symbols.prim_only_t,
-		structs = {self.primOnlyStruct},
+		structs = {self.primOnlyStruct:getForModules()},
 		-- only generated for cl, not for ffi cdef
 		headercode = 'typedef '..self.symbols.prim_only_t..' prim_only_t;',
 	}

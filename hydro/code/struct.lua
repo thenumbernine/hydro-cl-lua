@@ -217,4 +217,20 @@ function Struct:getTypeCode(typename)
 	return lines:concat'\n'
 end
 
+-- glue function between old hydro struct and new struct-lua which the modules system now works with
+function Struct:getForModules()
+	return setmetatable({
+		name = self.typename,
+		code = self.typecode,
+		fields = {},
+		fielditer = function()
+			return coroutine.wrap(function()
+				for _,field in ipairs(self.vars) do
+					coroutine.yield(field.name, field.type, field)
+				end
+			end)
+		end,
+	}, require 'struct')
+end
+
 return Struct
