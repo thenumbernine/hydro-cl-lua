@@ -99,8 +99,8 @@ function PoissonKrylov:initSolver()
 		:append{
 			solver.solver_t,
 			solver.symbols.OOB,
-		}:unpack())
-			:gsub('//// BEGIN EXCLUDE FOR FFI_CDEF.-//// END EXCLUDE FOR FFI_CDEF', '')
+		}:unpack()
+	)
 
 	local mulWithoutBorderKernelObj = solver.domain:kernel{
 		name = self.symbols.mulWithoutBorder,

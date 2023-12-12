@@ -37,7 +37,7 @@ end
 
 function InitCond:createInitStruct()
 	self.initStructFields = table()
-	
+
 	-- then setup the gui vars
 	-- this assumes guiVars are index-keyed
 	local initGuiVars = self.guiVars
@@ -95,7 +95,7 @@ function InitCond:addGuiVar(args)
 	-- because I'm going to map names into guiVars' keys, and I don't want to overwrite any integer-indexed guiVars
 	assert(args.name and type(args.name) == 'string')
 	local var = cl(args)
-	
+
 	-- assumes self.guiVars[i] already points to this var
 	self.guiVars:insert(var)
 	self.guiVars[var.name] = var
@@ -180,16 +180,19 @@ function InitCond:refreshInitStateProgram()
 		if solver.app.verbose then
 			print('initCond modules: '..moduleNames:concat', ')
 		end
+
+		solver.app.buildingOpenCL = true
 		initCondCode = solver.modules:getCodeAndHeader(moduleNames:unpack())
+		solver.app.buildingOpenCL = false
 	end)
-	
+
 	time('building program cache/'..solver:getIdent()..'/src/initCond.cl ', function()
 		solver.initCondProgramObj = solver.Program{name='initCond', code=initCondCode}
 		solver.initCondProgramObj:compile()
 	end)
-	
+
 	solver.applyInitCondKernelObj = solver.initCondProgramObj:kernel(eqn.symbols.applyInitCond, solver.solverBuf, solver.initCondBuf, solver.UBuf, solver.cellBuf)
-	
+
 	if solver:hasModule(eqn.symbols.initDerivs) then
 		solver.initDerivsKernelObj = solver.initCondProgramObj:kernel(eqn.symbols.initDerivs, solver.solverBuf, solver.UBuf, solver.cellBuf)
 	end
@@ -221,7 +224,7 @@ function InitCond:resetState()
 		print('init UBuf:')
 		solver:printBuf(solver.UBufObj)
 	end
-	
+
 	if solver.initDerivsKernelObj then
 		solver:boundary()
 		solver.initDerivsKernelObj()
@@ -232,7 +235,7 @@ function InitCond:resetState()
 		print('post-boundary init UBuf:')
 		solver:printBuf(solver.UBufObj)
 	end
-	
+
 	if solver.constrainUKernelObj then
 		-- this calls constrainUKernelObj
 		-- and then calls :boundary()

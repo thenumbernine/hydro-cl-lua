@@ -1791,6 +1791,17 @@ end
 --]=====]
 
 
+function CoordinateSystem:makeCachedModule(args)
+	local code = args.code
+	assert(type(code) == 'function', "if code isn't a function then you don't need to use CoordinateSystem:makeCachedModule")
+	local module = self.solver.modules:add(args)
+	module.code = function()
+		local result = code()
+		module.code = result
+		return result
+	end
+end
+
 --[[
 ok standardizing these macros ...
 we have a few manifolds to deal with ...
@@ -1846,7 +1857,7 @@ function CoordinateSystem:initCodeModules()
 		end
 		if #buildsAndExprNames > 0 then
 			assert(xpcall(function()
-				solver.modules:add{
+				self:makeCachedModule{
 					name = self.symbols[moduleName] or error("failed to find symbol for coord-depend "..moduleName),
 					depends = depends,
 					code = function()
@@ -1945,12 +1956,13 @@ function CoordinateSystem:initCodeModules()
 		headercode = 'typedef '..self.face_t..' face_t;',
 	}
 
-	solver.modules:add{
-		name = self.symbols.cell_calcAvg_withPt,
-		depends = {self.cell_t},
-		code = function()
+	do
+		self:makeCachedModule{
+			name = self.symbols.cell_calcAvg_withPt,
+			depends = {self.cell_t},
+			code = function()
 print("WARNING - haven't finished implementing cell_calcAvg_withPt")
-			return self.solver.eqn:template[[
+				return self.solver.eqn:template[[
 #define cell_calcAvg_withPt(\
 	/*<?=cell_t?> * const */resultCell,\
 	/*<?=cell_t?> const * const */cellL,\
@@ -1961,8 +1973,9 @@ print("WARNING - haven't finished implementing cell_calcAvg_withPt")
 	(resultCell)->pos = pt;\
 }
 ]]
-		end,
-	}
+			end,
+		}
+	end
 end
 
 function CoordinateSystem:getModuleDepends_coordMap()
@@ -2014,7 +2027,7 @@ function CoordinateSystem:initCodeModule_coordMap()
 		return uCode[i] or 'pt.'..xNames[i]
 	end))
 
-	solver.modules:add{
+	self:makeCachedModule{
 		name = self.symbols.coordMap,
 		depends = self:getModuleDepends_coordMap(),
 		code = function()
@@ -2023,7 +2036,7 @@ function CoordinateSystem:initCodeModule_coordMap()
 	}
 
 	-- get back the radial distance for some provided chart coordinates
-	solver.modules:add{
+	self:makeCachedModule{
 		name = self.symbols.coordMapR,
 		code = function()
 			return getCode.real3_to_real('coordMapR', self:compile(self.vars.r))
@@ -2032,7 +2045,7 @@ function CoordinateSystem:initCodeModule_coordMap()
 
 	local code_coordMapInv = self:getCoordMapInvModuleCode()	-- until i can autogen this ...
 
-	solver.modules:add{
+	self:makeCachedModule{
 		name = self.symbols.coordMapInv,
 		depends = self:getModuleDepends_coordMapInv(),
 		code = function()
@@ -2044,7 +2057,7 @@ function CoordinateSystem:initCodeModule_coordMap()
 	-- GLSL needs some extra depends
 	--  and I can't think of how to add them in except by doing this ...
 	-- see my rant in SphereLogRadial:getModuleDepends_coordMap
-	solver.modules:add{
+	self:makeCachedModule{
 		name = self.symbols.coordMapGLSL,
 		depends = self:getModuleDepends_coordMapGLSL(),
 		code = function()
@@ -2052,7 +2065,7 @@ function CoordinateSystem:initCodeModule_coordMap()
 		end,
 	}
 
-	solver.modules:add{
+	self:makeCachedModule{
 		name = self.symbols.coordMapInvGLSL,
 		depends = self:getModuleDepends_coordMapInvGLSL(),
 		code = function()
@@ -2061,7 +2074,7 @@ function CoordinateSystem:initCodeModule_coordMap()
 	}
 
 
-	solver.modules:add{
+	self:makeCachedModule{
 		name = self.symbols.coord_basis_i,
 --		depends = {'real3'},	-- modules can't explicitly include 'real3' and be used with GLSL at the same time ...
 		code = function()
@@ -2072,7 +2085,7 @@ function CoordinateSystem:initCodeModule_coordMap()
 		end,
 	}
 
-	solver.modules:add{
+	self:makeCachedModule{
 		name = self.symbols.coord_basisHolUnit_i,
 		code = function()
 			local eHolUnitCode = self.compilePrintRequestTensor'eHolUnitExt'

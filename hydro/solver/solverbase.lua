@@ -1018,8 +1018,7 @@ function SolverBase:initCDefs()
 	self.modules.set[self.solver_t].structs:remove()
 
 	require 'hydro.code.safecdef'(
-		(self.modules:getTypeHeader(moduleNames:unpack())
-		:gsub('//// BEGIN EXCLUDE FOR FFI_CDEF.-//// END EXCLUDE FOR FFI_CDEF', ''))
+		self.modules:getTypeHeader(moduleNames:unpack())
 	)
 	-- ... and re-add
 	self.modules.set[self.solver_t].structs:insert(self.solverStruct)
@@ -1192,11 +1191,13 @@ function SolverBase:refreshCommonProgram()
 	if self.app.verbose then
 		print('common modules: '..moduleNames:concat', ')
 	end
+
+	self.app.buildingOpenCL = true
 	local commonCode = table{
 		-- just header, no function calls needed
 		self.modules:getHeader(moduleNames:unpack()),
 		-- and i need this. .. but I need its code ... but if it requests any of 'moduleNames' headers , then i'll have duplicates ... so ... ?
-		self.modules:getCodeAndHeader('sqr'),
+		self.modules:getCodeAndHeader'sqr',
 		-- and here's the code
 		self.eqn:template[[
 kernel void multAddInto(
@@ -1301,6 +1302,7 @@ kernel void findNaNs(
 
 ]]
 	}:concat'\n'
+	self.app.buildingOpenCL = false
 
 	time('building program cache/'..self:getIdent()..'/src/common.cl ', function()
 		self.commonProgramObj = self.Program{name='common', code=commonCode}
@@ -1672,7 +1674,10 @@ function SolverBase:refreshSolverProgram()
 		if self.app.verbose then
 			print('solver modules: '..moduleNames:concat', ')
 		end
+
+		self.app.buildingOpenCL = true
 		code = self.modules:getCodeAndHeader(moduleNames:unpack())
+		self.app.buildingOpenCL = false
 	end)
 
 	time('building program cache/'..self:getIdent()..'/src/solver.cl ', function()
@@ -3855,7 +3860,6 @@ print('shared modules: '..moduleNames:concat', ')
 	local codePrefix =
 		vec3d.code..'\n'
 		..self.modules:getTypeHeader(moduleNames:unpack())
-			:gsub('//// BEGIN EXCLUDE FOR FFI_CDEF.-//// END EXCLUDE FOR FFI_CDEF', '')
 --[=[
 <?
 local Struct = require 'struct'

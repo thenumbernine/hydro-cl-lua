@@ -32,8 +32,7 @@ function Wave:init(args)
 	-- TODO when scalar==cplx then we need to cdef scalar for numRealsInScalar to work, so...
 	if self.scalar == 'cplx' then
 		require 'hydro.code.safecdef'(
-			(args.solver.app.modules:getTypeHeader'cplx'
-			:gsub('//// BEGIN EXCLUDE FOR FFI_CDEF.-//// END EXCLUDE FOR FFI_CDEF', ''))
+			args.solver.app.modules:getTypeHeader'cplx'
 		)
 		-- annnd I still need to change the eigen left & right to work too...
 	end

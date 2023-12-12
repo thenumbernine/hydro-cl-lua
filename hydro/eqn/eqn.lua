@@ -421,13 +421,13 @@ function Equation:cdefAllVarTypes(solver, vars)
 	assert(vars)
 	-- TODO not just math, but also cons_t
 	require 'hydro.code.safecdef'(
-		(solver.app.modules:getTypeHeader(
+		solver.app.modules:getTypeHeader(
 			table.mapi(vars, function(var,i,t)
 				local ctype = var.type
 				ctype = ctype:match('(.-)%[') or ctype
 				return true, ctype
 			end):keys():sort():unpack()
-		):gsub('//// BEGIN EXCLUDE FOR FFI_CDEF.-//// END EXCLUDE FOR FFI_CDEF', ''))
+		)
 	)
 end
 

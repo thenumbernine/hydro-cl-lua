@@ -617,28 +617,6 @@ function MeshSolver:initCodeModules()
 	
 	self.flux:initCodeModules()
 
--- [[ TODO this used to be in Mesh:getMeshTypeCode
-	-- TODO real3 vs vec3f/vec3d ...
-	-- TODO what if real3 isn't defined yet?
-	local vec2i = require 'vec-ffi.vec2i'
-	-- module dependencies are built by struct fields
-	-- and mesh adds vec2i to the face_t fields
-	-- so make sure there is a vec2i modules
-	-- TODO move this to hydro.code.math?
-	self.modules:add{
-		name = 'vec2i_t',
-		typecode = [[
-
-//// BEGIN EXCLUDE FOR FFI_CDEF
-
-]]..vec2i.code..[[
-
-//// END EXCLUDE FOR FFI_CDEF
-
-]],
-	}
---]]
-
 	self.modules:addFromMarkup(
 		self.eqn:template(path'hydro/solver/meshsolver.cl':read())
 	)

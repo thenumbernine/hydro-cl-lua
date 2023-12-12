@@ -1183,7 +1183,9 @@ lines:insert[[
 	end
 
 	-- last, add dependency code to the beginning
+	self.app.buildingOpenCL = true
 	lines:insert(1, self.modules:getCodeAndHeader(moduleNames:unpack()))
+	self.app.buildingOpenCL = false
 
 	local code = lines:concat'\n'
 	local boundaryProgramName = 'boundary'..(args.programNameSuffix or '')

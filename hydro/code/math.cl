@@ -7,7 +7,7 @@ local function makevec3type(name, scalar)
 	) then
 		-- use vec-ffi when we can
 		assert(name == "real3")
-		
+
 		local vecType
 		if app.real == "float" then
 			vecType = require "vec-ffi.vec3f"
@@ -17,9 +17,7 @@ local function makevec3type(name, scalar)
 		-- use the vec-ffi type code
 		-- granted if we ffi.cdef this, it will have already been ffi.cdef'd from the require 'vec-ffi.vec3x'
 ?>
-//// BEGIN EXCLUDE FOR FFI_CDEF
-<?=vecType.code?>
-//// END EXCLUDE FOR FFI_CDEF
+//// MODULE_DEPENDS: <?=vecType.name?>
 typedef <?=vecType.name?> <?=name?>;
 <?
 		else

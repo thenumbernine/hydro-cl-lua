@@ -617,13 +617,33 @@ function HydroCLApp:initGL(...)
 		--  if it finds the module name in the code then it uses it.
 		self.modules.ambitious = true
 
+		-- don't cdef these ... keep them empty until after ffi.cdef
+		-- only add in the type code for vec3f or vec3d to opencl ...
+		local vec2i = require 'vec-ffi.vec2i'
+		local vec3f = require 'vec-ffi.vec3f'
+		local vec3d = require 'vec-ffi.vec3d'
+		for _,vec in ipairs{
+			vec2i,
+			vec3f,
+			self.real == 'double' and vec3d or nil,
+		} do
+			local module = self.modules:add{
+				name = vec.name,
+				typecode = function()
+					if self.buildingOpenCL then
+						return (assert(vec.code))
+					end
+					return '// disabled for non-opencl'
+				end,
+			}
+		end
+
 		self.modules:addFromMarkup(template(path'hydro/code/math.cl':read(), table(require 'hydro.common', {
 			app = self,
 		})))
 
 		require 'hydro.code.safecdef'(
-			(self.modules:getTypeHeader'math'
-			:gsub('//// BEGIN EXCLUDE FOR FFI_CDEF.-//// END EXCLUDE FOR FFI_CDEF', ''))
+			self.modules:getTypeHeader'math'
 		)
 
 		-- this expects solver_t to have gridSize, but it doesn't require its def (because it's a macro)
