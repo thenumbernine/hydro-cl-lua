@@ -926,6 +926,11 @@ self.modules = self.app.modules
 	-- while opencl was getting the proper struct
 	self.modules:add{
 		name = assert(self.solver_t),
+		-- TODO I could do like in hydro/app, replace the .structs = ... with .typecode = function() ... end
+		-- and then make that function conditional on the buildingOpenCL flag
+		-- but then I'd be omitting the structs from the checkStructSizes() alignment-test
+		-- and solver_t here is one of the first to fall out of alignment
+		-- so it is probably better to just add/remove the struct object from the module's .structs
 		structs = {self.solverStruct},
 		-- only generated for cl, not for ffi cdef
 		headercode = 'typedef '..self.solver_t..' solver_t;',
