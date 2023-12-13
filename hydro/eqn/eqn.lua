@@ -66,7 +66,7 @@ Equation.parityVarsGetters = table{
 			end
 		end
 	end,
-	sym3 = function(sign, parityVars, field)
+	real3s3 = function(sign, parityVars, field)
 		for ij,xij in ipairs(symNames) do
 			local i,j = from6to3x3(ij)
 			if sign[i] * sign[j] == -1 then
@@ -83,7 +83,7 @@ Equation.parityVarsGetters = table{
 			end
 		end
 	end,
-	_3sym3 = function(sign, parityVars, field)
+	real3x3s3 = function(sign, parityVars, field)
 		for k,xk in ipairs(xNames) do
 			for ij,xij in ipairs(symNames) do
 				local i,j = from6to3x3(ij)
@@ -147,7 +147,7 @@ solver init:
 - build sub-objs
 	- including eqn
 		- count scalars to determine # init states
-			- early cdef of field types ... real, real3, sym3, etc
+			- early cdef of field types ... real, real3, real3s3, etc
 - build code modules
 - cdef all required types: solver_t, cons_t, prim_t, etc
 
@@ -649,13 +649,13 @@ function Equation:initCodeModule_cons_parallelPropagate()
 		local degreeForType = {
 			real = 0,
 			real3 = 1,
-			sym3 = 2,
+			real3s3 = 2,
 			real3x3 = 2,
-			_3sym3 = 3,
+			real3x3s3 = 3,
 			real3x3x3 = 3,
 		}
 		for _,k in ipairs(table.keys(degreeForType)) do
-			-- hmm, what about sym3 and _3sym3?
+			-- hmm, what about real3s3 and real3x3s3?
 			degreeForType[k:gsub('real', 'cplx')] = degreeForType[k]
 		end
 

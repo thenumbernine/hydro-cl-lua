@@ -36,25 +36,25 @@ real3 real3_rescaleToCoord_L(real3 v, real3 x) {
 }
 #define real3_rescaleFromCoord_u real3_rescaleToCoord_L
 
-sym3 sym3_rescaleFromCoord_ll(sym3 a, real3 x) {
-	return (sym3){
+real3s3 real3s3_rescaleFromCoord_ll(real3s3 a, real3 x) {
+	return (real3s3){
 <? for ij,xij in ipairs(symNames) do
 	local i,j = from6to3x3(ij)
 ?>		.<?=xij?> = a.<?=xij?> / (coord_dx<?=i-1?>(x) * coord_dx<?=j-1?>(x)),
 <? end
 ?>	};
 }
-#define sym3_rescaleToCoord_UU sym3_rescaleFromCoord_ll
+#define real3s3_rescaleToCoord_UU real3s3_rescaleFromCoord_ll
 
-sym3 sym3_rescaleToCoord_LL(sym3 a, real3 x) {
-	return (sym3){
+real3s3 real3s3_rescaleToCoord_LL(real3s3 a, real3 x) {
+	return (real3s3){
 <? for ij,xij in ipairs(symNames) do
 	local i,j = from6to3x3(ij)
 ?>		.<?=xij?> = a.<?=xij?> * (coord_dx<?=i-1?>(x) * coord_dx<?=j-1?>(x)),
 <? end
 ?>	};
 }
-#define sym3_rescaleFromCoord_uu sym3_rescaleToCoord_LL
+#define real3s3_rescaleFromCoord_uu real3s3_rescaleToCoord_LL
 
 #else	//debugging -- turning it off
 
@@ -62,10 +62,10 @@ sym3 sym3_rescaleToCoord_LL(sym3 a, real3 x) {
 #define real3_rescaleToCoord_U(a,x) a
 #define real3_rescaleToCoord_L(a,x) a
 #define real3_rescaleFromCoord_u(a,x) a
-#define sym3_rescaleFromCoord_ll(a,x) a
-#define sym3_rescaleToCoord_UU(a,x) a
-#define sym3_rescaleToCoord_LL(a,x) a
-#define sym3_rescaleFromCoord_uu(a,x) a
+#define real3s3_rescaleFromCoord_ll(a,x) a
+#define real3s3_rescaleToCoord_UU(a,x) a
+#define real3s3_rescaleToCoord_LL(a,x) a
+#define real3s3_rescaleFromCoord_uu(a,x) a
 
 #endif
 
@@ -78,17 +78,17 @@ cplx3 cplx3_rescaleFromCoord_l(cplx3 v, real3 x) {
 		real3_rescaleFromCoord_l(cplx3_im(v), x));
 }
 
-//// MODULE_NAME: <?=_3sym3_rescaleFromCoord__3sym3_rescaleToCoord?>
-//// MODULE_DEPENDS: _3sym3
+//// MODULE_NAME: <?=real3x3s3_rescaleFromCoord_real3x3s3_rescaleToCoord?>
+//// MODULE_DEPENDS: real3x3s3
 // <?=rescaleFromCoord_rescaleToCoord?>	// I could use this for sub-member rescaling
 // ... but I just did it manually
 //// MODULE_DEPENDS: <?=coord_dx_i?>
 #if 1
 
-_3sym3 _3sym3_rescaleFromCoord_lll(_3sym3 a, real3 x) {
-	return (_3sym3){
+real3x3s3 real3x3s3_rescaleFromCoord_lll(real3x3s3 a, real3 x) {
+	return (real3x3s3){
 <? for i,xi in ipairs(xNames) do
-?>		.<?=xi?> = (sym3){
+?>		.<?=xi?> = (real3s3){
 <?	for jk,xjk in ipairs(symNames) do
 	local j,k = from6to3x3(jk)
 ?>			a.<?=xi?>.<?=xjk?> / (coord_dx<?=i-1?>(x) * coord_dx<?=j-1?>(x) * coord_dx<?=k-1?>(x)),
@@ -97,12 +97,12 @@ _3sym3 _3sym3_rescaleFromCoord_lll(_3sym3 a, real3 x) {
 <? end
 ?>	};
 }
-#define _3sym3_rescaleToCoord_UUU _3sym3_rescaleFromCoord_lll
+#define real3x3s3_rescaleToCoord_UUU real3x3s3_rescaleFromCoord_lll
 
-_3sym3 _3sym3_rescaleToCoord_LLL(_3sym3 a, real3 x) {
-	return (_3sym3){
+real3x3s3 real3x3s3_rescaleToCoord_LLL(real3x3s3 a, real3 x) {
+	return (real3x3s3){
 <? for i,xi in ipairs(xNames) do
-?>		.<?=xi?> = (sym3){
+?>		.<?=xi?> = (real3s3){
 <?	for jk,xjk in ipairs(symNames) do
 	local j,k = from6to3x3(jk)
 ?>			a.<?=xi?>.<?=xjk?> * (coord_dx<?=i-1?>(x) * coord_dx<?=j-1?>(x) * coord_dx<?=k-1?>(x)),
@@ -111,12 +111,12 @@ _3sym3 _3sym3_rescaleToCoord_LLL(_3sym3 a, real3 x) {
 <? end
 ?>	};
 }
-#define _3sym3_rescaleFromCoord_uuu _3sym3_rescaleToCoord_LLL
+#define real3x3s3_rescaleFromCoord_uuu real3x3s3_rescaleToCoord_LLL
 
-_3sym3 _3sym3_rescaleFromCoord_ull(_3sym3 a, real3 x) {
-	return (_3sym3){
+real3x3s3 real3x3s3_rescaleFromCoord_ull(real3x3s3 a, real3 x) {
+	return (real3x3s3){
 <? for i,xi in ipairs(xNames) do
-?>		.<?=xi?> = (sym3){
+?>		.<?=xi?> = (real3s3){
 <?	for jk,xjk in ipairs(symNames) do
 	local j,k = from6to3x3(jk)
 ?>			a.<?=xi?>.<?=xjk?> * coord_dx<?=i-1?>(x) / (coord_dx<?=j-1?>(x) * coord_dx<?=k-1?>(x)),
@@ -126,10 +126,10 @@ _3sym3 _3sym3_rescaleFromCoord_ull(_3sym3 a, real3 x) {
 ?>	};
 }
 
-_3sym3 _3sym3_rescaleToCoord_ULL(_3sym3 a, real3 x) {
-	return (_3sym3){
+real3x3s3 real3x3s3_rescaleToCoord_ULL(real3x3s3 a, real3 x) {
+	return (real3x3s3){
 <? for i,xi in ipairs(xNames) do
-?>		.<?=xi?> = (sym3){
+?>		.<?=xi?> = (real3s3){
 <?	for jk,xjk in ipairs(symNames) do
 	local j,k = from6to3x3(jk)
 ?>			a.<?=xi?>.<?=xjk?> * (coord_dx<?=j-1?>(x) * coord_dx<?=k-1?>(x)) / coord_dx<?=i-1?>(x),
@@ -141,26 +141,26 @@ _3sym3 _3sym3_rescaleToCoord_ULL(_3sym3 a, real3 x) {
 
 #else
 
-#define _3sym3_rescaleFromCoord_lll(a,x) a
-#define _3sym3_rescaleToCoord_UUU(a,x) a
-#define _3sym3_rescaleToCoord_LLL(a,x) a
-#define _3sym3_rescaleFromCoord_uuu(a,x) a
+#define real3x3s3_rescaleFromCoord_lll(a,x) a
+#define real3x3s3_rescaleToCoord_UUU(a,x) a
+#define real3x3s3_rescaleToCoord_LLL(a,x) a
+#define real3x3s3_rescaleFromCoord_uuu(a,x) a
 
 #endif
 
-//// MODULE_NAME: <?=sym3sym3_rescaleFromCoord_sym3sym3_rescaleToCoord?>
-//// MODULE_DEPENDS: sym3sym3
+//// MODULE_NAME: <?=real3s3x3s3_rescaleFromCoord_real3s3x3s3_rescaleToCoord?>
+//// MODULE_DEPENDS: real3s3x3s3
 // <?=rescaleFromCoord_rescaleToCoord?>	// I could use this for sub-member rescaling
 // ... but I just did it manually
 //// MODULE_DEPENDS: <?=coord_dx_i?>
 // only used by bssnok-fd-sym
 #if 1
 
-sym3sym3 sym3sym3_rescaleFromCoord_llll(sym3sym3 a, real3 x) {
-	return (sym3sym3){
+real3s3x3s3 real3s3x3s3_rescaleFromCoord_llll(real3s3x3s3 a, real3 x) {
+	return (real3s3x3s3){
 <? for ij,xij in ipairs(symNames) do
 	local i,j = from6to3x3(ij)
-?>		.<?=xij?> = (sym3){
+?>		.<?=xij?> = (real3s3){
 <?	for kl,xkl in ipairs(symNames) do
 	local k,l = from6to3x3(kl)
 ?>			.<?=xkl?> = a.<?=xij?>.<?=xkl?> / (coord_dx<?=i-1?>(x) * coord_dx<?=j-1?>(x) * coord_dx<?=k-1?>(x) * coord_dx<?=l-1?>(x)),
@@ -169,13 +169,13 @@ sym3sym3 sym3sym3_rescaleFromCoord_llll(sym3sym3 a, real3 x) {
 <? end
 ?>	};
 }
-#define sym3sym3_rescaleToCoord_UUUU sym3sym3_rescaleFromCoord_llll
+#define real3s3x3s3_rescaleToCoord_UUUU real3s3x3s3_rescaleFromCoord_llll
 
-sym3sym3 sym3sym3_rescaleToCoord_LLLL(sym3sym3 a, real3 x) {
-	return (sym3sym3){
+real3s3x3s3 real3s3x3s3_rescaleToCoord_LLLL(real3s3x3s3 a, real3 x) {
+	return (real3s3x3s3){
 <? for ij,xij in ipairs(symNames) do
 	local i,j = from6to3x3(ij)
-?>		.<?=xij?> = (sym3){
+?>		.<?=xij?> = (real3s3){
 <?	for kl,xkl in ipairs(symNames) do
 	local k,l = from6to3x3(kl)
 ?>			.<?=xkl?> = a.<?=xij?>.<?=xkl?> * (coord_dx<?=i-1?>(x) * coord_dx<?=j-1?>(x) * coord_dx<?=k-1?>(x) * coord_dx<?=l-1?>(x)),
@@ -184,13 +184,13 @@ sym3sym3 sym3sym3_rescaleToCoord_LLLL(sym3sym3 a, real3 x) {
 <? end
 ?>	};
 }
-#define sym3sym3_rescaleFromCoord_uuuu sym3sym3_rescaleToCoord_LLLL
+#define real3s3x3s3_rescaleFromCoord_uuuu real3s3x3s3_rescaleToCoord_LLLL
 
 #else
 
-#define sym3sym3_rescaleFromCoord_llll(a,x) a
-#define sym3sym3_rescaleToCoord_UUUU(a,x) a
-#define sym3sym3_rescaleToCoord_LLLL(a,x) a
-#define sym3sym3_rescaleFromCoord_uuuu (a,x) a
+#define real3s3x3s3_rescaleFromCoord_llll(a,x) a
+#define real3s3x3s3_rescaleToCoord_UUUU(a,x) a
+#define real3s3x3s3_rescaleToCoord_LLLL(a,x) a
+#define real3s3x3s3_rescaleFromCoord_uuuu (a,x) a
 
 #endif

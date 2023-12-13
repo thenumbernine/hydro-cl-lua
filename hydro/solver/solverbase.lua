@@ -1757,8 +1757,8 @@ function SolverBase:getDisplayCode()
 typedef union displayValue_t {
 	real	ptr[9];
 	real	vreal;
-<? if solver:isModuleUsed'sym3' then ?>
-	sym3	vsym3;
+<? if solver:isModuleUsed'real3s3' then ?>
+	real3s3	vreal3s3;
 <? end ?>
 <? if solver:isModuleUsed'cplx' then ?>
 	cplx	vcplx;
@@ -1887,11 +1887,11 @@ end
 
 --[=[
 -- ok here's another idea for saving lines of code
--- add some predefined functions for getters for real, real3, sym3, cplx, cplx3, real3x3
+-- add some predefined functions for getters for real, real3, real3s3, cplx, cplx3, real3x3
 -- and, if your variable is just a member of a struct of one of these types, use that.
 -- (this means adding in extra params for display: the offset and the struct size)
 
-	for _,ctype in ipairs{'real', 'real3', 'sym3', 'cplx', 'cplx3', 'real3x3'} do
+	for _,ctype in ipairs{'real', 'real3', 'real3s3', 'cplx', 'cplx3', 'real3x3'} do
 		for _, texVsBuf in ipairs{'Tex', 'Buffer'} do
 			local tempvar = {
 				code = template([[
@@ -2325,34 +2325,34 @@ value->vreal3 = _real3(coordLen(value->vreal3, x),0,0);
 		{name = 'yz arg', code = 'value->vreal3 = _real3(atan2(value->vreal3.z, value->vreal3.y),0,0);'},
 		{name = 'zx arg', code = 'value->vreal3 = _real3(atan2(value->vreal3.x, value->vreal3.z),0,0);'},
 	})
-	self:addDisplayComponents('sym3', {
-		{name = 'xx', code = 'value->vsym3 = _sym3(value->vsym3.xx,0,0,0,0,0);'},
-		{name = 'xy', code = 'value->vsym3 = _sym3(value->vsym3.xy,0,0,0,0,0);'},
-		{name = 'xz', code = 'value->vsym3 = _sym3(value->vsym3.xz,0,0,0,0,0);'},
-		{name = 'yy', code = 'value->vsym3 = _sym3(value->vsym3.yy,0,0,0,0,0);'},
-		{name = 'yz', code = 'value->vsym3 = _sym3(value->vsym3.yz,0,0,0,0,0);'},
-		{name = 'zz', code = 'value->vsym3 = _sym3(value->vsym3.zz,0,0,0,0,0);'},
-		{name = 'norm', code = 'value->vsym3 = _sym3(sqrt(sym3_dot(value->vsym3, value->vsym3)), 0,0,0,0,0);'},
-		{name = 'tr', code = 'value->vsym3 = _sym3(sym3_trace(value->vsym3), 0,0,0,0,0);'},
-		{name = 'det', code = 'value->vsym3 = _sym3(sym3_det(value->vsym3), 0,0,0,0,0);'},
+	self:addDisplayComponents('real3s3', {
+		{name = 'xx', code = 'value->vreal3s3 = _real3s3(value->vreal3s3.xx,0,0,0,0,0);'},
+		{name = 'xy', code = 'value->vreal3s3 = _real3s3(value->vreal3s3.xy,0,0,0,0,0);'},
+		{name = 'xz', code = 'value->vreal3s3 = _real3s3(value->vreal3s3.xz,0,0,0,0,0);'},
+		{name = 'yy', code = 'value->vreal3s3 = _real3s3(value->vreal3s3.yy,0,0,0,0,0);'},
+		{name = 'yz', code = 'value->vreal3s3 = _real3s3(value->vreal3s3.yz,0,0,0,0,0);'},
+		{name = 'zz', code = 'value->vreal3s3 = _real3s3(value->vreal3s3.zz,0,0,0,0,0);'},
+		{name = 'norm', code = 'value->vreal3s3 = _real3s3(sqrt(real3s3_dot(value->vreal3s3, value->vreal3s3)), 0,0,0,0,0);'},
+		{name = 'tr', code = 'value->vreal3s3 = _real3s3(real3s3_trace(value->vreal3s3), 0,0,0,0,0);'},
+		{name = 'det', code = 'value->vreal3s3 = _real3s3(real3s3_det(value->vreal3s3), 0,0,0,0,0);'},
 
-		{name = 'x', code = 'value->vsym3 = _sym3(value->vsym3.xx, value->vsym3.xy, value->vsym3.xz, 0,0,0);', type = 'real3', magn='x mag'},
-		{name = 'y', code = 'value->vsym3 = _sym3(value->vsym3.xy, value->vsym3.yy, value->vsym3.yz, 0,0,0);', type = 'real3', magn='y mag'},
-		{name = 'z', code = 'value->vsym3 = _sym3(value->vsym3.xz, value->vsym3.yz, value->vsym3.zz, 0,0,0);', type = 'real3', magn='z mag'},
-		{name = 'x mag', code = 'value->vsym3 = _sym3(real3_len(sym3_x(value->vsym3)), 0,0,0,0,0);'},
-		{name = 'y mag', code = 'value->vsym3 = _sym3(real3_len(sym3_y(value->vsym3)), 0,0,0,0,0);'},
-		{name = 'z mag', code = 'value->vsym3 = _sym3(real3_len(sym3_z(value->vsym3)), 0,0,0,0,0);'},
+		{name = 'x', code = 'value->vreal3s3 = _real3s3(value->vreal3s3.xx, value->vreal3s3.xy, value->vreal3s3.xz, 0,0,0);', type = 'real3', magn='x mag'},
+		{name = 'y', code = 'value->vreal3s3 = _real3s3(value->vreal3s3.xy, value->vreal3s3.yy, value->vreal3s3.yz, 0,0,0);', type = 'real3', magn='y mag'},
+		{name = 'z', code = 'value->vreal3s3 = _real3s3(value->vreal3s3.xz, value->vreal3s3.yz, value->vreal3s3.zz, 0,0,0);', type = 'real3', magn='z mag'},
+		{name = 'x mag', code = 'value->vreal3s3 = _real3s3(real3_len(real3s3_x(value->vreal3s3)), 0,0,0,0,0);'},
+		{name = 'y mag', code = 'value->vreal3s3 = _real3s3(real3_len(real3s3_y(value->vreal3s3)), 0,0,0,0,0);'},
+		{name = 'z mag', code = 'value->vreal3s3 = _real3s3(real3_len(real3s3_z(value->vreal3s3)), 0,0,0,0,0);'},
 		{name = 'x mag metric', code = self.eqn:template[[
 //// MODULE_DEPENDS: <?=coordLen?>
-value->vsym3 = _sym3(coordLen(sym3_x(value->vsym3), x), 0,0,0,0,0);
+value->vreal3s3 = _real3s3(coordLen(real3s3_x(value->vreal3s3), x), 0,0,0,0,0);
 ]]},
 		{name = 'y mag metric', code = self.eqn:template[[
 //// MODULE_DEPENDS: <?=coordLen?>
-value->vsym3 = _sym3(coordLen(sym3_y(value->vsym3), x), 0,0,0,0,0);
+value->vreal3s3 = _real3s3(coordLen(real3s3_y(value->vreal3s3), x), 0,0,0,0,0);
 ]]},
 		{name = 'z mag metric', code = self.eqn:template[[
 //// MODULE_DEPENDS: <?=coordLen?>
-value->vsym3 = _sym3(coordLen(sym3_z(value->vsym3), x), 0,0,0,0,0);
+value->vreal3s3 = _real3s3(coordLen(real3s3_z(value->vreal3s3), x), 0,0,0,0,0);
 ]]},
 	})
 	self:addDisplayComponents('cplx', {
@@ -2418,7 +2418,7 @@ value->vcplx3 = _cplx3(cplx_from_real(coordLen(cplx3_im(value->vcplx3), x)), cpl
 		{name = 'tr', code = 'value->vreal3x3 = _real3x3(real3x3_trace(value->vreal3x3), 0,0,0,0,0,0,0,0);'},
 		{name = 'tr metric', code = self.eqn:template[[
 //// MODULE_DEPENDS: <?=coord_g_ll?>
-value->vreal3x3 = _real3x3(real3x3_sym3_dot(value->vreal3x3, coord_g_ll(x)), 0,0,0,0,0,0,0,0);
+value->vreal3x3 = _real3x3(real3x3_real3s3_dot(value->vreal3x3, coord_g_ll(x)), 0,0,0,0,0,0,0,0);
 ]]},
 
 		{name = 'x', code = 'value->vreal3 = value->vreal3x3.x; value->vreal3x3.y = real3_zero; value->vreal3x3.z = real3_zero;', type = 'real3', magn='x mag'},
@@ -2519,7 +2519,7 @@ end
 
 function SolverBase:isVarTypeAVectorField(vartype)
 	return vartype == 'real3' or vartype == 'cplx'
-	-- sym3 and cplx3 are too complex to merely be vector fields.
+	-- real3s3 and cplx3 are too complex to merely be vector fields.
 	--  maybe I'll add another display for them later.
 end
 
@@ -2724,19 +2724,19 @@ returns a list of display var construction info
 --]]
 function SolverBase:createDisplayVarArgsForStructVars(structVars, ptrName, namePrefix)
 	-- initialize structForType
-	-- TODO put the _3sym3Struct initialization somewhere else
+	-- TODO put the real3x3s3Struct initialization somewhere else
 	-- TODO is the structForType table the same as typeInfoForCode table within hydro/code/struct.lua?
-	if not self.structForType['_3sym3'] then
-		local _3sym3Struct = Struct{
-			name = '_3sym3',
+	if not self.structForType.real3x3s3 then
+		local real3x3s3Struct = Struct{
+			name = 'real3x3s3',
 			fields = {
-				{name='x', type='sym3'},
-				{name='y', type='sym3'},
-				{name='z', type='sym3'},
+				{name='x', type='real3s3'},
+				{name='y', type='real3s3'},
+				{name='z', type='real3s3'},
 			},
 			cdef = false,
 		}.class
-		self.structForType['_3sym3'] = _3sym3Struct
+		self.structForType.real3x3s3 = real3x3s3Struct
 	end
 
 	-- should I always force it to be a ptr, hence always using -> ?

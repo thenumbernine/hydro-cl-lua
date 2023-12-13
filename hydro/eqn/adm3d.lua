@@ -64,14 +64,14 @@ function ADM_BonaMasso_3D:init(args)
 
 	local fluxVars = table{
 		{name='a_l', type='real3'},
-		{name='d_lll', type='_3sym3'},
-		{name='K_ll', type='sym3'},
+		{name='d_lll', type='real3x3s3'},
+		{name='K_ll', type='real3s3'},
 		{name='V_l', type='real3'},
 	}
 
 	self.consVars = table{
 		{name='alpha', type='real'},
-		{name='gamma_ll', type='sym3'},
+		{name='gamma_ll', type='real3s3'},
 	}:append(fluxVars)
 
 
@@ -152,7 +152,7 @@ function ADM_BonaMasso_3D:init(args)
 			--stress-energy variables:
 			{name='rho', type='real'},					--1: n_a n_b T^ab
 			{name='S_u', type='real3'},				--3: -gamma^ij n_a T_aj
-			{name='S_ll', type='sym3'},				--6: gamma_i^c gamma_j^d T_cd
+			{name='S_ll', type='real3s3'},				--6: gamma_i^c gamma_j^d T_cd
 		}
 	end
 	self.consVars:append{
@@ -165,7 +165,7 @@ function ADM_BonaMasso_3D:init(args)
 	self.eigenVars = table{
 		{name='alpha', type='real'},
 		{name='alpha_sqrt_f', type='real'},
-		{name='gamma_uu', type='sym3'},
+		{name='gamma_uu', type='real3s3'},
 		-- sqrt(gamma^jj) needs to be cached, otherwise the Intel kernel stalls (for seconds on end)
 		{name='sqrt_gammaUjj', type='real3'},
 	}
@@ -250,7 +250,7 @@ function ADM_BonaMasso_3D:getDisplayVars()
 	local vars = ADM_BonaMasso_3D.super.getDisplayVars(self)
 
 	vars:append{
-		{name='volume', code='value.vreal = U->alpha * sqrt(sym3_det(U->gamma_ll));'},
+		{name='volume', code='value.vreal = U->alpha * sqrt(real3s3_det(U->gamma_ll));'},
 		{name='f', code=self:template[[
 //// MODULE_DEPENDS: <?=initCond_codeprefix?>
 value.vreal = calc_f(U->alpha);
@@ -260,9 +260,9 @@ value.vreal = calc_f(U->alpha);
 value.vreal = calc_dalpha_f(U->alpha);
 ]]},
 		{name='expansion', code=[[
-	real det_gamma = sym3_det(U->gamma_ll);
-	sym3 gamma_uu = sym3_inv(U->gamma_ll, det_gamma);
-	value.vreal = -sym3_dot(gamma_uu, U->K_ll);
+	real det_gamma = real3s3_det(U->gamma_ll);
+	real3s3 gamma_uu = real3s3_inv(U->gamma_ll, det_gamma);
+	value.vreal = -real3s3_dot(gamma_uu, U->K_ll);
 ]]		},
 	}:append{
 --[=[
@@ -307,12 +307,12 @@ momentum constraints
 			+ Γ3^k_ij
 	--]]
 	vars:insert{name='gravity', code=self:template[[
-	sym3 gamma_uu = sym3_inv(U->gamma_ll, sym3_det(U->gamma_ll));
+	real3s3 gamma_uu = real3s3_inv(U->gamma_ll, real3s3_det(U->gamma_ll));
 
 	real const alpha = U->alpha;
 	real3 const a_l = U->a_l;
 	
-	value.vreal3 = real3_real_mul(sym3_real3_mul(gamma_uu, a_l), alpha * alpha);	//+ α^2 γ^km a_m
+	value.vreal3 = real3_real_mul(real3s3_real3_mul(gamma_uu, a_l), alpha * alpha);	//+ α^2 γ^km a_m
 
 <? if useShift then ?>
 
@@ -322,9 +322,9 @@ momentum constraints
 	real3 const beta_u = U->beta_u;
 	real3 const dt_beta_u = real3_zero;
 
-	sym3 const K_ll = U->K_ll;
-	real3x3 const K_lu = sym3_sym3_mul(K_ll, gamma_uu);
-	real3 const beta_dot_K_l = real3_sym3_mul(beta_u, K_ll);
+	real3s3 const K_ll = U->K_ll;
+	real3x3 const K_lu = real3s3_real3s3_mul(K_ll, gamma_uu);
+	real3 const beta_dot_K_l = real3_real3s3_mul(beta_u, K_ll);
 
 	real const K_dot_beta_dot_beta = real3_dot(beta_dot_K_l, beta_u);
 	real const beta_dot_a = real3_dot(beta_u, a_l);
@@ -332,12 +332,12 @@ momentum constraints
 	real3x3 const partial_beta_ul = real3x3_zero;											// β^k_,l
 	real3 const partial_beta_dot_beta_u = real3x3_real3_mul(partial_beta_ul, beta_u);		// β^k_,l β^l 
 
-	real3x3x3 const d_llu = _3sym3_sym3_mul(d_lll, gamma_uu);						//d_llu := d_ij^k = d_ijl * γ^lk
-	_3sym3 const d_ull = sym3_3sym3_mul(gamma_uu, d_lll);							//d_ull := d^i_jk = γ^il d_ljk
-	_3sym3 const conn_ull = conn_ull_from_d_llu_d_ull(d_llu, d_ull);				//Γ^k_ij = d_ij^k + d_ji^k - d^k_ij
+	real3x3x3 const d_llu = real3x3s3_real3s3_mul(d_lll, gamma_uu);						//d_llu := d_ij^k = d_ijl * γ^lk
+	real3x3s3 const d_ull = real3s3_real3x3s3_mul(gamma_uu, d_lll);							//d_ull := d^i_jk = γ^il d_ljk
+	real3x3s3 const conn_ull = conn_ull_from_d_llu_d_ull(d_llu, d_ull);				//Γ^k_ij = d_ij^k + d_ji^k - d^k_ij
 
 	// TODO dot2+dot3 at once
-	real3 const conn_dot_beta_dot_beta_u = _3sym3_sym3_dot23(conn_ull, real3_outer(beta_u, beta_u));		// Γ^k_lm β^l β^m
+	real3 const conn_dot_beta_dot_beta_u = real3x3s3_real3s3_dot23(conn_ull, real3_outer(beta_u, beta_u));		// Γ^k_lm β^l β^m
 
 	// this is just the Γ4^k_tt term ... do I want the Γ4^k_ti and Γ4^k_ij terms?  I guess that would depend on the observer ... this is all for an observer at rest (wrt the grid?)
 	value.vreal3 = real3_add6(
@@ -346,7 +346,7 @@ momentum constraints
 		real3_real_mul(beta_u, -dt_alpha / alpha),									//- 1/α β^k α_,t 
 		real3_real_mul(beta_u, -beta_dot_a),										//- β^k β^l a_l 
 		real3_real_mul(beta_u, K_dot_beta_dot_beta / alpha), 						//+ 1/α K_lm β^k β^l β^m
-		real3_real_mul(sym3_real3_mul(gamma_uu, beta_dot_K_l), -2. * alpha),		//- 2 α β^l K_l^k
+		real3_real_mul(real3s3_real3_mul(gamma_uu, beta_dot_K_l), -2. * alpha),		//- 2 α β^l K_l^k
 		partial_beta_dot_beta_u, 													//+ β^k_,l β^l 
 		conn_dot_beta_dot_beta_u									 				//+ Γ^k_lm β^l β^m
 	);
@@ -380,37 +380,37 @@ momentum constraints
 	for i,xi in ipairs(xNames) do
 		vars:insert{name='gamma_ij vs d_'..xi..'ij', code=self:template([[
 	if (<?=OOB?>(1,1)) {
-		value.vsym3 = sym3_zero;
+		value.vreal3s3 = real3s3_zero;
 	} else {
 		<? if i <= solver.dim then ?>
-		sym3 partial_i_gamma_ll = sym3_real_mul(
-			sym3_sub(
+		real3s3 partial_i_gamma_ll = real3s3_real_mul(
+			real3s3_sub(
 				U[solver->stepsize.<?=xi?>].gamma_ll,
 				U[-solver->stepsize.<?=xi?>].gamma_ll
 			),
 			1. / (2. * solver->grid_dx.s<?=i-1?>)
 		);
 		<? else ?>
-		sym3 partial_i_gamma_ll = sym3_zero;
+		real3s3 partial_i_gamma_ll = real3s3_zero;
 		<? end ?>
-		value.vsym3 = sym3_sub(sym3_real_mul(partial_i_gamma_ll, .5), U->d_lll.<?=xi?>);
-		value.vsym3 = (sym3){<?
+		value.vreal3s3 = real3s3_sub(real3s3_real_mul(partial_i_gamma_ll, .5), U->d_lll.<?=xi?>);
+		value.vreal3s3 = (real3s3){<?
 	for jk,xjk in ipairs(symNames) do
-?>			.<?=xjk?> = fabs(value.vsym3.<?=xjk?>),
+?>			.<?=xjk?> = fabs(value.vreal3s3.<?=xjk?>),
 <?	end
 ?>		};
 	}
 ]], {
 	i = i,
 	xi = xi,
-}), type='sym3'}
+}), type='real3s3'}
 	end
 
 	vars:insert{name='V constraint', code=self:template[[
-	real det_gamma = sym3_det(U->gamma_ll);
-	sym3 gamma_uu = sym3_inv(U->gamma_ll, det_gamma);
+	real det_gamma = real3s3_det(U->gamma_ll);
+	real3s3 gamma_uu = real3s3_inv(U->gamma_ll, det_gamma);
 	<? for i,xi in ipairs(xNames) do ?>{
-		real d1 = sym3_dot(U->d_lll.<?=xi?>, gamma_uu);
+		real d1 = real3s3_dot(U->d_lll.<?=xi?>, gamma_uu);
 		real d2 = 0.<?
 	for j,xj in ipairs(xNames) do
 		for k,xk in ipairs(xNames) do
@@ -482,8 +482,8 @@ end
 
 function ADM_BonaMasso_3D:consWaveCodePrefix(args)
 	return self:template([[
-real const det_gamma = sym3_det((<?=U?>)->gamma_ll);
-sym3 const gamma_uu = sym3_inv((<?=U?>)->gamma_ll, det_gamma);
+real const det_gamma = real3s3_det((<?=U?>)->gamma_ll);
+real3s3 const gamma_uu = real3s3_inv((<?=U?>)->gamma_ll, det_gamma);
 real sqrt_gammaUjj = 0./0.;
 if (<?=n?>.side == 0) {
 	sqrt_gammaUjj = sqrt(gamma_uu.xx);
@@ -508,7 +508,7 @@ end
 function ADM_BonaMasso_3D:consWaveCodeMinMaxAllSidesPrefix(args)
 	return self:template([[
 real const f_alphaSq = calc_f_alphaSq((<?=U?>)->alpha);
-real const det_gamma = sym3_det((<?=U?>)->gamma_ll);
+real const det_gamma = real3s3_det((<?=U?>)->gamma_ll);
 real const alpha_sqrt_f = sqrt(f_alphaSq);
 ]], args)
 end

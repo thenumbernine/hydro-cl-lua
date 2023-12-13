@@ -42,12 +42,12 @@ function LinGR:init(args)
 	self.consVars = {
 		{name='Pi_tt', type='real', variance=''},		-- Pi_tt = h_tt,t
 		{name='Pi_ti', type='real3', variance='l'},		-- Pi_ti.s[i] = h_ti,t
-		{name='Pi_ij', type='sym3', variance='ll'},		-- Pi_ij.s[sym(i,j)] = h_ij,t
+		{name='Pi_ij', type='real3s3', variance='ll'},		-- Pi_ij.s[sym(i,j)] = h_ij,t
 		
 		-- derivative in the prefix
 		{name='Psi_ttk', type='real3', variance='l'},		-- Psi_ttk.s[k] = h_tt,k
 		{name='Psi_tik', type='real3x3', variance='ll'},	-- Psi_tik.s[k].s[i] = h_ti,k
-		{name='Psi_ijk', type='_3sym3', variance='lll'},	-- Psi_ijk.s[k].s[sym(i,j)] = h_ij,k
+		{name='Psi_ijk', type='real3x3s3', variance='lll'},	-- Psi_ijk.s[k].s[sym(i,j)] = h_ij,k
 	}
 
 	LinGR.super.init(self, args)

@@ -44,12 +44,12 @@ real calc_h(real rho, real P, real eInt) {
 	<?=prim_t?> const prim,
 	real const alpha,
 	real3 const beta,
-	sym3 const gamma
+	real3s3 const gamma
 ) {
 	//2008 Font eqn 31 etc 
-	real det_gamma = sym3_det(gamma);
-	sym3 gammaU = sym3_inv(gamma, det_gamma);
-	real3 vU = sym3_real3_mul(gammaU, prim.v);
+	real det_gamma = real3s3_det(gamma);
+	real3s3 gammaU = real3s3_inv(gamma, det_gamma);
+	real3 vU = real3s3_real3_mul(gammaU, prim.v);
 	real vSq = real3_dot(prim.v, vU);
 	real WSq = 1. / (1. - vSq);
 	real W = sqrt(WSq);
@@ -115,9 +115,9 @@ void <?=calcDTCell?>(
 	<?=prim_only_t?> prim = primOnlyFromPrim(U, solver, x);
 	<?=solver:getADMVarCode()?>
 
-	real const det_gamma = sym3_det(gamma);
-	sym3 const gammaU = sym3_inv(gamma, det_gamma);
-	real3 const vU = sym3_real3_mul(gammaU, prim.v);
+	real const det_gamma = real3s3_det(gamma);
+	real3s3 const gammaU = real3s3_inv(gamma, det_gamma);
+	real3 const vU = real3s3_real3_mul(gammaU, prim.v);
 
 	real const rho = prim.rho;
 	real const eInt = prim.eInt;
@@ -156,8 +156,8 @@ void <?=calcDTCell?>(
 	solver:getADMArgs()?>
 ) {
 	<?=solver:getADMVarCode()?>
-	real const det_gamma = sym3_det(gamma);
-	sym3 const gammaU = sym3_inv(gamma, det_gamma);
+	real const det_gamma = real3s3_det(gamma);
+	real3s3 const gammaU = real3s3_inv(gamma, det_gamma);
 	
 	real const vUi = gammaU.<?=sym(side+1,1)?> * U.prim.v.x
 			+ gammaU.<?=sym(side+1,2)?> * U.prim.v.y
@@ -235,7 +235,7 @@ kernel void <?=calcEigenBasis?>(
 		};
 		real alpha = .5 * (alphaL + alphaR);
 		real3 beta = real3_real_mul(real3_add(betaL, betaR), .5);
-		sym3 gamma = sym3_real_mul(sym3_add(gammaL, gammaR), .5);
+		real3s3 gamma = real3s3_real_mul(real3s3_add(gammaL, gammaR), .5);
 <? -- else -- Roe-averaging, Font 2008 eqn 38 ?>
 <? end ?>
 		
@@ -255,7 +255,7 @@ kernel void <?=calcEigenBasis?>(
 		*/
 		vL = _real3(vL.y, -vL.x, vL.z);	// -90' rotation to put the y axis contents into the x axis
 		beta = _real3(beta.y, -beta.x, beta.z);
-		gamma = (sym3){
+		gamma = (real3s3){
 			.xx = gamma.yy,
 			.xy = -gamma.xy,
 			.xz = gamma.yz,
@@ -267,7 +267,7 @@ kernel void <?=calcEigenBasis?>(
 		//x,z -> z,-x
 		vL = _real3(vL.z, vL.y, -vL.x);	//-90' rotation to put the z axis in the x axis
 		beta = _real3(beta.z, beta.y, -beta.x);
-		gamma = (sym3){
+		gamma = (real3s3){
 			.xx = gamma.zz,
 			.xy = gamma.yz,
 			.xz = -gamma.xz,
@@ -277,10 +277,10 @@ kernel void <?=calcEigenBasis?>(
 		};
 		<? end ?>
 		
-		real det_gamma = sym3_det(gamma);
-		sym3 gammaU = sym3_inv(gamma, det_gamma);
+		real det_gamma = real3s3_det(gamma);
+		real3s3 gammaU = real3s3_inv(gamma, det_gamma);
 
-		real3 vU = sym3_real3_mul(gammaU, vL);
+		real3 vU = real3s3_real3_mul(gammaU, vL);
 		real vSq = real3_dot(vL, vU);
 		real oneOverW2 = 1. - vSq;
 		real oneOverW = sqrt(oneOverW2);
@@ -369,8 +369,8 @@ void <?=eigen_leftTransform?>(
 	
 	<?=prefix?>
 	
-	real const det_gamma = sym3_det(gamma);
-	sym3 const gammaU = sym3_inv(gamma, det_gamma);
+	real const det_gamma = real3s3_det(gamma);
+	real3s3 const gammaU = real3s3_inv(gamma, det_gamma);
 
 	real const vUxSq = vU.x * vU.x;
 	real const hSq = h * h;
@@ -560,8 +560,8 @@ kernel void <?=constrainU?>(
 	
 	<?=solver:getADMVarCode()?>
 	
-	real det_gamma = sym3_det(gamma);
-	sym3 gammaU = sym3_inv(gamma, det_gamma);
+	real det_gamma = real3s3_det(gamma);
+	real3s3 gammaU = real3s3_inv(gamma, det_gamma);
 
 	global <?=eqn.cons_only_t?> const * const U = &UBuf[index].cons;
 	

@@ -172,7 +172,7 @@ local function makePartialRank2(deriv, order, solver, field, fieldType, nameOver
 	local d2coeffs = assert(derivCoeffs[deriv][order], "couldn't find d/dx^"..deriv.." coefficients of order "..order)
 	local lines = table()
 	if fieldType == 'real' then
-		lines:insert('\tsym3 '..name..';')
+		lines:insert('\treal3s3 '..name..';')
 	else
 		lines:insert('\t'..fieldType..' '..name..'[6];')
 	end

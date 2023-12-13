@@ -238,7 +238,7 @@ assert(args.anholonomic == nil, "coord.anholonomic is deprecated.  instead you s
 		print = symmath.tostring.print
 	end
 
-	-- 3 since all our base types are in 'real3', 'sym3', etc
+	-- 3 since all our base types are in 'real3', 'real3s3', etc
 	-- what about removing this restriction?
 	local dim = 3
 	
@@ -651,7 +651,7 @@ self.compilePrintRequestTensor = compilePrintRequestTensor
 		build = function()
 			return g
 		end,
-		result = 'sym3',
+		result = 'real3s3',
 	}
 
 	-- g^ij
@@ -660,7 +660,7 @@ self.compilePrintRequestTensor = compilePrintRequestTensor
 			local g = self.request'coord_g_ll'
 			return Tensor('^ab', table.unpack((Matrix.inverse(g))))
 		end,
-		result = 'sym3',
+		result = 'real3s3',
 	}
 
 	-- sqrt(g^ij)
@@ -669,7 +669,7 @@ self.compilePrintRequestTensor = compilePrintRequestTensor
 			local gU = self.request'coord_g_uu'
 			return Tensor('^ab', function(a,b) return symmath.sqrt(gU[a][b])() end)
 		end,
-		result = 'sym3',
+		result = 'real3s3',
 	}
 
 	-- sqrt(g_ij)
@@ -678,7 +678,7 @@ self.compilePrintRequestTensor = compilePrintRequestTensor
 			local g = self.request'coord_g_ll'
 			return Tensor('_ab', function(a,b) return symmath.sqrt(g[a][b])() end)
 		end,
-		result = 'sym3',
+		result = 'real3s3',
 	}
 
 	-- det(g_ij)
@@ -713,7 +713,7 @@ self.compilePrintRequestTensor = compilePrintRequestTensor
 		build = function()
 			return self.request'coord_partial_det_g''_a,b'()
 		end,
-		result = 'sym3',
+		result = 'real3s3',
 	}
 
 	-- v^k v_k
@@ -776,7 +776,7 @@ self.compilePrintRequestTensor = compilePrintRequestTensor
 			end
 			return dg
 		end,
-		result = '_3sym3',
+		result = 'real3x3s3',
 	}
 
 	-- Levi-Civita unique metric-cancelling torsion-free connection for a basis that is a linear transform of a coordinate basis
@@ -801,7 +801,7 @@ self.compilePrintRequestTensor = compilePrintRequestTensor
 			end
 			return Gamma_lll
 		end,
-		result = '_3sym3',
+		result = 'real3x3s3',
 	}
 
 	self.calc.coord_conn_ull = {
@@ -818,7 +818,7 @@ self.compilePrintRequestTensor = compilePrintRequestTensor
 			end
 			return Gamma_ull
 		end,
-		result = '_3sym3',
+		result = 'real3x3s3',
 	}
 
 	-- u^j v^k Conn_jk^i(x)
@@ -913,7 +913,7 @@ self.compilePrintRequestTensor = compilePrintRequestTensor
 				return gHol
 			end
 		end,
-		result = 'sym3',
+		result = 'real3s3',
 	}
 
 	self.calc.coord_gHol_uu = {
@@ -921,7 +921,7 @@ self.compilePrintRequestTensor = compilePrintRequestTensor
 			local gHol = self.request'coord_gHol_ll'
 			return Tensor('^ab', table.unpack((Matrix.inverse(gHol))))
 		end,
-		result = 'sym3',
+		result = 'real3s3',
 	}
 
 	self.calc.coord_det_gHol = {
@@ -1076,7 +1076,7 @@ self.compilePrintRequestTensor = compilePrintRequestTensor
 			local gHol = self.request'coord_gHol_ll'
 			return Tensor('_ab', function(a,b) return symmath.sqrt(gHol[a][b])() end)
 		end,
-		result = 'sym3',
+		result = 'real3s3',
 	}
 
 	self.calc.coord_partial_gHol_lll = {
@@ -1096,7 +1096,7 @@ self.compilePrintRequestTensor = compilePrintRequestTensor
 			end
 			return dgHol
 		end,
-		result = '_3sym3',
+		result = 'real3x3s3',
 	}
 
 	self.calc.coord_connHol_lll = {
@@ -1116,7 +1116,7 @@ self.compilePrintRequestTensor = compilePrintRequestTensor
 			end
 			return GammaHol_lll
 		end,
-		result = '_3sym3',
+		result = 'real3x3s3',
 	}
 
 	self.calc.coord_connHol_ull = {
@@ -1140,7 +1140,7 @@ self.compilePrintRequestTensor = compilePrintRequestTensor
 			end
 			return GammaHol_ull
 		end,
-		result = '_3sym3',
+		result = 'real3x3s3',
 	}
 
 	-- ConnHol^i = ConnHol^i_jk gHol^jk
@@ -1168,7 +1168,7 @@ self.compilePrintRequestTensor = compilePrintRequestTensor
 		build = function()
 			return self.request'coord_partial_det_gHol_l''_a,b'()
 		end,
-		result = 'sym3',
+		result = 'real3s3',
 	}
 
 
@@ -1582,10 +1582,10 @@ getCode.real3_real3_real3_to_real3_define = function(name, exprs)
 end
 
 
-getCode.real3_to_sym3_define = function(name, exprs)
+getCode.real3_to_real3s3_define = function(name, exprs)
 	return template([[
 #define <?=name?>(pt) \
-	((sym3){ \
+	((real3s3){ \
 <? for ij,xij in ipairs(symNames) do
 	local i,j = from6to3x3(ij)
 ?>		.<?=xij?> = <?=exprs[i] and exprs[i][j] and exprs[i][j] or '0.'?>, \
@@ -1600,10 +1600,10 @@ getCode.real3_to_sym3_define = function(name, exprs)
 end
 
 -- symmetric on 2nd & 3rd indexes
-getCode.real3_to__3sym3_define = function(name, exprs)
+getCode.real3_to_real3x3s3_define = function(name, exprs)
 	return template([[
 #define <?=name?>(pt) \
-	((_3sym3){ \
+	((real3x3s3){ \
 <?
 for i,xi in ipairs(xNames) do
 ?>	.<?=xi?> = { \
@@ -1716,10 +1716,10 @@ static inline real3 <?=name?>(real3 u, real3 v, real3 pt) {
 end
 
 
-getCode.real3_to_sym3 = function(name, exprs)
+getCode.real3_to_real3s3 = function(name, exprs)
 	return template([[
-sym3 <?=name?>(real3 pt) {
-	return (sym3){
+real3s3 <?=name?>(real3 pt) {
+	return (real3s3){
 <? for ij,xij in ipairs(symNames) do
 	local i,j,xi,xj = from6to3x3(ij)
 ?>		.<?=xij?> = <?=exprs[i] and exprs[i][j] and exprs[i][j] or '0.'?>,
@@ -1734,10 +1734,10 @@ sym3 <?=name?>(real3 pt) {
 end
 
 -- symmetric on 2nd & 3rd indexes
-getCode.real3_to__3sym3 = function(name, exprs)
+getCode.real3_to_real3x3s3 = function(name, exprs)
 	return template([[
-_3sym3 <?=name?>(real3 pt) {
-	return (_3sym3){
+real3x3s3 <?=name?>(real3 pt) {
+	return (real3x3s3){
 <?
 for i,xi in ipairs(xNames) do
 ?>	.<?=xi?> = {
@@ -1760,9 +1760,9 @@ end
 end
 
 -- this is my exception to the rule, which accepts a pointer
-getCode.real3_to_3sym3x3 = function(name, exprs)
+getCode.real3_to_real3x3s3x3 = function(name, exprs)
 	return template([[
-void <?=name?>(_3sym3 a[3], real3 pt) {
+void <?=name?>(real3x3s3 a[3], real3 pt) {
 <?
 for i,xi in ipairs(xNames) do
 	for jk,xjk in ipairs(symNames) do
@@ -1841,7 +1841,7 @@ function CoordinateSystem:initCodeModules()
 					buildNameParts:insert'define'
 				end
 				local buildName = buildNameParts:concat'_'
-				local build = assert(getCode[buildName])
+				local build = getCode[buildName] or error("failed to find coord code named "..tostring(buildName))
 				-- don't include anything that's typedef'd by app
 				-- otherwise it will screw up the separation between C, CL, and GL
 				if info.result ~= 'real'

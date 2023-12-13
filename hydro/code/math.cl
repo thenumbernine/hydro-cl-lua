@@ -460,7 +460,7 @@ static inline real3 real3_rotateZ(real3 v, real theta) {
 	return v;
 }
 
-//// MODULE_NAME: sym3
+//// MODULE_NAME: real3s3
 //// MODULE_DEPENDS: real3
 //// MODULE_TYPE:
 
@@ -472,41 +472,41 @@ typedef union {
 	struct {
 		real s00, s01, s02, s11, s12, s22;
 	};
-} sym3;
+} real3s3;
 
 //// MODULE_HEADER:
 
 //buggy on intel opencl ubuntu
-//#define _sym3(a,b,c,d,e,f) ((sym3){.s={a,b,c,d,e,f}})
+//#define _real3s3(a,b,c,d,e,f) ((real3s3){.s={a,b,c,d,e,f}})
 //fix
-#define _sym3(a,b,c,d,e,f) ((sym3){.xx=a, .xy=b, .xz=c, .yy=d, .yz=e, .zz=f})
+#define _real3s3(a,b,c,d,e,f) ((real3s3){.xx=a, .xy=b, .xz=c, .yy=d, .yz=e, .zz=f})
 
-#define sym3_zero	_sym3(0,0,0,0,0,0)
-#define sym3_ident	_sym3(1,0,0,1,0,1)
+#define real3s3_zero	_real3s3(0,0,0,0,0,0)
+#define real3s3_ident	_real3s3(1,0,0,1,0,1)
 
-static inline sym3 real3_outer(real3 const a);
-static inline real sym3_det(sym3 const m);
-static inline sym3 sym3_inv(sym3 const m, real const det);
-static inline sym3 sym3_inv_nodet(sym3 const m);
-static inline real3 sym3_real3_mul(sym3 m, real3 v);
-static inline sym3 sym3_add(sym3 a, sym3 b);
-static inline sym3 sym3_sub(sym3 a, sym3 b);
-static inline sym3 sym3_real_mul(sym3 a, real s);
-static inline real sym3_dot(sym3 a, sym3 b);
-static inline real3 sym3_x(sym3 m);
-static inline real3 sym3_y(sym3 m);
-static inline real3 sym3_z(sym3 m);
-static inline real3 sym3_col(sym3 m, int side);
-static inline real sym3_trace(sym3 m);
-static inline real real3_weightedDot(real3 a, real3 b, sym3 m);
-static inline real real3_weightedLenSq(real3 a, sym3 m);
-static inline real real3_weightedLen(real3 a, sym3 m);
+static inline real3s3 real3_outer(real3 const a);
+static inline real real3s3_det(real3s3 const m);
+static inline real3s3 real3s3_inv(real3s3 const m, real const det);
+static inline real3s3 real3s3_inv_nodet(real3s3 const m);
+static inline real3 real3s3_real3_mul(real3s3 m, real3 v);
+static inline real3s3 real3s3_add(real3s3 a, real3s3 b);
+static inline real3s3 real3s3_sub(real3s3 a, real3s3 b);
+static inline real3s3 real3s3_real_mul(real3s3 a, real s);
+static inline real real3s3_dot(real3s3 a, real3s3 b);
+static inline real3 real3s3_x(real3s3 m);
+static inline real3 real3s3_y(real3s3 m);
+static inline real3 real3s3_z(real3s3 m);
+static inline real3 real3s3_col(real3s3 m, int side);
+static inline real real3s3_trace(real3s3 m);
+static inline real real3_weightedDot(real3 a, real3 b, real3s3 m);
+static inline real real3_weightedLenSq(real3 a, real3s3 m);
+static inline real real3_weightedLen(real3 a, real3s3 m);
 
 //// MODULE_CODE:
 
 //outer with yourself
-static inline sym3 real3_outer(real3 const a) {
-	return (sym3){
+static inline real3s3 real3_outer(real3 const a) {
+	return (real3s3){
 <? for ij,xij in ipairs(symNames) do
 	local i,j = from6to3x3(ij)
 	local xi,xj = xNames[i],xNames[j]
@@ -515,15 +515,15 @@ static inline sym3 real3_outer(real3 const a) {
 ?>	};
 }
 
-static inline real sym3_det(sym3 const m) {
+static inline real real3s3_det(real3s3 const m) {
 	return m.xx * (m.yy * m.zz - m.yz * m.yz)
 		- m.xy * (m.xy * m.zz - m.xz * m.yz)
 		+ m.xz * (m.xy * m.yz - m.yy * m.xz);
 }
 
-static inline sym3 sym3_inv(sym3 const m, real const det) {
+static inline real3s3 real3s3_inv(real3s3 const m, real const det) {
 	real invDet = 1. / det;
-	return (sym3){
+	return (real3s3){
 		.xx = (m.yy * m.zz - m.yz * m.yz) * invDet,
 		.xy = (m.xz * m.yz - m.xy * m.zz) * invDet,
 		.xz = (m.xy * m.yz - m.xz * m.yy) * invDet,
@@ -535,27 +535,27 @@ static inline sym3 sym3_inv(sym3 const m, real const det) {
 
 //useful for when you want to store the det/inv for evaluation only once,
 // so pass-as-arg instead of macro
-static inline sym3 sym3_inv_nodet(sym3 const m) {
-	return sym3_inv(m, sym3_det(m));
+static inline real3s3 real3s3_inv_nodet(real3s3 const m) {
+	return real3s3_inv(m, real3s3_det(m));
 }
 
-static inline real3 sym3_real3_mul(sym3 m, real3 v) {
+static inline real3 real3s3_real3_mul(real3s3 m, real3 v) {
 	return _real3(
 		m.xx * v.x + m.xy * v.y + m.xz * v.z,
 		m.xy * v.y + m.yy * v.y + m.yz * v.z,
 		m.xz * v.z + m.yz * v.y + m.zz * v.z);
 }
 
-static inline sym3 sym3_neg(sym3 a) {
-	return (sym3){
+static inline real3s3 real3s3_neg(real3s3 a) {
+	return (real3s3){
 <? for ij,xij in ipairs(symNames) do
 ?>		.<?=xij?> = -a.<?=xij?>,
 <? end
 ?>	};
 }
 
-static inline sym3 sym3_add(sym3 a, sym3 b) {
-	return (sym3){
+static inline real3s3 real3s3_add(real3s3 a, real3s3 b) {
+	return (real3s3){
 		.xx = a.xx + b.xx,
 		.xy = a.xy + b.xy,
 		.xz = a.xz + b.xz,
@@ -565,8 +565,8 @@ static inline sym3 sym3_add(sym3 a, sym3 b) {
 	};
 }
 
-static inline sym3 sym3_sub(sym3 a, sym3 b) {
-	return (sym3){
+static inline real3s3 real3s3_sub(real3s3 a, real3s3 b) {
+	return (real3s3){
 		.xx = a.xx - b.xx,
 		.xy = a.xy - b.xy,
 		.xz = a.xz - b.xz,
@@ -576,8 +576,8 @@ static inline sym3 sym3_sub(sym3 a, sym3 b) {
 	};
 }
 
-static inline sym3 sym3_real_mul(sym3 a, real s) {
-	return (sym3){
+static inline real3s3 real3s3_real_mul(real3s3 a, real s) {
+	return (real3s3){
 		.xx = a.xx * s,
 		.xy = a.xy * s,
 		.xz = a.xz * s,
@@ -588,61 +588,61 @@ static inline sym3 sym3_real_mul(sym3 a, real s) {
 }
 
 //computes a^ij b_ij
-static inline real sym3_dot(sym3 a, sym3 b) {
+static inline real real3s3_dot(real3s3 a, real3s3 b) {
 	return a.xx * b.xx + a.yy * b.yy + a.zz * b.zz
 		+ 2. * (a.xy * b.xy + a.xz * b.xz + a.yz * b.yz);
 }
 
-static inline real3 sym3_x(sym3 m) { return _real3(m.xx, m.xy, m.xz); }
-static inline real3 sym3_y(sym3 m) { return _real3(m.xy, m.yy, m.yz); }
-static inline real3 sym3_z(sym3 m) { return _real3(m.xz, m.yz, m.zz); }
+static inline real3 real3s3_x(real3s3 m) { return _real3(m.xx, m.xy, m.xz); }
+static inline real3 real3s3_y(real3s3 m) { return _real3(m.xy, m.yy, m.yz); }
+static inline real3 real3s3_z(real3s3 m) { return _real3(m.xz, m.yz, m.zz); }
 
-static inline real3 sym3_col(sym3 m, int side) {
+static inline real3 real3s3_col(real3s3 m, int side) {
 	if (side == 0) {
-		return sym3_x(m);
+		return real3s3_x(m);
 	} else if (side == 1) {
-		return sym3_y(m);
+		return real3s3_y(m);
 	} else if (side == 2) {
-		return sym3_z(m);
+		return real3s3_z(m);
 	}
 	return _real3(0./0., 0./0., 0./0.);
 }
 
-static inline real sym3_trace(sym3 m) {
+static inline real real3s3_trace(real3s3 m) {
 	return m.xx + m.yy + m.zz;
 }
 
 //weighted inner product using 'm'
-static inline real real3_weightedDot(real3 a, real3 b, sym3 m) {
-	return real3_dot(a, sym3_real3_mul(m, b));
+static inline real real3_weightedDot(real3 a, real3 b, real3s3 m) {
+	return real3_dot(a, real3s3_real3_mul(m, b));
 }
 
-static inline real real3_weightedLenSq(real3 a, sym3 m) {
+static inline real real3_weightedLenSq(real3 a, real3s3 m) {
 	return real3_weightedDot(a, a, m);
 }
 
-static inline real real3_weightedLen(real3 a, sym3 m) {
+static inline real real3_weightedLen(real3 a, real3s3 m) {
 	return sqrt(real3_weightedLenSq(a, m));
 }
 
-//// MODULE_NAME: sym3_rotate
-//// MODULE_DEPENDS: sym3 rotate
+//// MODULE_NAME: real3s3_rotate
+//// MODULE_DEPENDS: real3s3 rotate
 //// MODULE_HEADER:
 
-static inline sym3 sym3_rotateFrom(sym3 const m, real3 const n);
-static inline sym3 sym3_rotateTo(sym3 const m, real3 const n);
-static inline sym3 sym3_swap(sym3 m, int side);
-static inline sym3 sym3_swap0(sym3 m);
-static inline sym3 sym3_swap1(sym3 m);
-static inline sym3 sym3_swap2(sym3 m);
+static inline real3s3 real3s3_rotateFrom(real3s3 const m, real3 const n);
+static inline real3s3 real3s3_rotateTo(real3s3 const m, real3 const n);
+static inline real3s3 real3s3_swap(real3s3 m, int side);
+static inline real3s3 real3s3_swap0(real3s3 m);
+static inline real3s3 real3s3_swap1(real3s3 m);
+static inline real3s3 real3s3_swap2(real3s3 m);
 
 //// MODULE_CODE:
 
-static inline sym3 sym3_rotateFrom(
-	sym3 const m,
+static inline real3s3 real3s3_rotateFrom(
+	real3s3 const m,
 	real3 const n
 ) {
-	real3x3 t = real3x3_from_sym3(m);
+	real3x3 t = real3x3_from_real3s3(m);
 	t.x = real3_rotateFrom(t.x, n);
 	t.y = real3_rotateFrom(t.y, n);
 	t.z = real3_rotateFrom(t.z, n);
@@ -650,14 +650,14 @@ static inline sym3 sym3_rotateFrom(
 	t.x = real3_rotateFrom(t.x, n);
 	t.y = real3_rotateFrom(t.y, n);
 	t.z = real3_rotateFrom(t.z, n);
-	return sym3_from_real3x3(t);
+	return real3s3_from_real3x3(t);
 }
 
-static inline sym3 sym3_rotateTo(
-	sym3 const m,
+static inline real3s3 real3s3_rotateTo(
+	real3s3 const m,
 	real3 const n
 ) {
-	real3x3 t = real3x3_from_sym3(m);
+	real3x3 t = real3x3_from_real3s3(m);
 	t.x = real3_rotateTo(t.x, n);
 	t.y = real3_rotateTo(t.y, n);
 	t.z = real3_rotateTo(t.z, n);
@@ -665,27 +665,27 @@ static inline sym3 sym3_rotateTo(
 	t.x = real3_rotateTo(t.x, n);
 	t.y = real3_rotateTo(t.y, n);
 	t.z = real3_rotateTo(t.z, n);
-	return sym3_from_real3x3(t);
+	return real3s3_from_real3x3(t);
 }
 
 //for swapping dimensions between x and 012
-static inline sym3 sym3_swap(sym3 m, int side) {
+static inline real3s3 real3s3_swap(real3s3 m, int side) {
 	if (side == 0) {
 		return m;
 	} else if (side == 1) {
-		return _sym3(m.yy, m.xy, m.yz, m.xx, m.xz, m.zz);
+		return _real3s3(m.yy, m.xy, m.yz, m.xx, m.xz, m.zz);
 	} else if (side == 2) {
-		return _sym3(m.zz, m.yz, m.xz, m.yy, m.xy, m.xx);
+		return _real3s3(m.zz, m.yz, m.xz, m.yy, m.xy, m.xx);
 	}
-	return _sym3(0./0., 0./0., 0./0., 0./0., 0./0., 0./0.);
+	return _real3s3(0./0., 0./0., 0./0., 0./0., 0./0., 0./0.);
 }
 
-static inline sym3 sym3_swap0(sym3 m) { return m; }
-static inline sym3 sym3_swap1(sym3 m) { return _sym3(m.yy, m.xy, m.yz, m.xx, m.xz, m.zz); }
-static inline sym3 sym3_swap2(sym3 m) { return _sym3(m.zz, m.yz, m.xz, m.yy, m.xy, m.xx); }
+static inline real3s3 real3s3_swap0(real3s3 m) { return m; }
+static inline real3s3 real3s3_swap1(real3s3 m) { return _real3s3(m.yy, m.xy, m.yz, m.xx, m.xz, m.zz); }
+static inline real3s3 real3s3_swap2(real3s3 m) { return _real3s3(m.zz, m.yz, m.xz, m.yy, m.xy, m.xx); }
 
 //// MODULE_NAME: real3x3
-//// MODULE_DEPENDS: real3 sym3
+//// MODULE_DEPENDS: real3 real3s3
 //// MODULE_TYPE:
 
 // row vectors, so a.i.j = a_ij
@@ -706,14 +706,14 @@ static inline real3x3 real3x3_from_real3x3(real3x3 x);
 static inline real3x3 real3x3_add(real3x3 a, real3x3 b);
 static inline real3x3 real3_real3_outer(real3 a, real3 b);
 static inline real real3x3_dot(real3x3 a, real3x3 b);
-static inline real real3x3_sym3_dot(real3x3 a, sym3 b);
-static inline real3x3 sym3_sym3_mul(sym3 a, sym3 b);
-static inline real3x3 real3x3_sym3_mul(real3x3 a, sym3 b);
-static inline real3x3 sym3_real3x3_mul(sym3 a, real3x3 b);
-static inline sym3 real3x3_sym3_to_sym3_mul(real3x3 a, sym3 b);
-static inline sym3 sym3_real3x3_to_sym3_mul(sym3 a, real3x3 b);
-static inline sym3 sym3_from_real3x3(real3x3 a);
-static inline real3x3 real3x3_from_sym3(sym3 a);
+static inline real real3x3_real3s3_dot(real3x3 a, real3s3 b);
+static inline real3x3 real3s3_real3s3_mul(real3s3 a, real3s3 b);
+static inline real3x3 real3x3_real3s3_mul(real3x3 a, real3s3 b);
+static inline real3x3 real3s3_real3x3_mul(real3s3 a, real3x3 b);
+static inline real3s3 real3x3_real3s3_to_real3s3_mul(real3x3 a, real3s3 b);
+static inline real3s3 real3s3_real3x3_to_real3s3_mul(real3s3 a, real3x3 b);
+static inline real3s3 real3s3_from_real3x3(real3x3 a);
+static inline real3x3 real3x3_from_real3s3(real3s3 a);
 static inline real3x3 real3x3_addT(real3x3 a, real3x3 b);
 static inline real3x3 real3x3_real3x3_mul(real3x3 a, real3x3 b);
 static inline real3 real3x3_real3_mul(real3x3 a, real3 b);
@@ -764,7 +764,7 @@ static inline real real3x3_dot(real3x3 a, real3x3 b) {
 <? end ?>;
 }
 
-static inline real real3x3_sym3_dot(real3x3 a, sym3 b) {
+static inline real real3x3_real3s3_dot(real3x3 a, real3s3 b) {
 	return 0.
 <? for i,xi in ipairs(xNames) do
 ?>		<?
@@ -774,7 +774,7 @@ static inline real real3x3_sym3_dot(real3x3 a, sym3 b) {
 <? end ?>;
 }
 
-static inline real3x3 sym3_sym3_mul(sym3 a, sym3 b) {
+static inline real3x3 real3s3_real3s3_mul(real3s3 a, real3s3 b) {
 	return (real3x3){
 <? for i,xi in ipairs(xNames) do
 ?>		.<?=xi?> = {
@@ -789,7 +789,7 @@ static inline real3x3 sym3_sym3_mul(sym3 a, sym3 b) {
 ?>	};
 }
 
-static inline real3x3 real3x3_sym3_mul(real3x3 a, sym3 b) {
+static inline real3x3 real3x3_real3s3_mul(real3x3 a, real3s3 b) {
 	return (real3x3){
 <? for i,xi in ipairs(xNames) do
 ?>		.<?=xi?> = {
@@ -804,7 +804,7 @@ static inline real3x3 real3x3_sym3_mul(real3x3 a, sym3 b) {
 ?>	};
 }
 
-static inline real3x3 sym3_real3x3_mul(sym3 a, real3x3 b) {
+static inline real3x3 real3s3_real3x3_mul(real3s3 a, real3x3 b) {
 	return (real3x3){
 <? for i,xi in ipairs(xNames) do
 ?>		.<?=xi?> = {
@@ -819,8 +819,8 @@ static inline real3x3 sym3_real3x3_mul(sym3 a, real3x3 b) {
 ?>	};
 }
 
-static inline sym3 real3x3_sym3_to_sym3_mul(real3x3 a, sym3 b) {
-	return (sym3){
+static inline real3s3 real3x3_real3s3_to_real3s3_mul(real3x3 a, real3s3 b) {
+	return (real3s3){
 <? for ij,xij in ipairs(symNames) do
 	local i,j = from6to3x3(ij)
 	local xi,xj = xNames[i],xNames[j]
@@ -833,8 +833,8 @@ static inline sym3 real3x3_sym3_to_sym3_mul(real3x3 a, sym3 b) {
 }
 
 //c_ik = a_ij b_jk when you know c_ik is going to be symmetric
-static inline sym3 sym3_real3x3_to_sym3_mul(sym3 a, real3x3 b) {
-	return (sym3){
+static inline real3s3 real3s3_real3x3_to_real3s3_mul(real3s3 a, real3x3 b) {
+	return (real3s3){
 <? for ij,xij in ipairs(symNames) do
 	local i,j = from6to3x3(ij)
 	local xi,xj = xNames[i],xNames[j]
@@ -848,8 +848,8 @@ static inline sym3 sym3_real3x3_to_sym3_mul(sym3 a, real3x3 b) {
 }
 
 //a_ij = .5 (b_ij + b_ji)
-static inline sym3 sym3_from_real3x3(real3x3 a) {
-	return (sym3){
+static inline real3s3 real3s3_from_real3x3(real3x3 a) {
+	return (real3s3){
 <? for ij,xij in ipairs(symNames) do
 	local i,j = from6to3x3(ij)
 	local xi,xj = xNames[i],xNames[j]
@@ -858,7 +858,7 @@ static inline sym3 sym3_from_real3x3(real3x3 a) {
 ?>	};
 }
 
-static inline real3x3 real3x3_from_sym3(sym3 a) {
+static inline real3x3 real3x3_from_real3s3(real3s3 a) {
 	return (real3x3){
 <? for i,xi in ipairs(xNames) do
 ?>		.<?=xi?> = {
@@ -1024,37 +1024,37 @@ static inline real3x3 real3x3_swap(real3x3 m, int side) {
 	return _real3x3(0./0., 0./0., 0./0., 0./0., 0./0., 0./0., 0./0., 0./0., 0./0.);
 }
 
-//// MODULE_NAME: _3sym3
-//// MODULE_DEPENDS: sym3 real3x3
+//// MODULE_NAME: real3x3s3
+//// MODULE_DEPENDS: real3s3 real3x3
 //// MODULE_TYPE:
 
 typedef union {
 	real s[18];
-	sym3 v[3];
+	real3s3 v[3];
 	struct {
-		sym3 v0,v1,v2;	//why not s0,s1,s2?
+		real3s3 v0,v1,v2;	//why not s0,s1,s2?
 	};
 	struct {
-		sym3 x,y,z;
+		real3s3 x,y,z;
 	};
-} _3sym3;
+} real3x3s3;
 
 //// MODULE_HEADER:
 
 //buggy
-//#define _3sym3_zero ((_3sym3){.s={0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}})
+//#define real3x3s3_zero ((real3x3s3){.s={0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}})
 //fixed
-#define _3sym3_zero ((_3sym3){.x=sym3_zero, .y=sym3_zero, .z=sym3_zero})
+#define real3x3s3_zero ((real3x3s3){.x=real3s3_zero, .y=real3s3_zero, .z=real3s3_zero})
 
-static inline _3sym3 _3sym3_add(_3sym3 a, _3sym3 b);
-static inline _3sym3 _3sym3_sub(_3sym3 a, _3sym3 b);
-static inline _3sym3 _3sym3_real_mul(_3sym3 a, real b);
-static inline _3sym3 sym3_3sym3_mul(sym3 a, _3sym3 b);
-static inline real3 _3sym3_sym3_dot23(_3sym3 a, sym3 b);
-static inline real3 sym3_3sym3_dot12(sym3 a, _3sym3 b);
-static inline sym3 real3_3sym3_dot1(real3 a, _3sym3 b);
-static inline real3 _3sym3_tr12(_3sym3 a);
-static inline real3x3 real3_3sym3_dot2(real3 a, _3sym3 b);
+static inline real3x3s3 real3x3s3_add(real3x3s3 a, real3x3s3 b);
+static inline real3x3s3 real3x3s3_sub(real3x3s3 a, real3x3s3 b);
+static inline real3x3s3 real3x3s3_real_mul(real3x3s3 a, real b);
+static inline real3x3s3 real3s3_real3x3s3_mul(real3s3 a, real3x3s3 b);
+static inline real3 real3x3s3_real3s3_dot23(real3x3s3 a, real3s3 b);
+static inline real3 real3s3_real3x3s3_dot12(real3s3 a, real3x3s3 b);
+static inline real3s3 real3_real3x3s3_dot1(real3 a, real3x3s3 b);
+static inline real3 real3x3s3_tr12(real3x3s3 a);
+static inline real3x3 real3_real3x3s3_dot2(real3 a, real3x3s3 b);
 
 //// MODULE_CODE:
 
@@ -1064,8 +1064,8 @@ static inline real3x3 real3_3sym3_dot2(real3 a, _3sym3 b);
 } do
 	local name,symbol = info.name, info.symbol
 ?>
-static inline _3sym3 _3sym3_<?=name?>(_3sym3 a, _3sym3 b) {
-	return (_3sym3){
+static inline real3x3s3 real3x3s3_<?=name?>(real3x3s3 a, real3x3s3 b) {
+	return (real3x3s3){
 <? for i,xi in ipairs(xNames) do
 ?>		.<?=xi?> = {
 <?	for jk,xjk in ipairs(symNames) do
@@ -1077,8 +1077,8 @@ static inline _3sym3 _3sym3_<?=name?>(_3sym3 a, _3sym3 b) {
 }
 <? end ?>
 
-static inline _3sym3 _3sym3_real_mul(_3sym3 a, real b) {
-	return (_3sym3){
+static inline real3x3s3 real3x3s3_real_mul(real3x3s3 a, real b) {
+	return (real3x3s3){
 <? for i,xi in ipairs(xNames) do
 ?>		.<?=xi?> = {
 <?	for jk,xjk in ipairs(symNames) do
@@ -1090,10 +1090,10 @@ static inline _3sym3 _3sym3_real_mul(_3sym3 a, real b) {
 }
 
 //c^i_jk = a^il b_ljk
-static inline _3sym3 sym3_3sym3_mul(sym3 a, _3sym3 b) {
-	return (_3sym3){
+static inline real3x3s3 real3s3_real3x3s3_mul(real3s3 a, real3x3s3 b) {
+	return (real3x3s3){
 <? for i,xi in ipairs(xNames) do
-?>		.<?=xi?> = (sym3){
+?>		.<?=xi?> = (real3s3){
 <?	for jk,xjk in ipairs(symNames) do
 ?>			.<?=xjk?> = 0.<?
 		for l,xl in ipairs(xNames) do
@@ -1106,16 +1106,16 @@ static inline _3sym3 sym3_3sym3_mul(sym3 a, _3sym3 b) {
 }
 
 //c^i = a^i_jk b^jk
-static inline real3 _3sym3_sym3_dot23(_3sym3 a, sym3 b) {
+static inline real3 real3x3s3_real3s3_dot23(real3x3s3 a, real3s3 b) {
 	return (real3){
 <? for i,xi in ipairs(xNames) do
-?>		.<?=xi?> = sym3_dot(a.<?=xi?>, b),
+?>		.<?=xi?> = real3s3_dot(a.<?=xi?>, b),
 <? end
 ?>	};
 }
 
 //c_i = a^jk b_jki
-static inline real3 sym3_3sym3_dot12(sym3 a, _3sym3 b) {
+static inline real3 real3s3_real3x3s3_dot12(real3s3 a, real3x3s3 b) {
 	return (real3){
 <? for i,xi in ipairs(xNames) do
 ?>		.<?=xi?> = 0.<?
@@ -1129,8 +1129,8 @@ static inline real3 sym3_3sym3_dot12(sym3 a, _3sym3 b) {
 }
 
 //c_ij = a_k b^k_ij
-static inline sym3 real3_3sym3_dot1(real3 a, _3sym3 b) {
-	return (sym3){
+static inline real3s3 real3_real3x3s3_dot1(real3 a, real3x3s3 b) {
+	return (real3s3){
 <? for ij,xij in ipairs(symNames) do
 ?>		.<?=xij?> = 0.<?
 	for k,xk in ipairs(xNames) do
@@ -1141,7 +1141,7 @@ static inline sym3 real3_3sym3_dot1(real3 a, _3sym3 b) {
 }
 
 //c_i = a^j_ji
-static inline real3 _3sym3_tr12(_3sym3 a) {
+static inline real3 real3x3s3_tr12(real3x3s3 a) {
 	return (real3){
 <? for i,xi in ipairs(xNames) do
 ?>		.<?=xi?> = 0.<?
@@ -1153,7 +1153,7 @@ static inline real3 _3sym3_tr12(_3sym3 a) {
 }
 
 //c_ij = a^k b_ikj
-static inline real3x3 real3_3sym3_dot2(real3 a, _3sym3 b) {
+static inline real3x3 real3_real3x3s3_dot2(real3 a, real3x3s3 b) {
 	return (real3x3){
 <? for i,xi in ipairs(xNames) do
 ?>		.<?=xi?> = {
@@ -1168,20 +1168,20 @@ static inline real3x3 real3_3sym3_dot2(real3 a, _3sym3 b) {
 ?>	};
 }
 
-//// MODULE_NAME: _3sym3_rotate
+//// MODULE_NAME: real3x3s3_rotate
 //// MODULE_HEADER:
 
-static inline _3sym3 _3sym3_rotateFrom(_3sym3 const m, real3 const n);
-static inline _3sym3 _3sym3_rotateTo(_3sym3 const m, real3 const n);
-static inline _3sym3 _3sym3_swap(_3sym3 m, int side);
+static inline real3x3s3 real3x3s3_rotateFrom(real3x3s3 const m, real3 const n);
+static inline real3x3s3 real3x3s3_rotateTo(real3x3s3 const m, real3 const n);
+static inline real3x3s3 real3x3s3_swap(real3x3s3 m, int side);
 
 //// MODULE_CODE:
 
-static inline _3sym3 _3sym3_rotateFrom(
-	_3sym3 const m,
+static inline real3x3s3 real3x3s3_rotateFrom(
+	real3x3s3 const m,
 	real3 const n
 ) {
-	real3x3x3 t = real3x3x3_from__3sym3(m);
+	real3x3x3 t = real3x3x3_from_real3x3s3(m);
 	real3 tmp;
 <?	local is = require "ext.table"()
 	for e=1,3 do
@@ -1201,14 +1201,14 @@ static inline _3sym3 _3sym3_rotateFrom(
 			end
 		end
 	end
-?>	return _3sym3_from_real3x3x3(t);
+?>	return real3x3s3_from_real3x3x3(t);
 }
 
-static inline _3sym3 _3sym3_rotateTo(
-	_3sym3 const m,
+static inline real3x3s3 real3x3s3_rotateTo(
+	real3x3s3 const m,
 	real3 const n
 ) {
-	real3x3x3 t = real3x3x3_from__3sym3(m);
+	real3x3x3 t = real3x3x3_from_real3x3s3(m);
 	real3 tmp;
 <?	local is = require "ext.table"()
 	for e=1,3 do
@@ -1228,29 +1228,29 @@ static inline _3sym3 _3sym3_rotateTo(
 			end
 		end
 	end
-?>	return _3sym3_from_real3x3x3(t);
+?>	return real3x3s3_from_real3x3x3(t);
 }
 
-static inline _3sym3 _3sym3_swap(_3sym3 m, int side) {
-	return (_3sym3){
-		.x = sym3_swap(m.v[side], side),
-		.y = sym3_swap(m.v[side==1 ? 0 : 1], side),
-		.z = sym3_swap(m.v[side==2 ? 0 : 2], side),
+static inline real3x3s3 real3x3s3_swap(real3x3s3 m, int side) {
+	return (real3x3s3){
+		.x = real3s3_swap(m.v[side], side),
+		.y = real3s3_swap(m.v[side==1 ? 0 : 1], side),
+		.z = real3s3_swap(m.v[side==2 ? 0 : 2], side),
 	};
 }
 
 <? for side=0,2 do ?>
-static inline _3sym3 _3sym3_swap<?=side?>(_3sym3 m) {
-	return (_3sym3){
-		.x = sym3_swap<?=side?>(m.v[<?=side?>]),
-		.y = sym3_swap<?=side?>(m.v[<?=side==1 and 0 or 1?>]),
-		.z = sym3_swap<?=side?>(m.v[<?=side==2 and 0 or 2?>]),
+static inline real3x3s3 real3x3s3_swap<?=side?>(real3x3s3 m) {
+	return (real3x3s3){
+		.x = real3s3_swap<?=side?>(m.v[<?=side?>]),
+		.y = real3s3_swap<?=side?>(m.v[<?=side==1 and 0 or 1?>]),
+		.z = real3s3_swap<?=side?>(m.v[<?=side==2 and 0 or 2?>]),
 	};
 }
 <? end ?>
 
 //// MODULE_NAME: real3x3x3
-//// MODULE_DEPENDS: real3 sym3 real3x3 _3sym3
+//// MODULE_DEPENDS: real3 real3s3 real3x3 real3x3s3
 //// MODULE_TYPE:
 
 typedef union {
@@ -1266,23 +1266,23 @@ typedef union {
 
 //// MODULE_HEADER:
 
-static inline real3x3x3 _3sym3_sym3_mul(_3sym3 a, sym3 b);
-static inline real3 real3x3x3_sym3_dot23(real3x3x3 a, sym3 b);
-static inline real3x3 _3sym3_real3x3x3_dot12_23(_3sym3 a, real3x3x3 b);
-static inline sym3 _3sym3_real3x3x3_dot13_to_sym3(_3sym3 a, real3x3x3 b);
+static inline real3x3x3 real3x3s3_real3s3_mul(real3x3s3 a, real3s3 b);
+static inline real3 real3x3x3_real3s3_dot23(real3x3x3 a, real3s3 b);
+static inline real3x3 real3x3s3_real3x3x3_dot12_23(real3x3s3 a, real3x3x3 b);
+static inline real3s3 real3x3s3_real3x3x3_dot13_to_real3s3(real3x3s3 a, real3x3x3 b);
 static inline real3 real3x3x3_tr23(real3x3x3 a);
-static inline _3sym3 sym3_real3x3x3_mul2_to_3sym3(sym3 a, real3x3x3 b);
-static inline _3sym3 conn_ull_from_d_llu_d_ull(real3x3x3 const d_llu, _3sym3 const d_ull);
+static inline real3x3s3 real3s3_real3x3x3_mul2_to_real3x3s3(real3s3 a, real3x3x3 b);
+static inline real3x3s3 conn_ull_from_d_llu_d_ull(real3x3x3 const d_llu, real3x3s3 const d_ull);
 
-static inline real3x3x3 real3x3x3_from__3sym3(_3sym3 m);
-static inline _3sym3 _3sym3_from_real3x3x3(real3x3x3 m);
+static inline real3x3x3 real3x3x3_from_real3x3s3(real3x3s3 m);
+static inline real3x3s3 real3x3s3_from_real3x3x3(real3x3x3 m);
 
 #define real3x3x3_zero ((real3x3x3){.s={0}})
 
 //// MODULE_CODE:
 
 //c_ij^k = a_ijl b^lk
-static inline real3x3x3 _3sym3_sym3_mul(_3sym3 a, sym3 b) {
+static inline real3x3x3 real3x3s3_real3s3_mul(real3x3s3 a, real3s3 b) {
 	return (real3x3x3){
 <? for i,xi in ipairs(xNames) do
 ?>		.<?=xi?> = {
@@ -1301,16 +1301,16 @@ static inline real3x3x3 _3sym3_sym3_mul(_3sym3 a, sym3 b) {
 ?>	};
 }
 
-static inline real3 real3x3x3_sym3_dot23(real3x3x3 a, sym3 b) {
+static inline real3 real3x3x3_real3s3_dot23(real3x3x3 a, real3s3 b) {
 	return (real3){
 <? for i,xi in ipairs(xNames) do
-?>		.<?=xi?> = real3x3_sym3_dot(a.<?=xi?>, b),
+?>		.<?=xi?> = real3x3_real3s3_dot(a.<?=xi?>, b),
 <? end
 ?>	};
 }
 
 //c_ij = a^k_li b_jk^l
-static inline real3x3 _3sym3_real3x3x3_dot12_23(_3sym3 a, real3x3x3 b) {
+static inline real3x3 real3x3s3_real3x3x3_dot12_23(real3x3s3 a, real3x3x3 b) {
 	return (real3x3){
 <? for i,xi in ipairs(xNames) do
 ?>		.<?=xi?> = {
@@ -1330,8 +1330,8 @@ static inline real3x3 _3sym3_real3x3x3_dot12_23(_3sym3 a, real3x3x3 b) {
 
 //c_ij = a^k_il b_kj^l
 //assuming the result is symmetric
-static inline sym3 _3sym3_real3x3x3_dot13_to_sym3(_3sym3 a, real3x3x3 b) {
-	return (sym3){
+static inline real3s3 real3x3s3_real3x3x3_dot13_to_real3s3(real3x3s3 a, real3x3x3 b) {
+	return (real3s3){
 <? for ij,xij in ipairs(symNames) do
 	local i,j = from6to3x3(ij)
 	local xi,xj = xNames[i],xNames[j]
@@ -1359,7 +1359,7 @@ static inline real3 real3x3x3_tr23(real3x3x3 a) {
 ?>	};
 }
 
-static inline real3x3x3 real3x3x3_from__3sym3(_3sym3 m) {
+static inline real3x3x3 real3x3x3_from_real3x3s3(real3x3s3 m) {
 	return (real3x3x3){
 <? for i,xi in ipairs(xNames) do
 ?>		.<?=xi?> = (real3x3){
@@ -1375,10 +1375,10 @@ static inline real3x3x3 real3x3x3_from__3sym3(_3sym3 m) {
 ?>	};
 }
 
-static inline _3sym3 _3sym3_from_real3x3x3(real3x3x3 m) {
-	return (_3sym3){
+static inline real3x3s3 real3x3s3_from_real3x3x3(real3x3x3 m) {
+	return (real3x3s3){
 <? for i,xi in ipairs(xNames) do
-?>		.<?=xi?> = (sym3){
+?>		.<?=xi?> = (real3s3){
 <?	for jk,xjk in ipairs(symNames) do
 		local j,k,xj,xk = from6to3x3(jk)
 ?>			.<?=xjk?> = .5 * (m.<?=xi?>.<?=xj?>.<?=xk?> + m.<?=xi?>.<?=xk?>.<?=xj?>),
@@ -1390,10 +1390,10 @@ static inline _3sym3 _3sym3_from_real3x3x3(real3x3x3 m) {
 
 //c_i^jk = a^jm b_im^k
 // assumes the result is symmetric on the 2nd and 3rd indexes
-static inline _3sym3 sym3_real3x3x3_mul2_to_3sym3(sym3 a, real3x3x3 b) {
-	return (_3sym3){
+static inline real3x3s3 real3s3_real3x3x3_mul2_to_real3x3s3(real3s3 a, real3x3x3 b) {
+	return (real3x3s3){
 <? for i,xi in ipairs(xNames) do
-?>		.<?=xi?> = sym3_real3x3_to_sym3_mul(a, b.<?=xi?>),
+?>		.<?=xi?> = real3s3_real3x3_to_real3s3_mul(a, b.<?=xi?>),
 <? end
 ?>	};
 }
@@ -1401,10 +1401,10 @@ static inline _3sym3 sym3_real3x3x3_mul2_to_3sym3(sym3 a, real3x3x3 b) {
 // Γ^i_jk = d_kj^i + d_jk^i - d^i_jk
 // assumes the dg variable has the derivative index first
 // for d_kij = 1/2 γ_ij,k
-static inline _3sym3 conn_ull_from_d_llu_d_ull(real3x3x3 const d_llu, _3sym3 const d_ull) {
-	return (_3sym3){
+static inline real3x3s3 conn_ull_from_d_llu_d_ull(real3x3x3 const d_llu, real3x3s3 const d_ull) {
+	return (real3x3s3){
 <? for i,xi in ipairs(xNames) do
-?>		.<?=xi?> = (sym3){
+?>		.<?=xi?> = (real3s3){
 <?	for jk,xjk in ipairs(symNames) do
 		local j,k,xj,xk = from6to3x3(jk)
 ?>			.<?=xjk?> = d_llu.<?=xk?>.<?=xj?>.<?=xi?> + d_llu.<?=xj?>.<?=xk?>.<?=xi?> - d_ull.<?=xi?>.<?=xjk?>,
@@ -1414,34 +1414,34 @@ static inline _3sym3 conn_ull_from_d_llu_d_ull(real3x3x3 const d_llu, _3sym3 con
 ?>	};
 }
 
-//// MODULE_NAME: sym3sym3
-//// MODULE_DEPENDS: sym3
+//// MODULE_NAME: real3s3x3s3
+//// MODULE_DEPENDS: real3s3
 //// MODULE_TYPE:
 
 typedef union {
 	real s[36];
-	sym3 v[6];
+	real3s3 v[6];
 	struct {
-		sym3 v0, v1, v2, v3, v4, v5;
+		real3s3 v0, v1, v2, v3, v4, v5;
 	};
 	struct {
-		sym3 xx, xy, xz, yy, yz, zz;
+		real3s3 xx, xy, xz, yy, yz, zz;
 	};
-} sym3sym3;
+} real3s3x3s3;
 
 //this C array initializer works, right?
-#define sym3sym3_zero ((sym3sym3){.s={0}})
+#define real3s3x3s3_zero ((real3s3x3s3){.s={0}})
 
 //// MODULE_HEADER:
 
-static inline sym3sym3 sym3sym3_add(sym3sym3 a, sym3sym3 b);
+static inline real3s3x3s3 real3s3x3s3_add(real3s3x3s3 a, real3s3x3s3 b);
 
 //// MODULE_CODE:
 
-static inline sym3sym3 sym3sym3_add(sym3sym3 a, sym3sym3 b) {
-	return (sym3sym3){
+static inline real3s3x3s3 real3s3x3s3_add(real3s3x3s3 a, real3s3x3s3 b) {
+	return (real3s3x3s3){
 <? for ij,xij in ipairs(symNames) do
-?>		.<?=xij?> = sym3_add(a.<?=xij?>, b.<?=xij?>),
+?>		.<?=xij?> = real3s3_add(a.<?=xij?>, b.<?=xij?>),
 <? end
 ?>	};
 }
@@ -1599,7 +1599,7 @@ static inline cplx cplx_pow(cplx const a, cplx const b) { return cplx_exp(cplx_m
 static inline cplx cplx_sqrt(cplx const a) { return cplx_pow(a, cplx_from_real(.5)); }
 
 //// MODULE_NAME: cplx3
-//// MODULE_DEPENDS: cplx sym3
+//// MODULE_DEPENDS: cplx real3s3
 //// MODULE_TYPE:
 
 <?makevec3type("cplx3", "cplx")?>
@@ -1620,9 +1620,9 @@ static inline cplx3 real3_cplx_mul(real3 const a, cplx const b);
 static inline cplx cplx3_real3_dot(cplx3 const a, real3 const b);
 #define real3_cplx3_dot(a,b) cplx3_real3_dot(b,a)
 
-//TODO instead of sym3 as a depends, put this into a cplx+sym3 module?
-static inline real cplx3_re_weightedDot(cplx3 const a, cplx3 const b, sym3 const m);
-static inline real cplx3_weightedLenSq(cplx3 const a, sym3 const m);
+//TODO instead of real3s3 as a depends, put this into a cplx+real3s3 module?
+static inline real cplx3_re_weightedDot(cplx3 const a, cplx3 const b, real3s3 const m);
+static inline real cplx3_weightedLenSq(cplx3 const a, real3s3 const m);
 
 //// MODULE_CODE:
 
@@ -1676,18 +1676,18 @@ a^i b^j* g_ij
 = (re(a^i) re(b^j) + im(a^i) im(a^j)) g_ij
 = re(a^i) re(b^j) g_ij + im(a^i) im(a^j) g_ij
 */
-static inline real cplx3_re_weightedDot(cplx3 const a, cplx3 const b, sym3 const m) {
+static inline real cplx3_re_weightedDot(cplx3 const a, cplx3 const b, real3s3 const m) {
 	return real3_weightedDot(cplx3_re(a), cplx3_re(b), m)
 		+ real3_weightedDot(cplx3_im(a), cplx3_im(b), m);
 }
 
-static inline real cplx3_weightedLenSq(cplx3 const a, sym3 const m) {
+static inline real cplx3_weightedLenSq(cplx3 const a, real3s3 const m) {
 	return real3_weightedLenSq(cplx3_re(a), m)
 		+ real3_weightedLenSq(cplx3_im(a), m);
 }
 
 //// MODULE_NAME: cplx3x3
-//// MODULE_DEPENDS: sym3 real3x3 cplx3
+//// MODULE_DEPENDS: real3s3 real3x3 cplx3
 
 //// MODULE_TYPE:
 <?make3x3type"cplx"?>
@@ -1733,7 +1733,7 @@ static inline real3x3 cplx3x3_im(cplx3x3 const v) {
 <?make_3x3_3_mul("real", "cplx")	-- real3x3_cplx3_mul ?>
 <?make_3_3x3_mul("cplx", "real")	-- cplx3_real3x3_mul ?>
 
-cplx cplx3x3_sym3_dot(cplx3x3 a, sym3 b) {
+cplx cplx3x3_real3s3_dot(cplx3x3 a, real3s3 b) {
 	cplx sum = cplx_zero;
 <? for i,xi in ipairs(xNames) do
 	for j,xj in ipairs(xNames) do

@@ -233,15 +233,15 @@ function Z4_2004Bona:init(args)
 	-- TODO the whole "delta" idea is a bad one, it removes homogeneity from the flux (I think?)
 	local fluxVars = table{
 		{name='a_l', type='real3'},
-		{name='d_lll', type='_3sym3'},
-		{name='K_ll', type='sym3'},
+		{name='d_lll', type='real3x3s3'},
+		{name='K_ll', type='real3s3'},
 		{name='Theta', type='real'},
 		{name='Z_l', type='real3'},
 	}
 
 	self.consVars = table{
 		{name='alpha', type='real'},
-		{name='gamma_ll', type='sym3'},
+		{name='gamma_ll', type='real3s3'},
 	}:append(fluxVars)
 
 
@@ -334,7 +334,7 @@ function Z4_2004Bona:init(args)
 			--stress-energy variables:
 			{name='rho', type='real'},			--1: n_a n_b T^ab
 			{name='S_u', type='real3'},			--3: -γ^ij n_a T_aj ... j_i in some sources
-			{name='S_ll', type='sym3'},			--6: γ_i^c γ_j^d T_cd
+			{name='S_ll', type='real3s3'},			--6: γ_i^c γ_j^d T_cd
 		}
 	end
 	self.consVars:append{
@@ -346,8 +346,8 @@ function Z4_2004Bona:init(args)
 	self.eigenVars = table{
 		{name='alpha', type='real'},
 		{name='alpha_sqrt_f', type='real'},
-		{name='gamma_ll', type='sym3'},
-		{name='gamma_uu', type='sym3'},
+		{name='gamma_ll', type='real3s3'},
+		{name='gamma_uu', type='real3s3'},
 		-- sqrt(n_i n_j γ^ij) needs to be cached, otherwise the Intel kernel stalls (for seconds on end)
 		{name='sqrt_gammaUnn', type='real'},
 	}
@@ -439,7 +439,7 @@ Z4_2004Bona.predefinedDisplayVars = {
 -- [[ for all dirs
 	'U gamma_ll norm',
 	'U a_l mag',
-	-- TODO a 3sym3 Frobenius norm - use for 'd'?
+	-- TODO a real3x3s3 Frobenius norm - use for 'd'?
 	'U d_lll x norm',
 	'U d_lll y norm',
 	'U d_lll z norm',
@@ -493,7 +493,7 @@ function Z4_2004Bona:getDisplayVars()
 			-- spatial volume is just "U gamma_ll det"
 			name = 'volume',
 			code = self:template[[
-value.vreal = U->alpha * sqrt(sym3_det(U->gamma_ll));
+value.vreal = U->alpha * sqrt(real3s3_det(U->gamma_ll));
 ]],
 		},
 		{name='f', code='value.vreal = calc_f(U->alpha);'},
@@ -507,8 +507,8 @@ value.vreal = U->alpha * sqrt(sym3_det(U->gamma_ll));
 			name = 'expansion',
 			code = self:template[[
 {{{{ MODULE_DEPENDS: <?=calc_gamma_uu?> }}}}
-sym3 const gamma_uu = <?=calc_gamma_uu?>(U, cell->pos);
-value.vreal = -sym3_dot(U->K_ll, gamma_uu);
+real3s3 const gamma_uu = <?=calc_gamma_uu?>(U, cell->pos);
+value.vreal = -real3s3_dot(U->K_ll, gamma_uu);
 ]],
 		},
 	}:append{
@@ -553,13 +553,13 @@ H =
 			type = 'real3',
 			code = self:template[[
 {{{{ MODULE_DEPENDS: <?=calc_gamma_uu?> }}}}
-sym3 const gamma_uu = <?=calc_gamma_uu?>(U, cell->pos);
+real3s3 const gamma_uu = <?=calc_gamma_uu?>(U, cell->pos);
 value.vreal3 = real3_sub(
 	real3_real_mul(
-		sym3_3sym3_dot12(gamma_uu, U->d_lll),	//e_l
+		real3s3_real3x3s3_dot12(gamma_uu, U->d_lll),	//e_l
 		2.
 	),
-	_3sym3_sym3_dot23(U->d_lll, gamma_uu)		//d_l
+	real3x3s3_real3s3_dot23(U->d_lll, gamma_uu)		//d_l
 );
 ]],
 		},
@@ -569,8 +569,8 @@ value.vreal3 = real3_sub(
 			type = 'real3',
 			code = self:template[[
 {{{{ MODULE_DEPENDS: <?=calc_gamma_uu?> }}}}
-sym3 const gamma_uu = <?=calc_gamma_uu?>(U, cell->pos);
-value.vreal3 = _3sym3_sym3_dot23(U->d_lll, gamma_uu);		//d_l
+real3s3 const gamma_uu = <?=calc_gamma_uu?>(U, cell->pos);
+value.vreal3 = real3x3s3_real3s3_dot23(U->d_lll, gamma_uu);		//d_l
 ]],
 		},
 	}
@@ -583,28 +583,28 @@ value.vreal3 = _3sym3_sym3_dot23(U->d_lll, gamma_uu);		//d_l
 	--		+ d_il^k d_jk^l
 	vars:insert{
 		name = 'R_ll',
-		type = 'sym3',
+		type = 'real3s3',
 		code = self:template[[
 {{{{ MODULE_DEPENDS: <?=calc_gamma_uu?> }}}}
-_3sym3 const d_lll = U->d_lll;										//d_lll.i.jk := d_kij
-sym3 const gamma_uu = <?=calc_gamma_uu?>(U, cell->pos);				//gamma_uu.ij := γ^ij
-real3x3x3 const d_llu = _3sym3_sym3_mul(d_lll, gamma_uu);			//d_llu.i.j.k := d_ij^k = d_ijl * γ^lk
-_3sym3 const d_ull = sym3_3sym3_mul(gamma_uu, d_lll);				//d_ull.i.jk := d^i_jk = γ^il d_ljk
-_3sym3 const conn_ull = conn_ull_from_d_llu_d_ull(d_llu, d_ull);	//conn_ull.k.ij := Γ^k_ij = d_ij^k + d_ji^k - d^k_ij
-real3 const e_l = _3sym3_tr12(d_ull);								//e_l.i := e_i = d^j_ji
+real3x3s3 const d_lll = U->d_lll;										//d_lll.i.jk := d_kij
+real3s3 const gamma_uu = <?=calc_gamma_uu?>(U, cell->pos);				//gamma_uu.ij := γ^ij
+real3x3x3 const d_llu = real3x3s3_real3s3_mul(d_lll, gamma_uu);			//d_llu.i.j.k := d_ij^k = d_ijl * γ^lk
+real3x3s3 const d_ull = real3s3_real3x3s3_mul(gamma_uu, d_lll);				//d_ull.i.jk := d^i_jk = γ^il d_ljk
+real3x3s3 const conn_ull = conn_ull_from_d_llu_d_ull(d_llu, d_ull);	//conn_ull.k.ij := Γ^k_ij = d_ij^k + d_ji^k - d^k_ij
+real3 const e_l = real3x3s3_tr12(d_ull);								//e_l.i := e_i = d^j_ji
 real3 const d_l = real3x3x3_tr23(d_llu);							//d_l.i := d_i = d_ij^j
 
 {{{{ MODULE_DEPENDS: <?=calc_partial_d_llll?> }}}}
 //display code runs to the borders, so don't finite-difference OOB
-sym3sym3 const partial_d_llll = <?=OOB?>(1,1)
-	? sym3sym3_zero
+real3s3x3s3 const partial_d_llll = <?=OOB?>(1,1)
+	? real3s3x3s3_zero
 	: <?=calc_partial_d_llll?>(
 		solver,
 		U
 	);
 
 {{{{ MODULE_DEPENDS: <?=calc_R_ll?> }}}}
-sym3 const R_ll = <?=calc_R_ll?>(
+real3s3 const R_ll = <?=calc_R_ll?>(
 	gamma_uu,
 	d_l,
 	e_l,
@@ -614,20 +614,20 @@ sym3 const R_ll = <?=calc_R_ll?>(
 	partial_d_llll
 );
 
-value.vsym3 = R_ll;
+value.vreal3s3 = R_ll;
 ]],
 	}
 
 	-- K_ik K^k_j
 	vars:insert{
 		name = 'KSq_ll',
-		type = 'sym3',
+		type = 'real3s3',
 		code = self:template[[
 {{{{ MODULE_DEPENDS: <?=calc_gamma_uu?> }}}}
-sym3 const gamma_uu = <?=calc_gamma_uu?>(U, cell->pos);
-real3x3 const K_ul = sym3_sym3_mul(gamma_uu, U->K_ll);			//K_ul.i.j := K^i_j
-sym3 const KSq_ll = sym3_real3x3_to_sym3_mul(U->K_ll, K_ul);	//KSq_ll.ij := K_ik K^k_j
-value.vsym3 = KSq_ll;
+real3s3 const gamma_uu = <?=calc_gamma_uu?>(U, cell->pos);
+real3x3 const K_ul = real3s3_real3s3_mul(gamma_uu, U->K_ll);			//K_ul.i.j := K^i_j
+real3s3 const KSq_ll = real3s3_real3x3_to_real3s3_mul(U->K_ll, K_ul);	//KSq_ll.ij := K_ik K^k_j
+value.vreal3s3 = KSq_ll;
 ]],
 	}
 
@@ -636,29 +636,29 @@ value.vsym3 = KSq_ll;
 	-- ... minus eight pi something that traces to rho ...
 	vars:insert{
 		name = 'H_ll',
-		type = 'sym3',
+		type = 'real3s3',
 		code = self:template[[
 
 {{{{ MODULE_DEPENDS: <?=calc_gamma_uu?> }}}}
-_3sym3 const d_lll = U->d_lll;										//d_lll.i.jk := d_kij
-sym3 const gamma_uu = <?=calc_gamma_uu?>(U, cell->pos);				//gamma_uu.ij := γ^ij
-real3x3x3 const d_llu = _3sym3_sym3_mul(d_lll, gamma_uu);			//d_llu.i.j.k := d_ij^k = d_ijl * γ^lk
-_3sym3 const d_ull = sym3_3sym3_mul(gamma_uu, d_lll);				//d_ull.i.jk := d^i_jk = γ^il d_ljk
-_3sym3 const conn_ull = conn_ull_from_d_llu_d_ull(d_llu, d_ull);	//conn_ull.k.ij := Γ^k_ij = d_ij^k + d_ji^k - d^k_ij
-real3 const e_l = _3sym3_tr12(d_ull);								//e_l.i := e_i = d^j_ji
+real3x3s3 const d_lll = U->d_lll;										//d_lll.i.jk := d_kij
+real3s3 const gamma_uu = <?=calc_gamma_uu?>(U, cell->pos);				//gamma_uu.ij := γ^ij
+real3x3x3 const d_llu = real3x3s3_real3s3_mul(d_lll, gamma_uu);			//d_llu.i.j.k := d_ij^k = d_ijl * γ^lk
+real3x3s3 const d_ull = real3s3_real3x3s3_mul(gamma_uu, d_lll);				//d_ull.i.jk := d^i_jk = γ^il d_ljk
+real3x3s3 const conn_ull = conn_ull_from_d_llu_d_ull(d_llu, d_ull);	//conn_ull.k.ij := Γ^k_ij = d_ij^k + d_ji^k - d^k_ij
+real3 const e_l = real3x3s3_tr12(d_ull);								//e_l.i := e_i = d^j_ji
 real3 const d_l = real3x3x3_tr23(d_llu);							//d_l.i := d_i = d_ij^j
 
 {{{{ MODULE_DEPENDS: <?=calc_partial_d_llll?> }}}}
 //display code runs to the borders, so don't finite-difference OOB
-sym3sym3 const partial_d_llll = <?=OOB?>(1,1)
-	? sym3sym3_zero
+real3s3x3s3 const partial_d_llll = <?=OOB?>(1,1)
+	? real3s3x3s3_zero
 	: <?=calc_partial_d_llll?>(
 		solver,
 		U
 	);
 
 {{{{ MODULE_DEPENDS: <?=calc_R_ll?> }}}}
-sym3 const R_ll = <?=calc_R_ll?>(
+real3s3 const R_ll = <?=calc_R_ll?>(
 	gamma_uu,
 	d_l,
 	e_l,
@@ -668,22 +668,22 @@ sym3 const R_ll = <?=calc_R_ll?>(
 	partial_d_llll
 );
 
-real3x3 const K_ul = sym3_sym3_mul(gamma_uu, U->K_ll);			//K_ul.i.j := K^i_j
-sym3 const KSq_ll = sym3_real3x3_to_sym3_mul(U->K_ll, K_ul);	//KSq_ll.ij := K_ik K^k_j
+real3x3 const K_ul = real3s3_real3s3_mul(gamma_uu, U->K_ll);			//K_ul.i.j := K^i_j
+real3s3 const KSq_ll = real3s3_real3x3_to_real3s3_mul(U->K_ll, K_ul);	//KSq_ll.ij := K_ik K^k_j
 real const tr_K = real3x3_trace(K_ul);							//K^k_k
 
-sym3 const H_ll = sym3_real_mul(
-	sym3_add(
+real3s3 const H_ll = real3s3_real_mul(
+	real3s3_add(
 		R_ll,
-		sym3_sub(
-			sym3_real_mul(U->K_ll, tr_K),
+		real3s3_sub(
+			real3s3_real_mul(U->K_ll, tr_K),
 			KSq_ll
 		)
 	),
 	//TODO maybe sub stress energy?
 	.5);
 
-value.vsym3 = H_ll;
+value.vreal3s3 = H_ll;
 ]],
 	}
 
@@ -795,14 +795,14 @@ value.vsym3 = H_ll;
 		type = 'real3',
 		code = self:template[[
 {{{{ MODULE_DEPENDS: <?=calc_gamma_uu?> }}}}
-sym3 const gamma_uu = <?=calc_gamma_uu?>(U, cell->pos);
+real3s3 const gamma_uu = <?=calc_gamma_uu?>(U, cell->pos);
 
-value.vreal3 = real3_real_mul(sym3_real3_mul(gamma_uu, U->a_l), -U->alpha * U->alpha);		// - α^2 γ^im a_m
+value.vreal3 = real3_real_mul(real3s3_real3_mul(gamma_uu, U->a_l), -U->alpha * U->alpha);		// - α^2 γ^im a_m
 
 <? if eqn.useShift ~= 'none' then ?>
 
 //K_ul.i.j := K^i_j
-real3x3 const K_ul = sym3_sym3_mul(gamma_uu, U->K_ll);
+real3x3 const K_ul = real3s3_real3s3_mul(gamma_uu, U->K_ll);
 
 //tr_K := K^i_i
 real const tr_K = real3x3_trace(K_ul);
@@ -834,10 +834,10 @@ end ?>
 // = -α f (K - 2 Theta) + β^i a_i
 real const dt_alpha_over_alpha = -calc_f_alpha(U->alpha) * (tr_K - 2. * U->Theta) + beta_dot_a;
 
-_3sym3 const d_lll = U->d_lll;										//d_lll.i.jk := d_kij
-real3x3x3 const d_llu = _3sym3_sym3_mul(d_lll, gamma_uu);			//d_llu.i.j.k := d_ij^k = d_ijl * γ^lk
-_3sym3 const d_ull = sym3_3sym3_mul(gamma_uu, d_lll);				//d_ull.i.jk := d^i_jk = γ^il d_ljk
-_3sym3 const conn_ull = conn_ull_from_d_llu_d_ull(d_llu, d_ull);	//conn_ull.k.ij := Γ^k_ij = d_ij^k + d_ji^k - d^k_ij
+real3x3s3 const d_lll = U->d_lll;										//d_lll.i.jk := d_kij
+real3x3x3 const d_llu = real3x3s3_real3s3_mul(d_lll, gamma_uu);			//d_llu.i.j.k := d_ij^k = d_ijl * γ^lk
+real3x3s3 const d_ull = real3s3_real3x3s3_mul(gamma_uu, d_lll);				//d_ull.i.jk := d^i_jk = γ^il d_ljk
+real3x3s3 const conn_ull = conn_ull_from_d_llu_d_ull(d_llu, d_ull);	//conn_ull.k.ij := Γ^k_ij = d_ij^k + d_ji^k - d^k_ij
 
 <? 	for i,xi in ipairs(xNames) do ?>
 value.vreal3.<?=xi?> += 0.
@@ -879,13 +879,13 @@ if (<?=OOB?>(1,1)) {
 	for i,xi in ipairs(xNames) do
 		vars:insert{
 			name = 'gamma_ij vs d_'..xi..'ij',
-			type = 'sym3',
+			type = 'real3s3',
 			code = self:template([[
 if (<?=OOB?>(1,1)) {
-	value.vsym3 = sym3_zero;
+	value.vreal3s3 = real3s3_zero;
 } else {
 {{{{ MODULE_DEPENDS: <?=calcFromGrad_d_lll?> }}}}
-	_3sym3 const target_d_lll = <?=calcFromGrad_d_lll?>(solver, U);
+	real3x3s3 const target_d_lll = <?=calcFromGrad_d_lll?>(solver, U);
 // TODO hmm how come this isn't working? seems the Minkowski value of d_ijk is zero
 // does that mean this is really Δd_kij and not d_kij ?
 // it might have something to do with the addSourcc TODO's about needing to update the code to reflect removing the dDelta's ...
@@ -894,10 +894,10 @@ if (<?=OOB?>(1,1)) {
 // so maybe that means (if I can get by without dDelta_ijk's) that my fluxes are off?
 // either way, flux or source, there's some disagreement, one is considering dDeltas, the other is not
 // and if both are in agreement then whatever system is being used (with dDelta, without dDelta) is the wrong one.
-	//_3sym3 const target_d_lll = _3sym3_zero;
+	//real3x3s3 const target_d_lll = real3x3s3_zero;
 <? -- print"TODO FIXME display constraint target d_kij is set to zero atm instead of 1/2 γ_ij,k"
 ?>
-	value.vsym3 = (sym3){
+	value.vreal3s3 = (real3s3){
 <? for jk,xjk in ipairs(symNames) do
 ?>		.<?=xjk?> = fabs(target_d_lll.<?=xi?>.<?=xjk?> - U->d_lll.<?=xi?>.<?=xjk?>),
 <? end
@@ -1024,7 +1024,7 @@ Z4_2004Bona.consWaveCode = Z4_2004Bona.eigenWaveCode
 function Z4_2004Bona:consWaveCodePrefix(args)
 	return self:template([[
 {{{{ MODULE_DEPENDS: <?=calc_gamma_uu?> }}}}
-sym3 const gamma_uu = <?=calc_gamma_uu?>(<?=U?>, <?=pt?>);
+real3s3 const gamma_uu = <?=calc_gamma_uu?>(<?=U?>, <?=pt?>);
 
 real3 const n_l = normal_l1(<?=n?>);
 real const gammaUnn = real3_weightedLenSq(n_l, gamma_uu);

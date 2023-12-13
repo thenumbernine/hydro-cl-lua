@@ -155,8 +155,8 @@ function GRHD:getDisplayVars()
 		{name='W based on D', code='value.vreal = U->D / U->rho;'},
 		{name='W based on v', code=self:template[[
 <?=solver:getADMVarCode()?>
-real det_gamma = sym3_det(gamma);
-sym3 gammaU = sym3_inv(gamma, det_gamma);
+real det_gamma = real3s3_det(gamma);
+real3s3 gammaU = real3s3_inv(gamma, det_gamma);
 value.vreal = 1. / sqrt(1. - real3_weightedLenSq(U->v, gammaU));
 ]]},
 		{name='primitive reconstruction error', code=self:template[[
@@ -176,8 +176,8 @@ value.vreal = 1. / sqrt(1. - real3_weightedLenSq(U->v, gammaU));
 		{name='W error', code=self:template[[
 real W1 = U->D / U->rho;
 <?=solver:getADMVarCode()?>
-real det_gamma = sym3_det(gamma);
-sym3 gammaU = sym3_inv(gamma, det_gamma);
+real det_gamma = real3s3_det(gamma);
+real3s3 gammaU = real3s3_inv(gamma, det_gamma);
 real W2 = 1. / sqrt(1. - real3_weightedLenSq(U->v, gammaU));
 value.vreal = fabs(W1 - W2);
 ]]		},
@@ -218,7 +218,7 @@ GRHD.eigenVars = {
 	-- hmm, I could just as easily re-average these ...
 	{name='alpha', type='real'},
 	{name='beta', type='real3'},
-	{name='gamma', type='sym3'},
+	{name='gamma', type='real3s3'},
 	-- and these are for wavespeeds
 	{name='vU', type='real3'},
 	{name='lambdaMin', type='real'},

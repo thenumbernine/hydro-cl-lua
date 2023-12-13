@@ -70,8 +70,8 @@ void <?=applyInitCondCell?>(
 	real3 D_u = U.D;
 
 	//this only works for fluxFromCons
-	real3 B_l = sym3_real3_mul(gamma, B_u);
-	real3 D_l = sym3_real3_mul(gamma, D_u);
+	real3 B_l = real3s3_real3_mul(gamma, B_u);
+	real3 D_l = real3s3_real3_mul(gamma, D_u);
 	
 	real mu = U.mu;
 	real eps = U.eps;
@@ -103,7 +103,7 @@ void <?=applyInitCondCell?>(
 	solver:getADMArgs()?>
 ) {
 	<?=solver:getADMVarCode()?>	
-	real det_gamma = sym3_det(gamma);	
+	real det_gamma = real3s3_det(gamma);	
 	real det_gamma2 = det_gamma * det_gamma;
 	real det_gamma3 = det_gamma * det_gamma2;
 	
@@ -149,7 +149,7 @@ kernel void calcEigenBasis(
 	int const indexR = index;
 	
 	<?=solver:getADMVarCode{suffix='R'} --[[ produce alphaR, betaR, gammaR at indexR ]] ?>
-	real det_gammaR = sym3_det(gammaR);
+	real det_gammaR = real3s3_det(gammaR);
 	real det_gammaR2 = det_gammaR * det_gammaR;
 	real det_gammaR3 = det_gammaR * det_gammaR2;
 
@@ -161,7 +161,7 @@ kernel void calcEigenBasis(
 		<?=solver:getULRCode()?>
 		
 		<?=solver:getADMVarCode{suffix='L'} --[[ produce alphaL, betaL, gammaL at indexL ]] ?>
-		real det_gammaL = sym3_det(gammaL);
+		real det_gammaL = real3s3_det(gammaL);
 		real det_gammaL2 = det_gammaL * det_gammaL;
 		real det_gammaL3 = det_gammaL * det_gammaL2;
 		
