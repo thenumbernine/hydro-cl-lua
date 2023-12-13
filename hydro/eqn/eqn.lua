@@ -183,16 +183,16 @@ no, they're needed for the integrator
 		self.consStruct = Struct{
 			name = solver.app:uniqueName'cons_t',
 			union = true,
+			packed = true,
+			cdef = false,
 			fields = {
 				{type = Struct{
 					anonymous = true,
-					fields = table((assert(self.consVars))),
 					packed = true,
+					fields = table((assert(self.consVars))),
 				}},
 				{name = 'ptr', type='real[1]'},
 			},
-			packed = true,
-			cdef = false,
 		}.class
 	end
 
@@ -214,16 +214,16 @@ no, they're needed for the integrator
 		self.primStruct = Struct{
 			name = solver.app:uniqueName'prim_t',
 			union = true,
+			packed = true,
+			cdef = false,
 			fields = {
 				{type = Struct{
 					anonymous = true,
-					fields = table((assert(self.primVars))),
 					packed = true,
+					fields = table((assert(self.primVars))),
 				}},
 				{name = 'ptr', type = 'real[1]'},
 			},
-			packed = true,
-			cdef = false,
 		}.class
 	end
 	if self.primStruct then
@@ -252,16 +252,16 @@ no, they're needed for the integrator
 	if not self.eigenVars then
 		self.eigenStruct = Struct{
 			name = solver.app:uniqueName'eigen_t',
+			cdef = false,
 			fields = {
 				{name = 'unused', type = 'char'},
 			},
-			cdef = false,
 		}.class
 	else
 		self.eigenStruct = Struct{
 			name = solver.app:uniqueName'eigen_t',
-			fields = self.eigenVars,
 			cdef = false,
+			fields = self.eigenVars,
 		}.class
 	end
 
@@ -308,16 +308,16 @@ no, they're needed for the integrator
 	self.wavesStruct = Struct{
 		name = solver.app:uniqueName'waves_t',
 		union = true,
+		packed = true,
+		cdef = false,
 		fields = {
 			{type = Struct{
 				anonymous = true,
-				fields = self.wavesVars,
 				packed = true,
+				fields = self.wavesVars,
 			}},
 			{name = 'ptr', type = 'real[1]'},
 		},
-		packed = true,
-		cdef = false,
 	}.class
 
 	self.symbols.waves_t = assert(self.wavesStruct.name)
