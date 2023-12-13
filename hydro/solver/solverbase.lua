@@ -94,7 +94,7 @@ SolverBase:init
 
 		self.coord:initCodeModules
 		self.eqn:initCodeModules
-		self.solverStruct
+		self.solverStruct module
 		self.ops[i]:initCodeModules
 
 	SolverBase:initCodeModuleDisplay
@@ -534,7 +534,6 @@ function SolverBase:initMeshVars(args)
 	self.color = vec3d(math.random(), math.random(), math.random()):normalize()
 
 
-assert(not self.solverStruct)
 	self.solverStructFields:append{
 	-- [[ right now the mesh initial conditions use these, but otherwise they can be GridSolver-specific
 		{name='mins', type='real3'},
