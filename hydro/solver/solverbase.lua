@@ -703,7 +703,7 @@ function SolverBase:initObjs(args)
 	-- not sure where this should go, but probably somewhere parallel to solverPtr
 	-- initStruct:makeType() is already called in eqn:createInitState
 	-- TODO if initCond is supposed to be modular then this would have to be created after initCond is changed
-	self.initCond_t = self.eqn.initCond.initStruct.typename
+	self.initCond_t = self.eqn.initCond.initStruct.name
 	self.initCondPtr = ffi.new(self.initCond_t)
 
 

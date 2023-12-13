@@ -2,7 +2,7 @@ local class = require 'ext.class'
 local table = require 'ext.table'
 local path = require 'ext.path'
 local time = table.unpack(require 'hydro.util.time')
-local Struct = require 'hydro.code.struct'
+local Struct = require 'struct'
 local half = require 'cl.obj.half'
 
 --[[
@@ -37,12 +37,8 @@ function InitCond:init(args)
 end
 
 function InitCond:createInitStruct()
-	self.initStruct = Struct{
-		solver = self.solver,
-		name = 'initCond_t',
-		dontUnion = true,
-	}
-	
+	self.initStructFields = table()
+
 	-- then setup the gui vars
 	-- this assumes guiVars are index-keyed
 	local initGuiVars = self.guiVars
@@ -60,11 +56,15 @@ function InitCond:finalizeInitStruct()
 	-- b) allocating it at a minimium of size 1
 	-- c) putting a temp field in empty initCond_t structures
 	-- I'll pick c) for now
-	if #self.initStruct.vars == 0 then
-		self.initStruct.vars:insert{name='tmp', type='real'}
+	if #self.initStructFields == 0 then
+		self.initStructFields:insert{name='tmp', type='real'}
 	end
-	self.initStruct:makeType()
-	self.initCond_t = self.initStruct.typename
+	self.initCond_t = self.solver.app:uniqueName'initCond_t'
+	self.initStruct = Struct{
+		name = self.initCond_t,
+		fields = self.initStructFields,
+	}.class
+	self.initStructFields = nil
 end
 
 -- [[ TODO this is similar to what's in Equation
@@ -96,7 +96,7 @@ function InitCond:addGuiVar(args)
 	-- because I'm going to map names into guiVars' keys, and I don't want to overwrite any integer-indexed guiVars
 	assert(args.name and type(args.name) == 'string')
 	local var = cl(args)
-	
+
 	-- assumes self.guiVars[i] already points to this var
 	self.guiVars:insert(var)
 	self.guiVars[var.name] = var
@@ -109,7 +109,7 @@ function InitCond:addGuiVar(args)
 			solver:refreshInitCondBuf()
 		end
 		-- ... and add it to the initCond_t
-		self.initStruct.vars:insert{
+		self.initStructFields:insert{
 			name = var.name,
 			type = var.ctype,
 		}
@@ -144,7 +144,7 @@ function InitCond:initCodeModules()
 	local solver = assert(self.solver)
 	solver.modules:add{
 		name = self.initCond_t,
-		structs = {self.initStruct:getForModules()},
+		structs = {self.initStruct},
 		-- only generated for cl, not for ffi cdef
 		headercode = 'typedef '..self.initCond_t..' initCond_t;',
 	}
@@ -184,14 +184,14 @@ function InitCond:refreshInitStateProgram()
 		initCondCode = solver.modules:getCodeAndHeader(moduleNames:unpack())
 			:gsub('//// BEGIN INCLUDE FOR FFI_CDEF.-//// END INCLUDE FOR FFI_CDEF', '')
 	end)
-	
+
 	time('building program cache/'..solver:getIdent()..'/src/initCond.clcpp ', function()
 		solver.initCondProgramObj = solver.Program{name='initCond', code=initCondCode}
 		solver.initCondProgramObj:compile()
 	end)
-	
+
 	solver.applyInitCondKernelObj = solver.initCondProgramObj:kernel(eqn.symbols.applyInitCond, solver.solverBuf, solver.initCondBuf, solver.UBuf, solver.cellBuf)
-	
+
 	if solver:hasModule(eqn.symbols.initDerivs) then
 		solver.initDerivsKernelObj = solver.initCondProgramObj:kernel(eqn.symbols.initDerivs, solver.solverBuf, solver.UBuf, solver.cellBuf)
 	end
@@ -242,7 +242,7 @@ function InitCond:resetState()
 		print('init UBuf:')
 		solver:printBuf(solver.UBufObj)
 	end
-	
+
 	if solver.initDerivsKernelObj then
 		solver:boundary()
 		solver.initDerivsKernelObj()
@@ -253,7 +253,7 @@ function InitCond:resetState()
 		print('post-boundary init UBuf:')
 		solver:printBuf(solver.UBufObj)
 	end
-	
+
 	if solver.constrainUKernelObj then
 		-- this calls constrainUKernelObj
 		-- and then calls :boundary()
