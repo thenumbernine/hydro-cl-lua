@@ -3826,7 +3826,7 @@ function SolverBase:checkStructSizes()
 	):keys():sort()
 	for _,module in ipairs(self.modules:getDependentModules(moduleNames:unpack())) do
 		for _,struct in ipairs(module.structs) do
-			--print('checking for struct '..struct.typename..' from module '..module.name)
+			--print('checking for struct '..struct.name..' from module '..module.name)
 			if not typeinfos:find(struct)
 			and not typeinfos:find(struct.name)
 			then
@@ -3879,18 +3879,17 @@ kernel void checkStructSizes(
 <?
 local index = 0
 for i,typeinfo in ipairs(typeinfos) do
-	local typename
 	if type(typeinfo) == 'string' then
 ?>	result[<?=index?>] = sizeof(<?=typeinfo?>);
 <?
 		index = index + 1
 	else
-?>	result[<?=index?>] = sizeof(<?=typeinfo.typename?>);
+?>	result[<?=index?>] = sizeof(<?=typeinfo.name?>);
 <?
 		index = index + 1
 		if Struct:isa(typeinfo) then
 			for _,field in ipairs(typeinfo.fields) do
-?>	result[<?=index?>] = offsetof(<?=typeinfo.typename?>, <?=field.name?>);
+?>	result[<?=index?>] = offsetof(<?=typeinfo.name?>, <?=field.name?>);
 <?
 				index = index + 1
 			end
@@ -3917,7 +3916,6 @@ local HydroStruct = require 'hydro.code.struct'
 <?
 local index = 0
 for i,typeinfo in ipairs(typeinfos) do
-	local typename
 	if type(typeinfo) == 'string' then
 ?>	result[<?=index?>] = sizeof(<?=typeinfo?>);
 <?
