@@ -19,7 +19,7 @@ function EulerHLLC:init(args)
 	
 	EulerHLLC.super.init(self, args)
 
-	self.solver.solverStruct.vars:append{
+	self.solver.solverStructFields:append{
 		{name='flux_hllcMethod', type='int'},
 	}
 end

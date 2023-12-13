@@ -75,7 +75,7 @@ function MeshSolver:initMeshVars(args)
 	-- (just like I'm already doing with the Tex2D size)
 	-- TODO same with mins and maxs, since initCond uses them
 	-- move them from mesh to this
-	self.solverStruct.vars:append{
+	self.solverStructFields:append{
 		{name='gridSize', type='int4'},
 		{name='stepsize', type='int4'},
 	}

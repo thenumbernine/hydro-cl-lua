@@ -16,7 +16,7 @@ function HLL:init(args)
 
 	HLL.super.init(self, args)
 	
-	self.solver.solverStruct.vars:append{
+	self.solver.solverStructFields:append{
 		{name='flux_hllCalcWaveMethod', type='int'},
 	}
 end

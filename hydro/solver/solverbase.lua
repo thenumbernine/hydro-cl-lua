@@ -32,9 +32,9 @@ SolverBase:init
 				self.cmds = ...
 				self.color = ...
 				self.ops = ...
-				self.solverStruct = ...
-				self.solverStruct.vars:append(...)
-			self.solverStruct.vars:append(...)
+				self.solverStructFields = ...
+				self.solverStructFields:append(...)
+			self.solverStructFields:append(...)
 			self.mins = ...
 			self.maxs = ...
 			self.initCondMins = ...
@@ -66,7 +66,7 @@ SolverBase:init
 					self.eqn.initCond:finalizeInitStruct
 						self.eqn.initCond.initCond_t = ...
 
-				self.solverStruct:makeType				-- now that initCond does not modify solver_t, this can be moved back -- but eqn still modifies it, so not back by far
+				self.solverStruct = ...				-- now that initCond does not modify solver_t, this can be moved back -- but eqn still modifies it, so not back by far
 				self.solver_t = ...
 
 -- Here's where the solverPtr is created.
@@ -94,7 +94,7 @@ SolverBase:init
 
 		self.coord:initCodeModules
 		self.eqn:initCodeModules
-		self.solverStruct
+		self.solverStruct module
 		self.ops[i]:initCodeModules
 
 	SolverBase:initCodeModuleDisplay
@@ -216,7 +216,8 @@ local vec3d = require 'vec-ffi.vec3d'
 local vec3sz = require 'vec-ffi.vec3sz'
 local roundup = require 'hydro.util.roundup'
 local time, getTime = table.unpack(require 'hydro.util.time')
-local Struct = require 'hydro.code.struct'
+local Struct = require 'struct'
+local HydroStruct = require 'hydro.code.struct'
 
 local common = require 'hydro.common'	-- xNames, symNames
 local xNames = common.xNames
@@ -518,11 +519,7 @@ function SolverBase:initMeshVars(args)
 	self.ops = table()
 
 	-- struct for the solver
-	self.solverStruct = Struct{
-		solver = self,
-		name = 'solver_t',
-		dontUnion = true,
-	}
+	self.solverStructFields = table()
 --]]
 
 	-- MeshSolver needs coord created early
@@ -538,7 +535,7 @@ function SolverBase:initMeshVars(args)
 	self.color = vec3d(math.random(), math.random(), math.random()):normalize()
 
 
-	self.solverStruct.vars:append{
+	self.solverStructFields:append{
 	-- [[ right now the mesh initial conditions use these, but otherwise they can be GridSolver-specific
 		{name='mins', type='real3'},
 		{name='maxs', type='real3'},
@@ -680,7 +677,7 @@ function SolverBase:initObjs(args)
 	-- add eqn vars to solver_t
 	for _,var in ipairs(self.eqn.guiVars) do
 		if not var.compileTime then
-			self.solverStruct.vars:insert{name=var.name, type=var.ctype}
+			self.solverStructFields:insert{name=var.name, type=var.ctype}
 		end
 	end
 
@@ -694,8 +691,14 @@ function SolverBase:initObjs(args)
 	--  which is called in postInit
 	-- the createInitState also creates kernels and runs them on the solver buffers
 	-- so I probably need a separate call to eqn.initCond, earlier, which constructs the object and the guiVars, but runs no kernels
-	self.solverStruct:makeType()
-	self.solver_t = self.solverStruct.typename
+	self.solver_t = self.app:uniqueName'solver_t'
+	self.solverStruct = Struct{
+		name = self.solver_t,
+		fields = self.solverStructFields,
+		-- without 'packed' I get misalignments between ffi and opencl
+		packed = true,
+	}.class
+	self.solverStructFields = nil
 	self.solverPtr = ffi.new(self.solver_t)
 	-- TODO I see room for a separation between solver_t and eqn_t
 	-- but right now both structs are tied directly to solver.cl, so there's no need to separate them at the moment.
@@ -705,7 +708,6 @@ function SolverBase:initObjs(args)
 	-- TODO if initCond is supposed to be modular then this would have to be created after initCond is changed
 	self.initCond_t = self.eqn.initCond.initStruct.name
 	self.initCondPtr = ffi.new(self.initCond_t)
-
 
 
 	-- [[
@@ -782,7 +784,7 @@ self.modules = self.app.modules
 
 	self.modules:add{
 		name = assert(self.solver_t),
-		structs = {self.solverStruct:getForModules()},
+		structs = {self.solverStruct},
 		-- only generated for cl, not for ffi cdef
 		headercode = 'typedef '..self.solver_t..' solver_t;',
 	}
@@ -2523,7 +2525,7 @@ function SolverBase:createDisplayVarArgsForStructVars(structVars, ptrName, nameP
 	-- TODO put the real3x3s3Struct initialization somewhere else
 	-- TODO is the structForType table the same as typeInfoForCode table within hydro/code/struct.lua?
 	if not self.structForType['real3x3s3'] then
-		local real3x3s3Struct = Struct{
+		local real3x3s3Struct = HydroStruct{
 			solver = self,
 			name = 'real3x3s3',
 			typename = 'real3x3s3',	-- TODO don't uniquely gen this name
