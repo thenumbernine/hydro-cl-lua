@@ -188,7 +188,7 @@ end
 
 function MeshSolver:createCellStruct()
 	-- here's the mesh-specific stuff
-	self.coord.cellStruct.vars:append{
+	self.coord.cellStructFields:append{
 --[[ moved to coord/coord to be in gridsolver and meshsolver
 		{type='real', name='volume'},	--volume of the cell
 --]]			

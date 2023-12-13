@@ -2467,7 +2467,7 @@ function SolverBase:addDisplayVars()
 		bufferField = 'cellBuf',
 		bufferType = self.coord.cell_t,
 		vars = self:createDisplayVarArgsForStructVars(
-			self.coord.cellStruct.vars:filter(function(var)
+			self.coord.cellStruct.fields:filter(function(var)
 				return not (var.type == 'int')
 			end),
 			'cell'

@@ -121,7 +121,7 @@ local path = require 'ext.path'
 local tolua = require 'ext.tolua'
 local template = require 'template'
 local clnumber = require 'cl.obj.number'
-local Struct = require 'hydro.code.struct'
+local Struct = require 'struct'
 local math = require 'ext.math'		--isfinite
 
 local half = require 'cl.obj.half'
@@ -1363,14 +1363,9 @@ function CoordinateSystem:createCellStruct()
 	meshsolver has cellBuf that holds cell pos and mesh info
 	meshsolver needs to pass 'cellBuf'
 	--]]
-	self.cellStruct = Struct{
-		solver = solver,
-		name = 'cell_t',
-		dontUnion = true,
-		vars = {
-			{name='pos', type='real3'},		-- x1 x2 x3 input coordinates to the chart
-			{name='volume', type='real'},	-- volume of the cell
-		},
+	self.cellStructFields = table{
+		{name='pos', type='real3'},		-- x1 x2 x3 input coordinates to the chart
+		{name='volume', type='real'},	-- volume of the cell
 	}
 
 	-- MeshSolver mesh generation statistics:
@@ -1378,27 +1373,30 @@ function CoordinateSystem:createCellStruct()
 	-- cylindrical code takes ~60 seconds.
 	-- the only main difference in the code is the # of normal computations ... and at that, directly calling cos() and sin()
 	-- I'm going to see if reducing the trig calls helps but giving gridsolvers their own faceBuf
-	self.faceStruct = Struct{
-		solver = solver,
-		name = 'face_t',
-		dontUnion = true,
-		vars = {
-			{type='real3', name='pos'},		--center.  realN.
-			{type='real3', name='normal'},	--normal pointing from first to second
-			{type='real3', name='normal2'},	--orthonormal basis around normal
-			{type='real3', name='normal3'},
-			{type='real', name='area'},		--edge length / surface area
-			{type='real', name='cellDist'},	--dist between cell centers along 'normal'
-		},
+	self.faceStructFields = table{
+		{type='real3', name='pos'},		--center.  realN.
+		{type='real3', name='normal'},	--normal pointing from first to second
+		{type='real3', name='normal2'},	--orthonormal basis around normal
+		{type='real3', name='normal3'},
+		{type='real', name='area'},		--edge length / surface area
+		{type='real', name='cellDist'},	--dist between cell centers along 'normal'
 	}
 end
 
 function CoordinateSystem:finalizeCellStruct()
-	self.cellStruct:makeType()
-	self.cell_t = self.cellStruct.typename
+	self.cell_t = self.solver.app:uniqueName'cell_t'
+	self.cellStruct = Struct{
+		name = self.cell_t,
+		fields = self.cellStructFields,
+	}.class
+	self.cellStructFields = nil
 
-	self.faceStruct:makeType()
-	self.face_t = self.faceStruct.typename
+	self.face_t = self.solver.app:uniqueName'face_t'
+	self.faceStruct = Struct{
+		name = self.face_t,
+		fields = self.faceStructFields,
+	}.class
+	self.faceStructFields = nil
 end
 
 -- TODO this as a CL kernel?
@@ -1961,14 +1959,14 @@ real3 coord_parallelPropagateL<?=side?>(real3 v, real3 x, real dx) {
 	-- for holonomic/anholonomic this is just the linearly interpolated
 	solver.modules:add{
 		name = self.cell_t,
-		structs = {self.cellStruct:getForModules()},
+		structs = {self.cellStruct},
 		-- only generated for cl, not for ffi cdef
 		headercode = 'typedef '..self.cell_t..' cell_t;',
 	}
 
 	solver.modules:add{
 		name = self.face_t,
-		structs = {self.faceStruct:getForModules()},
+		structs = {self.faceStruct},
 		-- only generated for cl, not for ffi cdef
 		headercode = 'typedef '..self.face_t..' face_t;',
 	}

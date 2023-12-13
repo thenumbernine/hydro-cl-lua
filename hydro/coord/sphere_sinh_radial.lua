@@ -301,7 +301,7 @@ end
 
 function SphereLogRadial:createCellStruct()
 	SphereLogRadial.super.createCellStruct(self)
-	self.cellStruct.vars:insert{name='r', type='real'}
+	self.cellStructFields:insert{name='r', type='real'}
 end
 
 function SphereLogRadial:fillGridCellBuf(cellsCPU)
