@@ -3,10 +3,10 @@ local useConstrainU = true -- constrains alpha to alphamin and calcs H and M^i
 local useAddSource = true
 local useKreissOligarDissipation = true	-- depends on useAddSource
 
-local has_beta_u = eqn.consStruct.vars:find(nil, function(var) return var.name == "beta_u" end)
-local has_betaLap_u = eqn.consStruct.vars:find(nil, function(var) return var.name == "betaLap_u" end)
-local has_b_ul = eqn.consStruct.vars:find(nil, function(var) return var.name == "b_ul" end)
-local has_B_u = eqn.consStruct.vars:find(nil, function(var) return var.name == "B_u" end)
+local has_beta_u = eqn.consStruct.fields[1].type.fields:find(nil, function(var) return var.name == "beta_u" end)
+local has_betaLap_u = eqn.consStruct.fields[1].type.fields:find(nil, function(var) return var.name == "betaLap_u" end)
+local has_b_ul = eqn.consStruct.fields[1].type.fields:find(nil, function(var) return var.name == "b_ul" end)
+local has_B_u = eqn.consStruct.fields[1].type.fields:find(nil, function(var) return var.name == "B_u" end)
 ?>
 
 //// MODULE_NAME: mdeShiftEpsilon

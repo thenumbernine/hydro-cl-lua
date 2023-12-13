@@ -172,6 +172,7 @@ function GRHDSeparateSolver:createCalcStressEnergyKernel()
 	-- TODO FIXME not working
 	require 'hydro.solver.gridsolver'.createCodePrefix(self)
 
+	self.modules.cpp = true
 	local lines = table{
 		self.modules:getCodeAndHeader(self.sharedModulesEnabled:keys():unpack())
 			:gsub('//// BEGIN INCLUDE FOR FFI_CDEF.-//// END INCLUDE FOR FFI_CDEF', '')
@@ -255,6 +256,7 @@ S_ij = gamma_i^a gamma_j^b T_cd
 			gr = self.gr,
 		}),
 	}
+	self.modules.cpp = false
 	local code = lines:concat'\n'
 	self.calcStressEnergyProgramObj = self.gr.Program{name='calcStressEnergy', code=code}
 	self.calcStressEnergyProgramObj:compile()
@@ -265,6 +267,7 @@ function GRHDSeparateSolver:replaceSourceKernels()
 
 --[=[ instead of copying vars from nr to grhd, I've integrated the nr code directly to the grhd solver
 	
+	self.modules.cpp = true
 	local lines = table{
 		self.modules:getCodeAndHeader(self.sharedModulesEnabled:keys():unpack())
 			:gsub('//// BEGIN INCLUDE FOR FFI_CDEF.-//// END INCLUDE FOR FFI_CDEF', '')
@@ -295,6 +298,7 @@ kernel void copyMetricFromGRToHydro(
 			gr = self.gr,
 		}),
 	}
+	self.modules.cpp = false
 	local code = lines:concat'\n'
 	self.copyMetricFromGRToHydroProgramObj = self.gr.Program{name='copyMetricFromGRToHydro', code=code}
 	self.copyMetricFromGRToHydroProgramObj:compile()

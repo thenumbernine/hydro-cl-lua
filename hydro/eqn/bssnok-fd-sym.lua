@@ -17,7 +17,7 @@ local template = require 'template'
 local common = require 'hydro.common'
 local time, getTime = table.unpack(require 'hydro.util.time')
 local BSSNOKFiniteDifferenceEquationBase = require 'hydro.eqn.bssnok-fd'
-local Struct = require 'hydro.code.struct'
+local HydroStruct = require 'hydro.code.struct'
 
 local BSSNOKFiniteDifferenceEquation = BSSNOKFiniteDifferenceEquationBase:subclass()
 BSSNOKFiniteDifferenceEquation.name = 'BSSNOK finite difference'
@@ -61,7 +61,7 @@ function BSSNOKFiniteDifferenceEquation:init(args)
 		{name='M_U', type='real3'},				--3
 	}
 	self:cdefAllVarTypes(args.solver, intVars)
-	self.numIntStates = Struct.countScalars{vars=intVars}
+	self.numIntStates = HydroStruct.countScalars{vars=intVars}
 
 	-- call construction / build structures
 	BSSNOKFiniteDifferenceEquation.super.init(self, args)

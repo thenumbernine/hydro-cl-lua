@@ -13,7 +13,7 @@ Then I'm double checking all against (and borrowing heavily from) Zach Etienne's
 --]]
 local table = require 'ext.table'
 local BSSNOKFiniteDifferenceEquationBase = require 'hydro.eqn.bssnok-fd'
-local Struct = require 'hydro.code.struct'
+local HydroStruct = require 'hydro.code.struct'
 
 local BSSNOKFiniteDifferenceEquation = BSSNOKFiniteDifferenceEquationBase:subclass()
 
@@ -69,7 +69,7 @@ function BSSNOKFiniteDifferenceEquation:init(args)
 		{name='M_U', type='real3', variance='u'},			-- 3
 	}
 	self:cdefAllVarTypes(args.solver, self.consVars)	-- have to call before countScalars in eqn:init
-	self.numIntStates = Struct.countScalars{vars=intVars}
+	self.numIntStates = HydroStruct.countScalars{vars=intVars}
 
 	-- call construction / build structures
 	BSSNOKFiniteDifferenceEquation.super.init(self, args)

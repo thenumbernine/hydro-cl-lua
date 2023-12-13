@@ -14,7 +14,6 @@ local vec3sz = require 'vec-ffi.vec3sz'
 local roundup = require 'hydro.util.roundup'
 local time, getTime = table.unpack(require 'hydro.util.time')
 local SolverBase = require 'hydro.solver.solverbase'
-local Struct = require 'hydro.code.struct'
 
 local half = require 'cl.obj.half'
 local toreal, fromreal = half.toreal, half.fromreal
@@ -713,7 +712,7 @@ function BoundaryMirror:getCode(args)
 				or args.indexv('solver.gridSize.'..xNames[args.side]..' - solver.numGhost + j'),
 			side = args.side,
 		}))
-		for _,var in ipairs(eqn.consStruct.vars) do
+		for _,var in ipairs(eqn.consStruct.fields[1].type.fields) do
 			if var.type == 'real'
 			or var.type == 'cplx'
 			then
@@ -1191,6 +1190,7 @@ lines:insert[[
 	end
 
 	-- last, add dependency code to the beginning
+	self.modules.cpp = true
 	lines:insert(
 		1,
 		(
@@ -1198,6 +1198,7 @@ lines:insert[[
 				:gsub('//// BEGIN INCLUDE FOR FFI_CDEF.-//// END INCLUDE FOR FFI_CDEF', '')
 		)
 	)
+	self.modules.cpp = false
 
 	local code = lines:concat'\n'
 	local boundaryProgramName = 'boundary'..(args.programNameSuffix or '')

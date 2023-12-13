@@ -4,7 +4,8 @@ local table = require 'ext.table'
 local range = require 'ext.range'
 local path = require 'ext.path'
 local template = require 'template'
-local Struct = require 'hydro.code.struct'
+local HydroStruct = require 'hydro.code.struct'
+local Struct = require 'struct'
 local makePartials = require 'hydro.eqn.makepartial'
 
 local common = require 'hydro.common'
@@ -101,8 +102,9 @@ local function getParityVars(structVars, sign, parityVars, field)
 		if not getter then
 			error("don't know how to handle type "..var.type)
 			-- TODO if it's a struct made up of these types, then handle it recursively
+		else
+			getter(sign, parityVars, field..var.name)
 		end
-		getter(sign, parityVars, field..var.name)
 	end
 end
 
@@ -114,8 +116,43 @@ end
 function Equation:getParityVars(...)
 	local sign = {...}
 	local parityVars = table()
-	getParityVars(self.consStruct.vars, sign, parityVars)
+	getParityVars(self.consStruct.fields[1].type.fields, sign, parityVars)
 	return parityVars
+end
+
+
+-- auto make packed, non-cdef, union with .s, ctor, setters ...
+function Equation:makeStruct(args)
+	local name = assert(args.name)
+	local makeUnion = args.makeUnion
+	args.makeUnion = nil
+	if makeUnion then
+		args.union = true
+	end
+	args.packed = true
+	--args.cdef = false
+	local fields = assert(args.fields)
+	args.body = table{
+		'constexpr '..name..'() : s{} {}',
+		'TENSOR_ADD_BRACKET_FWD_TO_CALL()',
+	}:append(table.mapi(fields, function(field)
+		return 'auto & set_'..field.name..'('..field.type..' const & value_) { '..field.name..' = value_; return *this; }'
+	end))
+	:concat'\n'
+	if makeUnion then
+		args.fields = {
+			{type = Struct{
+				anonymous = true,
+				packed = true,
+				fields = fields,
+				makeUnion = true,
+			}},
+			{name = 's', type = 'real[1]'},	-- TODO calc proper size
+		}
+	else
+		args.fields = fields
+	end
+	return Struct(args).class
 end
 
 
@@ -136,17 +173,6 @@ function Equation:init(args)
 	--self.primVars = self.primVars or table()
 	--self.consVars = self.consVars or table()
 	self:buildVars(args)
-
-	-- build consStruct and primStruct from self.consVars and .primVars (then erase them -- don't use them anymore)
-	-- TODO think of a better way for the eqn to pass this info along, maybe a callback instead of a field?
-	if not self.consStruct then
-		assert(self.consVars)
-		self.consStruct = Struct{
-			solver = solver,
-			name = 'cons_t',
-			vars = self.consVars,
-		}
-	end
 
 --[[
 how to handle cdefs and subeqns wrt counting number of reals ...
@@ -185,55 +211,52 @@ no, they're needed for the integrator
 
 	but then why not also create eqn within solver's initCodeModules?
 	--]]
-	self:cdefAllVarTypes(solver, self.consStruct.vars)
 
-	self.consStruct:makeType()	-- create consStruct.typename
 	-- TODO replace the cdef uniqueName with a unique eqn object name
-	self.symbols.cons_t = self.consStruct.typename
+	self.symbols.cons_t = solver.app:uniqueName'cons_t'
 
-	-- don't use consVars anymore ... use consStruct.vars instead
+	-- build consStruct and primStruct from self.consVars and .primVars (then erase them -- don't use them anymore)
+	if not self.consStruct then
+		self.consStruct = self:makeStruct{
+			name = self.symbols.cons_t,
+			fields = self.consVars,
+			makeUnion = true,
+		}
+	end
+
+	self:cdefAllVarTypes(solver, self.consStruct.fields[1].type.fields)
+
+	-- don't use consVars anymore ... use consStruct.fields[1].type.fields instead
 	self.consVars = nil
 	-- if you have multiple eqns then the class needs to keep the field
 	--getmetatable(self).consVars = nil
 
 	self.consStruct.eqn = self	-- hack
-	solver.structForType[self.consStruct.typename] = self.consStruct	-- hack
+	solver.structForType[self.consStruct.name] = self.consStruct	-- hack
 
 
 	if not self.primStruct and self.primVars then
-		self.primStruct = Struct{
-			solver = solver,
-			name = 'prim_t',
-			vars = self.primVars,
+		local prim_t = solver.app:uniqueName'prim_t'
+		self.primStruct = self:makeStruct{
+			name = prim_t,
+			fields = self.primVars,
+			makeUnion = true,
 		}
 	end
 	if self.primStruct then
-
 		-- cdef the used types before :makeType the Struct.  see consStruct for more notes.
-		self:cdefAllVarTypes(solver, self.primStruct.vars)
-
-		local res, err = xpcall(function()
-			self.primStruct:makeType()
-		end, function(err)
-			return "eqn "..self.name.." primStruct:makeType() failed for type "..self.primStruct.name..'\n'
-				..require 'ext.tolua'(table(
-					self.primStruct,
-					{app=false}))..'\n'
-				..tostring(err)..'\n'
-				..debug.traceback()
-		end)
-		if not res then error(err) end
+		self:cdefAllVarTypes(solver, self.primStruct.fields[1].type.fields)
 
 		-- TODO replace the cdef uniqueName with a unique eqn object name
-		self.symbols.prim_t = self.primStruct.typename
+		self.symbols.prim_t = self.primStruct.name
 
-		-- don't use primVars anymore ... use primStruct.vars instead
+		-- don't use primVars anymore ... use primStruct.fields[1].type.fields instead
 		self.primVars = nil
 		-- if you have multiple eqns then the class needs to keep the field
 		--getmetatable(self).primVars = nil
 
 		self.primStruct.eqn = self	-- hack
-		solver.structForType[self.primStruct.typename] = self.primStruct
+		solver.structForType[self.primStruct.name] = self.primStruct
 	else
 		--self.symbols.prim_t = self.symbols.cons_t
 		-- or you could typedef this ...
@@ -243,33 +266,31 @@ no, they're needed for the integrator
 		ffi.cdef('typedef '..self.symbols.cons_t..' '..self.symbols.prim_t..';')
 	end
 
-	if not self.eigenVars then
-		self.eigenStruct = Struct{
-			solver = solver,
-			name = 'eigen_t',
-			dontUnion = true,
-			vars = {
-				{name='unused', type='char'},
-			},
+	local eigenVars = self.eigenVars
+	if not eigenVars then
+		eigenVars = table{
+			{name = 'unused', type = 'char'},
 		}
-	else
-		self.eigenStruct = Struct{solver=solver, name='eigen_t', vars=self.eigenVars}
 	end
+	self.symbols.eigen_t = solver.app:uniqueName'eigen_t'
+	self.eigenStruct = self:makeStruct{
+		name = self.symbols.eigen_t,
+		fields = eigenVars,
+		makeUnion = true,
+	}
 
-	self.eigenStruct:makeType()
-	self.symbols.eigen_t = assert(self.eigenStruct.typename)
 
 	self.eigenStruct.eqn = self	-- hack
-	solver.structForType[self.eigenStruct.typename] = self.eigenStruct
+	solver.structForType[self.eigenStruct.name] = self.eigenStruct
 
 	self.symbols.consLR_t = app:uniqueName'consLR_t'
 
 
 	local numReals
-	if self.consStruct.vars then
-		numReals = self.consStruct:countScalars()
+	if self.consStruct.fields then
+		numReals = HydroStruct.countScalars{vars=self.consStruct.fields[1].type.fields}
 		if self.primStruct then
-			local numPrimReals = self.primStruct:countScalars()
+			local numPrimReals = HydroStruct.countScalars{vars=self.primStruct.fields[1].type.fields}
 			assert(numPrimReals <= numReals, "hmm, this is awkward")
 		end
 	end
@@ -297,17 +318,15 @@ no, they're needed for the integrator
 			return {name='wave'..(i-1), type='real'}
 		end)
 	end
-	self.wavesStruct = Struct{
-		solver = solver,
-		name = 'waves_t',
-		vars = self.wavesVars,
+	self.symbols.waves_t = solver.app:uniqueName'waves_t'
+	self.wavesStruct = self:makeStruct{
+		name = self.symbols.waves_t,
+		fields = self.wavesVars,
+		makeUnion = true,
 	}
 
-	self.wavesStruct:makeType()
-	self.symbols.waves_t = assert(self.wavesStruct.typename)
-
 	self.wavesStruct.eqn = self	-- hack
-	solver.structForType[self.wavesStruct.typename] = self.wavesStruct
+	solver.structForType[self.wavesStruct.name] = self.wavesStruct
 
 
 
@@ -351,10 +370,10 @@ no, they're needed for the integrator
 
 	-- now add our own prim_t, cons_t to the parityVarsGetters for recursive application
 	self.parityVarsGetters[assert(self.symbols.cons_t)] = function(sign, parityVars, field)
-		getParityVars(self.consStruct.vars, sign, parityVars, field)
+		getParityVars(self.consStruct.fields[1].type.fields, sign, parityVars, field)
 	end
 	self.parityVarsGetters[assert(self.symbols.prim_t)] = function(sign, vars, var)
-		getParityVars(self.primStruct.vars, sign, parityVars, field)
+		getParityVars(self.primStruct.fields[1].type.fields, sign, parityVars, field)
 	end
 end
 
@@ -587,7 +606,7 @@ function Equation:initCodeModule_cons_parallelPropagate()
 			real3x3x3 = 3,
 		}
 
-		for _,var in ipairs(self.consStruct.vars) do
+		for _,var in ipairs(self.consStruct.fields[1].type.fields) do
 			-- guess the variance if it isn't specified
 			if not var.variance then
 				var.variance = var.name:match'_([^_]*)$' or ''
@@ -616,12 +635,12 @@ In the event that a transformation is necessary, then a temp var is created, and
 				solver.coord.symbols.coord_parallelPropagate,
 			}:append(
 				-- rank-2 always use real3x3 for transformation
-				self.consStruct.vars:find(nil, function(var)
+				self.consStruct.fields[1].type.fields:find(nil, function(var)
 					return degreeForType[var.type] == 2
 				end) and {'real3x3'} or nil
 			):append(
 				-- rank-3 always use real3x3x3 for transformation
-				self.consStruct.vars:find(nil, function(var)
+				self.consStruct.fields[1].type.fields:find(nil, function(var)
 					return degreeForType[var.type] == 3
 				end) and {'real3x3x3'} or nil
 			),
@@ -645,7 +664,7 @@ for side=0,solver.dim-1 do
 ) {
 /* TODO don't assign here, instead assign all fields and just don't propagate the scalars */
 	<?=cons_t?> result = U;
-<?		for _,var in ipairs(eqn.consStruct.vars) do
+<?		for _,var in ipairs(eqn.consStruct.fields[1].type.fields) do
 			local variance = assert(var.variance)
 			local degree = degreeForType[var.type]
 			if variance == '' then
@@ -731,7 +750,7 @@ function Equation:initCodeModule_cons_prim_eigen_waves()
 
 	-- while we're here, enable them as well, so solver:isModuleUsed knows they are used.
 	-- TODO move this somewhere else?
-	for _,var in ipairs(self.consStruct.vars) do
+	for _,var in ipairs(self.consStruct.fields[1].type.fields) do
 		solver.sharedModulesEnabled[var.type] = true
 	end
 
@@ -742,14 +761,14 @@ function Equation:initCodeModule_cons_prim_eigen_waves()
 
 	solver.modules:add{
 		name = self.symbols.cons_t,
-		structs = {self.consStruct:getForModules()},
+		structs = {self.consStruct},
 		depends = table(self.getModuleDepends_cons_t and self:getModuleDepends_cons_t() or nil):append{'vec'},
 	}
 
 	if self.primStruct then
 		solver.modules:add{
 			name = self.symbols.prim_t,
-			structs = {self.primStruct:getForModules()},
+			structs = {self.primStruct},
 			depends = table(self.getModuleDepends_prim_t and self:getModuleDepends_prim_t() or nil):append{'vec'},
 		}
 	else
@@ -762,14 +781,14 @@ function Equation:initCodeModule_cons_prim_eigen_waves()
 
 	solver.modules:add{
 		name = self.symbols.eigen_t,
-		structs = {assert(self.eigenStruct):getForModules()},
+		structs = {assert(self.eigenStruct)},
 		depends = {'vec'},
 	}
 
 	-- I think the direction I'm going is to make waves_t only for ffi.cdef side of things
 	solver.modules:add{
 		name = self.symbols.waves_t,
-		structs = {assert(self.wavesStruct):getForModules()},
+		structs = {assert(self.wavesStruct)},
 		depends = {'vec'},
 	}
 end
@@ -832,7 +851,7 @@ global <?=cons_t?> const & U = buf[index];
 end
 
 function Equation:getDisplayVars()
-	return self.solver:createDisplayVarArgsForStructVars(self.consStruct.vars)
+	return self.solver:createDisplayVarArgsForStructVars(self.consStruct.fields[1].type.fields)
 end
 
 -- I would make this a component, but then the component code would need to access the entire previous buffer befure making its computation
@@ -952,7 +971,7 @@ end
 -- especially the finite-difference num rel (bsnsok-fd), but sometimes by the constrain equations of the finite-volume num rel (adm3d, z4, etc)
 -- but anyone can use it.
 function Equation:fieldTypeForVar(varname)
-	local _, var = self.consStruct.vars:find(nil, function(v) return v.name == varname end)
+	local _, var = self.consStruct.fields[1].type.fields:find(nil, function(v) return v.name == varname end)
 	if not var then
 		error("couldn't find var "..varname)
 	end

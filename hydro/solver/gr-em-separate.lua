@@ -36,6 +36,7 @@ function GREMSeparateSolver:init(args)
 	function GRMaxwellSolver:createCodePrefix()
 		GRMaxwellSolver.super.createCodePrefix(self)
 		
+		self.modules.cpp = true
 		self.codePrefix = table{
 			self.modules:getCodeAndHeader(self.sharedModulesEnabled:keys():sort():unpack())
 				:gsub('//// BEGIN INCLUDE FOR FFI_CDEF.-//// END INCLUDE FOR FFI_CDEF', '')
@@ -45,6 +46,7 @@ function GREMSeparateSolver:init(args)
 			-- this is for gr's calc_exp_neg4phi, which em will need 
 			gr.eqn:getCommonFuncCode(),
 		}:concat'\n'
+		self.modules.cpp = false
 	end
 	function GRMaxwellSolver:init(args)
 		args = table(args, {
@@ -153,6 +155,7 @@ function GREMSeparateSolver:getConsLRTypeCode() return '' end
 
 function GREMSeparateSolver:replaceSourceKernels()
 
+	self.modules.cpp = true
 	local lines = table{
 		self.modules:getCodeAndHeader(self.sharedModulesEnabled:keys():sort():unpack())
 			:gsub('//// BEGIN INCLUDE FOR FFI_CDEF.-//// END INCLUDE FOR FFI_CDEF', '')
@@ -216,6 +219,7 @@ kernel void computeGRStressEnergy(
 			gr = self.gr,
 		}),
 	}
+	self.modules.cpp = false
 	local code = lines:concat'\n'
 	self.computeGRStressEnergyProgramObj = self.gr.Program{name='computeGRStressEnergy', code=code}
 	self.computeGRStressEnergyProgramObj:compile()

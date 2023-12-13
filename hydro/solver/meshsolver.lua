@@ -199,7 +199,7 @@ function MeshSolver:createCellStruct()
 	}
 
 	-- here is the mesh-specific face_t fields
-	self.coord.faceStruct.vars:append{
+	self.coord.faceStructFields:append{
 		{type='vec2i_t', name='cells'},	--indexes of cells
 		{type='int', name='vtxOffset'},
 		{type='int', name='vtxCount'},
@@ -263,7 +263,7 @@ function BoundaryMirror:getCode(args)
 ]], {
 		face = assert(args.face),
 	}))
-	for _,var in ipairs(eqn.consStruct.vars) do
+	for _,var in ipairs(eqn.consStruct.fields[1].type.fields) do
 		if var.type == 'real' 
 		or var.type == 'cplx'
 		then

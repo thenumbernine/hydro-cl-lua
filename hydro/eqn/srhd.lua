@@ -11,7 +11,7 @@ so viola, here it is.
 --]]
 local table = require 'ext.table'
 local Equation = require 'hydro.eqn.eqn'
-local Struct = require 'hydro.code.struct'
+local Struct = require 'struct'
 
 local SRHD = Equation:subclass()
 SRHD.name = 'SRHD'
@@ -43,29 +43,47 @@ function SRHD:init(args)
 	TODO redo the srhd equations for a background grid metric, and take note of covariance/contravariance
 	--]]
 	self.consOnlyStruct = Struct{
-		solver = solver,
-		name = 'cons_only_t',
-		vars = {
-			{name='D', type='real', units='kg/m^3'},				-- D = ρ W, W = unitless Lorentz factor
-			{name='S', type='real3', units='kg/s^3', variance='l'},	-- S_j = ρ h W^2 v_j ... [ρ] [h] [v] = kg/m^3 * m^2/s^2 * m/s = kg/s^3
-			{name='tau', type='real', units='kg/(m*s^2)'},			-- tau = ρ h W^2 - P ... [ρ] [h] [W^2] = kg/m^3 * m^2/s^2 = kg/(m*s^2)
+		name = solver.app:uniqueName'cons_only_t',
+		union = true,
+		packed = true,
+		cdef = false,
+		fields = {
+			{type = Struct{
+				anonymous = true,
+				packed = true,
+				fields = {
+					{name='D', type='real', units='kg/m^3'},				-- D = ρ W, W = unitless Lorentz factor
+					{name='S', type='real3', units='kg/s^3', variance='l'},	-- S_j = ρ h W^2 v_j ... [ρ] [h] [v] = kg/m^3 * m^2/s^2 * m/s = kg/s^3
+					{name='tau', type='real', units='kg/(m*s^2)'},			-- tau = ρ h W^2 - P ... [ρ] [h] [W^2] = kg/m^3 * m^2/s^2 = kg/(m*s^2)
+				},
+			}},
+			{name = 's', type = 'real[1]'},
 		},
-	}
+	}.class
 
 	self.primOnlyStruct = Struct{
-		solver = solver,
-		name = 'prim_only_t',
-		vars = {
-			{name='rho', type='real', units='kg/m^3'},
-			{name='v', type='real3', units='m/s', variance='l'},
-			{name='eInt', type='real', units='m^2/s^2'},
+		name = solver.app:uniqueName'prim_only_t',
+		union = true,
+		packed = true,
+		cdef = false,
+		fields = {
+			{type = Struct{
+				anonymous = true,
+				packed = true,
+				fields = {
+					{name='rho', type='real', units='kg/m^3'},
+					{name='v', type='real3', units='m/s', variance='l'},
+					{name='eInt', type='real', units='m^2/s^2'},
+				},
+			}},
+			{name = 's', type = 'real[1]'},
 		},
-	}
+	}.class
 
 	-- TODO how about anonymous structs, so we can copy out prim_only_t and cons_only_t?
 	self.consVars = table()
-	:append(self.consOnlyStruct.vars)
-	:append(self.primOnlyStruct.vars)
+	:append(self.consOnlyStruct.fields[1].type.fields)
+	:append(self.primOnlyStruct.fields[1].type.fields)
 	:append{
 		-- extra
 		{name='ePot', type='real', units='m^2/s^2'},
@@ -75,13 +93,10 @@ function SRHD:init(args)
 		self.consVars:insert{name='SPot', type='real', units='kg*m/s^2'}
 	end
 
-	self.consOnlyStruct:makeType()
-	self.primOnlyStruct:makeType()
-
 	SRHD.super.init(self, args)
 	
-	self.symbols.cons_only_t = self.consOnlyStruct.typename
-	self.symbols.prim_only_t = self.primOnlyStruct.typename
+	self.symbols.cons_only_t = self.consOnlyStruct.name
+	self.symbols.prim_only_t = self.primOnlyStruct.name
 
 	if require 'hydro.solver.meshsolver':isa(self.solver) then
 		print("not using ops (selfgrav, nodiv, etc) with mesh solvers yet")
@@ -222,14 +237,14 @@ function SRHD:initCodeModules()
 
 	solver.modules:add{
 		name = self.symbols.cons_only_t,
-		structs = {self.consOnlyStruct:getForModules()},
+		structs = {self.consOnlyStruct},
 		-- only generated for cl, not for ffi cdef
 		headercode = 'typedef '..self.symbols.cons_only_t..' cons_only_t;',
 	}
 
 	solver.modules:add{
 		name = self.symbols.prim_only_t,
-		structs = {self.primOnlyStruct:getForModules()},
+		structs = {self.primOnlyStruct},
 		-- only generated for cl, not for ffi cdef
 		headercode = 'typedef '..self.symbols.prim_only_t..' prim_only_t;',
 	}

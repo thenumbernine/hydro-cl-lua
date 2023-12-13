@@ -181,8 +181,10 @@ function InitCond:refreshInitStateProgram()
 		if solver.app.verbose then
 			print('initCond modules: '..moduleNames:concat', ')
 		end
+		solver.modules.cpp = true
 		initCondCode = solver.modules:getCodeAndHeader(moduleNames:unpack())
 			:gsub('//// BEGIN INCLUDE FOR FFI_CDEF.-//// END INCLUDE FOR FFI_CDEF', '')
+		solver.modules.cpp = false
 	end)
 
 	time('building program cache/'..solver:getIdent()..'/src/initCond.clcpp ', function()

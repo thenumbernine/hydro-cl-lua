@@ -61,7 +61,8 @@ function BackwardEuler:init(solver, args)
 		type = solver.app.real,
 		count = solver.numCells * solver.eqn.numStates,
 	}
-	
+
+	solver.modules.cpp = true
 	local copyBufferWithOrWithoutGhostProgram = solver.Program{
 		name = 'int-be',
 		code = solver.eqn:template(
@@ -120,6 +121,7 @@ kernel void copyBufferWithGhostToBufferWithoutGhost(
 }
 ]])
 	}
+	solver.modules.cpp = false
 	copyBufferWithOrWithoutGhostProgram:compile()
 	self.copyWithoutToWithGhostKernel = copyBufferWithOrWithoutGhostProgram:kernel{
 		name='copyBufferWithoutGhostToBufferWithGhost',

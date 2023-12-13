@@ -15,7 +15,7 @@ However things are working fine with my own eigenmodes<->left eigenvectors in th
 local table = require 'ext.table'
 local symmath = require 'symmath'
 local EinsteinEqn = require 'hydro.eqn.einstein'
-local Struct = require 'hydro.code.struct'
+local HydroStruct = require 'hydro.code.struct'
 
 local common = require 'hydro.common'
 local xNames = common.xNames
@@ -51,10 +51,10 @@ function Z4_2008Yano:init(args)
 
 	self:cdefAllVarTypes(args.solver, self.consVars)	-- have to call before countScalars in eqn:init
 
-	self.numWaves = Struct.countScalars{vars=fluxVars}
+	self.numWaves = HydroStruct.countScalars{vars=fluxVars}
 	assert(self.numWaves == 31)
 
-	self.numIntStates = Struct.countScalars{vars=self.consVars}
+	self.numIntStates = HydroStruct.countScalars{vars=self.consVars}
 
 	self.consVars:append{
 		--constraints:

@@ -73,7 +73,7 @@ d/dt T = (∂_t - L_β) T ... where L_β is the Lie-derivative in the shift dire
 local table = require 'ext.table'
 local symmath = require 'symmath'
 local EinsteinEqn = require 'hydro.eqn.einstein'
-local Struct = require 'hydro.code.struct'
+local HydroStruct = require 'hydro.code.struct'
 
 local common = require 'hydro.common'
 local xNames = common.xNames
@@ -322,10 +322,10 @@ function Z4_2004Bona:init(args)
 
 	-- only count int vars after the shifts have been added
 	self:cdefAllVarTypes(solver, self.consVars)	-- have to call before countScalars in eqn:init
-	self.numIntStates = Struct.countScalars{vars=self.consVars}
+	self.numIntStates = HydroStruct.countScalars{vars=self.consVars}
 	
 	if not self.noZeroRowsInFlux then
-		assert(Struct.countScalars{vars=fluxVars} == self.numWaves)
+		assert(HydroStruct.countScalars{vars=fluxVars} == self.numWaves)
 	end
 
 	-- now add in the source terms (if you want them)
@@ -814,7 +814,7 @@ real const beta_dot_a = U->beta_u.dot(U->a_l);
 real const K_dot_betaSq_over_alpha = real3_weightedLenSq(U->beta_u, U->K_ll) / U->alpha;
 
 <?
-local has_b_ul = eqn.consStruct.vars:find(nil, function(var) return var.name == "b_ul" end)
+local has_b_ul = eqn.consStruct.fields[1].type.fields:find(nil, function(var) return var.name == "b_ul" end)
 if has_b_ul then ?>
 real3x3 const b_ul = U->b_ul;
 <? else
@@ -822,7 +822,7 @@ error "TODO do spatial derivative here"
 end ?>
 
 <?
-local has_B_u = eqn.consStruct.vars:find(nil, function(var) return var.name == "B_u" end)
+local has_B_u = eqn.consStruct.fields[1].type.fields:find(nil, function(var) return var.name == "B_u" end)
 if has_B_u then ?>
 real3 const B_u = U->B_u;
 <? else
@@ -911,7 +911,7 @@ if (<?=OOB?>(1,1)) {
 	end
 
 	-- b^i_j vs. β^i_,j
-	if self.consStruct.vars:find(nil, function(var) return var.name == 'b_ul' end) then
+	if self.consStruct.fields[1].type.fields:find(nil, function(var) return var.name == 'b_ul' end) then
 		for i,xi in ipairs(xNames) do
 			vars:insert{
 				name = 'beta^j_,'..xi..' vs b^j_'..xi,

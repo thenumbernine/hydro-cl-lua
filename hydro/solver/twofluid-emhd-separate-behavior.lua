@@ -186,6 +186,7 @@ local function TwoFluidEMHDBehavior(parent)
 		local chargeMassRatio_electron = .01
 		local eps0 = 1 / (4 * math.pi)
 
+		self.modules.cpp = true
 		local lines = table{
 			'// TwoFluidEMHDSeparateBehavior:replaceSourceKernels() end',
 			self.modules:getCodeAndHeader(self.sharedModulesEnabled:keys():sort():unpack())
@@ -248,6 +249,7 @@ kernel void addSource_maxwell(
 ]],
 			'// TwoFluidEMHDSeparateBehavior:replaceSourceKernels() end',
 		}
+		self.modules.cpp = false
 		local code = lines:concat'\n'
 		code = template(code, {
 			solver = self,

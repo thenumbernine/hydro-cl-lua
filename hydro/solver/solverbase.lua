@@ -217,7 +217,6 @@ local vec3sz = require 'vec-ffi.vec3sz'
 local roundup = require 'hydro.util.roundup'
 local time, getTime = table.unpack(require 'hydro.util.time')
 local Struct = require 'struct'
-local HydroStruct = require 'hydro.code.struct'
 
 local common = require 'hydro.common'	-- xNames, symNames
 local xNames = common.xNames
@@ -782,6 +781,8 @@ self.modules = self.app.modules
 	self.solverModulesEnabled = table()
 	self.sharedModulesEnabled = table()
 
+	-- TODO in non-cpp version I have to remove/re-add this around the cdef so that my early cdef can alloc solverPtr and the later cdef for alllll types won't redefine it (and error)
+	-- so how come I don't have to do this in the cpp version?  is the solver_t module not referenced anywhere in the code?
 	self.modules:add{
 		name = assert(self.solver_t),
 		structs = {self.solverStruct},
@@ -1049,6 +1050,7 @@ function SolverBase:refreshCommonProgram()
 	if self.app.verbose then
 		print('common modules: '..moduleNames:concat', ')
 	end
+	self.modules.cpp = true
 	local commonCode = table{
 		-- just header, no function calls needed
 		self.modules:getCodeAndHeader(moduleNames:unpack())
@@ -1128,6 +1130,7 @@ kernel void findNaNs(
 
 ]]
 	}:concat'\n'
+	self.modules.cpp = false
 
 	time('building program cache/'..self:getIdent()..'/src/common.clcpp ', function()
 		self.commonProgramObj = self.Program{name='common', code=commonCode}
@@ -1491,8 +1494,10 @@ function SolverBase:refreshSolverProgram()
 		if self.app.verbose then
 			print('solver modules: '..moduleNames:concat', ')
 		end
+		self.modules.cpp = true
 		code = self.modules:getCodeAndHeader(moduleNames:unpack())
 			:gsub('//// BEGIN INCLUDE FOR FFI_CDEF.-//// END INCLUDE FOR FFI_CDEF', '')
+		self.modules.cpp = false
 	end)
 
 	time('building program cache/'..self:getIdent()..'/src/solver.clcpp ', function()
@@ -2508,7 +2513,7 @@ function SolverBase:addDisplayVars()
 		args.extraArgs = nil
 
 		args.group = group
-		args.vars = self:createDisplayVarArgsForStructVars(self.eqn.consStruct.vars)
+		args.vars = self:createDisplayVarArgsForStructVars(self.eqn.consStruct.fields[1].type.fields)
 
 		-- why in addUBufDisplayVars() do I make a new group and assign args.group to it?
 		self:addDisplayVarGroup(args, self.DisplayVar_U)
@@ -2525,16 +2530,15 @@ function SolverBase:createDisplayVarArgsForStructVars(structVars, ptrName, nameP
 	-- TODO put the real3x3s3Struct initialization somewhere else
 	-- TODO is the structForType table the same as typeInfoForCode table within hydro/code/struct.lua?
 	if not self.structForType['real3x3s3'] then
-		local real3x3s3Struct = HydroStruct{
-			solver = self,
+		local real3x3s3Struct = Struct{
 			name = 'real3x3s3',
-			typename = 'real3x3s3',	-- TODO don't uniquely gen this name
-			vars = {
+			cdef = false,
+			fields = {
 				{name='x', type='real3s3'},
 				{name='y', type='real3s3'},
 				{name='z', type='real3s3'},
 			},
-		}
+		}.class
 		self.structForType['real3x3s3'] = real3x3s3Struct
 	end
 
@@ -2547,7 +2551,7 @@ function SolverBase:createDisplayVarArgsForStructVars(structVars, ptrName, nameP
 		if substruct then
 			assert(not var.units)	-- struct which are being recursively called shouldn't have units if their fields have units
 			results:append(
-				self:createDisplayVarArgsForStructVars(substruct.vars, '(&'..ptrName..var.name..')', var.name)
+				self:createDisplayVarArgsForStructVars(substruct.fields, '(&'..ptrName..var.name..')', var.name)
 			)
 		else
 			results:insert{
@@ -3070,8 +3074,8 @@ function SolverBase:checkFinite(buf)
 			-- then find the factor that the count is from the UBufObj (fluxBufObj will be 'dim' factor, UBufObj will be 1)
 			and buf.count == self.UBufObj.count
 			then
-				local vars = self.eqn.consStruct.vars
-				local numScalars = self.eqn.consStruct:countScalars()
+				local vars = self.eqn.consStruct.fields[1].type.fields
+				local numScalars = HydroStruct.countScalars{vars=vars}
 --assert(numScalars == ptrsPerReal)
 				local offset = (i % numScalars)
 				local cellIndex = (i - offset) / numScalars
@@ -3623,11 +3627,11 @@ function SolverBase:checkStructSizes()
 	):keys():sort()
 	for _,module in ipairs(self.modules:getDependentModules(moduleNames:unpack())) do
 		for _,struct in ipairs(module.structs) do
-			--print('checking for struct '..struct.typename..' from module '..module.name)
+			--print('checking for struct '..struct.name..' from module '..module.name)
 			if not typeinfos:find(struct)
-			and not typeinfos:find(struct.typename)
+			and not typeinfos:find(struct.name)
 			then
-				print('adding struct '..struct.typename..' from module '..module.name)
+				print('adding struct '..struct.name..' from module '..module.name)
 				typeinfos:insert(struct)
 			end
 		end
@@ -3639,7 +3643,9 @@ function SolverBase:checkStructSizes()
 	for _,typeinfo in ipairs(typeinfos) do
 		varcount = varcount + 1
 		if Struct:isa(typeinfo) then
-			varcount = varcount + #typeinfo.vars
+			for _ in typeinfo:fielditer() do
+				varcount = varcount + 1
+			end
 		end
 	end
 
@@ -3649,8 +3655,10 @@ function SolverBase:checkStructSizes()
 	local resultBuf = self.app.env:buffer{name='result', type='size_t', count=varcount, data=resultPtr}
 
 print('shared modules: '..moduleNames:concat', ')
+	self.modules.cpp = true
 	local codePrefix = self.modules:getTypeHeader(moduleNames:unpack())
 		:gsub('//// BEGIN INCLUDE FOR FFI_CDEF.-//// END INCLUDE FOR FFI_CDEF', '')
+	self.modules.cpp = false
 
 -- [=[
 	local testStructProgramObj = self.Program{
@@ -3672,11 +3680,11 @@ for i,typeinfo in ipairs(typeinfos) do
 <?
 		index = index + 1
 	else
-?>	result[<?=index?>] = sizeof(<?=typeinfo.typename?>);
+?>	result[<?=index?>] = sizeof(<?=typeinfo.name?>);
 <?
 		index = index + 1
-		for _,var in ipairs(typeinfo.vars) do
-?>	result[<?=index?>] = offsetof(<?=typeinfo.typename?>, <?=var.name?>);
+		for fieldname, fieldtype, field in typeinfo:fielditer() do
+?>	result[<?=index?>] = offsetof(<?=typeinfo.name?>, <?=fieldname?>);
 <?
 			index = index + 1
 		end
@@ -3714,11 +3722,11 @@ for i,typeinfo in ipairs(typeinfos) do
 <?
 		index = index + 1
 	else
-?>	result[<?=index?>] = sizeof(<?=typeinfo.typename?>);
+?>	result[<?=index?>] = sizeof(<?=typeinfo.name?>);
 <?
 		index = index + 1
-		for _,var in ipairs(typeinfo.vars) do
-?>	result[<?=index?>] = offsetof(<?=typeinfo.typename?>, <?=var.name?>);
+		for fieldname, fieldtype, field in typeinfo:fielditer() do
+?>	result[<?=index?>] = offsetof(<?=typeinfo.name?>, <?=fieldname?>);
 <?
 			index = index + 1
 		end
@@ -3741,14 +3749,14 @@ end
 		else
 			local clsize = tostring(resultPtr[index]):match'%d+'
 			index = index + 1
-			local ffisize = tostring(ffi.sizeof(typeinfo.typename))
-			print('sizeof('..typeinfo.typename..'): OpenCL='..clsize..', ffi='..ffisize..(clsize == ffisize and '' or ' -- !!!DANGER!!!'))
+			local ffisize = tostring(ffi.sizeof(typeinfo.name))
+			print('sizeof('..typeinfo.name..'): OpenCL='..clsize..', ffi='..ffisize..(clsize == ffisize and '' or ' -- !!!DANGER!!!'))
 
-			for _,var in ipairs(typeinfo.vars) do
+			for fieldname, fieldtype, field in typeinfo:fielditer() do
 				local cloffset = tostring(resultPtr[index]):match'%d+'
 				index = index + 1
-				local ffioffset = tostring(ffi.offsetof(typeinfo.typename, var.name))
-				print('offsetof('..typeinfo.typename..', '..var.name..'): OpenCL='..cloffset..', ffi='..ffioffset..(cloffset == ffioffset and '' or ' -- !!!DANGER!!!'))
+				local ffioffset = tostring(ffi.offsetof(typeinfo.name, fieldname))
+				print('offsetof('..typeinfo.name..', '..fieldname..'): OpenCL='..cloffset..', ffi='..ffioffset..(cloffset == ffioffset and '' or ' -- !!!DANGER!!!'))
 			end
 		end
 	end

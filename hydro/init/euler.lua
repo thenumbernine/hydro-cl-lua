@@ -1151,7 +1151,7 @@ template<typename Prim, typename Cons> using InitCondC = Hydro::InitCond_Euler_r
 		.v = real3(2.9, 0., 0.),
 		.B = real3(.5, 0., 0.),
 		.P = 5. / 7.,
-<? if eqn.primStruct.vars:find(nil, function(var)
+<? if eqn.primStruct.fields[1].type.fields:find(nil, function(var)
 	return next(var) == 'psi'
 end) then
 ?>		.psi = 0.,
@@ -1171,7 +1171,7 @@ end) then
 		.v = real3(2.717, -.4049, 0.),
 		.B = real3(.6838, -.1019, 0.),
 		.P = 1.2229,
-<? if eqn.primStruct.vars:find(nil, function(var)
+<? if eqn.primStruct.fields[1].type.fields:find(nil, function(var)
 	return next(var) == 'psi'
 end) then
 ?>		.psi = 0.,
@@ -3106,6 +3106,7 @@ bool testTriangle(real3 xc) {
 				dst[j] = 0
 			end
 
+			solver.modules.cpp = true
 			local addExtraSourceProgramObj = solver.Program{
 				name = 'addExtraSource',
 				code = table{
@@ -3127,6 +3128,7 @@ kernel void addExtraSource(
 }),
 				}:concat'\n',
 			}
+			solver.modules.cpp = false
 			addExtraSourceProgramObj:compile()
 			local addExtraSourceKernelObj = addExtraSourceProgramObj:kernel{
 				name = 'addExtraSource',
