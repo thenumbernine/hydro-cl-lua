@@ -2,7 +2,7 @@
 require 'ext'
 local fs = table()
 for f in path:dir() do
-	if f:match'%.txt' then fs:insert(f) end
+	if f.path:match'%.txt' then fs:insert(f.path) end
 end
 
 local maxrows = 200

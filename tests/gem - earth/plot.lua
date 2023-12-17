@@ -7,11 +7,11 @@ local datafns = table()
 
 -- parse trackvars out of output
 for fn in path:dir() do
-	local base = fn:match'^out (.*)%.txt'
+	local base = fn.path:match'^out (.*)%.txt'
 	if base then
 		print('processing '..fn)
 		local data = table()
-		for l in io.lines(fn) do
+		for l in fn:lines() do
 			local t, min, avg, max = l:match'^t=(%S+)\tU E_g mag=%[(%S+) (%S+) (%S+)%]$'
 			if t then
 				data:insert(table{t, min, avg, max}:mapi(function(x) return tonumber(x) or '-' end))
@@ -27,7 +27,7 @@ for fn in path:dir() do
 			-- TODO only regen upon request? or nah?
 			gnuplot{
 				terminal = 'svg size 1024,768',
-				output = fn:gsub('%.txt$', '.svg'),
+				output = fn.path:gsub('%.txt$', '.svg'),
 				style = 'data lines',
 				xlabel = 't',
 				ylabel = '|gravity| (m/s^2)',

@@ -35,8 +35,8 @@ end
 
 if writeFits then
 	for f in path:dir() do
-		if f:match'%.fits$' then
-			exec('rm "'..f..'"')
+		if f.path:match'%.fits$' then
+			f:remove()
 		end
 	end
 end

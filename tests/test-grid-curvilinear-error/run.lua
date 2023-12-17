@@ -8,10 +8,10 @@ local string = require 'ext.string'
 local function updateIndex()
 	local fs = table()
 	for f in path:dir() do
-		if f:match'%.txt$'
-		and f ~= 'README.txt'
+		if f.path:match'%.txt$'
+		and f.path ~= 'README.txt'
 		then
-			fs:insert(f)
+			fs:insert(f.path)
 		end
 	end
 	fs:sort()

@@ -2,9 +2,9 @@ require 'ext'
 local gnuplot = require 'gnuplot'
 local txts = table()
 for fn in path:dir() do
-	local name,ext = path(fn):getext()
+	local name,ext = fn:getext()
 	if ext == 'txt' then
-		txts:insert(fn)
+		txts:insert(fn.path)
 	end
 end
 for _,fn in ipairs(txts) do

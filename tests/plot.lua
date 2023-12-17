@@ -2,9 +2,9 @@
 require 'ext'
 local gnuplot = require 'gnuplot'
 for f in path:dir() do
-	local ident = f:match'^results%-(.*)%.txt$'
+	local ident = f.path:match'^results%-(.*)%.txt$'
 	if ident then
-		local names = path(f):read():split'\n'[1]:sub(2):split'\t'
+		local names = f:read():split'\n'[1]:sub(2):split'\t'
 
 		local args, argsDiff
 		if path'gnuplot-config.lua':exists() then
@@ -19,9 +19,9 @@ for f in path:dir() do
 			ylabel = names[2]:sub(1,-5),
 			xrange = {0,10},
 			key = 'left Left reverse',
-			{datafile=f, using='1:2', title=names[2]},
-			{datafile=f, using='1:3', title=names[3]},
-			{datafile=f, using='1:4', title=names[4]},
+			{datafile=f.path, using='1:2', title=names[2]},
+			{datafile=f.path, using='1:3', title=names[3]},
+			{datafile=f.path, using='1:4', title=names[4]},
 		}))
 
 		gnuplot(table(argsDiff, {
@@ -32,8 +32,8 @@ for f in path:dir() do
 			ylabel = names[2]:sub(1,-5),
 			xrange = {0,10},
 			key = 'left Left reverse',
-			{datafile=f, using='1:($2-$3)', title=names[2]..' - '..names[3]},
-			{datafile=f, using='1:($4-$3)', title=names[4]..' - '..names[3]},
+			{datafile=f.path, using='1:($2-$3)', title=names[2]..' - '..names[3]},
+			{datafile=f.path, using='1:($4-$3)', title=names[4]..' - '..names[3]},
 		}))
 	end
 end
