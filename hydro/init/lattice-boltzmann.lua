@@ -17,8 +17,9 @@ local initConds = table{
 			local solver = assert(self.solver)
 			-- TODO custom boundary.  rhs is set to zero.  lhs is U[-2] = U[2], U[-1] = U[1], and U[0] is not modified
 			solver:setBoundaryMethods'freeflow'
-			return [[
-
+			-- solver_macros has M_PI
+			return solver.eqn:template[[
+//// MODULE_DEPENDS: <?=solver_macros?>
 // TODO put this in lua ext.math?
 #define DBL_EPSILON 2.220446049250313080847e-16
 #define DBL_EPS_COMP (1. - DBL_EPSILON)

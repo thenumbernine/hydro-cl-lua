@@ -10,7 +10,6 @@ end
 for _,fn in ipairs(txts) do
 	print(fn)
 	local name,ext = path(fn):getext()
-	assert(name)
 	gnuplot{
 		output = name..'.png',
 		style = 'data lines',

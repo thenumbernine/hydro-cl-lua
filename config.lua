@@ -5,7 +5,7 @@ and no more setting config values (boundary, etc) in the init cond file
 local constants = require 'hydro.constants'
 local materials = require 'hydro.materials'
 
-local dim = cmdline.dim or 3
+local dim = cmdline.dim or 2
 local args = {
 	app = self,
 	dim = dim,
@@ -384,7 +384,7 @@ local args = {
 	--]]
 
 
-	--initCond = 'rectangle',
+	initCond = 'rectangle',
 	--initCond = 'Sedov',
 	--initCond = 'Noh',
 	--initCond = 'implosion',
@@ -451,7 +451,7 @@ local args = {
 
 
 	-- self-gravitation tests:
-	initCond = 'self-gravitation - Earth',	-- validating units along with self-gravitation.
+	--initCond = 'self-gravitation - Earth',	-- validating units along with self-gravitation.
 	--initCond = 'self-gravitation - NGC 1560',	-- TODO still needs velocity
 	--initCond = 'self-gravitation - NGC 3198',
 	--initCond = 'self-gravitation test 1',
@@ -695,7 +695,7 @@ if cmdline.solver then self.solvers:insert(require('hydro.solver.'..cmdline.solv
 -- fitting a lattice-boltzmann solver into my framework
 
 
---self.solvers:insert(require 'hydro.solver.lattice-boltzmann'(table(args, {initCond='cylinder', fixedDT=.6, gridSize={400,100}, usePLM=false, useCTU=false})))
+self.solvers:insert(require 'hydro.solver.lattice-boltzmann'(table(args, {initCond='cylinder', fixedDT=.6, gridSize={400,100}, usePLM=false, useCTU=false})))
 
 
 -- simple wave equation, no time/space coupling via background metric
@@ -897,7 +897,7 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {
 -- compressible Euler fluid equations + de-Donder gauge linearized GR
 
 
-self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler-lingr'})))
+--self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler-lingr'})))
 
 
 -- incompressible 
