@@ -15,6 +15,7 @@ local vec3f = require 'vec-ffi.vec3f'
 local vec3d = require 'vec-ffi.vec3d'
 local ig = require 'imgui'
 local gl = require 'gl'
+local GLVertexArray = require 'gl.vertexarray'
 local glreport = require 'gl.report'
 local template = require 'template'
 local clnumber = require 'cl.obj.number'
@@ -457,11 +458,15 @@ void main() {
 	fragColor = vec4(1., 1., 1., 1.);
 }
 ]],
+	}:useNone()
+
+	self.drawPointsVAO = GLVertexArray{
+		program = self.drawPointsShader,
 		attrs = {
 			vtx = self.glvtxArrayBuffer,
 			vtxcenter = self.glvtxcenterArrayBuffer,
-		}
-	}:useNone()
+		},
+	}
 end
 
 -- TODO organize this between SolverBase and MeshSolver

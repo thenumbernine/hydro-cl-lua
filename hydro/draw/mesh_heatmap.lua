@@ -1,6 +1,7 @@
 local path = require 'ext.path'
 local gl = require 'gl'
 local glreport = require 'gl.report'
+local GLVertexArray = require 'gl.vertexarray'
 local Draw = require 'hydro.draw.draw'
 
 
@@ -32,9 +33,9 @@ error("I once again need to straighten out the ctor/usage of GLProgram vs its at
 	GLVertexArray:disableAttrs(solver.heatMapShaderAttrs)
 --]]
 -- [[ 150fps: glVertexArray
-	solver.heatMap2DShader.vao:bind()
+	solver.heatMap2DVAO:bind()
 	gl.glDrawArrays(gl.GL_TRIANGLES, 0, solver.numGlVtxs * 3)
-	solver.heatMap2DShader.vao:unbind()
+	solver.heatMap2DVAO:unbind()
 --]]
 	tex:unbind(0)
 end
@@ -130,9 +131,9 @@ function DrawMeshHeatmap:display(varName, ar)
 		gl.glUniformMatrix4fv(solver.drawPointsShader.uniforms.modelViewProjectionMatrix.loc, 1, 0, app.view.modelViewProjectionMatrix.ptr)
 		gl.glUniform1f(solver.drawPointsShader.uniforms.drawCellScale.loc, solver.drawCellScale)
 
-		solver.drawPointsShader.vao:bind()
+		solver.drawPointsVAO:bind()
 		gl.glDrawArrays(gl.GL_TRIANGLES, 0, solver.numGlVtxs * 3)
-		solver.drawPointsShader.vao:unbind()
+		solver.drawPointsVAO:unbind()
 
 		solver.drawPointsShader:useNone()
 
@@ -154,9 +155,9 @@ function DrawMeshHeatmap:display(varName, ar)
 		gl.glUniformMatrix4fv(solver.drawPointsShader.uniforms.modelViewProjectionMatrix.loc, 1, 0, app.view.modelViewProjectionMatrix.ptr)
 		gl.glUniform1f(solver.drawPointsShader.uniforms.drawCellScale.loc, solver.drawCellScale)
 
-		solver.drawPointsShader.vao:bind()
+		solver.drawPointsVAO:bind()
 		gl.glDrawArrays(gl.GL_TRIANGLES, 0, solver.numGlVtxs * 3)
-		solver.drawPointsShader.vao:unbind()
+		solver.drawPointsVAO:unbind()
 
 		solver.drawPointsShader:useNone()
 
@@ -248,12 +249,16 @@ function DrawMeshHeatmap:prepareShader()
 			gradientTex = 1,
 			drawCellScale = 1,
 		},
+	}:useNone()
+
+	solver.heatMap2DVAO = GLVertexArray{
+		program = solver.heatMap2DShader,
 		attrs = {
 			vtx = solver.glvtxArrayBuffer,
 			vtxcenter = solver.glvtxcenterArrayBuffer,
 			cellindex = solver.glcellindexArrayBuffer,
 		},
-	}:useNone()
+	}
 end
 
 return DrawMeshHeatmap
