@@ -788,7 +788,7 @@ self.solvers:insert(require 'hydro.solver.weno'(table(args, {
 -- compressible Euler equations
 
 
---self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
+self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
 
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct bounded'})))	-- this is the default hllCalcWaveMethod
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct'})))
@@ -1208,9 +1208,9 @@ if cmdline.naca then
 	-- [=[ 1.25 degree angle of attack, mach 0.8, sea level pressure and density
 	-- might be trying to reproduce the "I Do Like CFD" OssanWorld.com edu2d "case_steady_airfoil"
 	--local theta = 0					-- cylinder uses 0
-	local theta = math.rad(1.25)	-- naca airfoil uses 1.25
+	local theta = math.rad(cmdline.nacaAngle or 1.25)	-- naca airfoil uses 1.25
 	--local machSpeed = 0.3			-- cylinder uses 0.3
-	local machSpeed = 0.8			-- naca airfoil uses 0.8
+	local machSpeed = cmdline.nacaMach or 0.8			-- naca airfoil uses 0.8
 	--local machSpeed = 0.95
 	--local machSpeed = 1
 	--local machSpeed = 1.2
