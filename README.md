@@ -60,11 +60,13 @@ my other libraries:
 - [modules-lua](https://github.com/thenumbernine/modules-lua)
 - [struct-lua](https://github.com/thenumbernine/struct-lua)
 - [solver-lua](https://github.com/thenumbernine/solver-lua)
-- [lua-make](https://github.com/thenumbernine/lua-make) (if you are using Clang/SPIRV for OpenCL compiling)
 - [lua-ffi-bindings](https://github.com/thenumbernine/lua-ffi-bindings)
+- [lua-make](https://github.com/thenumbernine/lua-make) (if you are using Clang/SPIRV for OpenCL compiling)
 - [lua-image](https://github.com/thenumbernine/lua-image) (if you want to take pictures/videos)
-- [lua-glapp](https://github.com/thenumbernine/lua-glapp) (if you want to use the graphic visualization)
-- [lua-gui](https://github.com/thenumbernine/lua-gui) (if you want to use the graphic visualization)
+- [lua-glapp](https://github.com/thenumbernine/lua-glapp),
+	[lua-gl](https://github.com/thenumbernine/lua-gl),
+	[lua-gui](https://github.com/thenumbernine/lua-gui)
+	(if you want to use the graphic visualization)
 - [lua-gnuplot](https://github.com/thenumbernine/lua-gnuplot) (used by some tests)
 - [lua-imguiapp](https://github.com/thenumbernine/lua-imguiapp) (if you want to use the GUI)
 
