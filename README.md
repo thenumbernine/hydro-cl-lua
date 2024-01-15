@@ -13,40 +13,6 @@ It uses OpenCL for the GPU code.
 
 hydro-cl-lua has been maintained and developed by me, Christopher Moore.
 
-### Project History:
-
-HydroJS was the first.
-
-Then Hydro, a C++/multithread version of HydroJS.
-
-Then HydroGPU, a OpenCL version of Hydro.
-
-Then I added Lua script config. 
-
-Then the Lua got out of hand until the C++ was doing nothing but managing strings.
-
-Now this project, hydro-cl-lua, pushes the middleman (C++) out completely.
-
-
-### Dependencies
-
-- https://github.com/thenumbernine/lua-ext
-- https://github.com/thenumbernine/lua-template
-- https://github.com/thenumbernine/vec-ffi-lua
-- https://github.com/thenumbernine/lua-matrix
-- https://github.com/thenumbernine/symmath-lua
-- https://github.com/thenumbernine/lua-opencl
-- https://github.com/thenumbernine/modules-lua
-- https://github.com/thenumbernine/solver-lua
-- https://github.com/thenumbernine/lua-make
-- https://github.com/thenumbernine/lua-ffi-bindings (OpenGL, SDL, cimgui, libpng)
-- https://github.com/thenumbernine/lua-image (if you want to take pictures/videos)
-- https://github.com/thenumbernine/lua-gl (if you want to use the graphic visualization)
-- https://github.com/thenumbernine/lua-glapp (if you want to use the graphic visualization)
-- https://github.com/thenumbernine/lua-gui (if you want to use the graphic visualization)
-- https://github.com/thenumbernine/lua-gnuplot (used by some tests)
-- https://github.com/thenumbernine/lua-imguiapp (if you want to use the GUI)
-
 ### Features:
 - script-generated OpenCL GPGPU code regenerated on the fly as soon as you change GUI options
 - automatic tensor index representation of equations / symbolic differentiation (via symmath project)
@@ -81,6 +47,46 @@ Now this project, hydro-cl-lua, pushes the middleman (C++) out completely.
 
 [![3D Alcubierre warp bubble](http://img.youtube.com/vi/tfMLMxdRid8/0.jpg)](https://www.youtube.com/watch?v=tfMLMxdRid8)
 
+
+### Dependencies
+
+my other libraries:
+- [ext](https://github.com/thenumbernine/lua-ext)
+- [template](https://github.com/thenumbernine/lua-template)
+- [vec-ffi](https://github.com/thenumbernine/vec-ffi-lua)
+- [lua-matrix](https://github.com/thenumbernine/lua-matrix)
+- [symmath](https://github.com/thenumbernine/symmath-lua)
+- [lua-opencl](https://github.com/thenumbernine/lua-opencl)
+- [modules-lua](https://github.com/thenumbernine/modules-lua)
+- [struct-lua](https://github.com/thenumbernine/struct-lua)
+- [solver-lua](https://github.com/thenumbernine/solver-lua)
+- [lua-make](https://github.com/thenumbernine/lua-make) (if you are using Clang/SPIRV for OpenCL compiling)
+- [lua-ffi-bindings](https://github.com/thenumbernine/lua-ffi-bindings)
+- [lua-image](https://github.com/thenumbernine/lua-image) (if you want to take pictures/videos)
+- [lua-glapp](https://github.com/thenumbernine/lua-glapp) (if you want to use the graphic visualization)
+- [lua-gui](https://github.com/thenumbernine/lua-gui) (if you want to use the graphic visualization)
+- [lua-gnuplot](https://github.com/thenumbernine/lua-gnuplot) (used by some tests)
+- [lua-imguiapp](https://github.com/thenumbernine/lua-imguiapp) (if you want to use the GUI)
+
+### Project History:
+
+[HydroJS](https://github.com/thenumbernine/hydrodynamics-js) was the first.
+
+Then [Hydro](https://github.com/thenumbernine/Hydrodynamics), a C++/multithread version of HydroJS.
+
+Then [HydroGPU](https://github.com/thenumbernine/HydrodynamicsGPU), a OpenCL version of Hydro.
+
+Then I added Lua script config. 
+
+Then the Lua got out of hand until the C++ was doing nothing but managing strings.
+
+But C++ is much worse at strings than scripting languages are.
+
+Now this project, hydro-cl-lua, pushes the middleman (C++) out completely.
+
+Also somewhere in the middle I developed a simple [gravitational wave demo](https://github.com/thenumbernine/gravitational-waves-lua) which also got out of hand and has a lot of the same equations, but implemented in pure-Lua (no GPU/ffi-CPU support).
+
+Also along the way I developed an unstructured mesh solver in [pure lua](https://github.com/thenumbernine/cfdmeshlua) and in [pure C++](https://github.com/thenumbernine/CFDMesh) before porting their capabilities into this framework.
 
 ### TODO:
 - ADM3D with shift as a hyperbolic conservation law system
