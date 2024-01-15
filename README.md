@@ -5,13 +5,13 @@
 
 ### About:
 
-lua-hydro-cl is a GPU-driven collection of computational physics schemes, integrators, and equations all housed under one framework.
+hydro-cl-lua is a GPU-driven collection of computational physics schemes, integrators, and equations all housed under one framework.
 
 It uses LuaJIT as the scripting due to the performance and memory advantages that Lua and LuaJIT have over other comparable languages (Python, JavaScript, etc).
 
 It uses OpenCL for the GPU code.
 
-lua-hydro-cl has been maintained and developed by me, Christopher Moore.
+hydro-cl-lua has been maintained and developed by me, Christopher Moore.
 
 ### Project History:
 
@@ -25,7 +25,7 @@ Then I added Lua script config.
 
 Then the Lua got out of hand until the C++ was doing nothing but managing strings.
 
-Now this project, lua-hydro-cl, pushes the middleman (C++) out completely.
+Now this project, hydro-cl-lua, pushes the middleman (C++) out completely.
 
 
 ### Dependencies
