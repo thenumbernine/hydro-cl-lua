@@ -1155,7 +1155,7 @@ local pushVarNamesEnabled
 -- any smaller than this and the font starts to screw up (maybe because it is using floating point?)
 local minDeltaY = 1e-5
 
-local time, getTime = table.unpack(require 'hydro.util.time')
+local getTime = require 'ext.timer'.getTime
 local startTime
 
 function HydroCLApp:requestExit(...)

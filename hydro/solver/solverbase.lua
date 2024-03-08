@@ -215,7 +215,8 @@ local template = require 'template'
 local vec3d = require 'vec-ffi.vec3d'
 local vec3sz = require 'vec-ffi.vec3sz'
 local roundup = require 'hydro.util.roundup'
-local time, getTime = table.unpack(require 'hydro.util.time')
+local timer = require 'ext.timer'.timer
+local getTime = require 'ext.timer'.getTime
 local Struct = require 'struct'
 local HydroStruct = require 'hydro.code.struct'
 
@@ -274,11 +275,11 @@ SolverBase.useCLLinkLibraries = false
 -- for reference on how it was being used:
 
 	if self.useCLLinkLibraries then
-		time('compiling common program', function()
+		timer('compiling common program', function()
 			self.commonUnlinkedObj = self.Program{name='common', code=commonCode}
 			self.commonUnlinkedObj:compile{dontLink=true}
 		end)
-		time('linking common program', function()
+		timer('linking common program', function()
 			self.commonProgramObj = self.Program{
 				programs = {
 					self.mathUnlinkedObj,
@@ -287,7 +288,7 @@ SolverBase.useCLLinkLibraries = false
 			}
 		end)
 	else
-		time('building common program', function()
+		timer('building common program', function()
 			self.commonProgramObj = self.Program{name='common', code=commonCode}
 			self.commonProgramObj:compile()
 		end)
@@ -298,7 +299,7 @@ SolverBase.useCLLinkLibraries = false
 	if not SolverBase.useCLLinkLibraries then return end
 	if self.mathUnlinkedObj then return end
 	-- build math cl binary obj
-	time('compiling math program', function()
+	timer('compiling math program', function()
 		self.mathUnlinkedObj = self.Program{
 			name = 'math',
 			code = self.modules:getCodeAndHeader(self.sharedModulesEnabled:keys():unpack()),
@@ -380,7 +381,7 @@ function SolverBase:init(args)
 	self.initArgsForSerialization.mesh = nil
 --]]
 
-	time('SolverBase:init()', function()
+	timer('SolverBase:init()', function()
 		require 'hydro.code.symbols'(self, self:getSymbolFields())	-- make unique symbols
 		self:initMeshVars(args)
 		self:initCLDomainVars(args)
@@ -1050,7 +1051,7 @@ global <?=cons_t?> const * const UR<?=suffix?> = <?=bufName?> + <?=indexR?>;
 end
 
 function SolverBase:postInit()
-	time('SolverBase:postInit()', function()
+	timer('SolverBase:postInit()', function()
 		self:refreshGridSize()		-- depends on createDisplayVars
 		-- refreshGridSize calls refreshCodePrefix
 		-- ... calls refreshEqnInitState
@@ -1156,7 +1157,7 @@ function SolverBase:copyGuiVarsToBufs()
 end
 
 function SolverBase:refreshGridSize()
-	time('SolverBase:refreshGridSize()', function()
+	timer('SolverBase:refreshGridSize()', function()
 		self:createSolverBuf()
 		self:createInitCondBuf()
 
@@ -1310,7 +1311,7 @@ kernel void findNaNs(
 	}:concat'\n'
 	self.app.buildingOpenCL = false
 
-	time('building program cache/'..self:getIdent()..'/src/common.cl ', function()
+	timer('building program cache/'..self:getIdent()..'/src/common.cl ', function()
 		self.commonProgramObj = self.Program{name='common', code=commonCode}
 		self.commonProgramObj:compile()
 	end)
@@ -1675,7 +1676,7 @@ function SolverBase:refreshSolverProgram()
 	end
 
 	local code
-	time('generating solver code', function()
+	timer('generating solver code', function()
 		local moduleNames = table(self.sharedModulesEnabled, self.solverModulesEnabled):keys()
 		if self.app.verbose then
 			print('solver modules: '..moduleNames:concat', ')
@@ -1686,7 +1687,7 @@ function SolverBase:refreshSolverProgram()
 		self.app.buildingOpenCL = false
 	end)
 
-	time('building program cache/'..self:getIdent()..'/src/solver.cl ', function()
+	timer('building program cache/'..self:getIdent()..'/src/solver.cl ', function()
 		self.solverProgramObj = self.Program{name='solver', code=code}
 		self.solverProgramObj:compile()
 	end)

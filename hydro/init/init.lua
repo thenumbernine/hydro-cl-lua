@@ -1,6 +1,6 @@
 local class = require 'ext.class'
 local table = require 'ext.table'
-local time = table.unpack(require 'hydro.util.time')
+local timer = require 'ext.timer'.timer
 local Struct = require 'struct'
 local half = require 'cl.obj.half'
 
@@ -175,7 +175,7 @@ function InitCond:refreshInitStateProgram()
 	end
 
 	local initCondCode
-	time('generating init state code', function()
+	timer('generating init state code', function()
 		local moduleNames = table(solver.sharedModulesEnabled, solver.initModulesEnabled):keys()
 		if solver.app.verbose then
 			print('initCond modules: '..moduleNames:concat', ')
@@ -186,7 +186,7 @@ function InitCond:refreshInitStateProgram()
 		solver.app.buildingOpenCL = false
 	end)
 
-	time('building program cache/'..solver:getIdent()..'/src/initCond.cl ', function()
+	timer('building program cache/'..solver:getIdent()..'/src/initCond.cl ', function()
 		solver.initCondProgramObj = solver.Program{name='initCond', code=initCondCode}
 		solver.initCondProgramObj:compile()
 	end)
@@ -208,7 +208,7 @@ function InitCond:resetState()
 
 	-- how to give initCond access to rand()?
 	-- fill UBuf with random numbers before calling it
-	time('randomizing UBuf...', function()
+	timer('randomizing UBuf...', function()
 		local ptr = solver.UBufObj:toCPU()
 		for i=0,solver.numCells-1 do
 			for j=0,solver.eqn.numStates-1 do

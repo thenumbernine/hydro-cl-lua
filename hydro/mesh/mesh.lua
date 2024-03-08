@@ -12,7 +12,7 @@ local vector = require 'ffi.cpp.vector'
 local vec3f = require 'vec-ffi.vec3f'
 local vec3d = require 'vec-ffi.vec3d'
 local Struct = require 'struct'
-local time, getTime = table.unpack(require 'hydro.util.time')
+local getTime = require 'ext.timer'.getTime
 
 
 --local faceAreaEpsilon = 1e-7

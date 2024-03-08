@@ -11,7 +11,7 @@ local template = require 'template'
 local vec3d = require 'vec-ffi.vec3d'
 local vec3sz = require 'vec-ffi.vec3sz'
 local roundup = require 'hydro.util.roundup'
-local time, getTime = table.unpack(require 'hydro.util.time')
+local timer = require 'ext.timer'.timer
 local SolverBase = require 'hydro.solver.solverbase'
 local Struct = require 'hydro.code.struct'
 
@@ -1191,7 +1191,7 @@ lines:insert[[
 	local boundaryProgramName = 'boundary'..(args.programNameSuffix or '')
 
 	local boundaryProgramObj
-	time('building program cache/'..self:getIdent()..'/src/boundary.cl ', function()
+	timer('building program cache/'..self:getIdent()..'/src/boundary.cl ', function()
 		boundaryProgramObj = self.Program{name=boundaryProgramName, code=code}
 		boundaryProgramObj:compile()
 	end)

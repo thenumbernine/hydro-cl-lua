@@ -15,7 +15,7 @@ local path = require 'ext.path'
 local table = require 'ext.table'
 local template = require 'template'
 local common = require 'hydro.common'
-local time, getTime = table.unpack(require 'hydro.util.time')
+local timer = require 'ext.timer'.timer
 local BSSNOKFiniteDifferenceEquationBase = require 'hydro.eqn.bssnok-fd'
 local HydroStruct = require 'hydro.code.struct'
 
@@ -521,7 +521,7 @@ assert(env.assignRepls)
 	-- done setting up the env, now we can return the cached copy
 	if not gotCache then 
 
-time('building symbolic math env', function()
+timer('building symbolic math env', function()
 		-- from here on out is stuff specific to different functions 
 
 		-- TODO only generate what we need
@@ -1612,7 +1612,7 @@ return env
 			path(envCacheFilename):write(lines:concat'\n')
 		end
 		save()
-end)	-- time()
+end)	-- timer()
 	end
 
 	return self.env

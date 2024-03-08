@@ -20,7 +20,7 @@ local glreport = require 'gl.report'
 local template = require 'template'
 local clnumber = require 'cl.obj.number'
 local SolverBase = require 'hydro.solver.solverbase'
-local time, getTime = table.unpack(require 'hydro.util.time')
+local timer = require 'ext.timer'.timer
 local real = require 'hydro.real'
 local vector = require 'ffi.cpp.vector'
 
@@ -98,7 +98,7 @@ end):keys():sort():mapi(function(i)
 end)
 --]]
 	-- make sure to create mesh after self.coord, since mesh modifies the coord.cell_t structure
-	time('creating mesh', function()
+	timer('creating mesh', function()
 		self.mesh = meshFactory:createMesh(self)
 	end)
 for k,v in pairs(self.mesh.times) do
@@ -378,7 +378,7 @@ function MeshSolver:initDraw()
 	local glvtxs = vector'vec3f_t'			-- vertex position
 	local glvtxcenters = vector'vec3f_t'	-- center of cell for this vertex
 	local glcellindex = vector'float'		-- 0-based index of cell for this vertex
-	time('creating display mesh', function()
+	timer('creating display mesh', function()
 		local function addTri(va,vb,vc, ci,c)
 			glvtxs:push_back(vec3f(va:unpack()))
 			glvtxs:push_back(vec3f(vb:unpack()))
