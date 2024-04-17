@@ -1023,12 +1023,16 @@ function SolverBase:initCDefs()
 	-- but ffi.cdef doesn't (cuz it was already cdef'd)
 	-- (and I can't defer cdef, cuz I already need it asap for solverPtr)
 	self.modules.set[self.solver_t].structs:remove()
+	-- ... same with initCond_t?
+	-- how come euler doesn't mind initCond_t being removed, but einstein-fd requires it to be removed?
+	self.modules.set[self.initCond_t].structs:remove()
 
 	require 'hydro.code.safecdef'(
 		self.modules:getTypeHeader(moduleNames:unpack())
 	)
 	-- ... and re-add
 	self.modules.set[self.solver_t].structs:insert(self.solverStruct)
+	self.modules.set[self.initCond_t].structs:insert(self.eqn.initCond.initStruct)
 end
 
 function SolverBase:refreshGetULR()

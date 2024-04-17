@@ -1597,9 +1597,9 @@ local dim = 3
 local args = {
 	app = self,
 
-	eqn = 'bssnok-fd-num',
+	--eqn = 'bssnok-fd-num',
 	--eqn = 'bssnok-fd-sym',
-	--eqn = 'bssnok-fd-senr',
+	eqn = 'bssnok-fd-senr',
 
 	eqnArgs = {
 		--useShift = 'none',

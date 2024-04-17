@@ -95,6 +95,9 @@ debugging:
 
 	trace = insert a debug hook to print out where we are every so often.
 
+	moduleVerbose
+	debugcdefs
+
 integrator parameters:
 	intVerbose = output extra info from int/*.lua
 	printBufs = printBufs for extra integrator steps
