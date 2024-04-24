@@ -56,22 +56,22 @@ function Draw1D:showDisplayVar(var)
 		self.vertexes:resize(numVertexes)
 	end
 
-	-- [[ overwrite the modelViewProjectionMatrix uniform here
-	-- this is different from the other 'Draw.modelViewProjectionMatrix'
+	-- [[ overwrite the mvProjMat uniform here
+	-- this is different from the other 'Draw.mvProjMat'
 	-- that one is based on hydro.view,
 	-- this is based on the GL state set in hydro.app for 1D graphs
 	-- TODO maybe combine the two, make the hydro.app 1D graph stuff use hydro.view.ortho,
-	-- then this could just use the default 'modelViewProjectionMatrix'
-	self.ModelViewMatrix = self.ModelViewMatrix or matrix_ffi(nil, 'float', {4,4})
-	gl.glGetFloatv(gl.GL_MODELVIEW_MATRIX, self.ModelViewMatrix.ptr)
+	-- then this could just use the default 'mvProjMat'
+	self.mvMat = self.mvMat or matrix_ffi(nil, 'float', {4,4})
+	gl.glGetFloatv(gl.GL_MODELVIEW_MATRIX, self.mvMat.ptr)
 
-	self.ProjectionMatrix = self.ProjectionMatrix or matrix_ffi(nil, 'float', {4,4})
-	gl.glGetFloatv(gl.GL_PROJECTION_MATRIX, self.ProjectionMatrix.ptr)
+	self.projMat = self.projMat or matrix_ffi(nil, 'float', {4,4})
+	gl.glGetFloatv(gl.GL_PROJECTION_MATRIX, self.projMat.ptr)
 
-	self.ModelViewProjectionMatrix = self.ModelViewProjectionMatrix or matrix_ffi(nil, 'float', {4,4})
-	matrix_ffi.mul(self.ModelViewProjectionMatrix, self.ProjectionMatrix, self.ModelViewMatrix)
+	self.mvProjMat = self.mvProjMat or matrix_ffi(nil, 'float', {4,4})
+	matrix_ffi.mul(self.mvProjMat, self.projMat, self.mvMat)
 
-	gl.glUniformMatrix4fv(uniforms.modelViewProjectionMatrix.loc, 1, gl.GL_TRUE, self.ModelViewProjectionMatrix.ptr)
+	gl.glUniformMatrix4fv(uniforms.mvProjMat.loc, 1, gl.GL_TRUE, self.mvProjMat.ptr)
 	--]]
 
 	for i=0,numVertexes-1 do

@@ -11,9 +11,9 @@ function OrthoView:init()
 	self.zoom = vec2d(zoom, zoom)
 	self.pos = vec2d()
 
-	self.modelViewMatrix = matrix_ffi.zeros({4,4}, 'float')
-	self.projectionMatrix = matrix_ffi.zeros({4,4}, 'float')
-	self.modelViewProjectionMatrix = matrix_ffi.zeros({4,4}, 'float')
+	self.mvMat = matrix_ffi.zeros({4,4}, 'float')
+	self.projMat = matrix_ffi.zeros({4,4}, 'float')
+	self.mvProjMat = matrix_ffi.zeros({4,4}, 'float')
 end
 
 -- returns xmin, xmax, ymin, ymax, zmin, zmax
@@ -41,9 +41,9 @@ function OrthoView:setup(ar)
 	self:projection(ar)
 	self:modelview()
 
-	gl.glGetFloatv(gl.GL_MODELVIEW_MATRIX, self.modelViewMatrix.ptr)
-	gl.glGetFloatv(gl.GL_PROJECTION_MATRIX, self.projectionMatrix.ptr)
-	self.modelViewProjectionMatrix:mul(self.projectionMatrix, self.modelViewMatrix)
+	gl.glGetFloatv(gl.GL_MODELVIEW_MATRIX, self.mvMat.ptr)
+	gl.glGetFloatv(gl.GL_PROJECTION_MATRIX, self.projMat.ptr)
+	self.mvProjMat:mul(self.projMat, self.mvMat)
 end
 
 function OrthoView:mousePan(dx, dy, screenWidth, screenHeight)

@@ -52,7 +52,7 @@ void main() {
 
 	texCoord = (gridCoord + .5 + numGhost) / sizeWithoutBorder;
 
-	gl_Position = modelViewProjectionMatrix * vec4(vertex, 1.);
+	gl_Position = mvProjMat * vec4(vertex, 1.);
 }
 
 <?

@@ -24,7 +24,7 @@ in vec4 vertex;
 void main() {
 	vec4 v = vertex;
 	viewCoord = v.xyz;
-	gl_Position = modelViewProjectionMatrix * v;
+	gl_Position = mvProjMat * v;
 }
 
 <? end

@@ -35,17 +35,17 @@ function Draw:setupDisplayVarShader(shader, var, valueMin, valueMax)
 	if uniforms.displayFixed then
 		gl.glUniform2f(uniforms.displayFixed.loc, app.displayFixedY, app.displayFixedZ)
 	end
-	if uniforms.modelViewProjectionMatrix then
-		gl.glUniformMatrix4fv(uniforms.modelViewProjectionMatrix.loc, 1, gl.GL_TRUE, app.view.modelViewProjectionMatrix.ptr)
+	if uniforms.mvProjMat then
+		gl.glUniformMatrix4fv(uniforms.mvProjMat.loc, 1, gl.GL_TRUE, app.view.mvProjMat.ptr)
 	end
 	if uniforms.normalMatrix then
 		self.normalMatrix = self.normalMatrix or matrix_ffi.zeros({3,3}, 'float')
 		--gl.glGetFloatv(gl.GL_NORMAL_MATRIX, self.normalMatrix.ptr)
-		-- invert app.view.modelViewMatrix's upper 3x3 into normalMatrix, then transpose
+		-- invert app.view.mvMat's upper 3x3 into normalMatrix, then transpose
 		-- but if it is purely a rotation matrix, this is the same as just the 3x3 portion ...
 		for j=0,2 do
 			for i=0,2 do
-				self.normalMatrix.ptr[i + 3 * j] = app.view.modelViewProjectionMatrix.ptr[i + 4 * j]
+				self.normalMatrix.ptr[i + 3 * j] = app.view.mvProjMat.ptr[i + 4 * j]
 			end
 		end
 		gl.glUniformMatrix3fv(uniforms.normalMatrix.loc, 1, gl.GL_TRUE, self.normalMatrix.ptr)

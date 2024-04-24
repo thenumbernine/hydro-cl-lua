@@ -62,7 +62,7 @@ void main() {
 	if (displayDim > 1) {
 		vertex = chartToWorldCoord(vertex);
 	}
-	gl_Position = modelViewProjectionMatrix * vec4(vertex, 1.);
+	gl_Position = mvProjMat * vec4(vertex, 1.);
 }
 
 <?

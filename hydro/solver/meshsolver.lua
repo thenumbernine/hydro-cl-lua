@@ -440,14 +440,14 @@ function MeshSolver:initDraw()
 #version 460
 
 uniform float drawCellScale;
-uniform mat4 modelViewProjectionMatrix;
+uniform mat4 mvProjMat;
 
 in vec3 vtx;
 in vec3 vtxcenter;
 
 void main() {
 	vec3 v = (vtx - vtxcenter) * drawCellScale + vtxcenter;
-	gl_Position = modelViewProjectionMatrix * vec4(v, 1.);
+	gl_Position = mvProjMat * vec4(v, 1.);
 }
 ]],
 		fragmentCode = [[

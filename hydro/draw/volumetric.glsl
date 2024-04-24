@@ -19,7 +19,7 @@ void main() {
 	x = vec4(coordMap(x.xyz), x.w);	
 	
 	vertexStart = x.xyz;	//this means we have to invert coordMap as we travel through the cartesian space
-	gl_Position = gl_ModelViewProjectionMatrix * x;
+	gl_Position = mvProjMat * x;
 }
 
 <? end

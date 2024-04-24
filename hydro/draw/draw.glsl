@@ -10,7 +10,7 @@ uniform vec2 displayFixed;	//xy holds the fixed yz for when displayDim < dim
 uniform bool useCoordMap;
 
 uniform mat3 normalMatrix;
-uniform mat4 modelViewProjectionMatrix;
+uniform mat4 mvProjMat;
 
 uniform bool useLog;
 uniform float valueMin, valueMax;

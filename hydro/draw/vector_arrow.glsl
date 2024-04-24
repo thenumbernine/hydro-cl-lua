@@ -148,7 +148,7 @@ end
 	vec3 v = center + valuescale * (vtx.x * dir + vtx.y * tv);
 <? end ?>
 
-	gl_Position = modelViewProjectionMatrix * vec4(v, 1.);
+	gl_Position = mvProjMat * vec4(v, 1.);
 }
 
 <?

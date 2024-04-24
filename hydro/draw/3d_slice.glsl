@@ -30,7 +30,7 @@ void main() {
 <? if app.useClipPlanes then ?>
 	pos = x.xyz;
 <? end ?>
-	gl_Position = modelViewProjectionMatrix * x;
+	gl_Position = mvProjMat * x;
 }
 
 <? end
@@ -111,7 +111,7 @@ end
 	}
 
 	//calculate normal in screen coordinates
-	vec4 n = modelViewProjectionMatrix * vec4(normal, 0.);
+	vec4 n = mvProjMat * vec4(normal, 0.);
 	//determine length of line through slice at its angle
 	voxelColor.a /= -n.w;
 	
