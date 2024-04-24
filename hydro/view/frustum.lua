@@ -21,7 +21,7 @@ end
 
 FrustumView.zFar = 1000
 FrustumView.zNear = .1
-function FrustumView:projection(ar)
+function FrustumView:setupProjection(ar)
 	gl.glMatrixMode(gl.GL_PROJECTION)
 	gl.glLoadIdentity()
 	gl.glFrustum(
@@ -33,7 +33,7 @@ function FrustumView:projection(ar)
 		self.zFar)
 end
 
-function FrustumView:modelview()
+function FrustumView:setupModelView()
 	gl.glMatrixMode(gl.GL_MODELVIEW)
 	gl.glLoadIdentity()
 	gl.glTranslatef(0,0,-self.dist)
@@ -43,8 +43,8 @@ function FrustumView:modelview()
 end
 
 function FrustumView:setup(ar)
-	self:projection(ar)
-	self:modelview()
+	self:setupProjection(ar)
+	self:setupModelView()
 
 	gl.glGetFloatv(gl.GL_MODELVIEW_MATRIX, self.mvMat.ptr)
 	gl.glGetFloatv(gl.GL_PROJECTION_MATRIX, self.projMat.ptr)

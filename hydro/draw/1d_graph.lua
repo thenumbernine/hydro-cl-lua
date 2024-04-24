@@ -154,8 +154,8 @@ function Draw1D:display(varName, ar, xmin, xmax, ymin, ymax, useLog, valueMin, v
 		-- the dif is, Draw1D doesn't use self.orthoView ...
 		-- TODO fix that?
 		-- also notice: ymin/ymax has already been log()'d
-		--self.orthoView:projection(ar)
-		--self.orthoView:modelview()
+		--self.orthoView:setupProjection(ar)
+		--self.orthoView:setupModelView()
 		--local xmin, xmax, ymin, ymax = self.orthoView:getOrthoBounds(ar)
 
 		if app.font then

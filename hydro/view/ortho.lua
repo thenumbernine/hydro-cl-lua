@@ -26,20 +26,20 @@ function OrthoView:getOrthoBounds(ar)
 		-1, 1
 end
 
-function OrthoView:projection(ar)
+function OrthoView:setupProjection(ar)
 	gl.glMatrixMode(gl.GL_PROJECTION)
 	gl.glLoadIdentity()
 	gl.glOrtho(self:getOrthoBounds(ar))
 end
 
-function OrthoView:modelview()
+function OrthoView:setupModelView()
 	gl.glMatrixMode(gl.GL_MODELVIEW)
 	gl.glLoadIdentity()
 end
 
 function OrthoView:setup(ar)
-	self:projection(ar)
-	self:modelview()
+	self:setupProjection(ar)
+	self:setupModelView()
 
 	gl.glGetFloatv(gl.GL_MODELVIEW_MATRIX, self.mvMat.ptr)
 	gl.glGetFloatv(gl.GL_PROJECTION_MATRIX, self.projMat.ptr)

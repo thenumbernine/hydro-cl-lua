@@ -1769,8 +1769,8 @@ function HydroCLApp:drawGradientLegend(solver, var, varName, ar, valueMin, value
 		varName = varName..' ('..var.units..')'
 	end
 
-	self.orthoView:projection(ar)
-	self.orthoView:modelview()
+	self.orthoView:setupProjection(ar)
+	self.orthoView:setupModelView()
 	local xmin, xmax, ymin, ymax = self.orthoView:getOrthoBounds(ar)
 
 	if self.font then
