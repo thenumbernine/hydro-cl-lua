@@ -33,7 +33,7 @@ local MeshSolver = SolverBase:subclass()
 MeshSolver.name = 'meshsolver'
 
 -- for compat in some display stuff
-MeshSolver.numGhost = 0 
+MeshSolver.numGhost = 0
 
 function MeshSolver:getSymbolFields()
 	return MeshSolver.super.getSymbolFields(self):append{
@@ -180,7 +180,7 @@ function MeshSolver:initObjs(args)
 			error("unknown boundary ctor: "..tostring(boundary))
 		end
 		local boundaryClass = assert(self.boundaryOptionForName[name], "failed to find boundary method named "..name)
-		
+
 		-- 'key' should be a 1-based integer ...
 		self.boundaryMethods[key] = boundaryClass(boundaryObjArgs)
 	end
@@ -193,7 +193,7 @@ function MeshSolver:createCellStruct()
 	self.coord.cellStructFields:append{
 --[[ moved to coord/coord to be in gridsolver and meshsolver
 		{type='real', name='volume'},	--volume of the cell
---]]			
+--]]
 		{type='int', name='faceOffset'},
 		{type='int', name='faceCount'},
 		{type='int', name='vtxOffset'},
@@ -252,12 +252,12 @@ function BoundaryMirror:getCode(args)
 	local src = assert(args.src)
 
 	local lines = table()
-	
+
 	lines:insert(self:assignDstSrc(dst, src, args))
-	
+
 	local solver = args.solver
 	local eqn = solver.eqn
-	
+
 	lines:insert(template([[
 {
 	real3 const x = (<?=face?>)->pos;
@@ -266,11 +266,11 @@ function BoundaryMirror:getCode(args)
 		face = assert(args.face),
 	}))
 	for _,var in ipairs(eqn.consStruct.fields[1].type.fields) do
-		if var.type == 'real' 
+		if var.type == 'real'
 		or var.type == 'cplx'
 		then
 			-- do nothing
-		elseif var.type == 'real3' 
+		elseif var.type == 'real3'
 		or var.type == 'cplx3'
 		then
 			-- TODO looks very similar to the reflect code in meshsolver
@@ -283,7 +283,7 @@ function BoundaryMirror:getCode(args)
 				<?=vec3?>_real3_dot(
 					(<?=dst?>)-><?=field?>,
 					n
-				), 
+				),
 				<?=restitutionPlusOne?>
 			)
 		)
@@ -315,7 +315,7 @@ function BoundaryFixed:getCode(args)
 	local dst = assert(args.dst)
 	return self:fixedCode(args, dst)
 end
-MeshSolver.BoundaryFixed = BoundaryFixed 
+MeshSolver.BoundaryFixed = BoundaryFixed
 
 local BoundaryFreeFlow = Boundary:subclass()
 BoundaryFreeFlow.name = 'freeflow'
@@ -368,16 +368,16 @@ function MeshSolver:initDraw()
 	local mesh = self.mesh
 
 	-- TODO move this to hydro/view and set it once for all shaders
-	
+
 	-- make a GPU version of the mesh
 	-- TODO triangulate ... then include a mapping from triangle to source cell,
 	-- and then just copy from display buf to a texture,
 	-- then store per vertex the lookup to the texture.
 	-- Also, if you are going to scale cells, then you must store a unique vertex per cell here.
 	-- this means no dynamic mesh (without more coding).
-	local glvtxs = vector'vec3f_t'			-- vertex position
-	local glvtxcenters = vector'vec3f_t'	-- center of cell for this vertex
-	local glcellindex = vector'float'		-- 0-based index of cell for this vertex
+	local glvtxs = vector'vec3f_t'()			-- vertex position
+	local glvtxcenters = vector'vec3f_t'()	-- center of cell for this vertex
+	local glcellindex = vector'float'()		-- 0-based index of cell for this vertex
 	timer('creating display mesh', function()
 		local function addTri(va,vb,vc, ci,c)
 			glvtxs:push_back(vec3f(va:unpack()))
@@ -413,25 +413,25 @@ function MeshSolver:initDraw()
 			end
 		end
 	end)
-	
+
 	self.glvtxs = glvtxs
 	self.glvtxcenters = glvtxcenters
 	self.glcellindex = glcellindex
 	self.numGlVtxs = #glvtxs
 
 	local GLArrayBuffer = require 'gl.arraybuffer'
-	
+
 	self.glvtxArrayBuffer = GLArrayBuffer{
 		data = glvtxs.v,
-		size = #glvtxs * ffi.sizeof(glvtxs.type), 
+		size = #glvtxs * ffi.sizeof(glvtxs.T),
 	}:unbind()
 	self.glvtxcenterArrayBuffer = GLArrayBuffer{
 		data = glvtxcenters.v,
-		size = #glvtxcenters * ffi.sizeof(glvtxcenters.type), 
+		size = #glvtxcenters * ffi.sizeof(glvtxcenters.T),
 	}:unbind()
 	self.glcellindexArrayBuffer = GLArrayBuffer{
 		data = glcellindex.v,
-		size = #glcellindex * ffi.sizeof(glcellindex.type),
+		size = #glcellindex * ffi.sizeof(glcellindex.T),
 	}:unbind()
 
 	self.drawPointsShader = self.GLProgram{
@@ -475,27 +475,27 @@ function MeshSolver:createBuffers()
 
 	-- set texSize before calling super
 	if app.targetSystem ~= 'console' then
---print('numCells', self.numCells)		
+--print('numCells', self.numCells)
 		local maxTex2DSize = vec3sz(
 			self.device:getInfo'CL_DEVICE_IMAGE2D_MAX_WIDTH',
 			self.device:getInfo'CL_DEVICE_IMAGE2D_MAX_HEIGHT',
 			1)
---print('maxTex2DSize', maxTex2DSize)	
+--print('maxTex2DSize', maxTex2DSize)
 		local maxTex3DSize = vec3sz(
 			self.device:getInfo'CL_DEVICE_IMAGE3D_MAX_WIDTH',
 			self.device:getInfo'CL_DEVICE_IMAGE3D_MAX_HEIGHT',
 			self.device:getInfo'CL_DEVICE_IMAGE3D_MAX_DEPTH')
---print('maxTex3DSize', maxTex3DSize)		
+--print('maxTex3DSize', maxTex3DSize)
 		self.texSize = vec3sz()
 		-- TODO if texSize >= max gl size then overflow into the next dim
 		if self.numCells <= maxTex2DSize.x then
---print('using 1D texture')			
+--print('using 1D texture')
 			self.texSize = vec3sz(self.numCells, 1, 1)
 		else
 			local sx = math.min(math.ceil(math.sqrt(self.numCells)), tonumber(maxTex2DSize.x))
 			local sy = math.ceil(self.numCells / tonumber(self.texSize.x))
 			if sx <= maxTex2DSize.x and sy <= maxTex2DSize.y then
---print('using 2D texture')			
+--print('using 2D texture')
 				self.texSize = vec3sz(sx, sy, 1)
 			else
 				local sz = math.min(math.ceil(math.cbrt(self.numCells)), tonumber(maxTex3DSize.z))
@@ -503,7 +503,7 @@ function MeshSolver:createBuffers()
 				local sy = math.min(math.ceil(math.sqrt(sxy)), tonumber(maxTex3DSize.y))
 				local sx = math.ceil(sxy / sy)
 				if sx <= maxTex3DSize.x then
---print('using 3D texture')			
+--print('using 3D texture')
 					self.texSize = vec3sz(sx, sy, sz)
 				else
 					error("couldn't fit cell buffer into texture.  max 2d size " .. maxTex2DSize .. ", max 3d size " .. maxTex3DSize)
@@ -518,17 +518,17 @@ function MeshSolver:createBuffers()
 	self:clalloc('cellBuf', self.coord.cell_t, self.numCells)
 	self:clalloc('faceBuf', self.coord.face_t, self.numFaces)
 	self:clalloc('cellFaceIndexesBuf', 'int', self.numCellFaceIndexes)
-	
+
 	-- specific to FiniteVolumeSolver
 	self:clalloc('fluxBuf', self.eqn.symbols.cons_t, self.numFaces)
 
 -- [[
-	-- here or somewhere before 
+	-- here or somewhere before
 	-- convert the mesh faces and cells from meshface_t, meshcell_t
 	-- to face_t and cell_t
 	-- hmm, but if any custom fields are included, I'll bet the subclass will want to populate those ...
 	local mesh = self.mesh
-	local faces = vector(self.coord.face_t, self.numFaces)
+	local faces = vector(self.coord.face_t)(self.numFaces)
 	for i=0,self.numFaces-1 do
 		faces.v[i].pos = mesh.faces.v[i].pos
 		faces.v[i].normal = mesh.faces.v[i].normal
@@ -542,8 +542,8 @@ function MeshSolver:createBuffers()
 		faces.v[i].boundaryMethodIndex = mesh.faces.v[i].boundaryMethodIndex
 	end
 	mesh.faces = faces
-	
-	local cells = vector(self.coord.cell_t, self.numCells)
+
+	local cells = vector(self.coord.cell_t)(self.numCells)
 	for i=0,self.numCells-1 do
 		cells.v[i].pos = mesh.cells.v[i].pos
 		cells.v[i].volume = mesh.cells.v[i].volume
@@ -585,7 +585,7 @@ function MeshSolver:getSizePropsForWorkGroupSize(maxWorkGroupSize)
 	}
 
 	return {
-		localSize1d = localSize1d, 
+		localSize1d = localSize1d,
 	}
 end
 
@@ -619,7 +619,7 @@ end
 
 function MeshSolver:initCodeModules()
 	MeshSolver.super.initCodeModules(self)
-	
+
 	self.flux:initCodeModules()
 
 	self.modules:addFromMarkup(
@@ -668,7 +668,7 @@ end
 function MeshSolver:boundary()
 end
 
--- hmm, if something else require's solverbase and uses SolverBase.DisplayVar before this does 
+-- hmm, if something else require's solverbase and uses SolverBase.DisplayVar before this does
 -- then won't it get the wrong class? (compared to if this require's first before it does?)
 local DisplayVar = MeshSolver.DisplayVar
 local MeshSolverDisplayVar = DisplayVar:subclass()
@@ -689,8 +689,8 @@ function MeshSolver:updateGUIParams()
 	ig.luatableTooltipCheckbox('show normals', self, 'showNormals')
 	ig.igSameLine()
 	ig.luatableTooltipCheckbox('show cell values', self, 'showValues')
-	
+
 	ig.luatableTooltipInputFloatAsText('cell scale', self, 'drawCellScale')
 end
 
-return MeshSolver 
+return MeshSolver

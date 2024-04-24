@@ -52,7 +52,7 @@ function Draw2DGraph:showDisplayVar(var)
 	gl.glUniform3f(uniforms.color.loc, (#app.solvers > 1 and solver or var).color:unpack())
 
 	-- 3 components per vertex
-	if not self.vertexes then self.vertexes = vector'vec3f_t' end
+	if not self.vertexes then self.vertexes = vector'vec3f_t'() end
 
 	local step = math.max(1, self.step)
 	local numX = math.floor((tonumber(solver.gridSize.x) - 2 * solver.numGhost + 1) / step)

@@ -66,8 +66,8 @@ function DrawVectorField:showDisplayVar(var, varName, ar, xmin, xmax, ymin, ymax
 
 	-- TODO store these vectors per-solver?
 	-- nah, once the capacity grows to the largest solver's size, it will stay there.
-	if not self.glvtxs then self.glvtxs = vector'vec2f_t' end
-	if not self.glcenters then self.glcenters = vector'vec3f_t' end
+	if not self.glvtxs then self.glvtxs = vector'vec2f_t'() end
+	if not self.glcenters then self.glcenters = vector'vec3f_t'() end
 
 	if not solver.vectorArrowGLVtxArrayBuffer
 	-- assert that glvtxs and glcenters are the same size
@@ -119,12 +119,12 @@ function DrawVectorField:showDisplayVar(var, varName, ar, xmin, xmax, ymin, ymax
 
 		solver.vectorArrowGLVtxArrayBuffer = GLArrayBuffer{
 			data = self.glvtxs.v,
-			size = #self.glvtxs * ffi.sizeof(self.glvtxs.type)
+			size = #self.glvtxs * ffi.sizeof(self.glvtxs.T),
 		}:unbind()
 
 		solver.vectorArrowGLCentersArrayBuffer = GLArrayBuffer{
 			data = self.glcenters.v,
-			size = #self.glcenters * ffi.sizeof(self.glcenters.type)
+			size = #self.glcenters * ffi.sizeof(self.glcenters.T),
 		}:unbind()
 
 		solver.vectorArrowVAO = GLVertexArray{

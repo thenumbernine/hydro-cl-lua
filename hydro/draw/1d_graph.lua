@@ -48,7 +48,7 @@ function Draw1D:showDisplayVar(var)
 
 	gl.glUniform3f(uniforms.color.loc, (#app.solvers > 1 and solver or var).color:unpack())
 
-	if not self.vertexes then self.vertexes = vector'vec3f_t' end
+	if not self.vertexes then self.vertexes = vector'vec3f_t'() end
 
 	local step = 1
 	local numVertexes = math.floor((tonumber(solver.gridSize.x) - 2 * solver.numGhost + 1) / step)	-- (endindex - startindex + 1) / step

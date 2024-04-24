@@ -36,12 +36,12 @@ function P2DFMTMeshFactory:createMesh(solver)
 	
 	for j=0,n-2 do
 		for i=0,m-2 do
-			mesh:addCell(vector('int',{
+			mesh:addCell(vector'int'{
 				i + m * j,
 				i+1 + m * j,
 				i+1 + m * (j+1),
 				i + m * (j+1),
-			}))
+			})
 		end
 	end
 

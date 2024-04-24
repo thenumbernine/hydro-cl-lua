@@ -46,7 +46,7 @@ function DrawVectorStateLine:showDisplayVar(var, varName, ar, xmin, xmax, ymin, 
 
 	gl.glUniform1f(uniforms.ambient.loc, app.displayDim == 1 and 1 or .3)
 
-	if not self.vertexes then self.vertexes = vector'vec3f_t' end
+	if not self.vertexes then self.vertexes = vector'vec3f_t'() end
 
 	local step = 1
 	local numX = math.floor((tonumber(solver.sizeWithoutBorder.x) + 1) / step)

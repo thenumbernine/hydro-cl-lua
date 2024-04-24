@@ -30,13 +30,13 @@ end
 
 function Quad2DMeshFactory:addPoly(mesh, ...)
 	if not self.triangulate then
-		mesh:addCell(vector('int',{...}))
+		mesh:addCell(vector'int'{...})
 	else
 		local va = select(1, ...)
 		local vb = select(2, ...)
 		for i=3,select('#', ...) do
 			local vc = select(i, ...)
-			mesh:addCell(vector('int', {va,vb,vc}))
+			mesh:addCell(vector'int'{va,vb,vc})
 			vb = vc
 		end
 	end
