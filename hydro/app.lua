@@ -1821,218 +1821,227 @@ HydroCLApp.displayFixedY = 0
 HydroCLApp.displayFixedZ = 0
 
 function HydroCLApp:updateGUI()
-	if ig.igCollapsingHeader'simulation' then
-		if ig.igButton(self.running and 'Stop' or 'Start') then
-			self.running = not self.running
-		end
-		ig.igSameLine()
-		if ig.igButton'Step' then
-			self.running = 'step'
-		end
-		ig.igSameLine()
-		if ig.igButton'Reset' then
-			print'resetting...'
-			for _,solver in ipairs(self.solvers) do
-				solver:resetState()
+	if ig.igBeginMainMenuBar() then
+		if ig.igBeginMenu'Run' then
+			if ig.igButton(self.running and 'Stop' or 'Start') then
+				self.running = not self.running
 			end
-			self.running = false
-		end
-
-		if ig.igButton'Save' then
-			local savePrefix = os.date'%Y.%m.%d-%H.%M.%S'
-			-- save as cfits
-			for i,solver in ipairs(self.solvers) do
-				solver:save(savePrefix..'_'..tostring(i))
+			ig.igSameLine()
+			if ig.igButton'Step' then
+				self.running = 'step'
 			end
-		end
-
-		if ig.luatableTooltipCombo('Palette', self, 'predefinedPaletteIndex', self.predefinedPaletteNames) then
-			self:resetGradientTex()
-		end
-
-		ig.igSameLine()
-		if ig.igButton'Randomize Palette' then
-			self:randomizeGradientTex()
-		end
-
-		-- dump min/max(/avg?) of displayvars to a .txt file
-		ig.luatableTooltipCheckbox('dump to text file', dumpFile, 'enabled')
-
-		if ig.igButton'Screenshot' then
-			self:screenshot()
-		end
-		ig.igSameLine()
-
-		ig.luatableTooltipCheckbox('screenshot hires', self, 'screenshotUseHiRes')
-		ig.igSameLine()
-
-		ig.luatableTooltipCombo('screenshot ext', self, 'screenshotExtIndex', self.screenshotExts)
-
-		if ig.igButton(self.createAnimation and 'stop frame dump' or 'start frame dump') then
-			self.createAnimation = not self.createAnimation
-		end
-
-		ig.luatableTooltipCheckbox('stack graphs', self, 'displayAllTogether')
-		ig.igSameLine()
-
-		-- TODO per-solver
-		ig.luatableTooltipCheckbox('bilinear textures', self, 'displayBilinearTextures')
-		ig.igSameLine()
-
-		-- for 2D heatmap only atm
-		ig.luatableTooltipCheckbox('display with coord map', self, 'display_useCoordMap')
-		ig.igSameLine()
-
-		ig.luatableTooltipCheckbox('show coords', self, 'showMouseCoords')
-
-		--ig.igSameLine()
-		--ig.luatableTooltipCheckbox('mouse influence equations', self, 'mouse_influenceEquations')
-
-
-		if ig.igRadioButton_Bool('ortho', self.view == self.orthoView) then
-			self.view = self.orthoView
-		end
-		ig.igSameLine()
-		if ig.igRadioButton_Bool('frustum', self.view == self.frustumView) then
-			self.view = self.frustumView
-		end
-
-		-- TODO per-solver
-		for j=1,3 do
-			if ig.igRadioButton_Bool(j..'D', self.displayDim == j) then
-				self.displayDim = j
+			ig.igSameLine()
+			if ig.igButton'Reset' then
+				print'resetting...'
+				for _,solver in ipairs(self.solvers) do
+					solver:resetState()
+				end
+				self.running = false
 			end
-			if j < 3 then ig.igSameLine() end
-		end
+
+			if ig.igButton'Save' then
+				local savePrefix = os.date'%Y.%m.%d-%H.%M.%S'
+				-- save as cfits
+				for i,solver in ipairs(self.solvers) do
+					solver:save(savePrefix..'_'..tostring(i))
+				end
+			end
+
+			if ig.luatableTooltipCombo('Palette', self, 'predefinedPaletteIndex', self.predefinedPaletteNames) then
+				self:resetGradientTex()
+			end
+
+			ig.igSameLine()
+			if ig.igButton'Randomize Palette' then
+				self:randomizeGradientTex()
+			end
+
+			-- dump min/max(/avg?) of displayvars to a .txt file
+			ig.luatableTooltipCheckbox('dump to text file', dumpFile, 'enabled')
+
+			if ig.igButton'Screenshot' then
+				self:screenshot()
+			end
+			ig.igSameLine()
+
+			ig.luatableTooltipCheckbox('screenshot hires', self, 'screenshotUseHiRes')
+			ig.igSameLine()
+
+			ig.luatableTooltipCombo('screenshot ext', self, 'screenshotExtIndex', self.screenshotExts)
+
+			if ig.igButton(self.createAnimation and 'stop frame dump' or 'start frame dump') then
+				self.createAnimation = not self.createAnimation
+			end
+
+			ig.luatableTooltipCheckbox('stack graphs', self, 'displayAllTogether')
+			ig.igSameLine()
+
+			-- TODO per-solver
+			ig.luatableTooltipCheckbox('bilinear textures', self, 'displayBilinearTextures')
+			ig.igSameLine()
+
+			-- for 2D heatmap only atm
+			ig.luatableTooltipCheckbox('display with coord map', self, 'display_useCoordMap')
+			ig.igSameLine()
+
+			ig.luatableTooltipCheckbox('show coords', self, 'showMouseCoords')
+
+			--ig.igSameLine()
+			--ig.luatableTooltipCheckbox('mouse influence equations', self, 'mouse_influenceEquations')
 
 
-		--ig.luatableTooltipSliderFloat('fixed y', self, 'displayFixedY', -10, 10)
-		--ig.luatableTooltipSliderFloat('fixed z', self, 'displayFixedZ', -10, 10)
-		ig.igPushID_Str'fixed y zoom'
-		if ig.igButton'+' then
-			self.displayFixedY = self.displayFixedY + .1
-		end
-		ig.igSameLine()
-		if ig.igButton'-' then
-			self.displayFixedY = self.displayFixedY - .1
-		end
-		ig.igSameLine()
-		ig.luatableTooltipInputFloatAsText('fixed y', self, 'displayFixedY')
-		ig.igPopID()
+			if ig.igRadioButton_Bool('ortho', self.view == self.orthoView) then
+				self.view = self.orthoView
+			end
+			ig.igSameLine()
+			if ig.igRadioButton_Bool('frustum', self.view == self.frustumView) then
+				self.view = self.frustumView
+			end
 
-		ig.igPushID_Str'fixed z zoom'
-		if ig.igButton'+' then
-			self.displayFixedZ = self.displayFixedZ + .1
-		end
-		ig.igSameLine()
-		if ig.igButton'-' then
-			self.displayFixedZ = self.displayFixedZ - .1
-		end
-		ig.igSameLine()
-		ig.luatableTooltipInputFloatAsText('fixed z', self, 'displayFixedZ')
-		ig.igPopID()
+			-- TODO per-solver
+			for j=1,3 do
+				if ig.igRadioButton_Bool(j..'D', self.displayDim == j) then
+					self.displayDim = j
+				end
+				if j < 3 then ig.igSameLine() end
+			end
 
-		-- TODO per-solver
-		do
-			local q = self.displaySliceAngle
-			-- [[ TODO replace this with trackball behavior
-			if ig.luatableTooltipSliderFloat('slice qw', q, 'w', -1, 1) then q:normalize(q) end
-			if ig.luatableTooltipSliderFloat('slice qx', q, 'x', -1, 1) then q:normalize(q) end
-			if ig.luatableTooltipSliderFloat('slice qy', q, 'y', -1, 1) then q:normalize(q) end
-			if ig.luatableTooltipSliderFloat('slice qz', q, 'z', -1, 1) then q:normalize(q) end
+
+			--ig.luatableTooltipSliderFloat('fixed y', self, 'displayFixedY', -10, 10)
+			--ig.luatableTooltipSliderFloat('fixed z', self, 'displayFixedZ', -10, 10)
+			ig.igPushID_Str'fixed y zoom'
+			if ig.igButton'+' then
+				self.displayFixedY = self.displayFixedY + .1
+			end
+			ig.igSameLine()
+			if ig.igButton'-' then
+				self.displayFixedY = self.displayFixedY - .1
+			end
+			ig.igSameLine()
+			ig.luatableTooltipInputFloatAsText('fixed y', self, 'displayFixedY')
+			ig.igPopID()
+
+			ig.igPushID_Str'fixed z zoom'
+			if ig.igButton'+' then
+				self.displayFixedZ = self.displayFixedZ + .1
+			end
+			ig.igSameLine()
+			if ig.igButton'-' then
+				self.displayFixedZ = self.displayFixedZ - .1
+			end
+			ig.igSameLine()
+			ig.luatableTooltipInputFloatAsText('fixed z', self, 'displayFixedZ')
+			ig.igPopID()
+
+			-- TODO per-solver
+			do
+				local q = self.displaySliceAngle
+				-- [[ TODO replace this with trackball behavior
+				if ig.luatableTooltipSliderFloat('slice qw', q, 'w', -1, 1) then q:normalize(q) end
+				if ig.luatableTooltipSliderFloat('slice qx', q, 'x', -1, 1) then q:normalize(q) end
+				if ig.luatableTooltipSliderFloat('slice qy', q, 'y', -1, 1) then q:normalize(q) end
+				if ig.luatableTooltipSliderFloat('slice qz', q, 'z', -1, 1) then q:normalize(q) end
+				--]]
+			end
+			-- [[ fixed planes
+			ig.igText'slice:'
+			ig.igSameLine()
+			if ig.igButton'xy' then
+				self.displaySliceAngle:set(0,0,0,1)
+			end
+			ig.igSameLine()
+			if ig.igButton'xz' then
+				self.displaySliceAngle:fromAngleAxis(1,0,0,90)
+			end
+			ig.igSameLine()
+			if ig.igButton'yz' then
+				self.displaySliceAngle:fromAngleAxis(0,1,0,90)
+			end
 			--]]
-		end
-		-- [[ fixed planes
-		ig.igText'slice:'
-		ig.igSameLine()
-		if ig.igButton'xy' then
-			self.displaySliceAngle:set(0,0,0,1)
-		end
-		ig.igSameLine()
-		if ig.igButton'xz' then
-			self.displaySliceAngle:fromAngleAxis(1,0,0,90)
-		end
-		ig.igSameLine()
-		if ig.igButton'yz' then
-			self.displaySliceAngle:fromAngleAxis(0,1,0,90)
-		end
-		--]]
 
-		-- TODO flag for separate/combined displays (esp for ortho view)
+			-- TODO flag for separate/combined displays (esp for ortho view)
 
-		-- TODO flag to toggle slice vs volume display
-		-- or maybe checkboxes for each kind?
-
-		do
-			local dim = self.displayDim
-			if dim == 1 then
-				ig.igPushID_Str'1D'
-				for i,method in ipairs(self.display1DMethods) do
-					if i > 1 then ig.igSameLine() end
-					local name, func = next(method)
-					ig.luatableTooltipCheckbox(name, self.display1DMethodsEnabled, name)
-				end
-				ig.igPopID()
-			elseif dim == 2 then
-				ig.igPushID_Str'2D'
-				for i,method in ipairs(self.display2DMethods) do
-					if i > 1 then ig.igSameLine() end
-					local name, func = next(method)
-					ig.luatableTooltipCheckbox(name, self.display2DMethodsEnabled, name)
-				end
-				ig.igPopID()
-			elseif dim == 3 then
-				ig.igPushID_Str'3D'
-				for i,method in ipairs(self.display3DMethods) do
-					if i > 1 then ig.igSameLine() end
-					local name, func = next(method)
-					ig.luatableTooltipCheckbox(name, self.display3DMethodsEnabled, name)
-				end
-				ig.igPopID()
-			end
+			-- TODO flag to toggle slice vs volume display
+			-- or maybe checkboxes for each kind?
 
 			do
-				ig.igPushID_Str'Vector'
-
-				for i,method in ipairs(self.displayVectorMethods) do
-					if i > 1 then ig.igSameLine() end
-					local name, func = next(method)
-					ig.luatableTooltipCheckbox(name, self.displayVectorMethodsEnabled, name)
+				local dim = self.displayDim
+				if dim == 1 then
+					ig.igPushID_Str'1D'
+					for i,method in ipairs(self.display1DMethods) do
+						if i > 1 then ig.igSameLine() end
+						local name, func = next(method)
+						ig.luatableTooltipCheckbox(name, self.display1DMethodsEnabled, name)
+					end
+					ig.igPopID()
+				elseif dim == 2 then
+					ig.igPushID_Str'2D'
+					for i,method in ipairs(self.display2DMethods) do
+						if i > 1 then ig.igSameLine() end
+						local name, func = next(method)
+						ig.luatableTooltipCheckbox(name, self.display2DMethodsEnabled, name)
+					end
+					ig.igPopID()
+				elseif dim == 3 then
+					ig.igPushID_Str'3D'
+					for i,method in ipairs(self.display3DMethods) do
+						if i > 1 then ig.igSameLine() end
+						local name, func = next(method)
+						ig.luatableTooltipCheckbox(name, self.display3DMethodsEnabled, name)
+					end
+					ig.igPopID()
 				end
 
-				ig.igPopID()
+				do
+					ig.igPushID_Str'Vector'
+
+					for i,method in ipairs(self.displayVectorMethods) do
+						if i > 1 then ig.igSameLine() end
+						local name, func = next(method)
+						ig.luatableTooltipCheckbox(name, self.displayVectorMethodsEnabled, name)
+					end
+
+					ig.igPopID()
+				end
 			end
+
+			if self.view == self.frustumView then
+				local q = self.frustumView.angle
+				-- [[ TODO replace this with trackball behavior
+				if ig.luatableTooltipSliderFloat('frustum angle qx', q, 'x', -1, 1) then q:normalize(q) end
+				if ig.luatableTooltipSliderFloat('frustum angle qy', q, 'y', -1, 1) then q:normalize(q) end
+				if ig.luatableTooltipSliderFloat('frustum angle qz', q, 'z', -1, 1) then q:normalize(q) end
+				if ig.luatableTooltipSliderFloat('frustum angle qw', q, 'w', -1, 1) then q:normalize(q) end
+				--]]
+			end
+			if self.useClipPlanes then
+				for i,info in ipairs(self.clipInfos) do
+					ig.igPushID_Str('solver clip plane '..i)
+					ig.luatableTooltipCheckbox('clip plane enabled', info, 'enabled')
+					ig.luatableTooltipSliderFloat('clip plane x', info.plane, 'x', -1, 1)
+					ig.luatableTooltipSliderFloat('clip plane y', info.plane, 'y', -1, 1)
+					ig.luatableTooltipSliderFloat('clip plane z', info.plane, 'z', -1, 1)
+					ig.luatableTooltipSliderFloat('clip plane w', info.plane, 'w', -1, 1)
+					ig.igPopID()
+				end
+			end
+		
+			ig.igEndMenu()
 		end
 
-		if self.view == self.frustumView then
-			local q = self.frustumView.angle
-			-- [[ TODO replace this with trackball behavior
-			if ig.luatableTooltipSliderFloat('frustum angle qx', q, 'x', -1, 1) then q:normalize(q) end
-			if ig.luatableTooltipSliderFloat('frustum angle qy', q, 'y', -1, 1) then q:normalize(q) end
-			if ig.luatableTooltipSliderFloat('frustum angle qz', q, 'z', -1, 1) then q:normalize(q) end
-			if ig.luatableTooltipSliderFloat('frustum angle qw', q, 'w', -1, 1) then q:normalize(q) end
-			--]]
-		end
-		if self.useClipPlanes then
-			for i,info in ipairs(self.clipInfos) do
-				ig.igPushID_Str('solver clip plane '..i)
-				ig.luatableTooltipCheckbox('clip plane enabled', info, 'enabled')
-				ig.luatableTooltipSliderFloat('clip plane x', info.plane, 'x', -1, 1)
-				ig.luatableTooltipSliderFloat('clip plane y', info.plane, 'y', -1, 1)
-				ig.luatableTooltipSliderFloat('clip plane z', info.plane, 'z', -1, 1)
-				ig.luatableTooltipSliderFloat('clip plane w', info.plane, 'w', -1, 1)
+		if ig.igBeginMenu'Simulations' then
+			for i,solver in ipairs(self.solvers) do
+				ig.igPushID_Str('solver '..i)
+				if ig.igCollapsingHeader(solver.name) then
+					-- TODO new window for each
+					solver:updateGUI()
+				end
 				ig.igPopID()
 			end
+			ig.igEndMenu()
 		end
-	end
 
-	for i,solver in ipairs(self.solvers) do
-		ig.igPushID_Str('solver '..i)
-		if ig.igCollapsingHeader(solver.name) then
-			-- TODO new window for each
-			solver:updateGUI()
-		end
-		ig.igPopID()
+		ig.igEndMainMenuBar()
 	end
 
 	if self.showMouseCoords
