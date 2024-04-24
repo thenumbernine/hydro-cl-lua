@@ -776,8 +776,13 @@ void main() {
 			return enabled, name
 		end)
 
-		self.orthoView = require 'hydro.view.ortho'()
-		self.frustumView = require 'hydro.view.frustum'()
+		self.orthoView = require 'hydro.view.ortho'{
+			zoom = cmdline.zoom,
+		}
+		self.frustumView = require 'hydro.view.frustum'{
+			dist = cmdline.frustumDist,
+			angle = cmdline.frustumAngle,
+		}
 		self.view = (#self.solvers > 0 and self.solvers[1].dim == 3) and self.frustumView or self.orthoView
 		if cmdline.frustum then
 			self.view = self.frustumView
