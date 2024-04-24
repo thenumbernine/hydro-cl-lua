@@ -5,7 +5,7 @@ local vec3f = require 'vec-ffi.vec3f'
 local gl = require 'gl'
 local GLVertexArray = require 'gl.vertexarray'
 local GLArrayBuffer = require 'gl.arraybuffer'
-local vector = require 'ffi.cpp.vector'
+local vector = require 'ffi.cpp.vector-lua'
 local Draw = require 'hydro.draw.draw'
 
 
@@ -66,8 +66,8 @@ function DrawVectorField:showDisplayVar(var, varName, ar, xmin, xmax, ymin, ymax
 
 	-- TODO store these vectors per-solver?
 	-- nah, once the capacity grows to the largest solver's size, it will stay there.
-	if not self.glvtxs then self.glvtxs = vector'vec2f_t'() end
-	if not self.glcenters then self.glcenters = vector'vec3f_t'() end
+	if not self.glvtxs then self.glvtxs = vector'vec2f_t' end
+	if not self.glcenters then self.glcenters = vector'vec3f_t' end
 
 	if not solver.vectorArrowGLVtxArrayBuffer
 	-- assert that glvtxs and glcenters are the same size

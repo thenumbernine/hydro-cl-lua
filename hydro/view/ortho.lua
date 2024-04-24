@@ -3,7 +3,6 @@ local gl = require 'gl'
 local vec2d = require 'vec-ffi.vec2d'
 local matrix_ffi = require 'matrix.ffi'
 
-matrix_ffi.real = 'float'	-- default matrix_ffi type
 
 local OrthoView = class()
 
@@ -12,9 +11,9 @@ function OrthoView:init()
 	self.zoom = vec2d(zoom, zoom)
 	self.pos = vec2d()
 
-	self.modelViewMatrix = matrix_ffi.zeros{4,4}
-	self.projectionMatrix = matrix_ffi.zeros{4,4}
-	self.modelViewProjectionMatrix = matrix_ffi.zeros{4,4}
+	self.modelViewMatrix = matrix_ffi.zeros({4,4}, 'float')
+	self.projectionMatrix = matrix_ffi.zeros({4,4}, 'float')
+	self.modelViewProjectionMatrix = matrix_ffi.zeros({4,4}, 'float')
 end
 
 -- returns xmin, xmax, ymin, ymax, zmin, zmax

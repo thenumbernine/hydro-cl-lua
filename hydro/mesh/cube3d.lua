@@ -83,7 +83,7 @@ function Cube3DMeshFactory:createMesh(solver)
 			local niy = (iy + 1) % ny
 			for ix=0,imaxx-1 do
 				local nix = (ix + 1) % nx
-				mesh:addCell(vector'int'{
+				mesh:addCell(vector('int', {
 					--using z-order
 					ix + nx * (iy + ny * iz),
 					nix + nx * (iy + ny * iz),
@@ -94,7 +94,7 @@ function Cube3DMeshFactory:createMesh(solver)
 					nix + nx * (iy + ny * niz),
 					ix + nx * (niy + ny * niz),
 					nix + nx * (niy + ny * niz),
-				})
+				}))
 			end
 		end
 	end

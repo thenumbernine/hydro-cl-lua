@@ -2,7 +2,7 @@ local gl = require 'gl'
 local vec3f = require 'vec-ffi.vec3f'
 local path = require 'ext.path'
 local matrix_ffi = require 'matrix.ffi'
-local vector = require 'ffi.cpp.vector'
+local vector = require 'ffi.cpp.vector-lua'
 local Draw = require 'hydro.draw.draw'
 
 
@@ -46,7 +46,7 @@ function DrawVectorStateLine:showDisplayVar(var, varName, ar, xmin, xmax, ymin, 
 
 	gl.glUniform1f(uniforms.ambient.loc, app.displayDim == 1 and 1 or .3)
 
-	if not self.vertexes then self.vertexes = vector'vec3f_t'() end
+	if not self.vertexes then self.vertexes = vector'vec3f_t' end
 
 	local step = 1
 	local numX = math.floor((tonumber(solver.sizeWithoutBorder.x) + 1) / step)
@@ -68,10 +68,10 @@ function DrawVectorStateLine:showDisplayVar(var, varName, ar, xmin, xmax, ymin, 
 	self.ProjectionMatrix = self.ProjectionMatrix or matrix_ffi(nil, 'float', {4,4})
 	gl.glGetFloatv(gl.GL_PROJECTION_MATRIX, self.ProjectionMatrix.ptr)
 
-	self.ModelViewProjectionMatrix = self.ModelViewProjectionMatrix or require 'matrix.ffi'(nil, 'float', {4,4})
+	self.ModelViewProjectionMatrix = self.ModelViewProjectionMatrix or matrix_ffi(nil, 'float', {4,4})
 	matrix_ffi.mul(self.ModelViewProjectionMatrix, self.ProjectionMatrix, self.ModelViewMatrix)
 
-	gl.glUniformMatrix4fv(uniforms.modelViewProjectionMatrix.loc, 1, gl.GL_FALSE, self.ModelViewProjectionMatrix.ptr)
+	gl.glUniformMatrix4fv(uniforms.modelViewProjectionMatrix.loc, 1, gl.GL_TRUE, self.ModelViewProjectionMatrix.ptr)
 	--]]
 
 	-- TODO don't do this at all.  just somehow get around it.  idk, geometry shaders or something.

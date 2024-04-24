@@ -5,7 +5,6 @@ local vec3d = require 'vec-ffi.vec3d'
 local quatd = require 'vec-ffi.quatd'
 local matrix_ffi = require 'matrix.ffi'
 
-matrix_ffi.real = 'float'	-- default matrix_ffi type
 
 local FrustumView = class()
 
@@ -15,9 +14,9 @@ function FrustumView:init()
 	self.angle = quatd(table.unpack(cmdline.frustumAngle or {0,0,0,1}))
 	self.angle:normalize(self.angle)
 
-	self.modelViewMatrix = matrix_ffi.zeros{4,4}
-	self.projectionMatrix = matrix_ffi.zeros{4,4}
-	self.modelViewProjectionMatrix = matrix_ffi.zeros{4,4}
+	self.modelViewMatrix = matrix_ffi.zeros({4,4}, 'float')
+	self.projectionMatrix = matrix_ffi.zeros({4,4}, 'float')
+	self.modelViewProjectionMatrix = matrix_ffi.zeros({4,4}, 'float')
 end
 
 FrustumView.zFar = 1000

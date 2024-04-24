@@ -3,7 +3,7 @@ local gl = require 'gl'
 local vec3f = require 'vec-ffi.vec3f'
 local path = require 'ext.path'
 local matrix_ffi = require 'matrix.ffi'
-local vector = require 'ffi.cpp.vector'
+local vector = require 'ffi.cpp.vector-lua'
 local Draw = require 'hydro.draw.draw'
 
 
@@ -48,7 +48,7 @@ function Draw1D:showDisplayVar(var)
 
 	gl.glUniform3f(uniforms.color.loc, (#app.solvers > 1 and solver or var).color:unpack())
 
-	if not self.vertexes then self.vertexes = vector'vec3f_t'() end
+	if not self.vertexes then self.vertexes = vector'vec3f_t' end
 
 	local step = 1
 	local numVertexes = math.floor((tonumber(solver.gridSize.x) - 2 * solver.numGhost + 1) / step)	-- (endindex - startindex + 1) / step
@@ -68,10 +68,10 @@ function Draw1D:showDisplayVar(var)
 	self.ProjectionMatrix = self.ProjectionMatrix or matrix_ffi(nil, 'float', {4,4})
 	gl.glGetFloatv(gl.GL_PROJECTION_MATRIX, self.ProjectionMatrix.ptr)
 
-	self.ModelViewProjectionMatrix = self.ModelViewProjectionMatrix or require 'matrix.ffi'(nil, 'float', {4,4})
+	self.ModelViewProjectionMatrix = self.ModelViewProjectionMatrix or matrix_ffi(nil, 'float', {4,4})
 	matrix_ffi.mul(self.ModelViewProjectionMatrix, self.ProjectionMatrix, self.ModelViewMatrix)
 
-	gl.glUniformMatrix4fv(uniforms.modelViewProjectionMatrix.loc, 1, gl.GL_FALSE, self.ModelViewProjectionMatrix.ptr)
+	gl.glUniformMatrix4fv(uniforms.modelViewProjectionMatrix.loc, 1, gl.GL_TRUE, self.ModelViewProjectionMatrix.ptr)
 	--]]
 
 	for i=0,numVertexes-1 do

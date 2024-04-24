@@ -7,7 +7,7 @@ local math = require 'ext.math'
 local table = require 'ext.table'
 local range = require 'ext.range'
 local vec2i = require 'vec-ffi.vec2i'
-local vector = require 'ffi.cpp.vector'
+local vector = require 'ffi.cpp.vector-lua'
 -- one of these is bound to be real3, right?
 local vec3f = require 'vec-ffi.vec3f'
 local vec3d = require 'vec-ffi.vec3d'
@@ -101,16 +101,16 @@ function Mesh:init(solver)
 	
 	self.solver = solver
 
-	self.vtxs = vector'real3'()
+	self.vtxs = vector'real3'
 	-- face_t and cell_t haven't been fully defined
 	-- so how about here instead we fill in a temporary structure with minimal info,
 	-- then let the solver fully define these structs / any custom vars,
 	-- and then copy the minimal structs over into the full structs?
-	self.faces = vector'meshface_t'()
-	self.cells = vector'meshcell_t'()
-	self.cellFaceIndexes = vector'int'()
-	self.cellVtxIndexes = vector'int'()
-	self.faceVtxIndexes = vector'int'()
+	self.faces = vector'meshface_t'
+	self.cells = vector'meshcell_t'
+	self.cellFaceIndexes = vector'int'
+	self.cellVtxIndexes = vector'int'
+	self.faceVtxIndexes = vector'int'
 	self.real3 = function(x,y,z)
 		return ffi.new('real3', {x=x, y=y, z=z})
 	end

@@ -1,7 +1,7 @@
 local table = require 'ext.table'
 local string = require 'ext.string'
 local path = require 'ext.path'
-local vector = require 'ffi.cpp.vector'
+local vector = require 'ffi.cpp.vector-lua'
 local Mesh = require 'hydro.mesh.mesh'
 local MeshFactory = require 'hydro.mesh.factory'
 
@@ -40,11 +40,11 @@ function Edu2DGridMeshFactory:createMesh(solver)
 	end
 	for i=1,numTris do
 		local a,b,c = lineToNums(ls:remove(1), 3)
-		mesh:addCell(vector'int'{a-1,b-1,c-1})
+		mesh:addCell(vector('int', {a-1,b-1,c-1}))
 	end
 	for i=1,numQuads do
 		local a,b,c,d = lineToNums(ls:remove(1), 4)
-		mesh:addCell(vector'int'{a-1,b-1,c-1,d-1})
+		mesh:addCell(vector('int', {a-1,b-1,c-1,d-1}))
 	end
 
 	local numBoundaryMethods = lineToNums(ls:remove(1), 1)

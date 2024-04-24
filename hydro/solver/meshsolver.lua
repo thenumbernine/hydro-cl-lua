@@ -22,7 +22,7 @@ local clnumber = require 'cl.obj.number'
 local SolverBase = require 'hydro.solver.solverbase'
 local timer = require 'ext.timer'.timer
 local real = require 'hydro.real'
-local vector = require 'ffi.cpp.vector'
+local vector = require 'ffi.cpp.vector-lua'
 
 local half = require 'cl.obj.half'
 local toreal, fromreal = half.toreal, half.fromreal
@@ -375,9 +375,9 @@ function MeshSolver:initDraw()
 	-- then store per vertex the lookup to the texture.
 	-- Also, if you are going to scale cells, then you must store a unique vertex per cell here.
 	-- this means no dynamic mesh (without more coding).
-	local glvtxs = vector'vec3f_t'()			-- vertex position
-	local glvtxcenters = vector'vec3f_t'()	-- center of cell for this vertex
-	local glcellindex = vector'float'()		-- 0-based index of cell for this vertex
+	local glvtxs = vector'vec3f_t'			-- vertex position
+	local glvtxcenters = vector'vec3f_t'	-- center of cell for this vertex
+	local glcellindex = vector'float'		-- 0-based index of cell for this vertex
 	timer('creating display mesh', function()
 		local function addTri(va,vb,vc, ci,c)
 			glvtxs:push_back(vec3f(va:unpack()))
@@ -528,7 +528,7 @@ function MeshSolver:createBuffers()
 	-- to face_t and cell_t
 	-- hmm, but if any custom fields are included, I'll bet the subclass will want to populate those ...
 	local mesh = self.mesh
-	local faces = vector(self.coord.face_t)(self.numFaces)
+	local faces = vector(self.coord.face_t, self.numFaces)
 	for i=0,self.numFaces-1 do
 		faces.v[i].pos = mesh.faces.v[i].pos
 		faces.v[i].normal = mesh.faces.v[i].normal
@@ -543,7 +543,7 @@ function MeshSolver:createBuffers()
 	end
 	mesh.faces = faces
 
-	local cells = vector(self.coord.cell_t)(self.numCells)
+	local cells = vector(self.coord.cell_t, self.numCells)
 	for i=0,self.numCells-1 do
 		cells.v[i].pos = mesh.cells.v[i].pos
 		cells.v[i].volume = mesh.cells.v[i].volume
