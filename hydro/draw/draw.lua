@@ -11,6 +11,8 @@ local matrix_ffi = require 'matrix.ffi'
 
 local Draw = class()
 
+Draw.glslVersion = '#version '..(cmdline.glslVersion or '460')
+
 function Draw:init(solver)
 	self.solver = assert(solver)
 end

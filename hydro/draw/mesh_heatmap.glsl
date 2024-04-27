@@ -1,4 +1,4 @@
-#version 460
+<?=draw.glslVersion?>
 
 <? 
 local varying = vertexShader and "out"
