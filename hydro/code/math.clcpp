@@ -2613,20 +2613,20 @@ static inline real4 quatUnitConj(real4 q) {
 }
 
 static inline real4 quatMul(real4 q, real4 r) {
-	real a = (q.w + q.x) * (r.w + r.x);
-	real b = (q.z - q.y) * (r.y - r.z);
-	real c = (q.x - q.w) * (r.y + r.z);
-	real d = (q.y + q.z) * (r.x - r.w);
-	real e = (q.x + q.z) * (r.x + r.y);
-	real f = (q.x - q.z) * (r.x - r.y);
-	real g = (q.w + q.y) * (r.w - r.z);
-	real h = (q.w - q.y) * (r.w + r.z);
+	real const a = (q.w + q.x) * (r.w + r.x);
+	real const b = (q.z - q.y) * (r.y - r.z);
+	real const c = (q.x - q.w) * (r.y + r.z);
+	real const d = (q.y + q.z) * (r.x - r.w);
+	real const e = (q.x + q.z) * (r.x + r.y);
+	real const f = (q.x - q.z) * (r.x - r.y);
+	real const g = (q.w + q.y) * (r.w - r.z);
+	real const h = (q.w - q.y) * (r.w + r.z);
 
 	return real4{
-		 a - .5 * ( e + f + g + h), //x
-		-c + .5 * ( e - f + g - h), //y
-		-d + .5 * ( e - f - g + h), //z
-		 b + .5 * (-e - f + g + h)}; //w
+		 a - real(.5) * ( e + f + g + h), //x
+		-c + real(.5) * ( e - f + g - h), //y
+		-d + real(.5) * ( e - f - g + h), //z
+		 b + real(.5) * (-e - f + g + h)}; //w
 }
 
 
