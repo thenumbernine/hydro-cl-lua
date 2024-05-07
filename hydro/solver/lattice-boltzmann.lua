@@ -9,7 +9,7 @@ local LatticeBoltzmann = GridSolver:subclass()
 
 LatticeBoltzmann.name = 'LatticeBoltzmann'
 
---LatticeBoltzmann.numGhost=1 -- I think is enough for a Lattice Boltzmann offset range of +-1
+--LatticeBoltzmann.numGhost = 1 -- I think is enough for a Lattice Boltzmann offset range of +-1
 
 function LatticeBoltzmann:init(...)
 	LatticeBoltzmann.super.init(self, ...)
@@ -189,6 +189,8 @@ function LatticeBoltzmann:step(dt)
 		print('LBM step:')
 		self:printBuf(self.UBuf)
 	end
+	if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
+	self:boundary()
 	if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
 
 	self.advectKernelObj(self.solverBuf, self.UNextBuf, self.UBuf)

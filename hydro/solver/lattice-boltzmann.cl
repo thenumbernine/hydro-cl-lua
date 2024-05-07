@@ -61,7 +61,11 @@ kernel void <?=calcPrims?>(
 	constant <?=solver_t?> const * const solver,
 	global <?=cons_t?> * const UBuf
 ) {
+<? if false then ?>
 	<?=SETBOUNDS?>(solver->numGhost, solver->numGhost);
+<? else ?>
+	<?=SETBOUNDS?>(0, 0);
+<? end ?>
 	
 	global <?=cons_t?> * const U = UBuf + index;
 	
@@ -95,13 +99,15 @@ kernel void <?=calcPrims?>(
 kernel void <?=applyCollision?>(
 	constant <?=solver_t?> const * const solver,
 	global <?=cons_t?> * const UBuf,
-	realparam const dt
+	realparam const dt	// is this really the timestep?
 ) {
+<? if false then ?>
 	<?=SETBOUNDS?>(solver->numGhost, solver->numGhost);
-	
-	global <?=cons_t?> * const U = UBuf + index;
+<? else ?>
+	<?=SETBOUNDS?>(0, 0);
+<? end ?>
 
-	real const invdt = 1. / dt;
+	global <?=cons_t?> * const U = UBuf + index;
 
 	if (!U->solid) {
 		real3 const v = U->v;
@@ -113,8 +119,8 @@ kernel void <?=applyCollision?>(
 ?>		{
 			real const velDotOfs = v.x * <?=c.x?> + v.y * <?=c.y?> + v.z * <?=c.z?>;
 			real const Feq = U->rho * <?=ofs.weight?> * (1. + 3. * velDotOfs + 4.5 * velDotOfs * velDotOfs - 1.5 * vSq);
-			U->F<?=ofsindex?> *= 1. - invdt;
-			U->F<?=ofsindex?> += invdt *  Feq;
+			U->F<?=ofsindex?> *= 1. - dt;
+			U->F<?=ofsindex?> += dt *  Feq;
 		}
 <?	end
 ?>

@@ -697,8 +697,9 @@ if cmdline.solver then self.solvers:insert(require('hydro.solver.'..cmdline.solv
 -- [[ TODO FIXME there's something off, and it explodes after a while
 self.solvers:insert(require 'hydro.solver.lattice-boltzmann'(table(args, {
 	initCond = 'cylinder',
-	fixedDT = .6,
-	gridSize = {400,100},
+	fixedDT = 5/3,
+	--gridSize = {400,100},
+	gridSize = {200,200},
 	usePLM = false,
 	useCTU = false,
 	--boundary = 'freeflow',

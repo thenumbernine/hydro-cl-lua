@@ -6,8 +6,10 @@ local LatticeBoltzmannInitCond = InitCond:subclass()
 local initConds = table{
 	{
 		name = 'cylinder',
-		mins = {-1, -.25, -1},
-		maxs = {1, .25, 1},
+		--mins = {-1, -.25, -1},
+		--maxs = {1, .25, 1},
+		mins = {-1, -1, -1},
+		maxs = {1, 1, 1},
 		guiVars = {
 			{name='r', value=.1},
 			{name='cx', value=-.8},
