@@ -25,14 +25,7 @@ function LatticeBoltzmann:getSymbolFields()
 	}
 end
 
-
-function LatticeBoltzmann:initMeshVars(args)
-	LatticeBoltzmann.super.initMeshVars(self, args)
-	
-	self.solverStructFields:append{
-		{name='weights', type='real[27]'},
-	}
-
+function LatticeBoltzmann:initLBOffsets()
 
 	-- when I first wrote this, I was trying to minimize the amount of Lua code, for quick port to clcpp/spirv toolchain separate of Lua.
 	-- but meh, too much weird offset math ... so when I do port this to clcpp then I'll move this to template code.
@@ -67,6 +60,7 @@ function LatticeBoltzmann:initMeshVars(args)
 		end
 	end
 
+	-- TODO merge with self.offsets
 	if self.dim == 1 then
 		self.lbWeights = {1/4, 1/2, 1/4}
 	elseif self.dim == 2 then
@@ -85,8 +79,16 @@ function LatticeBoltzmann:initMeshVars(args)
 
 	assert(self.ofsvol == #self.lbWeights)
 	assert(#self.offsets == #self.lbWeights)
-
 	assert(self.ofsvol == #self.offsets)
+end
+
+function LatticeBoltzmann:initMeshVars(args)
+	LatticeBoltzmann.super.initMeshVars(self, args)
+	
+	self.solverStructFields:append{
+		--{name='weights', type='real['..#self.offsets..']'},
+		{name='weights', type='real[27]'},
+	}
 end
 
 function LatticeBoltzmann:createSolverBuf()
@@ -116,12 +118,16 @@ LatticeBoltzmannEqn.name = 'LatticeBoltzmann'
 LatticeBoltzmannEqn.initConds = require 'hydro.init.lattice-boltzmann':getList()
 function LatticeBoltzmannEqn:buildVars()
 	self.consVars = self.consVars or table()
+
+	self.solver:initLBOffsets()
+	
 	self.consVars:append{
 		{name='rho', type='real'},
 		{name='v', type='real3'},
 		{name='solid', type='real'},
-		{name='F', type='real['..self.solver.ofsvol..']'},
-	}
+	}:append(self.solver.offsets:mapi(function(ofs, i)
+		return {name='F'..(i-1), type='real'}
+	end))
 end
 function LatticeBoltzmannEqn:initCodeModule_calcDTCell() end
 function LatticeBoltzmannEqn:initCodeModule_calcDT() end
@@ -138,15 +144,17 @@ function LatticeBoltzmannEqn:getDisplayVars()
 	vars:append{
 		{name='rhoSum', code=self:template[[
 value.vreal = 0;
-for (int i = 0; i < <?=solver.ofsvol?>; ++i) {
-	value.vreal += U->F[i];
-}
+<? for i=0,#solver.offsets-1 do
+?>value.vreal += U->F<?=i?>;
+<? end
+?>
 ]], type='real'},
 		{name='rho-rhoSum', code=self:template[[
 value.vreal = -U->rho;
-for (int i = 0; i < <?=solver.ofsvol?>; ++i) {
-	value.vreal += U->F[i];
-}
+<? for i=0,#solver.offsets-1 do
+?>value.vreal += U->F<?=i?>;
+<? end
+?>
 ]], type='real'},
 	}
 
