@@ -10,6 +10,8 @@ https://github.com/wme7/WENO7-Z/blob/master/WENO7ZresAdv1d.m for weno7 examples
 https://github.com/python-hydro/hydro_examples/blob/master/compressible/weno_coefficients.py likewise
 
 TODO incorporate parallel propagators
+
+TODO ... maybe ... WENO should be a 'Flux' object rather than a 'Solver' ?
 --]]
 local ffi = require 'ffi'
 local table = require 'ext.table'
@@ -35,6 +37,7 @@ WENO.wenoMethod = '1996 Jiang Shu'	-- (WENO-JS)
 --WENO.wenoMethod = '2008 Borges'	-- (WENO-Z)
 --WENO.wenoMethod = '2010 Shen Zha'	-- (WENO-BS?)
 
+-- TODO use the hydro.flux classes here ?
 WENO.fluxMethod = 'Lax-Friedrichs'
 --WENO.fluxMethod = 'Marquina'
 --WENO.fluxMethod = 'Roe'	-- isn't as accurate ... and has an error? FIXME?

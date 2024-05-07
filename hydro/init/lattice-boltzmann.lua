@@ -23,17 +23,18 @@ local initConds = table{
 // TODO put this in lua ext.math?
 #define DBL_EPSILON 2.220446049250313080847e-16
 #define DBL_EPS_COMP (1. - DBL_EPSILON)
+
 solid = (real)(real3_len(real3_sub(xc, _real3(initCond->cx, initCond->cy, 0.))) < initCond->r);
 
 int ofsindex = 0;
 int4 c = (int4)(0,0,0,0);		
 int4 ofs = (int4)(0,0,0,0);
-for (ofs.z = 0; ofs.z < solver->ofsmax.z; ++ofs.z) {
-	c.z = ofs.z - (solver->ofsmax.z-1)/2;
-	for (ofs.y = 0; ofs.y < solver->ofsmax.y; ++ofs.y) {
-		c.y = ofs.y - (solver->ofsmax.y-1)/2;
-		for (ofs.x = 0; ofs.x < solver->ofsmax.x; ++ofs.x) {
-			c.x = ofs.x - (solver->ofsmax.x-1)/2;
+for (ofs.z = 0; ofs.z < <?=solver.ofssize.z?>; ++ofs.z) {
+	c.z = ofs.z + <?=solver.ofsmin.z?>;
+	for (ofs.y = 0; ofs.y < <?=solver.ofssize.y?>; ++ofs.y) {
+		c.y = ofs.y + <?=solver.ofsmin.y?>;
+		for (ofs.x = 0; ofs.x < <?=solver.ofssize.x?>; ++ofs.x) {
+			c.x = ofs.x + <?=solver.ofsmin.x?>;
 
 			real randunit = U->F[ofsindex];
 			real const s = randunit > .5 ? -1 : 1;
@@ -56,9 +57,11 @@ for (ofs.z = 0; ofs.z < solver->ofsmax.z; ++ofs.z) {
 real const rho0 = 100.;
 ofsindex = 0;
 ofs = (int4)(0,0,0,0);
-for (ofs.z = 0; ofs.z < solver->ofsmax.z; ++ofs.z) {
-	for (ofs.y = 0; ofs.y < solver->ofsmax.y; ++ofs.y) {
-		for (ofs.x = 0; ofs.x < solver->ofsmax.x; ++ofs.x) {
+
+for (ofs.z = 0; ofs.z < <?=solver.ofssize.z?>; ++ofs.z) {
+	for (ofs.y = 0; ofs.y < <?=solver.ofssize.y?>; ++ofs.y) {
+		for (ofs.x = 0; ofs.x < <?=solver.ofssize.x?>; ++ofs.x) {
+
 			F[ofsindex] *= rho0 / rho;
 			++ofsindex;
 		}

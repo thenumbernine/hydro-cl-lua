@@ -145,12 +145,12 @@ local args = {
 		}
 	)[dim],
 	boundary = type(cmdline.boundary) == 'table' and cmdline.boundary or {
-		xmin = cmdline.boundary or 'freeflow',
-		xmax = cmdline.boundary or 'freeflow',
-		ymin = cmdline.boundary or 'freeflow',
-		ymax = cmdline.boundary or 'freeflow',
-		zmin = cmdline.boundary or 'freeflow',
-		zmax = cmdline.boundary or 'freeflow',
+		xmin = cmdline.boundary or 'mirror',
+		xmax = cmdline.boundary or 'mirror',
+		ymin = cmdline.boundary or 'mirror',
+		ymax = cmdline.boundary or 'mirror',
+		zmin = cmdline.boundary or 'mirror',
+		zmax = cmdline.boundary or 'mirror',
 	},
 	--]]
 	--[[ cylinder
@@ -351,7 +351,7 @@ local args = {
 	--initCond = 'jet',	-- TODO naming initialization mixup with srhd and this problem
 
 
-	--initCond = 'Sod',
+	initCond = 'Sod',
 	--initCondArgs = {dim=cmdline.displayDim},
 	--[[ real-world vars for Sod ... which are a few orders higher, and therefore screw up the backward-euler solver
 	-- 		which means, todo, redo the backward euler error metric so it is independent of magnitude ... ?   seems I removed that for another numerical error reason.
@@ -384,7 +384,7 @@ local args = {
 	--]]
 
 
-	initCond = 'rectangle',
+	--initCond = 'rectangle',
 	--initCond = 'Sedov',
 	--initCond = 'Noh',
 	--initCond = 'implosion',
@@ -694,8 +694,17 @@ if cmdline.solver then self.solvers:insert(require('hydro.solver.'..cmdline.solv
 
 -- fitting a lattice-boltzmann solver into my framework
 
-
---self.solvers:insert(require 'hydro.solver.lattice-boltzmann'(table(args, {initCond='cylinder', fixedDT=.6, gridSize={400,100}, usePLM=false, useCTU=false})))
+-- [[ TODO FIXME there's something off, and it explodes after a while
+self.solvers:insert(require 'hydro.solver.lattice-boltzmann'(table(args, {
+	initCond = 'cylinder',
+	fixedDT = .6,
+	gridSize = {400,100},
+	usePLM = false,
+	useCTU = false,
+	--boundary = 'freeflow',
+	boundary = 'periodic',
+})))
+--]]
 
 
 -- simple wave equation, no time/space coupling via background metric
@@ -788,7 +797,7 @@ self.solvers:insert(require 'hydro.solver.weno'(table(args, {
 -- compressible Euler equations
 
 
-self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
+--self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
 
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct bounded'})))	-- this is the default hllCalcWaveMethod
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct'})))
@@ -841,6 +850,7 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn
 -- other than weno, this works fine with finite volume codes
 --gridSize={64,1,1},
 
+--self.solvers:insert(require 'hydro.solver.discontinuous-galerkin'(table(args, {eqn='euler'})))
 
 -- incompressible
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler', eqnArgs={incompressible=true}})))

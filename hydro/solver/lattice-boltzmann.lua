@@ -1,12 +1,15 @@
 local ffi = require 'ffi'
 local table = require 'ext.table'
 local path = require 'ext.path'
-local vec3sz = require 'vec-ffi.vec3sz'
+local vec3i = require 'vec-ffi.vec3i'
 local GridSolver = require 'hydro.solver.gridsolver'
 local real = require 'hydro.real'
 
 local LatticeBoltzmann = GridSolver:subclass()
+
 LatticeBoltzmann.name = 'LatticeBoltzmann'
+
+--LatticeBoltzmann.numGhost=1 -- I think is enough for a Lattice Boltzmann offset range of +-1
 
 function LatticeBoltzmann:init(...)
 	LatticeBoltzmann.super.init(self, ...)
@@ -22,62 +25,77 @@ function LatticeBoltzmann:getSymbolFields()
 	}
 end
 
+
 function LatticeBoltzmann:initMeshVars(args)
 	LatticeBoltzmann.super.initMeshVars(self, args)
+	
 	self.solverStructFields:append{
-		{name='ofsmax', type='int4'},
-		{name='ofsstep', type='int4'},
-		{name='ofsvol', type='int'},
 		{name='weights', type='real[27]'},
 	}
 
-	self.ofsmax = vec3sz(
+
+	-- when I first wrote this, I was trying to minimize the amount of Lua code, for quick port to clcpp/spirv toolchain separate of Lua.
+	-- but meh, too much weird offset math ... so when I do port this to clcpp then I'll move this to template code.
+
+	-- i is 1-based, from [1,dim]
+	-- [-1,1] for valid dimensions, 0 otherwise
+
+	self.ofssize = vec3i(
 		self.dim >= 1 and 3 or 1,
 		self.dim >= 2 and 3 or 1,
 		self.dim >= 3 and 3 or 1
 	)
 
-	self.ofsvol = self.ofsmax:volume()
+	self.ofsmin = vec3i(
+		self.dim >= 1 and -1 or 0,
+		self.dim >= 2 and -1 or 0,
+		self.dim >= 3 and -1 or 0
+	)
 
-	self.ofsstep = vec3sz()
-	self.ofsstep.x = 1
-	self.ofsstep.y = self.ofsmax.x * self.ofsstep.x
-	self.ofsstep.z = self.ofsmax.y * self.ofsstep.y
+	self.offsets = table()
+	for oz=0,tonumber(self.ofssize.z)-1 do
+		local noz = self.ofssize.z - 1 - oz
+		for oy=0,tonumber(self.ofssize.y)-1 do
+			local noy = self.ofssize.y - 1 - oy
+			for ox=0,tonumber(self.ofssize.x)-1 do
+				local nox = self.ofssize.x - 1 - ox
+				self.offsets:insert{
+					c = vec3i(ox,oy,oz) + self.ofsmin,
+					oppositeOffsetIndex = nox + self.ofssize.x * (noy + self.ofssize.y * noz),
+				}
+			end
+		end
+	end
+
+	if self.dim == 1 then
+		self.lbWeights = {1/4, 1/2, 1/4}
+	elseif self.dim == 2 then
+		self.lbWeights = {
+			1/36, 4/36, 1/36,
+			4/36, 16/36, 4/36,
+			1/36, 4/36, 1/36,
+		}
+	elseif self.dim == 3 then
+		error'TODO'
+	else
+		error("unknown dim "..tostring(self.dim))
+	end
+	
+	self.ofsvol = tonumber(self.ofssize:volume())
+
+	assert(self.ofsvol == #self.lbWeights)
+	assert(#self.offsets == #self.lbWeights)
+
+	assert(self.ofsvol == #self.offsets)
 end
 
 function LatticeBoltzmann:createSolverBuf()
 	LatticeBoltzmann.super.createSolverBuf(self)
-	self.solverPtr.ofsmax.x = self.ofsmax.x
-	self.solverPtr.ofsmax.y = self.ofsmax.y
-	self.solverPtr.ofsmax.z = self.ofsmax.z
-	self.solverPtr.ofsmax.w = 0
-	self.solverPtr.ofsstep.x = self.ofsstep.x
-	self.solverPtr.ofsstep.y = self.ofsstep.y
-	self.solverPtr.ofsstep.z = self.ofsstep.z
-	self.solverPtr.ofsstep.w = self.ofsmax.z * self.ofsstep.z
-	
-	-- but super also calls refreshSolverBuf...
-	self.solverPtr.ofsvol = self.ofsvol
-	
-	if self.dim == 1 then
-		self.solverPtr.weights[0] = 1/4
-		self.solverPtr.weights[1] = 1/2
-		self.solverPtr.weights[2] = 1/4
-	elseif self.dim == 2 then
-		self.solverPtr.weights[0] = 1/36
-		self.solverPtr.weights[1] = 4/36
-		self.solverPtr.weights[2] = 1/36
-		self.solverPtr.weights[3] = 4/36
-		self.solverPtr.weights[4] = 16/36
-		self.solverPtr.weights[5] = 4/36
-		self.solverPtr.weights[6] = 1/36
-		self.solverPtr.weights[7] = 4/36
-		self.solverPtr.weights[8] = 1/36
-	elseif self.dim == 3 then
-	else
-		error("unknown dim "..tostring(self.dim))
-	end
 
+	for i,w in ipairs(self.lbWeights) do
+		self.solverPtr.weights[i-1] = w
+	end
+	
 	self:refreshSolverBuf()
 end
 
@@ -102,7 +120,7 @@ function LatticeBoltzmannEqn:buildVars()
 		{name='rho', type='real'},
 		{name='v', type='real3'},
 		{name='solid', type='real'},
-		{name='F', type='real['..tonumber(self.solver.ofsvol)..']'},
+		{name='F', type='real['..self.solver.ofsvol..']'},
 	}
 end
 function LatticeBoltzmannEqn:initCodeModule_calcDTCell() end
@@ -118,15 +136,15 @@ LatticeBoltzmannEqn.predefinedDisplayVars = {
 function LatticeBoltzmannEqn:getDisplayVars()
 	local vars = LatticeBoltzmannEqn.super.getDisplayVars(self)
 	vars:append{
-		{name='rhoSum', code=[[
+		{name='rhoSum', code=self:template[[
 value.vreal = 0;
-for (int i = 0; i < solver->ofsvol; ++i) {
+for (int i = 0; i < <?=solver.ofsvol?>; ++i) {
 	value.vreal += U->F[i];
 }
 ]], type='real'},
-		{name='rho-rhoSum', code=[[
+		{name='rho-rhoSum', code=self:template[[
 value.vreal = -U->rho;
-for (int i = 0; i < solver->ofsvol; ++i) {
+for (int i = 0; i < <?=solver.ofsvol?>; ++i) {
 	value.vreal += U->F[i];
 }
 ]], type='real'},
