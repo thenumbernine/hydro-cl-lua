@@ -12,8 +12,8 @@ void <?=applyInitCondCell?>(
 
 	real solid = 0;
 	real rho = 0;
-	real F[<?=solver.ofsvol?>];
-	for (int i = 0; i < <?=solver.ofsvol?>; ++i) {
+	real F[<?=#solver.offsets?>];
+	for (int i = 0; i < <?=#solver.offsets?>; ++i) {
 		F[i] = 0;
 	}
 
@@ -112,14 +112,14 @@ kernel void <?=applyCollision?>(
 		local ofsindex = i-1
 ?>		{
 			real const velDotOfs = v.x * <?=c.x?> + v.y * <?=c.y?> + v.z * <?=c.z?>;
-			real const Feq = U->rho * <?=solver.lbWeights[i]?> * (1. + 3. * velDotOfs + 4.5 * velDotOfs * velDotOfs - 1.5 * vSq);
+			real const Feq = U->rho * <?=ofs.weight?> * (1. + 3. * velDotOfs + 4.5 * velDotOfs * velDotOfs - 1.5 * vSq);
 			U->F<?=ofsindex?> *= 1. - invdt;
 			U->F<?=ofsindex?> += invdt *  Feq;
 		}
 <?	end
 ?>
 	} else {	
-		real tmpF[<?=solver.ofsvol?>];
+		real tmpF[<?=#solver.offsets?>];
 <?
 	for i,ofs in ipairs(solver.offsets) do
 		local c = ofs.c

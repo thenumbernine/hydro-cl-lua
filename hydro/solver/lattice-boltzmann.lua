@@ -61,10 +61,11 @@ function LatticeBoltzmann:initLBOffsets()
 	end
 
 	-- TODO merge with self.offsets
+	local lbWeights
 	if self.dim == 1 then
-		self.lbWeights = {1/4, 1/2, 1/4}
+		lbWeights = {1/4, 1/2, 1/4}
 	elseif self.dim == 2 then
-		self.lbWeights = {
+		lbWeights = {
 			1/36, 4/36, 1/36,
 			4/36, 16/36, 4/36,
 			1/36, 4/36, 1/36,
@@ -74,31 +75,11 @@ function LatticeBoltzmann:initLBOffsets()
 	else
 		error("unknown dim "..tostring(self.dim))
 	end
-	
-	self.ofsvol = tonumber(self.ofssize:volume())
 
-	assert(self.ofsvol == #self.lbWeights)
-	assert(#self.offsets == #self.lbWeights)
-	assert(self.ofsvol == #self.offsets)
-end
-
-function LatticeBoltzmann:initMeshVars(args)
-	LatticeBoltzmann.super.initMeshVars(self, args)
-	
-	self.solverStructFields:append{
-		--{name='weights', type='real['..#self.offsets..']'},
-		{name='weights', type='real[27]'},
-	}
-end
-
-function LatticeBoltzmann:createSolverBuf()
-	LatticeBoltzmann.super.createSolverBuf(self)
-
-	for i,w in ipairs(self.lbWeights) do
-		self.solverPtr.weights[i-1] = w
+	assert(#self.offsets == #lbWeights)
+	for i,ofs in ipairs(self.offsets) do
+		ofs.weight = lbWeights[i]
 	end
-	
-	self:refreshSolverBuf()
 end
 
 -- TODO put this in its own eqn file? eqn/lattice-boltzmann.lua?
