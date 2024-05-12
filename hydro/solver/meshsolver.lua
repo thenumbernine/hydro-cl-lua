@@ -423,15 +423,15 @@ function MeshSolver:initDraw()
 
 	self.glvtxArrayBuffer = GLArrayBuffer{
 		data = glvtxs.v,
-		size = #glvtxs * ffi.sizeof(glvtxs.T),
+		size = #glvtxs * ffi.sizeof(glvtxs.type),
 	}:unbind()
 	self.glvtxcenterArrayBuffer = GLArrayBuffer{
 		data = glvtxcenters.v,
-		size = #glvtxcenters * ffi.sizeof(glvtxcenters.T),
+		size = #glvtxcenters * ffi.sizeof(glvtxcenters.type),
 	}:unbind()
 	self.glcellindexArrayBuffer = GLArrayBuffer{
 		data = glcellindex.v,
-		size = #glcellindex * ffi.sizeof(glcellindex.T),
+		size = #glcellindex * ffi.sizeof(glcellindex.type),
 	}:unbind()
 
 	self.drawPointsShader = self.GLProgram{
