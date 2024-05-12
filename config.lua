@@ -351,7 +351,7 @@ local args = {
 	--initCond = 'jet',	-- TODO naming initialization mixup with srhd and this problem
 
 
-	initCond = 'Sod',
+	--initCond = 'Sod',
 	--initCondArgs = {dim=cmdline.displayDim},
 	--[[ real-world vars for Sod ... which are a few orders higher, and therefore screw up the backward-euler solver
 	-- 		which means, todo, redo the backward euler error metric so it is independent of magnitude ... ?   seems I removed that for another numerical error reason.
@@ -389,7 +389,7 @@ local args = {
 	--initCond = 'Noh',
 	--initCond = 'implosion',
 
-	--initCond = 'Kelvin-Helmholtz',
+	initCond = 'Kelvin-Helmholtz',
 	--[[
 	initCondArgs = {
 		noiseAmplitude = 1e-5,
@@ -694,7 +694,7 @@ if cmdline.solver then self.solvers:insert(require('hydro.solver.'..cmdline.solv
 
 -- fitting a lattice-boltzmann solver into my framework
 
--- [[ TODO FIXME there's something off, and it explodes after a while
+--[[
 self.solvers:insert(require 'hydro.solver.lattice-boltzmann'(table(args, {
 	initCond = 'cylinder',
 	fixedDT = 5/3,

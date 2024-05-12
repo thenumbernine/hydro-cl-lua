@@ -1429,10 +1429,9 @@ typedef union {
 	};
 } real3s3x3s3;
 
-//this C array initializer works, right?
-#define real3s3x3s3_zero ((real3s3x3s3){.s={0}})
-
 //// MODULE_HEADER:
+
+#define real3s3x3s3_zero ((real3s3x3s3){.s={0}})
 
 static inline real3s3x3s3 real3s3x3s3_add(real3s3x3s3 a, real3s3x3s3 b);
 
