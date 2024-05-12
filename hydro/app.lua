@@ -1826,6 +1826,10 @@ HydroCLApp.displayFixedY = 0
 HydroCLApp.displayFixedZ = 0
 
 function HydroCLApp:updateGUI()
+	-- make menubar transparent.  seems to only work if both these are used
+	-- TODO it'd be nice if the background behind the menubar text was opaque and all else was transparent
+	ig.igSetNextWindowBgAlpha(0)
+	ig.igPushStyleColor_U32(ig.ImGuiCol_MenuBarBg, 0)
 	if ig.igBeginMainMenuBar() then
 		if ig.igBeginMenu'Run' then
 			if ig.igButton(self.running and 'Stop' or 'Start') then
@@ -2048,6 +2052,7 @@ function HydroCLApp:updateGUI()
 
 		ig.igEndMainMenuBar()
 	end
+	ig.igPopStyleColor(1)
 
 	if self.showMouseCoords
 	and (self.displayDim == 1 or self.displayDim == 2)
