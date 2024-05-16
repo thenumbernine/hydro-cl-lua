@@ -5,7 +5,7 @@ and no more setting config values (boundary, etc) in the init cond file
 local constants = require 'hydro.constants'
 local materials = require 'hydro.materials'
 
-local dim = cmdline.dim or 3
+local dim = cmdline.dim or 2
 local args = {
 	app = self,
 	dim = dim,
@@ -65,7 +65,7 @@ local args = {
 	-- TODO this seems to introduce more diagonal waves for SRHD
 	--useCTU = true,
 
-	--[[ Cartesian
+	-- [[ Cartesian
 	coord = 'cartesian',
 	--coordArgs = {vectorComponent='holonomic'},		-- use the coordinate derivatives to represent our vector components (though they may not be normalized)
 	--coordArgs = {vectorComponent='anholonomic'},		-- use orthonormal basis to represent our vector components
@@ -145,12 +145,12 @@ local args = {
 		}
 	)[dim],
 	boundary = type(cmdline.boundary) == 'table' and cmdline.boundary or {
-		xmin = cmdline.boundary or 'mirror',
-		xmax = cmdline.boundary or 'mirror',
-		ymin = cmdline.boundary or 'mirror',
-		ymax = cmdline.boundary or 'mirror',
-		zmin = cmdline.boundary or 'mirror',
-		zmax = cmdline.boundary or 'mirror',
+		xmin = cmdline.boundary or 'freeflow',
+		xmax = cmdline.boundary or 'freeflow',
+		ymin = cmdline.boundary or 'freeflow',
+		ymax = cmdline.boundary or 'freeflow',
+		zmin = cmdline.boundary or 'freeflow',
+		zmax = cmdline.boundary or 'freeflow',
 	},
 	--]]
 	--[[ cylinder
@@ -244,7 +244,7 @@ local args = {
 		zmax=cmdline.boundary or 'mirror',
 	},
 	--]]
-	-- [[ cylinder as toroid
+	--[[ cylinder as toroid
 	coord = 'cylinder',
 	coordArgs = {vectorComponent='cartesian'},
 	--coordArgs = {vectorComponent='anholonomic'},
@@ -351,7 +351,7 @@ local args = {
 	--initCond = 'jet',	-- TODO naming initialization mixup with srhd and this problem
 
 
-	initCond = 'Sod',
+	--initCond = 'Sod',
 	--initCondArgs = {dim=cmdline.displayDim},
 	--[[ real-world vars for Sod ... which are a few orders higher, and therefore screw up the backward-euler solver
 	-- 		which means, todo, redo the backward euler error metric so it is independent of magnitude ... ?   seems I removed that for another numerical error reason.
@@ -471,6 +471,8 @@ local args = {
 	--TODO initCond = 'shallow water problem D',	-- lhs boundary = fixed, rhs boundary = freeflow
 	--initCond = 'shallow water parabola',
 	--initCond = '2003 Rogers',
+
+	initCond = 'Triple-Point Shock Intersection',
 
 
 	-- those designed for SRHD / GRHD from Marti & Muller 1998:
@@ -748,7 +750,7 @@ self.solvers:insert(require 'hydro.solver.nls'(table(args, {
 
 --[[ Acoustic black hole.
 -- for use with cylinder grid?
--- and which initial conditions? 
+-- and which initial conditions?
 args.eqnArgs = args.eqnArgs or {}
 -- for 2012 Visser A.B. metric,
 args.eqnArgs.alpha = '1'
@@ -798,7 +800,7 @@ self.solvers:insert(require 'hydro.solver.weno'(table(args, {
 -- compressible Euler equations
 
 
---self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
+self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
 
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct bounded'})))	-- this is the default hllCalcWaveMethod
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct'})))
@@ -908,10 +910,10 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {
 -- compressible Euler fluid equations + de-Donder gauge linearized GR
 
 
-self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler-lingr'})))
+--self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler-lingr'})))
 
 
--- incompressible 
+-- incompressible
 -- TODO finish me
 --self.solvers:insert(require 'hydro.solver.navstokes-incomp'(table(args)))
 
