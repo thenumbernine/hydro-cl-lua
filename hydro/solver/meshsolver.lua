@@ -13,10 +13,6 @@ local vec2i = require 'vec-ffi.vec2i'
 local vec3sz = require 'vec-ffi.vec3sz'
 local vec3f = require 'vec-ffi.vec3f'
 local vec3d = require 'vec-ffi.vec3d'
-local ig = require 'imgui'
-local gl = require 'gl'
-local GLVertexArray = require 'gl.vertexarray'
-local glreport = require 'gl.report'
 local template = require 'template'
 local clnumber = require 'cl.obj.number'
 local SolverBase = require 'hydro.solver.solverbase'
@@ -460,6 +456,7 @@ void main() {
 ]],
 	}:useNone()
 
+	local GLVertexArray = require 'gl.vertexarray'
 	self.drawPointsVAO = GLVertexArray{
 		program = self.drawPointsShader,
 		attrs = {
@@ -680,6 +677,7 @@ function MeshSolverDisplayVar:setArgs(kernel)
 end
 
 function MeshSolver:updateGUIParams()
+	local ig = require 'imgui'
 	MeshSolver.super.updateGUIParams(self)
 
 	ig.luatableTooltipCheckbox('show vertexes', self, 'showVertexes')
