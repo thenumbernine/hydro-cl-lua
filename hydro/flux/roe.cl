@@ -123,7 +123,7 @@ if flux.useEntropyFluxFix then --\
 				rEig = deltaUEigR.ptr[j] / deltaUEig.ptr[j];\
 			}\
 		}\
-		real phi = <?=fluxLimiter?>(rEig);\
+		real const phi = <?=fluxLimiter?>(rEig);\
 <? end --\
 ?>\
 		fluxEig.ptr[j] -= .5 * lambda * deltaUEig.ptr[j] * (sgnLambda\

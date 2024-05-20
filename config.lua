@@ -5,7 +5,7 @@ and no more setting config values (boundary, etc) in the init cond file
 local constants = require 'hydro.constants'
 local materials = require 'hydro.materials'
 
-local dim = cmdline.dim or 2
+local dim = cmdline.dim or 1
 local args = {
 	app = self,
 	dim = dim,
@@ -17,7 +17,7 @@ local args = {
 	--integrator = 'Runge-Kutta 2 Heun',
 	--integrator = 'Runge-Kutta 2 Ralston',
 	--integrator = 'Runge-Kutta 3',
-	--integrator = 'Runge-Kutta 4',
+	integrator = 'Runge-Kutta 4',
 	--integrator = 'Runge-Kutta 4, 3/8ths rule',
 	--integrator = 'Runge-Kutta 2, TVD',
 	--integrator = 'Runge-Kutta 2, non-TVD',
@@ -36,24 +36,24 @@ local args = {
 	-- with Kelvin-Helmholts, this will explode even at .5/(dim=2), but runs safe for .3/(dim=2)
 	cfl = cmdline.cfl or .3/dim,
 
-	fluxLimiter = cmdline.fluxLimiter or 'superbee',
-	--fluxLimiter = 'monotized central',
-	--fluxLimiter = 'donor cell',		-- same as turning fluxlimiter off ... you have to turn fluxlimiter off to use plm
+	--fluxLimiter = cmdline.fluxLimiter or 'superbee',
+	--fluxLimiter = cmdline.fluxLimiter or 'monotized central',
+	--fluxLimiter = cmdline.fluxLimiter or 'donor cell',		-- same as turning fluxlimiter off ... you have to turn fluxlimiter off to use plm
 
 	-- piecewise-linear slope limiter
 	-- TODO rename this to 'calcLR' or something
 	--									-- min div v for gridSize={1024} cfl=.3 Sod mirror at t=0.5:
-	--									-- -191 = no plm, superbee flux limiter
-	--									-- -184 = no plm, monotized central flux limiter
-	--usePLM = 'piecewise-constant',	-- -84		degenerate case.  don't use this, instead just disable usePLM, or else this will allocate more memory / run more functions.
-	--usePLM = 'plm-cons',				-- -190
-	--usePLM = 'plm-cons-alone',		-- -177
-	--usePLM = 'plm-prim-alone',		-- -175
-	--usePLM = 'plm-eig',				-- -88		\
-	--usePLM = 'plm-eig-prim',			-- -88		 - these have less sharp shock wave in Sod than the non-eig ones
-	--usePLM = 'plm-eig-prim-ref',		-- -28 		/
-	--usePLM = 'plm-athena',			-- -40		based on Athena.  most accurate from 1D sod tests atm
-	--usePLM = 'ppm-wip',				-- 			FIXME one more attempt to figure out all the PLM stuff, based on 2017 Zingale
+	--									-- -180 = no plm, 'superbee' flux limiter
+	--									-- -174 = no plm, 'monotized central' flux limiter
+	--usePLM = 'piecewise constant',	-- -80 with minmod		degenerate case.  don't use this, instead just disable usePLM, or else this will allocate more memory / run more functions.
+	--usePLM = 'plm cons',				-- -171 with minmod slope limiter
+	--usePLM = 'plm cons with flux',	-- -183 with minmod slope limiter
+	--usePLM = 'plm prim',				-- -172 with minmod slope limiter, -82 with donor-cell, MC and superbee have growing oscillations
+	--usePLM = 'plm eig',				-- -80 with minmod limiter		\
+	--usePLM = 'plm eig prim',			-- -88		 - these have less sharp shock wave in Sod than the non-eig ones ... hmm
+	--usePLM = 'plm eig prim ref',		-- -28 		/
+	--usePLM = 'plm athena',			-- -40		based on Athena.  most accurate from 1D sod tests atm
+	--usePLM = 'ppm',
 	--usePLM = 'weno',					-- 			TODO make WENO one of these 'usePLM' methods. rename it to 'construct LR state method' or something.  then use CTU with WENO.  or can we, since even the CTU method should use the re-linear-projection ... i should just have these separate plm methods as separate functions ...
 
 	-- only enabled for certain usePLM methods
@@ -63,7 +63,7 @@ local args = {
 
 	-- this is functional without usePLM, but doing so falls back on the cell-centered buffer, which with the current useCTU code will update the same cell twice from different threads
 	-- TODO this seems to introduce more diagonal waves for SRHD
-	--useCTU = true,
+	useCTU = true,
 
 	-- [[ Cartesian
 	coord = 'cartesian',
@@ -145,12 +145,12 @@ local args = {
 		}
 	)[dim],
 	boundary = type(cmdline.boundary) == 'table' and cmdline.boundary or {
-		xmin = cmdline.boundary or 'freeflow',
-		xmax = cmdline.boundary or 'freeflow',
-		ymin = cmdline.boundary or 'freeflow',
-		ymax = cmdline.boundary or 'freeflow',
-		zmin = cmdline.boundary or 'freeflow',
-		zmax = cmdline.boundary or 'freeflow',
+		xmin = cmdline.boundary or 'mirror',
+		xmax = cmdline.boundary or 'mirror',
+		ymin = cmdline.boundary or 'mirror',
+		ymax = cmdline.boundary or 'mirror',
+		zmin = cmdline.boundary or 'mirror',
+		zmax = cmdline.boundary or 'mirror',
 	},
 	--]]
 	--[[ cylinder
@@ -351,7 +351,7 @@ local args = {
 	--initCond = 'jet',	-- TODO naming initialization mixup with srhd and this problem
 
 
-	--initCond = 'Sod',
+	initCond = cmdline.initCond or 'Sod',
 	--initCondArgs = {dim=cmdline.displayDim},
 	--[[ real-world vars for Sod ... which are a few orders higher, and therefore screw up the backward-euler solver
 	-- 		which means, todo, redo the backward euler error metric so it is independent of magnitude ... ?   seems I removed that for another numerical error reason.
@@ -472,7 +472,7 @@ local args = {
 	--initCond = 'shallow water parabola',
 	--initCond = '2003 Rogers',
 
-	initCond = 'Triple-Point Shock Intersection',
+	--initCond = 'Triple-Point Shock Intersection',
 
 
 	-- those designed for SRHD / GRHD from Marti & Muller 1998:
@@ -800,7 +800,7 @@ self.solvers:insert(require 'hydro.solver.weno'(table(args, {
 -- compressible Euler equations
 
 
-self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
+--self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
 
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct bounded'})))	-- this is the default hllCalcWaveMethod
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct'})))
@@ -815,7 +815,7 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn
 
 -- NOTICE, these are very accurate with RK4, etc., but incur oscillations with Forward-Euler
 -- TODO weno doesn't seem to work with self-gravitation
---self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='euler', wenoMethod='1996 Jiang Shu', order=5})))
+self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='euler', wenoMethod='1996 Jiang Shu', order=5})))
 --self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='euler', wenoMethod='2008 Borges', order=5})))
 --self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='euler', wenoMethod='2010 Shen Zha', order=5})))
 

@@ -698,6 +698,18 @@ local initConds = table{
 		},
 	},
 
+	-- me lazy but for when I want to test Sod going the other way
+	RiemannProblem{
+		name = 'SodL',
+		-- L = high pressure / density
+		{rho = .125, P = .1},
+		-- R = low pressure / density
+		{rho = 1, P = 1},
+		solverVars = {
+			heatCapacityRatio = 5/3,
+		},
+	},
+
 	{	-- just like Brio-Wu, but centered instead of to one side
 		name = 'rectangle',
 		guiVars = {
