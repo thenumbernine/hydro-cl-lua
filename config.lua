@@ -5,7 +5,7 @@ and no more setting config values (boundary, etc) in the init cond file
 local constants = require 'hydro.constants'
 local materials = require 'hydro.materials'
 
-local dim = cmdline.dim or 1
+local dim = cmdline.dim or 2
 local args = {
 	app = self,
 	dim = dim,
@@ -17,7 +17,7 @@ local args = {
 	--integrator = 'Runge-Kutta 2 Heun',
 	--integrator = 'Runge-Kutta 2 Ralston',
 	--integrator = 'Runge-Kutta 3',
-	integrator = 'Runge-Kutta 4',
+	--integrator = 'Runge-Kutta 4',
 	--integrator = 'Runge-Kutta 4, 3/8ths rule',
 	--integrator = 'Runge-Kutta 2, TVD',
 	--integrator = 'Runge-Kutta 2, non-TVD',
@@ -36,7 +36,7 @@ local args = {
 	-- with Kelvin-Helmholts, this will explode even at .5/(dim=2), but runs safe for .3/(dim=2)
 	cfl = cmdline.cfl or .3/dim,
 
-	--fluxLimiter = cmdline.fluxLimiter or 'superbee',
+	fluxLimiter = cmdline.fluxLimiter or 'superbee',
 	--fluxLimiter = cmdline.fluxLimiter or 'monotized central',
 	--fluxLimiter = cmdline.fluxLimiter or 'donor cell',		-- same as turning fluxlimiter off ... you have to turn fluxlimiter off to use plm
 
@@ -63,7 +63,7 @@ local args = {
 
 	-- this is functional without usePLM, but doing so falls back on the cell-centered buffer, which with the current useCTU code will update the same cell twice from different threads
 	-- TODO this seems to introduce more diagonal waves for SRHD
-	useCTU = true,
+	--useCTU = true,
 
 	-- [[ Cartesian
 	coord = 'cartesian',
@@ -767,6 +767,8 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn
 --]]
 
 
+-- Maxwell equations but as a wave of EM-four-potential.  no background metric just yet.
+self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='maxwell_A_wave'})))
 
 
 -- shallow water equations
@@ -815,7 +817,7 @@ self.solvers:insert(require 'hydro.solver.weno'(table(args, {
 
 -- NOTICE, these are very accurate with RK4, etc., but incur oscillations with Forward-Euler
 -- TODO weno doesn't seem to work with self-gravitation
-self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='euler', wenoMethod='1996 Jiang Shu', order=5})))
+--self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='euler', wenoMethod='1996 Jiang Shu', order=5})))
 --self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='euler', wenoMethod='2008 Borges', order=5})))
 --self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='euler', wenoMethod='2010 Shen Zha', order=5})))
 
