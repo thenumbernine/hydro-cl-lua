@@ -1,5 +1,34 @@
--- me taking the wave equation (without background for now ...)
--- and refitting it as the EM-four-potential wave-equation representation of the Maxwell equations
+--[[
+me taking the wave equation (without background for now ...)
+and refitting it as the EM-four-potential wave-equation representation of the Maxwell equations
+
+EM modeled as the wave equation of the 4-vector
+(1/c^2 ∂/∂t^2 - ∇^2) φ = ρ / ε_0
+(1/c^2 ∂/∂t^2 - ∇^2) A_i = μ_0 J_i
+
+... as waves, so with state equations ...
+Πφ = φ_,t
+Ψφ_k = φ_,k
+ΠA_j = A_j,t
+ΨA_jk = A_j,k
+
+1/c^2 φ_,tt - φ_,jk g^jk = ρ / ε_0
+1/c^2 A_i,tt - A_i,jk g^jk = μ_0 J_i
+
+1/c^2 Πφ_,t - Ψφ_j,k g^jk = ρ / ε_0
+1/c^2 ΠA_i,t - ΨA_ij,k g^jk = μ_0 J_i
+Πφ_,k = Ψφ_k,t
+ΠA_j,k = ΨA_jk,t
+subject to ΨA_ij,k = ΨA_ik,j
+
+and also subject to Lorentz gauge:
+	-1/c^2 A_t,t + A_i,i = 0
+i.e. -1/c^2 Πφ + ΨA_jk g^jk = 0
+
+TODO how about another formulation based on E and B wave equations?
+but ofc this is still subject to ∇∙B = 0
+--]]
+
 
 local ffi = require 'ffi'
 local table = require 'ext.table'
@@ -31,7 +60,7 @@ function MaxwellAWave:init(args)
 
 	self.vec3 = self.scalar..'3'
 	self.numRealsInScalar = ffi.sizeof(self.scalar) / ffi.sizeof'real'
-	
+
 	self.numStates = 16 * self.numRealsInScalar
 
 	local suffix = self.scalar == 'real' and '' or ' re'
@@ -57,7 +86,7 @@ end
 
 function MaxwellAWave:buildVars()
 	MaxwellAWave.super.buildVars(self)
-	
+
 	self.consVars = self.consVars or table()
 
 	-- A_i = units of V s / m = kg m / (C s)
@@ -68,7 +97,7 @@ function MaxwellAWave:buildVars()
 	self.consVars:append{
 		{name='dtAt', type=self.scalar, units='(kg*m)/(C*s^2)'},	-- ∂_t A_t
 		{name='diAt_l', type=self.vec3, units='kg/(C*s)'},			-- ∂_i A_t
-		
+
 		-- TODO per-dimension derivative? or just use one-higher rank?
 		-- another TODO is I bet this looks a lot like hydro/eqn/lingr.lua ... though that has more stuff for the spacetime metric
 		{name='dtAx', type=self.scalar, units='(kg*m)/(C*s^2)'},	-- ∂_t A_x
@@ -125,7 +154,7 @@ function MaxwellAWave:initCodeModules()
 	if self.init_f then
 		self.metric.f = readarg(self.init_f)
 	end
-	
+
 	MaxwellAWave.super.initCodeModules(self)
 end
 
@@ -138,7 +167,7 @@ function MaxwellAWave:initCodeModule_fluxFromCons() end
 function MaxwellAWave:getDisplayVars()
 	local env = self:getEnv()
 	local vars = MaxwellAWave.super.getDisplayVars(self)
-	vars:append{ 
+	vars:append{
 		-- TODO enforce this as an operator
 		{
 			name = 'Lorentz gauge',
@@ -159,7 +188,7 @@ value.v<?=vec3?>.z = U->diAt_l.z - U->dtAz;
 			name = 'B',
 			type = env.vec3,
 			units = 'kg/(C*s)',
--- TODO sign. i just winged this. 
+-- TODO sign. i just winged this.
 			code = self:template[[
 value.v<?=vec3?>.x = U->diAy_l.z - U->diAy_l.y;
 value.v<?=vec3?>.y = U->diAz_l.x - U->diAx_l.z;
@@ -180,11 +209,11 @@ end
 function MaxwellAWave:eigenWaveCode(args)
 	local waveIndex = math.floor(args.waveIndex / self.numRealsInScalar) % 4
 	if waveIndex == 0 then
-		return '-wavespeed * nLen' 
+		return '-wavespeed * nLen'
 	elseif waveIndex == 1 or waveIndex == 2 then
 		return '0.'
 	elseif waveIndex == 3 then
-		return 'wavespeed * nLen' 
+		return 'wavespeed * nLen'
 	end
 	error'got a bad waveIndex'
 end

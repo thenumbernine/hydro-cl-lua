@@ -768,7 +768,7 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn
 
 
 -- Maxwell equations but as a wave of EM-four-potential.  no background metric just yet.
-self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='maxwell_A_wave'})))
+--self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='maxwell_A_wave'})))
 
 
 -- shallow water equations
