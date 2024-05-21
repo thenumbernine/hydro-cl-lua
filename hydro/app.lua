@@ -1,129 +1,3 @@
---[[
-command-line variables:
-
-solver parameters:
-	(config file cmdline override options:)
-		solver =
-		solverArgs =
-			eqn =
-			flux =
-		gridSize =
-		integrator =
-		fluxLimiter =
-		fixedDT =
-		cfl =
-		dim =
-		boundary =
-		initCond =
-		mins =
-		maxs =
-		multiSlices =
-
-hardware/opencl:
-	float = set to true to use 32 bit float instead of 64
-	half = set to true to use 16 bit float instead of 64
-	cpu = set to use CPU instead of GPU
-	platform = name or numeric index of which OpenCL platform to use.  see clinfo utility (or my cl/tests/info.lua script) for identifying platforms.
-	device = name or numeric index of which OpenCL device to use.
-	useGLSharing = set to false to disable GL sharing.  automatically false if sys=console.
-
-display:
-	sys = subsystem to run under.  options are 'imguiapp', 'glapp', 'console'
-	vsync = set to enable vsync and slow down the simulation
-	createAnimation = set to start off creating an animation / framedump
-	screenshotUseHiRes = save at the buffer resolution instead of the window resolution
-	animationSaveEvery = save every N frames.
-
-	displayvars = comma-separated predefined display vars to use
-	display_useCoordMap = set this gui option
-	display_fixedRange = whether to initialize display vars with a fixed range (of [0,1])
-	showMouseCoords = whether to show mouse coords.  default is true.
-
-	displayDim = override dimension of display (useful for displaying 3D simulations as 1D graphs)
-	displaySlice = 'xy' by default, 'xz' for the xz slice, 'yz' for the yz slice.
-		set this to {x,y,z,theta} for angle/axis initialization.
-
-	frustum = set frustum view initially
-	frustumDist = frustum view initial distance.  default 3
-	frustumAngle = frustum view initial angle.  default {0,0,0,1}
-
-	ortho = set the initial view to ortho
-	zoom = set ortho zoom
-
-	stackGraphs = stack graphs initially
-	disableFont = set to disable loading of the font.png file.  automatically true if sys=console.
-
-	useClipPlanes = default false.  whether to use clip-planes in the 3d-slice shader (and other shaders?)
-	isobars = default true.  whether to use isobars in 3D-slice display.  default: true.
-
-	arrows = use arrows for vector field display (default is LIC)
-	vectorFieldScale = scale of arrows. default 1
-	vectorFieldStep = spacing between cells of vector field display.  default 4
-
-	windowsize = override the window size for sys=glapp or sys=imguiapp.  set to either "windowsize={w,h}" or for square windows, "windowsize=size"
-
-	palette=(palette name) = pick the predefined palette to use
-
-simulation execution:
-	run = start the simulation running.  Setting 'exitTime' or 'stopTime' or 'sys=console' also starts the simulation running.
-	exitTime = start the app running, and exit it after the simulation reaches this time
-	saveOnExit = filename to save all solvers (appending _1 _2 for multiple solvers) before quitting
-	plotOnExit = enable or set to 'true' to have a plot popup upon exit.  set it to a filename string to save the plot to that file.
-				this plots a time history of variable min, max, avg, and stddev of the trackvars.
-	plotOnExit_savedata = (optional) where to save the plotOnExit data
-	plot1DOnExit = enable to plot the 1D data at the time of exit. set it to a filename string to save the plot to that file.
-				this plots a snapshot of the variable min, max, avg, and stddev of the trackvars.
-	plot1DOnExit_savedata = (optional) what filename to save the output data as
-	stopTime = stop running once this time is reached.
-	maxiter = max # of iterations to run the application for
-	checknans = Stop if a NaN or infinity is found. This can also be a comma-separated list of flags to modify the check-NaN behavior:
-		all = upon finding a NaN, print all values that were NaN in that buffer.  If this is omitted then only the first value is printed.
-		gpu = perform the check using gpu.  should go faster.  Right?
-		noghost = skip testing NaNs in ghost cells.
-
-
-debugging:
-	verbose = output extra stuff
-	showfps = print the updates/second to console
-	trackvars = comma-separated list of variable names to print to the console every FPS print
-	tick = how often to update the console for fps or trackvars
-	coordVerbose = output extra info from coord/coord.lua
-
-	printBufs = print buffer contents for debugging.  set this to 2 for more info than default, since default is made to match with other debug output in comparing results with other simulations.
-	config = specify alternative config file.  default is config.lua (TODO configs/default.lua)
-	checkStructSizes = verify that ffi and OpenCL are using matching struct sizes
-
-	trace = insert a debug hook to print out where we are every so often.
-
-	moduleVerbose
-	debugcdefs
-
-integrator parameters:
-	intVerbose = output extra info from int/*.lua
-	printBufs = printBufs for extra integrator steps
-	intBEEpsilon = backwards Euler stop on residual less than this epsilon
-	intBERestart = backwards Euler GMRES restart
-	intBEMaxIter = backwards Euler Krylov max iter
-
-poisson solver parameters:
-	noDivPoissonSolver = 'jacobi' or 'krylov'
-	selfGravPoissonSolver
-	selfGravPoissonMaxIter
-	selfGravVerbose
-	selfGravLinearSolver = 'conjgrad', 'conjres', 'bicgstab', 'gmres'
-
-code cache parameters:
-	useCache = true by default.  set to 'false' to disable the binary-caching system and instead recompile the CL code when you run.
-	bssnUseCache = set to false to ignore the cached equations generated by symmath
-	usecachedcode = set to true to use the code in cache-bin instead of regenerating it
-		TODO I BROKE THIS
-		when I switched kernel names to being based on object hash(pointer)s
-		because now the kernel name changes every time the program is run.
-
-environment variables:
-	HYDROCL_ENV = set to a Lua enumeration of key=value,key=value,... (table grammar without wrapping {})
-
---]]
 local table = require 'ext.table'
 local ffi = require 'ffi'
 
@@ -153,8 +27,414 @@ do
 	cmdline = table(oldcmdline, cmdline)
 
 	-- 3) add in anything from the real command-line
-	cmdline = table(require 'ext.cmdline'(table.unpack(arg)), cmdline)
+	cmdline = table(require 'ext.cmdline'(table.unpack(arg)), cmdline):setmetatable(nil)
 end
+
+
+--	
+--	command-line variables:
+--	
+require 'ext.cmdline'.validate{
+
+	help = {
+		validate = function(...)
+			-- TODO move this into ext.cmdline somewhere
+			print[[
+environment variables:
+	HYDROCL_ENV = set to a Lua enumeration of key=value,key=value,... (table grammar without wrapping {})
+]]
+			return require 'ext.cmdline'.showHelpAndQuit(...)
+		end,
+	},
+
+--	config.lua solver parameters:
+--		(config file cmdline override options:)
+
+	config = {
+		desc = "specify alternative config file.  default is config.lua (TODO configs/default.lua)",
+	},
+	solver = {
+		desc = "specify solver name",
+	},
+	solverArgs = {
+		desc = "specify solver args",
+	},
+	eqn = {
+		desc = "specify eqn",
+	},
+	flux = {
+		desc = "specify flux",
+	},
+	gridSize = {
+		desc = "valid values are numbers or tables with 1 to 3 elements.  Grid size does not include ghost cells.",
+	},
+	integrator = {
+		desc = "specify integator",
+	},
+	fluxLimiter = {
+		desc = "specify fluxLimiter",
+	},
+	fixedDT = {
+	},
+	cfl = {
+	},
+	dim = {
+	},
+	boundary = {
+	},
+	initCond = {
+	},
+	initCondArgs = {
+	},
+	mins = {
+	},
+	maxs = {
+	},
+	multiSlices = {
+	},
+	cflMethod = {
+	},
+
+-- cmdline args for specific config.lua schemes:
+
+	naca = {
+	},
+	nacaAngle = {
+	},
+	nacaMach = {
+	},
+
+-- used in some tests, not in the main code
+
+	coord = {
+	},
+	history = {
+	},
+
+-- solver parameters:
+
+--[[ tests/ cmdline options that honestly don't belong here ...
+
+	compare = {
+		-- plot compare
+	},
+	init = {	-- TODO rename this to initCond for compat with config.lua
+	},
+	nocache = {
+	},
+--]]
+
+--[[ where are these?
+	rmax = {
+	},
+	rmax = {
+	},
+--]]
+
+--	hardware/opencl:
+
+	float = {
+		desc = 'set to true to use 32 bit float instead of 64',
+	},
+	half = {
+		desc = 'set to true to use 16 bit float instead of 64',
+	},
+	cpu = {
+		desc = 'set to use CPU instead of GPU',
+	},
+	platform = {
+		desc = 'name or numeric index of which OpenCL platform to use.  see clinfo utility (or my cl/tests/info.lua script) for identifying platforms.',
+	},
+	device = {
+		desc = 'name or numeric index of which OpenCL device to use.',
+	},
+	useGLSharing = {
+		desc = 'set to false to disable GL sharing.  automatically false if sys=console.',
+	},
+
+--	display:
+
+	sys = {
+		desc = "subsystem to run under.  options are 'imguiapp', 'glapp', 'console'",
+	},
+	vsync = {
+		desc = 'set to enable vsync and slow down the simulation',
+	},
+	createAnimation = {
+		desc = 'set to start off creating an animation / framedump',
+	},
+	screenshotUseHiRes = {
+		desc = "save at the buffer resolution instead of the window resolution",
+	},
+	animationSaveEvery = {
+		desc = "save every N frames.",
+	},
+	displayvars = {
+		desc = "comma-separated predefined display vars to use",
+	},
+	display_useCoordMap = {
+		desc = "set this gui option",
+	},
+	display_fixedRange = {
+		desc = "whether to initialize display vars with a fixed range (of [0,1])",
+	},
+	showMouseCoords = {
+		desc = "whether to show mouse coords.  default is true.",
+	},
+	displayDim = {
+		desc = "override dimension of display (useful for displaying 3D simulations as 1D graphs)",
+	},
+	displaySlice = {
+		desc = [[
+'xy' by default, 'xz' for the xz slice, 'yz' for the yz slice.
+set this to {x,y,z,theta} for angle/axis initialization.
+]],
+	},
+	displayBilinearTextures = {
+	},
+	display_stateline = {
+	},
+	display_useLog = {
+	},
+	frustum = {
+		desc = "set frustum view initially",
+	},
+	frustumDist = {
+		desc = "frustum view initial distance.  default 3",
+	},
+	frustumAngle = {
+		desc = "frustum view initial angle.  default {0,0,0,1}",
+	},
+	glslVersion = {
+	},
+	ortho = {
+		desc = "set the initial view to ortho",
+	},
+	zoom = {
+		desc = "set ortho zoom",
+	},
+	stackGraphs = {
+		desc = "stack graphs initially",
+	},
+	disableFont = {
+		desc = "set to disable loading of the font.png file.  automatically true if sys=console.",
+	},
+	useClipPlanes = {
+		desc = "default false.  whether to use clip-planes in the 3d-slice shader (and other shaders?)",
+	},
+	isobars = {
+		desc = "default true.  whether to use isobars in 3D-slice display.  default: true.",
+	},
+	arrows = {
+		desc = "use arrows for vector field display (default is LIC)",
+	},
+	vectorFieldScale = {
+		desc = "scale of arrows. default 1",
+	},
+	vectorFieldStep = {
+		desc = "spacing between cells of vector field display.  default 4",
+	},
+	windowsize = {
+		desc = [[override the window size for sys=glapp or sys=imguiapp.  set to either "windowsize={w,h}" or for square windows, "windowsize=size"]],
+	},
+	palette = {
+		desc = "(palette name) = pick the predefined palette to use",
+	},
+	accum = {
+		desc = "display variable accumulation function."
+	},
+	showFaces = {
+	},
+	showNormals = {
+	},
+	showValues = {
+	},
+	showVertexes = {
+	},
+
+--	simulation execution:
+
+	run = {
+		desc = "start the simulation running.  Setting 'exitTime' or 'stopTime' or 'sys=console' also starts the simulation running.",
+	},
+	exitTime = {
+		desc = "start the app running, and exit it after the simulation reaches this time",
+	},
+	saveOnExit = {
+		desc = "filename to save all solvers (appending _1 _2 for multiple solvers) before quitting",
+	},
+	plotOnExit = {
+		desc = [[
+enable or set to 'true' to have a plot popup upon exit.  set it to a filename string to save the plot to that file.
+this plots a time history of variable min, max, avg, and stddev of the trackvars.
+]],
+	},
+	plotOnExit_savedata = {
+		desc = "(optional) where to save the plotOnExit data",
+	},
+	plot1DOnExit = {
+		desc = [[
+enable to plot the 1D data at the time of exit. set it to a filename string to save the plot to that file.
+this plots a snapshot of the variable min, max, avg, and stddev of the trackvars.
+]],
+	},
+	plot1DOnExit_savedata = {
+		desc = "(optional) what filename to save the output data as",
+	},
+	stopTime = {
+		desc = "stop running once this time is reached.",
+	},
+	maxiter = {
+		desc = "max # of iterations to run the application for",
+	},
+	checknans = {
+		desc = [[
+Stop if a NaN or infinity is found. This can also be a comma-separated list of flags to modify the check-NaN behavior:
+	all = upon finding a NaN, print all values that were NaN in that buffer.  If this is omitted then only the first value is printed.
+	gpu = perform the check using gpu.  should go faster.  Right?
+	noghost = skip testing NaNs in ghost cells.
+]],
+	},
+
+--	debugging:
+
+	verbose = {
+		desc = "output extra stuff",
+	},
+	showfps = {
+		desc = "print the updates/second to console",
+	},
+	trackvars = {
+		desc = "comma-separated list of variable names to print to the console every FPS print",
+	},
+	tick = {
+		desc = "how often to update the console for fps or trackvars",
+	},
+	coordVerbose = {
+		desc = "output extra info from coord/coord.lua",
+	},
+	printBufs = {
+		desc = "print buffer contents for debugging.  set this to 2 for more info than default, since default is made to match with other debug output in comparing results with other simulations.",
+	},
+	checkStructSizes = {
+		desc = "verify that ffi and OpenCL are using matching struct sizes",
+	},
+	
+	-- TOOD is it still used?  I don't see it ...
+	trace = {
+		desc = "insert a debug hook to print out where we are every so often.",
+	},
+	moduleVerbose = {
+	},
+	debugcdefs = {
+	},
+
+--	integrator parameters:
+
+	intVerbose = {
+		desc = "output extra info from int/*.lua",
+	},
+	printBufsInt = {
+		desc = "printBufs for extra integrator steps",
+	},
+	intBEEpsilon = {
+		desc = "backwards Euler stop on residual less than this epsilon",
+	},
+	intBERestart = {
+		desc = "backwards Euler GMRES restart",
+	},
+	intBEMaxIter = {
+		desc = "backwards Euler Krylov max iter",
+	},
+
+--	poisson solver parameters:
+
+	noDivPoissonSolver = {
+		desc = "'jacobi' or 'krylov'",
+	},
+	selfGravPoissonSolver = {
+	},
+	selfGravPoissonMaxIter = {
+	},
+	selfGravVerbose = {
+	},
+	selfGravLinearSolver = {
+		desc = "'conjgrad', 'conjres', 'bicgstab', 'gmres'",
+	},
+
+--	code cache parameters:
+
+	useCache = {
+		desc = "true by default.  set to 'false' to disable the binary-caching system and instead recompile the CL code when you run.",
+	},
+	usecachedcode = {
+		desc = [[
+set to true to use the code in cache-bin instead of regenerating it
+	TODO I BROKE THIS
+	when I switched kernel names to being based on object hash(pointer)s
+	because now the kernel name changes every time the program is run.
+]],
+	},
+
+-- choppedup solver
+
+	dontSyncBordersOnMultiGPU = {
+	},
+
+-- srhd solver args:
+	
+	srhdSelfGravPoissonSolver = {
+	},
+	srhdSolvePrimMaxIter = {
+	},
+
+-- einstein solver args:
+
+	bssnUseCache = {
+		desc = "set to false to ignore the cached equations generated by symmath",
+	},
+	UIUC_M = {	-- hydr/init/einstein.lua
+	},
+	UIUC_chi = {	-- hydr/init/einstein.lua
+	},
+	dissipationCoeff = {	-- hydro/eqn/bssnok-fd-num.lua and hydro/eqn/z4.cl
+	},
+	dt_beta_U_eta = {
+	},
+	dt_beta_U_k = {
+	},
+
+-- TODO organize these
+
+	secondPassInCPU = {
+	},
+	selfGravInitPotential = {
+	},
+	srand = {
+	},
+	stopcond = {
+	},
+	testAccuracy = {
+	},
+	time = {
+	},
+	useClang = {
+	},
+	useShift = {
+	},
+	uselin = {
+	},
+	vectorComponent = {
+	},
+	z4bl = {
+	},
+
+-- cmdline.validate works on the cmdline input as Lua's ... of global scope of the script being run.
+-- and it produces a key/value mapping of cmdline args
+-- but it doesn't work on the produced mapping (though I can wedge in that functionality very easily)
+-- but even if it did, we are still risking a desync between cmdline pairs() key/values from ... and cmdline ipairs() as the original arguments ...
+-- ... does that matter?
+}:fromTable(cmdline)
 
 if cmdline.srand then
 	math.randomseed(os.time())
@@ -2036,7 +2316,7 @@ function HydroCLApp:updateGUI()
 					ig.igPopID()
 				end
 			end
-		
+
 			ig.igEndMenu()
 		end
 
