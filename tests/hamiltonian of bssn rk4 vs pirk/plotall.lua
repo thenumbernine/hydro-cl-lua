@@ -1,3 +1,4 @@
+#!/usr/bin/env luajit
 require 'ext'
 local gnuplot = require 'gnuplot'
 local txts = table()

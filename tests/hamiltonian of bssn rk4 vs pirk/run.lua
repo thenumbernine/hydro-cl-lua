@@ -1,5 +1,5 @@
+#!/usr/bin/env luajit
 local ffi = require 'ffi'
-local class = require 'ext.class'
 local table = require 'ext.table'
 local path = require 'ext.path'
 
@@ -83,7 +83,8 @@ local duration = 100
 local filename = rundir..'/dim='..dim..',solver='..solvername..',init='..initState..'.txt'
 local f = io.open(filename, 'w')
 
-local App = class(require 'hydro.app')
+local App = require 'hydro.app':subclass()
+
 function App:setup(clArgs)
 	cfg.app = self
 	local solver = require('hydro.solver.'..solvername)(cfg)
@@ -114,7 +115,6 @@ end
 xpcall(function()
 	local app = App()
 	app:run()
-
 -- work around Windows driver crash
 end, function()
 	os.exit(1)

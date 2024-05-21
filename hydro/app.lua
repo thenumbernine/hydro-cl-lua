@@ -7,6 +7,7 @@ local ffi = require 'ffi'
 3) the command-line ... key/values
 --]]
 do
+--DEBUG: print('oldcmdlinne', require 'ext.tolua'(cmdline))
 	-- save the previous global if it's there, apply it later
 	local oldcmdline = cmdline
 
@@ -15,6 +16,7 @@ do
 
 	-- first handle HYDROCL_ENV env var
 	local envvarptr = os.getenv'HYDROCL_ENV'
+--print('HYDROCL_ENV', envvarptr)
 	if envvarptr ~= nil then	-- cdata NULL will cast to boolean as 'true', but (cdata NULL ~= nil) will evaluate to false
 		local envstr = ffi.string(envvarptr)	-- ffi.string segfaults on NULL last I checked
 		-- ok i am not going to treat this as a cmdline -- why make parsing more miserable
@@ -27,6 +29,8 @@ do
 	cmdline = table(oldcmdline, cmdline)
 
 	-- 3) add in anything from the real command-line
+	-- TODO DON'T USE 'arg' OR IT'LL USE A CALLING PROGRAM'S ARGUMENTS
+	-- ... OR do use arg and idk but here's how things get mixed up
 	cmdline = table(require 'ext.cmdline'(table.unpack(arg)), cmdline):setmetatable(nil)
 end
 
@@ -45,6 +49,13 @@ environment variables:
 ]]
 			return require 'ext.cmdline'.showHelpAndQuit(...)
 		end,
+	},
+
+	useTrace = {
+		desc = "install a lua debug hook for tracing",
+	},
+	nojit = {
+		desc = "turn off luajit's jit",
 	},
 
 --	config.lua solver parameters:

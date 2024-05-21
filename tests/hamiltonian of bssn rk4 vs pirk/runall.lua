@@ -1,3 +1,4 @@
+#!/usr/bin/env luajit
 for dim=1,3 do
 	for _,solvername in ipairs{
 		'bssnok-fd',
@@ -12,8 +13,7 @@ for dim=1,3 do
 				..dim..' '
 				..('%q'):format(solvername)..' '
 				..('%q'):format(initState)
-			print('>'..cmd)
-			print('exec results',os.execute(cmd))
+			print(require 'ext.os'.exec(cmd))
 		end
 	end
 end
