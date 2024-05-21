@@ -31,9 +31,9 @@ do
 end
 
 
---	
+--
 --	command-line variables:
---	
+--
 require 'ext.cmdline'.validate{
 
 	help = {
@@ -103,18 +103,47 @@ environment variables:
 	},
 	nacaMach = {
 	},
+	['2009Alic-adm'] = {
+	},
+	['2009Alic-z4'] = {
+	},
+	['2009Alic-z4_2008yano'] = {
+	},
+	['2009Alic-bssnok-fd-senr'] = {
+	},
+	['2009Alic-bssnok-fd-num'] = {
+	},
+	['2009Alic-bssnok-fd-sym'] = {
+	},
+	['bssnok-fd-num'] = {
+	},
+	['bssnok-fd-sym'] = {
+	},
+	['bssnok-fd-senr'] = {
+	},
+	['bssnok-fd-senr-multi'] = {
+	},
+	['bssnok-fd-num-pirk'] = {
+	},
+	['bssnok-fd-senr-pirk'] = {
+	},
+	['adm3d-roe'] = {
+	},
+	['adm3d-hll'] = {
+	},
+	['z4-hll'] = {
+	},
+	z4bl = {
+	},
 
 -- used in some tests, not in the main code
+
+--[[ tests/ cmdline options that honestly don't belong here ...
 
 	coord = {
 	},
 	history = {
 	},
-
--- solver parameters:
-
---[[ tests/ cmdline options that honestly don't belong here ...
-
 	compare = {
 		-- plot compare
 	},
@@ -319,7 +348,7 @@ Stop if a NaN or infinity is found. This can also be a comma-separated list of f
 	checkStructSizes = {
 		desc = "verify that ffi and OpenCL are using matching struct sizes",
 	},
-	
+
 	-- TOOD is it still used?  I don't see it ...
 	trace = {
 		desc = "insert a debug hook to print out where we are every so often.",
@@ -382,7 +411,7 @@ set to true to use the code in cache-bin instead of regenerating it
 	},
 
 -- srhd solver args:
-	
+
 	srhdSelfGravPoissonSolver = {
 	},
 	srhdSolvePrimMaxIter = {
@@ -425,8 +454,6 @@ set to true to use the code in cache-bin instead of regenerating it
 	uselin = {
 	},
 	vectorComponent = {
-	},
-	z4bl = {
 	},
 
 -- cmdline.validate works on the cmdline input as Lua's ... of global scope of the script being run.
