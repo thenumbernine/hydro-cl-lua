@@ -3,6 +3,26 @@
 #define /*real */<?=metric_f?>(/*real3 const */pt) \
 	(<?=eqn:compile(eqn.metric.f)?>)
 
+//// MODULE_NAME: <?=cons_setEB?>
+
+/*
+TODO we have some DOF to choose from
+E = ∇φ - ∂_t A
+B = ∇ x A
+2 ε_uvi B_i = ∂_u A_v - ∂_v A_u
+... one solution is ...
+∂_u A_v = ε_uvi B_i = 
+*/
+#define <?=cons_setEB?>(/*cons_t & */U, /*real3 */Eval, /*real3 */Bval) {\
+	(U).djAi_ll = _real3x3(\
+		0,	-Bval.z, Bval.y,\
+		Bval.z, 0, -Bval.x,\
+		-Bval.y, Bval.x, 0\
+	);\
+	(U).dtAj_l = real3_zero;\
+	(U).diAt_l = Eval;\
+}
+
 //// MODULE_NAME: <?=applyInitCondCell?>
 //// MODULE_DEPENDS: <?=cartesianToCoord?>
 

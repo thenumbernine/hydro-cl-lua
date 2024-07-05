@@ -84,6 +84,7 @@ end
 function MaxwellAWave:getSymbolFields()
 	return table(MaxwellAWave.super.getSymbolFields(self)):append{
 		'metric_f',
+		'cons_setEB',
 	}
 end
 
@@ -174,7 +175,7 @@ function MaxwellAWave:getDisplayVars()
 			name = 'Lorentz gauge',
 			code = [[value.vreal = -U->dtAt + U->djAi_ll.x.x + U->djAi_ll.y.y + U->djAi_ll.z.z;]],
 		},
-		{
+		{		-- E_i = A_t,i - A_i,t
 			name = 'E',
 			type = env.vec3,
 			units = '(kg*m)/(C*s^2)',
@@ -185,7 +186,7 @@ value.v<?=vec3?>.y = U->diAt_l.y - U->dtAj_l.y;
 value.v<?=vec3?>.z = U->diAt_l.z - U->dtAj_l.z;
 ]],
 		},
-		{
+		{		-- B_i = ε_ijk ∂_j A_k
 			name = 'B',
 			type = env.vec3,
 			units = 'kg/(C*s)',
