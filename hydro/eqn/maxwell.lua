@@ -120,8 +120,8 @@ end
 
 function Maxwell:getSymbolFields()
 	return Maxwell.super.getSymbolFields(self):append{
-		'cons_setEB',
 		'sqrt_2_and_1_2',
+		'cons_setEB',
 	}
 end
 
