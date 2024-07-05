@@ -24,20 +24,25 @@ end
 	real rho = 0;
 	real3 v = real3_zero;
 	real P = 0;
+	real ePot = 0;
+	
 	real3 D = real3_zero;
 	real3 B = real3_zero;
-	real ePot = 0;
+	// TODO figure out what to do with these ...
+	<?=scalar?> rhoCharge = <?=scalar?>_zero;
+	<?=scalar?> conductivity = <?=scalar?>_from_real(1.);
+	<?=susc_t?> permittivity = <?=susc_t?>_from_real(1.);
+	<?=susc_t?> permeability = <?=susc_t?>_from_real(1.);
 	
 	<?=initCode()?>
 
+// constructing A_t,t from initCond rho:
 	U->dtAt = <?=scalar?>_from_real(rho);
 	U->diAt_l = <?=vec3?>_from_real3(cartesianToCoord(v, x));
-	U->dtAx = <?=scalar?>_zero;
-	U->diAx_l = <?=vec3?>_zero;
-	U->dtAy = <?=scalar?>_zero;
-	U->diAy_l = <?=vec3?>_zero;
-	U->dtAz = <?=scalar?>_zero;
-	U->diAz_l = <?=vec3?>_zero;
+	U->dtAj_l = <?=vec3?>_zero;
+	U->djAi_ll = <?=mat3?>_zero;
+
+// TODO another option: constructing from initCond D and B
 }
 
 //// MODULE_NAME: <?=fluxFromCons?>
@@ -55,13 +60,15 @@ end
 ) {\
 	real3 const nL = normal_l1(n);\
 	real3 const nU = normal_u1(n);\
-<? for _,i in ipairs{'t', 'x', 'y', 'z'} do --\
+<? for _,i in ipairs{"t", "x", "y", "z"} do --\
+	local dtAi = i == "t" and "dtAt" or "dtAj_l."..i --\
+	local djAi_l = i == "t" and "diAt_l" or "djAi_ll."..i --\
 ?>\
 	/* F(dtAt) = -c Psi_i n^i */\
-	(resultFlux)->dtA<?=i?> = <?=scalar?>_real_mul(\
+	(resultFlux)-><?=dtAi?> = <?=scalar?>_real_mul(\
 		/* Psi_i n^i: */\
 		<?=vec3?>_real3_dot(\
-			(U)->diA<?=i?>_l, \
+			(U)-><?=djAi_l?>, \
 			nU\
 		),\
 		/* -c */\
@@ -69,12 +76,12 @@ end
 	);\
 	\
 	/* F^{diAt_j} = -c dtAt n_j */\
-	(resultFlux)->diA<?=i?>_l = <?=vec3?>_real_mul(\
+	(resultFlux)-><?=djAi_l?> = <?=vec3?>_real_mul(\
 		/* dtAt n_j: */\
 		<?=vec3?>_<?=scalar?>_mul(\
 			/* n: */\
 			<?=vec3?>_from_real3(nL),\
-			(U)->dtA<?=i?> \
+			(U)-><?=dtAi?> \
 		),\
 		/* -c */\
 		-solver->wavespeed\

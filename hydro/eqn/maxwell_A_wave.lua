@@ -49,6 +49,7 @@ args:
 --]]
 function MaxwellAWave:init(args)
 	self.scalar = (args and args.scalar) or 'real'
+	self.susc_t = self.scalar
 
 	-- TODO when scalar==cplx then we need to cdef scalar for numRealsInScalar to work, so...
 	if self.scalar == 'cplx' then
@@ -60,6 +61,8 @@ function MaxwellAWave:init(args)
 
 	self.vec3 = self.scalar..'3'
 	self.numRealsInScalar = ffi.sizeof(self.scalar) / ffi.sizeof'real'
+
+	self.mat3 = self.scalar..'3x3'
 
 	self.numStates = 16 * self.numRealsInScalar
 
@@ -95,17 +98,13 @@ function MaxwellAWave:buildVars()
 	-- ∂_t A_t = kg m / (C s^2)
 	-- ∂_i A_t = kg / (C s)
 	self.consVars:append{
+		-- TODO use real4 instead of real3's
 		{name='dtAt', type=self.scalar, units='(kg*m)/(C*s^2)'},	-- ∂_t A_t
 		{name='diAt_l', type=self.vec3, units='kg/(C*s)'},			-- ∂_i A_t
-
-		-- TODO per-dimension derivative? or just use one-higher rank?
-		-- another TODO is I bet this looks a lot like hydro/eqn/lingr.lua ... though that has more stuff for the spacetime metric
-		{name='dtAx', type=self.scalar, units='(kg*m)/(C*s^2)'},	-- ∂_t A_x
-		{name='diAx_l', type=self.vec3, units='kg/(C*s)'},			-- ∂_i A_x
-		{name='dtAy', type=self.scalar, units='(kg*m)/(C*s^2)'},	-- ∂_t A_y
-		{name='diAy_l', type=self.vec3, units='kg/(C*s)'},			-- ∂_i A_y
-		{name='dtAz', type=self.scalar, units='(kg*m)/(C*s^2)'},	-- ∂_t A_z
-		{name='diAz_l', type=self.vec3, units='kg/(C*s)'},			-- ∂_i A_z
+		-- TODO is I bet this looks a lot like hydro/eqn/lingr.lua ... 
+		-- ... though that has more stuff for the spacetime metric
+		{name='dtAj_l', type=self.vec3, units='(kg*m)/(C*s^2)'},	-- ∂_t A_j
+		{name='djAi_ll', type=self.mat3, units='kg/(C*s)'},			-- djAi_ll.i.j := ∂_j A_i = A_i,j
 	}
 end
 
@@ -123,7 +122,9 @@ end
 function MaxwellAWave:getEnv()
 	return table(MaxwellAWave.super.getEnv(self), {
 		scalar = self.scalar,
+		susc_t = self.susc_t,
 		vec3 = self.vec3,
+		mat3 = self.mat3,
 	})
 end
 
@@ -171,7 +172,7 @@ function MaxwellAWave:getDisplayVars()
 		-- TODO enforce this as an operator
 		{
 			name = 'Lorentz gauge',
-			code = [[value.vreal = -U->dtAt + U->diAx_l.x + U->diAy_l.y + U->diAz_l.z;]],
+			code = [[value.vreal = -U->dtAt + U->djAi_ll.x.x + U->djAi_ll.y.y + U->djAi_ll.z.z;]],
 		},
 		{
 			name = 'E',
@@ -179,9 +180,9 @@ function MaxwellAWave:getDisplayVars()
 			units = '(kg*m)/(C*s^2)',
 -- TODO units.  distinguish between partial_0 vs partial_t and A_0 vs A_t
 			code = self:template[[
-value.v<?=vec3?>.x = U->diAt_l.x - U->dtAx;
-value.v<?=vec3?>.y = U->diAt_l.y - U->dtAy;
-value.v<?=vec3?>.z = U->diAt_l.z - U->dtAz;
+value.v<?=vec3?>.x = U->diAt_l.x - U->dtAj_l.x;
+value.v<?=vec3?>.y = U->diAt_l.y - U->dtAj_l.y;
+value.v<?=vec3?>.z = U->diAt_l.z - U->dtAj_l.z;
 ]],
 		},
 		{
@@ -190,9 +191,9 @@ value.v<?=vec3?>.z = U->diAt_l.z - U->dtAz;
 			units = 'kg/(C*s)',
 -- TODO sign. i just winged this.
 			code = self:template[[
-value.v<?=vec3?>.x = U->diAy_l.z - U->diAy_l.y;
-value.v<?=vec3?>.y = U->diAz_l.x - U->diAx_l.z;
-value.v<?=vec3?>.z = U->diAx_l.y - U->diAy_l.x;
+value.v<?=vec3?>.x = U->djAi_ll.z.y - U->djAi_ll.y.z;
+value.v<?=vec3?>.y = U->djAi_ll.x.z - U->djAi_ll.z.x;
+value.v<?=vec3?>.z = U->djAi_ll.y.x - U->djAi_ll.x.y;
 ]],
 		},
 	}

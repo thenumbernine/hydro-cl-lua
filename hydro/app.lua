@@ -7,7 +7,7 @@ local ffi = require 'ffi'
 3) the command-line ... key/values
 --]]
 do
---DEBUG: print('oldcmdlinne', require 'ext.tolua'(cmdline))
+--DEBUG: print('oldcmdline', require 'ext.tolua'(cmdline))
 	-- save the previous global if it's there, apply it later
 	local oldcmdline = cmdline
 

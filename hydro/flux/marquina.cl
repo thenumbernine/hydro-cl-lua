@@ -29,7 +29,7 @@
 	<?=eigen_leftTransform?>(&phiL, solver, &eigL, &FL, xInt, n);\
 	<?=eigen_leftTransform?>(&phiR, solver, &eigR, &FR, xInt, n);\
 \
-	/* I thought eqn:eigenWaveCodePrefix was more flexible, allowing optional suffixes to variables to-be-paired-with multiple eqn:eigenWaveCode calls ... */\
+	/* I thought eqn:eigenWaveCodePrefix was more flexible, allowing optional suffixes to variables to-be-paired-with multiple eqn:eigenWaveCode calls ... oh well I guess I hvae to store them ... */\
 	<?=waves_t?> lambdasL;\
 	{\
 		<?=eqn:eigenWaveCodePrefix{ --\

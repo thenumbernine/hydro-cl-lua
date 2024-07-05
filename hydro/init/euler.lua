@@ -373,6 +373,7 @@ local function addMaxwellOscillatingBoundary(args)
 		and U or 'solver'
 ?>
 
+	// TODO how about a cons_setB / setE / setEB functions?
 	<?=U?>.B = <?=vec3?>_zero;
 	<?=U?>.D = <?=vec3?>_zero;
 	<?=U?>.D.<?=dir?> = <?=real_mul?>(
@@ -3071,7 +3072,7 @@ kernel void addExtraSource(
 				silver = 1.59e-8,
 				platinum = 1.06e-7,
 				tungsten = 5.65e-8,
-			}:mapi(function(v) return v * Ohm_in_m end)
+			}:map(function(v) return v * Ohm_in_m end)
 			return solver.eqn:template([[
 	D.x = <?=scalar?>_from_real(1.);
 
