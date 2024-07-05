@@ -364,27 +364,18 @@ local function addMaxwellOscillatingBoundary(args)
 			return
 				--oldxmin(args) ..
 				solver.eqn:template([[
-<?
-	local epsSrc =
-		(require 'hydro.eqn.twofluid-emhd-lingr':isa(eqn)
-			or require 'hydro.eqn.glm-maxwell':isa(eqn)
-			or require 'hydro.eqn.maxwell':isa(eqn)
-		)
-		and U or 'solver'
-?>
-
-	// TODO how about a cons_setB / setE / setEB functions?
-	<?=U?>.B = <?=vec3?>_zero;
-	<?=U?>.D = <?=vec3?>_zero;
-	<?=U?>.D.<?=dir?> = <?=real_mul?>(
-		<?=mul?>(<?=epsSrc?>.sqrt_1_eps, <?=epsSrc?>.sqrt_1_eps),
-		<?=amplitude?> * sin(2. * M_PI * <?=frequency?> * t));
+{
+	<?=vec3?> const B = <?=vec3?>_zero;
+	<?=vec3?> E = <?=vec3?>_zero;
+	E.<?=dir?> = <?=amplitude?> * sin(2. * M_PI * <?=frequency?> * t);
+	<?=cons_setEB?>(<?=U?>, E, B);
+}
 ]], 		{
 				U = U,
 				frequency = clnumber(frequency),
 				amplitude = clnumber(amplitude),
 				dir = dir,
-			})
+			}), {solver.eqn.symbols.cons_setEB}
 		else
 			return ''
 		end
