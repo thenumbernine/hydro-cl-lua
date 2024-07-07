@@ -320,6 +320,10 @@ SolverBase.showFPS = cmdline.showfps or false
 SolverBase.allowAccum = true
 SolverBase.displayVarAccumFunc = cmdline.accum or false
 
+-- AMD sucks as always, the compiler complains: "OpPhi's number of incoming blocks (35) does not match block's predecessor count (35)."
+-- which is about as retarded of an error as I've ever seen ... "35 does not match 35" ... last I checked, 35 does match 35.
+SolverBase.clBuildOptions = '-O0'
+
 local solverUniqueIndex = 1
 
 --[[
@@ -1134,7 +1138,9 @@ kernel void findNaNs(
 
 	time('building program cache/'..self:getIdent()..'/src/common.clcpp ', function()
 		self.commonProgramObj = self.Program{name='common', code=commonCode}
-		self.commonProgramObj:compile()
+		self.commonProgramObj:compile{
+			buildOptions = self.clBuildOptions,
+		}
 	end)
 
 	-- used by the integrators
@@ -1502,7 +1508,9 @@ function SolverBase:refreshSolverProgram()
 
 	time('building program cache/'..self:getIdent()..'/src/solver.clcpp ', function()
 		self.solverProgramObj = self.Program{name='solver', code=code}
-		self.solverProgramObj:compile()
+		self.solverProgramObj:compile{
+			buildOptions = '-O0',
+		}
 	end)
 
 	self:refreshCalcDTKernel()
@@ -3698,7 +3706,9 @@ end
 			})
 		}:concat'\n',
 	}
-	testStructProgramObj:compile()
+	testStructProgramObj:compile{
+			buildOptions = '-O0',
+	}
 	local kernelObj = testStructProgramObj:kernel{name='checkStructSizes', domain=_1x1_domain}
 	kernelObj.obj:setArg(0, resultBuf)
 	kernelObj()

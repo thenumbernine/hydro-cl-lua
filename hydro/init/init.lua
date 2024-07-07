@@ -189,7 +189,9 @@ function InitCond:refreshInitStateProgram()
 
 	time('building program cache/'..solver:getIdent()..'/src/initCond.clcpp ', function()
 		solver.initCondProgramObj = solver.Program{name='initCond', code=initCondCode}
-		solver.initCondProgramObj:compile()
+		solver.initCondProgramObj:compile{
+			buildOptions = solver.clBuildOptions,
+		}
 	end)
 
 	solver.applyInitCondKernelObj = solver.initCondProgramObj:kernel(eqn.symbols.applyInitCond, solver.solverBuf, solver.initCondBuf, solver.UBuf, solver.cellBuf)

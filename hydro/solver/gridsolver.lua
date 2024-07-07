@@ -1206,7 +1206,9 @@ lines:insert[[
 	local boundaryProgramObj
 	time('building program cache/'..self:getIdent()..'/src/boundary.clcpp ', function()
 		boundaryProgramObj = self.Program{name=boundaryProgramName, code=code}
-		boundaryProgramObj:compile()
+		boundaryProgramObj:compile{
+			buildOptions = self.clBuildOptions,
+		}
 	end)
 
 	local boundaryKernelObjs = table()
