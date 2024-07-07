@@ -578,6 +578,13 @@ function SolverBase:initMeshVars(args)
 		Program.super.init(self, args)
 	end
 
+	function Program:compile(args, ...)
+		args = args or {}
+		args.useCachedCode = cmdline.useCachedCode
+		args.buildOptions = solver.clBuildOptions
+		return Program.super.compile(self, args, ...)
+	end
+
 	self.Program = Program
 
 
@@ -1138,9 +1145,7 @@ kernel void findNaNs(
 
 	time('building program cache/'..self:getIdent()..'/src/common.clcpp ', function()
 		self.commonProgramObj = self.Program{name='common', code=commonCode}
-		self.commonProgramObj:compile{
-			buildOptions = self.clBuildOptions,
-		}
+		self.commonProgramObj:compile()
 	end)
 
 	-- used by the integrators
@@ -1508,9 +1513,7 @@ function SolverBase:refreshSolverProgram()
 
 	time('building program cache/'..self:getIdent()..'/src/solver.clcpp ', function()
 		self.solverProgramObj = self.Program{name='solver', code=code}
-		self.solverProgramObj:compile{
-			buildOptions = '-O0',
-		}
+		self.solverProgramObj:compile()
 	end)
 
 	self:refreshCalcDTKernel()
@@ -3706,9 +3709,7 @@ end
 			})
 		}:concat'\n',
 	}
-	testStructProgramObj:compile{
-			buildOptions = '-O0',
-	}
+	testStructProgramObj:compile()
 	local kernelObj = testStructProgramObj:kernel{name='checkStructSizes', domain=_1x1_domain}
 	kernelObj.obj:setArg(0, resultBuf)
 	kernelObj()
