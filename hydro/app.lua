@@ -2398,16 +2398,16 @@ end
 
 local leftShiftDown, rightShiftDown
 local leftGuiDown, rightGuiDown
-function HydroCLApp:event(event, ...)
+function HydroCLApp:event(event)
 	if HydroCLApp.super.event then
-		HydroCLApp.super.event(self, event, ...)
+		HydroCLApp.super.event(self, event)
 	end
 	local shiftDown = leftShiftDown or rightShiftDown
 	local guiDown = leftGuiDown or rightGuiDown
-	if event.type == sdl.SDL_MOUSEMOTION then
+	if event[0].type == sdl.SDL_MOUSEMOTION then
 		if canHandleMouse() then
-			local dx = event.motion.xrel
-			local dy = event.motion.yrel
+			local dx = event[0].motion.xrel
+			local dy = event[0].motion.yrel
 			if dx ~= 0 or dy ~= 0 then
 				if mouse.leftDown and not guiDown then
 					if self.mouse_influenceEquations then
@@ -2423,37 +2423,37 @@ function HydroCLApp:event(event, ...)
 				end
 			end
 		end
-	elseif event.type == sdl.SDL_KEYDOWN then
-		if event.key.keysym.sym == sdl.SDLK_LSHIFT then
+	elseif event[0].type == sdl.SDL_KEYDOWN then
+		if event[0].key.keysym.sym == sdl.SDLK_LSHIFT then
 			leftShiftDown = true
-		elseif event.key.keysym.sym == sdl.SDLK_RSHIFT then
+		elseif event[0].key.keysym.sym == sdl.SDLK_RSHIFT then
 			rightShiftDown = true
-		elseif event.key.keysym.sym == sdl.SDLK_LGUI then
+		elseif event[0].key.keysym.sym == sdl.SDLK_LGUI then
 			leftGuiDown = true
-		elseif event.key.keysym.sym == sdl.SDLK_RGUI then
+		elseif event[0].key.keysym.sym == sdl.SDLK_RGUI then
 			rightGuiDown = true
 		end
-	elseif event.type == sdl.SDL_KEYUP then
-		if event.key.keysym.sym == sdl.SDLK_LSHIFT then
+	elseif event[0].type == sdl.SDL_KEYUP then
+		if event[0].key.keysym.sym == sdl.SDLK_LSHIFT then
 			leftShiftDown = false
-		elseif event.key.keysym.sym == sdl.SDLK_RSHIFT then
+		elseif event[0].key.keysym.sym == sdl.SDLK_RSHIFT then
 			rightShiftDown = false
-		elseif event.key.keysym.sym == sdl.SDLK_LGUI then
+		elseif event[0].key.keysym.sym == sdl.SDLK_LGUI then
 			leftGuiDown = false
-		elseif event.key.keysym.sym == sdl.SDLK_RGUI then
+		elseif event[0].key.keysym.sym == sdl.SDLK_RGUI then
 			rightGuiDown = false
 		elseif canHandleKeyboard() then
-			if event.key.keysym.sym == sdl.SDLK_SPACE then
+			if event[0].key.keysym.sym == sdl.SDLK_SPACE then
 				self.running = not self.running
-			elseif event.key.keysym.sym == ('u'):byte() then
+			elseif event[0].key.keysym.sym == ('u'):byte() then
 				self.running = 'step'
-			elseif event.key.keysym.sym == ('r'):byte() then
+			elseif event[0].key.keysym.sym == ('r'):byte() then
 				print'resetting...'
 				for _,solver in ipairs(self.solvers) do
 					solver:resetState()
 				end
 				self.running = false
-			elseif event.key.keysym.sym == ('p'):byte() then
+			elseif event[0].key.keysym.sym == ('p'):byte() then
 				if shiftDown then
 					self:resetGradientTex()
 				else
