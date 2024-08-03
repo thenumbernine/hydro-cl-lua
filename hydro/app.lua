@@ -552,7 +552,7 @@ local baseSystems = {
 		local cl = class()
 		function cl:requestExit() self.done = true end
 		function cl:run()
-			if self.initGL then self:initGL(gl, 'none') end
+			if self.initGL then self:initGL() end
 			repeat
 				if self.update then self:update() end
 			until self.done
