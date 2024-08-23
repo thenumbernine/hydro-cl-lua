@@ -1,3 +1,5 @@
+local asserteq = require 'ext.assert'.eq
+local assertlen = require 'ext.assert'.len
 local table = require 'ext.table'
 local ffi = require 'ffi'
 
@@ -806,7 +808,7 @@ function HydroCLApp:initDraw()
 	elseif cmdline.displaySlice == 'yz' then
 		self.displaySliceAngle:fromAngleAxis(0,1,0,90)
 	elseif type(cmdline.displaySlice) == 'table' then
-		assert(#cmdline.displaySlice == 4, "don't know how to handle this cmdline.displaySlice")
+		assertlen(cmdline.displaySlice, 4, "don't know how to handle this cmdline.displaySlice")
 		self.displaySliceAngle:fromAngleAxis(table.unpack(cmdline.displaySlice))
 	end
 
@@ -1807,6 +1809,7 @@ end
 				local solverxmin, solverxmax = tonumber(solver.mins.x), tonumber(solver.maxs.x)
 				solverxmin, solverxmax = 1.1 * solverxmin - .1 * solverxmax, 1.1 * solverxmax - .1 * solverxmin
 				if self.displayDim > 1 then	-- solver.dim
+					-- TODO why not tweak self.view here?
 					local center = .5 * (solverxmin + solverxmax)
 					solverxmin = (solverxmin - center) * ar + center
 					solverxmax = (solverxmax - center) * ar + center
@@ -1820,6 +1823,7 @@ end
 					solverymin, solverymax = tonumber(solver.mins.y), tonumber(solver.maxs.y)
 					solverymin, solverymax = 1.1 * solverymin - .1 * solverymax, 1.1 * solverymax - .1 * solverymin
 				else
+					-- TODO why not tweak self.view here?
 					if vectorField then
 						solverymin, solverymax = solver:calcDisplayVarRange(var, component.magn)
 					else
@@ -1875,6 +1879,18 @@ end
 		if not ymin or not ymax or ymin ~= ymin or ymax ~= ymax then
 			ymin = -5
 			ymax = 5
+		end
+
+		-- for 1D, now that we've calculated our bounds, recalculate our projection matrix based on it ...
+		-- TODO maybe also recalculate the pos and angle or nah?
+		-- orthoSize won't work because it's a single scalar w/aspect ratio preservation, while 1D graph display has separate scales for x and y axis ...
+		-- but oh snap! these views have zoom x and y, sepraate of glapp.view's, which just have orthoSize, maybe I should migrate these over to there ...
+		if self.displayDim == 1 then
+			local view = self.view
+			asserteq(view, self.orthoView)
+			view.mvMat:setIdent()
+			view.projMat:setOrtho(xmin, xmax, ymin, ymax, -1, 1)
+			view.mvProjMat:copy(view.projMat)
 		end
 
 		local mouseOverThisGraph

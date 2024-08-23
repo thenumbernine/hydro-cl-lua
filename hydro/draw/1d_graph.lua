@@ -96,47 +96,58 @@ function Draw1D:display(varName, ar, xmin, xmax, ymin, ymax, useLog, valueMin, v
 	local solver = self.solver
 	local app = solver.app
 
--- [[
+	-- trust that app.view is already setup ...
+
+	local sceneObj = app.drawLineSceneObj
+	local shader = sceneObj.program
+
+	shader:use()
+	gl.glUniformMatrix4fv(shader.uniforms.mvProjMat.loc, 1, gl.GL_FALSE, app.view.mvProjMat.ptr)
+	sceneObj:enableAndSetAttrs()
+
+	gl.glUniform4f(shader.uniforms.color.loc, .1, .1, .1, 1)
+	local xrange = xmax - xmin
+	local xstep = 10^math.floor(math.log(xrange, 10) - .5)
+	local xticmin = math.floor(xmin/xstep)
+	local xticmax = math.ceil(xmax/xstep)
+	for x=xticmin,xticmax do
+		-- TODO turn this into instanced geometry and make it draw faster
+		gl.glUniform3f(shader.uniforms.pt0.loc, x*xstep, ymin, 0)
+		gl.glUniform3f(shader.uniforms.pt1.loc, x*xstep, ymax, 0)
+		sceneObj.geometry:draw()
+	end
+	local yrange = ymax - ymin
+	local ystep = 10^math.floor(math.log(yrange, 10) - .5)
+	local yticmin = math.floor(ymin/ystep)
+	local yticmax = math.ceil(ymax/ystep)
+	for y=yticmin,yticmax do
+		-- TODO turn this into instanced geometry and make it draw faster
+		gl.glUniform3f(shader.uniforms.pt0.loc, xmin, y*ystep, 0)
+		gl.glUniform3f(shader.uniforms.pt1.loc, xmax, y*ystep, 0)
+		sceneObj.geometry:draw()
+	end
+
+	gl.glUniform4f(shader.uniforms.color.loc, .5, .5, .5, 1)
+	
+	gl.glUniform3f(shader.uniforms.pt0.loc, xmin, 0, 0)
+	gl.glUniform3f(shader.uniforms.pt1.loc, xmax, 0, 0)
+	sceneObj.geometry:draw()
+	
+	gl.glUniform3f(shader.uniforms.pt0.loc, 0, ymin, 0)
+	gl.glUniform3f(shader.uniforms.pt1.loc, 0, ymax, 0)
+	sceneObj.geometry:draw()
+	
+	sceneObj:disableAttrs()
+	shader:useNone()
+
+
+	-- glMatrixMode because font still uses it ...
 	gl.glMatrixMode(gl.GL_PROJECTION)
 	gl.glLoadIdentity()
 	gl.glOrtho(xmin, xmax, ymin, ymax, -1, 1)
 	gl.glMatrixMode(gl.GL_MODELVIEW)
 	gl.glLoadIdentity()
---]]
---[[
-	app.view:setup(ar)
---]]
-
-	gl.glColor3d(.1, .1, .1)
-	local xrange = xmax - xmin
-	local xstep = 10^math.floor(math.log(xrange, 10) - .5)
-	local xticmin = math.floor(xmin/xstep)
-	local xticmax = math.ceil(xmax/xstep)
-	gl.glBegin(gl.GL_LINES)
-	for x=xticmin,xticmax do
-		gl.glVertex2d(x*xstep,ymin)
-		gl.glVertex2d(x*xstep,ymax)
-	end
-	gl.glEnd()
-	local yrange = ymax - ymin
-	local ystep = 10^math.floor(math.log(yrange, 10) - .5)
-	local yticmin = math.floor(ymin/ystep)
-	local yticmax = math.ceil(ymax/ystep)
-	gl.glBegin(gl.GL_LINES)
-	for y=yticmin,yticmax do
-		gl.glVertex2d(xmin,y*ystep)
-		gl.glVertex2d(xmax,y*ystep)
-	end
-	gl.glEnd()
-
-	gl.glColor3d(.5, .5, .5)
-	gl.glBegin(gl.GL_LINES)
-	gl.glVertex2d(xmin, 0)
-	gl.glVertex2d(xmax, 0)
-	gl.glVertex2d(0, ymin)
-	gl.glVertex2d(0, ymax)
-	gl.glEnd()
-
+	
 	-- display here
 	local var = solver.displayVarForName[varName]
 	if var and var.enabled then

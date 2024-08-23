@@ -141,7 +141,7 @@ function Draw2DHeatmap:display(varName, ar, graph_xmin, graph_xmax, graph_ymin, 
 	sceneObj.geometry:draw()
 
 	sceneObj:disableAttrs()
-	sceneObj:useNone()
+	shader:useNone()
 
 	-- NOTICE overlays of multiple solvers won't be helpful.  It'll just draw over the last solver.
 	-- I've got to rethink the visualization
