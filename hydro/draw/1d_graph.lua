@@ -96,11 +96,16 @@ function Draw1D:display(varName, ar, xmin, xmax, ymin, ymax, useLog, valueMin, v
 	local solver = self.solver
 	local app = solver.app
 
+-- [[
 	gl.glMatrixMode(gl.GL_PROJECTION)
 	gl.glLoadIdentity()
 	gl.glOrtho(xmin, xmax, ymin, ymax, -1, 1)
 	gl.glMatrixMode(gl.GL_MODELVIEW)
 	gl.glLoadIdentity()
+--]]
+--[[
+	app.view:setup(ar)
+--]]
 
 	gl.glColor3d(.1, .1, .1)
 	local xrange = xmax - xmin

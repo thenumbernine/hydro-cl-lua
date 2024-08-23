@@ -1913,22 +1913,20 @@ end
 --				self.mouseCoord[1] = mouseInGraphX * (xmax - xmin) + xmin
 --				self.mouseCoord[2] = mouseInGraphY * (ymax - ymin) + ymin
 --			else	-- use the ortho xy min max
-				local xmin, xmax, ymin, ymax
+				local vpxmin, vpxmax, vpymin, vpymax
 				if self.view.getOrthoBounds then
-					xmin, xmax, ymin, ymax = self.view:getOrthoBounds(ar)
+					vpxmin, vpxmax, vpymin, vpymax = self.view:getOrthoBounds(ar)
 				else
-					xmin, xmax, ymin, ymax = graph_xmin, graph_ymin, graph_xmax, graph_ymax
+					vpxmin, vpxmax, vpymin, vpymax = xmin, ymin, xmax, ymax
 				end
 
 				-- frustum doesn't have these ...
-				if xmax and ymax and xmin and ymin then
-					self.mouseCoord[1] = mouseInGraphX * (xmax - xmin) + xmin
-					self.mouseCoord[2] = mouseInGraphY * (ymax - ymin) + ymin
+				if vpxmax and vpymax and vpxmin and vpymin then
+					self.mouseCoord[1] = mouseInGraphX * (vpxmax - vpxmin) + vpxmin
+					self.mouseCoord[2] = mouseInGraphY * (vpymax - vpymin) + vpymin
 				end
 --			end
 		end
-
-
 
 		if not vectorField then
 			if self.displayDim == 1 then
