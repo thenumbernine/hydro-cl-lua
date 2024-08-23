@@ -1121,6 +1121,36 @@ function HydroCLApp:initGL(...)
 	}
 
 	local GLSceneObject = require 'gl.sceneobject'
+	self.drawLineSceneObj = GLSceneObject{
+		program = {
+			version = 'latest',
+			precision = 'best',
+			vertexCode = [[
+in float vertex;
+uniform vec3 pt0, pt1;
+uniform mat4 mvProjMat;
+void main() {
+	vec3 rvtx = mix(pt0, pt1, vertex);
+	gl_Position = mvProjMat * vec4(rvtx, 1.);
+}
+]],
+			fragmentCode = [[
+out vec4 fragColor;
+uniform vec4 color;
+void main() {
+	fragColor = color;
+}
+]],
+		},
+		geometry = {
+			mode = gl.GL_LINES,
+			vertexes = {
+				data = {0, 1},
+			},
+			dim = 1,
+		},
+	}
+
 	self.drawGradSceneObj = GLSceneObject{
 		program = {
 			version = 'latest',

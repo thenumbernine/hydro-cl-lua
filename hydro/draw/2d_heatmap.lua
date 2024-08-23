@@ -1,6 +1,8 @@
 local path = require 'ext.path'
+local asserteq = require 'ext.assert'.eq
 local gl = require 'gl'
 local Draw = require 'hydro.draw.draw'
+local GLSceneObject = require 'gl.sceneobject'
 
 
 local Draw2DHeatmap = Draw:subclass()
@@ -18,12 +20,11 @@ var.solver = solver
 		:bind(0)
 		:setParameter(gl.GL_TEXTURE_MAG_FILTER, app.displayBilinearTextures and gl.GL_LINEAR or gl.GL_NEAREST)
 
-	gl.glBegin(gl.GL_QUADS)
-	gl.glVertex2d(xmin, ymin)
-	gl.glVertex2d(xmax, ymin)
-	gl.glVertex2d(xmax, ymax)
-	gl.glVertex2d(xmin, ymax)
-	gl.glEnd()
+	gl.glUniform4f(shader.uniforms.bbox.loc, xmin, ymin, xmax, ymax)
+
+	-- TODO no more need to pass along shader every time?  or nah?
+	asserteq(solver.heatMap2DSceneObj.program, shader)
+	solver.heatMap2DSceneObj:draw()
 
 	tex:unbind(0)
 
@@ -47,6 +48,9 @@ function Draw2DHeatmap:showDisplayVar(var, varName, ar, xmin, xmax, ymin, ymax)
 		var.heatMapValueMin = valueMin
 		var.heatMapValueMax = valueMax
 	end
+	
+	gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
+	gl.glEnable(gl.GL_BLEND)
 
 	local shader = solver.heatMap2DShader
 	shader:use()
@@ -54,9 +58,6 @@ function Draw2DHeatmap:showDisplayVar(var, varName, ar, xmin, xmax, ymin, ymax)
 	gl.glActiveTexture(gl.GL_TEXTURE0)
 
 	self:setupDisplayVarShader(shader, var, valueMin, valueMax)
-
-	gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
-	gl.glEnable(gl.GL_BLEND)
 
 	self:drawSolverWithVar(var, shader, xmin, xmax, ymin, ymax)
 
@@ -68,12 +69,11 @@ function Draw2DHeatmap:showDisplayVar(var, varName, ar, xmin, xmax, ymin, ymax)
 	end
 --]]
 
-	gl.glDisable(gl.GL_BLEND)
-
 	app.gradientTex:unbind(1)
 	gl.glActiveTexture(gl.GL_TEXTURE0)
 	shader:useNone()
 
+	gl.glDisable(gl.GL_BLEND)
 --	gl.glDisable(gl.GL_DEPTH_TEST)
 
 	app:drawGradientLegend(solver, var, varName, ar, valueMin, valueMax)
@@ -102,35 +102,44 @@ function Draw2DHeatmap:display(varName, ar, graph_xmin, graph_xmax, graph_ymin, 
 
 	local gridz = 0	--.1
 
-	gl.glColor3f(.1, .1, .1)
+	local shader = app.drawLineSceneObj.program
+	
+	shader:use()
+	gl.glUniformMatrix4fv(shader.uniforms.mvProjMat.loc, 1, gl.GL_FALSE, app.view.mvProjMat.ptr)
+	gl.glUniform4f(shader.uniforms.color.loc, .1, .1, .1, 1)
+	
 	local xrange = xmax - xmin
 	local xstep = 10^math.floor(math.log(xrange, 10) - .5)
 	local xticmin = math.floor(xmin/xstep)
 	local xticmax = math.ceil(xmax/xstep)
-	gl.glBegin(gl.GL_LINES)
 	for x=xticmin,xticmax do
-		gl.glVertex3f(x*xstep,ymin, gridz)
-		gl.glVertex3f(x*xstep,ymax, gridz)
+		-- TODO turn this into instanced geometry and make it draw faster
+		shader:use()
+		gl.glUniform3f(shader.uniforms.pt0.loc, x*xstep, ymin, gridz)
+		gl.glUniform3f(shader.uniforms.pt1.loc, x*xstep, ymax, gridz)
+		app.drawLineSceneObj:draw()
 	end
-	gl.glEnd()
 	local yrange = ymax - ymin
 	local ystep = 10^math.floor(math.log(yrange, 10) - .5)
 	local yticmin = math.floor(ymin/ystep)
 	local yticmax = math.ceil(ymax/ystep)
-	gl.glBegin(gl.GL_LINES)
 	for y=yticmin,yticmax do
-		gl.glVertex3f(xmin,y*ystep, gridz)
-		gl.glVertex3f(xmax,y*ystep, gridz)
+		-- TODO turn this into instanced geometry and make it draw faster
+		shader:use()
+		gl.glUniform3f(shader.uniforms.pt0.loc, xmin, y*ystep, gridz)
+		gl.glUniform3f(shader.uniforms.pt1.loc, xmax, y*ystep, gridz)
+		app.drawLineSceneObj:draw()
 	end
-	gl.glEnd()
 
-	gl.glColor3f(.5, .5, .5)
-	gl.glBegin(gl.GL_LINES)
-	gl.glVertex3f(xmin, 0, gridz)
-	gl.glVertex3f(xmax, 0, gridz)
-	gl.glVertex3f(0, ymin, gridz)
-	gl.glVertex3f(0, ymax, gridz)
-	gl.glEnd()
+	shader:use()
+	gl.glUniform4f(shader.uniforms.color.loc, .5, .5, .5, 1)
+	gl.glUniform3f(shader.uniforms.pt0.loc, xmin, 0, gridz)
+    gl.glUniform3f(shader.uniforms.pt1.loc, xmax, 0, gridz)
+	app.drawLineSceneObj:draw()
+	shader:use()
+	gl.glUniform3f(shader.uniforms.pt0.loc, 0, ymin, gridz)
+	gl.glUniform3f(shader.uniforms.pt1.loc, 0, ymax, gridz)
+	app.drawLineSceneObj:draw()
 
 	-- NOTICE overlays of multiple solvers won't be helpful.  It'll just draw over the last solver.
 	-- I've got to rethink the visualization
@@ -158,11 +167,12 @@ function Draw2DHeatmap:prepareShader()
 			draw = self,
 			fragmentShader = true,
 		}),
-		uniforms = {
-			valueMin = 0,
-			valueMax = 0,
-		},
 	}:useNone()
+
+	solver.heatMap2DSceneObj = GLSceneObject{
+		program = solver.heatMap2DShader,
+		geometry = solver.app.quadGeom,
+	}
 end
 
 return Draw2DHeatmap
