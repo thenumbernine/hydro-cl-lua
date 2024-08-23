@@ -506,19 +506,11 @@ local targetSystem = cmdline.sys or 'imguiapp'
 -- -- that will probalby mean lots of pcalls around requires
 local gl
 local sdl
-local GLProgram
-local GLGradientTex
-local GLTex2D
-local Font
 local Mouse
 if targetSystem ~= 'console' then
 	gl = require 'gl'
 	sdl = require 'ffi.req' 'sdl'
-	GLProgram = require 'gl.program'
-	GLGradientTex = require 'gl.gradienttex'
 	Mouse = require 'glapp.mouse'
-	GLTex2D = require 'gl.tex2d'
-	Font = require 'gui.font'
 end
 
 -- TODO here if we have glapp and imguiapp present
@@ -1028,31 +1020,10 @@ function HydroCLApp:initGL(...)
 			end
 		end
 
-
-		self.isobarShader = GLProgram{
-			vertexCode = [[
-varying vec4 color;
-void main() {
-	color = gl_Color;
-	gl_Position = ftransform();
-}
-]],
-		fragmentCode = [[
-varying vec4 color;
-void main() {
-	float dx_dz = dFdx(gl_FragCoord.z);
-	float dy_dz = dFdy(gl_FragCoord.z);
-
-	vec3 n = normalize(vec3(dx_dz, dy_dz, 10.));
-
-	gl_FragColor = vec4(color.rgb * n.z, color.a);
-}
-]],
-		}:useNone()
-
 		if not cmdline.disableFont then
 			local Image = require 'image'
 			local fontimage = Image'font.png'
+			local GLTex2D = require 'gl.tex2d'
 			local fonttex = GLTex2D{
 				image = fontimage,
 				minFilter = gl.GL_LINEAR_MIPMAP_LINEAR,
@@ -1066,6 +1037,7 @@ void main() {
 					:setParameter(gl.GL_TEXTURE_MIN_FILTER, gl.GL_NEAREST)
 					:setParameter(gl.GL_TEXTURE_MAG_FILTER, gl.GL_LINEAR)
 			end
+			local Font = require 'gui.font'
 			self.font = Font{
 				image = fontimage,
 				tex = fonttex,
@@ -1163,6 +1135,7 @@ HydroCLApp.predefinedPaletteIndexForName = HydroCLApp.predefinedPaletteNames:map
 HydroCLApp.predefinedPaletteIndex = cmdline.palette and HydroCLApp.predefinedPaletteIndexForName[cmdline.palette] or 1
 
 function HydroCLApp:setGradientTexColors(colors)
+	local GLGradientTex = require 'gl.gradienttex'
 	self.gradientTex = GLGradientTex(1024, colors, false)	-- false = don't wrap the colors...
 		:setWrap{s = gl.GL_REPEAT}	-- ...but do use GL_REPEAT
 	-- hmm, only on my AMD, intermittantly the next time the tex is bound it will raise an INVALID_OPERATION upon the next bind

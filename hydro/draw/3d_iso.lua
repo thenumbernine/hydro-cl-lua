@@ -397,6 +397,33 @@ function Draw3DIso:prepareShader()
 			oneOverDx = {(solver.maxs - solver.mins):unpack()},
 		},
 	}:useNone()
+
+	-- only need one, but only used here, so ...
+	app.isobarShader = app.isobarShader or GLProgram{
+		version = 'latest',
+		precision = 'best',
+		vertexCode = [[
+in vec4 vertex;
+out vec4 color;
+uniform mat4 mvProjMat;
+void main() {
+	color = gl_Color;
+	gl_Position = mvProjMat * vertex;
+}
+]],
+	fragmentCode = [[
+in vec4 color;
+out vec4 fragColor;
+void main() {
+	float dx_dz = dFdx(gl_FragCoord.z);
+	float dy_dz = dFdy(gl_FragCoord.z);
+
+	vec3 n = normalize(vec3(dx_dz, dy_dz, 10.));
+
+	fragColor = vec4(color.rgb * n.z, color.a);
+}
+]],
+	}:useNone()
 end
 
 return Draw3DIso

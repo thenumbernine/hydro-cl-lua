@@ -384,7 +384,7 @@ local args = {
 	--]]
 
 
-	--initCond = 'rectangle',
+	initCond = 'rectangle',
 	--initCond = 'Sedov',
 	--initCond = 'Noh',
 	--initCond = 'implosion',
@@ -487,7 +487,7 @@ local args = {
 	--initCond = 'Maxwell default',	-- arbitrary test to make sure it doesn't explode
 	--initCond = 'Maxwell constant',
 	--initCond = 'Maxwell empty waves',
-	initCond = 'Maxwell scattering around cylinder',
+	--initCond = 'Maxwell scattering around cylinder',
 	--initCond = 'Maxwell scattering around pyramid',
 	--initCond = 'Maxwell scattering around square',
 	--initCond = 'Maxwell scattering around Koch snowflake',
@@ -768,7 +768,7 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn
 
 
 -- Maxwell equations but as a wave of EM-four-potential.  no background metric just yet.
-self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='maxwell_A_wave'})))
+--self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='maxwell_A_wave'})))
 
 
 -- shallow water equations
@@ -802,7 +802,7 @@ self.solvers:insert(require 'hydro.solver.weno'(table(args, {
 -- compressible Euler equations
 
 
---self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
+self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
 
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='marquina', eqn='euler'})))
 
