@@ -102,6 +102,7 @@ function Draw2DHeatmap:display(varName, ar, graph_xmin, graph_xmax, graph_ymin, 
 
 	local gridz = 0	--.1
 
+-- [=[ begin block in common with hydro/draw/1d_graph.lua
 	local sceneObj = app.drawLineSceneObj
 	local shader = sceneObj.program
 
@@ -142,6 +143,7 @@ function Draw2DHeatmap:display(varName, ar, graph_xmin, graph_xmax, graph_ymin, 
 
 	sceneObj:disableAttrs()
 	shader:useNone()
+--]=] end block in common with hydro/draw/1d_graph.lua
 
 	-- NOTICE overlays of multiple solvers won't be helpful.  It'll just draw over the last solver.
 	-- I've got to rethink the visualization

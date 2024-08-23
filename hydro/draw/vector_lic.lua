@@ -1,8 +1,10 @@
 local ffi = require 'ffi'
 local path = require 'ext.path'
+local asserteq = require 'ext.assert'.eq
 local gl = require 'gl'
 local GLTex2D = require 'gl.tex2d'
 local Draw = require 'hydro.draw.draw'
+local GLSceneObject = require 'gl.sceneobject'
 
 
 local DrawVectorLIC = Draw:subclass()
@@ -27,14 +29,13 @@ var.solver = solver
 		:bind(0)
 		:setParameter(gl.GL_TEXTURE_MAG_FILTER, app.displayBilinearTextures and gl.GL_LINEAR or gl.GL_NEAREST)
 	self.noiseTex:bind(2)
-
-	gl.glBegin(gl.GL_QUADS)
-	gl.glVertex2d(xmin, ymin)
-	gl.glVertex2d(xmax, ymin)
-	gl.glVertex2d(xmax, ymax)
-	gl.glVertex2d(xmin, ymax)
-	gl.glEnd()
-
+	
+	gl.glUniform4f(shader.uniforms.bbox.loc, xmin, ymin, xmax, ymax)
+	
+	-- TODO no more need to pass along shader every time?  or nah?
+	asserteq(solver.vectorLICSceneObj.program, shader)
+	solver.vectorLICSceneObj:draw()
+	
 	self.noiseTex:unbind(2)
 	tex:unbind(0)
 
@@ -147,37 +148,51 @@ function DrawVectorLIC:display(varName, ar, graph_xmin, graph_xmax, graph_ymin, 
 
 --	gl.glEnable(gl.GL_DEPTH_TEST)
 
+-- [=[ begin block in common with hydro/draw/2d_graph.lua
 	local gridz = 0	--.1
 
-	gl.glColor3f(.1, .1, .1)
+	local sceneObj = app.drawLineSceneObj
+	local shader = sceneObj.program
+
+	shader:use()
+	sceneObj:enableAndSetAttrs()
+	gl.glUniformMatrix4fv(shader.uniforms.mvProjMat.loc, 1, gl.GL_FALSE, app.view.mvProjMat.ptr)
+	gl.glUniform4f(shader.uniforms.color.loc, .1, .1, .1, 1)
+
 	local xrange = xmax - xmin
 	local xstep = 10^math.floor(math.log(xrange, 10) - .5)
 	local xticmin = math.floor(xmin/xstep)
 	local xticmax = math.ceil(xmax/xstep)
-	gl.glBegin(gl.GL_LINES)
 	for x=xticmin,xticmax do
-		gl.glVertex3f(x*xstep,ymin, gridz)
-		gl.glVertex3f(x*xstep,ymax, gridz)
+		-- TODO turn this into instanced geometry and make it draw faster
+		gl.glUniform3f(shader.uniforms.pt0.loc, x*xstep, ymin, gridz)
+		gl.glUniform3f(shader.uniforms.pt1.loc, x*xstep, ymax, gridz)
+		sceneObj.geometry:draw()
 	end
-	gl.glEnd()
 	local yrange = ymax - ymin
 	local ystep = 10^math.floor(math.log(yrange, 10) - .5)
 	local yticmin = math.floor(ymin/ystep)
 	local yticmax = math.ceil(ymax/ystep)
-	gl.glBegin(gl.GL_LINES)
 	for y=yticmin,yticmax do
-		gl.glVertex3f(xmin,y*ystep, gridz)
-		gl.glVertex3f(xmax,y*ystep, gridz)
+		-- TODO turn this into instanced geometry and make it draw faster
+		gl.glUniform3f(shader.uniforms.pt0.loc, xmin, y*ystep, gridz)
+		gl.glUniform3f(shader.uniforms.pt1.loc, xmax, y*ystep, gridz)
+		sceneObj.geometry:draw()
 	end
-	gl.glEnd()
 
-	gl.glColor3f(.5, .5, .5)
-	gl.glBegin(gl.GL_LINES)
-	gl.glVertex3f(xmin, 0, gridz)
-	gl.glVertex3f(xmax, 0, gridz)
-	gl.glVertex3f(0, ymin, gridz)
-	gl.glVertex3f(0, ymax, gridz)
-	gl.glEnd()
+	gl.glUniform4f(shader.uniforms.color.loc, .5, .5, .5, 1)
+	gl.glUniform3f(shader.uniforms.pt0.loc, xmin, 0, gridz)
+    gl.glUniform3f(shader.uniforms.pt1.loc, xmax, 0, gridz)
+	sceneObj.geometry:draw()
+
+	gl.glUniform3f(shader.uniforms.pt0.loc, 0, ymin, gridz)
+	gl.glUniform3f(shader.uniforms.pt1.loc, 0, ymax, gridz)
+	sceneObj.geometry:draw()
+
+	sceneObj:disableAttrs()
+	shader:useNone()
+--]=] end block in common with hydro/draw/1d_graph.lua
+
 
 	-- NOTICE overlays of multiple solvers won't be helpful.  It'll just draw over the last solver.
 	-- I've got to rethink the visualization
@@ -216,6 +231,11 @@ function DrawVectorLIC:prepareShader()
 			noiseTex = 2,
 		},
 	}:useNone()
+
+	solver.vectorLICSceneObj = GLSceneObject{
+		program = solver.vectorLICShader,
+		geometry = solver.app.quadGeom,
+	}
 end
 
 return DrawVectorLIC

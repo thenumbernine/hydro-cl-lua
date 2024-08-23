@@ -98,22 +98,25 @@ function Draw1D:display(varName, ar, xmin, xmax, ymin, ymax, useLog, valueMin, v
 
 	-- trust that app.view is already setup ...
 
+-- [=[ begin block in common with hydro/draw/2d_heatmap.lua
+	local gridz = 0	--.1
+
 	local sceneObj = app.drawLineSceneObj
 	local shader = sceneObj.program
 
 	shader:use()
-	gl.glUniformMatrix4fv(shader.uniforms.mvProjMat.loc, 1, gl.GL_FALSE, app.view.mvProjMat.ptr)
 	sceneObj:enableAndSetAttrs()
-
+	gl.glUniformMatrix4fv(shader.uniforms.mvProjMat.loc, 1, gl.GL_FALSE, app.view.mvProjMat.ptr)
 	gl.glUniform4f(shader.uniforms.color.loc, .1, .1, .1, 1)
+
 	local xrange = xmax - xmin
 	local xstep = 10^math.floor(math.log(xrange, 10) - .5)
 	local xticmin = math.floor(xmin/xstep)
 	local xticmax = math.ceil(xmax/xstep)
 	for x=xticmin,xticmax do
 		-- TODO turn this into instanced geometry and make it draw faster
-		gl.glUniform3f(shader.uniforms.pt0.loc, x*xstep, ymin, 0)
-		gl.glUniform3f(shader.uniforms.pt1.loc, x*xstep, ymax, 0)
+		gl.glUniform3f(shader.uniforms.pt0.loc, x*xstep, ymin, gridz)
+		gl.glUniform3f(shader.uniforms.pt1.loc, x*xstep, ymax, gridz)
 		sceneObj.geometry:draw()
 	end
 	local yrange = ymax - ymin
@@ -122,24 +125,24 @@ function Draw1D:display(varName, ar, xmin, xmax, ymin, ymax, useLog, valueMin, v
 	local yticmax = math.ceil(ymax/ystep)
 	for y=yticmin,yticmax do
 		-- TODO turn this into instanced geometry and make it draw faster
-		gl.glUniform3f(shader.uniforms.pt0.loc, xmin, y*ystep, 0)
-		gl.glUniform3f(shader.uniforms.pt1.loc, xmax, y*ystep, 0)
+		gl.glUniform3f(shader.uniforms.pt0.loc, xmin, y*ystep, gridz)
+		gl.glUniform3f(shader.uniforms.pt1.loc, xmax, y*ystep, gridz)
 		sceneObj.geometry:draw()
 	end
 
 	gl.glUniform4f(shader.uniforms.color.loc, .5, .5, .5, 1)
 	
-	gl.glUniform3f(shader.uniforms.pt0.loc, xmin, 0, 0)
-	gl.glUniform3f(shader.uniforms.pt1.loc, xmax, 0, 0)
+	gl.glUniform3f(shader.uniforms.pt0.loc, xmin, 0, gridz)
+	gl.glUniform3f(shader.uniforms.pt1.loc, xmax, 0, gridz)
 	sceneObj.geometry:draw()
 	
-	gl.glUniform3f(shader.uniforms.pt0.loc, 0, ymin, 0)
-	gl.glUniform3f(shader.uniforms.pt1.loc, 0, ymax, 0)
+	gl.glUniform3f(shader.uniforms.pt0.loc, 0, ymin, gridz)
+	gl.glUniform3f(shader.uniforms.pt1.loc, 0, ymax, gridz)
 	sceneObj.geometry:draw()
 	
 	sceneObj:disableAttrs()
 	shader:useNone()
-
+--]=] end block in common with hydro/draw/2d_heatmap.lua
 
 	-- glMatrixMode because font still uses it ...
 	gl.glMatrixMode(gl.GL_PROJECTION)
