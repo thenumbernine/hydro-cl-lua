@@ -145,6 +145,7 @@ function DrawVectorField:showDisplayVar(var, varName, ar, xmin, xmax, ymin, ymax
 	local tex = solver:getTex(var)
 	tex:bind(0)
 	app.gradientTex:bind(1)
+	gl.glActiveTexture(gl.GL_TEXTURE0)
 
 	-- how to determine scale?
 	--local scale = self.scale * (valueMax - valueMin)

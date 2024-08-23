@@ -15,8 +15,6 @@ uniform mat4 mvProjMat;
 uniform bool useLog;
 uniform float valueMin, valueMax;
 
-uniform sampler1D gradientTex;
-
 uniform vec3 solverMins, solverMaxs;
 
 uniform vec3 texSize;
@@ -31,12 +29,12 @@ uniform vec3 cartesianMin, cartesianMax;
 -- if solver.dim < 3 then -- doesn't consider meshsolver
 if require 'gl.tex2d':isa(solver.tex) then -- does
 ?>
-uniform sampler2D tex;
+layout(binding=0) uniform sampler2D tex;
 vec4 getTex(vec3 texCoord) {
 	return texture(tex, texCoord.xy);
 }
 <? else ?>
-uniform sampler3D tex;
+layout(binding=0) uniform sampler3D tex;
 vec4 getTex(vec3 texCoord) {
 	return texture(tex, texCoord);
 }
@@ -73,6 +71,8 @@ float getGradientFrac(float value) {
 	}
 }
 
+layout(binding=1) uniform sampler2D gradientTex;
+
 //TODO just change texel lookup in gradTex?
 float getGradientTexCoord(float frac) {
 	return (frac * <?=clnumber(app.gradientTex.width-1)?> + .5) * <?=clnumber(1 / app.gradientTex.width)?>;
@@ -81,7 +81,7 @@ float getGradientTexCoord(float frac) {
 vec4 getGradientColor(float value) {
 	float frac = getGradientFrac(value);
 	float tc = getGradientTexCoord(frac);
-	return texture(gradientTex, tc);
+	return texture(gradientTex, vec2(tc, .5));
 }
 
 

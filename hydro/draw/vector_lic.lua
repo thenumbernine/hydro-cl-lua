@@ -91,6 +91,7 @@ function DrawVectorLIC:showDisplayVar(var, varName, ar, xmin, xmax, ymin, ymax)
 	shader:use()
 
 	app.gradientTex:bind(1)
+	gl.glActiveTexture(gl.GL_TEXTURE0)
 
 	self:setupDisplayVarShader(shader, var, valueMin, valueMax)
 

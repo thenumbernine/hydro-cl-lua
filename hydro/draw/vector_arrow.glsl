@@ -139,7 +139,7 @@ end
 //TODO make this a flag, whether to normalize vectors or not? 
 	float valuescale = scale;// * clamp(value, 0., 1.);
 	value = getGradientTexCoord(value);
-	color = texture(gradientTex, value);
+	color = texture(gradientTex, vec2(value, .5));
 
 	//cartesian coords
 <? if not isMeshSolver then ?>	

@@ -188,6 +188,9 @@ environment variables:
 	device = {
 		desc = 'name or numeric index of which OpenCL device to use.',
 	},
+	gl = {
+		desc = 'specify OpenGL .lua file in ffi/ to use.  Default is OpenGL.',
+	},
 	useGLSharing = {
 		desc = 'set to false to disable GL sharing.  automatically false if sys=console.',
 	},
@@ -508,7 +511,7 @@ local gl
 local sdl
 local Mouse
 if targetSystem ~= 'console' then
-	gl = require 'gl'
+	gl = require 'gl.setup' (cmdline.gl or 'OpenGL')
 	sdl = require 'ffi.req' 'sdl'
 	Mouse = require 'glapp.mouse'
 end
@@ -1037,6 +1040,7 @@ function HydroCLApp:initGL(...)
 					:setParameter(gl.GL_TEXTURE_MIN_FILTER, gl.GL_NEAREST)
 					:setParameter(gl.GL_TEXTURE_MAG_FILTER, gl.GL_LINEAR)
 			end
+			fonttex:unbind()
 			local Font = require 'gui.font'
 			self.font = Font{
 				image = fontimage,
@@ -1135,12 +1139,12 @@ HydroCLApp.predefinedPaletteIndexForName = HydroCLApp.predefinedPaletteNames:map
 HydroCLApp.predefinedPaletteIndex = cmdline.palette and HydroCLApp.predefinedPaletteIndexForName[cmdline.palette] or 1
 
 function HydroCLApp:setGradientTexColors(colors)
-	local GLGradientTex = require 'gl.gradienttex'
-	self.gradientTex = GLGradientTex(1024, colors, false)	-- false = don't wrap the colors...
-		:setWrap{s = gl.GL_REPEAT}	-- ...but do use GL_REPEAT
-	-- hmm, only on my AMD, intermittantly the next time the tex is bound it will raise an INVALID_OPERATION upon the next bind
-	-- maybe this is all because I'm using TEXTURE_1D for the gradientTex?
-	-- maybe AMD doesn't like 1D textures so much?
+	local GLGradientTex2D = require 'gl.gradienttex2d'
+	self.gradientTex = GLGradientTex2D(1024, colors, false)	-- false = don't wrap the colors...
+		:setWrap{
+			s = gl.GL_REPEAT,
+		}
+		:unbind()
 end
 
 function HydroCLApp:resetGradientTex()
@@ -2080,7 +2084,7 @@ function HydroCLApp:drawGradientLegend(solver, var, varName, ar, valueMin, value
 		gl.glTexCoord1f(1) gl.glVertex2f(xmin + palwidth, ymax)
 		gl.glTexCoord1f(1) gl.glVertex2f(xmin, ymax)
 		gl.glEnd()
-		self.gradientTex:unbind()
+		self.gradientTex:unbind(0)
 		self.gradientTex:disable()
 
 		local fontSizeX = (xmax - xmin) * .025

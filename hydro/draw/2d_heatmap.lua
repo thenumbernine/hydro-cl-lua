@@ -51,6 +51,7 @@ function Draw2DHeatmap:showDisplayVar(var, varName, ar, xmin, xmax, ymin, ymax)
 	local shader = solver.heatMap2DShader
 	shader:use()
 	app.gradientTex:bind(1)
+	gl.glActiveTexture(gl.GL_TEXTURE0)
 
 	self:setupDisplayVarShader(shader, var, valueMin, valueMax)
 
@@ -160,8 +161,6 @@ function Draw2DHeatmap:prepareShader()
 		uniforms = {
 			valueMin = 0,
 			valueMax = 0,
-			tex = 0,
-			gradientTex = 1,
 		},
 	}:useNone()
 end

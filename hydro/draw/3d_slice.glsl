@@ -81,7 +81,7 @@ end
 	
 	float frac = getGradientFrac(value);
 	float gradTC = getGradientTexCoord(frac);
-	vec4 voxelColor = texture(gradientTex, gradTC);
+	vec4 voxelColor = texture(gradientTex, vec2(gradTC, .5));
 
 	//don't bother with the gamma factor if we're using isobars
 	if (useIsos) {

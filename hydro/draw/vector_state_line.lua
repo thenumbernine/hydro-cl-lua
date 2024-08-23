@@ -41,6 +41,7 @@ function DrawVectorStateLine:showDisplayVar(var, varName, ar, xmin, xmax, ymin, 
 	local tex = solver:getTex(var)
 	tex:bind(0)
 	--app.gradientTex:bind(1)
+	--gl.glActiveTexture(gl.GL_TEXTURE0)
 
 	self:setupDisplayVarShader(shader, var, valueMin, valueMax)
 

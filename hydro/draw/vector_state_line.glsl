@@ -65,7 +65,7 @@ uniform float ambient;
 out vec4 fragColor;
 
 void main() {
-	//fragColor = texture(gradientTex, texCoord.r);
+	//fragColor = texture(gradientTex, vec2(texCoord.r, .5));
 	//how about 2D / 3D datasets?  need a better texture map ...
 	fragColor = vec4(texCoord * .5 + .5, 1.);
 	

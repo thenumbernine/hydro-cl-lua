@@ -67,6 +67,7 @@ function DrawMeshHeatmap:showDisplayVar(var, varName, ar)
 
 		local gradientTex = app.gradientTex
 		gradientTex:bind(1)
+		gl.glActiveTexture(gl.GL_TEXTURE0)
 
 		self:setupDisplayVarShader(shader, var, valueMin, valueMax)
 
