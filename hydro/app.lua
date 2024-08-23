@@ -1105,6 +1105,48 @@ function HydroCLApp:initGL(...)
 	self.displayDim = cmdline.displayDim or self.solvers:mapi(function(solver)
 		return solver.dim
 	end):sup() or 1
+
+	local GLGeometry = require 'gl.geometry'
+	self.quadGeom = GLGeometry{
+		mode = gl.GL_TRIANGLE_STRIP,
+		vertexes = {
+			data = {
+				0, 0,
+				1, 0,
+				0, 1,
+				1, 1,
+			},
+			dim = 2,
+		},
+	}
+
+	local GLSceneObject = require 'gl.sceneobject'
+	self.drawGradSceneObj = GLSceneObject{
+		program = {
+			version = 'latest',
+			precision = 'best',
+			vertexCode = [[
+in vec2 vertex;
+out float tc;
+uniform mat4 mvProjMat;
+uniform vec4 bbox;	//[x1,y1,x2,y2]
+void main() {
+	tc = vertex.y;
+	vec2 rvtx = mix(bbox.xy, bbox.zw, vertex);
+	gl_Position = mvProjMat * vec4(rvtx, 0., 1.);
+}
+]],
+			fragmentCode = [[
+in float tc;
+out vec4 fragColor;
+layout(binding=0) uniform sampler2D gradientTex;
+void main() {
+	fragColor = texture(gradientTex, vec2(tc, .5));
+}
+]],
+		},
+		geometry = self.quadGeom,
+	}
 end
 
 
@@ -2069,23 +2111,15 @@ function HydroCLApp:drawGradientLegend(solver, var, varName, ar, valueMin, value
 		varName = varName..' ('..var.units..')'
 	end
 
-	self.orthoView:setupProjection(ar)
-	self.orthoView:setupModelView()
+	self.orthoView:setup(ar)
 	local xmin, xmax, ymin, ymax = self.orthoView:getOrthoBounds(ar)
 
 	if self.font then
 		local palwidth = (xmax - xmin) * .1
-		self.gradientTex:enable()
-		self.gradientTex:bind(0)
-		gl.glBegin(gl.GL_QUADS)
-		gl.glColor3f(1,1,1)
-		gl.glTexCoord1f(0) gl.glVertex2f(xmin, ymin)
-		gl.glTexCoord1f(0) gl.glVertex2f(xmin + palwidth, ymin)
-		gl.glTexCoord1f(1) gl.glVertex2f(xmin + palwidth, ymax)
-		gl.glTexCoord1f(1) gl.glVertex2f(xmin, ymax)
-		gl.glEnd()
-		self.gradientTex:unbind(0)
-		self.gradientTex:disable()
+		self.drawGradSceneObj.texs[1] = self.gradientTex	-- random palette will recreate this object rather than uploading ... lol i should change that ...
+		self.drawGradSceneObj.uniforms.mvProjMat = self.orthoView.mvProjMat.ptr
+		self.drawGradSceneObj.uniforms.bbox = {xmin, ymin, xmin + palwidth, ymax}
+		self.drawGradSceneObj:draw()
 
 		local fontSizeX = (xmax - xmin) * .025
 		local fontSizeY = (ymax - ymin) * .025
