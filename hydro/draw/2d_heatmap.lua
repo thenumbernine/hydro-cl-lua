@@ -48,7 +48,7 @@ function Draw2DHeatmap:showDisplayVar(var, varName, ar, xmin, xmax, ymin, ymax)
 		var.heatMapValueMin = valueMin
 		var.heatMapValueMax = valueMax
 	end
-	
+
 	gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
 	gl.glEnable(gl.GL_BLEND)
 
@@ -102,22 +102,23 @@ function Draw2DHeatmap:display(varName, ar, graph_xmin, graph_xmax, graph_ymin, 
 
 	local gridz = 0	--.1
 
-	local shader = app.drawLineSceneObj.program
-	
+	local sceneObj = app.drawLineSceneObj
+	local shader = sceneObj.program
+
 	shader:use()
+	sceneObj:enableAndSetAttrs()
 	gl.glUniformMatrix4fv(shader.uniforms.mvProjMat.loc, 1, gl.GL_FALSE, app.view.mvProjMat.ptr)
 	gl.glUniform4f(shader.uniforms.color.loc, .1, .1, .1, 1)
-	
+
 	local xrange = xmax - xmin
 	local xstep = 10^math.floor(math.log(xrange, 10) - .5)
 	local xticmin = math.floor(xmin/xstep)
 	local xticmax = math.ceil(xmax/xstep)
 	for x=xticmin,xticmax do
 		-- TODO turn this into instanced geometry and make it draw faster
-		shader:use()
 		gl.glUniform3f(shader.uniforms.pt0.loc, x*xstep, ymin, gridz)
 		gl.glUniform3f(shader.uniforms.pt1.loc, x*xstep, ymax, gridz)
-		app.drawLineSceneObj:draw()
+		sceneObj.geometry:draw()
 	end
 	local yrange = ymax - ymin
 	local ystep = 10^math.floor(math.log(yrange, 10) - .5)
@@ -125,21 +126,22 @@ function Draw2DHeatmap:display(varName, ar, graph_xmin, graph_xmax, graph_ymin, 
 	local yticmax = math.ceil(ymax/ystep)
 	for y=yticmin,yticmax do
 		-- TODO turn this into instanced geometry and make it draw faster
-		shader:use()
 		gl.glUniform3f(shader.uniforms.pt0.loc, xmin, y*ystep, gridz)
 		gl.glUniform3f(shader.uniforms.pt1.loc, xmax, y*ystep, gridz)
-		app.drawLineSceneObj:draw()
+		sceneObj.geometry:draw()
 	end
 
-	shader:use()
 	gl.glUniform4f(shader.uniforms.color.loc, .5, .5, .5, 1)
 	gl.glUniform3f(shader.uniforms.pt0.loc, xmin, 0, gridz)
     gl.glUniform3f(shader.uniforms.pt1.loc, xmax, 0, gridz)
-	app.drawLineSceneObj:draw()
-	shader:use()
+	sceneObj.geometry:draw()
+
 	gl.glUniform3f(shader.uniforms.pt0.loc, 0, ymin, gridz)
 	gl.glUniform3f(shader.uniforms.pt1.loc, 0, ymax, gridz)
-	app.drawLineSceneObj:draw()
+	sceneObj.geometry:draw()
+
+	sceneObj:disableAttrs()
+	sceneObj:useNone()
 
 	-- NOTICE overlays of multiple solvers won't be helpful.  It'll just draw over the last solver.
 	-- I've got to rethink the visualization
