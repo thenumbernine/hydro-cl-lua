@@ -98,52 +98,8 @@ function Draw2DHeatmap:display(varName, ar, graph_xmin, graph_xmax, graph_ymin, 
 
 --	gl.glEnable(gl.GL_DEPTH_TEST)
 
-	-- TODO one grid for all displaly.
-
-	local gridz = 0	--.1
-
--- [=[ begin block in common with hydro/draw/1d_graph.lua
-	local sceneObj = app.drawLineSceneObj
-	local shader = sceneObj.program
-
-	shader:use()
-	sceneObj:enableAndSetAttrs()
-	gl.glUniformMatrix4fv(shader.uniforms.mvProjMat.loc, 1, gl.GL_FALSE, app.view.mvProjMat.ptr)
-	gl.glUniform4f(shader.uniforms.color.loc, .1, .1, .1, 1)
-
-	local xrange = xmax - xmin
-	local xstep = 10^math.floor(math.log(xrange, 10) - .5)
-	local xticmin = math.floor(xmin/xstep)
-	local xticmax = math.ceil(xmax/xstep)
-	for x=xticmin,xticmax do
-		-- TODO turn this into instanced geometry and make it draw faster
-		gl.glUniform3f(shader.uniforms.pt0.loc, x*xstep, ymin, gridz)
-		gl.glUniform3f(shader.uniforms.pt1.loc, x*xstep, ymax, gridz)
-		sceneObj.geometry:draw()
-	end
-	local yrange = ymax - ymin
-	local ystep = 10^math.floor(math.log(yrange, 10) - .5)
-	local yticmin = math.floor(ymin/ystep)
-	local yticmax = math.ceil(ymax/ystep)
-	for y=yticmin,yticmax do
-		-- TODO turn this into instanced geometry and make it draw faster
-		gl.glUniform3f(shader.uniforms.pt0.loc, xmin, y*ystep, gridz)
-		gl.glUniform3f(shader.uniforms.pt1.loc, xmax, y*ystep, gridz)
-		sceneObj.geometry:draw()
-	end
-
-	gl.glUniform4f(shader.uniforms.color.loc, .5, .5, .5, 1)
-	gl.glUniform3f(shader.uniforms.pt0.loc, xmin, 0, gridz)
-    gl.glUniform3f(shader.uniforms.pt1.loc, xmax, 0, gridz)
-	sceneObj.geometry:draw()
-
-	gl.glUniform3f(shader.uniforms.pt0.loc, 0, ymin, gridz)
-	gl.glUniform3f(shader.uniforms.pt1.loc, 0, ymax, gridz)
-	sceneObj.geometry:draw()
-
-	sceneObj:disableAttrs()
-	shader:useNone()
---]=] end block in common with hydro/draw/1d_graph.lua
+	-- TODO one grid for all displaly instead of multiple calls...
+	self:drawGrid(xmin, xmax, ymin, ymax)
 
 	-- NOTICE overlays of multiple solvers won't be helpful.  It'll just draw over the last solver.
 	-- I've got to rethink the visualization

@@ -72,7 +72,7 @@ function DrawVectorStateLine:showDisplayVar(var, varName, ar, xmin, xmax, ymin, 
 	self.mvProjMat = self.mvProjMat or matrix_ffi(nil, 'float', {4,4})
 	matrix_ffi.mul(self.mvProjMat, self.projMat, self.mvMat)
 
-	gl.glUniformMatrix4fv(uniforms.mvProjMat.loc, 1, gl.GL_TRUE, self.mvProjMat.ptr)
+	gl.glUniformMatrix4fv(uniforms.mvProjMat.loc, 1, gl.GL_FALSE, self.mvProjMat.ptr)
 	--]]
 
 	-- TODO don't do this at all.  just somehow get around it.  idk, geometry shaders or something.

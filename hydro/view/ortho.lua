@@ -54,8 +54,8 @@ function OrthoView:setup(aspectRatio)
 	self:setupProjection(aspectRatio)
 	self:setupModelView()
 
-	gl.glGetFloatv(gl.GL_MODELVIEW_MATRIX, self.mvMat.ptr)
-	gl.glGetFloatv(gl.GL_PROJECTION_MATRIX, self.projMat.ptr)
+	gl.glGetFloatv(gl.GL_TRANSPOSE_MODELVIEW_MATRIX, self.mvMat.ptr)
+	gl.glGetFloatv(gl.GL_TRANSPOSE_PROJECTION_MATRIX, self.projMat.ptr)
 	self.mvProjMat:mul(self.projMat, self.mvMat)
 end
 

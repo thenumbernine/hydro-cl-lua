@@ -62,16 +62,9 @@ function Draw1D:showDisplayVar(var)
 	-- this is based on the GL state set in hydro.app for 1D graphs
 	-- TODO maybe combine the two, make the hydro.app 1D graph stuff use hydro.view.ortho,
 	-- then this could just use the default 'mvProjMat'
-	self.mvMat = self.mvMat or matrix_ffi(nil, 'float', {4,4})
-	gl.glGetFloatv(gl.GL_MODELVIEW_MATRIX, self.mvMat.ptr)
-
-	self.projMat = self.projMat or matrix_ffi(nil, 'float', {4,4})
-	gl.glGetFloatv(gl.GL_PROJECTION_MATRIX, self.projMat.ptr)
-
-	self.mvProjMat = self.mvProjMat or matrix_ffi(nil, 'float', {4,4})
-	matrix_ffi.mul(self.mvProjMat, self.projMat, self.mvMat)
-
-	gl.glUniformMatrix4fv(uniforms.mvProjMat.loc, 1, gl.GL_TRUE, self.mvProjMat.ptr)
+	
+	local view = app.view
+	gl.glUniformMatrix4fv(uniforms.mvProjMat.loc, 1, gl.GL_FALSE, view.mvProjMat.ptr)
 	--]]
 
 	for i=0,numVertexes-1 do
@@ -98,51 +91,13 @@ function Draw1D:display(varName, ar, xmin, xmax, ymin, ymax, useLog, valueMin, v
 
 	-- trust that app.view is already setup ...
 
--- [=[ begin block in common with hydro/draw/2d_heatmap.lua
-	local gridz = 0	--.1
+	-- TODO one grid for all displaly instead of multiple calls...
+	local ystep = self:drawGrid(xmin, xmax, ymin, ymax)
 
-	local sceneObj = app.drawLineSceneObj
-	local shader = sceneObj.program
-
-	shader:use()
-	sceneObj:enableAndSetAttrs()
-	gl.glUniformMatrix4fv(shader.uniforms.mvProjMat.loc, 1, gl.GL_FALSE, app.view.mvProjMat.ptr)
-	gl.glUniform4f(shader.uniforms.color.loc, .1, .1, .1, 1)
-
-	local xrange = xmax - xmin
-	local xstep = 10^math.floor(math.log(xrange, 10) - .5)
-	local xticmin = math.floor(xmin/xstep)
-	local xticmax = math.ceil(xmax/xstep)
-	for x=xticmin,xticmax do
-		-- TODO turn this into instanced geometry and make it draw faster
-		gl.glUniform3f(shader.uniforms.pt0.loc, x*xstep, ymin, gridz)
-		gl.glUniform3f(shader.uniforms.pt1.loc, x*xstep, ymax, gridz)
-		sceneObj.geometry:draw()
-	end
-	local yrange = ymax - ymin
-	local ystep = 10^math.floor(math.log(yrange, 10) - .5)
-	local yticmin = math.floor(ymin/ystep)
-	local yticmax = math.ceil(ymax/ystep)
-	for y=yticmin,yticmax do
-		-- TODO turn this into instanced geometry and make it draw faster
-		gl.glUniform3f(shader.uniforms.pt0.loc, xmin, y*ystep, gridz)
-		gl.glUniform3f(shader.uniforms.pt1.loc, xmax, y*ystep, gridz)
-		sceneObj.geometry:draw()
-	end
-
-	gl.glUniform4f(shader.uniforms.color.loc, .5, .5, .5, 1)
-	
-	gl.glUniform3f(shader.uniforms.pt0.loc, xmin, 0, gridz)
-	gl.glUniform3f(shader.uniforms.pt1.loc, xmax, 0, gridz)
-	sceneObj.geometry:draw()
-	
-	gl.glUniform3f(shader.uniforms.pt0.loc, 0, ymin, gridz)
-	gl.glUniform3f(shader.uniforms.pt1.loc, 0, ymax, gridz)
-	sceneObj.geometry:draw()
-	
-	sceneObj:disableAttrs()
-	shader:useNone()
---]=] end block in common with hydro/draw/2d_heatmap.lua
+	local view = app.view
+	view.mvMat:setIdent()
+	view.projMat:setOrtho(xmin, xmax, ymin, ymax, -1, 1)
+	view.mvProjMat:copy(view.projMat)
 
 	-- glMatrixMode because font still uses it ...
 	gl.glMatrixMode(gl.GL_PROJECTION)
@@ -150,7 +105,7 @@ function Draw1D:display(varName, ar, xmin, xmax, ymin, ymax, useLog, valueMin, v
 	gl.glOrtho(xmin, xmax, ymin, ymax, -1, 1)
 	gl.glMatrixMode(gl.GL_MODELVIEW)
 	gl.glLoadIdentity()
-	
+
 	-- display here
 	local var = solver.displayVarForName[varName]
 	if var and var.enabled then

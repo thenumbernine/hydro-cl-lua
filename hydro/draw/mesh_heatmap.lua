@@ -85,7 +85,7 @@ function DrawMeshHeatmap:showDisplayVar(var, varName, ar)
 		gl.glUniform1f(shader.uniforms.drawCellScale.loc, solver.drawCellScale)
 
 		-- this is only in DrawMeshHeatmap...
-		gl.glUniformMatrix4fv(shader.uniforms.mvProjMat.loc, 1, gl.GL_TRUE, app.view.mvProjMat.ptr)
+		gl.glUniformMatrix4fv(shader.uniforms.mvProjMat.loc, 1, gl.GL_FALSE, app.view.mvProjMat.ptr)
 
 		gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
 		gl.glEnable(gl.GL_BLEND)
@@ -129,7 +129,7 @@ function DrawMeshHeatmap:display(varName, ar)
 		gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_POINT)
 
 		solver.drawPointsShader:use()
-		gl.glUniformMatrix4fv(solver.drawPointsShader.uniforms.mvProjMat.loc, 1, gl.GL_TRUE, app.view.mvProjMat.ptr)
+		gl.glUniformMatrix4fv(solver.drawPointsShader.uniforms.mvProjMat.loc, 1, gl.GL_FALSE, app.view.mvProjMat.ptr)
 		gl.glUniform1f(solver.drawPointsShader.uniforms.drawCellScale.loc, solver.drawCellScale)
 
 		solver.drawPointsVAO:bind()
@@ -153,7 +153,7 @@ function DrawMeshHeatmap:display(varName, ar)
 		gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_LINE)
 
 		solver.drawPointsShader:use()
-		gl.glUniformMatrix4fv(solver.drawPointsShader.uniforms.mvProjMat.loc, 1, gl.GL_TRUE, app.view.mvProjMat.ptr)
+		gl.glUniformMatrix4fv(solver.drawPointsShader.uniforms.mvProjMat.loc, 1, gl.GL_FALSE, app.view.mvProjMat.ptr)
 		gl.glUniform1f(solver.drawPointsShader.uniforms.drawCellScale.loc, solver.drawCellScale)
 
 		solver.drawPointsVAO:bind()
@@ -166,7 +166,7 @@ function DrawMeshHeatmap:display(varName, ar)
 --]]
 -- [[ something between using the drawPointsShader and the GL 1.1 calls
 		solver.drawPointsShader:use()
-		gl.glUniformMatrix4fv(solver.drawPointsShader.uniforms.mvProjMat.loc, 1, gl.GL_TRUE, app.view.mvProjMat.ptr)
+		gl.glUniformMatrix4fv(solver.drawPointsShader.uniforms.mvProjMat.loc, 1, gl.GL_FALSE, app.view.mvProjMat.ptr)
 		gl.glUniform1f(solver.drawPointsShader.uniforms.drawCellScale.loc, solver.drawCellScale)
 		for ci,c in ipairs(mesh.cells) do
 			for fi=0,c.faceCount-1 do

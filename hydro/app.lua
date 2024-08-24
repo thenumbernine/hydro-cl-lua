@@ -1,4 +1,3 @@
-local asserteq = require 'ext.assert'.eq
 local assertlen = require 'ext.assert'.len
 local table = require 'ext.table'
 local ffi = require 'ffi'
@@ -1886,8 +1885,10 @@ end
 		-- orthoSize won't work because it's a single scalar w/aspect ratio preservation, while 1D graph display has separate scales for x and y axis ...
 		-- but oh snap! these views have zoom x and y, sepraate of glapp.view's, which just have orthoSize, maybe I should migrate these over to there ...
 		if self.displayDim == 1 then
-			local view = self.view
-			asserteq(view, self.orthoView)
+			-- 1d_graph.lua will just use orthoView anyways
+			local view = self.orthoView
+			--local view = self.view
+			--asserteq(view, self.orthoView) -- it might not be...
 			view.mvMat:setIdent()
 			view.projMat:setOrtho(xmin, xmax, ymin, ymax, -1, 1)
 			view.mvProjMat:copy(view.projMat)
@@ -2147,6 +2148,9 @@ end
 
 -- helper function for all draw classes:
 function HydroCLApp:drawGradientLegend(solver, var, varName, ar, valueMin, valueMax)
+	
+	if not self.font then return end
+
 	-- TODO only draw the first
 	if var.showInUnits and var.units then
 		local unitScale = solver:convertToSIUnitsCode(var.units).func()
@@ -2155,40 +2159,42 @@ function HydroCLApp:drawGradientLegend(solver, var, varName, ar, valueMin, value
 		varName = varName..' ('..var.units..')'
 	end
 
-	self.orthoView:setup(ar)
-	local xmin, xmax, ymin, ymax = self.orthoView:getOrthoBounds(ar)
+	local pushView = self.view
+	self.view = self.orthoView
+	self.view:setup(ar)
+	local xmin, xmax, ymin, ymax = self.view:getOrthoBounds(ar)
 
-	if self.font then
-		local palwidth = (xmax - xmin) * .1
-		self.drawGradSceneObj.texs[1] = self.gradientTex	-- random palette will recreate this object rather than uploading ... lol i should change that ...
-		self.drawGradSceneObj.uniforms.mvProjMat = self.orthoView.mvProjMat.ptr
-		self.drawGradSceneObj.uniforms.bbox = {xmin, ymin, xmin + palwidth, ymax}
-		self.drawGradSceneObj:draw()
+	local palwidth = (xmax - xmin) * .1
+	self.drawGradSceneObj.texs[1] = self.gradientTex	-- random palette will recreate this object rather than uploading ... lol i should change that ...
+	self.drawGradSceneObj.uniforms.mvProjMat = self.view.mvProjMat.ptr
+	self.drawGradSceneObj.uniforms.bbox = {xmin, ymin, xmin + palwidth, ymax}
+	self.drawGradSceneObj:draw()
 
-		local fontSizeX = (xmax - xmin) * .025
-		local fontSizeY = (ymax - ymin) * .025
-		local ystep = 10^(math.log(ymax - ymin, 10) - 1.5)
-		for y=math.floor(ymin/ystep)*ystep,math.ceil(ymax/ystep)*ystep,ystep do
-			local value = (y - ymin) * (valueMax - valueMin) / (ymax - ymin) + valueMin
-			local absvalue = math.abs(value)
-			self.font:draw{
-				pos={xmin * .99 + xmax * .01, y + fontSizeY * .5},
-				text=(
-					(absvalue > 1e+5 or absvalue < 1e-5)
-					and ('%.5e'):format(value) or ('%.5f'):format(value)),
-				color = {1,1,1,1},
-				fontSize={fontSizeX, -fontSizeY},
-				multiLine=false,
-			}
-		end
+	local fontSizeX = (xmax - xmin) * .025
+	local fontSizeY = (ymax - ymin) * .025
+	local ystep = 10^(math.log(ymax - ymin, 10) - 1.5)
+	for y=math.floor(ymin/ystep)*ystep,math.ceil(ymax/ystep)*ystep,ystep do
+		local value = (y - ymin) * (valueMax - valueMin) / (ymax - ymin) + valueMin
+		local absvalue = math.abs(value)
 		self.font:draw{
-			pos = {xmin, ymax},
-			text = varName,
+			pos={xmin * .99 + xmax * .01, y + fontSizeY * .5},
+			text=(
+				(absvalue > 1e+5 or absvalue < 1e-5)
+				and ('%.5e'):format(value) or ('%.5f'):format(value)),
 			color = {1,1,1,1},
-			fontSize = {fontSizeX, -fontSizeY},
-			multiLine = false,
+			fontSize={fontSizeX, -fontSizeY},
+			multiLine=false,
 		}
 	end
+	self.font:draw{
+		pos = {xmin, ymax},
+		text = varName,
+		color = {1,1,1,1},
+		fontSize = {fontSizeX, -fontSizeY},
+		multiLine = false,
+	}
+
+	self.view = pushView
 end
 
 HydroCLApp.display_useCoordMap = cmdline.display_useCoordMap
