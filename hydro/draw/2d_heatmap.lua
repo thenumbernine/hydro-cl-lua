@@ -52,13 +52,12 @@ function Draw2DHeatmap:showDisplayVar(var, varName, ar, xmin, xmax, ymin, ymax)
 	gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
 	gl.glEnable(gl.GL_BLEND)
 
-	local shader = solver.heatMap2DShader
+	local shader = solver.heatMap2DSceneObj.program
 	shader:use()
 	app.gradientTex:bind(1)
 	gl.glActiveTexture(gl.GL_TEXTURE0)
 
 	self:setupDisplayVarShader(shader, var, valueMin, valueMax)
-
 	self:drawSolverWithVar(var, shader, xmin, xmax, ymin, ymax)
 
 -- [[
@@ -113,7 +112,7 @@ end
 
 function Draw2DHeatmap:prepareShader()
 	local solver = self.solver
-	if solver.heatMap2DShader then return end
+	if solver.heatMap2DSceneObj then return end
 
 	local heatMapCode = assert(path'hydro/draw/2d_heatmap.glsl':read())
 

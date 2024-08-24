@@ -2170,6 +2170,13 @@ function HydroCLApp:drawGradientLegend(solver, var, varName, ar, valueMin, value
 	self.drawGradSceneObj.uniforms.bbox = {xmin, ymin, xmin + palwidth, ymax}
 	self.drawGradSceneObj:draw()
 
+	-- glMatrixMode because font still uses it ...
+	gl.glMatrixMode(gl.GL_PROJECTION)
+	gl.glLoadIdentity()
+	gl.glOrtho(xmin, xmax, ymin, ymax, -1, 1)
+	gl.glMatrixMode(gl.GL_MODELVIEW)
+	gl.glLoadIdentity()
+
 	local fontSizeX = (xmax - xmin) * .025
 	local fontSizeY = (ymax - ymin) * .025
 	local ystep = 10^(math.log(ymax - ymin, 10) - 1.5)
