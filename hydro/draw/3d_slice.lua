@@ -1,6 +1,10 @@
 local table = require 'ext.table'
 local path = require 'ext.path'
+local assertgt = require 'ext.assert'.gt
+local assertlen = require 'ext.assert'.len
+local vec3f = require 'vec-ffi.vec3f'
 local gl = require 'gl'
+local vector = require 'ffi.cpp.vector-lua'
 local CartesianCoordinateSystem = require 'hydro.coord.cartesian'
 local Draw = require 'hydro.draw.draw'
 
@@ -16,7 +20,7 @@ TODO for curved space: provide a coordMapInv function (might have to be manual t
  and then call this as we march through volumes
  and treat out-of-bound values as fully transparent
 --]]
-Draw3DSlice.usePoints = false
+Draw3DSlice.usePoints = cmdline.displayPointCloud
 Draw3DSlice.numIsobars = 20
 Draw3DSlice.useLighting = false
 Draw3DSlice.alpha = .15
@@ -66,23 +70,50 @@ function Draw3DSlice:showDisplayVar(var, varName, ar, xmin, xmax, ymin, ymax, us
 	gl.glUniform1i(uniforms.useLighting.loc, self.useLighting)
 
 	if self.usePoints then
-		gl.glEnable(gl.GL_DEPTH_TEST)
-		gl.glPointSize(2)
-		gl.glBegin(gl.GL_POINTS)
 		local numGhost = solver.numGhost
-		for i=numGhost+1,tonumber(solver.gridSize.x-numGhost) do
-			for j=numGhost+1,tonumber(solver.gridSize.y-numGhost) do
-				for k=numGhost+1,tonumber(solver.gridSize.z-numGhost) do
-					gl.glVertex3d(
-						(i - numGhost - .5)/tonumber(solver.gridSize.x - 2*numGhost),
-						(j - numGhost - .5)/tonumber(solver.gridSize.y - 2*numGhost),
-						(k - numGhost - .5)/tonumber(solver.gridSize.z - 2*numGhost))
+
+		assertgt(solver.gridSize.x, 2 * numGhost)
+		assertgt(solver.gridSize.y, 2 * numGhost)
+		assertgt(solver.gridSize.z, 2 * numGhost)
+		local numVtxs = (solver.gridSize - 2 * numGhost):volume()
+
+		solver.draw3DSlicePtVtxs = solver.draw3DSlicePtVtxs or vector'vec3f_t'
+
+		if not solver.draw3DSlicePtVtxBuf
+		or #solver.draw3DSlicePtVtxs ~= numVtxs
+		then
+			solver.draw3DSlicePtVtxs:resize(numVtxs)
+			solver.draw3DSlicePtVtxs:resize(0)
+
+			for i=numGhost+1,tonumber(solver.gridSize.x-numGhost) do
+				for j=numGhost+1,tonumber(solver.gridSize.y-numGhost) do
+					for k=numGhost+1,tonumber(solver.gridSize.z-numGhost) do
+						solver.draw3DSlicePtVtxs:emplace_back():set(
+							(i - numGhost - .5)/tonumber(solver.gridSize.x - 2*numGhost),
+							(j - numGhost - .5)/tonumber(solver.gridSize.y - 2*numGhost),
+							(k - numGhost - .5)/tonumber(solver.gridSize.z - 2*numGhost))
+					end
 				end
 			end
-		end
-		gl.glEnd()
-		gl.glDisable(gl.GL_DEPTH_TEST)
+			assertlen(solver.draw3DSlicePtVtxs, numVtxs)
 
+			--[[ TODO cuz I think we can't use draw without VAOs in GL core ...
+			self.draw3DSlicePtVtxBuf = GLArrayBuffer{
+				data = solver.draw3DSlicePtVtxs.v,
+				size = #solver.draw3DSlicePtVtxs * ffi.sizeof(solver.draw3DSlicePtVtxs.type),
+			}:unbind()
+			--]]
+		end
+
+		gl.glEnable(gl.GL_DEPTH_TEST)
+		gl.glPointSize(2)
+
+		gl.glEnableVertexAttribArray(shader.attrs.vertex.loc)
+		gl.glVertexAttribPointer(shader.attrs.vertex.loc, 3, gl.GL_FLOAT, false, 0, solver.draw3DSlicePtVtxs.v)
+		gl.glDrawArrays(gl.GL_POINTS, 0, numVtxs)
+		gl.glDisableVertexAttribArray(shader.attrs.vertex.loc)
+
+		gl.glDisable(gl.GL_DEPTH_TEST)
 	else
 
 		gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)

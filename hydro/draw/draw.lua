@@ -47,6 +47,7 @@ function Draw:setupDisplayVarShader(shader, var, valueMin, valueMax)
 		--gl.glGetFloatv(gl.GL_NORMAL_MATRIX, self.normalMatrix.ptr)
 		-- invert app.view.mvMat's upper 3x3 into normalMatrix, then transpose
 		-- but if it is purely a rotation matrix, this is the same as just the 3x3 portion ...
+		-- so TODO why even use this at all? just get the submatrix in GLSL ...
 		for j=0,2 do
 			for i=0,2 do
 				self.normalMatrix.ptr[i + 3 * j] = app.view.mvProjMat.ptr[i + 4 * j]

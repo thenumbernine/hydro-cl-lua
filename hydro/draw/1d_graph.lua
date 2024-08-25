@@ -76,9 +76,7 @@ function Draw1D:showDisplayVar(var)
 
 	gl.glEnableVertexAttribArray(shader.attrs.gridCoord.loc)
 	gl.glVertexAttribPointer(shader.attrs.gridCoord.loc, 3, gl.GL_FLOAT, false, 0, self.vertexes.v)
-
 	gl.glDrawArrays(gl.GL_LINE_STRIP, 0, numVertexes)
-
 	gl.glDisableVertexAttribArray(shader.attrs.gridCoord.loc)
 
 	tex:unbind()

@@ -7,28 +7,59 @@ local GLSceneObject = require 'gl.sceneobject'
 
 local Draw2DHeatmap = Draw:subclass()
 
-function Draw2DHeatmap:drawSolverWithVar(var, shader, xmin, xmax, ymin, ymax)
+function Draw2DHeatmap:display(varName, ar, graph_xmin, graph_xmax, graph_ymin, graph_ymax)
 	local solver = self.solver
 	local app = solver.app
--- hmm ... this is needed for sub-solvers
-local origSolver = var.solver
-var.solver = solver
 
-	solver:calcDisplayVarToTex(var)
+	app.view:setup(ar)
 
-	local tex = solver:getTex(var)
-		:bind(0)
-		:setParameter(gl.GL_TEXTURE_MAG_FILTER, app.displayBilinearTextures and gl.GL_LINEAR or gl.GL_NEAREST)
+	local xmin, xmax, ymin, ymax
+	if app.view.getOrthoBounds then
+		xmin, xmax, ymin, ymax = app.view:getOrthoBounds(ar)
+	else
+		xmin = solver.cartesianMin.x
+		ymin = solver.cartesianMin.y
+		xmax = solver.cartesianMax.x
+		ymax = solver.cartesianMax.y
+	end
 
-	gl.glUniform4f(shader.uniforms.bbox.loc, xmin, ymin, xmax, ymax)
+--	gl.glEnable(gl.GL_DEPTH_TEST)
 
-	-- TODO no more need to pass along shader every time?  or nah?
-	asserteq(solver.heatMap2DSceneObj.program, shader)
-	solver.heatMap2DSceneObj:draw()
+	-- TODO one grid for all displaly instead of multiple calls...
+	self:drawGrid(xmin, xmax, ymin, ymax)
 
-	tex:unbind(0)
+	-- NOTICE overlays of multiple solvers won't be helpful.  It'll just draw over the last solver.
+	-- I've got to rethink the visualization
+	local var = solver.displayVarForName[varName]
+	if var and var.enabled then
+		self:prepareShader()
+		self:showDisplayVar(var, varName, ar, xmin, xmax, ymin, ymax)
+	end
+--	gl.glDisable(gl.GL_DEPTH_TEST)
+end
 
-var.solver = origSolver
+function Draw2DHeatmap:prepareShader()
+	local solver = self.solver
+	if solver.heatMap2DSceneObj then return end
+
+	local heatMapCode = assert(path'hydro/draw/2d_heatmap.glsl':read())
+
+	solver.heatMap2DShader = solver.GLProgram{
+		name = '2d_heatmap',
+		vertexCode = solver.eqn:template(heatMapCode, {
+			draw = self,
+			vertexShader = true,
+		}),
+		fragmentCode = solver.eqn:template(heatMapCode, {
+			draw = self,
+			fragmentShader = true,
+		}),
+	}:useNone()
+
+	solver.heatMap2DSceneObj = GLSceneObject{
+		program = solver.heatMap2DShader,
+		geometry = solver.app.quadGeom,
+	}
 end
 
 function Draw2DHeatmap:showDisplayVar(var, varName, ar, xmin, xmax, ymin, ymax)
@@ -80,58 +111,28 @@ function Draw2DHeatmap:showDisplayVar(var, varName, ar, xmin, xmax, ymin, ymax)
 --	gl.glEnable(gl.GL_DEPTH_TEST)
 end
 
-function Draw2DHeatmap:display(varName, ar, graph_xmin, graph_xmax, graph_ymin, graph_ymax)
+function Draw2DHeatmap:drawSolverWithVar(var, shader, xmin, xmax, ymin, ymax)
 	local solver = self.solver
 	local app = solver.app
-	app.view:setup(ar)
+-- hmm ... this is needed for sub-solvers
+local origSolver = var.solver
+var.solver = solver
 
-	local xmin, xmax, ymin, ymax
-	if app.view.getOrthoBounds then
-		xmin, xmax, ymin, ymax = app.view:getOrthoBounds(ar)
-	else
-		xmin = solver.cartesianMin.x
-		ymin = solver.cartesianMin.y
-		xmax = solver.cartesianMax.x
-		ymax = solver.cartesianMax.y
-	end
+	solver:calcDisplayVarToTex(var)
 
---	gl.glEnable(gl.GL_DEPTH_TEST)
+	local tex = solver:getTex(var)
+		:bind(0)
+		:setParameter(gl.GL_TEXTURE_MAG_FILTER, app.displayBilinearTextures and gl.GL_LINEAR or gl.GL_NEAREST)
 
-	-- TODO one grid for all displaly instead of multiple calls...
-	self:drawGrid(xmin, xmax, ymin, ymax)
+	gl.glUniform4f(shader.uniforms.bbox.loc, xmin, ymin, xmax, ymax)
 
-	-- NOTICE overlays of multiple solvers won't be helpful.  It'll just draw over the last solver.
-	-- I've got to rethink the visualization
-	local var = solver.displayVarForName[varName]
-	if var and var.enabled then
-		self:prepareShader()
-		self:showDisplayVar(var, varName, ar, xmin, xmax, ymin, ymax)
-	end
---	gl.glDisable(gl.GL_DEPTH_TEST)
-end
+	-- TODO no more need to pass along shader every time?  or nah?
+	asserteq(solver.heatMap2DSceneObj.program, shader)
+	solver.heatMap2DSceneObj:draw()
 
-function Draw2DHeatmap:prepareShader()
-	local solver = self.solver
-	if solver.heatMap2DSceneObj then return end
+	tex:unbind(0)
 
-	local heatMapCode = assert(path'hydro/draw/2d_heatmap.glsl':read())
-
-	solver.heatMap2DShader = solver.GLProgram{
-		name = '2d_heatmap',
-		vertexCode = solver.eqn:template(heatMapCode, {
-			draw = self,
-			vertexShader = true,
-		}),
-		fragmentCode = solver.eqn:template(heatMapCode, {
-			draw = self,
-			fragmentShader = true,
-		}),
-	}:useNone()
-
-	solver.heatMap2DSceneObj = GLSceneObject{
-		program = solver.heatMap2DShader,
-		geometry = solver.app.quadGeom,
-	}
+var.solver = origSolver
 end
 
 return Draw2DHeatmap

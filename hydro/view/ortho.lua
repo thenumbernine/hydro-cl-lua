@@ -54,6 +54,7 @@ function OrthoView:setup(aspectRatio)
 	self:setupProjection(aspectRatio)
 	self:setupModelView()
 
+	-- TODO whyyyyy transposed?
 	gl.glGetFloatv(gl.GL_TRANSPOSE_MODELVIEW_MATRIX, self.mvMat.ptr)
 	gl.glGetFloatv(gl.GL_TRANSPOSE_PROJECTION_MATRIX, self.projMat.ptr)
 	self.mvProjMat:mul(self.projMat, self.mvMat)

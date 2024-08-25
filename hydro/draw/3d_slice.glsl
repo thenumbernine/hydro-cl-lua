@@ -18,10 +18,10 @@ local varying = vertexShader and 'out'
 <? if vertexShader then ?>
 
 //in tex coords
-in vec4 vertex;
+layout(location=0) in vec3 vertex;
 
 void main() {
-	vec4 x = vertex;
+	vec3 x = vertex;
 
 	//map from [0,1]^3 to [cartesianMin, cartesianMax]
 	x.xyz = x.xyz * (cartesianMax - cartesianMin) + cartesianMin;
@@ -30,7 +30,7 @@ void main() {
 <? if app.useClipPlanes then ?>
 	pos = x.xyz;
 <? end ?>
-	gl_Position = mvProjMat * x;
+	gl_Position = mvProjMat * vec4(x, 1.);
 }
 
 <? end

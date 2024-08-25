@@ -278,6 +278,9 @@ set this to {x,y,z,theta} for angle/axis initialization.
 	vectorFieldStep = {
 		desc = "spacing between cells of vector field display.  default 4",
 	},
+	displayPointCloud = {
+		desc = 'use point-cloud instead of 3D slice display',
+	},
 	windowsize = {
 		desc = [[override the window size for sys=glapp or sys=imguiapp.  set to either "windowsize={w,h}" or for square windows, "windowsize=size"]],
 	},
@@ -2202,6 +2205,7 @@ function HydroCLApp:drawGradientLegend(solver, var, varName, ar, valueMin, value
 	}
 
 	self.view = pushView
+	self.view:setup(ar)
 end
 
 HydroCLApp.display_useCoordMap = cmdline.display_useCoordMap
