@@ -38,27 +38,20 @@ function FrustumView:getFrustumBounds(aspectRatio)
 end
 
 function FrustumView:setupProjection(aspectRatio)
-	gl.glMatrixMode(gl.GL_PROJECTION)
-	gl.glLoadIdentity()
-	gl.glFrustum(self:getFrustumBounds(aspectRatio))
+	self.projMat:setFrustum(self:getFrustumBounds(aspectRatio))
 end
 
 function FrustumView:setupModelView()
-	gl.glMatrixMode(gl.GL_MODELVIEW)
-	gl.glLoadIdentity()
-	gl.glTranslatef(0,0,-self.dist)
 	local angleAxis = self.angle:toAngleAxis()
-	gl.glRotatef(-angleAxis.w, angleAxis.x, angleAxis.y, angleAxis.z)
-	gl.glTranslatef(-self.pos.x, -self.pos.y, -self.pos.z)
+	self.mvMat
+		:setTranslate(0, 0, -self.dist)
+		:applyRotate(-math.rad(angleAxis.w), angleAxis.x, angleAxis.y, angleAxis.z)
+		:applyTranslate(-self.pos.x, -self.pos.y, -self.pos.z)
 end
 
 function FrustumView:setup(aspectRatio)
 	self:setupProjection(aspectRatio)
 	self:setupModelView()
-
-	gl.glGetFloatv(gl.GL_MODELVIEW_MATRIX, self.mvMat.ptr)
-	gl.glGetFloatv(gl.GL_PROJECTION_MATRIX, self.projMat.ptr)
-	-- TODO :mul() is transposed from :mul4x4()
 	self.mvProjMat:mul4x4(self.projMat, self.mvMat)
 end
 

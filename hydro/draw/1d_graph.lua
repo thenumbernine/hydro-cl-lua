@@ -56,6 +56,11 @@ function Draw1D:display(varName, ar, xmin, xmax, ymin, ymax, useLog, valueMin, v
 		--local xmin, xmax, ymin, ymax = self.orthoView:getOrthoBounds(ar)
 
 		if app.font then
+			gl.glMatrixMode(gl.GL_PROJECTION)
+			gl.glLoadMatrixf(view.projMat.ptr)
+			gl.glMatrixMode(gl.GL_MODELVIEW)
+			gl.glLoadMatrixf(view.mvMat.ptr)
+
 			-- gradient uses 0.025
 			local fontSizeX = (xmax - xmin) * .05
 			local fontSizeY = (ymax - ymin) * .05

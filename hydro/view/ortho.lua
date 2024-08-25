@@ -40,23 +40,16 @@ function OrthoView:getOrthoBounds(aspectRatio)
 end
 
 function OrthoView:setupProjection(aspectRatio)
-	gl.glMatrixMode(gl.GL_PROJECTION)
-	gl.glLoadIdentity()
-	gl.glOrtho(self:getOrthoBounds(aspectRatio))
+	self.projMat:setOrtho(self:getOrthoBounds(aspectRatio))
 end
 
 function OrthoView:setupModelView()
-	gl.glMatrixMode(gl.GL_MODELVIEW)
-	gl.glLoadIdentity()
+	self.mvMat:setIdent()
 end
 
 function OrthoView:setup(aspectRatio)
 	self:setupProjection(aspectRatio)
 	self:setupModelView()
-
-	gl.glGetFloatv(gl.GL_MODELVIEW_MATRIX, self.mvMat.ptr)
-	gl.glGetFloatv(gl.GL_PROJECTION_MATRIX, self.projMat.ptr)
-	-- TODO :mul() is transposed from :mul4x4()
 	self.mvProjMat:mul4x4(self.projMat, self.mvMat)
 end
 
