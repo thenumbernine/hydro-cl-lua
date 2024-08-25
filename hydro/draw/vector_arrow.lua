@@ -165,9 +165,9 @@ function DrawVectorField:showDisplayVar(var, varName, ar, xmin, xmax, ymin, ymax
 	gl.glDrawArrays(gl.GL_LINES, 0, arrowCount * #arrow)
 	solver.vectorArrowVAO:unbind()
 --]]
---[[ glVertexArray with glDrawArraysInstanced (not fully implemented - just speed testing) doesn't go noticably faster  than glDrawArrays
+--[[ glVertexArray with glDrawArraysInstanced (not fully implemented - just speed testing) doesn't go noticably faster than glDrawArrays
 	solver.vectorArrowVAO:bind()
-	gl.glDrawArraysInstancedARB(gl.GL_LINES, 0, #arrow, arrowCount)
+	gl.glDrawArraysInstanced(gl.GL_LINES, 0, #arrow, arrowCount)
 	solver.vectorArrowVAO:unbind()
 --]]
 

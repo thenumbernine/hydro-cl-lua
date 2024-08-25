@@ -116,33 +116,28 @@ function DrawVectorStateLine:showDisplayVar(var, varName, ar, xmin, xmax, ymin, 
 	app:drawGradientLegend(solver, var, varName, ar, valueMin, valueMax)
 end
 
-function DrawVectorStateLine:display(varName, ar, ...)
+function DrawVectorStateLine:display(varName, ar, xmin, ymin, xmax, ymax, ...)
 	local solver = self.solver
 	local app = solver.app
 	app.view:setup(ar)
 
-	gl.glEnable(gl.GL_DEPTH_TEST)
+	local xmin, xmax, ymin, ymax
+	if app.view.getOrthoBounds then
+		xmin, xmax, ymin, ymax = app.view:getOrthoBounds(ar)
+	else
+		xmin = solver.cartesianMin.x
+		ymin = solver.cartesianMin.y
+		xmax = solver.cartesianMax.x
+		ymax = solver.cartesianMax.y
+	end
 
-	gl.glColor3f(.5, .5, .5)
-	gl.glBegin(gl.GL_LINES)
-	local max = 10 	-- TODO max of solver mins/maxs
-	gl.glVertex3f(max,0,0)
-	gl.glVertex3f(-max,0,0)
-	gl.glVertex3f(0,max,0)
-	gl.glVertex3f(0,-max,0)
-	gl.glVertex3f(0,0,max)
-	gl.glVertex3f(0,0,-max)
-	gl.glEnd()
-	gl.glColor3f(1,1,1)
-
-	gl.glDisable(gl.GL_DEPTH_TEST)
-
+	self:drawGrid(xmin, ymin, xmax, ymax)
 
 	-- display here
 	local var = solver.displayVarForName[varName]
 	if var and var.enabled then
 		self:prepareShader()
-		self:showDisplayVar(var, varName, ar, ...)
+		self:showDisplayVar(var, varName, ar, xmin, ymin, xmax, ymax, ...)
 	end
 end
 
