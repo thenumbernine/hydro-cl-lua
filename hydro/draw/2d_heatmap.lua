@@ -1,8 +1,8 @@
 local path = require 'ext.path'
 local asserteq = require 'ext.assert'.eq
 local gl = require 'gl'
-local Draw = require 'hydro.draw.draw'
 local GLSceneObject = require 'gl.sceneobject'
+local Draw = require 'hydro.draw.draw'
 
 
 local Draw2DHeatmap = Draw:subclass()

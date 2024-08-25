@@ -30,8 +30,8 @@ end
 
 -- returns xmin, xmax, ymin, ymax, zmin, zmax
 function OrthoView:getOrthoBounds(aspectRatio)
-	return 
-		self.pos.x - aspectRatio * .5 / self.zoom.x, 
+	return
+		self.pos.x - aspectRatio * .5 / self.zoom.x,
 		self.pos.x + aspectRatio * .5 / self.zoom.x,
 		self.pos.y - .5 / self.zoom.y,
 		self.pos.y + .5 / self.zoom.y,
@@ -54,10 +54,10 @@ function OrthoView:setup(aspectRatio)
 	self:setupProjection(aspectRatio)
 	self:setupModelView()
 
-	-- TODO whyyyyy transposed?
-	gl.glGetFloatv(gl.GL_TRANSPOSE_MODELVIEW_MATRIX, self.mvMat.ptr)
-	gl.glGetFloatv(gl.GL_TRANSPOSE_PROJECTION_MATRIX, self.projMat.ptr)
-	self.mvProjMat:mul(self.projMat, self.mvMat)
+	gl.glGetFloatv(gl.GL_MODELVIEW_MATRIX, self.mvMat.ptr)
+	gl.glGetFloatv(gl.GL_PROJECTION_MATRIX, self.projMat.ptr)
+	-- TODO :mul() is transposed from :mul4x4()
+	self.mvProjMat:mul4x4(self.projMat, self.mvMat)
 end
 
 -- not in glapp.view
@@ -74,4 +74,4 @@ function OrthoView:mouseZoom(dx, dy)
 	self.zoom.y = self.zoom.y * math.exp(dy * -.03)
 end
 
-return OrthoView 
+return OrthoView

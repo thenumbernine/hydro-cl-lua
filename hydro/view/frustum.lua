@@ -29,7 +29,7 @@ end
 
 function FrustumView:getFrustumBounds(aspectRatio)
 	return
-		-aspectRatio * self.znear, 
+		-aspectRatio * self.znear,
 		aspectRatio * self.znear,
 		-self.znear,
 		self.znear,
@@ -58,7 +58,8 @@ function FrustumView:setup(aspectRatio)
 
 	gl.glGetFloatv(gl.GL_MODELVIEW_MATRIX, self.mvMat.ptr)
 	gl.glGetFloatv(gl.GL_PROJECTION_MATRIX, self.projMat.ptr)
-	self.mvProjMat:mul(self.projMat, self.mvMat)
+	-- TODO :mul() is transposed from :mul4x4()
+	self.mvProjMat:mul4x4(self.projMat, self.mvMat)
 end
 
 -- not in glapp.view
@@ -84,4 +85,4 @@ function FrustumView:mouseZoom(dx, dy)
 	self.dist = self.dist * math.exp(dy * -.03)
 end
 
-return FrustumView 
+return FrustumView

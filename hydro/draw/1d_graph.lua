@@ -1,87 +1,12 @@
--- maybe a better name would be '1d_graph'?
-local gl = require 'gl'
-local vec3f = require 'vec-ffi.vec3f'
 local path = require 'ext.path'
+local vec3f = require 'vec-ffi.vec3f'
 local matrix_ffi = require 'matrix.ffi'
 local vector = require 'ffi.cpp.vector-lua'
+local gl = require 'gl'
 local Draw = require 'hydro.draw.draw'
 
 
 local Draw1D = Draw:subclass()
-
-function Draw1D:showDisplayVar(var)
-	local solver = self.solver
-	local app = self.solver.app
-
-	local valueMin, valueMax
-	if var.heatMapFixedRange then
-		valueMin = var.heatMapValueMin
-		valueMax = var.heatMapValueMax
-	else
-		valueMin, valueMax = solver:calcDisplayVarRange(var)
-		var.heatMapValueMin = valueMin
-		var.heatMapValueMax = valueMax
-	end
-
-	solver:calcDisplayVarToTex(var)
-
-
-	-- 1D displays -- use vertex.y
-	-- 2D displays -- use vertex.z
-	-- 3D displays -- ???
-	if app.displayDim == 3 then
-		io.stderr:write'Why are you using a graph shader to display 3D data?  Use a 3D display instead.\n'
-		return
-	end
-
-
-	local shader = solver.graphShader
-	local uniforms = shader.uniforms
-
-	shader:use()
-	local tex = solver:getTex(var)
-	tex:bind()
-
-	self:setupDisplayVarShader(shader, var, valueMin, valueMax)
-
-	gl.glUniform1f(uniforms.ambient.loc, 1)
-
-	gl.glUniform3f(uniforms.color.loc, (#app.solvers > 1 and solver or var).color:unpack())
-
-	if not self.vertexes then self.vertexes = vector'vec3f_t' end
-
-	local step = 1
-	local numVertexes = math.floor((tonumber(solver.gridSize.x) - 2 * solver.numGhost + 1) / step)	-- (endindex - startindex + 1) / step
-	if #self.vertexes ~= numVertexes then
-		self.vertexes:resize(numVertexes)
-	end
-
-	-- [[ overwrite the mvProjMat uniform here
-	-- this is different from the other 'Draw.mvProjMat'
-	-- that one is based on hydro.view,
-	-- this is based on the GL state set in hydro.app for 1D graphs
-	-- TODO maybe combine the two, make the hydro.app 1D graph stuff use hydro.view.ortho,
-	-- then this could just use the default 'mvProjMat'
-	
-	local view = app.view
-	gl.glUniformMatrix4fv(uniforms.mvProjMat.loc, 1, gl.GL_FALSE, view.mvProjMat.ptr)
-	--]]
-
-	for i=0,numVertexes-1 do
-		local v = self.vertexes.v[i]
-		v.x = i * step
-		v.y = 0--app.displayFixedY
-		v.z = 0--app.displayFixedZ
-	end
-
-	gl.glEnableVertexAttribArray(shader.attrs.gridCoord.loc)
-	gl.glVertexAttribPointer(shader.attrs.gridCoord.loc, 3, gl.GL_FLOAT, false, 0, self.vertexes.v)
-	gl.glDrawArrays(gl.GL_LINE_STRIP, 0, numVertexes)
-	gl.glDisableVertexAttribArray(shader.attrs.gridCoord.loc)
-
-	tex:unbind()
-	shader:useNone()
-end
 
 function Draw1D:display(varName, ar, xmin, xmax, ymin, ymax, useLog, valueMin, valueMax)
 	local solver = self.solver
@@ -195,6 +120,81 @@ function Draw1D:prepareShader()
 			ambient = 1,
 		},
 	}:useNone()
+end
+
+
+function Draw1D:showDisplayVar(var)
+	local solver = self.solver
+	local app = self.solver.app
+
+	local valueMin, valueMax
+	if var.heatMapFixedRange then
+		valueMin = var.heatMapValueMin
+		valueMax = var.heatMapValueMax
+	else
+		valueMin, valueMax = solver:calcDisplayVarRange(var)
+		var.heatMapValueMin = valueMin
+		var.heatMapValueMax = valueMax
+	end
+
+	solver:calcDisplayVarToTex(var)
+
+
+	-- 1D displays -- use vertex.y
+	-- 2D displays -- use vertex.z
+	-- 3D displays -- ???
+	if app.displayDim == 3 then
+		io.stderr:write'Why are you using a graph shader to display 3D data?  Use a 3D display instead.\n'
+		return
+	end
+
+
+	local shader = solver.graphShader
+	local uniforms = shader.uniforms
+
+	shader:use()
+	local tex = solver:getTex(var)
+	tex:bind()
+
+	self:setupDisplayVarShader(shader, var, valueMin, valueMax)
+
+	gl.glUniform1f(uniforms.ambient.loc, 1)
+
+	gl.glUniform3f(uniforms.color.loc, (#app.solvers > 1 and solver or var).color:unpack())
+
+	if not self.vertexes then self.vertexes = vector'vec3f_t' end
+
+	local step = 1
+	local numVertexes = math.floor((tonumber(solver.gridSize.x) - 2 * solver.numGhost + 1) / step)	-- (endindex - startindex + 1) / step
+	if #self.vertexes ~= numVertexes then
+		self.vertexes:resize(numVertexes)
+	end
+
+	-- [[ overwrite the mvProjMat uniform here
+	-- this is different from the other 'Draw.mvProjMat'
+	-- that one is based on hydro.view,
+	-- this is based on the GL state set in hydro.app for 1D graphs
+	-- TODO maybe combine the two, make the hydro.app 1D graph stuff use hydro.view.ortho,
+	-- then this could just use the default 'mvProjMat'
+
+	local view = app.view
+	gl.glUniformMatrix4fv(uniforms.mvProjMat.loc, 1, gl.GL_FALSE, view.mvProjMat.ptr)
+	--]]
+
+	for i=0,numVertexes-1 do
+		local v = self.vertexes.v[i]
+		v.x = i * step
+		v.y = 0--app.displayFixedY
+		v.z = 0--app.displayFixedZ
+	end
+
+	gl.glEnableVertexAttribArray(shader.attrs.gridCoord.loc)
+	gl.glVertexAttribPointer(shader.attrs.gridCoord.loc, 3, gl.GL_FLOAT, false, 0, self.vertexes.v)
+	gl.glDrawArrays(gl.GL_LINE_STRIP, 0, numVertexes)
+	gl.glDisableVertexAttribArray(shader.attrs.gridCoord.loc)
+
+	tex:unbind()
+	shader:useNone()
 end
 
 return Draw1D

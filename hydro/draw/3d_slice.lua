@@ -2,9 +2,9 @@ local table = require 'ext.table'
 local path = require 'ext.path'
 local assertgt = require 'ext.assert'.gt
 local assertlen = require 'ext.assert'.len
+local vector = require 'ffi.cpp.vector-lua'
 local vec3f = require 'vec-ffi.vec3f'
 local gl = require 'gl'
-local vector = require 'ffi.cpp.vector-lua'
 local CartesianCoordinateSystem = require 'hydro.coord.cartesian'
 local Draw = require 'hydro.draw.draw'
 
@@ -30,6 +30,44 @@ Draw3DSlice.numSlices = 255
 Draw3DSlice.useIsos = true
 if cmdline.isobars ~= nil then
 	Draw3DSlice.useIsos = cmdline.isobars
+end
+
+function Draw3DSlice:display(varName, ar, xmin, xmax, ymin, ymax, useLog)
+	local solver = self.solver
+	local app = solver.app
+	local var = solver.displayVarForName[varName]
+	if var and var.enabled then
+		self:prepareShader()
+		self:showDisplayVar(var, varName, ar, xmin, xmax, ymin, ymax, useLog)
+	end
+end
+
+function Draw3DSlice:prepareShader()
+	local solver = self.solver
+	if solver.volumeSliceShader then return end
+	local app = solver.app
+
+	local volumeSliceCode = assert(path'hydro/draw/3d_slice.glsl':read())
+
+	solver.volumeSliceShader = solver.GLProgram{
+		name = '3d_slice',
+		vertexCode = solver.eqn:template(volumeSliceCode, {
+			draw = self,
+			vertexShader = true
+		}),
+		fragmentCode = solver.eqn:template(volumeSliceCode, {
+			draw = self,
+			fragmentShader = true,
+			-- TODO move this from app, or make it a field of app?
+			clipInfos = app.useClipPlanes and app.clipInfos or nil,
+		}),
+		uniforms = {
+			volTex = 0,
+			gradientTex = 1,
+			valueMin = 0,
+			valueMax = 0,
+		},
+	}:useNone()
 end
 
 function Draw3DSlice:showDisplayVar(var, varName, ar, xmin, xmax, ymin, ymax, useLog)
@@ -115,7 +153,6 @@ function Draw3DSlice:showDisplayVar(var, varName, ar, xmin, xmax, ymin, ymax, us
 
 		gl.glDisable(gl.GL_DEPTH_TEST)
 	else
-
 		gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
 		gl.glEnable(gl.GL_BLEND)
 
@@ -138,20 +175,26 @@ function Draw3DSlice:showDisplayVar(var, varName, ar, xmin, xmax, ymin, ymax, us
 			fwddir == 2 and jdir or 0,
 			fwddir == 3 and jdir or 0)
 
-		gl.glBegin(gl.GL_QUADS)
+		solver.draw3DSliceVtxs = solver.draw3DSliceVtxs or vector'vec3f_t'
+		solver.draw3DSliceVtxs:resize(0)
 		for j=jmin,jmax,jdir do
 			local f = j/n
 			for _,vtx in ipairs(vertexesInQuad) do
 				if fwddir == 1 then
-					gl.glVertex3f(f, vtx[1], vtx[2])
+					solver.draw3DSliceVtxs:emplace_back():set(f, vtx[1], vtx[2])
 				elseif fwddir == 2 then
-					gl.glVertex3f(vtx[1], f, vtx[2])
+					solver.draw3DSliceVtxs:emplace_back():set(vtx[1], f, vtx[2])
 				elseif fwddir == 3 then
-					gl.glVertex3f(vtx[1], vtx[2], f)
+					solver.draw3DSliceVtxs:emplace_back():set(vtx[1], vtx[2], f)
 				end
 			end
 		end
-		gl.glEnd()
+		assertlen(solver.draw3DSliceVtxs, (n + 1) * 4)
+
+		gl.glEnableVertexAttribArray(shader.attrs.vertex.loc)
+		gl.glVertexAttribPointer(shader.attrs.vertex.loc, 3, gl.GL_FLOAT, false, 0, solver.draw3DSliceVtxs.v)
+		gl.glDrawArrays(gl.GL_QUADS, 0, #solver.draw3DSliceVtxs)
+		gl.glDisableVertexAttribArray(shader.attrs.vertex.loc)
 
 		gl.glDisable(gl.GL_BLEND)
 	end
@@ -161,44 +204,6 @@ function Draw3DSlice:showDisplayVar(var, varName, ar, xmin, xmax, ymin, ymax, us
 	shader:useNone()
 
 	app:drawGradientLegend(solver, var, varName, ar, valueMin, valueMax)
-end
-
-function Draw3DSlice:display(varName, ar, xmin, xmax, ymin, ymax, useLog)
-	local solver = self.solver
-	local app = solver.app
-	local var = solver.displayVarForName[varName]
-	if var and var.enabled then
-		self:prepareShader()
-		self:showDisplayVar(var, varName, ar, xmin, xmax, ymin, ymax, useLog)
-	end
-end
-
-function Draw3DSlice:prepareShader()
-	local solver = self.solver
-	if solver.volumeSliceShader then return end
-	local app = solver.app
-
-	local volumeSliceCode = assert(path'hydro/draw/3d_slice.glsl':read())
-
-	solver.volumeSliceShader = solver.GLProgram{
-		name = '3d_slice',
-		vertexCode = solver.eqn:template(volumeSliceCode, {
-			draw = self,
-			vertexShader = true
-		}),
-		fragmentCode = solver.eqn:template(volumeSliceCode, {
-			draw = self,
-			fragmentShader = true,
-			-- TODO move this from app, or make it a field of app?
-			clipInfos = app.useClipPlanes and app.clipInfos or nil,
-		}),
-		uniforms = {
-			volTex = 0,
-			gradientTex = 1,
-			valueMin = 0,
-			valueMax = 0,
-		},
-	}:useNone()
 end
 
 return Draw3DSlice

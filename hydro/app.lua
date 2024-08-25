@@ -2151,7 +2151,7 @@ end
 
 -- helper function for all draw classes:
 function HydroCLApp:drawGradientLegend(solver, var, varName, ar, valueMin, valueMax)
-	
+
 	if not self.font then return end
 
 	-- TODO only draw the first
@@ -2169,8 +2169,12 @@ function HydroCLApp:drawGradientLegend(solver, var, varName, ar, valueMin, value
 
 	local palwidth = (xmax - xmin) * .1
 	self.drawGradSceneObj.texs[1] = self.gradientTex	-- random palette will recreate this object rather than uploading ... lol i should change that ...
-	self.drawGradSceneObj.uniforms.mvProjMat = self.view.mvProjMat.ptr
-	self.drawGradSceneObj.uniforms.bbox = {xmin, ymin, xmin + palwidth, ymax}
+
+	local shader = self.drawGradSceneObj.program
+	shader:use()
+	gl.glUniform4f(shader.uniforms.bbox.loc, xmin, ymin, xmin + palwidth, ymax)
+	gl.glUniformMatrix4fv(shader.uniforms.mvProjMat.loc, 1, gl.GL_FALSE, self.view.mvProjMat.ptr)
+
 	self.drawGradSceneObj:draw()
 
 	-- glMatrixMode because font still uses it ...
