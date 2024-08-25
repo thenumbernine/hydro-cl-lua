@@ -11,7 +11,7 @@ uniform float ambient;
 <?=draw:getCommonGLSLFragCode()?>
 
 <? if vertexShader then ?>
-in vec3 gridCoord;
+in vec3 vertex;
 
 vec3 getVertex(vec3 gridCoord) {
 	//convert from integer gridCoord to texNoGhostCoord
@@ -20,7 +20,7 @@ vec3 getVertex(vec3 gridCoord) {
 	vec3 vertex = chartCoord;
 	if (displayDim <= 1) chartCoord.y = displayFixed.x;
 	if (displayDim <= 2) chartCoord.z = displayFixed.y;
-	
+
 	//should this go before vertex def, and allow rotations of the vertices themselves?
 	//or should this go here, and only rotate the data source?
 	chartCoord = chartToWorldCoord(chartCoord);
@@ -45,22 +45,22 @@ vec3 getVertex(vec3 gridCoord) {
 }
 
 void main() {
-	vec3 vertex = getVertex(gridCoord);
+	vec3 xformVtx = getVertex(vertex);
 
 	if (ambient < 1.) {
-		vec3 xp = getVertex(gridCoord + vec3(1., 0., 0.));
-		vec3 xm = getVertex(gridCoord - vec3(1., 0., 0.));
-		vec3 yp = getVertex(gridCoord + vec3(0., 1., 0.));
-		vec3 ym = getVertex(gridCoord - vec3(0., 1., 0.));
+		vec3 xp = getVertex(vertex + vec3(1., 0., 0.));
+		vec3 xm = getVertex(vertex - vec3(1., 0., 0.));
+		vec3 yp = getVertex(vertex + vec3(0., 1., 0.));
+		vec3 ym = getVertex(vertex - vec3(0., 1., 0.));
 		normal = normalize(cross(xp - xm, yp - ym));
 	} else {
 		normal = vec3(0., 0., 0.);
 	}
 
 	if (displayDim > 1) {
-		vertex = chartToWorldCoord(vertex);
+		xformVtx = chartToWorldCoord(xformVtx);
 	}
-	gl_Position = mvProjMat * vec4(vertex, 1.);
+	gl_Position = mvProjMat * vec4(xformVtx, 1.);
 }
 
 <?

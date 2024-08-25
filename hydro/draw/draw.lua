@@ -145,6 +145,33 @@ function Draw:getModuleCodeGLSL(...)
 	return makeGLSL(self.solver.modules:getCodeAndHeader(...))
 end
 
+-- used in draw/1d_graph.lua and draw/2d_graph.lua
+function Draw:prepareGraphShader()
+	local solver = self.solver
+
+	if solver.graphShader then return end
+
+	local graphShaderCode = assert(path'hydro/draw/graph.glsl':read())
+
+	solver.graphShader = solver.GLProgram{
+		name = 'graph',
+		vertexCode = solver.eqn:template(graphShaderCode, {
+			draw = self,
+			vertexShader = true,
+		}),
+		fragmentCode = solver.eqn:template(graphShaderCode, {
+			draw = self,
+			fragmentShader = true,
+		}),
+		uniforms = {
+			tex = 0,
+			scale = 1,
+			ambient = 1,
+		},
+	}:useNone()
+end
+
+-- common function
 function Draw:drawGrid(xmin, xmax, ymin, ymax)
 	local app = self.solver.app
 

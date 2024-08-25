@@ -3,8 +3,8 @@ local path = require 'ext.path'
 local vec2f = require 'vec-ffi.vec2f'
 local vec3f = require 'vec-ffi.vec3f'
 local gl = require 'gl'
-local GLVertexArray = require 'gl.vertexarray'
 local GLArrayBuffer = require 'gl.arraybuffer'
+local GLSceneObject = require 'gl.sceneobject'
 local vector = require 'ffi.cpp.vector-lua'
 local Draw = require 'hydro.draw.draw'
 
@@ -126,12 +126,16 @@ function DrawVectorField:showDisplayVar(var, varName, ar, xmin, xmax, ymin, ymax
 			size = #self.glcenters * ffi.sizeof(self.glcenters.type),
 		}:unbind()
 
-		solver.vectorArrowVAO = GLVertexArray{
+		solver.vectorArrowSceneObj = GLSceneObject{
 			program = shader,
 			attrs = {
 				vtx = solver.vectorArrowGLVtxArrayBuffer,
 				gridCoord = solver.vectorArrowGLCentersArrayBuffer,
 				cellindex = solver.glcellindexArrayBuffer,
+			},
+			geometry = {
+				mode = gl.GL_LINES,
+				count = arrowCount * #arrow,
 			},
 		}
 	end
@@ -160,10 +164,10 @@ function DrawVectorField:showDisplayVar(var, varName, ar, xmin, xmax, ymin, ymax
 	end
 	gl.glEnd()
 --]]
--- [[ glVertexArray
-	solver.vectorArrowVAO:bind()
-	gl.glDrawArrays(gl.GL_LINES, 0, arrowCount * #arrow)
-	solver.vectorArrowVAO:unbind()
+-- [[ VAO if present ...
+	solver.vectorArrowSceneObj:enableAndSetAttrs()
+	solver.vectorArrowSceneObj.geometry:draw()
+	solver.vectorArrowSceneObj:disableAttrs()
 --]]
 --[[ glVertexArray with glDrawArraysInstanced (not fully implemented - just speed testing) doesn't go noticably faster than glDrawArrays
 	solver.vectorArrowVAO:bind()

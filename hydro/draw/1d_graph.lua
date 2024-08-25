@@ -1,8 +1,10 @@
+local ffi = require 'ffi'
 local path = require 'ext.path'
 local vec3f = require 'vec-ffi.vec3f'
 local matrix_ffi = require 'matrix.ffi'
 local vector = require 'ffi.cpp.vector-lua'
 local gl = require 'gl'
+local GLSceneObject = require 'gl.sceneobject'
 local Draw = require 'hydro.draw.draw'
 
 
@@ -94,32 +96,9 @@ function Draw1D:display(varName, ar, xmin, xmax, ymin, ymax, useLog, valueMin, v
 	end
 end
 
--- also in 2d_graph.lua.  subclass?
 function Draw1D:prepareShader()
-	local solver = self.solver
-
-	if solver.graphShader then return end
-
-	local graphShaderCode = assert(path'hydro/draw/graph.glsl':read())
-
-	solver.graphShader = solver.GLProgram{
-		name = 'graph',
-		vertexCode = solver.eqn:template(graphShaderCode, {
-			draw = self,
-			vertexShader = true,
-		}),
-		fragmentCode = solver.eqn:template(graphShaderCode, {
-			draw = self,
-			fragmentShader = true,
-		}),
-		uniforms = {
-			tex = 0,
-			scale = 1,
-			ambient = 1,
-		},
-	}:useNone()
+	self:prepareGraphShader()
 end
-
 
 function Draw1D:showDisplayVar(var)
 	local solver = self.solver
@@ -137,13 +116,35 @@ function Draw1D:showDisplayVar(var)
 
 	solver:calcDisplayVarToTex(var)
 
-
 	-- 1D displays -- use vertex.y
 	-- 2D displays -- use vertex.z
 	-- 3D displays -- ???
 	if app.displayDim == 3 then
 		io.stderr:write'Why are you using a graph shader to display 3D data?  Use a 3D display instead.\n'
 		return
+	end
+
+
+	if not self.vertexes then self.vertexes = vector'vec3f_t' end
+
+	local step = 1
+	local numVertexes = math.floor((tonumber(solver.gridSize.x) - 2 * solver.numGhost + 1) / step)	-- (endindex - startindex + 1) / step
+	if #self.vertexes ~= numVertexes then
+		self.vertexes:resize(numVertexes)
+
+		solver.draw1DGraphSceneObj = GLSceneObject{
+			program = solver.graphShader,
+			vertexes = {
+				data = self.vertexes.v,
+				size = ffi.sizeof'vec3f_t' * #self.vertexes,
+				dim = 3,
+				count = #self.vertexes,
+			},
+			geometry = {
+				mode = gl.GL_LINE_STRIP,
+				count = numVertexes,
+			},
+		}
 	end
 
 
@@ -157,16 +158,7 @@ function Draw1D:showDisplayVar(var)
 	self:setupDisplayVarShader(shader, var, valueMin, valueMax)
 
 	gl.glUniform1f(uniforms.ambient.loc, 1)
-
 	gl.glUniform3f(uniforms.color.loc, (#app.solvers > 1 and solver or var).color:unpack())
-
-	if not self.vertexes then self.vertexes = vector'vec3f_t' end
-
-	local step = 1
-	local numVertexes = math.floor((tonumber(solver.gridSize.x) - 2 * solver.numGhost + 1) / step)	-- (endindex - startindex + 1) / step
-	if #self.vertexes ~= numVertexes then
-		self.vertexes:resize(numVertexes)
-	end
 
 	-- [[ overwrite the mvProjMat uniform here
 	-- this is different from the other 'Draw.mvProjMat'
@@ -185,11 +177,13 @@ function Draw1D:showDisplayVar(var)
 		v.y = 0--app.displayFixedY
 		v.z = 0--app.displayFixedZ
 	end
+	solver.draw1DGraphSceneObj.attrs.vertex.buffer
+		:bind()
+		:updateData()
 
-	gl.glEnableVertexAttribArray(shader.attrs.gridCoord.loc)
-	gl.glVertexAttribPointer(shader.attrs.gridCoord.loc, 3, gl.GL_FLOAT, false, 0, self.vertexes.v)
-	gl.glDrawArrays(gl.GL_LINE_STRIP, 0, numVertexes)
-	gl.glDisableVertexAttribArray(shader.attrs.gridCoord.loc)
+	solver.draw1DGraphSceneObj:enableAndSetAttrs()
+	solver.draw1DGraphSceneObj.geometry:draw()
+	solver.draw1DGraphSceneObj:disableAttrs()
 
 	tex:unbind()
 	shader:useNone()

@@ -1,7 +1,9 @@
 -- TODO make use of app.display_useCoordMap
+local ffi = require 'ffi'
 local path = require 'ext.path'
 local vec3f = require 'vec-ffi.vec3f'
 local gl = require 'gl'
+local GLSceneObject = require 'gl.sceneobject'
 local vector = require 'ffi.cpp.vector-lua'
 local Draw = require 'hydro.draw.draw'
 
@@ -12,6 +14,33 @@ Draw2DGraph.step = 1
 
 -- TODO gui this somewhere
 Draw2DGraph.ambient = .3
+
+function Draw2DGraph:display(varName, ar, graph_xmin, graph_xmax, graph_ymin, graph_ymax)
+	local solver = self.solver
+	local app = solver.app
+
+	app.view:setup(ar)
+
+	gl.glColor3f(1,1,1)
+	gl.glEnable(gl.GL_DEPTH_TEST)
+
+	if not require 'hydro.solver.meshsolver':isa(solver) then
+		local var = solver.displayVarForName[varName]
+		if var and var.enabled then
+			self:prepareShader()
+			self:showDisplayVar(var)
+		end
+
+		-- TODO right here is where the color gradient display usually goes
+		-- mind you I'm not using it in the 2D graph display atm
+	end
+
+	gl.glDisable(gl.GL_DEPTH_TEST)
+end
+
+function Draw2DGraph:prepareShader()
+	self:prepareGraphShader()
+end
 
 function Draw2DGraph:showDisplayVar(var)
 	local solver = self.solver
@@ -37,20 +66,6 @@ function Draw2DGraph:showDisplayVar(var)
 	end
 
 
-	local shader = solver.graphShader
-	local uniforms = shader.uniforms
-
-	shader:use()
-	local tex = solver:getTex(var)
-	tex:bind()
-
-	self:setupDisplayVarShader(shader, var, valueMin, valueMax)
-
-	gl.glUniform1f(uniforms.ambient.loc, self.ambient)
-
-	-- TODO where to specify using the heatmap gradient vs using the variable/solver color
-	gl.glUniform3f(uniforms.color.loc, (#app.solvers > 1 and solver or var).color:unpack())
-
 	-- 3 components per vertex
 	if not self.vertexes then self.vertexes = vector'vec3f_t' end
 
@@ -62,7 +77,38 @@ function Draw2DGraph:showDisplayVar(var)
 
 	if #self.vertexes ~= numVertexes then
 		self.vertexes:resize(numVertexes)
+
+		solver.draw2DGraphSceneObj = GLSceneObject{
+			program = solver.graphShader,
+			vertexes = {
+				data = self.vertexes.v,
+				size = ffi.sizeof'vec3f_t' * #self.vertexes,
+				dim = 3,
+				count = #self.vertexes,
+			},
+			geometry = {
+				mode = gl.GL_LINE_STRIP,
+				count = numVertexes,
+			},
+		}
 	end
+
+
+	local shader = solver.graphShader
+	local uniforms = shader.uniforms
+
+	gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_LINE)
+
+	shader:use()
+	local tex = solver:getTex(var)
+	tex:bind()
+
+	self:setupDisplayVarShader(shader, var, valueMin, valueMax)
+
+	gl.glUniform1f(uniforms.ambient.loc, self.ambient)
+
+	-- TODO where to specify using the heatmap gradient vs using the variable/solver color
+	gl.glUniform3f(uniforms.color.loc, (#app.solvers > 1 and solver or var).color:unpack())
 
 	local index = 0
 	for j=0,numY-2 do
@@ -79,69 +125,24 @@ function Draw2DGraph:showDisplayVar(var)
 		end
 	end
 
-	gl.glEnableVertexAttribArray(shader.attrs.gridCoord.loc)
-	gl.glVertexAttribPointer(shader.attrs.gridCoord.loc, 3, gl.GL_FLOAT, false, 0, self.vertexes.v)
+	solver.draw2DGraphSceneObj.attrs.vertex.buffer
+		:bind()
+		:updateData()
 
-	gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_LINE)
 
+	solver.draw2DGraphSceneObj:enableAndSetAttrs()
+
+	-- TODO use ELEMENT_ARRAY_BUFFER?
 	for j=0,numY-2 do
 		gl.glDrawArrays(gl.GL_TRIANGLE_STRIP, j * 2 * numX, 2 * numX)
 	end
 
-	gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_FILL)
-
-	gl.glDisableVertexAttribArray(shader.attrs.gridCoord.loc)
+	solver.draw2DGraphSceneObj:disableAttrs()
 
 	tex:unbind()
 	shader:useNone()
-end
 
-function Draw2DGraph:display(varName, ar, graph_xmin, graph_xmax, graph_ymin, graph_ymax)
-	local solver = self.solver
-	local app = solver.app
-
-	app.view:setup(ar)
-
-	gl.glColor3f(1,1,1)
-	gl.glEnable(gl.GL_DEPTH_TEST)
-
-	if not require 'hydro.solver.meshsolver':isa(solver) then
-		local var = solver.displayVarForName[varName]
-		if var and var.enabled then
-			self:prepareShader()
-			self:showDisplayVar(var)
-		end
-
-		-- TODO right here is where the color gradient display usually goes
-		-- mind you I'm not using it in the 2D graph display atm
-	end
-
-	gl.glDisable(gl.GL_DEPTH_TEST)
-end
-
--- also in 1d.lua.  subclass?
-function Draw2DGraph:prepareShader()
-	local solver = self.solver
-	if solver.graphShader then return end
-
-	local graphShaderCode = assert(path'hydro/draw/graph.glsl':read())
-
-	solver.graphShader = solver.GLProgram{
-		name = 'graph',
-		vertexCode = solver.eqn:template(graphShaderCode, {
-			draw = self,
-			vertexShader = true,
-		}),
-		fragmentCode = solver.eqn:template(graphShaderCode, {
-			draw = self,
-			fragmentShader = true,
-		}),
-		uniforms = {
-			tex = 0,
-			scale = 1,
-			ambient = 1,
-		},
-	}:useNone()
+	gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_FILL)
 end
 
 return Draw2DGraph
