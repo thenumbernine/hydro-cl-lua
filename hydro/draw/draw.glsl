@@ -29,12 +29,12 @@ uniform vec3 cartesianMin, cartesianMax;
 -- if solver.dim < 3 then -- doesn't consider meshsolver
 if require 'gl.tex2d':isa(solver.tex) then -- does
 ?>
-layout(binding=0) uniform sampler2D tex;
+uniform sampler2D tex;
 vec4 getTex(vec3 texCoord) {
 	return texture(tex, texCoord.xy);
 }
 <? else ?>
-layout(binding=0) uniform sampler3D tex;
+uniform sampler3D tex;
 vec4 getTex(vec3 texCoord) {
 	return texture(tex, texCoord);
 }
@@ -71,7 +71,7 @@ float getGradientFrac(float value) {
 	}
 }
 
-layout(binding=1) uniform sampler2D gradientTex;
+uniform sampler2D gradientTex;
 
 //TODO just change texel lookup in gradTex?
 float getGradientTexCoord(float frac) {

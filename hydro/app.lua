@@ -1175,11 +1175,14 @@ void main() {
 			fragmentCode = [[
 in float tc;
 out vec4 fragColor;
-layout(binding=0) uniform sampler2D gradientTex;
+uniform sampler2D gradientTex;
 void main() {
 	fragColor = texture(gradientTex, vec2(tc, .5));
 }
 ]],
+			uniforms = {
+				tex = 0,
+			},
 		},
 		geometry = self.quadGeom,
 	}

@@ -62,7 +62,7 @@ function Draw3DSlice:prepareShader()
 			clipInfos = app.useClipPlanes and app.clipInfos or nil,
 		}),
 		uniforms = {
-			volTex = 0,
+			tex = 0,
 			gradientTex = 1,
 			valueMin = 0,
 			valueMax = 0,

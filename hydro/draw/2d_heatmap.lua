@@ -54,6 +54,10 @@ function Draw2DHeatmap:prepareShader()
 			draw = self,
 			fragmentShader = true,
 		}),
+		uniforms = {
+			tex = 0,
+			gradientTex = 1,
+		},
 	}:useNone()
 
 	solver.heatMap2DSceneObj = GLSceneObject{
