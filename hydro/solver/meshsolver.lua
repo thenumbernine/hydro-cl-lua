@@ -431,10 +431,10 @@ function MeshSolver:initDraw()
 	}:unbind()
 
 	self.drawPointsShader = self.GLProgram{
+		version = require 'hydro.draw.draw'.glslVersion:match'^#version (.*)$',
+		precision = 'best',
 		name = 'draw_points',
-		vertexCode = require 'hydro.draw.draw'.glslVersion
-..[[
-
+		vertexCode = [[
 uniform float drawCellScale;
 uniform mat4 mvProjMat;
 
@@ -446,9 +446,7 @@ void main() {
 	gl_Position = mvProjMat * vec4(v, 1.);
 }
 ]],
-		fragmentCode = require 'hydro.draw.draw'.glslVersion
-[[
-
+		fragmentCode = [[
 out vec4 fragColor;
 void main() {
 	fragColor = vec4(1., 1., 1., 1.);

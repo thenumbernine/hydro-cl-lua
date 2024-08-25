@@ -1,5 +1,3 @@
-<?=draw.glslVersion?>
-
 <? 
 local varying = vertexShader and "out"
 		or fragmentShader and "in"

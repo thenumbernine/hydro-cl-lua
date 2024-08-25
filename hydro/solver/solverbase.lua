@@ -719,6 +719,8 @@ function SolverBase:initMeshVars(args)
 		local GLProgram = require 'gl.program':subclass()
 		function GLProgram:init(...)
 			local args = ...
+			args.version = require 'hydro.draw.draw'.glslVersion:match'^#version (.*)$'
+			args.precision = 'best'
 
 			local dir = 'cache/'..solver:getIdent()..'/shader'
 			print('building '..dir..'/'..args.name..'.vert.glsl & .frag.glsl')
