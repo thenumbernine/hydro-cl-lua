@@ -1049,7 +1049,9 @@ function HydroCLApp:initGL(...)
 			self.font = Font{
 				image = fontimage,
 				tex = fonttex,
+				drawImmediateMode = false,
 			}
+			self.font.view = require 'hydro.view.ortho'()
 		end
 
 		-- todo reorganize me
@@ -2071,13 +2073,10 @@ end
 	end
 
 	if self.font then
-		-- glMatrixMode because font still uses it ...
 		gl.glViewport(0,0,w,h)
-		gl.glMatrixMode(gl.GL_PROJECTION)
-		gl.glLoadIdentity()
-		gl.glOrtho(0, w/h, 0, 1, -1, 1)
-		gl.glMatrixMode(gl.GL_MODELVIEW)
-		gl.glLoadIdentity()
+		self.font.view.mvMat:setIdent()
+		self.font.view.projMat:setOrtho(0, w/h, 0, 1, -1, 1)
+		self.font.view.mvProjMat:copy(self.font.view.projMat)
 
 		local solverNames = displaySolvers:mapi(function(solver)
 			return {
@@ -2177,11 +2176,9 @@ function HydroCLApp:drawGradientLegend(solver, var, varName, ar, valueMin, value
 
 	self.drawGradSceneObj:draw()
 
-	-- glMatrixMode because font still uses it ...
-	gl.glMatrixMode(gl.GL_PROJECTION)
-	gl.glLoadMatrixf(self.view.projMat.ptr)
-	gl.glMatrixMode(gl.GL_MODELVIEW)
-	gl.glLoadMatrixf(self.view.mvMat.ptr)
+	self.font.view.mvMat:copy(self.view.mvMat)
+	self.font.view.projMat:copy(self.view.projMat)
+	self.font.view.mvProjMat:copy(self.view.mvProjMat)
 
 	local fontSizeX = (xmax - xmin) * .025
 	local fontSizeY = (ymax - ymin) * .025

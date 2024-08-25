@@ -22,13 +22,6 @@ function Draw1D:display(varName, ar, xmin, xmax, ymin, ymax, useLog, valueMin, v
 	view.projMat:setOrtho(xmin, xmax, ymin, ymax, -1, 1)
 	view.mvProjMat:copy(view.projMat)
 
-	-- glMatrixMode because font still uses it ...
-	gl.glMatrixMode(gl.GL_PROJECTION)
-	gl.glLoadIdentity()
-	gl.glOrtho(xmin, xmax, ymin, ymax, -1, 1)
-	gl.glMatrixMode(gl.GL_MODELVIEW)
-	gl.glLoadIdentity()
-
 	-- display here
 	local var = solver.displayVarForName[varName]
 	if var and var.enabled then
@@ -55,11 +48,11 @@ function Draw1D:display(varName, ar, xmin, xmax, ymin, ymax, useLog, valueMin, v
 		--self.orthoView:setupModelView()
 		--local xmin, xmax, ymin, ymax = self.orthoView:getOrthoBounds(ar)
 
-		if app.font then
-			gl.glMatrixMode(gl.GL_PROJECTION)
-			gl.glLoadMatrixf(view.projMat.ptr)
-			gl.glMatrixMode(gl.GL_MODELVIEW)
-			gl.glLoadMatrixf(view.mvMat.ptr)
+		local font = app.font
+		if font then
+			font.view.mvMat:copy(view.mvMat)
+			font.view.projMat:copy(view.projMat)
+			font.view.mvProjMat:copy(view.mvProjMat)
 
 			-- gradient uses 0.025
 			local fontSizeX = (xmax - xmin) * .05
@@ -77,7 +70,7 @@ function Draw1D:display(varName, ar, xmin, xmax, ymin, ymax, useLog, valueMin, v
 				end
 				value = value * unitScale
 				local absvalue = math.abs(value)
-				app.font:draw{
+				font:draw{
 					pos={xmin * .9 + xmax * .1, y + fontSizeY * .5},
 					text=(
 						(absvalue > 1e+5 or absvalue < 1e-5)
@@ -87,7 +80,7 @@ function Draw1D:display(varName, ar, xmin, xmax, ymin, ymax, useLog, valueMin, v
 					multiLine=false,
 				}
 			end
-			app.font:draw{
+			font:draw{
 				pos={xmin, ymax},
 				-- 1D:
 				text=('%s [%.3e, %.3e]'):format(varName, ymin, ymax),
