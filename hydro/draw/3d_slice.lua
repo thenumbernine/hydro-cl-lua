@@ -14,7 +14,14 @@ local Draw = require 'hydro.draw.draw'
 local Draw3DSlice = Draw:subclass()
 
 -- 2D
-local vertexesInQuad = {{0,0},{1,0},{1,1},{0,1}}
+local vertexesInQuad = {
+	{0, 0},
+	{1, 0},
+	{0, 1},
+	{0, 1},
+	{1, 0},
+	{1, 1},
+}
 
 --[[
 looks great for flat space
@@ -192,7 +199,7 @@ function Draw3DSlice:showDisplayVar(var, varName, ar, xmin, xmax, ymin, ymax, us
 				end
 			end
 		end
-		assertlen(solver.draw3DSliceVtxs, (n + 1) * 4)
+		assertlen(solver.draw3DSliceVtxs, (n + 1) * #vertexesInQuad)
 		if oldLen ~= #solver.draw3DSliceVtxs then
 			solver.draw3DSlicesSceneObj = GLSceneObject{
 				program = shader,
@@ -203,7 +210,7 @@ function Draw3DSlice:showDisplayVar(var, varName, ar, xmin, xmax, ymin, ymax, us
 					count = #solver.draw3DSliceVtxs,
 				},
 				geometry = {
-					mode = gl.GL_QUADS,
+					mode = gl.GL_TRIANGLES,
 					count = #solver.draw3DSliceVtxs,
 				},
 			}
