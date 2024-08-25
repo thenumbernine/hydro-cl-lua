@@ -88,7 +88,7 @@ function Draw2DGraph:showDisplayVar(var)
 			},
 			geometry = {
 				mode = gl.GL_LINE_STRIP,
-				count = numVertexes,
+				count = #self.vertexes,
 			},
 		}
 	end
