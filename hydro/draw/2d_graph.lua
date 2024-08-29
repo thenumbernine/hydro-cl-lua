@@ -46,10 +46,8 @@ function Draw2DGraph:prepareShader()
 	solver.draw2DGraphSceneObj = solver.draw2DGraphSceneObj or GLSceneObject{
 		program = solver.graphShader,
 		vertexes = {
-			data = nil,
-			size = 0,
+			useVec = true,
 			dim = 3,
-			count = 0,
 			usage = gl.GL_DYNAMIC_DRAW,
 		},
 		geometry = {
@@ -85,7 +83,7 @@ function Draw2DGraph:showDisplayVar(var)
 	local sceneObj = solver.draw2DGraphSceneObj
 
 	-- 3 components per vertex
-	if not self.vertexes then self.vertexes = vector'vec3f_t' end
+	local vertexes = sceneObj.attrs.vertex.buffer.vec
 
 	local step = math.max(1, self.step)
 	local numX = math.floor((tonumber(solver.gridSize.x) - 2 * solver.numGhost + 1) / step)
@@ -93,15 +91,15 @@ function Draw2DGraph:showDisplayVar(var)
 	-- 2 vtxs per tristrip
 	local numVertexes = 2 * numX * numY
 
-	if #self.vertexes ~= numVertexes then
-		self.vertexes:resize(numVertexes)
+	if #vertexes ~= numVertexes then
+		vertexes:resize(numVertexes)
 
 		local vtxbuf = sceneObj.attrs.vertex.buffer
-		vtxbuf.data = self.vertexes.v
+		vtxbuf.data = vertexes.v
 		vtxbuf:bind()
 			:setData{
 				size = numVertexes * ffi.sizeof'vec3f_t',
-				data = self.vertexes.v,
+				data = vertexes.v,
 				usage = gl.GL_DYNAMIC_DRAW,
 			}
 		sceneObj.geometry.count = numVertexes
@@ -130,7 +128,7 @@ function Draw2DGraph:showDisplayVar(var)
 			local x = i * step
 			for jofs=0,1 do
 				local y = (j + jofs) * step
-				local v = self.vertexes.v[index]
+				local v = vertexes.v[index]
 				v.x = x
 				v.y = y
 				v.z = 0--app.displayFixedZ
