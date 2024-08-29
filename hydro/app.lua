@@ -236,7 +236,7 @@ set this to {x,y,z,theta} for angle/axis initialization.
 	},
 	displayBilinearTextures = {
 	},
-	display_stateline = {
+	displayStateLine = {
 	},
 	display_useLog = {
 	},
@@ -269,8 +269,11 @@ set this to {x,y,z,theta} for angle/axis initialization.
 	isobars = {
 		desc = "default true.  whether to use isobars in 3D-slice display.  default: true.",
 	},
-	arrows = {
+	displayArrows = {
 		desc = "use arrows for vector field display (default is LIC)",
+	},
+	displayGraph = {
+		desc = "use graph for 2D display (default is heatmap)",
 	},
 	vectorFieldScale = {
 		desc = "scale of arrows. default 1",
@@ -1061,7 +1064,9 @@ function HydroCLApp:initGL(...)
 		end)
 		self.display2DMethodsEnabled = self.display2DMethods:mapi(function(method, index)
 			local name, func = next(method)
-			return index == 1, name
+			local enabled = index == 1
+			if cmdline.displayGraph then enabled = index == 2 end
+			return enabled, name
 		end)
 		self.display3DMethodsEnabled = self.display3DMethods:mapi(function(method, index)
 			local name, func = next(method)
@@ -1070,9 +1075,9 @@ function HydroCLApp:initGL(...)
 		self.displayVectorMethodsEnabled = self.displayVectorMethods:mapi(function(method, index)
 			local name, func = next(method)
 			local enabled = index == 2	-- LIC
-			-- cmdline arrows overrides the default from LIC to arrows
-			if cmdline.arrows then enabled = index == 1 end
-			if cmdline.display_stateline then enabled = index == 3 end
+			-- cmdline displayArrows overrides the default from LIC to arrows
+			if cmdline.displayArrows then enabled = index == 1 end
+			if cmdline.displayStateLine then enabled = index == 3 end
 			return enabled, name
 		end)
 

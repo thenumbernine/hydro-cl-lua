@@ -21,7 +21,6 @@ function Draw2DGraph:display(varName, ar, graph_xmin, graph_xmax, graph_ymin, gr
 
 	app.view:setup(ar)
 
-	gl.glColor3f(1,1,1)
 	gl.glEnable(gl.GL_DEPTH_TEST)
 
 	if not require 'hydro.solver.meshsolver':isa(solver) then
