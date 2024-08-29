@@ -38,7 +38,25 @@ function Draw2DGraph:display(varName, ar, graph_xmin, graph_xmax, graph_ymin, gr
 end
 
 function Draw2DGraph:prepareShader()
+	local solver = self.solver
+	local app = solver.app
+
 	self:prepareGraphShader()
+
+	solver.draw2DGraphSceneObj = solver.draw2DGraphSceneObj or GLSceneObject{
+		program = solver.graphShader,
+		vertexes = {
+			data = nil,
+			size = 0,
+			dim = 3,
+			count = 0,
+			usage = gl.GL_DYNAMIC_DRAW,
+		},
+		geometry = {
+			mode = gl.GL_LINE_STRIP,
+			count = 0,
+		},
+	}
 end
 
 function Draw2DGraph:showDisplayVar(var)
@@ -64,6 +82,7 @@ function Draw2DGraph:showDisplayVar(var)
 		return
 	end
 
+	local sceneObj = solver.draw2DGraphSceneObj
 
 	-- 3 components per vertex
 	if not self.vertexes then self.vertexes = vector'vec3f_t' end
@@ -77,19 +96,15 @@ function Draw2DGraph:showDisplayVar(var)
 	if #self.vertexes ~= numVertexes then
 		self.vertexes:resize(numVertexes)
 
-		solver.draw2DGraphSceneObj = GLSceneObject{
-			program = solver.graphShader,
-			vertexes = {
+		local vtxbuf = sceneObj.attrs.vertex.buffer
+		vtxbuf.data = self.vertexes.v
+		vtxbuf:bind()
+			:setData{
+				size = numVertexes * ffi.sizeof'vec3f_t',
 				data = self.vertexes.v,
-				size = ffi.sizeof'vec3f_t' * #self.vertexes,
-				dim = 3,
-				count = #self.vertexes,
-			},
-			geometry = {
-				mode = gl.GL_LINE_STRIP,
-				count = #self.vertexes,
-			},
-		}
+				usage = gl.GL_DYNAMIC_DRAW,
+			}
+		sceneObj.geometry.count = numVertexes
 	end
 
 
