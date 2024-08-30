@@ -5,7 +5,6 @@ local vec3f = require 'vec-ffi.vec3f'
 local gl = require 'gl'
 local GLArrayBuffer = require 'gl.arraybuffer'
 local GLSceneObject = require 'gl.sceneobject'
-local vector = require 'ffi.cpp.vector-lua'
 local Draw = require 'hydro.draw.draw'
 
 
@@ -162,6 +161,7 @@ function DrawVectorField:showDisplayVar(var, varName, ar, xmin, xmax, ymin, ymax
 				local j = jbase * step
 				for ibase=0,icount-1 do
 					local i = ibase * step
+
 					for _,q in ipairs(arrow) do
 						pc[0].x = i
 						pc[0].y = j
