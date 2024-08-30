@@ -100,7 +100,6 @@ function Draw2DGraph:showDisplayVar(var)
 			:setData{
 				size = numVertexes * ffi.sizeof'vec3f_t',
 				data = vertexes.v,
-				usage = gl.GL_DYNAMIC_DRAW,
 			}
 		sceneObj.geometry.count = numVertexes
 	end
