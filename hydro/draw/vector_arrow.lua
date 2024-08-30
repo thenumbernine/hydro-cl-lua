@@ -1,7 +1,6 @@
 local ffi = require 'ffi'
 local path = require 'ext.path'
 local vec2f = require 'vec-ffi.vec2f'
-local vec3f = require 'vec-ffi.vec3f'
 local gl = require 'gl'
 local GLArrayBuffer = require 'gl.arraybuffer'
 local GLSceneObject = require 'gl.sceneobject'
@@ -9,12 +8,12 @@ local Draw = require 'hydro.draw.draw'
 
 
 local arrow = {
-	{-.5, 0.},
-	{.5, 0.},
-	{.2, .3},
-	{.5, 0.},
-	{.2, -.3},
-	{.5, 0.},
+	vec2f(-.5, 0.),
+	vec2f(.5, 0.),
+	vec2f(.2, .3),
+	vec2f(.5, 0.),
+	vec2f(.2, -.3),
+	vec2f(.5, 0.),
 }
 
 local DrawVectorField = Draw:subclass()
@@ -81,7 +80,7 @@ function DrawVectorField:prepareShader()
 		},
 		geometry = {
 			mode = gl.GL_LINES,
-			count = 0,--arrowCount * #arrow,
+			count = 0,
 		},
 	}
 end
@@ -108,19 +107,7 @@ function DrawVectorField:showDisplayVar(var, varName, ar, xmin, xmax, ymin, ymax
 
 	solver:calcDisplayVarToTex(var)
 
-	local isMeshSolver = require 'hydro.solver.meshsolver':isa(solver)
-
 	local step = self.step
-	local arrowCount
-	local icount, jcount, kcount
-	if isMeshSolver then
-		arrowCount = solver.numCells
-	else
-		icount = math.max(1, math.floor(tonumber(solver.sizeWithoutBorder.x) / step))
-		jcount = math.max(1, math.floor(tonumber(solver.sizeWithoutBorder.y) / step))
-		kcount = math.max(1, math.floor(tonumber(solver.sizeWithoutBorder.z) / step))
-		arrowCount = icount * jcount * kcount
-	end
 
 	local sceneObj = solver.vectorArrowSceneObj
 	local shader = sceneObj.program
@@ -131,28 +118,21 @@ function DrawVectorField:showDisplayVar(var, varName, ar, xmin, xmax, ymin, ymax
 	local gridCoordGPU = sceneObj.attrs.gridCoord.buffer
 	local gridCoordCPU = gridCoordGPU:beginUpdate()
 
-	vertexCPU:resize(arrowCount * #arrow)
-	gridCoordCPU:resize(arrowCount * #arrow)
-
-	-- glCallOrDraw goes just slightly faster.  24 vs 23 fps.
-	if isMeshSolver then
+	if require 'hydro.solver.meshsolver':isa(solver) then
 		-- TODO Lua coroutine cell iterator, abstracted between grids and meshes?
 		-- how fast/slow are coroutines compared to number for-loops anyways?
-		local pc = gridCoordCPU.v
-		local pv = vertexCPU.v
 		for ci=0,solver.numCells-1 do
 			local c = solver.mesh.cells.v[ci]
 			for _,q in ipairs(arrow) do
-				pc[0].x = c.pos.x
-				pc[0].y = c.pos.y
-				pc[0].z = c.pos.z
-				pc = pc + 1
-				pv[0].x = q[1]
-				pv[0].y = q[2]
-				pv = pv + 1
+				gridCoordCPU:emplace_back()[0] = c.pos
+				vertexCPU:emplace_back()[0] = q
 			end
 		end
 	else
+		local icount = math.max(1, math.floor(tonumber(solver.sizeWithoutBorder.x) / step))
+		local jcount = math.max(1, math.floor(tonumber(solver.sizeWithoutBorder.y) / step))
+		local kcount = math.max(1, math.floor(tonumber(solver.sizeWithoutBorder.z) / step))
+
 		local pc = gridCoordCPU.v
 		local pv = vertexCPU.v
 		for kbase=0,kcount-1 do
@@ -161,15 +141,12 @@ function DrawVectorField:showDisplayVar(var, varName, ar, xmin, xmax, ymin, ymax
 				local j = jbase * step
 				for ibase=0,icount-1 do
 					local i = ibase * step
-
 					for _,q in ipairs(arrow) do
-						pc[0].x = i
-						pc[0].y = j
-						pc[0].z = k
-						pc = pc + 1
-						pv[0].x = q[1]
-						pv[0].y = q[2]
-						pv = pv + 1
+						local pc = gridCoordCPU:emplace_back()
+						pc.x = i
+						pc.y = j
+						pc.z = k
+						vertexCPU:emplace_back()[0] = q
 					end
 				end
 			end
