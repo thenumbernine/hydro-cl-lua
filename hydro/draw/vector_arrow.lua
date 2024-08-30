@@ -25,6 +25,68 @@ local DrawVectorField = Draw:subclass()
 DrawVectorField.scale = cmdline.vectorFieldScale or 1
 DrawVectorField.step = cmdline.vectorFieldStep or 4
 
+function DrawVectorField:display(varName, ar, ...)
+	local solver = self.solver
+	local app = solver.app
+
+	app.view:setup(ar)
+
+	gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE)
+
+	local var = solver.displayVarForName[varName]
+	if var and var.enabled then
+		self:prepareShader()
+		self:showDisplayVar(var, varName, ar, ...)
+	end
+end
+
+function DrawVectorField:prepareShader()
+	local solver = self.solver
+
+	if not solver.vectorArrowShader then
+		local vectorArrowCode = assert(path'hydro/draw/vector_arrow.glsl':read())
+
+		solver.vectorArrowShader = solver.GLProgram{
+			name = 'vector_arrow',
+			vertexCode = solver.eqn:template(vectorArrowCode, {
+				draw = self,
+				vertexShader = true,
+			}),
+			fragmentCode = solver.eqn:template(vectorArrowCode, {
+				draw = self,
+				fragmentShader = true,
+			}),
+			uniforms = {
+				scale = 1,
+				valueMin = 0,
+				valueMax = 0,
+				tex = 0,
+				gradientTex = 1,
+			},
+		}:useNone()
+	end
+
+	solver.vectorArrowSceneObj = solver.vectorArrowSceneObj or GLSceneObject{
+		program = solver.vectorArrowShader,
+		vertexes = {
+			useVec = true,
+			dim = 2,
+		},
+		attrs = {
+			gridCoord = {
+				buffer = {
+					useVec = true,
+					dim = 3,
+				},
+			},
+		},
+		geometry = {
+			mode = gl.GL_LINES,
+			count = 0,--arrowCount * #arrow,
+		},
+	}
+end
+
 function DrawVectorField:showDisplayVar(var, varName, ar, xmin, xmax, ymin, ymax, useLog)
 	local solver = self.solver
 	local app = solver.app
@@ -61,84 +123,62 @@ function DrawVectorField:showDisplayVar(var, varName, ar, xmin, xmax, ymin, ymax
 		arrowCount = icount * jcount * kcount
 	end
 
-	local shader = solver.vectorArrowShader
+	local sceneObj = solver.vectorArrowSceneObj
+	local shader = sceneObj.program
 	local uniforms = shader.uniforms
 
-	-- TODO with multiple solvers this will constantly resize ...
-	if not self.glvtxs then self.glvtxs = vector'vec2f_t' end
-	if not self.glcenters then self.glcenters = vector'vec3f_t' end
+	local vertexGPU = sceneObj.attrs.vertex.buffer
+	local vertexCPU = vertexGPU:beginUpdate()
+	local gridCoordGPU = sceneObj.attrs.gridCoord.buffer
+	local gridCoordCPU = gridCoordGPU:beginUpdate()
 
-	if not solver.vectorArrowGLVtxArrayBuffer
-	-- assert that glvtxs and glcenters are the same size
-	or #self.glvtxs ~= arrowCount * #arrow
-	then
-		self.glvtxs:resize(arrowCount * #arrow)
-		self.glcenters:resize(arrowCount * #arrow)
+	vertexCPU:resize(arrowCount * #arrow)
+	gridCoordCPU:resize(arrowCount * #arrow)
 
-		-- glCallOrDraw goes just slightly faster.  24 vs 23 fps.
-		if isMeshSolver then
-			-- TODO Lua coroutine cell iterator, abstracted between grids and meshes?
-			-- how fast/slow are coroutines compared to number for-loops anyways?
-			local pc = self.glcenters.v
-			local pv = self.glvtxs.v
-			for ci=0,solver.numCells-1 do
-				local c = solver.mesh.cells.v[ci]
-				for _,q in ipairs(arrow) do
-					pc[0].x = c.pos.x
-					pc[0].y = c.pos.y
-					pc[0].z = c.pos.z
-					pc = pc + 1
-					pv[0].x = q[1]
-					pv[0].y = q[2]
-					pv = pv + 1
-				end
+	-- glCallOrDraw goes just slightly faster.  24 vs 23 fps.
+	if isMeshSolver then
+		-- TODO Lua coroutine cell iterator, abstracted between grids and meshes?
+		-- how fast/slow are coroutines compared to number for-loops anyways?
+		local pc = gridCoordCPU.v
+		local pv = vertexCPU.v
+		for ci=0,solver.numCells-1 do
+			local c = solver.mesh.cells.v[ci]
+			for _,q in ipairs(arrow) do
+				pc[0].x = c.pos.x
+				pc[0].y = c.pos.y
+				pc[0].z = c.pos.z
+				pc = pc + 1
+				pv[0].x = q[1]
+				pv[0].y = q[2]
+				pv = pv + 1
 			end
-		else
-			local pc = self.glcenters.v
-			local pv = self.glvtxs.v
-			for kbase=0,kcount-1 do
-				local k = kbase * step
-				for jbase=0,jcount-1 do
-					local j = jbase * step
-					for ibase=0,icount-1 do
-						local i = ibase * step
-						for _,q in ipairs(arrow) do
-							pc[0].x = i
-							pc[0].y = j
-							pc[0].z = k
-							pc = pc + 1
-							pv[0].x = q[1]
-							pv[0].y = q[2]
-							pv = pv + 1
-						end
+		end
+	else
+		local pc = gridCoordCPU.v
+		local pv = vertexCPU.v
+		for kbase=0,kcount-1 do
+			local k = kbase * step
+			for jbase=0,jcount-1 do
+				local j = jbase * step
+				for ibase=0,icount-1 do
+					local i = ibase * step
+					for _,q in ipairs(arrow) do
+						pc[0].x = i
+						pc[0].y = j
+						pc[0].z = k
+						pc = pc + 1
+						pv[0].x = q[1]
+						pv[0].y = q[2]
+						pv = pv + 1
 					end
 				end
 			end
 		end
-
-		solver.vectorArrowGLVtxArrayBuffer = GLArrayBuffer{
-			data = self.glvtxs.v,
-			size = #self.glvtxs * ffi.sizeof(self.glvtxs.type),
-		}:unbind()
-
-		solver.vectorArrowGLCentersArrayBuffer = GLArrayBuffer{
-			data = self.glcenters.v,
-			size = #self.glcenters * ffi.sizeof(self.glcenters.type),
-		}:unbind()
-
-		solver.vectorArrowSceneObj = GLSceneObject{
-			program = shader,
-			attrs = {
-				vtx = solver.vectorArrowGLVtxArrayBuffer,
-				gridCoord = solver.vectorArrowGLCentersArrayBuffer,
-				cellindex = solver.glcellindexArrayBuffer,
-			},
-			geometry = {
-				mode = gl.GL_LINES,
-				count = arrowCount * #arrow,
-			},
-		}
 	end
+
+	gridCoordGPU:endUpdate()
+	vertexGPU:endUpdate()
+	sceneObj.geometry.count = #vertexCPU
 
 	gl.glEnable(gl.GL_BLEND)
 
@@ -159,15 +199,15 @@ function DrawVectorField:showDisplayVar(var, varName, ar, xmin, xmax, ymin, ymax
 --[[ glVertexAttrib prim calls
 	gl.glBegin(gl.GL_LINES)
 	for i=0,arrowCount * #arrow-1 do
-		gl.glVertexAttrib3f(shader.attrs.gridCoord.loc, solver.vectorArrowGLCentersArrayBuffer.data[i]:unpack())
-		gl.glVertexAttrib2f(shader.attrs.vtx.loc, solver.vectorArrowGLVtxArrayBuffer.data[i]:unpack())
+		gl.glVertexAttrib3f(shader.attrs.gridCoord.loc, gridCoordCPU.v[i]:unpack())
+		gl.glVertexAttrib2f(shader.attrs.vertex.loc, vertexCPU.v[i]:unpack())
 	end
 	gl.glEnd()
 --]]
 -- [[ VAO if present ...
-	solver.vectorArrowSceneObj:enableAndSetAttrs()
-	solver.vectorArrowSceneObj.geometry:draw()
-	solver.vectorArrowSceneObj:disableAttrs()
+	sceneObj:enableAndSetAttrs()
+	sceneObj.geometry:draw()
+	sceneObj:disableAttrs()
 --]]
 --[[ glVertexArray with glDrawArraysInstanced (not fully implemented - just speed testing) doesn't go noticably faster than glDrawArrays
 	solver.vectorArrowVAO:bind()
@@ -181,50 +221,8 @@ function DrawVectorField:showDisplayVar(var, varName, ar, xmin, xmax, ymin, ymax
 
 	gl.glDisable(gl.GL_BLEND)
 
-
 	-- TODO only draw the first
 	app:drawGradientLegend(solver, var, varName, ar, valueMin, valueMax)
-end
-
-function DrawVectorField:display(varName, ar, ...)
-	local solver = self.solver
-	local app = solver.app
-
-	app.view:setup(ar)
-
-	gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE)
-
-	local var = solver.displayVarForName[varName]
-	if var and var.enabled then
-		self:prepareShader()
-		self:showDisplayVar(var, varName, ar, ...)
-	end
-end
-
-function DrawVectorField:prepareShader()
-	local solver = self.solver
-	if solver.vectorArrowShader then return end
-
-	local vectorArrowCode = assert(path'hydro/draw/vector_arrow.glsl':read())
-
-	solver.vectorArrowShader = solver.GLProgram{
-		name = 'vector_arrow',
-		vertexCode = solver.eqn:template(vectorArrowCode, {
-			draw = self,
-			vertexShader = true,
-		}),
-		fragmentCode = solver.eqn:template(vectorArrowCode, {
-			draw = self,
-			fragmentShader = true,
-		}),
-		uniforms = {
-			scale = 1,
-			valueMin = 0,
-			valueMax = 0,
-			tex = 0,
-			gradientTex = 1,
-		},
-	}:useNone()
 end
 
 return DrawVectorField

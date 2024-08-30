@@ -4,7 +4,6 @@ local path = require 'ext.path'
 local vec3f = require 'vec-ffi.vec3f'
 local gl = require 'gl'
 local GLSceneObject = require 'gl.sceneobject'
-local vector = require 'ffi.cpp.vector-lua'
 local Draw = require 'hydro.draw.draw'
 
 
@@ -39,7 +38,6 @@ end
 
 function Draw2DGraph:prepareShader()
 	local solver = self.solver
-	local app = solver.app
 
 	self:prepareGraphShader()
 
@@ -51,7 +49,7 @@ function Draw2DGraph:prepareShader()
 			usage = gl.GL_DYNAMIC_DRAW,
 		},
 		geometry = {
-			mode = gl.GL_LINE_STRIP,
+			mode = gl.GL_TRIANGLE_STRIP,
 			count = 0,
 		},
 	}
@@ -85,35 +83,29 @@ function Draw2DGraph:showDisplayVar(var)
 	local step = math.max(1, self.step)
 	local numX = math.floor((tonumber(solver.gridSize.x) - 2 * solver.numGhost + 1) / step)
 	local numY = math.floor((tonumber(solver.gridSize.y) - 2 * solver.numGhost + 1) / step)
-	-- 2 vtxs per tristrip
-	local numVertexes = 2 * numX * numY
 
--- [[ new sys ... half the speed of above
-	local vertexes = sceneObj.attrs.vertex.buffer:beginUpdate()
-	vertexes:resize(numVertexes)
-	local index = 0
+	local vertexGPU = sceneObj.attrs.vertex.buffer
+	local vertexCPU = vertexGPU:beginUpdate()
 	for j=0,numY-2 do
 		for i=0,numX-1 do
 			local x = i * step
 			for jofs=0,1 do
 				local y = (j + jofs) * step
 				--[=[ goes horribly slow
-				vertexes:emplace_back():set(x,y,0)
+				vertexCPU:emplace_back():set(x,y,0)
 				--]=]
-				-- [=[ just as fast as old sys
-				local v = vertexes.v[index]
+				-- [=[ is it emplace that's slow or is it :set ?
+				local v = vertexCPU:emplace_back()
 				v.x = x
 				v.y = y
 				v.z = 0--app.displayFixedZ
-				index = index + 1
-				--]=]
+				--]=] ... turns out it is :set() that's slow.
 			end
 		end
 	end
-	sceneObj.attrs.vertex.buffer:endUpdate()
---]]
+	vertexGPU:endUpdate()
 
-	local shader = solver.graphShader
+	local shader = sceneObj.program
 	local uniforms = shader.uniforms
 
 	gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_LINE)
@@ -129,18 +121,14 @@ function Draw2DGraph:showDisplayVar(var)
 	-- TODO where to specify using the heatmap gradient vs using the variable/solver color
 	gl.glUniform3f(uniforms.color.loc, (#app.solvers > 1 and solver or var).color:unpack())
 
-	solver.draw2DGraphSceneObj.attrs.vertex.buffer
-		:bind()
-		:updateData()
-
-	solver.draw2DGraphSceneObj:enableAndSetAttrs()
+	sceneObj:enableAndSetAttrs()
 
 	-- TODO use ELEMENT_ARRAY_BUFFER?
 	for j=0,numY-2 do
 		gl.glDrawArrays(gl.GL_TRIANGLE_STRIP, j * 2 * numX, 2 * numX)
 	end
 
-	solver.draw2DGraphSceneObj:disableAttrs()
+	sceneObj:disableAttrs()
 
 	tex:unbind()
 	shader:useNone()

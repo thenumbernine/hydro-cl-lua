@@ -2,7 +2,6 @@ local ffi = require 'ffi'
 local path = require 'ext.path'
 local vec3f = require 'vec-ffi.vec3f'
 local matrix_ffi = require 'matrix.ffi'
-local vector = require 'ffi.cpp.vector-lua'
 local gl = require 'gl'
 local GLSceneObject = require 'gl.sceneobject'
 local Draw = require 'hydro.draw.draw'
@@ -97,7 +96,22 @@ function Draw1D:display(varName, ar, xmin, xmax, ymin, ymax, useLog, valueMin, v
 end
 
 function Draw1D:prepareShader()
+	local solver = self.solver
+
 	self:prepareGraphShader()
+
+	solver.draw1DGraphSceneObj = solver.draw1DGraphSceneObj or GLSceneObject{
+		program = solver.graphShader,
+		vertexes = {
+			useVec = true,
+			dim = 3,
+			usage = gl.GL_DYNAMIC_DRAW,
+		},
+		geometry = {
+			mode = gl.GL_LINE_STRIP,
+			count = 0,
+		},
+	}
 end
 
 function Draw1D:showDisplayVar(var)
@@ -116,6 +130,7 @@ function Draw1D:showDisplayVar(var)
 
 	solver:calcDisplayVarToTex(var)
 
+
 	-- 1D displays -- use vertex.y
 	-- 2D displays -- use vertex.z
 	-- 3D displays -- ???
@@ -124,31 +139,23 @@ function Draw1D:showDisplayVar(var)
 		return
 	end
 
-
-	if not self.vertexes then self.vertexes = vector'vec3f_t' end
+	local sceneObj = solver.draw1DGraphSceneObj
 
 	local step = 1
 	local numVertexes = math.floor((tonumber(solver.gridSize.x) - 2 * solver.numGhost + 1) / step)	-- (endindex - startindex + 1) / step
-	if #self.vertexes ~= numVertexes then
-		self.vertexes:resize(numVertexes)
 
-		solver.draw1DGraphSceneObj = GLSceneObject{
-			program = solver.graphShader,
-			vertexes = {
-				data = self.vertexes.v,
-				size = ffi.sizeof'vec3f_t' * #self.vertexes,
-				dim = 3,
-				count = #self.vertexes,
-			},
-			geometry = {
-				mode = gl.GL_LINE_STRIP,
-				count = numVertexes,
-			},
-		}
+	local vertexGPU = sceneObj.attrs.vertex.buffer
+	local vertexCPU = vertexGPU:beginUpdate()
+	for i=0,numVertexes-1 do
+		local v = vertexCPU:emplace_back()
+		v.x = i * step
+		v.y = 0--app.displayFixedY
+		v.z = 0--app.displayFixedZ
 	end
+	vertexGPU:endUpdate()
+	sceneObj.geometry.count = #vertexCPU
 
-
-	local shader = solver.graphShader
+	local shader = sceneObj.program
 	local uniforms = shader.uniforms
 
 	shader:use()
@@ -171,19 +178,9 @@ function Draw1D:showDisplayVar(var)
 	gl.glUniformMatrix4fv(uniforms.mvProjMat.loc, 1, gl.GL_FALSE, view.mvProjMat.ptr)
 	--]]
 
-	for i=0,numVertexes-1 do
-		local v = self.vertexes.v[i]
-		v.x = i * step
-		v.y = 0--app.displayFixedY
-		v.z = 0--app.displayFixedZ
-	end
-	solver.draw1DGraphSceneObj.attrs.vertex.buffer
-		:bind()
-		:updateData()
-
-	solver.draw1DGraphSceneObj:enableAndSetAttrs()
-	solver.draw1DGraphSceneObj.geometry:draw()
-	solver.draw1DGraphSceneObj:disableAttrs()
+	sceneObj:enableAndSetAttrs()
+	sceneObj.geometry:draw()
+	sceneObj:disableAttrs()
 
 	tex:unbind()
 	shader:useNone()

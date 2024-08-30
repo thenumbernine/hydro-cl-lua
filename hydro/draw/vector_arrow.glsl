@@ -12,7 +12,7 @@ local varying = vertexShader and "out"
 <?=varying?> vec4 color;
 
 //this is the arrow vertex
-in vec2 vtx;
+in vec2 vertex;
 
 //in hydro/draw/draw.lua I said gridCoord was already half-off, but this is integers starting at 0
 //for meshsolver this is the cell center
@@ -141,9 +141,9 @@ end
 
 	//cartesian coords
 <? if not isMeshSolver then ?>
-	vec3 v = chartToWorldCoord(center) + valuescale * (vtx.x * dir + vtx.y * tv);
+	vec3 v = chartToWorldCoord(center) + valuescale * (vertex.x * dir + vertex.y * tv);
 <? else ?>
-	vec3 v = center + valuescale * (vtx.x * dir + vtx.y * tv);
+	vec3 v = center + valuescale * (vertex.x * dir + vertex.y * tv);
 <? end ?>
 
 	gl_Position = mvProjMat * vec4(v, 1.);
