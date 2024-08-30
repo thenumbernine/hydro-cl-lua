@@ -96,9 +96,7 @@ function Draw2DGraph:showDisplayVar(var)
 				--]=]
 				-- [=[ is it emplace that's slow or is it :set ?
 				local v = vertexCPU:emplace_back()
-				v.x = x
-				v.y = y
-				v.z = 0--app.displayFixedZ
+				v.x, v.y, v.z = x, y, 0 -- app.displayFixedZ
 				--]=] ... turns out it is :set() that's slow.
 			end
 		end
