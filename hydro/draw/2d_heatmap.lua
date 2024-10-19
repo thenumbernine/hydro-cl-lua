@@ -1,5 +1,5 @@
 local path = require 'ext.path'
-local asserteq = require 'ext.assert'.eq
+local assert = require 'ext.assert'
 local gl = require 'gl'
 local GLSceneObject = require 'gl.sceneobject'
 local Draw = require 'hydro.draw.draw'
@@ -131,7 +131,7 @@ var.solver = solver
 	gl.glUniform4f(shader.uniforms.bbox.loc, xmin, ymin, xmax, ymax)
 
 	-- TODO no more need to pass along shader every time?  or nah?
-	asserteq(solver.heatMap2DSceneObj.program, shader)
+	assert.eq(solver.heatMap2DSceneObj.program, shader)
 	solver.heatMap2DSceneObj:draw()
 
 	tex:unbind(0)

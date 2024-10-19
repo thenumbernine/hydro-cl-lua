@@ -1,8 +1,7 @@
 local ffi = require 'ffi'
 local table = require 'ext.table'
 local path = require 'ext.path'
-local assertgt = require 'ext.assert'.gt
-local assertlen = require 'ext.assert'.len
+local assert = require 'ext.assert'
 local vec2f = require 'vec-ffi.vec2f'
 local gl = require 'gl'
 local GLSceneObject = require 'gl.sceneobject'
@@ -132,9 +131,9 @@ function Draw3DSlice:showDisplayVar(var, varName, ar, xmin, xmax, ymin, ymax, us
 
 		local numGhost = solver.numGhost
 
-		assertgt(solver.gridSize.x, 2 * numGhost)
-		assertgt(solver.gridSize.y, 2 * numGhost)
-		assertgt(solver.gridSize.z, 2 * numGhost)
+		assert.gt(solver.gridSize.x, 2 * numGhost)
+		assert.gt(solver.gridSize.y, 2 * numGhost)
+		assert.gt(solver.gridSize.z, 2 * numGhost)
 
 		local vertexGPU = sceneObj.attrs.vertex.buffer
 		local vertexCPU = vertexGPU:beginUpdate()
@@ -211,7 +210,7 @@ function Draw3DSlice:showDisplayVar(var, varName, ar, xmin, xmax, ymin, ymax, us
 				end
 			end
 		end
---DEBUG:assertlen(vertexCPU, (n + 1) * #quadVtxs)
+--DEBUG:assert.len(vertexCPU, (n + 1) * #quadVtxs)
 		vertexGPU:endUpdate()
 		sceneObj.geometry.count = #vertexCPU
 

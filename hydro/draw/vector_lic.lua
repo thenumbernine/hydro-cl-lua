@@ -1,6 +1,6 @@
 local ffi = require 'ffi'
 local path = require 'ext.path'
-local asserteq = require 'ext.assert'.eq
+local assert = require 'ext.assert'
 local gl = require 'gl'
 local GLTex2D = require 'gl.tex2d'
 local Draw = require 'hydro.draw.draw'
@@ -33,7 +33,7 @@ var.solver = solver
 	gl.glUniform4f(shader.uniforms.bbox.loc, xmin, ymin, xmax, ymax)
 
 	-- TODO no more need to pass along shader every time?  or nah?
-	asserteq(solver.vectorLICSceneObj.program, shader)
+	assert.eq(solver.vectorLICSceneObj.program, shader)
 	solver.vectorLICSceneObj:draw()
 
 	self.noiseTex:unbind(2)

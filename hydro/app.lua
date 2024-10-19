@@ -1,4 +1,4 @@
-local assertlen = require 'ext.assert'.len
+local assert = require 'ext.assert'
 local table = require 'ext.table'
 local ffi = require 'ffi'
 
@@ -813,7 +813,7 @@ function HydroCLApp:initDraw()
 	elseif cmdline.displaySlice == 'yz' then
 		self.displaySliceAngle:fromAngleAxis(0,1,0,90)
 	elseif type(cmdline.displaySlice) == 'table' then
-		assertlen(cmdline.displaySlice, 4, "don't know how to handle this cmdline.displaySlice")
+		assert.len(cmdline.displaySlice, 4, "don't know how to handle this cmdline.displaySlice")
 		self.displaySliceAngle:fromAngleAxis(table.unpack(cmdline.displaySlice))
 	end
 
@@ -1901,7 +1901,7 @@ end
 			-- 1d_graph.lua will just use orthoView anyways
 			local view = self.orthoView
 			--local view = self.view
-			--asserteq(view, self.orthoView) -- it might not be...
+			--assert.eq(view, self.orthoView) -- it might not be...
 			view.mvMat:setIdent()
 			view.projMat:setOrtho(xmin, xmax, ymin, ymax, -1, 1)
 			view.mvProjMat:copy(view.projMat)
