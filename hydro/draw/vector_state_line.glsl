@@ -1,5 +1,3 @@
-#version 460
-
 <?
 local varying = vertexShader and "out"
 		or fragmentShader and "in"
@@ -52,7 +50,7 @@ void main() {
 
 	texCoord = (gridCoord + .5 + numGhost) / sizeWithoutBorder;
 
-	gl_Position = modelViewProjectionMatrix * vec4(vertex, 1.);
+	gl_Position = mvProjMat * vec4(vertex, 1.);
 }
 
 <?
@@ -65,7 +63,7 @@ uniform float ambient;
 out vec4 fragColor;
 
 void main() {
-	//fragColor = texture(gradientTex, texCoord.r);
+	//fragColor = texture(gradientTex, vec2(texCoord.r, .5));
 	//how about 2D / 3D datasets?  need a better texture map ...
 	fragColor = vec4(texCoord * .5 + .5, 1.);
 	

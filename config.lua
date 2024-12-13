@@ -37,23 +37,23 @@ local args = {
 	cfl = cmdline.cfl or .3/dim,
 
 	fluxLimiter = cmdline.fluxLimiter or 'superbee',
-	--fluxLimiter = 'monotized central',
-	--fluxLimiter = 'donor cell',		-- same as turning fluxlimiter off ... you have to turn fluxlimiter off to use plm
+	--fluxLimiter = cmdline.fluxLimiter or 'monotized central',
+	--fluxLimiter = cmdline.fluxLimiter or 'donor cell',		-- same as turning fluxlimiter off ... you have to turn fluxlimiter off to use plm
 
 	-- piecewise-linear slope limiter
 	-- TODO rename this to 'calcLR' or something
 	--									-- min div v for gridSize={1024} cfl=.3 Sod mirror at t=0.5:
-	--									-- -191 = no plm, superbee flux limiter
-	--									-- -184 = no plm, monotized central flux limiter
-	--usePLM = 'piecewise-constant',	-- -84		degenerate case.  don't use this, instead just disable usePLM, or else this will allocate more memory / run more functions.
-	--usePLM = 'plm-cons',				-- -190
-	--usePLM = 'plm-cons-alone',		-- -177
-	--usePLM = 'plm-prim-alone',		-- -175
-	--usePLM = 'plm-eig',				-- -88		\
-	--usePLM = 'plm-eig-prim',			-- -88		 - these have less sharp shock wave in Sod than the non-eig ones
-	--usePLM = 'plm-eig-prim-ref',		-- -28 		/
-	--usePLM = 'plm-athena',			-- -40		based on Athena.  most accurate from 1D sod tests atm
-	--usePLM = 'ppm-wip',				-- 			FIXME one more attempt to figure out all the PLM stuff, based on 2017 Zingale
+	--									-- -180 = no plm, 'superbee' flux limiter
+	--									-- -174 = no plm, 'monotized central' flux limiter
+	--usePLM = 'piecewise constant',	-- -80 with minmod		degenerate case.  don't use this, instead just disable usePLM, or else this will allocate more memory / run more functions.
+	--usePLM = 'plm cons',				-- -171 with minmod slope limiter
+	--usePLM = 'plm cons with flux',	-- -183 with minmod slope limiter
+	--usePLM = 'plm prim',				-- -172 with minmod slope limiter, -82 with donor-cell, MC and superbee have growing oscillations
+	--usePLM = 'plm eig',				-- -80 with minmod limiter		\
+	--usePLM = 'plm eig prim',			-- -88		 - these have less sharp shock wave in Sod than the non-eig ones ... hmm
+	--usePLM = 'plm eig prim ref',		-- -28 		/
+	--usePLM = 'plm athena',			-- -40		based on Athena.  most accurate from 1D sod tests atm
+	--usePLM = 'ppm',
 	--usePLM = 'weno',					-- 			TODO make WENO one of these 'usePLM' methods. rename it to 'construct LR state method' or something.  then use CTU with WENO.  or can we, since even the CTU method should use the re-linear-projection ... i should just have these separate plm methods as separate functions ...
 
 	-- only enabled for certain usePLM methods
@@ -253,7 +253,7 @@ local args = {
 	gridSize = ({
 		{128, 1, 1},	-- 1D
 		{64, 64, 1},	-- 2D
-		{8, 128, 8},	-- 3D
+		{32, 32, 32},	-- 3D
 	})[dim],
 	boundary = type(cmdline.boundary) == 'table' and cmdline.boundary or {
 		-- r
@@ -351,7 +351,7 @@ local args = {
 	--initCond = 'jet',	-- TODO naming initialization mixup with srhd and this problem
 
 
-	--initCond = 'Sod',
+	--initCond = cmdline.initCond or 'Sod',
 	--initCondArgs = {dim=cmdline.displayDim},
 	--[[ real-world vars for Sod ... which are a few orders higher, and therefore screw up the backward-euler solver
 	-- 		which means, todo, redo the backward euler error metric so it is independent of magnitude ... ?   seems I removed that for another numerical error reason.
@@ -471,6 +471,8 @@ local args = {
 	--TODO initCond = 'shallow water problem D',	-- lhs boundary = fixed, rhs boundary = freeflow
 	--initCond = 'shallow water parabola',
 	--initCond = '2003 Rogers',
+
+	--initCond = 'Triple-Point Shock Intersection',
 
 
 	-- those designed for SRHD / GRHD from Marti & Muller 1998:
@@ -694,8 +696,18 @@ if cmdline.solver then self.solvers:insert(require('hydro.solver.'..cmdline.solv
 
 -- fitting a lattice-boltzmann solver into my framework
 
-
---self.solvers:insert(require 'hydro.solver.lattice-boltzmann'(table(args, {initCond='cylinder', fixedDT=.6, gridSize={400,100}, usePLM=false, useCTU=false})))
+--[[
+self.solvers:insert(require 'hydro.solver.lattice-boltzmann'(table(args, {
+	initCond = 'cylinder',
+	fixedDT = 5/3,
+	--gridSize = {400,100},
+	gridSize = {200,200},
+	usePLM = false,
+	useCTU = false,
+	--boundary = 'freeflow',
+	boundary = 'periodic',
+})))
+--]]
 
 
 -- simple wave equation, no time/space coupling via background metric
@@ -738,7 +750,7 @@ self.solvers:insert(require 'hydro.solver.nls'(table(args, {
 
 --[[ Acoustic black hole.
 -- for use with cylinder grid?
--- and which initial conditions? 
+-- and which initial conditions?
 args.eqnArgs = args.eqnArgs or {}
 -- for 2012 Visser A.B. metric,
 args.eqnArgs.alpha = '1'
@@ -755,6 +767,8 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn
 --]]
 
 
+-- Maxwell equations but as a wave of EM-four-potential.  no background metric just yet.
+--self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='maxwell_A_wave'})))
 
 
 -- shallow water equations
@@ -789,6 +803,8 @@ self.solvers:insert(require 'hydro.solver.weno'(table(args, {
 
 
 self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
+
+--self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='marquina', eqn='euler'})))
 
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct bounded'})))	-- this is the default hllCalcWaveMethod
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='euler', hllCalcWaveMethod='Davis direct'})))
@@ -841,6 +857,7 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn
 -- other than weno, this works fine with finite volume codes
 --gridSize={64,1,1},
 
+--self.solvers:insert(require 'hydro.solver.discontinuous-galerkin'(table(args, {eqn='euler'})))
 
 -- incompressible
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler', eqnArgs={incompressible=true}})))
@@ -900,7 +917,7 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler-lingr'})))
 
 
--- incompressible 
+-- incompressible
 -- TODO finish me
 --self.solvers:insert(require 'hydro.solver.navstokes-incomp'(table(args)))
 
@@ -918,6 +935,7 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {
 --    but works with RK2-Heun, RK2-Ralston, RK2-TVD, RK3, RK4-3/8ths
 -- Kelvin-Helmholtz works for all borderes freeflow, float precision, 256x256, superbee flux limiter
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='srhd'})))
+--self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='marquina', eqn='srhd'})))
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='srhd'})))
 --self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='srhd', wenoMethod='2010 Shen Zha', order=5})))
 
@@ -1597,9 +1615,9 @@ local dim = 3
 local args = {
 	app = self,
 
-	eqn = 'bssnok-fd-num',
+	--eqn = 'bssnok-fd-num',
 	--eqn = 'bssnok-fd-sym',
-	--eqn = 'bssnok-fd-senr',
+	eqn = 'bssnok-fd-senr',
 
 	eqnArgs = {
 		--useShift = 'none',

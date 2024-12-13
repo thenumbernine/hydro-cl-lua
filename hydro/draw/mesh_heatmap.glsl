@@ -1,5 +1,3 @@
-#version 460
-
 <? 
 local varying = vertexShader and "out"
 		or fragmentShader and "in"
@@ -23,7 +21,7 @@ in float cellindex;
 
 void main() {
 	vec3 v = (vtx - vtxcenter) * drawCellScale + vtxcenter;
-	gl_Position = modelViewProjectionMatrix * vec4(v, 1.);
+	gl_Position = mvProjMat * vec4(v, 1.);
 	cellindexv = cellindex;
 }
 

@@ -60,7 +60,7 @@ end
 -- TODO now there is already a BoundaryFixed in hydro/solver/gridsolver, but no easy way to parameterize how to set what fixed values it is
 function EinsteinEquation:createBoundaryOptions()
 	local eqn = self
-	local Boundary = self.solver.Boudary
+	local Boundary = self.solver.Boundary
 	local BoundaryFixed = Boundary:subclass()
 	BoundaryFixed.name = 'fixed'
 	function BoundaryFixed:getCode(args)

@@ -80,6 +80,7 @@ function Draw3DRay:showDisplayVar(var, ar)
 			local tex = solver:getTex(var)
 			tex:bind(0)
 			app.gradientTex:bind(1)
+			gl.glActiveTexture(gl.GL_TEXTURE0)
 		end
 		gl.glBegin(gl.GL_QUADS)
 		for i=1,24 do

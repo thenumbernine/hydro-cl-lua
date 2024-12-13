@@ -180,6 +180,10 @@ no, they're needed for the integrator
 
 	-- build consStruct and primStruct from self.consVars and .primVars (then erase them -- don't use them anymore)
 	if not self.consStruct then
+		
+		-- need to cdef the consVars before using them in a struct... 
+		self:cdefAllVarTypes(solver, self.consVars)
+		
 		self.consStruct = Struct{
 			name = solver.app:uniqueName'cons_t',
 			union = true,
@@ -194,12 +198,12 @@ no, they're needed for the integrator
 				{name = 'ptr', type='real[1]'},
 			},
 		}.class
+	else
+		self:cdefAllVarTypes(solver, self.consStruct.fields[1].type.fields)
 	end
 
 	-- TODO replace the cdef uniqueName with a unique eqn object name
 	self.symbols.cons_t = self.consStruct.name
-	
-	self:cdefAllVarTypes(solver, self.consStruct.fields[1].type.fields)
 
 	-- don't use consVars anymore ... use consStruct.fields instead
 	self.consVars = nil

@@ -23,8 +23,8 @@ local common = require 'hydro.common'
 local minmaxs = common.minmaxs
 local xNames = common.xNames
 local symNames = common.symNames
-local from3x3to6 = common.from3x3to6 
-local from6to3x3 = common.from6to3x3 
+local from3x3to6 = common.from3x3to6
+local from6to3x3 = common.from6to3x3
 local sym = common.sym
 
 
@@ -59,7 +59,7 @@ args:
 --]]
 function GridSolver:initMeshVars(args)
 	GridSolver.super.initMeshVars(self, args)
-	
+
 	-- same as equations
 	-- but let equations/init conds add to the solver vars (as gui vars)
 	-- then we can edit them without recompiling the kernels
@@ -85,7 +85,7 @@ assert(not self.solverStruct)
 	-- and 'self.gridSizeWithoutBorder' to 'self.gridSize'
 
 	local gridSize = assert(args.gridSize, "solver expected gridSize")
-	if type(gridSize) == 'number' then 
+	if type(gridSize) == 'number' then
 		self.gridSize = vec3sz(gridSize,1,1)
 	else
 		self.gridSize = vec3sz(unpack(gridSize))
@@ -108,12 +108,17 @@ function GridSolver:initObjs(args)
 	self.slopeLimiter = self.app.limiterNames:find(args.slopeLimiter) or 1
 	self.useCTU = args.useCTU
 	--]]
-	
+
+	if self.dim == 1 and self.useCTU then
+		print("turning off CTU for 1D case")
+		self.useCTU = false
+	end
+
 	GridSolver.super.initObjs(self, args)
-	
+
 	assert(not self.usePLM or self.fluxLimiter == 1, "are you sure you want to use flux and slope limiters at the same time?")
 
-	-- TODO instead of boundaryMethods.xmin .xmax ... how about [1] ... [6] ? 
+	-- TODO instead of boundaryMethods.xmin .xmax ... how about [1] ... [6] ?
 	self.boundaryMethods = {}
 	for i=1,3 do
 		for _,minmax in ipairs(minmaxs) do
@@ -173,7 +178,7 @@ function GridSolver:getSizePropsForWorkGroupSize(maxWorkGroupSize)
 		sizeWithoutBorder.s[i] = sizeWithoutBorder.s[i] - 2 * self.numGhost
 	end
 	local volumeWithoutBorder = tonumber(sizeWithoutBorder:volume())
-	
+
 	local numCells = tonumber(self.gridSize:volume())
 
 	local stepSize = vec3sz()
@@ -183,7 +188,7 @@ function GridSolver:getSizePropsForWorkGroupSize(maxWorkGroupSize)
 	end
 
 	local offset = vec3sz(0,0,0)
-	
+
 	self.domain = self.app.env:domain{
 		size = {self.gridSize:unpack()},
 		dim = self.dim,
@@ -203,7 +208,7 @@ function GridSolver:getSizePropsForWorkGroupSize(maxWorkGroupSize)
 	elseif self.dim == 2 then
 		boundaryLocalSize = math.min(localSize1d, maxWorkGroupSize)
 		boundaryGlobalSize = roundup(
-				side == 1 
+				side == 1
 				and tonumber(gridSize.y)
 				or tonumber(gridSize.x),
 			boundaryLocalSize)
@@ -217,7 +222,7 @@ function GridSolver:getSizePropsForWorkGroupSize(maxWorkGroupSize)
 			localSize2d.y)
 		boundaryGlobalSize = {maxSizeX, maxSizeY}
 		boundaryLocalSize = {maxSizeX, maxSizeY}
-	end	
+	end
 --]]
 
 	return {
@@ -249,12 +254,12 @@ naming conventions ...
 (between the coordinate and the embedded space:)
 	- vectors can be calculated from Cartesian by cartesianToCoord
 	- the length of the basis vectors wrt the change in indexes is given by cell_dx?(x)
-	- the Cartesian length of the holonomic basis vectors is given by coord_dx?(x).  
+	- the Cartesian length of the holonomic basis vectors is given by coord_dx?(x).
 		This is like cell_dx? except not scaled by grid_dx?
 		This is just the change in embedded wrt the change in coordinate, not wrt the change in grid
 	- cellBuf[index].volume gives the volume between indexes at the coordinate x
 	- the Cartesian length of a vector in coordinate space is given by coordLen and coordLenSq
-* the embedded Cartesian space ... idk what letters I should use for this.  
+* the embedded Cartesian space ... idk what letters I should use for this.
 	Some literature uses r^i or u^i vs coordinate space x^a.
 	Maybe I'll use 'xc' vs 'x', like I've already started to do in the initial conditions.
 
@@ -307,8 +312,8 @@ functionality (and abstraction):
 #define <?=SETBOUNDS_NOGHOST?>() \
 	int4 i = globalInt4(); \
 	if (<?=OOB?>(0, 2 * solver->numGhost)) return; \
-	i += (int4)(]]..range(4):mapi(function(i) 
-		return i <= self.dim and 'solver->numGhost' or '0' 
+	i += (int4)(]]..range(4):mapi(function(i)
+		return i <= self.dim and 'solver->numGhost' or '0'
 	end):concat','..[[); \
 	int index = INDEXV(i);
 ]],
@@ -323,7 +328,7 @@ real <?=slopeLimiter?>(real r) {
 }
 ]],
 		}
-		
+
 		self.modules:add{
 			name = self.eqn.symbols.consLR_t,
 			depends = {self.eqn.symbols.cons_t},
@@ -417,7 +422,7 @@ end
 -- TODO some of this is copied in solverbase
 function GridSolver:createBuffers()
 	local app = self.app
-	
+
 	-- define self.texSize before calling super
 	if app.targetSystem ~= 'console' then
 		self.texSize = vec3sz(self.gridSize)
@@ -494,7 +499,7 @@ global <?=cons_t?> const * const UR<?=suffix?> = &<?=bufName?>[<?=side?> + dim *
 				bufName = args.bufName or self.getULRBufName,	-- for displayVars the variable name is 'buf', so I need to override it either in displayCode or here
 			})
 		end
-	else 
+	else
 		self.getULRCode = function(self, args)
 			args = args or {}
 			local suffix = args.suffix or ''
@@ -513,7 +518,7 @@ end
 
 function GridSolver:resetState()
 	self.cmds:finish()
-		
+
 	-- start off by filling all buffers with zero, just in case initCond forgets something ...
 	for _,bufferInfo in ipairs(self.buffers) do
 		self.cmds:enqueueFillBuffer{buffer=self[bufferInfo.name], size=bufferInfo.count * ffi.sizeof(bufferInfo.type)}
@@ -523,7 +528,7 @@ function GridSolver:resetState()
 end
 
 function GridSolver:applyInitCond()
-	
+
 	-- this is a bit disorganized
 	-- this fills the cellBuf but only for gridsolvers
 	-- and does so by asking the coord obj
@@ -555,9 +560,9 @@ GridSolver.DisplayVar_U = DisplayVar
 -------------------------------------------------------------------------------
 --                              boundary                                     --
 -------------------------------------------------------------------------------
-		
+
 -- TODO constant/'dirichlet' conditions
--- and while you're at it, let boundary options register GUI controls, so we can treat the constant as a GUI-editable parameter 
+-- and while you're at it, let boundary options register GUI controls, so we can treat the constant as a GUI-editable parameter
 
 local Boundary = class()
 GridSolver.Boundary = Boundary
@@ -591,7 +596,7 @@ end
 --[[
 args of the BoundaryMethod:getCode are:
 	index
-	fields = table of what fields to perform assignment to 
+	fields = table of what fields to perform assignment to
 	field
 	array
 	gridSizeSide = solver.gridSize[side]
@@ -620,7 +625,7 @@ local indent = '\t\t'
 
 --[[
 TODO how to handle individual fields
-for example, this can't compile with op/selfgrav.lua, because that will try to assign .ePot onto the struct, which is already being dereferenced here 
+for example, this can't compile with op/selfgrav.lua, because that will try to assign .ePot onto the struct, which is already being dereferenced here
 
 same with mirror, only certain fields are inverted
 
@@ -666,13 +671,13 @@ function BoundaryMirror:getCode(args)
 	end
 	local lines = table()
 	lines:insert(self:assignDstSrc(dst, src, args))
-	
+
 	-- reflectVars.mirror is going to hold, for each dimension, which components need to be mirrored
 	-- v.s[side-1] = -v.s[side-1]
 	-- generalized:
 	local solver = args.solver
 	local eqn = solver.eqn
-	if solver.coord.vectorComponent == 'cartesian' 
+	if solver.coord.vectorComponent == 'cartesian'
 	and not require 'hydro.coord.cartesian':isa(solver.coord)
 	then
 		-- v = v - n (v dot n)
@@ -690,17 +695,17 @@ function BoundaryMirror:getCode(args)
 <? end ?>
 ]], 	{
 			args = args,
-			iv = args.minmax == 'min' 
+			iv = args.minmax == 'min'
 				and args.indexv'j'
 				or args.indexv('solver->gridSize.'..xNames[args.side]..' - solver->numGhost + j'),
 			side = args.side,
 		}))
 		for _,var in ipairs(eqn.consStruct.fields[1].type.fields) do
-			if var.type == 'real' 
+			if var.type == 'real'
 			or var.type == 'cplx'
 			then
 				-- do nothing
-			elseif var.type == 'real3' 
+			elseif var.type == 'real3'
 			or var.type == 'cplx3'
 			then
 				-- TODO looks very similar to the reflect code in meshsolver
@@ -713,7 +718,7 @@ function BoundaryMirror:getCode(args)
 				<?=vec3?>_real3_dot(
 					<?=result?>-><?=field?>,
 					n
-				), 
+				),
 				<?=restitutionPlusOne?>
 			)
 		)
@@ -739,7 +744,7 @@ function BoundaryMirror:getCode(args)
 end
 
 -- Dirichlet boundary conditions: constant values
--- fixedCode = function(boundary, args, dst) 
+-- fixedCode = function(boundary, args, dst)
 --	returns code, list of dependency module names
 local BoundaryFixed = Boundary:subclass()
 BoundaryFixed.name = 'fixed'
@@ -757,7 +762,7 @@ function BoundaryFixed:getCode(args)
 	end
 	return self:fixedCode(args, dst)
 end
-GridSolver.BoundaryFixed = BoundaryFixed 
+GridSolver.BoundaryFixed = BoundaryFixed
 
 local BoundaryFreeFlow = Boundary:subclass()
 BoundaryFreeFlow.name = 'freeflow'
@@ -858,7 +863,7 @@ local BoundarySphereRMin = Boundary:subclass()
 BoundarySphereRMin.name = 'sphereRMin'
 function BoundarySphereRMin:getCode(args)
 	local solver = args.solver
-	
+
 	assert(args.side == 1 and args.minmax == 'min', "you should only use this boundary condition for rmin with spherical coordinates")
 	assert(require 'hydro.coord.sphere':isa(solver.coord)
 		or require 'hydro.coord.sphere_sinh_radial':isa(solver.coord), "you should only use this boundary condition for rmin with spherical coordinates")
@@ -877,9 +882,9 @@ function BoundarySphereRMin:getCode(args)
 		src = [[
 	INDEX(
 		2 * solver->numGhost - 1 - j,
-		solver->gridSize.y - i.x - 1, 
+		solver->gridSize.y - i.x - 1,
 		(i.y - solver->numGhost + (solver->gridSize.z - 2 * solver->numGhost) / 2
-			+ (solver->gridSize.z - 2 * solver->numGhost)) 
+			+ (solver->gridSize.z - 2 * solver->numGhost))
 			% (solver->gridSize.z - 2 * solver->numGhost) + solver->numGhost
 	)
 ]]
@@ -894,8 +899,8 @@ end
 Like above, this is going to assume certain things about the coordinate domain.
 I'll assume theta is [0,pi) and phi is [-pi,pi]
 1D: nothing special
-2D: (r, theta): 
-3D: (r, theta, phi): 
+2D: (r, theta):
+3D: (r, theta, phi):
 --]]
 local BoundarySphereTheta = Boundary:subclass()
 BoundarySphereTheta.name = 'sphereTheta'
@@ -920,7 +925,7 @@ function BoundarySphereTheta:getCode(args)
 	INDEX(
 		i.x,
 		solver->numGhost + j,
-		(i.y - solver->numGhost + (solver->gridSize.z - 2 * solver->numGhost) / 2 
+		(i.y - solver->numGhost + (solver->gridSize.z - 2 * solver->numGhost) / 2
 			+ (solver->gridSize.z - 2 * solver->numGhost))
 			% (solver->gridSize.z - 2 * solver->numGhost) + solver->numGhost
 	)
@@ -943,7 +948,7 @@ function BoundarySphereTheta:getCode(args)
 			+ (solver->gridSize.z - 2 * solver->numGhost))
 			% (solver->gridSize.z - 2 * solver->numGhost) + solver->numGhost
 	)
-]]	
+]]
 		end
 	end
 	local lines = table()
@@ -957,7 +962,7 @@ local BoundaryCylinderRMin = Boundary:subclass()
 BoundaryCylinderRMin.name = 'cylinderRMin'
 function BoundaryCylinderRMin:getCode(args)
 	local solver = args.solver
-	
+
 	assert(args.side == 1 and args.minmax == 'min', "you should only use this boundary condition for rmin with cylinderical coordinates")
 	assert(require 'hydro.coord.cylinder':isa(solver.coord), "you should only use this boundary condition for rmin with cylinderical coordinates")
 	--assert(solver.maxs.y - solver.mins.y == 2*math.pi)
@@ -971,7 +976,7 @@ function BoundaryCylinderRMin:getCode(args)
 		dst = 'INDEX(j, i, 0)'
 		src = [[
 	INDEX(
-		2 * solver->numGhost - 1 - j, 
+		2 * solver->numGhost - 1 - j,
 		(i - solver->numGhost + (solver->gridSize.y - 2 * solver->numGhost) / 2
 			+ (solver->gridSize.y - 2 * solver->numGhost))
 			% (solver->gridSize.y - 2 * solver->numGhost) + solver->numGhost,
@@ -981,7 +986,7 @@ function BoundaryCylinderRMin:getCode(args)
 		dst = 'INDEX(j, i.x, i.y)'
 		src = [[
 	INDEX(
-		2 * solver->numGhost - 1 - j, 
+		2 * solver->numGhost - 1 - j,
 		(i.x - solver->numGhost + (solver->gridSize.y - 2 * solver->numGhost) / 2
 			+ (solver->gridSize.y - 2 * solver->numGhost))
 			% (solver->gridSize.y - 2 * solver->numGhost) + solver->numGhost,
@@ -1027,12 +1032,12 @@ function GridSolver:setBoundaryMethods(args)
 			local name
 			if type(args) == 'string' then
 				-- set all sides to the same type of BC
-				name = args	
+				name = args
 			elseif type(args) == 'table' then
 				-- set each side separately
 				name = args[k]
 			else
-				error("don't know how to deal with these args") 
+				error("don't know how to deal with these args")
 			end
 			local boundaryObjArgs
 			if type(name) == 'table' then
@@ -1057,9 +1062,9 @@ args:
 	extraArgs = any extra args to add to the kernel (other than a global of the buffer type)
 	methods = {
 		[x|y|z..min|max] = a Boundary subclass who has function getCode(args)
-			that returns the code to apply to that particular pointer 
+			that returns the code to apply to that particular pointer
 	}
-	assign = function(a,b) a = b 
+	assign = function(a,b) a = b
 	field = function(a,b) a.b
 --]]
 function GridSolver:createBoundaryProgramAndKernel(args)
@@ -1087,18 +1092,18 @@ function GridSolver:createBoundaryProgramAndKernel(args)
 	})[self.dim]
 
 	for side=1,self.dim do
-		
+
 		local bxs = range(3)
 		bxs:remove(side)
 
 		local function indexv(j)
 			local v = table{'0','0','0'}
 			v[side] = j
-			
+
 			for k=1,self.dim-1 do
 				v[bxs[k]] = 'i'..iFields[k]
 			end
-			
+
 			return v:concat','
 		end
 
@@ -1110,22 +1115,22 @@ function GridSolver:createBoundaryProgramAndKernel(args)
 kernel void boundary_<?=xNames[side]?>(
 	constant <?=solver_t?> const * const solver,
 	global <?=args.type?>* buf,
-	global <?=cell_t?> const * const cellBuf<?= 
-args.extraArgs and #args.extraArgs > 0 
+	global <?=cell_t?> const * const cellBuf<?=
+args.extraArgs and #args.extraArgs > 0
 	and ',\n\t'..table.concat(args.extraArgs, ',\n\t')
 	or '' ?>
 ) {<?
--- 1D: use a small 1D kernel and just run once 
--- 2D: use a 1D kernel the size of the max dim 
+-- 1D: use a small 1D kernel and just run once
+-- 2D: use a 1D kernel the size of the max dim
 if solver.dim == 2 then ?>
-	int i = get_global_id(0);<? 
+	int i = get_global_id(0);<?
 elseif solver.dim == 3 then ?>
-	int2 i = (int2)(get_global_id(0), get_global_id(1));<? 
-end 
+	int2 i = (int2)(get_global_id(0), get_global_id(1));<?
+end
 ?>]], 	{
 			table = table,
 			args = args,
-			side = side, 
+			side = side,
 		}))
 
 		if self.dim > 1 then
@@ -1133,7 +1138,7 @@ end
 	if (<?
 local sep = ''
 for k=1,solver.dim-1 do
-?><?=sep?>i<?=iFields[k]?> >= solver->gridSize.<?=xNames[bxs[k]]?><?	
+?><?=sep?>i<?=iFields[k]?> >= solver->gridSize.<?=xNames[bxs[k]]?><?
 	sep = ' || '
 end
 ?>) return;]=],
@@ -1150,10 +1155,10 @@ end
 
 		for _,minmax in ipairs(minmaxs) do
 			local sideCode, sideDepends = args.methods[xNames[side]..minmax]:getCode({
-				
+
 				-- this is only used for the oscillating boundary to distinguish between the cons_t boundary and the potential boundary
 				fields = args.fields,
-				
+
 				solver = self,
 				index = index,
 				indexv = indexv,
@@ -1165,16 +1170,16 @@ end
 			})
 
 			moduleNames:append(sideDepends)
-			
+
 			-- add tab
 			sideCode = '\t\t'..sideCode:gsub('\n', '\n\t\t')
 			-- and remove tabs from MODULE_* lines
 			sideCode = string.split(sideCode, '\n'):mapi(function(l)
 				return (l:gsub('^%s*//// MODULE_', '//// MODULE_'))
-			end):concat'\n'	
+			end):concat'\n'
 
 			lines:insert(sideCode)
-		end 
+		end
 
 lines:insert[[
 	}
@@ -1195,7 +1200,7 @@ lines:insert[[
 		boundaryProgramObj = self.Program{name=boundaryProgramName, code=code}
 		boundaryProgramObj:compile()
 	end)
-	
+
 	local boundaryKernelObjs = table()
 	for i=1,self.dim do
 		local kernelObj = boundaryProgramObj:kernel('boundary_'..xNames[i])
@@ -1236,7 +1241,7 @@ function GridSolver:refreshBoundaryProgram()
 	if self.useCTU and self.usePLM then
 		local args = self:getBoundaryProgramArgs()
 		args.type = self.eqn.symbols.consLR_t..'_dim'
-	
+
 		-- TODO use the real list of boundary names here
 		for _,boundaryOptionName in ipairs(self.boundaryOptionNames) do
 			-- TODO do this for sphere/cylinderical mirror vars as well
@@ -1265,7 +1270,7 @@ end
 
 -- assumes the buffer is already in the kernel's arg
 function GridSolver:applyBoundaryToBuffer(kernelObjs)
-	for side,obj in ipairs(kernelObjs) do	
+	for side,obj in ipairs(kernelObjs) do
 		-- 1D:
 		if self.dim == 1 then
 			-- if you do change this size from anything but 1, make sure to add conditions to the boundary kernel code
@@ -1277,7 +1282,7 @@ function GridSolver:applyBoundaryToBuffer(kernelObjs)
 		elseif self.dim == 2 then
 			local localSize = math.min(self.localSize1d, self.maxWorkGroupSize)
 			local maxSize = roundup(
-					side == 1 
+					side == 1
 					and tonumber(self.gridSize.y)
 					or tonumber(self.gridSize.x),
 				localSize)
@@ -1360,7 +1365,7 @@ function GridSolver:calcExactError(numStates)
 	return err, UCpuBuf
 end
 
-function GridSolver:updateGUIParams()	
+function GridSolver:updateGUIParams()
 	GridSolver.super.updateGUIParams(self)
 
 	ig.igText('grid size: '
@@ -1369,7 +1374,7 @@ function GridSolver:updateGUIParams()
 		..tonumber(self.sizeWithoutBorder.z))
 
 	-- let the user change even unused dimensions
-	-- because those influence what constant value the cell_x() gives us 
+	-- because those influence what constant value the cell_x() gives us
 	for i=1,3 do
 		for j,minmax in ipairs(minmaxs) do
 			local k = xNames[i]..minmax
@@ -1388,7 +1393,7 @@ function GridSolver:updateGUIParams()
 			end
 		end
 	end
-	
+
 	for i=1,self.dim do
 		for _,minmax in ipairs(minmaxs) do
 			local var = xNames[i]..minmax
@@ -1405,20 +1410,20 @@ end
 function GridSolver:saveBuffer(buffer, basefn)
 	buffer = buffer.obj or buffer
 	local Image = require 'image'
-	
+
 	-- TODO add planes to image, then have the FITS module use planes and not channels
 	-- so the dimension layout of the buffer is [channels][width][height][planes]
 	local width = tonumber(self.gridSize.x)
 	local height = tonumber(self.gridSize.y)
 	local depth = tonumber(self.gridSize.z)
-	
+
 	local channels = buffer.size / self.numCells / ffi.sizeof(self.app.real)
 	if channels ~= math.floor(channels) then
 		print("can't save "..basefn.." buffer due to its size not being divisible by the numCells")
 	else
 
 		local numReals = self.numCells * channels
---[[ 3D interleave the depth and the channels ... causes FV to break 
+--[[ 3D interleave the depth and the channels ... causes FV to break
 		local image = Image(width, height, depth * channels, assert(self.app.real))
 		local function getIndex(ch,i,j,k) return i + width * (j + height * (ch + channels * k)) end
 --]]
@@ -1428,7 +1433,7 @@ function GridSolver:saveBuffer(buffer, basefn)
 --]]
 		self.cmds:enqueueReadBuffer{buffer=buffer, block=true, size=ffi.sizeof(self.app.real) * numReals, ptr=image.buffer}
 		local src = image.buffer
-		
+
 		-- now convert from interleaved to planar
 		-- *OR* add planes to the FITS output
 		local tmp = ffi.new(self.app.real..'[?]', numReals)
@@ -1442,7 +1447,7 @@ function GridSolver:saveBuffer(buffer, basefn)
 			end
 		end
 		image.buffer = tmp
-	
+
 		local filename = basefn..'.fits'
 --print('saving '..filename)
 		image:save(filename)
@@ -1452,9 +1457,9 @@ end
 -- global
 local debugSaveBufferIndex = 0
 function GridSolver:debugSaveBuffer(buffer, msg)
-	debugSaveBufferIndex = debugSaveBufferIndex + 1  
-	msg = table{debugSaveBufferIndex, msg}:concat'_' 
-	self:saveBuffer(buffer, msg) 
+	debugSaveBufferIndex = debugSaveBufferIndex + 1
+	msg = table{debugSaveBufferIndex, msg}:concat'_'
+	self:saveBuffer(buffer, msg)
 end
 
 function GridSolver:save(prefix)

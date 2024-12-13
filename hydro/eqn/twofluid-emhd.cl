@@ -18,6 +18,13 @@
 #define sqrt_1_2 <?=("%.50f"):format(math.sqrt(.5))?>
 #define sqrt_2 <?=("%.50f"):format(math.sqrt(2))?>
 
+//// MODULE_NAME: <?=cons_setEB?>
+
+#define <?=cons_setEB?>(/*cons_t & */U, /*real3 */Eval, /*real3 */Bval) {\
+	(U).B = Bval;\
+	(U).D = real3_real_mul(Eval, 1. / (solver->sqrt_eps * solver->sqrt_eps));\
+}
+
 //// MODULE_NAME: <?=eqn_common?>
 //// MODULE_DEPENDS: units <?=coordLenSq?> <?=solver_t?> <?=prim_t?> <?=cons_t?>
 

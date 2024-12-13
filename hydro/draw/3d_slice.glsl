@@ -1,5 +1,3 @@
-#version 460
-
 <?
 local varying = vertexShader and 'out'
 		or fragmentShader and 'in'
@@ -18,10 +16,10 @@ local varying = vertexShader and 'out'
 <? if vertexShader then ?>
 
 //in tex coords
-in vec4 vertex;
+layout(location=0) in vec3 vertex;
 
 void main() {
-	vec4 x = vertex;
+	vec3 x = vertex;
 
 	//map from [0,1]^3 to [cartesianMin, cartesianMax]
 	x.xyz = x.xyz * (cartesianMax - cartesianMin) + cartesianMin;
@@ -30,7 +28,7 @@ void main() {
 <? if app.useClipPlanes then ?>
 	pos = x.xyz;
 <? end ?>
-	gl_Position = modelViewProjectionMatrix * x;
+	gl_Position = mvProjMat * vec4(x, 1.);
 }
 
 <? end
@@ -81,7 +79,7 @@ end
 	
 	float frac = getGradientFrac(value);
 	float gradTC = getGradientTexCoord(frac);
-	vec4 voxelColor = texture(gradientTex, gradTC);
+	vec4 voxelColor = texture(gradientTex, vec2(gradTC, .5));
 
 	//don't bother with the gamma factor if we're using isobars
 	if (useIsos) {
@@ -111,7 +109,7 @@ end
 	}
 
 	//calculate normal in screen coordinates
-	vec4 n = modelViewProjectionMatrix * vec4(normal, 0.);
+	vec4 n = mvProjMat * vec4(normal, 0.);
 	//determine length of line through slice at its angle
 	voxelColor.a /= -n.w;
 	

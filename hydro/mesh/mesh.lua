@@ -7,7 +7,7 @@ local math = require 'ext.math'
 local table = require 'ext.table'
 local range = require 'ext.range'
 local vec2i = require 'vec-ffi.vec2i'
-local vector = require 'ffi.cpp.vector'
+local vector = require 'ffi.cpp.vector-lua'
 -- one of these is bound to be real3, right?
 local vec3f = require 'vec-ffi.vec3f'
 local vec3d = require 'vec-ffi.vec3d'

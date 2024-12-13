@@ -2,7 +2,7 @@ local gl = require 'gl'
 local vec3f = require 'vec-ffi.vec3f'
 local path = require 'ext.path'
 local matrix_ffi = require 'matrix.ffi'
-local vector = require 'ffi.cpp.vector'
+local vector = require 'ffi.cpp.vector-lua'
 local Draw = require 'hydro.draw.draw'
 
 
@@ -41,6 +41,7 @@ function DrawVectorStateLine:showDisplayVar(var, varName, ar, xmin, xmax, ymin, 
 	local tex = solver:getTex(var)
 	tex:bind(0)
 	--app.gradientTex:bind(1)
+	--gl.glActiveTexture(gl.GL_TEXTURE0)
 
 	self:setupDisplayVarShader(shader, var, valueMin, valueMax)
 
@@ -56,22 +57,22 @@ function DrawVectorStateLine:showDisplayVar(var, varName, ar, xmin, xmax, ymin, 
 		self.vertexes:resize(numVertexes)
 	end
 
-	-- [[ overwrite the modelViewProjectionMatrix uniform here
-	-- this is different from the other 'Draw.modelViewProjectionMatrix'
+	-- [[ overwrite the mvProjMat uniform here
+	-- this is different from the other 'Draw.mvProjMat'
 	-- that one is based on hydro.view,
 	-- this is based on the GL state set in hydro.app for 1D graphs
 	-- TODO maybe combine the two, make the hydro.app 1D graph stuff use hydro.view.ortho,
-	-- then this could just use the default 'modelViewProjectionMatrix'
-	self.ModelViewMatrix = self.ModelViewMatrix or matrix_ffi(nil, 'float', {4,4})
-	gl.glGetFloatv(gl.GL_MODELVIEW_MATRIX, self.ModelViewMatrix.ptr)
+	-- then this could just use the default 'mvProjMat'
+	self.mvMat = self.mvMat or matrix_ffi(nil, 'float', {4,4})
+	gl.glGetFloatv(gl.GL_MODELVIEW_MATRIX, self.mvMat.ptr)
 
-	self.ProjectionMatrix = self.ProjectionMatrix or matrix_ffi(nil, 'float', {4,4})
-	gl.glGetFloatv(gl.GL_PROJECTION_MATRIX, self.ProjectionMatrix.ptr)
+	self.projMat = self.projMat or matrix_ffi(nil, 'float', {4,4})
+	gl.glGetFloatv(gl.GL_PROJECTION_MATRIX, self.projMat.ptr)
 
-	self.ModelViewProjectionMatrix = self.ModelViewProjectionMatrix or require 'matrix.ffi'(nil, 'float', {4,4})
-	matrix_ffi.mul(self.ModelViewProjectionMatrix, self.ProjectionMatrix, self.ModelViewMatrix)
+	self.mvProjMat = self.mvProjMat or matrix_ffi(nil, 'float', {4,4})
+	matrix_ffi.mul(self.mvProjMat, self.projMat, self.mvMat)
 
-	gl.glUniformMatrix4fv(uniforms.modelViewProjectionMatrix.loc, 1, gl.GL_FALSE, self.ModelViewProjectionMatrix.ptr)
+	gl.glUniformMatrix4fv(uniforms.mvProjMat.loc, 1, gl.GL_FALSE, self.mvProjMat.ptr)
 	--]]
 
 	-- TODO don't do this at all.  just somehow get around it.  idk, geometry shaders or something.
@@ -115,33 +116,28 @@ function DrawVectorStateLine:showDisplayVar(var, varName, ar, xmin, xmax, ymin, 
 	app:drawGradientLegend(solver, var, varName, ar, valueMin, valueMax)
 end
 
-function DrawVectorStateLine:display(varName, ar, ...)
+function DrawVectorStateLine:display(varName, ar, xmin, ymin, xmax, ymax, ...)
 	local solver = self.solver
 	local app = solver.app
 	app.view:setup(ar)
 
-	gl.glEnable(gl.GL_DEPTH_TEST)
+	local xmin, xmax, ymin, ymax
+	if app.view.getOrthoBounds then
+		xmin, xmax, ymin, ymax = app.view:getOrthoBounds(ar)
+	else
+		xmin = solver.cartesianMin.x
+		ymin = solver.cartesianMin.y
+		xmax = solver.cartesianMax.x
+		ymax = solver.cartesianMax.y
+	end
 
-	gl.glColor3f(.5, .5, .5)
-	gl.glBegin(gl.GL_LINES)
-	local max = 10 	-- TODO max of solver mins/maxs
-	gl.glVertex3f(max,0,0)
-	gl.glVertex3f(-max,0,0)
-	gl.glVertex3f(0,max,0)
-	gl.glVertex3f(0,-max,0)
-	gl.glVertex3f(0,0,max)
-	gl.glVertex3f(0,0,-max)
-	gl.glEnd()
-	gl.glColor3f(1,1,1)
-
-	gl.glDisable(gl.GL_DEPTH_TEST)
-
+	self:drawGrid(xmin, ymin, xmax, ymax)
 
 	-- display here
 	local var = solver.displayVarForName[varName]
 	if var and var.enabled then
 		self:prepareShader()
-		self:showDisplayVar(var, varName, ar, ...)
+		self:showDisplayVar(var, varName, ar, xmin, ymin, xmax, ymax, ...)
 	end
 end
 

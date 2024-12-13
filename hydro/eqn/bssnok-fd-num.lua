@@ -255,7 +255,7 @@ BSSNOKFiniteDifferenceEquation.predefinedDisplayVars = {
 	'U trBar_partial2_gammaBar_ll yz',
 	'U trBar_partial2_gammaBar_ll zz',
 --]]
--- [=[ scalar wave variables	
+--[=[ scalar wave variables	
 	'U Phi re',
 	'U Psi_l x re',
 	'U Psi_l y re',

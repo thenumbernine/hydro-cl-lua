@@ -1,12 +1,15 @@
 local ffi = require 'ffi'
 local table = require 'ext.table'
 local path = require 'ext.path'
-local vec3sz = require 'vec-ffi.vec3sz'
+local vec3i = require 'vec-ffi.vec3i'
 local GridSolver = require 'hydro.solver.gridsolver'
 local real = require 'hydro.real'
 
 local LatticeBoltzmann = GridSolver:subclass()
+
 LatticeBoltzmann.name = 'LatticeBoltzmann'
+
+--LatticeBoltzmann.numGhost = 1 -- I think is enough for a Lattice Boltzmann offset range of +-1
 
 function LatticeBoltzmann:init(...)
 	LatticeBoltzmann.super.init(self, ...)
@@ -22,63 +25,61 @@ function LatticeBoltzmann:getSymbolFields()
 	}
 end
 
-function LatticeBoltzmann:initMeshVars(args)
-	LatticeBoltzmann.super.initMeshVars(self, args)
-	self.solverStructFields:append{
-		{name='ofsmax', type='int4'},
-		{name='ofsstep', type='int4'},
-		{name='ofsvol', type='int'},
-		{name='weights', type='real[27]'},
-	}
+function LatticeBoltzmann:initLBOffsets()
 
-	self.ofsmax = vec3sz(
+	-- when I first wrote this, I was trying to minimize the amount of Lua code, for quick port to clcpp/spirv toolchain separate of Lua.
+	-- but meh, too much weird offset math ... so when I do port this to clcpp then I'll move this to template code.
+
+	-- i is 1-based, from [1,dim]
+	-- [-1,1] for valid dimensions, 0 otherwise
+
+	self.ofssize = vec3i(
 		self.dim >= 1 and 3 or 1,
 		self.dim >= 2 and 3 or 1,
 		self.dim >= 3 and 3 or 1
 	)
 
-	self.ofsvol = self.ofsmax:volume()
+	self.ofsmin = vec3i(
+		self.dim >= 1 and -1 or 0,
+		self.dim >= 2 and -1 or 0,
+		self.dim >= 3 and -1 or 0
+	)
 
-	self.ofsstep = vec3sz()
-	self.ofsstep.x = 1
-	self.ofsstep.y = self.ofsmax.x * self.ofsstep.x
-	self.ofsstep.z = self.ofsmax.y * self.ofsstep.y
-end
+	self.offsets = table()
+	for oz=0,tonumber(self.ofssize.z)-1 do
+		local noz = self.ofssize.z - 1 - oz
+		for oy=0,tonumber(self.ofssize.y)-1 do
+			local noy = self.ofssize.y - 1 - oy
+			for ox=0,tonumber(self.ofssize.x)-1 do
+				local nox = self.ofssize.x - 1 - ox
+				self.offsets:insert{
+					c = vec3i(ox,oy,oz) + self.ofsmin,
+					oppositeOffsetIndex = nox + self.ofssize.x * (noy + self.ofssize.y * noz),
+				}
+			end
+		end
+	end
 
-function LatticeBoltzmann:createSolverBuf()
-	LatticeBoltzmann.super.createSolverBuf(self)
-	self.solverPtr.ofsmax.x = self.ofsmax.x
-	self.solverPtr.ofsmax.y = self.ofsmax.y
-	self.solverPtr.ofsmax.z = self.ofsmax.z
-	self.solverPtr.ofsmax.w = 0
-	self.solverPtr.ofsstep.x = self.ofsstep.x
-	self.solverPtr.ofsstep.y = self.ofsstep.y
-	self.solverPtr.ofsstep.z = self.ofsstep.z
-	self.solverPtr.ofsstep.w = self.ofsmax.z * self.ofsstep.z
-	
-	-- but super also calls refreshSolverBuf...
-	self.solverPtr.ofsvol = self.ofsvol
-	
+	-- TODO merge with self.offsets
+	local lbWeights
 	if self.dim == 1 then
-		self.solverPtr.weights[0] = 1/4
-		self.solverPtr.weights[1] = 1/2
-		self.solverPtr.weights[2] = 1/4
+		lbWeights = {1/4, 1/2, 1/4}
 	elseif self.dim == 2 then
-		self.solverPtr.weights[0] = 1/36
-		self.solverPtr.weights[1] = 4/36
-		self.solverPtr.weights[2] = 1/36
-		self.solverPtr.weights[3] = 4/36
-		self.solverPtr.weights[4] = 16/36
-		self.solverPtr.weights[5] = 4/36
-		self.solverPtr.weights[6] = 1/36
-		self.solverPtr.weights[7] = 4/36
-		self.solverPtr.weights[8] = 1/36
+		lbWeights = {
+			1/36, 4/36, 1/36,
+			4/36, 16/36, 4/36,
+			1/36, 4/36, 1/36,
+		}
 	elseif self.dim == 3 then
+		error'TODO'
 	else
 		error("unknown dim "..tostring(self.dim))
 	end
 
-	self:refreshSolverBuf()
+	assert(#self.offsets == #lbWeights)
+	for i,ofs in ipairs(self.offsets) do
+		ofs.weight = lbWeights[i]
+	end
 end
 
 -- TODO put this in its own eqn file? eqn/lattice-boltzmann.lua?
@@ -98,12 +99,16 @@ LatticeBoltzmannEqn.name = 'LatticeBoltzmann'
 LatticeBoltzmannEqn.initConds = require 'hydro.init.lattice-boltzmann':getList()
 function LatticeBoltzmannEqn:buildVars()
 	self.consVars = self.consVars or table()
+
+	self.solver:initLBOffsets()
+	
 	self.consVars:append{
 		{name='rho', type='real'},
 		{name='v', type='real3'},
 		{name='solid', type='real'},
-		{name='F', type='real['..tonumber(self.solver.ofsvol)..']'},
-	}
+	}:append(self.solver.offsets:mapi(function(ofs, i)
+		return {name='F'..(i-1), type='real'}
+	end))
 end
 function LatticeBoltzmannEqn:initCodeModule_calcDTCell() end
 function LatticeBoltzmannEqn:initCodeModule_calcDT() end
@@ -118,17 +123,19 @@ LatticeBoltzmannEqn.predefinedDisplayVars = {
 function LatticeBoltzmannEqn:getDisplayVars()
 	local vars = LatticeBoltzmannEqn.super.getDisplayVars(self)
 	vars:append{
-		{name='rhoSum', code=[[
+		{name='rhoSum', code=self:template[[
 value.vreal = 0;
-for (int i = 0; i < solver->ofsvol; ++i) {
-	value.vreal += U->F[i];
-}
+<? for i=0,#solver.offsets-1 do
+?>value.vreal += U->F<?=i?>;
+<? end
+?>
 ]], type='real'},
-		{name='rho-rhoSum', code=[[
+		{name='rho-rhoSum', code=self:template[[
 value.vreal = -U->rho;
-for (int i = 0; i < solver->ofsvol; ++i) {
-	value.vreal += U->F[i];
-}
+<? for i=0,#solver.offsets-1 do
+?>value.vreal += U->F<?=i?>;
+<? end
+?>
 ]], type='real'},
 	}
 
@@ -182,6 +189,8 @@ function LatticeBoltzmann:step(dt)
 		print('LBM step:')
 		self:printBuf(self.UBuf)
 	end
+	if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
+	self:boundary()
 	if self.checkNaNs then assert(self:checkFinite(self.UBufObj)) end
 
 	self.advectKernelObj(self.solverBuf, self.UNextBuf, self.UBuf)

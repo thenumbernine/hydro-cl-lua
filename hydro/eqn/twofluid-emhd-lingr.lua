@@ -119,6 +119,7 @@ function TwoFluidEMHDDeDonderGaugeLinearizedGR:getSymbolFields()
 	return TwoFluidEMHDDeDonderGaugeLinearizedGR.super.getSymbolFields(self):append{
 		'elecChargeMassRatio',
 		'sqrt_2_and_1_2',
+		'cons_setEB',
 	}
 end
 

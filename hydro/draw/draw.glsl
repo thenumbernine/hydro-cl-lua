@@ -10,12 +10,10 @@ uniform vec2 displayFixed;	//xy holds the fixed yz for when displayDim < dim
 uniform bool useCoordMap;
 
 uniform mat3 normalMatrix;
-uniform mat4 modelViewProjectionMatrix;
+uniform mat4 mvProjMat;
 
 uniform bool useLog;
 uniform float valueMin, valueMax;
-
-uniform sampler1D gradientTex;
 
 uniform vec3 solverMins, solverMaxs;
 
@@ -27,7 +25,7 @@ uniform vec4 displaySliceAngle;
 
 uniform vec3 cartesianMin, cartesianMax;
 
-<? 
+<?
 -- if solver.dim < 3 then -- doesn't consider meshsolver
 if require 'gl.tex2d':isa(solver.tex) then -- does
 ?>
@@ -53,7 +51,7 @@ float logmap(float x) {
 //used by 3d_slice, vector_arrow, volumetric
 float getGradientFrac(float value) {
 	if (useLog) {
-		
+
 		// TODO all of this on CPU before setting the uniforms
 		float logValueMin = logmap(valueMin);
 		float logValueMax = logmap(valueMax);
@@ -66,12 +64,14 @@ float getGradientFrac(float value) {
 				logValueMax = tmp;
 			}
 		}
-		
+
 		return (logmap(value) - logValueMin) / (logValueMax - logValueMin);
 	} else {
 		return (value - valueMin) / (valueMax - valueMin);
 	}
 }
+
+uniform sampler2D gradientTex;
 
 //TODO just change texel lookup in gradTex?
 float getGradientTexCoord(float frac) {
@@ -81,7 +81,7 @@ float getGradientTexCoord(float frac) {
 vec4 getGradientColor(float value) {
 	float frac = getGradientFrac(value);
 	float tc = getGradientTexCoord(frac);
-	return texture(gradientTex, tc);
+	return texture(gradientTex, vec2(tc, .5));
 }
 
 
@@ -129,7 +129,7 @@ vec3 worldToChartCoord(vec3 x) {
 	if (useCoordMap) {
 		return coordMapInv(x);
 	} else {
-		return .5 * (x + 1.) * (solverMaxs - solverMins) + solverMins; 
+		return .5 * (x + 1.) * (solverMaxs - solverMins) + solverMins;
 	}
 }
 
@@ -147,7 +147,7 @@ vec3 chartToNoGhostCoord(vec3 x) {
 }
 
 // hmm, where to put this?
-vec3 quatRotate(vec4 q, vec3 v) { 
+vec3 quatRotate(vec4 q, vec3 v) {
 	return v + 2. * cross(cross(v, q.xyz) - q.w * v, q.xyz);
 }
 

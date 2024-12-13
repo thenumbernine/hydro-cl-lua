@@ -3,6 +3,13 @@
 #define sqrt_2 <?=("%.50f"):format(math.sqrt(2))?>
 #define sqrt_1_2 <?=("%.50f"):format(math.sqrt(.5))?>
 
+//// MODULE_NAME: <?=cons_setEB?>
+
+#define <?=cons_setEB?>(/*cons_t & */U, /*real3 */Eval, /*real3 */Bval) {\
+	(U).B = Bval;\
+	(U).D = <?=vec3?>_real_mul(Eval, <?=mul?>((U).sqrt_1_eps, (U).sqrt_1_eps));\
+}
+
 //// MODULE_NAME: <?=eqn_common?>
 //// MODULE_DEPENDS: <?=coordLenSq?> <?=cartesianToCoord?> <?=coord_lower?>
 

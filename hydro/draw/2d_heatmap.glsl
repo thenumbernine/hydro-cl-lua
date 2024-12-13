@@ -1,9 +1,7 @@
-#version 460
-
 <?
 local varying = vertexShader and 'out'
-		or fragmentShader and 'in'
-		or error("don't know what to set varying to")
+	or fragmentShader and 'in'
+	or error("don't know what to set varying to")
 ?>
 
 //xy holds the view xy
@@ -15,12 +13,12 @@ local varying = vertexShader and 'out'
 
 <? if vertexShader then ?>
 
-in vec4 vertex;
-
+in vec2 vertex;
+uniform vec4 bbox;	//[x1,y1,x2,y2]
 void main() {
-	vec4 v = vertex;
-	viewCoord = v.xyz;
-	gl_Position = modelViewProjectionMatrix * v;
+	vec2 rvtx = mix(bbox.xy, bbox.zw, vertex);
+	viewCoord = vec3(rvtx, 0.);
+	gl_Position = mvProjMat * vec4(rvtx, 0., 1.);
 }
 
 <? end

@@ -1,126 +1,4 @@
---[[
-command-line variables:
-
-solver parameters:
-	(config file cmdline override options:)
-		solver =
-		solverArgs =
-			eqn =
-			flux =
-		gridSize =
-		integrator =
-		fluxLimiter =
-		fixedDT =
-		cfl =
-		dim =
-		boundary =
-		initCond =
-		mins =
-		maxs =
-		multiSlices =
-
-hardware/opencl:
-	float = set to true to use 32 bit float instead of 64
-	half = set to true to use 16 bit float instead of 64
-	cpu = set to use CPU instead of GPU
-	platform = name or numeric index of which OpenCL platform to use.  see clinfo utility (or my cl/tests/info.lua script) for identifying platforms.
-	device = name or numeric index of which OpenCL device to use.
-	useGLSharing = set to false to disable GL sharing.  automatically false if sys=console.
-
-display:
-	sys = subsystem to run under.  options are 'imguiapp', 'glapp', 'console'
-	vsync = set to enable vsync and slow down the simulation
-	createAnimation = set to start off creating an animation / framedump
-	screenshotUseHiRes = save at the buffer resolution instead of the window resolution
-	animationSaveEvery = save every N frames.
-
-	displayvars = comma-separated predefined display vars to use
-	display_useCoordMap = set this gui option
-	display_fixedRange = whether to initialize display vars with a fixed range (of [0,1])
-	showMouseCoords = whether to show mouse coords.  default is true.
-
-	displayDim = override dimension of display (useful for displaying 3D simulations as 1D graphs)
-	displaySlice = 'xy' by default, 'xz' for the xz slice, 'yz' for the yz slice.
-		set this to {x,y,z,theta} for angle/axis initialization.
-
-	frustum = set frustum view initially
-	frustumDist = frustum view initial distance.  default 3
-	frustumAngle = frustum view initial angle.  default {0,0,0,1}
-
-	ortho = set the initial view to ortho
-	zoom = set ortho zoom
-
-	stackGraphs = stack graphs initially
-	disableFont = set to disable loading of the font.png file.  automatically true if sys=console.
-
-	useClipPlanes = default false.  whether to use clip-planes in the 3d-slice shader (and other shaders?)
-	isobars = default true.  whether to use isobars in 3D-slice display.  default: true.
-
-	arrows = use arrows for vector field display (default is LIC)
-	vectorFieldScale = scale of arrows. default 1
-	vectorFieldStep = spacing between cells of vector field display.  default 4
-
-	windowsize = override the window size for sys=glapp or sys=imguiapp.  set to either "windowsize={w,h}" or for square windows, "windowsize=size"
-
-	palette=(palette name) = pick the predefined palette to use
-
-simulation execution:
-	run = start the simulation running.  Setting 'exitTime' or 'stopTime' or 'sys=console' also starts the simulation running.
-	exitTime = start the app running, and exit it after the simulation reaches this time
-	saveOnExit = filename to save all solvers (appending _1 _2 for multiple solvers) before quitting
-	plotOnExit = enable or set to 'true' to have a plot popup upon exit.  set it to a filename string to save the plot to that file.
-				this plots a time history of variable min, max, avg, and stddev of the trackvars.
-	plotOnExit_savedata = (optional) where to save the plotOnExit data
-	plot1DOnExit = enable to plot the 1D data at the time of exit. set it to a filename string to save the plot to that file.
-				this plots a snapshot of the variable min, max, avg, and stddev of the trackvars.
-	plot1DOnExit_savedata = (optional) what filename to save the output data as
-	stopTime = stop running once this time is reached.
-	maxiter = max # of iterations to run the application for
-	checknans = Stop if a NaN or infinity is found. This can also be a comma-separated list of flags to modify the check-NaN behavior:
-		all = upon finding a NaN, print all values that were NaN in that buffer.  If this is omitted then only the first value is printed.
-		gpu = perform the check using gpu.  should go faster.  Right?
-		noghost = skip testing NaNs in ghost cells.
-
-
-debugging:
-	verbose = output extra stuff
-	showfps = print the updates/second to console
-	trackvars = comma-separated list of variable names to print to the console every FPS print
-	tick = how often to update the console for fps or trackvars
-	coordVerbose = output extra info from coord/coord.lua
-
-	printBufs = print buffer contents for debugging.  set this to 2 for more info than default, since default is made to match with other debug output in comparing results with other simulations.
-	config = specify alternative config file.  default is config.lua (TODO configs/default.lua)
-	checkStructSizes = verify that ffi and OpenCL are using matching struct sizes
-
-	trace = insert a debug hook to print out where we are every so often.
-
-integrator parameters:
-	intVerbose = output extra info from int/*.lua
-	printBufs = printBufs for extra integrator steps
-	intBEEpsilon = backwards Euler stop on residual less than this epsilon
-	intBERestart = backwards Euler GMRES restart
-	intBEMaxIter = backwards Euler Krylov max iter
-
-poisson solver parameters:
-	noDivPoissonSolver = 'jacobi' or 'krylov'
-	selfGravPoissonSolver
-	selfGravPoissonMaxIter
-	selfGravVerbose
-	selfGravLinearSolver = 'conjgrad', 'conjres', 'bicgstab', 'gmres'
-
-code cache parameters:
-	useCache = true by default.  set to 'false' to disable the binary-caching system and instead recompile the CL code when you run.
-	bssnUseCache = set to false to ignore the cached equations generated by symmath
-	usecachedcode = set to true to use the code in cache-bin instead of regenerating it
-		TODO I BROKE THIS
-		when I switched kernel names to being based on object hash(pointer)s
-		because now the kernel name changes every time the program is run.
-
-environment variables:
-	HYDROCL_ENV = set to a Lua enumeration of key=value,key=value,... (table grammar without wrapping {})
-
---]]
+local assert = require 'ext.assert'
 local table = require 'ext.table'
 local ffi = require 'ffi'
 
@@ -130,6 +8,7 @@ local ffi = require 'ffi'
 3) the command-line ... key/values
 --]]
 do
+--DEBUG: print('oldcmdline', require 'ext.tolua'(cmdline))
 	-- save the previous global if it's there, apply it later
 	local oldcmdline = cmdline
 
@@ -138,6 +17,7 @@ do
 
 	-- first handle HYDROCL_ENV env var
 	local envvarptr = os.getenv'HYDROCL_ENV'
+--print('HYDROCL_ENV', envvarptr)
 	if envvarptr ~= nil then	-- cdata NULL will cast to boolean as 'true', but (cdata NULL ~= nil) will evaluate to false
 		local envstr = ffi.string(envvarptr)	-- ffi.string segfaults on NULL last I checked
 		-- ok i am not going to treat this as a cmdline -- why make parsing more miserable
@@ -150,8 +30,459 @@ do
 	cmdline = table(oldcmdline, cmdline)
 
 	-- 3) add in anything from the real command-line
-	cmdline = table(require 'ext.cmdline'(table.unpack(arg)), cmdline)
+	-- TODO DON'T USE 'arg' OR IT'LL USE A CALLING PROGRAM'S ARGUMENTS
+	-- ... OR do use arg and idk but here's how things get mixed up
+	cmdline = table(require 'ext.cmdline'(table.unpack(arg)), cmdline):setmetatable(nil)
 end
+
+
+--
+--	command-line variables:
+--
+require 'ext.cmdline'.validate{
+
+	help = {
+		validate = function(...)
+			-- TODO move this into ext.cmdline somewhere
+			print[[
+environment variables:
+	HYDROCL_ENV = set to a Lua enumeration of key=value,key=value,... (table grammar without wrapping {})
+]]
+			return require 'ext.cmdline'.showHelpAndQuit(...)
+		end,
+	},
+
+	useTrace = {
+		desc = "install a lua debug hook for tracing",
+	},
+	nojit = {
+		desc = "turn off luajit's jit",
+	},
+
+--	config.lua solver parameters:
+--		(config file cmdline override options:)
+
+	config = {
+		desc = "specify alternative config file.  default is config.lua (TODO configs/default.lua)",
+	},
+	solver = {
+		desc = "specify solver name",
+	},
+	solverArgs = {
+		desc = "specify solver args",
+	},
+	eqn = {
+		desc = "specify eqn",
+	},
+	flux = {
+		desc = "specify flux",
+	},
+	gridSize = {
+		desc = "valid values are numbers or tables with 1 to 3 elements.  Grid size does not include ghost cells.",
+	},
+	integrator = {
+		desc = "specify integator",
+	},
+	fluxLimiter = {
+		desc = "specify fluxLimiter",
+	},
+	fixedDT = {
+	},
+	cfl = {
+	},
+	dim = {
+	},
+	boundary = {
+	},
+	initCond = {
+	},
+	initCondArgs = {
+	},
+	mins = {
+	},
+	maxs = {
+	},
+	multiSlices = {
+	},
+	cflMethod = {
+	},
+
+-- cmdline args for specific config.lua schemes:
+
+	naca = {
+	},
+	nacaAngle = {
+	},
+	nacaMach = {
+	},
+	['2009Alic-adm'] = {
+	},
+	['2009Alic-z4'] = {
+	},
+	['2009Alic-z4_2008yano'] = {
+	},
+	['2009Alic-bssnok-fd-senr'] = {
+	},
+	['2009Alic-bssnok-fd-num'] = {
+	},
+	['2009Alic-bssnok-fd-sym'] = {
+	},
+	['bssnok-fd-num'] = {
+	},
+	['bssnok-fd-sym'] = {
+	},
+	['bssnok-fd-senr'] = {
+	},
+	['bssnok-fd-senr-multi'] = {
+	},
+	['bssnok-fd-num-pirk'] = {
+	},
+	['bssnok-fd-senr-pirk'] = {
+	},
+	['adm3d-roe'] = {
+	},
+	['adm3d-hll'] = {
+	},
+	['z4-hll'] = {
+	},
+	z4bl = {
+	},
+
+-- used in some tests, not in the main code
+
+--[[ tests/ cmdline options that honestly don't belong here ...
+
+	coord = {
+	},
+	history = {
+	},
+	compare = {
+		-- plot compare
+	},
+	init = {	-- TODO rename this to initCond for compat with config.lua
+	},
+	nocache = {
+	},
+--]]
+
+--[[ where are these?
+	rmax = {
+	},
+	rmax = {
+	},
+--]]
+
+--	hardware/opencl:
+
+	float = {
+		desc = 'set to true to use 32 bit float instead of 64',
+	},
+	half = {
+		desc = 'set to true to use 16 bit float instead of 64',
+	},
+	cpu = {
+		desc = 'set to use CPU instead of GPU',
+	},
+	platform = {
+		desc = 'name or numeric index of which OpenCL platform to use.  see clinfo utility (or my cl/tests/info.lua script) for identifying platforms.',
+	},
+	device = {
+		desc = 'name or numeric index of which OpenCL device to use.',
+	},
+	gl = {
+		desc = 'specify OpenGL .lua file in ffi/ to use.  Default is OpenGL.',
+	},
+	useGLSharing = {
+		desc = 'set to false to disable GL sharing.  automatically false if sys=console.',
+	},
+
+--	display:
+
+	sys = {
+		desc = "subsystem to run under.  options are 'imguiapp', 'glapp', 'console'",
+	},
+	vsync = {
+		desc = 'set to enable vsync and slow down the simulation',
+	},
+	createAnimation = {
+		desc = 'set to start off creating an animation / framedump',
+	},
+	screenshotUseHiRes = {
+		desc = "save at the buffer resolution instead of the window resolution",
+	},
+	animationSaveEvery = {
+		desc = "save every N frames.",
+	},
+	displayvars = {
+		desc = "comma-separated predefined display vars to use",
+	},
+	display_useCoordMap = {
+		desc = "set this gui option",
+	},
+	display_fixedRange = {
+		desc = "whether to initialize display vars with a fixed range (of [0,1])",
+	},
+	showMouseCoords = {
+		desc = "whether to show mouse coords.  default is true.",
+	},
+	displayDim = {
+		desc = "override dimension of display (useful for displaying 3D simulations as 1D graphs)",
+	},
+	displaySlice = {
+		desc = [[
+'xy' by default, 'xz' for the xz slice, 'yz' for the yz slice.
+set this to {x,y,z,theta} for angle/axis initialization.
+]],
+	},
+	displayBilinearTextures = {
+	},
+	displayStateLine = {
+	},
+	display_useLog = {
+	},
+	frustum = {
+		desc = "set frustum view initially",
+	},
+	frustumDist = {
+		desc = "frustum view initial distance.  default 3",
+	},
+	frustumAngle = {
+		desc = "frustum view initial angle.  default {0,0,0,1}",
+	},
+	glslVersion = {
+	},
+	ortho = {
+		desc = "set the initial view to ortho",
+	},
+	zoom = {
+		desc = "set ortho zoom",
+	},
+	stackGraphs = {
+		desc = "stack graphs initially",
+	},
+	disableFont = {
+		desc = "set to disable loading of the font.png file.  automatically true if sys=console.",
+	},
+	useClipPlanes = {
+		desc = "default false.  whether to use clip-planes in the 3d-slice shader (and other shaders?)",
+	},
+	isobars = {
+		desc = "default true.  whether to use isobars in 3D-slice display.  default: true.",
+	},
+	displayArrows = {
+		desc = "use arrows for vector field display (default is LIC)",
+	},
+	displayGraph = {
+		desc = "use graph for 2D display (default is heatmap)",
+	},
+	vectorFieldScale = {
+		desc = "scale of arrows. default 1",
+	},
+	vectorFieldStep = {
+		desc = "spacing between cells of vector field display.  default 4",
+	},
+	displayPointCloud = {
+		desc = 'use point-cloud instead of 3D slice display',
+	},
+	windowsize = {
+		desc = [[override the window size for sys=glapp or sys=imguiapp.  set to either "windowsize={w,h}" or for square windows, "windowsize=size"]],
+	},
+	palette = {
+		desc = "(palette name) = pick the predefined palette to use",
+	},
+	accum = {
+		desc = "display variable accumulation function."
+	},
+	showFaces = {
+	},
+	showNormals = {
+	},
+	showValues = {
+	},
+	showVertexes = {
+	},
+
+--	simulation execution:
+
+	run = {
+		desc = "start the simulation running.  Setting 'exitTime' or 'stopTime' or 'sys=console' also starts the simulation running.",
+	},
+	exitTime = {
+		desc = "start the app running, and exit it after the simulation reaches this time",
+	},
+	saveOnExit = {
+		desc = "filename to save all solvers (appending _1 _2 for multiple solvers) before quitting",
+	},
+	plotOnExit = {
+		desc = [[
+enable or set to 'true' to have a plot popup upon exit.  set it to a filename string to save the plot to that file.
+this plots a time history of variable min, max, avg, and stddev of the trackvars.
+]],
+	},
+	plotOnExit_savedata = {
+		desc = "(optional) where to save the plotOnExit data",
+	},
+	plot1DOnExit = {
+		desc = [[
+enable to plot the 1D data at the time of exit. set it to a filename string to save the plot to that file.
+this plots a snapshot of the variable min, max, avg, and stddev of the trackvars.
+]],
+	},
+	plot1DOnExit_savedata = {
+		desc = "(optional) what filename to save the output data as",
+	},
+	stopTime = {
+		desc = "stop running once this time is reached.",
+	},
+	maxiter = {
+		desc = "max # of iterations to run the application for",
+	},
+	checknans = {
+		desc = [[
+Stop if a NaN or infinity is found. This can also be a comma-separated list of flags to modify the check-NaN behavior:
+	all = upon finding a NaN, print all values that were NaN in that buffer.  If this is omitted then only the first value is printed.
+	gpu = perform the check using gpu.  should go faster.  Right?
+	noghost = skip testing NaNs in ghost cells.
+]],
+	},
+
+--	debugging:
+
+	verbose = {
+		desc = "output extra stuff",
+	},
+	showfps = {
+		desc = "print the updates/second to console",
+	},
+	trackvars = {
+		desc = "comma-separated list of variable names to print to the console every FPS print",
+	},
+	tick = {
+		desc = "how often to update the console for fps or trackvars",
+	},
+	coordVerbose = {
+		desc = "output extra info from coord/coord.lua",
+	},
+	printBufs = {
+		desc = "print buffer contents for debugging.  set this to 2 for more info than default, since default is made to match with other debug output in comparing results with other simulations.",
+	},
+	checkStructSizes = {
+		desc = "verify that ffi and OpenCL are using matching struct sizes",
+	},
+
+	-- TOOD is it still used?  I don't see it ...
+	trace = {
+		desc = "insert a debug hook to print out where we are every so often.",
+	},
+	moduleVerbose = {
+	},
+	debugcdefs = {
+	},
+
+--	integrator parameters:
+
+	intVerbose = {
+		desc = "output extra info from int/*.lua",
+	},
+	printBufsInt = {
+		desc = "printBufs for extra integrator steps",
+	},
+	intBEEpsilon = {
+		desc = "backwards Euler stop on residual less than this epsilon",
+	},
+	intBERestart = {
+		desc = "backwards Euler GMRES restart",
+	},
+	intBEMaxIter = {
+		desc = "backwards Euler Krylov max iter",
+	},
+
+--	poisson solver parameters:
+
+	noDivPoissonSolver = {
+		desc = "'jacobi' or 'krylov'",
+	},
+	selfGravPoissonSolver = {
+	},
+	selfGravPoissonMaxIter = {
+	},
+	selfGravVerbose = {
+	},
+	selfGravLinearSolver = {
+		desc = "'conjgrad', 'conjres', 'bicgstab', 'gmres'",
+	},
+
+--	code cache parameters:
+
+	useCache = {
+		desc = "true by default.  set to 'false' to disable the binary-caching system and instead recompile the CL code when you run.",
+	},
+	usecachedcode = {
+		desc = [[
+set to true to use the code in cache-bin instead of regenerating it
+	TODO I BROKE THIS
+	when I switched kernel names to being based on object hash(pointer)s
+	because now the kernel name changes every time the program is run.
+]],
+	},
+
+-- choppedup solver
+
+	dontSyncBordersOnMultiGPU = {
+	},
+
+-- srhd solver args:
+
+	srhdSelfGravPoissonSolver = {
+	},
+	srhdSolvePrimMaxIter = {
+	},
+
+-- einstein solver args:
+
+	bssnUseCache = {
+		desc = "set to false to ignore the cached equations generated by symmath",
+	},
+	UIUC_M = {	-- hydr/init/einstein.lua
+	},
+	UIUC_chi = {	-- hydr/init/einstein.lua
+	},
+	dissipationCoeff = {	-- hydro/eqn/bssnok-fd-num.lua and hydro/eqn/z4.cl
+	},
+	dt_beta_U_eta = {
+	},
+	dt_beta_U_k = {
+	},
+
+-- TODO organize these
+
+	secondPassInCPU = {
+	},
+	selfGravInitPotential = {
+	},
+	srand = {
+	},
+	stopcond = {
+	},
+	testAccuracy = {
+	},
+	time = {
+	},
+	useClang = {
+	},
+	useShift = {
+	},
+	uselin = {
+	},
+	vectorComponent = {
+	},
+
+-- cmdline.validate works on the cmdline input as Lua's ... of global scope of the script being run.
+-- and it produces a key/value mapping of cmdline args
+-- but it doesn't work on the produced mapping (though I can wedge in that functionality very easily)
+-- but even if it did, we are still risking a desync between cmdline pairs() key/values from ... and cmdline ipairs() as the original arguments ...
+-- ... does that matter?
+}:fromTable(cmdline)
 
 if cmdline.srand then
 	math.randomseed(os.time())
@@ -185,19 +516,11 @@ local targetSystem = cmdline.sys or 'imguiapp'
 -- -- that will probalby mean lots of pcalls around requires
 local gl
 local sdl
-local GLProgram
-local GLGradientTex
-local GLTex2D
-local Font
 local Mouse
 if targetSystem ~= 'console' then
-	gl = require 'gl'
+	gl = require 'gl.setup' (cmdline.gl or 'OpenGL')
 	sdl = require 'ffi.req' 'sdl'
-	GLProgram = require 'gl.program'
-	GLGradientTex = require 'gl.gradienttex'
 	Mouse = require 'glapp.mouse'
-	GLTex2D = require 'gl.tex2d'
-	Font = require 'gui.font'
 end
 
 -- TODO here if we have glapp and imguiapp present
@@ -231,7 +554,7 @@ local baseSystems = {
 		local cl = class()
 		function cl:requestExit() self.done = true end
 		function cl:run()
-			if self.initGL then self:initGL(gl, 'none') end
+			if self.initGL then self:initGL() end
 			repeat
 				if self.update then self:update() end
 			until self.done
@@ -490,7 +813,7 @@ function HydroCLApp:initDraw()
 	elseif cmdline.displaySlice == 'yz' then
 		self.displaySliceAngle:fromAngleAxis(0,1,0,90)
 	elseif type(cmdline.displaySlice) == 'table' then
-		assert(#cmdline.displaySlice == 4, "don't know how to handle this cmdline.displaySlice")
+		assert.len(cmdline.displaySlice, 4, "don't know how to handle this cmdline.displaySlice")
 		self.displaySliceAngle:fromAngleAxis(table.unpack(cmdline.displaySlice))
 	end
 
@@ -707,31 +1030,10 @@ function HydroCLApp:initGL(...)
 			end
 		end
 
-
-		self.isobarShader = GLProgram{
-			vertexCode = [[
-varying vec4 color;
-void main() {
-	color = gl_Color;
-	gl_Position = ftransform();
-}
-]],
-		fragmentCode = [[
-varying vec4 color;
-void main() {
-	float dx_dz = dFdx(gl_FragCoord.z);
-	float dy_dz = dFdy(gl_FragCoord.z);
-
-	vec3 n = normalize(vec3(dx_dz, dy_dz, 10.));
-
-	gl_FragColor = vec4(color.rgb * n.z, color.a);
-}
-]],
-		}:useNone()
-
 		if not cmdline.disableFont then
 			local Image = require 'image'
 			local fontimage = Image'font.png'
+			local GLTex2D = require 'gl.tex2d'
 			local fonttex = GLTex2D{
 				image = fontimage,
 				minFilter = gl.GL_LINEAR_MIPMAP_LINEAR,
@@ -745,10 +1047,14 @@ void main() {
 					:setParameter(gl.GL_TEXTURE_MIN_FILTER, gl.GL_NEAREST)
 					:setParameter(gl.GL_TEXTURE_MAG_FILTER, gl.GL_LINEAR)
 			end
+			fonttex:unbind()
+			local Font = require 'gui.font'
 			self.font = Font{
 				image = fontimage,
 				tex = fonttex,
+				drawImmediateMode = false,
 			}
+			self.font.view = require 'hydro.view.ortho'()
 		end
 
 		-- todo reorganize me
@@ -758,7 +1064,9 @@ void main() {
 		end)
 		self.display2DMethodsEnabled = self.display2DMethods:mapi(function(method, index)
 			local name, func = next(method)
-			return index == 1, name
+			local enabled = index == 1
+			if cmdline.displayGraph then enabled = index == 2 end
+			return enabled, name
 		end)
 		self.display3DMethodsEnabled = self.display3DMethods:mapi(function(method, index)
 			local name, func = next(method)
@@ -767,14 +1075,19 @@ void main() {
 		self.displayVectorMethodsEnabled = self.displayVectorMethods:mapi(function(method, index)
 			local name, func = next(method)
 			local enabled = index == 2	-- LIC
-			-- cmdline arrows overrides the default from LIC to arrows
-			if cmdline.arrows then enabled = index == 1 end
-			if cmdline.display_stateline then enabled = index == 3 end
+			-- cmdline displayArrows overrides the default from LIC to arrows
+			if cmdline.displayArrows then enabled = index == 1 end
+			if cmdline.displayStateLine then enabled = index == 3 end
 			return enabled, name
 		end)
 
-		self.orthoView = require 'hydro.view.ortho'()
-		self.frustumView = require 'hydro.view.frustum'()
+		self.orthoView = require 'hydro.view.ortho'{
+			zoom = cmdline.zoom,
+		}
+		self.frustumView = require 'hydro.view.frustum'{
+			dist = cmdline.frustumDist,
+			angle = cmdline.frustumAngle,
+		}
 		self.view = (#self.solvers > 0 and self.solvers[1].dim == 3) and self.frustumView or self.orthoView
 		if cmdline.frustum then
 			self.view = self.frustumView
@@ -803,6 +1116,81 @@ void main() {
 	self.displayDim = cmdline.displayDim or self.solvers:mapi(function(solver)
 		return solver.dim
 	end):sup() or 1
+
+	local GLGeometry = require 'gl.geometry'
+	self.quadGeom = GLGeometry{
+		mode = gl.GL_TRIANGLE_STRIP,
+		vertexes = {
+			data = {
+				0, 0,
+				1, 0,
+				0, 1,
+				1, 1,
+			},
+			dim = 2,
+		},
+	}
+
+	local GLSceneObject = require 'gl.sceneobject'
+	self.drawLineSceneObj = GLSceneObject{
+		program = {
+			version = 'latest',
+			precision = 'best',
+			vertexCode = [[
+in float vertex;
+uniform vec3 pt0, pt1;
+uniform mat4 mvProjMat;
+void main() {
+	vec3 rvtx = mix(pt0, pt1, vertex);
+	gl_Position = mvProjMat * vec4(rvtx, 1.);
+}
+]],
+			fragmentCode = [[
+out vec4 fragColor;
+uniform vec4 color;
+void main() {
+	fragColor = color;
+}
+]],
+		},
+		geometry = {
+			mode = gl.GL_LINES,
+			vertexes = {
+				data = {0, 1},
+			},
+			dim = 1,
+		},
+	}
+
+	self.drawGradSceneObj = GLSceneObject{
+		program = {
+			version = 'latest',
+			precision = 'best',
+			vertexCode = [[
+in vec2 vertex;
+out float tc;
+uniform mat4 mvProjMat;
+uniform vec4 bbox;	//[x1,y1,x2,y2]
+void main() {
+	tc = vertex.y;
+	vec2 rvtx = mix(bbox.xy, bbox.zw, vertex);
+	gl_Position = mvProjMat * vec4(rvtx, 0., 1.);
+}
+]],
+			fragmentCode = [[
+in float tc;
+out vec4 fragColor;
+uniform sampler2D gradientTex;
+void main() {
+	fragColor = texture(gradientTex, vec2(tc, .5));
+}
+]],
+			uniforms = {
+				tex = 0,
+			},
+		},
+		geometry = self.quadGeom,
+	}
 end
 
 
@@ -837,11 +1225,12 @@ HydroCLApp.predefinedPaletteIndexForName = HydroCLApp.predefinedPaletteNames:map
 HydroCLApp.predefinedPaletteIndex = cmdline.palette and HydroCLApp.predefinedPaletteIndexForName[cmdline.palette] or 1
 
 function HydroCLApp:setGradientTexColors(colors)
-	self.gradientTex = GLGradientTex(1024, colors, false)	-- false = don't wrap the colors...
-		:setWrap{s = gl.GL_REPEAT}	-- ...but do use GL_REPEAT
-	-- hmm, only on my AMD, intermittantly the next time the tex is bound it will raise an INVALID_OPERATION upon the next bind
-	-- maybe this is all because I'm using TEXTURE_1D for the gradientTex?
-	-- maybe AMD doesn't like 1D textures so much?
+	local GLGradientTex2D = require 'gl.gradienttex2d'
+	self.gradientTex = GLGradientTex2D(1024, colors, false)	-- false = don't wrap the colors...
+		:setWrap{
+			s = gl.GL_REPEAT,
+		}
+		:unbind()
 end
 
 function HydroCLApp:resetGradientTex()
@@ -1432,6 +1821,7 @@ end
 				local solverxmin, solverxmax = tonumber(solver.mins.x), tonumber(solver.maxs.x)
 				solverxmin, solverxmax = 1.1 * solverxmin - .1 * solverxmax, 1.1 * solverxmax - .1 * solverxmin
 				if self.displayDim > 1 then	-- solver.dim
+					-- TODO why not tweak self.view here?
 					local center = .5 * (solverxmin + solverxmax)
 					solverxmin = (solverxmin - center) * ar + center
 					solverxmax = (solverxmax - center) * ar + center
@@ -1445,6 +1835,7 @@ end
 					solverymin, solverymax = tonumber(solver.mins.y), tonumber(solver.maxs.y)
 					solverymin, solverymax = 1.1 * solverymin - .1 * solverymax, 1.1 * solverymax - .1 * solverymin
 				else
+					-- TODO why not tweak self.view here?
 					if vectorField then
 						solverymin, solverymax = solver:calcDisplayVarRange(var, component.magn)
 					else
@@ -1502,6 +1893,20 @@ end
 			ymax = 5
 		end
 
+		-- for 1D, now that we've calculated our bounds, recalculate our projection matrix based on it ...
+		-- TODO maybe also recalculate the pos and angle or nah?
+		-- orthoSize won't work because it's a single scalar w/aspect ratio preservation, while 1D graph display has separate scales for x and y axis ...
+		-- but oh snap! these views have zoom x and y, sepraate of glapp.view's, which just have orthoSize, maybe I should migrate these over to there ...
+		if self.displayDim == 1 then
+			-- 1d_graph.lua will just use orthoView anyways
+			local view = self.orthoView
+			--local view = self.view
+			--assert.eq(view, self.orthoView) -- it might not be...
+			view.mvMat:setIdent()
+			view.projMat:setOrtho(xmin, xmax, ymin, ymax, -1, 1)
+			view.mvProjMat:copy(view.projMat)
+		end
+
 		local mouseOverThisGraph
 		local mouseInGraphX
 		local mouseInGraphY
@@ -1538,22 +1943,20 @@ end
 --				self.mouseCoord[1] = mouseInGraphX * (xmax - xmin) + xmin
 --				self.mouseCoord[2] = mouseInGraphY * (ymax - ymin) + ymin
 --			else	-- use the ortho xy min max
-				local xmin, xmax, ymin, ymax
+				local vpxmin, vpxmax, vpymin, vpymax
 				if self.view.getOrthoBounds then
-					xmin, xmax, ymin, ymax = self.view:getOrthoBounds(ar)
+					vpxmin, vpxmax, vpymin, vpymax = self.view:getOrthoBounds(ar)
 				else
-					xmin, xmax, ymin, ymax = graph_xmin, graph_ymin, graph_xmax, graph_ymax
+					vpxmin, vpxmax, vpymin, vpymax = xmin, ymin, xmax, ymax
 				end
 
 				-- frustum doesn't have these ...
-				if xmax and ymax and xmin and ymin then
-					self.mouseCoord[1] = mouseInGraphX * (xmax - xmin) + xmin
-					self.mouseCoord[2] = mouseInGraphY * (ymax - ymin) + ymin
+				if vpxmax and vpymax and vpxmin and vpymin then
+					self.mouseCoord[1] = mouseInGraphX * (vpxmax - vpxmin) + vpxmin
+					self.mouseCoord[2] = mouseInGraphY * (vpymax - vpymin) + vpymin
 				end
 --			end
 		end
-
-
 
 		if not vectorField then
 			if self.displayDim == 1 then
@@ -1677,14 +2080,12 @@ end
 		end
 	end
 
-	gl.glViewport(0,0,w,h)
-	gl.glMatrixMode(gl.GL_PROJECTION)
-	gl.glLoadIdentity()
-	gl.glOrtho(0, w/h, 0, 1, -1, 1)
-	gl.glMatrixMode(gl.GL_MODELVIEW)
-	gl.glLoadIdentity()
-
 	if self.font then
+		gl.glViewport(0,0,w,h)
+		self.font.view.mvMat:setIdent()
+		self.font.view.projMat:setOrtho(0, w/h, 0, 1, -1, 1)
+		self.font.view.mvProjMat:copy(self.font.view.projMat)
+
 		local solverNames = displaySolvers:mapi(function(solver)
 			return {
 				text = ('(%.3f) %s'):format(solver.t, solver.name),
@@ -1758,6 +2159,8 @@ end
 
 -- helper function for all draw classes:
 function HydroCLApp:drawGradientLegend(solver, var, varName, ar, valueMin, valueMax)
+	if not self.font then return end
+
 	-- TODO only draw the first
 	if var.showInUnits and var.units then
 		local unitScale = solver:convertToSIUnitsCode(var.units).func()
@@ -1766,48 +2169,51 @@ function HydroCLApp:drawGradientLegend(solver, var, varName, ar, valueMin, value
 		varName = varName..' ('..var.units..')'
 	end
 
-	self.orthoView:projection(ar)
-	self.orthoView:modelview()
-	local xmin, xmax, ymin, ymax = self.orthoView:getOrthoBounds(ar)
+	local pushView = self.view
+	self.view = self.orthoView
+	self.view:setup(ar)
+	local xmin, xmax, ymin, ymax = self.view:getOrthoBounds(ar)
 
-	if self.font then
-		local palwidth = (xmax - xmin) * .1
-		self.gradientTex:enable()
-		self.gradientTex:bind(0)
-		gl.glBegin(gl.GL_QUADS)
-		gl.glColor3f(1,1,1)
-		gl.glTexCoord1f(0) gl.glVertex2f(xmin, ymin)
-		gl.glTexCoord1f(0) gl.glVertex2f(xmin + palwidth, ymin)
-		gl.glTexCoord1f(1) gl.glVertex2f(xmin + palwidth, ymax)
-		gl.glTexCoord1f(1) gl.glVertex2f(xmin, ymax)
-		gl.glEnd()
-		self.gradientTex:unbind()
-		self.gradientTex:disable()
+	local palwidth = (xmax - xmin) * .1
+	self.drawGradSceneObj.texs[1] = self.gradientTex	-- random palette will recreate this object rather than uploading ... lol i should change that ...
 
-		local fontSizeX = (xmax - xmin) * .025
-		local fontSizeY = (ymax - ymin) * .025
-		local ystep = 10^(math.log(ymax - ymin, 10) - 1.5)
-		for y=math.floor(ymin/ystep)*ystep,math.ceil(ymax/ystep)*ystep,ystep do
-			local value = (y - ymin) * (valueMax - valueMin) / (ymax - ymin) + valueMin
-			local absvalue = math.abs(value)
-			self.font:draw{
-				pos={xmin * .99 + xmax * .01, y + fontSizeY * .5},
-				text=(
-					(absvalue > 1e+5 or absvalue < 1e-5)
-					and ('%.5e'):format(value) or ('%.5f'):format(value)),
-				color = {1,1,1,1},
-				fontSize={fontSizeX, -fontSizeY},
-				multiLine=false,
-			}
-		end
+	local shader = self.drawGradSceneObj.program
+	shader:use()
+	gl.glUniform4f(shader.uniforms.bbox.loc, xmin, ymin, xmin + palwidth, ymax)
+	gl.glUniformMatrix4fv(shader.uniforms.mvProjMat.loc, 1, gl.GL_FALSE, self.view.mvProjMat.ptr)
+
+	self.drawGradSceneObj:draw()
+
+	self.font.view.mvMat:copy(self.view.mvMat)
+	self.font.view.projMat:copy(self.view.projMat)
+	self.font.view.mvProjMat:copy(self.view.mvProjMat)
+
+	local fontSizeX = (xmax - xmin) * .025
+	local fontSizeY = (ymax - ymin) * .025
+	local ystep = 10^(math.log(ymax - ymin, 10) - 1.5)
+	for y=math.floor(ymin/ystep)*ystep,math.ceil(ymax/ystep)*ystep,ystep do
+		local value = (y - ymin) * (valueMax - valueMin) / (ymax - ymin) + valueMin
+		local absvalue = math.abs(value)
 		self.font:draw{
-			pos = {xmin, ymax},
-			text = varName,
+			pos={xmin * .99 + xmax * .01, y + fontSizeY * .5},
+			text=(
+				(absvalue > 1e+5 or absvalue < 1e-5)
+				and ('%.5e'):format(value) or ('%.5f'):format(value)),
 			color = {1,1,1,1},
-			fontSize = {fontSizeX, -fontSizeY},
-			multiLine = false,
+			fontSize={fontSizeX, -fontSizeY},
+			multiLine=false,
 		}
 	end
+	self.font:draw{
+		pos = {xmin, ymax},
+		text = varName,
+		color = {1,1,1,1},
+		fontSize = {fontSizeX, -fontSizeY},
+		multiLine = false,
+	}
+
+	self.view = pushView
+	self.view:setup(ar)
 end
 
 HydroCLApp.display_useCoordMap = cmdline.display_useCoordMap
@@ -1818,219 +2224,235 @@ HydroCLApp.displayFixedY = 0
 HydroCLApp.displayFixedZ = 0
 
 function HydroCLApp:updateGUI()
-	if ig.igCollapsingHeader'simulation' then
-		if ig.igButton(self.running and 'Stop' or 'Start') then
-			self.running = not self.running
-		end
-		ig.igSameLine()
-		if ig.igButton'Step' then
-			self.running = 'step'
-		end
-		ig.igSameLine()
-		if ig.igButton'Reset' then
-			print'resetting...'
-			for _,solver in ipairs(self.solvers) do
-				solver:resetState()
+	-- make menubar transparent.  seems to only work if both these are used
+	-- TODO it'd be nice if the background behind the menubar text was opaque and all else was transparent
+	ig.igSetNextWindowBgAlpha(.3)
+	ig.igPushStyleColor_U32(ig.ImGuiCol_MenuBarBg, 0)
+	--ig.igPushStyleColor_U32(ig.ImGuiCol_Text, -1)	-- font color of labels
+	--ig.igPushStyleColor_U32(ig.ImGuiCol_FrameBg, -1)	-- this is for backgrounds of input-texts, not of label text ...
+	if ig.igBeginMainMenuBar() then
+		if ig.igBeginMenu'Run' then
+			if ig.igButton(self.running and 'Stop' or 'Start') then
+				self.running = not self.running
 			end
-			self.running = false
-		end
-
-		if ig.igButton'Save' then
-			local savePrefix = os.date'%Y.%m.%d-%H.%M.%S'
-			-- save as cfits
-			for i,solver in ipairs(self.solvers) do
-				solver:save(savePrefix..'_'..tostring(i))
+			ig.igSameLine()
+			if ig.igButton'Step' then
+				self.running = 'step'
 			end
-		end
-
-		if ig.luatableTooltipCombo('Palette', self, 'predefinedPaletteIndex', self.predefinedPaletteNames) then
-			self:resetGradientTex()
-		end
-
-		ig.igSameLine()
-		if ig.igButton'Randomize Palette' then
-			self:randomizeGradientTex()
-		end
-
-		-- dump min/max(/avg?) of displayvars to a .txt file
-		ig.luatableTooltipCheckbox('dump to text file', dumpFile, 'enabled')
-
-		if ig.igButton'Screenshot' then
-			self:screenshot()
-		end
-		ig.igSameLine()
-
-		ig.luatableTooltipCheckbox('screenshot hires', self, 'screenshotUseHiRes')
-		ig.igSameLine()
-
-		ig.luatableTooltipCombo('screenshot ext', self, 'screenshotExtIndex', self.screenshotExts)
-
-		if ig.igButton(self.createAnimation and 'stop frame dump' or 'start frame dump') then
-			self.createAnimation = not self.createAnimation
-		end
-
-		ig.luatableTooltipCheckbox('stack graphs', self, 'displayAllTogether')
-		ig.igSameLine()
-
-		-- TODO per-solver
-		ig.luatableTooltipCheckbox('bilinear textures', self, 'displayBilinearTextures')
-		ig.igSameLine()
-
-		-- for 2D heatmap only atm
-		ig.luatableTooltipCheckbox('display with coord map', self, 'display_useCoordMap')
-		ig.igSameLine()
-
-		ig.luatableTooltipCheckbox('show coords', self, 'showMouseCoords')
-
-		--ig.igSameLine()
-		--ig.luatableTooltipCheckbox('mouse influence equations', self, 'mouse_influenceEquations')
-
-
-		if ig.igRadioButton_Bool('ortho', self.view == self.orthoView) then
-			self.view = self.orthoView
-		end
-		ig.igSameLine()
-		if ig.igRadioButton_Bool('frustum', self.view == self.frustumView) then
-			self.view = self.frustumView
-		end
-
-		-- TODO per-solver
-		for j=1,3 do
-			if ig.igRadioButton_Bool(j..'D', self.displayDim == j) then
-				self.displayDim = j
+			ig.igSameLine()
+			if ig.igButton'Reset' then
+				print'resetting...'
+				for _,solver in ipairs(self.solvers) do
+					solver:resetState()
+				end
+				self.running = false
 			end
-			if j < 3 then ig.igSameLine() end
-		end
+
+			if ig.igButton'Save' then
+				local savePrefix = os.date'%Y.%m.%d-%H.%M.%S'
+				-- save as cfits
+				for i,solver in ipairs(self.solvers) do
+					solver:save(savePrefix..'_'..tostring(i))
+				end
+			end
+
+			if ig.luatableTooltipCombo('Palette', self, 'predefinedPaletteIndex', self.predefinedPaletteNames) then
+				self:resetGradientTex()
+			end
+
+			ig.igSameLine()
+			if ig.igButton'Randomize Palette' then
+				self:randomizeGradientTex()
+			end
+
+			-- dump min/max(/avg?) of displayvars to a .txt file
+			ig.luatableTooltipCheckbox('dump to text file', dumpFile, 'enabled')
+
+			if ig.igButton'Screenshot' then
+				self:screenshot()
+			end
+			ig.igSameLine()
+
+			ig.luatableTooltipCheckbox('screenshot hires', self, 'screenshotUseHiRes')
+			ig.igSameLine()
+
+			ig.luatableTooltipCombo('screenshot ext', self, 'screenshotExtIndex', self.screenshotExts)
+
+			if ig.igButton(self.createAnimation and 'stop frame dump' or 'start frame dump') then
+				self.createAnimation = not self.createAnimation
+			end
+
+			ig.luatableTooltipCheckbox('stack graphs', self, 'displayAllTogether')
+			ig.igSameLine()
+
+			-- TODO per-solver
+			ig.luatableTooltipCheckbox('bilinear textures', self, 'displayBilinearTextures')
+			ig.igSameLine()
+
+			-- for 2D heatmap only atm
+			ig.luatableTooltipCheckbox('display with coord map', self, 'display_useCoordMap')
+			ig.igSameLine()
+
+			ig.luatableTooltipCheckbox('show coords', self, 'showMouseCoords')
+
+			--ig.igSameLine()
+			--ig.luatableTooltipCheckbox('mouse influence equations', self, 'mouse_influenceEquations')
 
 
-		--ig.luatableTooltipSliderFloat('fixed y', self, 'displayFixedY', -10, 10)
-		--ig.luatableTooltipSliderFloat('fixed z', self, 'displayFixedZ', -10, 10)
-		ig.igPushID_Str'fixed y zoom'
-		if ig.igButton'+' then
-			self.displayFixedY = self.displayFixedY + .1
-		end
-		ig.igSameLine()
-		if ig.igButton'-' then
-			self.displayFixedY = self.displayFixedY - .1
-		end
-		ig.igSameLine()
-		ig.luatableTooltipInputFloatAsText('fixed y', self, 'displayFixedY')
-		ig.igPopID()
+			if ig.igRadioButton_Bool('ortho', self.view == self.orthoView) then
+				self.view = self.orthoView
+			end
+			ig.igSameLine()
+			if ig.igRadioButton_Bool('frustum', self.view == self.frustumView) then
+				self.view = self.frustumView
+			end
 
-		ig.igPushID_Str'fixed z zoom'
-		if ig.igButton'+' then
-			self.displayFixedZ = self.displayFixedZ + .1
-		end
-		ig.igSameLine()
-		if ig.igButton'-' then
-			self.displayFixedZ = self.displayFixedZ - .1
-		end
-		ig.igSameLine()
-		ig.luatableTooltipInputFloatAsText('fixed z', self, 'displayFixedZ')
-		ig.igPopID()
+			-- TODO per-solver
+			for j=1,3 do
+				if ig.igRadioButton_Bool(j..'D', self.displayDim == j) then
+					self.displayDim = j
+				end
+				if j < 3 then ig.igSameLine() end
+			end
 
-		-- TODO per-solver
-		do
-			local q = self.displaySliceAngle
-			-- [[ TODO replace this with trackball behavior
-			if ig.luatableTooltipSliderFloat('slice qw', q, 'w', -1, 1) then q:normalize(q) end
-			if ig.luatableTooltipSliderFloat('slice qx', q, 'x', -1, 1) then q:normalize(q) end
-			if ig.luatableTooltipSliderFloat('slice qy', q, 'y', -1, 1) then q:normalize(q) end
-			if ig.luatableTooltipSliderFloat('slice qz', q, 'z', -1, 1) then q:normalize(q) end
+
+			--ig.luatableTooltipSliderFloat('fixed y', self, 'displayFixedY', -10, 10)
+			--ig.luatableTooltipSliderFloat('fixed z', self, 'displayFixedZ', -10, 10)
+			ig.igPushID_Str'fixed y zoom'
+			if ig.igButton'+' then
+				self.displayFixedY = self.displayFixedY + .1
+			end
+			ig.igSameLine()
+			if ig.igButton'-' then
+				self.displayFixedY = self.displayFixedY - .1
+			end
+			ig.igSameLine()
+			ig.luatableTooltipInputFloatAsText('fixed y', self, 'displayFixedY')
+			ig.igPopID()
+
+			ig.igPushID_Str'fixed z zoom'
+			if ig.igButton'+' then
+				self.displayFixedZ = self.displayFixedZ + .1
+			end
+			ig.igSameLine()
+			if ig.igButton'-' then
+				self.displayFixedZ = self.displayFixedZ - .1
+			end
+			ig.igSameLine()
+			ig.luatableTooltipInputFloatAsText('fixed z', self, 'displayFixedZ')
+			ig.igPopID()
+
+			-- TODO per-solver
+			do
+				local q = self.displaySliceAngle
+				-- [[ TODO replace this with trackball behavior
+				if ig.luatableTooltipSliderFloat('slice qw', q, 'w', -1, 1) then q:normalize(q) end
+				if ig.luatableTooltipSliderFloat('slice qx', q, 'x', -1, 1) then q:normalize(q) end
+				if ig.luatableTooltipSliderFloat('slice qy', q, 'y', -1, 1) then q:normalize(q) end
+				if ig.luatableTooltipSliderFloat('slice qz', q, 'z', -1, 1) then q:normalize(q) end
+				--]]
+			end
+			-- [[ fixed planes
+			ig.igText'slice:'
+			ig.igSameLine()
+			if ig.igButton'xy' then
+				self.displaySliceAngle:set(0,0,0,1)
+			end
+			ig.igSameLine()
+			if ig.igButton'xz' then
+				self.displaySliceAngle:fromAngleAxis(1,0,0,90)
+			end
+			ig.igSameLine()
+			if ig.igButton'yz' then
+				self.displaySliceAngle:fromAngleAxis(0,1,0,90)
+			end
 			--]]
-		end
-		-- [[ fixed planes
-		ig.igText'slice:'
-		ig.igSameLine()
-		if ig.igButton'xy' then
-			self.displaySliceAngle:set(0,0,0,1)
-		end
-		ig.igSameLine()
-		if ig.igButton'xz' then
-			self.displaySliceAngle:fromAngleAxis(1,0,0,90)
-		end
-		ig.igSameLine()
-		if ig.igButton'yz' then
-			self.displaySliceAngle:fromAngleAxis(0,1,0,90)
-		end
-		--]]
 
-		-- TODO flag for separate/combined displays (esp for ortho view)
+			-- TODO flag for separate/combined displays (esp for ortho view)
 
-		-- TODO flag to toggle slice vs volume display
-		-- or maybe checkboxes for each kind?
-
-		do
-			local dim = self.displayDim
-			if dim == 1 then
-				ig.igPushID_Str'1D'
-				for i,method in ipairs(self.display1DMethods) do
-					if i > 1 then ig.igSameLine() end
-					local name, func = next(method)
-					ig.luatableTooltipCheckbox(name, self.display1DMethodsEnabled, name)
-				end
-				ig.igPopID()
-			elseif dim == 2 then
-				ig.igPushID_Str'2D'
-				for i,method in ipairs(self.display2DMethods) do
-					if i > 1 then ig.igSameLine() end
-					local name, func = next(method)
-					ig.luatableTooltipCheckbox(name, self.display2DMethodsEnabled, name)
-				end
-				ig.igPopID()
-			elseif dim == 3 then
-				ig.igPushID_Str'3D'
-				for i,method in ipairs(self.display3DMethods) do
-					if i > 1 then ig.igSameLine() end
-					local name, func = next(method)
-					ig.luatableTooltipCheckbox(name, self.display3DMethodsEnabled, name)
-				end
-				ig.igPopID()
-			end
+			-- TODO flag to toggle slice vs volume display
+			-- or maybe checkboxes for each kind?
 
 			do
-				ig.igPushID_Str'Vector'
-
-				for i,method in ipairs(self.displayVectorMethods) do
-					if i > 1 then ig.igSameLine() end
-					local name, func = next(method)
-					ig.luatableTooltipCheckbox(name, self.displayVectorMethodsEnabled, name)
+				local dim = self.displayDim
+				if dim == 1 then
+					ig.igPushID_Str'1D'
+					for i,method in ipairs(self.display1DMethods) do
+						if i > 1 then ig.igSameLine() end
+						local name, func = next(method)
+						ig.luatableTooltipCheckbox(name, self.display1DMethodsEnabled, name)
+					end
+					ig.igPopID()
+				elseif dim == 2 then
+					ig.igPushID_Str'2D'
+					for i,method in ipairs(self.display2DMethods) do
+						if i > 1 then ig.igSameLine() end
+						local name, func = next(method)
+						ig.luatableTooltipCheckbox(name, self.display2DMethodsEnabled, name)
+					end
+					ig.igPopID()
+				elseif dim == 3 then
+					ig.igPushID_Str'3D'
+					for i,method in ipairs(self.display3DMethods) do
+						if i > 1 then ig.igSameLine() end
+						local name, func = next(method)
+						ig.luatableTooltipCheckbox(name, self.display3DMethodsEnabled, name)
+					end
+					ig.igPopID()
 				end
 
-				ig.igPopID()
+				do
+					ig.igPushID_Str'Vector'
+
+					for i,method in ipairs(self.displayVectorMethods) do
+						if i > 1 then ig.igSameLine() end
+						local name, func = next(method)
+						ig.luatableTooltipCheckbox(name, self.displayVectorMethodsEnabled, name)
+					end
+
+					ig.igPopID()
+				end
 			end
+
+			if self.view == self.frustumView then
+				local q = self.frustumView.angle
+				-- [[ TODO replace this with trackball behavior
+				if ig.luatableTooltipSliderFloat('frustum angle qx', q, 'x', -1, 1) then q:normalize(q) end
+				if ig.luatableTooltipSliderFloat('frustum angle qy', q, 'y', -1, 1) then q:normalize(q) end
+				if ig.luatableTooltipSliderFloat('frustum angle qz', q, 'z', -1, 1) then q:normalize(q) end
+				if ig.luatableTooltipSliderFloat('frustum angle qw', q, 'w', -1, 1) then q:normalize(q) end
+				--]]
+			end
+			if self.useClipPlanes then
+				for i,info in ipairs(self.clipInfos) do
+					ig.igPushID_Str('solver clip plane '..i)
+					ig.luatableTooltipCheckbox('clip plane enabled', info, 'enabled')
+					ig.luatableTooltipSliderFloat('clip plane x', info.plane, 'x', -1, 1)
+					ig.luatableTooltipSliderFloat('clip plane y', info.plane, 'y', -1, 1)
+					ig.luatableTooltipSliderFloat('clip plane z', info.plane, 'z', -1, 1)
+					ig.luatableTooltipSliderFloat('clip plane w', info.plane, 'w', -1, 1)
+					ig.igPopID()
+				end
+			end
+
+			ig.igEndMenu()
 		end
 
-		if self.view == self.frustumView then
-			local q = self.frustumView.angle
-			-- [[ TODO replace this with trackball behavior
-			if ig.luatableTooltipSliderFloat('frustum angle qx', q, 'x', -1, 1) then q:normalize(q) end
-			if ig.luatableTooltipSliderFloat('frustum angle qy', q, 'y', -1, 1) then q:normalize(q) end
-			if ig.luatableTooltipSliderFloat('frustum angle qz', q, 'z', -1, 1) then q:normalize(q) end
-			if ig.luatableTooltipSliderFloat('frustum angle qw', q, 'w', -1, 1) then q:normalize(q) end
-			--]]
-		end
-		if self.useClipPlanes then
-			for i,info in ipairs(self.clipInfos) do
-				ig.igPushID_Str('solver clip plane '..i)
-				ig.luatableTooltipCheckbox('clip plane enabled', info, 'enabled')
-				ig.luatableTooltipSliderFloat('clip plane x', info.plane, 'x', -1, 1)
-				ig.luatableTooltipSliderFloat('clip plane y', info.plane, 'y', -1, 1)
-				ig.luatableTooltipSliderFloat('clip plane z', info.plane, 'z', -1, 1)
-				ig.luatableTooltipSliderFloat('clip plane w', info.plane, 'w', -1, 1)
+		if ig.igBeginMenu'Simulations' then
+			for i,solver in ipairs(self.solvers) do
+				ig.igPushID_Str('solver '..i)
+				if ig.igCollapsingHeader(solver.name) then
+					-- TODO new window for each
+					solver:updateGUI()
+				end
 				ig.igPopID()
 			end
+			ig.igEndMenu()
 		end
-	end
 
-	for i,solver in ipairs(self.solvers) do
-		ig.igPushID_Str('solver '..i)
-		if ig.igCollapsingHeader(solver.name) then
-			-- TODO new window for each
-			solver:updateGUI()
-		end
-		ig.igPopID()
+		ig.igEndMainMenuBar()
 	end
+	ig.igPopStyleColor(1)
 
 	if self.showMouseCoords
 	and (self.displayDim == 1 or self.displayDim == 2)
@@ -2056,16 +2478,16 @@ end
 
 local leftShiftDown, rightShiftDown
 local leftGuiDown, rightGuiDown
-function HydroCLApp:event(event, ...)
+function HydroCLApp:event(event)
 	if HydroCLApp.super.event then
-		HydroCLApp.super.event(self, event, ...)
+		HydroCLApp.super.event(self, event)
 	end
 	local shiftDown = leftShiftDown or rightShiftDown
 	local guiDown = leftGuiDown or rightGuiDown
-	if event.type == sdl.SDL_MOUSEMOTION then
+	if event[0].type == sdl.SDL_MOUSEMOTION then
 		if canHandleMouse() then
-			local dx = event.motion.xrel
-			local dy = event.motion.yrel
+			local dx = event[0].motion.xrel
+			local dy = event[0].motion.yrel
 			if dx ~= 0 or dy ~= 0 then
 				if mouse.leftDown and not guiDown then
 					if self.mouse_influenceEquations then
@@ -2081,37 +2503,37 @@ function HydroCLApp:event(event, ...)
 				end
 			end
 		end
-	elseif event.type == sdl.SDL_KEYDOWN then
-		if event.key.keysym.sym == sdl.SDLK_LSHIFT then
+	elseif event[0].type == sdl.SDL_KEYDOWN then
+		if event[0].key.keysym.sym == sdl.SDLK_LSHIFT then
 			leftShiftDown = true
-		elseif event.key.keysym.sym == sdl.SDLK_RSHIFT then
+		elseif event[0].key.keysym.sym == sdl.SDLK_RSHIFT then
 			rightShiftDown = true
-		elseif event.key.keysym.sym == sdl.SDLK_LGUI then
+		elseif event[0].key.keysym.sym == sdl.SDLK_LGUI then
 			leftGuiDown = true
-		elseif event.key.keysym.sym == sdl.SDLK_RGUI then
+		elseif event[0].key.keysym.sym == sdl.SDLK_RGUI then
 			rightGuiDown = true
 		end
-	elseif event.type == sdl.SDL_KEYUP then
-		if event.key.keysym.sym == sdl.SDLK_LSHIFT then
+	elseif event[0].type == sdl.SDL_KEYUP then
+		if event[0].key.keysym.sym == sdl.SDLK_LSHIFT then
 			leftShiftDown = false
-		elseif event.key.keysym.sym == sdl.SDLK_RSHIFT then
+		elseif event[0].key.keysym.sym == sdl.SDLK_RSHIFT then
 			rightShiftDown = false
-		elseif event.key.keysym.sym == sdl.SDLK_LGUI then
+		elseif event[0].key.keysym.sym == sdl.SDLK_LGUI then
 			leftGuiDown = false
-		elseif event.key.keysym.sym == sdl.SDLK_RGUI then
+		elseif event[0].key.keysym.sym == sdl.SDLK_RGUI then
 			rightGuiDown = false
 		elseif canHandleKeyboard() then
-			if event.key.keysym.sym == sdl.SDLK_SPACE then
+			if event[0].key.keysym.sym == sdl.SDLK_SPACE then
 				self.running = not self.running
-			elseif event.key.keysym.sym == ('u'):byte() then
+			elseif event[0].key.keysym.sym == ('u'):byte() then
 				self.running = 'step'
-			elseif event.key.keysym.sym == ('r'):byte() then
+			elseif event[0].key.keysym.sym == ('r'):byte() then
 				print'resetting...'
 				for _,solver in ipairs(self.solvers) do
 					solver:resetState()
 				end
 				self.running = false
-			elseif event.key.keysym.sym == ('p'):byte() then
+			elseif event[0].key.keysym.sym == ('p'):byte() then
 				if shiftDown then
 					self:resetGradientTex()
 				else

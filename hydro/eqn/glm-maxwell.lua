@@ -82,6 +82,7 @@ end
 function GLM_Maxwell:getSymbolFields()
 	return GLM_Maxwell.super.getSymbolFields(self):append{
 		'sqrt_1_2',
+		'cons_setEB',
 	}
 end
 

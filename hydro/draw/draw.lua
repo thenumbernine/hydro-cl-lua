@@ -8,9 +8,12 @@ local path = require 'ext.path'
 local gl = require 'gl'
 local matrix_ffi = require 'matrix.ffi'
 
-matrix_ffi.real = 'float'	-- default matrix_ffi type
 
 local Draw = class()
+
+Draw.glslVersion = cmdline.glslVersion
+	and '#version '..cmdline.glslVersion
+	or require 'gl.program'.getVersionPragma()
 
 function Draw:init(solver)
 	self.solver = assert(solver)
@@ -36,20 +39,21 @@ function Draw:setupDisplayVarShader(shader, var, valueMin, valueMax)
 	if uniforms.displayFixed then
 		gl.glUniform2f(uniforms.displayFixed.loc, app.displayFixedY, app.displayFixedZ)
 	end
-	if uniforms.modelViewProjectionMatrix then
-		gl.glUniformMatrix4fv(uniforms.modelViewProjectionMatrix.loc, 1, 0, app.view.modelViewProjectionMatrix.ptr)
+	if uniforms.mvProjMat then
+		gl.glUniformMatrix4fv(uniforms.mvProjMat.loc, 1, gl.GL_FALSE, app.view.mvProjMat.ptr)
 	end
 	if uniforms.normalMatrix then
-		self.normalMatrix = self.normalMatrix or matrix_ffi.zeros{3,3}
+		self.normalMatrix = self.normalMatrix or matrix_ffi.zeros({3,3}, 'float')
 		--gl.glGetFloatv(gl.GL_NORMAL_MATRIX, self.normalMatrix.ptr)
-		-- invert app.view.modelViewMatrix's upper 3x3 into normalMatrix, then transpose
+		-- invert app.view.mvMat's upper 3x3 into normalMatrix, then transpose
 		-- but if it is purely a rotation matrix, this is the same as just the 3x3 portion ...
+		-- so TODO why even use this at all? just get the submatrix in GLSL ...
 		for j=0,2 do
 			for i=0,2 do
-				self.normalMatrix.ptr[i + 3 * j] = app.view.modelViewProjectionMatrix.ptr[i + 4 * j]
+				self.normalMatrix.ptr[i + 3 * j] = app.view.mvProjMat.ptr[i + 4 * j]
 			end
 		end
-		gl.glUniformMatrix3fv(uniforms.normalMatrix.loc, 1, 0, self.normalMatrix.ptr)
+		gl.glUniformMatrix3fv(uniforms.normalMatrix.loc, 1, gl.GL_FALSE, self.normalMatrix.ptr)
 	end
 	if uniforms.useCoordMap then
 		gl.glUniform1i(uniforms.useCoordMap.loc, app.display_useCoordMap and 1 or 0)
@@ -139,6 +143,83 @@ end
 
 function Draw:getModuleCodeGLSL(...)
 	return makeGLSL(self.solver.modules:getCodeAndHeader(...))
+end
+
+-- used in draw/1d_graph.lua and draw/2d_graph.lua
+function Draw:prepareGraphShader()
+	local solver = self.solver
+
+	if solver.graphShader then return end
+
+	local graphShaderCode = assert(path'hydro/draw/graph.glsl':read())
+
+	solver.graphShader = solver.GLProgram{
+		name = 'graph',
+		vertexCode = solver.eqn:template(graphShaderCode, {
+			draw = self,
+			vertexShader = true,
+		}),
+		fragmentCode = solver.eqn:template(graphShaderCode, {
+			draw = self,
+			fragmentShader = true,
+		}),
+		uniforms = {
+			tex = 0,
+			scale = 1,
+			ambient = 1,
+		},
+	}:useNone()
+end
+
+-- common function
+function Draw:drawGrid(xmin, xmax, ymin, ymax)
+	local app = self.solver.app
+
+	local gridz = 0	--.1
+
+	local sceneObj = app.drawLineSceneObj
+	local shader = sceneObj.program
+
+	shader:use()
+	sceneObj:enableAndSetAttrs()
+	gl.glUniformMatrix4fv(shader.uniforms.mvProjMat.loc, 1, gl.GL_FALSE, app.view.mvProjMat.ptr)
+	gl.glUniform4f(shader.uniforms.color.loc, .1, .1, .1, 1)
+
+	local xrange = xmax - xmin
+	local xstep = 10^math.floor(math.log(xrange, 10) - .5)
+	local xticmin = math.floor(xmin/xstep)
+	local xticmax = math.ceil(xmax/xstep)
+	for x=xticmin,xticmax do
+		-- TODO turn this into instanced geometry and make it draw faster
+		gl.glUniform3f(shader.uniforms.pt0.loc, x*xstep, ymin, gridz)
+		gl.glUniform3f(shader.uniforms.pt1.loc, x*xstep, ymax, gridz)
+		sceneObj.geometry:draw()
+	end
+	local yrange = ymax - ymin
+	local ystep = 10^math.floor(math.log(yrange, 10) - .5)
+	local yticmin = math.floor(ymin/ystep)
+	local yticmax = math.ceil(ymax/ystep)
+	for y=yticmin,yticmax do
+		-- TODO turn this into instanced geometry and make it draw faster
+		gl.glUniform3f(shader.uniforms.pt0.loc, xmin, y*ystep, gridz)
+		gl.glUniform3f(shader.uniforms.pt1.loc, xmax, y*ystep, gridz)
+		sceneObj.geometry:draw()
+	end
+
+	gl.glUniform4f(shader.uniforms.color.loc, .5, .5, .5, 1)
+
+	gl.glUniform3f(shader.uniforms.pt0.loc, xmin, 0, gridz)
+	gl.glUniform3f(shader.uniforms.pt1.loc, xmax, 0, gridz)
+	sceneObj.geometry:draw()
+
+	gl.glUniform3f(shader.uniforms.pt0.loc, 0, ymin, gridz)
+	gl.glUniform3f(shader.uniforms.pt1.loc, 0, ymax, gridz)
+	sceneObj.geometry:draw()
+
+	sceneObj:disableAttrs()
+	shader:useNone()
+
+	return ystep
 end
 
 return Draw

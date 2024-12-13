@@ -19,7 +19,7 @@ void main() {
 	x = vec4(coordMap(x.xyz), x.w);	
 	
 	vertexStart = x.xyz;	//this means we have to invert coordMap as we travel through the cartesian space
-	gl_Position = gl_ModelViewProjectionMatrix * x;
+	gl_Position = mvProjMat * x;
 }
 
 <? end
@@ -49,7 +49,7 @@ void main() {
 	float value = getVoxelValue(p);
 	float frac = getGradientFrac(value);
 	float gradTC = getGradientTexCoord(frac);
-	vec4 voxelColor = texture(gradientTex, gradTC);
+	vec4 voxelColor = texture(gradientTex, vec2(gradTC, .5));
 	
 	voxelColor.a = alpha;// * min(1., mod(value * 4., 3.));
 	voxelColor.a *= min(1., length(voxelColor.rgb));
@@ -73,7 +73,7 @@ void main() {
 		value = getVoxelValue(p);
 		frac = getGradientFrac(value);
 		gradTC = getGradientTexCoord(frac);
-		voxelColor = texture(gradientTex, gradTC);
+		voxelColor = texture(gradientTex, vec2(gradTC, .5));
 		//voxelColor.a /= min(1., length(voxelColor.rgb));
 
 		//don't bother with the gamma factor if we're using isobars

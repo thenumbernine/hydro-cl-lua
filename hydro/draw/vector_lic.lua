@@ -1,8 +1,10 @@
 local ffi = require 'ffi'
 local path = require 'ext.path'
+local assert = require 'ext.assert'
 local gl = require 'gl'
 local GLTex2D = require 'gl.tex2d'
 local Draw = require 'hydro.draw.draw'
+local GLSceneObject = require 'gl.sceneobject'
 
 
 local DrawVectorLIC = Draw:subclass()
@@ -28,12 +30,11 @@ var.solver = solver
 		:setParameter(gl.GL_TEXTURE_MAG_FILTER, app.displayBilinearTextures and gl.GL_LINEAR or gl.GL_NEAREST)
 	self.noiseTex:bind(2)
 
-	gl.glBegin(gl.GL_QUADS)
-	gl.glVertex2d(xmin, ymin)
-	gl.glVertex2d(xmax, ymin)
-	gl.glVertex2d(xmax, ymax)
-	gl.glVertex2d(xmin, ymax)
-	gl.glEnd()
+	gl.glUniform4f(shader.uniforms.bbox.loc, xmin, ymin, xmax, ymax)
+
+	-- TODO no more need to pass along shader every time?  or nah?
+	assert.eq(solver.vectorLICSceneObj.program, shader)
+	solver.vectorLICSceneObj:draw()
 
 	self.noiseTex:unbind(2)
 	tex:unbind(0)
@@ -91,6 +92,7 @@ function DrawVectorLIC:showDisplayVar(var, varName, ar, xmin, xmax, ymin, ymax)
 	shader:use()
 
 	app.gradientTex:bind(1)
+	gl.glActiveTexture(gl.GL_TEXTURE0)
 
 	self:setupDisplayVarShader(shader, var, valueMin, valueMax)
 
@@ -146,37 +148,8 @@ function DrawVectorLIC:display(varName, ar, graph_xmin, graph_xmax, graph_ymin, 
 
 --	gl.glEnable(gl.GL_DEPTH_TEST)
 
-	local gridz = 0	--.1
-
-	gl.glColor3f(.1, .1, .1)
-	local xrange = xmax - xmin
-	local xstep = 10^math.floor(math.log(xrange, 10) - .5)
-	local xticmin = math.floor(xmin/xstep)
-	local xticmax = math.ceil(xmax/xstep)
-	gl.glBegin(gl.GL_LINES)
-	for x=xticmin,xticmax do
-		gl.glVertex3f(x*xstep,ymin, gridz)
-		gl.glVertex3f(x*xstep,ymax, gridz)
-	end
-	gl.glEnd()
-	local yrange = ymax - ymin
-	local ystep = 10^math.floor(math.log(yrange, 10) - .5)
-	local yticmin = math.floor(ymin/ystep)
-	local yticmax = math.ceil(ymax/ystep)
-	gl.glBegin(gl.GL_LINES)
-	for y=yticmin,yticmax do
-		gl.glVertex3f(xmin,y*ystep, gridz)
-		gl.glVertex3f(xmax,y*ystep, gridz)
-	end
-	gl.glEnd()
-
-	gl.glColor3f(.5, .5, .5)
-	gl.glBegin(gl.GL_LINES)
-	gl.glVertex3f(xmin, 0, gridz)
-	gl.glVertex3f(xmax, 0, gridz)
-	gl.glVertex3f(0, ymin, gridz)
-	gl.glVertex3f(0, ymax, gridz)
-	gl.glEnd()
+	-- TODO one grid for all displaly instead of multiple calls...
+	self:drawGrid(xmin, xmax, ymin, ymax)
 
 	-- NOTICE overlays of multiple solvers won't be helpful.  It'll just draw over the last solver.
 	-- I've got to rethink the visualization
@@ -215,6 +188,11 @@ function DrawVectorLIC:prepareShader()
 			noiseTex = 2,
 		},
 	}:useNone()
+
+	solver.vectorLICSceneObj = GLSceneObject{
+		program = solver.vectorLICShader,
+		geometry = solver.app.quadGeom,
+	}
 end
 
 return DrawVectorLIC
