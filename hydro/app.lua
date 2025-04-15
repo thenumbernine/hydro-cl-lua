@@ -519,7 +519,7 @@ local sdl
 local Mouse
 if targetSystem ~= 'console' then
 	gl = require 'gl.setup' (cmdline.gl or 'OpenGL')
-	sdl = require 'ffi.req' 'sdl'
+	sdl = require 'sdl'
 	Mouse = require 'glapp.mouse'
 end
 

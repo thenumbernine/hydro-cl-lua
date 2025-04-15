@@ -9,7 +9,7 @@ local path = require 'ext.path'
 local rundir = path:cwd()
 path'../..':cd()
 
-local sdl = require 'ffi.req' 'sdl'
+local sdl = require 'sdl'
 local table = require 'ext.table'
 local range = require 'ext.range'
 local os = require 'ext.os'
