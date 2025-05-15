@@ -536,7 +536,7 @@ local ig
 local baseSystems = {
 	{imguiapp = function()
 		ig = require 'imgui'
-		return require 'imguiapp'
+		return require 'imgui.app'
 	end},
 	{glapp = function()
 
