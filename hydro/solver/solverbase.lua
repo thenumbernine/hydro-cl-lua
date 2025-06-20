@@ -1995,9 +1995,12 @@ end ?><?=group.extraArgs and #group.extraArgs > 0
 						Buffer = group.toBufferKernelName,
 					})[texVsBuf] or error'here',
 					outputArg = ({
-						-- nvidia needed 'write_only', but I don't want to write only -- I want to accumulate and do other operations
-						-- TODO if I do accumulate, then I will need to ensure the buffer is initialized to zero ...
-						Tex = 'write_only '..(self.dim == 3 and 'image3d_t' or 'image2d_t')..' tex',
+						Tex =
+							-- nvidia needed 'write_only', but I don't want to write only -- I want to accumulate and do other operations
+							-- TODO if I do accumulate, then I will need to ensure the buffer is initialized to zero ...
+							--'write_only '..
+							-- annnnd intel correctly failed with write_only set.  so it goes back out.  until I run this on nvidia again, and work around their trash quality support of OpenCL.
+							(self.dim == 3 and 'image3d_t' or 'image2d_t')..' tex',
 						Buffer = 'global real* dest',
 					})[texVsBuf] or error'here',
 					addTab = addTab,
