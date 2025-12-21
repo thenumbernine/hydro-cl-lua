@@ -1435,8 +1435,8 @@ function HydroCLApp:saveHeatMapBufferImages()
 	self.font = nil
 
 	--[[
-	local FBO = require 'gl.fbo'
-	local fbo = FBO()
+	local GLFramebuffer = require 'gl.framebuffer'
+	local fbo = GLFramebuffer()
 		:unbind()
 	--]]
 	for _,solver in ipairs(self.solvers) do
