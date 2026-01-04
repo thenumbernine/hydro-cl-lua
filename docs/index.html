@@ -5,94 +5,193 @@
 		<script type='text/javascript' src='tryToFindMathJax.js'></script>
 		<link rel='stylesheet' href='darkmode.css'></link>
 		<script type='text/javascript' src='darkmode.js'></script>
+		<style>
+.indent {
+	padding-left:1em;
+}
+		</style>
 	</head>
 	<body>
-	
+
 		I've got a lot of equations in the <code>hydro/eqn/</code> folder.<br>
 		I'll try to sort out where the deriving work comes from.<br>
 		In a perfect world, I'd move all their calculation symmath notebooks into here and just automate the code generation of every equation in one fell swoop.<br>
 		<br>
 
 		Wave Equation:<br>
-		<a href='../hydro/eqn/wave.lua'>wave.lua</a> - Wave Equation, Finite-Volume.<br>
-		<a href='../hydro/eqn/wave-fd.lua'>wave-fd.lua</a> - Wave Equation, Finite-Difference.<br>
-		<a href='../hydro/eqn/wave_metric.lua'>wave_metric.lua</a> - Wave Equation with background metric tensor support (distinct of the grid coordinate chart?).<br>
+		<div class='indent'>
+			<a href='../hydro/eqn/wave.lua'>wave.lua</a> - Wave Equation, Finite-Volume.<br>
+			<a href='../hydro/eqn/wave_metric.lua'>wave_metric.lua</a> - Wave Equation with background metric tensor support (distinct of the grid coordinate chart?).<br>
+			<div class='indent'>
+				work and notes:<br>
+				<a href="https://thenumbernine.github.io/lua/symmath/tests/output/wave%20equation%20in%20spacetime.html">lua/symmath/tests/output/wave equation in spacetime.html</a> - symmath script to rearrange curved-space wave equation terms into a PDE.<br>
+				<a href="https://thenumbernine.github.io/lua/symmath/tests/output/wave%20equation%20in%20spacetime%20%2d%20flux%20eigenvectors.html">lua/symmath/tests/output/wave equation in spacetime - flux eigenvectors.html</a> - has flux derivative, eigensystem wrt a metric, but not in terms of an arbitrary-normal basis.<br>
+				<a href="https://thenumbernine.github.io/math/wave%20equation%20hyperbolic%20form.html">math/wave equation hyperbolic form.html</a> - by hand, succeeds "wave equation in spacetime".  has flux eigensystem in terms of an arbitrary coordinate system and arbitrary normal basis.<br>
+			</div>
+		</div>
 		<br>
-		
+
+		Wave Equation - Finite-Difference:<br>
+		<div class='indent'>
+			<a href='../hydro/eqn/wave-fd.lua'>wave-fd.lua</a> - Wave Equation, Finite-Difference.<br>
+			<div class='indent'>
+				work and notes:<br>
+				<a href="https://thenumbernine.github.io/math/wave%20equation%20in%20curved%20spacetime%20%2d%20finite%20difference.html">math/wave equation in curved spacetime - finite difference.html</a> - the filenames relate, but maybe it's completely different.<br>
+			</div>
+		</div>
+		<br>
+
 		Quantum Physics:<br>
-		<a href='../hydro/eqn/nls.lua'>nls.lua</a> - Non-Linear Schrodinger Equation, Finite-Difference (I think?)<br>
-		<a href='../hydro/eqn/schrodinger-fd.lua'>schrodinger-fd.lua</a> - Schrodinger Equation, Finite-Difference.<br>
+		<div class='indent'>
+			<a href='../hydro/eqn/nls.lua'>nls.lua</a> - Non-Linear Schrodinger Equation, Finite-Difference (I think?)<br>
+			<a href='../hydro/eqn/schrodinger-fd.lua'>schrodinger-fd.lua</a> - Schrodinger Equation, Finite-Difference.<br>
+		</div>
 		<br>
-		
+
 		Fluid Dynamics - Shallow Water Equations:<br>
-		<a href='../hydro/eqn/shallow-water.lua'>shallow-water.lua</a><br>
+		<div class='indent'>
+			<a href='../hydro/eqn/shallow-water.lua'>shallow-water.lua</a><br>
+			<div class='indent'>
+				work and notes:<br>
+				<a href="https://thenumbernine.github.io/math/CFD/Shallow%20Water.html">math/CFD/Shallow Water.html</a> - by hand, has flux derivative, acoustic matrix, arbitrary normal basis.<br>
+				<a href="https://thenumbernine.github.io/lua/symmath/tests/output/Shallow%20Water%20equations%20%2d%20flux%20eigenvectors.html">lua/symmath/tests/output/Shallow Water equations - flux eigenvectors.html</a> - symmath script, has flux derivative, acoustic matrix, arbitrary normal eigensystem, and code-generation.<br>
+			</div>
+		</div>
 		<br>
 
 		Fluid Dynamics - Euler Fluid Equations:<br>
-		<a href='../hydro/eqn/euler.lua'>euler.lua</a> - Euler fluid equation, Finite-Volume.<br>
-		<a href='../hydro/eqn/euler_prim.lua'>euler_prim.lua</a> - An attempt to recast the Euler equations flux-vector-split using their primitive vars, at the suggestion of a professor, which is currently very unstable and going nowhere.<br>
+		<div class='indent'>
+			<a href='../hydro/eqn/euler.lua'>euler.lua</a> - Euler fluid equation, Finite-Volume.<br>
+			<a href='../hydro/eqn/euler_prim.lua'>euler_prim.lua</a> - An attempt to recast the Euler equations flux-vector-split using their primitive vars, at the suggestion of a professor, which is currently very unstable and going nowhere.<br>
+			<div class='indent'>
+				work and notes:<br>
+				<a href="https://thenumbernine.github.io/lua/symmath/tests/output/Euler%20fluid%20equations%20%2d%20flux%20eigenvectors.html">lua/symmath/tests/output/Euler fluid equations - flux eigenvectors.html</a> - has code-generation in it.<br>
+				<a href="https://thenumbernine.github.io/symmath/index.html?open=/symmath/tests/Euler%20fluid%20equations%20-%20flux%20eigenvectors.symmath">Euler fluid equations - flux eigenvectors.symmath</a> - matches above, but without code-generation, and as a worksheet.<br>
+				<a href="https://thenumbernine.github.io/math/CFD/Euler%20Fluid%20Equations%20%2d%20Curved%20Geometry%20%2d%20Contravariant.html">math/CFD/Euler Fluid Equations - Curved Geometry - Contravariant.html</a> - matches above, but by hand and not fully ported to arbitrary-normal-basis.</a><br>
+				<a href="https://thenumbernine.github.io/lua/symmath/tests/output/Euler%20fluid%20equations%20%2d%20primitive%20form.html">lua/symmath/tests/output/Euler fluid equations - primitive form.html</a><br>
+				<a href="https://thenumbernine.github.io/math/CFD/Euler%20Fluid%20Equations%20%2d%20Entropy%20Function.html"</a>math/CFD/Euler Fluid Equations - Entropy Function.html</a><br>
+			</div>
+		</div>
 		<br>
-		
+
 		Fluid Dynamics - Navier-Stokes Equations:<br>
-		<a href='../hydro/eqn/navstokes-incomp.lua'>navstokes-incomp.lua</a> - Navier-Stokes, incompressible (via divergence-free projection?), maybe with viscous term as a separate solver?<br>
-		<a href='../hydro/eqn/navstokes-wilcox.lua'>navstokes-wilcox.lua</a> - an attempt at Navier-Stokes-Wilcox which I haven't got working yet.<br>
+		<div class='indent'>
+			<a href='../hydro/eqn/navstokes-incomp.lua'>navstokes-incomp.lua</a> - Navier-Stokes, incompressible (via divergence-free projection?), maybe with viscous term as a separate solver?<br>
+			<a href='../hydro/eqn/navstokes-wilcox.lua'>navstokes-wilcox.lua</a> - an attempt at Navier-Stokes-Wilcox which I haven't got working yet.<br>
+		</div>
 		<br>
-		
+
 		Special-Relativistic Euler Fluid Equations:<br>
-		<a href='../hydro/eqn/srhd.lua'>srhd.lua</a><br>
+		<div class='indent'>
+			<a href='../hydro/eqn/srhd.lua'>srhd.lua</a><br>
+			<div class='indent'>
+				work and notes:<br>
+				<a href="https://thenumbernine.github.io/math/CFD/SRHD.html">math/CFD/SRHD.html</a> - by hand notes, and the most complete, gets as far as acoustic matrix calcuations.<br>
+				<a href="https://thenumbernine.github.io/lua/symmath/tests/output/SRHD_1D.html">lua/symmath/tests/output/SRHD_1D.html</a> - symmath script, has half of the previous, gets as far as the flux partial wrt the primitives.<br>
+				<a href="https://thenumbernine.github.io/lua/symmath/tests/output/SRHD.html">lua/symmath/tests/output/SRHD.html</a> - symmath script, the very start of me doing a 3D version of the above.<br>
+			</div>
+		</div>
 		<br>
-	
+
 		Maxwell Equations:<br>
-		<a href='../hydro/eqn/maxwell.lua'>maxwell.lua</a> - Maxwell using divergence-free projection.<br>
-		<a href='../hydro/eqn/glm-maxwell.lua'>glm-maxwell.lua</a> - Maxwell using generalized-lagrangian-multiplier (G.L.M.).<br>
-		<a href='../hydro/eqn/maxwell_A_wave.lua'>maxwell_A_wave.lua</a> - Maxwell in its wave equation form, using divergence-free projection, probably not finished.<br>
-		<a href='../hydro/eqn/glm-maxwell-A-wave.lua'>glm-maxwell-A-wave.lua</a> Maxwell using G.L.M., probably not finished.<br>
+		<div class='indent'>
+			<a href='../hydro/eqn/maxwell.lua'>maxwell.lua</a> - Maxwell using divergence-free projection.<br>
+			<div class='indent'>
+				work and notes:<br>
+				<a href="https://thenumbernine.github.io/lua/symmath/tests/output/Maxwell%20equations%20%2d%20flux%20eigenvectors.html">lua/symmath/tests/output/Maxwell equations - flux eigenvectors.html</a><br>
+				<a href="https://thenumbernine.github.io/math/Electromagnetism/Maxwell%20equations%20in%20hyperbolic%20form.html">math/Electromagnetism/Maxwell equations in hyperbolic form.html</a> - has flux eigensystem in arbitrary normal basis, and includes GLM calculations as well.<br>
+				<a href="https://thenumbernine.github.io/math/Electromagnetism/Maxwell%20Equations%20%2d%20Eigenmode%20Analysis.html">math/Electromagnetism/Maxwell Equations - Eigenmode Analysis.html</a><br>
+			</div>
+			<br>
+			<a href='../hydro/eqn/glm-maxwell.lua'>glm-maxwell.lua</a> - Maxwell using generalized-lagrangian-multiplier (G.L.M.).<br>
+			<div class='indent'>
+				work and notes:<br>
+				<a href="https://thenumbernine.github.io/lua/symmath/tests/output/GLM%2dMaxwell%20equations%20%2d%20flux%20eigenvectors.html">lua/symmath/tests/output/GLM-Maxwell equations - flux eigenvectors.html</a> - has flux eigensystem in arbitrary normal basis, and has code generation.<br>
+			</div>
+			<br>
+			<a href='../hydro/eqn/maxwell_A_wave.lua'>maxwell_A_wave.lua</a> - Maxwell in its wave equation form, using divergence-free projection, probably not finished.<br>
+			<a href='../hydro/eqn/glm-maxwell-A-wave.lua'>glm-maxwell-A-wave.lua</a> Maxwell using G.L.M., probably not finished.<br>
+			<div class='indent'>
+				work and notes:<br>
+				<a href="https://thenumbernine.github.io/math/MHD/MHD%20A%2dwave.html">math/MHD/MHD A-wave.html</a><br>
+			</div>
+		</div>
 		<br>
 
 		Magnetohydrodynamics:<br>
-		<a href='../hydro/eqn/mhd.lua'>mhd.lua</a> - Ideal MHD with divergence-free projection<br>
-		<a href='../hydro/eqn/glm-mhd.lua'>glm-mhd.lua</a> - Ideal MHD with G.L.M.<br>
+		<div class='indent'>
+			<a href='../hydro/eqn/mhd.lua'>mhd.lua</a> - Ideal MHD with divergence-free projection<br>
+			<a href='../hydro/eqn/glm-mhd.lua'>glm-mhd.lua</a> - Ideal MHD with G.L.M.<br>
+			<div class='indent'>
+				work and notes:<br>
+				<a href="https://thenumbernine.github.io/lua/symmath/tests/output/MHD%20%2d%20flux%20eigenvectors.html">lua/symmath/tests/output/MHD - flux eigenvectors.html</a><br>
+				<a href="https://thenumbernine.github.io/lua/symmath/tests/output/MHD%20inverse.html">lua/symmath/tests/output/MHD inverse.html</a><br>
+				<a href="https://thenumbernine.github.io/lua/symmath/tests/output/MHD%20symmetrization.html">lua/symmath/tests/output/MHD symmetrization.html</a><br>
+			</div>
+		</div>
 		<br>
 
 		Maxwell (E+B fields) + Hydrodynamics:<br>
-		<a href='../hydro/eqn/twofluid-emhd.lua'>twofluid-emhd.lua</a><br>
-		<a href='../hydro/eqn/twofluid-emhd-composite.lua'>twofluid-emhd-composite.lua</a><br>
+		<div class='indent'>
+			<a href='../hydro/eqn/twofluid-emhd.lua'>twofluid-emhd.lua</a><br>
+			<a href='../hydro/eqn/twofluid-emhd-composite.lua'>twofluid-emhd-composite.lua</a><br>
+		</div>
 		<br>
 
 		Gravito-Electro-Magnetism, aka de-Donder Gauge Linearized General Relativity:<br>
-		<a href='../hydro/eqn/lingr.lua'>lingr.lua</a><br>
+		<div class='indent'>
+			<a href='../hydro/eqn/lingr.lua'>lingr.lua</a><br>
+		</div>
 		<br>
 
 		Euler Fluid Equations + Linearized GR:<br>
-		<a href='../hydro/eqn/euler-lingr.lua'>euler-lingr.lua</a><br>
+		<div class='indent'>
+			<a href='../hydro/eqn/euler-lingr.lua'>euler-lingr.lua</a><br>
+		</div>
 		<br>
-		
+
 		Maxwell + Euler Fluid Equations + Linearized GR:<br>
-		<a href='../hydro/eqn/twofluid-emhd-lingr.lua'>twofluid-emhd-lingr.lua</a><br>
+		<div class='indent'>
+			<a href='../hydro/eqn/twofluid-emhd-lingr.lua'>twofluid-emhd-lingr.lua</a><br>
+		</div>
 		<br>
 
 		General Relativity:<Br>
-		<a href='../hydro/eqn/adm1d_v1.lua'>adm1d_v1.lua</a> - ADM, 1D only<br>
-		<a href='../hydro/eqn/adm1d_v2b.lua'>adm1d_v2b.lua</a> - ADM, 1D only<br>
-		<a href='../hydro/eqn/adm1d_v2.lua'>adm1d_v2.lua</a> - ADM, 1D only<br>
-		<a href='../hydro/eqn/adm3d.lua'>adm3d.lua</a> - ADM, 3D, Finite-Volume, violates Hamiltonian constraint for the sake of stability.<br>
-		<a href='../hydro/eqn/bssnok-fd-num.lua'>bssnok-fd-num.lua</a> - BSSNOK, Finite-Difference, without runtime code generation.<br>
-		<a href='../hydro/eqn/bssnok-fd-sym.lua'>bssnok-fd-sym.lua</a> - BSSNOK, Finite-Difference, attempt at runtime code generation + simplification (to remove 1/r's), not working last I checked<br>
-		<a href='../hydro/eqn/z4c-fd.lua'>z4c-fd.lua</a> - Z4C, Finite-Difference, probably neglected and broken.<br>
-		<a href='../hydro/eqn/z4_2008yano.lua'>z4_2008yano.lua</a> - Z4 based on 2008 Yano eigensystem, which I found math errors in the paper's eigensystem, and coincidentally I didn't get it to run stable.<br>
-		<a href='../hydro/eqn/z4.lua'>z4.lua</a> - Z4 based on eigensystem I worked out by hand.  Works.  But no shift block is included in the matrix.<br>
+		<div class='indent'>
+			<a href='../hydro/eqn/adm1d_v1.lua'>adm1d_v1.lua</a> - ADM, 1D only<br>
+			<a href='../hydro/eqn/adm1d_v2b.lua'>adm1d_v2b.lua</a> - ADM, 1D only<br>
+			<a href='../hydro/eqn/adm1d_v2.lua'>adm1d_v2.lua</a> - ADM, 1D only<br>
+			<a href='../hydro/eqn/adm3d.lua'>adm3d.lua</a> - ADM, 3D, Finite-Volume, violates Hamiltonian constraint for the sake of stability.<br>
+			<a href='../hydro/eqn/bssnok-fd-num.lua'>bssnok-fd-num.lua</a> - BSSNOK, Finite-Difference, without runtime code generation.<br>
+			<a href='../hydro/eqn/bssnok-fd-sym.lua'>bssnok-fd-sym.lua</a> - BSSNOK, Finite-Difference, attempt at runtime code generation + simplification (to remove 1/r's), not working last I checked<br>
+			<a href='../hydro/eqn/z4c-fd.lua'>z4c-fd.lua</a> - Z4C, Finite-Difference, probably neglected and broken.<br>
+			<a href='../hydro/eqn/z4.lua'>z4.lua</a> - Z4 based on eigensystem I worked out by hand.  Works.  But no shift block is included in the matrix.<br>
+			<br>
+
+			<a href='../hydro/eqn/z4_2008yano.lua'>z4_2008yano.lua</a> - Z4 based on 2008 Yano eigensystem, which I found math errors in the paper's eigensystem, and coincidentally I didn't get it to run stable.<br>
+			<div class='indent'>
+				work and notes:<br>
+				<a href="https://thenumbernine.github.io/numrel%2dcodegen/flux_matrix_output/verify_2008_yano.html">numrel-codegen/flux_matrix_output/verify_2008_yano.html</a><br>
+			</div>
+		</div>
 		<br>
 
 		General Relativity + Maxwell:<br>
-		<a href='../hydro/eqn/gr-maxwell.lua'>gr-maxwell.lua</a> - not finished<br>
+		<div class='indent'>
+			<a href='../hydro/eqn/gr-maxwell.lua'>gr-maxwell.lua</a> - not finished<br>
+		</div>
 		<br>
-		
+
 		General Relativity + Euler Fluid Equations:<br>
-		<a href='../hydro/eqn/grhd.lua'>grhd.lua</a> - not finished<br>
+		<div class='indent'>
+			<a href='../hydro/eqn/grhd.lua'>grhd.lua</a> - not finished<br>
+		</div>
 		<br>
-		
+
 		General Relativity + Ideal MHD:<br>
-		<a href='../hydro/eqn/grmhd.lua'>grmhd.lua</a> - not finished<br>
+		<div class='indent'>
+			<a href='../hydro/eqn/grmhd.lua'>grmhd.lua</a> - not finished<br>
+		</div>
 		<br>
 
 	</body>
