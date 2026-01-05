@@ -39,7 +39,7 @@ Fluid Dynamics - Euler Fluid Equations:<br>
 - - [`Euler fluid equations - flux eigenvectors.symmath`](https://thenumbernine.github.io/symmath/index.html?open=/symmath/tests/Euler%20fluid%20equations%20-%20flux%20eigenvectors.symmath) - matches above, but without code-generation, and as a worksheet.<br>
 - - [`math/CFD/Euler Fluid Equations - Curved Geometry - Contravariant.html`](https://thenumbernine.github.io/math/CFD/Euler%20Fluid%20Equations%20%2d%20Curved%20Geometry%20%2d%20Contravariant.html) - matches above, but by hand and not fully ported to arbitrary-normal-basis.</a><br>
 - - [`lua/symmath/tests/output/Euler fluid equations - primitive form.html`](https://thenumbernine.github.io/lua/symmath/tests/output/Euler%20fluid%20equations%20%2d%20primitive%20form.html)<br>
-- - <a href="https://thenumbernine.github.io/math/CFD/Euler%20Fluid%20Equations%20%2d%20Entropy%20Function.html"</a>math/CFD/Euler Fluid Equations - Entropy Function.html</a><br>
+- - [`math/CFD/Euler Fluid Equations - Entropy Function.html`](https://thenumbernine.github.io/math/CFD/Euler%20Fluid%20Equations%20%2d%20Entropy%20Function.html)<br>
 <br>
 
 Fluid Dynamics - Navier-Stokes Equations:<br>
