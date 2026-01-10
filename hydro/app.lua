@@ -484,6 +484,11 @@ set to true to use the code in cache-bin instead of regenerating it
 -- ... does that matter?
 }:fromTable(cmdline)
 
+-- if we're using cl-cpu then disable cache by default
+if package.loaded['cl-cpu'] and cmdline.useCache == nil then
+	cmdline.useCache = false
+end
+
 if cmdline.srand then
 	math.randomseed(os.time())
 end
