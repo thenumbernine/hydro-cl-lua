@@ -93,9 +93,17 @@ function MHD:init(args)
 
 	self.roeStruct = Struct{
 		name = solver.app:uniqueName'roe_t',
-		packed = true,
+		union = true,
 		cdef = false,
-		fields = self.roeVars,
+		packed = true,
+		fields = {
+			{type = Struct{
+				anonymous = true,
+				packed = true,
+				fields = self.roeVars,
+			}},
+			{name = 'ptr', type = 'real[1]'},
+		},
 	}.class
 	self.symbols.roe_t = self.roeStruct.name
 

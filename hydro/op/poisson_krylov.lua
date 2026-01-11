@@ -93,6 +93,10 @@ function PoissonKrylov:initSolver()
 		}
 	end
 
+-- TODO why for MHD are we building OpenCL here when we're not supposed to be building OpenCL?
+local pushBuildingOpenCL = solver.app.buildingOpenCL
+solver.app.buildingOpenCL = true
+
 	-- just headers are needed
 	local codePrefix = solver.modules:getHeader(
 		table(solver.sharedModulesEnabled:keys())
@@ -121,6 +125,9 @@ function PoissonKrylov:initSolver()
 	y[index] = a[index] * b[index];
 ]],
 	}
+
+mulWithoutBorderKernelObj:compile() 
+solver.app.buildingOpenCL = pushBuildingOpenCL
 
 	local squareKernelObj = solver.domain:kernel{
 		name = self.symbols.square,
