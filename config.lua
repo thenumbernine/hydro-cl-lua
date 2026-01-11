@@ -5,7 +5,7 @@ and no more setting config values (boundary, etc) in the init cond file
 local constants = require 'hydro.constants'
 local materials = require 'hydro.materials'
 
-local dim = cmdline.dim or 3
+local dim = cmdline.dim or 2
 local args = {
 	app = self,
 	dim = dim,
@@ -384,7 +384,7 @@ local args = {
 	--]]
 
 
-	--initCond = 'rectangle',
+	initCond = 'rectangle',
 	--initCond = 'Sedov',
 	--initCond = 'Noh',
 	--initCond = 'implosion',
@@ -453,7 +453,7 @@ local args = {
 	-- self-gravitation tests:
 	--initCond = 'self-gravitation - Earth',	-- validating units along with self-gravitation.
 	--initCond = 'self-gravitation - NGC 1560',	-- TODO still needs velocity
-	initCond = 'self-gravitation - NGC 3198',
+	--initCond = 'self-gravitation - NGC 3198',
 	--initCond = 'self-gravitation test 1',
 	--initCond = 'self-gravitation test 1 spinning',
 	--initCond = 'self-gravitation test 2',		--FIXME
@@ -714,7 +714,7 @@ self.solvers:insert(require 'hydro.solver.lattice-boltzmann'(table(args, {
 
 
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='wave'})))
---self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='wave'})))
+self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='wave'})))
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='rusanov', eqn='wave'})))
 --self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='wave', wenoMethod='1996 Jiang Shu', order=5})))
 --self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='wave', wenoMethod='2008 Borges', order=5})))
@@ -914,7 +914,7 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {
 -- compressible Euler fluid equations + de-Donder gauge linearized GR
 
 
-self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler-lingr'})))
+--self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler-lingr'})))
 
 
 -- incompressible

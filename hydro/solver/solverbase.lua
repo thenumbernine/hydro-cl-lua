@@ -207,6 +207,7 @@ local path = require 'ext.path'
 local math = require 'ext.math'
 local tolua = require 'ext.tolua'
 local range = require 'ext.range'
+local assert = require 'ext.assert'
 local os = require 'ext.os'
 local gl = require 'gl'
 local glreport = require 'gl.report'
@@ -3842,30 +3843,36 @@ function SolverBase:checkStructSizes()
 	):keys():sort()
 	for _,module in ipairs(self.modules:getDependentModules(moduleNames:unpack())) do
 		for _,struct in ipairs(module.structs) do
-			--print('checking for struct '..struct.name..' from module '..module.name)
-			if not typeinfos:find(struct)
-			and not typeinfos:find(struct.name)
-			then
-if self.app.verbose then print('adding struct '..struct.name..' from module '..module.name) end
+			local structname = struct.name
+			--print('checking for struct '..structname..' from module '..module.name)
+			-- sorry, can't convert to luajit ffi ctype name, since the OpenCL doesn't have the same names.
+			--struct = ffi.typeof(structname)
+
+			if not typeinfos:find(struct) then
+if self.app.verbose then print('adding struct '..structname..' from module '..module.name) end
 				typeinfos:insert(struct)
 			end
 		end
 	end
 --]=]
 
-
 	local varcount = 0
 	for _,typeinfo in ipairs(typeinfos) do
-		varcount = varcount + 1
+print('#'..varcount..' type', typeinfo)
 		if type(typeinfo) == 'string' then
-			typeinfo = ffi.typeof(typeinfo)
-		end
-		if Struct:isa(typeinfo) then
-			for _,field in typeinfo:fielditer() do
+			varcount = varcount + 1
+		elseif Struct:isa(typeinfo) then
+			varcount = varcount + 1
+print('... is Struct', ffi.typeof(typeinfo.name), typeinfo.name)
+			for fieldname,fieldctype,field in typeinfo:fielditer() do
+print('#'..varcount..' field', fieldname, fieldctype)
 				varcount = varcount + 1
 			end
+		else
+			error("here with unknown typeinfo")
 		end
 	end
+print('total vars', varcount)
 
 	local cmd = self.cmds
 	local _1x1_domain = self.app.env:domain{size={1}, dim=1}
@@ -3922,6 +3929,7 @@ end
 	}
 	testStructProgramObj:compile()
 --]=]
+	local codeGenAccountedVarCountResult = {}
 	local body = template([[
 <?
 local Struct = require 'struct'
@@ -3936,27 +3944,31 @@ for i,typeinfo in ipairs(typeinfos) do
 ?>	result[<?=index?>] = sizeof(<?=typeinfo?>);
 <?
 		index = index + 1
-	else
-		if Struct:isa(typeinfo) then
+	elseif Struct:isa(typeinfo) then
 ?>	result[<?=index?>] = sizeof(<?=typeinfo.name?>);
 <?
-			index = index + 1
-			for _,field in ipairs(typeinfo.fields) do
-?>	result[<?=index?>] = offsetof(<?=typeinfo.name?>, <?=field.name?>);
+		index = index + 1
+		for fieldname,fieldctype,field in typeinfo:fielditer() do
+?>	result[<?=index?>] = offsetof(<?=typeinfo.name?>, <?=fieldname?>);
 <?
-				index = index + 1
-			end
+			index = index + 1
 		end
 	end
 end
+codeGenAccountedVarCountResult[1] = index
 ?>
 ]], {
 		typeinfos = typeinfos,
+		varcount = varcount,
+		codeGenAccountedVarCountResult = codeGenAccountedVarCountResult,
 	})
 print'codePrefix:'
 print(require 'template.showcode'(codePrefix))
 print'body:'
 print(require 'template.showcode'(body))
+	if codeGenAccountedVarCountResult[1] ~= varcount then
+		error('!!!DANGER!!! varcount='..varcount..' but we accounted for '..codeGenAccountedVarCountResult[1])
+	end
 	require 'cl.obj.kernel'{
 		env = self.app.env,
 		domain = _1x1_domain,
@@ -3973,21 +3985,22 @@ print(require 'template.showcode'(body))
 			index = index + 1
 			local ffisize = tostring(ffi.sizeof(typeinfo))
 			print('sizeof('..typeinfo..'): OpenCL='..clsize..', ffi='..ffisize..(clsize == ffisize and '' or ' -- !!!DANGER!!!'))
-		else
+		elseif Struct:isa(typeinfo) then
 			local clsize = tostring(resultPtr[index]):match'%d+'
 			index = index + 1
-			if Struct:isa(typeinfo) then
-				local ffisize = tostring(ffi.sizeof(typeinfo.name))
-				print('sizeof('..typeinfo.name..'): OpenCL='..clsize..', ffi='..ffisize..(clsize == ffisize and '' or ' -- !!!DANGER!!!'))
+			local ffisize = tostring(ffi.sizeof(typeinfo.name))
+			print('sizeof('..typeinfo.name..'): OpenCL='..clsize..', ffi='..ffisize..(clsize == ffisize and '' or ' -- !!!DANGER!!!'))
 
-				for _,field in ipairs(typeinfo.fields) do
-					local cloffset = tostring(resultPtr[index]):match'%d+'
-					index = index + 1
-					local ffioffset = tostring(ffi.offsetof(typeinfo.name, field.name))
-					print('offsetof('..typeinfo.name..', '..field.name..'): OpenCL='..cloffset..', ffi='..ffioffset..(cloffset == ffioffset and '' or ' -- !!!DANGER!!!'))
-				end
+			for fieldname,fieldctype,field in typeinfo:fielditer() do
+				local cloffset = tostring(resultPtr[index]):match'%d+'
+				index = index + 1
+				local ffioffset = tostring(ffi.offsetof(typeinfo.name, fieldname))
+				print('offsetof('..typeinfo.name..', '..fieldname..'): OpenCL='..cloffset..', ffi='..ffioffset..(cloffset == ffioffset and '' or ' -- !!!DANGER!!!'))
 			end
 		end
+	end
+	if index ~= varcount then
+		error('!!!DANGER!!! varcount='..varcount..' but we accounted for '..index)
 	end
 	print('done')
 	os.exit()
