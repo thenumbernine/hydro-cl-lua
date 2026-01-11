@@ -407,7 +407,7 @@ local args = {
 	--initCond = 'radial gaussian',
 
 	-- 2002 Kurganov, Tadmor, "Solution of Two-Dimensional Riemann Problems for Gas Dynamics without Riemann Problem Solvers"
-	initCond = 'configuration 1',
+	--initCond = 'configuration 1',
 	--initCond = 'configuration 2',
 	--initCond = 'configuration 3',
 	--initCond = 'configuration 4',
@@ -415,6 +415,7 @@ local args = {
 	--initCond = 'configuration 6',
 
 	-- states for ideal MHD or two-fluid (not two-fluid-separate)
+	initCond = 'MHD linear wave',
 	--initCond = 'Brio-Wu',
 	--initCond = 'Orszag-Tang',
 	--initCond = 'MHD rotor',

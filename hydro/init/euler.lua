@@ -804,6 +804,70 @@ end
 		end,
 	},
 
+	-- MHD linear wave
+	{
+		name = 'MHD linear wave',
+		mins = {0,0,0},
+		maxs = {1,1,1},
+		solverVars = {
+			heatCapacityRatio = 1.4,
+		},
+		-- TODO how to allow the init cond access to the eigensystem code?
+		getInitCondCode = function(self)
+			local solver = assert(self.solver)
+			return solver.eqn:template[[
+// TODO build U from (rho, rho*v, B, ETotal)
+// then build eigen info
+// then multiply U by left-transform of eigen info
+// then perturb by delta_ij * epsilon * cos(k dot x) for delta_ij = impulse at j'th eigenvector, epsilon=1e-5, and k = wavespeed/direction
+// then multiply back by right-transform of eigen info
+		{
+			real const initWaveAmpl = 1e-5;
+			real3 const initWaveVel = _real3(1., 0., 0.);
+			int const initWaveIndex = 0;
+
+			<?=prim_t?> W;
+			W.rho = rho;
+			W.v = v;
+			W.B = B;
+			W.P = P;
+			<?=cons_t?> U;
+			<?=consFromPrim?>(&U, solver, &W, x);
+
+			// wait ... the eigensystem depends on a direction ...
+			// what direction to use?
+			// the wave front direction?
+			// the x direction?
+#if 0 // oh wait can I not calculate arbitrary normal coords in my coord-aligned grid solver?
+			<?=normal_t?> n = real3_add3(
+				real3_real_mul(normal_forSide0(x), initWaveVel.x),
+				real3_real_mul(normal_forSide1(x), initWaveVel.y),
+				real3_real_mul(normal_forSide2(x), initWaveVel.z)
+			);
+#endif
+#if 1
+			<?=normal_t?> n = normal_forSide0(x);
+#endif
+
+			<?=eigen_t?> eig;
+			<?=eigen_forCell?>(&eig, solver, &U, x, n);
+	
+			<?=waves_t?> waves;
+			<?=eigen_leftTransform?>(&waves, solver, &eig, &dUL, xIntL, normal_forSide<?=side?>(xIntL));
+
+			waves.ptr[initWaveIndex] += initWaveAmpl * cos(real3_dot(initWaveVel, x));
+
+			<?=eigen_rightTransform?>(&U, solver, &eig, &waves, x, n);
+			<?=primFromCons?>(&W, solver, &U, x);
+			rho = W.rho;
+			v = W.v;
+			B = W.B;
+			P = W.P;
+		}
+]]
+		end,
+	},
+
 	-- http://www.astro.uni-bonn.de/~jmackey/jmac/node7.html
 	-- http://www.astro.princeton.edu/~jstone/Athena/tests/brio-wu/Brio-Wu.html
 	RiemannProblem{
