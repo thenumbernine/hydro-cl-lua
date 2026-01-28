@@ -415,11 +415,11 @@ local args = {
 	--initCond = 'configuration 6',
 
 	-- states for ideal MHD or two-fluid (not two-fluid-separate)
-	initCond = 'MHD linear wave',
+	--initCond = 'MHD linear wave',
 	--initCond = 'Brio-Wu',
 	--initCond = 'Orszag-Tang',
 	--initCond = 'MHD rotor',
-	--initCond = 'spinning magnetic fluid',
+	initCond = 'spinning magnetic fluid',
 	--initCond = 'magnetic fluid',
 	--initCond = '2017 Degris et al',
 	--initCond = 'that one mhd simulation from youtube',
@@ -488,7 +488,7 @@ local args = {
 	--initCond = 'Maxwell default',	-- arbitrary test to make sure it doesn't explode
 	--initCond = 'Maxwell constant',
 	--initCond = 'Maxwell empty waves',
-	--initCond = 'Maxwell scattering around cylinder',
+	initCond = 'Maxwell scattering around cylinder',
 	--initCond = 'Maxwell scattering around pyramid',
 	--initCond = 'Maxwell scattering around square',
 	--initCond = 'Maxwell scattering around Koch snowflake',
@@ -966,7 +966,7 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {
 --		and works fine with backwards Euler
 -- when run alongside HD Roe solver, curves don't match (different heat capacity ratios?)
 --		but that could be because of issues with simultaneous solvers.
-self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='mhd'})))
+--self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='mhd'})))
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='mhd'})))
 
 -- explodes with Orszag-Tang
@@ -992,7 +992,7 @@ self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn
 -- Maxwell
 -- hmm, something is wrong, E waves propagating much faster than B waves, esp compared to glm-maxwell which looks good.
 
---self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='maxwell'})))
+self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='maxwell'})))
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='maxwell'})))
 --self.solvers:insert(require 'hydro.solver.fdsolver'(table(args, {eqn='maxwell'})))
 --self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='maxwell', wenoMethod='1996 Jiang Shu', order=5})))
