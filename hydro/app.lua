@@ -261,7 +261,7 @@ set this to {x,y,z,theta} for angle/axis initialization.
 		desc = "stack graphs initially",
 	},
 	disableFont = {
-		desc = "set to disable loading of the font.png file.  automatically true if sys=console.",
+		desc = "set to disable gui.font rendering.  automatically true if sys=console.",
 	},
 	useClipPlanes = {
 		desc = "default false.  whether to use clip-planes in the 3d-slice shader (and other shaders?)",
@@ -1036,8 +1036,8 @@ function HydroCLApp:initGL(...)
 		end
 
 		if not cmdline.disableFont then
-			local Image = require 'image'
-			local fontimage = Image'font.png'
+			local Font = require 'gui.font'
+			local fontimage = Font:trueTypeToImage'arial.ttf'
 			local GLTex2D = require 'gl.tex2d'
 			local fonttex = GLTex2D{
 				image = fontimage,
@@ -1053,7 +1053,6 @@ function HydroCLApp:initGL(...)
 					:setParameter(gl.GL_TEXTURE_MAG_FILTER, gl.GL_LINEAR)
 			end
 			fonttex:unbind()
-			local Font = require 'gui.font'
 			self.font = Font{
 				image = fontimage,
 				tex = fonttex,
