@@ -1,7 +1,3 @@
-local ffi = require 'ffi'
-local path = require 'ext.path'
-local vec3f = require 'vec-ffi.vec3f'
-local matrix_ffi = require 'matrix.ffi'
 local gl = require 'gl'
 local GLSceneObject = require 'gl.sceneobject'
 local Draw = require 'hydro.draw.draw'

@@ -5,8 +5,8 @@ parent class for some common functions that all draw glsl code uses
 local class = require 'ext.class'
 local table = require 'ext.table'
 local path = require 'ext.path'
+local vec3x3f = require 'vec-ffi.vec3x3f'
 local gl = require 'gl'
-local matrix_ffi = require 'matrix.ffi'
 
 
 local Draw = class()
@@ -43,7 +43,7 @@ function Draw:setupDisplayVarShader(shader, var, valueMin, valueMax)
 		gl.glUniformMatrix4fv(uniforms.mvProjMat.loc, 1, gl.GL_FALSE, app.view.mvProjMat.ptr)
 	end
 	if uniforms.normalMatrix then
-		self.normalMatrix = self.normalMatrix or matrix_ffi.zeros({3,3}, 'float')
+		self.normalMatrix = self.normalMatrix or vec3x3f()
 		--gl.glGetFloatv(gl.GL_NORMAL_MATRIX, self.normalMatrix.ptr)
 		-- invert app.view.mvMat's upper 3x3 into normalMatrix, then transpose
 		-- but if it is purely a rotation matrix, this is the same as just the 3x3 portion ...

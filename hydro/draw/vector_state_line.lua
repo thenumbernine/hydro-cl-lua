@@ -1,8 +1,8 @@
-local gl = require 'gl'
-local vec3f = require 'vec-ffi.vec3f'
 local path = require 'ext.path'
-local matrix_ffi = require 'matrix.ffi'
+local vec3f = require 'vec-ffi.vec3f'
+local vec4x4f = require 'vec-ffi.vec4x4f'
 local vector = require 'ffi.cpp.vector-lua'
+local gl = require 'gl'
 local Draw = require 'hydro.draw.draw'
 
 
@@ -63,14 +63,14 @@ function DrawVectorStateLine:showDisplayVar(var, varName, ar, xmin, xmax, ymin, 
 	-- this is based on the GL state set in hydro.app for 1D graphs
 	-- TODO maybe combine the two, make the hydro.app 1D graph stuff use hydro.view.ortho,
 	-- then this could just use the default 'mvProjMat'
-	self.mvMat = self.mvMat or matrix_ffi(nil, 'float', {4,4})
+	self.mvMat = self.mvMat or vec4x4f()
 	gl.glGetFloatv(gl.GL_MODELVIEW_MATRIX, self.mvMat.ptr)
 
-	self.projMat = self.projMat or matrix_ffi(nil, 'float', {4,4})
+	self.projMat = self.projMat or vec4x4f()
 	gl.glGetFloatv(gl.GL_PROJECTION_MATRIX, self.projMat.ptr)
 
-	self.mvProjMat = self.mvProjMat or matrix_ffi(nil, 'float', {4,4})
-	matrix_ffi.mul(self.mvProjMat, self.projMat, self.mvMat)
+	self.mvProjMat = self.mvProjMat or vec4x4f()
+	self.mvProjMat:mul4x4(self.projMat, self.mvMat)
 
 	gl.glUniformMatrix4fv(uniforms.mvProjMat.loc, 1, gl.GL_FALSE, self.mvProjMat.ptr)
 	--]]

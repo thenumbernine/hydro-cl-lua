@@ -2,6 +2,7 @@ local class = require 'ext.class'
 local gl = require 'gl'
 local vec2d = require 'vec-ffi.vec2d'
 local vec3d = require 'vec-ffi.vec3d'
+local vec4x4f = require 'vec-ffi.vec4x4f'
 local quatd = require 'vec-ffi.quatd'
 
 local OrthoView = class()
@@ -22,10 +23,9 @@ function OrthoView:init(args)
 		end
 	end
 
-	local matrix_ffi = require 'matrix.ffi'
-	self.mvMat = matrix_ffi.zeros({4,4}, 'float')
-	self.projMat = matrix_ffi.zeros({4,4}, 'float')
-	self.mvProjMat = matrix_ffi.zeros({4,4}, 'float')
+	self.mvMat = vec4x4f():setIdent()
+	self.projMat = vec4x4f():setIdent()
+	self.mvProjMat = vec4x4f():setIdent()
 end
 
 -- returns xmin, xmax, ymin, ymax, zmin, zmax
