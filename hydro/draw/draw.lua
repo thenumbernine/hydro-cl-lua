@@ -40,7 +40,7 @@ function Draw:setupDisplayVarShader(shader, var, valueMin, valueMax)
 		gl.glUniform2f(uniforms.displayFixed.loc, app.displayFixedY, app.displayFixedZ)
 	end
 	if uniforms.mvProjMat then
-		gl.glUniformMatrix4fv(uniforms.mvProjMat.loc, 1, gl.GL_FALSE, app.view.mvProjMat.ptr)
+		gl.glUniformMatrix4fv(uniforms.mvProjMat.loc, 1, gl.GL_TRUE, app.view.mvProjMat.ptr)
 	end
 	if uniforms.normalMatrix then
 		self.normalMatrix = self.normalMatrix or vec3x3f()
@@ -53,7 +53,7 @@ function Draw:setupDisplayVarShader(shader, var, valueMin, valueMax)
 				self.normalMatrix.ptr[i + 3 * j] = app.view.mvProjMat.ptr[i + 4 * j]
 			end
 		end
-		gl.glUniformMatrix3fv(uniforms.normalMatrix.loc, 1, gl.GL_FALSE, self.normalMatrix.ptr)
+		gl.glUniformMatrix3fv(uniforms.normalMatrix.loc, 1, gl.GL_TRUE, self.normalMatrix.ptr)
 	end
 	if uniforms.useCoordMap then
 		gl.glUniform1i(uniforms.useCoordMap.loc, app.display_useCoordMap and 1 or 0)
@@ -182,7 +182,7 @@ function Draw:drawGrid(xmin, xmax, ymin, ymax)
 
 	shader:use()
 	sceneObj:enableAndSetAttrs()
-	gl.glUniformMatrix4fv(shader.uniforms.mvProjMat.loc, 1, gl.GL_FALSE, app.view.mvProjMat.ptr)
+	gl.glUniformMatrix4fv(shader.uniforms.mvProjMat.loc, 1, gl.GL_TRUE, app.view.mvProjMat.ptr)
 	gl.glUniform4f(shader.uniforms.color.loc, .1, .1, .1, 1)
 
 	local xrange = xmax - xmin

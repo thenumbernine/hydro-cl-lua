@@ -171,7 +171,7 @@ function Draw1D:showDisplayVar(var)
 	-- then this could just use the default 'mvProjMat'
 
 	local view = app.view
-	gl.glUniformMatrix4fv(uniforms.mvProjMat.loc, 1, gl.GL_FALSE, view.mvProjMat.ptr)
+	gl.glUniformMatrix4fv(uniforms.mvProjMat.loc, 1, gl.GL_TRUE, view.mvProjMat.ptr)
 	--]]
 
 	sceneObj:enableAndSetAttrs()

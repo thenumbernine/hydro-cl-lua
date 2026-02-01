@@ -2184,7 +2184,7 @@ function HydroCLApp:drawGradientLegend(solver, var, varName, ar, valueMin, value
 	local shader = self.drawGradSceneObj.program
 	shader:use()
 	gl.glUniform4f(shader.uniforms.bbox.loc, xmin, ymin, xmin + palwidth, ymax)
-	gl.glUniformMatrix4fv(shader.uniforms.mvProjMat.loc, 1, gl.GL_FALSE, self.view.mvProjMat.ptr)
+	gl.glUniformMatrix4fv(shader.uniforms.mvProjMat.loc, 1, gl.GL_TRUE, self.view.mvProjMat.ptr)
 
 	self.drawGradSceneObj:draw()
 

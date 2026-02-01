@@ -72,7 +72,7 @@ function DrawVectorStateLine:showDisplayVar(var, varName, ar, xmin, xmax, ymin, 
 	self.mvProjMat = self.mvProjMat or vec4x4f()
 	self.mvProjMat:mul4x4(self.projMat, self.mvMat)
 
-	gl.glUniformMatrix4fv(uniforms.mvProjMat.loc, 1, gl.GL_FALSE, self.mvProjMat.ptr)
+	gl.glUniformMatrix4fv(uniforms.mvProjMat.loc, 1, gl.GL_TRUE, self.mvProjMat.ptr)
 	--]]
 
 	-- TODO don't do this at all.  just somehow get around it.  idk, geometry shaders or something.
