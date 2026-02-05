@@ -198,7 +198,7 @@ function MeshSolver:createCellStruct()
 
 	-- here is the mesh-specific face_t fields
 	self.coord.faceStructFields:append{
-		{type='vec2i_t', name='cells'},	--indexes of cells
+		{type='vec2i', name='cells'},	--indexes of cells
 		{type='int', name='vtxOffset'},
 		{type='int', name='vtxCount'},
 		{type='int', name='boundaryMethodIndex'},
@@ -371,8 +371,8 @@ function MeshSolver:initDraw()
 	-- then store per vertex the lookup to the texture.
 	-- Also, if you are going to scale cells, then you must store a unique vertex per cell here.
 	-- this means no dynamic mesh (without more coding).
-	local glvtxs = vector'vec3f_t'			-- vertex position
-	local glvtxcenters = vector'vec3f_t'	-- center of cell for this vertex
+	local glvtxs = vector'vec3f'			-- vertex position
+	local glvtxcenters = vector'vec3f'	-- center of cell for this vertex
 	local glcellindex = vector'float'		-- 0-based index of cell for this vertex
 	timer('creating display mesh', function()
 		local function addTri(va,vb,vc, ci,c)

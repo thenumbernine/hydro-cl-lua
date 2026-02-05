@@ -43,7 +43,7 @@ local function allocateTypes(solver)
 			{type='real', name='area'},		--edge length / surface area
 			{type='real', name='cellDist'},	--dist between cell centers along 'normal'
 			-- meshsolver-specific:
-			{type='vec2i_t', name='cells'},	--indexes of cells
+			{type='vec2i', name='cells'},	--indexes of cells
 			{type='int', name='vtxOffset'},
 			{type='int', name='vtxCount'},
 			{type='int', name='boundaryMethodIndex'},	-- 1-based boundary class.  0 == not a boundary.
