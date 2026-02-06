@@ -1,6 +1,5 @@
 local path = require 'ext.path'
 local gl = require 'gl'
-local glreport = require 'gl.report'
 local Draw = require 'hydro.draw.draw'
 
 -- TODO real raytracing:
@@ -113,7 +112,6 @@ function Draw3DRay:display(varName, ar, xmin, xmax, ymin, ymax, useLog)
 		self:prepareShader()
 		self:showDisplayVar(var, ar)
 	end
-glreport'here'
 end
 
 -- TODO this in common with 3d_iso.lua.  subclass?

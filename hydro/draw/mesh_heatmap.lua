@@ -1,6 +1,5 @@
 local path = require 'ext.path'
 local gl = require 'gl'
-local glreport = require 'gl.report'
 local GLVertexArray = require 'gl.vertexarray'
 local Draw = require 'hydro.draw.draw'
 
@@ -224,7 +223,6 @@ function DrawMeshHeatmap:display(varName, ar)
 
 	-- from here on it's showDisplayVar
 	self:showDisplayVar(var, varName, ar)
-	glreport'here'
 end
 
 function DrawMeshHeatmap:prepareShader()
