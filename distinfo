@@ -286,6 +286,7 @@ deps = {
 	"plot2d",
 	"sdl",
 	"solver",
+	"stl",
 	"struct",
 	"symmath",
 	"template",

@@ -1,7 +1,7 @@
 local vec3sz = require 'vec-ffi.vec3sz'
 local vec3i = require 'vec-ffi.vec3i'
 local vec3d = require 'vec-ffi.vec3d'
-local vector = require 'ffi.cpp.vector'
+local vector = require 'stl.vector'
 local Mesh = require 'hydro.mesh.mesh'
 local MeshFactory = require 'hydro.mesh.factory'
 

@@ -1,7 +1,7 @@
 local table = require 'ext.table'
 local string = require 'ext.string'
 local path = require 'ext.path'
-local vector = require 'ffi.cpp.vector-lua'
+local vector = require 'stl.vector-lua'
 local Mesh = require 'hydro.mesh.mesh'
 local MeshFactory = require 'hydro.mesh.factory'
 

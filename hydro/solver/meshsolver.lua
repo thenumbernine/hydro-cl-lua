@@ -18,7 +18,7 @@ local clnumber = require 'cl.obj.number'
 local SolverBase = require 'hydro.solver.solverbase'
 local timer = require 'ext.timer'.timer
 local real = require 'hydro.real'
-local vector = require 'ffi.cpp.vector-lua'
+local vector = require 'stl.vector-lua'
 
 local half = require 'cl.obj.half'
 local toreal, fromreal = half.toreal, half.fromreal

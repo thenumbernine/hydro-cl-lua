@@ -1,7 +1,7 @@
 local path = require 'ext.path'
 local vec3f = require 'vec-ffi.vec3f'
 local vec4x4f = require 'vec-ffi.vec4x4f'
-local vector = require 'ffi.cpp.vector-lua'
+local vector = require 'stl.vector-lua'
 local gl = require 'gl'
 local Draw = require 'hydro.draw.draw'
 
