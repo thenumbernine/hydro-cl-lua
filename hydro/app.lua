@@ -1504,7 +1504,8 @@ function HydroCLApp:saveHeatMapBufferImages()
 		})
 		--]]
 		-- [[
-		tex:toCPU(ssimg.buffer)
+		tex:bind()
+			:getImage(ssimg.buffer)
 		--]]
 
 		-- reverse rows ...
