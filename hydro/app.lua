@@ -521,11 +521,9 @@ local targetSystem = cmdline.sys or 'imguiapp'
 -- -- that will probalby mean lots of pcalls around requires
 local gl
 local sdl
-local Mouse
 if targetSystem ~= 'console' then
 	gl = require 'gl.setup' (cmdline.gl or 'OpenGL')
 	sdl = require 'sdl'
-	Mouse = require 'glapp.mouse'
 end
 
 -- TODO here if we have glapp and imguiapp present
@@ -541,14 +539,14 @@ local ig
 local baseSystems = {
 	{imguiapp = function()
 		ig = require 'imgui'
-		return require 'imgui.app'
+		return require 'sdl.mouse'.apply(require 'imgui.app')
 	end},
 	{glapp = function()
 
 		package.loaded['imgui'] = {disabled=true}
 		ig = require 'imgui'
 
-		return require 'glapp'
+		return require 'sdl.mouse'.apply(require 'glapp')
 	end},
 	{console = function()
 
@@ -1528,10 +1526,8 @@ function HydroCLApp:saveHeatMapBufferImages()
 	self.font = pushFont
 end
 
-local mouse = Mouse and Mouse() or nil
 
 local function canHandleMouse()
-	if not mouse then return false end
 	if rawget(ig, 'disabled') then return true end
 	return not ig.igGetIO()[0].WantCaptureMouse
 end
@@ -1579,9 +1575,6 @@ function HydroCLApp:update(...)
 		startTime = getTime()
 	end
 
-	if canHandleMouse() then
-		mouse:update()
-	end
 	if self.running then
 		if self.running == 'step' then
 			print('performing single step...')
@@ -1915,6 +1908,7 @@ end
 		local mouseOverThisGraph
 		local mouseInGraphX
 		local mouseInGraphY
+		local mouse = self.mouse
 		if self.displayAllTogether then
 			mouseOverThisGraph = true
 			mouseInGraphX = mouse.pos.x
@@ -1925,16 +1919,18 @@ end
 			local vpw = w / graphsWide
 			local vph = h / graphsHigh
 			gl.glViewport(vpxmin, vpymin, vpw, vph)
-			local mx = mouse.pos.x * self.width
-			local my = mouse.pos.y * self.height
-			if mx >= vpxmin and mx < vpxmin + vpw
-			and my >= vpymin and my < vpymin + vph
-			then
-				mouseOverThisGraph = true
-				mouseInGraphX = (mx - vpxmin) / vpw
-				mouseInGraphY = (my - vpymin) / vph
-				if mouse.leftClick then
-					mouseClickedOnVar = varName
+			if mouse then
+				local mx = mouse.pos.x * self.width
+				local my = mouse.pos.y * self.height
+				if mx >= vpxmin and mx < vpxmin + vpw
+				and my >= vpymin and my < vpymin + vph
+				then
+					mouseOverThisGraph = true
+					mouseInGraphX = (mx - vpxmin) / vpw
+					mouseInGraphY = (my - vpymin) / vph
+					if mouse.leftClick then
+						mouseClickedOnVar = varName
+					end
 				end
 			end
 		end
@@ -2484,13 +2480,17 @@ end
 local leftShiftDown, rightShiftDown
 local leftGuiDown, rightGuiDown
 function HydroCLApp:event(event)
+	local mouse = self.mouse
+	if mouse then
+		mouse.cantHandleEvent = not canHandleMouse()
+	end
 	if HydroCLApp.super.event then
 		HydroCLApp.super.event(self, event)
 	end
 	local shiftDown = leftShiftDown or rightShiftDown
 	local guiDown = leftGuiDown or rightGuiDown
 	if event[0].type == sdl.SDL_EVENT_MOUSE_MOTION then
-		if canHandleMouse() then
+		if mouse and canHandleMouse() then
 			local dx = event[0].motion.xrel
 			local dy = event[0].motion.yrel
 			if dx ~= 0 or dy ~= 0 then
