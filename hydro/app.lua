@@ -546,7 +546,7 @@ local baseSystems = {
 		package.loaded['imgui'] = {disabled=true}
 		ig = require 'imgui'
 
-		return require 'sdl.mouse'.apply(require 'glapp')
+		return require 'sdl.mouse'.apply(require 'gl.app')
 	end},
 	{console = function()
 
