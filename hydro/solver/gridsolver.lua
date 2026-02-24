@@ -69,7 +69,7 @@ assert(not self.solverStruct)
 		{name='grid_dx', type='real3'},
 		{name='gridSize', type='int4'},
 		{name='stepsize', type='int4'},
-		{name='numGhost', type='int'},
+		{name='numGhost', type='int'},	-- TODO make this an int3 that is zero for the non-dimensions, so we don't offset OOB
 	}
 
 	self.mins = vec3d(unpack(args.mins or {-1, -1, -1}))

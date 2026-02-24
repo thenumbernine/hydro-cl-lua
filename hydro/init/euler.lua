@@ -678,6 +678,66 @@ local initConds = table{
 		end,
 	},
 
+	-- I'm making this for hydro.eqn.wave
+	{
+		name = 'wave moving potential',
+		getInitCondCode = function(self)
+			local solver = self.solver
+			solver:setBoundaryMethods'freeflow'
+
+			local writePtr = ffi.new('real[1]', 1)
+			local oldConstrainU = solver.constrainU
+			solver.constrainU = function(self, ...)
+				-- move the point charge each frame
+
+				local f = 10
+				local r = .5
+				local t = self.t
+				local x = r * math.cos(t * f)
+				local y = r * math.sin(t * f)
+
+				local xf = (x - self.mins.x) / (self.maxs.x - self.mins.x)
+				local yf = (y - self.mins.y) / (self.maxs.y - self.mins.y)
+				local i = (self.numGhost + math.floor(
+						xf * tonumber(self.sizeWithoutBorder.x)
+					))
+				local j =
+					self.dim == 1
+					and 0
+					or (self.numGhost + math.floor(
+						yf * tonumber(self.sizeWithoutBorder.y)
+					))
+				local k =
+					self.dim == 3
+					and (self.numGhost + bit.rshift(self.sizeWithoutBorder.z, 1))
+					or 0
+
+				-- write just this cell
+				-- TODO if this is grav potential then update self-grav ...
+				local offset = ffi.offsetof(self.eqn.symbols.cons_t, 'Pi')
+					+ ffi.sizeof(self.eqn.symbols.cons_t) * (
+						i + self.solverPtr.gridSize.x * (
+							j + self.solverPtr.gridSize.y * k
+						)
+					)
+
+				self.cmds:enqueueWriteBuffer{
+					buffer = self.UBuf,
+					offset = offset,
+					size = ffi.sizeof'real',
+					ptr = writePtr,
+					block = true,
+				}
+
+				return oldConstrainU(self, ...)
+			end
+
+			return solver.eqn:template[[
+	rho = .01;
+]]
+		end,
+	},
+
 	-- test case vars
 	RiemannProblem{
 		name = 'Sod',
@@ -851,7 +911,7 @@ end
 
 			<?=eigen_t?> eig;
 			<?=eigen_forCell?>(&eig, solver, &U, x, n);
-	
+
 			<?=waves_t?> waves;
 			<?=eigen_leftTransform?>(&waves, solver, &eig, &dUL, xIntL, normal_forSide<?=side?>(xIntL));
 
