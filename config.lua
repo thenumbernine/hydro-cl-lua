@@ -290,7 +290,7 @@ local args = {
 
 	--initCond = 'random',
 	--initCond = 'linear',
-	initCond = 'wave moving potential',
+	--initCond = 'wave moving potential',
 	--initCond = 'advect wave',
 	--initCond = 'advect gaussian',	-- TODO fix the default case
 	--[[ 1D test case
@@ -385,7 +385,7 @@ local args = {
 	--]]
 
 
-	--initCond = 'rectangle',
+	initCond = 'rectangle',
 	--initCond = 'Sedov',
 	--initCond = 'Noh',
 	--initCond = 'implosion',
@@ -715,7 +715,7 @@ self.solvers:insert(require 'hydro.solver.lattice-boltzmann'(table(args, {
 -- simple wave equation, no time/space coupling via background metric
 
 
-self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='wave'})))
+--self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='wave'})))
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='hll', eqn='wave'})))
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='rusanov', eqn='wave'})))
 --self.solvers:insert(require 'hydro.solver.weno'(table(args, {eqn='wave', wenoMethod='1996 Jiang Shu', order=5})))
@@ -804,7 +804,7 @@ self.solvers:insert(require 'hydro.solver.weno'(table(args, {
 -- compressible Euler equations
 
 
---self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
+self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='roe', eqn='euler'})))
 
 --self.solvers:insert(require 'hydro.solver.fvsolver'(table(args, {flux='marquina', eqn='euler'})))
 
