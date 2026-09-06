@@ -5,7 +5,7 @@ local imgs =
 table.wrapfor(os.listdir'.'):mapi(function(x)
 	return x[1]
 end)	-- filenames
-:filter(function(fn)
+:filteri(function(fn)
 	return fn:match'%.fits$'
 end)	-- fits filenames
 :sort(function(a,b)

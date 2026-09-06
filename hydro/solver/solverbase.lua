@@ -2672,7 +2672,7 @@ function SolverBase:addDisplayVars()
 		vars = {{name='0', code='value.vreal = buf[index];'}},
 	}
 
-	local cellStructVars = self.coord.cellStruct.fields:filter(function(var)
+	local cellStructVars = self.coord.cellStruct.fields:filteri(function(var)
 		return var.type ~= 'int'
 	end)
 	for _,var in ipairs(cellStructVars) do
